@@ -38,20 +38,20 @@ UploadReplicaTransferer::initialize( )
 {
     reinitialize( );
 
-    socket = new ReliSock( );
+    m_socket = new ReliSock( );
 
 	// enable timeouts
-    //socket->set_timeout_multiplier( 1 );
-    socket->timeout( INT_MAX ); // connectionTimeout );
-    // no retries after 'connectionTimeout' seconds of unsuccessful connection
-    socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
+    //m_socket->set_timeout_multiplier( 1 );
+    m_socket->timeout( INT_MAX ); // m_connectionTimeout );
+    // no retries after 'm_connectionTimeout' seconds of unsuccessful connection
+    m_socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
 
-    if( ! socket->connect( const_cast<char*>( daemonSinfulString.GetCStr( ) ), 
+    if( ! m_socket->connect( const_cast<char*>( m_daemonSinfulString.GetCStr( ) ), 
 						   0, 
 						   false ) ) {
         dprintf( D_ALWAYS, 
 				"UploadReplicaTransferer::initialize cannot connect to %s\n",
-                 daemonSinfulString.GetCStr( ) );
+                 m_daemonSinfulString.GetCStr( ) );
         return TRANSFERER_FALSE;
     }
     // send accounting information and version files
@@ -72,20 +72,20 @@ UploadReplicaTransferer::upload( )
 // 	dprintf( D_FULLDEBUG, "UploadReplicaTransferer::upload stalling "
 //                       	  "uploading process\n" );
 //	sleep(300);
-//	int bytesTotal = getFileSize( stateFilePath );
+//	int bytesTotal = getFileSize( m_stateFilePath );
 	// setting the timeout depending on the file size and aknowledging the 
 	// receiving side about that in order to copy the file to the temporary one
 	// and not to get the socket closed at the end of copy operation
 //	int newTimeout = std::max( int( bytesTotal * TRANSFER_SAFETY_COEFFICIENT / 
 //												 DISK_WRITE_RATIO + 0.5 ),
 //                               10 );
-//	int oldTimeout = socket->timeout( newTimeout );
+//	int oldTimeout = m_socket->timeout( newTimeout );
 //	dprintf( D_ALWAYS, "UploadReplicaTransferer::upload set new timeout %d, "
 //					   "old timeout %d, file size %d\n",
 //			 newTimeout, oldTimeout, bytesTotal );
-//	socket->encode( );
-//	if( ! socket->code( bytesTotal ) || 
-//		! socket->eom( ) ) {
+//	m_socket->encode( );
+//	if( ! m_socket->code( bytesTotal ) || 
+//		! m_socket->eom( ) ) {
 //		 dprintf( D_ALWAYS, "UploadReplicaTransferer::upload unable to send "
 //							"the state file size (%d) or to code the end of "
 //							"message\n", bytesTotal );
@@ -98,8 +98,8 @@ UploadReplicaTransferer::upload( )
     extension += UPLOADING_TEMPORARY_FILES_EXTENSION;
 
 	char* temporaryVersionFilePath =
-			const_cast<char*>(versionFilePath.GetCStr());
-	char* temporaryStateFilePath   = const_cast<char*>(stateFilePath.GetCStr());
+			const_cast<char*>(m_versionFilePath.GetCStr());
+	char* temporaryStateFilePath   = const_cast<char*>(m_stateFilePath.GetCStr());
 	char* temporaryExtension       = const_cast<char*>(extension.GetCStr());
 
     if( ! FilesOperations::safeCopyFile( temporaryVersionFilePath,
@@ -120,7 +120,7 @@ UploadReplicaTransferer::upload( )
         return TRANSFERER_FALSE;
     }
     // upload version file
-    if( uploadFile( versionFilePath, extension ) == TRANSFERER_FALSE){
+    if( uploadFile( m_versionFilePath, extension ) == TRANSFERER_FALSE){
 		dprintf( D_ALWAYS, "UploadReplicaTransferer::upload unable to upload "
 						   "version file %s\n", temporaryVersionFilePath );
 		FilesOperations::safeUnlinkFile( temporaryStateFilePath, 
@@ -132,7 +132,7 @@ UploadReplicaTransferer::upload( )
     // that the files were uploaded successfully
 	FilesOperations::safeUnlinkFile( temporaryVersionFilePath, 
 									 temporaryExtension );
-    if( uploadFile( stateFilePath, extension ) == TRANSFERER_FALSE ){
+    if( uploadFile( m_stateFilePath, extension ) == TRANSFERER_FALSE ){
 		return TRANSFERER_FALSE;
 	}
 	FilesOperations::safeUnlinkFile( temporaryStateFilePath,
@@ -154,7 +154,7 @@ UploadReplicaTransferer::uploadFile( MyString& filePath, MyString& extension )
     dprintf( D_ALWAYS, "UploadReplicaTransferer::uploadFile %s.%s started\n", 
 			 filePath.GetCStr( ), extension.GetCStr( ) );
     // sending the temporary file through the opened socket
-	if( ! utilSafePutFile( *socket, filePath + "." + extension ) ){
+	if( ! utilSafePutFile( *m_socket, filePath + "." + extension ) ){
 		dprintf( D_ALWAYS, "UploadReplicaTransferer::uploadFile failed, "
                 "unlinking %s.%s\n", filePath.GetCStr(), extension.GetCStr());
 		FilesOperations::safeUnlinkFile( filePath.GetCStr( ), 

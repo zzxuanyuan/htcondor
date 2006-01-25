@@ -27,15 +27,18 @@ public:
 	 */
     void initialize( const MyString& pStateFilePath, 
 					 const MyString& pVersionFilePath );
-	/* Function   : synchronize
-     * Arguments  : isLogicalClockIncremented - whether to increment the logical
-	 *				clock or not
-	 * Description: synchronizes local state file version according to the OS
-	 *				state file; if it has been updated and the last modification
-	 *				time of it is later than the recorded one, then the Version
-	 *				object is updated, i.e. the OS file is opened, its fields
-	 *				are loaded into the data members and its last modification
-	 *				time is assigned to 'lastModifiedTime'
+	/* Function    : synchronize
+     * Arguments   : isLogicalClockIncremented - whether to increment the 
+	 *				 logical clock or not
+	 * Return value: true - if the state file was modified since the last known
+	 *				 modification time and 'isLogicalClockIncremented' is true;
+	 *				 false - otherwise
+	 * Description : synchronizes local state file version according to the OS
+	 *				 state file; if it has been updated and the last 
+	 *				 modification time of it is later than the recorded one, 
+	 *				 then the Version object is updated, i.e. the OS file is 
+	 *				 opened, its fields are loaded into the data members and its
+	 *				 last modification time is assigned to 'm_lastModifiedTime'
      */
     bool synchronize(bool isLogicalClockIncremented = true);
 	/* Function   : code
@@ -54,13 +57,13 @@ public:
      * Return value: int - gid
      * Description : returns gid
      */
-    int         getGid()          const { return gid; };
+    int         getGid()          const { return m_gid; };
     /* Function    : getLogicalClock
      * Return value: int - logical clock
      * Description : returns logical clock
      */
-	int         getLogicalClock() const { return logicalClock; };
-    MyString    getSinfulString() const { return sinfulString; };
+	int         getLogicalClock() const { return m_logicalClock; };
+    MyString    getSinfulString() const { return m_sinfulString; };
 	/* Function    : getHostName
 	 * Return value: MyString - this replication daemon host name
 	 * Description : returns this replication daemon host name
@@ -115,19 +118,19 @@ public:
      * Description: sets the state of the replication daemon to send to the
 	 *				newly joined machine
      */
-    void setState(const ReplicatorState& newState) { state = newState; };
+    void setState(const ReplicatorState& newState) { m_state = newState; };
 	/* Function   : setState
      * Arguments  : version - the version, the state of which is assigned to
      *                        the current version's one
      * Description: sets the state of the replication daemon to send to the
      *              newly joined machine as the specified version's one
      */
-    void setState(const Version& version) { state = version.getState(); };
+    void setState(const Version& version) { m_state = version.getState(); };
 	/* Function   : setGid
      * Arguments  : newGid - new gid of the version
      * Description: sets the gid of the version
      */
-	void setGid(int newGid) { gid = newGid; save( ); };
+	void setGid(int newGid) { m_gid = newGid; save( ); };
 // End of mutators
 // Convertors
 	/* Function    : toString
@@ -142,21 +145,24 @@ private:
      * Return value: ReplicatorState - this replication daemon current state
      * Description : returns this replication daemon current state
      */   
-    const ReplicatorState& getState() const { return state; };
+    const ReplicatorState& getState() const { return m_state; };
     bool load( );
     void save( );
 	// static data members
-    static time_t         lastModifiedTime;
+    static time_t         m_lastModifiedTime;
    
 	// configuration variables
-	MyString			  stateFilePath;
-	MyString			  versionFilePath;
+	MyString			  m_stateFilePath;
+	MyString			  m_versionFilePath;
  
 	// components of the version
-    int                   gid;
-    int                   logicalClock;
-    MyString              sinfulString;
-    ReplicatorState       state;
+    int                   m_gid;
+    int                   m_logicalClock;
+    MyString              m_sinfulString;
+	ReplicatorState       m_state;
+	// added support for conservative policy of accepting updates from primary
+	// HAD machines only
+	bool				  m_isPrimary;
 };
 //bool operator == (const Version& , const Version& );
 

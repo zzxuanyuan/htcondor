@@ -11,7 +11,7 @@
 #include "Version.h"
 #include "FilesOperations.h"
 
-time_t Version::lastModifiedTime = -1;
+time_t Version::m_lastModifiedTime = -1;
 
 static void
 createFile(const MyString& filePath)
@@ -24,7 +24,8 @@ createFile(const MyString& filePath)
 }
 
 Version::Version():
-    gid( 0 ), logicalClock( 0 ), state( VERSION_REQUESTING )
+    m_gid( 0 ), m_logicalClock( 0 ), m_state( VERSION_REQUESTING ),
+	m_isPrimary( false )
 {
 }
 
@@ -34,16 +35,16 @@ Version::initialize( const MyString& pStateFilePath,
 {
 	REPLICATION_ASSERT(pStateFilePath != "" && pVersionFilePath != "");
 	
-    lastModifiedTime = -1; 
-	stateFilePath    = pStateFilePath;
-	versionFilePath  = pVersionFilePath;
+    m_lastModifiedTime = -1; 
+	m_stateFilePath    = pStateFilePath;
+	m_versionFilePath  = pVersionFilePath;
     
     if( ! load( ) ) {
         save( );
     }
     synchronize( false );
 
-    sinfulString = daemonCore->InfoCommandSinfulString( );
+    m_sinfulString = daemonCore->InfoCommandSinfulString( );
 //char* sinfulStringString = 0;
 //    get_full_hostname( hostNameString );
 //    hostName = hostNameString;
@@ -53,14 +54,14 @@ Version::initialize( const MyString& pStateFilePath,
 bool
 Version::synchronize(bool isLogicalClockIncremented)
 {
-	REPLICATION_ASSERT(stateFilePath != "" && versionFilePath != "");
+	REPLICATION_ASSERT(m_stateFilePath != "" && m_versionFilePath != "");
     dprintf( D_ALWAYS, "Version::synchronize started "
 			"(is logical clock incremented = %d)\n",
              int( isLogicalClockIncremented ) );
     load( );        
-    createFile( stateFilePath );
+    createFile( m_stateFilePath );
 
-    StatWrapper statWrapper( stateFilePath.GetCStr( ) );
+    StatWrapper statWrapper( m_stateFilePath.GetCStr( ) );
     
 	const StatStructType* status      = statWrapper.GetStatBuf( );
     time_t                currentTime = time( NULL );
@@ -73,21 +74,21 @@ Version::synchronize(bool isLogicalClockIncremented)
                     "before setting last mod. time:\n"
                     "last known mod. time - %sactual mod. time - %s"
                     "current time - %s",
-               stateFilePath.GetCStr( ),
-               ctime_r( &lastModifiedTime, timeBuffer ),
+               m_stateFilePath.GetCStr( ),
+               ctime_r( &m_lastModifiedTime, timeBuffer ),
                ctime_r( &status->st_mtime, timeBuffer + BUFSIZ / 3 ),
                ctime_r( &currentTime, timeBuffer + 2 * BUFSIZ / 3 ) );
     // updating the version: by modification time of the underlying file
     // and incrementing the logical version number
-    if( lastModifiedTime >= status->st_mtime ) {
+    if( m_lastModifiedTime >= status->st_mtime ) {
         return false;
     }
     dprintf( D_FULLDEBUG, "Version::synchronize "
                           "setting version last modified time\n" );
-    lastModifiedTime = status->st_mtime;
+    m_lastModifiedTime = status->st_mtime;
     
     if( isLogicalClockIncremented ) {
-        logicalClock ++;
+        m_logicalClock ++;
         save( );
 
         return true;
@@ -102,11 +103,12 @@ Version::code( ReliSock& socket )
     dprintf( D_ALWAYS, "Version::code started\n" );
     socket.encode( );
 
-    char* temporarySinfulString = const_cast<char*>( sinfulString.GetCStr( ) );
+    char* temporarySinfulString = const_cast<char*>( m_sinfulString.GetCStr() );
     
-    if( ! socket.code( gid )          /*|| ! socket.eom( )*/ ||
-        ! socket.code( logicalClock ) /*|| ! socket.eom( )*/ ||
-        ! socket.code( temporarySinfulString ) /*|| ! socket.eom( )*/ ) {
+    if( ! socket.code( m_gid )          /*|| ! socket.eom( )*/ ||
+        ! socket.code( m_logicalClock ) /*|| ! socket.eom( )*/ ||
+        ! socket.code( temporarySinfulString ) /*|| ! socket.eom( )*/ || 
+		! socket.code( int( m_isPrimary ) ) ) {
         dprintf( D_NETWORK, "Version::code "
                             "unable to code the version\n");
         return false;
@@ -122,6 +124,7 @@ Version::decode( Stream* stream )
     int   temporaryGid          = -1;
     int   temporaryLogicalClock = -1;
     char* temporarySinfulString = 0;
+	int  temporaryIsPrimary     = 0;
 
     stream->decode( );
 
@@ -144,9 +147,18 @@ Version::decode( Stream* stream )
                             "unable to decode the sinful string\n" );
         return false;
     }
-    gid          = temporaryGid;
-    logicalClock = temporaryLogicalClock;
-    sinfulString = temporarySinfulString;
+	stream->decode( );
+
+	if( ! stream->code( temporaryIsPrimary ) ) {
+        dprintf( D_NETWORK, "Version::decode "
+                            "unable to decode the 'isPrimary' field\n" );
+        return false;
+    }
+
+    m_gid          = temporaryGid;
+    m_logicalClock = temporaryLogicalClock;
+    m_sinfulString = temporarySinfulString;
+	m_isPrimary    = bool( temporaryIsPrimary );
     dprintf( D_FULLDEBUG, "Version::decode remote version %s\n", 
 			 toString( ).GetCStr( ) );
     free( temporarySinfulString );
@@ -157,7 +169,7 @@ Version::decode( Stream* stream )
 MyString
 Version::getHostName( ) const
 {
-    char*     hostNameString = getHostFromAddr( sinfulString.GetCStr( ) );
+    char*     hostNameString = getHostFromAddr( m_sinfulString.GetCStr( ) );
     MyString  hostName       = hostNameString;
 
     free( hostNameString );
@@ -202,11 +214,11 @@ Version::toString( ) const
 {
     MyString versionAsString = "logicalClock = ";
 
-    versionAsString += logicalClock;
+    versionAsString += m_logicalClock;
     versionAsString += ", gid = ";
-    versionAsString += gid;
+    versionAsString += m_gid;
     versionAsString += ", belongs to ";
-    versionAsString += sinfulString;
+    versionAsString += m_sinfulString;
     
     return versionAsString;
 }
@@ -214,27 +226,27 @@ Version::toString( ) const
  * Return value: bool - success/failure value
  * Description : loads Version components from the underlying OS file
  *				 to the appropriate object data members
- * Note        : the function is like public 'load' with one only difference - it changes the
- *				 state of the object itself
+ * Note        : the function is like public 'load' with one only difference - 
+ *				 it changes the state of the object itself
  */
 bool
 Version::load( )
 {
     dprintf( D_ALWAYS, "Version::load of %s started\n", 
-			 versionFilePath.GetCStr( ) );
+			 m_versionFilePath.GetCStr( ) );
 //    char     buffer[BUFSIZ];
-//    ifstream versionFile( versionFilePath.GetCStr( ) );
+//    ifstream versionFile( m_versionFilePath.GetCStr( ) );
 //
 //    if( ! versionFile.is_open( ) ) {
 //        dprintf( D_FAILURE, "Version::load unable to open %s\n",
-//                 versionFilePath.GetCStr( ) );
+//                 m_versionFilePath.GetCStr( ) );
 //        return false;
 //    }
     // read gid
 //    if( versionFile.eof( ) ) {
 //        dprintf( D_FAILURE, "Version::load %s format is corrupted, "
 //                            "nothing appears inside it\n", 
-//				 versionFilePath.GetCStr( ) );
+//				 m_versionFilePath.GetCStr( ) );
 //        return false;
 //    }
 //    versionFile.getline( buffer, BUFSIZ );
@@ -246,7 +258,7 @@ Version::load( )
 //    if( versionFile.eof( ) ) {
 //        dprintf( D_FAILURE, "Version::load %s format is corrupted, "
 //                			"only gid appears inside it\n", 
-//				 versionFilePath.GetCStr( ) );
+//				 m_versionFilePath.GetCStr( ) );
 //        return false;
 //    }
 //
@@ -261,8 +273,8 @@ Version::load( )
 		return false;
 	}
 	
-	gid          = temporaryGid;
-    logicalClock = temporaryLogicalClock;
+	m_gid          = temporaryGid;
+    m_logicalClock = temporaryLogicalClock;
 
     return true;
 }
@@ -271,18 +283,18 @@ bool
 Version::load( int& temporaryGid, int& temporaryLogicalClock ) const
 {
     char     buffer[BUFSIZ];
-    ifstream versionFile( versionFilePath.GetCStr( ) );
+    ifstream versionFile( m_versionFilePath.GetCStr( ) );
 
     if( ! versionFile.is_open( ) ) {
         dprintf( D_FAILURE, "Version::load unable to open %s\n",
-                 versionFilePath.GetCStr( ) );
+                 m_versionFilePath.GetCStr( ) );
         return false;
     }
     // read gid
     if( versionFile.eof( ) ) {
         dprintf( D_FAILURE, "Version::load %s format is corrupted, "
                             "nothing appears inside it\n",
-                 versionFilePath.GetCStr( ) );
+                 m_versionFilePath.GetCStr( ) );
         return false;
     }
     versionFile.getline( buffer, BUFSIZ );
@@ -294,7 +306,7 @@ Version::load( int& temporaryGid, int& temporaryLogicalClock ) const
     if( versionFile.eof( ) ) {
         dprintf( D_FAILURE, "Version::load %s format is corrupted, "
                             "only gid appears inside it\n",
-                 versionFilePath.GetCStr( ) );
+                 m_versionFilePath.GetCStr( ) );
         return false;
     }
     versionFile.getline( buffer, BUFSIZ );
@@ -314,18 +326,18 @@ Version::save( )
 {
     dprintf( D_ALWAYS, "Version::save started\n" );
 
-    ofstream versionFile( versionFilePath.GetCStr( ) );
+    ofstream versionFile( m_versionFilePath.GetCStr( ) );
 
-    versionFile << gid << endl << logicalClock;
+    versionFile << m_gid << endl << m_logicalClock;
     //versionFile.close( );
     // finding the new last modification time
-//    StatWrapper statWrapper( stateFilePath.GetCStr( ) );
+//    StatWrapper statWrapper( m_stateFilePath.GetCStr( ) );
 //
 //    if ( statWrapper.GetStatus( ) ) {
 //        EXCEPT("Version::synchronize cannot get %s status "
 //               "due to errno = %d", 
-//               versionFilePath.GetCStr( ), 
+//               m_versionFilePath.GetCStr( ), 
 //				 statWrapper.GetErrno());
 //    }
-//    lastModifiedTime = statWrapper.GetStatBuf( )->st_mtime;
+//    m_lastModifiedTime = statWrapper.GetStatBuf( )->st_mtime;
 }

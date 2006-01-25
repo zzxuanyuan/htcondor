@@ -5,6 +5,7 @@
 #include "MyString.h"
 
 #define DEFAULT_SEND_COMMAND_TIMEOUT                             (5)
+#define DEFAULT_MAX_TRANSFER_LIFETIME                           (300)
 #define IO_RETRY_TIMES                                           (3)
 
 //#define MAX_FILE_SIZE                                      (1000000)

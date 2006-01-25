@@ -126,22 +126,22 @@ private:
 	 * Description: returns number of running downloading 'condor_transferers'
 	 */
     int  downloadTransferersNumber() const { 
-		return int( downloadTransfererMetadata.pid != -1 ); 
+		return int( m_downloadTransfererMetadata.m_pid != -1 ); 
 	};
 
 // Configuration parameters
-    int      replicationInterval;
-    int      hadAliveTolerance;
-    int      maxTransfererLifeTime;
-    int      newlyJoinedWaitingVersionInterval;
+    int      m_replicationInterval;
+    int      m_hadAliveTolerance;
+    int      m_maxTransfererLifeTime;
+    int      m_newlyJoinedWaitingVersionInterval;
 // End of configuration parameters
 // Timers
-    int     versionRequestingTimerId;
-    int     versionDownloadingTimerId;
-    int     replicationTimerId;
+    int     m_versionRequestingTimerId;
+    int     m_versionDownloadingTimerId;
+    int     m_replicationTimerId;
 // End of timers
 	// last time HAD sent HAD_IN_LEADER_STATE
-    time_t  lastHadAliveTime;
+    time_t  m_lastHadAliveTime;
 
 // Debugging utilities
 	void printDataMembers()
@@ -155,20 +155,20 @@ private:
                            "Version downloading timer id          - %d\n"
 						   "Replication timer id                  - %d\n"
                            "Last HAD alive time                   - %ld\n",
-                 replicationInterval, hadAliveTolerance, maxTransfererLifeTime,
-				 newlyJoinedWaitingVersionInterval, versionRequestingTimerId,
-				 versionDownloadingTimerId, replicationTimerId, 
-				 lastHadAliveTime );
+                 m_replicationInterval, m_hadAliveTolerance, 
+				 m_maxTransfererLifeTime, m_newlyJoinedWaitingVersionInterval, 
+				 m_versionRequestingTimerId, m_versionDownloadingTimerId, 
+				 m_replicationTimerId, m_lastHadAliveTime );
     };
 
 	void checkVersionSynchronization()
 	{
 		int temporaryGid = -1, temporaryLogicalClock = -1;
         
-        myVersion.load( temporaryGid, temporaryLogicalClock);
+        m_myVersion.load( temporaryGid, temporaryLogicalClock);
         REPLICATION_ASSERT(
-            temporaryGid == myVersion.getGid( ) && 
-			temporaryLogicalClock == myVersion.getLogicalClock( ));        
+            temporaryGid == m_myVersion.getGid( ) && 
+			temporaryLogicalClock == m_myVersion.getLogicalClock( ));        
 	};
 // End of debugging utilities
 };

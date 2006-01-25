@@ -229,8 +229,8 @@ protected:
 		 */
 		void set(int pPid = -1, time_t pLastTimeCreated = -1)
 		{
-			pid             = pPid;
-			lastTimeCreated = pLastTimeCreated;
+			m_pid             = pPid;
+			m_lastTimeCreated = pLastTimeCreated;
 		};		
 		/* Function    : isValid
          * Return value: checks whether the structure values belong to a valid
@@ -240,33 +240,33 @@ protected:
          */
 		bool isValid()
 		{
-			return pid != -1 && lastTimeCreated != -1;
+			return m_pid != -1 && m_lastTimeCreated != -1;
 		};
 
-		int    pid;
-    	time_t lastTimeCreated;
+		int    m_pid;
+    	time_t m_lastTimeCreated;
 	};
 	// local version
-    Version                  myVersion;
+    Version                  m_myVersion;
     // list of versions sent to the daemon during JOINING state
-	List<Version>            versionsList;
+	List<Version>            m_versionsList;
 	// configuration variables	
-    MyString                 stateFilePath;
-    MyString                 versionFilePath;
+    MyString                 m_stateFilePath;
+    MyString                 m_versionFilePath;
 
 	// the replication daemon state
-    ReplicatorState          state;
+    ReplicatorState          m_state;
 
 	// list of remote replication daemons
-    StringList               replicationDaemonsList;
+    StringList               m_replicationDaemonsList;
     // path to the directory where 'condor_transferer' binary is located
-	MyString                 releaseDirectoryPath;
+	MyString                 m_releaseDirectoryPath;
 	// socket connection timeout
-    int                      connectionTimeout;
+    int                      m_connectionTimeout;
 
 	// uploading/downloading 'condor_transferer' reapers' ids
-    int                      downloadReaperId;
-    int                      uploadReaperId;
+    int                      m_downloadReaperId;
+    int                      m_uploadReaperId;
 
 	void printDataMembers()
 	{
@@ -278,16 +278,16 @@ protected:
 						   "Connection timeout     - %d\n"
 						   "Downloading reaper id  - %d\n"
 						   "Uploading reaper id    - %d\n",
-				 stateFilePath.GetCStr(), versionFilePath.GetCStr(), state,
-				 releaseDirectoryPath.GetCStr(), connectionTimeout,
-				 downloadReaperId, uploadReaperId );    
+				 m_stateFilePath.GetCStr(), m_versionFilePath.GetCStr(), 
+				 m_state, m_releaseDirectoryPath.GetCStr(), m_connectionTimeout,
+				 m_downloadReaperId, m_uploadReaperId );    
 	};
 	// process ids of uploading/downloading 'condor_transferer' processes for
 	// monitoring and handling the problem of stuck transferer processes and
     // starting times of uploading/downloading 'condor_transferer' processes
 	// for handling the problem of stuck transferer processes
-	ProcessMetadata          downloadTransfererMetadata;
-	List<ProcessMetadata>    uploadTransfererMetadataList;
+	ProcessMetadata          m_downloadTransfererMetadata;
+	List<ProcessMetadata>    m_uploadTransfererMetadataList;
 };
 
 #endif // ABSTRACT_REPLICATOR_STATE_MACHINE_H

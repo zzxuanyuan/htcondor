@@ -13,6 +13,9 @@
 #include "Utils.h"
 #include "DownloadReplicaTransferer.h"
 
+// timeout for accepting connection from uploading transferer
+//#define ACCEPT_TIMEOUT                  (2)
+
 int
 DownloadReplicaTransferer::initialize( )
 {
@@ -36,15 +39,15 @@ int
 DownloadReplicaTransferer::transferFileCommand( )
 {
     char* temporaryDaemonSinfulString =
-        const_cast<char*>( daemonSinfulString.GetCStr( ) );
+        const_cast<char*>( m_daemonSinfulString.GetCStr( ) );
 
     dprintf( D_ALWAYS, "DownloadReplicaTransferer::transferFileCommand "
                        "to %s started\n", temporaryDaemonSinfulString );
     Daemon daemon( DT_ANY, temporaryDaemonSinfulString );
     ReliSock temporarySocket;
     
-    // no retries after 'connectionTimeout' seconds of unsuccessful connection
-    temporarySocket.timeout( connectionTimeout );
+    // no retries after 'm_connectionTimeout' seconds of unsuccessful connection
+    temporarySocket.timeout( m_connectionTimeout );
     temporarySocket.doNotEnforceMinimalCONNECT_TIMEOUT( );
 
     if( ! temporarySocket.connect( temporaryDaemonSinfulString, 0, false ) ) {
@@ -56,7 +59,7 @@ DownloadReplicaTransferer::transferFileCommand( )
 		return TRANSFERER_FALSE;
     }
     if( ! daemon.startCommand( REPLICATION_TRANSFER_FILE, &temporarySocket,
-                                                 connectionTimeout ) ) {
+                                                 m_connectionTimeout ) ) {
         dprintf( D_COMMAND, "DownloadReplicaTransferer::transferFileCommand "
 							"unable to start command to addr %s\n",
                    temporaryDaemonSinfulString );
@@ -68,7 +71,12 @@ DownloadReplicaTransferer::transferFileCommand( )
     // find and bind port of the socket, to which the uploading
     // 'condor_transferer' process will send the important files
     ReliSock listeningSocket;
-    listeningSocket.timeout( connectionTimeout );
+
+	listeningSocket.timeout( m_maxTransferLifetime / 2);
+	//listeningSocket.timeout( ACCEPT_TIMEOUT );
+	//listeningSocket.timeout( m_connectionTimeout );
+	// this setting is practically unnecessary, since we do not connect to
+	// remote sockets with 'listeningSocket'
     listeningSocket.doNotEnforceMinimalCONNECT_TIMEOUT( );
 
     if( ! listeningSocket.bind( ) || ! listeningSocket.listen( ) ) {
@@ -98,15 +106,15 @@ DownloadReplicaTransferer::transferFileCommand( )
                "sinful string %s coded successfully\n", temporarySinfulString );
     }
 	temporarySocket.close( );
-    socket = listeningSocket.accept( );
-//	socket->set_timeout_multiplier( 1 );
-    socket->timeout( INT_MAX ); //connectionTimeout );
-    socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
+    m_socket = listeningSocket.accept( );
+//	m_socket->set_timeout_multiplier( 1 );
+    m_socket->timeout( INT_MAX ); //m_connectionTimeout );
+    m_socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
 
 	listeningSocket.close( );
     dprintf( D_ALWAYS, "DownloadReplicaTransferer::transferFileCommand "
                        "sent transfer command successfully and accepted "
-					   "request on port no. %d\n", socket->get_port( ) );
+					   "request on port no. %d\n", m_socket->get_port( ) );
     return TRANSFERER_TRUE;
 }
 /* Function    : download
@@ -122,12 +130,12 @@ DownloadReplicaTransferer::download( ) {
                        daemonCore->getpid( ),
                        DOWNLOADING_TEMPORARY_FILES_EXTENSION );
 	// download version file                                                    
-    if( downloadFile( versionFilePath, extension) == TRANSFERER_FALSE ) {
+    if( downloadFile( m_versionFilePath, extension) == TRANSFERER_FALSE ) {
     	return TRANSFERER_FALSE;
     }
     // download state file
-	if( downloadFile( stateFilePath, extension ) == TRANSFERER_FALSE ) {
-		FilesOperations::safeUnlinkFile( versionFilePath.GetCStr( ), 
+	if( downloadFile( m_stateFilePath, extension ) == TRANSFERER_FALSE ) {
+		FilesOperations::safeUnlinkFile( m_versionFilePath.GetCStr( ), 
 										 extension.GetCStr( ) );
 		return TRANSFERER_FALSE;	
 	}
@@ -152,7 +160,7 @@ DownloadReplicaTransferer::downloadFile(MyString& filePath, MyString& extension)
     dprintf( D_ALWAYS, "DownloadReplicaTransferer::downloadFile %s.%s\n", 
 			 filePath.GetCStr( ), extension.GetCStr( ) );
 
-	if( ! utilSafeGetFile( *socket, filePath + "." + extension) ) {
+	if( ! utilSafeGetFile( *m_socket, filePath + "." + extension) ) {
 		dprintf( D_ALWAYS, "DownloadReplicaTransferer::downloadFile failed, "
 				"unlinking %s.%s\n", filePath.GetCStr(), extension.GetCStr());
 		FilesOperations::safeUnlinkFile( filePath.GetCStr( ), 

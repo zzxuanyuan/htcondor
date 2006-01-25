@@ -55,21 +55,22 @@ public:
 	 */
     virtual int initialize() = 0;
 // Inspectors
-	MyString getVersionFilePath() { return versionFilePath; };
-	MyString getStateFilePath()   { return stateFilePath; };
+	MyString getVersionFilePath() { return m_versionFilePath; };
+	MyString getStateFilePath()   { return m_stateFilePath; };
 // End of inspectors
 protected:
 	// address of the downloading/uploading counterpart	
-    MyString  daemonSinfulString;
+    MyString  m_daemonSinfulString;
 	// path to the file where local version is stored
-    MyString  versionFilePath;
+    MyString  m_versionFilePath;
 	// path to the file where the state, protected by the replication is stored
-    MyString  stateFilePath;
+    MyString  m_stateFilePath;
 
     // TCP socket, over which all the communication is done
-    ReliSock* socket;
+    ReliSock* m_socket;
 	// socket connection timeout
-    int       connectionTimeout;
+    int       m_connectionTimeout;
+	int       m_maxTransferLifetime;
 };
 
 #endif // BASE_REPLICA_TRANSFERER_H

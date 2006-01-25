@@ -79,13 +79,13 @@ public:
 
 protected:
     /*
-      step() - called each hadInterval, implements one state of the
+      step() - called each m_hadInterval, implements one state of the
       state machine.
     */
     void  step();
     
     /*
-      cycle() - called MESSAGES_PER_INTERVAL_FACTOR times per hadInterval
+      cycle() - called MESSAGES_PER_INTERVAL_FACTOR times per m_hadInterval
     */
     void  cycle();
 
@@ -123,21 +123,21 @@ protected:
 
     void commandHandler(int cmd,Stream *strm) ;
 
-    int state;   
-    int stateMachineTimerID;
+    int m_state;   
+    int m_stateMachineTimerID;
         
-    int hadInterval;
-    int connectionTimeout;
+    int m_hadInterval;
+    int m_connectionTimeout;
     
-    // if callsCounter equals to 0 ,
+    // if m_callsCounter equals to 0 ,
     // enter state machine , otherwise send messages
-    char callsCounter;
+    char m_callsCounter;
     
-    int selfId;
-    bool isPrimary;
-    bool usePrimary;
-    StringList* otherHADIPs;
-    Daemon* masterDaemon;
+    int m_selfId;
+    bool m_isPrimary;
+    bool m_usePrimary;
+    StringList* m_otherHADIPs;
+    Daemon* m_masterDaemon;
 
     List<int> receivedAliveList;
     List<int> receivedIdList;
@@ -164,13 +164,13 @@ protected:
     //int myatoi(const char* str, bool* res);
 
     // debug information
-    bool standAloneMode;
+    bool m_standAloneMode;
     static void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
 	// usage of replication, controlled by configuration parameter 
 	// USE_REPLICATION
-	bool useReplication;
+	bool m_useReplication;
 
 	int sendReplicationCommand( int );
 	void setReplicationDaemonSinfulString( );
@@ -183,11 +183,11 @@ protected:
     // updates collectors upon changing from/to leader state
     void updateCollectorsClassAd( const MyString& isHadActive );
 
-    ClassAd*       classAd;
+    ClassAd*       m_classAd;
     // info about our central manager
-    CollectorList* collectorsList;
-    int            updateCollectorTimerId;
-    int            updateCollectorInterval;
+    CollectorList* m_collectorsList;
+    int            m_updateCollectorTimerId;
+    int            m_updateCollectorInterval;
 };
 
 #endif // !HAD_StateMachine_H__

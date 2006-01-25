@@ -94,15 +94,15 @@ getConfigurationPositiveIntegerParameter( const char* parameter )
 ReplicatorStateMachine::ReplicatorStateMachine()
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine ctor started\n" );
-   	state                       = VERSION_REQUESTING;
-   	replicationTimerId          = -1;
-   	versionRequestingTimerId    = -1;
-   	versionDownloadingTimerId   = -1;
-   	replicationInterval         = -1;
-   	hadAliveTolerance           = -1;
-   	maxTransfererLifeTime       = -1;
-   	newlyJoinedWaitingVersionInterval = -1;
-   	lastHadAliveTime          = -1;
+   	m_state                       = VERSION_REQUESTING;
+   	m_replicationTimerId          = -1;
+   	m_versionRequestingTimerId    = -1;
+   	m_versionDownloadingTimerId   = -1;
+   	m_replicationInterval         = -1;
+   	m_hadAliveTolerance           = -1;
+   	m_maxTransfererLifeTime       = -1;
+   	m_newlyJoinedWaitingVersionInterval = -1;
+   	m_lastHadAliveTime          = -1;
    	srand( time( NULL ) );
 }
 // finalizing the delta, belonging to this class only, since the data, belonging
@@ -130,14 +130,14 @@ void
 ReplicatorStateMachine::finalizeDelta( )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine::finalizeDelta started\n" );
-    utilCancelTimer(replicationTimerId);
-    utilCancelTimer(versionRequestingTimerId);
-    utilCancelTimer(versionDownloadingTimerId);
-    replicationInterval               = -1;
-    hadAliveTolerance                 = -1;
-    maxTransfererLifeTime             = -1;
-    newlyJoinedWaitingVersionInterval = -1;
-    lastHadAliveTime                  = -1;
+    utilCancelTimer(m_replicationTimerId);
+    utilCancelTimer(m_versionRequestingTimerId);
+    utilCancelTimer(m_versionDownloadingTimerId);
+    m_replicationInterval               = -1;
+    m_hadAliveTolerance                 = -1;
+    m_maxTransfererLifeTime             = -1;
+    m_newlyJoinedWaitingVersionInterval = -1;
+    m_lastHadAliveTime                  = -1;
 }
 void
 ReplicatorStateMachine::initialize( )
@@ -166,13 +166,13 @@ ReplicatorStateMachine::reinitialize()
     finalize( );
     AbstractReplicatorStateMachine::reinitialize( );
 
-    myVersion.initialize( stateFilePath, versionFilePath );
+    m_myVersion.initialize( m_stateFilePath, m_versionFilePath );
 
-    replicationInterval =
+    m_replicationInterval =
         getConfigurationPositiveIntegerParameter( "REPLICATION_INTERVAL" );
-    maxTransfererLifeTime =
+    m_maxTransfererLifeTime =
         getConfigurationPositiveIntegerParameter( "MAX_TRANSFER_LIFETIME" );
-    newlyJoinedWaitingVersionInterval =
+    m_newlyJoinedWaitingVersionInterval =
         getConfigurationPositiveIntegerParameter(
                             "NEWLY_JOINED_WAITING_VERSION_INTERVAL" );
     // deduce HAD alive tolerance
@@ -186,26 +186,26 @@ ReplicatorStateMachine::reinitialize()
 
         hadList.initializeFromString( buffer );
         free( buffer );
-        hadAliveTolerance = HAD_ALIVE_TOLERANCE_FACTOR *
+        m_hadAliveTolerance = HAD_ALIVE_TOLERANCE_FACTOR *
                             ( 2 * hadConnectionTimeout * hadList.number() + 1 );
 
         dprintf( D_FULLDEBUG, "ReplicatorStateMachine::reinitialize %s=%d\n",
-                "HAD_LIST", hadAliveTolerance );
+                "HAD_LIST", m_hadAliveTolerance );
     } else {
         utilCrucialError( utilNoParameterError( "HAD_LIST", "HAD" ).GetCStr( ));
     }
     // set a timer to replication routine
     dprintf( D_ALWAYS, "ReplicatorStateMachine::reinitialize setting "
                                       "replication timer\n" );
-    replicationTimerId = daemonCore->Register_Timer( replicationInterval,
+    m_replicationTimerId = daemonCore->Register_Timer( m_replicationInterval,
             (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
             "Time to replicate file", this );
     // register the download/upload reaper for the transferer process
-    downloadReaperId = daemonCore->Register_Reaper(
+    m_downloadReaperId = daemonCore->Register_Reaper(
         "downloadReplicaTransfererReaper",
         (ReaperHandler)&ReplicatorStateMachine::downloadReplicaTransfererReaper,
         "downloadReplicaTransfererReaper", this );
-    uploadReaperId     = daemonCore->Register_Reaper(
+    m_uploadReaperId     = daemonCore->Register_Reaper(
         "uploadReplicaTransfererReaper",
         (ReaperHandler) &ReplicatorStateMachine::uploadReplicaTransfererReaper,
         "uploadReplicaTransfererReaper", this );
@@ -220,7 +220,7 @@ ReplicatorStateMachine::reinitialize()
 void
 ReplicatorStateMachine::beforePassiveStateHandler()
 {
-    REPLICATION_ASSERT(state == VERSION_REQUESTING);
+    REPLICATION_ASSERT(m_state == VERSION_REQUESTING);
     
     dprintf( D_ALWAYS, 
 			"ReplicatorStateMachine::beforePassiveStateHandler started\n" ); 
@@ -229,8 +229,8 @@ ReplicatorStateMachine::beforePassiveStateHandler()
 
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::beforePassiveStateHandler "
 			"registering version requesting timer\n" );
-    versionRequestingTimerId = daemonCore->Register_Timer( 
-		newlyJoinedWaitingVersionInterval,
+    m_versionRequestingTimerId = daemonCore->Register_Timer( 
+		m_newlyJoinedWaitingVersionInterval,
        (TimerHandlercpp) &ReplicatorStateMachine::versionRequestingTimer,
        "Time to pass to VERSION_DOWNLOADING state", this );
 }
@@ -240,12 +240,12 @@ ReplicatorStateMachine::afterElectionStateHandler()
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::afterElectionStateHandler "
 			"started\n" );
-    REPLICATION_ASSERT(state != REPLICATION_LEADER);
+    REPLICATION_ASSERT(m_state != REPLICATION_LEADER);
    
 	// we stay in VERSION_REQUESTING or VERSION_DOWNLOADING state
     // of newly joining node, we will go to LEADER_STATE later
     // upon receiving of IN_LEADER message from HAD 
-    if( state == VERSION_REQUESTING || state == VERSION_DOWNLOADING ) {
+    if( m_state == VERSION_REQUESTING || m_state == VERSION_DOWNLOADING ) {
         return ;
     }
 
@@ -257,7 +257,7 @@ ReplicatorStateMachine::afterLeaderStateHandler( )
 {
    // REPLICATION_ASSERT(state != BACKUP)
     
-    if( state == VERSION_REQUESTING || state == VERSION_DOWNLOADING ) {
+    if( m_state == VERSION_REQUESTING || m_state == VERSION_DOWNLOADING ) {
         return ;
     }
 	// receiving this notification message in BACKUP state means, that the
@@ -266,39 +266,39 @@ ReplicatorStateMachine::afterLeaderStateHandler( )
 	// this notification message from HAD as well, since we do not want 
 	// to broadcast our newly downloaded version to others, because it is 
 	// too new
-	if( state == BACKUP ) {
+	if( m_state == BACKUP ) {
 		return ;
 	}
     dprintf( D_ALWAYS, 
 			"ReplicatorStateMachine::afterLeaderStateHandler started\n" );
     broadcastVersion( REPLICATION_GIVING_UP_VERSION );
-    state = BACKUP;
+    m_state = BACKUP;
 }
 
 void
 ReplicatorStateMachine::inLeaderStateHandler( )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::inLeaderStateHandler started "
-			"with state = %d\n", int( state ) );
-    // REPLICATION_ASSERT(state != BACKUP)
+			"with state = %d\n", int( m_state ) );
+    // REPLICATION_ASSERT(m_state != BACKUP)
  
-    if( state == VERSION_REQUESTING || state == VERSION_DOWNLOADING) {
+    if( m_state == VERSION_REQUESTING || m_state == VERSION_DOWNLOADING) {
         return ;
     }
 	// receiving this notification message in BACKUP state means, that the
     // pool version downloading took more time than it took for the HAD to
     // become active, in this case we act as if we received AFTER_ELECTION
 	// message
-    if( state == BACKUP ) {
+    if( m_state == BACKUP ) {
 		becomeLeader( );
 
 		return ;
 	}
-	lastHadAliveTime = time( NULL );
+	m_lastHadAliveTime = time( NULL );
 
     dprintf( D_FULLDEBUG,
             "ReplicatorStateMachine::inLeaderStateHandler last HAD alive time "
-            "is set to %s", ctime( &lastHadAliveTime ) );
+            "is set to %s", ctime( &m_lastHadAliveTime ) );
     //if( downloadTransferersNumber( ) == 0 && 
 	// 	  replicaSelectionHandler( newVersion ) ) {
     //    download( newVersion.getSinfulString( ).GetCStr( ) );
@@ -308,17 +308,17 @@ ReplicatorStateMachine::inLeaderStateHandler( )
 bool
 ReplicatorStateMachine::replicaSelectionHandler( Version& newVersion )
 {
-    REPLICATION_ASSERT( state == VERSION_DOWNLOADING || state == BACKUP );
+    REPLICATION_ASSERT( m_state == VERSION_DOWNLOADING || m_state == BACKUP );
     dprintf( D_ALWAYS, "ReplicatorStateMachine::replicaSelectionHandler "
 			"started with my version = %s, #versions = %d\n",
-             myVersion.toString( ).GetCStr( ), versionsList.Number( ) );
+             m_myVersion.toString( ).GetCStr( ), m_versionsList.Number( ) );
     List<Version> actualVersionsList;
-    Version myVersionCopy = myVersion;
+    Version myVersionCopy = m_myVersion;
     
-    utilCopyList( actualVersionsList, versionsList );
+    utilCopyList( actualVersionsList, m_versionsList );
 
 	// in BACKUP state compares the received version with the local one
-    if( state == BACKUP ) {        
+    if( m_state == BACKUP ) {        
 		// compares the versions, taking only 'gid' and 'logicalClock' into
 		// account - this is the reason for making the states equal
         myVersionCopy.setState( newVersion );
@@ -372,17 +372,17 @@ ReplicatorStateMachine::replicaSelectionHandler( Version& newVersion )
 void
 ReplicatorStateMachine::gidSelectionHandler( )
 {
-    REPLICATION_ASSERT( state == BACKUP || state == REPLICATION_LEADER );
+    REPLICATION_ASSERT( m_state == BACKUP || m_state == REPLICATION_LEADER );
     dprintf( D_ALWAYS, "ReplicatorStateMachine::gidSelectionHandler started\n");
     
     bool          areVersionsComparable = true;
     List<Version> actualVersionsList;
     Version       actualVersion;
 
-    utilCopyList( actualVersionsList, versionsList );
+    utilCopyList( actualVersionsList, m_versionsList );
 
     while( actualVersionsList.Next( actualVersion ) ) {
-        if( ! myVersion.isComparable( actualVersion ) ) {
+        if( ! m_myVersion.isComparable( actualVersion ) ) {
             areVersionsComparable = false;
             
             break;
@@ -397,8 +397,8 @@ ReplicatorStateMachine::gidSelectionHandler( )
     }
     int temporaryGid = 0;
 
-    while( ( temporaryGid = rand( ) ) == myVersion.getGid( ) );
-    myVersion.setGid( temporaryGid );
+    while( ( temporaryGid = rand( ) ) == m_myVersion.getGid( ) );
+    m_myVersion.setGid( temporaryGid );
 
     dprintf( D_ALWAYS, "ReplicatorStateMachine::gidSelectionHandler "
 			"new gid selected: %d\n", temporaryGid );
@@ -445,11 +445,11 @@ void
 ReplicatorStateMachine::becomeLeader( )
 {
 	// sets the last time, when HAD sent a HAD_IN_STATE_STATE
-	lastHadAliveTime = time( NULL );
+	m_lastHadAliveTime = time( NULL );
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::becomeLeader "
-            "last HAD alive time is set to %s", ctime( &lastHadAliveTime ) );       // selects new gid for the pool
+            "last HAD alive time is set to %s", ctime( &m_lastHadAliveTime ) );       // selects new gid for the pool
     gidSelectionHandler( );
-    state = REPLICATION_LEADER;
+    m_state = REPLICATION_LEADER;
 }
 /* Function   : onLeaderVersion
  * Arguments  : stream - socket, through which the data is received and sent
@@ -464,7 +464,7 @@ ReplicatorStateMachine::onLeaderVersion( Stream* stream )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onLeaderVersion started\n" );
     
-    if( state != BACKUP ) {
+    if( m_state != BACKUP ) {
         return ;
     }
 	checkVersionSynchronization( );
@@ -497,7 +497,7 @@ ReplicatorStateMachine::onTransferFile( char* daemonSinfulString )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onTransferFile %s started\n",
              daemonSinfulString );
-    if( state == REPLICATION_LEADER ) {
+    if( m_state == REPLICATION_LEADER ) {
         upload( daemonSinfulString );
     }
 }
@@ -512,7 +512,7 @@ ReplicatorStateMachine::onSolicitVersion( char* daemonSinfulString )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onSolicitVersion %s started\n",
              daemonSinfulString );
-    if( state == BACKUP || state == REPLICATION_LEADER ) {
+    if( m_state == BACKUP || m_state == REPLICATION_LEADER ) {
         sendVersionAndStateCommand( REPLICATION_SOLICIT_VERSION_REPLY,
                                     daemonSinfulString );
    }
@@ -529,7 +529,7 @@ ReplicatorStateMachine::onSolicitVersionReply( Stream* stream )
 					   "started\n" );
     Version* newVersion = 0;
     
-    if( state == VERSION_REQUESTING && 
+    if( m_state == VERSION_REQUESTING && 
 	  ( newVersion = decodeVersionAndState( stream ) ) ) {
         updateVersionsList( *newVersion );
     }
@@ -543,7 +543,7 @@ ReplicatorStateMachine::onNewlyJoinedVersion( Stream* stream )
 {
     dprintf(D_ALWAYS, "ReplicatorStateMachine::onNewlyJoinedVersion started\n");
     
-    if( state == REPLICATION_LEADER ) {
+    if( m_state == REPLICATION_LEADER ) {
         // eventually merging files
         //decodeAndAddVersion( stream );
     }
@@ -560,10 +560,10 @@ ReplicatorStateMachine::onGivingUpVersion( Stream* stream )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onGivingUpVersion started\n" );
     
-    if( state == BACKUP) {
+    if( m_state == BACKUP) {
         // eventually merging files
     }
-    if( state == REPLICATION_LEADER ){
+    if( m_state == REPLICATION_LEADER ){
         // eventually merging files
         gidSelectionHandler( );
     }
@@ -580,7 +580,7 @@ ReplicatorStateMachine::downloadReplicaTransfererReaper(
 														pid, 
 														exitStatus);
     if( returnValue == TRANSFERER_TRUE && 
-		replicatorStateMachine->state == VERSION_DOWNLOADING ) {
+		replicatorStateMachine->m_state == VERSION_DOWNLOADING ) {
         replicatorStateMachine->versionDownloadingTimer( );
     }
     return returnValue;
@@ -680,9 +680,9 @@ void
 ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
 {
     // killing stuck downloading 'condor_transferer'
-    if( downloadTransfererMetadata.isValid( ) &&
-        currentTime - downloadTransfererMetadata.lastTimeCreated >
-            maxTransfererLifeTime ) {
+    if( m_downloadTransfererMetadata.isValid( ) &&
+        currentTime - m_downloadTransfererMetadata.m_lastTimeCreated >
+            m_maxTransfererLifeTime ) {
        /* Beware of sending signal with downloadTransfererPid = -1, because
         * according to POSIX it will be sent to every process that the
         * current process is able to sent signals to
@@ -690,10 +690,10 @@ ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
         dprintf( D_FULLDEBUG, 
 				"ReplicatorStateMachine::killStuckDownloadingTransferer "
                 "killing downloading condor_transferer pid = %d\n",
-                 downloadTransfererMetadata.pid );
+                 m_downloadTransfererMetadata.m_pid );
 		// sending SIGKILL signal, wrapped in daemon core function for
 		// portability
-    	if( daemonCore->Send_Signal( downloadTransfererMetadata.pid, 
+    	if( daemonCore->Send_Signal( m_downloadTransfererMetadata.m_pid, 
 									 SIGKILL ) < 0 ) {
         	dprintf( D_ALWAYS, 
                      "ReplicatorStateMachine::killStuckDownloadingTransferer"
@@ -702,17 +702,17 @@ ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
 		// when the process is killed, it could have not yet erased its
 		// temporary files, this is why we ensure it by erasing it in killer
 		// function
-		MyString extension( downloadTransfererMetadata.pid );
+		MyString extension( m_downloadTransfererMetadata.m_pid );
         // the .down ending is needed in order not to confuse between upload and
         // download processes temporary files
         extension += ".";
         extension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
 
-        FilesOperations::safeUnlinkFile( versionFilePath.GetCStr( ),
+        FilesOperations::safeUnlinkFile( m_versionFilePath.GetCStr( ),
                                          extension.GetCStr( ) );
-        FilesOperations::safeUnlinkFile( stateFilePath.GetCStr( ),
+        FilesOperations::safeUnlinkFile( m_stateFilePath.GetCStr( ),
                                          extension.GetCStr( ) );
-		downloadTransfererMetadata.set( );
+		m_downloadTransfererMetadata.set( );
 	}
 }
 /* Function   : killStuckUploadingTransferers
@@ -723,23 +723,23 @@ ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
 void 
 ReplicatorStateMachine::killStuckUploadingTransferers( time_t currentTime )
 {
-	uploadTransfererMetadataList.Rewind( );
+	m_uploadTransfererMetadataList.Rewind( );
 
 	ProcessMetadata* uploadTransfererMetadata = NULL;    
 
 	// killing stuck uploading 'condor_transferers'
-    while( uploadTransfererMetadataList.Next( uploadTransfererMetadata ) ) {
+    while( m_uploadTransfererMetadataList.Next( uploadTransfererMetadata ) ) {
         if( uploadTransfererMetadata->isValid( ) &&
-			currentTime - uploadTransfererMetadata->lastTimeCreated >
-              maxTransfererLifeTime ) {
+			currentTime - uploadTransfererMetadata->m_lastTimeCreated >
+              m_maxTransfererLifeTime ) {
             dprintf( D_FULLDEBUG, 
 					"ReplicatorStateMachine::killStuckUploadingTransferers "
                     "killing uploading condor_transferer pid = %d\n",
-                    uploadTransfererMetadata->pid );
+                    uploadTransfererMetadata->m_pid );
 			// sending SIGKILL signal, wrapped in daemon core function for
         	// portability
 			if(daemonCore->Send_Signal( 
-				uploadTransfererMetadata->pid, SIGKILL ) < 0 ) {
+				uploadTransfererMetadata->m_pid, SIGKILL ) < 0 ) {
 				dprintf( D_ALWAYS, 
 						 "ReplicatorStateMachine::killStuckUploadingTransferers"
 						 " kill signal failed, reason = %s\n", strerror(errno));
@@ -747,40 +747,40 @@ ReplicatorStateMachine::killStuckUploadingTransferers( time_t currentTime )
 			// when the process is killed, it could have not yet erased its
         	// temporary files, this is why we ensure it by erasing it in killer
         	// function	
-			MyString extension( uploadTransfererMetadata->pid );
+			MyString extension( uploadTransfererMetadata->m_pid );
             // the .up ending is needed in order not to confuse between
             // upload and download processes temporary files
             extension += ".";
             extension += UPLOADING_TEMPORARY_FILES_EXTENSION;
 
-            FilesOperations::safeUnlinkFile( versionFilePath.GetCStr( ),
+            FilesOperations::safeUnlinkFile( m_versionFilePath.GetCStr( ),
                                              extension.GetCStr( ) );
-            FilesOperations::safeUnlinkFile( stateFilePath.GetCStr( ),
+            FilesOperations::safeUnlinkFile( m_stateFilePath.GetCStr( ),
                                              extension.GetCStr( ) );
 			delete uploadTransfererMetadata;
-			uploadTransfererMetadataList.DeleteCurrent( );
+			m_uploadTransfererMetadataList.DeleteCurrent( );
 		}
     }
-	uploadTransfererMetadataList.Rewind( );
+	m_uploadTransfererMetadataList.Rewind( );
 }
 /* Function   : replicationTimer 
  * Description: replication daemon life cycle handler
  * Remarks    : fired upon expiration of timer, designated by 
- *              'replicationTimerId' each 'REPLICATION_INTERVAL' seconds
+ *              'm_replicationTimerId' each 'REPLICATION_INTERVAL' seconds
  */
 void
 ReplicatorStateMachine::replicationTimer( )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::replicationTimer "
 					   "cancelling timer\n" );
-    utilCancelTimer(replicationTimerId);
+    utilCancelTimer(m_replicationTimerId);
 
     dprintf( D_ALWAYS, "ReplicatorStateMachine::replicationTimer "
                        "registering timer once again\n" );
-    replicationTimerId = daemonCore->Register_Timer ( replicationInterval,
+    m_replicationTimerId = daemonCore->Register_Timer ( m_replicationInterval,
                     (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
                     "Time to replicate file", this );
-    if( state == VERSION_REQUESTING ) {
+    if( m_state == VERSION_REQUESTING ) {
         return ;
     }
 	int currentTime = time( NULL );
@@ -790,7 +790,7 @@ ReplicatorStateMachine::replicationTimer( )
 // TODO: Atomic operation
 	killStuckDownloadingTransferer( currentTime );    
 // End of TODO: Atomic operation
-	if( state == VERSION_DOWNLOADING ) {
+	if( m_state == VERSION_DOWNLOADING ) {
         return ;
     }
 // TODO: Atomic operation
@@ -800,8 +800,8 @@ ReplicatorStateMachine::replicationTimer( )
 						  "# downloading condor_transferer = %d, "
 						  "# uploading condor_transferer = %d\n",
              downloadTransferersNumber( ), 
-			 uploadTransfererMetadataList.Number( ) );
-    if( state == BACKUP ) {
+			 m_uploadTransfererMetadataList.Number( ) );
+    if( m_state == BACKUP ) {
 		checkVersionSynchronization( );
 
 		return ;
@@ -811,17 +811,17 @@ ReplicatorStateMachine::replicationTimer( )
 					   "local version with actual state file\n" );
 	// if after the version synchronization, the file update was tracked, the
 	// local version is broadcasted to the entire pool
-    if( myVersion.synchronize( true ) ) {
+    if( m_myVersion.synchronize( true ) ) {
         broadcastVersion( REPLICATION_LEADER_VERSION );
     }
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::replicationTimer %d seconds "
 						  "without HAD_IN_LEADER_STATE\n",
-             int( currentTime - lastHadAliveTime ) );
+             int( currentTime - m_lastHadAliveTime ) );
 	// allowing to remain replication leader without HAD_IN_LEADER_STATE
 	// messages for about 'HAD_ALIVE_TOLERANCE' seconds only
-    if( currentTime - lastHadAliveTime > hadAliveTolerance) {
+    if( currentTime - m_lastHadAliveTime > m_hadAliveTolerance) {
         broadcastVersion( REPLICATION_GIVING_UP_VERSION );
-        state = BACKUP;
+        m_state = BACKUP;
     }
 }
 /* Function   : versionRequestingTimer
@@ -835,10 +835,10 @@ ReplicatorStateMachine::versionRequestingTimer( )
 {
     dprintf( D_ALWAYS, 
 			"ReplicatorStateMachine::versionRequestingTimer started\n" );
-    utilCancelTimer(versionRequestingTimerId);
+    utilCancelTimer(m_versionRequestingTimerId);
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::versionRequestingTimer "
 			"cancelling version requesting timer\n" );
-    state = VERSION_DOWNLOADING;
+    m_state = VERSION_DOWNLOADING;
     // selecting the best version amongst all the versions that have been sent
     // by other replication daemons
     Version updatedVersion;
@@ -847,8 +847,8 @@ ReplicatorStateMachine::versionRequestingTimer( )
         download( updatedVersion.getSinfulString( ).GetCStr( ) );
         dprintf( D_FULLDEBUG, "ReplicatorStateMachine::versionRequestingTimer "
 				"registering version downloading timer\n" );
-        versionDownloadingTimerId = daemonCore->Register_Timer( 
-			maxTransfererLifeTime,
+        m_versionDownloadingTimerId = daemonCore->Register_Timer( 
+			m_maxTransfererLifeTime,
             (TimerHandlercpp) &ReplicatorStateMachine::versionDownloadingTimer,
             "Time to pass to BACKUP state", this );
     } else {
@@ -865,12 +865,12 @@ ReplicatorStateMachine::versionDownloadingTimer( )
 {
     dprintf( D_ALWAYS, 
 			"ReplicatorStateMachine::versionDownloadingTimer started\n" );
-    utilCancelTimer(versionDownloadingTimerId);
+    utilCancelTimer(m_versionDownloadingTimerId);
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::versionDownloadingTimer "
 			"cancelling version downloading timer\n" );
-    utilClearList( versionsList );
+    utilClearList( m_versionsList );
     
 	checkVersionSynchronization( );	
 
-	state = BACKUP;
+	m_state = BACKUP;
 }

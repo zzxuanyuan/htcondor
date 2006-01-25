@@ -12,16 +12,17 @@ BaseReplicaTransferer::BaseReplicaTransferer(
                                  const MyString&  pDaemonSinfulString,
                                  const MyString&  pVersionFilePath,
                                  const MyString&  pStateFilePath ):
-   daemonSinfulString( pDaemonSinfulString ),
-   versionFilePath( pVersionFilePath ),
-   stateFilePath( pStateFilePath ), socket( 0 ),
-   connectionTimeout( DEFAULT_SEND_COMMAND_TIMEOUT )
+   m_daemonSinfulString( pDaemonSinfulString ),
+   m_versionFilePath( pVersionFilePath ),
+   m_stateFilePath( pStateFilePath ), m_socket( 0 ),
+   m_connectionTimeout( DEFAULT_SEND_COMMAND_TIMEOUT ),
+   m_maxTransferLifetime( DEFAULT_MAX_TRANSFER_LIFETIME )
 {
 }
 
 BaseReplicaTransferer::~BaseReplicaTransferer()
 {
-        delete socket;
+        delete m_socket;
 }
 
 int
@@ -34,21 +35,21 @@ BaseReplicaTransferer::reinitialize( )
     if( buffer ) {
         bool result = false;
 
-		connectionTimeout = utilAtoi( buffer, &result ); 
+		m_connectionTimeout = utilAtoi( buffer, &result ); 
 		//strtol( buffer, 0, 10 );
         
-        if( ! result || connectionTimeout <= 0 ) {
-            dprintf( D_FAILURE, const_cast<char*>(
-                utilConfigurationError("HAD_CONNECTION_TIMEOUT", 
-									   "HAD").GetCStr( ) ) );
-            main_shutdown_graceful( );
+        if( ! result || m_connectionTimeout <= 0 ) {
+            utilCrucialError(
+				utilConfigurationError("HAD_CONNECTION_TIMEOUT", 
+									   "HAD").GetCStr( ) );
         }
         free( buffer );
     } else {
-        dprintf( D_FAILURE, const_cast<char*>(
-       		utilNoParameterError("HAD_CONNECTION_TIMEOUT", "HAD").GetCStr( ) ));
-        main_shutdown_graceful( );
+		utilCrucialError(
+       		utilNoParameterError("HAD_CONNECTION_TIMEOUT", "HAD").GetCStr( ) );
     }
 
+	m_maxTransferLifetime = param_integer( "MAX_TRANSFER_LIFETIME",
+											DEFAULT_MAX_TRANSFER_LIFETIME );
     return TRANSFERER_TRUE;
 }

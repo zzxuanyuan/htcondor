@@ -23,10 +23,10 @@ template void utilClearList<Version>( List<Version>& );
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine ctor started\n" );
-	state              = VERSION_REQUESTING;
-    connectionTimeout  = DEFAULT_SEND_COMMAND_TIMEOUT;
-   	downloadReaperId   = -1;
-   	uploadReaperId     = -1;
+	m_state              = VERSION_REQUESTING;
+    m_connectionTimeout  = DEFAULT_SEND_COMMAND_TIMEOUT;
+   	m_downloadReaperId   = -1;
+   	m_uploadReaperId     = -1;
 }
 
 AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
@@ -40,14 +40,14 @@ void
 AbstractReplicatorStateMachine::finalize()
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::finalize started\n" );
-   	state             = VERSION_REQUESTING;
-   	connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
+   	m_state             = VERSION_REQUESTING;
+   	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
 
-    utilClearList( replicationDaemonsList );
-    releaseDirectoryPath = "";
+    utilClearList( m_replicationDaemonsList );
+    m_releaseDirectoryPath = "";
 
-    utilCancelReaper(downloadReaperId);
-    utilCancelReaper(uploadReaperId);
+    utilCancelReaper(m_downloadReaperId);
+    utilCancelReaper(m_uploadReaperId);
 	// upon finalizing and/or reinitialiing the existing transferer processes
 	// must be killed, otherwise we will temporarily deny creation of new
 	// downloading transferers till the older ones are over
@@ -55,7 +55,7 @@ AbstractReplicatorStateMachine::finalize()
 }
 // passing over REPLICATION_LIST configuration parameter, turning all the 
 // addresses into canonical <ip:port> form and inserting them all, except for
-// the address of local replication daemon, into 'replicationDaemonsList'.
+// the address of local replication daemon, into 'm_replicationDaemonsList'.
 void
 AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
 {
@@ -89,7 +89,7 @@ AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
             isMyAddressPresent = true;
         }
         else {
-            replicationDaemonsList.insert( sinfulAddress );
+            m_replicationDaemonsList.insert( sinfulAddress );
         }
         // pay attention to release memory allocated by malloc with free and by
         // new with delete here utilToSinful returns memory allocated by malloc
@@ -121,9 +121,9 @@ AbstractReplicatorStateMachine::reinitialize()
     buffer = param( "HAD_CONNECTION_TIMEOUT" );
 
     if( buffer ) {
-        connectionTimeout = strtol( buffer, 0, 10 );
+        m_connectionTimeout = strtol( buffer, 0, 10 );
 
-        if( errno == ERANGE || connectionTimeout <= 0 ) {
+        if( errno == ERANGE || m_connectionTimeout <= 0 ) {
         	utilCrucialError( utilConfigurationError( "HAD_CONNECTION_TIMEOUT",
 													  "HAD" ).GetCStr( ) );
         }
@@ -135,7 +135,7 @@ AbstractReplicatorStateMachine::reinitialize()
     buffer = param( "RELEASE_DIR" );
 
     if( buffer ) {
-        releaseDirectoryPath.sprintf( "%s/bin", buffer );
+        m_releaseDirectoryPath.sprintf( "%s/bin", buffer );
 
         free( buffer );
     } else {
@@ -145,20 +145,20 @@ AbstractReplicatorStateMachine::reinitialize()
 	char* spoolDirectory = param( "SPOOL" );
     
     if( spoolDirectory ) {
-        versionFilePath = spoolDirectory;
-        versionFilePath += "/";
-        versionFilePath += VERSION_FILE_NAME;
+        m_versionFilePath = spoolDirectory;
+        m_versionFilePath += "/";
+        m_versionFilePath += VERSION_FILE_NAME;
         
         buffer = param( "NEGOTIATOR_STATE_FILE" );
     
         if( buffer ) {
-            stateFilePath = buffer;
+            m_stateFilePath = buffer;
 
             free( buffer );
         } else {
-            stateFilePath  = spoolDirectory;
-            stateFilePath += "/";
-            stateFilePath += "Accountantnew.log";
+            m_stateFilePath  = spoolDirectory;
+            m_stateFilePath += "/";
+            m_stateFilePath += "Accountantnew.log";
         }
 
         free( spoolDirectory );
@@ -172,7 +172,7 @@ AbstractReplicatorStateMachine::reinitialize()
 // finished, i.e. its pid, the last time of creation. Then replacing the state
 // file and the version file with the temporary files, that have been uploaded.
 // After all this is finished, loading the received version file's data into
-// 'myVersion'
+// 'm_myVersion'
 int
 AbstractReplicatorStateMachine::downloadReplicaTransfererReaper(
     Service* service, int pid, int exitStatus)
@@ -188,8 +188,8 @@ AbstractReplicatorStateMachine::downloadReplicaTransfererReaper(
 	// 		 the reaper is called, so that the application fails in the assert,
 	//		 this is the reason for commenting it out
 	//REPLICATION_ASSERT(replicatorStateMachine->
-	//					downloadTransfererMetadata.isValid());
-	replicatorStateMachine->downloadTransfererMetadata.set( );   
+	//					m_downloadTransfererMetadata.isValid());
+	replicatorStateMachine->m_downloadTransfererMetadata.set( );   
 
     // the function ended due to the operating system signal, the numeric
     // value of which is stored in exitStatus
@@ -219,14 +219,14 @@ AbstractReplicatorStateMachine::downloadReplicaTransfererReaper(
     // upon failure we do not synchronize the local version, since such
 	// downloading is considered invalid
 	if( ! FilesOperations::safeRotateFile(
-						  replicatorStateMachine->versionFilePath.GetCStr(),
+						  replicatorStateMachine->m_versionFilePath.GetCStr(),
 										  temporaryFilesExtension.GetCStr()) ||
 		! FilesOperations::safeRotateFile(
-						    replicatorStateMachine->stateFilePath.GetCStr(),
+						    replicatorStateMachine->m_stateFilePath.GetCStr(),
 										  temporaryFilesExtension.GetCStr()) ) {
 		return TRANSFERER_FALSE;
 	}
-    replicatorStateMachine->myVersion.synchronize( false );
+    replicatorStateMachine->m_myVersion.synchronize( false );
 
     return TRANSFERER_TRUE;
 }
@@ -243,32 +243,32 @@ AbstractReplicatorStateMachine::uploadReplicaTransfererReaper(
     AbstractReplicatorStateMachine* replicatorStateMachine =
         static_cast<AbstractReplicatorStateMachine*>( service );
 // TODO: Atomic operation
-	replicatorStateMachine->uploadTransfererMetadataList.Rewind( );
+	replicatorStateMachine->m_uploadTransfererMetadataList.Rewind( );
 
 	ProcessMetadata* uploadTransfererMetadata = NULL;
 
 	// Scanning the list of uploading transferers to remove the pid of the
     // process that has just finished
-    while( replicatorStateMachine->uploadTransfererMetadataList.Next( 
+    while( replicatorStateMachine->m_uploadTransfererMetadataList.Next( 
 										uploadTransfererMetadata ) ) {
         // deleting the finished uploading transferer process pid from the list
-        if( pid == uploadTransfererMetadata->pid ) { 
+        if( pid == uploadTransfererMetadata->m_pid ) { 
             dprintf( D_FULLDEBUG,
                 "AbstractReplicatorStateMachine::uploadReplicaTransfererReaper"
                 " removing process no. %d from the uploading "
                 "condor_transferers list\n",
-                uploadTransfererMetadata->pid );
+                uploadTransfererMetadata->m_pid );
 			delete uploadTransfererMetadata;
         	replicatorStateMachine->
-				  uploadTransfererMetadataList.DeleteCurrent( );
+				  m_uploadTransfererMetadataList.DeleteCurrent( );
 		}
 		// for debugging purposes only
 		//dprintf( D_FULLDEBUG, 
 		//		"AbstractReplicatorStateMachine::uploadReplicaTransfererReaper"
     	//		" uploading condor_transferers list size = %d\n", 
-		//		replicatorStateMachine->uploadTransfererMetadataList.Number() );
+		//		replicatorStateMachine->m_uploadTransfererMetadataList.Number() );
 	}
-	replicatorStateMachine->uploadTransfererMetadataList.Rewind( );
+	replicatorStateMachine->m_uploadTransfererMetadataList.Rewind( );
 // End of TODO: Atomic operation
 
     // the function ended due to the operating system signal, the numeric
@@ -302,20 +302,23 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
     MyString processArguments;
 
     executable.sprintf( "%s/condor_transferer",
-                                releaseDirectoryPath.GetCStr( ) );
+                                m_releaseDirectoryPath.GetCStr( ) );
     processArguments.sprintf( "%s -f down %s %s %s",
                               executable.GetCStr( ),
                               daemonSinfulString,
-                              versionFilePath.GetCStr( ),
-                              stateFilePath.GetCStr( ) );
+                              m_versionFilePath.GetCStr( ),
+                              m_stateFilePath.GetCStr( ) );
     dprintf( D_FULLDEBUG, "AbstractReplicatorStateMachine::download creating "
                           "downloading condor_transferer process: \n \"%s\"\n",
                processArguments.GetCStr( ) );
-    int transfererPid = daemonCore->Create_Process(
+    // PRIV_USER_FINAL privilege is necessary here to create a user process,
+    // after setting it to PRIV_UNKNOWN, the transferer process failed to
+    // create when the pool was started with real uid of 'root'
+	int transfererPid = daemonCore->Create_Process(
         executable.GetCStr( ),        // name
         processArguments.GetCStr( ),  // args
-        PRIV_UNKNOWN,                 // priv
-        downloadReaperId,             // reaper id
+        PRIV_USER_FINAL,              // priv
+        m_downloadReaperId,           // reaper id
         FALSE,                        // command port needed?
         NULL,                         // env
         NULL,                         // cwd
@@ -331,14 +334,14 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
             "AbstractReplicatorStateMachine::download downloading "
             "condor_transferer process created with pid = %d\n",
              transfererPid );
-		REPLICATION_ASSERT( ! downloadTransfererMetadata.isValid() );
+		REPLICATION_ASSERT( ! m_downloadTransfererMetadata.isValid() );
        /* Remembering the last time, when the downloading 'condor_transferer'
         * was created: the monitoring might be useful in possible prevention
         * of stuck 'condor_transferer' processes. Remembering the pid of the
         * downloading process as well: to terminate it when the downloading
         * process is stuck
         */
-		downloadTransfererMetadata.set(transfererPid, time( NULL ) );
+		m_downloadTransfererMetadata.set(transfererPid, time( NULL ) );
     }
 
     return true;
@@ -353,21 +356,24 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
     MyString executable;
 
     executable.sprintf( "%s/condor_transferer",
-                                releaseDirectoryPath.GetCStr( ) );
+                                m_releaseDirectoryPath.GetCStr( ) );
     processArguments.sprintf( "%s -f up %s %s %s",
 							  executable.GetCStr( ),
                               daemonSinfulString,
-                              versionFilePath.GetCStr( ),
-                              stateFilePath.GetCStr( ) );
+                              m_versionFilePath.GetCStr( ),
+                              m_stateFilePath.GetCStr( ) );
     dprintf( D_FULLDEBUG,
         "AbstractReplicatorStateMachine::upload creating uploading "
         "condor_transferer process:\n\"%s\"\n",
          processArguments.GetCStr( ) );
+	// PRIV_USER_FINAL privilege is necessary here to create a user process,
+	// after setting it to PRIV_UNKNOWN, the transferer process failed to
+	// create when the pool was started with real uid of 'root'
     int transfererPid = daemonCore->Create_Process(
         executable.GetCStr( ),        // name
         processArguments.GetCStr( ),  // args
-        PRIV_UNKNOWN,                 // priv
-        uploadReaperId,               // reaper id
+        PRIV_USER_FINAL,              // priv
+        m_uploadReaperId,             // reaper id
         FALSE,                        // command port needed?
         NULL,                         // envs
         NULL,                         // cwd
@@ -396,7 +402,7 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
 		// local integer variable to append to this list
 		ProcessMetadata* uploadTransfererMetadata = 
 				new ProcessMetadata( transfererPid, time( NULL ) );
-		uploadTransfererMetadataList.Append( uploadTransfererMetadata );
+		m_uploadTransfererMetadataList.Append( uploadTransfererMetadata );
 // End of TODO: Atomic operation
     }
 
@@ -409,12 +415,12 @@ AbstractReplicatorStateMachine::broadcastVersion( int command )
 {
     char* replicationDaemon = NULL;
 
-    replicationDaemonsList.rewind( );
+    m_replicationDaemonsList.rewind( );
 
-    while( (replicationDaemon = replicationDaemonsList.next( )) ) {
+    while( (replicationDaemon = m_replicationDaemonsList.next( )) ) {
         sendVersionAndStateCommand( command,  replicationDaemon );
     }
-    replicationDaemonsList.rewind( );
+    m_replicationDaemonsList.rewind( );
 }
 
 void
@@ -422,36 +428,36 @@ AbstractReplicatorStateMachine::requestVersions( )
 {
     char* replicationDaemon = NULL;
 
-    replicationDaemonsList.rewind( );
+    m_replicationDaemonsList.rewind( );
 
-    while( (replicationDaemon = replicationDaemonsList.next( )) ) {
+    while( (replicationDaemon = m_replicationDaemonsList.next( )) ) {
         sendCommand( REPLICATION_SOLICIT_VERSION,  replicationDaemon,
                                 &AbstractReplicatorStateMachine::noCommand);
     }
-    replicationDaemonsList.rewind( );
+    m_replicationDaemonsList.rewind( );
 }
 
 // inserting/replacing version from specific remote replication daemon
-// into/in 'versionsList'
+// into/in 'm_versionsList'
 void
 AbstractReplicatorStateMachine::updateVersionsList( Version& newVersion )
 {
     Version* oldVersion;
 // TODO: Atomic operation
-    versionsList.Rewind( );
+    m_versionsList.Rewind( );
 
-    while( versionsList.Next( oldVersion ) ) {
+    while( m_versionsList.Next( oldVersion ) ) {
         // deleting all occurences of replica belonging to the same host name
         if( oldVersion->getHostName( ) == newVersion.getHostName( ) ) {
             delete oldVersion;
-            versionsList.DeleteCurrent( );
+            m_versionsList.DeleteCurrent( );
         }
     }
     dprintf( D_FULLDEBUG,
         "AbstractReplicatorStateMachine::updateVersionsList appending %s\n",
          newVersion.toString( ).GetCStr( ) );
-    versionsList.Append( newVersion );
-    versionsList.Rewind( );
+    m_versionsList.Append( newVersion );
+    m_versionsList.Rewind( );
 // End of TODO: Atomic operation
 }
 
@@ -460,13 +466,13 @@ AbstractReplicatorStateMachine::cancelVersionsListLeader( )
 {
     Version* version;
     
-    versionsList.Rewind( );
+    m_versionsList.Rewind( );
 
-    while( versionsList.Next( version ) ) {
+    while( m_versionsList.Next( version ) ) {
         version->setState( BACKUP );
     }
     
-    versionsList.Rewind( );
+    m_versionsList.Rewind( );
 }
 
 // sending command to remote replication daemon; specified command function
@@ -480,8 +486,8 @@ AbstractReplicatorStateMachine::sendCommand(
     Daemon  daemon( DT_ANY, daemonSinfulString );
     ReliSock socket;
 
-    // no retries after 'connectionTimeout' seconds of unsuccessful connection
-    socket.timeout( connectionTimeout );
+    // no retries after 'm_connectionTimeout' seconds of unsuccessful connection
+    socket.timeout( m_connectionTimeout );
     socket.doNotEnforceMinimalCONNECT_TIMEOUT( );
 
     if( ! socket.connect( daemonSinfulString, 0, false ) ) {
@@ -493,7 +499,7 @@ AbstractReplicatorStateMachine::sendCommand(
         return ;
     }
 // General actions for any command sending
-    if( ! daemon.startCommand( command, &socket, connectionTimeout ) ) {
+    if( ! daemon.startCommand( command, &socket, m_connectionTimeout ) ) {
         dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                             "cannot start command %s to %s\n",
                    utilToString( command ), daemonSinfulString );
@@ -544,7 +550,7 @@ AbstractReplicatorStateMachine::versionCommand( ReliSock& socket )
     dprintf( D_ALWAYS,
         "AbstractReplicatorStateMachine::versionCommand started\n" );
 
-    if( ! myVersion.code( socket ) ) {
+    if( ! m_myVersion.code( socket ) ) {
         dprintf( D_NETWORK, "AbstractReplicatorStateMachine::versionCommand "
                             "unable to code the replica\n");
         return false;
@@ -562,12 +568,12 @@ AbstractReplicatorStateMachine::versionAndStateCommand(ReliSock& socket)
     if( ! versionCommand( socket ) ) {
             return false;
     }
-	int stateAsInteger = int( state );
+	int stateAsInteger = int( m_state );
 
     if( ! socket.code( stateAsInteger ) /*|| ! socket.eom( )*/ ) {
         dprintf( D_NETWORK,
             "AbstractReplicatorStateMachine::versionAndStateCommand "
-            "unable to code the state or eom%d\n", state );
+            "unable to code the state or eom%d\n", m_state );
         return false;
     }
     dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::versionAndStateCommand "
@@ -581,7 +587,7 @@ AbstractReplicatorStateMachine::versionAndStateCommand(ReliSock& socket)
 void
 AbstractReplicatorStateMachine::killTransferers()
 {
-    if( downloadTransfererMetadata.isValid() ) {
+    if( m_downloadTransfererMetadata.isValid() ) {
        /* Beware of sending SIGKILL with download transferer's pid = -1, because
         * according to POSIX it will be sent to every process that the
         * current process is able to sent signals to
@@ -589,28 +595,29 @@ AbstractReplicatorStateMachine::killTransferers()
         dprintf( D_FULLDEBUG,
             "AbstractReplicatorStateMachine::killTransferers "
             "killing downloading condor_transferer pid = %d\n",
-                   downloadTransfererMetadata.pid );
-        kill( downloadTransfererMetadata.pid, SIGKILL );
-        downloadTransfererMetadata.set();
+                   m_downloadTransfererMetadata.m_pid );
+        //kill( m_downloadTransfererMetadata.m_pid, SIGKILL );
+        daemonCore->Send_Signal( m_downloadTransfererMetadata.m_pid, SIGKILL );
+		m_downloadTransfererMetadata.set();
     }
 
-	uploadTransfererMetadataList.Rewind( );
+	m_uploadTransfererMetadataList.Rewind( );
 
 	ProcessMetadata* uploadTransfererMetadata = NULL;    
 
-    while( uploadTransfererMetadataList.Next( uploadTransfererMetadata ) ) {
+    while( m_uploadTransfererMetadataList.Next( uploadTransfererMetadata ) ) {
         if( uploadTransfererMetadata->isValid( ) ) {
             dprintf( D_FULLDEBUG,
                 "AbstractReplicatorStateMachine::killTransferers "
                 "killing uploading condor_transferer pid = %d\n",
-                uploadTransfererMetadata->pid );
-            kill( uploadTransfererMetadata->pid, SIGKILL );
+                uploadTransfererMetadata->m_pid );
+            kill( uploadTransfererMetadata->m_pid, SIGKILL );
 			delete uploadTransfererMetadata;
 			// after deletion the iterator is moved to the previous member
 			// so advancing the iterator twice and missing one entry does not
 			// happen
-        	uploadTransfererMetadataList.DeleteCurrent( );
+        	m_uploadTransfererMetadataList.DeleteCurrent( );
 		}
     }
-	uploadTransfererMetadataList.Rewind( );
+	m_uploadTransfererMetadataList.Rewind( );
 }
