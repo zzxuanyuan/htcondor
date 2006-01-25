@@ -8829,6 +8829,24 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 				// is in, we'll put it on HOLD
 				//
 			set_job_status( job_id.cluster, job_id.proc, HELD );
+			
+				//
+				// If the job has a CronTab schedule, we will want
+				// to remove cached scheduling object so that if
+				// it is ever released we will always calculate a new
+				// runtime for it. This prevents a job from going
+				// on hold, then released only to fail again
+				// because a new runtime wasn't calculated for it
+				//
+			if ( !this->cronTabsExclude->IsMember( job_id ) ) {
+					//
+					// Delete the cached object
+					//
+				CronTab *cronTab = NULL;
+				if ( this->cronTabs->lookup( job_id, cronTab ) < 0 ) {
+					if ( cronTab ) delete cronTab;	
+				}
+			} // CronTab
 			break;
 		// ---------------------------------------
 		// DPRINTF_ERROR
@@ -11867,24 +11885,16 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 			ad->Assign( ATTR_CRON_CURRENT_TIME_RANGE, this->SchedDInterval );
 			
 		} // !seenBefore
-		
+			
 			//
-			// The user can specify a window range of when we are allowed
-			// to run the job. This allows them to specify that a job
-			// can be ran even if we missed the exact run time
-			// So we need to get the current time and then 
-			// subtract the window before asking what the next runtime is
+			// Get the next runtime from our current time
+			// I used to subtract the DEFERRAL_WINDOW time from the current
+			// time to allow the schedd to schedule job's that were suppose
+			// to happen in the past. Think this is a bad idea because 
+			// it may cause "thrashing" to occur when trying to schedule
+			// the job for times that it will never be able to make
 			//
-		int runTimeWindow = 0;
-		if ( ad->Lookup( ATTR_DEFERRAL_WINDOW) != NULL ) {
-			ad->LookupInteger( ATTR_DEFERRAL_WINDOW, runTimeWindow );
-		}
-		
-			//
-			// Get the next runtime starting at our "windowed" time
-			//
-		long curTime = (long)time( NULL );
-		long calculatedRunTime = cronTab->nextRunTime( curTime - runTimeWindow );
+		long calculatedRunTime = cronTab->nextRunTime( );
 		long runTime = calculatedRunTime;
 
 			//
