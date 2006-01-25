@@ -117,6 +117,21 @@ SOURCE=..\src\condor_had\Transferer.C
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_had\soap_transfererC.C
+# SUBTRACT CPP /YX /Yc /Yu
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_had\soap_transfererServer.C
+# SUBTRACT CPP /YX /Yc /Yu
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_had\soap_transfererStub.C
+# SUBTRACT CPP /YX /Yc /Yu
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_had\UploadReplicaTransferer.C
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File

@@ -40,6 +40,9 @@ CLEAN :
 	-@erase "$(INTDIR)\BaseReplicaTransferer.obj"
 	-@erase "$(INTDIR)\DownloadReplicaTransferer.obj"
 	-@erase "$(INTDIR)\FilesOperations.obj"
+	-@erase "$(INTDIR)\soap_transfererC.obj"
+	-@erase "$(INTDIR)\soap_transfererServer.obj"
+	-@erase "$(INTDIR)\soap_transfererStub.obj"
 	-@erase "$(INTDIR)\Transferer.obj"
 	-@erase "$(INTDIR)\UploadReplicaTransferer.obj"
 	-@erase "$(INTDIR)\Utils.obj"
@@ -95,6 +98,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\DownloadReplicaTransferer.obj" \
 	"$(INTDIR)\FilesOperations.obj" \
 	"$(INTDIR)\Transferer.obj" \
+	"$(INTDIR)\soap_transfererC.obj" \
+	"$(INTDIR)\soap_transfererServer.obj" \
+	"$(INTDIR)\soap_transfererStub.obj" \
 	"$(INTDIR)\UploadReplicaTransferer.obj" \
 	"$(INTDIR)\Utils.obj"
 
@@ -118,6 +124,9 @@ CLEAN :
 	-@erase "$(INTDIR)\BaseReplicaTransferer.obj"
 	-@erase "$(INTDIR)\DownloadReplicaTransferer.obj"
 	-@erase "$(INTDIR)\FilesOperations.obj"
+	-@erase "$(INTDIR)\soap_transfererC.obj"
+	-@erase "$(INTDIR)\soap_transfererServer.obj"
+	-@erase "$(INTDIR)\soap_transfererStub.obj"
 	-@erase "$(INTDIR)\Transferer.obj"
 	-@erase "$(INTDIR)\UploadReplicaTransferer.obj"
 	-@erase "$(INTDIR)\Utils.obj"
@@ -175,6 +184,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\DownloadReplicaTransferer.obj" \
 	"$(INTDIR)\FilesOperations.obj" \
 	"$(INTDIR)\Transferer.obj" \
+	"$(INTDIR)\soap_transfererC.obj" \
+	"$(INTDIR)\soap_transfererServer.obj" \
+	"$(INTDIR)\soap_transfererStub.obj" \
 	"$(INTDIR)\UploadReplicaTransferer.obj" \
 	"$(INTDIR)\Utils.obj"
 
@@ -261,6 +273,78 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D
 CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\FilesOperations.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_had\soap_transfererC.C
+
+!IF  "$(CFG)" == "condor_transferer - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_transfererC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_transferer - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_transfererC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_had\soap_transfererServer.C
+
+!IF  "$(CFG)" == "condor_transferer - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_transfererServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_transferer - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_transfererServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_had\soap_transfererStub.C
+
+!IF  "$(CFG)" == "condor_transferer - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_transfererStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_transferer - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_transfererStub.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<
