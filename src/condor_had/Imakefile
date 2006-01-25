@@ -7,7 +7,8 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 soapobjs(had)
 
-HAD_OBJ =  StateMachine.o HAD.o Utils.o $(SOAP_OBJS)
+#HAD_OBJ =  StateMachine.o HAD.o Utils.o $(SOAP_OBJS)
+HAD_OBJ =  StateMachine.o HAD.o Utils.o soap_hadC.o soap_hadServer.o soap_hadStub.o
 
 c_plus_target($(HAD_NAME),$(HAD_OBJ),$(LIB))
 release_target($(HAD_NAME),sbin,EXECUTABLE_MODE)
@@ -21,7 +22,8 @@ gen_soapfiles(had,condorHad)
 REPLICATION_NAME = condor_replication
 all_target($(REPLICATION_NAME))
 
-REPLICATION_OBJ = AbstractReplicatorStateMachine.o ReplicatorStateMachine.o Version.o Utils.o Replication.o FilesOperations.o
+#REPLICATION_OBJ = AbstractReplicatorStateMachine.o ReplicatorStateMachine.o Version.o Utils.o Replication.o FilesOperations.o $(SOAP_OBJS)
+REPLICATION_OBJ = AbstractReplicatorStateMachine.o ReplicatorStateMachine.o Version.o Utils.o Replication.o FilesOperations.o soap_replicationC.o soap_replicationServer.o soap_replicationStub.o
 
 soapobjs(replication)
 
@@ -37,7 +39,8 @@ gen_soapfiles(replication,condorReplication)
 TRANSFERER_NAME = condor_transferer
 all_target($(TRANSFERER_NAME))
 
-TRANSFERER_OBJ =  BaseReplicaTransferer.o UploadReplicaTransferer.o DownloadReplicaTransferer.o Utils.o Transferer.o FilesOperations.o
+#TRANSFERER_OBJ =  BaseReplicaTransferer.o UploadReplicaTransferer.o DownloadReplicaTransferer.o Utils.o Transferer.o FilesOperations.o $(SOAP_OBJS)
+TRANSFERER_OBJ =  BaseReplicaTransferer.o UploadReplicaTransferer.o DownloadReplicaTransferer.o Utils.o Transferer.o FilesOperations.o soap_transfererC.o soap_transfererServer.o soap_transfererStub.o
 
 soapobjs(transferer)
 
