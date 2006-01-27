@@ -205,6 +205,7 @@ protected:
      */
     void killTransferers();
 
+	bool getProcessPrivilege(priv_state& privilege);
 protected:
 	/* The structure encapsulates process id and the last timestamp of the
      * process creation. The structure is used for downloading/uploading
