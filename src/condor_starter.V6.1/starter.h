@@ -118,7 +118,7 @@ public:
 		/**
 		 * Before a job is spawned, this method checks whether
 		 * a job has a deferrral time, which means we will need
-		 * to register timer to call jobEnvironmentReady()
+		 * to register timer to call SpawnPreScript()
 		 * when it is the correct time to run the job
 		 */
 	virtual bool jobWaitUntilExecuteTime( void );
@@ -135,6 +135,12 @@ public:
 			the job.
 		*/
 	virtual int jobEnvironmentReady( void );
+	
+		/**
+		 * 
+		 * 
+		 **/
+	virtual int SpawnPreScript( void );
 
 		/** Does final cleanup once all the jobs (and post script, if
 			any) have completed.  This deals with everything on the

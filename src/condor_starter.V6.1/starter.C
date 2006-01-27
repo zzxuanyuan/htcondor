@@ -284,6 +284,7 @@ CStarter::ShutdownGraceful( void )
 	if (!jobRunning) {
 		dprintf(D_FULLDEBUG, 
 				"Got ShutdownGraceful when no jobs running.\n");
+		this->allJobsDone();
 		return 1;
 	}	
 	return 0;
@@ -348,6 +349,7 @@ CStarter::ShutdownFast( void )
 	if (!jobRunning) {
 		dprintf(D_FULLDEBUG, 
 				"Got ShutdownFast when no jobs running.\n");
+		this->allJobsDone();
 		return ( true );
 	}	
 	return ( false );
@@ -415,6 +417,7 @@ CStarter::Remove( ) {
 		//
 	if (!jobRunning) {
 		dprintf( D_FULLDEBUG, "Got Remove when no jobs running\n" );
+		this->allJobsDone();
 		return ( true );
 	}	
 	return ( false );
@@ -477,6 +480,7 @@ CStarter::Hold( void )
 	ShuttingDown = TRUE;
 	if( !jobRunning ) {
 		dprintf( D_FULLDEBUG, "Got Hold when no jobs running\n" );
+		this->allJobsDone();
 		return ( true );
 	}	
 	return ( false );
@@ -610,29 +614,49 @@ CStarter::createTempExecuteDir( void )
 	return true;
 }
 
-//
-// After any file transfers are complete, will enter this method
-// to determine whether we need to wait until a certain time
-// before executing the job.
-//
-// Currently the user can specify in their job submission file
-// a UTC timestamp of when the job should be deferred until.
-// The following example would have the Starter attempt
-// to execute the job on Friday 10.14.2005 at 12:00:00
-// 
-// 		DeferralTime = 1129309200
-//
-// The starter will check to see if this DeferralTime is 
-// not in the past, and if it is it can be given a window in seconds
-// to say how far in the past we are willing to run a job
-//
-// There is also an additional time offset parameter that can
-// be stuffed into the job ad by the Shadow to specify the clock
-// difference between itself and this Starter. When this offset
-// is subtracted for our current time, we can ensure that we will
-// execute at the Shadow's proper time, not what we think the current
-// time is. This offset will be in seconds.
-//
+/**
+ * After any file transfers are complete, will enter this method
+ * to setup anything else that needs to happen in the Starter
+ * before starting a job
+ * 
+ * @return true
+ **/
+int
+CStarter::jobEnvironmentReady( void )
+{
+		//
+		// The Starter will determine when the job 
+		// should be started. This method will always return 
+		// immediately
+		//
+	this->jobWaitUntilExecuteTime( );
+	return ( true );
+}
+
+/**
+ * Calculate whether we need to wait until a certain time
+ * before executing the job.
+ * 
+ * Currently the user can specify in their job submission file 
+ * a UTC timestamp of when the job should be deferred until.
+ * The following example would have the Starter attempt
+ * to execute the job on Friday 10.14.2005 at 12:00:00
+ * 
+ * 	DeferralTime = 1129309200
+ * 
+ * The starter will check to see if this DeferralTime is 
+ * not in the past, and if it is it can be given a window in seconds
+ * to say how far in the past we are willing to run a job
+ * 
+ * There is also an additional time offset parameter that can
+ * be stuffed into the job ad by the Shadow to specify the clock
+ * difference between itself and this Starter. When this offset
+ * is subtracted for our current time, we can ensure that we will
+ * execute at the Shadow's proper time, not what we think the current
+ * time is. This offset will be in seconds.
+ * 
+ * @return
+ **/
 bool
 CStarter::jobWaitUntilExecuteTime( void )
 {
@@ -762,7 +786,7 @@ CStarter::jobWaitUntilExecuteTime( void )
 			//
 		this->deferral_tid = daemonCore->Register_Timer(
 										deltaT,
-										(TimerHandlercpp)&CStarter::jobEnvironmentReady,
+										(TimerHandlercpp)&CStarter::SpawnPreScript,
 										"deferred job start",
 										this );
 			//
@@ -809,22 +833,22 @@ CStarter::jobWaitUntilExecuteTime( void )
 		OsProc proc( jobAd );
 		proc.JobCleanup( -1, JOB_MISSED_DEFERRAL_TIME );
 		this->jic->notifyJobExit( -1, JOB_MISSED_DEFERRAL_TIME, &proc );
-		this->jic->allJobsGone();
+		this->allJobsDone();
 		ret = false;
 	}
 	
 	return ( ret );
 }
 
-//
-// removeDeferredJobs()
-//
-// If we need to remove all our jobs, this method can
-// be called to remove any jobs that are currently being
-// deferred. All a deferral means is that there is a timer
-// that has been registered to wakeup when its time to
-// execute the job. So we just need to cancel the timer
-//
+/**
+ * If we need to remove all our jobs, this method can
+ * be called to remove any jobs that are currently being
+ * deferred. All a deferral means is that there is a timer
+ * that has been registered to wakeup when its time to
+ * execute the job. So we just need to cancel the timer
+ * 
+ * @return true if the deferred job was removed successfully
+ **/
 bool
 CStarter::removeDeferredJobs() {
 	bool ret = true;
@@ -857,8 +881,14 @@ CStarter::removeDeferredJobs() {
 	return ( ret );
 }
 
+/**
+ * Start the prescript for a job, if one exists
+ * If one doesn't, then we will call SpawnJob() directly
+ * 
+ * return true if no errors occured
+ **/
 int
-CStarter::jobEnvironmentReady( void )
+CStarter::SpawnPreScript( void )
 {
 		//
 		// Unset the deferral timer so that we know that no job
@@ -910,7 +940,11 @@ CStarter::jobEnvironmentReady( void )
 	return SpawnJob();
 }
 
-
+/**
+ * 
+ * 
+ * 
+ **/
 int
 CStarter::SpawnJob( void )
 {
