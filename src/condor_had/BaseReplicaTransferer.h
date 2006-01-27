@@ -38,7 +38,7 @@ public:
      */
     BaseReplicaTransferer(const MyString&  pDaemonSinfulString,
                           const MyString&  pVersionFilePath,
-                          const MyString& pStateFilePath);
+                          const MyString&  pStateFilePath);
     ~BaseReplicaTransferer();                        
     /* Function    : initialize
      * Return value: TRANSFERER_TRUE   - upon success

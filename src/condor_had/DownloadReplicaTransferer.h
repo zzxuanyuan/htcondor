@@ -17,7 +17,7 @@ public:
     */
     DownloadReplicaTransferer(const MyString&  pDaemonSinfulString,
                               const MyString&  pVersionFilePath,
-                              const MyString& pStateFilePath):
+                              const MyString&  pStateFilePath):
         BaseReplicaTransferer( pDaemonSinfulString,
                                pVersionFilePath,
                                pStateFilePath ) {};

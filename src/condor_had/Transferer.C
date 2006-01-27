@@ -69,7 +69,7 @@ downloadTerminateSignalHandler(Service* service, int signalNumber)
 int
 main_init( int argc, char *argv[] )
 {
-     if( argc != 5 ) {
+    if( argc != 5 ) {
          dprintf( D_PROC, "Transfer error: arguments number differs from 5\n" );
 
          DC_Exit( 1 );

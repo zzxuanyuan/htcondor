@@ -669,5 +669,6 @@ AbstractReplicatorStateMachine::getProcessPrivilege(priv_state& privilege)
 	set_user_ids( uid, gid );
 # endif
 
+	return true;
 	//return priv;
 }
