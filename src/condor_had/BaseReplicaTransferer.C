@@ -11,13 +11,21 @@ extern int main_shutdown_graceful();
 BaseReplicaTransferer::BaseReplicaTransferer(
                                  const MyString&  pDaemonSinfulString,
                                  const MyString&  pVersionFilePath,
-                                 const MyString&  pStateFilePath ):
+                                 //const MyString&  pStateFilePath ):
+								 const StringList& pStateFilePathsList ):
    m_daemonSinfulString( pDaemonSinfulString ),
    m_versionFilePath( pVersionFilePath ),
-   m_stateFilePath( pStateFilePath ), m_socket( 0 ),
+   //m_stateFilePathsList( pStateFilePathsList ), 
+   m_socket( 0 ),
    m_connectionTimeout( DEFAULT_SEND_COMMAND_TIMEOUT ),
    m_maxTransferLifetime( DEFAULT_MAX_TRANSFER_LIFETIME )
 {
+	// 'malloc'-allocated string
+	char* stateFilePathsAsString = 
+		const_cast<StringList&>(pStateFilePathsList).print_to_string();
+	// copying the string lists
+	m_stateFilePathsList.initializeFromString( stateFilePathsAsString );
+	free( stateFilePathsAsString );
 }
 
 BaseReplicaTransferer::~BaseReplicaTransferer()
@@ -52,4 +60,25 @@ BaseReplicaTransferer::reinitialize( )
 	m_maxTransferLifetime = param_integer( "MAX_TRANSFER_LIFETIME",
 											DEFAULT_MAX_TRANSFER_LIFETIME );
     return TRANSFERER_TRUE;
+}
+
+void
+BaseReplicaTransferer::safeUnlinkStateAndVersionFiles(
+	const StringList& stateFilePathsList,
+    const MyString&   versionFilePath,
+    const MyString&   extension)
+{
+	FilesOperations::safeUnlinkFile( versionFilePath.GetCStr( ),
+                                     extension.GetCStr( ) );
+	StringList& stateFilePathsListRef =
+		const_cast<StringList&>(stateFilePathsList);
+	stateFilePathsListRef.rewind();
+
+	char* stateFilePath = NULL;
+
+	while( ( stateFilePath = stateFilePathsListRef.next( ) ) ) {
+		FilesOperations::safeUnlinkFile( stateFilePath,
+                                     	 extension.GetCStr( ) );
+	}
+	stateFilePathsListRef.rewind();
 }

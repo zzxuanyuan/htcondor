@@ -31,14 +31,15 @@ class BaseReplicaTransferer: public Service
 public:
     typedef enum { TRANSFERER_TRUE = 0, TRANSFERER_FALSE };
     /* Function  : BaseReplicaTransferer constructor
-     * Arguments : pDaemonSinfulString - downloading/uploading daemon
-     *                                   sinfull string
-     *             pVersionFilePath - version string in dot-separated format
-     *             pStateFilesList - list of paths to the state files
+     * Arguments : pDaemonSinfulString  - downloading/uploading daemon
+     *                                    sinfull string
+     *             pVersionFilePath     - version string in dot-separated format
+     *             pStateFilesPathsList - list of paths to the state files
      */
     BaseReplicaTransferer(const MyString&  pDaemonSinfulString,
                           const MyString&  pVersionFilePath,
-                          const MyString&  pStateFilePath);
+                          //const MyString&  pStateFilePath);
+						  const StringList& pStateFilePathsList);
     ~BaseReplicaTransferer();                        
     /* Function    : initialize
      * Return value: TRANSFERER_TRUE   - upon success
@@ -56,15 +57,30 @@ public:
     virtual int initialize() = 0;
 // Inspectors
 	MyString getVersionFilePath() { return m_versionFilePath; };
-	MyString getStateFilePath()   { return m_stateFilePath; };
+	//MyString getStateFilePath()   { return m_stateFilePath; };
+	const StringList& getStateFilePathsList() { return m_stateFilePathsList; };
 // End of inspectors
 protected:
+	
+	/* Function    : safeUnlinkStateAndVersionFiles
+	 * Arguments   : stateFilePathsList - list of paths to the state files
+	 *				 versionFilePath    - version string in dot-separated format
+	 *				 extension          - extension of temporary file
+	 * Description : unlinks temporary copies of version and state files,
+	 *				 according to the specified extension
+	 */
+	static void
+	safeUnlinkStateAndVersionFiles(const StringList& stateFilePathsList,
+	                               const MyString&   versionFilePath,
+			                       const MyString&   extension);
 	// address of the downloading/uploading counterpart	
     MyString  m_daemonSinfulString;
 	// path to the file where local version is stored
     MyString  m_versionFilePath;
-	// path to the file where the state, protected by the replication is stored
-    MyString  m_stateFilePath;
+	// path to the list of files where the state, protected by the replication 
+	// is stored
+    //MyString  m_stateFilePath;
+	StringList m_stateFilePathsList;
 
     // TCP socket, over which all the communication is done
     ReliSock* m_socket;

@@ -11,17 +11,19 @@ class UploadReplicaTransferer : public BaseReplicaTransferer
 {
 public:
     /* Function  : UploadReplicaTransferer constructor
-     * Arguments : pDaemonSinfulString - downloading daemon sinfull string
-     *             pVersionFilePath    - version string in dot-separated format
-     *             pStateFilesList     - list of paths to the state files
+     * Arguments : pDaemonSinfulString  - downloading daemon sinfull string
+     *             pVersionFilePath     - version string in dot-separated format
+     *             pStateFilesPathsList - list of paths to the state files
      */
     UploadReplicaTransferer(const MyString&  pDaemonSinfulString,
                             const MyString&  pVersionFilePath,
-                            const MyString&  pStateFilePath):
+                            //const MyString&  pStateFilePath):
+							const StringList& pStateFilePathsList):
          BaseReplicaTransferer( pDaemonSinfulString,
                                 pVersionFilePath,
-                                pStateFilePath ) {};
-    /* Function    : initialize
+                                //pStateFilePath ) {};
+								pStateFilePathsList ) {}; 
+	/* Function    : initialize
      * Return value: TRANSFERER_TRUE  - upon success
      *               TRANSFERER_FALSE - upon failure
      * Description : main function of uploading 'condor_transferer' process,

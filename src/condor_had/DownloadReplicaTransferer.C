@@ -134,11 +134,28 @@ DownloadReplicaTransferer::download( ) {
     	return TRANSFERER_FALSE;
     }
     // download state file
-	if( downloadFile( m_stateFilePath, extension ) == TRANSFERER_FALSE ) {
-		FilesOperations::safeUnlinkFile( m_versionFilePath.GetCStr( ), 
-										 extension.GetCStr( ) );
-		return TRANSFERER_FALSE;	
+	char* stateFilePath = NULL;
+
+	m_stateFilePathsList.rewind( );
+
+	while( ( stateFilePath = m_stateFilePathsList.next( ) ) ) {
+		MyString stateFilePathString = stateFilePath;
+		if( downloadFile( stateFilePathString, extension ) ==
+				TRANSFERER_FALSE ) {
+			// we return anyway, so that we should not worry that we operate
+			// on 'm_stateFilePathsList' while iterating on it in the outer loop
+			safeUnlinkStateAndVersionFiles( m_stateFilePathsList,
+											m_versionFilePath,
+											extension );
+			return TRANSFERER_FALSE;
+		}
 	}
+	m_stateFilePathsList.rewind( );	
+//	if( downloadFile( m_stateFilePath, extension ) == TRANSFERER_FALSE ) {
+//		FilesOperations::safeUnlinkFile( m_versionFilePath.GetCStr( ), 
+//										 extension.GetCStr( ) );
+//		return TRANSFERER_FALSE;	
+//	}
     return TRANSFERER_TRUE;
 }
 

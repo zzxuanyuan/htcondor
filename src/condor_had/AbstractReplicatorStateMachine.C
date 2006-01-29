@@ -303,7 +303,7 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 
     executable.sprintf( "%s/condor_transferer",
                                 m_releaseDirectoryPath.GetCStr( ) );
-    processArguments.sprintf( "%s -f down %s %s %s",
+    processArguments.sprintf( "%s -f down %s %s 1 %s",
                               executable.GetCStr( ),
                               daemonSinfulString,
                               m_versionFilePath.GetCStr( ),
@@ -364,7 +364,7 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
 
     executable.sprintf( "%s/condor_transferer",
                                 m_releaseDirectoryPath.GetCStr( ) );
-    processArguments.sprintf( "%s -f up %s %s %s",
+    processArguments.sprintf( "%s -f up %s %s 1 %s",
 							  executable.GetCStr( ),
                               daemonSinfulString,
                               m_versionFilePath.GetCStr( ),

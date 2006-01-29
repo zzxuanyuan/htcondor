@@ -22,7 +22,7 @@ getFileSize( const MyString& filePath )
 	return end - begin;
 }*/
 
-static void
+/*static void
 safeUnlinkStateAndVersionFiles( const MyString& stateFilePath,
 							    const MyString& versionFilePath,
 							    const MyString& extension )
@@ -31,7 +31,7 @@ safeUnlinkStateAndVersionFiles( const MyString& stateFilePath,
                                      extension.GetCStr( ) );
     FilesOperations::safeUnlinkFile( stateFilePath.GetCStr( ),
                                      extension.GetCStr( ) );
-}
+}*/
 
 int
 UploadReplicaTransferer::initialize( )
@@ -40,15 +40,17 @@ UploadReplicaTransferer::initialize( )
 
     m_socket = new ReliSock( );
 
-	// enable timeouts
+	// enable timeouts, we set them to the maximal possible value because the
+	// maximal life policy of transferers is managed from within the code of
+	// replication daemon, so that transferers behave as if they are given the
+	// infinite time to upload the files
     //m_socket->set_timeout_multiplier( 1 );
     m_socket->timeout( INT_MAX ); // m_connectionTimeout );
     // no retries after 'm_connectionTimeout' seconds of unsuccessful connection
     m_socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
 
-    if( ! m_socket->connect( const_cast<char*>( m_daemonSinfulString.GetCStr( ) ), 
-						   0, 
-						   false ) ) {
+    if( ! m_socket->connect( 
+		const_cast<char*>( m_daemonSinfulString.GetCStr( ) ), 0, false ) ) {
         dprintf( D_ALWAYS, 
 				"UploadReplicaTransferer::initialize cannot connect to %s\n",
                  m_daemonSinfulString.GetCStr( ) );
@@ -99,7 +101,8 @@ UploadReplicaTransferer::upload( )
 
 	char* temporaryVersionFilePath =
 			const_cast<char*>(m_versionFilePath.GetCStr());
-	char* temporaryStateFilePath   = const_cast<char*>(m_stateFilePath.GetCStr());
+	/*char* temporaryStateFilePath   = 
+			const_cast<char*>(m_stateFilePath.GetCStr());*/
 	char* temporaryExtension       = const_cast<char*>(extension.GetCStr());
 
     if( ! FilesOperations::safeCopyFile( temporaryVersionFilePath,
@@ -110,7 +113,26 @@ UploadReplicaTransferer::upload( )
 										 temporaryExtension );
 		return TRANSFERER_FALSE;
 	}
-	if( ! FilesOperations::safeCopyFile( temporaryStateFilePath,
+	char* stateFilePath = NULL;
+
+	m_stateFilePathsList.rewind( );
+
+	while( ( stateFilePath = m_stateFilePathsList.next( ) ) ) {
+		if( ! FilesOperations::safeCopyFile( stateFilePath,
+		                                     temporaryExtension ) ) {
+			dprintf( D_ALWAYS, "UploadReplicaTransferer::upload unable to copy "
+							   "state file %s\n", stateFilePath );
+			// we return anyway, so that we should not worry that we operate
+			// on 'm_stateFilePathsList' while iterating on it in the outer loop
+			safeUnlinkStateAndVersionFiles( m_stateFilePathsList,
+											m_versionFilePath,
+											extension );
+			return TRANSFERER_FALSE;
+		}
+	}
+	m_stateFilePathsList.rewind( );
+	
+	/*if( ! FilesOperations::safeCopyFile( temporaryStateFilePath,
                                          temporaryExtension ) ) {
         dprintf( D_ALWAYS, "UploadReplicaTransferer::upload unable to copy "
                            "state file %s\n", temporaryStateFilePath );
@@ -118,25 +140,47 @@ UploadReplicaTransferer::upload( )
                                         temporaryVersionFilePath,
 									    temporaryExtension );
         return TRANSFERER_FALSE;
-    }
+    }*/
     // upload version file
     if( uploadFile( m_versionFilePath, extension ) == TRANSFERER_FALSE){
 		dprintf( D_ALWAYS, "UploadReplicaTransferer::upload unable to upload "
 						   "version file %s\n", temporaryVersionFilePath );
-		FilesOperations::safeUnlinkFile( temporaryStateFilePath, 
-										 temporaryExtension );
+		//FilesOperations::safeUnlinkFile( temporaryStateFilePath, 
+		//								 temporaryExtension );
+		safeUnlinkStateAndVersionFiles( m_stateFilePathsList,
+		                                m_versionFilePath,
+									    extension);
 		return TRANSFERER_FALSE;
     }
 	// trying to unlink the temporary files; upon failure we still return the
     // status of uploading the files, since the most important thing here is
     // that the files were uploaded successfully
-	FilesOperations::safeUnlinkFile( temporaryVersionFilePath, 
-									 temporaryExtension );
-    if( uploadFile( m_stateFilePath, extension ) == TRANSFERER_FALSE ){
-		return TRANSFERER_FALSE;
+	//FilesOperations::safeUnlinkFile( temporaryVersionFilePath, 
+	//								 temporaryExtension );
+    m_stateFilePathsList.rewind( );
+	
+	while( ( stateFilePath = m_stateFilePathsList.next( ) ) ) {
+		MyString stateFilePathString = stateFilePath;
+
+		if( uploadFile( stateFilePathString , extension ) ==
+				TRANSFERER_FALSE ) {
+			safeUnlinkStateAndVersionFiles( m_stateFilePathsList,
+			                                m_versionFilePath,
+											extension );
+			return TRANSFERER_FALSE;
+		}
 	}
-	FilesOperations::safeUnlinkFile( temporaryStateFilePath,
-									 temporaryExtension );
+	m_stateFilePathsList.rewind( );
+	safeUnlinkStateAndVersionFiles( m_stateFilePathsList,
+	                                m_versionFilePath,
+									extension );
+	// if the uploading failed, the temporary file is deleted, so there is no
+	// need to delete it in the caller
+	/*if( uploadFile( m_stateFilePath, extension ) == TRANSFERER_FALSE ){
+		return TRANSFERER_FALSE;
+	}*/
+	//FilesOperations::safeUnlinkFile( temporaryStateFilePath,
+	//								 temporaryExtension );
 	return TRANSFERER_TRUE;
 }
 

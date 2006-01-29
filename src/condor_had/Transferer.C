@@ -63,30 +63,54 @@ downloadTerminateSignalHandler(Service* service, int signalNumber)
  *            argv[1] - up | down,
  *            argv[2] - another communication side daemon's sinful string,
  *            argv[3] - version file,
- *            argv[4] - state file
+ *            argv[4] - number of state files
+ *            argv[5], argv[6], ... argv[5 + argv[4] - 1] - state files
  * Remarks: flags (like '-f') are being stripped off before this function call
  */
 int
 main_init( int argc, char *argv[] )
 {
-    if( argc != 5 ) {
-         dprintf( D_PROC, "Transfer error: arguments number differs from 5\n" );
-
+    /*if( argc != 5 ) {
+         dprintf( D_ALWAYS, "Transferer error: arguments number differs "
+		 					"from 5\n" );
          DC_Exit( 1 );
-    }
+    }*/
+	if( argc < 6 ) {
+		dprintf( D_ALWAYS, "Transferer error: arguments number is less "
+						   "than 6\n");
+		DC_Exit( 1 );
+	}
+	int stateFilesNumber = atoi(argv[4]);
+	
+	if( stateFilesNumber != argc - 5 ) {
+		dprintf( D_ALWAYS, "Transferer error: number of state files, specified "
+						   "as the fourth argument differs from their actual "
+						   "number: %d vs. %d\n", stateFilesNumber, argc - 4 );
+
+		DC_Exit( 1 );
+	}
+	StringList stateFilePathsList;
+	
+	for( int stateFileIndex = 0;
+		 stateFileIndex < stateFilesNumber;
+		 stateFileIndex ++ ) {
+		stateFilePathsList.append( argv[5 + stateFileIndex] );
+	}
 
     if( ! strncmp( argv[1], "down", strlen( "down" ) ) ) {
         replicaTransferer = new DownloadReplicaTransferer( 
 								argv[2], 
 								argv[3], 
-								argv[4] );
+								//argv[4] );
+								stateFilePathsList );
 	} else if( ! strncmp( argv[1], "up", strlen( "up" ) ) ) {
         replicaTransferer = new UploadReplicaTransferer( 
 								argv[2], 
 								argv[3], 
-								argv[4] );
+								//argv[4] );
+								stateFilePathsList );
     } else {
-        dprintf( D_PROC, "Transfer error: first parameter must be "
+        dprintf( D_ALWAYS, "Transfer error: first parameter must be "
                          "either up or down\n" );
         DC_Exit( 1 );
     }
