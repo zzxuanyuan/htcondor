@@ -533,6 +533,52 @@ DCStartd::checkpointJob( const char* name )
 	return true;
 }
 
+
+bool 
+DCStartd::getAds( ClassAdList &adsList, const char* name )
+{
+	CondorError errstack;
+	// fetch the query
+	QueryResult q;
+	CondorQuery* query;
+	ClassAd *ad;
+	char* addr;
+
+	// instantiate query object
+	if (!(query = new CondorQuery (STARTD_AD))) {
+		dprintf( D_ALWAYS, "Error:  Out of memory\n");
+		return(false);
+	}
+
+	if( this->locate() ){
+		addr = this->addr();
+		q = query->fetchAds(adsList, addr, &errstack);
+		if (q != Q_OK) {
+        	if (q == Q_COMMUNICATION_ERROR) {
+            	dprintf( D_ALWAYS, "%s\n", errstack.getFullText(true) );
+        	}
+        	else {
+            	dprintf (D_ALWAYS, "Error:  Could not fetch ads --- %s\n",
+                     	getStrQueryResult(q));
+        	}
+        	return (false);
+    	} else {
+			char *name;
+			adsList.Rewind();
+			while( (ad = adsList.Next()) ){
+				ad->LookupString( ATTR_NAME, &name ); 
+				dprintf(D_ALWAYS,"getAds: got Startd ads for %s\n",name);
+			}
+		}
+	} else {
+		dprintf( D_ALWAYS, "DCStartd::getAds Failed\n" );
+		return(false);
+	}
+
+	dprintf( D_ALWAYS, "DCStartd::getAds Worked\n" );
+	return(true);
+}
+
 bool
 DCStartd::checkClaimId( void )
 {
