@@ -33,7 +33,7 @@
 struct StartdStats {
 	StartdStats( const char Name[], int Universe, int ImageSize, int LastCheckpoint) :
 		universe(Universe), imagesize(ImageSize), lastcheckpoint(LastCheckpoint),
-		jobstart(0), virtualmachineid(0), ckptmegs(0), ckpttime(0), ckptgroup(0)
+		jobstart(0), virtualmachineid(0), ckptmegs(0), ckpttime(0), ckptlength(0), ckptgroup(0)
 		{ 	
 			strcpy( name, Name); 
 			state[0] = '\0';
@@ -56,6 +56,7 @@ struct StartdStats {
 	// space for managing the benchmarking and checkpointing staging
 	int 	ckptmegs;
 	int 	ckpttime;
+	int 	ckptlength;
 	int 	ckptgroup;
 };
 
@@ -90,8 +91,9 @@ class AdminEvent : public Service
 	int process_ShutdownConstraint( char *constraint, char *process_type );
 
 	// Action Methods
-	int sendCheckpoint(char *sinful, char *name);
-	int setup_run_ckpt_benchmark(int megs);
+	int pollStartdAds( ClassAdList &adsList, char *sinful, char *name );
+	int sendCheckpoint( char *sinful, char *name );
+	int setup_run_ckpt_benchmark( int megs );
 
 	// Print Methods
 	int unclaimedDisplay();
@@ -103,6 +105,7 @@ class AdminEvent : public Service
 
 	// Processing events
 	int standardUProcess();
+	int standardUProcess_ckpt_times();
 
 	// Operation Markers
 	bool 		m_haveShutdown;
@@ -132,6 +135,7 @@ class AdminEvent : public Service
 	ClassAdList m_claimed_standard;
 	ClassAdList m_claimed_otherUs;
 	ClassAdList m_unclaimed;
+	ClassAdList m_fromStartd;
 
 };
 

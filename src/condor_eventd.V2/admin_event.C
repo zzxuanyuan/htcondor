@@ -116,7 +116,7 @@ AdminEvent::timerHandler_DoShutdown( void )
 	dprintf(D_ALWAYS, "<<<Time For Shutdown!!!!--%s--!!!>>>\n",m_shutdownTarget.Value());
 	d = new DCMaster(m_shutdownTarget.Value());
 	dprintf(D_ALWAYS,"daemon name is %s\n",d->name());
-	dprintf(D_FULLDEBUG,"call Shutdown now.....\n");
+	dprintf(D_ALWAYS,"call Shutdown now.....\n");
 	//d->sendMasterOff(wantTcp);
 	return(0);
 }
@@ -124,9 +124,14 @@ AdminEvent::timerHandler_DoShutdown( void )
 int 
 AdminEvent::timerHandler_Check_Ckpt_BenchM( void )
 {
+	dprintf(D_FULLDEBUG, "timerHandler_Check_Ckpt_BenchM: start...\n");
 	// rerun last constraint
+	process_ShutdownConstraint( (char *)m_shutdownConstraint.Value(), "re-process" );
 	// process ads for which ones are still standard Universe
+	standardUProcess_ckpt_times( );
+	standardU_benchmark_Display( );
 	// look at the mark for when the last checkpoint completed
+
 	// wait longer(reset timer) if some are not different from hash store
 	// increase checkpoint size until slow down seen
 	// determine number of batches based on current total size of all jobs
@@ -255,6 +260,16 @@ AdminEvent::check_Shutdown( bool init )
 			m_CkptTest_su.clear();
 		}
 		setup_run_ckpt_benchmark(500);
+		m_intervalCheck_Ckpt_BenchM = 300;
+
+		dprintf(D_ALWAYS, "setting check point benchmarking for +%d\n",
+			m_intervalCheck_Ckpt_BenchM);
+		m_timeridCheck_Ckpt_BenchM = daemonCore->Register_Timer(
+			m_intervalCheck_Ckpt_BenchM,
+			(TimerHandlercpp)&AdminEvent::timerHandler_Check_Ckpt_BenchM,
+			"AdminEvent::Ckpt_BenchM()", this );
+		dprintf(D_ALWAYS, "timer ID is %d\n",
+			m_timeridCheck_Ckpt_BenchM);
 		/**/
 
 	}
@@ -267,6 +282,21 @@ AdminEvent::check_Shutdown( bool init )
 		MISC COMMANDS
 
 */
+
+int
+AdminEvent::pollStartdAds( ClassAdList &adsList, char *sinful, char *name )
+{
+	DCStartd *		d;
+
+	/* when we wake up we do the shutdown */
+	//d = new DCStartd(name, NULL, sinful, NULL);
+	d = new DCStartd(name, NULL);
+	dprintf(D_ALWAYS,"daemon name is %s\n",d->name());
+	dprintf(D_FULLDEBUG,"call getAds now.....\n");
+	dprintf(D_ALWAYS, "Want to get ads from  here ((%s)) and this vm ((%s))\n",sinful,name);
+	d->getAds(adsList, name);
+	return(0);
+}
 
 int
 AdminEvent::sendCheckpoint( char *sinful, char *name )
@@ -293,7 +323,9 @@ AdminEvent::sendCheckpoint( char *sinful, char *name )
 int
 AdminEvent::setup_run_ckpt_benchmark(int megs)
 {
+	ClassAd *ad;
 	int current_size = 0;
+	char *name;
 	StartdStats *ss, *tt;
 	m_JobNodes_su.startIterations();
 	while(m_JobNodes_su.iterate(ss) == 1) {
@@ -309,6 +341,7 @@ AdminEvent::setup_run_ckpt_benchmark(int megs)
 			tt->ckptmegs = ss->imagesize; // how big was it at checkpoint size
 			tt->ckpttime = (int) time(NULL); // 
 			tt->ckptgroup = 0; // 
+			tt->ckptlength = 0; // 
 
 			strcpy(tt->clientmachine, ss->clientmachine);
 			strcpy(tt->state, ss->state);
@@ -317,6 +350,16 @@ AdminEvent::setup_run_ckpt_benchmark(int megs)
 			strcpy(tt->jobid, ss->jobid);
 
 			m_CkptTest_su.insert(namekey,tt);
+			dprintf(D_ALWAYS,"Sending checkpoint command to  *****<%s:%s>*****\n",
+				ss->myaddress, ss->name);
+			sendCheckpoint(ss->myaddress,ss->name);
+
+			pollStartdAds( m_fromStartd, tt->myaddress, tt->name );
+			m_fromStartd.Rewind();
+			while( (ad = m_fromStartd.Next()) ){
+				ad->LookupString( ATTR_NAME, &name ); //**
+				dprintf(D_ALWAYS,"pollStartdAds: got Startd ads for %s\n",name);
+			}
 			current_size += (tt->ckptmegs/1000);
 			dprintf(D_ALWAYS,"Test Checkpoint Benchmark now at <%d> Megs\n",current_size);
 		} else {
@@ -441,6 +484,7 @@ AdminEvent::process_ShutdownConstraint( char *constraint, char *process_type )
 	if( strcmp(process_type,"new") == 0) {
 		// remember the constraint
 		m_newshutdownConstraint = constraint;
+		m_shutdownConstraint = m_newshutdownConstraint;
 	}
 
 	query->addORConstraint( constraint );
@@ -460,6 +504,10 @@ AdminEvent::process_ShutdownConstraint( char *constraint, char *process_type )
 
 	// output result
 	// we always fill the sorted class ad lists with the result of the query
+	m_claimed_standard.Rewind();
+	while( (ad = m_claimed_standard.Next()) ){
+		m_claimed_standard.Delete(ad);
+	}
 	m_collector_query_ads.Rewind();
 	while( (ad = m_collector_query_ads.Next()) ){
 		ad->LookupString( ATTR_MACHINE, &machine );
@@ -543,6 +591,7 @@ AdminEvent::standardUProcess( )
 			ss->virtualmachineid = virtualmachineid;
 			ss->jobstart = jobstart;
 			ss->ckpttime = testtime;
+			ss->ckptlength = 0;
 			strcpy(ss->clientmachine, clientmachine);
 			strcpy(ss->state, state);
 			strcpy(ss->activity, activity);
@@ -566,6 +615,75 @@ AdminEvent::standardUProcess( )
 		*/
 	}
 	m_haveFullStats = true;
+
+	return(0);
+}
+
+int
+AdminEvent::standardUProcess_ckpt_times( )
+{
+	ClassAd *ad;
+
+	char 	*machine;
+	char 	*sinful;
+	char 	*name;
+	char 	*state;
+	char 	*activity;
+	char 	*clientmachine;
+	char	*jobid;	
+
+	int		virtualmachineid;	
+	int		jobuniverse;	
+	int		jobstart;	
+	int		timetockpt;
+	int		imagesize;	
+	int		lastperiodiccheckpoint;	
+
+	time_t timeNow = time(NULL);
+	int     testtime = (int)timeNow;
+
+	StartdStats *ss;
+
+	dprintf(D_ALWAYS,"The following were assigned claimed standard U\n");
+	m_claimed_standard.Rewind();
+	while( (ad = m_claimed_standard.Next()) ){
+		//ad->LookupString( ATTR_MACHINE, &machine );
+		//ad->LookupString( ATTR_MY_ADDRESS, &sinful ); //**
+		/* lets find the name and see if we are benchmarking this job */
+		ad->LookupString( ATTR_NAME, &name ); //**
+		HashKey		namekey(name);
+		//ad->LookupString( ATTR_STATE, &state ); //**
+		//ad->LookupString( ATTR_ACTIVITY, &activity ); //**
+		//ad->LookupString( ATTR_CLIENT_MACHINE, &clientmachine ); //**
+		//ad->LookupString( ATTR_JOB_ID, &jobid ); //**
+		//ad->LookupInteger( ATTR_JOB_START, jobstart ); //**
+		//ad->LookupInteger( ATTR_JOB_UNIVERSE, jobuniverse ); //**
+		//ad->LookupInteger( ATTR_IMAGE_SIZE, imagesize ); //**
+		//ad->LookupInteger( ATTR_VIRTUAL_MACHINE_ID, virtualmachineid ); //**
+		//ad->LookupInteger( ATTR_LAST_PERIODIC_CHECKPOINT, lastperiodiccheckpoint ); //**
+		if(m_CkptTest_su.lookup(namekey,ss) < 0) {
+			dprintf(D_ALWAYS,"Not benchmarking checkpointing on this job%s\n",name);
+			//ss = new StartdStats(name, jobuniverse, imagesize, lastperiodiccheckpoint);
+			//ss->virtualmachineid = virtualmachineid;
+			//ss->jobstart = jobstart;
+			//ss->ckpttime = testtime;
+			//strcpy(ss->clientmachine, clientmachine);
+			//strcpy(ss->state, state);
+			//strcpy(ss->activity, activity);
+			//strcpy(ss->myaddress, sinful);
+			//strcpy(ss->jobid, jobid);
+
+			//m_JobNodes_su.insert(namekey,ss);
+		} else {
+			dprintf(D_ALWAYS,"Found %s as Benchmark Job\n",name);
+			ad->LookupInteger( ATTR_LAST_PERIODIC_CHECKPOINT, lastperiodiccheckpoint ); //**
+			dprintf(D_ALWAYS,"Checkpoint Noow *****<<%d>>*****\n",lastperiodiccheckpoint);
+			timetockpt = lastperiodiccheckpoint - ss->ckpttime;
+			ss->ckptlength = timetockpt;
+		}
+
+	}
+	//m_haveFullStats = true;
 
 	return(0);
 }
@@ -596,6 +714,7 @@ AdminEvent::standardU_benchmark_Display( )
 		dprintf(D_ALWAYS,"VirtualMachineId %d\n",ss->virtualmachineid);
 		dprintf(D_ALWAYS,"======================================\n");
 		dprintf(D_ALWAYS,"CkptTime %d\n",ss->ckpttime);
+		dprintf(D_ALWAYS,"CkptLength %d\n",ss->ckptlength);
 		dprintf(D_ALWAYS,"CkptGroup %d\n",ss->ckptgroup);
 		dprintf(D_ALWAYS,"CkptMegs %d\n",ss->ckptmegs);
 		//delete ss;
@@ -625,6 +744,7 @@ AdminEvent::standardUDisplay_StartdStats( )
 		dprintf(D_ALWAYS,"VirtualMachineId %d\n",ss->virtualmachineid);
 		dprintf(D_ALWAYS,"--------------------------------------\n");
 		dprintf(D_ALWAYS,"CkptTime %d\n",ss->ckpttime);
+		dprintf(D_ALWAYS,"CkptLength %d\n",ss->ckptlength);
 		dprintf(D_ALWAYS,"CkptGroup %d\n",ss->ckptgroup);
 		dprintf(D_ALWAYS,"CkptMegs %d\n",ss->ckptmegs);
 	}
@@ -674,7 +794,7 @@ AdminEvent::standardUDisplay()
 		} else {
 			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>> Standard SORTED!!!!\n",machine,m_shutdownConstraint.Value());
 			ad->dPrint( D_ALWAYS );
-			sendCheckpoint(sinful,name);
+			//sendCheckpoint(sinful,name);
 		}
 	}
 	return(0);
