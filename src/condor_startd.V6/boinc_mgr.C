@@ -104,6 +104,7 @@ BOINC_BackfillMgr::BOINC_BackfillMgr()
 	: BackfillMgr()
 {
 	dprintf( D_ALWAYS, "Instantiating a BOINC_BackfillMgr\n" );
+	m_delete_boinc_mgr = false;
 	m_boinc_starter = NULL;
 	m_reaper_id = -1;
 }
@@ -176,7 +177,13 @@ BOINC_BackfillMgr::reconfig()
 bool
 BOINC_BackfillMgr::destroy()
 {
-		// TODO
+	if( m_boinc_starter && m_boinc_starter->active() ) {
+			// our child is still around, hardkill "all" VMs
+		hardkill( 0 );
+		m_delete_boinc_mgr = true;
+		return false;
+	}
+
 	return true;
 }
 
@@ -207,6 +214,18 @@ BOINC_BackfillMgr::rmVM( int vm_id )
 				 "can't find resource with VM id %d\n", vm_id );
 		return false;
 	}
+	if( m_delete_boinc_mgr ) {
+			/*
+			  if we're trying to delete the BackfillMgr, we should go
+			  to the owner state, not go back to Backfill/Idle.
+			  however, if we've already got a valid destination for
+			  this resource, don't clobber that...
+			*/
+		if( rip->r_state->destination() == no_state ) {
+			rip->r_state->set_destination( owner_state );
+		}
+	}
+
 	rip->r_state->starterExited();
 
 	return true;
@@ -216,6 +235,11 @@ BOINC_BackfillMgr::rmVM( int vm_id )
 bool
 BOINC_BackfillMgr::start( int vm_id )
 {
+	if( m_delete_boinc_mgr || resmgr->isShuttingDown() ) {
+			// we're trying to shutdown, don't spawn anything
+		return false;
+	}
+
 	if( m_vms[vm_id] ) {
 		dprintf( D_ALWAYS, "BackfillVM object for VM %d already exists\n",
 				 vm_id );
@@ -373,6 +397,10 @@ BOINC_BackfillMgr::reaper( int pid, int status )
 
 	if( resmgr->isShuttingDown() ) {
 		startd_check_free();
+	}
+
+	if( m_delete_boinc_mgr ) {
+		resmgr->backfillMgrDone();
 	}
 
 	return TRUE;

@@ -80,6 +80,7 @@ protected:
 
 	Starter* m_boinc_starter;
 	int m_reaper_id;
+	bool m_delete_boinc_mgr;
 
 };
 
