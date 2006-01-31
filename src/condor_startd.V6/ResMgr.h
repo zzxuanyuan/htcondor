@@ -279,6 +279,7 @@ private:
 
 #if HAVE_BACKFILL
 	bool backfillConfig( void );
+	bool m_backfill_shutdown_pending;
 #endif /* HAVE_BACKFILL */
 
 };

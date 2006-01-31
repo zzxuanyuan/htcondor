@@ -37,6 +37,7 @@ ResMgr::ResMgr()
 
 #if HAVE_BACKFILL
 	m_backfill_mgr = NULL;
+	m_backfill_shutdown_pending = false;
 #endif
 
 	id_disp = NULL;
@@ -158,6 +159,8 @@ ResMgr::backfillMgrDone()
 	dprintf( D_FULLDEBUG, "BackfillMgr now ready to be deleted\n" );
 	delete m_backfill_mgr;
 	m_backfill_mgr = NULL;
+	m_backfill_shutdown_pending = false;
+
 		// We should call backfillConfig() again, since now that the
 		// "old" manager is gone, we might want to allocate a new one
 	backfillConfig();
@@ -181,6 +184,25 @@ verifyBackfillSystem( const char* sys )
 bool
 ResMgr::backfillConfig()
 {
+	if( m_backfill_shutdown_pending ) {
+			/*
+			  we're already in the middle of trying to reconfig the
+			  backfill manager, anyway.  we can only get to this point
+			  if we had 1 backfill system running, then we either
+			  change the system we want or disable backfill entirely,
+			  and while we're waiting for the old system to cleanup,
+			  we get *another* reconfig.  in this case, we do NOT want
+			  to act on the new reconfig until the old reconfig had a
+			  chance to complete.  since we'll call backfillConfig()
+			  from backfillMgrDone(), anyway, there's no harm in just
+			  returning immediately at this point, and plenty of harm
+			  that could come from trying to proceed. ;)
+			*/
+		dprintf( D_ALWAYS, "Got another reconfig while waiting for the old "
+				 "backfill system to finish cleaning up, delaying\n" );
+		return true;
+	}
+
 	if( ! param_boolean("ENABLE_BACKFILL", false) ) {
 		if( m_backfill_mgr ) {
 			dprintf( D_ALWAYS, 
@@ -196,6 +218,7 @@ ResMgr::backfillConfig()
 					// in ResMgr::backfillMgrDone(). 
 				dprintf( D_ALWAYS, "BackfillMgr still has cleanup to "
 						 "perform, postponing\n" );
+				m_backfill_shutdown_pending = true;
 			}
 		}
 		return false;
@@ -240,6 +263,7 @@ ResMgr::backfillConfig()
 					// in ResMgr::backfillMgrDone(). 
 				dprintf( D_ALWAYS, "BackfillMgr still has cleanup to "
 						 "perform, postponing\n" );
+				m_backfill_shutdown_pending = true;
 				return true;
 			}
 		}
