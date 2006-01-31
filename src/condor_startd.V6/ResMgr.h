@@ -178,6 +178,7 @@ public:
 
 #if HAVE_BACKFILL
 	BackfillMgr* m_backfill_mgr;
+	void backfillMgrDone();
 #endif /* HAVE_BACKFILL */
 
 	time_t	now( void ) { return cur_time; };

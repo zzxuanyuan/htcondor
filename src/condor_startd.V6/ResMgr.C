@@ -151,6 +151,19 @@ ResMgr::init_config_classad( void )
 
 #if HAVE_BACKFILL
 
+void
+ResMgr::backfillMgrDone()
+{
+	ASSERT( m_backfill_mgr );
+	dprintf( D_FULLDEBUG, "BackfillMgr now ready to be deleted\n" );
+	delete m_backfill_mgr;
+	m_backfill_mgr = NULL;
+		// We should call backfillConfig() again, since now that the
+		// "old" manager is gone, we might want to allocate a new one
+	backfillConfig();
+}
+
+
 static bool
 verifyBackfillSystem( const char* sys )
 {
@@ -171,9 +184,19 @@ ResMgr::backfillConfig()
 	if( ! param_boolean("ENABLE_BACKFILL", false) ) {
 		if( m_backfill_mgr ) {
 			dprintf( D_ALWAYS, 
-					 "ENABLE_BACKFILL is false, deleting BackfillMgr\n" );
-			delete m_backfill_mgr;
-			m_backfill_mgr = NULL;
+					 "ENABLE_BACKFILL is false, destroying BackfillMgr\n" );
+			if( m_backfill_mgr->destroy() ) {
+					// nothing else to cleanup now, we can delete it 
+					// immediately...
+				delete m_backfill_mgr;
+				m_backfill_mgr = NULL;
+			} else {
+					// backfill_mgr told us we have to wait, so just
+					// return for now and we'll finish deleting this
+					// in ResMgr::backfillMgrDone(). 
+				dprint( D_ALWAYS, "BackfillMgr still has cleanup to "
+						"perform, postponing\n" );
+			}
 		}
 		return false;
 	}
@@ -206,8 +229,19 @@ ResMgr::backfillConfig()
 			dprintf( D_ALWAYS, "BACKFILL_SYSTEM has changed "
 					 "(old: '%s', new: '%s'), re-initializing\n",
 					 m_backfill_mgr->backfillSystemName(), new_system );
-			delete m_backfill_mgr;
-			m_backfill_mgr = NULL;
+			if( m_backfill_mgr->destroy() ) {
+					// nothing else to cleanup now, we can delete it 
+					// immediately...
+				delete m_backfill_mgr;
+				m_backfill_mgr = NULL;
+			} else {
+					// backfill_mgr told us we have to wait, so just
+					// return for now and we'll finish deleting this
+					// in ResMgr::backfillMgrDone(). 
+				dprint( D_ALWAYS, "BackfillMgr still has cleanup to "
+						"perform, postponing\n" );
+				return true;
+			}
 		}
 	}
 
