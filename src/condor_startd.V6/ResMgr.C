@@ -168,8 +168,6 @@ verifyBackfillSystem( const char* sys )
 bool
 ResMgr::backfillConfig()
 {
-	static char* current_system = NULL;
-
 	if( ! param_boolean("ENABLE_BACKFILL", false) ) {
 		if( m_backfill_mgr ) {
 			dprintf( D_ALWAYS, 
@@ -194,10 +192,8 @@ ResMgr::backfillConfig()
 		return false;
 	}
 		
-	if( current_system ) {
-			// if current_system is set, we must have one of these:
-		ASSERT( m_backfill_mgr );
-		if( ! stricmp(new_system, current_system) ) {
+	if( m_backfill_mgr ) {
+		if( ! stricmp(new_system, m_backfill_mgr->backfillSystemName()) ) {
 				// same as before
 			free( new_system );
 				// since it's already here and we're keeping it, tell
@@ -209,9 +205,7 @@ ResMgr::backfillConfig()
 				// different!
 			dprintf( D_ALWAYS, "BACKFILL_SYSTEM has changed "
 					 "(old: '%s', new: '%s'), re-initializing\n",
-					 current_system, new_system );
-			free( current_system );
-			current_system = NULL;
+					 m_backfill_mgr->backfillSystemName(), new_system );
 			delete m_backfill_mgr;
 			m_backfill_mgr = NULL;
 		}
@@ -242,10 +236,8 @@ ResMgr::backfillConfig()
 	dprintf( D_ALWAYS, "Created a %s Backfill Manager\n", 
 			 m_backfill_mgr->backfillSystemName() );
 
-		// if we got here, everything's cool.  just hold onto the
-		// current system so we'll remember the next time (and so we
-		// don't leak it).
-	current_system = new_system;
+	free( new_system );
+
 	return true;
 }
 
