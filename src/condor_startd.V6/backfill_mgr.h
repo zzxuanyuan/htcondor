@@ -96,6 +96,20 @@ public:
 		*/
 	virtual const char* backfillSystemName() = 0;
 
+		/** The ResMgr wants this BackfillMgr to go away.  However,
+			since there might be children or other cleanup that can't
+			be done instantaneously, the ResMgr can't just delete us
+			directly.  When they call destroy(), the BackfillMgr will
+			do as much cleanup as possible.  If there's nothing else
+			todo, destroy() will return true.  If there's still
+			cleanup that needs to be done (e.g. waiting for children
+			to exit), destroy() will return false to tell the ResMgr
+			we're not ready to be deleted yet.  In this case, when the
+			BackfillMgr is finally ready, it will call
+			ResMgr::backfillMgrDone().
+		*/
+	virtual bool destroy() = 0;
+
 		// for any of these, using vm_id 0 means all VMs
 	virtual bool rmVM( int vm_id ) = 0;
 	virtual bool start( int vm_id ) = 0;

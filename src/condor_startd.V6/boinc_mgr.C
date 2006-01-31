@@ -174,6 +174,14 @@ BOINC_BackfillMgr::reconfig()
 
 
 bool
+BOINC_BackfillMgr::destory()
+{
+		// TODO
+	return true;
+}
+
+
+bool
 BOINC_BackfillMgr::addVM( BOINC_BackfillVM* boinc_vm )
 {
 		// TODO

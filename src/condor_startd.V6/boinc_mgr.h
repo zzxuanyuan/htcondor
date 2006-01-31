@@ -54,6 +54,12 @@ public:
 	virtual bool reconfig();
 	virtual const char* backfillSystemName() { return "BOINC"; };
 
+		/** 
+			In the case of a BOINC_BackfillMgr, we might have children
+			to reap before our object can be deleted...
+		*/
+	virtual bool destroy();
+
 	virtual bool addVM( BOINC_BackfillVM* boinc_vm );
 
 		// for any of these, vm_id==0 means all VMs
