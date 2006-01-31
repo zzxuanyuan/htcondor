@@ -217,7 +217,7 @@ ResMgr::backfillConfig()
 					// return for now and we'll finish deleting this
 					// in ResMgr::backfillMgrDone(). 
 				dprintf( D_ALWAYS, "BackfillMgr still has cleanup to "
-						 "perform, postponing\n" );
+						 "perform, postponing delete\n" );
 				m_backfill_shutdown_pending = true;
 			}
 		}
@@ -262,7 +262,7 @@ ResMgr::backfillConfig()
 					// return for now and we'll finish deleting this
 					// in ResMgr::backfillMgrDone(). 
 				dprintf( D_ALWAYS, "BackfillMgr still has cleanup to "
-						 "perform, postponing\n" );
+						 "perform, postponing delete\n" );
 				m_backfill_shutdown_pending = true;
 				return true;
 			}
