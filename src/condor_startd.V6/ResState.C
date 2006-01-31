@@ -341,12 +341,10 @@ ResState::eval( void )
 
 #if HAVE_BACKFILL
 	case backfill_state:
-			// see if we should leave the Backfill state
 		if( ! resmgr->m_backfill_mgr ) { 
-				// no BackfillMgr, leave immediately!
-			dprintf( D_ALWAYS, "State change: BackfillMgr deleted\n" );
-			return change( backfill_state, killing_act );
+			EXCEPT( "in Backfill state but m_backfill_mgr is NULL!" );
 		}
+			// see if we should leave the Backfill state
 		kill_rval = rip->eval_evict_backfill(); 
 		if( kill_rval > 0 ) {
 			dprintf( D_ALWAYS, "State change: EVICT_BACKFILL is TRUE\n" );
