@@ -52,6 +52,7 @@ public:
 
 	virtual bool init();
 	virtual bool reconfig();
+	virtual const char* backfillSystemName() { return "BOINC"; };
 
 	virtual bool addVM( BOINC_BackfillVM* boinc_vm );
 

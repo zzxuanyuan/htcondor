@@ -239,6 +239,9 @@ ResMgr::backfillConfig()
 				new_system );
 	}
 
+	dprintf( D_ALWAYS, "Created a %s Backfill Manager\n", 
+			 m_backfill_mgr->backfillSystemName() );
+
 		// if we got here, everything's cool.  just hold onto the
 		// current system so we'll remember the next time (and so we
 		// don't leak it).

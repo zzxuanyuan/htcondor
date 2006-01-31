@@ -91,6 +91,11 @@ public:
 	virtual bool init() = 0;
 	virtual bool reconfig() = 0;
 
+		/** @return a string that identifies what kind of Backfill
+			Manager (the BACKFILL_SYSTEM config knob) this is...
+		*/
+	virtual const char* backfillSystemName() = 0;
+
 		// for any of these, using vm_id 0 means all VMs
 	virtual bool rmVM( int vm_id ) = 0;
 	virtual bool start( int vm_id ) = 0;
