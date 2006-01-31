@@ -174,7 +174,7 @@ BOINC_BackfillMgr::reconfig()
 
 
 bool
-BOINC_BackfillMgr::destory()
+BOINC_BackfillMgr::destroy()
 {
 		// TODO
 	return true;
