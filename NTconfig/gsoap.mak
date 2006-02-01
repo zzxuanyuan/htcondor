@@ -20,7 +20,7 @@ SOAPCPP = soapcpp2.exe
 !endif
 SOAPCPPFLAGS = -I $(SRCDIR)\condor_daemon_core.V6
 
-DAEMONS = collector dagman gridmanager master negotiator had replication\
+DAEMONS = collector dagman gridmanager master negotiator had replication \
 		schedd shadow startd starter cgahp cgahp_worker quill
 
 all : $(DAEMONS)
@@ -206,3 +206,4 @@ replication : $(SRCDIR)\condor_$@\soap_$@Stub.C \
         copy /Y $(TEMPDIR)\soap_$@Stub.h     .
         copy /Y $(TEMPDIR)\condor$@.wsdl     .
         rd /q /s $(TEMPDIR) > NUL 2>&1
+
