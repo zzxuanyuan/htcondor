@@ -1159,6 +1159,7 @@ class ShadowExceptionEvent : public ULogEvent
 	float sent_bytes;
 	/// bytes received by the job over the network for the run
 	float recvd_bytes;
+	bool began_execution;
 };
 
 //----------------------------------------------------------------------------

@@ -2983,6 +2983,7 @@ ShadowExceptionEvent ()
 	eventNumber = ULOG_SHADOW_EXCEPTION;
 	message[0] = '\0';
 	sent_bytes = recvd_bytes = 0.0;
+	began_execution = FALSE;
 }
 
 ShadowExceptionEvent::
@@ -3040,44 +3041,77 @@ writeEvent (FILE *file)
 			eventTime.tm_min,
 			eventTime.tm_sec,
 			my_timezone(eventTime.tm_isdst));		
+	
+	if (began_execution) {
+		snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+		tmpClP1->Insert(tmp);		
 		
-	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
-	tmpClP1->Insert(tmp);		
+		snprintf(tmp, 1024, "endtype = %d", ULOG_SHADOW_EXCEPTION);
+		tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "endtype = %d", ULOG_SHADOW_EXCEPTION);
-	tmpClP1->Insert(tmp);
+		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);
-		
-	snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
-	tmpClP1->Insert(tmp);
+		snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
+		tmpClP1->Insert(tmp);
 
-	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
-	tmpClP1->Insert(tmp);
+		snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
+		tmpClP1->Insert(tmp);
 
-  	if (scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP2->Insert(tmp);
-	}
-  
-	snprintf(tmp, 1024, "cid = %d", cluster);
-	tmpClP2->Insert(tmp);
-
-	snprintf(tmp, 1024, "pid = %d", proc);
-	tmpClP2->Insert(tmp);
-
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP2->Insert(tmp);
-
-	snprintf(tmp, 1024, "endtype = null");
-	tmpClP2->Insert(tmp);
-  
-	if (FILEObj) {
-		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
-			dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
-			return 0; // return a error code, 0
+		if (scheddname) {
+			snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+			tmpClP2->Insert(tmp);
 		}
+  
+		snprintf(tmp, 1024, "cid = %d", cluster);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "pid = %d", proc);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "spid = %d", subproc);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "endtype = null");
+		tmpClP2->Insert(tmp);
+  
+		if (FILEObj) {
+			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+				dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
+				return 0; // return a error code, 0
+			}
+		}
+	} else {
+		if(scheddname) {
+			snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+			tmpClP1->Insert(tmp);		
+		}
+		
+		snprintf(tmp, 1024, "cid = %d", cluster);
+		tmpClP1->Insert(tmp);	
+
+		snprintf(tmp, 1024, "pid = %d", proc);
+		tmpClP1->Insert(tmp);		
+		
+		snprintf(tmp, 1024, "spid = %d", subproc);
+		tmpClP1->Insert(tmp);		
+
+		snprintf(tmp, 1024, "eventtype = %d", ULOG_SHADOW_EXCEPTION);
+		tmpClP1->Insert(tmp);
+
+		snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+		tmpClP1->Insert(tmp);	
+	
+		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);	
+				
+		if (FILEObj) {
+			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+				dprintf(D_ALWAYS, "Logging Event 14 --- Error\n");
+				return 0; // return a error code, 0
+			}
+		}			
+
 	}
 
 	if (fprintf (file, "Shadow exception!\n\t") < 0)
