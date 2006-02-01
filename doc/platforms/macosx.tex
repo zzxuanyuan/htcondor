@@ -45,7 +45,7 @@ are known to work on PPC machines running MacOS 10.4.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:platform-macos-tiger-x86}Macintosh OS X Tiger
- for Intel CPUs}
+ (10.4) for Intel CPUs}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{platform-specific information!Mac OS 10.4 for Intel}
 
@@ -56,6 +56,7 @@ Given MacOS's support for running PPC binaries in emulation (their
 10.3 might work.
 Very few parts of the Condor system are performance bottle-necks, so
 running in emulation will hopefully cause no problems.
-The end-user applications, however, should probably be universal or
-x86-specific to provide the most throughput on these machines.
+The end-user applications (the jobs submitted to Condor), should
+probably be Universal binaries or x86-specific, to provide the most
+throughput on these machines. 
 
