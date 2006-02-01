@@ -1166,7 +1166,7 @@ server, shadow, and starter, none of which use DaemonCore yet).
   %		file, then the server verifies the ownership of that file. \Note
   %		This is the default method used on Unix systems.
   %	\item FS\_REMOTE Use a shared filesystem to authenticate the user.
-  %		This is useful for submitting jobs to a remote schedd.
+  %		This is useful for submitting jobs to a remote \Condor{schedd}.
   %		Similar to FS authentication, except the temporary file to be
   %		created by the user must be on a shared filesystem (AFS, NFS, etc.)
   %		If the client's submit description file does not define the 
@@ -2296,11 +2296,11 @@ Configuring The Startd Policy.
 
 
 \item[\Macro{MAX\_CLAIM\_ALIVES\_MISSED}]
-  \label{param:MaxClaimAlivesMissed} The schedd sends periodic updates
+  \label{param:MaxClaimAlivesMissed} The \Condor{schedd} sends periodic updates
   to each \Condor{startd} as a keep alive (see the description of
   \Macro{ALIVE\_INTERVAL} on page~\pageref{param:AliveInterval}).  
   If the \Condor{startd} does not receive any keep alive messages, it assumes
-  that something has gone wrong with the schedd and that the resource
+  that something has gone wrong with the \Condor{schedd} and that the resource
   is not being effectively used.
   Once this happens, the \Condor{startd} considers the claim to have timed out,
   it releases the claim, and starts advertising itself as available
@@ -3199,29 +3199,29 @@ These macros control the \Condor{schedd}.
   leave the job queue, e.g. they have completed or been removed.  This
   integer-valued macro specifies a delay in seconds to place between the
   taking jobs permanently out of the queue.  The default value is 0, which
-  tells the schedd to not impose any delay.  
+  tells the \Condor{schedd} to not impose any delay.  
   
 \item[\Macro{ALIVE\_INTERVAL}] \label{param:AliveInterval} This
   macro determines how often the \Condor{schedd} should send a keep
   alive message to any \Condor{startd} it has claimed.
-  When the schedd claims a \Condor{startd}, it tells the \Condor{startd} how often it is
+  When the \Condor{schedd} claims a \Condor{startd}, it tells the \Condor{startd} how often it is
   going to send these messages.
   If the \Condor{startd} does not receive any of these keep alive messages
   during a certain period of time (defined via
   \Macro{MAX\_CLAIM\_ALIVES\_MISSED}, described on
   page~\pageref{param:MaxClaimAlivesMissed})
-  the \Condor{startd} releases the claim, and the schedd no longer pays for
+  the \Condor{startd} releases the claim, and the \Condor{schedd} no longer pays for
   the resource (in terms of user priority in the system).
   The macro is defined in terms of seconds and defaults to 300 (every
   5 minutes).
 
 \item[\Macro{REQUEST\_CLAIM\_TIMEOUT}]
   \label{param:RequestClaimTimeout} This macro sets the time (in
-  seconds) that the schedd will wait for a claim to be granted by the
+  seconds) that the \Condor{schedd} will wait for a claim to be granted by the
   \Condor{startd}.  The default is 30 minutes.  This is only likely to matter
   if the \Condor{startd} has an existing claim and it takes a long time for the
   existing claim to be preempted due to \Expr{MaxJobRetirementTime}.
-  Once a request times out, the schedd will simply begin the process
+  Once a request times out, the \Condor{schedd} will simply begin the process
   of finding a machine for the job all over again.
 
 \item[\Macro{SHADOW\_SIZE\_ESTIMATE}] \label{param:ShadowSizeEstimate}
@@ -3230,7 +3230,7 @@ These macros control the \Condor{schedd}.
   varies from platform to platform.
 
 \item[\Macro{SHADOW\_RENICE\_INCREMENT}]
-  \label{param:ShadowReniceIncrement} When the schedd spawns a new
+  \label{param:ShadowReniceIncrement} When the \Condor{schedd} spawns a new
   \Condor{shadow}, it can do so with a \Term{nice-level}.  A
   nice-level is a
   Unix mechanism that allows users to assign their own processes a lower 
@@ -3250,20 +3250,20 @@ These macros control the \Condor{schedd}.
   default value and range of legal values are the same.
 
 \item[\Macro{QUEUE\_CLEAN\_INTERVAL}] \label{param:QueueCleanInterval}
-  The schedd maintains the job queue on a given machine.  It does so
-  in a persistent way such that if the schedd crashes, it can recover
+  The \Condor{schedd} maintains the job queue on a given machine.  It does so
+  in a persistent way such that if the \Condor{schedd} crashes, it can recover
   a valid state of the job queue.  The mechanism it uses is a
   transaction-based log file (the \File{job\_queue.log} file,
   not the \File{SchedLog} file).  This file contains an initial
   state of the job queue, and a series of transactions that were
   performed on the queue (such as new jobs submitted, jobs completing,
-  and checkpointing).  Periodically, the schedd will go through
+  and checkpointing).  Periodically, the \Condor{schedd} will go through
   this log, truncate all the transactions and create a new file with
   containing only the new initial state of the log.
   This is a somewhat expensive operation,
-  but it speeds up when the schedd restarts since there are
+  but it speeds up when the \Condor{schedd} restarts since there are
   fewer transactions it has to play to figure out what state the job
-  queue is really in.  This macro determines how often the schedd
+  queue is really in.  This macro determines how often the \Condor{schedd}
   should rework this queue to cleaning it up.  It is defined in terms of
   seconds and defaults to 86400 (once a day). 
   
@@ -3271,13 +3271,13 @@ These macros control the \Condor{schedd}.
   The job queue contains a counter for each job's ``wall clock'' run
   time, i.e., how long each job has executed so far.  This counter is
   displayed by \Condor{q}.  The counter is updated when the job is
-  evicted or when the job completes.  When the schedd crashes, the run
+  evicted or when the job completes.  When the \Condor{schedd} crashes, the run
   time for jobs that are currently running will not be added to the
   counter (and so, the run time counter may become smaller than the
-  cpu time counter).  The schedd saves run time ``checkpoints''
-  periodically for running jobs so if the schedd crashes, only run
+  cpu time counter).  The \Condor{schedd} saves run time ``checkpoints''
+  periodically for running jobs so if the \Condor{schedd} crashes, only run
   time since the last checkpoint is lost.  This macro controls how
-  often the schedd saves run time checkpoints.  It is defined in terms
+  often the \Condor{schedd} saves run time checkpoints.  It is defined in terms
   of seconds and defaults to 3600 (one hour).  A value of 0 will
   disable wall clock checkpoints.
 
@@ -3338,7 +3338,7 @@ These macros control the \Condor{schedd}.
   \MacroNI{SUBSYS\_ATTRS}.
 
 \item[\Macro{SCHEDD\_DEBUG}] \label{param:ScheddDebug} This macro
-  (and other settings related to debug logging in the schedd) is
+  (and other settings related to debug logging in the \Condor{schedd}) is
   described in section~\ref{param:SubsysDebug} as
   \MacroNI{SUBSYS\_DEBUG}.
 
@@ -3354,22 +3354,22 @@ These macros control the \Condor{schedd}.
 \item[\Macro{FLOCK\_NEGOTIATOR\_HOSTS}] \label{param:FlockNegotiatorHosts} 
   This macro defines a list of negotiator host names (not including the
   local \MacroUNI{NEGOTIATOR\_HOST} machine) for pools in which the
-  schedd should attempt to run jobs.  Hosts in the list should be in
-  order of preference.  The schedd will only send a request to a
+  \Condor{schedd} should attempt to run jobs.  Hosts in the list should be in
+  order of preference.  The \Condor{schedd} will only send a request to a
   central manager in the list if the local pool and pools earlier in
   the list are not satisfying all the job requests.
   \MacroUNI{HOSTALLOW\_NEGOTIATOR\_SCHEDD} (see
   section~\ref{param:HostAllow}) must also be configured to allow
   negotiators from all of the \MacroUNI{FLOCK\_NEGOTIATOR\_HOSTS} to
-  contact the schedd.  Please make sure the
+  contact the \Condor{schedd}.  Please make sure the
   \MacroUNI{NEGOTIATOR\_HOST} is first in the
   \MacroUNI{HOSTALLOW\_NEGOTIATOR\_SCHEDD} list.  Similarly, the
   central managers of the remote pools must be configured to listen to
-  requests from this schedd.
+  requests from this \Condor{schedd}.
 
 \item[\Macro{FLOCK\_COLLECTOR\_HOSTS}] \label{param:FLockCollectorHosts}
   This macro defines a list of collector host names for pools in which
-  the schedd should attempt to run jobs.  The
+  the \Condor{schedd} should attempt to run jobs.  The
   collectors must be specified in order, corresponding to the
   \MacroUNI{FLOCK\_NEGOTIATOR\_HOSTS} list.  In the typical case, where each pool
   has the collector and negotiator running on the same machine,
@@ -3393,7 +3393,7 @@ These macros control the \Condor{schedd}.
 
 \item[\Macro{NEGOTIATE\_ALL\_JOBS\_IN\_CLUSTER}]
   \label{param:NegotiateAllJobsInCluster}
-  If this macro is set to False (the default), when the schedd fails
+  If this macro is set to False (the default), when the \Condor{schedd} fails
   to start an idle job, it will not try to start any other
   idle jobs in the same cluster during that negotiation cycle.  This
   makes negotiation much more efficient for large job clusters.
@@ -3403,7 +3403,7 @@ These macros control the \Condor{schedd}.
   operating system requirements.  Or, machines may be willing to run
   only some jobs in the cluster, because their requirements reference
   the jobs' virtual memory size or other attribute.  Setting this
-  macro to True will force the schedd to try to start all idle jobs in
+  macro to True will force the \Condor{schedd} to try to start all idle jobs in
   each negotiation cycle.  This will make negotiation cycles last
   longer, but it will ensure that all jobs that can be started will be
   started.
@@ -3413,7 +3413,7 @@ These macros control the \Condor{schedd}.
   in seconds, between evaluation of periodic job control expressions,
   such as periodic\_hold, periodic\_release, and periodic\_remove,
   given by the user in a Condor submit file. By default, this value is
-  300 seconds (5 minutes).  A value of 0 prevents the schedd from
+  300 seconds (5 minutes).  A value of 0 prevents the \Condor{schedd} from
   performing the periodic evaluations.
 
 \item[\Macro{SCHEDD\_ASSUME\_NEGOTIATOR\_GONE}]
@@ -4068,7 +4068,7 @@ These macros affect the \Condor{negotiator}.
 
 \item[\Macro{NEGOTIATOR\_TIMEOUT}] \label{param:NegotiatorTimeout}
   Sets the timeout that the negotiator uses on its network connections
-  to the schedds and startds.  It is defined in seconds and defaults to 30.
+  to the \Condor{schedd} and \Condor{startd}s.  It is defined in seconds and defaults to 30.
   
 \item[\Macro{PRIORITY\_HALFLIFE}] \label{param:PriorityHalfLife} This
   macro defines the half-life of the user priorities.  See
@@ -4122,7 +4122,7 @@ These macros affect the \Condor{negotiator}.
   protocol more efficient by eliminating the need for socket
   connection establishment for each negotiation cycle.  The default is
   currently 16.  To be effective, this parameter should be set to a
-  value greater than the number of schedds submitting jobs to the
+  value greater than the number of \Condor{schedd}s submitting jobs to the
   negotiator at any time.  If you lower this number, you must run
   \Condor{restart} and not just \Condor{reconfig} for the change to
   take effect.
@@ -4383,7 +4383,7 @@ refreshed, at which point management of the job will resume.
 
 \item[\Macro{GRIDMANAGER\_CONTACT\_SCHEDD\_DELAY}]
 \label{param:GridmanagerContactScheddDelay} The minimum number of
-seconds between connections to the schedd. The default is 5 seconds.
+seconds between connections to the \Condor{schedd}. The default is 5 seconds.
 
 \item[\Macro{GRIDMANAGER\_JOB\_PROBE\_INTERVAL}]
 \label{param:GridmanagerJobProbeInterval}
@@ -4393,7 +4393,7 @@ should probe the remote jobmanager to ensure it is still alive and well.
 \item[\Macro{CONDOR\_JOB\_POLL\_INTERVAL}]
 \label{param:CondorJobPollInterval}
 After a condor grid type job is submitted, how often (in seconds) the \Condor{gridmanager}
-should probe the remote schedd to check the jobs status.  
+should probe the remote \Condor{schedd} to check the jobs status.  
 This defaults to 300 seconds (5 minutes).
 Setting this to a lower number will decrease latency (Condor will discover
 that a job has finished more quickly), but will increase network traffic.
