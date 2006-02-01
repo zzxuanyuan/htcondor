@@ -2286,6 +2286,15 @@ Configuring The Startd Policy.
   \Expr{START} expression.  This macro is defined in
   terms of seconds and defaults to 300 (5 minutes).
   
+\item[\Macro{MAXJOBRETIREMENTTIME}] \label{param:MaxJobRetirementTime}
+  An integer value representing the number of seconds allotted as
+  a retirement. The default value of 0 (when the configuration
+  variable is not present) implements the expected policy that
+  there is no retirement time.
+  See \MacroNI{MAXJOBRETIREMENTTIME} in
+  section~\ref{sec:State-Expression-Summary} for further explanation.
+
+
 \item[\Macro{MAX\_CLAIM\_ALIVES\_MISSED}]
   \label{param:MaxClaimAlivesMissed} The schedd sends periodic updates
   to each \Condor{startd} as a keep alive (see the description of
@@ -2446,8 +2455,14 @@ Configuring The Startd Policy.
   section~\ref{param:MasterName} on page~\pageref{param:MasterName}
   for a description of valid Condor daemon names.
 
-\item[\Macro{RunBenchmarks}] \label{param:RunBenchmarks}
-  Specifies when to run benchmarks.  When the machine is in the Unclaimed state and this expression evaluates to TRUE, benchmarks will be run.  If RunBenchmarks is specified and set to anything other than FALSE additional benchmarks will be run when the \Condor{startd} initially starts.  To disable startup benchmarks you must set \MacroNI{RunBenchmarks} to FALSE or comment it out of the configuration file.
+\item[\Macro{RUNBENCHMARKS}] \label{param:RunBenchmarks}
+  Specifies when to run benchmarks.
+  When the machine is in the Unclaimed state and this expression
+  evaluates to TRUE, benchmarks will be run.
+  If RunBenchmarks is specified and set to anything other than FALSE,
+  additional benchmarks will be run when the \Condor{startd} initially starts.
+  To disable startup benchmarks, set \MacroNI{RunBenchmarks} to FALSE,
+  or comment it out of the configuration file.
 
 \end{description}
 
