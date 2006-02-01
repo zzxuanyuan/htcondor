@@ -305,6 +305,8 @@ UniShadow::resourceBeganExecution( RemoteResource* rr )
 		// executing, we can safely log our execute event
 	logExecuteEvent();
 
+	began_execution = TRUE;
+	
 		// Start the timer for the periodic user job policy  
 	shadow_user_policy.startTimer();
 
