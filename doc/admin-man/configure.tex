@@ -1247,7 +1247,7 @@ server, shadow, and starter, none of which use DaemonCore yet).
   given entry into a ClassAd.  In particular, ClassAds require quote
   marks (") around strings.  Numeric values and boolean expressions
   can go in directly.  
-  For example, if the startd is to advertise a string macro, a numeric
+  For example, if the \Condor{startd} is to advertise a string macro, a numeric
   macro, and a boolean expression, do something similar to:
 
   \begin{verbatim}
@@ -2258,69 +2258,69 @@ Configuring The Startd Policy.
 \begin{description}
 
 \item[\Macro{STARTER}] \label{param:Starter}  This macro holds the
-  full path to the \Condor{starter} binary that the startd should 
+  full path to the \Condor{starter} binary that the \Condor{startd} should 
   spawn.
   It is normally defined relative to \MacroUNI{SBIN}.
   
 \item[\Macro{ALTERNATE\_STARTER\_1}] \label{param:AlternateStarter1}
   This macro holds the full path to the \Condor{starter.pvm}
-  binary that the startd spawns to service PVM jobs.  It is normally
+  binary that the \Condor{startd} spawns to service PVM jobs.  It is normally
   defined relative to \MacroUNI{SBIN}, since by default,
   \Condor{starter.pvm} is installed in the regular Condor release
   directory. 
   
 \item[\Macro{POLLING\_INTERVAL}] \label{param:PollingInterval} When a
-  startd enters the claimed state, this macro determines how often
+  \Condor{startd} enters the claimed state, this macro determines how often
   the state of the machine is polled to check the need to suspend, resume,
   vacate or kill the job.  It is defined in terms of seconds and defaults to
   5.
   
 \item[\Macro{UPDATE\_INTERVAL}] \label{param:UpdateInterval}
-  Determines how often the startd should send a ClassAd update
-  to the \Condor{collector}.  The startd also sends update on any
+  Determines how often the \Condor{startd} should send a ClassAd update
+  to the \Condor{collector}.  The \Condor{startd} also sends update on any
   state or activity change, or if the value of its \Expr{START} expression
-  changes.  See section~\ref{sec:States} on \condor{startd}
-  states, section~\ref{sec:Activities} on \condor{startd}
-  Activities, and section~\ref{sec:Start-Expr} on \condor{startd}
+  changes.  See section~\ref{sec:States} on \Condor{startd}
+  states, section~\ref{sec:Activities} on \Condor{startd}
+  Activities, and section~\ref{sec:Start-Expr} on \Condor{startd}
   \Expr{START} expression for details on states, activities, and the
   \Expr{START} expression.  This macro is defined in
   terms of seconds and defaults to 300 (5 minutes).
   
 \item[\Macro{MAX\_CLAIM\_ALIVES\_MISSED}]
   \label{param:MaxClaimAlivesMissed} The schedd sends periodic updates
-  to each startd as a keep alive (see the description of
+  to each \Condor{startd} as a keep alive (see the description of
   \Macro{ALIVE\_INTERVAL} on page~\pageref{param:AliveInterval}).  
-  If the startd does not receive any keep alive messages, it assumes
+  If the \Condor{startd} does not receive any keep alive messages, it assumes
   that something has gone wrong with the schedd and that the resource
   is not being effectively used.
-  Once this happens, the startd considers the claim to have timed out,
+  Once this happens, the \Condor{startd} considers the claim to have timed out,
   it releases the claim, and starts advertising itself as available
   for other jobs.
   Because these keep alive messages are sent via UDP, they are
   sometimes dropped by the network.
-  Therefore, the startd has some tolerance for missed keep alive
-  messages, so that in case a few keep alives are lost, the startd
+  Therefore, the \Condor{startd} has some tolerance for missed keep alive
+  messages, so that in case a few keep alives are lost, the \Condor{startd}
   will not immediately release the claim.
   This setting controls how many keep alive messages can be missed
-  before the startd considers the claim no longer valid.
+  before the \Condor{startd} considers the claim no longer valid.
   The default is 6.
 
 \item[\Macro{STARTD\_HAS\_BAD\_UTMP}] \label{param:StartdHasBadUtmp}
-  When the startd is computing the idle time of all the
+  When the \Condor{startd} is computing the idle time of all the
   users of the machine (both local and remote), it checks the
   \File{utmp} file to find all the currently active ttys, and only
   checks access time of the devices associated with active logins.
   Unfortunately, on some systems, \File{utmp} is unreliable, and the
-  startd might miss keyboard activity by doing this.  So, if your
+  \Condor{startd} might miss keyboard activity by doing this.  So, if your
   \File{utmp} is unreliable, set this macro to TRUE and the
-  startd will check the access time on all tty and pty devices.
+  \Condor{startd} will check the access time on all tty and pty devices.
   
 \item[\Macro{CONSOLE\_DEVICES}] \label{param:ConsoleDevices} This
-  macro allows the startd to monitor console (keyboard and mouse)
+  macro allows the \Condor{startd} to monitor console (keyboard and mouse)
   activity by checking the access times on special files in
   \File{/dev}.  Activity on these files shows up as 
   \AdAttr{ConsoleIdle}
-  time in the startd's ClassAd.  Give a comma-separated list of
+  time in the \Condor{startd}'s ClassAd.  Give a comma-separated list of
   the names of devices considered the console, without the
   \File{/dev/} portion of the pathname.  The defaults vary from
   platform to platform, and are usually correct.  
@@ -2342,7 +2342,7 @@ Configuring The Startd Policy.
   information by connecting to the X server.
   
 \item[\Macro{STARTD\_JOB\_EXPRS}] \label{param:StartdJobExprs} When
-  the machine is claimed by a remote user, the startd can also advertise
+  the machine is claimed by a remote user, the \Condor{startd} can also advertise
   arbitrary attributes from the job ClassAd in the machine
   ClassAd.
   List the attribute names to be advertised.  \Note Since
@@ -2354,7 +2354,7 @@ Configuring The Startd Policy.
   \Macro{SUBSYS\_ATTRS}.
 
 \item[\Macro{STARTD\_DEBUG}] \label{param:StartdDebug} This macro
-  (and other settings related to debug logging in the startd) is
+  (and other settings related to debug logging in the \Condor{startd}) is
   described in section~\ref{param:SubsysDebug} as
   \Macro{SUBSYS\_DEBUG}.
 
@@ -2384,7 +2384,7 @@ Configuring The Startd Policy.
   portion of the file name.
 
 \item[\Macro{NUM\_CPUS}] \label{param:NumCpus}
-  This macro can be used to ``lie'' to the startd about how many CPUs
+  This macro can be used to ``lie'' to the \Condor{startd} about how many CPUs
   your machine has.
   If you set this, it will override Condor's automatic computation of
   the number of CPUs in your machine, and Condor will use whatever
@@ -2447,7 +2447,7 @@ Configuring The Startd Policy.
   for a description of valid Condor daemon names.
 
 \item[\Macro{RunBenchmarks}] \label{param:RunBenchmarks}
-  Specifies when to run benchmarks.  When the machine is in the Unclaimed state and this expression evaluates to TRUE, benchmarks will be run.  If RunBenchmarks is specified and set to anything other than FALSE additional benchmarks will be run when the startd initially starts.  To disable startup benchmarks you must set \MacroNI{RunBenchmarks} to FALSE or comment it out of the configuration file.
+  Specifies when to run benchmarks.  When the machine is in the Unclaimed state and this expression evaluates to TRUE, benchmarks will be run.  If RunBenchmarks is specified and set to anything other than FALSE additional benchmarks will be run when the \Condor{startd} initially starts.  To disable startup benchmarks you must set \MacroNI{RunBenchmarks} to FALSE or comment it out of the configuration file.
 
 \end{description}
 
@@ -2462,14 +2462,14 @@ SMP Machines for details.
 \item[\Macro{VIRTUAL\_MACHINES\_CONNECTED\_TO\_CONSOLE}] 
 \label{param:VirtualMachinesConnectedToConsole}
   An integer which indicates how many of the virtual
-  machines the startd is representing should be "connected" to the
+  machines the \Condor{startd} is representing should be "connected" to the
   console (in other words, notice when there's console activity).
   This defaults to all virtual machines (N in a machine with N CPUs).
 
 \item[\Macro{VIRTUAL\_MACHINES\_CONNECTED\_TO\_KEYBOARD}]
 \label{param:VirtualMachinesConnectedToKeyboard}
   An integer which indicates how many of the virtual
-  machines the startd is representing should be "connected" to the
+  machines the \Condor{startd} is representing should be "connected" to the
   keyboard (for remote tty activity, as well as console activity).
   Defaults to 1.
 
@@ -2477,11 +2477,11 @@ SMP Machines for details.
 \label{param:DisconnectedKeyboardIdleBoost}
   If there are virtual machines not connected to either the keyboard
   or the console, the corresponding idle time reported will be the
-  time since the startd was spawned, plus the value of this macro.
+  time since the \Condor{startd} was spawned, plus the value of this macro.
   It defaults to 1200 seconds (20 minutes). 
   We do this because if the virtual machine is configured not to care
   about keyboard activity, we want it to be available to Condor jobs
-  as soon as the startd starts up, instead of having to wait for 15
+  as soon as the \Condor{startd} starts up, instead of having to wait for 15
   minutes or more (which is the default time a machine must be idle
   before Condor will start a job).
   If you do not want this boost, set the value to 0.  
@@ -2947,16 +2947,16 @@ HAWKEYE_JOB2_ENV = lwpi=somevalue
 \end{description}
 
 The following macros control the optional computation of resource
-availability statistics in the startd.
+availability statistics in the \Condor{startd}.
 
 \begin{description}
 
 \item[\Macro{STARTD\_COMPUTE\_AVAIL\_STATS}]
 \label{param:StartdComputeAvailStats}
-  A boolean that determines if the startd computes resource
+  A boolean that determines if the \Condor{startd} computes resource
   availability statistics.  The default is False.
 
-If \Macro{STARTD\_COMPUTE\_AVAIL\_STATS} = True, the startd will
+If \Macro{STARTD\_COMPUTE\_AVAIL\_STATS} = True, the \Condor{startd} will
 define the following ClassAd attributes for resources:
 
 \begin{description}
@@ -2987,7 +2987,7 @@ not in the Owner state:
 \item[\Macro{STARTD\_AVAIL\_CONFIDENCE}]
 \label{param:StartdAvailConfidence}
   A floating point number representing the confidence level of the
-  startd daemon's AvailTime estimate.
+  \Condor{startd} daemon's AvailTime estimate.
   By default, the estimate is based on
   the 80th percentile of past values
   (that is, the value is initially set to 0.8).
@@ -2995,7 +2995,7 @@ not in the Owner state:
 \item[\Macro{STARTD\_MAX\_AVAIL\_PERIOD\_SAMPLES}]
 \label{param:StartdMaxAvailPeriodSamples}
   An integer that limits the number of samples of past available
-  intervals stored by the startd to limit memory and disk consumption.
+  intervals stored by the \Condor{startd} to limit memory and disk consumption.
   Each sample requires 4 bytes of memory and approximately 10 bytes of
   disk space.
 
@@ -3188,14 +3188,14 @@ These macros control the \Condor{schedd}.
   
 \item[\Macro{ALIVE\_INTERVAL}] \label{param:AliveInterval} This
   macro determines how often the \Condor{schedd} should send a keep
-  alive message to any startd it has claimed.
-  When the schedd claims a startd, it tells the startd how often it is
+  alive message to any \Condor{startd} it has claimed.
+  When the schedd claims a \Condor{startd}, it tells the \Condor{startd} how often it is
   going to send these messages.
-  If the startd does not receive any of these keep alive messages
+  If the \Condor{startd} does not receive any of these keep alive messages
   during a certain period of time (defined via
   \Macro{MAX\_CLAIM\_ALIVES\_MISSED}, described on
   page~\pageref{param:MaxClaimAlivesMissed})
-  the startd releases the claim, and the schedd no longer pays for
+  the \Condor{startd} releases the claim, and the schedd no longer pays for
   the resource (in terms of user priority in the system).
   The macro is defined in terms of seconds and defaults to 300 (every
   5 minutes).
@@ -3203,8 +3203,8 @@ These macros control the \Condor{schedd}.
 \item[\Macro{REQUEST\_CLAIM\_TIMEOUT}]
   \label{param:RequestClaimTimeout} This macro sets the time (in
   seconds) that the schedd will wait for a claim to be granted by the
-  startd.  The default is 30 minutes.  This is only likely to matter
-  if the startd has an existing claim and it takes a long time for the
+  \Condor{startd}.  The default is 30 minutes.  This is only likely to matter
+  if the \Condor{startd} has an existing claim and it takes a long time for the
   existing claim to be preempted due to \Expr{MaxJobRetirementTime}.
   Once a request times out, the schedd will simply begin the process
   of finding a machine for the job all over again.
