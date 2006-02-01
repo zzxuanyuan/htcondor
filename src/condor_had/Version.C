@@ -87,12 +87,17 @@ Version::synchronize(bool isLogicalClockIncremented)
                           "setting version last modified time\n" );
     m_lastModifiedTime = status->st_mtime;
     
-    if( isLogicalClockIncremented ) {
-        m_logicalClock ++;
+    if( isLogicalClockIncremented && m_logicalClock < INT_MAX ) {
+		m_logicalClock ++;
         save( );
 
         return true;
-    }
+    } else if ( isLogicalClockIncremented /*&& m_logicalClock == INT_MAX*/ ) {
+		// to be on a sure side, when the maximal logical clock value is
+		// reached, we terminate the replication daemon
+		utilCrucialError( "Version::synchronize reached maximal logical clock "
+						  "value\n" );
+	}
 
     return false;
 }
