@@ -12,9 +12,7 @@ class ProcessId{
 		// Variables
  public:
 		// constant
-	const static int DIFFERENT;
-	const static int SAME;
-	const static int UNCERTAIN;
+	enum { DIFFERENT, SAME, UNCERTAIN };
  private:
 		// constant
 	const static char* SIGNATURE_FORMAT;

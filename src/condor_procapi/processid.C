@@ -10,9 +10,6 @@ const int ProcessId::NR_OF_SIGNATURE_ENTRIES = 6;
 const char* ProcessId::CONFIRMATION_FORMAT = "CONFIRM = %li\nCONTROL_TIME = %li\n";
 const int ProcessId::NR_OF_CONFIRM_ENTRIES = 2;
 const int ProcessId::UNDEF = -1;
-const int ProcessId::DIFFERENT = 0;
-const int ProcessId::SAME = 1;
-const int ProcessId::UNCERTAIN = 2;
 #ifdef WIN32
 const int ProcessId::MAX_INIT_PID = 0;
 #else //LINUX
