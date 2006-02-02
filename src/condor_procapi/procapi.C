@@ -3638,7 +3638,7 @@ ProcAPI::isAlive(const ProcessId& procId, int& status){
 
 
 		// get the current id associated with this pid
-	ProcessId* pNewProcId;
+	ProcessId* pNewProcId = NULL;
 	int retVal = createProcessId(procId.getPid(), pNewProcId, status);
 	
 		// error getting the process id
@@ -3659,27 +3659,29 @@ ProcAPI::isAlive(const ProcessId& procId, int& status){
 	retVal = procId.isSameProcess(*pNewProcId);
 
 		// the processes are the same
-	if( retVal == ProcessId::SAME ){
-		status = PROCAPI_ALIVE;
-	}
-		// different
-	else if( retVal == ProcessId::DIFFERENT ){
-		status = PROCAPI_DEAD;
-	}
-		// uncertain
-	else if( retVal == ProcessId::UNCERTAIN ){
-		status = PROCAPI_UNCERTAIN;
-	}
-		// error
-	else{
-		status = PROCAPI_UNSPECIFIED;
-		dprintf(D_ALWAYS,
-				"ProcAPI: ProcessId::isSameProcess(..) returned and unexpected value for pid: %d\n",
-				procId.getPid());
-		return PROCAPI_FAILURE;
+	switch(retVal) {
+		case ProcessId::SAME:
+			status = PROCAPI_ALIVE;
+			break;
+
+		case ProcessId::DIFFERENT:
+			status = PROCAPI_DEAD;
+			break;
+
+		case ProcessId::UNCERTAIN:
+			status = PROCAPI_UNCERTAIN;
+			break;
+
+		default:
+			status = PROCAPI_UNSPECIFIED;
+			dprintf(D_ALWAYS,
+					"ProcAPI: ProcessId::isSameProcess(..) returned and "
+					"unexpected value for pid: %d\n", procId.getPid());
+			delete pNewProcId;
+			return PROCAPI_FAILURE;
+			break;
 	}
 	
-
 		// clean up
 	delete pNewProcId;
 
@@ -3743,6 +3745,7 @@ ProcAPI::confirmProcessId(ProcessId& procId, int& status){
 
 			// get the control time again
 		if( generateControlTime(ctlTimeB, status) == PROCAPI_FAILURE ){
+				// status is set by generateControlTime(...)
 			return PROCAPI_FAILURE;
 		}
 
@@ -3820,9 +3823,8 @@ ProcAPI::generateConfirmTime(long& confirm_time, int& status){
 	return PROCAPI_SUCCESS;
 }
 
-#endif //LINUX
+#else // everything else
 
-#ifndef LINUX
 int
 ProcAPI::confirmProcessId(ProcessId& procId, int& status){
 		// do nothing
