@@ -39,7 +39,7 @@ sub new( $$ )
 {
     my $class = shift;
     my $Distribution = shift;
-    my $self = {};
+    my $self = ();
 
     $self->{Macros} = ();
 

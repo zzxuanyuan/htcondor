@@ -29,7 +29,7 @@ BEGIN
 
 sub Reset
 {
-    %machine_ads = {};
+    %machine_ads = ();
 	Condor::Reset();
 }
 

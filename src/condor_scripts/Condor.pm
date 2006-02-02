@@ -45,7 +45,7 @@ sub Reset
     $cluster = 0;
     $num_active_jobs = 0;
     $saw_submit = 0;
-    %submit_info = {};
+    %submit_info = ();
 
 	$submit_time = 0;
 	$timer_time = 0;
