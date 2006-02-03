@@ -57,7 +57,21 @@ instead of the new-style configuration setting \Macro{STARTD\_CRON\_JOBLIST}.
 
 \begin{itemize}
 
-\item None.
+% Gnats PR 607/admin RUST 13153.
+\item On Windows only (as far as we know) a \Condor{rm} of a scheduler
+universe job after a \Condor{qedit} may cause the schedd to crash.
+(This bug has existed at least since 6.7.12.)
+
+% Gnats PR 612/admin RUST 13153
+\item On Windows only (as far as we know) a \Condor{hold} followed by a
+\Condor{release} on a job sometimes results in the job being removed
+instead of going into the idle state.  (This bug has existed at
+least since 6.7.12.)
+
+% Gnats PR 608/admin RUST 13231.
+\item On Windows only, \Condor{dagman} may fail with a "DLL not
+initialized" error (exit code -1073741502).  (This bug has existed at
+least since 6.7.12.)
 
 \end{itemize}
 
