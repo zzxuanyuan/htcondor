@@ -1,4 +1,4 @@
-#include "condor_common.h"
+//#include "condor_common.h"
 // for 'daemonCore'
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 // for 'StatWrapper'
@@ -6,7 +6,7 @@
 // for 'getHostFromAddr' and 'getPortFromAddr'
 #include "internet.h"
 // implicit declaration for 'ctime_r' on Alpha OSF V5.1 platforms
-#include <time.h>
+//#include <time.h>
 
 #include "Version.h"
 #include "FilesOperations.h"
@@ -67,7 +67,10 @@ Version::synchronize(bool isLogicalClockIncremented)
     time_t                currentTime = time( NULL );
     // to contain the time strings produced by 'ctime_r' function, which is
     // reentrant unlike 'ctime' one
-	char                  timeBuffer[BUFSIZ];
+	//char                  timeBuffer[BUFSIZ];
+	MyString lastKnownModifiedTimeString = ctime( &m_lastModifiedTime );
+	MyString lastModifiedTimeString      = ctime( &status->st_mtime );
+	MyString currentTimeString           = ctime( &currentTime );
     // retrieving access status information
     dprintf( D_FULLDEBUG,
                     "Version::synchronize %s "
@@ -75,9 +78,12 @@ Version::synchronize(bool isLogicalClockIncremented)
                     "last known mod. time - %sactual mod. time - %s"
                     "current time - %s",
                m_stateFilePath.GetCStr( ),
-               ctime_r( &m_lastModifiedTime, timeBuffer ),
-               ctime_r( &status->st_mtime, timeBuffer + BUFSIZ / 3 ),
-               ctime_r( &currentTime, timeBuffer + 2 * BUFSIZ / 3 ) );
+               //ctime_r( &m_lastModifiedTime, timeBuffer ),
+               //ctime_r( &status->st_mtime, timeBuffer + BUFSIZ / 3 ),
+               //ctime_r( &currentTime, timeBuffer + 2 * BUFSIZ / 3 ) );
+			   lastKnownModifiedTimeString.GetCStr( ),
+			   lastModifiedTimeString.GetCStr( ),
+			   currentTimeString.GetCStr( ) );
     // updating the version: by modification time of the underlying file
     // and incrementing the logical version number
     if( m_lastModifiedTime >= status->st_mtime ) {
