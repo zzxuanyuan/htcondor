@@ -61,6 +61,24 @@ instead of the new-style configuration setting \Macro{STARTD\_CRON\_JOBLIST}.
 
 \begin{itemize}
 
+\item The command line string used in starting \Prog{cron} jobs is correct
+the first time the job is run,
+but incorrect each subsequent time the job is run.
+The error is that the job's name is incorrectly appended to the
+previous run's command line.
+As an example, the first time the job is run with the correct command line
+\begin{verbatim}
+/path/to/job jobname
+\end{verbatim}
+The second time, this job is run with the incorrect command line 
+\begin{verbatim}
+/path/to/job jobname jobname
+\end{verbatim}
+And, the third time, this job is run with the incorrect command line
+\begin{verbatim}
+/path/to/job jobname jobname jobname
+\end{verbatim}
+
 % Gnats PR 607/admin RUST 13153.
 \item On Windows only (as far as we know) a \Condor{rm} of a scheduler
 universe job after a \Condor{qedit} may cause the schedd to crash.
@@ -288,7 +306,24 @@ output files.
 
 \begin{itemize}
 
-\item None.
+\item The command line string used in starting \Prog{cron} jobs is correct
+the first time the job is run,
+but incorrect each subsequent time the job is run.
+The error is that the job's name is incorrectly appended to the 
+previous run's command line.
+As an example, the first time the job is run with the correct command line
+\begin{verbatim}
+/path/to/job jobname
+\end{verbatim}
+The second time, this job is run with the incorrect command line
+\begin{verbatim}
+/path/to/job jobname jobname
+\end{verbatim}
+And, the third time, this job is run with the incorrect command line
+\begin{verbatim}
+/path/to/job jobname jobname jobname
+\end{verbatim}
+
 
 \end{itemize}
 
