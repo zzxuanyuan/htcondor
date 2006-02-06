@@ -79,12 +79,20 @@ BUILD_DEP_LIB($(CPlusPlus),x_write_joblog,C,,../release_dir/lib/libcondorapi.a)
 	GNATS entry #558 for core condor software / proapi
 */
 
+#if !defined( IS_HPUX10 )
+DESC(job_had_basic," Basic High Availability Daemon Test")
+RUN(job_had_basic)
+TESTCLASS(job_had_basic,core)
+TESTCLASS(job_had_basic,quick)
+TESTCLASS(job_had_basic,dsldebug)
+#endif
+
 #if !defined(IS_PPC_AIX)
 DESC(lib_procapi_pidtracking-snapshot,"Fast Termination Child Cleanup Test")
 RUN(lib_procapi_pidtracking-snapshot)
 TESTCLASS(lib_procapi_pidtracking-snapshot,core)
 TESTCLASS(lib_procapi_pidtracking-snapshot,quick)
-TESTCLASS(lib_procapi_pidtracking-snapshot,btdebug)
+#TESTCLASS(lib_procapi_pidtracking-snapshot,dsldebug)
 #endif
 
 DESC(cmd_q_shows-hold,"Condor_q shows hold")
@@ -106,13 +114,13 @@ DESC(job_core_basic_par,"Basic Parallel Universe")
 RUN(job_core_basic_par)
 TESTCLASS(job_core_basic_par,core)
 TESTCLASS(job_core_basic_par,quick)
-TESTCLASS(job_core_basic_par,btdebug)
+#TESTCLASS(job_core_basic_par,dsldebug)
 
 DESC(job_core_basic-security_par,"Basic Parallel Universe w/security on")
 RUN(job_core_basic-security_par)
 TESTCLASS(job_core_basic-security_par,core)
 TESTCLASS(job_core_basic-security_par,quick)
-TESTCLASS(job_core_basic-security_par,btdebug)
+#TESTCLASS(job_core_basic-security_par,dsldebug)
 
 ****************** Tests being readied for prime time **********************
 */
@@ -126,7 +134,7 @@ DESC(lib_procapi_pidtracking-byenv,"Slow Termination Child Cleanup Test")
 RUN(lib_procapi_pidtracking-byenv)
 TESTCLASS(lib_procapi_pidtracking-byenv,core)
 TESTCLASS(lib_procapi_pidtracking-byenv,quick)
-TESTCLASS(lib_procapi_pidtracking-byenv,btdebug)
+#TESTCLASS(lib_procapi_pidtracking-byenv,dsldebug)
 #endif
 
 #if 0
@@ -143,7 +151,7 @@ DESC(job_schedd_job-tracking_van,"Scheduler: test for schedd loosing track of jo
 RUN(job_schedd_job-tracking_van)
 TESTCLASS(job_schedd_job-tracking_van,core)
 TESTCLASS(job_schedd_job-tracking_van,quick)
-TESTCLASS(job_schedd_job-tracking_van,btdebug)
+#TESTCLASS(job_schedd_job-tracking_van,dsldebug)
 #endif /* 0 -- test disabled */
 
 DESC(job_filexfer_streamout_van,"Vanilla: test for streaming of output when both stream_output is true and false")
@@ -158,6 +166,11 @@ TESTCLASS(job_filexfer_streamerr_van,quick)
 
 #if !defined( IS_ALPHA_LINUX) && !defined(IS_HPUX10)
 /* 
+   NOTE: this is an unfortunate way to do this selection.  we should
+   have reliable HAVE_GLOBUS, HAVE_CONDOR_C, and HAVE_CONDOR_G macros
+   defined via autoconf so we can just check "#if HAVE_CONDOR_C"
+   for these tests, instead of doing it via platforms like this.
+
    Gnats 544 Linux rh 7.2 on alph chip is broken
    Gnats 561 HPUX 10 does not allow submits for lack of globus support.
 */
@@ -165,13 +178,13 @@ DESC(job_condorc_ab_van,"Condor-C AB test")
 RUN(job_condorc_ab_van)
 TESTCLASS(job_condorc_ab_van,condorc)
 TESTCLASS(job_condorc_ab_van,quick)
-TESTCLASS(job_condorc_ab_van,btdebug)
+#TESTCLASS(job_condorc_ab_van,dsldebug)
 
 DESC(job_condorc_abc_van,"Condor-C ABC test")
 RUN(job_condorc_abc_van)
 TESTCLASS(job_condorc_abc_van,condorc)
 TESTCLASS(job_condorc_abc_van,quick)
-TESTCLASS(job_condorc_abc_van,btdebug)
+#TESTCLASS(job_condorc_abc_van,dsldebug)
 #endif
 
 DESC(job_core_killsignal_sched,"Scheduler: Verify the specified input file is used")
@@ -486,6 +499,16 @@ DESC(job_core_queue_sched,"Scheduler: Verify the  queue command")
 RUN(job_core_queue_sched)
 TESTCLASS(job_core_queue_sched,core)
 TESTCLASS(job_core_queue_sched,quick)
+
+DESC(job_core_time-deferral,"Vanilla: Verify deferred execution")
+RUN(job_core_time-deferral)
+TESTCLASS(job_core_time-deferral,core)
+TESTCLASS(job_core_time-deferral,quick)
+
+DESC(job_core_max-running_local,"Local: Max job running limit")
+RUN(job_core_max-running_local)
+TESTCLASS(job_core_max-running_local,core)
+TESTCLASS(job_core_max-running_local,quick)
 
 /* File Transfer Tests */
 
