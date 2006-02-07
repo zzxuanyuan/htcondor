@@ -138,6 +138,13 @@ main_init(int argc, char* argv[])
 		//
 	WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
 
+		//
+		// Update the SchedDInterval attributes in jobs if they
+		// have it defined. This will be for JobDeferral and
+		// CronTab jobs
+		//
+	WalkJobQueue( (int(*)(ClassAd *))::updateSchedDInterval );
+
 		// Initialize the dedicated scheduler stuff
 	dedicated_scheduler.initialize();
 
