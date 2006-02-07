@@ -75,7 +75,6 @@
 #include "misc_utils.h"  // for startdClaimFile()
 #include "condor_crontab.h"
 
-
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
 
@@ -5637,8 +5636,11 @@ Scheduler::makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad )
 }
 
 /**
+ * Given a ClassAd from the job queue, we call the 
+ * calculateCronSchedule() method in the schedd to do the real work
  * 
- * 
+ * @param job - the ClassAd to update
+ * @return true if no error occurred, false otherwise
  **/
 int
 calculateCronSchedule( ClassAd *job )
@@ -5646,6 +5648,37 @@ calculateCronSchedule( ClassAd *job )
 	return ( (int) scheduler.calculateCronSchedule( job ) );	
 }
 
+/**
+ * Given a ClassAd from the job queue, we check to see if it
+ * has the ATTR_SCHEDD_INTERVAL attribute defined. If it does, then
+ * then we will simply update it with the latest value
+ * 
+ * @param job - the ClassAd to update
+ * @return true if no error occurred, false otherwise
+ **/
+int
+updateSchedDInterval( ClassAd *job )
+{
+		//
+		// Check if the job has the ScheddInterval attribute set
+		// If so, then we need to update it
+		//
+	if ( job->Lookup( ATTR_SCHEDD_INTERVAL ) ) {
+			//
+			// This probably isn't a too serious problem if we
+			// are unable to update the job ad
+			//
+		if ( ! job->Assign( ATTR_SCHEDD_INTERVAL, scheduler.SchedDInterval ) ) {
+			PROC_ID id;
+			job->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
+			job->LookupInteger(ATTR_PROC_ID, id.proc);
+			dprintf( D_ALWAYS, "Failed to update job %d.%d with the new %s "
+							   "attribute!\n",
+							   ATTR_SCHEDD_INTERVAL );
+		}
+	}
+	return ( true );
+}
 
 int
 find_idle_local_jobs( ClassAd *job )
@@ -5703,20 +5736,45 @@ find_idle_local_jobs( ClassAd *job )
 	
 			//
 			// Start Universe Evaluation
+			// Only if this attribute is NULL or evaluates to true 
+			// will we allow a job to start.
 			//
 		bool requirementsMet = true;
 		int requirements = 1;
-		if ( scheddAd.Lookup( universeExp ) != NULL && 
-			 scheddAd.EvalBool( universeExp, job, requirements ) ) {
-			requirementsMet = (bool)requirements;
+		if ( scheddAd.Lookup( universeExp ) != NULL ) {
+				//
+				// We have this inner block here because the job
+				// should not be allowed to start if the schedd's 
+				// requirements failed to evaluate for some reason
+				//
+			if ( scheddAd.EvalBool( universeExp, job, requirements ) ) {
+				requirementsMet = (bool)requirements;
+					//
+					// If the requirements failed to evaluate to true
+					// Print an error message
+					//
+				if ( ! requirements ) {
+					dprintf( D_FULLDEBUG, "%s evaluated to false for job %d.%d. "
+										  "Unable to start job.\n",
+										  universeExp, id.cluster, id.proc );
+				}
+			} else {
+					//
+					// This is an error message to say that something is funky
+					// with the schedd's attribute
+					//
+				requirementsMet = false;
+				dprintf( D_ALWAYS, "The schedd's %s attribute could "
+								   "not be evaluated for job %d.%d. "
+								   "Unable to start job\n",
+								   universeExp, id.cluster, id.proc );
+			}
 		}
+			//
+			// If the expression failed up above, we will want to 
+			// print the expression to the user and return
+			//
 		if ( ! requirementsMet ) {
-			dprintf( D_FULLDEBUG, "%s evaluated to false for local job "
-								  "%d.%d. Unable to start job.\n",
-								  universeExp, id.cluster, id.proc );
-				//
-				// Print the expression to the user
-				//
 			char *exp = scheddAd.sPrintExpr( NULL, false, universeExp );
 			if ( exp ) {
 				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp );
@@ -5727,14 +5785,36 @@ find_idle_local_jobs( ClassAd *job )
 			//
 			// Job Requirements Evaluation
 			//
-		if ( job->Lookup( ATTR_REQUIREMENTS ) != NULL && 
-			 job->EvalBool( ATTR_REQUIREMENTS, &scheddAd, requirements ) ) {
-			requirementsMet = (bool)requirements;
+		if ( job->Lookup( ATTR_REQUIREMENTS ) != NULL ) {
+				//
+				// We have this inner block here because the job
+				// should not be allowed to start if the schedd's 
+				// requirements failed to evaluate for some reason
+				//
+			if ( job->EvalBool( ATTR_REQUIREMENTS, &scheddAd, requirements ) ) {
+				requirementsMet = (bool)requirements;
+				if ( !requirements ) {
+					dprintf( D_FULLDEBUG, "The %s attribute for job %d.%d did "
+										  "not evaluate to true. "
+										  "Unable to start job\n",
+										  ATTR_REQUIREMENTS, id.cluster, id.proc );
+				}
+			} else {
+					//
+					// Some isn't right with their Requirements expression
+					// So we can't let them start the job
+					//
+				requirementsMet = false;
+				dprintf( D_FULLDEBUG, "The %s attribute for job %d.%d did "
+								      "not evaluate to true. Unable to start job\n",
+								      ATTR_REQUIREMENTS, id.cluster, id.proc );
+			}
 		}
+			//
+			// If the job's requirements failed up above, we will want to 
+			// print the expression to the user and return
+			//
 		if ( ! requirementsMet ) {
-			dprintf( D_FULLDEBUG, "Local job %d.%d requirements did not evaluate "
-								  "to true. Unable to start job\n",
-								  id.cluster, id.proc );
 				//
 				// Print the expression to the user
 				//
@@ -9407,13 +9487,32 @@ Scheduler::Init()
 		  dprintf(D_FULLDEBUG, "No history file specified in config file\n" );
 	}
 
-	 tmp = param( "SCHEDD_INTERVAL" );
-	 if( ! tmp ) {
-		  SchedDInterval = 300;
-	 } else {
-		  SchedDInterval = atoi( tmp );
-		  free( tmp );
-	 }
+		//
+		// We keep a copy of the last interval
+		// If it changes, then we need update all the job ad's
+		// that use it (job deferral, crontab). 
+		// Except that this update must be after the queue is initialized
+		//
+	int orig_SchedDInterval = this->SchedDInterval;
+	tmp = param( "SCHEDD_INTERVAL" );
+	if( ! tmp ) {
+		SchedDInterval = 300;
+	} else {
+		SchedDInterval = atoi( tmp );
+		free( tmp );
+	}
+		//
+		// We only want to update if this is a reconfig
+		// If the schedd is just starting up, there isn't a job
+		// queue at this point
+		//
+	if ( !first_time_in_init && this->SchedDInterval != orig_SchedDInterval ) {
+			// 
+			// This will only update the job's that have the old
+			// ScheddInterval attribute defined
+			//
+		WalkJobQueue( (int(*)(ClassAd *))::updateSchedDInterval );
+	}
 
 	SchedDMinInterval = param_integer("SCHEDD_MIN_INTERVAL",5);
 
@@ -10267,7 +10366,7 @@ Scheduler::reschedule_negotiator(int, Stream *)
 			// when the ClassAd immediately arrives at the schedd, but I 
 			// just haven't figured out where that it yet
 			//
-		//WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
+		WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
 		StartLocalJobs();
 	}
 
@@ -10768,11 +10867,21 @@ Scheduler::publish( ClassAd *ad ) {
 		InsertIntoAd( ad, ATTR_OPSYS, temp );
 		free( temp );
 	}
+	
+		//
+		// Memory
+		//
+	unsigned long phys_mem = sysapi_phys_memory( );
+	InsertIntoAd( ad, ATTR_MEMORY, phys_mem );
+	
 		//
 		// Disk Space in LocalUnivExecuteDir
 		//
 	unsigned long disk_space = sysapi_disk_space( this->LocalUnivExecuteDir );
 	InsertIntoAd( ad, ATTR_DISK, disk_space );
+	
+		//
+		// 
 	
 		// -------------------------------------------------------
 		// Local Universe Attributes
@@ -11751,6 +11860,7 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		// whether we don't even need to bother with this ad
 		//
 	if ( this->cronTabsExclude->IsMember( id ) ) {
+		//dprintf( D_ALWAYS, "PAVLO: Cron Exclude Job %d.%d\n", id.cluster, id.proc );
 		return ( true );
 	}
 		//
@@ -11760,6 +11870,7 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		//
 	if ( !CronTab::needsCronTab( ad ) ) {	
 		this->cronTabsExclude->enqueue( id );
+		//dprintf( D_ALWAYS, "PAVLO: Add Cron Exclude Job %d.%d\n", id.cluster, id.proc );
 		return ( true );
 	}
 
@@ -11810,82 +11921,44 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 	}
 
 		//
-		// Now determine whether we need to calculate a new runtime:
+		// Now determine whether we need to calculate a new runtime.
+		// We first check to see if there is already a deferral time
+		// for the job, and if it is, whether it's in the past
+		// If it's in the past, we'll set the force flag to true
+		// so that we will always calculate a new time
+		//
+	if ( ! force && ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL ) {
+			//
+			// First get the DeferralTime
+			//
+		int deferralTime = 0;
+		ad->EvalInteger( ATTR_DEFERRAL_TIME, NULL, deferralTime );
+			//
+			// Now look to see if they also have a DeferralWindow
+			//
+		int deferralWindow = 0;
+		if ( ad->Lookup( ATTR_DEFERRAL_WINDOW ) != NULL ) {
+			ad->EvalInteger( ATTR_DEFERRAL_WINDOW, NULL, deferralWindow );
+		}
+			//
+			// Now if the current time is greater than the
+			// DeferralTime + Window, than we know that this time is
+			// way in the past and we need to calculate a new one
+			// for the job
+			//
+		force = ( (long)time( NULL ) > ( deferralTime + deferralWindow ) );
+	}
 		//
 		//	1) valid
 		//		The CronTab object must have parsed the parameters
 		//		for the schedule successfully
 		//	2) cronTab != NULL
 		//		Cheap safety check
-		//	3) !seenBefore || force
-		//		We can look to see whether the job has already
-		//		had a job calculated for it. If it has, and 
-		//		the force flag isn't set to true, then we won't
-		//		calculate a new time.
+		//	3) force
+		//		Always calculate a new time
 		//	
-	bool seenBefore = ( ad->Lookup( ATTR_CRON_NEXT_RUNTIME ) != NULL );
-	if ( valid && ( cronTab != NULL ) && ( !seenBefore || force ) ) {
-			//
-			// If seenBefore is false, then that means we haven't
-			// updated the job's requirement expression
-			//
-		if ( !seenBefore ) {
-				//
-				// Prepare our new requirement attribute
-				//
-			MyString attrib = "(";
-			attrib += ATTR_HAS_JOB_DEFERRAL;
-			attrib += ") && (";
-			attrib += ATTR_CURRENT_TIME;
-			attrib += " + ";
-			attrib += ATTR_CRON_CURRENT_TIME_RANGE;
-			attrib += ") >= ";
-			attrib += ATTR_CRON_NEXT_RUNTIME;
-				//
-				// Check to see if requirements are empty
-				// If they're not, then we need to make sure we are appending
-				// it to what's already there properly
-				//
-			MyString newAttrib( ATTR_REQUIREMENTS );
-			newAttrib += " = ";
-			ExprTree *tree = ad->Lookup( ATTR_REQUIREMENTS );
-			if ( tree ) {
-				char *buffer;
-				tree->RArg()->PrintToNewStr( &buffer );
-				newAttrib += buffer;
-				newAttrib += " && (";
-				newAttrib += attrib;
-				newAttrib += ")";
-				free( buffer );
-				//
-				// We will create a new requirements expression
-				// No need to worry about what might already be there
-				//
-			} else {
-				newAttrib += attrib;
-			}
-				//
-				// For some reason we can't update the requirements!
-				// This is a big problem!
-				//
-			if ( ! ad->Insert( newAttrib.Value(), true ) ) {
-				EXCEPT( "Unable to update Requirements expression for "
-						"Cron Jobs!\n" );
-			}
-			
-				//
-				// We also need to stuff what the schedd's interval
-				// value is. This way we can specify a range of when 
-				// our job should be started. This is needed so
-				// that we can send the job to the starter if 
-				// the job execution time comes after the current time
-				// but before the next time the schedd will pool it's
-				// jobs
-				//
-			ad->Assign( ATTR_CRON_CURRENT_TIME_RANGE, this->SchedDInterval );
-			
-		} // !seenBefore
-			
+	if ( valid && ( ( cronTab != NULL ) || force ) ) {
+		//dprintf( D_ALWAYS, "PAVLO: CALC CRON FOR JOB %d.%d\n", id.cluster, id.proc );
 			//
 			// Get the next runtime from our current time
 			// I used to subtract the DEFERRAL_WINDOW time from the current
@@ -11894,76 +11967,31 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 			// it may cause "thrashing" to occur when trying to schedule
 			// the job for times that it will never be able to make
 			//
-		long calculatedRunTime = cronTab->nextRunTime( );
-		long runTime = calculatedRunTime;
+		long runTime = cronTab->nextRunTime( );
 
 			//
-			// We have a valid runtime, so let's figure out 
-			// when we should run it next
+			// We have a valid runtime, so we need to update our job ad
 			//
 		if ( runTime != CRONTAB_INVALID ) {
 				//
-				// The preparation time is how much in advance we 
-				// want to send the job to the starter so it can 
-				// prepare the environment
-				// This can either be a user option in their job file
-				// or in the config file
+				// This is when our job should start execution
+				// We only need to update the attribute because
+				// condor_submit has done all the work to set up the
+				// the job's Requirements expression
 				//
-			int prepTime = 0;
-			char *tmp = param( "CRON_PREPARATION_TIME" );
-			if ( tmp ) {
-				prepTime = atoi( tmp );
-				free( tmp );
-			}
-			if ( ad->Lookup( ATTR_CRON_PREP_TIME ) != NULL ) {
-				ad->LookupInteger( ATTR_CRON_PREP_TIME, prepTime );
-			}
-				//
-				// Subtract the preparation time
-				//
-			runTime -= prepTime;			
-				//
-				// Now that we have it all figured out, stuff this runtime
-				// into the job ad! This is the time that the will 
-				// be released by the schedd and sent over to the starter
-				//
-			ad->Assign( ATTR_CRON_NEXT_RUNTIME, (int)runTime );
-			
-				//
-				// We also need to put in the real runtime. This is the
-				// time that we figured out when it should run next
-				//
-			ad->Assign( ATTR_DEFERRAL_TIME,	(int)calculatedRunTime );
-			
-				//
-				// Debug Info
-				//
-			/*
-			dprintf( D_ALWAYS, "\n----------------------------------------\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"\n----------------------------------------\n",
-								ATTR_DEFERRAL_TIME, (int)calculatedRunTime,
-								ATTR_CRON_NEXT_RUNTIME, (int)runTime,
-								ATTR_CRON_PREP_TIME, (int)prepTime,
-								ATTR_CRON_CURRENT_TIME_RANGE, (int)this->SchedDInterval,
-								ATTR_DEFERRAL_WINDOW, (int)runTimeWindow );
-			*/
-			
-			//
-			// We got back an invalid response
-			// This is a little odd because the parameters
-			// should have come back invalid when we instantiated
-			// the object up above, but either way it's a good 
-			// way to check
-			//
+			ad->Assign( ATTR_DEFERRAL_TIME,	(int)runTime );	
+					
 		} else {
+				//
+				// We got back an invalid response
+				// This is a little odd because the parameters
+				// should have come back invalid when we instantiated
+				// the object up above, but either way it's a good 
+				// way to check
+				//			
 			valid = false;
 		}
-	}
+	} // CALCULATE NEXT RUN TIME
 		//
 		// After jumping through all our hoops, check to see
 		// if the cron scheduling failed, meaning that the
