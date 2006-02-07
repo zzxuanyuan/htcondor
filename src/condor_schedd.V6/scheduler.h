@@ -201,6 +201,7 @@ class Scheduler : public Service
 	friend	void	job_prio(ClassAd *);
 	friend  int		find_idle_local_jobs(ClassAd *);
 	friend	int		calculateCronSchedule( ClassAd* );
+	friend	int		updateSchedDInterval( ClassAd* );
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	int				updateGSICred(int, Stream* s);
