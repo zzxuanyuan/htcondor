@@ -60,9 +60,9 @@ my $LAST_DEFERRAL_TIME;
 ## This is the difference in seconds that one job should be scheduled
 ## for after the previous. If this fails then we know something
 ## is possibly with the 
-## CronMinute = */2
+## CronMinute = */3
 ##
-my $DEFERRAL_DIFFERENCE = 120; # seconds
+my $DEFERRAL_DIFFERENCE = 180; # seconds
 
 ##
 ## executed

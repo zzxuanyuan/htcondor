@@ -98,10 +98,10 @@ push(@fail,    0);
 ## that the job fails. We don't want jobs to run when 
 ## they shouldn't
 ##
-push(@exact,   0);
-push(@deltas,  -600); # 600 sec = 10 min
-push(@windows, 0);
-push(@fail,    1);
+#push(@exact,   0);
+#push(@deltas,  -600); # 600 sec = 10 min
+#push(@windows, 0);
+#push(@fail,    1);
 
 ##
 ## Test #4
@@ -110,7 +110,7 @@ push(@fail,    1);
 ## jobs that missed their run time but are within the
 ## the window can still run.
 ##
-push(@exact,   0);
+push(@exact,   1);
 push(@deltas,  -120);  # 120 sec = 2 min
 push(@windows, 180); # 180 sec = 3 min
 push(@fail,    0);
@@ -228,11 +228,12 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my @output = <FILE>;
 		close(FILE);
 		my $reportTime  = "@output";
+		chomp($reportTime);
 		
-		#print "\n";
-		#print "\texecute:  $executeTime\n";
-		#print "\treport:   $reportTime\n";
-		#print "-----------------------------------------\n\n";
+		print "\n-----------------------------------------\n";
+		print "\texecute:  $executeTime\n";
+		print "\treport:   $reportTime\n";
+		print "\texpected: $expectedTime\n\n";
 		
 		##
 		## If this job wasn't suppose to fail, make sure we ran
@@ -242,7 +243,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			##
 			## No timestamp is bad mojo!
 			##
-			if (!$timestamp) {
+			if (!$executeTime) {
 				$testFailure = "Bad - Unable to extract execution timestamp from ".
 							   "log file for Job $cluster.$job! ".
 							   "Cowardly failing!";
@@ -257,9 +258,9 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## that the offset insured that it ran based on our time not 
 			## its own
 			##
-			if ($timestamp < $expectedTime) {
+			if ($executeTime < $expectedTime) {
 				$testFailure = "Bad - Job $cluster.$job executed ".
-							   ($expectedTime - $timestamp).
+							   ($expectedTime - $executeTime).
 							   " seconds before it was suppose to!\n";
 				return (0);
 			}
@@ -271,12 +272,14 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## on our time not its own.
 			##
 			## Just for sanity, I am allowing the job to be 1 second off
+			## We only do this test if the window time is wasn't in the past (Test #4)
 			##
-			if ( $exact &&
-				($timestamp != $expectedTime) &&
-				($timestamp != $expectedTime + 1) ) {
+			if ( $exact && 
+				($delta >= 0 ) &&
+				($executeTime != $expectedTime) &&
+				($executeTime != ($expectedTime + 1)) ) {
 				$testFailure = "Bad - Job $cluster.$job execution time differs by ".
-								($expectedTime - $timestamp)." seconds ".
+								abs($expectedTime - $executeTime)." seconds ".
 								"from when it was suppose to run exactly at.\n";
 				return (0);
 			}
