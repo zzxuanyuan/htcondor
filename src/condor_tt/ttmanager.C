@@ -314,25 +314,25 @@ TTManager::event_maintain()
 				} 				
 
 				if (strcmp(eventtype, "Machines") == 0) {		
-					if  (insertMachines(ad) <   0) 
+					if  (insertMachines(ad) == FAILURE) 
 						goto DBERROR;
 				} else if (strcmp(eventtype, "Events") == 0) {
-					if  (insertEvents(ad) <   0) 
+					if  (insertEvents(ad) == FAILURE) 
 						goto DBERROR;
 				} else if (strcmp(eventtype, "Files") == 0) {
-					if  (insertFiles(ad) <   0) 
+					if  (insertFiles(ad) == FAILURE) 
 						goto DBERROR;
 				} else if (strcmp(eventtype, "Fileusages") == 0) {
-					if  (insertFileusages(ad) <   0) 
+					if  (insertFileusages(ad) == FAILURE) 
 						goto DBERROR;
 				} else if (strcmp(eventtype, "History") == 0) {
-					if  (insertHistoryJob(ad) <   0) 
+					if  (insertHistoryJob(ad) == FAILURE) 
 						goto DBERROR;
 				} else if (strcmp(eventtype, "Rejects") == 0) {
 					// skip logging rejects events
 					;
 				} else {
-					if (insertBasic(ad, eventtype) < 0) 
+					if (insertBasic(ad, eventtype) == FAILURE) 
 						goto DBERROR;
 				}
 				
@@ -347,7 +347,7 @@ TTManager::event_maintain()
 					// the second ad can be null, meaning there is no where clause
 				ad1=filesqlobj->file_readAttrList();
 
-				if (updateBasic(ad, ad1, eventtype) < 0)
+				if (updateBasic(ad, ad1, eventtype) == FAILURE)
 					goto DBERROR;
 				
 				delete ad;
@@ -1248,6 +1248,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 	const char *iter;	
 	char setList[1000]="", whereList[1000]="";
 	char *attName = NULL, *attVal;
+	char *newvalue;
 
 	if (!info) return SUCCESS;
 
@@ -1267,21 +1268,25 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// change double quotes to single quote if any
-			attValLen = strlen(attVal);
- 
-			if (attVal[attValLen-1] == '"')
-				attVal[attValLen-1] = '\'';
+				// escape single quote if any within the value
+			newvalue = fillEscapeCharacters(attVal);
 
-			if (attVal[0] == '"') {
-				attVal[0] = '\'';
+				// change double quotes to single quote if any
+			attValLen = strlen(newvalue);
+ 
+			if (newvalue[attValLen-1] == '"')
+				newvalue[attValLen-1] = '\'';
+
+			if (newvalue[0] == '"') {
+				newvalue[0] = '\'';
 			}			
 			
 			strcat(setList, attName);
 			strcat(setList, " = ");
-			strcat(setList, attVal);
+			strcat(setList, newvalue);
 			strcat(setList, ", ");
 
+			free(newvalue);
 			free(attName);
 
 			iter = classAd.GetNextToken("\n", true);

@@ -1293,7 +1293,8 @@ JobQueueDBManager::processSetAttribute(char* key,
 	int  job_id_type, len;
 	char *tempvalue = NULL;
 		//int		ret_st;
-  
+	char *newvalue = NULL;
+
 		// It could be ProcAd or ClusterAd
 		// So need to check
 	job_id_type = getProcClusterIds(key, cid, pid);
@@ -1310,8 +1311,10 @@ JobQueueDBManager::processSetAttribute(char* key,
 				tempvalue = (char *) malloc(strlen(value) + 1);
 				strcpy(tempvalue, value);
 				strip_double_quote(tempvalue);
+					// escape single quote within the value
 				snprintf(sql_str_del_in, len,
-						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, tempvalue, scheddname, cid);				
+						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, newvalue, scheddname, cid);
+
 			}
 		} else {
 			tempvalue = (char *) malloc(strlen(value) + 1);
@@ -1335,8 +1338,10 @@ JobQueueDBManager::processSetAttribute(char* key,
 		} else {
 			strcpy(tempvalue, value);
 			strip_double_quote(tempvalue);
+			newvalue = fillEscapeCharacters(tempvalue);
 			snprintf(sql_str_del_in, len,
-					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, tempvalue);			
+					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);			
+			free(newvalue);
 		}
 		
 		break;
@@ -1675,3 +1680,37 @@ JobQueueDBManager::setJQPollingInfo()
 	}
 	return ret_st;
 }
+
+char * fillEscapeCharacters(char * str) {
+	int i, j;
+	
+	int len = strlen(str);
+
+		//here we allocate 1024 more than the size of the 
+		//old string assuming that there wouldn't be more than 1024
+		//quotes in there 
+	char *newstr = (char *) malloc((len + 1024) * sizeof(char));
+	
+	j = 0;
+	for (i = 0; i < len; i++) {
+		switch(str[i]) {
+        case '\'':
+            newstr[j] = '\\';
+            newstr[j+1] = '\'';
+            j += 2;
+            break;
+        case '\t':
+            newstr[j] = '\\';
+            newstr[j+1] = 't';
+            j += 2;
+            break;
+        default:
+            newstr[j] = str[i];
+            j++;
+            break;
+		}
+	}
+	newstr[j] = '\0';
+    return newstr;
+}
+

@@ -181,4 +181,8 @@ class JobQueueDBManager : public Service
 	char*   scheddname;
 };
 
+	//! escape quoted strings since postgres doesn't like 
+	//! unescaped single quotes
+char *   fillEscapeCharacters(char *str);
+
 #endif /* _JOBQUEUEDBMANAGER_H_ */
