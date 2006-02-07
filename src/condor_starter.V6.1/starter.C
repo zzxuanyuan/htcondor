@@ -732,7 +732,7 @@ CStarter::jobWaitUntilExecuteTime( void )
 				//
 			if ( jobAd->Lookup( ATTR_DEFERRAL_WINDOW ) != NULL &&
 				 jobAd->EvalInteger( ATTR_DEFERRAL_WINDOW, NULL, deferralWindow ) ) {
-				dprintf( D_FULLDEBUG, "Job %d.%d has a deferral time window of "
+				dprintf( D_FULLDEBUG, "Job %d.%d has a deferral window of "
 				                      "%d seconds\n", 
 							this->jic->jobCluster(),
 							this->jic->jobProc(),
