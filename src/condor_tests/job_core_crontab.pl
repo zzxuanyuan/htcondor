@@ -36,7 +36,7 @@ my $run_ctr = 0;
 ##
 ## The MAX number of times our job should run
 ##
-my $max_run_ctr = 4;
+my $max_run_ctr = 3;
 
 ##
 ## The sleep time of the job
@@ -86,14 +86,16 @@ $executed = sub {
 		print "ERROR: Unable to get DefferalTime due to Condor Tool Failure<$q_cmd>\n";
 	    exit(1);
 	}
-	$DEFERRAL_TIME = "@result";
+	$DEFERRAL_TIME = "@result";	
 	##
 	## We're screwed if we can't get out the time
 	##
-	if ( $DEFERRAL_TIME < 0 ) {
+	if ( $DEFERRAL_TIME < 0 || !$DEFERRAL_TIME ) {
 		print "Bad - Unable to get DeferralTime for Job $cluster.$job!\n";
 		exit(1);
 	}
+	
+	
 	##
 	## Make sure that we haven't run more then we were suppose to
 	##
