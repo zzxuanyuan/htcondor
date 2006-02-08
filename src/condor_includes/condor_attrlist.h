@@ -31,6 +31,7 @@ class AttrList
 		void RestoreChain(void *);
 
 		// ctors/dtor
+		void Init( );
 		AttrList();							// No associated AttrList list
         AttrList(FILE*,char*,int&,int&,int&);// Constructor, read from file.
         AttrList(char *, char);				// Constructor, from string.
