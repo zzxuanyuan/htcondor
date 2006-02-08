@@ -51,6 +51,11 @@ number of seconds since the epoch (00:00:00 UTC, Jan 1, 1970).
 \item[\AdAttr{CumulativeSuspensionTime}] : A running total of the number of
 seconds the job has spent in suspension for the life of the job.
 
+%%% ClassAd attribute: CurrentHosts
+\index{ClassAd job attribute!CurrentHosts}
+\item[\AdAttr{CurrentHosts}] : The number of hosts in the claimed state,
+due to this job.
+
 %%% ClassAd attribute: EnteredCurrentStatus
 \index{ClassAd job attribute!EnteredCurrentStatus}
 \item[\AdAttr{EnteredCurrentStatus}] : An integer containing the
@@ -221,12 +226,35 @@ epoch (00:00:00 UTC, Jan 1, 1970).
 evicted from a remote workstation.  Measured in the number of seconds
 since the epoch (00:00:00 UTC, Jan 1, 1970).
 
+%%% ClassAd attribute: LocalSysCpu
+\index{ClassAd job attribute!LocalSysCpu}
+\item[\AdAttr{LocalSysCpu}] : An accumulated number of seconds of 
+system CPU time that the job caused to the machine upon which
+the job was submitted.
+
+%%% ClassAd attribute: LocalUserCpu
+\index{ClassAd job attribute!LocalUserCpu}
+\item[\AdAttr{LocalUserCpu}] : An accumulated number of seconds of 
+user CPU time that the job caused to the machine upon which
+the job was submitted.
+
+%%% ClassAd attribute: MaxHosts
+\index{ClassAd job attribute!MaxHosts}
+\item[\AdAttr{MaxHosts}] : The maximum number of hosts that this job would
+like to claim. As long as \AdAttr{CurrentHosts} is the same as
+\AdAttr{MaxHosts}, no more hosts are negotiated for.
+
 %%% ClassAd attribute: MaxJobRetirementTime
 \index{ClassAd job attribute!MaxJobRetirementTime}
 \item[\AdAttr{MaxJobRetirementTime}] : Maximum time in seconds to let this
 job run uninterrupted before kicking it off when it is being preempted.
 This can only decrease the amount of time from what the corresponding
 startd expression allows.
+
+%%% ClassAd attribute: MinHosts
+\index{ClassAd job attribute!MinHosts}
+\item[\AdAttr{MinHosts}] : The minimum number of hosts that must be in
+the claimed state for this job, before the job may enter the running state.
 
 %%% ClassAd attribute: NiceUser
 \index{ClassAd job attribute!NiceUser}
