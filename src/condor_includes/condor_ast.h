@@ -45,6 +45,7 @@ class AssignOp : public ExprTree
 {
  public:
 	AssignOp(ExprTree*, ExprTree*);
+	AssignOp(const char *, classad::ExprTree *);
 	~AssignOp( );
 	virtual void        PrintToNewStr(char**);
 	virtual int 		CalcPrintToStr( void );
