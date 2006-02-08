@@ -190,6 +190,7 @@ void
 TTManager::maintain() 
 {	
 	QuillErrCode retcode;
+	bool bothOk = TRUE;
 
 		// first call the job queue maintain function
 	dprintf(D_ALWAYS, "******** Start of Polling Job Queue Log ********\n");
@@ -199,6 +200,7 @@ TTManager::maintain()
 	if (retcode == FAILURE) {
 		dprintf(D_ALWAYS, 
 				">>>>>>>> Fail: Polling Job Queue Log <<<<<<<<\n");		
+		bothOk = FALSE;
 	} else {
 		dprintf(D_ALWAYS, "********* End of Polling Job Queue Log *********\n");
 	}
@@ -211,10 +213,42 @@ TTManager::maintain()
 	if (retcode == FAILURE) {
 		dprintf(D_ALWAYS, 
 				">>>>>>>> Fail: Polling Event Log <<<<<<<<\n");		
+		bothOk = FALSE;
 	} else {
 		dprintf(D_ALWAYS, "********* End of Polling Event Log *********\n");
 	}
 
+		// update currency if both log polling succeed
+	if (bothOk) {
+			// update the currency table
+		char 	sql_str[1024];
+		char    lastupdate[100];
+		struct tm *tm;
+		time_t clock;
+		int ret_st;
+		const char *scheddname;
+
+		(void)time(  (time_t *)&clock );
+		tm = localtime( (time_t *)&clock );	
+
+		snprintf(lastupdate, 100, "%d/%d/%d %02d:%02d:%02d %s", 
+				 tm->tm_mon+1,
+				 tm->tm_mday,
+				 tm->tm_year+1900,
+				 tm->tm_hour,
+				 tm->tm_min,
+				 tm->tm_sec,
+				 my_timezone(tm->tm_isdst));
+	
+		scheddname = jqDBManager.getScheddname();
+	
+		snprintf(sql_str, 1023, "UPDATE currency SET lastupdate = '%s' WHERE datasource = '%s';", lastupdate, scheddname);
+
+		ret_st = DBObj->execCommand(sql_str);
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
+		}
+	}
 }
 
 QuillErrCode
@@ -392,36 +426,6 @@ TTManager::event_maintain()
 		}
 	}
 
-			// update the currency table
-	char 	sql_str[1024];
-	char    lastupdate[100];
-	struct tm *tm;
-	time_t clock;
-	int ret_st;
-	const char *scheddname;
-
-	(void)time(  (time_t *)&clock );
-	tm = localtime( (time_t *)&clock );	
-
-	snprintf(lastupdate, 100, "%d/%d/%d %02d:%02d:%02d %s", 
-		  tm->tm_mon+1,
-		  tm->tm_mday,
-		  tm->tm_year+1900,
-		  tm->tm_hour,
-		  tm->tm_min,
-		  tm->tm_sec,
-		  my_timezone(tm->tm_isdst));
-	
-	scheddname = jqDBManager.getScheddname();
-	
-	snprintf(sql_str, 1023, "UPDATE currency SET lastupdate = '%s' WHERE datasource = '%s';", lastupdate, scheddname);
-
-	ret_st = DBObj->execCommand(sql_str);
-	if (ret_st == FAILURE) {
-		dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
-		goto DBERROR;
-	}
-
 	return SUCCESS;
 
  ERROREXIT:
@@ -451,6 +455,10 @@ TTManager::event_maintain()
 
 	if (ad)
 		delete ad;
+
+	// the failed transaction must be rolled back
+	// so that subsequent SQLs don't continue to fail
+	DBObj->rollbackTransaction();
 
 	if (DBObj->checkConnection() == FAILURE) {
 		this -> checkAndThrowBigFiles();

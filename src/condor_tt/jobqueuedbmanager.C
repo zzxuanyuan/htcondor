@@ -739,6 +739,11 @@ JobQueueDBManager::addJobQueueTables()
 		// Store a polling information into DB
 	if (st == SUCCESS) {
 		setJQPollingInfo();
+	} else {
+		// a transaction might have been began, need to be rolled back
+		// otherwise subsequent SQLs will continue to fail
+		DBObj->rollbackTransaction();
+		xactState = NOT_IN_XACT;
 	}
 
 	return st;
@@ -1313,15 +1318,17 @@ JobQueueDBManager::processSetAttribute(char* key,
 				strip_double_quote(tempvalue);
 					// escape single quote within the value
 				snprintf(sql_str_del_in, len,
-						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, newvalue, scheddname, cid);
+						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, tempvalue, scheddname, cid);
 
 			}
 		} else {
 			tempvalue = (char *) malloc(strlen(value) + 1);
 			strcpy(tempvalue, value);
 			strip_double_quote(tempvalue);
-            snprintf(sql_str_del_in, len,
-					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', '%s', '%s');", scheddname, cid, name, scheddname, cid, name, tempvalue);
+			newvalue = fillEscapeCharacters(tempvalue);
+            		snprintf(sql_str_del_in, len,
+					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', '%s', '%s');", scheddname, cid, name, scheddname, cid, name, newvalue);
+			free(newvalue);
 		}
 
 		break;
