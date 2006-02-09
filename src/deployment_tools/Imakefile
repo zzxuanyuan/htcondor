@@ -33,17 +33,9 @@ release_copy_target(condor_local_stop,sbin,condor_local_stop,EXECUTABLE_MODE)
 strip_copy_target(condor_local_stop,sbin,condor_local_stop,EXECUTABLE_MODE)
 static_copy_target(condor_local_stop,sbin,condor_local_stop,EXECUTABLE_MODE)
 
-release_copy_target(linklock_midwife,sbin,linklock_midwife,EXECUTABLE_MODE)
-strip_copy_target(linklock_midwife,sbin,linklock_midwife,EXECUTABLE_MODE)
-static_copy_target(linklock_midwife,sbin,linklock_midwife,EXECUTABLE_MODE)
-
 release_copy_target(condor_cleanup_local,sbin,condor_cleanup_local,EXECUTABLE_MODE)
 strip_copy_target(condor_cleanup_local,sbin,condor_cleanup_local,EXECUTABLE_MODE)
 static_copy_target(condor_cleanup_local,sbin,condor_cleanup_local,EXECUTABLE_MODE)
-
-release_copy_target(linklock_undertaker,sbin,linklock_undertaker,EXECUTABLE_MODE)
-strip_copy_target(linklock_undertaker,sbin,linklock_undertaker,EXECUTABLE_MODE)
-static_copy_target(linklock_undertaker,sbin,linklock_undertaker,EXECUTABLE_MODE)
 
 release_copy_target(condor_cold_start,sbin,condor_cold_start,EXECUTABLE_MODE)
 strip_copy_target(condor_cold_start,sbin,condor_cold_start,EXECUTABLE_MODE)
