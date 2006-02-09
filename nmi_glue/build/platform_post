@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: platform_post,v 1.1.4.8 2005-11-03 22:14:14 wright Exp $
+# $Id: platform_post,v 1.1.4.8.24.1 2006-02-09 22:37:42 bt Exp $
 # post script to cleanup platform-specific files on the submit side
 ######################################################################
 
@@ -31,10 +31,10 @@ $platform || die "No platform to use, NOT submitting tests\n";
 # know all the current test infrastructure will fail on that
 # platform.  so, for now, just exit success without submitting a test
 # job on win32...
-if( $platform eq "x86_winnt_5.1" ) {
-    print "NOT submitting tests for windows\n";
-    exit 0;
-}
+#if( $platform eq "x86_winnt_5.1" ) {
+    #print "NOT submitting tests for windows\n";
+    #exit 0;
+#}
 
 if( defined $opt_without_tests ) {
     print "--without-tests specified on command-line, NOT submitting tests\n";
