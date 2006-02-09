@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.1 2005-12-22 17:44:18 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.2 2006-02-09 22:33:51 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -144,6 +144,21 @@ else
 	mkdir( "$BaseDir/condor/execute", 0777 ) || die "Can't mkdir $BaseDir/condor/execute: $!\n";
 	mkdir( "$BaseDir/condor/log", 0777 ) || die "Can't mkdir $BaseDir/condor/log: $!\n";
 
+	$win32base = $BaseDir;
+	$win32base =~ s/\/cygdrive\/c/C:/;
+
+	#safe_copy("$SrcDir/condor_scripts/win32.perl.bat","$BaseDir/condor/bin/win32.perl.bat");
+	safe_copy("$SrcDir/condor_scripts/exe_switch.pl","$BaseDir/condor/bin/exe_switch.pl");
+	safe_copy("$SrcDir/condor_scripts/win32toperl.bat","$BaseDir/condor/bin/win32toperl.bat");
+	safe_copy("$SrcDir/condor_scripts/win32tosh.bat","$BaseDir/condor/bin/win32tosh.bat");
+	open( WRAPPER, ">$BaseDir/condor/bin/win32.perl.bat" ) || die "Can't open new job wrapper: $!\n";
+	print WRAPPER "\@echo %*\n";
+	print WRAPPER "\@c:\\perl\\bin\\perl.exe $win32base/condor/bin/exe_switch.pl %*\n";
+	close(WRAPPER);
+
+	print "Want to copy this<<$SrcDir/condor_scripts/win32.perl.bat>> to execute dir\n";
+	system("ls $BaseDir/condor/execute");
+	print "Did you just see it there??????\n";
 	# create config file with todd's awk script
 	$awkscript = "$BaseDir/src/condor_examples/convert_config_to_win32.awk";
 	$genericconfig = "$BaseDir/src/condor_examples/condor_config.generic";
@@ -162,8 +177,6 @@ else
 	open( OLDFIG, "<condor/condor_config.orig" ) || die "Can't open base config file: $!\n";
 	open( NEWFIG, ">condor/condor_config" ) || die "Can't open new config file: $!\n";
 	$line = "";
-	$win32base = $BaseDir;
-	$win32base =~ s/\/cygdrive\/c/C:/;
 
 	while( <OLDFIG> ) {
     	chomp;
@@ -251,10 +264,7 @@ print FIX "PERIODIC_EXPR_INTERVAL = 15\n";
 # normally are done by condor_configure for a personal condor
 if($ENV{NMI_PLATFORM} eq "x86_winnt_5.1")
 {
-	print FIX "USER_JOB_WRAPPER = C:/condor/win32.perl.bat\n";
-	print FIX "VM1_USER = THINKPAD\\billt\n";
-	print FIX "VM2_USER = THINKPAD\\billt\n";
-	print FIX "EXECUTE_LOGIN_IS_DEDICATED = TRUE\n";
+	print FIX "USER_JOB_WRAPPER = $win32base/condor/bin/win32.perl.bat\n";
 	print FIX "START = TRUE\n";
 	print FIX "PREEMPT = FALSE\n";
 	print FIX "SUSPEND = FALSE\n";
@@ -264,9 +274,10 @@ if($ENV{NMI_PLATFORM} eq "x86_winnt_5.1")
 	print FIX "NETWORK_INTERFACE = 127.0.0.1\n";
 	# work around for failure to system call the starter 
 	# to locate and set machine ads...
-	print FIX "HasFileTransfer = TRUE\n";
-	print FIX "STARTD_EXPRS = \$(STARTD_EXPRS), HasFileTransfer\n";
-	print FIX "ALL_DEBUG = D_FULLDEBUG";
+	#print FIX "HasFileTransfer = TRUE\n";
+	#print FIX "STARTD_EXPRS = \$(STARTD_EXPRS), HasFileTransfer\n";
+	print FIX "ALL_DEBUG = D_FULLDEBUG\n";
+	#print FIX "NEGOTIATOR = C:/condor/windows3/negotiator.bat\n";
 }
 
 close ORIG;
@@ -335,16 +346,20 @@ if( $master_pid == 0) {
 	}
 	else
 	{
-		#exec("$BaseDir/condor/bin/condor_master -f");
+		#foreach my $var (sort keys (%ENV))
+		#{
+		#print "ENV: $var = $ENV{$var}\n";
+		#}
 		print "Windows start of personal condor\n";
-		print "Start collector\n";
-  		system("$BaseDir/condor/bin/condor_collector.exe -f &");
-		print "Start negotiator\n";
-  		system("$BaseDir/condor/bin/condor_negotiator.exe -f &");
-		print "Start startd\n";
-  		system("$BaseDir/condor/bin/condor_startd.exe -f &");
-		print "Exec schedd\n";
-  		exec("$BaseDir/condor/bin/condor_schedd.exe -f &");
+		exec("$BaseDir/condor/bin/condor_master -f");
+		#print "Start collector\n";
+  		#system("$BaseDir/condor/bin/condor_collector.exe -f &");
+		#print "Start negotiator\n";
+  		#system("$BaseDir/condor/bin/condor_negotiator.exe -f &");
+		#print "Start startd\n";
+  		#system("$BaseDir/condor/bin/condor_startd.exe -f &");
+		#print "Exec schedd\n";
+  		#exec("$BaseDir/condor/bin/condor_schedd.exe -f &");
 	}
   	print "MASTER EXEC FAILED!!!!!\n";
   	exit 1;
@@ -361,3 +376,15 @@ close PIDFILE;
 print "Sleeping for 30 seconds to give the master time to start.\n";
 sleep 30;
 system("ps  -W");
+
+sub safe_copy {
+    my( $src, $dest ) = @_;
+        system("cp $src $dest");
+        if( $? >> 8 ) {
+                $copy_failure = 1;
+                print "Can't copy $src to $dest: $!\n";
+    } else {
+                print "Copied $src to $dest\n";
+    }
+}
+
