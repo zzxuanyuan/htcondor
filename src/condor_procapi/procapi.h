@@ -574,6 +574,13 @@ class ProcAPI {
  */
   static int getProcInfoRaw(pid_t pid, procInfoRaw& procRaw, int &status);
 
+	  /**
+		 Clears the memory of a procInfoRaw struct.
+		 @param procRaw A reference to a procInfoRaw structure.
+	  
+	  */
+  static void initProcInfoRaw(procInfoRaw& procRaw);
+
   
 	  /**
 		 Generates a control time by which a process birthday can be

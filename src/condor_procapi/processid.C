@@ -7,6 +7,7 @@
 //////////////////////////////////////////////////////////////////////
 const char* ProcessId::SIGNATURE_FORMAT = "PPID = %i\nPID = %i\nPRECISION = %i\nTIME_UNITS_IN_SECS = %f\nBDAY = %li\nCONTROL_TIME = %li\n";
 const int ProcessId::NR_OF_SIGNATURE_ENTRIES = 6;
+const int ProcessId::MIN_NR_OF_SIGNATURE_ENTRIES = 2;
 const char* ProcessId::CONFIRMATION_FORMAT = "CONFIRM = %li\nCONTROL_TIME = %li\n";
 const int ProcessId::NR_OF_CONFIRM_ENTRIES = 2;
 const int ProcessId::UNDEF = -1;
@@ -31,7 +32,7 @@ ProcessId::ProcessId(pid_t pid, pid_t ppid,
 ProcessId::ProcessId(FILE* fp, int& status)
 {
 		// assume failure
-	status = -1;
+	status = FAILURE;
 	
 		// extract the signature
 	pid_t tmp_pid = UNDEF;
@@ -46,30 +47,28 @@ ProcessId::ProcessId(FILE* fp, int& status)
 										 tmp_precision_range, 
 										 tmp_time_units_in_sec,
 										 tmp_bday, tmp_id_ctl_time );
-    
-		// ensure we got something
-	if( nr_extracted < 2 ){
+
+		// check for errors
+	if( nr_extracted == FAILURE ){
 		dprintf(D_ALWAYS, 
-				"ERROR: Failed to match sufficient entries in ProcessId::ProcessId(char*, int&)\n");
-		status = -1;
+				"ERROR: Failed extract the process id in  "
+				"ProcessId::ProcessId(char*, int&)\n");
+		status = FAILURE;
 		return;
 	}
-
+    
 		// use the extracted values to initialize this class	
 	init(tmp_pid, tmp_ppid, tmp_precision_range, tmp_time_units_in_sec, 
 		 tmp_bday, tmp_id_ctl_time);
   
 		// attempt to get the latest confirmation
-		//bool tmp_confirmed = false;
 	long tmp_confirm_time = UNDEF;
 	long tmp_confirm_ctl_time = UNDEF;	
 	if( nr_extracted == NR_OF_SIGNATURE_ENTRIES ){
-		
+
 			// continue reading until the end of the file
 			// to ensure we get the latest confirmation
-		while( nr_extracted != EOF && nr_extracted != 0 ){
-				// assume we'll get good data
-				//tmp_confirmed = true;
+		while( nr_extracted != FAILURE  ){
 			
 				// extract the confirmation
 			nr_extracted = extractConfirmation(fp,
@@ -86,7 +85,7 @@ ProcessId::ProcessId(FILE* fp, int& status)
 	}	
 	
 		// success
-	status = 0;
+	status = SUCCESS;
 }
 
 ProcessId::ProcessId(const ProcessId& orig)
@@ -156,7 +155,7 @@ ProcessId::isSameProcess(const ProcessId& rhs) const
 {
 	
 		// assume failure
-	int returnVal = -1;
+	int returnVal = FAILURE;
 
 		// Determine what we have
   
@@ -362,18 +361,18 @@ ProcessId::write(FILE* fp) const
 {
 
 		// write id
-	if( writeId(fp) == -1 ){
-		return -1;
+	if( writeId(fp) == FAILURE ){
+		return FAILURE;
 	}
 		// write confirmation, if neccessary
 	if( this->confirmed ){
-		if( writeConfirmation(fp) == -1 ){
-			return -1;
+		if( writeConfirmation(fp) == FAILURE ){
+			return FAILURE;
 		}
 	}
 
 		// success
-	return 0;
+	return SUCCESS;
 }
 
 int
@@ -383,17 +382,17 @@ ProcessId::writeConfirmationOnly(FILE* fp) const
 		// write confirmation
 		// if this id is confirmed
 	if( this->confirmed ){
-		if( writeConfirmation(fp) == -1 ){
-			return -1;
+		if( writeConfirmation(fp) == FAILURE ){
+			return FAILURE;
 		}
 	}
 		// its an error otherwise
 	else{
 		dprintf(D_ALWAYS, "ERROR: Attempted to write a confirmation for a process id that was not confirmed");
-		return -1;
+		return FAILURE;
 	}
 
-	return 0;
+	return SUCCESS;
 }
 
 int
@@ -414,14 +413,14 @@ ProcessId::writeId(FILE* fp) const
 		dprintf(D_ALWAYS, "ERROR: Could not write the process signature: %s",
 				strerror( ferror(fp) )
 				);
-		return -1;
+		return FAILURE;
     }
 
 		// flush the write
     fflush(fp);
 
 		// success
-    return 0;
+    return SUCCESS;
 }
 
 int
@@ -439,14 +438,14 @@ ProcessId::writeConfirmation(FILE* fp) const
 		dprintf(D_ALWAYS, "ERROR: Could not write the confirmation: %s",
 				strerror( ferror(fp) )
 				);
-		return -1;
+		return FAILURE;
 	}
 
 		//flush the write
 	fflush(fp);
   
 		// success
-	return 0;
+	return SUCCESS;
 }
 
 int
@@ -459,6 +458,7 @@ ProcessId::extractProcessId( FILE* fp,
 							 long& extracted_ctl_time)
 {
 	
+		// 1. Run the scan
 	int nr_extracted = fscanf( fp, 
 							   SIGNATURE_FORMAT, 
 							   &extracted_ppid,
@@ -468,6 +468,26 @@ ProcessId::extractProcessId( FILE* fp,
 							   &extracted_bday,
 							   &extracted_ctl_time );
 
+		// 2. Check for errors
+
+		// ensure there was not an end of file
+	if( nr_extracted == EOF ){
+		dprintf(D_ALWAYS, 
+				"ERROR: Failed to match any entries in "
+				"ProcessId::extractProcessId(...)\n");
+		return FAILURE;
+	}
+
+		// ensure we got the minimum
+	else if( nr_extracted < MIN_NR_OF_SIGNATURE_ENTRIES ){
+		dprintf(D_ALWAYS, 
+				"ERROR: Failed to match sufficient entries in "
+				"ProcessId::extractProcessId(...)\n");
+		return FAILURE;
+	}
+	
+	
+		// return the number of entries extracted
 	return( nr_extracted );
 }
 
@@ -476,12 +496,21 @@ ProcessId::extractConfirmation( FILE* fp,
 								long& extracted_confirm_time, 
 								long& extracted_ctl_time )
 {
-
+		// 1. Run the scan
 	int nr_extracted = fscanf( fp, 
 							   CONFIRMATION_FORMAT,
 							   &extracted_confirm_time,
 							   &extracted_ctl_time );
 
+		// 2. Check for errors
+
+	if( nr_extracted == EOF || nr_extracted == 0 ){
+		dprintf(D_ALWAYS, 
+				"ERROR: Failed to match any entries in "
+				"ProcessId::extractConfirmation(char*, int&)\n");
+		return FAILURE;
+	}
+	
 	return( nr_extracted );
 }
 
@@ -503,7 +532,7 @@ ProcessId::confirm(long confirm_time, long ctl_time)
 		dprintf(D_ALWAYS,
 				"ProcessId: Cannot confirm a partially filled process id: %d\n",
 				this->pid);
-		return -1;
+		return FAILURE;
 	}
 
 		// shift the confirm time into this process ids
@@ -515,176 +544,5 @@ ProcessId::confirm(long confirm_time, long ctl_time)
 	this->confirmed = true;
 
 		// success
-	return 0;
+	return SUCCESS;
 }
-
-///////////////////////////////////////////////////////////////////////
-// Legacy
-// Should be deleted after this program is tested.
-///////////////////////////////////////////////////////////////////////
-/*
-  Constructs a ProcessId from a file where a ProcessId was
-  previously written.  The previous ProcessId must have been
-  written by the same machine during the same boot or the 
-  behavior is undefined and probably bad.
-  The status parameter is an out argument that contains
-  0 on successful instantion and -1 of failure.  Note:
-  Failure still requires that dynamically allocated ProcessIds
-  are deleted.
-*/
-/*
-LEGACY
-ProcessId::ProcessId(char* filename, int& status){
-		// assume failure
-	status = -1;
-	
-		// get the files size
-	StatInfo statinfo(filename);
-	if( statinfo.Error() != 0 ){
-		dprintf(D_ALWAYS, 
-				"ProcessId: Error could not stat %s, in ProcessId::ProcessId(char*, int&) due to the following error: $s.\n",
-				pidfile, strerror(statinfo.Errno())
-				);
-		status = -1;
-		return;
-	}
-
-		// ensure the file has data
-	if( statinfo.GetFileSize() == 0 ){
-		dprintf(D_ALWAYS,
-				"PocessId: Error %s has no data in ProcessId::ProcessId(char*, int&)\n",
-				pidfile);
-		status = -1;
-		return;
-	}
-
-		// open the file
-	int fd = open(pidfile, O_RDONLY);
-	if( fd == -1 ){
-		dprintf(D_ALWAYS, 
-				"ERROR: Could not open %s in ProcessId::ProcessId(char*, int&)\n",	
-				pidfile);
-		status -1;
-		return;
-	}
-		
-		// read in the data
-	char* inbuffer = new char[pidfile_stat.st_size];
-	int bytesRead = read(fd, inbuffer, pidfile_stat.st_size);
-	if( bytesRead == -1 ){
-		dprintf(D_ALWAYS,
-				"ERROR: Could not read from %s in ProcessId::ProcessId(char*, int&)"\n
-				pidfile);
-		status = -1;
-		return;
-	}
-
-		// close the file
-	close(fd);
-
-		// extract the signature
-	pid_t tmp_pid = UNDEF;
-	pid_t tmp_ppid = UNDEF;
-	long tmp_bday = UNDEF;
-	long tmp_id_ctl_time = UNDEF;
-	int nr_extracted = extractProcessId( inbuffer, 
-										 tmp_pid, tmp_ppid, 
-										 tmp_bday, tmp_id_ctl_time );
-    
-		// ensure we got something
-	if( nr_extracted == 0 ){
-		dprintf(D_ALWAYS, 
-				"ERROR: Failed to match any entries of %s IN ProcessId::ProcessId(char*, int&)\n", 
-				pidfile);
-		status = -1;
-		return;
-	}
-
-		// use the extracted values to initialize this class	
-	init(tmp_pid, tmp_ppid, tmp_bday, tmp_id_ctl_time);
-  
-		// attempt to get the latest confirmation
-	bool tmp_confirmed = false;
-	long tmp_confirm_time = UNDEF;
-	long tmp_confirm_ctl_time = UNDEF;	
-	if( nr_extracted == NR_OF_SIGNATURE_ENTRIES ){
-
-		char* remaining_buffer = strstr(inbuffer, CONFIRM_HEADER);
-		
-		while( remaining_buffer != NULL ){
-				// assume we'll get good data
-			tmp_confirmed = true;
-			
-				// extract the confirmation
-			nr_extracted = extractConfirmation(remaining_buffer,
-											   tmp_confirm_time,
-											   tmp_confirm_ctl_time);
-
-				// only keep the confirmation if it is a complete entry
-			if( nr_extracted != NR_OF_CONFIRM_ENTRIES ){
-				tmp_confirm_time = = UNDEF;
-				tmp_confirm_ctl_time = UNDEF;
-				tmp_confirmed = false;
-			}
-	
-				// increment the buffer
-			remaining_buffer++;
-			remaining_buffer = strstr(remaining_buffer, CONFIRM_HEADER);
-		}
-    
-	}
-		// cleanup
-	delete[] inbuffer;
-
-		// use the extracted confirmation values to confirm this class
-	if( tmp_confirmed ){
-		confirm(tmp_confirm_time, tmp_confirm_ctl_time);
-	}
-	
-		// success
-	status = 0;
-}
-*/
-
-/*
-  Extracts the process id information from the given buffer.
-  Returns the number of items extracted.
-*/
-/*
-legacy
-int
-ProcessId::extractProcessId( char* buffer,
-						  pid_t& extracted_pid
-						  pid_t& extracted_ppid,
-						  long& extracted_bday,
-						  long& extracted_ctl_time){
-	
-	int nr_extracted = sscanf( inbuffer, 
-							   SIGNATURE_FORMAT, 
-							   &extracted_ppid,
-							   &extracted_pid,
-							   &extracted_bday,
-							   &extracted_ctl_time );
-
-	return( nr_extracted );
-}
-*/
-/*
-  Extracts process confirmation information from the given buffer.
-  Returns the number of items extracted
-*/
-/*
-legacy
-int
-ProcessId::extractConfirmation( char* buffer, 
-								long& extracted_confirm_time, 
-								long& extracted_ctl_time ){
-
-	int nr_extracted = ssca	nf( inbuffer, 
-								CONFIRMATION_FORMAT,
-								&extracted_confirm_time,
-								&extracted_ctl_time );
-
-	return( nr_extracted );
-}
-*/

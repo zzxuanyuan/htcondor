@@ -12,11 +12,12 @@ class ProcessId{
 		// Variables
  public:
 		// constant
-	enum { DIFFERENT, SAME, UNCERTAIN };
+	enum { DIFFERENT, SAME, UNCERTAIN, FAILURE, SUCCESS };
  private:
 		// constant
 	const static char* SIGNATURE_FORMAT;
 	const static int NR_OF_SIGNATURE_ENTRIES;
+	const static int MIN_NR_OF_SIGNATURE_ENTRIES;  // minimum number of entries to compose a signature
 	const static char* CONFIRMATION_FORMAT;
 	const static int NR_OF_CONFIRM_ENTRIES;
 	const static int UNDEF;

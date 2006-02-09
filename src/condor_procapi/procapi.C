@@ -204,7 +204,7 @@ ProcAPI::getProcInfoRaw(pid_t pid, procInfoRaw& procRaw, int& status){
 	status = PROCAPI_OK;
 
 		// clear the memory for procRaw
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -415,7 +415,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory of procRaw
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -709,7 +709,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory of procRaw
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -728,7 +728,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 
 		// in case I must restart, assume that everything is ok again...
 		status = PROCAPI_OK;
-		memset(&procRaw, 0, sizeof(procInfoRaw));
+		initProcInfoRaw(procRaw);
 
 		if( (fp = fopen(path, "r")) == NULL ) {
 			if( errno == ENOENT ) {
@@ -1117,7 +1117,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 	
 		// clear the memory for procRaw
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1243,7 +1243,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear memory for procRaw
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1422,7 +1422,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
    status = PROCAPI_OK;
 
 	   // clear the memory for procRaw
-   	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 	// So to first see if this pid is still alive
 	// on Win32, open a handle to the pid and call GetExitStatus
@@ -1632,7 +1632,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory for procRaw
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	initProcInfoRaw(procRaw);
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -2557,6 +2557,11 @@ ProcAPI::initpi ( piPTR& pi ) {
 	pi->owner    = 0;
 
 	pidenvid_init(&pi->penvid);
+}
+
+void
+ProcAPI::initProcInfoRaw(procInfoRaw& procRaw){
+	memset(&procRaw, 0, sizeof(procInfoRaw));
 }
 
 #ifndef WIN32  // Doesn't come close to working in WIN32...sigh.
@@ -3675,7 +3680,7 @@ ProcAPI::isAlive(const ProcessId& procId, int& status){
 		default:
 			status = PROCAPI_UNSPECIFIED;
 			dprintf(D_ALWAYS,
-					"ProcAPI: ProcessId::isSameProcess(..) returned and "
+					"ProcAPI: ProcessId::isSameProcess(..) returned an "
 					"unexpected value for pid: %d\n", procId.getPid());
 			delete pNewProcId;
 			return PROCAPI_FAILURE;
@@ -3762,7 +3767,7 @@ ProcAPI::confirmProcessId(ProcessId& procId, int& status){
 	}
 	
 		// confirm the process id
-	if( procId.confirm(confirmation_time, ctlTimeA) == -1 ){
+	if( procId.confirm(confirmation_time, ctlTimeA) == ProcessId::FAILURE ){
 		status = PROCAPI_UNSPECIFIED;
 		dprintf(D_ALWAYS,
 				"ProcAPI: Could not confirm process for pid: %d\n",
