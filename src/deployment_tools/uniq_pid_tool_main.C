@@ -111,6 +111,13 @@ main(int argc, char* argv[])
 
 			// Check for the precision argument
 		else if( strcmp(PRECISION_OPT, argv[0]) == 0 ){
+
+			// ensure there is an argument for the option
+			if( argc < 2 ){
+				fprintf(stderr, "ERROR: %s requires a time in seconds\n",PRECISION_OPT);
+				exit(-1);
+			}//endif
+
       
 				// ensure the next value is a number
 			int i = 0;
@@ -249,7 +256,7 @@ midwife_executable(int argc, char* argv[],
 		}
 		
 			// write the child's id to the pid file
-		if( pProcId->write(fp) == -1 ){
+		if( pProcId->write(fp) == ProcessId::FAILURE ){
 			fprintf(stderr,
 					"ERROR: Failed to write process id to %s in midwife_executable\n", pidfile);
 			return -1;
@@ -266,12 +273,28 @@ midwife_executable(int argc, char* argv[],
 			return -1;
 		}
 
-			// write the confirmation to the pid file
-		if( pProcId->writeConfirmationOnly(fp) == -1 ){
-			fprintf(stderr,
-					"ERROR: Failed to write process confirmation to %s in midwife_executable\n", pidfile);
-			return -1;
+			// Some OS's do not have confirmation support yet
+			// so we must check whether the confirmation took
+		if( pProcId->isConfirmed() ){
+			
+				// write the confirmation to the pid file
+			if( pProcId->writeConfirmationOnly(fp) == ProcessId::FAILURE ){
+				fprintf(stderr,
+						"ERROR: Failed to write process confirmation to %s in midwife_executable\n", pidfile);
+				return -1;
+			}
 		}
+			// Warn the user that confirmation didn't take
+		else{
+			fprintf(stderr,
+					"WARNING: Process confirmation is not enabled "
+					"for this operating system.  "
+					"The undertaker can only be certain about process death, "
+					"no about process life\n");
+		}
+
+			// clean up the memory
+		delete pProcId;
 
 			// close the pid file
 		fclose(fp);
@@ -343,7 +366,7 @@ undertaker_main( int argc, char* argv[],
 		// Create the processId from the pidfile
 	int status;
 	ProcessId procId(fp, status);
-	if( status == -1 ){
+	if( status == ProcessId::FAILURE ){
 		fprintf(stderr, "ERROR: Failure occured attempting create a id from pidfile [%s]\n",
 				pidfile); 
 		exit(UNDERTAKER_FAILURE);
@@ -478,6 +501,12 @@ handleUncertain(pid_t pid)
 			fprintf(stderr, 
 					"Information about process currently unavailable\n");
 		}
+		
+			// clean up the memory
+		if( pi != NULL ){
+			delete pi;
+			pi = NULL;
+		}
     
 	}
 
@@ -490,7 +519,9 @@ handleUncertain(pid_t pid)
 // Common
 ////////////////////////////////////////////////////////////////////////////////
 /*
-  Like perror but for ProcAPI::getProcInfo(...)
+  Like perror but for ProcAPI::getProcInfo(...)  This is not in
+  ProcAPI because its really only useful for tools, as opposed to log
+  writing most callers into ProcAPI would require.
 */
 void 
 procapi_perror(int status, int pid, char* error_str)
@@ -527,90 +558,3 @@ procapi_perror(int status, int pid, char* error_str)
 		fprintf(stderr, "ERROR: Procapi returned an unknown status[%i] for pid[%i]", status, pid);
 	}
 }
-
-//////////////////
-// LEGACY
-// DELETE AFTER TESTS ARE PASSED
-/////////////////
-
-/*
-  Determines whether the process represented by the given pid file
-  is alive.  Returns "new" memory in the form of pProcId.
-  Returns -1 on error
-*/
-/*
-int 
-isAliveFromFile(const char* pidfile, ProcessId*& pProcId, unsigned int* precision_range)
-{
-	
-		// assume failure
-	pProcId = NULL;;
-
-			// Open the pid file 
-	FILE* fp = fopen(pidfile, "r");
-	if( fp == NULL ){
-		fprintf(stderr, "ERROR: Failure occured attempting to open the pidfile [%s]: %s\n", 
-				pidfile, strerror(errno));
-		return -1;
-	}
-
-		// Create the processId from the pidfile
-	int status;
-	ProcessId procId(fp, status);
-	if( status == -1 ){
-		fprintf(stderr, "ERROR: Failure occured attempting create a id from pidfile [%s]: %s\n", 
-				pidfile);
-		return -1;
-	}
-
-		// See if the process is still alive
-	int status;
-	int aliveVal = ProcAPI::isAlive(procId, status, precision_range);
-	
-	if( aliveVal == ProcAPI::PROCAPI_FAILURE ){
-		procapi_perror(status, procId.getPid(), "ERROR: Failure occured attempting to determine if process is alive from pidfile.\n");
-		return -1;
-	}
-
-		// close the pidfile
-	fclose(fp);
-
-		// sucess
-	return(status);
-}
-*/
-
-/*
-  Blocks until the process associated with with the log is dead.
-*/
-/*
-int 
-blockUntilDead(const char* pidfile, unsigned int precision_range)
-{
-		// make an exponential backoff object
-	ExponentialBackoff backoff(0, 30, 1.0);
-
-		// prime the pump
-	int status = isAliveFromFile(pidfile, precision_range);
-	
-		// continue checking until the process is dead
-	while( status != ProcAPI::PROCAPI_DEAD && status != -1){
-
-			//back off the appropriate amount
-		backoff.nextBackoff();
-    
-			// try again
-		status = isAliveFromFile(pidfile, precision_range);
-	}
-	
-		// Error
-	if( status == -1 ){
-		fprintf(stderr, "ERROR: Could not determine process status in blockUntilDead(...)\n");
-		return -1;
-	}	
-  
-		//success
-	return 0;
-}
-*/
-
