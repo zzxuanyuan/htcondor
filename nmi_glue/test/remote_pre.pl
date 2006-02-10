@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.2 2006-02-09 22:33:51 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.3 2006-02-10 18:59:42 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -152,7 +152,6 @@ else
 	safe_copy("$SrcDir/condor_scripts/win32toperl.bat","$BaseDir/condor/bin/win32toperl.bat");
 	safe_copy("$SrcDir/condor_scripts/win32tosh.bat","$BaseDir/condor/bin/win32tosh.bat");
 	open( WRAPPER, ">$BaseDir/condor/bin/win32.perl.bat" ) || die "Can't open new job wrapper: $!\n";
-	print WRAPPER "\@echo %*\n";
 	print WRAPPER "\@c:\\perl\\bin\\perl.exe $win32base/condor/bin/exe_switch.pl %*\n";
 	close(WRAPPER);
 
