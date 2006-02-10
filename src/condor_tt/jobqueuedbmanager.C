@@ -351,6 +351,7 @@ JobQueueDBManager::maintain()
 {	
 	QuillErrCode st, ret_st; 
 	ProbeResultType probe_st;	
+	struct stat fstat;
 
 	st = getJQPollingInfo(); // get the last polling information
 
@@ -360,6 +361,17 @@ JobQueueDBManager::maintain()
 		return FAILURE;
 	}
 
+		// check if the job queue log exists, if not just skip polling
+	if ((stat(caLogParser->getJobQueueName(), &fstat) == -1)) {
+		if (errno == ENOENT) {
+			return SUCCESS;
+		} else {
+				// otherwise there is an error accessing the log
+			return FAILURE;
+		}
+		
+	}
+	
 		// polling
 	probe_st = prober->probe(caLogParser->getCurCALogEntry(), 
 							 caLogParser->getJobQueueName());
@@ -1316,9 +1328,11 @@ JobQueueDBManager::processSetAttribute(char* key,
 				tempvalue = (char *) malloc(strlen(value) + 1);
 				strcpy(tempvalue, value);
 				strip_double_quote(tempvalue);
+				newvalue = fillEscapeCharacters(tempvalue);
 					// escape single quote within the value
 				snprintf(sql_str_del_in, len,
-						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, tempvalue, scheddname, cid);
+						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, newvalue, scheddname, cid);
+				free(newvalue);
 
 			}
 		} else {
@@ -1326,7 +1340,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 			strcpy(tempvalue, value);
 			strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
-            		snprintf(sql_str_del_in, len,
+			snprintf(sql_str_del_in, len,
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', '%s', '%s');", scheddname, cid, name, scheddname, cid, name, newvalue);
 			free(newvalue);
 		}

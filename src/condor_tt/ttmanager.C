@@ -743,6 +743,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
+	char *newvalue;
 
 		// this function is very risky in that it is used for inserting
 		// rows into any table in a basic way. If a table has many columns,
@@ -767,14 +768,17 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
+				// escape single quote if any within the value
+			newvalue = fillEscapeCharacters(attVal);
+		
 				// change double quotes to single quote if any
-			attValLen = strlen(attVal);
+			attValLen = strlen(newvalue);
  
-			if (attVal[attValLen-1] == '"')
-				attVal[attValLen-1] = '\'';
+			if (newvalue[attValLen-1] == '"')
+				newvalue[attValLen-1] = '\'';
 
-			if (attVal[0] == '"') {
-				attVal[0] = '\'';
+			if (newvalue[0] == '"') {
+				newvalue[0] = '\'';
 			}			
 			
 			if (isFirst) {
@@ -782,21 +786,22 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 				isFirst = FALSE;
 
 				attNameList = (char *) malloc (strlen(attName) + 4);
-				attValList = (char *) malloc (strlen(attVal) + 4);
+				attValList = (char *) malloc (strlen(newvalue) + 4);
 											  
 				sprintf(attNameList, "(%s", attName);
-				sprintf(attValList, "(%s", attVal);
+				sprintf(attValList, "(%s", newvalue);
 			} else {					
 						// is not the first in the list
 				attNameList = (char *) realloc(attNameList, strlen(attNameList) + strlen(attName) + 5);
-				attValList = (char *) realloc(attValList, strlen(attValList) + strlen(attVal) + 5);
+				attValList = (char *) realloc(attValList, strlen(attValList) + strlen(newvalue) + 5);
 				
 				strcat(attNameList, ", ");
 				strcat(attNameList, attName);
 				strcat(attValList, ", ");
-				strcat(attValList, attVal);					
+				strcat(attValList, newvalue);					
 			}
 
+			free(newvalue);
 			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -833,7 +838,8 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 		subproc[10] = "", 
 		eventts[100] = "", messagestr[512] = "";
 	int eventtype;
-	
+	char *newvalue;
+
 	ad->sPrint(classAd);
 
 	classAd.Tokenize();
@@ -850,32 +856,36 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// change double quotes to single quote if any
-			attValLen = strlen(attVal);
- 
-			if (attVal[attValLen-1] == '"')
-				attVal[attValLen-1] = '\'';
+				// escape single quote if any within the value
+			newvalue = fillEscapeCharacters(attVal);
 
-			if (attVal[0] == '"') {
-				attVal[0] = '\'';
+				// change double quotes to single quote if any
+			attValLen = strlen(newvalue);
+ 
+			if (newvalue[attValLen-1] == '"')
+				newvalue[attValLen-1] = '\'';
+
+			if (newvalue[0] == '"') {
+				newvalue[0] = '\'';
 			}
 
 			if (strcmp(attName, "scheddname") == 0) {
-				strcpy(scheddname, attVal);
+				strcpy(scheddname, newvalue);
 			} else if (strcmp(attName, "cid") == 0) {
-				strcpy(cluster, attVal);
+				strcpy(cluster, newvalue);
 			} else if (strcmp(attName, "pid") == 0) {
-				strcpy(proc, attVal);
+				strcpy(proc, newvalue);
 			} else if (strcmp(attName, "spid") == 0) {
-				strcpy(subproc, attVal);
+				strcpy(subproc, newvalue);
 			} else if (strcmp(attName, "eventtype") == 0) {
-				eventtype = atoi(attVal);
+				eventtype = atoi(newvalue);
 			} else if (strcmp(attName, "eventtime") == 0) {
-				strcpy(eventts, attVal);
+				strcpy(eventts, newvalue);
 			} else if (strcmp(attName, "description") == 0) {
-				strcpy(messagestr, attVal);
+				strcpy(messagestr, newvalue);
 			}
 			
+			free(newvalue);
 			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -1119,7 +1129,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   char *value = NULL;
   char *name = NULL, *newname = NULL;
   char *tempvalue = NULL;
-  
+  char *newvalue;
+
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   const char *scheddname = jqDBManager.getScheddname();
 
@@ -1215,16 +1226,21 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 
 			  }	else {
 				  strip_double_quote(value);
+				  newvalue = fillEscapeCharacters(value);
 				  sprintf(sql_stmt, 
-						  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, scheddname, cid, pid);			  
+						  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, newvalue, scheddname, cid, pid);			  
+				  free(newvalue);
 			  }
 		  } else {
 			  strip_double_quote(value);                
-			  
-			  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(value)));
+			  newvalue = fillEscapeCharacters(value);
+
+			  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
 
 			  sprintf(sql_stmt, 
-					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cid = %d AND pid = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, value);
+					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cid = %d AND pid = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);
+
+			  free(newvalue);
 		  }	  
 
 		  if (DBObj->execCommand(sql_stmt) == FAILURE) {
