@@ -80,11 +80,19 @@ BUILD_DEP_LIB($(CPlusPlus),x_write_joblog,C,,../release_dir/lib/libcondorapi.a)
 */
 
 #if !defined( IS_HPUX10 )
-DESC(job_had_basic," Basic High Availability Daemon Test")
+DESC(job_had_basic,"Basic High Availability Daemon Test")
 RUN(job_had_basic)
 TESTCLASS(job_had_basic,core)
 TESTCLASS(job_had_basic,quick)
 TESTCLASS(job_had_basic,dsldebug)
+#endif
+
+#if !defined( IS_HPUX10 )
+DESC(job_replication_basic,"Basic High Availability Daemon Replication Test")
+RUN(job_replication_basic)
+TESTCLASS(job_replication_basic,core)
+TESTCLASS(job_replication_basic,quick)
+TESTCLASS(job_replication_basic,dsldebug)
 #endif
 
 #if !defined(IS_PPC_AIX)
