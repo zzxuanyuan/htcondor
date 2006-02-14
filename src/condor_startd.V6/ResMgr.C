@@ -1040,14 +1040,14 @@ ResMgr::adlist_publish( ClassAd *resAd, amask_t mask )
 
 
 bool
-ResMgr::hasOppClaim( void )
+ResMgr::needsPolling( void )
 {
 	if( ! resources ) {
 		return false;
 	}
 	int i;
 	for( i = 0; i < nresources; i++ ) {
-		if( resources[i]->hasOppClaim() ) {
+		if( resources[i]->needsPolling() ) {
 			return true;
 		}
 	}
@@ -1552,7 +1552,7 @@ ResMgr::check_polling( void )
 		return;
 	}
 
-	if( hasOppClaim() || m_attr->condor_load() > 0 ) {
+	if( needsPolling() || m_attr->condor_load() > 0 ) {
 		start_poll_timer();
 	} else {
 		cancel_poll_timer();

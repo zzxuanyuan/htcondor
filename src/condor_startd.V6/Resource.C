@@ -333,6 +333,30 @@ Resource::shutdownAllClaims( bool graceful )
 }
 
 
+bool
+Resource::needsPolling( void )
+{
+	if( hasOppClaim() ) {
+		return true;
+	}
+#if HAVE_BACKFILL
+		/*
+		  if we're backfill-enabled, we want to always do polling if
+		  we're in the backfill state.  if we're busy/killing, we'll
+		  want frequent recompute + eval to make sure we kill backfill
+		  jobs when necessary.  even if we're in Backfill/Idle, we
+		  want to do polling since we should try to spawn the backfill
+		  client quickly after entering Backfill/Idle.
+		*/
+	if( state() == backfill_state ) {
+		return true;
+	}
+#endif /* HAVE_BACKFILL */
+	return false;
+}
+
+
+
 // This one *only* looks at opportunistic claims
 bool
 Resource::hasOppClaim( void )

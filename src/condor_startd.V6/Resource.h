@@ -73,6 +73,8 @@ public:
 	State		state( void )		{return r_state->state();};
 	Activity	activity( void )	{return r_state->activity();};
 	int		eval_state( void )		{return r_state->eval();};
+		// does this resource need polling frequency for compute/eval?
+	bool	needsPolling( void );
 	bool	hasOppClaim( void );
 	bool	hasAnyClaim( void );
 	bool	isDeactivating( void )	{return r_cur->isDeactivating();};

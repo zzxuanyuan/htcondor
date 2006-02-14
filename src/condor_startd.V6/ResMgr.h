@@ -81,7 +81,7 @@ public:
 	void	assign_load( void );
 	void	assign_keyboard( void );
 
-	bool 	hasOppClaim( void );
+	bool 	needsPolling( void );
 	bool 	hasAnyClaim( void );
 	bool	is_smp( void ) { return( num_cpus() > 1 ); }
 	int		num_cpus( void ) { return m_attr->num_cpus(); }
