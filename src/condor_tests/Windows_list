@@ -8,3 +8,7 @@ job_core_leaveinqueue_van
 job_core_niceuser_van
 job_core_onexithold_van
 job_core_onexitrem_van
+job_core_perhold_van
+job_core_perremove_van
+job_core_perrelease_van
+job_core_plus_van
