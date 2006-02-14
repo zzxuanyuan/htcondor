@@ -128,6 +128,18 @@ ResState::change( State new_state, Activity new_act )
 		// We want to update the CM on every state or activity change
 	rip->update();   
 
+#if HAVE_BACKFILL
+		/*
+		  in the case of Backfill/Idle, we do *not* want to do the
+		  following check for idleness or retirement, we just want to
+		  let the usual polling interval cover our next eval().  so,
+		  if we're in Backfill, we can immediately return now...
+		*/
+	if( r_state == backfill_state ) {
+		return TRUE;
+	}
+#endif /* HAVE_BACKFILL */
+
 	if( r_act == retiring_act || r_act == idle_act ) {
 		// When we enter retirement or idleness, check right away to
 		// see if we should be preempting instead.
@@ -358,6 +370,12 @@ ResState::eval( void )
 			dprintf( D_ALWAYS, "WARNING: EVICT_BACKFILL is UNDEFINED, "
 					 "staying in Backfill state\n" );
 		}
+
+		if( r_act == idle_act ) {
+				// if we're in Backfill/Idle, try to spawn a backfill job
+			rip->start_backfill();
+		}
+
 		break;
 #endif /* HAVE_BACKFILL */
 
@@ -551,7 +569,17 @@ ResState::enter_action( State s, Activity a,
 			break;
 
 		case idle_act:
-			rip->start_backfill();
+ 				/*
+				  we want to make sure the ResMgr will do frequent
+				  evaluations now that we're in Backfill/Idle, so we
+				  can spawn the backfill client quickly.  we do NOT
+				  want to just immediately spawn it here, so that we
+				  have a little bit of delay (to prevent pegging the
+				  CPU in case of failure) and so that if there's a
+				  temporary failure to spawn, we don't forget to keep
+				  trying... 
+				*/
+			resmgr->start_poll_timer();
 			break;
 
 		case busy_act:
