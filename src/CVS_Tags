@@ -1,3 +1,6 @@
+02/14/06 V6_7-boinc-merge-1
+   The state of the V6_7-boinc-branch for a merge into V6_7-branch.
+
 12/19/05 V6_7-win32_tests-{root,branch}
    Branch for bill's efforts to get condor_tests workin on windoze.
    Created from the V6_7-branch of V6_7_CODE after andy committed
