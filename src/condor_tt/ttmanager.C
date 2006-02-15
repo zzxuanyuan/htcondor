@@ -362,9 +362,6 @@ TTManager::event_maintain()
 				} else if (strcmp(eventtype, "History") == 0) {
 					if  (insertHistoryJob(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "Rejects") == 0) {
-					// skip logging rejects events
-					;
 				} else {
 					if (insertBasic(ad, eventtype) == FAILURE) 
 						goto DBERROR;
