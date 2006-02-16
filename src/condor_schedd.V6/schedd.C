@@ -5672,9 +5672,8 @@ updateSchedDInterval( ClassAd *job )
 			PROC_ID id;
 			job->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
 			job->LookupInteger(ATTR_PROC_ID, id.proc);
-			dprintf( D_ALWAYS, "Failed to update job %d.%d with the new %s "
-							   "attribute!\n",
-							   ATTR_SCHEDD_INTERVAL );
+			dprintf( D_ALWAYS, "Failed to update job %d.%d's %s attribute!\n",
+							   id.cluster, id.proc, ATTR_SCHEDD_INTERVAL );
 		}
 	}
 	return ( true );
