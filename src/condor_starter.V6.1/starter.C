@@ -371,7 +371,17 @@ CStarter::RemoteRemove( int )
 	if( jic ) {
 		jic->gotRemove();
 	}
-	return ( this->Remove( ) );
+		//
+		// Like the RemoteHold() call, if we asked to remove jobs
+		// and there were no jobs running, then we need to let ourselves
+		// know that all hte jobs are gone
+		//
+	if ( this->Remove( ) ) {
+		dprintf( D_FULLDEBUG, "Got Remove when no jobs running\n" );
+		this->allJobsDone();
+		return ( true );
+	}	
+	return ( false );
 }
 
 /**
@@ -410,17 +420,8 @@ CStarter::Remove( ) {
 		}
 	}
 	ShuttingDown = TRUE;
-		//
-		// If there are no jobs running, we return true to let
-		// whoever called us know that all the jobs have been
-		// properly removed
-		//
-	if (!jobRunning) {
-		dprintf( D_FULLDEBUG, "Got Remove when no jobs running\n" );
-		this->allJobsDone();
-		return ( true );
-	}	
-	return ( false );
+
+	return ( !jobRunning );
 }
 
 /**
@@ -439,7 +440,21 @@ CStarter::RemoteHold( int )
 	if( jic ) {
 		jic->gotHold();
 	}
-	return ( this->Hold( ) );
+		//
+		// If this method returns true, that means there were no
+		// jobs running. We'll send out a little debug message 
+		// and let ourselves know that all the jobs are done
+		// Note that this used to be in the Hold() call but
+		// this causes problems if the Hold is coming from ourself
+		// For instance, if the OnExitHold evaluates to true for
+		// a local universe job
+		//
+	if ( this->Hold( ) ) {
+		dprintf( D_FULLDEBUG, "Got Hold when no jobs running\n" );
+		this->allJobsDone();
+		return ( true );
+	}	
+	return ( false );
 }
 
 /**
@@ -478,12 +493,7 @@ CStarter::Hold( void )
 		}
 	}
 	ShuttingDown = TRUE;
-	if( !jobRunning ) {
-		dprintf( D_FULLDEBUG, "Got Hold when no jobs running\n" );
-		this->allJobsDone();
-		return ( true );
-	}	
-	return ( false );
+	return ( !jobRunning );
 }
 
 
