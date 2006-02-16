@@ -2,8 +2,7 @@
 ## This is the skeleton submission file used for the
 ## job deferral tests for hold 
 ##
-#Executable		= ./x_time.pl
-Executable		= /scratch/pavlo/build/x_time.pl
+Executable		= ./x_time.pl
 Notification	= NEVER
 
 ##

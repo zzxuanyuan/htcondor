@@ -3,8 +3,7 @@
 ## The perl script will insert what universe the job will be
 ## This file SHOULD NOT contain "Queue" at the end
 ##
-#Executable		= ./x_time.pl
-Executable		= /scratch/pavlo/build/x_time.pl
+Executable		= ./x_time.pl
 Notification	= NEVER
 Arguments		= 20
 
