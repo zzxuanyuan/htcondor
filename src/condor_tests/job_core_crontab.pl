@@ -46,7 +46,7 @@ my $SLEEP_TIME = 20;
 ##
 ## The preptime that the job gets to be sent over to the starter
 ##
-my $PREP_TIME = 20;
+my $PREP_TIME = 30;
 
 ##
 ## When a job begins execution, the schedd should have calculated
