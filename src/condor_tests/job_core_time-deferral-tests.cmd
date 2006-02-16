@@ -6,6 +6,7 @@ Executable		= ./x_time.pl
 Notification	= NEVER
 
 ##
-## The deferral time needs to be large
+## Set the preptime to be large enough so the job can
+## get matched. 
 ##
-DeferralTime	= CurrentTime + 600
+DeferralPrep 	= 600

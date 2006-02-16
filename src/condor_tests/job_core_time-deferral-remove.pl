@@ -22,6 +22,13 @@ my $universe = ($ARGV[0] ? $ARGV[0] : "vanilla");
 my %info;
 
 ##
+## When the job should actually run
+## We can't use CurrentTime because of how the job's requirements
+## are set up
+##
+$deferralTime = time() + 600;
+
+##
 ## If this is set to true, then we know that we caused the cooresponding command
 ##
 my $REMOVE = "";
@@ -158,10 +165,11 @@ close( READ_FILE );
 ##
 ## Add the universe information closing with the 'Queue' command
 ##
-print WRITE_FILE "Universe	= $universe\n";
-print WRITE_FILE "Log		= $base_name"."_$universe.log\n";
-print WRITE_FILE "Output	= $base_name"."_$universe.out\n";
-print WRITE_FILE "Error		= $base_name"."_$universe.err\n";
+print WRITE_FILE "Universe	   = $universe\n";
+print WRITE_FILE "Log		   = $base_name"."_$universe.log\n";
+print WRITE_FILE "Output	   = $base_name"."_$universe.out\n";
+print WRITE_FILE "Error		   = $base_name"."_$universe.err\n";
+print WRITE_FILE "DeferralTime = $deferralTime\n";
 print WRITE_FILE "Queue\n";
 close( WRITE_FILE );
 

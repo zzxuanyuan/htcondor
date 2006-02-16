@@ -69,7 +69,8 @@ my $ABORTING = 0;
 ## -----------------------------------------------------
 @exact   = ( ); # Exact Execution Timestamp (Set to true to use)
 @deltas  = ( ); # Offset CurrentTime
-@windows = ( ); # Preparation Window
+@windows = ( ); # Deferral Window
+@preps   = ( ); # Number of Seconds to prep job
 @fail    = ( ); # If set to true, then this test is meant to fail
 
 ##
@@ -79,6 +80,7 @@ my $ABORTING = 0;
 push(@exact,   0);
 push(@deltas,  60);
 push(@windows, 0);
+push(@preps,   20);
 push(@fail,    0);
 
 ##
@@ -90,6 +92,7 @@ push(@fail,    0);
 push(@exact,   1);
 push(@deltas,  60);
 push(@windows, 0);
+push(@preps,   20);
 push(@fail,    0);
 
 ##
@@ -113,6 +116,7 @@ push(@fail,    0);
 push(@exact,   1);
 push(@deltas,  -120);  # 120 sec = 2 min
 push(@windows, 180); # 180 sec = 3 min
+push(@preps,   20);
 push(@fail,    0);
 
 ## -----------------------------------------------------
@@ -125,6 +129,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	my $exact   = $exact[$ctr];
 	my $delta   = $deltas[$ctr];
 	my $window  = $windows[$ctr];
+	my $prep	= $preps[$ctr];
 	my $fail    = $fail[$ctr];
 	my $test    = $testname."Test \#".($ctr + 1);
 	my $cmdFile = $baseCmd.$ctr;
@@ -192,10 +197,14 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	}
 	
 	##
-	## We will only put in the window if the value is not empty
+	## We will only put in the deferral window and prep time if 
+	## the valeus are not empty
 	##
 	if ($window > 0) {
 		print FILE "DeferralWindow = $window\n";
+	}
+	if ($prep > 0) {
+		print FILE "DeferralPrep = $prep\n";
 	}
 	
 	##
@@ -364,8 +373,21 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	};
 	
 	##
+	## submitted
+	## We need to get the info for the job when it is submitted
+	##
+	$submitted = sub {
+		%info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+	
+		print "Good - Job $cluster.$job was submitted!\n";
+	};	
+	
+	##
 	## Run ye olde' test
 	##
+	CondorTest::RegisterSubmit( $test, $submitted );
 	CondorTest::RegisterAbort( $test, $aborted );
 	CondorTest::RegisterHold( $test, $held );
 	CondorTest::RegisterExitedSuccess( $test, $success );
