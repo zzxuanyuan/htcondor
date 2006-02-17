@@ -733,6 +733,7 @@ HADStateMachine::setReplicationDaemonSinfulString( )
 
     StringList replicationAddressList;
     char*      replicationAddress    = NULL;
+	char       buffer[BUFSIZ];
 
     replicationAddressList.initializeFromString( tmp );
     replicationAddressList.rewind( );
@@ -740,29 +741,35 @@ HADStateMachine::setReplicationDaemonSinfulString( )
     free( tmp );
     char* host = getHostFromAddr( daemonCore->InfoCommandSinfulString( ) );
 
+	int replicationDaemonIndex = replicationAddressList.number() - 1;
+
     while( ( replicationAddress = replicationAddressList.next( ) ) ) {
         char* sinfulAddress     = utilToSinful( replicationAddress );
 
         if( sinfulAddress == 0 ) {
-            char buffer[BUFSIZ];
-
             sprintf( buffer, "HADStateMachine::setReplicationDaemonSinfulString"
                              " invalid address %s\n", replicationAddress );
             utilCrucialError( buffer );
 
-            continue;
+            //continue;
         }
         char* sinfulAddressHost = getHostFromAddr( sinfulAddress );
 
-        if( strcmp( sinfulAddressHost,  host) == 0 ) {
+        if( replicationDaemonIndex == m_selfId && strcmp( sinfulAddressHost,  host ) == 0 ) {
             replicationDaemonSinfulString = sinfulAddress;
             free( sinfulAddressHost );
             // not freeing 'sinfulAddress', since its referent is pointed by
             // 'replicationDaemonSinfulString' too
 
             break;
-        }
+        } else if( replicationDaemonIndex == m_selfId ) {
+			sprintf( buffer, "HADStateMachine::setReplicationDaemonSinfulString"
+			         		 "host names of machine and replication daemon do not "
+							 "match: %s vs. %s\n", host, sinfulAddressHost );
+			utilCrucialError( buffer );
+		}
 
+		replicationDaemonIndex --;
         free( sinfulAddressHost );
         free( sinfulAddress );
     }
@@ -850,7 +857,7 @@ HADStateMachine::pushReceivedId( int id )
 
 /***********************************************************
   Function :
-  Sets m_selfId according to my index in the HAD_LIST (in reverse order)
+  Sets selfId's referent according to my index in the HAD_LIST (in reverse order)
   Initializes otherIps
   Returns m_isPrimary according to m_usePrimary and first index in HAD_LIST
   Returns the dynamically allocated list of remote HAD daemons sinful strings
@@ -876,6 +883,9 @@ HADStateMachine::initializeHADList( char* str,
     bool iAmPresent = false;
     while( (try_address = had_list.next()) ) {
         char* sinfull_addr = utilToSinful( try_address );
+
+	dprintf(D_ALWAYS, "!!!!! My address %s,  other address %s  !!!!!\n", 
+daemonCore->InfoCommandSinfulString(), sinfull_addr);
         if(sinfull_addr == NULL) {
             dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: pid %d",
                 daemonCore->getpid());
