@@ -597,8 +597,7 @@ sub TestingSystemConsistency
     my $checker     = "  Checker\t: ";
     my $success     = "  Success\t: ";
     my $error       = "    Error\t: ";
-    my $message     = "Iteration\t: $iterationNumber\tTime:
-					  " . $timeStamp."\n";
+    my $message     = "Iteration\t: $iterationNumber\tTime: $timeStamp\n";
     my $classAdLifeTime = &CondorConfigVal(
 		"$currentIp:$collectorPorts[$nonFailingHads[0]]", 
 		'CLASSAD_LIFETIME');
@@ -676,6 +675,9 @@ sub AccountantsNotOld
     my $latestModificationTime       = 0;
     my $earliestModificationTime     = MAX_INT;
 
+	# System is not stabilized yet
+    return YES unless ($negTimer <= $time);
+
     # The checker returns success value vacuously when the replication features
 	# are not used at all
     if(!$configurationTable{HAD_USE_REPLICATION})
@@ -695,7 +697,7 @@ sub AccountantsNotOld
     # 'condor_replication' running after it
     # has been woken up, waiting in OS processes queue etc.
     my $miscellaneousDelays       = 10;
-    my $outdateEstimationInterval = 300 + $configurationTables{JOBS_TIME} + 
+    my $outdateEstimationInterval = 300 + $configurationTable{JOBS_TIME} + 
 										  $miscellaneousDelays;
     # Calculating last known update times of each replica of accountant
     # information file
@@ -723,7 +725,7 @@ sub AccountantsNotOld
                         ") is too outdated as compared to current time (" .
 						&FormatTime($currentTime) . ") with \#submission " .
                         $submissionsNumber . "  and  overall \#submissions " .
-						$configurationTables{BULKS_NUMBER};
+						$configurationTable{BULKS_NUMBER};
             &LogError($logsDirectory, $message);
 
             return NO;
@@ -754,6 +756,9 @@ sub AccountantsSynchronization
     my $leastLogicalClockValue       = MAX_INT;
 
     $message .= $checker . $checkerName . "\n";
+
+	# System is not stabilized yet
+    return YES unless ($negTimer <= $time);
 
     # Calculating modification times of each replica of accountant information
     # file
@@ -836,6 +841,9 @@ sub CorrectAccountantFormat
     my $message     = "Iteration\t: $iterationNumber\tTime: " .
 					  $timeStamp . "\n";
     $message       .= $checker . $checkerName . "\n";
+
+	# System is not stabilized yet
+    return YES unless ($negTimer <= $time);
 
     # Passing through all the alive replication daemons and asking each one
     foreach my $hadIndex (1 .. $hadsNumber)
@@ -958,6 +966,9 @@ sub NoTemporaryFiles
 						   $timeStamp . "\n";
 
     $message            .= $checker . $checkerName . "\n";
+
+	# System is not stabilized yet
+    return YES unless ($negTimer <= $time);
 
     # Passing through all the alive replication daemons and asking each one
     foreach my $hadIndex (1 .. $hadsNumber)
