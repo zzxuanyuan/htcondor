@@ -36,7 +36,7 @@ my $run_ctr = 0;
 ##
 ## The MAX number of times our job should run
 ##
-my $max_run_ctr = 3;
+my $max_run_ctr = 2;
 
 ##
 ## The sleep time of the job
@@ -63,6 +63,18 @@ my $LAST_DEFERRAL_TIME;
 ## CronMinute = */3
 ##
 my $DEFERRAL_DIFFERENCE = 180; # seconds
+
+##
+## submitted
+## A nice message to let us know our job was submitted
+##
+$submitted = sub {
+	%info = @_;
+	$cluster = $info{"cluster"};
+	$job = $info{"job"};
+	
+	print "Good - Job $cluster.$job was submitted!\n";
+};	
 
 ##
 ## executed
@@ -266,6 +278,7 @@ close( WRITE_FILE );
 ##
 ## Setup our testing callbacks
 ##
+CondorTest::RegisterSubmit( $testname, $submitted );
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedSuccess( $testname, $success );
 CondorTest::RegisterEvictedWithRequeue($testname, $evicted);

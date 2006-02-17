@@ -10,4 +10,4 @@ my $result = CondorTest::verbose_system("./job_core_crontab.pl local");
 if ( $result != 0 ) {
 	die( "$testname FAILED!\n" );
 }
-
+exit(0);

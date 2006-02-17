@@ -8,7 +8,7 @@ Notification	= NEVER
 Arguments		= 20
 
 ##
-## The job will run every 2 minutes
+## The job will run every 3 minutes
 ##
 CronHour		= *
 CronMinute		= */3
@@ -22,6 +22,6 @@ CronDayOfWeek	= *
 DeferralPrep	= 30
 
 ##
-## We only want to run it 3 times
+## We only want to run it 2 times
 ##
-OnExitRemove	= JobRunCount >= 3
+OnExitRemove	= JobRunCount >= 2
