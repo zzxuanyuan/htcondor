@@ -95,6 +95,13 @@ TESTCLASS(job_replication_basic,quick)
 TESTCLASS(job_replication_basic,dsldebug)
 #endif
 
+#if !defined( IS_HPUX10 )
+DESC(job_replication_big,"Big High Availability Daemon Replication Test")
+RUN(job_replication_big)
+TESTCLASS(job_replication_big,dslbigdebug)
+#endif
+
+
 #if !defined(IS_PPC_AIX)
 DESC(lib_procapi_pidtracking-snapshot,"Fast Termination Child Cleanup Test")
 RUN(lib_procapi_pidtracking-snapshot)
