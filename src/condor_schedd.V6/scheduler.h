@@ -48,7 +48,7 @@
 #include "autocluster.h"
 #include "shadow_mgr.h"
 #include "enum_utils.h"
-#include "self_draining_queue.h"
+#include "../condor_daemon_core.V6/self_draining_queue.h"
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
 #include "env.h"
@@ -57,6 +57,7 @@
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
 extern  int         STARTD_CONTACT_TIMEOUT;
 const	int			NEGOTIATOR_CONTACT_TIMEOUT = 30;
+const	int			SCHEDD_INTERVAL_DEFAULT = 300;
 
 extern	DLL_IMPORT_MAGIC char**		environ;
 

@@ -9495,7 +9495,7 @@ Scheduler::Init()
 	int orig_SchedDInterval = this->SchedDInterval;
 	tmp = param( "SCHEDD_INTERVAL" );
 	if( ! tmp ) {
-		SchedDInterval = 300;
+		SchedDInterval = SCHEDD_INTERVAL_DEFAULT;
 	} else {
 		SchedDInterval = atoi( tmp );
 		free( tmp );

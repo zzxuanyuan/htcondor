@@ -73,6 +73,7 @@
 #include "classad_hashtable.h"
 #include "filename_tools.h"
 #include "condor_crontab.h"
+#include "../condor_schedd.V6/scheduler.h"
 
 #include "list.h"
 
@@ -136,6 +137,7 @@ bool job_ad_saved = false;	// should we deallocate the job ad after storing it?
 bool HasTDP = false;
 char* tdp_cmd = NULL;
 char* tdp_input = NULL;
+extern const int SCHEDD_INTERVAL_DEFAULT;
 
 char* LogNotesVal = NULL;
 char* UserNotesVal = NULL;
@@ -3224,7 +3226,8 @@ SetJobDeferral() {
 			sprintf( buffer, "%s = %s", ATTR_SCHEDD_INTERVAL, temp );
 			free( temp );
 		} else {
-			sprintf( buffer, "%s = 0", ATTR_SCHEDD_INTERVAL );
+			sprintf( buffer, "%s = %d", ATTR_SCHEDD_INTERVAL,
+										SCHEDD_INTERVAL_DEFAULT );
 		}
 		InsertJobExpr (buffer);
 	
