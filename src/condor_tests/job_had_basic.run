@@ -4,7 +4,7 @@ use CondorPersonal;
 use Cwd;
 use x_hadutilities;
 
-CondorPersonal::DebugOff();
+CondorPersonal::DebugOn();
 Condor::DebugOff();
 
 my $testName     = 'job_had_basic - Testing HAD functionality';
@@ -583,8 +583,7 @@ sub TestingSystemConsistency
     my $checker     = "  Checker\t: ";
     my $success     = "  Success\t: ";
     my $error       = "    Error\t: ";
-    my $message     = "Iteration\t: $iterationNumber\tTime:
-					  " . $timeStamp."\n";
+    my $message     = "Iteration\t: $iterationNumber\tTime: " . $timeStamp. "\n";
     my $classAdLifeTime = &CondorConfigVal(
 		"$currentIp:$collectorPorts[$nonFailingHads[0]]", 
 		'CLASSAD_LIFETIME');
@@ -953,28 +952,32 @@ sub NoTemporaryFiles
 		my $spoolDirectory   =
             &CondorConfigVal("$currentIp:$collectorPorts[$hadIndex]",
                             'SPOOL');
-        my $versionFileRegEx = $spoolDirectory . '/Version*';
-        my $accountantFileRegEx = $spoolDirectory . '/Accountantnew.log*';
-        my @versionFiles = glob($versionFileRegEx);
-        my @accountantFiles = glob($accountantFileRegEx);
+        my $versionFileRegEx     = $spoolDirectory . '/Version*';
+        my $accountantFileRegEx  = $spoolDirectory . '/Accountantnew.log*';
+        my @versionFiles         = glob($versionFileRegEx);
+        my @accountantFiles      = glob($accountantFileRegEx);
+		my $permittedFilesNumber = ($theNeg eq $hadIndex) ? $hadsNumber : 2;
 
-        if(@versionFiles != 1)
+        if(@versionFiles > $permittedFilesNumber)
         {
             $message .= $error . "instance #$hadIndex version files " . 
-						"number exceeds 1: " . "@versionFiles";
+						"number exceeds $permittedFilesNumber: " . 
+						"@versionFiles";
             &LogError($logsDirectory, $message);
             return NO;        
 		}        
-		if(@accountantFiles != 1)
+		if(@accountantFiles > $permittedFilesNumber)
 		{
 			$message .= $error . "instance #$hadIndex accountant files " . 
-						"number exceeds 1: " . "@accountantFiles";
+						"number exceeds $permittedFilesNumber: " . 
+						"@accountantFiles";
 			&LogError($logsDirectory, $message);
             return NO;        
 		}    
 	}
     $message .= $success . 
-				"No temporary files (accounting information/version) found.";    
+				"No unexpected temporary files (accounting information/" . 
+				"version) found.";    
 	&LogSuccess($logsDirectory, $message);
     
 	return YES;

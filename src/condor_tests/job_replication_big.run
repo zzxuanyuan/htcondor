@@ -7,10 +7,10 @@ use x_hadutilities;
 CondorPersonal::DebugOff();
 Condor::DebugOff();
 
-my $testName     = 'job_replication_basic - ' . 
+my $testName     = 'job_replication_big - ' . 
 				   'Testing HAD and replication functionality';
-my $coreName     = 'job_replication_basic';
-my $testingSystemConfigName      = 'job_replication_basic.cfg';
+my $coreName     = 'job_replication_big';
+my $testingSystemConfigName      = 'job_replication_big.cfg';
 my $personalCondorParametersName = 'x_param.replication';
 my $localPostSourceName          = 'job_replication_basic.localpostsrc';
 #my $condorConfigName             = 'condor_config';
@@ -597,7 +597,7 @@ sub TestingSystemConsistency
     my $checker     = "  Checker\t: ";
     my $success     = "  Success\t: ";
     my $error       = "    Error\t: ";
-    my $message     = "Iteration\t: $iterationNumber\tTime:"
+    my $message     = "Iteration\t: $iterationNumber\tTime:
 					  " . $timeStamp."\n";
     my $classAdLifeTime = &CondorConfigVal(
 		"$currentIp:$collectorPorts[$nonFailingHads[0]]", 
@@ -954,7 +954,7 @@ sub NoTemporaryFiles
     my $checker          = "  Checker\t: ";
     my $success          = "  Success\t: ";
     my $error            = "    Error\t: ";
-    my $message          = "Iteration\t: $iterationNumber\tTime: ".
+    my $message          = "Iteration\t: $iterationNumber\tTime: " .
 						   $timeStamp . "\n";
 
     $message            .= $checker . $checkerName . "\n";
