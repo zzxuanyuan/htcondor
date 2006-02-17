@@ -718,12 +718,12 @@ sub AccountantsNotOld
         # delays> seconds ago
         if($outdateEstimationInterval + $modificationTime < $time)
         {
-            $message .= $error . $aliveReplicationName . 
+            $message .= $error . '#' . $hadIndex .
 						"\'s accountant information replica " .
                         "modification time/last known modification time (" .
                         &FormatTime($modificationTime) .
                         ") is too outdated as compared to current time (" .
-						&FormatTime($currentTime) . ") with \#submission " .
+						$timeStamp . ") with \#submission " .
                         $submissionsNumber . "  and  overall \#submissions " .
 						$configurationTable{BULKS_NUMBER};
             &LogError($logsDirectory, $message);
