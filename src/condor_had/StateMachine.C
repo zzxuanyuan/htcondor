@@ -755,17 +755,20 @@ HADStateMachine::setReplicationDaemonSinfulString( )
         }
         char* sinfulAddressHost = getHostFromAddr( sinfulAddress );
 
-        if( replicationDaemonIndex == m_selfId && strcmp( sinfulAddressHost,  host ) == 0 ) {
+        if( replicationDaemonIndex == m_selfId && 
+			strcmp( sinfulAddressHost,  host ) == 0 ) {
             replicationDaemonSinfulString = sinfulAddress;
             free( sinfulAddressHost );
+			dprintf( D_ALWAYS,
+					"HADStateMachine::setReplicationDaemonSinfulString "
+					"corresponding replication daemon - %s\n", sinfulAddress );
             // not freeing 'sinfulAddress', since its referent is pointed by
             // 'replicationDaemonSinfulString' too
-
             break;
         } else if( replicationDaemonIndex == m_selfId ) {
 			sprintf( buffer, "HADStateMachine::setReplicationDaemonSinfulString"
-			         		 "host names of machine and replication daemon do not "
-							 "match: %s vs. %s\n", host, sinfulAddressHost );
+			         		 "host names of machine and replication daemon do "
+							 "not match: %s vs. %s\n", host, sinfulAddressHost);
 			utilCrucialError( buffer );
 		}
 
@@ -884,8 +887,9 @@ HADStateMachine::initializeHADList( char* str,
     while( (try_address = had_list.next()) ) {
         char* sinfull_addr = utilToSinful( try_address );
 
-	dprintf(D_ALWAYS, "!!!!! My address %s,  other address %s  !!!!!\n", 
-daemonCore->InfoCommandSinfulString(), sinfull_addr);
+		dprintf(D_ALWAYS, "HADStateMachine::initializeHADList my address %s "
+						  "vs. next address in the list%s\n", 
+				daemonCore->InfoCommandSinfulString(), sinfull_addr );
         if(sinfull_addr == NULL) {
             dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: pid %d",
                 daemonCore->getpid());
