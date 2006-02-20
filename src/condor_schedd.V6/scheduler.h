@@ -58,6 +58,7 @@ const 	int			MAX_REJECTED_CLUSTERS = 1024;
 extern  int         STARTD_CONTACT_TIMEOUT;
 const	int			NEGOTIATOR_CONTACT_TIMEOUT = 30;
 const	int			SCHEDD_INTERVAL_DEFAULT = 300;
+const	int			JOB_DEFERRAL_PREP_DEFAULT = 30; // seconds
 
 extern	DLL_IMPORT_MAGIC char**		environ;
 

@@ -137,7 +137,15 @@ bool job_ad_saved = false;	// should we deallocate the job ad after storing it?
 bool HasTDP = false;
 char* tdp_cmd = NULL;
 char* tdp_input = NULL;
+
+//
+// The default polling interval for the schedd
+//
 extern const int SCHEDD_INTERVAL_DEFAULT;
+//
+// The default job deferral prep time
+//
+extern const int JOB_DEFERRAL_PREP_DEFAULT;
 
 char* LogNotesVal = NULL;
 char* UserNotesVal = NULL;
@@ -3211,7 +3219,8 @@ SetJobDeferral() {
 			sprintf (buffer, "%s = %s", ATTR_DEFERRAL_PREP, temp );	
 			free( temp );
 		} else {
-			sprintf( buffer, "%s = 0", ATTR_DEFERRAL_PREP );
+			sprintf( buffer, "%s = %d", ATTR_DEFERRAL_PREP,
+										JOB_DEFERRAL_PREP_DEFAULT );
 		}
 		InsertJobExpr (buffer);
 		
