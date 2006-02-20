@@ -158,6 +158,10 @@ specified in the submit file exists but is zero length.
 
 \begin{itemize}
 
+\item Enabling the cron/Hawkeye feature of the \Condor{schedd} causes
+jobs to never leave the "run" state.  This bug was introduced with the
+addition of the cron logic to the \Condor{schedd} in version 6.7.8.
+
 % Gnats PR 617.
 \item Multi-cluster condor submits will cause \Condor{dagman} to hang.
 This bug was introduced by the implementation of parallel universe
