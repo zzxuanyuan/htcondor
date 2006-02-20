@@ -591,6 +591,8 @@ sub TestingSystemConsistency
 
     $message .= $checker . $checkerName . "\n";
 
+	# System is not stabilized yet
+	return YES unless ($negTimer <= $time);
  #   return YES if($negTimer + $classAdLifeTime > $now);
 
     my @aliveSchedds;
@@ -1185,6 +1187,7 @@ sub RaiseMachines
     	my $collectorPort   = COLLECTOR_STARTING_PORT + $hadIndex;
     	my $scheddPort      = SCHEDD_STARTING_PORT + $hadIndex;
     	my $negotiatorPort  = NEGOTIATOR_STARTING_PORT + $hadIndex;
+		my $startdPort      = STARTD_STARTING_PORT + $hadIndex;
 
 		&ImplantLine($localPostSourceFile, 'COLLECTOR_ARGS', 
 													   "-p $collectorPort");

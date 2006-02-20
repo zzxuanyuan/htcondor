@@ -597,8 +597,7 @@ sub TestingSystemConsistency
     my $checker     = "  Checker\t: ";
     my $success     = "  Success\t: ";
     my $error       = "    Error\t: ";
-    my $message     = "Iteration\t: $iterationNumber\tTime:"
-					  " . $timeStamp."\n";
+    my $message     = "Iteration\t: $iterationNumber\tTime: $timeStamp\n";
     my $classAdLifeTime = &CondorConfigVal(
 		"$currentIp:$collectorPorts[$nonFailingHads[0]]", 
 		'CLASSAD_LIFETIME');
@@ -606,6 +605,8 @@ sub TestingSystemConsistency
 
     $message .= $checker . $checkerName . "\n";
 
+	# System is not stabilized yet
+	return YES unless ($negTimer <= $time);
  #   return YES if($negTimer + $classAdLifeTime > $now);
 
     my @aliveSchedds;
@@ -1199,6 +1200,7 @@ sub RaiseMachines
     	my $collectorPort   = COLLECTOR_STARTING_PORT + $hadIndex;
     	my $scheddPort      = SCHEDD_STARTING_PORT + $hadIndex;
     	my $negotiatorPort  = NEGOTIATOR_STARTING_PORT + $hadIndex;
+		my $startdPort      = STARTD_STARTING_PORT + $hadIndex;
 
 		&ImplantLine($localPostSourceFile, 'COLLECTOR_ARGS', 
 													   "-p $collectorPort");
