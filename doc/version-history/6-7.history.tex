@@ -13,13 +13,27 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item None.
+
+\item The default output for \Condor{status} was changed between
+  6.7.16 and 6.7.17 to support the new \term{Backfill} state which
+  Condor resources can now enter (described below in more detail).
 
 \end{itemize}
 
 \noindent New Features:
 
 \begin{itemize}
+
+\item Added support for Condor resources to perform backfill
+  computations when there are no Condor jobs to run.
+  Condor can be configured such that whenever a machine is in the
+  Unclaimed/Idle state and otherwise has nothing else to do, the
+  \Condor{startd} will automatically spawn backfill jobs to continue
+  to perform useful work.
+  Currently, Condor only supports using the Berkeley Open
+  Infrastructure for Network Computing (BOINC) to provide the backfill
+  jobs (see \URL{http://boinc.berkeley.edu} for more information about
+  BOINC).
 
 \item The history file, which is a flat file for each submitting
 computer that stores information about all jobs completed on that
