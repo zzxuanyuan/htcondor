@@ -2090,9 +2090,11 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 								*bestSoFar);
 	}
 #endif
+	/* Insert a tuple into the rejects tables, but only if at least one of these numbers is greater than 0 */
+	if(requirements_num || rank_num || priority_num || policy_num || network_num || networkshare_num)
+		insert_into_rejects(scheddName,request,requirements_num,rank_num,priority_num,policy_num,network_num,networkshare_num);
 
 	// this is the best match
-	insert_into_rejects(scheddName,request,requirements_num,rank_num,priority_num,policy_num,network_num,networkshare_num);
 	return bestSoFar;
 }
 
