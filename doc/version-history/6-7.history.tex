@@ -175,6 +175,10 @@ specified in the submit file exists but is zero length.
 \item Enabling the cron/Hawkeye feature of the \Condor{schedd} causes
 jobs to never leave the "run" state.  This bug was introduced with the
 addition of the cron logic to the \Condor{schedd} in version 6.7.8.
+This functionality is not enabled by default, so most users will not
+encounter it.
+This does not affect the cron/Hawkeye feature in \Condor{startd}.
+(Bug introduced in version 6.7.8)
 
 % Gnats PR 617.
 \item Multi-cluster condor submits will cause \Condor{dagman} to hang.
@@ -185,6 +189,8 @@ more than one Condor process would be treated as an error by
 with multiple processes will work; but \Condor{dagman} does
 not deal properly with multi-cluster submits (e.g., a submit file
 queuing jobs with different executables).
+As a workaround, take care that submit files submitted by \Condor{dagman}
+only submit mutiple processes, not mutiple clusters.
 (Bug introduced in version 6.7.17.)
 
 % Gnats PR 618.
