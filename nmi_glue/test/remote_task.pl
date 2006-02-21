@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_task.pl,v 1.1.4.6.70.2 2006-02-21 15:51:37 bt Exp $
+# $Id: remote_task.pl,v 1.1.4.6.70.3 2006-02-21 19:34:37 bt Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
@@ -46,7 +46,7 @@ if( ! $testname ) {
     c_die("Invalid input for testname\n");
 }
 print "testname is $testname\n";
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1") {
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	if( $compiler ) {
     	print "compiler is $compiler\n";
     	$targetdir = "$SrcDir/$testdir/$compiler";
@@ -74,7 +74,7 @@ print "Expect to be in test directory<<$targetdir>>\n";
 system("pwd");
 print "actually above.....\n";
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1") {
+if( !($ENV{NMI_PLATFORM} =~ /winnt/)) {
 	print "Attempting to build test in: $targetdir\n";
 	print "Invoking \"make $testname\"\n";
 	open( TESTBUILD, "make $testname 2>&1 |" ) || 
@@ -101,7 +101,7 @@ if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1") {
 print "RUNNING $testinfo\n";
 chdir("$SrcDir/$testdir") || c_die("Can't chdir($SrcDir/$testdir): $!\n");
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1") {
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	system( "make batch_test.pl" );
 	if( $? >> 8 ) {
     	c_die("Can't build batch_test.pl\n");

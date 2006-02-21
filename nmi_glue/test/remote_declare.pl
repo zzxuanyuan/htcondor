@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_declare.pl,v 1.1.4.2.110.1 2005-12-22 17:44:18 bt Exp $
+# $Id: remote_declare.pl,v 1.1.4.2.110.2 2006-02-21 19:34:32 bt Exp $
 # generate list of all tests to run
 ######################################################################
 
@@ -34,7 +34,7 @@ open( TASKFILE, ">$TaskFile" ) || die "Can't open $TaskFile: $!\n";
 ######################################################################
 
 # On windows we simply have a list to fetch in!
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	chdir( $SrcDir ) || die "Can't chdir($SrcDir): $!\n";
 	print "****************************************************\n";
@@ -57,7 +57,7 @@ if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
 ######################################################################
 
 # On windows we simply have a list to fetch in!
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 
 	print "****************************************************\n";
@@ -114,7 +114,7 @@ my %tasklist;
 my $total_tests;
 
 # On windows we simply have a list to fetch in!
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	foreach $class (@classlist) {
     	print "****************************************************\n";

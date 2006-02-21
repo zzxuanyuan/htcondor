@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: platform_pre,v 1.1.4.5.116.1 2005-12-22 17:44:18 bt Exp $
+# $Id: platform_pre,v 1.1.4.5.116.2 2006-02-21 19:34:31 bt Exp $
 # Submit-side NMI build system infrastructure to setup platform
 # specific input for test jobs.  All we have to do is trim down the
 # architecture-dependent results.tar.gz file to remove all the
@@ -28,7 +28,7 @@ my $results = "results.tar.gz";
 ######################################################################
 
 
-if($ENV{NMI_PLATFORM} eq "x86_winnt_5.1") {
+if( ($ENV{NMI_PLATFORM} =~ /winnt/) ) {
     print "Writing tarball filename to $tarball_file\n";
     open( TARBALL_FILE, ">$tarball_file" ) ||
         die "Can't open $tarball_file: $!\n";

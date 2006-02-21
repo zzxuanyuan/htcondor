@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.3 2006-02-10 18:59:42 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.4 2006-02-21 19:34:33 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -70,7 +70,7 @@ my $configure = "";
 my $oldlocal = "";
 my $newlocal = "";
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	# New improved way to find the version for unix releases
 	$release_tarball =~ /condor-(\d+)\.(\d+)\.(\d+)-.*/; 
@@ -101,7 +101,7 @@ print "Condor version: $version\n";
 
 print "SETTING UP PERSONAL CONDOR\n";
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	# we only run condor configure under unix
 	mkdir( "$BaseDir/local", 0777 ) || die "Can't mkdir $BaseDir/local: $!\n";
@@ -261,7 +261,7 @@ print FIX "PERIODIC_EXPR_INTERVAL = 15\n";
 
 # Add a job wrapper for windows.... and a few other things which
 # normally are done by condor_configure for a personal condor
-if($ENV{NMI_PLATFORM} eq "x86_winnt_5.1")
+if( ($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	print FIX "USER_JOB_WRAPPER = $win32base/condor/bin/win32.perl.bat\n";
 	print FIX "START = TRUE\n";
@@ -292,7 +292,7 @@ print "PERSONAL CONDOR installed!\n";
 # directory (what we unpacked into "$BaseDir/condor").
 ######################################################################
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	chdir( "$SrcDir" ) || die "Can't chdir($SrcDir): $!\n";
 	mkdir( "$SrcDir/release_dir", 0777 );  # don't die, it might already exist...
@@ -319,7 +319,7 @@ if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
 # and change the definition of the "CONDOR_COMPILE" macro in
 # Imake.rules to point somewhere else (if we want).
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	chdir( "$SrcDir/condor_scripts" ) || 
 	die "Can't chdir($SrcDir/condor_scripts): $!\n";
@@ -338,7 +338,7 @@ print "Starting condor_master, about to FORK in $BaseDir\n";
 
 $master_pid = fork();
 if( $master_pid == 0) {
-	if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+	if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	{
 		print "Non-windows start of personal condor\n";
   		exec("$BaseDir/condor/sbin/condor_master -f");

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre_declare,v 1.1.4.4.122.2 2006-02-09 22:33:51 bt Exp $
+# $Id: remote_pre_declare,v 1.1.4.4.122.3 2006-02-21 19:34:34 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -9,7 +9,7 @@ use Cwd;
 
 my $BaseDir = getcwd();
 
-if($ENV{NMI_PLATFORM} eq "x86_winnt_5.1"){
+if( ($ENV{NMI_PLATFORM} =~ /winnt/) ){
 	my $newbase = `cygpath -u $BaseDir`;
 	chomp($newbase);
 	$BaseDir = $newbase;
@@ -74,7 +74,7 @@ print ENVSETUP "export BASE_DIR\n";
 print ENVSETUP "CONDOR_VERSION=$vers\n";
 print ENVSETUP "export CONDOR_VERSION\n";
 
-if($ENV{NMI_PLATFORM} ne "x86_winnt_5.1")
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
     print ENVSETUP "PATH=$BaseDir/nmi_glue/test:$BaseDir/condor/bin:$BaseDir/condor/sbin:\$PATH\n";
     print ENVSETUP "CONDOR_CONFIG=$BaseDir/condor/etc/condor_config\n";

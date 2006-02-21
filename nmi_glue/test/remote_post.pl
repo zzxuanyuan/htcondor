@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_post.pl,v 1.1.4.2.70.2 2006-02-10 19:01:06 bt Exp $
+# $Id: remote_post.pl,v 1.1.4.2.70.3 2006-02-21 19:34:32 bt Exp $
 # post script for Condor testsuite runs
 ######################################################################
 
@@ -103,7 +103,7 @@ my $fig = "";
 my $figloc = "";
 my $logs = "";
 
-if($ENV{NMI_PLATFORM} eq "x86_winnt_5.1") {
+if( ($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	$fig = "$BaseDir/condor/condor_config";
 	$figloc = "$BaseDir/condor/condor_config.local";
 	$logs = "$BaseDir/condor/log";
