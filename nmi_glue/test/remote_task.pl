@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_task.pl,v 1.1.4.6.70.3 2006-02-21 19:34:37 bt Exp $
+# $Id: remote_task.pl,v 1.1.4.6.70.4 2006-02-21 21:22:10 bt Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
@@ -55,13 +55,8 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
     	$targetdir = "$SrcDir/$testdir";
 	}
 } else {
-	#if( $compiler ) {
-    	#print "compiler is $compiler\n Makes no sense on Windows!\n";
-    	#c_die("Invalid compiler<<$compiler>> for windows tests\n");
-	#} else {
-    	$compiler = ".";
-    	$targetdir = "$SrcDir/$testdir";
-	#}
+    $compiler = ".";
+    $targetdir = "$SrcDir/$testdir";
 }
 
 
@@ -70,9 +65,6 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 ######################################################################
 
 chdir( "$targetdir" ) || c_die("Can't chdir($targetdir): $!\n");
-print "Expect to be in test directory<<$targetdir>>\n";
-system("pwd");
-print "actually above.....\n";
 
 if( !($ENV{NMI_PLATFORM} =~ /winnt/)) {
 	print "Attempting to build test in: $targetdir\n";
@@ -120,17 +112,12 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	}
 } else {
 	my $scriptdir = $SrcDir . "/" . "condor_scripts";
-	my $cygscriptdir = `cygpath -u $scriptdir`;
-	chomp($cygscriptdir);
 	safe_copy("$scriptdir/batch_test.pl", "batch_test.pl");
 	safe_copy("$scriptdir/Condor.pm", "Condor.pm");
 	safe_copy("$scriptdir/CondorTest.pm", "CondorTest.pm");
 	safe_copy("$scriptdir/CondorPersonal.pm", "CondorPersonal.pm");
 }
-system("pwd");
 print "About to run batch_test.pl\n";
-
-#system("perl ./batch_test.pl -d $compiler -t $testname");
 
 open(BATCHTEST, "perl ./batch_test.pl -d $compiler -t $testname 2>&1 |" ) || 
     c_die("Can't open \"batch_test.pl -d $compiler -t $testname\": $!\n");

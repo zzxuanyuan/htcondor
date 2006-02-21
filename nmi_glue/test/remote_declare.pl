@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_declare.pl,v 1.1.4.2.110.2 2006-02-21 19:34:32 bt Exp $
+# $Id: remote_declare.pl,v 1.1.4.2.110.3 2006-02-21 21:22:03 bt Exp $
 # generate list of all tests to run
 ######################################################################
 
@@ -125,18 +125,14 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
     	foreach $cmplr (@compilers) {
 			$total_tests += findTests( $class, $cmplr );
     	}
-    	if( $total_tests == 1) {
-			$word = "test";
-    	} else {
-			$word = "tests";
-    	}
-    	print "-- Found $total_tests $word for \"$class\" in all " .
-		"directories\n";
 	}
 }
 else
 {
     # eat the file Windows_list into tasklist hash
+    print "****************************************************\n";
+    print "**** Finding tests for file \"Windows_list\"\n";
+    print "****************************************************\n";
     open( WINDOWSTESTS, "<$windowstests" ) || die "Can't open $windowstests: $!\n";
     $class = $windowstests;
     $total_tests = 0;
@@ -150,6 +146,13 @@ else
     }
 }
 
+if( $total_tests == 1) {
+	$word = "test";
+} else {
+	$word = "tests";
+}
+print "-- Found $total_tests $word for \"$class\" in all " .
+	"directories\n";
 
 print "****************************************************\n";
 print "**** Writing out tests to tasklist.nmi\n";

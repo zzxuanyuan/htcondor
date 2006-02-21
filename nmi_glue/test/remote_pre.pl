@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.4 2006-02-21 19:34:33 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.5 2006-02-21 21:22:08 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -147,7 +147,6 @@ else
 	$win32base = $BaseDir;
 	$win32base =~ s/\/cygdrive\/c/C:/;
 
-	#safe_copy("$SrcDir/condor_scripts/win32.perl.bat","$BaseDir/condor/bin/win32.perl.bat");
 	safe_copy("$SrcDir/condor_scripts/exe_switch.pl","$BaseDir/condor/bin/exe_switch.pl");
 	safe_copy("$SrcDir/condor_scripts/win32toperl.bat","$BaseDir/condor/bin/win32toperl.bat");
 	safe_copy("$SrcDir/condor_scripts/win32tosh.bat","$BaseDir/condor/bin/win32tosh.bat");
@@ -271,12 +270,7 @@ if( ($ENV{NMI_PLATFORM} =~ /winnt/) )
 	print FIX "COLLECTOR_NAME = Personal Condor for Tests\n";
 	print FIX "CONDOR_HOST = 127.0.0.1\n";
 	print FIX "NETWORK_INTERFACE = 127.0.0.1\n";
-	# work around for failure to system call the starter 
-	# to locate and set machine ads...
-	#print FIX "HasFileTransfer = TRUE\n";
-	#print FIX "STARTD_EXPRS = \$(STARTD_EXPRS), HasFileTransfer\n";
 	print FIX "ALL_DEBUG = D_FULLDEBUG\n";
-	#print FIX "NEGOTIATOR = C:/condor/windows3/negotiator.bat\n";
 }
 
 close ORIG;
@@ -338,27 +332,14 @@ print "Starting condor_master, about to FORK in $BaseDir\n";
 
 $master_pid = fork();
 if( $master_pid == 0) {
+	print "Start of personal condor\n";
 	if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	{
-		print "Non-windows start of personal condor\n";
   		exec("$BaseDir/condor/sbin/condor_master -f");
 	}
 	else
 	{
-		#foreach my $var (sort keys (%ENV))
-		#{
-		#print "ENV: $var = $ENV{$var}\n";
-		#}
-		print "Windows start of personal condor\n";
 		exec("$BaseDir/condor/bin/condor_master -f");
-		#print "Start collector\n";
-  		#system("$BaseDir/condor/bin/condor_collector.exe -f &");
-		#print "Start negotiator\n";
-  		#system("$BaseDir/condor/bin/condor_negotiator.exe -f &");
-		#print "Start startd\n";
-  		#system("$BaseDir/condor/bin/condor_startd.exe -f &");
-		#print "Exec schedd\n";
-  		#exec("$BaseDir/condor/bin/condor_schedd.exe -f &");
 	}
   	print "MASTER EXEC FAILED!!!!!\n";
   	exit 1;
@@ -374,7 +355,6 @@ close PIDFILE;
 # Give the master time to start before jobs are submitted.
 print "Sleeping for 30 seconds to give the master time to start.\n";
 sleep 30;
-system("ps  -W");
 
 sub safe_copy {
     my( $src, $dest ) = @_;
