@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_task.pl,v 1.1.4.6.70.1 2006-02-09 22:33:52 bt Exp $
+# $Id: remote_task.pl,v 1.1.4.6.70.2 2006-02-21 15:51:37 bt Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
@@ -256,7 +256,6 @@ sub unsafe_copy {
 	my $copyfailed = 0;
 	system("cp $src $dest");
 	if( $? >> 8 ) {
-		$copy_failure = 1;
 		print "   Optional file $src not copied into $dest: $\n";
     } else {
 		print "Copied $src to $dest\n";
