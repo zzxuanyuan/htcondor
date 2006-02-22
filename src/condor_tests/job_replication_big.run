@@ -206,7 +206,7 @@ foreach my $hadIndex (1 .. $hadsNumber)
 				'$(LOG)/TransfererLog');
 	&ImplantLine($localPostSourceFile, 'MAX_REPLICATION_LOG', '6400000');
 	&ImplantLine($localPostSourceFile, 'MAX_TRANSFERER_LOG', '6400000');
-	&ImplantLine($localPostSourceFile, 'REPLICATION_DEBUG', 'D_DAEMONCORE');
+	&ImplantLine($localPostSourceFile, 'REPLICATION_DEBUG', 'D_FULLDEBUG');
 	&ImplantLine($localPostSourceFile, 'TRANSFERER_DEBUG', 'D_FULLDEBUG');
 	&ImplantLine($localPostSourceFile, 'TRANSFERER_TIMEOUT_MULTIPLIER', '1');
 	# Generate condor instance: we configure each instance so that no possible
@@ -1217,7 +1217,7 @@ sub RaiseMachines
 #		&ImplantLine($localPostSourceFile, 'COLLECTOR_HOST', "$collectorList");
 		&ImplantLine($localPostSourceFile, 'MASTER_NAME', "Master$hadIndex");
 		&ImplantLine($localPostSourceFile, 'STARTD_NAME', "Startd$hadIndex");
-		&ImplantLine($localPostSourceFile, 'STARTD_DEBUG', 'D_DAEMONCORE');
+#		&ImplantLine($localPostSourceFile, 'STARTD_DEBUG', 'D_DAEMONCORE');
 #		&ImplantLine($localPostSourceFile, 'HAD_NAME', "HAD \#$hadIndex");
 		&ImplantLine($localPostSourceFile, 'HAD_USE_REPLICATION', 'true');
     	&ImplantLine($localPostSourceFile, 'HAD_CONNECTION_TIMEOUT', '2');
@@ -1251,7 +1251,7 @@ sub RaiseMachines
                 	'$(LOG)/TransfererLog');
     	&ImplantLine($localPostSourceFile, 'MAX_REPLICATION_LOG', '6400000');
     	&ImplantLine($localPostSourceFile, 'MAX_TRANSFERER_LOG', '6400000');
-    	&ImplantLine($localPostSourceFile, 'REPLICATION_DEBUG', 'D_DAEMONCORE');
+    	&ImplantLine($localPostSourceFile, 'REPLICATION_DEBUG', 'D_FULLDEBUG');
     	&ImplantLine($localPostSourceFile, 'TRANSFERER_DEBUG', 'D_FULLDEBUG');
     	&ImplantLine($localPostSourceFile, 'TRANSFERER_TIMEOUT_MULTIPLIER', '1');
 
