@@ -381,6 +381,8 @@ sub PrimaryTakesLead
 	# stabilized yet or the whole system is not stabilized
     return YES if !$hadUsePrimary || 
 				   $hadRaiseTimers[1] > $time ||
+                   $aliveHads[1] eq NO ||
+                   $hadsStatus[1] eq FAILED ||
 				   $negTimer > $time;
     if(!$theNeg)
     {
