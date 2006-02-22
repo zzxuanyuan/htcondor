@@ -138,7 +138,7 @@ environment variables.
 \item When running a gridftp server for grid-type gt4 jobs, Condor will now
 start the server so as to ignore /etc/grid-security/gridftp.conf and
 \$GLOBUS\_LOCATION/etc/gridftp.conf. These files may contain options that
-would cause the gridftp server to fail when not run as root.
+would cause the gridftp server to fail when not run as root.  Also, Condor's gridftp server is started to ensure that it does not erroneously try to load libraries from an existing Globus installation, causing the gridftp server to crash.
 
 \item Fixed a bug where jobs using the grid (or globus) universe that specified
 an AccountingGroup would never run because the \Condor{gridmanager} would fail
