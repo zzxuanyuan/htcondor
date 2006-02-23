@@ -488,8 +488,9 @@ removed.
 
 \begin{itemize}
 
-\item Configuration parameters \Macro{LOWPORT} and \Macro{HIGHPORT} are
-now respected for ports created for interaction with Globus GRAM servers.
+\item Fixed a bug introduced in Condor 6.7.14 that caused the GT2 GAHP
+server to ignore configuration parameters \Macro{LOWPORT} and
+\Macro{HIGHPORT} and the GT4 GAHP to fail at startup.
 
 \item \Condor{status} \Opt{-any} now reports quill ads when quill is enabled.
 
