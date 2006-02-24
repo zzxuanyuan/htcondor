@@ -659,6 +659,20 @@ sub TestingSystemConsistency
         return NO;
 	}
 
+    # checking that the testing system information about HADs is correct
+    foreach my $aliveHadIndex (1 .. $hadsNumber)
+    {
+        next if $aliveHads[$aliveHadIndex] eq NO &&
+                $hadsStatus[$aliveHadIndex] eq FAILED ||
+                $aliveHads[$aliveHadIndex] eq YES &&
+                $hadsStatus[$aliveHadIndex] eq RAISED;
+        $message .= $error . "\#$aliveHadIndex HAD state is $aliveHads[$aliveHadIndex], " .
+                    "whereas testing system's HAD state is $hadsStatus[$aliveHadIndex]\n";
+        &LogError($logsDirectory, $message);
+
+        return NO;
+    }
+
     $message .= $success . "All traces of testing system match " .
 				"the real processes\n";
    	&LogSuccess($logsDirectory, $message);
