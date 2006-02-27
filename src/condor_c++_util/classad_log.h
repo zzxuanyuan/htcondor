@@ -82,8 +82,10 @@ public:
 	ClassAdHashTable table;
 private:
 	void LogState(int fd);
+	void LogState(FILE* fp);
 	char log_filename[_POSIX_PATH_MAX];
 	int log_fd;
+	FILE* log_fp;
 	Transaction *active_transaction;
 	bool EmptyTransaction;
 };
@@ -99,7 +101,9 @@ public:
 
 private:
 	virtual int WriteBody(int fd);
+	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(int fd);
+	virtual int ReadBody(FILE* fp);
 
 	char *key;
 	char *mytype;
@@ -116,8 +120,9 @@ public:
 
 private:
 	virtual int WriteBody(int fd) { return write(fd, key, strlen(key)); }
+	virtual int WriteBody(FILE* fp) { return fwrite(key, sizeof(char), strlen(key), fp);}
 	virtual int ReadBody(int fd);
-
+	virtual int ReadBody(FILE* fp);
 	char *key;
 };
 
@@ -133,8 +138,9 @@ public:
 
 private:
 	virtual int WriteBody(int fd);
+	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(int fd);
-
+	virtual int ReadBody(FILE* fp);
 	char *key;
 	char *name;
 	char *value;
@@ -150,8 +156,9 @@ public:
 
 private:
 	virtual int WriteBody(int fd);
+	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(int fd);
-
+	virtual int ReadBody(FILE* fp);
 	char *key;
 	char *name;
 };
@@ -162,7 +169,9 @@ public:
 	virtual ~LogBeginTransaction(){};
 private:
 	virtual int WriteBody(int fd) { return 0; }
+	virtual int WriteBody(FILE* fp) {return 0;}
 	virtual int ReadBody(int fd);
+	virtual int ReadBody(FILE* fp);
 };
 
 class LogEndTransaction : public LogRecord {
@@ -171,8 +180,11 @@ public:
 	virtual ~LogEndTransaction(){};
 private:
 	virtual int WriteBody(int fd) { return 0; }
+	virtual int WriteBody(FILE* fp) {return 0;}
 	virtual int ReadBody(int fd);
+	virtual int ReadBody(FILE* fp);
 };
 
 LogRecord *InstantiateLogEntry(int fd, int type);
+LogRecord *InstantiateLogEntry(FILE* fp, int type);
 #endif

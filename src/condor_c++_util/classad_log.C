@@ -62,15 +62,21 @@ ClassAdLog::ClassAdLog(const char *filename) : table(1024, hashFunction)
 {
 	strcpy(log_filename, filename);
 	active_transaction = NULL;
+	
 
 	log_fd = open(log_filename, O_RDWR | O_CREAT, 0600);
 	if (log_fd < 0) {
 		EXCEPT("failed to open log %s, errno = %d", log_filename, errno);
 	}
-
+	log_fp = fdopen(log_fd, "rw");
+	
+	if (log_fp == NULL){
+	  EXCEPT("failed to open FILE POINTER of log %s, errno = %d", log_filename, errno);
+	}
+	
 	// Read all of the log records
 	LogRecord		*log_rec;
-	while ((log_rec = ReadLogEntry(log_fd, InstantiateLogEntry)) != 0) {
+	while ((log_rec = ReadLogEntry(log_fp, InstantiateLogEntry)) != 0) {
 		switch (log_rec->get_op_type()) {
 		case CondorLogOp_BeginTransaction:
 			if (active_transaction) {
@@ -133,14 +139,28 @@ ClassAdLog::AppendLog(LogRecord *log)
 		}
 		active_transaction->AppendLog(log);
 	} else {
-		if (log_fd>=0) {
-			if (log->Write(log_fd) < 0) {
-				EXCEPT("write to %s failed, errno = %d", log_filename, errno);
-			}
-			if (fsync(log_fd) < 0) {
-				EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
-			}
-		}
+	  //MD: using file pointer
+	  //if (log_fd>=0) {
+	  //if (log->Write(log_fd) < 0) {
+	  //EXCEPT("write to %s failed, errno = %d", log_filename, errno);
+	  //}
+	  //if (fsync(log_fd) < 0) {
+	  //  EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
+	  //}
+	  //}
+	  if (log_fp!=NULL) {
+	    if (log->Write(log_fp) < 0) {
+	      EXCEPT("write to %s failed, errno = %d", log_filename, errno);
+	    }
+	    //MD: flushing data -- using a file pointer
+	    if (fflush(log_fp) !=0){
+	      EXCEPT("flush to %s failed, errno = %d", log_filename, errno);
+	    }
+	    //MD: syncing the data as done before
+	    if (fsync(fileno(log_fp)) < 0) {
+	      EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
+	    }
+	  }
 		log->Play((void *)&table);
 		delete log;
 	}
@@ -168,11 +188,20 @@ ClassAdLog::TruncLog()
 		return;
 	}
 	log_fd = open(log_filename, O_RDWR | O_APPEND, 0600);
+	
 	if (log_fd < 0) {
 		dprintf(D_ALWAYS, "failed to open log in append mode: "
 			"open(%s) returns %d\n", log_filename, log_fd);
 		return;
 	}
+	// MD: for file pointer
+	log_fp = fdopen(log_fd, "a+");
+	if (log_fp == NULL){
+	  dprintf(D_ALWAYS, "failed to open file pointer for log in append mode: "
+		  "fdopen(%s) returns %d\n", log_filename, -1);
+	  return;
+	}
+	
 }
 
 void
@@ -205,7 +234,9 @@ ClassAdLog::CommitTransaction()
 	if (!EmptyTransaction) {
 		LogEndTransaction *log = new LogEndTransaction;
 		active_transaction->AppendLog(log);
-		active_transaction->Commit(log_fd, (void *)&table);
+		// MD: Using 
+		//active_transaction->Commit(log_fd, (void *)&table);
+		active_transaction->Commit(log_fp, (void *)&table);
 	}
 	delete active_transaction;
 	active_transaction = NULL;
@@ -380,6 +411,59 @@ ClassAdLog::LogState(int fd)
 	} 
 }
 
+void
+ClassAdLog::LogState(FILE* fp)
+{
+	LogRecord	*log=NULL;
+	ClassAd		*ad=NULL;
+	ExprTree	*expr=NULL;
+	HashKey		hashval;
+	char		key[_POSIX_PATH_MAX];
+	char		*attr_name = NULL;
+	char		*attr_val;
+	void*		chain;
+
+	table.startIterations();
+	while(table.iterate(ad) == 1) {
+		table.getCurrentKey(hashval);
+		hashval.sprint(key);
+		log = new LogNewClassAd(key, ad->GetMyTypeName(), ad->GetTargetTypeName());
+		if (log->Write(fp) < 0) {
+			EXCEPT("write to %s failed, errno = %d", log_filename, errno);
+		}
+		delete log;
+			// Unchain the ad -- we just want to write out this ads exprs,
+			// not all the exprs in the chained ad as well.
+		chain = ad->unchain();
+		ad->ResetName();
+		attr_name = ad->NextName();
+		while (attr_name) {
+			attr_val = NULL;
+			expr = ad->Lookup(attr_name);
+			if (expr) {
+				expr->RArg()->PrintToNewStr(&attr_val);
+				log = new LogSetAttribute(key, attr_name, attr_val);
+				if (log->Write(fp) < 0) {
+					EXCEPT("write to %s failed, errno = %d", log_filename,
+						   errno);
+				}
+				free(attr_val);
+				delete log;
+				delete [] attr_name;
+				attr_name = ad->NextName();
+			}
+		}
+			// ok, now that we're done writing out this ad, restore the chain
+		ad->RestoreChain(chain);
+	}
+	if (fflush(fp) !=0){
+	  EXCEPT("fflush of %s failed, errno = %d", log_filename, errno);
+	}
+	if (fsync(fileno(fp)) < 0) {
+		EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
+	} 
+}
+
 LogNewClassAd::LogNewClassAd(const char *k, const char *m, const char *t)
 {
 	op_type = CondorLogOp_NewClassAd;
@@ -423,6 +507,24 @@ LogNewClassAd::ReadBody(int fd)
 	return rval + rval1;
 }
 
+//MD: Using file pointer
+int
+LogNewClassAd::ReadBody(FILE* fp)
+{
+	int rval, rval1;
+	free(key);
+	rval = readword(fp, key);
+	if (rval < 0) return rval;
+	free(mytype);
+	rval1 = readword(fp, mytype);
+	if (rval1 < 0) return rval1;
+	rval += rval1;
+	free(targettype);
+	rval1 = readword(fp, targettype);
+	if (rval1 < 0) return rval1;
+	return rval + rval1;
+}
+
 
 int
 LogNewClassAd::WriteBody(int fd)
@@ -440,6 +542,27 @@ LogNewClassAd::WriteBody(int fd)
 	if (rval1 < 0) return rval1;
 	rval += rval1;
 	rval1 = write(fd, targettype, strlen(targettype));
+	if (rval1 < 0) return rval1;
+	return rval + rval1;
+}
+
+//MD: Using file pointer
+int
+LogNewClassAd::WriteBody(FILE* fp)
+{
+	int rval, rval1;
+	rval = fwrite(key, sizeof(char), strlen(key), fp);
+	if (rval < 0) return rval;
+	rval1 = fwrite( " ", sizeof(char), 1, fp);
+	if (rval1 < 0) return rval1;
+	rval += rval1;
+	rval1 = fwrite(mytype, sizeof(char), strlen(mytype), fp);
+	if (rval1 < 0) return rval1;
+	rval += rval1;
+	rval1 = fwrite(" ", sizeof(char), 1, fp);
+	if (rval1 < 0) return rval1;
+	rval += rval1;
+	rval1 = fwrite(targettype, sizeof(char), strlen(targettype),fp);
 	if (rval1 < 0) return rval1;
 	return rval + rval1;
 }
@@ -476,6 +599,14 @@ LogDestroyClassAd::ReadBody(int fd)
 {
 	free(key);
 	return readword(fd, key);
+}
+
+//MD: using fp
+int
+LogDestroyClassAd::ReadBody(FILE* fp)
+{
+	free(key);
+	return readword(fp, key);
 }
 
 
@@ -546,6 +677,41 @@ LogSetAttribute::WriteBody(int fd)
 	return rval1 + rval;
 }
 
+//MD: Using file pointer
+int
+LogSetAttribute::WriteBody(FILE* fp)
+{
+	int		rval, rval1, len;
+
+	len = strlen(key);
+	rval = fwrite(key, sizeof(char), len, fp);
+	if (rval < len) {
+		return -1;
+	}
+	rval1 = fwrite(" ", sizeof(char), 1,fp);
+	if (rval1 < 1) {
+		return -1;
+	}
+	rval1 += rval;
+	len = strlen(name);
+	rval = fwrite(name, sizeof(char), len, fp);
+	if (rval < len) {
+		return -1;
+	}
+	rval1 += rval;
+	rval = fwrite( " ",sizeof(char), 1, fp);
+	if (rval < 1) {
+		return rval;
+	}
+	rval1 += rval;
+	len = strlen(value);
+	rval = fwrite( value, sizeof(char), len,fp);
+	if (rval < len) {
+		return -1;
+	}
+	return rval1 + rval;
+}
+
 
 int
 LogSetAttribute::ReadBody(int fd)
@@ -567,6 +733,33 @@ LogSetAttribute::ReadBody(int fd)
 
 	free(value);
 	rval = readline(fd, value);
+	if (rval < 0) {
+		return rval;
+	}
+	return rval + rval1;
+}
+
+//MD: Using file pointer
+int
+LogSetAttribute::ReadBody(FILE* fp)
+{
+	int rval, rval1;
+
+	free(key);
+	rval1 = readword(fp, key);
+	if (rval1 < 0) {
+		return rval1;
+	}
+
+	free(name);
+	rval = readword(fp, name);
+	if (rval < 0) {
+		return rval;
+	}
+	rval1 += rval;
+
+	free(value);
+	rval = readline(fp, value);
 	if (rval < 0) {
 		return rval;
 	}
@@ -623,12 +816,46 @@ LogDeleteAttribute::WriteBody(int fd)
 	return rval1 + rval;
 }
 
+int
+LogDeleteAttribute::WriteBody(FILE* fp)
+{
+	int		rval, rval1, len;
+
+	len = strlen(key);
+	rval = fwrite(key, sizeof(char), len, fp);
+	if (rval < len) {
+		return -1;
+	}
+	rval1 = fwrite(" ", sizeof(char), 1, fp);
+	if (rval1 < 1) {
+		return -1;
+	}
+	rval1 += rval;
+	len = strlen(name);
+	rval = fwrite(name, sizeof(char), len, fp);
+	if (rval < len) {
+		return -1;
+	}
+	return rval1 + rval;
+}
+
 
 int 
 LogBeginTransaction::ReadBody( int fd )
 {
 	char 	ch;
 	int		rval = read( fd, &ch, 1 );
+	if( rval < 1 || ch != '\n' ) {
+		return( -1 );
+	}
+	return( 1 );
+}
+//MD: Using file pointer
+int 
+LogBeginTransaction::ReadBody(FILE* fp)
+{
+	char 	ch;
+	int		rval = fread( &ch, sizeof(char), 1, fp);
 	if( rval < 1 || ch != '\n' ) {
 		return( -1 );
 	}
@@ -641,6 +868,18 @@ LogEndTransaction::ReadBody( int fd )
 {
 	char 	ch;
 	int		rval = read( fd, &ch, 1 );
+	if( rval < 1 || ch != '\n' ) {
+		return( -1 );
+	}
+	return( 1 );
+}
+
+//MD: using file pointer
+int 
+LogEndTransaction::ReadBody( FILE* fp )
+{
+	char 	ch;
+	int		rval = fread( &ch, sizeof(char), 1, fp );
 	if( rval < 1 || ch != '\n' ) {
 		return( -1 );
 	}
@@ -661,6 +900,26 @@ LogDeleteAttribute::ReadBody(int fd)
 
 	free(name);
 	rval = readword(fd, name);
+	if (rval < 0) {
+		return rval;
+	}
+	return rval + rval1;
+}
+
+//MD: using file pointer
+int
+LogDeleteAttribute::ReadBody(FILE* fp)
+{
+	int rval, rval1;
+
+	free(key);
+	rval1 = readword(fp, key);
+	if (rval1 < 0) {
+		return rval1;
+	}
+
+	free(name);
+	rval = readword(fp, name);
 	if (rval < 0) {
 		return rval;
 	}
@@ -712,6 +971,81 @@ InstantiateLogEntry(int fd, int type)
 		if( !fp ) {
 			EXCEPT("Error: failed fdopen() when recovering corrpupt log file");
 		}
+
+		while( fgets( line, ATTRLIST_MAX_EXPRESSION+64, fp ) ) {
+			if( sscanf( line, "%d ", &op ) != 1 ) {
+					// no op field in line; more bad log records...
+				continue;
+			}
+			if( op == CondorLogOp_EndTransaction ) {
+					// aargh!  bad record in transaction.  abort!
+				EXCEPT("Error: bad record with op=%d in corrupt logfile",type);
+			}
+		}
+
+		if( !feof( fp ) ) {
+			EXCEPT("Error: failed recovering from corrupt file, errno=%d",
+				errno );
+		}
+
+			// there wasn't an error in reading the file, and the bad log 
+			// record wasn't bracketed by a CloseTransaction; ignore all
+			// records starting from the bad record to the end-of-file, and
+			// pretend that we hit the end-of-file.
+		fclose( fp );
+		return( NULL );
+	}
+
+		// record was good
+	return log_rec;
+}
+
+LogRecord	*
+InstantiateLogEntry(FILE* fp, int type)
+{
+	LogRecord	*log_rec;
+
+	switch(type) {
+	    case CondorLogOp_NewClassAd:
+		    log_rec = new LogNewClassAd("", "", "");
+			break;
+	    case CondorLogOp_DestroyClassAd:
+		    log_rec = new LogDestroyClassAd("");
+			break;
+	    case CondorLogOp_SetAttribute:
+		    log_rec = new LogSetAttribute("", "", "");
+			break;
+	    case CondorLogOp_DeleteAttribute:
+		    log_rec = new LogDeleteAttribute("", "");
+			break;
+		case CondorLogOp_BeginTransaction:
+			log_rec = new LogBeginTransaction();
+			break;
+		case CondorLogOp_EndTransaction:
+			log_rec = new LogEndTransaction();
+			break;
+	    default:
+		    return 0;
+			break;
+	}
+
+		// check if we got a bogus record indicating a bad log file
+	if( log_rec->ReadBody(fp) < 0 ) {
+
+			// check if this bogus record is in the midst of a transaction
+			// (try to find a CloseTransaction log record)
+
+
+		char	line[ATTRLIST_MAX_EXPRESSION + 64];
+		//MD: Since the pointer passed is a file pointer
+		//FILE	*fp = fdopen( fd, "r" );
+		int		op;
+
+		delete log_rec;
+		//MD: No fdopen performed
+		//if( !fp ) {
+		//EXCEPT("Error: failed fdopen() when recovering corrpupt log file");
+		//}
 
 		while( fgets( line, ATTRLIST_MAX_EXPRESSION+64, fp ) ) {
 			if( sscanf( line, "%d ", &op ) != 1 ) {
