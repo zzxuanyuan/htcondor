@@ -1259,19 +1259,7 @@ else
   AC_SUBST(ext_glibc_version,UNUSED)
 fi
 
-if test "$os" = "AIX" ; then
-  # for now, we don't even have a krb5 1.3.1 external, so even though
-  # that's what we think we want, we should just not use anything.
-  # the CONDOR_EXTERNAL_VERSION macro is smart enough to notice if
-  # we're missing a package, so we can't configure AIX to use 1.3.1
-  # until we really add the external and start using it...
-  AC_MSG_CHECKING(krb5)
-  AC_MSG_RESULT([NONE])
-  AC_SUBST(ext_krb5_version,UNUSED)
-  #CONDOR_EXTERNAL_VERSION([krb5],[1.3.1])
-else
-  CONDOR_EXTERNAL_VERSION([krb5],[1.4])
-fi
+CONDOR_EXTERNAL_VERSION([krb5],[1.4.3])
 
 if test "$_cv_opsys_vers" = "DUX4"; then
   CONDOR_EXTERNAL_VERSION([globus],[2.2.4])
