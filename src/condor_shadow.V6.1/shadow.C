@@ -224,6 +224,35 @@ UniShadow::logExecuteEvent( void )
 	}
 }
 
+void
+UniShadow::logTerminateEvent( int reason )
+{
+	// write the actual terminate event
+	BaseShadow::logTerminateEvent(reason);
+
+	// additionally, add a generic event with information on the
+	// output files transfered if requested in the job ad
+	bool want_file_info;
+	if (jobAd->LookupBool("WantFileInfo", want_file_info) && want_file_info) {
+		FileSizeHashTable *ht = remRes->filetrans.FinalFileSizeMapping();
+		if (ht) {
+			MyString log_entry;
+			MyString filename;
+			double bytes;
+			ht->startIterations();
+			while (ht->iterate(filename, bytes)) {
+				log_entry.sprintf_cat("\t%.0f %s\n", bytes, filename.Value());
+			}
+			GenericEvent event("Output File Size Information", log_entry.Value());
+			if (!uLog.writeEvent(&event)) {
+				dprintf(D_ALWAYS, "error writing log file info event\n");
+			}
+		}
+		else {
+			dprintf(D_ALWAYS, "unable to log file info event\n");
+		}
+	}
+}
 
 void
 UniShadow::cleanUp( void )

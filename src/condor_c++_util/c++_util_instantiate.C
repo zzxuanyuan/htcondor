@@ -72,3 +72,4 @@ template class SimpleList<Daemon*>;
 template class HashTable<Credential_t, Condor_Credential_B*>;
 template class SimpleList<MyString>;
 template class SimpleListIterator<MyString>;
+template class HashTable<MyString, double>;

@@ -91,6 +91,8 @@ class UniShadow : public BaseShadow
 		/// Log an execute event to the UserLog
 	void logExecuteEvent( void );
 
+	void logTerminateEvent(int reason);
+
 		/** Return the exit reason for this shadow's job.  Since we've
 			only got 1 RemoteResource, we can just return its value.
 		*/

@@ -38,6 +38,9 @@ class FileTransfer;	// forward declatation
 typedef HashTable <MyString, FileTransfer *> TranskeyHashTable;
 typedef HashTable <int, FileTransfer *> TransThreadHashTable;
 
+// for filename-to-size mapping (for optional userlog event)
+typedef HashTable <MyString, double> FileSizeHashTable;
+
 typedef int		(Service::*FileTransferHandler)(FileTransfer *);
 
 class FileTransfer {
@@ -135,6 +138,8 @@ class FileTransfer {
 
 	float TotalBytesReceived() { return bytesRcvd; };
 
+	FileSizeHashTable *FinalFileSizeMapping() { return final_file_sizes; }
+
 	void RemoveInputFiles(const char *sandbox_path = NULL);
 
 		/** Add the given filename to our list of output files to
@@ -187,6 +192,7 @@ class FileTransfer {
 	void CommitFiles();
 	void ComputeFilesToSend();
 	float bytesSent, bytesRcvd;
+	FileSizeHashTable *final_file_sizes;
 	StringList* InputFiles;
 
 	// When downloading files, store files matching source_name as the name

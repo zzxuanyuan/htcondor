@@ -388,6 +388,7 @@ class GenericEvent : public ULogEvent
   public:
     ///
     GenericEvent();
+    GenericEvent(const char*, const char * = NULL);
     ///
     ~GenericEvent();
 
@@ -417,8 +418,17 @@ class GenericEvent : public ULogEvent
 	void setInfoText(char const *str);
 	char const *getInfoText() {return info;}
 
+	//Preferred methods for accessing the body text.
+	void setBodyText(char const *str);
+	char const *getBodyText() {return body;}
+
+
     /// A string with unspecified format.
-    char info[128];
+    char *info;
+    char *body;
+
+ private:
+    void init(const char *, const char *);
 };
 
 //----------------------------------------------------------------------------

@@ -1034,37 +1034,85 @@ initFromClassAd(ClassAd* ad)
 // ----- the GenericEvent class
 GenericEvent::
 GenericEvent()
-{	
-	info[0] = '\0';
+{
+	init(NULL, NULL);
+}
+
+GenericEvent::
+GenericEvent(const char *i, const char *b)
+{
+	init(i, b);
+}
+
+void GenericEvent::
+init(const char *i, const char *b)
+{
 	eventNumber = ULOG_GENERIC;
+
+	info = strdup((i != NULL) ? i : "");
+
+	body = NULL;
+	if (b != NULL) {
+		body = strdup(b);
+	}
 }
 
 GenericEvent::
 ~GenericEvent()
 {
+	free(info);
+	if (body) free(body);
 }
 
 int GenericEvent::
 writeEvent(FILE *file)
 {
-    int retval = fprintf(file, "%s\n", info);
-    if (retval < 0)
-    {
-	return 0;
-    }
+	int retval;
+	if (body == NULL) {
+		retval = fprintf(file, "%s\n", info);
+	}
+	else {
+		retval = fprintf(file, "%s\n%s", info, body);
+	}
+	if (retval < 0) {
+		return 0;
+	}
     
-    return 1;
+	return 1;
 }
 
 int GenericEvent::
 readEvent(FILE *file)
 {
-    int retval = fscanf(file, "%[^\n]\n", info);
-    if (retval < 0)
-    {
-	return 0;
-    }
-    return 1;
+	MyString tmp_info;	
+	if (!tmp_info.readLine(file)) {
+		return 0;
+	}
+	tmp_info.chomp();
+	free(info);
+	info = strdup(tmp_info.Value());
+
+	MyString tmp_body;
+	for (;;) {
+		fpos_t fpos;
+		MyString line;
+		fgetpos(file, &fpos);
+		if (!line.readLine(file)) {
+			return 0;
+		}
+		if (line == "...\n") {
+			fsetpos(file, &fpos);
+			break;
+		}
+		tmp_body += line;
+		
+	}
+	if (tmp_body.Length()) {
+		if (body) free(body);
+		body = strdup(tmp_body.Value());
+	}
+
+	return 1;
 }
 	
 ClassAd* GenericEvent::
@@ -1072,12 +1120,14 @@ toClassAd()
 {
 	ClassAd* myad = ULogEvent::toClassAd();
 	if( !myad ) return NULL;
-	char buf0[512];
+	MyString buf;
 
-	if( info && info[0] ) {
-		snprintf(buf0, 512, "Info = \"%s\"", info);
-		buf0[511] = 0;
-		if( !myad->Insert(buf0) ) return NULL;
+	buf.sprintf("Info = \"%s\"", info);
+	if( !myad->Insert(buf.GetCStr()) ) return NULL;
+
+	if ( body ) {
+		buf.sprintf("Body = \"%s\"", body);
+		if ( !myad->Insert(buf.GetCStr()) ) return NULL;
 	}
 
 	return myad;
@@ -1088,18 +1138,33 @@ initFromClassAd(ClassAd* ad)
 {
 	ULogEvent::initFromClassAd(ad);
 
-	if( !ad ) return;
-
-	if( ad->LookupString("Info", info, 128) ) {
-		info[127] = 0;
+	if (ad) {
+		char *tmp;
+		ad->LookupString("Info", tmp);
+		if (tmp) {
+			free(info);
+			info = tmp;
+		}
+		ad->LookupString("Body", tmp);
+		if (tmp) {
+			if (body) free(body);
+			body = tmp;
+		}
 	}
 }
 
 void GenericEvent::
-setInfoText(char const *str)
+setInfoText(const char* str)
 {
-	strncpy(info,str,sizeof(info));
-	info[ sizeof(info) - 1 ] = '\0'; //ensure null-termination
+	free(info);
+	info = strdup(str);
+}
+
+void GenericEvent::
+setBodyText(const char *str)
+{
+	if (body) free(body);
+	body = strdup(str);
 }
 
 // ----- the RemoteErrorEvent class

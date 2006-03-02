@@ -349,7 +349,7 @@ class BaseShadow : public Service
 	void logRequeueEvent( const char* reason );
 		// virtual void emailRequeueEvent( const char* reason );
 
-	void logTerminateEvent( int exitReason );
+	virtual void logTerminateEvent( int exitReason );
 
 	void logEvictEvent( int exitReason );
 

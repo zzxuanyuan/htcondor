@@ -77,7 +77,7 @@ struct download_info {
 };
 
 // Hash function for pid table.
-static int compute_transkey_hash(const MyString &key, int numBuckets) 
+static int compute_mystring_hash(const MyString &key, int numBuckets) 
 {
 	return ( key.Hash() % numBuckets );
 }
@@ -128,6 +128,7 @@ FileTransfer::FileTransfer()
 	clientSockTimeout = 30;
 	simple_init = true;
 	simple_sock = NULL;
+	final_file_sizes = NULL;
 }
 
 FileTransfer::~FileTransfer()
@@ -174,6 +175,7 @@ FileTransfer::~FileTransfer()
 		// and free the key as well
 		free(TransKey);
 	}	
+	if (final_file_sizes) delete final_file_sizes;
 #ifdef WIN32
 	if (perm_obj) delete perm_obj;
 #endif
@@ -540,7 +542,7 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv )
 
 	if (!TranskeyTable) {
 		// initialize our hashtable
-		if (!(TranskeyTable = new TranskeyHashTable(7, compute_transkey_hash)))
+		if (!(TranskeyTable = new TranskeyHashTable(7, compute_mystring_hash)))
 		{
 			// failed to allocate our hashtable ?!?!
 			return 0;
@@ -1307,6 +1309,13 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 	if( !s->end_of_message() ) {
 		return_and_resetpriv( -1 );
 	}	
+
+	// keep a record of file sizes for the final transfer
+	if (final_transfer) {
+		if (final_file_sizes) delete final_file_sizes;
+		final_file_sizes = new FileSizeHashTable(16, compute_mystring_hash);
+	}
+
 	for (;;) {
 		if( !s->code(reply) ) {
 			return_and_resetpriv( -1 );
@@ -1402,7 +1411,12 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		if( !s->end_of_message() ) {
 			return_and_resetpriv( -1 );
 		}
+
 		*total_bytes += bytes;
+		if (final_file_sizes) {
+			MyString f(filename);
+			final_file_sizes->insert(filename, bytes);
+		}
 	}
 
 	// go back to the state we were in before file transfer
