@@ -12,3 +12,6 @@ job_core_perhold_van
 job_core_perremove_van
 job_core_perrelease_van
 job_core_plus_van
+job_filexfer_base_van
+job_filexfer_basic_van
+job_filexfer_input-onegone_van
