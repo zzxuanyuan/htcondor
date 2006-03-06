@@ -29,11 +29,24 @@
 #include "classad_hashtable.h"
 #include "MyString.h"
 
+/*
+
+States
+
+*/
+
+const int EVENT_INIT				= 1;
+const int EVENT_SAMPLING			= 2;
+const int EVENT_EVAL_SAMPLING		= 3;
+const int EVENT_MAIN_WAIT			= 4;
+const int EVENT_RESAMPLE			= 5;
+const int EVENT_GO					= 6;
 
 struct StartdStats {
 	StartdStats( const char Name[], int Universe, int ImageSize, int LastCheckpoint) :
 		universe(Universe), imagesize(ImageSize), lastcheckpoint(LastCheckpoint),
-		jobstart(0), virtualmachineid(0), ckptmegs(0), ckpttime(0), ckptlength(0), ckptgroup(0)
+		jobstart(0), virtualmachineid(0), ckptmegs(0), ckptlength(0), ckptmegspersec(0), 
+		ckpttime(0), ckptgroup(0), ckptdone(0)
 		{ 	
 			strcpy( name, Name); 
 			state[0] = '\0';
@@ -55,9 +68,11 @@ struct StartdStats {
 	int		virtualmachineid;
 	// space for managing the benchmarking and checkpointing staging
 	int 	ckptmegs;
-	int 	ckpttime;
 	int 	ckptlength;
+	float   ckptmegspersec;
+	int 	ckpttime;
 	int 	ckptgroup;
+	int 	ckptdone;
 };
 
 class AdminEvent : public Service
@@ -74,26 +89,56 @@ class AdminEvent : public Service
   private:
 	// Command handlers
 	// Timer handlers
-	int timerHandler_DoShutdown( void );
-	int timerHandler_Check_Ckpt_BenchM( void );
 	
+	int 		timerHandler_DoShutdown( void );
 	int 		m_timeridDoShutdown;
-	int 		m_timeridCheck_Ckpt_BenchM;
-
 	unsigned 	m_intervalDoShutdown;
-	unsigned 	m_intervalCheck_Ckpt_BenchM;
+
+	int 		timerHandler_Check_PollingVacates( void );
+	int 		m_timerid_PollingVacates;
+	unsigned 	m_intervalCheck_PollingVacates;
+	unsigned 	m_intervalPeriod_PollingVacates;
+
+	int 		timerHandler_DoShutdown_States( void );
+	int 		m_timerid_DoShutdown_States;
+	unsigned 	m_intervalCheck_DoShutdown_States;
+	unsigned 	m_intervalPeriod_DoShutdown_States;
+
+	int			m_benchmark_size;
+	int			m_benchmark_lastsize;
+	int 		m_benchmark_increment;
+
+	float 		m_NminusOne_megspersec;
+	int 		m_NminusOne_size;
+	int 		m_NminusOne_time;
+
+	float 		m_N_megspersec;
+	int 		m_N_size;
+	int 		m_N_time;
+
+	float 		m_NplusOne_megspersec;
+	int 		m_NplusOne_size;
+	int 		m_NplusOne_time;
 
 	// Event Handling Methods
+
 	int check_Shutdown( bool init = false );
+	int tune_Shutdown_batch_size( bool init );
+	int check_Shutdown_batch_sizes( bool init );
 	int process_ShutdownTime( char *req_time );
 	int process_ShutdownTarget( char *target );
 	int process_ShutdownSize( char *size );
-	int process_ShutdownConstraint( char *constraint, char *process_type );
+	int process_ShutdownConstraint( char *constraint );
+	int FetchAds_ByConstraint( char *constraint );
+	int benchmark_analysis( );
+	bool benchmark_store_results(float megspersec, int totmegs, int tottime);
+	int benchmark_show_results( );
 
 	// Action Methods
 	int pollStartdAds( ClassAdList &adsList, char *sinful, char *name );
 	int sendCheckpoint( char *sinful, char *name );
-	int setup_run_ckpt_benchmark( int megs );
+	int sendVacateClaim( char *sinful, char *name );
+	int setup_run_ckpt_benchmark( );
 
 	// Print Methods
 	int unclaimedDisplay();
@@ -108,9 +153,11 @@ class AdminEvent : public Service
 	int standardUProcess_ckpt_times();
 
 	// Operation Markers
+	int 		m_mystate;
 	bool 		m_haveShutdown;
 	bool 		m_haveFullStats;
 	bool 		m_haveBenchStats;
+	bool		m_stillPollingVacates;
 
 	time_t 		m_shutdownTime;			/* established shutdown time */
 	time_t 		m_newshutdownTime;		/* new shutdown time being considered */
@@ -119,10 +166,11 @@ class AdminEvent : public Service
 	MyString 	m_shutdownTarget;		/* what machine(s) */
 	MyString 	m_newshutdownTarget;	/* what new machine(s) */
 	MyString 	m_shutdownConstraint;	/* which machines? */
-	MyString 	m_newshutdownConstraint;	/* which machines? */
 
 	unsigned 	m_shutdownSize;			/* impact is minimized by batching requests */
 	unsigned 	m_newshutdownSize;			/* impact is minimized by batching requests */
+	unsigned	m_lastVacateTimes;		/* last vacate calculation */
+	unsigned	m_VacateTimes;			/* current vacate calculation */
 
 	// Hash for processing scheduled checkpoint
 	HashTable<HashKey, StartdStats *> m_JobNodes_su;
