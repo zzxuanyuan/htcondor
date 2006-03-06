@@ -58,6 +58,57 @@ downloadTerminateSignalHandler(Service* service, int signalNumber)
 	return 0;
 }
 */
+/* Function   : cleanTemporaryFiles 
+ * Description: cleans all temporary files of the transferer: be it the
+ * 				uploading one or the downloading one
+ */
+void
+cleanTemporaryFiles()
+{
+	dprintf( D_ALWAYS, "cleanTemporaryFiles started\n" );
+
+	MyString downloadingExtension( daemonCore->getpid( ) );
+	MyString uploadingExtension( daemonCore->getpid( ) );
+	char*    stateFilePath = NULL;	
+
+	downloadingExtension += ".";
+	downloadingExtension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
+	uploadingExtension   += ".";
+	uploadingExtension   += UPLOADING_TEMPORARY_FILES_EXTENSION;
+
+	// we first delete the possible temporary version files
+	FilesOperations::safeUnlinkFile(
+        replicaTransferer->getVersionFilePath( ).GetCStr( ),
+        downloadingExtension.GetCStr( ) );
+    FilesOperations::safeUnlinkFile(
+        replicaTransferer->getVersionFilePath( ).GetCStr( ),
+        uploadingExtension.GetCStr( ) );
+
+	// then the possible temporary state files
+    StringList& stateFilePathsList = 
+		const_cast<StringList& >( replicaTransferer->getStateFilePathsList( ) );
+
+	stateFilePathsList.rewind( );
+
+    while( ( stateFilePath = stateFilePathsList.next( ) ) ) {
+		if( ! FilesOperations::safeUnlinkFile( stateFilePath, 
+										downloadingExtension.GetCStr( ) ) ) {
+            dprintf( D_ALWAYS, "cleanTemporaryFiles unable to unlink "
+                               "state file %s with .down extension\n", 
+					 stateFilePath );
+        }
+		if( ! FilesOperations::safeUnlinkFile( stateFilePath,
+										uploadingExtension.GetCStr( ) ) ) {
+			dprintf( D_ALWAYS, "cleanTemporaryFiles unable to unlink "
+                               "state file %s with .up extension\n",
+					 stateFilePath );
+		}									   
+    }
+    stateFilePathsList.rewind( );
+
+	dprintf( D_ALWAYS, "cleanTemporaryFiles finished\n" );
+}
+
 /* Function: main_init
  * Arguments: argv[0] - name,
  *            argv[1] - up | down,
@@ -125,6 +176,7 @@ main_init( int argc, char *argv[] )
 int
 main_shutdown_graceful( )
 {
+	cleanTemporaryFiles( );
     delete replicaTransferer;
     DC_Exit( 0 );
 
@@ -134,10 +186,11 @@ main_shutdown_graceful( )
 int
 main_shutdown_fast( )
 {
-  delete replicaTransferer;
-  DC_Exit( 0 );
+	cleanTemporaryFiles( );
+	delete replicaTransferer;
+	DC_Exit( 0 );
 
-  return 0; // compilation reason
+	return 0; // compilation reason
 }
 
 // no reconfigurations enabled
