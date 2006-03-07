@@ -29,10 +29,9 @@
 
 \Description
 
-\Condor{cold\_start} installs and starts Condor on this machine.
-Essentially, \Condor{cold\_start} binds \Prog{install\_release} and
-\Condor{local\_start} together, passing information from the install
-process to the start process.  In addition, it has the functionality
+\Condor{cold\_start} installs and starts Condor on this machine,
+setting up or using a predefined configuration.
+In addition, it has the functionality
 to determine the local architecture if one is not specified.
 Additionally, this program can install pre-made \File{log},
 \File{execute}, and/or
@@ -70,12 +69,13 @@ Additionally, this program can install pre-made \File{log},
 %    id of the master to the file names.
 %  }
   \OptItem{\OptArg{-execarchive}{archive}}{
-    Create the Condor execute directory from the given \Arg{archive} file.
+    Create the Condor \File{execute} directory from the given
+    \Arg{archive} file.
   }
   \OptItem{\Opt{-flock}}{
     Specifies that this program should use a POSIX file lock midwife
     program to create an artifact of the birth of a \Condor{master} daemon.
-    A flock undertaker can later be used to determine whether the
+    A file lock undertaker can later be used to determine whether the
     \Condor{master} daemon has exited.
     This is the preferred option when the user wants
     to check the status of the \Condor{master} daemon from another machine that
@@ -83,7 +83,7 @@ Additionally, this program can install pre-made \File{log},
     for example, AFS.
   }
   \OptItem{\Opt{-force}}{
-    Overwrite previously installed files, if neccessary.
+    Overwrite previously installed files, if necessary.
   }
   \OptItem{\OptArg{-globuslocation}{directory}}{
     The location of the globus installation on this machine. 
