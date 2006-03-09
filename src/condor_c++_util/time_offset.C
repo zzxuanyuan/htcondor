@@ -56,7 +56,6 @@ time_offset_cedar_stub( Stream* s, long &offset ) {
 		//
 	if ( time_offset_send_cedar_stub( s, packet, rPacket ) ) {
 		ret = time_offset_calculate( packet, rPacket, offset );
-		dprintf( D_ALWAYS, "PAVLO: TIME OFFSET %d\n", (int)offset );
 	}
 	return ( ret );
 }
@@ -88,8 +87,6 @@ time_offset_range_cedar_stub( Stream* s, long &min_range, long &max_range ) {
 		//
 	if ( time_offset_send_cedar_stub( s, packet, rPacket ) ) {
 		ret = time_offset_range_calculate( packet, rPacket, min_range, max_range );
-		dprintf( D_ALWAYS, "PAVLO: TIME OFFSET RANGE %d - %d\n",
-						(int)min_range, (int)max_range );
 	}
 	return ( ret );
 }
@@ -114,7 +111,7 @@ time_offset_send_cedar_stub( Stream* s,
 		//
 	s->encode();
 	if ( ! time_offset_codePacket_cedar( packet, s ) ) {
-		dprintf( D_FULLDEBUG, "time_offset_cedar() failed to send inital packet "
+		dprintf( D_FULLDEBUG, "time_offset_send_cedar() failed to send inital packet "
 							  "to remote daemon\n" );
 		return ( false );
 	}
@@ -128,7 +125,7 @@ time_offset_send_cedar_stub( Stream* s,
 		//
 	s->decode();
 	if (! time_offset_codePacket_cedar( rPacket, s ) ) {
-		dprintf( D_FULLDEBUG, "time_offset_cedar() failed to receive response "
+		dprintf( D_FULLDEBUG, "time_offset_send_cedar() failed to receive response "
 							  "packet from remote daemon\n" );
 		return ( false );
 	}
@@ -250,8 +247,12 @@ time_offset_receive( TimeOffsetPacket &packet ) {
 }
 
 /**
+ * Validates that the packets have matching information
+ * If this function returns false, we should not use these packets
+ * to calculate offset information
  * 
- * 
+ * @param packet - the packet we originally sent to the remote side
+ * @param rPacket - the packet sent back to use from the remote daemon
  * @return true if the packets have the expected information
  **/
 bool
@@ -322,13 +323,6 @@ time_offset_range_calculate( TimeOffsetPacket &packet, TimeOffsetPacket &rPacket
  	long sigma = (long)rint( ( a - b ) / 2 );
  	min_range = theta - sigma;
  	max_range = theta + sigma;
- 		//
- 		// This is the theoritical offset if you assume that the network
- 		// connection is symmetrical. I'm keeping it here for posterity
- 		//
- 	 	// long offset = (long)rint( ( (rPacket.remoteArrive - rPacket.localDepart) +
- 		//		  		  (rPacket.remoteDepart - rPacket.localArrive) ) / 2);
- 		//
  	return ( true );
 }
 
