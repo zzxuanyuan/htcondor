@@ -146,32 +146,44 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr )
     	// This offset will be stuffed into teh jobAd when it is shipped
     	// over and the Starter will add the offset to the deferral time
     	// 
-//    int deferralTime;
-//    if ( this->jobAd->LookupInteger( "DEFERRAL_TIME", deferralTime ) ) {
-//    	//
-//    	// Ask the Starter what the time difference is
-//    	//
-//		DCStartd* dc_startd = this->remRes->getDCStartd();
-//		if( ! dc_startd ) {
-//			dprintf( D_FULLDEBUG, "UniShadow::init() Failed to get dc_startd\n");
-//		} else {
-//				//
-//				// I am allocating this in since most of the time
-//				// it will never be needed
-//				//
-//			char buf[300];
-//			long offset;
-//			
-//			offset = dc_startd->getTimeOffset( );			
-//			sprintf( buf, "%s=%d", ATTR_DEFERRAL_OFFSET, offset );
-//		    if ( !this->jobAd->Insert( buf )) {
-//        		EXCEPT( "Failed to insert %s!", "DEFFERAL_OFFSET" );
-//    		} else {
-//    			dprintf( D_FULLDEBUG, "UniShadow::init(): Stored deferral time "
-//   									  "offset for starter as %d\n", offset );
-//		    }
-//		}
-//	} // DEFERRAL OFFSET
+    int deferralTime;
+    if ( this->jobAd->LookupInteger( "DEFERRAL_TIME", deferralTime ) ) {
+    	//
+    	// Ask the Starter what the time difference is
+    	//
+		DCStartd* dc_startd = this->remRes->getDCStartd();
+		if( ! dc_startd ) {
+			dprintf( D_FULLDEBUG, "UniShadow::init() Failed to get dc_startd\n");
+		} else {
+				//
+				// I am allocating this in since most of the time
+				// it will never be needed
+			//
+			char buf[300];
+			long offset;
+			
+			if ( dc_startd->getTimeOffset( offset ) ) {
+				dprintf( D_ALWAYS, "PAVLO: OFFSET %d\n", (int)offset );
+				sprintf( buf, "%s=%d", ATTR_DEFERRAL_OFFSET, offset );
+			    if ( !this->jobAd->Insert( buf )) {
+		       		EXCEPT( "Failed to insert %s!", "DEFFERAL_OFFSET" );
+	    		} else {
+	    			dprintf( D_FULLDEBUG, "UniShadow::init(): Stored deferral time "
+	   									  "offset for starter as %d\n", offset );
+			    }
+			} else {
+				dprintf( D_ALWAYS, "PAVLO: FAILED TO GET OFFSET!!\n" );
+			}
+			
+			long min_range, max_range;
+			if ( dc_startd->getTimeOffsetRange( min_range, max_range ) ) {
+				dprintf( D_ALWAYS, "PAVLO: OFFSET RANGE %d - %d\n",
+							(int)min_range, (int)max_range );
+			} else {
+				dprintf( D_ALWAYS, "PAVLO: FAILED TO GET OFFSET RANGE!!\n" );
+			}
+		}
+	} // DEFERRAL OFFSET
 }
 
 
