@@ -526,6 +526,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
 	char *tmp1;
+	char *inlist = NULL;
 
 	char lastHeardFrom[300] = "";
 
@@ -635,6 +636,15 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 				aVal = attVal;
 				// insert into new ClassAd too (since this needs to go into DB)
 				newClAd.insert(aName, aVal);
+				if (NULL == inlist) {
+					inlist = (char *) malloc (strlen(attName)+5);
+					sprintf(inlist, "('%s'", attName);
+				} else {
+					inlist = (char *) realloc (inlist, strlen(inlist) + strlen(attName) + 5);
+					strcat (inlist, ",'");
+					strcat (inlist, attName);
+					strcat (inlist, "'");
+				}
 			}
 
 			if (strcasecmp(attName, "LastHeardFrom") == 0) {
@@ -648,7 +658,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	if (attNameList) strcat(attNameList, ")");
 	if (attValList) strcat(attValList, ")");
-	
+	if (inlist) strcat(inlist, ")");
 		// 500 is plenty for the constant portion of the following sql statements
 	sql_stmt = (char *) malloc(500 + strlen(machine_id.Value()));
 
@@ -659,6 +669,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);		 
+		 if (inlist) free(inlist);
 		 free(sql_stmt);
 		 return FAILURE;
 	 }
@@ -670,6 +681,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);		 
+		 if (inlist) free(inlist);
 		 free(sql_stmt);
 		 return FAILURE;
 	 }
@@ -685,6 +697,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);
+		 if (inlist) free(inlist);
 		 free(sql_stmt);
 		 return FAILURE;
 	 }
@@ -695,11 +708,37 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 if (attValList) free(attValList);
 
 		// Insert changes into Machine
+	 sql_stmt = (char *) malloc (1000 + strlen(inlist) + strlen(machine_id.Value()) + strlen(lastHeardFrom) );
+								
+	 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name NOT IN %s", 
+			 lastHeardFrom, machine_id.Value(), inlist);
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }
+		
+	 sprintf(sql_stmt, "DELETE FROM Machine WHERE machine_id = '%s' AND attr_name NOT IN %s", 
+			 machine_id.Value(), inlist);
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }
+	 free(sql_stmt);
+ 	 if (inlist) free(inlist);
+	 
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 		 
-		 sql_stmt = (char *) malloc (1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
-									 strlen(aVal.Value()) + strlen(lastHeardFrom));
+	 	 sql_stmt = (char *) malloc (1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
+								strlen(aVal.Value()) + strlen(lastHeardFrom));
 
 		 sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
 				 machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
