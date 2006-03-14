@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.6 2006-03-14 16:43:31 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.7 2006-03-14 17:51:48 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -272,7 +272,7 @@ if( ($ENV{NMI_PLATFORM} =~ /winnt/) )
 	print FIX "CONDOR_HOST = 127.0.0.1\n";
 	print FIX "NETWORK_INTERFACE = 127.0.0.1\n";
 	print FIX "ALL_DEBUG = D_FULLDEBUG\n";
-	/* insure path from framework is injected into the new pool */
+	# insure path from framework is injected into the new pool
 	print FIX "environment=\"PATH=\'$mypath\'\"\n";
 	print FIX "SUBMIT_EXPRS=environment\n";
 }
