@@ -1,3 +1,7 @@
+03/14/05 V6_7-win32_tests-merge-1
+   State of V6_7-win32_tests-branch before merge into V6_7-branch. Brings
+   automated testing capability to Windows.
+
 12/19/05 V6_7-gridftp-{root,branch}
    Branch for developing Condor-started gridftp servers for GT4 GRAM jobs. 
    Branched from successful BUILD-V6_7-branch-2005-12-19 nightly build 
