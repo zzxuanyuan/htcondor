@@ -1,3 +1,6 @@
+02/14/06 V6_7-time_offset-merge-1
+	The state of the V6_7-time_offset-branch for a merge into V6_7-branch
+   
 02/23/06 V6_7_17
 	The official 6.7.17 release.  Packages came from NMI build 19375 with the
 	exception of sun4u_sol_5.9 which came from 19424 because of problems with a
