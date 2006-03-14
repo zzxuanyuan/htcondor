@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.5 2006-02-21 21:22:08 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.6 2006-03-14 16:43:31 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -262,6 +262,7 @@ print FIX "PERIODIC_EXPR_INTERVAL = 15\n";
 # normally are done by condor_configure for a personal condor
 if( ($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
+	my $mypath = $ENV{PATH};
 	print FIX "USER_JOB_WRAPPER = $win32base/condor/bin/win32.perl.bat\n";
 	print FIX "START = TRUE\n";
 	print FIX "PREEMPT = FALSE\n";
@@ -271,6 +272,9 @@ if( ($ENV{NMI_PLATFORM} =~ /winnt/) )
 	print FIX "CONDOR_HOST = 127.0.0.1\n";
 	print FIX "NETWORK_INTERFACE = 127.0.0.1\n";
 	print FIX "ALL_DEBUG = D_FULLDEBUG\n";
+	/* insure path from framework is injected into the new pool */
+	print FIX "environment=\"PATH=\'$mypath\'\"\n";
+	print FIX "SUBMIT_EXPRS=environment\n";
 }
 
 close ORIG;
