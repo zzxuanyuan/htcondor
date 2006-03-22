@@ -8,6 +8,10 @@
 ** just after this header).  Thanks!  Derek Wright, 3/17/03
 **********************************************************************
 
+3/22/06 V6_6_11-root and V6_6_11-branch
+	A branch for the 6.6.11 doc release, created from V6_6_11-root
+	   on V6_6-branch.
+
 2/1/06 V6_6-doc-merge-24
    The state of the doc directory in the V6_6-branch for a merge
    into the V6_7-branch. This goes into the V6_7_15-branch.
