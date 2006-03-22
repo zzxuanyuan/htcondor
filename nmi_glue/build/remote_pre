@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre,v 1.1.4.3.60.1 2006-02-21 19:34:13 bt Exp $
+# $Id: remote_pre,v 1.1.4.3.60.2 2006-03-22 16:20:46 bt Exp $
 # script to setup the Condor build
 ######################################################################
 
@@ -17,8 +17,7 @@ $| = 1;
 print "------------------------- ENV DUMP ------------------------\n";
 if ($ENV{NMI_PLATFORM} =~ /winnt/) {
     system("set");
-}
-else {
+} else {
     system("env");
 }
 print "------------------------- ENV DUMP ------------------------\n";
@@ -60,7 +59,7 @@ print "Tar completed successfully, moving contents to base directory\n";
 system( "mv condor-$vers/* $BaseDir" );
 if( $? ) {
     die "moving condor-$vers/* to $BaseDir failed with status $?\n";
- }
+}
 print "Move completed successfully\n";
 
 
