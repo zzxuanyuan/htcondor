@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_post.pl,v 1.1.4.2.70.3 2006-02-21 19:34:32 bt Exp $
+# $Id: remote_post.pl,v 1.1.4.2.70.4 2006-03-22 17:20:11 bt Exp $
 # post script for Condor testsuite runs
 ######################################################################
 
@@ -41,7 +41,6 @@ if( -f "$pid_file" ) {
         print "ERROR: Can't kill condor_master (pid: $master_pid): $!\n";
         $exit_status = 1;
     }
-    
 } else {
     # if there's no pid_file, there must be no personal condor running
     # which we'd have to kill.  this would be caused by an empty
@@ -82,8 +81,6 @@ if( ! -d "$BaseDir/results" ) {
     # might as well die, since there's nothing worth saving...
     mkdir( "$BaseDir/results", 0777 ) || die "Can't mkdir($BaseDir/results): $!\n";
 }
-
-system( "cp -r condor  $BaseDir/results/" );
 
 system( "cp tasklist.nmi $BaseDir/results/" );
 if( $? ) {

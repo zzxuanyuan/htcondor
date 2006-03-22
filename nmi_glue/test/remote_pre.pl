@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.7.70.7 2006-03-14 17:51:48 bt Exp $
+# $Id: remote_pre.pl,v 1.1.4.7.70.8 2006-03-22 17:20:11 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -70,16 +70,13 @@ my $configure = "";
 my $oldlocal = "";
 my $newlocal = "";
 
-if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	# New improved way to find the version for unix releases
 	$release_tarball =~ /condor-(\d+)\.(\d+)\.(\d+)-.*/; 
 	$version = "condor-$1.$2.$3";
 	print "VERSION string is $version\n";
 	$configure = "$BaseDir/$version/";
-}
-else
-{
+} else {
 	my $vers_file = "CONDOR-VERSION";
 
 	print "Finding version of Condor\n";
@@ -101,8 +98,7 @@ print "Condor version: $version\n";
 
 print "SETTING UP PERSONAL CONDOR\n";
 
-if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	# we only run condor configure under unix
 	mkdir( "$BaseDir/local", 0777 ) || die "Can't mkdir $BaseDir/local: $!\n";
 	mkdir( "$BaseDir/condor", 0777 ) || die "Can't mkdir $BaseDir/condor: $!\n";
@@ -128,46 +124,45 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 
 	$oldlocal = "$BaseDir/local/condor_config.local.orig";
 	$newlocal = "$BaseDir/local/condor_config.local";
-}
-else
-{
+} else {
 	# windows personal condor setup
-	# release is extracted to condor
-	my $syscmd = "cp -r public/* $BaseDir/condor";
-	if( -d "condor")
-	{
+	# release is extracted to local
+
+	if( -d "local") {
+		system("rm -rf local");
+	}
+	if( -d "condor") {
 		system("rm -rf condor");
 	}
+
 	mkdir( "$BaseDir/condor", 0777 ) || die "Can't mkdir $BaseDir/condor: $!\n";
-	system("$syscmd");
+	mkdir( "$BaseDir/local", 0777 ) || die "Can't mkdir $BaseDir/local: $!\n";
 	mkdir( "$BaseDir/condor/spool", 0777 ) || die "Can't mkdir $BaseDir/condor/spool: $!\n";
 	mkdir( "$BaseDir/condor/execute", 0777 ) || die "Can't mkdir $BaseDir/condor/execute: $!\n";
 	mkdir( "$BaseDir/condor/log", 0777 ) || die "Can't mkdir $BaseDir/condor/log: $!\n";
 
+	my $syscmd = "cp -r public/* $BaseDir/local";
+	system("$syscmd");
+
 	$win32base = $BaseDir;
 	$win32base =~ s/\/cygdrive\/c/C:/;
 
-	safe_copy("$SrcDir/condor_scripts/exe_switch.pl","$BaseDir/condor/bin/exe_switch.pl");
-	safe_copy("$SrcDir/condor_scripts/win32toperl.bat","$BaseDir/condor/bin/win32toperl.bat");
-	safe_copy("$SrcDir/condor_scripts/win32tosh.bat","$BaseDir/condor/bin/win32tosh.bat");
-	open( WRAPPER, ">$BaseDir/condor/bin/win32.perl.bat" ) || die "Can't open new job wrapper: $!\n";
-	print WRAPPER "\@c:\\perl\\bin\\perl.exe $win32base/condor/bin/exe_switch.pl %*\n";
+	safe_copy("$SrcDir/condor_scripts/exe_switch.pl","$BaseDir/local/bin/exe_switch.pl");
+	safe_copy("$SrcDir/condor_scripts/win32toperl.bat","$BaseDir/local/bin/win32toperl.bat");
+	safe_copy("$SrcDir/condor_scripts/win32tosh.bat","$BaseDir/local/bin/win32tosh.bat");
+	open( WRAPPER, ">$BaseDir/local/bin/win32.perl.bat" ) || die "Can't open new job wrapper: $!\n";
+	print WRAPPER "\@c:\\perl\\bin\\perl.exe $win32base/local/bin/exe_switch.pl %*\n";
 	close(WRAPPER);
 
-	print "Want to copy this<<$SrcDir/condor_scripts/win32.perl.bat>> to execute dir\n";
-	system("ls $BaseDir/condor/execute");
-	print "Did you just see it there??????\n";
 	# create config file with todd's awk script
 	$awkscript = "$BaseDir/src/condor_examples/convert_config_to_win32.awk";
 	$genericconfig = "$BaseDir/src/condor_examples/condor_config.generic";
 	$configcmd = "awk -f $awkscript $genericconfig >condor/condor_config.orig";
-	print "About to do this<<$configcmd>>\n";
 	system("$configcmd");
 
 	# create local config file with todd's awk script
 	$genericlocalconfig = "$BaseDir/src/condor_examples/condor_config.local.central.manager";
 	$configcmd = "awk -f $awkscript $genericlocalconfig >condor/condor_config.local";
-	print "About to do this<<$configcmd>>\n";
 	system("$configcmd");
 
 	# change RELEASE_DIR and LOCAL_DIR
@@ -179,18 +174,13 @@ else
 	while( <OLDFIG> ) {
     	chomp;
 		$line = $_;
-		if($line =~ /^RELEASE_DIR\s*=.*/)
-		{
+		if($line =~ /^RELEASE_DIR\s*=.*/) {
 			print "Matching <<$line>>\n";
-			print NEWFIG "RELEASE_DIR = $win32base/condor\n";
-		}
-		elsif($line =~ /^LOCAL_DIR\s*=.*/)
-		{
+			print NEWFIG "RELEASE_DIR = $win32base/local\n";
+		} elsif($line =~ /^LOCAL_DIR\s*=.*/) {
 			print "Matching <<$line>>\n";
 			print NEWFIG "LOCAL_DIR = $win32base/condor\n";
-		}
-		else
-		{
+		} else {
 			print NEWFIG "$line\n";
 		}
 	}
@@ -204,9 +194,7 @@ else
 
 print "Modifying local config file\n";
 
-rename( "$newlocal",
-	"$oldlocal" )
-    || die "Can't rename $newlocal: $!\n";
+rename( "$newlocal", "$oldlocal" ) || die "Can't rename $newlocal: $!\n";
 
 # make sure ports for Personal Condor are valid, we'll use address
 # files and port = 0 for dynamic ports...
@@ -260,10 +248,9 @@ print FIX "PERIODIC_EXPR_INTERVAL = 15\n";
 
 # Add a job wrapper for windows.... and a few other things which
 # normally are done by condor_configure for a personal condor
-if( ($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( ($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	my $mypath = $ENV{PATH};
-	print FIX "USER_JOB_WRAPPER = $win32base/condor/bin/win32.perl.bat\n";
+	print FIX "USER_JOB_WRAPPER = $win32base/local/bin/win32.perl.bat\n";
 	print FIX "START = TRUE\n";
 	print FIX "PREEMPT = FALSE\n";
 	print FIX "SUSPEND = FALSE\n";
@@ -290,8 +277,7 @@ print "PERSONAL CONDOR installed!\n";
 # directory (what we unpacked into "$BaseDir/condor").
 ######################################################################
 
-if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	chdir( "$SrcDir" ) || die "Can't chdir($SrcDir): $!\n";
 	mkdir( "$SrcDir/release_dir", 0777 );  # don't die, it might already exist...
 	-d "$SrcDir/release_dir" || die "$SrcDir/release_dir does not exist!\n";
@@ -302,9 +288,9 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	closedir DIR;
 	foreach $file ( @files ) {
 		if( $file =~ /\.(\.)?/ ) {
-		next;
-	}
-	symlink( "$BaseDir/condor/$file", "$file" ) || die "Can't symlink($BaseDir/condor/$file): $!\n";
+			next;
+		}
+		symlink( "$BaseDir/condor/$file", "$file" ) || die "Can't symlink($BaseDir/condor/$file): $!\n";
 	}
 }
 
@@ -317,8 +303,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 # and change the definition of the "CONDOR_COMPILE" macro in
 # Imake.rules to point somewhere else (if we want).
 
-if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	chdir( "$SrcDir/condor_scripts" ) || 
 	die "Can't chdir($SrcDir/condor_scripts): $!\n";
 	unlink( "condor_compile" ) || die "Can't unlink(condor_compile): $!\n";
@@ -337,13 +322,10 @@ print "Starting condor_master, about to FORK in $BaseDir\n";
 $master_pid = fork();
 if( $master_pid == 0) {
 	print "Start of personal condor\n";
-	if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-	{
+	if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
   		exec("$BaseDir/condor/sbin/condor_master -f");
-	}
-	else
-	{
-		exec("$BaseDir/condor/bin/condor_master -f");
+	} else {
+		exec("$BaseDir/local/bin/condor_master -f");
 	}
   	print "MASTER EXEC FAILED!!!!!\n";
   	exit 1;
@@ -362,12 +344,12 @@ sleep 30;
 
 sub safe_copy {
     my( $src, $dest ) = @_;
-        system("cp $src $dest");
-        if( $? >> 8 ) {
-                $copy_failure = 1;
-                print "Can't copy $src to $dest: $!\n";
+	system("cp $src $dest");
+	if( $? >> 8 ) {
+		$copy_failure = 1;
+		print "Can't copy $src to $dest: $!\n";
     } else {
-                print "Copied $src to $dest\n";
+		print "Copied $src to $dest\n";
     }
 }
 

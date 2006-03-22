@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_declare.pl,v 1.1.4.2.110.3 2006-02-21 21:22:03 bt Exp $
+# $Id: remote_declare.pl,v 1.1.4.2.110.4 2006-03-22 17:20:11 bt Exp $
 # generate list of all tests to run
 ######################################################################
 
@@ -56,10 +56,11 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 # generate compiler_list and each Makefile we'll need
 ######################################################################
 
+my @compilers = ();
+
 # On windows we simply have a list to fetch in!
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
-
 	print "****************************************************\n";
 	print "**** Creating Makefiles\n"; 
 	print "****************************************************\n";
@@ -74,7 +75,6 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	# First, generate the list of all compiler-specific subdirectories. 
 	doMake( "compiler_list" );
 
-	my @compilers = ();
 	open( COMPILERS, "compiler_list" ) || die "cannot open compiler_list: $!\n";
 	while( <COMPILERS> ) {
     	chomp;
@@ -83,7 +83,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	close( COMPILERS );
 	print "Found compilers: " . join(' ', @compilers) . "\n";
 	foreach $cmplr (@compilers) {
-    print "Creating $testdir/$cmplr/Makefile\n";
+    	print "Creating $testdir/$cmplr/Makefile\n";
     	doMake( "$cmplr/Makefile" );
 	}
 
@@ -93,9 +93,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
     	chdir( $cmplr_dir ) || die "cannot chdir($cmplr_dir): $!\n"; 
     	doMake( "list_testclass" );
 	}
-}
-else
-{
+} else {
     print "****************************************************\n";
     print "**** Locating to test directory to build Windows test list\n";
     print "****************************************************\n";
@@ -114,8 +112,7 @@ my %tasklist;
 my $total_tests;
 
 # On windows we simply have a list to fetch in!
-if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	foreach $class (@classlist) {
     	print "****************************************************\n";
     	print "**** Finding tests for class: \"$class\"\n";
@@ -126,9 +123,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 			$total_tests += findTests( $class, $cmplr );
     	}
 	}
-}
-else
-{
+} else {
     # eat the file Windows_list into tasklist hash
     print "****************************************************\n";
     print "**** Finding tests for file \"Windows_list\"\n";
@@ -137,12 +132,15 @@ else
     $class = $windowstests;
     $total_tests = 0;
     $testnm = "";
-    while(<WINDOWSTESTS>)
-    {
+    while(<WINDOWSTESTS>) {
         chomp();
         $testnm = $_;
-        $total_tests += 1;
-        $tasklist{$testnm} = 1;
+		if( $testnm =~ /^\s*#.*/) {
+			# skip the comment
+		} else {
+        	$total_tests += 1;
+        	$tasklist{$testnm} = 1;
+		}
     }
 }
 
@@ -172,11 +170,11 @@ sub findTests () {
     my $total = 0;
 
     if( $dir_arg eq "top" ) {
-	$ext = "";
-	$dir = $testdir;
+		$ext = "";
+		$dir = $testdir;
     } else {
-	$ext = ".$dir_arg";
-	$dir = "$testdir/$dir_arg";
+		$ext = ".$dir_arg";
+		$dir = "$testdir/$dir_arg";
     }
     print "-- Searching \"$dir\" for \"$classname\"\n";
     chdir( "$SrcDir/$dir" ) || die "Can't chdir($SrcDir/$dir): $!\n";
@@ -186,16 +184,16 @@ sub findTests () {
 
     open( LIST, $list_target ) || die "cannot open $list_target: $!\n";
     while( <LIST> ) {
-	print;
-	chomp;
-	$taskname = $_ . $ext;
-	$total++;
-	$tasklist{$taskname} = 1;
+		print;
+		chomp;
+		$taskname = $_ . $ext;
+		$total++;
+		$tasklist{$taskname} = 1;
     }
     if( $total == 1 ) {
-	$word = "test";
+		$word = "test";
     } else {
-	$word = "tests";
+		$word = "tests";
     }
     print "-- Found $total $word in \"$dir\" for \"$classname\"\n\n";
     return $total;
@@ -211,9 +209,9 @@ sub doMake () {
     close( MAKE );
     $makestatus = $?;
     if( $makestatus != 0 ) {
-	print "\n";
-	print @make_out;
-	die("\"make $target\" failed!\n");
+		print "\n";
+		print @make_out;
+		die("\"make $target\" failed!\n");
     }
 }
 

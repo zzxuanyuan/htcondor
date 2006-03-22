@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre_declare,v 1.1.4.4.122.4 2006-02-21 21:22:10 bt Exp $
+# $Id: remote_pre_declare,v 1.1.4.4.122.5 2006-03-22 17:20:12 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -57,7 +57,7 @@ print "Tar completed successfully, moving contents to base directory\n";
 system( "cp -r condor-$vers/* $BaseDir" );
 if( $? ) {
     die "moving condor-$vers/* to $BaseDir failed with status $?\n";
- }
+}
 print "Move completed successfully\n";
 
 
@@ -74,17 +74,14 @@ print ENVSETUP "export BASE_DIR\n";
 print ENVSETUP "CONDOR_VERSION=$vers\n";
 print ENVSETUP "export CONDOR_VERSION\n";
 
-if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
-{
+if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
     print ENVSETUP "PATH=$BaseDir/nmi_glue/test:$BaseDir/condor/bin:$BaseDir/condor/sbin:\$PATH\n";
     print ENVSETUP "CONDOR_CONFIG=$BaseDir/condor/etc/condor_config\n";
-}
-else
-{
+} else {
     # windows distribution has condor all in bin
 	my $win32basedir = $BaseDir;
     my $gluedir = `cygpath -u $BaseDir/nmi_glue/test`;
-    my $condordir = `cygpath -u $BaseDir/condor/bin`;
+    my $condordir = `cygpath -u $BaseDir/local/bin`;
     my $configfile = `cygpath -u $BaseDir/condor/condor_config`;
     chomp($gluedir);
     chomp($condordir);

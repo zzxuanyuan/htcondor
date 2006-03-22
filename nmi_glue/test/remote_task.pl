@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_task.pl,v 1.1.4.6.70.4 2006-02-21 21:22:10 bt Exp $
+# $Id: remote_task.pl,v 1.1.4.6.70.5 2006-03-22 17:20:12 bt Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
@@ -27,10 +27,6 @@ if( ! $fulltestname ) {
 }
 
 my $BaseDir = $ENV{BASE_DIR} || c_die("BASE_DIR is not in environment!\n");
-
-system ("ls $BaseDir");
-print "That was what is in $BaseDir\n";
-
 my $SrcDir = $ENV{SRC_DIR} || c_die("SRC_DIR is not in environment!\n");
 my $testdir = "condor_tests";
 
@@ -81,9 +77,9 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/)) {
     	print "Build failed for $testname\n";
     	exit 2;
 	}
-} else {
-	print "No building tests on Windows yet...\n<<$testname>> should not need building\n";
-}
+} #else {
+	#print "No building tests on Windows yet...\n<<$testname>> should not need building\n";
+#}
 
 
 ######################################################################
@@ -154,10 +150,6 @@ if( ! -d "$resultdir" ) {
 chdir( "$SrcDir/$testdir/$compiler" ) || 
     c_die("Can't chdir($SrcDir/$testdir/$compiler): $!\n");
 
-system("ls -l $BaseDir");
-system("ls -l $BaseDir/results");
-system("ls -l $BaseDir/results/base");
-
 $copy_failure = 0;
 $have_run_out_file = 0;
 
@@ -195,13 +187,13 @@ if( $? >> 8 ) {
 if( $copy_failure ) {
     if( $teststatus == 0 ) {
         # if the test passed but we failed to copy something, we
-	# should consider that some kind of weird error
-	c_die("Failed to copy some output to results!\n");
+		# should consider that some kind of weird error
+		c_die("Failed to copy some output to results!\n");
     } else {
-	# if the test failed, we can still mention we failed to copy
-	# something, but we should just treat it as if the test
-	# failed, not an internal error.
-	print "Failed to copy some output to results!\n";
+		# if the test failed, we can still mention we failed to copy
+		# something, but we should just treat it as if the test
+		# failed, not an internal error.
+		print "Failed to copy some output to results!\n";
     }
 }
 
@@ -212,8 +204,7 @@ if( $have_run_out_file ) {
 } else {
 	# spit out the contents of the run.out file to the stdout of
 	if( open(RES,"<$testname.run.out") ) {
-		while(<RES>)
-		{
+		while(<RES>) {
 			print "$_";
 		}
 		close RES;
@@ -243,7 +234,7 @@ sub unsafe_copy {
 	my $copyfailed = 0;
 	system("cp $src $dest");
 	if( $? >> 8 ) {
-		print "   Optional file $src not copied into $dest: $\n";
+		print "   Optional file $src not copied into $dest: $!\n";
     } else {
 		print "Copied $src to $dest\n";
     }
