@@ -440,7 +440,7 @@ sub CompareText
     
     while( <FILE> )
     {
-	chomp; s/\s+$//;
+	chomp; s/\012//; s/\015//;
 	$line = $_;
 	$linenum++;
 
