@@ -1,6 +1,6 @@
+# Test List for Windows Tests
 job_core_output_van
 job_core_input_van
-job_core_initialdir_van
 job_core_err_van
 job_core_hold_van
 job_core_holdrelease_van
@@ -15,3 +15,4 @@ job_core_plus_van
 job_filexfer_base_van
 job_filexfer_basic_van
 job_filexfer_input-onegone_van
+job_filexfer_minus1_van
