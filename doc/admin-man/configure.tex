@@ -391,9 +391,8 @@ determined automatically at runtime but which can be overwritten.
   \label{param:UIDDomain}
   Defaults to the fully
   qualified hostname of the machine it is evaluated on.  See
-  section~\ref{sec:Shared-Filesystem-Config-File-Entries} on ``Shared
-  File System Configuration File Entries'' for the full description of
-  its use and under what conditions you would want to change it.
+  section~\ref{sec:Shared-Filesystem-Config-File-Entries} 
+  for the full description of this configuration variable.
 
 \end{description}
 
@@ -1551,74 +1550,74 @@ section~\ref{sec:shared-fs}.
 
 \item[\Macro{UID\_DOMAIN}] \label{param:UidDomain}
   The \MacroNI{UID\_DOMAIN} macro
-  is used to decide under which user to run your jobs.
+  is used to decide under which user to run jobs.
   If the \MacroUNI{UID\_DOMAIN}
   on the submitting machine is different than
   the \MacroUNI{UID\_DOMAIN}
-  on the machine that runs your job, then Condor will run
-  the job as the user called ``nobody''.
+  on the machine that runs a job, then Condor runs
+  the job as the user \Login{nobody}.
   For example, if the submit machine has
-  the \MacroUNI{UID\_DOMAIN}
-  ``flippy.cs.wisc.edu'' and the machine where the job will execute
-  has the \MacroUNI{UID\_DOMAIN}
-  ``cs.wisc.edu'', the job will run as user nobody, because
+  a \MacroUNI{UID\_DOMAIN} of
+  flippy.cs.wisc.edu, and the machine where the job will execute
+  has a \MacroUNI{UID\_DOMAIN} of
+  cs.wisc.edu, the job will run as user \Login{nobody}, because
   the two \MacroUNI{UID\_DOMAIN}s are not the same.
   If the \MacroUNI{UID\_DOMAIN}
   is the same on both the submit and execute machines,
   then Condor will run the job as the user that submitted the job.
 
   A further check attempts to assure that the submitting
-  machine can not lie about its \MacroUNI{UID\_DOMAIN}.
+  machine can not lie about its \MacroNI{UID\_DOMAIN}.
   Condor compares the 
-  submit machine's claimed \MacroUNI{UID\_DOMAIN}
+  submit machine's claimed value for \MacroNI{UID\_DOMAIN}
   to its fully qualified name.
   If the two do not end the same, then the submit machine
-  is presumed to be lying about its \MacroUNI{UID\_DOMAIN}.
-  In this case, Condor will run the job as user nobody.
+  is presumed to be lying about its \MacroNI{UID\_DOMAIN}.
+  In this case, Condor will run the job as user \Login{nobody}.
   For example, a job submission to the Condor pool at the UW Madison
-  from ``flippy.example.com'', claiming a \MacroUNI{UID\_DOMAIN}
-  of ``cs.wisc.edu'',
-  will run the job as the user nobody.
+  from flippy.example.com, claiming a \MacroNI{UID\_DOMAIN} of
+  of cs.wisc.edu,
+  will run the job as the user \Login{nobody}.
 
   Because of this verification,
   \MacroUNI{UID\_DOMAIN} must be a real domain name.
   At the Computer Sciences department
   at the UW Madison, we set the \MacroUNI{UID\_DOMAIN}
-  to be ``cs.wisc.edu'' to
+  to be cs.wisc.edu to
   indicate that whenever someone submits from a department machine, we
   will run the job as the user who submits it.
 
-  Also see \Macro{SOFT\_UID\_DOMAIN}
+  Also see \MacroNI{SOFT\_UID\_DOMAIN}
   below for information about one more check
   that Condor performs before running a job as a given user.
 
   A few details:
 
-  You could set \MacroU{UID\_DOMAIN}
-  to ``*''. This will match all domains,
+  An administrator could set \MacroNI{UID\_DOMAIN}
+  to *. This will match all domains,
   but it is a gaping security hole. It is not recommended.
 
-  You can also leave \MacroU{UID\_DOMAIN} undefined. This will
-  force Condor to always run jobs as user nobody.
-  Running standard universe jobs as user nobody enhances
-  your security and should cause no problems, because the jobs use remote
+  An administrator can also leave \MacroNI{UID\_DOMAIN} undefined.
+  This will force Condor to always run jobs as user \Login{nobody}.
+  Running standard universe jobs as user \Login{nobody} enhances
+  security and should cause no problems, because the jobs use remote
   I/O to access all of their files.
   However, if vanilla jobs are run as
-  user nobody, then files that need to be accessed by the job will need
-  to be marked as world readable/writable so the user nobody can access
+  user \Login{nobody}, then files that need to be accessed by the job will need
+  to be marked as world readable/writable so the user \Login{nobody} can access
   them.
 
   When Condor sends e-mail about a job, Condor sends the e-mail to
   %% This is the wrong LaTeX  macro to use, but we don't have a correct one.
-  \File{user@UID\_DOMAIN}.
-  If \MacroUNI{UID\_DOMAIN}
+  \File{user@\$(UID\_DOMAIN)}.
+  If \MacroNI{UID\_DOMAIN}
   is undefined, the e-mail is sent to \File{user@submitmachinename}.
 
 
 \item[\Macro{TRUST\_UID\_DOMAIN}]
   \label{param:TrustUidDomain}
   As an added security precaution when Condor is about to spawn a job,
-  it ensures that the \MacroNI{UID\_DOMAIN} (defined above) of a given
+  it ensures that the \MacroNI{UID\_DOMAIN} of a given
   submit machine is a substring of that machine's fully-qualified
   host name.
   However, at some sites, there may be multiple UID spaces that do
@@ -1627,12 +1626,12 @@ section~\ref{sec:shared-fs}.
   UID domains which are not substrings of the hostnames of the
   machines.
   For this to work, Condor must not do this regular security check.
-  If the \MacroNI{TRUST\_UID\_DOMAIN} setting is defined to TRUE,
+  If the \MacroNI{TRUST\_UID\_DOMAIN} setting is defined to \Expr{True},
   Condor will not perform this test, and will trust whatever
   \MacroNI{UID\_DOMAIN} is presented by the submit machine when trying
-  to spawn a job, instead of making sure the submit machine's hostname
+  to spawn a job, instead of making sure the submit machine's host name
   matches the \MacroNI{UID\_DOMAIN}.
-  When not defined, the default is FALSE,
+  When not defined, the default is \Expr{False},
   since it is more secure to perform this test. 
   % PKK
   % Described in default config file: YES
@@ -1641,18 +1640,17 @@ section~\ref{sec:shared-fs}.
   % Result if not defined or RHS is empty: this entry is considered False
 
 \item[\Macro{SOFT\_UID\_DOMAIN}] \label{param:SoftUidDomain}
-  When Condor is about to run a job as a particular user (instead of the
-  user nobody, see \Macro{UID\_DOMAIN} above for when this happens),
+  A boolean variable that defaults to \Expr{False} when not defined.
+  When Condor is about to run a job as a particular user 
+  (instead of as user \Login{nobody}),
   it verifies that the UID given for the user is in the
   password file and actually matches the given user name.
-  However, some
-  installations may not have every user in every machine's password
-  file, so this check will fail and the execution attempt will be
-  aborted. If you prefer that Condor not do
-  this check, because users are not in every password file, set
-  this attribute to \Expr{True}. Condor will then run the job under the
-  user's UID anyway.
-
+  However, under installations that do not have every user
+  in every machine's password file,
+  this check will fail and the execution attempt will be aborted.
+  To cause Condor not to do
+  this check, set this configuration variable to \Expr{True}.
+  Condor will then run the job under the user's UID.
 
 \item[\Macro{VMx\_USER}] \label{param:VMxUser}
   The name of a user for Condor to use instead of
