@@ -314,18 +314,20 @@ the library routine which parses the configuration files.
   \index{subsystem names}
   \index{macro!subsystem names}
   \begin{itemize}
-  \item STARTD
-  \item SCHEDD
-  \item MASTER
-  \item COLLECTOR
-  \item NEGOTIATOR
-  \item KBDD 
-  \item SHADOW
-  \item STARTER
-  \item CKPT\_SERVER
-  \item SUBMIT
-  \item GRIDMANAGER
-  \item TOOL
+  \item \verb@STARTD@
+  \item \verb@SCHEDD@
+  \item \verb@MASTER@
+  \item \verb@COLLECTOR@
+  \item \verb@NEGOTIATOR@
+  \item \verb@KBDD@ 
+  \item \verb@SHADOW@
+  \item \verb@STARTER@
+  \item \verb@CKPT_SERVER@
+  \item \verb@SUBMIT@
+  \item \verb@GRIDMANAGER@
+  \item \verb@TOOL@
+  \item \verb@HAD@
+  \item \verb@QUILL@
     \label{list:subsystem names}
   \end{itemize}
 
@@ -1323,6 +1325,10 @@ server, shadow, and starter, none of which use DaemonCore yet).
   This macro is not necessary for the \Condor{collector} 
   daemon, since its command socket is at a well-known port.  
   
+  The macro is named by substituting \MacroNI{<SUBSYS>}
+  with the appropriate subsystem string as defined in
+  section~\ref{sec:Condor-Subsystem-Names}.
+  
 \item[\MacroB{<SUBSYS>\_ATTRS} or \label{param:SubsysExprs}
   \MacroB{<SUBSYS>\_EXPRS}] \label{param:SubsysAttrs}
   \index{SUBSYS\_ATTRS macro@\texttt{<SUBSYS>\_ATTRS} macro}
@@ -1334,6 +1340,10 @@ server, shadow, and starter, none of which use DaemonCore yet).
   Frequently used to add attributes to machines so that the
   machines can discriminate between other machines in a job's 
   \Opt{rank} and \Opt{requirements}.
+
+  The macro is named by substituting \MacroNI{<SUBSYS>}
+  with the appropriate subsystem string as defined in
+  section~\ref{sec:Condor-Subsystem-Names}.
 
   \MacroNI{<SUBSYS>\_EXPRS} is a historic setting that functions identically to
   \MacroNI{<SUBSYS>\_ATTRS}. Use \MacroNI{<SUBSYS>\_ATTRS}.
@@ -1923,6 +1933,10 @@ These macros control the \Condor{master}.
   \end{verbatim}
   These are most often defined relative to the \MacroUNI{SBIN} macro.
 
+  The macro is named by substituting \MacroNI{<SUBSYS>}
+  with the appropriate subsystem string as defined in
+  section~\ref{sec:Condor-Subsystem-Names}.
+
 \item[\Macro{DAEMONNAME\_ENVIRONMENT}] \label{param:DaemonNameEnvironment}
   For each subsystem defined in \MacroNI{DAEMON\_LIST}, you may specify
   changes to the environment that daemon is started with by setting
@@ -1953,6 +1967,10 @@ These macros control the \Condor{master}.
   daemon. Define one of these for each daemon the \Condor{master} is
   controlling.  For example, set \MacroUNI{STARTD\_ARGS} to specify
   any extra command line arguments to the \Condor{startd}.
+
+  The macro is named by substituting \MacroNI{<SUBSYS>}
+  with the appropriate subsystem string as defined in
+  section~\ref{sec:Condor-Subsystem-Names}.
 
 \item[\Macro{PREEN}] \label{param:Preen} In addition to the daemons
   defined in \MacroUNI{DAEMON\_LIST}, the \Condor{master} also starts up
@@ -5269,6 +5287,10 @@ These macros affect the high availability operation of Condor.
 MASTER_NEGOTIATOR_CONTROLLER = HAD
 \end{verbatim}
 
+  The macro is named by substituting \MacroNI{<SUBSYS>}
+  with the appropriate subsystem string as defined in
+  section~\ref{sec:Condor-Subsystem-Names}.
+
 
 \item[\Macro{HAD\_LIST}]
   \label{param:HADList}
@@ -5479,6 +5501,10 @@ refresh proxy certificates.  By default, this macro is undefined.
 %   Any specific \MacroNI{<SUBSYS>\_ENABLE\_SOAP\_SSL} setting overrides
 %   the value of \MacroNI{ENABLE\_SOAP\_SSL}.
 % 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
+% 
 % \item[\Macro{ENABLE\_SOAP\_SSL}]
 %   \label{param:EnableSoapSSL}
 %   A boolean value that defaults to \Expr{False}.
@@ -5493,6 +5519,10 @@ refresh proxy certificates.  By default, this macro is undefined.
 %   running on a single machine may not share a port.
 %   There is no default value.
 % 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
+% 
 % \item[\MacroB{<SUBSYS>\_SOAP\_SSL\_SERVER\_KEYFILE}]
 %   \label{param:SubsysSoapSSLServerKeyfile}
 %   \index{SUBSYS\_SOAP\_SSL\_SERVER\_KEYFILE macro@\texttt{<SUBSYS>\_SOAP\_SSL\_SERVER\_KEYFILE} macro}
@@ -5502,12 +5532,20 @@ refresh proxy certificates.  By default, this macro is undefined.
 %   and private key.
 %   There is no default value.
 % 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
+% 
 % \item[\MacroB{<SUBSYS>\_SOAP\_SSL\_SERVER\_KEYFILE\_PASSWORD}]
 %   \label{param:SubsysSoapSSLServerKeyfilePassword}
 %   \index{SUBSYS\_SOAP\_SSL\_SERVER\_KEYFILE\_PASSWORD macro@\texttt{<SUBSYS>\_SOAP\_SSL\_SERVER\_KEYFILE\_PASSWORD} macro}
 %   An optional complete path and file name to specify
 %   a password for unlocking the daemon's private key.
 %   There is no default value.
+% 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
 % 
 % \item[\MacroB{<SUBSYS>\_SOAP\_SSL\_CA\_FILE}]
 %   \label{param:SubsysSoapSSLCaFile}
@@ -5518,6 +5556,10 @@ refresh proxy certificates.  By default, this macro is undefined.
 %   CA will be authenticated.
 %   There is no default value.
 % 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
+% 
 % \item[\MacroB{<SUBSYS>\_SOAP\_SSL\_CA\_DIR}]
 %   \label{param:SubsysSoapSSLCaDir}
 %   \index{SUBSYS\_SOAP\_SSL\_CA\_DIR macro@\texttt{<SUBSYS>\_SOAP\_SSL\_CA\_DIR} macro}
@@ -5527,12 +5569,20 @@ refresh proxy certificates.  By default, this macro is undefined.
 %   CA will be authenticated.
 %   There is no default value.
 % 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
+% 
 % \item[\MacroB{<SUBSYS>\_SOAP\_SSL\_DH\_FILE}]
 %   \label{param:SubsysSoapSSLDhFile}
 %   \index{SUBSYS\_SOAP\_SSL\_DH\_FILE macro@\texttt{<SUBSYS>\_SOAP\_SSL\_DH\_FILE} macro}
 %   An optional complete path and file name to a DH file
 %   containing keys for a DH key exchange.
 %   There is no default value.
+% 
+%   The macro is named by substituting \MacroNI{<SUBSYS>}
+%   with the appropriate subsystem string as defined in
+%   section~\ref{sec:Condor-Subsystem-Names}.
 % 
 % \end{description}
 % 
