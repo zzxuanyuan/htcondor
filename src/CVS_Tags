@@ -1,3 +1,7 @@
+03/23/06 V6_7-new_classad-merge-1
+   The state of the V6_7-new_classad-branch for a merge into
+   V6_7-new_classads-2-branch
+
 12/19/05 V6_7-gridftp-{root,branch}
    Branch for developing Condor-started gridftp servers for GT4 GRAM jobs. 
    Branched from successful BUILD-V6_7-branch-2005-12-19 nightly build 
