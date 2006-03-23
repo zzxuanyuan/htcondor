@@ -5637,32 +5637,35 @@ File Macros}
 
 \item[\Macro{STORK\_MAX\_NUM\_JOBS}]
 \label{param:StorkMaxNumJobs}
-Limits the number of concurrent data placements handled by Stork.
-Default value = 10.
+An integer limit on the number of concurrent data placement jobs
+handled by Stork.  The default value when not defined is 10.
 
 \item[\Macro{STORK\_MAX\_RETRY}]
 \label{param:StorkMaxRetry}
-Limits the number attempts for a data placement.  For data transfers,
-this includes transfer attempts on the primary protocol and all
+An integer limit on the
+number of attempts for a single data placement job.  For data transfers,
+this includes transfer attempts on the primary protocol, all
 alternate protocols, and all retries.
-Default value = 10.
+The default value when not defined is 10.
 
 \item[\Macro{STORK\_MAXDELAY\_INMINUTES}]
 \label{param:StorkMaxDelayInMinutes}
-Limits the run time for a data placement job, after which the
-placement is considered failed.
-Units = minutes, default value = 10, minimum value = 1.
+An integer limit (in minutes) on the run time for a data placement job,
+after which the job is considered failed.
+The default value when not defined is 10,
+and the minimum legal value is 1.
 
 \item[\Macro{STORK\_TMP\_CRED\_DIR}]
 \label{param:StorkTmpCredDir}
-Temporary credential storage directory used by Stork.
-Default value = \File{/tmp}.
+The full path to the temporary credential storage directory used by Stork.
+The default value is \File{/tmp} when not defined. 
 
 \item[\Macro{STORK\_MODULE\_DIR}]
 \label{param:StorkModuleDir}
-Directory containing Stork modules.  If not defined, the value for the
-\Macro{LIBEXEC} macro is used.  It is a fatal error for
-both of these macros to be undefined.
+The full path to the directory containing Stork modules.
+The default value when not defined is 
+as defined by \MacroUNI{LIBEXEC}.  It is a fatal error for
+both \MacroNI{STORK\_MODULE\_DIR} and \MacroNI{LIBEXEC} to be undefined.
 
 \end{description}
 
