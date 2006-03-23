@@ -112,6 +112,19 @@ Manual for more details.
 /etc/grid-security/certificates is out of date, but
 \$(GLOBUS\_LOCATION)/share/certificates is not.
 
+\item A new authentication method, PASSWORD, has been added; it
+provides mutual authentication between a client and server using a
+shared secret. Password authentication currently only works on
+Windows, and only for daemon-to-daemon communication.
+
+\item Condor on Windows now supports running jobs as the submitting
+user. This feature requires the use of a central daemon for storing
+users' passwords (the \Condor{credd}). See the example configuration
+file \File{condor_config.local.credd} included with the Condor
+distrubution for more information.
+
+\item Support for DRMAA on Windows has been added.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
