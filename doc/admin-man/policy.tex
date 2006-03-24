@@ -1830,10 +1830,16 @@ In all other cases, the default policy described above will ignore
 keyboard activity.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\index{policy!disabling preemption}
-\index{preemption!disabling}
 \subsubsection{\label{sec:Disabling Preemption}
 Disabling Preemption}
+\index{policy!disabling preemption}
+\index{preemption!disabling}
+\MacroIndex{MaxJobRetirementTime}
+\MacroIndex{NEGOTIATOR\_CONSIDER\_PREEMPTION}
+\MacroIndex{CLAIM\_WORKLIFE}
+\MacroIndex{PREEMPT}
+\MacroIndex{PREEMPTION\_REQUIREMENTS}
+\MacroIndex{RANK}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Preemption can result in jobs being killed by Condor.  When this
@@ -1861,13 +1867,50 @@ MaxJobRetirementTime = $(HOUR) * 24 * 2
 The expression may be more complicated.  For example, it could provide
 a different retirement time to different users or different types of
 jobs.  Also be aware that the job may come with its own definition
-of \Expr{MaxJobRetirementTime}, but this may only cause \emph{less}
+of \Macro{MaxJobRetirementTime}, but this may only cause \emph{less}
 retirement time to be used, never more than what the machine offers.
 
 The longer the retirement time that is given, the slower reallocation
 of resources in the pool can become if there are long jobs.  However,
 by preventing jobs from being killed, you may decrease the number of
 cycles that are wasted on non-checkpointable jobs that are killed.
+
+Note that the use of \Macro{MaxJobRetirementTime} limits the killing
+of jobs, but it does not prevent the preemption of resource claims.
+Therefore, it is technically not a way of disabling preemption, but
+simply a way of forcing preempting claims to wait until an existing
+job finishes or runs out of time.  In other words, it limits the preemption
+of jobs but not the preemption of claims.
+
+Limiting the preemption of jobs is often more desirable than limiting
+the preemption of resource claims.  However, you can achieve the latter
+using the following policy:
+
+\begin{verbatim}
+#Disable preemption by machine activity.
+PREEMPT = False
+#Disable preemption by user priority.
+PREEMPTION_REQUIREMENTS = False
+#Disable preemption by machine RANK by
+#ranking all jobs equally.
+RANK = 0
+#Since we are disabling claim preemption, we
+#may as well optimize negotiation for this case:
+NEGOTIATOR_CONSIDER_PREEMPTION = False
+\end{verbatim}
+
+If you use this policy, you should be aware of the consequences.
+Without any preemption of resource claims, once the negotiator gives
+the schedd a match to a machine, the schedd may hold onto this claim
+indefinitely, as long as the user keeps supplying more jobs to run.
+If that is not what you want, you can force claims to be retired after
+some amount of time using \Macro{CLAIM\_WORKLIFE}.  This behaves just
+as though the claim were preempted by a higher priority job after the
+specified amount of time.  The retiring claim will allow the existing
+job to complete but will not allow any new jobs to be started.  If
+there is more work to do, the schedd will therefore have to go back to
+the negotiator to request a new match.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Job-Suspension}Job Suspension}

@@ -2426,6 +2426,15 @@ Configuring The Startd Policy.
   See \MacroNI{MAXJOBRETIREMENTTIME} in
   section~\ref{sec:State-Expression-Summary} for further explanation.
 
+\item[\Macro{CLAIM\_WORKLIFE}] \label{param:ClaimWorklife}
+  An integer value representing the number of seconds after which
+  a schedd's claim to a startd will enter retirement.  In retirement,
+  any existing job may continue to run (subject to other preemption policy
+  expressions), but no new jobs may be started.  This forces the schedd
+  to go back to the negotiator to request a new claim, rather than
+  keeping resource claims indefinitely while it has jobs to run on them.
+  The default value of -1 is treated as an infinite claim worklife, so
+  claims may be held indefinitely.
 
 \item[\Macro{MAX\_CLAIM\_ALIVES\_MISSED}]
   \label{param:MaxClaimAlivesMissed} The \Condor{schedd} sends periodic updates
@@ -4402,14 +4411,18 @@ These macros affect the \Condor{negotiator}.
   to have no effect on the ranking of matches.
 
 \item[\Macro{PREEMPTION\_REQUIREMENTS}]
-  \label{param:PreemptionRequirements} The negotiator will not preempt
+  \label{param:PreemptionRequirements} When considering user priorities, the negotiator will not preempt
   a job running on a given machine unless the
   \MacroNI{PREEMPTION\_REQUIREMENTS} expression evaluates to TRUE and the
   owner of the idle job has a better priority than the owner of the
   running job.  By default, this expression allows jobs to be
   preempted only after they have run for one hour, and only if the
   priority of the competing user is 20\% higher, in order to prevent
-  ``churning'' of jobs in the pool.
+  ``churning'' of jobs in the pool.  Note that this setting does not
+  influence other potential causes of preemption, such as startd
+  \MacroNI{RANK}, or \MacroNI{PREEMPT} expressions.  See
+  section \ref{sec:Disabling Preemption} for a general discussion of
+  limiting preemption.
 
 \item[\Macro{PREEMPTION\_RANK}] \label{param:PreemptionRank}
   Resources that match a request are first sorted by the

@@ -2098,7 +2098,11 @@ The default expression that ships with Condor is configured to only preempt
 lower priority jobs that have run
 for at least one hour. So in the previous example, in the worse case it
 could take up to a maximum of one hour until the higher priority user
-receives his fair share of machines. 
+receives his fair share of machines.  (Note that setting
+\Macro{PREEMPTION\_REQUIREMENTS} does not influence other forms of preemption,
+such as startd \MacroNI{RANK} or \MacroNI{PREEMPT}.  See section
+\ref{sec:Disabling Preemption} for a general discussion of
+limiting preemption.)
 
 User priorities are keyed on ``username@domain'', for example
 ``johndoe@cs.wisc.edu''. The domain name to use, if any, is configured by
