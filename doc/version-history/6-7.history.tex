@@ -13,6 +13,13 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item Added the new \Condor{replication} daemon which works with
+  \Condor{had} to enable replication of data for daemons configured
+  for high availability.  In particular, \Condor{replication} can be
+  configured to replicate the accountant log so the a fail-over
+  \Condor{negotiator} can share the user priority state from the
+  primary \Condor{negotitor}.
+
 \item The \Condor{collector} now has the ability to recieve ClassAds
   via it's SOAP interface.
 
