@@ -1,0 +1,18 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{\label{sec:gotchas}Upgrade Surprises}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\index{upgrading!items to be aware of}
+Occasional changes to Condor can cause unexpected errors or results
+to users.
+Here is a list of changes to note and be aware of.
+
+\begin{itemize}
+
+\item When upgrading from 6.6.x 6.7.x,
+  jobs that rely on the environment variable \Env{CONDOR\_SCRATCH\_DIR}
+  need to be changed to use \Env{\_CONDOR\_SCRATCH\_DIR}.
+  An underscore was added to the beginning of this variable.
+
+\end{itemize}
+
