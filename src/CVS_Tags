@@ -1,3 +1,7 @@
+03/22/06 V6_6_11
+   The official 6.6.11 release tag. This lives on V6_6_ALL and
+   V6_6_11_EXT.  NWO Build# 20864
+
 03/21/06 V6_6-merge-55
   The state of the V6_6-branch for a merge into V6_7-branch.  The only
   change is the fix to the collector to look at "ClassAdLifetime"
