@@ -133,6 +133,9 @@ users' passwords (the \Condor{credd}). See the example configuration
 file \File{condor\_config.local.credd} included with the Condor
 distrubution for more information.
 
+\item Added a \Opt{-n} option to \Condor{store\_cred} to allow for
+storing a password to a remote host.
+
 \item Support for DRMAA on Windows has been added.
 
 \end{itemize}
@@ -285,6 +288,12 @@ condor\_config and in the default list hard coded into \Condor{master}.
 would fail to run (and therefore stay in the schedd job queue) if the
 path to Condor's execute directory contained a space (e.g. ``Program
 Files'').  This bug was introduced in 6.7.15.
+
+\item Fixed a problem introduced in 6.7.17 where repeated ``ProcAPI
+sanity failure'' entries would appear in daemon logs on Windows.
+
+\item The \Opt{-submitter} option to \Condor{q} has been fixed to
+handle submitters in accounting groups.
 
 \end{itemize}
 
