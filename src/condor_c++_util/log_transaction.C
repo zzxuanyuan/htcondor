@@ -108,7 +108,7 @@ LogPtrList::NextEntry(LogRecord *prev)
 	}
 }
 
-
+#ifndef QUEUE_BUFFERED_IO
 void
 Transaction::Commit(int fd, void *data_structure)
 {
@@ -131,6 +131,7 @@ Transaction::Commit(int fd, void *data_structure)
 	}
 }
 
+#else
 //MD : using file pointer
 void
 Transaction::Commit(FILE* fp, void *data_structure)
@@ -159,7 +160,7 @@ Transaction::Commit(FILE* fp, void *data_structure)
 	  }
 	}
 }
-
+#endif
 
 void
 Transaction::AppendLog(LogRecord *log)

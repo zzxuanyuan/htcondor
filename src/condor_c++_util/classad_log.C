@@ -55,28 +55,26 @@ ClassAdLog::ClassAdLog() : table(1024, hashFunction)
 {
 	log_filename[0] = '\0';
 	active_transaction = NULL;
+#ifndef QUEUE_BUFFERED_IO
 	log_fd = -1;
+#else
+	log_fp = NULL;
+#endif
 }
-
+#ifndef QUEUE_BUFFERED_IO
 ClassAdLog::ClassAdLog(const char *filename) : table(1024, hashFunction)
 {
 	strcpy(log_filename, filename);
 	active_transaction = NULL;
-	
 
 	log_fd = open(log_filename, O_RDWR | O_CREAT, 0600);
 	if (log_fd < 0) {
 		EXCEPT("failed to open log %s, errno = %d", log_filename, errno);
 	}
-	log_fp = fdopen(log_fd, "rw");
-	
-	if (log_fp == NULL){
-	  EXCEPT("failed to open FILE POINTER of log %s, errno = %d", log_filename, errno);
-	}
-	
+
 	// Read all of the log records
 	LogRecord		*log_rec;
-	while ((log_rec = ReadLogEntry(log_fp, InstantiateLogEntry)) != 0) {
+	while ((log_rec = ReadLogEntry(log_fd, InstantiateLogEntry)) != 0) {
 		switch (log_rec->get_op_type()) {
 		case CondorLogOp_BeginTransaction:
 			if (active_transaction) {
@@ -113,6 +111,64 @@ ClassAdLog::ClassAdLog(const char *filename) : table(1024, hashFunction)
 	}
 	TruncLog();
 }
+#else
+ClassAdLog::ClassAdLog(const char *filename) : table(1024, hashFunction)
+{
+        int tmp_fd;
+	strcpy(log_filename, filename);
+	active_transaction = NULL;
+	
+
+	tmp_fd = open(log_filename, O_RDWR | O_CREAT, 0600);
+	if (tmp_fd < 0) {
+		EXCEPT("failed to open log %s, errno = %d", log_filename, errno);
+	}
+	log_fp = fdopen(tmp_fd, "rw");
+	
+	if (log_fp == NULL){
+	  EXCEPT("failed to open FILE POINTER of log %s, errno = %d", log_filename, errno);
+	}
+	
+	// Read all of the log records
+	LogRecord		*log_rec;
+	while ((log_rec = ReadLogEntry(log_fp, InstantiateLogEntry)) != 0) {
+		switch (log_rec->get_op_type()) {
+		case CondorLogOp_BeginTransaction:
+			if (active_transaction) {
+				dprintf(D_ALWAYS, "Warning: Encountered nested transactions in %s, "
+						"log may be bogus...", filename);
+			} else {
+				active_transaction = new Transaction();
+			}
+			delete log_rec;
+			break;
+		case CondorLogOp_EndTransaction:
+			if (!active_transaction) {
+				dprintf(D_ALWAYS, "Warning: Encountered unmatched end transaction in %s, "
+						"log may be bogus...", filename);
+			} else {
+				active_transaction->Commit(NULL, (void *)&table); // commit in memory only
+				delete active_transaction;
+				active_transaction = NULL;
+			}
+			delete log_rec;
+			break;
+		default:
+			if (active_transaction) {
+				active_transaction->AppendLog(log_rec);
+			} else {
+				log_rec->Play((void *)&table);
+				delete log_rec;
+			}
+		}
+	}
+	if (active_transaction) {	// abort incomplete transaction
+		delete active_transaction;
+		active_transaction = NULL;
+	}
+	TruncLog();
+}
+#endif
 
 ClassAdLog::~ClassAdLog()
 {
@@ -127,7 +183,31 @@ ClassAdLog::~ClassAdLog()
 		delete ad;
 	}
 }
-
+#ifndef QUEUE_BUFFERED_IO
+void
+ClassAdLog::AppendLog(LogRecord *log)
+{
+	if (active_transaction) {
+		if (EmptyTransaction) {
+			LogBeginTransaction *log = new LogBeginTransaction;
+			active_transaction->AppendLog(log);
+			EmptyTransaction = false;
+		}
+		active_transaction->AppendLog(log);
+	} else {
+		if (log_fd>=0) {
+			if (log->Write(log_fd) < 0) {
+				EXCEPT("write to %s failed, errno = %d", log_filename, errno);
+			}
+			if (fsync(log_fd) < 0) {
+				EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
+			}
+		}
+		log->Play((void *)&table);
+		delete log;
+	}
+}
+#else
 void
 ClassAdLog::AppendLog(LogRecord *log)
 {
@@ -140,14 +220,6 @@ ClassAdLog::AppendLog(LogRecord *log)
 		active_transaction->AppendLog(log);
 	} else {
 	  //MD: using file pointer
-	  //if (log_fd>=0) {
-	  //if (log->Write(log_fd) < 0) {
-	  //EXCEPT("write to %s failed, errno = %d", log_filename, errno);
-	  //}
-	  //if (fsync(log_fd) < 0) {
-	  //  EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
-	  //}
-	  //}
 	  if (log_fp!=NULL) {
 	    if (log->Write(log_fp) < 0) {
 	      EXCEPT("write to %s failed, errno = %d", log_filename, errno);
@@ -165,7 +237,9 @@ ClassAdLog::AppendLog(LogRecord *log)
 		delete log;
 	}
 }
+#endif
 
+#ifndef QUEUE_BUFFERED_IO
 void
 ClassAdLog::TruncLog()
 {
@@ -188,21 +262,46 @@ ClassAdLog::TruncLog()
 		return;
 	}
 	log_fd = open(log_filename, O_RDWR | O_APPEND, 0600);
-	
 	if (log_fd < 0) {
 		dprintf(D_ALWAYS, "failed to open log in append mode: "
 			"open(%s) returns %d\n", log_filename, log_fd);
 		return;
 	}
-	// MD: for file pointer
-	log_fp = fdopen(log_fd, "a+");
-	if (log_fp == NULL){
-	  dprintf(D_ALWAYS, "failed to open file pointer for log in append mode: "
-		  "fdopen(%s) returns %d\n", log_filename, -1);
-	  return;
+}
+
+#else
+void
+ClassAdLog::TruncLog()
+{
+	char	tmp_log_filename[_POSIX_PATH_MAX];
+	FILE* new_log_fp;
+
+	dprintf(D_FULLDEBUG,"About to truncate log %s\n",log_filename);
+	sprintf(tmp_log_filename, "%s.tmp", log_filename);
+	new_log_fp = fopen(tmp_log_filename, "wr");
+	if (new_log_fp == NULL) {
+		dprintf(D_ALWAYS, "failed to truncate log: open(%s) returns %d\n",
+				tmp_log_filename, errno);
+		return;
 	}
+	LogState(new_log_fp);
+	fclose(log_fp);
+	fclose(new_log_fp);	// avoid sharing violation on move
+	if (rotate_file(tmp_log_filename, log_filename) < 0) {
+		dprintf(D_ALWAYS, "failed to truncate job queue log!\n");
+		return;
+	}
+	log_fp = fopen(log_filename, "a+");
+	
+	if (log_fp == NULL) {
+		dprintf(D_ALWAYS, "failed to open log in append mode: "
+			"open(%s) returns %d\n", log_filename, errno);
+		return;
+	}
+	return;
 	
 }
+#endif
 
 void
 ClassAdLog::BeginTransaction()
@@ -225,6 +324,7 @@ ClassAdLog::AbortTransaction()
 	return false;
 }
 
+#ifndef QUEUE_BUFFERED_IO
 void
 ClassAdLog::CommitTransaction()
 {
@@ -234,13 +334,28 @@ ClassAdLog::CommitTransaction()
 	if (!EmptyTransaction) {
 		LogEndTransaction *log = new LogEndTransaction;
 		active_transaction->AppendLog(log);
-		// MD: Using 
-		//active_transaction->Commit(log_fd, (void *)&table);
+		active_transaction->Commit(log_fd, (void *)&table);
+	}
+	delete active_transaction;
+	active_transaction = NULL;
+}
+#else
+void
+ClassAdLog::CommitTransaction()
+{
+	// Sometimes we do a CommitTransaction() when we don't know if there was
+	// an active transaction.  This is allowed.
+	if (!active_transaction) return;
+	if (!EmptyTransaction) {
+		LogEndTransaction *log = new LogEndTransaction;
+		active_transaction->AppendLog(log);
+		// MD: Using file pointer
 		active_transaction->Commit(log_fp, (void *)&table);
 	}
 	delete active_transaction;
 	active_transaction = NULL;
 }
+#endif
 
 bool
 ClassAdLog::AdExistsInTableOrTransaction(const char *key)
@@ -361,6 +476,7 @@ ClassAdLog::LookupInTransaction(const char *key, const char *name, char *&val)
 	return 0;
 }
 
+#ifndef QUEUE_BUFFERED_IO
 void
 ClassAdLog::LogState(int fd)
 {
@@ -411,6 +527,7 @@ ClassAdLog::LogState(int fd)
 	} 
 }
 
+#else
 void
 ClassAdLog::LogState(FILE* fp)
 {
@@ -463,6 +580,7 @@ ClassAdLog::LogState(FILE* fp)
 		EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
 	} 
 }
+#endif
 
 LogNewClassAd::LogNewClassAd(const char *k, const char *m, const char *t)
 {
@@ -489,7 +607,7 @@ LogNewClassAd::Play(void *data_structure)
 	return table->insert(HashKey(key), ad);
 }
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogNewClassAd::ReadBody(int fd)
 {
@@ -506,7 +624,7 @@ LogNewClassAd::ReadBody(int fd)
 	if (rval1 < 0) return rval1;
 	return rval + rval1;
 }
-
+#else
 //MD: Using file pointer
 int
 LogNewClassAd::ReadBody(FILE* fp)
@@ -524,8 +642,9 @@ LogNewClassAd::ReadBody(FILE* fp)
 	if (rval1 < 0) return rval1;
 	return rval + rval1;
 }
+#endif
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogNewClassAd::WriteBody(int fd)
 {
@@ -546,6 +665,7 @@ LogNewClassAd::WriteBody(int fd)
 	return rval + rval1;
 }
 
+#else
 //MD: Using file pointer
 int
 LogNewClassAd::WriteBody(FILE* fp)
@@ -566,6 +686,7 @@ LogNewClassAd::WriteBody(FILE* fp)
 	if (rval1 < 0) return rval1;
 	return rval + rval1;
 }
+#endif
 
 LogDestroyClassAd::LogDestroyClassAd(const char *k)
 {
@@ -593,14 +714,14 @@ LogDestroyClassAd::Play(void *data_structure)
 	return table->remove(hkey);
 }
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogDestroyClassAd::ReadBody(int fd)
 {
 	free(key);
 	return readword(fd, key);
 }
-
+#else
 //MD: using fp
 int
 LogDestroyClassAd::ReadBody(FILE* fp)
@@ -608,7 +729,7 @@ LogDestroyClassAd::ReadBody(FILE* fp)
 	free(key);
 	return readword(fp, key);
 }
-
+#endif
 
 LogSetAttribute::LogSetAttribute(const char *k, const char *n, const char *val)
 {
@@ -642,7 +763,7 @@ LogSetAttribute::Play(void *data_structure)
 	return rval;
 }
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogSetAttribute::WriteBody(int fd)
 {
@@ -677,6 +798,7 @@ LogSetAttribute::WriteBody(int fd)
 	return rval1 + rval;
 }
 
+#else
 //MD: Using file pointer
 int
 LogSetAttribute::WriteBody(FILE* fp)
@@ -711,8 +833,9 @@ LogSetAttribute::WriteBody(FILE* fp)
 	}
 	return rval1 + rval;
 }
+#endif
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogSetAttribute::ReadBody(int fd)
 {
@@ -738,7 +861,7 @@ LogSetAttribute::ReadBody(int fd)
 	}
 	return rval + rval1;
 }
-
+#else
 //MD: Using file pointer
 int
 LogSetAttribute::ReadBody(FILE* fp)
@@ -765,7 +888,7 @@ LogSetAttribute::ReadBody(FILE* fp)
 	}
 	return rval + rval1;
 }
-
+#endif
 
 LogDeleteAttribute::LogDeleteAttribute(const char *k, const char *n)
 {
@@ -792,7 +915,7 @@ LogDeleteAttribute::Play(void *data_structure)
 	return ad->Delete(name);
 }
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogDeleteAttribute::WriteBody(int fd)
 {
@@ -815,7 +938,7 @@ LogDeleteAttribute::WriteBody(int fd)
 	}
 	return rval1 + rval;
 }
-
+#else
 int
 LogDeleteAttribute::WriteBody(FILE* fp)
 {
@@ -838,8 +961,9 @@ LogDeleteAttribute::WriteBody(FILE* fp)
 	}
 	return rval1 + rval;
 }
+#endif
 
-
+#ifndef QUEUE_BUFFERED_IO
 int 
 LogBeginTransaction::ReadBody( int fd )
 {
@@ -851,6 +975,7 @@ LogBeginTransaction::ReadBody( int fd )
 	return( 1 );
 }
 //MD: Using file pointer
+#else
 int 
 LogBeginTransaction::ReadBody(FILE* fp)
 {
@@ -862,7 +987,9 @@ LogBeginTransaction::ReadBody(FILE* fp)
 	return( 1 );
 }
 
+#endif
 
+#ifndef QUEUE_BUFFERED_IO
 int 
 LogEndTransaction::ReadBody( int fd )
 {
@@ -874,6 +1001,7 @@ LogEndTransaction::ReadBody( int fd )
 	return( 1 );
 }
 
+#else
 //MD: using file pointer
 int 
 LogEndTransaction::ReadBody( FILE* fp )
@@ -885,8 +1013,9 @@ LogEndTransaction::ReadBody( FILE* fp )
 	}
 	return( 1 );
 }
+#endif
 
-
+#ifndef QUEUE_BUFFERED_IO
 int
 LogDeleteAttribute::ReadBody(int fd)
 {
@@ -905,7 +1034,7 @@ LogDeleteAttribute::ReadBody(int fd)
 	}
 	return rval + rval1;
 }
-
+#else
 //MD: using file pointer
 int
 LogDeleteAttribute::ReadBody(FILE* fp)
@@ -925,8 +1054,9 @@ LogDeleteAttribute::ReadBody(FILE* fp)
 	}
 	return rval + rval1;
 }
+#endif
 
-
+#ifndef QUEUE_BUFFERED_IO
 LogRecord	*
 InstantiateLogEntry(int fd, int type)
 {
@@ -999,6 +1129,7 @@ InstantiateLogEntry(int fd, int type)
 		// record was good
 	return log_rec;
 }
+#else
 
 LogRecord	*
 InstantiateLogEntry(FILE* fp, int type)
@@ -1074,3 +1205,4 @@ InstantiateLogEntry(FILE* fp, int type)
 		// record was good
 	return log_rec;
 }
+#endif

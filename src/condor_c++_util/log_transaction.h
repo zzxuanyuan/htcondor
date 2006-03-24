@@ -67,8 +67,11 @@ private:
 
 class Transaction {
 public:
-	void Commit(int fd, void *data_structure);
-	void Commit(FILE* fp, void *data_structure);
+#ifndef QUEUE_BUFFERED_IO 
+        void Commit(int fd, void *data_structure);
+#else	
+        void Commit(FILE* fp, void *data_structure);
+#endif	
 	void AppendLog(LogRecord *);
 	LogRecord *FirstEntry() { return op_log.FirstEntry(); }
 	LogRecord *NextEntry(LogRecord *ptr) { return op_log.NextEntry(ptr); }

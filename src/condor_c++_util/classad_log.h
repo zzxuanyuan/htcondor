@@ -81,11 +81,14 @@ public:
 
 	ClassAdHashTable table;
 private:
-	void LogState(int fd);
-	void LogState(FILE* fp);
-	char log_filename[_POSIX_PATH_MAX];
+#ifndef QUEUE_BUFFERED_IO
 	int log_fd;
+	void LogState(int fd);
+#else
+	void LogState(FILE* fp);
 	FILE* log_fp;
+#endif
+	char log_filename[_POSIX_PATH_MAX];
 	Transaction *active_transaction;
 	bool EmptyTransaction;
 };
@@ -100,11 +103,13 @@ public:
 	char *get_targettype() { return strdup(targettype); }
 
 private:
+#ifndef QUEUE_BUFFERED_IO
 	virtual int WriteBody(int fd);
-	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(int fd);
+#else
+	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(FILE* fp);
-
+#endif
 	char *key;
 	char *mytype;
 	char *targettype;
@@ -119,10 +124,13 @@ public:
 	char *get_key() { return strdup(key); }
 
 private:
+#ifndef QUEUE_BUFFERED_IO
 	virtual int WriteBody(int fd) { return write(fd, key, strlen(key)); }
-	virtual int WriteBody(FILE* fp) { return fwrite(key, sizeof(char), strlen(key), fp);}
 	virtual int ReadBody(int fd);
+#else
+	virtual int WriteBody(FILE* fp) { return fwrite(key, sizeof(char), strlen(key), fp);}
 	virtual int ReadBody(FILE* fp);
+#endif
 	char *key;
 };
 
@@ -137,10 +145,13 @@ public:
 	char *get_value() { return strdup(value); }
 
 private:
+#ifndef QUEUE_BUFFERED_IO
 	virtual int WriteBody(int fd);
-	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(int fd);
+#else
+	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(FILE* fp);
+#endif
 	char *key;
 	char *name;
 	char *value;
@@ -155,10 +166,13 @@ public:
 	char *get_name() { return strdup(name); }
 
 private:
+#ifndef QUEUE_BUFFERED_IO
 	virtual int WriteBody(int fd);
-	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(int fd);
+#else
+	virtual int WriteBody(FILE* fp);
 	virtual int ReadBody(FILE* fp);
+#endif
 	char *key;
 	char *name;
 };
@@ -168,10 +182,13 @@ public:
 	LogBeginTransaction() { op_type = CondorLogOp_BeginTransaction; }
 	virtual ~LogBeginTransaction(){};
 private:
+#ifndef QUEUE_BUFFERED_IO
 	virtual int WriteBody(int fd) { return 0; }
-	virtual int WriteBody(FILE* fp) {return 0;}
 	virtual int ReadBody(int fd);
+#else
+	virtual int WriteBody(FILE* fp) {return 0;}
 	virtual int ReadBody(FILE* fp);
+#endif
 };
 
 class LogEndTransaction : public LogRecord {
@@ -179,12 +196,19 @@ public:
 	LogEndTransaction() { op_type = CondorLogOp_EndTransaction; }
 	virtual ~LogEndTransaction(){};
 private:
+#ifndef QUEUE_BUFFERED_IO
 	virtual int WriteBody(int fd) { return 0; }
-	virtual int WriteBody(FILE* fp) {return 0;}
 	virtual int ReadBody(int fd);
+#else
+	virtual int WriteBody(FILE* fp) {return 0;}
 	virtual int ReadBody(FILE* fp);
+#endif
 };
 
+#ifndef QUEUE_BUFFERED_IO
 LogRecord *InstantiateLogEntry(int fd, int type);
+#else
 LogRecord *InstantiateLogEntry(FILE* fp, int type);
+#endif
+
 #endif
