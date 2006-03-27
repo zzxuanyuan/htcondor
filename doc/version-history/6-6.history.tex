@@ -16,7 +16,19 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item Contains only a couple bug fixes.
+\item A security team at UW-Madison is conducting an onging security
+audit of the Condor system and has identified a few important
+vulnerabilities.
+Condor versions 6.6.11 and 6.7.18 fix these security problems and
+other bugs.
+There have been no reported exploits, but all sites are urged to
+upgrade immediately.
+
+The Condor Team will publish detailed reports of these vulnerabilities
+on 2006-04-24, 4 weeks from the date when the fixes were first
+released (2006-03-27).
+This will allow all sites time to upgrade before enough information to
+exploit these bugs is widely available.
 
 \end{itemize}
 
@@ -28,19 +40,37 @@ The details of each version are described below.
 %
 %\end{itemize}
 
-\noindent Bugs fixed that are included in version 6.7.19:
+\noindent Security Bugs Fixed:
+
+\begin{itemize}
+
+\item Bugs in previous versions of Condor could allow any user who can
+submit jobs on a machine to gain access to the ``condor'' account
+(or whatever non-privileged user the Condor daemons are running as).
+This bug can not be exploited remotely, only by users already logged
+onto a submit machine in the Condor pool.
+
+\item The security of the ``\condor{config\_val} -set'' feature was
+found to be insufficient, so this feature is now disabled by default.
+There are new configuration settings to enable this feature in a
+secure manner.
+
+Please read the descriptions of \Macro{ENABLE\_RUNTIME\_CONFIG},
+\Macro{ENABLE\_PERSISTENT\_CONFIG} and \Macro{PERSISTENT\_CONFIG\_DIR}
+in the example configuration file shipped with the latest Condor
+releases, or in section~\ref{param:EnableRuntimeConfig} on
+page~\pageref{param:EnableRuntimeConfig}. 
+
+\end{itemize}
+
+
+\noindent Other bugs fixed that are included in version 6.7.18:
 
 \begin{itemize}
 
 % gnats PR #646
 \item Fixed a bug which could cause the \Condor{collector} to crash
   when it receives certain types of malformed ads.
-
-\end{itemize}
-
-\noindent Bugs fixed that are included in version 6.7.18:
-
-\begin{itemize}
 
 \item Fixed a bug which caused the \Condor{collector} incorrectly
   handle ads in which the \AdAttr{UpdateInterval} attribute is set.
