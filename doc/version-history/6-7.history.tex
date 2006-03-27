@@ -138,6 +138,10 @@ storing a password to a remote host.
 
 \item Support for DRMAA on Windows has been added.
 
+\item Kerberos support has been upgraded to use version 1.4.3 of the
+Kerberos library.  This adds support for Kerberos as an authentication
+method on Windows.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
@@ -294,6 +298,9 @@ sanity failure'' entries would appear in daemon logs on Windows.
 
 \item The \Opt{-submitter} option to \Condor{q} has been fixed to
 handle submitters in accounting groups.
+
+\item The \Condor{shadow} now correctly handles the case where
+RESERVED\_SWAP is set to 0.
 
 \end{itemize}
 
