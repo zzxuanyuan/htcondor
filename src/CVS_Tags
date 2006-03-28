@@ -1,3 +1,8 @@
+03/28/06 V6_7_18-merge-1
+  Merging V6_7_18 changes to V6_7-branch.  This includes Dan's fixes for
+  argument string merging when mixing argument syntaxes.
+  This also includes Nick's changes for the soap collector.
+
 03/21/06 V6_6-merge-55
   The state of the V6_6-branch for a merge into V6_7-branch.  The only
   change is the fix to the collector to look at "ClassAdLifetime"
