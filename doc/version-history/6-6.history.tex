@@ -186,7 +186,12 @@ that version.
 
 \begin{itemize}
 
-\item None.
+\item A bug has been found which can cause a \Condor{collector} to
+  crash on some platforms (notably, Solaris).  This can happen if the
+  \Condor{collector} receives a Collector ad in which the
+  \AdAttr{Machine} attribute is missing, or a Storage ad in which the
+  \AdAttr{Name} is missing.  There is no security threat involved in
+  either case.
 
 \end{itemize}
 
