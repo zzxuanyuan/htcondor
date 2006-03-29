@@ -1,3 +1,8 @@
+03/29/06 V6_6_11-merge-1
+  The state of the V6_6_11-branch for a merge into V6_6-branch.  The only
+  change is the fix to the collector to not crash on ads with invalid
+  Machine and other attributes used in hashkey generation.
+
 03/21/06 V6_6-merge-55
   The state of the V6_6-branch for a merge into V6_7-branch.  The only
   change is the fix to the collector to look at "ClassAdLifetime"
