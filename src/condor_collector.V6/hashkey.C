@@ -78,10 +78,13 @@ bool lookup( ClassAd *ad,
 	bool	rval = true;
 
     if ( !ad->LookupString( attrname, buf, sizeof(buf) ) ) {
-		if ( warn ) {
+		if ( warn && attrold ) {
 			dprintf(D_FULLDEBUG,
 					"Warning: No '%s' attribute; trying '%s'\n",
 					attrname, attrold );
+		} else if ( warn ) {
+			dprintf(D_FULLDEBUG,
+					"Warning: No '%s' attribute; giving up\n", attrname );
 		}
 
 		if ( !attrold ) {
