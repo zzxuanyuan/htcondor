@@ -61,350 +61,114 @@
 //         the AttrLists in "list".
 //
 //******************************************************************************
-
 #ifndef _AST_H_
 #define _AST_H_
+
+#define WANT_NAMESPACES
+#include "classad_distribution.h"
 
 #include "condor_exprtype.h"
 #include "condor_astbase.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// Class EvalResult is passed to ExprTree::EvalTree() to buffer the result of
-// the evaluation. The result can be integer, floating point, string, boolean,
-// null or error type. The type field specifies the type of the result.
-////////////////////////////////////////////////////////////////////////////////
 class EvalResult
 {
-    public :
-
-    	EvalResult() { type = LX_UNDEFINED; }
+ public:
+    EvalResult() { type = LX_UNDEFINED; }
   	~EvalResult() { if(type == LX_STRING) delete [] s; }
-
 	void fPrintResult(FILE *); // for debugging
-
    	union
-    	{
-   	    int i;
+	{
+		int i;
    	    float f;
    	    char* s;
-        };
+	};
   	LexemeType type;
 };
 
-class Variable : public VariableBase
+class Variable : public ExprTree
 {
-	public :
-  
-		Variable(char*name) : VariableBase(name) {}
-		virtual int         CalcPrintToStr(void);
-		virtual void        PrintToStr(char*);
-		virtual ExprTree*     DeepCopy(void) const;
-
-	protected:
-
-		virtual int         _EvalTree(const class AttrList*, EvalResult*);
-		virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-		virtual int         _EvalTreeRecursive(char *name, const AttrList*, const AttrList*, EvalResult*);
-		virtual int         _EvalTreeSimple(char *name, const AttrList*, const AttrList*, EvalResult*);
-};
-
-class Integer : public IntegerBase
-{
-    public :
-
-  	Integer(int i) : IntegerBase(i) {}
-
-	virtual	int	    operator >(ExprTree&);
-	virtual	int	    operator >=(ExprTree&);
-	virtual	int	    operator <(ExprTree&);
-	virtual	int	    operator <=(ExprTree&);
- 
-	virtual int     CalcPrintToStr(void);
-    virtual void    PrintToStr(char*);
-	virtual ExprTree*  DeepCopy(void) const;
-
-	protected:
-
-  	virtual int     _EvalTree(const AttrList*, EvalResult*);
-    virtual int     _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-};
-
-
-class Float: public FloatBase
-{
-    public :
-
-  	Float(float f) : FloatBase(f) {}
-
-	virtual	int	    operator >(ExprTree&);
-	virtual	int	    operator >=(ExprTree&);
-	virtual	int	    operator <(ExprTree&);
-	virtual	int	    operator <=(ExprTree&);
-	virtual int     CalcPrintToStr(void);
-    virtual void    PrintToStr(char*);
-	virtual ExprTree*  DeepCopy(void) const;
-
-	protected:
-
-  	virtual int     _EvalTree(const AttrList*, EvalResult*);
-    virtual int     _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-};
-
-
-class String : public StringBase
-{
-    public :
-
-  	String(char* s) : StringBase(s) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree*     DeepCopy(void) const;
-
-	protected:
-
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-};
-
-
-class ISOTime : public ISOTimeBase
-{
-    public :
-
-  	ISOTime(char* s) : ISOTimeBase(s) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree*     DeepCopy(void) const;
-
-	protected:
-
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-};
-
-class ClassadBoolean : public BooleanBase
-{
-    public :
-
-  	ClassadBoolean(int b) : BooleanBase(b) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
+ public:
+	Variable(char*);
+	~Variable( );
+	virtual void        PrintToNewStr(char**);
+	virtual int 		CalcPrintToStr( void );
+	virtual void        PrintToStr(char*);
 	virtual ExprTree*   DeepCopy(void) const;
+	char*	const	    Name() { return name; }
+ protected:
+	virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
 
-	protected:
-
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+#ifdef USE_STRING_SPACE_IN_CLASSADS
+	int                 stringSpaceIndex;
+#endif 
+	char*               name;
 };
 
-
-class Undefined : public UndefinedBase
+class AssignOp : public ExprTree
 {
-    public :
-
-	Undefined() : UndefinedBase() {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree*   DeepCopy(void) const;
-
-	protected:
-
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-};
-
-class Error : public ErrorBase
-{
-    public :
-
-	Error() : ErrorBase() {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree*   DeepCopy(void) const;
-
-	protected:
-
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-};
-
-class BinaryOp: public BinaryOpBase
-{
-    public :
-};
-
-class AddOp: public AddOpBase
-{
-    public :
-  	AddOp(ExprTree* l, ExprTree* r) : AddOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
+ public:
+	AssignOp(ExprTree*, ExprTree*);
+	AssignOp(const char *, classad::ExprTree *);
+	~AssignOp( );
+	virtual void        PrintToNewStr(char**);
+	virtual int 		CalcPrintToStr( void );
     virtual void        PrintToStr(char*);
 	virtual ExprTree    *DeepCopy(void) const;
+	virtual ExprTree*   LArg()   { return lArg; }
+	virtual ExprTree*   RArg()   { return rArg; }
+ protected:
+	virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+	ExprTree* 	        lArg;
+	ExprTree* 	        rArg;
 };
 
-
-class SubOp: public SubOpBase
+class OtherExpr : public ExprTree
 {
-    public :
-  	SubOp(ExprTree* l, ExprTree* r) : SubOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
+ public:
+	OtherExpr( ) { expr == NULL; }
+	OtherExpr( classad::ExprTree* );
+	~OtherExpr( );
+	virtual void        PrintToNewStr(char**);
+	int 				CalcPrintToStr( void );
     virtual void        PrintToStr(char*);
 	virtual ExprTree    *DeepCopy(void) const;
+	void				ReplaceExpr( classad::ExprTree* );
+
+	friend class AttrList;
+	friend class AssignOp;
+ protected:
+	virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+	classad::ExprTree* expr;
 };
 
-
-class MultOp: public MultOpBase
+class String : public OtherExpr
 {
-    public :
-  	MultOp(ExprTree* l, ExprTree* r) : MultOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+ public:
+	String( ) { }
+	char * const		Value( );
 };
 
-
-class DivOp: public DivOpBase
+class Integer : public OtherExpr
 {
-    public :
-  	DivOp(ExprTree* l, ExprTree* r) : DivOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+ public:
+	Integer( ) { }
+	int					Value( );
 };
 
-
-class MetaEqOp: public MetaEqOpBase
+class Float : public OtherExpr
 {
-    public :
-  	MetaEqOp(ExprTree* l, ExprTree* r) : MetaEqOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+ public:
+	Float( ) { }
+	float				Value( );
 };
 
-
-class MetaNeqOp: public MetaNeqOpBase
+class ClassadBoolean : public OtherExpr
 {
-    public :
-  	MetaNeqOp(ExprTree* l, ExprTree* r) : MetaNeqOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+ public:
+	ClassadBoolean( ) { }
+	int					Value( );
 };
 
-class EqOp: public EqOpBase
-{
-    public :
-  	EqOp(ExprTree* l, ExprTree* r) : EqOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-
-class NeqOp: public NeqOpBase
-{
-    public :
-  	NeqOp(ExprTree* l, ExprTree* r) : NeqOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-
-class GtOp: public GtOpBase
-{
-    public :
-  	GtOp(ExprTree* l, ExprTree* r) : GtOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-
-class GeOp: public GeOpBase
-{
-    public :
-  	GeOp(ExprTree* l, ExprTree* r) : GeOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-
-class LtOp: public LtOpBase
-{
-    public :
-  	LtOp(ExprTree* l, ExprTree* r) : LtOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-
-class LeOp: public LeOpBase
-{
-    public :
-  	LeOp(ExprTree* l, ExprTree* r) : LeOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-class AndOp: public AndOpBase
-{
-    public :
-  	AndOp(ExprTree* l, ExprTree* r) : AndOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-
-class OrOp : public OrOpBase
-{
-    public :
-  	OrOp(ExprTree* l, ExprTree* r) : OrOpBase(l, r) {}
-    virtual void        PrintToStr(char*);
-	virtual int         CalcPrintToStr(void);
-	virtual ExprTree    *DeepCopy(void) const;
-};
-
-class AssignOp: public AssignOpBase
-{
-    public :
-  	AssignOp(ExprTree* l, ExprTree* r) : AssignOpBase(l, r) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-	friend		    class AttrList;
-};
-
-class Function: public FunctionBase
-{
-    public:
-	Function(char*name) : FunctionBase(name) {}
-	virtual int         CalcPrintToStr(void);
-    virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-
-  	virtual int     _EvalTree(const AttrList*, EvalResult*);
-    virtual int     _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-
-	int FunctionScript(int number_of_arguments, EvalResult *arguments, 
-					   EvalResult *result);
-#ifdef CLASSAD_FUNCTIONS
-	int FunctionSharedLibrary(int number_of_arguments, EvalResult *arguments, 
-					   EvalResult *result);
-#endif
-	int FunctionGetTime(int number_of_arguments, EvalResult *arguments, 
-						EvalResult *result);
-    int FunctionRandom(int number_of_arguments, EvalResult *arguments, 
-						EvalResult *result);
-    int FunctionClassadDebugFunction(int number_of_args, EvalResult *evaluated_args, 
-                                     EvalResult *result);
-
-};
 
 extern	int		Parse(const char*, ExprTree*&);
 

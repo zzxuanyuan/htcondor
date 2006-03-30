@@ -34,32 +34,22 @@
 #include "condor_exprtype.h"
 #include "condor_ast.h"
 #include "condor_attrlist.h"
+#include "condor_debug.h"
 
 #define		CLASSAD_MAX_ADTYPE			50
 
 //for the shipping functions -- added by Lei Cao
 #include "stream.h"
 
-struct AdType                   // type of a ClassAd.
-{
-    int		number;             // type number, internal thing.
-    char*	name;               // type name.
-    
-    AdType(const char * = NULL);      // constructor.
-    ~AdType();                  // destructor.
-};
-
-
 class ClassAd : public AttrList
 {
     public :
 
 		ClassAd();								// No associated AttrList list
-//		ClassAd(ProcObj*);						// create from a proc object
-//		ClassAd(const CONTEXT*);				// create from a CONTEXT
         ClassAd(FILE*,char*,int&,int&,int&);	// Constructor, read from file.
         ClassAd(char *, char);					// Constructor, from string.
 		ClassAd(const ClassAd&);				// copy constructor
+		ClassAd(const classad::ClassAd&);	 	// copy from new ClassAd
         virtual ~ClassAd();						// destructor
 
 		ClassAd& operator=(const ClassAd& other);
@@ -69,29 +59,8 @@ class ClassAd : public AttrList
         const char*	GetMyTypeName();		// my type name returned.
         void 		SetTargetTypeName(const char *);// target type name set.
         const char*	GetTargetTypeName();	// target type name returned.
-        int			GetMyTypeNumber();			// my type number returned.
-        int			GetTargetTypeNumber();		// target type number returned.
-
-		// Requirement operations
-#if 0
-		int			SetRequirements(char *);
-		void        SetRequirements(ExprTree *);
-#endif
-		ExprTree	*GetRequirements(void);
-
-		// Ranking operations
-#if 0
-		int 		SetRankExpr(char *);
-		void		SetRankExpr(ExprTree *);
-#endif
-		ExprTree	*GetRankExpr(void);
-
-		// Sequence numbers
-		void		SetSequenceNumber(int);
-		int			GetSequenceNumber(void);
 
 		// Matching operations
-        int			IsAMatch(class ClassAd*);			  // tests symmetric match
 		friend bool operator==(class ClassAd&,class ClassAd&);// same as symmetric match
 		friend bool operator>=(class ClassAd&,class ClassAd&);// lhs satisfies rhs
 		friend bool operator<=(class ClassAd&,class ClassAd&);// rhs satisifes lhs
@@ -100,27 +69,13 @@ class ClassAd : public AttrList
         int put(Stream& s);
 		int initFromStream(Stream& s);
 
-#if defined(USE_XDR)
-		// xdr shipping
-		int put (XDR *);
-		int get (XDR *);
-#endif
-
-		// misc
-		class ClassAd*	FindNext();
-        virtual int	fPrint(FILE*);				// print the AttrList to a file
-		int         sPrint(MyString &output);   
-		void		dPrint( int );				// dprintf to given dprintf level
-		void		clear( void );				// clear out all attributes
+		void		dPrint( int level ) {AttrList::dPrint( level );}
+		void		clear( void ) {AttrList::clear( );}
 
 		// poor man's update function until ClassAd Update Protocol  --RR
-		 void ExchangeExpressions (class ClassAd *);
+		void ExchangeExpressions (class ClassAd *);
 
-    private :
-
-		AdType*		myType;						// my type field.
-        AdType*		targetType;					// target type field.
-		// (sequence number is stored in attrlist)
+		friend class ClassAdXMLUnparser;
 };
 
 typedef int (*SortFunctionType)(AttrList*,AttrList*,void*);
@@ -135,7 +90,7 @@ class ClassAdList : public AttrListList
 	int			Length() { return AttrListList::MyLength(); }
 	void		Insert(ClassAd* ca) { AttrListList::Insert((AttrList*)ca); }
 	int			Delete(ClassAd* ca){return AttrListList::Delete((AttrList*)ca);}
-	ClassAd*	Lookup(const char* name);
+//	ClassAd*	Lookup(const char* name);
 
 	// User supplied function should define the "<" relation and the list
 	// is sorted in ascending order.  User supplied function should
@@ -147,7 +102,6 @@ class ClassAdList : public AttrListList
 	int         Count( ExprTree *constraint );
 
   private:
-	void	Sort(SortFunctionType,void*,AttrListAbstract*&);
 	static int SortCompare(const void*, const void*);
 };
 

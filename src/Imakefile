@@ -246,7 +246,7 @@ condor_object_target(syscall_lib)
 condor_object_target(netman)
 #endif
 condor_object_target(io)
-condor_object_target(classad)
+object_target(classad,classad_conversion)
 condor_object_target(daemon_core.V6)
 condor_object_target(daemon_client)
 #if WANT_PVM

@@ -73,21 +73,15 @@ QUILL_OBJS =
 	to remedy the situation. If you're just reading log files, then you don't
 	need that functionality anyway. */
 CLASSAD_OBJ = \
-	../condor_classad/ast.o \
-	../condor_classad/astbase.o \
-	../condor_classad/attrlist.o \
-	../condor_classad/buildtable.o \
-	../condor_classad/classad.o \
-	../condor_classad/classad_instantiate.o \
-	../condor_classad/classifiedjobs.o \
-	../condor_classad/environment.o \
-	../condor_classad/evaluateOperators.o \
-	../condor_classad/operators.o \
-	../condor_classad/parser.o \
-	../condor_classad/scanner.o \
-	../condor_classad/value.o \
-	../condor_classad/xml_classads.o \
-	../condor_classad/registration.o \
+	../classad_conversion/classad_util.o \
+	../classad_conversion/condorUtil.o \
+	../classad_conversion/new_classads.o \
+	../classad_conversion/oldClassAd_instantiate.o \
+	../classad_conversion/oldClassAd.o \
+	../classad_conversion/oldExprTree.o \
+	../classad_conversion/oldParser.o \
+	../classad_conversion/oldXMLClassAds.o \
+	../classad_conversion/scanner.o \
 	../condor_util_lib/condor_snutils.o \
 	stringSpace.o \
 	string_list.o \
@@ -185,12 +179,12 @@ c_plus_target(test_condor_crontab,test_condor_crontab.o,$(LIB))
 /* this needs to be built more like a user would use the library, so it */
 /* can't have all of our usual cflags... */
 test_libcondorapi.o: test_libcondorapi.C
-	$(CPlusPlus) -I../h -I../condor_includes -c test_libcondorapi.C
+	$(CPlusPlus) -I../h -I../condor_includes New_classads_includes -c test_libcondorapi.C
 
-c_plus_nowrap_target(test_libcondorapi,test_libcondorapi.o,libcondorapi.a)
+c_plus_nowrap_target(test_libcondorapi,test_libcondorapi.o,libcondorapi.a New_classads_lib)
 
 #if HAVE_CC_SHARED_FLAG
-c_plus_nowrap_target(test_libcondorapi_shared,test_libcondorapi.o,libcondorapi.so)
+c_plus_nowrap_target(test_libcondorapi_shared,test_libcondorapi.o,libcondorapi.so New_classads_lib )
 #endif
 
 c_plus_target(test_check_events,test_check_events.o,$(LIB) New_classads_lib)

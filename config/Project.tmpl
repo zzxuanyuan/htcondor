@@ -483,7 +483,7 @@ GPP_VERS_FLAGS =
 #endif
 GPP_SHARED_FLAGS = -fno-implicit-templates $(GPP_VERS_FLAGS)
 
-STD_C_FLAGS = $(VENDOR_C_FLAGS) $(DEBUG_FLAG) $(CC_PIC_FLAG) PlatformFlags PlatformGccFlags $(CCOMPILER_ID) $(GSOAP_CFLAGS) $(PCRE_FLAGS) $(COREDUMPER_FLAGS)
+STD_C_FLAGS = $(VENDOR_C_FLAGS) $(DEBUG_FLAG) $(CC_PIC_FLAG) PlatformFlags PlatformGccFlags $(CCOMPILER_ID) $(GSOAP_CFLAGS) $(PCRE_FLAGS) $(COREDUMPER_FLAGS) -I$(NEW_CLASSADS_INC)
 STD_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_SHARED_FLAGS) PlatformGppFlags
 /* We basically want INST_C_PLUS_FLAGS to be equal to STD_C_PLUS_FLAGS,
 	but make sure there isn't -fno-implicit-templates in it
@@ -501,7 +501,7 @@ TESTSUITE_FLAGS_F77 = -g $(VENDOR_C_FLAGS) VendorFTestFlags PlatformFlags
 
 CKPT_SERV_LIB = ../condor_ckpt_server/ckpt_server_api.a
 QMGMT_LIB = ../condor_schedd.V6/libqmgmt.a
-CLASSAD_LIB = ../condor_classad/libclassad.a
+CLASSAD_LIB = ../classad_conversion/libclassad.a
 IO_LIB = ../condor_io/libcedar.a
 CUTIL_LIB = ../condor_util_lib/util_lib.a
 CPLUS_LIB = ../condor_c++_util/cplus_lib.a
@@ -551,4 +551,5 @@ STD_LIBS = \
   $(SECURITY_LIB) \
   $(PCRE_LIB) \
   $(GCB_LIB) \
-  $(POST_EXT_LIBS)
+  $(POST_EXT_LIBS) \
+  -L$(NEW_CLASSADS_LIB) -lclassad_ns
