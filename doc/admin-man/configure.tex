@@ -327,6 +327,7 @@ the library routine which parses the configuration files.
   \item \verb@GRIDMANAGER@
   \item \verb@TOOL@
   \item \verb@HAD@
+  \item \verb@REPLICATION@
   \item \verb@QUILL@
     \label{list:subsystem names}
   \end{itemize}
@@ -5226,7 +5227,7 @@ These macros affect the high availability operation of Condor.
 
 \begin{description}
 \item[\Macro{MASTER\_HA\_LIST}] \label{param:MasterHAList} Similar to
-  \Macro{DAEMON\_LIST}, this macro defines a list of daemons that
+  \MacroNI{DAEMON\_LIST}, this macro defines a list of daemons that
   the \Condor{master} starts and keeps its watchful eyes on.
   However, the \MacroNI{MASTER\_HA\_LIST} daemons are run in a
   \emph{High Availability} mode.
@@ -5272,13 +5273,13 @@ These macros affect the high availability operation of Condor.
 
   There is no default value for \MacroNI{HA\_LOCK\_URL}.
 
-\item[\Macro{HA\_daemon\_LOCK\_URL}]
-  \label{param:HAdaemonLockURL} This macro controls the 
-  \emph{High Availability} lock URL for a specific \Expr{daemon}
+\item[\Macro{HA\_<SUBSYS>\_LOCK\_URL}]
+  \label{param:HASubsysLockURL} This macro controls the 
+  \emph{High Availability} lock URL for a specific subsystem
   as specified in the configuration variable name,
   and it overrides the system-wide lock URL specified by
-  \MacroNI{HA\_LOCK\_URL}.  If not defined for each daemon,
-  \MacroNI{HA\_daemon\_LOCK\_URL} is ignored, and the value of
+  \MacroNI{HA\_LOCK\_URL}.  If not defined for each subsystem,
+  \MacroNI{HA\_<SUBSYS>\_LOCK\_URL} is ignored, and the value of
   \MacroNI{HA\_LOCK\_URL} is used.
 
 \item[\Macro{HA\_LOCK\_HOLD\_TIME}] \label{param:HALockHoldTime}
@@ -5288,21 +5289,21 @@ These macros affect the high availability operation of Condor.
   Upon gaining the shared lock,
   the \Condor{master} will hold the lock for this number of seconds.
   Additionally, the \Condor{master} will periodically renew
-  each lock as long as the \Condor{master} and the daemon is running.
+  each lock as long as the \Condor{master} and the daemon are running.
   When the daemon dies, or the \Condor{master} exists, the
   \Condor{master} will immediately release the lock(s) it holds.
 
   \MacroNI{HA\_LOCK\_HOLD\_TIME} defaults to 3600 seconds (one hour).
 
-\item[\Macro{HA\_daemon\_LOCK\_HOLD\_TIME}]
-  \label{param:HAdaemonLockHoldTime}
+\item[\Macro{HA\_<SUBSYS>\_LOCK\_HOLD\_TIME}]
+  \label{param:HASubsysLockHoldTime}
   This macro controls the \emph{High Availability} lock
-  hold time for a specific \Expr{daemon}
+  hold time for a specific subsystem
   as specified in the configuration variable name,
   and it overrides the system wide poll period specified by
   \MacroNI{HA\_LOCK\_HOLD\_TIME}.
-  If not defined for each daemon,
-  \MacroNI{HA\_daemon\_LOCK\_HOLD\_TIME} is ignored,
+  If not defined for each subsystem,
+  \MacroNI{HA\_<SUBSYS>\_LOCK\_HOLD\_TIME} is ignored,
   and the value of \MacroNI{HA\_LOCK\_HOLD\_TIME} is used.
 
 \item[\Macro{HA\_POLL\_PERIOD}] \label{param:HALockPollPeriod} 
@@ -5315,15 +5316,15 @@ These macros affect the high availability operation of Condor.
 
   \MacroNI{HA\_POLL\_PERIOD} defaults to 300 seconds (five minutes).
 
-\item[\Macro{HA\_daemon\_POLL\_PERIOD}]
-  \label{param:HALockPolldaemonPeriod}
-  This macro controls the \emph{High Availability} pool period
-  for a specific \Expr{daemon}
+\item[\Macro{HA\_<SUBSYS>\_POLL\_PERIOD}]
+  \label{param:HALockPollSubsysPeriod}
+  This macro controls the \emph{High Availability} poll period
+  for a specific subsystem
   as specified in the configuration variable name,
   and it overrides the system wide poll period specified by
   \MacroNI{HA\_POLL\_PERIOD}.
-  If not defined for each daemon,
-  \MacroNI{HA\_daemon\_POLL\_PERIOD} is ignored,
+  If not defined for each subsystem,
+  \MacroNI{HA\_<SUBSYS>\_POLL\_PERIOD} is ignored,
   and the value of \MacroNI{HA\_POLL\_PERIOD} is used.
 
 \item[\Macro{MASTER\_<SUBSYS>\_CONTROLLER}]
@@ -5409,8 +5410,8 @@ MASTER_NEGOTIATOR_CONTROLLER = HAD
   \begin{verbatim}
    -p $(HAD_PORT_NUMBER)
   \end{verbatim}
-  where \MacroNI{HAD\_PORT\_NUMBER} is defined with the
-  desired port number.
+  where \MacroNI{HAD\_PORT\_NUMBER} is a helper configuration variable
+  defined with the desired port number.
   Note that this port number must be the same value here as
   used in \MacroNI{HAD\_LIST}.
   There is no default value.
@@ -5440,7 +5441,102 @@ MASTER_NEGOTIATOR_CONTROLLER = HAD
 
 \item[\Macro{HAD\_LOG}]
   \label{param:HADLog}
-  Path to the log file.
+  Full path and file name of the log file.
+  There is no default value.
+
+\item[\Macro{REPLICATION\_LIST}]
+  \label{param:ReplicationList}
+  A comma-separated list of all \Condor{replication} daemons
+  in the form \Expr{IP:port} or \Expr{hostname:port}.
+  Each central manager machine that runs the \Condor{had} daemon
+  should appear in this list.
+  All potential central manager machines must be configured with
+  an identical \MacroNI{REPLICATION\_LIST}.
+
+\item[\Macro{STATE\_FILE}]
+  \label{param:StateFile}
+  A full path and file name of the file protected by the replication
+  mechanism.
+  When not defined, the default path and file used is
+  \begin{verbatim}
+  $(SPOOL)/Accountantnew.log
+  \end{verbatim}
+
+\item[\Macro{REPLICATION\_INTERVAL}]
+  \label{param:ReplicationInterval}
+  Sets how often the \Condor{replication} daemon initiates its tasks of
+  replicating the \MacroUNI{STATE\_FILE}.
+  It is defined in seconds and defaults to 300 (5 minutes).
+  This is the same as the default \MacroNI{NEGOTIATOR\_INTERVAL}.
+
+\item[\Macro{MAX\_TRANSFER\_LIFETIME}]
+  \label{param:MaxTransferLifetime}
+  A timeout period within which the process that
+  transfers the state file must complete its transfer.
+  The recommended value is
+  \Expr{2 * average size of state file / network rate}.
+  It is defined in seconds and defaults to 300 (5 minutes).
+
+\item[\Macro{NEWLY\_JOINED\_WAITING\_VERSION\_INTERVAL}]
+  \label{param:NewlyJoinedWaitingVersionInterval}
+  DEFINITION NOT YET WRITTEN.
+
+\item[\Macro{HAD\_UPDATE\_INTERVAL}]
+  \label{param:HADUpdateInterval}
+  Like \MacroNI{UPDATE\_INTERVAL},
+  determines how often the \Condor{had} is to send a ClassAd update
+  to the \Condor{collector}.
+  Updates are also sent at each and every change in state.
+  It is defined in seconds and defaults to 300 (5 minutes).
+
+\item[\Macro{HAD\_USE\_REPLICATION}]
+  \label{param:HADUseReplication}
+  A boolean value that defaults to \Expr{False}.
+  When \Expr{True}, the use of \Condor{replication} daemons is enabled.
+
+\item[\Macro{REPLICATION\_ARGS}]
+  \label{param:ReplicationArgs}
+  Command line arguments passed by the \Condor{master} daemon
+  as it invokes the \Condor{replication} daemon.
+  To make high availability work, the \Condor{replication} daemon
+  requires the port number it is to use.
+  This argument is of the form
+  \begin{verbatim}
+  -p $(REPLICATION_PORT_NUMBER)
+  \end{verbatim}
+  where \MacroNI{REPLICATION\_PORT\_NUMBER} is a helper configuration
+  variable defined with the desired port number.
+  Note that this port number must be the same value as
+  used in \MacroNI{REPLICATION\_LIST}.
+  There is no default value.
+
+\item[\Macro{REPLICATION}]
+  \label{param:Replication}
+  The full path and file name of the \Condor{replication} executable.
+  It is normally defined relative to \MacroUNI{SBIN}.
+  There is no default value.
+
+\item[\Macro{MAX\_REPLICATION\_LOG}]
+  \label{param:MaxReplicationLog}
+  Controls the maximum length in bytes to which the \Condor{replication}
+  daemon log will be allowed to grow. It will grow to the specified length,
+  then be saved to a file with the suffix \File{.old}.
+  The \File{.old}  file is overwritten each time the log is saved,
+  thus the maximum space devoted to logging is twice the maximum length
+  of this log file.
+  A value of 0 specifies that this file may grow without bounds.
+  The default is 1 Mbyte.
+
+\item[\Macro{REPLICATION\_DEBUG}]
+  \label{param:ReplicationDebug}
+  Logging level for the \Condor{replication} daemon.
+  See \MacroNI{<SUBSYS>\_DEBUG} for values.
+
+
+\item[\Macro{REPLICATION\_LOG}]
+  \label{param:ReplicationLog}
+  Full path and file name to the log file.
+  There is no default value.
 
 \end{description}
 
