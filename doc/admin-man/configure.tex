@@ -1152,13 +1152,62 @@ on DaemonCore.  There are certain configuration file settings that
 DaemonCore uses which affect all Condor daemons (except the checkpoint
 server, shadow, and starter, none of which use DaemonCore yet).
 \begin{description}
-  
+
 \item[\Macro{HOSTALLOW\Dots}] \label{param:HostAllow} All
   macros that begin with either \Macro{HOSTALLOW} or
   \Macro{HOSTDENY} are settings for Condor's host-based security.
   See section~\ref{sec:Host-Security} on Setting up
   IP/host-based security in Condor for details on these
   macros and how to configure them.
+
+\item[\Macro{ENABLE\_RUNTIME\_CONFIG}]
+  \label{param:EnableRuntimeConfig}
+  The \Condor{config\_val} tool has an option \Opt{-rset} for
+  dynamically setting runtime configuration values (which only effect
+  the in-memory configuration variables).
+  Because of the potential security implications of this feature, by
+  default, Condor daemons will not honor these requests.
+  To use this functionality, Condor administrators must specifically
+  enable it by setting \MacroNI{ENABLE\_RUNTIME\_CONFIG} to TRUE, and
+  specify what configuration variables can be changed using the
+  \MacroNI{SETTABLE\_ATTRS\Dots} family of configuration options
+  (described below).
+  Defaults to FALSE.
+
+\item[\Macro{ENABLE\_PERSISTENT\_CONFIG}]
+  \label{param:EnablePersistentConfig}
+  The \Condor{config\_val} tool has a \Opt{-set} option for
+  dynamically setting persistent configuration values.
+  These values override options in the normal Condor configuration
+  files.
+  Because of the potential security implications of this feature, by
+  default, Condor daemons will not honor these requests.
+  To use this functionality, Condor administrators must specifically
+  enable it by setting \MacroNI{ENABLE\_PERSISTENT\_CONFIG} to TRUE,
+  creating a directory where the Condor daemons will hold these
+  dynamically-generated persistent configuration files (declared using
+  \MacroNI{PERSISTENT\_CONFIG\_DIR}, described below) and specify what
+  configuration variables can be changed using the
+  \MacroNI{SETTABLE\_ATTRS\Dots} family of configuration options
+  (described below).
+  Defaults to FALSE.
+
+\item[\Macro{PERSISTENT\_CONFIG\_DIR}]
+  \label{param:PersistentConfigDir}
+  Directory where daemons should store dynamically-generated
+  persistent configuration files (used to support
+  \Condor{config\_val} \Opt{-set})
+  This directory should \Bold{only} be writable by root, or the user
+  the Condor daemons are running as (if non-root).
+  There is no default, administrators that wish to use this
+  functionality must create this directory and define this setting.
+  This directory must not be shared by multiple Condor installations,
+  though it can be shared by all Condor daemons on the same host.
+  Keep in mind that this directory should not be placed on an NFS
+  mount where ``root-squashing'' is in effect, or else Condor daemons
+  running as root will not be able to write to them.
+  A directory (only writable by root) on the local filesystem is
+  usually the best location for this directory.
 
 \item[\Macro{SETTABLE\_ATTRS\Dots}] \label{param:SettableAttrs} All
   macros that begin with \Macro{SETTABLE\_ATTRS} or
