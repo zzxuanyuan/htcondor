@@ -382,11 +382,11 @@ get_k_vars()
 {
 }
 
-#elif defined(Darwin) || defined(CONDOR_FREEBSD)
+#elif defined(Darwin) || defined(FREEBSD)
 
 #include <sys/resource.h>
 #include <sys/sysctl.h>
-#ifdef CONDOR_FREEBSD
+#ifdef FREEBSD
 #include <vm/vm_param.h>
 #endif
 float

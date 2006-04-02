@@ -71,7 +71,7 @@
 #include <sys/file.h>
 #endif
 
-#if defined(CONDOR_FREEBSD)
+#if defined(FREEBSD)
 #define CONDOR_USE_FLOCK 1 
 #include <sys/file.h>
 #endif

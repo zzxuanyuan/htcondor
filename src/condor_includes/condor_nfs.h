@@ -39,7 +39,7 @@
 #elif !defined(IRIX)
 #	include <rpc/rpc.h>
 
-#if defined(Darwin) || defined(CONDOR_FREEBSD)
+#if defined(Darwin) || defined(FREEBSD)
 #       include <nfs/rpcv2.h>
 #endif
 #	include <nfs/nfs.h>

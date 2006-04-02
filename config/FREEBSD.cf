@@ -1,8 +1,17 @@
 /* FreeBSD specfic configuration file */
-/* Someday we'll probably need architecture in this too */
+/* There's a lot of things we can't include... */
 
 #define IS_CLIPPED              YES
 #define HAS_DYNAMIC_USER_JOBS   NO
 #define HAS_OPENSSL             YES
 #define HAS_GLOBUS              YES
 #define HAS_GSI                 NO
+
+#undef WANT_KERBEROS
+#define WANT_KERBEROS           NO
+
+#undef WANT_PVM
+#define WANT_PVM                NO
+
+#undef HAVE_EXT_GCB
+#define HAVE_EXT_GCB            NO

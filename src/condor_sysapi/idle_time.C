@@ -234,7 +234,7 @@ static char *AltUtmpName = "/etc/utmp";
 #elif defined(LINUX)
 static char *UtmpName = "/var/run/utmp";
 static char *AltUtmpName = "/var/adm/utmp";
-#elif defined(CONDOR_FREEBSD)
+#elif defined(FREEBSD)
 static char *UtmpName = "/var/run/utmp";
 static char *AltUtmpName = "";
 #elif defined(Solaris28) || defined(Solaris29)
@@ -427,7 +427,7 @@ all_pty_idle_time( time_t now )
 
 #ifdef LINUX
 #include <sys/sysmacros.h>  /* needed for major() below */
-#elif defined( OSF1 ) || defined(Darwin) || defined(CONDOR_FREEBSD)
+#elif defined( OSF1 ) || defined(Darwin) || defined(FREEBSD)
 #include <sys/types.h>
 #elif defined( HPUX )
 #include <sys/sysmacros.h>

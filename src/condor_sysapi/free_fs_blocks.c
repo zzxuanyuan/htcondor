@@ -243,7 +243,7 @@ char *filename;
 }
 #endif /* VAX && ULTRIX */
 
-#if defined(LINUX) || defined(AIX) || defined(HPUX) || defined(OSF1) || defined(Solaris) || defined(IRIX) || defined(Darwin) || defined(CONDOR_FREEBSD)
+#if defined(LINUX) || defined(AIX) || defined(HPUX) || defined(OSF1) || defined(Solaris) || defined(IRIX) || defined(Darwin) || defined(FREEBSD)
 
 #include <limits.h>
 

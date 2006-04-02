@@ -1343,7 +1343,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	return PROCAPI_SUCCESS;
 }
 
-#elif defined(CONDOR_FREEBSD)
+#elif defined(FREEBSD)
 
 	struct procstat {
 	char comm[MAXCOMLEN+1];
@@ -2831,7 +2831,7 @@ ProcAPI::getAndRemNextPid () {
    to by pidList, a private data member of ProcAPI.  
  */
 
-#if !defined(Darwin) && !defined(CONDOR_FREEBSD)
+#if !defined(Darwin) && !defined(FREEBSD)
 int
 ProcAPI::buildPidList() {
 
@@ -2945,7 +2945,7 @@ ProcAPI::buildPidList() {
 
 #endif
 
-#ifdef CONDOR_FREEBSD
+#ifdef FREEBSD
 int
 ProcAPI::buildPidList() {
 

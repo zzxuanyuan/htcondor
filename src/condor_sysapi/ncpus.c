@@ -38,7 +38,7 @@
 #include <sys/pstat.h>
 #endif
 
-#if defined(Darwin) || defined(CONDOR_FREEBSD)
+#if defined(Darwin) || defined(FREEBSD)
 #include <sys/sysctl.h>
 #endif
 
@@ -185,7 +185,7 @@ bogomips        : 299.01
 #elif defined(AIX)
 	sysapi_internal_reconfig();
 	return sysconf(_SC_NPROCESSORS_ONLN);
-#elif defined(Darwin) || defined(CONDOR_FREEBSD)
+#elif defined(Darwin) || defined(FREEBSD)
 	int mib[2], maxproc;
 	size_t len;
 	sysapi_internal_reconfig();
