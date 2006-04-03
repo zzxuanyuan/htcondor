@@ -6,3 +6,12 @@
 #define HAS_OPENSSL             YES
 #define HAS_GLOBUS              YES
 #define HAS_GSI                 NO
+
+#undef WANT_KERBEROS
+#define WANT_KERBEROS           NO
+
+#undef WANT_PVM
+#define WANT_PVM                NO
+
+#undef HAVE_EXT_GCB
+#define HAVE_EXT_GCB            NO
