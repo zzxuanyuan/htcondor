@@ -18,7 +18,7 @@
 #include <DARWIN.cf>
 #endif
 
-#if defined ( IS_CONDOR_FREEBSD )
+#if defined ( IS_CONDOR_FREEBSD5 )
 #include <FREEBSD.cf>
 #endif
 

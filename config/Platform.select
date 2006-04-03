@@ -23,6 +23,9 @@
 #elif defined ( IS_CONDOR_FREEBSD )
 #  define PlatformIncludeFile <BSD.cf>
 
+#elif defined ( IS_CONDOR_FREEBSD5 )
+#  define PlatformIncludeFile <BSD.cf>
+
 #elif defined( IS_SOLARIS )
 #  define PlatformIncludeFile <SOLARIS.cf>
 #  if defined( IS_SOLARIS26 )
