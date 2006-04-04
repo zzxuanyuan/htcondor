@@ -377,17 +377,17 @@ elif test $os = "FreeBSD" ; then
    elif test $arch = "x86_64" ; then
       _cv_arch="X86_64"
    fi
-   _cv_sysname="${cv_arch}_freebsd"
+   _cv_sysname="${_cv_arch}_freebsd"
 
    ##
    ## Now figure out the OS Version
    ## Format:  MAJOR.MINOR-TAG
    ## Example: 6.0-RELEASE
    ##
-   _cv_opsys_vers="${_cv_op_sys}"`uname -r | sed -e 's/\([0-9]*\)\..*/\1/'`
-   _cv_kernel_rev=`uname -r | sed -e 's/[0-9]*\.\([0-9]*\).*/\1/'`
+   _cv_opsys_vers=`uname -r | sed -e 's#\([0-9]*\).*#\1#'`
+   _cv_kernel_rev=`uname -r | sed -e 's#[0-9]*\.\([0-9]*\).*#\1#'`
 
-   _cv_op_sys="CONDOR_FREEBSD{$_cv_opsys_vers}"
+   _cv_op_sys=CONDOR_FREEBSD${_cv_opsys_vers}
    _cv_opsys=${_cv_op_sys}
 
 else
