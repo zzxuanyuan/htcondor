@@ -45,7 +45,7 @@
 #include <sys/types.h>     // various types needed.
 #include <time.h>          // use of time() for process age. 
 
-#if (!defined(HPUX) && !defined(Darwin) && !defined(CONDOR_FREEBSD))     // neither of these are in hpux.
+#if (!defined(HPUX) && !defined(Darwin) && !defined(CONDOR_FREEBSD4) && !defined(CONDOR_FREEBSD5) && !defined(CONDOR_FREEBSD6) && !defined(CONDOR_FREEBSD7))     // neither of these are in hpux.
 
 #if defined(Solaris26) || defined(Solaris27) || defined(Solaris28) || defined(Solaris29)
 #include <procfs.h>        // /proc stuff for Solaris 2.6, 2.7, 2.8, 2.9
@@ -68,7 +68,7 @@
 #include <mach/mach_types.h>
 #endif
 
-#ifdef CONDOR_FREEBSD
+#if defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <errno.h>

@@ -27,7 +27,7 @@
 ** Compatibility routine for systems which utilize setresgid() for
 ** this purpose.
 */
-#if !defined(Darwin) && !defined(CONDOR_FREEBSD)
+#if !defined(Darwin) && !defined(CONDOR_FREEBSD4) && !defined(CONDOR_FREEBSD5) && !defined(CONDOR_FREEBSD6) && !defined(CONDOR_FREEBSD7)
 int setegid( int egid )
 {
 #if defined(HPUX)

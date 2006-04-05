@@ -112,7 +112,7 @@ sysapi_set_resource_limits()
 	dprintf( D_ALWAYS, "Setting resource limits not supported!\n" );
 }
 
-#elif defined( IRIX )  || defined( WIN32 ) || defined( AIX ) || defined( Darwin ) || defined( CONDOR_FREEBSD )
+#elif defined( IRIX )  || defined( WIN32 ) || defined( AIX ) || defined( Darwin ) || defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
 
 void
 sysapi_set_resource_limits()

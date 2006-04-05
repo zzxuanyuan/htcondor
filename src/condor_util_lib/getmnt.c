@@ -41,7 +41,7 @@
 
 	/* Nothing needed on ULTRIX systems - getmnt() is native*/
 
-#elif defined(OSF1) || defined(Darwin) || defined(CONDOR_FREEBSD)
+#elif defined(OSF1) || defined(Darwin) || defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
 
 	/* BEGIN OSF1 version - use getmntinfo() */
 

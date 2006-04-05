@@ -68,7 +68,7 @@
 /* for DBL_MAX */
 #include <float.h>
 /* Darwin does not define a SYS_NMLN, but rather calls it __SYS_NAMELEN */
-#ifndef CONDOR_FREEBSD
+#if !defined(CONDOR_FREEBSD4) && !defined(CONDOR_FREEBSD5) && !defined(CONDOR_FREEBSD6) && !defined(CONDOR_FREEBSD7)
 #define SYS_NMLN  _SYS_NAMELEN
 #endif
 /****************************************

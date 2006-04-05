@@ -304,7 +304,7 @@ darwin_getExecPath()
 }
 #endif /* defined(Darwin) */
 
-#ifdef CONDOR_FREEBSD
+#if defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
 char*
 freebsd_getExecPath()
 {
@@ -354,7 +354,7 @@ getExecPath( void )
 	rval= solaris_getExecPath();
 #elif defined( Darwin )
 	rval = darwin_getExecPath();
-#elif defined( CONDOR_FREEBSD )
+#elif defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
 	rval = freebsd_getExecPath();
 #elif defined( WIN32 )
 	rval = win32_getExecPath();
