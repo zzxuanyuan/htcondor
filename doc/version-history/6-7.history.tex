@@ -1212,7 +1212,7 @@ certain cases, the forwarded lease could exceed \Attr{JobLeaseDuration}.
 \item The startd no longer advertises itself as available to run jobs
 when it is in shutdown mode (e.g. waiting for jobs to finish).  This
 was a noticeable problem when using large values for
-\Macro{MaxJobRetirementTime} on multi-VM startds; while waiting for
+\Macro{MAXJOBRETIREMENTTIME} on multi-VM startds; while waiting for
 one of its VMs to finish running a job, the startd would be available
 for matching to jobs, but it would reject them when the schedd tried
 to start them, possibly causing an endless cycle of matching, attempting
