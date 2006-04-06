@@ -601,6 +601,10 @@ JobQueueCollection::makeCopyStr(bool bHor,
 					remotewallclocktime = strdup(value);
 				} else if (strcasecmp(name, "remoteusercpu") ==0) {
 					remoteusercpu = strdup(value);
+				} else if (strcasecmp(name, "jobprio") ==0) {
+					jobprio = strdup(value);
+				} else if (strcasecmp(name, "args") ==0) {
+					args = strdup(value);
 				} else if (strcasecmp(name, "remotehost") ==0) {
 					remotehost = strdup(value);
 				}
@@ -707,17 +711,22 @@ JobQueueCollection::makeCopyStr(bool bHor,
 				+ (remotewallclocktime?strlen(remotewallclocktime):3)
 				+ (remoteusercpu?strlen(remoteusercpu):3)
 				+ (remotehost?strlen(remotehost):3)
-				+ strlen("\t\t\t\t\t\t\t\t\n") + 1;
+				+ (jobprio?strlen(jobprio):3)
+				+ (args?strlen(args):3)				
+				+ strlen("\t\t\t\t\t\t\t\t\t\t\n") + 1;
 				line_str = (char*)malloc(len * sizeof(char));
 				snprintf(line_str, len, 
-						 "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", scheddname,
+						 "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", 
+						 scheddname,
 						 cid, pid, 
 						 jobstatus?jobstatus:"\\N", 
 						 imagesize?imagesize:"\\N", 
 						 remoteusercpu?remoteusercpu:"\\N", 
 						 remotewallclocktime?remotewallclocktime:"\\N", 
 						 remotehost?remotehost:"\\N", 
-						 globaljobid?globaljobid:"\\N");
+						 globaljobid?globaljobid:"\\N",
+						 jobprio?jobprio:"\\N",
+						 args?args:"\\N");
 		} else {  // clusterad
 			len = strlen(scheddname) 
 				+ strlen(cid) 
@@ -883,6 +892,8 @@ bool isHorizontalProcAttribute(const char *attr) {
      (strcasecmp(attr, "globaljobid") == 0) ||
      (strcasecmp(attr, "remotewallclocktime") == 0) ||
      (strcasecmp(attr, "remoteusercpu") == 0) ||
+	 (strcasecmp(attr, "jobprio") == 0) ||
+	 (strcasecmp(attr, "args") == 0) || 
 	 (strcasecmp(attr, "remotehost") == 0)) {
     return true;
   }

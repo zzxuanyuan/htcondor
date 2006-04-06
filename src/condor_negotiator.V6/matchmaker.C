@@ -2728,7 +2728,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 	snprintf(tmp, 512, "requirements = %d", requirements_num);
 	tmpClP->Insert(tmp);
 	
-	snprintf(tmp, 512, "priority = %d", priority_num);
+	snprintf(tmp, 512, "jobprio = %d", priority_num);
 	tmpClP->Insert(tmp);
 	
 	snprintf(tmp, 512, "rank = %d", rank_num);
@@ -2801,7 +2801,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
 	tmpClP->Insert(tmp);
 
-	snprintf(tmp, 512, "startdname = \"%s\"", startdname);
+	snprintf(tmp, 512, "machine_id = \"%s\"", startdname);
 	tmpClP->Insert(tmp);
 
 	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) != 0)

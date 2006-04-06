@@ -495,7 +495,7 @@ void TTManager::checkAndThrowBigFiles() {
 			snprintf(tmp, 512, "filename = \"%s\"", sqlLogCopyList[i]);
 			tmpClP1->Insert(tmp);		
 			
-			snprintf(tmp, 512, "machine = \"%s\"", my_full_hostname());
+			snprintf(tmp, 512, "machine_id = \"%s\"", my_full_hostname());
 			tmpClP1->Insert(tmp);		
 
 			snprintf(tmp, 512, "size = %d", (int)file_status.st_size);
@@ -530,6 +530,12 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	char lastHeardFrom[300] = "";
 
+		// previous LastHeardFrom from the current classad
+		// previous LastHeardFrom from the database's machine_classad
+    int  prevLHFInAd = 0;
+    int  prevLHFInDB = 0;
+	int	 ret_st, len, num_result=0;
+
 	ad->sPrint(classAd);
 
 	// Insert stuff into Machine_Classad
@@ -563,8 +569,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 				tmpVal  = NULL;
 			}
 			
-				
-			if (!isStaticMachineAttr(attName)) {
+			if (strcmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
+				prevLHFInAd = atoi(attVal);
+			}
+			else if (!isStaticMachineAttr(attName)) {
 					// should go into machine_classad table
 				if (isFirst) {
 						//is the first in the list
@@ -647,7 +655,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 				}
 			}
 
-			if (strcasecmp(attName, "LastHeardFrom") == 0) {
+			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
 				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
 			}
 
@@ -659,10 +667,32 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	if (attNameList) strcat(attNameList, ")");
 	if (attValList) strcat(attValList, ")");
 	if (inlist) strcat(inlist, ")");
-		// 500 is plenty for the constant portion of the following sql statements
-	sql_stmt = (char *) malloc(500 + strlen(machine_id.Value()));
 
-	sprintf(sql_stmt, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+	len = 1024 + strlen(machine_id.Value()) + strlen(lastHeardFrom);
+	sql_stmt = (char *) malloc (len);
+
+		// get the previous lastheardfrom from the database 
+	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
+
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
+	
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	}
+	
+		// set end time if the previous lastHeardFrom matches, otherwise
+		// leave it as NULL (by default)
+	if (prevLHFInDB == prevLHFInAd) {
+		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT *, lastHeardFrom FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+	} else {
+		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+	}
 	 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -674,7 +704,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 return FAILURE;
 	 }
 
-	 sprintf(sql_stmt, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
+	 snprintf(sql_stmt, len, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -709,9 +739,15 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 		// Insert changes into Machine
 	 sql_stmt = (char *) malloc (1000 + strlen(inlist) + strlen(machine_id.Value()) + strlen(lastHeardFrom) );
-								
-	 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name NOT IN %s", 
-			 lastHeardFrom, machine_id.Value(), inlist);
+
+		 // if the previous lastHeardFrom doesn't match, this means the 
+		 // daemon has been shutdown for a while, we should move everything
+		 // into the machine_history (with a NULL end_time)!
+	 if (prevLHFInDB == prevLHFInAd) {
+		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom, machine_id.Value(), inlist);
+	 } else {
+		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
+	 }
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -721,8 +757,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 return FAILURE;
 	 }
 		
-	 sprintf(sql_stmt, "DELETE FROM Machine WHERE machine_id = '%s' AND attr_name NOT IN %s", 
-			 machine_id.Value(), inlist);
+	 if (prevLHFInDB == prevLHFInAd) {
+		 sprintf(sql_stmt, "DELETE FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist);
+	 } else {
+		 sprintf(sql_stmt, "DELETE FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
+	 }
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -740,7 +779,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 	 sql_stmt = (char *) malloc (1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
 								strlen(aVal.Value()) + strlen(lastHeardFrom));
 
-		 sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
+		 sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr = '%s')", 
 				 machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -750,7 +789,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 			
-		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
+		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", 
 				 lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -760,7 +799,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s';", 
+		 sprintf(sql_stmt, "UPDATE Machine SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s';", 
 				 aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -907,9 +946,9 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 
 			if (strcmp(attName, "scheddname") == 0) {
 				strcpy(scheddname, newvalue);
-			} else if (strcmp(attName, "cid") == 0) {
+			} else if (strcmp(attName, "cluster") == 0) {
 				strcpy(cluster, newvalue);
-			} else if (strcmp(attName, "pid") == 0) {
+			} else if (strcmp(attName, "proc") == 0) {
 				strcpy(proc, newvalue);
 			} else if (strcmp(attName, "spid") == 0) {
 				strcpy(subproc, newvalue);
@@ -934,7 +973,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 		sprintf(sql_stmt, "INSERT INTO events VALUES (%s, %s, %s, NULL, %d, %s, %s);", 
 				scheddname, cluster, proc, eventtype, eventts, messagestr);
 	} else {
-		sprintf(sql_stmt, "INSERT INTO events SELECT %s, %s, %s, run_id, %d, %s, %s  FROM runs WHERE scheddname = %s  AND cid = %s and pid = %s AND spid = %s AND endtype is null;", 
+		sprintf(sql_stmt, "INSERT INTO events SELECT %s, %s, %s, run_id, %d, %s, %s  FROM runs WHERE scheddname = %s  AND cluster = %s and proc = %s AND spid = %s AND endtype is null;", 
 				scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
 	}
 
@@ -1071,7 +1110,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 							  strlen(hexSum));
 
 	sprintf(sql_stmt, 
-			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', %s, '%s', %s, %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  f_name='%s' and f_path='%s' and f_host=%s and f_ts=%s);", 
+			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', %s, '%s', %s, %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  name='%s' and path='%s' and host=%s and lastmodified=%s);", 
 			f_name, f_host, f_path, f_ts, f_size, hexSum, f_name, f_path, f_host, f_ts);
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1143,7 +1182,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	sql_stmt = (char *) malloc (1000+strlen(globaljobid)+strlen(type)+strlen(f_name)+
 								strlen(f_path)+strlen(f_host)+strlen(f_ts));
 	sprintf(sql_stmt, 
-			"INSERT INTO fileusages SELECT %s, f_id, %s FROM files WHERE  f_name=%s and f_path=%s and f_host=%s and f_ts=%s LIMIT 1;", globaljobid, type, f_name, f_path, f_host, f_ts);
+			"INSERT INTO fileusages SELECT %s, file_id, %s FROM files WHERE  name=%s and path=%s and host=%s and lastmodified=%s LIMIT 1;", globaljobid, type, f_name, f_path, f_host, f_ts);
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1176,7 +1215,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   sql_stmt = (char *)malloc(1000 + 2*(strlen(scheddname) + 20));
 
   sprintf(sql_stmt,
-          "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cid = %d AND pid = %d;INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", scheddname, cid, pid, scheddname, cid, pid);
+          "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cluster = %d AND proc = %d;INSERT INTO History_Horizontal(scheddname, cluster, proc) VALUES('%s', %d, %d);", scheddname, cid, pid, scheddname, cid, pid);
 
   if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1258,13 +1297,13 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 				  } 
 			
 				  sprintf(sql_stmt,
-						  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, scheddname, cid, pid);
+						  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cluster = %d and proc = %d;", name, value, scheddname, cid, pid);
 
 			  }	else {
 				  strip_double_quote(value);
 				  newvalue = fillEscapeCharacters(value);
 				  sprintf(sql_stmt, 
-						  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, newvalue, scheddname, cid, pid);			  
+						  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster = %d and proc = %d;", name, newvalue, scheddname, cid, pid);			  
 				  free(newvalue);
 			  }
 		  } else {
@@ -1274,7 +1313,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
 
 			  sprintf(sql_stmt, 
-					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cid = %d AND pid = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);
+					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cluster = %d AND proc = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cluster, proc, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);
 
 			  free(newvalue);
 		  }	  

@@ -1135,14 +1135,14 @@ JobQueueDBManager::processNewClassAd(char* key,
 		len = 1024 + strlen(scheddname) + strlen(cid);
 		sql_str = (char *)malloc(len * sizeof(char));
 		snprintf(sql_str, len,
-				"INSERT INTO ClusterAds_Horizontal (scheddname, cid) VALUES ('%s', '%s');", scheddname, cid);
+				"INSERT INTO ClusterAds_Horizontal (scheddname, cluster) VALUES ('%s', '%s');", scheddname, cid);
 
 		break;
 	case IS_PROC_ID:
 		len = 1024 + strlen(scheddname) + strlen(cid) + strlen(pid);
 		sql_str = (char *)malloc(len * sizeof(char));
 		snprintf(sql_str, len,
-				"INSERT INTO ProcAds_Horizontal (scheddname, cid, pid) VALUES ('%s', '%s', '%s');", scheddname, cid, pid);
+				"INSERT INTO ProcAds_Horizontal (scheddname, cluster, proc) VALUES ('%s', '%s', '%s');", scheddname, cid, pid);
 
 		break;
 	case IS_UNKNOWN_ID:
@@ -1223,11 +1223,11 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 		len = 2048+ strlen(scheddname) + strlen(cid);
 		sql_str1 = (char *) malloc(len * sizeof(char));
 		snprintf(sql_str1, len,
-				"DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' and cid = %s;", scheddname, cid);
+				"DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' and cluster = %s;", scheddname, cid);
     
 		sql_str2 = (char *) malloc(len * sizeof(char));
 		snprintf(sql_str2, len,
-				"DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = %s;", scheddname, cid);
+				"DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster = %s;", scheddname, cid);
 		break;
         case IS_PROC_ID:
 			/* generate SQL to remove the job from job tables */
@@ -1323,7 +1323,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 		if(isHorizontalClusterAttribute(name)) {
 			if (strcasecmp(name, "qdate") == 0) {
 				snprintf(sql_str_del_in, len,
-						 "UPDATE ClusterAds_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = '%s';", name, value, scheddname, cid);
+						 "UPDATE ClusterAds_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cluster = '%s';", name, value, scheddname, cid);
 			} else {
 				tempvalue = (char *) malloc(strlen(value) + 1);
 				strcpy(tempvalue, value);
@@ -1331,7 +1331,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 				newvalue = fillEscapeCharacters(tempvalue);
 					// escape single quote within the value
 				snprintf(sql_str_del_in, len,
-						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, newvalue, scheddname, cid);
+						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster = '%s';", name, newvalue, scheddname, cid);
 				free(newvalue);
 
 			}
@@ -1341,7 +1341,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 			strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
 			snprintf(sql_str_del_in, len,
-					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', '%s', '%s');", scheddname, cid, name, scheddname, cid, name, newvalue);
+					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cluster, attr, val) VALUES ('%s', '%s', '%s', '%s');", scheddname, cid, name, scheddname, cid, name, newvalue);
 			free(newvalue);
 		}
 
@@ -1355,13 +1355,13 @@ JobQueueDBManager::processSetAttribute(char* key,
 			strcpy(tempvalue, value);
 			strip_double_quote(tempvalue);
 			snprintf(sql_str_del_in, len,
-					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s' and pid = '%s';", name, tempvalue, scheddname, cid, pid);
+					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster = '%s' and proc = '%s';", name, tempvalue, scheddname, cid, pid);
 		} else {
 			strcpy(tempvalue, value);
 			strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
 			snprintf(sql_str_del_in, len,
-					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);			
+					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster = '%s' AND proc = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (scheddname, cluster, proc, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);			
 			free(newvalue);
 		}
 		
@@ -1450,10 +1450,10 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 		sql_str = (char *) malloc(len);
 		if(isHorizontalClusterAttribute(name)) {
 			snprintf(sql_str , len,
-					 "UPDATE ClusterAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cid = '%s';", name, scheddname, cid);
+					 "UPDATE ClusterAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster = '%s';", name, scheddname, cid);
 		} else {
 			snprintf(sql_str , len,
-					 "DELETE ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s';", scheddname, cid, name);			
+					 "DELETE ClusterAds_Vertical WHERE scheddname = '%s' and cluster = '%s' AND attr = '%s';", scheddname, cid, name);			
 		}
 
 		break;
@@ -1462,10 +1462,10 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 		sql_str = (char *) malloc(len);
 		if(isHorizontalProcAttribute(name)) {
 			snprintf(sql_str, len,
-					 "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cid = '%s' AND pid = '%s';", name, scheddname, cid, pid);
+					 "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster = '%s' AND proc = '%s';", name, scheddname, cid, pid);
 		} else {
 			snprintf(sql_str, len,
-					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s';", scheddname, cid, pid, name);
+					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster = '%s' AND proc = '%s' AND attr = '%s';", scheddname, cid, pid, name);
 			
 		}
 

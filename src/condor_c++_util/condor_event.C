@@ -1155,10 +1155,10 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		  tmpClP2->Insert(tmp);
 		}
   
-		snprintf(tmp, 1024, "cid = %d", cluster);
+		snprintf(tmp, 1024, "cluster = %d", cluster);
 		tmpClP2->Insert(tmp);
 
-		snprintf(tmp, 1024, "pid = %d", proc);
+		snprintf(tmp, 1024, "proc = %d", proc);
 		tmpClP2->Insert(tmp);
 
 		snprintf(tmp, 1024, "spid = %d", subproc);
@@ -1194,10 +1194,10 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		  tmpClP1->Insert(tmp);		
 		}
 
-		snprintf(tmp, 1024, "cid = %d", cluster);
+		snprintf(tmp, 1024, "cluster = %d", cluster);
 		tmpClP1->Insert(tmp);		
 
-		snprintf(tmp, 1024, "pid = %d", proc);
+		snprintf(tmp, 1024, "proc = %d", proc);
 		tmpClP1->Insert(tmp);		
 
 		snprintf(tmp, 1024, "spid = %d", subproc);
@@ -1466,10 +1466,10 @@ writeEvent (FILE *file)
     tmpClP2->Insert(tmp);
   } 
 
-  snprintf(tmp, 512, "cid = %d", cluster);
+  snprintf(tmp, 512, "cluster = %d", cluster);
   tmpClP2->Insert(tmp);
 
-  snprintf(tmp, 512, "pid = %d", proc);
+  snprintf(tmp, 512, "proc = %d", proc);
   tmpClP2->Insert(tmp);
 
   snprintf(tmp, 512, "spid = %d", subproc);
@@ -1493,10 +1493,10 @@ writeEvent (FILE *file)
     tmpClP3->Insert(tmp);
   }
 
-  snprintf(tmp, 512, "cid = %d", cluster);
+  snprintf(tmp, 512, "cluster = %d", cluster);
   tmpClP3->Insert(tmp);
   
-  snprintf(tmp, 512, "pid = %d", proc);
+  snprintf(tmp, 512, "proc = %d", proc);
   tmpClP3->Insert(tmp);
   
   snprintf(tmp, 512, "spid = %d", subproc);
@@ -1628,10 +1628,10 @@ writeEvent (FILE *file)
 	  tmpClP2->Insert(tmp);
 	}
   
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP2->Insert(tmp);
 
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP2->Insert(tmp);
 
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -1774,10 +1774,10 @@ writeEvent (FILE *file)
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -2182,10 +2182,10 @@ JobEvictedEvent::writeEvent( FILE *file )
     tmpClP2->Insert(tmp);
   }
   
-  snprintf(tmp, 1024, "cid = %d", cluster);
+  snprintf(tmp, 1024, "cluster = %d", cluster);
   tmpClP2->Insert(tmp);
 
-  snprintf(tmp, 1024, "pid = %d", proc);
+  snprintf(tmp, 1024, "proc = %d", proc);
   tmpClP2->Insert(tmp);
 
   snprintf(tmp, 1024, "spid = %d", subproc);
@@ -2398,10 +2398,10 @@ writeEvent (FILE *file)
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -2628,10 +2628,10 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	  tmpClP2->Insert(tmp);	
 	}
 
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP2->Insert(tmp);
 
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP2->Insert(tmp);
 
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -2771,10 +2771,10 @@ JobTerminatedEvent::writeEvent (FILE *file)
     tmpClP2->Insert(tmp);	
   }
   
-  snprintf(tmp, 1024, "cid = %d", cluster);
+  snprintf(tmp, 1024, "cluster = %d", cluster);
   tmpClP2->Insert(tmp);
   
-  snprintf(tmp, 1024, "pid = %d", proc);
+  snprintf(tmp, 1024, "proc = %d", proc);
   tmpClP2->Insert(tmp);
 
   snprintf(tmp, 1024, "spid = %d", subproc);
@@ -3063,10 +3063,10 @@ writeEvent (FILE *file)
 			tmpClP2->Insert(tmp);
 		}
   
-		snprintf(tmp, 1024, "cid = %d", cluster);
+		snprintf(tmp, 1024, "cluster = %d", cluster);
 		tmpClP2->Insert(tmp);
 
-		snprintf(tmp, 1024, "pid = %d", proc);
+		snprintf(tmp, 1024, "proc = %d", proc);
 		tmpClP2->Insert(tmp);
 
 		snprintf(tmp, 1024, "spid = %d", subproc);
@@ -3087,10 +3087,10 @@ writeEvent (FILE *file)
 			tmpClP1->Insert(tmp);		
 		}
 		
-		snprintf(tmp, 1024, "cid = %d", cluster);
+		snprintf(tmp, 1024, "cluster = %d", cluster);
 		tmpClP1->Insert(tmp);	
 
-		snprintf(tmp, 1024, "pid = %d", proc);
+		snprintf(tmp, 1024, "proc = %d", proc);
 		tmpClP1->Insert(tmp);		
 		
 		snprintf(tmp, 1024, "spid = %d", subproc);
@@ -3231,10 +3231,10 @@ writeEvent (FILE *file)
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -3340,10 +3340,10 @@ writeEvent (FILE *file)
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -3527,10 +3527,10 @@ JobHeldEvent::writeEvent( FILE *file )
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "spid = %d", subproc);
@@ -3714,10 +3714,10 @@ JobReleasedEvent::writeEvent( FILE *file )
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cluster = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	snprintf(tmp, 1024, "pid = %d", proc);
+	snprintf(tmp, 1024, "proc = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "spid = %d", subproc);
