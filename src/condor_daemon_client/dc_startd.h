@@ -116,7 +116,10 @@ public:
 						ClassAd* reply, 
 						int timeout = -1 );
 
+	bool vacateClaim( const char* name );
+
 	bool checkpointJob( const char* name );
+
 	bool getAds( ClassAdList &adsList, const char* name );
 
  private:

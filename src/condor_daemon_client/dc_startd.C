@@ -483,6 +483,51 @@ DCStartd::locateStarter( const char* global_job_id,
 }
 
 bool 
+DCStartd::vacateClaim( const char* name )
+{
+	setCmdStr( "vacateClaim" );
+
+	bool  result;
+	ReliSock reli_sock;
+	reli_sock.timeout(20);   // years of research... :)
+	if( ! reli_sock.connect(_addr) ) {
+		MyString err = "DCStartd::vacateClaim: ";
+		err += "Failed to connect to startd (";
+		err += _addr;
+		err += ')';
+		newError( CA_CONNECT_FAILED, err.Value() );
+		return false;
+	}
+
+	int cmd = VACATE_CLAIM;
+
+	result = startCommand( cmd, (Sock*)&reli_sock ); 
+	if( ! result ) {
+		MyString err = "DCStartd::vacateClaim: ";
+		err += "Failed to send command ";
+		err += "PCKPT_JOB";
+		err += " to the startd";
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
+		return false;
+	}
+
+	if( ! reli_sock.code((char *)name) ) {
+		MyString err = "DCStartd::vacateClaim: ";
+		err += "Failed to send Name to the startd";
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
+		return false;
+	}
+	if( ! reli_sock.eom() ) {
+		MyString err = "DCStartd::vacateClaim: ";
+		err += "Failed to send EOM to the startd";
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
+		return false;
+	}
+		
+	return true;
+}
+
+bool 
 DCStartd::checkpointJob( const char* name )
 {
 	dprintf( D_FULLDEBUG, "Entering DCStartd::checkpointJob(%s)\n",
@@ -561,21 +606,15 @@ DCStartd::getAds( ClassAdList &adsList, const char* name )
             	dprintf (D_ALWAYS, "Error:  Could not fetch ads --- %s\n",
                      	getStrQueryResult(q));
         	}
+			delete query;
         	return (false);
-    	} else {
-			char *name;
-			adsList.Rewind();
-			while( (ad = adsList.Next()) ){
-				ad->LookupString( ATTR_NAME, &name ); 
-				dprintf(D_ALWAYS,"getAds: got Startd ads for %s\n",name);
-			}
 		}
 	} else {
-		dprintf( D_ALWAYS, "DCStartd::getAds Failed\n" );
+		delete query;
 		return(false);
 	}
 
-	dprintf( D_ALWAYS, "DCStartd::getAds Worked\n" );
+	delete query;
 	return(true);
 }
 
