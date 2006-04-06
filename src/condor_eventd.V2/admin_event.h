@@ -42,11 +42,13 @@ const int EVENT_MAIN_WAIT			= 4;
 const int EVENT_RESAMPLE			= 5;
 const int EVENT_GO					= 6;
 
+const int BATCH_SIZE				= 4;
+
 struct StartdStats {
 	StartdStats( const char Name[], int Universe, int ImageSize, int LastCheckpoint) :
 		universe(Universe), imagesize(ImageSize), lastcheckpoint(LastCheckpoint),
-		jobstart(0), virtualmachineid(0), ckptmegs(0), ckptlength(0), ckptmegspersec(0), 
-		ckpttime(0), ckptgroup(0), ckptdone(0)
+		jobstart(0), virtualmachineid(0), remotetime(0), ckptmegs(0), ckptlength(0), 
+		ckptmegspersec(0), ckpttime(0), ckptgroup(0), ckptdone(0)
 		{ 	
 			strcpy( name, Name); 
 			state[0] = '\0';
@@ -54,6 +56,7 @@ struct StartdStats {
 			clientmachine[0] = '\0';
 			myaddress[0] = '\0';
 			jobid[0] = '\0';
+			ckptsrvr[0] = '\0';
 		}
 	char 	name[128];
 	char	state[128];
@@ -61,11 +64,13 @@ struct StartdStats {
 	char 	clientmachine[128];
 	char	myaddress[128];
 	char	jobid[128];
+	char	ckptsrvr[128];
 	int 	universe;
 	int		imagesize;
 	int		lastcheckpoint;
 	int 	jobstart;
 	int		virtualmachineid;
+	int 	remotetime;
 	// space for managing the benchmarking and checkpointing staging
 	int 	ckptmegs;
 	int 	ckptlength;
@@ -90,16 +95,16 @@ class AdminEvent : public Service
 	// Command handlers
 	// Timer handlers
 	
-	int 		timerHandler_DoShutdown( void );
+	int 		th_DoShutdown( void );
 	int 		m_timeridDoShutdown;
 	unsigned 	m_intervalDoShutdown;
 
-	int 		timerHandler_Check_PollingVacates( void );
+	int 		th_Check_PollingVacates( void );
 	int 		m_timerid_PollingVacates;
 	unsigned 	m_intervalCheck_PollingVacates;
 	unsigned 	m_intervalPeriod_PollingVacates;
 
-	int 		timerHandler_DoShutdown_States( void );
+	int 		th_DoShutdown_States( void );
 	int 		m_timerid_DoShutdown_States;
 	unsigned 	m_intervalCheck_DoShutdown_States;
 	unsigned 	m_intervalPeriod_DoShutdown_States;
@@ -107,30 +112,25 @@ class AdminEvent : public Service
 	int			m_benchmark_size;
 	int			m_benchmark_lastsize;
 	int 		m_benchmark_increment;
+	int 		m_benchmark_iteration;
 
-	float 		m_NminusOne_megspersec;
-	int 		m_NminusOne_size;
-	int 		m_NminusOne_time;
+	float 		m_NrightNow_megspersec;
+	int 		m_NrightNow_size;
+	int 		m_NrightNow_time;
 
-	float 		m_N_megspersec;
-	int 		m_N_size;
-	int 		m_N_time;
-
-	float 		m_NplusOne_megspersec;
-	int 		m_NplusOne_size;
-	int 		m_NplusOne_time;
+	ClassAdList m_CkptBenchMarks;
+	ClassAdList m_CkptBatches;
+	ClassAdList m_PollingStartdAds;
 
 	// Event Handling Methods
 
 	int check_Shutdown( bool init = false );
 	int tune_Shutdown_batch_size( bool init );
-	int check_Shutdown_batch_sizes( bool init );
+	int do_checkpoint_samples( bool init );
 	int process_ShutdownTime( char *req_time );
-	int process_ShutdownTarget( char *target );
-	int process_ShutdownSize( char *size );
-	int process_ShutdownConstraint( char *constraint );
 	int FetchAds_ByConstraint( char *constraint );
 	int benchmark_analysis( );
+	int benchmark_insert( float megspersec, int megs, int time );
 	bool benchmark_store_results(float megspersec, int totmegs, int tottime);
 	int benchmark_show_results( );
 
@@ -138,19 +138,20 @@ class AdminEvent : public Service
 	int pollStartdAds( ClassAdList &adsList, char *sinful, char *name );
 	int sendCheckpoint( char *sinful, char *name );
 	int sendVacateClaim( char *sinful, char *name );
-	int setup_run_ckpt_benchmark( );
+	int run_ckpt_benchmark( );
+	int compute_ckpt_batches( );
+	bool have_requested_batch( int batchsz );
 
 	// Print Methods
-	int unclaimedDisplay();
-	int otherUsDisplay();
 	int standardUDisplay();
-	int missedDisplay();
 	int standardUDisplay_StartdStats();
 	int standardU_benchmark_Display();
 
 	// Processing events
 	int standardUProcess();
-	int standardUProcess_ckpt_times();
+	int empty_Hashes();
+	int SS_store(StartdStats *ss, int duration);
+	int SS_test(StartdStats *ss, int duration);
 
 	// Operation Markers
 	int 		m_mystate;
@@ -166,6 +167,8 @@ class AdminEvent : public Service
 	MyString 	m_shutdownTarget;		/* what machine(s) */
 	MyString 	m_newshutdownTarget;	/* what new machine(s) */
 	MyString 	m_shutdownConstraint;	/* which machines? */
+	MyString 	m_newshutdownAdminRate;	/* Administrator Input */
+	MyString	m_spoolHistory;			/* How have we done in the past */
 
 	unsigned 	m_shutdownSize;			/* impact is minimized by batching requests */
 	unsigned 	m_newshutdownSize;			/* impact is minimized by batching requests */
@@ -181,8 +184,6 @@ class AdminEvent : public Service
 	// storage
 	ClassAdList m_collector_query_ads;
 	ClassAdList m_claimed_standard;
-	ClassAdList m_claimed_otherUs;
-	ClassAdList m_unclaimed;
 	ClassAdList m_fromStartd;
 
 };
