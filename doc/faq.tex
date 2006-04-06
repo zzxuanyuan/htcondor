@@ -369,7 +369,7 @@ Where \verb@machine-ip-address@ is the IP address of the interface you wish
 Condor to use.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection*{Why do standard universe jobs never run after the upgrade?}
+\subsection*{Why do standard universe jobs never run after an upgrade?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \label{sec:checkpoint-platform-faq}
 
@@ -391,7 +391,7 @@ Linux machines.
 And, the \Attr{CkptOpSys} attribute is not specific enough
 to be utilized.
 
-There are two possibilities for these standard universe jobs that
+There are two possible solutions for these standard universe jobs that
 cannot run, yet are in the queue:
 
 \begin{enumerate}
@@ -401,10 +401,17 @@ cannot run, yet are in the queue:
   the pool.
   Note that the resubmitted jobs will start over again from the beginning.
 
-  \item Utilize the platform information from the machine when the
-  job last produced a checkpoint together with knowledge of the
-  needed \Attr{LastCheckpointPlatform} attribute to form a value.
-  Add this attribute to the job's ClassAd using \Condor{qedit}.
+  \item If the job had already run and checkpointed on machines
+  before the upgrade, then using the \Attr{LastRemoteHost} attribute
+  in the job's ClassAd determine the the \Attr{CheckpointPlatform}
+  for the machine on which the job last ran. 
+  Then use \Condor{qedit} to add the value of the machine's
+  \Attr{CheckpointPlatform} attribute as the value of the new attribute
+  \Attr{LastCheckpointPlatform} in the job's ClassAd.
+  Note that this operation will also have to be performed for standard
+  universe jobs flocking into a pool which have been upgraded. 
+  It is recommended that pools that flock between each other upgrade to a
+  post 6.7.15 version of Condor.
 \end{enumerate}
 
 Note that if the upgrade to Condor takes place at the same time
