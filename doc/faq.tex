@@ -401,15 +401,19 @@ cannot run, yet are in the queue:
   the pool.
   Note that the resubmitted jobs will start over again from the beginning.
 
-  \item If the job had already run and checkpointed on machines
-  before the upgrade, then using the \Attr{LastRemoteHost} attribute
-  in the job's ClassAd determine the the \Attr{CheckpointPlatform}
-  for the machine on which the job last ran. 
-  Then use \Condor{qedit} to add the value of the machine's
-  \Attr{CheckpointPlatform} attribute as the value of the new attribute
-  \Attr{LastCheckpointPlatform} in the job's ClassAd.
-  Note that this operation will also have to be performed for standard
-  universe jobs flocking into a pool which have been upgraded. 
+  \item For each standard universe job in the queue,
+  modify its job ClassAd such that it can possibly run within the
+  upgraded pool.
+  If the job has already run and produced a checkpoint on a machine
+  before the upgrade, determine the machine that produced the checkpoint
+  using the \Attr{LastRemoteHost} attribute
+  in the job's ClassAd.
+  Then look at that machine's ClassAd (after the upgrade) to
+  determine and extract the value of the \Attr{CheckpointPlatform} attribute.
+  Add this (using \Condor{qedit}) as the value of the 
+  new attribute \Attr{LastCheckpointPlatform} in the job's ClassAd.
+  Note that this operation must also have to be performed on standard
+  universe jobs flocking in to an upgraded pool. 
   It is recommended that pools that flock between each other upgrade to a
   post 6.7.15 version of Condor.
 \end{enumerate}
@@ -914,7 +918,7 @@ Note that this applies to standard universe jobs only.
 \subsection*{Why have standard universe jobs in Condor 6.6.x have begun unexpectedly segmentation faulting during a checkpoint after an upgrade of Redhat Enterprise Linux 3 to current update levels?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Redhat has apparently backported a 2.6 kernel feature called
+Redhat has apparently back-ported a 2.6 kernel feature called
 ``exec\_shield'' to the current patch levels of the RHEL3 product line. 
 This feature is designed to make buffer overflow attacks incredibly difficult
 to exploit. 
