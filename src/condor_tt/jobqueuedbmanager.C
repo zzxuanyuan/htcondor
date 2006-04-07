@@ -1234,12 +1234,12 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 		len = 2048 + strlen(scheddname) + strlen(cid) + strlen(pid);	
 		sql_str1 = (char *) malloc(len * sizeof(char));
 		snprintf(sql_str1, len,
-				"DELETE FROM ProcAds_horizontal WHERE scheddname = '%s' and cid = %s AND pid = %s;", 
+				"DELETE FROM ProcAds_horizontal WHERE scheddname = '%s' and cluster = %s AND proc = %s;", 
 				 scheddname, cid, pid);
     
 		sql_str2 = (char *) malloc(len * sizeof(char));
 		snprintf(sql_str2, len,
-				"DELETE FROM ProcAds_vertical WHERE scheddname = '%s' and cid = %s AND pid = %s;", 
+				"DELETE FROM ProcAds_vertical WHERE scheddname = '%s' and cluster = %s AND proc = %s;", 
 				 scheddname, cid, pid);
 		break;
 	case IS_UNKNOWN_ID:

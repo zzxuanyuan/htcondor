@@ -689,7 +689,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// set end time if the previous lastHeardFrom matches, otherwise
 		// leave it as NULL (by default)
 	if (prevLHFInDB == prevLHFInAd) {
-		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT *, lastHeardFrom FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT *, %s FROM Machine_Classad WHERE machine_id = '%s')", lastHeardFrom, machine_id.Value());
 	} else {
 		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
 	}
