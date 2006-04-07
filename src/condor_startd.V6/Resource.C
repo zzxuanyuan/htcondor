@@ -39,6 +39,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	sprintf( tmp, "vm%d", rid );
 	r_id_str = strdup( tmp );
 	
+	prevLHF = 0;
 	r_classad = NULL;
 	r_state = new ResState( this );
 	r_cur = new Claim( this );
@@ -1672,7 +1673,13 @@ Resource::dbInsert( ClassAd *cl )
 		// make a copy so that we can add timestamp attribute into it
 	clCopy = *cl;
 
-	snprintf(tmp, 512, "LastHeardFrom = %d", (int)time(NULL));
+	snprintf(tmp, 512, "%s = %d", ATTR_PREV_LAST_HEARD_FROM, prevLHF);
+	(&clCopy)->Insert(tmp);
+
+		// set the LastHeardFrom and make it the new prevLHF
+	prevLHF = (int)time(NULL);
+
+	snprintf(tmp, 512, "%s = %d", ATTR_LAST_HEARD_FROM, prevLHF);
 	(&clCopy)->Insert(tmp);
 
 	dbh->file_newEvent("Machines", &clCopy);
