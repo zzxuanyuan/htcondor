@@ -254,7 +254,7 @@ TTManager::maintain()
 QuillErrCode
 TTManager::event_maintain() 
 {
-	FILESQL *filesqlobj;
+	FILESQL *filesqlobj = NULL;
 	const char *buf = (char *)0;
 
 	int  buflength=0;
@@ -288,6 +288,7 @@ TTManager::event_maintain()
 			goto ERROREXIT;
 		}
 		delete filesqlobj;
+		filesqlobj = NULL;
 	}
 
 		// check if connection is ok, if not, try to reset it now
