@@ -36,11 +36,13 @@ States
 */
 
 const int EVENT_INIT				= 1;
-const int EVENT_SAMPLING			= 2;
-const int EVENT_EVAL_SAMPLING		= 3;
-const int EVENT_MAIN_WAIT			= 4;
-const int EVENT_RESAMPLE			= 5;
-const int EVENT_GO					= 6;
+const int EVENT_HUERISTIC			= 2;
+const int EVENT_EVAL_HUERISTIC		= 3;
+const int EVENT_SAMPLING			= 4;
+const int EVENT_EVAL_SAMPLING		= 5;
+const int EVENT_MAIN_WAIT			= 6;
+const int EVENT_RESAMPLE			= 7;
+const int EVENT_GO					= 8;
 
 const int BATCH_SIZE				= 4;
 
@@ -149,12 +151,18 @@ class AdminEvent : public Service
 
 	// Processing events
 	int standardUProcess();
+	int totalRunningJobs();
 	int empty_Hashes();
 	int SS_store(StartdStats *ss, int duration);
 	int SS_test(StartdStats *ss, int duration);
+	int spoolClassAd( ClassAd * ca_shutdownRate, char *direction );
 
 	// Operation Markers
 	int 		m_mystate;
+
+	/* Administrator Input div 8 for bits to bytes*/
+	int 		m_newshutdownAdminRate;
+
 	bool 		m_haveShutdown;
 	bool 		m_haveFullStats;
 	bool 		m_haveBenchStats;
@@ -167,7 +175,6 @@ class AdminEvent : public Service
 	MyString 	m_shutdownTarget;		/* what machine(s) */
 	MyString 	m_newshutdownTarget;	/* what new machine(s) */
 	MyString 	m_shutdownConstraint;	/* which machines? */
-	MyString 	m_newshutdownAdminRate;	/* Administrator Input */
 	MyString	m_spoolHistory;			/* How have we done in the past */
 
 	unsigned 	m_shutdownSize;			/* impact is minimized by batching requests */
@@ -185,6 +192,8 @@ class AdminEvent : public Service
 	ClassAdList m_collector_query_ads;
 	ClassAdList m_claimed_standard;
 	ClassAdList m_fromStartd;
+	FILE		*m_spoolStorage;
+	ClassAd		*m_lastShutdown;
 
 };
 

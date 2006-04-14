@@ -32,6 +32,7 @@
 #include "dc_startd.h"
 #include "admin_event.h"
 #include "classad_hashtable.h"
+#include "directory.h"
 
 int numStartdStats = 0;
 int ClaimRunTimeSort(ClassAd *job1, ClassAd *job2, void *data);
@@ -94,6 +95,16 @@ int
 AdminEvent::shutdownFast( void )
 {
 	dprintf(D_ALWAYS,"shutdownFast\n");
+	char *tmp;
+
+	tmp = param("SPOOL");
+	if(tmp) {
+		if(spoolClassAd(m_lastShutdown,"out") == 1) {
+			dprintf(D_ALWAYS,"Failed to get/create initial classad from spool\n");
+		}
+		free(tmp);
+	}
+
 	return 0;
 }
 
@@ -101,6 +112,15 @@ int
 AdminEvent::shutdownGraceful( void )
 {
 	ClassAd *ad;
+	char *tmp;
+
+	tmp = param("SPOOL");
+	if(tmp) {
+		if(spoolClassAd(m_lastShutdown,"out") == 1) {
+			dprintf(D_ALWAYS,"Failed to get/create initial classad from spool\n");
+		}
+		free(tmp);
+	}
 
 	dprintf(D_ALWAYS,"shutdownGraceful .. cleaning classad lists\n");
 
@@ -126,6 +146,7 @@ AdminEvent::shutdownGraceful( void )
 	dprintf(D_ALWAYS,"shutdownGraceful .. cleaning hashes \n");
 
 	empty_Hashes();
+	fclose(m_spoolStorage);
 
 	return 0;
 }
@@ -155,9 +176,246 @@ AdminEvent::config( bool init )
 	return 0;
 }
 
+int
+AdminEvent::check_Shutdown( bool init )
+{
+	char *timeforit;
+	char *tmp;
+
+	dprintf(D_FULLDEBUG, "Checking For Shutdown\n");
+
+	// Get EVENTD_SHUTDOWN_TIME parameter
+	timeforit = param( "EVENTD_SHUTDOWN_TIME" );
+	if( timeforit ) {
+		 dprintf(D_FULLDEBUG, "EVENTD_SHUTDOWN_TIME is %s\n",
+		 		timeforit);
+		 process_ShutdownTime( timeforit );
+		 free( timeforit );
+	}
+
+	/* Are we currently set with a shutdown? Is this a reconfig to same value? */
+	if(m_timeridDoShutdown >= 0)
+	{
+		/* 
+		  we have one set and if it is not the same time, calculate when
+		  and reset the timer.
+		*/
+		if( m_shutdownTime != m_newshutdownTime){
+			dprintf(D_ALWAYS, 
+					"AE: We have a repeat shutdown event. ignoring\n");
+		} else {
+			if((m_newshutdownTime != 0) && (m_newshutdownTarget.Length() != 0)){
+				time_t timeNow = time(NULL);
+				if(m_newshutdownTime > timeNow) {
+					m_intervalDoShutdown = 
+							(unsigned)(m_newshutdownTime - timeNow);
+					m_shutdownTime = m_newshutdownTime;
+					if (( m_timeridDoShutdown < 0 ) 
+							&& (m_intervalDoShutdown > 60)) 
+					{
+						dprintf(D_ALWAYS, 
+							"AE: shutdown event. Set timer <<%d>> from now\n",
+							m_intervalDoShutdown);
+						m_timeridDoShutdown = daemonCore->Reset_Timer(
+							m_timeridDoShutdown, m_intervalDoShutdown, 0);
+					} else {
+						dprintf(D_ALWAYS, 
+							"AE::chk_Shtdwn: Shutdown denied (why)\n");
+					}
+				} else {
+					dprintf(D_ALWAYS, 
+						"AE::chk_Shtdwn: Shutdown denied (past or too close\n");
+				}
+			}
+		}
+	} else {
+		/* this is a new timer request */
+		if((m_newshutdownTime != 0) && (m_newshutdownTarget.Length() != 0)){
+			time_t timeNow = time(NULL);
+			if(m_newshutdownTime > timeNow) {
+				m_intervalDoShutdown = (unsigned)(m_newshutdownTime - timeNow);
+				m_shutdownTime = m_newshutdownTime;
+				if (( m_timeridDoShutdown < 0 ) && (m_intervalDoShutdown > 60)) {
+					dprintf(D_ALWAYS, 
+						"AE: shutdown event. Set timer <<%d>> from now\n",
+						m_intervalDoShutdown);
+					m_timeridDoShutdown = daemonCore->Register_Timer(
+						m_intervalDoShutdown,
+						(TimerHandlercpp)&AdminEvent::th_DoShutdown,
+						"AdminEvent::DoShutdown()", this );
+				} else {
+						dprintf(D_ALWAYS, 
+							"AE::chk_Shtdwn: Shutdown denied (why)\n");
+				}
+			} else {
+				dprintf(D_ALWAYS, 
+					"AE::chk_Shtdwn: denied either past or too close!\n");
+			}
+		}
+	}
+
+	// Get EVENTD_SHUTDOWN_MACHINES parameter
+	tmp = param( "EVENTD_SHUTDOWN_MACHINES" );
+	if(tmp) {
+		m_newshutdownTarget = tmp;
+		dprintf(D_ALWAYS, 
+				"EVENTD_SHUTDOWN_MACHINES is %s\n",tmp);
+		free( tmp );
+	}
+
+	tmp = param("SPOOL");
+	if(tmp) {
+		if(spoolClassAd(m_lastShutdown,"in") == 1) {
+			dprintf(D_ALWAYS,"Failed to get/create initial classad from spool\n");
+		}
+		free(tmp);
+	} else {
+		EXCEPT( "SPOOL not defined!" );
+	}
+
+	// Get EVENTD_ADMIN_MEGABITS_SEC parameter
+	tmp = param( "EVENTD_ADMIN_MEGABITS_SEC" );
+	if(tmp) {
+		/* adjust to megabytes */
+		m_newshutdownAdminRate = (atoi(tmp)/8);
+		dprintf(D_ALWAYS, 
+				"EVENTD_ADMIN_MEGABITS_SEC is %d\n",
+				m_newshutdownAdminRate);
+		free( tmp );
+	} else {
+		EXCEPT( "EVENTD_ADMIN_MEGABITS_SEC not defined!" );
+	}
+
+	// Get EVENTD_SHUTDOWN_SIZE parameter
+	tmp = param( "EVENTD_SHUTDOWN_SIZE" );
+	if( tmp ) {
+		m_newshutdownSize = atoi(tmp);
+		dprintf(D_ALWAYS, 
+				"EVENTD_SHUTDOWN_SIZE is %s\n",tmp);
+		free( tmp );
+	}
+
+	// Get EVENTD_VACATE_POLLING_START_SIZE parameter
+	tmp = param( "EVENTD_VACATE_POLLING_START_SIZE" );
+	if( tmp ) {
+		m_benchmark_size = atoi(tmp);
+		dprintf(D_ALWAYS, 
+				"EVENTD_VACATE_POLLING_START_SIZE is %s\n",tmp);
+		free( tmp );
+	}
+
+	// Get EVENTD_VACATE_POLLING_START_SIZE_INCREMENT parameter
+	tmp = param( "EVENTD_VACATE_POLLING_START_SIZE_INCREMENT" );
+	if( tmp ) {
+		m_benchmark_increment = atoi(tmp);
+		dprintf(D_ALWAYS, 
+				"EVENTD_VACATE_POLLING_START_SIZE_INCREMENT is %s\n",
+				tmp);
+		free( tmp );
+	}
+
+	// Get EVENTD_VACATE_POLLING parameter
+	tmp = param( "EVENTD_VACATE_POLLING" );
+	if( tmp ) {
+		m_intervalPeriod_PollingVacates = atoi(tmp);
+		dprintf(D_ALWAYS, 
+				"EVENTD_VACATE_POLLING is %s\n",tmp);
+		free( tmp );
+	}
+
+	// Get EVENTD_SHUTDOWN_CONSTRAINT parameter
+	tmp = param( "EVENTD_SHUTDOWN_CONSTRAINT" );
+	if( tmp ) {
+		m_shutdownConstraint = tmp;
+		dprintf(D_ALWAYS, 
+				"EVENTD_SHUTDOWN_CONSTRAINT is %s\n",tmp);
+		free( tmp );
+	}
+
+	if(m_timerid_DoShutdown_States > 0) {
+		//daemonCore->Reset_Timer(m_timerid_DoShutdown_States, 
+			//m_intervalCheck_DoShutdown_States);
+		m_timerid_DoShutdown_States = daemonCore->Register_Timer(
+			m_intervalCheck_DoShutdown_States,
+			(TimerHandlercpp)&AdminEvent::th_DoShutdown_States,
+			"AdminEvent::DoShutdown_States()", this );
+			dprintf(D_ALWAYS,
+				"th_Check_PollingVacates <<< REGISTER TIMER ((+%d)) ID=%d >>>\n"
+				,m_intervalCheck_DoShutdown_States, m_timerid_DoShutdown_States);
+	} else {
+		m_timerid_DoShutdown_States = daemonCore->Register_Timer(
+			m_intervalCheck_DoShutdown_States,
+			(TimerHandlercpp)&AdminEvent::th_DoShutdown_States,
+			"AdminEvent::DoShutdown_States()", this );
+			dprintf(D_ALWAYS,
+				"th_Check_PollingVacates <<< REGISTER TIMER ((+%d)) ID=%d >>>\n"
+				,m_intervalCheck_DoShutdown_States, m_timerid_DoShutdown_States);
+	}
+	return(0);
+}
+
+int
+AdminEvent::spoolClassAd( ClassAd * ca_shutdownRate, char *direction )
+{
+	char *tmp;
+
+	tmp = param("SPOOL");
+	if(strcmp(direction,"in") == 0) {
+		m_spoolHistory = dircat(tmp,"EventdShutdownRate.log");
+		m_spoolStorage = fopen((const char *)m_spoolHistory.Value(),"r");
+		if(m_spoolStorage != NULL) {
+			int isEOF=0, error=0, empty=0;
+			m_lastShutdown = new ClassAd(m_spoolStorage,"//*",isEOF,error,empty);
+			if(m_lastShutdown != NULL) {
+				dprintf(D_ALWAYS,"Got initial classad from spool(%s)\n",
+					m_spoolHistory.Value());
+				fclose(m_spoolStorage);
+				m_lastShutdown->dPrint(D_ALWAYS);
+			} else {
+				dprintf(D_ALWAYS,"Failed to get initial classad from spool(%s)\n",
+					m_spoolHistory.Value());
+				return(1);
+			}
+		} else {
+			char 	line[100];
+			int 	lastrate = 0;
+
+			dprintf(D_ALWAYS,"Failed to open from spool(%s/%d)\n",
+				m_spoolHistory.Value(),errno);
+			m_lastShutdown = new ClassAd();
+			sprintf(line, "%s = %d", "LastShutdownRate", lastrate);
+			m_lastShutdown->Insert(line);
+			m_lastShutdown->dPrint(D_ALWAYS);
+			m_spoolStorage = fopen((const char *)m_spoolHistory.Value(),"w+");
+			if(m_spoolStorage != NULL) {
+				m_lastShutdown->fPrint(m_spoolStorage);
+				fclose(m_spoolStorage);
+			} else {
+				dprintf(D_ALWAYS,"Failed to open from spool for writing (%s/%d)\n",
+					m_spoolHistory.Value(),errno);
+				return(1);
+			}
+		}
+		return(0);
+	} else if(strcmp(direction,"out") == 0) {
+		m_spoolStorage = fopen((const char *)m_spoolHistory.Value(),"w");
+		if(m_spoolStorage != NULL) {
+			m_lastShutdown->fPrint(m_spoolStorage);
+			fclose(m_spoolStorage);
+		} else {
+			dprintf(D_ALWAYS,"Failed to open from spool for writing (%s/%d)\n",
+				m_spoolHistory.Value(),errno);
+			return(1);
+		}
+		return(0);
+	} else {
+		return(1);
+	}
+}
+
 /*
 
-		Timers
+		States
 
 */
 
@@ -192,7 +450,7 @@ AdminEvent::th_DoShutdown_States( void )
 			dprintf(D_ALWAYS, 
 				"AE::th_DoShutdown_States( no work here - EVENT_INIT: )\n");
 			break;
-		case EVENT_SAMPLING:
+		case EVENT_HUERISTIC:
 			dprintf(D_ALWAYS, "AE::th_DoShutdown_States(FetchAds) \n");
 			empty_Hashes();
 			FetchAds_ByConstraint((char *)m_shutdownConstraint.Value());
@@ -201,10 +459,25 @@ AdminEvent::th_DoShutdown_States( void )
 			do_checkpoint_samples(true);
 			break;
 
-		case EVENT_EVAL_SAMPLING:
+		case EVENT_EVAL_HUERISTIC:
 			dprintf(D_ALWAYS, 
 				"AE::th_DoShutdown_States(benchmark_analysis) \n");
 			benchmark_analysis();
+			break;
+
+		case EVENT_SAMPLING:
+			dprintf(D_ALWAYS, 
+				"AE::th_DoShutdown_States( work here - EVENT_SAMPLING: )\n");
+			// how much is running? estimate when to wake up by total image size
+			// and the admin checkpointing capacity
+			check_Shutdown(true);
+			FetchAds_ByConstraint((char *)m_shutdownConstraint.Value());
+			totalRunningJobs();
+			break;
+
+		case EVENT_EVAL_SAMPLING:
+			dprintf(D_ALWAYS, 
+				"AE::th_DoShutdown_States( no work - EVENT_EVAL_SAMPLING: )\n");
 			break;
 
 		case EVENT_MAIN_WAIT:
@@ -232,6 +505,12 @@ AdminEvent::th_DoShutdown_States( void )
 	}
 	return(0);
 }
+
+/*
+
+		Timers
+
+*/
 
 int 
 AdminEvent::th_DoShutdown( void )
@@ -403,175 +682,6 @@ AdminEvent::th_Check_PollingVacates( void )
 */
 
 int
-AdminEvent::check_Shutdown( bool init )
-{
-	char *timeforit, *nameforit, *sizeforit, *constraintforit;
-	char *vacatepolling, *startsize, *startsizeinc, *rateofit;
-
-	char *tmp;
-
-	dprintf(D_FULLDEBUG, "Checking For Shutdown\n");
-
-	// Get EVENTD_SHUTDOWN_TIME parameter
-	timeforit = param( "EVENTD_SHUTDOWN_TIME" );
-	if( timeforit ) {
-		 dprintf(D_FULLDEBUG, "EVENTD_SHUTDOWN_TIME is %s\n",
-		 		timeforit);
-		 process_ShutdownTime( timeforit );
-		 free( timeforit );
-	}
-
-	/* Are we currently set with a shutdown? Is this a reconfig to same value? */
-	if(m_timeridDoShutdown >= 0)
-	{
-		/* 
-		  we have one set and if it is not the same time, calculate when
-		  and reset the timer.
-		*/
-		if( m_shutdownTime != m_newshutdownTime){
-			dprintf(D_ALWAYS, 
-					"AE: We have a repeat shutdown event. ignoring\n");
-		} else {
-			if((m_newshutdownTime != 0) && (m_newshutdownTarget.Length() != 0)){
-				time_t timeNow = time(NULL);
-				if(m_newshutdownTime > timeNow) {
-					m_intervalDoShutdown = 
-							(unsigned)(m_newshutdownTime - timeNow);
-					m_shutdownTime = m_newshutdownTime;
-					if (( m_timeridDoShutdown < 0 ) 
-							&& (m_intervalDoShutdown > 60)) 
-					{
-						dprintf(D_ALWAYS, 
-							"AE: shutdown event. Set timer <<%d>> from now\n",
-							m_intervalDoShutdown);
-						m_timeridDoShutdown = daemonCore->Reset_Timer(
-							m_timeridDoShutdown, m_intervalDoShutdown, 0);
-					}
-				} else {
-					dprintf(D_ALWAYS, 
-						"AE::chk_Shtdwn: Shutdown denied (past or too close\n");
-				}
-			}
-		}
-	} else {
-		/* this is a new timer request */
-		if((m_newshutdownTime != 0) && (m_newshutdownTarget.Length() != 0)){
-			time_t timeNow = time(NULL);
-			if(m_newshutdownTime > timeNow) {
-				m_intervalDoShutdown = (unsigned)(m_newshutdownTime - timeNow);
-				m_shutdownTime = m_newshutdownTime;
-				if (( m_timeridDoShutdown < 0 ) && (m_intervalDoShutdown > 60)) {
-					dprintf(D_ALWAYS, 
-						"AE: shutdown event. Set timer <<%d>> from now\n",
-						m_intervalDoShutdown);
-					m_timeridDoShutdown = daemonCore->Register_Timer(
-						m_intervalDoShutdown,
-						(TimerHandlercpp)&AdminEvent::th_DoShutdown,
-						"AdminEvent::DoShutdown()", this );
-				}
-			} else {
-				dprintf(D_ALWAYS, 
-					"AE::chk_Shtdwn: denied either past or too close!\n");
-			}
-		}
-	}
-
-	// Get EVENTD_SHUTDOWN_MACHINES parameter
-	tmp = param( "EVENTD_SHUTDOWN_MACHINES" );
-	if(tmp) {
-		m_newshutdownTarget = tmp;
-		dprintf(D_ALWAYS, 
-				"EVENTD_SHUTDOWN_MACHINES is %s\n",tmp);
-		free( tmp );
-	}
-
-	tmp = param("SPOOL");
-	if(tmp) {
-		m_spoolHistory = tmp;
-		m_spoolHistory += "/EventdShutdownRate.log";
-		free(tmp);
-	} else {
-		EXCEPT( "SPOOL not define!" );
-	}
-
-	// Get EVENTD_ADMIN_MEGABITS_SEC parameter
-	tmp = param( "EVENTD_ADMIN_MEGABITS_SEC" );
-	if(tmp) {
-		m_newshutdownAdminRate = tmp;
-		dprintf(D_ALWAYS, 
-				"EVENTD_ADMIN_MEGABITS_SEC is %s\n",tmp);
-		free( tmp );
-	}
-
-	// Get EVENTD_SHUTDOWN_SIZE parameter
-	tmp = param( "EVENTD_SHUTDOWN_SIZE" );
-	if( tmp ) {
-		m_newshutdownSize = atoi(tmp);
-		dprintf(D_ALWAYS, 
-				"EVENTD_SHUTDOWN_SIZE is %s\n",tmp);
-		free( tmp );
-	}
-
-	// Get EVENTD_VACATE_POLLING_START_SIZE parameter
-	tmp = param( "EVENTD_VACATE_POLLING_START_SIZE" );
-	if( tmp ) {
-		m_benchmark_size = atoi(tmp);
-		dprintf(D_ALWAYS, 
-				"EVENTD_VACATE_POLLING_START_SIZE is %s\n",tmp);
-		free( tmp );
-	}
-
-	// Get EVENTD_VACATE_POLLING_START_SIZE_INCREMENT parameter
-	tmp = param( "EVENTD_VACATE_POLLING_START_SIZE_INCREMENT" );
-	if( tmp ) {
-		m_benchmark_increment = atoi(tmp);
-		dprintf(D_ALWAYS, 
-				"EVENTD_VACATE_POLLING_START_SIZE_INCREMENT is %s\n",
-				tmp);
-		free( tmp );
-	}
-
-	// Get EVENTD_VACATE_POLLING parameter
-	tmp = param( "EVENTD_VACATE_POLLING" );
-	if( tmp ) {
-		m_intervalPeriod_PollingVacates = atoi(tmp);
-		dprintf(D_ALWAYS, 
-				"EVENTD_VACATE_POLLING is %s\n",tmp);
-		free( tmp );
-	}
-
-	// Get EVENTD_SHUTDOWN_CONSTRAINT parameter
-	tmp = param( "EVENTD_SHUTDOWN_CONSTRAINT" );
-	if( tmp ) {
-		m_shutdownConstraint = tmp;
-		dprintf(D_ALWAYS, 
-				"EVENTD_SHUTDOWN_CONSTRAINT is %s\n",tmp);
-		free( tmp );
-	}
-
-	if(m_timerid_DoShutdown_States > 0) {
-		//daemonCore->Reset_Timer(m_timerid_DoShutdown_States, 
-			//m_intervalCheck_DoShutdown_States);
-		m_timerid_DoShutdown_States = daemonCore->Register_Timer(
-			m_intervalCheck_DoShutdown_States,
-			(TimerHandlercpp)&AdminEvent::th_DoShutdown_States,
-			"AdminEvent::DoShutdown_States()", this );
-			dprintf(D_ALWAYS,
-				"th_Check_PollingVacates <<< REGISTER TIMER ((+%d)) ID=%d >>>\n"
-				,m_intervalCheck_DoShutdown_States, m_timerid_DoShutdown_States);
-	} else {
-		m_timerid_DoShutdown_States = daemonCore->Register_Timer(
-			m_intervalCheck_DoShutdown_States,
-			(TimerHandlercpp)&AdminEvent::th_DoShutdown_States,
-			"AdminEvent::DoShutdown_States()", this );
-			dprintf(D_ALWAYS,
-				"th_Check_PollingVacates <<< REGISTER TIMER ((+%d)) ID=%d >>>\n"
-				,m_intervalCheck_DoShutdown_States, m_timerid_DoShutdown_States);
-	}
-	return(0);
-}
-
-int
 AdminEvent::do_checkpoint_samples( bool init )
 {
 	ClassAd *ad;
@@ -718,10 +828,6 @@ AdminEvent::sendVacateClaim( char *sinful, char *name )
 
 	/* when we wake up we do the shutdown */
 	d = new DCStartd(name, NULL, sinful, NULL);
-	//dprintf(D_ALWAYS,"daemon name is %s\n",d->name());
-	//dprintf(D_ALWAYS,"call vacateClaim now.....\n");
-	//dprintf(D_ALWAYS, 
-		//"Want to vacate claim  here ((%s)) and this vm ((%s))\n",sinful,name);
 	d->vacateClaim(name);
 	//fRes = d->releaseClaim(VACATE_GRACEFUL,&reply,timeout);
 	//if(!fRes) {
@@ -748,9 +854,6 @@ AdminEvent::have_requested_batch( int batchsz )
 	StartdStats *ss;
 
 	m_JobNodes_su.startIterations();
-	//dprintf(D_ALWAYS,
-		//"In have_requested_batch SU jobs< %d elements and %d table size >\n",
-		//m_JobNodes_su.getNumElements(), m_JobNodes_su.getTableSize());
 	while(m_JobNodes_su.iterate(ss) == 1) {
 		accumulated += (ss->imagesize/1000);
 		//dprintf(D_ALWAYS,"have_requested_batch<partial> wanted %d had %d\n",
@@ -1150,12 +1253,13 @@ AdminEvent::benchmark_store_results(float  megspersec, int totmegs, int tottime)
 int
 AdminEvent::process_ShutdownTime( char *req_time )
 {
-	dprintf(D_ALWAYS, "Processing Shutdown Time String<<%s>>\n",req_time);
 	// Crunch time into time_t format via str to tm
 	struct tm tm;
 	struct tm *tmnow;
 	char *res;
 	time_t timeNow = time(NULL);
+
+dprintf(D_ALWAYS, "timeNow is %ld\n",timeNow);
 
 	// make a tm with info for now and reset
 	// secs, day and hour from the next scan of the req_time`
@@ -1163,24 +1267,23 @@ AdminEvent::process_ShutdownTime( char *req_time )
 
 	// find secs, hour and minutes
 	res = strptime(req_time,"%H:%M:%S",&tm);
-	dprintf(D_ALWAYS, "Processing Shutdown Time seconds <%d> minutes <%d> hours <%d>\n",
-		tm.tm_sec,tm.tm_min,tm.tm_hour);
 	if(res != NULL) {
-		dprintf(D_FULLDEBUG, "Processing Shutdown Time String<<LEFTOVERS--%s-->>\n",res);
+		dprintf(D_ALWAYS, "Processing Shutdown Time String<<LEFTOVERS--%s-->>\n",res);
 		//return(-1);
 	}
 
-	// Check TM values
+	// Get today into request structure
+	tm.tm_mday = tmnow->tm_mday;
+	tm.tm_mon = tmnow->tm_mon;
+	tm.tm_year = tmnow->tm_year;
+	tm.tm_wday = tmnow->tm_wday;
+	tm.tm_yday = tmnow->tm_yday;
+	tm.tm_isdst = tmnow->tm_isdst;
 
-	// Get request into this days structure
-	tmnow->tm_sec = tm.tm_sec;
-	tmnow->tm_min = tm.tm_min;
-	tmnow->tm_hour = tm.tm_hour;
-
+	dprintf(D_ALWAYS, "(tmnow after change):Processing Shutdown Time seconds <%d> minutes <%d> hours <%d>\n",
+		tm.tm_sec,tm.tm_min,tm.tm_hour);
 	// Get our time_t value
-	m_newshutdownTime = mktime(tmnow);
-	dprintf(D_FULLDEBUG, "Time now is %ld and shutdown is %ld\n",
-		timeNow,m_shutdownTime);
+	m_newshutdownTime = mktime(&tm);
 	
 	return(0);
 }
@@ -1188,15 +1291,12 @@ AdminEvent::process_ShutdownTime( char *req_time )
 int
 AdminEvent::FetchAds_ByConstraint( char *constraint )
 {
-	bool first = true;
 	CondorError errstack;
 	CondorQuery *query;
     QueryResult q;
 	ClassAd *ad;
 	DCCollector* pool = NULL;
 	AdTypes     type    = (AdTypes) -1;
-	char* tmp = NULL;
-	const char* host = NULL;
 
 	MyString machine;
 	MyString state;
@@ -1205,7 +1305,6 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 	MyString remoteuser;
 
 	int jobuniverse = -1;
-	int imagesz = -1;
 	int totalclaimruntime = -1;
 
 	MyString machine2;
@@ -1213,12 +1312,6 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 	MyString sinful2;
 	MyString name2;
 	MyString remoteuser2;
-
-	int jobuniverse2 = -1;
-	int imagesz2 = -1;
-	int totalclaimruntime2 = -1;
-
-	dprintf(D_ALWAYS,"FetchAds_ByConstraint\n");
 
 	pool = new DCCollector( "" );
 
@@ -1232,7 +1325,6 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 
 	// we are looking for starter ads
 	type = STARTD_AD;
-	//type = MASTER_AD;
 
 	// instantiate query object
 	if( !(query = new CondorQuery (type))) {
@@ -1259,10 +1351,10 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 	if( m_collector_query_ads.Length() <= 0 ){
 		dprintf(D_ALWAYS, "Found no ClassAds matching <<%s>> <<%d results>>\n",
 			constraint,m_collector_query_ads.Length());
-	} //else {
-		//dprintf(D_ALWAYS, "Found <<%d>> ClassAds matching <<%s>>\n",
-			//m_collector_query_ads.Length(),constraint);
-	//}
+	} else {
+		dprintf(D_FULLDEBUG, "Found <<%d>> ClassAds matching <<%s>>\n",
+			m_collector_query_ads.Length(),constraint);
+	}
 
 	// output result
 	// we always fill the sorted class ad lists with the result of the query
@@ -1279,13 +1371,6 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 		if( ! machine.Value() ) {
 			dprintf(D_ALWAYS, "malformed ad????\n");
 			continue;
-		} else {
-			//dprintf(D_ALWAYS, 
-				//"Found <%s> machine <%d> universe <%d> imagesz == <<%s>>\n",
-				//machine.Value(),jobuniverse,imagesz,constraint);
-			//dprintf(D_ALWAYS, 
-				//"Found <<%s>> remoteuser <<%d>> totalclaimruntime \n",
-				//remoteuser.Value(),totalclaimruntime);
 		}
 
 		if(jobuniverse == CONDOR_UNIVERSE_STANDARD) {
@@ -1293,43 +1378,52 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 		}
 
 		m_collector_query_ads.Delete(ad);
-
 	}
 
 	// sort list with oldest standard universe jobs first
 	m_claimed_standard.Sort( (SortFunctionType)ClaimRunTimeSort );
 
+	delete pool;
+	delete query;
+	return(0);
+}
 
-	/*
+int
+AdminEvent::totalRunningJobs()
+{
+	ClassAd *ad;
+
+	MyString sinful;
+	MyString clientmachine;
+	MyString jobid;	
+	MyString ckptsrvr;
+
+	int		imagesize;	
+	int 	totalimagesize = 0;
+	int     testtime = 0;
+
+	time_t timeNow = time(NULL);
+
+	dprintf(D_ALWAYS,"totalRunningJobs\n");
+
+
+	dprintf(D_ALWAYS,"The following were assigned claimed standard U\n");
 	m_claimed_standard.Rewind();
 	while( (ad = m_claimed_standard.Next()) ){
-		ad->LookupString( ATTR_MACHINE, machine2 );
-		ad->LookupString( ATTR_STATE, state2 );
-		ad->LookupString( ATTR_MY_ADDRESS, sinful2 );
-		ad->LookupString( ATTR_REMOTE_USER, remoteuser2 );
-		ad->LookupInteger( ATTR_JOB_UNIVERSE, jobuniverse2 );
-		ad->LookupInteger( ATTR_TOTAL_CLAIM_RUN_TIME, totalclaimruntime2 );
-
-		if( ! machine2 ) {
-			dprintf(D_ALWAYS, "malformed ad????\n");
-			continue;
-		} else {
-			dprintf(D_ALWAYS, 
-				"SORTED <%s> machine <%d> universe <%d> imagesz == <%s>\n",
-				machine2.Value(),jobuniverse2,imagesz2,constraint);
-			dprintf(D_ALWAYS, 
-				"SORTED <%s> remoteuser <%d> totalclaimruntime \n",
-				remoteuser2.Value(),totalclaimruntime2);
+		imagesize = 0;
+		ad->LookupString( ATTR_MY_ADDRESS, sinful ); 
+		ad->LookupString( ATTR_CLIENT_MACHINE, clientmachine ); 
+		ad->LookupString( ATTR_JOB_ID, jobid ); 
+		ad->LookupString( ATTR_CKPT_SERVER, ckptsrvr ); 
+		ad->LookupInteger( ATTR_IMAGE_SIZE, imagesize ); 
+		//m_claimed_standard.Delete(ad);
+		if(imagesize > 0) {
+			totalimagesize += (imagesize/1000);
 		}
 	}
 
-	*/
-
-	// output result
-	// standardUDisplay();
-
-	delete pool;
-	delete query;
+	dprintf(D_ALWAYS,
+		"Size of jobs from active constraint <<%d megs>>\n",totalimagesize);
 	return(0);
 }
 
