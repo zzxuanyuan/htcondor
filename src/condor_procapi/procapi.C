@@ -1461,9 +1461,11 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	fclose(fp);
 
 #elif defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
-	struct vmspace *vm = kp->ki_vmspace;
-	pi->imgsize = vm->vm_map.size / 1024;
-	pi->rssize = vm->vm_pmap.pm_stats.resident_count * getpagesize();
+	//struct vmspace *vm = kp->ki_vmspace;
+	//pi->imgsize = vm->vm_map.size / 1024;
+	pi->imgsize = kp->ki_size / 1024;
+	//pi->rssize = vm->vm_pmap.pm_stats.resident_count * getpagesize();
+	pi->rssize = kp->ki_swrss * getpagesize();
 	pi->ppid = kp->ki_ppid;
 	pi->owner = kp->ki_uid;
 	pi->user_time = kp->ki_rusage.ru_utime.tv_sec;
@@ -1587,9 +1589,11 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	procRaw.majfault = 0;
 	procRaw.minfault = 0;
 #elif defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
-	struct vmspace *vm = kp->ki_vmspace;
-	procRaw.imgsize = vm->vm_map.size / 1024;
-	procRaw.rssize = vm->vm_pmap.pm_stats.resident_count * getpagesize();
+	//struct vmspace *vm = kp->ki_vmspace;
+	//procRaw.imgsize = vm->vm_map.size / 1024;
+	//procRaw.rssize = vm->vm_pmap.pm_stats.resident_count * getpagesize();
+	procRaw.imgsize = kp->ki_size / 1024;
+	procRaw.rssize = kp->ki_swrss * getpagesize();
 	procRaw.ppid = kp->ki_ppid;
 	procRaw.owner = kp->ki_uid;
 	procRaw.majfault = kp->ki_rusage.ru_majflt;
