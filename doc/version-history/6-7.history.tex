@@ -23,9 +23,6 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item Implemented all of the functions from new classads into the
-"old" classads now in Condor.
-
 \item Condor's format for storing the history file has been improved
 so that some queries will now go much faster. In particular,
 \Condor{history} now accepts the ``-backwards'' flag, which will take
@@ -45,18 +42,6 @@ remotely, the old behavior can be forced by setting
 \Macro{DELEGATE\_JOB\_GSI\_CREDENTIALS} to False in the configuration
 file.
 
-\item Added configuration parameter \Macro{NO\_DNS}, which allows Condor
-to work on machines with no DNS. When this option is set to True, Condor
-will use pseudo-hostnames constructed from a machine's IP address and
-\Macro{DEFAULT\_DOMAIN\_NAME}, rather than attempting to resolve hostnames
-into IP addresses and vice-versa.
-
-\item Condor daemons now touch their daemon log file periodically. When
-a daemon starts up, it prints to the log the last time the log file was
-modified. This lets an admin estimate when a daemon stopped running.
-The configuration parameter \Macro{TOUCH\_LOG\_INTERVAL} sets the time
-between touches (in seconds) and defaults to 60 seconds.
-
 \item Added the ability to pass a specific \Condor{config\_val} program
 to the cron/Hawkeye ``modules''.  If ``HAWKEYE\_CONFIG\_VAL'' is
 specified in the configuration, an environment variable with the same
@@ -70,11 +55,6 @@ SCHEDD\_CRON\_NAME).
 \Code{copy\_to\_spool} set to \Code{false}.  This reduces the load and
 saves file space on the submit machine, especially if you are running
 multiple instances of \Condor{dagman}.
-
-\item The authorization levels in Condor's security system now form a
-heirarchy. A client with DAEMON or ADMINISTRATOR access also have WRITE
-access. A client with WRITE, NEGOTIATOR, or CONFIG access also have
-READ access.
 
 \item Added configuration parameter
 \Macro{GRIDMANAGER\_EMPTY\_RESOURCE\_DELAY}, which sets how long the
@@ -93,34 +73,12 @@ allows it to run on Windows without being a service.
 \item Added a new version of DRMAA which includes fixes and updates per
  DRMAA spec finalization.
 
-\item For grid-type gt4 jobs, the resource lifetime on the remote server
-will be based on \Attr{job\_lease\_duration}, if it's set.
-
-\item Improved the error message in \Condor{dagman} for
-\Code{pclose()} failures after submitting a node job.
-
-\item Added new job attribute \Attr{GridResourceUnavailableTime}, which
-is equivalent to \Attr{GlobusResourceUnavailableTime}, but is used for
-all grid universe jobs. One benefit of this new attribute is that grid
-resource up/down user log events are logged correctly when the gridmanager
-crashes and restarts.
-
-
 \end{itemize}
 
 
 \noindent Bugs Fixed:
 
 \begin{itemize}
-
-\item Fixed a bug in the dedicated scheduler where parallel and mpi
-jobs with more than one proc in a cluster would only have the
-Scheduler attribute set in the first proc.
-
-\item Fixed a bug in the \Condor{collector} that could cause it to
-crash if it's configured as a view collector
-(i.e. \Macro{KEEP\_POOL\_HISTORY} is TRUE).  In particular, machine
-ads with a State value of ``Backfill'' could trigger this crash.
 
 \item Disconnected starter-shadow connections (job leases) now work for flocked jobs.
 
@@ -136,9 +94,6 @@ to Idle, along with another execute even when the job restarts.  Previously
 no events were logged in these cases, leading to the potentially confusing
 situation where a job would be Idle in the queue, but the last job log entry
 would indicate that the job was Running.
-
-\item All grid universe jobs now properly handle the new job attributes
-\Attr{Arguments}, \Attr{Environment}, and \Attr{TransferOutputRemaps}.
 
 \item Fixed a permissions problem that would cause automatic X509 proxy renewal for vanilla universe jobs to fail.
 
@@ -188,24 +143,6 @@ correctly handled.
 \item Fixed a bug that caused the shadow to transfer a job's files
 twice to the starter if the files were stored in Condor's spool
 directory.
-
-\item On some systems, when Condor starts a gridftp server for gt4 grid
-jobs, all transfers to or from the server will fail if it's not told
-where its executable is located (using '-exec' on the command line).
-Condor now gives this option to the gridftp server.
-
-% Gnats PR 658
-\item Fixed a bug in \Condor{dagman} that could cause DAGMan to crash
-if all submits fail for several nodes that have POST scripts.
-This bug existed in versions 6.7.17 and 6.7.18.
-
-\item Fixed a bug in how Condor determines the version of a Condor
-executable. This was preventing the grid universe from working on
-Tru64 5.1 on Alpha.
-
-\item Fixed a bug in the \Condor{gridmanager} that could cause gt2 grid
-jobs with an invalid proxy to become stuck (the \Condor{gridmanager}
-would do nothing with the jobs and not acknowledge a hold or removal).
 
 \end{itemize}
 
