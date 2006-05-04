@@ -389,6 +389,11 @@ elif test $os = "FreeBSD" ; then
 
    _cv_op_sys=CONDOR_FREEBSD${_cv_opsys_vers}
    _cv_opsys=${_cv_op_sys}
+   
+   ##
+   ## Need to make _cv_opsys_vers like 'FREEBSD#'
+   ##
+   _cv_opsys_vers="FREEBSD${_cv_opsys_vers}"
 
 else
   AC_MSG_ERROR([Condor has not been ported to this platform])
