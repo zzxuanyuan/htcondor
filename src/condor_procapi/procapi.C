@@ -1343,7 +1343,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	return PROCAPI_SUCCESS;
 }
 
-#elif defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#elif defined(CONDOR_FREEBSD)
 
 #if defined(CONDOR_FREEBSD4)
 	struct procstat {
@@ -1373,116 +1373,37 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 int
 ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status ) 
 {
-
-	// First, let's get the BSD task info for this stucture. This
-	// will tell us things like the pid, ppid, etc. 
-
-	int mib[4];
-	struct kinfo_proc *kp, *kprocbuf;
-	size_t bufSize = 0;
-
-	status = PROCAPI_OK;
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PROC;    
-	mib[2] = KERN_PROC_PID;
-	mib[3] = pid;
-
-	if ( sysctl( mib, 4, NULL, &bufSize, NULL, 0 ) < 0 ) {
-		status = PROCAPI_UNSPECIFIED;
-		dprintf( D_FULLDEBUG, 
-			"ProcAPI: sysctl() (pass 1) on pid %d failed with %d(%s)\n",
-			pid, errno, strerror(errno) );
+	initpi(pi);
+		//
+		// get the raw system process data
+		//
+	procInfoRaw procRaw;
+	int retVal = ProcAPI::getProcInfoRaw( pid, procRaw, status );
+		//
+		// If a failure occurred, then returned the right status
+		//
+	if ( retVal != 0 ) {
 		return ( PROCAPI_FAILURE );
 	}
 
-	kprocbuf = kp = ( struct kinfo_proc * )malloc( bufSize );
-	if ( kp == NULL ) {
-		EXCEPT( "ProcAPI: getProcInfo() Out of memory!\n" );
+		// if the page size has not yet been found, get it.
+	if ( pagesize == 0 ) {
+		pagesize = getpagesize() / 1024;
 	}
-
-	if ( sysctl( mib, 4, kp, &bufSize, NULL, 0 ) < 0 ) {
-		status = PROCAPI_UNSPECIFIED;
-		dprintf( D_FULLDEBUG, 
-			"ProcAPI: sysctl() (pass 2) on pid %d failed with %d(%s)\n",
-			pid, errno, strerror(errno) );
-		free(kp);
-		return ( PROCAPI_FAILURE );
-	}
-
-	// This *could* allocate memory and make pi point to it if pi == NULL.
-	// It is up to the caller to get rid of it.
-         initpi(pi);
-#if defined(CONDOR_FREEBSD4)
-	FILE* fp;
-	char path[MAXPATHLEN];
-	struct procstat prs;
-	sprintf(path,"/proc/%d/status",pid);
-		//
-		// This doesn't exist by default in FreeBSD!
-		//
-	if ( (fp = fopen( path, "r" )) == NULL ) {
-		dprintf( D_FULLDEBUG, "ProcAPI: /proc/%d/status not found!\n", pid);
-		free(kp);
-		return PROCAPI_FAILURE;
-	}
-	fscanf(fp, 
-		"%s %d %d %d %d %d,%d %s %d,%d %d,%d %d,%d %s %d %d %d,%d,%s",
-		prs.comm, 
-		&prs.pid, 
-		&prs.ppid,
-		&prs.pgid,
-		&prs.sid, 
-		&prs.tdev_maj, 
-		&prs.tdev_min, 
-		prs.flags, 
-		&prs.start,
-		&prs.start_mic,
-		&prs.utime,
-		&prs.utime_mic,
-		&prs.stime, 
-		&prs.stime_mic, 
-		prs.wchan,
-		&prs.euid,
-		&prs.ruid,
-		&prs.rgid,
-		&prs.egid,
-		prs.groups
-	);
-
-	struct vmspace vm = (kp->kp_eproc).e_vm; 
-	pi->imgsize = vm.vm_map.size / 1024;
-	pi->rssize = vm.vm_pmap.pm_stats.resident_count * getpagesize();
-	pi->ppid = kp->kp_eproc.e_ppid;
-	pi->owner = kp->kp_eproc.e_pcred.p_ruid; 
-	pi->user_time = prs.utime;
-	pi->sys_time = prs.stime;
-	pi->creation_time = prs.start;
-	fclose(fp);
-
-#elif defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
-	//struct vmspace *vm = kp->ki_vmspace;
-	//pi->imgsize = vm->vm_map.size / 1024;
-	pi->imgsize = kp->ki_size / 1024;
-	//pi->rssize = vm->vm_pmap.pm_stats.resident_count * getpagesize();
-	pi->rssize = kp->ki_swrss * getpagesize();
-	pi->ppid = kp->ki_ppid;
-	pi->owner = kp->ki_uid;
-	pi->user_time = kp->ki_rusage.ru_utime.tv_sec;
-	pi->sys_time = kp->ki_rusage.ru_stime.tv_sec;
-	pi->creation_time = kp->ki_start.tv_sec;
-#endif
-	pi->age = secsSinceEpoch() - pi->creation_time; 
-	pi->pid = pid;
-
-	long nowminf, nowmajf;
-	double ustime = pi->user_time + pi->sys_time;
-
-	nowminf = 0;
-	nowmajf = 0;
-	do_usage_sampling(pi, ustime, nowmajf, nowminf);
 	
-	free(kp);
+	pi->imgsize = procRaw.imgsize / 1024;	
+	pi->rssize = procRaw.rssize * getpagesize();
+	pi->ppid = procRaw.ppid;
+	pi->owner = procRaw.owner;
+	pi->creation_time = procRaw.creation_time;
+	pi->pid = procRaw.pid;
+	pi->user_time = procRaw.user_time_1;
+	pi->sys_time = procRaw.sys_time_1;
+	pi->age = secsSinceEpoch() - pi->creation_time;
+
+	double ustime = pi->user_time + pi->sys_time;
+	do_usage_sampling( pi, ustime, procRaw.majfault, procRaw.minfault );
+	
 	return PROCAPI_SUCCESS;
 }
 
@@ -1575,8 +1496,8 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 		prs.groups
 	);
 	struct vmspace vm = (kp->kp_eproc).e_vm; 
-	procRaw.imgsize = vm.vm_map.size / 1024;
-	procRaw.rssize = vm.vm_pmap.pm_stats.resident_count * getpagesize();
+	procRaw.imgsize = vm.vm_map.size;
+	procRaw.rssize = vm.vm_pmap.pm_stats.resident_count;
 	procRaw.user_time_1 = prs.utime;
 	procRaw.user_time_2 = 0;
 	procRaw.sys_time_1 = prs.stime;
@@ -1588,12 +1509,9 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 		// We don't know the page faults
 	procRaw.majfault = 0;
 	procRaw.minfault = 0;
-#elif defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
-	//struct vmspace *vm = kp->ki_vmspace;
-	//procRaw.imgsize = vm->vm_map.size / 1024;
-	//procRaw.rssize = vm->vm_pmap.pm_stats.resident_count * getpagesize();
-	procRaw.imgsize = kp->ki_size / 1024;
-	procRaw.rssize = kp->ki_swrss * getpagesize();
+#else
+	procRaw.imgsize = kp->ki_size;
+	procRaw.rssize = kp->ki_swrss;
 	procRaw.ppid = kp->ki_ppid;
 	procRaw.owner = kp->ki_uid;
 	procRaw.majfault = kp->ki_rusage.ru_majflt;
@@ -2863,7 +2781,7 @@ ProcAPI::getAndRemNextPid () {
    to by pidList, a private data member of ProcAPI.  
  */
 
-#if !defined(Darwin) && !defined(CONDOR_FREEBSD4) && !defined(CONDOR_FREEBSD5) && !defined(CONDOR_FREEBSD6) && !defined(CONDOR_FREEBSD7)
+#if !defined(Darwin) && !defined(CONDOR_FREEBSD)
 int
 ProcAPI::buildPidList() {
 
@@ -2977,7 +2895,7 @@ ProcAPI::buildPidList() {
 
 #endif
 
-#if defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#if defined(CONDOR_FREEBSD)
 int
 ProcAPI::buildPidList() {
 
@@ -3023,7 +2941,7 @@ ProcAPI::buildPidList() {
 		temp = new pidlist;
 #if defined(CONDOR_FREEBSD4)
 		temp->pid = (pid_t) kp->kp_proc.p_pid;
-#elif defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#else
 		temp->pid = kp->ki_pid;
 #endif
 		temp->next = NULL;
