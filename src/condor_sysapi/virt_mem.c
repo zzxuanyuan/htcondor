@@ -256,7 +256,7 @@ sysapi_swap_space_raw()
 	}
 }
 
-#elif defined(Darwin) || defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#elif defined(Darwin) || defined(CONDOR_FREEBSD)
 #include <sys/sysctl.h>
 int
 sysapi_swap_space_raw() {

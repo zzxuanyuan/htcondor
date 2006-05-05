@@ -73,7 +73,7 @@
 #	include "condor_sys_bsd.h"
 #elif defined(AIX)
 #	include "condor_sys_aix.h"
-#elif defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#elif defined(CONDOR_FREEBSD)
 #	include "condor_sys_bsd.h"
 #else
 #   error "condor_system.h: Don't know what Unix this is!"
@@ -176,7 +176,7 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <rpc/types.h>
-#if !defined(Darwin) && !defined(CONDOR_FREEBSD4) && !defined(CONDOR_FREEBSD5) && !defined(CONDOR_FREEBSD6) && !defined(CONDOR_FREEBSD7)
+#if !defined(Darwin) && !defined(CONDOR_FREEBSD)
 #include <values.h>
 #endif
 #include <math.h>

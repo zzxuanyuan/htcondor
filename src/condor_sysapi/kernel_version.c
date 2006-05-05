@@ -106,7 +106,7 @@ sysapi_kernel_version_raw(void)
 	_sysapi_kernel_version = strdup(buf.release);
 #elif defined(OSF1)
 	_sysapi_kernel_version = strdup(buf.release);
-#elif defined(Darwin) || defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#elif defined(Darwin) || defined(CONDOR_FREEBSD)
 	_sysapi_kernel_version = strdup(buf.release);
 #elif defined(AIX)
 	_sysapi_kernel_version = strdup(buf.release);

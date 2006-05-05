@@ -61,7 +61,7 @@ int	UsePipes;
 char* mySubSystem = "SHADOW";
 
 extern "C" {
-#if (defined(LINUX) && (defined(GLIBC22) || defined(GLIBC23))) || defined(HPUX11) || defined(AIX) || defined(CONDOR_FREEBSD4) || defined(CONDOR_FREEBSD5) || defined(CONDOR_FREEBSD6) || defined(CONDOR_FREEBSD7)
+#if (defined(LINUX) && (defined(GLIBC22) || defined(GLIBC23))) || defined(HPUX11) || defined(AIX) || defined(CONDOR_FREEBSD)
 	/* XXX These should really be selected in a better fashion */
 	void reaper(int);
 	void handle_sigusr1(int);
