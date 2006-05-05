@@ -387,7 +387,7 @@ elif test $os = "FreeBSD" ; then
    _cv_opsys_vers=`uname -r | sed -e 's#\([0-9]*\).*#\1#'`
    _cv_kernel_rev=`uname -r | sed -e 's#[0-9]*\.\([0-9]*\).*#\1#'`
 
-   _cv_op_sys=CONDOR_FREEBSD${_cv_opsys_vers}
+   _cv_op_sys=CONDOR_FREEBSD
    _cv_opsys=${_cv_op_sys}
    
    ##
