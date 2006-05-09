@@ -167,6 +167,10 @@ distribution.
 
 \begin{itemize}
 
+\item Fixed a security hole in the checkpoint server where arbitrary
+files owned by the condor uid, or the uid of a personal condor running a
+checkpoint server, could be read and written.
+
 \item Fixed a bug in the dedicated scheduler where parallel and mpi
 jobs with more than one proc in a cluster would only have the
 Scheduler attribute set in the first proc.
@@ -179,10 +183,6 @@ ads with a State value of ``Backfill'' could trigger this crash.
 \item Disconnected starter-shadow connections (job leases) now work for flocked jobs.
 
 \item Fixed numeric value wrap-around bug for the totals in \Condor{status}.
-
-\item Fixed a security hole in the checkpoint server where arbitrary
-files owned by the condor uid, or the uid of a personal condor running a
-checkpoint server, could be read and written.
 
 \item Grid universe jobs sent to Globus Toolkit 2 resources now
 generate an evict user log event when the job transitions from Running
@@ -270,6 +270,11 @@ would do nothing with the jobs and not acknowledge a hold or removal).
   Now, administrators can use \MacroNI{SUBMIT\_EXPRS} for any
   settings, whether they are regular \Condor{submit} keywords or
   custom job attributes.
+
+\item Fixed a bug in the \Condor{startd} that could cause resources to
+  get stuck in the Backill/Killing state if both the
+  \Macro{START\_BACKFILL} and \Macro{EVICT\_BACKFILL} expressions
+  evaluated to TRUE at the same time.
 
 \end{itemize}
 
