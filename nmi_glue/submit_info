@@ -46,15 +46,6 @@ prereqs_x86_rh_9         = binutils-2.15
 
 
 ########################################
-# special-case hack for HPUX 10 machine
-########################################
-[
-platforms = hppa_hpux_B.10.20
-prereqs   = everything-1.0.0
-]
-
-
-########################################
 # On OSX we must specify the gcc version
 ########################################
 [
