@@ -1725,10 +1725,14 @@ section~\ref{sec:shared-fs}.
 
 \item[\Macro{EXECUTE\_LOGIN\_IS\_DEDICATED}]
   \label{param:ExecuteLoginIsDedicated}
-  When set to True,
-  forces Condor to use the users given by the \MacroNI{VMx\_USER}
-  configuration variable.
-  Defaults to False.
+  A boolean value that defaults to \Expr{False}.
+  When \Expr{True},
+  Condor knows that users given by the \MacroNI{VMx\_USER}
+  configuration variable exist exclusively to be the owner of
+  Condor jobs.
+  When a Condor job belonging to one of these users completes,
+  Condor may use kill all jobs belonging to this user.
+  This avoids lurker jobs that the Condor job may have started.
 
 \item[\Macro{FILESYSTEM\_DOMAIN}] \label{param:FilesystemDomain}
   The \MacroNI{FILESYSTEM\_DOMAIN}
