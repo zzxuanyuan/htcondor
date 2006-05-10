@@ -1547,6 +1547,16 @@ section~\ref{sec:Networking} on page~\pageref{sec:Networking}.
   % WARNING: Look in Version 6.5.2 version history for more information about
   % this particular entry.
 
+\item[\MacroB{<SUBSYS>\_TIMEOUT\_MULTIPLIER}]
+  \index{SUBSYS\_TIMEOUT\_MULTIPLIER macro@\texttt{<SUBSYS>\_TIMEOUT\_MULTIPLIER} macro}
+  \label{param:SubsysTimeoutMultiplier}
+  An integer value that defaults to 1.
+  This value multiplies configured timeout values
+  for all targeted subsystem communications,
+  thereby increasing the time until a timeout occurs.
+  This configuration variable is intended for use by developers for
+  debugging purposes, where communication timeouts interfere.
+
 \end{description}
 
 The following settings are specific to enabling Generic Connection
