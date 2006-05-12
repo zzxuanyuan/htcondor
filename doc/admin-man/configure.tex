@@ -1506,6 +1506,60 @@ section~\ref{sec:Networking} on page~\pageref{sec:Networking}.
   % Result if not defined or RHS is empty: Condor uses any ports available,
   % regardless of the HIGHPORT setting
 
+\item[\Macro{IN\_LOWPORT}] \label{param:InLowPort}
+  An integer value that specifies a lower limit of given port numbers
+  for Condor to use on incoming connections (ports for listening),
+  such that Condor is restricted to a range of port numbers.
+  This range implies the use of both \MacroNI{IN\_LOWPORT} and
+  \MacroNI{IN\_HIGHPORT}.
+  A range of port numbers less than 1024 may be used for daemons 
+  running as root.
+  Do not specify \MacroNI{IN\_LOWPORT} in combination with 
+  \MacroNI{IN\_HIGHPORT} such that the range crosses the port 1024
+  boundary.
+  Applies only to Unix machine configuration.
+  Use of \MacroNI{IN\_LOWPORT} and \MacroNI{IN\_HIGHPORT} overrides
+  any definition of \MacroNI{LOWPORT} and \MacroNI{HIGHPORT}.
+
+\item[\Macro{IN\_HIGHPORT}] \label{param:InHighPort}
+  An integer value that specifies an upper limit of given port numbers
+  for Condor to use on incoming connections (ports for listening),
+  such that Condor is restricted to a range of port numbers.
+  This range implies the use of both \MacroNI{IN\_LOWPORT} and
+  \MacroNI{IN\_HIGHPORT}.
+  A range of port numbers less than 1024 may be used for daemons 
+  running as root.
+  Do not specify \MacroNI{IN\_LOWPORT} in combination with 
+  \MacroNI{IN\_HIGHPORT} such that the range crosses the port 1024
+  boundary.
+  Applies only to Unix machine configuration.
+  Use of \MacroNI{IN\_LOWPORT} and \MacroNI{IN\_HIGHPORT} overrides
+  any definition of \MacroNI{LOWPORT} and \MacroNI{HIGHPORT}.
+
+\item[\Macro{OUT\_LOWPORT}] \label{param:OutLowPort}
+  An integer value that specifies a lower limit of given port numbers
+  for Condor to use on outgoing connections,
+  such that Condor is restricted to a range of port numbers.
+  This range implies the use of both \MacroNI{OUT\_LOWPORT} and
+  \MacroNI{OUT\_HIGHPORT}.
+  A range of port numbers less than 1024 is inappropriate, as
+  not all daemons and tools will be run as root.
+  Applies only to Unix machine configuration.
+  Use of \MacroNI{OUT\_LOWPORT} and \MacroNI{OUT\_HIGHPORT} overrides
+  any definition of \MacroNI{LOWPORT} and \MacroNI{HIGHPORT}.
+
+\item[\Macro{OUT\_HIGHPORT}] \label{param:OutHighPort}
+  An integer value that specifies an upper limit of given port numbers
+  for Condor to use on outgoing connections,
+  such that Condor is restricted to a range of port numbers.
+  This range implies the use of both \MacroNI{OUT\_LOWPORT} and
+  \MacroNI{OUT\_HIGHPORT}.
+  A range of port numbers less than 1024 is inappropriate, as
+  not all daemons and tools will be run as root.
+  Applies only to Unix machine configuration.
+  Use of \MacroNI{OUT\_LOWPORT} and \MacroNI{OUT\_HIGHPORT} overrides
+  any definition of \MacroNI{LOWPORT} and \MacroNI{HIGHPORT}.
+
 \item[\Macro{UPDATE\_COLLECTOR\_WITH\_TCP}]
   \label{param:UpdateCollectorWithTcp}
   If your site needs to use TCP connections to send ClassAd updates to
