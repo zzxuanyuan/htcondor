@@ -1443,38 +1443,6 @@ if test "$ac_cv_func_statfs" = yes ; then
       AC_MSG_ERROR([unable to determine number of arguments to statfs()])])])
 fi dnl test "$ac_cv_func_statfs" = yes
 
-AC_MSG_CHECKING(how to get filesystem type)
-fstype=no
-# The order of these tests is important.
-AC_TRY_CPP([#include <sys/statvfs.h>
-#include <sys/fstyp.h>], AC_DEFINE(FSTYPE_STATVFS, [],
-    [Define to use SVR4 statvfs to get filesystem type]) fstype=SVR4)
-if test $fstype = no; then
-AC_TRY_CPP([#include <sys/statfs.h>
-#include <sys/fstyp.h>], AC_DEFINE(FSTYPE_USG_STATFS, [],
-    [Define to use SVR3.2 statfs to get filesystem type]) fstype=SVR3)
-fi
-if test $fstype = no; then
-AC_TRY_CPP([#include <sys/statfs.h>
-#include <sys/vmount.h>], AC_DEFINE(FSTYPE_AIX_STATFS, [],
-    [Define to use AIX3 statfs to get filesystem type]) fstype=AIX)
-fi
-if test $fstype = no; then  
-AC_TRY_CPP([#include <mntent.h>], AC_DEFINE(FSTYPE_MNTENT, [],
-    [Define to use 4.3BSD getmntent to get filesystem type]) fstype=4.3BSD)
-fi
-if test $fstype = no; then  
-AC_EGREP_HEADER(f_type;, sys/mount.h, AC_DEFINE(FSTYPE_STATFS, [],
-    [Define to use 4.4BSD and OSF1 statfs to get filesystem type]) fstype=4.4BSD/OSF1)
-fi
-if test $fstype = no; then  
-AC_TRY_CPP([#include <sys/mount.h>
-#include <sys/fs_types.h>], AC_DEFINE(FSTYPE_GETMNT, [],
-    [Define to use Ultrix getmnt to get filesystem type]) fstype=Ultrix)
-fi
-AC_MSG_RESULT($fstype)
-
-
 # we don't actually want to add -lgen to our link line, but we do want
 # HAVE_LIBGEN defined correctly for our test suite builds... 
 AC_CHECK_FUNC(dirname,,AC_CHECK_LIB(gen,dirname,
