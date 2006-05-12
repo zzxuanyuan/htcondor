@@ -92,6 +92,25 @@ modified. This lets an admin estimate when a daemon stopped running.
 The configuration parameter \Macro{TOUCH\_LOG\_INTERVAL} sets the time
 between touches (in seconds) and defaults to 60 seconds.
 
+\item For Condor's auto-clustering of jobs for matchmaking, numerical
+job attributes can now be rounded to improving clustering. Add the
+following to your configuration file:
+\Attr{SCHEDD\_ROUND\_ATTR\_<foo>} = X, where \Attr{<foo>} is the attribute
+to round and X is the number of decimal places to round. Rounding always
+rounds UP. So to round a value up to the nearest 100, set X = 2.
+The actual, non-rounded value will also be stored in the job ad as an
+attribute named \Attr{<foo>\_RAW}.
+
+The following are set by default:
+\begin{verbatim}
+SCHEDD_ROUND_ATTR_ImageSize = 4
+SCHEDD_ROUND_ATTR_ExecutableSize = 4
+SCHEDD_ROUND_ATTR_DiskUsage = 4
+\end{verbatim}
+
+Thus, the above attributes are all rounded up from kbytes to the nearest
+10 megabytes.
+
 \item Added the ability to pass a specific \Condor{config\_val} program
 to the cron/Hawkeye ``modules''.  If ``HAWKEYE\_CONFIG\_VAL'' is
 specified in the configuration, an environment variable with the same
@@ -160,6 +179,12 @@ count <0 or >254, improper usage, etc.).
 \item The \Condor{chirp} tool has been added to the Windows
 distribution.
 
+\item Added configuration parameter \Macro{SYSAPI\_GET\_LOADAVG}, which
+can be used to disable the calculation of system load average on
+execute machines. The default value is true (same behavior as previous
+versions of Condor). If set to false, load average is not computed and
+a value of 0.0 is used.
+
 \item
 \index{environment variables!X509\_USER\_PROXY}
 \index{X509\_USER\_PROXY}
@@ -200,6 +225,20 @@ would indicate that the job was Running.
 
 \item All grid universe jobs now properly handle the new job attributes
 \Attr{Arguments}, \Attr{Environment}, and \Attr{TransferOutputRemaps}.
+
+\item In some cases, a restart of Condor was required to properly handle
+a change in the undocumented configuration parameter
+\Attr{SIGNIFICANT\_ATTRIBUTES}. Now, a \Condor{reconfig} is sufficient.
+
+\item When auto-clustering jobs for matchmaking, ensure that the job's
+\Attr{Requirements} expression is always considered significant.
+
+\item On Windows, when Condor was running as a normal user (i.e. not as
+local system), sending a soft-kill (i.e. WM\_CLOSE message) to a user
+job would always fail. This is now fixed.
+
+\item Fixed a couple bugs that could cause the \Condor{master} to crash
+on a shut-down or restart.
 
 \item Fixed a permissions problem that would cause automatic X509 proxy renewal for vanilla universe jobs to fail.
 
