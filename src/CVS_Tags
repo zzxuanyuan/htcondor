@@ -1,3 +1,10 @@
+05/12/06 V6_7_19
+  The official 6.7.19 release. The packages for all platforms came 
+  from NMI build #23300, except solaris 2.8, which came from #23370.   
+  The version string for this release is (date may vary slightly for some 
+  platforms):
+    $CondorVersion: 6.7.19 May  9 2006 $
+
 04/03/06 V6_7-freebsd-2-{root,branch}
    I am starting over with a fresh branch because I messed up #define's
    This is following advice from Erik
