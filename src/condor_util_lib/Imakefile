@@ -84,6 +84,9 @@ test_fs_util: fs_util.c
 	$(CC) $(CFLAGS) -DFS_UTIL_TEST -o $@ $<
 
 clean::
+	rm -f test_fs_util
+
+clean::
 	rm -f test_spawn.o
 
 test_get_exec_path: test_get_exec_path.o util_lib.a
