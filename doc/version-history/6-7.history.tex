@@ -14,6 +14,13 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item A major security hole has been fixed in the checkpoint server.
+The hole allows arbitrary
+files owned by the condor uid, or the uid of a personal condor running a
+checkpoint server, to be read and written. Users who can't upgrade
+to this release of Condor are urged to replace \Condor{ckpt_server}
+with the version in this release. This applies to all versions of Condor.
+
 \item Condor is no longer available for HPUX 10.20 on Hewlett
 Packard PA-RISC or Red Hat Linux on ALPHA.
 
@@ -198,10 +205,6 @@ associated with the job.
 \noindent Bugs Fixed:
 
 \begin{itemize}
-
-\item Fixed a security hole in the checkpoint server where arbitrary
-files owned by the condor uid, or the uid of a personal condor running a
-checkpoint server, could be read and written.
 
 \item Fixed a bug in the dedicated scheduler where parallel and mpi
 jobs with more than one proc in a cluster would only have the
