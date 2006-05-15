@@ -296,16 +296,18 @@ HADStateMachine::softReconfigure()
 	// in the joining state: it is equal to the maximal time, spent in
 	// requesting versions from other machines + maximal time to download a
 	// state file replica
-	int newlyJoinedWaitingVersionInterval = NEWLY_JOINED_TOLERANCE_FACTOR *
-											(m_connectionTimeout + 1);
-	int maxTransfererLifetime = param_integer( "MAX_TRANSFER_LIFETIME",
-											   5 * MINUTE );
-	m_replicationFinishedTimerId = 
-		daemonCore->Register_Timer( 
-			newlyJoinedWaitingVersionInterval + maxTransfererLifetime,
-			(TimerHandlercpp) &HADStateMachine::replicationFinished,
-			"Time to pass to PASSIVE_STATE", this );
-    setReplicationDaemonSinfulString( );
+	if( m_useReplication ) {
+		int newlyJoinedWaitingVersionInterval = NEWLY_JOINED_TOLERANCE_FACTOR *
+												(m_connectionTimeout + 1);
+		int maxTransfererLifetime = param_integer( "MAX_TRANSFER_LIFETIME",
+												   5 * MINUTE );
+		m_replicationFinishedTimerId = 
+			daemonCore->Register_Timer( 
+				newlyJoinedWaitingVersionInterval + maxTransfererLifetime,
+				(TimerHandlercpp) &HADStateMachine::replicationFinished,
+				"Time to pass to PASSIVE_STATE", this );
+    	setReplicationDaemonSinfulString( );
+	}
 #endif   
 
 	dprintf(D_ALWAYS, "HADStateMachine::softReconfigure classad information\n");
@@ -517,14 +519,17 @@ HADStateMachine::cycle(){
 void
 HADStateMachine::step()
 {
-
     my_debug_print_buffers();
+	
     switch( m_state ) {
         case PRE_STATE:
 //            sendReplicationCommand( HAD_BEFORE_PASSIVE_STATE );
-//            m_state = PASSIVE_STATE;
-//            printStep("PRE_STATE","PASSIVE_STATE");
-			printStep( "PRE_STATE", "PRE_STATE" );
+			if( m_useReplication ) {
+				printStep( "PRE_STATE", "PRE_STATE" );
+			} else {
+				m_state = PASSIVE_STATE;
+				printStep( "PRE_STATE", "PASSIVE_STATE" );
+			}
 			break;
         case PASSIVE_STATE:
             if( receivedAliveList.IsEmpty() || m_isPrimary ) {
@@ -533,7 +538,7 @@ HADStateMachine::step()
                 // we don't want to delete elections buffers
                 return;
             } else {
-                printStep( "PASSIVE_STATE","PASSIVE_STATE" );
+                printStep( "PASSIVE_STATE", "PASSIVE_STATE" );
             }
 
             break;
@@ -541,7 +546,7 @@ HADStateMachine::step()
         {
 			if( !receivedAliveList.IsEmpty() && !m_isPrimary ) {
                 m_state = PASSIVE_STATE;
-                printStep("ELECTION_STATE","PASSIVE_STATE");
+                printStep("ELECTION_STATE", "PASSIVE_STATE");
                 break;
             }
 
@@ -549,25 +554,25 @@ HADStateMachine::step()
             if( checkList(&receivedIdList) == FALSE ) {
                 // id bigger than m_selfId is received
                 m_state = PASSIVE_STATE;
-                printStep("ELECTION_STATE","PASSIVE_STATE");
+                printStep("ELECTION_STATE", "PASSIVE_STATE");
                 break;
             }
 
-			if( m_standAloneMode && m_useReplication ) {
+			if( m_standAloneMode ) {
                 sendReplicationCommand( HAD_AFTER_ELECTION_STATE );
             }
             // if stand alone mode
             if( m_standAloneMode ) {
                 m_state = LEADER_STATE;
                 updateCollectorsClassAd( "True" );
-				printStep("ELECTION_STATE","LEADER_STATE");
+				printStep("ELECTION_STATE", "LEADER_STATE");
                 break;
             }
 
 			// no leader in the system and this HAD has biggest id
             int returnValue = sendNegotiatorCmdToMaster(CHILD_ON);
 
-            if( returnValue == TRUE && m_useReplication) {
+            if( returnValue == TRUE ) {
                 sendReplicationCommand( HAD_AFTER_ELECTION_STATE );
             }
             if( returnValue == TRUE ) {
@@ -594,18 +599,15 @@ HADStateMachine::step()
                 m_state = PASSIVE_STATE;
                 updateCollectorsClassAd( "False" );
 
-                if( m_useReplication ) {
-                    sendReplicationCommand( HAD_AFTER_LEADER_STATE );
-                }
-                if( ! m_standAloneMode ) {
+                sendReplicationCommand( HAD_AFTER_LEADER_STATE );
+				
+				if( ! m_standAloneMode ) {
                     sendNegotiatorCmdToMaster( CHILD_OFF_FAST );
                 }
 
                 break;
             }
-            if( m_useReplication ) {
-                sendReplicationCommand( HAD_IN_LEADER_STATE );
-            }
+            sendReplicationCommand( HAD_IN_LEADER_STATE );
             printStep( "LEADER_STATE","LEADER_STATE" );
 
             break;
@@ -691,6 +693,12 @@ HADStateMachine::sendCommandToOthers( int comm )
 int
 HADStateMachine::sendReplicationCommand( int command )
 {
+	if( ! m_useReplication ) {
+		dprintf( D_ALWAYS, "HADStateMachine::sendReplicationCommand "
+						   "replication is not used, sending nothing\n");
+		return FALSE;
+	}
+	
     ReliSock sock;
 
     sock.timeout( m_connectionTimeout );
@@ -810,10 +818,15 @@ HADStateMachine::setReplicationDaemonSinfulString( )
 void
 HADStateMachine::replicationFinished( )
 {
-	if( m_state != PRE_STATE) {
+	if( m_state != PRE_STATE ) {
 		dprintf( D_ALWAYS, "HADStateMachine::replicationFinished "
 						   "not in PRE_STATE, exiting\n" );
 		return ;
+	}
+	if( ! m_useReplication ) {
+		dprintf( D_ALWAYS, "HADStateMachine::replicationFinished "
+                           "replication is not used, exiting\n" );
+        return ;
 	}
 	utilCancelTimer( m_replicationFinishedTimerId );
 	m_state = PASSIVE_STATE;

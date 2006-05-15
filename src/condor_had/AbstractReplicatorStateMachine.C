@@ -51,6 +51,7 @@ AbstractReplicatorStateMachine::finalize()
     utilClearList( m_replicationDaemonsList );
     m_releaseDirectoryPath = "";
 
+dprintf(D_ALWAYS,"----------------------1\n");
 	if( m_hadSinfulString != NULL ) {
         free( m_hadSinfulString );
         m_hadSinfulString = NULL;
@@ -60,7 +61,9 @@ AbstractReplicatorStateMachine::finalize()
 	// upon finalizing and/or reinitialiing the existing transferer processes
 	// must be killed, otherwise we will temporarily deny creation of new
 	// downloading transferers till the older ones are over
-    killTransferers( );
+dprintf(D_ALWAYS,"----------------------2\n");
+	killTransferers( );
+	dprintf(D_ALWAYS,"----------------------3\n");
 }
 // passing over REPLICATION_LIST configuration parameter, turning all the 
 // addresses into canonical <ip:port> form and inserting them all, except for
