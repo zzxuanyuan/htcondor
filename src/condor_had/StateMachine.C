@@ -1,7 +1,7 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
-  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+  * Copyright (C) 1990-2005, Condor Team, Computer Sciences Department,
   * University of Wisconsin-Madison, WI.
   *
   * This source code is covered by the Condor Public License, which can
@@ -94,8 +94,9 @@ HADStateMachine::init()
     // classad-specific initializations
     m_classAd = NULL;
     m_collectorsList = NULL;
-    m_updateCollectorTimerId = -1;
-    m_updateCollectorInterval = -1;
+    m_updateCollectorTimerId     = -1;
+	m_replicationFinishedTimerId = -1;
+	m_updateCollectorInterval    = -1;
 }
 /***********************************************************
   Function :  finalize() - free all resources
@@ -132,7 +133,8 @@ HADStateMachine::finalize()
 
 	// replication-specific finalizings
     m_useReplication = false;
-	
+	utilCancelTimer( m_replicationFinishedTimerId );
+
 	if( replicationDaemonSinfulString != NULL ) {
 		free(replicationDaemonSinfulString);
     	replicationDaemonSinfulString = NULL;
@@ -290,6 +292,19 @@ HADStateMachine::softReconfigure()
         m_useReplication = true;
         free( buffer );
     }
+	// calculating maximal allowed time for the replication daemon to stay
+	// in the joining state: it is equal to the maximal time, spent in
+	// requesting versions from other machines + maximal time to download a
+	// state file replica
+	int newlyJoinedWaitingVersionInterval = NEWLY_JOINED_TOLERANCE_FACTOR *
+											(m_connectionTimeout + 1);
+	int maxTransfererLifetime = param_integer( "MAX_TRANSFER_LIFETIME",
+											   5 * MINUTE );
+	m_replicationFinishedTimerId = 
+		daemonCore->Register_Timer( 
+			newlyJoinedWaitingVersionInterval + maxTransfererLifetime,
+			(TimerHandlercpp) &HADStateMachine::replicationFinished,
+			"Time to pass to PASSIVE_STATE", this );
     setReplicationDaemonSinfulString( );
 #endif   
 
@@ -507,10 +522,10 @@ HADStateMachine::step()
     switch( m_state ) {
         case PRE_STATE:
 //            sendReplicationCommand( HAD_BEFORE_PASSIVE_STATE );
-            m_state = PASSIVE_STATE;
-            printStep("PRE_STATE","PASSIVE_STATE");
-            break;
-
+//            m_state = PASSIVE_STATE;
+//            printStep("PRE_STATE","PASSIVE_STATE");
+			printStep( "PRE_STATE", "PRE_STATE" );
+			break;
         case PASSIVE_STATE:
             if( receivedAliveList.IsEmpty() || m_isPrimary ) {
                 m_state = ELECTION_STATE;
@@ -788,7 +803,22 @@ HADStateMachine::setReplicationDaemonSinfulString( )
         m_useReplication = false;
     }
 }
-
+/* Function    : replicationFinished 
+ * Description : finished replication's timer handler, transfers the HAD to
+ *				 PASSIVE_STATE 
+ */
+void
+HADStateMachine::replicationFinished( )
+{
+	if( m_state != PRE_STATE) {
+		dprintf( D_ALWAYS, "HADStateMachine::replicationFinished "
+						   "not in PRE_STATE, exiting\n" );
+		return ;
+	}
+	utilCancelTimer( m_replicationFinishedTimerId );
+	m_state = PASSIVE_STATE;
+	printStep( "PRE_STATE", "PASSIVE_STATE" );
+}
 /***********************************************************
   Function : sendNegotiatorCmdToMaster( int comm )
     send command "comm" to master
@@ -811,9 +841,8 @@ HADStateMachine::sendNegotiatorCmdToMaster( int comm )
     }
 
     int cmd = comm;
-    char* subsys = (char*)daemonString( DT_NEGOTIATOR );
-    dprintf( D_FULLDEBUG,"send command %s(%d) [%s] to master %s\n",
-                utilToString(cmd), cmd, subsys, m_masterDaemon->addr() );
+    dprintf( D_FULLDEBUG,"send command %s(%d) to master %s\n",
+                utilToString(cmd), cmd,m_masterDaemon->addr() );
 
     // startCommand - max timeout is m_connectionTimeout sec
     if(! (m_masterDaemon->startCommand(cmd,&sock,m_connectionTimeout )) ) {
@@ -822,6 +851,8 @@ HADStateMachine::sendNegotiatorCmdToMaster( int comm )
         sock.close();
         return FALSE;
     }
+
+    char* subsys = (char*)daemonString( DT_NEGOTIATOR );
 
     if( !sock.code(subsys) || !sock.eom() ) {
         dprintf( D_ALWAYS,"send to master , !sock.code false \n");
@@ -981,10 +1012,16 @@ void HADStateMachine::clearBuffers()
 void
 HADStateMachine::commandHandler(int cmd,Stream *strm)
 {
- 
     dprintf( D_FULLDEBUG, "commandHandler command %s(%d) is received\n",
-            utilToString(cmd),cmd);
+            utilToString( cmd ), cmd );
     
+	if( m_state == PRE_STATE ) {
+		dprintf( D_FULLDEBUG, "HADStateMachine::commandHandler not responding "
+							  "to command %s(%d) in PRE_STATE\n",
+							  utilToString( cmd ), cmd );
+		return ;
+	}
+
     char* subsys = NULL;
     strm->timeout( m_connectionTimeout );
     
@@ -1024,6 +1061,10 @@ HADStateMachine::commandHandler(int cmd,Stream *strm)
                     new_id);
             pushReceivedId( new_id );
             break;
+
+		case REPLICATION_NEWLY_JOINED_FINISHED:
+			replicationFinished( );
+			break;
     }
 
 

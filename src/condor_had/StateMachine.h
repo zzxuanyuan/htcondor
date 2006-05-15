@@ -1,7 +1,7 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
-  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+  * Copyright (C) 1990-2005, Condor Team, Computer Sciences Department,
   * University of Wisconsin-Madison, WI.
   *
   * This source code is covered by the Condor Public License, which can
@@ -73,8 +73,21 @@ public:
     virtual void initialize();
 
     virtual int reinitialize();
-	
+   /* Function    : isHardConfigurationNeeded
+ 	* Return value: bool - whether we have to reconfigure all the parameters of
+	*					   the HAD or only those that do not affect the
+	*					   negotiator's location
+	* Description : checks, what type of reconfiguration we have to perform: the
+	*				hard reconfiguration, i.e. reloading the configuration file
+	*				once again, or soft one, i.e. reloading only the parameters,
+	*				which do not affect the negotiator's location
+ 	*/
 	bool isHardConfigurationNeeded();
+   /* Function    : softReconfigure 
+    * Return value: int - success value 
+    * Description : reconfigures only the parameters, which do not affects the
+	*				location of the negotiator 
+    */
 	int softReconfigure();
 
 protected:
@@ -168,6 +181,7 @@ protected:
     static void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
+// replication-specific data members and functions
 	// usage of replication, controlled by configuration parameter 
 	// USE_REPLICATION
 	bool m_useReplication;
@@ -176,9 +190,16 @@ protected:
 	void setReplicationDaemonSinfulString( );
 
 	char* replicationDaemonSinfulString;
+	// finished replication's timer handler
+	void replicationFinished();
+	// timer, controlling the time allowed for finishing the replication, while
+	// joining the pool
+	int   m_replicationFinishedTimerId;
+// End of replication-specific data members and functions
+
 // classad-specific data members and functions
     void initializeClassAd();
-    // timer handler
+    // collector updates' timer handler
     void updateCollectors();
     // updates collectors upon changing from/to leader state
     void updateCollectorsClassAd( const MyString& isHadActive );
@@ -188,6 +209,7 @@ protected:
     CollectorList* m_collectorsList;
     int            m_updateCollectorTimerId;
     int            m_updateCollectorInterval;
+// End of classad-specific data members and functions
 };
 
 #endif // !HAD_StateMachine_H__

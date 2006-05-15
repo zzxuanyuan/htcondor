@@ -12,7 +12,6 @@
 #ifdef CONDOR_MD
 #include <openssl/md5.h>
 #endif
-#include "condor_netdb.h"
 
 // for MD5 blocks computation
 #define FILE_CHUNK_SIZE               (100)
@@ -100,7 +99,9 @@ utilToString( int command )
             return "REPLICATION_SOLICIT_VERSION";
         case REPLICATION_SOLICIT_VERSION_REPLY:
             return "REPLICATION_SOLICIT_VERSION_REPLY";
-        case HAD_BEFORE_PASSIVE_STATE:
+        case REPLICATION_NEWLY_JOINED_FINISHED:
+			return "REPLICATION_NEWLY_JOINED_FINISHED";
+		case HAD_BEFORE_PASSIVE_STATE:
             return "HAD_BEFORE_PASSIVE_STATE";
         case HAD_AFTER_ELECTION_STATE:
             return "HAD_AFTER_ELECTION_STATE";
@@ -143,7 +144,7 @@ utilToSinful( char* address )
     struct in_addr sin;
     
     if( ! is_ipaddr( ipAddress, &sin ) ) {
-        struct hostent *entry = condor_gethostbyname( hostName );
+        struct hostent *entry = gethostbyname( hostName );
         
         if( entry == 0 ) {
             free( hostName );

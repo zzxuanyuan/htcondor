@@ -204,6 +204,7 @@ protected:
      * Description : kills all the uploading and downloading transferers
      */
     void killTransferers();
+	void setHadSinfulString();
 
 	bool getProcessPrivilege(priv_state& privilege);
 protected:
@@ -260,7 +261,11 @@ protected:
 
 	// list of remote replication daemons
     StringList               m_replicationDaemonsList;
-    // path to the directory where 'condor_transferer' binary is located
+	// id of current replication daemon
+	int                      m_selfId;
+    // local HAD address to send it NEWLY_JOINED_REPLICATION_FINISHED messages
+	char*                    m_hadSinfulString;
+	// path to the directory where 'condor_transferer' binary is located
 	MyString                 m_releaseDirectoryPath;
 	// socket connection timeout
     int                      m_connectionTimeout;

@@ -13,7 +13,7 @@
 #define HAD_ALIVE_TOLERANCE_FACTOR      (2)
 // multiplicative factor, determining how long the newly joining machine is
 // allowed to download the version and state files of other pool machines
-#define NEWLY_JOINED_TOLERANCE_FACTOR   (2)
+//#define NEWLY_JOINED_TOLERANCE_FACTOR   (2)
 
 // gcc compilation pecularities demand explicit declaration of template classes
 // and functions instantiation
@@ -156,6 +156,9 @@ ReplicatorStateMachine::initialize( )
     registerCommand(REPLICATION_GIVING_UP_VERSION);
     registerCommand(REPLICATION_SOLICIT_VERSION);
     registerCommand(REPLICATION_SOLICIT_VERSION_REPLY);
+	registerCommand(REPLICATION_NEWLY_JOINED_FINISHED);
+
+	//beforePassiveStateHandler( );
 }
 // clears all the inner structures and loads the configuration parameters'
 // values again
@@ -876,5 +879,7 @@ ReplicatorStateMachine::versionDownloadingTimer( )
     
 	checkVersionSynchronization( );	
 
+	sendCommand( REPLICATION_NEWLY_JOINED_FINISHED, m_hadSinfulString,
+				 &AbstractReplicatorStateMachine::noCommand );
 	m_state = BACKUP;
 }
