@@ -16,11 +16,40 @@ The details of each version are described below.
 
 \item A major security hole has been fixed in the checkpoint server.
 The hole allows arbitrary
-files owned by the condor uid, or the uid of a personal condor running a
-checkpoint server, to be read and written. Users who can't upgrade
-to this release of Condor are urged to replace \Condor{ckpt\_server}
+files owned by the condor UID, or the UID of a Personal Condor running a
+checkpoint server, to be read and written. Users who can not upgrade
+to this release of Condor are urged to replace the \Condor{ckpt\_server}
+binary
 with the version in this release. This applies to all versions of Condor,
 including the 6.6 series.
+
+To replace only the \Condor{ckpt\_server} binary,
+  \begin{enumerate}
+  \item Download the 6.7.19 \Condor{ckpt\_server} binary,
+  from the contrib page at
+  \URL{http://www.cs.wisc.edu/condor/downloads/contrib.license.html}.
+  \item Rename the binary, and place it in the
+  \MacroUNI{SBIN} directory.
+  \item Turn off the checkpoint server that is currently running,
+  by turning off Condor on the machine where it is running.
+  \begin{verbatim}
+    condor_off 
+  \end{verbatim}
+  \item Change the configuration variable that specifies the
+  path and name of the checkpoint server to the renamed 
+  6.7.19 \Condor{ckpt\_server} binary.
+  For example
+  \begin{verbatim}
+    CKPT_SERVER = $(SBIN)/ckpt_server.v6719
+  \end{verbatim}
+  \item Reconfigure, and turn Condor back on.
+  \begin{verbatim}
+    condor_reconfig -master 
+    condor_on
+  \end{verbatim}
+  \item Check the checkpoint server log to verify that the
+  correct 6.7.19 \Condor{ckpt\_server} binary is running.
+  \end{enumerate}
 
 \item Condor is no longer available for HPUX 10.20 on Hewlett
 Packard PA-RISC or Red Hat Linux on ALPHA.
