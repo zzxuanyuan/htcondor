@@ -40,11 +40,8 @@
 # define USE_STATFS
 #else
 # warn "No valid fs type detection"
-# define UNKNOWN_FS_INFO
 #endif
 
-// If we didn't detect a valid way to learn about the F/S
-#ifndef UNKNOWN_FS_INFO
 
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -202,5 +199,3 @@ main( int argc, const char *argv[] )
 	return 0;
 }
 #endif
-
-#endif	// UNKNOWN_FS_INFO
