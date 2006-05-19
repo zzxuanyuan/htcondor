@@ -38,8 +38,6 @@
 # define USE_STATVFS
 #elif defined HAVE_STATFS
 # define USE_STATFS
-#else
-# warn "No valid fs type detection"
 #endif
 
 
@@ -63,6 +61,9 @@
 # endif
 # ifdef HAVE_LINUX_NFSD_CONST_H
 #  include <linux/nfsd/const.h>
+#  ifndef NFS_SUPER_MAGIC
+#   undef USE_STATFS
+#  endif
 # endif
 #endif
 
@@ -173,6 +174,7 @@ fs_detect_nfs( const char *path,
 #elif defined USE_STATVFS
 	return detect_nfs_statvfs( path, is_nfs );
 #else
+#	warning "No valid fs type detection"
 	*is_nfs = FALSE;
 	return 0;
 #endif
