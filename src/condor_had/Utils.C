@@ -3,6 +3,10 @@
 //#include "HadCommands.h"
 //#include "ReplicationCommands.h"
 #include "FilesOperations.h"
+// to refer to HAD states in 'utilStateToString'
+#include "HadState.h"
+// to refer to replication daemon states in 'utilStateToString'
+#include "ReplicatorState.h"
 // for 'CHILD_ON' and 'CHILD_OFF_FAST'
 #include "condor_commands.h"
 // for 'getHostFromAddr' and 'getPortFromAddr'
@@ -84,7 +88,7 @@ utilCancelReaper(int& reaperId)
 }
 
 const char*
-utilToString( int command )
+utilCommandToString( int command )
 {
     switch( command ) {
         case REPLICATION_LEADER_VERSION:
@@ -120,6 +124,38 @@ utilToString( int command )
         default:
             return "unknown command";
     }
+}
+
+const char*
+utilStateToString( int state, const char* daemonName )
+{
+	if( ! strcmp( daemonName, "HAD" ) ) {
+		switch( state ) {
+			case PRE_STATE:
+				return "PRE_STATE";
+			case PASSIVE_STATE:
+				return "PASSIVE_STATE";
+			case ELECTION_STATE:
+				return "ELECTION_STATE";
+			case LEADER_STATE:
+				return "LEADER_STATE";
+			default:
+				return "unknown state";
+		}
+	} else if( ! strcmp( daemonName, "REPLICATION" ) ) {
+		switch( state ) {
+			case VERSION_REQUESTING:
+				return "VERSION_REQUESTING";
+			case VERSION_DOWNLOADING:
+				return "VERSION_DOWNLOADING";
+			case BACKUP:
+				return "BACKUP";
+			case REPLICATION_LEADER:
+				return "REPLICATION_LEADER";
+            default:
+                return "unknown state";
+        }
+	}
 }
 
 // returns allocated by 'malloc' string upon success or NULL upon failure

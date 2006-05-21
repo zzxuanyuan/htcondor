@@ -58,16 +58,26 @@ utilCancelTimer(int& timerId);
 /* Function    : utilCancelReaper
  * Arguments   : reaperId - reference to daemon reaper to be nullified
  * Description : cancels and nullifies the reaper
+ * Remark      : not to be used till the Cancel_Reaper function of DaemonCore
+ *				 is implemented
  */
 void 
 utilCancelReaper(int& reaperId);
-/* Function    : utilToString 
+/* Function    : utilCommandToString 
  * Arguments   : command - id 
  * Return value: const char* - static string representation of the given command
  * Description : represents the given command id in string format
  */
 const char* 
-utilToString( int command );
+utilCommandToString( int command );
+/* Function    : utilStateToString
+ * Arguments   : state - daemon state
+ * Return value: const char* - static string representation of the given state 
+ * Description : represents the given state of the specified daemon in string 
+ *				 format
+ */
+const char*
+utilStateToString( int state, const char* daemonName );
 /* Function    : utilToSinful
  * Arguments   : address - remote daemon address in either "ip:port" or 
  *				 "hostname:port" format, optionally enclosed in '<>' brackets

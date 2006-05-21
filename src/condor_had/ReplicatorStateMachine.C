@@ -102,7 +102,8 @@ ReplicatorStateMachine::ReplicatorStateMachine()
    	m_hadAliveTolerance           = -1;
    	m_maxTransfererLifeTime       = -1;
    	m_newlyJoinedWaitingVersionInterval = -1;
-   	m_lastHadAliveTime          = -1;
+   	m_useReplication            = false; 
+	m_lastHadAliveTime          = -1;
    	srand( time( NULL ) );
 }
 // finalizing the delta, belonging to this class only, since the data, belonging
@@ -113,14 +114,16 @@ ReplicatorStateMachine::~ReplicatorStateMachine( )
     finalizeDelta( );
 }
 /* Function   : finalize
+ * Arguments  : isStateChanged - whether the state of the daemon should be
+ *								 initialized or not
  * Description: clears and resets all inner structures and data members
  */
 void
-ReplicatorStateMachine::finalize()
+ReplicatorStateMachine::finalize( bool isStateChanged )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine::finalize started\n" );
     finalizeDelta( );
-    AbstractReplicatorStateMachine::finalize( );
+    AbstractReplicatorStateMachine::finalize( isStateChanged );
 }
 /* Function   : finalizeDelta
  * Description: clears and resets all inner structures and data members declared
@@ -137,7 +140,9 @@ ReplicatorStateMachine::finalizeDelta( )
     m_hadAliveTolerance                 = -1;
     m_maxTransfererLifeTime             = -1;
     m_newlyJoinedWaitingVersionInterval = -1;
-    m_lastHadAliveTime                  = -1;
+	m_useReplication                    = false;
+	// 'm_lastHadAliveTime' must preserve from one reconfiguration to another
+    // m_lastHadAliveTime                  = -1;
 }
 void
 ReplicatorStateMachine::initialize( )
@@ -156,7 +161,6 @@ ReplicatorStateMachine::initialize( )
     registerCommand(REPLICATION_GIVING_UP_VERSION);
     registerCommand(REPLICATION_SOLICIT_VERSION);
     registerCommand(REPLICATION_SOLICIT_VERSION_REPLY);
-	registerCommand(REPLICATION_NEWLY_JOINED_FINISHED);
 
 	//beforePassiveStateHandler( );
 }
@@ -165,45 +169,50 @@ ReplicatorStateMachine::initialize( )
 void
 ReplicatorStateMachine::reinitialize()
 {
-    // delete all configurations and start everything over from the scratch
-    finalize( );
-    AbstractReplicatorStateMachine::reinitialize( );
+    // delete all configurations and start everything over from the scratch,
+	// including the state
+    //finalize( );
+    //AbstractReplicatorStateMachine::reinitialize( );
 
-    m_myVersion.initialize( m_stateFilePath, m_versionFilePath );
+    //m_myVersion.initialize( m_stateFilePath, m_versionFilePath );
 
-    m_replicationInterval =
-        getConfigurationPositiveIntegerParameter( "REPLICATION_INTERVAL" );
-    m_maxTransfererLifeTime =
-        getConfigurationPositiveIntegerParameter( "MAX_TRANSFER_LIFETIME" );
-    m_newlyJoinedWaitingVersionInterval =
-        getConfigurationPositiveIntegerParameter(
-                            "NEWLY_JOINED_WAITING_VERSION_INTERVAL" );
+    //m_replicationInterval =
+    //    getConfigurationPositiveIntegerParameter( "REPLICATION_INTERVAL" );
+    //m_maxTransfererLifeTime =
+    //    getConfigurationPositiveIntegerParameter( "MAX_TRANSFER_LIFETIME" );
+    //m_newlyJoinedWaitingVersionInterval =
+    //    getConfigurationPositiveIntegerParameter(
+    //                        "NEWLY_JOINED_WAITING_VERSION_INTERVAL" );
     // deduce HAD alive tolerance
-    int hadConnectionTimeout =
-        getConfigurationPositiveIntegerParameter( "HAD_CONNECTION_TIMEOUT" );
+    //int hadConnectionTimeout =
+    //    getConfigurationPositiveIntegerParameter( "HAD_CONNECTION_TIMEOUT" );
 
-    char* buffer = param( "HAD_LIST" );
+    //char* buffer = param( "HAD_LIST" );
 
-    if ( buffer ) {
-        StringList hadList;
+    //if ( buffer ) {
+    //    StringList hadList;
 
-        hadList.initializeFromString( buffer );
-        free( buffer );
-        m_hadAliveTolerance = HAD_ALIVE_TOLERANCE_FACTOR *
-                            ( 2 * hadConnectionTimeout * hadList.number() + 1 );
+    //    hadList.initializeFromString( buffer );
+    //    free( buffer );
+    //    m_hadAliveTolerance = HAD_ALIVE_TOLERANCE_FACTOR *
+    //                      ( 2 * hadConnectionTimeout * hadList.number() + 1 );
 
-        dprintf( D_FULLDEBUG, "ReplicatorStateMachine::reinitialize %s=%d\n",
-                "HAD_LIST", m_hadAliveTolerance );
-    } else {
-        utilCrucialError( utilNoParameterError( "HAD_LIST", "HAD" ).GetCStr( ));
-    }
+    //    dprintf( D_FULLDEBUG, "ReplicatorStateMachine::reinitialize %s=%d\n",
+    //            "HAD_LIST", m_hadAliveTolerance );
+    //} else {
+    //  utilCrucialError( utilNoParameterError( "HAD_LIST", "HAD" ).GetCStr( ));
+    //}
     // set a timer to replication routine
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::reinitialize setting "
-                                      "replication timer\n" );
-    m_replicationTimerId = daemonCore->Register_Timer( m_replicationInterval,
-            (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
-            "Time to replicate file", this );
-    // register the download/upload reaper for the transferer process
+    //dprintf( D_ALWAYS, "ReplicatorStateMachine::reinitialize setting "
+    //                                  "replication timer\n" );
+    //m_replicationTimerId = daemonCore->Register_Timer( m_replicationInterval,
+    //        (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
+    //        "Time to replicate file", this );
+    
+	softReconfigure( );
+	// register the download/upload reaper for the transferer process
+	// comparing it to -1 solves the problem of unimplemented canceling a 
+	// reaper
     if( m_downloadReaperId == -1 ) {
 		m_downloadReaperId = daemonCore->Register_Reaper(
         	"downloadReplicaTransfererReaper",
@@ -217,9 +226,24 @@ ReplicatorStateMachine::reinitialize()
         	"uploadReplicaTransfererReaper", this );
     }
 	// for debugging purposes only
-	printDataMembers( );
+	//printDataMembers( );
 	
 	beforePassiveStateHandler( );
+}
+// decides, whether to reload the configuration parameters, to restart the 
+// daemon or to move it to an idle state
+void
+ReplicatorStateMachine::reconfigure()
+{
+	dprintf( D_ALWAYS, "ReplicatorStateMachine::reconfigure started\n" );
+	
+	if( isHardConfigurationNeeded( ) ) {
+		reinitialize( );
+	} else if( isPassingToIdleNeeded( ) ){
+		finalize( );
+	} else {
+		softReconfigure( false );
+	}
 }
 // sends the version of the last execution time to all the replication daemons,
 // then asks the pool replication daemons to send their own versions to it,
@@ -575,6 +599,106 @@ ReplicatorStateMachine::onGivingUpVersion( Stream* stream )
         gidSelectionHandler( );
     }
 }
+/* Function    : isHardConfigurationNeeded
+ * Return value: bool - is full restart of the daemon needed
+ * Description : returns, whether the restart of the daemon is needed, depening
+ *				 on the changes, performed to the configuration parameters
+ */
+bool
+ReplicatorStateMachine::isHardConfigurationNeeded( )
+{
+	char* buffer = param( "HAD_USE_REPLICATION" );
+	
+	if ( buffer && ! strncasecmp( buffer, "true", strlen("true") ) &&
+		 ! m_useReplication ) {
+       	free( buffer );
+    	
+		return true;
+	} else if( buffer ) {
+		free( buffer );
+	}
+	return false;
+}
+/* Function    : isPassingToIdleNeeded 
+ * Return value: bool - is passing to idle mode needed
+ * Description : returns, whether the daemon has to move to an idle state,
+ * 				 to finalize all inner structures and to stop responding to
+ *				 outer commands 
+ */
+bool
+ReplicatorStateMachine::isPassingToIdleNeeded( )
+{
+	char* buffer = param( "HAD_USE_REPLICATION" );
+
+    if ( buffer && ! strncasecmp( buffer, "false", strlen("false") ) && 
+		 m_useReplication ) {
+        free( buffer );
+
+        return true;
+    } else if( buffer ) {
+        free( buffer );
+    }
+    return false;
+}
+/* Function   : softReconfigure
+ * Arguments  : isStateChanged - whether the state of the daemon should be
+ *								 initialized or not
+ * Description: reloads the configuration parameters from the configuration file
+ */
+void
+ReplicatorStateMachine::softReconfigure( bool isStateChanged )
+{
+	dprintf( D_ALWAYS, "ReplicatorStateMachine::softReconfigure started\n" );
+    // delete all configurations and start everything over from the scratch,
+    finalize( isStateChanged );
+    AbstractReplicatorStateMachine::reinitialize( );
+
+    m_myVersion.initialize( m_stateFilePath, m_versionFilePath );
+
+    m_replicationInterval =
+        getConfigurationPositiveIntegerParameter( "REPLICATION_INTERVAL" );
+    m_maxTransfererLifeTime =
+        getConfigurationPositiveIntegerParameter( "MAX_TRANSFER_LIFETIME" );
+    m_newlyJoinedWaitingVersionInterval =
+        getConfigurationPositiveIntegerParameter(
+                            "NEWLY_JOINED_WAITING_VERSION_INTERVAL" );
+    // setting the replication usage permissions
+    char* buffer = param( "HAD_USE_REPLICATION" );
+    
+	if ( buffer && ! strncasecmp( buffer, "true", strlen("true") ) ) {
+		m_useReplication = true;
+		free( buffer );
+    } else if( buffer ) {
+    	free( buffer );
+    }
+	// deduce HAD alive tolerance
+    int hadConnectionTimeout =
+        getConfigurationPositiveIntegerParameter( "HAD_CONNECTION_TIMEOUT" );
+
+    buffer = param( "HAD_LIST" );
+
+    if ( buffer ) {
+        StringList hadList;
+
+        hadList.initializeFromString( buffer );
+        free( buffer );
+        m_hadAliveTolerance = HAD_ALIVE_TOLERANCE_FACTOR *
+                            ( 2 * hadConnectionTimeout * hadList.number() + 1 );
+
+        dprintf( D_FULLDEBUG, "ReplicatorStateMachine::softReconfigure %s=%d\n",
+                "HAD_LIST", m_hadAliveTolerance );
+    } else {
+        utilCrucialError( utilNoParameterError( "HAD_LIST", "HAD" ).GetCStr( ));
+    }
+	// set a timer to replication routine
+    dprintf( D_ALWAYS, "ReplicatorStateMachine::softReconfigure setting "
+                       "replication timer\n" );
+    m_replicationTimerId = daemonCore->Register_Timer( m_replicationInterval,
+            (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
+            "Time to replicate file", this );
+	// for debugging purposes only
+    printDataMembers( );
+}
 
 int
 ReplicatorStateMachine::downloadReplicaTransfererReaper(
@@ -608,7 +732,7 @@ ReplicatorStateMachine::commandHandler( int command, Stream* stream )
     if( ! stream->code( daemonSinfulString ) /*|| ! stream->eom( )*/ ) {
         dprintf( D_NETWORK, "ReplicatorStateMachine::commandHandler "
                             "cannot read remote daemon sinful string for %s\n",
-                 utilToString( command ) );
+                 utilCommandToString( command ) );
 	    free( daemonSinfulString );
 
 		return;
@@ -616,7 +740,8 @@ ReplicatorStateMachine::commandHandler( int command, Stream* stream )
 
     dprintf( /*D_COMMAND*/
              D_FULLDEBUG, "ReplicatorStateMachine::commandHandler received "
-			"command %s from %s\n", utilToString(command), daemonSinfulString );
+						  "command %s from %s\n", 
+			 utilCommandToString(command), daemonSinfulString );
     switch( command ) {
         case REPLICATION_LEADER_VERSION:
             onLeaderVersion( stream );
@@ -671,10 +796,10 @@ ReplicatorStateMachine::commandHandler( int command, Stream* stream )
  * Description: register command with given id in daemon core
  */
 void
-ReplicatorStateMachine::registerCommand(int command)
+ReplicatorStateMachine::registerCommand( int command )
 {
     daemonCore->Register_Command(
-        command, const_cast<char*>( utilToString( command ) ),
+        command, const_cast<char*>( utilCommandToString( command ) ),
         (CommandHandlercpp) &ReplicatorStateMachine::commandHandler,
         "commandHandler", this, DAEMON );
 }

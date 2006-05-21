@@ -90,7 +90,7 @@ HADStateMachine::init()
 
 	// replication-specific initializations
     m_useReplication = false;
-    replicationDaemonSinfulString = NULL;
+    m_replicationDaemonSinfulString = NULL;
     // classad-specific initializations
     m_classAd = NULL;
     m_collectorsList = NULL;
@@ -135,9 +135,9 @@ HADStateMachine::finalize()
     m_useReplication = false;
 	utilCancelTimer( m_replicationFinishedTimerId );
 
-	if( replicationDaemonSinfulString != NULL ) {
-		free(replicationDaemonSinfulString);
-    	replicationDaemonSinfulString = NULL;
+	if( m_replicationDaemonSinfulString != NULL ) {
+		free( m_replicationDaemonSinfulString );
+    	m_replicationDaemonSinfulString = NULL;
     }
 	// classad finalizings
     if( m_classAd != NULL) {
@@ -160,6 +160,23 @@ HADStateMachine::~HADStateMachine()
     finalize();
 }
 
+bool
+HADStateMachine::reconfigure()
+{
+    bool returnValue = true;
+
+    if( isHardConfigurationNeeded( ) ) {
+        dprintf( D_ALWAYS, "HADStateMachine::reconfigure hard configuration "
+						   "started\n" );
+        returnValue = reinitialize( );
+    } else {
+        dprintf( D_ALWAYS, "HADStateMachine::reconfigure soft configuration "
+						   "started\n" );
+        returnValue = softReconfigure( );
+    }
+
+    return returnValue;
+}
 
 bool 
 HADStateMachine::isHardConfigurationNeeded()
@@ -229,9 +246,9 @@ HADStateMachine::softReconfigure()
 	m_useReplication          = false;
 	m_updateCollectorInterval = -1;	
 
-	if( replicationDaemonSinfulString != NULL ) {
-		free( replicationDaemonSinfulString );
-		replicationDaemonSinfulString = NULL;
+	if( m_replicationDaemonSinfulString != NULL ) {
+		free( m_replicationDaemonSinfulString );
+		m_replicationDaemonSinfulString = NULL;
 	}
 	if( m_classAd != NULL) {
 		delete m_classAd;
@@ -291,7 +308,9 @@ HADStateMachine::softReconfigure()
 	if ( buffer && ! strncasecmp( buffer, "true", strlen("true") ) ) {
         m_useReplication = true;
         free( buffer );
-    }
+    } else if( buffer ) {
+		free( buffer );
+	}
 	// calculating maximal allowed time for the replication daemon to stay
 	// in the joining state: it is equal to the maximal time, spent in
 	// requesting versions from other machines + maximal time to download a
@@ -343,14 +362,17 @@ void
 HADStateMachine::initialize()
 {
     reinitialize ();
-    daemonCore->Register_Command ( HAD_ALIVE_CMD, "ALIVE command",
-            (CommandHandlercpp) &HADStateMachine::commandHandler,
-            "commandHandler", (Service*) this, DAEMON );
+    //daemonCore->Register_Command ( HAD_ALIVE_CMD, "ALIVE command",
+    //        (CommandHandlercpp) &HADStateMachine::commandHandler,
+    //        "commandHandler", (Service*) this, DAEMON );
+	registerCommand( HAD_ALIVE_CMD );
 
-    daemonCore->Register_Command ( HAD_SEND_ID_CMD, "SEND ID command",
-            (CommandHandlercpp) &HADStateMachine::commandHandler,
-            "commandHandler", (Service*) this, DAEMON );
+    //daemonCore->Register_Command ( HAD_SEND_ID_CMD, "SEND ID command",
+    //        (CommandHandlercpp) &HADStateMachine::commandHandler,
+    //        "commandHandler", (Service*) this, DAEMON );
+	registerCommand( HAD_SEND_ID_CMD );
 
+	registerCommand( REPLICATION_NEWLY_JOINED_FINISHED );
 }
 
 void
@@ -428,7 +450,7 @@ HADStateMachine::initializeClassAd()
 
     In case of any of this errors we should exit with error.
 */
-int
+bool
 HADStateMachine::reinitialize()
 {
     char* tmp;
@@ -470,7 +492,7 @@ HADStateMachine::reinitialize()
              
     if( m_standAloneMode ) {
          //printParamsInformation();
-         return TRUE;
+         return true;
     }
  
     if( m_masterDaemon == NULL ||
@@ -479,7 +501,7 @@ HADStateMachine::reinitialize()
     }
  
     //printParamsInformation();
-    return TRUE;
+    return true;
 }
 
 /***********************************************************
@@ -532,7 +554,7 @@ HADStateMachine::step()
 			}
 			break;
         case PASSIVE_STATE:
-            if( receivedAliveList.IsEmpty() || m_isPrimary ) {
+            if( m_receivedAliveList.IsEmpty() || m_isPrimary ) {
                 m_state = ELECTION_STATE;
                 printStep( "PASSIVE_STATE","ELECTION_STATE" );
                 // we don't want to delete elections buffers
@@ -544,14 +566,14 @@ HADStateMachine::step()
             break;
         case ELECTION_STATE:
         {
-			if( !receivedAliveList.IsEmpty() && !m_isPrimary ) {
+			if( !m_receivedAliveList.IsEmpty() && !m_isPrimary ) {
                 m_state = PASSIVE_STATE;
                 printStep("ELECTION_STATE", "PASSIVE_STATE");
                 break;
             }
 
             // command ALIVE isn't received
-            if( checkList(&receivedIdList) == FALSE ) {
+            if( checkList(&m_receivedIdList) == FALSE ) {
                 // id bigger than m_selfId is received
                 m_state = PASSIVE_STATE;
                 printStep("ELECTION_STATE", "PASSIVE_STATE");
@@ -592,8 +614,8 @@ HADStateMachine::step()
             break;
 		}
         case LEADER_STATE:
-    		if( ! receivedAliveList.IsEmpty() &&
-                  checkList(&receivedAliveList) == FALSE ) {
+    		if( ! m_receivedAliveList.IsEmpty() &&
+                  checkList(&m_receivedAliveList) == FALSE ) {
                 // send to master "negotiator_off"
                 printStep( "LEADER_STATE","PASSIVE_STATE" );
                 m_state = PASSIVE_STATE;
@@ -645,7 +667,7 @@ HADStateMachine::sendCommandToOthers( int comm )
     while( (addr = m_otherHADIPs->next()) ) {
 
         dprintf( D_FULLDEBUG, "send command %s(%d) to %s\n",
-                        utilToString(comm),comm,addr);
+                        utilCommandToString(comm),comm,addr);
 
         Daemon d( DT_ANY, addr );
         ReliSock sock;
@@ -664,7 +686,7 @@ HADStateMachine::sendCommandToOthers( int comm )
         // startCommand - max timeout is m_connectionTimeout sec
         if( !d.startCommand(cmd,&sock,m_connectionTimeout ) ) {
             dprintf( D_ALWAYS,"cannot start command %s(%d) to addr %s\n",
-                utilToString(comm),cmd,addr);
+                utilCommandToString(comm),cmd,addr);
             sock.close();
             continue;
         }
@@ -705,9 +727,9 @@ HADStateMachine::sendReplicationCommand( int command )
     sock.doNotEnforceMinimalCONNECT_TIMEOUT();
 
     // blocking with timeout m_connectionTimeout
-    if(!sock.connect( replicationDaemonSinfulString, 0,false) ) {
+    if( ! sock.connect( m_replicationDaemonSinfulString, 0, false) ) {
         dprintf( D_ALWAYS,"cannot connect to replication daemon , addr %s\n",
-                    replicationDaemonSinfulString );
+                    m_replicationDaemonSinfulString );
         sock.close();
 
         return FALSE;
@@ -715,12 +737,12 @@ HADStateMachine::sendReplicationCommand( int command )
 
     int cmd = command;
     dprintf( D_FULLDEBUG,"send command %s(%d) to replication daemon %s\n",
-                utilToString(cmd), cmd, replicationDaemonSinfulString );
+             utilCommandToString(cmd), cmd, m_replicationDaemonSinfulString );
 
     // startCommand - max timeout is m_connectionTimeout sec
     if(! (m_masterDaemon->startCommand(cmd,&sock,m_connectionTimeout )) ) {
         dprintf( D_ALWAYS,"cannot start command %s, addr %s\n",
-                    utilToString(cmd), replicationDaemonSinfulString );
+                    utilCommandToString(cmd), m_replicationDaemonSinfulString );
         sock.close();
 
         return FALSE;
@@ -739,6 +761,18 @@ HADStateMachine::sendReplicationCommand( int command )
     sock.close();
 
     return TRUE;
+}
+/* Function   : registerCommand
+ * Arguments  : command - id to register
+ * Description: register command with given id in daemon core
+ */
+void
+HADStateMachine::registerCommand( int command )
+{
+    daemonCore->Register_Command(
+        command, const_cast<char*>( utilCommandToString( command ) ),
+        (CommandHandlercpp) &HADStateMachine::commandHandler,
+        "commandHandler", this, DAEMON );
 }
 
 void
@@ -780,13 +814,13 @@ HADStateMachine::setReplicationDaemonSinfulString( )
 
         if( replicationDaemonIndex == m_selfId && 
 			strcmp( sinfulAddressHost,  host ) == 0 ) {
-            replicationDaemonSinfulString = sinfulAddress;
+            m_replicationDaemonSinfulString = sinfulAddress;
             free( sinfulAddressHost );
 			dprintf( D_ALWAYS,
 					"HADStateMachine::setReplicationDaemonSinfulString "
 					"corresponding replication daemon - %s\n", sinfulAddress );
             // not freeing 'sinfulAddress', since its referent is pointed by
-            // 'replicationDaemonSinfulString' too
+            // 'm_replicationDaemonSinfulString' too
             break;
         } else if( replicationDaemonIndex == m_selfId ) {
 			sprintf( buffer, "HADStateMachine::setReplicationDaemonSinfulString"
@@ -803,7 +837,7 @@ HADStateMachine::setReplicationDaemonSinfulString( )
 
     // if failed to found the replication daemon in REPLICATION_LIST, just
     // switch off the replication feature
-    if( replicationDaemonSinfulString == 0 )
+    if( m_replicationDaemonSinfulString == 0 )
     {
         dprintf( D_ALWAYS, "HADStateMachine::setReplicationDaemonSinfulString "
                 "local replication daemon not found in REPLICATION_LIST, "
@@ -855,12 +889,12 @@ HADStateMachine::sendNegotiatorCmdToMaster( int comm )
 
     int cmd = comm;
     dprintf( D_FULLDEBUG,"send command %s(%d) to master %s\n",
-                utilToString(cmd), cmd,m_masterDaemon->addr() );
+                utilCommandToString(cmd), cmd,m_masterDaemon->addr() );
 
     // startCommand - max timeout is m_connectionTimeout sec
     if(! (m_masterDaemon->startCommand(cmd,&sock,m_connectionTimeout )) ) {
         dprintf( D_ALWAYS,"cannot start command %s, addr %s\n",
-                    utilToString(cmd), m_masterDaemon->addr() );
+                    utilCommandToString(cmd), m_masterDaemon->addr() );
         sock.close();
         return FALSE;
     }
@@ -887,7 +921,7 @@ HADStateMachine::pushReceivedAlive( int id )
 {
     int* alloc_id = new int[1];
     *alloc_id = id;
-    return (receivedAliveList.Append( alloc_id ));
+    return (m_receivedAliveList.Append( alloc_id ));
 }
 
 /***********************************************************
@@ -898,7 +932,7 @@ HADStateMachine::pushReceivedId( int id )
 {
          int* alloc_id = new int[1];
          *alloc_id = id;
-         return (receivedIdList.Append( alloc_id ));
+         return (m_receivedIdList.Append( alloc_id ));
 }
 
 /***********************************************************
@@ -1014,8 +1048,8 @@ void HADStateMachine::removeAllFromList( List<int>* list )
 */
 void HADStateMachine::clearBuffers()
 {
-    removeAllFromList( &receivedAliveList );
-    removeAllFromList( &receivedIdList );
+    removeAllFromList( &m_receivedAliveList );
+    removeAllFromList( &m_receivedIdList );
 }
 
 /***********************************************************
@@ -1026,12 +1060,12 @@ void
 HADStateMachine::commandHandler(int cmd,Stream *strm)
 {
     dprintf( D_FULLDEBUG, "commandHandler command %s(%d) is received\n",
-            utilToString( cmd ), cmd );
+            utilCommandToString( cmd ), cmd );
     
-	if( m_state == PRE_STATE ) {
+	if( m_state == PRE_STATE && cmd != REPLICATION_NEWLY_JOINED_FINISHED ) {
 		dprintf( D_FULLDEBUG, "HADStateMachine::commandHandler not responding "
 							  "to command %s(%d) in PRE_STATE\n",
-							  utilToString( cmd ), cmd );
+							  utilCommandToString( cmd ), cmd );
 		return ;
 	}
 
@@ -1122,15 +1156,15 @@ HADStateMachine::my_debug_print_buffers()
 {
     int id;
     dprintf( D_FULLDEBUG, "ALIVE IDs list : \n" );
-    receivedAliveList.Rewind();
-    while( receivedAliveList.Next( id ) ) {
+    m_receivedAliveList.Rewind();
+    while( m_receivedAliveList.Next( id ) ) {
         dprintf( D_FULLDEBUG, "<%d>\n",id );
     }
 
     int id2;
     dprintf( D_FULLDEBUG, "ELECTION IDs list : \n" );
-    receivedIdList.Rewind();
-    while( receivedIdList.Next( id2 ) ) {
+    m_receivedIdList.Rewind();
+    while( m_receivedIdList.Next( id2 ) ) {
         dprintf( D_FULLDEBUG, "<%d>\n",id2 );
     }
 }

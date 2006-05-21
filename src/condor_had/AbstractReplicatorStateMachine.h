@@ -125,16 +125,18 @@ protected:
     bool download(const char* daemonSinfulString);
 	/* Function    : upload
      * Arguments   : daemonSinfulString - address of daemon to upload the
-     *                                   version to
+     *                                    version to
 	 * Return value: bool - success/failure value
      * Description : starts uploading 'condor_transferer' process to upload
      *               the version to remote replication daemon
      */
     bool upload(const char* daemonSinfulString);
 	/* Function   : finalize
+	 * Arguments  : isStateChanged - whether the state of the daemon should
+	 *								 be initialized or not
 	 * Description: clears and resets all inner structures and data members
 	 */
-    void finalize();
+    void finalize(bool isStateChanged = true);
     /* Function   : initializeReplicationList
 	 * Arguments  : buffer - the string to initialize the replication daemons'
 	 *						 list from

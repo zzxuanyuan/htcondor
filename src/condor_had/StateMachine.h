@@ -37,19 +37,14 @@
 #define HAD_StateMachine_H__
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+// for 'HadState'
+#include "HadState.h"
 
 //#undef IS_REPLICATION_USED
 //#define IS_REPLICATION_USED
 
 #define MESSAGES_PER_INTERVAL_FACTOR (2)
 #define SEND_COMMAND_TIMEOUT (5) // 5 seconds
-
-typedef enum {
-    PRE_STATE = 1,
-    PASSIVE_STATE = 2,
-    ELECTION_STATE = 3,
-    LEADER_STATE = 4
-}STATES;
 
 class CollectorList;
 /*
@@ -72,7 +67,15 @@ public:
 
     virtual void initialize();
 
-    virtual int reinitialize();
+    virtual bool reinitialize();
+   /* Function    : reconfigure
+    * Return value: bool - success value
+	* Description : reconfigures all inner structures, depending on the 
+    *               changes, performed in the configuration file: it might be
+    *               a full restart or just a reloading of parameters
+	*/
+	bool reconfigure();
+protected:
    /* Function    : isHardConfigurationNeeded
  	* Return value: bool - whether we have to reconfigure all the parameters of
 	*					   the HAD or only those that do not affect the
@@ -89,8 +92,6 @@ public:
 	*				location of the negotiator 
     */
 	int softReconfigure();
-
-protected:
     /*
       step() - called each m_hadInterval, implements one state of the
       state machine.
@@ -136,24 +137,24 @@ protected:
 
     void commandHandler(int cmd,Stream *strm) ;
 
-    int m_state;   
-    int m_stateMachineTimerID;
+    HadState m_state;   
+    int      m_stateMachineTimerID;
         
-    int m_hadInterval;
-    int m_connectionTimeout;
+    int      m_hadInterval;
+    int      m_connectionTimeout;
     
     // if m_callsCounter equals to 0 ,
     // enter state machine , otherwise send messages
-    char m_callsCounter;
+    char     m_callsCounter;
     
-    int m_selfId;
-    bool m_isPrimary;
-    bool m_usePrimary;
+    int      m_selfId;
+    bool     m_isPrimary;
+    bool     m_usePrimary;
     StringList* m_otherHADIPs;
-    Daemon* m_masterDaemon;
+    Daemon*     m_masterDaemon;
 
-    List<int> receivedAliveList;
-    List<int> receivedIdList;
+    List<int> m_receivedAliveList;
+    List<int> m_receivedIdList;
 
     static bool initializeHADList(char* , bool , StringList*, int* );
     int  checkList(List<int>*);
@@ -181,6 +182,8 @@ protected:
     static void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
+	void registerCommand(int command);
+
 // replication-specific data members and functions
 	// usage of replication, controlled by configuration parameter 
 	// USE_REPLICATION
@@ -189,7 +192,7 @@ protected:
 	int sendReplicationCommand( int );
 	void setReplicationDaemonSinfulString( );
 
-	char* replicationDaemonSinfulString;
+	char* m_replicationDaemonSinfulString;
 	// finished replication's timer handler
 	void replicationFinished();
 	// timer, controlling the time allowed for finishing the replication, while

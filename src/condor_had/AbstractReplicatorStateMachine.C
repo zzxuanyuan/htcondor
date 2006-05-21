@@ -41,11 +41,16 @@ AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
 // releasing the dynamic memory and assigning initial values to all the data
 // members of the base class
 void
-AbstractReplicatorStateMachine::finalize()
+AbstractReplicatorStateMachine::finalize( bool isStateChanged )
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::finalize started\n" );
-   	m_state             = VERSION_REQUESTING;
-   	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
+   	
+	if( isStateChanged ) {
+		dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::finalize "
+						   "initializing the state\n" );
+		m_state = VERSION_REQUESTING;
+   	}
+	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
 	m_selfId            = -1;
 
     utilClearList( m_replicationDaemonsList );
@@ -618,7 +623,7 @@ AbstractReplicatorStateMachine::sendCommand(
     int command, char* daemonSinfulString, CommandFunction function )
 {
     dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand %s to %s\n",
-               utilToString( command ), daemonSinfulString );
+               utilCommandToString( command ), daemonSinfulString );
     Daemon  daemon( DT_ANY, daemonSinfulString );
     ReliSock socket;
 
@@ -638,7 +643,7 @@ AbstractReplicatorStateMachine::sendCommand(
     if( ! daemon.startCommand( command, &socket, m_connectionTimeout ) ) {
         dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                             "cannot start command %s to %s\n",
-                   utilToString( command ), daemonSinfulString );
+                   utilCommandToString( command ), daemonSinfulString );
 		socket.close( );
 
         return ;
@@ -676,7 +681,7 @@ AbstractReplicatorStateMachine::sendCommand(
 	socket.close( );
    	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                        "%s command sent to %s successfully\n",
-             utilToString( command ), daemonSinfulString );
+             utilCommandToString( command ), daemonSinfulString );
 }
 
 // specific command function - sends local daemon's version over the socket
