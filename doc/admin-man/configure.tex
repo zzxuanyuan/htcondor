@@ -912,6 +912,10 @@ File System Configuration File Entries''.
   % Defined in the default config file: NO
   % Default definition in config file: N/A
   % Result if not defined or RHS is empty: 300 seconds
+\item[\Macro{SYSAPI\_GET\_LOADAVG}] \label{param:SysapiGetLoadavg}
+  If set to False, then Condor will not attempt to compute the load average
+  on the system, and instead will always report the system load average
+  to be 0.0.  Defaults to True.
 
 \end{description}
 
@@ -3829,6 +3833,33 @@ These macros control the \Condor{schedd}.
   \MacroUNI{NEGOTIATOR\_INTERVAL} is not defined, then 
   \MacroNI{SCHEDD\_ASSUME\_NEGOTIATOR\_GONE} will default to 1200 (20
   minutes).
+
+\item[\Macro{SCHEDD\_ROUND\_ATTR\_<xxxx>}]
+	\label{param:ScheddRoundAttr} This macro instructs the schedd to round up 
+	scalar job ClassAd attributes.  This is desirable to improve job
+	scheduling performance, since it allows Condor's auto-clustering algorithm
+	to ``bucket" attributes like \AdAttr{ImageSize}.  
+	Replace ``<xxxx>" with the name of the attribute to round, and set this
+	macro equal to the number of decimals to round up.  For example, to
+	round the value of job ClassAd attribute \Attr{foo}  up to the nearest
+	100, set 
+\begin{verbatim}
+        SCHEDD_ROUND_ATTR_foo = 3
+\end{verbatim}
+	When the schedd rounds up an attribute value, it will save the raw 
+	(un-rounded) actual value in an attribute with the same name appended
+	with ``\_RAW".  So in the above example, the raw value will be stored
+	in attribute \Attr{foo\_RAW} in the job ClassAd.
+	The following are set by default:
+\begin{verbatim}
+        SCHEDD_ROUND_ATTR_ImageSize = 4
+        SCHEDD_ROUND_ATTR_ExecutableSize = 4
+        SCHEDD_ROUND_ATTR_DiskUsage = 4
+\end{verbatim}
+	Thus, the above attributes are all rounded up from kilobytes 
+	to the nearest 10 megabytes by default.
+	Thus, the above attributes are all rounded up from kbytes to the nearest
+	10 megabytes.
 
 \item[\Macro{SCHEDD\_BACKUP\_SPOOL}]
   \label{param:ScheddBackupSpool} This macro is used to enable the
