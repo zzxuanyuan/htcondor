@@ -1,3 +1,7 @@
+05/23/06 V6_7-mapfile-{root,branch}
+  Branch for the integration of the new user mapping for CEDAR
+  Created from the V6_7-branch.
+
 05/12/06 V6_7-nick_fs_util-{root,branch}
   Branch for the development of some file system utilities that
   are very O/S specific; initially just for detection of whether
