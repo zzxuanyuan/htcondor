@@ -21,9 +21,6 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 //gsoap condor service name: condorSchedd
-//gsoap condor service style: document
-//gsoap condor service encoding: literal
-//gsoap condor service namespace: urn:condor
 
 #import "gsoap_schedd_types.h"
 
