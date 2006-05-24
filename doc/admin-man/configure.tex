@@ -3837,7 +3837,7 @@ These macros control the \Condor{schedd}.
 \item[\Macro{SCHEDD\_ROUND\_ATTR\_<xxxx>}]
   \label{param:ScheddRoundAttr} An integer-valued macro that
   instructs the \Condor{schedd} to round up 
-  scalar job ClassAd attributes.  This is desirable to improve job
+  scalar job ClassAd attributes to a specific number of decimal places.  This is desirable to improve job
   scheduling performance, since it allows Condor's auto-clustering algorithm
   to bucket attributes such as \AdAttr{ImageSize}.  
   Replace \verb@<xxxx>@ with the name of the attribute to round, and set this
@@ -3845,7 +3845,7 @@ These macros control the \Condor{schedd}.
   round the value of job ClassAd attribute \Attr{foo}  up to the nearest
   100, set 
 \begin{verbatim}
-        SCHEDD_ROUND_ATTR_foo = 3
+        SCHEDD_ROUND_ATTR_foo = 2
 \end{verbatim}
   When the schedd rounds up an attribute value, it will save the raw 
   (un-rounded) actual value in an attribute with the same name appended
