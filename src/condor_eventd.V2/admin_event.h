@@ -35,6 +35,7 @@ States
 
 */
 
+const int EVENT_NOW					= 10; // Do this in a asecond
 const int EVENT_INIT				= 1;
 const int EVENT_HUERISTIC			= 2;
 const int EVENT_EVAL_HUERISTIC		= 3;
@@ -42,7 +43,9 @@ const int EVENT_SAMPLING			= 4;
 const int EVENT_EVAL_SAMPLING		= 5;
 const int EVENT_MAIN_WAIT			= 6;
 const int EVENT_RESAMPLE			= 7;
-const int EVENT_GO					= 8;
+const int EVENT_EVAL_RESAMPLE		= 8;
+const int EVENT_GO					= 9;
+const int EVENT_DONE				= 10;
 
 const int BATCH_SIZE				= 4;
 
@@ -90,6 +93,7 @@ class AdminEvent : public Service
 	~AdminEvent( void );
 	int init( void );
 	int config( bool init = false );
+	int shutdownClean(void);
 	int shutdownFast(void);
 	int shutdownGraceful(void);
 
@@ -105,6 +109,11 @@ class AdminEvent : public Service
 	int 		m_timerid_PollingVacates;
 	unsigned 	m_intervalCheck_PollingVacates;
 	unsigned 	m_intervalPeriod_PollingVacates;
+ 
+	int			th_maintainCheckpoints( void );
+	int 		m_timerid_maintainCheckpoints;
+	unsigned 	m_intervalCheck_maintainCheckpoints;
+	unsigned 	m_intervalPeriod_maintainCheckpoints;
 
 	int 		th_DoShutdown_States( void );
 	int 		m_timerid_DoShutdown_States;
@@ -120,28 +129,87 @@ class AdminEvent : public Service
 	int 		m_NrightNow_size;
 	int 		m_NrightNow_time;
 
+	time_t		m_shutdownStart;
+	time_t 		m_shutdownEnd;
+	unsigned	m_shutdownMegs; /* number of megs to checkpoint before shutdown */
+
 	ClassAdList m_CkptBenchMarks;
 	ClassAdList m_CkptBatches;
 	ClassAdList m_PollingStartdAds;
 
 	// Event Handling Methods
 
+		/// Determine the current attributes for a shutdown
 	int check_Shutdown( bool init = false );
-	int tune_Shutdown_batch_size( bool init );
+	int do_checkpoint_shutdown( bool init = false );
 	int do_checkpoint_samples( bool init );
 	int process_ShutdownTime( char *req_time );
 	int FetchAds_ByConstraint( char *constraint );
-	int benchmark_analysis( );
-	int benchmark_insert( float megspersec, int megs, int time );
-	bool benchmark_store_results(float megspersec, int totmegs, int tottime);
-	int benchmark_show_results( );
+	int changeState( int howsoon = EVENT_NOW, int newstate = EVENT_INIT );
+	int loadCheckPointHash( int megs );
+	int getShutdownDelta( void );
 
 	// Action Methods
+
 	int pollStartdAds( ClassAdList &adsList, char *sinful, char *name );
+		/// Send a checkpoint to the job
 	int sendCheckpoint( char *sinful, char *name );
+		/// Send a vacate to the job
 	int sendVacateClaim( char *sinful, char *name );
+		/**
+		Routine takes a hash of jobs which met the standard universe
+		requirement and some constraint and if we have met a threshold
+		limit for total image size, will create a smaller hash with jobs
+		which are requested to vacate.
+		*/
+
+	// Benchmarking methods
+
+		/**
+		Watch after the hash of standard universe jobs in the current 
+		benchmarking list(m_CkptTest_su) and watch repeatedly
+		until all of these jobs have completed vacating. This routine 
+		is called repeatedly until all the jobs have vacated. Vacated 
+		jobs are marked done and not looked at until results are 
+		computed.
+		*/
+	int benchmark_analysis( );
+		/** 
+		Place a benchmark statistic(classad) into a list of benchmarks 
+		into the m_CkptBenchMarks hash.
+		*/
+	int benchmark_insert( float megspersec, int megs, int time, 
+		char *name, char *where, bool debug );
+		/// Does the benchmark_insert call
+	bool benchmark_store_results(float megspersec, int totmegs, int tottime);
+		/*
+		This routine first shows the current benchmarks being collected
+		on a particular image size amount from hash m_CkptBenchMarks and 
+		then shows the history of performance from the prior batches of 
+		benchmarks in the hash m_CkptBatches.
+		*/
+	int benchmark_show_results( );
+		/**
+		If we have the critical limit wanted yet.... then we take from the
+		standard universe hash(m_JobNodes_su) and set up a batch of jobs
+		to watch for vacate completions(m_CkptTest_su). They are all inserted
+		into that hash and given instructions to vacate. Other methods
+		track the results.
+		*/
 	int run_ckpt_benchmark( );
+		/** 
+		process the current batch of checkpoint performances and
+		create a summary classad. Add this classad to a batch
+		performance list(m_CkptBatches) and remove the current individual 
+		records from the m_CkptBenchMarks hash.
+		*/
 	int compute_ckpt_batches( );
+		/** 
+		we are trying to have a particular amount of work before 
+		performing the next batch of vacates to determine checkpointing
+		bandwidth available in the current pool. This routine decides
+		if we have the current amount of image size.
+		*/
 	bool have_requested_batch( int batchsz );
 
 	// Print Methods
@@ -150,7 +218,7 @@ class AdminEvent : public Service
 	int standardU_benchmark_Display();
 
 	// Processing events
-	int standardUProcess();
+	int standardUProcess( int batchsz = 0, bool vacate = false );
 	int totalRunningJobs();
 	int empty_Hashes();
 	int SS_store(StartdStats *ss, int duration);
@@ -161,7 +229,7 @@ class AdminEvent : public Service
 	int 		m_mystate;
 
 	/* Administrator Input div 8 for bits to bytes*/
-	int 		m_newshutdownAdminRate;
+	float 		m_newshutdownAdminRate;
 
 	bool 		m_haveShutdown;
 	bool 		m_haveFullStats;
@@ -171,11 +239,12 @@ class AdminEvent : public Service
 	time_t 		m_shutdownTime;			/* established shutdown time */
 	time_t 		m_newshutdownTime;		/* new shutdown time being considered */
 	time_t 		m_shutdownDelta;		/* time till shutdown event occurs */
+	time_t 		m_timeNow;				/* time till shutdown event occurs */
+	time_t 		m_timeSinceNow;			/* time till shutdown event occurs */
 
 	MyString 	m_shutdownTarget;		/* what machine(s) */
 	MyString 	m_newshutdownTarget;	/* what new machine(s) */
 	MyString 	m_shutdownConstraint;	/* which machines? */
-	MyString	m_spoolHistory;			/* How have we done in the past */
 
 	unsigned 	m_shutdownSize;			/* impact is minimized by batching requests */
 	unsigned 	m_newshutdownSize;			/* impact is minimized by batching requests */
