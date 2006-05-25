@@ -30,7 +30,7 @@
 #include "dagman_main.h"
 #include "dag.h"
 #include "submit.h"
-#include "util.h"
+#include "dagman_util.h"
 #include "debug.h"
 #include "tmp_dir.h"
 

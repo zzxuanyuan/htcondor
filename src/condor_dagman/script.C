@@ -25,7 +25,7 @@
 #include "condor_string.h"
 
 #include "script.h"
-#include "util.h"
+#include "dagman_util.h"
 #include "job.h"
 #include "condor_id.h"
 #include "tmp_dir.h"
