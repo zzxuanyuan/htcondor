@@ -25,7 +25,7 @@
 
 #include "job.h"
 #include "parse.h"
-#include "util.h"
+#include "dagman_util.h"
 #include "debug.h"
 #include "list.h"
 #include "util_lib_proto.h"
@@ -47,7 +47,7 @@ static bool parse_node( Dag *dag, Job::job_type_t nodeType,
 
 static bool parse_script(const char *endline, Dag *dag, 
 		const char *filename, int lineNumber);
-static bool parse_parent(Dag *dag, 
+static bool parse_parent(Dag *dag,
 		const char *filename, int lineNumber);
 static bool parse_retry(Dag *dag, 
 		const char *filename, int lineNumber);
@@ -364,11 +364,11 @@ parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
 //             SCRIPT (PRE|POST) JobName ScriptName Args ...
 //
 //-----------------------------------------------------------------------------
-static bool 
+static bool
 parse_script(
 	const char *endline,
-	Dag  *dag, 
-	const char *filename, 
+	Dag  *dag,
+	const char *filename,
 	int  lineNumber)
 {
 	const char * example = "SCRIPT (PRE|POST) JobName Script Args ...";
@@ -392,7 +392,7 @@ parse_script(
 		exampleSyntax (example);
 		return false;
 	}
-	
+
 	//
 	// Third token is the JobName
 	//
@@ -417,20 +417,20 @@ parse_script(
 
 		job = dag->GetJob(jobName);
 		if (job == NULL) {
-			debug_printf( DEBUG_QUIET, 
+			debug_printf( DEBUG_QUIET,
 						  "%s (line %d): Unknown Job %s\n",
 						  filename, lineNumber, jobNameOrig );
 			return false;
 		}
 	}
-	
+
 	//
 	// The rest of the line is the script and args
 	//
-	
+
 	// first, skip over the token we already read...
 	while (*rest != '\0') rest++;
-	
+
 	// if we're not at the end of the line, move forward
 	// one character so we're looking at the rest of the
 	// line...
@@ -439,23 +439,23 @@ parse_script(
 	} else {
 		// if we're already at the end of the line, they
 		// must not have given us any path to the script,
-		// arguments, etc.  
+		// arguments, etc.
 		debug_printf( DEBUG_QUIET, "%s (line %d): "
 					  "You named a %s script for node %s but "
 					  "didn't provide a script filename\n",
-					  filename, lineNumber, post ? "POST" : "PRE", 
+					  filename, lineNumber, post ? "POST" : "PRE",
 					  jobNameOrig );
 		exampleSyntax( example );
 		return false;
 	}
-	
+
 	// quick hack to get this working for extra
 	// whitespace: make sure the "rest" of the line isn't
 	// starting with any delimiter...
 	while( rest[0] && isDelimiter(rest[0]) ) {
 		rest++;
 	}
-	
+
 	if( ! rest[0] ) {
 		// this means we only saw whitespace after the
 		// script.  however, because of how getline()
@@ -464,12 +464,12 @@ parse_script(
 		debug_printf( DEBUG_QUIET, "%s (line %d): "
 					  "You named a %s script for node %s but "
 					  "didn't provide a script filename\n",
-					  filename, lineNumber, post ? "POST" : "PRE", 
+					  filename, lineNumber, post ? "POST" : "PRE",
 					  jobNameOrig );
 		exampleSyntax( example );
 		return false;
 	}
-	
+
 	if( !job->AddScript( post, rest, whynot ) ) {
 		debug_printf( DEBUG_SILENT, "ERROR: %s (line %d): "
 					  "failed to add %s script to node %s: %s\n",
@@ -482,25 +482,25 @@ parse_script(
 }
 
 //-----------------------------------------------------------------------------
-// 
+//
 // Function: parse_parent
-// Purpose:  parse a line of the format PARENT node-name+ CHILD node-name+
+// Purpose:  parse a line of the format PARENT node-name+ CHILD node-name+ (COND classad_expression)
 //           where there can be one or more parent nodes and one or more
 //           children nodes.
 //
 //-----------------------------------------------------------------------------
-static bool 
+static bool
 parse_parent(
-	Dag  *dag, 
-	const char *filename, 
+	Dag  *dag,
+	const char *filename,
 	int  lineNumber)
 {
 	const char * example = "PARENT p1 p2 p3 CHILD c1 c2 c3";
-	
+
 	List<Job> parents;
-	
+
 	const char *jobName;
-	
+
 	while ((jobName = strtok (NULL, DELIMITERS)) != NULL &&
 		   strcasecmp (jobName, "CHILD") != 0) {
 		const char *jobNameOrig = jobName; // for error output
@@ -509,14 +509,14 @@ parse_parent(
 
 		Job * job = dag->GetJob(jobName2);
 		if (job == NULL) {
-			debug_printf( DEBUG_QUIET, 
+			debug_printf( DEBUG_QUIET,
 						  "%s (line %d): Unknown Job %s\n",
 						  filename, lineNumber, jobNameOrig );
 			return false;
 		}
 		parents.Append (job);
 	}
-	
+
 	// There must be one or more parent job names before
 	// the CHILD token
 	if (parents.Number() < 1) {
@@ -526,45 +526,63 @@ parse_parent(
 		exampleSyntax (example);
 		return false;
 	}
-	
+
 	if (jobName == NULL) {
-		debug_printf( DEBUG_QUIET, 
+		debug_printf( DEBUG_QUIET,
 					  "%s (line %d): Expected CHILD token\n",
 					  filename, lineNumber );
 		exampleSyntax (example);
 		return false;
 	}
-	
+
 	List<Job> children;
-	
+	char * classadExpr = NULL;
+
 	while ((jobName = strtok (NULL, DELIMITERS)) != NULL) {
 		const char *jobNameOrig = jobName; // for error output
+
+		// Check for COND classad_expression
+		if(strcasecmp(jobName, "COND") == 0)
+		{
+			classadExpr = strtok(NULL, "\0");
+			if(classadExpr == NULL)
+			{
+				debug_printf( DEBUG_QUIET,
+					  "%s (line %d): Missing ClassAd Expression\n",
+					  filename, lineNumber );
+				exampleSyntax (example);
+				return false;
+			}
+			break;
+		}
+
 		MyString tmpJobName = munge_job_name(jobName);
 		const char *jobName = tmpJobName.Value();
 
 		Job * job = dag->GetJob(jobName);
 		if (job == NULL) {
-			debug_printf( DEBUG_QUIET, 
+			debug_printf( DEBUG_QUIET,
 						  "%s (line %d): Unknown Job %s\n",
 						  filename, lineNumber, jobNameOrig );
 			return false;
 		}
 		children.Append (job);
 	}
-	
+
 	if (children.Number() < 1) {
-		debug_printf( DEBUG_QUIET, 
+		debug_printf( DEBUG_QUIET,
 					  "%s (line %d): Missing Child Job names\n",
 					  filename, lineNumber );
 		exampleSyntax (example);
 		return false;
 	}
-	
+
 	//
 	// Now add all the dependencies
 	//
-	
+
 	Job *parent;
+	bool insertCondFlag = true;
 	parents.Rewind();
 	while ((parent = parents.Next()) != NULL) {
 		Job *child;
@@ -581,18 +599,39 @@ parse_parent(
 			debug_printf( DEBUG_DEBUG_3,
 						  "Added Dependency PARENT: %s  CHILD: %s\n",
 						  parent->GetJobName(), child->GetJobName() );
+
+
+			if(insertCondFlag && classadExpr)
+			{
+				parent->isConditional = true;
+				//Insert condition as Requirements in triggerAd
+				if (!dag->AddCondition (child, classadExpr)) {
+					debug_printf( DEBUG_QUIET,
+								"ERROR: %s (line %d) failed to add condition "
+								"\"%s\" to child node \"%s\"\n",
+								filename, lineNumber,
+								classadExpr, child->GetJobName() );
+					return false;
+				}
+				debug_printf( DEBUG_DEBUG_3,
+							"Added Condition to CHILD: %s of %s\n",
+							child->GetJobName(), classadExpr );
+
+			}
+
 		}
+		insertCondFlag = false;
 	}
 	return true;
 }
 
 //-----------------------------------------------------------------------------
-// 
+//
 // Function: parse_retry
 // Purpose:  Parse a line of the format "Retry jobname num-times [UNLESS-EXIT 42]"
-// 
+//
 //-----------------------------------------------------------------------------
-static bool 
+static bool
 parse_retry(
 	Dag  *dag, 
 	const char *filename, 

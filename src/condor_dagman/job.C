@@ -46,6 +46,7 @@ const char * Job::status_t_names[] = {
 	"STATUS_POSTRUN  ",
     "STATUS_DONE     ",
     "STATUS_ERROR    ",
+    "STATUS_NOTFIRED ",
 };
 
 // NOTE: must be kept in sync with the job_type_t enum
@@ -104,6 +105,25 @@ Init( const char* jobName, const char* directory, const char* cmdFile )
     // jobID is a primary key (a database term).  All should be unique
     _jobID = _jobID_counter++;
 
+
+    //Set conditional and fired indicators to false
+    isConditional = false;
+    isFired = false;
+
+    // Insert attribute-value pairs into the job's classAd
+    triggerAd = new classad::ClassAd;
+    triggerAd->InsertAttr("jobID", _jobID);
+    triggerAd->InsertAttr("jobName", _jobName);
+    triggerAd->InsertAttr("Status", (int)_Status);
+    triggerAd->InsertAttr("Requirements", true);
+
+    //Printing classAd of job for debugging purpose
+    classad::PrettyPrint  printer;
+    std::string print_triggerAd;
+    printer.Unparse(print_triggerAd, triggerAd);
+    debug_printf( DEBUG_DEBUG_2, "Job::Init \"%s\" TriggerAd= \"%s\"\n", jobName, print_triggerAd.c_str());
+
+
     retry_max = 0;
     retries = 0;
     _submitTries = 0;
@@ -139,7 +159,7 @@ bool Job::Remove (const queue_t queue, const JobID_t jobID) {
         }
     }
     return false;   // Element Not Found
-}  
+}
 
 //---------------------------------------------------------------------------
 void Job::Dump () const {
@@ -170,7 +190,7 @@ void Job::Dump () const {
 		dprintf( D_ALWAYS, " %7s Job ID: (%d)\n", JobTypeString(),
 				 _CondorID._cluster );
 	}
-  
+
     for (int i = 0 ; i < 3 ; i++) {
         dprintf( D_ALWAYS, "%15s: ", queue_t_names[i] );
         SimpleListIterator<JobID_t> iList (_queues[i]);
@@ -238,7 +258,7 @@ Job::SanityCheck() const
 		// equal to waitingCount
 		//
 		// - make sure no job appear twice in the DAG
-		// 
+		//
 		// - verify parent/child symmetry across entire DAG
 
 	return result;
@@ -296,9 +316,9 @@ Job::AddParent( Job* parent, MyString &whynot )
 		_waitingCount++;
 	}
 	whynot = "n/a";
+
     return true;
 }
-
 
 bool
 Job::CanAddParent( Job* parent, MyString &whynot )
@@ -328,6 +348,31 @@ Job::CanAddParent( Job* parent, MyString &whynot )
 	return true;
 }
 
+bool
+Job::AddRequirements( char * condition)
+{
+	// Update triggerAd of child job to include given requirements
+	classad::ClassAdParser parser;
+	classad::ExprTree *new_req;
+	std::string child_req;
+	bool insert_status;
+
+	child_req = condition;
+	insert_status = parser.ParseExpression(child_req, new_req);
+	ASSERT(triggerAd != NULL);
+	triggerAd->Insert("Requirements", new_req);
+
+	//Print triggerAd for debugging
+	classad::PrettyPrint  printer;
+	std::string print_triggerAd;
+	printer.Unparse(print_triggerAd, triggerAd);
+	if(print_triggerAd == "")
+		debug_printf( DEBUG_NORMAL, "ALERT: AddRequirements() has EMPTY triggerAd for job \"%s\"\n", _jobName);
+	else
+		debug_printf( DEBUG_VERBOSE, "Job::AddRequirements \"%s\" TriggerAd= \"%s\"\n", _jobName, print_triggerAd.c_str());
+
+	return true;
+}
 
 bool
 Job::AddChild( Job* child )
@@ -381,15 +426,21 @@ bool
 Job::TerminateSuccess()
 {
 	_Status = STATUS_DONE;
+
+	// Update the "success" attribute in the classad
+	ASSERT(triggerAd != NULL);
+	if(!triggerAd->InsertAttr("status", (int)_Status))
+		debug_printf( DEBUG_NORMAL, "Job::TerminateSuccess \"%s\":Unable to update \"status\" attribute of TriggerAd to value = %d\n", _jobName, (int)_Status );
+
 	return true;
-} 
+}
 
 bool
 Job::TerminateFailure()
 {
 	_Status = STATUS_ERROR;
 	return true;
-} 
+}
 
 bool
 Job::Add( const queue_t queue, const JobID_t jobID )

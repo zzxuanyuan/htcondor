@@ -31,6 +31,10 @@
 #include "list.h"
 #include "condor_id.h"
 
+//#define WANT_NEW_CLASSADS
+#define WANT_NAMESPACES
+#include "classad_distribution.h"
+
 //
 // Local DAGMan includes
 //
@@ -77,7 +81,7 @@ class Job {
 		TYPE_STORK,
 		TYPE_NOOP,	// TODO: yet to be implemented...
 	 } job_type_t;
-  
+
     /** Enumeration for specifying which queue for Add() and Remove().
         If you change this enum, you *must* also update queue_t_names
     */
@@ -99,6 +103,12 @@ class Job {
         Q_CHILDREN
     };
 
+    classad::ClassAd *triggerAd;  // trigger classad associated with each job
+    bool isConditional;  //true: if a conditional edge originates from this job
+    bool isFired;  //true: when job can be triggered
+
+    time_t job_submit_time;  //Submit time of job
+
     /** The string names for the queue_t enumeration.  Use this for printing
         the names "Q_PARENTS", "Q_WAITING", or "Q_CHILDREN".  For example,
         to print out whether the children queue is empty:<p>
@@ -110,7 +120,7 @@ class Job {
         </pre>
     */
     static const char *queue_t_names[];
-  
+
 		/** Returns how many direct parents a node has.
 			@return number of parents
 		*/
@@ -127,6 +137,7 @@ class Job {
         /** Job waiting for POST script */ STATUS_POSTRUN,
         /** Job is done */                 STATUS_DONE,
         /** Job exited abnormally */       STATUS_ERROR,
+	/** Job is not fired */            STATUS_NOTFIRED,
     };
 
     /** The string names for the status_t enumeration.  Use this the same
@@ -136,7 +147,7 @@ class Job {
 
 	// explanation text for errors
 	char error_text[JOB_ERROR_TEXT_MAXLEN];
-  
+
     /** Constructor
         @param jobType Type of job in dag file.
         @param jobName Name of job in dag file.  String is deep copied.
@@ -146,7 +157,7 @@ class Job {
     */
     Job( const job_type_t jobType, const char* jobName,
 				const char* directory, const char* cmdFile );
-  
+
     ~Job();
 
 	inline const char* GetJobName() const { return _jobName; }
@@ -244,17 +255,17 @@ class Job {
 	bool RemoveParent( Job* parent, MyString &whynot );
 	bool RemoveDependency( queue_t queue, JobID_t job );
 	bool RemoveDependency( queue_t queue, JobID_t job, MyString &whynot );
- 
+
     /** Dump the contents of this Job to stdout for debugging purposes.
         @param level Only do the dump if the current debug level is >= level
     */
     void Dump () const;
-  
+
     /** Print the identification info for this Job to stdout.
         @param condorID If true, also print the job's CondorID
      */
     void Print (bool condorID = false) const;
-  
+
 		// double-check internal data structures for consistency
 	bool SanityCheck() const;
 
@@ -265,6 +276,8 @@ class Job {
 	bool AddChild( Job* child );
 	bool AddChild( Job* child, MyString &whynot );
 	bool CanAddChild( Job* child, MyString &whynot );
+
+	bool AddRequirements( char * condition);
 
 		// should be called when the job terminates
 	bool TerminateSuccess();
@@ -289,7 +302,7 @@ class Job {
 
     // the return code of the job
     int retval;
-	
+
     // special return code indicating that a node shouldn't be retried
     int retry_abort_val; // UNLESS-EXIT
     // indicates whether retry_abort_val has been set
@@ -339,7 +352,7 @@ private:
 		// once will cause a memory leak.  wenger 2005-06-24.
 	void Init( const char* jobName, const char *directory,
 				const char* cmdFile );
-  
+
 	bool AddDependency( Job* parent, Job* child );
 
         // strings for job_type_t (e.g., "Condor, "Stork", etc.)
@@ -354,7 +367,7 @@ private:
 
     // filename of condor submit file
     char * _cmdFile;
-  
+
     // name given to the job by the user
     const char* _jobName;
   
@@ -382,6 +395,8 @@ private:
 
 		// True if the node job has been submitted and is idle.
 	bool _isIdle;
+
+
 
 };
 

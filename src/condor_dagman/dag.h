@@ -110,7 +110,7 @@ class Dag {
 
     /// Add a job to the collection of jobs managed by this Dag.
     bool Add( Job& job );
-  
+
     /** Specify a dependency between two jobs. The child job will only
         run after the parent job has finished.
         @param parent The parent job
@@ -118,7 +118,15 @@ class Dag {
         @return true: successful, false: failure
     */
     bool AddDependency (Job * parent, Job * child);
-  
+
+    /** Specify a condition to trigger execution of child job.
+        @param child The child job
+	@param condition The classad Expression
+        @return true: successful, false: failure
+    */
+    bool AddCondition (Job * child, char * condition);
+
+
     /** Blocks until the Condor Log file grows.
         @return true: log file grew, false: timeout or shrinkage
     */
@@ -255,6 +263,10 @@ class Dag {
      */
     inline int NumNodesFailed() const { return _numNodesFailed; }
 
+    /** @return the number of nodes that are not fired in the DAG
+     */
+    inline int NumNodesNotFired() const { return _numNodesNotFired; }
+
     /** @return the number of jobs currently submitted to batch system(s)
      */
     inline int NumJobsSubmitted() const { return _numJobsSubmitted; }
@@ -296,7 +308,7 @@ class Dag {
 	inline int ScriptRunNodeCount() const
 		{ return _preRunNodeCount + _postRunNodeCount; }
 
-	inline bool Done() const { return NumNodesDone() == NumNodes(); }
+	inline bool Done() const { return ( NumNodesDone() + NumNodesNotFired() ) == NumNodes(); }  //
 
 		/** Submit all ready jobs, provided they are not waiting on a
 			parent job or being throttled.
@@ -304,7 +316,7 @@ class Dag {
 			@return number of jobs successfully submitted
 		*/
     int SubmitReadyJobs(const Dagman &dm);
-  
+
     /** Remove all jobs (using condor_rm) that are currently running.
         All jobs currently marked Job::STATUS_SUBMITTED will be fed
         as arguments to condor_rm via popen.  This function is called
@@ -326,7 +338,7 @@ class Dag {
         completed jobs are premarked as DONE.
         @param rescue_file The name of the rescue file to generate
         @param datafile The original DAG config file to read from
-		@param useDagDir run DAGs in directories from DAG file paths 
+		@param useDagDir run DAGs in directories from DAG file paths
 			if true
     */
     void Rescue (const char * rescue_file, const char * datafile,
@@ -341,7 +353,7 @@ class Dag {
 
 	bool RemoveDependency( Job *parent, Job *child );
 	bool RemoveDependency( Job *parent, Job *child, MyString &whynot );
-	
+
     /* Detects cycle within dag submitted by user
 	   @return true if there is cycle
 	*/
@@ -387,7 +399,7 @@ class Dag {
 		// The maximum signal we can deal with in the error-reporting
 		// code.
 	const int MAX_SIGNAL;
-	
+
   protected:
 
 	/** Print a numbered list of the DAG files.
@@ -413,7 +425,7 @@ class Dag {
     // add job to termination queue and report termination to all
     // child jobs by removing job ID from each child's waiting queue
     void TerminateJob( Job* job, bool bootstrap = false );
-  
+
 	void PrintEvent( debug_level_t level, const ULogEvent* event,
 					 Job* node );
 
@@ -491,9 +503,12 @@ class Dag {
 
     // Number of nodes that are done (completed execution)
     int _numNodesDone;
-    
+
     // Number of nodes that failed (job or PRE or POST script failed)
     int _numNodesFailed;
+
+    // Number of nodes that are not fired
+    int _numNodesNotFired;
 
     // Number of batch system jobs currently submitted
     int _numJobsSubmitted;
@@ -550,8 +565,8 @@ class Dag {
 
 		// Number of nodes currently in status Job::STATUS_POSTRUN.
 	int		_postRunNodeCount;
-	
-	int DFS_ORDER; 
+
+	int DFS_ORDER;
 
 	// Information for producing dot files, which can be used to visualize
 	// DAG files. Dot is part of the graphviz package, which is available from

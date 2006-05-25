@@ -15,16 +15,16 @@ HELPER_FLAGS = -DBUILD_HELPER
 
 C_PLUS_FLAGS = -I. $(STD_C_PLUS_FLAGS) \
 	-I../condor_daemon_core.V6 -I.. \
-	New_classads_defines \
+	-I$(NEW_CLASSADS_INC) \
 	-Wall $(HELPER_FLAGS)
 
-CFLAGS = $(STD_C_FLAGS) New_classads_defines
+CFLAGS = $(STD_C_FLAGS) -I$(NEW_CLASSADS_INC)
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS) New_classads_lib
 TOOL_LIB = $(STD_LIBS) New_classads_lib
 
 soapobjs(dagman)
 
-OBJ = dagman_main.o submit.o dag.o job.o util.o parse.o debug.o \
+OBJ = dagman_main.o submit.o dag.o job.o dagman_util.o parse.o debug.o \
 	script.o scriptQ.o helper.o dagman_instantiate.o dagman_commands.o \
 	dagman_multi_dag.o $(SOAP_OBJS)
 

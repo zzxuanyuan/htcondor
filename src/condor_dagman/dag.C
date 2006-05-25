@@ -40,7 +40,7 @@
 #include "dag.h"
 #include "debug.h"
 #include "submit.h"
-#include "util.h"
+#include "dagman_util.h"
 #include "dagman_main.h"
 #include "dagman_multi_dag.h"
 
@@ -82,6 +82,7 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
     _dapLogInitialized    (false),             //<--DAP
     _numNodesDone          (0),
     _numNodesFailed        (0),
+    _numNodesNotFired      (0),
     _numJobsSubmitted     (0),
     _maxJobsSubmitted     (maxJobsSubmitted),
 	_numIdleJobProcs		  (0),
@@ -168,7 +169,7 @@ Dag::~Dag() {
 
 	delete[] _dot_file_name;
 	delete[] _dot_include_file_name;
-    
+
     return;
 }
 
@@ -227,7 +228,7 @@ bool Dag::Bootstrap (bool recovery) {
     }
     debug_printf( DEBUG_VERBOSE, "Number of pre-completed nodes: %d\n",
 				  NumNodesDone() );
-    
+
     if (recovery) {
         debug_printf( DEBUG_NORMAL, "Running in RECOVERY mode...\n" );
 
@@ -252,12 +253,12 @@ bool Dag::Bootstrap (bool recovery) {
 			}
 		}
     }
-	
+
     if( DEBUG_LEVEL( DEBUG_DEBUG_2 ) ) {
 		PrintJobList();
 		PrintReadyQ( DEBUG_DEBUG_2 );
-    }	
-    
+    }
+
     jobs.ToBeforeFirst();
     while( jobs.Next( job ) ) {
 		if( job->GetStatus() == Job::STATUS_READY &&
@@ -267,7 +268,7 @@ bool Dag::Bootstrap (bool recovery) {
     }
 
 	_recovery = false;
-    
+
     return true;
 }
 
@@ -291,6 +292,19 @@ Dag::AddDependency( Job* parent, Job* child )
 		return false;
 	}
     return true;
+}
+
+//-------------------------------------------------------------------------
+bool
+Dag::AddCondition( Job* child, char* condition )
+{
+	if(!child || !condition) {
+		return false;
+	}
+	if(!child->AddRequirements(condition)) {
+		return false;
+	}
+	return true;
 }
 
 //-------------------------------------------------------------------------
@@ -418,16 +432,16 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 
 	static int log_unk_count = 0;
 	static int ulog_rd_error_count = 0;
-	
+
 	debug_printf( DEBUG_DEBUG_4, "Log outcome: %s\n",
 				ULogEventOutcomeNames[outcome] );
-        
+
 	if (outcome != ULOG_UNK_ERROR) log_unk_count = 0;
 
 	switch (outcome) {
-            
+
 		//----------------------------------------------------------------
-	case ULOG_NO_EVENT:     
+	case ULOG_NO_EVENT:
 		done = true;
 		break;
 
@@ -477,7 +491,7 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 					// abort the DAG (if result was set to false) or
 					// ignore it and hope for the best...
 				break;
-			} 
+			}
 
 			switch(event->eventNumber) {
 
@@ -487,7 +501,7 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 					// Make sure we don't count finished jobs as idle.
 				ProcessNotIdleEvent(event, job);
 				break;
-              
+
 			case ULOG_JOB_TERMINATED:
 				ProcessTerminatedEvent(event, job, recovery);
 					// Make sure we don't count finished jobs as idle.
@@ -595,8 +609,12 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 
 		JobTerminatedEvent * termEvent = (JobTerminatedEvent*) event;
 
-
 		bool failed = !(termEvent->normal && termEvent->returnValue == 0);
+		//If condition defined on this job's attributes, then a non-zero return value is acceptable
+		if(job->isConditional)
+		{
+			failed = !(termEvent->normal);
+		}
 
 		if( failed ) {
 				// job failed or was killed by a signal
@@ -655,8 +673,44 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 			}
 
 		} else {
+			//Add attributes from userlog to the job's classAd
+			job->triggerAd->InsertAttr("ReturnValue", termEvent->returnValue);
+			job->triggerAd->InsertAttr("SentBytes", (double)termEvent->sent_bytes);
+			job->triggerAd->InsertAttr("ReceivedBytes", (double)termEvent->recvd_bytes);
+			job->triggerAd->InsertAttr("TotalSentBytes", (double)termEvent->total_sent_bytes);
+			job->triggerAd->InsertAttr("TotalReceivedBytes", (double)termEvent->total_recvd_bytes);
+
+
+			job->triggerAd->InsertAttr("RunLocalUsageUsr", (int)termEvent->run_local_rusage.ru_utime.tv_sec);
+			job->triggerAd->InsertAttr("RunLocalUsageSys", (int)termEvent->run_local_rusage.ru_stime.tv_sec);
+
+			job->triggerAd->InsertAttr("RunRemoteUsageUsr", (int)termEvent->run_remote_rusage.ru_utime.tv_sec);
+			job->triggerAd->InsertAttr("RunRemoteUsageSys", (int)termEvent->run_remote_rusage.ru_stime.tv_sec);
+
+			job->triggerAd->InsertAttr("TotalLocalUsageUsr", (int)termEvent->total_local_rusage.ru_utime.tv_sec);
+			job->triggerAd->InsertAttr("TotalLocalUsageSys", (int)termEvent->total_local_rusage.ru_stime.tv_sec);
+
+			job->triggerAd->InsertAttr("TotalRemoteUsageUsr", (int)termEvent->total_remote_rusage.ru_utime.tv_sec);
+			job->triggerAd->InsertAttr("TotalRemoteUsageSys", (int)termEvent->total_remote_rusage.ru_stime.tv_sec);
+
+			//Compute and insert wall-clock time
+			struct tm event_time = event->eventTime;
+			time_t job_terminate_time = mktime(&event_time);
+			classad::ExprTree *wctime = classad::Literal::MakeRelTime(job_terminate_time, job->job_submit_time);
+			job->triggerAd->Insert("WallClockTime", wctime);
+
+
+			classad::PrettyPrint  printer;
+			std::string print_termEventAd;
+			printer.Unparse(print_termEventAd, job->triggerAd);
+			if(print_termEventAd == "")
+				debug_printf( DEBUG_NORMAL, "ALERT- ProcessTerminatedEvent: triggerAd is EMPTY for job \"%s\"\n", job->GetJobName());
+			else
+				debug_printf( DEBUG_NORMAL, "Job \"%s\" triggerAd= \"%s\"\n", job->GetJobName(), print_termEventAd.c_str());
+
+
 			// job succeeded
-			ASSERT( termEvent->returnValue == 0 );
+			//ASSERT( termEvent->returnValue == 0 );  //do not check return value
 
 				// Only change the node status if we haven't already
 				// gotten an error on this node.
@@ -707,7 +761,7 @@ Dag::RemoveBatchJob(Job *node) {
 		ASSERT( false );
 		break;
 	}
-	
+
 	debug_printf( DEBUG_VERBOSE, "Executing: %s\n", cmd );
 	if ( util_popen( cmd ) ) {
 			// Note: error here can't be fatal because there's a
@@ -745,7 +799,7 @@ Dag::ProcessJobProcEnd(Job *job, bool recovery, bool failed) {
 				snprintf( job->error_text, JOB_ERROR_TEXT_MAXLEN,
 						"%s (after %d node retries)", tmp,
 						job->GetRetries() );
-				delete [] tmp;   
+				delete [] tmp;
 			}
 
 			if ( job->_queuedNodeJobProcs == 0 ) {
@@ -813,7 +867,7 @@ Dag::ProcessPostTermEvent(const ULogEvent *event, Job *job,
 
 			if( termEvent->normal ) {
 					// Normal termination -- POST script failed
-				snprintf( errBuf, ERR_BUF_LEN, 
+				snprintf( errBuf, ERR_BUF_LEN,
 							"failed with status %d",
 							termEvent->returnValue );
 				debug_dprintf( D_ALWAYS | D_NOHEADER, DEBUG_NORMAL,
@@ -920,6 +974,12 @@ Dag::ProcessSubmitEvent(const ULogEvent *event, Job *job, bool recovery) {
 		}
 		return;
 	}
+
+	// Record the submit time of job
+	struct tm event_time = event->eventTime;
+	job->job_submit_time = mktime(&event_time);
+	//debug_printf( DEBUG_NORMAL, "Submit time of job \"%s\": %d\n", job->GetJobName(), job->job_submit_time);
+
 
 		// if we only have one log, compare
 		// the order of submit events in the
@@ -1088,7 +1148,7 @@ Dag::FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir )
 			DC_Exit( 1 );
 		}
 	}
-	
+
 	debug_printf( DEBUG_VERBOSE, "All DAG node user log files:\n");
 	if ( _condorLogFiles.number() > 0 ) {
 		_condorLogFiles.rewind();
@@ -1331,7 +1391,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 
 	  return numSubmitsThisCycle;
     }
-    
+
 	  // Set the times to *not* wait before trying another submit, since
 	  // the most recent submit worked.
 	_nextSubmitTime = 0;
@@ -1350,7 +1410,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 		// maxjobs (now really maxnodes) if it takes a while to see
 		// the submit events.  wenger 2006-02-10.
     _numJobsSubmitted++;
-    
+
         // stash the job ID reported by the submit command, to compare
         // with what we see in the userlog later as a sanity-check
         // (note: this sanity-check is not possible during recovery,
@@ -1359,7 +1419,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 
 	debug_printf( DEBUG_VERBOSE, "\tassigned %s ID (%d.%d)\n",
 				  job->JobTypeString(), condorID._cluster, condorID._proc );
-    
+
     numSubmitsThisCycle++;
 	}
 	return numSubmitsThisCycle;
@@ -1685,22 +1745,22 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
 					job->_Status == Job::STATUS_DONE ? "DONE" : "");
         }
         if (job->_scriptPre != NULL) {
-            fprintf (fp, "SCRIPT PRE  %s %s\n", 
+            fprintf (fp, "SCRIPT PRE  %s %s\n",
                      job->GetJobName(), job->_scriptPre->GetCmd());
         }
         if (job->_scriptPost != NULL) {
-            fprintf (fp, "SCRIPT POST %s %s\n", 
+            fprintf (fp, "SCRIPT POST %s %s\n",
                      job->GetJobName(), job->_scriptPost->GetCmd());
         }
         if( job->retry_max > 0 ) {
             int retriesLeft = (job->retry_max - job->retries);
 
             if (   job->_Status == Job::STATUS_ERROR
-                && job->retries < job->retry_max 
+                && job->retries < job->retry_max
                 && job->have_retry_abort_val
                 && job->retval == job->retry_abort_val ) {
                 fprintf(fp, "# %d of %d retries performed; remaining attempts "
-                        "aborted after node returned %d\n", 
+                        "aborted after node returned %d\n",
                         job->retries, job->retry_max, job->retval );
             } else {
 				if( !reset_retries_upon_rescue ) {
@@ -1709,7 +1769,7 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
 							 job->retries, job->retry_max, retriesLeft );
 				}
             }
-            
+
             ASSERT( job->retries <= job->retry_max );
 			if( !reset_retries_upon_rescue ) {
 				fprintf( fp, "RETRY %s %d", job->GetJobName(), retriesLeft );
@@ -1726,7 +1786,7 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
 
         if(!job->varNamesFromDag->IsEmpty()) {
             fprintf(fp, "VARS %s", job->GetJobName());
-	
+
             ListIterator<MyString> names(*job->varNamesFromDag);
             ListIterator<MyString> vals(*job->varValsFromDag);
             names.ToBeforeFirst();
@@ -1759,15 +1819,37 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
     while (it.Next(job)) {
         SimpleList<JobID_t> & _queue = job->GetQueueRef(Job::Q_CHILDREN);
         if (!_queue.IsEmpty()) {
+
+	  if(!job->isConditional) { //If no condition defined for this node
             fprintf (fp, "PARENT %s CHILD", job->GetJobName());
-            
+
             SimpleListIterator<JobID_t> jobit (_queue);
             JobID_t jobID;
             while (jobit.Next(jobID)) {
                 Job * child = GetJob(jobID);
                 ASSERT( child != NULL );
                 fprintf (fp, " %s", child->GetJobName());
-            }
+		}
+	   } //
+
+	   else {
+	    SimpleListIterator<JobID_t> jobit (_queue);
+            JobID_t jobID;
+            while (jobit.Next(jobID)) {
+                Job * child = GetJob(jobID);
+                ASSERT( child != NULL );
+		fprintf (fp, "PARENT %s CHILD %s ", job->GetJobName(), child->GetJobName());
+		ASSERT(child->triggerAd != NULL);
+		classad::ExprTree * req = child->triggerAd->Lookup("Requirements");  //Extract trigger condition
+		ASSERT(req != NULL);
+
+		classad::PrettyPrint  printer;
+		std::string print_req;
+		printer.Unparse(print_req, req);
+
+		fprintf(fp, " COND %s \n", print_req.c_str());
+		}
+	   }
             fprintf (fp, "\n");
         }
     }
@@ -1796,14 +1878,57 @@ Dag::TerminateJob( Job* job, bool recovery )
     SimpleList<JobID_t> & qp = job->GetQueueRef(Job::Q_CHILDREN);
     SimpleListIterator<JobID_t> iList (qp);
     JobID_t childID;
+
+    classad::MatchClassAd  match_ad;
+    classad::ClassAd *leftAd;
+    bool can_evaluate, ads_match;
+
+    leftAd = new classad::ClassAd;
+    leftAd->CopyFrom(*(job->triggerAd));
+    leftAd->InsertAttr("Requirements", true);
+
+    if(!match_ad.ReplaceLeftAd(leftAd))
+    	debug_printf( DEBUG_NORMAL, "Dag::TerminateJob \"%s\": Unable to replace left classad of MatchClassAd\n", job->GetJobName());
+
     while (iList.Next(childID)) {
         Job * child = GetJob(childID);
         ASSERT( child != NULL );
-        child->Remove(Job::Q_WAITING, job->GetJobID());
+
+	classad::ClassAd *rightAd;
+	rightAd = new classad::ClassAd;
+	rightAd->CopyFrom(*(child->triggerAd));
+
+	if(!match_ad.ReplaceRightAd(rightAd))
+		debug_printf( DEBUG_NORMAL, "Dag::TerminateJob \"%s\": Unable to replace right classad of MatchClassAd for child \"%s\"\n", job->GetJobName(), child->GetJobName());
+
+	//Check if child job's Requirements are matched by the parent's classAd
+	can_evaluate = match_ad.EvaluateAttrBool("symmetricMatch", ads_match);
+	if (!can_evaluate) {
+		debug_printf( DEBUG_NORMAL, "Dag::TerminateJob \"%s\": Unable to evaluate MatchClassAd for child \"%s\"\n", job->GetJobName(), child->GetJobName());
+	} else if (ads_match) {
+		debug_printf( DEBUG_DEBUG_2, "Dag::TerminateJob \"%s\": TriggerAd matches child job \"%s\" requirements\n", job->GetJobName(), child->GetJobName());
+	} else {
+		debug_printf( DEBUG_DEBUG_2, "Dag::TerminateJob \"%s\": TriggerAd does not match child job \"%s\" requirements\n", job->GetJobName(), child->GetJobName());
+	}
+
+	if(can_evaluate && ads_match)
+	{
+		child->isFired = true;
+	}
+	child->Remove(Job::Q_WAITING, job->GetJobID());
+
 		// if child has no more parents in its waiting queue, submit it
 		if( child->GetStatus() == Job::STATUS_READY &&
-			child->IsEmpty( Job::Q_WAITING ) && recovery == FALSE ) {
-			StartNode( child, false );
+			child->IsEmpty( Job::Q_WAITING ) && recovery == FALSE) {
+			if( child->isFired ) {
+				debug_printf( DEBUG_VERBOSE, "Child job: %s FIRED\n", child->GetJobName());
+				StartNode( child, false );
+			}
+			else {
+				debug_printf( DEBUG_NORMAL, "Child job: %s NOT FIRED\n", child->GetJobName());
+				child->_Status = Job::STATUS_NOTFIRED;
+				_numNodesNotFired++;
+			}
 		}
     }
 		// this is a little ugly, but since this function can be
@@ -1861,24 +1986,24 @@ Dag::RestartNode( Job *node, bool recovery )
 }
 
 
-// Number the nodes according to DFS order 
-void 
+// Number the nodes according to DFS order
+void
 Dag::DFSVisit (Job * job)
 {
 	//Check whether job has been numbered already
 	if (job==NULL || job->_visited)
 		return;
-	
-	//Remember that the job has been numbered	
-	job->_visited = true; 
-	
-	//Get the children of current job	
+
+	//Remember that the job has been numbered
+	job->_visited = true;
+
+	//Get the children of current job
 	SimpleList <JobID_t> & children = job->GetQueueRef(Job::Q_CHILDREN);
-	SimpleListIterator <JobID_t> child_itr (children); 
-	
+	SimpleListIterator <JobID_t> child_itr (children);
+
 	JobID_t childID;
 	child_itr.ToBeforeFirst();
-	
+
 	while (child_itr.Next(childID))
 	{
 		Job * child = GetJob (childID);
@@ -1887,32 +2012,32 @@ Dag::DFSVisit (Job * job)
 
 	DFS_ORDER++;
 	job->_dfsOrder = DFS_ORDER;
-}		
+}
 
 // Detects cycle and warns user about it
-bool 
+bool
 Dag::isCycle ()
 {
-	bool cycle = false; 
+	bool cycle = false;
 	Job * job;
 	JobID_t childID;
 	ListIterator <Job> joblist (_jobs);
 	SimpleListIterator <JobID_t> child_list;
 
 	//Start DFS numbering from zero, although not necessary
-	DFS_ORDER = 0; 
-	
-	//Visit all jobs in DAG and number them	
-	joblist.ToBeforeFirst();	
+	DFS_ORDER = 0;
+
+	//Visit all jobs in DAG and number them
+	joblist.ToBeforeFirst();
 	while (joblist.Next(job))
 	{
   		if (!job->_visited &&
 			job->GetQueueRef(Job::Q_PARENTS).Number()==0)
-			DFSVisit (job);	
-	}	
+			DFSVisit (job);
+	}
 
 	//Detect cycle
-	joblist.ToBeforeFirst();	
+	joblist.ToBeforeFirst();
 	while (joblist.Next(job))
 	{
 		child_list.Initialize(job->GetQueueRef(Job::Q_CHILDREN));
@@ -1923,14 +2048,14 @@ Dag::isCycle ()
 
 			//No child's DFS order should be smaller than parent's
 			if (child->_dfsOrder >= job->_dfsOrder) {
-#ifdef REPORT_CYCLE	
-				debug_printf (DEBUG_QUIET, 
+#ifdef REPORT_CYCLE
+				debug_printf (DEBUG_QUIET,
 							  "Cycle in the graph possibly involving jobs %s and %s\n",
 							  job->GetJobName(), child->GetJobName());
-#endif 			
+#endif
 				cycle = true;
 			}
-		}		
+		}
 	}
 	return cycle;
 }
@@ -1980,14 +2105,14 @@ Dag::ParentListString( Job *node, const char delim ) const
 
 
 //-------------------------------------------------------------------------
-// 
+//
 // Function: SetDotFileName
-// Purpose:  Sets the base name of the dot file name. If we aren't 
+// Purpose:  Sets the base name of the dot file name. If we aren't
 //           overwriting the file, it will have a number appended to it.
 // Scope:    Public
 //
 //-------------------------------------------------------------------------
-void 
+void
 Dag::SetDotFileName(char *dot_file_name)
 {
 	delete[] _dot_file_name;
@@ -1996,12 +2121,12 @@ Dag::SetDotFileName(char *dot_file_name)
 }
 
 //-------------------------------------------------------------------------
-// 
+//
 // Function: SetDotIncludeFileName
 // Purpose:  Sets the name of a file that we'll take the contents from and
 //           place them into the dot file. The idea is that if someone wants
 //           to set some parameters for the graph but doesn't want to manually
-//           edit the file (perhaps a higher-level program is watching the 
+//           edit the file (perhaps a higher-level program is watching the
 //           dot file) then we'll get the parameters from here.
 // Scope:    Public
 //
@@ -2015,15 +2140,15 @@ Dag::SetDotIncludeFileName(char *include_file_name)
 }
 
 //-------------------------------------------------------------------------
-// 
+//
 // Function: DumpDotFile
-// Purpose:  Called whenever the dot file should be created. 
+// Purpose:  Called whenever the dot file should be created.
 //           This writes to the _dot_file_name, although the name may have
-//           a numeric suffix if we're not overwriting files. 
+//           a numeric suffix if we're not overwriting files.
 // Scope:    Public
 //
 //-------------------------------------------------------------------------
-void 
+void
 Dag::DumpDotFile(void)
 {
 	if (_dot_file_name != NULL) {
@@ -2117,11 +2242,11 @@ Dag::CheckAllJobs()
 }
 
 //-------------------------------------------------------------------------
-// 
+//
 // Function: IncludeExtraDotCommands
-// Purpose:  Helper function for DumpDotFile. Reads the _dot_include_file_name 
-//           file and places everything in it into the dot file that is being 
-//           written. 
+// Purpose:  Helper function for DumpDotFile. Reads the _dot_include_file_name
+//           file and places everything in it into the dot file that is being
+//           written.
 // Scope:    Private
 //
 //-------------------------------------------------------------------------

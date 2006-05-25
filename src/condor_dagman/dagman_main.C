@@ -618,16 +618,17 @@ print_status() {
 	int post = dagman.dag->PostRunNodeCount();
 	int ready =  dagman.dag->NumNodesReady();
 	int failed = dagman.dag->NumNodesFailed();
-	int unready = total - (done + pre + submitted + post + ready + failed );
+	int notfired = dagman.dag->NumNodesNotFired(); //
+	int unready = total - (done + pre + submitted + post + ready + failed + notfired ); //
 
 	debug_printf( DEBUG_VERBOSE, "Of %d nodes total:\n", total );
 
-	debug_printf( DEBUG_VERBOSE, " Done     Pre   Queued    Post   Ready   Un-Ready   Failed\n" );
+	debug_printf( DEBUG_VERBOSE, " Done     Pre   Queued    Post   Ready   Un-Ready   Failed   Not-Fired\n" ); //
 
-	debug_printf( DEBUG_VERBOSE, "  ===     ===      ===     ===     ===        ===      ===\n" );
+	debug_printf( DEBUG_VERBOSE, "  ===     ===      ===     ===     ===        ===      ===      ===\n" );
 
-	debug_printf( DEBUG_VERBOSE, "%5d   %5d    %5d   %5d   %5d      %5d    %5d\n",
-				  done, pre, submitted, post, ready, unready, failed );
+	debug_printf( DEBUG_VERBOSE, "%5d   %5d    %5d   %5d   %5d      %5d    %5d    %5d\n",
+				  done, pre, submitted, post, ready, unready, failed, notfired ); //
 }
 
 void condor_event_timer () {
@@ -653,6 +654,7 @@ void condor_event_timer () {
     static int prevJobsDone = 0;
     static int prevJobs = 0;
     static int prevJobsFailed = 0;
+    static int prevJobsNotFired = 0; //
     static int prevJobsSubmitted = 0;
     static int prevJobsReady = 0;
     static int prevScriptRunNodes = 0;
@@ -684,11 +686,12 @@ void condor_event_timer () {
 	return;
       }
     }
-  
+
     // print status if anything's changed (or we're in a high debug level)
     if( prevJobsDone != dagman.dag->NumNodesDone()
         || prevJobs != dagman.dag->NumNodes()
         || prevJobsFailed != dagman.dag->NumNodesFailed()
+	|| prevJobsNotFired != dagman.dag->NumNodesNotFired() //
         || prevJobsSubmitted != dagman.dag->NumJobsSubmitted()
         || prevJobsReady != dagman.dag->NumNodesReady()
         || prevScriptRunNodes != dagman.dag->ScriptRunNodeCount()
@@ -697,16 +700,17 @@ void condor_event_timer () {
         prevJobsDone = dagman.dag->NumNodesDone();
         prevJobs = dagman.dag->NumNodes();
         prevJobsFailed = dagman.dag->NumNodesFailed();
+	prevJobsNotFired = dagman.dag->NumNodesNotFired(); //
         prevJobsSubmitted = dagman.dag->NumJobsSubmitted();
         prevJobsReady = dagman.dag->NumNodesReady();
         prevScriptRunNodes = dagman.dag->ScriptRunNodeCount();
-		
+
 		if( dagman.dag->GetDotFileUpdate() ) {
 			dagman.dag->DumpDotFile();
 		}
 	}
 
-    ASSERT( dagman.dag->NumNodesDone() + dagman.dag->NumNodesFailed()
+    ASSERT( dagman.dag->NumNodesDone() + dagman.dag->NumNodesFailed() + dagman.dag->NumNodesNotFired() //
 			<= dagman.dag->NumNodes() );
 
     //
@@ -730,7 +734,7 @@ void condor_event_timer () {
     // If no jobs are submitted and no scripts are running, but the
     // dag is not complete, then at least one job failed, or a cycle
     // exists.
-    // 
+    //
     if( dagman.dag->NumJobsSubmitted() == 0 &&
 		dagman.dag->NumNodesReady() == 0 &&
 		dagman.dag->ScriptRunNodeCount() == 0 ) {
