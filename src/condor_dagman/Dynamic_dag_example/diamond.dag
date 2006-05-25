@@ -1,0 +1,14 @@
+##################################################
+# diamond.dag
+#
+# Simple example of a "diamond-shaped" DAG
+##################################################
+
+Job  A  A.submit 
+Job  B  B.submit 
+Job  C  C.submit        
+Job  D  D.submit
+PARENT A CHILD B COND ( (other.jobName == "A" && other.ReturnValue == 0) )
+PARENT A CHILD C COND ( (other.jobName == "A" && other.ReturnValue == 1) )
+PARENT B CHILD D COND ( (other.jobName == "B" && other.ReturnValue == 0 ) )
+
