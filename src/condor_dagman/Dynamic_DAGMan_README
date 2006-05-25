@@ -1,0 +1,103 @@
+
+                    DYNAMIC DAGMAN WITH CLASSADS
+
+INTRODUCTION
+------------
+
+DAGMan (Directed Acyclic Graph Manager), a meta-scheduler for Condor, manages submission of a set of jobs with dependencies. It strictly enforces the execution order defined in a DAG. The goal of "dynamic DAGMan" is to allow flexibility to make run-time decisions in the DAG semantics. The primary extensions considered are to include an ability to decide at run-time the subset of DAG nodes that should be executed and to determine when a particular node should be executed.
+
+We define the concept of "conditional DAGs" to include such a flexibility to make run-time decisions. A conditional DAG allows the user to associate a condition with DAG edges. In its simplest form, a condition for executing a particular DAG node is the successful completion of all its parent nodes. This is the default condition enforced by the production DAGMan.
+
+
+DESIGN
+------
+
+Dynamic DAGMan uses an extension of the classads (new classads). Each DAG node has an associated classad. The basic attributes of this classad are:
+  job identifier "jobID";
+  job name "jobName";
+  job status "Status" (e.g. STATUS_READY, STATUS_DONE).
+
+Additionally the classad has job execution specific attributes. These include:
+  job's exit value "ReturnValue";
+  wall-clock time "WallClockTime";
+  network statistics "SentBytes", "ReceivedBytes", "TotalSentBytes", "TotalReceivedBytes";
+  CPU utilization statistics "RunLocalUsageUsr", "RunLocalUsageSys", "RunRemoteUsageUsr", "RunRemoteUsageSys", "TotalLocalUsageUsr", "TotalLocalUsageSys", "TotalRemoteUsageUsr", "TotalRemoteUsageSys".
+
+These attribute-values are derived from the attributes maintained by Condor for a job, in order to allow regeneration of attribute-values from the Condor user-logs in case of failure.
+
+The condition in the conditional DAGs is defined as a "Requirements" expression in the DAG node classad. This defines the trigger condition for the node in terms of the attributes of the parent jobs. We use the match-making semantics of classad to determine if the trigger condition of a node is satisfied and the node can be submitted.
+
+
+USAGE
+-----
+
+The trigger condition is defined by the user in the Dag input file. The syntax used is an extension of the dependency line in the DAG input file:
+
+PARENT ParentJobName...  CHILD ChildJobName... [COND ClassadExpression]
+
+The ClassadExpression defined after the keyword COND is the trigger condition and is applied to every child job on the line. No explicit checks are made to ensure that this classad expression is correct. The attributes used must match the attributes defined in the dag node classad (see DESIGN section for the list of attributes supported). Also, the parent name must be correctly used in the classad expression.
+
+As an example,
+PARENT P CHILD C COND ( (other.jobName == "P" && other.ReturnValue == 1) )
+
+When defining conditions involving multiple jobs, the per parent-job conditions must be concatenated by OR operator in the classad expression. (See Section on Future directions for how to handle more complex conditions). For example,
+
+PARENT p1 p2 CHILD c1 c2 COND ( (other.jobName == "p1" && other.ReturnValue == true )  ||  (other.jobName == "p2" && other.ReturnValue == 1) )
+
+
+IMPLEMENTATION
+--------------
+
+We present some high-level implementation details to highlight the control flow and assumptions made for the dynamic DAGMan:
+
+1. Job class has a classad pointer "triggerAd" which maintains the job attributes and the trigger condition.
+
+2. At the time of job creation (Job::Init), the basic job attributes namely jobID, jobName and Status are added to triggerAd. The default Requirements expression of the job is "true" which means the job is ready to be submitted.
+
+3. The Requirements expression of triggerAd is updated as the parent-child relation is formed while parsing the dag structure. The condition expression is extracted in the parse_parent method and then is added as the Requirements in triggerAd of the child job.
+
+Note: At this time, no error checks are done for the condition expression provided by the user in the dag file to ensure that the correct attributes and values are used.
+
+4. After the job completes, its execution specific attribute-values are available. These are added to the triggerAd in the Dag::ProcessTerminatedEvent for the job.
+
+5. The triggerAd of child nodes is evaluated with respect to the completed job's attributes after the job has completed (see Dag::TerminateJob method). Hence, we always enforce an implicit condition that the parent node(s) must have a normal termination before the child node can be submitted.
+
+Note: The post-script is not used in evaluating the trigger condition for the child nodes.
+
+6. The job submit event in Condor user-log indicates that the job was fired. If there is a failure before the job was submitted, it may result in pre-script to be executed multiple times. This matches the assumption made in production DAGMan.
+
+7. If all the parent nodes have completed execution for a node and its triggerAd is never matched by the completed parent nodes' attributes, then the node is assigned a special STATUS_NOTFIRED state. This is a terminal state for the node.
+
+
+SOME NOTES ON BUILDING DYNAMIC DAGMAN
+-------------------------------------
+
+1. Dynamic DAGMan uses new classads. The Imakefile is updated to link with the new classad library.
+2. util.[Ch] in condor_dagman have been renamed to dagman_util.[Ch] to avoid conflicts with the new classad library (it has util.[Ch])
+3. The source was built on Tao Linux 2.4.21 (lab version).
+4. A conditional DAG example is included in directory Dynamic_dag_example.
+
+
+FUTURE DIRECTIONS
+-----------------
+
+1. In order to include more attributes in the triggerAd, the full job classad in the history file can be extracted. The full classad will be added to the triggerAd at the time of evaluation and can then be discarded.
+
+2. To speed up recovery process, jobs that are not triggered by condition evaluation can write this information to the user-logs via the generic event semantics. This can be leveraged in the recovery process to distinguish child nodes of a completed node (i.e. a node with a terminate event) that were not yet submitted before failure, from those that were not triggered by condition evaluation.
+Note: This is purely for optimization, and is not required for correctness.
+
+3. Add ability to define DAG with implicit edges. The user will only state the trigger condition for each node and the preference for child nodes to be executed. The parent-child relations/ dependency formation will occur at run-time based on the previous node execution.
+
+4. In order to handle more complex trigger conditions, the requirements evaluation must be changed. Currently, the trigger condition is evaluated for each child node with respect to the attributes of only the job that has just terminated. Instead, a new classad must be formed in which a single child node's classad and all of its parent nodes' attributes are plugged in and evaluated together. This is somewhat similar to gang-matching.
+
+5. It may also be possible to allow DAGMan to extract job attributes from the persistent store of Quill. Also, if DAGMan maintains its own log, then it may be possible to include non-Condor-specific attributes in the triggerAd, however this will change the recovery model of DAGMan.
+
+6. Use the triggerAd as a bulletin board where a job can write its own state. A job may be allowed to modify its own attributes or add new attributes to its classad. This gives greater flexibility to a job to control what happens after it terminates.
+
+7. Add a global DAG-classad which will maintain the statistics about the health of the dag. For instance, the DAG-classad may keep statistics on the number of jobs that are currently running, have successfully completed or have failed. This may be utilized to define triggers based on the global DAGAd, like triggering cleanup nodes if the number of failed nodes exceeds certain threshold.
+Additionally, throttle expression can be added for global state control. For instance, if the wall-clock time for the last completed node exceeds a threshold, then the number of nodes fired simultaneously may be reduced.
+
+8. Loops: Using the conditional DAG syntax, it will be possible to define simple loop conditions. However, some issues must be dealt with to practically use the dynamic DAGMan to define DAGs with loops. Firstly, some semantics must be defined to identify infinite loops. Secondly, loops may result in all nodes having at least one parent node. In order to bootstrap a dag, an explicit start node (with no parents) may be defined by the user.
+
+
+-- Himani Apte
