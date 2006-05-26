@@ -38,8 +38,10 @@ int numStartdStats = 0;
 int ClaimRunTimeSort(ClassAd *job1, ClassAd *job2, void *data);
 
 AdminEvent::AdminEvent( void ) : 
-	m_JobNodes_su(1024,hashFunction) ,
-	m_CkptTest_su(256,hashFunction)
+	m_JobNodes_su(1024,hashFunction)
+#if 0
+	,m_CkptTest_su(256,hashFunction)
+#endif
 {
 	m_mystate = EVENT_INIT;
 	m_timeridDoShutdown = -1;
@@ -53,21 +55,22 @@ AdminEvent::AdminEvent( void ) :
  	m_timerid_PollingVacates = -1;
     m_intervalCheck_PollingVacates = 5;
     m_intervalPeriod_PollingVacates = 10;
+	m_benchmark_size = 200;
+	m_benchmark_increment = 200;
+	m_benchmark_lastsize = 0;
+	m_benchmark_iteration = 0;
+	m_lastVacateTimes = 0;
+	m_VacateTimes = 0;
+	m_haveFullStats = false;
+	m_haveShutdown = false;
+	m_haveBenchStats = false;
+	m_NrightNow_megspersec = 0;
+	m_stillPollingVacates = false;
 #endif
 
 	m_timerid_maintainCheckpoints = -1;
 	m_intervalCheck_maintainCheckpoints = 5;
 	m_intervalPeriod_maintainCheckpoints = 10;
-
-	m_benchmark_size = 200;
-	m_benchmark_lastsize = 0;
-	m_benchmark_increment = 200;
-	m_benchmark_iteration = 0;
-
-	m_haveShutdown = false;
-	m_haveFullStats = false;
-	m_haveBenchStats = false;
-	m_stillPollingVacates = false;
 
 	m_shutdownTime = 0;
 	m_newshutdownTime = 0;
@@ -81,10 +84,6 @@ AdminEvent::AdminEvent( void ) :
 	m_shutdownEnd = 0;
 	m_shutdownSize = 0;
 	m_newshutdownSize = 0;
-	m_lastVacateTimes = 0;
-	m_VacateTimes = 0;
-
-	m_NrightNow_megspersec = 0;
 }
 
 AdminEvent::~AdminEvent( void )
@@ -127,7 +126,7 @@ AdminEvent::shutdownClean( void )
 	tmp = param("SPOOL");
 	if(tmp) {
 		if(spoolClassAd(m_lastShutdown,"out") == 1) {
-			dprintf(D_ALWAYS,"Failed to get/create initial classad from spool\n");
+			dprintf(D_ALWAYS,"Failed to get/create initial spool classad\n");
 		}
 		free(tmp);
 	}
@@ -139,10 +138,12 @@ AdminEvent::shutdownClean( void )
 		m_PollingStartdAds.Delete(ad);
 	}
 
+#if 0
 	m_CkptBatches.Rewind();
 	while( (ad = m_CkptBatches.Next()) ){
 		m_CkptBatches.Delete(ad);
 	}
+#endif
 
 	m_CkptBenchMarks.Rewind();
 	while( (ad = m_CkptBenchMarks.Next()) ){
@@ -167,17 +168,19 @@ AdminEvent::config( bool init )
 {
 	// Initial values
 	if ( init ) {
-		dprintf(D_ALWAYS, "AE::config(true) \n");
+		dprintf(D_FULLDEBUG, "config(true) \n");
 		m_timeridDoShutdown = -1;
 		m_intervalDoShutdown = 60;
 
+#if 0
 		m_benchmark_lastsize = 0;
 		m_haveShutdown = false;
+#endif
 		m_shutdownTime = 0;
 		m_shutdownTarget = "";
 		m_mystate = EVENT_SAMPLING;
 	} else {
-		dprintf(D_ALWAYS, "AE::config(false) \n");
+		dprintf(D_FULLDEBUG, "config(false) \n");
 	}
 
 	empty_Hashes();
@@ -192,7 +195,8 @@ AdminEvent::getShutdownDelta( void )
 {
 	int now = time(NULL);
 	m_shutdownDelta = m_shutdownTime - now;
-	dprintf(D_ALWAYS,"AE::getShutdownDelta: Now<%d> m_shutdownTime<%d> New Delta<%d>\n",
+	dprintf(D_FULLDEBUG,
+		"getShutdownDelta: Now<%d> m_shutdownTime<%d> New Delta<%d>\n",
 		now, m_shutdownTime, m_shutdownDelta);
 	return(m_shutdownDelta);
 }
@@ -204,7 +208,7 @@ AdminEvent::check_Shutdown( bool init )
 	char *tmp;
 	m_timeNow = time(NULL);
 
-	dprintf(D_ALWAYS, "Checking For Shutdown\n");
+	dprintf(D_FULLDEBUG, "Checking For Shutdown\n");
 
 	// Get EVENTD_SHUTDOWN_TIME parameter
 	timeforit = param( "EVENTD_SHUTDOWN_TIME" );
@@ -215,7 +219,7 @@ AdminEvent::check_Shutdown( bool init )
 		 free( timeforit );
 	}
 
-	/* Are we currently set with a shutdown? Is this a reconfig to same value? */
+	/* Are we currently set with a shutdown? */
 	if(m_timeridDoShutdown >= 0)
 	{
 		/* 
@@ -224,7 +228,8 @@ AdminEvent::check_Shutdown( bool init )
 		*/
 		if( m_shutdownTime == m_newshutdownTime){
 			dprintf(D_ALWAYS, 
-					"AE: We have a repeat shutdown event. m_shutdownTime<<%d>> m_newshutdownTime<<%d>> ignoring\n",m_shutdownTime,m_newshutdownTime);
+				"ignore repeat shutdown event. Time<<%d>> New Time<<%d>>\n"
+				,m_shutdownTime,m_newshutdownTime);
 		} else {
 			if(m_newshutdownTime != 0){
 				if(m_newshutdownTime > m_timeNow) {
@@ -235,17 +240,17 @@ AdminEvent::check_Shutdown( bool init )
 							&& (m_intervalDoShutdown > 60)) 
 					{
 						dprintf(D_ALWAYS, 
-							"AE: shutdown event(reset timer). Set timer <<%d>> from now\n",
+							"shutdown event(reset timer) <<%d>> from now\n",
 							m_intervalDoShutdown);
 						m_timeridDoShutdown = daemonCore->Reset_Timer(
 							m_timeridDoShutdown, m_intervalDoShutdown, 0);
 					} else {
 						dprintf(D_ALWAYS, 
-							"AE::chk_Shtdwn: Shutdown denied (why)\n");
+							"chk_Shtdwn: Shutdown denied (why)\n");
 					}
 				} else {
 					dprintf(D_ALWAYS, 
-						"AE::chk_Shtdwn: Shutdown denied (past or too close\n");
+						"chk_Shtdwn: Shutdown denied (past or too close\n");
 				}
 			}
 		}
@@ -253,11 +258,12 @@ AdminEvent::check_Shutdown( bool init )
 		/* this is a new timer request */
 		if(m_newshutdownTime != 0){
 			if(m_newshutdownTime > m_timeNow) {
-				m_intervalDoShutdown = (unsigned)(m_newshutdownTime - m_timeNow);
+				m_intervalDoShutdown = 
+					(unsigned)(m_newshutdownTime - m_timeNow);
 				m_shutdownTime = m_newshutdownTime;
-				if (( m_timeridDoShutdown < 0 ) && (m_intervalDoShutdown > 60)) {
-					dprintf(D_ALWAYS, 
-						"AE: shutdown event(register timer). Set timer <<%d>> from now\n",
+				if ((m_timeridDoShutdown < 0) && (m_intervalDoShutdown > 60)) {
+					dprintf(D_FULLDEBUG, 
+						"shutdown event(register timer) <<%d>> from now\n",
 						m_intervalDoShutdown);
 					m_timeridDoShutdown = daemonCore->Register_Timer(
 						m_intervalDoShutdown,
@@ -265,11 +271,11 @@ AdminEvent::check_Shutdown( bool init )
 						"AdminEvent::DoShutdown()", this );
 				} else {
 						dprintf(D_ALWAYS, 
-							"AE::chk_Shtdwn: Shutdown denied (why)\n");
+							"chk_Shtdwn: Shutdown denied (why)\n");
 				}
 			} else {
 				dprintf(D_ALWAYS, 
-					"AE::chk_Shtdwn: denied either past or too close!\n");
+					"chk_Shtdwn: denied either past or too close!\n");
 			}
 		}
 	}
@@ -277,7 +283,7 @@ AdminEvent::check_Shutdown( bool init )
 	tmp = param("SPOOL");
 	if(tmp) {
 		if(spoolClassAd(m_lastShutdown,"in") == 1) {
-			dprintf(D_ALWAYS,"Failed to get/create initial classad from spool\n");
+			dprintf(D_ALWAYS,"Failed to get/create initial spool classad\n");
 		}
 		m_lastShutdown->dPrint(D_FULLDEBUG);
 		free(tmp);
@@ -299,7 +305,8 @@ AdminEvent::check_Shutdown( bool init )
 		m_lastShutdown->LookupFloat( "LastShutdownRate", megspersec );
 		if(megspersec > 0.0) {
 			/* moderate to a compromise */
-			m_newshutdownAdminRate = ((m_newshutdownAdminRate + megspersec)/2.0);
+			m_newshutdownAdminRate = 
+				((m_newshutdownAdminRate + megspersec)/2.0);
 			dprintf(D_ALWAYS, 
 				"Historic LastShutdownRate is %f modified now to is %f\n",
 				megspersec, m_newshutdownAdminRate);
@@ -309,6 +316,7 @@ AdminEvent::check_Shutdown( bool init )
 		EXCEPT( "EVENTD_ADMIN_MEGABITS_SEC not defined!" );
 	}
 
+#if 0
 	// Get EVENTD_VACATE_POLLING_START_SIZE parameter
 	tmp = param( "EVENTD_VACATE_POLLING_START_SIZE" );
 	if( tmp ) {
@@ -336,6 +344,7 @@ AdminEvent::check_Shutdown( bool init )
 				"EVENTD_VACATE_POLLING is %s\n",tmp);
 		free( tmp );
 	}
+#endif
 
 	// Get EVENTD_SHUTDOWN_CONSTRAINT parameter
 	tmp = param( "EVENTD_SHUTDOWN_CONSTRAINT" );
@@ -355,9 +364,10 @@ AdminEvent::check_Shutdown( bool init )
 int
 AdminEvent::changeState( int howsoon, int newstate )
 {
-	dprintf(D_ALWAYS, "*******************************************************\n");
-	dprintf(D_ALWAYS, "Changing to state <<<<< %d >>>>> in %d\n",newstate,howsoon);
-	dprintf(D_ALWAYS, "*******************************************************\n");
+	dprintf(D_ALWAYS, "**************************************************\n");
+	dprintf(D_ALWAYS, "Changing to state <<<<< %d >>>>> in %d\n"
+			,newstate,howsoon);
+	dprintf(D_ALWAYS, "**************************************************\n");
 	if(m_timerid_DoShutdown_States > 0) {
 		daemonCore->Reset_Timer(m_timerid_DoShutdown_States, 
 			howsoon);
@@ -392,14 +402,15 @@ AdminEvent::spoolClassAd( ClassAd * ca_shutdownRate, char *direction )
 		m_spoolStorage = fopen((const char *)spoolHistory.Value(),"r");
 		if(m_spoolStorage != NULL) {
 			int isEOF=0, error=0, empty=0;
-			m_lastShutdown = new ClassAd(m_spoolStorage,"//*",isEOF,error,empty);
+			m_lastShutdown = 
+				new ClassAd(m_spoolStorage,"//*",isEOF,error,empty);
 			if(m_lastShutdown != NULL) {
 				dprintf(D_ALWAYS,"Got initial classad from spool(%s)\n",
 					spoolHistory.Value());
 				fclose(m_spoolStorage);
 				m_lastShutdown->dPrint(D_FULLDEBUG);
 			} else {
-				dprintf(D_ALWAYS,"Failed to get initial classad from spool(%s)\n",
+				dprintf(D_ALWAYS,"Failed to get initial spool classad(%s)\n",
 					spoolHistory.Value());
 				free(tmp);
 				return(1);
@@ -419,7 +430,7 @@ AdminEvent::spoolClassAd( ClassAd * ca_shutdownRate, char *direction )
 				m_lastShutdown->fPrint(m_spoolStorage);
 				fclose(m_spoolStorage);
 			} else {
-				dprintf(D_ALWAYS,"Failed to open from spool for writing (%s/%d)\n",
+				dprintf(D_ALWAYS,"Failed to open(w) from spool(%s/%d)\n",
 					spoolHistory.Value(),errno);
 				free(tmp);
 				return(1);
@@ -436,7 +447,7 @@ AdminEvent::spoolClassAd( ClassAd * ca_shutdownRate, char *direction )
 			m_lastShutdown->fPrint(m_spoolStorage);
 			fclose(m_spoolStorage);
 		} else {
-			dprintf(D_ALWAYS,"Failed to open from spool for writing (%s/%d)\n",
+			dprintf(D_ALWAYS,"Failed to open(w) from spool(%s/%d)\n",
 				spoolHistory.Value(),errno);
 			free(tmp);
 			return(1);
@@ -482,39 +493,40 @@ AdminEvent::th_DoShutdown_States( void )
 
 	**/
 
-	dprintf(D_ALWAYS, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
-	dprintf(D_ALWAYS, "AE::th_DoShutdown_States(STATE = %d) \n",m_mystate);
-	dprintf(D_ALWAYS, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+	dprintf(D_ALWAYS, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
+	dprintf(D_ALWAYS, "th_DoShutdown_States(STATE = %d) \n",m_mystate);
+	dprintf(D_ALWAYS, "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n");
 
 	switch(m_mystate)
 	{
 		case EVENT_INIT:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( no work here - EVENT_INIT: )\n");
+				"th_DoShutdown_States( no work here - EVENT_INIT: )\n");
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( Call changeState(m_mystate)- <<%d>>: )\n",m_mystate);
+				"th_DoShutdown_States( Call changeState(m_mystate)- <<%d>>: )\n"
+				,m_mystate);
 			changeState(EVENT_NOW, m_mystate);
 			break;
 #if 0
 		case EVENT_HUERISTIC:
-			dprintf(D_ALWAYS, "AE::th_DoShutdown_States(FetchAds) \n");
+			dprintf(D_ALWAYS, "th_DoShutdown_States(FetchAds) \n");
 			empty_Hashes();
 			FetchAds_ByConstraint((char *)m_shutdownConstraint.Value());
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States(do_checkpoint_samples) \n");
+				"th_DoShutdown_States(do_checkpoint_samples) \n");
 			do_checkpoint_samples(true);
 			break;
 
 		case EVENT_EVAL_HUERISTIC:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States(benchmark_analysis) \n");
+				"th_DoShutdown_States(benchmark_analysis) \n");
 			benchmark_analysis();
 			break;
 #endif
 
 		case EVENT_SAMPLING:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( work here - EVENT_SAMPLING: )\n");
+				"th_DoShutdown_States( work here - EVENT_SAMPLING: )\n");
 			// how much is running? estimate when to wake up by total image size
 			// and the admin checkpointing capacity
 			check_Shutdown(false);
@@ -526,24 +538,25 @@ AdminEvent::th_DoShutdown_States( void )
 
 		case EVENT_EVAL_SAMPLING:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( Calculate preliminary wakeup - EVENT_EVAL_SAMPLING: )\n");
+				"( Calculate preliminary wakeup - EVENT_EVAL_SAMPLING: )\n");
 			secondsforvacates = (m_shutdownMegs/m_newshutdownAdminRate);
 			dprintf(D_ALWAYS,
-			                "(m_shutdownMegs/m_newshutdownAdminRate) = %d\n",secondsforvacates);
+				"(m_shutdownMegs/m_newshutdownAdminRate) = %d\n"
+				,secondsforvacates);
 			/** 
 				we always want to add 10 minutes of time for looking
 				again in case the load has changed dramatically
 			**/
 			secondsforvacates = ((secondsforvacates * 2) + 600);
 			dprintf(D_ALWAYS,
-			                " resample  = %d before shutdown\n",secondsforvacates);
+				" resample  = %d before shutdown\n",secondsforvacates);
 			shutdowndelta = getShutdownDelta();
 
 			/** 
 				We are trying to resample prior to timer action and so optimally
 				we double the time we have estimated for shutdown checkpoints
-				and set a timer for a wakeup. If we have less then that amount left
-				we'll move to a final wakeup for the checkpoints.
+				and set a timer for a wakeup. If we have less then that amount 
+				left we'll move to a final wakeup for the checkpoints.
 			**/
 
 			if(shutdowndelta >= secondsforvacates) {
@@ -568,7 +581,7 @@ AdminEvent::th_DoShutdown_States( void )
 
 		case EVENT_RESAMPLE:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( work here - EVENT_RESAMPLE: )\n");
+				"th_DoShutdown_States( work here - EVENT_RESAMPLE: )\n");
 			// how much is running? estimate when to wake up by total image size
 			// and the admin checkpointing capacity. Final check before GO!
 			check_Shutdown(false);
@@ -580,13 +593,14 @@ AdminEvent::th_DoShutdown_States( void )
 
 		case EVENT_EVAL_RESAMPLE:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( Calculate final wakeup - EVENT_EVAL_RESAMPLE: )\n");
+				"( Calculate final wakeup - EVENT_EVAL_RESAMPLE: )\n");
 			secondsforvacates = (m_shutdownMegs/m_newshutdownAdminRate);
 			secondsforvacates += 600; /* add 10 minutes */
 			dprintf(D_ALWAYS,
-			                "(m_shutdownMegs/m_newshutdownAdminRate) = %d\n",secondsforvacates);
+				"(m_shutdownMegs/m_newshutdownAdminRate) = %d\n"
+				,secondsforvacates);
 			dprintf(D_ALWAYS,
-			                " resample  = %d before shutdown\n",secondsforvacates);
+				" resample  = %d before shutdown\n",secondsforvacates);
 			shutdowndelta = getShutdownDelta();
 
 			/** 
@@ -610,12 +624,12 @@ AdminEvent::th_DoShutdown_States( void )
 
 		case EVENT_MAIN_WAIT:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( no work - EVENT_MAIN_WAIT: )\n");
+				"th_DoShutdown_States( no work - EVENT_MAIN_WAIT: )\n");
 			break;
 
 		case EVENT_GO:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( <<<< EVENT_GO >>>> )\n");
+				"th_DoShutdown_States( <<<< EVENT_GO >>>> )\n");
 			// add two minutes of work
 			m_shutdownStart = time(NULL);
 			loadCheckPointHash(m_newshutdownAdminRate * 120);
@@ -629,12 +643,12 @@ AdminEvent::th_DoShutdown_States( void )
 			int 	seconds = 0;
 			char	line[300];
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( no work - EVENT_DONE: )\n");
+				"th_DoShutdown_States( no work - EVENT_DONE: )\n");
 			m_shutdownEnd = time(NULL);
 			seconds = m_shutdownEnd - m_shutdownStart;
 			megs_per_second = m_shutdownMegs/seconds;
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( EVENT_DONE: %f Megs Per Seconds<<%d/%d>>)\n"
+				"( EVENT_DONE: %f Megs Per Seconds<<%d/%d>>)\n"
 				,megs_per_second,m_shutdownMegs,seconds);
 			{
 				dprintf(D_ALWAYS,"shutdownFast\n");
@@ -649,7 +663,8 @@ AdminEvent::th_DoShutdown_States( void )
 				tmp = param("SPOOL");
 				if(tmp) {
 					if(spoolClassAd(m_lastShutdown,"out") == 1) {
-						dprintf(D_ALWAYS,"Failed to get/create initial classad from spool\n");
+						dprintf(D_ALWAYS
+							,"Failed to get/create initial classad\n");
 					}
 					free(tmp);
 				}
@@ -662,7 +677,7 @@ AdminEvent::th_DoShutdown_States( void )
 
 		default:
 			dprintf(D_ALWAYS, 
-				"AE::th_DoShutdown_States( Why Default Case )\n");
+				"th_DoShutdown_States( Why Default Case )\n");
 			break;
 	}
 	return(0);
@@ -719,7 +734,7 @@ AdminEvent::th_maintainCheckpoints( void )
 	StartdStats *ss;
 
 	// Where am I?
-	dprintf(D_ALWAYS,"----<< th_maintainCheckpoints >>----\n");
+	dprintf(D_Always,"----<< th_maintainCheckpoints >>----\n");
 
 	//standardUDisplay_StartdStats();
 	m_JobNodes_su.startIterations();
@@ -734,7 +749,7 @@ AdminEvent::th_maintainCheckpoints( void )
 			while( (ad = m_PollingStartdAds.Next()) ){
 				m_PollingStartdAds.Delete(ad);
 			}
-			gotads = pollStartdAds( m_PollingStartdAds, ss->myaddress, ss->name );
+			gotads = pollStartdAds(m_PollingStartdAds, ss->myaddress, ss->name);
 			if( gotads == 1 ){
 				dprintf(D_ALWAYS,"Failed to get ads for %s\n",ss->name);
 				continue;
@@ -751,7 +766,7 @@ AdminEvent::th_maintainCheckpoints( void )
 				/* Considering...... */
 
 				dprintf(D_FULLDEBUG,"pollAds:Considering ----<<%s-%ss>>----\n",
-				name.Value(), state.Value());
+					name.Value(), state.Value());
 				if(strcmp(name.Value(),ss->name) != MATCH) {
 					dprintf(D_FULLDEBUG,"Chk other Ads Mismatch(%s-%s)\n",
 						name.Value(),ss->name);
@@ -762,13 +777,17 @@ AdminEvent::th_maintainCheckpoints( void )
 						||(strcmp(state.Value(),"Owner") == MATCH) 
 						|| (strcmp(state.Value(),"Claimed") == MATCH)) 
 				{
-					dprintf(D_ALWAYS,"job size %d gone<state = %s>\n",ss->imagesize,state.Value());
+					dprintf(D_ALWAYS
+						,"job size %d gone<state = %s>\n"
+						,ss->imagesize,state.Value());
 					if((strcmp(state.Value(),"Claimed") == MATCH)){
 						// better be a different job
 						ad->LookupString( ATTR_REMOTE_USER, remoteuser ); 
 						ad->LookupString( ATTR_JOB_ID, jobid ); 
-						dprintf(D_ALWAYS,"pollAds:AD CLAIMED different job???--(%s)--<<%s-%s-%s>>----\n",
-							remoteuser.Value(),name.Value(), state.Value(), jobid.Value());
+						dprintf(D_ALWAYS
+							,"AD CLAIMED different job???-(%s)-<%s-%s-%s>-\n",
+							remoteuser.Value(),name.Value(), state.Value()
+							, jobid.Value());
 					}
 
 					// add more checkpoints
@@ -806,13 +825,13 @@ AdminEvent::th_maintainCheckpoints( void )
 						fAllClear = false;
 					} else if(strcmp(ss->state,"Preempting") != MATCH) {
 							dprintf(D_ALWAYS,
-								"pollAds: ckptpt took <<%d>> for <<%s>>!<<STATE=%s>>\n",
+								"ckptpt took <<%d>> for <<%s>>!<<STATE=%s>>\n",
 								ss->ckptlength, ss->name,ss->state);
 							SS_store(ss,timespent);
 							loadCheckPointHash((ss->imagesize/1000));
 					} else {
 						dprintf(D_ALWAYS,
-							"pollAds: Still Waiting on %s for %s in state <<%s>>\n",
+							"Waiting on %s for %s in state <<%s>>\n",
 							name.Value(),ss->jobid,ss->state);
 						fAllClear = false;
 					}
@@ -832,9 +851,6 @@ AdminEvent::th_maintainCheckpoints( void )
 			} else {
 				donestr = "NOT-allclear";
 			}
-			//dprintf(D_ALWAYS,"th_maintainCheckpoints(((DONE))): <<Name %s Size %d>>\n",
-				//ss->name,ss->ckptmegs);
-			//do_checkpoint_shutdown(true);
 			dprintf(D_FULLDEBUG,"th_maintainCheckpoints <<< %s >>>\n",donestr);
 		}
 	}
@@ -866,7 +882,7 @@ AdminEvent::do_checkpoint_shutdown( bool init )
 	ClassAd *ad;
 
 	dprintf(D_ALWAYS, 
-		"AE::do_checkpoint_shutdown() starting checkpointing list and benchmark\n");
+		"do_checkpoint_shutdown() starting checkpointing list and benchmark\n");
 
 	/* 
 		process the current standard universe jobs into a hash
@@ -991,7 +1007,7 @@ AdminEvent::sendVacateClaim( char *sinful, char *name )
 
 int 
 AdminEvent::benchmark_insert( float megspersec, int megs, int time , 
-	char *name, char *where, bool debug)
+	char *name, char *where)
 {
 	ClassAd *ad = new ClassAd();
 	int mylength = 0;
@@ -1009,14 +1025,8 @@ AdminEvent::benchmark_insert( float megspersec, int megs, int time ,
 	sprintf(line, "%s = %d", "Length", time);
 	ad->Insert(line);
 
-	if(debug) {
-		dprintf(D_ALWAYS,
-			"*****<<<<<benchmark_insert for %s called from %s>>>>>*****\n",
-				name, where);
-	}
 	m_CkptBenchMarks.Insert(ad);
 	mylength = m_CkptBenchMarks.MyLength();
-	//dprintf(D_ALWAYS,"*****<<<<<Benchmark ads at %d>>>>>*****\n",mylength);
 	return(0);
 }
 
@@ -1045,6 +1055,7 @@ AdminEvent::benchmark_show_results()
 	dprintf(D_ALWAYS,"benchmark_show_results: Total Megs Image Size = %d\n",
 		totalimagesz);
 
+#if 0
 	dprintf(D_FULLDEBUG,"***** Batch Ratings *****\n");
 	m_CkptBatches.Rewind();
 	while( (ad = m_CkptBatches.Next()) ){
@@ -1053,6 +1064,7 @@ AdminEvent::benchmark_show_results()
 		dprintf(D_ALWAYS,"MegsPerSec = %f BatchSize = %d\n",
 			megspersec, batchsize);
 	}
+#endif
 	return(0);
 }
 
@@ -1063,56 +1075,13 @@ int AdminEvent::SS_store(StartdStats *ss, int duration)
 	ss->ckptlength = duration;
 	ss->ckptmegspersec = (float)((float)ss->ckptmegs/(float)ss->ckptlength);
 
-	/* look for ones too far off by updating the latest to complete */
-	m_NrightNow_megspersec = ss->ckptmegspersec;
-	m_NrightNow_size = ss->ckptmegs;
-	m_NrightNow_time = duration;
+	benchmark_insert(ss->ckptmegspersec, ss->ckptmegs, 
+		duration, ss->name, "SS_store");
 
-	benchmark_insert(m_NrightNow_megspersec, m_NrightNow_size, 
-		m_NrightNow_time, ss->name, "SS_store", true);
-
-	dprintf(D_ALWAYS,"Store: MPS %f MEGS %d TIME %d\n",m_NrightNow_megspersec,
-		m_NrightNow_size, m_NrightNow_time);
+	dprintf(D_ALWAYS,"Store: MPS %f MEGS %d TIME %d\n",ss->ckptmegspersec,
+		ss->ckptmegs, duration);
 
 	return(0);
-}
-
-int AdminEvent::SS_test(StartdStats *ss, int duration)
-{
-	/* compare to last good checkpoint */
-	float megspersec = (float)((float)ss->ckptmegs/(float)duration);
-	if(m_NrightNow_megspersec == 0) {
-		if(megspersec < .3) {
-			ss->ckptdone = -1; /* mark not usable */
-			dprintf(D_ALWAYS,"tossing %s using chkptsrvr %s size %d(Last %f This %f)\n",
-				ss->name,ss->ckptsrvr,ss->ckptmegs,m_NrightNow_megspersec,megspersec);
-		} else {
-			dprintf(D_ALWAYS,"Test: MPS %f MEGS %d TIME %d\n",megspersec,
-				ss->ckptmegs, duration);
-		}
-	//} else if( m_NrightNow_megspersec/megspersec > 8.0 ) {
-		//ss->ckptdone = -1; /* mark not usable */
-		//dprintf(D_ALWAYS,"tossing %s using chkptsrvr %s Size %d(Last %f This %f)\n",
-			//ss->name,ss->ckptsrvr,ss->ckptmegs,m_NrightNow_megspersec,megspersec);
-		/* this one is twice as slow, toss it */
-	} else {
-		dprintf(D_FULLDEBUG,"Test: MPS %f MEGS %d TIME %d\n",megspersec,
-			ss->ckptmegs, duration);
-	}
-
-	return(0);
-}
-
-bool
-AdminEvent::benchmark_store_results(float  megspersec, int totmegs, int tottime)
-{
-	bool fContinue = true;
-
-	benchmark_insert( megspersec, totmegs, tottime, "name", "benchmark_store_results", 
-		true);
-
-	return(fContinue);	/* no appreciable length increase - 
-						go bigger on vacate size */
 }
 
 /*
@@ -1130,7 +1099,7 @@ AdminEvent::process_ShutdownTime( char *req_time )
 	char *res;
 	m_timeNow = time(NULL);
 
-dprintf(D_FULLDEBUG, "AE::process_ShutdownTime: timeNow is %ld\n",m_timeNow);
+	dprintf(D_FULLDEBUG, "process_ShutdownTime: timeNow is %ld\n",m_timeNow);
 
 	// make a tm with info for now and reset
 	// secs, day and hour from the next scan of the req_time`
@@ -1139,7 +1108,8 @@ dprintf(D_FULLDEBUG, "AE::process_ShutdownTime: timeNow is %ld\n",m_timeNow);
 	// find secs, hour and minutes
 	res = strptime(req_time,"%H:%M:%S",&tm);
 	if(res != NULL) {
-		dprintf(D_FULLDEBUG, "AE::process_ShutdownTime: Processing Shutdown Time String<<LEFTOVERS--%s-->>\n",res);
+		dprintf(D_FULLDEBUG, 
+			"Processing Shutdown Time String<<LEFTOVERS--%s-->>\n",res);
 		//return(-1);
 	}
 
@@ -1151,12 +1121,13 @@ dprintf(D_FULLDEBUG, "AE::process_ShutdownTime: timeNow is %ld\n",m_timeNow);
 	tm.tm_yday = tmnow->tm_yday;
 	tm.tm_isdst = tmnow->tm_isdst;
 
-	dprintf(D_ALWAYS, "AE::process_ShutdownTime: Processing Shutdown Time seconds <%d> minutes <%d> hours <%d>\n",
+	dprintf(D_ALWAYS, "Processing Shutdown Time secs <%d> mins <%d> hrs <%d>\n",
 		tm.tm_sec,tm.tm_min,tm.tm_hour);
 	// Get our time_t value
 	m_newshutdownTime = mktime(&tm);
 	m_shutdownDelta = m_newshutdownTime - m_timeNow;
-	dprintf(D_ALWAYS, "AE::process_ShutdownTime: New Shutdown Time <%d> Shutdown Delta <%d>\n",m_newshutdownTime,m_shutdownDelta);
+	dprintf(D_ALWAYS, "New Shutdown Time <%d> Shutdown Delta <%d>\n"
+		,m_newshutdownTime,m_shutdownDelta);
 	
 	return(0);
 }
@@ -1179,12 +1150,6 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 
 	int jobuniverse = -1;
 	int totalclaimruntime = -1;
-
-	//MyString machine2;
-	//MyString state2;
-	//MyString sinful2;
-	//MyString name2;
-	//MyString remoteuser2;
 
 	pool = new DCCollector( "" );
 
@@ -1248,7 +1213,6 @@ AdminEvent::FetchAds_ByConstraint( char *constraint )
 		}
 
 		if(jobuniverse == CONDOR_UNIVERSE_STANDARD) {
-			//dprintf(D_ALWAYS,"Adding %s to standU classad list\n",name.Value());
 			m_claimed_standard.Insert(ad);
 		}
 
@@ -1334,12 +1298,8 @@ AdminEvent::standardUProcess( int batchsz, bool vacate )
 	time_t timeNow = time(NULL);
 	int     testtime = 0;
 
-	//dprintf(D_ALWAYS,"standardUProcess batchsz<<%d>><<Vacate(%d)>>\n",batchsz,vacate);
-
 	StartdStats *ss;
 
-	dprintf(D_FULLDEBUG,"AdminEvent::standardUProcess: The following were assigned claimed standard U\n");
-	//standardUDisplay_StartdStats();
 	m_claimed_standard.Rewind();
 	while( (ad = m_claimed_standard.Next()) ){
 		ad->LookupString( ATTR_MACHINE, machine );
@@ -1356,15 +1316,18 @@ AdminEvent::standardUProcess( int batchsz, bool vacate )
 		ad->LookupInteger( ATTR_IMAGE_SIZE, imagesize ); 
 		ad->LookupInteger( ATTR_VIRTUAL_MACHINE_ID, virtualmachineid ); 
 		ad->LookupInteger( "MonitorSelfTime", remotetimeNow ); 
-		ad->LookupInteger( ATTR_LAST_PERIODIC_CHECKPOINT, lastperiodiccheckpoint ); 
-		dprintf(D_FULLDEBUG,"lookup name %s Jobid %s\n",name.Value(),jobid.Value());
+		ad->LookupInteger( ATTR_LAST_PERIODIC_CHECKPOINT, 
+			lastperiodiccheckpoint ); 
+		dprintf(D_FULLDEBUG,"lookup name %s Jobid %s\n"
+			,name.Value(),jobid.Value());
 		if(m_JobNodes_su.lookup(namekey,ss) < 0) {
 			//dprintf(D_ALWAYS,"Must hash name %s \n",name.Value());
-			ss = new StartdStats(name.Value(), jobuniverse, imagesize, lastperiodiccheckpoint);
+			ss = new StartdStats(name.Value(), jobuniverse, imagesize, 
+				lastperiodiccheckpoint);
 			ss->virtualmachineid = virtualmachineid;
 			ss->jobstart = jobstart;
 			ss->remotetime = timeNow - remotetimeNow;
-			testtime = timeNow + ss->remotetime; /* adjust by remote differential */
+			testtime = timeNow + ss->remotetime; /* adjust by remote diff */
 			ss->ckpttime = testtime;
 			ss->ckptlength = 0;
 			ss->ckptmegs = (imagesize/1000);
@@ -1386,22 +1349,22 @@ AdminEvent::standardUProcess( int batchsz, bool vacate )
 			}
 			dprintf(D_FULLDEBUG,"Batch size to %d\n",thisbatch);
 		} else {
-			dprintf(D_ALWAYS,"Why is %s already in hash table??\n",name.Value());
+			dprintf(D_ALWAYS,
+				"Why is %s already in hash table??\n",name.Value());
 		}
 
 		m_claimed_standard.Delete(ad);
 		if(batchsz > 0) {
 			// we only want to enable a limited amount at this time
 			if(thisbatch >= batchsz) {
-				dprintf(D_ALWAYS,"standardUProcess: Added batch size of %d((vacate=%d))\n",
+				dprintf(D_ALWAYS,
+					"standardUProcess: Added batch size of %d((vacate=%d))\n",
 					thisbatch,vacate);
 				// we are done
 				return(0);
 			}
 		}
 	}
-	m_haveFullStats = true;
-
 	return(0);
 }
 
@@ -1419,8 +1382,10 @@ AdminEvent::standardUDisplay_StartdStats( )
 	StartdStats *ss;
 	m_JobNodes_su.startIterations();
 	while(m_JobNodes_su.iterate(ss) == 1) {
-		dprintf(D_ALWAYS,"******************<<standardUDisplay_StartdStats>>********************\n");
-		dprintf(D_ALWAYS,"JobId %s Name %s SZ %d\n",ss->jobid,ss->name,ss->imagesize);
+		dprintf(D_ALWAYS,
+		"***************<<standardUDisplay_StartdStats>>*****************\n");
+		dprintf(D_ALWAYS,"JobId %s Name %s SZ %d\n",ss->jobid,ss->name,
+			ss->imagesize);
 		dprintf(D_FULLDEBUG,"State %s\n",ss->state);
 		dprintf(D_FULLDEBUG,"Activity %s\n",ss->activity);
 		dprintf(D_FULLDEBUG,"ClientMachine %s\n",ss->clientmachine);
@@ -1434,7 +1399,8 @@ AdminEvent::standardUDisplay_StartdStats( )
 		dprintf(D_FULLDEBUG,"CkptLength %d\n",ss->ckptlength);
 		dprintf(D_FULLDEBUG,"CkptGroup %d\n",ss->ckptgroup);
 		dprintf(D_ALWAYS,"CkptDone %d\n",ss->ckptdone);
-		dprintf(D_FULLDEBUG,"CkptMegs %d CKPTSRVR %s\n",ss->ckptmegs,ss->ckptsrvr);
+		dprintf(D_FULLDEBUG,"CkptMegs %d CKPTSRVR %s\n",ss->ckptmegs,
+			ss->ckptsrvr);
 	}
 	dprintf(D_FULLDEBUG,"**************************************\n");
 	return(0);
@@ -1458,9 +1424,10 @@ AdminEvent::standardUDisplay()
 			dprintf(D_ALWAYS, "malformed ad????\n");
 			continue;
 		} else {
-			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>> Standard SORTED!!!!\n",machine.Value(),m_shutdownConstraint.Value());
+			dprintf(D_ALWAYS, 
+				"Found <<%s>> machine matching <<%s>> Standard SORTED!!!!\n",
+				machine.Value(),m_shutdownConstraint.Value());
 			//ad->dPrint( D_ALWAYS );
-			//sendCheckpoint(sinful.Value(),name.Value());
 		}
 	}
 	return(0);
@@ -1641,7 +1608,7 @@ AdminEvent::do_checkpoint_samples( bool init )
 	m_claimed_standard.Rewind();
 	if((ad = m_claimed_standard.Next()) ){
 		 dprintf(D_ALWAYS, 
-		 	"AE::do_checkpoint_samples() starting checkpointing list and benchmark\n");
+		 	"do_checkpoint_samples() starting checkpointing list and benchmark\n");
 		/* 
 			process the current standard universe jobs into a hash
 			and then prepare a benchmark test. 
@@ -1753,7 +1720,6 @@ AdminEvent::run_ckpt_benchmark()
 
 		//delete ss;
 	}
-	m_haveBenchStats = true;
 	return(0);
 }
 
@@ -1955,6 +1921,43 @@ AdminEvent::compute_ckpt_batches()
 		m_CkptBenchMarks.Delete(ad);
 	}
 	return(0);
+}
+
+int AdminEvent::SS_test(StartdStats *ss, int duration)
+{
+	/* compare to last good checkpoint */
+	float megspersec = (float)((float)ss->ckptmegs/(float)duration);
+	if(m_NrightNow_megspersec == 0) {
+		if(megspersec < .3) {
+			ss->ckptdone = -1; /* mark not usable */
+			dprintf(D_ALWAYS,"tossing %s using chkptsrvr %s size %d(Last %f This %f)\n",
+				ss->name,ss->ckptsrvr,ss->ckptmegs,m_NrightNow_megspersec,megspersec);
+		} else {
+			dprintf(D_ALWAYS,"Test: MPS %f MEGS %d TIME %d\n",megspersec,
+				ss->ckptmegs, duration);
+		}
+	//} else if( m_NrightNow_megspersec/megspersec > 8.0 ) {
+		//ss->ckptdone = -1; /* mark not usable */
+		//dprintf(D_ALWAYS,"tossing %s using chkptsrvr %s Size %d(Last %f This %f)\n",
+			//ss->name,ss->ckptsrvr,ss->ckptmegs,m_NrightNow_megspersec,megspersec);
+		/* this one is twice as slow, toss it */
+	} else {
+		dprintf(D_FULLDEBUG,"Test: MPS %f MEGS %d TIME %d\n",megspersec,
+			ss->ckptmegs, duration);
+	}
+
+	return(0);
+}
+
+bool
+AdminEvent::benchmark_store_results(float  megspersec, int totmegs, int tottime)
+{
+	bool fContinue = true;
+
+	benchmark_insert( megspersec, totmegs, tottime, "name", "benchmark_store_results");
+
+	return(fContinue);	/* no appreciable length increase - 
+						go bigger on vacate size */
 }
 
 #endif

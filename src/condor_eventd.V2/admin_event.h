@@ -105,10 +105,21 @@ class AdminEvent : public Service
 	int 		m_timeridDoShutdown;
 	unsigned 	m_intervalDoShutdown;
 
+#if 0
 	int 		th_Check_PollingVacates( void );
 	int 		m_timerid_PollingVacates;
 	unsigned 	m_intervalCheck_PollingVacates;
 	unsigned 	m_intervalPeriod_PollingVacates;
+
+	int			m_benchmark_size;
+	int			m_benchmark_lastsize;
+	int 		m_benchmark_increment;
+	int 		m_benchmark_iteration;
+
+	float 		m_NrightNow_megspersec;
+	int 		m_NrightNow_size;
+	int 		m_NrightNow_time;
+#endif
  
 	int			th_maintainCheckpoints( void );
 	int 		m_timerid_maintainCheckpoints;
@@ -120,21 +131,14 @@ class AdminEvent : public Service
 	unsigned 	m_intervalCheck_DoShutdown_States;
 	unsigned 	m_intervalPeriod_DoShutdown_States;
 
-	int			m_benchmark_size;
-	int			m_benchmark_lastsize;
-	int 		m_benchmark_increment;
-	int 		m_benchmark_iteration;
-
-	float 		m_NrightNow_megspersec;
-	int 		m_NrightNow_size;
-	int 		m_NrightNow_time;
-
 	time_t		m_shutdownStart;
 	time_t 		m_shutdownEnd;
 	unsigned	m_shutdownMegs; /* number of megs to checkpoint before shutdown */
 
 	ClassAdList m_CkptBenchMarks;
+#if 0
 	ClassAdList m_CkptBatches;
+#endif
 	ClassAdList m_PollingStartdAds;
 
 	// Event Handling Methods
@@ -142,7 +146,9 @@ class AdminEvent : public Service
 		/// Determine the current attributes for a shutdown
 	int check_Shutdown( bool init = false );
 	int do_checkpoint_shutdown( bool init = false );
+#if 0
 	int do_checkpoint_samples( bool init );
+#endif
 	int process_ShutdownTime( char *req_time );
 	int FetchAds_ByConstraint( char *constraint );
 	int changeState( int howsoon = EVENT_NOW, int newstate = EVENT_INIT );
@@ -165,6 +171,22 @@ class AdminEvent : public Service
 
 	// Benchmarking methods
 
+		/** 
+		Place a benchmark statistic(classad) into a list of benchmarks 
+		into the m_CkptBenchMarks hash.
+		*/
+	int benchmark_insert( float megspersec, int megs, int time, 
+		char *name, char *where);
+		/*
+		This routine first shows the current benchmarks being collected
+		on a particular image size amount from hash m_CkptBenchMarks and 
+		then shows the history of performance from the prior batches of 
+		benchmarks in the hash m_CkptBatches.
+		*/
+	int benchmark_show_results( );
+#if 0
+		/// Does the benchmark_insert call
+	bool benchmark_store_results(float megspersec, int totmegs, int tottime);
 		/**
 		Watch after the hash of standard universe jobs in the current 
 		benchmarking list(m_CkptTest_su) and watch repeatedly
@@ -174,21 +196,6 @@ class AdminEvent : public Service
 		computed.
 		*/
 	int benchmark_analysis( );
-		/** 
-		Place a benchmark statistic(classad) into a list of benchmarks 
-		into the m_CkptBenchMarks hash.
-		*/
-	int benchmark_insert( float megspersec, int megs, int time, 
-		char *name, char *where, bool debug );
-		/// Does the benchmark_insert call
-	bool benchmark_store_results(float megspersec, int totmegs, int tottime);
-		/*
-		This routine first shows the current benchmarks being collected
-		on a particular image size amount from hash m_CkptBenchMarks and 
-		then shows the history of performance from the prior batches of 
-		benchmarks in the hash m_CkptBatches.
-		*/
-	int benchmark_show_results( );
 		/**
 		If we have the critical limit wanted yet.... then we take from the
 		standard universe hash(m_JobNodes_su) and set up a batch of jobs
@@ -204,6 +211,11 @@ class AdminEvent : public Service
 		records from the m_CkptBenchMarks hash.
 		*/
 	int compute_ckpt_batches( );
+#endif
+	// Print Methods
+	int standardUDisplay();
+	int standardUDisplay_StartdStats();
+#if 0
 		/** 
 		we are trying to have a particular amount of work before 
 		performing the next batch of vacates to determine checkpointing
@@ -212,17 +224,15 @@ class AdminEvent : public Service
 		*/
 	bool have_requested_batch( int batchsz );
 
-	// Print Methods
-	int standardUDisplay();
-	int standardUDisplay_StartdStats();
 	int standardU_benchmark_Display();
+	int SS_test(StartdStats *ss, int duration);
+#endif
 
 	// Processing events
 	int standardUProcess( int batchsz = 0, bool vacate = false );
 	int totalRunningJobs();
 	int empty_Hashes();
 	int SS_store(StartdStats *ss, int duration);
-	int SS_test(StartdStats *ss, int duration);
 	int spoolClassAd( ClassAd * ca_shutdownRate, char *direction );
 
 	// Operation Markers
@@ -231,10 +241,12 @@ class AdminEvent : public Service
 	/* Administrator Input div 8 for bits to bytes*/
 	float 		m_newshutdownAdminRate;
 
+#if 0
 	bool 		m_haveShutdown;
 	bool 		m_haveFullStats;
 	bool 		m_haveBenchStats;
 	bool		m_stillPollingVacates;
+#endif
 
 	time_t 		m_shutdownTime;			/* established shutdown time */
 	time_t 		m_newshutdownTime;		/* new shutdown time being considered */
@@ -248,14 +260,18 @@ class AdminEvent : public Service
 
 	unsigned 	m_shutdownSize;			/* impact is minimized by batching requests */
 	unsigned 	m_newshutdownSize;			/* impact is minimized by batching requests */
+#if 0
 	unsigned	m_lastVacateTimes;		/* last vacate calculation */
 	unsigned	m_VacateTimes;			/* current vacate calculation */
+#endif
 
 	// Hash for processing scheduled checkpoint
 	HashTable<HashKey, StartdStats *> m_JobNodes_su;
 
+#if 0
 	// Hash for processing checkpoint benchmark
 	HashTable<HashKey, StartdStats *> m_CkptTest_su;
+#endif
 
 	// storage
 	ClassAdList m_collector_query_ads;
