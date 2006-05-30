@@ -1,3 +1,6 @@
+05/30/06 V6_7_19-merge-1
+  Merging V6_7_19-branch to V6_7-branch.
+
 05/12/06 V6_7_19
   The official 6.7.19 release. The packages for all platforms came 
   from NMI build #23300, except solaris 2.8, which came from #23370.   
