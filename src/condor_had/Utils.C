@@ -156,6 +156,21 @@ utilStateToString( int state, const char* daemonName )
                 return "unknown state";
         }
 	}
+	return "unknown daemon";
+}
+
+void
+utilPrintStep( int previousState, int nextState,
+			   const char* daemonName )
+{
+      dprintf( D_FULLDEBUG,
+                "utilPrintStep %s (pid <%d>, port <%d>) "
+                "from <%s> go to <%s>\n",
+				daemonName,
+                daemonCore->getpid( ),
+                daemonCore->InfoCommandPort( ),
+                utilStateToString( previousState, daemonName ),
+                utilStateToString( nextState    , daemonName ) );
 }
 
 // returns allocated by 'malloc' string upon success or NULL upon failure

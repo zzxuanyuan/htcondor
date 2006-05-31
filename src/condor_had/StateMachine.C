@@ -75,7 +75,7 @@ HADStateMachine::HADStateMachine()
 void
 HADStateMachine::init()
 {
-    m_state = PRE_STATE;
+	m_state = PRE_STATE;
     m_otherHADIPs = NULL;
     m_masterDaemon = NULL;
     m_isPrimary = false;
@@ -104,6 +104,7 @@ HADStateMachine::init()
 void
 HADStateMachine::finalize()
 {
+	utilPrintStep( m_state, PRE_STATE, "HAD" );
     m_state = PRE_STATE;
     m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
     
@@ -547,20 +548,20 @@ HADStateMachine::step()
         case PRE_STATE:
 //            sendReplicationCommand( HAD_BEFORE_PASSIVE_STATE );
 			if( m_useReplication ) {
-				printStep( "PRE_STATE", "PRE_STATE" );
+				utilPrintStep( PRE_STATE, PRE_STATE, "HAD" );
 			} else {
 				m_state = PASSIVE_STATE;
-				printStep( "PRE_STATE", "PASSIVE_STATE" );
+				utilPrintStep( PRE_STATE, PASSIVE_STATE, "HAD" );
 			}
 			break;
         case PASSIVE_STATE:
             if( m_receivedAliveList.IsEmpty() || m_isPrimary ) {
                 m_state = ELECTION_STATE;
-                printStep( "PASSIVE_STATE","ELECTION_STATE" );
+                utilPrintStep( PASSIVE_STATE, ELECTION_STATE, "HAD" );
                 // we don't want to delete elections buffers
                 return;
             } else {
-                printStep( "PASSIVE_STATE", "PASSIVE_STATE" );
+                utilPrintStep( PASSIVE_STATE, PASSIVE_STATE, "HAD" );
             }
 
             break;
@@ -568,7 +569,7 @@ HADStateMachine::step()
         {
 			if( !m_receivedAliveList.IsEmpty() && !m_isPrimary ) {
                 m_state = PASSIVE_STATE;
-                printStep("ELECTION_STATE", "PASSIVE_STATE");
+                utilPrintStep( ELECTION_STATE, PASSIVE_STATE, "HAD" );
                 break;
             }
 
@@ -576,7 +577,7 @@ HADStateMachine::step()
             if( checkList(&m_receivedIdList) == FALSE ) {
                 // id bigger than m_selfId is received
                 m_state = PASSIVE_STATE;
-                printStep("ELECTION_STATE", "PASSIVE_STATE");
+                utilPrintStep( ELECTION_STATE, PASSIVE_STATE, "HAD" );
                 break;
             }
 
@@ -587,7 +588,7 @@ HADStateMachine::step()
             if( m_standAloneMode ) {
                 m_state = LEADER_STATE;
                 updateCollectorsClassAd( "True" );
-				printStep("ELECTION_STATE", "LEADER_STATE");
+				utilPrintStep( ELECTION_STATE, LEADER_STATE, "HAD" );
                 break;
             }
 
@@ -600,7 +601,7 @@ HADStateMachine::step()
             if( returnValue == TRUE ) {
                 m_state = LEADER_STATE;
                 updateCollectorsClassAd( "True" );
-                printStep( "ELECTION_STATE", "LEADER_STATE" );
+                utilPrintStep( ELECTION_STATE, LEADER_STATE, "HAD" );
             } else {
                 // TO DO : what with this case ? stay in election case ?
                 // return to passive ?
@@ -617,7 +618,7 @@ HADStateMachine::step()
     		if( ! m_receivedAliveList.IsEmpty() &&
                   checkList(&m_receivedAliveList) == FALSE ) {
                 // send to master "negotiator_off"
-                printStep( "LEADER_STATE","PASSIVE_STATE" );
+                utilPrintStep( LEADER_STATE, PASSIVE_STATE, "HAD" );
                 m_state = PASSIVE_STATE;
                 updateCollectorsClassAd( "False" );
 
@@ -630,7 +631,7 @@ HADStateMachine::step()
                 break;
             }
             sendReplicationCommand( HAD_IN_LEADER_STATE );
-            printStep( "LEADER_STATE","LEADER_STATE" );
+            utilPrintStep( LEADER_STATE, LEADER_STATE, "HAD" );
 
             break;
 	} // end switch
@@ -864,7 +865,7 @@ HADStateMachine::replicationFinished( )
 	}
 	utilCancelTimer( m_replicationFinishedTimerId );
 	m_state = PASSIVE_STATE;
-	printStep( "PRE_STATE", "PASSIVE_STATE" );
+	utilPrintStep( PRE_STATE, PASSIVE_STATE, "HAD" );
 }
 /***********************************************************
   Function : sendNegotiatorCmdToMaster( int comm )
@@ -1120,7 +1121,7 @@ HADStateMachine::commandHandler(int cmd,Stream *strm)
 /***********************************************************
   Function :
 */
-void
+/*void
 HADStateMachine::printStep( char *curState,char *nextState )
 {
       dprintf( D_FULLDEBUG,
@@ -1131,7 +1132,7 @@ HADStateMachine::printStep( char *curState,char *nextState )
                 m_selfId,
                 curState,nextState );
 }
-
+*/
 /***********************************************************
   Function :
 */

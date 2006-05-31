@@ -303,7 +303,9 @@ ReplicatorStateMachine::afterLeaderStateHandler( )
     dprintf( D_ALWAYS, 
 			"ReplicatorStateMachine::afterLeaderStateHandler started\n" );
     broadcastVersion( REPLICATION_GIVING_UP_VERSION );
-    m_state = BACKUP;
+
+	utilPrintStep( m_state, BACKUP, "REPLICATION" );
+	m_state = BACKUP;
 }
 
 void
@@ -478,9 +480,11 @@ ReplicatorStateMachine::becomeLeader( )
 	// sets the last time, when HAD sent a HAD_IN_STATE_STATE
 	m_lastHadAliveTime = time( NULL );
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::becomeLeader "
-            "last HAD alive time is set to %s", ctime( &m_lastHadAliveTime ) );       // selects new gid for the pool
+            "last HAD alive time is set to %s", ctime( &m_lastHadAliveTime ) );       
+	// selects new gid for the pool
     gidSelectionHandler( );
-    m_state = REPLICATION_LEADER;
+    utilPrintStep( m_state, REPLICATION_LEADER, "REPLICATION" );
+	m_state = REPLICATION_LEADER;
 }
 /* Function   : onLeaderVersion
  * Arguments  : stream - socket, through which the data is received and sent
@@ -953,7 +957,8 @@ ReplicatorStateMachine::replicationTimer( )
 	// messages for about 'HAD_ALIVE_TOLERANCE' seconds only
     if( currentTime - m_lastHadAliveTime > m_hadAliveTolerance) {
         broadcastVersion( REPLICATION_GIVING_UP_VERSION );
-        m_state = BACKUP;
+        utilPrintStep( m_state, BACKUP, "REPLICATION" );
+		m_state = BACKUP;
     }
 }
 /* Function   : versionRequestingTimer
@@ -970,7 +975,8 @@ ReplicatorStateMachine::versionRequestingTimer( )
     utilCancelTimer(m_versionRequestingTimerId);
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::versionRequestingTimer "
 			"cancelling version requesting timer\n" );
-    m_state = VERSION_DOWNLOADING;
+    utilPrintStep( m_state, VERSION_DOWNLOADING, "REPLICATION" );
+	m_state = VERSION_DOWNLOADING;
     // selecting the best version amongst all the versions that have been sent
     // by other replication daemons
     Version updatedVersion;
@@ -1006,5 +1012,6 @@ ReplicatorStateMachine::versionDownloadingTimer( )
 
 	sendCommand( REPLICATION_NEWLY_JOINED_FINISHED, m_hadSinfulString,
 				 &AbstractReplicatorStateMachine::noCommand );
+	utilPrintStep( m_state, BACKUP, "REPLICATION" );
 	m_state = BACKUP;
 }

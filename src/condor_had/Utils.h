@@ -72,12 +72,24 @@ const char*
 utilCommandToString( int command );
 /* Function    : utilStateToString
  * Arguments   : state - daemon state
+ *               daemonName - the name of daemon, we are working with
  * Return value: const char* - static string representation of the given state 
  * Description : represents the given state of the specified daemon in string 
  *				 format
  */
 const char*
 utilStateToString( int state, const char* daemonName );
+/* Function    : utilPrintStep
+ * Arguments   : previousState - previous state of daemon state machine
+ *               nextState     - next state of daemon state machine
+ *               daemonName    - the name of daemon, we are working with 
+ * Return value: const char* - static string representation of the given state
+ * Description : represents the given state of the specified daemon in string
+ *               format
+ */
+void
+utilPrintStep( int previousState, int nextState,
+               const char* daemonName );
 /* Function    : utilToSinful
  * Arguments   : address - remote daemon address in either "ip:port" or 
  *				 "hostname:port" format, optionally enclosed in '<>' brackets

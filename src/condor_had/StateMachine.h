@@ -160,7 +160,7 @@ protected:
     int  checkList(List<int>*);
     static void removeAllFromList(List<int>*);
     void clearBuffers();
-    void printStep(char *curState,char *nextState);
+    //void printStep(char *curState,char *nextState);
     //char* commandToString(int command);
 
     void finalize();

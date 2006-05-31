@@ -48,6 +48,7 @@ AbstractReplicatorStateMachine::finalize( bool isStateChanged )
 	if( isStateChanged ) {
 		dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::finalize "
 						   "initializing the state\n" );
+		utilPrintStep( m_state, VERSION_REQUESTING, "REPLICATION" );
 		m_state = VERSION_REQUESTING;
    	}
 	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
