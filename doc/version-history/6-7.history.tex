@@ -15,7 +15,11 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item None.
+\item \Condor{submit} on Windows no longer checks that the schedd has
+access to the submitter's credential if invoked with the \Opt{-n} or
+\Opt{-r} option. It is therefore necessary to make sure ahead of time
+that the credential is correctly stored with \Condor{store\_cred}
+before doing a remote submit.
 
 \end{itemize}
 
@@ -23,6 +27,13 @@ The details of each version are described below.
 \noindent New Features:
 
 \begin{itemize}
+
+\item condor\_stats and the view server are now aware of the new backfill
+state for machines, and record and report statistics on it.
+
+\item Condor now supports running backfill jobs on Windows machines.
+  See section~\ref{sec:Backfill} on page~\pageref{sec:Backfill} for
+  more information about running backfill jobs with Condor.
 
 \item Condor-C is now supported on Windows. When using Condor-C to
 direct a job to a Windows remote schedd, one must be careful to ensure
@@ -49,17 +60,65 @@ in a DAG define a log file.
 
 \item New macro functionality in job ClassAds: \$\$([ClassAd Expression]).  The contained ClassAd expression is evaluated when the job is matched.  "My" refers to attributes in the job's ClassAd, "Target" refers to attributes in the machine classad.
 
+\item Condor can now run a program to obtain it's configuration
+parameters.
+If a configuration filename (such the environment variable CONDOR\_CONFIG
+or the configuration parameter LOCAL\_CONFIG\_FILE) ends with a vertical
+bar (``|''), it is executed in a shell and its standard output is parsed
+for configuration parameters. If LOCAL\_CONFIG\_FILE is used in this way,
+then it can only contain a single item, and spaces in the value will be
+interpreted as part of the command to be executed.
+
 % Gnats PR 662
 \item Added the \Condor{dagman} configuration parameter
 \Macro{DAGMAN\_PROHIBIT\_MULTI\_JOBS}, which prohibits \Condor{dagman}
 from running a DAG that references node job submit files that
 queue multiple jobs (other than parallel universe).
 
+\item A number of types of failures to run a job now result in the job
+going on hold, rather than immediately being returned to the idle
+state to be tried again.  This currently does not apply to
+standard universe jobs.  The types of errors that now result in the
+job going on hold are failure to execute the specified program,
+failure to transfer files, failure to open input or output files,
+and failure to access the job's initial working directory.
+In all such cases, a specific hold reason is specified in the job
+ClassAd, along with a numeric hold code and subcode.  If you wish to
+automatically retry in such cases (the old behavior), then you can
+specify a \MacroNI{PeriodicRelease} expression that checks for
+specific hold states.
+
+\item Authentication using SSL is now available for SOAP commands.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed several bugs in quill that would cause it to crash when
+very long values for job classad attributes where in the queue.  This
+typically happened with jobs submitted with "getenv = true" in the
+submit file, and very large environments.
+
+\item Fixed a bug in ClassAds where an attribute name which was
+constructed from a keyword with one or more digits appended would
+cause parse errors. Discovered with T1 and F1(short form of true
+and false).
+
+\item Fixed a bug introduced in 6.7.19, which could cause the startd
+to get into a state where it would reject all new claims (requiring a
+restart of the startd to resume normal operation).  The symptom of
+this bug was a recurring message in the startd such as this:
+
+\begin{verbatim}
+5/19 23:51:47 vm1: ClaimId from schedd (<xxx.xxx.xxx.xxx:45877>#1147893880#1208) doesn't match (<xxx.xxx.xxx.xxx:45877>#1147893880#1207)
+5/19 23:51:47 vm1: State change: claiming protocol failed
+\end{verbatim}
+
+\item Fixed a bug introduced in 6.7.19 which could cause the startd to
+abort (signal 6 under unix) when a match timed out for a claim
+preempting the existing preempting claim.
 
 \item Fixed a bug which could cause \Condor{quill} to perform an illegal
 memory access and potential segmentation fault.
@@ -75,6 +134,10 @@ some time in the 6.7 series.
 \item Fixed a bug which could cause \Condor{status} (and probably
 other tools and possibly even daemons) to crash on Solaris machines
 if address resolution fails because of an ill-configured DNS server.
+
+\item Fixed a bug on unix which could cause the Condor daemons to mistakenly
+think a child process was successfully created (when the fork() system
+call returned -1).
 
 \item Fixed a bug which could cause network write operations to block
 Condor daemons for the full networking timeout time when the connection
@@ -92,6 +155,44 @@ contained a typo which has now been fixed.
 \item Fixed a bug which caused the checkpoint server
 (\Condor{ckpt\_server}) to publish an incorrect IP address in the
 \Attr{Machine} attribute of it's ClassAd.
+
+\item Fixed a bug introduced in 6.7.19, which could cause the startd
+to get into a state where it would reject all new claims (requiring a
+restart of the startd to resume normal operation).  The symptom of
+this bug was a recurring message in the startd such as this:
+
+\begin{verbatim}
+5/19 23:51:47 vm1: ClaimId from schedd (<xxx.xxx.xxx.xxx:45877>#1147893880#1208) doesn't match (<xxx.xxx.xxx.xxx:45877>#1147893880#1207)
+5/19 23:51:47 vm1: State change: claiming protocol failed
+\end{verbatim}
+
+\item Fixed some rare bugs when the Condor claiming protocol fails
+  while a machine is running a backfill job.
+  The \Condor{startd} now correctly recovers from these failures.
+
+\item Fixed a bug in Condor's file-transfer mode that could cause file
+transfer errors to go unnoticed by one side of the connection.  One
+possible result of this would be a job leaving the queue
+``successfully'' when there was actually an error copying back one of
+the output files.  The possibility of this bug happening was much less
+for large files (greater than 65536 bytes).
+
+% Gnats PR 683
+\item DAG variable names beginning with "queue" can goof up DAG node
+job submits; \Condor{dagman} now checks for such variable names and
+fails with an explicit error message if there are any.  This bug has
+probably existed for a long time, but was just recently discovered.
+
+\item \Condor{off} -peaceful was still resulting in a shutdown timeout
+after \MacroNI{GRACEFUL\_SHUTDOWN\_TIMEOUT}, which would then cause jobs
+to be preempted.
+
+\item Vanilla universe jobs were failing to run if the executable was specified
+as a relative path and \Attr{transfer\_executable} was set to false.
+
+\item Gridftp server jobs automatically submitted to handle file transfers
+for grid-type gt4 jobs now properly leave the queue when they enter the
+REMOVED state.
 
 \end{itemize}
 
@@ -171,7 +272,7 @@ on page~\pageref{man-condor-submit}.
 \Condor{list\_cred}, and \Condor{rm\_cred} for dealing with
 credentials for Stork on UNIX have been renamed to
 \Stork{store\_cred}, \Stork{get\_cred}, \Stork{list\_cred}, and
-\Stork{rm\_cred}, respectively. This is beacuse the Windows
+\Stork{rm\_cred}, respectively. This is because the Windows
 \Condor{store\_cred} tool, which can be used to set the shared secret
 for the password authentication method, is now present on all
 platforms.
@@ -480,7 +581,7 @@ would do nothing with the jobs and not acknowledge a hold or removal).
 
 \begin{itemize}
 
-\item A security team at UW-Madison is conducting an onging security
+\item A security team at UW-Madison is conducting an ongoing security
 audit of the Condor system and has identified a few important
 vulnerabilities.
 Condor versions 6.6.11 and 6.7.18 fix these security problems and
@@ -640,9 +741,9 @@ method on Windows.
   for high availability.  In particular, \Condor{replication} can be
   configured to replicate the accountant log so the a fail-over
   \Condor{negotiator} can share the user priority state from the
-  primary \Condor{negotitor}.
+  primary \Condor{negotiator}.
 
-\item The \Condor{collector} now has the ability to recieve ClassAds
+\item The \Condor{collector} now has the ability to receive ClassAds
   via it's SOAP interface.
 
 \end{itemize}
