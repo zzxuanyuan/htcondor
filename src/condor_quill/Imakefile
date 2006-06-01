@@ -1,16 +1,29 @@
 NAME = condor_quill
 
-all_target( $(NAME) )
+all_target(libquill.a $(NAME) )
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(QUILL_INC)
 
 LDFLAGS = $(STD_LDFLAGS) 
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(QUILL_LIB)
 
+QUILL_LIB_OBJ = classadlogentry.o classadlogparser.o prober.o
+
 soapobjs(quill)
 
 OBJ = quill_main.o classadlogentry.o classadlogparser.o jobqueuedbmanager.o prober.o requestservice.o jobqueuecollection.o $(SOAP_OBJS)
 
 public_c_plus_target($(NAME),sbin,$(OBJ),$(LIB))
+library_target(libquill.a,$(QUILL_LIB_OBJ))
+
+c_plus_target($(NAME),$(OBJ),$(LIB))
+
+strip_target($(NAME),sbin,EXECUTABLE_MODE)
+static_target($(NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
+purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
+quantify_c_plus_target($(NAME).quantify,$(OBJ),$(LIB))
+
+release_target($(NAME),sbin,EXECUTABLE_MODE)
 
 gen_soapfiles(quill,condorQuill)

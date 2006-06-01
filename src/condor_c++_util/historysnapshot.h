@@ -69,6 +69,7 @@ private:
 	QuillErrCode getNextAd_Ver(AttrList *&ad);
 	QuillErrCode getNextAd_Hor(AttrList *&ad);
 	QuillErrCode printResults(SQLQuery *, SQLQuery *, bool);
+    Database	*DBObj;
 };
 
 #endif

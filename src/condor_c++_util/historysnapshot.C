@@ -25,12 +25,15 @@
 #include "condor_attributes.h"
 
 #include "pgsqldatabase.h"
+#include "pgsqljqdatabase.h"
 #include "historysnapshot.h"
 
 //! constructor
 HistorySnapshot::HistorySnapshot(const char* dbcon_str)
 {
-	jqDB = new PGSQLDatabase(dbcon_str);
+    DBObj = new PGSQLDatabase(dbcon_str);
+	jqDB = new PGSQLJQDatabase();
+    jqDB->setDB(DBObj);
 	curAd = NULL;
 	curClusterId_hor = curProcId_hor = curClusterId_ver = curProcId_ver = -1;
 }
@@ -40,6 +43,10 @@ HistorySnapshot::~HistorySnapshot()
 {
 	if (jqDB != NULL) {
 		delete(jqDB);
+	}
+
+	if (DBObj != NULL) {
+		delete(DBObj);
 	}
 }
 
@@ -54,7 +61,7 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
   historyads_hor_num = 0;
   historyads_ver_num = 0;
 
-  st = jqDB->connectDB();
+  st = DBObj->connectDB();
   
   if(st == FAILURE) {
     return FAILURE;
@@ -71,7 +78,7 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
 
   if (st == FAILURE_QUERY_HISTORYADS_HOR ||
 	  st == FAILURE_QUERY_HISTORYADS_VER) { // Got some error 
-    printf("Error while querying the database: %s\n", jqDB->getDBError());
+    printf("Error while querying the database: %s\n", DBObj->getDBError());
     return FAILURE;
   }
   
@@ -212,7 +219,7 @@ HistorySnapshot::release()
 {
 	QuillErrCode st1, st2;
 	st1 = jqDB->releaseHistoryResults();
-	st2 = jqDB->disconnectDB();
+	st2 = DBObj->disconnectDB();
 
 	if(st1 == SUCCESS && st2 == SUCCESS) {
 		return SUCCESS;

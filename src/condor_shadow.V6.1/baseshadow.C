@@ -59,6 +59,7 @@ BaseShadow::BaseShadow() {
 	ASSERT( !myshadow_ptr );	// make cetain we're only instantiated once
 	myshadow_ptr = this;
 	exception_already_logged = false;
+	began_execution = FALSE;
 }
 
 BaseShadow::~BaseShadow() {
@@ -847,6 +848,11 @@ BaseShadow::log_except(char *msg)
 		event.recvd_bytes = shadow->bytesSent();
 		event.sent_bytes = shadow->bytesReceived();
 		exception_already_logged = shadow->exception_already_logged;
+
+		if (shadow->began_execution) {
+			event.began_execution = TRUE;
+		}
+
 	} else {
 		event.recvd_bytes = 0.0;
 		event.sent_bytes = 0.0;

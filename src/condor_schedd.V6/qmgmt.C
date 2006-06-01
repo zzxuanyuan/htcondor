@@ -52,6 +52,9 @@
 #include "iso_dates.h"
 #include "condor_scanner.h"	// for Token, etc.
 
+#include "file_sql.h"
+extern FILESQL *FILEObj;
+
 extern char *Spool;
 extern char *Name;
 extern char* JobHistoryFileName;
@@ -65,8 +68,6 @@ extern void Scanner(char*&, Token&);	// in classad library
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
 }
-
-
 
 extern	int		Parse(const char*, ExprTree*&);
 extern  void    cleanup_ckpt_files(int, int, const char*);
@@ -708,7 +709,6 @@ InitJobQueue(const char *job_queue_name,int max_historical_logs)
 		}
 		next_cluster_num = stored_cluster_num;
 	}
-
 		// Some of the conversions done in ConvertOldJobAdAttrs need to be
 		// persisted to disk. Particularly, GlobusContactString/RemoteJobId.
 	CleanJobQueue();
@@ -3225,6 +3225,10 @@ static void AppendHistory(ClassAd* ad)
   ad_size = ad_string.Length();
 
   MaybeRotateHistory(ad_size);
+
+  if (FILEObj->file_newEvent("History", ad) == FAILURE) {
+	  dprintf(D_ALWAYS, "AppendHistory Logging History Event --- Error\n");
+  }
 
   // save job ad to the log
   // Note that we are passing O_LARGEFILE, which lets us deal with files

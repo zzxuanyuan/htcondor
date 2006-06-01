@@ -28,6 +28,9 @@
 #include "classad_merge.h"
 #include "vm_common.h"
 #include "VMRegister.h"
+#include "file_sql.h"
+
+extern FILESQL *FILEObj;
 
 Resource::Resource( CpuAttributes* cap, int rid )
 {
@@ -47,6 +50,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	}
 	r_id_str = strdup( tmp.Value() );
 	
+	prevLHF = 0;
 	r_classad = NULL;
 	r_state = new ResState( this );
 	r_cur = new Claim( this );
@@ -858,6 +862,9 @@ Resource::do_update( void )
 	}
 
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
+
+		// insert classad into DB
+	this->dbInsert(&public_ad);
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( UPDATE_STARTD_AD, &public_ad,
@@ -1792,3 +1799,24 @@ Resource::endCODLoadHack( void )
 	r_pre_cod_condor_load = 0.0;
 }
 
+void
+Resource::dbInsert( ClassAd *cl )
+{
+	FILESQL *dbh = FILEObj;
+	ClassAd clCopy;
+	char tmp[512];
+
+		// make a copy so that we can add timestamp attribute into it
+	clCopy = *cl;
+
+	snprintf(tmp, 512, "%s = %d", ATTR_PREV_LAST_HEARD_FROM, prevLHF);
+	(&clCopy)->Insert(tmp);
+
+		// set the LastHeardFrom and make it the new prevLHF
+	prevLHF = (int)time(NULL);
+
+	snprintf(tmp, 512, "%s = %d", ATTR_LAST_HEARD_FROM, prevLHF);
+	(&clCopy)->Insert(tmp);
+
+	dbh->file_newEvent("Machines", &clCopy);
+}

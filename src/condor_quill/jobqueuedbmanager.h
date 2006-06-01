@@ -37,6 +37,7 @@
 class Prober;
 class ClassAdLogParser;
 class JobQueueDatabase;
+class Database;
 
 #ifndef MAX_FIXED_SQL_STR_LENGTH
 #define MAX_FIXED_SQL_STR_LENGTH 2048
@@ -233,11 +234,11 @@ class JobQueueDBManager : public Service
 		//
 		// members
 		//
-	Prober*	            prober;	//!< Prober
-	ClassAdLogParser*   caLogParser;//!< ClassAd Log Parser
-	JobQueueDatabase*   jqDatabase;	//!< Job Queue Database
-	
-	XactState	xactState;	//!< current XACT state
+	Prober*	            prober;			//!< Prober
+	ClassAdLogParser*   caLogParser;	//!< ClassAd Log Parser
+	Database*   DBObj;		//!< Database object
+
+	XactState	xactState;		    //!< current XACT state
 
 		//together these constitute the dynamic attributes that are inserted
 		//into the quill ad sent to the collector

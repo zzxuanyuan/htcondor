@@ -26,12 +26,15 @@
 #include "classad_merge.h"
 
 #include "pgsqldatabase.h"
+#include "pgsqljqdatabase.h"
 #include "jobqueuesnapshot.h"
 
 //! constructor
 JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 {
-	jqDB = new PGSQLDatabase(dbcon_str);
+    DBObj = new PGSQLDatabase(dbcon_str);
+	jqDB = new PGSQLJQDatabase();
+    jqDB->setDB(DBObj);
 	curClusterAd = NULL;
 	curClusterId = NULL;
 	curProcId = NULL;
@@ -42,10 +45,16 @@ JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 JobQueueSnapshot::~JobQueueSnapshot()
 {
 	release();
+
 	if (jqDB != NULL) {
 		delete(jqDB);
 	}
 	jqDB = NULL;
+
+	if (DBObj != NULL) {
+		delete(DBObj);
+	}
+	DBObj = NULL;
 }
 
 //! prepare iteration of Job Ads in the job queue database
@@ -71,11 +80,11 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 	procads_str_num = procads_num_num = 
 	clusterads_str_num = clusterads_num_num = 0;
 	
-	if(jqDB->connectDB() == FAILURE) {
+	if(DBObj->connectDB() == FAILURE) {
 		return FAILURE;
 	}
 
-	if(jqDB->beginTransaction() == FAILURE) {
+	if(DBObj->beginTransaction() == FAILURE) {
 		printf("Error while querying the database: unable to start new transaction");
 		return FAILURE;
 	}
@@ -91,7 +100,7 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 				 clusterads_str_num, 
 				 clusterads_num_num); // this retriesves DB
 	
-	if(jqDB->commitTransaction() == FAILURE) {
+	if(DBObj->commitTransaction() == FAILURE) {
 		printf("Error while querying the database: unable to commit transaction");
 		return FAILURE;
 	}
@@ -430,7 +439,7 @@ JobQueueSnapshot::release()
 {
 	QuillErrCode st1, st2;
 	st1 = jqDB->releaseJobQueueResults();
-	st2 = jqDB->disconnectDB();
+	st2 = DBObj->disconnectDB();
 
 	if(st1 == SUCCESS && st2 == SUCCESS) {
 		return SUCCESS;

@@ -28,6 +28,8 @@
 #include "quill_enums.h"
 #include "libpq-fe.h"
 
+class Database;
+
 //! JobQueueDatabase
 /*! It provides interfaces to talk to DBMS
  */
@@ -37,53 +39,8 @@ public:
 	//! destructor
 	virtual ~JobQueueDatabase() {};
 
-	//! connect to DBMS
-	virtual QuillErrCode		connectDB() = 0;
-	//! connect to DBMS
-	virtual QuillErrCode		connectDB(const char* connect) = 0;
-	//! disconnect from DBMS
-	virtual QuillErrCode		disconnectDB() = 0;
-
-	//! begin Transaction
-	virtual QuillErrCode		beginTransaction() = 0;
-	//! commit Transaction
-	virtual QuillErrCode		commitTransaction() = 0;
-	//! abort Transaction
-	virtual QuillErrCode		rollbackTransaction() = 0;
-
-	//! execute a command
-	/*! execute SQL which doesn't have any retrieved result, such as
-	 *  insert, delete, and udpate.
-	 */
-	virtual QuillErrCode		execCommand(const char* sql) = 0;
-	//! execute a SQL query
-	virtual QuillErrCode		execQuery(const char* sql) = 0;
-
-
-	virtual QuillErrCode		execCommand(const char* sql, 
-											int &num_result,
-											int &db_err_code) = 0;
-	//! execute a SQL query
-	virtual QuillErrCode		execQuery(const char* sql,
-										  int &num_result) = 0;
-
-	//! get a result for the executed SQL
-	virtual const char*	        getValue(int row, int col) = 0;
-	virtual const char*         getHistoryHorFieldName(int col) = 0;
-	virtual const int           getHistoryHorNumFields() = 0;
-
-	//! release query result
-	virtual QuillErrCode		releaseHistoryResults() = 0;
-	virtual QuillErrCode        releaseJobQueueResults() = 0;
-	virtual QuillErrCode        releaseQueryResult() = 0;
-
-	//! get a DBMS error message
-	virtual char*	getDBError() = 0;
-
-	//! put bulk data into DBMS
-	virtual QuillErrCode		sendBulkData(char* data) = 0;
-	//! put an end flag for bulk loading
-	virtual QuillErrCode		sendBulkDataEnd() = 0;
+	// set the database object.
+    void        setDB(Database *dbObj) {this->DBObj = dbObj;};
 
 		//
 		// Job Queue DB processing methods
@@ -111,9 +68,13 @@ public:
 	virtual const char*         getHistoryVerValue(int row, int col) = 0;
 
 	virtual int 		getDatabaseVersion() = 0;
+	virtual QuillErrCode		releaseHistoryResults() = 0;		
+	virtual QuillErrCode        releaseJobQueueResults() = 0;
+
+	virtual const char*         getHistoryHorFieldName(int col) = 0;
+	virtual const int           getHistoryHorNumFields() = 0;
 protected:
-	char	*con_str;	//!< connection string
-	bool	connected; 	//!< connection status
+    Database *DBObj;
 };
 
 #endif

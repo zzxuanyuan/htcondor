@@ -177,6 +177,9 @@ public:
 	int     preemptWasTrue( void ) const; //PREEMPT was true in current claim
 	void    preemptIsTrue();              //records that PREEMPT was true
 
+		// Database ClassAd insert & helper functions
+	void    dbInsert(ClassAd *cl);
+
 		// Data members
 	ResState*		r_state;	// Startd state object, contains state and activity
 	ClassAd*		r_classad;	// Resource classad (contains everything in config file)
@@ -191,6 +194,7 @@ public:
 	int				r_id;		// CPU id of this resource (int form)
 	char*			r_id_str;	// CPU id of this resource (string form)
 	AvailStats		r_avail_stats; // computes resource availability stats
+	int             prevLHF;
 
 	int				type( void ) { return r_attr->type(); };
 

@@ -53,6 +53,7 @@ bool OwnerCheck( ClassAd *ad, const char *test_owner );
 bool Reschedule();
 
 int get_myproxy_password_handler(Service *, int, Stream *sock);
+	void updateFilesInDB();
 #if defined(__cplusplus)
 }
 #endif
