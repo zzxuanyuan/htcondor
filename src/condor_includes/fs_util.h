@@ -25,11 +25,18 @@
 
 #include "condor_constants.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Prototypes */
 int
 fs_detect_nfs(
 	const char		*path,
 	BOOLEAN			*is_nfs );
 
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _FS_UTIL_H */
