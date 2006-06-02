@@ -52,7 +52,7 @@ int condor__newCluster(struct condor__Transaction transaction,
 					       struct condor__IntAndStatus response;
 					   } & result);
 
-int condor__removeCluster(struct condor__Transaction transaction,
+int condor__removeCluster(struct condor__Transaction *transaction,
 						  xsd__int clusterId,
 						  xsd__string reason,
 						  struct condor__removeClusterResponse {
@@ -65,7 +65,7 @@ int condor__newJob(struct condor__Transaction transaction,
 				       struct condor__IntAndStatus response;
 				   } & result);
 
-int condor__removeJob(struct condor__Transaction transaction,
+int condor__removeJob(struct condor__Transaction *transaction,
 					  xsd__int clusterId,
 					  xsd__int jobId,
 					  xsd__string reason,
@@ -74,7 +74,7 @@ int condor__removeJob(struct condor__Transaction transaction,
 						  struct condor__Status response;
 					  } & result);
 
-int condor__holdJob(struct condor__Transaction transaction,
+int condor__holdJob(struct condor__Transaction *transaction,
 					xsd__int clusterId,
 					xsd__int jobId,
 					xsd__string reason,
@@ -85,7 +85,7 @@ int condor__holdJob(struct condor__Transaction transaction,
 					    struct condor__Status response;
 					} & result);
 
-int condor__releaseJob(struct condor__Transaction transaction,
+int condor__releaseJob(struct condor__Transaction *transaction,
 					   xsd__int clusterId,
 					   xsd__int jobId,
 					   xsd__string reason,
@@ -103,13 +103,13 @@ int condor__submit(struct condor__Transaction transaction,
 				       struct condor__RequirementsAndStatus response;
                    } & result);
 
-int condor__getJobAds(struct condor__Transaction transaction,
+int condor__getJobAds(struct condor__Transaction *transaction,
 					  xsd__string constraint,
 					  struct condor__getJobAdsResponse {
 					      struct condor__ClassAdStructArrayAndStatus response;
 					  } & result);
 
-int condor__getJobAd(struct condor__Transaction transaction,
+int condor__getJobAd(struct condor__Transaction *transaction,
 					 xsd__int clusterId,
 					 xsd__int jobId,
 					 struct condor__getJobAdResponse {
@@ -137,7 +137,7 @@ int condor__sendFile(struct condor__Transaction transaction,
 					     struct condor__Status response;
 					 } & result);
 
-int condor__getFile(struct condor__Transaction transaction,
+int condor__getFile(struct condor__Transaction *transaction,
 					xsd__int clusterId,
 					xsd__int jobId,
 					xsd__string name,
@@ -147,14 +147,14 @@ int condor__getFile(struct condor__Transaction transaction,
 					    struct condor__Base64DataAndStatus response;
 					} & result);
 
-int condor__closeSpool(struct condor__Transaction transaction,
+int condor__closeSpool(struct condor__Transaction *transaction,
 					   xsd__int clusterId,
 					   xsd__int jobId,
 					   struct condor__closeSpoolResponse {
 					       struct condor__Status response;
 					   } & result);
 
-int condor__listSpool(struct condor__Transaction transaction,
+int condor__listSpool(struct condor__Transaction *transaction,
 					  xsd__int clusterId,
 					  xsd__int jobId,
 					  struct condor__listSpoolResponse {
