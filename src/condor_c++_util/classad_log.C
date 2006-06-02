@@ -144,10 +144,9 @@ void
 ClassAdLog::AppendLog(LogRecord *log)
 {
 	if (active_transaction) {
-		if (EmptyTransaction) {
+		if (active_transaction->EmptyTransaction()) {
 			LogBeginTransaction *log = new LogBeginTransaction;
 			active_transaction->AppendLog(log);
-			EmptyTransaction = false;
 		}
 		active_transaction->AppendLog(log);
 	} else {
@@ -296,7 +295,6 @@ ClassAdLog::BeginTransaction()
 {
 	assert(!active_transaction);
 	active_transaction = new Transaction();
-	EmptyTransaction = true;
 }
 
 bool
@@ -318,7 +316,7 @@ ClassAdLog::CommitTransaction()
 	// Sometimes we do a CommitTransaction() when we don't know if there was
 	// an active transaction.  This is allowed.
 	if (!active_transaction) return;
-	if (!EmptyTransaction) {
+	if (!active_transaction->EmptyTransaction()) {
 		LogEndTransaction *log = new LogEndTransaction;
 		active_transaction->AppendLog(log);
 		active_transaction->Commit(log_fp, (void *)&table);
@@ -445,6 +443,29 @@ ClassAdLog::LookupInTransaction(const char *key, const char *name, char *&val)
 	if (ValFound) return 1;
 	return 0;
 }
+
+Transaction *
+ClassAdLog::getActiveTransaction()
+{
+	Transaction *ret_value = active_transaction;
+	active_transaction = NULL;
+	return ret_value;
+}
+
+bool
+ClassAdLog::setActiveTransaction(Transaction* & transaction)
+{
+	if ( active_transaction ) {
+		return false;
+	}
+
+	active_transaction = transaction;
+
+	transaction = NULL;		// make certain caller doesn't mess w/ the handle 
+
+	return true;
+}
+
 
 void
 ClassAdLog::LogState(FILE *fp)

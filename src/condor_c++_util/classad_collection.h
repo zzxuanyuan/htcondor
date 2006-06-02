@@ -105,6 +105,12 @@ public:
   */
   bool AbortTransaction() { return ClassAdLog::AbortTransaction(); }
 
+  ///
+  Transaction* getActiveTransaction() { return ClassAdLog::getActiveTransaction(); }
+  ///
+  bool setActiveTransaction(Transaction* & transaction) { return ClassAdLog::setActiveTransaction(transaction); }
+
+
   /** Lookup an attribute's value in the current transaction. 
       @param key the key with which the class-ad was inserted into the repository.
       @param name the name of the attribute.

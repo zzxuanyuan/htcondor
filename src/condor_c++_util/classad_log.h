@@ -88,13 +88,33 @@ public:
 	void SetMaxHistoricalLogs(int max);
 	int GetMaxHistoricalLogs();
 
+protected:
+	/** Returns handle to active transaction.  Upon return of this
+		method, any active transaction is forgotten.  It is the caller's
+		responsibility to eventually delete the handle returned.
+		@return Pointer to the transaction state, or NULL if no transaction
+		currently active.
+		@see setActiveTransaction
+	*/
+	Transaction *getActiveTransaction();
+
+	/** Sets the active transaction to the provided handle.  Will fail
+		if there is currently a transaction already active.  Upon successful return,
+		the callers handle will be reset to NULL, as the caller should no 
+		longer touch the handle (including delete it).
+		@param transaction A pointer to a transaction object previously
+		returned by getActiveTransaction().
+		@return True on success, else false.
+		@see getActiveTransaction
+	*/
+	bool setActiveTransaction(Transaction* & transaction);
+
 private:
 	void LogState(FILE* fp);
 	FILE* log_fp;
 
 	char log_filename[_POSIX_PATH_MAX];
 	Transaction *active_transaction;
-	bool EmptyTransaction;
 	int max_historical_logs;
 	unsigned long historical_sequence_number;
 
