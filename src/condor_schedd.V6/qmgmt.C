@@ -51,6 +51,7 @@
 #include "util_lib_proto.h" // for rotate_file
 #include "iso_dates.h"
 #include "condor_scanner.h"	// for Token, etc.
+#include "condor_string.h" // for strnewp, etc.
 
 extern char *Spool;
 extern char *Name;
@@ -71,7 +72,7 @@ extern "C" {
 extern	int		Parse(const char*, ExprTree*&);
 extern  void    cleanup_ckpt_files(int, int, const char*);
 extern	bool	service_this_universe(int, ClassAd *);
-static ReliSock *Q_SOCK = NULL;
+static QmgmtPeer *Q_SOCK = NULL;
 
 int		do_Q_request(ReliSock *);
 void	FindRunnableJob(PROC_ID & jobid, const ClassAd* my_match_ad,
@@ -472,6 +473,142 @@ ConvertOldJobAdAttrs( ClassAd *job_ad, bool startup )
 
 }
 
+QmgmtPeer::QmgmtPeer()
+{
+	owner = NULL;
+	fquser = NULL;
+	myendpoint = NULL;
+	sock = NULL;
+	transaction = NULL;
+
+	unset();
+}
+
+QmgmtPeer::~QmgmtPeer()
+{
+	unset();
+}
+
+bool
+QmgmtPeer::set(ReliSock *input)
+{
+	if ( !input || sock || myendpoint ) {
+		// already set, or no input
+		return false;
+	}
+	
+	sock = input;
+	return true;
+}
+
+
+bool
+QmgmtPeer::set(const struct sockaddr_in *s, const char *o)
+{
+	if ( !s || sock || myendpoint ) {
+		// already set, or no input
+		return false;
+	}
+	ASSERT(owner == NULL);
+
+	if ( o ) {
+		fquser = strnewp(o);
+			// owner is just fquser that stops at the first '@' 
+		owner = strnewp(o);
+		char *atsign = strchr(owner,'@');
+		if (atsign) {
+			*atsign = '\0';
+		}
+	}
+
+	if ( s ) {
+		memcpy(&sockaddr,s,sizeof(struct sockaddr_in));
+		myendpoint = strnewp( inet_ntoa(s->sin_addr) );
+	}
+
+	return true;
+}
+
+void
+QmgmtPeer::unset()
+{
+	if (owner) {
+		delete owner;
+		owner = NULL;
+	}
+	if (fquser) {
+		delete fquser;
+		fquser = NULL;
+	}
+	if (myendpoint) {
+		delete myendpoint;
+		myendpoint = NULL;
+	}
+	if (sock) sock=NULL;	// note: do NOT delete sock!!!!!
+	if (transaction) {
+		delete transaction;
+		transaction = NULL;
+	}
+
+	next_proc_num = 0;
+	active_cluster_num = -1;	
+	old_cluster_num = -1;	// next_cluster_num at start of transaction
+	xact_start_time = 0;	// time at which the current transaction was started
+}
+
+const char*
+QmgmtPeer::endpoint_ip_str() const
+{
+	if ( sock ) {
+		return sock->endpoint_ip_str();
+	} else {
+		return myendpoint;
+	}
+}
+
+const struct sockaddr_in*
+QmgmtPeer::endpoint() const
+{
+	if ( sock ) {
+		return sock->endpoint();
+	} else {
+		return &sockaddr;
+	}
+}
+
+
+const char*
+QmgmtPeer::getOwner() const
+{
+	if ( sock ) {
+		return sock->getOwner();
+	} else {
+		return owner;
+	}
+}
+	
+
+const char*
+QmgmtPeer::getFullyQualifiedUser() const
+{
+	if ( sock ) {
+		return sock->getFullyQualifiedUser();
+	} else {
+		return fquser;
+	}
+}
+
+int
+QmgmtPeer::isAuthenticated() const
+{
+	if ( sock ) {
+		return sock->isAuthenticated();
+	} else {
+		return owner ? TRUE : FALSE;
+	}
+}
+
+
 // Read out any parameters from the config file that we need and
 // initialize our internal data structures.
 void
@@ -825,6 +962,25 @@ OwnerCheck(int cluster_id,int proc_id)
 bool
 OwnerCheck(ClassAd *ad, const char *test_owner)
 {
+	// check if the IP address of the peer has daemon core write permission
+	// to the schedd.  we have to explicitly check here because all queue
+	// management commands come in via one sole daemon core command which
+	// has just READ permission.
+	if ( daemonCore->Verify(WRITE, Q_SOCK->endpoint(), Q_SOCK->getFullyQualifiedUser()) == FALSE ) {
+		// this machine does not have write permission; return failure
+		dprintf(D_ALWAYS,"QMGT command failed: no WRITE permission for %s\n",
+			Q_SOCK->endpoint_ip_str() );
+		return false;
+	}
+
+	return OwnerCheck2(ad, test_owner);
+}
+
+
+// This code actually checks the owner, and doesn't do a Verify!
+bool
+OwnerCheck2(ClassAd *ad, const char *test_owner)
+{
 	char	my_owner[_POSIX_PATH_MAX];
 
 	// If test_owner is NULL, then we have no idea who the user is.  We
@@ -834,17 +990,6 @@ OwnerCheck(ClassAd *ad, const char *test_owner)
 	// a QMGMT command internally which is allowed.
 	if (test_owner == NULL) {
 		dprintf(D_ALWAYS,"QMGT command failed: anonymous user not permitted\n" );
-		return false;
-	}
-
-	// check if the IP address of the peer has daemon core write permission
-	// to the schedd.  we have to explicitly check here because all queue
-	// management commands come in via one sole daemon core command which
-	// has just READ permission.
-	if ( daemonCore->Verify(WRITE, Q_SOCK->endpoint(), Q_SOCK->getFullyQualifiedUser()) == FALSE ) {
-		// this machine does not have write permission; return failure
-		dprintf(D_ALWAYS,"QMGT command failed: no WRITE permission for %s\n",
-			Q_SOCK->endpoint_ip_str() );
 		return false;
 	}
 
@@ -903,14 +1048,80 @@ OwnerCheck(ClassAd *ad, const char *test_owner)
 }
 
 
+QmgmtPeer*
+getQmgmtConnectionInfo()
+{
+	// put all qmgmt state back into QmgmtPeer object for safe keeping
+	if ( Q_SOCK ) {
+		Q_SOCK->next_proc_num = next_proc_num;
+		Q_SOCK->active_cluster_num = active_cluster_num;	
+		Q_SOCK->old_cluster_num = old_cluster_num;
+		Q_SOCK->xact_start_time = xact_start_time;
+		Q_SOCK->transaction  = JobQueue->getActiveTransaction();
+	}
+
+	return Q_SOCK;
+}
+
+bool
+setQmgmtConnectionInfo(QmgmtPeer *peer)
+{
+	bool ret_value;
+
+	if (Q_SOCK) {
+		return false;
+	}
+
+	// reset all state about our past connection to match
+	// what was stored in the QmgmtPeer object
+	Q_SOCK = peer;
+	next_proc_num = peer->next_proc_num;
+	active_cluster_num = peer->active_cluster_num;	
+	if ( peer->old_cluster_num == -1 ) {
+		// if old_cluster_num is uninitialized (-1), then
+		// store the cluster num so when we commit the transaction, we can easily
+		// see if new clusters have been submitted and thus make links to cluster ads
+		peer->old_cluster_num = next_cluster_num;
+	}
+	old_cluster_num = peer->old_cluster_num;
+	xact_start_time = peer->xact_start_time;
+	ret_value = JobQueue->setActiveTransaction( peer->transaction );
+
+	return ret_value;
+}
+
+void
+unsetQmgmtConnection()
+{
+	static QmgmtPeer reset;	// just used for reset/inital values
+
+	if (!Q_SOCK) {
+		// nothing to do
+		return;
+	}
+
+	JobQueue->AbortTransaction();	// clear any in-process transaction
+	
+	if ( Q_SOCK ) {
+		delete Q_SOCK;
+	}
+	Q_SOCK = NULL;
+
+	next_proc_num = reset.next_proc_num;
+	active_cluster_num = reset.active_cluster_num;	
+	old_cluster_num = reset.old_cluster_num;
+	xact_start_time = reset.xact_start_time;
+}
+
+
+
 /* We want to be able to call these things even from code linked in which
    is written in C, so we make them C declarations
 */
 extern "C" {
 
-
 bool
-setQSock( ReliSock* rsock )
+setQSock( ReliSock* rsock)
 {
 	// initialize per-connection variables.  back in the day this
 	// was essentially InvalidateConnection().  of particular 
@@ -920,12 +1131,24 @@ setQSock( ReliSock* rsock )
 	// If rsock is NULL, that means the request is internal to the schedd
 	// itself, and thus anything goes!
 
-	// store the cluster num so when we commit the transaction, we can easily
-	// see if new clusters have been submitted and thus make links to cluster ads
-	old_cluster_num = next_cluster_num;	
-	active_cluster_num = -1;
-	Q_SOCK = rsock;
-	return true;
+	bool ret_val = false;
+
+	unsetQmgmtConnection();
+
+	QmgmtPeer* p = new QmgmtPeer;
+	ASSERT(p);
+
+	if ( p->set(rsock) ) {
+		// success
+		ret_val =  setQmgmtConnectionInfo(p);
+	} 
+
+	if ( ret_val ) {
+		return true;
+	} else {
+		delete p;
+		return false;
+	}
 }
 
 
@@ -937,7 +1160,7 @@ unsetQSock()
 	// the QMGMT code the request originated internally, and it should
 	// be permitted (i.e. we only call OwnerCheck if Q_SOCK is not NULL).
 
-	Q_SOCK = NULL;
+	unsetQmgmtConnection();  // this set Q_SOCK to NULL
 }
 
 
@@ -945,31 +1168,27 @@ int
 handle_q(Service *, int, Stream *sock)
 {
 	int	rval;
+	bool all_good;
 
-	setQSock((ReliSock*)sock);
+	all_good = setQSock((ReliSock*)sock);
+
+		// if setQSock failed, unset it to purge any old/stale
+		// connection that was never cleaned up, and try again.
+	if ( !all_good ) {
+		unsetQSock();
+		all_good = setQSock((ReliSock*)sock);
+	}
+	if (!all_good && sock) {
+		// should never happen
+		EXCEPT("handle_q: Unable to setQSock!!");
+	}
+	ASSERT(Q_SOCK);
 
 	JobQueue->BeginTransaction();
 
-	// note what time we started the transaction (used by SetTimerAttribute())
-	xact_start_time = time( NULL );
-
-	// store the cluster num so when we commit the transaction, we can easily
-	// see if new clusters have been submitted and thus make links to cluster ads
-	old_cluster_num = next_cluster_num;
-
-	// initialize per-connection variables.  back in the day this
-	// was essentially InvalidateConnection().  of particular
-	// importance is setting Q_SOCK... this tells the rest of the QMGMT
-	// code the request is from an external user instead of originating
-	// from within the schedd itself.
-	Q_SOCK = (ReliSock *)sock;
-	//Q_SOCK->unAuthenticate();
-
-	active_cluster_num = -1;
-
 	do {
 		/* Probably should wrap a timer around this */
-		rval = do_Q_request( (ReliSock *)Q_SOCK );
+		rval = do_Q_request( Q_SOCK->getReliSock() );
 	} while(rval >= 0);
 
 
@@ -1463,7 +1682,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 
 	// check for security violations.
 	// first, make certain ATTR_OWNER can only be set to who they really are.
-	if (Q_SOCK && stricmp(attr_name, ATTR_OWNER) == 0) // TODD SOAP CHANGE!  REVIEW!  TODO
+	if (Q_SOCK && stricmp(attr_name, ATTR_OWNER) == 0) 
 	{
 		if ( !Q_SOCK ) {
 			EXCEPT( "Trying to setAttribute( ATTR_OWNER ) and Q_SOCK is NULL" );
@@ -2484,7 +2703,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			// So, set Q_SOCK to be NULL before placing the job on hold
 			// so that SetAttribute knows this request is not coming from
 			// a client.  Then restore Q_SOCK back to the original value.
-			ReliSock* saved_sock = Q_SOCK;
+			QmgmtPeer* saved_sock = Q_SOCK;
 			Q_SOCK = NULL;
 			holdJob(cluster_id, proc_id, hold_reason.Value());
 			Q_SOCK = saved_sock;
@@ -2558,7 +2777,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 				// knows this request is not coming from a client.
 				// Then restore Q_SOCK back to the original value.
 
-				ReliSock* saved_sock = Q_SOCK;
+				QmgmtPeer* saved_sock = Q_SOCK;
 				Q_SOCK = NULL;
 				holdJob(cluster_id, proc_id, hold_reason.Value());
 				Q_SOCK = saved_sock;
@@ -2591,7 +2810,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 				// knows this request is not coming from a client.
 				// Then restore Q_SOCK back to the original value.
 
-				ReliSock* saved_sock = Q_SOCK;
+				QmgmtPeer* saved_sock = Q_SOCK;
 				Q_SOCK = NULL;
 				holdJob(cluster_id, proc_id, hold_reason.Value());
 				Q_SOCK = saved_sock;
@@ -2716,26 +2935,26 @@ SendSpoolFile(char *filename)
 		return -1;
 	}
 
-	if ( !Q_SOCK ) {
+	if ( !Q_SOCK || !Q_SOCK->getReliSock() ) {
 		EXCEPT( "SendSpoolFile called when Q_SOCK is NULL" );
 	}
 	/* Tell client to go ahead with file transfer. */
-	Q_SOCK->encode();
-	Q_SOCK->put(0);
-	Q_SOCK->eom();
+	Q_SOCK->getReliSock()->encode();
+	Q_SOCK->getReliSock()->put(0);
+	Q_SOCK->getReliSock()->eom();
 
 	/* Read file size from client. */
 	filesize_t	size;
-	Q_SOCK->decode();
-	if (Q_SOCK->get_file(&size, path) < 0) {
+	Q_SOCK->getReliSock()->decode();
+	if (Q_SOCK->getReliSock()->get_file(&size, path) < 0) {
 		dprintf(D_ALWAYS, "Failed to receive file from client in SendSpoolFile.\n");
-		Q_SOCK->eom();
+		Q_SOCK->getReliSock()->eom();
 		return -1;
 	}
 
 	chmod(path,00755);
 
-	// Q_SOCK->eom();
+	// Q_SOCK->getReliSock()->eom();
 	dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
 	return 0;
 }
