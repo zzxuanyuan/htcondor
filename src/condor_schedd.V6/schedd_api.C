@@ -16,8 +16,6 @@
   * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
   * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
   * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-template class HashTable<int, ScheddTransaction *>;
-template class HashTable<PROC_ID, Job *>;
   * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
   * RIGHT.
   *
@@ -532,6 +530,7 @@ ScheddTransactionManager::createTransaction(const char *owner,
 int
 ScheddTransactionManager::getTransaction(int id, ScheddTransaction *&transaction)
 {
+	transaction = NULL;
 	return transactions.lookup(id, transaction);
 }
 
