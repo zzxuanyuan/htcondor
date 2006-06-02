@@ -209,6 +209,14 @@ SOURCE=..\src\condor_util_lib\filename_tools.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_util_lib\fs_util.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_includes\fs_util.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_util_lib\get_exec_path.c
 # End Source File
 # Begin Source File
