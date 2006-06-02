@@ -21,10 +21,6 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "config.h"
-#include "condor_constants.h"
-#include "fs_util.h"
-
 #ifdef FS_UTIL_TEST
 # include <stdio.h>
 # include <stdlib.h>
@@ -33,6 +29,13 @@
 # include "condor_common.h"
 # include "condor_debug.h"
 #endif
+
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include "condor_constants.h"
+#include "fs_util.h"
 
 #if ( defined HAVE_STATVFS ) && ( defined HAVE_STRUCT_STATVFS_F_BASETYPE )
 # define USE_STATVFS
@@ -174,7 +177,9 @@ fs_detect_nfs( const char *path,
 #elif defined USE_STATVFS
 	return detect_nfs_statvfs( path, is_nfs );
 #else
+#if !defined(WIN32)
 #	warning "No valid fs type detection"
+#endif
 	*is_nfs = FALSE;
 	return 0;
 #endif
