@@ -31,7 +31,7 @@
 #endif
 
 #if HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "condor_constants.h"
@@ -177,9 +177,9 @@ fs_detect_nfs( const char *path,
 #elif defined USE_STATVFS
 	return detect_nfs_statvfs( path, is_nfs );
 #else
-#if !defined(WIN32)
+#  if !defined(WIN32)
 #	warning "No valid fs type detection"
-#endif
+#  endif
 	*is_nfs = FALSE;
 	return 0;
 #endif
