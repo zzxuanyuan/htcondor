@@ -61,7 +61,7 @@ static ScheddTransactionManager transactionManager;
 /*************************************
 	HELPER FUNCTIONS
 ************************************/
-bool
+static bool
 Reschedule()
 {
 		// XXX: Abstract this, it was stolen from Scheduler::reschedule_negotiator!
@@ -100,7 +100,7 @@ verify(DCpermission perm,
 	return true;
 }
 
-bool
+static bool
 verify_owner(int clusterId, int jobId, char *owner)
 {
 	ClassAd *ad = NULL;
@@ -172,12 +172,12 @@ extendTransaction(const struct condor__Transaction *transaction)
 // decent, all the logic should move OUT of the stubs and into the
 // schedd proper... since it should all work the same from the cedar
 // side as well.
-int
-condor__transtimeout()
+static int
+transtimeout()
 {
 	struct condor__abortTransactionResponse result;
 
-	dprintf(D_FULLDEBUG, "SOAP in condor__transtimeout()\n");
+	dprintf(D_FULLDEBUG, "SOAP in transtimeout()\n");
 
 	condor__Transaction transaction;
 	transaction.id = current_trans_id;
@@ -228,7 +228,7 @@ condor__beginTransaction(struct soap *soap,
 
 	trans_timer_id =
 		daemonCore->Register_Timer(duration,
-								   (TimerHandler)&condor__transtimeout,
+								   (TimerHandler)&transtimeout,
 								   "condor_transtimeout");
 	daemonCore->Only_Allow_Soap(duration);
 
