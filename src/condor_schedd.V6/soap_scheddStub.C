@@ -82,34 +82,58 @@ verify(DCpermission perm,
 	   const struct soap *soap,
 	   struct condor__Status *status)
 {
-	if (soap->user) {
-		if (daemonCore->Verify(perm,
-							   &soap->peer,
-							   (char *) soap->user) == USER_AUTH_FAILURE) {
-			dprintf(D_FULLDEBUG,
-					"SOAP call rejected, no permission for user %s\n",
-					(char *) soap->user);
+	ASSERT(soap);
 
+
+	if (daemonCore->Verify(perm,
+				&soap->peer,
+				soap->user ? (char*)soap->user : NULL) != USER_AUTH_SUCCESS)
+	{
+		dprintf(D_FULLDEBUG,
+				"SOAP call rejected, no permission for user %s/%s\n",
+				soap->user ? (char*)soap->user : "NULL",
+				sin_to_string(&soap->peer));
+
+		if ( status ) {
 			status->code = FAIL;
 			status->message = "Permission denied";
-
-			return false;
 		}
+
+		return false;
 	}
 
 	return true;
 }
 
 static bool
-verify_owner(int clusterId, int jobId, char *owner)
+verify_owner(int clusterId, int jobId, char *owner, struct condor__Status *status)
 {
 	ClassAd *ad = NULL;
+	bool result;
 
 	if (!(ad = GetJobAd(clusterId, jobId))) {
-		return false;
+		// failed to get any info on this job
+		if (status ) status->message = "Failed to find job specified";
+		result = false;
+	} else {
+		result =  OwnerCheck2(ad, owner);
+		if ( result == false ) {
+			if (status) status->message = "Not job owner";
+		}
 	}
 
-	return OwnerCheck2(ad, owner);
+	if ( result == false ) {
+			dprintf(D_FULLDEBUG,
+				"SOAP call rejected, user %s cannot modify job %d.%d\n",
+				owner ? owner : "NULL",
+				clusterId,jobId	);
+			if ( status) {
+				status->code = FAIL;
+				status->message = "Not job owner";
+			}
+	}
+
+	return result;
 }
 
 static bool
@@ -185,6 +209,85 @@ transtimeout()
 	return TRUE;
 }
 
+static bool
+stub_prefix(const char* stub_name,   // IN
+			const struct soap *soap, // IN
+			const int clusterId,	 // IN
+			const int jobId,		 // IN
+			const DCpermission perm,  // IN
+			const bool must_have_transid,  // IN
+			struct condor__Transaction* & transaction, // IN/OUT
+			struct condor__Status* & result,		// OUT
+			ScheddTransaction* & entry )	// OUT
+{
+	static condor__Transaction null_transaction;
+	entry = NULL;
+
+	if (transaction == NULL ) {
+		// point to a NULL transaction object
+		transaction = &null_transaction;
+		transaction->id = 0;	// id  means NO transaction
+		transaction->duration = 0;
+	}
+
+		// print out something to the log if we have stub name
+	if ( stub_name ) {
+		dprintf(D_FULLDEBUG,
+			"SOAP entered %s(), transaction: %u\n",
+			stub_name,transaction->id);
+	}
+
+
+		// fail if we must have a transid, and we were not give one
+	if ( must_have_transid && !transaction->id ) {
+		if ( result ) {
+			result->code = INVALIDTRANSACTION;
+			result->message = "Invalid transaction";
+		}
+		return false;
+	} 
+
+		// if we were given a transid, it had better be valid
+	if (transaction->id &&
+		transactionManager.getTransaction(transaction->id, entry)) 
+	{
+		if ( result ) {
+			result->code = INVALIDTRANSACTION;
+			result->message = "Invalid transaction";
+		}
+		return false;
+	} 
+
+		// now that we know our transaction is valid, extend it
+	if ( transaction->id ) {
+		extendTransaction(transaction);
+	}
+
+	if (!verify(perm, soap, result)) {
+			// verify() sets the result StatusCode/Message
+		return false;
+	}
+
+	if (soap->user && clusterId) {
+		if (!verify_owner(clusterId, jobId, (char *) soap->user, result)) {
+				// verify_owner() sets the result StatusCode/Message			
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+static bool
+stub_suffix(const char* stub_name,   // IN
+			const struct soap *soap, // IN
+			const ScheddTransaction* entry )	// IN, could be null
+{
+	// Cleanup transaction stuff here
+
+	return true;
+}
 
 /*************************************
 	SOAP STUBS
