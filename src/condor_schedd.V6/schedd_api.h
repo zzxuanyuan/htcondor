@@ -218,21 +218,21 @@ public:
 		   transaction. The value returned is 0 on success and non-0
 		   otherwise.
 		 */
-	int begin();
+	virtual int begin();
 
 		/**
 		   Abort the transaction. A ScheddTransaction should be
 		   deleted and never used after an abort. Aborting a
 		   transaction cannot fail (should not).
 		 */
-	void abort();
+	virtual void abort();
 
 		/**
 		   Commit the transaction, making all operations performed in
 		   the transaction lasting. The value returned is 0 on success
 		   and non-0 otherwise.
 		 */
-	int commit();
+	virtual int commit();
 
 		/**
 		   Create a new cluster. The return value is 0 on success and
@@ -240,7 +240,7 @@ public:
 
 		   @param id The new cluster's id, returned.
 		 */
-	int newCluster(int &id);
+	virtual int newCluster(int &id);
 
 		/**
 		   Create a new job, must be within the context of an existing
@@ -251,7 +251,7 @@ public:
 		   @param id The new job's id, returned
 		   @param errstack A handy CondorError stack
 		 */
-	int newJob(int clusterId, int &id, CondorError &errstack);
+	virtual int newJob(int clusterId, int &id, CondorError &errstack);
 
  		/**
 		   Retrieve a job that has previously been created with
@@ -261,7 +261,7 @@ public:
 		   @param id The id of the job to return
 		   @param job A pointer to the job
 		 */
-	int getJob(PROC_ID id, Job *&job);
+	virtual int getJob(PROC_ID id, Job *&job);
 
 		/**
 		   Remove a job from the transaction's memory, this does not
@@ -270,7 +270,7 @@ public:
 
 		   @param id The id of the job to remove
 		 */
-	int removeJob(PROC_ID id);
+	virtual int removeJob(PROC_ID id);
 
 		/**
 		   Remove a cluster from the transaction's memory, this does
@@ -281,7 +281,7 @@ public:
 
 		   @param id The id of the cluster to remove
 		 */
-	int removeCluster(int clusterId);
+	virtual int removeCluster(int clusterId);
 
 		/**
 		   Query the queue for a job, which is returned in the ad
@@ -325,7 +325,7 @@ protected:
 		*/
 	ScheddTransaction(const char *owner);
 
-	~ScheddTransaction();
+	virtual ~ScheddTransaction();
 
 	//Transaction *transaction; XXX: Uncomment when we have multiple xacts
 	char *owner;
@@ -379,5 +379,29 @@ protected:
 	HashTable<int, ScheddTransaction *> transactions;
 };
 
+
+/*****************************************************************************
+	   NullScheddTransaction, used when no ScheddTransaction is available...
+*****************************************************************************/
+
+class NullScheddTransaction: protected ScheddTransaction
+{
+	friend bool stub_prefix(const char*, const soap*, int, int, DCpermission, bool, condor__Transaction*&, condor__Status&, ScheddTransaction*&);
+
+public:
+	virtual int begin();
+	virtual void abort();
+	virtual int commit();
+	virtual int newCluster(int &id);
+	virtual int newJob(int clusterId, int &id, CondorError &errstack);
+	virtual int getJob(PROC_ID id, Job *&job);
+	virtual int removeJob(PROC_ID id);
+	virtual int removeCluster(int clusterId);
+
+protected:
+	NullScheddTransaction(const char *owner);
+
+	virtual ~NullScheddTransaction();
+};
 
 #endif

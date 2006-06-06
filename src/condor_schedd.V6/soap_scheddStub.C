@@ -108,7 +108,10 @@ verify(DCpermission perm,
 }
 
 static bool
-verify_owner(int clusterId, int jobId, char *owner, struct condor__Status &status)
+verify_owner(int clusterId,
+			 int jobId,
+			 char *owner,
+			 struct condor__Status &status)
 {
 	ClassAd *ad = NULL;
 	bool result;
@@ -226,8 +229,10 @@ stub_prefix(const char* stub_name,   // IN
 			struct condor__Status & result,		// OUT
 			ScheddTransaction* & entry )	// OUT
 {
+	static NullScheddTransaction null_entry(NULL);
 	static condor__Transaction null_transaction;
-	entry = NULL;
+
+	entry = &null_entry;
 
 	if (transaction == NULL ) {
 		// point to a NULL transaction object
@@ -553,8 +558,8 @@ condor__removeCluster(struct soap *soap,
 	ScheddTransaction *entry;
 	if (!stub_prefix("removeCluster",
 					 soap,
-					 clusterId,
-					 0, // XXX: what should i use here?
+					 0, // We manually check below...
+					 0,
 					 WRITE,
 					 false,
 					 transaction,
@@ -565,6 +570,37 @@ condor__removeCluster(struct soap *soap,
 
 	MyString constraint;
 	constraint.sprintf("%s==%d", ATTR_CLUSTER_ID, clusterId);
+
+        // NOTE: There is an assumption here that the owner of the
+        // first job in a cluster is the owner of all the jobs in
+        // the cluster!
+	if (soap->user) {
+        ClassAd *an_ad;
+        int jobId;
+        if (!(an_ad = GetNextJobByConstraint(constraint.GetCStr(), 1))) {
+				// Nothing to remove, this is strange
+			result.response.code = FAIL;
+			result.response.message = "Cluster not found";
+
+			return SOAP_OK;
+        }
+
+        if (!an_ad->LookupInteger(ATTR_PROC_ID, jobId)) {
+			result.response.code = FAIL;
+			result.response.message = "Owner not verifiable";
+
+			return SOAP_OK;
+        }
+
+        if (!verify_owner(clusterId,
+						  jobId,
+						  (char *) soap->user,
+						  result.response)) {
+			result.response.message = "Not cluster owner";
+
+			return SOAP_OK;
+        }
+	}
 
 	if (abortJobsByConstraint(constraint.GetCStr(),
 							  reason,

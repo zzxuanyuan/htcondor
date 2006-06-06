@@ -683,3 +683,59 @@ ScheddTransaction::getOwner()
 {
 	return this->owner;
 }
+
+/*****************************************************************************
+	   NullScheddTransaction, used when no ScheddTransaction is available...
+*****************************************************************************/
+
+NullScheddTransaction::NullScheddTransaction(const char *owner):
+	ScheddTransaction(NULL)
+{
+}
+
+NullScheddTransaction::~NullScheddTransaction() { }
+
+int
+NullScheddTransaction::begin()
+{
+	return -1;
+}
+
+void
+NullScheddTransaction::abort() { }
+
+int
+NullScheddTransaction::commit()
+{
+	return -1;
+}
+
+int
+NullScheddTransaction::newCluster(int &id)
+{
+	return -2;
+}
+
+int
+NullScheddTransaction::newJob(int clusterId, int &id, CondorError &errstack)
+{
+	return -4;
+}
+
+int
+NullScheddTransaction::getJob(PROC_ID id, Job *&job)
+{
+	return 0;
+}
+
+int
+NullScheddTransaction::removeJob(PROC_ID id)
+{
+	return 0;
+}
+
+int
+NullScheddTransaction::removeCluster(int clusterId)
+{
+	return 0;
+}
