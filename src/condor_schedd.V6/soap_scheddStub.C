@@ -65,7 +65,6 @@ static ScheddTransactionManager transactionManager;
 static bool
 Reschedule()
 {
-		// XXX: Abstract this, it was stolen from Scheduler::reschedule_negotiator!
 
 	scheduler.timeout();		// update the central manager now
 
@@ -339,9 +338,6 @@ condor__beginTransaction(struct soap *soap,
 	}
 
 	if ( current_trans_id ) {
-			// if there is an existing transaction, deny the request
-			// XXX TODO - support more than one active transaction!!!
-
 		result.response.status.code = FAIL;
 		result.response.status.message =
 			"Maximum number of transactions reached";
@@ -381,9 +377,7 @@ condor__beginTransaction(struct soap *soap,
 		result.response.transaction.duration = entry->duration;
 		result.response.status.code = SUCCESS;
 		result.response.status.message = "Success";
-			// XXX: Todd, what does this do?
-			// Tell the qmgmt layer to allow anything -- that is, until we
-			// authenticate the client.
+
 		setQSock(NULL);
 
 		if (entry->begin()) {
@@ -422,7 +416,6 @@ condor__commitTransaction(struct soap *soap,
 		dprintf(D_ALWAYS, "condor__commitTransaction cleanup failed\n");
 	}
 
-		// XXX: This should all go away
 	current_trans_id = 0;
 	if ( trans_timer_id != -1 ) {
 		daemonCore->Cancel_Timer(trans_timer_id);
@@ -464,7 +457,6 @@ condor__abortTransaction(struct soap *soap,
 		dprintf(D_ALWAYS, "condor__abortTransaction cleanup failed\n");
 	}
 
-		// XXX: This should go away
 	current_trans_id = 0;
 	if (trans_timer_id != -1) {
 		daemonCore->Cancel_Timer(trans_timer_id);
@@ -574,7 +566,6 @@ condor__removeCluster(struct soap *soap,
 	MyString constraint;
 	constraint.sprintf("%s==%d", ATTR_CLUSTER_ID, clusterId);
 
-		// XXX: This should be done within the scheddTransaction's transaction
 	if (abortJobsByConstraint(constraint.GetCStr(),
 							  reason,
 							  transaction->id ? false : true)) {
@@ -606,8 +597,8 @@ condor__newJob(struct soap *soap,
 	ScheddTransaction *entry;
 	if (!stub_prefix("newJob",
 					 soap,
-					 clusterId,
-					 0, // XXX: what should i use here?
+					 0,
+					 0,
 					 WRITE,
 					 true,
 					 transaction_ptr,
@@ -669,8 +660,6 @@ condor__removeJob(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		// XXX: This should be done within the scheddTransaction's
-		// transaction
 	if (!abortJob(clusterId,
 				  jobId,
 				  reason,
@@ -718,7 +707,6 @@ condor__holdJob(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		// XXX: ScheddTransaction needs a HoldJob...
 	if (!holdJob(clusterId,jobId,reason,transaction->id ? false : true,
 				 true, email_user, email_admin, system_hold)) {
 		result.response.code = FAIL;
@@ -757,7 +745,6 @@ condor__releaseJob(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		// XXX: ScheddTransaction needs a RelaseJob...
 	if (!releaseJob(clusterId,jobId,reason,transaction->id ? false : true,
 					email_user, email_admin)) {
 		result.response.code = FAIL;
@@ -802,7 +789,7 @@ condor__submit(struct soap *soap,
 													(char *) soap->user);
 
 	if (!authorized) {
-		result.response.status.code = FAIL; // XXX: need new error?
+		result.response.status.code = FAIL; 
 		result.response.status.message = "Not authorized";
 	} else {
 		Job *job;
@@ -877,17 +864,6 @@ condor__getJobAds(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		/*
-		  XXX:
-		  THIS CODE GOES IN THE NULLSCHEDDTRANSACTION
-		  if (null_transaction(transaction)) {
-			  // XXX: Duplicate code with ScheddTransaction::queryJobAds
-			  ClassAd *ad = GetNextJobByConstraint(constraint, 1);
-			  while (ad) {
-			  adList.Append(ad);
-			  ad = GetNextJobByConstraint(constraint, 0);
-			  }
-			  }*/
 
 	List<ClassAd> adList;
 	if (entry->queryJobAds(constraint, adList)) {
@@ -938,7 +914,6 @@ condor__getJobAd(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		// XXX: Need NULLSCHEDDTRANSACTION::queryJobAd to work outside an xact
 	ClassAd *ad;
 	PROC_ID id; id.cluster = clusterId; id.proc = jobId;
 	if (entry->queryJobAd(id, ad)) {
@@ -1106,7 +1081,6 @@ int condor__getFile(struct soap *soap,
 	Job *job;
 	PROC_ID id; id.cluster = clusterId; id.proc = jobId;
 	if (entry->getJob(id, job)) {
-			// XXX: Very similar code is in condor__listSpool()
 			// All this because you can getFile outside of a
 			// transaction, or get a file from a job that is not
 			// part of a transaction, e.g. previously submitted.
@@ -1195,11 +1169,6 @@ int condor__closeSpool(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		// XXX: ScheddTransaction needs to do this too, actually,
-		// maybe ScheddTransaction should be pushed to a lower
-		// level and support all the Set/Get/Hold/crap instead of
-		// having versions of those calls that take the
-		// transaction they will operate on?
 	if (SetAttribute(clusterId, jobId, "FilesRetrieved", "TRUE")) {
 		result.response.code = FAIL;
 		result.response.message = "Failed to set FilesRetrieved attribute.";
@@ -1471,8 +1440,6 @@ condor__createJobTemplate(struct soap *soap,
 	}
 	job->AssignExpr(ATTR_JOB_LEAVE_IN_QUEUE, attribute.GetCStr());
 
-		// XXX: Where did this code come from, why is it important?
-		// -Matt CW06
 	ArgList arglist;
 	MyString arg_errors;
 	if(!arglist.AppendArgsV2Raw(args,&arg_errors) ||
