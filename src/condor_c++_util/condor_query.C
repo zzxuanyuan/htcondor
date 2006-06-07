@@ -175,6 +175,13 @@ CondorQuery (AdTypes qType)
 		command = QUERY_HAD_ADS;
 		break;
 
+	  case REPLICATION_AD:
+	  	query.setNumStringCats (0);
+        query.setNumIntegerCats(0);
+        query.setNumFloatCats  (0);
+        command = QUERY_REPLICATION_ADS;
+		break;
+
 	  case STORAGE_AD:
 		query.setNumStringCats (0);
 		query.setNumIntegerCats(0);

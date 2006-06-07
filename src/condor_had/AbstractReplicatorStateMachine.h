@@ -10,6 +10,8 @@
 #include "dc_service.h"
 #include "list.h"
 
+class CollectorList;
+
 /* Class      : AbstractReplicatorStateMachine
  * Description: base abstract class for replication service state machine,
  *              contains useful functions for implementation of replication, 
@@ -250,6 +252,11 @@ protected:
 		int    m_pid;
     	time_t m_lastTimeCreated;
 	};
+// classad-specific
+	void initializeClassAd();
+	// collector updates' timer handler
+	//void updateCollectors();
+	
 	// local version
     Version                  m_myVersion;
     // list of versions sent to the daemon during JOINING state
@@ -296,6 +303,13 @@ protected:
 	// for handling the problem of stuck transferer processes
 	ProcessMetadata          m_downloadTransfererMetadata;
 	List<ProcessMetadata>    m_uploadTransfererMetadataList;
+
+// classad-specific data members
+    // info about our central manager
+	CollectorList* m_collectorsList;
+	ClassAd*       m_classAd;
+	int            m_updateCollectorInterval;
+//	int            m_updateCollectorTimerId;
 };
 
 #endif // ABSTRACT_REPLICATOR_STATE_MACHINE_H

@@ -76,6 +76,7 @@ CollectorEngine::CollectorEngine (CollectorStats *stats ) :
 	CollectorAds  (LESSER_TABLE_SIZE , &adNameHashFunction),
 	NegotiatorAds (LESSER_TABLE_SIZE , &adNameHashFunction),
 	HadAds        (LESSER_TABLE_SIZE , &adNameHashFunction),
+	ReplicationAds(LESSER_TABLE_SIZE , &adNameHashFunction),
 	GenericAds    (LESSER_TABLE_SIZE , &stringHashFunction)
 {
 	clientTimeout = 20;
@@ -106,6 +107,7 @@ CollectorEngine::
 	killHashTable (GatewayAds);
 	killHashTable (NegotiatorAds);
 	killHashTable (HadAds);
+	killHashTable (ReplicationAds);
 	GenericAds.walk(killGenericHashTable);
 }
 
@@ -207,6 +209,10 @@ invokeHousekeeper (AdTypes adtype)
 		case HAD_AD:
 			cleanHashTable (HadAds, now, makeHadAdHashKey);
 			break;			
+
+		case REPLICATION_AD:
+			cleanHashTable (ReplicationAds, now, makeReplicationAdHashKey);
+			break;
 
 	        case GENERIC_AD:
 			CollectorHashTable *cht;
@@ -339,6 +345,10 @@ walkHashTable (AdTypes adType, int (*scanFunction)(ClassAd *))
 		table = &HadAds;
 		break;
 
+	  case REPLICATION_AD:
+	  	table = &ReplicationAds;
+		break;
+
 	  case ANY_AD:
 		return
 			StorageAds.walk(scanFunction) &&
@@ -353,8 +363,8 @@ walkHashTable (AdTypes adType, int (*scanFunction)(ClassAd *))
 			QuillAds.walk(scanFunction) &&
 #endif
 			HadAds.walk(scanFunction) &&
+			ReplicationAds.walk(scanFunction) &&
 			walkGenericTables(scanFunction);
-
 
 	  default:
 		dprintf (D_ALWAYS, "Unknown type %d\n", adType);
@@ -666,6 +676,19 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		retVal=updateClassAd (HadAds, "HadAd  ", "HAD",
 							  clientAd, hk, hashString, insert, from );
 		break;
+	  case UPDATE_REPLICATION_AD:
+	  	  if (!makeReplicationAdHashKey (hk, clientAd, from))
+        {
+            dprintf (D_ALWAYS, "Could not make hashkey --- ignoring ad\n");
+            insert = -3;
+            retVal = 0;
+            break;
+        }
+        hashString.Build( hk );
+        retVal=updateClassAd (ReplicationAds, "ReplicationAd  ", "Replication",
+                              clientAd, hk, hashString, insert, from );
+        break; 
+
 	  case UPDATE_AD_GENERIC:
 	  {
 		  const char *type_str = clientAd->GetMyTypeName();
@@ -801,6 +824,11 @@ lookup (AdTypes adType, AdNameHashKey &hk)
 				return 0;
 			break;
 
+		case REPLICATION_AD:
+			if (ReplicationAds.lookup (hk, val) == -1)
+				return 0;
+			break;
+
 		default:
 			val = 0;
 	}
@@ -851,6 +879,9 @@ remove (AdTypes adType, AdNameHashKey &hk)
 
 		case HAD_AD:
 			return !HadAds.remove (hk);
+
+		case REPLICATION_AD:
+			return !ReplicationAds.remove (hk);
 
 		default:
 			return 0;
@@ -1020,6 +1051,9 @@ housekeeper()
 
 	dprintf (D_ALWAYS, "\tCleaning HadAds ...\n");
 	cleanHashTable (HadAds, now, makeHadAdHashKey);
+
+	dprintf (D_ALWAYS, "\tCleaning ReplicationAds ...\n");
+	cleanHashTable (ReplicationAds, now, makeReplicationAdHashKey);
 
 	dprintf (D_ALWAYS, "\tCleaning Generic Ads ...\n");
 	CollectorHashTable *cht;

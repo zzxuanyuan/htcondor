@@ -153,6 +153,8 @@ void CollectorDaemon::Init()
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	daemonCore->Register_Command(QUERY_HAD_ADS,"QUERY_HAD_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
+	daemonCore->Register_Command(QUERY_REPLICATION_ADS,"QUERY_REPLICATION_ADS",
+	    (CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	daemonCore->Register_Command(QUERY_ANY_ADS,"QUERY_ANY_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	
@@ -196,6 +198,9 @@ void CollectorDaemon::Init()
 	daemonCore->Register_Command(INVALIDATE_HAD_ADS,
 		"INVALIDATE_HAD_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
+	daemonCore->Register_Command(INVALIDATE_REPLICATION_ADS,
+        "INVALIDATE_REPLICATION_ADS", (CommandHandler)receive_invalidation,
+        "receive_invalidation",NULL,DAEMON);
 	daemonCore->Register_Command(INVALIDATE_ADS_GENERIC,
 		"INVALIDATE_ADS_GENERIC", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
@@ -233,6 +238,8 @@ void CollectorDaemon::Init()
 		(CommandHandler)receive_update,"receive_update",NULL,NEGOTIATOR);
 	daemonCore->Register_Command(UPDATE_HAD_AD,"UPDATE_HAD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
+	daemonCore->Register_Command(UPDATE_REPLICATION_AD,"UPDATE_REPLICATION_AD",
+	        (CommandHandler)receive_update,"receive_update",NULL,DAEMON);
 	daemonCore->Register_Command(UPDATE_AD_GENERIC, "UPDATE_AD_GENERIC",
 				     (CommandHandler)receive_update,
 				     "receive_update", NULL, DAEMON);
@@ -388,6 +395,11 @@ CollectorDaemon::receive_query_public( int command )
 		whichAds = HAD_AD;
 		break;
 
+	  case QUERY_REPLICATION_ADS:
+        dprintf (D_FULLDEBUG,"Got QUERY_REPLICATION_ADS\n");
+        whichAds = REPLICATION_AD;
+        break;
+
 	  case QUERY_ANY_ADS:
 		dprintf (D_FULLDEBUG,"Got QUERY_ANY_ADS\n");
 		whichAds = ANY_AD;
@@ -478,6 +490,11 @@ int CollectorDaemon::receive_invalidation(Service* s, int command, Stream* sock)
 		dprintf (D_ALWAYS, "Got INVALIDATE_HAD_ADS\n");
 		whichAds = HAD_AD;
 		break;
+
+	  case INVALIDATE_REPLICATION_ADS:
+        dprintf (D_ALWAYS, "Got INVALIDATE_REPLICATION_ADS\n");
+        whichAds = REPLICATION_AD;
+        break;
 
 	  case INVALIDATE_STORAGE_ADS:
 		dprintf (D_ALWAYS, "Got INVALIDATE_STORAGE_ADS\n");
@@ -650,6 +667,7 @@ CollectorDaemon::sockCacheHandler( Service*, Stream* sock )
 	case UPDATE_COLLECTOR_AD:
 	case UPDATE_NEGOTIATOR_AD:
 	case UPDATE_HAD_AD:
+	case UPDATE_REPLICATION_AD:
 	case UPDATE_LICENSE_AD:
 	case UPDATE_STORAGE_AD:
 	case UPDATE_AD_GENERIC:
@@ -668,6 +686,7 @@ CollectorDaemon::sockCacheHandler( Service*, Stream* sock )
 	case INVALIDATE_COLLECTOR_ADS:
 	case INVALIDATE_NEGOTIATOR_ADS:
 	case INVALIDATE_HAD_ADS:
+	case INVALIDATE_REPLICATION_ADS:
 	case INVALIDATE_LICENSE_ADS:
 	case INVALIDATE_STORAGE_ADS:
 		return receive_invalidation( NULL, cmd, sock );

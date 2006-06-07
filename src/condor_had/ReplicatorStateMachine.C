@@ -2,7 +2,10 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 // for 'param' function
 #include "condor_config.h"
-
+// for ATTR_REPLICATION_IS_ACTIVE
+#include "condor_attributes.h"
+// for CollectorList
+#include "daemon_list.h"
 #include "ReplicatorStateMachine.h"
 //#include "HadCommands.h"
 //#include "ReplicationCommands.h"
@@ -105,6 +108,8 @@ ReplicatorStateMachine::ReplicatorStateMachine()
    	m_useReplication            = false; 
 	m_lastHadAliveTime          = -1;
    	srand( time( NULL ) );
+	// classad-related initializations
+	m_updateCollectorTimerId    = -1;
 }
 // finalizing the delta, belonging to this class only, since the data, belonging
 // to the base class is finalized implicitly
@@ -143,7 +148,10 @@ ReplicatorStateMachine::finalizeDelta( )
 	m_useReplication                    = false;
 	// 'm_lastHadAliveTime' must preserve from one reconfiguration to another
     // m_lastHadAliveTime                  = -1;
+	// classad-related finalizings
+	utilCancelTimer( m_updateCollectorTimerId );
 }
+
 void
 ReplicatorStateMachine::initialize( )
 {
@@ -306,6 +314,7 @@ ReplicatorStateMachine::afterLeaderStateHandler( )
 
 	utilPrintStep( m_state, BACKUP, "REPLICATION" );
 	m_state = BACKUP;
+	updateCollectorsClassAd( "False" );
 }
 
 void
@@ -485,6 +494,7 @@ ReplicatorStateMachine::becomeLeader( )
     gidSelectionHandler( );
     utilPrintStep( m_state, REPLICATION_LEADER, "REPLICATION" );
 	m_state = REPLICATION_LEADER;
+	updateCollectorsClassAd( "True" );
 }
 /* Function   : onLeaderVersion
  * Arguments  : stream - socket, through which the data is received and sent
@@ -696,10 +706,18 @@ ReplicatorStateMachine::softReconfigure( bool isStateChanged )
     }
 	// set a timer to replication routine
     dprintf( D_ALWAYS, "ReplicatorStateMachine::softReconfigure setting "
-                       "replication timer\n" );
+                       "replication timer each %d seconds\n",
+					   m_replicationInterval );
     m_replicationTimerId = daemonCore->Register_Timer( m_replicationInterval,
             (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
             "Time to replicate file", this );
+	dprintf( D_ALWAYS, "ReplicatorStateMachine::softReconfigure setting "
+					   "collector updating timer each %d seconds\n",
+					   m_updateCollectorInterval );
+	m_updateCollectorTimerId = daemonCore->Register_Timer (
+        0, m_updateCollectorInterval,
+        (TimerHandlercpp) &ReplicatorStateMachine::updateCollectors,
+        "Update collector", this );
 	// for debugging purposes only
     printDataMembers( );
 }
@@ -959,6 +977,7 @@ ReplicatorStateMachine::replicationTimer( )
         broadcastVersion( REPLICATION_GIVING_UP_VERSION );
         utilPrintStep( m_state, BACKUP, "REPLICATION" );
 		m_state = BACKUP;
+		updateCollectorsClassAd( "False" );
     }
 }
 /* Function   : versionRequestingTimer
@@ -1014,4 +1033,51 @@ ReplicatorStateMachine::versionDownloadingTimer( )
 				 &AbstractReplicatorStateMachine::noCommand );
 	utilPrintStep( m_state, BACKUP, "REPLICATION" );
 	m_state = BACKUP;
+	updateCollectorsClassAd( "False" );
 }
+/* Function   : updateCollectors
+ * Description: sends the classad update to collectors and resets the timer
+ *              for later updates
+ */
+void
+ReplicatorStateMachine::updateCollectors()
+{
+    dprintf( D_FULLDEBUG, "ReplicatorStateMachine::updateCollectors started\n");
+
+    if ( m_classAd ) {
+        int successfulUpdatesNumber =
+            m_collectorsList->sendUpdates( UPDATE_REPLICATION_AD, m_classAd);
+        dprintf( D_ALWAYS, "ReplicatorStateMachine::updateCollectors %d "
+                    "successful updates\n", successfulUpdatesNumber);
+    }
+	dprintf( D_ALWAYS, "ReplicatorStateMachine:updateCollectors resetting "
+                       "collector updating timer each %d seconds\n",
+                       m_updateCollectorInterval );
+    // Reset the timer for sending classads updates to collectors
+    utilCancelTimer( m_updateCollectorTimerId );
+    m_updateCollectorTimerId = daemonCore->Register_Timer (
+                                m_updateCollectorInterval,
+                                (TimerHandlercpp)
+								&ReplicatorStateMachine::updateCollectors,
+                                "Update collector", this);
+}
+/* Function  : updateCollectorsClassAd
+ * Arguments : isActive - designates whether the current daemon is active
+ *                        or not, may be equal to either "FALSE" or "TRUE"
+ * Description: updates the local classad with information about whether the
+ *              daemon is active or not and sends the update to collectors
+ */
+void
+ReplicatorStateMachine::updateCollectorsClassAd( const MyString& isActive )
+{
+	MyString line;
+
+    line.sprintf( "%s = %s", ATTR_REPLICATION_IS_ACTIVE, isActive.GetCStr( ) );
+    m_classAd->InsertOrUpdate( line.GetCStr( ) );
+
+    int successfulUpdatesNumber =
+        m_collectorsList->sendUpdates ( UPDATE_REPLICATION_AD, m_classAd );
+    dprintf( D_ALWAYS, "ReplicationStateMachine::updateCollectorsClassAd %d "
+                       "successful updates\n", successfulUpdatesNumber);
+}
+

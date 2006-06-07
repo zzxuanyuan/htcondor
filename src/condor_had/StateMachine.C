@@ -408,7 +408,7 @@ HADStateMachine::initializeClassAd()
     line.sprintf( "%s = False", ATTR_HAD_IS_ACTIVE );
     m_classAd->Insert(line.Value());
 
-	// publishing list of hads in classad
+	// publishing list of HADs in classad
 	char*      buffer     = param( "HAD_LIST" );
 	char*      hadAddress = NULL;
 	StringList hadList; 

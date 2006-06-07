@@ -141,6 +141,12 @@ private:
 	void softReconfigure( bool isStateChanged = true );
 // End of reconfiguration-related procedures
 
+// Classad-related procedures
+	// collector updates' timer handler
+    void updateCollectors();
+	void updateCollectorsClassAd( const MyString& isActive );
+// End of classad-related procedures
+
 // Configuration parameters
     int      m_replicationInterval;
     int      m_hadAliveTolerance;
@@ -155,6 +161,9 @@ private:
 // End of timers
 	// last time HAD sent HAD_IN_LEADER_STATE
     time_t  m_lastHadAliveTime;
+
+// Classad-related data
+	int     m_updateCollectorTimerId;
 
 // Debugging utilities
 	void printDataMembers()

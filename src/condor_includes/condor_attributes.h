@@ -557,6 +557,10 @@ const char ATTR_HAD_IS_ACTIVE [] = "HadIsActive";
 const char ATTR_HAD_LIST[]       = "HadList";
 const char ATTR_HAD_INDEX[]      = "HadIndex";
 
+const char ATTR_REPLICATION_IS_ACTIVE [] = "ReplicationIsActive";
+const char ATTR_REPLICATION_LIST[]       = "ReplicationList";
+const char ATTR_REPLICATION_INDEX[]      = "ReplicationIndex";
+
 // Valid settings for ATTR_JOB_MANAGED.
 	// Managed by an external process (gridmanager)
 const char MANAGED_EXTERNAL				 [] = "External";

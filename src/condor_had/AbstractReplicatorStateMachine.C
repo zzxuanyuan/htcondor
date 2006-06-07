@@ -7,11 +7,16 @@
 #include "daemon_types.h"
 // for 'getHostFromAddr'
 #include "internet.h"
+// for CollectorList
+#include "daemon_list.h"
+// for 'my_username'
+#include "my_username.h"
 
 #include "AbstractReplicatorStateMachine.h"
 //#include "ReplicationCommands.h"
 #include "FilesOperations.h"
 
+#define DEFAULT_REPLICATION_UPDATE_INTERVAL  (5 * MINUTE)
 // gcc compilation pecularities demand explicit declaration of template classes
 // and functions instantiation
 template class Item<Version>;
@@ -25,12 +30,17 @@ template void utilClearList<Version>( List<Version>& );
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine ctor started\n" );
-	m_state              = VERSION_REQUESTING;
-    m_connectionTimeout  = DEFAULT_SEND_COMMAND_TIMEOUT;
-   	m_downloadReaperId   = -1;
-   	m_uploadReaperId     = -1;
-	m_selfId             = -1;
-	m_hadSinfulString    = NULL;
+	m_state                   = VERSION_REQUESTING;
+    m_connectionTimeout       = DEFAULT_SEND_COMMAND_TIMEOUT;
+   	m_downloadReaperId        = -1;
+   	m_uploadReaperId          = -1;
+	m_selfId                  = -1;
+	m_hadSinfulString         = NULL;
+	// classad-related initializations
+	m_collectorsList          = NULL;
+	m_classAd                 = NULL;
+	m_updateCollectorInterval = -1;
+//	m_updateCollectorTimerId  = -1;
 }
 
 AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
@@ -61,7 +71,19 @@ AbstractReplicatorStateMachine::finalize( bool isStateChanged )
         free( m_hadSinfulString );
         m_hadSinfulString = NULL;
     }
-    //utilCancelReaper(m_downloadReaperId);
+	// classad-related finalizings
+    if( m_classAd != NULL) {
+        delete m_classAd;
+        m_classAd = NULL;
+    }
+    if( m_collectorsList != NULL ) {
+		delete m_collectorsList;
+		m_collectorsList = NULL;
+    }
+//	utilCancelTimer( m_updateCollectorTimerId );
+	m_updateCollectorInterval = -1;
+					 
+ 	//utilCancelReaper(m_downloadReaperId);
     //utilCancelReaper(m_uploadReaperId);
 	// upon finalizing and/or reinitialiing the existing transferer processes
 	// must be killed, otherwise we will temporarily deny creation of new
@@ -188,6 +210,13 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilNoParameterError("SPOOL", "REPLICATION").
                           GetCStr( ) );
     }
+	dprintf(D_ALWAYS, "AbstractReplicatorStateMachine::reinitialize classad "
+					  "information\n");
+	initializeClassAd( );
+	m_collectorsList = CollectorList::create();
+	m_updateCollectorInterval = param_integer ( 
+									"REPLICATION_UPDATE_INTERVAL",
+                                     DEFAULT_REPLICATION_UPDATE_INTERVAL );
 	printDataMembers( );
 }
 // Canceling all the data regarding the downloading process that has just 
@@ -826,4 +855,64 @@ AbstractReplicatorStateMachine::getProcessPrivilege(priv_state& privilege)
 
 	return true;
 	//return priv;
+}
+
+// initializes replication daemon classad to broadcast to collectors
+void
+AbstractReplicatorStateMachine::initializeClassAd()
+{
+    m_classAd = new ClassAd( );
+
+    m_classAd->SetMyTypeName( REPLICATION_ADTYPE );
+    m_classAd->SetTargetTypeName( "" );
+
+    MyString line;
+    // 'my_username' allocates dynamic string
+    char* userName = my_username( );
+    MyString name;
+
+    name.sprintf( "%s@%s -p %d", userName, my_full_hostname( ),
+                  daemonCore->InfoCommandPort( ) );
+    free( userName );
+    // two following attributes: ATTR_NAME and ATTR_MACHINE are mandatory
+    // in order to be accepted by collector
+    line.sprintf( "%s = \"%s\"", ATTR_NAME, name.GetCStr( ) );
+    m_classAd->Insert( line.Value( ) );
+
+    line.sprintf( "%s = \"%s\"", ATTR_MACHINE, my_full_hostname( ) );
+    m_classAd->Insert( line.Value( ) );
+
+    line.sprintf( "%s = \"%s\"", ATTR_MY_ADDRESS,
+                        daemonCore->InfoCommandSinfulString() );
+    m_classAd->Insert( line.Value( ) );
+
+    // declaring boolean attributes this way, no need for \"False\"
+    line.sprintf( "%s = False", ATTR_REPLICATION_IS_ACTIVE );
+    m_classAd->Insert( line.Value( ) );
+
+    // publishing list of replication daemons in classad
+    char*      buffer             = param( "REPLICATION_LIST" );
+    char*      replicationAddress = NULL;
+    StringList replicationList;
+    MyString   attrReplicationList;
+    MyString   comma;
+
+    replicationList.initializeFromString( buffer );
+    replicationList.rewind( );
+
+    while( ( replicationAddress = replicationList.next() ) ) {
+        attrReplicationList += comma;
+        attrReplicationList += replicationAddress;
+        comma = ",";
+    }
+    line.sprintf( "%s = \"%s\"", ATTR_REPLICATION_LIST, 
+				  attrReplicationList.GetCStr( ) );
+    m_classAd->Insert(line.Value());
+
+    free( buffer );
+
+    // publishing replication daemon's real index in the list 
+    line.sprintf( "%s = \"%d\"", ATTR_REPLICATION_INDEX, 
+				  replicationList.number() - 1 - m_selfId );
+    m_classAd->Insert(line.Value());
 }
