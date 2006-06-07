@@ -84,6 +84,8 @@ public:
 
 	virtual QuillErrCode        checkConnection() = 0;
 	virtual QuillErrCode        resetConnection() = 0;
+
+	virtual int 		getDatabaseVersion() = 0;
 protected:
 	char	*con_str;	//!< connection string
 	bool	connected; 	//!< connection status

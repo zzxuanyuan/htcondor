@@ -408,5 +408,17 @@ PGSQLDatabase::resetConnection()
 	}
 }
 
-
-
+//! get the server version number, 
+//! -1 if connection is invalid
+int 
+PGSQLDatabase::getDatabaseVersion() 
+{
+	int pg_version_number = 0;   
+	pg_version_number = PQserverVersion(connection);
+	if(pg_version_number > 0) {
+		return pg_version_number;
+	}
+	else {
+		return -1;
+	}
+}

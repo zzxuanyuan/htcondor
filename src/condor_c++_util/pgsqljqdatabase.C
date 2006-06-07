@@ -315,20 +315,5 @@ PGSQLJQDatabase::releaseJobQueueResults()
 }	
 
 
-//! get the server version number, 
-//! -1 if connection is invalid
-int 
-PGSQLJQDatabase::getDatabaseVersion() 
-{
-	int pg_version_number = 0;   
-	pg_version_number = PQserverVersion(connection);
-	if(pg_version_number > 0) {
-		return pg_version_number;
-	}
-	else {
-		return -1;
-	}
-}
-
 //! put an end flag for bulk loading
 

@@ -646,14 +646,6 @@ LogDestroyClassAd::ReadBody(FILE* fp)
 	return readword(fp, key);
 }
 
-/*
-int 
-LogDestroyClassAd::WriteBody(int fd) 
-{
-  return write(fd, key, strlen(key));;
-}
-*/
-
 LogSetAttribute::LogSetAttribute(const char *k, const char *n, const char *val)
 {
 	op_type = CondorLogOp_SetAttribute;

@@ -67,7 +67,6 @@ public:
 	virtual const char*         getHistoryHorValue(int row, int col) = 0;
 	virtual const char*         getHistoryVerValue(int row, int col) = 0;
 
-	virtual int 		getDatabaseVersion() = 0;
 	virtual QuillErrCode		releaseHistoryResults() = 0;		
 	virtual QuillErrCode        releaseJobQueueResults() = 0;
 

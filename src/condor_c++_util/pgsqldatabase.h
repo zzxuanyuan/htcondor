@@ -90,6 +90,7 @@ public:
 
     QuillErrCode         checkConnection();
 	QuillErrCode         resetConnection();
+	int 				 getDatabaseVersion();
 private:
 	PGconn		         *connection;		//!< connection object
 	PGresult	         *queryRes; 	//!< result for general query
