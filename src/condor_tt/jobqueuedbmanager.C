@@ -291,9 +291,13 @@ JobQueueDBManager::config(bool reconfig)
 		tmp = param( "SCHEDD_NAME" );
 		if( tmp ) {
 			scheddname = build_valid_daemon_name( tmp );
+			dprintf(D_FULLDEBUG, "scheddname %s built from param value %s\n", 
+					scheddname, tmp);
 			free(tmp);
+
 		} else {
 			scheddname = default_daemon_name();
+			dprintf(D_FULLDEBUG, "scheddname built from default daemon name: %s\n", scheddname);
 		}
 
 			/* create an entry in jobqueuepollinginfo if this schedd is the 
@@ -350,6 +354,7 @@ QuillErrCode
 JobQueueDBManager::maintain()
 {	
 	QuillErrCode st, ret_st; 
+	FileOpErrCode fst;
 	ProbeResultType probe_st;	
 	struct stat fstat;
 
@@ -371,10 +376,15 @@ JobQueueDBManager::maintain()
 		}
 		
 	}
+
+        fst = caLogParser->openFile();
+        if(fst == FILE_OPEN_ERROR) {
+                return FAILURE;
+        }
 	
 		// polling
 	probe_st = prober->probe(caLogParser->getCurCALogEntry(), 
-							 caLogParser->getJobQueueName());
+							 caLogParser->getFileDescriptor());
 	
 		// {init|add}JobQueueDB processes the  Log and stores probing
 		// information into DB documentation for how do we determine 
@@ -955,6 +965,9 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		break;
 	case CondorLogOp_EndTransaction:
 		st = processEndTransaction(true);
+		break;
+			// skip the log historical sequence number command
+	case CondorLogOp_LogHistoricalSequenceNumber:
 		break;
 	default:
 		printf("[QUILL++] Unsupported Job Queue Command\n");
@@ -1588,8 +1601,8 @@ JobQueueDBManager::getJQPollingInfo()
 	mtime = atoi(DBObj->getValue(0,0)); // last_file_mtime
 	size = atoi(DBObj->getValue(0,1)); // last_file_size
 
-	prober->setJQFile_Last_MTime(mtime);
-	prober->setJQFile_Last_Size(size);
+	prober->setLastModifiedTime(mtime);
+	prober->setLastSize(size);
 
 		// last_next_cmd_offset
 	lcmd->next_offset = atoi(DBObj->getValue(0,2)); 
@@ -1655,8 +1668,8 @@ JobQueueDBManager::setJQPollingInfo()
 	int            num_result=0, db_err_code=0;
 
 	prober->incrementProbeInfo();
-	mtime = prober->getJQFile_Last_MTime();
-	size = prober->getJQFile_Last_Size();
+	mtime = prober->getLastModifiedTime();
+	size = prober->getLastSize();
 	lcmd = caLogParser->getCurCALogEntry();	
 	
 	len = MAX_FIXED_SQL_STR_LENGTH + strlen(scheddname) + sizeof(lcmd->value);
