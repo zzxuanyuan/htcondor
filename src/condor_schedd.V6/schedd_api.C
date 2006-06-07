@@ -558,6 +558,9 @@ ScheddTransaction::ScheddTransaction(const char *owner):
 	jobs(32, hashFuncPROC_ID, rejectDuplicateKeys)
 {
 	this->owner = owner ? strdup(owner) : NULL;
+	duration = 0;
+	trans_timer_id = -1;
+	qmgmt_state = NULL;
 }
 
 ScheddTransaction::~ScheddTransaction()
@@ -565,6 +568,14 @@ ScheddTransaction::~ScheddTransaction()
 	if (this->owner) {
 		free(this->owner);
 		this->owner = NULL;
+	}
+	if (qmgmt_state) {
+		delete qmgmt_state;
+		qmgmt_state = NULL;
+	}
+	if ( trans_timer_id != -1 ) {
+		daemonCore->Cancel_Timer(trans_timer_id);
+		trans_timer_id = -1;
 	}
 }
 

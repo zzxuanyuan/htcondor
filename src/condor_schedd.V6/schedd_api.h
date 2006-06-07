@@ -30,6 +30,7 @@
 #include "HashTable.h"
 #include "directory.h"
 #include "list.h"
+#include "qmgmt.h"
 
 #include "soap_scheddH.h"
 
@@ -311,9 +312,14 @@ public:
 		 */
 	const char *getOwner();
 
-		// Duration is recorded because it should be controlled
-		// internally, it can safely be ignored and not used though
+		// Duration of transaction.
 	int duration;
+
+		// DaemonCore Timer ID for a timer when the transaction expires
+	int trans_timer_id;
+
+		// All the qmgmt layer state
+	QmgmtPeer* qmgmt_state;
 
 protected:
 		/**
@@ -327,7 +333,6 @@ protected:
 
 	virtual ~ScheddTransaction();
 
-	//Transaction *transaction; XXX: Uncomment when we have multiple xacts
 	char *owner;
 	HashTable<PROC_ID, Job *> jobs;
 };
