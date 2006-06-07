@@ -5,7 +5,6 @@
 #include "condor_md.h"
 #include <sys/mman.h>
 #include "basename.h"
-#include "pgsqldatabase.h"
 #include "my_hostname.h"
 #include "file_sql.h"
 
