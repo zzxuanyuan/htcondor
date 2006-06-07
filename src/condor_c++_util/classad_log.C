@@ -448,7 +448,7 @@ Transaction *
 ClassAdLog::getActiveTransaction()
 {
 	Transaction *ret_value = active_transaction;
-	active_transaction = NULL;
+	active_transaction = NULL;	// it is IMPORTANT that we reset active_tranasction to NULL here!
 	return ret_value;
 }
 
