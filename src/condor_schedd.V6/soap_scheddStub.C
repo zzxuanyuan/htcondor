@@ -56,7 +56,7 @@ static int trans_timer_id = -1;
 extern Scheduler scheduler;
 
 static ScheddTransactionManager transactionManager;
-
+static NullScheddTransaction *null_entry_ptr = NULL;
 
 /*************************************
 	HELPER FUNCTIONS
@@ -94,10 +94,6 @@ verify(DCpermission perm,
 				soap->user ? (char*)soap->user : "NULL",
 				sin_to_string(&soap->peer));
 
-//		if ( status ) {
-//			status->code = FAIL;
-//			status->message = "Permission denied";
-//		}
 		status.code = FAIL;
 		status.message = "Permission denied";
 
@@ -118,13 +114,11 @@ verify_owner(int clusterId,
 
 	if (!(ad = GetJobAd(clusterId, jobId))) {
 		// failed to get any info on this job
-//		if (status ) status->message = "Failed to find job specified";
 		status.message = "Failed to find job specified";
 		result = false;
 	} else {
 		result =  OwnerCheck2(ad, owner);
 		if ( result == false ) {
-//			if (status) status->message = "Not job owner";
 			status.message = "Not job owner";
 		}
 	}
@@ -134,10 +128,6 @@ verify_owner(int clusterId,
 				"SOAP call rejected, user %s cannot modify job %d.%d\n",
 				owner ? owner : "NULL",
 				clusterId,jobId	);
-//			if ( status) {
-//				status->code = FAIL;
-//				status->message = "Not job owner";
-//			}
 			status.code = FAIL;
 			status.message = "Not job owner";
 	}
@@ -193,18 +183,12 @@ extendTransaction(const struct condor__Transaction *transaction)
 		}
 
 		daemonCore->Reset_Timer(trans_timer_id, transaction->duration);
-		daemonCore->Only_Allow_Soap(transaction->duration);
+//		daemonCore->Only_Allow_Soap(transaction->duration);
 	}
 
 	return 0;
 }
 
-// TODO : Todd needs to redo all the transaction stuff and get it
-// right.  For now it is in horrible "demo" mode with piles of
-// assumptions (i.e. only one client, etc).  Once it is redone and
-// decent, all the logic should move OUT of the stubs and into the
-// schedd proper... since it should all work the same from the cedar
-// side as well.
 static int
 transtimeout()
 {
@@ -213,10 +197,24 @@ transtimeout()
 	dprintf(D_FULLDEBUG, "SOAP in transtimeout()\n");
 
 	condor__Transaction transaction;
-	transaction.id = current_trans_id;
+
+		// transaction info is stored in the daemonCore dataptr
+	void *info = daemonCore->GetDataPtr();
+	ASSERT(info);
+	memcpy(&transaction,info,sizeof(condor__Transaction));
+	free(info);
+	info = NULL;
+
 	condor__abortTransaction(NULL, transaction, result);
 	return TRUE;
 }
+
+  // forward reference....
+static bool
+stub_suffix(const char*,
+			const struct soap *,
+			ScheddTransaction*,
+			const struct condor__Status & );	
 
 bool
 stub_prefix(const char* stub_name,   // IN
@@ -229,10 +227,14 @@ stub_prefix(const char* stub_name,   // IN
 			struct condor__Status & result,		// OUT
 			ScheddTransaction* & entry )	// OUT
 {
-	static NullScheddTransaction null_entry(NULL);
 	static condor__Transaction null_transaction;
+	bool ret_value = true;
+	bool call_suffix = false;
 
-	entry = &null_entry;
+	if ( !null_entry_ptr ) {
+		null_entry_ptr = new NullScheddTransaction(NULL);
+	}
+	entry = null_entry_ptr;
 
 	if (transaction == NULL ) {
 		// point to a NULL transaction object
@@ -251,63 +253,97 @@ stub_prefix(const char* stub_name,   // IN
 
 		// fail if we must have a transid, and we were not give one
 	if ( must_have_transid && !transaction->id ) {
-//		if ( result ) {
-//			result->code = INVALIDTRANSACTION;
-//			result->message = "Invalid transaction";
-//		}
 		result.code = INVALIDTRANSACTION;
 		result.message = "Invalid transaction";
 
-		return false;
+		ret_value = false;
+		goto stub_prefix_return;
 	}
 
 		// if we were given a transid, it had better be valid
 	if (transaction->id &&
 		transactionManager.getTransaction(transaction->id, entry))
 	{
-//		if ( result ) {
-//			result->code = INVALIDTRANSACTION;
-//			result->message = "Invalid transaction";
-//		}
 		result.code = INVALIDTRANSACTION;
 		result.message = "Invalid transaction";
 
-		return false;
+		ret_value = false;
+		goto stub_prefix_return;
 	}
 
-		// now that we know our transaction is valid, extend it
+		// Reset all state into the scheddStub layer and the qmgmt layer if
+		// we are using a transaction (which we now know is valid)
+	if ( transaction->id ) {
+
+		// state (global variables) in soap_scheddStub
+		current_trans_id = transaction->id;
+		trans_timer_id = entry->trans_timer_id;
+
+		// if we don't have a qmgmt_state object, create one
+		if ( entry->qmgmt_state == NULL ) {
+			entry->qmgmt_state = new QmgmtPeer;
+			ASSERT(entry->qmgmt_state);
+				// tell qmgmt info about our client - addr and user
+			ASSERT(soap);
+			entry->qmgmt_state->set(&soap->peer,(const char*)soap->user);
+		}
+
+		// set the state of qmgmt
+		setQmgmtConnectionInfo(entry->qmgmt_state);
+
+		// set a flag that says if we abort out of this function early,
+		// we need to reset the qmgmt state, since as of now it is set.
+		call_suffix = true;
+	}
+
+		// extend our transaction, if we have one
 	if ( transaction->id ) {
 		if (extendTransaction(transaction)) {
 			result.code = FAIL;
 			result.message = "Could not extend transaction";
-
-			return false;
+				ret_value = false;
+				goto stub_prefix_return;
 		}
 	}
 
-	if (!verify(perm, soap, result)) {
-			// verify() sets the result StatusCode/Message
-		return false;
-	}
+	if ( soap ) {
+		if (!verify(perm, soap, result)) {
+				// verify() sets the result StatusCode/Message
+			ret_value = false;
+			goto stub_prefix_return;
+		}
 
-	if (soap->user && clusterId) {
-		if (!verify_owner(clusterId, jobId, (char *) soap->user, result)) {
-				// verify_owner() sets the result StatusCode/Message
-			return false;
+
+		if (soap->user && clusterId) {
+			if (!verify_owner(clusterId, jobId, (char *) soap->user, result)) {
+					// verify_owner() sets the result StatusCode/Message
+				ret_value = false;
+				goto stub_prefix_return;
+			}
 		}
 	}
 
-	return true;
+stub_prefix_return:
+
+		// if we fail, we may need to call stub_suffix to reset qmgmt state
+	if ( ret_value==false ) {
+		if ( call_suffix==true ) {
+			stub_suffix(stub_name,soap,entry,result);
+		} else {
+			stub_suffix(stub_name,soap,NULL,result);
+		}
+	}
+
+	return ret_value;
 }
 
 
 static bool
 stub_suffix(const char* stub_name,   // IN
 			const struct soap *soap, // IN
-			const ScheddTransaction* entry,	// IN, could be null
+			ScheddTransaction* entry,	// IN, could be null
 			const struct condor__Status & status) // IN
 {
-	// Cleanup transaction stuff here
 
 	if (stub_name) {
 		dprintf(D_FULLDEBUG,
@@ -316,6 +352,24 @@ stub_suffix(const char* stub_name,   // IN
 				status.code);
 	}
 
+
+		// Fetch AND reset qmgmt state		
+	QmgmtPeer *state = getQmgmtConnectionInfo();  // resets Q_SOCK to NULL
+
+	if ( entry  ) {
+		entry->trans_timer_id = trans_timer_id;
+
+			// nobody should have snuck in with a different transaction
+			// between the stub_prefix and stub_suffix
+		if (entry->qmgmt_state != state ) {
+			EXCEPT("entry->qmgmt_state (%p) != state (%p)",entry->qmgmt_state,state);
+		}
+	}
+
+	// Reset transaction state here
+	current_trans_id = 0;
+	trans_timer_id = -1;
+		
 	return true;
 }
 
@@ -328,6 +382,10 @@ condor__beginTransaction(struct soap *soap,
 						 int duration,
 						 struct condor__beginTransactionResponse & result)
 {
+	void* intPtr = NULL;
+	int max = param_integer("MAX_SOAP_TRANSACTION_DURATION", -1);
+	int id;
+	char *owner = NULL; // Get OWNER from X509 cert...
 	struct condor__Transaction *transaction = NULL;
 	ScheddTransaction *entry;
 	if (!stub_prefix("beginTransaction",
@@ -342,6 +400,7 @@ condor__beginTransaction(struct soap *soap,
 		return SOAP_OK;
 	}
 
+		// TODO : count number of outstanding transactions....
 	if ( current_trans_id ) {
 		result.response.status.code = FAIL;
 		result.response.status.message =
@@ -350,10 +409,9 @@ condor__beginTransaction(struct soap *soap,
 		dprintf(D_FULLDEBUG,
 				"SOAP denied new transaction in condor__beginTransaction()\n");
 
-		return SOAP_OK;
+		goto return_from_stub;
 	}
 
-	int max = param_integer("MAX_SOAP_TRANSACTION_DURATION", -1);
 	if (0 < max) {
 		duration = duration > max ? max : duration;
 	}
@@ -362,37 +420,64 @@ condor__beginTransaction(struct soap *soap,
 		duration = 1;
 	}
 
-	trans_timer_id =
-		daemonCore->Register_Timer(duration,
-								   (TimerHandler)&transtimeout,
-								   "condor_transtimeout");
-	daemonCore->Only_Allow_Soap(duration);
+//	daemonCore->Only_Allow_Soap(duration);
 
-	int id;
-	char *owner = NULL; // Get OWNER from X509 cert...
+	
 	if (transactionManager.createTransaction(owner,
 											 id,
 											 entry)) {
 		result.response.status.code = FAIL;
 		result.response.status.message = "Unable to create transaction";
-	} else {
-		entry->duration = duration;
+		goto return_from_stub;
+	} 
+	
+	
+	entry->duration = duration;
 
-		result.response.transaction.id = id;
-		result.response.transaction.duration = entry->duration;
-		result.response.status.code = SUCCESS;
-		result.response.status.message = "Success";
+	result.response.transaction.id = id;
+	result.response.transaction.duration = entry->duration;
+	result.response.status.code = SUCCESS;
+	result.response.status.message = "Success";
 
-		setQSock(NULL);
 
-		if (entry->begin()) {
-			result.response.status.code = FAIL;
-			result.response.status.message = "Unable to begin transaction";
-		}
+		// now that our entry is a real (not just a Null Transaction),
+		// we need to call the stub_prefix again so it can see the
+		// real ScheddTransaction entry.
+	transaction = &result.response.transaction;
+	if (!stub_prefix(NULL,		// we already did a dprintf to the log
+					 soap,
+					 0,
+					 0,
+					 WRITE,
+					 true,
+					 transaction,
+					 result.response.status,
+					 entry)) {
+		result.response.transaction.id = 0;
+		result.response.transaction.duration = 0;
+		return SOAP_OK;
 	}
 
-	stub_suffix("beginTransaction", soap, entry, result.response.status);
 
+	if (entry->begin()) {
+		result.response.transaction.id = 0;
+		result.response.transaction.duration = 0;
+		result.response.status.code = FAIL;
+		result.response.status.message = "Unable to begin transaction";
+		goto return_from_stub;
+	}
+
+
+	trans_timer_id =
+		daemonCore->Register_Timer(duration,
+								   (TimerHandler)&transtimeout,
+								   "condor_transtimeout");
+	intPtr = (void*) malloc(sizeof(struct condor__Transaction));	
+	memcpy(intPtr,transaction,sizeof(condor__Transaction));
+	daemonCore->Register_DataPtr(intPtr);	// register the transaction id info
+
+return_from_stub:
+	stub_suffix("beginTransaction", soap, entry, result.response.status);
 	return SOAP_OK;
 }
 
@@ -420,17 +505,20 @@ condor__commitTransaction(struct soap *soap,
 	if (transactionManager.destroyTransaction(transaction.id)) {
 		dprintf(D_ALWAYS, "condor__commitTransaction cleanup failed\n");
 	}
+	// entry points into the transaction we just destroyed, so reset it.
+	entry = NULL;	
 
 	current_trans_id = 0;
 	if ( trans_timer_id != -1 ) {
 		daemonCore->Cancel_Timer(trans_timer_id);
 		trans_timer_id = -1;
 	}
-	daemonCore->Only_Allow_Soap(0);
+//	daemonCore->Only_Allow_Soap(0);
 
 	result.response.code = SUCCESS;
 	result.response.message = "Success";
 
+//return_from_stub:
 	stub_suffix("commitTransaction", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -444,7 +532,7 @@ condor__abortTransaction(struct soap *soap,
 {
 	condor__Transaction *transaction_ptr = &transaction;
 	ScheddTransaction *entry;
-	if (!stub_prefix("commitTransaction",
+	if (!stub_prefix("abortTransaction",
 					 soap,
 					 0,
 					 0,
@@ -461,17 +549,20 @@ condor__abortTransaction(struct soap *soap,
 	if (transactionManager.destroyTransaction(transaction.id)) {
 		dprintf(D_ALWAYS, "condor__abortTransaction cleanup failed\n");
 	}
+	// entry points into the transaction we just destroyed, so reset it.
+	entry = NULL;	
 
 	current_trans_id = 0;
 	if (trans_timer_id != -1) {
 		daemonCore->Cancel_Timer(trans_timer_id);
 		trans_timer_id = -1;
 	}
-	daemonCore->Only_Allow_Soap(0);
+//	daemonCore->Only_Allow_Soap(0);
 
 	result.response.code = SUCCESS;
 	result.response.message = "Success";
 
+//return_from_stub:
 	stub_suffix("abortTransaction", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -542,6 +633,7 @@ condor__newCluster(struct soap *soap,
 		result.response.status.message = "Success";
 	}
 
+//return_from_stub:
 	stub_suffix("newCluster", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -582,14 +674,14 @@ condor__removeCluster(struct soap *soap,
 			result.response.code = FAIL;
 			result.response.message = "Cluster not found";
 
-			return SOAP_OK;
+			goto return_from_stub;
         }
 
         if (!an_ad->LookupInteger(ATTR_PROC_ID, jobId)) {
 			result.response.code = FAIL;
 			result.response.message = "Owner not verifiable";
 
-			return SOAP_OK;
+			goto return_from_stub;
         }
 
         if (!verify_owner(clusterId,
@@ -598,7 +690,7 @@ condor__removeCluster(struct soap *soap,
 						  result.response)) {
 			result.response.message = "Not cluster owner";
 
-			return SOAP_OK;
+			goto return_from_stub;
         }
 	}
 
@@ -617,6 +709,7 @@ condor__removeCluster(struct soap *soap,
 		}
 	}
 
+return_from_stub:
 	stub_suffix("removeCluster", soap, entry, result.response);
 
     return SOAP_OK;
@@ -668,6 +761,7 @@ condor__newJob(struct soap *soap,
 		break;
 	}
 
+//return_from_stub:
 	stub_suffix("newJob", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -713,6 +807,7 @@ condor__removeJob(struct soap *soap,
 		}
 	}
 
+//return_from_stub:
 	stub_suffix("removeJob", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -752,6 +847,7 @@ condor__holdJob(struct soap *soap,
 		result.response.message = "Success";
 	}
 
+//return_from_stub:
 	stub_suffix("holdJob", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -790,6 +886,7 @@ condor__releaseJob(struct soap *soap,
 		result.response.message = "Success";
 	}
 
+//return_from_stub:
 	stub_suffix("releaseJob", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -875,6 +972,7 @@ condor__submit(struct soap *soap,
 		}
 	}
 
+//return_from_stub:
 	stub_suffix("submit", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -921,6 +1019,7 @@ condor__getJobAds(struct soap *soap,
 		result.response.status.message = "Success";
 	}
 
+//return_from_stub:
 	stub_suffix("getJobAds", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -976,6 +1075,7 @@ condor__getJobAd(struct soap *soap,
 		}
 	}
 
+//return_from_stub:
 	stub_suffix("getJobAd", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -1026,6 +1126,7 @@ condor__declareFile(struct soap *soap,
 		}
 	}
 
+//return_from_stub:
 	stub_suffix("declareFile", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -1085,6 +1186,7 @@ condor__sendFile(struct soap *soap,
 		}
 	}
 
+//return_from_stub:
 	stub_suffix("sendFile", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -1136,7 +1238,7 @@ int condor__getFile(struct soap *soap,
 				job = NULL;
 			}
 
-			return SOAP_OK;
+			goto return_from_stub;
 		}
 
 		destroy_job = true;
@@ -1181,6 +1283,7 @@ int condor__getFile(struct soap *soap,
 		job = NULL;
 	}
 
+return_from_stub:
 	stub_suffix("getFile", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -1225,6 +1328,9 @@ condor__listSpool(struct soap * soap,
 				  int jobId,
 				  struct condor__listSpoolResponse & result)
 {
+	List<FileInfo> files;
+	int code;
+	CondorError errstack;
 	ScheddTransaction *entry;
 	if (!stub_prefix("listSpool",
 					 soap,
@@ -1262,15 +1368,12 @@ condor__listSpool(struct soap * soap,
 				job = NULL;
 			}
 
-			return SOAP_OK;
+			goto return_from_stub;
 		}
 
 		destroy_job = true;
 	}
 
-	List<FileInfo> files;
-	int code;
-	CondorError errstack;
 	if ((code = job->get_spool_list(files, errstack))) {
 		result.response.status.code =
 			(condor__StatusCode) errstack.code();
@@ -1310,6 +1413,7 @@ condor__listSpool(struct soap * soap,
 		job = NULL;
 	}
 
+return_from_stub:
 	stub_suffix("listSpool", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -1342,6 +1446,7 @@ condor__requestReschedule(struct soap *soap,
 		result.response.message = "Failed to request reschedule.";
 	}
 
+//return_from_stub:
 	stub_suffix("requestReschedule", soap, entry, result.response);
 
 	return SOAP_OK;
@@ -1352,6 +1457,7 @@ condor__discoverJobRequirements(struct soap *soap,
 								struct condor__ClassAdStruct * jobAd,
 								struct condor__discoverJobRequirementsResponse & result)
 {
+	int i;
 	struct condor__Transaction *transaction = NULL;
 	ScheddTransaction *entry;
 	if (!stub_prefix("discoverJobRequirements",
@@ -1380,14 +1486,14 @@ condor__discoverJobRequirements(struct soap *soap,
 		result.response.status.code = FAIL;
 		result.response.status.message = "Failed to setup temporary Iwd attribute.";
 
-		return SOAP_OK;
+		goto return_from_stub;
 	}
 
 	if (!fileTransfer.SimpleInit(&ad, false, false)) {
 		result.response.status.code = FAIL;
 		result.response.status.message = "Checking for requirements failed.";
 
-		return SOAP_OK;
+		goto return_from_stub;
 	}
 
 	fileTransfer.getInputFiles(inputFiles);
@@ -1401,7 +1507,7 @@ condor__discoverJobRequirements(struct soap *soap,
 	ASSERT(result.response.requirements.__ptr);
 
 	inputFiles.rewind();
-	int i = 0;
+	i = 0;
 	while ((buffer = inputFiles.next()) &&
 		   (i < result.response.requirements.__size)) {
 		result.response.requirements.__ptr[i] =
@@ -1414,6 +1520,7 @@ condor__discoverJobRequirements(struct soap *soap,
 	result.response.status.code = SUCCESS;
 	result.response.status.message = "Success";
 
+return_from_stub:
 	stub_suffix("discoverJobRequirements", soap, entry, result.response.status);
 
 	return SOAP_OK;
@@ -1488,15 +1595,15 @@ condor__createJobTemplate(struct soap *soap,
 		dprintf(D_ALWAYS,"Failed to parse job args from soap caller: %s\n",
 				arg_errors.Value());
 
-		return SOAP_OK;
+		goto return_from_stub;
 	}
 
 	result.response.status.code = SUCCESS;
 	result.response.status.message = "Success";
 	convert_ad_to_adStruct(soap, job, &result.response.classAd, true);
 
+return_from_stub:
 	stub_suffix("createJobTemplate", soap, entry, result.response.status);
-
 	return SOAP_OK;
 }
 
