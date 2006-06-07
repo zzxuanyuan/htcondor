@@ -3001,8 +3001,8 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 {
 	int cluster, proc;
 //	char startdname[80];
-	char globaljobid[80];
-	char scheddName[80];
+	char globaljobid[200];
+	char scheddName[200];
 	ClassAd tmpCl;
 	ClassAd *tmpClP = &tmpCl;
 	char tmp[512];
@@ -3076,10 +3076,10 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& offer)
 {
 	char startdname[80],remote_user[80];
-	char globaljobid[80];
+	char globaljobid[200];
 	float remote_prio;
 	int cluster, proc;
-	char scheddName[80];
+	char scheddName[200];
 	ClassAd tmpCl;
 	ClassAd *tmpClP = &tmpCl;
 
@@ -3143,11 +3143,14 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 /* This extracts the machine name from the global job ID [user@]machine.name#timestamp#cluster.proc*/
 static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname )
 {
-	int i,j;
+	int i;
 
 	scheddname[0] = '\0';
-	for (i=0;globaljobid[i]!='\0' && globaljobid[i]!='@' && globaljobid[i]!='#';i++)
+
+	for (i=0;
+         globaljobid[i]!='\0' && globaljobid[i]!='#';i++)
 		scheddname[i]=globaljobid[i];
+
 	if(globaljobid[i] == '\0') 
 	{
 		scheddname[0] = '\0';
@@ -3158,23 +3161,6 @@ static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname 
 		scheddname[i]='\0';	
 		return 1;
 	}
-	else
-	{
-		i++; /* get past '@' */
-	
-		for (j=0;globaljobid[i]!='\0' && globaljobid[i]!='#';i++,j++)
-			scheddname[j]=globaljobid[i];
 
-		if(globaljobid[i] == '\0') 
-		{
-			scheddname[0]= '\0';
-			return -1; /* Parse error, shouldn't happen */
-		}
-		else
-		{
-			scheddname[j]='\0';
-			return 1;
-		}
-	}
 	return -1;
 }
