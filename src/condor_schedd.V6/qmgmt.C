@@ -116,6 +116,7 @@ typedef HashTable<int, int> ClusterSizeHashTable_t;
 static ClusterSizeHashTable_t *ClusterSizeHashTable = 0;
 static int TotalJobsCount = 0;
 
+static bool qmgmt_all_users_trusted = false;
 static char	**super_users = NULL;
 static int	num_super_users = 0;
 static char *default_super_user =
@@ -604,7 +605,11 @@ QmgmtPeer::isAuthenticated() const
 	if ( sock ) {
 		return sock->isAuthenticated();
 	} else {
-		return owner ? TRUE : FALSE;
+		if ( qmgmt_all_users_trusted ) {
+			return TRUE;
+		} else {
+			return owner ? TRUE : FALSE;
+		}
 	}
 }
 
@@ -648,6 +653,14 @@ InitQmgmt()
 		for( i=0; i<num_super_users; i++ ) {
 			dprintf( D_FULLDEBUG, "\t%s\n", super_users[i] );
 		}
+	}
+
+	qmgmt_all_users_trusted = param_boolean("QUEUE_ALL_USERS_TRUSTED",false);
+	if (qmgmt_all_users_trusted) {
+		dprintf(D_ALWAYS,
+			"NOTE: QUEUE_ALL_USERS_TRUSTED=TRUE - "
+			"all queue access checks disabled!\n"
+			);
 	}
 }
 
@@ -983,6 +996,12 @@ OwnerCheck2(ClassAd *ad, const char *test_owner)
 {
 	char	my_owner[_POSIX_PATH_MAX];
 
+	// in the very rare event that the admin told us all users 
+	// can be trusted, let it pass
+	if ( qmgmt_all_users_trusted ) {
+		return true;
+	}
+
 	// If test_owner is NULL, then we have no idea who the user is.  We
 	// do not allow anonymous folks to mess around with the queue, so 
 	// have OwnerCheck fail.  Note we only call OwnerCheck in the first place
@@ -1051,16 +1070,24 @@ OwnerCheck2(ClassAd *ad, const char *test_owner)
 QmgmtPeer*
 getQmgmtConnectionInfo()
 {
+	QmgmtPeer* ret_value = NULL;
+
 	// put all qmgmt state back into QmgmtPeer object for safe keeping
 	if ( Q_SOCK ) {
 		Q_SOCK->next_proc_num = next_proc_num;
 		Q_SOCK->active_cluster_num = active_cluster_num;	
 		Q_SOCK->old_cluster_num = old_cluster_num;
 		Q_SOCK->xact_start_time = xact_start_time;
+			// our call to getActiveTransaction will clear it out
+			// from the lower layers after returning the handle to us
 		Q_SOCK->transaction  = JobQueue->getActiveTransaction();
+
+		ret_value = Q_SOCK;
+		Q_SOCK = NULL;
+		unsetQmgmtConnection();
 	}
 
-	return Q_SOCK;
+	return ret_value;
 }
 
 bool
@@ -1085,27 +1112,26 @@ setQmgmtConnectionInfo(QmgmtPeer *peer)
 	}
 	old_cluster_num = peer->old_cluster_num;
 	xact_start_time = peer->xact_start_time;
+		// Note: if setActiveTransaction succeeds, then peer->transaction
+		// will be set to NULL.   The JobQueue does this to prevent anyone
+		// from messing with the transaction cache while it is active.
 	ret_value = JobQueue->setActiveTransaction( peer->transaction );
 
 	return ret_value;
 }
 
-void
+static void
 unsetQmgmtConnection()
 {
 	static QmgmtPeer reset;	// just used for reset/inital values
 
-	if (!Q_SOCK) {
-		// nothing to do
-		return;
-	}
+		// clear any in-process transaction via a call to AbortTransaction.
+		// Note that this is effectively a no-op if getQmgmtConnectionInfo()
+		// was called previously, since getQmgmtConnectionInfo() clears 
+		// out the transaction after returning the handle.
+	JobQueue->AbortTransaction();	
 
-	JobQueue->AbortTransaction();	// clear any in-process transaction
-	
-	if ( Q_SOCK ) {
-		delete Q_SOCK;
-	}
-	Q_SOCK = NULL;
+	ASSERT(Q_SOCK == NULL);
 
 	next_proc_num = reset.next_proc_num;
 	active_cluster_num = reset.active_cluster_num;	
@@ -1133,7 +1159,16 @@ setQSock( ReliSock* rsock)
 
 	bool ret_val = false;
 
+	if (Q_SOCK) {
+		delete Q_SOCK;
+		Q_SOCK = NULL;
+	}
 	unsetQmgmtConnection();
+
+		// setQSock(NULL) == unsetQSock() == unsetQmgmtConnection(), so...
+	if ( rsock == NULL ) {
+		return true;
+	}
 
 	QmgmtPeer* p = new QmgmtPeer;
 	ASSERT(p);
@@ -1160,7 +1195,11 @@ unsetQSock()
 	// the QMGMT code the request originated internally, and it should
 	// be permitted (i.e. we only call OwnerCheck if Q_SOCK is not NULL).
 
-	unsetQmgmtConnection();  // this set Q_SOCK to NULL
+	if ( Q_SOCK ) {
+		delete Q_SOCK;
+		Q_SOCK = NULL;
+	}
+	unsetQmgmtConnection();  
 }
 
 
@@ -1682,12 +1721,8 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 
 	// check for security violations.
 	// first, make certain ATTR_OWNER can only be set to who they really are.
-	if (Q_SOCK && stricmp(attr_name, ATTR_OWNER) == 0) 
+	if (Q_SOCK && !qmgmt_all_users_trusted && stricmp(attr_name, ATTR_OWNER) == 0) 
 	{
-		if ( !Q_SOCK ) {
-			EXCEPT( "Trying to setAttribute( ATTR_OWNER ) and Q_SOCK is NULL" );
-		}
-
 		sprintf(alternate_attrname_buf, "\"%s\"", Q_SOCK->getOwner() );
 		if (strcmp(attr_value, alternate_attrname_buf) != 0) {
 			if ( stricmp(attr_value,"UNDEFINED")==0 ) {
