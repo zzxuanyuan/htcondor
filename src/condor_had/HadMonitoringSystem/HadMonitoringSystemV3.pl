@@ -89,6 +89,8 @@ my @sinfulStrings                   = ();
 #my $totalErrorsNumber               = 0;
 #my $totalWarningsNumber             = 0;
 my $currentTimestamp                = 0;
+my @offsets                         = ();
+
 # State file variables
 my $previousTimestamp               = 0;
 my $lastStatusTimestamp             = 0;
@@ -104,6 +106,7 @@ my $isNoErrorReportSent             = TRUE;
 my $consolidatedReportFrequency     = "";
 my $storeOldArchivesDays            = 7;
 my @monitoredDaemons                = ();
+my $isOffsetCalculationNeeded       = TRUE;
 
 # Loading Condor pool parameters
 my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST`;
@@ -117,6 +120,7 @@ my @replicationSinfulStrings = split(',', $replicationList);
 #my $hadInterval              = (2 * $hadConnectionTimeout * split(',', $hadList) + 1) * 2;
 
 &LoadConfiguration();
+@offsets = &CalculateOffsets(@hadSinfulStrings);
 
 foreach my $monitoredDaemon (@monitoredDaemons) 
 {
@@ -461,6 +465,9 @@ sub LoadConfiguration
 
 						   	require "$hadMonitoringSystemDirectory/Checkers/$checkerName.pl";
 						   } }
+			case 'IS_OFFSET_CALCULATION_NEEDED'
+						 { $isOffsetCalculationNeeded = FALSE
+						   if grep(/$value/i, 'no'); }
                 	else                     { die "No such configuration entry: $key"; }
         	}
 		&AppendTextToActivityLog("Loaded configuration parameter $key = $value\n");
@@ -1108,7 +1115,7 @@ sub GenerateEventFile
 		chomp($previousLine);
 		next if $previousLine eq "" || $previousLine !~ /\d+.\d+ \d+:\d+:\d+/;
 
-		$previousTimestamp = &FindTimestamp($previousLine);
+		$previousTimestamp = &FindTimestamp($previousLine, $offsets[$index]);
 		$$refNewLineChar = &DiscoverEvents($previousLine, $previousTimestamp, $eventFileHandle, 
 						   $$refNewLineChar, $monitoredDaemon);
 		last;
@@ -1131,7 +1138,7 @@ sub GenerateEventFile
 		chomp($currentLine);
 		next if $currentLine eq "" || $currentLine !~ /\d+.\d+ \d+:\d+:\d+/;
 
-		$currentTimestamp = &FindTimestamp($currentLine);
+		$currentTimestamp = &FindTimestamp($currentLine, $offsets[$index]);
 
 		# Discovering gaps inside the log file: we consider a gap, when two successive lines in the
 		# log differ by more than two HAD intervals
@@ -1222,12 +1229,13 @@ sub DiscoverEvents
 ##########################################################################################
 ## Function    : FindTimestamp                                                           #
 ## Arguments   : $line - line of HAD log file                                            #
+##               $offset - timestamp offset from the remote machine                      #
 ## Return value: timestamp - in seconds from epoche time (00:00:00 UTC, January 1, 1970) #
 ## Description : returns timestamp of the given HAD log file line                        #
 ##########################################################################################
 sub FindTimestamp
 {
-	my ($line) = (@_);
+	my ($line, $offset) = (@_);
 
 	my @lineFields = split(' ', $line);
 	my $dateField  = $lineFields[0];
@@ -1248,6 +1256,7 @@ sub FindTimestamp
 	# If we mistook in guessing the year number of the log, correct it by subtracting an
 	# entire year
 	$timestamp -= 3600 * 24 * 365 if $timestamp > time();
+	$timestamp += $offset;
 
 	return $timestamp;
 }
@@ -1277,6 +1286,51 @@ sub CapitalizeFirst
 {
 	my $string = shift;
 
-	return ucfirst(lc($string));
+	return ucfirst(lc($string)); 
+} 
+########################################################################################## 
+## Function : CalculateOffsets                                                           # 
+## Arguments : @hadSinfulStrings - addresses of HADs, from machines of which the date    # 
+##       			   is to be queried                                      # 
+## Return value: @offsets - the array of timestamp offsets of local time from the HAD    # 
+## 			    machines times                                               # 
+## Description : returns the array of timestamp offsets of local time from the HAD       #
+## 		 machines times                                                          #
+##########################################################################################
+sub CalculateOffsets {
+        my @hadSinfulStrings = (@_);
+        my @offsets          = ();
+
+	if($isOffsetCalculationNeeded eq FALSE)
+	{
+		foreach my $machineIndex (0 .. $#hadSinfulStrings)
+		{
+			$offsets[$machineIndex] = 0;
+		}
+		return @offsets;
+	}
+
+        foreach my $hadSinfulString (@hadSinfulStrings)
+        {
+                $_ = $hadSinfulString;
+                tr/<>//d;
+                my ($hostName, $port) = split(':', $_);
+
+                my $timestampAsString = `ssh technion_sharov\@$hostName \'date \"+%m/%d %H:%M:%S\"\'`;
+
+                chomp($timestampAsString);
+
+                my $remoteTimestamp  = &FindTimestamp($timestampAsString, 0);
+                my $localTimestamp   = time();
+#               my $roundingConstant = ($remoteTimestamp > $localTimestamp) ? 0.5 : -0.5;
+
+#               push(@offsets, int($roundingConstant + ($remoteTimestamp - $localTimestamp) / 3600));
+                push(@offsets, $localTimestamp - $remoteTimestamp);
+        }
+	&AppendTextToActivityLog("Calculated offsets for " . join(',', @hadSinfulStrings) . 
+				 ": " . join(',', @offsets) . "\n");
+
+        return @offsets;
 }
+
 ############################ End of auxiliary functions ##################################
