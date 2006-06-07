@@ -63,7 +63,7 @@ static ScheddTransactionManager transactionManager;
 ************************************/
 
 static bool
-Reschedule()
+MiniReschedule()
 {
 
 	scheduler.timeout();		// update the central manager now
@@ -218,7 +218,7 @@ transtimeout()
 	return TRUE;
 }
 
-static bool
+bool
 stub_prefix(const char* stub_name,   // IN
 			const struct soap *soap, // IN
 			const int clusterId,	 // IN
@@ -1334,7 +1334,7 @@ condor__requestReschedule(struct soap *soap,
 		return SOAP_OK;
 	}
 
-	if (Reschedule()) {
+	if (MiniReschedule()) {
 		result.response.code = SUCCESS;
 		result.response.message = "Success";
 	} else {
