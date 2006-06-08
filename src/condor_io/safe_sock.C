@@ -484,7 +484,7 @@ int SafeSock::peek(char &c)
  */
 int SafeSock::handle_incoming_packet()
 {
-	SOCKET_SENDRECV_LENGTH_TYPE fromlen = sizeof(struct sockaddr_in);
+	SOCKET_ALTERNATE_LENGTH_TYPE fromlen = sizeof(struct sockaddr_in);
 	bool last;
 	int seqNo, length;
 	_condorMsgID mID;

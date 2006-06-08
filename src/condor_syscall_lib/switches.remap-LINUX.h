@@ -32,7 +32,11 @@ REMAP_TWO( dup2, __dup2, int, int, int )
 REMAP_ONE( fchdir, __fchdir, int, int )
 REMAP_THREE_VARARGS( fcntl, __fcntl, int , int , int , int)
 REMAP_ONE( fsync, __fsync, int , int )
+
+#if defined(I386)
 REMAP_TWO( ftruncate, __ftruncate, int , int , off_t )
+#endif
+
 REMAP_THREE( poll, __libc_poll, int , struct pollfd *, unsigned long , int )
 REMAP_THREE( poll, __poll, int , struct pollfd *, unsigned long , int )
 
@@ -40,7 +44,11 @@ REMAP_THREE( poll, __poll, int , struct pollfd *, unsigned long , int )
 	REMAP_TWO( ftruncate64, __ftruncate64, int , int , off64_t )
 #endif
 
+#if defined(I386)
 REMAP_THREE_VARARGS( ioctl, __ioctl, int , int , unsigned long , int)
+#else
+REMAP_THREE_VARARGS( ioctl, __ioctl, int , unsigned long , unsigned long , int)
+#endif
 
 REMAP_THREE( lseek, __lseek, off_t, int, off_t, int )
 
@@ -83,6 +91,7 @@ REMAP_ONE( dup, __libc_dup, int, int )
 REMAP_TWO( dup2, __libc_dup2, int, int, int )
 REMAP_ONE( fchdir, __libc_fchdir, int, int )
 REMAP_THREE_VARARGS( fcntl, __libc_fcntl, int , int , int , int)
+
 REMAP_ONE( fsync, __libc_fsync, int , int )
 REMAP_TWO( ftruncate, __libc_ftruncate, int , int , off_t )
 REMAP_THREE_VARARGS( ioctl, __libc_ioctl, int , int , unsigned long , int)
@@ -102,13 +111,14 @@ REMAP_FIVE( select, __libc_select, int , int , fd_set *, fd_set *, fd_set *, str
 /* These remaps are neede by signals_support.c */
 #if defined(SAVE_SIGSTATE)
 
+#if defined(I386)
 REMAP_THREE( sigprocmask, __sigprocmask, int, int, const sigset_t *, sigset_t * )
 REMAP_ONE( sigsetmask, __sigsetmask, int, int )
 REMAP_ONE( sigsuspend, __sigsuspend, int, const sigset_t * )
 REMAP_ONE( sigsuspend, __libc_sigsuspend, int, const sigset_t * )
 REMAP_THREE( sigaction, __sigaction, int, int, const struct sigaction *, struct sigaction * )
 REMAP_THREE( sigaction, __libc_sigaction, int, int, const struct sigaction *, struct sigaction * )
-
+#endif
 
 #endif /* SAVE_SIGSTATE */
 
@@ -149,7 +159,13 @@ REMAP_ZERO( getuid, __getuid, uid_t )
 REMAP_TWO( kill, __kill, int, pid_t, int )
 REMAP_TWO( link, __link, int , const char *, const char *)
 REMAP_TWO( mkdir, __mkdir, int , const char *, mode_t )
+
 REMAP_SIX( mmap, __mmap, void *, void *, size_t, int, int, int, off_t )
+
+#if defined(X86_64)
+REMAP_SIX( mmap, __mmap64, void *, void *, size_t, int, int, int, off_t )
+#endif
+
 REMAP_FIVE( mount, __mount, int , const char *, const char *, const char *, unsigned long , const void *)
 REMAP_THREE( mprotect, __mprotect, int , MMAP_T, size_t , int )
 REMAP_THREE( msync, __msync, int , void *, size_t , int )
@@ -157,10 +173,19 @@ REMAP_THREE( msync, __libc_msync, int , void *, size_t , int )
 REMAP_TWO( munmap, __munmap, int, void *, size_t )
 REMAP_ONE( pipe, __pipe, int , int *)
 REMAP_THREE( readlink, __readlink, int , const char *, char *, size_t )
+
+#if defined(X86_64)
+REMAP_THREE( readv, __readv, ssize_t, int, const struct iovec *, size_t )
+#else
 REMAP_THREE( readv, __readv, int, int, const struct iovec *, size_t )
+#endif
 
 #if defined(GLIBC23)
+#if defined(I386)
 REMAP_THREE( readv, __libc_readv, int, int, const struct iovec *, size_t )
+#else
+REMAP_THREE( readv, __libc_readv, ssize_t, int, const struct iovec *, size_t )
+#endif
 #endif
 
 REMAP_THREE( reboot, __reboot, int , int , int , int )
@@ -185,7 +210,10 @@ REMAP_ONE( swapoff, __swapoff, int , const char *)
 REMAP_TWO( swapon, __swapon, int , const char *, int )
 REMAP_TWO( symlink, __symlink, int , const char *, const char *)
 REMAP_ONE( umask, __umask, mode_t , mode_t )
+
+#if defined(I386)
 REMAP_ONE( umount, __umount, int , const char *)
+#endif
 
 /* uname is now a weak alias to __uname */
 #if !defined(GLIBC22) && !defined(GLIBC23)
@@ -195,16 +223,29 @@ REMAP_ONE( uname, __uname, int , struct utsname *)
 REMAP_ONE( unlink, __unlink, int , const char *)
 REMAP_TWO( utime, __utime, int, const char *, const struct utimbuf * )
 REMAP_FOUR( wait4, __wait4, pid_t , pid_t , void *, int , struct rusage *)
+
+#if defined(I386)
 REMAP_THREE( waitpid, __waitpid, pid_t , pid_t , int *, int )
 REMAP_THREE( waitpid, __libc_waitpid, pid_t , pid_t , int *, int )
-
-REMAP_THREE( writev, __writev, int, int, const struct iovec *, size_t )
-
-#if defined(GLIBC23)
-REMAP_THREE( writev, __libc_writev, int, int, const struct iovec *, size_t )
 #endif
 
+#if defined(I386)
+REMAP_THREE( writev, __writev, int, int, const struct iovec *, size_t )
+#else
+REMAP_THREE( writev, __writev, ssize_t, int, const struct iovec *, size_t )
+#endif
+
+#if defined(GLIBC23)
+#if defined(I386)
+REMAP_THREE( writev, __libc_writev, int, int, const struct iovec *, size_t )
+#else
+REMAP_THREE( writev, __libc_writev, ssize_t, int, const struct iovec *, size_t )
+#endif
+#endif
+
+#if defined(I386)
 REMAP_FOUR( profil, __profil, int , char *, int , int , int );
+#endif
 
 
 /* Differences */
@@ -242,21 +283,34 @@ REMAP_TWO( truncate, __truncate, int , const char *, size_t )
 #include "condor_socket_types.h"
 
 REMAP_THREE( accept, __accept, int, int, SOCKET_ADDR_CONST_ACCEPT SOCKET_ADDR_TYPE, SOCKET_ALTERNATE_LENGTH_TYPE *)
+
 REMAP_THREE( bind, __bind, int, int, SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE, SOCKET_LENGTH_TYPE )
 REMAP_THREE( connect, __connect, int, int, SOCKET_ADDR_CONST_CONNECT SOCKET_ADDR_TYPE, SOCKET_LENGTH_TYPE)
 REMAP_THREE( getpeername, __getpeername, int, int, SOCKET_ADDR_TYPE, SOCKET_ALTERNATE_LENGTH_TYPE *)
 REMAP_THREE( getsockname, __getsockname, int, int, SOCKET_ADDR_TYPE, SOCKET_ALTERNATE_LENGTH_TYPE *)
 REMAP_FIVE( getsockopt, __getsockopt, int, int, int, int, SOCKET_DATA_TYPE, SOCKET_ALTERNATE_LENGTH_TYPE * )
 REMAP_TWO( listen, __listen, int, int, SOCKET_COUNT_TYPE )
-REMAP_FOUR( send, __send, int, int, SOCKET_DATA_CONST SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE )
-REMAP_FOUR( recv, __recv, int, int, SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE )
-REMAP_SIX( recvfrom, __recvfrom, int, int, SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE, SOCKET_ADDR_TYPE, SOCKET_ALTERNATE_LENGTH_TYPE * )
-REMAP_THREE( recvmsg, __recvmsg, int, int, struct msghdr *, SOCKET_FLAGS_TYPE )
-REMAP_THREE( sendmsg, __sendmsg, int, int, SOCKET_MSG_CONST struct msghdr *, SOCKET_FLAGS_TYPE )
-REMAP_SIX( sendto, __sendto, int, int, SOCKET_DATA_CONST SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE, const SOCKET_ADDR_TYPE, SOCKET_LENGTH_TYPE )
+
+#if defined(I386)
+REMAP_FOUR( send, __send, SOCKET_SENDRECV_TYPE, int, SOCKET_DATA_CONST SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE )
+REMAP_FOUR( recv, __recv, SOCKET_SENDRECV_TYPE, int, SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE )
+#endif
+
+REMAP_SIX( recvfrom, __recvfrom, SOCKET_RECVFROM_TYPE, int, SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE, SOCKET_ADDR_TYPE, SOCKET_ALTERNATE_LENGTH_TYPE * )
+REMAP_THREE( recvmsg, __libc_recvmsg, SOCKET_SENDRECV_TYPE, int, struct msghdr *, SOCKET_FLAGS_TYPE )
+
+REMAP_THREE( sendmsg, __sendmsg, SOCKET_SENDRECV_TYPE, int, SOCKET_MSG_CONST struct msghdr *, SOCKET_FLAGS_TYPE )
+REMAP_THREE( sendmsg, __libc_sendmsg, SOCKET_SENDRECV_TYPE, int, SOCKET_MSG_CONST struct msghdr *, SOCKET_FLAGS_TYPE )
+
+REMAP_SIX( sendto, __sendto, SOCKET_SENDRECV_TYPE, int, SOCKET_DATA_CONST SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE, const SOCKET_ADDR_TYPE, SOCKET_LENGTH_TYPE )
+REMAP_SIX( sendto, __libc_sendto, SOCKET_SENDRECV_TYPE, int, SOCKET_DATA_CONST SOCKET_DATA_TYPE, SOCKET_SENDRECV_LENGTH_TYPE, SOCKET_FLAGS_TYPE, const SOCKET_ADDR_TYPE, SOCKET_LENGTH_TYPE )
+
 REMAP_FIVE( setsockopt, __setsockopt, int, int, int, int, SOCKET_DATA_CONST SOCKET_DATA_TYPE, SOCKET_LENGTH_TYPE )
+
 REMAP_TWO( shutdown, __shutdown, int, int, int )
+
 REMAP_THREE( socket, __socket, int, int, int, int )
+
 REMAP_FOUR( socketpair, __socketpair, int, int, int, int, int * )
 
 

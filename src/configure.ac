@@ -1441,9 +1441,10 @@ else
 fi
 
 
-# For now, we hardcode that non-i386 platforms are clipped and don't
+# For now, we hardcode that non-i386/X86_64 platforms are clipped and don't
 # need an external glibc for anything...
-if test "x$_cv_libc_kind" = "xGLIBC" -a "x$_cv_arch" = "xI386" ; then
+if test "x$_cv_libc_kind" = "xGLIBC" -a \( "x$_cv_arch" = "xI386" -o "x$_cv_arch" = "xX86_64" \); then
+
   _cv_libc_full_vers="$_cv_libc_major.$_cv_libc_minor.$_cv_libc_patch"
   case "$_cv_libc_full_vers" in
   "2.2.4" )
@@ -1458,7 +1459,12 @@ if test "x$_cv_libc_kind" = "xGLIBC" -a "x$_cv_arch" = "xI386" ; then
   "2.3.2" )
     # the glibc 2.3.2 from redhat's source rpms are very different than the
 	# stock 2.3.2 you can download off of the web.
-    CONDOR_EXTERNAL_VERSION([glibc],[2.3.2.27.9.7])
+	#if test "x$_cv_arch" = "xI386" ; then
+      CONDOR_EXTERNAL_VERSION([glibc],[2.3.2.27.9.7])
+	#else
+	  # this is for the X86_64 port of condor
+      #CONDOR_EXTERNAL_VERSION([glibc],[2.3.2.95.33])
+	#fi
     ;;
   "2.3.4" )
   	# I'm using this here to avoid a full port of Condor to the centos 4 OS.

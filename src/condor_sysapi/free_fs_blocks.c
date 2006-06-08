@@ -23,6 +23,7 @@
 
 #include "condor_common.h"
 
+
 /*
 ** free_fs_blocks: reports the number of kbytes free for the filesystem where
 ** given filename resides.
@@ -34,6 +35,9 @@
 /* static function declarations */
 static int reserve_for_afs_cache();
 static int reserve_for_fs();
+
+/* util lib function */
+FILE * my_popenv( char *const args[], const char * mode );
 
 /* the code starts here */
 
