@@ -110,13 +110,10 @@ verify_owner(int clusterId,
 			 struct condor__Status &status)
 {
 	ClassAd *ad = NULL;
-	bool result;
+	bool result = true;
 
-	if (!(ad = GetJobAd(clusterId, jobId))) {
-		// failed to get any info on this job
-		status.message = "Failed to find job specified";
-		result = false;
-	} else {
+		// Check the owner of the job, if it has been committed already
+	if ((ad = GetJobAd(clusterId, jobId))) {
 		result =  OwnerCheck2(ad, owner);
 		if ( result == false ) {
 			status.message = "Not job owner";
@@ -129,7 +126,6 @@ verify_owner(int clusterId,
 				owner ? owner : "NULL",
 				clusterId,jobId	);
 			status.code = FAIL;
-			status.message = "Not job owner";
 	}
 
 	return result;
@@ -306,7 +302,8 @@ stub_prefix(const char* stub_name,   // IN
 		}
 	}
 
-	if ( soap ) {
+	if ( soap ) {		
+			// Check that this user is allowed to issue this command
 		if (!verify(perm, soap, result)) {
 				// verify() sets the result StatusCode/Message
 			ret_value = false;
@@ -314,12 +311,25 @@ stub_prefix(const char* stub_name,   // IN
 		}
 
 
+			// Check that this user is allowed to operate on this
+			// committed job
 		if (soap->user && clusterId) {
 			if (!verify_owner(clusterId, jobId, (char *) soap->user, result)) {
 					// verify_owner() sets the result StatusCode/Message
 				ret_value = false;
 				goto stub_prefix_return;
 			}
+		}
+
+			// Check that this user is the same user who previously
+			// operated on this transaction.
+		if (soap->user && entry->getOwner() && 
+			strcmp((const char*)soap->user,entry->getOwner()) )
+		{
+			result.code = FAIL;
+			result.message = "Authenticated user changed during transaction";
+			ret_value = false;
+			goto stub_prefix_return;
 		}
 	}
 
