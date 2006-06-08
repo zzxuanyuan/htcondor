@@ -400,17 +400,17 @@ condor__beginTransaction(struct soap *soap,
 		return SOAP_OK;
 	}
 
-		// TODO : count number of outstanding transactions....
-	if ( current_trans_id ) {
-		result.response.status.code = FAIL;
-		result.response.status.message =
-			"Maximum number of transactions reached";
-
-		dprintf(D_FULLDEBUG,
-				"SOAP denied new transaction in condor__beginTransaction()\n");
-
-		goto return_from_stub;
-	}
+//		// TODO : count number of outstanding transactions....
+//	if ( current_trans_id ) {
+//		result.response.status.code = FAIL;
+//		result.response.status.message =
+//			"Maximum number of transactions reached";
+//
+//		dprintf(D_FULLDEBUG,
+//				"SOAP denied new transaction in condor__beginTransaction()\n");
+//
+//		goto return_from_stub;
+//	}
 
 	if (0 < max) {
 		duration = duration > max ? max : duration;
