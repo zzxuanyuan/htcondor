@@ -1120,7 +1120,7 @@ setQmgmtConnectionInfo(QmgmtPeer *peer)
 	return ret_value;
 }
 
-static void
+void
 unsetQmgmtConnection()
 {
 	static QmgmtPeer reset;	// just used for reset/inital values

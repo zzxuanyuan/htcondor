@@ -38,7 +38,7 @@ class QmgmtPeer {
 	
 	friend QmgmtPeer* getQmgmtConnectionInfo();
 	friend bool setQmgmtConnectionInfo(QmgmtPeer*);
-	friend static void unsetQmgmtConnection();
+	friend void unsetQmgmtConnection();
 
 	public:
 		QmgmtPeer();

@@ -40,7 +40,7 @@ typedef int (*scan_func)(ClassAd *ad);
 
 // QmgmtPeer* getQmgmtConnectionInfo();
 // bool setQmgmtConnectionInfo(QmgmtPeer *peer);
-static void unsetQmgmtConnection();
+void unsetQmgmtConnection();
 
 
 #if defined(__cplusplus)
