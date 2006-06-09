@@ -351,57 +351,41 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 		//
 	//JICLocal::notifyJobExit( exit_status, reason, user_proc );
 
-		//
 		// Now, we've got to update the job queue.  In this case, we
 		// want to publish all the same attribute we'd otherwise send
 		// to the shadow, but instead, just stick them directly into
 		// our copy of the job classad.
-		//
 	Starter->publishPreScriptUpdateAd( job_ad );
 	user_proc->PublishUpdateAd( job_ad );
 	Starter->publishPostScriptUpdateAd( job_ad );
 	
-		//
 		// Only check to see what we should do with our job 
 		// in the user policy object if the job was terminated
-		//
 	if ( reason == JOB_EXITED || reason == JOB_COREDUMPED ) {
-			//
 			// What should be the return value for this?
 			// Can I just assume that things went well?
-			//
 		this->starter_user_policy->checkAtExit( );
 		
 	} else {
-		//
 		// We need to send an eviction notice. We have to update
 		// the job ad based on how we got here
-		//
 		update_t up_type;
 		switch( reason ) {
-			// ---------------------------------
-			// JOB_NOT_CKPTED
-			// JOB_CKPTED
-			// ---------------------------------
 			case JOB_NOT_CKPTED:
 				up_type = U_EVICT;
 				break;
-			// ---------------------------------
-			// JOB_KILLED
-			// ---------------------------------
+
 			case JOB_KILLED:
 				if ( this->had_remove ) {
 					up_type = U_REMOVE;
 				} else if ( this->had_hold ) {
 					up_type = U_HOLD;
 				} else {
-					EXCEPT( "Impossible: exit reason is JOB_KILLED, but neither "
-							"had_hold or had_remove are TRUE!" );
+					EXCEPT( "Impossible: exit reason is JOB_KILLED, but "
+							"neither had_hold or had_remove are TRUE!" );
 				}
 				break;
-			// ---------------------------------
-			// JOB_MISSED_DEFERRAL_TIME
-			// ---------------------------------
+
 			case JOB_MISSED_DEFERRAL_TIME:
 					//
 					// This is suppose to be temporary until we have some kind
@@ -414,9 +398,7 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 					//
 				exit_code = JOB_MISSED_DEFERRAL_TIME;
 				break;
-			// ---------------------------------
-			// UNKNOWN
-			// ---------------------------------
+
 			default:
 				EXCEPT( "Programmer error: unknown reason (%d) in "
 						"JICLocalSchedd::notifyJobExit", reason );
