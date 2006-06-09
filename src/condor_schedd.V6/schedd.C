@@ -5726,7 +5726,7 @@ find_idle_local_jobs( ClassAd *job )
 									ATTR_START_SCHEDULER_UNIVERSE );
 	
 			//
-			// Start Universe Evaluation
+			// Start Universe Evaluation (a.k.a. schedd requirements).
 			// Only if this attribute is NULL or evaluates to true 
 			// will we allow a job to start.
 			//
@@ -5740,20 +5740,12 @@ find_idle_local_jobs( ClassAd *job )
 				//
 			if ( scheddAd.EvalBool( universeExp, job, requirements ) ) {
 				requirementsMet = (bool)requirements;
-					//
-					// If the requirements failed to evaluate to true
-					// Print an error message
-					//
 				if ( ! requirements ) {
 					dprintf( D_FULLDEBUG, "%s evaluated to false for job %d.%d. "
 										  "Unable to start job.\n",
 										  universeExp, id.cluster, id.proc );
 				}
 			} else {
-					//
-					// This is an error message to say that something is funky
-					// with the schedd's attribute
-					//
 				requirementsMet = false;
 				dprintf( D_ALWAYS, "The schedd's %s attribute could "
 								   "not be evaluated for job %d.%d. "
@@ -5761,10 +5753,7 @@ find_idle_local_jobs( ClassAd *job )
 								   universeExp, id.cluster, id.proc );
 			}
 		}
-			//
-			// If the expression failed up above, we will want to 
-			// print the expression to the user and return
-			//
+
 		if ( ! requirementsMet ) {
 			char *exp = scheddAd.sPrintExpr( NULL, false, universeExp );
 			if ( exp ) {
@@ -5777,28 +5766,19 @@ find_idle_local_jobs( ClassAd *job )
 			// Job Requirements Evaluation
 			//
 		if ( job->Lookup( ATTR_REQUIREMENTS ) != NULL ) {
-				//
-				// We have this inner block here because the job
-				// should not be allowed to start if the schedd's 
-				// requirements failed to evaluate for some reason
-				//
-			if ( job->EvalBool( ATTR_REQUIREMENTS, &scheddAd, requirements ) ) {
+				// Treat undefined/error as FALSE for job requirements, too.
+			if ( job->EvalBool(ATTR_REQUIREMENTS, &scheddAd, requirements) ) {
 				requirementsMet = (bool)requirements;
 				if ( !requirements ) {
-					dprintf( D_FULLDEBUG, "The %s attribute for job %d.%d did "
-										  "not evaluate to true. "
-										  "Unable to start job\n",
-										  ATTR_REQUIREMENTS, id.cluster, id.proc );
+					dprintf( D_FULLDEBUG, "The %s attribute for job %d.%d "
+							 "did not evaluate to true. Unable to start job\n",
+							 ATTR_REQUIREMENTS, id.cluster, id.proc );
 				}
 			} else {
-					//
-					// Some isn't right with their Requirements expression
-					// So we can't let them start the job
-					//
 				requirementsMet = false;
 				dprintf( D_FULLDEBUG, "The %s attribute for job %d.%d did "
-								      "not evaluate to true. Unable to start job\n",
-								      ATTR_REQUIREMENTS, id.cluster, id.proc );
+						 "not evaluate to true. Unable to start job\n",
+						 ATTR_REQUIREMENTS, id.cluster, id.proc );
 			}
 		}
 			//
@@ -5806,9 +5786,6 @@ find_idle_local_jobs( ClassAd *job )
 			// print the expression to the user and return
 			//
 		if ( ! requirementsMet ) {
-				//
-				// Print the expression to the user
-				//
 			char *exp = job->sPrintExpr( NULL, false, ATTR_REQUIREMENTS );
 			if ( exp ) {
 				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp );
@@ -5816,6 +5793,7 @@ find_idle_local_jobs( ClassAd *job )
 			}
 			return ( 0 );
 		}
+
 			//
 			// It's safe to go ahead and run the job!
 			//
