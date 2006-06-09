@@ -55,7 +55,7 @@ int check_dap_format(classad::ClassAd *currentAd)
   //just check the format, not the content!
   //except dap_type ??
   
-  if ( !(attrexpr = currentAd->Lookup("dap_type")) ) return 0;
+  if ( !(attrexpr = currentAd->Lookup("type")) ) return 0;
   else{
     unparser.Unparse(adbuffer,attrexpr);
 
@@ -305,7 +305,8 @@ int main(int argc, char **argv)
 	}
 
     //check format of the submit classad
-    if ( !check_dap_format(currentAd)){
+    //if ( !check_dap_format(currentAd)){
+    if ( 0 ) {
       fprintf(stderr, "========================\n");
       fprintf(stderr, "Not a valid DaP request!\nPlease check your submit file and then resubmit...\n");
       fprintf(stderr, "========================\n");
@@ -370,6 +371,7 @@ int main(int argc, char **argv)
                         strerror(errno) );
                 return 1;
             }
+			proxy[ proxy_size ] = '\0';	// proxy is null terminated string.
 			fclose (fp);
 		} else {
 			fprintf(stderr, "ERROR: Unable to open proxy %s: %s\n",
@@ -393,7 +395,7 @@ int main(int argc, char **argv)
 	int rc = stork_submit (currentAd,
 						 global_opts.server,
 						 proxy, 
-						 proxy_size, 
+						 proxy_size, 	// FIXME: heritage parm no longer needed
 						 job_id,
 						 error_reason);
     fprintf(stdout, "================\n");
@@ -401,7 +403,8 @@ int main(int argc, char **argv)
 	if (rc) {
 		 fprintf (stdout, "\nRequest assigned id: %s\n", job_id);	
 	} else {
-		fprintf (stderr, "\nERROR submitting request (%s)!\n", error_reason);
+		fprintf (stderr, "\nERROR submitting request\nserver error: %s\n",
+				error_reason);
 	}
 
 

@@ -55,6 +55,7 @@ const int GSI_ERR_NO_VALID_PROXY = 5007;
 
 const int CEDAR_ERR_CONNECT_FAILED = 6001;
 
+const int STORK_SUBMIT_FAILED = 70001;
 
 #endif
 

@@ -14,17 +14,17 @@ LEAK_TESTS=false	# run memory leak tests.  implies MEM_TESTS
 # Optional memory debugger harness. Uncomment VALGRIND definition to enable
 # memory debugging.
 VALGRIND=~nleroy/local/bin/valgrind		# FIXME
-#VALGRIND_OPTS="$VALGRIND_OPTS --verbose"
+VALGRIND_OPTS="$VALGRIND_OPTS --verbose"
 VALGRIND_OPTS="$VALGRIND_OPTS --tool=addrcheck"
 VALGRIND_OPTS="$VALGRIND_OPTS --time-stamp=yes"
 #VALGRIND_OPTS="$VALGRIND_OPTS --trace-children=yes"
 #VALGRIND_OPTS="$VALGRIND_OPTS --show-below-main=yes"
 VALGRIND_OPTS="$VALGRIND_OPTS --num-callers=60"
 VALGRIND_LEAK_OPTS="$VALGRIND_LEAK_OPTS --leak-check=yes"
+VALGRIND_LEAK_OPTS="$VALGRIND_LEAK_OPTS --show-reachable=yes"   #too noisy
+VALGRIND_LEAK_OPTS="$VALGRIND_LEAK_OPTS --freelist-vol=5000000"
 #VALGRIND_OPTS="$VALGRIND_OPTS --gen-suppressions=yes" # blocking promtp to tty
 VALGRIND_LEAK_SUPPRESS=vg_leak.supp
-VALGRIND_OPTS="$VALGRIND_OPTS --suppressions=$VALGRIND_LEAK_SUPPRESS"
-#VALGRIND_LEAK_OPTS="$VALGRIND_LEAK_OPTS --show-reachable=yes"	#too noisy
 #VALGRINDCMD="$VALGRIND $VALGRIND_OPTS"
 
 #CREDD_HOST=localhost	# CredD host
@@ -117,7 +117,8 @@ register_memory_leak_file () {
 
 suppress_known_leaks () {
 	if $LEAK_TESTS; then
-		echo leak report supression file $TESTDIR/$VALGRIND_LEAK_SUPPRESS
+		VALGRIND_OPTS="$VALGRIND_OPTS --suppressions=$VALGRIND_LEAK_SUPPRESS"
+		echo leak report suppression file $TESTDIR/$VALGRIND_LEAK_SUPPRESS
 		# Create a Valgrind leak suppression file for false leaks, or leaks we
 		# don't want to hear about.
 		cat <<EOF >$VALGRIND_LEAK_SUPPRESS
@@ -368,6 +369,14 @@ setup_common () {
 	if $LEAK_TESTS; then
 		MEMTEST="$MEMTEST $VALGRIND_LEAK_OPTS"
 		echo memory leak tests are enabled
+
+		# Instruct gcc to malloc and free memory for string classes immediately.
+		# This shows up when using new classads.
+		# See http://valgrind.org/docs/FAQ/
+		# gcc-3.2.2, up to but not including gcc-3.4:
+		export GLIBCPP_FORCE_NEW=1
+		# gcc-3.4 and later
+		export GLIBCXX_FORCE_NEW=1
 	else
 		echo memory leak tests are disabled
 	fi
@@ -387,6 +396,9 @@ setup_common () {
 	BIN=`$CCV BIN`
 	SBIN=`$CCV SBIN`
 	export PATH="$BIN:$SBIN:$PATH"
+	export PATH="${PWD}/../release_dir/bin:${PWD}/../release_dir/sbin:$PATH"
+	export PATH=".:${PWD}:${PWD}/../stork:${PWD}/../condor_credd:$PATH"
+	echo PATH = $PATH
 	type $STORKD >/dev/null || fatal $STORKD binary not found. Check your PATH.
 }
 

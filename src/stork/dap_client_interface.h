@@ -45,7 +45,7 @@
 int stork_submit (const classad::ClassAd * request,
 				const char * stork_server_sin, 
 				const char * cred, 
-				const int cred_size, 
+				const int cred_size, 	// FIXME: heritage parm no longer needed
 				char *& id,
 				char *& error_reason);
 

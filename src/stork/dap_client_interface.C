@@ -208,7 +208,7 @@ stork_submit (
 			const classad::ClassAd * request,
 			const char * host, 
 			const char * cred, 
-			const int cred_size, 
+			const int cred_size, 	// FIXME: heritage parm no longer needed
 		    char *& id,
 			char * & _error_reason) {
 
@@ -224,49 +224,63 @@ stork_submit (
 		_error_reason = strdup (error_reason.Value());
 		return FALSE;
 	}
+	Stream* stream = (Stream *)sock;
 
 
 	char line[MAX_TCP_BUF];
-
-	sock->encode();
-
 	classad::ClassAdUnParser unparser;
-	std::string adbuffer = "";
+	std::string adbuffer;
     unparser.Unparse(adbuffer, request);
 
-	char *_request = strdup(adbuffer.c_str());	// to un-const
-	if (!sock->code (_request)) {
-		_error_reason = strdup("Client send error");
-		delete sock;
+	if (!stream->put ( (char *)(adbuffer.c_str() ) ) ) {
+		_error_reason = strdup("Client send job ad error");
 		return FALSE;
 	}
-	free (_request);
 
-	sock->code ((int)cred_size);
-	if (cred_size) {
-		char * _cred = strdup (cred);  
-		sock->code_bytes (_cred, cred_size);
-		free (_cred);
+	char *_cred;
+	//sock->code ((int)cred_size);
+	if (cred_size > 0 ) {
+		//char * _cred = strdup (cred);  
+		_cred = (char *)cred;  
+		//sock->code_bytes (_cred, cred_size);
+		//free (_cred);
+	} else {
+		_cred = (char *)"";
+	}
+	if (! stream->put( _cred ) ) {
+		_error_reason = strdup("Client send credential error");
+		return FALSE;
 	}
 
-
-	sock->eom();
-	sock->decode();
+	if (! stream->end_of_message() ) {
+		_error_reason = strdup("Client send end of msg error");
+		return FALSE;
+	}
 
 	char * pline = (char*)line;
-	if (!sock->code (pline)) {
-		_error_reason = strdup("Client recv error");
-		delete sock;
+	if (!stream->get (pline)) {
+		_error_reason = strdup("Client recv job id error");
 		return FALSE;
 	}
-	
-	sock->eom();
+
+	char * server_error = NULL;
+	if (!stream->get (server_error)) {
+		_error_reason = strdup("Client unable to receive server error string");
+		return FALSE;
+	}
+	if (strlen(server_error) ) {
+		//fprintf(stderr, "%s\n", server_error);
+		_error_reason = server_error;
+		return FALSE;
+	}
+
+	if (! stream->end_of_message() ) {
+		_error_reason = strdup("Client recv end of msg error");
+		return FALSE;
+	}
 
 	_error_reason = NULL;
 	id=strdup(line);
-
-	sock->close();
-	delete sock;
 	
 	return TRUE;
 }

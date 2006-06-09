@@ -40,6 +40,7 @@ STORK_DEFS = $(LARGEFILE_DEFS)
 STORK_INCLUDES = -I$(NEW_CLASSADS_INC)
 STORK_FLAGS = $(STORK_DEFS) $(STORK_INCLUDES)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STORK_FLAGS)
+INST_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_VERS_FLAGS) $(STORK_INCLUDES)
 CFLAGS  = $(STD_C_FLAGS) $(STORK_FLAGS)
 
 /* internal Stork utilities library */
@@ -62,6 +63,14 @@ SERVER_LIBS = \
 	$(STD_LIBS) \
 	$(NEW_CLASSADS_LINK)
 public_c_plus_nowrap_target(stork_server,sbin,$(SERVER_OBJS),$(SERVER_LIBS))
+
+
+STORKD_LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(NEW_CLASSADS_LINK)
+STORKD = storkd
+STORKD_OBJ = stork_main.o Stork.o stork_util.o StorkJobId.o StorkUserLog.o
+#c_plus_public_nowrap_target($(STORKD),sbin,$(STORKD_OBJ),$(STORKD_LIB))
+public_c_plus_target($(STORKD),sbin,$(STORKD_OBJ),$(STORKD_LIB))
+template_inst(Stork.C, Stork.o)
 
 /* user tools */
 TOOL_LIBS = \
@@ -294,3 +303,6 @@ static_library($(CLIENT_LIB),lib)
 XCOMM Uncomment to build contrib modules as part of default build
 all:: contrib
 
+c_plus_target(testStorkJobId, StorkJobId.o testHarness.o, $(STD_LIBS) $(NEW_CLASSADS_LINK) )
+testJobId: testStorkJobId
+	/u/n/l/nleroy/local/bin/valgrind --tool=addrcheck --freelist-vol=5000000 $<
