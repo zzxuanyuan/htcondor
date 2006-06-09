@@ -1008,7 +1008,8 @@ OwnerCheck2(ClassAd *ad, const char *test_owner)
 	// if Q_SOCK is not null; if Q_SOCK is null, then the schedd is calling
 	// a QMGMT command internally which is allowed.
 	if (test_owner == NULL) {
-		dprintf(D_ALWAYS,"QMGT command failed: anonymous user not permitted\n" );
+		dprintf(D_ALWAYS,
+				"QMGT command failed: anonymous user not permitted\n" );
 		return false;
 	}
 
@@ -1436,9 +1437,13 @@ int DestroyProc(int cluster_id, int proc_id)
 
 		// should we leave the job in the queue?
 	int leave_job_in_q = 0;
-	ad->EvalBool(ATTR_JOB_LEAVE_IN_QUEUE,NULL,leave_job_in_q);
-	if ( leave_job_in_q ) {
-		return DESTROYPROC_SUCCESS_DELAY;
+	{
+		ClassAd completeAd(*ad);
+		JobQueue->AddAttrsFromTransaction(key,completeAd);
+		completeAd.EvalBool(ATTR_JOB_LEAVE_IN_QUEUE,NULL,leave_job_in_q);
+		if ( leave_job_in_q ) {
+			return DESTROYPROC_SUCCESS_DELAY;
+		}
 	}
 
  
