@@ -458,10 +458,11 @@ Scheduler::~Scheduler()
 		CronTab *current;
 		while ( this->cronTabs->iterate( current ) == 1 ) {
 			if ( current ) delete current;
-		} // WHILE
+		}
 		delete this->cronTabs;
 		delete this->cronTabsExclude;
 	}
+
 }
 
 void
@@ -9724,7 +9725,7 @@ Scheduler::Init()
 		CronTab *current;
 		while ( this->cronTabs->iterate( current ) == 1 ) {
 			if ( current ) delete current;
-		} // WHILE
+		}
 		delete this->cronTabs;
 		if ( this->cronTabsExclude ) delete this->cronTabsExclude;
 	}
