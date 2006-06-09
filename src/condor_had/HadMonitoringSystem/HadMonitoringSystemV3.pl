@@ -72,7 +72,7 @@ my $stateRegEx    = 'go to <PASSIVE_STATE>';
 use constant TRUE                   => 1;
 use constant FALSE                  => 0;
 use constant MAX_INT                => 999999999999;
-use constant FICTIVE_SENDER_ADDRESS => 'had_monitoring_system@cs';
+#use constant FICTIVE_SENDER_ADDRESS => 'had_monitoring_system@cs';
 use constant LINE_SEPARATOR         => "*********************************************\n";
 
 # Error messages
@@ -107,16 +107,19 @@ my $consolidatedReportFrequency     = "";
 my $storeOldArchivesDays            = 7;
 my @monitoredDaemons                = ();
 my $isOffsetCalculationNeeded       = TRUE;
+my $fictiveSenderAddress            = "";
 
 # Loading Condor pool parameters
-my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST`;
+my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST`;
 chomp(@condorParameters);
 my $hadList                  = $condorParameters[0];
 my $isPrimaryUsed            = $condorParameters[1];
 #my $hadConnectionTimeout     = $condorParameters[2];
 my $replicationList          = $condorParameters[2];
+my $collectorHost            = $condorParameters[3];
 my @hadSinfulStrings         = split(',', $hadList);
 my @replicationSinfulStrings = split(',', $replicationList);
+my @collectorSinfulStrings   = split(',', $collectorHost);
 #my $hadInterval              = (2 * $hadConnectionTimeout * split(',', $hadList) + 1) * 2;
 
 &LoadConfiguration();
@@ -342,14 +345,20 @@ sub FetchLogs
 
 #	my @hadSinfulStrings = split(',', $hadList);
 	my @logFilePaths;
+	my $machineIndex = 0;
 
 	foreach my $hadSinfulString (@hadSinfulStrings)
 	{
 		my $logFilePath = "$daemonLogsDirectory/DaemonLog-$hadSinfulString-$currentTime-$checkerName";
 		
 		push(@logFilePaths, $logFilePath);
-		FetchLog($hadSinfulString,  $monitoredDaemon     ,  $logFilePath);
-		FetchLog($hadSinfulString, "$monitoredDaemon.old", "$logFilePath.old");
+#		FetchLog($hadSinfulString,  $monitoredDaemon     ,  $logFilePath);
+#		FetchLog($hadSinfulString, "$monitoredDaemon.old", "$logFilePath.old");
+
+		FetchLog($collectorSinfulStrings[$machineIndex],  $monitoredDaemon     ,  $logFilePath);
+                FetchLog($collectorSinfulStrings[$machineIndex], "$monitoredDaemon.old", "$logFilePath.old");
+
+		$machineIndex ++;
 	}
 	return @logFilePaths;
 }
@@ -468,6 +477,8 @@ sub LoadConfiguration
 			case 'IS_OFFSET_CALCULATION_NEEDED'
 						 { $isOffsetCalculationNeeded = FALSE
 						   if grep(/$value/i, 'no'); }
+			case 'FICTIVE_SENDER_ADDRESS'
+						 { $fictiveSenderAddress = $value; }
                 	else                     { die "No such configuration entry: $key"; }
         	}
 		&AppendTextToActivityLog("Loaded configuration parameter $key = $value\n");
@@ -507,7 +518,7 @@ sub SendConsolidatedReport
         use MIME::Lite;
         use Net::SMTP;
 
-        my $message = MIME::Lite->new(From    => FICTIVE_SENDER_ADDRESS,
+        my $message = MIME::Lite->new(From    => $fictiveSenderAddress, #FICTIVE_SENDER_ADDRESS,
                                       #To      => $reportRecipients,
 				      To      => $consolidatedReportRecipients,
                                       Subject => "HAD Monitoring System Consolidated Report - " . 
@@ -577,7 +588,7 @@ sub SendReport
 		$errorsWarningsSubject .= $comma . " $checkerName($errorsNumberAsString/$warningsNumberAsString)";
 		$comma = ',';
 	}
-	my $message = MIME::Lite->new(From    => FICTIVE_SENDER_ADDRESS, 
+	my $message = MIME::Lite->new(From    => $fictiveSenderAddress, #FICTIVE_SENDER_ADDRESS, 
 				      #To      => $reportRecipients, 
 				      To      => $errorReportRecipients,
 				      Subject => "HAD Monitoring System Report -$errorsWarningsSubject",
