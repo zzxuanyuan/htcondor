@@ -80,6 +80,11 @@ public:
 	// return -1 if DeleteAttribute or DestroyClassAd found
 	int LookupInTransaction(const char *key, const char *name, char *&val);
 
+	// insert into the given ad any attributes found in the uncommitted transaction
+	// cache that match the key.  return true if any attributes were
+	// added into the ad, false if not.
+	bool AddAttrsFromTransaction(const char *key, ClassAd &ad);
+
 	ClassAdHashTable table;
 
 	// When the log is truncated (i.e. compacted), old logs
@@ -108,6 +113,9 @@ protected:
 		@see getActiveTransaction
 	*/
 	bool setActiveTransaction(Transaction* & transaction);
+
+	int ExamineTransaction(const char *key, const char *name, char *&val, ClassAd* &ad);
+
 
 private:
 	void LogState(FILE* fp);

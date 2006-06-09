@@ -178,6 +178,8 @@ public:
       @return true on success, false otherwise.
   */
   bool LookupClassAd(const char* key, ClassAd*& Ad) { return (table.lookup(HashKey(key), Ad)==0); }
+
+  bool AddAttrsFromTransaction(const char* key, ClassAd & ad) { return (ClassAdLog::AddAttrsFromTransaction(key,ad)); }
   
   //@}
   //------------------------------------------------------------------------
