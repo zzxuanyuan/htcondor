@@ -10730,37 +10730,23 @@ Scheduler::publish( ClassAd *ad ) {
 		// Basic Attributes
 		// -------------------------------------------------------
 
-		//
-		// Architecture
-		//
 	temp = param( "ARCH" );
 	if ( temp ) {
 		InsertIntoAd( ad, ATTR_ARCH, temp );
 		free( temp );
 	}
-		//
-		// Operating System
-		//
+
 	temp = param( "OPSYS" );
 	if ( temp ) {
 		InsertIntoAd( ad, ATTR_OPSYS, temp );
 		free( temp );
 	}
 	
-		//
-		// Memory
-		//
 	unsigned long phys_mem = sysapi_phys_memory( );
 	InsertIntoAd( ad, ATTR_MEMORY, phys_mem );
 	
-		//
-		// Disk Space in LocalUnivExecuteDir
-		//
 	unsigned long disk_space = sysapi_disk_space( this->LocalUnivExecuteDir );
 	InsertIntoAd( ad, ATTR_DISK, disk_space );
-	
-		//
-		// 
 	
 		// -------------------------------------------------------
 		// Local Universe Attributes
