@@ -2494,10 +2494,9 @@ Scheduler::WriteAbortToUserLog( PROC_ID job_id )
 	delete ULog;
 
 	if (!status) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_JOB_ABORTED event for Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS
+				 "Unable to log ULOG_JOB_ABORTED event for job %d.%d\n",
+				 job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
@@ -2519,7 +2518,9 @@ Scheduler::WriteHoldToUserLog( PROC_ID job_id )
 							  ATTR_HOLD_REASON, &reason) >= 0 ) {
 		event.setReason( reason );
 	} else {
-		dprintf( D_ALWAYS, "PAVLO: Failed to get %s\n", ATTR_HOLD_REASON );
+		dprintf( D_ALWAYS, "Scheduler::WriteHoldToUserLog(): "
+				 "Failed to get %s from job %d.%d\n", ATTR_HOLD_REASON,
+				 job_id.cluster, job_id.proc );
 	}
 		// GetAttributeStringNew always allocates memory, so we free
 		// regardless of the return value.
@@ -2529,10 +2530,8 @@ Scheduler::WriteHoldToUserLog( PROC_ID job_id )
 	delete ULog;
 
 	if (!status) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_JOB_HELD event for Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_HELD event for job %d.%d\n",
+				 job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
@@ -2562,10 +2561,9 @@ Scheduler::WriteReleaseToUserLog( PROC_ID job_id )
 	delete ULog;
 
 	if (!status) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_JOB_RELEASED event for Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS,
+				 "Unable to log ULOG_JOB_RELEASED event for job %d.%d\n",
+				 job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
@@ -2594,10 +2592,8 @@ Scheduler::WriteExecuteToUserLog( PROC_ID job_id, const char* sinful )
 	delete ULog;
 	
 	if (!status) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_EXECUTE event for Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS, "Unable to log ULOG_EXECUTE event for job %d.%d\n",
+				job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
@@ -2617,10 +2613,9 @@ Scheduler::WriteEvictToUserLog( PROC_ID job_id, bool checkpointed )
 	int status = ULog->writeEvent(&event);
 	delete ULog;
 	if (!status) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_JOB_EVICTED event for Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS,
+				 "Unable to log ULOG_JOB_EVICTED event for job %d.%d\n",
+				 job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
@@ -2662,10 +2657,9 @@ Scheduler::WriteTerminateToUserLog( PROC_ID job_id, int status )
 	delete ULog;
 
 	if (!rval) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_JOB_TERMINATED event for Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS, 
+				 "Unable to log ULOG_JOB_TERMINATED event for job %d.%d\n",
+				 job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
@@ -2705,11 +2699,8 @@ Scheduler::WriteRequeueToUserLog( PROC_ID job_id, int status, const char * reaso
 	delete ULog;
 
 	if (!rval) {
-		MyString error;
-		error.sprintf( "Unable to log ULOG_JOB_EVICTED (requeue) event for "
-						"Job %d.%d\n",
-						job_id.cluster, job_id.proc );
-		dprintf( D_ALWAYS, (char*)error.Value( ) );
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_EVICTED (requeue) event "
+				 "for job %d.%d\n", job_id.cluster, job_id.proc );
 		return false;
 	}
 	return true;
