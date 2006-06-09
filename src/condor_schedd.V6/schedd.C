@@ -8604,49 +8604,32 @@ Scheduler::child_exit(int pid, int status)
 			// the job in the queue
 			//
 		if ( WIFEXITED(status) ) {
-				//
-				// The status code is in the the least significant eight bits 
-				// of our job's return code and will tell us what we need to do
-				// with the job. These status codes are defined in exit.h
-				//
 			int wExitStatus = WEXITSTATUS( status );
-			
-				//
-				// First print an message that we caught the job exiting
-				//
 		    dprintf( D_ALWAYS,
 			 		"%s pid %d for job %d.%d exited with status %d\n",
 					 name, pid, srec->job_id.cluster, srec->job_id.proc,
 					 wExitStatus );
 			
-				//
 				// Now call this method to perform the correct
 				// action based on our status code
-				//
 			this->jobExitCode( job_id, wExitStatus );
 			 
-			 	//
 			 	// We never want to try to start jobs if we have
 			 	// either of these exit codes 
-			 	//
 			 if ( wExitStatus == JOB_NO_MEM ||
 			 	  wExitStatus == JOB_EXEC_FAILED ) {
 				StartJobsFlag = false;
 			}
 			
 	 	} else if( WIFSIGNALED(status) ) {
-	 			//
 	 			// The job died with a signal, so there's not much
 	 			// that we can do for it
-	 			//
 			dprintf( D_FAILURE|D_ALWAYS, "%s pid %d died with %s\n",
 					 name, pid, daemonCore->GetExceptionString(status) );
 		}
 		
-			//
 			// We always want to delete the shadow record regardless 
 			// of how the job exited
-			//
 		delete_shadow_rec( pid );
 
 	} else {
@@ -8669,11 +8652,9 @@ Scheduler::child_exit(int pid, int status)
 		this->count_jobs();
 	}
 
-		//
 		// If we're not trying to shutdown, now that either an agent
 		// or a shadow (or both) have exited, we should try to
 		// activate all our claims and start jobs on them.
-		//
 	if( ! ExitWhenDone && StartJobsFlag ) {
 		this->StartJobs();
 	}
@@ -8697,21 +8678,13 @@ Scheduler::child_exit(int pid, int status)
 bool
 Scheduler::jobExitCode( PROC_ID job_id, int exit_code ) 
 {
-		//
-		// The return value
-		//
 	bool ret = true; 
 	
-		//
 		// Try to get the shadow record.
 		// If we are unable to get the srec, then we need to be careful
 		// down in the logic below
-		// 
 	shadow_rec *srec = this->FindSrecByProcID( job_id );
 	
-		//
-		// Status of this job in the queue 
-		//
 	int q_status;
 	if ( GetAttributeInt( job_id.cluster, job_id.proc, 
 							ATTR_JOB_STATUS, &q_status) < 0 ) {
@@ -8719,10 +8692,8 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 				job_id.cluster, job_id.proc );
 	}
 	
-		//
 		// We get the name of the daemon that had a problem for 
-		// nice log messages!
-		//
+		// nice log messages...
 	MyString daemon_name;
 	if ( srec != NULL ) {
 		daemon_name = ( IsLocalUniverse( srec ) ? "Local Starter" : "Shadow" );
@@ -8742,105 +8713,67 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 		// on the job
 		//
 	switch( exit_code ) {
-		// ---------------------------------------
-		// JOB_NO_MEM
-		// ---------------------------------------
 		case JOB_NO_MEM:
 			this->swap_space_exhausted();
-		// ---------------------------------------
-		// JOB_EXEC_FAILED
-		// ---------------------------------------
-		case JOB_EXEC_FAILED:
-				//
-				// There is nothing for us to do
-				//
 			break;
-		// ---------------------------------------
-		// JOB_CKPTED
-		// JOB_NOT_CKPTED
-		// ---------------------------------------
+
+		case JOB_EXEC_FAILED:
+				// There is nothing for us to do
+			break;
+
 		case JOB_CKPTED:
 		case JOB_NOT_CKPTED:
 				// no break, fall through and do the action
-		// ---------------------------------------
-		// JOB_SHOULD_REQUEUE 
-		// ---------------------------------------
-		// case JOB_SHOULD_REQUEUE:  
-				//
+
+		// case JOB_SHOULD_REQUEUE:
 				// we can't have the same value twice in our
 				// switch, so we can't really have a valid case
 				// for this, but it's the same number as
 				// JOB_NOT_CKPTED, so we're safe.
-				//
-		// ---------------------------------------
-		// JOB_NOT_STARTED
-		// ---------------------------------------
 		case JOB_NOT_STARTED:
 			if( !srec->removed && srec->match ) {
 				Relinquish(srec->match);
 				DelMrec(srec->match);
 			}
 			break;
-		// ---------------------------------------
-		// JOB_SHADOW_USAGE
-		// ---------------------------------------
+
 		case JOB_SHADOW_USAGE:
 			EXCEPT( "%s exited with incorrect usage!\n", daemon_name.Value() );
 			break;
-		// ---------------------------------------
-		// JOB_BAD_STATUS
-		// ---------------------------------------
+
 		case JOB_BAD_STATUS:
 			EXCEPT( "%s exited because job status != RUNNING", daemon_name.Value() );
 			break;
-		// ---------------------------------------
-		// JOB_SHOULD_REMOVE
-		// ---------------------------------------
+
 		case JOB_SHOULD_REMOVE:
 			dprintf( D_ALWAYS, "Removing job %d.%d\n",
 					 job_id.cluster, job_id.proc );
-					 
-				//
 				// If we have a shadow record, then set this flag 
 				// so we treat this just like a condor_rm
-				//
 			if ( srec != NULL ) {
 				srec->removed = true;
 			}
 				// no break, fall through and do the action
-		// ---------------------------------------
-		// JOB_NO_CKPT_FILE
-		// JOB_KILLED
-		// ---------------------------------------
+
 		case JOB_NO_CKPT_FILE:
 		case JOB_KILLED:
-				//
 				// If the job isn't being HELD, we'll remove it
-				//
 			if ( q_status != HELD ) {
 				set_job_status( job_id.cluster, job_id.proc, REMOVED );
 			}
 			break;
-		// ---------------------------------------
-		// JOB_EXITED
-		// ---------------------------------------
+
 		case JOB_EXITED:
 			dprintf(D_FULLDEBUG, "Reaper: JOB_EXITED\n");
 				// no break, fall through and do the action
-		// ---------------------------------------
-		// JOB_COREDUMPED
-		// ---------------------------------------
+
 		case JOB_COREDUMPED:
-				//
 				// If the job isn't being HELD, set it to COMPLETED
-				//
 			if ( q_status != HELD ) {
 				set_job_status( job_id.cluster, job_id.proc, COMPLETED ); 
 			}
 			break;
-		// ---------------------------------------
-		// JOB_MISSED_DEFERRAL_TIME
-		// ---------------------------------------
+
 		case JOB_MISSED_DEFERRAL_TIME: {
 				//
 				// Super Hack! - Missed Deferral Time
@@ -8864,51 +8797,36 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 							job_id.cluster, job_id.proc );
 		}
 				// no break, fall through and do the action
-		// ---------------------------------------
-		// JOB_SHOULD_HOLD
-		// ---------------------------------------
+
 		case JOB_SHOULD_HOLD:
-				//
-				// First announce that we are putting the job on hold
-				//
 			dprintf( D_ALWAYS, "Putting job %d.%d on hold\n",
 					 job_id.cluster, job_id.proc );
-				//
-				// Then regardless of the state that the job currently
+				// Regardless of the state that the job currently
 				// is in, we'll put it on HOLD
-				//
 			set_job_status( job_id.cluster, job_id.proc, HELD );
 			
-				//
 				// If the job has a CronTab schedule, we will want
 				// to remove cached scheduling object so that if
 				// it is ever released we will always calculate a new
 				// runtime for it. This prevents a job from going
 				// on hold, then released only to fail again
 				// because a new runtime wasn't calculated for it
-				//
 			if ( !this->cronTabsExclude->IsMember( job_id ) ) {
-					//
 					// Delete the cached object
-					//
 				CronTab *cronTab = NULL;
 				if ( this->cronTabs->lookup( job_id, cronTab ) < 0 ) {
 					if ( cronTab ) delete cronTab;	
 				}
 			} // CronTab
 			break;
-		// ---------------------------------------
-		// DPRINTF_ERROR
-		// ---------------------------------------
+
 		case DPRINTF_ERROR:
 			dprintf( D_ALWAYS,
 					 "ERROR: %s had fatal error writing its log file\n",
 					 daemon_name.Value() );
 			// We don't want to break, we want to fall through 
 			// and treat this like a shadow exception for now.
-		// ---------------------------------------
-		// JOB_EXCEPTION
-		// ---------------------------------------
+
 		case JOB_EXCEPTION:
 			if ( exit_code == JOB_EXCEPTION ){
 				dprintf( D_ALWAYS,
@@ -8917,9 +8835,7 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 			}
 			// We don't want to break, we want to fall through 
 			// and treat this like a shadow exception for now.
-		// ---------------------------------------
-		// DEFAULT
-		// ---------------------------------------
+
 		default:
 				//
 				// The default case is now a shadow exception in case ANYTHING
@@ -8931,27 +8847,21 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 						 "ERROR: %s exited with unknown value %d!\n",
 						 daemon_name.Value(), exit_code );
 			}
-				//
 				// The logic to report a shadow exception has been
 				// moved down below. We just set this flag to 
 				// make sure we hit it
-				//
 			reportException = true;
 			break;
 	} // SWITCH
 	
-		//
 		// Report the ShadowException
 		// This used to be in the default case in the switch statement
 		// above, but we might need to do this in other cases in
 		// the future
-		//
 	if ( reportException && srec != NULL &&
 		 ( ! srec->removed && srec->match ) ) {
-			//
 			// Record that we had an exception.  This function will
 			// relinquish the match if we get too many exceptions 
-			//
 		HadException(srec->match);
 	}
 	return ( ret );	
