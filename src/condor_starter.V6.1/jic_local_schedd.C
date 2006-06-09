@@ -405,17 +405,7 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 				break;
 		} // SWITCH
 		
-			//
-			// Questions:
-			//  - Do I update the userlog if the queue manager failed?
-			//  - Which of these should I be doing first - logEvict or updateJob?
-			//
-			// Now update the job queue
-			// 
-		this->job_updater->updateJob( up_type );
-		
-			//
-			// And write an eviction notice
+			// Write an eviction notice
 			// We need to pass whether the job was checkpointed or not
 			// 
 			// NOTE: The local universe's log actions is not consistent
@@ -427,8 +417,11 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 			// going to be consistent with ourself in the local universe
 			// and ALWAYS send an eviction notice when the job is 
 			// removed
-			//
 		rval = this->u_log->logEvict( this->job_ad, (reason == JOB_CKPTED) );
+
+			// Now that we've logged the event, we can update the job queue
+		this->job_updater->updateJob( up_type );
+		
 	}
 
 		//
