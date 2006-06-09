@@ -410,17 +410,17 @@ condor__beginTransaction(struct soap *soap,
 		return SOAP_OK;
 	}
 
-//		// TODO : count number of outstanding transactions....
-//	if ( current_trans_id ) {
-//		result.response.status.code = FAIL;
-//		result.response.status.message =
-//			"Maximum number of transactions reached";
-//
-//		dprintf(D_FULLDEBUG,
-//				"SOAP denied new transaction in condor__beginTransaction()\n");
-//
-//		goto return_from_stub;
-//	}
+		// TODO : count number of outstanding transactions....
+	if ( current_trans_id ) {
+		result.response.status.code = FAIL;
+		result.response.status.message =
+			"Maximum number of transactions reached";
+
+		dprintf(D_FULLDEBUG,
+				"SOAP denied new transaction in condor__beginTransaction()\n");
+
+		goto return_from_stub;
+	}
 
 	if (0 < max) {
 		duration = duration > max ? max : duration;
@@ -712,7 +712,7 @@ condor__removeCluster(struct soap *soap,
 	} else {
 		if (entry->removeCluster(clusterId)) {
 			result.response.code = FAIL;
-			result.response.message = "Failed to clean up job, abort";
+			result.response.message = "Failed to clean up cluster, abort";
 		} else {
 			result.response.code = SUCCESS;
 			result.response.message = "Success";
@@ -807,8 +807,9 @@ condor__removeJob(struct soap *soap,
 		result.response.code = FAIL;
 		result.response.message = "Failed to abort job";
 	} else {
+		Job *job = NULL;
 		PROC_ID id; id.cluster = clusterId; id.proc = jobId;
-		if (entry->removeJob(id)) {
+		if (!entry->getJob(id, job) && entry->removeJob(id)) {
 			result.response.code = FAIL;
 			result.response.message = "Failed to clean up job, abort";
 		} else {
@@ -915,8 +916,8 @@ condor__submit(struct soap *soap,
 	ScheddTransaction *entry;
 	if (!stub_prefix("submit",
 					 soap,
-					 clusterId,
-					 jobId,
+					 0, // Can't do owner check until after submit...
+					 0,
 					 WRITE,
 					 true,
 					 transaction_ptr,
@@ -941,6 +942,7 @@ condor__submit(struct soap *soap,
 			result.response.status.code = UNKNOWNJOB;
 			result.response.status.message = "Unknown cluster or job";
 		} else {
+#if 0 // We are going to let the QMGMT layer handle this for us now...
 				// If the client is authenticated then ignore the
 				// ATTR_OWNER attribute it specified and calculate
 				// the proper value
@@ -962,6 +964,7 @@ condor__submit(struct soap *soap,
 					}
 				}
 			}
+#endif
 				// There is certainly some trust going on here, if
 				// the client does not send a useful ClassAd we do
 				// not care. It would be nicer if clients could
