@@ -139,6 +139,7 @@ private:
 	bool isHardConfigurationNeeded( );
 	bool isPassingToIdleNeeded( );
 	void softReconfigure( bool isStateChanged = true );
+	void invalidateClassAd( );
 // End of reconfiguration-related procedures
 
 // Classad-related procedures

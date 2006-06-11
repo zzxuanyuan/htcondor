@@ -6,6 +6,8 @@
 #include "condor_attributes.h"
 // for CollectorList
 #include "daemon_list.h"
+// for 'my_username'
+#include "my_username.h"
 #include "ReplicatorStateMachine.h"
 //#include "HadCommands.h"
 //#include "ReplicationCommands.h"
@@ -116,7 +118,8 @@ ReplicatorStateMachine::ReplicatorStateMachine()
 ReplicatorStateMachine::~ReplicatorStateMachine( )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine dtor started\n" );
-    finalizeDelta( );
+    invalidateClassAd( );
+	finalizeDelta( );
 }
 /* Function   : finalize
  * Arguments  : isStateChanged - whether the state of the daemon should be
@@ -1080,4 +1083,43 @@ ReplicatorStateMachine::updateCollectorsClassAd( const MyString& isActive )
     dprintf( D_ALWAYS, "ReplicationStateMachine::updateCollectorsClassAd %d "
                        "successful updates\n", successfulUpdatesNumber);
 }
+/* Function   : invalidateClassAd
+ * Description: invalidates replication daemon classad in collectors
+ */
+void
+ReplicatorStateMachine::invalidateClassAd( )
+{
+    if( m_collectorsList ) {
+        dprintf( D_ALWAYS, "ReplicatorStateMachine::invalidateClassAd the "
+						   "collectors list is not initialized, sending "
+						   "nothing\n" );
+    }
+    ClassAd invalidateAd;
+    MyString line;
 
+    // Set the correct types
+    invalidateAd.SetMyTypeName( QUERY_ADTYPE );
+    invalidateAd.SetTargetTypeName( REPLICATION_ADTYPE );
+
+    // We only want to invalidate this replication daemon. Using our
+    // sinful string seems like the safest bet for that, since
+    // even if the names somehow get messed up, at least the
+    // sinful string should be unique
+//    line.sprintf( "%s = %s == \"%s\"", ATTR_REQUIREMENTS, ATTR_MY_ADDRESS,
+//                                      daemonCore->InfoCommandSinfulString() );
+	char* userName = my_username();
+    MyString name;
+
+    name.sprintf( "%s@%s -p %d", userName, my_full_hostname( ),
+                                 daemonCore->InfoCommandPort( ) );
+    free( userName );
+	line.sprintf( "%s = %s == \"%s\"", ATTR_REQUIREMENTS, ATTR_NAME, 
+									   name.GetCStr( ) );
+	invalidateAd.Insert( line.Value() );
+
+    int successfulUpdatesNumber =
+    	m_collectorsList->sendUpdates( INVALIDATE_REPLICATION_ADS, 
+									   &invalidateAd );
+    dprintf( D_ALWAYS, "ReplicatorStateMachine::invalidateClassAd %d "
+                       "successful updates\n", successfulUpdatesNumber );
+}

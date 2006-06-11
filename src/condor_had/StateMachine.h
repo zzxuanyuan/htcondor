@@ -206,6 +206,8 @@ protected:
     void updateCollectors();
     // updates collectors upon changing from/to leader state
     void updateCollectorsClassAd( const MyString& isHadActive );
+	// invalidates HAD classad in collectors
+	void invalidateClassAd();
 
     ClassAd*       m_classAd;
     // info about our central manager

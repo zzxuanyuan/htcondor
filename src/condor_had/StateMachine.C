@@ -158,7 +158,8 @@ HADStateMachine::finalize()
 */
 HADStateMachine::~HADStateMachine()
 {
-    finalize();
+    invalidateClassAd( );
+	finalize();
 }
 
 bool
@@ -1225,7 +1226,7 @@ HADStateMachine::updateCollectors()
  *              HAD is active or not and sends the update to collectors
  */
 void
-HADStateMachine::updateCollectorsClassAd(const MyString& isHadActive)
+HADStateMachine::updateCollectorsClassAd( const MyString& isHadActive )
 {
     MyString line;
 
@@ -1237,4 +1238,42 @@ HADStateMachine::updateCollectorsClassAd(const MyString& isHadActive)
     dprintf( D_ALWAYS, "HADStateMachine::updateCollectorsClassAd %d "
                     "successful updates\n", successfulUpdatesNumber);
 }
+/* Function   : invalidateClassAd
+ * Description: invalidates HAD classad in collectors 
+ */
+void
+HADStateMachine::invalidateClassAd( )
+{
+	if( m_collectorsList ) {
+		dprintf( D_ALWAYS, "HADStateMachine::invalidateClassAd the collectors "
+						   "list is not initialized, sending nothing\n" );
+	}
+    ClassAd invalidateAd;
+    MyString line;
 
+    // Set the correct types
+    invalidateAd.SetMyTypeName( QUERY_ADTYPE );
+    invalidateAd.SetTargetTypeName( HAD_ADTYPE );
+
+    // We only want to invalidate this HAD. Using our
+    // sinful string seems like the safest bet for that, since
+    // even if the names somehow get messed up, at least the
+    // sinful string should be unique
+//    line.sprintf( "%s = %s == \"%s\"", ATTR_REQUIREMENTS, ATTR_MY_ADDRESS,
+//                        			   daemonCore->InfoCommandSinfulString() );
+	// 'my_username' allocates dynamic string
+    char* userName = my_username();
+    MyString name;
+
+    name.sprintf( "%s@%s -p %d", userName, my_full_hostname( ),
+                  daemonCore->InfoCommandPort( ) );
+    free( userName );
+    line.sprintf( "%s = \"%s\"", ATTR_NAME, name.GetCStr( ) );
+
+	invalidateAd.Insert( line.Value() );
+
+    int successfulUpdatesNumber = 
+		m_collectorsList->sendUpdates( INVALIDATE_HAD_ADS, &invalidateAd );
+	dprintf( D_ALWAYS, "HADStateMachine::invalidateClassAd %d "
+					   "successful updates\n", successfulUpdatesNumber );
+}
