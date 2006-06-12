@@ -50,6 +50,8 @@ void dirtyJobQueue( void );
 bool isQueueSuperUser( const char* user );
 bool OwnerCheck( ClassAd *ad, const char *test_owner );
 bool Reschedule();
+ClassAd* GetNextJobByCluster( int, int );
+
 
 int get_myproxy_password_handler(Service *, int, Stream *sock);
 #if defined(__cplusplus)
