@@ -292,7 +292,9 @@ char	*DeferralPrep	= "deferral_prep";
 
 //
 // CronTab Parameters
+// The index value below should be the # of parameters
 //
+const int CronFields = 5;
 char	*CronMinute		= "cron_minute";
 char	*CronHour		= "cron_hour";
 char	*CronDayOfMonth	= "cron_day_of_month";
@@ -2974,7 +2976,7 @@ SetCronTab()
 								};
 	int ctr;
 	char *param = NULL;
-	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+	for ( ctr = 0; ctr < CronFields; ctr++ ) {
 		param = condor_param( attributes[ctr], CronTab::attributes[ctr] );
 		if ( param != NULL ) {
 				//
@@ -3003,9 +3005,10 @@ SetCronTab()
 		// to be able to use the job deferral feature
 		//
 	if ( NeedsJobDeferral && JobUniverse == CONDOR_UNIVERSE_SCHEDULER ) {
-		fprintf( stderr, "\nScheduler universe jobs are unable to support "
-						 "CronTab scheduling because Condor cannot set a job "
-						 "deferral time.n" );
+		fprintf( stderr, "\nCronTab scheduling does not work for scheduler "
+						 "universe jobs.\n"
+						 "Consider submitting this job using the local "
+						 "universe, instead\n" );
 		DoCleanup( 0, 0, NULL );
 		fprintf( stderr, "Error in submit file\n" );
 		exit(1);
@@ -3246,8 +3249,10 @@ SetJobDeferral() {
 			// we can't let them use the job deferral feature
 			//
 		if ( JobUniverse == CONDOR_UNIVERSE_SCHEDULER ) {
-			fprintf( stderr, "\nScheduler universe jobs are unable to support "
-							 "job deferral submissions.\n" );
+			fprintf( stderr, "\nJob deferral scheduling does not work for scheduler "
+							 "universe jobs.\n"
+							 "Consider submitting this job using the local "
+							 "universe, instead\n" );
 			DoCleanup( 0, 0, NULL );
 			fprintf( stderr, "Error in submit file\n" );
 			exit(1);
