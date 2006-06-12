@@ -47,6 +47,7 @@
 #include "env.h"
 #include "condor_classad_util.h"
 #include "condor_ver_info.h"
+#include "condor_crontab.h"
 
 extern char *Spool;
 extern char *Name;
@@ -71,7 +72,6 @@ void	FindRunnableJob(PROC_ID & jobid, const ClassAd* my_match_ad,
 void	FindPrioJob(PROC_ID &);
 int		Runnable(PROC_ID*);
 int		Runnable(ClassAd*);
-
 
 static ClassAdCollection *JobQueue = 0;
 static int next_cluster_num = -1;
@@ -508,6 +508,7 @@ InitJobQueue(const char *job_queue_name)
 	char	buf[_POSIX_PATH_MAX];
 	char	attr_scheduler[_POSIX_PATH_MAX];
 	char	correct_scheduler[_POSIX_PATH_MAX];
+	MyString buffer;
 
 	if (!JobQueue->LookupClassAd(HeaderKey, ad)) {
 		// we failed to find header ad, so create one
@@ -660,6 +661,20 @@ InitJobQueue(const char *job_queue_name)
 					}
 				}
 			}
+			
+				//
+				// CronTab Special Handling Code
+				// If this ad contains any of the attributes used 
+				// by the crontab feature, then we will tell the 
+				// schedd that this job needs to have runtimes calculated
+				// 
+			if ( ad->LookupString( ATTR_CRON_MINUTES, buffer ) ||
+				 ad->LookupString( ATTR_CRON_HOURS, buffer ) ||
+				 ad->LookupString( ATTR_CRON_DAYS_OF_MONTH, buffer ) ||
+				 ad->LookupString( ATTR_CRON_MONTHS, buffer ) ||
+				 ad->LookupString( ATTR_CRON_DAYS_OF_WEEK, buffer ) ) {
+				scheduler.addCronTabClassAd( ad );
+			}
 
 			ConvertOldJobAdAttrs( ad );
 
@@ -667,7 +682,7 @@ InitJobQueue(const char *job_queue_name)
 			IncrementClusterSize(cluster_num);
 
 		}
-	}
+	} // WHILE
 
 	if ( stored_cluster_num == 0 ) {
 		sprintf(cluster_str, "%d", next_cluster_num);
@@ -1041,9 +1056,18 @@ NewCluster()
 		return -1;
 	}
 
-	if ( TotalJobsCount >= scheduler.getMaxJobsSubmitted() ) {
+		//
+		// I have seen a weird bug where the getMaxJobsSubmitted() returns
+		// zero. I added extra information to the dprintf statement 
+		// to help me try to track down when this happens
+		// Andy - 06.12.2006
+		//
+	int maxJobsSubmitted = scheduler.getMaxJobsSubmitted();
+	if ( TotalJobsCount >= maxJobsSubmitted ) {
 		dprintf(D_ALWAYS,
-			"NewCluster(): MAX_JOBS_SUBMITTED exceeded, submit failed\n");
+			"NewCluster(): MAX_JOBS_SUBMITTED exceeded, submit failed. "
+			"Current total is %d. Limit is %d\n",
+			TotalJobsCount, maxJobsSubmitted );
 		return -2;
 	}
 
@@ -1534,6 +1558,23 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 				atoi(attr_value), proc_id);
 			return -1;
 		}
+		
+		//
+		// CronTab Attributes
+		// Check to see if this attribte is one of the special
+		// ones used for defining a crontab schedule. If it is, then
+		// we add the cluster_id to a queue maintained by the schedd.
+		// This is because at this point we may not have the proc_id, so
+		// we can't add the full job information. The schedd will later
+		// take this cluster_id and look at all of its procs to see if 
+		// need to be added to the main CronTab list of jobs.
+		//
+	} else if ( stricmp( attr_name, ATTR_CRON_MINUTES ) == 0 ||
+				stricmp( attr_name, ATTR_CRON_HOURS ) == 0 ||
+				stricmp( attr_name, ATTR_CRON_DAYS_OF_MONTH ) == 0 ||
+				stricmp( attr_name, ATTR_CRON_MONTHS ) == 0 ||
+				stricmp( attr_name, ATTR_CRON_DAYS_OF_WEEK ) == 0 ) {
+		scheduler.addCronTabClusterId( cluster_id );				
 	}
 
 	// If any of the attrs used to create the signature are
