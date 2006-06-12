@@ -53,6 +53,7 @@ template class HashTable<PROC_ID, CronTab *>;
 template class HashBucket<PROC_ID, CronTab *>;
 template class Queue<shadow_rec*>;
 template class Queue<ContactStartdArgs*>;
+template class Queue<int>;
 template class List<shadow_rec*>;
 template class Item<shadow_rec*>;
 template class SimpleList<PROC_ID>;
