@@ -48,7 +48,8 @@
 #include "autocluster.h"
 #include "shadow_mgr.h"
 #include "enum_utils.h"
-#include "../condor_daemon_core.V6/self_draining_queue.h"
+#include "self_draining_queue.h"
+//#include "../condor_daemon_core.V6/self_draining_queue.h"
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
 #include "env.h"
@@ -202,7 +203,6 @@ class Scheduler : public Service
 	friend	int		count(ClassAd *);
 	friend	void	job_prio(ClassAd *);
 	friend  int		find_idle_local_jobs(ClassAd *);
-	friend	int		calculateCronSchedule( ClassAd* );
 	friend	int		updateSchedDInterval( ClassAd* );
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
@@ -214,6 +214,8 @@ class Scheduler : public Service
 	int				spoolJobFilesReaper(int,int);	
 	int				transferJobFilesReaper(int,int);
 	void			PeriodicExprHandler( void );
+	void			addCronTabClassAd( ClassAd* );
+	void			addCronTabClusterId( int );
 
 	// match managing
 	int 			publish( ClassAd *ad );
@@ -448,12 +450,35 @@ private:
 	void	noShadowForJob( shadow_rec* srec, NoShadowFailure_t why );
 	bool			jobExitCode( PROC_ID job_id, int exit_code );
 	
+	// -----------------------------------------------
+	// CronTab Jobs
+	// -----------------------------------------------
 		//
-		// This method will insert the next runtime for a 
-		// job into its requirements
+		// Check our list of cluster_ids for new CronTab jobs
 		//
-	bool calculateCronSchedule( ClassAd*, bool force = false );
-
+	void processCronTabClusterIds();
+		//
+		// Calculate new runtimes for all our CronTab jobs
+		//
+	void calculateCronTabSchedules();
+		//
+		// Calculate the next runtime for a CronTab job
+		//
+	bool calculateCronTabSchedule( ClassAd*, bool force = false );
+		//
+		// This table is used for scheduling cron jobs
+		// If a ClassAd has an entry in this table then we need
+		// to query the CronTab object to ask it what the next
+		// runtime is for job is
+		//
+	HashTable<PROC_ID, CronTab*> *cronTabs;	
+		//
+		// A list of cluster_ids that may have jobs that require
+		// CronTab execution scheduling
+		// This is used by processCronTabClusterIds()
+		//
+	Queue<int> cronTabClusterIds;
+	// -----------------------------------------------
 
 		/** We begin the process of opening a non-blocking ReliSock
 			connection to the startd.
@@ -505,22 +530,6 @@ private:
 	int				aliveid;	// timer id for sending keepalives to startd
 	int				MaxExceptions;	 // Max shadow excep. before we relinquish
 	bool			ManageBandwidth;
-
-		//
-		// This table is used for scheduling cron jobs
-		// If a ClassAd has an entry in this table then we need
-		// to query the CronTab object to ask it what the next
-		// runtime is for job is
-		//
-	HashTable<PROC_ID, CronTab*> *cronTabs;
-		//
-		// We also keep a list of job's that do not need a cronTab
-		// This way we can quickly look at this to see if we 
-		// should skip it when trying to figure out cron schedules
-		// Hopefully, a lookup in this table should be faster
-		// then checking to see if a CronTab is needed
-		//
-	Queue<PROC_ID> *cronTabsExclude;
 
 		// put state into ClassAd return it.  Used for condor_squawk
 	int	dumpState(int, Stream *);
