@@ -456,11 +456,10 @@ Scheduler::~Scheduler()
 	if ( this->cronTabs ) {
 		this->cronTabs->startIterations();
 		CronTab *current;
-		while ( this->cronTabs->iterate( current ) == 1 ) {
+		while ( this->cronTabs->iterate( current ) >= 1 ) {
 			if ( current ) delete current;
 		}
 		delete this->cronTabs;
-		delete this->cronTabsExclude;
 	}
 
 }
@@ -2494,7 +2493,7 @@ Scheduler::WriteAbortToUserLog( PROC_ID job_id )
 	delete ULog;
 
 	if (!status) {
-		dprintf( D_ALWAYS
+		dprintf( D_ALWAYS,
 				 "Unable to log ULOG_JOB_ABORTED event for job %d.%d\n",
 				 job_id.cluster, job_id.proc );
 		return false;
@@ -4258,7 +4257,11 @@ Scheduler::negotiate(int command, Stream* s)
 		free(bio_param);
 		biotech = true;
 	}
-		
+	
+		//
+		// CronTab Jobs
+		//
+	this->calculateCronTabSchedules();		
 
 	if (FlockNegotiators) {
 		// first, check if this is our local negotiator
@@ -5628,19 +5631,6 @@ Scheduler::makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad )
 }
 
 /**
- * Given a ClassAd from the job queue, we call the 
- * calculateCronSchedule() method in the schedd to do the real work
- * 
- * @param job - the ClassAd to update
- * @return true if no error occurred, false otherwise
- **/
-int
-calculateCronSchedule( ClassAd *job )
-{
-	return ( (int) scheduler.calculateCronSchedule( job ) );	
-}
-
-/**
  * Given a ClassAd from the job queue, we check to see if it
  * has the ATTR_SCHEDD_INTERVAL attribute defined. If it does, then
  * then we will simply update it with the latest value
@@ -5853,11 +5843,10 @@ Scheduler::StartJobs()
 	}
 	
 		//
-		// We need to check to see if we any jobs need their
-		// next runtimes recalculated
+		// CronTab Jobs
 		//
-	WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
-
+	this->calculateCronTabSchedules();
+		
 	dprintf(D_FULLDEBUG, "-------- Begin starting jobs --------\n");
 	startJobsDelayBit = FALSE;
 	matches->startIterations();
@@ -8643,13 +8632,12 @@ Scheduler::child_exit(int pid, int status)
 
 		//
 		// If the job was a local universe job, we will want to
-		// call count_jobs again so that it can be marked idle again
+		// call count on it so that it can be marked idle again
 		// if need be.
-		// This probably is bad for scalability issues and hopefully
-		// will not be necessary with the new schedd
 		//
 	if ( srec != NULL && IsLocalUniverse(srec) ) {
-		this->count_jobs();
+		ClassAd *job_ad = GetJobAd( job_id.cluster, job_id.proc );
+		count( job_ad );
 	}
 
 		// If we're not trying to shutdown, now that either an agent
@@ -8798,7 +8786,7 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 		}
 				// no break, fall through and do the action
 
-		case JOB_SHOULD_HOLD:
+		case JOB_SHOULD_HOLD: {
 			dprintf( D_ALWAYS, "Putting job %d.%d on hold\n",
 					 job_id.cluster, job_id.proc );
 				// Regardless of the state that the job currently
@@ -8811,14 +8799,13 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 				// runtime for it. This prevents a job from going
 				// on hold, then released only to fail again
 				// because a new runtime wasn't calculated for it
-			if ( !this->cronTabsExclude->IsMember( job_id ) ) {
-					// Delete the cached object
-				CronTab *cronTab = NULL;
-				if ( this->cronTabs->lookup( job_id, cronTab ) < 0 ) {
-					if ( cronTab ) delete cronTab;	
-				}
+			CronTab *cronTab = NULL;
+			if ( this->cronTabs->lookup( job_id, cronTab ) >= 0 ) {
+					// Delete the cached object				
+				if ( cronTab ) delete cronTab;
 			} // CronTab
 			break;
+		}
 
 		case DPRINTF_ERROR:
 			dprintf( D_ALWAYS,
@@ -9092,13 +9079,14 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		// next execution time calculated for it
 		// 11.01.2005 - Andy - pavlo@cs.wisc.edu 
 		//
-	if ( !this->cronTabsExclude->IsMember( *job_id ) ) {
+	CronTab *cronTab = NULL;
+	if ( this->cronTabs->lookup( *job_id, cronTab ) >= 0 ) {
 			//
 			// Set the force flag to true so it will always 
 			// calculate the next execution time
 			//
 		ClassAd *ad = GetJobAd( job_id->cluster, job_id->proc );
-		this->calculateCronSchedule( ad, true );
+		this->calculateCronTabSchedule( ad, true );
 	}
 	
 	dprintf( D_FULLDEBUG, "Exited check_zombie( %d, 0x%p )\n", pid,
@@ -9594,29 +9582,44 @@ Scheduler::Init()
 	}
 
 		//
-		// This HashTable is used to figure out the next runtime
-		// of certain jobs that have a specified cron schedule
-		// Check if the object already exists and we 
-		// need to delete what's in there
+		// CronTab Table
+		// We keep a list of proc_id's for jobs that define a cron
+		// schedule for exection. We first get the pointer to the 
+		// original table, and then instantiate a new one
 		//
-	if ( this->cronTabs ) {
-		this->cronTabs->startIterations();
-		CronTab *current;
-		while ( this->cronTabs->iterate( current ) == 1 ) {
-			if ( current ) delete current;
-		}
-		delete this->cronTabs;
-		if ( this->cronTabsExclude ) delete this->cronTabsExclude;
-	}
+	HashTable<PROC_ID, CronTab*> *origCronTabs = this->cronTabs;
 	this->cronTabs = new HashTable<PROC_ID, CronTab*>(
 												(int)( MaxJobsRunning * 1.2 ),
 												hashFuncPROC_ID,
 												updateDuplicateKeys );
 		//
-		// Along with the cronTabs HashTable we have a list
-		// of jobs that do not need an entry in cronTabs
+		// Now if there was a table from before, we will want
+		// to copy all the proc_id's into our new table. We don't
+		// keep the CronTab objects because they'll get reinstantiated
+		// later on when the Schedd tries to calculate the next runtime
+		// We have a little safety check to make sure that the the job 
+		// actually exists before adding it back in
 		//
-	this->cronTabsExclude = new Queue<PROC_ID>;
+		// Note: There could be a problem if MaxJobsRunning is substaintially
+		// less than what it was from before on a reconfig, and in which case
+		// the new cronTabs hashtable might not be big enough to store all
+		// the old jobs. This unlikely for now because I doubt anybody will
+		// be submitting that many CronTab jobs, but it is still possible.
+		// See the comments about about automatically resizing HashTable's
+		//
+	if ( origCronTabs != NULL ) {
+		CronTab *cronTab;
+		PROC_ID id;
+		origCronTabs->startIterations();
+		while ( origCronTabs->iterate( id, cronTab ) == 1 ) {
+			if ( cronTab ) delete cronTab;
+			ClassAd *cronTabAd = GetJobAd( id.cluster, id.proc );
+			if ( cronTabAd ) {
+				this->cronTabs->insert( id, NULL );
+			}
+		} // WHILE
+		delete origCronTabs;
+	}
 
 	tmp = param("MAX_SHADOW_EXCEPTIONS");
 	 if(!tmp) {
@@ -10234,18 +10237,7 @@ Scheduler::reschedule_negotiator(int, Stream *)
 	sendReschedule();
 
 	if( LocalUniverseJobsIdle > 0 || SchedUniverseJobsIdle > 0 ) {
-			//
-			// This shouldn't be here, but it works for now
-			// The problem is we are trying to start a local job before
-			// we get a chance to calculate the cron schedule for it
-			// As such, a job will run right away when it should really
-			// have waited.
-			//
-			// What should happen is that we calculate the cron schedule
-			// when the ClassAd immediately arrives at the schedd, but I 
-			// just haven't figured out where that it yet
-			//
-		WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
+		this->calculateCronTabSchedules();
 		StartLocalJobs();
 	}
 
@@ -11447,9 +11439,7 @@ Scheduler::jobIsFinishedHandler( ServiceData* data )
 	id.cluster = cluster;
 	id.proc    = proc;
 	CronTab *cronTab;
-	if ( this->cronTabsExclude->IsMember( id ) ) {
-		this->cronTabsExclude->dequeue( id );
-	} else if ( this->cronTabs->lookup( id, cronTab ) >= 0 ) {
+	if ( this->cronTabs->lookup( id, cronTab ) >= 0 ) {
 		if ( cronTab != NULL) delete cronTab;
 	}
 	
@@ -11696,46 +11686,161 @@ Scheduler::claimLocalStartd()
 }
 
 /**
- * If this is set to true then we will always generate a new runtime for
- * the job
+ * Adds a job to our list of CronTab jobs
+ * We will check to see if the job has already been added and
+ * whether it defines a valid CronTab schedule before adding it
+ * to our table
  * 
- * IMPORTANT:
+ * @param ad - the new job to be added to the cronTabs table
+ **/
+void
+Scheduler::addCronTabClassAd( ClassAd *ad )
+{
+	if ( ad == NULL ) return;
+	CronTab *cronTab = NULL;
+	PROC_ID id;
+	ad->LookupInteger( ATTR_CLUSTER_ID, id.cluster );
+	ad->LookupInteger( ATTR_PROC_ID, id.proc );
+	if ( this->cronTabs->lookup( id, cronTab ) < 0 &&
+		 CronTab::needsCronTab( ad ) ) {
+		this->cronTabs->insert( id, NULL );
+	}
+}
+
+/**
+ * Adds a cluster to be checked for jobs that define CronTab jobs
+ * This is needed because there is a gap from when we can find out
+ * that a job has a CronTab attribute and when it gets proc_id. So the 
+ * queue managment code can add a cluster_id to a list that we will
+ * check later on to see whether a jobs within the cluster need 
+ * to be added to the main cronTabs table
+ * 
+ * @param cluster_id - the cluster to be checked for CronTab jobs later on
+ * @see processCronTabClusterIds
+ **/
+void
+Scheduler::addCronTabClusterId( int cluster_id )
+{
+	if ( cluster_id < 0 ||
+		 this->cronTabClusterIds.IsMember( cluster_id ) ) return;
+	if ( this->cronTabClusterIds.enqueue( cluster_id ) < 0 ) {
+		dprintf( D_FULLDEBUG,
+				 "Failed to add cluster %d to the cron jobs list\n", cluster_id );
+	}
+	return;
+}
+
+/**
+ * Checks our list of cluster_ids to see whether any of the jobs
+ * define a CronTab schedule. If any do, then we will add them to
+ * our cronTabs table.
+ * 
+ * @see addCronTabClusterId
+ **/
+void 
+Scheduler::processCronTabClusterIds( )
+{
+	int cluster_id;
+	CronTab *cronTab = NULL;
+	ClassAd *ad = NULL;
+	
+		//
+		// Loop through all the cluster_ids that we have stored
+		// For each cluster, we will inspect the job ads of all its
+		// procs to see if they have defined crontab information
+		//
+	while ( this->cronTabClusterIds.dequeue( cluster_id ) >= 0 ) {
+		int init = 1;
+		while ( ( ad = GetNextJobByCluster( cluster_id, init ) ) ) {
+			PROC_ID id;
+			ad->LookupInteger( ATTR_CLUSTER_ID, id.cluster );
+			ad->LookupInteger( ATTR_PROC_ID, id.proc );
+				//
+				// Simple safety check
+				//
+			ASSERT( id.cluster == cluster_id );
+				//
+				// If this job hasn't been added to our cron job table
+				// and if it needs to be, we wil added to our list
+				//
+			if ( this->cronTabs->lookup( id, cronTab ) < 0 &&
+				 CronTab::needsCronTab( ad ) ) {
+				 dprintf( D_ALWAYS, "PAVLO: New CronTab Job %d.%d in processCronTabClusterIds()\n", id.cluster, id.proc );
+				this->cronTabs->insert( id, NULL );
+			}		
+			init = 0;
+		} // WHILE
+	} // WHILE
+	return;
+}
+
+/**
+ * Run through all the CronTab jobs and calculate their next run times
+ * We first check to see if there any new cluster ids that we need 
+ * to scan for new CronTab jobs. We then run through all the jobs in
+ * our cronTab table and call the calculate function
+ **/
+void
+Scheduler::calculateCronTabSchedules( )
+{
+	PROC_ID id;
+	CronTab *cronTab = NULL;
+	this->processCronTabClusterIds();
+	this->cronTabs->startIterations();
+	while ( this->cronTabs->iterate( id, cronTab ) >= 1 ) {
+		ClassAd *job_ad = GetJobAd( id.cluster, id.proc );
+		if ( job_ad ) {
+			dprintf( D_ALWAYS, "PAVLO: calculateCronTabSchedule() job %d.%d\n", id.cluster, id.proc );
+			this->calculateCronTabSchedule( job_ad );
+		}
+	} // WHILE
+	return;
+}
+
+/**
+ * For a given job, calculate the next runtime based on their CronTab
+ * schedule. We keep a table of PROC_IDs and CronTab objects so that 
+ * we only need to parse the schedule once. A new time is calculated when
+ * either the cached CronTab object is deleted, the last calculated time
+ * is in the past, or we are called with the 'calculate' flag set to true
+ * 
+ * NOTE:
  * To handle when the system time steps, the master will call a condor_reconfig
  * and we will delete our cronTab cache. This will force us to recalculate 
  * next run time for all our jobs
  * 
- * @param ad - 
- * @para force -
+ * @param ad - the job to calculate the ne
+ * @para calculate - if true, we will always calculate a new run time
  * @return true if no error occured, false otherwise
  * @see condor_crontab.C
  **/
 bool 
-Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
-		//
-		// I allocate other variables we need below these first
-		// checks since if it would be a waste if the job did not
-		// even need a CronTab schedule
-		//
+Scheduler::calculateCronTabSchedule( ClassAd *ad, bool calculate )
+{
 	PROC_ID id;
 	ad->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
 	ad->LookupInteger(ATTR_PROC_ID, id.proc);
 			
 		//
-		// We keep an exclusion table so we can quickly look up
-		// whether we don't even need to bother with this ad
-		//
-	if ( this->cronTabsExclude->IsMember( id ) ) {
-		//dprintf( D_ALWAYS, "PAVLO: Cron Exclude Job %d.%d\n", id.cluster, id.proc );
-		return ( true );
-	}
-		//
 		// Check whether this needs a schedule
-		// If not, then add it to our exclusion list so that the
-		// next time we won't check
 		//
 	if ( !CronTab::needsCronTab( ad ) ) {	
-		this->cronTabsExclude->enqueue( id );
-		//dprintf( D_ALWAYS, "PAVLO: Add Cron Exclude Job %d.%d\n", id.cluster, id.proc );
+		this->cronTabs->remove( id );
+		dprintf( D_ALWAYS, "PAVLO: Removed Job %d.%d from cronTabs\n", id.cluster, id.proc );
+		return ( true );
+	}
+	
+		//
+		// Make sure that we don't change the deferral time
+		// for running jobs
+		//
+	int status;
+	if ( ad->LookupInteger( ATTR_JOB_STATUS, status ) == 0 ) {
+		dprintf( D_ALWAYS, "Job has no %s attribute.  Ignoring...\n",
+				 ATTR_JOB_STATUS);
+		return ( false );
+	}
+	if ( status == RUNNING ) {
 		return ( true );
 	}
 
@@ -11752,7 +11857,8 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		// See if we can get the cached scheduler object 
 		//
 	CronTab *cronTab = NULL;
-	if ( this->cronTabs->lookup( id, cronTab ) < 0 ) {
+	this->cronTabs->lookup( id, cronTab );
+	if ( ! cronTab ) {
 			//
 			// There wasn't a cached object, so we'll need to create
 			// one then shove it back in the lookup table
@@ -11774,7 +11880,7 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 				// sure to calculate the next runtime even if
 				// the job ad already has one in it
 				//
-			force = true;
+			calculate = true;
 
 			//
 			// It was invalid!
@@ -11789,10 +11895,10 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		// Now determine whether we need to calculate a new runtime.
 		// We first check to see if there is already a deferral time
 		// for the job, and if it is, whether it's in the past
-		// If it's in the past, we'll set the force flag to true
+		// If it's in the past, we'll set the calculate flag to true
 		// so that we will always calculate a new time
 		//
-	if ( ! force && ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL ) {
+	if ( ! calculate && ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL ) {
 			//
 			// First get the DeferralTime
 			//
@@ -11811,19 +11917,17 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 			// way in the past and we need to calculate a new one
 			// for the job
 			//
-		force = ( (long)time( NULL ) > ( deferralTime + deferralWindow ) );
+		calculate = ( (long)time( NULL ) > ( deferralTime + deferralWindow ) );
 	}
 		//
 		//	1) valid
 		//		The CronTab object must have parsed the parameters
 		//		for the schedule successfully
-		//	2) cronTab != NULL
-		//		Cheap safety check
 		//	3) force
 		//		Always calculate a new time
 		//	
-	if ( valid && ( ( cronTab != NULL ) || force ) ) {
-		//dprintf( D_ALWAYS, "PAVLO: CALC CRON FOR JOB %d.%d\n", id.cluster, id.proc );
+	if ( valid && calculate ) {
+		dprintf( D_ALWAYS, "PAVLO: CALC CRON FOR JOB %d.%d\n", id.cluster, id.proc );
 			//
 			// Get the next runtime from our current time
 			// I used to subtract the DEFERRAL_WINDOW time from the current
