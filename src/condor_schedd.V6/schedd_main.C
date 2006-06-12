@@ -134,11 +134,6 @@ main_init(int argc, char* argv[])
 	}
 	
 		//
-		// Calculate CronTab's if any jobs need it
-		//
-	WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
-
-		//
 		// Update the SchedDInterval attributes in jobs if they
 		// have it defined. This will be for JobDeferral and
 		// CronTab jobs
