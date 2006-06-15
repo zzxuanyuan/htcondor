@@ -11765,7 +11765,6 @@ Scheduler::processCronTabClusterIds( )
 				//
 			if ( this->cronTabs->lookup( id, cronTab ) < 0 &&
 				 CronTab::needsCronTab( ad ) ) {
-				 dprintf( D_ALWAYS, "PAVLO: New CronTab Job %d.%d in processCronTabClusterIds()\n", id.cluster, id.proc );
 				this->cronTabs->insert( id, NULL );
 			}		
 			init = 0;
@@ -11790,7 +11789,6 @@ Scheduler::calculateCronTabSchedules( )
 	while ( this->cronTabs->iterate( id, cronTab ) >= 1 ) {
 		ClassAd *job_ad = GetJobAd( id.cluster, id.proc );
 		if ( job_ad ) {
-			dprintf( D_ALWAYS, "PAVLO: calculateCronTabSchedule() job %d.%d\n", id.cluster, id.proc );
 			this->calculateCronTabSchedule( job_ad );
 		}
 	} // WHILE
@@ -11826,7 +11824,6 @@ Scheduler::calculateCronTabSchedule( ClassAd *ad, bool calculate )
 		//
 	if ( !CronTab::needsCronTab( ad ) ) {	
 		this->cronTabs->remove( id );
-		dprintf( D_ALWAYS, "PAVLO: Removed Job %d.%d from cronTabs\n", id.cluster, id.proc );
 		return ( true );
 	}
 	
@@ -11927,7 +11924,8 @@ Scheduler::calculateCronTabSchedule( ClassAd *ad, bool calculate )
 		//		Always calculate a new time
 		//	
 	if ( valid && calculate ) {
-		dprintf( D_ALWAYS, "PAVLO: CALC CRON FOR JOB %d.%d\n", id.cluster, id.proc );
+		dprintf( D_FULLDEBUG, "Calculating next execution time for Job d.%d\n",
+				 id.cluster, id.proc );
 			//
 			// Get the next runtime from our current time
 			// I used to subtract the DEFERRAL_WINDOW time from the current
