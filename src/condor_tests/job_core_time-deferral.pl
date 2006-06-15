@@ -454,10 +454,10 @@ sub extractExecuteTime {
     ## The current log file does not include the year of when a job
     ## was executed so we will use the current year
 	##
-	($_sec, $_min, $_hour, $_day, $_month, $_year) = localtime(time); 
-	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $_year);
+	(undef, undef, undef, undef, undef, $year, undef, undef, $isdst) = localtime(time); 
+	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $year, 0, 0, $isdst);
     
-    #print "$month/$day/".($_year + 1900)." $hour:$minute:$second\n";
+    #print "$month/$day/".($year + 1900)." $hour:$minute:$second\n";
     #print "RUN TIME: $timestamp\n";
     return ($timestamp);
 };
