@@ -46,7 +46,7 @@ my $SLEEP_TIME = 20;
 ##
 ## The preptime that the job gets to be sent over to the starter
 ##
-my $PREP_TIME = 30;
+my $PREP_TIME = 90;
 
 ##
 ## When a job begins execution, the schedd should have calculated
@@ -95,7 +95,7 @@ $executed = sub {
 	my @result;
 	my $q_cmd = "condor_q $cluster.$job -format %d DeferralTime";
 	if ( ! CondorTest::runCondorTool($q_cmd, \@result, 3) ) {
-		print "ERROR: Unable to get DefferalTime due to Condor Tool Failure<$q_cmd>\n";
+		print "ERROR: Unable to get DeferralTime due to Condor Tool Failure<$q_cmd>\n";
 	    exit(1);
 	}
 	$DEFERRAL_TIME = "@result";	
@@ -219,7 +219,7 @@ $success = sub {
 	}
 	my $temp = "@result";
 	my $h_runcount = -1;
-	if ( $temp =~ /JobRunCount = (\d*)/ ) {
+	if ( $temp =~ /JobRunCount = (\d+)/ ) {
 		$h_runcount = $1;
 	}
 	if ( $h_runcount < 0 ) { 
@@ -323,9 +323,9 @@ sub extractEvictionTime {
     ## The current log file does not include the year of when a job
     ## was executed so we will use the current year
 	##
-	($_sec, $_min, $_hour, $_day, $_month, $_year) = localtime(time); 
-	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $_year);
-    
+	(undef, undef, undef, undef, undef, $year, undef, undef, $isdst) = localtime(time); 
+	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $year, 0, 0, $isdst);
+	
     #print "$month/$day/".($_year + 1900)." $hour:$minute:$second\n";
     #print "RUN TIME: $timestamp\n";
     return ($timestamp);
