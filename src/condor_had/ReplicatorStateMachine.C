@@ -1049,7 +1049,7 @@ ReplicatorStateMachine::updateCollectors()
 
     if ( m_classAd ) {
         int successfulUpdatesNumber =
-            m_collectorsList->sendUpdates( UPDATE_REPLICATION_AD, m_classAd);
+            m_collectorsList->sendUpdates( UPDATE_AD_GENERIC, m_classAd);
         dprintf( D_ALWAYS, "ReplicatorStateMachine::updateCollectors %d "
                     "successful updates\n", successfulUpdatesNumber);
     }
@@ -1079,7 +1079,7 @@ ReplicatorStateMachine::updateCollectorsClassAd( const MyString& isActive )
     m_classAd->InsertOrUpdate( line.GetCStr( ) );
 
     int successfulUpdatesNumber =
-        m_collectorsList->sendUpdates ( UPDATE_REPLICATION_AD, m_classAd );
+        m_collectorsList->sendUpdates ( UPDATE_AD_GENERIC, m_classAd );
     dprintf( D_ALWAYS, "ReplicationStateMachine::updateCollectorsClassAd %d "
                        "successful updates\n", successfulUpdatesNumber);
 }
@@ -1118,7 +1118,7 @@ ReplicatorStateMachine::invalidateClassAd( )
 	invalidateAd.Insert( line.Value() );
 
     int successfulUpdatesNumber =
-    	m_collectorsList->sendUpdates( INVALIDATE_REPLICATION_ADS, 
+    	m_collectorsList->sendUpdates( INVALIDATE_ADS_GENERIC, 
 									   &invalidateAd );
     dprintf( D_ALWAYS, "ReplicatorStateMachine::invalidateClassAd %d "
                        "successful updates\n", successfulUpdatesNumber );

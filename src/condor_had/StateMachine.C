@@ -301,8 +301,8 @@ HADStateMachine::softReconfigure()
     int time_to_send_all = (m_connectionTimeout*timeoutNumber);   
     time_to_send_all *= (m_otherHADIPs->number() + 1); //otherHads + master
 	
-	m_hadInterval = (time_to_send_all + safetyFactor)*
-                  (MESSAGES_PER_INTERVAL_FACTOR);
+	m_hadInterval = ( time_to_send_all + safetyFactor ) *
+                  	( MESSAGES_PER_INTERVAL_FACTOR );
 #if IS_REPLICATION_USED  
     // setting the replication usage permissions
     buffer = param( "HAD_USE_REPLICATION" );
@@ -486,7 +486,7 @@ HADStateMachine::reinitialize()
                                     (TimerHandlercpp) &HADStateMachine::cycle,
                                     "Time to check HAD", this);
     dprintf( D_ALWAYS,"** Register on m_stateMachineTimerID , interval = %d\n",
-            m_hadInterval/(MESSAGES_PER_INTERVAL_FACTOR));
+             m_hadInterval / ( MESSAGES_PER_INTERVAL_FACTOR ) );
 	m_updateCollectorTimerId = daemonCore->Register_Timer (
         0, m_updateCollectorInterval,
         (TimerHandlercpp) &HADStateMachine::updateCollectors,
@@ -519,11 +519,10 @@ HADStateMachine::cycle(){
     
     utilCancelTimer( m_stateMachineTimerID );
 	m_stateMachineTimerID = daemonCore->Register_Timer (
-                                m_hadInterval/(MESSAGES_PER_INTERVAL_FACTOR),
-                                (TimerHandlercpp) &HADStateMachine::cycle,
-                                "Time to check HAD",
-                                 this);
-                                
+                  m_hadInterval / ( MESSAGES_PER_INTERVAL_FACTOR ),
+                  (TimerHandlercpp) &HADStateMachine::cycle,
+                  "Time to check HAD",
+                  this);
     if(m_callsCounter == 0){ //  once in m_hadInterval
         // step of HAD state machine
         step();
