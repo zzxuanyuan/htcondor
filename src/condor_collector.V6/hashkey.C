@@ -334,13 +334,6 @@ makeHadAdHashKey (AdNameHashKey &hk, ClassAd *ad, sockaddr_in *from)
 	return adLookup( "HAD", ad, ATTR_NAME, NULL, hk.name );
 }
 
-bool 
-makeReplicationAdHashKey (AdNameHashKey &hk, ClassAd *ad, sockaddr_in *from)
-{
-	hk.ip_addr = "";
-	return adLookup( "REPLICATION", ad, ATTR_NAME, NULL, hk.name );
-}
-
 // for anything that sends its updates via UPDATE_AD_GENERIC, this
 // needs to provide a key that will uniquely identify each entity
 // with respect to all entities of that type
