@@ -1089,10 +1089,11 @@ ReplicatorStateMachine::updateCollectorsClassAd( const MyString& isActive )
 void
 ReplicatorStateMachine::invalidateClassAd( )
 {
-    if( m_collectorsList ) {
+    if( ! m_collectorsList ) {
         dprintf( D_ALWAYS, "ReplicatorStateMachine::invalidateClassAd the "
 						   "collectors list is not initialized, sending "
 						   "nothing\n" );
+		return ;				   
     }
     ClassAd invalidateAd;
     MyString line;

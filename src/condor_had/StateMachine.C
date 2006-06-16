@@ -1243,9 +1243,10 @@ HADStateMachine::updateCollectorsClassAd( const MyString& isHadActive )
 void
 HADStateMachine::invalidateClassAd( )
 {
-	if( m_collectorsList ) {
+	if( ! m_collectorsList ) {
 		dprintf( D_ALWAYS, "HADStateMachine::invalidateClassAd the collectors "
 						   "list is not initialized, sending nothing\n" );
+		return ;				   
 	}
     ClassAd invalidateAd;
     MyString line;
@@ -1267,7 +1268,8 @@ HADStateMachine::invalidateClassAd( )
     name.sprintf( "%s@%s -p %d", userName, my_full_hostname( ),
                   daemonCore->InfoCommandPort( ) );
     free( userName );
-    line.sprintf( "%s = \"%s\"", ATTR_NAME, name.GetCStr( ) );
+//    line.sprintf( "%s = \"%s\"", ATTR_NAME, name.GetCStr( ) );
+	line.sprintf( "%s = %s == \"%s\"", ATTR_REQUIREMENTS, ATTR_NAME,                              name.GetCStr( ) );
 
 	invalidateAd.Insert( line.Value() );
 
