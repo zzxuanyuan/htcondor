@@ -6,7 +6,7 @@ use File::Copy;
 use Time::Local;
 use Switch;
 use POSIX qw(strftime);
-use Common qw(DOWN_STATUS EXITING_EVENT);
+use Common qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval);
 
 # Directories and files paths
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
@@ -23,7 +23,7 @@ my $activityLogPath              = $outputLogsDirectory  . "/ActivityLog";
 my $stateFilePathPrefix                = $hadMonitoringSystemDirectory . "/State-";
 my $warningLogPathPrefix               = $warningLogsDirectory . "/WarningLog-$currentTime-";
 my $errorLogPathPrefix                 = $errorLogsDirectory   . "/ErrorLog-$currentTime-";
-my $outputLogPathPrefix                = $outputLogsDirectory  . "/OutputLog-$currentTime-";
+#my $outputLogPathPrefix                = $outputLogsDirectory  . "/OutputLog-$currentTime-";
 my $epocheLogPathPrefix                = $outputLogsDirectory  . "/EpocheLog-$currentTime-";
 my $eventFileTemplatePathPrefix        = $eventFilesDirectory  . "/EventFile-$currentTime-";
 my $consolidatedWarningLogPathPrefix   = $warningLogsDirectory . "/ConsolidatedWarningLog-";
@@ -32,13 +32,13 @@ my $consolidatedOutputLogPathPrefix    = $outputLogsDirectory  . "/ConsolidatedO
 my $consolidatedEpocheLogPathPrefix    = $outputLogsDirectory  . "/ConsolidatedEpocheLog-";
 my $warningHistoryLogPathPrefix        = $warningLogsDirectory . "/WarningHistoryLog-";
 my $errorHistoryLogPathPrefix          = $errorLogsDirectory   . "/ErrorHistoryLog-";
-my $outputHistoryLogPathPrefix         = $outputLogsDirectory  . "/OutputHistoryLog-";
+#my $outputHistoryLogPathPrefix         = $outputLogsDirectory  . "/OutputHistoryLog-";
 my $epocheHistoryLogPathPrefix         = $outputLogsDirectory  . "/EpocheHistoryLog-";
 # Log paths, constructed from the prefixes, suffixed with the name of daemon
 my $stateFilePath                = "";
 my $warningLogPath               = "";
 my $errorLogPath                 = "";
-my $outputLogPath                = "";
+#my $outputLogPath                = "";
 my $epocheLogPath                = "";
 my $eventFileTemplatePath        = "";
 my $consolidatedWarningLogPath   = "";
@@ -47,7 +47,7 @@ my $consolidatedOutputLogPath    = "";
 my $consolidatedEpocheLogPath    = "";
 my $warningHistoryLogPath        = "";
 my $errorHistoryLogPath          = "";  
-my $outputHistoryLogPath         = "";  
+#my $outputHistoryLogPath         = "";  
 my $epocheHistoryLogPath         = "";
 
 # Regular expressions, determining the type of event
@@ -71,7 +71,7 @@ my $stateRegEx    = 'go to <PASSIVE_STATE>';
 #use constant STABILIZATION_TIME     => 78;
 use constant TRUE                   => 1;
 use constant FALSE                  => 0;
-use constant MAX_INT                => 999999999999;
+#use constant MAX_INT                => 999999999999;
 #use constant FICTIVE_SENDER_ADDRESS => 'had_monitoring_system@cs';
 use constant LINE_SEPARATOR         => "*********************************************\n";
 
@@ -90,6 +90,7 @@ my @sinfulStrings                   = ();
 #my $totalWarningsNumber             = 0;
 my $currentTimestamp                = 0;
 my @offsets                         = ();
+my @additionalParameters            = ();
 
 # State file variables
 my $previousTimestamp               = 0;
@@ -110,13 +111,14 @@ my $isOffsetCalculationNeeded       = TRUE;
 my $fictiveSenderAddress            = "";
 
 # Loading Condor pool parameters
-my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST`;
+my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST HAD_CONNECTION_TIMEOUT REPLICATION_INTERVAL`;
 chomp(@condorParameters);
-my $hadList                  = $condorParameters[0];
+$hadList                     = $condorParameters[0];
 my $isPrimaryUsed            = $condorParameters[1];
-#my $hadConnectionTimeout     = $condorParameters[2];
 my $replicationList          = $condorParameters[2];
 my $collectorHost            = $condorParameters[3];
+$hadConnectionTimeout        = $condorParameters[4];
+$replicationInterval         = $condorParameters[5];
 my @hadSinfulStrings         = split(',', $hadList);
 my @replicationSinfulStrings = split(',', $replicationList);
 my @collectorSinfulStrings   = split(',', $collectorHost);
@@ -131,7 +133,7 @@ foreach my $monitoredDaemon (@monitoredDaemons)
 	$stateFilePath                = $stateFilePathPrefix              . $checkerName;
 	$warningLogPath               = $warningLogPathPrefix             . $checkerName;
 	$errorLogPath                 = $errorLogPathPrefix               . $checkerName;
-	$outputLogPath                = $outputLogPathPrefix              . $checkerName;
+#	$outputLogPath                = $outputLogPathPrefix              . $checkerName;
 	$epocheLogPath                = $epocheLogPathPrefix              . $checkerName;
 	$eventFileTemplatePath        = $eventFileTemplatePathPrefix      . $checkerName;
 	$consolidatedWarningLogPath   = $consolidatedWarningLogPathPrefix . $checkerName;
@@ -140,7 +142,7 @@ foreach my $monitoredDaemon (@monitoredDaemons)
 	$consolidatedEpocheLogPath    = $consolidatedEpocheLogPathPrefix  . $checkerName;
 	$warningHistoryLogPath        = $warningHistoryLogPathPrefix      . $checkerName;
 	$errorHistoryLogPath          = $errorHistoryLogPathPrefix        . $checkerName;
-	$outputHistoryLogPath         = $outputHistoryLogPathPrefix       . $checkerName; 
+#	$outputHistoryLogPath         = $outputHistoryLogPathPrefix       . $checkerName; 
 	$epocheHistoryLogPath         = $epocheHistoryLogPathPrefix       . $checkerName;
 
 	# Monitoring data structures
@@ -150,6 +152,12 @@ foreach my $monitoredDaemon (@monitoredDaemons)
 	@eventsVector                    = ();
 	@initialStatus                   = ();
 	@sinfulStrings                   = eval('@' . lc($monitoredDaemon) . 'SinfulStrings');
+
+	# Initializing additional parameters structure with nulls
+	foreach my $machineIndex (0 .. $#hadSinfulStrings)
+	{
+		$additionalParameters[$machineIndex] = undef;
+	}
 	$currentTimestamp                = 0;
 	# We need to load the state file parameters in order to know to sift the already seen dates
 	&LoadStateFile($#hadSinfulStrings, $monitoredDaemon);
@@ -250,12 +258,12 @@ sub AppendConfigurationInformationToLog
 ## Return value: the time string, in "%a %b %e %H:%M:%S %Y" format                         #
 ## Description : converts specified timestamp to string and returns it                     #
 ############################################################################################
-sub ConvertTimestampToTime
-{
-	my $timestamp = shift;
-
-	return strftime "%a %b %e %H:%M:%S %Y", localtime($timestamp);
-}
+#sub ConvertTimestampToTime
+#{
+#	my $timestamp = shift;
+#
+#	return strftime "%a %b %e %H:%M:%S %Y", localtime($timestamp);
+#}
 
 ############################################################################################
 ## Function    : RemoveLogs                                                                #
@@ -276,7 +284,13 @@ sub RemoveLogs
 	$zip->addTree("$errorLogsDirectory"   , 'ErrorLogs');
      	$zip->addTree("$outputLogsDirectory"  , 'OutputLogs');
 	$zip->addTree("$daemonLogsDirectory"  , 'DaemonLogs');
-	$zip->addFile("$stateFilePath"        , 'State');
+
+	# Archiving all the state files of all the monitored daemons
+	foreach my $monitoredDaemon (@monitoredDaemons)
+	{
+		my $checkerName = &CapitalizeFirst($monitoredDaemon);
+		$zip->addFile("$stateFilePath", "State-$checkerName");
+	}
 	$zip->addFile("$configurationFilePath", 'Configuration');
 
 	$zip->writeToFileNamed("$archiveLogsDirectory/Archive-$currentTime.zip") == AZ_OK or die "zip: $!";
@@ -327,7 +341,15 @@ sub FetchLog
 {
 	my ($remoteDaemonSinfulString, $remoteLogName, $localLogName) = (@_);
 
-	`condor_fetchlog \'$remoteDaemonSinfulString\' $remoteLogName > \'$localLogName\' 2>>$outputLogPath`;
+#	`condor_fetchlog \'$remoteDaemonSinfulString\' $remoteLogName > \'$localLogName\' 2>>$outputLogPath`;
+	`condor_fetchlog \'$remoteDaemonSinfulString\' $remoteLogName > \'$localLogName\' 2>>/dev/null`;
+
+	if($? != 0)
+	{
+		&AppendTextToActivityLog("Log of $remoteLogName from $remoteDaemonSinfulString " . 
+					 "could not be fetched\n");
+		return ;
+	}
 	&AppendTextToActivityLog("Fetched log of $remoteLogName from $remoteDaemonSinfulString\n");
 }
 ############################################################################################
@@ -352,11 +374,13 @@ sub FetchLogs
 		my $logFilePath = "$daemonLogsDirectory/DaemonLog-$hadSinfulString-$currentTime-$checkerName";
 		
 		push(@logFilePaths, $logFilePath);
-#		FetchLog($hadSinfulString,  $monitoredDaemon     ,  $logFilePath);
 #		FetchLog($hadSinfulString, "$monitoredDaemon.old", "$logFilePath.old");
+#		FetchLog($hadSinfulString,  $monitoredDaemon     ,  $logFilePath);
 
-		FetchLog($collectorSinfulStrings[$machineIndex],  $monitoredDaemon     ,  $logFilePath);
+		# It is important to first fetch the older log in order not to get confused with dates
+		# in case, when the logs are huge and they are just about being rotated
                 FetchLog($collectorSinfulStrings[$machineIndex], "$monitoredDaemon.old", "$logFilePath.old");
+		FetchLog($collectorSinfulStrings[$machineIndex],  $monitoredDaemon     ,  $logFilePath);
 
 		$machineIndex ++;
 	}
@@ -661,19 +685,6 @@ sub CheckValidity
                 	&AppendText($warningHistoryLogPath     , $message);
 		}
 
-		# Scanning the status vector and retrieving analysis information
-#        	foreach my $machineIndex (0 .. $machinesNumber)
-#        	{
-#                	$leadersNumber ++ if($statusVector[$machineIndex] eq LEADER_STATUS);
-#                	$downNumber    ++ if($statusVector[$machineIndex] eq DOWN_STATUS);
-#        	}
-		# Normal state of the system, all the fears for potential errors are eliminated:
-        	# Either the leader is alone or all the pool is down or the epoche interval is
-		# less than the stabilization time
-#        	next if($leadersNumber == 1 || 
-#			$downNumber    == $machinesNumber + 1 || 
-#			$epocheEndTime - $epocheStartTime < STABILIZATION_TIME);
-
 		my $checkerName            = &CapitalizeFirst($monitoredDaemon);
 		my $validationFunctionName = $checkerName . "Validate";
 
@@ -685,17 +696,11 @@ sub CheckValidity
 		$message = &ConvertTimestampToTime($epocheStartTime) . ' - ' . 
 	 	      	   &ConvertTimestampToTime($epocheEndTime) . ': ' . $message . "\n";
 
-#		$message .= NO_NEGOTIATOR_MESSAGE            if($leadersNumber == 0);
-#		$message .= MORE_THAN_ONE_NEGOTIATOR_MESSAGE if($leadersNumber > 1);
-#		$message .= " for more than " . STABILIZATION_TIME . " seconds " . 
-#			    "(state: $statusVectorAsString)\n";
-
 		&AppendText($errorLogPath            , $message);
 		&AppendText($consolidatedErrorLogPath, $message);
 		&AppendText($errorHistoryLogPath     , $message);
 
 		@previousStatusVector = @statusVector;
-		#$totalErrorsNumber ++;
 	}
 }
 ############################################################################################
@@ -737,7 +742,21 @@ sub ApplyStatus
 
 		require "$hadMonitoringSystemDirectory/Checkers/$checkerName.pl";
 
-		$refStatusVector->[$eventIndex] = &{$applyStatusFunctionName}($refEventsVector->[$eventIndex]);
+		($refStatusVector->[$eventIndex], my $message) = 
+						  &{$applyStatusFunctionName}($refEventsVector->[$eventIndex], 
+									      $refStatusVector->[$eventIndex],
+									      $refTimestampsVector->[$eventIndex],
+									      \@additionalParameters,
+									      $eventIndex);
+		# Applying status resulted in warning messages
+                if($message ne '')
+                {
+                        $message .= "\n";
+                        &AppendText($warningLogPath            , $message);
+                        &AppendText($consolidatedWarningLogPath, $message);   
+                        &AppendText($warningHistoryLogPath     , $message);
+                }
+
 		&ReadLine($refEventFilesHandles, $refTimestampsVector, $refEventsVector, $eventIndex);
 	}
 }
@@ -1127,7 +1146,7 @@ sub GenerateEventFile
 		next if $previousLine eq "" || $previousLine !~ /\d+.\d+ \d+:\d+:\d+/;
 
 		$previousTimestamp = &FindTimestamp($previousLine, $offsets[$index]);
-		$$refNewLineChar = &DiscoverEvents($previousLine, $previousTimestamp, $eventFileHandle, 
+		$$refNewLineChar = &DiscoverEvents($previousLine   , $previousTimestamp, $eventFileHandle, 
 						   $$refNewLineChar, $monitoredDaemon);
 		last;
 	}
@@ -1175,7 +1194,7 @@ sub GenerateEventFile
 			$$refNewLineChar = "\n";
 		}
 
-		$$refNewLineChar   = &DiscoverEvents($currentLine, $currentTimestamp, $eventFileHandle, 
+		$$refNewLineChar   = &DiscoverEvents($currentLine    , $currentTimestamp, $eventFileHandle, 
 						     $$refNewLineChar, $monitoredDaemon);
 		$previousLine      = $currentLine;
 		$previousTimestamp = $currentTimestamp;
@@ -1231,6 +1250,7 @@ sub DiscoverEvents
 
 	require "$hadMonitoringSystemDirectory/Checkers/$checkerName.pl";
 
+#	my $eventName                 = &{$discoverEventFunctionName}($line, \$additionalParameters[$index]);
 	my $eventName                 = &{$discoverEventFunctionName}($line);
 
 	return $newLineChar if $eventName eq "";
@@ -1239,38 +1259,38 @@ sub DiscoverEvents
 }
 ##########################################################################################
 ## Function    : FindTimestamp                                                           #
-## Arguments   : $line - line of HAD log file                                            #
+## Arguments   : $line - line of daemon log file                                         #
 ##               $offset - timestamp offset from the remote machine                      #
 ## Return value: timestamp - in seconds from epoche time (00:00:00 UTC, January 1, 1970) #
 ## Description : returns timestamp of the given HAD log file line                        #
 ##########################################################################################
-sub FindTimestamp
-{
-	my ($line, $offset) = (@_);
-
-	my @lineFields = split(' ', $line);
-	my $dateField  = $lineFields[0];
-	my $timeField  = $lineFields[1];
-
-	my ($month, $date)           = split('/', $dateField);
-	my ($hour, $minute, $second) = split(':', $timeField);
-	my $year                     = (localtime)[5] + 1900;
-
-	$month --;
-	$date   += 0;
-	$hour   += 0;
-	$minute += 0;
-	$second += 0;
-
-	my $timestamp = timelocal($second, $minute, $hour, $date, $month, $year);
-
-	# If we mistook in guessing the year number of the log, correct it by subtracting an
-	# entire year
-	$timestamp -= 3600 * 24 * 365 if $timestamp > time();
-	$timestamp += $offset;
-
-	return $timestamp;
-}
+#sub FindTimestamp
+#{
+#	my ($line, $offset) = (@_);
+#
+#	my @lineFields = split(' ', $line);
+#	my $dateField  = $lineFields[0];
+#	my $timeField  = $lineFields[1];
+#
+#	my ($month, $date)           = split('/', $dateField);
+#	my ($hour, $minute, $second) = split(':', $timeField);
+#	my $year                     = (localtime)[5] + 1900;
+#
+#	$month --;
+#	$date   += 0;
+#	$hour   += 0;
+#	$minute += 0;
+#	$second += 0;
+#
+#	my $timestamp = timelocal($second, $minute, $hour, $date, $month, $year);
+#
+#	# If we mistook in guessing the year number of the log, correct it by subtracting an
+#	# entire year
+#	$timestamp -= 3600 * 24 * 365 if $timestamp > time();
+#	$timestamp += $offset;
+#
+#	return $timestamp;
+#}
 ##########################################################################################
 ## Function    : ReturnFileContent                                                       #
 ## Arguments   : $filePath - file, whose content is to be returned                       #
@@ -1344,4 +1364,4 @@ sub CalculateOffsets {
         return @offsets;
 }
 
-############################ End of auxiliary functions ##################################
+############################## End of auxiliary functions ##################################

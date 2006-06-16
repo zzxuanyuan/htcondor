@@ -4,7 +4,7 @@ use Switch;
 
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
 # For DOWN_STATUS and EXITING_EVENT
-use Common qw(DOWN_STATUS EXITING_EVENT);
+use Common qw(DOWN_STATUS EXITING_EVENT $hadList $hadConnectionTimeout);
 
 # Regular expressions, determining the type of event
 my $exitingRegEx  = 'EXITING WITH STATUS';
@@ -93,23 +93,25 @@ sub HadDiscoverEvent
 sub HadApplyStatus
 {
 	my $event = shift;
+	my $returnedStatus = '';
 
 	switch($event)
 	{
-		case EXITING_EVENT  { return DOWN_STATUS; }
-		case STARTING_EVENT { return BACKUP_STATUS; }
-		case LEADER_EVENT   { return LEADER_STATUS; }
-		case BACKUP_EVENT   { return BACKUP_STATUS; }
+		case EXITING_EVENT  { $returnedStatus = DOWN_STATUS; }
+		case STARTING_EVENT { $returnedStatus = BACKUP_STATUS; }
+		case LEADER_EVENT   { $returnedStatus = LEADER_STATUS; }
+		case BACKUP_EVENT   { $returnedStatus = BACKUP_STATUS; }
 		else                { die "No such event: " . $event . " - $!"; }
 	}
+	return ($returnedStatus, '');
 }
 
 sub HadGap
 {
-	my ($hadConnectionTimeout, $hadList) = `condor_config_val HAD_CONNECTION_TIMEOUT HAD_LIST`;
-
-	chomp($hadConnectionTimeout);
-	chomp($hadList);
+#	my ($hadConnectionTimeout, $hadList) = `condor_config_val HAD_CONNECTION_TIMEOUT HAD_LIST`;
+#
+#	chomp($hadConnectionTimeout);
+#	chomp($hadList);
 
 	my $hadInterval = (2 * $hadConnectionTimeout * split(',', $hadList) + 1) * 2;
 
