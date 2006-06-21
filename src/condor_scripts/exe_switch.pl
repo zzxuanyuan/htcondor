@@ -1,116 +1,65 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
 
-#eval 'use warnings;' unless $platform =~ /hpux/;
-#use strict; 
+$SH_EXE = "C:\\cygwin\\bin\\sh.exe";
+$PERL_EXE = "C:\\perl\\bin\\perl.exe";
 
-use Cwd;
+%mappings = (
+    "\\s*/bin/sh.*"                                => $SH_EXE,
+    "\\s*(/usr/bin/env\\s+perl)|(/usr/bin/perl).*" => $PERL_EXE
+);
 
-my $base = getcwd();
-#print "Basedir is $base\n";
-
-my $execbase = "";
-
-if($base =~ /(.*)\/condor\/execute\/.*$/) {
-	$execbase = $1;
-}
-my $win_perl_wrapper, $win_sh_wrapper;
-my $cygwinperl, $cygwinsh;
-my $exe = shift @ARGV;
-
-
-################ HACK !!!!!!!!!!!!!!!!!!!!!
-
-
-
-$win_perl_wrapper = "$execbase/local/bin/win32toperl.bat";
-$win_sh_wrapper = "$execbase/local/bin/win32tosh.bat";
-$cygwinperl = `cygpath -u $win_perl_wrapper`;
-$cygwinsh = `cygpath -u $win_sh_wrapper`;
-
-#print "Before exec $win_perl_wrapper and $win_sh_wrapper are set...\n";
-#foreach $file ( @ARGV ) {
-#print " $file";
-#}
-#print "\n";
-
-my $rval = 0;
-
-# which if any wrapper?
-my $answer = check_which_wrapper($exe);
-if($answer eq "perl") {
-	#print "Perl\n";
-	$rval = system_wrapper( $win_perl_wrapper, $exe, @ARGV );
-} elsif($answer eq "sh") {
-	#print "sh\n";
-	$rval = system_wrapper( $win_sh_wrapper, $exe, @ARGV );
-} else {
-	#print "other\n";
-	$rval = system_wrapper( $exe, @ARGV );
-}
-if( $rval == 0) {
-	#sweet...
-	exit(0);
-}
-
-print STDERR "Execution failed system return <<$rval>>\n";
-exit($rval);
-
-##########
-
-
-# returns exit code if child exited
-# returns negative signal number if child died by signal
-# returns -32 if child failed to execute at all
-# prints debugging to STDERR
-sub system_wrapper 
+sub check_wrapper
 {
-    my @args = @_;
-
-    #foreach $arg (@args)
-    #{
-    #print "System_wrapper: $arg\n";
-    #}
-    #print "\n";
-
-    my $rc = system( @args );
-
-    if( $rc == -1 ) {
-	print STDERR "error executing $args[0]: $!\n";
-	return -32;
+    if (!open(FILE, "<$ARGV[0]")) {
+    	return;
     }
 
-    my $exit_value  = $rc >> 8;
-    my $signal_num  = $rc & 127;
-    my $dumped_core = $rc & 128;
-
-    if( $signal_num  ) {
-	print STDERR "error: $args[0] died by signal $signal_num\n";
-	return (0 - $signal_num);
+    # read in the first couple bytes and check for a shebang
+    if ((read(FILE, $first_two, 2) != 2) or ($first_two ne "#!")) {
+        close(FILE);
+        return;
     }
 
-    return $exit_value;
-}
-
-# On windows we have to be careful and get the correct environment
-# without the normal automatic execing we are used to.
-sub check_which_wrapper
-{
-    my $script = shift;
-    my $line = "";
-    open(FILE,"<$script") || die "Can not open $script for reading: $!\n";
-    while(<FILE>)
-    {
-        chomp();
-        $line = $_;
-        if( $line =~ /^#!\s*(\/bin\/sh).*/) {
-            return("sh");
-        }
-        elsif( $line =~ /^#!\s*(\/usr\/bin\/env\s+perl).*/) {
-            return("perl");
-        }
-        else {
-            return("none");
+    # file starts with shebang; get the rest of the line
+    $line = <FILE>;
+    
+    # go through the mappings, looking for a match
+    foreach $regex (keys %mappings) {
+        if ($line =~ m{$regex}) {
+            # found a match; prepend the path to the right interpreter
+            unshift @ARGV, $mappings{$regex};
+            break;
         }
     }
     close(FILE);
 }
+
+# prepend appropriate interpreter to @ARGV (if needed)
+check_wrapper();
+
+# TODO: this script currently only supports a limited class
+#       of arguments. perl's system() function seems to
+#       construct the command line by quoting any argument
+#       with spaces in it (unless its already quoted ???)
+#       there needs to be a function that will properly
+#       quote all of @ARGV before calling system(). the main
+#       thing that seems to break because of this is having
+#       double quote characters in an argument
+
+# execute the job
+system {$ARGV[0]} @ARGV;
+
+if ($? == -1) {
+	die "failed to run \"$ARGV[0]\": $!";
+}
+elsif ($? & 127) {
+	# TODO: should kill ourselves with the same signal
+	# (for now just print a message)
+	my $signo = $? & 127;
+	die "\"$ARGV[0]\" exited with signal $signo\n";
+}
+else {
+        # just exit with the same return code as the job
+	exit($? >> 8);
+}
+
