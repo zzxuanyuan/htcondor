@@ -99,7 +99,7 @@ protected:
     void  step();
     
     /*
-      cycle() - called MESSAGES_PER_INTERVAL_FACTOR times per m_hadInterval
+      cycle() - called 'm_messagesPerStateFactor' times per m_hadInterval
     */
     void  cycle();
 
@@ -146,7 +146,8 @@ protected:
     // if m_callsCounter equals to 0 ,
     // enter state machine , otherwise send messages
     char     m_callsCounter;
-    
+	int		 m_messagesPerStateFactor;
+
     int      m_selfId;
     bool     m_isPrimary;
     bool     m_usePrimary;

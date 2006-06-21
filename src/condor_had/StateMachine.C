@@ -55,7 +55,7 @@
 
 //#undef IS_REPLICATION_USED
 #define IS_REPLICATION_USED          (1)
-#define MESSAGES_PER_INTERVAL_FACTOR (2)
+//#define MESSAGES_PER_INTERVAL_FACTOR (2)
 #define DEFAULT_HAD_UPDATE_INTERVAL  (5 * MINUTE)
 
 extern int main_shutdown_graceful();
@@ -82,6 +82,7 @@ HADStateMachine::init()
     m_usePrimary = false;
     m_standAloneMode = false;
     m_callsCounter = 0;
+	m_messagesPerStateFactor = 2;
     m_stateMachineTimerID = -1;
     m_hadInterval = -1;
     // set valid value to send NEGOTIATOR_OFF
@@ -125,6 +126,7 @@ HADStateMachine::finalize()
     m_usePrimary = false;
     m_standAloneMode = false;
     m_callsCounter = 0;
+	m_messagesPerStateFactor = 2;
 	m_hadInterval = -1;
     utilCancelTimer( m_stateMachineTimerID );
 
@@ -291,6 +293,7 @@ HADStateMachine::softReconfigure()
         dprintf( D_ALWAYS, "No HAD_CONNECTION_TIMEOUT in config file,"
                 		   " use default value\n" );
     }
+	m_messagesPerStateFactor = param_integer( "MESSAGES_PER_STATE_FACTOR", 2 );
     // calculate m_hadInterval
     int safetyFactor = 1;
             
@@ -302,7 +305,7 @@ HADStateMachine::softReconfigure()
     time_to_send_all *= (m_otherHADIPs->number() + 1); //otherHads + master
 	
 	m_hadInterval = ( time_to_send_all + safetyFactor ) *
-                  	( MESSAGES_PER_INTERVAL_FACTOR );
+					  m_messagesPerStateFactor ;
 #if IS_REPLICATION_USED  
     // setting the replication usage permissions
     buffer = param( "HAD_USE_REPLICATION" );
@@ -486,7 +489,7 @@ HADStateMachine::reinitialize()
                                     (TimerHandlercpp) &HADStateMachine::cycle,
                                     "Time to check HAD", this);
     dprintf( D_ALWAYS,"** Register on m_stateMachineTimerID , interval = %d\n",
-             m_hadInterval / ( MESSAGES_PER_INTERVAL_FACTOR ) );
+             m_hadInterval / m_messagesPerStateFactor );
 	m_updateCollectorTimerId = daemonCore->Register_Timer (
         0, m_updateCollectorInterval,
         (TimerHandlercpp) &HADStateMachine::updateCollectors,
@@ -508,7 +511,7 @@ HADStateMachine::reinitialize()
 
 /***********************************************************
   Function :   cycle()
-    called MESSAGES_PER_INTERVAL_FACTOR times per m_hadInterval
+    called 'm_messagesPerStateFactor' times per m_hadInterval
     send messages according to a state,
     once in m_hadInterval call step() functions - step of HAD state machine
 */
@@ -519,7 +522,7 @@ HADStateMachine::cycle(){
     
     utilCancelTimer( m_stateMachineTimerID );
 	m_stateMachineTimerID = daemonCore->Register_Timer (
-                  m_hadInterval / ( MESSAGES_PER_INTERVAL_FACTOR ),
+                  m_hadInterval / m_messagesPerStateFactor,
                   (TimerHandlercpp) &HADStateMachine::cycle,
                   "Time to check HAD",
                   this);
@@ -529,7 +532,7 @@ HADStateMachine::cycle(){
     }
     sendMessages();
     m_callsCounter ++;
-    m_callsCounter = m_callsCounter % MESSAGES_PER_INTERVAL_FACTOR;
+    m_callsCounter = m_callsCounter % m_messagesPerStateFactor;
 
 }
 
