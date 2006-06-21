@@ -4,7 +4,7 @@ use Switch;
 
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
 # For DOWN_STATUS and EXITING_EVENT
-use Common qw(DOWN_STATUS EXITING_EVENT $hadList $hadConnectionTimeout);
+use Common qw(DOWN_STATUS EXITING_EVENT $hadList $hadConnectionTimeout $isPrimaryUsed);
 
 # Regular expressions, determining the type of event
 my $exitingRegEx  = 'EXITING WITH STATUS';
@@ -116,4 +116,21 @@ sub HadGap
 	my $hadInterval = (2 * $hadConnectionTimeout * split(',', $hadList) + 1) * 2;
 
 	return $hadInterval;
+}
+
+sub HadConfigurationInformation
+{
+	my $configurationInformation =
+               "HAD_LIST (in this order HAD states will appear in the report) - " . $hadList . "\n" .
+               "HAD_USE_PRIMARY - " . $isPrimaryUsed;
+         
+        if(uc($isPrimaryUsed) eq 'TRUE')
+        {
+                my @hadAddresses = split(',', $hadList);
+
+                $configurationInformation .= "\nPrimary HAD - " . $hadAddresses[0];   
+        }
+#        $configurationInformation .= "\n";
+
+	return $configurationInformation;
 }

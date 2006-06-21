@@ -1,5 +1,7 @@
 #!/bin/env perl
 
+use Common qw(RemoveAllFiles);
+
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
 my $eventFilesDirectory          = $hadMonitoringSystemDirectory . "/EventFiles";
 my $warningLogsDirectory         = $hadMonitoringSystemDirectory . "/WarningLogs";
@@ -13,14 +15,14 @@ my $daemonLogsDirectory          = $hadMonitoringSystemDirectory . "/DaemonLogs"
 &RemoveAllFiles($outputLogsDirectory);
 &RemoveAllFiles($daemonLogsDirectory);
 
-sub RemoveAllFiles
-{
-	my $directory = shift;
-
-	my @filePaths = glob("$directory/*");
-
-	foreach my $filePath (@filePaths)
-	{
-		unlink($filePath) or warn "unlink: $!";
-	}
-}
+#sub RemoveAllFiles
+#{
+#	my $directory = shift;
+#
+#	my @filePaths = glob("$directory/*");
+#
+#	foreach my $filePath (@filePaths)
+#	{
+#		unlink($filePath) or warn "unlink: $!";
+#	}
+#}

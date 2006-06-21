@@ -4,7 +4,7 @@ use Switch;
 
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
 # For DOWN_STATUS and EXITING_EVENT
-use Common qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $replicationInterval);
+use Common qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $replicationInterval $replicationList);
 
 # Regular expressions, determining the type of event
 my $exitingRegEx            = 'EXITING WITH STATUS';
@@ -165,6 +165,14 @@ sub ReplicationGap
 #        chomp($replicationInterval);
 #        
         return $replicationInterval;
+}
+
+sub ReplicationConfigurationInformation
+{
+	my $configurationInformation =
+               "REPLICATION_LIST (in this order RD states will appear in the report) - $replicationList";
+
+        return $configurationInformation;
 }
 
 ################################## Auxiliary functions #####################################

@@ -6,7 +6,7 @@ use File::Copy;
 use Time::Local;
 use Switch;
 use POSIX qw(strftime);
-use Common qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval);
+use Common qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost);
 
 # Directories and files paths
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
@@ -69,8 +69,8 @@ my $stateRegEx    = 'go to <PASSIVE_STATE>';
 
 # Various constants                
 #use constant STABILIZATION_TIME     => 78;
-use constant TRUE                   => 1;
-use constant FALSE                  => 0;
+#use constant TRUE                   => 1;
+#use constant FALSE                  => 0;
 #use constant MAX_INT                => 999999999999;
 #use constant FICTIVE_SENDER_ADDRESS => 'had_monitoring_system@cs';
 use constant LINE_SEPARATOR         => "*********************************************\n";
@@ -114,9 +114,9 @@ my $fictiveSenderAddress            = "";
 my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST HAD_CONNECTION_TIMEOUT REPLICATION_INTERVAL`;
 chomp(@condorParameters);
 $hadList                     = $condorParameters[0];
-my $isPrimaryUsed            = $condorParameters[1];
-my $replicationList          = $condorParameters[2];
-my $collectorHost            = $condorParameters[3];
+$isPrimaryUsed               = $condorParameters[1];
+$replicationList             = $condorParameters[2];
+$collectorHost               = $condorParameters[3];
 $hadConnectionTimeout        = $condorParameters[4];
 $replicationInterval         = $condorParameters[5];
 my @hadSinfulStrings         = split(',', $hadList);
@@ -165,9 +165,11 @@ foreach my $monitoredDaemon (@monitoredDaemons)
 	my @logFilePaths = &FetchLogs($monitoredDaemon); 
 	# For debugging 
 #	my @logFilePaths = 
-#	 ('/home/sharov/HadMonitoringSystem/DaemonLogs.bak/HADLog.<132.68.37.112:60104>', 
-#	 '/home/sharov/HadMonitoringSystem/DaemonLogs.bak/HADLog.<132.68.37.124:60105>');#, 
-#	 '/home/sharov/HadMonitoringSystem/DaemonLogs.bak/HADLog.<132.68.37.126:60106>');
+#	 ('/home/sharov/HA6/src/condor_had/HadMonitoringSystem/DaemonLogs.bak/HADLog.<132.68.37.112:60104>', 
+#	 '/home/sharov/HA6/src/condor_had/HadMonitoringSystem/DaemonLogs.bak/HADLog.<132.68.37.124:60105>');#, 
+#	 '/home/sharov/HA6/src/condor_had/HadMonitoringSystem/DaemonLogs.bak/HADLog.<132.68.37.126:60106>');
+#	('/home/sharov/HA6/src/condor_had/HadMonitoringSystem/DaemonLogs.bak/DaemonLog-<132.68.37.112:60104>-16-06-2006-12-28-10-Replication',
+#	 '/home/sharov/HA6/src/condor_had/HadMonitoringSystem/DaemonLogs.bak/DaemonLog-<132.68.37.113:60105>-16-06-2006-12-28-10-Replication');
 
 	&GenerateEventFiles($monitoredDaemon, @logFilePaths);
 	&Initialize(\@eventFilesHandles, \@statusVector, 
@@ -222,18 +224,28 @@ if($isReportSent eq TRUE && $monitoringSystemCounter % $consolidatedReportFreque
 ############################################################################################
 sub ReturnConfigurationInformation
 {
-       	my $configurationInformation = 
-	       "Configuration information:\n\n" .
-               "HAD_LIST (in this order HAD states will appear in the report) - " . $hadList . "\n" .
-               "HAD_USE_PRIMARY - " . $isPrimaryUsed . "\n";
+       	my $configurationInformation = "Configuration information:\n";
+#               "HAD_LIST (in this order HAD states will appear in the report) - " . $hadList . "\n" .
+#               "HAD_USE_PRIMARY - " . $isPrimaryUsed . "\n";
+#
+#        if(uc($isPrimaryUsed) eq 'TRUE')
+#        {
+#                my @hadAddresses = split(',', $hadList);
+#
+#                $configurationInformation .= "Primary HAD - " . $hadAddresses[0]  . "\n";
+#        }
+#        $configurationInformation .= "\n";
+	foreach my $monitoredDaemon (@monitoredDaemons)
+	{
+		my $checkerName                          = &CapitalizeFirst($monitoredDaemon);
+                my $configurationInformationFunctionName = $checkerName . "ConfigurationInformation";
+         
+                require "$hadMonitoringSystemDirectory/Checkers/$checkerName.pl";
 
-        if(uc($isPrimaryUsed) eq 'TRUE')
-        {
-                my @hadAddresses = split(',', $hadList);
+		$configurationInformation .= "\n" . &{$configurationInformationFunctionName}();
+	}
 
-                $configurationInformation .= "Primary HAD - " . $hadAddresses[0]  . "\n";
-        }
-        $configurationInformation .= "\n";
+	$configurationInformation .= "\n\n";
 
 	return $configurationInformation;
 }

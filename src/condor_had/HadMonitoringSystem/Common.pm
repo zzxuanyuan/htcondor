@@ -9,6 +9,8 @@ require Exporter;
 use Time::Local;
 use POSIX qw(strftime);
 
+use constant TRUE          => 1;
+use constant FALSE         => 0;
 use constant DOWN_STATUS   => 'Down';
 use constant EXITING_EVENT => 'Exiting';
 use constant MAX_INT       => 999999999999;
@@ -16,8 +18,11 @@ use constant MAX_INT       => 999999999999;
 my $hadList                = "";
 my $hadConnectionTimeout   = 0;
 my $replicationInterval    = 0;
+my $isPrimaryUsed          = TRUE;
+my $replicationList        = "";
+my $collectorHost          = "";
 
-@EXPORT_OK = qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval);
+@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime RemoveAllFiles $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost);
 
 ##########################################################################################
 ## Function    : FindTimestamp                                                           #
@@ -64,6 +69,23 @@ sub ConvertTimestampToTime
        my $timestamp = shift;
 
        return strftime "%a %b %e %H:%M:%S %Y", localtime($timestamp);
+}
+
+############################################################################################
+## Function    : RemoveAllFiles                                                            #
+## Arguments   : $directory - the directory to remove the files from                       #
+## Description : removes all files from the specified directory                            #
+############################################################################################
+sub RemoveAllFiles
+{
+        my $directory = shift;
+
+        my @filePaths = glob("$directory/*");
+
+        foreach my $filePath (@filePaths)
+        {
+                unlink($filePath) or warn "unlink: $!";
+        }
 }
 
 1;
