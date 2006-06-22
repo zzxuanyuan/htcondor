@@ -1,3 +1,7 @@
+06/22/06 V6_7_20
+  The official V6_7_20 release is a copy of BUILD-V6_7_20-branch-2006-6-21.
+  All platforms built on NMI runid 25085 except redhat 8, which was 25117.
+
 06/12/06 V6_7_20-{pre,post}_merge-V6_7-mapfile-1
   The pre and post tags of for the 1st (and only) V6_7-mapfile-branch merge
   into V6_7_20-branch.
