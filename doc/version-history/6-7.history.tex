@@ -61,6 +61,11 @@ parameter to allow administrators to limit the number of jobs that can
 be submitted in a single cluster when using \Condor{submit}. This
 parameter defaults to 0, which implies no limit.
 
+\item Added config file parameter \Macro{QUEUE\_ALL\_USERS\_TRUSTED} which can
+be used to disable authorization checks to the job queue.  See
+section~\ref{param:QueueAllUsersTrusted} on
+page~\pageref{param:QueueAllUsersTrusted}.
+
 % Gnats PR 659
 \item \Condor{dagman} now re-checks immediately before job submission
 that every node job submit file defines a log file.
@@ -98,7 +103,15 @@ automatically retry in such cases (the old behavior), then you can
 specify a \MacroNI{PeriodicRelease} expression that checks for
 specific hold states.
 
-\item Authentication using SSL is now available for SOAP commands.
+\item Strong authentication using SSL is now available for web-service clients
+using the SOAP (BirdBath) interface commands.  The Condor daemons can
+communicate via HTTPS on a specified port, and clients must present a
+client-side SSL certificate.
+
+\item Previously, the \Condor{schedd} only would communicate with one
+web-service client at a time.  This restriction has now been removed; multiple
+simultaneous transactions to the schedd via the SOAP (BirdBath) interface is
+now supported.
 
 \item \Condor{submit} will now issue a warning if the user / job log
 is on an NFS mounted file system.
@@ -154,10 +167,11 @@ with job leases would get restarted from scratch if the collector
 had crashed when the schedd restarted.
 
 
-\item Fixed a rare bug where after a job has been marked terminated,
-it could be run again and another execute event could happen after the
-terminate event.  This fix is applicable to the vanilla, standard,
-parallel, mpi, and java universes.
+\item Fixed a rare bug where after a job has been marked terminated in the
+user's job log, it could be run again and another execute event could be
+written to the user's job log after the terminate event.  This caused problems
+with DAGMan, which really depends on the this log being correct.  This fix is
+applicable to the vanilla, standard, parallel, mpi, and java universes.
 
 \item Fixed several bugs in quill that would cause it to crash when
 very long values for job classad attributes where in the queue.  This
@@ -286,6 +300,12 @@ has been fixed.
 \item When the \Macro{LOCAL\_CONFIG\_DIR} config file option was set to
 an invalid path, the daemons and command line tools would segfault. This
 has been fixed.
+
+% GNATS PR 704, condor-admin 13867
+\item Fixed the \Opt{-dag} option to \Condor{q}.  Ever since version 6.7.7,
+this option did not print DAG node names correctly if there were multiple
+DAGMan jobs submitted.
+
 
 \end{itemize}
 
