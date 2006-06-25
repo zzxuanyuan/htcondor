@@ -6,7 +6,7 @@ use File::Copy;
 use Time::Local;
 use Switch;
 use POSIX qw(strftime);
-use Common qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost);
+use Common qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
 
 # Directories and files paths
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
@@ -109,9 +109,10 @@ my $storeOldArchivesDays            = 7;
 my @monitoredDaemons                = ();
 my $isOffsetCalculationNeeded       = TRUE;
 my $fictiveSenderAddress            = "";
+my $offsetCalculationSshUser        = "";
 
 # Loading Condor pool parameters
-my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST HAD_CONNECTION_TIMEOUT REPLICATION_INTERVAL`;
+my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST HAD_CONNECTION_TIMEOUT REPLICATION_INTERVAL MESSAGES_PER_STATE_FACTOR`;
 chomp(@condorParameters);
 $hadList                     = $condorParameters[0];
 $isPrimaryUsed               = $condorParameters[1];
@@ -119,6 +120,8 @@ $replicationList             = $condorParameters[2];
 $collectorHost               = $condorParameters[3];
 $hadConnectionTimeout        = $condorParameters[4];
 $replicationInterval         = $condorParameters[5];
+$messagesPerStateFactor      = $condorParameters[6];
+
 my @hadSinfulStrings         = split(',', $hadList);
 my @replicationSinfulStrings = split(',', $replicationList);
 my @collectorSinfulStrings   = split(',', $collectorHost);
@@ -513,6 +516,8 @@ sub LoadConfiguration
 			case 'IS_OFFSET_CALCULATION_NEEDED'
 						 { $isOffsetCalculationNeeded = FALSE
 						   if grep(/$value/i, 'no'); }
+			case 'OFFSET_CALCULATION_SSH_USER'
+						 { $offsetCalculationSshUser = $value; }
 			case 'FICTIVE_SENDER_ADDRESS'
 						 { $fictiveSenderAddress = $value; }
                 	else                     { die "No such configuration entry: $key"; }
@@ -1359,7 +1364,7 @@ sub CalculateOffsets {
                 tr/<>//d;
                 my ($hostName, $port) = split(':', $_);
 
-                my $timestampAsString = `ssh technion_sharov\@$hostName \'date \"+%m/%d %H:%M:%S\"\'`;
+                my $timestampAsString = `ssh $offsetCalculationSshUser\@$hostName \'date \"+%m/%d %H:%M:%S\"\'`;
 
                 chomp($timestampAsString);
 

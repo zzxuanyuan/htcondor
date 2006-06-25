@@ -21,8 +21,9 @@ my $replicationInterval    = 0;
 my $isPrimaryUsed          = TRUE;
 my $replicationList        = "";
 my $collectorHost          = "";
+my $messagesPerStateFactor = 2;
 
-@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime RemoveAllFiles $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost);
+@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime RemoveAllFiles $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
 
 ##########################################################################################
 ## Function    : FindTimestamp                                                           #
