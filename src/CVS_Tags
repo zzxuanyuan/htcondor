@@ -1,3 +1,8 @@
+06/26/06 V6_7-win32_tests-merge-2
+   State of V6_7-win32_tests-branch before merge into V6_7-branch.
+   The first attempt at merging this branch was premature. Some fixes and
+   cleanup have been applied since then.
+
 03/14/05 V6_7-win32_tests-merge-1
    State of V6_7-win32_tests-branch before merge into V6_7-branch. Brings
    automated testing capability to Windows.
