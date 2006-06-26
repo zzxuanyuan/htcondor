@@ -1,14 +1,16 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_declare.pl,v 1.1.4.2.110.4 2006-03-22 17:20:11 bt Exp $
+# $Id: remote_declare.pl,v 1.1.4.2.110.5 2006-06-26 14:23:49 gquinn Exp $
 # generate list of all tests to run
 ######################################################################
 
 my $BaseDir = $ENV{BASE_DIR} || die "BASE_DIR not in environment!\n";
 my $SrcDir = $ENV{SRC_DIR} || die "SRC_DIR not in environment!\n";
 my $TaskFile = "$BaseDir/tasklist.nmi";
-my $windowstests = "Windows_list";
+
+# file which contains the list of tests to run on Windows
+my $WinTestList = "$SrcDir/condor_tests/Windows_list";
 
 # Figure out what testclasses we should declare based on our
 # command-line arguments.  If none are given, we declare the testclass
@@ -33,7 +35,6 @@ open( TASKFILE, ">$TaskFile" ) || die "Can't open $TaskFile: $!\n";
 # run configure on the source tree
 ######################################################################
 
-# On windows we simply have a list to fetch in!
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	chdir( $SrcDir ) || die "Can't chdir($SrcDir): $!\n";
@@ -56,9 +57,6 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 # generate compiler_list and each Makefile we'll need
 ######################################################################
 
-my @compilers = ();
-
-# On windows we simply have a list to fetch in!
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 {
 	print "****************************************************\n";
@@ -75,6 +73,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	# First, generate the list of all compiler-specific subdirectories. 
 	doMake( "compiler_list" );
 
+	@compilers = ();
 	open( COMPILERS, "compiler_list" ) || die "cannot open compiler_list: $!\n";
 	while( <COMPILERS> ) {
     	chomp;
@@ -93,15 +92,6 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
     	chdir( $cmplr_dir ) || die "cannot chdir($cmplr_dir): $!\n"; 
     	doMake( "list_testclass" );
 	}
-} else {
-    print "****************************************************\n";
-    print "**** Locating to test directory to build Windows test list\n";
-    print "****************************************************\n";
-
-    $testdir = "condor_tests";
-
-    chdir( $SrcDir ) || die "Can't chdir($SrcDir): $!\n";
-    chdir( $testdir ) || die "Can't chdir($testdir): $!\n";
 }
 
 ######################################################################
@@ -111,7 +101,6 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 my %tasklist;
 my $total_tests;
 
-# On windows we simply have a list to fetch in!
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	foreach $class (@classlist) {
     	print "****************************************************\n";
@@ -126,21 +115,21 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 } else {
     # eat the file Windows_list into tasklist hash
     print "****************************************************\n";
-    print "**** Finding tests for file \"Windows_list\"\n";
+    print "**** Finding tests for file \"$WinTestList\"\n";
     print "****************************************************\n";
-    open( WINDOWSTESTS, "<$windowstests" ) || die "Can't open $windowstests: $!\n";
-    $class = $windowstests;
+    open( WINDOWSTESTS, "<$WinTestList" ) || die "Can't open $WinTestList: $!\n";
+    $class = $WinTestList;
     $total_tests = 0;
     $testnm = "";
     while(<WINDOWSTESTS>) {
         chomp();
         $testnm = $_;
-		if( $testnm =~ /^\s*#.*/) {
-			# skip the comment
-		} else {
-        	$total_tests += 1;
-        	$tasklist{$testnm} = 1;
-		}
+        if( $testnm =~ /^\s*#.*/) {
+            # skip the comment
+        } else {
+            $total_tests += 1;
+            $tasklist{$testnm} = 1;
+        }
     }
 }
 
@@ -166,7 +155,7 @@ exit(0);
 
 sub findTests () {
     my( $classname, $dir_arg ) = @_;
-    my $ext, $dir;
+    my ($ext, $dir);
     my $total = 0;
 
     if( $dir_arg eq "top" ) {

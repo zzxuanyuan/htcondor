@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_task.pl,v 1.1.4.6.70.5 2006-03-22 17:20:12 bt Exp $
+# $Id: remote_task.pl,v 1.1.4.6.70.6 2006-06-26 14:23:50 gquinn Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
@@ -35,8 +35,8 @@ my $testdir = "condor_tests";
 ######################################################################
 
 @testinfo = split(/\./, $fulltestname);
-my $testname = @testinfo[0];
-my $compiler = @testinfo[1];
+my $testname = $testinfo[0];
+my $compiler = $testinfo[1];
 
 if( ! $testname ) {
     c_die("Invalid input for testname\n");
@@ -77,9 +77,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/)) {
     	print "Build failed for $testname\n";
     	exit 2;
 	}
-} #else {
-	#print "No building tests on Windows yet...\n<<$testname>> should not need building\n";
-#}
+}
 
 
 ######################################################################
@@ -107,7 +105,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
     	c_die("Can't build CondorPersonal.pm\n");
 	}
 } else {
-	my $scriptdir = $SrcDir . "/" . "condor_scripts";
+	my $scriptdir = $SrcDir . "/condor_scripts";
 	safe_copy("$scriptdir/batch_test.pl", "batch_test.pl");
 	safe_copy("$scriptdir/Condor.pm", "Condor.pm");
 	safe_copy("$scriptdir/CondorTest.pm", "CondorTest.pm");
@@ -231,7 +229,6 @@ sub safe_copy {
 
 sub unsafe_copy {
     my( $src, $dest ) = @_;
-	my $copyfailed = 0;
 	system("cp $src $dest");
 	if( $? >> 8 ) {
 		print "   Optional file $src not copied into $dest: $!\n";
