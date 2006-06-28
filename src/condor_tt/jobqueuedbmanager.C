@@ -415,6 +415,7 @@ JobQueueDBManager::maintain()
 		ret_st = FAILURE;
 	}
 
+	fst = caLogParser->closeFile();
 	return ret_st;
 }
 
