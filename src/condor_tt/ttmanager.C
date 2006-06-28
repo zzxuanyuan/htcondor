@@ -77,6 +77,11 @@ TTManager::~TTManager()
 	numLogs = 0;
 		// the object will be destroyed in the destructor of jqDBManager
 	DBObj = (Database  *) 0;
+
+	if (collectors) {
+		delete collectors;
+	}
+
 }
 
 void
@@ -184,6 +189,20 @@ TTManager::pollingTime()
 		  until it's successful.
 		*/
 	maintain();
+
+
+	dprintf(D_ALWAYS, "++++++++ Sending Quill ad to collector ++++++++\n");
+
+	if(!ad) {
+		createQuillAd();
+	}
+
+	updateQuillAd();
+
+	collectors->sendUpdates ( UPDATE_QUILL_AD, ad );
+
+	dprintf(D_ALWAYS, "++++++++ Sent Quill ad to collector ++++++++\n");
+
 }
 
 void
@@ -251,6 +270,128 @@ TTManager::maintain()
 	}
 }
 
+
+//! update the QUILL_AD sent to the collector
+/*! This method only updates the ad with new values of dynamic attributes
+ *  See createQuillAd for how to create the ad in the first place
+ */
+
+void TTManager::updateQuillAd(void) {
+	char expr[1000];
+
+	/*
+	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_LAST_BATCH, 
+			 lastBatchSqlProcessed);
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_TOTAL, 
+			 totalSqlProcessed);
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", "TimeToProcessLastBatch", 
+			 secsLastBatch);
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", "IsConnectedToDB", 
+			 isConnectedToDB);
+	ad->Insert(expr);
+	*/
+}
+
+//! create the QUILL_AD sent to the collector
+/*! This method reads all quill-related configuration options from the 
+ *  config file and creates a classad which can be sent to the collector
+ */
+
+void TTManager::createQuillAd(void) {
+	char expr[1000];
+
+	char *scheddName;
+
+	char *mysockname;
+	char *tmp;
+
+	ad = new ClassAd();
+	ad->SetMyTypeName(QUILL_ADTYPE);
+	ad->SetTargetTypeName("");
+  
+	config_fill_ad(ad);
+
+		// schedd info is used to identify the schedd 
+		// corresponding to this quill 
+
+	tmp = param( "SCHEDD_NAME" );
+	if( tmp ) {
+		scheddName = build_valid_daemon_name( tmp );
+	} else {
+		scheddName = default_daemon_name();
+	}
+
+	char *quill_name = param("QUILL_NAME");
+	if(!quill_name) {
+		EXCEPT("Cannot find variable QUILL_NAME in config file\n");
+	}
+
+	if (param_boolean("QUILL_IS_REMOTELY_QUERYABLE", true) == true) {
+		sprintf( expr, "%s = TRUE", ATTR_QUILL_IS_REMOTELY_QUERYABLE);
+	} else {
+		sprintf( expr, "%s = FALSE", ATTR_QUILL_IS_REMOTELY_QUERYABLE);
+	}
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", "QuillPollingPeriod", pollingPeriod );
+	ad->Insert(expr);
+
+	/*
+	char *quill_query_passwd = param("QUILL_DB_QUERY_PASSWORD");
+	if(!quill_query_passwd) {
+		EXCEPT("Cannot find variable QUILL_DB_QUERY_PASSWORD "
+			   "in config file\n");
+	}
+  
+	sprintf( expr, "%s = \"%s\"", ATTR_QUILL_DB_QUERY_PASSWORD, 
+			 quill_query_passwd );
+	ad->Insert(expr);
+	*/
+
+	sprintf( expr, "%s = \"%s\"", ATTR_NAME, quill_name );
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_NAME, scheddName );
+	ad->Insert(expr);
+
+	if(scheddName) {
+		delete scheddName;
+	}
+
+	sprintf( expr, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() ); 
+	ad->Insert(expr);
+  
+		// Put in our sinful string.  Note, this is never going to
+		// change, so we only need to initialize it once.
+	mysockname = strdup( daemonCore->InfoCommandSinfulString() );
+
+	sprintf( expr, "%s = \"%s\"", ATTR_MY_ADDRESS, mysockname );
+	ad->Insert(expr);
+
+	/*
+	sprintf( expr, "%s = \"<%s>\"", ATTR_QUILL_DB_IP_ADDR, 
+			 jobQueueDBIpAddress );
+	ad->Insert(expr);
+	*/
+
+	/*
+	sprintf( expr, "%s = \"%s\"", ATTR_QUILL_DB_NAME, jobQueueDBName );
+	ad->Insert(expr);
+	*/
+
+	collectors = CollectorList::create();
+  
+	if(tmp) free(tmp);
+	/*if(quill_query_passwd) free(quill_query_passwd); */
+	if(quill_name) free(quill_name);
+	if(mysockname) free(mysockname);
+}
 QuillErrCode
 TTManager::event_maintain() 
 {

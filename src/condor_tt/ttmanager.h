@@ -65,6 +65,12 @@ class TTManager : public Service
 		// check and throw away big files
 	void    checkAndThrowBigFiles();
 
+		//! create the QUILL_AD that's sent to the collector
+	void     createQuillAd(void);
+
+		//! update the QUILL_AD's dynamic attributes
+	void     updateQuillAd(void);
+
 	QuillErrCode insertMachines(AttrList *ad);
 	QuillErrCode insertEvents(AttrList *ad);
 	QuillErrCode insertFiles(AttrList *ad);
@@ -79,6 +85,9 @@ class TTManager : public Service
         
 	int		pollingTimeId;			//!< timer handler id of pollingTime function
 	int		pollingPeriod;			//!< polling time period in seconds
+
+	CollectorList   *collectors;
+	ClassAd         *ad;
 
 	Database* DBObj;
 	JobQueueDBManager jqDBManager;
