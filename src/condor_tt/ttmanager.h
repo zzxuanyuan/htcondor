@@ -78,6 +78,9 @@ class TTManager : public Service
 	QuillErrCode insertHistoryJob(AttrList *ad);
 	QuillErrCode insertBasic(AttrList *ad, char *tableName);
 	QuillErrCode updateBasic(AttrList *info, AttrList *condition, char *tableName);
+	QuillErrCode insertScheddAd(AttrList *ad);
+	QuillErrCode insertMasterAd(AttrList *ad);
+	QuillErrCode insertNegotiatorAd(AttrList *ad);
 
 	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
 	char    sqlLogCopyList[MAXLOGNUM+1][MAXLOGPATHLEN]; // 1 more file for "thrown" file

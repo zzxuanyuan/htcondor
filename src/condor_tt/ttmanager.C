@@ -47,7 +47,8 @@
 
 char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", 
 						   "SHADOW_SQLLOG", "STARTER_SQLLOG", 
-						   "STARTD_SQLLOG", "SUBMIT_SQLLOG", ""};
+						   "STARTD_SQLLOG", "SUBMIT_SQLLOG", 
+						   "COLLECTOR_SQLLOG", ""};
 
 #define FILESIZELIMT 1900000000L
 #define THROWFILE numLogs
@@ -58,10 +59,13 @@ char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG",
 #define TYPE_TIMESTAMP 3
 
 static int attHashFunction (const MyString &str, int numBuckets);
-static int isStaticMachineAttr(char *attName);
+static int isHorizontalMachineAttr(char *attName);
+static int isHorizontalDaemonAttr(char *attName);
+static int isHorizontalScheddAttr(char *attName);
 static int typeOf(char *attName);
 static int file_checksum(char *filePathName, int fileSize, char *sum);
 static QuillErrCode append(char *destF, char *srcF);
+static void stripquotes(char *strv);
 
 //! constructor
 TTManager::TTManager()
@@ -100,6 +104,8 @@ TTManager::config(bool reconfig)
 		tmp = param(logParamList[i]);
 		if (tmp) {
 			
+			found = 0;
+
 				// check if the new log file is already in the list
 			for (j = 0 ; j < numLogs; j++) {
 				if (strcmp(tmp, sqlLogList[j]) == 0) {
@@ -504,6 +510,15 @@ TTManager::event_maintain()
 				} else if (strcmp(eventtype, "History") == 0) {
 					if  (insertHistoryJob(ad) == FAILURE) 
 						goto DBERROR;
+				} else if (strcmp(eventtype, "ScheddAd") == 0) {
+					if  (insertScheddAd(ad) == FAILURE) 
+						goto DBERROR;	
+				} else if (strcmp(eventtype, "MasterAd") == 0) {
+					if  (insertMasterAd(ad) == FAILURE) 
+						goto DBERROR;
+				} else if (strcmp(eventtype, "NegotiatorAd") == 0) {
+					if  (insertNegotiatorAd(ad) == FAILURE) 
+						goto DBERROR;
 				} else {
 					if (insertBasic(ad, eventtype) == FAILURE) 
 						goto DBERROR;
@@ -658,16 +673,9 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;
-
-		// The way we use the following variables are risky of buffer overflow
-		// therefore the following tries to allocate an amount that is unlikely 
-		// to be exceeded. The horizontal machine table has around 30 columns.
-		// on average, each column name or value is allowed to be 300 char long.
-
 	char *attName = NULL, *attVal, *attNameList = NULL, *attValList = NULL, *tmpVal = NULL;
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
-	char *tmp1;
 	char *inlist = NULL;
 
 	char lastHeardFrom[300] = "";
@@ -687,49 +695,50 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	while (iter != NULL)
 		{
-			int attValLen;
-			
-				// the attribute name can't be longer than the log entry line size
-				// make sure attName is freed always to prevent memory leak.
+				/* the attribute name can't be longer than the log entry line 
+				   size make sure attName is freed always to prevent memory 
+				   leak. 
+				*/
 			attName = (char *)malloc(strlen(iter));
 
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// strip quotes from attVal (if any)
-			attValLen = strlen(attVal);
-			if (attVal[attValLen-1] == '"' || attVal[attValLen-1] == '\'')
-				attVal[attValLen-1] = 0;
-			if (attVal[0] == '"' || attVal[0] == '\'') {
-				
-				tmpVal = (char *) malloc(strlen(attVal));
-				tmp1 = attVal+1;
-				strcpy(tmpVal, tmp1);
-				strcpy(attVal, tmpVal);
-				free(tmpVal);
-				tmpVal  = NULL;
-			}
+				/* strip quotes from attVal (if any), this way we can 
+				   uniformly handle all attributes which are inserted into 
+				   the vertical part where attribute value is stored in 
+				   text type regardless what it's original data type is
+				*/
+			stripquotes(attVal);
 			
-			if (strcmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
+			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
-			else if (!isStaticMachineAttr(attName)) {
+			else if (isHorizontalMachineAttr(attName)) {
 					// should go into machine_classad table
 				if (isFirst) {
 						//is the first in the list
 					isFirst = FALSE;
 					
-						// 11 is the string length of "machine_id", 5 is for the overhead for enclosing
-						// parenthesis
-					attNameList = (char *) malloc (((strlen(attName) > 11)?strlen(attName):11) + 5);
+						/* 11 is the string length of "machine_id", 5 is for 
+						   the overhead for enclosing parenthesis
+						*/
+					attNameList = (char *) malloc (((strlen(attName) > 11)?
+													strlen(attName):11) + 5);
 					
-						// 80 is the extra length needed for converting a seconds value to timestamp value
-						// 7 is for the overhead of enclosing parenthesis and quotes
-					attValList = (char *) malloc (strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:7));
+						/* 80 is the extra length needed for converting a 
+						   seconds value to timestamp value, 7 is for the 
+						   overhead of enclosing parenthesis and quotes
+						*/
+					attValList = (char *) malloc (strlen(attVal) + 
+												  ((typeOf(attName) == 
+													TYPE_TIMESTAMP)?80:7));
 
-					sprintf(attNameList, "(%s", (strcmp(attName, ATTR_NAME) ? attName : "machine_id") );
-					if (!strcmp(attName, ATTR_NAME))
+					sprintf(attNameList, "(%s", 
+							(strcasecmp(attName, ATTR_NAME) ? 
+												 attName : "machine_id") );
+					if (!strcasecmp(attName, ATTR_NAME))
 					    machine_id = attVal;
 					switch (typeOf(attName)) {
 
@@ -743,7 +752,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						sprintf(attValList, "(%s", attVal);
 						break;
 					default:
-						sprintf(attValList, "(%s", attVal);
+						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);		 
+						if (inlist) free(inlist);					
+						return FAILURE;
 						break;							
 					}
 				} else {
@@ -755,7 +768,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 												   strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:8));
 
 					strcat(attNameList, ", ");
-					strcat(attNameList, (strcmp(attName, ATTR_NAME) ? attName : "machine_id"));
+					strcat(attNameList, (strcasecmp(attName, ATTR_NAME) ? 
+										 attName : "machine_id"));
 
 					strcat(attValList, ", ");
 
@@ -773,8 +787,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						sprintf(tmpVal, "%s", attVal);
 						break;
 					default:
-						sprintf(tmpVal, "%s", attVal);
-						break;							
+						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);		 
+						if (inlist) free(inlist);					
+						return FAILURE;
 					}
 
 					strcat(attValList, tmpVal);
@@ -860,9 +877,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	 free(sql_stmt);
 
-	 sql_stmt = (char *) malloc(100 + strlen(attNameList) + strlen(attValList));
+	 len = 100 + strlen(attNameList) + strlen(attValList);
+	 sql_stmt = (char *) malloc(len);
 
-	 sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
+	 snprintf(sql_stmt, len, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -880,15 +898,16 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 if (attValList) free(attValList);
 
 		// Insert changes into Machine
-	 sql_stmt = (char *) malloc (1000 + strlen(inlist) + strlen(machine_id.Value()) + strlen(lastHeardFrom) );
+	 len = 1000 + strlen(inlist) + strlen(machine_id.Value()) + strlen(lastHeardFrom);
+	 sql_stmt = (char *) malloc (len);
 
 		 // if the previous lastHeardFrom doesn't match, this means the 
 		 // daemon has been shutdown for a while, we should move everything
 		 // into the machine_history (with a NULL end_time)!
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom, machine_id.Value(), inlist);
+		 snprintf(sql_stmt, len, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom, machine_id.Value(), inlist);
 	 } else {
-		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
+		 snprintf(sql_stmt, len, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
 	 }
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -900,9 +919,9 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 }
 		
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sprintf(sql_stmt, "DELETE FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist);
+		 snprintf(sql_stmt, len, "DELETE FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist);
 	 } else {
-		 sprintf(sql_stmt, "DELETE FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
+		 snprintf(sql_stmt, len, "DELETE FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
 	 }
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -918,11 +937,12 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 		 
-	 	 sql_stmt = (char *) malloc (1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
-								strlen(aVal.Value()) + strlen(lastHeardFrom));
+		 len = 1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
+			 strlen(aVal.Value()) + strlen(lastHeardFrom);
 
-		 sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr = '%s')", 
-				 machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
+	 	 sql_stmt = (char *) malloc (len);
+
+		 snprintf(sql_stmt, len, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -931,8 +951,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 			
-		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", 
-				 lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -941,8 +960,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sprintf(sql_stmt, "UPDATE Machine SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s';", 
-				 aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "UPDATE Machine SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -954,6 +972,1018 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 free(sql_stmt);
 	 }
 	 return SUCCESS;
+}
+
+QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
+	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys); // for holding attributes going to vertical table
+
+	char *sql_stmt = NULL;
+	MyString classAd;
+	const char *iter;
+	
+	char *attName = NULL, *attVal, 
+		*attNameList = NULL, *attValList = NULL, 
+		*tmpVal = NULL, *attNameList2 = NULL, *attValList2 = NULL;
+	int firstScheddAttr = TRUE;
+	MyString aName, aVal, temp;
+	char *inlist = NULL;
+	char lastHeardFrom[300] = "";
+	char daemonName[300] = "";
+
+		// previous LastHeardFrom from the current classad
+		// previous LastHeardFrom from the database's machine_classad
+    int  prevLHFInAd = 0;
+    int  prevLHFInDB = 0;
+	int	 ret_st, len, num_result=0;
+
+		// first generate MyType='Scheduler' attribute
+	attNameList = (char *) malloc (20);
+	attValList = (char *) malloc (20);
+
+	sprintf(attNameList, "(MyType");
+	sprintf(attValList, "('Scheduler'");
+
+	ad->sPrint(classAd);
+
+	classAd.Tokenize();
+	iter = classAd.GetNextToken("\n", true);
+
+	while (iter != NULL)
+		{
+			attName = (char *)malloc(strlen(iter));
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
+
+				/* strip quotes from attVal (if any), this way we can 
+				   uniformly handle all attributes which are inserted into 
+				   the vertical part where attribute value is stored in 
+				   text type regardless what it's original data type is
+				*/
+			stripquotes(attVal);
+
+			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
+				prevLHFInAd = atoi(attVal);
+			}
+
+			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
+				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+			}
+			
+			if (strcasecmp(attName, ATTR_NAME) == 0) {
+				sprintf(daemonName, "%s", attVal);
+			}
+			
+				/* notice that the Name and LastHeardFrom are both a 
+				   horizontal daemon attribute and horizontal schedd attribute,
+				   therefore we need to check both seperately.
+				*/
+			if (isHorizontalDaemonAttr(attName)) {
+				attNameList = (char *) realloc (attNameList, 
+												strlen(attNameList) + 
+												strlen(attName) + 5);
+				attValList = (char *) realloc (attValList, 
+											   strlen(attValList) + 
+											   strlen(attVal) + 
+											   ((typeOf(attName) == 
+												 TYPE_TIMESTAMP)?80:8));
+
+				strcat(attNameList, ", ");
+				strcat(attNameList, attName);
+
+				strcat(attValList, ", ");
+
+				tmpVal = (char  *) malloc(strlen(attVal) + 100);
+
+				switch (typeOf(attName)) {
+
+				case TYPE_STRING:
+					sprintf(tmpVal, "'%s'", attVal);
+					break;
+				case TYPE_TIMESTAMP:
+					sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					break;
+				case TYPE_NUMBER:
+					sprintf(tmpVal, "%s", attVal);
+					break;
+				default:
+					dprintf(D_ALWAYS, "insertScheddAd: unsupported horizontal daemon attribute\n");
+					if (attNameList) free(attNameList);
+					if (attValList) free(attValList);		 
+					if (attNameList2) free(attNameList2);
+					if (attValList2) free(attValList2);	
+					if (inlist) free(inlist);					
+					return FAILURE;
+				}
+
+				strcat(attValList, tmpVal);
+					
+				free(tmpVal);				
+			}
+
+			if (isHorizontalScheddAttr(attName)) {
+				if (firstScheddAttr) {
+						//is the first in the list
+					firstScheddAttr = FALSE;
+					
+						// adding 5 for the overhead for enclosing parenthesis
+					attNameList2 = (char *) malloc (strlen(attName) + 5);
+					
+						/* 80 is the extra length needed for converting a 
+						   seconds value to timestamp value, 7 is for the 
+						   overhead of enclosing parenthesis and quotes
+						*/
+					attValList2 = (char *) malloc (strlen(attVal) + 
+												   ((typeOf(attName) == 
+													 TYPE_TIMESTAMP)?80:7));
+
+					sprintf(attNameList2, "(%s", attName);
+
+					switch (typeOf(attName)) {
+
+					case TYPE_STRING:
+						sprintf(attValList2, "('%s'", attVal);
+						break;
+					case TYPE_TIMESTAMP:
+						sprintf(attValList2, "(('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+						break;
+					case TYPE_NUMBER:
+						sprintf(attValList2, "(%s", attVal);
+						break;
+					default:
+						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);		 
+						if (attNameList2) free(attNameList2);
+						if (attValList2) free(attValList2);	
+						if (inlist) free(inlist);					
+						return FAILURE;
+					}
+				} else {
+						// is not the first in the list
+					
+					attNameList2 = (char *) realloc (attNameList2, 
+													 strlen(attNameList2) + 
+													 strlen(attName) + 5);
+					attValList2 = (char *) realloc (attValList2, 
+													strlen(attValList2) + 
+													strlen(attVal) + 
+													((typeOf(attName) == 
+													  TYPE_TIMESTAMP)?80:8));
+
+					strcat(attNameList2, ", ");
+					strcat(attNameList2, attName);
+
+					strcat(attValList2, ", ");
+
+					tmpVal = (char  *) malloc(strlen(attVal) + 100);
+
+					switch (typeOf(attName)) {
+
+					case TYPE_STRING:
+						sprintf(tmpVal, "'%s'", attVal);
+						break;
+					case TYPE_TIMESTAMP:
+						sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+						break;
+					case TYPE_NUMBER:
+						sprintf(tmpVal, "%s", attVal);
+						break;
+					default:
+						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);		 
+						if (attNameList2) free(attNameList2);
+						if (attValList2) free(attValList2);	
+						if (inlist) free(inlist);					
+						return FAILURE;
+					}
+
+					strcat(attValList2, tmpVal);
+					
+					free(tmpVal);
+				}
+			}
+
+			if (!isHorizontalScheddAttr(attName) && 
+				!isHorizontalDaemonAttr(attName) &&
+				strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) != 0) {
+					// the rest of attributes go to the vertical schedd table
+				aName = attName;
+				aVal = attVal;
+
+					// insert into new ClassAd to be inserted into DB
+				newClAd.insert(aName, aVal);				
+
+					// build an inlist of the vertical attribute names
+				if (NULL == inlist) {
+					inlist = (char *) malloc (strlen(attName)+5);
+					sprintf(inlist, "('%s'", attName);
+				} else {
+					inlist = (char *) realloc (inlist, strlen(inlist) + 
+											   strlen(attName) + 5);
+					strcat (inlist, ",'");
+					strcat (inlist, attName);
+					strcat (inlist, "'");
+				}			
+			}
+
+			free (attName);
+			iter = classAd.GetNextToken("\n", true);
+		}
+
+	if (attNameList) strcat(attNameList, ")");
+	if (attValList) strcat(attValList, ")");
+	if (attNameList2) strcat(attNameList2, ")");
+	if (attValList2) strcat(attValList2, ")");
+	if (inlist) strcat(inlist, ")");
+
+	len = 1024 + strlen(daemonName) + strlen(lastHeardFrom);
+	sql_stmt = (char *) malloc (len);	
+
+		// get the previous lastheardfrom from the database 
+	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM daemon_horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName);
+
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
+
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	}
+
+		/* move the horizontal daemon attributes tuple to history
+		   set end time if the previous lastHeardFrom matches, otherwise
+		   leave it as NULL (by default)	
+		*/
+	if (prevLHFInDB == prevLHFInAd) {
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT *, %s FROM Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s')", lastHeardFrom, daemonName);
+	} else {
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT * FROM Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s')", daemonName);
+	}
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (attNameList2) free(attNameList2);
+		if (attValList2) free(attValList2);	
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	
+	snprintf(sql_stmt, len, "DELETE FROM  Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName);
+
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (attNameList2) free(attNameList2);
+		if (attValList2) free(attValList2);		 
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+
+		/* move the horizontal schedd attributes tuple to history
+		   set end time if the previous lastHeardFrom matches, otherwise
+		   leave it as NULL (by default)	
+		*/
+	if (prevLHFInDB == prevLHFInAd) {
+		snprintf(sql_stmt, len, "INSERT INTO Schedd_Horizontal_History (SELECT *, %s FROM Schedd_Horizontal WHERE Name = '%s')", lastHeardFrom, daemonName);
+	} else {
+		snprintf(sql_stmt, len, "INSERT INTO Schedd_Horizontal_History (SELECT * FROM Schedd_Horizontal WHERE Name = '%s')", daemonName);
+	}
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (attNameList2) free(attNameList2);
+		if (attValList2) free(attValList2);	
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	
+	snprintf(sql_stmt, len, "DELETE FROM  Schedd_Horizontal WHERE Name = '%s'", daemonName);
+
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (attNameList2) free(attNameList2);
+		if (attValList2) free(attValList2);		 
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	 
+	free(sql_stmt);
+
+		// insert new tuple into daemon_horizontal 
+	len = 100 + strlen(attNameList) + strlen(attValList);
+	sql_stmt = (char *) malloc(len);
+	snprintf(sql_stmt, len, "INSERT INTO daemon_horizontal %s VALUES %s", attNameList, attValList);
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 if (attNameList) free(attNameList);
+		 if (attValList) free(attValList);
+		 if (attNameList2) free(attNameList2);
+		 if (attValList2) free(attValList2);		
+		 if (inlist) free(inlist);
+		 free(sql_stmt);
+		 return FAILURE;
+	 }	 
+
+	 free(sql_stmt);
+
+		 // insert new tuple into schedd_horizontal 
+	 len = 100 + strlen(attNameList2) + strlen(attValList2);
+	 sql_stmt = (char *) malloc(len);
+	 snprintf(sql_stmt, len, "INSERT INTO schedd_horizontal %s VALUES %s", attNameList2, attValList2);
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 if (attNameList) free(attNameList);
+		 if (attValList) free(attValList);
+		 if (attNameList2) free(attNameList2);
+		 if (attValList2) free(attValList2);		
+		 if (inlist) free(inlist);
+		 free(sql_stmt);
+		 return FAILURE;
+	 }	 
+
+	 free(sql_stmt);
+
+	 if (attNameList) free(attNameList);
+	 if (attValList) free(attValList);
+	 if (attNameList2) free(attNameList2);
+	 if (attValList2) free(attValList2);		
+
+		// Make changes into schedd_vertical and schedd_vertical_history
+	 len = 1000 + strlen(inlist) + strlen(daemonName) + strlen(lastHeardFrom);
+	 sql_stmt = (char *) malloc (len);	 
+
+		 /* if the previous lastHeardFrom doesn't match, this means the 
+			daemon has been shutdown for a while, we should move everything
+			into the schedd_vertical_history (with a NULL end_time)!
+			if the previous lastHeardFrom matches, only move attributes that 
+			don't appear in the new class ad
+		 */
+	 if (prevLHFInDB == prevLHFInAd) {
+		 snprintf(sql_stmt, len, "INSERT INTO Schedd_Vertical_History SELECT name, lastheardfrom, attr, val, %s FROM Schedd_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
+	 } else {
+		 snprintf(sql_stmt, len, "INSERT INTO Schedd_Vertical_History SELECT name, lastheardfrom, attr, val FROM Schedd_Vertical WHERE name = '%s'", daemonName);		 
+	 }	 
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }
+
+	 if (prevLHFInDB == prevLHFInAd) {
+		 snprintf(sql_stmt, len, "DELETE FROM schedd_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName, inlist);
+	 } else {
+		 snprintf(sql_stmt, len, "DELETE FROM schedd_vertical WHERE name = '%s'", daemonName);		 
+	 }
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }
+
+	 free(sql_stmt);
+ 	 if (inlist) free(inlist);
+
+		 // insert the vertical attributes
+	 newClAd.startIterations();
+	 while (newClAd.iterate(aName, aVal)) {
+		 len = 1000 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + 
+			 strlen(aVal.Value()) + strlen(lastHeardFrom);
+
+		 sql_stmt = (char *) malloc (len);
+
+		 snprintf(sql_stmt, len, "INSERT INTO schedd_vertical SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM schedd_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
+
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 free(sql_stmt);
+			 return FAILURE;
+		 }
+
+		 snprintf(sql_stmt, len, "INSERT INTO schedd_vertical_history SELECT name, lastheardfrom, attr, val, %s FROM schedd_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 free(sql_stmt);
+			 return FAILURE;
+		 }
+
+		 snprintf(sql_stmt, len, "UPDATE schedd_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			free(sql_stmt);
+			return FAILURE;
+		 }
+
+		 free(sql_stmt);
+	 }
+
+	 return SUCCESS;
+}
+
+QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
+	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys); // for holding attributes going to vertical table
+
+	char *sql_stmt = NULL;
+	MyString classAd;
+	const char *iter;
+	
+	char *attName = NULL, *attVal, 
+		*attNameList = NULL, *attValList = NULL, 
+		*tmpVal = NULL;
+	MyString aName, aVal, temp;
+	char *inlist = NULL;
+	char lastHeardFrom[300] = "";
+	char daemonName[300] = "";
+
+		// previous LastHeardFrom from the current classad
+		// previous LastHeardFrom from the database's machine_classad
+    int  prevLHFInAd = 0;
+    int  prevLHFInDB = 0;
+	int	 ret_st, len, num_result=0;
+
+		// first generate MyType='Scheduler' attribute
+	attNameList = (char *) malloc (20);
+	attValList = (char *) malloc (20);
+
+	sprintf(attNameList, "(MyType");
+	sprintf(attValList, "('Master'");
+
+	ad->sPrint(classAd);
+
+	classAd.Tokenize();
+	iter = classAd.GetNextToken("\n", true);
+
+	while (iter != NULL)
+		{
+			attName = (char *)malloc(strlen(iter));
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
+
+				/* strip quotes from attVal (if any), this way we can 
+				   uniformly handle all attributes which are inserted into 
+				   the vertical part where attribute value is stored in 
+				   text type regardless what it's original data type is
+				*/
+			stripquotes(attVal);
+
+			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
+				prevLHFInAd = atoi(attVal);
+			}
+
+			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
+				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+			}
+			
+			if (strcasecmp(attName, ATTR_NAME) == 0) {
+				sprintf(daemonName, "%s", attVal);
+			}
+			
+				/* notice that the Name and LastHeardFrom are both a 
+				   horizontal daemon attribute and horizontal schedd attribute,
+				   therefore we need to check both seperately.
+				*/
+			if (isHorizontalDaemonAttr(attName)) {
+				attNameList = (char *) realloc (attNameList, 
+												strlen(attNameList) + 
+												strlen(attName) + 5);
+				attValList = (char *) realloc (attValList, 
+											   strlen(attValList) + 
+											   strlen(attVal) + 
+											   ((typeOf(attName) == 
+												 TYPE_TIMESTAMP)?80:8));
+
+				strcat(attNameList, ", ");
+				strcat(attNameList, attName);
+
+				strcat(attValList, ", ");
+
+				tmpVal = (char  *) malloc(strlen(attVal) + 100);
+
+				switch (typeOf(attName)) {
+
+				case TYPE_STRING:
+					sprintf(tmpVal, "'%s'", attVal);
+					break;
+				case TYPE_TIMESTAMP:
+					sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					break;
+				case TYPE_NUMBER:
+					sprintf(tmpVal, "%s", attVal);
+					break;
+				default:
+					dprintf(D_ALWAYS, "insertMasterAd: unsupported horizontal daemon attribute\n");
+					if (attNameList) free(attNameList);
+					if (attValList) free(attValList);		 
+					if (inlist) free(inlist);					
+					return FAILURE;
+				}
+
+				strcat(attValList, tmpVal);
+					
+				free(tmpVal);				
+			} else if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) != 0) {
+					/* the rest of attributes go to the vertical master
+					   table.
+					*/
+				aName = attName;
+				aVal = attVal;
+
+					// insert into new ClassAd to be inserted into DB
+				newClAd.insert(aName, aVal);				
+
+					// build an inlist of the vertical attribute names
+				if (NULL == inlist) {
+					inlist = (char *) malloc (strlen(attName)+5);
+					sprintf(inlist, "('%s'", attName);
+				} else {
+					inlist = (char *) realloc (inlist, strlen(inlist) + 
+											   strlen(attName) + 5);
+					strcat (inlist, ",'");
+					strcat (inlist, attName);
+					strcat (inlist, "'");
+				}			
+			}
+
+			free (attName);
+			iter = classAd.GetNextToken("\n", true);
+		}
+			
+	if (attNameList) strcat(attNameList, ")");
+	if (attValList) strcat(attValList, ")");
+	if (inlist) strcat(inlist, ")");
+
+	len = 1024 + strlen(daemonName) + strlen(lastHeardFrom);
+	sql_stmt = (char *) malloc (len);	
+
+		// get the previous lastheardfrom from the database 
+	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM daemon_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName);
+	
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
+
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	}
+
+		/* move the horizontal daemon attributes tuple to history
+		   set end time if the previous lastHeardFrom matches, otherwise
+		   leave it as NULL (by default)	
+		*/
+	if (prevLHFInDB == prevLHFInAd) {
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT *, %s FROM Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s')", lastHeardFrom, daemonName);
+	} else {
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT * FROM Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s')", daemonName);
+	}
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}	
+
+	snprintf(sql_stmt, len, "DELETE FROM  Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName);
+
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	
+	free(sql_stmt);
+
+		// insert new tuple into daemon_horizontal 
+	len = 100 + strlen(attNameList) + strlen(attValList);
+	sql_stmt = (char *) malloc(len);
+	snprintf(sql_stmt, len, "INSERT INTO daemon_horizontal %s VALUES %s", attNameList, attValList);
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}		 
+
+	free(sql_stmt);
+	if (attNameList) free(attNameList);
+	if (attValList) free(attValList);
+	
+		// Make changes into master_vertical and master_vertical_history	
+	len = 1000 + strlen(inlist) + strlen(daemonName) + strlen(lastHeardFrom);
+	sql_stmt = (char *) malloc (len);	 
+
+		/* if the previous lastHeardFrom doesn't match, this means the 
+		   daemon has been shutdown for a while, we should move everything
+		   into the schedd_vertical_history (with a NULL end_time)!
+		   if the previous lastHeardFrom matches, only move attributes that 
+		   don't appear in the new class ad
+		*/
+	 if (prevLHFInDB == prevLHFInAd) {
+		 snprintf(sql_stmt, len, "INSERT INTO Master_Vertical_History SELECT name, lastheardfrom, attr, val, %s FROM Master_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
+	 } else {
+		 snprintf(sql_stmt, len, "INSERT INTO Master_Vertical_History SELECT name, lastheardfrom, attr, val FROM Master_Vertical WHERE name = '%s'", daemonName);
+	 } 
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }
+
+	 if (prevLHFInDB == prevLHFInAd) {
+		 snprintf(sql_stmt, len, "DELETE FROM master_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName, inlist);
+	 } else {
+		 snprintf(sql_stmt, len, "DELETE FROM master_vertical WHERE name = '%s'", daemonName);
+	 }
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }	 
+
+	 free(sql_stmt);
+ 	 if (inlist) free(inlist);
+
+		 // insert the vertical attributes
+	 newClAd.startIterations();
+	 while (newClAd.iterate(aName, aVal)) {
+		 len = 1000 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + strlen(aVal.Value()) + strlen(lastHeardFrom);
+
+		 sql_stmt = (char *) malloc (len);
+		 
+		 snprintf(sql_stmt, len, "INSERT INTO master_vertical SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM master_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
+
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 free(sql_stmt);
+			 return FAILURE;
+		 }	 
+
+		 snprintf(sql_stmt, len, "INSERT INTO master_vertical_history SELECT name, lastheardfrom, attr, val, %s FROM master_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 free(sql_stmt);
+			 return FAILURE;
+		 }
+
+		 snprintf(sql_stmt, len, "UPDATE master_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			free(sql_stmt);
+			return FAILURE;
+		 }
+
+		 free(sql_stmt);
+	 }
+
+	 return SUCCESS;
+}
+
+QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
+	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys); // for holding attributes going to vertical table
+
+	char *sql_stmt = NULL;
+	MyString classAd;
+	const char *iter;
+	
+	char *attName = NULL, *attVal, 
+		*attNameList = NULL, *attValList = NULL, 
+		*tmpVal = NULL;
+	MyString aName, aVal, temp;
+	char *inlist = NULL;
+	char lastHeardFrom[300] = "";
+	char daemonName[300] = "";
+
+		// previous LastHeardFrom from the current classad
+		// previous LastHeardFrom from the database's machine_classad
+    int  prevLHFInAd = 0;
+    int  prevLHFInDB = 0;
+	int	 ret_st, len, num_result=0;
+
+		// first generate MyType='Scheduler' attribute
+	attNameList = (char *) malloc (20);
+	attValList = (char *) malloc (20);
+
+	sprintf(attNameList, "(MyType");
+	sprintf(attValList, "('Negotiator'");
+
+	ad->sPrint(classAd);
+
+	classAd.Tokenize();
+	iter = classAd.GetNextToken("\n", true);
+
+	while (iter != NULL)
+		{
+			attName = (char *)malloc(strlen(iter));
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
+
+				/* strip quotes from attVal (if any), this way we can 
+				   uniformly handle all attributes which are inserted into 
+				   the vertical part where attribute value is stored in 
+				   text type regardless what it's original data type is
+				*/
+			stripquotes(attVal);
+
+			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
+				prevLHFInAd = atoi(attVal);
+			}
+
+			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
+				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+			}
+			
+			if (strcasecmp(attName, ATTR_NAME) == 0) {
+				sprintf(daemonName, "%s", attVal);
+			}
+			
+				/* notice that the Name and LastHeardFrom are both a 
+				   horizontal daemon attribute and horizontal schedd attribute,
+				   therefore we need to check both seperately.
+				*/
+			if (isHorizontalDaemonAttr(attName)) {
+				attNameList = (char *) realloc (attNameList, 
+												strlen(attNameList) + 
+												strlen(attName) + 5);
+				attValList = (char *) realloc (attValList, 
+											   strlen(attValList) + 
+											   strlen(attVal) + 
+											   ((typeOf(attName) == 
+												 TYPE_TIMESTAMP)?80:8));
+
+				strcat(attNameList, ", ");
+				strcat(attNameList, attName);
+
+				strcat(attValList, ", ");
+
+				tmpVal = (char  *) malloc(strlen(attVal) + 100);
+
+				switch (typeOf(attName)) {
+
+				case TYPE_STRING:
+					sprintf(tmpVal, "'%s'", attVal);
+					break;
+				case TYPE_TIMESTAMP:
+					sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					break;
+				case TYPE_NUMBER:
+					sprintf(tmpVal, "%s", attVal);
+					break;
+				default:
+					dprintf(D_ALWAYS, "insertNegotiatorAd: unsupported horizontal daemon attribute\n");
+					if (attNameList) free(attNameList);
+					if (attValList) free(attValList);		 
+					if (inlist) free(inlist);					
+					return FAILURE;
+				}
+
+				strcat(attValList, tmpVal);
+					
+				free(tmpVal);				
+			} else if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) != 0) {
+					/* the rest of attributes go to the vertical negotiator 
+					   table.
+					*/
+				aName = attName;
+				aVal = attVal;
+
+					// insert into new ClassAd to be inserted into DB
+				newClAd.insert(aName, aVal);				
+
+					// build an inlist of the vertical attribute names
+				if (NULL == inlist) {
+					inlist = (char *) malloc (strlen(attName)+5);
+					sprintf(inlist, "('%s'", attName);
+				} else {
+					inlist = (char *) realloc (inlist, strlen(inlist) + 
+											   strlen(attName) + 5);
+					strcat (inlist, ",'");
+					strcat (inlist, attName);
+					strcat (inlist, "'");
+				}			
+			}
+
+			free (attName);
+			iter = classAd.GetNextToken("\n", true);
+		}	
+
+	if (attNameList) strcat(attNameList, ")");
+	if (attValList) strcat(attValList, ")");
+	if (inlist) strcat(inlist, ")");
+
+	len = 1024 + strlen(daemonName) + strlen(lastHeardFrom);
+	sql_stmt = (char *) malloc (len);	
+
+		// get the previous lastheardfrom from the database 
+	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM daemon_horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName);
+	
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
+
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	}
+
+		/* move the horizontal daemon attributes tuple to history
+		   set end time if the previous lastHeardFrom matches, otherwise
+		   leave it as NULL (by default)	
+		*/
+	if (prevLHFInDB == prevLHFInAd) {
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT *, %s FROM Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s')", lastHeardFrom, daemonName);
+	} else {
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT * FROM Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s')", daemonName);
+	}
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+
+	snprintf(sql_stmt, len, "DELETE FROM  Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName);
+
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);		 
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+	
+	free(sql_stmt);
+
+		// insert new tuple into daemon_horizontal 
+	len = 100 + strlen(attNameList) + strlen(attValList);
+	sql_stmt = (char *) malloc(len);
+	snprintf(sql_stmt, len, "INSERT INTO daemon_horizontal %s VALUES %s", attNameList, attValList);
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);
+		if (inlist) free(inlist);
+		free(sql_stmt);
+		return FAILURE;
+	}
+
+	free(sql_stmt);
+	if (attNameList) free(attNameList);
+	if (attValList) free(attValList);
+	
+		/* Make changes into negotiator_vertical and 
+		   negotiator_vertical_history
+		*/
+	len = 1000 + strlen(inlist) + strlen(daemonName) + strlen(lastHeardFrom);
+	sql_stmt = (char *) malloc (len);	 
+
+		/* if the previous lastHeardFrom doesn't match, this means the 
+		   daemon has been shutdown for a while, we should move everything
+		   into the schedd_vertical_history (with a NULL end_time)!
+		   if the previous lastHeardFrom matches, only move attributes that 
+		   don't appear in the new class ad
+		*/
+	 if (prevLHFInDB == prevLHFInAd) {
+		 snprintf(sql_stmt, len, "INSERT INTO Negotiator_Vertical_History SELECT name, lastheardfrom, attr, val, %s FROM Negotiator_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
+	 } else {
+		 snprintf(sql_stmt, len, "INSERT INTO Negotiator_Vertical_History SELECT name, lastheardfrom, attr, val FROM Negotiator_Vertical WHERE name = '%s'", daemonName);
+	 }
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }
+
+	 if (prevLHFInDB == prevLHFInAd) {
+		 snprintf(sql_stmt, len, "DELETE FROM negotiator_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName, inlist);
+	 } else {
+		 snprintf(sql_stmt, len, "DELETE FROM negotiator_vertical WHERE name = '%s'", daemonName);
+	 }
+
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+	 	 if (inlist) free(inlist);
+		 return FAILURE;
+	 }	 
+
+	 free(sql_stmt);
+ 	 if (inlist) free(inlist);
+
+		 // insert the vertical attributes
+	 newClAd.startIterations();
+	 while (newClAd.iterate(aName, aVal)) {
+		 len = 1000 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + strlen(aVal.Value()) + strlen(lastHeardFrom);
+		 sql_stmt = (char *) malloc (len);
+
+		 snprintf(sql_stmt, len, "INSERT INTO negotiator_vertical SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM negotiator_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
+
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 free(sql_stmt);
+			 return FAILURE;
+		 }	 
+
+		 snprintf(sql_stmt, len, "INSERT INTO negotiator_vertical_history SELECT name, lastheardfrom, attr, val, %s FROM negotiator_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 free(sql_stmt);
+			 return FAILURE;
+		 }
+
+		 snprintf(sql_stmt, len, "UPDATE negotiator_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			free(sql_stmt);
+			return FAILURE;
+		 }
+
+		 free(sql_stmt);
+	 }
+	
+	return SUCCESS;
 }
 
 QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
@@ -1086,19 +2116,19 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				newvalue[0] = '\'';
 			}
 
-			if (strcmp(attName, "scheddname") == 0) {
+			if (strcasecmp(attName, "scheddname") == 0) {
 				strcpy(scheddname, newvalue);
-			} else if (strcmp(attName, "cluster") == 0) {
+			} else if (strcasecmp(attName, "cluster") == 0) {
 				strcpy(cluster, newvalue);
-			} else if (strcmp(attName, "proc") == 0) {
+			} else if (strcasecmp(attName, "proc") == 0) {
 				strcpy(proc, newvalue);
-			} else if (strcmp(attName, "spid") == 0) {
+			} else if (strcasecmp(attName, "spid") == 0) {
 				strcpy(subproc, newvalue);
-			} else if (strcmp(attName, "eventtype") == 0) {
+			} else if (strcasecmp(attName, "eventtype") == 0) {
 				eventtype = atoi(newvalue);
-			} else if (strcmp(attName, "eventtime") == 0) {
+			} else if (strcasecmp(attName, "eventtime") == 0) {
 				strcpy(eventts, newvalue);
-			} else if (strcmp(attName, "description") == 0) {
+			} else if (strcasecmp(attName, "description") == 0) {
 				strcpy(messagestr, newvalue);
 			}
 			
@@ -1172,15 +2202,15 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 				attVal[0] = '\'';
 			}
 
-			if (strcmp(attName, "f_name") == 0) {
+			if (strcasecmp(attName, "f_name") == 0) {
 				strcpy(f_name, attVal);
-			} else if (strcmp(attName, "f_host") == 0) {
+			} else if (strcasecmp(attName, "f_host") == 0) {
 				strcpy(f_host, attVal);
-			} else if (strcmp(attName, "f_path") == 0) {
+			} else if (strcasecmp(attName, "f_path") == 0) {
 				strcpy(f_path, attVal);
-			} else if (strcmp(attName, "f_ts") == 0) {
+			} else if (strcasecmp(attName, "f_ts") == 0) {
 				strcpy(f_ts, attVal);
-			} else if (strcmp(attName, "f_size") == 0) {
+			} else if (strcasecmp(attName, "f_size") == 0) {
 				f_size = atoi(attVal);
 			}
 			
@@ -1301,19 +2331,19 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 				attVal[0] = '\'';
 			}
 
-			if (strcmp(attName, "f_name") == 0) {
+			if (strcasecmp(attName, "f_name") == 0) {
 				strcpy(f_name, attVal);
-			} else if (strcmp(attName, "f_host") == 0) {
+			} else if (strcasecmp(attName, "f_host") == 0) {
 				strcpy(f_host, attVal);
-			} else if (strcmp(attName, "f_path") == 0) {
+			} else if (strcasecmp(attName, "f_path") == 0) {
 				strcpy(f_path, attVal);
-			} else if (strcmp(attName, "f_ts") == 0) {
+			} else if (strcasecmp(attName, "f_ts") == 0) {
 				strcpy(f_ts, attVal);
-			} else if (strcmp(attName, "f_size") == 0) {
+			} else if (strcasecmp(attName, "f_size") == 0) {
 				f_size = atoi(attVal);
-			} else if (strcmp(attName, "globalJobId") == 0) {
+			} else if (strcasecmp(attName, "globalJobId") == 0) {
 				strcpy(globaljobid, attVal);
-			} else if (strcmp(attName, "type") == 0) {
+			} else if (strcasecmp(attName, "type") == 0) {
 				strcpy(type, attVal);
 			}
 
@@ -1554,7 +2584,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 				attVal += 2;			
 
 					// change smth=null (in classad) to smth is null (in sql)
-				if (strcmp(attVal, "null") == 0) {
+				if (strcasecmp(attVal, "null") == 0) {
 					strcat(whereList, attName);
 					strcat(whereList, " is null and ");
 
@@ -1606,39 +2636,66 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 static int 
 typeOf(char *attName)
 {
-	if (!(strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
-		  strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
-		  strcmp(attName, ATTR_CPU_IS_BUSY) && strcmp(attName, ATTR_RANK) && 
-		  strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_NAME) &&
-		  strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH) &&
-		  strcmp(attName, "GlobalJobId") &&
-		  strcmp(attName, "username") &&
-		  strcmp(attName, "scheddname") &&
-		  strcmp(attName, "startdname") && 
-		  strcmp(attName, "diagnosis") &&
-		  strcmp(attName, "remote_user")
+	if (!(strcasecmp(attName, ATTR_CKPT_SERVER) && 
+		  strcasecmp(attName, "CKPT_SERVER_HOST") &&
+		  strcasecmp(attName, ATTR_STATE) && 
+		  strcasecmp(attName, ATTR_ACTIVITY) &&
+		  strcasecmp(attName, ATTR_CPU_IS_BUSY) && 
+		  strcasecmp(attName, ATTR_RANK) && 
+		  strcasecmp(attName, ATTR_REQUIREMENTS) && 
+		  strcasecmp(attName, ATTR_NAME) &&
+		  strcasecmp(attName, ATTR_OPSYS) && 
+		  strcasecmp(attName, ATTR_ARCH) &&
+		  strcasecmp(attName, "GlobalJobId") &&
+		  strcasecmp(attName, "username") &&
+		  strcasecmp(attName, "scheddname") &&
+		  strcasecmp(attName, "startdname") && 
+		  strcasecmp(attName, "diagnosis") &&
+		  strcasecmp(attName, "remote_user") && 
+		  strcasecmp(attName, ATTR_UPDATESTATS_HISTORY)
 		  )
 		)
 		return TYPE_STRING;
 
-	if (!(strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
-		  strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
-		  strcmp(attName, ATTR_TOTAL_LOAD_AVG) && strcmp(attName, ATTR_VIRTUAL_MEMORY) &&
-		  strcmp(attName, ATTR_MEMORY ) && strcmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
-		  strcmp(attName, ATTR_CPU_BUSY_TIME) && strcmp(attName, ATTR_CURRENT_RANK) &&
-		  strcmp(attName, ATTR_CLOCK_MIN) && strcmp(attName, ATTR_CLOCK_DAY) && 
-		  strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
-		  strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST) &&
-		  strcmp(attName, "cluster") && 
-		  strcmp(attName, "proc") 
+	if (!(strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
+		  strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
+		  strcasecmp(attName, ATTR_LOAD_AVG) && 
+		  strcasecmp(attName, "CondorLoadAvg") &&
+		  strcasecmp(attName, ATTR_TOTAL_LOAD_AVG) && 
+		  strcasecmp(attName, ATTR_VIRTUAL_MEMORY) &&
+		  strcasecmp(attName, ATTR_MEMORY ) && 
+		  strcasecmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
+		  strcasecmp(attName, ATTR_CPU_BUSY_TIME) && 
+		  strcasecmp(attName, ATTR_CURRENT_RANK) &&
+		  strcasecmp(attName, ATTR_CLOCK_MIN) && 
+		  strcasecmp(attName, ATTR_CLOCK_DAY) && 
+		  strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && 
+		  strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) &&
+		  strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) && 
+		  strcasecmp(attName, ATTR_UPDATESTATS_LOST) &&
+		  strcasecmp(attName, "cluster") && 
+		  strcasecmp(attName, "proc") &&
+		  strcasecmp(attName, ATTR_NUM_USERS) &&
+		  strcasecmp(attName, ATTR_TOTAL_IDLE_JOBS) &&
+		  strcasecmp(attName, ATTR_TOTAL_RUNNING_JOBS) &&
+		  strcasecmp(attName, ATTR_TOTAL_JOB_ADS) &&
+		  strcasecmp(attName, ATTR_TOTAL_HELD_JOBS) &&
+		  strcasecmp(attName, ATTR_TOTAL_FLOCKED_JOBS) && 
+		  strcasecmp(attName, ATTR_TOTAL_REMOVED_JOBS) &&
+		  strcasecmp(attName, "monitorselfcpuusage") &&
+		  strcasecmp(attName, "monitorselfimagesize") && 
+		  strcasecmp(attName, "monitorselfresidentsetsize") && 
+		  strcasecmp(attName, "monitorselfage")
 		  )
 		)
 		return TYPE_NUMBER;
 
-	if (!(strcmp(attName, ATTR_LAST_HEARD_FROM) &&
-		  strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
-		  strcmp(attName, "reject_time") &&
-		  strcmp(attName, "match_time")
+	if (!(strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
+		  strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && 
+		  strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
+		  strcasecmp(attName, "reject_time") &&
+		  strcasecmp(attName, "match_time") && 
+		  strcasecmp(attName, "MonitorSelfTime")
 		  )
 		)
 		return TYPE_TIMESTAMP;
@@ -1646,25 +2703,81 @@ typeOf(char *attName)
 	return -1;
 }
 
-static int isStaticMachineAttr(char *attName)
+/* An attribute is treated as a static one if it is not one of the following
+   Notice that if you add more attributes to the following list, the horizontal
+   schema for Machine_ClassAd needs to revised accordingly.
+*/
+static int isHorizontalMachineAttr(char *attName)
 {
-	return (strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH) &&
-			strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
-			strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
-			strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
-			strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
-			strcmp(attName, ATTR_TOTAL_LOAD_AVG) && strcmp(attName, ATTR_VIRTUAL_MEMORY) &&
-			strcmp(attName, ATTR_MEMORY ) && strcmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
-			strcmp(attName, ATTR_CPU_BUSY_TIME) && strcmp(attName, ATTR_CPU_IS_BUSY) &&
-			strcmp(attName, ATTR_RANK) && strcmp(attName, ATTR_CURRENT_RANK) &&
-			strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_CLOCK_MIN) &&
-			strcmp(attName, ATTR_CLOCK_DAY) && strcmp(attName, ATTR_LAST_HEARD_FROM) &&
-			strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
-			strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
-			strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST) &&
-			strcmp(attName, ATTR_NAME) && strcmp(attName, "GlobalJobId") &&
-			strcmp(attName, "LastHeardFrom")
+	return !(strcasecmp(attName, ATTR_OPSYS) && 
+			strcasecmp(attName, ATTR_ARCH) &&
+			strcasecmp(attName, ATTR_CKPT_SERVER) && 
+			strcasecmp(attName, "CKPT_SERVER_HOST") &&
+			strcasecmp(attName, ATTR_STATE) && 
+			strcasecmp(attName, ATTR_ACTIVITY) &&
+			strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
+			strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
+			strcasecmp(attName, ATTR_LOAD_AVG) && 
+			strcasecmp(attName, "CondorLoadAvg") &&
+			strcasecmp(attName, ATTR_TOTAL_LOAD_AVG) && 
+			strcasecmp(attName, ATTR_VIRTUAL_MEMORY) &&
+			strcasecmp(attName, ATTR_MEMORY ) && 
+			strcasecmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
+			strcasecmp(attName, ATTR_CPU_BUSY_TIME) && 
+			strcasecmp(attName, ATTR_CPU_IS_BUSY) &&
+			strcasecmp(attName, ATTR_RANK) && 
+			strcasecmp(attName, ATTR_CURRENT_RANK) &&
+			strcasecmp(attName, ATTR_REQUIREMENTS) && 
+			strcasecmp(attName, ATTR_CLOCK_MIN) &&
+			strcasecmp(attName, ATTR_CLOCK_DAY) && 
+			strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
+			strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && 
+			strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
+			strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && 
+			strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) &&
+			strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) && 
+			strcasecmp(attName, ATTR_UPDATESTATS_LOST) &&
+			strcasecmp(attName, ATTR_NAME) && 
+			strcasecmp(attName, "GlobalJobId") &&
+			strcasecmp(attName, "LastHeardFrom")
 			);
+}
+
+/* The following attributes are treated as horizontal daemon attributes.
+   Notice that if you add more attributes to the following list, the horizontal
+   schema for Daemon_Horizontal needs to revised accordingly.
+*/
+static int isHorizontalDaemonAttr(char *attName)
+{
+	return (!strcasecmp(attName, ATTR_NAME) ||
+			!strcasecmp(attName, ATTR_LAST_HEARD_FROM) ||
+			!strcasecmp(attName, "monitorselftime") ||
+			!strcasecmp(attName, "monitorselfcpuusage") ||
+			!strcasecmp(attName, "monitorselfimagesize") ||
+			!strcasecmp(attName, "monitorselfresidentsetsize") ||
+			!strcasecmp(attName, "monitorselfage") ||
+			!strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) ||
+			!strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) ||
+			!strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) ||
+			!strcasecmp(attName, ATTR_UPDATESTATS_LOST) ||
+			!strcasecmp(attName, ATTR_UPDATESTATS_HISTORY));
+}
+
+/* The following attributes are treated as horizontal schedd attributes.
+   Notice that if you add more attributes to the following list, the horizontal
+   schema for Schedd_Horizontal needs to revised accordingly.
+*/
+static int isHorizontalScheddAttr(char *attName)
+{
+	return (!strcasecmp(attName, ATTR_NAME) ||
+			!strcasecmp(attName, ATTR_LAST_HEARD_FROM) ||
+			!strcasecmp(attName, ATTR_NUM_USERS) ||
+			!strcasecmp(attName, ATTR_TOTAL_IDLE_JOBS) ||
+			!strcasecmp(attName, ATTR_TOTAL_RUNNING_JOBS) ||
+			!strcasecmp(attName, ATTR_TOTAL_JOB_ADS) ||
+			!strcasecmp(attName, ATTR_TOTAL_HELD_JOBS) ||
+			!strcasecmp(attName, ATTR_TOTAL_FLOCKED_JOBS) ||
+			!strcasecmp(attName, ATTR_TOTAL_REMOVED_JOBS));
 }
 
 static int file_checksum(char *filePathName, int fileSize, char *sum) {
@@ -1743,4 +2856,28 @@ static int attHashFunction (const MyString &str, int numBuckets)
                 i--;
         }
         return (hashVal % numBuckets);
+}
+
+static void stripquotes(char *attVal)
+{
+	int attValLen;
+	char *tmp1, *tmpVal;
+
+	attValLen = strlen(attVal);
+
+		/* strip enclosing double quotes or single quotes,
+		   but not the unmatched quotes because they might
+		   be part of an expression, e.g., requirements = attr == "a",
+		   here we need to keep the double quote in the end of the expression.
+		*/
+	if ((attVal[attValLen-1] == '"' && attVal[0] == '"') ||
+		(attVal[attValLen-1] == '\'' && attVal[0] == '\'')) 
+		{
+			attVal[attValLen-1] = 0;
+			tmpVal = (char *) malloc(strlen(attVal));
+			tmp1 = attVal+1;
+			strcpy(tmpVal, tmp1);
+			strcpy(attVal, tmpVal);
+			free(tmpVal);			
+		}
 }
