@@ -1,3 +1,6 @@
+07/10/06 V6_7_20-merge-1
+  Merging V6_7_20-branch to V6_7-branch.
+
 06/22/06 V6_7_20
   The official V6_7_20 release is a copy of BUILD-V6_7_20-branch-2006-6-21.
   All platforms built on NMI runid 25085 except redhat 8, which was 25117.
