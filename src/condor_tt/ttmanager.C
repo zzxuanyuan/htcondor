@@ -39,6 +39,7 @@
 #include "jobqueuedbmanager.h"
 #include "ttmanager.h"
 #include "file_sql.h"
+#include "file_xml.h"
 #include "database.h"
 #include "pgsqldatabase.h"
 #include "misc_utils.h"
@@ -274,6 +275,20 @@ TTManager::maintain()
 			dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
 		}
 	}
+
+		// call the xml log maintain function
+	dprintf(D_ALWAYS, "******** Start of Polling XML Log ********\n");
+
+	retcode = this->xml_maintain();
+
+	if (retcode == FAILURE) {
+		dprintf(D_ALWAYS, 
+				">>>>>>>> Fail: Polling XML Log <<<<<<<<\n");		
+		bothOk = FALSE;
+	} else {
+		dprintf(D_ALWAYS, "********* End of Polling XML Log *********\n");
+	}
+
 }
 
 
@@ -667,6 +682,109 @@ void TTManager::checkAndThrowBigFiles() {
 
 	delete thrownfileobj;
 }
+
+QuillErrCode
+TTManager::xml_maintain() 
+{
+	bool want_xml = false;
+	FILEXML *filexmlobj = NULL;
+	char xmlParamList[][30] = {"NEGOTIATOR_XMLLOG", "SCHEDD_XMLLOG", 
+						   "SHADOW_XMLLOG", "STARTER_XMLLOG", 
+						   "STARTD_XMLLOG", "SUBMIT_XMLLOG", 
+						   "COLLECTOR_XMLLOG", ""};	
+	char *dump_path = "/u/p/a/pachu/RA/LogCorr/xml-logs";
+	char *tmp, *fname;
+
+	int numXLogs = 0, i = 0, found = 0;
+	char    xmlLogList[MAXLOGNUM][MAXLOGPATHLEN];
+	char    xmlLogCopyList[MAXLOGNUM][MAXLOGPATHLEN];
+
+		// check if XML logging is turned on & if not, exit
+	want_xml = param_boolean("WANT_XML_LOG", false);
+
+	if ( !want_xml )
+		return SUCCESS;
+
+		// build list of xml logs and the copies
+	while (xmlParamList[i][0] != '\0') {
+		tmp = param(xmlParamList[i]);
+		if (tmp) {
+			
+			found = 0;
+
+				// check if the new log file is already in the list
+			int j;
+			for (j = 0 ; j < numXLogs; j++) {
+				if (strcmp(tmp, xmlLogList[j]) == 0) {
+					found = 1;
+					break;
+				}
+			}
+
+			if (found) {
+				free(tmp);
+				i++;
+				continue;
+			}
+				
+			strncpy(xmlLogList[numXLogs], tmp, MAXLOGPATHLEN);
+			fname = strrchr(tmp, '/')+1;
+			snprintf(xmlLogCopyList[numXLogs], MAXLOGPATHLEN, "%s/%s-%s.xml", dump_path, fname, my_hostname());
+			numXLogs++;
+			free(tmp);
+		}		
+		i++;
+	}
+
+		/* add the default log file in case no log file is specified in config */
+	tmp = param("LOG");
+	if (tmp) {
+		snprintf(xmlLogList[numXLogs], MAXLOGPATHLEN, "%s/Events.xml", tmp);
+		snprintf(xmlLogCopyList[numXLogs], MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
+	} else {
+		snprintf(xmlLogList[numXLogs], MAXLOGPATHLEN, "Events.xml");
+		snprintf(xmlLogCopyList[numXLogs], MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
+	}
+	numXLogs++;	
+
+		/* copy xml log files */	
+	for(i=0; i < numXLogs; i++) {
+		filexmlobj = new FILEXML(xmlLogList[i], O_CREAT|O_RDWR);
+
+	    if (filexmlobj->file_open() == FAILURE) {
+			goto ERROREXIT;
+		}
+
+		if (filexmlobj->file_lock() == FAILURE) {
+			goto ERROREXIT;
+		}		
+		
+		if (append(xmlLogCopyList[i], xmlLogList[i]) == FAILURE) {
+			goto ERROREXIT;
+		}
+
+		if(filexmlobj->file_truncate() == FAILURE) {
+			goto ERROREXIT;
+		}
+
+		if(filexmlobj->file_unlock() == FAILURE) {
+			goto ERROREXIT;
+		}
+		delete filexmlobj;
+		filexmlobj = NULL;
+	}
+
+	return SUCCESS;
+
+ ERROREXIT:
+	if(filexmlobj) {
+		delete filexmlobj;
+	}
+	
+	return FAILURE;
+
+}
+
 
 QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);

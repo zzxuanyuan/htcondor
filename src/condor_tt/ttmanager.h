@@ -61,6 +61,8 @@ class TTManager : public Service
 
 		// general event log maintain function (non-transactional data)
 	QuillErrCode event_maintain();
+		// xml log maintain function
+	QuillErrCode xml_maintain();
 
 		// check and throw away big files
 	void    checkAndThrowBigFiles();
