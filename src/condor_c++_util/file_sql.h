@@ -7,8 +7,9 @@
 
 class FILESQL 
 {
-private:
+protected:
 
+    bool    is_dummy;
 	bool 	is_open;
 	bool 	is_locked;
 	char *outfilename;

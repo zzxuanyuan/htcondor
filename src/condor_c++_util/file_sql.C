@@ -10,6 +10,7 @@
 
 FILESQL::FILESQL()
 {
+    is_dummy = false;
 	is_open = false;
 	is_locked = false;
 	outfilename = (char *) 0;
@@ -21,6 +22,7 @@ FILESQL::FILESQL()
 
 FILESQL::FILESQL(char *outfilename, int flags)
 {
+    is_dummy = false;
 	is_open = false;
 	is_locked = false;
 	this->outfilename = strdup(outfilename);
@@ -55,6 +57,8 @@ bool FILESQL::file_islocked()
 QuillErrCode FILESQL::file_truncate() {
 	int retval;
 
+    if (is_dummy) return SUCCESS;
+
 	if(!file_isopen()) {
 		dprintf(D_ALWAYS, "Error calling truncate: the file needs to be first opened\n");
 		return FAILURE;
@@ -72,6 +76,8 @@ QuillErrCode FILESQL::file_truncate() {
 
 QuillErrCode FILESQL::file_open()
 {
+    if (is_dummy) return SUCCESS;
+    
 	if (!outfilename) {
 		dprintf(D_ALWAYS,"No SQL log file specified");
 		return FAILURE;
@@ -97,7 +103,9 @@ QuillErrCode FILESQL::file_close()
 {
 	int retval;
 	
-	if (!is_open)
+    if (is_dummy) return SUCCESS;
+	
+    if (!is_open)
 		return FAILURE;
 
 	if (lock) {
@@ -134,6 +142,8 @@ QuillErrCode FILESQL::file_close()
 
 QuillErrCode FILESQL::file_lock()
 {
+    if (is_dummy) return SUCCESS;
+	
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error locking :SQL log file %s not open yet",outfilename);
@@ -156,6 +166,8 @@ QuillErrCode FILESQL::file_lock()
 
 QuillErrCode FILESQL::file_unlock()
 {
+    if (is_dummy) return SUCCESS;
+	
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error unlocking :SQL log file %s not open yet",outfilename);
@@ -178,6 +190,8 @@ QuillErrCode FILESQL::file_unlock()
 
 int FILESQL::file_readline(MyString *buf) 
 {
+    if (is_dummy) return TRUE;
+	
 	if(!fp)
 		fp = fdopen(outfiledes, "r");
 
