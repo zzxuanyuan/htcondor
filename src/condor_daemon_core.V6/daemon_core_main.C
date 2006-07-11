@@ -39,6 +39,7 @@
 #include "time_offset.h"
 
 #include "file_sql.h"
+#include "file_xml.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
@@ -84,6 +85,8 @@ static	char*	logAppend = NULL;
 
 /* FILESQL object */
 extern FILESQL *FILEObj;
+/* FILEXML object */
+extern FILEXML *XMLObj;
 
 #ifdef WIN32
 int line_where_service_stopped = 0;
@@ -1188,6 +1191,9 @@ handle_dc_sigterm( Service*, int )
 	if(FILEObj) {
 		delete FILEObj;
 	}
+    if(XMLObj) {
+        delete XMLObj;
+    }
 
 #if defined(WIN32) && 0
 	if ( line_where_service_stopped != 0 ) {
@@ -1238,6 +1244,9 @@ handle_dc_sigquit( Service*, int )
 
 	if(FILEObj) {
 		delete FILEObj;
+	}
+	if(XMLObj) {
+		delete XMLObj;
 	}
 
 	dprintf(D_ALWAYS, "Got SIGQUIT.  Performing fast shutdown.\n");
@@ -1912,7 +1921,8 @@ int main( int argc, char** argv )
 
 	// create a sql log object
 	FILEObj = createInstance(); 
-
+    // create an xml log object
+    XMLObj = createInstanceXML();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );
