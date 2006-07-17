@@ -60,7 +60,6 @@
 
 extern int main_shutdown_graceful();
 
-
 /***********************************************************
   Function :
 */
@@ -399,18 +398,32 @@ HADStateMachine::initializeClassAd()
     // two following attributes: ATTR_NAME and ATTR_MACHINE are mandatory
     // in order to be accepted by collector
     line.sprintf( "%s = \"%s\"", ATTR_NAME, name.GetCStr( ) );
-    m_classAd->Insert(line.Value());
+    m_classAd->Insert( line.Value( ) );
 
     line.sprintf( "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() );
-    m_classAd->Insert(line.Value());
+    m_classAd->Insert( line.Value( ) );
 
     line.sprintf( "%s = \"%s\"", ATTR_MY_ADDRESS,
                         daemonCore->InfoCommandSinfulString() );
-    m_classAd->Insert(line.Value());
+    m_classAd->Insert( line.Value( ) );
 
-	// declaring boolean attributes this way, no need for \"False\"
-    line.sprintf( "%s = False", ATTR_HAD_IS_ACTIVE );
-    m_classAd->Insert(line.Value());
+	line.sprintf ("%s = \"%s\"", ATTR_HAD_IP_ADDR,
+	            		daemonCore->InfoCommandSinfulString() );
+	m_classAd->Insert( line.Value( ) );
+
+	line.sprintf( "%s = %s", ATTR_HAD_IS_PRIMARY, 
+							( m_isPrimary ) ? "True" : "False" );
+	m_classAd->Insert( line.Value( ) );
+
+	// declaring boolean attributes this way, no need for \"True\" or \"False\"
+//	if( m_state == LEADER_STATE ) {
+//		line.sprintf( "%s = True", ATTR_HAD_IS_ACTIVE );
+//	} else {
+//		line.sprintf( "%s = False", ATTR_HAD_IS_ACTIVE );
+//	}
+	synchronizeStateAndClassAd( line );
+
+    m_classAd->Insert( line.Value( ) );
 
 	// publishing list of HADs in classad
 	char*      buffer     = param( "HAD_LIST" );
@@ -433,8 +446,10 @@ HADStateMachine::initializeClassAd()
 	free( buffer );
 
 	// publishing had's real index in list of hads
-	line.sprintf( "%s = \"%d\"", ATTR_HAD_INDEX, hadList.number() - 1 - m_selfId);
+	line.sprintf( "%s = \"%d\"", ATTR_HAD_INDEX, 
+								 hadList.number() - 1 - m_selfId);
 	m_classAd->Insert(line.Value());
+	config_fill_ad( m_classAd ); 
 }
 
 /***********************************************************
@@ -475,7 +490,8 @@ HADStateMachine::reinitialize()
     m_otherHADIPs = new StringList();
     tmp=param( "HAD_LIST" );
     if ( tmp ) {
-        m_isPrimary = initializeHADList( tmp, m_usePrimary, m_otherHADIPs, &m_selfId );
+        m_isPrimary = initializeHADList( tmp          , m_usePrimary, 
+										 m_otherHADIPs, &m_selfId );
         free( tmp );
     } else {
         utilCrucialError("HAD CONFIGURATION ERROR: no HAD_LIST in config file");
@@ -1199,8 +1215,9 @@ HADStateMachine::printParamsInformation()
 
 }
 /* Function    : updateCollectors
- * Description: sends the classad update to collectors and resets the timer
- *                      for later updates
+ * Description : synchronizes the current HAD state with the appropriate
+ * 				 attribute, sends the classad update to collectors and 
+ * 				 resets the timer for later updates
  */
 void
 HADStateMachine::updateCollectors()
@@ -1208,6 +1225,11 @@ HADStateMachine::updateCollectors()
     dprintf(D_FULLDEBUG, "HADStateMachine::updateCollectors started\n");
 
     if (m_classAd) {
+		MyString line;
+
+		synchronizeStateAndClassAd( line );
+		m_classAd->InsertOrUpdate( line.GetCStr( ) );
+
         int successfulUpdatesNumber =
             m_collectorsList->sendUpdates (UPDATE_AD_GENERIC, m_classAd);
         dprintf( D_ALWAYS, "HADStateMachine::updateCollectors %d "
@@ -1281,3 +1303,25 @@ HADStateMachine::invalidateClassAd( )
 	dprintf( D_ALWAYS, "HADStateMachine::invalidateClassAd %d "
 					   "successful updates\n", successfulUpdatesNumber );
 }
+
+/* Function   : synchronizeStateAndClassAd
+ * Arguments  : line  - string that is updated, according to the HAD state
+ * Description: updates the specified string according to the HAD state 
+ *              as follows: if the state is LEADER, the string is assigned a
+ *              "HadIsActive = True", otherwise it is assigned a
+ *              "HadIsActive = False"
+ */
+void
+HADStateMachine::synchronizeStateAndClassAd( MyString& line ) 
+{
+    // declaring boolean attributes this way, no need for \"True\" or
+    // \"False\"
+//    if( m_state == LEADER_STATE ) {
+//        line.sprintf( "%s = True", ATTR_HAD_IS_ACTIVE );
+//    } else {
+//        line.sprintf( "%s = False", ATTR_HAD_IS_ACTIVE );
+//    }
+	line.sprintf( "%s = %s", ATTR_HAD_IS_ACTIVE,
+							 ( m_state == LEADER_STATE ) ? "True" : "False" );
+}
+

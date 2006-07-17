@@ -254,6 +254,7 @@ protected:
 	};
 // classad-specific
 	void initializeClassAd();
+	void synchronizeStateAndClassAd( MyString& line );
 	// collector updates' timer handler
 	//void updateCollectors();
 	

@@ -1048,6 +1048,11 @@ ReplicatorStateMachine::updateCollectors()
     dprintf( D_FULLDEBUG, "ReplicatorStateMachine::updateCollectors started\n");
 
     if ( m_classAd ) {
+		MyString line;
+
+		synchronizeStateAndClassAd( line );
+		m_classAd->InsertOrUpdate( line.GetCStr( ) );
+
         int successfulUpdatesNumber =
             m_collectorsList->sendUpdates( UPDATE_AD_GENERIC, m_classAd);
         dprintf( D_ALWAYS, "ReplicatorStateMachine::updateCollectors %d "

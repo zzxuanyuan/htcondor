@@ -203,6 +203,7 @@ protected:
 
 // classad-specific data members and functions
     void initializeClassAd();
+	void synchronizeStateAndClassAd( MyString& line );
     // collector updates' timer handler
     void updateCollectors();
     // updates collectors upon changing from/to leader state

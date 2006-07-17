@@ -26,7 +26,7 @@ template class List<AbstractReplicatorStateMachine::ProcessMetadata>;
 template void utilClearList<AbstractReplicatorStateMachine::ProcessMetadata>
 				( List<AbstractReplicatorStateMachine::ProcessMetadata>& );
 template void utilClearList<Version>( List<Version>& );
-                                                                                
+
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine ctor started\n" );
@@ -886,8 +886,14 @@ AbstractReplicatorStateMachine::initializeClassAd()
                         daemonCore->InfoCommandSinfulString() );
     m_classAd->Insert( line.Value( ) );
 
+	line.sprintf( "%s = \"%s\"", ATTR_REPLICATION_IP_ADDR,
+	                    daemonCore->InfoCommandSinfulString() );
+	m_classAd->Insert( line.Value( ) );
+
     // declaring boolean attributes this way, no need for \"False\"
-    line.sprintf( "%s = False", ATTR_REPLICATION_IS_ACTIVE );
+//    line.sprintf( "%s = False", ATTR_REPLICATION_IS_ACTIVE );
+	synchronizeStateAndClassAd( line );
+
     m_classAd->Insert( line.Value( ) );
 
     // publishing list of replication daemons in classad
@@ -915,4 +921,27 @@ AbstractReplicatorStateMachine::initializeClassAd()
     line.sprintf( "%s = \"%d\"", ATTR_REPLICATION_INDEX, 
 				  replicationList.number() - 1 - m_selfId );
     m_classAd->Insert(line.Value());
+	config_fill_ad( m_classAd );
 }
+
+/* Function   : synchronizeStateAndClassAd
+ * Arguments  : line  - string that is updated, according to the replication
+ *                      daemon state
+ * Description: updates the specified string according to the RD state
+ *              as follows: if the state is REPLICATION_LEADER, the string
+ *              is assigned a
+ *              "ReplicationIsActive = True", otherwise it is assigned a
+ *              "ReplicationIsActive = False"
+ */
+void
+AbstractReplicatorStateMachine::synchronizeStateAndClassAd( MyString& line )
+{
+    // declaring boolean attributes this way, no need for \"True\" or
+    // \"False\"
+    if( m_state == REPLICATION_LEADER ) {
+        line.sprintf( "%s = True", ATTR_REPLICATION_IS_ACTIVE );
+    } else {
+        line.sprintf( "%s = False", ATTR_REPLICATION_IS_ACTIVE );
+    }
+}
+
