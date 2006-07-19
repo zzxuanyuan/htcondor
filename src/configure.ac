@@ -396,7 +396,6 @@ elif test $os = "FreeBSD" ; then
    elif test $arch = "x86_64" ; then
       _cv_arch="X86_64"
    fi
-   _cv_sysname="${_cv_arch}_freebsd"
 
    ##
    ## Now figure out the OS Version
@@ -407,8 +406,9 @@ elif test $os = "FreeBSD" ; then
    _cv_kernel_rev=`uname -r | sed -e 's#[0-9]*\.\([0-9]*\).*#\1#'`
 
    _cv_op_sys=CONDOR_FREEBSD
-   _cv_opsys=${_cv_op_sys}
-   
+   _cv_opsys=${_cv_op_sys}   
+   _cv_sysname=`echo ${_cv_arch}_freebsd${_cv_opsys_vers} | $PERL -ane 'print lc'`
+
    ##
    ## Need to make _cv_opsys_vers like 'FREEBSD#'
    ##
