@@ -3692,6 +3692,15 @@ These macros control the \Condor{schedd}.
   nobody.
   This macro determines whether this is allowed.
   It defaults to FALSE.
+
+
+\item[\Macro{QUEUE\_ALL\_USERS\_TRUSTED}]. \label{param:QueueAllUsersTrusted}
+  Defaults to False. If set to True, then unauthenticated users are allowed
+  to write to the queue, and also we always trust whatever the \Attr{Owner}
+  value is set to be by the client in the job ad. This was added so users
+  can continue to use the SOAP web-services interface over HTTP (w/o
+  authenticating) to submit jobs in a secure, controlled environment -- for
+  instance, in a portal setting.
      
 \item[\Macro{QUEUE\_SUPER\_USERS}] \label{param:QueueSuperUsers} This
   macro determines what user names on a given machine have
