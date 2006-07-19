@@ -1,3 +1,7 @@
+07/19/06 V6_8_0
+  The official V6_8_0 release is a copy of BUILD-V6_7-branch-2006-7-19.
+  All platforms built on NMI runid 26185 except windows, which was 26198.
+
 07/10/06 V6_7_20-merge-1
   Merging V6_7_20-branch to V6_7-branch.
 
