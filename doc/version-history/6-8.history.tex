@@ -10,6 +10,14 @@ As usual, only bug fixes (and potentially, ports to new platforms)
 will be provided in future 6.8.x releases.
 New features will be added in the forthcoming 6.9.x development series.
 
+%%%%%%
+% we need a summary of major new features since 6.6.x here.  trying to
+% sort through the 21 different 6.7.x releases and all the new
+% features is a huge amount of noise.  people just want to see a
+% summary of the major new functionality.
+% \Todo
+%%%%%%
+
 The 6.8.x series supports a different set of platforms than 6.6.x.
 Please see the updated table of available platforms in
 section~\ref{sec:Availability} on page~\pageref{sec:Availability}.
@@ -33,6 +41,27 @@ The details of each version are described below.
   should be aware of this change.
   The recommended download for most x86 Linux users is now:
   \File{condor-6.8.0-linux-x86-rhel3-dynamic.tar.gz}.
+
+\item Version 1.4 of the Condor DRMAA libraries are now included 
+  with the Condor release.
+  For more information about DRMAA, see section~\ref{API-DRMAA} on
+  page~\pageref{API-DRMAA}.
+
+\item Version 1.0.15 of the Condor GAHP is now used for Condor-G and
+  Condor-C. 
+
+\item Numerous logging messages have been clarified or moved to
+  different logging levels.
+  For example, things that looked like errors which were printed to
+  \Dflag{ALWAYS} even though nothing was wrong and the system was
+  behaving as expected).
+
+\item The new features and bugs fixed in the rest of this section only
+  refer to changes made since the 6.7.20 release, not the last stable
+  release (6.6.11).
+  For a complete list of changes since 6.6.11, read the 6.7 version
+  history in section~\ref{sec:History-6-7} on
+  page~\pageref{sec:History-6-7}. 
 
 \end{itemize}
 
@@ -64,6 +93,13 @@ summary info.
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed a number of potential static buffer overflows in various
+  Condor daemons and libraries.
+
+\item Fixed some small memory leaks in the \Condor{startd},
+  \Condor{schedd}, and a potential leak that effected all Condor
+  daemons.
 
 \item Fixed a bug in Quill which caused it to crash when certain
 long attributes appeared in a job ad.
@@ -138,8 +174,8 @@ started from the command line rather than as a service.
 \item Added more patches to Condor's DRMAA interface to make it more
 compatible with Sun Grid Engine's DRMAA interface.
 
-\item Removed the unused D\_UPDOWN debug level and added the D\_CONFIG debug
-level.
+\item Removed the unused \Dflag{UPDOWN} debug level and added the
+  \Dflag{CONFIG} debug level.
 
 \item Fixed a bug that caused \Condor{q} with the \Opt{-l} or \Opt{-xml}
 arguments to print out duplicate attributes when using Quill.
@@ -157,7 +193,18 @@ config file \MacroNI{NEGOTIATOR\_MATCHLIST\_CACHING} is set to True.
 True, this will instruct the negotiator to safely cache data in order to
 improve matchmaking performance.
 
+\item The Condor{master} now recognizes \Condor{quill} as a valid
+  Condor daemon without any manual configuration on the part of site
+  administrators.
+  This simplifies the configuration changes required to enable Quill. 
+
+\item Fixed a rare bug in the \Condor{starter} where if there was a
+  failure transfering job output files back to the submitting host,
+  it could hang indefinitely, and the job appeared as if it was
+  continuing to run.
+
 \end{itemize}
+
 
 \noindent Known Bugs:
 
