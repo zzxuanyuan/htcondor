@@ -69,16 +69,17 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 					  int numclusters, 
 					  int *procarray, 
 					  int numprocs,
-					  char *owner, 
+					  char *schedd, 
 					  bool isfullscan)
 {
 	QuillErrCode st;
 		// initialize index variables
-	cur_procads_str_index = cur_procads_num_index =
-	cur_clusterads_str_index = cur_clusterads_num_index = 0;
 
-	procads_str_num = procads_num_num = 
-	clusterads_str_num = clusterads_num_num = 0;
+	cur_procads_hor_index = cur_procads_ver_index =
+	cur_clusterads_hor_index = cur_clusterads_ver_index = 0;
+
+	procads_hor_num = procads_ver_num = 
+	clusterads_hor_num = clusterads_ver_num = 0;
 	
 	if(DBObj->connectDB() == FAILURE) {
 		return FAILURE;
@@ -93,12 +94,12 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 				 numclusters,
 				 procarray, 
 				 numprocs,
-				 owner, 
 				 isfullscan,
-				 procads_str_num, 
-				 procads_num_num,
-				 clusterads_str_num, 
-				 clusterads_num_num); // this retriesves DB
+				 schedd,
+				 procads_hor_num, 
+				 procads_ver_num,
+				 clusterads_hor_num, 
+				 clusterads_ver_num); // this retriesves DB
 	
 	if(DBObj->commitTransaction() == FAILURE) {
 		printf("Error while querying the database: unable to commit transaction");
@@ -132,11 +133,11 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 {
 	const char	*cid, *attr, *val;
 
-	if (cur_clusterads_str_index >= clusterads_str_num) {
+	if (cur_clusterads_hor_index >= clusterads_hor_num) {
 		return DONE_CLUSTERADS_CURSOR;
 	}
-	cid = jqDB->getJobQueueClusterAds_StrValue(
-			cur_clusterads_str_index, 0); // cid
+	cid = jqDB->getJobQueueClusterAds_HorValue(
+			cur_clusterads_hor_index, 0); // cid
 	if (cid == NULL) {
 		return DONE_CLUSTERADS_CURSOR;
 	}
@@ -161,18 +162,18 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 
 	ad = new ClassAd();
 
-		// for ClusterAds_Num table
-	while(cur_clusterads_num_index < clusterads_num_num) {
-		cid = jqDB->getJobQueueClusterAds_NumValue(
-				cur_clusterads_num_index, 0); // cid
+		// for ClusterAds vertical table
+	while(cur_clusterads_ver_index < clusterads_ver_num) {
+		cid = jqDB->getJobQueueClusterAds_VerValue(
+				cur_clusterads_ver_index, 0); // cid
 
 		if (cid == NULL || strcmp(cluster_id, cid) != 0) {
 			break;
 		}
-		attr = jqDB->getJobQueueClusterAds_NumValue(
-				cur_clusterads_num_index, 1); // attr
-		val = jqDB->getJobQueueClusterAds_NumValue(
-				cur_clusterads_num_index++, 2); // val
+		attr = jqDB->getJobQueueClusterAds_VerValue(
+				cur_clusterads_ver_index, 1); // attr
+		val = jqDB->getJobQueueClusterAds_VerValue(
+				cur_clusterads_ver_index++, 2); // val
 
 		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
 		sprintf(expr, "%s = %s", attr, val);
@@ -182,28 +183,21 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 	};
 
 
-		// for ClusterAds_Str table
-	while(cur_clusterads_str_index < clusterads_str_num) {
-		cid = jqDB->getJobQueueClusterAds_StrValue(
-				cur_clusterads_str_index, 0); // cid
 
-		if (cid == NULL || strcmp(cid, curClusterId) != 0) {
-			break;
-		}
-		attr = jqDB->getJobQueueClusterAds_StrValue(
-				cur_clusterads_str_index, 1); // attr
-		val = jqDB->getJobQueueClusterAds_StrValue(
-				cur_clusterads_str_index++, 2); // val
+	int numfields = jqDB->getJobQueueClusterHorNumFields();
+	
+	for(int i = 1; i < numfields; i++) {
 
-		if ((strcasecmp(attr, "MyType") != 0) && 
-			(strcasecmp(attr, "TargetType") != 0)) {
-			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-			sprintf(expr, "%s = %s", attr, val);
-				// add an attribute with a value into ClassAd
-			ad->Insert(expr);
-			free(expr);
-		}
-	};
+		attr = jqDB->getJobQueueClusterHorFieldName(i);
+		val = jqDB->getJobQueueClusterAds_HorValue(
+				cur_clusterads_hor_index, i); // val
+		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
+		sprintf(expr, "%s = %s", attr, val);
+			// add an attribute with a value into ClassAd
+		ad->Insert(expr);
+		free(expr);
+	}
+	cur_clusterads_hor_index++;
 
 	return SUCCESS;
 }
@@ -220,8 +214,8 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 {
 	const char *cid = NULL, *pid = NULL, *attr, *val;
 
-	if ((cur_procads_num_index >= procads_num_num) &&
-		(cur_procads_str_index >= procads_str_num)) {
+	if ((cur_procads_ver_index >= procads_ver_num) &&
+		(cur_procads_hor_index >= procads_hor_num)) {
 		ad = NULL;
 		return DONE_PROCADS_CURSOR;
 	}
@@ -232,28 +226,28 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 		//the below two while loops is to iterate over 
 		//the dummy rows where cid == 0
 
-	while(cur_procads_num_index < procads_num_num) {
+	while(cur_procads_ver_index < procads_ver_num) {
 		// Current ProcId Setting
-		cid = jqDB->getJobQueueProcAds_NumValue(
-			cur_procads_num_index, 0); // cid
+		cid = jqDB->getJobQueueProcAds_VerValue(
+			cur_procads_ver_index, 0); // cid
 
 		if (strcmp(cid, "0") != 0) {
 			break;
 		}
 		
-		++cur_procads_num_index;
+		++cur_procads_ver_index;
 	};
 
-	while(cur_procads_str_index < procads_str_num) {
+	while(cur_procads_hor_index < procads_hor_num) {
 		// Current ProcId Setting
-		cid = jqDB->getJobQueueProcAds_StrValue(
-			cur_procads_str_index, 0); // cid
+		cid = jqDB->getJobQueueProcAds_HorValue(
+			cur_procads_hor_index, 0); // cid
 
 		if (strcmp(cid, "0") != 0) {
 			break;
 		}
 
-		++cur_procads_str_index;
+		++cur_procads_hor_index;
 	};
 
 		/* if cid is null or cid is not equal to the 
@@ -265,17 +259,17 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 	}
 
 		/* it's possible that we are at the end of the cursor because of the 
-		   above loop that increments cur_procads_str_index. If so, then 
+		   above loop that increments cur_procads_hor_index. If so, then 
 		   return DONE_PROCADS_CURSOR. Otherwise we try to get the pid from 
 		   the cursor that still has rows in it.
 
 		*/
-	if (cur_procads_str_index < procads_str_num) {
+	if (cur_procads_hor_index < procads_hor_num) {
 			// pid sits at attribute index 1
-		pid = jqDB->getJobQueueProcAds_StrValue(cur_procads_str_index, 1); 
-	} else if (cur_procads_num_index < procads_num_num) {
+		pid = jqDB->getJobQueueProcAds_HorValue(cur_procads_hor_index, 1); 
+	} else if (cur_procads_ver_index < procads_ver_num) {
 			// pid sits at attribute index 1
-		pid = jqDB->getJobQueueProcAds_NumValue(cur_procads_num_index, 1); 
+		pid = jqDB->getJobQueueProcAds_VerValue(cur_procads_ver_index, 1); 
 	} else {
 		delete ad;
 		ad = NULL;
@@ -306,20 +300,20 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 		//the below two while loops grab stuff out of 
 		//the Procads_Num and Procads_Str table
 
-	while(cur_procads_num_index < procads_num_num) {
-		cid = jqDB->getJobQueueProcAds_NumValue(
-				cur_procads_num_index, 0); // cid
-		pid = jqDB->getJobQueueProcAds_NumValue(
-				cur_procads_num_index, 1); // pid
+	while(cur_procads_ver_index < procads_ver_num) {
+		cid = jqDB->getJobQueueProcAds_VerValue(
+				cur_procads_ver_index, 0); // cid
+		pid = jqDB->getJobQueueProcAds_VerValue(
+				cur_procads_ver_index, 1); // pid
 
 		if ((strcmp(cid, curClusterId) != 0) || 
 			(strcmp(pid, curProcId) != 0))
 			break;
 
-		attr = jqDB->getJobQueueProcAds_NumValue(
-				cur_procads_num_index, 2); // attr
-		val  = jqDB->getJobQueueProcAds_NumValue(
-				cur_procads_num_index++, 3); // val
+		attr = jqDB->getJobQueueProcAds_VerValue(
+				cur_procads_ver_index, 2); // attr
+		val  = jqDB->getJobQueueProcAds_VerValue(
+				cur_procads_ver_index++, 3); // val
 
 
 		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
@@ -330,35 +324,23 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 
 	};
 
-	while(cur_procads_str_index < procads_str_num) {
-		cid = jqDB->getJobQueueProcAds_StrValue(
-				cur_procads_str_index, 0); // cid
-		pid = jqDB->getJobQueueProcAds_StrValue(
-				cur_procads_str_index, 1); // pid
+	int numfields = jqDB->getJobQueueProcHorNumFields();
+	
+	for(int i = 2; i < numfields; i++) {
 
-		if ((strcmp(cid, curClusterId) != 0) ||
-			(strcmp(pid, curProcId) != 0)) {
-			break;
-		}
-		attr = jqDB->getJobQueueProcAds_StrValue(
-				cur_procads_str_index, 2); // attr
-		val  = jqDB->getJobQueueProcAds_StrValue(
-				cur_procads_str_index++, 3); // val
-
-		if (strcasecmp(attr, "MyType") == 0) {
-			ad->SetMyTypeName("Job");
-		}
-		else if (strcasecmp(attr, "TargetType") == 0) {
-			ad->SetTargetTypeName("Machine");
-		}
-		else { 
-			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-			sprintf(expr, "%s = %s", attr, val);
+		attr = jqDB->getJobQueueProcHorFieldName(i);
+		val = jqDB->getJobQueueProcAds_HorValue(
+				cur_procads_hor_index, i); // val
+		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
+		sprintf(expr, "%s = %s", attr, val);
 			// add an attribute with a value into ClassAd
-			ad->Insert(expr);
-			free(expr);
-		}
-	};
+		ad->Insert(expr);
+		free(expr);
+	}
+
+	ad->SetMyTypeName("Job");
+	ad->SetTargetTypeName("Machine");
+	cur_procads_hor_index++;
 
 	char* expr = 
 	  (char *) malloc(strlen(ATTR_SERVER_TIME)

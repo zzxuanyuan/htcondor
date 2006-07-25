@@ -79,12 +79,6 @@ public:
 										bool, int&, int&);
 	QuillErrCode         releaseJobQueueResults();
 
-	QuillErrCode		 getJobQueueDB(int *, int, int *, int, char *, bool, 
-									   int&, int&, int&, int&);
-	const char*	         getJobQueueProcAds_StrValue(int row, int col);
-	const char*	         getJobQueueProcAds_NumValue(int row, int col);
-	const char*	         getJobQueueClusterAds_StrValue(int row, int col);
-	const char*	         getJobQueueClusterAds_NumValue(int row, int col);
 	const char*          getHistoryHorValue(int row, int col);
 	const char*          getHistoryVerValue(int row, int col);
 

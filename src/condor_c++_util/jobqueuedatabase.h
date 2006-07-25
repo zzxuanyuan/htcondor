@@ -46,20 +46,26 @@ public:
 		// Job Queue DB processing methods
 		//
 	//! get the queue from the database
-	virtual QuillErrCode        getJobQueueDB(int *, int, int *, int, char *, bool,
-											  int&, int&, int&, int&) = 0;
-	//! get a value retrieved from ProcAds_Str table
-	virtual const char*         getJobQueueProcAds_StrValue(int row, 
+	virtual QuillErrCode        getJobQueueDB(int *, int, int *, int,  bool,
+											  const char *, int&, int&, int&, int&) = 0;
+
+	//! get a value retrieved from ProcAds_Hor table
+	virtual const char*         getJobQueueProcAds_HorValue(int row, 
 															int col) = 0;
-	//! get a value retrieved from ProcAds_Num table
-	virtual const char*         getJobQueueProcAds_NumValue(int row, 
+	//! get a value retrieved from ProcAds_Ver table
+	virtual const char*         getJobQueueProcAds_VerValue(int row, 
 															int col) = 0;
-	//! get a value retrieved from ClusterAds_Str table
-	virtual const char*         getJobQueueClusterAds_StrValue(int row, 
+	//! get a value retrieved from ClusterAds_Hor table
+	virtual const char*         getJobQueueClusterAds_HorValue(int row, 
 															   int col) = 0;
-	//! get a value retrieved from ClusterAds_Num table
-	virtual const char*         getJobQueueClusterAds_NumValue(int row, 
+	//! get a value retrieved from ClusterAds_Ver table
+	virtual const char*         getJobQueueClusterAds_VerValue(int row, 
 															   int col) = 0;
+	virtual const char*         getJobQueueClusterHorFieldName(int col) = 0;
+	virtual const int           getJobQueueClusterHorNumFields() = 0;
+
+	virtual const char*         getJobQueueProcHorFieldName(int col) = 0;
+	virtual const int           getJobQueueProcHorNumFields() = 0;
 
 	//! get the history from the database
 	virtual QuillErrCode        queryHistoryDB(SQLQuery *,SQLQuery *,bool,int&,int&) = 0;

@@ -34,6 +34,9 @@
 #define MAX_FIXED_SQL_STR_LENGTH 2048
 #endif
 
+extern const char *proc_field_names [];
+extern const char *cluster_field_names [];
+
 //! PGSQLJQDataabse: JobQueueDatabase for PostgreSQL
 //
 class PGSQLJQDatabase : public JobQueueDatabase
@@ -51,24 +54,38 @@ public:
 										bool, int&, int&);
 	QuillErrCode         releaseJobQueueResults();
 
-	QuillErrCode		 getJobQueueDB(int *, int, int *, int, char *, bool, 
-									   int&, int&, int&, int&);
-	const char*	         getJobQueueProcAds_StrValue(int row, int col);
-	const char*	         getJobQueueProcAds_NumValue(int row, int col);
-	const char*	         getJobQueueClusterAds_StrValue(int row, int col);
-	const char*	         getJobQueueClusterAds_NumValue(int row, int col);
+	QuillErrCode		 getJobQueueDB(int *, int, int *, int, bool fullscan, 
+										const char *scheddName,
+									   	int& procAdsHorRes_num,  
+										int& procAdsVerRes_num, 
+										int& clusterAdsHorRes_num, 
+										int& clusterAdsVerRes_num);
+
+	const char*	         getJobQueueProcAds_HorValue(int row, int col);
+	const char*	         getJobQueueProcAds_VerValue(int row, int col);
+	const char*	         getJobQueueClusterAds_HorValue(int row, int col);
+	const char*	         getJobQueueClusterAds_VerValue(int row, int col);
+
+	const char*			getJobQueueClusterHorFieldName(int col);
+	const int			getJobQueueClusterHorNumFields();
+
+	const char*			getJobQueueProcHorFieldName(int col);
+	const int			getJobQueueProcHorNumFields();
+
 	const char*          getHistoryHorValue(int row, int col);
 	const char*          getHistoryVerValue(int row, int col);
 private:
+	
+
 		// only for history tables retrieval
 	PGresult             *historyHorRes;
 	PGresult             *historyVerRes;
 
 		// only for job queue tables retrieval
-	PGresult	         *procAdsStrRes;	//!< result for ProcAds_Str table
-	PGresult	         *procAdsNumRes;	//!< result for ProcAds_Num table
-	PGresult	         *clusterAdsStrRes;//!< result for ClusterAds_Str table
-	PGresult	         *clusterAdsNumRes;//!< result for ClusterAds_num table
+	PGresult	         *procAdsHorRes;	//!< result for ProcAds_Str table
+	PGresult	         *procAdsVerRes;	//!< result for ProcAds_Num table
+	PGresult	         *clusterAdsHorRes;//!< result for ClusterAds_Str table
+	PGresult	         *clusterAdsVerRes;//!< result for ClusterAds_num table
 };
 
 #endif /* _PGSQLJQDATABSE_H_ */
