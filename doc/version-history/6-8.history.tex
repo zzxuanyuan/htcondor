@@ -33,6 +33,14 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item The default configuration for Condor now requires that
+\Macro{HOSTALLOW\_WRITE} be explicitly set.  Condor will refuse
+to start if the default configuration is used unmodified.
+Existing installations should not need to change anything.  For
+those who desire the earlier default, you can set it to "*", but
+note that this is potentially a security hole allowing anyone to
+submit jobs or machines to your pool.
+
 \item Most Linux distributions are now supported using dynamically
   linked binaries built on a RedHat Enterprise Linux 3 machine.
   Recent security patches to a number of Linux distributions have
@@ -41,14 +49,6 @@ The details of each version are described below.
   should be aware of this change.
   The recommended download for most x86 Linux users is now:
   \File{condor-6.8.0-linux-x86-rhel3-dynamic.tar.gz}.
-
-\item Version 1.4 of the Condor DRMAA libraries are now included 
-  with the Condor release.
-  For more information about DRMAA, see section~\ref{API-DRMAA} on
-  page~\pageref{API-DRMAA}.
-
-\item Version 1.0.15 of the Condor GAHP is now used for Condor-G and
-  Condor-C. 
 
 \item Some log messages have been clarified or moved to different
   debugging levels.
@@ -70,13 +70,13 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item The default configuration for Condor now requires that
-\Macro{HOSTALLOW\_WRITE} be explicitly set.  Condor will refuse
-to start if the default configuration is used unmodified.
-Existing installations should not need to change anything.  For
-those who desire the earlier default, you can set it to "*", but
-note that this is potentially a security hole allowing anyone to
-submit jobs or machines to your pool.
+\item Version 1.4 of the Condor DRMAA libraries are now included 
+  with the Condor release.
+  For more information about DRMAA, see section~\ref{API-DRMAA} on
+  page~\pageref{API-DRMAA}.
+
+\item Version 1.0.15 of the Condor GAHP is now used for Condor-G and
+  Condor-C. 
 
 % Gnats PR 710
 \item Added the \Opt{-outfile\_dir} command-line argument to
