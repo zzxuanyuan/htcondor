@@ -43,13 +43,13 @@ In \Prog{PostgreSQL} version 7,
 this was accomplished by setting 
 \Code{tcpip\_socket=true} in the \File{postgresql.conf} file.
 
-\item Configure automatic vacumming.
+\item Configure automatic vacuuming.
 For \Prog{PostgreSQL} version 8.1 or later,
 ensure that these variables with these defaults are
 commented in and/or set properly in the 
-\File{postgresql.conf} config file:
+\File{postgresql.conf} configuration file:
 \begin{verbatim}
-# Turn on/off automatic vacumming
+# Turn on/off automatic vacuuming
 autovacuum = on
 
 # time between autovacuum runs, in secs
@@ -312,7 +312,7 @@ for all non-completed jobs.
 \begin{verbatim}
 	condor_q -avgqueuetime 
 \end{verbatim}
-The averate queue time is defined as the average of
+The average queue time is defined as the average of
 \Expr{(currenttime - jobsubmissiontime)} over all jobs which are neither
 completed \Expr{(JobStatus == 4)} or removed \Expr{(JobStatus == 3)}.
 
