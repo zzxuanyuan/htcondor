@@ -326,6 +326,80 @@ Optional parameters are given within square brackets.
     This function returns \Expr{ERROR} if greater than 1
     argument is given.
 
+  \item[\Expr{String strcat(AnyType Expr1 \Lbr\, AnyType Expr2 \Dots \Rbr)}]
+    Returns the string which is the concatenation of all arguments, where all arguments are 
+    converted to type \Expr{String} by function \Expr{string(Expr)}.
+    Returns \Expr{ERROR} if any argument evaluates to \Expr{UNDEFINED} or \Expr{ERROR}.
+
+  \item[\Expr{String substr(String s, Integer offset \Lbr\, Integer length  \Rbr)}]
+    Returns the substring of \Expr{s}, from the position indicated by \Expr{offset},
+    with (optional) \Expr{length} characters.
+    The first character within \Expr{s} is at offset 0.
+    If the optional \Expr{length} argument is not present, the substring extends to the
+    end of the string.
+    If \Expr{offset} is negative, the value \Expr{(length - offset)} is used for the offset.
+    If \Expr{length} is negative, an initial substring is computed, from the offset
+    to the end of the string.
+    Then, the absolute value of \Expr{length} characters are deleted from the
+    right end of the initial substring.
+    Further, where characters of this resulting substring lie outside the original
+    string, the part that lies within the original string is returned.
+    If the substring lies completely outside of the original string, the null string
+    is returned.
+
+    This function returns \Expr{ERROR} if greater than 3 or less than 2
+    arguments are given.
+    
+  \item[\Expr{Integer strcmp(AnyType Expr1, AnyType Expr2)}]
+    Both arguments are converted to type \Expr{String} by function \Expr{string(Expr)}.
+    The return value is an integer that will be
+    \begin{itemize}
+      \item{less than 0},
+      if \Expr{Expr1} is lexicographically less than \Expr{Expr2}
+      \item{equal to 0},
+      if \Expr{Expr1} is lexicographically equal to \Expr{Expr2}
+      \item{greater than 0},
+      if \Expr{Expr1} is lexicographically greater than \Expr{Expr2}
+    \end{itemize}
+    Case is significant in the comparison.
+    Where either argument evaluates to \Expr{ERROR} or \Expr{UNDEFINED},
+    \Expr{ERROR} is returned.
+
+    This function returns \Expr{ERROR} if other than 2 arguments are given.
+
+  \item[\Expr{Integer stricmp(AnyType Expr1, AnyType Expr2)}]
+    This function is the same as \Expr{strcmp}, except that letter case is
+    \emph{not} significant.
+
+  \item[\Expr{String toUpper(AnyType Expr)}]
+    The single argument is converted to type \Expr{String} by function \Expr{string(Expr)}.
+    The return value is this string, with all lower case letters converted to
+    upper case.
+    If the argument evaluates to \Expr{ERROR} or \Expr{UNDEFINED},
+    \Expr{ERROR} is returned.
+
+    This function returns \Expr{ERROR} if greater than 1
+    argument is given.
+
+  \item[\Expr{String toLower(AnyType Expr)}]
+    The single argument is converted to type \Expr{String} by function \Expr{string(Expr)}.
+    The return value is this string, with all upper case letters converted to
+    lower case.
+    If the argument evaluates to \Expr{ERROR} or \Expr{UNDEFINED},
+    \Expr{ERROR} is returned.
+
+    This function returns \Expr{ERROR} if other than exactly 1
+    argument is given.
+
+  \item[\Expr{Integer size(AnyType Expr)}]
+    Returns the number of characters in the string, after calling function
+    \Expr{string(Expr)}.
+    If the argument evaluates to \Expr{ERROR} or \Expr{UNDEFINED},
+    \Expr{ERROR} is returned.
+
+    This function returns \Expr{ERROR} if other than exactly 1
+    argument is given.
+
 \end{description}
 
 \MoreTodo
