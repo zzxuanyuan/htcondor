@@ -326,12 +326,12 @@ Optional parameters are given within square brackets.
     This function returns \Expr{ERROR} if greater than 1
     argument is given.
 
-  \item[\Expr{String strcat(AnyType Expr1 \Lbr\, AnyType Expr2 \Dots \Rbr)}]
+  \item[\Expr{String strcat(AnyType Expr1 \Lbr\ , AnyType Expr2 \Dots \Rbr)}]
     Returns the string which is the concatenation of all arguments, where all arguments are 
     converted to type \Expr{String} by function \Expr{string(Expr)}.
     Returns \Expr{ERROR} if any argument evaluates to \Expr{UNDEFINED} or \Expr{ERROR}.
 
-  \item[\Expr{String substr(String s, Integer offset \Lbr\, Integer length  \Rbr)}]
+  \item[\Expr{String substr(String s, Integer offset \Lbr\ , Integer length  \Rbr)}]
     Returns the substring of \Expr{s}, from the position indicated by \Expr{offset},
     with (optional) \Expr{length} characters.
     The first character within \Expr{s} is at offset 0.
@@ -399,6 +399,85 @@ Optional parameters are given within square brackets.
 
     This function returns \Expr{ERROR} if other than exactly 1
     argument is given.
+
+\end{description}
+
+For the following functions, a delimiter is represented by a string.
+All characters within the delimiter string, plus the space character,
+delimit individual strings for a list of strings 
+that is given by a single string.
+The default delimiter contains the comma and space character.
+A string within the list is ended (delimited) by one or more
+characters within the delimiter string.
+
+\begin{description}
+  \item[\Expr{Integer stringlistsize(String list \Lbr\ , String delimiter \Rbr)}]
+    Returns the number of elements in the string \Expr{list},
+    as delimited by the optional \Expr{delimiter} string.
+    Returns \Expr{ERROR} if either argument is not a string.
+
+    This function returns \Expr{ERROR} if other than 1 or 2 arguments are given.
+
+  \item[\Expr{Integer stringlistsum(String list \Lbr\ , String delimiter \Rbr)} \\
+  OR
+  \Expr{Real stringlistsum(String list \Lbr\ , String delimiter \Rbr)}]
+    Sums and returns the sum of all items in the string \Expr{list},
+    as delimited by the optional \Expr{delimiter} string.
+    If all items in the list are integers, the return value is also
+    an integer.
+    If any item in the list is a real value (noninteger),
+    the return value is a real.
+    If any item does not represent an integer or real value,
+    the return value is \Expr{ERROR}.
+
+
+  \item[\Expr{Real stringlistave(String list \Lbr\ , String delimiter \Rbr)}]
+    Sums and returns the real-valued average of all items in the 
+    string \Expr{list},
+    as delimited by the optional \Expr{delimiter} string.
+    If any item does not represent an integer or real value,
+    the return value is \Expr{ERROR}.
+    A list with 0 items (the empty list) returns the value 0.0.
+
+  \item[\Expr{Integer stringlistmin(String list \Lbr\ , String delimiter \Rbr)} \\
+  OR
+  \Expr{Real stringlistmin(String list \Lbr\ , String delimiter \Rbr)}]
+    Finds and returns the minimum value from all items in the
+    string \Expr{list},
+    as delimited by the optional \Expr{delimiter} string.
+    If all items in the list are integers, the return value is also
+    an integer.
+    If any item in the list is a real value (noninteger),
+    the return value is a real.
+    If any item does not represent an integer or real value,
+    the return value is \Expr{ERROR}.
+    A list with 0 items (the empty list) returns the value \Expr{UNDEFINED}.
+
+  \item[\Expr{Integer stringlistmax(String list \Lbr\ , String delimiter \Rbr)} \\
+  OR
+  \Expr{Real stringlistmax(String list \Lbr\ , String delimiter \Rbr)}]
+    Finds and returns the maximum value from all items in the
+    string \Expr{list},
+    as delimited by the optional \Expr{delimiter} string.
+    If all items in the list are integers, the return value is also
+    an integer.
+    If any item in the list is a real value (noninteger),
+    the return value is a real.
+    If any item does not represent an integer or real value,
+    the return value is \Expr{ERROR}.
+    A list with 0 items (the empty list) returns the value \Expr{UNDEFINED}.
+
+  \item[\Expr{Boolean stringlistmember(String x, String list \Lbr\ , String delimiter \Rbr)}]
+    Returns \Expr{TRUE} if item \Expr{x} is in the string \Expr{list},
+    as delimited by the optional \Expr{delimiter} string.
+    Returns \Expr{FALSE} if item \Expr{x} is not in the string \Expr{list}.
+    Comparison is done with \Expr{strcmp()}.
+    The return value is \Expr{ERROR}, if any of the arguments
+    are not strings.
+
+  \item[\Expr{Boolean stringlistimember(String x, String list \Lbr\ , String delimiter \Rbr)}]
+    Same as \Expr{stringlistmember()}, but comparison is done
+    with \Expr{stricmp()}, so letter case is not relevant.
 
 \end{description}
 
