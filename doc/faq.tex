@@ -369,6 +369,34 @@ Where \verb@machine-ip-address@ is the IP address of the interface you wish
 Condor to use.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{After an installation of Condor, why do the daemons refuse to 
+	start giving this message in the logfiles?}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{verbatim}
+ERROR "The following configuration macros appear to contain default values 
+that must be changed before Condor will run.  These macros are:
+hostallow_write 
+(found on line 1853 of /scratch/adesmet/TRUNK/work/src/localdir/condor_config)"
+at line 217 in file condor_config.C
+\end{verbatim}
+
+As of Condor 6.8.0, a configuration file change has been made where if 
+Condor sees the bare key-word: 
+\Expr{YOU\_MUST\_CHANGE\_THIS\_INVALID\_CONDOR\_CONFIGURATION\_VALUE}
+as a value of a config file entry, Condor daemons will produce the above
+exception and exit.
+
+By default, an installation of Condor 6.8.0 and later will have the
+config file entry \Expr{HOSTALLOW\_WRITE} set to the above sentinel
+value. 
+The Condor administrator must alter this value to be the correct domain
+or ip addresses that the administrator desires--the wildcard character
+is allowed. You may use * as a value, but that allows anyone, from
+anywhere, to submit jobs into your pool, among other things. A usual
+entry could be something like *.domainname.com.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{Why do standard universe jobs never run after an upgrade?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \label{sec:checkpoint-platform-faq}
