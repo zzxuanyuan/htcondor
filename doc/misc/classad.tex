@@ -481,7 +481,70 @@ characters within the delimiter string.
 
 \end{description}
 
-\MoreTodo
+The following two functions utilize regular expressions as defined
+and supported by the PCRE library.
+See \URL{http://www.pcre.org} for complete documentation of
+regular expressions.
+
+The \Expr{options} argument to these functions is a string of 
+special characters that modify the use of the regular expressions.
+Inclusion of characters other than these as options are ignored.
+\begin{description}
+  \item[\Expr{I} or \Expr{i}]
+    Ignore letter case.
+  \item[\Expr{M} or \Expr{m}]
+    Modifies the interpretation of the carat (\verb@^@) and dollar sign
+    (\verb@$@) characters.
+    The carat character matches the start of a string, as well as
+    after each newline character.
+    The dollar sign character matches before a newline character.
+  \item[\Expr{S} or \Expr{s}]
+    The period matches any character, including the newline character. 
+  \item[\Expr{X} or \Expr{x}]
+    Ignore both white space and comments within the pattern.
+    A comment is defined by starting with the pound sign (\verb@#@)
+    character, and continuing until the newline character.
+\end{description}
+
+\begin{description}
+  \item[\Expr{Boolean regex(String pattern, String target \Lbr\ , String options \Rbr)}]
+    Returns \Expr{TRUE} if the string \Expr{target} is 
+    a regular expression as described by \Expr{pattern}.
+    Returns \Expr{FALSE} otherwise.
+    If any argument is not a string, or if \Expr{pattern} does not describe
+    a valid regular expression, returns \Expr{ERROR}.
+
+  \item[\Expr{Boolean stringlist\_regexMember(String pattern, String list \Lbr\ , String delimiter \Rbr\ \Lbr\ , String options \Rbr)}]
+    Returns \Expr{TRUE} if any of the strings within the
+    \Expr{list} is a regular expression as described by \Expr{pattern}.
+    Returns \Expr{FALSE} otherwise.
+    If any argument is not a string, or if \Expr{pattern} does not describe
+    a valid regular expression, returns \Expr{ERROR}.
+    To include the fourth (optional) argument \Expr{options}, a third argument
+    of \Expr{delimiter} is required.
+    A default value for a delimiter is " ,".
+
+\end{description}
+
+\begin{description}
+  \item[\Expr{Integer time()}]
+    Returns the current coordinated universal time, which is the same
+    as the ClassAd attribute \Attr{CurrentTime}.
+    This is the time, in seconds, since midnight of January 1, 1970.
+
+
+  \item[\Expr{String interval(Integer seconds)}]
+    Uses \Expr{seconds} to return a string of the form
+    \Expr{days+hh:mm:ss}.
+    This represents an interval of time.
+    Leading values that are zero are omitted from the string.
+    For example, \Expr{seconds} of 67 becomes "1:07".
+    A second example, \Expr{seconds} of 
+    1472523 = 17*24*60*60 + 1*60*60 + 2*60 + 3, results in the
+    string "17+1:02:03".
+
+\end{description}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Evaluation Semantics}
