@@ -1459,12 +1459,8 @@ if test "x$_cv_libc_kind" = "xGLIBC" -a \( "x$_cv_arch" = "xI386" -o "x$_cv_arch
   "2.3.2" )
     # the glibc 2.3.2 from redhat's source rpms are very different than the
 	# stock 2.3.2 you can download off of the web.
-	#if test "x$_cv_arch" = "xI386" ; then
-      CONDOR_EXTERNAL_VERSION([glibc],[2.3.2.27.9.7])
-	#else
-	  # this is for the X86_64 port of condor
-      #CONDOR_EXTERNAL_VERSION([glibc],[2.3.2.95.33])
-	#fi
+	# This external is used both for x86 and x86_64
+    CONDOR_EXTERNAL_VERSION([glibc],[2.3.2.27.9.7])
     ;;
   "2.3.4" )
   	# I'm using this here to avoid a full port of Condor to the centos 4 OS.
