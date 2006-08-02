@@ -370,7 +370,7 @@ Condor to use.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{After an installation of Condor, why do the daemons refuse to 
-	start giving this message in the logfiles?}
+	start, placing this message in the log files?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{verbatim}
@@ -381,20 +381,22 @@ hostallow_write
 at line 217 in file condor_config.C
 \end{verbatim}
 
-As of Condor 6.8.0, a configuration file change has been made where if 
-Condor sees the bare key-word: 
+As of Condor 6.8.0, if 
+Condor sees the bare key word: 
 \Expr{YOU\_MUST\_CHANGE\_THIS\_INVALID\_CONDOR\_CONFIGURATION\_VALUE}
-as a value of a config file entry, Condor daemons will produce the above
-exception and exit.
+as the value of a configuration file entry,
+Condor daemons will log the given error message and exit.
 
-By default, an installation of Condor 6.8.0 and later will have the
-config file entry \Expr{HOSTALLOW\_WRITE} set to the above sentinel
+By default, an installation of Condor 6.8.0 and later releases
+will have the
+configuration file entry \MacroNI{HOSTALLOW\_WRITE} set to the above sentinel
 value. 
 The Condor administrator must alter this value to be the correct domain
-or ip addresses that the administrator desires--the wildcard character
-is allowed. You may use * as a value, but that allows anyone, from
-anywhere, to submit jobs into your pool, among other things. A usual
-entry could be something like *.domainname.com.
+or IP addresses that the administrator desires.
+The wildcard character (\verb@*@) may be used to define this entry,
+but that allows anyone, from anywhere,
+to submit jobs into your pool.
+A better value will be of the form \Expr{*.domainname.com}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{Why do standard universe jobs never run after an upgrade?}
