@@ -507,14 +507,14 @@ Inclusion of characters other than these as options are ignored.
 \end{description}
 
 \begin{description}
-  \item[\Expr{Boolean regex(String pattern, String target \Lbr\ , String options \Rbr)}]
+  \item[\Expr{Boolean regexp(String pattern, String target \Lbr\ , String options \Rbr)}]
     Returns \Expr{TRUE} if the string \Expr{target} is 
     a regular expression as described by \Expr{pattern}.
     Returns \Expr{FALSE} otherwise.
     If any argument is not a string, or if \Expr{pattern} does not describe
     a valid regular expression, returns \Expr{ERROR}.
 
-  \item[\Expr{Boolean stringlist\_regexMember(String pattern, String list \Lbr\ , String delimiter \Rbr\ \Lbr\ , String options \Rbr)}]
+  \item[\Expr{Boolean stringlist\_regexpMember(String pattern, String list \Lbr\ , String delimiter \Rbr\ \Lbr\ , String options \Rbr)}]
     Returns \Expr{TRUE} if any of the strings within the
     \Expr{list} is a regular expression as described by \Expr{pattern}.
     Returns \Expr{FALSE} otherwise.
@@ -798,6 +798,35 @@ beatrice.c INTEL    SOLARIS251   Claimed    Busy       1.000  128   0+01:30:02
 \end{verbatim}
 \normalsize
 
-The similar flexibility exists in querying job queues in the Condor system.
+Here is an example that utilizes a regular expression
+ClassAd function to list specific information.
+A file contains ClassAd information.
+\Condor{advertise} is used to inject this information,
+and \Condor{status} constrains the search with an expression
+that contains a ClassAd function.
+
+\footnotesize
+\begin{verbatim}
+% cat ad
+MyType = "Generic"
+FauxType = "DBMS"
+Name = "random-test"
+Machine = "f05.cs.wisc.edu"
+MyAddress = "<128.105.149.105:34000>"
+DaemonStartTime = 1153192799
+UpdateSequenceNumber = 1
+
+% condor_advertise UPDATE_AD_GENERIC ad
+
+% condor_status -any -constraint 'FauxType=="DBMS" && regexp("random*", Name, "i")'
+
+MyType               TargetType           Name                          
+
+Generic              None                 random-test                   
+
+\end{verbatim}
+\normalsize
+
+Similar flexibility exists in querying job queues in the Condor system.
 
 \index{ClassAd|)}
