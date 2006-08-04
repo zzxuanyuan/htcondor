@@ -1447,12 +1447,12 @@ the Windows Control Panel.
 \subsection*{Jobs submitted from Windows give an error referring to a credential.}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Jobs submitted from a Windows machine require a stashed password in order
-for Condor to run the jobs as the user submitting the jobs.
-The command which stashes a password for a user is \Condor{store\_cred}.
-See the manual page on
-on page~\pageref{man-condor-store-cred}
-for usage details.
+Jobs submitted from a Windows machine require a stashed password in
+order for Condor to perform certain operations on the user's behalf.
+Refer to section \ref{sec:windows-sps} for information about password
+storage on Windows.  The command which stashes a password for a user
+is \Condor{store\_cred}.  See the manual page on on
+page~\pageref{man-condor-store-cred} for usage details.
 \index{job!credential error on Windows}
 
 The error message that Condor gives if a user has not stashed a
