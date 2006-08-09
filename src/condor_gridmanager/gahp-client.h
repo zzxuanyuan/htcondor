@@ -307,8 +307,6 @@ class GahpClient : public Service {
 
 		const char *getErrorString();
 
-		const char *getVersion();
-
 		//-----------------------------------------------------------
 		
 		/**@name Globus Methods
@@ -607,6 +605,28 @@ class GahpClient : public Service {
 
 		int
 		unicore_job_callback(unicore_gahp_callback_func_t callback_func);
+
+		int cream_client_delegate(const char *delg_service, const char *delg_id);
+		
+		int cream_client_job_register(const char *service, const char *delg_service, const char *delg_id, 
+									  const char *jdl, char **job_id, char **upload_url);
+		
+		int cream_client_job_start(const char *service, const char *job_id);
+		
+		int cream_client_job_purge(const char *service, const char *job_id);
+
+		int cream_client_job_cancel(const char *service, const char *job_id);
+
+		int cream_client_job_suspend(const char *service, const char *job_id);
+
+		int cream_client_job_resume(const char *service, const char *job_id);
+
+		int cream_client_job_status(const char *service, const char *job_id, 
+									char **job_status, int *exit_code, char **failure_reason);
+		
+		int cream_client_proxy_renew(const char *service, const char *delg_service, const char *delg_id, const char *job_id);
+		
+		int cream_client_ping(const char * service);
 
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...
