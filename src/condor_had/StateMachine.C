@@ -54,9 +54,9 @@
 
 
 //#undef IS_REPLICATION_USED
-#define IS_REPLICATION_USED          (1)
-//#define MESSAGES_PER_INTERVAL_FACTOR (2)
-#define DEFAULT_HAD_UPDATE_INTERVAL  (5 * MINUTE)
+#define IS_REPLICATION_USED                  (1)
+#define MESSAGES_PER_INTERVAL_FACTOR_DEFAULT (2)
+#define DEFAULT_HAD_UPDATE_INTERVAL      (5 * MINUTE)
 
 extern int main_shutdown_graceful();
 
@@ -292,7 +292,9 @@ HADStateMachine::softReconfigure()
         dprintf( D_ALWAYS, "No HAD_CONNECTION_TIMEOUT in config file,"
                 		   " use default value\n" );
     }
-	m_messagesPerStateFactor = param_integer( "MESSAGES_PER_STATE_FACTOR", 2 );
+	m_messagesPerStateFactor = 
+		param_integer( "MESSAGES_PER_STATE_FACTOR", 
+			     	    MESSAGES_PER_INTERVAL_FACTOR_DEFAULT );
     // calculate m_hadInterval
     int safetyFactor = 1;
             
