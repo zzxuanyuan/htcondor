@@ -1119,6 +1119,7 @@ sub GenerateEpocheFile
 ##############################################################################
 sub GenerateEventFiles
 {
+	&AppendTextToActivityLog("Started generating event files\n");
 	my ($monitoredDaemon, @logFilesPaths) = (@_);
 	my $index           = 0;
 
@@ -1127,7 +1128,9 @@ sub GenerateEventFiles
 		my $oldLogFilePath = $logFilePath . ".old";
 		my $newLineChar    = "";
 
+		&AppendTextToActivityLog("Started generating event file $oldLogFilePath\n");
 		&GenerateEventFile($oldLogFilePath, $index, \$newLineChar, $monitoredDaemon) if -f $oldLogFilePath;
+		&AppendTextToActivityLog("Started generating event file $logFilePath\n");
 		&GenerateEventFile($logFilePath, $index, \$newLineChar, $monitoredDaemon)    if -f $logFilePath;
 		$index ++;
 	}
@@ -1160,7 +1163,7 @@ sub GenerateEventFile
 		last if ! defined($previousLine);
 
 		chomp($previousLine);
-		next if $previousLine eq "" || $previousLine !~ /\d+.\d+ \d+:\d+:\d+/;
+		next if $previousLine eq "" || $previousLine !~ /^\d+.\d+ \d+:\d+:\d+/;
 
 		$previousTimestamp = &FindTimestamp($previousLine, $offsets[$index]);
 		$$refNewLineChar = &DiscoverEvents($previousLine   , $previousTimestamp, $eventFileHandle, 
@@ -1183,7 +1186,7 @@ sub GenerateEventFile
 	{
 		$currentLine = $_;
 		chomp($currentLine);
-		next if $currentLine eq "" || $currentLine !~ /\d+.\d+ \d+:\d+:\d+/;
+		next if $currentLine eq "" || $currentLine !~ /^\d+.\d+ \d+:\d+:\d+/;
 
 		$currentTimestamp = &FindTimestamp($currentLine, $offsets[$index]);
 
