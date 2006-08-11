@@ -15,6 +15,10 @@ use constant DOWN_STATUS   => 'Down';
 use constant EXITING_EVENT => 'Exiting';
 use constant MAX_INT       => 999999999999;
 
+# Debugging levels
+use constant INFO          => 0;
+use constant DEBUG         => 1;
+
 my $hadList                = "";
 my $hadConnectionTimeout   = 0;
 my $replicationInterval    = 0;
@@ -23,7 +27,7 @@ my $replicationList        = "";
 my $collectorHost          = "";
 my $messagesPerStateFactor = 2;
 
-@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime RemoveAllFiles $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
+@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT INFO DEBUG FindTimestamp ConvertTimestampToTime RemoveAllFiles $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
 
 ##########################################################################################
 ## Function    : FindTimestamp                                                           #

@@ -6,7 +6,7 @@ use File::Copy;
 use Time::Local;
 use Switch;
 use POSIX qw(strftime);
-use Common qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
+use Common qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT INFO DEBUG FindTimestamp ConvertTimestampToTime $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
 
 # Directories and files paths
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
@@ -110,6 +110,7 @@ my @monitoredDaemons                = ();
 my $isOffsetCalculationNeeded       = TRUE;
 my $fictiveSenderAddress            = "";
 my $offsetCalculationSshUser        = "";
+my $debuggingLevel                  = INFO;
 
 # Loading Condor pool parameters
 my @condorParameters = `condor_config_val HAD_LIST HAD_USE_PRIMARY REPLICATION_LIST COLLECTOR_HOST HAD_CONNECTION_TIMEOUT REPLICATION_INTERVAL MESSAGES_PER_STATE_FACTOR`;
@@ -350,6 +351,7 @@ sub RemoveLogs
 ##                                           is to be fetched                              #
 ##               $remoteLogName - name of log to be fetched                                #
 ##               $localLogName - local path, to which the log is to be fetched             #
+## Return value: TRUE - if the log was fetched successfully, FALSE - otherwise             #
 ## Description : fetches a log from a remote daemon to the specified local path            #
 ############################################################################################
 sub FetchLog
@@ -363,9 +365,11 @@ sub FetchLog
 	{
 		&AppendTextToActivityLog("Log of $remoteLogName from $remoteDaemonSinfulString " . 
 					 "could not be fetched\n");
-		return ;
+		return FALSE;
 	}
 	&AppendTextToActivityLog("Fetched log of $remoteLogName from $remoteDaemonSinfulString\n");
+
+	return TRUE;
 }
 ############################################################################################
 ## Function    : FetchLogs                                                                 #
@@ -382,6 +386,7 @@ sub FetchLogs
 
 #	my @hadSinfulStrings = split(',', $hadList);
 	my @logFilePaths;
+	my @daemonsWithUnfetchedLogs;
 	my $machineIndex = 0;
 
 	foreach my $hadSinfulString (@hadSinfulStrings)
@@ -395,9 +400,22 @@ sub FetchLogs
 		# It is important to first fetch the older log in order not to get confused with dates
 		# in case, when the logs are huge and they are just about being rotated
                 FetchLog($collectorSinfulStrings[$machineIndex], "$monitoredDaemon.old", "$logFilePath.old");
-		FetchLog($collectorSinfulStrings[$machineIndex],  $monitoredDaemon     ,  $logFilePath);
 
+		# Having the current log is crucial for determining the entire pool state, so when
+		# we are unable to fetch such a log properly, we issue a warning
+		push(@daemonsWithUnfetchedLogs, $collectorSinfulStrings[$machineIndex])
+			if FetchLog($collectorSinfulStrings[$machineIndex], 
+				    $monitoredDaemon,  
+				    $logFilePath) eq FALSE;
 		$machineIndex ++;
+	}
+	if(@daemonsWithUnfetchedLogs != 0)
+	{
+		my $message = "Unable to fetch $monitoredDaemon logs from " . 
+			      join(',', @daemonsWithUnfetchedLogs) . "\n";
+		&AppendText($warningLogPath            , $message);
+                &AppendText($consolidatedWarningLogPath, $message);
+                &AppendText($warningHistoryLogPath     , $message);
 	}
 	return @logFilePaths;
 }
@@ -419,13 +437,18 @@ sub AppendText
 ############################################################################################
 ## Function    : AppendTextToActivityLog                                                   #
 ## Arguments   : $message - the information, that is to be appended to the activity log    #
-## Description : appends the specified message to the activity log                         #
+##		 $messageDebuggingLevel - the debugging level of the message, if omitted,  #
+##		 then assigned to INFO                                                     #
+## Description : appends the specified message to the activity log only if the message     #
+##		 debugging level is smaller/equal to the whole program debugging level     #
 ############################################################################################
 sub AppendTextToActivityLog
 {
-        my $message = shift;
+        my $message               = shift;
+	my $messageDebuggingLevel = shift || INFO;
 
-        &AppendText($activityLogPath, &ConvertTimestampToTime(time()) . ': ' . $message);
+        &AppendText($activityLogPath, &ConvertTimestampToTime(time()) . ': ' . $message)
+		if $messageDebuggingLevel <= $debuggingLevel;
 }
 ############################################################################################
 ## Function    : AppendFile                                                                #  
@@ -520,6 +543,14 @@ sub LoadConfiguration
 						 { $offsetCalculationSshUser = $value; }
 			case 'FICTIVE_SENDER_ADDRESS'
 						 { $fictiveSenderAddress = $value; }
+			case 'DEBUGGING_LEVEL'   { 
+							switch($value)
+						   	{
+								case 'INFO'  { $debuggingLevel = INFO;  }
+								case 'DEBUG' { $debuggingLevel = DEBUG; }
+								else         { die "No such debugging level: $value"; }
+							}
+						}
                 	else                     { die "No such configuration entry: $key"; }
         	}
 		&AppendTextToActivityLog("Loaded configuration parameter $key = $value\n");
@@ -1036,7 +1067,7 @@ sub Finalize
 ##               $refEventsVector - reference to possible next events array                #
 ##               $previousTimestamp - 
 ##               $currentTimestamp -
-##               $monitoredDaemon - 
+##               $monitoredDaemon - the name of daemon that is being monitored             #
 ## Description : generates epoche file out of generated daemon event files                 #
 ############################################################################################
 sub GenerateEpocheFile
@@ -1100,15 +1131,19 @@ sub GenerateEpocheFile
 							&ConvertTimestampToTime(time()) . ": " .
                                              		join(',', @statusVector) . "\n");
 	}
-	&AppendTextToActivityLog("Saving the state for the next run with daemons last known state = " .
-				 join(',', @statusVector) . ", last seen time = " . 
-				 &ConvertTimestampToTime($currentTimestamp)  . ", last status time = " .
-                                 &ConvertTimestampToTime($previousTimestamp) . ", monitoring counter = $monitoringSystemCounter\n");
-	# Saving the state for the next run of the script
-        open(STATE_FILE, "> $stateFilePath");
-        print STATE_FILE join(',', @statusVector) . "\n$currentTimestamp" . 
-			 "\n$previousTimestamp"   . "\n$monitoringSystemCounter";
-	close(STATE_FILE);
+	# Preventing the corruption of the state file (which is crucial for the consequent runs of the monitoring system)
+	if(join('', @statusVector) ne '')
+	{
+		&AppendTextToActivityLog("Saving the state for the next run with daemons last known state = " .
+					 join(',', @statusVector) . ", last seen time = " . 
+					 &ConvertTimestampToTime($currentTimestamp)  . ", last status time = " .
+                        	         &ConvertTimestampToTime($previousTimestamp) . ", monitoring counter = $monitoringSystemCounter\n");
+		# Saving the state for the next run of the script
+	        open(STATE_FILE, "> $stateFilePath");
+	        print STATE_FILE join(',', @statusVector) . "\n$currentTimestamp" . 
+				 "\n$previousTimestamp"   . "\n$monitoringSystemCounter";
+		close(STATE_FILE);
+	}
 }
 
 ##############################################################################
@@ -1128,9 +1163,7 @@ sub GenerateEventFiles
 		my $oldLogFilePath = $logFilePath . ".old";
 		my $newLineChar    = "";
 
-		&AppendTextToActivityLog("Started generating event file $oldLogFilePath\n");
 		&GenerateEventFile($oldLogFilePath, $index, \$newLineChar, $monitoredDaemon) if -f $oldLogFilePath;
-		&AppendTextToActivityLog("Started generating event file $logFilePath\n");
 		&GenerateEventFile($logFilePath, $index, \$newLineChar, $monitoredDaemon)    if -f $logFilePath;
 		$index ++;
 	}
@@ -1147,6 +1180,7 @@ sub GenerateEventFile
 	my ($logFilePath, $index, $refNewLineChar, $monitoredDaemon) = (@_);
 	my $eventFilePath         = "$eventFileTemplatePath\." . $index;
 
+	&AppendTextToActivityLog("Started generating event file $logFilePath\n");
 #	unlink($eventFilePath);
 
 	my $eventFileHandle = IO::File->new(">> $eventFilePath") or die "IO:File->new: $!";
@@ -1166,6 +1200,7 @@ sub GenerateEventFile
 		next if $previousLine eq "" || $previousLine !~ /^\d+.\d+ \d+:\d+:\d+/;
 
 		$previousTimestamp = &FindTimestamp($previousLine, $offsets[$index]);
+		&AppendTextToActivityLog("Discovered timestamp $previousTimestamp in $previousLine\n", DEBUG);
 		$$refNewLineChar = &DiscoverEvents($previousLine   , $previousTimestamp, $eventFileHandle, 
 						   $$refNewLineChar, $monitoredDaemon);
 		last;
@@ -1189,6 +1224,7 @@ sub GenerateEventFile
 		next if $currentLine eq "" || $currentLine !~ /^\d+.\d+ \d+:\d+:\d+/;
 
 		$currentTimestamp = &FindTimestamp($currentLine, $offsets[$index]);
+		&AppendTextToActivityLog("Discovered timestamp $currentTimestamp in $currentLine\n", DEBUG);
 
 		# Discovering gaps inside the log file: we consider a gap, when two successive lines in the
 		# log differ by more than two HAD intervals
