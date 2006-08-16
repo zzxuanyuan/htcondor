@@ -958,6 +958,10 @@ ReplicatorStateMachine::replicationTimer( )
 						  "# uploading condor_transferer = %d\n",
              downloadTransferersNumber( ), 
 			 m_uploadTransfererMetadataList.Number( ) );
+	// periodic announcement of the stable state: either REPLICATION_LEADER or
+	// BACKUP
+	utilPrintStep( m_state, m_state, "REPLICATION" );
+
     if( m_state == BACKUP ) {
 		checkVersionSynchronization( );
 
