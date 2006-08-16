@@ -4,7 +4,7 @@ use Switch;
 
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
 # For DOWN_STATUS and EXITING_EVENT
-use Common qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime $replicationInterval $replicationList);
+use Common qw(DOWN_STATUS EXITING_EVENT MAX_INT FindTimestamp ConvertTimestampToTime CalculateHadInterval $replicationInterval $replicationList $hadList $hadConnectionTimeout $messagesPerStateFactor);
 
 # Regular expressions, determining the type of event
 my $exitingRegEx            = 'EXITING WITH STATUS';
@@ -38,7 +38,7 @@ use constant TIMESTAMPS_DIFFERENCE_MESSAGE   => 'earliest and latest timestamps 
 						'twice as REPLICATION_INTERVAL seconds';
 
 # Various constants
-use constant STABILIZATION_TIME => 78;
+#use constant STABILIZATION_TIME => 78;
 
 sub ReplicationValidate
 {
@@ -48,6 +48,7 @@ sub ReplicationValidate
 	my $downNumber     = 0;
 	my $message        = "";
 #	my @lastStateFileModificationTimestamps = @{$refLastStateFileModificationTimestamps};
+	my $stabilizationTime = 3 * &CalculateHadInterval($hadConnectionTimeout, split(',', $hadList) + 0, $messagesPerStateFactor);
 
 	# Scanning the status vector and retrieving analysis information
 	foreach my $machineIndex (0 .. $#statusVector)
@@ -92,11 +93,11 @@ sub ReplicationValidate
 	# less than the stabilization time
 	return "" if($leadersNumber == 1 ||
                      $downNumber    == $#statusVector + 1 ||
-                     $epocheEndTime - $epocheStartTime < STABILIZATION_TIME);
+                     $epocheEndTime - $epocheStartTime < $stabilizationTime);
 
 	$message .= NO_RD_LEADER_MESSAGE            if($leadersNumber == 0);
 	$message .= MORE_THAN_ONE_RD_LEADER_MESSAGE if($leadersNumber > 1);
-	$message .= " for more than " . STABILIZATION_TIME . " seconds " .
+	$message .= " for more than " . $stabilizationTime . " seconds " .
 		    "(state: " . join(',', @statusVector) . ")";
 
 	return $message;

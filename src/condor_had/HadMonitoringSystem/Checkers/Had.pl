@@ -4,7 +4,7 @@ use Switch;
 
 my $hadMonitoringSystemDirectory = $ENV{MONITORING_HOME} || $ENV{PWD};
 # For DOWN_STATUS and EXITING_EVENT
-use Common qw(DOWN_STATUS EXITING_EVENT $hadList $hadConnectionTimeout $isPrimaryUsed $messagesPerStateFactor);
+use Common qw(DOWN_STATUS EXITING_EVENT CalculateHadInterval $hadList $hadConnectionTimeout $isPrimaryUsed $messagesPerStateFactor);
 
 # Regular expressions, determining the type of event
 my $exitingRegEx  = 'EXITING WITH STATUS';
@@ -28,7 +28,7 @@ use constant NO_HAD_LEADER_MESSAGE            => 'no HAD leader found in pool';
 use constant MORE_THAN_ONE_HAD_LEADER_MESSAGE => 'more than one HAD leader found in pool';
 
 # Various constants
-use constant STABILIZATION_TIME => 78;
+#use constant STABILIZATION_TIME => 78;
 
 sub HadValidate
 {
@@ -37,6 +37,8 @@ sub HadValidate
 	my $leadersNumber = 0;
 	my $downNumber    = 0;
 	my $message       = "";
+
+	my $stabilizationTime = 3 * &CalculateHadInterval($hadConnectionTimeout, split(',', $hadList) + 0, $messagesPerStateFactor);
 
 	# Scanning the status vector and retrieving analysis information
 	foreach my $machineIndex (0 .. $#statusVector)
@@ -50,11 +52,11 @@ sub HadValidate
 	# less than the stabilization time
 	return "" if($leadersNumber == 1 ||
                      $downNumber    == $#statusVector + 1 ||
-                     $epocheEndTime - $epocheStartTime < STABILIZATION_TIME);
+                     $epocheEndTime - $epocheStartTime < $stabilizationTime);
 
 	$message .= NO_HAD_LEADER_MESSAGE            if($leadersNumber == 0);
 	$message .= MORE_THAN_ONE_HAD_LEADER_MESSAGE if($leadersNumber > 1);
-	$message .= " for more than " . STABILIZATION_TIME . " seconds " .
+	$message .= " for more than " . $stabilizationTime . " seconds " .
 		    "(state: " . join(',', @statusVector) . ")";
 
 	return $message;
@@ -113,7 +115,8 @@ sub HadGap
 #	chomp($hadConnectionTimeout);
 #	chomp($hadList);
 
-	my $hadInterval = (2 * $hadConnectionTimeout * split(',', $hadList) + 1) * $messagesPerStateFactor;
+#	my $hadInterval = (2 * $hadConnectionTimeout * split(',', $hadList) + 1) * $messagesPerStateFactor;
+	my $hadInterval = &CalculateHadInterval($hadConnectionTimeout, split(',', $hadList) + 0, $messagesPerStateFactor);
 
 	return $hadInterval;
 }

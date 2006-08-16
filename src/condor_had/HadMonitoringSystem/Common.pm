@@ -27,7 +27,7 @@ my $replicationList        = "";
 my $collectorHost          = "";
 my $messagesPerStateFactor = 2;
 
-@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT INFO DEBUG FindTimestamp ConvertTimestampToTime RemoveAllFiles $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
+@EXPORT_OK = qw(TRUE FALSE DOWN_STATUS EXITING_EVENT MAX_INT INFO DEBUG FindTimestamp ConvertTimestampToTime RemoveAllFiles CalculateHadInterval $hadList $hadConnectionTimeout $replicationInterval $isPrimaryUsed $replicationList $collectorHost $messagesPerStateFactor);
 
 ##########################################################################################
 ## Function    : FindTimestamp                                                           #
@@ -91,6 +91,26 @@ sub RemoveAllFiles
         {
                 unlink($filePath) or warn "unlink: $!";
         }
+}
+
+############################################################################################
+## Function    : CalculateHadInterval                                                      #
+## Arguments   : $hadConnectionTimeoutValue - value of HAD_CONNECTION_TIMEOUT parameter    #
+##		 $hadListSize               - length of HAD_LIST parameter                 #
+##		 $messagesPerStateFactorValue - value of MESSAGES_PER_STATE_FACTOR         #
+##		 				parameter                                  #
+## Return value: hadInterval - the period of time, once in which the HAD performs its      #
+##		 	       routine tasks                                               #
+## Description : calculates period of time, once in which the HAD performs its routine     #
+##		 tasks                                                                     #
+############################################################################################
+sub CalculateHadInterval
+{
+        my ($hadConnectionTimeoutValue, $hadListSize, $messagesPerStateFactorValue) = (@_);
+
+	my $hadInterval = (2 * $hadConnectionTimeoutValue * $hadListSize + 1) * $messagesPerStateFactorValue
+
+	return $hadInterval;
 }
 
 1;
