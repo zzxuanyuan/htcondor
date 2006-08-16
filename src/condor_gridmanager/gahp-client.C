@@ -5524,7 +5524,7 @@ GahpClient::unicore_job_callback(unicore_gahp_callback_func_t callback_func)
 }
 
 int 
-GahpClient::cream_client_delegate(const char *delg_service, const char *delg_id)
+GahpClient::cream_delegate(const char *delg_service, const char *delg_id)
 {
 
 	static const char* command = "CREAM_DELEGATE";
@@ -5589,7 +5589,7 @@ GahpClient::cream_client_delegate(const char *delg_service, const char *delg_id)
 
 
 int 
-GahpClient::cream_client_job_register(const char *service, const char *delg_service, const char *delg_id, 
+GahpClient::cream_job_register(const char *service, const char *delg_service, const char *delg_id, 
 									  const char *jdl, char **job_id, char **upload_url)
 {
 
@@ -5666,7 +5666,7 @@ GahpClient::cream_client_job_register(const char *service, const char *delg_serv
 }
 
 int 
-GahpClient::cream_client_job_start(const char *service, const char *job_id)
+GahpClient::cream_job_start(const char *service, const char *job_id)
 {
 
 	static const char* command = "CREAM_JOB_START";
@@ -5730,7 +5730,7 @@ GahpClient::cream_client_job_start(const char *service, const char *job_id)
 }
 
 int
-GahpClient::cream_client_job_purge(const char *service, const char *job_id)
+GahpClient::cream_job_purge(const char *service, const char *job_id)
 {
 	static const char* command = "CREAM_JOB_PURGE";
 
@@ -5794,7 +5794,7 @@ GahpClient::cream_client_job_purge(const char *service, const char *job_id)
 }
 
 int
-GahpClient::cream_client_job_cancel(const char *service, const char *job_id)
+GahpClient::cream_job_cancel(const char *service, const char *job_id)
 {
 	static const char* command = "CREAM_JOB_CANCEL";
 
@@ -5858,7 +5858,7 @@ GahpClient::cream_client_job_cancel(const char *service, const char *job_id)
 }
 
 int
-GahpClient::cream_client_job_suspend(const char *service, const char *job_id)
+GahpClient::cream_job_suspend(const char *service, const char *job_id)
 {
 	static const char* command = "CREAM_JOB_SUSPEND";
 
@@ -5922,7 +5922,7 @@ GahpClient::cream_client_job_suspend(const char *service, const char *job_id)
 }
 
 int
-GahpClient::cream_client_job_resume(const char *service, const char *job_id)
+GahpClient::cream_job_resume(const char *service, const char *job_id)
 {
 	static const char* command = "CREAM_JOB_RESUME";
 
@@ -5986,7 +5986,7 @@ GahpClient::cream_client_job_resume(const char *service, const char *job_id)
 }
 
 int
-GahpClient::cream_client_job_status(const char *service, const char *job_id, 
+GahpClient::cream_job_status(const char *service, const char *job_id, 
 									char **job_status, int *exit_code, char **failure_reason)
 {
 	static const char* command = "CREAM_JOB_STATUS";
@@ -6059,7 +6059,7 @@ GahpClient::cream_client_job_status(const char *service, const char *job_id,
 }
 
 int
-GahpClient::cream_client_proxy_renew(const char *service, const char *delg_service, const char *delg_id, const char *job_id)
+GahpClient::cream_proxy_renew(const char *service, const char *delg_service, const char *delg_id, const char *job_id)
 {
 	static const char* command = "CREAM_PROXY_RENEW";
 
@@ -6129,7 +6129,7 @@ GahpClient::cream_client_proxy_renew(const char *service, const char *delg_servi
 }
 
 int 
-GahpClient::cream_client_ping(const char * service)
+GahpClient::cream_ping(const char * service)
 {
 	static const char* command = "CREAM_PING";
 	
