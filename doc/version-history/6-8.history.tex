@@ -173,8 +173,9 @@ failure, allowing the Condor process to continue with other tasks.
 authentication mechanism.  The current version of Kerberos is 1.4.3.
 
 % changes to condor_auth_ssl.C by zmiller
-\item Fixed the bug in the SSL authentication mechanism that caused the
-\Condor{schedd} to crash when submitting a job.
+\item Fixed bugs in the SSL authentication mechanism that caused the
+\Condor{schedd} to crash when submitting a job (on UNIX) and caused
+all tools and daemons to crash on Windows when using SSL.
 
 \item Some of the binaries required to use Condor-C on Windows were
 mistakenly not included in previous releases of Condor. This has been
@@ -404,17 +405,7 @@ improve matchmaking performance.
 
 \begin{itemize}
 
-\item There are known scalability problems when using Condor's Kerberos
-authentication mechanism in large pools.  If your installation of Condor is
-more than a couple dozen machines, and you need to use Kerberos for Condor
-authentication, we recommend you wait for Condor version 6.8.1 or use Condor
-version 6.7.17 (which does not suffer from these problems).
-
-\item There are known problems with Condor's SSL authentication mechanism.
-While the HTTPS support in Condor (which also uses SSL) works fine for the
-SOAP/Birdbath interface, there are bugs with the SSL support when SSL is
-listed in \MacroNI{SEC\_DEFAULT\_AUTHENTICATION\_METHODS}.  We expect to fix
-these issues for version 6.8.1.
+\item None.
 
 \end{itemize}
 
