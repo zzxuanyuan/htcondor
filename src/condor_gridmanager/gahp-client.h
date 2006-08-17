@@ -611,7 +611,7 @@ class GahpClient : public Service {
 		int cream_delegate(const char *delg_service, const char *delg_id);
 		
 		int cream_job_register(const char *service, const char *delg_service, const char *delg_id, 
-							   const char *jdl, char **job_id, char **upload_url);
+							   ClassAd *jdl, char **job_id, char **upload_url);
 		
 		int cream_job_start(const char *service, const char *job_id);
 		
