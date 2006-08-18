@@ -161,7 +161,7 @@ bool CreamJobAdMatch( const ClassAd *job_ad ) {
 	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
 		 universe == CONDOR_UNIVERSE_GRID &&
 		 job_ad->LookupString( ATTR_GRID_RESOURCE, resource ) &&
-		 strncasecmp( resource.Value(), "cream ", 4 ) == 0 ) {
+		 strncasecmp( resource.Value(), "cream ", 6 ) == 0 ) {
 
 		return true;
 	}
