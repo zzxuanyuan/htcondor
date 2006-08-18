@@ -149,7 +149,7 @@ void CreamJobReconfig()
 	CreamResource *next_resource;
 
 	CreamResource::ResourcesByName.startIterations();
-
+	
 	while ( CreamResource::ResourcesByName.iterate( next_resource ) != 0 ) {
 		next_resource->Reconfig();
 	}
@@ -603,16 +603,18 @@ gmState = GM_DELEGATE_PROXY;
 				if ( gahpAd == NULL ) {
 					gahpAd = buildSubmitAd();
 				}
+/* Jaime
 				if ( RSL == NULL ) {
 					myResource->CancelSubmit(this);
 					gmState = GM_HOLD;
 					break;
 				}
-
+*/
 				rc = gahp->cream_job_register( 
 										resourceManagerString,
-										myResource->GetDelegationService(),
+										myResource->getDelegationService(),
 										delegatedCredentialURI,
+										gahpAd,
 										&job_id, &upload_url );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -632,8 +634,10 @@ gmState = GM_DELEGATE_PROXY;
 				} else {
 					// unhandled error
 					LOG_CREAM_ERROR( "cream_job_register()", rc );
-					dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
+/* Jaime		
+			dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
 							procID.cluster, procID.proc,RSL->Value());
+*/
 					gahpErrorString = gahp->getErrorString();
 					myResource->CancelSubmit( this );
 					gmState = GM_UNSUBMITTED;
@@ -835,11 +839,13 @@ gmState = GM_DELEGATE_PROXY;
 			} else {
 				// Clear the contact string here because it may not get
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
+/* Jaime
 				if ( jobContact != NULL ) {
 					SetRemoteJobId( NULL );
 					remoteState = CREAM_JOB_STATE_UNSET;
 					requestScheddUpdate( this );
 				}
+*/
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
@@ -1149,7 +1155,7 @@ void CreamJob::SetRemoteJobState( const char *new_state, int exit_code,
 
 	if ( new_state_str != remoteState ) {
 		dprintf( D_FULLDEBUG, "(%d.%d) cream state change: %s -> %s\n",
-				 procID.cluster, procID.proc, remoteState->Value(),
+				 procID.cluster, procID.proc, remoteState.Value(),
 				 new_state_str.Value() );
 
 		if ( ( new_state_str == CREAM_JOB_STATE_RUNNING ||
@@ -1193,8 +1199,110 @@ void CreamJob::SetRemoteJobState( const char *new_state, int exit_code,
 	}
 }
 
+
 // Build submit classad
 ClassAd *CreamJob::buildSubmitAd()
 {
+	const char *ATTR_TYPE = "TYPE";
+	const char *ATTR_JOB_TYPE = "JOBTYPE";
+	const char *ATTR_EXECUTABLE = "EXECUTABLE";
+	const char *ATTR_STD_INPUT = "STDINPUT";
+	const char *ATTR_STD_OUTPUT = "STDOUTPUT";
+	const char *ATTR_STD_ERROR = "STDERROR";
+	const char *ATTR_VIR_ORG = "VIRTUALORGANISATION";
+	const char *ATTR_BATCH_SYSTEM = "BATCHSYSTEM";
+	const char *ATTR_QUEUE = "QUEUE";
+
+	ClassAd *submit_ad = new ClassAd();
+
+	MyString tmp_str = "";
+	MyString buf = "";
+	MyString iwd = "";
+	char *attr_value;
+
+		//TYPE
+	if (jobAd->LookupString(ATTR_MY_TYPE, tmp_str)) {
+		buf.sprintf("%s = %s", ATTR_TYPE, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+	
+		//JOBTYPE
+	buf.sprintf("%s = normal", ATTR_JOB_TYPE);
+	submit_ad->Insert(buf.Value());
+	
+		//EXECUTABLE
+	if (jobAd->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
+		iwd = attr_value;
+		int len = strlen(attr_value);
+		if ( len > 1 && attr_value[len - 1] != '/' ) {
+			iwd += '/';
+		}
+	} else {
+		iwd = "/";
+	}
+	if ( attr_value != NULL ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+		//Executable = CMD - IWD
+	if (jobAd->LookupString(ATTR_JOB_CMD, tmp_str)) {
+		MyString exec = tmp_str.Substr(iwd.Length(), tmp_str.Length()-1);
+		buf.sprintf("%s = %s", ATTR_EXECUTABLE, exec.Value());
+		submit_ad->Insert(buf.Value());
+	}
+
+		//ARGUMENTS
+	if (jobAd->LookupString(ATTR_JOB_ARGUMENTS1, tmp_str)) {
+		buf.sprintf("%s = %s", ATTR_JOB_ARGUMENTS2, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+	
+		//STDINPUT
+	if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
+		buf.sprintf("%s = %s", ATTR_STD_INPUT, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+
+		//STDOUTPUT
+	if (jobAd->LookupString(ATTR_JOB_OUTPUT, tmp_str)) {
+		buf.sprintf("%s = %s", ATTR_STD_OUTPUT, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+
+		//STDERROR
+	if (jobAd->LookupString(ATTR_JOB_ERROR, tmp_str)) {
+		buf.sprintf("%s = %s", ATTR_STD_ERROR, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+
+		//ENVIRONMENT
+	if (jobAd->LookupString(ATTR_JOB_ENVIRONMENT2, tmp_str)) {
+		buf.sprintf("%s = %s", ATTR_JOB_ENVIRONMENT2, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+
+		//VIRTUALORGANISATION
+	buf.sprintf("%s = %s", ATTR_VIR_ORG, "");
+	submit_ad->Insert(buf.Value());
+
+		//BATCHSYSTEM hard coded for now
+	buf.sprintf("%s = %s", ATTR_BATCH_SYSTEM, "pbs");
+	submit_ad->Insert(buf.Value());
+
+		//QUEUE hard coded for now
+	buf.sprintf("%s = %s", ATTR_QUEUE, "long");
+	submit_ad->Insert(buf.Value());
+
+
+		/* TODO
+		   INPUTSANDBOX
+		   INPUTSANDBOXBASEURI
+		   OUTPUTSANDBOX
+		   OUTPUTSANDBOXDESTURI
+		   OUTPUTSANDBOXBASEDESTURI
+		*/
+
+	return submit_ad;
 }
 

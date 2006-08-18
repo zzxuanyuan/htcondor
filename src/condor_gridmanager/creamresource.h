@@ -76,6 +76,7 @@ class CreamResource : public BaseResource
 	char *proxySubject;
 	int delegationTimerId;
 	ProxyDelegation *activeDelegationCmd;
+	char *serviceUri;
 	char *delegationServiceUri;
 	List<ProxyDelegation> delegatedProxies;
 	static int gahpCallTimeout;

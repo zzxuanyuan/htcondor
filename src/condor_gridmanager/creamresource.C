@@ -39,7 +39,7 @@ int CreamResource::gahpCallTimeout = 300;	// default value
 
 #define HASH_TABLE_SIZE			500
 
-HashTable <HashKey, GT4Resource *>
+HashTable <HashKey, CreamResource *>
     CreamResource::ResourcesByName( HASH_TABLE_SIZE,
 									hashFunction );
 
@@ -102,7 +102,7 @@ CreamResource::CreamResource( const char *resource_name,
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
 
-	const char service_name[] = "/ce-cream/services/CREAMDelegation";
+	const char delegservice_name[] = "/ce-cream/services/CREAMDelegation";
 	const char *name_ptr;
 	int name_len;
 	if ( strncmp( "https://", resource_name, 8 ) == 0 ) {
@@ -113,11 +113,22 @@ CreamResource::CreamResource( const char *resource_name,
 	name_len = strcspn( name_ptr, "/" );
 	delegationServiceUri = (char *)malloc( 8 +         // "https://"
 										   name_len +  // host/port
-										   sizeof( service_name ) + 
+										   sizeof( delegservice_name ) + 
 										   1 );        // terminating \0
 	strcpy( delegationServiceUri, "https://" );
 	snprintf( delegationServiceUri + 8, name_len + 1, "%s", name_ptr );
-	strcat( delegationServiceUri, service_name );
+	strcat( delegationServiceUri, delegservice_name );
+
+	const char service_name[] = "/ce-cream/services/CREAM";
+
+	serviceUri = (char *)malloc( 8 +         // "https://"
+								 name_len +  // host/port
+								 sizeof( service_name ) + 
+								 1 );        // terminating \0
+	strcpy( serviceUri, "https://" );
+	snprintf( serviceUri + 8, name_len + 1, "%s", name_ptr );
+	strcat( serviceUri, service_name );
+
 }
 
 CreamResource::~CreamResource()
@@ -135,6 +146,10 @@ dprintf(D_FULLDEBUG,"    deleting %s\n",next_deleg->deleg_uri);
 	}
 	if ( delegationServiceUri != NULL ) {
 		free( delegationServiceUri );
+	}
+
+	if ( serviceUri != NULL ) {
+		free( serviceUri );
 	}
 
 	ResourcesByName.remove( HashKey( HashName( resourceName, proxySubject ) ) );
@@ -384,8 +399,10 @@ dprintf(D_FULLDEBUG,"    new delegation\n");
 			}
 
 			deleg_gahp->setDelegProxy( next_deleg->proxy );
-			rc = deleg_gahp->cream_proxy_delegate(delegationServiceUri,
-												  delegation_uri->Value() );
+
+			rc = deleg_gahp->cream_delegate(delegationServiceUri,
+											delegation_uri.Value() );
+			
 			if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 				activeDelegationCmd = next_deleg;
 				return 0;
@@ -398,7 +415,7 @@ dprintf(D_FULLDEBUG,"    new delegation\n");
 				next_deleg->error_message = "Failed to create proxy delegation";
 				signal_jobs = true;
 			} else {
-dprintf(D_FULLDEBUG,"      %s\n",delegation_uri);
+dprintf(D_FULLDEBUG,"      %s\n",delegation_uri.Value());
 				activeDelegationCmd = NULL;
 					// we are assuming responsibility to free this
 				next_deleg->deleg_uri = strdup( delegation_uri.Value() );
@@ -416,9 +433,14 @@ dprintf(D_FULLDEBUG,"      %s\n",delegation_uri);
 dprintf(D_FULLDEBUG,"    refreshing %s\n",next_deleg->deleg_uri);
 			int rc;
 			deleg_gahp->setDelegProxy( next_deleg->proxy );
-			rc = deleg_gahp->cream_proxy_refresh( delegationServiceUri
-												  next_deleg->deleg_uri,
-												  /* jobs using this proxy */ );
+
+
+/* Jaime
+			rc = deleg_gahp->cream_proxy_renew(serviceUri,
+											   delegationServiceUri,
+											   next_deleg->deleg_uri,
+											   job using this proxy);
+*/
 			if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 				activeDelegationCmd = next_deleg;
 				return 0;
