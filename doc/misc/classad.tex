@@ -476,12 +476,12 @@ characters within the delimiter string.
     are not strings.
 
   \item[\Expr{Boolean stringListIMember(String x, String list \Lbr\ , String delimiter \Rbr)}]
-    Same as \Expr{stringlistmember()}, but comparison is done
+    Same as \Expr{stringListMember()}, but comparison is done
     with \Expr{stricmp()}, so letter case is not relevant.
 
 \end{description}
 
-The following two functions utilize regular expressions as defined
+The following three functions utilize regular expressions as defined
 and supported by the PCRE library.
 See \URL{http://www.pcre.org} for complete documentation of
 regular expressions.
@@ -515,10 +515,13 @@ Inclusion of characters other than these as options are ignored.
     a valid regular expression, returns \Expr{ERROR}.
 
   \item[\Expr{String regexps(String pattern, String target, String substitute, \Lbr\ String options \Rbr)}]
- 	The regexp pattern is applied to target.  If the pattern matches,
-	the string substitute is returned, with backslash expansion performed.
-    Options are the same as above.  If any of the arguments are not strings
-	it returns \Expr{ERROR}.
+    The regular expression \Expr{pattern} is applied to \Expr{target}.
+    If the string \Expr{target} is a regular expression
+    as described by \Expr{pattern},
+    the string \Expr{substitute} is returned,
+    with backslash expansion performed.
+    The return value is \Expr{ERROR}, if any of the arguments
+    are not strings.
 
   \item[\Expr{Boolean stringListRegexpMember(String pattern, String list \Lbr\ , String delimiter \Rbr\ \Lbr\ , String options \Rbr)}]
     Returns \Expr{TRUE} if any of the strings within the
