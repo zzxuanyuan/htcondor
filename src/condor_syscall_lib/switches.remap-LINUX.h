@@ -313,6 +313,8 @@ REMAP_THREE( socket, __socket, int, int, int, int )
 
 REMAP_FOUR( socketpair, __socketpair, int, int, int, int, int * )
 
+#if defined(GLIBC23) /* to the best of my knowledge for this version.... */
+
 /* This next set of remap function calls don't so much as remap things into
 	condor syscall lib entrance points, but provide a more current interface
 	against newer glibc header files and libraries that use glibc's and gcc's
@@ -768,6 +770,7 @@ int __wprintf_chk(int flag, const wchar_t *format, ...)
 
 	return done;
 }
+#endif /* GLIBC23 */
 
 
 #endif /* REMOTE_SYSCALLS */
