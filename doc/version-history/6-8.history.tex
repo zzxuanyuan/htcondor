@@ -179,6 +179,10 @@ to the \Condor{collector} daemon,
 with both non-blocking updates and security negotiation
 enabled (the defaults).
 
+\item Also fixed a bug in the negotiator with the same effect as
+above, except it only happened with the configuration setting
+\MacroNI{NEGOTIATOR\_USE\_NONBLOCKING\_STARTD\_CONTACT}=False.
+
 \item Under some conditions, when making TCP connections, Condor was
 still trying to connect for the full duration of the operation timeout
 (often 10 or 20 seconds), even if the connection attempt was refused
