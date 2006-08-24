@@ -233,6 +233,20 @@ calculated using the wrong total number of \Condor{startd} daemons.
 This could cause some \Condor{startd} daemons to remain unclaimed,
 even when there were jobs available to run on them.
 
+% zmiller's changes to condor_io/condor_auth_fs.C
+\item Fixed a security vulnerability in Condor's FS and FS\_REMOTE
+authentication methods.  The vulnerability allowed an attacker to impersonate
+another user on the system, potentially allowing submission of jobs as a
+different user.  This may allow escalation to root privilege if the Condor
+binaries and configuration files have improper permissions.  The fix is not
+backwards compatible, which means all daemons and tools using FS authentication
+must be running Condor 6.8.1 or greater.  The same applies to FS\_REMOTE; All
+daemons and tools using FS\_REMOTE must be using Condor 6.8.1 or greater.  In
+practice, this means that for FS, all Condor binaries on one host must be
+version 6.8.1 or greater, but versions can be different from host to host.  For
+FS\_REMOTE it means all binaries across all hosts must be 6.8.1 or greater.
+
+
 \end{itemize}
 
 \noindent Known Bugs:
