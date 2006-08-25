@@ -222,5 +222,10 @@ SOAP/Birdbath interface, there are bugs with the SSL support when SSL is
 listed in \MacroNI{SEC\_DEFAULT\_AUTHENTICATION\_METHODS}.  We expect to fix
 these issues for version 6.8.1.
 
+\item The \Opt{-completedsince} option to \Condor{history} works
+when Quill is enabled.  The behavior of \Condor{history}
+\Opt{-completedsince} is undefined when Quill is \emph{not}
+enabled.
+
 \end{itemize}
 
