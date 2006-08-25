@@ -246,6 +246,10 @@ practice, this means that for FS, all Condor binaries on one host must be
 version 6.8.1 or greater, but versions can be different from host to host.  For
 FS\_REMOTE it means all binaries across all hosts must be 6.8.1 or greater.
 
+% zmiller's changes to condor_credd/credd.C and stork/dap_server.C
+\item Fixed a couple race conditions in stork and the credd where credential
+files were possibly created with improper permissions before being set to owner
+permissions.
 
 \end{itemize}
 
