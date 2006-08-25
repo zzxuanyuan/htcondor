@@ -4808,6 +4808,21 @@ group users.
 
 % \end{description}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Credd-Config-File-Entries}\condor{credd}
+Configuration File Macros}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+\begin{description}
+
+\item[\Macro{CREDD\_HOST}]
+\label{param:CreddHost} Description here.
+
+\item[\Macro{CREDD\_CACHE\_LOCALLY}]
+\label{param:CreddCacheLocally} Description here.
+\end{description}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Gridmanager-Config-File-Entries}\condor{gridmanager}
 Configuration File Entries}
@@ -5945,48 +5960,6 @@ refresh proxy certificates.  By default, this macro is undefined.
 % \end{description}
 % 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:Credd-Config-File-Entries}\condor{credd}
-Configuration File Macros}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
- 
-\begin{description}
-
-\item[\Macro{CRED\_SUPER\_USERS}]
-\label{param:CreddSuperUsers}   Access to a stored credential is
-restricted to the user who submitted the credential, and any user
-names specified in this macro.  The format is a space or comma
-separated list of user names which are valid on the \Condor{credd}
-host.
-The default value of this macro is \Expr{root} on Unix systems, and
-\Expr{Administrator} on Windows systems.
-
-\item[\Macro{CRED\_STORE\_DIR}]
-\label{param:CredStoreDir}   Directory for storing credentials.  This
-directory must exist prior to starting \Condor{credd}.  It is highly
-recommended to restrict access permissions to \emph{only} the
-directory owner.
-The default value is
-\Expr{\$(SPOOL\_DIR)/cred}.
-
-\item[\Macro{CRED\_INDEX\_FILE}]
-\label{param:CredIndexFile}   Index file path of saved credentials.
-This file will be automatically created if it does not exist.
-The default value is
-\Expr{\$(CRED\_STORE\_DIR)/cred-index}.
-
-\item[\Macro{DEFAULT\_CRED\_EXPIRE\_THRESHOLD}]
-\label{param:DefaultCredExpireThreshold}  \Condor{credd} will attempt
-to refresh credentials when their remaining lifespan is less than this
-value.
-Units = seconds.  Default value = 3600 seconds (1 hour).
-
-\item[\Macro{CRED\_CHECK\_INTERVAL}]
-\label{param:CredCheckInterval} \Condor{credd} periodically checks
-remaining lifespan of stored credentials, at this interval.
-Units = seconds.  Default value = 60 seconds (1 minute).
-
-\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Stork-Config-File-Entries}Stork Configuration
@@ -6026,6 +5999,40 @@ The full path to the directory containing Stork modules.
 The default value when not defined is 
 as defined by \MacroUNI{LIBEXEC}.  It is a fatal error for
 both \MacroNI{STORK\_MODULE\_DIR} and \MacroNI{LIBEXEC} to be undefined.
+
+\item[\Macro{CRED\_SUPER\_USERS}]
+\label{param:CreddSuperUsers}   Access to a stored credential is
+restricted to the user who submitted the credential, and any user
+names specified in this macro.  The format is a space or comma
+separated list of user names which are valid on the \Stork{credd}
+host.
+The default value of this macro is \Expr{root} on Unix systems, and
+\Expr{Administrator} on Windows systems.
+
+\item[\Macro{CRED\_STORE\_DIR}]
+\label{param:CredStoreDir}   Directory for storing credentials.  This
+directory must exist prior to starting \Stork{credd}.  It is highly
+recommended to restrict access permissions to \emph{only} the
+directory owner.
+The default value is
+\Expr{\$(SPOOL\_DIR)/cred}.
+
+\item[\Macro{CRED\_INDEX\_FILE}]
+\label{param:CredIndexFile}   Index file path of saved credentials.
+This file will be automatically created if it does not exist.
+The default value is
+\Expr{\$(CRED\_STORE\_DIR)/cred-index}.
+
+\item[\Macro{DEFAULT\_CRED\_EXPIRE\_THRESHOLD}]
+\label{param:DefaultCredExpireThreshold}  \Stork{credd} will attempt
+to refresh credentials when their remaining lifespan is less than this
+value.
+Units = seconds.  Default value = 3600 seconds (1 hour).
+
+\item[\Macro{CRED\_CHECK\_INTERVAL}]
+\label{param:CredCheckInterval} \Stork{credd} periodically checks
+remaining lifespan of stored credentials, at this interval.
+Units = seconds.  Default value = 60 seconds (1 minute).
 
 \end{description}
 
