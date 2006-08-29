@@ -264,6 +264,10 @@ permissions.
 \item Fixed a bug that caused the \Term{checkpoint server} to restart
 because of (ostensibly) getting an unexpected errno from select().
 
+\item Fixed a bug on Windows where setting \SubmitCmd{output} or
+\SubmitCmd{error} to a relative or absolute path (as opposed to a
+simple file name without path information) would not work properly.
+
 \end{itemize}
 
 \noindent Known Bugs:
