@@ -242,15 +242,19 @@ to only analyze one job at a time.
   \OptItem{\Opt{-xml}}{Display job ads  in xml format.
     The xml format is fully defined at
     \URL{http://www.cs.wisc.edu/condor/classad/refman/}.}
-  \OptItem{\OptArg{-format}{fmt attr}}{Display attribute \Arg{attr}
+  \OptItem{\OptArg{-format}{fmt attr}}{Display attribute or expression \Arg{attr}
     in format \Arg{fmt}.
-    To display the attribute the format must contain a single
+    To display the attribute or expression the format must contain a single
     \Code{printf(3)} style conversion specifier.
-    Attributes must be from the job ClassAd.  If the
-    attribute is not present in a given ClassAd,
+    Attributes must be from the job ClassAd.
+	Expressions are ClassAd expressions and may 
+	refer to attributes in the job ClassAd.
+	If the
+    attribute is not present in a given ClassAd and cannot
+	be parsed as an expression,
     then the format option will be silently skipped.
     The conversion specifier must match the type of the
-    attribute.
+    attribute or expression.
     \%s is suitable for strings such as \Attr{Owner},
     \%d for integers such as \Attr{ClusterId},
     and \%f for floating point numbers such as
