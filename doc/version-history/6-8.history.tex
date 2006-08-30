@@ -268,6 +268,12 @@ because of (ostensibly) getting an unexpected errno from select().
 \SubmitCmd{error} to a relative or absolute path (as opposed to a
 simple file name without path information) would not work properly.
 
+\item History file rotation did not previously work on Windows because
+the name of a rotated files would contain an ISO 8601 extended format
+timestamp, which contains colon characters. The naming convention for
+rotated files has been modified to use ISO 8601 basic format, avoiding
+this problem.
+
 \end{itemize}
 
 \noindent Known Bugs:
