@@ -262,6 +262,10 @@ permissions.
 \item Fixed a bug in the \Condor{gridmanager} that caused it to delegate
 12-hour proxies for grid-type gt4 jobs and then not refresh them.
 
+\item Fixed a bug in the \Condor{gridmanager} that caused a directory
+needed for staging-in of grid-tpye gt4 job files to be removed when
+the \Condor{Gridmanager} exited, causing the stage-in to fail.
+
 % Condor-admin 14075
 \item Fixed a bug that caused the \Term{checkpoint server} to restart
 because of (ostensibly) getting an unexpected errno from select().
