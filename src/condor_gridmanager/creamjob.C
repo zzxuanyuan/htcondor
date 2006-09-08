@@ -81,18 +81,18 @@ static char *GMStateNames[] = {
 };
 
 #define CREAM_JOB_STATE_UNSET			""
-#define CREAM_JOB_STATE_REGISTERED		"Registered"
-#define CREAM_JOB_STATE_PENDING			"Pending"
-#define CREAM_JOB_STATE_IDLE			"Idle"
-#define CREAM_JOB_STATE_RUNNING			"Running"
-#define CREAM_JOB_STATE_REALLY_RUNNING	"ReallyRunning"
-#define CREAM_JOB_STATE_CANCELLED		"Cancelled"
-#define CREAM_JOB_STATE_HELD			"Held"
-#define CREAM_JOB_STATE_ABORTED			"Aborted"
-#define CREAM_JOB_STATE_DONE_OK			"DoneOk"
-#define CREAM_JOB_STATE_DONE_FAILED		"DoneFailed"
-#define CREAM_JOB_STATE_UNKNOWN			"Unknown"
-#define CREAM_JOB_STATE_PURGED			"Purged"
+#define CREAM_JOB_STATE_REGISTERED		"REGISTERED"
+#define CREAM_JOB_STATE_PENDING			"PENDING"
+#define CREAM_JOB_STATE_IDLE			"IDLE"
+#define CREAM_JOB_STATE_RUNNING			"RUNNING"
+#define CREAM_JOB_STATE_REALLY_RUNNING	"REALLY-RUNNING"
+#define CREAM_JOB_STATE_CANCELLED		"CANCELLED"
+#define CREAM_JOB_STATE_HELD			"HELD"
+#define CREAM_JOB_STATE_ABORTED			"ABORTED"
+#define CREAM_JOB_STATE_DONE_OK			"DONE-OK"
+#define CREAM_JOB_STATE_DONE_FAILED		"DONE-FAILED"
+#define CREAM_JOB_STATE_UNKNOWN			"UNKNOWN"
+#define CREAM_JOB_STATE_PURGED			"PURGED"
 
 const char *ATTR_CREAM_UPLOAD_URL = "CreamUploadUrl";
 
@@ -173,7 +173,6 @@ BaseJob *CreamJobCreate( ClassAd *jobad )
 	return (BaseJob *)new CreamJob( jobad );
 }
 
-
 int CreamJob::probeInterval = 300;			// default value
 int CreamJob::submitInterval = 300;			// default value
 int CreamJob::gahpCallTimeout = 300;		// default value
@@ -182,6 +181,7 @@ int CreamJob::maxConnectFailures = 3;		// default value
 CreamJob::CreamJob( ClassAd *classad )
 	: BaseJob( classad )
 {
+
 	int bool_value;
 	char buff[4096];
 	char buff2[_POSIX_PATH_MAX];
@@ -216,22 +216,26 @@ CreamJob::CreamJob( ClassAd *classad )
 	uploadUrl = NULL;
 	gahp = NULL;
 	delegatedCredentialURI = NULL;
-//	gridftpServer = NULL;
+	gridftpServer = NULL;
 
-	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
+	//teonadi
+	MyString jobAdValue1 = "";
+
+	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
 	// TODO This is bad. The job may already be on hold with a valid hold
 	//   reason, and here we'll clear it out (and propogate to the schedd).
 	if ( jobAd->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
 		jobAd->AssignExpr( ATTR_HOLD_REASON, "Undefined" );
 	}
-
+	
 	jobProxy = AcquireProxy( jobAd, error_string, evaluateStateTid );
 	if ( jobProxy == NULL ) {
 		if ( error_string == "" ) {
 			error_string.sprintf( "%s is not set in the job ad",
 								  ATTR_X509_USER_PROXY );
 		}
+		dprintf(D_ALWAYS, "errorstring %s\n", error_string.Value());
 		goto error_exit;
 	}
 
@@ -242,6 +246,7 @@ CreamJob::CreamJob( ClassAd *classad )
 	}
 	snprintf( buff, sizeof(buff), "CREAM/%s",
 			  jobProxy->subject->subject_name );
+
 	gahp = new GahpClient( buff, gahp_path );
 	free( gahp_path );
 
@@ -251,6 +256,7 @@ CreamJob::CreamJob( ClassAd *classad )
 
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_GRID_RESOURCE, buff );
+
 	if ( buff[0] != '\0' ) {
 		const char *token;
 		MyString str = buff;
@@ -287,11 +293,18 @@ CreamJob::CreamJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
+	
+		//Jaime: Why do we require gridjobid entry from classad here ?
+
 	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
+		SetRemoteJobId(buff);
+		
+			//Jaime: not quite sure why strchr is used here
+			//SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
+
 
 		// Find/create an appropriate CreamResource for this job
 	myResource = CreamResource::FindOrCreateResource( resourceManagerString,
@@ -457,8 +470,7 @@ int CreamJob::doEvaluateState()
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
-
-    dprintf(D_ALWAYS,
+	dprintf(D_ALWAYS,
 			"(%d.%d) doEvaluateState called: gmState %s, creamState %s\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],
 			remoteState.Value());
@@ -475,15 +487,17 @@ int CreamJob::doEvaluateState()
 		reevaluate_state = false;
 		old_gm_state = gmState;
 		old_remote_state = remoteState;
-
+		//teonadi
+//		dprintf(D_ALWAYS,"gmState:%s\n", GMStateNames[gmState]);
 		switch ( gmState ) {
+		  
 		case GM_INIT: {
 			// This is the state all jobs start in when the CreamJob object
 			// is first created. Here, we do things that we didn't want to
 			// do in the constructor because they could block (the
 			// constructor is called while we're connected to the schedd).
-			int err;
-
+//			int err;
+			dprintf(D_ALWAYS, "JOB PROXY:%s\n", jobProxy->proxy_filename);
 			if ( gahp->Initialize( jobProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
@@ -494,13 +508,14 @@ int CreamJob::doEvaluateState()
 			}
 
 			gahp->setDelegProxy( jobProxy );
-
+		
 			GahpClient::mode saved_mode = gahp->getMode();
 			gahp->setMode( GahpClient::blocking );
 
 			gahp->setMode( saved_mode );
 
 			gmState = GM_START;
+		
 			} break;
 		case GM_START: {
 			// This state is the real start of the state machine, after
@@ -510,13 +525,14 @@ int CreamJob::doEvaluateState()
 			// The one way jobs can end up back in this state is if we
 			// attempt a restart of a jobmanager only to be told that the
 			// old jobmanager process is still alive.
+
 			errorString = "";
 			if ( remoteJobId == NULL ) {
-				gmState = GM_CLEAR_REQUEST;
+			  gmState = GM_CLEAR_REQUEST;
 			} else if ( wantResubmit || doResubmit ) {
-				gmState = GM_CLEAR_REQUEST;
+			  gmState = GM_CLEAR_REQUEST;
 			} else {
-					// TODO we should save the cream job state in the job
+			  // TODO we should save the cream job state in the job
 					//   ad and use it to set submitLogged and
 					//   executeLogged here
 				submitLogged = true;
@@ -525,11 +541,13 @@ int CreamJob::doEvaluateState()
 				}
 
 				probeNow = true;
-				gmState = GM_SUBMITTED;
+				//Jaime: should gmState be GM_DELEGATE_PROXY instead of GM_SUBMITTED?
+				//	gmState = GM_SUBMITTED;
+				gmState = GM_DELEGATE_PROXY;
 			}
 			} break;
  		case GM_UNSUBMITTED: {
-			// There are no outstanding gram submissions for this job (if
+			// There are no outstanding submissions for this job (if
 			// there is one, we've given up on it).
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -546,8 +564,9 @@ int CreamJob::doEvaluateState()
 				gmState = GM_DELEGATE_PROXY;
 */
 			}
-gmState = GM_DELEGATE_PROXY;
-			} break;
+
+			gmState = GM_DELEGATE_PROXY;
+		} break;
  		case GM_DELEGATE_PROXY: {
 			const char *deleg_uri;
 			const char *error_msg;
@@ -603,7 +622,7 @@ gmState = GM_DELEGATE_PROXY;
 				if ( gahpAd == NULL ) {
 					gahpAd = buildSubmitAd();
 				}
-/* Jaime
+/* Jaime: I assume we won't be needing RSL
 				if ( RSL == NULL ) {
 					myResource->CancelSubmit(this);
 					gmState = GM_HOLD;
@@ -732,15 +751,22 @@ gmState = GM_DELEGATE_PROXY;
 					lastProbeTime = 0;
 					probeNow = false;
 				}
+
 				if ( now >= lastProbeTime + probeInterval ) {
 					gmState = GM_POLL_JOB_STATE;
 					break;
 				}
+
 				unsigned int delay = 0;
 				if ( (lastProbeTime + probeInterval) > now ) {
 					delay = (lastProbeTime + probeInterval) - now;
 				}				
 				daemonCore->Reset_Timer( evaluateStateTid, delay );
+
+					//Jaime, I had to add this two lines here to avoid extra long polling
+					//due to having no gmState before breaking from while loop
+				sleep(10);
+				gmState = GM_POLL_JOB_STATE;
 			}
 			} break;
 		case GM_EXTEND_LIFETIME: {
@@ -778,6 +804,7 @@ gmState = GM_DELEGATE_PROXY;
 				char *fault = NULL;
 				int exit_code = -1;
 				CHECK_PROXY;
+								
 				rc = gahp->cream_job_status( resourceManagerString,
 											 remoteJobId, &status,
 											 &exit_code, &fault );
@@ -795,6 +822,7 @@ gmState = GM_DELEGATE_PROXY;
 					}
 					break;
 				}
+
 				SetRemoteJobState( status, exit_code, fault );
 				if ( status ) {
 					free( status );
@@ -839,7 +867,7 @@ gmState = GM_DELEGATE_PROXY;
 			} else {
 				// Clear the contact string here because it may not get
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
-/* Jaime
+/* Jaime: not sure what jobContact is
 				if ( jobContact != NULL ) {
 					SetRemoteJobId( NULL );
 					remoteState = CREAM_JOB_STATE_UNSET;
@@ -1206,102 +1234,120 @@ ClassAd *CreamJob::buildSubmitAd()
 	const char *ATTR_TYPE = "TYPE";
 	const char *ATTR_JOB_TYPE = "JOBTYPE";
 	const char *ATTR_EXECUTABLE = "EXECUTABLE";
+	const char *ATTR_ARGS = "ARGUMENTS";
 	const char *ATTR_STD_INPUT = "STDINPUT";
 	const char *ATTR_STD_OUTPUT = "STDOUTPUT";
 	const char *ATTR_STD_ERROR = "STDERROR";
+	const char *ATTR_OUTPUT_SB = "OUTPUTSANDBOX";
+	const char *ATTR_OUTPUT_SB_BASE_DEST_URI = "OUTPUTSANDBOXBASEDESTURI";
 	const char *ATTR_VIR_ORG = "VIRTUALORGANISATION";
 	const char *ATTR_BATCH_SYSTEM = "BATCHSYSTEM";
 	const char *ATTR_QUEUE = "QUEUE";
-
+	
 	ClassAd *submit_ad = new ClassAd();
 
 	MyString tmp_str = "";
 	MyString buf = "";
-	MyString iwd = "";
-	char *attr_value;
 
-		//TYPE
-	if (jobAd->LookupString(ATTR_MY_TYPE, tmp_str)) {
-		buf.sprintf("%s = %s", ATTR_TYPE, tmp_str.Value());
+	MyString stdout_str = "";
+	MyString stderr_str = "";
+	bool stdoutput = false, stderror = false;
+	
+		//TYPE teonadi can't locate mytype, weird
+	if (jobAd->LookupString("MyType", tmp_str)) {
+		buf.sprintf("%s = \"%s\"", ATTR_TYPE, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
 	
 		//JOBTYPE
-	buf.sprintf("%s = normal", ATTR_JOB_TYPE);
+	buf.sprintf("%s = \"normal\"", ATTR_JOB_TYPE);
 	submit_ad->Insert(buf.Value());
-	
-		//EXECUTABLE
-	if (jobAd->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
-		iwd = attr_value;
-		int len = strlen(attr_value);
-		if ( len > 1 && attr_value[len - 1] != '/' ) {
-			iwd += '/';
-		}
-	} else {
-		iwd = "/";
-	}
-	if ( attr_value != NULL ) {
-		free( attr_value );
-		attr_value = NULL;
-	}
 
-		//Executable = CMD - IWD
+		//EXECUTABLE
 	if (jobAd->LookupString(ATTR_JOB_CMD, tmp_str)) {
-		MyString exec = tmp_str.Substr(iwd.Length(), tmp_str.Length()-1);
-		buf.sprintf("%s = %s", ATTR_EXECUTABLE, exec.Value());
+		buf.sprintf("%s = \"%s\"", ATTR_EXECUTABLE, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
 
 		//ARGUMENTS
 	if (jobAd->LookupString(ATTR_JOB_ARGUMENTS1, tmp_str)) {
-		buf.sprintf("%s = %s", ATTR_JOB_ARGUMENTS2, tmp_str.Value());
+		buf.sprintf("%s = \"%s\"", ATTR_ARGS, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
 	
 		//STDINPUT
 	if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
-		buf.sprintf("%s = %s", ATTR_STD_INPUT, tmp_str.Value());
+		buf.sprintf("%s = \"%s\"", ATTR_STD_INPUT, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
 
-		//STDOUTPUT
+		//STDOUTPUT 
 	if (jobAd->LookupString(ATTR_JOB_OUTPUT, tmp_str)) {
-		buf.sprintf("%s = %s", ATTR_STD_OUTPUT, tmp_str.Value());
+		buf.sprintf("%s = \"%s\"", ATTR_STD_OUTPUT, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
+		stdoutput = true;
+		stdout_str = tmp_str;
 	}
 
 		//STDERROR
 	if (jobAd->LookupString(ATTR_JOB_ERROR, tmp_str)) {
-		buf.sprintf("%s = %s", ATTR_STD_ERROR, tmp_str.Value());
+		buf.sprintf("%s = \"%s\"", ATTR_STD_ERROR, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
+		stderror = true;
+		stderr_str = tmp_str;
 	}
 
+		//OUTPUTSANDBOX for now includes stdoutput & stderror 
+	if(stdoutput && stderror)
+		buf.sprintf("%s = \"%s,%s\"", ATTR_OUTPUT_SB, stdout_str.Value(), stderr_str.Value());
+	else if (stdoutput && !stderror)
+		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB, stdout_str.Value());
+	else if (!stdoutput && stderror)
+		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB, stderr_str.Value());
+
+	if (stdoutput || stderror)
+		submit_ad->Insert(buf.Value());
+	
+		//teonadi
+		//OUTPUTSANDBOXBASEDESTURI
+	if (jobAd->LookupString(ATTR_GRIDFTP_URL_BASE, tmp_str)) {
+		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB_BASE_DEST_URI, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+	
+
+	/*
 		//ENVIRONMENT
 	if (jobAd->LookupString(ATTR_JOB_ENVIRONMENT2, tmp_str)) {
-		buf.sprintf("%s = %s", ATTR_JOB_ENVIRONMENT2, tmp_str.Value());
+		buf.sprintf("%s = \"%s\"", ATTR_JOB_ENVIRONMENT2, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
-
+	*/
 		//VIRTUALORGANISATION
-	buf.sprintf("%s = %s", ATTR_VIR_ORG, "");
+	buf.sprintf("%s = \"%s\"", ATTR_VIR_ORG, "IVDGL");
 	submit_ad->Insert(buf.Value());
 
 		//BATCHSYSTEM hard coded for now
-	buf.sprintf("%s = %s", ATTR_BATCH_SYSTEM, "pbs");
+	buf.sprintf("%s = \"%s\"", ATTR_BATCH_SYSTEM, "pbs");
 	submit_ad->Insert(buf.Value());
 
 		//QUEUE hard coded for now
-	buf.sprintf("%s = %s", ATTR_QUEUE, "long");
+	buf.sprintf("%s = \"%s\"", ATTR_QUEUE, "long");
 	submit_ad->Insert(buf.Value());
 
 
 		/* TODO
 		   INPUTSANDBOX
 		   INPUTSANDBOXBASEURI
-		   OUTPUTSANDBOX
-		   OUTPUTSANDBOXDESTURI
 		   OUTPUTSANDBOXBASEDESTURI
 		*/
+
+	//teonadi
+	MyString jobAdValue = "";
+//	submit_ad->sPrint(jobAdValue);
+//	dprintf(D_ALWAYS, "SUBMIT_AD:\n%s\n",jobAdValue.Value()); 
+	jobAd->sPrint(jobAdValue);
+	dprintf(D_ALWAYS, "JOB_AD:\n%s\n",jobAdValue.Value()); 
 
 	return submit_ad;
 }

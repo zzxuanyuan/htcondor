@@ -208,7 +208,8 @@ GahpServer::write_line(const char *command)
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
 	}
-	
+		//teonadi
+//	dprintf(D_ALWAYS, "sending gahp_server: %s\n", command);
 	daemonCore->Write_Pipe(m_gahp_writefd,command,strlen(command));
 	daemonCore->Write_Pipe(m_gahp_writefd,"\r\n",2);
 
@@ -235,8 +236,11 @@ GahpServer::write_line(const char *command, int req, const char *args)
 
 	char buf[20];
 	sprintf(buf," %d ",req);
+
 	daemonCore->Write_Pipe(m_gahp_writefd,command,strlen(command));
 	daemonCore->Write_Pipe(m_gahp_writefd,buf,strlen(buf));
+	//teonadi
+	dprintf(D_ALWAYS, "sending gahp_server: %s%s%s\n", command, buf, args);
 	if ( args ) {
 		daemonCore->Write_Pipe(m_gahp_writefd,args,strlen(args));
 	}
@@ -759,6 +763,7 @@ GahpServer::Initialize( Proxy *proxy )
 	master_proxy->cached_expiration = 0;
 
 		// Give the server our x509 proxy.
+
 	if ( command_initialize_from_file( master_proxy->proxy->proxy_filename ) == false ) {
 		dprintf( D_ALWAYS, "GAHP: Failed to initialize from file\n" );
 		return false;
@@ -1010,6 +1015,8 @@ GahpServer::RegisterProxy( Proxy *proxy )
 		gahp_proxy->cached_expiration = 0;
 		gahp_proxy->num_references = 1;
 //		daemonCore->Reset_Timer( proxy_check_tid, 0 );
+
+ // teonadi not using master proxy here
 		if ( cacheProxyFromFile( gahp_proxy ) == false ) {
 			EXCEPT( "Failed to cache proxy!" );
 		}
@@ -1217,27 +1224,33 @@ bool
 GahpServer::command_initialize_from_file(const char *proxy_path,
 										 const char *command)
 {
-
 	ASSERT(proxy_path);		// Gotta have it...
 
 	char buf[_POSIX_PATH_MAX];
 	if ( command == NULL ) {
 		command = "INITIALIZE_FROM_FILE";
 	}
+
 	int x = snprintf(buf,sizeof(buf),"%s %s",command,
 					 escapeGahpString(proxy_path));
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
 	read_argv(result);
+
 	if ( result.argc == 0 || result.argv[0][0] != 'S' ) {
 		char *reason;
+	
 		if ( result.argc > 1 ) {
 			reason = result.argv[1];
 		} else {
 			reason = "Unspecified error";
 		}
+		//teonadi
+//		dprintf(D_ALWAYS, "result: %d\n",result.argc); 
+
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: %s\n",command,reason);
+
 		return false;
 	}
 
@@ -1983,6 +1996,7 @@ GahpClient::now_pending(const char *command,const char *buf,
 	}
 
 		// Write the command out to the gahp server.
+
 	server->write_line(pending_command,pending_reqid,pending_args);
 	Gahp_Args return_line;
 	server->read_argv(return_line);
@@ -5526,7 +5540,6 @@ GahpClient::unicore_job_callback(unicore_gahp_callback_func_t callback_func)
 int 
 GahpClient::cream_delegate(const char *delg_service, const char *delg_id)
 {
-
 	static const char* command = "CREAM_DELEGATE";
 
 		// Check if this command is supported
@@ -5540,12 +5553,12 @@ GahpClient::cream_delegate(const char *delg_service, const char *delg_id)
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(delg_service) );
 	char *esc2 = strdup( escapeGahpString(delg_id) );
-	bool x = reqline.sprintf("%s %s", esc1, esc2);
+	bool x = reqline.sprintf("%s %s", esc2, esc1);
 	free( esc1 );
 	free( esc2 );
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
-	
+
 		// Check if this request is currently pending.  If not, make
 		// it the pending request.
 	if ( !is_pending(command,buf) ) {
@@ -5562,6 +5575,7 @@ GahpClient::cream_delegate(const char *delg_service, const char *delg_id)
 		// Check first if command completed.
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
+
 		// command completed.
 		if (result->argc != 2) {
 			EXCEPT("Bad %s Result",command);
@@ -5649,6 +5663,7 @@ GahpClient::cream_job_register(const char *service, const char *delg_service, co
 		
 		// Check first if command completed.
 	Gahp_Args* result = get_pending_result(command,buf);
+
 	if ( result ) {
 		// command completed.
 		if (result->argc != 4) {
@@ -5684,7 +5699,6 @@ GahpClient::cream_job_register(const char *service, const char *delg_service, co
 int 
 GahpClient::cream_job_start(const char *service, const char *job_id)
 {
-
 	static const char* command = "CREAM_JOB_START";
 
 		// Check if this command is supported
@@ -6037,7 +6051,7 @@ GahpClient::cream_job_status(const char *service, const char *job_id,
 	}
 
 		// If we made it here, command is pending.
-		
+
 		// Check first if command completed.
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
@@ -6045,9 +6059,7 @@ GahpClient::cream_job_status(const char *service, const char *job_id,
 		if (result->argc < 3) {
 			EXCEPT("Bad %s Result",command);
 		}
-		else if (result->argc != 3 + atoi(result->argv[2]) * 4)
-			EXCEPT("Bad %s Result",command);
-		
+
 		int rc;
 		if (strcmp(result->argv[1], NULLSTRING) == 0) 
 			rc = 0;
@@ -6055,6 +6067,7 @@ GahpClient::cream_job_status(const char *service, const char *job_id,
 			rc = 1;
 		
 		*failure_reason = strdup(result->argv[6]);
+
 		if ( rc == 0 ) {
 			*job_status = strdup(result->argv[4]);
 			*exit_code = atoi(result->argv[5]);
