@@ -42,7 +42,7 @@
 /* Top should be the root of the source directory you want to use if
 you want our top-level Makefile to build the directory tree with all
 the soft links.  The links will point back to Top/src/... */
-#define Top /p/condor/workspaces/shared.1/gthain/condor67db
+#define Top /afs/cs.wisc.edu/u/j/h/jhuang/merge3
 
 #if MALLOC_DEBUG
 #define CFlags -DMALLOC_DEBUG
