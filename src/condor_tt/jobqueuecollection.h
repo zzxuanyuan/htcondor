@@ -21,12 +21,15 @@
  *
  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef _JOBQUEUECOLLECTION_H_  
-#define _JOBQUEUECOLLECTION_H_  
+#ifndef _CONDOR_JOBQUEUECOLLECTION_H_  
+#define _CONDOR_JOBQUEUECOLLECTION_H_  
 
 #include "condor_common.h"
 #include "condor_io.h"
 #include "classad_collection.h"
+#include "quill_enums.h"
+
+class Database;
 
 //! ClassAdBucket
 /*! Bucket Class for a Hash Table used internally by JobQueueCollection
@@ -141,12 +144,12 @@ public:
        	// For Iteration	
        	//
 	void		initAllJobAdsIteration();
-	char*		getNextClusterAd_H_CopyStr();  // ClusterAd_Horizontal
-	char*		getNextClusterAd_V_CopyStr();  // ClusterAd_Vertical
-	char*		getNextProcAd_H_CopyStr();    //  ProcAd_Horizontal
-	char*		getNextProcAd_V_CopyStr();    // ProcAd_Vertical
+	bool		loadNextClusterAd(QuillErrCode &errStatus);
+	bool		loadNextProcAd(QuillErrCode &errStatus);
 	ClassAd*	find(char* cid, char* pid = NULL);
 
+	void 		setDBObj(Database *DBObj);
+	void 		setDBtype(dbtype dt);
 private:
        	//
        	// helper functions
@@ -154,8 +157,8 @@ private:
 	int 		insert(char* id, ClassAdBucket* pBucket, ClassAdBucket **ppBucket); 
 	int 		remove(char* cid, char* pid = NULL);
 
-	void		getNextAdCopyStr(bool bHor, int& index, ClassAdBucket** ppBucketList, char*& ret_str);
-	void		makeCopyStr(bool bHor, char* cid, char* pid, ClassAd* ad, char*& ret_str);
+	bool		loadNextAd(int& index, ClassAdBucket** ppBucketList, QuillErrCode &errStatus);
+	QuillErrCode  loadAd(char* cid, char* pid, ClassAd* ad);
 	int			hashfunction(char* str);
 
 	int    		procAdNum;	       		//!< # of ProcAds
@@ -172,14 +175,9 @@ private:
 
 	int    		_iBucketSize;		       	//!< Static Hash Table Size
 
-	//
-       	// buffer pointers for  COPY strings
-       	//
-	char*	ClusterAd_H_CopyStr;
-	char*	ClusterAd_V_CopyStr;
-	char*	ProcAd_H_CopyStr;
-	char*	ProcAd_V_CopyStr;
 	char*   scheddname;
+	Database*	DBObj;
+	dbtype dt;
 };
 
 bool isHorizontalClusterAttribute(const char *attr);

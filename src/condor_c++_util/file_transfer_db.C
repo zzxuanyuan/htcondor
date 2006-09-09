@@ -98,7 +98,7 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	snprintf(tmp, 512, "dst_path = \"%s\"", dst_path);
 	tmpClP1->Insert(tmp);
 
-	snprintf(tmp, 512, "size = %d", (int)rp->bytes);
+	snprintf(tmp, 512, "transfer_size = %d", (int)rp->bytes);
 	tmpClP1->Insert(tmp);
 
 	snprintf(tmp, 512, "elapsed = %d", (int)rp->elapsed);

@@ -205,13 +205,12 @@ ULogEvent::
 ULogEvent()
 {
 	struct tm *tm;
-	time_t     clock;
 
 	eventNumber = (ULogEventNumber) - 1;
 	cluster = proc = subproc = -1;
 
-	(void) time ((time_t *)&clock);
-	tm = localtime ((time_t *)&clock);
+	(void) time ((time_t *)&eventclock);
+	tm = localtime ((time_t *)&eventclock);
 	eventTime = *tm;
 }
 
@@ -1137,7 +1136,6 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
 	char tmp[1024];
-	char eventts[100];
 	int retval;
 
 	snprintf(messagestr,  512, "Remote %s from %s on %s",
@@ -1153,16 +1151,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	if(!critical_error) error_type = "Warning";
 
 	if (critical_error) {
-		snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-				eventTime.tm_year+1900,
-				eventTime.tm_mon+1,
-				eventTime.tm_mday,
-				eventTime.tm_hour,
-				eventTime.tm_min,
-				eventTime.tm_sec,
-				my_timezone(eventTime.tm_isdst));		
-		
-		snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+		snprintf(tmp, 1024, "endts = %d", (int)eventclock);
 		tmpClP1->Insert(tmp);		
 		
 		snprintf(tmp, 1024, "endtype = %d", ULOG_REMOTE_ERROR);
@@ -1176,7 +1165,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		  tmpClP2->Insert(tmp);
 		}
   
-		snprintf(tmp, 1024, "cluster = %d", cluster);
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
 		tmpClP2->Insert(tmp);
 
 		snprintf(tmp, 1024, "proc = %d", proc);
@@ -1200,22 +1189,13 @@ RemoteErrorEvent::writeEvent(FILE *file)
 			}		
 		}
 
-	} else {
-		
-		snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-				eventTime.tm_year+1900,
-				eventTime.tm_mon+1,
-				eventTime.tm_mday,
-				eventTime.tm_hour,
-				eventTime.tm_min,
-				eventTime.tm_sec,
-				my_timezone(eventTime.tm_isdst));		
+	} else {		
 		if (scheddname) {	
 		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 		  tmpClP1->Insert(tmp);		
 		}
 
-		snprintf(tmp, 1024, "cluster = %d", cluster);
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
 		tmpClP1->Insert(tmp);		
 
 		snprintf(tmp, 1024, "proc = %d", proc);
@@ -1227,7 +1207,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		snprintf(tmp, 1024, "eventtype = %d", ULOG_REMOTE_ERROR);
 		tmpClP1->Insert(tmp);
 		
-		snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+		snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 		tmpClP1->Insert(tmp);	
 		
 		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -1426,7 +1406,6 @@ writeEvent (FILE *file)
   ClassAd tmpCl1, tmpCl2, tmpCl3;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2, *tmpClP3 = &tmpCl3;
   char tmp[512];
-  char eventts[100];
   int retval;
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
@@ -1464,16 +1443,7 @@ writeEvent (FILE *file)
     strcpy(executehostname, executeHost);
   }
 
-  snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-		  eventTime.tm_year+1900,
-		  eventTime.tm_mon+1,
-		  eventTime.tm_mday,
-		  eventTime.tm_hour,
-		  eventTime.tm_min,
-		  eventTime.tm_sec,
-		  my_timezone(eventTime.tm_isdst));
-
-  snprintf(tmp, 512, "endts = \"%s\"", eventts);
+  snprintf(tmp, 512, "endts = %d", (int)eventclock);
   tmpClP1->Insert(tmp);
 
   snprintf(tmp, 512, "endtype = -1");
@@ -1487,7 +1457,7 @@ writeEvent (FILE *file)
     tmpClP2->Insert(tmp);
   } 
 
-  snprintf(tmp, 512, "cluster = %d", cluster);
+  snprintf(tmp, 512, "cluster_id = %d", cluster);
   tmpClP2->Insert(tmp);
 
   snprintf(tmp, 512, "proc = %d", proc);
@@ -1514,7 +1484,7 @@ writeEvent (FILE *file)
     tmpClP3->Insert(tmp);
   }
 
-  snprintf(tmp, 512, "cluster = %d", cluster);
+  snprintf(tmp, 512, "cluster_id = %d", cluster);
   tmpClP3->Insert(tmp);
   
   snprintf(tmp, 512, "proc = %d", proc);
@@ -1523,7 +1493,7 @@ writeEvent (FILE *file)
   snprintf(tmp, 512, "spid = %d", subproc);
   tmpClP3->Insert(tmp);
 
-  snprintf(tmp, 512, "startts = \"%s\"", eventts);
+  snprintf(tmp, 512, "startts = %d", (int)eventclock);
   tmpClP3->Insert(tmp);
 
   if(FILEObj) {
@@ -1619,23 +1589,13 @@ writeEvent (FILE *file)
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
 	char tmp[1024];
-	char eventts[100];
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
-		
-	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+	snprintf(tmp, 1024, "endts = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);		
 		
 	snprintf(tmp, 1024, "endtype = %d", ULOG_EXECUTABLE_ERROR);
@@ -1649,7 +1609,7 @@ writeEvent (FILE *file)
 	  tmpClP2->Insert(tmp);
 	}
   
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP2->Insert(tmp);
 
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -1771,8 +1731,6 @@ writeEvent (FILE *file)
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
-	char eventts[100];
-	int retval;
 
 	sprintf(messagestr,  "Job was checkpointed");
 
@@ -1781,21 +1739,12 @@ writeEvent (FILE *file)
 	if(scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
-		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -1807,7 +1756,7 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "eventtype = %d", ULOG_CHECKPOINTED);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);	
 	
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -2073,7 +2022,6 @@ JobEvictedEvent::writeEvent( FILE *file )
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
   char tmp[1024];
-  char eventts[100];
   
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
@@ -2171,16 +2119,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   if (scheddname)
     dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
   
-  snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-		  eventTime.tm_year+1900,
-		  eventTime.tm_mon+1,
-		  eventTime.tm_mday,
-		  eventTime.tm_hour,
-		  eventTime.tm_min,
-		  eventTime.tm_sec,
-		  my_timezone(eventTime.tm_isdst));		
-		
-  snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+  snprintf(tmp, 1024, "endts = %d", (int)eventclock);
   tmpClP1->Insert(tmp);		
 		
   snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_EVICTED);
@@ -2203,7 +2142,7 @@ JobEvictedEvent::writeEvent( FILE *file )
     tmpClP2->Insert(tmp);
   }
   
-  snprintf(tmp, 1024, "cluster = %d", cluster);
+  snprintf(tmp, 1024, "cluster_id = %d", cluster);
   tmpClP2->Insert(tmp);
 
   snprintf(tmp, 1024, "proc = %d", proc);
@@ -2392,8 +2331,6 @@ writeEvent (FILE *file)
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
-	char eventts[100];
-	int retval;
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in JobAbortedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
@@ -2406,20 +2343,12 @@ writeEvent (FILE *file)
 	else 
 		sprintf(messagestr,  "Job was aborted by the user");
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
 	if(scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -2431,7 +2360,7 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_ABORTED);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);	
 	
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -2563,7 +2492,6 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
   char tmp[1024];
-  char eventts[100];
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
@@ -2626,15 +2554,6 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s",
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));
-
 	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
 	
@@ -2649,7 +2568,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	  tmpClP2->Insert(tmp);	
 	}
 
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP2->Insert(tmp);
 
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -2658,7 +2577,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP2->Insert(tmp);
 	
-	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+	snprintf(tmp, 1024, "endts = %d", (int)eventclock);
 	tmpClP2->Insert(tmp);
 
 	if (FILEObj) {
@@ -2761,8 +2680,6 @@ JobTerminatedEvent::writeEvent (FILE *file)
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
   char tmp[512];
-  char eventts[100];
-  int retval;
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
@@ -2772,16 +2689,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
   if (scheddname)
     dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-  snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s",
-		  eventTime.tm_year+1900,
-		  eventTime.tm_mon+1,
-		  eventTime.tm_mday,
-		  eventTime.tm_hour,
-		  eventTime.tm_min,
-		  eventTime.tm_sec,
-		  my_timezone(eventTime.tm_isdst));
-  
-  snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+  snprintf(tmp, 1024, "endts = %d", (int)eventclock);
   tmpClP1->Insert(tmp);
   
   snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_TERMINATED);
@@ -2792,7 +2700,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
     tmpClP2->Insert(tmp);	
   }
   
-  snprintf(tmp, 1024, "cluster = %d", cluster);
+  snprintf(tmp, 1024, "cluster_id = %d", cluster);
   tmpClP2->Insert(tmp);
   
   snprintf(tmp, 1024, "proc = %d", proc);
@@ -3040,8 +2948,6 @@ writeEvent (FILE *file)
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
 	char tmp[1024];
-	char eventts[100];
-	int retval;
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
@@ -3054,17 +2960,8 @@ writeEvent (FILE *file)
 	if  (messagestr[strlen(messagestr)-1] == '\n')
 		messagestr[strlen(messagestr)-1] = '\0';
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
-	
 	if (began_execution) {
-		snprintf(tmp, 1024, "endts = \"%s\"", eventts);
+		snprintf(tmp, 1024, "endts = %d", (int)eventclock);
 		tmpClP1->Insert(tmp);		
 		
 		snprintf(tmp, 1024, "endtype = %d", ULOG_SHADOW_EXCEPTION);
@@ -3084,7 +2981,7 @@ writeEvent (FILE *file)
 			tmpClP2->Insert(tmp);
 		}
   
-		snprintf(tmp, 1024, "cluster = %d", cluster);
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
 		tmpClP2->Insert(tmp);
 
 		snprintf(tmp, 1024, "proc = %d", proc);
@@ -3108,7 +3005,7 @@ writeEvent (FILE *file)
 			tmpClP1->Insert(tmp);		
 		}
 		
-		snprintf(tmp, 1024, "cluster = %d", cluster);
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
 		tmpClP1->Insert(tmp);	
 
 		snprintf(tmp, 1024, "proc = %d", proc);
@@ -3120,7 +3017,7 @@ writeEvent (FILE *file)
 		snprintf(tmp, 1024, "eventtype = %d", ULOG_SHADOW_EXCEPTION);
 		tmpClP1->Insert(tmp);
 
-		snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+		snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 		tmpClP1->Insert(tmp);	
 	
 		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -3228,8 +3125,6 @@ writeEvent (FILE *file)
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
-	char eventts[100];
-	int retval;
 
 	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
 	
@@ -3238,21 +3133,12 @@ writeEvent (FILE *file)
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));
-		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -3264,7 +3150,7 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_SUSPENDED);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);	
 	
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -3337,8 +3223,6 @@ writeEvent (FILE *file)
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
-	char eventts[100];
-	int retval;
 
 	sprintf(messagestr, "Job was unsuspended");
 	
@@ -3347,21 +3231,12 @@ writeEvent (FILE *file)
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
-		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -3373,7 +3248,7 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_UNSUSPENDED);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);	
 	
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -3521,8 +3396,6 @@ JobHeldEvent::writeEvent( FILE *file )
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
-	char eventts[100];
-	int retval;
 
 	if (reason)
 		snprintf(messagestr, 512, "Job was held: %s", reason);
@@ -3534,21 +3407,12 @@ JobHeldEvent::writeEvent( FILE *file )
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
-		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -3560,7 +3424,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_HELD);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);	
 	
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
@@ -3708,8 +3572,6 @@ JobReleasedEvent::writeEvent( FILE *file )
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
-	char eventts[100];
-	int retval = 0;
 
 	if (reason)
 		snprintf(messagestr, 512, "Job was released: %s", reason);
@@ -3721,21 +3583,12 @@ JobReleasedEvent::writeEvent( FILE *file )
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			my_timezone(eventTime.tm_isdst));		
-		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
 	}
 	
-	snprintf(tmp, 1024, "cluster = %d", cluster);
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
 	snprintf(tmp, 1024, "proc = %d", proc);
@@ -3747,7 +3600,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_RELEASED);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
 	tmpClP1->Insert(tmp);	
 	
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);

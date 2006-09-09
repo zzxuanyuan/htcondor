@@ -26,40 +26,38 @@
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "daemon.h"
-
 #include "jobqueuedbmanager.h"
 #include "quill_enums.h"
 
-#define MAXLOGNUM 7
-#define MAXLOGPATHLEN 100
+#define CONDOR_TT_MAXLOGNUM 7
+#define CONDOR_TT_MAXLOGPATHLEN 100
 
-//! TTManager
-/*! \brief this class orchestrates TT's log writing code
+// TTManager
+/* This class implements TT's SQL log parsing and database updating logic
  */
 class TTManager : public Service
 {
  public:
-		//! constructor	
 	TTManager();
 	
-		//! destructor	
 	~TTManager();
 	
-		//! read all config options from condor_config file. 
-		//! Also create class members instead of doing it in the constructor
+		// read all config options from condor_config file. 
+		// Also create class members instead of doing it in the constructor
 	void    config(bool reconfig = false);
 
-		//! register all timer handlers
+		// register all timer handlers
 	void	registerTimers();
 	
-		//! timer handler for maintaining job queue and sending SCHEDD_AD to collector
-	void	pollingTime();	
+		// timer handler for maintaining job queue
+	void	pollingTime();
+
  private:
 
 		// top level maintain function
 	void     maintain();
 
-		// general event log maintain function (non-transactional data)
+		// general event log processing function (non-transactional data)
 	QuillErrCode event_maintain();
 		// xml log maintain function
 	QuillErrCode xml_maintain();
@@ -67,36 +65,44 @@ class TTManager : public Service
 		// check and throw away big files
 	void    checkAndThrowBigFiles();
 
-		//! create the QUILL_AD that's sent to the collector
+		// create the QUILL_AD that's sent to the collector
 	void     createQuillAd(void);
 
-		//! update the QUILL_AD's dynamic attributes
+		// update the QUILL_AD's dynamic attributes
 	void     updateQuillAd(void);
 
+		// database updating functions for various tables
 	QuillErrCode insertMachines(AttrList *ad);
 	QuillErrCode insertEvents(AttrList *ad);
 	QuillErrCode insertFiles(AttrList *ad);
 	QuillErrCode insertFileusages(AttrList *ad);
 	QuillErrCode insertHistoryJob(AttrList *ad);
 	QuillErrCode insertBasic(AttrList *ad, char *tableName);
-	QuillErrCode updateBasic(AttrList *info, AttrList *condition, char *tableName);
+	QuillErrCode updateBasic(AttrList *info, AttrList *condition, 
+							 char *tableName);
 	QuillErrCode insertScheddAd(AttrList *ad);
 	QuillErrCode insertMasterAd(AttrList *ad);
 	QuillErrCode insertNegotiatorAd(AttrList *ad);
+	QuillErrCode insertRuns(AttrList *ad);
 
-	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
-	char    sqlLogCopyList[MAXLOGNUM+1][MAXLOGPATHLEN]; // 1 more file for "thrown" file
+	char    sqlLogList[CONDOR_TT_MAXLOGNUM][CONDOR_TT_MAXLOGPATHLEN];
+
+		/* Adding 1 more to the copy list below for a special "thrown" log 
+		   which records events when a log is thrown away because it's size 
+		   exceeds a limit. 
+		*/
+	char    sqlLogCopyList[CONDOR_TT_MAXLOGNUM+1][CONDOR_TT_MAXLOGPATHLEN];
 	int     numLogs;
         
-	int		pollingTimeId;			//!< timer handler id of pollingTime function
-	int		pollingPeriod;			//!< polling time period in seconds
+	int		pollingTimeId;		   // timer handler id of pollingTime function
+	int		pollingPeriod;		   // polling time period in seconds
 
 	CollectorList   *collectors;
 	ClassAd         *ad;
 
 	Database* DBObj;
 	JobQueueDBManager jqDBManager;
-	const char*	jobQueueDBConn;  		//!< DB connection string
+	dbtype dt;
 };
 
 #endif /* _TTMANAGER_H_ */

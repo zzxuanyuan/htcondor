@@ -26,7 +26,6 @@
 #include "condor_common.h"
 #include "sqlquery.h"
 #include "quill_enums.h"
-#include "libpq-fe.h"
 
 class Database;
 

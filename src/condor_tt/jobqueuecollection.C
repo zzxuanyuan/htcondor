@@ -27,6 +27,14 @@
 #include "get_daemon_name.h"
 #include "condor_config.h"
 #include "misc_utils.h"
+#include "database.h"
+#include "condor_ttdb.h"
+
+static int typeOf(char *attName);
+
+#define CONDOR_TT_TYPE_STRING    1
+#define CONDOR_TT_TYPE_NUMBER    2
+#define CONDOR_TT_TYPE_TIMESTAMP 3
 
 //! constructor
 JobQueueCollection::JobQueueCollection(int iBucketNum)
@@ -49,11 +57,6 @@ JobQueueCollection::JobQueueCollection(int iBucketNum)
 
 	pCurBucket = NULL;
 	bChained = false;
-
-	ClusterAd_H_CopyStr = NULL;
-	ClusterAd_V_CopyStr = NULL;
-	ProcAd_H_CopyStr = NULL;
-	ProcAd_V_CopyStr = NULL;	
 
 	tmp = param( "SCHEDD_NAME" );
 	if( tmp ) {
@@ -90,12 +93,16 @@ JobQueueCollection::~JobQueueCollection()
 
 	delete[] _ppClusterAdBucketList;
 	delete[] _ppProcAdBucketList;
+}
 
-		// free temporarily used COPY string buffers
-	if (ClusterAd_H_CopyStr != NULL) free(ClusterAd_H_CopyStr);
-	if (ClusterAd_V_CopyStr != NULL) free(ClusterAd_V_CopyStr);
-	if (ProcAd_H_CopyStr != NULL) free(ProcAd_H_CopyStr);
-	if (ProcAd_V_CopyStr != NULL) free(ProcAd_V_CopyStr);
+void JobQueueCollection::setDBObj(Database *DBObj)
+{
+	this->DBObj = DBObj;
+}
+
+void JobQueueCollection::setDBtype(dbtype dt)
+{
+	this->dt = dt;
 }
 
 //! find a ProcAd
@@ -398,106 +405,32 @@ JobQueueCollection::initAllJobAdsIteration()
 	curClusterAdIterateIndex = 0; // that of ClusterAd List
 	pCurBucket = NULL;
 	bChained = false;
-
-	if (ClusterAd_H_CopyStr != NULL) {
-		free(ClusterAd_H_CopyStr);
-		ClusterAd_H_CopyStr = NULL;
-	}
-
-	if (ClusterAd_V_CopyStr != NULL) {
-		free(ClusterAd_V_CopyStr);
-		ClusterAd_V_CopyStr = NULL;
-	}
-
-	if (ProcAd_H_CopyStr != NULL) {
-		free(ProcAd_H_CopyStr);
-		ProcAd_H_CopyStr = NULL;
-	}
-
-	if (ProcAd_V_CopyStr != NULL) {
-		free(ProcAd_V_CopyStr);
-		ProcAd_V_CopyStr = NULL;
-	}
 }
 
-//! get the next COPY string for ClusterAd_Horizontal table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextClusterAd_H_CopyStr()
+// load the next cluster ad
+bool JobQueueCollection::loadNextClusterAd(QuillErrCode &errStatus)
 {
-	if (ClusterAd_H_CopyStr != NULL) {
-		free(ClusterAd_H_CopyStr);
-		ClusterAd_H_CopyStr = NULL;
-	}
-
-	getNextAdCopyStr(true, curClusterAdIterateIndex, _ppClusterAdBucketList, ClusterAd_H_CopyStr);
-
-	return ClusterAd_H_CopyStr;
+	return loadNextAd(curClusterAdIterateIndex, _ppClusterAdBucketList, 
+					  errStatus);
 }
 
-//! get the next COPY string for ClusterAd_Vertical table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextClusterAd_V_CopyStr()
+// load the next ProcAd
+bool JobQueueCollection::loadNextProcAd(QuillErrCode &errStatus)
 {
-	if (ClusterAd_V_CopyStr != NULL) {
-		free(ClusterAd_V_CopyStr);
-		ClusterAd_V_CopyStr = NULL;
-	}
-
-	getNextAdCopyStr(false, curClusterAdIterateIndex, _ppClusterAdBucketList, ClusterAd_V_CopyStr);
-	return ClusterAd_V_CopyStr;
+	return loadNextAd(curProcAdIterateIndex, _ppProcAdBucketList, 
+					  errStatus);
 }
 
-//! get the next COPY string for ProcAd_Horizontal table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextProcAd_H_CopyStr()
-{
-	if (ProcAd_H_CopyStr != NULL) {
-		free(ProcAd_H_CopyStr);
-		ProcAd_H_CopyStr = NULL;
-	}
-
-	getNextAdCopyStr(true, curProcAdIterateIndex, _ppProcAdBucketList, ProcAd_H_CopyStr);
-	return ProcAd_H_CopyStr;
-}
-
-//! get the next COPY string for ProcAd_Vertical table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextProcAd_V_CopyStr()
-{
-	if (ProcAd_V_CopyStr != NULL) {
-		free(ProcAd_V_CopyStr);
-		ProcAd_V_CopyStr = NULL;
-	}
-
-	getNextAdCopyStr(false, curProcAdIterateIndex, _ppProcAdBucketList, ProcAd_V_CopyStr);
-	return ProcAd_V_CopyStr;
-}
-
-
-
-void
-JobQueueCollection::getNextAdCopyStr(bool bHor, 
-									 int& index, 
-									 ClassAdBucket **ppBucketList, 
-									 char*& ret_str)
+bool
+JobQueueCollection::loadNextAd(int& index, 
+							   ClassAdBucket **ppBucketList, 
+							   QuillErrCode &errStatus)
 {	
   // index is greater than the last index of bucket list?
   // we cant call it quits if there's another chained ad after this
   // and its the last bucket -- ameet
 	if (index == _iBucketSize && !bChained) {
-		if (ret_str != NULL) { 
-			free(ret_str);
-			ret_str = NULL;
-		}
-		return;
+		return FALSE;
 	}
 		 
 	if (bChained == false) { 
@@ -505,11 +438,7 @@ JobQueueCollection::getNextAdCopyStr(bool bHor,
 		
 		while (pCurBucket == NULL) {
 			if (index == _iBucketSize) {
-				if (ret_str != NULL) { 
-					free(ret_str);
-					ret_str = NULL;
-				}
-				return;
+				return FALSE;
 			}
 			pCurBucket = ppBucketList[index++];
 		}
@@ -525,58 +454,49 @@ JobQueueCollection::getNextAdCopyStr(bool bHor,
 		bChained = false;
 	}
 
-	// making a COPY string for this ClassAd
-	makeCopyStr(bHor, pCurBucket->cid, 
-					  pCurBucket->pid, 
-					  pCurBucket->ad, 
-				ret_str);
+	// load this class ad
+	errStatus = loadAd(pCurBucket->cid, 
+					   pCurBucket->pid, 
+					   pCurBucket->ad);
+
+	return TRUE;
 }
 
-void 
-JobQueueCollection::makeCopyStr(bool bHor, 
-								char* cid, 
-								char* pid, 
-								ClassAd* ad, 
-								char*& ret_str)
+QuillErrCode 
+JobQueueCollection::loadAd(char* cid, 
+						   char* pid, 
+						   ClassAd* ad)
 {
-	char* 	line_str = NULL;
-
+	char*  sql_str;
 	AssignOpBase*	expr;		// For Each Attribute in ClassAd
 	VariableBase* 	nameExpr;	// For Attribute Name
 	StringBase* 	valExpr;	// For Value
 	char name[1000];
 	char *value = NULL;
-
-	char *jobstatus = (char *) 0;
-	char *imagesize = (char *) 0;
-	char *remoteusercpu = (char *) 0;
-	char *remotewallclocktime = (char *) 0;
-	char *remotehost = (char *) 0;
-	char *globaljobid = (char *) 0;
-	char *owner = (char *) 0;
-	char *jobprio = (char *) 0;
-	char *qdate = (char *) 0;
-	char *cmd = (char *) 0;
-	char *args = (char *) 0;
 	int len;
+	char* attNameList = NULL, *attValList = NULL;
+	char* tmpVal = NULL;
 
-		// init of returned string
-	if (ret_str != NULL) {
-		free(ret_str);
-		ret_str = NULL;
+		// first generate the key columns
+	if (pid != NULL) {
+		attNameList = (char *) malloc (50);
+		attValList = (char *) malloc (strlen(scheddname) +
+									  strlen(cid) + strlen(pid) + 10); 
+		sprintf(attNameList, "(scheddname, cluster_id, proc");
+		sprintf(attValList, "('%s', %s, %s", scheddname, cid, pid);
+	} else {
+		attNameList = (char *) malloc (50);
+		attValList = (char *) malloc (strlen(scheddname) +
+									  strlen(cid) + 10); 
+		sprintf(attNameList, "(scheddname, cluster_id");
+		sprintf(attValList, "('%s', %s", scheddname, cid);		
 	}
 
 	ad->ResetExpr(); // for iteration initialization
 
 	while((expr = (AssignOpBase*)(ad->NextExpr())) != NULL) {
-
 		nameExpr = (VariableBase*)expr->LArg(); // Name Express Tree
 		valExpr = (StringBase*)expr->RArg();	// Value Express Tree
-
-			// free the previous  value
-		if (value) {
-			free(value);
-		}
 
 		valExpr->PrintToNewStr(&value);
 
@@ -587,216 +507,180 @@ JobQueueCollection::makeCopyStr(bool bHor,
 		strcpy(name, "");
 		nameExpr->PrintToStr(name);		
 		
-			// loading horizontal part
-		if (bHor) {
-				// procad
-			if (pid != NULL) {
-				if(strcasecmp(name, "jobstatus") ==0) {
-					jobstatus = strdup(value);
-				} else if (strcasecmp(name, "imagesize") ==0) {
-					imagesize = strdup(value);
-				} else if (strcasecmp(name, "globaljobid") ==0) {
-					globaljobid = strdup(value);
-				} else if (strcasecmp(name, "remotewallclocktime") ==0) {
-					remotewallclocktime = strdup(value);
-				} else if (strcasecmp(name, "remoteusercpu") ==0) {
-					remoteusercpu = strdup(value);
-				} else if (strcasecmp(name, "jobprio") ==0) {
-					jobprio = strdup(value);
-				} else if (strcasecmp(name, "args") ==0) {
-					args = strdup(value);
-				} else if (strcasecmp(name, "remotehost") ==0) {
-					remotehost = strdup(value);
-				}
-			} else {  // cluster ad
-				if(strcasecmp(name, "jobstatus") ==0) {
-					jobstatus = strdup(value);
-				} else if (strcasecmp(name, "imagesize") ==0) {
-					imagesize = strdup(value);
-				} else if (strcasecmp(name, "remotewallclocktime") ==0) {
-					remotewallclocktime = strdup(value);
-				} else if (strcasecmp(name, "remoteusercpu") ==0) {
-					remoteusercpu = strdup(value);
-				} else if (strcasecmp(name, "owner") ==0) {
-					owner = strdup(value);
-				} else if (strcasecmp(name, "jobprio") ==0) {
-					jobprio = strdup(value);
-				} else if (strcasecmp(name, "qdate") ==0) {
-						// change the qdate value from seconds to date time format
-					time_t numsecs;
-					struct tm *tm;
-					char tmp[100];
-					
-					numsecs =  atoi(value);
-					tm = localtime((time_t *)&numsecs);
-					
-					snprintf(tmp, 100, "%d/%d/%d %02d:%02d:%02d %s", 
-							tm->tm_mon+1,
-							tm->tm_mday,
-							tm->tm_year+1900,
-							tm->tm_hour,
-							tm->tm_min,
-							tm->tm_sec,
-							my_timezone(tm->tm_isdst));
-
-					qdate = strdup(tmp);
-
-				} else if (strcasecmp(name, "cmd") ==0) {
-					cmd = strdup(value);
-				} else if (strcasecmp(name, "args") ==0) {
-					args = strdup(value);
-				}
-			}
-
-			continue;
-
-		} else { // loading vertical part
-				// procad
-			if (pid != NULL) {
-
-				if (isHorizontalProcAttribute(name)) {
-					continue;
-				}
-
-				len = strlen(name) + strlen(scheddname)
-					+ strlen(value) + strlen(cid) 
-					+ strlen(pid) + strlen("\t\t\t\t\n") + 1;
-				line_str = (char*)malloc(len * sizeof(char));
-				snprintf(line_str, len, "%s\t%s\t%s\t%s\t%s\n", scheddname,
-						 cid, pid, name, value); 				
-				
-			} else {	//cluster ad
-				if (isHorizontalClusterAttribute(name)) {
-					continue;
-				}
-
-				len = strlen(name) 
-					+ strlen(value) + strlen(cid) 
-					+ strlen(scheddname) + strlen("\t\t\t\n") + 1;
-				line_str = (char*)malloc(len * sizeof(char));
-				snprintf(line_str, len, "%s\t%s\t%s\t%s\n", scheddname,
-						 cid, name, value); 					
-			}
-		}
-
-			// concatenate the line to the ClassAd COPY string  
-		if (ret_str == NULL) {
-			len = strlen(line_str) + 1;
-			ret_str = (char*)malloc(len);
-			strncpy(ret_str, line_str, len);
-		}
-		else {
-			len = strlen(line_str) + 1;
-			ret_str = (char*)realloc(ret_str, 
-									 strlen(ret_str) + len);
-			strncat(ret_str, line_str, len);
-		}
-
-		free(line_str);
-		line_str = NULL;
-	}
-
-	if (value) {
-		free(value);
-	}
-
-	if (bHor) {
 			// procad
 		if (pid != NULL) {
-			len = strlen(scheddname) 
-				+ strlen(cid) + strlen(pid) 
-				+ (jobstatus?strlen(jobstatus):3) 
-				+ (imagesize?strlen(imagesize):3) 
-				+ (globaljobid?strlen(globaljobid):3) 
-				+ (remotewallclocktime?strlen(remotewallclocktime):3)
-				+ (remoteusercpu?strlen(remoteusercpu):3)
-				+ (remotehost?strlen(remotehost):3)
-				+ (jobprio?strlen(jobprio):3)
-				+ (args?strlen(args):3)				
-				+ strlen("\t\t\t\t\t\t\t\t\t\t\n") + 1;
-				line_str = (char*)malloc(len * sizeof(char));
-				snprintf(line_str, len, 
-						 "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", 
-						 scheddname,
-						 cid, pid, 
-						 jobstatus?jobstatus:"\\N", 
-						 imagesize?imagesize:"\\N", 
-						 remoteusercpu?remoteusercpu:"\\N", 
-						 remotewallclocktime?remotewallclocktime:"\\N", 
-						 remotehost?remotehost:"\\N", 
-						 globaljobid?globaljobid:"\\N",
-						 jobprio?jobprio:"\\N",
-						 args?args:"\\N");
-		} else {  // clusterad
-			len = strlen(scheddname) 
-				+ strlen(cid) 
-				+ (owner?strlen(owner):3) 
-				+ (jobstatus?strlen(jobstatus):3) 
-				+ (jobprio?strlen(jobprio):3) 
-				+ (imagesize?strlen(imagesize):3) 
-				+ (qdate?strlen(qdate):3)
-				+ (remoteusercpu?strlen(remoteusercpu):3)
-				+ (remotewallclocktime?strlen(remotewallclocktime):3)
-				+ (cmd?strlen(cmd):3)
-				+ (args?strlen(args):3) 
-				+ strlen("\t\t\t\t\t\t\t\t\t\t\n") + 1;
-			line_str = (char*)malloc(len * sizeof(char));
-			snprintf(line_str, len, 
-					"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", scheddname,
-					cid, owner?owner:"\\N", jobstatus?jobstatus:"\\N", 
-					jobprio?jobprio:"\\N", 
-					imagesize?imagesize:"\\N", qdate?qdate:"\\N", 
-					remoteusercpu?remoteusercpu:"\\N", 
-					remotewallclocktime?remotewallclocktime:"\\N", 
-					cmd?cmd:"\\N", args?args:"\\N");
+			if (isHorizontalProcAttribute(name)) {
+				attNameList = (char *) realloc (attNameList, 
+												strlen(attNameList) + 
+												strlen(name) + 5);
+				attValList = (char *) realloc (attValList, 
+											   strlen(attValList) + 
+											   strlen(value) + 8);
+				strcat(attNameList, ", ");
+				strcat(attNameList, name);
+
+				strcat(attValList, ", ");
+				tmpVal = (char  *) malloc(strlen(value) + 300);
+
+				switch (typeOf(name)) {				
+				case CONDOR_TT_TYPE_STRING:	
+					sprintf(tmpVal, "'%s'", value);
+					break;
+				case CONDOR_TT_TYPE_NUMBER:
+					sprintf(tmpVal, "%s", value);
+					break;
+				default:
+					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
+
+					free(attNameList);
+					free(attValList);	
+					free(value);
+					free(tmpVal);
+					return FAILURE;
+				}
+				strcat(attValList, tmpVal);
+				free(tmpVal);
+			} else {			
+					// this is a vertical attribute
+				len = 1024 + strlen(name) + strlen(scheddname) +
+					strlen(value) + strlen(cid) + strlen(pid);
+				sql_str = (char *) malloc(len);
+				snprintf(sql_str, len, "INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", 
+						 scheddname,cid, pid, name, value);
+
+				if (DBObj->execCommand(sql_str) == FAILURE) {
+					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
+					free(sql_str);
+					free(value);
+					free(attNameList);
+					free(attValList);
+					return FAILURE;
+				}
+				free (sql_str);
+			}
+		} else {  // cluster ad
+			if (isHorizontalClusterAttribute(name)) {
+				len = strlen(attNameList) + strlen(name) + 5;
+
+				attNameList = (char *) realloc (attNameList, 
+												len);
+
+				len = strlen(attValList) + strlen(value) + 8;
+
+				attValList = (char *) realloc (attValList, 
+											   len);
+				strcat(attNameList, ", ");
+				strcat(attNameList, name);
+
+				strcat(attValList, ", ");
+				tmpVal = (char  *) malloc(strlen(value) + 300);
+
+				switch (typeOf(name)) {				
+				case CONDOR_TT_TYPE_STRING:	
+					sprintf(tmpVal, "'%s'", value);
+					break;
+				case CONDOR_TT_TYPE_NUMBER:
+					sprintf(tmpVal, "%s", value);
+					break;
+				case CONDOR_TT_TYPE_TIMESTAMP:
+					time_t clock;
+					char *ts_expr;
+					clock = atoi(value);					
+					
+					ts_expr = condor_ttdb_buildts(&clock, dt);	
+
+					if (ts_expr == NULL) {
+						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
+						free(attNameList);
+						free(attValList);	
+						free(tmpVal);
+						free(value);
+						return FAILURE;
+					}
+					
+					sprintf(tmpVal, "%s", ts_expr);
+					free(ts_expr);	
+					
+						/* the converted timestamp value is longer, so realloc
+						   the buffer for attValList
+						*/
+					
+					len = strlen(attValList) + strlen(tmpVal) + 8;
+
+					attValList = (char *) realloc (attValList, len);
+
+					break;
+				default:
+					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
+					free(attNameList);
+					free(attValList);	
+					free(tmpVal);
+					free(value);
+					return FAILURE;
+				}
+				strcat(attValList, tmpVal);
+				free(tmpVal); 				
+			} else {
+					// this is a vertical attribute
+				len = 1024 + strlen(name) + strlen(scheddname) +
+					strlen(value) + strlen(cid);
+				sql_str = (char *) malloc(len);
+				snprintf(sql_str, len, "INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, value);
+
+				if (DBObj->execCommand(sql_str) == FAILURE) {
+					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
+					free(sql_str);
+					free(value);
+					free(attNameList);
+					free(attValList);
+					return FAILURE;
+				}
+				free (sql_str);
+			}
 		}
 
-		len = strlen(line_str) + 1;
-		ret_str = (char*)malloc(len * sizeof(char));
-		strncpy(ret_str, line_str, len);
-		free(line_str);
-		line_str = NULL;		
+		free(value);
+	} 
 
-		if(jobstatus) {
-			free(jobstatus);
-		}
+	strcat(attNameList, ")");
+    strcat(attValList, ")");
+	
+		// load the horizontal tuple
+		// procad
+	if (pid != NULL) {
+		len = 100 + strlen(attNameList) + strlen(attValList);
+		sql_str = (char *) malloc(len);
 
-		if(imagesize) {
-			free(imagesize);
-		}
+		snprintf(sql_str, len, "INSERT INTO ProcAds_Horizontal %s VALUES %s", attNameList, attValList);
 
-		if(remoteusercpu) {
-			free(remoteusercpu);
+		if (DBObj->execCommand(sql_str) == FAILURE) {
+			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
+			free(sql_str);
+			free(attNameList);
+			free(attValList);
+			return FAILURE;
 		}
+		free (sql_str);
+	} else {  // clusterad
+		len = 100 + strlen(attNameList) + strlen(attValList);
+		sql_str = (char *) malloc(len);
 
-		if(remotewallclocktime) {
-			free(remotewallclocktime);
-		}
+		snprintf(sql_str, len, "INSERT INTO ClusterAds_Horizontal %s VALUES %s", attNameList, attValList);
 
-		if(globaljobid) {
-			free(globaljobid);
+		if (DBObj->execCommand(sql_str) == FAILURE) {
+			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
+			free(sql_str);
+			free(attNameList);
+			free(attValList);
+			return FAILURE;
 		}
-
-		if(owner) {
-			free(owner);
-		}
-		
-		if(jobprio) {
-			free(jobprio);
-		}
-		
-		if(qdate) {
-			free(qdate);
-		}
-
-		if(cmd) {
-			free(cmd);
-		}
-
-		if(args) {
-			free(args);
-		}
+		free (sql_str);
 	}
+
+	free(attNameList);
+	free(attValList);
+
+	return SUCCESS;
 }
 
 bool isHorizontalHistoryAttribute(const char *attr) {
@@ -899,4 +783,30 @@ bool isHorizontalProcAttribute(const char *attr) {
   }
      
   return false;
+}
+
+static int 
+typeOf(char *attName)
+{
+	if (!(strcasecmp(attName, "remotehost") && 
+		  strcasecmp(attName, "globaljobid") &&
+		  strcasecmp(attName, "args") && 
+		  strcasecmp(attName, "owner") && 
+		  strcasecmp(attName, "cmd"))
+		)
+		return CONDOR_TT_TYPE_STRING;
+
+	if (!(strcasecmp(attName, "jobstatus") && 
+		  strcasecmp(attName, "imagesize") &&
+		  strcasecmp(attName, "remoteusercpu") && 
+		  strcasecmp(attName, "remotewallclocktime") &&
+		  strcasecmp(attName, "jobprio"))
+		)
+		return CONDOR_TT_TYPE_NUMBER;
+
+	if (!(strcasecmp(attName, "qdate"))
+		)
+		return CONDOR_TT_TYPE_TIMESTAMP;
+
+	return -1;
 }

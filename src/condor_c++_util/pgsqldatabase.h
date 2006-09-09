@@ -40,54 +40,38 @@ class PGSQLDatabase : public Database
 {
 public:
 	
-	PGSQLDatabase();
 	PGSQLDatabase(const char* connect);
 	~PGSQLDatabase();
 
+		// connection method
 	QuillErrCode         connectDB();
-	QuillErrCode		 connectDB(const char* connect);
 	QuillErrCode		 disconnectDB();
+    QuillErrCode         checkConnection();
+	QuillErrCode         resetConnection();
 
 		// General DB processing methods
 	QuillErrCode		 beginTransaction();
 	QuillErrCode 		 commitTransaction();
 	QuillErrCode 		 rollbackTransaction();
 
+		// update methods
 	QuillErrCode 	 	 execCommand(const char* sql, 
-									 int &num_result,
-									 int &db_err_code);
+									 int &num_result);
 	QuillErrCode 	 	 execCommand(const char* sql);
 
+		// query methods
 	QuillErrCode 	 	 execQuery(const char* sql);
-	QuillErrCode 	 	 execQuery(const char* sql, 
-								   PGresult*& result);
-	QuillErrCode 	 	 execQuery(const char* sql,
-								   int &num_result);
-	QuillErrCode 	 	 execQuery(const char* sql, 
-								   PGresult*& result,
-								   int &num_result);
-	const char*	         getValue(int row, int col);
+	QuillErrCode   		 fetchNext();
+	const char*	         getValue(int col);
+	int  				 getIntValue(int col);
 
 	QuillErrCode         releaseQueryResult();
-
-	char*		         getDBError();
-
-	QuillErrCode		 sendBulkData(char* data);
-	QuillErrCode		 sendBulkDataEnd();
-
-	QuillErrCode		 queryHistoryDB(SQLQuery *, SQLQuery *, 
-										bool, int&, int&);
-	QuillErrCode         releaseJobQueueResults();
-
-	const char*          getHistoryHorValue(int row, int col);
-	const char*          getHistoryVerValue(int row, int col);
-
-    QuillErrCode         checkConnection();
-	QuillErrCode         resetConnection();
-	int 				 getDatabaseVersion();
 private:
-	PGconn		         *connection;		//!< connection object
+	PGconn		         *connection;	//!< connection object
 	PGresult	         *queryRes; 	//!< result for general query
+	char				 *con_str;		//!< connection string
+	int 				  num_result;
+	int                   row_idx;
 };
 
 #endif /* _PGSQLDATABSE_H_ */

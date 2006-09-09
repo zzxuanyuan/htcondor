@@ -8,7 +8,7 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(TT_INC)
 LDFLAGS = $(STD_LDFLAGS) $(LIBCRYPT)
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(TT_LIB)
 
-OBJ = tt_main.o ttmanager.o jobqueuecollection.o jobqueuedbmanager.o
+OBJ = tt_main.o ttmanager.o jobqueuecollection.o jobqueuedbmanager.o condor_ttdb.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 release_target($(NAME),sbin,EXECUTABLE_MODE)

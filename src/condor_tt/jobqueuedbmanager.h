@@ -20,8 +20,8 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _JOBQUEUEDBMANAGER_H_
-#define _JOBQUEUEDBMANAGER_H_
+#ifndef _CONDOR_JOBQUEUEDBMANAGER_H_
+#define _CONDOR_JOBQUEUEDBMANAGER_H_
 
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
@@ -37,10 +37,6 @@
 class Prober;
 class ClassAdLogParser;
 class Database;
-
-#ifndef MAX_FIXED_SQL_STR_LENGTH
-#define MAX_FIXED_SQL_STR_LENGTH 2048
-#endif
 
 //! JobQueueDBManager
 /*! \brief this class orchestrates all of Quill.  
@@ -75,6 +71,7 @@ class JobQueueDBManager : public Service
 	Database* getJobQueueDBObj() { return DBObj; }
 	ClassAdLogParser* getClassAdLogParser();
 	const char* getScheddname() { return scheddname; }
+	dbtype getJobQueueDBType() { return dt; }
 
  private:
 		//
@@ -126,42 +123,32 @@ class JobQueueDBManager : public Service
 	QuillErrCode readAndWriteLogEntries();
 
 		//! is a wrapper over all the processXXX functions
-		//! in this and all the processXXX routines, if exec_later == true, 
-		//! a SQL string is returned instead of actually sending it to the DB.
-		//! However, we always have exec_later = false, which means it actually
-		//! writes to the database in an eager fashion
-	QuillErrCode processLogEntry(int op_type, bool exec_later);
+		//! in this and all the processXXX routines
+	QuillErrCode processLogEntry(int op_type);
 	QuillErrCode processNewClassAd(char* key, 
 									char* mytype, 
-									char* ttype, 
-									bool exec_later = false);
+									char* ttype);
 		//! in addition to deleting the classad, this routine is also 
 		//! responsible for maintaining the history tables.  Thanks to
 		//! this catch, we can get history for free, i.e. without having
 		//! to sniff the history file
-	QuillErrCode processDestroyClassAd(char* key, bool exec_later = false);
+	QuillErrCode processDestroyClassAd(char* key);
 	QuillErrCode processSetAttribute(char* key, 
 									  char* name, 
-									  char* value, 
-									  bool exec_later = false);
+									  char* value);
 	QuillErrCode processDeleteAttribute(char* key, 
-										char* name, 
-										bool exec_later = false);
-	QuillErrCode processBeginTransaction(bool exec_later = false);
-	QuillErrCode processEndTransaction(bool exec_later = false);
+										char* name);
+	QuillErrCode processBeginTransaction(bool exec_later);
+	QuillErrCode processEndTransaction(bool exec_later);
 
 		//! deletes all rows from all job queue related tables
 	QuillErrCode cleanupJobQueueTables();
 	
-		//! runs the postgres garbage collection and statistics 
-		//! collection routines on the job queue related tables
-	QuillErrCode tuneupJobQueueTables();
-
 		//! split key into cid and pid
 	JobIdType getProcClusterIds(const char* key, char* cid, char* pid);
 
 		//! utility routine to show database error mesage
-	void displayDBErrorMsg(const char* errmsg);
+	void displayErrorMsg(const char* errmsg);
 
 	void addJQPollingInfoSQL(char* dest, char* src_name, char* src_val);
 
@@ -177,12 +164,12 @@ class JobQueueDBManager : public Service
 	char*	jobQueueDBIpAddress;    //!< <IP:PORT> address of DB
 	char*	jobQueueDBName;         //!< DB Name
 	char*   jobQueueDBUser;
-	char*	multi_sql_str;	 //!< buffer for SQL
 	char*   scheddname;
+	dbtype  dt;
 };
 
 	//! escape quoted strings since postgres doesn't like 
 	//! unescaped single quotes
 char *   fillEscapeCharacters(char *str);
 
-#endif /* _JOBQUEUEDBMANAGER_H_ */
+#endif /* _CONDOR_JOBQUEUEDBMANAGER_H_ */

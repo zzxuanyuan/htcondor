@@ -26,14 +26,6 @@
 #include "pgsqldatabase.h"
 
 //! constructor
-PGSQLDatabase::PGSQLDatabase()
-{
-  connected = false;
-  con_str = NULL;
-  queryRes = NULL;  
-}
-
-//! constructor
 PGSQLDatabase::PGSQLDatabase(const char* connect)
 {
 	connected = false;
@@ -65,19 +57,12 @@ PGSQLDatabase::~PGSQLDatabase()
 }
 
 //! connect to DB
-QuillErrCode
-PGSQLDatabase::connectDB()
-{
-	return connectDB(con_str);
-}
-
-//! connect to DB
 /*! \param connect DB connect string
  */
 QuillErrCode
-PGSQLDatabase::connectDB(const char* connect)
+PGSQLDatabase::connectDB()
 {
-	if ((connection = PQconnectdb(connect)) == NULL)
+	if ((connection = PQconnectdb(con_str)) == NULL)
 	{
 		dprintf(D_ALWAYS, "Fatal error - unable to allocate connection to DB\n");
 		return FAILURE;
@@ -85,10 +70,13 @@ PGSQLDatabase::connectDB(const char* connect)
 	
 	if (PQstatus(connection) != CONNECTION_OK)
 		{
-			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", PQdb(connection));
+			char *dbname;
+			dbname = PQdb(connection);
+
+			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", dbname);
 		  	dprintf(D_ALWAYS, "%s", PQerrorMessage(connection));
 			
-			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", PQdb(connection));
+			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", dbname);
 			PQfinish(connection);
 			connection = NULL;
 			return FAILURE;
@@ -97,13 +85,6 @@ PGSQLDatabase::connectDB(const char* connect)
 	connected = true;
 	
 	return SUCCESS;
-}
-
-//! get a DBMS error message
-char*
-PGSQLDatabase::getDBError()
-{
-	return PQerrorMessage(connection);
 }
 
 //@ disconnect from DBMS
@@ -198,11 +179,11 @@ PGSQLDatabase::rollbackTransaction()
  */
 QuillErrCode 
 PGSQLDatabase::execCommand(const char* sql, 
-						   int &num_result,
-						   int &db_err_code)
+						   int &num_result)
 {
 	PGresult 	*result;
 	char*		num_result_str = NULL;
+	int         db_err_code;
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
@@ -243,10 +224,66 @@ PGSQLDatabase::execCommand(const char* sql,
 QuillErrCode 
 PGSQLDatabase::execCommand(const char* sql) 
 {
-	int num_result = 0, db_err_code = 0;
-	return execCommand(sql, num_result, db_err_code);
+	int num_result = 0;
+	return execCommand(sql, num_result);
 }
 
+/*
+QuillErrCode 
+PGSQLDatabase::execCommand(const char* sql, 
+						   int nParams,
+						   const dataType *paramTypes,
+						   const char * const *paramValues,
+						   const int *paramLengths,
+						   const int *paramFormats,
+						   int &num_result)
+{
+	PGresult 	*result;
+	char*		num_result_str = NULL;
+	int         db_err_code;
+
+	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
+
+	if ((result = PQexecParams(connection, sql, 
+						 nParams, NULL,
+						 paramValues,
+						 paramLengths,
+						 paramFormats,
+						 0)) == NULL)
+	{
+		dprintf(D_ALWAYS, 
+			"[SQL EXECUTION ERROR1] %s\n", PQerrorMessage(connection));
+		dprintf(D_ALWAYS, 
+			"[SQL: %s]\n", sql);
+		return FAILURE;
+	}
+	else if ((PQresultStatus(result) != PGRES_COMMAND_OK) &&
+			(PQresultStatus(result) != PGRES_COPY_IN)) {
+		dprintf(D_ALWAYS, 
+			"[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
+		dprintf(D_ALWAYS, 
+			"[SQL: %s]\n", sql);
+		db_err_code =  atoi(PQresultErrorField(result, PG_DIAG_SQLSTATE));
+		dprintf(D_ALWAYS, 
+			"[SQLERRORCODE: %d]\n", db_err_code);
+		PQclear(result);
+		return FAILURE;
+	}
+	else {
+		num_result_str = PQcmdTuples(result);
+		if (num_result_str != NULL) {
+			num_result = atoi(num_result_str);
+		}
+	}
+
+	if(result) {
+		PQclear(result);		
+		result = NULL;
+	}
+
+	return SUCCESS;
+}
+*/
 
 /*! execute a SQL query
  *
@@ -256,12 +293,10 @@ PGSQLDatabase::execCommand(const char* sql)
  *		It is PQcleared in case of error.
  */
 QuillErrCode
-PGSQLDatabase::execQuery(const char* sql, 
-						 PGresult*& result, 
-						 int &num_result)
+PGSQLDatabase::execQuery(const char* sql)
 {
 	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
-	if ((result = PQexec(connection, sql)) == NULL)
+	if ((queryRes = PQexec(connection, sql)) == NULL)
 	{
 		dprintf(D_ALWAYS, 
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
@@ -269,52 +304,62 @@ PGSQLDatabase::execQuery(const char* sql,
 			"[ERRONEOUS SQL: %s]\n", sql);
 		return FAILURE;
 	}
-	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
+	else if (PQresultStatus(queryRes) != PGRES_TUPLES_OK) {
 		dprintf(D_ALWAYS, 
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[ERRONEOUS SQL: %s]\n", sql);
-		if(result) {
-			PQclear(result);		
-			result = NULL;
+		if(queryRes) {
+			PQclear(queryRes);		
+			queryRes = NULL;
 		}
 
 		return FAILURE;
 	}
 
-	num_result = PQntuples(result);
+	num_result = PQntuples(queryRes);
+	row_idx = 0;
 
 	return SUCCESS;
 }
 
-QuillErrCode
-PGSQLDatabase::execQuery(const char* sql, 
-						 PGresult*& result) {
-	int num_result = 0;
-	return execQuery(sql, result, num_result);
-}
-
 //! execute a SQL query
 QuillErrCode
-PGSQLDatabase::execQuery(const char* sql, int &num_result) 
+PGSQLDatabase::fetchNext() 
 {
-	return execQuery(sql, queryRes, num_result);
-}
-
-//! execute a SQL query
-QuillErrCode
-PGSQLDatabase::execQuery(const char* sql) 
-{
-	int num_result = 0;
-	return execQuery(sql, queryRes, num_result);
+	if (row_idx < num_result) {
+		row_idx++;
+		return SUCCESS;
+	}
+	else {
+		return FAILURE;
+	}
 }
 
 //! get a result for the executed query
 const char*
-PGSQLDatabase::getValue(int row, int col)
+PGSQLDatabase::getValue(int col)
 {
-	return PQgetvalue(queryRes, row, col);
+	if (row_idx > num_result) {
+		dprintf(D_ALWAYS, "FATAL ERROR: no more rows to fetch\n");
+		return NULL;
+	} else {
+		return PQgetvalue(queryRes, row_idx-1, col);
+	}
 }
+
+//! get a result for the executed query as an integer
+int
+PGSQLDatabase::getIntValue(int col)
+{
+	if (row_idx > num_result) {
+		dprintf(D_ALWAYS, "FATAL ERROR: no more rows to fetch\n");
+		return 0; 
+	} else {
+		return atoi(PQgetvalue(queryRes, row_idx-1, col));
+	}
+}
+
 
 //! release the generic query result object
 QuillErrCode
@@ -325,55 +370,6 @@ PGSQLDatabase::releaseQueryResult()
 	}
 	
 	queryRes = NULL;
-
-	return SUCCESS;
-}
-
-//! put a bulk data into DBMS
-QuillErrCode
-PGSQLDatabase::sendBulkData(char* data)
-{
-  dprintf(D_FULLDEBUG, "bulk copy data = %s\n\n", data);
-  
-  if (PQputCopyData(connection, data, strlen(data)) <= 0)
-    {
-      dprintf(D_ALWAYS, 
-	      "[Bulk Data Sending ERROR] %s\n", PQerrorMessage(connection));
-      dprintf(D_ALWAYS, 
-	      "[Data: %s]\n", data);
-      return FAILURE;
-    }
-  
-  return SUCCESS;
-}
-
-//! put an end flag for bulk loading
-QuillErrCode
-PGSQLDatabase::sendBulkDataEnd()
-{
-	PGresult* result;
-
-	if (PQputCopyEnd(connection, NULL) < 0)
-	{
-		dprintf(D_ALWAYS, 
-			"[Bulk Data End Sending ERROR] %s\n", PQerrorMessage(connection));
-		return FAILURE;
-	}
-
-	
-	if ((result = PQgetResult(connection)) != NULL) {
-		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-			dprintf(D_ALWAYS, 
-				"[Bulk Last Data Sending ERROR] %s\n", PQerrorMessage(connection));
-			PQclear(result);
-			return FAILURE;
-		}
-	}
-
-	if(result) {
-		PQclear(result);		
-		result = NULL;
-	}
 
 	return SUCCESS;
 }
@@ -405,20 +401,5 @@ PGSQLDatabase::resetConnection()
 	else {
 		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
 		return FAILURE;
-	}
-}
-
-//! get the server version number, 
-//! -1 if connection is invalid
-int 
-PGSQLDatabase::getDatabaseVersion() 
-{
-	int pg_version_number = 0;   
-	pg_version_number = PQserverVersion(connection);
-	if(pg_version_number > 0) {
-		return pg_version_number;
-	}
-	else {
-		return -1;
 	}
 }

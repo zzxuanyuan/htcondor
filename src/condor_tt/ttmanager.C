@@ -43,21 +43,21 @@
 #include "database.h"
 #include "pgsqldatabase.h"
 #include "misc_utils.h"
-
-#define TIMELEN 60
+#include "condor_ttdb.h"
 
 char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", 
 						   "SHADOW_SQLLOG", "STARTER_SQLLOG", 
 						   "STARTD_SQLLOG", "SUBMIT_SQLLOG", 
 						   "COLLECTOR_SQLLOG", ""};
 
-#define FILESIZELIMT 1900000000L
-#define THROWFILE numLogs
-#define EVENTTYPEMAX 50
+#define CONDOR_TT_FILESIZELIMT 1900000000L
+#define CONDOR_TT_THROWFILE numLogs
+#define CONDOR_TT_EVENTTYPEMAXLEN 100
+#define CONDOR_TT_TIMELEN 60
 
-#define TYPE_STRING    1
-#define TYPE_NUMBER    2
-#define TYPE_TIMESTAMP 3
+#define CONDOR_TT_TYPE_STRING    1
+#define CONDOR_TT_TYPE_NUMBER    2
+#define CONDOR_TT_TYPE_TIMESTAMP 3
 
 static int attHashFunction (const MyString &str, int numBuckets);
 static int isHorizontalMachineAttr(char *attName);
@@ -121,32 +121,42 @@ TTManager::config(bool reconfig)
 				continue;
 			}
 				
-			strncpy(sqlLogList[numLogs], tmp, MAXLOGPATHLEN-5);
-			snprintf(sqlLogCopyList[numLogs], MAXLOGPATHLEN, "%s.copy", sqlLogList[numLogs]);
+			strncpy(sqlLogList[numLogs], tmp, CONDOR_TT_MAXLOGPATHLEN-5);
+			snprintf(sqlLogCopyList[numLogs], CONDOR_TT_MAXLOGPATHLEN, 
+					 "%s.copy", sqlLogList[numLogs]);
 			numLogs++;
 			free(tmp);
 		}		
 		i++;
 	}
 
-		/* add the default log file in case no log file is specified in config */
+		/* add the default log file in case no log file is specified in 
+		   config 
+		*/
 	tmp = param("LOG");
 	if (tmp) {
-		snprintf(sqlLogList[numLogs], MAXLOGPATHLEN-5, "%s/sql.log", tmp);
-		snprintf(sqlLogCopyList[numLogs], MAXLOGPATHLEN, "%s.copy", sqlLogList[numLogs]);
+		snprintf(sqlLogList[numLogs], CONDOR_TT_MAXLOGPATHLEN-5, 
+				 "%s/sql.log", tmp);
+		snprintf(sqlLogCopyList[numLogs], CONDOR_TT_MAXLOGPATHLEN, 
+				 "%s.copy", sqlLogList[numLogs]);
 	} else {
-		snprintf(sqlLogList[numLogs], MAXLOGPATHLEN-5, "sql.log");
-		snprintf(sqlLogCopyList[numLogs], MAXLOGPATHLEN, "%s.copy", sqlLogList[numLogs]);
+		snprintf(sqlLogList[numLogs], CONDOR_TT_MAXLOGPATHLEN-5, "sql.log");
+		snprintf(sqlLogCopyList[numLogs], CONDOR_TT_MAXLOGPATHLEN, 
+				 "%s.copy", sqlLogList[numLogs]);
 	}
 	numLogs++;
 
-		// the "thrown" file is for recording events where big files are thrown away
+		/* the "thrown" file is for recording events where big files are 
+		   thrown away
+		*/
 	if (tmp) {
-		snprintf(sqlLogCopyList[THROWFILE], MAXLOGPATHLEN, "%s/thrown.log", tmp);
+		snprintf(sqlLogCopyList[CONDOR_TT_THROWFILE], CONDOR_TT_MAXLOGPATHLEN,
+				 "%s/thrown.log", tmp);
 		free(tmp);
 	}
 	else {
-		snprintf(sqlLogCopyList[THROWFILE], MAXLOGPATHLEN, "thrown.log");
+		snprintf(sqlLogCopyList[CONDOR_TT_THROWFILE], CONDOR_TT_MAXLOGPATHLEN,
+				 "thrown.log");
 	}
 	
 		// read the polling period and if one is not specified use 
@@ -168,6 +178,7 @@ TTManager::config(bool reconfig)
 	jqDBManager.init();
 
 	DBObj = jqDBManager.getJobQueueDBObj();
+	dt = jqDBManager.getJobQueueDBType();
 }
 
 //! register all timer handlers
@@ -196,7 +207,6 @@ TTManager::pollingTime()
 		  until it's successful.
 		*/
 	maintain();
-
 
 	dprintf(D_ALWAYS, "++++++++ Sending Quill ad to collector ++++++++\n");
 
@@ -248,32 +258,36 @@ TTManager::maintain()
 	if (bothOk) {
 			// update the currency table
 		char 	sql_str[1024];
-		char    lastupdate[100];
-		struct tm *tm;
 		time_t clock;
 		int ret_st;
 		const char *scheddname;
+		char  *ts_expr;
 
 		(void)time(  (time_t *)&clock );
-		tm = localtime( (time_t *)&clock );	
+		ts_expr = condor_ttdb_buildts(&clock, dt);
+	
+		if (ts_expr == NULL) 
+			{
+				dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+				return;
+			}
 
-		snprintf(lastupdate, 100, "%d/%d/%d %02d:%02d:%02d %s", 
-				 tm->tm_mon+1,
-				 tm->tm_mday,
-				 tm->tm_year+1900,
-				 tm->tm_hour,
-				 tm->tm_min,
-				 tm->tm_sec,
-				 my_timezone(tm->tm_isdst));
-	
 		scheddname = jqDBManager.getScheddname();
-	
-		snprintf(sql_str, 1023, "UPDATE currency SET lastupdate = '%s' WHERE datasource = '%s';", lastupdate, scheddname);
+
+		snprintf(sql_str, 1023, "UPDATE currency SET lastupdate = %s WHERE datasource = '%s'", ts_expr, scheddname);
+
+		free(ts_expr);
 
 		ret_st = DBObj->execCommand(sql_str);
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
 		}
+
+		ret_st = DBObj->commitTransaction();
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "Commit transaction failed in TTManager::maintain\n");
+		}
+
 	}
 
 		// call the xml log maintain function
@@ -413,6 +427,7 @@ void TTManager::createQuillAd(void) {
 	if(quill_name) free(quill_name);
 	if(mysockname) free(mysockname);
 }
+
 QuillErrCode
 TTManager::event_maintain() 
 {
@@ -421,7 +436,7 @@ TTManager::event_maintain()
 
 	int  buflength=0;
 	bool firststmt = true;
-	char optype[7], eventtype[EVENTTYPEMAX];
+	char optype[7], eventtype[CONDOR_TT_EVENTTYPEMAXLEN];
 	AttrList *ad = 0, *ad1 = 0;
 	MyString *line_buf = 0;
 	
@@ -453,14 +468,9 @@ TTManager::event_maintain()
 		filesqlobj = NULL;
 	}
 
-		// check if connection is ok, if not, try to reset it now
-		// if connection still bad, don't bother processing the logs
-	if ((DBObj->checkConnection() == FAILURE) && 
-		(DBObj->resetConnection() == FAILURE)) {
-		goto DBERROR;
-	}
-
-		// notice we add 1 to numLogs because the last file is the special "thrown" file
+		/* process copies of event logs, notice we add 1 to numLogs because 
+		   the last file is the special "thrown" file
+		*/
 	for(i=0; i < numLogs+1; i++) {
 		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
 
@@ -510,30 +520,33 @@ TTManager::event_maintain()
 					goto ERROREXIT;
 				} 				
 
-				if (strcmp(eventtype, "Machines") == 0) {		
+				if (strcasecmp(eventtype, "Machines") == 0) {		
 					if  (insertMachines(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "Events") == 0) {
+				} else if (strcasecmp(eventtype, "Events") == 0) {
 					if  (insertEvents(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "Files") == 0) {
+				} else if (strcasecmp(eventtype, "Files") == 0) {
 					if  (insertFiles(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "Fileusages") == 0) {
+				} else if (strcasecmp(eventtype, "Fileusages") == 0) {
 					if  (insertFileusages(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "History") == 0) {
+				} else if (strcasecmp(eventtype, "History") == 0) {
 					if  (insertHistoryJob(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "ScheddAd") == 0) {
+				} else if (strcasecmp(eventtype, "ScheddAd") == 0) {
 					if  (insertScheddAd(ad) == FAILURE) 
 						goto DBERROR;	
-				} else if (strcmp(eventtype, "MasterAd") == 0) {
+				} else if (strcasecmp(eventtype, "MasterAd") == 0) {
 					if  (insertMasterAd(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcmp(eventtype, "NegotiatorAd") == 0) {
+				} else if (strcasecmp(eventtype, "NegotiatorAd") == 0) {
 					if  (insertNegotiatorAd(ad) == FAILURE) 
 						goto DBERROR;
+				} else if (strcasecmp(eventtype, "Runs") == 0) {
+					if  (insertRuns(ad) == FAILURE) 
+						goto DBERROR;					
 				} else {
 					if (insertBasic(ad, eventtype) == FAILURE) 
 						goto DBERROR;
@@ -609,12 +622,12 @@ TTManager::event_maintain()
 	if (ad)
 		delete ad;
 	
+	if (ad1) 
+		delete ad1;
+
 	return FAILURE;
 
  DBERROR:
-
-	dprintf(D_ALWAYS, "\t%s\n", DBObj->getDBError());
-
 	if(filesqlobj) {
 		delete filesqlobj;
 	}	
@@ -625,12 +638,17 @@ TTManager::event_maintain()
 	if (ad)
 		delete ad;
 
+	if (ad1) 
+		delete ad1;
+
 	// the failed transaction must be rolled back
 	// so that subsequent SQLs don't continue to fail
 	DBObj->rollbackTransaction();
 
+	this -> checkAndThrowBigFiles();
+
 	if (DBObj->checkConnection() == FAILURE) {
-		this -> checkAndThrowBigFiles();
+		DBObj->resetConnection();
 	}
 
 	return FAILURE;
@@ -639,14 +657,12 @@ TTManager::event_maintain()
 void TTManager::checkAndThrowBigFiles() {
 	struct stat file_status;
 	FILESQL *filesqlobj, *thrownfileobj;
-	char ascTime[150] = "";
-	int len;
 
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[512];
 
-	thrownfileobj = new FILESQL(sqlLogCopyList[THROWFILE]);
+	thrownfileobj = new FILESQL(sqlLogCopyList[CONDOR_TT_THROWFILE]);
 	thrownfileobj ->file_open();
 
 	int i;
@@ -654,15 +670,11 @@ void TTManager::checkAndThrowBigFiles() {
 		stat(sqlLogCopyList[i], &file_status);
 		
 			// if the file is bigger than the max file size, we throw it away 
-		if (file_status.st_size > FILESIZELIMT) {
+		if (file_status.st_size > CONDOR_TT_FILESIZELIMT) {
 			filesqlobj = new FILESQL(sqlLogCopyList[i], O_RDWR);
 			filesqlobj->file_open();
 			filesqlobj->file_truncate();
 			delete filesqlobj;
-
-			strcpy(ascTime,ctime(&file_status.st_mtime));
-			len = strlen(ascTime);
-			ascTime[len-1] = '\0';
 
 			snprintf(tmp, 512, "filename = \"%s\"", sqlLogCopyList[i]);
 			tmpClP1->Insert(tmp);		
@@ -673,7 +685,7 @@ void TTManager::checkAndThrowBigFiles() {
 			snprintf(tmp, 512, "size = %d", (int)file_status.st_size);
 			tmpClP1->Insert(tmp);		
 			
-			snprintf(tmp, 512, "throwtime = \"%s\"", ascTime);
+			snprintf(tmp, 512, "throwtime = %d", (int)file_status.st_mtime);
 			tmpClP1->Insert(tmp);				
 			
 			thrownfileobj->file_newEvent("Thrown", tmpClP1);
@@ -791,7 +803,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;
-	char *attName = NULL, *attVal, *attNameList = NULL, *attValList = NULL, *tmpVal = NULL;
+	char *attName = NULL, *attVal, *attNameList = NULL, 
+		*attValList = NULL, *tmpVal = NULL;
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
 	char *inlist = NULL;
@@ -802,7 +815,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// previous LastHeardFrom from the database's machine_classad
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
-	int	 ret_st, len, num_result=0;
+	int	 ret_st, len;
+	int  attr_type;
 
 	ad->sPrint(classAd);
 
@@ -829,44 +843,90 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 				   text type regardless what it's original data type is
 				*/
 			stripquotes(attVal);
-			
+	
+			attr_type = typeOf(attName);
+
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
 			else if (isHorizontalMachineAttr(attName)) {
+
 					// should go into machine_classad table
 				if (isFirst) {
 						//is the first in the list
 					isFirst = FALSE;
 					
-						/* 11 is the string length of "machine_id", 5 is for 
-						   the overhead for enclosing parenthesis
-						*/
-					attNameList = (char *) malloc (((strlen(attName) > 11)?
-													strlen(attName):11) + 5);
+					if (strcasecmp(attName, "lastheardfrom") == 0) {
+							/* for lastheardfrom, we want to store both 
+							   the epoch seconds and the string timestamp
+							   value. The epoch seconds is stored in a column
+							   named lastheardfrom_epoch.
+							*/
+						attNameList = (char *) malloc (2*strlen(attName) + 
+													   20);
+
+						attValList = (char *) malloc (strlen(attVal) + 200);
+
+						sprintf(attNameList, 
+								"(lastheardfrom, lastheardfrom_epoch");
+
+					} else {
+							/* 11 is the string length of "machine_id", 5 is 
+							   for the overhead for enclosing parenthesis
+							*/
+						attNameList = (char *) malloc (((strlen(attName) > 11)?
+														strlen(attName):11) 
+													   + 5);
 					
-						/* 80 is the extra length needed for converting a 
-						   seconds value to timestamp value, 7 is for the 
-						   overhead of enclosing parenthesis and quotes
-						*/
-					attValList = (char *) malloc (strlen(attVal) + 
-												  ((typeOf(attName) == 
-													TYPE_TIMESTAMP)?80:7));
+							/* 80 is the extra length needed for converting a 
+							   seconds value to timestamp value, 7 is for the 
+							   overhead of enclosing parenthesis and quotes
+							*/
 
-					sprintf(attNameList, "(%s", 
-							(strcasecmp(attName, ATTR_NAME) ? 
-												 attName : "machine_id") );
-					if (!strcasecmp(attName, ATTR_NAME))
-					    machine_id = attVal;
-					switch (typeOf(attName)) {
+						attValList = (char *) malloc (strlen(attVal) + 
+													  ((attr_type == 
+														CONDOR_TT_TYPE_TIMESTAMP)?120:7));
 
-					case TYPE_STRING:
+						if (strcasecmp(attName, ATTR_NAME) == 0) {
+							sprintf(attNameList, "(machine_id");
+							machine_id = attVal;
+						} else {
+							sprintf(attNameList, "(%s", attName);
+						}
+
+					}
+
+					switch (attr_type) {
+
+					case CONDOR_TT_TYPE_STRING:
 						sprintf(attValList, "('%s'", attVal);
 						break;
-					case TYPE_TIMESTAMP:
-						sprintf(attValList, "(('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					case CONDOR_TT_TYPE_TIMESTAMP:
+						time_t clock;
+						char *ts_expr;
+						clock = atoi(attVal);
+						
+						ts_expr = condor_ttdb_buildts(&clock, dt);
+
+						if (ts_expr == NULL) {
+							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+							if (attNameList) free(attNameList);
+							if (attValList) free(attValList);		 
+							if (inlist) free(inlist);					
+							return FAILURE;							
+						}
+
+						if (strcasecmp(attName, "lastheardfrom") == 0) {
+							sprintf(attValList, "(%s, %s", ts_expr, attVal);
+							snprintf(lastHeardFrom, 300, "%s", ts_expr);
+						} else {
+							sprintf(attValList, "(%s", ts_expr);
+						}
+
+						free(ts_expr);
+
 						break;
-					case TYPE_NUMBER:
+					case CONDOR_TT_TYPE_NUMBER:
 						sprintf(attValList, "(%s", attVal);
 						break;
 					default:
@@ -879,29 +939,75 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 					}
 				} else {
 						// is not the first in the list
-					
-					attNameList = (char *) realloc (attNameList, strlen(attNameList) + 
-													((strlen(attName) > 11)?strlen(attName):11) + 5);
-					attValList = (char *) realloc (attValList, strlen(attValList) + 
-												   strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:8));
+					if (strcasecmp(attName, "lastheardfrom") == 0) {
+						attNameList = (char *) realloc (attNameList, 
+														strlen(attNameList) + 
+														2*strlen(attName)+20);
+						attValList = (char *) realloc (attValList, 
+													   strlen(attValList) + 
+													   strlen(attVal) + 200);
 
-					strcat(attNameList, ", ");
-					strcat(attNameList, (strcasecmp(attName, ATTR_NAME) ? 
-										 attName : "machine_id"));
+						strcat(attNameList, ", ");
+						
+						strcat(attNameList, 
+							   "lastheardfrom, lastheardfrom_epoch");
+
+					} else {
+					
+						attNameList = (char *) realloc (attNameList, 
+														strlen(attNameList) + 
+														((strlen(attName) > 11)?strlen(attName):11) + 5);
+
+						attValList = (char *) realloc (attValList, 
+													   strlen(attValList) + 
+													   strlen(attVal) + 
+													   ((attr_type == CONDOR_TT_TYPE_TIMESTAMP)?120:8));
+
+						strcat(attNameList, ", ");
+
+						if (strcasecmp(attName, ATTR_NAME) == 0) {
+							strcat(attNameList, "machine_id");
+							machine_id = attVal;
+						} else {
+							strcat(attNameList, attName);
+						}
+					}
 
 					strcat(attValList, ", ");
 
-					tmpVal = (char  *) malloc(strlen(attVal) + 100);
+					tmpVal = (char  *) malloc(strlen(attVal) + 300);
 
-					switch (typeOf(attName)) {
+					switch (attr_type) {
 
-					case TYPE_STRING:
+					case CONDOR_TT_TYPE_STRING:
 						sprintf(tmpVal, "'%s'", attVal);
 						break;
-					case TYPE_TIMESTAMP:
-						sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					case CONDOR_TT_TYPE_TIMESTAMP:
+						time_t clock;
+						char *ts_expr;
+						clock = atoi(attVal);
+
+						ts_expr = condor_ttdb_buildts(&clock, dt);
+
+						if (ts_expr == NULL) {
+							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+							if (attNameList) free(attNameList);
+							if (attValList) free(attValList);		 
+							if (inlist) free(inlist);					
+							return FAILURE;							
+						}
+						
+						if (strcasecmp(attName, "lastheardfrom") == 0) {
+							sprintf(tmpVal, "%s, %s", ts_expr, attVal);
+							snprintf(lastHeardFrom, 300, "%s", ts_expr);
+						} else {
+							sprintf(tmpVal, "%s", ts_expr);
+						}
+
+						free(ts_expr);
+
 						break;
-					case TYPE_NUMBER:
+					case CONDOR_TT_TYPE_NUMBER:
 						sprintf(tmpVal, "%s", attVal);
 						break;
 					default:
@@ -917,7 +1023,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 					free(tmpVal);
 				}
 			} else {  // static attributes (go into Machine table)
-			        aName = attName;
+				aName = attName;
 				aVal = attVal;
 				// insert into new ClassAd too (since this needs to go into DB)
 				newClAd.insert(aName, aVal);
@@ -932,10 +1038,6 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 				}
 			}
 
-			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
-				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
-			}
-
 			free(attName);
 
 			iter = classAd.GetNextToken("\n", true);
@@ -945,13 +1047,13 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	if (attValList) strcat(attValList, ")");
 	if (inlist) strcat(inlist, ")");
 
-	len = 1024 + strlen(machine_id.Value()) + strlen(lastHeardFrom);
+	len = 4096 + strlen(machine_id.Value()) + strlen(lastHeardFrom);
 	sql_stmt = (char *) malloc (len);
 
 		// get the previous lastheardfrom from the database 
-	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
+	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
 
-	ret_st = DBObj->execQuery(sql_stmt, num_result);
+	ret_st = DBObj->execQuery(sql_stmt);
 	
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -959,16 +1061,18 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && num_result > 0) {
-		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
+		prevLHFInDB = atoi(DBObj->getValue(0));		
 	}
 	
+	DBObj->releaseQueryResult();
+
 		// set end time if the previous lastHeardFrom matches, otherwise
 		// leave it as NULL (by default)
 	if (prevLHFInDB == prevLHFInAd) {
-		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT *, %s FROM Machine_Classad WHERE machine_id = '%s')", lastHeardFrom, machine_id.Value());
+		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History(machine_id, opsys, arch, ckptserver, ckpt_server_host, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, ckptserver, ckpt_server_host, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machine_Classad WHERE machine_id = '%s'", lastHeardFrom, machine_id.Value());
 	} else {
-		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+		snprintf(sql_stmt, len, "INSERT INTO Machine_Classad_History (machine_id, opsys, arch, ckptserver, ckpt_server_host, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, ckptserver, ckpt_server_host, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
 	}
 	 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1023,9 +1127,9 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 // daemon has been shutdown for a while, we should move everything
 		 // into the machine_history (with a NULL end_time)!
 	 if (prevLHFInDB == prevLHFInAd) {
-		 snprintf(sql_stmt, len, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom, machine_id.Value(), inlist);
+		 snprintf(sql_stmt, len, "INSERT INTO Machine_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom, machine_id.Value(), inlist);
 	 } else {
-		 snprintf(sql_stmt, len, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
+		 snprintf(sql_stmt, len, "INSERT INTO Machine_History (machine_id, attr, val, start_time) SELECT machine_id, attr, val, start_time FROM Machine WHERE machine_id = '%s'", machine_id.Value());		 
 	 }
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1055,12 +1159,12 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 		 
-		 len = 1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
+		 len = 2048 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
 			 strlen(aVal.Value()) + strlen(lastHeardFrom);
 
 	 	 sql_stmt = (char *) malloc (len);
 
-		 snprintf(sql_stmt, len, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO Machine (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1069,7 +1173,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 			
-		 snprintf(sql_stmt, len, "INSERT INTO Machine_History SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO Machine_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1078,7 +1182,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 snprintf(sql_stmt, len, "UPDATE Machine SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "UPDATE Machine SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1112,7 +1216,8 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		// previous LastHeardFrom from the database's machine_classad
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
-	int	 ret_st, len, num_result=0;
+	int	 ret_st, len;
+	int  attr_type;
 
 		// first generate MyType='Scheduler' attribute
 	attNameList = (char *) malloc (20);
@@ -1140,14 +1245,12 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 				*/
 			stripquotes(attVal);
 
+			attr_type = typeOf(attName);
+
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
 
-			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
-				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
-			}
-			
 			if (strcasecmp(attName, ATTR_NAME) == 0) {
 				sprintf(daemonName, "%s", attVal);
 			}
@@ -1157,31 +1260,73 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 				   therefore we need to check both seperately.
 				*/
 			if (isHorizontalDaemonAttr(attName)) {
-				attNameList = (char *) realloc (attNameList, 
-												strlen(attNameList) + 
-												strlen(attName) + 5);
-				attValList = (char *) realloc (attValList, 
-											   strlen(attValList) + 
-											   strlen(attVal) + 
-											   ((typeOf(attName) == 
-												 TYPE_TIMESTAMP)?80:8));
 
-				strcat(attNameList, ", ");
-				strcat(attNameList, attName);
+				if (strcasecmp(attName, "lastheardfrom") == 0) {
+					attNameList = (char *) realloc (attNameList, 
+													strlen(attNameList) + 
+													2*strlen(attName)+20);
+
+					attValList = (char *) realloc (attValList, 
+												   strlen(attValList) + 
+												   strlen(attVal) + 200);
+					
+					strcat(attNameList, ", ");
+					
+					strcat(attNameList, 
+						   "lastheardfrom, lastheardfrom_epoch");
+					
+				} else {
+					attNameList = (char *) realloc (attNameList, 
+													strlen(attNameList) + 
+													strlen(attName) + 5);
+
+					attValList = (char *) realloc (attValList, 
+												   strlen(attValList) + 
+												   strlen(attVal) + 
+												   ((attr_type == 
+													 CONDOR_TT_TYPE_TIMESTAMP)?120:8));
+
+					strcat(attNameList, ", ");
+					strcat(attNameList, attName);
+				}
 
 				strcat(attValList, ", ");
 
-				tmpVal = (char  *) malloc(strlen(attVal) + 100);
+				tmpVal = (char  *) malloc(strlen(attVal) + 300);
 
-				switch (typeOf(attName)) {
+				switch (attr_type) {
 
-				case TYPE_STRING:
+				case CONDOR_TT_TYPE_STRING:
 					sprintf(tmpVal, "'%s'", attVal);
 					break;
-				case TYPE_TIMESTAMP:
-					sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+				case CONDOR_TT_TYPE_TIMESTAMP:
+					time_t clock;
+					char *ts_expr;
+					clock = atoi(attVal);
+
+					ts_expr = condor_ttdb_buildts(&clock, dt);	
+
+					if (ts_expr == NULL) {
+						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);	
+						if (attNameList2) free(attNameList2);
+						if (attValList2) free(attValList2);
+						if (inlist) free(inlist);					
+						return FAILURE;							
+					}
+
+					if (strcasecmp(attName, "lastheardfrom") == 0) { 
+						sprintf(tmpVal, "%s, %s", ts_expr, attVal);
+						snprintf(lastHeardFrom, 300, "%s", ts_expr);
+					} else {
+						sprintf(tmpVal, "%s", ts_expr);
+					}
+					
+					free(ts_expr);
+
 					break;
-				case TYPE_NUMBER:
+				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", attVal);
 					break;
 				default:
@@ -1212,20 +1357,39 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 						   overhead of enclosing parenthesis and quotes
 						*/
 					attValList2 = (char *) malloc (strlen(attVal) + 
-												   ((typeOf(attName) == 
-													 TYPE_TIMESTAMP)?80:7));
+												   ((attr_type == 
+													 CONDOR_TT_TYPE_TIMESTAMP)?120:7));
 
 					sprintf(attNameList2, "(%s", attName);
 
-					switch (typeOf(attName)) {
+					switch (attr_type) {
 
-					case TYPE_STRING:
+					case CONDOR_TT_TYPE_STRING:
 						sprintf(attValList2, "('%s'", attVal);
 						break;
-					case TYPE_TIMESTAMP:
-						sprintf(attValList2, "(('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					case CONDOR_TT_TYPE_TIMESTAMP:
+						time_t clock;
+						char *ts_expr;
+						clock = atoi(attVal);
+
+						ts_expr = condor_ttdb_buildts(&clock, dt);
+
+						if (ts_expr == NULL) {
+							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+							if (attNameList) free(attNameList);
+							if (attValList) free(attValList);		 
+							if (attNameList2) free(attNameList2);
+							if (attValList2) free(attValList2);	
+							if (inlist) free(inlist);					
+							return FAILURE;							
+						}
+												
+						sprintf(attValList2, "(%s", ts_expr);
+						
+						free(ts_expr);
+
 						break;
-					case TYPE_NUMBER:
+					case CONDOR_TT_TYPE_NUMBER:
 						sprintf(attValList2, "(%s", attVal);
 						break;
 					default:
@@ -1246,8 +1410,8 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 					attValList2 = (char *) realloc (attValList2, 
 													strlen(attValList2) + 
 													strlen(attVal) + 
-													((typeOf(attName) == 
-													  TYPE_TIMESTAMP)?80:8));
+													((attr_type == 
+													  CONDOR_TT_TYPE_TIMESTAMP)?120:8));
 
 					strcat(attNameList2, ", ");
 					strcat(attNameList2, attName);
@@ -1256,15 +1420,34 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 
 					tmpVal = (char  *) malloc(strlen(attVal) + 100);
 
-					switch (typeOf(attName)) {
+					switch (attr_type) {
 
-					case TYPE_STRING:
+					case CONDOR_TT_TYPE_STRING:
 						sprintf(tmpVal, "'%s'", attVal);
 						break;
-					case TYPE_TIMESTAMP:
-						sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+					case CONDOR_TT_TYPE_TIMESTAMP:
+						time_t clock;
+						char *ts_expr;
+						clock = atoi(attVal);
+
+						ts_expr = condor_ttdb_buildts(&clock, dt);
+
+						if (ts_expr == NULL) {
+							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+							if (attNameList) free(attNameList);
+							if (attValList) free(attValList);		 
+							if (attNameList2) free(attNameList2);
+							if (attValList2) free(attValList2);
+							if (inlist) free(inlist);					
+							return FAILURE;							
+						}
+
+						sprintf(tmpVal, "%s", ts_expr);
+
+						free(ts_expr);
+
 						break;
-					case TYPE_NUMBER:
+					case CONDOR_TT_TYPE_NUMBER:
 						sprintf(tmpVal, "%s", attVal);
 						break;
 					default:
@@ -1316,13 +1499,13 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	if (attValList2) strcat(attValList2, ")");
 	if (inlist) strcat(inlist, ")");
 
-	len = 1024 + strlen(daemonName) + strlen(lastHeardFrom);
+	len = 2048 + strlen(daemonName) + strlen(lastHeardFrom);
 	sql_stmt = (char *) malloc (len);	
 
 		// get the previous lastheardfrom from the database 
-	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM daemon_horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName);
+	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM daemon_horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName);
 
-	ret_st = DBObj->execQuery(sql_stmt, num_result);
+	ret_st = DBObj->execQuery(sql_stmt);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1330,18 +1513,20 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && num_result > 0) {
-		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
+		prevLHFInDB = atoi(DBObj->getValue(0));	   
 	}
+
+	DBObj->releaseQueryResult();
 
 		/* move the horizontal daemon attributes tuple to history
 		   set end time if the previous lastHeardFrom matches, otherwise
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT *, %s FROM Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s')", lastHeardFrom, daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", lastHeardFrom, daemonName);
 	} else {
-		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT * FROM Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s')", daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemon_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName);
 	}
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1375,9 +1560,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		snprintf(sql_stmt, len, "INSERT INTO Schedd_Horizontal_History (SELECT *, %s FROM Schedd_Horizontal WHERE Name = '%s')", lastHeardFrom, daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Schedd_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, endtime) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, %s FROM Schedd_Horizontal WHERE Name = '%s'", lastHeardFrom, daemonName);
 	} else {
-		snprintf(sql_stmt, len, "INSERT INTO Schedd_Horizontal_History (SELECT * FROM Schedd_Horizontal WHERE Name = '%s')", daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Schedd_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs FROM Schedd_Horizontal WHERE Name = '%s'", daemonName);
 	}
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1462,9 +1647,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			don't appear in the new class ad
 		 */
 	 if (prevLHFInDB == prevLHFInAd) {
-		 snprintf(sql_stmt, len, "INSERT INTO Schedd_Vertical_History SELECT name, lastheardfrom, attr, val, %s FROM Schedd_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
+		 snprintf(sql_stmt, len, "INSERT INTO Schedd_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Schedd_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
 	 } else {
-		 snprintf(sql_stmt, len, "INSERT INTO Schedd_Vertical_History SELECT name, lastheardfrom, attr, val FROM Schedd_Vertical WHERE name = '%s'", daemonName);		 
+		 snprintf(sql_stmt, len, "INSERT INTO Schedd_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Schedd_Vertical WHERE name = '%s'", daemonName);		 
 	 }	 
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1495,12 +1680,12 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 len = 1000 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + 
+		 len = 2048 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + 
 			 strlen(aVal.Value()) + strlen(lastHeardFrom);
 
 		 sql_stmt = (char *) malloc (len);
 
-		 snprintf(sql_stmt, len, "INSERT INTO schedd_vertical SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM schedd_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO schedd_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM schedd_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1509,7 +1694,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 snprintf(sql_stmt, len, "INSERT INTO schedd_vertical_history SELECT name, lastheardfrom, attr, val, %s FROM schedd_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO schedd_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM schedd_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1518,7 +1703,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 snprintf(sql_stmt, len, "UPDATE schedd_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "UPDATE schedd_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1552,7 +1737,8 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		// previous LastHeardFrom from the database's machine_classad
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
-	int	 ret_st, len, num_result=0;
+	int	 ret_st, len;
+	int  attr_type;
 
 		// first generate MyType='Scheduler' attribute
 	attNameList = (char *) malloc (20);
@@ -1580,12 +1766,10 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 				*/
 			stripquotes(attVal);
 
+			attr_type = typeOf(attName);
+
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
-			}
-
-			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
-				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
 			}
 			
 			if (strcasecmp(attName, ATTR_NAME) == 0) {
@@ -1597,31 +1781,69 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 				   therefore we need to check both seperately.
 				*/
 			if (isHorizontalDaemonAttr(attName)) {
-				attNameList = (char *) realloc (attNameList, 
-												strlen(attNameList) + 
-												strlen(attName) + 5);
-				attValList = (char *) realloc (attValList, 
-											   strlen(attValList) + 
-											   strlen(attVal) + 
-											   ((typeOf(attName) == 
-												 TYPE_TIMESTAMP)?80:8));
+				if (strcasecmp(attName, "lastheardfrom") == 0) {
+					attNameList = (char *) realloc (attNameList, 
+													strlen(attNameList) + 
+													2*strlen(attName)+20);
 
-				strcat(attNameList, ", ");
-				strcat(attNameList, attName);
+					attValList = (char *) realloc (attValList, 
+												   strlen(attValList) + 
+												   strlen(attVal) + 200);
+					
+					strcat(attNameList, ", ");
+					
+					strcat(attNameList, 
+						   "lastheardfrom, lastheardfrom_epoch");
+					
+				} else {
+					attNameList = (char *) realloc (attNameList, 
+													strlen(attNameList) + 
+													strlen(attName) + 5);
+					attValList = (char *) realloc (attValList, 
+												   strlen(attValList) + 
+												   strlen(attVal) + 
+												   ((attr_type == 
+													 CONDOR_TT_TYPE_TIMESTAMP)?120:8));
+
+					strcat(attNameList, ", ");
+					strcat(attNameList, attName);
+				}
 
 				strcat(attValList, ", ");
 
-				tmpVal = (char  *) malloc(strlen(attVal) + 100);
+				tmpVal = (char  *) malloc(strlen(attVal) + 300);
 
-				switch (typeOf(attName)) {
+				switch (attr_type) {
 
-				case TYPE_STRING:
+				case CONDOR_TT_TYPE_STRING:
 					sprintf(tmpVal, "'%s'", attVal);
 					break;
-				case TYPE_TIMESTAMP:
-					sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+				case CONDOR_TT_TYPE_TIMESTAMP:
+					time_t clock;
+					char *ts_expr;
+					clock = atoi(attVal);
+
+					ts_expr = condor_ttdb_buildts(&clock, dt);	
+
+					if (ts_expr == NULL) {
+						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);	
+						if (inlist) free(inlist);					
+						return FAILURE;							
+					}
+
+					if (strcasecmp(attName, "lastheardfrom") == 0) { 
+						sprintf(tmpVal, "%s, %s", ts_expr, attVal);
+						snprintf(lastHeardFrom, 300, "%s", ts_expr);
+					} else {
+						sprintf(tmpVal, "%s", ts_expr);
+					}
+					
+					free(ts_expr);
+
 					break;
-				case TYPE_NUMBER:
+				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", attVal);
 					break;
 				default:
@@ -1666,13 +1888,13 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	if (attValList) strcat(attValList, ")");
 	if (inlist) strcat(inlist, ")");
 
-	len = 1024 + strlen(daemonName) + strlen(lastHeardFrom);
+	len = 2048 + strlen(daemonName) + strlen(lastHeardFrom);
 	sql_stmt = (char *) malloc (len);	
 
 		// get the previous lastheardfrom from the database 
-	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM daemon_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName);
+	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM daemon_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName);
 	
-	ret_st = DBObj->execQuery(sql_stmt, num_result);
+	ret_st = DBObj->execQuery(sql_stmt);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1680,18 +1902,20 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && num_result > 0) {
-		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
+		prevLHFInDB = atoi(DBObj->getValue(0));		
 	}
+
+	DBObj->releaseQueryResult();
 
 		/* move the horizontal daemon attributes tuple to history
 		   set end time if the previous lastHeardFrom matches, otherwise
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT *, %s FROM Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s')", lastHeardFrom, daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s'", lastHeardFrom, daemonName);
 	} else {
-		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT * FROM Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s')", daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemon_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName);
 	}
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1748,9 +1972,9 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		   don't appear in the new class ad
 		*/
 	 if (prevLHFInDB == prevLHFInAd) {
-		 snprintf(sql_stmt, len, "INSERT INTO Master_Vertical_History SELECT name, lastheardfrom, attr, val, %s FROM Master_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
+		 snprintf(sql_stmt, len, "INSERT INTO Master_Vertical_History (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Master_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
 	 } else {
-		 snprintf(sql_stmt, len, "INSERT INTO Master_Vertical_History SELECT name, lastheardfrom, attr, val FROM Master_Vertical WHERE name = '%s'", daemonName);
+		 snprintf(sql_stmt, len, "INSERT INTO Master_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Master_Vertical WHERE name = '%s'", daemonName);
 	 } 
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -1781,11 +2005,11 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 len = 1000 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + strlen(aVal.Value()) + strlen(lastHeardFrom);
+		 len = 2048 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + strlen(aVal.Value()) + strlen(lastHeardFrom);
 
 		 sql_stmt = (char *) malloc (len);
 		 
-		 snprintf(sql_stmt, len, "INSERT INTO master_vertical SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM master_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO master_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM master_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1794,7 +2018,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 return FAILURE;
 		 }	 
 
-		 snprintf(sql_stmt, len, "INSERT INTO master_vertical_history SELECT name, lastheardfrom, attr, val, %s FROM master_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO master_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM master_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1803,7 +2027,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 snprintf(sql_stmt, len, "UPDATE master_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "UPDATE master_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1837,8 +2061,9 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		// previous LastHeardFrom from the database's machine_classad
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
-	int	 ret_st, len, num_result=0;
-
+	int	 ret_st, len;
+	int  attr_type;
+	
 		// first generate MyType='Scheduler' attribute
 	attNameList = (char *) malloc (20);
 	attValList = (char *) malloc (20);
@@ -1865,14 +2090,12 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 				*/
 			stripquotes(attVal);
 
+			attr_type = typeOf(attName);
+
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
 
-			if (strcasecmp(attName, ATTR_LAST_HEARD_FROM) == 0) {
-				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
-			}
-			
 			if (strcasecmp(attName, ATTR_NAME) == 0) {
 				sprintf(daemonName, "%s", attVal);
 			}
@@ -1882,31 +2105,69 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 				   therefore we need to check both seperately.
 				*/
 			if (isHorizontalDaemonAttr(attName)) {
-				attNameList = (char *) realloc (attNameList, 
-												strlen(attNameList) + 
-												strlen(attName) + 5);
-				attValList = (char *) realloc (attValList, 
-											   strlen(attValList) + 
-											   strlen(attVal) + 
-											   ((typeOf(attName) == 
-												 TYPE_TIMESTAMP)?80:8));
+				if (strcasecmp(attName, "lastheardfrom") == 0) {
+					attNameList = (char *) realloc (attNameList, 
+													strlen(attNameList) + 
+													2*strlen(attName)+20);
 
-				strcat(attNameList, ", ");
-				strcat(attNameList, attName);
+					attValList = (char *) realloc (attValList, 
+												   strlen(attValList) + 
+												   strlen(attVal) + 200);
+					
+					strcat(attNameList, ", ");
+					
+					strcat(attNameList, 
+						   "lastheardfrom, lastheardfrom_epoch");
+					
+				} else {
+					attNameList = (char *) realloc (attNameList, 
+													strlen(attNameList) + 
+													strlen(attName) + 5);
+					attValList = (char *) realloc (attValList, 
+												   strlen(attValList) + 
+												   strlen(attVal) + 
+												   ((attr_type == 
+													 CONDOR_TT_TYPE_TIMESTAMP)?120:8));
+
+					strcat(attNameList, ", ");
+					strcat(attNameList, attName);
+				}
 
 				strcat(attValList, ", ");
 
-				tmpVal = (char  *) malloc(strlen(attVal) + 100);
+				tmpVal = (char  *) malloc(strlen(attVal) + 300);
 
-				switch (typeOf(attName)) {
+				switch (attr_type) {
 
-				case TYPE_STRING:
+				case CONDOR_TT_TYPE_STRING:
 					sprintf(tmpVal, "'%s'", attVal);
 					break;
-				case TYPE_TIMESTAMP:
-					sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+				case CONDOR_TT_TYPE_TIMESTAMP:
+					time_t clock;
+					char *ts_expr;
+					clock = atoi(attVal);
+
+					ts_expr = condor_ttdb_buildts(&clock, dt);	
+
+					if (ts_expr == NULL) {
+						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
+						if (attNameList) free(attNameList);
+						if (attValList) free(attValList);	
+						if (inlist) free(inlist);
+						return FAILURE;
+					}
+
+					if (strcasecmp(attName, "lastheardfrom") == 0) {
+						sprintf(tmpVal, "%s, %s", ts_expr, attVal);
+						snprintf(lastHeardFrom, 300, "%s", ts_expr);
+					} else {
+						sprintf(tmpVal, "%s", ts_expr);
+					}
+					
+					free(ts_expr);					
+
 					break;
-				case TYPE_NUMBER:
+				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", attVal);
 					break;
 				default:
@@ -1951,13 +2212,13 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	if (attValList) strcat(attValList, ")");
 	if (inlist) strcat(inlist, ")");
 
-	len = 1024 + strlen(daemonName) + strlen(lastHeardFrom);
+	len = 2048 + strlen(daemonName) + strlen(lastHeardFrom);
 	sql_stmt = (char *) malloc (len);	
 
 		// get the previous lastheardfrom from the database 
-	snprintf(sql_stmt, len, "SELECT extract(epoch from lastheardfrom) FROM daemon_horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName);
+	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM daemon_horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName);
 	
-	ret_st = DBObj->execQuery(sql_stmt, num_result);
+	ret_st = DBObj->execQuery(sql_stmt);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1965,18 +2226,20 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && num_result > 0) {
-		prevLHFInDB = atoi(DBObj->getValue(0,0));		
+	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
+		prevLHFInDB = atoi(DBObj->getValue(0));		
 	}
+
+	DBObj->releaseQueryResult();
 
 		/* move the horizontal daemon attributes tuple to history
 		   set end time if the previous lastHeardFrom matches, otherwise
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT *, %s FROM Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s')", lastHeardFrom, daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", lastHeardFrom, daemonName);
 	} else {
-		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (SELECT * FROM Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s')", daemonName);
+		snprintf(sql_stmt, len, "INSERT INTO Daemon_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemon_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName);
 	}
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -2035,9 +2298,9 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		   don't appear in the new class ad
 		*/
 	 if (prevLHFInDB == prevLHFInAd) {
-		 snprintf(sql_stmt, len, "INSERT INTO Negotiator_Vertical_History SELECT name, lastheardfrom, attr, val, %s FROM Negotiator_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
+		 snprintf(sql_stmt, len, "INSERT INTO Negotiator_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Negotiator_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom, daemonName, inlist);
 	 } else {
-		 snprintf(sql_stmt, len, "INSERT INTO Negotiator_Vertical_History SELECT name, lastheardfrom, attr, val FROM Negotiator_Vertical WHERE name = '%s'", daemonName);
+		 snprintf(sql_stmt, len, "INSERT INTO Negotiator_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Negotiator_Vertical WHERE name = '%s'", daemonName);
 	 }
 
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -2068,10 +2331,10 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 len = 1000 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + strlen(aVal.Value()) + strlen(lastHeardFrom);
+		 len = 2048 + 2*strlen(daemonName) + 2*strlen(aName.Value()) + strlen(aVal.Value()) + strlen(lastHeardFrom);
 		 sql_stmt = (char *) malloc (len);
 
-		 snprintf(sql_stmt, len, "INSERT INTO negotiator_vertical SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM negotiator_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO negotiator_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM negotiator_vertical WHERE name = '%s' AND attr = '%s')", daemonName, aName.Value(), aVal.Value(), lastHeardFrom, daemonName, aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2080,7 +2343,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			 return FAILURE;
 		 }	 
 
-		 snprintf(sql_stmt, len, "INSERT INTO negotiator_vertical_history SELECT name, lastheardfrom, attr, val, %s FROM negotiator_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "INSERT INTO negotiator_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM negotiator_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom, daemonName, aName.Value(), aVal.Value());
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2089,7 +2352,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 snprintf(sql_stmt, len, "UPDATE negotiator_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s';", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
+		 snprintf(sql_stmt, len, "UPDATE negotiator_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom, daemonName, aName.Value(), aVal.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2110,12 +2373,22 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	const char *iter;	
 	char *newvalue;
 
-		// this function is very risky in that it is used for inserting
-		// rows into any table in a basic way. If a table has many columns,
-		// this function can easily overflow the following buffers. Please 
-		// don't forget to fix it!!
 	char *attName = NULL, *attVal, *attNameList = NULL, *attValList = NULL;
 	int isFirst = TRUE;
+	bool isMatches = FALSE, isRejects = FALSE, 
+		isThrown = FALSE, isGeneric = FALSE;
+
+	if (strcasecmp(tableName, "Matches") == 0) 
+		isMatches = TRUE;
+
+	else if (strcasecmp(tableName, "Rejects") == 0) 
+		isRejects = TRUE;
+        
+	else if (strcasecmp(tableName, "Thrown") == 0) 
+		isThrown = TRUE;
+
+	else if (strcasecmp(tableName, "Generic") == 0) 
+		isGeneric = TRUE;
 
 	ad->sPrint(classAd);
 
@@ -2133,19 +2406,48 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// escape single quote if any within the value
-			newvalue = fillEscapeCharacters(attVal);
-		
-				// change double quotes to single quote if any
-			attValLen = strlen(newvalue);
- 
-			if (newvalue[attValLen-1] == '"')
-				newvalue[attValLen-1] = '\'';
+			if ((isMatches && 
+				 (strcasecmp(attName, "match_time") == 0)) ||
+				(isRejects && 
+				 (strcasecmp(attName, "reject_time") == 0)) ||
+				(isThrown && 
+				 (strcasecmp(attName, "throwtime") == 0)) ||
+				(isGeneric && 
+				 (strcasecmp(attName, "eventtime") == 0))) {
+					/* all timestamp value must be passed as an integer of 
+					   seconds from epoch time.
+					*/
+				time_t clock;
 
-			if (newvalue[0] == '"') {
-				newvalue[0] = '\'';
-			}			
-			
+				clock = atoi(attVal);
+
+				newvalue = condor_ttdb_buildts(&clock, dt);
+
+				if (newvalue == NULL) {
+					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertBasic\n");
+					if (attNameList) free(attNameList);
+					if (attValList) free(attValList);						
+					free(attName);
+					return FAILURE;							
+				}	
+				
+			} else {
+					/* for other values, check if it contains escape char 
+					   escape single quote if any within the value
+					*/
+				newvalue = fillEscapeCharacters(attVal);
+		
+					// change double quotes to single quote if any
+				attValLen = strlen(newvalue);
+ 
+				if (newvalue[attValLen-1] == '"')
+					newvalue[attValLen-1] = '\'';
+
+				if (newvalue[0] == '"') {
+					newvalue[0] = '\'';
+				}							
+			}
+
 			if (isFirst) {
 					//is the first in the list
 				isFirst = FALSE;
@@ -2177,7 +2479,118 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 
 	sql_stmt = (char *) malloc (50 + strlen(tableName) + strlen(attNameList) + strlen(attValList));
 
-	sprintf(sql_stmt, "INSERT INTO %s %s VALUES %s;", tableName, attNameList, attValList);
+	sprintf(sql_stmt, "INSERT INTO %s %s VALUES %s", tableName, attNameList, attValList);
+
+	if (attNameList) free(attNameList);
+	if (attValList) free(attValList);	
+	
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
+		return FAILURE;
+	}
+
+	free(sql_stmt);
+
+	return SUCCESS;
+}
+
+QuillErrCode TTManager::insertRuns(AttrList *ad) {
+	char *sql_stmt = NULL;
+	MyString classAd;
+	const char *iter;	
+	char *newvalue;
+
+	char *attName = NULL, *attVal, *attNameList = NULL, *attValList = NULL;
+
+	char *runid_expr;
+
+		// first generate runid attribute
+	attNameList = (char *) malloc (20);
+	attValList = (char *) malloc (20);
+
+	runid_expr = condor_ttdb_buildseq(dt, "SeqRunId");
+
+	if (!runid_expr) {
+		dprintf(D_ALWAYS, "Sequence expression not build in TTManager::insertRuns\n");
+		if (attNameList) free(attNameList);
+		if (attValList) free(attValList);			
+		return FAILURE;
+	}
+
+	sprintf(attNameList, "(run_id");
+	sprintf(attValList, "(%s", runid_expr);
+
+	free(runid_expr);
+
+	ad->sPrint(classAd);
+
+	classAd.Tokenize();
+	iter = classAd.GetNextToken("\n", true);
+
+	while (iter != NULL)
+		{
+			int attValLen;
+			
+				// the attribute name can't be longer than the log entry line size
+			attName = (char *)malloc(strlen(iter));
+			
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
+
+			if ((strcasecmp(attName, "startts") == 0) || 
+				(strcasecmp(attName, "endts") == 0)) {
+				time_t clock;
+				clock = atoi(attVal);
+				newvalue = condor_ttdb_buildts(&clock, dt);
+
+				if (newvalue == NULL) {
+					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
+					if (attNameList) free(attNameList);
+					if (attValList) free(attValList);						
+					free(attName);
+					return FAILURE;
+				}
+				
+			} else {
+
+					// escape single quote if any within the value
+				newvalue = fillEscapeCharacters(attVal);
+		
+					// change double quotes to single quote if any
+				attValLen = strlen(newvalue);
+ 
+				if (newvalue[attValLen-1] == '"')
+					newvalue[attValLen-1] = '\'';
+				
+				if (newvalue[0] == '"') {
+					newvalue[0] = '\'';
+				}			
+			}
+
+				// is not the first in the list
+			attNameList = (char *) realloc(attNameList, strlen(attNameList) + strlen(attName) + 5);
+			attValList = (char *) realloc(attValList, strlen(attValList) + strlen(newvalue) + 5);
+				
+			strcat(attNameList, ", ");
+			strcat(attNameList, attName);
+			strcat(attValList, ", ");
+			strcat(attValList, newvalue);					
+
+			free(newvalue);
+			free(attName);
+			iter = classAd.GetNextToken("\n", true);
+		}
+
+	if (attNameList) strcat(attNameList, ")");
+	if (attValList) strcat(attValList, ")");
+
+
+	sql_stmt = (char *) malloc (60 + strlen(attNameList) + strlen(attValList));
+
+	sprintf(sql_stmt, "INSERT INTO Runs %s VALUES %s", attNameList, attValList);
 
 	if (attNameList) free(attNameList);
 	if (attValList) free(attValList);	
@@ -2201,7 +2614,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 	char *attName = NULL, *attVal;
 	char scheddname[50] = "", cluster[10] = "", proc[10] = "", 
 		subproc[10] = "", 
-		eventts[100] = "", messagestr[512] = "";
+		eventts[300] = "", messagestr[512] = "";
 	int eventtype;
 	char *newvalue;
 
@@ -2221,22 +2634,35 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// escape single quote if any within the value
-			newvalue = fillEscapeCharacters(attVal);
+			if (strcasecmp(attName, "eventtime") == 0) {
+				time_t clock;
+				clock = atoi(attVal);
+				newvalue = condor_ttdb_buildts(&clock, dt);
 
-				// change double quotes to single quote if any
-			attValLen = strlen(newvalue);
+				if (newvalue == NULL) {
+					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertEvents\n");
+					free(attName);
+					return FAILURE;
+				}
+				
+			} else {
+					// escape single quote if any within the value
+				newvalue = fillEscapeCharacters(attVal);
+
+					// change double quotes to single quote if any
+				attValLen = strlen(newvalue);
  
-			if (newvalue[attValLen-1] == '"')
-				newvalue[attValLen-1] = '\'';
+				if (newvalue[attValLen-1] == '"')
+					newvalue[attValLen-1] = '\'';
 
-			if (newvalue[0] == '"') {
-				newvalue[0] = '\'';
+				if (newvalue[0] == '"') {
+					newvalue[0] = '\'';
+				}
 			}
 
 			if (strcasecmp(attName, "scheddname") == 0) {
 				strcpy(scheddname, newvalue);
-			} else if (strcasecmp(attName, "cluster") == 0) {
+			} else if (strcasecmp(attName, "cluster_id") == 0) {
 				strcpy(cluster, newvalue);
 			} else if (strcasecmp(attName, "proc") == 0) {
 				strcpy(proc, newvalue);
@@ -2260,11 +2686,10 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 							   strlen(messagestr) + strlen(subproc));
 
 	if (eventtype == ULOG_JOB_ABORTED || eventtype == ULOG_JOB_HELD || ULOG_JOB_RELEASED) {
-		sprintf(sql_stmt, "INSERT INTO events VALUES (%s, %s, %s, NULL, %d, %s, %s);", 
+		sprintf(sql_stmt, "INSERT INTO events (scheddname, cluster_id, proc, eventtype, eventtime, description) VALUES (%s, %s, %s, %d, %s, %s)", 
 				scheddname, cluster, proc, eventtype, eventts, messagestr);
 	} else {
-		sprintf(sql_stmt, "INSERT INTO events SELECT %s, %s, %s, run_id, %d, %s, %s  FROM runs WHERE scheddname = %s  AND cluster = %s and proc = %s AND spid = %s AND endtype is null;", 
-				scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
+		sprintf(sql_stmt, "INSERT INTO events (scheddname, cluster_id, proc, runid, eventtype, eventtime, description) SELECT %s, %s, %s, run_id, %d, %s, %s  FROM runs WHERE scheddname = %s  AND cluster_id = %s and proc = %s AND spid = %s AND endtype is null", scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
 	}
 
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
@@ -2283,7 +2708,8 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	MyString classAd;
 	const char *iter;	
 	char *attName = NULL, *attVal;
-	
+	char *seqexpr;
+
 	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", 
 		f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "";
 	int f_size;
@@ -2293,6 +2719,8 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	char *tmp1, *tmpVal = NULL;
 	bool fileSame = TRUE;
 	struct stat file_status;
+	time_t old_ts;
+	char *ts_expr;
 
 	ad->sPrint(classAd);
 
@@ -2337,6 +2765,16 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 			iter = classAd.GetNextToken("\n", true);
 		}
 
+		/* build timestamp expression */
+	old_ts = atoi(f_ts);
+	ts_expr = condor_ttdb_buildts(&old_ts, dt);	
+
+	if (ts_expr == NULL) {
+		dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertFiles\n");
+
+		return FAILURE;
+	}	
+	
 		// strip the quotes from path and name so that we can compute checksum
 	len = strlen(f_path);
 
@@ -2371,18 +2809,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 				pathname);
 		fileSame = FALSE;
 	} else {
-		char ascTime[TIMELEN];
-
-		// build ascii time to be stored in database
-		char *tmp;
-		tmp = ctime(&file_status.st_mtime);
-		len = strlen(tmp);
-		ascTime[0] = '\'';
-		strncpy(&ascTime[1], (const char *)tmp, len-1); /* ignore the last newline character */
-		ascTime[len] = '\'';		
-		ascTime[len+1] = '\0';
-
-		if (strcmp(f_ts, ascTime) != 0) {
+		if (old_ts != file_status.st_mtime) {
 			fileSame = FALSE;
 		}
 	}
@@ -2396,12 +2823,22 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
   	else
 		hexSum[0] = '\0';
 
-	sql_stmt = (char *)malloc(1000 + 2*(strlen(f_name)+strlen(f_host)+strlen(f_path)+strlen(f_ts)) +
+	sql_stmt = (char *)malloc(2048 + 2*(strlen(f_name)+strlen(f_host)+strlen(f_path)+strlen(f_ts)) +
 							  strlen(hexSum));
 
+	seqexpr = condor_ttdb_buildseq(dt, "condor_seqfileid");
+
+	if (!seqexpr) {
+		dprintf(D_ALWAYS, "Sequence expression not built in TTManager::insertFiles\n");
+		free(sql_stmt);
+		return FAILURE;
+	}
+
 	sprintf(sql_stmt, 
-			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', %s, '%s', %s, %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  name='%s' and path='%s' and host=%s and lastmodified=%s);", 
-			f_name, f_host, f_path, f_ts, f_size, hexSum, f_name, f_path, f_host, f_ts);
+			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '%s', %s, '%s', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='%s' and path='%s' and host=%s and lastmodified=%s)", seqexpr, f_name, f_host, f_path, ts_expr, f_size, hexSum, f_name, f_path, f_host, ts_expr);
+
+	free(seqexpr);
+	free(ts_expr);
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2422,7 +2859,11 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	
 	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "", globaljobid[100] = "", type[20] = "";
 	int f_size;
- 
+
+	time_t clock;
+	char *ts_expr;
+	char *onerow_expr;
+
 	ad->sPrint(classAd);
 
 	classAd.Tokenize();
@@ -2469,11 +2910,33 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 			iter = classAd.GetNextToken("\n", true);
 		}
 
+	clock = atoi(f_ts);
+	ts_expr = condor_ttdb_buildts(&clock, dt);	
+
+	if (ts_expr == NULL) {
+		dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertFileusages\n");
+
+		return FAILURE;
+	}
+
+	onerow_expr = condor_ttdb_onerow_clause(dt);	
+
+	if (onerow_expr == NULL) {
+		dprintf(D_ALWAYS, "ERROR: LIMIT 1 expression not built in TTManager::insertFileusages\n");
+
+		free(ts_expr);
+
+		return FAILURE;
+	}
+
 	sql_stmt = (char *) malloc (1000+strlen(globaljobid)+strlen(type)+strlen(f_name)+
-								strlen(f_path)+strlen(f_host)+strlen(f_ts));
+								strlen(f_path)+strlen(f_host)+strlen(ts_expr));
 	sprintf(sql_stmt, 
-			"INSERT INTO fileusages SELECT %s, file_id, %s FROM files WHERE  name=%s and path=%s and host=%s and lastmodified=%s LIMIT 1;", globaljobid, type, f_name, f_path, f_host, f_ts);
+			"INSERT INTO fileusages (globaljobid, file_id, usagetype) SELECT %s, file_id, %s FROM files WHERE  name=%s and path=%s and host=%s and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr, onerow_expr);
 	
+	free(ts_expr);
+	free(onerow_expr);
+
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
@@ -2488,6 +2951,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   int        cid, pid;
   char       *sql_stmt = NULL;
+  char       *sql_stmt2 = NULL;
   ExprTree *expr;
   ExprTree *L_expr;
   ExprTree *R_expr;
@@ -2503,128 +2967,167 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   ad->EvalInteger (ATTR_PROC_ID, NULL, pid);
 
   sql_stmt = (char *)malloc(1000 + 2*(strlen(scheddname) + 20));
+  sql_stmt2 = (char *)malloc(1000 + 2*(strlen(scheddname) + 20));
 
   sprintf(sql_stmt,
-          "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cluster = %d AND proc = %d;INSERT INTO History_Horizontal(scheddname, cluster, proc) VALUES('%s', %d, %d);", scheddname, cid, pid, scheddname, cid, pid);
+          "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cluster_id = %d AND proc = %d", scheddname, cid, pid);
+  sprintf(sql_stmt2,
+          "INSERT INTO History_Horizontal(scheddname, cluster_id, proc) VALUES('%s', %d, %d)", scheddname, cid, pid);
 
   if (DBObj->execCommand(sql_stmt) == FAILURE) {
-		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
-		 free(sql_stmt);
-		 return FAILURE;	  
-  }
-  else {
+	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 	  free(sql_stmt);
+	  free(sql_stmt2);
+	  return FAILURE;	  
+  }
 
-	  ad->ResetExpr(); // for iteration initialization
-	  while((expr=ad->NextExpr()) != NULL) {
-		  L_expr = expr->LArg();
-		  L_expr->PrintToNewStr(&name);
+  if (DBObj->execCommand(sql_stmt2) == FAILURE) {
+	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2);
+	  free(sql_stmt);
+	  free(sql_stmt2);
+	  return FAILURE;	  
+  }
+  
+  free(sql_stmt);
+  free(sql_stmt2);
 
-		  if (name == NULL) break;
+  ad->ResetExpr(); // for iteration initialization
+  while((expr=ad->NextExpr()) != NULL) {
+	  L_expr = expr->LArg();
+	  L_expr->PrintToNewStr(&name);
 
-		  R_expr = expr->RArg();
-		  R_expr->PrintToNewStr(&value);
-
-		  if (value == NULL) {
-			  free(name);
-			  break;	  	  
-		  }
-
-		  /* the following are to avoid overwriting the attr values. The hack is based on the fact that 
-		   * an attribute of a job ad comes before the attribute of a cluster ad. And this is because 
-		   * attribute list of cluster ad is chained to a job ad.
-		   */
-		  if(strcasecmp(name, "jobstatus") == 0) {
-			  if(flag4) continue;
-			  flag4 = true;
-		  }
-
-		  if(strcasecmp(name, "remotewallclocktime") == 0) {
-			  if(flag1) continue;
-			  flag1 = true;
-		  }
-		  else if(strcasecmp(name, "completiondate") == 0) {
-			  if(flag2) continue;
-			  flag2 = true;
-		  }
-		  else if(strcasecmp(name, "committedtime") == 0) {
-			  if(flag3) continue;
-			  flag3 = true;
-		  }
-
-		  if(isHorizontalHistoryAttribute(name)) {
-			  if(strcasecmp(name, "in") == 0 ||
-				 strcasecmp(name, "user") == 0) {
-				  newname = (char *)malloc(strlen(name)+3);
-				  snprintf(newname, strlen(name)+3, "%s_j", name);
-				  free(name);
-				  name = newname;
-			  }
-
-			  if (strcasecmp(name, "user_j") == 0) {
-				  tempvalue = (char *)malloc(strlen(value));
-				  strncpy(tempvalue, value+1, strlen(value)-2);
-				  tempvalue[strlen(value)-2] = '\0';
-				  strcpy(value, tempvalue);
-				  free(tempvalue);
-			  }
+	  if (name == NULL) break;
 	  
-			  sql_stmt = (char *) malloc(1000 + strlen(name) + strlen(value) + strlen(scheddname));
+	  R_expr = expr->RArg();
+	  R_expr->PrintToNewStr(&value);
+	  
+	  if (value == NULL) {
+		  free(name);
+		  break;	  	  
+	  }
 
-			  if(strcasecmp(name, "qdate") == 0 || 
-				 strcasecmp(name, "lastmatchtime") == 0 || 
-				 strcasecmp(name, "jobstartdate") == 0 || 
-				 strcasecmp(name, "jobcurrentstartdate") == 0 ||
-				 strcasecmp(name, "enteredcurrentstatus") == 0 ||
-				 strcasecmp(name, "completiondate") == 0
-				 ) {
-					  // avoid updating with epoch time
-				  if (strcmp(value, "0") == 0) {
-					  free(name);
-					  free(value);
-					  continue;
-				  } 
-			
-				  sprintf(sql_stmt,
-						  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cluster = %d and proc = %d;", name, value, scheddname, cid, pid);
+		  /* the following are to avoid overwriting the attr values. The hack 
+			 is based on the fact that an attribute of a job ad comes before 
+			 the attribute of a cluster ad. And this is because 
+		     attribute list of cluster ad is chained to a job ad.
+		   */
+	  if(strcasecmp(name, "jobstatus") == 0) {
+		  if(flag4) continue;
+		  flag4 = true;
+	  }
 
-			  }	else {
-				  strip_double_quote(value);
-				  newvalue = fillEscapeCharacters(value);
-				  sprintf(sql_stmt, 
-						  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster = %d and proc = %d;", name, newvalue, scheddname, cid, pid);			  
-				  free(newvalue);
-			  }
-		  } else {
-			  strip_double_quote(value);                
-			  newvalue = fillEscapeCharacters(value);
+	  if(strcasecmp(name, "remotewallclocktime") == 0) {
+		  if(flag1) continue;
+		  flag1 = true;
+	  }
+	  else if(strcasecmp(name, "completiondate") == 0) {
+		  if(flag2) continue;
+		  flag2 = true;
+	  }
+	  else if(strcasecmp(name, "committedtime") == 0) {
+		  if(flag3) continue;
+		  flag3 = true;
+	  }
 
-			  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
-
-			  sprintf(sql_stmt, 
-					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cluster = %d AND proc = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cluster, proc, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, newvalue);
-
-			  free(newvalue);
-		  }	  
-
-		  if (DBObj->execCommand(sql_stmt) == FAILURE) {
-			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
-
+	  if(isHorizontalHistoryAttribute(name)) {
+		  if(strcasecmp(name, "in") == 0 ||
+			 strcasecmp(name, "user") == 0) {
+			  newname = (char *)malloc(strlen(name)+3);
+			  snprintf(newname, strlen(name)+3, "%s_j", name);
 			  free(name);
-			  free(value);
-			  free(sql_stmt);
-
-			  return FAILURE;
+			  name = newname;
 		  }
+
+		  if (strcasecmp(name, "user_j") == 0) {
+			  tempvalue = (char *)malloc(strlen(value));
+			  strncpy(tempvalue, value+1, strlen(value)-2);
+			  tempvalue[strlen(value)-2] = '\0';
+			  strcpy(value, tempvalue);
+			  free(tempvalue);
+		  }
+	  
+		  sql_stmt = (char *) malloc(1000 + strlen(name) + strlen(value) + strlen(scheddname));
+		  sql_stmt2 = NULL;
+
+		  if(strcasecmp(name, "qdate") == 0 || 
+			 strcasecmp(name, "lastmatchtime") == 0 || 
+			 strcasecmp(name, "jobstartdate") == 0 || 
+			 strcasecmp(name, "jobcurrentstartdate") == 0 ||
+			 strcasecmp(name, "enteredcurrentstatus") == 0 ||
+			 strcasecmp(name, "completiondate") == 0
+			 ) {
+				  // avoid updating with epoch time
+			  if (strcmp(value, "0") == 0) {
+				  free(name);
+				  free(value);
+				  continue;
+			  } 
+			
+			  time_t clock;
+			  char *ts_expr;
+			  clock = atoi(value);
+			  
+			  ts_expr = condor_ttdb_buildts(&clock, dt);	
+				  
+			  sprintf(sql_stmt,
+					  "UPDATE History_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name, ts_expr, scheddname, cid, pid);
+			  free(ts_expr);
+
+		  }	else {
+			  strip_double_quote(value);
+			  newvalue = fillEscapeCharacters(value);
+			  sprintf(sql_stmt, 
+					  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name, newvalue, scheddname, cid, pid);			  
+			  free(newvalue);
+		  }
+	  } else {
+		  strip_double_quote(value);                
+		  newvalue = fillEscapeCharacters(value);
+		  
+		  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
+		  sql_stmt2 = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
+
+		  sprintf(sql_stmt, 
+				  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cluster_id = %d AND proc = %d AND attr = '%s'", scheddname, cid, pid, name);
+			  
+		  sprintf(sql_stmt2, 
+				  "INSERT INTO History_Vertical(scheddname, cluster_id, proc, attr, val) VALUES('%s', %d, %d, '%s', '%s')", scheddname, cid, pid, name, newvalue);
+
+		  free(newvalue);
+	  }	  
+
+	  if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		  
 		  free(name);
-		  name = NULL;
 		  free(value);
-		  value = NULL;
 		  free(sql_stmt);
+		  if (sql_stmt2) free(sql_stmt2);
+		  
+		  return FAILURE;
 	  }
+		  
+	  if (sql_stmt2 && (DBObj->execCommand(sql_stmt2) == FAILURE)) {
+		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2);
+		  
+		  free(name);
+		  free(value);
+		  free(sql_stmt);
+		  if (sql_stmt2) free(sql_stmt2);
+		  
+		  return FAILURE;			  
+	  }
+	  
+	  free(name);
+	  name = NULL;
+	  free(value);
+	  value = NULL;
+	  free(sql_stmt);
+	  if (sql_stmt2) free(sql_stmt2);
   }  
 
   return SUCCESS;
@@ -2635,9 +3138,19 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 	char *sql_stmt = NULL;
 	MyString classAd, classAd1;
 	const char *iter;	
-	char setList[1000]="", whereList[1000]="";
+	char *setList=NULL, *whereList=NULL;
 	char *attName = NULL, *attVal;
 	char *newvalue;
+	bool isRuns = FALSE;
+
+	setList = (char *) malloc(1);
+	setList[0] = '\0';
+	whereList = (char *) malloc(1);
+	whereList[0] = '\0';
+	
+	if (strcasecmp (tableName, "Runs") == 0) {
+		isRuns = TRUE;
+	}
 
 	if (!info) return SUCCESS;
 
@@ -2657,24 +3170,42 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// escape single quote if any within the value
-			newvalue = fillEscapeCharacters(attVal);
+			if (isRuns && (strcasecmp(attName, "endts") == 0)) {
+				time_t clock;
+				clock = atoi(attVal);
+				newvalue = condor_ttdb_buildts(&clock, dt);
 
-				// change double quotes to single quote if any
-			attValLen = strlen(newvalue);
- 
-			if (newvalue[attValLen-1] == '"')
-				newvalue[attValLen-1] = '\'';
-
-			if (newvalue[0] == '"') {
-				newvalue[0] = '\'';
-			}			
+				if (newvalue == NULL) {
+					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
+					if (setList) free(setList);
+					free(attName);
+					return FAILURE;
+				}
+				
+			} else {
 			
+					// escape single quote if any within the value
+				newvalue = fillEscapeCharacters(attVal);
+
+					// change double quotes to single quote if any
+				attValLen = strlen(newvalue);
+ 
+				if (newvalue[attValLen-1] == '"')
+					newvalue[attValLen-1] = '\'';
+
+				if (newvalue[0] == '"') {
+					newvalue[0] = '\'';
+				}			
+			}
+			
+			setList = (char *) realloc(setList, 
+									   strlen(setList) + strlen(attName) + 
+									   strlen(newvalue) + 10);
 			strcat(setList, attName);
 			strcat(setList, " = ");
 			strcat(setList, newvalue);
 			strcat(setList, ", ");
-
+			
 			free(newvalue);
 			free(attName);
 
@@ -2703,6 +3234,10 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 					// change smth=null (in classad) to smth is null (in sql)
 				if (strcasecmp(attVal, "null") == 0) {
+					whereList = (char *) realloc(whereList, 
+												 strlen(whereList) + 
+												 strlen(attName) + 
+												 20);
 					strcat(whereList, attName);
 					strcat(whereList, " is null and ");
 
@@ -2712,40 +3247,69 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 					continue;
 				}
 
-					// change double quotes to single quote if any
-				attValLen = strlen(attVal);
- 
-				if (attVal[attValLen-1] == '"')
-					attVal[attValLen-1] = '\'';
+				if (isRuns && (strcasecmp(attName, "endts") == 0)) {
+					time_t clock;
+					clock = atoi(attVal);
+					newvalue = condor_ttdb_buildts(&clock, dt);
 
-				if (attVal[0] == '"') {
-					attVal[0] = '\'';
-				}			
-			
+					if (newvalue == NULL) {
+						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
+						if (setList) free(setList);
+						free(attName);
+						return FAILURE;
+					}
+					
+				} else {
+						// change double quotes to single quote if any
+					attValLen = strlen(attVal);
+					
+					if (attVal[attValLen-1] == '"')
+						attVal[attValLen-1] = '\'';
+
+					if (attVal[0] == '"') {
+						attVal[0] = '\'';
+					}
+					
+					newvalue = attVal;
+				}
+				
+				whereList = (char *) realloc(whereList, 
+											 strlen(whereList) + 
+											 strlen(attName) + 
+											 strlen(newvalue) + 
+											 20);
 				strcat(whereList, attName);
 				strcat(whereList, " = ");
-				strcat(whereList, attVal);
+				strcat(whereList, newvalue);
 				strcat(whereList, " and ");
 
 				free(attName);
+				if (isRuns && (strcasecmp(attName, "endts") == 0)) {
+					free(newvalue);
+				}
+
 				iter = classAd1.GetNextToken("\n", true);
 			}
 		
-			// remove the last comma
+			// remove the last " and "
 		whereList[strlen(whereList)-5] = 0;
 	}
 
 	sql_stmt = (char *) malloc (100 + strlen(tableName) + strlen(setList) + strlen(whereList));
 		// build sql stmt
-	sprintf(sql_stmt, "UPDATE %s SET %s WHERE %s;", tableName, setList, whereList);		
+	sprintf(sql_stmt, "UPDATE %s SET %s WHERE %s", tableName, setList, whereList);		
 	
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		if (setList) free(setList);
+		if (whereList) free(whereList);
 		free(sql_stmt);
 		return FAILURE;
 	}
 	
+	if (setList) free(setList);
+	if (whereList) free(whereList);	
 	free(sql_stmt);
 
 	return SUCCESS;
@@ -2773,7 +3337,7 @@ typeOf(char *attName)
 		  strcasecmp(attName, ATTR_UPDATESTATS_HISTORY)
 		  )
 		)
-		return TYPE_STRING;
+		return CONDOR_TT_TYPE_STRING;
 
 	if (!(strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
 		  strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
@@ -2806,7 +3370,7 @@ typeOf(char *attName)
 		  strcasecmp(attName, "monitorselfage")
 		  )
 		)
-		return TYPE_NUMBER;
+		return CONDOR_TT_TYPE_NUMBER;
 
 	if (!(strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
 		  strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && 
@@ -2816,7 +3380,7 @@ typeOf(char *attName)
 		  strcasecmp(attName, "MonitorSelfTime")
 		  )
 		)
-		return TYPE_TIMESTAMP;
+		return CONDOR_TT_TYPE_TIMESTAMP;
 
 	return -1;
 }

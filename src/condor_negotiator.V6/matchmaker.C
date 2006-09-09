@@ -3006,13 +3006,10 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 	ClassAd tmpCl;
 	ClassAd *tmpClP = &tmpCl;
 	char tmp[512];
-	char rejectts[100];
 
-	struct tm *tm;
 	time_t clock;
 
 	(void)time(  (time_t *)&clock );
-	tm = localtime( (time_t *)&clock );
 
 	job.LookupInteger (ATTR_CLUSTER_ID, cluster);
 	job.LookupInteger (ATTR_PROC_ID, proc);
@@ -3021,16 +3018,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 //	machine.LookupString(ATTR_NAME, startdname);
 	dprintf(D_FULLDEBUG,"%d %d %d %d %d %d\n",requirements_num,priority_num,rank_num,policy_num,network_num,networkshare_num);
 
-	snprintf(rejectts, 100, "%d/%d/%d %02d:%02d:%02d %s", 
-		  tm->tm_mon+1,
-		  tm->tm_mday,
-		  tm->tm_year+1900,
-		  tm->tm_hour,
-		  tm->tm_min,
-		  tm->tm_sec,
-		  my_timezone(tm->tm_isdst));
-
-	snprintf(tmp, 512, "reject_time = \"%s\"", rejectts);
+	snprintf(tmp, 512, "reject_time = %d", (int)clock);
 	tmpClP->Insert(tmp);
 	
 	snprintf(tmp, 512, "username = \"%s\"", userName);
@@ -3039,7 +3027,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 	snprintf(tmp, 512, "scheddname = \"%s\"", scheddName);
 	tmpClP->Insert(tmp);
 	
-	snprintf(tmp, 512, "cluster = %d", cluster);
+	snprintf(tmp, 512, "cluster_id = %d", cluster);
 	tmpClP->Insert(tmp);
 
 	snprintf(tmp, 512, "proc = %d", proc);
@@ -3083,13 +3071,10 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	ClassAd tmpCl;
 	ClassAd *tmpClP = &tmpCl;
 
-	struct tm *tm;
 	time_t clock;
 	char tmp[512];
-	char matchts[100];
 
 	(void)time(  (time_t *)&clock );
-	tm = localtime( (time_t *)&clock );
 
 	request.LookupInteger (ATTR_CLUSTER_ID, cluster);
 	request.LookupInteger (ATTR_PROC_ID, proc);
@@ -3097,16 +3082,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	get_scheddname_from_gjid(globaljobid,scheddName);
 	offer.LookupString( ATTR_NAME, startdname); 
 
-	snprintf(matchts, 100, "%d/%d/%d %02d:%02d:%02d %s", 
-		  tm->tm_mon+1,
-		  tm->tm_mday,
-		  tm->tm_year+1900,
-		  tm->tm_hour,
-		  tm->tm_min,
-		  tm->tm_sec,
-		  my_timezone(tm->tm_isdst));
-	
-	snprintf(tmp, 512, "match_time = \"%s\"", matchts);
+	snprintf(tmp, 512, "match_time = %d", (int) clock);
 	tmpClP->Insert(tmp);
 	
 	snprintf(tmp, 512, "username = \"%s\"", userName);
@@ -3115,7 +3091,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	snprintf(tmp, 512, "scheddname = \"%s\"", scheddName);
 	tmpClP->Insert(tmp);
 	
-	snprintf(tmp, 512, "cluster = %d", cluster);
+	snprintf(tmp, 512, "cluster_id = %d", cluster);
 	tmpClP->Insert(tmp);
 
 	snprintf(tmp, 512, "proc = %d", proc);
