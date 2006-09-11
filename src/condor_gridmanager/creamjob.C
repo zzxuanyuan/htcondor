@@ -95,7 +95,7 @@ static char *GMStateNames[] = {
 #define CREAM_JOB_STATE_PURGED			"PURGED"
 
 const char *ATTR_CREAM_UPLOAD_URL = "CreamUploadUrl";
-
+const char *ATTR_CREAM_DELEGATION_URI = "CreamDelegationUri";
 
 // TODO: once we can set the jobmanager's proxy timeout, we should either
 // let this be set in the config file or set it to
@@ -294,21 +294,19 @@ CreamJob::CreamJob( ClassAd *classad )
 
 	buff[0] = '\0';
 	
-		//Jaime: Why do we require gridjobid entry from classad here ?
-
+		//Jaime: are we looking for gridjobid here in case job already has been registered ?
 	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId(buff);
 		
-			//Jaime: not quite sure why strchr is used here
-			//SetRemoteJobId( strchr( buff, ' ' ) + 1 );
+			//since GridJobId = <cream> <ResourceManager> <jobid>
+		SetRemoteJobId(strchr((strchr(buff, ' ') + 1), ' ') + 1);
+//		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
-
-
+	
 		// Find/create an appropriate CreamResource for this job
 	myResource = CreamResource::FindOrCreateResource( resourceManagerString,
-													jobProxy->subject->subject_name);
+													  jobProxy->subject->subject_name);
 	if ( myResource == NULL ) {
 		error_string = "Failed to initialize CreamResource object";
 		goto error_exit;
@@ -320,10 +318,13 @@ CreamJob::CreamJob( ClassAd *classad )
 		myResource->AlreadySubmitted( this );
 	}
 
+//teonadi
+// from here
 /*
 	buff[0] = '\0';
 	if ( job_already_submitted ) {
-		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
+			//uncomment this later
+//		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
 	}
 
 	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy );
@@ -333,9 +334,10 @@ CreamJob::CreamJob( ClassAd *classad )
 		//   previous submission isn't requested here.
 	gridftpServer->RegisterClient( evaluateStateTid, buff[0] ? buff : NULL );
 */
+// end here
 
 	if ( job_already_submitted &&
-		 jobAd->LookupString( ATTR_GLOBUS_DELEGATION_URI, buff ) ) {
+		 jobAd->LookupString( ATTR_CREAM_DELEGATION_URI, buff ) ) {
 
 		delegatedCredentialURI = strdup( buff );
 		myResource->registerDelegationURI( delegatedCredentialURI, jobProxy );
@@ -415,11 +417,11 @@ CreamJob::CreamJob( ClassAd *classad )
 
 CreamJob::~CreamJob()
 {
-/*
+
 	if ( gridftpServer ) {
 		gridftpServer->UnregisterClient( evaluateStateTid );
 	}
-*/
+
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
 	}
@@ -487,8 +489,7 @@ int CreamJob::doEvaluateState()
 		reevaluate_state = false;
 		old_gm_state = gmState;
 		old_remote_state = remoteState;
-		//teonadi
-//		dprintf(D_ALWAYS,"gmState:%s\n", GMStateNames[gmState]);
+
 		switch ( gmState ) {
 		  
 		case GM_INIT: {
@@ -497,7 +498,7 @@ int CreamJob::doEvaluateState()
 			// do in the constructor because they could block (the
 			// constructor is called while we're connected to the schedd).
 //			int err;
-			dprintf(D_ALWAYS, "JOB PROXY:%s\n", jobProxy->proxy_filename);
+
 			if ( gahp->Initialize( jobProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
@@ -527,9 +528,13 @@ int CreamJob::doEvaluateState()
 			// old jobmanager process is still alive.
 
 			errorString = "";
+				//Jaime: remoteJobId will be NULL because job has not been registered yet.
+/*
 			if ( remoteJobId == NULL ) {
 			  gmState = GM_CLEAR_REQUEST;
-			} else if ( wantResubmit || doResubmit ) {
+			} else
+*/
+				if ( wantResubmit || doResubmit ) {
 			  gmState = GM_CLEAR_REQUEST;
 			} else {
 			  // TODO we should save the cream job state in the job
@@ -541,9 +546,9 @@ int CreamJob::doEvaluateState()
 				}
 
 				probeNow = true;
-				//Jaime: should gmState be GM_DELEGATE_PROXY instead of GM_SUBMITTED?
+				//Jaime: should gmState be GM_UNSUBMITTED instead of GM_SUBMITTED?
 				//	gmState = GM_SUBMITTED;
-				gmState = GM_DELEGATE_PROXY;
+				gmState = GM_UNSUBMITTED;
 			}
 			} break;
  		case GM_UNSUBMITTED: {
@@ -554,6 +559,7 @@ int CreamJob::doEvaluateState()
 			} else if ( condorState == HELD ) {
 				gmState = GM_DELETE;
 				break;
+//teonadi
 /*
 			} else if ( gridftpServer->GetErrorMessage() ) {
 				errorString = gridftpServer->GetErrorMessage();
@@ -563,6 +569,7 @@ int CreamJob::doEvaluateState()
 				jobAd->Assign( ATTR_GRIDFTP_URL_BASE, gridftpServer->GetUrlBase() );
 				gmState = GM_DELEGATE_PROXY;
 */
+//end here
 			}
 
 			gmState = GM_DELEGATE_PROXY;
@@ -591,7 +598,8 @@ int CreamJob::doEvaluateState()
 			}
 			delegatedCredentialURI = strdup( deleg_uri );
 			gmState = GM_SUBMIT;
-			jobAd->Assign( ATTR_GLOBUS_DELEGATION_URI,
+			
+			jobAd->Assign( ATTR_CREAM_DELEGATION_URI,
 						   delegatedCredentialURI );
 		} break;
 		case GM_SUBMIT: {
@@ -716,11 +724,12 @@ int CreamJob::doEvaluateState()
 			// jobmanager occassionally to make it's still alive.
 			if ( remoteState == CREAM_JOB_STATE_DONE_OK ) {
 				gmState = GM_DONE_SAVE;
-			} else if ( remoteState == CREAM_JOB_STATE_DONE_FAILED ) {
+			} else if ( remoteState == CREAM_JOB_STATE_DONE_FAILED || remoteState == CREAM_JOB_STATE_ABORTED ) {
 				gmState = GM_PURGE;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
+//teonadi
 /*
 					// Check that our gridftp server is healthy
 				if ( gridftpServer->GetErrorMessage() ) {
@@ -737,6 +746,7 @@ int CreamJob::doEvaluateState()
 					break;
 				}
 */
+// end here
 
 /*
 				int new_lease;	// CalculateJobLease needs an int
@@ -819,6 +829,9 @@ int CreamJob::doEvaluateState()
 					gmState = GM_CANCEL;
 					if ( status ) {
 						free( status );
+					}
+					if ( fault ) {
+						free (fault);
 					}
 					break;
 				}
@@ -1099,14 +1112,17 @@ int CreamJob::doEvaluateState()
 					gmState );
 		}
 
+
 		if ( gmState != old_gm_state || remoteState != old_remote_state ) {
 			reevaluate_state = true;
 		}
 		if ( remoteState != old_remote_state ) {
-//			dprintf(D_FULLDEBUG, "(%d.%d) remote state change: %s -> %s\n",
-//					procID.cluster, procID.proc,
-//					old_remote_state.Value()),
-//					remoteState.Value());
+/*
+			dprintf(D_FULLDEBUG, "(%d.%d) remote state change: %s -> %s\n",
+					procID.cluster, procID.proc,
+					old_remote_state.Value(),
+					remoteState.Value());
+*/
 			enteredCurrentRemoteState = time(NULL);
 		}
 		if ( gmState != old_gm_state ) {
@@ -1127,9 +1143,10 @@ int CreamJob::doEvaluateState()
 			}
 			connect_failure_counter = 0;
 		}
-
 	} while ( reevaluate_state );
 
+		//end of evaluateState loop
+		
 	if ( connect_failure && !resourceDown ) {
 		if ( connect_failure_counter < maxConnectFailures ) {
 				// We are seeing a lot of failures to connect
@@ -1346,8 +1363,8 @@ ClassAd *CreamJob::buildSubmitAd()
 	MyString jobAdValue = "";
 //	submit_ad->sPrint(jobAdValue);
 //	dprintf(D_ALWAYS, "SUBMIT_AD:\n%s\n",jobAdValue.Value()); 
-	jobAd->sPrint(jobAdValue);
-	dprintf(D_ALWAYS, "JOB_AD:\n%s\n",jobAdValue.Value()); 
+//	jobAd->sPrint(jobAdValue);
+//	dprintf(D_ALWAYS, "JOB_AD:\n%s\n",jobAdValue.Value()); 
 
 	return submit_ad;
 }
