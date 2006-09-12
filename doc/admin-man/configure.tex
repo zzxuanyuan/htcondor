@@ -1212,21 +1212,21 @@ This macro
 Log files may optionally be specified per debug level as follows:
 \begin{description}
 
-\item[\MacroB{<SUBSYS>\_LEVEL\_LOG}] \label{param:SubsysLevelLog}
-\index{SUBSYS\_LEVEL\_LOG macro@\texttt{<SUBSYS>\_LEVEL\_LOG} macro}
+\item[\MacroB{<SUBSYS>\_<LEVEL>\_LOG}] \label{param:SubsysLevelLog}
+\index{SUBSYS\_LEVEL\_LOG macro@\texttt{<SUBSYS>\_<LEVEL>\_LOG} macro}
   This is
   the name of a log file for messages at a specific debug level for a
   specific subsystem.  If the debug level is included in
   \MacroUNI{<SUBSYS>\_DEBUG}, then all messages of this debug level will be
   written both to the \MacroUNI{<SUBSYS>\_LOG} file and the
-  \MacroUNI{<SUBSYS>\_LEVEL\_LOG} file.  For example,
+  \MacroUNI{<SUBSYS>\_<LEVEL>\_LOG} file.  For example,
   \MacroUNI{SHADOW\_SYSCALLS\_LOG} specifies a log file for all remote
   system call debug messages.
 
-\item[\Macro{MAX\_<SUBSYS>\_LEVEL\_LOG}] \label{param:MaxSubsysLevelLog}
+\item[\Macro{MAX\_<SUBSYS>\_<LEVEL>\_LOG}] \label{param:MaxSubsysLevelLog}
   Similar to \Macro{MAX\_<SUBSYS>\_LOG}.
 
-\item[\Macro{TRUNC\_<SUBSYS>\_LEVEL\_LOG\_ON\_OPEN}]
+\item[\Macro{TRUNC\_<SUBSYS>\_<LEVEL>\_LOG\_ON\_OPEN}]
   \label{param:TruncSubsysLevelLogOnOpen} Similar to
   \Macro{TRUNC\_<SUBSYS>\_LOG\_ON\_OPEN}.
 
