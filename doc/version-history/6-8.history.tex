@@ -280,6 +280,16 @@ timestamp, which contains colon characters. The naming convention for
 rotated files has been modified to use ISO 8601 basic format, avoiding
 this problem.
 
+\item The CLAIMTOBE authentication method (which is inherently
+insecure and should only be used for testing or other special
+circumstances) previously would authenticate without providing the
+``domain'' portion of the user name. As an example, a user would be
+authenticated as simply ``user'' rather than
+``user@cs.wisc.edu''. This problem has been fixed, but the new
+protocol is not backwards compatible so the fix is turned off by
+default. Correct behavior can be enabled by setting the
+\Macro{SEC\_CLAIMTOBE\_INCLUDE\_DOMAIN} parameter to \Expr{True}.
+
 \end{itemize}
 
 \noindent Known Bugs:
