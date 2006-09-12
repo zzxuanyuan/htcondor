@@ -2190,8 +2190,8 @@ These macros control the \Condor{master}.
   units of seconds, and defaults to 9 seconds.
 
   \MacroUNI{MASTER\_<name>\_BACKOFF\_CONSTANT} is the daemon-specific
-  form of \Macro{MASTER\_BACKOFF\_CONSTANT}; if this daemon-specic
-  macro isn't defined for a specific daemon, the non-daemon-specific
+  form of \MacroNI{MASTER\_BACKOFF\_CONSTANT}; if this daemon-specific
+  macro is not defined for a specific daemon, the non-daemon-specific
   value will used.
 
 \item[\Macro{MASTER\_BACKOFF\_FACTOR} and
@@ -2205,8 +2205,8 @@ These macros control the \Condor{master}.
   daemon again.  It defaults to 2 seconds.
 
   \MacroUNI{MASTER\_<name>\_BACKOFF\_FACTOR} is the daemon-specific
-  form of \Macro{MASTER\_BACKOFF\_FACTOR}; if this daemon-specic
-  macro isn't defined for a specific daemon, the non-daemon-specific
+  form of \MacroNI{MASTER\_BACKOFF\_FACTOR}; if this daemon-specific
+  macro is not defined for a specific daemon, the non-daemon-specific
   value will used.
 
 \item[\Macro{MASTER\_BACKOFF\_CEILING} and
@@ -2222,8 +2222,8 @@ These macros control the \Condor{master}.
   seconds and defaults to 3600 (1 hour).
 
   \MacroUNI{MASTER\_<name>\_BACKOFF\_CEILING} is the daemon-specific
-  form of \Macro{MASTER\_BACKOFF\_CEILING}; if this daemon-specic
-  macro isn't defined for a specific daemon, the non-daemon-specific
+  form of \MacroNI{MASTER\_BACKOFF\_CEILING}; if this daemon-specific
+  macro is not defined for a specific daemon, the non-daemon-specific
   value will used.
 
 \item[\Macro{MASTER\_RECOVER\_FACTOR} and
@@ -2237,14 +2237,14 @@ These macros control the \Condor{master}.
   terms of seconds and defaults to 300 (5 minutes).
 
   \MacroUNI{MASTER\_<name>\_RECOVER\_FACTOR} is the daemon-specific
-  form of \Macro{MASTER\_RECOVER\_FACTOR}; if this daemon-specic
-  macro isn't defined for a specific daemon, the non-daemon-specific
+  form of \MacroNI{MASTER\_RECOVER\_FACTOR}; if this daemon-specific
+  macro is not defined for a specific daemon, the non-daemon-specific
   value will used.
 
 \end{description}
 
 When a daemon crashes, \Condor{master} will restart the daemon after a
-delay (``back off'').
+delay (a back off).
 The length of this delay is based on how many times it has been
 restarted, and gets larger after each crashes. 
 The equation for calculating this backoff time is
