@@ -105,6 +105,19 @@ fatal errors.
 
 \begin{itemize}
 
+\item When a large number of jobs (roughly 200 or more) are running from a
+single \Condor{schedd} daemon, and those jobs are using job leases
+(the default in 6.8), it is
+possible for the \Condor{schedd} daemon to enter a state 
+where it crashes on startup until all of
+the job leases expire.
+% The bug is more generic; it potentially hit any user of GenericQuery or
+% CondorQuery, but we know of no users encountering the bug in any other cases.
+
+\item Condor jobs submitted with the \AdAttr{NiceUser} priority were
+  not being matched if the \Macro{NEGOTIATOR\_MATCHLIST\_CACHING}
+  setting was TRUE (which is enabled by default).
+
 \item Fixed a Quill bug that prevented it from running on Windows.  The
 symptom showed with errors in the QuillLog such as
 \begin{verbatim}
@@ -120,15 +133,6 @@ triggered
 a significant slowdown in the performance of Quill and the database.  This
 would only happen when a job attribute changed type from a string
 type to a numeric type, or vice versa.
-
-\item When a large number of jobs (roughly 200 or more) are running from a
-single \Condor{schedd} daemon, and those jobs are using job leases
-(the default in 6.8), it is
-possible for the \Condor{schedd} daemon to enter a state 
-where it crashes on startup until all of
-the job leases expire.  This bug is fixed.
-% The bug is more generic; it potentially hit any user of GenericQuery or
-% CondorQuery, but we know of no users encountering the bug in any other cases.
 
 %% This is the change to datathread.C
 \item In those unusual cases where Condor is unable to create a new process,
