@@ -282,13 +282,16 @@ to only analyze one job at a time.
     queue, considering all jobs not completed (those that do not have
     \Expr{JobStatus == 4} or \Expr{JobStatus == 3}.  }
   \OptItem{\OptArg{-jobads}{file}}{Display jobs from a list of
-    ClassAds from a file instead of the real ads from the
-    schedd. This is mostly useful for debugging purposes. The ads
-    look as if you used \Condor{q} \Opt{-l} and stripped out the header.}
+    ClassAds from a file, instead of the real ClassAds from the
+    \Condor{schedd} daemon.
+    This is most useful for debugging purposes.
+    The ClassAds appear as if
+    \Condor{q} \Opt{-l} is used with the header stripped out.}
   \OptItem{\OptArg{-machineads}{file}}{When doing analysis, use the
     machine ads from the file instead of the ones from the
-    collector. This is mostly useful for debugging purposes. The
-    ads look as if you used \Condor{status} \Opt{-l}.}
+    \Condor{collector} daemon. 
+    This is most useful for debugging purposes. 
+    The ClassAds appear as if \Condor{status} \Opt{-l} is used.}
   \OptItem{\OptArg{-direct}{rdbms \Bar quilld \Bar schedd}}{When the
     use of Quill is enabled, this option allows a direct query to either
     the rdbms, the \Condor{quill} daemon, or the \Condor{schedd}
