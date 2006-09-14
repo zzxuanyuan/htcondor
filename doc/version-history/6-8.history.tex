@@ -88,6 +88,10 @@ submit jobs or machines to your pool.
 displaying the entire history for each machine and only displays the
 summary info.
 
+\item \Condor{submit} now issues a warning if a job's log file(s) are
+on NFS, since this can cause problems (because file locking is not
+reliable on NFS).
+
 \end{itemize}
 
 \noindent Bugs Fixed:
