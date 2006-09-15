@@ -291,6 +291,9 @@ char	*RmKillSig			= "remove_kill_sig";
 char	*HoldKillSig		= "hold_kill_sig";
 #endif
 
+//teonadi 
+char *CreamGridftp = "CreamGridftp";
+
 void	SetRemoteAttrs();
 void 	reschedule();
 void 	SetExecutable();
@@ -1133,7 +1136,10 @@ SetExecutable()
 		}
 		free( macro_value );
 	}
-
+		//teonadi
+	(void) sprintf (buffer, "%s = \"%s\"", "Executable", ename);
+	InsertJobExpr (buffer);
+	
 	// If we're not transfering the executable, leave a relative pathname
 	// unresolved. This is mainly important for the Globus universe.
 	if ( transfer_it ) {
@@ -1145,6 +1151,7 @@ SetExecutable()
 
 	(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_CMD, full_ename.Value());
 	InsertJobExpr (buffer);
+
 
 		/* MPI REALLY doesn't like these! */
 	if ( JobUniverse != CONDOR_UNIVERSE_MPI && JobUniverse != CONDOR_UNIVERSE_PVM ) {
@@ -1371,7 +1378,8 @@ SetUniverse()
 				(stricmp (JobGridType, "condor") == MATCH) ||
 				(stricmp (JobGridType, "nordugrid") == MATCH) ||
 				(stricmp (JobGridType, "unicore") == MATCH) ||
-				(stricmp (JobGridType, "oracle") == MATCH)) {
+				(stricmp (JobGridType, "oracle") == MATCH) ||
+				(stricmp (JobGridType, "cream") == MATCH)){
 				// We're ok	
 				// Values are case-insensitive for gridmanager, so we don't need to change case			
 			} else if ( stricmp( JobGridType, "globus" ) == MATCH ) {
@@ -4351,6 +4359,20 @@ SetGlobusParams()
 	}
 }
 
+void 
+SetCreamAttr()
+{
+	char *tmp;
+
+	if ((tmp = condor_param (CreamGridftp))) {
+		sprintf (buffer, "%s = \"%s\"", "CreamGridftp", tmp );
+		free( tmp );
+		InsertJobExpr ( buffer );
+	}
+
+	return;
+}
+
 void
 SetGSICredentials()
 {
@@ -4446,7 +4468,6 @@ SetGSICredentials()
 			free( proxy_file );
 		}
 	}
-
 
 	//ckireyev: MyProxy-related crap
 	if ((tmp = condor_param (ATTR_MYPROXY_HOST_NAME))) {
@@ -5006,6 +5027,9 @@ queue(int num)
 		SetJarFiles();
 		SetJavaVMArgs();
 		SetParallelStartupScripts(); //JDB
+		
+			//teonadi CREAM Attributes
+		SetCreamAttr(); 
 
 			// SetForcedAttributes should be last so that it trumps values
 			// set by normal submit attributes
