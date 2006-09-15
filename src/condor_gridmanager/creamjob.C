@@ -38,7 +38,6 @@
 #include "condor_config.h"
 #include "my_username.h"
 
-
 // GridManager job states
 #define GM_INIT					0
 #define GM_UNSUBMITTED			1
@@ -319,12 +318,10 @@ CreamJob::CreamJob( ClassAd *classad )
 	}
 
 //teonadi
-// from here
 /*
 	buff[0] = '\0';
 	if ( job_already_submitted ) {
-			//uncomment this later
-//		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
+		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
 	}
 
 	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy );
@@ -1255,6 +1252,7 @@ ClassAd *CreamJob::buildSubmitAd()
 	const char *ATTR_STD_INPUT = "STDINPUT";
 	const char *ATTR_STD_OUTPUT = "STDOUTPUT";
 	const char *ATTR_STD_ERROR = "STDERROR";
+	const char *ATTR_INPUT_SB = "INPUTSANDBOX";
 	const char *ATTR_OUTPUT_SB = "OUTPUTSANDBOX";
 	const char *ATTR_OUTPUT_SB_BASE_DEST_URI = "OUTPUTSANDBOXBASEDESTURI";
 	const char *ATTR_VIR_ORG = "VIRTUALORGANISATION";
@@ -1264,26 +1262,111 @@ ClassAd *CreamJob::buildSubmitAd()
 	ClassAd *submit_ad = new ClassAd();
 
 	MyString tmp_str = "";
+	MyString tmp_str2 = "";
 	MyString buf = "";
+	MyString iwd_str = "";
+	MyString osb_str = "";
+	StringList *isb = new StringList();
+	StringList *osb = new StringList();
+	bool result;
 
-	MyString stdout_str = "";
-	MyString stderr_str = "";
-	bool stdoutput = false, stderror = false;
+		//IWD
+	jobAd->LookupString(ATTR_JOB_IWD, iwd_str);
+	iwd_str += '/';
 	
-		//TYPE teonadi can't locate mytype, weird
-	if (jobAd->LookupString("MyType", tmp_str)) {
-		buf.sprintf("%s = \"%s\"", ATTR_TYPE, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
-	}
+		//Gridftp server to use with CREAM
+	jobAd->LookupString("CreamGridftp", osb_str);
+
+		//TYPE
+	buf.sprintf("%s = \"%s\"", ATTR_TYPE, "Job");
 	
 		//JOBTYPE
-	buf.sprintf("%s = \"normal\"", ATTR_JOB_TYPE);
+	buf.sprintf("%s = \"%s\"", ATTR_JOB_TYPE, "Normal");
 	submit_ad->Insert(buf.Value());
+	
+		//EXECUTABLE can either be STAGED or TRANSFERED
+	if (!jobAd->LookupBool(ATTR_TRANSFER_EXECUTABLE, result)) { //TRANSFERED
+		
+			//here, JOB_CMD = full path to executable
+		jobAd->LookupString(ATTR_JOB_CMD, tmp_str);
+		tmp_str = osb_str + tmp_str;
+		isb->insert(tmp_str.Value());
 
-		//EXECUTABLE
-	if (jobAd->LookupString(ATTR_JOB_CMD, tmp_str)) {
+			//CREAM only accepts absolute path | simple filename only
+		if (tmp_str[0] != '/') { //not absolute path
+
+				//get simple filename
+			StringList strlist(tmp_str.Value(), "/");
+			strlist.rewind();
+			for(int i = 0; i < strlist.number(); i++) 
+				tmp_str = strlist.next();
+		}
+
 		buf.sprintf("%s = \"%s\"", ATTR_EXECUTABLE, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
+	}
+	else { //STAGED
+		jobAd->LookupString(ATTR_JOB_CMD, tmp_str);
+		buf.sprintf("%s = \"%s\"", ATTR_EXECUTABLE, tmp_str.Value());
+		submit_ad->Insert(buf.Value());
+	}
+
+		//STDINPUT can be either be STAGED or TRANSFERED
+	if (!jobAd->LookupBool(ATTR_TRANSFER_INPUT, result)) { //TRANSFERED
+		
+		if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
+
+			if (tmp_str[0] != '/')  //not absolute path
+				tmp_str2 = osb_str + iwd_str + tmp_str;
+			else 
+				tmp_str2 = osb_str + tmp_str;
+			
+			isb->insert(tmp_str2.Value());
+			
+				//get simple filename
+			StringList strlist(tmp_str.Value(), "/");
+			strlist.rewind();
+			for(int i = 0; i < strlist.number(); i++) 
+				tmp_str = strlist.next();
+		}
+			buf.sprintf("%s = \"%s\"", ATTR_STD_INPUT, tmp_str.Value());
+			submit_ad->Insert(buf.Value());
+	}
+	else { //STAGED. Be careful, if stdin is not found in WN, job will not
+			//complete successfully.
+		if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
+			if (tmp_str[0] == '/') { //Only add absolute path
+				buf.sprintf("%s = \"%s\"", ATTR_STD_INPUT, tmp_str.Value());
+				submit_ad->Insert(buf.Value());
+			}
+		}
+	}
+		
+		//TRANSFER INPUT FILES
+	if (jobAd->LookupString(ATTR_TRANSFER_INPUT_FILES, tmp_str)) {
+		StringList strlist(tmp_str.Value());
+		strlist.rewind();
+		
+		for (int i = 0; i < strlist.number(); i++) {
+			tmp_str = strlist.next();
+
+			if (tmp_str[0] != '/')  //not absolute path
+				tmp_str2 = osb_str + iwd_str + tmp_str;
+			else 
+				tmp_str2 = osb_str + tmp_str;
+
+			isb->insert(tmp_str2.Value());
+		}
+	}
+
+		//TRANSFER OUTPUT FILES: handle absolute ?
+	if (jobAd->LookupString(ATTR_TRANSFER_OUTPUT_FILES, tmp_str)) {
+		StringList strlist(tmp_str.Value());
+		strlist.rewind();
+		
+		for (int i = 0; i < strlist.number(); i++) {
+			osb->insert(strlist.next());
+		}
 	}
 
 		//ARGUMENTS
@@ -1292,77 +1375,84 @@ ClassAd *CreamJob::buildSubmitAd()
 		submit_ad->Insert(buf.Value());
 	}
 	
-		//STDINPUT
-	if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
-		buf.sprintf("%s = \"%s\"", ATTR_STD_INPUT, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
-	}
-
-		//STDOUTPUT 
+		//STDOUTPUT TODO: handle absolute ?
 	if (jobAd->LookupString(ATTR_JOB_OUTPUT, tmp_str)) {
 		buf.sprintf("%s = \"%s\"", ATTR_STD_OUTPUT, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
-		stdoutput = true;
-		stdout_str = tmp_str;
+
+		if (!jobAd->LookupBool(ATTR_TRANSFER_OUTPUT, result)) {
+			osb->insert(tmp_str.Value());
+		}
 	}
 
-		//STDERROR
+		//STDERROR TODO: handle absolute ?
 	if (jobAd->LookupString(ATTR_JOB_ERROR, tmp_str)) {
 		buf.sprintf("%s = \"%s\"", ATTR_STD_ERROR, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
-		stderror = true;
-		stderr_str = tmp_str;
+		
+		if (!jobAd->LookupBool(ATTR_TRANSFER_ERROR, result)) {
+			osb->insert(tmp_str.Value());
+		}
 	}
 
-		//OUTPUTSANDBOX for now includes stdoutput & stderror 
-	if(stdoutput && stderror)
-		buf.sprintf("%s = \"%s,%s\"", ATTR_OUTPUT_SB, stdout_str.Value(), stderr_str.Value());
-	else if (stdoutput && !stderror)
-		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB, stdout_str.Value());
-	else if (!stdoutput && stderror)
-		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB, stderr_str.Value());
-
-	if (stdoutput || stderror)
+		//INPUT SANDBOX
+	if (isb->number() > 0) {
+		buf.sprintf("%s = \"", ATTR_INPUT_SB);
+		for (int i = 0; i < isb->number(); i++) {
+			if (i == 0)
+				buf.sprintf_cat("%s", isb->next());
+			else
+				buf.sprintf_cat(",%s", isb->next());
+		}
+		buf.sprintf_cat("\"");
 		submit_ad->Insert(buf.Value());
+	}
 	
-		//teonadi
+		//OUTPUT SANDBOX
+	if (osb->number() > 0) {
+		buf.sprintf("%s = \"", ATTR_OUTPUT_SB);
+		for (int i = 0; i < osb->number(); i++) {
+			if (i == 0)
+				buf.sprintf_cat("%s", osb->next());
+			else
+				buf.sprintf_cat(",%s", osb->next());
+		}
+		buf.sprintf_cat("\"");
+		submit_ad->Insert(buf.Value());
+	}
+
 		//OUTPUTSANDBOXBASEDESTURI
-	if (jobAd->LookupString(ATTR_GRIDFTP_URL_BASE, tmp_str)) {
+	if (jobAd->LookupString("CreamGridftp", tmp_str)) {
+		tmp_str += iwd_str;
 		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB_BASE_DEST_URI, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
 	
-
-	/*
+		/* TODO
 		//ENVIRONMENT
 	if (jobAd->LookupString(ATTR_JOB_ENVIRONMENT2, tmp_str)) {
 		buf.sprintf("%s = \"%s\"", ATTR_JOB_ENVIRONMENT2, tmp_str.Value());
 		submit_ad->Insert(buf.Value());
 	}
-	*/
-		//VIRTUALORGANISATION
-	buf.sprintf("%s = \"%s\"", ATTR_VIR_ORG, "IVDGL");
-	submit_ad->Insert(buf.Value());
+		*/
 
+		//VIRTUALORGANISATION. CREAM requires this attribute, but it doesn't
+		//need to have a value
+	buf.sprintf("%s = \"%s\"", ATTR_VIR_ORG, "");
+	submit_ad->Insert(buf.Value());
+	
 		//BATCHSYSTEM hard coded for now
 	buf.sprintf("%s = \"%s\"", ATTR_BATCH_SYSTEM, "pbs");
 	submit_ad->Insert(buf.Value());
-
+	
 		//QUEUE hard coded for now
 	buf.sprintf("%s = \"%s\"", ATTR_QUEUE, "long");
 	submit_ad->Insert(buf.Value());
-
-
-		/* TODO
-		   INPUTSANDBOX
-		   INPUTSANDBOXBASEURI
-		   OUTPUTSANDBOXBASEDESTURI
-		*/
-
-	//teonadi
+	
+		//teonadi
 	MyString jobAdValue = "";
-//	submit_ad->sPrint(jobAdValue);
-//	dprintf(D_ALWAYS, "SUBMIT_AD:\n%s\n",jobAdValue.Value()); 
+	submit_ad->sPrint(jobAdValue);
+	dprintf(D_FULLDEBUG, "SUBMIT_AD:\n%s\n",jobAdValue.Value()); 
 //	jobAd->sPrint(jobAdValue);
 //	dprintf(D_ALWAYS, "JOB_AD:\n%s\n",jobAdValue.Value()); 
 

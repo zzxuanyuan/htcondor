@@ -208,8 +208,7 @@ GahpServer::write_line(const char *command)
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
 	}
-		//teonadi
-//	dprintf(D_ALWAYS, "sending gahp_server: %s\n", command);
+
 	daemonCore->Write_Pipe(m_gahp_writefd,command,strlen(command));
 	daemonCore->Write_Pipe(m_gahp_writefd,"\r\n",2);
 
@@ -239,8 +238,7 @@ GahpServer::write_line(const char *command, int req, const char *args)
 
 	daemonCore->Write_Pipe(m_gahp_writefd,command,strlen(command));
 	daemonCore->Write_Pipe(m_gahp_writefd,buf,strlen(buf));
-	//teonadi
-	dprintf(D_ALWAYS, "sending gahp_server: %s%s%s\n", command, buf, args);
+
 	if ( args ) {
 		daemonCore->Write_Pipe(m_gahp_writefd,args,strlen(args));
 	}
@@ -761,7 +759,9 @@ GahpServer::Initialize( Proxy *proxy )
 	master_proxy->proxy = proxy->subject->master_proxy;
 	AcquireProxy( master_proxy->proxy, proxy_check_tid );
 	master_proxy->cached_expiration = 0;
-
+	
+		//teonadi
+	master_proxy->proxy->proxy_filename = proxy->proxy_filename;
 		// Give the server our x509 proxy.
 
 	if ( command_initialize_from_file( master_proxy->proxy->proxy_filename ) == false ) {
@@ -1230,7 +1230,8 @@ GahpServer::command_initialize_from_file(const char *proxy_path,
 	if ( command == NULL ) {
 		command = "INITIALIZE_FROM_FILE";
 	}
-
+		//teonadi
+//	proxy_path = "/tmp/x509up_u14181";
 	int x = snprintf(buf,sizeof(buf),"%s %s",command,
 					 escapeGahpString(proxy_path));
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
@@ -1246,8 +1247,6 @@ GahpServer::command_initialize_from_file(const char *proxy_path,
 		} else {
 			reason = "Unspecified error";
 		}
-		//teonadi
-//		dprintf(D_ALWAYS, "result: %d\n",result.argc); 
 
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: %s\n",command,reason);
 
