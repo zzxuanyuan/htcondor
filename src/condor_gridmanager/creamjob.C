@@ -217,9 +217,6 @@ CreamJob::CreamJob( ClassAd *classad )
 	delegatedCredentialURI = NULL;
 	gridftpServer = NULL;
 
-	//teonadi
-	MyString jobAdValue1 = "";
-
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
 	// TODO This is bad. The job may already be on hold with a valid hold
@@ -285,6 +282,24 @@ CreamJob::CreamJob( ClassAd *classad )
 			goto error_exit;
 		}
 
+		token = str.GetNextToken( " ", false );
+		if ( token && *token ) {
+			resourceBatchSystemString = strdup( token );
+		} else {
+			error_string.sprintf( "%s missing batch system (LRMS) type.",
+								  ATTR_GRID_RESOURCE );
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( " ", false );
+		if ( token && *token ) {
+			resourceQueueString = strdup( token );
+		} else {
+			error_string.sprintf( "%s missing LRMS queue name.",
+								  ATTR_GRID_RESOURCE );
+			goto error_exit;
+		}
+
 	} else {
 		error_string.sprintf( "%s is not set in the job ad",
 							  ATTR_GRID_RESOURCE );
@@ -317,13 +332,11 @@ CreamJob::CreamJob( ClassAd *classad )
 		myResource->AlreadySubmitted( this );
 	}
 
-//teonadi
-/*
 	buff[0] = '\0';
 	if ( job_already_submitted ) {
 		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
 	}
-
+/*
 	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy );
 
 		// TODO It would be nice to register only after going through
@@ -331,7 +344,6 @@ CreamJob::CreamJob( ClassAd *classad )
 		//   previous submission isn't requested here.
 	gridftpServer->RegisterClient( evaluateStateTid, buff[0] ? buff : NULL );
 */
-// end here
 
 	if ( job_already_submitted &&
 		 jobAd->LookupString( ATTR_CREAM_DELEGATION_URI, buff ) ) {
@@ -414,16 +426,20 @@ CreamJob::CreamJob( ClassAd *classad )
 
 CreamJob::~CreamJob()
 {
-
 	if ( gridftpServer ) {
 		gridftpServer->UnregisterClient( evaluateStateTid );
 	}
-
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
 	}
 	if ( resourceManagerString ) {
 		free( resourceManagerString );
+	}
+	if ( resourceBatchSystemString ) {
+		free( resourceBatchSystemString );
+	}
+	if ( resourceQueueString ) {
+		free( resourceQueueString );
 	}
 	if ( remoteJobId ) {
 		free( remoteJobId );
@@ -494,7 +510,6 @@ int CreamJob::doEvaluateState()
 			// is first created. Here, we do things that we didn't want to
 			// do in the constructor because they could block (the
 			// constructor is called while we're connected to the schedd).
-//			int err;
 
 			if ( gahp->Initialize( jobProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
@@ -525,27 +540,23 @@ int CreamJob::doEvaluateState()
 			// old jobmanager process is still alive.
 
 			errorString = "";
-				//Jaime: remoteJobId will be NULL because job has not been registered yet.
-/*
 			if ( remoteJobId == NULL ) {
-			  gmState = GM_CLEAR_REQUEST;
-			} else
-*/
-				if ( wantResubmit || doResubmit ) {
-			  gmState = GM_CLEAR_REQUEST;
+				gmState = GM_CLEAR_REQUEST;
+			} else if ( wantResubmit || doResubmit ) {
+				gmState = GM_CLEAR_REQUEST;
 			} else {
-			  // TODO we should save the cream job state in the job
+					// TODO we should save the cream job state in the job
 					//   ad and use it to set submitLogged and
 					//   executeLogged here
 				submitLogged = true;
 				if ( condorState == RUNNING ) {
 					executeLogged = true;
 				}
-
+				
 				probeNow = true;
 				//Jaime: should gmState be GM_UNSUBMITTED instead of GM_SUBMITTED?
-				//	gmState = GM_SUBMITTED;
-				gmState = GM_UNSUBMITTED;
+				gmState = GM_SUBMITTED;
+					//			gmState = GM_UNSUBMITTED;
 			}
 			} break;
  		case GM_UNSUBMITTED: {
@@ -627,13 +638,12 @@ int CreamJob::doEvaluateState()
 				if ( gahpAd == NULL ) {
 					gahpAd = buildSubmitAd();
 				}
-/* Jaime: I assume we won't be needing RSL
-				if ( RSL == NULL ) {
+				if ( gahpAd == NULL) {
 					myResource->CancelSubmit(this);
 					gmState = GM_HOLD;
 					break;
 				}
-*/
+
 				rc = gahp->cream_job_register( 
 										resourceManagerString,
 										myResource->getDelegationService(),
@@ -658,10 +668,8 @@ int CreamJob::doEvaluateState()
 				} else {
 					// unhandled error
 					LOG_CREAM_ERROR( "cream_job_register()", rc );
-/* Jaime		
-			dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
-							procID.cluster, procID.proc,RSL->Value());
-*/
+//					dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
+// 						procID.cluster, procID.proc,RSL->Value());
 					gahpErrorString = gahp->getErrorString();
 					myResource->CancelSubmit( this );
 					gmState = GM_UNSUBMITTED;
@@ -772,8 +780,8 @@ int CreamJob::doEvaluateState()
 
 					//Jaime, I had to add this two lines here to avoid extra long polling
 					//due to having no gmState before breaking from while loop
-				sleep(10);
-				gmState = GM_POLL_JOB_STATE;
+//				sleep(10);
+					//			gmState = GM_POLL_JOB_STATE;
 			}
 			} break;
 		case GM_EXTEND_LIFETIME: {
@@ -889,7 +897,8 @@ int CreamJob::doEvaluateState()
 			} break;
 		case GM_CANCEL: {
 			// We need to cancel the job submission.
-			if ( remoteState != CREAM_JOB_STATE_ABORTED &&
+			if ( remoteState != CREAM_JOB_STATE_REGISTERED && //Maybe we will like to purge
+				 remoteState != CREAM_JOB_STATE_ABORTED &&
 				 remoteState != CREAM_JOB_STATE_CANCELLED &&
 				 remoteState != CREAM_JOB_STATE_DONE_OK &&
 				 remoteState != CREAM_JOB_STATE_DONE_FAILED ) {
@@ -968,7 +977,7 @@ int CreamJob::doEvaluateState()
 			// forgetting about current submission and trying again.
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
-			if ( ( remoteJobId != "" ||
+			if ( ( remoteJobId != NULL ||
 				   remoteState == CREAM_JOB_STATE_ABORTED ||
 				   remoteState == CREAM_JOB_STATE_DONE_FAILED ) 
 				     && condorState != REMOVED 
@@ -1259,37 +1268,54 @@ ClassAd *CreamJob::buildSubmitAd()
 	const char *ATTR_BATCH_SYSTEM = "BATCHSYSTEM";
 	const char *ATTR_QUEUE = "QUEUE";
 	
-	ClassAd *submit_ad = new ClassAd();
+	ClassAd *submitAd = new ClassAd();
 
 	MyString tmp_str = "";
 	MyString tmp_str2 = "";
 	MyString buf = "";
 	MyString iwd_str = "";
-	MyString osb_str = "";
+	MyString creamgftp_str = "";
 	StringList *isb = new StringList();
 	StringList *osb = new StringList();
 	bool result;
 
+		// Once we add streaming support, remove this
+	if ( streamOutput || streamError ) {
+		errorString = "Streaming not supported";
+		return NULL;
+	}
+
 		//IWD
 	jobAd->LookupString(ATTR_JOB_IWD, iwd_str);
-	iwd_str += '/';
+	if ( jobAd->LookupString(ATTR_JOB_IWD, iwd_str)) {
+		int len = iwd_str.Length();
+		if ( len > 1 && iwd_str[len - 1] != '/' ) {
+			iwd_str += '/';
+		}
+	} else {
+		iwd_str = '/';
+	}
 	
 		//Gridftp server to use with CREAM
-	jobAd->LookupString("CreamGridftp", osb_str);
-
+	if(!jobAd->LookupString("CreamGridftp", creamgftp_str)){
+		errorString.sprintf( "%s not defined", "CreamGridftp" );
+		return NULL;
+	}
+	
 		//TYPE
 	buf.sprintf("%s = \"%s\"", ATTR_TYPE, "Job");
-	
+	submitAd->Insert(buf.Value());
+
 		//JOBTYPE
 	buf.sprintf("%s = \"%s\"", ATTR_JOB_TYPE, "Normal");
-	submit_ad->Insert(buf.Value());
-	
+	submitAd->Insert(buf.Value());
+
 		//EXECUTABLE can either be STAGED or TRANSFERED
 	if (!jobAd->LookupBool(ATTR_TRANSFER_EXECUTABLE, result)) { //TRANSFERED
 		
 			//here, JOB_CMD = full path to executable
 		jobAd->LookupString(ATTR_JOB_CMD, tmp_str);
-		tmp_str = osb_str + tmp_str;
+		tmp_str = creamgftp_str + tmp_str;
 		isb->insert(tmp_str.Value());
 
 			//CREAM only accepts absolute path | simple filename only
@@ -1303,23 +1329,29 @@ ClassAd *CreamJob::buildSubmitAd()
 		}
 
 		buf.sprintf("%s = \"%s\"", ATTR_EXECUTABLE, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
 	}
 	else { //STAGED
 		jobAd->LookupString(ATTR_JOB_CMD, tmp_str);
 		buf.sprintf("%s = \"%s\"", ATTR_EXECUTABLE, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
 	}
 
+		//ARGUMENTS
+	if (jobAd->LookupString(ATTR_JOB_ARGUMENTS1, tmp_str)) {
+		buf.sprintf("%s = \"%s\"", ATTR_ARGS, tmp_str.Value());
+		submitAd->Insert(buf.Value());
+	}
+	
 		//STDINPUT can be either be STAGED or TRANSFERED
 	if (!jobAd->LookupBool(ATTR_TRANSFER_INPUT, result)) { //TRANSFERED
 		
 		if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
 
 			if (tmp_str[0] != '/')  //not absolute path
-				tmp_str2 = osb_str + iwd_str + tmp_str;
+				tmp_str2 = creamgftp_str + iwd_str + tmp_str;
 			else 
-				tmp_str2 = osb_str + tmp_str;
+				tmp_str2 = creamgftp_str + tmp_str;
 			
 			isb->insert(tmp_str2.Value());
 			
@@ -1330,14 +1362,14 @@ ClassAd *CreamJob::buildSubmitAd()
 				tmp_str = strlist.next();
 		}
 			buf.sprintf("%s = \"%s\"", ATTR_STD_INPUT, tmp_str.Value());
-			submit_ad->Insert(buf.Value());
+			submitAd->Insert(buf.Value());
 	}
 	else { //STAGED. Be careful, if stdin is not found in WN, job will not
 			//complete successfully.
 		if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
 			if (tmp_str[0] == '/') { //Only add absolute path
 				buf.sprintf("%s = \"%s\"", ATTR_STD_INPUT, tmp_str.Value());
-				submit_ad->Insert(buf.Value());
+				submitAd->Insert(buf.Value());
 			}
 		}
 	}
@@ -1351,9 +1383,9 @@ ClassAd *CreamJob::buildSubmitAd()
 			tmp_str = strlist.next();
 
 			if (tmp_str[0] != '/')  //not absolute path
-				tmp_str2 = osb_str + iwd_str + tmp_str;
+				tmp_str2 = creamgftp_str + iwd_str + tmp_str;
 			else 
-				tmp_str2 = osb_str + tmp_str;
+				tmp_str2 = creamgftp_str + tmp_str;
 
 			isb->insert(tmp_str2.Value());
 		}
@@ -1368,17 +1400,11 @@ ClassAd *CreamJob::buildSubmitAd()
 			osb->insert(strlist.next());
 		}
 	}
-
-		//ARGUMENTS
-	if (jobAd->LookupString(ATTR_JOB_ARGUMENTS1, tmp_str)) {
-		buf.sprintf("%s = \"%s\"", ATTR_ARGS, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
-	}
 	
 		//STDOUTPUT TODO: handle absolute ?
 	if (jobAd->LookupString(ATTR_JOB_OUTPUT, tmp_str)) {
 		buf.sprintf("%s = \"%s\"", ATTR_STD_OUTPUT, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
 
 		if (!jobAd->LookupBool(ATTR_TRANSFER_OUTPUT, result)) {
 			osb->insert(tmp_str.Value());
@@ -1388,7 +1414,7 @@ ClassAd *CreamJob::buildSubmitAd()
 		//STDERROR TODO: handle absolute ?
 	if (jobAd->LookupString(ATTR_JOB_ERROR, tmp_str)) {
 		buf.sprintf("%s = \"%s\"", ATTR_STD_ERROR, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
 		
 		if (!jobAd->LookupBool(ATTR_TRANSFER_ERROR, result)) {
 			osb->insert(tmp_str.Value());
@@ -1405,7 +1431,7 @@ ClassAd *CreamJob::buildSubmitAd()
 				buf.sprintf_cat(",%s", isb->next());
 		}
 		buf.sprintf_cat("\"");
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
 	}
 	
 		//OUTPUT SANDBOX
@@ -1418,44 +1444,40 @@ ClassAd *CreamJob::buildSubmitAd()
 				buf.sprintf_cat(",%s", osb->next());
 		}
 		buf.sprintf_cat("\"");
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
+
+			//OUTPUTSANDBOXBASEDESTURI
+		tmp_str = creamgftp_str + iwd_str;
+		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB_BASE_DEST_URI, tmp_str.Value());
+		submitAd->Insert(buf.Value());
 	}
 
-		//OUTPUTSANDBOXBASEDESTURI
-	if (jobAd->LookupString("CreamGridftp", tmp_str)) {
-		tmp_str += iwd_str;
-		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB_BASE_DEST_URI, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
-	}
-	
 		/* TODO
 		//ENVIRONMENT
 	if (jobAd->LookupString(ATTR_JOB_ENVIRONMENT2, tmp_str)) {
 		buf.sprintf("%s = \"%s\"", ATTR_JOB_ENVIRONMENT2, tmp_str.Value());
-		submit_ad->Insert(buf.Value());
+		submitAd->Insert(buf.Value());
 	}
 		*/
 
 		//VIRTUALORGANISATION. CREAM requires this attribute, but it doesn't
 		//need to have a value
 	buf.sprintf("%s = \"%s\"", ATTR_VIR_ORG, "");
-	submit_ad->Insert(buf.Value());
+	submitAd->Insert(buf.Value());
 	
-		//BATCHSYSTEM hard coded for now
-	buf.sprintf("%s = \"%s\"", ATTR_BATCH_SYSTEM, "pbs");
-	submit_ad->Insert(buf.Value());
+		//BATCHSYSTEM
+	buf.sprintf("%s = \"%s\"", ATTR_BATCH_SYSTEM, resourceBatchSystemString);
+	submitAd->Insert(buf.Value());
 	
-		//QUEUE hard coded for now
-	buf.sprintf("%s = \"%s\"", ATTR_QUEUE, "long");
-	submit_ad->Insert(buf.Value());
+		//QUEUE
+	buf.sprintf("%s = \"%s\"", ATTR_QUEUE, resourceQueueString);
+	submitAd->Insert(buf.Value());
 	
 		//teonadi
 	MyString jobAdValue = "";
-	submit_ad->sPrint(jobAdValue);
-	dprintf(D_FULLDEBUG, "SUBMIT_AD:\n%s\n",jobAdValue.Value()); 
-//	jobAd->sPrint(jobAdValue);
-//	dprintf(D_ALWAYS, "JOB_AD:\n%s\n",jobAdValue.Value()); 
+	submitAd->sPrint(jobAdValue);
+	dprintf(D_FULLDEBUG, "SUBMITAD:\n%s\n",jobAdValue.Value()); 
 
-	return submit_ad;
+	return submitAd;
 }
 

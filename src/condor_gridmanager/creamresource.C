@@ -529,10 +529,8 @@ void CreamResource::DoPing( time_t& ping_delay, bool& ping_complete,
 
 	ping_delay = 0;
 
-/* TODO implement a ping command */
-//	rc = gahp->cream_ping( resourceName );
-rc = 0;
-
+	rc = gahp->cream_ping( resourceName );
+	
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		ping_complete = false;
 	} else if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ) {

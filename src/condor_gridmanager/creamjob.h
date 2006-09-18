@@ -88,6 +88,8 @@ class CreamJob : public BaseJob
 	time_t jmProxyExpireTime;
 	time_t jmLifetime;
 	char *resourceManagerString;
+	char *resourceBatchSystemString;
+	char *resourceQueueString;
 	char *uploadUrl;
 	GridftpServer *gridftpServer;
 

@@ -761,7 +761,7 @@ GahpServer::Initialize( Proxy *proxy )
 	master_proxy->cached_expiration = 0;
 	
 		//teonadi
-	master_proxy->proxy->proxy_filename = proxy->proxy_filename;
+//	master_proxy->proxy->proxy_filename = proxy->proxy_filename;
 		// Give the server our x509 proxy.
 
 	if ( command_initialize_from_file( master_proxy->proxy->proxy_filename ) == false ) {
@@ -920,6 +920,7 @@ GahpServer::command_use_cached_proxy( GahpProxyInfo *new_proxy )
 	}
 
 	char buf[_POSIX_PATH_MAX];
+
 	int x = snprintf(buf,sizeof(buf),"%s %d",command,new_proxy->proxy->id);
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
