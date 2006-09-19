@@ -33,6 +33,10 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item Version 6.8.1 fixes a number of important bugs, some of which have
+security implications.  All users are encouraged to upgrade, and full
+disclosure of the vulnerabilites will be given in four weeks.
+
 \item The PCRE (Perl Compatible Regular Expressions) library used by
 Condor is now dynamically linked and shipped as a DLL with Condor for
 Windows, rather than being statically linked.
@@ -293,6 +297,12 @@ authenticated as simply ``user'' rather than
 protocol is not backwards compatible so the fix is turned off by
 default. Correct behavior can be enabled by setting the
 \Macro{SEC\_CLAIMTOBE\_INCLUDE\_DOMAIN} parameter to \Expr{True}.
+
+\item Fixed a bug with the \MacroNI{NEGOTIATOR\_MATCHLIST\_CACHING} that
+would cause very low-priority jobs (like jobs submitted with
+\MacroNI{nice\_user=True}) to not match even if resources were available.
+
+\item Fixed a buffer overflow that could crash the \Condor{negotiatior}.
 
 \end{itemize}
 
