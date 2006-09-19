@@ -310,7 +310,10 @@ would cause very low-priority jobs (like jobs submitted with
 
 \begin{itemize}
 
-\item None.
+\item The \Opt{-completedsince} option to \Condor{history} works
+when Quill is enabled.  The behavior of \Condor{history}
+\Opt{-completedsince} is undefined when Quill is \emph{not}
+enabled.
 
 \end{itemize}
 
@@ -501,13 +504,6 @@ improve matchmaking performance.
 \noindent Known Bugs:
 
 \begin{itemize}
-
-\item None.
-
-\item The \Opt{-completedsince} option to \Condor{history} works
-when Quill is enabled.  The behavior of \Condor{history}
-\Opt{-completedsince} is undefined when Quill is \emph{not}
-enabled.
 
 \item The \Opt{-completedsince} option to \Condor{history} works
 when Quill is enabled.  The behavior of \Condor{history}
