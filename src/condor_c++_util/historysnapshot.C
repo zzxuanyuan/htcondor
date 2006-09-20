@@ -129,8 +129,8 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 	}
 	ad = new AttrList();
 
-	cid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 0); // cid
-	pid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 1); // pid
+	cid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 1); // cid
+	pid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 2); // pid
 
 	curClusterId_hor = atoi((char *)cid);
 	curProcId_hor = atoi((char *) pid);
@@ -151,14 +151,16 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 
 	int numfields = jqDB->getHistoryHorNumFields();
 
-		//starting from 2 as 0 and 1 are cid and pid respectively
-	for(i=2; i < numfields; i++) {
+		// starting from 3 as 0, 1, and 2 are scheddname, cid and pid 
+		// respectively
+	for(i=3; i < numfields; i++) {
 	  attr = jqDB->getHistoryHorFieldName(i); // attr
 	  val = jqDB->getHistoryHorValue(cur_historyads_hor_index, i); // val
 	  
 	  expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
 	  sprintf(expr, "%s = %s", attr, val);
 	  // add an attribute with a value into ClassAd
+	printf("Inserting %s as an expr\n", expr);
 	  ad->Insert(expr);
 	  free(expr);
 	}
@@ -181,16 +183,16 @@ HistorySnapshot::getNextAd_Ver(AttrList*& ad)
 	   return DONE_HISTORY_CURSOR;
 	}
 
-	cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 0); // cid
-	pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
+	cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
+	pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // pid
 
 	curClusterId_ver = atoi((char *)cid);
 	curProcId_ver = atoi((char *) pid);
 
 	// for HistoryAds table
 	while(cur_historyads_ver_index < historyads_ver_num) {
-		cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 0); // cid
-		pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // pid
+		cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
+		pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // pid
 
 		if (cid == NULL  
 		   || curClusterId_ver != atoi(cid) 
@@ -198,8 +200,8 @@ HistorySnapshot::getNextAd_Ver(AttrList*& ad)
 			break;
 		}
 
-		attr = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // attr
-		val = jqDB->getHistoryVerValue(cur_historyads_ver_index, 3); // val
+		attr = jqDB->getHistoryVerValue(cur_historyads_ver_index, 3); // attr
+		val = jqDB->getHistoryVerValue(cur_historyads_ver_index, 4); // val
 
 		cur_historyads_ver_index++;
 
