@@ -37,6 +37,15 @@ The details of each version are described below.
 security implications.  All users are encouraged to upgrade, and full
 disclosure of the vulnerabilites will be given in four weeks.
 
+\item Condor is now linked against GSI from Globus 4.0.2. This includes
+a patch for Globus Security Advisories 2006-01 
+(http://www.globus.org/mail\_archive/security-announce/2006/08/msg00000.html)
+and 2006-02 
+(http://www.globus.org/mail\_archive/security-announce/2006/08/msg00001.html).
+It also includes a
+patch for the OpenSSL vulnerability detailed in CVE-2006-4339 and
+http://www.openssl.org/news/secadv\_20060905.txt.
+
 \item The PCRE (Perl Compatible Regular Expressions) library used by
 Condor is now dynamically linked and shipped as a DLL with Condor for
 Windows, rather than being statically linked.
