@@ -638,6 +638,7 @@ int main (int argc, char **argv)
 
 			/* If the quill information is available, try to use it first */
 			useDB = TRUE;
+			Q.addSchedd(scheddName);
 
 				/* get the quill info for fail-over processing */
 			ASSERT(ad->LookupString(ATTR_MACHINE, &quillMachine));
@@ -962,6 +963,7 @@ processCommandLineArguments (int argc, char *argv[])
 			}
 			sprintf (constraint, "%s == \"%s\"", ATTR_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
+			Q.addSchedd(daemonname);
 
 			sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
