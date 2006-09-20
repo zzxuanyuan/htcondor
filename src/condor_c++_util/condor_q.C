@@ -92,6 +92,7 @@ CondorQ ()
 	numprocs = 0;
 
 	owner[0] = '\0';
+	schedd[0] = '\0';
 }
 
 
@@ -189,6 +190,13 @@ addAND (char *value)
 }
 
 int CondorQ::
+addSchedd (char *value)
+{  
+	strncpy(schedd, value, MAXSCHEDDLEN);
+	return 0;
+}
+
+int CondorQ::
 fetchQueue (ClassAdList &list, ClassAd *ad, CondorError* errstack)
 {
 	Qmgr_connection *qmgr;
@@ -281,7 +289,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 						 numclusters,
 						 procarray,
 						 numprocs,
-						 owner,
+						 schedd,
 						 FALSE);
 
 	if (rv == FAILURE) {
@@ -376,7 +384,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 						 numclusters,
 						 procarray,
 						 numprocs,
-						 owner,
+						schedd,
 						 FALSE);
 
 	if (rv == FAILURE) {
