@@ -328,6 +328,13 @@ would cause very low-priority jobs (like jobs submitted with
 
 \item Fixed a buffer overflow that could crash the \Condor{negotiatior}.
 
+\item \MacroNI{SCHEDD\_ROUND\_ATTR\_<xxxx>} preserves the value being
+rounded up when it is a multiple of the power of 10 specified for
+rounding.  Previously, the value would be incremented; now it remains
+the same.  For example, if SCHEDD\_ROUND\_ATTR\_<xxxx>=2 and the value
+being rounded up is 100, it now remains 100, rather than being
+incremented to 200.
+
 \end{itemize}
 
 \noindent Known Bugs:
