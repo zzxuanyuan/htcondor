@@ -208,6 +208,21 @@ enabled (the defaults).
 above, except it only happened with the configuration setting
 \MacroNI{NEGOTIATOR\_USE\_NONBLOCKING\_STARTD\_CONTACT}=False.
 
+\item Fixed a bug in \Condor{schedd} under Solaris that could also
+cause file descriptors to become exhausted over time when many
+machines were claimed in a short spans of time (e.g. over 100) and the
+\Condor{schedd} process file descriptor limit was near 256.
+
+\item Fixed a bug in \Condor{schedd} under Windows that could cause
+network sockets to be allocated and never released back to the system.
+The circumstances that could cause this were very rare.  The error
+message in the logs indicating that this problem was happening is
+\begin{verbatim}
+ERROR: DuplicateHandle() failed in Sock::set_inheritable
+\end{verbatim}
+In cases where this error message is displayed, the network socket
+is closed.
+
 \item Under some conditions, when making TCP connections, Condor was
 still trying to connect for the full duration of the operation timeout
 (often 10 or 20 seconds), even if the connection attempt was refused
