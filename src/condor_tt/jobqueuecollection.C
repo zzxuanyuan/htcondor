@@ -502,7 +502,7 @@ JobQueueCollection::loadAd(char* cid,
 
 		if (value == NULL) break;
 
-		strip_double_quote(value);
+		//strip_double_quote(value);
 
 		strcpy(name, "");
 		nameExpr->PrintToStr(name);		

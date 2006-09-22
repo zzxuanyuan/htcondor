@@ -1205,7 +1205,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 			} else {
 				tempvalue = (char *) malloc(strlen(value) + 1);
 				strcpy(tempvalue, value);
-				strip_double_quote(tempvalue);
+				//strip_double_quote(tempvalue);
 				newvalue = fillEscapeCharacters(tempvalue);
 					// escape single quote within the value
 				snprintf(sql_str_del_in, len,
@@ -1216,7 +1216,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 		} else {
 			tempvalue = (char *) malloc(strlen(value) + 1);
 			strcpy(tempvalue, value);
-			strip_double_quote(tempvalue);
+			//strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
 			snprintf(sql_str_del_in, len,
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND attr = '%s'", scheddname, cid, name);
@@ -1236,12 +1236,12 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 		if(isHorizontalProcAttribute(name)) {
 			strcpy(tempvalue, value);
-			strip_double_quote(tempvalue);
+			//strip_double_quote(tempvalue);
 			snprintf(sql_str_del_in, len,
 					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, tempvalue, scheddname, cid, pid);
 		} else {
 			strcpy(tempvalue, value);
-			strip_double_quote(tempvalue);
+			//strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
 			snprintf(sql_str_del_in, len,
 					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s' AND attr = '%s'", scheddname, cid, pid, name);
