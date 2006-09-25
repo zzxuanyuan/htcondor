@@ -64,12 +64,11 @@ private:
 	int	curProcId_ver;	   //!< current Proc Id
 
 	ClassAd		*curAd;	//!< current Job Ad
-	JobQueueDatabase	*jqDB;	//!< Job Queue Database object
+	JobQueueDatabase	*jqDB;	//!< Database object
 
 	QuillErrCode getNextAd_Ver(AttrList *&ad);
 	QuillErrCode getNextAd_Hor(AttrList *&ad);
 	QuillErrCode printResults(SQLQuery *, SQLQuery *, bool);
-    Database	*DBObj;
 };
 
 #endif

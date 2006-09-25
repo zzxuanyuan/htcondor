@@ -26,20 +26,24 @@
 
 #include "condor_common.h"
 #include "sqlquery.h"
-#include "database.h"
+#include "jobqueuedatabase.h"
 #include "quill_enums.h"
 #include "occi.h"
 
-using namespace oracle::occi;
+using oracle::occi::Environment;
+using oracle::occi::Connection;
+using oracle::occi::Statement;
+using oracle::occi::ResultSet;
+using oracle::occi::SQLException;
+using oracle::occi::MetaData;
 
-//! ORACLEDataabse: Database for Oracle
+//! ORACLEDataabse: Job Queue Database for Oracle
 //
-class ORACLEDatabase : public Database
+class ORACLEDatabase : public JobQueueDatabase
 {
 public:
 	
-	ORACLEDatabase(const char* userName, const char* password, 
-				   const char* serviceName);
+	ORACLEDatabase(const char *connect);
 	~ORACLEDatabase();
 
 		// connection method
@@ -60,27 +64,100 @@ public:
 
 		// query methods
 	QuillErrCode 	 	 execQuery(const char* sql);
-	QuillErrCode   		 fetchNext();
-	const char*	         getValue(int col);
-	int  				 getIntValue(int col);
+	QuillErrCode 	 	 execQuery(const char* sql,
+								   ResultSet*& result,
+								   Statement *& stmt,
+								   int &num_result);
+	QuillErrCode         execQuery(const char* sql,
+								   int &num_result);	
 
 	QuillErrCode         releaseQueryResult();
+
+	const char*          getHistoryHorFieldName(int col);
+	const int            getHistoryHorNumFields();
+	QuillErrCode		 releaseHistoryResults();		
+
+	QuillErrCode		 queryHistoryDB(SQLQuery *, SQLQuery *, 
+										bool, int&, int&);
+	QuillErrCode         releaseJobQueueResults();
+
+	QuillErrCode		 getJobQueueDB(int *, int, int *, int, bool fullscan, 
+									   const char *scheddName,
+									   int& procAdsHorRes_num,  
+									   int& procAdsVerRes_num, 
+									   int& clusterAdsHorRes_num, 
+									   int& clusterAdsVerRes_num);
+
+	const char*		 	 getJobQueueProcHorFieldName(int col);
+	const int			 getJobQueueProcHorNumFields();
+
+	const char*			 getJobQueueClusterHorFieldName(int col);
+	const int			 getJobQueueClusterHorNumFields();
+
+		// The values returned by the following methods must be copied out
+		// before a subsequent call to any of the following methods. This
+		// is because the returned value points to the same area of buffer
+		// that's shared for all of them.
+	const char*	         getJobQueueProcAds_HorValue(int row, int col);
+	const char*	         getJobQueueProcAds_VerValue(int row, int col);
+	const char*	         getJobQueueClusterAds_HorValue(int row, int col);
+	const char*	         getJobQueueClusterAds_VerValue(int row, int col);
+
+	const char*          getHistoryHorValue(int row, int col);
+	const char*          getHistoryVerValue(int row, int col);
+
+		//QuillErrCode   		 fetchNext();
+	const char*	         getValue(int row, int col);
+		//int  				 getIntValue(int col);
+	
+	//! get a DBMS error message
+	char*	getDBError();
+
 private:
 		// database connection parameters
 	char *userName;
 	char *password;
-	char *serviceName;
+	char *connectString;
 
 		// database processing variables
 	Environment *env;
 	Connection *conn;
 	bool in_tranx;
 	Statement *stmt;
-	ResultSet *rset;
 	std::string cv;
 
 	FILE *sqllog_fp;
+
+	Statement *queryStmt;
+	ResultSet *queryRes;
+	int     queryResCursor;
+
+		// only for history tables retrieval
+	ResultSet  *historyHorRes;
+	Statement  *historyHorStmt;
+	int         historyHorResCursor;  
+	
+	ResultSet  *historyVerRes;
+	Statement  *historyVerStmt;
+	int         historyVerResCursor;  
+
+		// only for job queue tables retrieval
+		//!< result for ProcAds_Horizontal table
+	ResultSet  *procAdsHorRes;      
+	Statement  *procAdsHorStmt;
+	int         procAdsHorResCursor;
+
+	ResultSet  *procAdsVerRes;      //!< result for ProcAds_Ver table
+	Statement  *procAdsVerStmt;
+	int         procAdsVerResCursor;
+
+	ResultSet  *clusterAdsHorRes;//!< result for ClusterAds_Str table
+	Statement  *clusterAdsHorStmt;
+	int         clusterAdsHorResCursor;
+
+	ResultSet  *clusterAdsVerRes;//!< result for ClusterAds_num table
+	Statement  *clusterAdsVerStmt;
+	int         clusterAdsVerResCursor;
 };
 
 #endif /* _PGSQLDATABSE_H_ */
-

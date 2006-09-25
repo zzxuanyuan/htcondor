@@ -7,8 +7,8 @@ PROGRAMS =  	condor_config_val condor_preen condor_stats \
 all_target( $(PROGRAMS) )
 
 CFLAGS = $(STD_C_FLAGS)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(QUILL_INC)
-LIB = $(STD_LIBS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(QUILL_INC) $(TT_INC)
+LIB = $(STD_LIBS) $(TT_LIB)
 
 public_c_plus_target(condor_cod,bin,cod_tool.o,$(LIB))
 

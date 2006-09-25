@@ -56,7 +56,7 @@ private:
 		// 
 		// helper functions
 		//
-	QuillErrCode getNextClusterAd(const char*&, ClassAd*&);
+	QuillErrCode getNextClusterAd(char*, ClassAd*&);
 	QuillErrCode getNextProcAd(ClassAd*&);
 
 	int job_num;
@@ -70,12 +70,11 @@ private:
 	int cur_clusterads_ver_index;
 	int	clusterads_ver_num;
 
-	const char*	curClusterId;		//!< current Cluster Id
-	const char*	curProcId;			//!< current Proc Id
+	char curClusterId[20];		//!< current Cluster Id
+	char curProcId[20];			//!< current Proc Id
 
 	ClassAd				*curClusterAd;	//!< current Job Ad
-	JobQueueDatabase	*jqDB;			//!< Job Queue Databse object
-    Database	*DBObj;
+	JobQueueDatabase	*jqDB;			//!< Databse object
 };
 
 #endif

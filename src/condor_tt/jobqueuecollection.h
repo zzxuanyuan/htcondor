@@ -29,7 +29,7 @@
 #include "classad_collection.h"
 #include "quill_enums.h"
 
-class Database;
+class JobQueueDatabase;
 
 //! ClassAdBucket
 /*! Bucket Class for a Hash Table used internally by JobQueueCollection
@@ -148,7 +148,7 @@ public:
 	bool		loadNextProcAd(QuillErrCode &errStatus);
 	ClassAd*	find(char* cid, char* pid = NULL);
 
-	void 		setDBObj(Database *DBObj);
+	void 		setDBObj(JobQueueDatabase *DBObj);
 	void 		setDBtype(dbtype dt);
 private:
        	//
@@ -176,7 +176,7 @@ private:
 	int    		_iBucketSize;		       	//!< Static Hash Table Size
 
 	char*   scheddname;
-	Database*	DBObj;
+	JobQueueDatabase*	DBObj;
 	dbtype dt;
 };
 

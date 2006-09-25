@@ -36,7 +36,7 @@
 
 class Prober;
 class ClassAdLogParser;
-class Database;
+class JobQueueDatabase;
 
 //! JobQueueDBManager
 /*! \brief this class orchestrates all of Quill.  
@@ -68,7 +68,7 @@ class JobQueueDBManager : public Service
 		// accessors
 		//
 	void setJobQueueFileName(const char* jqName);
-	Database* getJobQueueDBObj() { return DBObj; }
+	JobQueueDatabase* getJobQueueDBObj() { return DBObj; }
 	ClassAdLogParser* getClassAdLogParser();
 	const char* getScheddname() { return scheddname; }
 	dbtype getJobQueueDBType() { return dt; }
@@ -157,7 +157,7 @@ class JobQueueDBManager : public Service
 		//
 	Prober*	            prober;			//!< Prober
 	ClassAdLogParser*	caLogParser;	//!< ClassAd Log Parser
-	Database*	DBObj;		//!< Database obj
+	JobQueueDatabase*	DBObj;		//!< Database obj
 	XactState	xactState;		    //!< current XACT state
 	char*	jobQueueLogFile; 		//!< Job Queue Log File Path
 	char*	jobQueueDBConn;  		//!< DB connection string

@@ -258,7 +258,7 @@ static void freeConnectionStrings() {
 static bool checkDBconfig() {
 	char *tmp;
 
-	if (param_boolean("QUILL_ENABLED", false) == false) {
+	if (param_boolean("QUILLPP_ENABLED", false) == false) {
 		return false;
 	};
 
@@ -268,19 +268,19 @@ static bool checkDBconfig() {
 	}
 	free(tmp);
 
-	tmp = param("QUILL_DB_IP_ADDR");
+	tmp = param("QUILLPP_DB_IP_ADDR");
 	if (!tmp) {
 		return false;
 	}
 	free(tmp);
 
-	tmp = param("QUILL_DB_NAME");
+	tmp = param("QUILLPP_DB_NAME");
 	if (!tmp) {
 		return false;
 	}
 	free(tmp);
 
-	tmp = param("QUILL_DB_QUERY_PASSWORD");
+	tmp = param("QUILLPP_DB_QUERY_PASSWORD");
 	if (!tmp) {
 		return false;
 	}
@@ -2933,9 +2933,9 @@ static char * getDBConnStr(char *&quillName,
 	int             len, tmp1, tmp2, tmp3;
 
 	if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
-	   (!databaseIp && !(tmpdatabaseip = param("QUILL_DB_IP_ADDR"))) ||
-	   (!databaseName && !(tmpdatabasename = param("QUILL_DB_NAME"))) ||
-	   (!queryPassword && !(tmpquerypassword = param("QUILL_DB_QUERY_PASSWORD")))) {
+	   (!databaseIp && !(tmpdatabaseip = param("QUILLPP_DB_IP_ADDR"))) ||
+	   (!databaseName && !(tmpdatabasename = param("QUILLPP_DB_NAME"))) ||
+	   (!queryPassword && !(tmpquerypassword = param("QUILLPP_DB_QUERY_PASSWORD")))) {
 		fprintf( stderr, "Error: Could not find database related parameter\n");
 		fprintf(stderr, "\n");
 		print_wrapped_text("Extra Info: "
@@ -2984,11 +2984,11 @@ static char * getDBConnStr(char *&quillName,
 		//here we break up the ipaddress:port string and assign the
 		//individual parts to separate string variables host and port
 	ptr_colon = strchr(databaseIp, ':');
-	strcpy(host, "host= ");
+	strcpy(host, "host=");
 	strncat(host,
 			databaseIp+1,
 			ptr_colon - databaseIp -1);
-	strcpy(port, "port= ");
+	strcpy(port, "port=");
 	strcat(port, ptr_colon+1);
 	port[strlen(port)-1] = '\0';
 

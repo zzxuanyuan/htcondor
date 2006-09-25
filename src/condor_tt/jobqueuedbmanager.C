@@ -41,7 +41,7 @@
 #include "jobqueuedbmanager.h"
 #include "../condor_quill/prober.h"
 #include "../condor_quill/classadlogparser.h"
-#include "database.h"
+#include "jobqueuedatabase.h"
 #include "pgsqldatabase.h"
 #include "jobqueuecollection.h"
 
@@ -245,10 +245,11 @@ JobQueueDBManager::config(bool reconfig)
 	jobQueueDBConn = (char *) malloc(tmp3 * sizeof(char));
 
 	snprintf(jobQueueDBConn, tmp3, 
-			 "host=%s port=%s dbname=%s user=%s password=%s", 
-			 host?host:"", port?port:"", jobQueueDBName?jobQueueDBName:"", 
+			 "host=%s port=%s user=%s password=%s dbname=%s", 
+			 host?host:"", port?port:"", 
 			 jobQueueDBUser?jobQueueDBUser:"", 
-			 writePassword?writePassword:"");
+			 writePassword?writePassword:"", 
+			 jobQueueDBName?jobQueueDBName:"");
   	
 	dprintf(D_ALWAYS, "Using Job Queue File %s\n", jobQueueLogFile);
 
@@ -284,7 +285,7 @@ JobQueueDBManager::config(bool reconfig)
 
 		switch (dt) {				
 		case T_ORACLE:
-			DBObj = new ORACLEDatabase(jobQueueDBUser, writePassword, jobQueueDBName);
+			DBObj = new ORACLEDatabase(jobQueueDBConn);
 			break;
 		case T_PGSQL:
 			DBObj = new PGSQLDatabase(jobQueueDBConn);
@@ -1429,6 +1430,7 @@ JobQueueDBManager::getJQPollingInfo()
 	ClassAdLogEntry* lcmd;
 	char 	*sql_str;
 	int	ret_st, len;
+	int num_result;
 
 	lcmd = caLogParser->getCurCALogEntry();
 
@@ -1439,7 +1441,7 @@ JobQueueDBManager::getJQPollingInfo()
 
 	snprintf(sql_str, len, "SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s'", scheddname);
 
-	ret_st = DBObj->execQuery(sql_str);
+	ret_st = DBObj->execQuery(sql_str, num_result);
 		
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Reading JobQueuePollInfo --- ERROR [SQL] %s\n", 
@@ -1448,7 +1450,7 @@ JobQueueDBManager::getJQPollingInfo()
 		free(sql_str);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && DBObj->fetchNext() == FAILURE) {
+	else if (ret_st == SUCCESS && num_result == 0) {
 			// This case is a rare one since the jobqueuepollinginfo
 			// table contains one tuple at all times 		
 		displayErrorMsg("Reading JobQueuePollingInfo --- ERROR "
@@ -1457,16 +1459,16 @@ JobQueueDBManager::getJQPollingInfo()
 		return FAILURE;
 	} 
 
-	mtime = DBObj->getIntValue(0); // last_file_mtime
-	size =  DBObj->getIntValue(1); // last_file_size
+	mtime = atoi(DBObj->getValue(0, 0)); // last_file_mtime
+	size =  atoi(DBObj->getValue(0, 1)); // last_file_size
 
 	prober->setLastModifiedTime(mtime);
 	prober->setLastSize(size);
 
 		// last_next_cmd_offset
-	lcmd->next_offset = DBObj->getIntValue(2); 
-	lcmd->offset = DBObj->getIntValue(3); // last_cmd_offset
-	lcmd->op_type = DBObj->getIntValue(4); // last_cmd_type
+	lcmd->next_offset = atoi(DBObj->getValue(0,2)); 
+	lcmd->offset = atoi(DBObj->getValue(0,3)); // last_cmd_offset
+	lcmd->op_type = atoi(DBObj->getValue(0,4)); // last_cmd_type
 	
 	if (lcmd->key) {
 		free(lcmd->key);
@@ -1488,12 +1490,12 @@ JobQueueDBManager::getJQPollingInfo()
 		free(lcmd->value);
 	}
 
-	lcmd->key = strdup(DBObj->getValue(5)); // last_cmd_key
-	lcmd->mytype = strdup(DBObj->getValue(6)); // last_cmd_mytype
+	lcmd->key = strdup(DBObj->getValue(0,5)); // last_cmd_key
+	lcmd->mytype = strdup(DBObj->getValue(0,6)); // last_cmd_mytype
 		// last_cmd_targettype
-	lcmd->targettype = strdup(DBObj->getValue(7)); 
-	lcmd->name = strdup(DBObj->getValue(8)); // last_cmd_name
-	lcmd->value = strdup(DBObj->getValue(9)); // last_cmd_value
+	lcmd->targettype = strdup(DBObj->getValue(0,7)); 
+	lcmd->name = strdup(DBObj->getValue(0,8)); // last_cmd_name
+	lcmd->value = strdup(DBObj->getValue(0,9)); // last_cmd_value
 	
 	DBObj->releaseQueryResult(); // release Query Result
 										  // since it is no longer needed

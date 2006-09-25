@@ -26,18 +26,44 @@
 #include "classad_merge.h"
 
 #include "pgsqldatabase.h"
-#include "pgsqljqdatabase.h"
 #include "jobqueuesnapshot.h"
+#include "condor_config.h"
+#include "quill_enums.h"
+
+#undef ATTR_VERSION
+#include "oracledatabase.h"
 
 //! constructor
 JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 {
-    DBObj = new PGSQLDatabase(dbcon_str);
-	jqDB = new PGSQLJQDatabase();
-    jqDB->setDB(DBObj);
+	dbtype dt;
+	char *tmp;
+
+	tmp = param("QUILLPP_DB_TYPE");
+	if (tmp) {
+		if (strcasecmp(tmp, "ORACLE") == 0) {
+			dt = T_ORACLE;
+		} else if (strcasecmp(tmp, "PGSQL") == 0) {
+			dt = T_PGSQL;
+		}
+	} else {
+		dt = T_PGSQL; // assume PGSQL by default
+	}
+
+	switch (dt) {				
+	case T_ORACLE:
+		jqDB = new ORACLEDatabase(dbcon_str);
+		break;
+	case T_PGSQL:
+		jqDB = new PGSQLDatabase(dbcon_str);
+		break;
+	default:
+		break;;
+	}
+
 	curClusterAd = NULL;
-	curClusterId = NULL;
-	curProcId = NULL;
+	curClusterId[0] = '\0';
+	curProcId[0] = '\0';
 
 }
 
@@ -51,10 +77,6 @@ JobQueueSnapshot::~JobQueueSnapshot()
 	}
 	jqDB = NULL;
 
-	if (DBObj != NULL) {
-		delete(DBObj);
-	}
-	DBObj = NULL;
 }
 
 //! prepare iteration of Job Ads in the job queue database
@@ -81,11 +103,11 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 	procads_hor_num = procads_ver_num = 
 	clusterads_hor_num = clusterads_ver_num = 0;
 	
-	if(DBObj->connectDB() == FAILURE) {
+	if(jqDB->connectDB() == FAILURE) {
 		return FAILURE;
 	}
 
-	if(DBObj->beginTransaction() == FAILURE) {
+	if(jqDB->beginTransaction() == FAILURE) {
 		printf("Error while querying the database: unable to start new transaction");
 		return FAILURE;
 	}
@@ -101,7 +123,7 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 				 clusterads_hor_num, 
 				 clusterads_ver_num); // this retriesves DB
 	
-	if(DBObj->commitTransaction() == FAILURE) {
+	if(jqDB->commitTransaction() == FAILURE) {
 		printf("Error while querying the database: unable to commit transaction");
 		return FAILURE;
 	}
@@ -129,9 +151,10 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 		 DONE_CLUSTERADS_CURSOR
 */
 QuillErrCode
-JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
+JobQueueSnapshot::getNextClusterAd(char* cluster_id, ClassAd*& ad)
 {
-	const char	*cid, *attr, *val;
+	const char	*cid, *temp, *val;
+	char *attr;
 
 	if (cur_clusterads_hor_index >= clusterads_hor_num) {
 		return DONE_CLUSTERADS_CURSOR;
@@ -146,9 +169,9 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 		//in this cas, we set it to the value obtained from the row above
 		//same goes for the case where cluster_id is not equal to cid - 
 		//this case comes up when we get a new cluster ad
-	if (cluster_id == NULL || strcmp(cluster_id, cid) != 0) {
-		cluster_id = (char*)cid;
-		curProcId = NULL;
+	if (strcmp(cluster_id, cid) != 0) {
+		strncpy(cluster_id, cid, 20);
+		curProcId[0] = '\0';
 	}
 		//FAILURE case as each time we consume all attributes of the ad
 		//so getting a cid which is equal to cluster_id is bizarre
@@ -164,31 +187,40 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 
 		// for ClusterAds vertical table
 	while(cur_clusterads_ver_index < clusterads_ver_num) {
+		attr = NULL;
+		val = NULL;
+
 		cid = jqDB->getJobQueueClusterAds_VerValue(
 				cur_clusterads_ver_index, 0); // cid
 
 		if (cid == NULL || strcmp(cluster_id, cid) != 0) {
 			break;
 		}
-		attr = jqDB->getJobQueueClusterAds_VerValue(
-				cur_clusterads_ver_index, 1); // attr
+		temp = jqDB->getJobQueueClusterAds_VerValue(
+						   cur_clusterads_ver_index, 1); // attr
+
+		if (temp != NULL) {
+			attr = strdup(temp);
+		}
+
 		val = jqDB->getJobQueueClusterAds_VerValue(
 				cur_clusterads_ver_index++, 2); // val
 
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-		sprintf(expr, "%s = %s", attr, val);
-			// add an attribute with a value into ClassAd
-		ad->Insert(expr);
-		free(expr);
+		if ((attr != NULL ) && (val != NULL)) {
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
+			sprintf(expr, "%s = %s", attr, val);
+				// add an attribute with a value into ClassAd
+			ad->Insert(expr);
+			free(expr);
+		}
+		if (attr != NULL) free (attr);
 	};
-
-
 
 	int numfields = jqDB->getJobQueueClusterHorNumFields();
 	
 	for(int i = 1; i < numfields; i++) {
 
-		attr = jqDB->getJobQueueClusterHorFieldName(i);
+		attr = (char *)jqDB->getJobQueueClusterHorFieldName(i);
 		val = jqDB->getJobQueueClusterAds_HorValue(
 				cur_clusterads_hor_index, i); // val
 		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
@@ -212,7 +244,8 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 QuillErrCode
 JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 {
-	const char *cid = NULL, *pid = NULL, *attr, *val;
+	const char *cid = NULL, *pid = NULL, *temp, *val;
+	char *attr;
 
 	if ((cur_procads_ver_index >= procads_ver_num) &&
 		(cur_procads_hor_index >= procads_hor_num)) {
@@ -285,8 +318,8 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 		ad = NULL;
 		return DONE_PROCADS_CURSOR;
 	}
-	else if (curProcId == NULL) {
-		curProcId = pid;   
+	else if (strlen(curProcId) == 0) {
+		strncpy(curProcId, pid, 20);
 	}
 	else if (strcmp(pid, curProcId) == 0) {
 		delete ad;
@@ -294,41 +327,55 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 		return FAILURE;
 	}
 	else  { /* pid and curProcId are not NULL and not equal */ 
-		curProcId = pid;
+		strncpy(curProcId, pid, 20);
 	}
 
 		//the below two while loops grab stuff out of 
-		//the Procads_Num and Procads_Str table
+		//the Procads_vertical and Procads_horizontal table
 
 	while(cur_procads_ver_index < procads_ver_num) {
+		val = NULL;
+		attr = NULL;
+
 		cid = jqDB->getJobQueueProcAds_VerValue(
 				cur_procads_ver_index, 0); // cid
+
+		if (strcmp(cid, curClusterId) != 0) {
+			break;
+		}
+		
 		pid = jqDB->getJobQueueProcAds_VerValue(
 				cur_procads_ver_index, 1); // pid
 
-		if ((strcmp(cid, curClusterId) != 0) || 
-			(strcmp(pid, curProcId) != 0))
+		if (strcmp(pid, curProcId) != 0)
 			break;
 
-		attr = jqDB->getJobQueueProcAds_VerValue(
+		temp = jqDB->getJobQueueProcAds_VerValue(
 				cur_procads_ver_index, 2); // attr
+
+		if (temp != NULL) {
+			attr = strdup(temp);
+		} 
+		
 		val  = jqDB->getJobQueueProcAds_VerValue(
 				cur_procads_ver_index++, 3); // val
 
+		if ((attr != NULL ) && (val != NULL)) {
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
+			sprintf(expr, "%s = %s", attr, val);
+				// add an attribute with a value into ClassAd
+			ad->Insert(expr);
+			free(expr);
+		}
 
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-		sprintf(expr, "%s = %s", attr, val);
-		// add an attribute with a value into ClassAd
-		ad->Insert(expr);
-		free(expr);
-
+		if (attr != NULL) free (attr);
 	};
 
 	int numfields = jqDB->getJobQueueProcHorNumFields();
 	
 	for(int i = 2; i < numfields; i++) {
 
-		attr = jqDB->getJobQueueProcHorFieldName(i);
+		attr = (char *)jqDB->getJobQueueProcHorFieldName(i);
 		val = jqDB->getJobQueueProcAds_HorValue(
 				cur_procads_hor_index, i); // val
 		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
@@ -421,7 +468,7 @@ JobQueueSnapshot::release()
 {
 	QuillErrCode st1, st2;
 	st1 = jqDB->releaseJobQueueResults();
-	st2 = DBObj->disconnectDB();
+	st2 = jqDB->disconnectDB();
 
 	if(st1 == SUCCESS && st2 == SUCCESS) {
 		return SUCCESS;

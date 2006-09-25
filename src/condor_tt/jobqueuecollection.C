@@ -27,7 +27,7 @@
 #include "get_daemon_name.h"
 #include "condor_config.h"
 #include "misc_utils.h"
-#include "database.h"
+#include "jobqueuedatabase.h"
 #include "condor_ttdb.h"
 
 static int typeOf(char *attName);
@@ -95,7 +95,7 @@ JobQueueCollection::~JobQueueCollection()
 	delete[] _ppProcAdBucketList;
 }
 
-void JobQueueCollection::setDBObj(Database *DBObj)
+void JobQueueCollection::setDBObj(JobQueueDatabase *DBObj)
 {
 	this->DBObj = DBObj;
 }

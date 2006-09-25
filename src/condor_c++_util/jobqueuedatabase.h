@@ -1,7 +1,7 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
-  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+  * Copyright (C) 1990-2004, Condor Team, Computer Sciences Department,
   * University of Wisconsin-Madison, WI.
   *
   * This source code is covered by the Condor Public License, which can
@@ -27,7 +27,12 @@
 #include "sqlquery.h"
 #include "quill_enums.h"
 
-class Database;
+extern const int QUILLPP_HistoryHorFieldNum;
+extern const char *QUILLPP_HistoryHorFields[];
+extern const int proc_field_num;
+extern const char *proc_field_names [];
+extern const int cluster_field_num;
+extern const char *cluster_field_names [];
 
 //! JobQueueDatabase
 /*! It provides interfaces to talk to DBMS
@@ -38,47 +43,96 @@ public:
 	//! destructor
 	virtual ~JobQueueDatabase() {};
 
-	// set the database object.
-    void        setDB(Database *dbObj) {this->DBObj = dbObj;};
+	//! connect to DBMS
+	virtual QuillErrCode		connectDB() = 0;
+
+	//! disconnect from DBMS
+	virtual QuillErrCode		disconnectDB() = 0;
+
+	//! begin Transaction
+	virtual QuillErrCode		beginTransaction() = 0;
+	//! commit Transaction
+	virtual QuillErrCode		commitTransaction() = 0;
+	//! abort Transaction
+	virtual QuillErrCode		rollbackTransaction() = 0;
+
+	//! execute a command
+	/*! execute SQL which doesn't have any retrieved result, such as
+	 *  insert, delete, and udpate.
+	 */
+	virtual QuillErrCode		execCommand(const char* sql, 
+											int &num_result) = 0;
+	virtual QuillErrCode		execCommand(const char* sql) = 0;
+
+	//! execute a SQL query
+	virtual QuillErrCode		execQuery(const char* sql) = 0;
+
+	virtual QuillErrCode        execQuery(const char* sql,
+										  int &num_result) = 0;
+
+	//! get a result for the executed SQL
+	// virtual QuillErrCode 		fetchNext() = 0;
+	virtual const char*         getValue(int row, int col) = 0;
+	//virtual int			        getIntValue(int col) = 0;
+
+	//! release query result
+	virtual QuillErrCode        releaseQueryResult() = 0;
+
+	virtual QuillErrCode        checkConnection() = 0;
+	virtual QuillErrCode        resetConnection() = 0;
 
 		//
 		// Job Queue DB processing methods
 		//
 	//! get the queue from the database
 	virtual QuillErrCode        getJobQueueDB(int *, int, int *, int,  bool,
-											  const char *, int&, int&, int&, int&) = 0;
-
-	//! get a value retrieved from ProcAds_Hor table
+											  const char *, int&, int&, int&, 
+											  int&) = 0;
+	
+		//! get a value retrieved from ProcAds_Hor table
 	virtual const char*         getJobQueueProcAds_HorValue(int row, 
 															int col) = 0;
+
 	//! get a value retrieved from ProcAds_Ver table
 	virtual const char*         getJobQueueProcAds_VerValue(int row, 
 															int col) = 0;
-	//! get a value retrieved from ClusterAds_Hor table
+
+		//! get a value retrieved from ClusterAds_Hor table
 	virtual const char*         getJobQueueClusterAds_HorValue(int row, 
 															   int col) = 0;
 	//! get a value retrieved from ClusterAds_Ver table
 	virtual const char*         getJobQueueClusterAds_VerValue(int row, 
 															   int col) = 0;
+
 	virtual const char*         getJobQueueClusterHorFieldName(int col) = 0;
+
 	virtual const int           getJobQueueClusterHorNumFields() = 0;
 
 	virtual const char*         getJobQueueProcHorFieldName(int col) = 0;
+
 	virtual const int           getJobQueueProcHorNumFields() = 0;
 
 	//! get the history from the database
-	virtual QuillErrCode        queryHistoryDB(SQLQuery *,SQLQuery *,bool,int&,int&) = 0;
+	virtual QuillErrCode        queryHistoryDB(SQLQuery *,SQLQuery *,bool,
+											   int&,int&) = 0;
 
 	virtual const char*         getHistoryHorValue(int row, int col) = 0;
+
 	virtual const char*         getHistoryVerValue(int row, int col) = 0;
 
 	virtual QuillErrCode		releaseHistoryResults() = 0;		
+
 	virtual QuillErrCode        releaseJobQueueResults() = 0;
 
 	virtual const char*         getHistoryHorFieldName(int col) = 0;
+
 	virtual const int           getHistoryHorNumFields() = 0;
+
+	//! get a DBMS error message
+	virtual char*	getDBError() = 0;
+		
 protected:
-    Database *DBObj;
+	bool	connected; 	//!< connection status
 };
 
 #endif

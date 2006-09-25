@@ -62,7 +62,7 @@ SETEGID_OBJ =
 #endif
 
 #if WANT_QUILL
-QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o pgsqljqdatabase.o oracledatabase.o
+QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o oracledatabase.o
 #else
 QUILL_OBJS =
 #endif

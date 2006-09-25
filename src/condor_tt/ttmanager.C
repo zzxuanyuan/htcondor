@@ -40,7 +40,7 @@
 #include "ttmanager.h"
 #include "file_sql.h"
 #include "file_xml.h"
-#include "database.h"
+#include "jobqueuedatabase.h"
 #include "pgsqldatabase.h"
 #include "misc_utils.h"
 #include "condor_ttdb.h"
@@ -72,17 +72,12 @@ static void stripquotes(char *strv);
 TTManager::TTManager()
 {
 		//nothing here...its all done in config()
-	DBObj = (Database  *) 0;
+	DBObj = (JobQueueDatabase  *) 0;
 }
 
 //! destructor
 TTManager::~TTManager()
 {
-		// release Objects
-	numLogs = 0;
-		// the object will be destroyed in the destructor of jqDBManager
-	DBObj = (Database  *) 0;
-
 	if (collectors) {
 		delete collectors;
 	}
@@ -708,8 +703,8 @@ TTManager::xml_maintain()
 	char *tmp, *fname;
 
 	int numXLogs = 0, i = 0, found = 0;
-	char    xmlLogList[MAXLOGNUM][MAXLOGPATHLEN];
-	char    xmlLogCopyList[MAXLOGNUM][MAXLOGPATHLEN];
+	char    xmlLogList[CONDOR_TT_MAXLOGNUM][CONDOR_TT_MAXLOGPATHLEN];
+	char    xmlLogCopyList[CONDOR_TT_MAXLOGNUM][CONDOR_TT_MAXLOGPATHLEN];
 
 		// check if XML logging is turned on & if not, exit
 	want_xml = param_boolean("WANT_XML_LOG", false);
@@ -739,9 +734,9 @@ TTManager::xml_maintain()
 				continue;
 			}
 				
-			strncpy(xmlLogList[numXLogs], tmp, MAXLOGPATHLEN);
+			strncpy(xmlLogList[numXLogs], tmp, CONDOR_TT_MAXLOGPATHLEN);
 			fname = strrchr(tmp, '/')+1;
-			snprintf(xmlLogCopyList[numXLogs], MAXLOGPATHLEN, "%s/%s-%s.xml", dump_path, fname, my_hostname());
+			snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/%s-%s.xml", dump_path, fname, my_hostname());
 			numXLogs++;
 			free(tmp);
 		}		
@@ -751,11 +746,11 @@ TTManager::xml_maintain()
 		/* add the default log file in case no log file is specified in config */
 	tmp = param("LOG");
 	if (tmp) {
-		snprintf(xmlLogList[numXLogs], MAXLOGPATHLEN, "%s/Events.xml", tmp);
-		snprintf(xmlLogCopyList[numXLogs], MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
+		snprintf(xmlLogList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events.xml", tmp);
+		snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
 	} else {
-		snprintf(xmlLogList[numXLogs], MAXLOGPATHLEN, "Events.xml");
-		snprintf(xmlLogCopyList[numXLogs], MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
+		snprintf(xmlLogList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "Events.xml");
+		snprintf(xmlLogCopyList[numXLogs], CONDOR_TT_MAXLOGPATHLEN, "%s/Events-%s.xml", dump_path, my_hostname());
 	}
 	numXLogs++;	
 
@@ -817,6 +812,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
     int  prevLHFInDB = 0;
 	int	 ret_st, len;
 	int  attr_type;
+	int  num_result = 0;
 
 	ad->sPrint(classAd);
 
@@ -1053,7 +1049,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// get the previous lastheardfrom from the database 
 	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
 
-	ret_st = DBObj->execQuery(sql_stmt);
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
 	
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1061,8 +1057,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
-		prevLHFInDB = atoi(DBObj->getValue(0));		
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0, 0));		
 	}
 	
 	DBObj->releaseQueryResult();
@@ -1218,6 +1214,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
     int  prevLHFInDB = 0;
 	int	 ret_st, len;
 	int  attr_type;
+	int  num_result = 0;
 
 		// first generate MyType='Scheduler' attribute
 	attNameList = (char *) malloc (20);
@@ -1505,7 +1502,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		// get the previous lastheardfrom from the database 
 	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM daemon_horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName);
 
-	ret_st = DBObj->execQuery(sql_stmt);
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1513,8 +1510,8 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
-		prevLHFInDB = atoi(DBObj->getValue(0));	   
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0, 0));	   
 	}
 
 	DBObj->releaseQueryResult();
@@ -1739,6 +1736,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
     int  prevLHFInDB = 0;
 	int	 ret_st, len;
 	int  attr_type;
+	int  num_result = 0;
 
 		// first generate MyType='Scheduler' attribute
 	attNameList = (char *) malloc (20);
@@ -1894,7 +1892,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		// get the previous lastheardfrom from the database 
 	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM daemon_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName);
 	
-	ret_st = DBObj->execQuery(sql_stmt);
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1902,8 +1900,8 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
-		prevLHFInDB = atoi(DBObj->getValue(0));		
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0, 0));		
 	}
 
 	DBObj->releaseQueryResult();
@@ -2063,6 +2061,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
     int  prevLHFInDB = 0;
 	int	 ret_st, len;
 	int  attr_type;
+	int  num_result = 0;
 	
 		// first generate MyType='Scheduler' attribute
 	attNameList = (char *) malloc (20);
@@ -2218,7 +2217,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		// get the previous lastheardfrom from the database 
 	snprintf(sql_stmt, len, "SELECT lastheardfrom_epoch FROM daemon_horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName);
 	
-	ret_st = DBObj->execQuery(sql_stmt);
+	ret_st = DBObj->execQuery(sql_stmt, num_result);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2226,8 +2225,8 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		free(sql_stmt);
 		return FAILURE;
 	}
-	else if (ret_st == SUCCESS && DBObj->fetchNext() == SUCCESS) {
-		prevLHFInDB = atoi(DBObj->getValue(0));		
+	else if (ret_st == SUCCESS && num_result > 0) {
+		prevLHFInDB = atoi(DBObj->getValue(0, 0));		
 	}
 
 	DBObj->releaseQueryResult();
@@ -2508,7 +2507,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 
 		// first generate runid attribute
 	attNameList = (char *) malloc (20);
-	attValList = (char *) malloc (20);
+	attValList = (char *) malloc (50);
 
 	runid_expr = condor_ttdb_buildseq(dt, "SeqRunId");
 
@@ -3040,6 +3039,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  name = newname;
 		  }
 
+			  // don't strip the double quotes
+/*
 		  if (strcasecmp(name, "user_j") == 0) {
 			  tempvalue = (char *)malloc(strlen(value));
 			  strncpy(tempvalue, value+1, strlen(value)-2);
@@ -3047,16 +3048,25 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  strcpy(value, tempvalue);
 			  free(tempvalue);
 		  }
-	  
+	
+*/
+  
 		  sql_stmt = (char *) malloc(1000 + strlen(name) + strlen(value) + strlen(scheddname));
 		  sql_stmt2 = NULL;
 
+/*
 		  if(strcasecmp(name, "qdate") == 0 || 
 			 strcasecmp(name, "lastmatchtime") == 0 || 
 			 strcasecmp(name, "jobstartdate") == 0 || 
 			 strcasecmp(name, "jobcurrentstartdate") == 0 ||
 			 strcasecmp(name, "enteredcurrentstatus") == 0 ||
 			 strcasecmp(name, "completiondate") == 0
+			 ) {
+*/
+		  if(strcasecmp(name, "lastmatchtime") == 0 || 
+			 strcasecmp(name, "jobstartdate") == 0 || 
+			 strcasecmp(name, "jobcurrentstartdate") == 0 ||
+			 strcasecmp(name, "enteredcurrentstatus") == 0
 			 ) {
 				  // avoid updating with epoch time
 			  if (strcmp(value, "0") == 0) {
@@ -3076,14 +3086,14 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  free(ts_expr);
 
 		  }	else {
-			  strip_double_quote(value);
+				  //strip_double_quote(value);
 			  newvalue = fillEscapeCharacters(value);
 			  sprintf(sql_stmt, 
 					  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name, newvalue, scheddname, cid, pid);			  
 			  free(newvalue);
 		  }
 	  } else {
-		  strip_double_quote(value);                
+			  //strip_double_quote(value);                
 		  newvalue = fillEscapeCharacters(value);
 		  
 		  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));

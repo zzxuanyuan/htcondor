@@ -1418,6 +1418,8 @@ writeEvent (FILE *file)
   else 
     dprintf(D_FULLDEBUG, "scheddname is null\n");
   
+  dprintf(D_FULLDEBUG, "executeHost = %s\n", executeHost);
+
   char *start = index(executeHost, '<');
   char *end = index(executeHost, ':');
 
@@ -1427,19 +1429,23 @@ writeEvent (FILE *file)
     tmpaddr = strncpy(tmpaddr, start+1, end-start-1);
     tmpaddr[end-start-1] = '\0';
     addr = inet_addr(tmpaddr);
+	dprintf(D_FULLDEBUG, "start = %s\n", start);
+	dprintf(D_FULLDEBUG, "end = %s\n", end);
+	dprintf(D_FULLDEBUG, "tmpaddr = %s\n", tmpaddr);
     free(tmpaddr);
   }
-  else
+  else {
     addr = inet_addr(executeHost);
+  }
 
   executehostname = (char *) malloc(32 * sizeof(char));
   hp = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
   if(hp) {    
-    dprintf(D_FULLDEBUG, "Executehost name = %s\n", hp->h_name);
+    dprintf(D_FULLDEBUG, "Executehost name = %s (hp->h_name) \n", hp->h_name);
     strcpy(executehostname, hp->h_name);
   }
   else {
-    dprintf(D_FULLDEBUG, "Executehost name = %s\n", executeHost);
+    dprintf(D_FULLDEBUG, "Executehost name = %s (executeHost) \n", executeHost);
     strcpy(executehostname, executeHost);
   }
 

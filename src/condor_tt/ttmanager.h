@@ -100,7 +100,7 @@ class TTManager : public Service
 	CollectorList   *collectors;
 	ClassAd         *ad;
 
-	Database* DBObj;
+	JobQueueDatabase* DBObj;
 	JobQueueDBManager jqDBManager;
 	dbtype dt;
 };
