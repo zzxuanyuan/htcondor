@@ -3053,7 +3053,7 @@ to fail an assertion if PRE or POST scripts are throttled with the
         in the event of a resumption from an earlier checkpoint. The
         invocation of this call by the shadow on behalf of the user
         job is controlled by a configuration file parameter called
-        \Attr{SHADOW\_ALLOW\_UNSAFE\_REMOTE\_EXEC} and is off by default.
+        \Macro{SHADOW\_ALLOW\_UNSAFE\_REMOTE\_EXEC} and is off by default.
         The full environment of the user job is preserved during the
         invocation of \Syscall(system) and this might cause problems in 
         heterogeneous submission contexts of the user is not careful.
