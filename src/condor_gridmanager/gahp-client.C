@@ -5603,7 +5603,7 @@ GahpClient::cream_delegate(const char *delg_service, const char *delg_id)
 
 int 
 GahpClient::cream_job_register(const char *service, const char *delg_service, const char *delg_id, 
-									  ClassAd *jdl, char **job_id, char **upload_url)
+							   ClassAd *jdl, time_t lease_time, char **job_id, char **upload_url)
 {
 	MyString ad_string;
 	static const char* command = "CREAM_JOB_REGISTER";
@@ -5640,7 +5640,7 @@ GahpClient::cream_job_register(const char *service, const char *delg_service, co
 	char *esc2 = strdup( escapeGahpString(delg_service) );
 	char *esc3 = strdup( escapeGahpString(delg_id) );
 	char *esc4 = strdup( escapeGahpString(ad_string.Value()) );
-	bool x = reqline.sprintf("%s %s %s %s", esc1, esc2, esc3, esc4 );
+	bool x = reqline.sprintf("%s %s %s %s %d", esc1, esc2, esc3, esc4, lease_time );
 	free( esc1 );
 	free( esc2 );
 	free( esc3 );
@@ -6209,3 +6209,67 @@ GahpClient::cream_ping(const char * service)
 		// If we made it here, command is still pending...
 	return GAHPCLIENT_COMMAND_PENDING;
 }
+
+int
+GahpClient::cream_job_lease(const char *service, const char *job_id, time_t &lease_incr)
+{
+	static const char* command = "CREAM_JOB_LEASE";
+
+		// Check if this command is supported
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
+		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
+	}
+		// Generate request line
+	if (!service) service=NULLSTRING;
+	if (!job_id) job_id=NULLSTRING;
+	MyString reqline;
+	char *esc1 = strdup( escapeGahpString(service) );
+	char *esc2 = strdup( escapeGahpString(job_id) );
+	bool x = reqline.sprintf("%s %d %s", esc1, lease_incr, esc2);
+	free( esc1 );
+	free( esc2 );
+	ASSERT( x == true );
+	const char *buf = reqline.Value();
+
+		// Check if this request is currently pending.  If not, make
+		// it the pending request.
+	if ( !is_pending(command,buf) ) {
+		// Command is not pending, so go ahead and submit a new one
+		// if our command mode permits.
+		if ( m_mode == results_only ) {
+			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
+		}
+		now_pending(command,buf,normal_proxy);
+	}
+
+		// If we made it here, command is pending.
+		
+		// Check first if command completed.
+	Gahp_Args* result = get_pending_result(command,buf);
+	if ( result ) {
+		// command completed.
+		if (result->argc != 2) {
+			EXCEPT("Bad %s Result",command);
+		}
+		int rc;
+		if (strcmp(result->argv[1], NULLSTRING) == 0) 
+			rc = 0;
+		else
+			rc = 1;
+		
+			//todo: need to return actual lease incr as well
+		delete result;
+		return rc;
+	}
+
+		// Now check if pending command timed out.
+	if ( check_pending_timeout(command,buf) ) {
+		// pending command timed out.
+		error_string.sprintf( "%s timed out", command );
+		return GAHPCLIENT_COMMAND_TIMED_OUT;
+	}
+
+		// If we made it here, command is still pending...
+	return GAHPCLIENT_COMMAND_PENDING;
+}
+

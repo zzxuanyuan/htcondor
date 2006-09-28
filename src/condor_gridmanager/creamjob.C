@@ -308,10 +308,9 @@ CreamJob::CreamJob( ClassAd *classad )
 
 	buff[0] = '\0';
 	
-		//Jaime: are we looking for gridjobid here in case job already has been registered ?
 	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		
+			//teonadi
 			//since GridJobId = <cream> <ResourceManager> <jobid>
 		SetRemoteJobId(strchr((strchr(buff, ' ') + 1), ' ') + 1);
 //		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
@@ -336,14 +335,13 @@ CreamJob::CreamJob( ClassAd *classad )
 	if ( job_already_submitted ) {
 		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
 	}
-/*
+
 	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy );
 
 		// TODO It would be nice to register only after going through
 		//   GM_CLEAR_REQUEST, so that a ATTR_GRIDFTP_URL_BASE from a
 		//   previous submission isn't requested here.
 	gridftpServer->RegisterClient( evaluateStateTid, buff[0] ? buff : NULL );
-*/
 
 	if ( job_already_submitted &&
 		 jobAd->LookupString( ATTR_CREAM_DELEGATION_URI, buff ) ) {
@@ -554,9 +552,8 @@ int CreamJob::doEvaluateState()
 				}
 				
 				probeNow = true;
-				//Jaime: should gmState be GM_UNSUBMITTED instead of GM_SUBMITTED?
+
 				gmState = GM_SUBMITTED;
-					//			gmState = GM_UNSUBMITTED;
 			}
 			} break;
  		case GM_UNSUBMITTED: {
@@ -567,8 +564,6 @@ int CreamJob::doEvaluateState()
 			} else if ( condorState == HELD ) {
 				gmState = GM_DELETE;
 				break;
-//teonadi
-/*
 			} else if ( gridftpServer->GetErrorMessage() ) {
 				errorString = gridftpServer->GetErrorMessage();
 				gmState = GM_HOLD;
@@ -576,11 +571,9 @@ int CreamJob::doEvaluateState()
 			} else if ( gridftpServer->GetUrlBase() ) {
 				jobAd->Assign( ATTR_GRIDFTP_URL_BASE, gridftpServer->GetUrlBase() );
 				gmState = GM_DELEGATE_PROXY;
-*/
-//end here
 			}
-
-			gmState = GM_DELEGATE_PROXY;
+//teonadi
+//			gmState = GM_DELEGATE_PROXY;
 		} break;
  		case GM_DELEGATE_PROXY: {
 			const char *deleg_uri;
@@ -644,11 +637,23 @@ int CreamJob::doEvaluateState()
 					break;
 				}
 
+				if (jmLifetime == 0) {
+					int new_lease;
+					if (CalculateJobLease(jobAd, new_lease, DEFAULT_LEASE_DURATION) == false) {
+						dprintf( D_ALWAYS, "(%d.%d) No lease for cream job!?\n",
+								 procID.cluster, procID.proc );
+						jmLifetime = now + DEFAULT_LEASE_DURATION;
+					} else {
+						jmLifetime = new_lease;
+					}
+				}
+				time_t new_lifetime = jmLifetime - now;
+				
 				rc = gahp->cream_job_register( 
 										resourceManagerString,
 										myResource->getDelegationService(),
 										delegatedCredentialURI,
-										gahpAd,
+										gahpAd, 0,  
 										&job_id, &upload_url );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -664,7 +669,10 @@ int CreamJob::doEvaluateState()
 					free( job_id );
 					uploadUrl = upload_url;
 					jobAd->Assign( ATTR_CREAM_UPLOAD_URL, uploadUrl );
-					gmState = GM_SUBMIT_SAVE;
+					gmState = GM_SUBMIT_SAVE;				
+					
+					jmLifetime = new_lifetime;
+					UpdateJobLeaseSent(jmLifetime);
 				} else {
 					// unhandled error
 					LOG_CREAM_ERROR( "cream_job_register()", rc );
@@ -734,8 +742,6 @@ int CreamJob::doEvaluateState()
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-//teonadi
-/*
 					// Check that our gridftp server is healthy
 				if ( gridftpServer->GetErrorMessage() ) {
 					errorString = gridftpServer->GetErrorMessage();
@@ -750,9 +756,6 @@ int CreamJob::doEvaluateState()
 					gmState = GM_CANCEL;
 					break;
 				}
-*/
-// end here
-
 /*
 				int new_lease;	// CalculateJobLease needs an int
 				if ( CalculateJobLease( jobAd, new_lease,
@@ -777,22 +780,17 @@ int CreamJob::doEvaluateState()
 					delay = (lastProbeTime + probeInterval) - now;
 				}				
 				daemonCore->Reset_Timer( evaluateStateTid, delay );
-
-					//Jaime, I had to add this two lines here to avoid extra long polling
-					//due to having no gmState before breaking from while loop
-//				sleep(10);
-					//			gmState = GM_POLL_JOB_STATE;
+				
 			}
 			} break;
 		case GM_EXTEND_LIFETIME: {
-/*
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
 				CHECK_PROXY;
 				time_t new_lifetime = jmLifetime - now;
-				rc = gahp->gt4_set_termination_time( jobContact,
-													 new_lifetime );
+				   
+				rc = gahp->cream_job_lease (resourceManagerString, remoteJobId, new_lifetime );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -800,7 +798,7 @@ int CreamJob::doEvaluateState()
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
-					LOG_CREAM_ERROR("refresh_credentials()",rc);
+					LOG_CREAM_ERROR("cream_job_lease()",rc);
 					gahpErrorString = gahp->getErrorString();
 					gmState = GM_CANCEL;
 					break;
@@ -809,7 +807,6 @@ int CreamJob::doEvaluateState()
 				UpdateJobLeaseSent( jmLifetime );
 				gmState = GM_SUBMITTED;
 			}
-*/
 			} break;
 		case GM_POLL_JOB_STATE: {
 			if ( condorState == REMOVED || condorState == HELD ) {
@@ -885,13 +882,11 @@ int CreamJob::doEvaluateState()
 			} else {
 				// Clear the contact string here because it may not get
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
-/* Jaime: not sure what jobContact is
-				if ( jobContact != NULL ) {
+				if ( remoteJobId != NULL ) {
 					SetRemoteJobId( NULL );
 					remoteState = CREAM_JOB_STATE_UNSET;
 					requestScheddUpdate( this );
 				}
-*/
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
@@ -1274,7 +1269,7 @@ ClassAd *CreamJob::buildSubmitAd()
 	MyString tmp_str2 = "";
 	MyString buf = "";
 	MyString iwd_str = "";
-	MyString creamgftp_str = "";
+	MyString gridftp_url = "";
 	StringList *isb = new StringList();
 	StringList *osb = new StringList();
 	bool result;
@@ -1297,8 +1292,8 @@ ClassAd *CreamJob::buildSubmitAd()
 	}
 	
 		//Gridftp server to use with CREAM
-	if(!jobAd->LookupString("CreamGridftp", creamgftp_str)){
-		errorString.sprintf( "%s not defined", "CreamGridftp" );
+	if(!jobAd->LookupString(ATTR_GRIDFTP_URL_BASE, gridftp_url)){
+		errorString.sprintf( "%s not defined", ATTR_GRIDFTP_URL_BASE );
 		return NULL;
 	}
 	
@@ -1315,7 +1310,7 @@ ClassAd *CreamJob::buildSubmitAd()
 		
 			//here, JOB_CMD = full path to executable
 		jobAd->LookupString(ATTR_JOB_CMD, tmp_str);
-		tmp_str = creamgftp_str + tmp_str;
+		tmp_str = gridftp_url + tmp_str;
 		isb->insert(tmp_str.Value());
 
 			//CREAM only accepts absolute path | simple filename only
@@ -1349,9 +1344,9 @@ ClassAd *CreamJob::buildSubmitAd()
 		if (jobAd->LookupString(ATTR_JOB_INPUT, tmp_str)) {
 
 			if (tmp_str[0] != '/')  //not absolute path
-				tmp_str2 = creamgftp_str + iwd_str + tmp_str;
+				tmp_str2 = gridftp_url + iwd_str + tmp_str;
 			else 
-				tmp_str2 = creamgftp_str + tmp_str;
+				tmp_str2 = gridftp_url + tmp_str;
 			
 			isb->insert(tmp_str2.Value());
 			
@@ -1383,9 +1378,9 @@ ClassAd *CreamJob::buildSubmitAd()
 			tmp_str = strlist.next();
 
 			if (tmp_str[0] != '/')  //not absolute path
-				tmp_str2 = creamgftp_str + iwd_str + tmp_str;
+				tmp_str2 = gridftp_url + iwd_str + tmp_str;
 			else 
-				tmp_str2 = creamgftp_str + tmp_str;
+				tmp_str2 = gridftp_url + tmp_str;
 
 			isb->insert(tmp_str2.Value());
 		}
@@ -1447,7 +1442,7 @@ ClassAd *CreamJob::buildSubmitAd()
 		submitAd->Insert(buf.Value());
 
 			//OUTPUTSANDBOXBASEDESTURI
-		tmp_str = creamgftp_str + iwd_str;
+		tmp_str = gridftp_url + iwd_str;
 		buf.sprintf("%s = \"%s\"", ATTR_OUTPUT_SB_BASE_DEST_URI, tmp_str.Value());
 		submitAd->Insert(buf.Value());
 	}

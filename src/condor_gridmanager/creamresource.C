@@ -433,9 +433,7 @@ dprintf(D_FULLDEBUG,"      %s\n",delegation_uri.Value());
 dprintf(D_FULLDEBUG,"    refreshing %s\n",next_deleg->deleg_uri);
 			int rc;
 			deleg_gahp->setDelegProxy( next_deleg->proxy );
-
-
-/* Jaime
+/*
 			rc = deleg_gahp->cream_proxy_renew(serviceUri,
 											   delegationServiceUri,
 											   next_deleg->deleg_uri,

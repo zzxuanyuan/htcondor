@@ -611,7 +611,7 @@ class GahpClient : public Service {
 		int cream_delegate(const char *delg_service, const char *delg_id);
 		
 		int cream_job_register(const char *service, const char *delg_service, const char *delg_id, 
-							   ClassAd *jdl, char **job_id, char **upload_url);
+							   ClassAd *jdl, time_t lease_time, char **job_id, char **upload_url);
 		
 		int cream_job_start(const char *service, const char *job_id);
 		
@@ -629,6 +629,8 @@ class GahpClient : public Service {
 		int cream_proxy_renew(const char *service, const char *delg_service, const char *delg_id, const char *job_id);
 		
 		int cream_ping(const char * service);
+		
+		int cream_job_lease(const char *service, const char *job_id, time_t &lease_incr);
 
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...
