@@ -24,6 +24,7 @@
 #include "condor_common.h"
 
 #include "classad_hashtable.h"
+#include <iostream.h>
 
 void HashKey::sprint(char *s)
 {
