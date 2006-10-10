@@ -556,10 +556,13 @@ const char ATTR_IS_VALID_CHECKPOINT_PLATFORM  [] = "IsValidCheckpointPlatform";
 const char ATTR_HAD_IS_ACTIVE [] = "HadIsActive";
 const char ATTR_HAD_LIST[]       = "HadList";
 const char ATTR_HAD_INDEX[]      = "HadIndex";
+const char ATTR_HAD_IS_PRIMARY[] = "HadIsPrimary";
+const char ATTR_HAD_IP_ADDR[]    = "HadIpAddr";
 
 const char ATTR_REPLICATION_IS_ACTIVE [] = "ReplicationIsActive";
 const char ATTR_REPLICATION_LIST[]       = "ReplicationList";
 const char ATTR_REPLICATION_INDEX[]      = "ReplicationIndex";
+const char ATTR_REPLICATION_IP_ADDR[]    = "ReplicationIpAddr";
 
 // Valid settings for ATTR_JOB_MANAGED.
 	// Managed by an external process (gridmanager)
