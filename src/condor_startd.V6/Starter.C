@@ -32,10 +32,6 @@
 #include "startd.h"
 #include "classad_merge.h"
 #include "dynuser.h"
-#include "condor_auth_x509.h"
-#include "setenv.h"
-#include "my_popen.h"
-#include "basename.h"
 
 #ifdef WIN32
 extern dynuser *myDynuser;
@@ -432,8 +428,8 @@ Starter::reallykill( int signo, int type )
 			break;
 #endif
 		default:
-			EXCEPT( "stat(%s) failed with unexpected errno (%d)", 
-					s_path, errno );
+			EXCEPT( "stat(%s) failed with unexpected errno %d (%s)", 
+					s_path, errno, strerror( errno ) );
 		}
 	}
 #endif	// if !defined(WIN32)
@@ -589,12 +585,6 @@ Starter::exited()
 
 		// Now, delete any files lying around.
 	cleanup_execute_dir( s_pid );
-
-#if !defined(WIN32)
-	if( param_boolean( "GLEXEC_STARTER", false ) ) {
-		cleanupAfterGlexec();
-	}
-#endif
 }
 
 
@@ -721,28 +711,13 @@ Starter::execDCStarter( ArgList const &args, Env const *env,
 		inherit_list = sock_inherit_list;
 	}
 
-	const ArgList* final_args = &args;
-	const Env* final_env = env;
-	const char* final_path = s_path;
-
-#if !defined(WIN32)
-	// see if we should be using glexec to spawn the starter.
-	// if we are, the cmd, args, and env to use will be modified
-	ArgList glexec_args;
-	Env glexec_env;
-	if( param_boolean( "GLEXEC_STARTER", false ) ) {
-		if( ! prepareForGlexec( args, env, glexec_args, glexec_env ) ) {
-			// something went wrong; prepareForGlexec will
-			// have already logged it
-			cleanupAfterGlexec();
-			return 0;
-		}
-		final_args = &glexec_args;
-		final_env = &glexec_env;
-		final_path = glexec_args.GetArg(0);
+	if(DebugFlags & D_FULLDEBUG) {
+		MyString args_string;
+		args.GetArgsStringForDisplay(&args_string);
+		dprintf( D_FULLDEBUG, "About to Create_Process \"%s\"\n",
+				 args_string.Value() );
 	}
-#endif
-								   
+
 	int reaper_id;
 	if( s_reaper_id > 0 ) {
 		reaper_id = s_reaper_id;
@@ -750,16 +725,9 @@ Starter::execDCStarter( ArgList const &args, Env const *env,
 		reaper_id = main_reaper;
 	}
 
-	if(DebugFlags & D_FULLDEBUG) {
-		MyString args_string;
-		final_args->GetArgsStringForDisplay(&args_string);
-		dprintf( D_FULLDEBUG, "About to Create_Process \"%s\"\n",
-				 args_string.Value() );
-	}
-
 	s_pid = daemonCore->
-		Create_Process( final_path, *final_args, PRIV_ROOT, reaper_id,
-						TRUE, final_env, NULL, TRUE, inherit_list, std_fds );
+		Create_Process( s_path, args, PRIV_ROOT, reaper_id,
+						TRUE, env, NULL, TRUE, inherit_list, std_fds );
 	if( s_pid == FALSE ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter failed!\n");
 		s_pid = 0;
@@ -774,25 +742,19 @@ Starter::execOldStarter( void )
 #if defined(WIN32) /* THIS IS UNIX SPECIFIC */
 	return 0;
 #else
-	if( param_boolean( "GLEXEC_STARTER", false ) ) {
-		// we don't support using glexec to spawn the old starter
-		dprintf( D_ALWAYS,
-			 "error: can't spawn starter %s via glexec\n",
-			 s_path );
-		return 0;
-	}
-
 	char* hostname = s_claim->client()->host();
 	int i;
 	int pid;
 	int n_fds = getdtablesize();
 	int main_sock = s_port1;
 	int err_sock = s_port2;
+	int tmp_errno;
 
 #if defined(Solaris)
 	sigset_t set;
 	if( sigprocmask(SIG_SETMASK,0,&set)  == -1 ) {
-		EXCEPT("Error in reading procmask, errno = %d\n", errno);
+		EXCEPT("Error in reading procmask, errno = %d (%s)", errno,
+			   strerror(errno));
 	}
 	for (i=0; i < MAXSIG; i++) {
 		block_signal(i);
@@ -802,7 +764,8 @@ Starter::execOldStarter( void )
 #endif
 
 	if( (pid = fork()) < 0 ) {
-		EXCEPT( "fork" );
+		EXCEPT( "Failed to fork starter, errno = %d (%s)", errno,
+				strerror( errno ) );
 	}
 
 	if (pid) {	/* The parent */
@@ -810,8 +773,10 @@ Starter::execOldStarter( void )
 		  (void)sigblock(omask);
 		  */
 #if defined(Solaris)
-		if ( sigprocmask(SIG_SETMASK, &set, 0)  == -1 )
-			{EXCEPT("Error in setting procmask, errno = %d\n", errno);}
+		if ( sigprocmask(SIG_SETMASK, &set, 0)  == -1 ) {
+			EXCEPT("Error in setting procmask, errno = %d (%s)", errno,
+				   strerror(errno));
+		}
 #else
 		(void)sigsetmask(omask);
 #endif
@@ -857,24 +822,25 @@ Starter::execOldStarter( void )
 			 */
 		if( setsid() < 0 ) {
 			dprintf( D_ALWAYS, 
-					 "setsid() failed in child, errno: %d\n", errno );
+					 "setsid() failed in child, errno: %d (%s)\n", errno,
+					 strerror( errno ) );
 			exit( 4 );
 		}
 
 			// Now, dup the special socks to their well-known fds.
 		if( dup2(main_sock,0) < 0 ) {
-			dprintf( D_ALWAYS, "dup2(%d,0) failed in child, errno: %d\n",
-					 main_sock, errno ); 
+			dprintf( D_ALWAYS, "dup2(%d,0) failed in child, errno: %d (%s)\n",
+					 main_sock, errno, strerror( errno ) ); 
 			exit( 4 );
 		}
 		if( dup2(main_sock,1) < 0 ) {
-			dprintf( D_ALWAYS, "dup2(%d,1) failed in child, errno: %d\n",
-					 main_sock, errno );
+			dprintf( D_ALWAYS, "dup2(%d,1) failed in child, errno: %d (%s)\n",
+					 main_sock, errno, strerror( errno ) );
 			exit( 4 );
 		}
 		if( dup2(err_sock,2) < 0 ) {
-			dprintf( D_ALWAYS, "dup2(%d,2) failed in child, errno: %d\n",
-					 err_sock, errno );
+			dprintf( D_ALWAYS, "dup2(%d,2) failed in child, errno: %d (%s)\n",
+					 err_sock, errno, strerror( errno ) );
 			exit( 4 );
 		}
 
@@ -890,19 +856,29 @@ Starter::execOldStarter( void )
 		 */
 		set_root_priv();
 		if( resmgr->is_smp() ) {
-			(void)execl( s_path, "condor_starter", hostname, 
+			execl( s_path, "condor_starter", hostname, 
 						 daemonCore->InfoCommandSinfulString(), 
 						 "-a", s_claim->rip()->r_id_str, 0 );
+			tmp_errno = errno;
+				// If we got this far, there was an error in execl().
+			dprintf( D_ALWAYS, 
+			  "ERROR: execl(%s, condor_starter, %s, %s, -a, %s, 0) "
+			  	"errno: %d(%s)\n",
+			  s_path, daemonCore->InfoCommandSinfulString(), hostname,
+			  s_claim->rip()->r_id_str==NULL?"(NIL)":s_claim->rip()->r_id_str, 
+				 tmp_errno, strerror(tmp_errno) );
 		} else {			
-			(void)execl( s_path, "condor_starter", hostname, 
+			execl( s_path, "condor_starter", hostname, 
 						 daemonCore->InfoCommandSinfulString(), 0 );
+			tmp_errno = errno;
+				// If we got this far, there was an error in execl().
+			dprintf( D_ALWAYS, 
+				 "ERROR: execl(%s, condor_starter, %s, %s, 0) "
+				 "errno: %d (%s)\n", 
+				 s_path, daemonCore->InfoCommandSinfulString(), hostname,
+				 tmp_errno, strerror(tmp_errno) );
 
 		}
-			// If we got this far, there was an error in execl().
-		dprintf( D_ALWAYS, 
-				 "ERROR: execl(%s, condor_starter, %s, %s, 0) errno: %d\n", 
-				 s_path, daemonCore->InfoCommandSinfulString(), hostname,
-				 errno );
 		exit( 4 );
 	}
 	if ( pid < 0 ) {
@@ -912,243 +888,7 @@ Starter::execOldStarter( void )
 #endif // !defined(WIN32)
 }
 
-#if !defined(WIN32)
-bool
-Starter::prepareForGlexec( const ArgList& orig_args, const Env* orig_env,
-                           ArgList& glexec_args, Env& glexec_env )
-{
-	// if GLEXEC_STARTER is set, use glexec to invoke the
-	// starter (and fail if we can't). this involves:
-	//   - verifying that we have a delegated proxy from
-	//     the user stored, since we need to hand it to
-	//     glexec so it can look up the UID/GID
-	//   - invoking 'glexec whoami' to find out the target username
-	//   - creating a directory /tmp/condor.<startd_pid>.<vm>.<username>
-	//     for the copied proxy to go into, as well as the StarterLog and
-	//     execute dir
-	//   - adding the contents of the GLEXEC config param
-	//     to the front of the command line
-	//   - setting up glexec's environment (setting the
-	//     mode, handing off the proxy, etc.)
-
-	// verify that we have a stored proxy
-	if( s_claim->client()->proxyFile() == NULL ) {
-		dprintf( D_ALWAYS,
-		         "cannot use glexec to spawn starter: no proxy "
-		         "(is GLEXEC_STARTER set in the shadow?)\n" );
-		return false;
-	}
-
-	// read the cert into a string
-	FILE* fp = fopen( s_claim->client()->proxyFile(), "r" );
-	if( fp == NULL ) {
-		dprintf( D_ALWAYS,
-		         "cannot use glexec to spawn starter: "
-		         "couldn't open proxy: %s (%d)\n",
-		         strerror(errno), errno );
-		return false;
-	}
-	MyString pem_str;
-	while( pem_str.readLine( fp, true ) );
-	fclose( fp );
-
-	// param for the user dir for glexec to use, put it into a MyString, and
-	// free it.  default to /tmp if not defined.
-	char *glexec_user_dir_tmp = param("GLEXEC_USER_DIR");
-	MyString glexec_user_dir;
-	if (glexec_user_dir_tmp) {
-		glexec_user_dir = glexec_user_dir_tmp;
-		free(glexec_user_dir_tmp);
-		glexec_user_dir_tmp = NULL;
-	} else {
-		glexec_user_dir = "/tmp";
-	}
-
-	// get the glexec command line prefix from config
-	char* glexec_argstr = param( "GLEXEC" );
-	if ( ! glexec_argstr ) {
-		dprintf( D_ALWAYS,
-		         "cannot use glexec to spawn starter: "
-		         "GLEXEC not given in config\n" );
-		return false;
-	}
-
-	// cons up a command line for popen.  we want to run this:
-	// /bin/sh -c 'WHOAMI=`whoami`;cd <user_dir>;umask 077;
-	//    mkdir -p condor.<startd_pid>.<vm>.$WHOAMI;
-	//    cd condor.<startd_pid>.<vm>.$WHOAMI;
-	//    mkdir -p execute;mkdir -p log;
-	//    echo $WHOAMI
-	//
-	// (where <user_dir> is the glexec_user_dir param'ed above,
-	//  <startd_pid> is our pid, and <vm> is the vm id)
-
-	// parse the glexec args for invoking whoami.  do not free them yet,
-	// except on an error, as we use them again below.
-	MyString whoami_err;
-	ArgList  glexec_whoami_args;
-	if( ! glexec_whoami_args.AppendArgsV1RawOrV2Quoted( glexec_argstr,
-						     &whoami_err ) ) {
-		dprintf( D_ALWAYS,
-		         "GLEXEC: failed to parse GLEXEC from config: %s\n",
-		         whoami_err.Value() );
-		free( glexec_argstr );
-		return 0;
-	}
-
-	// add the rest of the args for the whoami / mkdir mojo
-	MyString glexec_whoami_arg;
-	char* shell_path = param("SH");
-	if (shell_path) {
-			// glexec refuses to follow symlinks, so we offer
-			// the "SH" knob as a workaround
-		glexec_whoami_args.AppendArg(shell_path);
-		free(shell_path);
-	}
-	else {
-		glexec_whoami_args.AppendArg("/bin/sh");
-	}
-	glexec_whoami_args.AppendArg("-c");
-	int my_pid = getpid();
-	glexec_whoami_arg = "WHOAMI=`whoami`;cd ";
-	glexec_whoami_arg += glexec_user_dir.Value();
-	glexec_whoami_arg += ";umask 077;";
-	glexec_whoami_arg.sprintf_cat("mkdir -p condor.%d.%s.$WHOAMI;",
-	                              my_pid, s_claim->rip()->r_id_str);
-	glexec_whoami_arg.sprintf_cat("cd condor.%d.%s.$WHOAMI;",
-	                              my_pid, s_claim->rip()->r_id_str);
-	glexec_whoami_arg += "mkdir -p execute;mkdir -p log;echo $WHOAMI";
-	glexec_whoami_args.AppendArg( glexec_whoami_arg.Value() );
-
-	// debug info.  this display format totally screws up the quoting, but
-	// popen gets it right.
-	MyString disp_args;
-	glexec_whoami_args.GetArgsStringForDisplay(&disp_args, 0);
-	dprintf (D_ALWAYS, "GLEXEC: about to glexec: ** %s **\n",
-			disp_args.Value());
-
-	// the only thing actually needed by glexec at this point is the cert, so
-	// that it knows who to map to.  the pipe outputs the username that glexec
-	// ended up using, on a single text line by itself.
-	SetEnv( "SSL_CLIENT_CERT", pem_str.Value() );
-	FILE * glexec_pipe;
-	glexec_pipe = my_popen(glexec_whoami_args, "r", FALSE);
-	MyString glexec_username;
-	glexec_username.readLine(glexec_pipe);
-	my_pclose(glexec_pipe);
-
-	// clean up, since there's private info in there.  i wish we didn't have to
-	// put this in the environment to begin with, but alas, that's just how
-	// glexec works.
-	UnsetEnv( "SSL_CLIENT_CERT");
-
-
-	// first strip off carriage return from the username
-	glexec_username.setChar(glexec_username.Length()-1, '\0');
-	dprintf (D_ALWAYS, "GLEXEC: got '%s' from my_popen.\n",
-			glexec_username.Value());
-
-	// update glexec_user_dir to include condor.<startd_pid>.<vm>.<username>
-	glexec_user_dir.sprintf_cat("/condor.%d.%s.%s", my_pid,
-	                            s_claim->rip()->r_id_str,
-	                            glexec_username.Value());
-	dprintf (D_ALWAYS, "GLEXEC: userdir is '%s'\n",
-			glexec_user_dir.Value());
-
-	// now prepare the starter command line, starting with glexec and its
-	// options (if any).
-	MyString err;
-	if( ! glexec_args.AppendArgsV1RawOrV2Quoted( glexec_argstr,
-						     &err ) ) {
-		dprintf( D_ALWAYS,
-		         "failed to parse GLEXEC from config: %s\n",
-		         err.Value() );
-		free( glexec_argstr );
-		return 0;
-	}
-	free( glexec_argstr );
-
-	// complete the command line by adding in the original
-	// arguments. we also make sure that the full path to the
-	// starter is given
-	int starter_path_pos = glexec_args.Count();
-	glexec_args.AppendArgsFromArgList( orig_args );
-	glexec_args.RemoveArg( starter_path_pos );
-	glexec_args.InsertArg( s_path, starter_path_pos );
-
-	// set up the environment stuff
-	if( orig_env ) {
-		// first merge in the original
-		glexec_env.MergeFrom( *orig_env );
-	}
-
-	// GLEXEC_MODE - get account from lcmaps
-	glexec_env.SetEnv( "GLEXEC_MODE", "lcmaps_get_account" );
-
-	// SSL_CLIENT_CERT - cert to use for the mapping
-	glexec_env.SetEnv( "SSL_CLIENT_CERT", pem_str.Value() );
-
-#if defined(GSI_AUTHENTICATION) && !defined(SKIP_AUTHENTICATION)
-	// GLEXEC_SOURCE_PROXY -  proxy to provide to the child
-	//                        (file is owned by us)
-	glexec_env.SetEnv( "GLEXEC_SOURCE_PROXY", s_claim->client()->proxyFile() );
-	dprintf (D_ALWAYS, "GLEXEC: setting GLEXEC_SOURCE_PROXY to %s\n",
-		s_claim->client()->proxyFile());
-
-	// GLEXEC_TARGET_PROXY - child-owned file to copy its proxy to.
-	// this needs to be in a directory owned by that user, and not world
-	// writable.  glexec enforces this.  hence, all the whoami/mkdir mojo
-	// above.
-	MyString child_proxy_file = glexec_user_dir;
-	child_proxy_file += "/";
-	child_proxy_file += condor_basename(s_claim->client()->proxyFile());
-	child_proxy_file += ".starter";
-	dprintf (D_ALWAYS, "GLEXEC: setting GLEXEC_TARGET_PROXY to %s\n",
-		child_proxy_file.Value());
-	glexec_env.SetEnv( "GLEXEC_TARGET_PROXY", child_proxy_file.Value() );
-
-	// _CONDOR_GSI_DAEMON_PROXY - starter's proxy
-	MyString var_name = "_CONDOR_";
-	var_name += STR_GSI_DAEMON_PROXY;
-	glexec_env.SetEnv( var_name.Value(), child_proxy_file.Value() );
-#endif
-
-	// the EXECUTE dir should be owned by the mapped user.  we created this
-	// earlier, and now we override it in the condor_config via the
-	// environment.
-	MyString execute_dir = glexec_user_dir;
-	execute_dir += "/execute";
-	glexec_env.SetEnv ( "_CONDOR_EXECUTE", execute_dir.Value());
-
-	// the LOG dir should be owned by the mapped user.  we created this
-	// earlier, and now we override it in the condor_config via the
-	// environment.
-	MyString log_dir = glexec_user_dir;
-	log_dir += "/log";
-	glexec_env.SetEnv ( "_CONDOR_LOG", log_dir.Value());
-
-	return true;
-}
-
-void
-Starter::cleanupAfterGlexec()
-{
-	// remove the copy of the user proxy that we own
-	// (the starter should remove the one glexec created for it)
-	if( s_claim->client()->proxyFile() != NULL ) {
-		remove( s_claim->client()->proxyFile() );
-	}
-
-	// should the starter clean up the StarterLog?  how about removing the
-	// directories if the other VMs are not running any jobs by this user (a
-	// nice potential race condition?)  right now, we litter.  however, the
-	// same dirs get reused if/when the user runs another job.
-	//
-	// and, at this point, there's nothing the startd can do unless we invoke
-	// glexec to clean up.
-}
-#endif // !WIN32
-
+		
 bool
 Starter::isCOD()
 {
