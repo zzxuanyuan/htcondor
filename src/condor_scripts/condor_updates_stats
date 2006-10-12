@@ -45,7 +45,7 @@ my %Config =
 
 
 my $Program = "condor_updates_stats";
-my $RevisionString = '$Revision: 1.4 $';
+my $RevisionString = '$Revision: 1.3.2.1 $';
 my $CondorVersion = '$CondorVersion$';
 my $CondorPlatform = '$CondorPlatform$';
 my %Help =

@@ -1,4 +1,4 @@
-$Id: README.building,v 1.9 2006-09-25 21:14:03 zmiller Exp $
+$Id: README.building,v 1.8.2.2 2006-09-12 00:00:09 wright Exp $
 
 This file is intended to describe the steps needed to build Condor version
 6.8.x from the source code tree.

@@ -226,7 +226,7 @@ Dagman::Config()
 		ASSERT( storkRmExe );
 	}
 
-	abortDuplicates = param_boolean( "DAGMAN_ABORT_DUPLICATES", true );
+	abortDuplicates = param_boolean( "DAGMAN_ABORT_DUPLICATES", false );
 	debug_printf( DEBUG_NORMAL, "DAGMAN_ABORT_DUPLICATES setting: %d\n",
 				abortDuplicates );
 

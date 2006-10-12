@@ -1,37 +1,23 @@
-09/25/06 trunk-pre_merge-V6_8-merge-1
-  the state of the trunk before merging in the V6_8-branch as tagged
-  at V6_8-merge-1
+10/10/06 V6_8_2-merge-1
+  The state of the V6_8_2-branch before merging back to V6_8-branch.
+  This is likely the only merge from there, but you never know.
 
-09/25/06 trunk-post_merge-V6_8-merge-1
-  the state of the trunk after merging in the V6_8-branch as tagged
-  at V6_8-merge-1
+09/25/06 V6_7-amd64_port-merge-1
+	The state of the V6_7-amd64_port-branch b efore a merge into
+	V6_8-branch.
 
-09/20/06 V6_9-eventd_v2-2-{root,branch}
-  A second branch since the first branch franked but seemd to
-  have issues running jobs. I thought I had worked from a good
-  build tag before. This branch is off a good build/test 
-  BUILD-V6_9-trunk-2006-9-16.
+09/25/06 V6_8-merge-1
+  The state of the V6_8-branch for its first merge back to the trunk,
+  which is currently the 6.9 development branch.
 
 09/18/06 V6_8_1
   The official V6_8_1 release is a copy of BUILD-V6_7-branch-2006-9-17.
   All platforms built on NMI runid 31207 except windows, which was built
   on Greg Q's laptop.
 
-08/21/06 V6_9-eventd_v2-{root,branch}
-  A new branch to merge v6_7 branch for the eventd developement
-  into the trunk code base prior to merging it to the trunk.
-
 08/09/06 V6_8-oracle-{root,branch}
   The branch for an oracle version of Quill. Created from V6_8-branch-2006-8-9.
   May or may not ever be merged back to V6_8-branch
-
-08/08/06 V6_9-cream-{root,branch}
-  A new branch off V6_9 (the trunk) to add support in Condor-G for
-  submitting jobs to EGEE's CREAM service.
-
-08/02/06 V6_8-branch
-  A new branch off the TRUNK (woo hoo) for the 6.8.x stable series.
-  Created from the V6_8-root tag.  Includes the doc directory.
 
 07/24/06 V6_7-merge-2
   The state of the V6_7-branch for the final merge back to the TRUNK.

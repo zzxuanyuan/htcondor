@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_task.pl,v 1.3 2006-09-25 21:14:02 zmiller Exp $
+# $Id: remote_task.pl,v 1.2.2.3 2006-09-12 17:00:26 wright Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
