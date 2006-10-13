@@ -144,6 +144,13 @@ with the resulting proxies would fail.
 some Condor-related processes and subsequently fail to clean up (kill)
 these processes.
 
+\item Fixed a bug that would cause \Condor{history} to crash when
+dealing with rotated history files. Note that history file rotation is
+turned on by default. (See
+Section~\ref{sec:Condor-wide-Config-File-Entries} for descriptions of
+\Macro{ENABLE\_HISTORY\_ROTATION} and
+\Macro{MAX\_HISTORY\_ROTATIONS}.)
+
 \end{itemize}
 
 \noindent Known Bugs:
