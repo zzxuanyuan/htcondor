@@ -136,6 +136,10 @@ the \Condor{startd} daemon was sufficient to get it out of this state.
 impersonation (i.e. non-limited) proxies. Any authentication attempted
 with the resulting proxies would fail.
 
+\item Fixed a couple bugs that would cause Condor to lose track of
+some Condor-related processes and subsequently fail to clean up (kill)
+these processes.
+
 \end{itemize}
 
 \noindent Known Bugs:
