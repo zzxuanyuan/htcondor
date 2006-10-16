@@ -497,7 +497,7 @@ GPP_ARCH_FLAGS = -DTARGET_OS_MAC=1 -DTARGET_CPU_PPC=1
 GPP_ARCH_FLAGS =
 #endif
 
-GPP_SHARED_FLAGS = -fno-implicit-templates $(GPP_VERS_FLAGS) $(GPP_ARCH_FLAGS)
+GPP_SHARED_FLAGS = $(GPP_VERS_FLAGS) $(GPP_ARCH_FLAGS)
 
 /* Flags shared between C and C++ compilers */
 SHARED_COMPILER_FLAGS = $(VENDOR_C_FLAGS) $(DEBUG_FLAG) $(CC_PIC_FLAG) PlatformFlags $(CCOMPILER_ID) $(GSOAP_FLAGS) $(PCRE_FLAGS) $(COREDUMPER_FLAGS)
@@ -514,6 +514,8 @@ STD_C_PLUS_FLAGS = $(SHARED_COMPILER_FLAGS) $(GPP_DEBUG_FLAGS) $(GPP_SHARED_FLAG
 	template instantiation files. */
 /* XXX Uh, the comment doesn't match this code (and I think it should--psilord)
 	figure out why. */
+
+/* We shouldn't use this rule anymore, but leave it for historical reasons */
 INST_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_VERS_FLAGS) PlatformGppFlags
 
 TESTSUITE_FLAGS_GCC =  $(STD_C_FLAGS)

@@ -78,7 +78,6 @@ CLASSAD_OBJ = \
 	../condor_classad/attrlist.o \
 	../condor_classad/buildtable.o \
 	../condor_classad/classad.o \
-	../condor_classad/classad_instantiate.o \
 	../condor_classad/classifiedjobs.o \
 	../condor_classad/environment.o \
 	../condor_classad/evaluateOperators.o \
@@ -123,7 +122,7 @@ CONLIBAPI_OBJ = \
 	my_distribution.o \
 	$(CLASSAD_OBJ) \
 	../condor_util_lib/get_random_num.o \
-	c++_util_instantiate.o \
+	 \
 	libcondorapi_stubs.o \
 	$(SETEUID_OBJ) \
 	$(SETEGID_OBJ) \
@@ -136,7 +135,7 @@ DAEMON_CLIENT_OBJ = daemon.o daemon_types.o dc_shadow.o dc_startd.o \
 OBJ = state_machine_driver.o event_handler.o name_tab.o NON_POSIX.select.o \
 	alarm.o user_job_policy.o classad_support.o \
 	directory.o stat_wrapper.o my_hostname.o file_lock.o sig_name.o \
-	email.o env.o c++_util_instantiate.o \
+	email.o env.o  \
 	string_list.o net_string_list.o condor_event.o $(URL_OBJ) \
 	get_daemon_name.o \
 	user_log.o config.o condor_config.o stringSpace.o condor_state.o \
