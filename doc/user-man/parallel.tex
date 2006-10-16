@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{\label{sec:Parallel}Parallel Applications (Including MPI Applications)}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\index{Parallel universe|(}
+\index{parallel universe|(}
 
 Condor's Parallel universe supports a wide variety of parallel
 programming environments, and it encompasses the execution 
@@ -150,104 +150,8 @@ Each of these processes requires a correctly named input file,
 and produces an output file.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:parallel-mpi-submit}Submitting MPI Jobs With the Parallel Universe}
+\subsection{\label{sec:parallel-multi-proc}Parallel Jobs with Separate Requirements}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-To run MPI jobs within the parallel universe environment,
-more framework is needed.
-Condor provides this
-framework in the form of user visible and modifiable scripts, to allow
-flexibility for the different kinds of parallel systems it can support.
-The Condor parallel universe works somewhat like a SIMD
-(Single Instruction, Multiple Data) machine.
-A single
-executable is run on all the machines in parallel, while this single
-executable may have different inputs and outputs.  
-If different
-executables must be executed on the different machines,
-the submit description file specifies a script as
-the executable.
-This script needs to identify the machine it runs on,
-utilizing the predifined macro, \MacroUNI{NODE},
-in order to invoke the appropriate executable.
-
-Most MPI implementations require two system-wide prerequisites.
-The first prerequisite is the ability to run a command
-on a remote machine without being prompted for a password.
-Usually, \Prog{ssh} is used for this, but the
-specific command may be configurable within the MPI implementation.
-The second prerequisite is an ASCII file with the
-list of machines that may utilize \Prog{ssh}.
-
-So, to run MPI application in the parallel universe, we run a script
-on each node we submit to.  This script generates ssh keys, to enable
-password-less remote execution, start an sshd daemon, and send the
-names and rank (node number) back to the submit directory.  Thus, for
-each Condor job submitted, the scripts set up an ad-hoc MPI
-environment, which is torn down at the end of the job run.  This ssh
-script is a common requirement for running MPI jobs, so we have
-factored it out into a common script, which is called from each of the
-MPI-specific scripts.  After the ssh script has been started, the
-MPI-specific script runs, starts the rest of the MPI job by looking at
-its arguments, and waits for the MPI job to finish.  Condor provides
-the ssh script, and example MPI scripts for both LAM and MPICH.  The
-former is named ``lamscript'', and the latter ``mp1script''.  The
-first argument to each script is the name of the real MPI executable,
-and any subsequent arguments are arguments to that executable.  Other
-implementations should be easy to add, by modifying the given
-examples.  Note that because the actual MPI executable (i.e. the
-output of mpicc) is not the named executable in the submit script, it
-must be accessible either via a network file system, or by condor file
-transfer.
-
-The sshd.sh script requires several configuration file settings.
-\Macro{CONDOR\_SSHD} should be an absolute path to an implementation of
-sshd.  sshd.sh has been tested with openssh version 3.9, but should
-work with more recent versions.  \Macro{CONDOR\_SSH\_KEYGEN} should
-point to the corresponding ssh-keygen executable.
-
-The LAM and MPICH scripts each have their own idiosyncrasies.  In the
-mp1script, the PATH to the MPICH installation must be set.  Look
-for the shell variable MPDIR, and set it to the proper value.  This
-directory should contain the MPICH mpirun command.
-
-For LAM, there is a similar path setting, but called LAMDIR in the
-lamscript shell script.  In addition, this path must be part of the
-path set in the user's .cshrc script.  (As of this writing, lam doesn't
-work if the user's login shell is the Bourne or compatible shell).
-
-\begin{verbatim}
-######################################
-## Example submit description file
-## for MPICH 1 MPI
-## works with MPICH 1.2.4, 1.2.5 and 1.2.6
-######################################
-universe = parallel
-executable = mp1script
-arguments = my_mpich_linked_executable arg1 arg2
-machine_count = 4
-should_transfer_files = yes
-when_to_transfer_output = on_exit
-transfer_input_files = my_mpich_linked_executable
-queue
-\end{verbatim}
-
-\begin{verbatim}
-######################################
-## Example submit description file
-## for LAM MPI
-######################################
-universe = parallel
-executable = lamscript
-arguments = my_lam_linked_executable arg1 arg2
-machine_count = 4
-should_transfer_files = yes
-when_to_transfer_output = on_exit
-transfer_input_files = my_lam_linked_executable
-queue
-\end{verbatim}
-
-\subsection{\label{sec:parallel-multi-proc}Submitting parallel jobs with multiple requirements}
 Different nodes for a parallel job can have different machine
 requirements.  For example, often the first node, sometimes called the
 head node, needs to run on a specific machine.  This can be also
@@ -286,9 +190,133 @@ This is because the scheduler tries to match jobs to machine in
 submit file order.  If the requirements are not mutually exclusive,
 it can happen that the scheduler may unable to schedule the job, even
 if all needed resources are available.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:parallel-mpi-submit}MPI Applications Within Condor's Parallel Universe}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{parallel universe!running MPI applications}
+
+MPI applications utilize a single executable that is invoked in order to
+execute in parallel on one or more machines. 
+Condor's parallel universe provides the environment within
+which this executable is executed in parallel.
+However, the various implementations of MPI
+(for example, LAM or MPICH) require further framework items within
+a system-wide environment.
+Condor supports this necessary framework through 
+user visible and modifiable scripts.
+An MPI implementation-dependent script becomes the Condor job.
+The script sets up the extra, necessary framework,
+and then invokes the MPI application's executable.
+
+Condor provides these scripts in the
+\File{\MacroUNI{RELEASE\_DIR}/etc/examples}
+directory.
+The script for the LAM implementation is \File{lamscript}.
+The script for the MPICH implementation is \File{mp1script}.
+Therefore, a Condor submit description file for these
+implementations would appear similar to:
+
+\begin{verbatim}
+######################################
+## Example submit description file
+## for MPICH 1 MPI
+## works with MPICH 1.2.4, 1.2.5 and 1.2.6
+######################################
+universe = parallel
+executable = mp1script
+arguments = my_mpich_linked_executable arg1 arg2
+machine_count = 4
+should_transfer_files = yes
+when_to_transfer_output = on_exit
+transfer_input_files = my_mpich_linked_executable
+queue
+\end{verbatim}
+
+or
+
+\begin{verbatim}
+######################################
+## Example submit description file
+## for LAM MPI
+######################################
+universe = parallel
+executable = lamscript
+arguments = my_lam_linked_executable arg1 arg2
+machine_count = 4
+should_transfer_files = yes
+when_to_transfer_output = on_exit
+transfer_input_files = my_lam_linked_executable
+queue
+\end{verbatim}
+
+The \SubmitCmd{executable} is the MPI implementation-dependent script.
+The first argument to the script is the MPI application's 
+executable.
+Further arguments to the script are the MPI application's arguments.
+Condor must transfer this executable;
+do this with the \SubmitCmd{transfer\_input\_files} command.
+
+For other implementations of MPI,
+copy and modify one of the given scripts.
+Most MPI implementations require two system-wide prerequisites.
+The first prerequisite is the ability to run a command
+on a remote machine without being prompted for a password.
+\Prog{ssh} is commonly used, but other
+command may be used.
+The second prerequisite is an ASCII file containing the
+list of machines that may utilize \Prog{ssh}.
+These common prerequisites are implemented in a further script
+called \File{sshd.sh}.
+\File{sshd.sh} generates ssh keys 
+(to enable password-less remote execution),
+and starts an \Prog{sshd} daemon.
+The machine name and MPI rank are given to the submit machine.
+
+%So, to run MPI application in the parallel universe, we run a script
+%on each node we submit to.  This script generates ssh keys, to enable
+%password-less remote execution, start an sshd daemon, and send the
+%names and rank (node number) back to the submit directory.  Thus, for
+%each Condor job submitted, the scripts set up an ad-hoc MPI
+%environment, which is torn down at the end of the job run.  This ssh
+%script is a common requirement for running MPI jobs, so we have
+%factored it out into a common script, which is called from each of the
+%MPI-specific scripts.  After the ssh script has been started, the
+%MPI-specific script runs, starts the rest of the MPI job by looking at
+%its arguments, and waits for the MPI job to finish.  Condor provides
+%the ssh script, and example MPI scripts for both LAM and MPICH.  The
+%former is named ``lamscript'', and the latter ``mp1script''.  The
+%first argument to each script is the name of the real MPI executable,
+%and any subsequent arguments are arguments to that executable.  Other
+%implementations should be easy to add, by modifying the given
+%examples.  Note that because the actual MPI executable (i.e. the
+%output of mpicc) is not the named executable in the submit script, it
+%must be accessible either via a network file system, or by condor file
+%transfer.
+
+The \Prog{sshd.sh} script requires the definition of
+two Condor configuration variables.
+Configuration variable \Macro{CONDOR\_SSHD} is an absolute path to
+an implementation of \Prog{sshd}.
+\Prog{sshd.sh} has been tested with \Prog{openssh} version 3.9,
+but should work with more recent versions.
+Configuration variable \Macro{CONDOR\_SSH\_KEYGEN} points
+to the corresponding \Prog{ssh-keygen} executable.
+
+Scripts \Prog{lamscript} and \Prog{mp1script}
+each have their own idiosyncrasies.
+In \Prog{mp1script}, the \Env{PATH} to the MPICH installation must be set.
+The shell variable MPDIR indicates its proper value.
+This directory contains the MPICH \Prog{mpirun} executable.
+For LAM, there is a similar path setting, but it is called \Env{LAMDIR}
+in the \Prog{lamscript} script.  In addition, this path must be part of the
+path set in the user's \File{.cshrc} script.
+As of this writing, the LAM implementation does not work
+if the user's login shell is the Bourne or compatible shell.
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \input{user-man/mpi.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\index{Parallel universe|)}
+\index{parallel universe|)}
