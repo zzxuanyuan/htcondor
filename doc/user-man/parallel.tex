@@ -152,12 +152,14 @@ and produces an output file.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:parallel-multi-proc}Parallel Jobs with Separate Requirements}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Different nodes for a parallel job can have different machine
-requirements.  For example, often the first node, sometimes called the
-head node, needs to run on a specific machine.  This can be also
-useful for debugging.  Condor accommodates this by supporting multiple
-\Attr{queue} statements in the submit file, much like with the other
-universes.  For example:
+
+The different machines executing for a parallel universe job
+may specify different machine requirements.
+A common example requires that the
+head node execute on a specific machine.
+It may be also useful for debugging purposes.
+
+Consider the following example.
 
 \begin{verbatim}
 ######################################
@@ -175,21 +177,27 @@ machine_count = 3
 queue
 \end{verbatim}
 
-The dedicated scheduler will allocate four machines (nodes) total across
-two procs for this job.  The first proc has one node,
- and will run on the machine named machine1.  The 
-other three nodes, in the second proc, will run on other machines.  
-Like in the other condor universes, the second requirements command 
-overwrites the first, but the other commands are inherited from the 
-first proc.
+The dedicated scheduler allocates four machines.
+All four executing jobs have the same value for \MacroUNI{Cluster}
+macro.
+The \MacroUNI{Process} macro takes on two values;
+the value 0 will be assigned for the single executable
+that must be executed on machine1, and
+the value 1 will be assigned for the other three 
+that must be executed anywhere but on machine1.
 
-When submitting jobs with multiple requirements, it is
-best to write the requirements to be mutually exclusive,
-or to have the most selective requirement first in the submit file.
-This is because the scheduler tries to match jobs to machine in
-submit file order.  If the requirements are not mutually exclusive,
-it can happen that the scheduler may unable to schedule the job, even
-if all needed resources are available.
+Carefully consider the ordering and nature of multiple
+sets of requirements in the same submit description file.
+The scheduler matches jobs to machines based on the ordering
+within the submit description file.
+Mutually exclusive requirements eliminate the dependence on
+ordering within the submit description file.
+Without mutually exclusive requirements,
+the scheduler may unable to schedule the job.
+The ordering within the submit description file may preclude
+the scheduler considering the specific allocation that
+could satisfy the requirements.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:parallel-mpi-submit}MPI Applications Within Condor's Parallel Universe}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
