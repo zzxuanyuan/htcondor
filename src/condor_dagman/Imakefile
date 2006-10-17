@@ -35,7 +35,7 @@ public_c_plus_target(condor_submit_dag,bin,condor_submit_dag.o dagman_multi_dag.
 html_target( documentation )
 
 #if defined(DAGMAN_HELPER)
-c_plus_target(t_helper,t_helper.o helper.o,$(LIB))
+c_plus_target(t_helper,t_helper.o helper.o,$(TOOL_LIB))
 #endif
 
 gen_soapfiles(dagman,condorDagman)
