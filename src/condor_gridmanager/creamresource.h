@@ -80,7 +80,7 @@ class CreamResource : public BaseResource
 	char *delegationServiceUri;
 	List<ProxyDelegation> delegatedProxies;
 	static int gahpCallTimeout;
-
+	MyString delegation_uri;
 	GahpClient *gahp;
 	GahpClient *deleg_gahp;
 };

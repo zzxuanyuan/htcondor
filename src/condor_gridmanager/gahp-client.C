@@ -233,7 +233,7 @@ GahpServer::write_line(const char *command, int req, const char *args)
 		return;
 	}
 
-	char buf[20];
+	char buf[800];
 	sprintf(buf," %d ",req);
 
 	daemonCore->Write_Pipe(m_gahp_writefd,command,strlen(command));
@@ -760,10 +760,6 @@ GahpServer::Initialize( Proxy *proxy )
 	AcquireProxy( master_proxy->proxy, proxy_check_tid );
 	master_proxy->cached_expiration = 0;
 	
-		//teonadi
-//	master_proxy->proxy->proxy_filename = proxy->proxy_filename;
-		// Give the server our x509 proxy.
-
 	if ( command_initialize_from_file( master_proxy->proxy->proxy_filename ) == false ) {
 		dprintf( D_ALWAYS, "GAHP: Failed to initialize from file\n" );
 		return false;
@@ -1017,7 +1013,6 @@ GahpServer::RegisterProxy( Proxy *proxy )
 		gahp_proxy->num_references = 1;
 //		daemonCore->Reset_Timer( proxy_check_tid, 0 );
 
- // teonadi not using master proxy here
 		if ( cacheProxyFromFile( gahp_proxy ) == false ) {
 			EXCEPT( "Failed to cache proxy!" );
 		}
@@ -1142,7 +1137,8 @@ void
 GahpClient::setDelegProxy( Proxy *proxy )
 {
 	ASSERT(server->can_cache_proxies);
-	if ( deleg_proxy != NULL && proxy != deleg_proxy->proxy ) {
+	if ( deleg_proxy != NULL && proxy == deleg_proxy->proxy ) {
+			//teonadi
 		return;
 	}
 	if ( deleg_proxy != NULL ) {
@@ -1231,8 +1227,7 @@ GahpServer::command_initialize_from_file(const char *proxy_path,
 	if ( command == NULL ) {
 		command = "INITIALIZE_FROM_FILE";
 	}
-		//teonadi
-//	proxy_path = "/tmp/x509up_u14181";
+
 	int x = snprintf(buf,sizeof(buf),"%s %s",command,
 					 escapeGahpString(proxy_path));
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
@@ -5675,12 +5670,15 @@ GahpClient::cream_job_register(const char *service, const char *delg_service, co
 		else
 			rc = 1;
 
-		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
-			*job_id = strdup(result->argv[2]);
+		if (rc == 0) {
+			if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+				*job_id = strdup(result->argv[2]);
+			}
+			if ( strcasecmp(result->argv[3], NULLSTRING) ) {
+				*upload_url = strdup(result->argv[3]);
+			}
 		}
-		if ( strcasecmp(result->argv[3], NULLSTRING) ) {
-			*upload_url = strdup(result->argv[3]);
-		}
+		
 		delete result;
 		return rc;
 	}
@@ -6056,10 +6054,15 @@ GahpClient::cream_job_status(const char *service, const char *job_id,
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc < 3) {
+		if (result->argc > 2) {
+			if( result->argc != 3 + atoi(result->argv[2]) * 4){
+				EXCEPT("Bad %s Result",command);
+			}
+		}
+		else if (result->argc != 2) {
 			EXCEPT("Bad %s Result",command);
 		}
-
+		
 		int rc;
 		if (strcmp(result->argv[1], NULLSTRING) == 0) 
 			rc = 0;
@@ -6088,7 +6091,7 @@ GahpClient::cream_job_status(const char *service, const char *job_id,
 }
 
 int
-GahpClient::cream_proxy_renew(const char *service, const char *delg_service, const char *delg_id, const char *job_id)
+GahpClient::cream_proxy_renew(const char *service, const char *delg_service, const char *delg_id, StringList &job_ids)
 {
 	static const char* command = "CREAM_PROXY_RENEW";
 
@@ -6097,23 +6100,32 @@ GahpClient::cream_proxy_renew(const char *service, const char *delg_service, con
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
+	if (job_ids.number() == 0) {
+		return 0;
+	}
+
 		// Generate request line
 	if (!service) service=NULLSTRING;
 	if (!delg_service) delg_service=NULLSTRING;
-	if (!delg_id) job_id=NULLSTRING;
-	if (!job_id) job_id=NULLSTRING;
+	if (!delg_id) delg_id=NULLSTRING;
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(service) );
 	char *esc2 = strdup( escapeGahpString(delg_service) );
 	char *esc3 = strdup( escapeGahpString(delg_id) );
-	char *esc4 = strdup( escapeGahpString(job_id) );
-	int job_number = 1;  // Just query 1 job for now
-	bool x = reqline.sprintf("%s %s %s %d %s", esc1, esc2, esc3,  job_number, esc4);
+	bool x = reqline.sprintf("%s %s %s %d", esc1, esc2, esc3,  job_ids.number());
 	free( esc1 );
 	free( esc2 );
 	free( esc3 );
-	free( esc4 );
 	ASSERT( x == true );
+		// Add variable arguments
+	const char *temp;
+	job_ids.rewind();
+
+	while((temp = job_ids.next()) != NULL) {
+		x = reqline.sprintf_cat(" %s",temp);
+		
+		ASSERT(x == true);
+	}
 	const char *buf = reqline.Value();
 
 		// Check if this request is currently pending.  If not, make
@@ -6225,7 +6237,8 @@ GahpClient::cream_job_lease(const char *service, const char *job_id, time_t &lea
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(service) );
 	char *esc2 = strdup( escapeGahpString(job_id) );
-	bool x = reqline.sprintf("%s %d %s", esc1, lease_incr, esc2);
+	int jobnum = 1;
+	bool x = reqline.sprintf("%s %d %d %s", esc1, lease_incr, jobnum, esc2);
 	free( esc1 );
 	free( esc2 );
 	ASSERT( x == true );
@@ -6248,16 +6261,25 @@ GahpClient::cream_job_lease(const char *service, const char *job_id, time_t &lea
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc > 2) {
+			if( result->argc != 3 + atoi(result->argv[2]) * 2) {
+				EXCEPT("Bad %s Result",command);
+			}
+		}
+		else if (result->argc != 2) {
 			EXCEPT("Bad %s Result",command);
 		}
+		
 		int rc;
 		if (strcmp(result->argv[1], NULLSTRING) == 0) 
 			rc = 0;
 		else
 			rc = 1;
 		
-			//todo: need to return actual lease incr as well
+		if (rc == 0) {
+			lease_incr = atoi(result->argv[4]);
+		}
+			
 		delete result;
 		return rc;
 	}

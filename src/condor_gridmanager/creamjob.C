@@ -57,6 +57,7 @@
 #define GM_POLL_JOB_STATE		15
 #define GM_START				16
 #define GM_DELEGATE_PROXY		17
+#define GM_CLEANUP		18
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -77,6 +78,7 @@ static char *GMStateNames[] = {
 	"GM_POLL_JOB_STATE",
 	"GM_START",
 	"GM_DELEGATE_PROXY",
+	"GM_CLEANUP",
 };
 
 #define CREAM_JOB_STATE_UNSET			""
@@ -101,7 +103,7 @@ const char *ATTR_CREAM_DELEGATION_URI = "CreamDelegationUri";
 // GRIDMANAGER_MINIMUM_PROXY_TIME + 60
 #define JM_MIN_PROXY_TIME		(minProxy_time + 60)
 
-#define DEFAULT_LEASE_DURATION	12*60*60
+#define DEFAULT_LEASE_DURATION	6*60*60 //6 hr
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
 // evalute PeriodicHold expression in job ad.
@@ -249,7 +251,7 @@ CreamJob::CreamJob( ClassAd *classad )
 	gahp->setNotificationTimerId( evaluateStateTid );
 	gahp->setMode( GahpClient::normal );
 	gahp->setTimeout( gahpCallTimeout );
-
+	
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_GRID_RESOURCE, buff );
 
@@ -310,10 +312,8 @@ CreamJob::CreamJob( ClassAd *classad )
 	
 	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-			//teonadi
 			//since GridJobId = <cream> <ResourceManager> <jobid>
 		SetRemoteJobId(strchr((strchr(buff, ' ') + 1), ' ') + 1);
-//		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
 	
@@ -572,8 +572,6 @@ int CreamJob::doEvaluateState()
 				jobAd->Assign( ATTR_GRIDFTP_URL_BASE, gridftpServer->GetUrlBase() );
 				gmState = GM_DELEGATE_PROXY;
 			}
-//teonadi
-//			gmState = GM_DELEGATE_PROXY;
 		} break;
  		case GM_DELEGATE_PROXY: {
 			const char *deleg_uri;
@@ -636,7 +634,7 @@ int CreamJob::doEvaluateState()
 					gmState = GM_HOLD;
 					break;
 				}
-
+				
 				if (jmLifetime == 0) {
 					int new_lease;
 					if (CalculateJobLease(jobAd, new_lease, DEFAULT_LEASE_DURATION) == false) {
@@ -647,19 +645,21 @@ int CreamJob::doEvaluateState()
 						jmLifetime = new_lease;
 					}
 				}
+				
 				time_t new_lifetime = jmLifetime - now;
 				
 				rc = gahp->cream_job_register( 
 										resourceManagerString,
 										myResource->getDelegationService(),
 										delegatedCredentialURI,
-										gahpAd, 0,  
+										gahpAd, new_lifetime,  
 										&job_id, &upload_url );
-
+				
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
 				}
+				
 				myResource->SubmitComplete(this);
 				lastSubmitAttempt = time(NULL);
 				numSubmitAttempts++;
@@ -671,8 +671,8 @@ int CreamJob::doEvaluateState()
 					jobAd->Assign( ATTR_CREAM_UPLOAD_URL, uploadUrl );
 					gmState = GM_SUBMIT_SAVE;				
 					
-					jmLifetime = new_lifetime;
 					UpdateJobLeaseSent(jmLifetime);
+					
 				} else {
 					// unhandled error
 					LOG_CREAM_ERROR( "cream_job_register()", rc );
@@ -694,7 +694,7 @@ int CreamJob::doEvaluateState()
 			}
 			} break;
 		case GM_SUBMIT_SAVE: {
-			// Save the jobmanager's contact for a new gram submission.
+			// Save the jobmanager's contact for a new cream submission.
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
@@ -721,7 +721,8 @@ int CreamJob::doEvaluateState()
 					// unhandled error
 					LOG_CREAM_ERROR( "cream_job_start()", rc );
 					gahpErrorString = gahp->getErrorString();
-					gmState = GM_CANCEL;
+					gmState = GM_CLEAR_REQUEST;
+						//gmState = GM_CANCEL;
 				} else {
 						// We don't want an old or zeroed lastProbeTime
 						// make us do a probe immediately after submitting
@@ -756,7 +757,7 @@ int CreamJob::doEvaluateState()
 					gmState = GM_CANCEL;
 					break;
 				}
-/*
+
 				int new_lease;	// CalculateJobLease needs an int
 				if ( CalculateJobLease( jobAd, new_lease,
 										DEFAULT_LEASE_DURATION ) ) {
@@ -764,7 +765,7 @@ int CreamJob::doEvaluateState()
 					gmState = GM_EXTEND_LIFETIME;
 					break;
 				}
-*/
+
 				if ( probeNow || remoteState == CREAM_JOB_STATE_UNSET ) {
 					lastProbeTime = 0;
 					probeNow = false;
@@ -789,7 +790,7 @@ int CreamJob::doEvaluateState()
 			} else {
 				CHECK_PROXY;
 				time_t new_lifetime = jmLifetime - now;
-				   
+
 				rc = gahp->cream_job_lease (resourceManagerString, remoteJobId, new_lifetime );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -803,7 +804,8 @@ int CreamJob::doEvaluateState()
 					gmState = GM_CANCEL;
 					break;
 				}
-				jmLifetime = new_lifetime;
+				jmLifetime = new_lifetime + 3600; //remove 3600 once CREAM is fixed
+
 				UpdateJobLeaseSent( jmLifetime );
 				gmState = GM_SUBMITTED;
 			}
@@ -846,6 +848,20 @@ int CreamJob::doEvaluateState()
 					free( fault );
 				}
 				lastProbeTime = time(NULL);
+
+				if ( remoteState != CREAM_JOB_STATE_DONE_OK && 
+					 remoteState != CREAM_JOB_STATE_DONE_FAILED && 
+					 remoteState != CREAM_JOB_STATE_ABORTED) {
+				   
+					int new_lease;	// CalculateJobLease needs an int
+					if ( CalculateJobLease( jobAd, new_lease,
+											DEFAULT_LEASE_DURATION ) ) {
+						jmLifetime = new_lease;
+						gmState = GM_EXTEND_LIFETIME;
+						break;
+					}
+				}
+				
 				gmState = GM_SUBMITTED;
 			}
 			} break;
@@ -872,7 +888,8 @@ int CreamJob::doEvaluateState()
 				// unhandled error
 				LOG_CREAM_ERROR( "cream_job_purge()", rc );
 				gahpErrorString = gahp->getErrorString();
-				gmState = GM_CANCEL;
+				gmState = GM_CLEAR_REQUEST;
+//				gmState = GM_CANCEL;
 				break;
 			}
 			myResource->CancelSubmit( this );
@@ -892,12 +909,12 @@ int CreamJob::doEvaluateState()
 			} break;
 		case GM_CANCEL: {
 			// We need to cancel the job submission.
-			if ( remoteState != CREAM_JOB_STATE_REGISTERED && //Maybe we will like to purge
-				 remoteState != CREAM_JOB_STATE_ABORTED &&
+			if ( remoteState != CREAM_JOB_STATE_ABORTED &&
 				 remoteState != CREAM_JOB_STATE_CANCELLED &&
 				 remoteState != CREAM_JOB_STATE_DONE_OK &&
 				 remoteState != CREAM_JOB_STATE_DONE_FAILED ) {
 				CHECK_PROXY;
+				
 				rc = gahp->cream_job_cancel( resourceManagerString,
 											 remoteJobId );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -905,26 +922,58 @@ int CreamJob::doEvaluateState()
 					break;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
-					// unhandled error
+						// unhandled error
 					LOG_CREAM_ERROR( "cream_job_cancel()", rc );
 					gahpErrorString = gahp->getErrorString();
-					gmState = GM_CLEAR_REQUEST;
+					gmState = GM_CLEANUP;
+//					gmState = GM_CLEAR_REQUEST;
 					break;
 				}
-				myResource->CancelSubmit( this );
-				SetRemoteJobId( NULL );
+					/*			
+							myResource->CancelSubmit( this );
+							SetRemoteJobId( NULL );
+					*/
 			}
 			if ( condorState == REMOVED ) {
-				gmState = GM_DELETE;
+				gmState = GM_CLEANUP;
+//				gmState = GM_DELETE;
 			} else {
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
+		case GM_CLEANUP: {
+				// Cleanup the job at cream server
+				// Need to sleep since cream doesn't allow immediate purging of cancelled jobs
+			sleep(5);
+			CHECK_PROXY;
+			rc = gahp->cream_job_purge( resourceManagerString, remoteJobId );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc != GLOBUS_SUCCESS ) {
+					// unhandled error
+				LOG_CREAM_ERROR( "cream_job_purge", rc );
+				gahpErrorString = gahp->getErrorString();
+				gmState = GM_CLEAR_REQUEST;
+				break;
+			}
+
+			SetRemoteJobId( NULL );
+			myResource->CancelSubmit( this );
+			remoteState = CREAM_JOB_STATE_UNSET;
+			requestScheddUpdate( this );
+
+			if ( condorState == REMOVED ) {
+				gmState = GM_DELETE;
+			} else {
+				gmState= GM_HOLD;
+			}
+		} break;
 		case GM_PURGE: {
 			// The cream server's job state is in a terminal (failed)
 			// state. Send a purge command to tell the server it can
 			// delete the job from its logs.
-
 			CHECK_PROXY;
 			rc = gahp->cream_job_purge( resourceManagerString, remoteJobId );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -967,7 +1016,7 @@ int CreamJob::doEvaluateState()
 			if ( wantRematch ) {
 				break;
 			}
-
+			
 			// For now, put problem jobs on hold instead of
 			// forgetting about current submission and trying again.
 			// TODO: Let our action here be dictated by the user preference
@@ -1104,6 +1153,7 @@ int CreamJob::doEvaluateState()
 			// proxy to be refreshed, then resume handling the job.
 			if ( jobProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
 				gmState = GM_START;
+				RequestPing();
 			} else {
 				// Do nothing. Our proxy is about to expire.
 			}
@@ -1447,13 +1497,21 @@ ClassAd *CreamJob::buildSubmitAd()
 		submitAd->Insert(buf.Value());
 	}
 
-		/* TODO
 		//ENVIRONMENT
-	if (jobAd->LookupString(ATTR_JOB_ENVIRONMENT2, tmp_str)) {
+	if (jobAd->LookupString(ATTR_JOB_ENVIRONMENT1, tmp_str)) {
+		jobAd->LookupString(ATTR_JOB_ENVIRONMENT1_DELIM, tmp_str2);
+		
+		int pos;
+		pos = tmp_str.FindChar(tmp_str2[0], 0);
+		
+		while (pos != -1 && pos != tmp_str.Length()-1) {
+			tmp_str.setChar(pos, ',');
+			pos = tmp_str.FindChar(';', pos+1);
+		}
+		
 		buf.sprintf("%s = \"%s\"", ATTR_JOB_ENVIRONMENT2, tmp_str.Value());
 		submitAd->Insert(buf.Value());
 	}
-		*/
 
 		//VIRTUALORGANISATION. CREAM requires this attribute, but it doesn't
 		//need to have a value
@@ -1468,11 +1526,10 @@ ClassAd *CreamJob::buildSubmitAd()
 	buf.sprintf("%s = \"%s\"", ATTR_QUEUE, resourceQueueString);
 	submitAd->Insert(buf.Value());
 	
-		//teonadi
+/*
 	MyString jobAdValue = "";
 	submitAd->sPrint(jobAdValue);
 	dprintf(D_FULLDEBUG, "SUBMITAD:\n%s\n",jobAdValue.Value()); 
-
+*/
 	return submitAd;
 }
-
