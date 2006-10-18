@@ -291,9 +291,6 @@ char	*RmKillSig			= "remove_kill_sig";
 char	*HoldKillSig		= "hold_kill_sig";
 #endif
 
-//teonadi 
-char *CreamGridftp = "CreamGridftp";
-
 void	SetRemoteAttrs();
 void 	reschedule();
 void 	SetExecutable();
@@ -1136,9 +1133,6 @@ SetExecutable()
 		}
 		free( macro_value );
 	}
-		//teonadi
-	(void) sprintf (buffer, "%s = \"%s\"", "Executable", ename);
-	InsertJobExpr (buffer);
 	
 	// If we're not transfering the executable, leave a relative pathname
 	// unresolved. This is mainly important for the Globus universe.
@@ -4359,20 +4353,6 @@ SetGlobusParams()
 	}
 }
 
-void 
-SetCreamAttr()
-{
-	char *tmp;
-
-	if ((tmp = condor_param (CreamGridftp))) {
-		sprintf (buffer, "%s = \"%s\"", "CreamGridftp", tmp );
-		free( tmp );
-		InsertJobExpr ( buffer );
-	}
-
-	return;
-}
-
 void
 SetGSICredentials()
 {
@@ -5028,9 +5008,6 @@ queue(int num)
 		SetJavaVMArgs();
 		SetParallelStartupScripts(); //JDB
 		
-			//teonadi CREAM Attributes
-		SetCreamAttr(); 
-
 			// SetForcedAttributes should be last so that it trumps values
 			// set by normal submit attributes
 		SetForcedAttributes();
