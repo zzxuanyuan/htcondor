@@ -28,6 +28,7 @@
 #include "condor_io.h"
 #include "condor_secman.h"
 #include "command_strings.h"
+#include "MyString.h"
 
 
 int

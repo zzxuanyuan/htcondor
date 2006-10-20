@@ -26,6 +26,8 @@
 #include "condor_arglist.h"
 #include "condor_string.h"
 #include "condor_attributes.h"
+#include "MyString.h"
+#include "simplelist.h"
 
 void append_arg(char const *arg,MyString &result) {
 	if(result.Length()) {
@@ -186,17 +188,17 @@ deleteStringArray(char **array)
 
 int
 ArgList::Count() const {
-	return args_list.Number();
+	return args_list->Number();
 }
 void
 ArgList::Clear() {
-	args_list.Clear();
+	args_list->Clear();
 	input_was_unknown_platform_v1 = false;
 }
 
 char const *
 ArgList::GetArg(int n) const {
-	SimpleListIterator<MyString> it(args_list);
+	SimpleListIterator<MyString> it(*args_list);
 	MyString *arg;
 	int i;
 	for(i=0;it.Next(arg);i++) {
@@ -208,7 +210,7 @@ ArgList::GetArg(int n) const {
 void
 ArgList::AppendArg(char const *arg) {
 	ASSERT(arg);
-	ASSERT(args_list.Append(arg));
+	ASSERT(args_list->Append(arg));
 }
 
 void
@@ -222,11 +224,11 @@ void
 ArgList::RemoveArg(int pos) {
 	MyString *arg;
 	ASSERT(pos >= 0 && pos < Count());
-	args_list.Rewind();
+	args_list->Rewind();
 	for(int i=0;i <= pos;i++) {
-		args_list.Next(arg);
+		args_list->Next(arg);
 	}
-	args_list.DeleteCurrent();
+	args_list->DeleteCurrent();
 }
 
 void
@@ -236,15 +238,15 @@ ArgList::InsertArg(char const *arg,int pos) {
 	int i;
 	char **args_array = GetStringArray();
 
-	args_list.Clear();
+	args_list->Clear();
 	for(i=0;args_array[i];i++) {
 		if(i == pos) {
-			args_list.Append(arg);
+			args_list->Append(arg);
 		}
-		args_list.Append(args_array[i]);
+		args_list->Append(args_array[i]);
 	}
 	if(i == pos) {
-		args_list.Append(arg);
+		args_list->Append(arg);
 	}
 
 	deleteStringArray(args_array);
@@ -252,7 +254,7 @@ ArgList::InsertArg(char const *arg,int pos) {
 
 char **
 ArgList::GetStringArray() const {
-	return ArgListToArgsArray(args_list);
+	return ArgListToArgsArray(*args_list);
 }
 
 bool
@@ -377,7 +379,7 @@ ArgList::AppendArgsV1Raw_win32(char const *args,MyString *error_msg)
 			}
 		}
 		if(args > begin_arg) {
-			ASSERT(args_list.Append(buf));
+			ASSERT(args_list->Append(buf));
 		}
 		while(*args == ' ' || *args == '\t' || *args == '\n' || *args == '\r')
 		{
@@ -402,7 +404,7 @@ ArgList::AppendArgsV1Raw_unix(char const *args,MyString *error_msg)
 			args++; // eat whitespace
 			if(parsed_token) {
 				parsed_token = false;
-				ASSERT(args_list.Append(buf));
+				ASSERT(args_list->Append(buf));
 				buf = "";
 			}
 			break;
@@ -414,7 +416,7 @@ ArgList::AppendArgsV1Raw_unix(char const *args,MyString *error_msg)
 		}
 	}
 	if(parsed_token) {
-		args_list.Append(buf);
+		args_list->Append(buf);
 	}
 	return true;
 }
@@ -460,7 +462,7 @@ ArgList::AppendArgsV1Raw(char const *args,MyString *error_msg)
 bool
 ArgList::AppendArgsV2Raw(char const *args,MyString *error_msg)
 {
-	return split_args(args,&args_list,error_msg);
+	return split_args(args,args_list,error_msg);
 }
 
 // It is not possible for raw V1 argument strings with a leading space
@@ -486,7 +488,7 @@ ArgList::AppendArgsFromArgList(ArgList const &args)
 {
 	input_was_unknown_platform_v1 = args.input_was_unknown_platform_v1;
 
-	SimpleListIterator<MyString> it(args.args_list);
+	SimpleListIterator<MyString> it(*args.args_list);
 	MyString *arg=NULL;
 	while(it.Next(arg)) {
 		AppendArg(arg->Value());
@@ -635,7 +637,7 @@ ArgList::IsSafeArgV1Value(char const *str) const
 bool
 ArgList::GetArgsStringV1Raw(MyString *result,MyString *error_msg) const
 {
-	SimpleListIterator<MyString> it(args_list);
+	SimpleListIterator<MyString> it(*args_list);
 	MyString *arg=NULL;
 	ASSERT(result);
 	while(it.Next(arg)) {
@@ -692,7 +694,7 @@ ArgList::V1RawToV1Wacked(MyString const &v1_raw,MyString *result)
 bool
 ArgList::GetArgsStringV2Raw(MyString *result,MyString *error_msg,int start_arg) const
 {
-	join_args(args_list,result,start_arg);
+	join_args(*args_list,result,start_arg);
 	return true;
 }
 
@@ -749,17 +751,19 @@ ArgList::ArgList()
 {
 	input_was_unknown_platform_v1 = false;
 	v1_syntax = UNKNOWN_ARGV1_SYNTAX;
+	args_list = new SimpleList<MyString>;
 }
 
 ArgList::~ArgList()
 {
+	delete args_list;
 }
 
 bool
 ArgList::GetArgsStringWin32(MyString *result,int skip_args,MyString *error_msg) const
 {
 	ASSERT(result);
-	SimpleListIterator<MyString> it(args_list);
+	SimpleListIterator<MyString> it(*args_list);
 	MyString *arg = NULL;
 	int i;
 	for(i=0;it.Next(arg);i++) {

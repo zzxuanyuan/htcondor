@@ -26,6 +26,8 @@
 #include "condor_classad.h"
 #include "condor_string.h"
 
+template <class Key, class Value> class HashTable;
+
 typedef HashTable<MyString,MyString> StringMap;
 /** Given a job's classad, return environment variables job should get.
 

@@ -40,6 +40,7 @@
 #include "classad_command_util.h"
 #include "directory.h"
 #include "nullfile.h"
+#include "condor_error_codes.h"
 
 extern CStarter *Starter;
 ReliSock *syscall_sock = NULL;

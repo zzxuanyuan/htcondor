@@ -42,6 +42,7 @@
 #include "classad_merge.h"
 #include "daemon.h"
 #include "daemon_core_sock_adapter.h"
+#include "condor_error_codes.h"
 
 extern char* mySubSystem;
 extern bool global_dc_get_cookie(int &len, unsigned char* &data);

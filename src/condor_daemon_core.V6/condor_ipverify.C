@@ -26,6 +26,8 @@
 #include "condor_config.h"
 #include "condor_perms.h"
 #include "condor_netdb.h"
+#include "HashTable.h"
+#include "MyString.h"
 
 // Externs to Globals
 extern char* mySubSystem;	// the subsys ID, such as SCHEDD, STARTD, etc. 
@@ -928,6 +930,39 @@ IpVerify::AddAllowHost( const char* host, DCpermission perm )
 	}
 }
 
+IpVerify::PermTypeEntry::PermTypeEntry()
+{
+	allow_hosts = NULL;
+	deny_hosts  = NULL;
+	allow_users = NULL;
+	deny_users  = NULL;
+	behavior = USERVERIFY_USE_TABLE;
+}
+
+IpVerify::PermTypeEntry::~PermTypeEntry() {
+	if (allow_hosts)
+		delete allow_hosts;
+	if (deny_hosts)
+		delete deny_hosts;
+	if (allow_users) {
+		MyString    key;
+		StringList* value;
+		allow_users->startIterations();
+		while (allow_users->iterate(key, value)) {
+			delete value;
+		}
+		delete allow_users;
+	}
+	if (deny_users) {
+		MyString    key;
+		StringList* value;
+		deny_users->startIterations();
+		while (deny_users->iterate(key, value)) {
+			delete value;
+		}
+		delete deny_users;
+	}
+}
 
 #ifdef WANT_STANDALONE_TESTING
 char *mySubSystem = "COLLECTOR";

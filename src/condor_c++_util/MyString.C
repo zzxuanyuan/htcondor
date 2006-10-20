@@ -27,8 +27,6 @@
 #include "condor_string.h"
 #include "strupr.h"
 
-#include <iostream>
-using namespace std;
 /*--------------------------------------------------------------------
  *
  * Constructors and Destructors
@@ -705,24 +703,6 @@ int operator>=(const MyString& S1, const MyString& S2)
  * I/O
  *
  *--------------------------------------------------------------------*/
-
-ostream& operator<<(ostream& os, const MyString& S) 
-{
-    if (S.Data) {
-		os << S.Data;
-	}
-    return os;
-}
-
-istream& operator>>(istream& is, MyString& S) 
-{
-    char buffer[1000]; 
-    *buffer='\0';
-    is >> buffer;
-    S=buffer; 
-    return is;
-}
-
 
 bool
 MyString::readLine( FILE* fp, bool append )

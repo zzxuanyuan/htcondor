@@ -77,6 +77,7 @@
 #include "condor_netdb.h"
 #include "fs_util.h"
 #include "condor_mkstemp.h"
+#include "condor_error_codes.h"
 
 
 #define DEFAULT_SHADOW_SIZE 125

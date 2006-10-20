@@ -28,6 +28,7 @@
 #include "linebuffer.h"
 #include "Queue.h"
 #include "env.h"
+#include "MyString.h"
 
 // Cron's StdOut Line Buffer
 class CronJobOut : public LineBuffer

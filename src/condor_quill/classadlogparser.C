@@ -26,6 +26,7 @@
 
 #include "classadlogentry.h"
 #include "classadlogparser.h"
+#include "MyString.h"
 
 /***** Prevent calling free multiple times in this code *****/
 /* This fixes bugs where we would segfault when reading in

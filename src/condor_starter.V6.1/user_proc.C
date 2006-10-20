@@ -29,6 +29,7 @@
 #include "classad_helpers.h"
 #include "sig_name.h"
 #include "stream_handler.h"
+#include "MyString.h"
 
 extern CStarter *Starter;
 

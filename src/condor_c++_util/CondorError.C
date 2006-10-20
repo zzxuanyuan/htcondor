@@ -21,8 +21,10 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 #include "condor_common.h"
+#include "MyString.h"
 #include "CondorError.h"
 #include "condor_snutils.h"
+#include "MyString.h"
 
 
 CondorError::CondorError() {

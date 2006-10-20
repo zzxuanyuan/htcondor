@@ -34,6 +34,7 @@
 #include "condor_buildtable.h"
 #include "condor_classad_lookup.h"
 #include "condor_string.h"
+#include "extArray.h"
 
 #include "Regex.h"
 

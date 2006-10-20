@@ -28,6 +28,8 @@
 #include "../condor_ckpt/file_state.h"
 #include "../condor_ckpt/signals_control.h"
 
+#include <iosfwd>
+
 extern "C" int errno;
 
 #if defined(DL_EXTRACT)

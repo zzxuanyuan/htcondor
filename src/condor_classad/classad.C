@@ -34,6 +34,7 @@
 # include "condor_attributes.h"
 # include "condor_classad.h"
 # include "condor_adtypes.h"
+# include "MyString.h"
 
 static Registration regi;                   // this is the registration for 
                                             // the AttrList type names. It 

@@ -80,8 +80,8 @@ bool success = split_args("one 'two and' three",&argv,&errmsg);
 
 */
 
-#include "simplelist.h"
-#include "MyString.h"
+class MyString;
+template <class ListElement> class SimpleList;
 #include "condor_classad.h"
 #include "condor_ver_info.h"
 
@@ -272,7 +272,7 @@ class ArgList {
 	bool AppendArgsV1Raw_unix(char const *args,MyString *error_msg);
 
  private:
-	SimpleList<MyString> args_list;
+	SimpleList<MyString> *args_list;
 	bool input_was_unknown_platform_v1; //true if we got arguments in V1 format for unknown platform
 	ArgV1Syntax v1_syntax;
 

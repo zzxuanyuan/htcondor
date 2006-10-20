@@ -25,7 +25,8 @@
 
 #if defined(__cplusplus)
 
-#include "condor_classad.h"
+class ClassAd;
+class StringList;
 #include "MyString.h"
 #endif
 

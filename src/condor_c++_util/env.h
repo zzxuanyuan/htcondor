@@ -67,8 +67,8 @@ Example V2Quoted syntax yielding same as above:
 ***********************************************************************/
 
 
-#include "HashTable.h"
-#include "MyString.h"
+class MyString;
+template <class Key, class Value> class HashTable;
 #include "condor_arglist.h"
 #include "condor_classad.h"
 #include "condor_ver_info.h"

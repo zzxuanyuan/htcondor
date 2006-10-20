@@ -24,6 +24,7 @@
 #define __FORKWORD_H__
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "simplelist.h"
 
 // Return values of ForkerWorker::Fork()
 enum ForkStatus {

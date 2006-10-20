@@ -34,6 +34,7 @@
 #include "condor_xml_classads.h"
 #include "condor_string.h" // for strnewp()
 #include "my_hostname.h"
+#include "MyString.h"
 
 extern void evalFromEnvironment (const char *, EvalResult *);
 
@@ -2295,11 +2296,24 @@ AttrList::clear( void )
 		// First, unchain ourselves, if we're a chained classad
 	unchain();
 
+AttrListElem *e1 = exprList;
+while (e1) {
+	AttrListElem *e2 = e1->next;
+	while (e2) {
+			if (e1 == e2) {
+fprintf(stderr, "Duplicate pointers in ATTRLIST::Clear\n");
+this->fPrint(stderr);
+}
+			e2 = e2->next;
+	}
+	e1 = e1->next;
+}
 		// Now, delete all the attributes in our list
     AttrListElem* tmp;
     for(tmp = exprList; tmp; tmp = exprList) {
         exprList = exprList->next;
         delete tmp;
+		tmp = NULL;
     }
 	exprList = NULL;
 	tail = NULL;

@@ -40,10 +40,10 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "HashTable.h"
+template <class Key, class value> class HashTable;
+class MyString;
 #include "string_list.h"
 #include "net_string_list.h"
-#include "MyString.h"
 #include "condor_perms.h"
 
 /// Not_Yet_Ducumented
@@ -123,37 +123,8 @@ private:
 		NetStringList* deny_hosts;
 		UserHash_t* allow_users;
 		UserHash_t* deny_users;
-		PermTypeEntry() {
-			allow_hosts = NULL;
-			deny_hosts  = NULL;
-			allow_users = NULL;
-			deny_users  = NULL;
-			behavior = USERVERIFY_USE_TABLE;
-		}
-		~PermTypeEntry() {
-			if (allow_hosts)
-				delete allow_hosts;
-			if (deny_hosts)
-				delete deny_hosts;
-			if (allow_users) {
-				MyString    key;
-				StringList* value;
-				allow_users->startIterations();
-				while (allow_users->iterate(key, value)) {
-					delete value;
-				}
-				delete allow_users;
-			}
-			if (deny_users) {
-				MyString    key;
-				StringList* value;
-				deny_users->startIterations();
-				while (deny_users->iterate(key, value)) {
-					delete value;
-				}
-				delete deny_users;
-			}
-		}
+		PermTypeEntry();
+		~PermTypeEntry();
 	};
 	
 

@@ -36,6 +36,7 @@
 #include "print_wrapped_text.h"
 #include "error_utils.h"
 #include "condor_distribution.h"
+#include "condor_error_codes.h"
 
 // global variables
 AttrListPrintMask pm;

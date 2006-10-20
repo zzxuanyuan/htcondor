@@ -27,9 +27,9 @@
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "CryptKey.h"
-#include "MyString.h"
-#include "HashTable.h"
 #include "string_list.h"
+class MyString;
+template <class Key, class Value> class HashTable;
 
 class SecMan;
 class KeyCacheEntry {

@@ -216,3 +216,7 @@ Regex::Regex() {not_impl();}
 Regex::~Regex() {not_impl();}
 bool Regex::compile(MyString const& a, char const** b, int* c, int d) {not_impl();return false;}
 bool Regex::match(MyString const& a, ExtArray<MyString>* b) {not_impl();return false;}
+
+extern "C" {
+char *dprintf_subsys_name = "none";
+}

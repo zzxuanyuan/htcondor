@@ -22,6 +22,8 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 #include "condor_common.h"
 #include "Regex.h"
+#include "MyString.h"
+#include "extArray.h"
 
 
 Regex::Regex()

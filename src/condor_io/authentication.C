@@ -37,6 +37,7 @@
 #include "condor_environ.h"
 #include "../condor_daemon_core.V6/condor_ipverify.h"
 #include "CondorError.h"
+#include "condor_error_codes.h"
 
 
 

@@ -25,8 +25,8 @@
 
 #include "condor_common.h"
 #include "Regex.h"
-#include "extArray.h"
 #include "MyString.h"
+#include "extArray.h"
 
 
 class MapFile

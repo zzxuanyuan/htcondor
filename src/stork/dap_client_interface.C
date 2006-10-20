@@ -33,6 +33,7 @@
 #include "condor_version.h"
 #include "condor_debug.h"
 #include "condor_netdb.h"
+#include "MyString.h"
 
 char * 
 get_stork_sinful_string (const char * hostname) {

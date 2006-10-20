@@ -49,7 +49,7 @@
 #include "list.h"
 #include "extArray.h"
 #include "Queue.h"
-#include "MapFile.h"
+class MapFile;
 #ifdef WIN32
 #include "ntsysinfo.h"
 #endif

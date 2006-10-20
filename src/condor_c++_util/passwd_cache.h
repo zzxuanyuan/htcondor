@@ -25,9 +25,8 @@
 #define __PASSWD_CACHE_H
 
 #include <grp.h>
-#include "MyString.h"
-#include "HashTable.h"
-
+class MyString;
+template <class Key, class Value> class HashTable; // Forward declaration
 
 typedef struct group_entry {
 	gid_t 	*gidlist;		/* groups this user is a member of */

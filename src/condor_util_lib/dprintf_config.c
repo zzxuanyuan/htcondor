@@ -54,6 +54,8 @@ void	_condor_gcb_dprintf_va( int flags, char* fmt, va_list args );
 extern void Generic_set_log_va(void(*app_log_va)(int level, char *fmt, va_list args));
 #endif
 
+char *dprintf_subsys_name;
+
 void
 dprintf_config( subsys, logfd )
 char *subsys;
@@ -91,6 +93,8 @@ int logfd;		/* logfd is the descriptor to use if the log output goes to a tty */
 		_condor_set_debug_flags( pval );
 		free( pval );
 	}
+
+	dprintf_subsys_name = subsys;
 
 	/*
 	**	If this is not going to the terminal, pick up the name

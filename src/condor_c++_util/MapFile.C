@@ -23,6 +23,8 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "MapFile.h"
+#include "MyString.h"
+#include "extArray.h"
 
 
 template class ExtArray<MapFile::UserMapEntry>;

@@ -418,11 +418,13 @@ TimerManager::Timeout()
 		// is a c++ method, we call the handler from the c++ object referenced 
 		// by service*.  If we were told the handler is a c function, we call
 		// it and pass the service* as a parameter.
+dprintf(D_COMMAND,"Calling Timer %d (%s)\n", current_id, event_descrip);
 		if ( timer_list->is_cpp ) {
 			(s->*handlercpp)();			// typedef int (*Eventcpp)(int)
 		} else {
 			(*handler)(s);				// typedef int (*Event)(Service*,int)
 		}
+dprintf(D_COMMAND,"Returned from Timer %d (%s)\n", current_id, event_descrip);
 
 		// Make sure we didn't leak our priv state
 		daemonCore->CheckPrivState();

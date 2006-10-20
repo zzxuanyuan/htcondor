@@ -24,8 +24,6 @@
 #define CONDORERROR_H_INCLUDE
 
 #include "condor_common.h"
-#include "MyString.h"
-
 #include "condor_error_codes.h"
 
 class CondorError {

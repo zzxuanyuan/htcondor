@@ -30,6 +30,7 @@
 #include "condor_string.h"
 #include "CondorError.h"
 #include "setenv.h"
+#include "condor_error_codes.h"
 
 const char STR_DAEMON_NAME_FORMAT[]="$$(FULL_HOST_NAME)";
 StringList * getDaemonList(ReliSock * sock);

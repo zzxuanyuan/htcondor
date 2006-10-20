@@ -26,6 +26,7 @@
 #include "condor_timer_manager.h"
 #include "condor_daemon_core.h"
 #include "condor_lock_implementation.h"
+#include "MyString.h"
 
 // Define a basic "lock file" class
 // Derived from "Serice" for Event & EventCpp

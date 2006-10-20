@@ -42,6 +42,7 @@
 #include "time_offset.h"
 #include "condor_netdb.h"
 #include "daemon_core_sock_adapter.h"
+#include "condor_error_codes.h"
 
 extern char *mySubSystem;
 

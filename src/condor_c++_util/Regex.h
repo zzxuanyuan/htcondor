@@ -24,8 +24,8 @@
 #define REGEX_INCLUDE
 
 #include "condor_common.h"
-#include "MyString.h"
-#include "extArray.h"
+class MyString;
+template <class Key> class ExtArray;
 #include "pcre.h"
 
 

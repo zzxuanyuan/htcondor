@@ -76,7 +76,7 @@
 #define USE_STRING_SPACE_IN_CLASSADS
 
 #ifdef USE_STRING_SPACE_IN_CLASSADS
-#include "stringSpace.h"
+class StringSpace;
 #endif
 
 class AttrList;
@@ -111,40 +111,8 @@ class ExprTree
 
 		char                unit;         // unit of the expression
 
-		// I added a contructor for this base class to initialize
-		// unit to something.  later we check to see if unit is "k"
-		// and without the contructor, we're doing that from unitialized
-		// memory which (belive it!) on HPUX happened to be 'k', and
-		// really bad things happened!  Yes, this bug was a pain 
-		// in the #*&@! to find!  -Todd, 7/97
-		// and now init sumFlag as well... not sure if it should be
-		// FALSE or TRUE! but it needs to be initialized -Todd, 9/10
-		// and now init evalFlag as well (to detect circular eval'n) -Rajesh
-		// We no longer initialze sumFlag, because it has been removed. 
-		// It's not used, that's why you couldn't figure out how to initialize
-		// it, Todd.-Alain 26-Sep-2001
-		ExprTree() : unit('\0'), evalFlag(FALSE)
-		{
-#ifdef USE_STRING_SPACE_IN_CLASSADS
-			if (string_space_references == 0) {
-				string_space = new StringSpace;
-			}
-			string_space_references++;
-#endif
-			return;
-		}
-		virtual ~ExprTree()
-		{
-#ifdef USE_STRING_SPACE_IN_CLASSADS
-			string_space_references--;
-			if (string_space_references == 0) {
-				delete string_space;
-				string_space = NULL;
-			}
-#endif
-			return;
-		}
-
+		ExprTree();
+		virtual ~ExprTree();
     protected :
 		virtual void        CopyBaseExprTree(class ExprTree *const recipient) const;
 		virtual int         _EvalTree(const class AttrList*, EvalResult*) = 0;

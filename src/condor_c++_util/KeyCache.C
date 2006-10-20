@@ -24,6 +24,8 @@
 #include "condor_common.h"
 #include "KeyCache.h"
 #include "CryptKey.h"
+#include "MyString.h"
+#include "HashTable.h"
 
 KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, KeyInfo* key, ClassAd * policy, int expiration) {
 	if (id) {

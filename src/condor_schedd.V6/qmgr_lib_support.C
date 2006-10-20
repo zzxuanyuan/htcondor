@@ -32,6 +32,7 @@
 #include "daemon.h"
 #include "my_hostname.h"
 #include "my_username.h"
+#include "MyString.h"
 
 int open_url(char *, int, int);
 extern "C" int		strcmp_until(const char *, const char *, const char);

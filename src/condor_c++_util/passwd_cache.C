@@ -29,6 +29,8 @@ IMPORTANT NOTE: Don't dprintf() in here, unless its a fatal error! */
 #include "condor_common.h"
 #include "passwd_cache.h"
 #include "condor_config.h"
+#include "MyString.h"
+#include "HashTable.h"
 
 int compute_user_hash(const MyString &key, int numBuckets) {
     return ( key.Hash() % numBuckets );

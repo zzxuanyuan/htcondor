@@ -32,6 +32,7 @@
 #include "exit.h"
 #include "enum_utils.h"
 #include "condor_adtypes.h"
+#include "MyString.h"
 
 
 /*

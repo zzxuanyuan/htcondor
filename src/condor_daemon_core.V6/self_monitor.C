@@ -25,6 +25,7 @@
 #include "self_monitor.h"
 #include "condor_daemon_core.h"
 #include "../condor_procapi/procapi.h"
+#include "MyString.h"
 
 static void self_monitor(void);
 

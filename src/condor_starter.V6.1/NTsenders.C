@@ -30,6 +30,7 @@
 #include "condor_sys.h"
 #include "starter.h"
 #include "condor_event.h"
+#include "MyString.h"
 
 #include "NTsenders.h"
 

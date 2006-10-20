@@ -33,6 +33,7 @@
 
 #include "condor_qmgr.h"
 #include "qmgmt_constants.h"
+#include "MyString.h"
 
 #define syscall_sock qmgmt_sock
 

@@ -33,6 +33,7 @@
 #include "directory.h"
 #include "stdsoap2.h"
 #include "soap_core.h"
+#include "MapFile.h"
 
 extern int soap_serve(struct soap *);
 

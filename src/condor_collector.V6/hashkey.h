@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #endif
 #include "condor_classad.h"
+#include "MyString.h"
 
 #include "HashTable.h"
 
@@ -41,7 +42,6 @@ class AdNameHashKey
     MyString ip_addr;
 
 	void   sprint (MyString &);
-	friend std::ostream& operator<< (std::ostream &out, const AdNameHashKey &); 
     friend bool operator== (const AdNameHashKey &, const AdNameHashKey &);
 
 };
