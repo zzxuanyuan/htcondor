@@ -26,6 +26,7 @@
 #include "condor_debug.h"
 #include "condor_arglist.h"
 #include "my_popen.h"
+#include "MyString.h"
 
 #ifdef WIN32
 typedef HANDLE child_handle_t;
