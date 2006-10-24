@@ -1,3 +1,7 @@
+10/24/06 V6_7-db_logs_nonblocking-4-merge-1
+  The state of the V6_7-db_logs_nonblocking-4-branch when first merged into
+  the V6_9-quillpp-5 branch
+
 05/12/06 V6_7-nick_fs_util-{root,branch}
   Branch for the development of some file system utilities that
   are very O/S specific; initially just for detection of whether
