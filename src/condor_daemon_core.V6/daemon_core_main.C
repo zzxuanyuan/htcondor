@@ -38,6 +38,9 @@
 #include "setenv.h"
 #include "time_offset.h"
 
+#include "file_sql.h"
+#include "file_xml.h"
+
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
 
@@ -51,6 +54,7 @@
 // Externs to Globals
 extern char* mySubSystem;	// the subsys ID, such as SCHEDD, STARTD, etc. 
 extern DLL_IMPORT_MAGIC char **environ;
+
 
 // External protos
 extern int main_init(int argc, char *argv[]);	// old main()
@@ -75,6 +79,15 @@ char*	logDir = NULL;
 char*	pidFile = NULL;
 char*	addrFile = NULL;
 static	char*	logAppend = NULL;
+
+/* ODBC object */
+//extern ODBC *DBObj;
+
+/* FILESQL object */
+extern FILESQL *FILEObj;
+/* FILEXML object */
+extern FILEXML *XMLObj;
+
 #ifdef WIN32
 int line_where_service_stopped = 0;
 #endif
@@ -1169,6 +1182,19 @@ handle_dc_sigterm( Service*, int )
 
 	dprintf(D_ALWAYS, "Got SIGTERM. Performing graceful shutdown.\n");
 
+/*
+	if(DBObj) {
+		delete DBObj;
+	}
+*/
+
+	if(FILEObj) {
+		delete FILEObj;
+	}
+    if(XMLObj) {
+        delete XMLObj;
+    }
+
 #if defined(WIN32) && 0
 	if ( line_where_service_stopped != 0 ) {
 		dprintf(D_ALWAYS,"Line where service stopped = %d\n",
@@ -1209,6 +1235,20 @@ handle_dc_sigquit( Service*, int )
 		return TRUE;
 	}
 	been_here = TRUE;
+
+/*
+	if(DBObj) {
+		delete DBObj;
+	}
+*/
+
+	if(FILEObj) {
+		delete FILEObj;
+	}
+	if(XMLObj) {
+		delete XMLObj;
+	}
+
 	dprintf(D_ALWAYS, "Got SIGQUIT.  Performing fast shutdown.\n");
 	main_shutdown_fast();
 	return TRUE;
@@ -1911,6 +1951,14 @@ int main( int argc, char** argv )
 
 		// SETUP SOAP SOCKET
 	init_soap(daemonCore->soap);
+
+	// create a database connection object
+	//DBObj = createConnection();
+
+	// create a sql log object
+	FILEObj = createInstance(); 
+    // create an xml log object
+    XMLObj = createInstanceXML();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );

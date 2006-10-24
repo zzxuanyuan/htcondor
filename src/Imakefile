@@ -59,6 +59,12 @@
 #define QuillProgs
 #endif
 
+#if WANT_TT
+#define TTProgs tt
+#else
+#define TTProgs
+#endif
+
 #define Programs \
 		procapi sysapi accountant.V6 ckpt_server \
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
@@ -66,7 +72,7 @@
 		tools KbddProgs collector.V6 PvmProgs dagman userlog Eventd \
 		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp had \
 		CreddProgs StorkProgs \
-		QuillProgs DeploymentTools
+		QuillProgs DeploymentTools TTProgs
 
 #define Libraries \
 		util_lib daemon_core.V6 daemon_client classad c++_util	\
@@ -229,12 +235,17 @@ condor_object_target(starter.V5)
 condor_object_target(quill)
 #endif
 
+#if WANT_TT
+condor_object_target(tt)
+#endif
+
 condor_object_target(startd.V6)
 condor_object_target(schedd.V6)
 condor_object_target(had)
 condor_object_target(status.V6)
 condor_object_target(dagman)
 condor_object_target(userlog)
+
 #if NEEDS_KBDD
    condor_object_target(kbdd)
 #endif
@@ -349,6 +360,7 @@ pure_target(condor_collector.V6,condor_collector.pure)
 pure_target(condor_negotiator.V6,condor_negotiator.pure)
 pure_target(condor_dagman,condor_dagman.pure)
 
+pure_target(condor_tt,condor_tt.pure)
 ext_target(EXT_ZLIB_VERSION,$(NULL))
 
 #if WANT_EXT_GLIBC

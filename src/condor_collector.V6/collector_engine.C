@@ -38,6 +38,9 @@ extern "C" void event_mgr (void);
 
 #include "condor_attributes.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "file_sql.h"
+
+extern FILESQL *FILEObj;
 
 //-------------------------------------------------------------
 
@@ -85,6 +88,10 @@ CollectorEngine::CollectorEngine (CollectorStats *stats ) :
 	masterCheckTimerID = -1;
 
 	collectorStats = stats;
+
+	scheddPrevLHF = 0;
+	masterPrevLHF = 0;
+	negotiatorPrevLHF = 0;
 }
 
 
@@ -899,6 +906,10 @@ updateClassAd (CollectorHashTable &hashTable,
 		}
 		
 		insert = 1;
+
+			// insert classad into a log so that it can be reported to DB
+		this->logInsert(new_ad, (int) now, label);
+		
 		return new_ad;
 	}
 	else
@@ -918,6 +929,10 @@ updateClassAd (CollectorHashTable &hashTable,
 
 			// Update statistics
 			collectorStats->update( label, NULL, new_ad );
+
+				// insert classad into a log so that it can be reported to DB
+			this->logInsert(new_ad, (int) now, label);
+
 		}
 		else
 		{
@@ -926,6 +941,10 @@ updateClassAd (CollectorHashTable &hashTable,
 
 			// Now, finally, store the new ClassAd
 			old_ad->ExchangeExpressions (new_ad);
+
+				// insert classad into a log so that it can be reported to DB
+			this->logInsert(old_ad, (int) now, label);
+
 			delete new_ad;
 		}
 
@@ -1201,6 +1220,44 @@ masterCheck ()
 
 	dprintf (D_ALWAYS, "MasterCheck:  Done checking for down masters\n");
 	return TRUE;
+}
+
+void CollectorEngine::logInsert(ClassAd *cl, int LHF, const char *label)
+{
+	FILESQL *dbh = FILEObj;
+	ClassAd clCopy;
+	char tmp[512];
+
+		// make a copy so that we can add timestamp attribute into it
+	clCopy = *cl;
+
+	if (strcmp(label, "Schedd") == 0) {
+		snprintf(tmp, 512, "%s = %d", ATTR_PREV_LAST_HEARD_FROM, scheddPrevLHF);
+		(&clCopy)->Insert(tmp);
+
+		// make LHF the new scheddPrevLHF
+		scheddPrevLHF = LHF;
+
+		dbh->file_newEvent("ScheddAd", &clCopy);		
+	} else if (strcmp(label, "Master") == 0) {
+		snprintf(tmp, 512, "%s = %d", ATTR_PREV_LAST_HEARD_FROM, masterPrevLHF);
+		(&clCopy)->Insert(tmp);
+
+		// make LHF the new masterPrevLHF
+		masterPrevLHF = LHF;
+
+		dbh->file_newEvent("MasterAd", &clCopy);	
+	} else if (strcmp(label, "Negotiator") == 0) {
+		snprintf(tmp, 512, "%s = %d", ATTR_PREV_LAST_HEARD_FROM, negotiatorPrevLHF);
+		(&clCopy)->Insert(tmp);
+
+		// make LHF the new negotiatorPrevLHF
+		negotiatorPrevLHF = LHF;
+
+		dbh->file_newEvent("NegotiatorAd", &clCopy);	
+	} else {
+		dprintf(D_FULLDEBUG, "%s ad type unsupported by quill++\n", label);
+	}
 }
 
 static void

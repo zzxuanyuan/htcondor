@@ -42,6 +42,9 @@
 */
 class ClassAd;
 
+
+
+
 //----------------------------------------------------------------------------
 /** Enumeration of all possible events.
     If you modify this enum, you must also modify ULogEventNumberNames array
@@ -194,6 +197,12 @@ class ULogEvent {
     /// The subproc field of the Condor ID for this event
     int                subproc;
     
+    /// Added by Ameet
+    char *scheddname;
+    //char globaljobid[100];
+	
+	time_t eventclock;
+
   protected:
 
     /** Read the resource usage from the log file.
@@ -1160,6 +1169,7 @@ class ShadowExceptionEvent : public ULogEvent
 	float sent_bytes;
 	/// bytes received by the job over the network for the run
 	float recvd_bytes;
+	bool began_execution;
 };
 
 //----------------------------------------------------------------------------

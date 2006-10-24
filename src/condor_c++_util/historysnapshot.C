@@ -23,14 +23,42 @@
 
 #include "condor_common.h"
 #include "condor_attributes.h"
-
+#include "condor_config.h"
 #include "pgsqldatabase.h"
 #include "historysnapshot.h"
+#include "quill_enums.h"
+
+#undef ATTR_VERSION
+#include "oracledatabase.h"
 
 //! constructor
 HistorySnapshot::HistorySnapshot(const char* dbcon_str)
 {
-	jqDB = new PGSQLDatabase(dbcon_str);
+	dbtype dt;
+	char *tmp;
+
+	tmp = param("QUILLPP_DB_TYPE");
+	if (tmp) {
+		if (strcasecmp(tmp, "ORACLE") == 0) {
+			dt = T_ORACLE;
+		} else if (strcasecmp(tmp, "PGSQL") == 0) {
+			dt = T_PGSQL;
+		}
+	} else {
+		dt = T_PGSQL; // assume PGSQL by default
+	}
+
+	switch (dt) {				
+	case T_ORACLE:
+		jqDB = new ORACLEDatabase(dbcon_str);
+		break;
+	case T_PGSQL:
+		jqDB = new PGSQLDatabase(dbcon_str);
+		break;
+	default:
+		break;;
+	}
+
 	curAd = NULL;
 	curClusterId_hor = curProcId_hor = curClusterId_ver = curProcId_ver = -1;
 }
@@ -110,7 +138,7 @@ HistorySnapshot::printResults(SQLQuery *queryhor,
 QuillErrCode
 HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 {
-	const char	*cid, *pid, *attr, *val;
+	const char	*cid, *pid, *val, *attr;
 	char *expr;
 	int i;
 
@@ -122,16 +150,16 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 	}
 	ad = new AttrList();
 
-	cid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 0); // cid
-	pid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 1); // pid
-
+	cid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 1); // cid
 	curClusterId_hor = atoi((char *)cid);
-	curProcId_hor = atoi((char *) pid);
 
 	expr = (char*)malloc(strlen(ATTR_CLUSTER_ID) + strlen(cid) + 4);
 	sprintf(expr, "%s = %s", ATTR_CLUSTER_ID, cid);
 	ad->Insert(expr);
 	free(expr);
+
+	pid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 2); // pid
+	curProcId_hor = atoi((char *) pid);
 
 	expr = (char*)malloc(strlen(ATTR_PROC_ID) + strlen(pid) + 4);
 	sprintf(expr, "%s = %s", ATTR_PROC_ID, pid);
@@ -144,14 +172,16 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 
 	int numfields = jqDB->getHistoryHorNumFields();
 
-		//starting from 2 as 0 and 1 are cid and pid respectively
-	for(i=2; i < numfields; i++) {
+		// starting from 3 as 0, 1, and 2 are scheddname, cid and pid 
+		// respectively
+	for(i=3; i < numfields; i++) {
 	  attr = jqDB->getHistoryHorFieldName(i); // attr
 	  val = jqDB->getHistoryHorValue(cur_historyads_hor_index, i); // val
 	  
 	  expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
 	  sprintf(expr, "%s = %s", attr, val);
 	  // add an attribute with a value into ClassAd
+	  // printf("Inserting %s as an expr\n", expr);
 	  ad->Insert(expr);
 	  free(expr);
 	}
@@ -168,39 +198,55 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 QuillErrCode
 HistorySnapshot::getNextAd_Ver(AttrList*& ad)
 {
-	const char	*cid, *pid, *attr, *val;
+	const char	*cid, *pid, *temp, *val;
+	char *attr;
 
 	if(cur_historyads_ver_index >= historyads_ver_num) {
 	   return DONE_HISTORY_CURSOR;
 	}
 
-	cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 0); // cid
-	pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
-
+	cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
 	curClusterId_ver = atoi((char *)cid);
+
+	pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // pid
 	curProcId_ver = atoi((char *) pid);
 
 	// for HistoryAds table
 	while(cur_historyads_ver_index < historyads_ver_num) {
-		cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 0); // cid
-		pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // pid
+		attr = NULL;
+		val = NULL;
+
+		cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
 
 		if (cid == NULL  
-		   || curClusterId_ver != atoi(cid) 
-		   || curProcId_ver != atoi(pid)) {
+			|| curClusterId_ver != atoi(cid)) {
+			break;
+		}    
+		
+		pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // pid
+		if (curProcId_ver != atoi(pid)) {
 			break;
 		}
 
-		attr = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // attr
-		val = jqDB->getHistoryVerValue(cur_historyads_ver_index, 3); // val
+		temp = jqDB->getHistoryVerValue(cur_historyads_ver_index, 3); // attr
+		if (temp != NULL) {
+			attr = strdup(temp);
+		}
+		
+
+		val = jqDB->getHistoryVerValue(cur_historyads_ver_index, 4); // val
 
 		cur_historyads_ver_index++;
 
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-		sprintf(expr, "%s = %s", attr, val);
-		// add an attribute with a value into ClassAd
-		ad->Insert(expr);
-		free(expr);
+		if ((attr != NULL) && (val != NULL)) {
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
+			sprintf(expr, "%s = %s", attr, val);
+				// add an attribute with a value into ClassAd
+			ad->Insert(expr);
+			free(expr);
+		}
+
+		if (attr != NULL) free(attr);
 	};
 
 	return SUCCESS;

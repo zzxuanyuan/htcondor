@@ -42,6 +42,7 @@
 #include "globus_utils.h"
 #include "filename_tools.h"
 #include "condor_holdcodes.h"
+#include "file_transfer_db.h"
 
 #define COMMIT_FILENAME ".ccommit.con"
 
@@ -189,6 +190,8 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 {
 	char buf[ATTRLIST_MAX_EXPRESSION];
 	char *dynamic_buf = NULL;
+
+	jobAd = Ad;	// save job ad
 
 	if( did_init ) {
 			// no need to except, just quietly return success
@@ -1345,6 +1348,8 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 	int hold_code = 0;
 	int hold_subcode = 0;
 	MyString error_buf;
+	file_transfer_record record;
+	time_t start, elapsed;
 
 	priv_state saved_priv = PRIV_UNKNOWN;
 	*total_bytes = 0;
@@ -1462,6 +1467,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		// minutes!  MLOP!! Since we are doing this, we may as well
 		// not bother to fsync every file.
 //		dprintf(D_FULLDEBUG,"TODD filetransfer DoDownload fullname=%s\n",fullname);
+		start = time(NULL);
 		if ( reply == 4 ) {
 			if ( s->end_of_message() ) {
 				rc = s->get_x509_delegation( &bytes, fullname );
@@ -1473,6 +1479,8 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		} else {
 			rc = s->get_file( &bytes, fullname );
 		}
+
+		elapsed = time(NULL)-start;
 
 		if( rc < 0 ) {
 			int the_error = errno;
@@ -1509,6 +1517,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 			dprintf(D_FULLDEBUG,"DoDownload: exiting at %d\n",__LINE__);
 			return_and_resetpriv( -1 );
 		}
+
 		if ( want_fsync ) {
 			struct utimbuf timewrap;
 
@@ -1523,6 +1532,13 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 			return_and_resetpriv( -1 );
 		}
 		*total_bytes += bytes;
+
+		record.fullname = fullname;
+		record.bytes = bytes;
+		record.elapsed  = elapsed;
+		record.sockp =s;
+
+		file_transfer_db(&record, jobAd);
 	}
 
 	// go back to the state we were in before file transfer

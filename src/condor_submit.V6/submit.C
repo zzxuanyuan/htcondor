@@ -77,6 +77,8 @@
 
 #include "list.h"
 
+#include "file_sql.h"
+
 static int hashFunction( const MyString&, int );
 HashTable<AttrKey,MyString> forcedAttributes( 64, AttrKeyHashFunction );
 HashTable<MyString,int> CheckFilesRead( 577, hashFunction ); 
@@ -88,6 +90,8 @@ template class HashTable<AttrKey, MyString>;
 template class HashBucket<AttrKey, MyString>;
 
 char* mySubSystem = "SUBMIT";	/* Used for SUBMIT_EXPRS */
+
+extern FILESQL *FILEObj;
 
 ClassAd  *job = NULL;
 char	 buffer[_POSIX_ARG_MAX + 64];
@@ -571,6 +575,9 @@ main( int argc, char *argv[] )
 	int dag_pause = 0;
 	int i;
 
+		// init db connection
+    FILEObj = createInstance();
+
 	setbuf( stdout, NULL );
 
 #if !defined(WIN32)
@@ -873,6 +880,8 @@ main( int argc, char *argv[] )
 	for (i=0;i<JobAdsArrayLen;i++) {
 		delete JobAdsArray[i];
 	}
+
+	delete FILEObj;
 
 	return 0;
 }
