@@ -42,6 +42,14 @@ has been added.  This feature causes the \Condor{startd} to spawn the
 \Condor{starter} as the user that \Prog{glexec} determines based on
 the user's GSI credential.
 
+\item A ``per-job history files'' feature has been added to the
+\Condor{schedd}. When enabled, this will cause the \Condor{schedd} to
+write out a copy of each job's ClassAd when it leaves the job
+queue. The directory to place these files in is determined by the
+parameter \Macro{PER\_JOB\_HISTORY\_DIR}. It is the resposibilty of
+whatever external entity (e.g. an accounting or monitoring system) is
+using these files to remove them as it completes its processing.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
