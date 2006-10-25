@@ -37,6 +37,11 @@ hosts across all procs in a cluster.
 running on the same DAG) now defaults to \Expr{True} instead of
 \Expr{False}.
 
+\item Preliminary support for using \Prog{glexec} on execute machines
+has been added.  This feature causes the \Condor{startd} to spawn the
+\Condor{starter} as the user that \Prog{glexec} determines based on
+the user's GSI credential.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
