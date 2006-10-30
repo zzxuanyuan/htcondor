@@ -444,8 +444,8 @@ PCRE_FLAGS = -I$(PCRE_INC)
 PCRE_LIB = $(PCRE_DIR)/lib/libpcre.a
 
 #if WANT_QUILL
-QUILL_LIB = $(POSTGRESQL_LIB)/libpq.a
-QUILL_INC = -I$(POSTGRESQL_INC)
+QUILL_LIB = $(POSTGRESQL_LIB)/libpq.a -L/usr/lib/oracle/xe/app/oracle/product/10.2.0/server/lib/ -locci -lclntsh -lnnz10 -lgcc_s
+QUILL_INC = -I$(POSTGRESQL_INC) -I/usr/lib/oracle/xe/app/oracle/product/10.2.0/server/rdbms/public
 QUILL_FLAGS = -DWANT_QUILL
 #else
 QUILL_LIB =
