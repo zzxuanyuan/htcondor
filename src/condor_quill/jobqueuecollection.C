@@ -25,6 +25,9 @@
 #include "jobqueuecollection.h"
 #include "jobqueuedbmanager.h"
 
+#undef ATTR_VERSION
+#include "oracledatabase.h"
+
 //! constructor
 JobQueueCollection::JobQueueCollection(int iBucketNum)
 {
@@ -48,14 +51,6 @@ JobQueueCollection::JobQueueCollection(int iBucketNum)
 
 	pCurBucket = NULL;
 	bChained = false;
-
-	ClusterAd_Str_CopyStr = NULL;
-	ClusterAd_Num_CopyStr = NULL;
-	ProcAd_Str_CopyStr = NULL;
-	ProcAd_Num_CopyStr = NULL;	
-
-	HistoryAd_Hor_SqlStr = NULL;
-	HistoryAd_Ver_SqlStr = NULL;
 }
 
 //! destructor
@@ -90,14 +85,6 @@ JobQueueCollection::~JobQueueCollection()
 	delete[] _ppClusterAdBucketList;
 	delete[] _ppProcAdBucketList;
 	delete[] _ppHistoryAdBucketList;
-
-		// free temporarily used COPY string buffers
-	if (ClusterAd_Str_CopyStr != NULL) free(ClusterAd_Str_CopyStr);
-	if (ClusterAd_Num_CopyStr != NULL) free(ClusterAd_Num_CopyStr);
-	if (ProcAd_Str_CopyStr != NULL) free(ProcAd_Str_CopyStr);
-	if (ProcAd_Num_CopyStr != NULL) free(ProcAd_Num_CopyStr);
-	if (HistoryAd_Hor_SqlStr != NULL) free(HistoryAd_Hor_SqlStr);
-	if (HistoryAd_Ver_SqlStr != NULL) free(HistoryAd_Ver_SqlStr);
 }
 
 //! find a ProcAd
@@ -421,23 +408,6 @@ JobQueueCollection::initAllJobAdsIteration()
 	curClusterAdIterateIndex = 0; // that of ClusterAd List
 	pCurBucket = NULL;
 	bChained = false;
-
-	if (ClusterAd_Str_CopyStr != NULL) {
-		free(ClusterAd_Str_CopyStr);
-		ClusterAd_Str_CopyStr = NULL;
-	}
-	if (ClusterAd_Num_CopyStr != NULL) {
-		free(ClusterAd_Num_CopyStr);
-		ClusterAd_Num_CopyStr = NULL;
-	}
-	if (ProcAd_Str_CopyStr != NULL) {
-		free(ProcAd_Str_CopyStr);
-		ProcAd_Str_CopyStr = NULL;
-	}
-	if (ProcAd_Num_CopyStr != NULL) {
-		free(ProcAd_Num_CopyStr);
-		ProcAd_Num_CopyStr = NULL;
-	}
 }
 
 //! initialize all job ads iteration
@@ -447,38 +417,17 @@ JobQueueCollection::initAllHistoryAdsIteration()
 	curHistoryAdIterateIndex = 0; // that of HistoryAd List
 	pCurBucket = NULL;
 	bChained = false;
-
-	if (HistoryAd_Hor_SqlStr != NULL) {
-		free(HistoryAd_Hor_SqlStr);
-		HistoryAd_Hor_SqlStr = NULL;
-	}
-	if (HistoryAd_Ver_SqlStr != NULL) {
-		free(HistoryAd_Ver_SqlStr);
-		HistoryAd_Ver_SqlStr = NULL;
-	}
 }
 
-//! get the next SQL string for both HistoryAd_Hor and HistoryAd_Ver tables
-/*! \warning the returned string must not be freed by caller.
- */
-int
-JobQueueCollection::getNextHistoryAd_SqlStr(char*& historyad_hor_str, 
-											char*& historyad_ver_str)
+//! load next history ad
+bool
+JobQueueCollection::loadNextHistoryAd(QuillErrCode &errStatus)
 {
-	if (HistoryAd_Hor_SqlStr != NULL) {
-		free(HistoryAd_Hor_SqlStr);
-		HistoryAd_Hor_SqlStr = NULL;
-	}
-	if (HistoryAd_Ver_SqlStr != NULL) {
-		free(HistoryAd_Ver_SqlStr);
-		HistoryAd_Ver_SqlStr = NULL;
-	}
-
 	// index is greater than the last index of bucket list?
 	// we cant call it quits if there's another chained ad after this
 	// and its the last bucket -- ameet
 	if (curHistoryAdIterateIndex == _iBucketSize && !bChained) {
-	  return 1;
+	  return FALSE;
 	}
 		 
 	if (bChained == false) { 
@@ -486,7 +435,7 @@ JobQueueCollection::getNextHistoryAd_SqlStr(char*& historyad_hor_str,
 	  
 	  while (pCurBucket == NULL) {
 	    if (curHistoryAdIterateIndex == _iBucketSize) {
-	      return 1;
+	      return FALSE;
 	    }
 	    pCurBucket = _ppHistoryAdBucketList[curHistoryAdIterateIndex++];
 	  }
@@ -503,58 +452,71 @@ JobQueueCollection::getNextHistoryAd_SqlStr(char*& historyad_hor_str,
 	}
 	
 	// making a COPY string for this ClassAd
-	makeHistoryAdSqlStr(pCurBucket->cid, 
-			    pCurBucket->pid, 
-			    pCurBucket->ad, 
-			    HistoryAd_Hor_SqlStr,
-			    HistoryAd_Ver_SqlStr);
+	errStatus = loadHistoryAd(pCurBucket->cid, 
+							  pCurBucket->pid, 
+							  pCurBucket->ad);
 		
-
-	historyad_hor_str = HistoryAd_Hor_SqlStr;
-	historyad_ver_str = HistoryAd_Ver_SqlStr;
-
-	return 1;
+	return TRUE;
 }
 
-void 
-JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad, 
-					char*& historyad_hor_str, char*& historyad_ver_str)
+QuillErrCode
+JobQueueCollection::loadHistoryAd(char* cid, char* pid, ClassAd* ad)
 {
 	char* 	val = NULL;
-	char	tmp_line_str1[MAX_FIXED_SQL_STR_LENGTH];
-	char    tmp_line_str2[MAX_FIXED_SQL_STR_LENGTH];
+	char*   sql_str;
 
 	AssignOp*	expr;		// For Each Attribute in ClassAd
 	Variable* 	nameExpr;	// For Attribute Name
 	String* 	valExpr;	// For Value
-
+	int len;
 
 	// The below two attributes should be inserted into 
 	//the SQL String for the vertical component
 	// MyType = "Job"
 	// TargetType = "Machine"
 
-	sprintf(tmp_line_str1, 
-			"INSERT INTO History_Vertical(cid,pid,attr,val) "
-			"SELECT %s,%s,'MyType','\"Job\"' WHERE NOT EXISTS"
-			"(SELECT cid,pid FROM History_Vertical WHERE cid=%s "
-			"AND pid=%s);INSERT INTO History_Vertical(cid,pid,attr,val) "
-			"SELECT %s,%s,'TargetType','\"Machine\"' WHERE NOT EXISTS"
-			"(SELECT cid,pid FROM History_Vertical WHERE cid=%s AND pid=%s);", 
-			cid,pid,cid,pid,cid,pid,cid,pid);
-	historyad_ver_str = (char*)malloc(strlen(tmp_line_str1) + 1);
-	strcpy(historyad_ver_str, tmp_line_str1);
+	len = MAX_FIXED_SQL_STR_LENGTH + 2*strlen(cid) + 2*strlen(pid);
 
+	sql_str = (char *) malloc(len);
+
+	snprintf(sql_str, len, 
+			 "INSERT INTO History_Vertical(cid,pid,attr,val) "
+			 "SELECT %s,%s,'MyType','\"Job\"' FROM DUAL WHERE NOT EXISTS"
+			 "(SELECT cid,pid FROM History_Vertical WHERE cid=%s "
+			 "AND pid=%s)",
+			 cid, pid, cid, pid);
+
+	if (DBObj->execCommand(sql_str) == FAILURE) {
+		free(sql_str);
+		return FAILURE;
+	}
+
+	snprintf(sql_str, len, 
+			 "INSERT INTO History_Vertical(cid,pid,attr,val) "
+			 "SELECT %s,%s,'TargetType','\"Machine\"' FROM DUAL WHERE NOT EXISTS"
+			 "(SELECT cid,pid FROM History_Vertical WHERE cid=%s AND pid=%s)",
+			 cid,pid,cid,pid);
+
+	if (DBObj->execCommand(sql_str) == FAILURE) {
+		free(sql_str);
+		return FAILURE;
+	}
+		
 	// creating a new horizontal string consisting of one insert 
 	// and many updates
-	sprintf(tmp_line_str2, 
+	snprintf(sql_str, len,
 			"INSERT INTO History_Horizontal(cid,pid,\"EnteredHistoryTable\") "
-			"SELECT %s,%s,'now' WHERE NOT EXISTS(SELECT cid,pid "
-			"FROM History_Horizontal WHERE cid=%s AND pid=%s);", 
+			"SELECT %s,%s,current_timestamp FROM DUAL WHERE NOT EXISTS(SELECT cid,pid "
+			"FROM History_Horizontal WHERE cid=%s AND pid=%s)", 
 			cid,pid,cid,pid);
-	historyad_hor_str = (char*)malloc(strlen(tmp_line_str2) + 1);
-	strcpy(historyad_hor_str, tmp_line_str2);
-	
+
+	if (DBObj->execCommand(sql_str) == FAILURE) {
+		free(sql_str);
+		return FAILURE;
+	}
+
+	free(sql_str);
+
 	ad->ResetExpr(); // for iteration initialization
 
 	while((expr = (AssignOp*)(ad->NextExpr())) != NULL) {
@@ -585,133 +547,102 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 		  strcmp(nameExpr->Name(),"JobStatus") == 0 ||
 		  strcmp(nameExpr->Name(),"JobPrio") == 0 ||
 		  strcmp(nameExpr->Name(),"CompletionDate") == 0) {
-	    sprintf(tmp_line_str2, 
+
+		  len = MAX_FIXED_SQL_STR_LENGTH + 2*strlen(nameExpr->Name()) +
+			  strlen(cid) + strlen(pid) + strlen(val);
+
+		  sql_str = (char *) malloc(len);
+		  
+		  snprintf(sql_str, len,
 				"UPDATE History_Horizontal SET \"%s\" = %s "
-				"WHERE cid=%s AND pid=%s AND \"%s\" IS NULL;",  
+				"WHERE cid=%s AND pid=%s AND \"%s\" IS NULL",  
 				nameExpr->Name(), val,cid,pid,nameExpr->Name());
-	    historyad_hor_str = (char*)realloc(historyad_hor_str, 
-										   strlen(historyad_hor_str) + 
-										   strlen(tmp_line_str2) + 1);
-		if(!historyad_hor_str) {
-			EXCEPT("Call to realloc failed\n");
-		}
-	    strcat(historyad_hor_str, tmp_line_str2);		
+		  
+		  if (DBObj->execCommand(sql_str) == FAILURE) {
+			  free(sql_str);
+			  free(val);
+			  return FAILURE;
+		  }
+		  free(sql_str);
 	  }
 
 	  else if(strcmp(nameExpr->Name(),"Owner") == 0 ||
 		  strcmp(nameExpr->Name(),"Cmd") == 0 ||
 		  strcmp(nameExpr->Name(),"LastRemoteHost") == 0) {
-	    sprintf(tmp_line_str2, 
+
+		  len = MAX_FIXED_SQL_STR_LENGTH + 2*strlen(nameExpr->Name()) +
+			  strlen(cid) + strlen(pid) + strlen(val);
+
+		  sql_str = (char *) malloc(len);
+		  
+		  snprintf(sql_str, len,
 				"UPDATE History_Horizontal SET \"%s\" = '%s' "
-				"WHERE cid=%s AND pid=%s AND \"%s\" IS NULL;",  
+				"WHERE cid=%s AND pid=%s AND \"%s\" IS NULL",  
 				nameExpr->Name(), val,cid,pid, nameExpr->Name());
-	    historyad_hor_str = (char*)realloc(historyad_hor_str, 
-					       strlen(historyad_hor_str) + strlen(tmp_line_str2) + 1);
-		if(!historyad_hor_str) {
-			EXCEPT("Call to realloc failed\n");
-		}
-	    strcat(historyad_hor_str, tmp_line_str2);		
+
+		  if (DBObj->execCommand(sql_str) == FAILURE) {
+			  free(sql_str);
+			  free(val);
+			  return FAILURE;
+		  }
+		  free(sql_str);		  
 	  }
 	  else {
-		char *b = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH + 
-				2 * strlen(nameExpr->Name()) +
-				strlen(val));
-	    sprintf(b, 
-				"INSERT INTO History_Vertical(cid,pid,attr,val) "
-				"SELECT %s,%s,'%s','%s' WHERE NOT EXISTS(SELECT cid,pid FROM "
-				"History_Vertical where cid=%s and pid=%s and attr='%s');",  
-				cid, pid, nameExpr->Name(), val,cid,pid,nameExpr->Name());
-	    historyad_ver_str = (char*)realloc(historyad_ver_str, 
-										   strlen(historyad_ver_str) + 
-										   strlen(b) + 1);
-		if(!historyad_ver_str) {
-			EXCEPT("Call to realloc failed\n");
-		}
-	    strcat(historyad_ver_str, b);		
-		free(b);
+		  len = MAX_FIXED_SQL_STR_LENGTH + 2*strlen(nameExpr->Name()) +
+			  strlen(val) + 2*strlen(cid) + 2*strlen(pid);
+
+		  sql_str = (char *) malloc(len);
+		  
+		  snprintf(sql_str, len,
+				   "INSERT INTO History_Vertical(cid,pid,attr,val) "
+				 "SELECT %s,%s,'%s','%s' FROM DUAL WHERE NOT EXISTS(SELECT cid,pid FROM "
+				   "History_Vertical where cid=%s and pid=%s and attr='%s')",  
+				   cid, pid, nameExpr->Name(), val,cid,pid,nameExpr->Name());
+
+		  if (DBObj->execCommand(sql_str) == FAILURE) {
+			  free(sql_str);
+			  free(val);
+			  return FAILURE;
+		  }
+		  free(sql_str);		 		  
 	  }
 	  
 	  free(val);
 	}
+
+	return SUCCESS;
 }
 
 
 
-//! get the next COPY string for ClusterAd_Str table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextClusterAd_StrCopyStr()
+// load the next cluster ad
+bool
+JobQueueCollection::loadNextClusterAd(QuillErrCode &errStatus)
 {
-	if (ClusterAd_Str_CopyStr != NULL) {
-		free(ClusterAd_Str_CopyStr);
-		ClusterAd_Str_CopyStr = NULL;
-	}
-
-	getNextAdCopyStr(true, 
-					 curClusterAdIterateIndex, 
+	return loadNextAd(curClusterAdIterateIndex, 
 					 _ppClusterAdBucketList, 
-					 ClusterAd_Str_CopyStr);
-
-	return ClusterAd_Str_CopyStr;
+					 errStatus);
 }
 
-//! get the next COPY string for ClusterAd_Num table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextClusterAd_NumCopyStr()
+// load the next proc ad
+bool
+JobQueueCollection::loadNextProcAd(QuillErrCode &errStatus)
 {
-	getNextAdCopyStr(false, 
-					 curClusterAdIterateIndex, 
-					 _ppClusterAdBucketList, 
-					 ClusterAd_Num_CopyStr);
-	return ClusterAd_Num_CopyStr;
-}
-
-//! get the next COPY string for ProcAd_Str table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextProcAd_StrCopyStr()
-{
-	getNextAdCopyStr(true, 
-					 curProcAdIterateIndex, 
+	return loadNextAd(curProcAdIterateIndex, 
 					 _ppProcAdBucketList, 
-					 ProcAd_Str_CopyStr);
-	return ProcAd_Str_CopyStr;
+					 errStatus);
 }
 
-//! get the next COPY string for ProcAd_Num table
-/*! \warning the returned string must not be freeed
- */
-char*
-JobQueueCollection::getNextProcAd_NumCopyStr()
-{
-	getNextAdCopyStr(false, 
-					 curProcAdIterateIndex, 
-					 _ppProcAdBucketList, 
-					 ProcAd_Num_CopyStr);
-	return ProcAd_Num_CopyStr;
-}
-
-
-
-void
-JobQueueCollection::getNextAdCopyStr(bool bStr, 
-									 int& index, 
-									 ClassAdBucket **ppBucketList, 
-									 char*& ret_str)
+bool
+JobQueueCollection::loadNextAd(int& index, 
+							   ClassAdBucket **ppBucketList, 
+							   QuillErrCode &errStatus)
 {	
   // index is greater than the last index of bucket list?
   // we cant call it quits if there's another chained ad after this
   // and its the last bucket -- ameet
 	if (index == _iBucketSize && !bChained) {
-		if (ret_str != NULL) { 
-			free(ret_str);
-			ret_str = NULL;
-		}
-		return;
+		return FALSE;
 	}
 		 
 	if (bChained == false) { 
@@ -719,11 +650,7 @@ JobQueueCollection::getNextAdCopyStr(bool bStr,
 		
 		while (pCurBucket == NULL) {
 			if (index == _iBucketSize) {
-				if (ret_str != NULL) { 
-					free(ret_str);
-					ret_str = NULL;
-				}
-				return;
+				return FALSE;
 			}
 			pCurBucket = ppBucketList[index++];
 		}
@@ -739,21 +666,22 @@ JobQueueCollection::getNextAdCopyStr(bool bStr,
 		bChained = false;
 	}
 
-	// making a COPY string for this ClassAd
-	makeCopyStr(bStr, pCurBucket->cid, 
-					  pCurBucket->pid, 
-					  pCurBucket->ad, 
-				ret_str);
+	// load this class ad 
+	errStatus = loadAd( pCurBucket->cid, 
+						pCurBucket->pid, 
+						pCurBucket->ad);
 	
+	return TRUE;
 }
 
-void 
-JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, char*& ret_str)
+QuillErrCode 
+JobQueueCollection::loadAd(char* cid, 
+						   char* pid, 
+						   ClassAd* ad)
 {
-	char* 	line_str = NULL;
+	char*   sql_str = NULL;
 	char* 	endptr = NULL;
 	char* 	val = NULL;
-	char	tmp_line_str[MAX_FIXED_SQL_STR_LENGTH];
 
 	const int 	NUM_TYPE = 1;
 	const int	OTHER_TYPE = 2;	
@@ -763,35 +691,57 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 	AssignOp*	expr;		// For Each Attribute in ClassAd
 	Variable* 	nameExpr;	// For Attribute Name
 	String* 	valExpr;	// For Value
+	int len;
 
-
-		// init of returned string
-	if (ret_str != NULL) {
-		free(ret_str);
-		ret_str = NULL;
-	}
-
-		// The below two attributes should be inserted into the COPY string
+		// The below two attributes should be inserted into tables
 		// MyType = "Job"
 		// TargetType = "Machine"
-	if (bStr == true) {
-		if (pid != NULL) {
-			sprintf(tmp_line_str, 
-					"%s\t%s\tMyType\t\"Job\"\n"
-					"%s\t%s\tTargetType\t\"Machine\"\n", 
-					cid, pid, cid, pid);
-		}
-		else {
-			sprintf(tmp_line_str, 
-					"%s\tMyType\t\"Job\"\n"
-					"%s\tTargetType\t\"Machine\"\n", 
-					cid, cid);
+	if (pid != NULL) {
+		len = MAX_FIXED_SQL_STR_LENGTH + strlen(cid) + strlen(pid);
+
+		sql_str = (char *) malloc(len);
+
+		snprintf(sql_str, len, 
+				 "INSERT INTO Procads_Str (CID, PID, ATTR, VAL) VALUES (%s, %s, 'MyType', 'Job')", cid, pid);
+
+		if (DBObj->execCommand(sql_str) == FAILURE) {
+			free(sql_str);
+			return FAILURE;
 		}
 
-		ret_str = (char*)malloc(strlen(tmp_line_str) + 1);
-		strcpy(ret_str, tmp_line_str);
+		snprintf(sql_str, len, 
+				 "INSERT INTO Procads_Str (CID, PID, ATTR, VAL) VALUES (%s, %s, 'TargetType', 'Machine')", cid, pid);
+
+		if (DBObj->execCommand(sql_str) == FAILURE) {
+			free(sql_str);
+			return FAILURE;
+		}		
+
+		free (sql_str);	
+	} else {	
+		len = MAX_FIXED_SQL_STR_LENGTH + strlen(cid);
+		sql_str = (char *) malloc(len);
+		
+		snprintf(sql_str, len, 
+				 "INSERT INTO Clusterads_Str (CID, ATTR, VAL) VALUES (%s, 'MyType', 'Job')", cid);
+
+
+		if (DBObj->execCommand(sql_str) == FAILURE) {
+			free(sql_str);
+			return FAILURE;
+		}
+
+		snprintf(sql_str, len, 
+				 "INSERT INTO Clusterads_Str (CID, ATTR, VAL) VALUES (%s, 'TargetType', 'Machine')", cid);
+
+		if (DBObj->execCommand(sql_str) == FAILURE) {
+			free(sql_str);
+			return FAILURE;
+		}		
+
+		free (sql_str);		   
 	}
-	
+
 	ad->ResetExpr(); // for iteration initialization
 
 	while((expr = (AssignOp*)(ad->NextExpr())) != NULL) {
@@ -801,7 +751,6 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 		val = valExpr->Value();					// Value
 		if (val == NULL) break;
 		
-
 		doubleval = strtod(val, &endptr);
 		if(val == endptr) {
 			value_type = OTHER_TYPE;
@@ -816,45 +765,93 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 			}
 		}
 
-		if ((bStr == true && value_type == OTHER_TYPE) ||
-			(bStr == false && value_type == NUM_TYPE))
-		{
-				// make a COPY line for each attribute
-			if (pid != NULL) { // ProcAd								
-				line_str = (char*)malloc(strlen(nameExpr->Name()) 
-						 + strlen(val) + strlen(cid) 
-						 + strlen(pid) + strlen("\t\t\t\n") + 1);
-				sprintf(line_str, "%s\t%s\t%s\t%s\n", 
-							cid, pid, nameExpr->Name(), val); 	
+		val = JobQueueDBManager::fillEscapeCharacters(val);
+
+		if (value_type == OTHER_TYPE) {
+				// load into *_STR tables		   
+			if (pid != NULL) { // ProcAd	
+
+				len = MAX_FIXED_SQL_STR_LENGTH + strlen(nameExpr->Name()) +
+					strlen(val) + strlen(cid) + strlen(pid);
+
+				sql_str = (char*)malloc(len);
+				
+				snprintf(sql_str, len, 
+						 "INSERT INTO Procads_Str (CID, PID, ATTR, VAL) VALUES (%s, %s, '%s', '%s')", cid, pid, nameExpr->Name(), val);
+
+				if (DBObj->execCommand(sql_str) == FAILURE) {
+					free(sql_str);
+					free(val);
+					return FAILURE;
+				}
+
+				free(sql_str);
 			} 
 			else { // ClusterAd
-				line_str = (char*)malloc(strlen(nameExpr->Name()) 
-						 + strlen(val) + strlen(cid) 
-						 + strlen("\t\t\n") + 1);
-				sprintf(line_str, "%s\t%s\t%s\n", 
-							cid, nameExpr->Name(), val); 	
-			}
 
-				// concatenate the line to the ClassAd COPY string  
-			if (ret_str == NULL) {
-				ret_str = (char*)malloc(strlen(line_str) + 1);
-				strcpy(ret_str, line_str);
-			}
-			else {
-				ret_str = (char*)realloc(ret_str, 
-										 strlen(ret_str) + 
-										 strlen(line_str) + 
-										 1);
-				if(!ret_str) {
-					EXCEPT("Call to realloc failed\n");
+				len = MAX_FIXED_SQL_STR_LENGTH + strlen(nameExpr->Name()) +
+					strlen(val) + strlen(cid);
+
+				sql_str = (char*)malloc(len);
+				
+				snprintf(sql_str, len, 
+						 "INSERT INTO Clusterads_Str (CID, ATTR, VAL) VALUES (%s, '%s', '%s')", cid, nameExpr->Name(), val);
+
+				if (DBObj->execCommand(sql_str) == FAILURE) {
+					free(sql_str);
+					free(val);
+					return FAILURE;
 				}
-				strcat(ret_str, line_str);
+				
+				free(sql_str);
 			}
+		} else {
+				// load into *_NUM tables 
+			if (pid != NULL) { // ProcAd	
 
-			free(line_str);
-			line_str = NULL;
+				len = MAX_FIXED_SQL_STR_LENGTH + strlen(nameExpr->Name()) +
+					strlen(val) + strlen(cid) + strlen(pid);
+
+				sql_str = (char*)malloc(len);
+				
+				snprintf(sql_str, len, 
+						 "INSERT INTO Procads_Num (CID, PID, ATTR, VAL) VALUES (%s, %s, '%s', %s)", cid, pid, nameExpr->Name(), val);
+
+				if (DBObj->execCommand(sql_str) == FAILURE) {
+					free(sql_str);
+					free(val);
+					return FAILURE;
+				}
+
+				free(sql_str);
+			} 
+			else { // ClusterAd
+
+				len = MAX_FIXED_SQL_STR_LENGTH + strlen(nameExpr->Name()) +
+					strlen(val) + strlen(cid);
+
+				sql_str = (char*)malloc(len);
+				
+				snprintf(sql_str, len, 
+						 "INSERT INTO Clusterads_Num (CID, ATTR, VAL) VALUES (%s, '%s', %s)", cid, nameExpr->Name(), val);
+
+				if (DBObj->execCommand(sql_str) == FAILURE) {
+					free(sql_str);
+					free(val);
+					return FAILURE;
+				}
+				
+				free(sql_str);
+			}
 		}
-
+		
+		free(val);
 	}
+	
+	return SUCCESS;
 }
 
+void JobQueueCollection::setDBObj(JobQueueDatabase *DBObj)
+{
+	this->DBObj = DBObj;
+}

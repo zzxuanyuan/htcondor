@@ -68,16 +68,7 @@ PGSQLDatabase::~PGSQLDatabase()
 QuillErrCode
 PGSQLDatabase::connectDB()
 {
-	return connectDB(con_str);
-}
-
-//! connect to DB
-/*! \param connect DB connect string
- */
-QuillErrCode
-PGSQLDatabase::connectDB(const char* connect)
-{
-	if ((connection = PQconnectdb(connect)) == NULL)
+	if ((connection = PQconnectdb(con_str)) == NULL)
 	{
 		dprintf(D_ALWAYS, "Fatal error - unable to allocate connection to DB\n");
 		return FAILURE;
@@ -213,8 +204,7 @@ PGSQLDatabase::rollbackTransaction()
  */
 QuillErrCode 
 PGSQLDatabase::execCommand(const char* sql, 
-						   int &num_result,
-						   int &db_err_code)
+			   int &num_result)
 {
 	PGresult 	*result;
 	char*		num_result_str = NULL;
@@ -234,9 +224,7 @@ PGSQLDatabase::execCommand(const char* sql,
 			"[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[SQL: %s]\n", sql);
-		db_err_code =  atoi(PQresultErrorField(result, PG_DIAG_SQLSTATE));
-		dprintf(D_ALWAYS, 
-			"[SQLERRORCODE: %d]\n", db_err_code);
+
 		PQclear(result);
 		return FAILURE;
 	}
@@ -258,8 +246,8 @@ PGSQLDatabase::execCommand(const char* sql,
 QuillErrCode 
 PGSQLDatabase::execCommand(const char* sql) 
 {
-	int num_result = 0, db_err_code = 0;
-	return execCommand(sql, num_result, db_err_code);
+  int num_result = 0;
+	return execCommand(sql, num_result);
 }
 
 

@@ -3008,11 +3008,11 @@ static char * getDBConnStr(char *&quillName,
 		//here we break up the ipaddress:port string and assign the
 		//individual parts to separate string variables host and port
 	ptr_colon = strchr(databaseIp, ':');
-	strcpy(host, "host= ");
+	strcpy(host, "host=");
 	strncat(host,
 			databaseIp+1,
 			ptr_colon - databaseIp -1);
-	strcpy(port, "port= ");
+	strcpy(port, "port=");
 	strcat(port, ptr_colon+1);
 	port[strlen(port)-1] = '\0';
 
