@@ -45,7 +45,6 @@ public:
 	~PGSQLDatabase();
 
 	QuillErrCode         connectDB();
-	QuillErrCode		 connectDB(const char* connect);
 	QuillErrCode		 disconnectDB();
 
 		// General DB processing methods
@@ -54,8 +53,7 @@ public:
 	QuillErrCode 		 rollbackTransaction();
 
 	QuillErrCode 	 	 execCommand(const char* sql, 
-									 int &num_result,
-									 int &db_err_code);
+					     int &num_result);
 	QuillErrCode 	 	 execCommand(const char* sql);
 
 	QuillErrCode 	 	 execQuery(const char* sql);

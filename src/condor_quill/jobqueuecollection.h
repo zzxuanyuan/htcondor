@@ -27,10 +27,13 @@
 #include "condor_common.h"
 #include "condor_io.h"
 #include "classad_collection.h"
+#include "quill_enums.h"
 
 #ifndef MAX_FIXED_SQL_STR_LENGTH
 #define MAX_FIXED_SQL_STR_LENGTH 2048
 #endif
+
+class JobQueueDatabase;
 
 //! ClassAdBucket
 /*! Bucket Class for a Hash Table used internally by JobQueueCollection
@@ -147,13 +150,14 @@ public:
        	//
 	void		initAllJobAdsIteration();
 	void		initAllHistoryAdsIteration();
-	char*		getNextClusterAd_StrCopyStr();
-	char*		getNextClusterAd_NumCopyStr();
-	char*		getNextProcAd_StrCopyStr();
-	char*		getNextProcAd_NumCopyStr();
-	int             getNextHistoryAd_SqlStr(char*& historyad_hor_str, char*& historyad_ver_str);
+
+	bool		loadNextClusterAd(QuillErrCode &errStatus);
+	bool		loadNextProcAd(QuillErrCode &errStatus);
+	bool		loadNextHistoryAd(QuillErrCode &errStatus);
+
 	ClassAd*	find(char* cid, char* pid = NULL);
 
+	void 		setDBObj(JobQueueDatabase *DBObj);
 private:
        	//
        	// helper functions
@@ -161,10 +165,11 @@ private:
 	int 		insert(char* id, ClassAdBucket* pBucket, ClassAdBucket **ppBucket); 
 	int		remove(char* cid, char* pid = NULL);
 
-	void		getNextAdCopyStr(bool bStr, int& index, ClassAdBucket** ppBucketList, char*& ret_str);
-	void		makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, char*& ret_str);
-	void            makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad, 
-					    char*& historyad_hor_str, char*& historyad_ver_str);
+	bool		loadNextAd(int& index, ClassAdBucket** ppBucketList, QuillErrCode &errStatus);
+
+	QuillErrCode  loadAd(char* cid, char* pid, ClassAd* ad);	
+
+	QuillErrCode  loadHistoryAd(char* cid, char* pid, ClassAd* ad);
 
 	int		hashfunction(char* str);
 
@@ -187,15 +192,7 @@ private:
 
 	int    		_iBucketSize;		       	//!< Static Hash Table Size
 
-	//
-       	// buffer pointers for  COPY strings
-       	//
-	char*	ClusterAd_Str_CopyStr;
-	char*	ClusterAd_Num_CopyStr;
-	char*	ProcAd_Str_CopyStr;
-	char*	ProcAd_Num_CopyStr;
-	char*   HistoryAd_Hor_SqlStr;
-	char*   HistoryAd_Ver_SqlStr;
+	JobQueueDatabase*	DBObj;	
 };
 
 #endif

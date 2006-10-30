@@ -23,14 +23,16 @@
 
 #include "condor_common.h"
 #include "condor_attributes.h"
-
-#include "pgsqldatabase.h"
 #include "historysnapshot.h"
+
+#undef ATTR_VERSION
+#include "oracledatabase.h"
+
 
 //! constructor
 HistorySnapshot::HistorySnapshot(const char* dbcon_str)
 {
-	jqDB = new PGSQLDatabase(dbcon_str);
+	jqDB = new ORACLEDatabase(dbcon_str);
 	curAd = NULL;
 	curClusterId_hor = curProcId_hor = curClusterId_ver = curProcId_ver = -1;
 }
@@ -110,7 +112,8 @@ HistorySnapshot::printResults(SQLQuery *queryhor,
 QuillErrCode
 HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 {
-	const char	*cid, *pid, *attr, *val;
+	const char	*cid, *pid, *val, *temp;
+	char *attr;
 	char *expr;
 	int i;
 
@@ -123,15 +126,15 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 	ad = new AttrList();
 
 	cid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 0); // cid
-	pid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 1); // pid
-
 	curClusterId_hor = atoi((char *)cid);
-	curProcId_hor = atoi((char *) pid);
 
 	expr = (char*)malloc(strlen(ATTR_CLUSTER_ID) + strlen(cid) + 4);
 	sprintf(expr, "%s = %s", ATTR_CLUSTER_ID, cid);
 	ad->Insert(expr);
 	free(expr);
+
+	pid = jqDB->getHistoryHorValue(cur_historyads_hor_index, 1); // pid
+	curProcId_hor = atoi((char *) pid);
 
 	expr = (char*)malloc(strlen(ATTR_PROC_ID) + strlen(pid) + 4);
 	sprintf(expr, "%s = %s", ATTR_PROC_ID, pid);
@@ -146,14 +149,26 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 
 		//starting from 2 as 0 and 1 are cid and pid respectively
 	for(i=2; i < numfields; i++) {
-	  attr = jqDB->getHistoryHorFieldName(i); // attr
-	  val = jqDB->getHistoryHorValue(cur_historyads_hor_index, i); // val
+		attr = NULL;
+		val = NULL;
+
+		temp = jqDB->getHistoryHorFieldName(i); // attr
+
+		if (temp != NULL) {
+			attr = strdup(temp);
+		}
+
+		val = jqDB->getHistoryHorValue(cur_historyads_hor_index, i); // val
 	  
-	  expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-	  sprintf(expr, "%s = %s", attr, val);
-	  // add an attribute with a value into ClassAd
-	  ad->Insert(expr);
-	  free(expr);
+		if ((attr != NULL) && (val != NULL)) {
+			expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
+			sprintf(expr, "%s = %s", attr, val);
+				// add an attribute with a value into ClassAd
+			ad->Insert(expr);
+			free(expr);
+		}
+		
+		if (attr != NULL) free(attr);
 	}
 
 	cur_historyads_hor_index++;
@@ -168,39 +183,54 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad)
 QuillErrCode
 HistorySnapshot::getNextAd_Ver(AttrList*& ad)
 {
-	const char	*cid, *pid, *attr, *val;
-
+	const char	*cid, *pid, *temp, *val;
+	char *attr;
+	
 	if(cur_historyads_ver_index >= historyads_ver_num) {
 	   return DONE_HISTORY_CURSOR;
 	}
 
 	cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 0); // cid
-	pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // cid
-
 	curClusterId_ver = atoi((char *)cid);
+
+	pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // pid
 	curProcId_ver = atoi((char *) pid);
 
 	// for HistoryAds table
 	while(cur_historyads_ver_index < historyads_ver_num) {
+		attr = NULL;
+		val = NULL;
+
 		cid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 0); // cid
+		if (cid == NULL  
+			|| curClusterId_ver != atoi(cid)) {
+			break;
+		}		
+
 		pid = jqDB->getHistoryVerValue(cur_historyads_ver_index, 1); // pid
 
-		if (cid == NULL  
-		   || curClusterId_ver != atoi(cid) 
-		   || curProcId_ver != atoi(pid)) {
+		if (curProcId_ver != atoi(pid)) {
 			break;
 		}
 
-		attr = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // attr
+		temp = jqDB->getHistoryVerValue(cur_historyads_ver_index, 2); // attr
+		if (temp != NULL) {
+			attr = strdup(temp);
+		}
+
 		val = jqDB->getHistoryVerValue(cur_historyads_ver_index, 3); // val
 
 		cur_historyads_ver_index++;
 
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-		sprintf(expr, "%s = %s", attr, val);
-		// add an attribute with a value into ClassAd
-		ad->Insert(expr);
-		free(expr);
+		if ((attr != NULL) && (val != NULL)) {
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
+			sprintf(expr, "%s = %s", attr, val);
+				// add an attribute with a value into ClassAd
+			ad->Insert(expr);
+			free(expr);
+		}
+
+		if (attr != NULL) free(attr);
 	};
 
 	return SUCCESS;

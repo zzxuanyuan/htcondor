@@ -26,7 +26,6 @@
 #include "condor_common.h"
 #include "sqlquery.h"
 #include "quill_enums.h"
-#include "libpq-fe.h"
 
 //! JobQueueDatabase
 /*! It provides interfaces to talk to DBMS
@@ -39,8 +38,7 @@ public:
 
 	//! connect to DBMS
 	virtual QuillErrCode		connectDB() = 0;
-	//! connect to DBMS
-	virtual QuillErrCode		connectDB(const char* connect) = 0;
+
 	//! disconnect from DBMS
 	virtual QuillErrCode		disconnectDB() = 0;
 
@@ -61,8 +59,7 @@ public:
 
 
 	virtual QuillErrCode		execCommand(const char* sql, 
-											int &num_result,
-											int &db_err_code) = 0;
+											int &num_result) = 0;
 	//! execute a SQL query
 	virtual QuillErrCode		execQuery(const char* sql,
 										  int &num_result) = 0;
@@ -79,11 +76,6 @@ public:
 
 	//! get a DBMS error message
 	virtual char*	getDBError() = 0;
-
-	//! put bulk data into DBMS
-	virtual QuillErrCode		sendBulkData(char* data) = 0;
-	//! put an end flag for bulk loading
-	virtual QuillErrCode		sendBulkDataEnd() = 0;
 
 		//
 		// Job Queue DB processing methods

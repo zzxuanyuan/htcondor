@@ -31,12 +31,14 @@
 #include "CondorError.h"
 #include "condor_classad_util.h"
 
+#undef ATTR_VERSION
+#include "oracledatabase.h"
+
 #if WANT_QUILL
 
 #include "jobqueuesnapshot.h"
 
 static ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot  *jqSnapshot);
-static int execQuery(PGconn *connection, const char* sql, PGresult*& result);
 
 #endif /* WANT_QUILL */
 
@@ -433,13 +435,14 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 #if WANT_QUILL
 
-	PGconn        *connection;
-	char          *rowvalue;
-	PGresult	  *resultset;
+	JobQueueDatabase *DBObj;
+	const char          *rowvalue;
 	int           ntuples;
 	SQLQuery      sqlquery;
 
-	if ((connection = PQconnectdb(dbconn)) == NULL)
+	DBObj = new ORACLEDatabase(dbconn);
+
+	if (!DBObj || (DBObj->connectDB() == FAILURE))
 	{
 		fprintf(stderr, "\n-- Failed to connect to the database\n");
 		return;
@@ -450,7 +453,7 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 
 		sqlquery.setQuery(QUEUE_AVG_TIME, NULL);
 
-	   	ntuples = execQuery(connection, sqlquery.getQuery(), resultset);
+		DBObj->execQuery(sqlquery.getQuery(), ntuples);
 
 			/* we expect exact one row out of the query */
 		if (ntuples != 1) {
@@ -458,14 +461,15 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 			return;
 		}
 		
-		rowvalue = PQgetvalue(resultset, 0, 0);
+		rowvalue = DBObj -> getValue(0, 0);
 		if(strcmp(rowvalue,"") == 0) {
 			printf("\nJob queue is curently empty\n");
 		} else {
-			printf("\nAverage time in queue for uncompleted jobs (in hh:mm:ss)\n");
+			printf("\nAverage time in queue for uncompleted jobs (in days hh:mm:ss)\n");
 			printf("%s\n", rowvalue);		 
 		}
 		
+		DBObj -> releaseQueryResult();
 		break;
 	default:
 		fprintf(stderr, "Error: type of query not supported\n");
@@ -473,11 +477,8 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 		break;
 	}
 
-	if(resultset) {
-		PQclear(resultset);
-	}
-	if(connection) {
-		PQfinish(connection);
+	if(DBObj) {
+		delete DBObj;
 	}
 #endif /* WANT_QUILL */
 }
@@ -646,24 +647,6 @@ ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot	*jqSn
 	}
 
 	return (ClassAd *) 0;
-}
-
-/* When the query is successfully executed, result is set and return value
-   is >= 0, otherwise return value is -1
-*/
-static int execQuery(PGconn *connection, const char* sql, PGresult*& result)
-{
-	if ((result = PQexec(connection, sql)) == NULL) {
-		return -1; 
-	}
-	
-	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-		PQclear(result);
-		result = NULL;
-		return -1;
-	}
-
-	return PQntuples(result);			
 }
 
 #endif /* WANT_QUILL */
