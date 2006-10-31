@@ -94,7 +94,8 @@ one or more of these dedicated machines includes an identifying attribute.
 An example configuration file with the following various policy settings
 is \File{/etc/condor\_config.local.dedicated.resource}.
 
-Each dedicated machine identifies
+Each dedicated machine defines the configuration variable
+\Macro{DedicatedScheduler}, which identifies
 the dedicated scheduler it is managed by.
 The local configuration file for any dedicated resource contains
 a modified form of
@@ -241,7 +242,7 @@ parallel scheduling groups features supports jobs that must not
 cross group boundaries.
 Define a group by having each machine within a group
 set the configuration variable 
-\Macro{PARALLEL\_SCHEDULING\_GROUP} with a string that is a unique name for
+\Macro{ParallelSchedulingGroup} with a string that is a unique name for
 the group.
 The submit description file for a parallel universe job which
 must not cross group boundaries contains 

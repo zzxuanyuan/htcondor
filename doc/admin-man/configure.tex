@@ -2757,6 +2757,10 @@ Configuring The Startd Policy.
   To disable startup benchmarks, set \MacroNI{RunBenchmarks} to \Expr{False},
   or comment it out of the configuration file.
 
+\item[\Macro{DedicatedScheduler}] \label{param:DedicatedScheduler}
+  A string that identifies the dedicated scheduler.
+  See section~\ref{sec:Configure-Dedicated-Resource}
+  on page~\pageref{sec:Configure-Dedicated-Resource} for details.
 \end{description}
 
 These macros control if the \Condor{startd} daemon should perform
@@ -3907,6 +3911,14 @@ These macros control the \Condor{schedd}.
   and it represents a machine's preference for running a job.
   This configuration variable has no default;
   when not defined, preemption will never be considered.
+
+\item[\Macro{ParallelSchedulingGroup}]
+  \label{param:ParallelSchedulingGroup}
+  For parallel jobs which must be assigned within a group
+  of machines (and not cross group boundaries),
+  this configuration variable identifies members of a group. 
+  Each machine within a group sets this configuration variable with 
+  a string that identifies the group.
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
