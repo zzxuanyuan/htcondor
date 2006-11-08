@@ -4828,11 +4828,17 @@ Configuration File Macros}
  
 \begin{description}
 
-\item[\Macro{CREDD\_HOST}]
-\label{param:CreddHost} Description here.
+\item[\Macro{CREDD\_HOST}]\label{param:CreddHost}
+The host name of the machine running the \Condor{credd} daemon.
 
-\item[\Macro{CREDD\_CACHE\_LOCALLY}]
-\label{param:CreddCacheLocally} Description here.
+\item[\Macro{CREDD\_CACHE\_LOCALLY}]\label{param:CreddCacheLocally}
+A boolean value that defaults to \Expr{False}.
+When \Expr{True}, the first successful password fetch operation to the
+\Condor{credd} daemon causes the password to be stashed in a local, 
+secure password store.
+Subsequent uses of that password do not require
+communication with the \Condor{credd} daemon.
+
 \end{description}
 
 
