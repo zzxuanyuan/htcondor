@@ -2,10 +2,7 @@
 \subsection{\label{sec:CondorView-Client-Install}
 Installing the CondorView Client Contrib Module} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% We refer to the make_stats program often in this section; make a
-% macro for it.
-\newcommand{\MakeStats}{\Prog{make\_stats}}
+\index{CondorView!Client}
 
 The CondorView Client Contrib module is used to automatically generate
 World Wide Web pages to display usage statistics of a Condor
@@ -31,10 +28,10 @@ Condor View.
 \end{figure}
 
 After unpacking and installing the CondorView Client, a script named
-\MakeStats\ can be invoked to create HTML pages displaying Condor usage
+\Prog{make\_stats} can be invoked to create HTML pages displaying Condor usage
 for the past hour, day, week, or month.  
 By using the Unix \Prog{cron} facility to periodically execute
-\MakeStats, Condor pool usage statistics can be kept up to date
+\Prog{make\_stats}, Condor pool usage statistics can be kept up to date
 automatically.  
 This simple model allows the CondorView Client to be easily installed;
 no Web server CGI interface is needed.
@@ -45,7 +42,7 @@ Step-by-Step Installation of the CondorView Client}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \index{installation!CondorView Client}
-\index{CondorView Client!installation}
+\index{CondorView!Client installation}
 \begin{enumerate}
 
 \item Make certain that the CondorView Server is configured.
@@ -75,7 +72,7 @@ This directory is referred to as the \File{VIEWDIR} directory.
 directory \File{VIEWDIR}.
 This creates several files and subdirectories.
 
-\item Edit the \MakeStats script.  At the beginning of the file
+\item Edit the \Prog{make\_stats} script.  At the beginning of the file
 are six parameters to customize.
 The parameters are
 
@@ -93,7 +90,7 @@ The parameters are
 	\item[\Macro{VIEWDIR}] The full pathname
 	(\emph{not} a relative path) to the \File{VIEWDIR} directory set
 	by installation step 2.  
-	It is the directory that contains the \MakeStats\ script.
+	It is the directory that contains the \Prog{make\_stats} script.
 
 	\item[\Macro{STATSDIR}]  The full pathname of the
 	directory which contains the \Condor{stats} binary.
@@ -105,7 +102,7 @@ The parameters are
 	parameter by default; see below.  
 
 	\item[\Macro{PATH}] A list of subdirectories,
-	separated by colons, where the \MakeStats\ script can find
+	separated by colons, where the \Prog{make\_stats} script can find
 	the \Prog{awk}, \Prog{bc}, \Prog{sed}, \Prog{date}, and \Condor{stats}
 	programs.  
 	If \Prog{perl} is installed, the path should also
@@ -123,21 +120,21 @@ The parameters are
 \end{verbatim}
 Open the file \File{index.html} to verify that things look good.
 
-\index{Condor\_View!use of\Prog{crontab} program}
+\index{CondorView!use of \Prog{crontab} program}
 \index{crontab program}
 
-\item Add the \MakeStats\ program to \Prog{cron}.  
-Running \MakeStats\ in step 5 created a \File{cronentries} file.
+\item Add the \Prog{make\_stats} program to \Prog{cron}.  
+Running \Prog{make\_stats} in step 5 created a \File{cronentries} file.
 This \File{cronentries} file is ready to be processed by the Unix
 \Prog{crontab} command.
 The \Prog{crontab} manual page contains details about
 the \Prog{crontab} command and the \Prog{cron} daemon.
 Look at the
 \File{cronentries} file; by default, it will run 
-\Prog{\MakeStats\ hour} every 15 minutes, 
-\Prog{\MakeStats\ day} once an hour, 
-\Prog{\MakeStats\ week} twice per day, and 
-\Prog{\MakeStats\ month} once per day.
+\Prog{make\_stats} \Arg{hour} every 15 minutes, 
+\Prog{make\_stats} \Arg{day} once an hour, 
+\Prog{make\_stats} \Arg{week} twice per day, and 
+\Prog{make\_stats} \Arg{month} once per day.
 These are reasonable defaults.  
 You can add these commands to cron on any
 system that can access the \MacroUNI{VIEWDIR} and
@@ -157,4 +154,3 @@ and to complete the installation.
 
 \end{enumerate}
 
-\index{CondorView!installation|)}
