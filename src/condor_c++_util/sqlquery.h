@@ -23,7 +23,7 @@
 #ifndef __SQL_QUERY_H__
 #define __SQL_QUERY_H__
 
-#define MAX_QUERY_SIZE 1024
+#define MAX_QUERY_SIZE 2048
 
 //forward definition
 class JobQueueDatabase;

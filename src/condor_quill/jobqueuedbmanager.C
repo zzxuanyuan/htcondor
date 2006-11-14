@@ -29,7 +29,6 @@
 //for the ATTR_*** variables stuff
 #include "condor_attributes.h"
 
-#include "condor_io.h"
 #include "get_daemon_name.h"
 
 #include "jobqueuedbmanager.h"
@@ -38,10 +37,13 @@
 #include "prober.h"
 #include "classadlogparser.h"
 #include "jobqueuedatabase.h"
-#include "pgsqldatabase.h"
 #include "requestservice.h"
 #include "jobqueuecollection.h"
+//#include "pgsqldatabase.h"
 
+#undef ATTR_VERSION
+#include "oracledatabase.h"
+#include "condor_io.h"
 
 //! constructor
 JobQueueDBManager::JobQueueDBManager()
@@ -122,7 +124,7 @@ JobQueueDBManager::getWritePassword(char *write_passwd_fname) {
 void
 JobQueueDBManager::config(bool reconfig) 
 {
-	char *host, *port, *ptr_colon;
+	char *host=NULL, *port =NULL, *ptr_colon;
 	int len, tmp1, tmp2, tmp3;
 
 	if (param_boolean("QUILL_ENABLED", false) == false) {
@@ -165,9 +167,6 @@ JobQueueDBManager::config(bool reconfig)
 
 		strcpy(port, ptr_colon+1);
 	}
-	else {
-		EXCEPT("No QUILL_DB_IP_ADDR variable found in config file\n");
-	}
 
 		/* Here we read the database name and if one is not specified
 		   we except out
@@ -177,16 +176,13 @@ JobQueueDBManager::config(bool reconfig)
 		   unique database names is the responsibility of the administrator
 		*/
 	jobQueueDBName = param("QUILL_DB_NAME");
-	if(!jobQueueDBName) {
-		EXCEPT("No QUILL_DB_NAME variable found in config file\n");
-	}
 
 	char *writePasswordFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
 	sprintf(writePasswordFile, "%s/.quillwritepassword", spool);
 
 	char *writePassword = getWritePassword(writePasswordFile);
 
-	tmp1 = strlen(jobQueueDBName);
+	tmp1 = jobQueueDBName?strlen(jobQueueDBName):0;
 	tmp2 = strlen(writePassword);
 
 		//tmp3 is the size of dbconn - its size is estimated to be
@@ -198,9 +194,12 @@ JobQueueDBManager::config(bool reconfig)
 	jobQueueDBConn = (char *) malloc(tmp3 * sizeof(char));
 
 	sprintf(jobQueueDBConn, 
-			"host=%s port=%s user=quillwriter password=%s dbname=%s", 
-			host, port, writePassword, jobQueueDBName);
+		"host=%s port=%s user=quillwriter password=%s dbname=%s", 
+		host?host:"", port?port:"", 
+		writePassword?writePassword:"", 
+		jobQueueDBName?jobQueueDBName:"");
 
+	/*
 	if(param_boolean("QUILL_MANAGE_VACUUM",false) == TRUE) {
 		quillManageVacuum = true;
 
@@ -214,8 +213,10 @@ JobQueueDBManager::config(bool reconfig)
 		dprintf(D_ALWAYS, "QUILL_MANAGE_VACUUM can then be set to false\n\n");
 	}
 	else {
-		quillManageVacuum = false;
-	}
+	*/
+	// No need to do vacuum for oracle
+	quillManageVacuum = false;
+
 
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
@@ -308,7 +309,7 @@ JobQueueDBManager::config(bool reconfig)
 		prober = new Prober();
 		caLogParser = new ClassAdLogParser();
 
-		jqDatabase = new PGSQLDatabase(jobQueueDBConn);
+		jqDatabase = new ORACLEDatabase(jobQueueDBConn);
 		xactState = NOT_IN_XACT;
 		numTimesPolled = 0; 
 
@@ -319,7 +320,8 @@ JobQueueDBManager::config(bool reconfig)
 		//it should be done after constructing those objects
 	setJobQueueFileName(jobQueueLogFile);
 
-		// START version number sniffing code
+		// START version number sniffing code, not needed for oracle
+	/*
 	int pg_version_number=0;
 	if(connectDB(NOT_IN_XACT) == FAILURE) {
 		displayDBErrorMsg("Unable to connect to database in order to retrieve the PostgreSQL version --- ERROR");
@@ -340,6 +342,7 @@ JobQueueDBManager::config(bool reconfig)
 		}
 	}
 	disconnectDB(NOT_IN_XACT);
+	*/
 		// END version number sniffing code
 }
 
@@ -483,17 +486,17 @@ JobQueueDBManager::cleanupJobQueueTables()
 		// historical information is deleted based on user policy
 		// see QUILL_HISTORY_DURATION in the manual for more info
 	sprintf(sql_str[0], 
-			"DELETE FROM ClusterAds_Str;");
+			"DELETE FROM ClusterAds_Str");
 	sprintf(sql_str[1], 
-			"DELETE FROM ClusterAds_Num;");
+			"DELETE FROM ClusterAds_Num");
 	sprintf(sql_str[2], 
-			"DELETE FROM ProcAds_Str;");
+			"DELETE FROM ProcAds_Str");
 	sprintf(sql_str[3], 
-			"DELETE FROM ProcAds_Num;");
+			"DELETE FROM ProcAds_Num");
 	sprintf(sql_str[4], 
-			"DELETE FROM JobQueuePollingInfo;");
+			"DELETE FROM JobQueuePollingInfo");
 	sprintf(sql_str[5],
-			"INSERT INTO JobQueuePollingInfo (last_file_mtime, last_file_size,log_seq_num,log_creation_time) VALUES (0,0,0,0);");
+			"INSERT INTO JobQueuePollingInfo (last_file_mtime, last_file_size,log_seq_num,log_creation_time) VALUES (0,0,0,0)");
 
 	for (i = 0; i < sqlNum; i++) {
 		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
@@ -519,15 +522,15 @@ JobQueueDBManager::tuneupJobQueueTables()
 		// by vacuuming it, and as such we do this here.  
 		// vacuuming is asynchronous, but can get pretty expensive
 	sprintf(sql_str[0], 
-			"VACUUM ANALYZE Clusterads_Str;");
+			"ANALYZE TABLE Clusterads_Str COMPUTE STATISTICS");
 	sprintf(sql_str[1], 
-			"VACUUM ANALYZE Clusterads_Num;");
+			"ANALYZE TABLE Clusterads_Num COMPUTE STATISTICS");
 	sprintf(sql_str[2], 
-			"VACUUM ANALYZE Procads_Str;");
+			"ANALYZE TABLE Procads_Str COMPUTE STATISTICS");
 	sprintf(sql_str[3], 
-			"VACUUM ANALYZE Procads_Num;");
+			"ANALYZE TABLE Procads_Num COMPUTE STATISTICS");
 	sprintf(sql_str[4], 
-			"VACUUM ANALYZE Jobqueuepollinginfo;");
+			"ANALYZE TABLE Jobqueuepollinginfo COMPUTE STATISTICS");
 
 	for (i = 0; i < sqlNum; i++) {
 		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
@@ -556,11 +559,11 @@ JobQueueDBManager::purgeOldHistoryRows()
 	sprintf(sql_str[0],
 			"DELETE FROM History_Vertical WHERE cid IN (SELECT cid FROM "
 			"History_Horizontal WHERE \"EnteredHistoryTable\" < "
-			"timestamp with time zone 'now' - interval '%d days');", 
+			"current_timestamp - to_dsinterval('%d 00:00:00'))", 
 			purgeHistoryDuration);
 	sprintf(sql_str[1],
 			"DELETE FROM History_Horizontal WHERE \"EnteredHistoryTable\" < "
-			"timestamp with time zone 'now' - interval '%d days';", 
+			"current_timestamp - to_dsinterval('%d 00:00:00')", 
 			purgeHistoryDuration);
 
 		// When a record is deleted, postgres only marks it
@@ -568,9 +571,9 @@ JobQueueDBManager::purgeOldHistoryRows()
 		// by vacuuming it, and as such we do this here.  
 		// vacuuming is asynchronous, but can get pretty expensive
 	sprintf(sql_str[2], 
-			"VACUUM ANALYZE History_Horizontal;");
+			"ANALYZE TABLE History_Horizontal COMPUTE STATISTICS");
 	sprintf(sql_str[3], 
-			"VACUUM ANALYZE History_Vertical;");
+			"ANALYZE TABLE History_Vertical COMPUTE STATISTICS");
 
 		// the delete commands are wrapped inside a transaction.  We 
 		// dont want to have stuff deleted from the horizontal but not 
@@ -619,7 +622,7 @@ QuillErrCode
 JobQueueDBManager::connectDB(XactState Xact)
 {
 	int st = 0;
-	st = jqDatabase->connectDB(jobQueueDBConn);
+	st = jqDatabase->connectDB();
 	if (st == FAILURE) { // connect to DB
 		isConnectedToDB = false;		
 		return FAILURE;
@@ -682,148 +685,29 @@ JobQueueDBManager::buildJobQueue(JobQueueCollection *jobQueue)
 QuillErrCode
 JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 {
-	char* 	ret_str;
-	char*   ret_str2;
-	char	sql_str[256];
-	bool 	bFirst = true;
+	QuillErrCode errStatus;
 
 		//
-		// Make a COPY SQL string and load it into ClusterAds_Str table
+		// load cluster ads into ClusterAds_Str and 
+		// ClusterAds_Num tables
 		//
 	jobQueue->initAllJobAdsIteration();
 
-	while((ret_str = jobQueue->getNextClusterAd_StrCopyStr()) != NULL) {
-
-		if ((bFirst == true)&& (ret_str != NULL)) {			
-			// we need to issue the COPY command first
-			sprintf(sql_str, "COPY ClusterAds_Str FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
-				displayDBErrorMsg("COPY ClusterAds_Str --- ERROR");
-				return FAILURE; // return a error code, 0
-			}
-	    
-			bFirst = false;
-		}
-	  
-		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
-				return FAILURE;
-			}
-		}
-	  
+	while(jobQueue->loadNextClusterAd(errStatus)) {
+		if (errStatus == FAILURE) 
+			return errStatus;
 	}
 	
-	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
-			return FAILURE;
-		}
-	  
-		bFirst = true;
-	}	
-	
 		//
-		// Make a COPY SQL string and load it into ClusterAds_Num table
+		// load Proc Ads into ProcAds_Str and 
+		// ProcAds_Num tables
 		//
 	jobQueue->initAllJobAdsIteration();
-	while((ret_str = jobQueue->getNextClusterAd_NumCopyStr()) != NULL) {
-	  		
-		if ((bFirst == true)&& (ret_str != NULL)) {			
-			sprintf(sql_str, "COPY ClusterAds_Num FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
-				displayDBErrorMsg("COPY ClusterAds_Num --- ERROR");
-				return FAILURE; // return a error code, 0
-			}
-	    
-			bFirst = false;
-		}
-	  
-		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
-				return FAILURE;
-			}	
-		}		
-	  
+	while(jobQueue->loadNextProcAd(errStatus)) {
+		if (errStatus == FAILURE) 
+			return errStatus;
 	}
 	
-	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
-			return FAILURE;
-		}
-	  	  
-		bFirst = true;
-	}
-	
-	
-	
-	
-	
-		//
-		// Make a COPY sql string and load it into ProcAds_Str table
-		//
-	jobQueue->initAllJobAdsIteration();
-	while((ret_str = jobQueue->getNextProcAd_StrCopyStr()) != NULL) {
-		if ((bFirst == true)&& (ret_str != NULL)) {			
-			sprintf(sql_str, "COPY ProcAds_Str FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
-				displayDBErrorMsg("COPY ProcAds_Str --- ERROR");
-				return FAILURE; 
-			}
-			
-			bFirst = false;
-		}
-	  
-	  
-		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
-				return FAILURE;
-			}
-		}
-	  
-	}
-	
-	if (bFirst == false) {
-	  
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
-			return FAILURE;
-		}
-	  	  
-		bFirst = true;
-	}
-	
-	
-		//
-		// Make a COPY sql string and load it into ProcAds_Num table
-		//
-	jobQueue->initAllJobAdsIteration();
-	while((ret_str = jobQueue->getNextProcAd_NumCopyStr()) != NULL) {
-		if ((bFirst == true)&& (ret_str != NULL)) {			
-			sprintf(sql_str, "COPY ProcAds_Num FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
-				displayDBErrorMsg("COPY ProcAds_Num --- ERROR");
-				return FAILURE; 
-			}
-	    
-			bFirst = false;
-		}
-	  
-		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
-				return FAILURE;
-			}
-		}
-	  
-	}
-	
-	
-	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
-			return FAILURE;
-		}
-	  
-		bFirst = true;
-	}
-	
-
 		/*
 		  Make the SQL strings for both history_horizontal and 
 		  vertical and execute them.  Our technique of bulk loading
@@ -838,35 +722,27 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		  inserted into the history tables.
 		*/		
 
-	int st1=0, st2=0;
-	ret_str = ret_str2 = NULL;
 	jobQueue->initAllHistoryAdsIteration();
-	st1 = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
+	while (jobQueue->loadNextHistoryAd(errStatus)) {
+		/*
+		  We dont check on errors as:
+		  1) If there are connection errors, they'll get 
+		  resolved below anyway and 
+		  2) There can be integrity issues (duplicate key
+		  error).  This comes up frequently as stuff
+		  stays in history for long periods of time
+		  So our semantics here is ignore the error and
+		  move on to the next command in the job_queue.log
 
-	while(st1 > 0 &&  ret_str != NULL) {
-			/*  st2 is not used anywhere below this.  
-				We dont check on errors as:
-				1) If there are connection errors, they'll get 
-				resolved below anyway and 
-				2) There can be integrity issues (duplicate key
-				error).  This comes up frequently as stuff
-				stays in history for long periods of time
-				So our semantics here is ignore the error and
-				move on to the next command in the job_queue.log
-			*/
-		st2 = jqDatabase->execCommand(ret_str);
-		st2 = jqDatabase->execCommand(ret_str2);
-
-			//these need to be nullified as the next routine expects
-			//them to be so.  This is not a memory leak since these 
-			//arguments are passed by reference and their actual 
-			//locations are members of the JobQueueCollection class
-			//and as such will be freed by it.
-		ret_str = ret_str2 = NULL;
-		st1 = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
-
+		  [I don't think the above is the right solution. We 
+		  should always report datbase errors because we 
+		  don't always know what they are. The integrity
+		  violation should be resolved by either avoiding 
+		  inserting duplicate rows or remove primary key 
+		  to avoid such violations - jhuang 08/11/2006]
+		*/
+		;
 	}
-	
 	return SUCCESS;
 }
 
@@ -883,6 +759,8 @@ JobQueueDBManager::buildAndWriteJobQueue()
 		//although the array is of fixed size=2000, the ever-growing
 		//linked lists can accomodate any number of jobs
 	JobQueueCollection *jobQueue = new JobQueueCollection(2000);
+
+	jobQueue->setDBObj(jqDatabase);
 
 		//  start of first phase of bulkloading
 
@@ -1063,6 +941,7 @@ JobQueueDBManager::addJobQueueTables()
 			//quill has been up for 12 hours
 		if (quillManageVacuum && 
 			(numTimesPolled++ * pollingPeriod) > (60 * 60 * 12)) {
+		  /*
 			dprintf(D_ALWAYS, "WARNING: You have chosen Quill to perform vacuuming\n");
 			dprintf(D_ALWAYS, "Currently, Quill's vacuum calls are synchronous.\n");
 			dprintf(D_ALWAYS, "Vacuum calls may take a long time to execute and in\n");
@@ -1071,6 +950,7 @@ JobQueueDBManager::addJobQueueTables()
 			dprintf(D_ALWAYS, "recommend the user to upgrade to postgresql's version 8.1\n");
 			dprintf(D_ALWAYS, "which manages all vacuuming tasks automatically.\n");
 			dprintf(D_ALWAYS, "QUILL_MANAGE_VACUUM can then be set to false\n\n");
+		  */
 			tuneupJobQueueTables();
 			numTimesPolled = 0;
 		}
@@ -1381,7 +1261,7 @@ void
 JobQueueDBManager::displayDBErrorMsg(const char* errmsg)
 {
 	dprintf(D_ALWAYS, "[QUILL] %s\n", errmsg);
-	dprintf(D_ALWAYS, "\t%s\n", jqDatabase->getDBError());
+	//dprintf(D_ALWAYS, "\t%s\n", jqDatabase->getDBError());
 }
 
 /*! separate a key into Cluster Id and Proc Id 
@@ -1450,6 +1330,7 @@ JobQueueDBManager::processNewClassAd(char* key,
 		//fits in a MAX_FIXED_SQL_STR_LENGTH buffer
 	char sql_str1[MAX_FIXED_SQL_STR_LENGTH];
 	char sql_str2[MAX_FIXED_SQL_STR_LENGTH];
+	char sql_str3[MAX_FIXED_SQL_STR_LENGTH];
 	char cid[512];
 	char pid[512];
 	int  job_id_type;
@@ -1461,28 +1342,33 @@ JobQueueDBManager::processNewClassAd(char* key,
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
 		sprintf(sql_str1, 
-				"DELETE From ClusterAds_Str where cid=%s;"
-				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
-				"(%s, 'MyType', '\"%s\"');", 
-				cid, cid, mytype);
-
+			"DELETE From ClusterAds_Str where cid=%s",
+			cid);
 		sprintf(sql_str2, 
-				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
-				"(%s, 'TargetType', '\"%s\"');", 
-				cid, ttype);
+			"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
+			"(%s, 'MyType', '\"%s\"')", 
+			cid, mytype);
+
+		sprintf(sql_str3, 
+			"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
+			"(%s, 'TargetType', '\"%s\"')", 
+			cid, ttype);
 
 		break;
 	case IS_PROC_ID:
 		sprintf(sql_str1, 
-				"DELETE From ProcAds_Str where cid=%s and pid=%s;"
-				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
-				"(%s, %s, 'MyType', '\"Job\"');", 
-				cid, pid, cid, pid);
-
+			"DELETE From ProcAds_Str where cid=%s and pid=%s",
+			cid, pid);
+		
 		sprintf(sql_str2, 
-				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
-				"(%s, %s, 'TargetType', '\"Machine\"');", 
-				cid, pid);
+			"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
+			"(%s, %s, 'MyType', '\"Job\"')",
+			cid, pid);
+
+		sprintf(sql_str3, 
+			"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
+			"(%s, %s, 'TargetType', '\"Machine\"')", 
+			cid, pid);
 
 		break;
 	case IS_UNKNOWN_ID:
@@ -1491,36 +1377,18 @@ JobQueueDBManager::processNewClassAd(char* key,
 		break;
 	}
 
-
-	if (exec_later == false) { // execute them now
-		if (jqDatabase->execCommand(sql_str1) == FAILURE) {
-			displayDBErrorMsg("New ClassAd Processing --- ERROR");
-			return FAILURE; 
-		}
-		if (jqDatabase->execCommand(sql_str2) == FAILURE) {
-			displayDBErrorMsg("New ClassAd Processing --- ERROR");
-			return FAILURE; 
-		}
+	if (jqDatabase->execCommand(sql_str1) == FAILURE) {
+	  displayDBErrorMsg("New ClassAd Processing --- ERROR");
+	  return FAILURE; 
 	}
-	else {
-		if (multi_sql_str != NULL) { // append them to a SQL buffer
-			multi_sql_str = (char*)realloc(multi_sql_str, 
-										   strlen(multi_sql_str) + 
-										   strlen(sql_str1) + 
-										   strlen(sql_str2) + 1);
-			if(!multi_sql_str) {
-				EXCEPT("Call to realloc failed\n");
-			}
-
-			strcat(multi_sql_str, sql_str1);
-			strcat(multi_sql_str, sql_str2);
-		}
-		else {
-			multi_sql_str = (char*)malloc(strlen(sql_str1) + 
-										  strlen(sql_str2) + 1);
-			sprintf(multi_sql_str,"%s%s", sql_str1, sql_str2);
-		}
-	}		
+	if (jqDatabase->execCommand(sql_str2) == FAILURE) {
+	  displayDBErrorMsg("New ClassAd Processing --- ERROR");
+	  return FAILURE; 
+	}
+	if (jqDatabase->execCommand(sql_str3) == FAILURE) {
+	  displayDBErrorMsg("New ClassAd Processing --- ERROR");
+	  return FAILURE;
+	}
 
 	return SUCCESS;
 }
@@ -1574,10 +1442,10 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:	// ClusterAds
 		sprintf(sql_str1, 
-				"DELETE FROM ClusterAds_Str WHERE cid = %s;", cid);
+				"DELETE FROM ClusterAds_Str WHERE cid = %s", cid);
     
 		sprintf(sql_str2, 
-				"DELETE FROM ClusterAds_Num WHERE cid = %s;", cid);
+				"DELETE FROM ClusterAds_Num WHERE cid = %s", cid);
 		break;
     case IS_PROC_ID:
 
@@ -1600,10 +1468,10 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 				"UNION ALL "
 				"SELECT cid,%s,attr,val FROM ClusterAds WHERE cid=%s "
 				"AND attr NOT IN (SELECT attr FROM ProcAds WHERE cid =%s "
-				"AND pid =%s)) AS T WHERE attr NOT IN "
+				"AND pid =%s)) T WHERE attr NOT IN "
 				"('ClusterId','ProcId','Owner','QDate','RemoteWallClockTime',"
 				"'RemoteUserCpu','RemoteSysCpu','ImageSize','JobStatus',"
-				"'JobPrio','Cmd','CompletionDate','LastRemoteHost');"
+				"'JobPrio','Cmd','CompletionDate','LastRemoteHost')"
 				,cid,pid,pid,cid,cid,pid); 
 
 
@@ -1628,7 +1496,7 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 				"\"RemoteWallClockTime\",\"RemoteUserCpu\",\"RemoteSysCpu\","
 				"\"ImageSize\",\"JobStatus\",\"JobPrio\",\"Cmd\","
 				"\"CompletionDate\",\"LastRemoteHost\") "
-				"SELECT %s,%s, 'now', "
+				"SELECT %s,%s, current_timestamp, "
 				"max(CASE WHEN attr='Owner' THEN val ELSE NULL END), "
 				"max(CASE WHEN attr='QDate' THEN "
 				     "cast(val as integer) ELSE NULL END), "
@@ -1653,8 +1521,8 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 				"UNION ALL "
 				"SELECT cid,%s,attr,val FROM ClusterAds "
 				"WHERE cid=%s AND attr NOT IN "
-				"(SELECT attr FROM procads WHERE cid =%s AND pid =%s)) as T "
-				"GROUP BY cid,pid;"
+				"(SELECT attr FROM procads WHERE cid =%s AND pid =%s)) T "
+				"GROUP BY cid,pid"
 				,cid,pid,cid,pid,pid,cid,cid,pid); 
 
 		inserthistory = true;
@@ -1662,11 +1530,11 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 			//now that we've inserted rows into history, we can safely 
 			//delete them from the procads tables
 		sprintf(sql_str1, 
-				"DELETE FROM ProcAds_Str WHERE cid = %s AND pid = %s;", 
+				"DELETE FROM ProcAds_Str WHERE cid = %s AND pid = %s", 
 				cid, pid);
     
 		sprintf(sql_str2, 
-				"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s;", 
+				"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s", 
 				cid, pid);
 		break;
 	case IS_UNKNOWN_ID:
@@ -1675,72 +1543,51 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 		break;
 	}
   
-	if (exec_later == false) {
-
-		if(inserthistory) { 
-			/*  
-				we can't afford to ignore the return values st1 and st2
-				because in rare cases, we may be in the midst of a 
-				xact and if either of these return values are FAILURE, 
-				we'd throw errors ad infinitum. Usually these failures 
-				are caused by integrity violations caused when trying
-				to insert jobs in the history tables when on with the 
-				same id already exists (possibly from a previous instance 
-				of quill). Our reaction to such failures, as implemented 
-				below is to roll back the erroneous transaction and 
-				proceed with processing the job queue file
-			*/
-			st1 = jqDatabase->execCommand(sql_str3);
-			if(st1 == FAILURE && xactState == BEGIN_XACT) {
-				st3 = jqDatabase->rollbackTransaction();
-				if(st3 == FAILURE) {
-					return FAILURE;
-				}
-			}
-			st2 = jqDatabase->execCommand(sql_str4);
-			if(st2 == FAILURE && xactState == BEGIN_XACT) {
-				st3 = jqDatabase->rollbackTransaction();
-				if(st3 == FAILURE) {
-					return FAILURE;
-				}
-			}
-			if((xactState == BEGIN_XACT) && 
-			   (st1 == FAILURE || st2 == FAILURE)) {
-				st3 = processBeginTransaction();
-				if(st3 == FAILURE) {
-					return FAILURE;
-				}
-			}
-		}
-
-		if (jqDatabase->execCommand(sql_str1) == FAILURE) {
-			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return FAILURE; 
-		}
-		if (jqDatabase->execCommand(sql_str2) == FAILURE) {
-			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return FAILURE; 
-		}
+	if(inserthistory) { 
+	  /*  
+	      we can't afford to ignore the return values st1 and st2
+	      because in rare cases, we may be in the midst of a 
+	      xact and if either of these return values are FAILURE, 
+	      we'd throw errors ad infinitum. Usually these failures 
+	      are caused by integrity violations caused when trying
+	      to insert jobs in the history tables when on with the 
+	      same id already exists (possibly from a previous instance 
+	      of quill). Our reaction to such failures, as implemented 
+	      below is to roll back the erroneous transaction and 
+	      proceed with processing the job queue file
+	  */
+	  st1 = jqDatabase->execCommand(sql_str3);
+	  if(st1 == FAILURE && xactState == BEGIN_XACT) {
+	    st3 = jqDatabase->rollbackTransaction();
+	    if(st3 == FAILURE) {
+	      return FAILURE;
+	    }
+	  }
+	  st2 = jqDatabase->execCommand(sql_str4);
+	  if(st2 == FAILURE && xactState == BEGIN_XACT) {
+	    st3 = jqDatabase->rollbackTransaction();
+	    if(st3 == FAILURE) {
+	      return FAILURE;
+	    }
+	  }
+	  if((xactState == BEGIN_XACT) && 
+	     (st1 == FAILURE || st2 == FAILURE)) {
+	    st3 = processBeginTransaction();
+	    if(st3 == FAILURE) {
+	      return FAILURE;
+	    }
+	  }
 	}
-	else {
-		if (multi_sql_str != NULL) {
-			multi_sql_str = (char*)realloc(multi_sql_str, 
-										   strlen(multi_sql_str) + 
-										   strlen(sql_str1) + 
-										   strlen(sql_str2) + 1);
-			if(!multi_sql_str) {
-				EXCEPT("Call to realloc failed\n");
-			}
-			strcat(multi_sql_str, sql_str1);
-			strcat(multi_sql_str, sql_str2);
-		}
-		else {
-			multi_sql_str = (char*)malloc(strlen(sql_str1) + 
-										  strlen(sql_str2) + 1);
-			sprintf(multi_sql_str, "%s%s", sql_str1, sql_str2);
-		}
+
+	if (jqDatabase->execCommand(sql_str1) == FAILURE) {
+	  displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
+	  return FAILURE; 
 	}
-  
+	if (jqDatabase->execCommand(sql_str2) == FAILURE) {
+	  displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
+	  return FAILURE; 
+	}
+
 	return SUCCESS;
 }
 
@@ -1762,7 +1609,9 @@ JobQueueDBManager::processSetAttribute(char* key,
 									   char* value, 
 									   bool exec_later)
 {
-	char* sql_str_del_in;
+        char* sql_str_del_in;
+        char* sql_str_del_in2;
+        char* sql_str_del_in3;
 
 	char  cid[512];
 	char  pid[512];
@@ -1780,72 +1629,113 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 	int sql_str_len = 2 * strlen(name) + (strlen(newvalue) + MAX_FIXED_SQL_STR_LENGTH);
 	sql_str_del_in = (char *) malloc(sql_str_len * sizeof(char));
+        sql_str_del_in2 = (char *) malloc(sql_str_len * sizeof(char));
+        sql_str_del_in3 = (char *) malloc(sql_str_len * sizeof(char));
+
 	memset(sql_str_del_in, 0, sql_str_len);
-	
+	memset(sql_str_del_in2, 0, sql_str_len);
+	memset(sql_str_del_in3, 0, sql_str_len);
+
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
-		if(value == endptr) {
-			sprintf(sql_str_del_in,
-					"DELETE FROM ClusterAds_Str WHERE cid = %s "
-					"AND attr = '%s'; INSERT INTO ClusterAds_Str "
-					"(cid, attr, val) VALUES (%s, '%s', '%s');",
-					cid, name, cid, name, newvalue);
-		}         
+	  if(value == endptr) {
+	    sprintf(sql_str_del_in,
+		    "DELETE FROM ClusterAds_Str WHERE cid = %s "
+		    "AND attr = '%s'",
+		    cid, name);
+            sprintf(sql_str_del_in2,
+                    "INSERT INTO ClusterAds_Str "
+                    "(cid, attr, val) VALUES (%s, '%s', '%s')",
+                    cid, name, newvalue);
+	    free(sql_str_del_in3);
+	    sql_str_del_in3 = NULL;
+	  }         
+	  else {
+	    if(*endptr != '\0') {  
+	      sprintf(sql_str_del_in,
+		      "DELETE FROM ClusterAds_Str WHERE cid = %s "
+		      "AND attr = '%s'",
+		      cid, name);
+              sprintf(sql_str_del_in2,
+                      "INSERT INTO ClusterAds_Str "
+                      "(cid, attr, val) VALUES (%s, '%s', '%s')",
+                      cid, name, newvalue);
+	      free(sql_str_del_in3);
+	      sql_str_del_in3 = NULL;
+
+	    }
+	    else {
+	      sprintf(sql_str_del_in,
+		      "DELETE FROM ClusterAds_Num WHERE cid = %s "
+		      "AND attr = '%s'",
+		      cid, name);
+              sprintf(sql_str_del_in2,
+                      "INSERT INTO ClusterAds_Num "
+                      "(cid, attr, val) VALUES (%s, '%s', %s)",
+                      cid, name, value);
+	      free(sql_str_del_in3);
+	      sql_str_del_in3 = NULL;
+	    }
+	  }         
 		
-		else {
-			if(*endptr != '\0') {  
-				sprintf(sql_str_del_in,
-						"DELETE FROM ClusterAds_Str WHERE cid = %s "
-						"AND attr = '%s'; INSERT INTO ClusterAds_Str "
-						"(cid, attr, val) VALUES (%s, '%s', '%s');",
-						cid, name, cid, name, newvalue);
-			}
-			else {
-				sprintf(sql_str_del_in,
-						"DELETE FROM ClusterAds_Num WHERE cid = %s "
-						"AND attr = '%s'; INSERT INTO ClusterAds_Num "
-						"(cid, attr, val) VALUES (%s, '%s', %s);",
-						cid, name, cid, name, value);
-			}
-		}         
-		
-		break;
+	  break;
 		
 	case IS_PROC_ID:
-		if(value == endptr) {
-			sprintf(sql_str_del_in,
-					"DELETE FROM ProcAds_Str WHERE cid = %s AND "
-					"pid = %s AND attr = '%s'; "
-					"DELETE FROM ProcAds_Num WHERE cid = %s AND "
-					"pid = %s AND attr = '%s'; "
-					"INSERT INTO ProcAds_Str"
-					"(cid, pid, attr, val) VALUES (%s, %s, '%s', '%s');",
-					cid, pid, name, cid, pid, name, cid, pid, name, newvalue);
-		}
+	  if(value == endptr) {
+	    sprintf(sql_str_del_in,
+		    "DELETE FROM ProcAds_Str WHERE cid = %s AND "
+		    "pid = %s AND attr = '%s'",
+		    cid, pid, name);
+
+            sprintf(sql_str_del_in2,
+                    "DELETE FROM ProcAds_Num WHERE cid = %s AND "
+                    "pid = %s AND attr = '%s'",
+                    cid, pid, name);
+
+            sprintf(sql_str_del_in3,
+                    "INSERT INTO ProcAds_Str"
+                    "(cid, pid, attr, val) VALUES (%s, %s, '%s', '%s')",
+                    cid, pid, name, newvalue);
+
+	  }
 		
-		else {
-			if(*endptr != '\0') {
-				sprintf(sql_str_del_in,
-						"DELETE FROM ProcAds_Str WHERE cid = %s AND "
-						"pid = %s AND attr = '%s'; "
-						"DELETE FROM ProcAds_Num WHERE cid = %s AND "
-						"pid = %s AND attr = '%s'; "
-						"INSERT INTO ProcAds_Str"
-						"(cid, pid, attr, val) VALUES (%s, %s, '%s', '%s');",
-						cid, pid, name, cid, pid, name, cid, pid, name, newvalue);
-			}
-			else {
-				sprintf(sql_str_del_in,
-						"DELETE FROM ProcAds_Num WHERE cid = %s AND "
-						"pid = %s AND attr = '%s'; "
-						"DELETE FROM ProcAds_Str WHERE cid = %s AND "
-						"pid = %s AND attr = '%s'; "
-						"INSERT INTO ProcAds_Num"
-						"(cid, pid, attr, val) VALUES (%s, %s, '%s', %s);",
-						cid, pid, name, cid, pid, name, cid, pid, name, value);
-			}
-		}
-		break;    
+	  else {
+	    if(*endptr != '\0') {
+	      sprintf(sql_str_del_in,
+		      "DELETE FROM ProcAds_Str WHERE cid = %s AND "
+		      "pid = %s AND attr = '%s'", 
+		      cid, pid, name);
+
+              sprintf(sql_str_del_in2,
+                      "DELETE FROM ProcAds_Num WHERE cid = %s AND "
+                      "pid = %s AND attr = '%s'",
+                      cid, pid, name);
+
+              sprintf(sql_str_del_in3,
+                      "INSERT INTO ProcAds_Str"
+                      "(cid, pid, attr, val) VALUES (%s, %s, '%s', '%s')",
+                      cid, pid, name, newvalue);
+
+	    }
+	    else {
+	      sprintf(sql_str_del_in,
+		      "DELETE FROM ProcAds_Num WHERE cid = %s AND "
+		      "pid = %s AND attr = '%s'",
+		      cid, pid, name);
+
+              sprintf(sql_str_del_in2,
+                      "DELETE FROM ProcAds_Str WHERE cid = %s AND "
+                      "pid = %s AND attr = '%s'",
+                      cid, pid, name);
+
+              sprintf(sql_str_del_in3,
+                      "INSERT INTO ProcAds_Num"
+                      "(cid, pid, attr, val) VALUES (%s, %s, '%s', %s)",
+                      cid, pid, name, value);
+
+	    }
+	  }
+	  break;    
 		
 	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "Set Attribute Processing --- ERROR\n");
@@ -1853,6 +1743,14 @@ JobQueueDBManager::processSetAttribute(char* key,
 			free(sql_str_del_in);
 			sql_str_del_in = NULL;
 		}
+                if(sql_str_del_in2) {
+		  free(sql_str_del_in2);
+		  sql_str_del_in2 = NULL;
+                }
+                if(sql_str_del_in3) {
+		  free(sql_str_del_in3);
+		  sql_str_del_in3 = NULL;
+                }
 		if(newvalue) {
 			free(newvalue);
 			newvalue = NULL;
@@ -1861,54 +1759,85 @@ JobQueueDBManager::processSetAttribute(char* key,
 		break;
 	}
   
+	if(newvalue) {
+	  free(newvalue);
+	  newvalue = NULL;
+	}
+	
 	QuillErrCode ret_st;
 
-	if (exec_later == false) {
-		ret_st = jqDatabase->execCommand(sql_str_del_in);
+	ret_st = jqDatabase->execCommand(sql_str_del_in);
 
-		if (ret_st == FAILURE) {
-			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
-					sql_str_del_in);
-			displayDBErrorMsg("Set Attribute --- ERROR");     
- 			if(sql_str_del_in) {
-				free(sql_str_del_in);
-				sql_str_del_in = NULL;
-			}
-			if(newvalue) {
-				free(newvalue);
-				newvalue = NULL;
-			}
-			return FAILURE;
-		}
+	if (ret_st == FAILURE) {
+	  dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
+		  sql_str_del_in);
+	  displayDBErrorMsg("Set Attribute --- ERROR");     
+	  if(sql_str_del_in) {
+	    free(sql_str_del_in);
+	    sql_str_del_in = NULL;
+	  }
+          if(sql_str_del_in2) {
+            free(sql_str_del_in2);
+            sql_str_del_in2 = NULL;
+          }
+          if(sql_str_del_in3) {
+            free(sql_str_del_in3);
+            sql_str_del_in3 = NULL;
+          }
+
+	  return FAILURE;
 	}
-	else {
-		if (multi_sql_str != NULL) {
-				// NOTE:
-				// this case is not trivial 
-				// because there could be multiple insert
-				// statements.
-			multi_sql_str = (char*)realloc(multi_sql_str, 
-										   strlen(multi_sql_str) + 
-										   strlen(sql_str_del_in) + 1);
-			if(!multi_sql_str) {
-				EXCEPT("Call to realloc failed\n");
-			}
-			strcat(multi_sql_str, sql_str_del_in);
-		}
-		else {
-			multi_sql_str = (char*)malloc(strlen(sql_str_del_in) + 1);
-			strcpy(multi_sql_str, sql_str_del_in);
-		}    
-	}
-  
-	if(newvalue) {
-		free(newvalue);
-		newvalue = NULL;
-	}
+
 	if(sql_str_del_in) {
-		free(sql_str_del_in);
-		sql_str_del_in = NULL;
+	  free(sql_str_del_in);
+	  sql_str_del_in = NULL;
 	}
+
+        ret_st = jqDatabase->execCommand(sql_str_del_in2);
+
+        if (ret_st == FAILURE) {
+          dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n",
+                  sql_str_del_in2);
+          displayDBErrorMsg("Set Attribute --- ERROR");
+          if(sql_str_del_in2) {
+            free(sql_str_del_in2);
+            sql_str_del_in2 = NULL;
+          }
+          if(sql_str_del_in3) {
+            free(sql_str_del_in3);
+            sql_str_del_in3 = NULL;
+          }
+
+          return FAILURE;
+        }
+
+	if(sql_str_del_in2) {
+	  free(sql_str_del_in2);
+	  sql_str_del_in2 = NULL;
+	}
+
+	if (sql_str_del_in3) {
+	  ret_st = jqDatabase->execCommand(sql_str_del_in3);
+
+	  if (ret_st == FAILURE) {
+	    dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n",
+		    sql_str_del_in3);
+	    displayDBErrorMsg("Set Attribute --- ERROR");
+
+	    if(sql_str_del_in3) {
+	      free(sql_str_del_in3);
+	      sql_str_del_in3 = NULL;
+	    }
+
+	    return FAILURE;
+	  }
+
+	  if(sql_str_del_in3) {
+	    free(sql_str_del_in3);
+	    sql_str_del_in3 = NULL;
+	  }
+	}
+
 	return SUCCESS;
 }
 
@@ -1930,7 +1859,7 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 	char pid[512];
 	int  job_id_type;
 	QuillErrCode	 ret_st;
-	int num_result=0, db_err_code=0;
+	int num_result=0;
 
 	memset(sql_str1, 0, MAX_FIXED_SQL_STR_LENGTH);
 	memset(sql_str2, 0, MAX_FIXED_SQL_STR_LENGTH);
@@ -1942,21 +1871,21 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
 		sprintf(sql_str1, 
-				"DELETE FROM ClusterAds_Str WHERE cid = %s AND attr = '%s';", 
+				"DELETE FROM ClusterAds_Str WHERE cid = %s AND attr = '%s'", 
 				cid, name);
 		sprintf(sql_str2, 
-				"DELETE FROM ClusterAds_Num WHERE cid = %s AND attr = '%s';", 
+				"DELETE FROM ClusterAds_Num WHERE cid = %s AND attr = '%s'", 
 				cid, name);
 
 		break;
 	case IS_PROC_ID:
 		sprintf(sql_str1, 
 				"DELETE FROM ProcAds_Str WHERE cid = %s AND pid = %s "
-				"AND attr = '%s';", 
+				"AND attr = '%s'", 
 				cid, pid, name);
 		sprintf(sql_str2, 
 				"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s AND "
-				"attr = '%s';", 
+				"attr = '%s'", 
 				cid, pid, name);
 
 		break;
@@ -1966,46 +1895,26 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 		break;
 	}
 
-	if (sql_str1 != NULL && sql_str2 != NULL) {
-		if (exec_later == false) {
-			ret_st = jqDatabase->execCommand(sql_str1, num_result, db_err_code);
+	ret_st = jqDatabase->execCommand(sql_str1, num_result);
 		
-			if (ret_st == FAILURE) {
-				dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n", 
-						sql_str1);
-				displayDBErrorMsg("Delete Attribute --- ERROR");
-				return FAILURE;
-			}
-			else if (ret_st == SUCCESS && num_result == 0) {
-				ret_st = jqDatabase->execCommand(sql_str2);
+	if (ret_st == FAILURE) {
+	  dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n", 
+		  sql_str1);
+	  displayDBErrorMsg("Delete Attribute --- ERROR");
+	  return FAILURE;
+	}
+	else if (ret_st == SUCCESS && num_result == 0) {
+	  /* the attr can only be in one table, therefore only exec
+	     the second command if the prev affects 0 rows
+	  */
+	  ret_st = jqDatabase->execCommand(sql_str2);
 			
-				if (ret_st == FAILURE) {
-					dprintf(D_ALWAYS, "Delete Attribute --- ERROR [SQL] %s\n",
-							sql_str2);
-					displayDBErrorMsg("Delete Attribute --- ERROR");
-					return FAILURE;
-				}
-			}
-		}
-		else {
-			if (multi_sql_str != NULL) {
-				multi_sql_str = (char*)realloc(multi_sql_str, 
-											   strlen(multi_sql_str) + 
-											   strlen(sql_str1) + 
-											   strlen(sql_str2) + 1);
-				if(!multi_sql_str) {
-					EXCEPT("Call to realloc failed\n");
-				}
-
-				strcat(multi_sql_str, sql_str1);
-				strcat(multi_sql_str, sql_str2);
-			}
-			else {
-				multi_sql_str = (char*)malloc(strlen(sql_str1) + 
-											  strlen(sql_str2) + 1);
-				sprintf(multi_sql_str, "%s%s", sql_str1, sql_str2);
-			}
-		}		
+	  if (ret_st == FAILURE) {
+	    dprintf(D_ALWAYS, "Delete Attribute --- ERROR [SQL] %s\n",
+		    sql_str2);
+	    displayDBErrorMsg("Delete Attribute --- ERROR");
+	    return FAILURE;
+	  }
 	}
 
 	return SUCCESS;
@@ -2096,7 +2005,7 @@ JobQueueDBManager::getJQPollingInfo()
 			"last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype,"
 			"last_cmd_targettype, last_cmd_name, last_cmd_value,"
 			"log_seq_num, log_creation_time FROM "
-			"JobQueuePollingInfo;");
+			"JobQueuePollingInfo");
 	
 		// connect to DB
 	ret_st = connectDB();
@@ -2160,11 +2069,11 @@ JobQueueDBManager::getJQPollingInfo()
 	lcmd->name = strdup(jqDatabase->getValue(0,8)); // last_cmd_name
 	lcmd->value = strdup(jqDatabase->getValue(0,9)); // last_cmd_value
 	
+	// release Query Result since it is no longer needed
+        jqDatabase->releaseQueryResult();
+	
 		// disconnect to DB
 	disconnectDB();
-	
-		// release Query Result since it is no longer needed
-	jqDatabase->releaseQueryResult(); 
 	
 	return SUCCESS;	
 }
@@ -2196,7 +2105,7 @@ JobQueueDBManager::setJQPollingInfo()
 	ClassAdLogEntry* lcmd;
 	char 	       *sql_str;
 	QuillErrCode   ret_st;
-	int            num_result=0, db_err_code=0;
+	int            num_result=0;
 
 	prober->incrementProbeInfo();
 	mtime = prober->getLastModifiedTime();
@@ -2223,9 +2132,7 @@ JobQueueDBManager::setJQPollingInfo()
 	addJQPollingInfoSQL(sql_str, "last_cmd_name", lcmd->name);
 	addJQPollingInfoSQL(sql_str, "last_cmd_value", lcmd->value);
 	
-	strcat(sql_str, ";");
-	
-	ret_st = jqDatabase->execCommand(sql_str, num_result, db_err_code);
+	ret_st = jqDatabase->execCommand(sql_str, num_result);
 	
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Update JobQueuePollingInfo --- ERROR [SQL] %s\n", 
@@ -2270,7 +2177,15 @@ JobQueueDBManager::checkSchema()
 	ret_st = connectDB(NOT_IN_XACT);
 	
 		// no database or no server connection
-	if(ret_st == FAILURE) { 
+	if (ret_st == FAILURE) {
+	  dprintf(D_ALWAYS, "Error: Unable to connect to db \"%s\"\n",
+		  jobQueueDBName);
+	  return ret_st;
+	}
+
+	// don't do create database for oracle because the following
+	// probably don't work for oracle
+	if(FALSE) { 
 		dprintf(D_ALWAYS, "Error: Unable to connect to db \"%s\"\n", 
 				jobQueueDBName);
 
@@ -2287,9 +2202,9 @@ JobQueueDBManager::checkSchema()
 		dprintf(D_FULLDEBUG, "Temporary connection to DB created\n");
 
 		sprintf(sql_str, "CREATE DATABASE \"%s\"", jobQueueDBName);
-		JobQueueDatabase *tmp_jqdb = new PGSQLDatabase(tmp_conn);
+		JobQueueDatabase *tmp_jqdb = new ORACLEDatabase(tmp_conn);
 
-		tmp_st = tmp_jqdb->connectDB(tmp_conn);
+		tmp_st = tmp_jqdb->connectDB();
 	  
 		if (tmp_st == FAILURE) { // connect to template1 databae
 			dprintf(D_ALWAYS, "Error: Failed while trying to create "
@@ -2322,6 +2237,8 @@ JobQueueDBManager::checkSchema()
 		// execute DB schema check!
 	ret_st = jqDatabase->execQuery(sql_str, num_result);
 
+        jqDatabase->releaseQueryResult();
+	
 	if (ret_st == SUCCESS && num_result == SCHEMA_SYS_TABLE_NUM) {
 		dprintf(D_ALWAYS, "Schema Check OK!\n");
 	}
@@ -2338,29 +2255,154 @@ JobQueueDBManager::checkSchema()
 			//
 			// Here, Create DB Schema:
 			//
-		strcpy(sql_str, SCHEMA_CREATE_PROCADS_TABLE_STR);
+		strcpy(sql_str, SCHEMA_CREATE_PROCADS_STR);
 		ret_st = jqDatabase->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
-		strcpy(sql_str, SCHEMA_CREATE_CLUSTERADS_TABLE_STR);
+		strcpy(sql_str, SCHEMA_CREATE_PROCADS_NUM);
 		ret_st = jqDatabase->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
-		strcpy(sql_str, SCHEMA_CREATE_HISTORY_TABLE_STR);
+		strcpy(sql_str, SCHEMA_CREATE_PROCADS_VIEW);
 		ret_st = jqDatabase->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
+		strcpy(sql_str, SCHEMA_GRANT_PROCADS_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_PROCADS_NUM);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_PROCADS_VIEW);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_CLUSTERADS_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_CLUSTERADS_NUM);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_CLUSTERADS_VIEW);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_CLUSTERADS_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_CLUSTERADS_NUM);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_CLUSTERADS_VIEW);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_HISTORY_V_TABLE_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_HISTORY_IDX1_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_HISTORY_H_TABLE_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_HISTORY_IDX2_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_HISTORY_IDX3_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_CREATE_HISTORY_IDX4_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_HISTORY_H_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_GRANT_HISTORY_V_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
 
 		strcpy(sql_str, SCHEMA_CREATE_JOBQUEUEPOLLINGINFO_TABLE_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
+		strcpy(sql_str, SCHEMA_INSERT_JOBQUEUEPOLLINGINFO_TABLE_STR);
 		ret_st = jqDatabase->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
@@ -2373,6 +2415,13 @@ JobQueueDBManager::checkSchema()
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
+
+		strcpy(sql_str, SCHEMA_INSERT_SCHEMA_VERSION_TABLE_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}		
 
 		if (jqDatabase->commitTransaction() == FAILURE) {			
 			// TODO: did this just leak transactionResults?
@@ -2387,12 +2436,12 @@ JobQueueDBManager::checkSchema()
 		return FAILURE;
 	}
 
-	jqDatabase->releaseQueryResult();
-
 	strcpy(sql_str, SCHEMA_VERSION_STR); 
 		// SCHEMA_VERSION_STR is defined in quill_dbschema_def.h
 
 	ret_st = jqDatabase->execQuery(sql_str, num_result);
+
+	jqDatabase->releaseQueryResult();
 
 	if (ret_st == SUCCESS && num_result == SCHEMA_VERSION_COUNT) {
 		dprintf(D_ALWAYS, "Schema Version Check OK!\n");
@@ -2443,6 +2492,13 @@ JobQueueDBManager::checkSchema()
 			return FAILURE;
 		}
 
+		strcpy(sql_str, SCHEMA_INSERT_SCHEMA_VERSION_TABLE_STR);
+		ret_st = jqDatabase->execCommand(sql_str);
+		if(ret_st == FAILURE) {
+			disconnectDB(ABORT_XACT);
+			return FAILURE;
+		}
+
 		if (jqDatabase->commitTransaction() == FAILURE) {			
 			// TODO: did this just leak transactionResults?
 			disconnectDB(ABORT_XACT);
@@ -2451,7 +2507,7 @@ JobQueueDBManager::checkSchema()
 
 	}
 	disconnectDB(NOT_IN_XACT);
-	jqDatabase->releaseQueryResult();
+
 	return SUCCESS;
 }
 
@@ -2706,13 +2762,8 @@ JobQueueDBManager::fillEscapeCharacters(char * str) {
 	j = 0;
 	for (i = 0; i < len; i++) {
 		switch(str[i]) {
-        case '\\':
-            newstr[j] = '\\';
-            newstr[j+1] = '\\';
-            j += 2;
-            break;
         case '\'':
-            newstr[j] = '\\';
+            newstr[j] = '\'';
             newstr[j+1] = '\'';
             j += 2;
             break;

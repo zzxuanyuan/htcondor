@@ -21,65 +21,72 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef _PGSQLDATABASE_H_
-#define _PGSQLDATABASE_H_
+#ifndef _ORACLEDATABASE_H_
+#define _ORACLEDATABASE_H_
 
 #include "condor_common.h"
-#include "libpq-fe.h"
 #include "sqlquery.h"
 #include "jobqueuedatabase.h"
 #include "quill_enums.h"
+#include "occi.h"
 
-#ifndef MAX_FIXED_SQL_STR_LENGTH
-#define MAX_FIXED_SQL_STR_LENGTH 2048
-#endif
+//using namespace oracle::occi;
+using oracle::occi::Environment;
+using oracle::occi::Connection;
+using oracle::occi::Statement;
+using oracle::occi::ResultSet;
+using oracle::occi::SQLException;
+using oracle::occi::MetaData;
 
-//! PGSQLDataabse: JobQueueDatabase for PostgreSQL
+//! ORACLEDataabse: Database for Oracle
 //
-class PGSQLDatabase : public JobQueueDatabase
+class ORACLEDatabase : public JobQueueDatabase
 {
 public:
 	
-	PGSQLDatabase();
-	PGSQLDatabase(const char* connect);
-	~PGSQLDatabase();
+	ORACLEDatabase(const char *connect);
+	~ORACLEDatabase();
 
+		// connection method
 	QuillErrCode         connectDB();
 	QuillErrCode		 disconnectDB();
+    QuillErrCode         checkConnection();
+	QuillErrCode         resetConnection();
 
-		// General DB processing methods
+		// transaction methods
 	QuillErrCode		 beginTransaction();
 	QuillErrCode 		 commitTransaction();
 	QuillErrCode 		 rollbackTransaction();
 
+		// update methods
 	QuillErrCode 	 	 execCommand(const char* sql, 
-					     int &num_result);
+									 int &num_result);
 	QuillErrCode 	 	 execCommand(const char* sql);
 
+		// query methods
 	QuillErrCode 	 	 execQuery(const char* sql);
+	QuillErrCode		 execQuery(const char* sql,
+					   int &num_result);
 	QuillErrCode 	 	 execQuery(const char* sql, 
-								   PGresult*& result);
-	QuillErrCode 	 	 execQuery(const char* sql,
-								   int &num_result);
-	QuillErrCode 	 	 execQuery(const char* sql, 
-								   PGresult*& result,
-								   int &num_result);
+					   ResultSet*& result,
+				   	   Statement *& stmt,
+					   int &num_result);
+
+	//! get a result for the executed SQL
 	const char*	         getValue(int row, int col);
 	const char*          getHistoryHorFieldName(int col);
 	const int            getHistoryHorNumFields();
-	QuillErrCode		 releaseHistoryResults();		
 
-	char*		         getDBError();
+	//! release query result
+	QuillErrCode		 releaseHistoryResults();
+	QuillErrCode         releaseJobQueueResults();
+	QuillErrCode         releaseQueryResult();
 
-	QuillErrCode		 sendBulkData(char* data);
-	QuillErrCode		 sendBulkDataEnd();
+	//! get a DBMS error message
+	char*	getDBError();
 
 	QuillErrCode		 queryHistoryDB(SQLQuery *, SQLQuery *, 
 										bool, int&, int&);
-	QuillErrCode         releaseJobQueueResults();
-
-	QuillErrCode         releaseQueryResult();
-
 
 	QuillErrCode		 getJobQueueDB(int *, int, int *, int, char *, bool, 
 									   int&, int&, int&, int&);
@@ -91,21 +98,47 @@ public:
 	const char*          getHistoryVerValue(int row, int col);
 
 	int                  getDatabaseVersion();
-
 private:
-	PGconn		         *connection;		//!< connection object
-	PGresult	         *queryRes; 	//!< result for general query
+		// database connection parameters
+	char *userName;
+	char *password;
+	char *connectString;
+
+		// database processing variables
+	Environment *env;
+	Connection *conn;
+	Statement *stmt;
+	std::string cv;
+
+	Statement *queryStmt;
+	ResultSet *queryRes;	
+	int     queryResCursor;        
 
 		// only for history tables retrieval
-	PGresult             *historyHorRes;
-	PGresult             *historyVerRes;
+	ResultSet  *historyHorRes;
+	Statement  *historyHorStmt;
+	int         historyHorResCursor;  
+
+	ResultSet  *historyVerRes;
+	Statement  *historyVerStmt;
+	int         historyVerResCursor;  
 
 		// only for job queue tables retrieval
-	PGresult	         *procAdsStrRes;	//!< result for ProcAds_Str table
-	PGresult	         *procAdsNumRes;	//!< result for ProcAds_Num table
-	PGresult	         *clusterAdsStrRes;//!< result for ClusterAds_Str table
-	PGresult	         *clusterAdsNumRes;//!< result for ClusterAds_num table
+	ResultSet  *procAdsStrRes;	//!< result for ProcAds_Str table
+	Statement  *procAdsStrStmt;
+	int 		procAdsStrResCursor;
+
+	ResultSet  *procAdsNumRes;	//!< result for ProcAds_Num table
+	Statement  *procAdsNumStmt;
+	int			procAdsNumResCursor;
+
+	ResultSet  *clusterAdsStrRes;//!< result for ClusterAds_Str table
+	Statement  *clusterAdsStrStmt;
+	int			clusterAdsStrResCursor;
+
+	ResultSet  *clusterAdsNumRes;//!< result for ClusterAds_num table
+	Statement  *clusterAdsNumStmt;
+	int 		clusterAdsNumResCursor;
 };
 
-#endif /* _PGSQLDATABSE_H_ */
-
+#endif /* _ORACLEDATABSE_H_ */
