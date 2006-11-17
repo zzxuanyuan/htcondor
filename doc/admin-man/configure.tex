@@ -35,6 +35,16 @@ configure itself by calling a library routine which parses the
 various configuration files that might be used including pool-wide,
 platform-specific, machine-specific, and root-owned configuration files.
 
+You can tell Condor to run a program to obtain configuration parameters
+instead of reading a file. If a configuation filename you provide 
+(\Env{CONDOR\_CONFIG} environment variable, \Macro{LOCAL\_CONFIG\_FILE}
+macro, or \Macro{LOCAL\_ROOT\_CONFIG\_FILE} macro) ends with a vertical
+bar (``\Bar''), it is executed and its standard output is parsed for
+configuration parameters. If \Macro{LOCAL\_CONFIG\_FILE} or
+\Macro{LOCAL\_ROOT\_CONFIG\_FILE} is used in this way, then it can only
+contain a single item, and spaces in the value will be interpreted as
+part of the command to be executed (separating the executable and any
+command-line arguments).
 
 The order in which attributes are defined is important, since later
 definitions will override existing definitions.
@@ -616,6 +626,10 @@ File System Configuration File Entries''.
   replaces the old list, but any files that have already been processed
   remain processed and are removed from the new list if they are present
   to prevent cycles.
+  If you use the vertical bar notation described in 
+  section~\ref{sec:Intro-to-Config-Files} on 
+  page~\pageref{sec:Intro-to-Config-Files}, \Macro{LOCAL\_CONFIG\_FILE}
+  is treated as a single command to be executed.
   If \Macro{LOCAL\_CONFIG\_FILE} is not defined, no local configuration
   files are processed.  For more information on this, see
   section~\ref{sec:Multiple-Platforms} about Configuring Condor for
