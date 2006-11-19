@@ -65,7 +65,7 @@ AbstractReplicatorStateMachine::finalize( bool isStateChanged )
 	m_selfId            = -1;
 
     utilClearList( m_replicationDaemonsList );
-    m_releaseDirectoryPath = "";
+    m_transfererBinary = "";
 
 	if( m_hadSinfulString != NULL ) {
         free( m_hadSinfulString );
@@ -176,7 +176,7 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilNoParameterError("HAD_CONNECTION_TIMEOUT",
 										       "HAD").GetCStr( ) );
     }
-    buffer = param( "RELEASE_DIR" );
+/*    buffer = param( "RELEASE_DIR" );
 
     if( buffer ) {
         m_releaseDirectoryPath.sprintf( "%s/bin", buffer );
@@ -186,6 +186,18 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilConfigurationError("RELEASE_DIR", 
 											     "REPLICATION").GetCStr( ) );
     }
+*/
+	buffer = param( "TRANSFERER");
+	
+	if( buffer ) {
+		m_transfererBinary = buffer;
+
+		free( buffer );
+	} else {
+		utilCrucialError( utilConfigurationError("TRANSFERER",
+												 "REPLICATION").GetCStr( ) );
+	}
+	
 	char* spoolDirectory = param( "SPOOL" );
     
     if( spoolDirectory ) {
@@ -349,14 +361,14 @@ AbstractReplicatorStateMachine::uploadReplicaTransfererReaper(
 bool
 AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 {
-    MyString executable;
+//    MyString executable;
 
-    executable.sprintf( "%s/condor_transferer",
-                                m_releaseDirectoryPath.GetCStr( ) );
+//    executable.sprintf( "%s/condor_transferer",
+//                                m_releaseDirectoryPath.GetCStr( ) );
 # if 0
 	MyString processArguments;
 	processArguments.sprintf( "%s -f down %s %s 1 %s",
-                              executable.GetCStr( ),
+                              m_transfererBinary.GetCStr( ),
                               daemonSinfulString,
                               m_versionFilePath.GetCStr( ),
                               m_stateFilePath.GetCStr( ) );
@@ -365,7 +377,7 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
                processArguments.GetCStr( ) );
 # else
     ArgList  processArguments;
-    processArguments.AppendArg( executable.GetCStr() );
+    processArguments.AppendArg( m_transfererBinary.GetCStr() );
     processArguments.AppendArg( "-f" );
     processArguments.AppendArg( "down" );
     processArguments.AppendArg( daemonSinfulString );
@@ -392,7 +404,7 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 		return false;
 	}
 	int transfererPid = daemonCore->Create_Process(
-        executable.GetCStr( ),        // name
+        m_transfererBinary.GetCStr( ),        // name
         processArguments/*.GetCStr( )*/,  // args
         privilege,                    // priv
         m_downloadReaperId,           // reaper id
@@ -429,15 +441,15 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 bool
 AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
 {
-    MyString executable;
+//    MyString executable;
 
-    executable.sprintf( "%s/condor_transferer",
-                                m_releaseDirectoryPath.GetCStr( ) );
+//    executable.sprintf( "%s/condor_transferer",
+//                                m_releaseDirectoryPath.GetCStr( ) );
 # if 0
 	MyString processArguments;
 
     processArguments.sprintf( "%s -f up %s %s 1 %s",
-							  executable.GetCStr( ),
+							  m_transfererBinary.GetCStr( ),
                               daemonSinfulString,
                               m_versionFilePath.GetCStr( ),
                               m_stateFilePath.GetCStr( ) );
@@ -447,7 +459,7 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
          processArguments.GetCStr( ) );
 # else
     ArgList  processArguments;
-    processArguments.AppendArg( executable.GetCStr() );
+    processArguments.AppendArg( m_transfererBinary.GetCStr() );
     processArguments.AppendArg( "-f" );
     processArguments.AppendArg( "up" );
     processArguments.AppendArg( daemonSinfulString );
@@ -475,7 +487,7 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
     }
 
     int transfererPid = daemonCore->Create_Process(
-        executable.GetCStr( ),        // name
+        m_transfererBinary.GetCStr( ),        // name
         processArguments/*.GetCStr( )*/,  // args
         privilege,                    // priv
         m_uploadReaperId,             // reaper id

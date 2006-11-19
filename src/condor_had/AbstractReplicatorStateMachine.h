@@ -275,8 +275,8 @@ protected:
 	int                      m_selfId;
     // local HAD address to send it NEWLY_JOINED_REPLICATION_FINISHED messages
 	char*                    m_hadSinfulString;
-	// path to the directory where 'condor_transferer' binary is located
-	MyString                 m_releaseDirectoryPath;
+	// path to the executable of 'condor_transferer'
+	MyString                 m_transfererBinary;
 	// socket connection timeout
     int                      m_connectionTimeout;
 
@@ -290,12 +290,12 @@ protected:
 						   "State file path        - %s\n"
 						   "Version file path      - %s\n"
 						   "State                  - %d\n"
-						   "Release directory path - %s\n"
+						   "Transferer binary      - %s\n"
 						   "Connection timeout     - %d\n"
 						   "Downloading reaper id  - %d\n"
 						   "Uploading reaper id    - %d\n",
 				 m_stateFilePath.GetCStr(), m_versionFilePath.GetCStr(), 
-				 m_state, m_releaseDirectoryPath.GetCStr(), m_connectionTimeout,
+				 m_state, m_transfererBinary.GetCStr(), m_connectionTimeout,
 				 m_downloadReaperId, m_uploadReaperId );    
 	};
 	// process ids of uploading/downloading 'condor_transferer' processes for
