@@ -45,7 +45,9 @@
 
 #define SCHEMA_VERSION_COUNT 	1
 
-#define SCHEMA_CREATE_SCHEMA_VERSION_TABLE_STR "CREATE TABLE quill_schema_version (major int, minor int, back_to_major int, back_to_minor int); INSERT INTO quill_schema_version (major, minor, back_to_major, back_to_minor) VALUES (1,1,1,0);"
+#define SCHEMA_CREATE_SCHEMA_VERSION_TABLE_STR "CREATE TABLE quill_schema_version (major int, minor int, back_to_major int, back_to_minor int)"
+
+#define SCHEMA_INSERT_SCHEMA_VERSION_TABLE_STR "INSERT INTO quill_schema_version (major, minor, back_to_major, back_to_minor) VALUES (1,1,1,0)"
 
 #define SCHEMA_VERSION_TABLE_UPDATE "UPDATE quill_schema_version SET minor = 1;"
 
