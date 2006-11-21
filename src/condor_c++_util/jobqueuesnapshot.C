@@ -81,6 +81,11 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 		return FAILURE;
 	}
 
+	if(jqDB->execCommand("SET TRANSACTION READ ONLY") == FAILURE) {
+		printf("Error while querying the database: unable to set transaction read only");
+		return FAILURE;
+	}
+
 	st = jqDB->getJobQueueDB(clusterarray, 
 				 numclusters,
 				 procarray, 
