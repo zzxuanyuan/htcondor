@@ -85,11 +85,13 @@ HOSTALLOW_NEGOTIATOR = $(COLLECTOR_HOST)
 ## The location of executable files
 HAD         = $(SBIN)/condor_had
 REPLICATION = $(SBIN)/condor_replication
+TRANSFERER  = $(BIN)/condor_transferer
 
 
 ## the master should start at least these four daemons
 DAEMON_LIST = MASTER, COLLECTOR, NEGOTIATOR, HAD
 # The default for DC_DAEMON_LIST is usually correct.
+DC_DAEMON_LIST = MASTER, COLLECTOR, NEGOTIATOR, HAD, REPLICATION
 #DC_DAEMON_LIST = \
 #MASTER, STARTD, SCHEDD, KBDD, COLLECTOR, NEGOTIATOR, EVENTD, \
 #VIEW_SERVER, CONDOR_VIEW, VIEW_COLLECTOR, HAWKEYE, CREDD, HAD, \
@@ -98,7 +100,7 @@ DAEMON_LIST = MASTER, COLLECTOR, NEGOTIATOR, HAD
 
 ## Enables/disables the replication feature of HAD daemon
 ## Default: no
-HAD_USE_REPLICATION    = true
+HAD_USE_REPLICATION    = false
 
 ## Name of the file from the SPOOL directory that will be replicated
 ## Default: $(SPOOL)/Accountantnew.log
