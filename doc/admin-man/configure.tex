@@ -35,17 +35,6 @@ configure itself by calling a library routine which parses the
 various configuration files that might be used including pool-wide,
 platform-specific, machine-specific, and root-owned configuration files.
 
-You can tell Condor to run a program to obtain configuration parameters
-instead of reading a file. If a configuation filename you provide 
-(\Env{CONDOR\_CONFIG} environment variable, \Macro{LOCAL\_CONFIG\_FILE}
-macro, or \Macro{LOCAL\_ROOT\_CONFIG\_FILE} macro) ends with a vertical
-bar (``\Bar''), it is executed and its standard output is parsed for
-configuration parameters. If \Macro{LOCAL\_CONFIG\_FILE} or
-\Macro{LOCAL\_ROOT\_CONFIG\_FILE} is used in this way, then it can only
-contain a single item, and spaces in the value will be interpreted as
-part of the command to be executed (separating the executable and any
-command-line arguments).
-
 The order in which attributes are defined is important, since later
 definitions will override existing definitions.
 This is particularly important if configuration files are broken up
@@ -282,6 +271,42 @@ configuration variable \MacroNI{FOO}:
 \end{verbatim}
 It is a poor idea to use this functionality, as it is likely to
 stop working in future Condor releases.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:Program-Defined-Macros}Executing a Program to Produce Configuration Macros}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Instead of reading from a file,
+Condor may run a program to obtain configuration macros.
+The vertical bar character (\Bar) as the last character defining
+a file name provides the syntax necessary to tell 
+Condor to run a program.
+This syntax may only be used in the definition of
+the \Env{CONDOR\_CONFIG} environment variable,
+the \Macro{LOCAL\_CONFIG\_FILE} configuration variable,
+or the \Macro{LOCAL\_ROOT\_CONFIG\_FILE} configuration variable.
+
+The command line for the program 
+is formed by the characters preceding the vertical bar character.
+The standard output of the program is parsed as a configuration 
+file would be.
+
+An example:
+\begin{verbatim}
+LOCAL\_CONFIG\_FILE = /bin/make_the_config|
+\end{verbatim}
+
+Program \Prog{/bin/make\_the\_config} is executed, and its output
+is the set of configuration macros.
+
+Note that either a program is executed to generate the
+configuration macros or the configuration is read from 
+one or more files.
+The syntax uses space characters to separate command line elements,
+if an executed program produces the configuration macros.
+Space characters would otherwise separate the list of files.
+This syntax does not permit distinguishing one from the other,
+so only one may be specified.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Pre-Defined-Macros}Pre-Defined Macros}
@@ -612,10 +637,11 @@ File System Configuration File Entries''.
     LOCAL_CONFIG_FILE = /full/path/to/configs/$(hostname).local
   \end{verbatim}
   
-  Beginning with Condor version 6.0.1, the
-  \MacroUNI{LOCAL\_CONFIG\_FILE} is treated as a list of files, not a
-  single file.  You can use either a comma or space separated list of
-  files as its value.  This allows you to specify multiple files as
+  The value of \MacroUNI{LOCAL\_CONFIG\_FILE} is treated as a list of files,
+  not a
+  single file.  The items in the list are delimited by either commas
+  or space characters.
+  This allows you to specify multiple files as
   the local configuration file and each one will be processed in the
   order given (with parameters set in later files overriding values
   from previous files).  This allows you to use one global
@@ -626,11 +652,11 @@ File System Configuration File Entries''.
   replaces the old list, but any files that have already been processed
   remain processed and are removed from the new list if they are present
   to prevent cycles.
-  If you use the vertical bar notation described in 
-  section~\ref{sec:Intro-to-Config-Files} on 
-  page~\pageref{sec:Intro-to-Config-Files}, \Macro{LOCAL\_CONFIG\_FILE}
-  is treated as a single command to be executed.
-  If \Macro{LOCAL\_CONFIG\_FILE} is not defined, no local configuration
+  See section~\ref{sec:Program-Defined-Macros} on 
+  page~\pageref{sec:Program-Defined-Macros} for directions on
+  using a program to generate the configuration macros that would
+  otherwise reside in one or more files as described here.
+  If \MacroNI{LOCAL\_CONFIG\_FILE} is not defined, no local configuration
   files are processed.  For more information on this, see
   section~\ref{sec:Multiple-Platforms} about Configuring Condor for
   Multiple Platforms on page~\pageref{sec:Multiple-Platforms}.
