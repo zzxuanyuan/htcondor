@@ -22,13 +22,13 @@ main_init( int , char *[] )
         stateMachine = new ReplicatorStateMachine( );
         stateMachine->initialize( );
 
-        return TRUE;
+        return 0;
     }
     catch(char* exceptionString) {
         dprintf( D_FAILURE, "main_init exception thrown %s\n",
                    exceptionString );
 
-        return FALSE;
+        return 1;
     }
 }
 
@@ -55,10 +55,9 @@ main_shutdown_fast( )
 int
 main_config( bool isFull )
 {
-    // NOTE: restart functionality instead of reconfig
-	stateMachine->reinitialize( );
-    
-    return 0;
+	stateMachine->reconfigure( );
+
+	return 0;
 }
 
 void

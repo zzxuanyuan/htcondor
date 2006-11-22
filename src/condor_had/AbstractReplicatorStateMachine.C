@@ -5,11 +5,18 @@
 #include "daemon.h"
 // for 'DT_ANY' definition
 #include "daemon_types.h"
+// for 'getHostFromAddr'
+#include "internet.h"
+// for CollectorList
+#include "daemon_list.h"
+// for 'my_username'
+#include "my_username.h"
 
 #include "AbstractReplicatorStateMachine.h"
 //#include "ReplicationCommands.h"
 #include "FilesOperations.h"
 
+#define DEFAULT_REPLICATION_UPDATE_INTERVAL  (5 * MINUTE)
 // gcc compilation pecularities demand explicit declaration of template classes
 // and functions instantiation
 template class Item<Version>;
@@ -19,14 +26,21 @@ template class List<AbstractReplicatorStateMachine::ProcessMetadata>;
 template void utilClearList<AbstractReplicatorStateMachine::ProcessMetadata>
 				( List<AbstractReplicatorStateMachine::ProcessMetadata>& );
 template void utilClearList<Version>( List<Version>& );
-                                                                                
+
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine ctor started\n" );
-	m_state              = VERSION_REQUESTING;
-    m_connectionTimeout  = DEFAULT_SEND_COMMAND_TIMEOUT;
-   	m_downloadReaperId   = -1;
-   	m_uploadReaperId     = -1;
+	m_state                   = VERSION_REQUESTING;
+    m_connectionTimeout       = DEFAULT_SEND_COMMAND_TIMEOUT;
+   	m_downloadReaperId        = -1;
+   	m_uploadReaperId          = -1;
+	m_selfId                  = -1;
+	m_hadSinfulString         = NULL;
+	// classad-related initializations
+	m_collectorsList          = NULL;
+	m_classAd                 = NULL;
+	m_updateCollectorInterval = -1;
+//	m_updateCollectorTimerId  = -1;
 }
 
 AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
@@ -37,21 +51,44 @@ AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
 // releasing the dynamic memory and assigning initial values to all the data
 // members of the base class
 void
-AbstractReplicatorStateMachine::finalize()
+AbstractReplicatorStateMachine::finalize( bool isStateChanged )
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::finalize started\n" );
-   	m_state             = VERSION_REQUESTING;
-   	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
+   	
+	if( isStateChanged ) {
+		dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::finalize "
+						   "initializing the state\n" );
+		utilPrintStep( m_state, VERSION_REQUESTING, "REPLICATION" );
+		m_state = VERSION_REQUESTING;
+   	}
+	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
+	m_selfId            = -1;
 
     utilClearList( m_replicationDaemonsList );
-    m_releaseDirectoryPath = "";
+    m_transfererBinary = "";
 
-    //utilCancelReaper(m_downloadReaperId);
+	if( m_hadSinfulString != NULL ) {
+        free( m_hadSinfulString );
+        m_hadSinfulString = NULL;
+    }
+	// classad-related finalizings
+    if( m_classAd != NULL) {
+        delete m_classAd;
+        m_classAd = NULL;
+    }
+    if( m_collectorsList != NULL ) {
+		delete m_collectorsList;
+		m_collectorsList = NULL;
+    }
+//	utilCancelTimer( m_updateCollectorTimerId );
+	m_updateCollectorInterval = -1;
+					 
+ 	//utilCancelReaper(m_downloadReaperId);
     //utilCancelReaper(m_uploadReaperId);
 	// upon finalizing and/or reinitialiing the existing transferer processes
 	// must be killed, otherwise we will temporarily deny creation of new
 	// downloading transferers till the older ones are over
-    killTransferers( );
+	killTransferers( );
 }
 // passing over REPLICATION_LIST configuration parameter, turning all the 
 // addresses into canonical <ip:port> form and inserting them all, except for
@@ -62,11 +99,13 @@ AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
     StringList replicationAddressList;
     char*      replicationAddress    = NULL;
     bool       isMyAddressPresent    = false;
+	int        idCounter             = -1;
 
     replicationAddressList.initializeFromString( buffer );
     // initializing a list unrolls it, that's why the rewind is needed to bring
     // it to the beginning
     replicationAddressList.rewind( );
+	idCounter = replicationAddressList.number() - 1;
     /* Passing through the REPLICATION_LIST configuration parameter, stripping
      * the optional <> brackets off, and extracting the host name out of
      * either ip:port or hostName:port entries
@@ -87,6 +126,7 @@ AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
         if( strcmp( sinfulAddress,
                     daemonCore->InfoCommandSinfulString( ) ) == 0 ) {
             isMyAddressPresent = true;
+			m_selfId = idCounter;
         }
         else {
             m_replicationDaemonsList.insert( sinfulAddress );
@@ -94,6 +134,7 @@ AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
         // pay attention to release memory allocated by malloc with free and by
         // new with delete here utilToSinful returns memory allocated by malloc
         free( sinfulAddress );
+		idCounter --;
     }
 
     if( !isMyAddressPresent ) {
@@ -118,6 +159,9 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilNoParameterError("REPLICATION_LIST", 
 		  								       "REPLICATION").GetCStr( ) );
     }
+	// to be able to relate to appropriate HAD, the id of the current
+	// replication daemon must be know prior to setting the local HAD address
+	setHadSinfulString( );
     buffer = param( "HAD_CONNECTION_TIMEOUT" );
 
     if( buffer ) {
@@ -132,7 +176,7 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilNoParameterError("HAD_CONNECTION_TIMEOUT",
 										       "HAD").GetCStr( ) );
     }
-    buffer = param( "RELEASE_DIR" );
+/*    buffer = param( "RELEASE_DIR" );
 
     if( buffer ) {
         m_releaseDirectoryPath.sprintf( "%s/bin", buffer );
@@ -142,6 +186,18 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilConfigurationError("RELEASE_DIR", 
 											     "REPLICATION").GetCStr( ) );
     }
+*/
+	buffer = param( "TRANSFERER" );
+
+	if( buffer ) {
+        m_transfererBinary = buffer;
+
+        free( buffer );
+    } else {
+        utilCrucialError( utilConfigurationError("TRANSFERER",
+                                                 "REPLICATION").GetCStr( ) );
+    }
+
 	char* spoolDirectory = param( "SPOOL" );
     
     if( spoolDirectory ) {
@@ -166,6 +222,13 @@ AbstractReplicatorStateMachine::reinitialize()
         utilCrucialError( utilNoParameterError("SPOOL", "REPLICATION").
                           GetCStr( ) );
     }
+	dprintf(D_ALWAYS, "AbstractReplicatorStateMachine::reinitialize classad "
+					  "information\n");
+	initializeClassAd( );
+	m_collectorsList = CollectorList::create();
+	m_updateCollectorInterval = param_integer ( 
+									"REPLICATION_UPDATE_INTERVAL",
+                                     DEFAULT_REPLICATION_UPDATE_INTERVAL );
 	printDataMembers( );
 }
 // Canceling all the data regarding the downloading process that has just 
@@ -298,37 +361,37 @@ AbstractReplicatorStateMachine::uploadReplicaTransfererReaper(
 bool
 AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 {
-    MyString executable;
+//    MyString executable;
 
-    executable.sprintf( "%s/condor_transferer",
-                                m_releaseDirectoryPath.GetCStr( ) );
+//    executable.sprintf( "%s/condor_transferer",
+//                                m_releaseDirectoryPath.GetCStr( ) );
 # if 0
-    MyString processArguments;
-    processArguments.sprintf( "%s -f down %s %s 1 %s",
-                              executable.GetCStr( ),
+	MyString processArguments;
+	processArguments.sprintf( "%s -f down %s %s 1 %s",
+                              m_transfererBinary.GetCStr( ),
                               daemonSinfulString,
                               m_versionFilePath.GetCStr( ),
                               m_stateFilePath.GetCStr( ) );
     dprintf( D_FULLDEBUG, "AbstractReplicatorStateMachine::download creating "
                           "downloading condor_transferer process: \n \"%s\"\n",
-			 processArguments.GetCStr( ) );
+               processArguments.GetCStr( ) );
 # else
-	ArgList  processArguments;
-	processArguments.AppendArg( executable.GetCStr() );
-	processArguments.AppendArg( "-f" );
-	processArguments.AppendArg( "down" );
-	processArguments.AppendArg( daemonSinfulString );
-	processArguments.AppendArg( m_versionFilePath.GetCStr() );
-	processArguments.AppendArg( "1" );
-	processArguments.AppendArg( m_stateFilePath.GetCStr() );
+    ArgList  processArguments;
+    processArguments.AppendArg( m_transfererBinary.GetCStr() );
+    processArguments.AppendArg( "-f" );
+    processArguments.AppendArg( "down" );
+    processArguments.AppendArg( daemonSinfulString );
+    processArguments.AppendArg( m_versionFilePath.GetCStr() );
+    processArguments.AppendArg( "1" );
+    processArguments.AppendArg( m_stateFilePath.GetCStr() );
 
-	// Get arguments from this ArgList object for descriptional purposes.
-	MyString	s;
-	processArguments.GetArgsStringForDisplay( &s );
+    // Get arguments from this ArgList object for descriptional purposes.
+    MyString    s;
+    processArguments.GetArgsStringForDisplay( &s );
     dprintf( D_FULLDEBUG,
-			 "AbstractReplicatorStateMachine::download creating "
-			 "downloading condor_transferer process: \n \"%s\"\n",
-			 s.GetCStr( ) );
+             "AbstractReplicatorStateMachine::download creating "
+             "downloading condor_transferer process: \n \"%s\"\n",
+             s.GetCStr( ) );
 # endif
     // PRIV_USER_FINAL privilege is necessary here to create a user process,
     // after setting it to PRIV_UNKNOWN, the transferer process failed to
@@ -341,8 +404,8 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 		return false;
 	}
 	int transfererPid = daemonCore->Create_Process(
-        executable.GetCStr( ),        // name
-        processArguments,             // args
+        m_transfererBinary.GetCStr( ),        // name
+        processArguments/*.GetCStr( )*/,  // args
         privilege,                    // priv
         m_downloadReaperId,           // reaper id
         FALSE,                        // command port needed?
@@ -378,41 +441,40 @@ AbstractReplicatorStateMachine::download( const char* daemonSinfulString )
 bool
 AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
 {
-    MyString executable;
+//    MyString executable;
 
-    executable.sprintf( "%s/condor_transferer",
-                                m_releaseDirectoryPath.GetCStr( ) );
-
+//    executable.sprintf( "%s/condor_transferer",
+//                                m_releaseDirectoryPath.GetCStr( ) );
 # if 0
-    MyString processArguments;
+	MyString processArguments;
+
     processArguments.sprintf( "%s -f up %s %s 1 %s",
-							  executable.GetCStr( ),
+							  m_transfererBinary.GetCStr( ),
                               daemonSinfulString,
                               m_versionFilePath.GetCStr( ),
                               m_stateFilePath.GetCStr( ) );
     dprintf( D_FULLDEBUG,
-			 "AbstractReplicatorStateMachine::upload creating uploading "
-			 "condor_transferer process:\n\"%s\"\n",
-			 processArguments.GetCStr( ) );
+        "AbstractReplicatorStateMachine::upload creating uploading "
+        "condor_transferer process:\n\"%s\"\n",
+         processArguments.GetCStr( ) );
 # else
-	ArgList  processArguments;
-	processArguments.AppendArg( executable.GetCStr() );
-	processArguments.AppendArg( "-f" );
-	processArguments.AppendArg( "up" );
-	processArguments.AppendArg( daemonSinfulString );
-	processArguments.AppendArg( m_versionFilePath.GetCStr() );
-	processArguments.AppendArg( "1" );
-	processArguments.AppendArg( m_stateFilePath.GetCStr() );
+    ArgList  processArguments;
+    processArguments.AppendArg( m_transfererBinary.GetCStr() );
+    processArguments.AppendArg( "-f" );
+    processArguments.AppendArg( "up" );
+    processArguments.AppendArg( daemonSinfulString );
+    processArguments.AppendArg( m_versionFilePath.GetCStr() );
+    processArguments.AppendArg( "1" );
+    processArguments.AppendArg( m_stateFilePath.GetCStr() );
 
-	// Get arguments from this ArgList object for descriptional purposes.
-	MyString	s;
-	processArguments.GetArgsStringForDisplay( &s );
+    // Get arguments from this ArgList object for descriptional purposes.
+    MyString    s;
+    processArguments.GetArgsStringForDisplay( &s );
     dprintf( D_FULLDEBUG,
-			 "AbstractReplicatorStateMachine::upload creating "
-			 "uploading condor_transferer process: \n \"%s\"\n",
-			 s.GetCStr( ) );
+             "AbstractReplicatorStateMachine::upload creating "
+             "uploading condor_transferer process: \n \"%s\"\n",
+             s.GetCStr( ) );
 # endif
-
 	// PRIV_USER_FINAL privilege is necessary here to create a user process,
 	// after setting it to PRIV_UNKNOWN, the transferer process failed to
 	// create when the pool was started with real uid of 'root'
@@ -425,8 +487,8 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
     }
 
     int transfererPid = daemonCore->Create_Process(
-        executable.GetCStr( ),        // name
-        processArguments,             // args
+        m_transfererBinary.GetCStr( ),        // name
+        processArguments/*.GetCStr( )*/,  // args
         privilege,                    // priv
         m_uploadReaperId,             // reaper id
         FALSE,                        // command port needed?
@@ -530,6 +592,72 @@ AbstractReplicatorStateMachine::cancelVersionsListLeader( )
     m_versionsList.Rewind( );
 }
 
+void
+AbstractReplicatorStateMachine::setHadSinfulString( )
+{
+    char* tmp = param( "HAD_LIST" );
+
+    if ( ! tmp ) {
+        utilCrucialError( utilNoParameterError("HAD_LIST",
+                                               "HAD").GetCStr( ) );
+    }
+
+    StringList hadAddressList;
+    char*      hadAddress    = NULL;
+    char       buffer[BUFSIZ];
+
+    hadAddressList.initializeFromString( tmp );
+    hadAddressList.rewind( );
+
+    free( tmp );
+    char* host = getHostFromAddr( daemonCore->InfoCommandSinfulString( ) );
+
+	int hadDaemonIndex = hadAddressList.number() - 1;
+
+    while( ( hadAddress = hadAddressList.next( ) ) ) {
+        char* sinfulAddress = utilToSinful( hadAddress );
+
+        if( sinfulAddress == 0 ) {
+            sprintf( buffer, "AbstractReplicatorStateMachine::setHadSinfulString"
+                             " invalid address %s\n", hadAddress );
+            utilCrucialError( buffer );
+
+            //continue;
+        }
+        char* sinfulAddressHost = getHostFromAddr( sinfulAddress );
+
+        if( hadDaemonIndex == m_selfId && 
+            strcmp( sinfulAddressHost,  host ) == 0 ) {
+            m_hadSinfulString = sinfulAddress;
+            free( sinfulAddressHost );
+            dprintf( D_ALWAYS,
+                    "AbstractReplicatorStateMachine::setHadSinfulString"
+                    " corresponding HAD - %s\n", sinfulAddress );
+            // not freeing 'sinfulAddress', since its referent is pointed by
+            // 'm_hadSinfulString' too
+            break;
+        } else if( hadDaemonIndex == m_selfId ) {
+        	sprintf( buffer,
+					 "AbstractReplicatorStateMachine::setHadSinfulString "
+                     "host names of machine and HAD do "
+                     "not match: %s vs. %s\n", host, sinfulAddressHost);
+                     utilCrucialError( buffer );
+        }
+
+        hadDaemonIndex --;
+        free( sinfulAddressHost );
+        free( sinfulAddress );
+    }
+    free( host );
+
+    // if failed to found the HAD in HAD_LIST, HAD_LIST and REPLICATION_LIST do
+	// not match
+    if( m_hadSinfulString == 0 )
+        utilCrucialError( "AbstractReplicatorStateMachine::setHadSinfulString "
+                          "local HAD not found in HAD_LIST, HAD_LIST and "
+						  "REPLICATION_LIST do not match\n" );
+}
+
 // sending command to remote replication daemon; specified command function
 // allows to specify which data is to be sent to the remote daemon
 void
@@ -537,7 +665,7 @@ AbstractReplicatorStateMachine::sendCommand(
     int command, char* daemonSinfulString, CommandFunction function )
 {
     dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand %s to %s\n",
-               utilToString( command ), daemonSinfulString );
+               utilCommandToString( command ), daemonSinfulString );
     Daemon  daemon( DT_ANY, daemonSinfulString );
     ReliSock socket;
 
@@ -557,7 +685,7 @@ AbstractReplicatorStateMachine::sendCommand(
     if( ! daemon.startCommand( command, &socket, m_connectionTimeout ) ) {
         dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                             "cannot start command %s to %s\n",
-                   utilToString( command ), daemonSinfulString );
+                   utilCommandToString( command ), daemonSinfulString );
 		socket.close( );
 
         return ;
@@ -595,7 +723,7 @@ AbstractReplicatorStateMachine::sendCommand(
 	socket.close( );
    	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                        "%s command sent to %s successfully\n",
-             utilToString( command ), daemonSinfulString );
+             utilCommandToString( command ), daemonSinfulString );
 }
 
 // specific command function - sends local daemon's version over the socket
@@ -740,3 +868,92 @@ AbstractReplicatorStateMachine::getProcessPrivilege(priv_state& privilege)
 	return true;
 	//return priv;
 }
+
+// initializes replication daemon classad to broadcast to collectors
+void
+AbstractReplicatorStateMachine::initializeClassAd()
+{
+    m_classAd = new ClassAd( );
+
+    m_classAd->SetMyTypeName( REPLICATION_ADTYPE );
+    m_classAd->SetTargetTypeName( "" );
+
+    MyString line;
+    // 'my_username' allocates dynamic string
+    char* userName = my_username( );
+    MyString name;
+
+    name.sprintf( "%s@%s -p %d", userName, my_full_hostname( ),
+                  daemonCore->InfoCommandPort( ) );
+    free( userName );
+    // two following attributes: ATTR_NAME and ATTR_MACHINE are mandatory
+    // in order to be accepted by collector
+    line.sprintf( "%s = \"%s\"", ATTR_NAME, name.GetCStr( ) );
+    m_classAd->Insert( line.Value( ) );
+
+    line.sprintf( "%s = \"%s\"", ATTR_MACHINE, my_full_hostname( ) );
+    m_classAd->Insert( line.Value( ) );
+
+    line.sprintf( "%s = \"%s\"", ATTR_MY_ADDRESS,
+                        daemonCore->InfoCommandSinfulString() );
+    m_classAd->Insert( line.Value( ) );
+
+	line.sprintf( "%s = \"%s\"", ATTR_REPLICATION_IP_ADDR,
+	                    daemonCore->InfoCommandSinfulString() );
+	m_classAd->Insert( line.Value( ) );
+
+    // declaring boolean attributes this way, no need for \"False\"
+//    line.sprintf( "%s = False", ATTR_REPLICATION_IS_ACTIVE );
+	synchronizeStateAndClassAd( line );
+
+    m_classAd->Insert( line.Value( ) );
+
+    // publishing list of replication daemons in classad
+    char*      buffer             = param( "REPLICATION_LIST" );
+    char*      replicationAddress = NULL;
+    StringList replicationList;
+    MyString   attrReplicationList;
+    MyString   comma;
+
+    replicationList.initializeFromString( buffer );
+    replicationList.rewind( );
+
+    while( ( replicationAddress = replicationList.next() ) ) {
+        attrReplicationList += comma;
+        attrReplicationList += replicationAddress;
+        comma = ",";
+    }
+    line.sprintf( "%s = \"%s\"", ATTR_REPLICATION_LIST, 
+				  attrReplicationList.GetCStr( ) );
+    m_classAd->Insert(line.Value());
+
+    free( buffer );
+
+    // publishing replication daemon's real index in the list 
+    line.sprintf( "%s = \"%d\"", ATTR_REPLICATION_INDEX, 
+				  replicationList.number() - 1 - m_selfId );
+    m_classAd->Insert(line.Value());
+	config_fill_ad( m_classAd );
+}
+
+/* Function   : synchronizeStateAndClassAd
+ * Arguments  : line  - string that is updated, according to the replication
+ *                      daemon state
+ * Description: updates the specified string according to the RD state
+ *              as follows: if the state is REPLICATION_LEADER, the string
+ *              is assigned a
+ *              "ReplicationIsActive = True", otherwise it is assigned a
+ *              "ReplicationIsActive = False"
+ */
+void
+AbstractReplicatorStateMachine::synchronizeStateAndClassAd( MyString& line )
+{
+    // declaring boolean attributes this way, no need for \"True\" or
+    // \"False\"
+    if( m_state == REPLICATION_LEADER ) {
+        line.sprintf( "%s = True", ATTR_REPLICATION_IS_ACTIVE );
+    } else {
+        line.sprintf( "%s = False", ATTR_REPLICATION_IS_ACTIVE );
+    }
+}
+

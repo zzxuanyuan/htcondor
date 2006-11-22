@@ -1,7 +1,7 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
-  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+  * Copyright (C) 1990-2005, Condor Team, Computer Sciences Department,
   * University of Wisconsin-Madison, WI.
   *
   * This source code is covered by the Condor Public License, which can
@@ -37,22 +37,16 @@
 #define HAD_StateMachine_H__
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+// for 'HadState'
+#include "HadState.h"
 
 //#undef IS_REPLICATION_USED
 //#define IS_REPLICATION_USED
 
-#define MESSAGES_PER_INTERVAL_FACTOR (2)
+//#define MESSAGES_PER_INTERVAL_FACTOR (2)
 #define SEND_COMMAND_TIMEOUT (5) // 5 seconds
 
-typedef enum {
-    PRE_STATE = 1,
-    PASSIVE_STATE = 2,
-    ELECTION_STATE = 3,
-    LEADER_STATE = 4
-}STATES;
-
 class CollectorList;
-class Daemon;
 /*
   class HADStateMachine
 */
@@ -73,12 +67,31 @@ public:
 
     virtual void initialize();
 
-    virtual int reinitialize();
-	
-	bool isHardConfigurationNeeded();
-	int softReconfigure();
-
+    virtual bool reinitialize();
+   /* Function    : reconfigure
+    * Return value: bool - success value
+	* Description : reconfigures all inner structures, depending on the 
+    *               changes, performed in the configuration file: it might be
+    *               a full restart or just a reloading of parameters
+	*/
+	bool reconfigure();
 protected:
+   /* Function    : isHardConfigurationNeeded
+ 	* Return value: bool - whether we have to reconfigure all the parameters of
+	*					   the HAD or only those that do not affect the
+	*					   negotiator's location
+	* Description : checks, what type of reconfiguration we have to perform: the
+	*				hard reconfiguration, i.e. reloading the configuration file
+	*				once again, or soft one, i.e. reloading only the parameters,
+	*				which do not affect the negotiator's location
+ 	*/
+	bool isHardConfigurationNeeded();
+   /* Function    : softReconfigure 
+    * Return value: int - success value 
+    * Description : reconfigures only the parameters, which do not affects the
+	*				location of the negotiator 
+    */
+	int softReconfigure();
     /*
       step() - called each m_hadInterval, implements one state of the
       state machine.
@@ -86,7 +99,7 @@ protected:
     void  step();
     
     /*
-      cycle() - called MESSAGES_PER_INTERVAL_FACTOR times per m_hadInterval
+      cycle() - called 'm_messagesPerStateFactor' times per m_hadInterval
     */
     void  cycle();
 
@@ -124,30 +137,31 @@ protected:
 
     void commandHandler(int cmd,Stream *strm) ;
 
-    int m_state;   
-    int m_stateMachineTimerID;
+    HadState m_state;   
+    int      m_stateMachineTimerID;
         
-    int m_hadInterval;
-    int m_connectionTimeout;
+    int      m_hadInterval;
+    int      m_connectionTimeout;
     
     // if m_callsCounter equals to 0 ,
     // enter state machine , otherwise send messages
-    char m_callsCounter;
-    
-    int m_selfId;
-    bool m_isPrimary;
-    bool m_usePrimary;
-    StringList* m_otherHADIPs;
-    Daemon* m_masterDaemon;
+    char     m_callsCounter;
+	int		 m_messagesPerStateFactor;
 
-    List<int> receivedAliveList;
-    List<int> receivedIdList;
+    int      m_selfId;
+    bool     m_isPrimary;
+    bool     m_usePrimary;
+    StringList* m_otherHADIPs;
+    Daemon*     m_masterDaemon;
+
+    List<int> m_receivedAliveList;
+    List<int> m_receivedIdList;
 
     static bool initializeHADList(char* , bool , StringList*, int* );
     int  checkList(List<int>*);
     static void removeAllFromList(List<int>*);
     void clearBuffers();
-    void printStep(char *curState,char *nextState);
+    //void printStep(char *curState,char *nextState);
     //char* commandToString(int command);
 
     void finalize();
@@ -169,6 +183,9 @@ protected:
     static void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
+	void registerCommand(int command);
+
+// replication-specific data members and functions
 	// usage of replication, controlled by configuration parameter 
 	// USE_REPLICATION
 	bool m_useReplication;
@@ -176,19 +193,30 @@ protected:
 	int sendReplicationCommand( int );
 	void setReplicationDaemonSinfulString( );
 
-	char* replicationDaemonSinfulString;
+	char* m_replicationDaemonSinfulString;
+	// finished replication's timer handler
+	void replicationFinished();
+	// timer, controlling the time allowed for finishing the replication, while
+	// joining the pool
+	int   m_replicationFinishedTimerId;
+// End of replication-specific data members and functions
+
 // classad-specific data members and functions
     void initializeClassAd();
-    // timer handler
+	void synchronizeStateAndClassAd( MyString& line );
+    // collector updates' timer handler
     void updateCollectors();
     // updates collectors upon changing from/to leader state
     void updateCollectorsClassAd( const MyString& isHadActive );
+	// invalidates HAD classad in collectors
+	void invalidateClassAd();
 
     ClassAd*       m_classAd;
     // info about our central manager
     CollectorList* m_collectorsList;
     int            m_updateCollectorTimerId;
     int            m_updateCollectorInterval;
+// End of classad-specific data members and functions
 };
 
 #endif // !HAD_StateMachine_H__

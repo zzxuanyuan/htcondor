@@ -10,6 +10,8 @@
 #include "dc_service.h"
 #include "list.h"
 
+class CollectorList;
+
 /* Class      : AbstractReplicatorStateMachine
  * Description: base abstract class for replication service state machine,
  *              contains useful functions for implementation of replication, 
@@ -125,16 +127,18 @@ protected:
     bool download(const char* daemonSinfulString);
 	/* Function    : upload
      * Arguments   : daemonSinfulString - address of daemon to upload the
-     *                                   version to
+     *                                    version to
 	 * Return value: bool - success/failure value
      * Description : starts uploading 'condor_transferer' process to upload
      *               the version to remote replication daemon
      */
     bool upload(const char* daemonSinfulString);
 	/* Function   : finalize
+	 * Arguments  : isStateChanged - whether the state of the daemon should
+	 *								 be initialized or not
 	 * Description: clears and resets all inner structures and data members
 	 */
-    void finalize();
+    void finalize(bool isStateChanged = true);
     /* Function   : initializeReplicationList
 	 * Arguments  : buffer - the string to initialize the replication daemons'
 	 *						 list from
@@ -204,6 +208,7 @@ protected:
      * Description : kills all the uploading and downloading transferers
      */
     void killTransferers();
+	void setHadSinfulString();
 
 	bool getProcessPrivilege(priv_state& privilege);
 protected:
@@ -247,6 +252,12 @@ protected:
 		int    m_pid;
     	time_t m_lastTimeCreated;
 	};
+// classad-specific
+	void initializeClassAd();
+	void synchronizeStateAndClassAd( MyString& line );
+	// collector updates' timer handler
+	//void updateCollectors();
+	
 	// local version
     Version                  m_myVersion;
     // list of versions sent to the daemon during JOINING state
@@ -260,8 +271,12 @@ protected:
 
 	// list of remote replication daemons
     StringList               m_replicationDaemonsList;
-    // path to the directory where 'condor_transferer' binary is located
-	MyString                 m_releaseDirectoryPath;
+	// id of current replication daemon
+	int                      m_selfId;
+    // local HAD address to send it NEWLY_JOINED_REPLICATION_FINISHED messages
+	char*                    m_hadSinfulString;
+	// path to the executable of 'condor_transferer' 
+	MyString                 m_transfererBinary;
 	// socket connection timeout
     int                      m_connectionTimeout;
 
@@ -275,12 +290,12 @@ protected:
 						   "State file path        - %s\n"
 						   "Version file path      - %s\n"
 						   "State                  - %d\n"
-						   "Release directory path - %s\n"
+						   "Transferer binary      - %s\n"
 						   "Connection timeout     - %d\n"
 						   "Downloading reaper id  - %d\n"
 						   "Uploading reaper id    - %d\n",
 				 m_stateFilePath.GetCStr(), m_versionFilePath.GetCStr(), 
-				 m_state, m_releaseDirectoryPath.GetCStr(), m_connectionTimeout,
+				 m_state, m_transfererBinary.GetCStr(), m_connectionTimeout,
 				 m_downloadReaperId, m_uploadReaperId );    
 	};
 	// process ids of uploading/downloading 'condor_transferer' processes for
@@ -289,6 +304,13 @@ protected:
 	// for handling the problem of stuck transferer processes
 	ProcessMetadata          m_downloadTransfererMetadata;
 	List<ProcessMetadata>    m_uploadTransfererMetadataList;
+
+// classad-specific data members
+    // info about our central manager
+	CollectorList* m_collectorsList;
+	ClassAd*       m_classAd;
+	int            m_updateCollectorInterval;
+//	int            m_updateCollectorTimerId;
 };
 
 #endif // ABSTRACT_REPLICATOR_STATE_MACHINE_H

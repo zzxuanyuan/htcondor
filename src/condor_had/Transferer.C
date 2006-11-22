@@ -170,7 +170,7 @@ main_init( int argc, char *argv[] )
 
     DC_Exit( result );
 
-    return TRUE; // compilation reason
+    return 0; // compilation reason
 }
 
 int

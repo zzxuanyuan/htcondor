@@ -3,6 +3,10 @@
 //#include "HadCommands.h"
 //#include "ReplicationCommands.h"
 #include "FilesOperations.h"
+// to refer to HAD states in 'utilStateToString'
+#include "HadState.h"
+// to refer to replication daemon states in 'utilStateToString'
+#include "ReplicatorState.h"
 // for 'CHILD_ON' and 'CHILD_OFF_FAST'
 #include "condor_commands.h"
 // for 'getHostFromAddr' and 'getPortFromAddr'
@@ -12,10 +16,6 @@
 #ifdef CONDOR_MD
 #include <openssl/md5.h>
 #endif
-#include "condor_netdb.h"
-
-#include <fstream>
-using namespace std;
 
 // for MD5 blocks computation
 #define FILE_CHUNK_SIZE               (100)
@@ -88,7 +88,7 @@ utilCancelReaper(int& reaperId)
 }
 
 const char*
-utilToString( int command )
+utilCommandToString( int command )
 {
     switch( command ) {
         case REPLICATION_LEADER_VERSION:
@@ -103,7 +103,9 @@ utilToString( int command )
             return "REPLICATION_SOLICIT_VERSION";
         case REPLICATION_SOLICIT_VERSION_REPLY:
             return "REPLICATION_SOLICIT_VERSION_REPLY";
-        case HAD_BEFORE_PASSIVE_STATE:
+        case REPLICATION_NEWLY_JOINED_FINISHED:
+			return "REPLICATION_NEWLY_JOINED_FINISHED";
+		case HAD_BEFORE_PASSIVE_STATE:
             return "HAD_BEFORE_PASSIVE_STATE";
         case HAD_AFTER_ELECTION_STATE:
             return "HAD_AFTER_ELECTION_STATE";
@@ -122,6 +124,53 @@ utilToString( int command )
         default:
             return "unknown command";
     }
+}
+
+const char*
+utilStateToString( int state, const char* daemonName )
+{
+	if( ! strcmp( daemonName, "HAD" ) ) {
+		switch( state ) {
+			case PRE_STATE:
+				return "PRE_STATE";
+			case PASSIVE_STATE:
+				return "PASSIVE_STATE";
+			case ELECTION_STATE:
+				return "ELECTION_STATE";
+			case LEADER_STATE:
+				return "LEADER_STATE";
+			default:
+				return "unknown state";
+		}
+	} else if( ! strcmp( daemonName, "REPLICATION" ) ) {
+		switch( state ) {
+			case VERSION_REQUESTING:
+				return "VERSION_REQUESTING";
+			case VERSION_DOWNLOADING:
+				return "VERSION_DOWNLOADING";
+			case BACKUP:
+				return "BACKUP";
+			case REPLICATION_LEADER:
+				return "REPLICATION_LEADER";
+            default:
+                return "unknown state";
+        }
+	}
+	return "unknown daemon";
+}
+
+void
+utilPrintStep( int previousState, int nextState,
+			   const char* daemonName )
+{
+      dprintf( D_FULLDEBUG,
+                "utilPrintStep %s (pid <%d>, port <%d>) "
+                "from <%s> go to <%s>\n",
+				daemonName,
+                daemonCore->getpid( ),
+                daemonCore->InfoCommandPort( ),
+                utilStateToString( previousState, daemonName ),
+                utilStateToString( nextState    , daemonName ) );
 }
 
 // returns allocated by 'malloc' string upon success or NULL upon failure
@@ -146,7 +195,7 @@ utilToSinful( char* address )
     struct in_addr sin;
     
     if( ! is_ipaddr( ipAddress, &sin ) ) {
-        struct hostent *entry = condor_gethostbyname( hostName );
+        struct hostent *entry = gethostbyname( hostName );
         
         if( entry == 0 ) {
             free( hostName );

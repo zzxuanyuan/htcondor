@@ -49,8 +49,6 @@
 	#include "ReplicaStateMachine.h"
 #endif // USE_REPLICATION
 
-#include <iostream>
-using namespace std;
 
 extern "C" int SetSyscalls(int val){return val;}
 extern char* myName;
@@ -67,11 +65,11 @@ main_init (int, char *[])
         stateMachine = new HADStateMachine();
 	
         stateMachine->initialize();
-        return TRUE;
+        return 0;
     } catch (char* rr) {
         cout << rr << endl;
         dprintf(D_ALWAYS, "Exception in main_init %s \n", rr);
-        return FALSE;
+        return 1;
     }
 }
 
@@ -106,17 +104,7 @@ main_shutdown_fast()
 int
 main_config( bool is_full )
 {
-	int returnValue = 0;
-	
-	if( stateMachine->isHardConfigurationNeeded( ) ) {
-    	dprintf( D_ALWAYS, "main_config hard configuration started\n" );
-		returnValue = stateMachine->reinitialize( );
-	} else {
-		dprintf( D_ALWAYS, "main_config soft configuration started\n" );
-		returnValue = stateMachine->softReconfigure( );
-	}
-	
-	return returnValue;
+	return ( stateMachine->reconfigure( ) ) ? 0 : 1;
 }
 
 

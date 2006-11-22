@@ -312,7 +312,6 @@ extern const char * ATTR_NOTIFY_JOB_SCHEDULER;
 extern const char * ATTR_NT_DOMAIN;
 extern const char * ATTR_NUM_COD_CLAIMS;
 extern const char * ATTR_NUM_CKPTS;
-extern const char * ATTR_NUM_CKPTS_RAW;
 extern const char * ATTR_NUM_GLOBUS_SUBMITS;
 extern const char * ATTR_NUM_MATCHES;
 extern const char * ATTR_NUM_HOPS_TO_SUBMIT_MACHINE;
@@ -558,6 +557,14 @@ extern const char * ATTR_IS_VALID_CHECKPOINT_PLATFORM;
 extern const char * ATTR_HAD_IS_ACTIVE;
 extern const char * ATTR_HAD_LIST;
 extern const char * ATTR_HAD_INDEX;
+extern const char * ATTR_HAD_IS_PRIMARY;
+extern const char * ATTR_HAD_IP_ADDR;
+
+extern const char * ATTR_REPLICATION_IS_ACTIVE;
+extern const char * ATTR_REPLICATION_LIST;
+extern const char * ATTR_REPLICATION_INDEX;
+extern const char * ATTR_REPLICATION_IP_ADDR;
+
 extern const char * ATTR_TERMINATION_PENDING;
 extern const char * ATTR_TERMINATION_EXITREASON;
 

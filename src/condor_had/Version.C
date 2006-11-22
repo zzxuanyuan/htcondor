@@ -10,8 +10,6 @@
 
 #include "Version.h"
 #include "FilesOperations.h"
-#include <fstream>
-using namespace std;
 
 time_t Version::m_lastModifiedTime = -1;
 

@@ -40,6 +40,7 @@
 #define STORAGE_ADTYPE		"Storage"
 #define NEGOTIATOR_ADTYPE	"Negotiator"
 #define HAD_ADTYPE		"HAD"
+#define REPLICATION_ADTYPE "Replication"
 #define CREDD_ADTYPE		"CredD"
 #define ANY_ADTYPE		"Any"
 #define SUBMITTER_ADTYPE	"Submitter"

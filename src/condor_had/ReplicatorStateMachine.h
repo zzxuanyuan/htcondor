@@ -84,6 +84,13 @@ public:
      *              commands, timers, reapers and data members
      */
     void reinitialize();
+	/* Function    : reconfigure
+     * Description : reconfigures all inner structures, depending on the
+     * 				 changes, performed in the configuration file: it might be
+	 *				 a full restart or just a reloading of parameters
+     */
+    void reconfigure();
+
 protected:
 	/* Function   : downloadReplicaTransfererReaper
      * Arguments  : service    - the daemon, for which the transfer has ended
@@ -103,7 +110,7 @@ private:
     void commandHandler(int command, Stream* stream);
     void registerCommand(int command);
 
-    void finalize();
+    void finalize(bool isStateChanged = true);
     void finalizeDelta();
 // Timers handlers
     void replicationTimer();
@@ -113,7 +120,7 @@ private:
 // Command handlers
     void onLeaderVersion(Stream* stream);
     void onTransferFile(char* daemonSinfulString);
-    void onSolicitVersion( char* daemonSinfulString );
+    void onSolicitVersion(char* daemonSinfulString);
     void onSolicitVersionReply(Stream* stream);
     void onNewlyJoinedVersion(Stream* stream);
     void onGivingUpVersion(Stream* stream);
@@ -128,12 +135,25 @@ private:
     int  downloadTransferersNumber() const { 
 		return int( m_downloadTransfererMetadata.m_pid != -1 ); 
 	};
+// Reconfiguration-related procedures
+	bool isHardConfigurationNeeded( );
+	bool isPassingToIdleNeeded( );
+	void softReconfigure( bool isStateChanged = true );
+	void invalidateClassAd( );
+// End of reconfiguration-related procedures
+
+// Classad-related procedures
+	// collector updates' timer handler
+    void updateCollectors();
+	void updateCollectorsClassAd( const MyString& isActive );
+// End of classad-related procedures
 
 // Configuration parameters
     int      m_replicationInterval;
     int      m_hadAliveTolerance;
     int      m_maxTransfererLifeTime;
     int      m_newlyJoinedWaitingVersionInterval;
+	bool     m_useReplication;
 // End of configuration parameters
 // Timers
     int     m_versionRequestingTimerId;
@@ -142,6 +162,9 @@ private:
 // End of timers
 	// last time HAD sent HAD_IN_LEADER_STATE
     time_t  m_lastHadAliveTime;
+
+// Classad-related data
+	int     m_updateCollectorTimerId;
 
 // Debugging utilities
 	void printDataMembers()

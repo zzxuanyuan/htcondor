@@ -372,7 +372,6 @@ const char *ATTR_NOTIFY_JOB_SCHEDULER     = "NotifyJobScheduler";
 const char *ATTR_NT_DOMAIN				 = "NTDomain";
 const char *ATTR_NUM_COD_CLAIMS			 = "NumCODClaims";
 const char *ATTR_NUM_CKPTS				 = "NumCkpts";
-const char *ATTR_NUM_CKPTS_RAW			 = "NumCkpts_RAW";
 const char *ATTR_NUM_GLOBUS_SUBMITS		 = "NumGlobusSubmits";
 const char *ATTR_NUM_MATCHES				 = "NumJobMatches";
 const char *ATTR_NUM_HOPS_TO_SUBMIT_MACHINE= "NumHopsToSubmitMachine";
@@ -615,11 +614,19 @@ const char *ATTR_CHECKPOINT_PLATFORM			= "CheckpointPlatform";
 const char *ATTR_LAST_CHECKPOINT_PLATFORM	= "LastCheckpointPlatform";
 const char *ATTR_IS_VALID_CHECKPOINT_PLATFORM  = "IsValidCheckpointPlatform";
 
-const char *ATTR_HAD_IS_ACTIVE = "HadIsActive";
-const char *ATTR_HAD_LIST      = "HadList";
-const char *ATTR_HAD_INDEX     = "HadIndex";
+const char *ATTR_HAD_IS_ACTIVE  = "HadIsActive";
+const char *ATTR_HAD_LIST       = "HadList";
+const char *ATTR_HAD_INDEX      = "HadIndex";
+const char *ATTR_HAD_IS_PRIMARY = "HadIsPrimary";
+const char *ATTR_HAD_IP_ADDR    = "HadIpAddr";
 const char *ATTR_TERMINATION_PENDING	= "TerminationPending";
 const char *ATTR_TERMINATION_EXITREASON	= "TerminationExitReason";
+
+const char *ATTR_REPLICATION_IS_ACTIVE  = "ReplicationIsActive";
+const char *ATTR_REPLICATION_LIST       = "ReplicationList";
+const char *ATTR_REPLICATION_INDEX      = "ReplicationIndex";
+const char *ATTR_REPLICATION_IP_ADDR    = "ReplicationIpAddr";
+
 
 // This is a record of the job exit status from a standard universe job exit
 // via waitpid. It is in the job ad to implement the terminate_pending
