@@ -618,13 +618,14 @@ File System Configuration File Entries''.
   \MacroNI{EXECUTE} is not defined.  Normally, \MacroUNI{EXECUTE} is
   defined in terms of \MacroUNI{LOCAL\_DIR}.
   
-\item[\Macro{LOCAL\_CONFIG\_FILE}] \label{param:LocalConfigFile} The
+\item[\Macro{LOCAL\_CONFIG\_FILE}] \label{param:LocalConfigFile}
+  Identifies the
   location of the local, machine-specific configuration
   file for each machine
-  in your pool.  The two most common options would be putting this
+  in the pool.  The two most common choices would be putting this
   file in the \MacroUNI{LOCAL\_DIR}, or putting all
-  local configuration files for your pool in a shared directory, each one
-  named by hostname.  For example,
+  local configuration files for the pool in a shared directory, each one
+  named by host name.  For example,
   \begin{verbatim}
     LOCAL_CONFIG_FILE = $(LOCAL_DIR)/condor_config.local
   \end{verbatim}
@@ -632,7 +633,7 @@ File System Configuration File Entries''.
   \begin{verbatim}
     LOCAL_CONFIG_FILE = $(release_dir)/etc/$(hostname).local
   \end{verbatim}
-  or, not using your release directory
+  or, not using the release directory
   \begin{verbatim}
     LOCAL_CONFIG_FILE = /full/path/to/configs/$(hostname).local
   \end{verbatim}
@@ -641,16 +642,16 @@ File System Configuration File Entries''.
   not a
   single file.  The items in the list are delimited by either commas
   or space characters.
-  This allows you to specify multiple files as
-  the local configuration file and each one will be processed in the
+  This allows the specification of multiple files as
+  the local configuration file, each one processed in the
   order given (with parameters set in later files overriding values
-  from previous files).  This allows you to use one global
-  configuration file for multiple platforms in your pool, define a
-  platform-specific configuration file for each platform, and use a
+  from previous files).  This allows the use of one global
+  configuration file for multiple platforms in the pool, defines a
+  platform-specific configuration file for each platform, and uses a
   local configuration file for each machine. 
-  If the list is changed in one of the included files, the new list
+  If the list of files is changed in one of the later read files, the new list
   replaces the old list, but any files that have already been processed
-  remain processed and are removed from the new list if they are present
+  remain processed, and are removed from the new list if they are present
   to prevent cycles.
   See section~\ref{sec:Program-Defined-Macros} on 
   page~\pageref{sec:Program-Defined-Macros} for directions on
@@ -662,28 +663,36 @@ File System Configuration File Entries''.
   Multiple Platforms on page~\pageref{sec:Multiple-Platforms}.
 
 \item[\Macro{REQUIRE\_LOCAL\_CONFIG\_FILE}] \label{param:RequireLocalConfigFile}
-  Beginning in Condor 6.5.5, it is permissible for the files listed as the
-  local config file to be missing. This is most useful for sites that have 
-  large numbers of machines in the pool, and a local config file that uses
-  the hostname builtin macro - instead of having an empty file for every host
-  in the pool, some files can simply be omitted. The default setting is True,
-  and Condor will exit with an error if the file listed as the local config 
-  file cannot be read, unless \MacroNI{REQUIRE\_LOCAL\_CONFIG\_FILE} is set 
-  to False 
+  Beginning in Condor 6.5.5, it is permissible for files listed 
+  in \MacroNI{LOCAL\_CONFIG\_FILE}
+  to be missing. This is most useful for sites that have 
+  large numbers of machines in the pool, and a local configuration file
+  that uses
+  the \MacroUNI{HOSTNAME} macro in its definition.
+  Instead of having an empty file for every host
+  in the pool, files can simply be omitted.
+  The default value is \Expr{True},
+  causing Condor to exit with an error, if a file listed as the local 
+  configuration file cannot be read.
+  A value of \Expr{False} allows local configuration files to be missing.
 
 \item[\Macro{LOCAL\_CONFIG\_DIR}] \label{param:LocalConfigDir} 
   Beginning in Condor 6.7.18, a directory may be used as a container for 
   local configuration files. 
   The files found in the directory are sorted into lexigraphical order, and 
   then each file is treated as though it was listed in 
-  \MacroUNI{LOCAL\_CONFIG\_FILE}. 
-  \MacroUNI{LOCAL\_CONFIG\_DIR} is processed before any files listed in 
-  \MacroUNI{LOCAL\_CONFIG\_FILE}, and is checked again after processing
-  the \MacroUNI{LOCAL\_CONFIG\_FILE} list. 
+  \MacroNI{LOCAL\_CONFIG\_FILE}. 
+  \MacroNI{LOCAL\_CONFIG\_DIR} is processed before any files listed in 
+  \MacroNI{LOCAL\_CONFIG\_FILE}, and is checked again after processing
+  the \MacroNI{LOCAL\_CONFIG\_FILE} list. 
   It is a list of directories, and each directory is processed in the order
   it appears in the list. 
   The process is not recursive, so any directories found inside the directory
   being processed are ignored. 
+
+\item[\Macro{LOCAL\_ROOT\_CONFIG\_FILE}] \label{param:LocalRootConfigFile} 
+  A comma or space separated list of path and file names specifying
+  the local, root configuration files.
 
 \item[\Macro{CONDOR\_IDS}] \label{param:CondorIds}
   The User ID (UID) and Group ID (GID) pair that the Condor daemons
@@ -971,7 +980,7 @@ File System Configuration File Entries''.
 % Default value check end here: PKK 8 Jan 2004
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:Daemon-Logging-Config-File-Entries}Daemon Logging Config File Entries} 
+\subsection{\label{sec:Daemon-Logging-Config-File-Entries}Daemon Logging Configuration File Entries} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \index{configuration!daemon logging configuration variables}
@@ -1273,7 +1282,7 @@ Log files may optionally be specified per debug level as follows:
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:DaemonCore-Config-File-Entries}DaemonCore Config File Entries} 
+\subsection{\label{sec:DaemonCore-Config-File-Entries}DaemonCore Configuration File Entries} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \index{configuration!DaemonCore configuration variables}
@@ -5882,8 +5891,9 @@ quill-for-schedd_name@machinename.fully.qualified.address
 \end{description}
 
 
+% commented out by Karen in Nov 06
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{admin-man/root-config.tex}
+%\input{admin-man/root-config.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
