@@ -114,12 +114,12 @@ AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
         char* sinfulAddress = utilToSinful( replicationAddress );
 
         if( sinfulAddress == NULL ) {
-            char buffer[BUFSIZ];
+            char crucialErrorBuffer[BUFSIZ];
 
-			sprintf( buffer, 
+			sprintf( crucialErrorBuffer, 
 					"AbstractReplicatorStateMachine::initializeReplicationList"
                     " invalid address %s\n", replicationAddress );
-            utilCrucialError( buffer );
+            utilCrucialError( crucialErrorBuffer );
 
             continue;
         }
@@ -194,9 +194,20 @@ AbstractReplicatorStateMachine::reinitialize()
 
         free( buffer );
     } else {
-        utilCrucialError( utilConfigurationError("TRANSFERER",
-                                                 "REPLICATION").GetCStr( ) );
-    }
+		dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::reinitialize "
+						   "transferer binary uninitialized, trying default "
+						   "location\n" );
+    	buffer = param( "RELEASE_DIR" );
+
+		if( buffer ) {
+			m_transfererBinary.sprintf( "%s/bin/condor_transferer", buffer );
+
+			free( buffer );
+		} else {
+			utilCrucialError( utilConfigurationError("RELEASE_DIR",
+													 "REPLICATION").GetCStr( ) );
+		}
+	}
 
 	char* spoolDirectory = param( "SPOOL" );
     
