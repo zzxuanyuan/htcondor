@@ -11,7 +11,14 @@
 #include "Version.h"
 #include "FilesOperations.h"
 
+// for 'ifstream', 'ofstream' and 'endl'
+#include <fstream>
+
 time_t Version::m_lastModifiedTime = -1;
+
+using std::ifstream;
+using std::ofstream;
+using std::endl;
 
 static void
 createFile(const MyString& filePath)

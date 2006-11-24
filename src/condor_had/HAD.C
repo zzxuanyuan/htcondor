@@ -32,7 +32,6 @@
 /*
   HAD.cpp : Defines the entry point for the console application.
 */
-
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_io.h"
@@ -48,7 +47,8 @@
 #if USE_REPLICATION
 	#include "ReplicaStateMachine.h"
 #endif // USE_REPLICATION
-
+// for 'cout' and 'endl'
+#include <iostream>
 
 extern "C" int SetSyscalls(int val){return val;}
 extern char* myName;
@@ -56,6 +56,9 @@ extern char* myName;
 char *mySubSystem = "HAD";  // for daemon core
 
 HADStateMachine* stateMachine = NULL;
+
+using std::cout;
+using std::endl;
 
 int
 main_init (int, char *[])

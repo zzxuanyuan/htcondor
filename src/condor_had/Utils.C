@@ -17,12 +17,17 @@
 #include <openssl/md5.h>
 #endif
 
+// for 'ifstream'
+#include <fstream>
+
 // for MD5 blocks computation
 #define FILE_CHUNK_SIZE               (100)
 
 extern int main_shutdown_graceful();
 
 //#undef CONDOR_MD
+
+using std::ifstream;
 
 MyString
 utilNoParameterError( const char* parameter, const char* daemonName )
