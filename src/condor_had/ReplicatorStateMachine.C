@@ -1037,7 +1037,7 @@ ReplicatorStateMachine::versionDownloadingTimer( )
 	checkVersionSynchronization( );	
 
 	sendCommand( REPLICATION_NEWLY_JOINED_FINISHED, m_hadSinfulString,
-				 &AbstractReplicatorStateMachine::noCommand );
+				 &ReplicatorStateMachine::noCommand );
 	utilPrintStep( m_state, BACKUP, "REPLICATION" );
 	m_state = BACKUP;
 	updateCollectorsClassAd( "False" );
