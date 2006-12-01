@@ -51,7 +51,7 @@ int set_seed(int seed)
 int get_random_int()
 {
 	if (!initialized) {
-		set_seed(0);
+		set_seed(getpid());
 	}
 
 #if defined(WIN32)
@@ -66,7 +66,7 @@ int get_random_int()
 float get_random_float()
 {
 	if (!initialized) {
-		set_seed(0);
+		set_seed(getpid());
 	}
 
 #if defined(WIN32)
@@ -81,7 +81,7 @@ float get_random_float()
 unsigned int get_random_uint()
 {
 	if (!initialized) {
-		set_seed(0);
+		set_seed(getpid());
 	}
 
 	/* since get_random_float returns [0.0, 1.0), add one to UINT_MAX
