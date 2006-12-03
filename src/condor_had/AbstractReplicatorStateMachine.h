@@ -211,6 +211,17 @@ protected:
 	void setHadSinfulString();
 
 	bool getProcessPrivilege(priv_state& privilege);
+
+	/* Function    : initializeWindowsExceptions
+	 * Description : tries to open holes in Windows firewall for
+	 * 				 'condor_transferer' processes
+	 */
+	void initializeWindowsExceptions();
+	/* Function    : finalizeWindowsExceptions
+	 * Description : tries to close holes in Windows firewall for
+	 *				 'condor_transferer' processes
+	 */
+	void finalizeWindowsExceptions();
 protected:
 	/* The structure encapsulates process id and the last timestamp of the
      * process creation. The structure is used for downloading/uploading
@@ -252,9 +263,10 @@ protected:
 		int    m_pid;
     	time_t m_lastTimeCreated;
 	};
-// classad-specific
+// Classad-specific
 	void initializeClassAd();
 	void synchronizeStateAndClassAd( MyString& line );
+// End of classad-specific
 	// collector updates' timer handler
 	//void updateCollectors();
 	

@@ -16,6 +16,12 @@
 //#include "ReplicationCommands.h"
 #include "FilesOperations.h"
 
+#ifdef WIN32
+// for 'WindowsFirewallHelper'
+#include "windows_firewall.h"
+
+#endif
+
 #define DEFAULT_REPLICATION_UPDATE_INTERVAL  (5 * MINUTE)
 // gcc compilation pecularities demand explicit declaration of template classes
 // and functions instantiation
@@ -26,6 +32,41 @@ template class List<AbstractReplicatorStateMachine::ProcessMetadata>;
 template void utilClearList<AbstractReplicatorStateMachine::ProcessMetadata>
 				( List<AbstractReplicatorStateMachine::ProcessMetadata>& );
 template void utilClearList<Version>( List<Version>& );
+
+/* Function    : getConfigurationTransfererParameter 
+ * Return value: MyString - configuration value of TRANSFERER parameter or
+ *				            default value, if it is undefined
+ * Description : returns configuration value of TRANSFERER parameter 
+ * Note        : the function may halt the program execution, in case when the
+ *				 RELEASE_DIR parameter is undefined
+ */
+static MyString 
+getConfigurationTransfererParameter()
+{
+	char*    buffer = param( "TRANSFERER" );
+	MyString transfererBinary;
+
+	if( buffer ) {
+		transfererBinary = buffer;
+		free( buffer );
+	} else {
+		dprintf( D_ALWAYS, "getConfigurationTransfererParameter "
+				"transferer binary uninitialized, trying default "
+                "location\n" );
+        buffer = param( "RELEASE_DIR" );
+
+		if( buffer ) {
+			transfererBinary.sprintf( "%s/bin/condor_transferer", 
+			 						  buffer );
+			free( buffer );
+		} else {
+			utilCrucialError( utilConfigurationError("RELEASE_DIR",
+								"REPLICATION").GetCStr( ) );
+		}
+	}
+
+	return transfererBinary;
+}
 
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 {
@@ -41,11 +82,15 @@ AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 	m_classAd                 = NULL;
 	m_updateCollectorInterval = -1;
 //	m_updateCollectorTimerId  = -1;
+	initializeWindowsExceptions();
 }
 
 AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine dtor started\n" );
+ 	// It is important to finalize Windows firewall exceptions before
+	// the path to transferer executable is cleared
+	finalizeWindowsExceptions();
     finalize();
 }
 // releasing the dynamic memory and assigning initial values to all the data
@@ -187,7 +232,7 @@ AbstractReplicatorStateMachine::reinitialize()
 											     "REPLICATION").GetCStr( ) );
     }
 */
-	buffer = param( "TRANSFERER" );
+/*	buffer = param( "TRANSFERER" );
 
 	if( buffer ) {
         m_transfererBinary = buffer;
@@ -208,7 +253,8 @@ AbstractReplicatorStateMachine::reinitialize()
 													 "REPLICATION").GetCStr( ) );
 		}
 	}
-
+*/
+	m_transfererBinary = getConfigurationTransfererParameter();
 	char* spoolDirectory = param( "SPOOL" );
     
     if( spoolDirectory ) {
@@ -878,6 +924,55 @@ AbstractReplicatorStateMachine::getProcessPrivilege(priv_state& privilege)
 
 	return true;
 	//return priv;
+}
+
+void 
+AbstractReplicatorStateMachine::initializeWindowsExceptions() 
+{
+#ifdef WIN32
+	bool     addException;
+	MyString transfererBinary;
+
+	WindowsFirewallHelper wfh;
+        
+	addException = param_boolean("ADD_WINDOWS_FIREWALL_EXCEPTION", true);
+
+	if ( addException ) {
+		// We want to add exceptions for the transferers so that the 
+		// state could be replicated to the Windows machines too 
+        
+		transfererBinary = getConfigurationTransfererParameter(); 
+
+		// The string cannot be empty, since the program would have failed
+		// in the previous procedure
+		if ( ! wfh.addTrusted( transfererBinary.GetCStr( ) ) ) {
+			dprintf( D_ALWAYS,
+				"AbstractReplicatorStateMachine::initializeWindowsExceptions "
+				"unable to add %s to the "
+				"windows firewall exception list\n", transfererBinary.GetCStr());
+        }
+	}
+#endif
+}
+
+void
+AbstractReplicatorStateMachine::finalizeWindowsExceptions()
+{
+#ifdef WIN32
+	bool                  addException;
+	WindowsFirewallHelper wfh;
+
+	addException = param_boolean("ADD_WINDOWS_FIREWALL_EXCEPTION", true);
+
+	if ( addException ) {
+		if ( ! wfh.removeTrusted( m_transfererBinary.GetCStr( ) ) ) {
+			dprintf( D_ALWAYS, 
+				"AbstractReplicatorStateMachine::finalizeWindowsExceptions "
+				"unable to remove %s from the windows firewall "
+				"exception list\n", m_transfererBinary.GetCStr( ) );
+		}
+	}	
+#endif
 }
 
 // initializes replication daemon classad to broadcast to collectors
