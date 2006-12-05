@@ -10,6 +10,7 @@ typedef struct
 	char *fullname; /* file name in the destination */
 	filesize_t   bytes; /* size in bytes */
 	time_t elapsed; /* elapsed seconds */
+  char *daemon; /* deamon doing the download */
 	ReliSock *sockp; /* associated socket for getting source info */
 	
 } file_transfer_record;

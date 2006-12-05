@@ -1350,6 +1350,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 	MyString error_buf;
 	file_transfer_record record;
 	time_t start, elapsed;
+  char daemon[15];
 
 	priv_state saved_priv = PRIV_UNKNOWN;
 	*total_bytes = 0;
@@ -1536,6 +1537,11 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		record.fullname = fullname;
 		record.bytes = bytes;
 		record.elapsed  = elapsed;
+    
+    // Get the name of the daemon calling DoDownload
+    strncpy(daemon, mySubSystem, 15);
+    record.daemon = daemon;
+
 		record.sockp =s;
 
 		file_transfer_db(&record, jobAd);

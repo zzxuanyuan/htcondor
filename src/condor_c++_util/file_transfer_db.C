@@ -20,18 +20,22 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	char *dst_host = NULL, 
 		*dst_path = NULL,
 		*globalJobId = NULL,
-	    *src_name = NULL,
+    *src_name = NULL,
 		*src_path = NULL,
 		*job_name = NULL,
-		*dst_name = NULL;
+		*dst_name = NULL,
+    *src_fullname = NULL;
+
 	char src_host[MAXMACHNAME];
 	bool inStarter  = FALSE;
 	char *tmpp;
 
+  struct stat file_status;
+
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[512];
- 
+
 		// this function access the following pointers
 	if  (!rp || !ad || !FILEObj)
 		return;
@@ -77,6 +81,22 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 			ad->LookupString(ATTR_JOB_IWD, &src_path);
 	}
 
+  // Get the file status (contains last modified time)
+  // Get this info from the schedd/shadow side
+  if (inStarter) { // use src info
+    src_fullname = (char *)malloc(2 * (strlen(src_path) + strlen(src_name) + 1));
+    strcpy(src_fullname, src_path);
+    src_fullname = strcat(src_fullname, "/");
+    src_fullname = strcat(src_fullname, src_name);
+    if (stat(src_fullname, &file_status) < 0) {
+      dprintf(D_ALWAYS, "ERROR: File %s can not be accessed.\n", src_fullname);
+    }
+  } else { // use dst info
+    if (stat(rp->fullname, &file_status) < 0) {
+      dprintf(D_ALWAYS, "ERROR: File %s can not be accessed.\n", rp->fullname);
+    }
+  }
+
 	snprintf(tmp, 512, "globalJobId = \"%s\"", globalJobId);
 	tmpClP1->Insert(tmp);			
 	
@@ -104,10 +124,17 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	snprintf(tmp, 512, "elapsed = %d", (int)rp->elapsed);
 	tmpClP1->Insert(tmp);
 
+  snprintf(tmp, 512, "dst_daemon = %s", rp->daemon);
+  tmpClP1->Insert(tmp);
+
+  snprintf(tmp, 512, "f_ts = %d", (int)file_status.st_mtime);
+  tmpClP1->Insert(tmp);
+
 	FILEObj->file_newEvent("Transfers", tmpClP1);
 
 	if (dst_path) free(dst_path);
 	if (globalJobId) free(globalJobId);
-	if(job_name) free(job_name);
-	if (src_path) free(src_path);
+	if (job_name) free(job_name);
+  if (src_path) free(src_path);
+  if (src_fullname) free (src_fullname);
 }
