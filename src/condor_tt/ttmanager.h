@@ -84,6 +84,7 @@ class TTManager : public Service
 	QuillErrCode insertMasterAd(AttrList *ad);
 	QuillErrCode insertNegotiatorAd(AttrList *ad);
 	QuillErrCode insertRuns(AttrList *ad);
+  QuillErrCode insertTransfers(AttrList *ad);
 
 	char    sqlLogList[CONDOR_TT_MAXLOGNUM][CONDOR_TT_MAXLOGPATHLEN];
 

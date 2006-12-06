@@ -541,6 +541,9 @@ TTManager::event_maintain()
 						goto DBERROR;
 				} else if (strcasecmp(eventtype, "Runs") == 0) {
 					if  (insertRuns(ad) == FAILURE) 
+						goto DBERROR;
+				} else if (strcasecmp(eventtype, "Transfers") == 0) {
+					if  (insertTransfers(ad) == FAILURE) 
 						goto DBERROR;					
 				} else {
 					if (insertBasic(ad, eventtype) == FAILURE) 
@@ -3141,6 +3144,165 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   }  
 
   return SUCCESS;
+}
+
+QuillErrCode TTManager::insertTransfers(AttrList *ad) {
+  char * sql_stmt = NULL;
+  MyString classAd;
+  const char *iter;
+  char *attName = NULL, *attVal;
+
+  char globaljobid[100];
+  char src_name[_POSIX_PATH_MAX] = "", src_host[50] = "",
+    src_path[_POSIX_PATH_MAX] = "";
+  char dst_name[_POSIX_PATH_MAX] = "", dst_host[50] = "",
+    dst_path[_POSIX_PATH_MAX] = "";
+  char path[_POSIX_PATH_MAX] = "", name[_POSIX_PATH_MAX] = "";
+  char pathname[2*_POSIX_PATH_MAX];
+  char dst_daemon[15];
+  char f_ts[30];
+  time_t old_ts;
+  char *last_modified;
+  int transfer_size, elapsed;
+  char *tmp1, *tmpVal = NULL;
+  int len, f_size;
+  bool fileSame = TRUE;
+  struct stat file_status;
+  char hexSum[MAC_SIZE*2+1] = "", sum[MAC_SIZE+1] = "";
+  
+  ad->sPrint(classAd);
+
+  classAd.Tokenize();
+  iter = classAd.GetNextToken("\n", true);
+
+  while (iter != NULL) {
+    int attValLen;
+
+    // the attribute name can't be longer than the log entry line size
+    attName = (char *)malloc(strlen(iter));
+    sscanf(iter, "%s =", attName);
+    attVal = strstr(iter, "= ");
+    attVal += 2;
+    attValLen = strlen(attVal);
+
+    // change double quotes to single quote if any
+    if (attVal[attValLen-1] == '"') {
+      attVal[attValLen-1] = '\'';
+    }
+    if (attVal[0] == '"') {
+      attVal[0] = '\'';
+    }
+
+    if (strcasecmp(attName, "globaljobid") == 0) {
+      strncpy(globaljobid, attVal, 100);
+    } else if (strcasecmp(attName, "src_name") == 0) {
+      strncpy(src_name, attVal, _POSIX_PATH_MAX);
+    } else if (strcasecmp(attName, "src_host") == 0) {
+      strncpy(src_host, attVal, 50);
+    } else if (strcasecmp(attName, "src_path") == 0) {
+      strncpy(src_path, attVal, _POSIX_PATH_MAX);
+    } else if (strcasecmp(attName, "dst_name") == 0) {
+      strncpy(dst_name, attVal, _POSIX_PATH_MAX);
+    } else if (strcasecmp(attName, "dst_host") == 0) {
+      strncpy(dst_host, attVal, 50);
+    } else if (strcasecmp(attName, "dst_path") == 0) {
+      strncpy(dst_path, attVal, _POSIX_PATH_MAX);
+    } else if (strcasecmp(attName, "dst_daemon") == 0) {
+      strncpy(dst_daemon, attVal, 15);
+    } else if (strcasecmp(attName, "f_ts") == 0) {
+      strncpy(f_ts, attVal, 30);
+    } else if (strcasecmp(attName, "transfer_size") == 0) {
+      transfer_size = atoi(attVal);
+    } else if (strcasecmp(attName, "elapsed") == 0) {
+      elapsed = atoi(attVal);
+    }
+
+    free(attName);
+    iter = classAd.GetNextToken("\n", true);
+  }
+
+  // Build timestamp expression
+  old_ts = atoi(f_ts);
+  last_modified = condor_ttdb_buildts(&old_ts, dt);
+
+  if (last_modified == NULL) {
+    dprintf(D_ALWAYS, "ERROR: Timestamp expression not build in TTManager::insertTransfers\n");
+    return FAILURE;
+  }
+  
+  // Compute the checksum
+  // We don't want to use the file on the starter side since it is
+  // a temporary file
+  if(strcmp(dst_daemon, "STARTER") == 0)  {
+    strncpy(path, src_path, _POSIX_PATH_MAX);
+    strncpy(name, src_name, _POSIX_PATH_MAX);
+  } else {
+    strncpy(path, dst_path, _POSIX_PATH_MAX);
+    strncpy(name, dst_name, _POSIX_PATH_MAX);
+  }
+
+  // strip the quotes from the path and name
+  len = strlen(path);
+  if (path[len-1] == '\'')
+    path[len-1] = 0;
+
+  if (path[0] == '\'') {
+    tmpVal = (char *) malloc(strlen(path));
+    tmp1 = path+1;
+    strncpy(tmpVal, tmp1, strlen(path));
+    strncpy(path, tmpVal, _POSIX_PATH_MAX);
+    free(tmpVal);
+  }
+
+  len = strlen(name);
+  if (name[len-1] == '\'')
+    name[len-1] = 0;
+  if (name[0] == '\'') {
+    tmpVal = (char *) malloc(strlen(name));
+    tmp1 = name+1;
+    strncpy(tmpVal, tmp1, strlen(name));
+    strncpy(name, tmpVal, _POSIX_PATH_MAX);
+    free(tmpVal);
+  }
+
+  sprintf(pathname, "%s/%s", path, name);
+
+  // Check if file is still there with same last modified time
+	if (stat(pathname, &file_status) < 0) {
+		dprintf(D_FULLDEBUG, "ERROR: File '%s' can not be accessed.\n", 
+				pathname);
+		fileSame = FALSE;
+	} else {
+		if (old_ts != file_status.st_mtime) {
+			fileSame = FALSE;
+		}
+  }
+
+  f_size = file_status.st_size;
+  if (fileSame && (f_size > 0) && file_checksum(pathname, f_size, sum)) {
+		int i;
+    for (i = 0; i < MAC_SIZE; i++)
+      sprintf(&hexSum[2*i], "%2x", sum[i]);		
+    hexSum[2*MAC_SIZE] = '\0';
+  }
+  else
+		hexSum[0] = '\0';
+  
+  sql_stmt = (char *)malloc(2048 + 2*(strlen(globaljobid) + strlen(src_name) + strlen(src_host) + strlen(src_path) + strlen(dst_name) + strlen(dst_host) + strlen(dst_path) + strlen(dst_daemon) + strlen(hexSum) + strlen(last_modified)));
+  
+  sprintf(sql_stmt,
+          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, dst_daemon, checksum, last_modified, transfer_size, elapsed) VALUES (%s, %s, %s, %s, %s, %s, %s, \'%s\', \'%s\', %s, %d, %d)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, dst_daemon, hexSum, last_modified, transfer_size, elapsed);
+
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
+		return FAILURE;
+	}
+
+	free(sql_stmt);
+
+	return SUCCESS;
 }
 
 QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition, 
