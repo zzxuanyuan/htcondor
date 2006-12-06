@@ -1,0 +1,556 @@
+CREATE TABLE cdb_users (
+username varchar(8),
+password character(32),
+admin varchar(5));
+
+CREATE TABLE  transfers (
+globaljobid  	varchar(4000),
+src_name  	varchar(4000),
+src_host  	varchar(4000),
+src_path 	varchar(4000),
+dst_name  	varchar(4000),
+dst_host  	varchar(4000),
+dst_path  	varchar(4000),
+transfer_size   integer,
+elapsed  	integer);
+
+CREATE TABLE files (
+file_id  	int NOT NULL,
+name  		varchar(4000), 
+host  		varchar(4000),
+path  		varchar(4000),
+lastmodified    timestamp(3) with time zone,
+file_size  	integer,
+checksum  	varchar(32), 
+PRIMARY KEY (file_id)
+);
+
+CREATE TABLE fileusages (
+globaljobid  	varchar(4000),
+file_id         int REFERENCES files(file_id),
+usagetype  	varchar(4000));
+
+CREATE sequence condor_seqfileid;
+
+-- Added by pachu
+
+CREATE TABLE machine (
+machine_id varchar(4000) NOT NULL,
+attr       varchar(2000) NOT NULL, 
+val        varchar(4000), 
+start_time timestamp(3) with time zone, 
+Primary Key (machine_id, attr)
+);
+
+CREATE TABLE machine_history (
+machine_id varchar(4000),
+attr       varchar(4000), 
+val        varchar(4000), 
+start_time timestamp(3) with time zone, 
+end_time   timestamp(3) with time zone
+);
+
+CREATE TABLE machine_classad (
+machine_id             varchar(4000) NOT NULL,
+opsys                  varchar(4000),
+arch                   varchar(4000),
+ckptserver             varchar(4000),
+ckpt_server_host       varchar(4000),
+state                  varchar(4000),
+activity               varchar(4000),
+keyboardidle           integer,
+consoleidle            integer,
+loadavg                real,
+condorloadavg          real,
+totalloadavg           real,
+virtualmemory          integer,
+memory                 integer,
+totalvirtualmemory     integer,
+cpubusytime            integer,
+cpuisbusy              varchar(5),
+rank                   varchar(4000),
+currentrank            real,
+requirements           varchar(4000),
+clockmin               integer,
+clockday               integer,
+lastheardfrom          timestamp(3) with time zone,
+enteredcurrentactivity timestamp(3) with time zone,
+enteredcurrentstate    timestamp(3) with time zone,
+updatesequencenumber   integer,
+updatestotal           integer,
+updatessequenced       integer,
+updateslost            integer,
+globaljobid            varchar(4000),
+lastheardfrom_epoch    integer,
+Primary Key (machine_id)
+);
+
+CREATE TABLE machine_classad_history (
+machine_id             varchar(4000),
+opsys                  varchar(4000),
+arch                   varchar(4000),
+ckptserver             varchar(4000),
+ckpt_server_host       varchar(4000),
+state                  varchar(4000),
+activity               varchar(4000),
+keyboardidle           integer,
+consoleidle            integer,
+loadavg                real,
+condorloadavg          real,
+totalloadavg           real,
+virtualmemory          integer,
+memory                 integer,
+totalvirtualmemory     integer,
+cpubusytime            integer,
+cpuisbusy              varchar(5),
+rank                   varchar(4000),
+currentrank            real,
+requirements           varchar(4000),
+clockmin               integer,
+clockday               integer,
+lastheardfrom          timestamp(3) with time zone,
+enteredcurrentactivity timestamp(3) with time zone,
+enteredcurrentstate    timestamp(3) with time zone,
+updatesequencenumber   integer,
+updatestotal           integer,
+updatessequenced       integer,
+updateslost            integer,
+globaljobid            varchar(4000),
+end_time	       timestamp(3) with time zone
+);
+
+-- END Added by Pachu
+
+-- BEGIN Added by Ameet
+CREATE TABLE ClusterAds_Horizontal(
+scheddname          varchar(4000) NOT NULL,
+cluster_id             integer NOT NULL,
+owner               varchar(8),
+jobstatus           integer,
+jobprio             integer,
+imagesize           integer,
+qdate               timestamp(3) with time zone,
+remoteusercpu       double precision,
+remotewallclocktime double precision,
+cmd                 varchar(4000),
+args                varchar(4000),
+primary key(scheddname,cluster_id)
+);
+
+CREATE INDEX CA_H_I_owner ON ClusterAds_Horizontal (owner);
+
+CREATE TABLE ProcAds_Horizontal(
+scheddname		varchar(4000) NOT NULL,
+cluster_id	 	integer NOT NULL,
+proc 			integer NOT NULL,
+jobstatus 		integer,
+imagesize 		integer,
+remoteusercpu	        double precision,
+remotewallclocktime 	double precision,
+remotehost              varchar(4000),
+globaljobid        	varchar(4000),
+jobprio            	integer,
+args                    varchar(4000),
+primary key(scheddname,cluster_id,proc)
+);
+
+CREATE TABLE ClusterAds_Vertical (
+scheddname	varchar(4000) NOT NULL,
+cluster_id		integer NOT NULL,
+attr	        varchar(2000) NOT NULL,
+val		varchar(4000),
+primary key (scheddname,cluster_id, attr)
+);
+
+CREATE TABLE ProcAds_Vertical (
+scheddname	varchar(4000) NOT NULL,
+cluster_id	integer NOT NULL,
+proc		integer NOT NULL,
+attr	        varchar(2000) NOT NULL,
+val		varchar(4000),
+primary key (scheddname,cluster_id, proc, attr)
+);
+
+CREATE TABLE History_Vertical (
+scheddname	varchar(4000) NOT NULL,
+cluster_id	integer NOT NULL,
+proc		integer NOT NULL,
+attr		varchar(2000) NOT NULL,
+val		varchar(4000),
+primary key (scheddname, cluster_id, proc, attr)
+);
+
+CREATE TABLE History_Horizontal (
+scheddname   varchar(4000) NOT NULL,
+cluster_id              integer NOT NULL,
+proc                    integer NOT NULL,
+qdate                   integer, -- condor_history requires an integer for qdate
+owner                   varchar(8),
+globaljobid             varchar(4000),
+numckpts                integer,
+numrestarts             integer,
+numsystemholds          integer,
+condorversion           varchar(4000),
+condorplatform          varchar(4000),
+rootdir                 varchar(4000),
+Iwd                     varchar(4000),
+jobuniverse             integer,
+cmd                     varchar(4000),
+minhosts                integer,
+maxhosts                integer,
+jobprio                 integer,
+user_j                	varchar(4000),
+env                     varchar(4000),
+userlog                 varchar(4000),
+coresize                integer,
+killsig                 varchar(4000),
+rank                    varchar(4000),
+in_j	              	varchar(4000),
+transferin              varchar(5),
+out                     varchar(4000),
+transferout             varchar(5),
+err                     varchar(4000),
+transfererr             varchar(5),
+shouldtransferfiles     varchar(4000),
+transferfiles           varchar(4000),
+executablesize          integer,
+diskusage               integer,
+requirements            varchar(4000),
+filesystemdomain        varchar(4000),
+args                    varchar(4000),
+lastmatchtime           timestamp(3) with time zone,
+numjobmatches           integer,
+jobstartdate            timestamp(3) with time zone,
+jobcurrentstartdate     timestamp(3) with time zone,
+jobruncount             integer,
+filereadcount           double precision,
+filereadbytes           double precision,
+filewritecount          double precision,
+filewritebytes          double precision,
+fileseekcount           double precision,
+totalsuspensions        integer,
+imagesize               integer,
+exitstatus              integer,
+localusercpu            double precision,
+localsyscpu             double precision,
+remoteusercpu           double precision,
+remotesyscpu            double precision,
+bytessent      	        double precision,
+bytesrecvd              double precision,
+rscbytessent            double precision,
+rscbytesrecvd           double precision,
+exitcode                integer,
+jobstatus               integer,
+enteredcurrentstatus    timestamp(3) with time zone,
+remotewallclocktime     double precision,
+lastremotehost          varchar(4000),
+completiondate          integer, -- condor_history requires an integer 
+enteredhistorytable     timestamp(3) with time zone,
+primary key		(scheddname, cluster_id, proc)
+);
+
+CREATE INDEX Hist_H_I_owner ON History_Horizontal (owner);
+
+CREATE SEQUENCE SeqRunId;
+
+CREATE TABLE Runs (
+run_id 	                NUMERIC(12) NOT NULL,
+machine_id              varchar(4000),
+scheddname	        varchar(4000),
+cluster_id              integer,
+proc                    integer,
+spid                    integer,
+StartTS                 timestamp(3) with time zone,
+EndTS                   timestamp(3) with time zone,
+EndType                 smallint,
+EndMessage              varchar(4000),
+WasCheckpointed         varchar(5),
+ImageSize               integer,
+RunLocalUsageUser       integer,
+RunLocalUsageSystem     integer,
+RunRemoteUsageUser      integer,
+RunRemoteUsageSystem    integer,
+RunBytesSent            double precision,
+RunBytesReceived        double precision, 
+PRIMARY KEY (run_id));
+
+-- END Added by Ameet
+
+-- BEGIN Srinath
+
+CREATE TABLE Rejects (
+reject_time     timestamp(3) with time zone, -- Time the job was rejected
+username        varchar(4000),
+scheddname      varchar(4000),
+cluster_id      integer,
+proc            integer,
+globaljobid     varchar(4000),
+requirements	integer,
+jobprio 	integer,
+rank		integer,
+policy		integer,
+network		integer,
+networkshare	integer
+);
+
+CREATE TABLE Matches (
+match_time      timestamp(3) with time zone, -- Time the match was made
+username        varchar(4000),
+scheddname      varchar(4000),
+cluster_id      integer,
+proc            integer,
+globaljobid     varchar(4000), 
+machine_id      varchar(4000),
+remote_user     varchar(4000),   -- The user that was preempted
+remote_priority real       -- Preempted user's priority
+);
+
+--END Srinath
+--ADDED by Eric
+CREATE VIEW AGG_User_Jobs_Waiting AS
+  SELECT c.owner, count(*) AS jobs_waiting
+    FROM clusterads_horizontal c, procads_horizontal p
+    WHERE c.cluster_id = p.cluster_id
+      AND (p.jobstatus IS NULL OR p.jobstatus = 0 OR p.jobstatus = 1)
+    GROUP BY c.owner; 
+
+CREATE VIEW AGG_User_Jobs_Held AS
+  SELECT c.owner, count(*) as jobs_held
+    FROM clusterads_horizontal c, procads_horizontal p
+    WHERE c.cluster_id = p.cluster_id
+      AND (p.jobstatus=5)
+    GROUP BY c.owner;
+
+CREATE VIEW AGG_User_Jobs_Running AS
+  SELECT c.owner, count(*) as jobs_running
+    FROM clusterads_horizontal c, procads_horizontal p
+    WHERE c.cluster_id = p.cluster_id
+      AND (p.jobstatus=2)
+    GROUP BY c.owner;
+
+CREATE TABLE L_Jobstatus (
+jobstatus	integer NOT NULL,
+abbrev	        char(1),
+description     varchar(4000),
+primary key	(jobstatus)
+);
+
+INSERT INTO L_JobStatus VALUES(0, 'U', 'UNEXPANDED');
+INSERT INTO L_JobStatus VALUES(1, 'I', 'IDLE');
+INSERT INTO L_JobStatus VALUES(2, 'R', 'RUNNING');
+INSERT INTO L_JobStatus VALUES(3, 'X', 'REMOVED');
+INSERT INTO L_JobStatus VALUES(4, 'C', 'COMPLETED');
+INSERT INTO L_JobStatus VALUES(5, 'H', 'HELD');
+INSERT INTO L_JobStatus VALUES(6, 'E', 'SUBMISSION_ERROR');
+
+--END Eric
+
+CREATE TABLE thrown(
+fileName       varchar(4000),
+machine_id     varchar(4000),
+log_size           integer,
+throwTime      timestamp(3) with time zone
+);
+
+CREATE TABLE events (
+scheddname      varchar(4000),
+cluster_id      integer,
+proc      	integer,
+runId     	numeric(12, 0),
+eventType       integer,
+eventTime       timestamp(3) with time zone,
+description     varchar(4000)
+);
+
+CREATE TABLE L_eventType (
+eventType     integer,
+description   varchar(4000)
+);
+
+INSERT INTO L_eventType values (0, 'Job submitted');
+INSERT INTO L_eventType values (1, 'Job now running');
+INSERT INTO L_eventType values (2, 'Error in executable');
+INSERT INTO L_eventType values (3, 'Job was checkpointed');
+INSERT INTO L_eventType values (4, 'Job evicted from machine');
+INSERT INTO L_eventType values (5, 'Job terminated');
+INSERT INTO L_eventType values (6, 'Image size of job updated');
+INSERT INTO L_eventType values (7, 'Shadow threw an exception');
+INSERT INTO L_eventType values (8, 'Generic Log Event');
+INSERT INTO L_eventType values (9, 'Job Aborted');
+INSERT INTO L_eventType values (10, 'Job was suspended');
+INSERT INTO L_eventType values (11, 'Job was unsuspended');
+INSERT INTO L_eventType values (12, 'Job was held');
+INSERT INTO L_eventType values (13, 'Job was released');
+INSERT INTO L_eventType values (14, 'Parallel Node executed');
+INSERT INTO L_eventType values (15, 'Parallel Node terminated');
+INSERT INTO L_eventType values (16, 'POST script terminated');
+INSERT INTO L_eventType values (17, 'Job Submitted to Globus');
+INSERT INTO L_eventType values (18, 'Globus Submit failed');
+INSERT INTO L_eventType values (19, 'Globus Resource Up');
+INSERT INTO L_eventType values (20, 'Globus Resource Down');
+INSERT INTO L_eventType values (21, 'Remote Error');
+INSERT INTO L_eventType values (22, 'RSC socket lost');
+INSERT INTO L_eventType values (23, 'RSC socket re-established');
+INSERT INTO L_eventType values (24, 'RSC reconnect failure');
+
+CREATE TABLE Generic (
+eventType	varchar(4000),
+eventKey	varchar(4000),
+eventTime	timestamp(3) with time zone,
+eventLoc        varchar(4000),
+attName	        varchar(4000),
+attValue	varchar(4000),
+attType	varchar(4000)
+);
+
+CREATE TABLE JobQueuePollingInfo (
+scheddname           varchar(4000),
+last_file_mtime      INTEGER, 
+last_file_size       INTEGER, 
+last_next_cmd_offset INTEGER, 
+last_cmd_offset      INTEGER, 
+last_cmd_type        SMALLINT, 
+last_cmd_key         varchar(4000), 
+last_cmd_mytype      varchar(4000), 
+last_cmd_targettype  varchar(4000), 
+last_cmd_name        varchar(4000), 
+last_cmd_value       varchar(4000)
+); 
+
+CREATE INDEX JQ_I_Schedd ON JobQueuePollingInfo(scheddname);
+
+CREATE TABLE Currency(
+datasource varchar(4000),
+lastupdate timestamp(3) with time zone
+);
+
+CREATE TABLE Daemon_Horizontal (
+MyType				VARCHAR(100) NOT NULL,
+Name				VARCHAR(500) NOT NULL,
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+MonitorSelfTime			TIMESTAMP(3) WITH TIME ZONE,
+MonitorSelfCPUUsage		DOUBLE PRECISION,
+MonitorSelfImageSize		DOUBLE PRECISION,
+MonitorSelfResidentSetSize	INTEGER,
+MonitorSelfAge			INTEGER,
+UpdateSequenceNumber		INTEGER,
+UpdatesTotal			INTEGER,
+UpdatesSequenced		INTEGER,
+UpdatesLost			INTEGER,
+UpdatesHistory			VARCHAR(4000),
+lastheardfrom_epoch             integer,
+PRIMARY KEY (MyType, Name)
+);
+
+CREATE TABLE Daemon_Vertical (
+MyType				VARCHAR(100) NOT NULL,
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				VARCHAR(4000),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (MyType, Name, attr)
+);
+
+CREATE TABLE Daemon_Horizontal_History (
+MyType				VARCHAR(100),
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+MonitorSelfTime			TIMESTAMP(3) WITH TIME ZONE,
+MonitorSelfCPUUsage		DOUBLE PRECISION,
+MonitorSelfImageSize		DOUBLE PRECISION,
+MonitorSelfResidentSetSize	INTEGER,
+MonitorSelfAge			INTEGER,
+UpdateSequenceNumber		INTEGER,
+UpdatesTotal			INTEGER,
+UpdatesSequenced		INTEGER,
+UpdatesLost			INTEGER,
+UpdatesHistory			VARCHAR(4000),
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Daemon_Vertical_History (
+MyType				VARCHAR(100),
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				VARCHAR(4000),
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Schedd_Horizontal (
+Name				VARCHAR(500) NOT NULL,
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+NumUsers			INTEGER,
+TotalIdleJobs			INTEGER,
+TotalRunningJobs		INTEGER,
+TotalJobAds			INTEGER,
+TotalHeldJobs			INTEGER,
+TotalFlockedJobs		INTEGER,
+TotalRemovedJobs		INTEGER,
+PRIMARY KEY (Name)
+);
+
+CREATE TABLE Schedd_Horizontal_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+NumUsers			INTEGER,
+TotalIdleJobs			INTEGER,
+TotalRunningJobs		INTEGER,
+TotalJobAds			INTEGER,
+TotalHeldJobs			INTEGER,
+TotalFlockedJobs		INTEGER,
+TotalRemovedJobs		INTEGER,
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Schedd_Vertical (
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				VARCHAR(4000),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (Name, attr)
+);
+
+CREATE TABLE Schedd_Vertical_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				VARCHAR(4000),
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Master_Vertical (
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				VARCHAR(4000),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (Name, attr)
+);
+
+CREATE TABLE Master_Vertical_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				VARCHAR(4000),
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Negotiator_Vertical (
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				VARCHAR(4000),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (Name, attr)
+);
+
+CREATE TABLE Negotiator_Vertical_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				VARCHAR(4000),
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE dummy_single_row_table(a varchar(1));
+INSERT INTO dummy_single_row_table VALUES ('x');
+
