@@ -444,7 +444,7 @@ PCRE_FLAGS = -I$(PCRE_INC)
 PCRE_LIB = $(PCRE_DIR)/lib/libpcre.a
 
 #if WANT_TT
-TT_LIB = $(POSTGRESQL_LIB)/libpq.a ../condor_quill/libquill.a -L$(ORACLE_ROOT)/xe/app/oracle/product/10.2.0/server/lib/ -locci -lclntsh -lnnz10
+TT_LIB = $(POSTGRESQL_LIB)/libpq.a -L$(ORACLE_ROOT)/xe/app/oracle/product/10.2.0/server/lib/ -locci -lclntsh -lnnz10 
 TT_INC = -I$(POSTGRESQL_INC) -I$(ORACLE_ROOT)/xe/app/oracle/product/10.2.0/server/rdbms/public
 TT_FLAGS = -DWANT_TT 
 #else
