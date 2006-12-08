@@ -117,6 +117,8 @@ main(int argc, char* argv[])
   parameters = (void **) malloc(NUM_PARAMETERS * sizeof(void *));
   myDistro->Init( argc, argv );
 
+  config();
+
 #if WANT_QUILL
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
   queryver.setQuery(HISTORY_ALL_VER, NULL);
@@ -247,6 +249,11 @@ main(int argc, char* argv[])
 		queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
 #endif /* WANT_QUILL */
     }
+    else if (strcmp(argv[i],"-debug")==0) {
+          // dprintf to console
+          Termlog = 1;
+          dprintf_config ("TOOL", 2 );
+    }
     else {
 		if (constraint) break;
 		owner = (char *) malloc(512 * sizeof(char));
@@ -262,7 +269,6 @@ main(int argc, char* argv[])
   }
   if (i<argc) Usage(argv[0]);
   
-  config();
   
   if( constraint && Parse( constraint, constraintExpr ) ) {
 	  fprintf( stderr, "Error:  could not parse constraint %s\n", constraint );
