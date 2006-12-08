@@ -2974,7 +2974,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   sprintf(sql_stmt,
           "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cluster_id = %d AND proc = %d", scheddname, cid, pid);
   sprintf(sql_stmt2,
-          "INSERT INTO History_Horizontal(scheddname, cluster_id, proc) VALUES('%s', %d, %d)", scheddname, cid, pid);
+          "INSERT INTO History_Horizontal(scheddname, cluster_id, proc, enteredhistorytable) VALUES('%s', %d, %d, current_timestamp)", scheddname, cid, pid);
 
   if (DBObj->execCommand(sql_stmt) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");

@@ -2,7 +2,7 @@ CREATE VIEW AGG_User_Jobs_Fin_Last_Day AS
   SELECT h.owner, count(*) as jobs_completed 
     FROM history_horizontal h 
     WHERE h.jobstatus = 4 
-      AND h.completiondate >= (current_timestamp - to_dsinterval('1 00:00:00'))
+      AND (to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(h.completiondate/86400) || ' ' || floor(mod(h.completiondate,86400)/3600) || ':' || floor(mod(h.completiondate, 3600)/60) || ':' || mod(h.completiondate, 60))) >= (current_timestamp - to_dsinterval('1 00:00:00'))
     GROUP BY h.owner;
 
 -- Jobs that have historically flocked in to this pool for execution
