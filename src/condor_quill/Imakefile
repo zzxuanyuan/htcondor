@@ -10,4 +10,7 @@ QUILL_LIB_OBJ = classadlogentry.o classadlogparser.o prober.o
 
 library_target(libquill.a,$(QUILL_LIB_OBJ))
 
-
+release:: all
+stripped:: all
+static:: all
+html:
