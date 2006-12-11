@@ -77,6 +77,7 @@
 #include "extra_param_info.h"
 #include "condor_uid.h"
 #include "condor_mkstemp.h"
+#include "GCB.h"
 
 extern "C" {
 	
@@ -287,7 +288,46 @@ condor_net_remap_config( bool force_param )
             str = NULL;
             // Env: InAgent
             if( (str = param("NET_REMAP_INAGENT")) ) {
-                SetEnv( "GCB_INAGENT", str );
+					// NET_REMAP_INAGENT is a list of GCB brokers.
+				int max_slots = 0;
+				const char *best_broker = NULL;
+				const char *next_broker;
+				StringList brokers( str );
+
+					// TODO Here, we pick the GCB broker that has the most
+					//   available ports. This could potentially overload
+					//   one broker if a bunch of masters start up at the
+					//   same time. If this becomes a problem, we
+					//   should consider changing this to random choice.
+				brokers.rewind();
+				while ( (next_broker = brokers.next()) ) {
+					int rc = 0;
+					int num_slots = 0;
+
+					SetEnv( "GCB_INAGENT", next_broker );
+
+#if HAVE_EXT_GCB
+					rc = GCB_broker_query( GCB_DATA_QUERY_FREE_SOCKS,
+										   &num_slots );
+#endif
+					if ( rc == 0 && num_slots > max_slots ) {
+						best_broker = next_broker;
+						max_slots = num_slots;
+					}
+				}
+
+				if ( best_broker ) {
+					dprintf(D_FULLDEBUG,"Using GCB broker %s\n",best_broker);
+					SetEnv( "GCB_INAGENT", best_broker );
+				} else {
+						// TODO Should we indicate that we tried and failed
+						//   to find a working broker? For now, we leave
+						//   GCB_INAGENT set to the last broker in the list.
+						//   That should cause a failure when we try to
+						//   make a socket.
+					dprintf(D_ALWAYS,"No usable GCB brokers were found. "
+							"Setting GCB_INAGENT=%s\n",GetEnv("GCB_INAGENT"));
+				}
 				free( str );
                 str = NULL;
             }
