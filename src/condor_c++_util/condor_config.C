@@ -304,10 +304,9 @@ condor_net_remap_config( bool force_param )
 					int rc = 0;
 					int num_slots = 0;
 
-					SetEnv( "GCB_INAGENT", next_broker );
-
 #if HAVE_EXT_GCB
-					rc = GCB_broker_query( GCB_DATA_QUERY_FREE_SOCKS,
+					rc = GCB_broker_query( next_broker,
+										   GCB_DATA_QUERY_FREE_SOCKS,
 										   &num_slots );
 #endif
 					if ( rc == 0 && num_slots > max_slots ) {
@@ -317,16 +316,21 @@ condor_net_remap_config( bool force_param )
 				}
 
 				if ( best_broker ) {
-					dprintf(D_FULLDEBUG,"Using GCB broker %s\n",best_broker);
+					dprintf( D_FULLDEBUG,"Using GCB broker %s\n",best_broker );
 					SetEnv( "GCB_INAGENT", best_broker );
 				} else {
-						// TODO Should we indicate that we tried and failed
-						//   to find a working broker? For now, we leave
-						//   GCB_INAGENT set to the last broker in the list.
-						//   That should cause a failure when we try to
-						//   make a socket.
-					dprintf(D_ALWAYS,"No usable GCB brokers were found. "
-							"Setting GCB_INAGENT=%s\n",GetEnv("GCB_INAGENT"));
+						// TODO How should we indicate that we tried and
+						//   failed to find a working broker? For now, we
+						//   set GCB_INAGENT to a valid, but non-existent
+						//   IP address. That should cause a failure when
+						//   we try to make a socket. The address we use
+						//   is defined in our header file, so callers
+						//   can check GCB_INAGENT to see if we failed to
+						//   find a broker.
+					dprintf( D_ALWAYS,"No usable GCB brokers were found. "
+							 "Setting GCB_INAGENT=%s\n",
+							 CONDOR_GCB_INVALID_BROKER );
+					SetEnv( "GCB_INAGENT", CONDOR_GCB_INVALID_BROKER );
 				}
 				free( str );
                 str = NULL;
