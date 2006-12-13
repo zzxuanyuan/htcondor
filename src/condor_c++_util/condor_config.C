@@ -77,7 +77,10 @@
 #include "extra_param_info.h"
 #include "condor_uid.h"
 #include "condor_mkstemp.h"
+
+#if HAVE_EXT_GCB
 #include "GCB.h"
+#endif
 
 extern "C" {
 	
