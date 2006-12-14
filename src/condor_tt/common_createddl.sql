@@ -11,11 +11,11 @@ src_path 	varchar(4000),
 dst_name  	varchar(4000),
 dst_host  	varchar(4000),
 dst_path  	varchar(4000),
+transfer_size   integer,
+elapsed  	integer,
 dst_daemon  varchar(15),
 checksum    varchar(32),
-last_modified    timestamp(3) with time zone,
-transfer_size   integer,
-elapsed  	integer);
+last_modified    timestamp(3) with time zone);
 
 CREATE TABLE files (
 file_id  	int NOT NULL,

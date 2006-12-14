@@ -3291,7 +3291,7 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   sql_stmt = (char *)malloc(2048 + 2*(strlen(globaljobid) + strlen(src_name) + strlen(src_host) + strlen(src_path) + strlen(dst_name) + strlen(dst_host) + strlen(dst_path) + strlen(dst_daemon) + strlen(hexSum) + strlen(last_modified)));
   
   sprintf(sql_stmt,
-          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, dst_daemon, checksum, last_modified, transfer_size, elapsed) VALUES (%s, %s, %s, %s, %s, %s, %s, \'%s\', \'%s\', %s, %d, %d)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, dst_daemon, hexSum, last_modified, transfer_size, elapsed);
+          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, checksum, last_modified) VALUES (%s, %s, %s, %s, %s, %s, %s, \'%s\', \'%s\', %s, %d, %d)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified);
 
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
