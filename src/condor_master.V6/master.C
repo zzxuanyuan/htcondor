@@ -1298,6 +1298,10 @@ main_pre_command_sock_init()
 			// TODO The timeout should be configurable
 		GCB_Broker_down_callback_set( gcbBrokerDownCallback, 300 );
 		GCB_Recovery_failed_callback_set( gcbRecoveryFailedCallback );
+	}
+
+	if ( GetEnv("GCB_INAGENT") &&
+		 param_boolean( "MASTER_WAITS_FOR_GCB_BROKER", true ) ) {
 
 			// We can't talk to any of our GCB brokers. Wait and retry
 			// until it works.
