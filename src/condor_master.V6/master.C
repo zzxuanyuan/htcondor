@@ -1305,16 +1305,23 @@ main_pre_command_sock_init()
 
 			// We can't talk to any of our GCB brokers. Wait and retry
 			// until it works.
+		int delay = 20;
+
 		while ( !strcmp( GetEnv("GCB_INAGENT"), CONDOR_GCB_INVALID_BROKER ) ) {
 				// TODO send email to admin
-				// TODO backoff on retry interval?
+				// TODO make delay between retries configurable?
 				// TODO break out of this loop if admin disables GCB or 
 				//   inserts valid broker into list?
 				//   that would require rereading the entire config file
 			dprintf(D_ALWAYS, "Can't talk to any GCB brokers. "
-					"Waiting for one to become available.\n");
-			sleep(20);
+					"Waiting for one to become available "
+					"(retry in %d seconds).\n", delay);
+			sleep(delay);
 			condor_net_remap_config(true);
+			delay *= 2;
+			if ( delay > 3600 ) {
+				delay = 3600;
+			}
 		}
 	}
 #endif
