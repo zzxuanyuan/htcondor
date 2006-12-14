@@ -43,6 +43,11 @@
 #include "strupr.h"
 #include "condor_environ.h"
 #include "store_cred.h"
+#include "setenv.h"
+
+#if HAVE_EXT_GCB
+#include "GCB.h"
+#endif
 
 #ifdef WIN32
 
@@ -1166,10 +1171,75 @@ void StartConfigServer()
 }
 #endif
 
+#if HAVE_EXT_GCB
+void
+gcbBrokerDownCallback()
+{
+		// BEWARE! This function is called by GCB. Most likely, either
+		// DaemonCore is blocked on a select() or CEDAR is blocked on a
+		// network operation.
+		// TODO: We shouldn't be doing any real work in here. Instead, we
+		//   should register a timer and do the work in a callout from
+		//   DaemonCore's main event loop.
+	int num_slots;
+	const char *our_broker = GetEnv( "GCB_INAGENT" );
+	const char *next_broker = NULL;
+	bool found_broker = false;
+	char *str = param( "NET_REMAP_INAGENT" );
+	StringList brokers( str );
+	free( str );
+
+	dprintf(D_ALWAYS,"JEF: gcbBrokerDownCallback() called\n");
+	if ( our_broker == NULL ) {
+		dprintf(D_ALWAYS,"JEF:   What!? No broker!?\n");
+		return;
+	}
+	brokers.remove( our_broker );
+
+	brokers.rewind();
+
+	while ( (next_broker = brokers.next()) ) {
+		dprintf(D_ALWAYS,"JEF:   trying broker %s\n",next_broker);
+		if ( GCB_broker_query( next_broker, GCB_DATA_QUERY_FREE_SOCKS,
+							   &num_slots ) == 0 ) {
+			dprintf(D_ALWAYS,"JEF:   Broker is up!\n");
+			found_broker = true;
+			break;
+		}
+		else{dprintf(D_ALWAYS,"JEF:   Broker is down!\n");}
+	}
+
+	if ( found_broker ) {
+		dprintf( D_ALWAYS, "Found new GCB broker %s to replace failed "
+				 "broker %s. Restarting all daemons\n", next_broker,
+				 our_broker );
+		restart_everyone();
+	}
+	else{dprintf(D_ALWAYS,"JEF:   No functional brokers found\n");}
+}
+
+void
+gcbRecoveryFailedCallback()
+{
+		// BEWARE! This function is called by GCB. Most likely, either
+		// DaemonCore is blocked on a select() or CEDAR is blocked on a
+		// network operation.
+		// TODO: We shouldn't be doing any real work in here. Instead, we
+		//   should register a timer and do the work in a callout from
+		//   DaemonCore's main event loop.
+	dprintf(D_ALWAYS, "GCB failed to recover from a failure with the "
+			"Broker. Restarting all daemons\n");
+	restart_everyone();
+}
+#endif
 
 void
 main_pre_dc_init( int argc, char* argv[] )
 {
+		// If we don't clear this, then we'll use the same GCB broker
+		// as our parent or previous incarnation. If there's a list of
+		// brokers, we want to choose from the whole list.
+	UnsetEnv( "NET_REMAP_ENABLE" );
 }
 
 
@@ -1212,6 +1282,28 @@ main_pre_command_sock_init()
 	dprintf (D_FULLDEBUG, "Obtained lock on %s.\n", lock_file.Value() );
 #endif
 
+#if HAVE_EXT_GCB
+	if ( GetEnv("GCB_INAGENT") ) {
+			// Set up our master-specific GCB failure callbacks
+			// TODO The timeout should be configurable
+		GCB_Broker_down_callback_set( gcbBrokerDownCallback, 300 );
+		GCB_Recovery_failed_callback_set( gcbRecoveryFailedCallback );
+
+			// We can't talk to any of our GCB brokers. Wait and retry
+			// until it works.
+		while ( !strcmp( GetEnv("GCB_INAGENT"), CONDOR_GCB_INVALID_BROKER ) ) {
+				// TODO send email to admin
+				// TODO backoff on retry interval?
+				// TODO break out of this loop if admin disables GCB or 
+				//   inserts valid broker into list?
+				//   that would require rereading the entire config file
+			dprintf(D_ALWAYS, "Can't talk to any GCB brokers. "
+					"Waiting for one to become available.\n");
+			sleep(20);
+			condor_net_remap_config(true);
+		}
+	}
+#endif
 }
 
 void init_firewall_exceptions() {
