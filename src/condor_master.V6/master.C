@@ -1173,14 +1173,8 @@ void StartConfigServer()
 
 #if HAVE_EXT_GCB
 void
-gcbBrokerDownCallback()
+gcb_broker_down_handler( Service *ignore )
 {
-		// BEWARE! This function is called by GCB. Most likely, either
-		// DaemonCore is blocked on a select() or CEDAR is blocked on a
-		// network operation.
-		// TODO: We shouldn't be doing any real work in here. Instead, we
-		//   should register a timer and do the work in a callout from
-		//   DaemonCore's main event loop.
 	int num_slots;
 	const char *our_broker = GetEnv( "GCB_INAGENT" );
 	const char *next_broker = NULL;
@@ -1219,17 +1213,33 @@ gcbBrokerDownCallback()
 }
 
 void
+gcbBrokerDownCallback()
+{
+		// BEWARE! This function is called by GCB. Most likely, either
+		// DaemonCore is blocked on a select() or CEDAR is blocked on a
+		// network operation. So we register a daemoncore timer to do
+		// the real work.
+	daemonCore->Register_Timer( 0, (TimerHandler)gcb_broker_down_handler,
+								"gcb_broker_down_handler" );
+}
+
+void
+gcb_recovery_failed_handler( Service *ignore )
+{
+	dprintf(D_ALWAYS, "GCB failed to recover from a failure with the "
+			"Broker. Restarting all daemons\n");
+	restart_everyone();
+}
+
+void
 gcbRecoveryFailedCallback()
 {
 		// BEWARE! This function is called by GCB. Most likely, either
 		// DaemonCore is blocked on a select() or CEDAR is blocked on a
-		// network operation.
-		// TODO: We shouldn't be doing any real work in here. Instead, we
-		//   should register a timer and do the work in a callout from
-		//   DaemonCore's main event loop.
-	dprintf(D_ALWAYS, "GCB failed to recover from a failure with the "
-			"Broker. Restarting all daemons\n");
-	restart_everyone();
+		// network operation. So we register a daemoncore timer to do
+		// the real work.
+	daemonCore->Register_Timer( 0, (TimerHandler)gcb_recovery_failed_handler,
+								"gcb_recovery_failed_handler" );
 }
 #endif
 

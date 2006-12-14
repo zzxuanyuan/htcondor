@@ -1218,18 +1218,23 @@ handle_dc_sigquit( Service*, int )
 	return TRUE;
 }
 
+void
+handle_gcb_recovery_failed( Service *ignore )
+{
+	dprintf( D_ALWAYS, "GCB failed to recover from a failure with the "
+			 "Broker. Performing fast shutdown.\n" );
+	main_shutdown_fast();
+}
+
 static void
 gcb_recovery_failed_callback()
 {
 		// BEWARE! This function is called by GCB. Most likely, either
 		// DaemonCore is blocked on a select() or CEDAR is blocked on a
-		// network operation.
-		// TODO: We shouldn't be doing any real work in here. Instead, we
-		//   should register a timer and do the work in a callout from
-		//   DaemonCore's main event loop.
-	dprintf( D_ALWAYS, "GCB failed to recover from a failure with the "
-			 "Broker. Performing fast shutdown.\n" );
-	main_shutdown_fast();
+		// network operation. So we register a daemoncore timer to do
+		// the real work.
+	daemonCore->Register_Timer( 0, (TimerHandler)handle_gcb_recovery_failed,
+								"handle_gcb_recovery_failed" );
 }
 
 // This is the main entry point for daemon core.  On WinNT, however, we
