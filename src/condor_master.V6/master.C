@@ -140,6 +140,46 @@ class Daemons daemons;
 // for daemonCore
 char *mySubSystem = "MASTER";
 
+/* Function    : getConfigurationTransfererParameter 
+ * Return value: MyString - configuration value of TRANSFERER parameter or
+ *                                          default value, if it is undefined
+ * Description : returns configuration value of TRANSFERER parameter 
+ * Note        : the function may halt the program execution, in case when the
+ *                               RELEASE_DIR parameter is undefined
+ */
+#ifdef WIN32
+static MyString 
+getConfigurationTransfererParameter()
+{
+	char*    buffer = param( "TRANSFERER" );
+	MyString transfererBinary;
+
+	if( buffer ) {
+		transfererBinary = buffer;
+		free( buffer );
+	} else {
+		dprintf( D_ALWAYS, "getConfigurationTransfererParameter "
+						   "transferer binary uninitialized, trying default "
+						   "location\n" );
+		buffer = param( "RELEASE_DIR" );
+
+		if( buffer ) {
+			transfererBinary.sprintf( "%s/bin/condor_transferer", buffer );
+			free( buffer );
+		} else {
+			//utilCrucialError( utilConfigurationError("RELEASE_DIR",
+			//				  "REPLICATION").GetCStr(
+			//) );
+			dprintf( D_ALWAYS, "getConfigurationTransfererParameter " 
+					 "no release directory defined\n" );
+			main_shutdown_graceful( );
+		}
+	}
+
+	return transfererBinary;
+}
+#endif
+
 
 // called at exit to deallocate stuff so that memory checking tools are
 // happy and don't think we leaked any of this...
@@ -1219,6 +1259,7 @@ void init_firewall_exceptions() {
 
 	bool add_exception;
 	char *master_image_path, *schedd_image_path, *startd_image_path;
+	MyString transferer_image_path;
 
 	WindowsFirewallHelper wfh;
 	
@@ -1240,6 +1281,7 @@ void init_firewall_exceptions() {
 	
 		schedd_image_path = param("SCHEDD");
 		startd_image_path = param("STARTD");
+		transferer_image_path = getConfigurationTransfererParameter();
 
 		if ( master_image_path ) {
 
@@ -1263,6 +1305,12 @@ void init_firewall_exceptions() {
 						"windows firewall exception list.\n",
 						startd_image_path);
 				}
+			}
+
+			if( ! wfh.addTrusted( transferer_image_path.GetCStr( ) ) ) {
+				dprintf( D_FULLDEBUG, "WinFirewall: unable to add %s to the "
+						 "windows firewall exception list.\n",
+						 transferer_image_path.GetCStr( );
 			}
 
 			if ( schedd_image_path ) { free(schedd_image_path); }
