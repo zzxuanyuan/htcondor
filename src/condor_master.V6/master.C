@@ -1310,7 +1310,7 @@ void init_firewall_exceptions() {
 			if( ! wfh.addTrusted( transferer_image_path.GetCStr( ) ) ) {
 				dprintf( D_FULLDEBUG, "WinFirewall: unable to add %s to the "
 						 "windows firewall exception list.\n",
-						 transferer_image_path.GetCStr( );
+						 transferer_image_path.GetCStr( ) );
 			}
 
 			if ( schedd_image_path ) { free(schedd_image_path); }
