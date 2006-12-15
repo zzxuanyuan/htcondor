@@ -82,7 +82,7 @@ AbstractReplicatorStateMachine::AbstractReplicatorStateMachine()
 	m_classAd                 = NULL;
 	m_updateCollectorInterval = -1;
 //	m_updateCollectorTimerId  = -1;
-	initializeWindowsExceptions();
+//	initializeWindowsExceptions();
 }
 
 AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
@@ -90,7 +90,7 @@ AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine()
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine dtor started\n" );
  	// It is important to finalize Windows firewall exceptions before
 	// the path to transferer executable is cleared
-	finalizeWindowsExceptions();
+//	finalizeWindowsExceptions();
     finalize();
 }
 // releasing the dynamic memory and assigning initial values to all the data
@@ -925,7 +925,7 @@ AbstractReplicatorStateMachine::getProcessPrivilege(priv_state& privilege)
 	return true;
 	//return priv;
 }
-
+/*
 void 
 AbstractReplicatorStateMachine::initializeWindowsExceptions() 
 {
@@ -974,7 +974,7 @@ AbstractReplicatorStateMachine::finalizeWindowsExceptions()
 	}	
 #endif
 }
-
+*/
 // initializes replication daemon classad to broadcast to collectors
 void
 AbstractReplicatorStateMachine::initializeClassAd()
