@@ -452,7 +452,7 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 	char *tmp;
 	dbtype dt;
 
-	tmp = param("QUILLPP_DB_TYPE");
+	tmp = param("QUILL_DB_TYPE");
 	if (tmp) {
 		if (strcasecmp(tmp, "ORACLE") == 0) {
 			dt = T_ORACLE;

@@ -39,7 +39,7 @@ JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 	dbtype dt;
 	char *tmp;
 
-	tmp = param("QUILLPP_DB_TYPE");
+	tmp = param("QUILL_DB_TYPE");
 	if (tmp) {
 		if (strcasecmp(tmp, "ORACLE") == 0) {
 			dt = T_ORACLE;
