@@ -128,7 +128,7 @@ end_time	       timestamp(3) with time zone
 CREATE TABLE ClusterAds_Horizontal(
 scheddname          varchar(4000) NOT NULL,
 cluster_id             integer NOT NULL,
-owner               varchar(8),
+owner               varchar(20),
 jobstatus           integer,
 jobprio             integer,
 imagesize           integer,
@@ -188,7 +188,7 @@ scheddname   varchar(4000) NOT NULL,
 cluster_id              integer NOT NULL,
 proc                    integer NOT NULL,
 qdate                   integer, -- condor_history requires an integer for qdate
-owner                   varchar(8),
+owner                   varchar(20),
 globaljobid             varchar(4000),
 numckpts                integer,
 numrestarts             integer,
