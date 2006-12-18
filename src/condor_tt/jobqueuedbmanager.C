@@ -162,8 +162,8 @@ JobQueueDBManager::config(bool reconfig)
 	char *tmp, *host = NULL, *port = NULL;
 	int len, tmp1, tmp2, tmp3;
 
-	if (param_boolean("QUILLPP_ENABLED", false) == false) {
-		EXCEPT("Quill++ is currently disabled. Please set QUILLPP_ENABLED to "
+	if (param_boolean("QUILL_ENABLED", false) == false) {
+		EXCEPT("Quill++ is currently disabled. Please set QUILL_ENABLED to "
 			   "TRUE if you want this functionality and read the manual "
 			   "about this feature since it requires other attributes to be "
 			   "set properly.");
@@ -180,7 +180,7 @@ JobQueueDBManager::config(bool reconfig)
 	snprintf(jobQueueLogFile,_POSIX_PATH_MAX * sizeof(char), 
 			 "%s/job_queue.log", spool);
 
-	tmp = param("QUILLPP_DB_TYPE");
+	tmp = param("QUILL_DB_TYPE");
 	if (tmp) {
 		if (strcasecmp(tmp, "ORACLE") == 0) {
 			dt = T_ORACLE;
@@ -196,7 +196,7 @@ JobQueueDBManager::config(bool reconfig)
 		  if one is not specified, by default we use the local address 
 		  and the default postgres port of 5432.  
 		*/
-	jobQueueDBIpAddress = param("QUILLPP_DB_IP_ADDR");
+	jobQueueDBIpAddress = param("QUILL_DB_IP_ADDR");
 	if(jobQueueDBIpAddress) {
 		len = strlen(jobQueueDBIpAddress);
 		host = (char *) malloc(len * sizeof(char));
@@ -220,9 +220,9 @@ JobQueueDBManager::config(bool reconfig)
 		   names be unique or else there would be clashes.  Having 
 		   unique database names is the responsibility of the administrator
 		*/
-	jobQueueDBName = param("QUILLPP_DB_NAME");
+	jobQueueDBName = param("QUILL_DB_NAME");
 
-	jobQueueDBUser = param("QUILLPP_DB_USER");
+	jobQueueDBUser = param("QUILL_DB_USER");
 
 		// get the password from the .pgpass file
 	char *writePasswordFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));

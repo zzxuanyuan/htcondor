@@ -156,7 +156,7 @@ TTManager::config(bool reconfig)
 	
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
-	char *pollingPeriod_str = param("QUILLPP_POLLING_PERIOD");
+	char *pollingPeriod_str = param("QUILL_POLLING_PERIOD");
 	if(pollingPeriod_str) {
 		pollingPeriod = atoi(pollingPeriod_str);
 		free(pollingPeriod_str);
