@@ -1514,7 +1514,7 @@ writeEvent (FILE *file)
 	  }
   }
 
-  snprintf(tmp, 512, "machine_id = \"%s\"", executehostname);
+  snprintf(tmp, 512, "machine_id = \"%s\"", remoteName);
   tmpClP3->Insert(tmp);
 
   if(scheddname) {

@@ -482,6 +482,7 @@ class ExecuteEvent : public ULogEvent
 		or GridTyps.
 	*/
     char executeHost[128];
+	char remoteName[256];
 };
 
 //----------------------------------------------------------------------------
