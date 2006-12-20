@@ -64,7 +64,7 @@ OsProc::~OsProc()
 
 
 int
-OsProc::StartJob()
+OsProc::StartJob(FamilyInfo* family_info)
 {
 	int nice_inc = 0;
 	bool has_wrapper = false;
@@ -340,7 +340,7 @@ OsProc::StartJob()
 	set_priv ( priv );
 
 	JobPid = daemonCore->Create_Process( JobName, args, PRIV_USER_FINAL,
-					     1, FALSE, &job_env, job_iwd, TRUE,
+					     1, FALSE, &job_env, job_iwd, family_info,
 					     NULL, fds, nice_inc, job_opt_mask );
 
 	//NOTE: Create_Process() saves the errno for us if it is an

@@ -25,7 +25,6 @@
 #include "simplelist.h"
 #include "extArray.h"
 #include "stringSpace.h"
-#include "killfamily.h"
 #include "HashTable.h"
 #include "condor_classad.h"
 #include "classad_collection_types.h"
@@ -49,7 +48,6 @@ template class ExtArray<int>;
 template class ExtArray<MyString>;
 template class ExtArray<StringSpace::SSStringEnt>;
 template class ExtArray<StringSpace*>;
-template class ExtArray<ProcFamily::a_pid>;
 template class HashTable<int, BaseCollection*>;
 template class HashBucket<int, BaseCollection*>;
 template class Set<MyString>;

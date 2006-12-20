@@ -58,6 +58,7 @@
 #include "condor_pidenvid.h"
 #include "condor_arglist.h"
 #include "env.h"
+#include "../condor_procd/proc_family_client.h"
 
 #if defined(WIN32)
 #include "pipe.WIN32.h"
@@ -143,6 +144,13 @@ const int DCJOBOPT_NO_ENV_INHERIT   = (1<<2);
 #define HAS_DCJOBOPT_NO_ENV_INHERIT(mask)  ((mask)&DCJOBOPT_NO_ENV_INHERIT)
 #define HAS_DCJOBOPT_ENV_INHERIT(mask)  (!(HAS_DCJOBOPT_NO_ENV_INHERIT(mask)))
 
+
+// structure to be used as an argument to Create_Process for tracking process
+// families
+struct FamilyInfo {
+	int max_snapshot_interval;
+	const char* login;
+};
 
 /** helper function for finding available port for both 
     TCP and UDP command socket */
@@ -782,17 +790,23 @@ class DaemonCore : public Service
         priv_state  priv                 = PRIV_UNKNOWN,
         int         reaper_id            = 1,
         int         want_commanand_port  = TRUE,
-        Env const *env                   = NULL,
+        Env const   *env                 = NULL,
         const char  *cwd                 = NULL,
-        int         new_process_group    = FALSE,
+        FamilyInfo  *family_info         = NULL,
         Stream      *sock_inherit_list[] = NULL,
         int         std[]                = NULL,
         int         nice_inc             = 0,
-        int         job_opt_mask         = 0,
-		int			fd_inherit_list[]	 = NULL
+        int         job_opt_mask         = 0
         );
 
     //@}
+
+    /** Methods for operating on a process family
+    */
+    int Get_Family_Usage(pid_t, ProcFamilyUsage&);
+    int Suspend_Family(pid_t);
+    int Continue_Family(pid_t);
+    int Kill_Family(pid_t, ProcFamilyUsage* = NULL);
 
     /** @name Data pointer functions.
         These functions deal with
@@ -1248,6 +1262,8 @@ class DaemonCore : public Service
     PidHashTable* pidTable;
     pid_t mypid;
     pid_t ppid;
+
+    ProcFamilyClient* m_procd_client;
 
 #ifdef WIN32
     // note: as of WinNT 4.0, MAXIMUM_WAIT_OBJECTS == 64

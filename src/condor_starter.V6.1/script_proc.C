@@ -241,7 +241,7 @@ ScriptProc::StartJob()
 
 	JobPid = daemonCore->Create_Process(exe_path.GetCStr(), 
 				args, PRIV_USER_FINAL, 1, FALSE, &job_env,
-				Starter->jic->jobIWD(), TRUE, NULL, NULL, nice_inc,
+				Starter->jic->jobIWD(), NULL, NULL, NULL, nice_inc,
 				DCJOBOPT_NO_ENV_INHERIT );
 
 	//NOTE: Create_Process() saves the errno for us if it is an

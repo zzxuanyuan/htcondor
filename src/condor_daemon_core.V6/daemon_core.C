@@ -237,6 +237,23 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	mypid = ::getpid();
 #endif
 
+	// our pointer to the ProcFamilyClient object is initially NULL. the
+	// object will be created the first time Create_Process is called with
+	// a non-NULL family_info argument. this is for two reasons:
+	//
+	//   - in the master, it is needed for correctness. when a ProcFamilyClient
+	//     is created, it will open a named pipe to the procd. since the master
+	//     is the one who starts the procd, it can't create a ProcFamilyClient
+	//     object on startup, because the open will fail. delaying
+	//     ProcFamilyClient creation until its actually needed resolves this
+	//     problem
+	//
+	//   - as a side bonus, we'll never create a ProcFamilyClient object in
+	//     daemons that don't use it. which as of now, is everything but the
+	//     master, startd, and starter
+	//
+	m_procd_client = NULL;
+
 	maxCommand = ComSize;
 	maxSig = SigSize;
 	maxSocket = SocSize;
@@ -442,6 +459,10 @@ DaemonCore::~DaemonCore()
 		if ( pid_entry ) delete pid_entry;
 	}
 	delete pidTable;
+
+	if (m_procd_client != NULL) {
+		delete m_procd_client;
+	}
 
 	for( i=0; i<LAST_PERM; i++ ) {
 		if( SettableAttrsLists[i] ) {
@@ -4017,7 +4038,7 @@ int DaemonCore::HandleSig(int command,int sig)
 
 int DaemonCore::Send_Signal(pid_t pid, int sig)
 {
-	PidEntry * pidinfo;
+	PidEntry * pidinfo = NULL;
 	int same_thread, is_local;
 	char *destination;
 	Stream* sock;
@@ -5078,19 +5099,18 @@ void exit(int status)
 
 
 int DaemonCore::Create_Process(
-			const char	*name,
+			const char    *name,
 			ArgList const &args,
-			priv_state	priv,
-			int			reaper_id,
-			int			want_command_port,
-			Env const *env,
-			const char	*cwd,
-			int			new_process_group,
-			Stream		*sock_inherit_list[],
-			int			std[],
-            int         nice_inc,
-			int			job_opt_mask,
-			int			fd_inherit_list[]
+			priv_state    priv,
+			int           reaper_id,
+			int           want_command_port,
+			Env const     *env,
+			const char    *cwd,
+			FamilyInfo    *family_info,
+			Stream        *sock_inherit_list[],
+			int           std[],
+			int           nice_inc,
+			int           job_opt_mask
             )
 {
 	int i;
@@ -5292,6 +5312,21 @@ int DaemonCore::Create_Process(
 		identify children/grandchildren/great-grandchildren/etc. */
 	create_id(&time_of_fork, &mii);
 
+	// if this is the first time Create_Process is being called with a
+	// non-NULL family_info argument, create the ProcFamilyClient object
+	// that we'll use to interact with the procd for controlling process
+	// families
+	//
+	if ((family_info != NULL) && (m_procd_client == NULL)) {
+		char* procd_address = param("PROCD_ADDRESS");
+		if (procd_address == NULL) {
+			EXCEPT("error: PROCD_ADDRESS not in configuration\n");
+		}
+		m_procd_client = new ProcFamilyClient(procd_address);
+		ASSERT(m_procd_client);
+		free(procd_address);
+	}
+
 #ifdef WIN32
 	// START A NEW PROCESS ON WIN32
 
@@ -5313,14 +5348,6 @@ int DaemonCore::Create_Process(
 	// of all files opened via the C runtime library to non-inheritable.
 	for (i = 0; i < 100; i++) {
 		SetFDInheritFlag(i,FALSE);
-	}
-
-	// Now make inhertiable the fds that we specified in fd_inherit_list[]
-	if (fd_inherit_list) {
-		inherit_handles = TRUE;
-		for (i=0; fd_inherit_list[i] != 0; i++) {
-			SetFDInheritFlag (fd_inherit_list[i], TRUE);
-		}
 	}
 
 	// handle re-mapping of stdout,in,err if desired.  note we just
@@ -5903,7 +5930,7 @@ int DaemonCore::Create_Process(
 		}
 
 		//create a new process group if we are supposed to
-		if( new_process_group == TRUE )
+		if( family_info != NULL )
 		{
 			// Set sid is the POSIX way of creating a new proc group
 			if( setsid() == -1 )
@@ -5914,6 +5941,17 @@ int DaemonCore::Create_Process(
 					// went wrong before the exec...
 				write(errorpipe[1], &errno, sizeof(errno));
 				exit(errno); // Yes, we really want to exit here.
+			}
+
+			// contact the procd to register ourselves
+			bool ok =
+				m_procd_client->register_subfamily(pid,
+			                                       ::getppid(),
+			                                       family_info->max_snapshot_interval);
+			if (!ok) {
+				errno = 31;
+				write(errorpipe[1], &errno, sizeof(errno));
+				exit(errno);
 			}
 		}
 
@@ -6140,16 +6178,6 @@ int DaemonCore::Create_Process(
 				}
 			}
 
-			if (fd_inherit_list) {
-				for ( int k=0 ; fd_inherit_list[k] > 0; k++ ) {
-					if ( fd_inherit_list[k] == j ) {
-						found = TRUE;
-						break;
-					}
-				}
-			}
-
-
 			if( !found ) {
 				close( j );
             }
@@ -6278,7 +6306,7 @@ int DaemonCore::Create_Process(
 						 "PID re-use\n" );
 				return Create_Process( name, args, priv, reaper_id,
 									   want_command_port, env, cwd,
-									   new_process_group,
+									   family_info,
 									   sock_inherit_list, std,
 									   nice_inc, job_opt_mask );
 				break;
@@ -6333,7 +6361,7 @@ int DaemonCore::Create_Process(
 	// Now that we have a child, store the info in our pidTable
 	pidtmp = new PidEntry;
 	pidtmp->pid = newpid;
-	pidtmp->new_process_group = new_process_group;
+	pidtmp->new_process_group = (family_info != NULL);
 	if ( want_command_port != FALSE )
 		strcpy(pidtmp->sinful_string,sock_to_string(rsock._sock));
 	else
@@ -6628,6 +6656,30 @@ DaemonCore::Kill_Thread(int tid)
 	set_priv(priv);
 	return (status >= 0);		// return 1 if kill succeeds, 0 otherwise
 #endif
+}
+
+int
+DaemonCore::Get_Family_Usage(pid_t pid, ProcFamilyUsage& usage)
+{
+	return m_procd_client->get_usage(pid, usage);
+}
+
+int
+DaemonCore::Suspend_Family(pid_t pid)
+{
+	return m_procd_client->suspend_family(pid);
+}
+
+int
+DaemonCore::Continue_Family(pid_t pid)
+{
+	return m_procd_client->continue_family(pid);
+}
+
+int
+DaemonCore::Kill_Family(pid_t pid, ProcFamilyUsage* usage)
+{
+	return m_procd_client->kill_family(pid, usage);
 }
 
 void

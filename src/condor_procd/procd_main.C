@@ -1,0 +1,231 @@
+/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+  *
+  * Condor Software Copyright Notice
+  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+  * University of Wisconsin-Madison, WI.
+  *
+  * This source code is covered by the Condor Public License, which can
+  * be found in the accompanying LICENSE.TXT file, or online at
+  * www.condorproject.org.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
+  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
+  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
+  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
+  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
+  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
+  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
+  * RIGHT.
+  *
+  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
+#include "condor_common.h"
+#include "condor_debug.h"
+#include "proc_family_monitor.h"
+#include "proc_family_server.h"
+#include "proc_family_io.h"
+
+// our "local server address"
+// (set with the "-A" option)
+//
+static char* local_server_address = NULL;
+
+// log file (no logging by default)
+// (set with the "-L" option)
+//
+static char* log_file_name = NULL;
+
+// info about the root process of the family we'll be monitoring
+// (set with the two-argument "-P" option)
+//
+static pid_t root_pid = 0;
+static birthday_t root_birthday = 0;
+
+// the maximum number of seconds we'll wait in between
+// taking snapshots (one minute by default)
+// (set with the "-S" option)
+//
+static int max_snapshot_interval = 60;
+
+static inline void
+fail_illegal_option(char* option)
+{
+	fprintf(stderr,
+	        "error: illegal option: %s",
+	        option);
+	exit(1);
+}
+
+static inline void
+fail_option_args(char* option, int args_required)
+{
+	fprintf(stderr,
+	        "error: option \"%s\" requires %d arguments",
+	        option,
+	        args_required);
+	exit(1);
+}
+
+static void
+parse_command_line(int argc, char* argv[])
+{
+	int index = 1;
+	while (index < argc) {
+
+		// first, make sure the first char of the option is '-'
+		// and that there is at least one more char after that
+		//
+		if (argv[index][0] != '-' || argv[index][1] == '\0') {
+			fail_illegal_option(argv[index]);
+		}
+
+		// now switch on the option
+		//
+		switch(argv[index][1]) {
+
+			// DEBUG: stop ourselves so a debugger can
+			// attach if "-D" is given
+			//
+			case 'D':
+				kill(getpid(), SIGSTOP);
+				break;
+
+			// local server address
+			//
+			case 'A':
+				if (index + 1 >= argc) {
+					fail_option_args("-A", 1);
+				}
+				index++;
+				local_server_address = argv[index];
+				break;
+
+			// log file name
+			//
+			case 'L':
+				if (index + 1 >= argc) {
+					fail_option_args("-L", 1);
+				}
+				index++;
+				log_file_name = argv[index];
+				break;
+
+			// root process information
+			//
+			case 'P':
+				if (index + 2 >= argc) {
+					fail_option_args("-P", 2);
+				}
+				index++;
+				root_pid = atoi(argv[index]);
+				if (root_pid == 0) {
+					fprintf(stderr,
+					        "error: invalid root process id: %s",
+					        argv[index]);
+					exit(1);
+				}
+				index++;
+				root_birthday = procd_atob(argv[index]);
+				if (root_birthday == 0) {
+					fprintf(stderr,
+					        "error: invalid root process birthday: %s",
+					        argv[index]);
+					exit(1);
+				}
+				break;
+
+			// maximum snapshot interval
+			//
+			case 'S':
+				if (index + 1 >= argc) {
+					fail_option_args("-S", 1);
+				}
+				index++;
+				max_snapshot_interval = atoi(argv[index]);
+				break;
+
+			// default case
+			//
+			default:
+				fail_illegal_option(argv[index]);
+				break;
+		}
+
+		index++;
+	}
+
+	// now that we're done parsing, enforce required options
+	//
+	if (local_server_address == NULL) {
+		fprintf(stderr, "error: the \"-A\" option is required");
+		exit(1);
+	}
+	if (root_pid == 0 || root_birthday == 0) {
+		fprintf(stderr, "error: the \"-P\" option is required");
+		exit(1);
+	}
+}
+
+int
+main(int argc, char* argv[])
+{
+	// close stdin and stdout right away, since we don't use them
+	//
+	fclose(stdin);
+	fclose(stdout);
+
+	// modify static variables based on the command line
+	//
+	parse_command_line(argc, argv);
+
+	// if a maximum snapshot interval was given, it needs to be either
+	// a non-negative number, or -1 for "infinite"
+	//
+	if (max_snapshot_interval < -1) {
+		fprintf(stderr, "error: maximum snapshot interval must be non-negative or -1");
+		exit(1);
+	}
+
+	// setup logging if a file was given
+	//
+	extern FILE* debug_fp;
+	if (log_file_name != NULL) {
+		debug_fp = fopen(log_file_name, "w");
+		if (debug_fp == NULL) {
+			fprintf(stderr,
+			        "error: couldn't open file \"%s\" for logging: %s (%d)",
+					log_file_name,
+			        strerror(errno),
+			        errno);
+			exit(1);
+		}
+	}
+
+	// initialize the "engine" for tracking process families
+	//
+	ProcFamilyMonitor monitor(root_pid, root_birthday, max_snapshot_interval);
+
+	// initialize the server for accepting requests from clients
+	//
+	ProcFamilyServer server(monitor, local_server_address);
+
+	// now that we've initialized the server, close out standard error.
+	// this way, calling programs can set up a pipe to block on until
+	// we're accepting connections
+	//
+	fclose(stderr);
+
+	// finally, enter the server's wait loop
+	//
+	server.wait_loop();
+
+	// cleanup before exiting
+	//
+	if (debug_fp != NULL) {
+		fclose(debug_fp);
+	}
+
+	return 0;
+}

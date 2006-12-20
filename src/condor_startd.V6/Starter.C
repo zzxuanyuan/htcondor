@@ -53,9 +53,9 @@ Starter::Starter()
 
 Starter::Starter( const Starter& s )
 {
-	if( s.s_claim || s.s_pid || s.s_procfam || s.s_family_size
-		|| s.s_pidfamily || s.s_birthdate 
-		|| s.s_port1 >= 0 || s.s_port2 >= 0 ) {
+	if( s.s_claim || s.s_pid || s.s_birthdate ||
+	    s.s_port1 >= 0 || s.s_port2 >= 0 )
+	{
 		EXCEPT( "Trying to copy a Starter object that's already running!" );
 	}
 
@@ -82,11 +82,7 @@ Starter::initRunData( void )
 {
 	s_claim = NULL;
 	s_pid = 0;		// pid_t can be unsigned, so use 0, not -1
-	s_procfam = NULL;
-	s_family_size = 0;
-	s_pidfamily = NULL;
 	s_birthdate = 0;
-	s_last_snapshot = 0;
 	s_kill_tid = -1;
 	s_port1 = -1;
 	s_port2 = -1;
@@ -95,10 +91,6 @@ Starter::initRunData( void )
 #if HAVE_BOINC
 	s_is_boinc = false;
 #endif /* HAVE_BOINC */
-
-		// Initialize our procInfo structure so we don't use any
-		// values until we've actually computed them.
-	memset( (void*)&s_pinfo, 0, (size_t)sizeof(s_pinfo) );
 }
 
 
@@ -108,13 +100,6 @@ Starter::~Starter()
 
 	if (s_path) {
 		delete [] s_path;
-	}
-	if( s_procfam ) {
-		delete s_procfam;
-	}
-	if( s_pidfamily ) {
-		delete [] s_pidfamily;
-		s_pidfamily = NULL;
 	}
 	if( s_ad ) {
 		delete( s_ad );
@@ -440,8 +425,8 @@ Starter::reallykill( int signo, int type )
 
 	if( is_dc() ) {
 			// With DaemonCore, fow now convert a request to kill a
-			// process group into a request to kill a pid family via
-			// ProcFamily
+			// process group into a request to kill a process family via
+			// DaemonCore
 		if ( type == 1 ) {
 			type = 2;
 		}
@@ -516,7 +501,11 @@ Starter::reallykill( int signo, int type )
 					 "In Starter::killkids() with %s\n", signame );
 			EXCEPT( "Starter::killkids() can only handle SIGKILL!" );
 		}
-		s_procfam->hardkill();  // This really sends SIGKILL
+		if (daemonCore->Kill_Family(s_pid) == FALSE) {
+			dprintf(D_ALWAYS,
+			        "error killing process family of starter with pid %u\n",
+				s_pid);
+		}
 		break;
 	}
 
@@ -559,20 +548,9 @@ Starter::spawn( time_t now, Stream* s )
 	if( s_pid == 0 ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter returned %d\n", s_pid );
 	} else {
-
-		PidEnvID penvid;
-
-		// if there isn't any ancestor information for this pid, that is ok.
-		daemonCore->InfoEnvironmentID(&penvid, s_pid);
-		
 		s_birthdate = now;
-		s_procfam = new ProcFamily( s_pid, &penvid, PRIV_ROOT );
-
-		dprintf( D_PROCFAMILY, 
-				 "Created new ProcFamily w/ pid %d as the parent.\n",
-				 s_pid ); 
-		recomputePidFamily( now );
 	}
+
 	return s_pid;
 }
 
@@ -584,8 +562,12 @@ Starter::exited()
 	cancelKillTimer();
 
 		// Just for good measure, try to kill what's left of our whole
-		// pid family.  
-	s_procfam->hardkill();
+		// pid family.
+	if (daemonCore->Kill_Family(s_pid) == FALSE) {
+		dprintf(D_ALWAYS,
+		        "error killing process family of starter with pid %u\n",
+		        s_pid);
+	}
 
 		// Now, delete any files lying around.
 	cleanup_execute_dir( s_pid );
@@ -757,9 +739,13 @@ Starter::execDCStarter( ArgList const &args, Env const *env,
 				 args_string.Value() );
 	}
 
+	FamilyInfo fi;
+	fi.max_snapshot_interval = pid_snapshot_interval;
+	fi.login = NULL;
+
 	s_pid = daemonCore->
 		Create_Process( final_path, *final_args, PRIV_ROOT, reaper_id,
-						TRUE, final_env, NULL, TRUE, inherit_list, std_fds );
+						TRUE, final_env, NULL, &fi, inherit_list, std_fds );
 	if( s_pid == FALSE ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter failed!\n");
 		s_pid = 0;
@@ -1199,95 +1185,21 @@ Starter::dprintf( int flags, char* fmt, ... )
 float
 Starter::percentCpuUsage( void )
 {
-	int status;
-
-	time_t now = time(NULL);
-	if( now - s_last_snapshot >= pid_snapshot_interval ) { 
-		recomputePidFamily( now );
+	if (daemonCore->Get_Family_Usage(s_pid, s_usage) == FALSE) {
+		EXCEPT( "Starter::percentCpuUsage(): Fatal error getting process "
+		        "info for the starter and decendents" ); 
 	}
 
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-		printPidFamily( D_FULLDEBUG, 
-						"Computing percent CPU usage with pids: " );
+		dprintf( D_FULLDEBUG,
+		        "Starter::percentCpuUsage(): Percent CPU usage "
+		        "for the family of starter with pid %u is: %f\n",
+		        s_pid,
+		        s_usage.percent_cpu );
 	}
 
-		// ProcAPI wants a non-const pointer reference, so we need
-		// a temporary.
-	procInfo *pinfoPTR = &s_pinfo;
-	if( (ProcAPI::getProcSetInfo(s_pidfamily, s_family_size,
-								 pinfoPTR, status) == PROCAPI_FAILURE) ) {
-
-			// If we failed, it might be b/c our pid family has stale
-			// info, so before we give up for real, recompute and try
-			// once more.
-		printPidFamily(D_FULLDEBUG, 
-			"Starter::percentCpuUsage(): Failed trying to get cpu usage "
-			"with this family: ");  
-
-		recomputePidFamily();
-
-		printPidFamily(D_FULLDEBUG, 
-			"Starter::percentCpuUsage(): Maybe that family was stale, "
-			"attempting recomputed family: ");  
-
-		if( (ProcAPI::getProcSetInfo( s_pidfamily, s_family_size, 
-									  pinfoPTR, status) == PROCAPI_FAILURE) ) {
-			EXCEPT( "Starter::percentCpuUsage(): Fatal error getting process "
-					"info for the starter and decendents" ); 
-		}
-	}
-	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-		dprintf( D_FULLDEBUG, "Starter::percentCpuUsage(): Percent CPU usage "
-								"for those pids is: %f\n", s_pinfo.cpuusage );
-	}
-	return s_pinfo.cpuusage;
+	return s_usage.percent_cpu;
 }
-
-
-void
-Starter::recomputePidFamily( time_t now ) 
-{
-	if( !s_procfam ) {
-		dprintf( D_PROCFAMILY, 
-		 "Starter::recompute_pidfamily: ERROR: No ProcFamily object.\n" );
-		return;
-	}
-	dprintf( D_PROCFAMILY, "Recomputing pid family\n" );
-	s_procfam->takesnapshot();
-	if( s_pidfamily ) {
-		delete [] s_pidfamily;
-		s_pidfamily = NULL;
-	}
-	s_family_size = s_procfam->currentfamily( s_pidfamily );
-	if( ! s_family_size ) {
-		dprintf( D_ALWAYS, 
-			"WARNING: No processes found in starter's family\n" );
-	}
-	if( now ) {
-		s_last_snapshot = now;
-	} else {
-		s_last_snapshot = time( NULL );
-	}
-}
-
-
-void
-Starter::printPidFamily( int dprintf_level, char* header ) 
-{
-	MyString msg;
-	char numbuf[32];
-
-	if( header ) {
-		msg += header;
-	}
-	int i;
-	for( i=0; i<s_family_size; i++ ) {
-		snprintf( numbuf, 32, "%d ", s_pidfamily[i] );
-		msg += numbuf;
-	}
-	dprintf( dprintf_level, "%s\n", msg.Value() );
-}
-
 
 unsigned long
 Starter::imageSize( void )
@@ -1295,7 +1207,7 @@ Starter::imageSize( void )
 		// we assume we're only asked for this after we've already
 		// computed % cpu usage and we've already got this info
 		// sitting here...
-	return s_pinfo.imgsize;
+	return s_usage.total_image_size;
 }
 
 

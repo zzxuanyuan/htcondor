@@ -45,7 +45,9 @@ public:
 			output, error files for re-direction, and (finally) call
 			daemonCore->Create_Process().
 		 */
-	virtual int StartJob();
+	virtual int StartJob() { return StartJob(NULL); };
+
+	int StartJob(FamilyInfo*);
 
 		/** In this function, we determine if pid == our pid, and if so
 			do a CONDOR_job_exit remote syscall.  
