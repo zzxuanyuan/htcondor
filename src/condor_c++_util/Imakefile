@@ -185,6 +185,7 @@ c_plus_target(test_mystring,test_mystring.o,$(LIB))
 c_plus_target(test_condor_arglist,test_condor_arglist.o,$(LIB))
 c_plus_target(test_condor_crontab,test_condor_crontab.o,$(LIB))
 c_plus_target(test_spawn,test_spawn.o,$(LIB))
+c_plus_target(test_tree,test_tree.o,$(LIB))
 
 /* this needs to be built more like a user would use the library, so it */
 /* can't have all of our usual cflags... */
