@@ -206,6 +206,7 @@ END_C_DECLS
 // Put C++ definitions here
 #if defined(__cplusplus)
 bool operator==( const PROC_ID a, const PROC_ID b);
+int hashFuncPROC_ID( const PROC_ID &, int);
 #endif
 
 #define ICKPT -1

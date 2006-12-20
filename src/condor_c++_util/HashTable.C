@@ -23,6 +23,7 @@
 
 #include "condor_common.h"
 #include "HashTable.h"
+#include "proc.h"
 
 int
 hashFuncInt( const int& n, int numBuckets )
