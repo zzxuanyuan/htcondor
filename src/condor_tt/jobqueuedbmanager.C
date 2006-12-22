@@ -1576,27 +1576,36 @@ JobQueueDBManager::setJQPollingInfo()
 	return ret_st;
 }
 
-char * fillEscapeCharacters(char * str) {
+char * JobQueueDBManager::fillEscapeCharacters(const char * str) {
 	int i, j;
 	
 	int len = strlen(str);
 
-		//here we allocate 1024 more than the size of the 
-		//old string assuming that there wouldn't be more than 1024
-		//quotes in there 
-	char *newstr = (char *) malloc((len + 1024) * sizeof(char));
-	
+		/* here we allocate for the worst case -- every byte going to the
+		   database needs to be escaped, except the trailing null */
+	char *newstr = (char *) malloc(( 2 * len + 1) * sizeof(char));
+        
 	j = 0;
 	for (i = 0; i < len; i++) {
 		switch(str[i]) {
-        case '\'':
-            newstr[j] = '\\';
-            newstr[j+1] = '\'';
-            j += 2;
+        case '\\':
+			if (dt == T_PGSQL) {
+					/* postgres need to escape backslash */
+				newstr[j] = '\\';
+				newstr[j+1] = '\\';
+				j += 2;
+			} else {
+					/* other database only include oracle, which doesn't
+					   need to escape backslash */
+				newstr[j] = str[i];
+				j++;
+			}
             break;
-        case '\t':
-            newstr[j] = '\\';
-            newstr[j+1] = 't';
+        case '\'':
+				/* both oracle and postgres can escape a single quote with 
+				   another single quote */
+            newstr[j] = '\'';
+            newstr[j+1] = '\'';
             j += 2;
             break;
         default:

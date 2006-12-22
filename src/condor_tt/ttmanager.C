@@ -81,7 +81,6 @@ TTManager::~TTManager()
 	if (collectors) {
 		delete collectors;
 	}
-
 }
 
 void
@@ -307,9 +306,10 @@ TTManager::maintain()
  */
 
 void TTManager::updateQuillAd(void) {
+	/*
+
 	char expr[1000];
 
-	/*
 	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_LAST_BATCH, 
 			 lastBatchSqlProcessed);
 	ad->Insert(expr);
@@ -463,11 +463,16 @@ TTManager::event_maintain()
 		filesqlobj = NULL;
 	}
 
+		/* clear up the previous errorSqlStmt and currentSqlLog */
+	errorSqlStmt = (char *) 0;
+	currentSqlLog = (char *) 0;
+
 		/* process copies of event logs, notice we add 1 to numLogs because 
 		   the last file is the special "thrown" file
 		*/
 	for(i=0; i < numLogs+1; i++) {
-		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
+		currentSqlLog = sqlLogCopyList[i];
+		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);		
 
 		if (filesqlobj->file_open() == FAILURE) {
 			goto ERROREXIT;
@@ -643,9 +648,19 @@ TTManager::event_maintain()
 	// so that subsequent SQLs don't continue to fail
 	DBObj->rollbackTransaction();
 
-	this -> checkAndThrowBigFiles();
-
-	if (DBObj->checkConnection() == FAILURE) {
+		/* if the database connection is ok and we fail because of an 
+		   error in sql processing, we record the error sql and the 
+		   sql log in the database and truncate the error sql log. 
+		   if we fail because of other database error (e.g. broken 
+		   connection), we check if a sql log has exceeded its 	
+		   size limit, and if so, we throw it away.
+		*/
+	if (!errorSqlStmt.IsEmpty() &&
+		!currentSqlLog.IsEmpty()
+		&& (DBObj->checkConnection() == SUCCESS)) {
+		this -> handleErrorSqlLog();
+	} else {
+		this -> checkAndThrowBigFiles();
 		DBObj->resetConnection();
 	}
 
@@ -674,6 +689,7 @@ void TTManager::checkAndThrowBigFiles() {
 			filesqlobj->file_truncate();
 			delete filesqlobj;
 
+				/* string values are double quoted */
 			snprintf(tmp, 512, "filename = \"%s\"", sqlLogCopyList[i]);
 			tmpClP1->Insert(tmp);		
 			
@@ -836,13 +852,6 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				/* strip quotes from attVal (if any), this way we can 
-				   uniformly handle all attributes which are inserted into 
-				   the vertical part where attribute value is stored in 
-				   text type regardless what it's original data type is
-				*/
-			stripquotes(attVal);
-	
 			attr_type = typeOf(attName);
 
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
@@ -929,7 +938,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						sprintf(attValList, "(%s", attVal);
 						break;
 					default:
-						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute\n");
+						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute %s\n", attName);
 						if (attNameList) free(attNameList);
 						if (attValList) free(attValList);		 
 						if (inlist) free(inlist);					
@@ -1010,7 +1019,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						sprintf(tmpVal, "%s", attVal);
 						break;
 					default:
-						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute\n");
+						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute %s\n", attName);
 						if (attNameList) free(attNameList);
 						if (attValList) free(attValList);		 
 						if (inlist) free(inlist);					
@@ -1057,6 +1066,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1080,6 +1090,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);		 
 		 if (inlist) free(inlist);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 		 return FAILURE;
 	 }
@@ -1092,6 +1103,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);		 
 		 if (inlist) free(inlist);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 		 return FAILURE;
 	 }
@@ -1109,6 +1121,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);
 		 if (inlist) free(inlist);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 		 return FAILURE;
 	 }
@@ -1134,6 +1147,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -1148,6 +1162,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -1168,6 +1183,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }
@@ -1177,6 +1193,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }
@@ -1186,6 +1203,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			errorSqlStmt = sql_stmt;
 			free(sql_stmt);
 			return FAILURE;
 		 }
@@ -1237,13 +1255,6 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
-
-				/* strip quotes from attVal (if any), this way we can 
-				   uniformly handle all attributes which are inserted into 
-				   the vertical part where attribute value is stored in 
-				   text type regardless what it's original data type is
-				*/
-			stripquotes(attVal);
 
 			attr_type = typeOf(attName);
 
@@ -1330,7 +1341,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 					sprintf(tmpVal, "%s", attVal);
 					break;
 				default:
-					dprintf(D_ALWAYS, "insertScheddAd: unsupported horizontal daemon attribute\n");
+					dprintf(D_ALWAYS, "insertScheddAd: unsupported horizontal daemon attribute %s\n", attName);
 					if (attNameList) free(attNameList);
 					if (attValList) free(attValList);		 
 					if (attNameList2) free(attNameList2);
@@ -1393,7 +1404,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 						sprintf(attValList2, "(%s", attVal);
 						break;
 					default:
-						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute\n");
+						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute %s\n", attName);
 						if (attNameList) free(attNameList);
 						if (attValList) free(attValList);		 
 						if (attNameList2) free(attNameList2);
@@ -1451,7 +1462,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 						sprintf(tmpVal, "%s", attVal);
 						break;
 					default:
-						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute\n");
+						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute %s\n", attName);
 						if (attNameList) free(attNameList);
 						if (attValList) free(attValList);		 
 						if (attNameList2) free(attNameList2);
@@ -1510,6 +1521,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1537,6 +1549,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		if (attNameList2) free(attNameList2);
 		if (attValList2) free(attValList2);	
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1551,6 +1564,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		if (attNameList2) free(attNameList2);
 		if (attValList2) free(attValList2);		 
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1573,6 +1587,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		if (attNameList2) free(attNameList2);
 		if (attValList2) free(attValList2);	
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1587,6 +1602,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		if (attNameList2) free(attNameList2);
 		if (attValList2) free(attValList2);		 
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;		
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1606,6 +1622,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 if (attNameList2) free(attNameList2);
 		 if (attValList2) free(attValList2);		
 		 if (inlist) free(inlist);
+		 errorSqlStmt = sql_stmt;	
 		 free(sql_stmt);
 		 return FAILURE;
 	 }	 
@@ -1625,6 +1642,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 if (attNameList2) free(attNameList2);
 		 if (attValList2) free(attValList2);		
 		 if (inlist) free(inlist);
+		 errorSqlStmt = sql_stmt;	
 		 free(sql_stmt);
 		 return FAILURE;
 	 }	 
@@ -1655,6 +1673,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -1669,6 +1688,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;		 
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -1690,6 +1710,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }
@@ -1699,6 +1720,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 errorSqlStmt = sql_stmt;			 
 			 free(sql_stmt);
 			 return FAILURE;
 		 }
@@ -1708,6 +1730,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			errorSqlStmt = sql_stmt;	
 			free(sql_stmt);
 			return FAILURE;
 		 }
@@ -1759,13 +1782,6 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
-
-				/* strip quotes from attVal (if any), this way we can 
-				   uniformly handle all attributes which are inserted into 
-				   the vertical part where attribute value is stored in 
-				   text type regardless what it's original data type is
-				*/
-			stripquotes(attVal);
 
 			attr_type = typeOf(attName);
 
@@ -1848,7 +1864,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 					sprintf(tmpVal, "%s", attVal);
 					break;
 				default:
-					dprintf(D_ALWAYS, "insertMasterAd: unsupported horizontal daemon attribute\n");
+					dprintf(D_ALWAYS, "insertMasterAd: unsupported horizontal daemon attribute %s\n", attName);
 					if (attNameList) free(attNameList);
 					if (attValList) free(attValList);		 
 					if (inlist) free(inlist);					
@@ -1900,6 +1916,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;		
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1925,6 +1942,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		if (attNameList) free(attNameList);
 		if (attValList) free(attValList);		 
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}	
@@ -1937,6 +1955,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		if (attNameList) free(attNameList);
 		if (attValList) free(attValList);		 
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -1954,6 +1973,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		if (attNameList) free(attNameList);
 		if (attValList) free(attValList);
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}		 
@@ -1981,6 +2001,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -1995,6 +2016,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -2015,6 +2037,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }	 
@@ -2024,6 +2047,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }
@@ -2033,6 +2057,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			errorSqlStmt = sql_stmt;
 			free(sql_stmt);
 			return FAILURE;
 		 }
@@ -2084,13 +2109,6 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
-
-				/* strip quotes from attVal (if any), this way we can 
-				   uniformly handle all attributes which are inserted into 
-				   the vertical part where attribute value is stored in 
-				   text type regardless what it's original data type is
-				*/
-			stripquotes(attVal);
 
 			attr_type = typeOf(attName);
 
@@ -2225,6 +2243,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2250,6 +2269,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		if (attNameList) free(attNameList);
 		if (attValList) free(attValList);		 
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2262,6 +2282,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		if (attNameList) free(attNameList);
 		if (attValList) free(attValList);		 
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2279,6 +2300,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		if (attNameList) free(attNameList);
 		if (attValList) free(attValList);
 		if (inlist) free(inlist);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2308,6 +2330,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -2322,6 +2345,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 errorSqlStmt = sql_stmt;
 		 free(sql_stmt);
 	 	 if (inlist) free(inlist);
 		 return FAILURE;
@@ -2341,6 +2365,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }	 
@@ -2349,7 +2374,8 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);	
+			 errorSqlStmt = sql_stmt;
 			 free(sql_stmt);
 			 return FAILURE;
 		 }
@@ -2359,6 +2385,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			errorSqlStmt = sql_stmt;
 			free(sql_stmt);
 			return FAILURE;
 		 }
@@ -2437,17 +2464,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 					/* for other values, check if it contains escape char 
 					   escape single quote if any within the value
 					*/
-				newvalue = fillEscapeCharacters(attVal);
-		
-					// change double quotes to single quote if any
-				attValLen = strlen(newvalue);
- 
-				if (newvalue[attValLen-1] == '"')
-					newvalue[attValLen-1] = '\'';
-
-				if (newvalue[0] == '"') {
-					newvalue[0] = '\'';
-				}							
+				newvalue = jqDBManager.fillEscapeCharacters(attVal);	   
 			}
 
 			if (isFirst) {
@@ -2458,7 +2475,17 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 				attValList = (char *) malloc (strlen(newvalue) + 4);
 											  
 				sprintf(attNameList, "(%s", attName);
-				sprintf(attValList, "(%s", newvalue);
+					/* if the value begins with a double quote, it means that
+					   it is a string value and should be single quoted. 
+					   This assumption is made in all functions where 	
+					   we treat a column which we don't have prior knowledge
+					   of its data type 
+					*/
+				if (newvalue[0] == '"') {
+					sprintf(attValList, "('%s'", newvalue);
+				} else {
+					sprintf(attValList, "(%s", newvalue);
+				}
 			} else {					
 						// is not the first in the list
 				attNameList = (char *) realloc(attNameList, strlen(attNameList) + strlen(attName) + 5);
@@ -2466,8 +2493,14 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 				
 				strcat(attNameList, ", ");
 				strcat(attNameList, attName);
-				strcat(attValList, ", ");
-				strcat(attValList, newvalue);					
+				strcat(attValList, ", ");				
+				if (newvalue[0] == '"') {
+					strcat(attValList, "'");
+				}
+				strcat(attValList, newvalue);
+				if (newvalue[0] == '"') {
+					strcat(attValList, "'");
+				}
 			}
 
 			free(newvalue);
@@ -2489,6 +2522,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2559,17 +2593,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 			} else {
 
 					// escape single quote if any within the value
-				newvalue = fillEscapeCharacters(attVal);
-		
-					// change double quotes to single quote if any
-				attValLen = strlen(newvalue);
- 
-				if (newvalue[attValLen-1] == '"')
-					newvalue[attValLen-1] = '\'';
-				
-				if (newvalue[0] == '"') {
-					newvalue[0] = '\'';
-				}			
+				newvalue = jqDBManager.fillEscapeCharacters(attVal);		
 			}
 
 				// is not the first in the list
@@ -2579,7 +2603,13 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 			strcat(attNameList, ", ");
 			strcat(attNameList, attName);
 			strcat(attValList, ", ");
-			strcat(attValList, newvalue);					
+			if (newvalue[0] == '"') {
+				strcat(attValList, "'");
+			}
+			strcat(attValList, newvalue);
+			if (newvalue[0] == '"') {
+				strcat(attValList, "'");
+			}
 
 			free(newvalue);
 			free(attName);
@@ -2600,6 +2630,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2649,17 +2680,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				
 			} else {
 					// escape single quote if any within the value
-				newvalue = fillEscapeCharacters(attVal);
-
-					// change double quotes to single quote if any
-				attValLen = strlen(newvalue);
- 
-				if (newvalue[attValLen-1] == '"')
-					newvalue[attValLen-1] = '\'';
-
-				if (newvalue[0] == '"') {
-					newvalue[0] = '\'';
-				}
+				newvalue = jqDBManager.fillEscapeCharacters(attVal);
 			}
 
 			if (strcasecmp(attName, "scheddname") == 0) {
@@ -2688,15 +2709,16 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 							   strlen(messagestr) + strlen(subproc));
 
 	if (eventtype == ULOG_JOB_ABORTED || eventtype == ULOG_JOB_HELD || ULOG_JOB_RELEASED) {
-		sprintf(sql_stmt, "INSERT INTO events (scheddname, cluster_id, proc, eventtype, eventtime, description) VALUES (%s, %s, %s, %d, %s, %s)", 
+		sprintf(sql_stmt, "INSERT INTO events (scheddname, cluster_id, proc, eventtype, eventtime, description) VALUES ('%s', %s, %s, %d, %s, '%s')", 
 				scheddname, cluster, proc, eventtype, eventts, messagestr);
 	} else {
-		sprintf(sql_stmt, "INSERT INTO events (scheddname, cluster_id, proc, runid, eventtype, eventtime, description) SELECT %s, %s, %s, run_id, %d, %s, %s  FROM runs WHERE scheddname = %s  AND cluster_id = %s and proc = %s AND spid = %s AND endtype is null", scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
+		sprintf(sql_stmt, "INSERT INTO events (scheddname, cluster_id, proc, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc = %s AND spid = %s AND endtype is null", scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
 	}
 
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2740,16 +2762,6 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-				// change double quotes to single quote if any
-			attValLen = strlen(attVal);
- 
-			if (attVal[attValLen-1] == '"')
-				attVal[attValLen-1] = '\'';
-
-			if (attVal[0] == '"') {
-				attVal[0] = '\'';
-			}
-
 			if (strcasecmp(attName, "f_name") == 0) {
 				strcpy(f_name, attVal);
 			} else if (strcasecmp(attName, "f_host") == 0) {
@@ -2780,10 +2792,10 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 		// strip the quotes from path and name so that we can compute checksum
 	len = strlen(f_path);
 
-	if (f_path[len-1] == '\'')
+	if (f_path[len-1] == '"')
 		f_path[len-1] = 0;
 	
-	if (f_path[0] == '\'') {
+	if (f_path[0] == '"') {
 		tmpVal = (char *) malloc(strlen(f_path));
 		tmp1 = f_path+1;
 		strcpy(tmpVal, tmp1);
@@ -2792,10 +2804,10 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	}
 
 	len = strlen(f_name);
-	if (f_name[len-1] == '\'')
+	if (f_name[len-1] == '"')
 		f_name[len-1] = 0;
 	
-	if (f_name[0] == '\'') {
+	if (f_name[0] == '"') {
 		tmpVal = (char *) malloc(strlen(f_name));
 		tmp1 = f_name+1;
 		strcpy(tmpVal, tmp1);
@@ -2837,7 +2849,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	}
 
 	sprintf(sql_stmt, 
-			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '%s', %s, '%s', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='%s' and path='%s' and host=%s and lastmodified=%s)", seqexpr, f_name, f_host, f_path, ts_expr, f_size, hexSum, f_name, f_path, f_host, ts_expr);
+			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr, f_name, f_host, f_path, ts_expr, f_size, hexSum, f_name, f_path, f_host, ts_expr);
 
 	free(seqexpr);
 	free(ts_expr);
@@ -2845,6 +2857,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2881,16 +2894,6 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
-
-				// change double quotes to single quote if any
-			attValLen = strlen(attVal);
- 
-			if (attVal[attValLen-1] == '"')
-				attVal[attValLen-1] = '\'';
-
-			if (attVal[0] == '"') {
-				attVal[0] = '\'';
-			}
 
 			if (strcasecmp(attName, "f_name") == 0) {
 				strcpy(f_name, attVal);
@@ -2934,7 +2937,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	sql_stmt = (char *) malloc (1000+strlen(globaljobid)+strlen(type)+strlen(f_name)+
 								strlen(f_path)+strlen(f_host)+strlen(ts_expr));
 	sprintf(sql_stmt, 
-			"INSERT INTO fileusages (globaljobid, file_id, usagetype) SELECT %s, file_id, %s FROM files WHERE  name=%s and path=%s and host=%s and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr, onerow_expr);
+			"INSERT INTO fileusages (globaljobid, file_id, usagetype) SELECT '%s', file_id, '%s' FROM files WHERE  name='%s' and path='%s' and host='%s' and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr, onerow_expr);
 	
 	free(ts_expr);
 	free(onerow_expr);
@@ -2942,6 +2945,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -2979,6 +2983,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   if (DBObj->execCommand(sql_stmt) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+	  errorSqlStmt = sql_stmt;
 	  free(sql_stmt);
 	  free(sql_stmt2);
 	  return FAILURE;	  
@@ -2987,6 +2992,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   if (DBObj->execCommand(sql_stmt2) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2);
+	  errorSqlStmt = sql_stmt2;
 	  free(sql_stmt);
 	  free(sql_stmt2);
 	  return FAILURE;	  
@@ -3041,31 +3047,10 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  free(name);
 			  name = newname;
 		  }
-
-			  // don't strip the double quotes
-/*
-		  if (strcasecmp(name, "user_j") == 0) {
-			  tempvalue = (char *)malloc(strlen(value));
-			  strncpy(tempvalue, value+1, strlen(value)-2);
-			  tempvalue[strlen(value)-2] = '\0';
-			  strcpy(value, tempvalue);
-			  free(tempvalue);
-		  }
-	
-*/
   
 		  sql_stmt = (char *) malloc(1000 + strlen(name) + strlen(value) + strlen(scheddname));
 		  sql_stmt2 = NULL;
 
-/*
-		  if(strcasecmp(name, "qdate") == 0 || 
-			 strcasecmp(name, "lastmatchtime") == 0 || 
-			 strcasecmp(name, "jobstartdate") == 0 || 
-			 strcasecmp(name, "jobcurrentstartdate") == 0 ||
-			 strcasecmp(name, "enteredcurrentstatus") == 0 ||
-			 strcasecmp(name, "completiondate") == 0
-			 ) {
-*/
 		  if(strcasecmp(name, "lastmatchtime") == 0 || 
 			 strcasecmp(name, "jobstartdate") == 0 || 
 			 strcasecmp(name, "jobcurrentstartdate") == 0 ||
@@ -3089,15 +3074,13 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  free(ts_expr);
 
 		  }	else {
-				  //strip_double_quote(value);
-			  newvalue = fillEscapeCharacters(value);
+			  newvalue = jqDBManager.fillEscapeCharacters(value);
 			  sprintf(sql_stmt, 
 					  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name, newvalue, scheddname, cid, pid);			  
 			  free(newvalue);
 		  }
 	  } else {
-			  //strip_double_quote(value);                
-		  newvalue = fillEscapeCharacters(value);
+		  newvalue = jqDBManager.fillEscapeCharacters(value);
 		  
 		  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
 		  sql_stmt2 = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(newvalue)));
@@ -3115,6 +3098,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		  
+		  errorSqlStmt = sql_stmt;
+
 		  free(name);
 		  free(value);
 		  free(sql_stmt);
@@ -3127,6 +3112,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2);
 		  
+		  errorSqlStmt = sql_stmt2;
+
 		  free(name);
 		  free(value);
 		  free(sql_stmt);
@@ -3185,14 +3172,6 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
     attVal += 2;
     attValLen = strlen(attVal);
 
-    // change double quotes to single quote if any
-    if (attVal[attValLen-1] == '"') {
-      attVal[attValLen-1] = '\'';
-    }
-    if (attVal[0] == '"') {
-      attVal[0] = '\'';
-    }
-
     if (strcasecmp(attName, "globaljobid") == 0) {
       strncpy(globaljobid, attVal, 100);
     } else if (strcasecmp(attName, "src_name") == 0) {
@@ -3243,10 +3222,10 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 
   // strip the quotes from the path and name
   len = strlen(path);
-  if (path[len-1] == '\'')
+  if (path[len-1] == '"')
     path[len-1] = 0;
 
-  if (path[0] == '\'') {
+  if (path[0] == '"') {
     tmpVal = (char *) malloc(strlen(path));
     tmp1 = path+1;
     strncpy(tmpVal, tmp1, strlen(path));
@@ -3255,9 +3234,9 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   }
 
   len = strlen(name);
-  if (name[len-1] == '\'')
+  if (name[len-1] == '"')
     name[len-1] = 0;
-  if (name[0] == '\'') {
+  if (name[0] == '"') {
     tmpVal = (char *) malloc(strlen(name));
     tmp1 = name+1;
     strncpy(tmpVal, tmp1, strlen(name));
@@ -3291,11 +3270,12 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   sql_stmt = (char *)malloc(2048 + 2*(strlen(globaljobid) + strlen(src_name) + strlen(src_host) + strlen(src_path) + strlen(dst_name) + strlen(dst_host) + strlen(dst_path) + strlen(dst_daemon) + strlen(hexSum) + strlen(last_modified)));
   
   sprintf(sql_stmt,
-          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, checksum, last_modified) VALUES (%s, %s, %s, %s, %s, %s, %s, \'%s\', \'%s\', %s, %d, %d)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified);
+          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, checksum, last_modified) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified);
 
 	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -3333,8 +3313,6 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 	while (iter != NULL)
 		{
-			int attValLen;
-
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
 			
@@ -3357,17 +3335,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			} else {
 			
 					// escape single quote if any within the value
-				newvalue = fillEscapeCharacters(attVal);
-
-					// change double quotes to single quote if any
-				attValLen = strlen(newvalue);
- 
-				if (newvalue[attValLen-1] == '"')
-					newvalue[attValLen-1] = '\'';
-
-				if (newvalue[0] == '"') {
-					newvalue[0] = '\'';
-				}			
+				newvalue = jqDBManager.fillEscapeCharacters(attVal);
 			}
 			
 			setList = (char *) realloc(setList, 
@@ -3375,7 +3343,13 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 									   strlen(newvalue) + 10);
 			strcat(setList, attName);
 			strcat(setList, " = ");
+			if (newvalue[0] == '"') {
+				strcat(setList, "'");
+			}
 			strcat(setList, newvalue);
+			if (newvalue[0] == '"') {
+				strcat(setList, "'");
+			}			
 			strcat(setList, ", ");
 			
 			free(newvalue);
@@ -3395,8 +3369,6 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 		while (iter != NULL)
 			{
-				int attValLen;
-				
 					// the attribute name can't be longer than the log entry line size
 				attName = (char *)malloc(strlen(iter));
 				
@@ -3431,17 +3403,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 						return FAILURE;
 					}
 					
-				} else {
-						// change double quotes to single quote if any
-					attValLen = strlen(attVal);
-					
-					if (attVal[attValLen-1] == '"')
-						attVal[attValLen-1] = '\'';
-
-					if (attVal[0] == '"') {
-						attVal[0] = '\'';
-					}
-					
+				} else {					
 					newvalue = attVal;
 				}
 				
@@ -3452,7 +3414,15 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 											 20);
 				strcat(whereList, attName);
 				strcat(whereList, " = ");
+
+				if (newvalue[0] == '"') {
+					strcat(whereList, "'");
+				}							
 				strcat(whereList, newvalue);
+				if (newvalue[0] == '"') {
+					strcat(whereList, "'");
+				}	
+
 				strcat(whereList, " and ");
 
 				free(attName);
@@ -3476,6 +3446,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		if (setList) free(setList);
 		if (whereList) free(whereList);
+		errorSqlStmt = sql_stmt;
 		free(sql_stmt);
 		return FAILURE;
 	}
@@ -3485,6 +3456,108 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 	free(sql_stmt);
 
 	return SUCCESS;
+}
+
+void TTManager::handleErrorSqlLog() 
+{
+	MyString hostname_val;
+	MyString ts_expr;
+	MyString sql_stmt;
+	char *tmp;
+	struct stat file_status;
+	time_t f_ts; 
+	int src;
+	char buffer[4096];
+	int rv;
+	FILESQL *filesqlobj = NULL;
+	char *newvalue;
+
+	filesqlobj = new FILESQL(currentSqlLog.GetCStr(), O_RDWR);
+	
+	if (!filesqlobj) goto ERROREXIT;
+	
+	if (filesqlobj->file_open() == FAILURE) {
+		goto ERROREXIT;
+	}
+
+	if (filesqlobj->file_lock() == FAILURE) {
+		goto ERROREXIT;
+	}		
+
+		/* get the last modified time for the sql log */
+	stat(currentSqlLog.GetCStr(), &file_status);
+	f_ts = file_status.st_mtime;
+	
+	tmp = condor_ttdb_buildts(&f_ts, dt);
+
+	ts_expr = tmp;
+	free(tmp);
+
+		/* get the host name where the sql log sits */
+	hostname_val = my_full_hostname();
+
+		/* escape quotation in error sql */
+	newvalue = jqDBManager.fillEscapeCharacters(errorSqlStmt.GetCStr());
+
+		/* insert an entry into the Error_Sqllog table */
+	sql_stmt.sprintf("INSERT INTO Error_Sqllog (LogName, Host, LastModified, ErrorSql, LogBody) VALUES ('%s', '%s', %s, '%s', '')", 
+					 currentSqlLog.GetCStr(), 
+					 hostname_val.GetCStr(), 
+					 ts_expr.GetCStr(), 
+					 newvalue);
+
+	free(newvalue);	
+
+	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		goto ERROREXIT;
+	}	
+	
+		/* copy the body in the sql log to the LogBody field of the entry */
+	src = open (currentSqlLog.GetCStr(), O_RDONLY);
+
+	rv = read(src, buffer, 2048);
+
+	while(rv > 0) {
+		newvalue = jqDBManager.fillEscapeCharacters(buffer);
+
+		sql_stmt.sprintf("UPDATE Error_Sqllog SET LogBody = LogBody || '%s' WHERE LogName = '%s' and Host = '%s' and LastModified = %s", 
+						 newvalue, 
+						 currentSqlLog.GetCStr(), 
+						 hostname_val.GetCStr(), 
+						 ts_expr.GetCStr());
+
+		free(newvalue);
+
+		if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());			
+			goto ERROREXIT;
+		}
+		
+		rv = read(src, buffer, 2048);
+	}
+	
+	if ((DBObj->commitTransaction()) == FAILURE) {
+		goto ERROREXIT;
+	}
+
+	if(filesqlobj->file_truncate() == FAILURE) {
+		goto ERROREXIT;
+	}
+	
+	if(filesqlobj->file_unlock() == FAILURE) {
+		goto ERROREXIT;
+	}
+
+ ERROREXIT:
+	if(filesqlobj) {
+		delete filesqlobj;
+	}
+
+	close (src);
+
 }
 
 static int 
@@ -3688,6 +3761,8 @@ static QuillErrCode append(char *destF, char *srcF)
 
 	while(rv > 0) {
 		if (write(dest, buffer, rv) < 0) {
+			close (dest);
+			close (src);
 			return FAILURE;
 		}
 		

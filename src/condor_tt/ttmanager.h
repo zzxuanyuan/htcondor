@@ -84,7 +84,9 @@ class TTManager : public Service
 	QuillErrCode insertMasterAd(AttrList *ad);
 	QuillErrCode insertNegotiatorAd(AttrList *ad);
 	QuillErrCode insertRuns(AttrList *ad);
-  QuillErrCode insertTransfers(AttrList *ad);
+	QuillErrCode insertTransfers(AttrList *ad);
+	
+	void handleErrorSqlLog();
 
 	char    sqlLogList[CONDOR_TT_MAXLOGNUM][CONDOR_TT_MAXLOGPATHLEN];
 
@@ -104,6 +106,8 @@ class TTManager : public Service
 	JobQueueDatabase* DBObj;
 	JobQueueDBManager jqDBManager;
 	dbtype dt;
+	MyString  currentSqlLog;
+	MyString  errorSqlStmt;
 };
 
 #endif /* _TTMANAGER_H_ */

@@ -72,6 +72,7 @@ class JobQueueDBManager : public Service
 	ClassAdLogParser* getClassAdLogParser();
 	const char* getScheddname() { return scheddname; }
 	dbtype getJobQueueDBType() { return dt; }
+	char *   fillEscapeCharacters(const char *str);
 
  private:
 		//
@@ -167,9 +168,5 @@ class JobQueueDBManager : public Service
 	char*   scheddname;
 	dbtype  dt;
 };
-
-	//! escape quoted strings since postgres doesn't like 
-	//! unescaped single quotes
-char *   fillEscapeCharacters(char *str);
 
 #endif /* _CONDOR_JOBQUEUEDBMANAGER_H_ */

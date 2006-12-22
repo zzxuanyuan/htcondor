@@ -1,3 +1,13 @@
+CREATE TABLE Error_Sqllog (
+LogName   varchar(100),
+Host      varchar(50),
+LastModified timestamp(3) with time zone,
+ErrorSql  varchar(4000),
+LogBody   clob
+);
+
+CREATE INDEX Error_Sqllog_idx ON Error_Sqllog (LogName, Host, LastModified);
+
 CREATE VIEW AGG_User_Jobs_Fin_Last_Day AS
   SELECT h.owner, count(*) as jobs_completed 
     FROM history_horizontal h 
