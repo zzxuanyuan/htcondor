@@ -84,3 +84,8 @@ int hashFuncChars( char const *key, int numBuckets)
     }
     return i % numBuckets;
 }
+
+int hashFuncMyString( const MyString &key, int numBuckets)
+{
+    return hashFuncChars(key.Value(), numBuckets);
+}

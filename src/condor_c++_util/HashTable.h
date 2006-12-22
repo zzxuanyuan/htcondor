@@ -25,6 +25,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "MyString.h"
 
 // a generic hash bucket class
 
@@ -701,5 +702,9 @@ int hashFuncJobIdStr( char* const & key, int numBuckets );
 
 /// hash function for char* string
 int hashFuncChars(char const *key, int numBuckets);
+
+/// hash function for Mystring string
+int hashFuncMyString( const MyString &key, int numBuckets);
+
 
 #endif // HASH_H

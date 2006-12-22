@@ -20,30 +20,55 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _CONDOR_DAEMON_TYPES_H
-#define _CONDOR_DAEMON_TYPES_H
 
+#include "condor_common.h"
+#include "condor_daemon_core.h"
+#include "condor_config.h"
+#include "condor_debug.h"
+#include "qmgmt.h"
 
-// if you add another type to this list, make sure to edit
-// daemon_types.C and add the string equivilant.
-
-enum daemon_t { DT_NONE, DT_ANY,  DT_MASTER, DT_SCHEDD, DT_STARTD,
-				DT_COLLECTOR, DT_NEGOTIATOR, DT_KBDD, 
-				DT_DAGMAN, DT_VIEW_COLLECTOR, DT_CLUSTER,  
-				DT_SHADOW, DT_STARTER, DT_CREDD, DT_STORK, DT_QUILL,
-				DT_TRANSFERD,
-				_dt_threshold_ };
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-const char* daemonString( daemon_t dt );
-daemon_t stringToDaemonType( char* name );
-
-#ifdef __cplusplus
+TransferDaemon::TransferDaemon(MyString fquser, TDMode status)
+{
+	m_fquser = fquser;
+	m_status = status;
 }
-#endif
 
+TransferDaemon::~TransferDaemon()
+{
+}
 
-#endif /* _CONDOR_DAEMON_TYPES_H */
+void
+TransferDaemon::set_fquser(MyString fquser)
+{
+	m_fquser = fquser;
+}
+
+MyString
+TransferDaemon::get_fquser(void)
+{
+	return m_fquser;
+}
+
+void
+TransferDaemon::set_status(TDMode tds)
+{
+	m_status = tds;
+}
+
+TDMode
+TransferDaemon::get_status()
+{
+	return m_status;
+}
+
+void
+TransferDaemon::set_sinful(MyString sinful)
+{
+	m_sinful = sinful;
+}
+
+MyString
+TransferDaemon::get_sinful()
+{
+	return m_sinful;
+}

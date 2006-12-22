@@ -38,8 +38,8 @@
 // // // // //
 
 
-DCSchedd::DCSchedd( const char* name, const char* pool ) 
-	: Daemon( DT_SCHEDD, name, pool )
+DCSchedd::DCSchedd( const char* the_name, const char* the_pool ) 
+	: Daemon( DT_SCHEDD, the_name, the_pool )
 {
 }
 
@@ -409,6 +409,204 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int 
 	rsock.eom();
 
 	if(numdone) { *numdone = JobAdsArrayLen; }
+
+	return true;
+}
+
+// when a transferd registers itself, it identifies who it is. The connection
+// is then held open and the schedd periodically might send more transfer
+// requests to the transferd. Also, if the transferd dies, the schedd is 
+// informed quickly and reliably due to the closed connection.
+bool
+DCSchedd::register_transferd(MyString sinful, MyString id, int timeout, 
+		ReliSock **regsock_ptr, CondorError *errstack) 
+{
+	ReliSock *rsock;
+	int msg_ack = 0;
+	char *tmp = NULL;
+
+	if (regsock_ptr != NULL) {
+		// Our caller wants a pointer to the socket we used to succesfully
+		// register the claim. The NULL pointer will represent failure and
+		// this will only be set to something real if everything was ok.
+		*regsock_ptr = NULL;
+	}
+
+	// This call with automatically connect to _addr, which was set in the
+	// constructor of this object to be the schedd in question.
+	rsock = (ReliSock*)startCommand(TRANSFERD_REGISTER, Stream::reli_sock,
+		timeout, errstack);
+
+	if( ! rsock ) {
+		dprintf( D_ALWAYS, "DCSchedd::register_transferd: "
+				 "Failed to send command (TRANSFERD_REGISTER) "
+				 "to the schedd\n" );
+		errstack->push("DC_SCHEDD", 1, 
+			"Failed to start a TRANSFERD_REGISTER command.");
+		return false;
+	}
+
+		// First, if we're not already authenticated, force that now. 
+	if (!forceAuthentication( rsock, errstack )) {
+		dprintf( D_ALWAYS, "DCSchedd::register_transferd authentication "
+				"failure: %s\n", errstack->getFullText() );
+		errstack->push("DC_SCHEDD", 1, 
+			"Failed to authenticate properly.");
+		return false;
+	}
+
+	rsock->encode();
+
+	// now, send the sinful string of the transferd to the schedd.
+	// this is bad form on a number of levels.... A) I'm type casting away
+	// constness, B) code can modify its arguments if it is in decode mode,
+	// thereby corrupting the pointer returned and that aliasing into sinful.
+	tmp = (char*)sinful.Value();
+	rsock->code(tmp);
+	rsock->eom();
+
+	// send the identification string the schedd supplied me with back to the
+	// schedd
+	tmp = (char*)id.Value();
+	rsock->code(tmp);
+	rsock->eom();
+
+	// Get the response from the schedd.
+	rsock->decode();
+
+	// schedd responds with an acknowledgement integer and a reason string.
+	rsock->code(msg_ack);
+	rsock->eom();
+
+	if (msg_ack == 1) {
+		*regsock_ptr = rsock;
+		return true;
+	}
+
+	errstack->push("DC_SCHEDD", 1, "Schedd refused registration.");
+
+	return false;
+}
+
+
+// I'm going to ask the schedd for where I can put the files for the jobs I've
+// specified. The schedd is going to respond with A) a message telling me it
+// has the answer right away, or B) an answer telling me I have to wait 
+// an unknown length of time for the schedd to schedule me a place to put it.
+bool 
+DCSchedd::requestSandboxLocation(int JobAdsArrayLen, ClassAd* JobAdsArray[], MyString &td_sinful, CondorError * errstack)
+{
+	int reply;
+	int i;
+	ReliSock rsock;
+	char *c_td_sinful = NULL;
+
+	rsock.timeout(20);   // years of research... :)
+	if( ! rsock.connect(_addr) ) {
+		dprintf( D_ALWAYS, "DCSchedd::requestSandboxLocation(): "
+				 "Failed to connect to schedd (%s)\n", _addr );
+		return false;
+	}
+	if( ! startCommand(REQUEST_SANDBOX_LOCATION, (Sock*)&rsock, 0,
+						   errstack) ) {
+		dprintf( D_ALWAYS, "DCSchedd::requestSandboxLocation(): "
+				 "Failed to send command (REQUEST_SANDBOX_LOCATION) "
+				 "to schedd (%s)\n", _addr );
+		return false;
+	}
+
+		// First, if we're not already authenticated, force that now. 
+	if (!forceAuthentication( &rsock, errstack )) {
+		dprintf( D_ALWAYS, "DCSchedd: authentication failure: %s\n",
+				 errstack->getFullText() );
+		return false;
+	}
+
+	rsock.encode();
+
+	// Need to use a named variable, else the wrong version of	
+	// code() is called.
+	char *my_version = strdup( CondorVersion() );
+	dprintf(D_ALWAYS, "Sending version string: %s\n", my_version);
+	if ( !rsock.code(my_version) ) {
+		dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
+				"Can't send version string to the schedd\n");
+		free( my_version );
+		return false;
+	}
+	free( my_version );
+
+		// Send the number of jobs
+	dprintf(D_ALWAYS, "Sending number of Jobs: %d\n", JobAdsArrayLen);
+	if ( !rsock.code(JobAdsArrayLen) ) {
+		dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
+				"Can't send JobAdsArrayLen to the schedd\n");
+		return false;
+	}
+
+	rsock.eom();
+
+		// Now, put the job ids onto the wire
+	PROC_ID jobid;
+	for (i=0; i<JobAdsArrayLen; i++) {
+		if (!JobAdsArray[i]->LookupInteger(ATTR_CLUSTER_ID,jobid.cluster)) {
+			dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation: "
+					"Job ad %d did not have a cluster id\n",i);
+			return false;
+		}
+		if (!JobAdsArray[i]->LookupInteger(ATTR_PROC_ID,jobid.proc)) {
+			dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
+					"Job ad %d did not have a proc id\n",i);
+			return false;
+		}
+		dprintf(D_ALWAYS, "Sending Job Ad[%d]\n", i);
+		rsock.code(jobid);
+	}
+
+	rsock.eom();
+
+	// XXX  need to fix below this.
+
+	rsock.decode();
+
+	// read back transferd location packet
+	rsock.code(c_td_sinful);
+	dprintf(D_ALWAYS, "Received c_td_sinful status: %s\n", c_td_sinful);
+	rsock.eom();
+	td_sinful = c_td_sinful;
+	free(c_td_sinful);
+
+	dprintf(D_ALWAYS, "td sinful: %s\n", td_sinful.Value());
+
+/*
+		// Now send all the files via the file transfer object
+	for (i=0; i<JobAdsArrayLen; i++) {
+		FileTransfer ftrans;
+		if ( !ftrans.SimpleInit(JobAdsArray[i], false, false, &rsock) ) {
+			return false;
+		}
+		if ( use_new_command ) {
+			ftrans.setPeerVersion( version() );
+		}
+		if ( !ftrans.UploadFiles(true,false) ) {
+			return false;
+		}
+	}	
+		
+		
+	rsock.eom();
+
+	rsock.decode();
+
+	reply = 0;
+	rsock.code(reply);
+	rsock.eom();
+
+	if ( reply == 1 ) 
+		return true;
+	else
+		return false;
+*/
 
 	return true;
 }

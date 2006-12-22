@@ -851,9 +851,23 @@ main( int argc, char *argv[] )
 			// perhaps check for proper schedd version here?
 		fprintf(stdout,"Spooling data files for %d jobs...\n",JobAdsArrayLen);
 		CondorError errstack;
+		MyString td_sinful;
+
+		result = MySchedd->requestSandboxLocation( JobAdsArrayLen,
+										  JobAdsArray.getarray(),
+										  td_sinful,
+										  &errstack );
+
+		fprintf(stderr, "Requested sandbox, got location: %s\n",
+			td_sinful.Value());
+
+		/*
 		result = MySchedd->spoolJobFiles( JobAdsArrayLen,
 										  JobAdsArray.getarray(),
 										  &errstack );
+		*/
+
+
 		if ( !result ) {
 			fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
 			fprintf( stderr, "ERROR: Failed to spool job files.\n" );

@@ -249,6 +249,13 @@ public:
 
 	bool receiveJobSandbox(const char* constraint, CondorError * errstack, int * numdone = 0);
 
+
+	bool register_transferd(MyString sinful, MyString id, int timeout, 
+		ReliSock **regsock_ptr, CondorError *errstack);
+	
+	bool requestSandboxLocation(int JobAdsArrayLen, ClassAd* JobAdsArray[], 
+		MyString &td_sinful, CondorError * errstack);
+
 	bool updateGSIcredential(const int cluster, const int proc, 
 		const char* path_to_proxy_file, CondorError * errstack);
 

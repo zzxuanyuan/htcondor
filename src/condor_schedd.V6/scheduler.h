@@ -53,6 +53,7 @@
 #include "condor_classad_namedlist.h"
 #include "env.h"
 //#include "condor_crontab.h"
+#include "tdman.h"
 
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
 extern  int         STARTD_CONTACT_TIMEOUT;
@@ -195,7 +196,6 @@ private:
 	bool csa_is_dedicated;
 };
 
-
 class Scheduler : public Service
 {
   public:
@@ -245,6 +245,8 @@ class Scheduler : public Service
 	int				spoolJobFilesReaper(int,int);	
 	int				transferJobFilesReaper(int,int);
 	void			PeriodicExprHandler( void );
+
+	int				requestSandboxLocation(int mode, Stream* s);
 
 	// match managing
 	int 			publish( ClassAd *ad );
@@ -338,6 +340,13 @@ class Scheduler : public Service
 	shadow_rec*		add_shadow_rec(shadow_rec*);
 	void			add_shadow_rec_pid(shadow_rec*);
 	void			HadException( match_rec* );
+
+		// Used to manipulate transferds and the information associated with
+		// them.
+	// the registration handler
+	int transferd_registration(int cmd, Stream *sock);
+	// for updates which come from the registration socket.
+	int transferd_update(Stream *sock);
 
 		// Used to manipulate the "extra ads" (read:Hawkeye)
 	int adlist_register( const char *name );
@@ -452,6 +461,9 @@ private:
 		// You can read or write the values, but don't go
 		// deleting the pointer!
 	GridJobCounts * GetGridJobCounts(UserIdentity user_identity);
+
+	// The object which manages the various transferds.
+	TDMan m_tdman;
 
 	// useful names
 	char*			CondorAdministrator;
