@@ -20,7 +20,7 @@ protected:
 public:
 	
 	FILESQL();
-	FILESQL(char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND);
+	FILESQL(const char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND);
 	~FILESQL();
 	bool file_isopen();
 	bool file_islocked();

@@ -20,7 +20,7 @@ FILESQL::FILESQL()
 	lock = (FileLock *)0;
 }
 
-FILESQL::FILESQL(char *outfilename, int flags)
+FILESQL::FILESQL(const char *outfilename, int flags)
 {
     is_dummy = false;
 	is_open = false;

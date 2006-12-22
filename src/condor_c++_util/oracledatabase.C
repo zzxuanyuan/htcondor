@@ -656,7 +656,7 @@ ORACLEDatabase::getHistoryHorFieldName(int col)
 
 /* 
 the following are saved codes which uses Oracle API to get column 
-metadata, but haven't been made to work due to some error 
+metadata, but haven't been made to work due to a link error 
 "undefined reference to `std::vector<oracle::occi::MetaData ..."
 */
 
@@ -690,6 +690,7 @@ metadata, but haven't been made to work due to some error
 	} else {
 		return QUILLPP_HistoryHorFields[col];		
 	}
+
 }
 
 // get the number of fields returned in result
@@ -699,7 +700,7 @@ ORACLEDatabase::getHistoryHorNumFields()
 
 /* 
 the following are saved codes which uses Oracle API to get column 
-metadata, but haven't been made to work due to some error 
+metadata, but haven't been made to work due to a link error 
 "undefined reference to `std::vector<oracle::occi::MetaData ..."
 */
 
@@ -720,6 +721,7 @@ metadata, but haven't been made to work due to some error
 
 	return listOfColumns.size();
 */
+
 	return QUILLPP_HistoryHorFieldNum;
 }
 

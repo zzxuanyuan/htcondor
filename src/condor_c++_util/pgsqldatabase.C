@@ -440,7 +440,8 @@ PGSQLDatabase::getHistoryHorFieldName(int col)
 const int 
 PGSQLDatabase::getHistoryHorNumFields() 
 {
-  return PQnfields(historyHorRes);
+		// return PQnfields(historyHorRes);
+	return QUILLPP_HistoryHorFieldNum;
 }
 
 //! release all history results
