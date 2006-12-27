@@ -853,6 +853,7 @@ main( int argc, char *argv[] )
 		CondorError errstack;
 		MyString td_sinful;
 
+		/*
 		result = MySchedd->requestSandboxLocation( JobAdsArrayLen,
 										  JobAdsArray.getarray(),
 										  td_sinful,
@@ -860,12 +861,11 @@ main( int argc, char *argv[] )
 
 		fprintf(stderr, "Requested sandbox, got location: %s\n",
 			td_sinful.Value());
+		*/
 
-		/*
 		result = MySchedd->spoolJobFiles( JobAdsArrayLen,
 										  JobAdsArray.getarray(),
 										  &errstack );
-		*/
 
 
 		if ( !result ) {
