@@ -3,7 +3,16 @@ NAME = condor_startd
 all_target( $(NAME) )
 
 
-CFLAGS = $(STD_C_FLAGS)
+# Canary Stuff
+#if HAVE_CANARY
+CANARY_FLAGS = -I$(CANARY_INC)
+CANARY_LINK_LIB = $(CANARY_LIB)/libcanary.a
+#else
+CANARY_FLAGS =
+CANARY_LINK_LIB =
+#endif /* HAVE_CANARY */
+
+CFLAGS = $(STD_C_FLAGS) $(CANARY_FLAGS)
 
 #if IS_DARWIN
 LDFLAGS = -framework IOKit -framework Carbon
@@ -16,8 +25,8 @@ BOINC_OBJS = boinc_mgr.o
 BACKFILL_OBJS = $(BOINC_OBJS) backfill_mgr.o
 #endif /* HAVE_BACKFILL */
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
-LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CANARY_FLAGS)
+LIB= $(DAEMONCORE_LIB) $(STD_LIBS) $(CANARY_LINK_LIB)
 
 soapobjs(startd)
 

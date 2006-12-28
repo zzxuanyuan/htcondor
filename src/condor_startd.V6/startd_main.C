@@ -32,6 +32,10 @@
 #include "VMManager.h"
 #include "VMRegister.h"
 
+#ifdef HAVE_CANARY
+#include "canary_std.h"
+#endif //HAVE_CANARY
+
 // Define global variables
 
 // windows-specific: notifier for the condor "birdwatcher" (system tray icon)
@@ -93,6 +97,22 @@ int main_reaper = 0;
 
 // Cron stuff
 StartdCronMgr	*Cronmgr;
+
+#ifdef HAVE_CANARY
+
+/* Canary Variables */
+Canary* pCanary = NULL;
+int	canaryTimerId = -1;
+int canaryInterval = -1;
+time_t lastCheckTime = 0;
+
+/* Canary Functions */
+void init_canary();
+int canary_shutdown_fast(void *);
+int canary_shutdown_graceful(void *);
+void check_canary();
+
+#endif
 
 /*
  * Prototypes of static functions.
@@ -350,6 +370,15 @@ main_init( int, char* argv[] )
 	command_x_event( 0, 0, 0 );
 #endif
 
+#ifdef HAVE_CANARY
+		// Initialize canary
+		/* may at some point want to move this code much earlier.
+		   There is no point in performing all this startup if canary
+		   is just going to exit right away anyway.
+		*/
+	init_canary();
+#endif
+
 	resmgr->start_update_timer();
 
 		// Evaluate the state of all resources and update CM 
@@ -386,6 +415,11 @@ finish_main_config( void )
 	resmgr->walk( &Resource::init_classad );  
 		// Reset various settings in the ResMgr.
 	resmgr->reset_timers();
+
+#ifdef HAVE_CANARY 
+		// reset canary
+	init_canary();
+#endif //HAVE_CANARY
 
 	dprintf( D_FULLDEBUG, "MainConfig finish\n" );
 	Cronmgr->Reconfig(  );
@@ -836,3 +870,167 @@ authorizedForCOD( const char* owner )
 	}
 	return valid_cod_users->contains( owner );
 }
+
+#ifdef HAVE_CANARY
+void
+init_canary(){
+
+		// see if we need to clean up an old canary
+	if( pCanary != NULL ){
+		delete pCanary;
+		pCanary = NULL;
+	}
+
+		/* Ensure the user wants canary activated */
+	canaryInterval = param_integer("STARTD_CANARY_INTERVAL", -1);
+	if( canaryInterval <= 0 ){
+		return;
+	}
+
+		/* Get the configuration variables */
+		// memory
+	bool canaryStrictOvercommit = param_boolean("STARTD_CANARY_STRICT_MEMORY_OVERCOMMIT", false);
+	int canaryMemoryPercent = param_integer("STARTD_CANARY_MEMORY_PERCENT", -1);
+			// proc table
+	int canaryProcTablePercent = param_integer("STARTD_CANARY_PROC_TABLE_PERCENT", -1);
+		// file system
+	int canaryLogFileSpacePercent = param_integer("STARTD_CANARY_LOG_FILESPACE_PERCENT", -1);
+	int canaryExecFileSpacePercent = param_integer("STARTD_CANARY_EXEC_FILESPACE_PERCENT", -1);
+	
+		/* Create the Canary */
+	pCanary = new Canary();
+
+		/* Make the overarching OR condition */
+	OrCondition* pOrCond = new OrCondition();
+
+		/* Add the other conditions, as needed */
+
+		/* Memory Conditions */
+	if( canaryMemoryPercent > 0 ){
+			
+			// make the memory knowledge base
+		VirtualMemoryKB* pKB = new VirtualMemoryKB();
+			// add it to the canary
+		pCanary->addKnowledgeBase(pKB);
+
+			// Determine which memory condition we are using
+		CanaryConditionIf* pMemCond = NULL;
+		if( canaryStrictOvercommit ){
+			pMemCond = new StrictMemoryOverCommitCondition(pKB,canaryMemoryPercent);
+		}
+		else{
+				// always subtract the file cache 
+				// and buffers from the total memory in use
+			bool subtract_file_cache = true;
+			bool subtract_buffers = true;
+			pMemCond = new MemoryAllocatedCondition( pKB, 
+													 canaryMemoryPercent,
+													 subtract_file_cache, 
+													 subtract_buffers );
+		}	
+			
+			//add it to the OR
+		pOrCond->addCondition(pMemCond);
+	}//endif memory condition
+
+		/* ProcTable Condition */
+	if( canaryProcTablePercent > 0 ){
+		
+			// make the proctable knowledge bases
+		ProcTableKB* pPT = new ProcTableKB();
+		LoadAvgKB* pLA = new LoadAvgKB();
+			// add them to canary
+		pCanary->addKnowledgeBase(pPT);
+		pCanary->addKnowledgeBase(pLA);
+
+			// make the proctable condition
+		ProcTableCondition * pProcCon = new ProcTableCondition(pPT, pLA, canaryProcTablePercent);
+			// add it to the OR
+		pOrCond->addCondition(pProcCon);
+	}//endif proctable condition
+
+		/* File System Space Conditions */
+	if( canaryLogFileSpacePercent > 0 ){
+			// find the schedd log
+		char *startdLog = param ( "STARTD_LOG" );
+		if(startdLog){
+
+				// make the knowledge base
+			FileSystemKB* pFsLogKB = new FileSystemKB(startdLog);
+				// add it to canary
+			pCanary->addKnowledgeBase(pFsLogKB);
+			
+				// make the condition
+			FileSystemSpaceCondition* pLogSpaceCond = 
+				new FileSystemSpaceCondition(pFsLogKB, canaryLogFileSpacePercent);
+				// add it to the OR
+			pOrCond->addCondition(pLogSpaceCond);
+				
+				// clean up
+			free(startdLog);
+		}//endif startdLog
+		
+	}//endif canarylogspace
+
+	if( canaryExecFileSpacePercent > 0 && exec_path){
+			// make the knowledge base
+		FileSystemKB* pFsExecKB = new FileSystemKB(exec_path);
+			// add it to canary
+		pCanary->addKnowledgeBase(pFsExecKB);
+		
+			// make the condition
+		FileSystemSpaceCondition* pExecSpaceCond = 
+			new FileSystemSpaceCondition(pFsExecKB, canaryExecFileSpacePercent);
+			// add it to the OR
+		pOrCond->addCondition(pExecSpaceCond);
+	}//endif canaryspoolspace
+
+		/* Make the action */
+	CanaryActionIf* pAction = new InvokeFunctionAction(&canary_shutdown_graceful,
+														   NULL);
+
+		/* Make the trigger */
+	CanaryTriggerIf* pTrig = new ConstantTrigger(pOrCond, pAction);
+		// add the trigger to canary
+	pCanary->addKnowledgeBaseTrigger(pTrig);	
+
+		/* Ready Set Go */
+			// reset canary timer if it was set previously
+	if( canaryTimerId >= 0 ){
+		daemonCore->Cancel_Timer(canaryTimerId);
+	}
+
+		//	register a timer for canary to be invoked
+	canaryTimerId = daemonCore->Register_Timer(canaryInterval,
+											   canaryInterval,
+											   (TimerHandler)&check_canary,
+											   "check_canary");
+}
+
+void
+check_canary(){
+		// get the time
+	time_t now = time(NULL);
+	time_t diff = now - lastCheckTime;
+	
+		// make sure the appropriate amount of time has passed
+		// OR that the clock has changed
+	if( diff > canaryInterval || diff < 0 ){
+		lastCheckTime = now;
+			// check the canary
+		pCanary->activateKnowledgeBaseTriggers();
+	}
+}
+
+int
+canary_shutdown_graceful(void *){
+	main_shutdown_graceful();
+	return CanaryActionIf::OKAY;
+}
+
+int
+canary_shutdown_fast(void *){
+	main_shutdown_fast();
+	return CanaryActionIf::OKAY;
+}
+#endif //HAVE_CANARY
