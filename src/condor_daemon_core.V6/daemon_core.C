@@ -462,6 +462,7 @@ DaemonCore::~DaemonCore()
 
 	if (m_procd_client != NULL) {
 		delete m_procd_client;
+		m_procd_client = NULL;
 	}
 
 	for( i=0; i<LAST_PERM; i++ ) {
@@ -6661,24 +6662,64 @@ DaemonCore::Kill_Thread(int tid)
 int
 DaemonCore::Get_Family_Usage(pid_t pid, ProcFamilyUsage& usage)
 {
+	if (m_procd_client == NULL)
+	{
+		dprintf(D_ALWAYS, "DaemonCore::Get_Family_Usage(): Inconsistancy! "
+			"m_procd_client == NULL. This means that pid %u was probably "
+			"created via fork() and not via Create_Process(). Probably "
+			"getting family usage statistics wrong!\n",
+			pid);
+		return 0;
+	}
+
 	return m_procd_client->get_usage(pid, usage);
 }
 
 int
 DaemonCore::Suspend_Family(pid_t pid)
 {
+	if (m_procd_client == NULL)
+	{
+		dprintf(D_ALWAYS, "DaemonCore::Suspend_Family(): Inconsistancy! "
+			"m_procd_client == NULL. This means that pid %u was probably "
+			"created via fork() and not via Create_Process(). Probably "
+			"leaving processes not suspended!\n",
+			pid);
+		return 0;
+	}
+
 	return m_procd_client->suspend_family(pid);
 }
 
 int
 DaemonCore::Continue_Family(pid_t pid)
 {
+	if (m_procd_client == NULL)
+	{
+		dprintf(D_ALWAYS, "DaemonCore::Continue_Family(): Inconsistancy! "
+			"m_procd_client == NULL. This means that pid %u was probably "
+			"created via fork() and not via Create_Process(). Probably "
+			"leaving processes suspended!\n",
+			pid);
+		return 0;
+	}
+
 	return m_procd_client->continue_family(pid);
 }
 
 int
 DaemonCore::Kill_Family(pid_t pid, ProcFamilyUsage* usage)
 {
+	if (m_procd_client == NULL)
+	{
+		dprintf(D_ALWAYS, "DaemonCore::Kill_Family(): Inconsistancy! "
+			"m_procd_client == NULL. This means that pid %u was probably "
+			"created via fork() and not via Create_Process(). Probably "
+			"leaving orphaned children laying about!\n",
+			pid);
+		return 0;
+	}
+
 	return m_procd_client->kill_family(pid, usage);
 }
 
