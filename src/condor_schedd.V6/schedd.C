@@ -11939,7 +11939,7 @@ Scheduler::checkCanary()
 	
 		// make sure the appropriate amount of time has passed
 		// OR that the clock has changed
-	if( diff > canaryInterval || diff < 0 ){
+	if( diff >= canaryInterval || diff < 0 ){
 		lastCheckTime = now;
 			// check the canary
 		pCanary->activateKnowledgeBaseTriggers();
