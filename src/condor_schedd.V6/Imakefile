@@ -1,14 +1,27 @@
 NAME = condor_schedd
 all_target(libqmgmt.a $(NAME))
 
-C_PLUS_FLAGS = -I../condor_daemon_core.V6 $(STD_C_PLUS_FLAGS)
-CFLAGS =  -I../condor_daemon_core.V6 $(STD_C_FLAGS)
+# Canary Stuff
+#if HAVE_CANARY
+CANARY_FLAGS = -I$(CANARY_INC)
+CANARY_LINK_LIB = $(CANARY_LIB)/libcanary.a
+#else
+CANARY_FLAGS =
+CANARY_LINK_LIB =
+#endif /* HAVE_CANARY */
 
-LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
+C_PLUS_FLAGS = -I../condor_daemon_core.V6 $(STD_C_PLUS_FLAGS) $(CANARY_FLAGS)
+CFLAGS =  -I../condor_daemon_core.V6 $(STD_C_FLAGS) $(CANARY_FLAGS)
+
+LIB= $(DAEMONCORE_LIB) $(STD_LIBS) $(CANARY_LINK_LIB)
 
 QMGMT_OBJ = qmgmt.o qmgmt_receivers.o qmgmt_common.o
 QMGMT_LIB_OBJ = qmgmt_send_stubs.o qmgr_lib_support.o qmgmt_common.o \
 	qmgr_job_updater.o
+
+
+
+
 
 soapobjs(schedd)
 

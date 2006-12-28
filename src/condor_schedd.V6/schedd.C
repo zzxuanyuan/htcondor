@@ -79,6 +79,7 @@
 #include "condor_mkstemp.h"
 
 
+
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
 
@@ -364,6 +365,13 @@ Scheduler::Scheduler() :
 	CronMgr = NULL;
 
 	last_reschedule_request = 0;
+
+#ifdef HAVE_CANARY
+	pCanary = NULL;
+	canaryTimerId = -1;
+	canaryInterval = -1;
+	lastCheckTime = 0;
+#endif
 }
 
 
@@ -9782,6 +9790,11 @@ Scheduler::Init()
 	job_is_finished_queue.setPeriod( int_val );	
 
 
+#ifdef HAVE_CANARY
+	initCanary();
+#endif // HAVE_CANARY
+
+
 		////////////////////////////////////////////////////////////////////
 		// Initialize the queue managment code
 		////////////////////////////////////////////////////////////////////
@@ -10036,6 +10049,22 @@ Scheduler::RegisterTimers()
 	} else {
 		periodicid = -1;
 	}
+
+#ifdef HAVE_CANARY
+		// reset canary if it was set previously
+	if( canaryTimerId >= 0 ){
+		daemonCore->Cancel_Timer(canaryTimerId);
+	}
+
+		//	register a timer for canary to be invoked
+	if( canaryInterval > 0 ){
+	canaryTimerId = daemonCore->Register_Timer(canaryInterval,
+											   canaryInterval,
+											   (Eventcpp)&Scheduler::checkCanary,
+											   "checkCanary",
+											   this);
+	}
+#endif
 }
 
 
@@ -11772,6 +11801,164 @@ Scheduler::claimLocalStartd()
 		// Return true if we claimed anything, false if otherwise
 	return number_of_claims ? true : false;
 }
+
+#ifdef HAVE_CANARY
+void
+Scheduler::initCanary(){
+
+		// see if we need to clean up an old canary
+	if( pCanary != NULL ){
+		delete pCanary;
+		pCanary = NULL;
+	}
+
+		/* Ensure the user wants canary activated */
+	canaryInterval = param_integer("SCHEDD_CANARY_INTERVAL", -1);
+	if( canaryInterval <= 0 ){
+		return;
+	}
+
+		/* Get the configuration variables */
+		// memory
+	bool canaryStrictOvercommit = param_boolean("SCHEDD_CANARY_STRICT_MEMORY_OVERCOMMIT", false);
+	int canaryMemoryPercent = param_integer("SCHEDD_CANARY_MEMORY_PERCENT", -1);
+		// proc table
+	int canaryProcTablePercent = param_integer("SCHEDD_CANARY_PROC_TABLE_PERCENT", -1);
+		// file system
+	int canaryLogFileSpacePercent = param_integer("SCHEDD_CANARY_LOG_FILESPACE_PERCENT", -1);
+	int canarySpoolFileSpacePercent = param_integer("SCHEDD_CANARY_SPOOL_FILESPACE_PERCENT", -1);
+
+
+	
+		/* Create the canary */
+	pCanary = new Canary();
+
+		/* Make the overarching OR condition */
+	OrCondition* pOrCond = new OrCondition();
+
+		/* Add the other conditions, as needed */
+
+		/* Memory Conditions */
+	if( canaryMemoryPercent > 0 ){
+			
+			// make the memory knowledge base
+		VirtualMemoryKB* pKB = new VirtualMemoryKB();
+			// add it to the canary
+		pCanary->addKnowledgeBase(pKB);
+
+			// Determine which memory condition we are using
+		CanaryConditionIf* pMemCond = NULL;
+		if( canaryStrictOvercommit ){
+			pMemCond = new StrictMemoryOverCommitCondition(pKB,canaryMemoryPercent);
+		}
+		else{
+				// always subtract the file cache 
+				// and buffers from the total memory in use
+			bool subtract_file_cache = true;
+			bool subtract_buffers = true;
+			pMemCond = new MemoryAllocatedCondition( pKB, 
+													 canaryMemoryPercent,
+													 subtract_file_cache, 
+													 subtract_buffers );
+		}	
+			
+			//add it to the OR
+		pOrCond->addCondition(pMemCond);
+	}//endif memory condition
+
+		/* ProcTable Condition */
+	if( canaryProcTablePercent > 0 ){
+		
+			// make the proctable knowledge bases
+		ProcTableKB* pPT = new ProcTableKB();
+		LoadAvgKB* pLA = new LoadAvgKB();
+			// add them to canary
+		pCanary->addKnowledgeBase(pPT);
+		pCanary->addKnowledgeBase(pLA);
+
+			// make the proctable condition
+		ProcTableCondition * pProcCon = new ProcTableCondition(pPT, pLA, canaryProcTablePercent);
+			// add it to the OR
+		pOrCond->addCondition(pProcCon);
+	}//endif proctable condition
+
+		/* File System Space Conditions */
+	if( canaryLogFileSpacePercent > 0 ){
+			// find the schedd log
+		char *scheddLog = param ( "SCHEDD_LOG" );
+		if(scheddLog){
+
+				// make the knowledge base
+			FileSystemKB* pFsLogKB = new FileSystemKB(scheddLog);
+				// add it to canary
+			pCanary->addKnowledgeBase(pFsLogKB);
+			
+				// make the condition
+			FileSystemSpaceCondition* pLogSpaceCond = 
+				new FileSystemSpaceCondition(pFsLogKB, canaryLogFileSpacePercent);
+				// add it to the OR
+			pOrCond->addCondition(pLogSpaceCond);
+				
+				// clean up
+			free(scheddLog);
+		}//endif scheddLog
+		
+	}//endif canarylogspace
+
+	if( canarySpoolFileSpacePercent > 0 && Spool){
+			// make the knowledge base
+		FileSystemKB* pFsSpoolKB = new FileSystemKB(Spool);
+			// add it to canary
+		pCanary->addKnowledgeBase(pFsSpoolKB);
+		
+			// make the condition
+		FileSystemSpaceCondition* pSpoolSpaceCond = 
+			new FileSystemSpaceCondition(pFsSpoolKB, canarySpoolFileSpacePercent);
+			// add it to the OR
+		pOrCond->addCondition(pSpoolSpaceCond);
+	}//endif canaryspoolspace
+
+		/* Make the action */
+	CanaryActionIf* pAction = new InvokeFunctionAction(&Scheduler::canaryShutdownGraceful, 
+													   this);
+
+		/* Make the trigger */
+	CanaryTriggerIf* pTrig = new ConstantTrigger(pOrCond, pAction);
+		// add the trigger to canary
+	pCanary->addKnowledgeBaseTrigger(pTrig);	
+
+		/* Ready Set Go */
+}
+
+void
+Scheduler::checkCanary()
+{
+		// get the time
+	time_t now = time(NULL);
+	time_t diff = now - lastCheckTime;
+	
+		// make sure the appropriate amount of time has passed
+		// OR that the clock has changed
+	if( diff > canaryInterval || diff < 0 ){
+		lastCheckTime = now;
+			// check the canary
+		pCanary->activateKnowledgeBaseTriggers();
+	}
+		
+}
+
+int
+Scheduler::canaryShutdownGraceful(void* scheduler_this){
+  ((Scheduler*)(scheduler_this))->shutdown_graceful();
+  return CanaryActionIf::OKAY;
+}
+
+int
+Scheduler::canaryShutdownFast(void* scheduler_this){
+  ((Scheduler*)(scheduler_this))->shutdown_fast();
+  return CanaryActionIf::OKAY;
+}
+#endif //HAVE_CANARY
 
 //
 // calculateCronSchedule()

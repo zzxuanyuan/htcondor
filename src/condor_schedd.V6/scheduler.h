@@ -52,6 +52,11 @@
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
 #include "env.h"
+
+#ifdef HAVE_CANARY
+#include "canary_std.h"
+#endif //HAVE_CANARY
+
 //#include "condor_crontab.h"
 
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
@@ -574,6 +579,23 @@ private:
 	char *quill_db_name;
 	char *quill_db_ip_addr;
 	char *quill_db_query_password;
+#endif
+
+#ifdef HAVE_CANARY
+		/*
+		  Canary variables
+		*/
+	Canary* pCanary;
+	int	canaryTimerId;
+	int canaryInterval;
+	time_t lastCheckTime;
+	
+		/* Canary Functions */
+	void initCanary();
+	void checkCanary();
+	// these void pointers should be pointers to "this"
+	static int canaryShutdownGraceful(void*);
+	static int canaryShutdownFast(void*);
 #endif
 
 };
