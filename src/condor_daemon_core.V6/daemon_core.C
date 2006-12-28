@@ -5322,7 +5322,7 @@ int DaemonCore::Create_Process(
 		if (procd_address == NULL) {
 			EXCEPT("error: PROCD_ADDRESS not in configuration\n");
 		}
-		m_procd_client = new ProcFamilyClient(procd_address);
+		m_procd_client = new ProcFamilyClient(procd_address, get_condor_uid());
 		ASSERT(m_procd_client);
 		free(procd_address);
 	}

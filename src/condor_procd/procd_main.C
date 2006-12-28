@@ -37,6 +37,8 @@ static char* local_server_address = NULL;
 //
 static char* log_file_name = NULL;
 
+static uid_t named_pipe_uid = 0;
+
 // info about the root process of the family we'll be monitoring
 // (set with the two-argument "-P" option)
 //
@@ -146,6 +148,17 @@ parse_command_line(int argc, char* argv[])
 				max_snapshot_interval = atoi(argv[index]);
 				break;
 
+			// Let us know what the uid of the named pipe should be
+			// (it should be something the condor user can open).
+			//
+			case 'U':
+				if (index + 1 >= argc) {
+					fail_option_args("-U", 1);
+				}
+				index++;
+				named_pipe_uid = atoi(argv[index]);
+				break;
+
 			// default case
 			//
 			default:
@@ -175,6 +188,10 @@ main(int argc, char* argv[])
 	//
 	fclose(stdin);
 	fclose(stdout);
+
+	// the named pipe will default to be owned by this process if not supplied
+	// on the command line
+	named_pipe_uid = getuid();
 
 	// modify static variables based on the command line
 	//
@@ -209,7 +226,7 @@ main(int argc, char* argv[])
 
 	// initialize the server for accepting requests from clients
 	//
-	ProcFamilyServer server(monitor, local_server_address);
+	ProcFamilyServer server(monitor, local_server_address, named_pipe_uid);
 
 	// now that we've initialized the server, close out standard error.
 	// this way, calling programs can set up a pipe to block on until

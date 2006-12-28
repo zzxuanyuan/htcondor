@@ -34,7 +34,7 @@ public:
 	// construct a new ProcFamilyServer instance with the given monitor
 	// back end and the given pipe "address"
 	//
-	ProcFamilyServer(ProcFamilyMonitor&, const char*);
+	ProcFamilyServer(ProcFamilyMonitor&, const char*, uid_t);
 
 	// the server wait loop
 	//

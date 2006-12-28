@@ -25,7 +25,7 @@
 #include "condor_debug.h"
 #include "named_pipe_reader.h"
 
-NamedPipeReader::NamedPipeReader(const char* addr)
+NamedPipeReader::NamedPipeReader(const char* addr, uid_t uid)
 {
 	ASSERT(addr != NULL);
 	m_addr = strdup(addr);
@@ -37,12 +37,23 @@ NamedPipeReader::NamedPipeReader(const char* addr)
 
 	// make the FIFO node in the filesystem
 	//
+	dprintf(D_ALWAYS, "Making reading named pipe as %u.\n", getuid());
 	if (mkfifo(addr, 0600) == -1) {
 		EXCEPT("mkfifo of %s error: %s (%d)", addr, strerror(errno), errno);
 	}
+	
+	// chown the pipe to the uid in question (This could mean the pipe is
+	// owned by condor, but the procd is running as root).
+	//
+	dprintf(D_ALWAYS, "Chowning it from %u to %u\n", getuid(), uid);
 
-	// open the pipe end that we'll be reading requests from
-	// (we do this with O_NONBLOCK because otherwise we'd deadlock
+	if (chown(addr, uid, (gid_t)-1) < 0) {
+		EXCEPT("chown of %s error: %s (%d)", addr, strerror(errno), errno);
+	}
+
+	dprintf(D_ALWAYS, "Opening it as %u\n", getuid());
+	// open (as the current uid) the pipe end that we'll be reading requests 
+	// from (we do this with O_NONBLOCK because otherwise we'd deadlock
 	//  waiting for someone to open the pipe for writing)
 	//
 	m_pipe = open(addr, O_RDONLY | O_NONBLOCK);

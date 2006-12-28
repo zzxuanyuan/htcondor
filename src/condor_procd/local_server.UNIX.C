@@ -26,8 +26,8 @@
 #include "local_server.h"
 #include "named_pipe_util.h"
 
-LocalServer::LocalServer(const char* pipe_addr) :
-	m_reader(pipe_addr),
+LocalServer::LocalServer(const char* pipe_addr, uid_t uid) :
+	m_reader(pipe_addr, uid),
 	m_writer(NULL)
 {
 	m_pipe_addr = strdup(pipe_addr);

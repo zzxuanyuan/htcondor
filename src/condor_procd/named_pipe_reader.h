@@ -31,7 +31,7 @@ public:
 	// "address" (which is really a node in the
 	// filesystem)
 	//
-	NamedPipeReader(const char*);
+	NamedPipeReader(const char*, uid_t);
 	
 	// clean up open FDs, file system droppings, and
 	// dynamically allocated memory
@@ -51,6 +51,10 @@ private:
 	// the filesystem name for our FIFO
 	//
 	char* m_addr;
+
+	// the ownership uid for the pipe
+	//
+	uid_t m_uid;
 
 	// an O_RDONLY file descriptor for our FIFO
 	//

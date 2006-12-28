@@ -171,6 +171,11 @@ ProcD::start()
 		args.AppendArg("-D");
 	}
 
+	// The named pipe communication channels should be owned by the condor uid.
+	//
+	args.AppendArg("-U");
+	args.AppendArg(get_condor_uid());
+
 	// use Create_Process to start the procd
 	//
 	m_pid = daemonCore->Create_Process(args.GetArg(0),
@@ -214,7 +219,7 @@ ProcD::stop()
 {
 	// send a quit command to the procd
 	//
-	ProcFamilyClient client(m_address);
+	ProcFamilyClient client(m_address, get_condor_uid());
 	if (!client.quit()) {
 		dprintf(D_ALWAYS, "error sending QUIT command to condor_procd\n");
 	}

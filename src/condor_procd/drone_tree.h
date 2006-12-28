@@ -37,7 +37,7 @@ using namespace std;
 class DroneTree {
 
 public:
-	DroneTree(char*, char*);
+	DroneTree(char*, char*, uid_t);
 	~DroneTree();
 
 	void send_spin(int);

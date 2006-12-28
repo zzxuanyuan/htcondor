@@ -34,9 +34,9 @@ int_hash(const int& i, int num_buckets)
 	return i % num_buckets;
 }
 
-DroneTree::DroneTree(char* procd_addr, char* drone_path) :
+DroneTree::DroneTree(char* procd_addr, char* drone_path, uid_t uid) :
 	m_process_table(31, int_hash),
-	m_family_client(procd_addr)
+	m_family_client(procd_addr, uid)
 {
 	// "init" the network (WSAStartup on Windows)
 	//

@@ -26,8 +26,8 @@
 #include "proc_family_client.h"
 #include "proc_family_io.h"
 
-ProcFamilyClient::ProcFamilyClient(const char* addr) :
-	m_client(addr)
+ProcFamilyClient::ProcFamilyClient(const char* addr, uid_t uid) :
+	m_client(addr, uid)
 {	
 	m_pid = getpid();
 }

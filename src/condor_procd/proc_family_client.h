@@ -35,7 +35,7 @@ public:
 	// communicate with a ProcFamilyServer at the given
 	// "address"
 	//
-	ProcFamilyClient(const char*);
+	ProcFamilyClient(const char*, uid_t);
 
 	// tell the procd to start tracking a new subfamily
 	//

@@ -34,9 +34,9 @@ public:
 
 	// construct a new local server that listen for commands at the given
 	// "address" (which is a FIFO pathname on UNIX and a named pipe name
-	// on Windows
+	// on Windows)
 	//
-	LocalServer(const char*);
+	LocalServer(const char*, uid_t);
 
 	// clean up
 	//
