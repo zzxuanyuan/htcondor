@@ -23,6 +23,7 @@
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_debug.h"
+#include "DBMSManager.h"
 
 /* Using daemoncore, you get the benefits of a logging system with dprintf
 	and you can read config files automatically. To start testing
@@ -38,11 +39,15 @@
 // about self
 char* mySubSystem = "DBMSD";		// used by Daemon Core
 
+DBMSManager dbmsd;
+
 //-------------------------------------------------------------
 
 int main_init(int argc, char *argv[])
 {
 	dprintf(D_ALWAYS, "main_init() called\n");
+
+	dbmsd.init();
 	return TRUE;
 }
 
@@ -52,6 +57,8 @@ int
 main_config( bool is_full )
 {
 	dprintf(D_ALWAYS, "main_config() called\n");
+	dbmsd.config();
+
 	return TRUE;
 }
 
@@ -60,6 +67,7 @@ main_config( bool is_full )
 int main_shutdown_fast()
 {
 	dprintf(D_ALWAYS, "main_shutdown_fast() called\n");
+	dbmsd.stop();
 	DC_Exit(0);
 	return TRUE;	// to satisfy c++
 }
@@ -69,6 +77,7 @@ int main_shutdown_fast()
 int main_shutdown_graceful()
 {
 	dprintf(D_ALWAYS, "main_shutdown_graceful() called\n");
+	dbmsd.stop();
 	DC_Exit(0);
 	return TRUE;	// to satisfy c++
 }

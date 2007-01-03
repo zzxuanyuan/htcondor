@@ -7,7 +7,7 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 soapobjs(dbmsd)
 
-OBJ = dbmsd_main.o $(SOAP_OBJS)
+OBJ = dbmsd_main.o DBMSManager.o $(SOAP_OBJS)
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 
