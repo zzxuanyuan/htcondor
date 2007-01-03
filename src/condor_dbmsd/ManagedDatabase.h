@@ -20,36 +20,17 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _DBMSMANAGER_H_
-#define _DBMSMANAGER_H_
+#ifndef _MANAGED_DATABASE_H
+#define _MANAGED_DATABASE_H
 
 #include "condor_common.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
-class DBMSManager: public Service {
-public:
-	DBMSManager();
-	virtual ~DBMSManager();
-	void init();
-	void config();
-	void stop();
-
-	char const *Name() const {return m_name.GetCStr();}
-
-private:
-	MyString m_name;
-
-	ClassAd m_public_ad;
-	int m_public_ad_update_interval;
-	int m_public_ad_update_timer;
-
-	class CollectorList *m_collectors;
-	class ManagedDatabase *m_databases;
-
-	void InitPublicAd();
-	void TimerHandler_UpdateCollector();
-	void InvalidatePublicAd();
+class ManagedDatabase {
+ public:
+	ManagedDatabase();
+	virtual ~ManagedDatabase();
 
 };
 
 #endif
+

@@ -1,7 +1,7 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
-  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
   * University of Wisconsin-Madison, WI.
   *
   * This source code is covered by the Condor Public License, which can
@@ -20,36 +20,13 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _DBMSMANAGER_H_
-#define _DBMSMANAGER_H_
 
 #include "condor_common.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "ManagedDatabase.h"
 
-class DBMSManager: public Service {
-public:
-	DBMSManager();
-	virtual ~DBMSManager();
-	void init();
-	void config();
-	void stop();
+ManagedDatabase::ManagedDatabase() {
+// empty for now
+}
 
-	char const *Name() const {return m_name.GetCStr();}
-
-private:
-	MyString m_name;
-
-	ClassAd m_public_ad;
-	int m_public_ad_update_interval;
-	int m_public_ad_update_timer;
-
-	class CollectorList *m_collectors;
-	class ManagedDatabase *m_databases;
-
-	void InitPublicAd();
-	void TimerHandler_UpdateCollector();
-	void InvalidatePublicAd();
-
-};
-
-#endif
+ManagedDatabase::~ManagedDatabase() {
+}

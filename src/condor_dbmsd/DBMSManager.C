@@ -25,16 +25,21 @@
 #include "condor_config.h"
 #include "dc_collector.h"
 #include "get_daemon_name.h"
+#include "ManagedDatabase.h"
 
 DBMSManager::DBMSManager() {
 	m_collectors = NULL;
 	m_public_ad_update_timer = -1;
 	m_public_ad_update_interval = -1;
+	m_databases = NULL;
 }
 
 DBMSManager::~DBMSManager() {
 	if(m_collectors) {
 		delete m_collectors;
+	}
+	if(m_databases) {
+		delete[] m_databases;
 	}
 }
 
@@ -46,6 +51,7 @@ DBMSManager::init() {
 
 void
 DBMSManager::stop() {
+	// this should probably disconnect from any open databases
 	InvalidatePublicAd();
 }
 
