@@ -49,6 +49,7 @@
 
 #include "oracledatabase.h"
 #include "condor_ttdb.h"
+#include "dbms_utils.h"
 
 //! constructor
 JobQueueDBManager::JobQueueDBManager()
@@ -89,78 +90,12 @@ JobQueueDBManager::~JobQueueDBManager()
 		free(scheddname);
 	}
 }
-
-//! Gets the writer password required by the quill++
-//  daemon to access the database
-static char * getWritePassword(char *write_passwd_fname, 
-							   const char *host, const char *port, 
-							   const char *db,
-							   const char *dbuser) {
-	FILE *fp = NULL;
-	char *passwd = (char *) malloc(64 * sizeof(char));
-	int len;
-	char *prefix;
-	MyString *msbuf = 0;
-	const char *buf;
-	bool found = FALSE;
-
-		// prefix is for the prefix of the entry in the .pgpass
-		// it is in the format of the following:
-		// host:port:db:user:password
-	len = 10+strlen(host) + strlen(port) + strlen(db) + strlen(dbuser);
-
-	prefix = (char  *) malloc (len * sizeof(char));
-
-	snprintf(prefix, len, "%s:%s:%s:%s:", host, port, db, dbuser);
-
-	len = strlen(prefix);
-
-	fp = fopen(write_passwd_fname, "r");
-
-	if(fp == NULL) {
-		EXCEPT("Unable to open password file %s\n", write_passwd_fname);
-	}
-	
-		//dprintf(D_ALWAYS, "prefix: %s\n", prefix);
-
-	msbuf = new MyString();
-	while(msbuf->readLine(fp, true)) {
-		buf = msbuf->Value();
-
-			//dprintf(D_ALWAYS, "line: %s\n", buf);
-
-			// check if the entry matches the prefix
-		if (strncmp(buf, prefix, len) == 0) {
-				// extract the password
-			strncpy(passwd, &buf[len], 64);
-			delete msbuf;
-			found = TRUE;
-			
-				// remove the new line in the end
-			if (passwd[strlen(passwd)-1] = '\n') {
-				passwd[strlen(passwd)-1] = '\0';
-			}
-
-			break;
-		}
-
-		delete msbuf;
-		msbuf = new MyString();
-	}
-
-    fclose(fp);
-	if (!found) {
-		EXCEPT("Unable to find password from file %s\n", write_passwd_fname);
-	}
-
-	return passwd;
-}
  
 void
 JobQueueDBManager::config(bool reconfig) 
 {
-	char *tmp, *host = NULL, *port = NULL;
-	int len, tmp1, tmp2, tmp3;
+	char *tmp;
+	int len;
 
 	if (param_boolean("QUILL_ENABLED", false) == false) {
 		EXCEPT("Quill++ is currently disabled. Please set QUILL_ENABLED to "
@@ -180,77 +115,22 @@ JobQueueDBManager::config(bool reconfig)
 	snprintf(jobQueueLogFile,_POSIX_PATH_MAX * sizeof(char), 
 			 "%s/job_queue.log", spool);
 
-	tmp = param("QUILL_DB_TYPE");
-	if (tmp) {
-		if (strcasecmp(tmp, "ORACLE") == 0) {
-			dt = T_ORACLE;
-		} else if (strcasecmp(tmp, "PGSQL") == 0) {
-			dt = T_PGSQL;
-		}
-	} else {
-		dt = T_PGSQL; // assume PGSQL by default
-	}
+	dt = getConfigDBType();
 
 		/*
 		  Here we try to read the <ipaddress:port> stored in condor_config
-		  if one is not specified, by default we use the local address 
-		  and the default postgres port of 5432.  
 		*/
 	jobQueueDBIpAddress = param("QUILL_DB_IP_ADDR");
-	if(jobQueueDBIpAddress) {
-		len = strlen(jobQueueDBIpAddress);
-		host = (char *) malloc(len * sizeof(char));
-		port = (char *) malloc(len * sizeof(char));
 
-			//split the <ipaddress:port> into its two parts accordingly
-		char *ptr_colon = strchr(jobQueueDBIpAddress, ':');
-		strncpy(host, jobQueueDBIpAddress, 
-				ptr_colon - jobQueueDBIpAddress);
-			// terminate the string properly
-		host[ptr_colon - jobQueueDBIpAddress] = '\0';
-		strncpy(port, ptr_colon+1, len);
-			// terminate the string properyly
-		port[strlen(ptr_colon+1)] = '\0';
-	}
-
-		/* Here we read the database name and if one is not specified
-		   use the default name - quill
-		   If there are more than one quill daemons are writing to the
-		   same databases, its absolutely necessary that the database
-		   names be unique or else there would be clashes.  Having 
-		   unique database names is the responsibility of the administrator
-		*/
 	jobQueueDBName = param("QUILL_DB_NAME");
 
 	jobQueueDBUser = param("QUILL_DB_USER");
-
-		// get the password from the .pgpass file
-	char *writePasswordFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
-	snprintf(writePasswordFile, _POSIX_PATH_MAX, "%s/.pgpass", spool);
-
-	char *writePassword = getWritePassword(writePasswordFile, 
-										   host?host:"", port?port:"", 
-										   jobQueueDBName?jobQueueDBName:"", 
-										   jobQueueDBUser);
-
-	tmp1 = jobQueueDBName?strlen(jobQueueDBName):0;
-	tmp2 = strlen(writePassword);
-
-		//tmp3 is the size of dbconn - its size is estimated to be
-		//(2 * len) for the host/port part, tmp1 + tmp2 for the
-		//password and dbname part and 1024 as a cautiously
-		//overestimated sized buffer
-	tmp3 = (2 * len) + tmp1 + tmp2 + 1024;
-
-	jobQueueDBConn = (char *) malloc(tmp3 * sizeof(char));
-
-	snprintf(jobQueueDBConn, tmp3, 
-			 "host=%s port=%s user=%s password=%s dbname=%s", 
-			 host?host:"", port?port:"", 
-			 jobQueueDBUser?jobQueueDBUser:"", 
-			 writePassword?writePassword:"", 
-			 jobQueueDBName?jobQueueDBName:"");
   	
+	jobQueueDBConn = getDBConnStr(jobQueueDBIpAddress,
+								  jobQueueDBName,
+								  jobQueueDBUser,
+								  spool);
+								  
 	dprintf(D_ALWAYS, "Using Job Queue File %s\n", jobQueueLogFile);
 
 	dprintf(D_ALWAYS, "Using Database Type = %s\n",
@@ -265,16 +145,6 @@ JobQueueDBManager::config(bool reconfig)
 	if(spool) {
 		free(spool);
 		spool = NULL;
-	}
-
-	if(host) {
-		free(host);
-		host = NULL;
-	}
-
-	if(port) {
-		free(port);
-		port = NULL;
 	}
 
 		// this function is also called when condor_reconfig is issued
@@ -347,16 +217,6 @@ JobQueueDBManager::config(bool reconfig)
 		}
 
 		free(sql_str); 		
-	}
-  
-	if(writePassword) {
-		free(writePassword);
-		writePassword = NULL;
-	}
-
-	if(writePasswordFile) {
-		free(writePasswordFile);
-		writePasswordFile = NULL;
 	}
 
 		//this function assumes that certain members have been initialized
