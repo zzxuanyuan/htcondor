@@ -1183,33 +1183,39 @@ gcb_broker_down_handler( Service *ignore )
 	StringList brokers( str );
 	free( str );
 
-	dprintf(D_ALWAYS,"JEF: gcbBrokerDownCallback() called\n");
 	if ( our_broker == NULL ) {
-		dprintf(D_ALWAYS,"JEF:   What!? No broker!?\n");
+		dprintf( D_ALWAYS, "Lost connection to current GCB broker, "
+				 "but GCB_INAGENT is undefined!?\n" );
 		return;
 	}
+	dprintf( D_ALWAYS, "Lost connection to current GCB broker %s. "
+			 "Will attempt to reconnect\n", our_broker );
+
 	brokers.remove( our_broker );
+
+	if ( brokers.isEmpty() ) {
+			// No other brokers to query
+		return;
+	}
 
 	brokers.rewind();
 
 	while ( (next_broker = brokers.next()) ) {
-		dprintf(D_ALWAYS,"JEF:   trying broker %s\n",next_broker);
 		if ( GCB_broker_query( next_broker, GCB_DATA_QUERY_FREE_SOCKS,
 							   &num_slots ) == 0 ) {
-			dprintf(D_ALWAYS,"JEF:   Broker is up!\n");
 			found_broker = true;
 			break;
 		}
-		else{dprintf(D_ALWAYS,"JEF:   Broker is down!\n");}
 	}
 
 	if ( found_broker ) {
-		dprintf( D_ALWAYS, "Found new GCB broker %s to replace failed "
-				 "broker %s. Restarting all daemons\n", next_broker,
-				 our_broker );
+		dprintf( D_ALWAYS, "Found alternate GCB broker %s. "
+				 "Restarting all daemons.\n", next_broker, our_broker );
 		restart_everyone();
+	} else {
+		dprintf( D_ALWAYS, "No alternate GCB brokers found. "
+				 "Will try again later.\n" );
 	}
-	else{dprintf(D_ALWAYS,"JEF:   No functional brokers found\n");}
 }
 
 void
