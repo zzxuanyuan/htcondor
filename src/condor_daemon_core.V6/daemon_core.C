@@ -5111,6 +5111,7 @@ int DaemonCore::Create_Process(
 			Stream        *sock_inherit_list[],
 			int           std[],
 			int           nice_inc,
+			sigset_t      *sigmask,
 			int           job_opt_mask
             )
 {
@@ -5726,6 +5727,30 @@ int DaemonCore::Create_Process(
 	// process id for the environment ancestor history info
 	forker_pid = ::getpid();
 
+	// if the caller passed in a signal mask to apply to the child, we
+	// block these signals before we fork. then in the parent, we change
+	// the mask back to what it was immediately following the fork. in
+	// the child, we apply the given mask again (using SIG_SETMASK rather
+	// than SIG_BLOCK). the reason we take this extra step here is to
+	// avoid the possibility of a signal in the passed-in mask being received
+	// by the child before it has a chance to call sigprocmask
+	//
+	sigset_t saved_mask;
+	if (sigmask != NULL) {
+
+		// can't set the signal mask for daemon core processes
+		//
+		ASSERT(!want_command_port);
+
+		if (sigprocmask(SIG_BLOCK, sigmask, &saved_mask) == -1) {
+			dprintf(D_ALWAYS,
+			        "Create_Process: sigprocmask error: %s (%d)\n",
+			        strerror(errno),
+			        errno);
+			goto wrapup;
+		}
+	}
+
 	newpid = fork();
 	if( newpid == 0 ) // Child Process
 	{
@@ -6020,11 +6045,12 @@ int DaemonCore::Create_Process(
 						std[i] = (*pipeHandleTable)[index];
 					}
 					if ( ( dup2 ( std[i], i ) ) == -1 ) {
-						dprintf( D_ALWAYS, "dup2 of std[i] failed, errno %d\n",
+						dprintf( D_ALWAYS,
+						         "dup2 of std[%d] failed: %s (%d)\n",
+						         i,
+						         strerror(errno),
 								 errno );
 					}
-					close( std[i] );  // We don't need this in the child...
-
 				} else {
 						// if we don't want to inherit it, we better close
 						// what's there
@@ -6209,11 +6235,19 @@ int DaemonCore::Create_Process(
 			}
 		}
 
-			// Unblock all signals if we're starting a regular process!
+			// if we're starting a non-DC process, modify the signal mask.
+			// by default (i.e. if sigmask is NULL), we unblock everything
 		if ( !want_command_port ) {
-			sigset_t emptySet;
-			sigemptyset( &emptySet );
-			sigprocmask( SIG_SETMASK, &emptySet, NULL );
+			sigset_t* new_mask = sigmask;
+			sigset_t empty_mask;
+			if (new_mask == NULL) {
+				sigemptyset(&empty_mask);
+				new_mask = &empty_mask;
+			}
+			if (sigprocmask(SIG_SETMASK, new_mask, NULL) == -1) {
+				write(errorpipe[1], &errno, sizeof(errno));
+				exit(errno);
+			}
 		}
 
 #if defined(LINUX) && defined(TDP)
@@ -6243,6 +6277,19 @@ int DaemonCore::Create_Process(
 	}
 	else if( newpid > 0 ) // Parent Process
 	{
+		// if we were told to set the child's signal mask, we ANDed
+		// those signals into our own mask right before the fork (see
+		// the comment right before the fork). here we set our signal
+		// mask back to what it was
+		//
+		if (sigmask != NULL) {
+			if (sigprocmask(SIG_SETMASK, &saved_mask, NULL) == -1) {
+				EXCEPT("Create_Process: sigprocmask error: %s (%d)\n",
+				       strerror(errno),
+				       errno);
+			}
+		}
+	
 			// close the write end of our error pipe
 		close(errorpipe[1]);
 			// check our error pipe for any problems before the exec
@@ -6310,7 +6357,7 @@ int DaemonCore::Create_Process(
 									   want_command_port, env, cwd,
 									   family_info,
 									   sock_inherit_list, std,
-									   nice_inc, job_opt_mask );
+									   nice_inc, sigmask, job_opt_mask );
 				break;
 
 			default:
@@ -6663,64 +6710,28 @@ DaemonCore::Kill_Thread(int tid)
 int
 DaemonCore::Get_Family_Usage(pid_t pid, ProcFamilyUsage& usage)
 {
-	if (m_procd_client == NULL)
-	{
-		dprintf(D_ALWAYS, "DaemonCore::Get_Family_Usage(): Inconsistancy! "
-			"m_procd_client == NULL. This means that pid %u was probably "
-			"created via fork() and not via Create_Process(). Probably "
-			"getting family usage statistics wrong!\n",
-			pid);
-		return 0;
-	}
-
+	ASSERT(m_procd_client != NULL);
 	return m_procd_client->get_usage(pid, usage);
 }
 
 int
 DaemonCore::Suspend_Family(pid_t pid)
 {
-	if (m_procd_client == NULL)
-	{
-		dprintf(D_ALWAYS, "DaemonCore::Suspend_Family(): Inconsistancy! "
-			"m_procd_client == NULL. This means that pid %u was probably "
-			"created via fork() and not via Create_Process(). Probably "
-			"leaving processes not suspended!\n",
-			pid);
-		return 0;
-	}
-
+	ASSERT(m_procd_client != NULL);
 	return m_procd_client->suspend_family(pid);
 }
 
 int
 DaemonCore::Continue_Family(pid_t pid)
 {
-	if (m_procd_client == NULL)
-	{
-		dprintf(D_ALWAYS, "DaemonCore::Continue_Family(): Inconsistancy! "
-			"m_procd_client == NULL. This means that pid %u was probably "
-			"created via fork() and not via Create_Process(). Probably "
-			"leaving processes suspended!\n",
-			pid);
-		return 0;
-	}
-
+	ASSERT(m_procd_client != NULL);
 	return m_procd_client->continue_family(pid);
 }
 
 int
 DaemonCore::Kill_Family(pid_t pid, ProcFamilyUsage* usage)
 {
-	if (m_procd_client == NULL)
-	{
-		dprintf(D_ALWAYS, "DaemonCore::Kill_Family(): Inconsistancy! "
-			"m_procd_client == NULL. This means that pid %u was probably "
-			"created via fork() and not via Create_Process(). Probably "
-			"leaving orphaned children laying about!\n",
-			pid);
-		return 0;
-	}
-
+	ASSERT(m_procd_client != NULL);
 	return m_procd_client->kill_family(pid, usage);
 }
 

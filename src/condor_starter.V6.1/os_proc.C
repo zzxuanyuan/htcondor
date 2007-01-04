@@ -341,7 +341,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 
 	JobPid = daemonCore->Create_Process( JobName, args, PRIV_USER_FINAL,
 					     1, FALSE, &job_env, job_iwd, family_info,
-					     NULL, fds, nice_inc, job_opt_mask );
+					     NULL, fds, nice_inc, NULL, job_opt_mask );
 
 	//NOTE: Create_Process() saves the errno for us if it is an
 	//"interesting" error.

@@ -785,18 +785,19 @@ class DaemonCore : public Service
         @return On success, returns the child pid.  On failure, returns FALSE.
     */
     int Create_Process (
-        const char  *name,
+        const char    *name,
         ArgList const &arglist,
-        priv_state  priv                 = PRIV_UNKNOWN,
-        int         reaper_id            = 1,
-        int         want_commanand_port  = TRUE,
-        Env const   *env                 = NULL,
-        const char  *cwd                 = NULL,
-        FamilyInfo  *family_info         = NULL,
-        Stream      *sock_inherit_list[] = NULL,
-        int         std[]                = NULL,
-        int         nice_inc             = 0,
-        int         job_opt_mask         = 0
+        priv_state    priv                 = PRIV_UNKNOWN,
+        int           reaper_id            = 1,
+        int           want_commanand_port  = TRUE,
+        Env const     *env                 = NULL,
+        const char    *cwd                 = NULL,
+        FamilyInfo    *family_info         = NULL,
+        Stream        *sock_inherit_list[] = NULL,
+        int           std[]                = NULL,
+        int           nice_inc             = 0,
+        sigset_t      *sigmask             = NULL,
+        int           job_opt_mask         = 0
         );
 
     //@}

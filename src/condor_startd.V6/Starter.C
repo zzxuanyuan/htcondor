@@ -760,6 +760,8 @@ Starter::execOldStarter( void )
 #if defined(WIN32) /* THIS IS UNIX SPECIFIC */
 	return 0;
 #else
+	// don't allow this if GLEXEC_STARTER is true
+	//
 	if( param_boolean( "GLEXEC_STARTER", false ) ) {
 		// we don't support using glexec to spawn the old starter
 		dprintf( D_ALWAYS,
@@ -768,150 +770,67 @@ Starter::execOldStarter( void )
 		return 0;
 	}
 
-	char* hostname = s_claim->client()->host();
-	int i;
-	int pid;
-	int n_fds = getdtablesize();
-	int main_sock = s_port1;
-	int err_sock = s_port2;
-	int tmp_errno;
+	// set up the standard file descriptors
+	//
+	int std[3];
+	std[0] = s_port1;
+	std[1] = s_port1;
+	std[2] = s_port2;
 
-#if defined(Solaris)
-	sigset_t set;
-	if( sigprocmask(SIG_SETMASK,0,&set)  == -1 ) {
-		EXCEPT("Error in reading procmask, errno = %d (%s)", errno,
-			   strerror(errno));
-	}
-	for (i=0; i < MAXSIG; i++) {
-		block_signal(i);
-	}
-#else
-	int omask = sigblock(-1);
-#endif
-
-	if( (pid = fork()) < 0 ) {
-		EXCEPT( "Failed to fork starter, errno = %d (%s)", errno,
-				strerror( errno ) );
+	// set up the starter's arguments
+	//
+	ArgList args;
+	args.AppendArg("condor_starter");
+	args.AppendArg(s_claim->client()->host());
+	args.AppendArg(daemonCore->InfoCommandSinfulString());
+	if (resmgr->is_smp()) {
+		args.AppendArg("-a");
+		args.AppendArg(s_claim->rip()->r_id_str);
 	}
 
-	if (pid) {	/* The parent */
-		/*
-		  (void)sigblock(omask);
-		  */
-#if defined(Solaris)
-		if ( sigprocmask(SIG_SETMASK, &set, 0)  == -1 ) {
-			EXCEPT("Error in setting procmask, errno = %d (%s)", errno,
-				   strerror(errno));
-		}
-#else
-		(void)sigsetmask(omask);
-#endif
-		(void)close(main_sock);
-		(void)close(err_sock);
+	// set up the signal mask (block everything, which is what the old
+	// starter expects)
+	//
+	sigset_t full_mask;
+	sigfillset(&full_mask);
 
-		dprintf(D_ALWAYS,
-				"exec_starter( %s, %d, %d ) : pid %d\n",
-				hostname, main_sock, err_sock, pid);
-		dprintf(D_ALWAYS, "execl(%s, \"condor_starter\", %s, 0)\n",
-				s_path, hostname);
-	} else {	/* the child */
+	// set up a structure for telling DC to track the starter's process
+	// family
+	//
+	FamilyInfo family_info;
+	family_info.max_snapshot_interval = pid_snapshot_interval;
+	family_info.login = NULL;
 
-			/* 
-			   NOTE: Since we're in the child, we don't want to call
-			   EXCEPT() or weird things will try to happen, as the
-			   forked child tries to vacate starter, update the CM,
-			   etc.  So, just dprintf() and exit(), instead.
-			*/
-		
-		/*
-		 * N.B. The child is born with TSTP blocked, so he can be
-		 * sure to set up his handler before accepting it.
-		 */
+	// call Create_Process
+	//
+	int pid = daemonCore->Create_Process(s_path,       // path to binary
+	                                     args,         // arguments
+	                                     PRIV_ROOT,    // start as root
+	                                     main_reaper,  // reaper
+	                                     FALSE,        // no command port
+	                                     NULL,         // inherit our env
+	                                     NULL,         // inherit out cwd
+	                                     &family_info, // new family
+	                                     NULL,         // no inherited socks
+	                                     std,          // std FDs
+	                                     0,            // zero nice inc
+	                                     &full_mask,   // signal mask
+	                                     0);           // DC job opts
 
-		/*
-		 * This should not change process groups because the
-		 * condor_master daemon may want to do a killpg at some
-		 * point...
-		 *
-		 *	if( setpgrp(0,getpid()) ) {
-		 *		EXCEPT( "setpgrp(0, %d)", getpid() );
-		 *	}
-		 */
-			/*
-			 * We _DO_ want to create the starter with it's own
-			 * process group, since when KILL evaluates to True, we
-			 * don't want to kill the startd as well.  The master no
-			 * longer kills via a process group to do a quick clean
-			 * up, it just sends signals to the startd and schedd and
-			 * they, in turn, do whatever quick cleaning needs to be 
-			 * done. 
-			 */
-		if( setsid() < 0 ) {
-			dprintf( D_ALWAYS, 
-					 "setsid() failed in child, errno: %d (%s)\n", errno,
-					 strerror( errno ) );
-			exit( 4 );
-		}
+	// clean up the "ports"
+	//
+	(void)close(s_port1);
+	(void)close(s_port2);
 
-			// Now, dup the special socks to their well-known fds.
-		if( dup2(main_sock,0) < 0 ) {
-			dprintf( D_ALWAYS, "dup2(%d,0) failed in child, errno: %d (%s)\n",
-					 main_sock, errno, strerror( errno ) ); 
-			exit( 4 );
-		}
-		if( dup2(main_sock,1) < 0 ) {
-			dprintf( D_ALWAYS, "dup2(%d,1) failed in child, errno: %d (%s)\n",
-					 main_sock, errno, strerror( errno ) );
-			exit( 4 );
-		}
-		if( dup2(err_sock,2) < 0 ) {
-			dprintf( D_ALWAYS, "dup2(%d,2) failed in child, errno: %d (%s)\n",
-					 err_sock, errno, strerror( errno ) );
-			exit( 4 );
-		}
-
-			// Close everything else to prevent fd leaks and other
-			// problems. 
-		for(i = 3; i<n_fds; i++) {
-			(void) close(i);
-		}
-
-		/*
-		 * Starter must be exec'd as root so it can change to client's
-		 * uid and gid.
-		 */
-		set_root_priv();
-		if( resmgr->is_smp() ) {
-			execl( s_path, "condor_starter", hostname, 
-						 daemonCore->InfoCommandSinfulString(), 
-						 "-a", s_claim->rip()->r_id_str, 0 );
-			tmp_errno = errno;
-				// If we got this far, there was an error in execl().
-			dprintf( D_ALWAYS, 
-			  "ERROR: execl(%s, condor_starter, %s, %s, -a, %s, 0) "
-			  	"errno: %d(%s)\n",
-			  s_path, daemonCore->InfoCommandSinfulString(), hostname,
-			  s_claim->rip()->r_id_str==NULL?"(NIL)":s_claim->rip()->r_id_str, 
-				 tmp_errno, strerror(tmp_errno) );
-		} else {			
-			execl( s_path, "condor_starter", hostname, 
-						 daemonCore->InfoCommandSinfulString(), 0 );
-			tmp_errno = errno;
-				// If we got this far, there was an error in execl().
-			dprintf( D_ALWAYS, 
-				 "ERROR: execl(%s, condor_starter, %s, %s, 0) "
-				 "errno: %d (%s)\n", 
-				 s_path, daemonCore->InfoCommandSinfulString(), hostname,
-				 tmp_errno, strerror(tmp_errno) );
-
-		}
-		exit( 4 );
+	// check for error
+	//
+	if (pid == FALSE) {
+		dprintf(D_ALWAYS, "execOldStarter: Create_Process error\n");
+		return 0;
 	}
-	if ( pid < 0 ) {
-		pid = 0;
-	}
+
 	return pid;
-#endif // !defined(WIN32)
+#endif
 }
 
 #if !defined(WIN32)
