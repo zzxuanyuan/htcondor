@@ -5948,7 +5948,8 @@ int DaemonCore::Create_Process(
 			bool ok =
 				m_procd_client->register_subfamily(pid,
 			                                       ::getppid(),
-			                                       family_info->max_snapshot_interval);
+				                                   family_info->max_snapshot_interval,
+				                                   &penvid);
 			if (!ok) {
 				errno = 31;
 				write(errorpipe[1], &errno, sizeof(errno));
