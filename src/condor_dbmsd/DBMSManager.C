@@ -39,6 +39,12 @@ DBMSManager::~DBMSManager() {
 		delete m_collectors;
 	}
 	if(m_databases) {
+		int i = 0;
+		while (m_databases[i]) {
+			delete m_databases[i];
+			m_databases[i] = NULL;
+			i++;
+		}
 		delete[] m_databases;
 	}
 }
@@ -96,6 +102,7 @@ DBMSManager::config() {
 	char *update_interval_str = param("UPDATE_INTERVAL");
 	if(update_interval_str) {
 		update_interval = atoi(update_interval_str);
+		free(update_interval_str);
 	}
 	if(m_public_ad_update_interval != update_interval) {
 		m_public_ad_update_interval = update_interval;
@@ -113,6 +120,41 @@ DBMSManager::config() {
 			"DBMSManager::TimerHandler_UpdateCollector",
 			this);
 	}
+
+		// create ManagedDatabase object and register 
+		// timer callback for database purging operations
+	m_databases = (ManagedDatabase **) malloc(2*sizeof (ManagedDatabase *));
+	
+		/* the default database will use what's specified in the config */
+	m_databases[0] = new ManagedDatabase();
+		/* end the list with a null */
+	m_databases[1] = (ManagedDatabase *)0;
+
+		/* register the database purging callback */
+	int purge_interval = 60;
+	char *purge_interval_str = param("DATABASE_PURGE_INTERVAL");
+	if(purge_interval_str) {
+		purge_interval = atoi(purge_interval_str);
+		free(purge_interval_str);
+	}
+
+	if(m_database_purge_interval != purge_interval) {
+		m_database_purge_interval = purge_interval;
+
+		if(m_database_purge_timer >= 0) {
+			daemonCore->Cancel_Timer(m_database_purge_timer);
+			m_database_purge_timer = -1;
+		}
+		dprintf(D_FULLDEBUG, "Setting database purge interval to %d\n",
+				m_database_purge_interval);
+		m_database_purge_timer = daemonCore->Register_Timer(
+			0,
+			m_database_purge_interval,
+			(Eventcpp)&DBMSManager::TimerHandler_PurgeDatabase,
+			"DBMSManager::TimerHandler_PurgeDatabase",
+			this);
+	}
+	
 }
 
 void
@@ -123,4 +165,9 @@ DBMSManager::TimerHandler_UpdateCollector() {
 void
 DBMSManager::InvalidatePublicAd() {
 	//m_collectors->sendUpdates(INVALIDATE_SCHEDD_ADS, &m_public_ad);
+}
+
+void
+DBMSManager::TimerHandler_PurgeDatabase() {
+
 }

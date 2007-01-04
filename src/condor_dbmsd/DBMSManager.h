@@ -42,14 +42,17 @@ private:
 	ClassAd m_public_ad;
 	int m_public_ad_update_interval;
 	int m_public_ad_update_timer;
+	int m_database_purge_interval;
+	int m_database_purge_timer;
 
 	class CollectorList *m_collectors;
-	class ManagedDatabase *m_databases;
+	class ManagedDatabase **m_databases;
 
 	void InitPublicAd();
 	void TimerHandler_UpdateCollector();
 	void InvalidatePublicAd();
 
+	void TimerHandler_PurgeDatabase();
 };
 
 #endif
