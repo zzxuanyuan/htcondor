@@ -1210,7 +1210,7 @@ gcb_broker_down_handler( Service *ignore )
 
 	if ( found_broker ) {
 		dprintf( D_ALWAYS, "Found alternate GCB broker %s. "
-				 "Restarting all daemons.\n", next_broker, our_broker );
+				 "Restarting all daemons.\n", next_broker );
 		restart_everyone();
 	} else {
 		dprintf( D_ALWAYS, "No alternate GCB brokers found. "
