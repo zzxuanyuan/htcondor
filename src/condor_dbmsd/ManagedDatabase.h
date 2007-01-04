@@ -24,12 +24,25 @@
 #define _MANAGED_DATABASE_H
 
 #include "condor_common.h"
+#include "quill_enums.h"
+
+#include "jobqueuedatabase.h"
 
 class ManagedDatabase {
  public:
 	ManagedDatabase();
 	virtual ~ManagedDatabase();
+	void PurgeDatabase();
 
+	dbtype dt;
+	char *dbIpAddress;
+	char *dbName;
+	char *dbUser;
+	char *dbConnStr;
+	JobQueueDatabase *DBObj;
+	int resourceHistoryDuration;
+	int runHistoryDuration;
+	int jobHistoryDuration;
 };
 
 #endif

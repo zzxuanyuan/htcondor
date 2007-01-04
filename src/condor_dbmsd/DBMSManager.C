@@ -52,6 +52,15 @@ DBMSManager::~DBMSManager() {
 void
 DBMSManager::init() {
 	m_collectors = CollectorList::create();
+
+		// create ManagedDatabase object
+	m_databases = (ManagedDatabase **) malloc(2*sizeof (ManagedDatabase *));
+	
+		/* the default database will use what's specified in the config */
+	m_databases[0] = new ManagedDatabase();
+		/* end the list with a null */
+	m_databases[1] = (ManagedDatabase *)0;
+
 	config();
 }
 
@@ -121,15 +130,6 @@ DBMSManager::config() {
 			this);
 	}
 
-		// create ManagedDatabase object and register 
-		// timer callback for database purging operations
-	m_databases = (ManagedDatabase **) malloc(2*sizeof (ManagedDatabase *));
-	
-		/* the default database will use what's specified in the config */
-	m_databases[0] = new ManagedDatabase();
-		/* end the list with a null */
-	m_databases[1] = (ManagedDatabase *)0;
-
 		/* register the database purging callback */
 	int purge_interval = 60;
 	char *purge_interval_str = param("DATABASE_PURGE_INTERVAL");
@@ -169,5 +169,11 @@ DBMSManager::InvalidatePublicAd() {
 
 void
 DBMSManager::TimerHandler_PurgeDatabase() {
-
+	if(m_databases) {
+		int i = 0;
+		while (m_databases[i]) {
+			m_databases[i]->PurgeDatabase();
+			i++;
+		}
+	}	
 }
