@@ -85,6 +85,11 @@ inclusive at configuration time.
 
 \begin{itemize}
 
+\item Fixed a race condition with \Condor{quill} caused by
+\Prog{postgresql}'s default transaction isolation level being ``read
+committed''. 
+This bug would cause truncated \Condor{q} reads when using Quill.
+
 \item Fixed a bug where the \Condor{ckpt\_server} would segfault when
 turned off with \Condor{off} \Opt{-fast}.
 
