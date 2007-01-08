@@ -34,7 +34,8 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item None.
+\item Performed a security audit of all places where Condor opens files to make certain files are opened with a reasonable permission mode and with the
+O\_EXCL flag whenever possible.
 
 \end{itemize}
 
@@ -84,6 +85,19 @@ inclusive at configuration time.
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed a deadlock situation between the schedd and startd than can
+significantly impact the schedd's performance.  The likelyhood of the
+deadlock increased based upon the number of VMs advertised by the
+startd.
+
+\item Fixed a bug reading the user job log on Windows that caused
+occasional dagman confusion (thanks to Fairview Software, Inc, for
+both finding the bug and writing a patch).
+
+\item Fixed a denial of service problem: Condor daemons no longer freeze
+for 20 seconds when a client connects to them and then sends no data
+(this behavior is common with port scanners).
 
 \item Fixed a race condition with \Condor{quill} caused by
 \Prog{postgresql}'s default transaction isolation level being ``read
