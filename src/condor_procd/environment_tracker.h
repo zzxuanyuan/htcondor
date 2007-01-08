@@ -21,6 +21,38 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#ifndef _ENVIRONMENT_TRACKER_H
+#define _ENVIRONMENT_TRACKER_H
+
+#include "proc_family_tracker.h"
+#include "condor_pidenvid.h"
+
+class ProcFamily;
+
+class EnvironmentTracker : public ProcFamilyTracker {
+
+public:
+
+	EnvironmentTracker(ProcFamilyMonitor* pfm) :
+		ProcFamilyTracker(pfm),
+		m_list(NULL)
+	{
+	}
+	virtual ~EnvironmentTracker();
+
+	void add_entry(ProcFamily*, PidEnvID*);
+	void remove_entry(ProcFamily*);
+
+	bool check_process(procInfo*);
+
+private:
+	
+	struct ListEntry {
+		ProcFamily* family;
+		PidEnvID    pidenvid;
+		ListEntry*  next;
+	};
+	ListEntry* m_list;
+};
+
+#endif

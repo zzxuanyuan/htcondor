@@ -21,6 +21,37 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#ifndef _LOGIN_TRACKER_H
+#define _LOGIN_TRACKER_H
+
+#include "proc_family_tracker.h"
+
+class ProcFamily;
+
+class LoginTracker : public ProcFamilyTracker {
+
+public:
+
+	LoginTracker(ProcFamilyMonitor* pfm) :
+		ProcFamilyTracker(pfm),
+		m_list(NULL)
+	{
+	}
+	virtual ~LoginTracker();
+
+	void add_entry(ProcFamily*, char*);
+	void remove_entry(ProcFamily*);
+
+	bool check_process(procInfo*);
+
+private:
+	
+	struct ListEntry {
+		ProcFamily* family;
+		char*       login;
+		ListEntry*  next;
+	};
+	ListEntry* m_list;
+};
+
+#endif

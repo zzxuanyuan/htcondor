@@ -28,6 +28,10 @@
 #include "tree.h"
 #include "proc_family.h"
 #include "proc_family_io.h"
+#include "pid_tracker.h"
+#include "login_tracker.h"
+#include "environment_tracker.h"
+#include "parent_tracker.h"
 #include "procd_common.h"
 
 #if defined(PROCD_DEBUG)
@@ -84,12 +88,13 @@ public:
 	//
 	void snapshot();
 
-	// used to access the pid_t to ProcFamily::Member hash table
+	// used to access the pid_t to ProcFamilyMember hash table
 	// (these need to be public since they are called from the
-	//  ProcFamily class)
+	//  various tracker classes)
 	//
-	void add_member_to_table(ProcFamily::Member*);
-	void remove_member_from_table(ProcFamily::Member*);
+	void add_member(ProcFamilyMember*);
+	void remove_member(ProcFamilyMember*);
+	ProcFamilyMember* lookup_member(pid_t pid);
 
 private:
 	// the tree structure for the families we're tracking
@@ -104,7 +109,15 @@ private:
 	// we keep a hash table over all processes that are in families
 	// we are monitoring
 	//
-	HashTable<pid_t, ProcFamily::Member*> m_member_table;
+	HashTable<pid_t, ProcFamilyMember*> m_member_table;
+
+	// the "tracker" objects we use for finding processes that belong
+	// to the families we're tracking
+	//
+	PIDTracker         m_pid_tracker;
+	LoginTracker       m_login_tracker;
+	EnvironmentTracker m_environment_tracker;
+	ParentTracker      m_parent_tracker;
 
 	// find the minimum of all the ProcFamilys' requested "maximum
 	// snapshot intervals"
@@ -125,13 +138,6 @@ private:
 	// managing
 	//
 	void remove_exited_processes(Tree<ProcFamily*>*);
-
-	// using searches based on user ids or tracking info stuffed into
-	// processes' environment blocks by daemon core (the condor_pidenvid
-	// stuff), find processes that belong to the families we are
-	// monitoring
-	//
-	void find_family_processes(Tree<ProcFamily*>*, procInfo*&);
 
 	// delete any families that no longer have any processes (that we
 	// know about) on the system

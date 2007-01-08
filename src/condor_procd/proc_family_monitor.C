@@ -28,7 +28,11 @@ ProcFamilyMonitor::ProcFamilyMonitor(pid_t pid,
                                      birthday_t birthday,
                                      int snapshot_interval) :
 	m_family_table(11, pidHashFunc, rejectDuplicateKeys),
-	m_member_table(PHBUCKETS, pidHashFunc, rejectDuplicateKeys)
+	m_member_table(PHBUCKETS, pidHashFunc, rejectDuplicateKeys),
+	m_pid_tracker(this),
+    m_login_tracker(this),
+    m_environment_tracker(this),
+    m_parent_tracker(this)
 {
 	// the snapshot interval must either be non-negative or -1, which
 	// means infinite (higher layers should enforce this)
@@ -43,6 +47,10 @@ ProcFamilyMonitor::ProcFamilyMonitor(pid_t pid,
 	                                    birthday,
 	                                    0,
 	                                    snapshot_interval);
+
+	// make sure we're tracking this family by its root pid/birthday
+	//
+	m_pid_tracker.add_entry(family, pid, birthday);
 
 	// make this family the root-level tree node
 	//
@@ -110,7 +118,7 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 	// in our snapshot. we require that the process of any newly
 	// created subfamily is in a family we are already tracking
 	//
-	ProcFamily::Member* member;
+	ProcFamilyMember* member;
 	int ret;
 	ret = m_member_table.lookup(root_pid, member);
 	if (ret == -1) {
@@ -126,9 +134,19 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 	                                    root_pid,
 	                                    member->get_proc_info()->birthday,
 	                                    watcher_pid,
-	                                    max_snapshot_interval,
-	                                    penvid,
-	                                    login);
+	                                    max_snapshot_interval);
+
+	// register any pidenvid or login info with the tracker objects
+	//
+	m_pid_tracker.add_entry(family,
+	                        root_pid,
+	                        member->get_proc_info()->birthday);
+	if (login != NULL) {
+		m_login_tracker.add_entry(family, login);
+	}
+	if (penvid != NULL) {
+		m_environment_tracker.add_entry(family, penvid);
+	}
 
 	// find the family that will be this new subfamily's parent and create
 	// the parent-child link
@@ -166,7 +184,7 @@ ProcFamilyMonitor::unregister_subfamily(pid_t pid)
 	int ret = m_family_table.lookup(pid, tree);
 	if (ret == -1) {
 		dprintf(D_ALWAYS,
-		        "unregister_family failure: family with root %u not found\n",
+		        "unregister_subfamily failure: family with root %u not found\n",
 		        pid);
 		return false;
 	}
@@ -196,7 +214,7 @@ ProcFamilyMonitor::signal_process(pid_t pid, int sig)
 
 	// look up the Member so we can get at the procInfo struct
 	//
-	ProcFamily::Member* pm;
+	ProcFamilyMember* pm;
 	ret = m_member_table.lookup(pid, pm);
 	if (ret == -1) {
 		dprintf(D_ALWAYS,
@@ -287,7 +305,7 @@ ProcFamilyMonitor::snapshot()
 	// that we've determined to be in families we are monitoring
 	// in previous calls to snapshot(); for each such process we
 	// find:
-	//   - call its ProcFamily::Member's still_alive method, which
+	//   - call its ProcFamilyMember's still_alive method, which
 	//     will mark it as such and update its procInfo
 	//   - remove its procInfo struct from pi_list
 	//
@@ -295,7 +313,7 @@ ProcFamilyMonitor::snapshot()
 	procInfo* curr = pi_list;
 	while (curr != NULL) {
 
-		ProcFamily::Member* pm;
+		ProcFamilyMember* pm;
 		int ret = m_member_table.lookup(curr->pid, pm);
 		if (ret != -1 &&
 		    pm->get_proc_info()->birthday == curr->birthday)
@@ -320,66 +338,26 @@ ProcFamilyMonitor::snapshot()
 
 	// now tell all our ProcFamily objects to get rid of the family members
 	// that are no longer on the system (i.e. those that did not get the
-	// still_alive method of ProcFamily::Member called in the loop above)
+	// still_alive method of ProcFamilyMember called in the loop above)
 	//
 	remove_exited_processes(m_tree);
 
 	// we've now handled all processes that we've determined to be in monitored
 	// families in previous calls to snapshot(). now we have to handle the
 	// rest by determining whether they belong in any of the families we're
-	// monitoring. there are (currently) three ways of determining if a process
-	// belongs in a family
+	// monitoring. for this, we rely on our set of "tracker" objects.
 	//
-	//   1) using our "pidenvid" environment-based matching
-	//   2) using user id-based matching
-	//   3) using the "parent pid"
+	// NOTE: it is important that we use m_parent_tracker last, since its
+	//       results depend on the results of the other trackers (for example,
+	//       a process whose parent is pid 1 (init) that can be found via
+	//       m_environment_tracker might have a direct child that can't since
+	//       it has cleared its environment. if we run m_parent_tracker before
+	//       m_environment_tracker in this case, the child will not be found)
 	//
-	// we'll do this in two passes; the first will use methods 1 and 2, and the
-	// second will use method 3. the reason we do it this way is because adding
-	// any processes using methods 1 or 2 may allow new processes to be added
-	// using method 3; so we might as well make sure we've done all we can with
-	// methods 1 and 2 before trying 3. make sense?
-
-	// for methods 1 and 2, we delegate the work to a recursive helper function
-	//
-	find_family_processes(m_tree, pi_list);
-
-	// for method 3, we iterate adding processes based on ppid until we can no
-	// longer add any
-	//
-	int num_additions = 1;
-	while( num_additions != 0 ) {
-		num_additions = 0;
-		prev_ptr = &pi_list;
-		curr = pi_list;
-		while( curr != NULL ) {
-			ProcFamily::Member* pm;
-			int ret = m_member_table.lookup(curr->ppid, pm);
-			if ((ret != -1) &&
-			    (pm->get_proc_info()->birthday <= curr->birthday))
-			{
-				// whew! found a parent; add it to the correct
-				// family and remove it from our procInfo list
-				//
-				dprintf(D_ALWAYS,
-				        "adding %d to %d based on ppid\n",
-				        curr->pid,
-				        pm->get_proc_family()->get_root_pid());
-			
-				num_additions++;
-				pm->get_proc_family()->add_member(curr);
-				*prev_ptr = curr->next;
-			}
-			else {
-				// parent not in any of our families (yet); keep this
-				// on in pi_list
-				//
-				prev_ptr = &curr->next;
-			}
-
-			curr = curr->next;
-		}
-	}
+	m_pid_tracker.find_processes(pi_list);
+	m_login_tracker.find_processes(pi_list);
+	m_environment_tracker.find_processes(pi_list);
+	m_parent_tracker.find_processes(pi_list);
 
 	// cleanup any families whose "watchers" have exited
 	//
@@ -391,17 +369,25 @@ ProcFamilyMonitor::snapshot()
 }
 
 void
-ProcFamilyMonitor::add_member_to_table(ProcFamily::Member* member)
+ProcFamilyMonitor::add_member(ProcFamilyMember* member)
 {
 	int ret = m_member_table.insert(member->get_proc_info()->pid, member);
 	ASSERT(ret != -1);
 }
 
 void
-ProcFamilyMonitor::remove_member_from_table(ProcFamily::Member* member)
+ProcFamilyMonitor::remove_member(ProcFamilyMember* member)
 {
 	int ret = m_member_table.remove(member->get_proc_info()->pid);
 	ASSERT(ret != -1);
+}
+
+ProcFamilyMember*
+ProcFamilyMonitor::lookup_member(pid_t pid)
+{
+	ProcFamilyMember* pm;
+	int ret = m_member_table.lookup(pid, pm);
+	return (ret != -1) ? pm : NULL;
 }
 
 int
@@ -478,24 +464,6 @@ ProcFamilyMonitor::remove_exited_processes(Tree<ProcFamily*>* tree)
 }
 
 void
-ProcFamilyMonitor::find_family_processes(Tree<ProcFamily*>* tree, procInfo*& pi_list)
-{
-	// recurse on children
-	// (NOTE: it's important that we recurse on children before calling
-	//  find_processes() on the current node, since we want processes to be
-	//  assigned to the _deepest_ matching family)
-	//
-	Tree<ProcFamily*>* child = tree->get_child();
-	while (child != NULL) {
-		find_family_processes(child, pi_list);
-		child = child->get_sibling();
-	}
-
-	// finally, call find_processes on our family
-	tree->get_data()->find_processes(pi_list);
-}
-
-void
 ProcFamilyMonitor::delete_unwatched_families(Tree<ProcFamily*>* tree)
 {
 	// recurse on children
@@ -521,7 +489,7 @@ ProcFamilyMonitor::delete_unwatched_families(Tree<ProcFamily*>* tree)
 				watcher_pid);
 		return;
 	}
-	ProcFamily::Member* member;
+	ProcFamilyMember* member;
 	int ret = m_member_table.lookup(watcher_pid, member);
 	if ((ret != -1) && (member->get_proc_info()->birthday <=
 	                    tree->get_data()->get_root_birthday()))
@@ -559,6 +527,13 @@ ProcFamilyMonitor::unregister_subfamily(Tree<ProcFamily*>* tree)
 		return false;
 	}
 
+	// remove any information that these families might have registered with
+	// our tracker objects
+	//
+	m_pid_tracker.remove_entry(tree->get_data());
+	m_login_tracker.remove_entry(tree->get_data());
+	m_environment_tracker.remove_entry(tree->get_data());
+
 	// get rid of the hash table entry for this family
 	//
 	int ret = m_family_table.remove(tree->get_data()->get_root_pid());
@@ -575,7 +550,7 @@ ProcFamilyMonitor::unregister_subfamily(Tree<ProcFamily*>* tree)
 	tree->remove();
 
 	// clean up the current node now that its relationships
-	// with other ProcFamilys and ProcFamily::Members have
+	// with other ProcFamilys and ProcFamilyMembers have
 	// been removed
 	//
 	delete tree->get_data();

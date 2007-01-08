@@ -21,6 +21,25 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#ifndef _PROC_FAMILY_TRACKER_H
+#define _PROC_FAMILY_TRACKER_H
+
+#include "../condor_procapi/procapi.h"
+
+class ProcFamilyMonitor;
+
+class ProcFamilyTracker {
+
+public:
+
+	ProcFamilyTracker(ProcFamilyMonitor* pfm) { m_monitor = pfm; }
+	
+	virtual void find_processes(procInfo*&);
+
+	virtual bool check_process(procInfo*) = 0;
+
+protected:
+	ProcFamilyMonitor* m_monitor;
+};
+
+#endif

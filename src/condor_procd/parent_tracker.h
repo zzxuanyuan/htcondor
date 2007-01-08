@@ -21,6 +21,22 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#ifndef _PARENT_TRACKER_H
+#define _PARENT_TRACKER_H
+
+#include "proc_family_tracker.h"
+
+class ParentTracker : public ProcFamilyTracker {
+
+public:
+
+	ParentTracker(ProcFamilyMonitor* pfm) : ProcFamilyTracker(pfm) { }
+
+	void find_processes(procInfo*&);
+	bool check_process(procInfo*);
+
+private:
+	bool keep_checking;
+};
+
+#endif

@@ -30,14 +30,10 @@ ProcFamily::ProcFamily(ProcFamilyMonitor* monitor,
                        pid_t              root_pid,
                        birthday_t         root_birthday,
                        pid_t              watcher_pid,
-                       int                max_snapshot_interval,
-                       PidEnvID*          penvid,
-                       char*              login) :
+                       int                max_snapshot_interval) :
 	m_monitor(monitor),
 	m_root_pid(root_pid),
 	m_root_birthday(root_birthday),
-	m_penvid(NULL),
-	m_login(NULL),
 	m_watcher_pid(watcher_pid),
 	m_max_snapshot_interval(max_snapshot_interval),
 	m_exited_user_cpu_time(0),
@@ -45,36 +41,18 @@ ProcFamily::ProcFamily(ProcFamilyMonitor* monitor,
 	m_exited_max_image_size(0),
 	m_member_list(NULL)
 {
-	if (penvid != NULL) {
-		m_penvid = (PidEnvID*)malloc(sizeof(PidEnvID));
-		ASSERT(m_penvid != NULL);
-		pidenvid_copy(m_penvid, penvid);
-	}
-	if (login != NULL) {
-		m_login = strdup(login);
-		ASSERT(m_login != NULL);
-	}
 }
 
 ProcFamily::~ProcFamily()
 {
 	// delete our member list
 	//
-	Member* member = m_member_list;
+	ProcFamilyMember* member = m_member_list;
 	while (member != NULL) {
-		Member* next_member = member->m_next;
+		ProcFamilyMember* next_member = member->m_next;
 		delete member->m_proc_info;
 		delete member;
 		member = next_member;
-	}
-
-	// free up our other stuff
-	//
-	if (m_penvid) {
-		free(m_penvid);
-	}
-	if (m_login) {
-		free(m_login);
 	}
 }
 
@@ -85,7 +63,7 @@ ProcFamily::aggregate_usage(ProcFamilyUsage* usage)
 
 	// factor in usage from processes that are still alive
 	//
-	Member* member = m_member_list;
+	ProcFamilyMember* member = m_member_list;
 	while (member != NULL) {
 
 		// cpu
@@ -121,7 +99,7 @@ ProcFamily::aggregate_usage(ProcFamilyUsage* usage)
 void
 ProcFamily::spree(int sig)
 {
-	Member* member = m_member_list;
+	ProcFamilyMember* member = m_member_list;
 	while (member != NULL) {
 		send_signal(member->m_proc_info, sig);
 		member = member->m_next;
@@ -131,7 +109,7 @@ ProcFamily::spree(int sig)
 void
 ProcFamily::add_member(procInfo* pi)
 {
-	Member* member = new Member;
+	ProcFamilyMember* member = new ProcFamilyMember;
 	member->m_family = this;
 	member->m_proc_info = pi;
 	member->m_still_alive = false;
@@ -146,59 +124,7 @@ ProcFamily::add_member(procInfo* pi)
 	m_member_list = member;
 
 	// keep our monitor's hash table up to date!
-	m_monitor->add_member_to_table(member);
-}
-
-void
-ProcFamily::find_processes(procInfo*& pi_list)
-{
-	// scan through the process list for ones that belong in our family
-	procInfo** prev_ptr = &pi_list;
-	procInfo* curr = pi_list;
-	while (curr != NULL) {
-
-		bool is_in_family = false;
-
-		// is it our "root" pid?
-		if ((curr->pid == m_root_pid) && (curr->birthday == m_root_birthday)) {
-			dprintf(D_ALWAYS,
-			        "adding %d to %d based on root\n",
-			        curr->pid,
-			        m_root_pid);
-			is_in_family = true;
-		}
-
-		// do we have an environment-based match?
-		else if (m_penvid &&
-		         (pidenvid_match(m_penvid,
-		                         &curr->penvid) == PIDENVID_MATCH))
-		{
-			dprintf(D_ALWAYS,
-			        "adding %d to %d based on env\n",
-			        curr->pid,
-			        m_root_pid);
-			is_in_family = true;
-		}
-
-		// do we have a user-based match?
-		else if (m_login && login_match(curr, m_login))
-		{
-			dprintf(D_ALWAYS,
-			        "adding %d to %d based on login\n",
-			        curr->pid,
-			        m_root_pid);
-			is_in_family = true;
-		}
-
-		if (is_in_family) {
-			add_member(curr);
-			*prev_ptr = curr->next;
-		}
-		else {
-			prev_ptr = &curr->next;
-		}
-		curr = curr->next;
-	}
+	m_monitor->add_member(member);
 }
 
 void
@@ -208,12 +134,12 @@ ProcFamily::remove_exited_processes()
 	// processes that are still alive on the system, so all remaining
 	// processes have exited and need to be removed
 	//
-	Member* member = m_member_list;
-	Member* prev = NULL;
-	Member** prev_ptr = &m_member_list;
+	ProcFamilyMember* member = m_member_list;
+	ProcFamilyMember* prev = NULL;
+	ProcFamilyMember** prev_ptr = &m_member_list;
 	while (member != NULL) {
 	
-		Member* next_member = member->m_next;
+		ProcFamilyMember* next_member = member->m_next;
 
 		if (!member->m_still_alive) {
 		
@@ -233,7 +159,7 @@ ProcFamily::remove_exited_processes()
 
 			// keep our monitor's hash table up to date!
 			//
-			m_monitor->remove_member_from_table(member);
+			m_monitor->remove_member(member);
 
 			// remove this member from our list and free up our data
 			// structures
@@ -278,7 +204,7 @@ ProcFamily::give_away_members(ProcFamily* parent)
 	// traverse our list, pointing all members at their
 	// new family
 	//
-	Member* member = m_member_list;
+	ProcFamilyMember* member = m_member_list;
 	while (member->m_next != NULL) {
 		member->m_family = parent;
 		member = member->m_next;
@@ -299,44 +225,6 @@ ProcFamily::give_away_members(ProcFamily* parent)
 	m_member_list = NULL;
 }
 
-void
-ProcFamily::Member::still_alive(procInfo* pi)
-{
-	// update our procInfo
-	//
-	delete m_proc_info;
-	m_proc_info = pi;
-
-	// mark ourselves as still alive so we don't get
-	// deleted when remove_exited_processes is called
-	//
-	m_still_alive = true;
-}
-
-void
-ProcFamily::Member::move_to_subfamily(ProcFamily* subfamily)
-{
-	// first remove ourselves from our current parent's list
-	//
-	if (m_prev) {
-		m_prev->m_next = m_next;
-	}
-	else {
-		m_family->m_member_list = m_next;
-	}
-	if (m_next) {
-		m_next->m_prev = m_prev;
-	}
-
-	// change ourself to the new family
-	m_family = subfamily;
-
-	// ad add ourself to its list (we should be the only one)
-	ASSERT(m_family->m_member_list == NULL);
-	m_prev = m_next = NULL;
-	m_family->m_member_list = this;
-}
-
 #if defined(PROCD_DEBUG)
 
 void
@@ -350,7 +238,7 @@ ProcFamily::output(LocalServer& server)
 
 	server.write_data(&m_root_pid, sizeof(pid_t));
 
-	Member* member = m_member_list;
+	ProcFamilyMember* member = m_member_list;
 	while (member != NULL) {
 		server.write_data(&member->m_proc_info->pid, sizeof(pid_t));
 		member = member->m_next;

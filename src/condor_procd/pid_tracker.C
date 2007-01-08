@@ -21,6 +21,60 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#include "condor_common.h"
+#include "pid_tracker.h"
+#include "proc_family.h"
+#include "procd_common.h"
+
+PIDTracker::~PIDTracker()
+{
+	ListEntry* entry = m_list;
+	while (m_list != NULL) {
+		ListEntry* next = entry->next;
+		delete entry;
+		entry = next;
+	}
+}
+
+void
+PIDTracker::add_entry(ProcFamily* family, pid_t pid, birthday_t birthday)
+{
+	ListEntry* new_entry = new ListEntry;
+	new_entry->family = family;
+	new_entry->pid = pid;
+	new_entry->birthday = birthday;
+	new_entry->next = m_list;
+	m_list = new_entry;
+}
+
+void PIDTracker::remove_entry(ProcFamily* family)
+{
+	ListEntry** prev_ptr = &m_list;
+	ListEntry* curr = m_list;
+	while (curr != NULL) {
+		if (curr->family == family) {
+			*prev_ptr = curr->next;
+			delete curr;
+			return;
+		}
+		prev_ptr = &curr->next;
+		curr = curr->next;
+	}
+}
+
+bool
+PIDTracker::check_process(procInfo* pi)
+{
+	ListEntry* entry = m_list;
+	while (entry != NULL) {
+
+		if ((pi->pid == entry->pid) && (pi->birthday == entry->birthday)) {
+			entry->family->add_member(pi);
+			return true;
+		}
+		
+		entry = entry->next;
+	}
+
+	return false;
+}

@@ -21,6 +21,21 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#include "condor_common.h"
+#include "proc_family_tracker.h"
+
+void
+ProcFamilyTracker::find_processes(procInfo*& pi_list)
+{
+	procInfo** prev_ptr = &pi_list;
+	procInfo* curr = pi_list;
+	while(curr != NULL) {
+		if (check_process(curr)) {
+			*prev_ptr = curr->next;
+		}
+		else {
+			prev_ptr = &curr->next;
+		}
+		curr = curr->next;
+	}
+}

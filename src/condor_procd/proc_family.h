@@ -25,6 +25,7 @@
 #define _PROC_FAMILY_H
 
 #include "../condor_procapi/procapi.h"
+#include "proc_family_member.h"
 #include "proc_family_io.h"
 
 #if defined(PROCD_DEBUG)
@@ -34,6 +35,8 @@
 class ProcFamilyMonitor;
 
 class ProcFamily {
+
+friend class ProcFamilyMember;
 
 public:
 	// create a ProcFamily that's rooted at the process which has
@@ -46,9 +49,7 @@ public:
 	           pid_t              root_pid,
 	           birthday_t         root_birthday,
 	           pid_t              watcher_pid,
-	           int                max_snapshot_interval,
-	           PidEnvID*          penvid = NULL,
-	           char*              login = NULL);
+	           int                max_snapshot_interval);
 
 	// cleanup time!
 	//
@@ -82,12 +83,6 @@ public:
 	//
 	void add_member(procInfo*);
 
-	// search the given list of procInfo structures for processes that
-	// should be in this family based on pidenvid matching or login
-	// (or because they're our "root process"
-	//
-	void find_processes(procInfo*&);
-
 	// deal with processes that are no longer on the system: account for
 	// their resource usage, remove them from our bookkeeping data, and
 	// free up their data structures
@@ -98,34 +93,6 @@ public:
 	// members we have in our list to our parent (passed in)
 	//
 	void give_away_members(ProcFamily*);
-
-	// class for representing family members
-	//
-	class Member {
-		friend class ProcFamily;
-	  public:
-	  	ProcFamily* get_proc_family() { return m_family; }
-
-		procInfo* get_proc_info() { return m_proc_info; }
-
-		// this is called by ProcFamilyMonitor::takesnapshot()
-		// to update the procInfo struct and to indicate that
-		// this process has not yet exited
-		//
-		void still_alive(procInfo*);
-
-		// this is called from ProcFamilyMonitor::register_subfamily
-		// to move a process into the newly-registered subfamily
-		// (of which it will be the "root" process)
-		//
-		void move_to_subfamily(ProcFamily*);
-	  private:
-		ProcFamily* m_family;
-		procInfo*   m_proc_info;
-		Member*     m_prev;
-		Member*     m_next;
-		bool        m_still_alive;
-	};
 
 #if defined(PROCD_DEBUG)
 	// output the PIDs of all processes in this family
@@ -139,15 +106,10 @@ private:
 	//
 	ProcFamilyMonitor* m_monitor;
 
-	// information that will be used for tracking:
-	//   - our "root process" PID and birthdate
-	//   - an optional PidEnvID struct for environment-based tracking
-	//   - an optional login for user-based tracking
+	// information about our "root" process
 	//
 	pid_t      m_root_pid;
 	birthday_t m_root_birthday;
-	PidEnvID*  m_penvid;
-	char*      m_login;
 
 	// the pid of the process that has registered us (should be the parent
 	// of our root process)
@@ -175,7 +137,7 @@ private:
 	// takesnapshot(), any processes still in m_member_list will be
 	// consdered to have exited
 	//
-	Member* m_member_list;
+	ProcFamilyMember* m_member_list;
 };
 
 #endif

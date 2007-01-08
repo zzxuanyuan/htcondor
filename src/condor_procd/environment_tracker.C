@@ -21,6 +21,58 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "proc_family_monitor.h"
-template class HashTable<pid_t, Tree<ProcFamily*>*>;
-template class HashTable<pid_t, ProcFamilyMember*>;
+#include "condor_common.h"
+#include "environment_tracker.h"
+#include "proc_family.h"
+
+EnvironmentTracker::~EnvironmentTracker()
+{
+	ListEntry* entry = m_list;
+	while (m_list != NULL) {
+		ListEntry* next = entry->next;
+		delete entry;
+		entry = next;
+	}
+}
+
+void
+EnvironmentTracker::add_entry(ProcFamily* family, PidEnvID* pidenvid)
+{
+	ListEntry* new_entry = new ListEntry;
+	new_entry->family = family;
+	pidenvid_copy(&new_entry->pidenvid, pidenvid);
+	new_entry->next = m_list;
+	m_list = new_entry;
+}
+
+void EnvironmentTracker::remove_entry(ProcFamily* family)
+{
+	ListEntry** prev_ptr = &m_list;
+	ListEntry* curr = m_list;
+	while (curr != NULL) {
+		if (curr->family == family) {
+			*prev_ptr = curr->next;
+			delete curr;
+			return;
+		}
+		prev_ptr = &curr->next;
+		curr = curr->next;
+	}
+}
+
+bool
+EnvironmentTracker::check_process(procInfo* pi)
+{
+	ListEntry* entry = m_list;
+	while (entry != NULL) {
+
+		if (pidenvid_match(&entry->pidenvid, &pi->penvid) == PIDENVID_MATCH) {
+			entry->family->add_member(pi);
+			return true;
+		}
+		
+		entry = entry->next;
+	}
+
+	return false;
+}
