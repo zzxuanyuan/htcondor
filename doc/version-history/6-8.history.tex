@@ -68,7 +68,7 @@ TCP send buffers for the \Condor{collector}.  This parameter used to
 be the same as COLLECTOR\_SOCKET\_BUFSIZE.  The new parameter is
 COLLECTOR\_TCP\_SOCKET\_BUFSIZE, and defaults to 128K.
 
-\item Added a clipped port for SuSE Enterprise Linux Server 9 running on the 
+\item Added a clipped port for SuSE Linux Enterprise Server 9 running on the 
 PowerPC architecture.  Note the known bug below.
 
 \item The \Condor{schedd} now maintains a birthdate for the job queue. 
@@ -228,8 +228,8 @@ in date (including being dated in the past) or changed in size.
 
 \begin{itemize}
 
-\item SuSE Enterprise Linux Server 9 on PowerPC only: The default Java
-interpreter on SuSE Enterprise Linux Server 9 running on the PowerPC
+\item SuSE Linux Enterprise Server 9 on PowerPC only: The default Java
+interpreter on SuSE Linux Enterprise Server 9 running on the PowerPC
 architecture has compatibility problems with this release of Condor.  The
 problem exhibits itself as the \Condor{startd} hanging, never reporting itself
 to the \Condor{collector}.  The workaround is to either disable the Java
