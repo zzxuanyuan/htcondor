@@ -40,9 +40,10 @@ class ManagedDatabase {
 	char *dbUser;
 	char *dbConnStr;
 	JobQueueDatabase *DBObj;
-	int resourceHistoryDuration;
-	int runHistoryDuration;
-	int jobHistoryDuration;
+	int resourceHistoryDuration; // in number of days
+	int runHistoryDuration; // in number of days
+	int jobHistoryDuration; // in number of days
+	int dbSizeLimit; // in number of gigabytes
 };
 
 #endif

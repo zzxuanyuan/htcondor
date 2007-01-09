@@ -112,6 +112,15 @@ ManagedDatabase::ManagedDatabase() {
 		jobHistoryDuration = 3650;
 	}
 
+	tmp = param("Quill_DBSIZE_LIMIT");	
+	if (tmp) {
+		dbSizeLimit= atoi(tmp);
+		free(tmp);
+	} else {
+			/* default to 20 GB */
+		dbSizeLimit = 20;
+	}
+		
 }
 
 ManagedDatabase::~ManagedDatabase() {
@@ -143,6 +152,8 @@ ManagedDatabase::~ManagedDatabase() {
 void ManagedDatabase::PurgeDatabase() {
 	QuillErrCode ret_st;
 	int len;
+	int dbsize;
+	int num_result;
 
 	ret_st = DBObj->connectDB();
 
@@ -183,16 +194,53 @@ void ManagedDatabase::PurgeDatabase() {
 
 		// release the result structure in case it is created (e.g. pgsql)*/
 	DBObj->releaseQueryResult();
-
-	free(sql_str); 		
 	
 		/* query the space usage and if it is above some threshold, send
 		  a warning to the administrator 
 		*/
 	
+	snprintf(sql_str, len, "SELECT dbsize FROM quillDBMonitor");
+	ret_st = DBObj->execQuery(sql_str, num_result);
+
+	if ((ret_st == SUCCESS) && 
+		(num_result == 1)) {
+		dbsize = atoi(DBObj->getValue(0, 0));		
+		
+			/* if dbsize is bigger than 75% the dbSizeLimit, send a 
+			   warning to the administrator with information about 
+			   the situation and suggestion for looking at the table 
+			   sizes using the following sql statement and tune down
+			   the *HistoryDuration parameters accordingly.
+
+			   This is an oracle version of sql for examining the 
+			   table sizes in descending order, sql for other 
+			   databases can be similarly constructed:
+			   SELECT NUM_ROWS*AVG_ROW_LEN, table_name
+			   FROM USER_TABLES
+			   ORDER BY  NUM_ROWS*AVG_ROW_LEN DESC;
+			*/
+		if (dbsize/1024 > dbSizeLimit) {
+				/* notice that dbsize is stored in unit of MB, but
+				   dbSizeLimit is stored in unit of GB */
+			dprintf(D_ALWAYS, "Current database size (> %d MB) is bigger than 75 percent of the limit (%d GB).", 
+					dbsize, dbSizeLimit);
+
+				// send a warning email to admin 
+				// add this later
+		} 
+
+	} else {
+		dprintf(D_ALWAYS, "Reading quillDBMonitor --- ERROR or returned # of rows is not exactly one [SQL] %s\n", 
+				sql_str);		
+	}
+	
+	free(sql_str); 		
+
+	DBObj->releaseQueryResult();
+
 	ret_st = DBObj->disconnectDB();
 	if (ret_st == FAILURE) {
-		dprintf(D_ALWAYS, "ManagedDatabase::disconnectDB: unable to connect to DB--- ERROR\n");
+		dprintf(D_ALWAYS, "ManagedDatabase::disconnectDB: unable to disconnect --- ERROR\n");
 		return;
 	}		
 }
