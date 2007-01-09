@@ -26,6 +26,7 @@
 #include "dbms_utils.h"
 #include "condor_config.h"
 #include "pgsqldatabase.h"
+#include "condor_email.h"
 
 #undef ATTR_VERSION
 #include "oracledatabase.h"
@@ -220,13 +221,29 @@ void ManagedDatabase::PurgeDatabase() {
 			   ORDER BY  NUM_ROWS*AVG_ROW_LEN DESC;
 			*/
 		if (dbsize/1024 > dbSizeLimit) {
+			FILE *email;
+			char msg_body[4000];
+
+			snprintf(msg_body, 4000, "Current database size (> %d MB) is "
+					 "bigger than 75 percent of the limit (%d GB). Please"
+					 "descrease the values of these parameters: "
+					 "Quill_RESOURCE_HISTORY_DURATION, "
+					 "Quill_RUN_HISTORY_DURATION, "
+					 "Quill_JOB_HISTORY_DURATION\n", 
+					 dbsize, dbSizeLimit);
+
 				/* notice that dbsize is stored in unit of MB, but
 				   dbSizeLimit is stored in unit of GB */
-			dprintf(D_ALWAYS, "Current database size (> %d MB) is bigger than 75 percent of the limit (%d GB).", 
-					dbsize, dbSizeLimit);
+			dprintf(D_ALWAYS, "%s", msg_body);
 
-				// send a warning email to admin 
-				// add this later
+			email = email_admin_open(msg_body);
+			
+			if (email) {
+				email_close ( email );
+			} else {
+				dprintf( D_ALWAYS, "ERROR: Can't send email to the Condor "
+						 "Administrator\n" );
+			}
 		} 
 
 	} else {
