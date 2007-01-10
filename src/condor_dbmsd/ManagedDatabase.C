@@ -86,7 +86,7 @@ ManagedDatabase::ManagedDatabase() {
 		break;
 	}		
 
-	tmp = param("Quill_RESOURCE_HISTORY_DURATION");
+	tmp = param("QUILL_RESOURCE_HISTORY_DURATION");
 	if (tmp) {
 		resourceHistoryDuration= atoi(tmp);
 		free(tmp);
@@ -95,7 +95,7 @@ ManagedDatabase::ManagedDatabase() {
 		resourceHistoryDuration = 7;
 	}
 
-	tmp = param("Quill_RUN_HISTORY_DURATION");
+	tmp = param("QUILL_RUN_HISTORY_DURATION");
 	if (tmp) {
 		runHistoryDuration= atoi(tmp);
 		free(tmp);
@@ -104,7 +104,7 @@ ManagedDatabase::ManagedDatabase() {
 		runHistoryDuration = 7;
 	}
 
-	tmp = param("Quill_JOB_HISTORY_DURATION");	
+	tmp = param("QUILL_JOB_HISTORY_DURATION");	
 	if (tmp) {
 		jobHistoryDuration= atoi(tmp);
 		free(tmp);
@@ -113,7 +113,7 @@ ManagedDatabase::ManagedDatabase() {
 		jobHistoryDuration = 3650;
 	}
 
-	tmp = param("Quill_DBSIZE_LIMIT");	
+	tmp = param("QUILL_DBSIZE_LIMIT");	
 	if (tmp) {
 		dbSizeLimit= atoi(tmp);
 		free(tmp);
@@ -169,7 +169,7 @@ void ManagedDatabase::PurgeDatabase() {
 
 	switch (dt) {				
 	case T_ORACLE:
-		snprintf(sql_str, len, "EXECUTE quill_purgeHistory(%d, %d, %d)", 
+		snprintf(sql_str, len, "begin quill_purgeHistory(%d, %d, %d); end;", 
 				 resourceHistoryDuration,
 				 runHistoryDuration,
 				 jobHistoryDuration);
@@ -193,8 +193,11 @@ void ManagedDatabase::PurgeDatabase() {
 				sql_str);
 	}
 
-		// release the result structure in case it is created (e.g. pgsql)*/
-	DBObj->releaseQueryResult();
+	ret_st = DBObj->commitTransaction();
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "ManagedDatabase::PurgeDatabase --- ERROR [COMMIT] \n");
+	}
+
 	
 		/* query the space usage and if it is above some threshold, send
 		  a warning to the administrator 
@@ -225,11 +228,11 @@ void ManagedDatabase::PurgeDatabase() {
 			char msg_body[4000];
 
 			snprintf(msg_body, 4000, "Current database size (> %d MB) is "
-					 "bigger than 75 percent of the limit (%d GB). Please"
+					 "bigger than 75 percent of the limit (%d GB). Please "
 					 "descrease the values of these parameters: "
-					 "Quill_RESOURCE_HISTORY_DURATION, "
-					 "Quill_RUN_HISTORY_DURATION, "
-					 "Quill_JOB_HISTORY_DURATION\n", 
+					 "QUILL_RESOURCE_HISTORY_DURATION, "
+					 "QUILL_RUN_HISTORY_DURATION, "
+					 "QUILL_JOB_HISTORY_DURATION or QUILL_DBSIZE_LIMIT\n", 
 					 dbsize, dbSizeLimit);
 
 				/* notice that dbsize is stored in unit of MB, but
