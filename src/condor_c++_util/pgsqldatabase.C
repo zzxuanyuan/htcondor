@@ -214,7 +214,8 @@ PGSQLDatabase::execCommand(const char* sql,
 		return FAILURE;
 	}
 	else if ((PQresultStatus(result) != PGRES_COMMAND_OK) &&
-			(PQresultStatus(result) != PGRES_COPY_IN)) {
+			(PQresultStatus(result) != PGRES_COPY_IN) && 
+			(PQresultStatus(result) != PGRES_TUPLES_OK)) {
 		dprintf(D_ALWAYS, 
 			"[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
