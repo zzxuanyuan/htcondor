@@ -115,11 +115,12 @@ JobQueueDBManager::config(bool reconfig)
 	snprintf(jobQueueLogFile,_POSIX_PATH_MAX * sizeof(char), 
 			 "%s/job_queue.log", spool);
 
+		/*
+		  Here we try to read the database parameters in config
+		  the db ip address format is <ipaddress:port> 
+		*/
 	dt = getConfigDBType();
 
-		/*
-		  Here we try to read the <ipaddress:port> stored in condor_config
-		*/
 	jobQueueDBIpAddress = param("QUILL_DB_IP_ADDR");
 
 	jobQueueDBName = param("QUILL_DB_NAME");
@@ -190,7 +191,7 @@ JobQueueDBManager::config(bool reconfig)
 			 * first time being logged to database
 			 */
 		len = 2048 + 2*strlen(scheddname);
-		char *sql_str = (char *) malloc (len * sizeof(len));
+		char *sql_str = (char *) malloc (len * sizeof(char));
 
 		snprintf(sql_str, len, "INSERT INTO jobqueuepollinginfo (scheddname, last_file_mtime, last_file_size) SELECT '%s', 0, 0 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s')", scheddname, scheddname);
 		
@@ -1316,6 +1317,7 @@ JobQueueDBManager::getJQPollingInfo()
 		displayErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
 		free(sql_str);
+		DBObj->releaseQueryResult(); // release Query Result
 		return FAILURE;
 	} 
 

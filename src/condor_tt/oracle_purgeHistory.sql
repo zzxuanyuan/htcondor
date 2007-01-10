@@ -38,7 +38,8 @@ quill_purgeHistory does the following:
 
 --SET SERVEROUTPUT ON;
 
--- dbsize is in unit of bytes
+-- dbsize is in unit of megabytes
+DROP TABLE quillDBMonitor;
 CREATE TABLE quillDBMonitor (
 dbsize    integer
 );
@@ -46,6 +47,7 @@ dbsize    integer
 DELETE FROM quillDBMonitor;
 INSERT INTO quillDBMonitor (dbsize) VALUES (0);
 
+DROP TABLE History_Jobs_To_Purge;
 CREATE GLOBAL TEMPORARY TABLE History_Jobs_To_Purge(
 scheddname   varchar(4000),
 cluster_id   integer, 
@@ -57,7 +59,7 @@ quill_purgeHistory(
 resourceHistoryDuration integer,
 runHistoryDuration integer,
 jobHistoryDuration integer) AS 
-totalUsedBytes NUMBER;
+totalUsedMB NUMBER;
 BEGIN
 
 /* first purge resource history data */
@@ -249,12 +251,14 @@ execute immediate 'analyze table MACHINE_CLASSAD compute statistics';
 execute immediate 'analyze table DAEMON_HORIZONTAL compute statistics';
 execute immediate 'analyze table HISTORY_JOBS_TO_PURGE compute statistics';
 
-SELECT SUM(NUM_ROWS*AVG_ROW_LEN) INTO totalUsedBytes
+SELECT SUM(NUM_ROWS*AVG_ROW_LEN)/(1024*1024) INTO totalUsedMB
 FROM USER_TABLES;
 
-DBMS_OUTPUT.PUT_LINE('totalUsedBytes=' || totalUsedBytes || ' Bytes');
+DBMS_OUTPUT.PUT_LINE('totalUsedMB=' || totalUsedMB || ' MegaBytes');
 
-UPDATE quillDBMonitor SET dbsize = totalUsedBytes;
+UPDATE quillDBMonitor SET dbsize = totalUsedMB;
+
+COMMIT;
 
 END;
 /

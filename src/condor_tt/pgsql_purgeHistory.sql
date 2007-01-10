@@ -39,7 +39,8 @@ quill_purgeHistory does the following:
 
 */
 
--- dbsize is in unit of Bytes
+-- dbsize is in unit of megabytes
+DROP TABLE quillDBMonitor;
 CREATE TABLE quillDBMonitor (
 dbsize    integer
 );
@@ -47,6 +48,7 @@ dbsize    integer
 DELETE FROM quillDBMonitor;
 INSERT INTO quillDBMonitor (dbsize) VALUES (0);
 
+DROP TABLE History_Jobs_To_Purge;
 CREATE TABLE History_Jobs_To_Purge(
 scheddname   varchar(4000),
 cluster_id   integer, 
@@ -59,7 +61,7 @@ resourceHistoryDuration integer,
 runHistoryDuration integer,
 jobHistoryDuration integer) RETURNS void AS $$
 DECLARE
-totalUsedBytes NUMERIC;
+totalUsedMB NUMERIC;
 BEGIN
 
 /* first purge resource history data */
@@ -249,13 +251,13 @@ analyze MACHINE_CLASSAD;
 analyze DAEMON_HORIZONTAL;
 analyze HISTORY_JOBS_TO_PURGE;
 
-SELECT SUM(relpages)*8192 INTO totalUsedBytes
+SELECT SUM(relpages)*8192/(1024*1024) INTO totalUsedMB
 FROM pg_class
 WHERE relname IN ('procads_vertical', 'history_vertical', 'clusterads_vertical', 'procads_horizontal', 'clusterads_horizontal', 'history_horizontal', 'files', 'fileusages', 'schedd_vertical', 'schedd_horizontal', 'runs', 'master_vertical', 'machine', 'machine_classad', 'daemon_vertical', 'daemon_horizontal', 'transfers', 'schedd_vertical_history', 'schedd_horizontal_history', 'rejects', 'negotiator_vertical_history', 'matches', 'master_vertical_history', 'machine_history', 'machine_classad_history', 'events', 'daemon_vertical_history', 'daemon_horizontal_history');
 
-RAISE NOTICE 'totalUsedBytes=% Bytes', totalUsedBytes;
+RAISE NOTICE 'totalUsedMB=% MegaBytes', totalUsedMB;
 
-UPDATE quillDBMonitor SET dbsize = totalUsedBytes;
+UPDATE quillDBMonitor SET dbsize = totalUsedMB;
 
 END;
 $$ LANGUAGE plpgsql;
