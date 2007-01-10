@@ -36,11 +36,16 @@ public:
 	// "address" (which is a FIFO pathname on UNIX and a named pipe name
 	// on Windows)
 	//
-	LocalServer(const char*, uid_t);
+	LocalServer(const char*);
 
 	// clean up
 	//
 	~LocalServer();
+
+	// set the principal that is allows to connect to this server
+	// (on Windows, this will be a SID; on UNIX, as UID)
+	//
+	void set_client_principal(char*);
 
 	// wait up to the specified number of seconds to receive a client
 	// connection, returning true if one is received

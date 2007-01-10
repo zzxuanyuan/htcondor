@@ -28,7 +28,7 @@
 
 int LocalClient::m_next_serial_number = 0;
 
-LocalClient::LocalClient(const char* server_addr, uid_t uid) :
+LocalClient::LocalClient(const char* server_addr) :
 	m_writer(server_addr)
 {
 	// make sure that each time this process instantiates another local
@@ -42,7 +42,7 @@ LocalClient::LocalClient(const char* server_addr, uid_t uid) :
 	char* my_addr = named_pipe_make_addr(server_addr,
 	                                     m_pid,
 	                                     m_serial_number);
-	m_reader = new NamedPipeReader(my_addr, uid);
+	m_reader = new NamedPipeReader(my_addr);
 	ASSERT(m_reader != NULL);
 	delete[] my_addr;
 }

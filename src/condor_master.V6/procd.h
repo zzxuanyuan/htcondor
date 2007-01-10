@@ -82,6 +82,7 @@ private:
 	char m_root_pid[MAX_PID_STR_LEN + 1];
 
 	// string form of the procd's root process's birthday
+	//
 	char m_root_birthday[MAX_BIRTHDAY_STR_LEN + 1];
 
 	// if a procd is running, its PID; otherwise, -1

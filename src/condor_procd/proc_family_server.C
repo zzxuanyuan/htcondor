@@ -26,9 +26,9 @@
 #include "proc_family_monitor.h"
 #include "local_server.h"
 
-ProcFamilyServer::ProcFamilyServer(ProcFamilyMonitor& monitor, const char* addr, uid_t uid) :
+ProcFamilyServer::ProcFamilyServer(ProcFamilyMonitor& monitor, const char* addr) :
 	m_monitor(monitor),
-	m_server(addr, uid)
+	m_server(addr)
 {
 }
 

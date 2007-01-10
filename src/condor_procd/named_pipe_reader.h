@@ -31,12 +31,16 @@ public:
 	// "address" (which is really a node in the
 	// filesystem)
 	//
-	NamedPipeReader(const char*, uid_t);
+	NamedPipeReader(const char*);
 	
 	// clean up open FDs, file system droppings, and
 	// dynamically allocated memory
 	//
 	~NamedPipeReader();
+
+	// change the owner of the named pipe file system node
+	//
+	void change_owner(uid_t);
 
 	// read data off the pipe
 	//

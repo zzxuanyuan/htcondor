@@ -35,7 +35,7 @@ public:
 	// create a new LocalClient that will connect to a LocalServer at
 	// the given named pipe
 	//
-	LocalClient(const char*, uid_t);
+	LocalClient(const char*);
 
 	// clean up
 	//

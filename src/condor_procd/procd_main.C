@@ -32,12 +32,16 @@
 //
 static char* local_server_address = NULL;
 
+// the client prinical who will be allowed to connect to us
+// (if not given, only root/SYSTEM will be allowed access).
+// this string will be a SID on Windows and a UID on UNIX
+//
+static char* local_client_principal = NULL;
+
 // log file (no logging by default)
 // (set with the "-L" option)
 //
 static char* log_file_name = NULL;
-
-static uid_t named_pipe_uid = 0;
 
 // info about the root process of the family we'll be monitoring
 // (set with the two-argument "-P" option)
@@ -104,6 +108,16 @@ parse_command_line(int argc, char* argv[])
 				local_server_address = argv[index];
 				break;
 
+			// local client principal
+			//
+			case 'C':
+				if (index + 1 >= argc) {
+					fail_option_args("-C", 1);
+				}
+				index++;
+				local_client_principal = argv[index];
+				break;
+
 			// log file name
 			//
 			case 'L':
@@ -148,17 +162,6 @@ parse_command_line(int argc, char* argv[])
 				max_snapshot_interval = atoi(argv[index]);
 				break;
 
-			// Let us know what the uid of the named pipe should be
-			// (it should be something the condor user can open).
-			//
-			case 'U':
-				if (index + 1 >= argc) {
-					fail_option_args("-U", 1);
-				}
-				index++;
-				named_pipe_uid = atoi(argv[index]);
-				break;
-
 			// default case
 			//
 			default:
@@ -188,10 +191,6 @@ main(int argc, char* argv[])
 	//
 	fclose(stdin);
 	fclose(stdout);
-
-	// the named pipe will default to be owned by this process if not supplied
-	// on the command line
-	named_pipe_uid = getuid();
 
 	// modify static variables based on the command line
 	//
@@ -224,9 +223,14 @@ main(int argc, char* argv[])
 	//
 	ProcFamilyMonitor monitor(root_pid, root_birthday, max_snapshot_interval);
 
-	// initialize the server for accepting requests from clients
+	// initialize the server for accepting requests from clients. if a local
+	// client principal was given, tell the server to accept connections from
+	// this principal
 	//
-	ProcFamilyServer server(monitor, local_server_address, named_pipe_uid);
+	ProcFamilyServer server(monitor, local_server_address);
+	if (local_client_principal != NULL) {
+		server.set_client_principal(local_client_principal);
+	}
 
 	// now that we've initialized the server, close out standard error.
 	// this way, calling programs can set up a pipe to block on until

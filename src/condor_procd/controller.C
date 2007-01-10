@@ -39,7 +39,7 @@ main(int argc, char* argv[])
 		exit(1);
 	}
 
-	DroneTree drone_tree(argv[1], (argc > 2) ? argv[2] : NULL, getuid());
+	DroneTree drone_tree(argv[1], (argc > 2) ? argv[2] : NULL);
 
 	while (true) {
 

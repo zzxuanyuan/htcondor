@@ -25,7 +25,7 @@
 #include "condor_debug.h"
 #include "named_pipe_reader.h"
 
-NamedPipeReader::NamedPipeReader(const char* addr, uid_t uid)
+NamedPipeReader::NamedPipeReader(const char* addr)
 {
 	ASSERT(addr != NULL);
 	m_addr = strdup(addr);
@@ -44,21 +44,6 @@ NamedPipeReader::NamedPipeReader(const char* addr, uid_t uid)
 	if (mkfifo(addr, 0600) == -1) {
 		EXCEPT("mkfifo of %s error: %s (%d)", addr, strerror(errno), errno);
 	}
-	
-	// chown the pipe to the uid in question (This could mean the pipe is
-	// owned by condor, but the procd is running as root).
-	//
-	dprintf(D_ALWAYS, "NamedPipeReader::NamedPipeReader() Chowning named pipe "
-		"'%s' from uid: %u, euid: %u, gid %u, egid %u to uid: %u\n",
-		addr, getuid(), geteuid(), getgid(), getegid(), uid);
-
-	if (chown(addr, uid, (gid_t)-1) < 0) {
-		EXCEPT("chown of %s error: %s (%d)", addr, strerror(errno), errno);
-	}
-
-	dprintf(D_ALWAYS, "NamedPipeReader::NamedPipeReader() Opening named pipe "
-		"as uid: %u, euid: %u, gid %u, egid %u\n", 
-		getuid(), geteuid(), getgid(), getegid());
 
 	// open (as the current uid) the pipe end that we'll be reading requests 
 	// from (we do this with O_NONBLOCK because otherwise we'd deadlock
@@ -109,6 +94,16 @@ NamedPipeReader::~NamedPipeReader()
 	// and free up our memeory
 	//
 	free(m_addr);
+}
+
+void
+NamedPipeReader::change_owner(uid_t uid)
+{
+	// chown the pipe to the uid in question
+	//
+	if (chown(m_addr, uid, (gid_t)-1) < 0) {
+		EXCEPT("chown of %s error: %s (%d)", m_addr, strerror(errno), errno);
+	}
 }
 
 void

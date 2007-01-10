@@ -34,7 +34,11 @@ public:
 	// construct a new ProcFamilyServer instance with the given monitor
 	// back end and the given pipe "address"
 	//
-	ProcFamilyServer(ProcFamilyMonitor&, const char*, uid_t);
+	ProcFamilyServer(ProcFamilyMonitor&, const char*);
+
+	// set the client principal who will be able to connect to this server
+	//
+	void set_client_principal(char* p) { m_server.set_client_principal(p); }
 
 	// the server wait loop
 	//

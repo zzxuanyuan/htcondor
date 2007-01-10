@@ -26,8 +26,8 @@
 #include "local_server.h"
 #include "named_pipe_util.h"
 
-LocalServer::LocalServer(const char* pipe_addr, uid_t uid) :
-	m_reader(pipe_addr, uid),
+LocalServer::LocalServer(const char* pipe_addr) :
+	m_reader(pipe_addr),
 	m_writer(NULL)
 {
 	m_pipe_addr = strdup(pipe_addr);
@@ -39,7 +39,16 @@ LocalServer::~LocalServer()
 	free(m_pipe_addr);
 }
 
-bool LocalServer::accept_connection(int timeout)
+void
+LocalServer::set_client_principal(char* uid_str)
+{
+	uid_t uid = atoi(uid_str);
+	ASSERT(uid != 0);
+	m_reader.change_owner(uid);
+}
+
+bool
+LocalServer::accept_connection(int timeout)
 {
 	ASSERT(m_writer == NULL);
 

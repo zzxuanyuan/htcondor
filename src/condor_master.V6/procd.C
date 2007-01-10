@@ -46,8 +46,6 @@ ProcD::ProcD() :
 
 	m_debug = param_boolean("PROCD_DEBUG", false);
 
-	// get the maxi
-
 	// gather the information we need about the procd's "root process"
 	// (which is going to be us, the master). we'll go ahead and get this
 	// info into string-form, since we'll be using it in arguments on the
@@ -87,7 +85,6 @@ ProcD::ProcD() :
 		       MAX_BIRTHDAY_STR_LEN);
 	}
 	free(pi);
-	
 }
 
 ProcD::~ProcD()
@@ -171,10 +168,13 @@ ProcD::start()
 		args.AppendArg("-D");
 	}
 
-	// The named pipe communication channels should be owned by the condor uid.
+#if !defined(WIN32)
+	// On UNIX, we need to tell the procd to allow connections from the
+	// condor user
 	//
-	args.AppendArg("-U");
+	args.AppendArg("-C");
 	args.AppendArg(get_condor_uid());
+#endif
 
 	// use Create_Process to start the procd
 	//
@@ -219,7 +219,7 @@ ProcD::stop()
 {
 	// send a quit command to the procd
 	//
-	ProcFamilyClient client(m_address, get_condor_uid());
+	ProcFamilyClient client(m_address);
 	if (!client.quit()) {
 		dprintf(D_ALWAYS, "error sending QUIT command to condor_procd\n");
 	}
@@ -247,3 +247,6 @@ ProcD::reaper(int pid, int status)
 
 	return 0;
 }
+
+const int ProcD::MAX_PID_STR_LEN;
+const int ProcD::MAX_BIRTHDAY_STR_LEN;
