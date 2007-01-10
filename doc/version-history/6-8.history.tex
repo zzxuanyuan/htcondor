@@ -63,6 +63,10 @@ to be unable to open their standard output or standard error if
 \Macro{should\_transfer\_files} was set to YES or IF\_NEEDED in the
 submit description file.
 
+\item Fixed a bug in \Condor{glidein} that could cause it to request the
+queue \Macro{unknown} when submitting its setup job to GRAM, leading to
+failures.
+
 \end{itemize}
 
 
