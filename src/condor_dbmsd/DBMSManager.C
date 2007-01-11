@@ -79,7 +79,7 @@ DBMSManager::InitPublicAd() {
 	//Until then, actual writes to the collector are disabled,
 	//because it conflicts with the schedd on the same host..
 
-	m_public_ad.SetMyTypeName( SCHEDD_ADTYPE );
+	m_public_ad.SetMyTypeName( DBMSD_ADTYPE );
 	m_public_ad.SetTargetTypeName( "" );
 
 	m_public_ad.Assign(ATTR_MACHINE,my_full_hostname());
@@ -159,12 +159,26 @@ DBMSManager::config() {
 
 void
 DBMSManager::TimerHandler_UpdateCollector() {
-	//m_collectors->sendUpdates(UPDATE_SCHEDD_AD, &m_public_ad);
+    ASSERT(m_collectors != NULL);
+	m_collectors->sendUpdates(UPDATE_AD_GENERIC, &m_public_ad, NULL, true);
+	return;
 }
 
 void
 DBMSManager::InvalidatePublicAd() {
-	//m_collectors->sendUpdates(INVALIDATE_SCHEDD_ADS, &m_public_ad);
+	ClassAd query_ad;
+    query_ad.SetMyTypeName(QUERY_ADTYPE);
+    query_ad.SetTargetTypeName(DBMSD_ADTYPE);
+
+    MyString line;
+    line.sprintf("%s = %s == \"%s\"", ATTR_REQUIREMENTS, ATTR_NAME, m_name.GetCStr());
+    query_ad.Insert(line.Value());
+
+    m_collectors->sendUpdates(INVALIDATE_ADS_GENERIC, &query_ad, NULL, true);
+	
+	//TODO/FIXME - delete the ads of the databases we're advertising
+
+	return;
 }
 
 void
