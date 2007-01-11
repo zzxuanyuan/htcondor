@@ -557,3 +557,10 @@ EndTime				TIMESTAMP(3) WITH TIME ZONE
 CREATE TABLE dummy_single_row_table(a varchar(1));
 INSERT INTO dummy_single_row_table VALUES ('x');
 
+CREATE TABLE quill_schema_version (
+major int, 
+minor int, 
+back_to_major int, 
+back_to_minor int);
+
+INSERT INTO quill_schema_version (major, minor, back_to_major, back_to_minor) VALUES (2,0,2,0);

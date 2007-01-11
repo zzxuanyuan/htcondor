@@ -174,6 +174,10 @@ JobQueueDBManager::config(bool reconfig)
 			displayErrorMsg("config: unable to connect to DB--- ERROR");
 			EXCEPT("config: unable to connect to DB\n");
 		}
+
+			/* the following will also throw an exception if the schema 
+			   version is not correct */
+		DBObj->assertSchemaVersion();
 		
 		tmp = param( "SCHEDD_NAME" );
 		if( tmp ) {
