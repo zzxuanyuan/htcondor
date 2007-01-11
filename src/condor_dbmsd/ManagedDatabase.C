@@ -33,6 +33,7 @@
 
 ManagedDatabase::ManagedDatabase() {
 	char *tmp;
+	QuillErrCode ret_st;
 
 	if (param_boolean("QUILL_ENABLED", false) == false) {
 		EXCEPT("Quill++ is currently disabled. Please set QUILL_ENABLED to "
@@ -122,6 +123,18 @@ ManagedDatabase::ManagedDatabase() {
 		dbSizeLimit = 20;
 	}
 		
+		/* check if schema version is ok */
+	ret_st = DBObj->connectDB();
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "config: unable to connect to DB--- ERROR");
+		EXCEPT("config: unable to connect to DB\n");
+	}	
+
+		/* the following will also throw an exception of the schema 
+		   version is not correct */
+	DBObj->assertSchemaVersion();	
+
+	DBObj->disconnectDB();
 }
 
 ManagedDatabase::~ManagedDatabase() {
@@ -197,7 +210,6 @@ void ManagedDatabase::PurgeDatabase() {
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "ManagedDatabase::PurgeDatabase --- ERROR [COMMIT] \n");
 	}
-
 	
 		/* query the space usage and if it is above some threshold, send
 		  a warning to the administrator 
