@@ -26,6 +26,7 @@
 #include "condor_common.h"
 #include "sqlquery.h"
 #include "quill_enums.h"
+#include "condor_debug.h"
 
 extern const int QUILLPP_HistoryHorFieldNum;
 extern const char *QUILLPP_HistoryHorFields[];
@@ -130,7 +131,44 @@ public:
 
 	//! get a DBMS error message
 	virtual char*	getDBError() = 0;
+
+	void assertSchemaVersion() {
+		int len, num_result;
+		char *sql_str;
+		QuillErrCode ret_st;
+
+		if (!connected) {
+			dprintf(D_ALWAYS, "Not connected to database in JobQueueDatabase::assertSchemaVersion\n");
+			return;
+		}
+
+		len = 2048;
+		sql_str = (char *) malloc (len * sizeof(char));
+
+		snprintf(sql_str, len, "SELECT major, minor, back_to_major, back_to_minor FROM quill_schema_version");
+
+		ret_st = this->execQuery(sql_str, num_result);
+
+		if ((ret_st != SUCCESS) || (num_result != 1)) {
+			EXCEPT("schema version not found or incorrect\n");
+		} else {
+			int major, minor, back_to_major, back_to_minor;
+			major = atoi(this->getValue(0,0));
+			minor = atoi(this->getValue(0,1));
+			back_to_major = atoi(this->getValue(0,2));
+			back_to_minor = atoi(this->getValue(0,3));
 		
+			if (!(major == 2 && minor == 0 && back_to_major == 2 && back_to_minor == 0)) {
+				dprintf(D_ALWAYS, "schema version is not correct. Expected major=2, minor=0, back_to_major=2, back_to_minor=2, but found major=%d, minor=%d, back_to_major=%d, back_to_minor=%d\n", major, minor, back_to_major, back_to_minor);
+			
+				this->releaseQueryResult();
+			
+				EXCEPT("schema version not correct\n");
+			}
+		}
+
+		this->releaseQueryResult();		
+	}
 protected:
 	bool	connected; 	//!< connection status
 };
