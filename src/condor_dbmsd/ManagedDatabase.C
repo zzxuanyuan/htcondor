@@ -165,9 +165,9 @@ ManagedDatabase::~ManagedDatabase() {
 
 void ManagedDatabase::PurgeDatabase() {
 	QuillErrCode ret_st;
-	int len;
 	int dbsize;
 	int num_result;
+	MyString sql_str;
 
 	ret_st = DBObj->connectDB();
 
@@ -177,33 +177,29 @@ void ManagedDatabase::PurgeDatabase() {
 		return;
 	}	
 
-	len = 2048;
-	char *sql_str = (char *) malloc (len * sizeof(char));
-
 	switch (dt) {				
 	case T_ORACLE:
-		snprintf(sql_str, len, "begin quill_purgeHistory(%d, %d, %d); end;", 
-				 resourceHistoryDuration,
-				 runHistoryDuration,
-				 jobHistoryDuration);
+		sql_str.sprintf("begin quill_purgeHistory(%d, %d, %d); end;", 
+						resourceHistoryDuration,
+						runHistoryDuration,
+						jobHistoryDuration);
 		break;
 	case T_PGSQL:
-		snprintf(sql_str, len, "select quill_purgeHistory(%d, %d, %d)", 
-				 resourceHistoryDuration,
-				 runHistoryDuration,
-				 jobHistoryDuration);
+		sql_str.sprintf("select quill_purgeHistory(%d, %d, %d)", 
+						resourceHistoryDuration,
+						runHistoryDuration,
+						jobHistoryDuration);
 		break;
 	default:
 			// can't have this case
-		free(sql_str);
 		ASSERT(0);
 		break;
 	}
 
-	ret_st = DBObj->execCommand(sql_str);
+	ret_st = DBObj->execCommand(sql_str.GetCStr());
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "ManagedDatabase::PurgeDatabase --- ERROR [SQL] %s\n", 
-				sql_str);
+				sql_str.GetCStr());
 	}
 
 	ret_st = DBObj->commitTransaction();
@@ -215,8 +211,8 @@ void ManagedDatabase::PurgeDatabase() {
 		  a warning to the administrator 
 		*/
 	
-	snprintf(sql_str, len, "SELECT dbsize FROM quillDBMonitor");
-	ret_st = DBObj->execQuery(sql_str, num_result);
+	sql_str.sprintf("SELECT dbsize FROM quillDBMonitor");
+	ret_st = DBObj->execQuery(sql_str.GetCStr(), num_result);
 
 	if ((ret_st == SUCCESS) && 
 		(num_result == 1)) {
@@ -263,11 +259,9 @@ void ManagedDatabase::PurgeDatabase() {
 
 	} else {
 		dprintf(D_ALWAYS, "Reading quillDBMonitor --- ERROR or returned # of rows is not exactly one [SQL] %s\n", 
-				sql_str);		
+				sql_str.GetCStr());		
 	}
 	
-	free(sql_str); 		
-
 	DBObj->releaseQueryResult();
 
 	ret_st = DBObj->disconnectDB();

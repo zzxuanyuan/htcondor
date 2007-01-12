@@ -95,7 +95,7 @@ void
 JobQueueDBManager::config(bool reconfig) 
 {
 	char *tmp;
-	int len;
+	MyString sql_str;
 
 	if (param_boolean("QUILL_ENABLED", false) == false) {
 		EXCEPT("Quill++ is currently disabled. Please set QUILL_ENABLED to "
@@ -194,25 +194,22 @@ JobQueueDBManager::config(bool reconfig)
 			/* create an entry in jobqueuepollinginfo if this schedd is the 
 			 * first time being logged to database
 			 */
-		len = 2048 + 2*strlen(scheddname);
-		char *sql_str = (char *) malloc (len * sizeof(char));
-
-		snprintf(sql_str, len, "INSERT INTO jobqueuepollinginfo (scheddname, last_file_mtime, last_file_size) SELECT '%s', 0, 0 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s')", scheddname, scheddname);
+		sql_str.sprintf("INSERT INTO jobqueuepollinginfo (scheddname, last_file_mtime, last_file_size) SELECT '%s', 0, 0 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s')", scheddname, scheddname);
 		
-		ret_st = DBObj->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str.GetCStr());
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
-					sql_str);
+					sql_str.GetCStr());
 		}
 	
 			/* create an entry in currency table if this schedd is the first
 			 * time being logged to database 
 			 */
-		snprintf(sql_str, len, "INSERT INTO currency (datasource) SELECT '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM currency WHERE datasource = '%s')", scheddname, scheddname);
+		sql_str.sprintf("INSERT INTO currency (datasource) SELECT '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM currency WHERE datasource = '%s')", scheddname, scheddname);
 
-		ret_st = DBObj->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str.GetCStr());
 		if (ret_st == FAILURE) {
-			dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str);
+			dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str.GetCStr());
 		}
 	
 		
@@ -220,8 +217,6 @@ JobQueueDBManager::config(bool reconfig)
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Commit transaction failed in JobQueueDBManager::config\n");
 		}
-
-		free(sql_str); 		
 	}
 
 		//this function assumes that certain members have been initialized
@@ -323,43 +318,29 @@ QuillErrCode
 JobQueueDBManager::cleanupJobQueueTables()
 {
 	int		sqlNum = 4;
-	int		i, j, len;
-	char   *sql_str[sqlNum];
+	int		i;
+	MyString sql_str[sqlNum];
 	
- 	len = 128 + strlen(scheddname);
-
-	for (i = 0; i < sqlNum; i++) {
-		sql_str[i] = (char *) malloc(len * sizeof(char));
-	}
-
 		// we only delete job queue related information.
-	snprintf(sql_str[0], len,
+	sql_str[0].sprintf(
 			"DELETE FROM clusterads_horizontal WHERE scheddname = '%s'", 
 			 scheddname);
-	snprintf(sql_str[1], len,
+	sql_str[1].sprintf(
 			"DELETE FROM clusterads_vertical WHERE scheddname = '%s'", 
 			 scheddname);
-	snprintf(sql_str[2], len,
+	sql_str[2].sprintf(
 			"DELETE FROM procads_horizontal WHERE scheddname = '%s'", 
 			 scheddname);
-	snprintf(sql_str[3], len,
+	sql_str[3].sprintf(
 			"DELETE FROM procads_vertical WHERE scheddname = '%s'", 
 			 scheddname);
 
 	for (i = 0; i < sqlNum; i++) {
-		if (DBObj->execCommand(sql_str[i]) == FAILURE) {
+		if (DBObj->execCommand(sql_str[i].GetCStr()) == FAILURE) {
 			displayErrorMsg("Clean UP ALL Data --- ERROR");
 			
-			for (j = 0; j < sqlNum; j++) {
-				free(sql_str[i]);
-			}	
-
 			return FAILURE;
 		}
-	}
-
- 	for (i = 0; i < sqlNum; i++) {
-		free(sql_str[i]);
 	}
 
 	return SUCCESS;
@@ -885,10 +866,10 @@ JobQueueDBManager::processNewClassAd(char* key,
 									 char* mytype, 
 									 char* ttype)
 {
-	char *sql_str;
+	MyString sql_str;
 	char  cid[512];
 	char  pid[512];
-	int   job_id_type, len;
+	int   job_id_type;
 
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -896,16 +877,12 @@ JobQueueDBManager::processNewClassAd(char* key,
 
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
-		len = 1024 + strlen(scheddname) + strlen(cid);
-		sql_str = (char *)malloc(len * sizeof(char));
-		snprintf(sql_str, len,
+		sql_str.sprintf(
 				"INSERT INTO ClusterAds_Horizontal (scheddname, cluster_id) VALUES ('%s', '%s')", scheddname, cid);
 
 		break;
 	case IS_PROC_ID:
-		len = 1024 + strlen(scheddname) + strlen(cid) + strlen(pid);
-		sql_str = (char *)malloc(len * sizeof(char));
-		snprintf(sql_str, len,
+		sql_str.sprintf(
 				"INSERT INTO ProcAds_Horizontal (scheddname, cluster_id, proc) VALUES ('%s', '%s', '%s')", scheddname, cid, pid);
 
 		break;
@@ -916,13 +893,11 @@ JobQueueDBManager::processNewClassAd(char* key,
 	}
 
 
-	if (DBObj->execCommand(sql_str) == FAILURE) {
+	if (DBObj->execCommand(sql_str.GetCStr()) == FAILURE) {
 		displayErrorMsg("New ClassAd Processing --- ERROR");
-		free(sql_str);
 		return FAILURE;
 	}
 
-	free(sql_str);
 	return SUCCESS;
 }
 
@@ -955,12 +930,11 @@ JobQueueDBManager::processNewClassAd(char* key,
 QuillErrCode
 JobQueueDBManager::processDestroyClassAd(char* key)
 {
-	char *sql_str1; 
-	char *sql_str2; 
+	MyString sql_str1; 
+	MyString sql_str2; 
 	char cid[100];
 	char pid[100];
-	int  job_id_type, len;
-
+	int  job_id_type;
   
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -968,25 +942,19 @@ JobQueueDBManager::processDestroyClassAd(char* key)
   
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:	// ClusterAds
-		len = 2048+ strlen(scheddname) + strlen(cid);
-		sql_str1 = (char *) malloc(len * sizeof(char));
-		snprintf(sql_str1, len,
+		sql_str1.sprintf(
 				"DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' and cluster_id = %s", scheddname, cid);
     
-		sql_str2 = (char *) malloc(len * sizeof(char));
-		snprintf(sql_str2, len,
+		sql_str2.sprintf(
 				"DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = %s", scheddname, cid);
 		break;
-        case IS_PROC_ID:
+	case IS_PROC_ID:
 			/* generate SQL to remove the job from job tables */
-		len = 2048 + strlen(scheddname) + strlen(cid) + strlen(pid);	
-		sql_str1 = (char *) malloc(len * sizeof(char));
-		snprintf(sql_str1, len,
+		sql_str1.sprintf(
 				"DELETE FROM ProcAds_horizontal WHERE scheddname = '%s' and cluster_id = %s AND proc = %s", 
 				 scheddname, cid, pid);
-    
-		sql_str2 = (char *) malloc(len * sizeof(char));
-		snprintf(sql_str2, len,
+		
+		sql_str2.sprintf(
 				"DELETE FROM ProcAds_vertical WHERE scheddname = '%s' and cluster_id = %s AND proc = %s", 
 				 scheddname, cid, pid);
 		break;
@@ -996,22 +964,16 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		break;
 	}
   
-	if (DBObj->execCommand(sql_str1) == FAILURE) {
+	if (DBObj->execCommand(sql_str1.GetCStr()) == FAILURE) {
 		displayErrorMsg("Destroy ClassAd Processing --- ERROR");
-		free(sql_str1);
-		free(sql_str2);
 		return FAILURE; // return a error code, 0
 	}
 
-	if (DBObj->execCommand(sql_str2) == FAILURE) {
+	if (DBObj->execCommand(sql_str2.GetCStr()) == FAILURE) {
 		displayErrorMsg("Destroy ClassAd Processing --- ERROR");
-		free(sql_str1);
-		free(sql_str2);
 		return FAILURE; // return a error code, 0
 	}
-  
-	free(sql_str1);
-	free(sql_str2);
+
 	return SUCCESS;
 }
 
@@ -1033,11 +995,11 @@ JobQueueDBManager::processSetAttribute(char* key,
 									   char* name, 
 									   char* value)
 {
-	char *sql_str_del_in;
-	char *sql_str2 = NULL;
+	MyString sql_str_del_in;
+	MyString sql_str2 = "";
 	char cid[512];
 	char pid[512];
-	int  job_id_type, len;
+	int  job_id_type;
 	char *tempvalue = NULL;
 		//int		ret_st;
 	char *newvalue = NULL;
@@ -1048,8 +1010,6 @@ JobQueueDBManager::processSetAttribute(char* key,
   
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
-		len = 2048 + 2*(strlen(scheddname) + strlen(cid) + strlen(name)) + strlen(value);
-		sql_str_del_in = (char *) malloc(len * sizeof(char));
 		if(isHorizontalClusterAttribute(name)) {
 			if (strcasecmp(name, "qdate") == 0) {
 				time_t clock;
@@ -1063,7 +1023,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 					return FAILURE;
 				}
 
-				snprintf(sql_str_del_in, len,
+				sql_str_del_in.sprintf(
 						 "UPDATE ClusterAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s'", name, ts_expr, scheddname, cid);
 				
 				free(ts_expr);
@@ -1074,7 +1034,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 				//strip_double_quote(tempvalue);
 				newvalue = fillEscapeCharacters(tempvalue);
 					// escape single quote within the value
-				snprintf(sql_str_del_in, len,
+				sql_str_del_in.sprintf(
 						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s'", name, newvalue, scheddname, cid);
 				free(newvalue);
 
@@ -1084,11 +1044,10 @@ JobQueueDBManager::processSetAttribute(char* key,
 			strcpy(tempvalue, value);
 			//strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
-			snprintf(sql_str_del_in, len,
+			sql_str_del_in.sprintf(
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND attr = '%s'", scheddname, cid, name);
 
-			sql_str2 = (char *) malloc(len * sizeof(char));
-			snprintf(sql_str2, len,
+			sql_str2.sprintf(
 					 "INSERT INTO ClusterAds_Vertical (scheddname, cluster_id, attr, val) VALUES ('%s', '%s', '%s', '%s')", scheddname, cid, name, newvalue);
 
 			free(newvalue);
@@ -1096,25 +1055,21 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 		break;
 	case IS_PROC_ID:
-		len = 2048 + 2*(strlen(scheddname) + strlen(cid) + strlen(pid) + strlen(name)) + strlen(value);
-		sql_str_del_in = (char *) malloc(len * sizeof(char));
 		tempvalue = (char *) malloc(strlen(value) + 1);
 
 		if(isHorizontalProcAttribute(name)) {
 			strcpy(tempvalue, value);
 			//strip_double_quote(tempvalue);
-			snprintf(sql_str_del_in, len,
+			sql_str_del_in.sprintf(
 					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, tempvalue, scheddname, cid, pid);
 		} else {
 			strcpy(tempvalue, value);
 			//strip_double_quote(tempvalue);
 			newvalue = fillEscapeCharacters(tempvalue);
-			snprintf(sql_str_del_in, len,
+			sql_str_del_in.sprintf(
 					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 
-			sql_str2 = (char *) malloc(len * sizeof(char));
-			
-			snprintf(sql_str2, len,
+			sql_str2.sprintf(
 					 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue);	
 
 			free(newvalue);
@@ -1131,44 +1086,27 @@ JobQueueDBManager::processSetAttribute(char* key,
 		
 	QuillErrCode ret_st;
 
-	ret_st = DBObj->execCommand(sql_str_del_in);
+	ret_st = DBObj->execCommand(sql_str_del_in.GetCStr());
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
-				sql_str_del_in);
+				sql_str_del_in.GetCStr());
 		displayErrorMsg("Set Attribute --- ERROR");      
-		if (sql_str_del_in) {
-			free(sql_str_del_in);
-		}
-
-		if (sql_str2) free(sql_str2);
 
 		return FAILURE;
 	}
 
-	if (sql_str2) {
-		ret_st = DBObj->execCommand(sql_str2);
+	if (!sql_str2.IsEmpty()) {
+		ret_st = DBObj->execCommand(sql_str2.GetCStr());
 
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
-					sql_str2);
+					sql_str2.GetCStr());
 			displayErrorMsg("Set Attribute --- ERROR");      
-			if (sql_str_del_in) {
-				free(sql_str_del_in);
-			}
-
-			if (sql_str2) free(sql_str2);
 
 			return FAILURE;
 		}
 	}	
-  
-	if(sql_str_del_in) {	
-		free(sql_str_del_in);
-	}
-
-	if (sql_str2) 
-		free(sql_str2);
 
 	return SUCCESS;
 }
@@ -1185,13 +1123,11 @@ QuillErrCode
 JobQueueDBManager::processDeleteAttribute(char* key, 
 										  char* name)
 {	
-	char *sql_str;
+	MyString sql_str = "";
 	char cid[512];
 	char pid[512];
 	int  job_id_type;
 	QuillErrCode  ret_st;
-	int len;
-
 
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -1199,25 +1135,21 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
-		len = 4096 + strlen(scheddname) + strlen(cid) + strlen(name);
-		sql_str = (char *) malloc(len);
 		if(isHorizontalClusterAttribute(name)) {
-			snprintf(sql_str , len,
+			sql_str.sprintf(
 					 "UPDATE ClusterAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster_id = '%s'", name, scheddname, cid);
 		} else {
-			snprintf(sql_str , len,
+			sql_str.sprintf(
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND attr = '%s'", scheddname, cid, name);			
 		}
 
 		break;
 	case IS_PROC_ID:
-		len = 4096 + strlen(scheddname) + strlen(cid) + strlen(pid) + strlen(name);
-		sql_str = (char *) malloc(len);
 		if(isHorizontalProcAttribute(name)) {
-			snprintf(sql_str, len,
+			sql_str.sprintf(
 					 "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s'", name, scheddname, cid, pid);
 		} else {
-			snprintf(sql_str, len,
+			sql_str.sprintf(
 					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 			
 		}
@@ -1229,23 +1161,18 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 		break;
 	}
 
-	if (sql_str != NULL ) {
-		ret_st = DBObj->execCommand(sql_str);
+	if (!sql_str.IsEmpty()) {
+		ret_st = DBObj->execCommand(sql_str.GetCStr());
 		
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n",
-					sql_str);
+					sql_str.GetCStr());
 			displayErrorMsg("Delete Attribute --- ERROR");
-			if (sql_str) {
-				free(sql_str);
-			}
+
 			return FAILURE;
 		}
 	}
 
-	if (sql_str) {
-		free(sql_str);
-	}
 	return SUCCESS;
 }
 
@@ -1293,26 +1220,22 @@ JobQueueDBManager::getJQPollingInfo()
 	long mtime;
 	long size;
 	ClassAdLogEntry* lcmd;
-	char 	*sql_str;
-	int	ret_st, len;
+	MyString sql_str;
+	int	ret_st;
 	int num_result;
 
 	lcmd = caLogParser->getCurCALogEntry();
 
 	dprintf(D_FULLDEBUG, "Get JobQueue Polling Information\n");
 
-	len = 1024 + strlen(scheddname);
-	sql_str = (char *) malloc (len);
+	sql_str.sprintf("SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s'", scheddname);
 
-	snprintf(sql_str, len, "SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s'", scheddname);
-
-	ret_st = DBObj->execQuery(sql_str, num_result);
+	ret_st = DBObj->execQuery(sql_str.GetCStr(), num_result);
 		
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Reading JobQueuePollInfo --- ERROR [SQL] %s\n", 
-				sql_str);
+				sql_str.GetCStr());
 		displayErrorMsg("Reading JobQueuePollInfo --- ERROR");
-		free(sql_str);
 		return FAILURE;
 	}
 	else if (ret_st == SUCCESS && num_result == 0) {
@@ -1320,7 +1243,6 @@ JobQueueDBManager::getJQPollingInfo()
 			// table contains one tuple at all times 		
 		displayErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
-		free(sql_str);
 		DBObj->releaseQueryResult(); // release Query Result
 		return FAILURE;
 	} 
@@ -1365,8 +1287,6 @@ JobQueueDBManager::getJQPollingInfo()
 	
 	DBObj->releaseQueryResult(); // release Query Result
 										  // since it is no longer needed
-	free(sql_str);
-
 	return SUCCESS;	
 }
 
