@@ -192,6 +192,7 @@ extern const char * ATTR_JOB_ACTION;
 extern const char * ATTR_JOB_ARGUMENTS1;
 extern const char * ATTR_JOB_ARGUMENTS2;
 extern const char * ATTR_JOB_CMD;
+extern const char * ATTR_ORIG_JOB_CMD;
 extern const char * ATTR_JOB_CMDEXT;
 extern const char * ATTR_JOB_CORE_DUMPED;
 extern const char * ATTR_JOB_CORE_FILENAME;
@@ -215,6 +216,7 @@ extern const char * ATTR_JOB_INPUT;
 extern const char * ATTR_JOB_IWD;
 extern const char * ATTR_JOB_JAVA_VM_ARGS1;
 extern const char * ATTR_JOB_JAVA_VM_ARGS2;
+extern const char * ATTR_ORIG_JOB_IWD;
 extern const char * ATTR_JOB_REMOTE_IWD;
 extern const char * ATTR_JOB_RUNAS_OWNER;
 extern const char * ATTR_JOB_LOCAL_CPU;
@@ -578,6 +580,8 @@ extern const char * MANAGED_EXTERNAL;
 extern const char * MANAGED_SCHEDD;
 	// Schedd should manage as normal.  External process doesn't want back.
 extern const char * MANAGED_DONE;
+
+extern const char * ATTR_PREV_LAST_HEARD_FROM;
 
 
 

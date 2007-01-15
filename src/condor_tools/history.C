@@ -117,6 +117,8 @@ main(int argc, char* argv[])
   parameters = (void **) malloc(NUM_PARAMETERS * sizeof(void *));
   myDistro->Init( argc, argv );
 
+  config();
+
 #if WANT_QUILL
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
   queryver.setQuery(HISTORY_ALL_VER, NULL);
@@ -247,6 +249,11 @@ main(int argc, char* argv[])
 		queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
 #endif /* WANT_QUILL */
     }
+    else if (strcmp(argv[i],"-debug")==0) {
+          // dprintf to console
+          Termlog = 1;
+          dprintf_config ("TOOL", 2 );
+    }
     else {
 		if (constraint) break;
 		owner = (char *) malloc(512 * sizeof(char));
@@ -262,7 +269,6 @@ main(int argc, char* argv[])
   }
   if (i<argc) Usage(argv[0]);
   
-  config();
   
   if( constraint && Parse( constraint, constraintExpr ) ) {
 	  fprintf( stderr, "Error:  could not parse constraint %s\n", constraint );
@@ -462,11 +468,11 @@ static char * getDBConnStr(char *&quillName,
 	  //here we break up the ipaddress:port string and assign the  
 	  //individual parts to separate string variables host and port
   ptr_colon = strchr(databaseIp, ':');
-  strcpy(host, "host= ");
+  strcpy(host, "host=");
   strncat(host,
           databaseIp+1,
           ptr_colon - databaseIp-1);
-  strcpy(port, "port= ");
+  strcpy(port, "port=");
   strcat(port, ptr_colon+1);
   port[strlen(port)-1] = '\0';
   

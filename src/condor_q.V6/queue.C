@@ -638,6 +638,7 @@ int main (int argc, char **argv)
 
 			/* If the quill information is available, try to use it first */
 			useDB = TRUE;
+			Q.addSchedd(scheddName);
 
 				/* get the quill info for fail-over processing */
 			ASSERT(ad->LookupString(ATTR_MACHINE, &quillMachine));
@@ -962,6 +963,7 @@ processCommandLineArguments (int argc, char *argv[])
 			}
 			sprintf (constraint, "%s == \"%s\"", ATTR_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
+			Q.addSchedd(daemonname);
 
 			sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
@@ -3008,11 +3010,11 @@ static char * getDBConnStr(char *&quillName,
 		//here we break up the ipaddress:port string and assign the
 		//individual parts to separate string variables host and port
 	ptr_colon = strchr(databaseIp, ':');
-	strcpy(host, "host= ");
+	strcpy(host, "host=");
 	strncat(host,
 			databaseIp+1,
 			ptr_colon - databaseIp -1);
-	strcpy(port, "port= ");
+	strcpy(port, "port=");
 	strcat(port, ptr_colon+1);
 	port[strlen(port)-1] = '\0';
 

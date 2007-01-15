@@ -77,6 +77,8 @@
 
 #include "list.h"
 
+#include "file_sql.h"
+
 static int hashFunction( const MyString&, int );
 HashTable<AttrKey,MyString> forcedAttributes( 64, AttrKeyHashFunction );
 HashTable<MyString,int> CheckFilesRead( 577, hashFunction ); 

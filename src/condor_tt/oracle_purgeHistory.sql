@@ -1,0 +1,264 @@
+/*
+quill_purgeHistory for Oracle database.
+
+quill_purgeHistory does the following:
+1. purge resource history data (e.g. machine history) that are older than 
+   resourceHistoryDuration days
+
+2. purge job run history data (e.g. runs, matchs, ...) that are older than 
+   runHistoryDuration days
+
+3. purge job history data that are older than 
+   jobHistoryDuration days
+
+4. Compute the total space used by the quill database
+
+-- resource history data: no need to keep them for long
+--   machine_history, machine_classad_history, 
+--   daemon_horizontal_history, daemon_vertical_history, 
+--   schedd_horizontal_history, schedd_vertical_history
+--   master_vertical_history, negotiator_vertical_history
+
+-- job run history data: purge when they are very old
+--   transfers, fileusages, files, runs, events, rejects, matches
+
+-- important job history data should be kept as long as possible
+--   history_vertical, history_horizontal, thrown (log thrown events)
+
+-- never purge current "operational data": 
+--   machine, machine_classad, clusterads_horizontal, procads_horizontal, 
+--   clusterads_vertical, procads_vertical, thrown, daemon_horizontal
+--   daemon_vertical, schedd_horizontal, schedd_vertical, master_vertical
+--   negotiator_vertical
+
+-- resourceHistoryDuration, runHistoryDuration, jobHistoryDuration 
+-- parameters are all in number of days
+
+*/
+
+--SET SERVEROUTPUT ON;
+
+-- dbsize is in unit of megabytes
+DROP TABLE quillDBMonitor;
+CREATE TABLE quillDBMonitor (
+dbsize    integer
+);
+
+DELETE FROM quillDBMonitor;
+INSERT INTO quillDBMonitor (dbsize) VALUES (0);
+
+DROP TABLE History_Jobs_To_Purge;
+CREATE GLOBAL TEMPORARY TABLE History_Jobs_To_Purge(
+scheddname   varchar(4000),
+cluster_id   integer, 
+proc         integer,
+globaljobid  varchar(4000)) ON COMMIT DELETE ROWS;
+
+CREATE OR REPLACE PROCEDURE 
+quill_purgeHistory(
+resourceHistoryDuration integer,
+runHistoryDuration integer,
+jobHistoryDuration integer) AS 
+totalUsedMB NUMBER;
+BEGIN
+
+/* first purge resource history data */
+
+-- purge machine vertical attributes older than resourceHistoryDuration days
+DELETE FROM machine_history
+WHERE start_time < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge machine classads older than resourceHistoryDuration days
+DELETE FROM machine_classad_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge daemon vertical attributes older than certain days
+DELETE FROM daemon_vertical_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge daemon classads older than certain days
+DELETE FROM daemon_horizontal_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge schedd vertical attributes older than certain days
+DELETE FROM schedd_vertical_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge schedd classads older than certain days
+DELETE FROM schedd_horizontal_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge master vertical attributes older than certain days
+DELETE FROM master_vertical_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+-- purge negotiator vertical attributes older than certain days
+DELETE FROM negotiator_vertical_history
+WHERE lastheardfrom < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+COMMIT;
+
+/* second purge job run history data */
+
+-- find the set of jobs for which the run history are going to be purged
+INSERT INTO History_Jobs_To_Purge 
+SELECT scheddname, cluster_id, proc, globaljobid
+FROM History_Horizontal
+WHERE enteredhistorytable < 
+      (current_timestamp - 
+       to_dsinterval(runHistoryDuration || ' 00:00:00'));
+
+-- purge transfers data related to jobs older than certain days
+DELETE FROM transfers 
+WHERE globaljobid IN (SELECT globaljobid 
+                      FROM History_Jobs_To_Purge);
+
+-- purge fileusages related to jobs older than certain days
+DELETE FROM fileusages
+WHERE globaljobid IN (SELECT globaljobid 
+                      FROM History_Jobs_To_Purge);
+
+-- purge files that are not referenced any more
+DELETE FROM files 
+WHERE NOT EXISTS (SELECT *
+                  FROM fileusages 
+                  WHERE fileusages.file_id = files.file_id);
+
+-- purge run data for jobs older than certain days
+DELETE FROM Runs R
+WHERE exists (SELECT * 
+              FROM History_Jobs_To_Purge H
+              WHERE H.scheddname = R.scheddname AND
+                    H.cluster_id = R.cluster_id AND
+                    H.proc = R.proc);
+
+-- purge rejects data for jobs older than certain days
+DELETE FROM Rejects R
+WHERE exists (SELECT * 
+              FROM History_Jobs_To_Purge H
+              WHERE H.scheddname = R.scheddname AND
+                    H.cluster_id = R.cluster_id AND
+                    H.proc = R.proc);
+
+-- purge matches data for jobs older than certain days
+DELETE FROM matches M
+WHERE exists (SELECT * 
+              FROM History_Jobs_To_Purge H
+              WHERE H.scheddname = M.scheddname AND
+                    H.cluster_id = M.cluster_id AND
+                    H.proc = M.proc);
+
+-- purge events data for jobs older than certain days
+DELETE FROM events E
+WHERE exists (SELECT * 
+              FROM History_Jobs_To_Purge H
+              WHERE H.scheddname = E.scheddname AND
+                    H.cluster_id = E.cluster_id AND
+                    H.proc = E.proc);
+
+COMMIT; -- commit will truncate the temporary table History_Jobs_To_Purge
+
+/* third purge job history data */
+
+-- find the set of jobs for which history data are to be purged
+INSERT INTO History_Jobs_To_Purge 
+SELECT scheddname, cluster_id, proc, globaljobid
+FROM History_Horizontal
+WHERE enteredhistorytable < 
+      (current_timestamp - 
+       to_dsinterval(jobHistoryDuration || ' 00:00:00'));
+
+-- purge vertical attributes for jobs older than certain days
+DELETE FROM History_Vertical V
+WHERE exists (SELECT * 
+              FROM History_Jobs_To_Purge H
+              WHERE H.scheddname = V.scheddname AND
+                    H.cluster_id = V.cluster_id AND
+                    H.proc = V.proc);
+
+-- purge classads for jobs older than certain days
+DELETE FROM History_Horizontal H
+WHERE H.globaljobid IN (SELECT globaljobid 
+                        FROM History_Jobs_To_Purge);
+
+
+-- purge log thrown events older than jobHistoryDuration
+-- The thrown table doesn't fall precisely into any of the categories 
+-- but we don't want the table to grow unbounded either.
+DELETE FROM thrown T
+WHERE T.throwTime < 
+     (current_timestamp - 
+      to_dsinterval(jobHistoryDuration || ' 00:00:00'));
+
+COMMIT;
+
+/* lastly check if db size is above 75 percentage of specified limit */
+-- one caveat: index size is not counted in the usage calculation
+-- analyze tables first to have correct statistics 
+
+execute immediate 'analyze table RUNS  compute statistics';
+execute immediate 'analyze table REJECTS compute statistics';
+execute immediate 'analyze table MATCHES compute statistics';
+execute immediate 'analyze table L_JOBSTATUS compute statistics';
+execute immediate 'analyze table THROWN compute statistics';
+execute immediate 'analyze table EVENTS compute statistics';
+execute immediate 'analyze table L_EVENTTYPE compute statistics';
+execute immediate 'analyze table GENERIC compute statistics';
+execute immediate 'analyze table JOBQUEUEPOLLINGINFO compute statistics';
+execute immediate 'analyze table CURRENCY compute statistics';
+execute immediate 'analyze table DAEMON_VERTICAL compute statistics';
+execute immediate 'analyze table DAEMON_HORIZONTAL_HISTORY compute statistics';
+execute immediate 'analyze table DAEMON_VERTICAL_HISTORY compute statistics';
+execute immediate 'analyze table SCHEDD_HORIZONTAL compute statistics';
+execute immediate 'analyze table SCHEDD_HORIZONTAL_HISTORY compute statistics';
+execute immediate 'analyze table SCHEDD_VERTICAL compute statistics';
+execute immediate 'analyze table SCHEDD_VERTICAL_HISTORY compute statistics';
+execute immediate 'analyze table MASTER_VERTICAL compute statistics';
+execute immediate 'analyze table MASTER_VERTICAL_HISTORY compute statistics';
+execute immediate 'analyze table NEGOTIATOR_VERTICAL compute statistics';
+execute immediate 'analyze table NEGOTIATOR_VERTICAL_HISTORY compute statistics';
+execute immediate 'analyze table DUMMY_SINGLE_ROW_TABLE compute statistics';
+execute immediate 'analyze table CDB_USERS compute statistics';
+execute immediate 'analyze table TRANSFERS compute statistics';
+execute immediate 'analyze table FILES compute statistics';
+execute immediate 'analyze table FILEUSAGES compute statistics';
+execute immediate 'analyze table MACHINE compute statistics';
+execute immediate 'analyze table MACHINE_HISTORY compute statistics';
+execute immediate 'analyze table MACHINE_CLASSAD_HISTORY compute statistics';
+execute immediate 'analyze table CLUSTERADS_HORIZONTAL compute statistics';
+execute immediate 'analyze table PROCADS_HORIZONTAL compute statistics';
+execute immediate 'analyze table CLUSTERADS_VERTICAL compute statistics';
+execute immediate 'analyze table PROCADS_VERTICAL compute statistics';
+execute immediate 'analyze table HISTORY_VERTICAL compute statistics';
+execute immediate 'analyze table HISTORY_HORIZONTAL compute statistics';
+execute immediate 'analyze table MACHINE_CLASSAD compute statistics';
+execute immediate 'analyze table DAEMON_HORIZONTAL compute statistics';
+execute immediate 'analyze table HISTORY_JOBS_TO_PURGE compute statistics';
+
+SELECT SUM(NUM_ROWS*AVG_ROW_LEN)/(1024*1024) INTO totalUsedMB
+FROM USER_TABLES;
+
+DBMS_OUTPUT.PUT_LINE('totalUsedMB=' || totalUsedMB || ' MegaBytes');
+
+UPDATE quillDBMonitor SET dbsize = totalUsedMB;
+
+COMMIT;
+
+END;
+/

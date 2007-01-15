@@ -25,19 +25,24 @@
 #include "condor_io.h"
 #include "pgsqldatabase.h"
 
-//! constructor
-PGSQLDatabase::PGSQLDatabase()
-{
-  connected = false;
-  con_str = NULL;
-  procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
-}
+const int QUILLPP_HistoryHorFieldNum = 64;
+const char *QUILLPP_HistoryHorFields[] ={"ScheddName", "ClusterId", "ProcId", "QDate", "Owner", "GlobalJobId", "NumCkpts", "NumRestarts", "NumSystemHolds", "CondorVersion", "CondorPlatform", "RootDir", "Iwd", "JobUniverse", "Cmd", "MinHosts", "MaxHosts", "JobPrio", "User", "Env", "UserLog", "CoreSize", "KillSig", "Rank", "In", "TransferIn", "Out", "TransferOut", "Err", "TransferErr", "ShouldTransferFiles", "TransferFiles", "ExecutableSize", "DiskUsage", "Requirements", "FileSystemDomain", "Args", "LastMatchTime", "NumJobMatches", "JobStartDate", "JobCurrentStartDate", "JobRunCount", "FileReadCount", "FileReadBytes", "FileWriteCount", "FileWriteBytes", "FileSeekCount", "TotalSuspensions", "ImageSize", "ExitStatus", "LocalUserCpu", "LocalSysCpu", "RemoteUserCpu", "RemoteSysCpu", "BytesSent", "BytesRecvd", "RSCBytesSent", "RSCBytesRecvd", "ExitCode", "JobStatus", "EnteredCurrentStatus", "RemoteWallClockTime", "LastRemoteHost", "CompletionDate", 0};
+
+/* NOTE - we project out a few column names, so this only has the results
+   AFTER the select  - ie the "schedd name" field from the database is not
+   listed here */
+
+const int proc_field_num = 10;
+const char *proc_field_names [] = { "Cluster", "Proc", "JobStatus", "ImageSize", "RemoteUserCpu", "RemoteWallClockTime", "RemoteHost", "GlobalJobId", "JobPrio", "Args" };
+
+const int cluster_field_num = 10;
+const char *cluster_field_names [] = { "Cluster", "Owner", "JobStatus", "JobPrio", "ImageSize", "QDate", "RemoteUserCpu", "RemoteWallClockTime", "Cmd", "Args" };
 
 //! constructor
 PGSQLDatabase::PGSQLDatabase(const char* connect)
 {
 	connected = false;
-	procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
+	queryRes = NULL;  
 
 	if (connect != NULL) {
 		con_str = (char*)malloc(strlen(connect) + 1);
@@ -46,12 +51,15 @@ PGSQLDatabase::PGSQLDatabase(const char* connect)
 	else {
 		con_str = NULL;
 	}
+
+	procAdsHorRes = procAdsVerRes = clusterAdsHorRes = clusterAdsVerRes = 
+		historyHorRes = historyVerRes = NULL;
 }
 
 //! destructor
 PGSQLDatabase::~PGSQLDatabase()
 {
-	procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
+	queryRes = NULL;  
 	if ((connected == true) && (connection != NULL)) {
 		PQfinish(connection);
 		connected = false;
@@ -61,23 +69,19 @@ PGSQLDatabase::~PGSQLDatabase()
 	if (con_str != NULL) {
 		free(con_str);
 	}
-	
-}
 
-//! connect to DB
-QuillErrCode
-PGSQLDatabase::connectDB()
-{
-	return connectDB(con_str);
+	procAdsHorRes = procAdsVerRes = clusterAdsHorRes = clusterAdsVerRes = 
+		historyHorRes = historyVerRes = NULL;  
+	
 }
 
 //! connect to DB
 /*! \param connect DB connect string
  */
 QuillErrCode
-PGSQLDatabase::connectDB(const char* connect)
+PGSQLDatabase::connectDB()
 {
-	if ((connection = PQconnectdb(connect)) == NULL)
+	if ((connection = PQconnectdb(con_str)) == NULL)
 	{
 		dprintf(D_ALWAYS, "Fatal error - unable to allocate connection to DB\n");
 		return FAILURE;
@@ -85,10 +89,13 @@ PGSQLDatabase::connectDB(const char* connect)
 	
 	if (PQstatus(connection) != CONNECTION_OK)
 		{
-			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", PQdb(connection));
+			char *dbname;
+			dbname = PQdb(connection);
+
+			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", dbname);
 		  	dprintf(D_ALWAYS, "%s", PQerrorMessage(connection));
 			
-			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", PQdb(connection));
+			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", dbname);
 			PQfinish(connection);
 			connection = NULL;
 			return FAILURE;
@@ -97,28 +104,6 @@ PGSQLDatabase::connectDB(const char* connect)
 	connected = true;
 	
 	return SUCCESS;
-}
-
-//! get a DBMS error message
-char*
-PGSQLDatabase::getDBError()
-{
-	return PQerrorMessage(connection);
-}
-
-//! get the server version number, 
-//! -1 if connection is invalid
-int 
-PGSQLDatabase::getDatabaseVersion() 
-{
-	int pg_version_number = 0;   
-	pg_version_number = PQserverVersion(connection);
-	if(pg_version_number > 0) {
-		return pg_version_number;
-	}
-	else {
-		return -1;
-	}
 }
 
 //@ disconnect from DBMS
@@ -213,11 +198,11 @@ PGSQLDatabase::rollbackTransaction()
  */
 QuillErrCode 
 PGSQLDatabase::execCommand(const char* sql, 
-						   int &num_result,
-						   int &db_err_code)
+						   int &num_result)
 {
 	PGresult 	*result;
 	char*		num_result_str = NULL;
+	int         db_err_code;
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
@@ -229,7 +214,8 @@ PGSQLDatabase::execCommand(const char* sql,
 		return FAILURE;
 	}
 	else if ((PQresultStatus(result) != PGRES_COMMAND_OK) &&
-			(PQresultStatus(result) != PGRES_COPY_IN)) {
+			(PQresultStatus(result) != PGRES_COPY_IN) && 
+			(PQresultStatus(result) != PGRES_TUPLES_OK)) {
 		dprintf(D_ALWAYS, 
 			"[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
@@ -258,8 +244,8 @@ PGSQLDatabase::execCommand(const char* sql,
 QuillErrCode 
 PGSQLDatabase::execCommand(const char* sql) 
 {
-	int num_result = 0, db_err_code = 0;
-	return execCommand(sql, num_result, db_err_code);
+	int num_result = 0;
+	return execCommand(sql, num_result);
 }
 
 
@@ -272,7 +258,7 @@ PGSQLDatabase::execCommand(const char* sql)
  */
 QuillErrCode
 PGSQLDatabase::execQuery(const char* sql, 
-						 PGresult*& result, 
+						 PGresult *&result,
 						 int &num_result)
 {
 	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
@@ -302,41 +288,43 @@ PGSQLDatabase::execQuery(const char* sql,
 	return SUCCESS;
 }
 
-QuillErrCode
-PGSQLDatabase::execQuery(const char* sql, 
-						 PGresult*& result) {
-	int num_result = 0;
-	return execQuery(sql, queryRes, num_result);
-}
 
 //! execute a SQL query
 QuillErrCode
 PGSQLDatabase::execQuery(const char* sql, int &num_result) 
 {
-	return execQuery(sql, queryRes, num_result);
+        return execQuery(sql, queryRes, num_result);
 }
 
-//! execute a SQL query
+
+/*! execute a SQL query
+ *
+ *	NOTE:
+ *		queryRes shouldn't be PQcleared
+ *		when the query is correctly executed.
+ *		It is PQcleared in case of error.
+ */
 QuillErrCode
-PGSQLDatabase::execQuery(const char* sql) 
+PGSQLDatabase::execQuery(const char* sql)
 {
 	int num_result = 0;
 	return execQuery(sql, queryRes, num_result);
 }
 
-//! get the field name at given column index
-const char *
-PGSQLDatabase::getHistoryHorFieldName(int col) 
+//! execute a SQL query
+/*
+QuillErrCode
+PGSQLDatabase::fetchNext() 
 {
-  return PQfname(historyHorRes, col);
+	if (row_idx < num_result) {
+		row_idx++;
+		return SUCCESS;
+	}
+	else {
+		return FAILURE;
+	}
 }
-
-//! get number of fields returned in result
-const int 
-PGSQLDatabase::getHistoryHorNumFields() 
-{
-  return PQnfields(historyHorRes);
-}
+*/
 
 //! get a result for the executed query
 const char*
@@ -344,6 +332,20 @@ PGSQLDatabase::getValue(int row, int col)
 {
 	return PQgetvalue(queryRes, row, col);
 }
+
+//! get a result for the executed query as an integer
+/*
+int
+PGSQLDatabase::getIntValue(int col)
+{
+	if (row_idx > num_result) {
+		dprintf(D_ALWAYS, "FATAL ERROR: no more rows to fetch\n");
+		return 0; 
+	} else {
+		return atoi(PQgetvalue(queryRes, row_idx-1, col));
+	}
+}
+*/
 
 //! release the generic query result object
 QuillErrCode
@@ -356,6 +358,91 @@ PGSQLDatabase::releaseQueryResult()
 	queryRes = NULL;
 
 	return SUCCESS;
+}
+
+//! check if the connection is ok
+QuillErrCode
+PGSQLDatabase::checkConnection()
+{
+	if (PQstatus(connection) == CONNECTION_OK) {
+		dprintf(D_FULLDEBUG, "DB Connection Ok\n");
+		return SUCCESS;
+	}
+	else {
+		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
+		return FAILURE;
+	}
+}
+
+//! check if the connection is ok
+QuillErrCode
+PGSQLDatabase::resetConnection()
+{
+	PQreset(connection);
+
+	if (PQstatus(connection) == CONNECTION_OK) {
+		dprintf(D_FULLDEBUG, "DB Connection Ok\n");
+		return SUCCESS;
+	}
+	else {
+		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
+		return FAILURE;
+	}
+}
+
+//! get the field name at given column index from the cluster ads
+const char *
+PGSQLDatabase::getJobQueueClusterHorFieldName(int col) 
+{
+	return cluster_field_names[col];
+
+		/* we don't use the column names as in table schema because they 
+		   are not exactly what's needed for a classad
+		*/
+		//return PQfname(clusterAdsHorRes, col);
+}
+
+//! get number of fields returned in the horizontal cluster ads
+const int 
+PGSQLDatabase::getJobQueueClusterHorNumFields() 
+{
+  return PQnfields(clusterAdsHorRes);
+}
+
+//! get the field name at given column index from proc ads
+const char *
+PGSQLDatabase::getJobQueueProcHorFieldName(int col) 
+{
+		//return PQfname(procAdsHorRes, col);
+	return proc_field_names[col];
+}
+
+//! get number of fields in the proc ad horizontal
+const int 
+PGSQLDatabase::getJobQueueProcHorNumFields() 
+{
+  return PQnfields(procAdsHorRes);
+}
+
+//! get the field name at given column index
+const char *
+PGSQLDatabase::getHistoryHorFieldName(int col) 
+{
+	if (col >= QUILLPP_HistoryHorFieldNum) {
+		dprintf(D_ALWAYS, "column index %d exceeds max column num %d in PGSQLDatabase::getHistoryHorFieldName.\n", col, QUILLPP_HistoryHorFieldNum);
+		return NULL;
+	} else {
+		return QUILLPP_HistoryHorFields[col];		
+	}
+		//  return PQfname(historyHorRes, col);
+}
+
+//! get number of fields returned in result
+const int 
+PGSQLDatabase::getHistoryHorNumFields() 
+{
+		// return PQnfields(historyHorRes);
+	return QUILLPP_HistoryHorFieldNum;
 }
 
 //! release all history results
@@ -375,7 +462,6 @@ PGSQLDatabase::releaseHistoryResults()
 	return SUCCESS;
 }
 
-
 /*! get the job queue
  *
  *	\return 
@@ -386,117 +472,166 @@ PGSQLDatabase::releaseHistoryResults()
  *		
  */
 QuillErrCode
-PGSQLDatabase::getJobQueueDB(int *clusterarray, int numclusters, int *procarray, int numprocs,
-			     char *owner, bool isfullscan,
-			     int& procAdsStrRes_num, int& procAdsNumRes_num, 
-			     int& clusterAdsStrRes_num, int& clusterAdsNumRes_num)
+PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters, 
+							  int *procarray, int numprocs, 
+							  bool isfullscan,
+							  const char *scheddname,
+							  int& procAdsHorRes_num, int& procAdsVerRes_num,
+							  int& clusterAdsHorRes_num, 
+							  int& clusterAdsVerRes_num
+							  )
 {
-  
-  char *procAds_str_query, *procAds_num_query, *clusterAds_str_query, *clusterAds_num_query;
-  char *clusterpredicate, *procpredicate, *temppredicate;
-  QuillErrCode st;
-  int i;
+ 
+	MyString procAds_hor_query, procAds_ver_query;
+	MyString clusterAds_hor_query, clusterAds_ver_query; 
+	MyString clusterpredicate, procpredicate, temppredicate;
 
-  procAds_str_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
-  procAds_num_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
-  clusterAds_str_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
-  clusterAds_num_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
+	QuillErrCode st;
+	int i;
 
-  if(isfullscan) {
-    strcpy(procAds_str_query, "SELECT cid, pid, attr, val FROM ProcAds_Str ORDER BY cid, pid;");
-    strcpy(procAds_num_query, "SELECT cid, pid, attr, val FROM ProcAds_Num ORDER BY cid, pid;");
-    strcpy(clusterAds_str_query, "SELECT cid, attr, val FROM ClusterAds_Str ORDER BY cid;");
-    strcpy(clusterAds_num_query, "SELECT cid, attr, val FROM ClusterAds_Num ORDER BY cid;");	   
+	if(isfullscan) {
+		procAds_hor_query.sprintf("SELECT cluster_id, proc, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args  FROM procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc;", scheddname);
+		procAds_ver_query.sprintf("SELECT cluster_id, proc, attr, val FROM procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc;", scheddname);
+
+		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id;", scheddname);
+
+		clusterAds_ver_query.sprintf("SELECT cluster_id, attr, val FROM clusterads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id;", scheddname);
+	}
+
+	/* OK, this is a little confusing.
+	 * cluster and proc array are tied together - you can ask for a cluster,
+     * or a cluster and a proc, but never just a proc
+     * think cluster and procarrays as a an array like this:
+     *
+     *  42, 1
+     *  43, -1
+     *  44, 5
+     *  44, 6
+     *  45, -1
+     * 
+     * this means return job 42.1, all jobs for cluster 43, only 44.5 and 44.6,
+     * and all of cluster 45
+     *
+     * there is no way to say 'give me proc 5 of every cluster'
+
+		numprocs is never used. numclusters may have redundant information:
+		querying for jobs 31.20, 31.21, 31.22..31.25   gives queries likes
+
+		cluster ads hor:  SELECT cluster, owner, jobstatus, jobprio, imagesize, 
+           qdate, remoteusercpu, remotewallclocktime, cmd, args  i
+            FROM clusterads_horizontal WHERE 
+                scheddname='epaulson@swingline.cs.wisc.edu'  AND 
+                (cluster = 31) OR (cluster = 31)  OR (cluster = 31)  
+                OR (cluster = 31)  OR (cluster = 31)  ORDER BY cluster;
+
+         cluster ads ver: SELECT cluster, attr, val FROM clusterads_vertical 
+                     WHERE scheddname='epaulson@swingline.cs.wisc.edu'  AND 
+                     (cluster = 31) OR (cluster = 31)  OR (cluster = 31)  OR 
+                     (cluster = 31)  OR (cluster = 31)  ORDER BY cluster;
+
+         proc ads hor SELECT cluster, proc, jobstatus, imagesize, remoteusercpu,
+             remotewallclocktime, remotehost, globaljobid, jobprio,  args  
+            FROM procads_horizontal WHERE 
+                     scheddname='epaulson@swingline.cs.wisc.edu'  AND 
+                  (cluster = 31 AND proc = 20) OR (cluster = 31 AND proc = 21) 
+                 OR (cluster = 31 AND proc = 22)  
+                 OR (cluster = 31 AND proc = 23)  
+                 OR (cluster = 31 AND proc = 24)  ORDER BY cluster, proc;
+
+         proc ads ver SELECT cluster, proc, attr, val FROM procads_vertical 
+             WHERE scheddname='epaulson@swingline.cs.wisc.edu'  
+               AND (cluster = 31 AND proc = 20) OR (cluster = 31 AND proc = 21)
+            OR (cluster = 31 AND proc = 22)  OR (cluster = 31 AND proc = 23) 
+             OR (cluster = 31 AND proc = 24)  ORDER BY cluster, proc;
+
+      --erik, 7.24,2006
+
+	 */
+
+
+	else {
+	    if(numclusters > 0) {
+			// build up the cluster predicate
+			clusterpredicate.sprintf("%s%d)", 
+					" AND ( (cluster = ",clusterarray[0]);
+			for(i=1; i < numclusters; i++) {
+				clusterpredicate.sprintf_cat( 
+				"%s%d) ", " OR (cluster = ", clusterarray[i] );
+      		}
+
+			// now build up the proc predicate string. 	
+			// first decide how to open it
+			 if(procarray[0] != -1) {
+					procpredicate.sprintf("%s%d%s%d)", 
+							" AND ( (cluster = ", clusterarray[0], 
+							" AND proc = ", procarray[0]);
+	 		} else {  // no proc for this entry, so only have cluster
+					procpredicate.sprintf( "%s%d)", 
+								" AND ( (cluster = ", clusterarray[0]);
+	 		}
+	
+			// fill in the rest of hte proc predicate 
+	 		// note that we really want to iterate till numclusters and not 
+			// numprocs because procarray has holes and clusterarray does not
+			for(i=1; i < numclusters; i++) {
+				if(procarray[i] != -1) {
+					procpredicate.sprintf_cat( "%s%d%s%d) ", 
+					" OR (cluster = ",clusterarray[i]," AND proc = ",procarray[i]);
+				} else { 
+					procpredicate.sprintf_cat( "%s%d) ", 
+						" OR (cluster = ", clusterarray[i]);
+				}
+			} //end offor loop
+
+			// balance predicate strings, since it needs to get
+			// and-ed with the schedd name below
+			clusterpredicate += " ) ";
+			procpredicate += " ) ";
+		} // end of numclusters > 0
+
+
+		procAds_hor_query.sprintf( 
+			"SELECT cluster_id, proc, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args FROM procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc;", scheddname, procpredicate.Value() );
+
+		procAds_ver_query.sprintf(
+	"SELECT cluster_id, proc, attr, val FROM procads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc;", 
+			scheddname, procpredicate.Value() );
+
+		clusterAds_hor_query.sprintf(
+			"SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM clusterads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id;", scheddname, clusterpredicate.Value());
+
+		clusterAds_ver_query.sprintf(
+		"SELECT cluster_id, attr, val FROM clusterads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id;", scheddname, clusterpredicate.Value());	
+	}
+
+	/*dprintf(D_ALWAYS, "clusterAds_hor_query = %s\n", clusterAds_hor_query.Value());
+	dprintf(D_ALWAYS, "clusterAds_ver_query = %s\n", clusterAds_ver_query.Value());
+	dprintf(D_ALWAYS, "procAds_hor_query = %s\n", procAds_hor_query.Value());
+	dprintf(D_ALWAYS, "procAds_ver_query = %s\n", procAds_ver_query.Value()); */
+
+	  // Query against ClusterAds_Hor Table
+  if ((st = execQuery(clusterAds_hor_query.Value(), clusterAdsHorRes, 
+					clusterAdsHorRes_num)) == FAILURE) {
+	  return FAILURE_QUERY_CLUSTERADS_NUM;
   }
-
-  else {
-    clusterpredicate = (char *) malloc(1024 * sizeof(char));
-    strcpy(clusterpredicate, "  ");
-    procpredicate = (char *) malloc(1024 * sizeof(char));
-    strcpy(procpredicate, "  ");
-    temppredicate = (char *) malloc(1024 * sizeof(char));
-    strcpy(temppredicate, "  ");
-
-    if(numclusters > 0) {
-      sprintf(clusterpredicate, "%s%d)", " WHERE (cid = ", clusterarray[0]);
-      for(i=1; i < numclusters; i++) {
-	 sprintf(temppredicate, "%s%d) ", " OR (cid = ", clusterarray[i]);
-	 strcat(clusterpredicate, temppredicate); 	 
-      }
-
-	 if(procarray[0] != -1) {
-            sprintf(procpredicate, "%s%d%s%d)", " WHERE (cid = ", clusterarray[0], " AND pid = ", procarray[0]);
-	 }
-	 else {
-            sprintf(procpredicate, "%s%d)", " WHERE (cid = ", clusterarray[0]);
-	 }
-	 
-	 // note that we really want to iterate till numclusters and not numprocs 
-	 // because procarray has holes and clusterarray does not
-         for(i=1; i < numclusters; i++) {
-	    if(procarray[i] != -1) {
-	       sprintf(temppredicate, "%s%d%s%d) ", " OR (cid = ", clusterarray[i], " AND pid = ", procarray[i]);
-	       procpredicate = strcat(procpredicate, temppredicate); 	 
-            }
-	    else {
-	       sprintf(temppredicate, "%s%d) ", " OR (cid = ", clusterarray[i]);
-	       procpredicate = strcat(procpredicate, temppredicate); 	 
-            }
-	 }
-    }
-
-    sprintf(procAds_str_query, "%s %s %s", 
-	    "SELECT cid, pid, attr, val FROM ProcAds_Str", 
-	    procpredicate,
-	    "ORDER BY cid, pid;");
-    sprintf(procAds_num_query, "%s %s %s", 
-	    "SELECT cid, pid, attr, val FROM ProcAds_Num",
-	    procpredicate,
-	    "ORDER BY cid, pid;");
-    sprintf(clusterAds_str_query, "%s %s %s", 
-	    "SELECT cid, attr, val FROM ClusterAds_Str",
-	    clusterpredicate,
-	    "ORDER BY cid;");
-    sprintf(clusterAds_num_query, "%s %s %s",
-	    "SELECT cid, attr, val FROM ClusterAds_Num",
-	    clusterpredicate,
-	    "ORDER BY cid;");	   
-
-    free(clusterpredicate);
-    free(procpredicate);
-    free(temppredicate);
+	  // Query against ClusterAds_Ver Table
+  if ((st = execQuery(clusterAds_ver_query.Value(), clusterAdsVerRes, 
+					clusterAdsVerRes_num)) == FAILURE) {
+		// FIXME to return something other than clusterads_num!
+	  return FAILURE_QUERY_CLUSTERADS_NUM;
   }
-
-  /*dprintf(D_ALWAYS, "clusterAds_str_query = %s\n", clusterAds_str_query);
-  dprintf(D_ALWAYS, "clusterAds_num_query = %s\n", clusterAds_num_query);
-  dprintf(D_ALWAYS, "procAds_str_query = %s\n", procAds_str_query);
-  dprintf(D_ALWAYS, "procAds_num_query = %s\n", procAds_num_query);*/
-
-	  // Query against ProcAds_Str Table
-  if ((st = execQuery(procAds_str_query, procAdsStrRes, procAdsStrRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_PROCADS_STR;
+	  // Query against procAds_Hor Table
+  if ((st = execQuery(procAds_hor_query.Value(), procAdsHorRes, 
+									procAdsHorRes_num)) == FAILURE) {
+	  return FAILURE_QUERY_CLUSTERADS_NUM;
   }
-  
-	  // Query against ProcAds_Num Table
-  if ((st = execQuery(procAds_num_query, procAdsNumRes, procAdsNumRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_PROCADS_NUM;
-  }
-  
-	  // Query against ClusterAds_Str Table
-  if ((st = execQuery(clusterAds_str_query, clusterAdsStrRes, clusterAdsStrRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_STR;
-  } 
-	  // Query against ClusterAds_Num Table
-  if ((st = execQuery(clusterAds_num_query, clusterAdsNumRes, clusterAdsNumRes_num)) == FAILURE) {
+	  // Query against procAds_ver Table
+  if ((st = execQuery(procAds_ver_query.Value(), procAdsVerRes, 
+									procAdsVerRes_num)) == FAILURE) {
 	  return FAILURE_QUERY_CLUSTERADS_NUM;
   }
   
-  free(procAds_str_query);
-  free(procAds_num_query);
-  free(clusterAds_str_query);
-  free(clusterAds_num_query);
-
-  if (clusterAdsNumRes_num == 0 && clusterAdsStrRes_num == 0) {
+  if (clusterAdsVerRes_num == 0 && clusterAdsHorRes_num == 0) {
     return JOB_QUEUE_EMPTY;
   }
 
@@ -629,105 +764,61 @@ PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver,
 	return SUCCESS;
 }
 
-//! get a value retrieved from ProcAds_Str table
+//! get a value retrieved from ProcAds_Hor table
 const char*
-PGSQLDatabase::getJobQueueProcAds_StrValue(int row, int col)
+PGSQLDatabase::getJobQueueProcAds_HorValue(int row, int col)
 {
-	return PQgetvalue(procAdsStrRes, row, col);
+	return PQgetvalue(procAdsHorRes, row, col);
 }
 
-//! get a value retrieved from ProcAds_Num table
+//! get a value retrieved from ProcAds_Ver table
 const char*
-PGSQLDatabase::getJobQueueProcAds_NumValue(int row, int col)
+PGSQLDatabase::getJobQueueProcAds_VerValue(int row, int col)
 {
-	return PQgetvalue(procAdsNumRes, row, col);
+	return PQgetvalue(procAdsVerRes, row, col);
 }
 
-//! get a value retrieved from ClusterAds_Str table
+//! get a value retrieved from ClusterAds_Hor table
 const char*
-PGSQLDatabase::getJobQueueClusterAds_StrValue(int row, int col)
+PGSQLDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 {
-	return PQgetvalue(clusterAdsStrRes, row, col);
+	return PQgetvalue(clusterAdsHorRes, row, col);
 }
 
-//! get a value retrieved from ClusterAds_Num table
+//! get a value retrieved from ClusterAds_Ver table
 const char*
-PGSQLDatabase::getJobQueueClusterAds_NumValue(int row, int col)
+PGSQLDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 {
-	return PQgetvalue(clusterAdsNumRes, row, col);
+	return PQgetvalue(clusterAdsVerRes, row, col);
 }
 
 //! release the result for job queue database
 QuillErrCode
 PGSQLDatabase::releaseJobQueueResults()
 {
-	if (procAdsStrRes != NULL) {
-		PQclear(procAdsStrRes);
-		procAdsStrRes = NULL;
+	if (procAdsHorRes != NULL) {
+		PQclear(procAdsHorRes);
+		procAdsHorRes = NULL;
 	}
-	if (procAdsNumRes != NULL) {
-		PQclear(procAdsNumRes);
-		procAdsNumRes = NULL;
+	if (procAdsVerRes != NULL) {
+		PQclear(procAdsVerRes);
+		procAdsVerRes = NULL;
 	}
-	if (clusterAdsStrRes != NULL) {
-		PQclear(clusterAdsStrRes);
-		clusterAdsStrRes = NULL;
+	if (clusterAdsHorRes != NULL) {
+		PQclear(clusterAdsHorRes);
+		clusterAdsHorRes = NULL;
 	}
-	if (clusterAdsNumRes != NULL) {
-		PQclear(clusterAdsNumRes);
-		clusterAdsNumRes = NULL;
-	}
-
-	return SUCCESS;
-}	
-
-
-//! put a bulk data into DBMS
-QuillErrCode
-PGSQLDatabase::sendBulkData(char* data)
-{
-  dprintf(D_FULLDEBUG, "bulk copy data = %s\n\n", data);
-  
-  if (PQputCopyData(connection, data, strlen(data)) <= 0)
-    {
-      dprintf(D_ALWAYS, 
-	      "[Bulk Data Sending ERROR] %s\n", PQerrorMessage(connection));
-      dprintf(D_ALWAYS, 
-	      "[Data: %s]\n", data);
-      return FAILURE;
-    }
-  
-  return SUCCESS;
-}
-
-//! put an end flag for bulk loading
-QuillErrCode
-PGSQLDatabase::sendBulkDataEnd()
-{
-	PGresult* result;
-
-	if (PQputCopyEnd(connection, NULL) < 0)
-	{
-		dprintf(D_ALWAYS, 
-			"[Bulk Data End Sending ERROR] %s\n", PQerrorMessage(connection));
-		return FAILURE;
-	}
-
-	
-	if ((result = PQgetResult(connection)) != NULL) {
-		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-			dprintf(D_ALWAYS, 
-				"[Bulk Last Data Sending ERROR] %s\n", PQerrorMessage(connection));
-			PQclear(result);
-			return FAILURE;
-		}
-	}
-
-	if(result) {
-		PQclear(result);		
-		result = NULL;
+	if (clusterAdsVerRes != NULL) {
+		PQclear(clusterAdsVerRes);
+		clusterAdsVerRes = NULL;
 	}
 
 	return SUCCESS;
 }
 
+//! get a DBMS error message
+char*
+PGSQLDatabase::getDBError()
+{
+	return PQerrorMessage(connection);
+}

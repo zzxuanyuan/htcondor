@@ -121,6 +121,11 @@ class CollectorEngine : public Service
 	// Statistics
 	CollectorStats	*collectorStats;
 
+	int scheddPrevLHF;
+	int masterPrevLHF;
+	int negotiatorPrevLHF;
+	void logInsert(ClassAd *cl, int LHF, const char *label);
+
   public:
 	// pointer values for representing master states
 	static ClassAd* RECENTLY_DOWN;

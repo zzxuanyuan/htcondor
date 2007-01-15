@@ -31,6 +31,12 @@
 #include "iso_dates.h"
 #include "condor_attributes.h"
 
+#include "misc_utils.h"
+
+//added by Ameet
+#include "condor_environ.h"
+#include <sys/types.h>
+#include <sys/socket.h>
 //--------------------------------------------------------
 #include "condor_debug.h"
 //--------------------------------------------------------
@@ -38,6 +44,12 @@
 
 #define ESCAPE { errorNumber=(errno==EAGAIN) ? ULOG_NO_EVENT : ULOG_UNK_ERROR;\
 					 return 0; }
+
+#include "file_sql.h"
+extern FILESQL *FILEObj;
+
+
+//extern ClassAd *JobAd;
 
 const char * ULogEventNumberNames[] = {
 	"ULOG_SUBMIT",					// Job submitted
@@ -194,13 +206,12 @@ ULogEvent::
 ULogEvent()
 {
 	struct tm *tm;
-	time_t     clock;
 
 	eventNumber = (ULogEventNumber) - 1;
 	cluster = proc = subproc = -1;
 
-	(void) time ((time_t *)&clock);
-	tm = localtime ((time_t *)&clock);
+	(void) time ((time_t *)&eventclock);
+	tm = localtime ((time_t *)&eventclock);
 	eventTime = *tm;
 }
 
@@ -1134,15 +1145,104 @@ int
 RemoteErrorEvent::writeEvent(FILE *file)
 {
 	char const *error_type = "Error";
+	char messagestr[512];
+	
+	ClassAd tmpCl1, tmpCl2;
+	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+	char tmp[1024];
+	int retval;
+
+	snprintf(messagestr,  512, "Remote %s from %s on %s",
+			error_type,
+			daemon_name,
+			execute_host);
+	
+	dprintf(D_ALWAYS, "just before initializing scheddname in RemoteErrorEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if(scheddname)
+  	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if(!critical_error) error_type = "Warning";
 
-    int retval = fprintf(
+	if (critical_error) {
+		snprintf(tmp, 1024, "endts = %d", (int)eventclock);
+		tmpClP1->Insert(tmp);		
+		
+		snprintf(tmp, 1024, "endtype = %d", ULOG_REMOTE_ERROR);
+		tmpClP1->Insert(tmp);
+		
+		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);
+		
+		if(scheddname) {
+		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+		  tmpClP2->Insert(tmp);
+		}
+  
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "proc = %d", proc);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "spid = %d", subproc);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "endtype = null");
+		tmpClP2->Insert(tmp);
+
+			// critical error means this run is ended.  
+			// condor_event.o is part of cplus_lib.a, which may be linked by 
+			// non-daemons who wouldn't have initialized FILEObj. We don't 
+			// need to log events for non-daemons.
+		if (FILEObj) {
+			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) 
+				== FAILURE) {	
+				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
+				return 0; // return a error code, 0
+			}		
+		}
+
+	} else {		
+		if (scheddname) {	
+		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+		  tmpClP1->Insert(tmp);		
+		}
+
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
+		tmpClP1->Insert(tmp);		
+
+		snprintf(tmp, 1024, "proc = %d", proc);
+		tmpClP1->Insert(tmp);		
+
+		snprintf(tmp, 1024, "spid = %d", subproc);
+		tmpClP1->Insert(tmp);				
+
+		snprintf(tmp, 1024, "eventtype = %d", ULOG_REMOTE_ERROR);
+		tmpClP1->Insert(tmp);
+		
+		snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+		tmpClP1->Insert(tmp);	
+		
+		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);	
+				
+		if (FILEObj) {
+			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
+				return 0; // return a error code, 0
+			}			
+		}
+	}
+
+    retval = fprintf(
 	  file,
 	  "%s from %s on %s:\n",
 	  error_type,
 	  daemon_name,
 	  execute_host);
+
+
 
     if (retval < 0)
     {
@@ -1332,12 +1432,122 @@ ExecuteEvent::
 int ExecuteEvent::
 writeEvent (FILE *file)
 {	
-	int retval = fprintf (file, "Job executing on host: %s\n", executeHost);
-	if (retval < 0)
-	{
-		return 0;
-	}
-	return 1;
+  struct hostent *hp;
+  unsigned long addr;
+  char *executehostname;
+  ClassAd tmpCl1, tmpCl2, tmpCl3;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2, *tmpClP3 = &tmpCl3;
+  char tmp[512];
+  int retval;
+
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  
+  if(scheddname) 
+    dprintf(D_FULLDEBUG, "scheddname = %s\n", scheddname);
+  else 
+    dprintf(D_FULLDEBUG, "scheddname is null\n");
+  
+  dprintf(D_FULLDEBUG, "executeHost = %s\n", executeHost);
+
+  char *start = index(executeHost, '<');
+  char *end = index(executeHost, ':');
+
+  if(start && end) {
+    char *tmpaddr;
+    tmpaddr = (char *) malloc(32 * sizeof(char));
+    tmpaddr = strncpy(tmpaddr, start+1, end-start-1);
+    tmpaddr[end-start-1] = '\0';
+    addr = inet_addr(tmpaddr);
+	dprintf(D_FULLDEBUG, "start = %s\n", start);
+	dprintf(D_FULLDEBUG, "end = %s\n", end);
+	dprintf(D_FULLDEBUG, "tmpaddr = %s\n", tmpaddr);
+    free(tmpaddr);
+  }
+  else {
+    addr = inet_addr(executeHost);
+  }
+
+  executehostname = (char *) malloc(32 * sizeof(char));
+  hp = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
+  if(hp) {    
+    dprintf(D_FULLDEBUG, "Executehost name = %s (hp->h_name) \n", hp->h_name);
+    strcpy(executehostname, hp->h_name);
+  }
+  else {
+    dprintf(D_FULLDEBUG, "Executehost name = %s (executeHost) \n", executeHost);
+    strcpy(executehostname, executeHost);
+  }
+
+  snprintf(tmp, 512, "endts = %d", (int)eventclock);
+  tmpClP1->Insert(tmp);
+
+  snprintf(tmp, 512, "endtype = -1");
+  tmpClP1->Insert(tmp);
+
+  snprintf(tmp, 512, "endmessage = \"UNKNOWN ERROR\"");
+  tmpClP1->Insert(tmp);
+ 
+  if (scheddname) {
+    snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp);
+  } 
+
+  snprintf(tmp, 512, "cluster_id = %d", cluster);
+  tmpClP2->Insert(tmp);
+
+  snprintf(tmp, 512, "proc = %d", proc);
+  tmpClP2->Insert(tmp);
+
+  snprintf(tmp, 512, "spid = %d", subproc);
+  tmpClP2->Insert(tmp);
+
+  snprintf(tmp, 512, "endtype = null");
+  tmpClP2->Insert(tmp);
+  
+  if (FILEObj) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
+		  return 0; // return a error code, 0
+	  }
+  }
+
+  snprintf(tmp, 512, "machine_id = \"%s\"", remoteName);
+  tmpClP3->Insert(tmp);
+
+  if(scheddname) {
+    snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
+    tmpClP3->Insert(tmp);
+  }
+
+  snprintf(tmp, 512, "cluster_id = %d", cluster);
+  tmpClP3->Insert(tmp);
+  
+  snprintf(tmp, 512, "proc = %d", proc);
+  tmpClP3->Insert(tmp);
+  
+  snprintf(tmp, 512, "spid = %d", subproc);
+  tmpClP3->Insert(tmp);
+
+  snprintf(tmp, 512, "startts = %d", (int)eventclock);
+  tmpClP3->Insert(tmp);
+
+  if(FILEObj) {
+	  if (FILEObj->file_newEvent("Runs", tmpClP3) == FAILURE) {
+		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
+		  return 0; // return a error code, 0
+	  }
+  }
+
+  retval = fprintf (file, "Job executing on host: %s\n", executeHost);
+
+  if (retval < 0) {
+     return 0;
+  }
+
+  return 1;
 }
 
 int ExecuteEvent::
@@ -1413,20 +1623,66 @@ int ExecutableErrorEvent::
 writeEvent (FILE *file)
 {
 	int retval;
+	char messagestr[512];
+	ClassAd tmpCl1, tmpCl2;
+	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+	char tmp[1024];
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	snprintf(tmp, 1024, "endts = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);		
+		
+	snprintf(tmp, 1024, "endtype = %d", ULOG_EXECUTABLE_ERROR);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);
+		
+	if(scheddname){
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp);
+	}
+  
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP2->Insert(tmp);
+
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP2->Insert(tmp);
+
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP2->Insert(tmp);
+
+	snprintf(tmp, 1024, "endtype = null");
+	tmpClP2->Insert(tmp);
+  
+	if (FILEObj) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 12--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
 
 	switch (errType)
 	{
 	  case CONDOR_EVENT_NOT_EXECUTABLE:
 		retval = fprintf (file, "(%d) Job file not executable.\n", errType);
+		sprintf(messagestr,  "Job file not executable");
 		break;
 
 	  case CONDOR_EVENT_BAD_LINK:
 		retval=fprintf(file,"(%d) Job not properly linked for Condor.\n", errType);
+		sprintf(messagestr,  "Job not properly linked for Condor");
 		break;
 
 	  default:
 		retval = fprintf (file, "(%d) [Bad error number.]\n", errType);
+		sprintf(messagestr,  "Unknown error");
 	}
+				
 	if (retval < 0) return 0;
 
 	return 1;
@@ -1509,6 +1765,48 @@ CheckpointedEvent::
 int CheckpointedEvent::
 writeEvent (FILE *file)
 {
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[1024];
+
+	sprintf(messagestr,  "Job was checkpointed");
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in CheckpointedEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if(scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
+	
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_CHECKPOINTED);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	if (FILEObj) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 6--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
+
 	if (fprintf (file, "Job was checkpointed.\n") < 0  		||
 		(!writeRusage (file, run_remote_rusage)) 			||
 		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
@@ -1758,71 +2056,157 @@ JobEvictedEvent::readEvent( FILE *file )
 int
 JobEvictedEvent::writeEvent( FILE *file )
 {
-	int retval;
-
-	if( fprintf(file, "Job was evicted.\n\t") < 0 ) { 
-		return 0;
-	}
-
-	if( terminate_and_requeued ) { 
-		retval = fprintf( file, "(0) Job terminated and was requeued\n\t" );
-	} else if( checkpointed ) {
-		retval = fprintf( file, "(1) Job was checkpointed.\n\t" );
-	} else {
-		retval = fprintf( file, "(0) Job was not checkpointed.\n\t" );
-	}
-	if( retval < 0 ) {
-		return 0;
-	}
-
-	if( (!writeRusage (file, run_remote_rusage)) 			||
-		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
-		(!writeRusage (file, run_local_rusage)) 			||
-		(fprintf (file, "  -  Run Local Usage\n") < 0) )
+  char *messagestr, *checkpointedstr, *terminatestr;
+  ClassAd tmpCl1, tmpCl2;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+  char tmp[1024];
+  
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+  
+  messagestr = (char *) malloc(512 * sizeof(char));
+  terminatestr = (char *) malloc(512 * sizeof(char));
+  checkpointedstr = (char *) malloc(6 * sizeof(char));
+  strcpy(checkpointedstr, "");
+  strcpy(messagestr, "");
+  strcpy(terminatestr, "");
+  
+  
+  int retval;
+  
+  if( fprintf(file, "Job was evicted.\n\t") < 0 ) { 
+    return 0;
+  }
+  
+  if( terminate_and_requeued ) { 
+    retval = fprintf( file, "(0) Job terminated and was requeued\n\t" );
+    sprintf(messagestr,  "Job evicted, terminated and was requeued");
+    strcpy(checkpointedstr, "false");
+  } else if( checkpointed ) {
+    retval = fprintf( file, "(1) Job was checkpointed.\n\t" );
+    sprintf(messagestr,  "Job evicted and was checkpointed");	
+    strcpy(checkpointedstr, "true");
+  } else {
+    retval = fprintf( file, "(0) Job was not checkpointed.\n\t" );
+    sprintf(messagestr,  "Job evicted and was not checkpointed");
+    strcpy(checkpointedstr, "false");
+  }
+  
+  if( retval < 0 ) {
+    return 0;
+  }
+  
+  if( (!writeRusage (file, run_remote_rusage)) 			||
+      (fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
+      (!writeRusage (file, run_local_rusage)) 			||
+      (fprintf (file, "  -  Run Local Usage\n") < 0) )
     {
-		return 0;
-	}
+      return 0;
+    }
+  
+  if( fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n", 
+	      sent_bytes) < 0 ) {
+    return 0;
+  }
+  if( fprintf(file, "\t%.0f  -  Run Bytes Received By Job\n", 
+	      recvd_bytes) < 0 ) {
+    return 0;
+  }
+  
+  if(terminate_and_requeued ) {
+    if( normal ) {
+      if( fprintf(file, "\t(1) Normal termination (return value %d)\n", 
+		  return_value) < 0 ) {
+	return 0;
+      }
+      sprintf(terminatestr,  " (1) Normal termination (return value %d)", return_value);
+    } 
+    else {
+      if( fprintf(file, "\t(0) Abnormal termination (signal %d)\n",
+		  signal_number) < 0 ) {
+	return 0;
+      }
+      sprintf(terminatestr,  " (0) Abnormal termination (signal %d)", signal_number);
 
-	if( fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n", 
-				sent_bytes) < 0 ) {
-		return 0;
-	}
-	if( fprintf(file, "\t%.0f  -  Run Bytes Received By Job\n", 
-				recvd_bytes) < 0 ) {
-		return 0;
-	}
+      if( core_file ) {
+	retval = fprintf( file, "\t(1) Corefile in: %s\n", core_file );
+	strcat(terminatestr, " (1) Corefile in: ");
+	strcat(terminatestr, core_file);
+      } 
+      else {
+	retval = fprintf( file, "\t(0) No core file\n" );
+	strcat(terminatestr, " (0) No core file ");
+      }
+      if( retval < 0 ) {
+	return 0;
+      }
+    }
+    
+    if( reason ) {
+      if( fprintf(file, "\t%s\n", reason) < 0 ) {
+	return 0;
+      }
+      strcat(terminatestr,  " reason: ");
+      strcat(terminatestr,  reason);
+    }
+  
+  }
+  
+  dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  if (scheddname)
+    dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+  
+  snprintf(tmp, 1024, "endts = %d", (int)eventclock);
+  tmpClP1->Insert(tmp);		
+		
+  snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_EVICTED);
+  tmpClP1->Insert(tmp);
+		
+  snprintf(tmp, 1024, "endmessage = \"%s%s\"", messagestr, terminatestr);
+  tmpClP1->Insert(tmp);
+		
+  snprintf(tmp, 1024, "wascheckpointed = \"%s\"", checkpointedstr);
+  tmpClP1->Insert(tmp);
 
-	if( ! terminate_and_requeued ) {
-			// nothing else to write
-		return 1;
-	}
+  snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
+  tmpClP1->Insert(tmp);
 
-	if( normal ) {
-		if( fprintf(file, "\t(1) Normal termination (return value %d)\n", 
-					return_value) < 0 ) {
-			return 0;
-		}
-	} else {
-		if( fprintf(file, "\t(0) Abnormal termination (signal %d)\n",
-					signal_number) < 0 ) {
-			return 0;
-		}
-		if( core_file ) {
-			retval = fprintf( file, "\t(1) Corefile in: %s\n", core_file );
-		} else {
-			retval = fprintf( file, "\t(0) No core file\n" );
-		}
-		if( retval < 0 ) {
-			return 0;
-		}
-	}
+  snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
+  tmpClP1->Insert(tmp);
 
-	if( reason ) {
-		if( fprintf(file, "\t%s\n", reason) < 0 ) {
-			return 0;
-		}
-	}
-	return 1;
+  if (scheddname) {
+    snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp);
+  }
+  
+  snprintf(tmp, 1024, "cluster_id = %d", cluster);
+  tmpClP2->Insert(tmp);
+
+  snprintf(tmp, 1024, "proc = %d", proc);
+  tmpClP2->Insert(tmp);
+
+  snprintf(tmp, 1024, "spid = %d", subproc);
+  tmpClP2->Insert(tmp);
+	
+  snprintf(tmp, 1024, "endtype = null");
+  tmpClP2->Insert(tmp);
+  
+  if (FILEObj) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+		  dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
+		  free(messagestr);
+		  free(checkpointedstr);
+		  free(terminatestr);		  
+		  return 0; // return a error code, 0
+	  }
+  }
+
+  free(messagestr);
+  free(checkpointedstr);
+  free(terminatestr);
+
+  return 1;
 }
 
 ClassAd* JobEvictedEvent::
@@ -1980,6 +2364,53 @@ getReason( void ) const
 int JobAbortedEvent::
 writeEvent (FILE *file)
 {
+
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[1024];
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in JobAbortedEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname) {
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	}
+
+	if (reason)
+		snprintf(messagestr,  512, "Job was aborted by the user: %s", reason);
+	else 
+		sprintf(messagestr,  "Job was aborted by the user");
+
+	if(scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
+	
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_ABORTED);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	if (FILEObj) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 7--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
+
 	if( fprintf(file, "Job was aborted by the user.\n") < 0 ) {
 		return 0;
 	}
@@ -2092,10 +2523,20 @@ TerminatedEvent::getCoreFile( void )
 	return core_file;
 }
 
-
 int
 TerminatedEvent::writeEvent( FILE *file, const char* header )
 {
+  char *messagestr;
+  ClassAd tmpCl1, tmpCl2;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+  char tmp[1024];
+
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+  
+  messagestr = (char *) malloc(512 * sizeof(char));
+  strcpy(messagestr, "");
+  
 	int retval=0;
 
 	if( normal ) {
@@ -2103,16 +2544,24 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 					returnValue) < 0 ) {
 			return 0;
 		}
+		sprintf(messagestr,  "(1) Normal termination (return value %d)", returnValue);
+
 	} else {
 		if( fprintf(file, "\t(0) Abnormal termination (signal %d)\n",
 					signalNumber) < 0 ) {
 			return 0;
 		}
+
+		sprintf(messagestr,  "(0) Abnormal termination (signal %d)", signalNumber);
+
 		if( core_file ) {
 			retval = fprintf( file, "\t(1) Corefile in: %s\n\t",
 							  core_file );
+			strcat(messagestr, " (1) Corefile in: ");
+			strcat(messagestr, core_file);
 		} else {
 			retval = fprintf( file, "\t(0) No core file\n\t" );
+			strcat(messagestr, " (0) No core file ");
 		}
 	}
 
@@ -2137,6 +2586,47 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 		fprintf(file, "\t%.0f  -  Total Bytes Received By %s\n",
 				total_recvd_bytes, header) < 0)
 		return 1;				// backwards compatibility
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in TerminteEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);
+	
+	snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
+	tmpClP1->Insert(tmp);	
+	
+	if(scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp);	
+	}
+
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP2->Insert(tmp);
+
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP2->Insert(tmp);
+
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP2->Insert(tmp);
+	
+	snprintf(tmp, 1024, "endts = %d", (int)eventclock);
+	tmpClP2->Insert(tmp);
+
+	if (FILEObj) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
+			free(messagestr);
+			return 0; // return a error code, 0
+		}
+	}
+
+	free(messagestr);
 
 	return 1;
 }
@@ -2225,10 +2715,52 @@ JobTerminatedEvent::~JobTerminatedEvent()
 int
 JobTerminatedEvent::writeEvent (FILE *file)
 {
-	if( fprintf(file, "Job terminated.\n") < 0 ) {
-		return 0;
-	}
-	return TerminatedEvent::writeEvent( file, "Job" );
+  ClassAd tmpCl1, tmpCl2;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+  char tmp[512];
+
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+  
+  dprintf(D_ALWAYS, "just before initializing scheddname in JobTerminatedEvent\n");
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  if (scheddname)
+    dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+  snprintf(tmp, 1024, "endts = %d", (int)eventclock);
+  tmpClP1->Insert(tmp);
+  
+  snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_TERMINATED);
+  tmpClP1->Insert(tmp);  
+	
+  if (scheddname) {
+    snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp);	
+  }
+  
+  snprintf(tmp, 1024, "cluster_id = %d", cluster);
+  tmpClP2->Insert(tmp);
+  
+  snprintf(tmp, 1024, "proc = %d", proc);
+  tmpClP2->Insert(tmp);
+
+  snprintf(tmp, 1024, "spid = %d", subproc);
+  tmpClP2->Insert(tmp);
+  
+  snprintf(tmp, 1024, "endtype = null");
+  tmpClP2->Insert(tmp);
+
+  if (FILEObj) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+		  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
+		  return 0; // return a error code, 0
+	  }
+  }
+
+  if( fprintf(file, "Job terminated.\n") < 0 ) {
+	  return 0;
+  }
+  return TerminatedEvent::writeEvent( file, "Job" );
 }
 
 
@@ -2418,6 +2950,7 @@ ShadowExceptionEvent ()
 	eventNumber = ULOG_SHADOW_EXCEPTION;
 	message[0] = '\0';
 	sent_bytes = recvd_bytes = 0.0;
+	began_execution = FALSE;
 }
 
 ShadowExceptionEvent::
@@ -2449,6 +2982,94 @@ readEvent (FILE *file)
 int ShadowExceptionEvent::
 writeEvent (FILE *file)
 {
+	char messagestr[512];
+	ClassAd tmpCl1, tmpCl2;
+	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+	char tmp[1024];
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	
+	snprintf(messagestr, 512, "Shadow exception: %s", message);
+
+		// remove the new line in the end if any
+	if  (messagestr[strlen(messagestr)-1] == '\n')
+		messagestr[strlen(messagestr)-1] = '\0';
+
+	if (began_execution) {
+		snprintf(tmp, 1024, "endts = %d", (int)eventclock);
+		tmpClP1->Insert(tmp);		
+		
+		snprintf(tmp, 1024, "endtype = %d", ULOG_SHADOW_EXCEPTION);
+		tmpClP1->Insert(tmp);
+		
+		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);
+		
+		snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
+		tmpClP1->Insert(tmp);
+
+		snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
+		tmpClP1->Insert(tmp);
+
+		if (scheddname) {
+			snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+			tmpClP2->Insert(tmp);
+		}
+  
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "proc = %d", proc);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "spid = %d", subproc);
+		tmpClP2->Insert(tmp);
+
+		snprintf(tmp, 1024, "endtype = null");
+		tmpClP2->Insert(tmp);
+  
+		if (FILEObj) {
+			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+				dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
+				return 0; // return a error code, 0
+			}
+		}
+	} else {
+		if(scheddname) {
+			snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+			tmpClP1->Insert(tmp);		
+		}
+		
+		snprintf(tmp, 1024, "cluster_id = %d", cluster);
+		tmpClP1->Insert(tmp);	
+
+		snprintf(tmp, 1024, "proc = %d", proc);
+		tmpClP1->Insert(tmp);		
+		
+		snprintf(tmp, 1024, "spid = %d", subproc);
+		tmpClP1->Insert(tmp);		
+
+		snprintf(tmp, 1024, "eventtype = %d", ULOG_SHADOW_EXCEPTION);
+		tmpClP1->Insert(tmp);
+
+		snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+		tmpClP1->Insert(tmp);	
+	
+		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);	
+				
+		if (FILEObj) {
+			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+				dprintf(D_ALWAYS, "Logging Event 14 --- Error\n");
+				return 0; // return a error code, 0
+			}
+		}			
+
+	}
+
 	if (fprintf (file, "Shadow exception!\n\t") < 0)
 		return 0;
 	if (fprintf (file, "%s\n", message) < 0)
@@ -2538,6 +3159,48 @@ readEvent (FILE *file)
 int JobSuspendedEvent::
 writeEvent (FILE *file)
 {
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[1024];
+
+	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
+	
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
+	
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_SUSPENDED);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	if (FILEObj) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 8--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
+
 	if (fprintf (file, "Job was suspended.\n\t") < 0)
 		return 0;
 	if (fprintf (file, "Number of processes actually suspended: %d\n", 
@@ -2594,6 +3257,48 @@ readEvent (FILE *file)
 int JobUnsuspendedEvent::
 writeEvent (FILE *file)
 {
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[1024];
+
+	sprintf(messagestr, "Job was unsuspended");
+	
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
+	
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_UNSUSPENDED);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	if (FILEObj) {
+ 	    if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 9--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
+
 	if (fprintf (file, "Job was unsuspended.\n") < 0)
 		return 0;
 
@@ -2725,6 +3430,51 @@ JobHeldEvent::readEvent( FILE *file )
 int
 JobHeldEvent::writeEvent( FILE *file )
 {
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[1024];
+
+	if (reason)
+		snprintf(messagestr, 512, "Job was held: %s", reason);
+	else
+		sprintf(messagestr, "Job was held: reason unspecified");
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
+	
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_HELD);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	if (FILEObj) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 10--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
+
 	if( fprintf(file, "Job was held.\n") < 0 ) {
 		return 0;
 	}
@@ -2856,6 +3606,51 @@ JobReleasedEvent::readEvent( FILE *file )
 int
 JobReleasedEvent::writeEvent( FILE *file )
 {
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[1024];
+
+	if (reason)
+		snprintf(messagestr, 512, "Job was released: %s", reason);
+	else
+		sprintf(messagestr, "Job was released: reason unspecified");
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
+	
+	snprintf(tmp, 1024, "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "proc = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	snprintf(tmp, 1024, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_RELEASED);
+	tmpClP1->Insert(tmp);
+		
+	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp);	
+	
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	if (FILEObj) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			dprintf(D_ALWAYS, "Logging Event 11--- Error\n");
+			return 0; // return a error code, 0
+		}
+	}
+
 	if( fprintf(file, "Job was released.\n") < 0 ) {
 		return 0;
 	}
