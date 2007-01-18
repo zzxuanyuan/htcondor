@@ -124,7 +124,18 @@ cannot be reached, for example because the machine is turned off.
 
 \begin{itemize}
 
-\item None.
+\item Under various circumstances, condor 6.9.1 daemons abort
+with the message, ``ERROR: Unexpected pending status for fake message
+delivery.''  A specific example is when \Attr{OnExitRemove} or
+\Attr{OnExitHold} evaluated to UNDEFINED, which causes the
+\Condor{schedd} to abort.
+
+\item In Condor 6.9.1, the \Condor{schedd} will die during startup
+when trying to reconnect to running jobs for which the \Condor{schedd}
+can not find a startd ClassAd.  This happens shortly after
+logging the following message: ``Could not find machine ClassAds for
+one or more jobs.  May be flocking, or machine may be down.
+Attempting to reconnect anyway.''
 
 \end{itemize}
 
