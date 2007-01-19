@@ -1,3 +1,5 @@
+//TEMPTEMP -- make sure this works with *no* config file!
+//TEMPTEMP -- Peter says probably just add the config file to whatever is already in _CONDOR_LOCAL_CONFIG
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -59,6 +61,7 @@ struct SubmitDagOptions
 	MyString strDagmanPath;
 	bool useDagDir;
 	MyString strDebugDir;
+	MyString strConfigFile;
 	
 	// non-command line options
 	MyString strLibLog;
@@ -85,6 +88,7 @@ struct SubmitDagOptions
 		iDebugLevel = 3;
 		primaryDagFile = "";
 		useDagDir = false;
+		strConfigFile = "";
 	}
 
 };
@@ -215,6 +219,14 @@ submitDag( SubmitDagOptions &opts )
 			opts.strJobLog = storkLogFiles.next();
 		}
 		printf("Done.\n");
+	}
+
+//TEMPTEMP -- get config file from DAG file(s) here
+	MyString	msg;
+	if ( !GetConfigFile( opts.dagFiles, opts.useDagDir,
+				opts.strConfigFile, msg) ) {
+		fprintf( stderr, "ERROR: %s\n", msg.Value() );
+		return 1;
 	}
 
 	writeSubmitFile(opts);
@@ -446,6 +458,8 @@ void writeSubmitFile(/* const */ SubmitDagOptions &opts)
 	Env env;
 	env.SetEnv("_CONDOR_DAGMAN_LOG",opts.strDebugLog.Value());
 	env.SetEnv("_CONDOR_MAX_DAGMAN_LOG=0");
+	//TEMPTEMP -- only set this if opts.strConfigFile is != ""?
+	env.SetEnv("_CONDOR_DAGMAN_CONFIG_FILE", opts.strConfigFile.Value());
 
 	MyString env_str;
 	MyString env_errors;
@@ -560,6 +574,13 @@ void parseCommandLine(SubmitDagOptions &opts, int argc, char *argv[])
 			else if (strArg.find("-out") != -1) // -outfile_dir
 			{
 				opts.strDebugDir = argv[++iArg];
+			}
+			else if (strArg.find("-con") != -1) // -config
+			{
+				opts.strConfigFile = argv[++iArg];
+				if (!MakePathAbsolute(opts.strConfigFile)) {
+	    			exit( 1 );
+				}
 			}
 			else
 			{

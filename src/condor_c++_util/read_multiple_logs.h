@@ -48,6 +48,12 @@ public:
 			const MyString &jobKeyword, const MyString &dirKeyword,
 			StringList &listLogFilenames);
 
+		//TEMPTEMP -- document this!
+		//TEMPTEMP -- hmm -- how generic will this really be?
+		//TEMPTEMP -- tokens to skip value?
+	static MyString getValuesFromFile(const MyString &fileName,
+			const MyString &keyword, StringList &values);
+
 	    /** Gets the log file from a Condor submit file.
 		    on success, the return value will be the log file name
 		    on failure, it will be ""

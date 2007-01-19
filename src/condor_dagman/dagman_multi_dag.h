@@ -52,5 +52,13 @@ bool GetLogFiles(/* const */ StringList &dagFiles, bool useDagDir,
 bool LogFileNfsError(/* const */ StringList &condorLogFiles,
 			/* const */ StringList &storkLogFiles);
 
+/** TEMPTEMP -- document
+*/
+bool GetConfigFile(/* const */ StringList &dagFiles, bool useDagDir,
+			MyString &configFile, MyString &errMsg);
+
+/** TEMPTEMP -- document
+*/
+bool MakePathAbsolute(MyString &filePath);
 
 #endif /* #ifndef DAGMAN_MULTI_DAG_H */

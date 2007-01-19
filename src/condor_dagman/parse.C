@@ -220,6 +220,11 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		else if(strcasecmp(token, "VARS") == 0) {
 			parsed_line_successfully = parse_vars(dag, filename, lineNumber);
 		}
+
+		// Allow a CONFIG spec (actually parsed by condor_submit_dag).
+		else if(strcasecmp(token, "CONFIG") == 0) {
+			parsed_line_successfully = true;
+		}
 		
 		// None of the above means that there was bad input.
 		else {

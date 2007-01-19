@@ -38,6 +38,11 @@
 
 void ExitSuccess();
 
+	// From condor_c++_util/condor_config.C
+extern "C" void process_config_source( char* file, char* name,
+			char* host, int required );
+extern "C" bool is_piped_command(const char* filename);
+
 //---------------------------------------------------------------------------
 char* mySubSystem = "DAGMAN";         // used by Daemon Core
 
@@ -104,12 +109,30 @@ Dagman::~Dagman()
 	}
 }
 
-
 bool
 Dagman::Config()
 {
 		// Note: debug_printfs are DEBUG_NORMAL here because when we
 		// get here we haven't processed command-line arguments yet.
+
+		// Get and process the DAGMan-specific config file (if any)
+		// before getting any of the other parameters.
+	char *dagman_config_file = param( "DAGMAN_CONFIG_FILE" );
+	if ( dagman_config_file ) {
+		debug_printf( DEBUG_NORMAL, "Using DAGMan config file: %s\n",
+					dagman_config_file );
+			// We do this test here because the corresponding error
+			// message from the config code doesn't show up in dagman.out.
+		if ( access( dagman_config_file, R_OK ) != 0 &&
+					!is_piped_command( dagman_config_file ) ) {
+			debug_printf( DEBUG_NORMAL,
+						"ERROR: Can't read DAGMan config file: %s\n",
+						dagman_config_file );
+    		DC_Exit( EXIT_RESTART );
+		}
+		process_config_source( dagman_config_file, "DAGMan config",
+					NULL, true );
+	}
 
 	submit_delay = param_integer( "DAGMAN_SUBMIT_DELAY", 0, 0, 60 );
 	debug_printf( DEBUG_NORMAL, "DAGMAN_SUBMIT_DELAY setting: %d\n",
@@ -242,6 +265,7 @@ Dagman::Config()
 int
 main_config( bool )
 {
+	//TEMPTEMP -- do we really want to do this here?  If we got a reconfig, then config stuff would override command-line args, which is not what we want according to the comments
 	dagman.Config();
 	return 0;
 }
