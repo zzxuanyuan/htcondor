@@ -105,11 +105,11 @@ public:
 	virtual QuillErrCode        getHistoryHorValue(SQLQuery *queryhor, 
 												   int row, 
 												   int col, 
-												   char **value) = 0;
+												   const char **value) = 0;
 	virtual QuillErrCode        getHistoryVerValue(SQLQuery *queryver, 
 												   int row, 
 												   int col, 
-												   char **value) = 0;
+												   const char **value) = 0;
 
 		// history schema metadata routines
 	virtual const char*         getHistoryHorFieldName(int col) = 0;

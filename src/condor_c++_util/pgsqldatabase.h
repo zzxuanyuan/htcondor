@@ -65,9 +65,6 @@ public:
 								   int &num_result);
 	QuillErrCode         execQuery(const char* sql,
 								   int &num_result);
-		// copy command handling routines
-	QuillErrCode		 sendBulkData(char* data);
-	QuillErrCode		 sendBulkDataEnd();
 
 		// result set accessors 
 	const char*	         getValue(int row, int col);
@@ -77,11 +74,11 @@ public:
 	QuillErrCode         getHistoryHorValue(SQLQuery *queryhor, 
 											int row, 
 											int col, 
-											char **value);
+											const char **value);
 	QuillErrCode         getHistoryVerValue(SQLQuery *queryver, 
 											int row, 
 											int col, 
-											char **value);
+											const char **value);
 
 		// history schema metadata routines
 	const int            getHistoryHorNumFields();

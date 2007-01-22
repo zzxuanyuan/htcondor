@@ -1658,9 +1658,9 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		record.bytes = bytes;
 		record.elapsed  = elapsed;
     
-    // Get the name of the daemon calling DoDownload
-    strncpy(daemon, mySubSystem, 15);
-    record.daemon = daemon;
+			// Get the name of the daemon calling DoDownload
+		strncpy(daemon, mySubSystem, 15);
+		record.daemon = daemon;
 
 		record.sockp =s;
 

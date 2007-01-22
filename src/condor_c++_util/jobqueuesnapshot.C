@@ -36,7 +36,6 @@
 //! constructor
 JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 {
-	dbtype dt;
 	char *tmp;
 
 	tmp = param("QUILL_DB_TYPE");
@@ -115,9 +114,17 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 		return FAILURE;
 	}
 
-	if(jqDB->execCommand("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE") == FAILURE) {
-		printf("Error while setting xact isolation level to serializable\n");
-		return FAILURE;
+	if (dt == T_ORACLE) {
+		if(jqDB->execCommand("SET TRANSACTION READ ONLY") == FAILURE) {
+			printf("Error while setting xact to be read only\n");
+			return FAILURE;
+		}		
+	} else {
+		if(jqDB->execCommand("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE") 
+		   == FAILURE) {
+			printf("Error while setting xact isolation level to serializable\n");
+			return FAILURE;
+		}
 	}
 
 	st = jqDB->getJobQueueDB(clusterarray, 

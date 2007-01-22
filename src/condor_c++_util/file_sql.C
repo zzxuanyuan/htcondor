@@ -390,7 +390,8 @@ FILESQL *FILEObj = NULL;
 
 FILESQL *createInstance() { 
 	FILESQL *ptr = NULL;
-	char *tmp, *outfilename;
+	char *tmp; 
+	MyString outfilename = "";
 	char *tmpParamName;
 	const char *daemon_name;
 	
@@ -405,24 +406,21 @@ FILESQL *createInstance() {
 
 	if( tmp ) {
 		outfilename = tmp;
+		free(tmp);
 	}
 	else {
 		tmp = param ("LOG");		
 
 		if (tmp) {
-			outfilename = (char *)malloc(strlen(tmp) + 10);
-			sprintf(outfilename, "%s/sql.log", tmp);
+			outfilename.sprintf("%s/sql.log", tmp);
 			free(tmp);
 		}
 		else {
-			outfilename = (char *)malloc(10);
-			sprintf(outfilename, "sql.log");
+			outfilename.sprintf("sql.log");
 		}
 	}
 
-	ptr = new FILESQL(outfilename, O_WRONLY|O_CREAT|O_APPEND);
-
-	free(outfilename);
+	ptr = new FILESQL(outfilename.GetCStr(), O_WRONLY|O_CREAT|O_APPEND);
 
 	if (ptr->file_open() == FAILURE) {
 		dprintf(D_ALWAYS, "FILESQL createInstance failed\n");

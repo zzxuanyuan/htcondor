@@ -612,23 +612,22 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
 	  // Query against ClusterAds_Hor Table
   if ((st = execQuery(clusterAds_hor_query.Value(), clusterAdsHorRes, 
 					clusterAdsHorRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_CLUSTERADS_HOR;
   }
 	  // Query against ClusterAds_Ver Table
   if ((st = execQuery(clusterAds_ver_query.Value(), clusterAdsVerRes, 
 					clusterAdsVerRes_num)) == FAILURE) {
-		// FIXME to return something other than clusterads_num!
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_CLUSTERADS_VER;
   }
 	  // Query against procAds_Hor Table
   if ((st = execQuery(procAds_hor_query.Value(), procAdsHorRes, 
 									procAdsHorRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_PROCADS_HOR;
   }
 	  // Query against procAds_ver Table
   if ((st = execQuery(procAds_ver_query.Value(), procAdsVerRes, 
 									procAdsVerRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_PROCADS_VER;
   }
   
   if (clusterAdsVerRes_num == 0 && clusterAdsHorRes_num == 0) {
@@ -694,7 +693,7 @@ PGSQLDatabase::closeCursorsHistory(SQLQuery *queryhor,
 //! get a value retrieved from History_Horizontal table
 QuillErrCode
 PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor, 
-								  int row, int col, char **value)
+								  int row, int col, const char **value)
 {
 	QuillErrCode st;
 	
@@ -730,7 +729,7 @@ PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor,
 //! get a value retrieved from History_Vertical table
 QuillErrCode
 PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver, 
-								  int row, int col, char **value)
+								  int row, int col, const char **value)
 {
 	QuillErrCode st;
 

@@ -1149,10 +1149,10 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-	char tmp[1024];
+	MyString tmp = "";
 	int retval;
 
-	snprintf(messagestr,  512, "Remote %s from %s on %s",
+	snprintf(messagestr, 512, "Remote %s from %s on %s",
 			error_type,
 			daemon_name,
 			execute_host);
@@ -1165,31 +1165,31 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	if(!critical_error) error_type = "Warning";
 
 	if (critical_error) {
-		snprintf(tmp, 1024, "endts = %d", (int)eventclock);
-		tmpClP1->Insert(tmp);		
+		tmp.sprintf("endts = %d", (int)eventclock);
+		tmpClP1->Insert(tmp.GetCStr());		
 		
-		snprintf(tmp, 1024, "endtype = %d", ULOG_REMOTE_ERROR);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf("endtype = %d", ULOG_REMOTE_ERROR);
+		tmpClP1->Insert(tmp.GetCStr());
 		
-		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf("endmessage = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp.GetCStr());
 		
 		if(scheddname) {
-		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-		  tmpClP2->Insert(tmp);
+		  tmp.sprintf("scheddname = \"%s\"", scheddname);
+		  tmpClP2->Insert(tmp.GetCStr());
 		}
   
-		snprintf(tmp, 1024, "cluster_id = %d", cluster);
-		tmpClP2->Insert(tmp);
+		tmp.sprintf("cluster_id = %d", cluster);
+		tmpClP2->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "proc = %d", proc);
-		tmpClP2->Insert(tmp);
+		tmp.sprintf("proc = %d", proc);
+		tmpClP2->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "spid = %d", subproc);
-		tmpClP2->Insert(tmp);
+		tmp.sprintf("spid = %d", subproc);
+		tmpClP2->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "endtype = null");
-		tmpClP2->Insert(tmp);
+		tmp.sprintf("endtype = null");
+		tmpClP2->Insert(tmp.GetCStr());
 
 			// critical error means this run is ended.  
 			// condor_event.o is part of cplus_lib.a, which may be linked by 
@@ -1205,27 +1205,27 @@ RemoteErrorEvent::writeEvent(FILE *file)
 
 	} else {		
 		if (scheddname) {	
-		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-		  tmpClP1->Insert(tmp);		
+		  tmp.sprintf("scheddname = \"%s\"", scheddname);
+		  tmpClP1->Insert(tmp.GetCStr());		
 		}
 
-		snprintf(tmp, 1024, "cluster_id = %d", cluster);
-		tmpClP1->Insert(tmp);		
+		tmp.sprintf( "cluster_id = %d", cluster);
+		tmpClP1->Insert(tmp.GetCStr());		
 
-		snprintf(tmp, 1024, "proc = %d", proc);
-		tmpClP1->Insert(tmp);		
+		tmp.sprintf( "proc = %d", proc);
+		tmpClP1->Insert(tmp.GetCStr());		
 
-		snprintf(tmp, 1024, "spid = %d", subproc);
-		tmpClP1->Insert(tmp);				
+		tmp.sprintf( "spid = %d", subproc);
+		tmpClP1->Insert(tmp.GetCStr());				
 
-		snprintf(tmp, 1024, "eventtype = %d", ULOG_REMOTE_ERROR);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf( "eventtype = %d", ULOG_REMOTE_ERROR);
+		tmpClP1->Insert(tmp.GetCStr());
 		
-		snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-		tmpClP1->Insert(tmp);	
+		tmp.sprintf( "eventtime = %d", (int)eventclock);
+		tmpClP1->Insert(tmp.GetCStr());	
 		
-		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-		tmpClP1->Insert(tmp);	
+		tmp.sprintf( "description = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp.GetCStr());	
 				
 		if (FILEObj) {
 			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -1434,10 +1434,10 @@ writeEvent (FILE *file)
 {	
   struct hostent *hp;
   unsigned long addr;
-  char *executehostname;
+  MyString executehostname = "";
   ClassAd tmpCl1, tmpCl2, tmpCl3;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2, *tmpClP3 = &tmpCl3;
-  char tmp[512];
+  MyString tmp = "";
   int retval;
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
@@ -1470,42 +1470,41 @@ writeEvent (FILE *file)
     addr = inet_addr(executeHost);
   }
 
-  executehostname = (char *) malloc(32 * sizeof(char));
   hp = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
   if(hp) {    
     dprintf(D_FULLDEBUG, "Executehost name = %s (hp->h_name) \n", hp->h_name);
-    strcpy(executehostname, hp->h_name);
+    executehostname = hp->h_name;
   }
   else {
     dprintf(D_FULLDEBUG, "Executehost name = %s (executeHost) \n", executeHost);
-    strcpy(executehostname, executeHost);
+    executehostname = executeHost;
   }
 
-  snprintf(tmp, 512, "endts = %d", (int)eventclock);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf("endts = %d", (int)eventclock);
+  tmpClP1->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "endtype = -1");
-  tmpClP1->Insert(tmp);
+  tmp.sprintf("endtype = -1");
+  tmpClP1->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "endmessage = \"UNKNOWN ERROR\"");
-  tmpClP1->Insert(tmp);
+  tmp.sprintf("endmessage = \"UNKNOWN ERROR\"");
+  tmpClP1->Insert(tmp.GetCStr());
  
   if (scheddname) {
-    snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
-    tmpClP2->Insert(tmp);
+    tmp.sprintf("scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp.GetCStr());
   } 
 
-  snprintf(tmp, 512, "cluster_id = %d", cluster);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf("cluster_id = %d", cluster);
+  tmpClP2->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "proc = %d", proc);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf("proc = %d", proc);
+  tmpClP2->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "spid = %d", subproc);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf("spid = %d", subproc);
+  tmpClP2->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "endtype = null");
-  tmpClP2->Insert(tmp);
+  tmp.sprintf("endtype = null");
+  tmpClP2->Insert(tmp.GetCStr());
   
   if (FILEObj) {
 	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
@@ -1514,25 +1513,25 @@ writeEvent (FILE *file)
 	  }
   }
 
-  snprintf(tmp, 512, "machine_id = \"%s\"", remoteName);
-  tmpClP3->Insert(tmp);
+  tmp.sprintf("machine_id = \"%s\"", remoteName);
+  tmpClP3->Insert(tmp.GetCStr());
 
   if(scheddname) {
-    snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
-    tmpClP3->Insert(tmp);
+    tmp.sprintf("scheddname = \"%s\"", scheddname);
+    tmpClP3->Insert(tmp.GetCStr());
   }
 
-  snprintf(tmp, 512, "cluster_id = %d", cluster);
-  tmpClP3->Insert(tmp);
+  tmp.sprintf("cluster_id = %d", cluster);
+  tmpClP3->Insert(tmp.GetCStr());
   
-  snprintf(tmp, 512, "proc = %d", proc);
-  tmpClP3->Insert(tmp);
+  tmp.sprintf("proc = %d", proc);
+  tmpClP3->Insert(tmp.GetCStr());
   
-  snprintf(tmp, 512, "spid = %d", subproc);
-  tmpClP3->Insert(tmp);
+  tmp.sprintf("spid = %d", subproc);
+  tmpClP3->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "startts = %d", (int)eventclock);
-  tmpClP3->Insert(tmp);
+  tmp.sprintf("startts = %d", (int)eventclock);
+  tmpClP3->Insert(tmp.GetCStr());
 
   if(FILEObj) {
 	  if (FILEObj->file_newEvent("Runs", tmpClP3) == FAILURE) {
@@ -1626,38 +1625,38 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-	char tmp[1024];
+	MyString tmp = "";
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(tmp, 1024, "endts = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "endts = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());		
 		
-	snprintf(tmp, 1024, "endtype = %d", ULOG_EXECUTABLE_ERROR);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "endtype = %d", ULOG_EXECUTABLE_ERROR);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());
 		
 	if(scheddname){
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP2->Insert(tmp);
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp.GetCStr());
 	}
   
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP2->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP2->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP2->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 1024, "endtype = null");
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "endtype = null");
+	tmpClP2->Insert(tmp.GetCStr());
   
 	if (FILEObj) {
 		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
@@ -1768,7 +1767,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[1024];
+	MyString tmp = "";
 
 	sprintf(messagestr,  "Job was checkpointed");
 
@@ -1778,27 +1777,27 @@ writeEvent (FILE *file)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp);		
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp.GetCStr());		
 	}
 	
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP1->Insert(tmp.GetCStr());		
 
-	snprintf(tmp, 1024, "eventtype = %d", ULOG_CHECKPOINTED);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "eventtype = %d", ULOG_CHECKPOINTED);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
 		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -2056,17 +2055,14 @@ JobEvictedEvent::readEvent( FILE *file )
 int
 JobEvictedEvent::writeEvent( FILE *file )
 {
-  char *messagestr, *checkpointedstr, *terminatestr;
+  char messagestr[512], checkpointedstr[6], terminatestr[512];
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-  char tmp[1024];
+  MyString tmp = "";
   
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
   
-  messagestr = (char *) malloc(512 * sizeof(char));
-  terminatestr = (char *) malloc(512 * sizeof(char));
-  checkpointedstr = (char *) malloc(6 * sizeof(char));
   strcpy(checkpointedstr, "");
   strcpy(messagestr, "");
   strcpy(terminatestr, "");
@@ -2157,54 +2153,47 @@ JobEvictedEvent::writeEvent( FILE *file )
   if (scheddname)
     dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
   
-  snprintf(tmp, 1024, "endts = %d", (int)eventclock);
-  tmpClP1->Insert(tmp);		
+  tmp.sprintf( "endts = %d", (int)eventclock);
+  tmpClP1->Insert(tmp.GetCStr());		
 		
-  snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_EVICTED);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf( "endtype = %d", ULOG_JOB_EVICTED);
+  tmpClP1->Insert(tmp.GetCStr());
 		
-  snprintf(tmp, 1024, "endmessage = \"%s%s\"", messagestr, terminatestr);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf( "endmessage = \"%s%s\"", messagestr, terminatestr);
+  tmpClP1->Insert(tmp.GetCStr());
 		
-  snprintf(tmp, 1024, "wascheckpointed = \"%s\"", checkpointedstr);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf( "wascheckpointed = \"%s\"", checkpointedstr);
+  tmpClP1->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf( "runbytessent = %f", sent_bytes);
+  tmpClP1->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf( "runbytesreceived = %f", recvd_bytes);
+  tmpClP1->Insert(tmp.GetCStr());
 
   if (scheddname) {
-    snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-    tmpClP2->Insert(tmp);
+    tmp.sprintf( "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp.GetCStr());
   }
   
-  snprintf(tmp, 1024, "cluster_id = %d", cluster);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "cluster_id = %d", cluster);
+  tmpClP2->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 1024, "proc = %d", proc);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "proc = %d", proc);
+  tmpClP2->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 1024, "spid = %d", subproc);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "spid = %d", subproc);
+  tmpClP2->Insert(tmp.GetCStr());
 	
-  snprintf(tmp, 1024, "endtype = null");
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "endtype = null");
+  tmpClP2->Insert(tmp.GetCStr());
   
   if (FILEObj) {
 	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
-		  free(messagestr);
-		  free(checkpointedstr);
-		  free(terminatestr);		  
 		  return 0; // return a error code, 0
 	  }
   }
-
-  free(messagestr);
-  free(checkpointedstr);
-  free(terminatestr);
 
   return 1;
 }
@@ -2368,7 +2357,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[1024];
+	MyString tmp = "";
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in JobAbortedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
@@ -2382,27 +2371,27 @@ writeEvent (FILE *file)
 		sprintf(messagestr,  "Job was aborted by the user");
 
 	if(scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp);		
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp.GetCStr());		
 	}
 	
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP1->Insert(tmp.GetCStr());		
 
-	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_ABORTED);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "eventtype = %d", ULOG_JOB_ABORTED);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
 		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -2526,15 +2515,14 @@ TerminatedEvent::getCoreFile( void )
 int
 TerminatedEvent::writeEvent( FILE *file, const char* header )
 {
-  char *messagestr;
+  char messagestr[512];
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-  char tmp[1024];
+  MyString tmp = "";
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
   
-  messagestr = (char *) malloc(512 * sizeof(char));
   strcpy(messagestr, "");
   
 	int retval=0;
@@ -2592,41 +2580,38 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	if (scheddname)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());
 	
-	snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "runbytessent = %f", sent_bytes);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "runbytesreceived = %f", recvd_bytes);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
 	if(scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP2->Insert(tmp);	
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp.GetCStr());	
 	}
 
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP2->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP2->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP2->Insert(tmp.GetCStr());
 	
-	snprintf(tmp, 1024, "endts = %d", (int)eventclock);
-	tmpClP2->Insert(tmp);
+	tmp.sprintf( "endts = %d", (int)eventclock);
+	tmpClP2->Insert(tmp.GetCStr());
 
 	if (FILEObj) {
 		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
-			free(messagestr);
 			return 0; // return a error code, 0
 		}
 	}
-
-	free(messagestr);
 
 	return 1;
 }
@@ -2717,7 +2702,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
 {
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-  char tmp[512];
+  MyString tmp = "";
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
@@ -2727,28 +2712,28 @@ JobTerminatedEvent::writeEvent (FILE *file)
   if (scheddname)
     dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-  snprintf(tmp, 1024, "endts = %d", (int)eventclock);
-  tmpClP1->Insert(tmp);
+  tmp.sprintf( "endts = %d", (int)eventclock);
+  tmpClP1->Insert(tmp.GetCStr());
   
-  snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_TERMINATED);
-  tmpClP1->Insert(tmp);  
+  tmp.sprintf( "endtype = %d", ULOG_JOB_TERMINATED);
+  tmpClP1->Insert(tmp.GetCStr());  
 	
   if (scheddname) {
-    snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-    tmpClP2->Insert(tmp);	
+    tmp.sprintf( "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp.GetCStr());	
   }
   
-  snprintf(tmp, 1024, "cluster_id = %d", cluster);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "cluster_id = %d", cluster);
+  tmpClP2->Insert(tmp.GetCStr());
   
-  snprintf(tmp, 1024, "proc = %d", proc);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "proc = %d", proc);
+  tmpClP2->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 1024, "spid = %d", subproc);
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "spid = %d", subproc);
+  tmpClP2->Insert(tmp.GetCStr());
   
-  snprintf(tmp, 1024, "endtype = null");
-  tmpClP2->Insert(tmp);
+  tmp.sprintf( "endtype = null");
+  tmpClP2->Insert(tmp.GetCStr());
 
   if (FILEObj) {
 	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
@@ -2985,7 +2970,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-	char tmp[1024];
+	MyString tmp = "";
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
@@ -2999,37 +2984,37 @@ writeEvent (FILE *file)
 		messagestr[strlen(messagestr)-1] = '\0';
 
 	if (began_execution) {
-		snprintf(tmp, 1024, "endts = %d", (int)eventclock);
-		tmpClP1->Insert(tmp);		
+		tmp.sprintf( "endts = %d", (int)eventclock);
+		tmpClP1->Insert(tmp.GetCStr());		
 		
-		snprintf(tmp, 1024, "endtype = %d", ULOG_SHADOW_EXCEPTION);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf( "endtype = %d", ULOG_SHADOW_EXCEPTION);
+		tmpClP1->Insert(tmp.GetCStr());
 		
-		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf( "endmessage = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp.GetCStr());
 		
-		snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf( "runbytessent = %f", sent_bytes);
+		tmpClP1->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf( "runbytesreceived = %f", recvd_bytes);
+		tmpClP1->Insert(tmp.GetCStr());
 
 		if (scheddname) {
-			snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-			tmpClP2->Insert(tmp);
+			tmp.sprintf( "scheddname = \"%s\"", scheddname);
+			tmpClP2->Insert(tmp.GetCStr());
 		}
   
-		snprintf(tmp, 1024, "cluster_id = %d", cluster);
-		tmpClP2->Insert(tmp);
+		tmp.sprintf( "cluster_id = %d", cluster);
+		tmpClP2->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "proc = %d", proc);
-		tmpClP2->Insert(tmp);
+		tmp.sprintf( "proc = %d", proc);
+		tmpClP2->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "spid = %d", subproc);
-		tmpClP2->Insert(tmp);
+		tmp.sprintf( "spid = %d", subproc);
+		tmpClP2->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "endtype = null");
-		tmpClP2->Insert(tmp);
+		tmp.sprintf( "endtype = null");
+		tmpClP2->Insert(tmp.GetCStr());
   
 		if (FILEObj) {
 			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
@@ -3039,27 +3024,27 @@ writeEvent (FILE *file)
 		}
 	} else {
 		if(scheddname) {
-			snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-			tmpClP1->Insert(tmp);		
+			tmp.sprintf( "scheddname = \"%s\"", scheddname);
+			tmpClP1->Insert(tmp.GetCStr());		
 		}
 		
-		snprintf(tmp, 1024, "cluster_id = %d", cluster);
-		tmpClP1->Insert(tmp);	
+		tmp.sprintf( "cluster_id = %d", cluster);
+		tmpClP1->Insert(tmp.GetCStr());	
 
-		snprintf(tmp, 1024, "proc = %d", proc);
-		tmpClP1->Insert(tmp);		
+		tmp.sprintf( "proc = %d", proc);
+		tmpClP1->Insert(tmp.GetCStr());		
 		
-		snprintf(tmp, 1024, "spid = %d", subproc);
-		tmpClP1->Insert(tmp);		
+		tmp.sprintf( "spid = %d", subproc);
+		tmpClP1->Insert(tmp.GetCStr());		
 
-		snprintf(tmp, 1024, "eventtype = %d", ULOG_SHADOW_EXCEPTION);
-		tmpClP1->Insert(tmp);
+		tmp.sprintf( "eventtype = %d", ULOG_SHADOW_EXCEPTION);
+		tmpClP1->Insert(tmp.GetCStr());
 
-		snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-		tmpClP1->Insert(tmp);	
+		tmp.sprintf( "eventtime = %d", (int)eventclock);
+		tmpClP1->Insert(tmp.GetCStr());	
 	
-		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-		tmpClP1->Insert(tmp);	
+		tmp.sprintf( "description = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp.GetCStr());	
 				
 		if (FILEObj) {
 			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -3162,7 +3147,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[1024];
+	MyString tmp = "";
 
 	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
 	
@@ -3172,27 +3157,27 @@ writeEvent (FILE *file)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp);		
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp.GetCStr());		
 	}
 	
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP1->Insert(tmp.GetCStr());		
 
-	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_SUSPENDED);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "eventtype = %d", ULOG_JOB_SUSPENDED);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
 		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -3260,7 +3245,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[1024];
+	MyString tmp = "";
 
 	sprintf(messagestr, "Job was unsuspended");
 	
@@ -3270,27 +3255,27 @@ writeEvent (FILE *file)
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp);		
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp.GetCStr());		
 	}
 	
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP1->Insert(tmp.GetCStr());		
 
-	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_UNSUSPENDED);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "eventtype = %d", ULOG_JOB_UNSUSPENDED);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
  	    if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -3433,7 +3418,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[1024];
+	MyString tmp = "";
 
 	if (reason)
 		snprintf(messagestr, 512, "Job was held: %s", reason);
@@ -3446,27 +3431,27 @@ JobHeldEvent::writeEvent( FILE *file )
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp);		
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp.GetCStr());		
 	}
 	
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP1->Insert(tmp.GetCStr());		
 
-	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_HELD);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "eventtype = %d", ULOG_JOB_HELD);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
 		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
@@ -3609,7 +3594,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[1024];
+	MyString tmp = "";
 
 	if (reason)
 		snprintf(messagestr, 512, "Job was released: %s", reason);
@@ -3622,27 +3607,27 @@ JobReleasedEvent::writeEvent( FILE *file )
 	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
-	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp);		
+	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp.GetCStr());		
 	}
 	
-	snprintf(tmp, 1024, "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "cluster_id = %d", cluster);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "proc = %d", proc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "proc = %d", proc);
+	tmpClP1->Insert(tmp.GetCStr());		
 	
-	snprintf(tmp, 1024, "spid = %d", subproc);
-	tmpClP1->Insert(tmp);		
+	tmp.sprintf( "spid = %d", subproc);
+	tmpClP1->Insert(tmp.GetCStr());		
 
-	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_RELEASED);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf( "eventtype = %d", ULOG_JOB_RELEASED);
+	tmpClP1->Insert(tmp.GetCStr());
 		
-	snprintf(tmp, 1024, "eventtime = %d", (int)eventclock);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "eventtime = %d", (int)eventclock);
+	tmpClP1->Insert(tmp.GetCStr());	
 	
-	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
-	tmpClP1->Insert(tmp);	
+	tmp.sprintf( "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
 		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {

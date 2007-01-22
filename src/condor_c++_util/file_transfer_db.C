@@ -17,24 +17,24 @@ extern FILESQL *FILEObj;
 
 void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 {
-	char *dst_host = NULL, 
-		*dst_path = NULL,
-		*globalJobId = NULL,
-    *src_name = NULL,
-		*src_path = NULL,
-		*job_name = NULL,
-		*dst_name = NULL,
-    *src_fullname = NULL;
+	MyString dst_host = "", 
+		dst_path = "",
+		globalJobId = "",
+		src_name = "",
+		src_path = "",
+		job_name = "",
+		dst_name = "",
+		src_fullname = "";
 
 	char src_host[MAXMACHNAME];
 	bool inStarter  = FALSE;
 	char *tmpp;
 
-  struct stat file_status;
+	struct stat file_status;
 
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	MyString tmp;
 
 		// this function access the following pointers
 	if  (!rp || !ad || !FILEObj)
@@ -44,8 +44,7 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	if (mySubSystem && strcmp(mySubSystem, "STARTER") == 0)
 		inStarter = TRUE;
 
-		// globalJobId, it should be freed later
-	ad->LookupString(ATTR_GLOBAL_JOB_ID, &globalJobId);
+	ad->LookupString(ATTR_GLOBAL_JOB_ID, globalJobId);
 
 		// dst_host, dst_name and dst_path, since file_transfer_db
 		// is called in the destination process, dst_host is my
@@ -62,11 +61,12 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	}
 
 		// src_name, src_path
-	if (inStarter && dst_name && (strcmp(dst_name, CONDOR_EXEC) == 0)) {
-		ad->LookupString(ATTR_ORIG_JOB_CMD, &job_name);
-		if (job_name && fullpath(job_name)) {
-			src_name = basename(job_name);
-			src_path = dirname(job_name);
+	if (inStarter && !dst_name.IsEmpty() &&
+		(strcmp(dst_name.GetCStr(), CONDOR_EXEC) == 0)) {
+		ad->LookupString(ATTR_ORIG_JOB_CMD, job_name);
+		if (!job_name.IsEmpty() && fullpath(job_name.GetCStr())) {
+			src_name = basename(job_name.GetCStr());
+			src_path = dirname(job_name.GetCStr());
 		} else
 			src_name = job_name;
 		
@@ -74,22 +74,22 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	else 
 		src_name = dst_name;
 	
-	if (!src_path) {
+	if (src_path.IsEmpty()) {
 		if (inStarter)
-			ad->LookupString(ATTR_ORIG_JOB_IWD, &src_path);
+			ad->LookupString(ATTR_ORIG_JOB_IWD, src_path);
 		else 
-			ad->LookupString(ATTR_JOB_IWD, &src_path);
+			ad->LookupString(ATTR_JOB_IWD, src_path);
 	}
 
   // Get the file status (contains last modified time)
   // Get this info from the schedd/shadow side
   if (inStarter) { // use src info
-    src_fullname = (char *)malloc(2 * (strlen(src_path) + strlen(src_name) + 1));
-    strcpy(src_fullname, src_path);
-    src_fullname = strcat(src_fullname, "/");
-    src_fullname = strcat(src_fullname, src_name);
-    if (stat(src_fullname, &file_status) < 0) {
-      dprintf(D_ALWAYS, "ERROR: File %s can not be accessed.\n", src_fullname);
+    src_fullname = src_path;
+    src_fullname += "/";
+    src_fullname += src_name;
+    if (stat(src_fullname.GetCStr(), &file_status) < 0) {
+      dprintf(D_ALWAYS, "ERROR: File %s can not be accessed.\n", 
+			  src_fullname.GetCStr());
     }
   } else { // use dst info
     if (stat(rp->fullname, &file_status) < 0) {
@@ -97,44 +97,39 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
     }
   }
 
-	snprintf(tmp, 512, "globalJobId = \"%s\"", globalJobId);
-	tmpClP1->Insert(tmp);			
+	tmp.sprintf("globalJobId = \"%s\"", globalJobId.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());			
 	
-	snprintf(tmp, 512, "src_name = \"%s\"", src_name);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("src_name = \"%s\"", src_name.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "src_host = \"%s\"", src_host);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("src_host = \"%s\"", src_host);
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "src_path = \"%s\"", src_path);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("src_path = \"%s\"", src_path.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "dst_name = \"%s\"", dst_name);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("dst_name = \"%s\"", dst_name.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "dst_host = \"%s\"", dst_host);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("dst_host = \"%s\"", dst_host.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "dst_path = \"%s\"", dst_path);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("dst_path = \"%s\"", dst_path.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "transfer_size = %d", (int)rp->bytes);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("transfer_size = %d", (int)rp->bytes);
+	tmpClP1->Insert(tmp.GetCStr());
 
-	snprintf(tmp, 512, "elapsed = %d", (int)rp->elapsed);
-	tmpClP1->Insert(tmp);
+	tmp.sprintf("elapsed = %d", (int)rp->elapsed);
+	tmpClP1->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "dst_daemon = %s", rp->daemon);
-  tmpClP1->Insert(tmp);
+	tmp.sprintf("dst_daemon = %s", rp->daemon);
+	tmpClP1->Insert(tmp.GetCStr());
 
-  snprintf(tmp, 512, "f_ts = %d", (int)file_status.st_mtime);
-  tmpClP1->Insert(tmp);
+	tmp.sprintf("f_ts = %d", (int)file_status.st_mtime);
+	tmpClP1->Insert(tmp.GetCStr());
 
 	FILEObj->file_newEvent("Transfers", tmpClP1);
 
-	if (dst_path) free(dst_path);
-	if (globalJobId) free(globalJobId);
-	if (job_name) free(job_name);
-  if (src_path) free(src_path);
-  if (src_fullname) free (src_fullname);
 }

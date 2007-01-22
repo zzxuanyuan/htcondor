@@ -110,8 +110,8 @@ public:
 	const char*	         getJobQueueClusterAds_HorValue(int row, int col);
 	const char*	         getJobQueueClusterAds_VerValue(int row, int col);
 
-	QuillErrCode          getHistoryHorValue(SQLQuery *queryhor, int row, int col, char **value);
-	QuillErrCode          getHistoryVerValue(SQLQuery *queryver, int row, int col, char **value);
+	QuillErrCode          getHistoryHorValue(SQLQuery *queryhor, int row, int col, const char **value);
+	QuillErrCode          getHistoryVerValue(SQLQuery *queryver, int row, int col, const char **value);
 
 		//QuillErrCode   		 fetchNext();
 	const char*	         getValue(int row, int col);
@@ -146,7 +146,7 @@ private:
 	
 	ResultSet  *historyVerRes;
 	Statement  *historyVerStmt;
-	int         historyVerResCursor;  
+	int         historyVerResCursor;
 
 		// only for job queue tables retrieval
 		//!< result for ProcAds_Horizontal table

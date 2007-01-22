@@ -818,41 +818,6 @@ ORACLEDatabase::getDBError()
 	return "DB Error message unsupported\n";
 }
 
-#if 0
-/*! get the historical information
- *
- *	\return
- *		HISTORY_EMPTY: There is no Job in history
- *		SUCCESS: history is not empty and query succeeded
- *		FAILURE_QUERY_*: query failed
- */
-QuillErrCode
-ORACLEDatabase::queryHistoryDB(SQLQuery *queryhor, 
-							   SQLQuery *queryver, 
-							   bool longformat, 
-							   int& historyads_hor_num, 
-							   int& historyads_ver_num)
-{
-	QuillErrCode st;
-	if ((st = execQuery(queryhor->getQuery(), historyHorRes, historyHorStmt, historyads_hor_num)) == FAILURE) {
-		return FAILURE_QUERY_HISTORYADS_HOR;
-	}
-
-	if (longformat && (st = execQuery(queryver->getQuery(), historyVerRes, historyVerStmt, historyads_ver_num)) == FAILURE) {
-		return FAILURE_QUERY_HISTORYADS_VER;
-	}
-  
-	if (historyads_hor_num == 0) {
-		return HISTORY_EMPTY;
-	}
-	
-	historyHorResCursor = historyVerResCursor = -1;
-
-	return SUCCESS;
-}
-
-#endif
-
 /*! get the job queue
  *
  *	\return 
@@ -1002,26 +967,26 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
   if ((st = execQuery(clusterAds_hor_query.Value(), clusterAdsHorRes, 
 					  clusterAdsHorStmt,
 					  clusterAdsHorRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_CLUSTERADS_HOR;
   }
 	  // Query against ClusterAds_Ver Table
   if ((st = execQuery(clusterAds_ver_query.Value(), clusterAdsVerRes, 
 					  clusterAdsVerStmt,
 					  clusterAdsVerRes_num)) == FAILURE) {
 		// FIXME to return something other than clusterads_num!
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_CLUSTERADS_VER;
   }
 	  // Query against procAds_Hor Table
   if ((st = execQuery(procAds_hor_query.Value(), procAdsHorRes, 
 					  procAdsHorStmt,
 					  procAdsHorRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_PROCADS_HOR;
   }
 	  // Query against procAds_ver Table
   if ((st = execQuery(procAds_ver_query.Value(), procAdsVerRes, 
 					  procAdsVerStmt,
 					  procAdsVerRes_num)) == FAILURE) {
-	  return FAILURE_QUERY_CLUSTERADS_NUM;
+	  return FAILURE_QUERY_PROCADS_VER;
   }
   
   if (clusterAdsVerRes_num == 0 && clusterAdsHorRes_num == 0) {
@@ -1034,48 +999,66 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
   return SUCCESS;
 }
 
+/*! get the historical information
+ *
+ *	\return
+ *		SUCCESS: declare cursor succeeded 
+ *		FAILURE_QUERY_*: query failed
+ */
 QuillErrCode
 ORACLEDatabase::openCursorsHistory(SQLQuery *queryhor,
                                   SQLQuery *queryver,
                                   bool longformat)
 {
-	//FIXME
-	EXCEPT("THIS IS NOT IMPLEMENTED");
+	QuillErrCode st;
+	int num_result;
+	if ((st = execQuery(queryhor->getQuery(), historyHorRes, historyHorStmt, num_result)) == FAILURE) {
+		return FAILURE_QUERY_HISTORYADS_HOR;
+	}
+
+	if (num_result == 0) {
+		return HISTORY_EMPTY;
+	}
+
+	if (longformat && (st = execQuery(queryver->getQuery(), historyVerRes, historyVerStmt, num_result)) == FAILURE) {
+		return FAILURE_QUERY_HISTORYADS_VER;
+	}
+	
+	historyHorResCursor = historyVerResCursor = -1;
+
 	return SUCCESS;
 }
+
 
 QuillErrCode
 ORACLEDatabase::closeCursorsHistory(SQLQuery *queryhor,
                                   SQLQuery *queryver,
                                   bool longformat)
-{
-	//FIXME
-	EXCEPT("THIS IS NOT IMPLEMENTED");
+{	
+		/* nothing to be done for oracle */
 	return SUCCESS;
 }
 
 //! get a value retrieved from History_Horizontal table
 QuillErrCode
-ORACLEDatabase::getHistoryHorValue(SQLQuery *querynhor, int row, int col, char **val)
+ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const char **value)
 {
-	EXCEPT("THIS IS NOT IMPLEMENTED!");
-	return SUCCESS;
-#if 0
 	ResultSet::Status rs;
-	const char *rv;
 
 	if (!historyHorRes) {
 		dprintf(D_ALWAYS, "no historyHorRes to fetch in ORACLEDatabase::getJobQueueHistoryHorValue\n");
-		return NULL;
-	}
-
+		*value = NULL;
+		return FAILURE_QUERY_HISTORYADS_HOR;
+	}	
+	
 	try {
 			/* if we are trying to fetch a row which is past, 
 			   error out 
 			*/
 		if (row < historyHorResCursor) {
 			dprintf(D_ALWAYS, "Fetching previous row is not supported in ORACLEDatabase::getJobQueueHistoryHorValue\n");
-			return NULL;
+			*value = NULL;
+			return FAILURE_QUERY_HISTORYADS_HOR;
 		}
 
 			/* first position to the row as specified */
@@ -1088,7 +1071,8 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *querynhor, int row, int col, char *
 				conn->terminateStatement (historyHorStmt); 
 				historyHorRes = NULL;
 				historyHorStmt = NULL;
-				return NULL;
+				*value = NULL;
+				return DONE_HISTORY_HOR_CURSOR;
 			}
 
 			historyHorResCursor++;	
@@ -1112,30 +1096,27 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *querynhor, int row, int col, char *
 		if (ex.getErrorCode() == 3113) {
 			disconnectDB();
 		}               
-        
-		return NULL;             		
+     
+		*value = NULL;
+		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 
-	rv = cv.c_str();
+	*value = cv.c_str();
 
-	return rv;			
-#endif
+	return SUCCESS;			
 }
 
 
 //! get a value retrieved from History_Vertical table
 QuillErrCode
-ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, char **val)
+ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const char **value)
 {
-	EXCEPT("THIS IS NOT IMPLEMENTED");
-	return SUCCESS;
-#if 0
 	ResultSet::Status rs;
-	const char *rv;
 
 	if (!historyVerRes) {
 		dprintf(D_ALWAYS, "no historyVerRes to fetch in ORACLEDatabase::getJobQueueHistoryVerValue\n");
-		return NULL;
+		*value = NULL;
+		return FAILURE_QUERY_HISTORYADS_VER;
 	}
 
 	try {
@@ -1144,7 +1125,8 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, char **
 			*/
 		if (row < historyVerResCursor) {
 			dprintf(D_ALWAYS, "Fetching previous row is not supported in ORACLEDatabase::getJobQueueHistoryVerValue\n");
-			return NULL;
+			*value = NULL;
+			return FAILURE_QUERY_HISTORYADS_VER;
 		}
 
 			/* first position to the row as specified */
@@ -1157,7 +1139,8 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, char **
 				conn->terminateStatement (historyVerStmt); 
 				historyVerRes = NULL;
 				historyVerStmt = NULL;
-				return NULL;
+				*value = NULL;
+				return DONE_HISTORY_VER_CURSOR;
 			}
 
 			historyVerResCursor++;	
@@ -1182,13 +1165,13 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, char **
 			disconnectDB();
 		}               
         
-		return NULL;             		
+		*value = NULL;
+		return FAILURE_QUERY_HISTORYADS_VER;
 	}
+	
+    *value = cv.c_str();
 
-	rv = cv.c_str();
-
-	return rv;				
-#endif
+	return SUCCESS;				
 }
 
 //! get a value retrieved from ProcAds_Hor table
