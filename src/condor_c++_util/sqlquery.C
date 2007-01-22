@@ -26,7 +26,11 @@
 #include "quill_enums.h"
 #include "condor_config.h"
 
-#define avg_time_template_pgsql "SELECT avg((now() - 'epoch'::timestamp with time zone) - cast(QDate || ' seconds' as interval)) \
+#define quill_history_hor_select_list "scheddname, cluster_id, proc, qdate, owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, user_j, env, userlog, coresize, killsig, rank, in_j, transferin, out, transferout, err, transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, requirements, filesystemdomain, args, lastmatchtime, numjobmatches, jobstartdate, jobcurrentstartdate, jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, rscbytesrecvd, exitcode, jobstatus, enteredcurrentstatus, remotewallclocktime, lastremotehost, completiondate"
+
+#define quill_history_ver_select_list "scheddname, cluster_id, proc, attr, val"
+
+#define quill_avg_time_template_pgsql "SELECT avg((now() - 'epoch'::timestamp with time zone) - cast(QDate || ' seconds' as interval)) \
          FROM \
            (SELECT \
              c.QDate AS QDate, \
@@ -50,7 +54,7 @@
    After the averge of number of seconds is computed, we convert the avg back 
    to the format of 'days hours:minutes:seconds' for display.
 */
-#define avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' || floor(mod(t.elapsed, 86400)/3600) || ':' || floor(mod(t.elapsed, 3600)/60) || ':' || floor(mod(t.elapsed, 60))  FROM (SELECT avg((extract(day from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(QDate/86400))*86400 + (extract(hour from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(mod(QDate, 86400)/3600))*3600 + (extract(minute from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(mod(QDate, 3600)/60))*60 + (extract(second from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - mod(QDate, 60))) as elapsed \
+#define quill_avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' || floor(mod(t.elapsed, 86400)/3600) || ':' || floor(mod(t.elapsed, 3600)/60) || ':' || floor(mod(t.elapsed, 60))  FROM (SELECT avg((extract(day from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(QDate/86400))*86400 + (extract(hour from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(mod(QDate, 86400)/3600))*3600 + (extract(minute from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(mod(QDate, 3600)/60))*60 + (extract(second from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - mod(QDate, 60))) as elapsed \
          FROM \
            (SELECT \
              c.QDate AS QDate, \
@@ -157,43 +161,45 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_ALL_HOR:
 	  if (dt == T_PGSQL) {
 			sprintf(declare_cursor_str, 
-					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT * FROM HISTORY_HORIZONTAL ORDER BY scheddname, cluster_id, proc;");
+					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL ORDER BY scheddname, cluster_id, proc;", quill_history_hor_select_list);
 			sprintf(fetch_cursor_str,
 				"FETCH FORWARD 100 FROM HISTORY_ALL_HOR_CUR");
 			sprintf(close_cursor_str,
 				"CLOSE HISTORY_ALL_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT * FROM quillwriter.HISTORY_HORIZONTAL ORDER BY scheddname, cluster_id, proc");
+				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL ORDER BY scheddname, cluster_id, proc", quill_history_hor_select_list);
 	  }
     
     break;
   case HISTORY_ALL_VER:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_ALL_VER_CUR CURSOR FOR SELECT * FROM HISTORY_VERTICAL ORDER BY scheddname, cluster_id, proc;");
+			"DECLARE HISTORY_ALL_VER_CUR CURSOR FOR SELECT %s FROM HISTORY_VERTICAL ORDER BY scheddname, cluster_id, proc;", quill_history_ver_select_list);
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_ALL_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_ALL_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT * FROM quillwriter.HISTORY_VERTICAL ORDER BY scheddname, cluster_id, proc");
+				  "SELECT %s FROM quillwriter.HISTORY_VERTICAL ORDER BY scheddname, cluster_id, proc", quill_history_ver_select_list);
 	  }
 
     break;
   case HISTORY_CLUSTER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT * FROM HISTORY_HORIZONTAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
-			*((int *)parameters[0]));
+			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
+				quill_history_hor_select_list, 
+				*((int *)parameters[0]));
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_CLUSTER_HOR_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT * FROM quillwriter.HISTORY_HORIZONTAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
+				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
+				  quill_history_hor_select_list, 
 				  *((int *)parameters[0]));
 	  }
 
@@ -201,30 +207,34 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_CLUSTER_VER:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_VER_CUR CURSOR FOR SELECT * FROM HISTORY_VERTICAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
-			*((int *)parameters[0]));
+			"DECLARE HISTORY_CLUSTER_VER_CUR CURSOR FOR SELECT %s FROM HISTORY_VERTICAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
+				quill_history_ver_select_list,
+				*((int *)parameters[0]));
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_CLUSTER_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT * FROM quillwriter.HISTORY_VERTICAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
+				  "SELECT %s FROM quillwriter.HISTORY_VERTICAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
+				  quill_history_ver_select_list, 
 				  *((int *)parameters[0]));
 	  }
     break;
   case HISTORY_CLUSTER_PROC_HOR:
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT * FROM HISTORY_HORIZONTAL WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc;",
-			*((int *)parameters[0]), *((int *)parameters[1]));
+			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc;",
+				quill_history_hor_select_list,
+				*((int *)parameters[0]), *((int *)parameters[1]));
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_CLUSTER_PROC_HOR_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_PROC_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT * FROM quillwriter.HISTORY_HORIZONTAL WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc",
+				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc",
+				  quill_history_hor_select_list, 
 				  *((int *)parameters[0]), *((int *)parameters[1]));
 	  }
 
@@ -232,17 +242,19 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_CLUSTER_PROC_VER:
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_PROC_VER_CUR CURSOR FOR SELECT * FROM HISTORY_VERTICAL WHERE cluster_id=%d and proc=%d "
+			"DECLARE HISTORY_CLUSTER_PROC_VER_CUR CURSOR FOR SELECT %s FROM HISTORY_VERTICAL WHERE cluster_id=%d and proc=%d "
 			"ORDER BY scheddname, cluster, proc;",
-			*((int *)parameters[0]), *((int *)parameters[1]));
+				quill_history_ver_select_list, 
+				*((int *)parameters[0]), *((int *)parameters[1]));
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_CLUSTER_PROC_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_PROC_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT * FROM quillwriter.HISTORY_VERTICAL WHERE cluster_id=%d and proc=%d "
+				  "SELECT %s FROM quillwriter.HISTORY_VERTICAL WHERE cluster_id=%d and proc=%d "
 				  "ORDER BY scheddname, cluster_id, proc",
+				  quill_history_ver_select_list, 
 				  *((int *)parameters[0]), *((int *)parameters[1]));
 	  }
 
@@ -250,8 +262,9 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_OWNER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
-			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT * FROM HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
+			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
 			"ORDER BY scheddname, cluster_id, proc;",
+				quill_history_hor_select_list,
 			((char *)parameters[0]));
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_OWNER_HOR_CUR");
@@ -259,8 +272,9 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_OWNER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str,
-				  "SELECT * FROM quillwriter.HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
+				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
 				  "ORDER BY scheddname, cluster_id,proc",
+				  quill_history_hor_select_list,
 				  ((char *)parameters[0]));
 	  }
 
@@ -290,21 +304,23 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_COMPLETEDSINCE_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
-			"DECLARE HISTORY_COMPLETEDSINCE_HOR_CUR CURSOR FOR SELECT * FROM History_Horizontal "
+			"DECLARE HISTORY_COMPLETEDSINCE_HOR_CUR CURSOR FOR SELECT %s FROM History_Horizontal "
 			"WHERE \"CompletionDate\" > "
 			"date_part('epoch', '%s'::timestamp with time zone) "
 			"ORDER BY scheddname, cluster_id,proc;",
-			((char *)parameters[0]));
+				quill_history_hor_select_list,
+				((char *)parameters[0]));
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_COMPLETEDSINCE_HOR_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_COMPLETEDSINCE_HOR_CUR");
 	  } else if (dt == T_ORACLE)
 		  sprintf(query_str,
-				  "SELECT * FROM quillwriter.History_Horizontal "
+				  "SELECT %s FROM quillwriter.History_Horizontal "
 				  "WHERE (to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(\"CompletionDate\"/86400) || ' ' || floor(mod(\"CompletionDate\",86400)/3600) || ':' || floor(mod(\"CompletionDate\", 3600)/60) || ':' || mod(\"CompletionDate\", 60))) > "
 				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') "
 				  "ORDER BY scheddname, cluster_id,proc",
+				  quill_history_hor_select_list,
 				  ((char *)parameters[0]));
 		  
 	  break;
@@ -336,9 +352,9 @@ createQueryString(query_types qtype, void **parameters) {
 	  break;
   case QUEUE_AVG_TIME:
 	  if (dt == T_PGSQL) 
-		  sprintf(query_str, avg_time_template_pgsql);
+		  sprintf(query_str, quill_avg_time_template_pgsql);
 	  else if (dt == T_ORACLE) 
-		  sprintf(query_str, avg_time_template_oracle);
+		  sprintf(query_str, quill_avg_time_template_oracle);
 	  break;
 	  
   default:
