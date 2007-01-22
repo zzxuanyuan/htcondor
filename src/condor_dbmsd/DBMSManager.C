@@ -183,6 +183,7 @@ DBMSManager::InvalidatePublicAd() {
 
 void
 DBMSManager::TimerHandler_PurgeDatabase() {
+	dprintf(D_ALWAYS, "******** Start of Purging Old Data ********\n");
 	if(m_databases) {
 		int i = 0;
 		while (m_databases[i]) {
@@ -190,4 +191,5 @@ DBMSManager::TimerHandler_PurgeDatabase() {
 			i++;
 		}
 	}	
+	dprintf(D_ALWAYS, "******** End of Purging Old Data ********\n");
 }
