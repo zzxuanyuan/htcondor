@@ -1000,7 +1000,6 @@ JobQueueDBManager::processSetAttribute(char* key,
 	char cid[512];
 	char pid[512];
 	int  job_id_type;
-	char *tempvalue = NULL;
 		//int		ret_st;
 	char *newvalue = NULL;
 
@@ -1029,10 +1028,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 				free(ts_expr);
 
 			} else {
-				tempvalue = (char *) malloc(strlen(value) + 1);
-				strcpy(tempvalue, value);
-				//strip_double_quote(tempvalue);
-				newvalue = fillEscapeCharacters(tempvalue);
+				newvalue = fillEscapeCharacters(value);
 					// escape single quote within the value
 				sql_str_del_in.sprintf(
 						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s'", name, newvalue, scheddname, cid);
@@ -1040,10 +1036,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 			}
 		} else {
-			tempvalue = (char *) malloc(strlen(value) + 1);
-			strcpy(tempvalue, value);
-			//strip_double_quote(tempvalue);
-			newvalue = fillEscapeCharacters(tempvalue);
+			newvalue = fillEscapeCharacters(value);
 			sql_str_del_in.sprintf(
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND attr = '%s'", scheddname, cid, name);
 
@@ -1055,17 +1048,11 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 		break;
 	case IS_PROC_ID:
-		tempvalue = (char *) malloc(strlen(value) + 1);
-
 		if(isHorizontalProcAttribute(name)) {
-			strcpy(tempvalue, value);
-			//strip_double_quote(tempvalue);
 			sql_str_del_in.sprintf(
-					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, tempvalue, scheddname, cid, pid);
+					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, value, scheddname, cid, pid);
 		} else {
-			strcpy(tempvalue, value);
-			//strip_double_quote(tempvalue);
-			newvalue = fillEscapeCharacters(tempvalue);
+			newvalue = fillEscapeCharacters(value);
 			sql_str_del_in.sprintf(
 					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 
@@ -1082,8 +1069,6 @@ JobQueueDBManager::processSetAttribute(char* key,
 		break;
 	}
   
-	if (tempvalue) free(tempvalue);
-		
 	QuillErrCode ret_st;
 
 	ret_st = DBObj->execCommand(sql_str_del_in.GetCStr());
