@@ -1,3 +1,10 @@
+/* 
+   the script should be installed into the database that's used by quill
+   and installed as the quillwriter user the quill daemon will connect to 
+   for updating the database. The right permissions shoud have been 
+   set up for the user for the creation of the following schema objects.
+*/
+
 CREATE TABLE cdb_users (
 username varchar(8),
 password character(32),
@@ -554,13 +561,9 @@ val				VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
+-- this table is used internally by the quill daemon for constructing a 
+-- single tuple in a sql statement for updating database, end users 
+-- don't need to access this table
 CREATE TABLE dummy_single_row_table(a varchar(1));
 INSERT INTO dummy_single_row_table VALUES ('x');
 
-CREATE TABLE quill_schema_version (
-major int, 
-minor int, 
-back_to_major int, 
-back_to_minor int);
-
-INSERT INTO quill_schema_version (major, minor, back_to_major, back_to_minor) VALUES (2,0,2,0);

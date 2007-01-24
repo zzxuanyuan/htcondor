@@ -39,7 +39,7 @@
 //-------------------------------------------------------------
 
 // about self
-char* mySubSystem = "QUILLPP";		// used by Daemon Core
+char* mySubSystem = "QUILL";		// used by Daemon Core
 // global objects;
 TTManager ttManager;
 

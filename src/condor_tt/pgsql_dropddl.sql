@@ -45,3 +45,8 @@ DROP VIEW CURRENT_JOBS_FLOCKED_IN;
 DROP VIEW History_JOBS_FLOCKED_OUT;
 DROP VIEW CURRENT_JOBS_FLOCKED_OUT;
 DROP TABLE dummy_single_row_table;
+DROP TABLE Error_Sqllog CASCADE CONSTRAINTS;
+DROP FUNCTION quill_purgeHistory(resourceHistoryDuration integer, runHistoryDuration integer, jobHistoryDuration integer);
+DROP TABLE History_Jobs_To_Purge;
+DROP TABLE quillDBMonitor;
+DROP TABLE quill_schema_version;

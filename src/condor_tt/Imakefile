@@ -22,8 +22,6 @@ public_copy_target(oracle_createddl.sql,sql,oracle_createddl.sql,TEXT_MODE)
 public_copy_target(pgsql_createddl.sql,sql,pgsql_createddl.sql,TEXT_MODE)
 public_copy_target(oracle_dropddl.sql,sql,oracle_dropddl.sql,TEXT_MODE)
 public_copy_target(pgsql_dropddl.sql,sql,pgsql_dropddl.sql,TEXT_MODE)
-public_copy_target(oracle_purgeHistory.sql,sql,oracle_purgeHistory.sql,TEXT_MODE)
-public_copy_target(pgsql_purgeHistory.sql,sql,pgsql_purgeHistory.sql,TEXT_MODE)
 #html:
 #release:: all
 #stripped:: all
