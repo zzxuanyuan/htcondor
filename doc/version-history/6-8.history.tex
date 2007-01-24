@@ -38,6 +38,13 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item In this release,
+the command \Condor{q} \Arg{-long} does not work when querying
+the Quill database.
+Instead, use the command
+\Condor{q} \Arg{-direct quilld} \Arg{-long},
+or use a previous version of \Condor{q}.
+
 \item Performed a security audit of all places where Condor opens files,
 to make certain files are opened with a reasonable permission mode
 and with the
