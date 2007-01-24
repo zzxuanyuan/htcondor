@@ -322,7 +322,7 @@ analyze MACHINE_CLASSAD;
 analyze DAEMON_HORIZONTAL;
 analyze HISTORY_JOBS_TO_PURGE;
 
-SELECT SUM(relpages)*8192/(1024*1024) INTO totalUsedMB
+SELECT ROUND(SUM(relpages)*8192/(1024*1024)) INTO totalUsedMB
 FROM pg_class
 WHERE relname IN ('procads_vertical', 'history_vertical', 'clusterads_vertical', 'procads_horizontal', 'clusterads_horizontal', 'history_horizontal', 'files', 'fileusages', 'schedd_vertical', 'schedd_horizontal', 'runs', 'master_vertical', 'machine', 'machine_classad', 'daemon_vertical', 'daemon_horizontal', 'transfers', 'schedd_vertical_history', 'schedd_horizontal_history', 'rejects', 'negotiator_vertical_history', 'matches', 'master_vertical_history', 'machine_history', 'machine_classad_history', 'events', 'daemon_vertical_history', 'daemon_horizontal_history');
 

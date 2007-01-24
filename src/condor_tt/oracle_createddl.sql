@@ -321,7 +321,7 @@ execute immediate 'analyze table MACHINE_CLASSAD compute statistics';
 execute immediate 'analyze table DAEMON_HORIZONTAL compute statistics';
 execute immediate 'analyze table HISTORY_JOBS_TO_PURGE compute statistics';
 
-SELECT SUM(NUM_ROWS*AVG_ROW_LEN)/(1024*1024) INTO totalUsedMB
+SELECT ROUND(SUM(NUM_ROWS*AVG_ROW_LEN)/(1024*1024)) INTO totalUsedMB
 FROM USER_TABLES;
 
 DBMS_OUTPUT.PUT_LINE('totalUsedMB=' || totalUsedMB || ' MegaBytes');
