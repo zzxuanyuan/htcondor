@@ -5,7 +5,5 @@
 #include "condor_td.h"
 
 template class SimpleList<ClassAd*>;
-/*template class Item<ClassAd*>;*/
-
-template class SimpleList<TransferRequest*>;
-/*template class Item<TransferRequest*>;*/
+template class HashTable<MyString, TransferRequest*>;
+template class HashTable<long, TransferRequest*>;

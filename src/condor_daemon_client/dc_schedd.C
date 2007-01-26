@@ -31,6 +31,7 @@
 #include "proc.h"
 #include "file_transfer.h"
 #include "condor_version.h"
+#include "condor_ftp.h"
 
 
 // // // // //
@@ -488,18 +489,140 @@ DCSchedd::register_transferd(MyString sinful, MyString id, int timeout,
 	return false;
 }
 
+/*
+[Request Sandbox Location Ad]
+
+FileTransferProtocol = "CondorInternalFileTransfer"
+PeerVersion = "..."
+HasConstraint = TRUE
+Constraint = "(cluster == 120 && procid == 0)"
+
+OR
+
+FileTransferProtocol = "CondorInternalFileTransfer"
+PeerVersion = "..."
+HasConstraint = FALSE
+NumJobIDs = 10
+JobIDs = "12.0,12.1,12.2,12.3,12.4,12.5,12.6,12.7,12.8,12.9"
+*/
+
+// using jobids structure so the schedd doesn't have to iterate over all the
+// job ads.
+bool 
+DCSchedd::requestSandboxLocation(int direction, 
+	int JobAdsArrayLen, ClassAd* JobAdsArray[], int protocol, 
+	ClassAd *respad, CondorError * errstack)
+{
+	StringList sl;
+	ClassAd reqad;
+	MyString str;
+	int i;
+	int cluster, proc;
+	char *tmp = NULL;
+
+	////////////////////////////////////////////////////////////////////////
+	// This request knows exactly which jobs it wants to talk about, so
+	// just compact them into the classad to send to the schedd.
+	////////////////////////////////////////////////////////////////////////
+
+	reqad.Assign(ATTR_TREQ_DIRECTION, direction);
+	reqad.Assign(ATTR_TREQ_PEER_VERSION, CondorVersion());
+	reqad.Assign(ATTR_TREQ_HAS_CONSTRAINT, false);
+
+	for (i = 0; i < JobAdsArrayLen; i++) {
+		if (!JobAdsArray[i]->LookupInteger(ATTR_CLUSTER_ID,cluster)) {
+			dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation: "
+					"Job ad %d did not have a cluster id\n",i);
+			return false;
+		}
+		if (!JobAdsArray[i]->LookupInteger(ATTR_PROC_ID,proc)) {
+			dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
+					"Job ad %d did not have a proc id\n",i);
+			return false;
+		}
+		
+		str.sprintf("%d.%d", cluster, proc);
+
+		// make something like: 1.0, 1.1, 1.2, ....
+		sl.append(str.Value());
+	}
+
+	tmp = sl.print_to_string();
+
+	reqad.Assign(ATTR_TREQ_JOBID_LIST, tmp);
+
+	free(tmp);
+	tmp = NULL;
+
+	// XXX This should be a realized function to convert between the
+	// protocol enum and a string description. That way both functions can
+	// use it and it won't seem so bad.
+	switch(protocol) {
+		case FTP_CFTP:
+			reqad.Assign(ATTR_TREQ_FTP, FTP_CFTP);
+			break;
+		default:
+			dprintf(D_ALWAYS, "DCSchedd::requestSandboxLocation(): "
+				"Can't make a request for a sandbox with an unknown file "
+				"transfer protocol!");
+			return false;
+			break;
+	}
+
+	// now connect to the schedd and get the response.
+	return requestSandboxLocation(&reqad, respad, errstack);
+}
+
+// using a constraint for which the schedd must iterate over all the jobads.
+bool 
+DCSchedd::requestSandboxLocation(int direction, MyString &constraint, 
+	int protocol, ClassAd *respad, CondorError * errstack)
+{
+	ClassAd reqad;
+
+	////////////////////////////////////////////////////////////////////////
+	// This request specifies a collection of job ads as defined by a
+	// constraint. Later, then the transfer actually happens to the transferd,
+	// this constraint will get converted to actual job ads at that time and
+	// the client will have to get them back so it knows what to send.
+	////////////////////////////////////////////////////////////////////////
+
+	reqad.Assign(ATTR_TREQ_DIRECTION, direction);
+	reqad.Assign(ATTR_TREQ_PEER_VERSION, CondorVersion());
+	reqad.Assign(ATTR_TREQ_HAS_CONSTRAINT, true);
+	reqad.Assign(ATTR_TREQ_CONSTRAINT, constraint.Value());
+
+	// XXX This should be a realized function to convert between the
+	// protocol enum and a string description. That way both functions can
+	// use it and it won't seem so bad.
+	switch(protocol) {
+		case FTP_CFTP:
+			reqad.Assign(ATTR_TREQ_FTP, FTP_CFTP);
+			break;
+		default:
+			dprintf(D_ALWAYS, "DCSchedd::requestSandboxLocation(): "
+				"Can't make a request for a sandbox with an unknown file "
+				"transfer protocol!");
+			return false;
+			break;
+	}
+
+	// now connect to the schedd and get the response.
+	return requestSandboxLocation(&reqad, respad, errstack);
+}
+
 
 // I'm going to ask the schedd for where I can put the files for the jobs I've
 // specified. The schedd is going to respond with A) a message telling me it
 // has the answer right away, or B) an answer telling me I have to wait 
 // an unknown length of time for the schedd to schedule me a place to put it.
 bool 
-DCSchedd::requestSandboxLocation(int JobAdsArrayLen, ClassAd* JobAdsArray[], MyString &td_sinful, CondorError * errstack)
+DCSchedd::requestSandboxLocation(ClassAd *reqad, ClassAd *respad, 
+	CondorError * errstack)
 {
-	int reply;
-	int i;
 	ReliSock rsock;
-	char *c_td_sinful = NULL;
+	int will_block;
+	ClassAd status_ad;
 
 	rsock.timeout(20);   // years of research... :)
 	if( ! rsock.connect(_addr) ) {
@@ -524,89 +647,94 @@ DCSchedd::requestSandboxLocation(int JobAdsArrayLen, ClassAd* JobAdsArray[], MyS
 
 	rsock.encode();
 
-	// Need to use a named variable, else the wrong version of	
-	// code() is called.
-	char *my_version = strdup( CondorVersion() );
-	dprintf(D_ALWAYS, "Sending version string: %s\n", my_version);
-	if ( !rsock.code(my_version) ) {
+	///////////////////////////////////////////////////////////////////////
+	// Send my sandbox location request packet to the schedd.
+	///////////////////////////////////////////////////////////////////////
+
+	// This request ad will either contain:
+	//	ATTR_TREQ_PEER_VERSION
+	//	ATTR_TREQ_HAS_CONSTRAINT
+	//	ATTR_TREQ_JOBID_LIST
+	//	ATTR_TREQ_FTP
+	// 
+	// OR
+	//
+	//	ATTR_TREQ_DIRECTION
+	//	ATTR_TREQ_PEER_VERSION
+	//	ATTR_TREQ_HAS_CONSTRAINT
+	//	ATTR_TREQ_CONSTRAINT
+	//	ATTR_TREQ_FTP
+	dprintf(D_ALWAYS, "Sending request ad.\n");
+	if (reqad->put(rsock) != 1) {
 		dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
-				"Can't send version string to the schedd\n");
-		free( my_version );
+				"Can't send reqad to the schedd\n");
 		return false;
 	}
-	free( my_version );
-
-		// Send the number of jobs
-	dprintf(D_ALWAYS, "Sending number of Jobs: %d\n", JobAdsArrayLen);
-	if ( !rsock.code(JobAdsArrayLen) ) {
-		dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
-				"Can't send JobAdsArrayLen to the schedd\n");
-		return false;
-	}
-
-	rsock.eom();
-
-		// Now, put the job ids onto the wire
-	PROC_ID jobid;
-	for (i=0; i<JobAdsArrayLen; i++) {
-		if (!JobAdsArray[i]->LookupInteger(ATTR_CLUSTER_ID,jobid.cluster)) {
-			dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation: "
-					"Job ad %d did not have a cluster id\n",i);
-			return false;
-		}
-		if (!JobAdsArray[i]->LookupInteger(ATTR_PROC_ID,jobid.proc)) {
-			dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
-					"Job ad %d did not have a proc id\n",i);
-			return false;
-		}
-		dprintf(D_ALWAYS, "Sending Job Ad[%d]\n", i);
-		rsock.code(jobid);
-	}
-
-	rsock.eom();
-
-	// XXX  need to fix below this.
-
-	rsock.decode();
-
-	// read back transferd location packet
-	rsock.code(c_td_sinful);
-	dprintf(D_ALWAYS, "Received c_td_sinful status: %s\n", c_td_sinful);
-	rsock.eom();
-	td_sinful = c_td_sinful;
-	free(c_td_sinful);
-
-	dprintf(D_ALWAYS, "td sinful: %s\n", td_sinful.Value());
-
-/*
-		// Now send all the files via the file transfer object
-	for (i=0; i<JobAdsArrayLen; i++) {
-		FileTransfer ftrans;
-		if ( !ftrans.SimpleInit(JobAdsArray[i], false, false, &rsock) ) {
-			return false;
-		}
-		if ( use_new_command ) {
-			ftrans.setPeerVersion( version() );
-		}
-		if ( !ftrans.UploadFiles(true,false) ) {
-			return false;
-		}
-	}	
-		
-		
 	rsock.eom();
 
 	rsock.decode();
 
-	reply = 0;
-	rsock.code(reply);
+	///////////////////////////////////////////////////////////////////////
+	// Read back a response ad which will tell me which jobs the schedd
+	// said I could modify and whether or not I'm am going to have to block
+	// before getting the payload of the transferd location/capability ad.
+	///////////////////////////////////////////////////////////////////////
+
+	// This status ad will contain
+	//	ATTR_TREQ_INVALID_REQUEST (set to true)
+	//	ATTR_TREQ_INVALID_REASON
+	//
+	// OR
+	//	ATTR_TREQ_INVALID_REQUEST (set to false)
+	//	ATTR_TREQ_JOBID_ALLOW_LIST
+	//	ATTR_TREQ_JOBID_DENY_LIST
+	//	ATTR_TREQ_WILL_BLOCK
+
+	dprintf(D_ALWAYS, "Receiving status ad.\n");
+	if (status_ad.initFromStream(rsock) == 0) {
+		dprintf(D_ALWAYS, "Schedd closed connection to me. Aborting sandbox "
+			"submission.\n");
+		return false;
+	}
 	rsock.eom();
 
-	if ( reply == 1 ) 
-		return true;
-	else
+	status_ad.LookupInteger(ATTR_TREQ_WILL_BLOCK, will_block);
+
+	dprintf(D_ALWAYS, "Client will %s\n", will_block==1?"block":"not block");
+
+	if (will_block == 1) {
+		// set to 20 minutes.
+		rsock.timeout(60*20);
+	}
+
+	///////////////////////////////////////////////////////////////////////
+	// Read back the payload ad from the schedd about the transferd location
+	// and capability string I can use for the fileset I wish to transfer.
+	///////////////////////////////////////////////////////////////////////
+
+	// read back the response ad from the schedd which contains a 
+	// td sinful string, and a capability. These represent my ability to
+	// read/write a certain fileset somewhere.
+
+	// This response ad from the schedd will contain:
+	//
+	//	ATTR_TREQ_INVALID_REQUEST (set to true)
+	//	ATTR_TREQ_INVALID_REASON
+	//
+	// OR
+	//
+	//	ATTR_TREQ_INVALID_REQUEST (set to false)
+	//	ATTR_TREQ_CAPABILITY
+	//	ATTR_TREQ_TD_SINFUL
+	//	ATTR_TREQ_JOBID_ALLOW_LIST
+
+	dprintf(D_ALWAYS, "Receiving response ad.\n");
+	if (respad->initFromStream(rsock) != 1) {
+		dprintf(D_ALWAYS,"DCSchedd:requestSandboxLocation(): "
+				"Can't receive respond ad from the schedd\n");
 		return false;
-*/
+	}
+	rsock.eom();
 
 	return true;
 }

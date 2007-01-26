@@ -31,9 +31,11 @@
 #include "simplelist.h"
 #include "list.h"
 #include "schedd_api.h"
+#include "tdman.h"
 //#include "condor_crontab.h"
 
 template class SimpleList<TransferRequest*>;
+template class HashTable<MyString, TransferRequest*>;
 
 template class HashTable<MyString, JobFile>;
 template class List<FileInfo>;

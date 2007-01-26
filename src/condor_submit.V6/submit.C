@@ -74,6 +74,8 @@
 #include "directory.h"
 #include "filename_tools.h"
 #include "fs_util.h"
+#include "dc_transferd.h"
+#include "condor_ftp.h"
 
 #include "list.h"
 
@@ -109,6 +111,9 @@ char    JobIwd[_POSIX_PATH_MAX];
 int		LineNo;
 int		ExtraLineNo;
 int		GotQueueCommand;
+/* XXX use the old method for now, this really needs to be a default if the
+	user didn't select any method they'd like */
+bool	UseOldFileTransfer = true;
 
 char	IckptName[_POSIX_PATH_MAX];	/* Pathname of spooled initial ckpt file */
 
@@ -686,6 +691,8 @@ main( int argc, char *argv[] )
 					//   seeing ":<port>" at the end, which is valid for a
 					//   collector name.
 				PoolName = strnewp( *ptr );
+			} else if ( match_prefix( ptr[0], "-oldftm" ) ) {
+				UseOldFileTransfer = true;
 			} else if ( match_prefix( ptr[0], "-help" ) ) {
 				usage();
 				exit( 0 );
@@ -848,30 +855,63 @@ main( int argc, char *argv[] )
 
 	if ( Remote && JobAdsArrayLen > 0 ) {
 		bool result;
-			// perhaps check for proper schedd version here?
-		fprintf(stdout,"Spooling data files for %d jobs...\n",JobAdsArrayLen);
 		CondorError errstack;
-		MyString td_sinful;
 
-		/*
-		result = MySchedd->requestSandboxLocation( JobAdsArrayLen,
-										  JobAdsArray.getarray(),
-										  td_sinful,
-										  &errstack );
+		if (UseOldFileTransfer == true) {
+			// The OLD METHOD for spooling my job files directly to a schedd
 
-		fprintf(stderr, "Requested sandbox, got location: %s\n",
-			td_sinful.Value());
-		*/
-
-		result = MySchedd->spoolJobFiles( JobAdsArrayLen,
+			// perhaps check for proper schedd version here?
+			result = MySchedd->spoolJobFiles( JobAdsArrayLen,
 										  JobAdsArray.getarray(),
 										  &errstack );
+			if ( !result ) {
+				fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+				fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+				exit(1);
+			}
+		} else {
+			fprintf(stdout,"Locating a Sandbox for %d jobs.\n",JobAdsArrayLen);
+			MyString td_sinful;
+			MyString td_capability;
+			ClassAd respad;
+			int invalid;
+			MyString reason;
 
+			result = MySchedd->requestSandboxLocation( FTPD_UPLOAD, JobAdsArrayLen,
+										  JobAdsArray.getarray(), FTP_CFTP,
+										  &respad, &errstack );
+			if ( !result ) {
+				fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+				fprintf( stderr, "ERROR: Failed to get a sandbox location.\n" );
+				exit(1);
+			}
 
-		if ( !result ) {
-			fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
-			fprintf( stderr, "ERROR: Failed to spool job files.\n" );
-			exit(1);
+			respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
+			if (invalid == TRUE) {
+				fprintf( stderr, "Schedd rejected sand box location request:\n");
+				respad.LookupString(ATTR_TREQ_INVALID_REASON, reason);
+				fprintf( stderr, "\t%s\n", reason.Value());
+				return false;
+			}
+
+			respad.LookupString(ATTR_TREQ_TD_SINFUL, td_sinful);
+			respad.LookupString(ATTR_TREQ_CAPABILITY, td_capability);
+
+			dprintf(D_ALWAYS, "Got td: %s, cap: %s\n", td_sinful.Value(),
+				td_capability.Value());
+
+			fprintf(stdout,"Spooling data files for %d jobs.\n",JobAdsArrayLen);
+
+			DCTransferD dctd(td_sinful.Value());
+
+			result = dctd.upload_job_files( JobAdsArrayLen,
+										  JobAdsArray.getarray(),
+										  &respad, &errstack );
+			if ( !result ) {
+				fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+				fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+				exit(1);
+			}
 		}
 	}
 
@@ -5535,6 +5575,7 @@ usage()
 	fprintf( stderr, "	-spool\t\t\tspool all files to the schedd\n" );
 	fprintf( stderr, "	-password <password>\tspecify password to MyProxy server\n" );
 	fprintf( stderr, "	-pool <host>\t\tUse host as the central manager to query\n\n" );
+	fprintf( stderr, "	-oldftm \t\tUse a deprecated file transfer mechanism for spooling files.\n\n" );
 	fprintf( stderr, "	If [cmdfile] is omitted, input is read from stdin\n" );
 }
 

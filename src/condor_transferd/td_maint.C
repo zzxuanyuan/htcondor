@@ -37,7 +37,7 @@ TransferD::dump_state_handler(int cmd, Stream *sock)
 	state.InsertOrUpdate(tmp.Value());
 
 	// count how many pending requests I've had
-	tmp.sprintf("OutstandingTransferRequests = %d", m_treqs.Number());
+	tmp.sprintf("OutstandingTransferRequests = %d", m_treqs.getNumElements());
 	state.InsertOrUpdate(tmp.Value());
 
 	// add more later

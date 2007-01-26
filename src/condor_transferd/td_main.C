@@ -32,8 +32,6 @@ char* mySubSystem = "TRANSFERD";		// used by Daemon Core
 
 int main_init(int argc, char *argv[])
 {
-	dprintf(D_ALWAYS, "main_init() called\n");
-
 	// parse the command line attributes
 	g_td.init(argc, argv);
 
@@ -43,7 +41,6 @@ int main_init(int argc, char *argv[])
 	dprintf(D_ALWAYS, "Registering handlers...\n");
 	g_td.register_handlers();
 
-	dprintf(D_ALWAYS, "Ready!\n");
 	return TRUE;
 }
 

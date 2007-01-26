@@ -79,6 +79,11 @@ class Features
 		}
 
 	private:
+
+		///////////////////////////////////////////////////////////////////////
+		// Private variables:
+		///////////////////////////////////////////////////////////////////////
+
 		// --schedd <sinfulstring>
 		// The schedd with which the transferd registers itself.
 		MyString m_schedd_sinful;
@@ -116,10 +121,14 @@ class TransferD : public Service
 		// if needed.
 		void init(int argc, char *argv[]);
 
-		// The transferd will read what work it needs to perform from
-		// either stdin, if asked for, or a command handler.
+		// The td will read a single treq from stdin
 		int accept_transfer_request(FILE *fin);
-		int accept_transfer_request_handler(int cmd, Stream *fin);
+
+		// After the treq channel from the schedd to the td has been
+		// setup, just keep accepting more work from it in a registered
+		// socket handler...
+		int setup_transfer_request_handler(int cmd, Stream *sock);
+		int accept_transfer_request_handler(Stream *sock);
 
 		void register_handlers(void);
 		void register_timers(void);
@@ -140,10 +149,14 @@ class TransferD : public Service
 		// internal state.
 		int dump_state_handler(int cmd, Stream *sock);
 
-		// how files get into and out of the transferd's storage space
+		// how files are written into the transferd
 		int write_files_handler(int cmd, Stream *sock);
+		static int write_files_thread(void *targ, Stream *sock);
 		int write_files_reaper(int tid, int exit_status);
+
+		// how files are read from the transferd
 		int read_files_handler(int cmd, Stream *sock);
+		static int read_files_thread(void *targ, Stream *sock);
 		int read_files_reaper(int tid, int exit_status);
 
 		// a periodic timer to process any active requests
@@ -161,12 +174,16 @@ class TransferD : public Service
 		Features m_features;
 
 	private:
-		////////////////////////////////////////////////////////////////////
-		// methods
+		///////////////////////////////////////////////////////////////////////
+		// Private functions
+		///////////////////////////////////////////////////////////////////////
+
+		// Shove a go away message on the stream.
+		static void refuse(Sock *sock);
 
 		// read the information using the old classads encapsulation
 		int accept_transfer_request_encapsulation_old_classads(FILE *fin);
-		int accept_transfer_request_encapsulation_old_classads(int cmd, Stream *fin);
+		int accept_transfer_request_encapsulation_old_classads(Stream *sock);
 
 		// Call up the schedd I was informed about to tell them I'm alive.
 		// the returned pointer (if valid) is the connection that the 
@@ -178,18 +195,32 @@ class TransferD : public Service
 		int process_active_shadow_request(TransferRequest *treq); // XXX demo
 		int active_shadow_transfer_completed( FileTransfer *ftrans );
 
+		// generate a capability unique to the capabilities currently known
+		MyString gen_capability(void);
+
 		////////////////////////////////////////////////////////////////////
-		// variables
+		// Private variables
+		////////////////////////////////////////////////////////////////////
 
 		// Has the init() call been called? 
 		int m_initialized;
 
 		// The list of transfers that have been requested of me to do when
 		// someone contacts me.
-		SimpleList<TransferRequest*> m_treqs;
+		// Key: capability, Value: TransferRequest
+		HashTable<MyString, TransferRequest*> m_treqs;
 
-		// XXX need two hash tables, one for writing thread reapers, one for
-		// reading thread reapers.
+		// Associate a pid with a transfer request so the reaper can
+		// figure out which transfer request failed/succeeded.
+		// This hash table is for clients writing to the transferd.
+		// Key: pid from Create_Thread, Value: TransferRequest
+		HashTable<long, TransferRequest*> m_client_to_transferd_threads;
+
+		// Associate a pid with a transfer request so the reaper can
+		// figure out which transfer request failed/succeeded.
+		// Key: pid from Create_Thread, Value: TransferRequest
+		// This hash table is for the transferd writing to the client.
+		HashTable<long, TransferRequest*> m_transferd_to_client_threads;
 
 		// After the transferd registers to the schedd, the connection to
 		// the schedd is stored here. This allows the transferd to send

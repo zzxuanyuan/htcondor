@@ -178,7 +178,6 @@ typedef enum {
 	NO_SHADOW_MPI,
 } NoShadowFailure_t;
 
-
 // These are the args to contactStartd that get stored in the queue.
 class ContactStartdArgs
 {
@@ -341,12 +340,25 @@ class Scheduler : public Service
 	void			add_shadow_rec_pid(shadow_rec*);
 	void			HadException( match_rec* );
 
-		// Used to manipulate transferds and the information associated with
-		// them.
-	// the registration handler
-	int transferd_registration(int cmd, Stream *sock);
-	// for updates which come from the registration socket.
-	int transferd_update(Stream *sock);
+	// Callbacks to handle transfer requests for clients uploading files into
+	// Condor's control.
+	TreqAction treq_upload_pre_push_callback(TransferRequest *treq, 
+		TransferDaemon *td);
+	TreqAction treq_upload_post_push_callback(TransferRequest *treq, 
+		TransferDaemon *td);
+	TreqAction treq_upload_update_callback(TransferRequest *treq, 
+		TransferDaemon *td, ClassAd *update);
+	TreqAction treq_upload_reaper_callback(TransferRequest *treq);
+
+	// Callbacks to handle transfer requests for clients downloading files
+	// out of Condor's control.
+	TreqAction treq_download_pre_push_callback(TransferRequest *treq, 
+		TransferDaemon *td);
+	TreqAction treq_download_post_push_callback(TransferRequest *treq, 
+		TransferDaemon *td);
+	TreqAction treq_download_update_callback(TransferRequest *treq, 
+		TransferDaemon *td, ClassAd *update);
+	TreqAction treq_download_reaper_callback(TransferRequest *treq);
 
 		// Used to manipulate the "extra ads" (read:Hawkeye)
 	int adlist_register( const char *name );

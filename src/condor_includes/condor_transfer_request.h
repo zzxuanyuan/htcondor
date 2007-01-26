@@ -4,6 +4,9 @@
 #include "extArray.h"
 #include "MyString.h"
 #include "file_transfer.h"
+#include "proc.h"
+#include "condor_classad.h"
+#include "condor_ftp.h"
 
 // Used to determine the type of protocol encapsulation the transferd desires.
 enum EncapMethod {
@@ -28,11 +31,38 @@ enum TreqMode {
 	TREQ_MODE_ACTIVE_SHADOW, /* XXX DEMO mode */
 };
 
+/* This describes what actions the schedd would like to perform with the 
+	transfer request when the callback engine calls the schedd's callbacks. 
+*/
+enum TreqAction {
+	TREQ_ACTION_CONTINUE,	/* continue processing to the next stage */
+	TREQ_ACTION_TERMINATE,	/* the callback handler has decided to end the
+								processing of the transfer request. In this
+								case, the callback handler assumed 
+								responsibility for the treq pointer. */
+};
+
 // Move to a different header file when done!
 extern const char ATTR_IP_PROTOCOL_VERSION[];
 extern const char ATTR_IP_NUM_TRANSFERS[];
 extern const char ATTR_IP_TRANSFER_SERVICE[];
 extern const char ATTR_IP_PEER_VERSION[];
+
+// forward declarations to make the typedef below function properly.
+class TransferRequest;
+class TransferDaemon;
+
+// The types of the callback handlers for each stage of the transfer request
+// processing that the schedd has a say in.
+typedef TreqAction 
+	(Service::*TreqPrePushCallback)(TransferRequest*, TransferDaemon*);
+typedef TreqAction
+	(Service::*TreqPostPushCallback)(TransferRequest*, TransferDaemon*);
+typedef TreqAction
+	(Service::*TreqUpdateCallback)(TransferRequest*, TransferDaemon*, 
+	ClassAd *update);
+typedef TreqAction 
+	(Service::*TreqReaperCallback)(TransferRequest*);
 
 // This class is a delegation class the represents a particular request from
 // anyone (usually the schedd) to transfer some files associated with a set of
@@ -48,8 +78,14 @@ class TransferRequest
 		~TransferRequest();
 
 		/////////////////////////////////////////////////////////////////////
-		// this is stuff that is supplied in the initializing classad.
+		// These functions describe information that will be serialized
+		// to the transfer daemon. Included with this information in the
+		// serialization are the internal job ads.
 		/////////////////////////////////////////////////////////////////////
+
+		// This transfer request is either an upload or a download */
+		void set_direction(int dir);
+		int get_direction(void);
 
 		// What is the version string of the peer I'm talking to?
 		// This could be the empty string if there is no version.
@@ -61,6 +97,16 @@ class TransferRequest
 		// what version is the info packet
 		void set_protocol_version(int);
 		int get_protocol_version(void);
+
+		// what protocol does the file transfer client want to use?
+		void set_xfer_protocol(int);
+		int get_xfer_protocol(void);
+
+		// See if this request had been gotten intially via a constraint
+		// expression. This affects the protocol the transferd uses to speak
+		// to the client.
+		void set_used_constraint(bool con);
+		bool get_used_constraint(void);
 
 		// Should this request be handled Passively, Actively, or Active Shadow
 		void set_transfer_service(TreqMode mode);
@@ -77,6 +123,12 @@ class TransferRequest
 		// This deals with manipulating the payload of ads(tasks) to work on
 		/////////////////////////////////////////////////////////////////////
 
+		// stuff the array pf procids I got from the submit client into
+		// here so the schedd knows what to do just before they get pushed
+		// to the td.
+		void set_procids(ExtArray<PROC_ID> *jobs);
+		ExtArray<PROC_ID>* get_procids(void);
+
 		// add a jobad to the transfer request, this accepts ownership
 		// of the memory passed to it.
 		void append_task(ClassAd *jobad);
@@ -87,11 +139,55 @@ class TransferRequest
 		SimpleList<ClassAd *>* todo_tasks(void);
 
 		/////////////////////////////////////////////////////////////////////
+		// Sometimes I need to stash a client socket or capability
+		/////////////////////////////////////////////////////////////////////
+
+		void set_client_sock(ReliSock *rsock);
+		ReliSock* get_client_sock(void);
+
+		void set_capability(MyString &capability);
+		MyString get_capability(void);
+
+		/////////////////////////////////////////////////////////////////////
+		// Various kinds of status this request can be in 
+		/////////////////////////////////////////////////////////////////////
+
+		void set_rejected(bool val);
+		bool get_rejected(void);
+
+		void set_rejected_reason(MyString &reason);
+		MyString get_rejected_reason(void);
+
+		/////////////////////////////////////////////////////////////////////
+		// Callback at various processing points of this request so the 
+		// schedd can do work.
+		/////////////////////////////////////////////////////////////////////
+		void set_pre_push_callback(MyString desc, 
+			TreqPrePushCallback callback, Service *base);
+		int call_pre_push_callback(TransferRequest *treq, TransferDaemon *td);
+
+		void set_post_push_callback(MyString desc,
+			TreqPostPushCallback callback, Service *base);
+		int call_post_push_callback(TransferRequest *treq, TransferDaemon *td);
+
+		void set_update_callback(MyString desc, 
+			TreqUpdateCallback callback, Service *base);
+		int call_update_callback(TransferRequest *treq, TransferDaemon *td,
+			ClassAd *update);
+
+		void set_reaper_callback(MyString desc, 
+			TreqReaperCallback callback, Service *base);
+		int call_reaper_callback(TransferRequest *treq);
+
+		/////////////////////////////////////////////////////////////////////
 		// Utility functions
 		/////////////////////////////////////////////////////////////////////
 
 		// Dump the packet to specified debug level
 		void dprintf(unsigned int lvl);
+
+		// serialize the header information and jobads to this socket
+		int put(Stream *sock);
 
 	private:
 		// Inspect the information packet during construction and verify the 
@@ -103,6 +199,38 @@ class TransferRequest
 
 		// Here is the list of jobads associated with this transfer request.
 		SimpleList<ClassAd *> m_todo_ads;
+
+		// Here is the original array of procids I got from the client
+		ExtArray<PROC_ID> *m_procids;
+
+		// In the schedd's codebase, it needs to stash a client socket into
+		// the request to deal with across callbacks.
+		ReliSock *m_client_sock;
+
+		// Allow the stashing of a capability a td gave for this request here.
+		MyString m_cap;
+
+		// If the transferd rejects this request, this is for the schedd
+		// to record that fact.
+		bool m_rejected;
+		MyString m_rejected_reason;
+
+		// the various callbacks
+		MyString m_pre_push_func_desc;
+		TreqPrePushCallback m_pre_push_func;
+		Service *m_pre_push_func_this;
+
+		MyString m_post_push_func_desc;
+		TreqPostPushCallback m_post_push_func;
+		Service *m_post_push_func_this;
+
+		MyString m_update_func_desc;
+		TreqUpdateCallback m_update_func;
+		Service *m_update_func_this;
+
+		MyString m_reaper_func_desc;
+		TreqReaperCallback m_reaper_func;
+		Service *m_reaper_func_this;
 };
 
 /* converts a protcol ASCII line to an enum which represents and encapsulation

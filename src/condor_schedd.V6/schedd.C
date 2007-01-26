@@ -10012,10 +10012,6 @@ Scheduler::Register()
 			"DELEGATE_GSI_CRED_SCHEDD",
 			(CommandHandlercpp)&Scheduler::updateGSICred,
 			"updateGSICred", this, WRITE);
-	 daemonCore->Register_Command(TRANSFERD_REGISTER,
-			"TRANSFERD_REGISTER",
-			(CommandHandlercpp)&Scheduler::transferd_registration,
-			"transferd_registration", this, WRITE);
 	 daemonCore->Register_Command(REQUEST_SANDBOX_LOCATION,
 			"REQUEST_SANDBOX_LOCATION",
 			(CommandHandlercpp)&Scheduler::requestSandboxLocation,
@@ -10064,6 +10060,9 @@ Scheduler::Register()
 
 	// Now is a good time to instantiate the GridUniverse
 	_gridlogic = new GridUniverseLogic;
+
+	// Initialize the Transfer Daemon Manager's handlers as well
+	m_tdman.register_handlers();
 }
 
 void

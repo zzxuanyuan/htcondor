@@ -371,14 +371,16 @@ const int INVALIDATE_ADS_GENERIC = 59;
 *** Commands used by the transfer daemon
 */
 #define TRANSFERD_BASE 74000
-/* tell the transferd about some jobs it needs to perform transfers for */
-#define TRANSFERD_TRANSFER_REQUEST	(TRANSFERD_BASE+0)
-/* Files are being written to the transferd for storage */
-#define TRANSFERD_WRITE_FILES		(TRANSFERD_BASE+1)
-/* files are being read from the transferd's storage */
-#define TRANSFERD_READ_FILES		(TRANSFERD_BASE+2)
 /* This is used by the schedd when a transferd registers itself */
-#define TRANSFERD_REGISTER			(TRANSFERD_BASE+3)
+#define TRANSFERD_REGISTER		(TRANSFERD_BASE+0)
+/* a channel under which a transferd may be sent control message such as
+	being informed of a new a new transfer request 
+*/
+#define TRANSFERD_CONTROL_CHANNEL	(TRANSFERD_BASE+1)
+/* Files are being written to the transferd for storage */
+#define TRANSFERD_WRITE_FILES	(TRANSFERD_BASE+2)
+/* files are being read from the transferd's storage */
+#define TRANSFERD_READ_FILES	(TRANSFERD_BASE+3)
 
 
 /*

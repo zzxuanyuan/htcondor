@@ -19,32 +19,33 @@ TransferD::process_active_requests_timer()
 	TransferRequest *treq = NULL;
 	TransferRequest *tmp = NULL;
 	int found_actives = FALSE;
+	MyString key;
 
 	dprintf(D_FULLDEBUG, "Processing active requests\n");
 
 	// iterate over the transfer requests, removing the ones that should be
 	// done actively, and then doing each one. For now, this
-	// just blasts out all of the work at once.
+	// just blasts out all of the work at once by forking a process to
+	// do it.
 
 	dprintf(D_ALWAYS, "%d TransferRequest(s) to check for active state\n",
-		m_treqs.Number());
+		m_treqs.getNumElements());
 
-	m_treqs.Rewind();
-	while(m_treqs.Next(tmp)) {
+	m_treqs.startIterations();
+	while(m_treqs.iterate(tmp)) {
 		switch(tmp->get_transfer_service()) {
 			case TREQ_MODE_ACTIVE:
-				found_actives = TRUE;
-				treq = tmp;
-				m_treqs.DeleteCurrent();
-				process_active_request(treq);
-				treq = NULL;
+				/* XXX TODO */
 				break;
 
 			case TREQ_MODE_ACTIVE_SHADOW: // XXX DEMO mode
 				found_actives = TRUE;
 				treq = tmp;
-				m_treqs.DeleteCurrent();
+				m_treqs.getCurrentKey(key);
+				m_treqs.remove(key);
 				process_active_shadow_request(treq);
+				// XXX consider the ramifications of this if it failed.
+				delete treq;
 				treq = NULL;
 				break;
 

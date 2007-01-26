@@ -29,10 +29,14 @@
 #include "condor_version.h"
 #include "condor_ver_info.h"
 #include "dc_schedd.h"
+#include "dc_transferd.h"
 #include "condor_distribution.h"
 #include "basename.h"
 #include "internet.h"
 #include "MyString.h"
+#include "condor_attributes.h"
+#include "condor_classad.h"
+#include "condor_ftp.h"
 
 
 const char	*MyName = NULL;
@@ -40,6 +44,10 @@ MyString global_constraint;
 bool had_error = false;
 DCSchedd* schedd = NULL;
 bool All = false;
+
+/* XXX This really needs to be a default choice of the user didn't
+	specify anything */
+bool use_old_file_transfer = true;
 
 void usage();
 void procArg(const char*);
@@ -61,6 +69,7 @@ usage()
 	fprintf( stderr, "  -name schedd_name   Connect to the given schedd\n" );
 	fprintf( stderr, "  -pool hostname      Use the given central manager to find daemons\n" );
 	fprintf( stderr, "  -addr <ip:port>     Connect directly to the given \"sinful string\"\n" );
+	fprintf( stderr, "  -oldftm             Use a deprecated file transfer mechanism\n" );
 	fprintf( stderr, " and where [constraints] is one or more of:\n" );
 	fprintf( stderr, "  cluster.proc        transfer data for the given job\n");
 	fprintf( stderr, "  cluster             transfer data for the given cluster of jobs\n");
@@ -258,6 +267,9 @@ main(int argc, char *argv[])
 				}
 				pool = strdup( *argv );
 				break;
+			case 'o':
+				use_old_file_transfer = true;
+				break;
 			case 'v':
 				version();
 				break;
@@ -336,17 +348,65 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-		// And now, do the work.
 	fprintf(stdout,"Fetching data files...\n");
+
+	if (use_old_file_transfer == true) {
+		// OLD METHOD where we got it directly from the schedd
+		// And now, do the work.
+		CondorError errstack;
+		result = schedd->receiveJobSandbox(global_constraint.Value(),&errstack);
+		if ( !result ) {
+			fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+			fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+			exit(1);
+		}
+		
+		// All done
+		return 0;
+	}
+
+	// NEW METHOD where we ask the schedd for a transferd, then get the
+	// files from the transferd
+
 	CondorError errstack;
-	result = schedd->receiveJobSandbox(global_constraint.Value(),&errstack);
+	ClassAd respad;
+	int invalid;
+	MyString reason;
+	MyString td_sinful;
+	MyString td_cap;
+
+	result = schedd->requestSandboxLocation(FTPD_DOWNLOAD, 
+		global_constraint, FTP_CFTP, &respad, &errstack);
 	if ( !result ) {
 		fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
 		fprintf( stderr, "ERROR: Failed to spool job files.\n" );
 		exit(1);
 	}
 
+	respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
+	if (invalid == TRUE) {
+		fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+		respad.LookupString(ATTR_TREQ_INVALID_REASON, reason);
+		fprintf( stderr, "%s\n", reason.Value());
+		exit(EXIT_FAILURE);
+	}
 
+	respad.LookupString(ATTR_TREQ_TD_SINFUL, td_sinful);
+	respad.LookupString(ATTR_TREQ_CAPABILITY, td_cap);
+
+	dprintf(D_ALWAYS, 
+		"td: %s, cap: %s\n", td_sinful.Value(), td_cap.Value());
+
+	DCTransferD dctd(td_sinful.Value());
+
+	result = dctd.download_job_files(&respad, &errstack);
+	if ( !result ) {
+		fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+		fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+		exit(1);
+	}
+
+	// All done
 	return 0;
 }
 

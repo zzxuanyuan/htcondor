@@ -7,10 +7,15 @@
 #include "daemon.h"
 #include "dc_schedd.h"
 #include "MyString.h"
+#include "condor_ftp.h"
+#include "condor_attributes.h"
 
 static void usage(void);
 
-TransferD::TransferD()
+TransferD::TransferD() :
+	m_treqs(200, hashFuncMyString),
+	m_client_to_transferd_threads(200, hashFuncLong),
+	m_transferd_to_client_threads(200, hashFuncLong)
 {
 	m_initialized = FALSE;
 	m_update_sock = NULL;
@@ -18,14 +23,15 @@ TransferD::TransferD()
 
 TransferD::~TransferD()
 {	
+	MyString key;
 	TransferRequest *treq;
 
-	// walk through all of my transfers and simply get rid of them. Maybe
-	// later I'll have to move this to the part where I do fast cleanup
+	// delete everything in the table.
 	if (m_initialized == TRUE) {
-		m_treqs.Rewind();
-		while(m_treqs.Next(treq)) {
-			m_treqs.DeleteCurrent();
+		m_treqs.startIterations();
+		while(m_treqs.iterate(treq)) {
+			m_treqs.getCurrentKey(key);
+			m_treqs.remove(key);
 			delete treq;
 			treq = NULL;
 		}
@@ -82,6 +88,8 @@ TransferD::init(int argc, char *argv[])
 
 	////////////////////////////////////////////////////////////////////////
 	// start the initialization process
+	// XXX put this AFTER the timers and whatnot get registered, but before I
+	// leave main_init();
 
 	// does there happen to be any work on the stdin port? If so, suck it into
 	// the transfer collection
@@ -172,6 +180,7 @@ TransferD::accept_transfer_request_encapsulation_old_classads(FILE *fin)
 	char *classad_delimitor = "---\n";
 	ClassAd *ad;
 	TransferRequest *treq = NULL;
+	MyString cap;
 
 	/* read the transfer request header packet upon construction */
 	ad = new ClassAd(fin, classad_delimitor, eof, error, empty);
@@ -203,23 +212,107 @@ TransferD::accept_transfer_request_encapsulation_old_classads(FILE *fin)
 		treq->append_task(ad);
 	}
 
-	/* now append the work request into the transferd's request structure, 
-		assuming ownership of the pointer */
-	if (m_treqs.Append(treq) == false) {
-		EXCEPT("punk.");
-	}
+	// Since stdin may only provide one transfer request currently, make up
+	// a capability and shove it into the work hash
+	cap = gen_capability();
+
+	// record that I've accepted it.
+	m_treqs.insert(cap, treq);
 
 	return TRUE;
 }
 
+// Called when the schedd initially connects to the transferd to finish
+// the registration process.
 int
-TransferD::accept_transfer_request_handler(int cmd, Stream *sock)
+TransferD::setup_transfer_request_handler(int cmd, Stream *sock)
+{
+	ReliSock *rsock = (ReliSock*)sock;
+	int hello = -1;
+	MyString sock_id;
+
+	dprintf(D_ALWAYS, "Got TRANSFER_CONTROL_CHANNEL!\n");
+
+	rsock->decode();
+
+	///////////////////////////////////////////////////////////////
+	// make sure we are authenticated
+	///////////////////////////////////////////////////////////////
+	if( ! rsock->isAuthenticated() ) {
+		char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", "WRITE");
+		MyString methods;
+		if (p) {
+			methods = p;
+			free (p);
+		} else {
+			methods = SecMan::getDefaultAuthenticationMethods();
+		}
+		CondorError errstack;
+		if( ! rsock->authenticate(methods.Value(), &errstack) ) {
+			// we failed to authenticate, we should bail out now
+			// since we don't know what user is trying to perform
+			// this action.
+			// TODO: it'd be nice to print out what failed, but we
+			// need better error propagation for that...
+			errstack.push( "TransferD::setup_transfer_request_handler()", 42,
+				"Failure to register transferd - Authentication failed" );
+			dprintf( D_ALWAYS, "setup_transfer_request_handler() "
+				"aborting: %s\n",
+				errstack.getFullText() );
+			refuse(rsock);
+			return CLOSE_STREAM;
+		} 
+	}
+
+	///////////////////////////////////////////////////////////////
+	// Do a little dance with the schedd to make sure we're kosher
+	///////////////////////////////////////////////////////////////
+
+	// stupid simple handshake.
+	rsock->decode();
+	rsock->code(hello);
+	rsock->eom();
+
+	ASSERT(hello == 1);
+
+	hello = 1;
+	rsock->encode();
+	rsock->code(hello);
+	rsock->eom();
+
+	rsock->decode();
+
+	///////////////////////////////////////////////////////////////
+	// Register this socket with a socket handler to handle incoming requests
+	///////////////////////////////////////////////////////////////
+
+	sock_id += "<TreqChannel-Socket>";
+
+	// register the handler for any future transfer requests on this socket.
+	daemonCore->Register_Socket((Sock*)rsock, (char*)sock_id.Value(),
+		(SocketHandlercpp)&TransferD::accept_transfer_request_handler,
+		"TransferD::accept_transfer_request_handler", this, ALLOW);
+
+	dprintf(D_ALWAYS, "Treq channel established.\n");
+	dprintf(D_ALWAYS, "Accepting Transfer Requests.\n");
+
+	return KEEP_STREAM;
+}
+
+// After the channel has been setup, now we can accept transfer requests all
+// day long...
+int
+TransferD::accept_transfer_request_handler(Stream *sock)
 {
 	MyString encapsulation_method_line;
 	MyString encap_end_line;
 	EncapMethod em;
 	char *str = NULL;
 	int rval;
+
+	dprintf(D_ALWAYS, 
+		"Entering TransferD::accept_transfer_request_handler()\n");
+	dprintf(D_ALWAYS, "INCOMING TRANSFER REQUEST!\n");
 
 	/* The first line of protocol represents an encapsulation method. The
 		encapsulation method I'm using at the time of writing is old classads.
@@ -228,7 +321,11 @@ TransferD::accept_transfer_request_handler(int cmd, Stream *sock)
 
 	sock->decode();
 
-	sock->code(str); // must free str...
+	if (sock->code(str) == 0) {
+		EXCEPT("Schedd closed connection, I'm going away.");
+	}
+	sock->eom();
+
 	encapsulation_method_line = str; // makes a copy
 	free(str);
 
@@ -236,6 +333,9 @@ TransferD::accept_transfer_request_handler(int cmd, Stream *sock)
 		EXCEPT("Failed to read encapsulation method line!");
 	}
 	encapsulation_method_line.trim();
+
+	dprintf(D_ALWAYS, "Read encap line: %s\n", 
+		encapsulation_method_line.Value());
 
 	em = encap_method(encapsulation_method_line);
 
@@ -249,7 +349,7 @@ TransferD::accept_transfer_request_handler(int cmd, Stream *sock)
 			break;
 
 		case ENCAP_METHOD_OLD_CLASSADS:
-			rval = accept_transfer_request_encapsulation_old_classads(cmd, sock);
+			rval = accept_transfer_request_encapsulation_old_classads(sock);
 			break;
 
 		default:
@@ -259,24 +359,42 @@ TransferD::accept_transfer_request_handler(int cmd, Stream *sock)
 
 	m_initialized = TRUE;
 
-	// XXX This needs to be changed to keep the stream open.
-	return CLOSE_STREAM;
+	dprintf(D_ALWAYS, 
+		"Leaving TransferD::accept_transfer_request_handler()\n");
+	return KEEP_STREAM;
 }
 
 /* Continue reading from rsock the rest of the protcol for this encapsulation
 	method */
 int
-TransferD::accept_transfer_request_encapsulation_old_classads(int cmd, Stream *sock)
+TransferD::accept_transfer_request_encapsulation_old_classads(Stream *sock)
 {
 	int i;
-	ClassAd *ad;
+	ClassAd *ad = NULL;
 	TransferRequest *treq = NULL;
+	MyString cap;
+	char *tmp = NULL;
+	ClassAd respad;
+
+	dprintf(D_ALWAYS,
+		"Entering "
+		"TransferD::accept_transfer_request_encapsulation_old_classads()\n");
+
+	sock->decode();
+
+	/////////////////////////////////////////////////////////////////////////
+	// Accept the transfer request from the schedd.
+	/////////////////////////////////////////////////////////////////////////
 
 	/* read the transfer request header packet upon construction */
 	ad = new ClassAd();
 	if (ad->initFromStream(*sock) == 0) {
+		// XXX don't fail here, just go back to daemoncore
 		EXCEPT("XXX Couldn't init initial ad from stream!");
 	}
+	sock->eom();
+
+	dprintf(D_ALWAYS, "Read treq header.\n");
 
 	// initialize the header information of the TransferRequest object.
 	treq = new TransferRequest(ad);
@@ -284,8 +402,6 @@ TransferD::accept_transfer_request_encapsulation_old_classads(int cmd, Stream *s
 		EXCEPT("Out of memory!");
 	}
 
-	treq->dprintf(D_ALWAYS);
-	
 	/* read the information packet which describes the rest of the protocol */
 	if (treq->get_num_transfers() <= 0) {
 		EXCEPT("Protocol error!");
@@ -301,18 +417,86 @@ TransferD::accept_transfer_request_encapsulation_old_classads(int cmd, Stream *s
 			EXCEPT("Expected %d transfer job ads, got %d instead.", 
 				treq->get_num_transfers(), i);
 		}
-		ad->dPrint(D_ALWAYS);
+		sock->eom();
+		dprintf(D_ALWAYS, "Read treq job ad[%d].\n", i);
 		treq->append_task(ad);
 	}
-
-	/* now append the work request into the transferd's request structure, 
-		assuming ownership of the pointer */
-	m_treqs.Append(treq);
-
-	// Hmm...
 	sock->eom();
 
-	return CLOSE_STREAM;
+	sock->encode();
+
+	/////////////////////////////////////////////////////////////////////////
+	// See if I can honor this request's protocol choice
+	/////////////////////////////////////////////////////////////////////////
+
+	switch(treq->get_xfer_protocol())
+	{
+		case FTP_CFTP: // Transferd may use the FileTransfer Object protocol
+			respad.Assign(ATTR_TREQ_INVALID_REQUEST, FALSE);
+			break;
+
+		default:
+			dprintf(D_ALWAYS, "Transfer Request uses an unsupported file "
+				"transfer protocol. Rejecting it.\n");
+
+			// Currently, I don't support anything else....
+			respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+			respad.Assign(ATTR_TREQ_INVALID_REASON, 
+				"Transferd doesn't support client required file transfer "
+				"protocol.");
+
+			// tell the schedd we don't want to do this request
+			respad.put(*sock);
+			sock->eom();
+			delete treq;
+
+			// wait for the next request to come in....
+			return KEEP_STREAM;
+			break;
+	}
+
+	/////////////////////////////////////////////////////////////////////////
+	// Create a capability for this request, making sure it is unique to all
+	// rest of them, then send it back.
+	/////////////////////////////////////////////////////////////////////////
+
+	cap = gen_capability();
+	treq->set_capability(cap);
+
+	respad.Assign(ATTR_TREQ_CAPABILITY, cap);
+
+	dprintf(D_ALWAYS, "Assigned capability to treq: %s.\n", cap.Value());
+
+	// This respose ad will contain:
+	//
+	//	ATTR_TREQ_INVALID_REQUEST (set to true)
+	//	ATTR_TREQ_INVALID_REASON
+	//
+	//	OR
+	//
+	//	ATTR_TREQ_INVALID_REQUEST (set to false)
+	//	ATTR_TREQ_CAPABILITY
+	//
+	respad.put(*sock);
+	sock->eom();
+
+	dprintf(D_ALWAYS, "Reported capability back to schedd.\n");
+
+	// If nothing times out or broke connection, and I think the schedd has
+	// gotten the above information, then queue this request to deal with
+	// at the appropriate time.
+	m_treqs.insert(cap, treq);
+
+	// get ready to read another treq.
+	sock->decode();
+
+	dprintf(D_ALWAYS, "Waiting for another transfer request from schedd.\n");
+
+	dprintf(D_ALWAYS,
+		"Leaving "
+		"TransferD::accept_transfer_request_encapsulation_old_classads()\n");
+
+	return KEEP_STREAM;
 }
 
 // This function calls up the schedd passed in on the command line and 
@@ -325,7 +509,6 @@ TransferD::register_to_schedd(ReliSock **regsock_ptr)
 	MyString id;
 	MyString sinful;
 	bool rval;
-	ClassAd XXX_test;
 	
 	if (*regsock_ptr != NULL) {
 		*regsock_ptr = NULL;
@@ -343,7 +526,7 @@ TransferD::register_to_schedd(ReliSock **regsock_ptr)
 	// what is my sinful string?
 	sinful = daemonCore->InfoCommandSinfulString(-1);
 
-	dprintf(D_FULLDEBUG, "About to register my self(%s) to schedd(%s)\n",
+	dprintf(D_FULLDEBUG, "Registering myself(%s) to schedd(%s)\n",
 		sinful.Value(), sname.Value());
 
 	// hook up to the schedd.
@@ -359,11 +542,18 @@ TransferD::register_to_schedd(ReliSock **regsock_ptr)
 		return REG_RESULT_FAILED;
 	}
 
-	// ok, let's send an ad over just so see if the schedd can see the update...
-	XXX_test.Insert("Wallaby = TRUE");
-	XXX_test.Insert("OakTree = FALSE");
-	XXX_test.put(*(Stream*)(*regsock_ptr));
-	(*regsock_ptr)->eom();
+	// WARNING WARNING WARNING WARNING //
+	// WARNING WARNING WARNING WARNING //
+	// WARNING WARNING WARNING WARNING //
+	// WARNING WARNING WARNING WARNING //
+	// WARNING WARNING WARNING WARNING //
+
+	// Here, I must infact go back to daemon core without closing or doing
+	// anything with the socket. This is because the schedd is going to
+	// reconnect back to me, and I can't deadlock.
+
+	dprintf(D_FULLDEBUG, 
+		"Succesfully registered, awaiting treq channel message....\n");
 
 	return REG_RESULT_SUCCESS;
 }
@@ -380,10 +570,10 @@ TransferD::register_handlers(void)
 	// The schedd will open a permanent connection to the transferd via this
 	// particular handler and periodically give file transfer requests to the
 	// transferd for subsequent processing.
-	daemonCore->Register_Command(TRANSFERD_TRANSFER_REQUEST,
-			"TRANSFERD_TRANSFER_REQUEST",
-			(CommandHandlercpp)&TransferD::accept_transfer_request_handler,
-			"accept_transfer_request_handler", this, WRITE);
+	daemonCore->Register_Command(TRANSFERD_CONTROL_CHANNEL,
+			"TRANSFERD_CONTROL_CHANNEL",
+			(CommandHandlercpp)&TransferD::setup_transfer_request_handler,
+			"setup_transfer_request_handler", this, WRITE);
 
 	// write files into the storage area the transferd is responsible for, this
 	// could be spool, or the initial dir.
@@ -409,9 +599,9 @@ TransferD::register_timers(void)
 {
 	// begin processing any active requests, if there was information passed in
 	// via stdin, then this'll get acted on very quickly
-	daemonCore->Register_Timer( 0, 20,
-		(TimerHandlercpp)&TransferD::process_active_requests_timer,
-		"TransferD::process_active_requests_timer", this );
+/*	daemonCore->Register_Timer( 0, 20,*/
+/*		(TimerHandlercpp)&TransferD::process_active_requests_timer,*/
+/*		"TransferD::process_active_requests_timer", this );*/
 }
 
 

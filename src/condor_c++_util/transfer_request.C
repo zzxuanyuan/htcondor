@@ -2,6 +2,7 @@
 #include "condor_debug.h"
 #include "MyString.h"
 #include "extArray.h"
+#include "simplelist.h"
 #include "condor_classad.h"
 #include "condor_attributes.h"
 #include "condor_transfer_request.h"
@@ -16,7 +17,25 @@ TransferRequest::TransferRequest(ClassAd *ip)
 {
 	ASSERT(ip != NULL);
 
+	m_pre_push_func_desc = "None";
+	m_pre_push_func = NULL;
+	m_pre_push_func_this = NULL;
+
+	m_post_push_func_desc = "None";
+	m_post_push_func = NULL;
+	m_post_push_func_this = NULL;
+
+	m_update_func_desc = "None";
+	m_update_func = NULL;
+	m_update_func_this = NULL;
+
+	m_reaper_func_desc = "None";
+	m_reaper_func = NULL;
+	m_reaper_func_this = NULL;
+
 	m_ip = ip;
+
+	m_rejected = false;
 
 	/* Since this schema check happens here I don't need to check the
 		existance of these attributes when I use them. */
@@ -79,10 +98,39 @@ TransferRequest::check_schema(void)
 }
 
 void
+TransferRequest::set_client_sock(ReliSock *rsock)
+{
+	m_client_sock = rsock;
+}
+
+ReliSock*
+TransferRequest::get_client_sock(void)
+{
+	return m_client_sock;
+}
+
+void
 TransferRequest::append_task(ClassAd *ad)
 {
 	ASSERT(m_ip != NULL);
 	m_todo_ads.Append(ad);
+}
+
+void
+TransferRequest::set_procids(ExtArray<PROC_ID> *procs)
+{
+	ASSERT(m_ip != NULL);
+
+	m_procids = procs;
+}
+
+// do not free this returned pointer
+ExtArray<PROC_ID>*
+TransferRequest::get_procids(void)
+{
+	ASSERT(m_ip != NULL);
+
+	return m_procids;
 }
 
 void
@@ -104,7 +152,6 @@ TransferRequest::dprintf(unsigned int lvl)
 void
 TransferRequest::set_num_transfers(int nt)
 {
-	int num;
 	MyString str;
 
 	ASSERT(m_ip != NULL);
@@ -198,6 +245,85 @@ TransferRequest::get_protocol_version(void)
 }
 
 void
+TransferRequest::set_xfer_protocol(int xp)
+{
+	ASSERT(m_ip != NULL);
+
+	MyString str;
+
+	str += ATTR_TREQ_FTP;
+	str += " = ";
+	str += xp;
+
+	m_ip->InsertOrUpdate(str.Value());
+}
+
+int
+TransferRequest::get_xfer_protocol(void)
+{
+	int xfer_protocol; 
+
+	ASSERT(m_ip != NULL);
+
+	m_ip->LookupInteger(ATTR_TREQ_FTP, xfer_protocol);
+
+	return xfer_protocol;
+}
+
+void
+TransferRequest::set_direction(int dir)
+{
+	ASSERT(m_ip != NULL);
+
+	MyString str;
+
+	str += ATTR_TREQ_DIRECTION;
+	str += " = ";
+	str += dir;
+
+	m_ip->InsertOrUpdate(str.Value());
+}
+
+int
+TransferRequest::get_direction(void)
+{
+	int dir; 
+
+	ASSERT(m_ip != NULL);
+
+	m_ip->LookupInteger(ATTR_TREQ_DIRECTION, dir);
+
+	return dir;
+}
+
+
+void
+TransferRequest::set_used_constraint(bool con)
+{
+	ASSERT(m_ip != NULL);
+
+	MyString str;
+
+	str += ATTR_TREQ_HAS_CONSTRAINT;
+	str += " = ";
+	str += con==true?"TRUE":"FALSE";
+
+	m_ip->InsertOrUpdate(str.Value());
+}
+
+bool
+TransferRequest::get_used_constraint(void)
+{
+	bool con; 
+
+	ASSERT(m_ip != NULL);
+
+	m_ip->LookupBool(ATTR_TREQ_HAS_CONSTRAINT, con);
+
+	return con;
+}
+
+void
 TransferRequest::set_peer_version(MyString &pv)
 {
 	MyString str;
@@ -220,7 +346,7 @@ TransferRequest::set_peer_version(char *pv)
 
 	str = pv;
 
-	set_peer_version(pv);
+	set_peer_version(str);
 }
 
 // This will make a copy when you assign the return value to something.
@@ -244,6 +370,135 @@ TransferRequest::todo_tasks(void)
 
 	return &m_todo_ads;
 }
+
+void
+TransferRequest::set_capability(MyString &capability)
+{
+	m_cap = capability;
+}
+
+MyString
+TransferRequest::get_capability()
+{
+	return m_cap;
+}
+
+void
+TransferRequest::set_rejected_reason(MyString &reason)
+{
+	m_rejected_reason = reason;
+}
+
+MyString
+TransferRequest::get_rejected_reason()
+{
+	return m_rejected_reason;
+}
+
+void 
+TransferRequest::set_rejected(bool val)
+{
+	m_rejected = val;
+}
+
+bool 
+TransferRequest::get_rejected(void)
+{
+	return m_rejected;
+}
+
+void 
+TransferRequest::set_pre_push_callback(MyString desc, 
+	TreqPrePushCallback callback, Service *base)
+{
+	m_pre_push_func_desc = desc;
+	m_pre_push_func = callback;
+	m_pre_push_func_this = base;
+}
+
+int
+TransferRequest::call_pre_push_callback(TransferRequest *treq, 
+	TransferDaemon *td)
+{
+	return (m_pre_push_func_this->*(m_pre_push_func))(treq, td);
+}
+
+void
+TransferRequest::set_post_push_callback(MyString desc, 
+	TreqPostPushCallback callback, Service *base)
+{
+	m_post_push_func_desc = desc;
+	m_post_push_func = callback;
+	m_post_push_func_this = base;
+}
+
+int
+TransferRequest::call_post_push_callback(TransferRequest *treq, 
+	TransferDaemon *td)
+{
+	return (m_post_push_func_this->*(m_post_push_func))(treq, td);
+}
+
+void 
+TransferRequest::set_update_callback(MyString desc, 
+	TreqUpdateCallback callback, Service *base)
+{
+	m_update_func_desc = desc;
+	m_update_func = callback;
+	m_update_func_this = base;
+}
+
+int
+TransferRequest::call_update_callback(TransferRequest *treq, 
+	TransferDaemon *td, ClassAd *update)
+{
+	return (m_update_func_this->*(m_update_func))(treq, td, update);
+}
+
+void 
+TransferRequest::set_reaper_callback(MyString desc, 
+	TreqReaperCallback callback, Service *base)
+{
+	m_reaper_func_desc = desc;
+	m_reaper_func = callback;
+	m_reaper_func_this = base;
+}
+
+int
+TransferRequest::call_reaper_callback(TransferRequest *treq)
+{
+	return (m_reaper_func_this->*(m_reaper_func))(treq);
+}
+
+
+// The transferd only needs a small amount of the information from this
+// transfer request seriazed to it from the schedd. Basically the m_ip
+// classad which represents the header information for this treq, and
+// the job ads.
+int
+TransferRequest::put(Stream *sock)
+{
+	ClassAd *ad = NULL;
+
+	sock->encode();
+
+	// shove the internal header classad across
+	m_ip->put(*sock);
+	sock->eom();
+
+	// now dump all of the jobads through
+	m_todo_ads.Rewind();
+	while(m_todo_ads.Next(ad))
+	{
+		ad->put(*sock);
+		sock->eom();
+	}
+
+	return TRUE;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// utility functions for enum conversions.
 
 EncapMethod encap_method(MyString &line)
 {
@@ -275,3 +530,4 @@ TreqMode transfer_mode(const char *mode)
 
 	return TREQ_MODE_UNKNOWN;
 }
+

@@ -23,429 +23,65 @@
 
 #include "condor_common.h"
 #include "condor_daemon_core.h"
+#include "condor_daemon_client.h"
+#include "dc_transferd.h"
 #include "condor_config.h"
 #include "condor_debug.h"
 #include "qmgmt.h"
 #include "condor_qmgr.h"
 #include "scheduler.h"
+#include "basename.h"
+#include "nullfile.h"
 
-TransferDaemon::TransferDaemon(MyString fquser, MyString id, TDMode status)
-{
-	m_fquser = fquser;
-	m_id = id;
-	m_status = status;
+extern "C" {
+	char* gen_ckpt_name(char*, int, int, int);
 }
-
-TransferDaemon::~TransferDaemon()
-{
-	// XXX TODO
-}
-
-void
-TransferDaemon::set_fquser(MyString fquser)
-{
-	m_fquser = fquser;
-}
-
-MyString
-TransferDaemon::get_fquser(void)
-{
-	return m_fquser;
-}
-
-void
-TransferDaemon::set_id(MyString id)
-{
-	m_id = id;
-}
-
-MyString
-TransferDaemon::get_id(void)
-{
-	return m_id;
-}
-
-void
-TransferDaemon::set_status(TDMode tds)
-{
-	m_status = tds;
-}
-
-TDMode
-TransferDaemon::get_status()
-{
-	return m_status;
-}
-
-void
-TransferDaemon::set_schedd_sinful(MyString sinful)
-{
-	m_schedd_sinful = sinful;
-}
-
-MyString
-TransferDaemon::get_schedd_sinful()
-{
-	return m_schedd_sinful;
-}
-
-void
-TransferDaemon::set_sinful(MyString sinful)
-{
-	m_sinful = sinful;
-}
-
-MyString
-TransferDaemon::get_sinful()
-{
-	return m_sinful;
-}
-
-void
-TransferDaemon::set_update_sock(ReliSock *update_sock)
-{
-	m_update_sock = update_sock;
-}
-
-ReliSock*
-TransferDaemon::get_update_sock(void)
-{
-	return m_update_sock;
-}
-
-void
-TransferDaemon::set_treq_sock(ReliSock *treq_sock)
-{
-	m_treq_sock = treq_sock;
-}
-
-ReliSock*
-TransferDaemon::get_treq_sock(void)
-{
-	return m_treq_sock;
-}
-
-void
-TransferDaemon::set_client_sock(ReliSock *client_sock)
-{
-	m_client_sock = client_sock;
-}
-
-ReliSock*
-TransferDaemon::get_client_sock(void)
-{
-	return m_client_sock;
-}
-
-bool
-TransferDaemon::add_transfer_request(TransferRequest *treq)
-{
-	return m_treqs.Append(treq);
-}
-
-bool
-TransferDaemon::push_transfer_requests(void)
-{
-	// XXX TODO
-	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////
-// The transfer daemon manager class
-////////////////////////////////////////////////////////////////////////////
-
-TDMan::TDMan()
-{
-	m_td_table = 
-		new HashTable<MyString, TransferDaemon*>(20, hashFuncMyString);
-	m_id_table = 
-		new HashTable<MyString, MyString>(20, hashFuncMyString);
-	m_td_pid_table = 
-		new HashTable<long, TransferDaemon*>(20, hashFuncLong);
-}
-
-TDMan::~TDMan()
-{
-	/* XXX fix up to go through them and delete everything inside of them. */
-	delete m_td_table;
-	delete m_id_table;
-	delete m_td_pid_table;
-}
-
-TransferDaemon*
-TDMan::find_td_by_user(MyString fquser)
-{
-	int ret;
-	TransferDaemon *td = NULL;
-
-	ret = m_td_table->lookup(fquser, td);
-
-	if (ret != 0) {
-		// not found
-		return NULL;
-	}
-
-	return td;
-}
-
-TransferDaemon*
-TDMan::find_td_by_ident(MyString id)
-{
-	int ret;
-	MyString fquser;
-	TransferDaemon *td = NULL;
-
-	// look up the fquser associated with this id
-	ret = m_id_table->lookup(id, fquser);
-	if (ret != 0) {
-		// not found
-		return NULL;
-	}
-
-	// look up the transferd for that user.
-	ret = m_td_table->lookup(fquser, td);
-	if (ret != 0) {
-		// not found
-		return NULL;
-	}
-
-	return td;
-}
-
-void
-TDMan::invoke_a_td(TransferDaemon *td)
-{
-	
-}
-
-
-
-
-// The handler for TRANSFERD_REGISTER.
-// This handler checks to make sure this is a valid transferd. If valid,
-// the schedd may then shove over a transfer request to the transferd on the
-// open relisock. The relisock is kept open the life of the transferd, and
-// the schedd sends new transfer requests whenever it wants to.
-int 
-Scheduler::transferd_registration(int cmd, Stream *sock)
-{
-	ReliSock *rsock = (ReliSock*)sock;
-	int reply;
-	char *td_sinful = NULL;
-	char *td_id = NULL;
-	const char *fquser = NULL;
-	TDUpdateContinuation *tdup = NULL;
-
-	dprintf(D_ALWAYS, "Got TRANSFERD_REGISTER message!\n");
-
-	rsock->decode();
-
-	///////////////////////////////////////////////////////////////
-	// make sure we are authenticated
-	///////////////////////////////////////////////////////////////
-	if( ! rsock->isAuthenticated() ) {
-		char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", "WRITE");
-		MyString methods;
-		if (p) {
-			methods = p;
-			free (p);
-		} else {
-			methods = SecMan::getDefaultAuthenticationMethods();
-		}
-		CondorError errstack;
-		if( ! rsock->authenticate(methods.Value(), &errstack) ) {
-				// we failed to authenticate, we should bail out now
-				// since we don't know what user is trying to perform
-				// this action.
-				// TODO: it'd be nice to print out what failed, but we
-				// need better error propagation for that...
-			errstack.push( "SCHEDD", 42,
-					"Failure to register transferd - Authentication failed" );
-			dprintf( D_ALWAYS, "transferd_registration() aborting: %s\n",
-					 errstack.getFullText() );
-			refuse( rsock );
-			return FALSE;
-		}
-	}	
-
-	///////////////////////////////////////////////////////////////
-	// Verify that this user is actually someone who can write to the job queue.
-	///////////////////////////////////////////////////////////////
-
-	fquser = rsock->getFullyQualifiedUser();
-	if (fquser == NULL) {
-		dprintf(D_ALWAYS, "Transferd identity is unverifiable. Denied.\n");
-		refuse(rsock);
-	}
-
-	///////////////////////////////////////////////////////////////
-	// Determine if I requested a transferd for this identity. Close if not.
-	///////////////////////////////////////////////////////////////
-	
-	// TODO
-
-	///////////////////////////////////////////////////////////////
-	// Decode the registration message from the transferd
-	///////////////////////////////////////////////////////////////
-
-	rsock->decode();
-
-	// Get the sinful string of the transferd
-	rsock->code(td_sinful);
-	rsock->eom();
-
-	// Get the id string I requested the transferd to have so I can figure out
-	// which request I made matches it.
-	rsock->code(td_id);
-	rsock->eom();
-
-	dprintf(D_ALWAYS, "Transferd %s, id: %s, owned by '%s' is registered!\n",
-		td_sinful, td_id, rsock->getFullyQualifiedUser());
-
-	rsock->encode();
-
-	// send back a good reply
-	reply = 1;
-	rsock->code(reply);
-	rsock->eom();
-
-	///////////////////////////////////////////////////////////////
-	// Register a call back socket for future updates from this transferd
-	///////////////////////////////////////////////////////////////
-
-	// Now, let's give a good name for the update socket.
-	MyString sock_id;
-	sock_id += "<Update-Socket-For-TD-";
-	sock_id += td_sinful;
-	sock_id += "-";
-	sock_id += fquser;
-	sock_id += "-";
-	sock_id += td_id;
-	sock_id += ">";
-
-	daemonCore->Register_Socket(sock, (char*)sock_id.Value(),
-		(SocketHandlercpp)&Scheduler::transferd_update,
-		"Scheduler::transferd_update", this, ALLOW);
-	
-	// stash an identifier with the registered socket so I can find this
-	// transferd later when this socket gets an update. I can't just shove
-	// the transferd pointer here since it might have been removed by other
-	// handlers if they determined the daemon went away. Instead I'll push an 
-	// identifier so I can see if it still exists in the pool before messing
-	// with it.
-	tdup = new TDUpdateContinuation(td_sinful, fquser, td_id, sock_id.Value());
-	ASSERT(tdup);
-
-	// set up the continuation for Scheduler::transferd_update()
-	daemonCore->Register_DataPtr(tdup);
-
-	free(td_sinful);
-	free(td_id);
-
-	return KEEP_STREAM;
-}
-
-
-// When a transferd finishes sending some files, it informs the schedd when the
-// transfer was correctly sent. NOTE: Maybe add when the transferd thinks there
-// are problems, like files not found and stuff like that.
-int 
-Scheduler::transferd_update(Stream *sock)
-{
-	ReliSock *rsock = (ReliSock*)sock;
-	TDUpdateContinuation *tdup = NULL;
-	ClassAd update;
-
-	// continue the continuation
-	tdup = (TDUpdateContinuation*)daemonCore->GetDataPtr();
-	ASSERT(tdup);
-
-	dprintf(D_ALWAYS, "Transferd update from: addr(%s) fquser(%s) id(%s)\n", 
-		tdup->sinful.Value(), tdup->fquser.Value(), tdup->id.Value());
-
-	// grab the classad from the transferd
-	if (update.initFromStream(*rsock) == 0) {
-		// Hmm, couldn't get the update, clean up shop.
-		dprintf(D_ALWAYS, "Update socket was closed.\n");
-		delete tdup;
-		daemonCore->SetDataPtr(NULL);
-		return CLOSE_STREAM;
-	}
-	rsock->eom();
-
-	// TODO
-	// decode the classad and determine what to do about it
-	// jobs waiting for transfer should be removed from being on hold when
-	// their transfer is complete.
-
-	return KEEP_STREAM;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// XXX propogate the fact that I'm splitting the entire code path if uploading
-// and downloading into two completely separate codepaths. I've finished
-// just the first functions, and need to propogate it.
-
-// This function is used BOTH for uploading and downloading files to the
-// schedd. Which path selected is determined by the command passed to this
-// function. This function should really be split into two different handlers,
-// one for uploading the spool, and one for downloading it. 
 
 /* In this service function, the client tells the schedd a bunch of jobs
-	it would like to upload into a sandbox. The schedd will hold
-	open the connection back to the client (potentially across to another
-	callback) until it gets a sinful string of a transferd that the
-	client may upload its sandbox to.
+	it would like to perform a transfer for into/out of a sandbox. The
+	schedd will hold open the connection back to the client
+	(potentially across to another callback) until it gets some information
+	from a transferd about the request and can give it back to the client
+	via callbacks.
 */
-
 int
 Scheduler::requestSandboxLocation(int mode, Stream* s)
 {
 	ReliSock* rsock = (ReliSock*)s;
-	int JobAdsArrayLen = 0;
-	ExtArray<PROC_ID> *jobs = NULL;
-	int i;
-	PROC_ID a_job;
-	char *peer_version = NULL;
+	int i, j, k;
 	TransferDaemon *td = NULL;
 	MyString rand_id;
 	MyString fquser;
-	char *tmp = NULL;
+	ClassAd reqad, respad;
+	MyString jids, jids_allow, jids_deny;
+	ExtArray<PROC_ID> *jobs = NULL;
+	ExtArray<PROC_ID> *modify_allow_jobs = NULL;
+	ExtArray<PROC_ID> *modify_deny_jobs = NULL;
+	ClassAd *tmp_ad = NULL;
 	int cluster, proc;
+	MyString constraint_string;
+	int protocol;
+	MyString peer_version;
+	bool has_constraint;
+	int direction;
+	MyString desc;
+
+	mode = mode; // quiet the compiler
 
 	dprintf(D_ALWAYS, "Entering requestSandboxLocation()\n");
 
 		// make sure this connection is authenticated, and we know who
 		// the user is.  also, set a timeout, since we don't want to
 		// block long trying to read from our client.   
-	rsock->timeout( 10 );  
+	rsock->timeout( 20 );  
 
 	////////////////////////////////////////////////////////////////////////
 	// Authenticate the socket
+	////////////////////////////////////////////////////////////////////////
 
 	if( ! rsock->isAuthenticated() ) {
-		char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", "WRITE");
+		char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", 
+			"WRITE");
 		MyString methods;
 		if (p) {
 			methods = p;
@@ -464,148 +100,1067 @@ Scheduler::requestSandboxLocation(int mode, Stream* s)
 					"Failure to spool job files - Authentication failed" );
 			dprintf( D_ALWAYS, "requestSandBoxLocation() aborting: %s\n",
 					 errstack.getFullText() );
-			refuse( s );
+
+			respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+			respad.Assign(ATTR_TREQ_INVALID_REASON, "Authentication failed.");
+			respad.put(*rsock);
+			rsock->eom();
+
 			return FALSE;
 		}
 	}	
 
+	// to whom does the client authenticate?
+	fquser = rsock->getFullyQualifiedUser();
+
 	rsock->decode();
 
 	////////////////////////////////////////////////////////////////////////
-	// read the message from the client about what it wants to transfer
+	// read the request ad from the client about what it wants to transfer
+	////////////////////////////////////////////////////////////////////////
 
-	// The protocol requires the perm handling command to be used and
-	// the peer version to be present.
+	// This request ad from the client will contain
+	//	ATTR_TREQ_DIRECTION
+	//	ATTR_TREQ_PEER_VERSION
+	//	ATTR_TREQ_HAS_CONSTRAINT
+	//	ATTR_TREQ_JOBID_LIST
+	//	ATTR_TREQ_XFP
+	//
+	//	OR
+	//
+	//	ATTR_TREQ_DIRECTION
+	//	ATTR_TREQ_PEER_VERSION
+	//	ATTR_TREQ_HAS_CONSTRAINT
+	//	ATTR_TREQ_CONSTRAINT
+	//	ATTR_TREQ_XFP
+	reqad.initFromStream(*rsock);
+	rsock->eom();
 
-	peer_version = NULL;
-	if ( !rsock->code(peer_version) ) {
-		dprintf( D_ALWAYS,
-			 	"requestSandBoxLocation(): failed to read peer_version\n" );
-		refuse(s);
+	if (reqad.LookupBool(ATTR_TREQ_HAS_CONSTRAINT, has_constraint) == 0) {
+		dprintf(D_ALWAYS, "requestSandBoxLocation(): Client reqad from %s"
+			"must have %s as an attribute.\n", fquser.Value(), 
+			ATTR_TREQ_HAS_CONSTRAINT);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, "Missing constraint bool.");
+		respad.put(*rsock);
+		rsock->eom();
+
 		return FALSE;
 	}
 
-	// At this point, we are responsible for deallocating
-	// peer_version with free()
+	////////////////////////////////////////////////////////////////////////
+	// Let's validate the jobid set the user wishes to modify with a
+	// file transfer. The reason we sometimes use a constraint and sometimes
+	// not is an optimization for speed. If the client already has the
+	// ads, then we don't iterate over the job queue log, which is 
+	// extremely expensive.
+	////////////////////////////////////////////////////////////////////////
+	switch(has_constraint) 
+	{
+		/////////////
+		// The user specified the jobids directly it would like to work with.
+		// We assume the client already has the ads it wishes to transfer.
+		/////////////
+		case false:
+			dprintf(D_ALWAYS, "Submittor provides procids.\n");
 
-	// read the number of jobs involved
-	if ( !rsock->code(JobAdsArrayLen) ) {
-			dprintf( D_ALWAYS, "requestSandBoxLocation(): "
-				 	"failed to read JobAdsArrayLen (%d)\n",
-					JobAdsArrayLen );
-			refuse(s);
-			return FALSE;
+			modify_allow_jobs = new ExtArray<PROC_ID>;
+			ASSERT(modify_allow_jobs);
+
+			modify_deny_jobs = new ExtArray<PROC_ID>;
+			ASSERT(modify_deny_jobs);
+		
+			if (reqad.LookupString(ATTR_TREQ_JOBID_LIST, jids) == 0) {
+				dprintf(D_ALWAYS, "requestSandBoxLocation(): Submitter "
+					"%s's reqad must have %s as an attribute.\n", 
+					fquser.Value(), ATTR_TREQ_JOBID_LIST);
+
+				respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+				respad.Assign(ATTR_TREQ_INVALID_REASON, "Missing jobid list.");
+				respad.put(*rsock);
+				rsock->eom();
+
+				return FALSE;
+			}
+
+			//////////////////////
+			// convert the stringlist of jobids into an actual ExtArray of
+			// PROC_IDs. we are responsible for this newly allocated memory.
+			//////////////////////
+			jobs = mystring_to_procids(jids);
+
+			if (jobs == NULL) {
+				// can't have no constraint and no jobids, bail.
+				dprintf(D_ALWAYS, "Submitter %s sent inconsistant ad with no "
+					"constraint and also no jobids on which to perform sandbox "
+					"manipulations.\n", fquser.Value());
+
+				respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+				respad.Assign(ATTR_TREQ_INVALID_REASON, 
+					"No constraint and no jobid list.");
+				respad.put(*rsock);
+				rsock->eom();
+
+				return FALSE;
+			}
+
+			//////////////////////
+			// Filter the jobs into a two arrays, those that we can
+			// modify and those we cannot because the client is not 
+			// authorized to.
+			//////////////////////
+			setQSock(rsock);	// so OwnerCheck() will work
+			j = k = 0;
+			for (i = 0; i < jobs->length(); i++) {
+				if (OwnerCheck((*jobs)[i].cluster, (*jobs)[i].proc)) {
+					// only allow the user to manipulate jobs it is entitled to.
+					// structure copy...
+					(*modify_allow_jobs)[j++] = (*jobs)[i];
+				} else {
+					// client can't modify this ad due to not having authority
+					dprintf(D_ALWAYS, 
+						"Scheduler::requestSandBoxLocation(): "
+						"WARNING: Submitter %s tried to request a sandbox "
+						"location for jobid %d.%d which is not owned by the "
+						"submitter. Denied modification to specified job.\n",
+						fquser.Value(), (*jobs)[i].cluster, (*jobs)[i].proc);
+
+					// structure copy...
+					(*modify_deny_jobs)[k++] = (*jobs)[i];
+				}
+			}
+			unsetQSock();
+
+			// pack back into the reqad both allow and deny arrays so the client
+			// knows for which jobids it may transfer the files.
+			procids_to_mystring(modify_allow_jobs, jids_allow);
+			procids_to_mystring(modify_deny_jobs, jids_deny);
+
+			respad.Assign(ATTR_TREQ_JOBID_ALLOW_LIST, jids_allow);
+			respad.Assign(ATTR_TREQ_JOBID_DENY_LIST, jids_deny);
+
+			// don't need what this contains anymore
+			delete modify_deny_jobs;
+			modify_deny_jobs = NULL;
+
+			// don't need what this contains anymore
+			delete jobs;
+			jobs = NULL;
+
+			break;
+
+		/////////////
+		// The user specified by a constraint the jobids it would like to use.
+		// Notice that we check the permissions of said constraint, and then
+		// make a jobids array for what the constraint returned. This means
+		// that for this specific request, it is resolved to a hard set of
+		// jobids right here. So, if after this request is stored, some more
+		// jobs come into the queue that this constraint would have matched,
+		// they are ignored and not added to the fileset represented by the
+		// capability the transferd will return. However, I do reupdate the
+		// jobads in the pre_push_callback handler to ensure I gather any
+		// changes that a condor_qedit might have performed in between now
+		// and the pre_push_callback being called. Here we don't assume the
+		// client has the jobads and the transferd transfer thread must 
+		// send them over one by one to the client before initializing a file
+		// transfer object, or any other type of protocol, to ensure the client
+		// and transferd are synchronized in what they are transferring.
+		/////////////
+		case true:
+			dprintf(D_ALWAYS, "Submittor provides constraint.\n");
+
+			if (reqad.LookupString(ATTR_TREQ_CONSTRAINT,constraint_string)==0)
+			{
+				dprintf(D_ALWAYS, "Submitter %s sent inconsistant ad with "
+					"no constraint to find any jobids\n",
+					fquser.Value());
+			}
+
+			// By definition we'll only save the jobids the user may modify
+			modify_allow_jobs = new ExtArray<PROC_ID>;
+			ASSERT(modify_allow_jobs);
+
+			setQSock(rsock);	// so OwnerCheck() will work
+
+			// Walk the job queue looking for jobs which match the constraint
+			// filter. Then filter that set with OwnerCheck to ensure 
+			// the client has the correct authority to modify these jobids.
+			tmp_ad = GetNextJobByConstraint(constraint_string.Value(), 1);
+			i = 0;
+			while (tmp_ad) {
+				if ( tmp_ad->LookupInteger(ATTR_CLUSTER_ID,cluster) &&
+		 			tmp_ad->LookupInteger(ATTR_PROC_ID,proc) &&
+		 			OwnerCheck(cluster, proc) )
+				{
+					(*modify_allow_jobs)[i].cluster = cluster;
+					(*modify_allow_jobs)[i].proc = proc;
+					i++;
+				}
+				tmp_ad = GetNextJobByConstraint(constraint_string.Value(), 0);
+			}
+			unsetQSock();
+
+			// Let the client know what jobids it may actually transfer for.
+			procids_to_mystring(modify_allow_jobs, jids_allow);
+			respad.Assign(ATTR_TREQ_JOBID_ALLOW_LIST, jids_allow);
+			respad.Assign(ATTR_TREQ_JOBID_DENY_LIST, "");
+
+		break;
+		
+		default:
+			EXCEPT("If this except happens, the boolean type has more states "
+				"than true and false. Very unlikely and indicative of a "
+				"compiler failure.");
+			break;
 	}
-	rsock->eom();
 
-	if ( JobAdsArrayLen <= 0 ) {
-		dprintf( D_ALWAYS, "requestSandBoxLocation(): "
-			 	"read bad JobAdsArrayLen value %d\n", JobAdsArrayLen );
-		refuse(s);
+	// At this point, modify_allow_jobs contains an array of jobids the
+	// schedd has said the client is able to transfer files for.
+	// XXX Check for empty set.
+
+	////////////////////////////////////////////////////////////////////////
+	// The protocol the user specified must get validated later during the
+	// push the the transferd. The transferd has the ultimate say on which
+	// protocols it is willing to use and it'll be in the final ad back to
+	// the client. For now, we just ensure a file tranfer protocol is present.
+	////////////////////////////////////////////////////////////////////////
+
+	if (reqad.LookupInteger(ATTR_TREQ_FTP, protocol) == 0) {
+		dprintf(D_ALWAYS, "requestSandBoxLocation(): Submitter "
+			"%s's reqad must have %s as an attribute.\n", 
+			fquser.Value(), ATTR_TREQ_FTP);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, 
+			"No file transfer protocol specified.");
+		respad.put(*rsock);
+		rsock->eom();
+
 		return FALSE;
 	}
 
-	dprintf(D_FULLDEBUG,"requestSandBoxLocation(): read JobAdsArrayLen - %d\n",
-			JobAdsArrayLen);
-	
-	jobs = new ExtArray<PROC_ID>;
-	ASSERT(jobs);
+	////////////////////////////////////////////////////////////////////////
+	// Ensure there is a peer version in the reqad. This is an opaque
+	// version string that gets passed silently to lower layers which might
+	// need it. 
+	////////////////////////////////////////////////////////////////////////
 
-	// load the procid structures that the client wishes to do transfers for.
-	// this will also be given to the transferd by the client in a seperate
-	// connection to the transferd to identify the set of transferring files.
-	for (i=0; i<JobAdsArrayLen; i++) {
-		rsock->code(a_job);
-		(*jobs)[i] = a_job;
+	if (reqad.LookupString(ATTR_TREQ_PEER_VERSION, peer_version) == 0) {
+		dprintf(D_ALWAYS, "requestSandBoxLocation(): Submitter "
+			"%s's reqad must have %s as an attribute.\n", 
+			fquser.Value(), ATTR_TREQ_PEER_VERSION);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, 
+			"No peer version specified.");
+		respad.put(*rsock);
+		rsock->eom();
+
+		return FALSE;
 	}
-	rsock->eom();
 
 	////////////////////////////////////////////////////////////////////////
-	// Analyze what the client told us to see if it may do such a thing
+	// Ensure we have a direction that transfer request is supposed to be for.
+	////////////////////////////////////////////////////////////////////////
 
-	// Now analyze what the client told me and validate if they can modify the
-	// jobs they told me about.
-	setQSock(rsock);	// so OwnerCheck() will work
-	for (i=0; i<JobAdsArrayLen; i++) {
-		if (!(OwnerCheck((*jobs)[i].cluster,(*jobs)[i].proc))) {
-			// Need to tell client about this failure 
-		}
+	if (reqad.LookupInteger(ATTR_TREQ_DIRECTION, direction) == 0) {
+		dprintf(D_ALWAYS, "requestSandBoxLocation(): Submitter "
+			"%s's reqad must have %s as an attribute.\n", 
+			fquser.Value(), ATTR_TREQ_DIRECTION);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, 
+			"No file transfer direction specified.");
+		respad.put(*rsock);
+		rsock->eom();
+
+		return FALSE;
 	}
-	// XXX send back a packet explaining the work is ok, or can't modify jobs?
-	unsetQSock();
 
 	////////////////////////////////////////////////////////////////////////
-	// construct the transfer request for this job's ads
+	// construct the transfer request for this submittor's file set
+	////////////////////////////////////////////////////////////////////////
 
 	TransferRequest *treq = new TransferRequest();
+	ASSERT(treq != NULL);
 
-	// set up metadata about the request.
-	// set the various things for this request
+	// Set up the header which will get serialized to the transferd.
+	treq->set_direction(direction);
+	treq->set_used_constraint(has_constraint);
 	treq->set_peer_version(peer_version);
-	treq->set_protocol_version(0);
+	treq->set_xfer_protocol(protocol);
 	treq->set_transfer_service("Passive"); // XXX fixme to use enum
-	treq->set_num_transfers(JobAdsArrayLen);
+	treq->set_num_transfers(modify_allow_jobs->length());
+	treq->set_protocol_version(0); // for the treq structure, not xfer protocol
 
-	// Get the actual job ads and shove them into the request. The request
-	// push for the transfer daemon will fix up the attributes inside of the
-	// job ad which explain the transfer times and such.
-	for (i=0; i<JobAdsArrayLen; i++) {
-		cluster = (*jobs)[i].cluster;
-		proc = (*jobs)[i].proc;
-		ClassAd * nad = GetJobAd( cluster, proc );
-		treq->append_task(nad);
+	// Give the procids array to the treq, later, just before it is pushed to
+	// the td, the schedd is given a chance to play with the jobads represented
+	// by this array, and then update the treq with the real jobads it wants
+	// the td to use.
+	// This object gets ownership over this memory.
+	treq->set_procids(modify_allow_jobs);
+
+	// Stash the client socket into the treq for later use in a callback...
+	treq->set_client_sock(rsock);
+
+	////////////////////////////////////////////////////////////////////////
+	// Set the callback handlers to work on this treq as it progresses through
+	// the process of going & comming back from the transferd.
+	////////////////////////////////////////////////////////////////////////
+
+	// Callbacks to allow the schedd to process these requests during various
+	// stages of being processed by the transferd. The callback is called
+	// with the tranfer request in question and the transfer daemon object
+	// responsible for it (except in the case of the reaper). However,
+	// there are different callbacks for treqs which are for different
+	// purposes, like uploading or downloading.
+
+	switch(direction) 
+	{
+		case FTPD_UPLOAD:
+
+			// called just before the request is sent to the td itself.
+			// used to modify the jobads for starting of transfer time
+
+			desc = "Treq Upload Pre Push Callback Handler";
+			treq->set_pre_push_callback(desc,
+				(TreqPrePushCallback)
+					&Scheduler::treq_upload_pre_push_callback, this);
+
+			// called after the push and response from the schedd, gives schedd
+			// access to the treq capability string, the client was already
+			// notified.
+
+			desc = "Treq Upload Post Push Callback Handler";
+			treq->set_post_push_callback(desc,
+				(TreqPostPushCallback)
+					&Scheduler::treq_upload_post_push_callback, this);
+
+			// called with an update status from the td about this request.
+			// (completed, not completed, etc, etc, etc)
+			// job ads are processed, job taken off hold, etc if a successful 
+			// completion had happend
+
+			desc = "Treq Upload update Callback Handler";
+			treq->set_update_callback(desc,
+				(TreqUpdateCallback)
+					&Scheduler::treq_upload_update_callback, this);
+
+			// called when the td dies, if the td handles and updates and 
+			// everything correctly, this is not normally called.
+
+			desc = "Treq Upload Reaper Callback Handler";
+			treq->set_reaper_callback(desc,
+				(TreqReaperCallback)
+					&Scheduler::treq_upload_reaper_callback, this);
+	
+			break;
+		
+		case FTPD_DOWNLOAD:
+
+			// called just before the request is sent to the td itself.
+			// used to modify the jobads for starting of transfer time
+
+			desc = "Treq Download Pre Push Callback Handler";
+			treq->set_pre_push_callback(desc,
+				(TreqPrePushCallback)
+					&Scheduler::treq_download_pre_push_callback, this);
+
+			// called after the push and response from the schedd, gives schedd
+			// access to the treq capability string, the client was already
+			// notified.
+
+			desc = "Treq Download Post Push Callback Handler";
+			treq->set_post_push_callback(desc,
+				(TreqPostPushCallback)
+					&Scheduler::treq_download_post_push_callback, this);
+
+			// called with an update status from the td about this request.
+			// (completed, not completed, etc, etc, etc)
+			// job ads are processed, job taken off hold, etc if a successful 
+			// completion had happend
+
+			desc = "Treq Download update Callback Handler";
+			treq->set_update_callback(desc,
+				(TreqUpdateCallback)
+					&Scheduler::treq_download_update_callback, this);
+
+			// called when the td dies, if the td handles and updates and 
+			// everything correctly, this is not normally called.
+
+			desc = "Treq Download Reaper Callback Handler";
+			treq->set_reaper_callback(desc,
+				(TreqReaperCallback)
+					&Scheduler::treq_download_reaper_callback, this);
+			break;
+		
+		default:
+			// XXX Figure out this case:
+			break;
 	}
+
+	rsock->encode();
 
 	////////////////////////////////////////////////////////////////////////
 	// locate a transferd
+	////////////////////////////////////////////////////////////////////////
 
 	// Ok, figure out if I have a transferd already setup for this user.
 	td = m_tdman.find_td_by_user(fquser);
-	if (td == NULL) {
-		/* nope, so create a TransferDaemon object, and hand it to the td
-			manager for it to start. Stash the client socket into the object
-			so when it comes online, we can continue our discussion with the
-			client. */
-		// the id of the transferd for this particular user 
-		rand_id.randomlyGenerateHex(64);
-		td = new TransferDaemon(fquser, rand_id, TD_PRE_INVOKED);
+	if (td == NULL || 
+		(td->get_status() != TD_REGISTERED) && 
+			(td->get_status() != TD_INVOKED)) 
+	{
+		// Since it looks like I'm going to have to wait for a transferd
+		// to wake up and register to this schedd, let the client know we
+		// might block for a while.
+		respad.Assign(ATTR_TREQ_WILL_BLOCK, 1);
+		if (respad.put(*rsock) == 0) {
+			dprintf(D_ALWAYS, "Submittor %s closed connection. Aborting "
+				"getting sandbox info for user.\n", fquser.Value());
+			return FALSE;
+		}
+		rsock->eom();
 
-		// store the client socket in here for later reply.
-		td->set_client_sock(rsock);
+		if (td == NULL) {
+			// Create a TransferDaemon object, and hand it to the td
+			// manager for it to start. Stash the client socket into the object
+			// so when it comes online, we can continue our discussion with the
+			// client.
+			// XXX Should I test this against the keys in the manager table
+			// to ensure there are unique ids for the transferds I have
+			// requested to invoke--a collision would be nasty here.
+			rand_id.randomlyGenerateHex(64); 
+			td = new TransferDaemon(fquser, rand_id, TD_PRE_INVOKED);
+			ASSERT(td != NULL);
+		} else {
+			// clear the fact there was a living daemon associated with this
+			// object, and let the invoke_a_td() call restart the daemon.
+			td->clear();
+		}
 
-		// store the request which will get pushed when the daemon wakes up
+		// pair the transfer request with the client that requested it and
+		// store the request which will get pushed later when the td 
+		// registers
 		td->add_transfer_request(treq);
 
 		// let the manager object start it up for us....
 		m_tdman.invoke_a_td(td);
+/*		m_tdman.invoke_a_td(td, TDRegisterCallback, TDReaperCallback);*/
 
-		// set up the continuation for this td and return. When the transferd
-		// wakes up and calls home, the schedd will figure out what to do in
-		// another handler.
-
+		// The socket is going to be deleted later in a callback the
+		// schedd deals with and I don't want daemoncore to also delete
+		// the socket.
 		return KEEP_STREAM;
 	}
 
 	////////////////////////////////////////////////////////////////////////
-	// Found an already alive one, so just deal with it
+	// Since I already found one, this should go fast.
+	////////////////////////////////////////////////////////////////////////
 
+	respad.Assign(ATTR_TREQ_WILL_BLOCK, 0);
+	if (respad.put(*rsock) == 0) {
+		dprintf(D_ALWAYS, "Submittor %s closed connection. Aborting "
+			"getting sandbox info for user.\n", fquser.Value());
+		return FALSE;
+	}
+	rsock->eom();
+
+	// queue the transfer request to the waiting td who will own the memory
+	// and the socket.
 	td->add_transfer_request(treq);
+
+	// Push the request to the td itself, where the callbacks from the 
+	// transfer request will contact the client as needed.
+	td->push_transfer_requests();
+
+	// The socket is going to be deleted later in a callback the
+	// schedd deals with and I don't want daemoncore to also delete
+	// the socket.
+	return KEEP_STREAM;
+}
+
+
+///////////////////////////////////////////////////////////////////////////
+// These are the callbacks related to transfer requests which are upload
+// requests.
+///////////////////////////////////////////////////////////////////////////
+
+// In this handler, if the handler wants to return TREQ_ACTION_TERMINATE, then
+// the treq pointer is owned by this handler and must be deleted by this
+// handler, for all other return values this handler should not delete the treq.
+TreqAction
+Scheduler::treq_upload_pre_push_callback(TransferRequest *treq, 
+	TransferDaemon *td)
+{
+	int cluster;
+	int proc;
+	ExtArray<PROC_ID> *jobs = NULL;
+	int i;
+	time_t now;
+
+	dprintf(D_ALWAYS, "Scheduler::treq_upload_pre_push_callback() called.\n");
+
+	jobs = treq->get_procids();
+
+	now = time(NULL);
+
+	// set the stage in start time.
+	for (i = 0; i < (*jobs).length(); i++) {
+		SetAttributeInt((*jobs)[i].cluster, (*jobs)[i].proc, 
+			ATTR_STAGE_IN_START, now);
+	}
+
+	// Get the actual (now modified) job ads and shove them into the request
+	// for the transferd to munch on.
+
+	for (i=0; i < (*jobs).length(); i++) {
+		cluster = (*jobs)[i].cluster;
+		proc = (*jobs)[i].proc;
+		ClassAd * jad = GetJobAd( cluster, proc );
+		treq->append_task(jad);
+	}
+
+	// keep processing this request.
+	return TREQ_ACTION_CONTINUE;
+}
+
+
+// In this handler, if the handler wants to return TREQ_ACTION_TERMINATE, then
+// the treq pointer is owned by this handler and must be deleted by this
+// handler, for all other return values this handler should not delete the treq.
+TreqAction
+Scheduler::treq_upload_post_push_callback(TransferRequest *treq, 
+	TransferDaemon *td)
+{
+	ReliSock *rsock = NULL;
+	MyString sinful;
+	MyString capability;
+	ClassAd respad;
+	MyString jids;
+	MyString reason;
+
+	////////////////////////////////////////////////////////////////////////
+	// Respond to the client with a capability, a td sinful, the list of
+	// jobids allowable for this fileset, and a list of protocols the td is
+	// willing to use.
+	// Use the sock stashed in the treq, then close the socket to the client.
+	////////////////////////////////////////////////////////////////////////
+
+	dprintf(D_ALWAYS, "Scheduler::treq_upload_post_push_callback() called.\n");
+
+	rsock = treq->get_client_sock();
+	// This means I might have accidentily recycled a treq without 
+	// properly cleaning it up.
+	ASSERT(rsock != NULL);
 
 	rsock->encode();
 
-	// now push the request(s) to the transferd, this returns when the transferd
-	// has gotten the transfer request manifest.
-	td->push_transfer_requests();
+	// If the request was rejected, then tell the client why
+	if (treq->get_rejected() == true) {
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		reason = treq->get_rejected_reason();
+		respad.Assign(ATTR_TREQ_INVALID_REASON, reason);
+	} else {
 
-	// send back the sinful string of the td to the submitting client
-	tmp = (char*)td->get_sinful().Value();
-	rsock->code(tmp);
+		sinful = td->get_sinful();
+		capability = treq->get_capability();
+
+		procids_to_mystring(treq->get_procids(), jids);
+
+		// This is what the transferd is willing to do for this request.
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, FALSE);
+		respad.Assign(ATTR_TREQ_CAPABILITY, capability);
+		respad.Assign(ATTR_TREQ_TD_SINFUL, sinful);
+		respad.Assign(ATTR_TREQ_FTP, treq->get_xfer_protocol());
+		respad.Assign(ATTR_TREQ_JOBID_ALLOW_LIST, jids);
+	}
+
+	// This response ad from the schedd will contain:
+	//	ATTR_TREQ_INVALID_REQUEST (set to true)
+	//	ATTR_TREQ_INVALID_REASON
+	//
+	//	OR
+	//
+	//	ATTR_TREQ_INVALID_REQUEST (set to false)
+	//	ATTR_TREQ_CAPABILITY
+	//	ATTR_TREQ_TD_SINFUL
+	//	ATTR_TREQ_FTP
+	//	ATTR_TREQ_JOBID_ALLOW_LIST
+	//
+	dprintf(D_ALWAYS, "Scheduler::treq_post_push_callback() "
+		"Responding to client about sandbox request and closing connection.\n");
+	respad.put(*rsock);
 	rsock->eom();
 
-	// all done. 
+	// close the connection to the client now that I've told it where it can
+	// put its files.
+	delete rsock;
+	
+	// I told the client to go away, so I don't have this anymore.
+	treq->set_client_sock(NULL);
 
-	return CLOSE_STREAM;
+	// Keep processing this request
+	return TREQ_ACTION_CONTINUE;
 }
+
+// In this handler, if the handler wants to return TREQ_ACTION_TERMINATE, then
+// the treq pointer is owned by this handler and must be deleted by this
+// handler, for all other return values this handler should not delete the treq.
+// If the update status is satisfactory, then update the transfer time
+// for the job and remove it from being on hold.
+TreqAction
+Scheduler::treq_upload_update_callback(TransferRequest *treq, 
+	TransferDaemon *td, ClassAd *update)
+{
+	int cluster,proc,index;
+	char new_attr_value[500];
+	char *buf = NULL;
+	ExprTree *expr = NULL;
+	char *SpoolSpace = NULL;
+	time_t now = time(NULL);
+	SimpleList<ClassAd*> *treq_ads = NULL;
+	char *mySpool = NULL;
+	const char *AttrsToModify[] = { 
+		ATTR_JOB_CMD,
+		ATTR_JOB_INPUT,
+		ATTR_JOB_OUTPUT,
+		ATTR_JOB_ERROR,
+		ATTR_TRANSFER_INPUT_FILES,
+		ATTR_TRANSFER_OUTPUT_FILES,
+		ATTR_ULOG_FILE,
+		ATTR_X509_USER_PROXY,
+		NULL };		// list must end with a NULL
+	ClassAd *old_ad = NULL;
+	ClassAd *jad = NULL;
+
+	dprintf(D_ALWAYS, "Scheduler::treq_upload_update_callback() called.\n");
+
+	if( !(mySpool = param("SPOOL")) ) {
+		EXCEPT( "No spool directory specified in config file" );
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	// Determine if I like the update callback.
+	////////////////////////////////////////////////////////////////////////
+
+	// XXX TODO
+	// Assume this update is because the file were transferred correctly.
+
+	////////////////////////////////////////////////////////////////////////
+	// The Mojo to get the job off of hold now that the transfer is complete
+	////////////////////////////////////////////////////////////////////////
+
+		// For each job, modify its ClassAd
+	treq_ads = treq->todo_tasks();
+	
+	treq_ads->Rewind();
+	while(treq_ads->Next(old_ad))
+	{
+		old_ad->LookupInteger(ATTR_CLUSTER_ID, cluster);
+		old_ad->LookupInteger(ATTR_PROC_ID, proc);
+
+		// Get a fresh ad from the queue since it might have been qedited in
+		// the time the job was waiting for file transfer to complete.
+		jad = GetJobAd(cluster,proc);
+
+		if ( SpoolSpace ) free(SpoolSpace);
+		SpoolSpace = strdup( gen_ckpt_name(mySpool,cluster,proc,0) );
+		ASSERT(SpoolSpace);
+
+		BeginTransaction();
+
+			// Backup the original IWD at submit time
+		if (buf) free(buf);
+		buf = NULL;
+		jad->LookupString(ATTR_JOB_IWD,&buf);
+		if ( buf ) {
+			sprintf(new_attr_value,"SUBMIT_%s",ATTR_JOB_IWD);
+			SetAttributeString(cluster,proc,new_attr_value,buf);
+			free(buf);
+			buf = NULL;
+		}
+			// Modify the IWD to point to the spool space			
+		SetAttributeString(cluster,proc,ATTR_JOB_IWD,SpoolSpace);
+
+			// Backup the original TRANSFER_OUTPUT_REMAPS at submit time
+		expr = jad->Lookup(ATTR_TRANSFER_OUTPUT_REMAPS);
+		sprintf(new_attr_value,"SUBMIT_%s",ATTR_TRANSFER_OUTPUT_REMAPS);
+		if ( expr ) {
+			char *remap_buf = NULL;
+			ASSERT( expr->RArg() );
+			expr->RArg()->PrintToNewStr(&remap_buf);
+			ASSERT(remap_buf);
+			SetAttribute(cluster,proc,new_attr_value,remap_buf);
+			free(remap_buf);
+		}
+		else if(jad->Lookup(new_attr_value)) {
+				// SUBMIT_TransferOutputRemaps is defined, but
+				// TransferOutputRemaps is not; disable the former,
+				// so that when somebody fetches the sandbox, nothing
+				// gets remapped.
+			SetAttribute(cluster,proc,new_attr_value,"Undefined");
+		}
+			// Set TRANSFER_OUTPUT_REMAPS to Undefined so that we don't
+			// do remaps when the job's output files come back into the
+			// spool space. We only want to remap when the submitter
+			// retrieves the files.
+		SetAttribute(cluster,proc,ATTR_TRANSFER_OUTPUT_REMAPS,"Undefined");
+
+			// Now, for all the attributes listed in 
+			// AttrsToModify, change them to be relative to new IWD
+			// by taking the basename of all file paths.
+		index = -1;
+		while ( AttrsToModify[++index] ) {
+				// Lookup original value
+			if (buf) free(buf);
+			buf = NULL;
+			jad->LookupString(AttrsToModify[index],&buf);
+			if (!buf) {
+				// attribute not found, so no need to modify it
+				continue;
+			}
+			if ( nullFile(buf) ) {
+				// null file -- no need to modify it
+				continue;
+			}
+				// Create new value - deal with the fact that
+				// some of these attributes contain a list of pathnames
+			StringList old_paths(buf,",");
+			StringList new_paths(NULL,",");
+			old_paths.rewind();
+			char *old_path_buf;
+			bool changed = false;
+			const char *base = NULL;
+			char new_path_buf[_POSIX_PATH_MAX];
+			while ( (old_path_buf=old_paths.next()) ) {
+				base = condor_basename(old_path_buf);
+				if ( strcmp(base,old_path_buf)!=0 ) {
+					snprintf(new_path_buf,_POSIX_PATH_MAX,
+						"%s%c%s",SpoolSpace,DIR_DELIM_CHAR,base);
+					base = new_path_buf;
+					changed = true;
+				}
+				new_paths.append(base);
+			}
+			if ( changed ) {
+					// Backup original value
+				sprintf(new_attr_value,"SUBMIT_%s",AttrsToModify[index]);
+				SetAttributeString(cluster,proc,new_attr_value,buf);
+					// Store new value
+				char *new_value = new_paths.print_to_string();
+				ASSERT(new_value);
+				SetAttributeString(cluster,proc,AttrsToModify[index],new_value);
+				free(new_value);
+			}
+		}
+
+			// Set ATTR_STAGE_IN_FINISH if not already set.
+		int spool_completion_time = 0;
+		jad->LookupInteger(ATTR_STAGE_IN_FINISH,spool_completion_time);
+		if ( !spool_completion_time ) {
+			// The transfer thread specifically slept for 1 second
+			// to ensure that the job can't possibly start (and finish)
+			// prior to the timestamps on the file.  Unfortunately,
+			// we note the transfer finish time _here_.  So we've got 
+			// to back off 1 second.
+			SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,now - 1);
+		}
+
+			// And now release the job.
+		releaseJob(cluster,proc,"Data files spooled",false,false,false,false);
+		CommitTransaction();
+	}
+
+	daemonCore->Register_Timer( 0, 
+					(TimerHandlercpp)&Scheduler::reschedule_negotiator_timer,
+					"Scheduler::reschedule_negotiator", this );
+
+	if (SpoolSpace) free(SpoolSpace);
+	if (mySpool) free(mySpool);
+	if (buf) free(buf);
+
+	////////////////////////////////////////////////////////////////////////
+	// I'm done with this treq, so get rid of it because I own the memory
+	// in the case where I tell the engine to terminate processing of
+	// the request.
+	////////////////////////////////////////////////////////////////////////
+
+	delete treq;
+
+	return TREQ_ACTION_TERMINATE;
+}
+
+TreqAction
+Scheduler::treq_upload_reaper_callback(TransferRequest *treq)
+{
+	// Hmm... the td is no longer alive, so maybe schedd wants to reinvoke
+	// another one here and repass it the treq among other manipulation of
+	// the jobs associated with this treq.
+
+	dprintf(D_ALWAYS, "Scheduler::treq_upload_reaper_callback() called.\n");
+
+	// XXX I might want requeue this or not, I have to check the treq to see 
+	// what state it was in (did it have a capability? etc) to figure out 
+	// what to do about it.
+
+	return TREQ_ACTION_CONTINUE;
+}
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////
+// These are the callbacks related to transfer requests which are download
+// requests.
+///////////////////////////////////////////////////////////////////////////
+
+TreqAction
+Scheduler::treq_download_pre_push_callback(TransferRequest *treq, 
+	TransferDaemon *td)
+{
+	int cluster;
+	int proc;
+	ExtArray<PROC_ID> *jobs = NULL;
+	int i;
+	time_t now;
+
+	dprintf(D_ALWAYS, "Scheduler::treq_download_pre_push_callback() called.\n");
+
+	////////////////////////////////////////////////////////////////////////
+	// Set ATTR_STAGE_OUT_START timestamp
+	////////////////////////////////////////////////////////////////////////
+
+	jobs = treq->get_procids();
+
+	now = time(NULL);
+
+	// set the stage out start time.
+	for (i = 0; i < (*jobs).length(); i++) {
+		SetAttributeInt((*jobs)[i].cluster,(*jobs)[i].proc,
+						ATTR_STAGE_OUT_START,now);
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	// Get the actual (now modified) job ads and shove them into the request
+	// for the transferd to munch on.
+	////////////////////////////////////////////////////////////////////////
+
+	for (i=0; i < (*jobs).length(); i++) {
+		cluster = (*jobs)[i].cluster;
+		proc = (*jobs)[i].proc;
+		ClassAd * jad = GetJobAd( cluster, proc );
+		treq->append_task(jad);
+	}
+
+	// Keep processing this request
+	return TREQ_ACTION_CONTINUE;
+}
+
+TreqAction
+Scheduler::treq_download_post_push_callback(TransferRequest *treq, 
+	TransferDaemon *td)
+{
+	ReliSock *rsock = NULL;
+	MyString sinful;
+	char *val = NULL;
+	MyString capability;
+	ClassAd respad;
+	MyString jids;
+	MyString reason;
+
+	////////////////////////////////////////////////////////////////////////
+	// Respond to the client with a capability, a td sinful, the list of
+	// jobids allowable for this fileset, and a list of protocols the td is
+	// willing to use.
+	// Use the sock stashed in the treq, then close the socket to the client.
+	////////////////////////////////////////////////////////////////////////
+
+	dprintf(D_ALWAYS, 
+		"Scheduler::treq_download_post_push_callback() called.\n");
+
+	rsock = treq->get_client_sock();
+	// This means I might have accidentily recycled a treq without 
+	// properly cleaning it up.
+	ASSERT(rsock != NULL);
+
+	rsock->encode();
+
+	// If the request was rejected, then tell the client why
+	if (treq->get_rejected() == true) {
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		reason = treq->get_rejected_reason();
+		respad.Assign(ATTR_TREQ_INVALID_REASON, reason);
+	} else {
+
+		sinful = td->get_sinful();
+		capability = treq->get_capability();
+
+		procids_to_mystring(treq->get_procids(), jids);
+
+		// This is what the transferd is willing to do for this request.
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, FALSE);
+		respad.Assign(ATTR_TREQ_CAPABILITY, capability);
+		respad.Assign(ATTR_TREQ_TD_SINFUL, sinful);
+		respad.Assign(ATTR_TREQ_FTP, treq->get_xfer_protocol());
+		respad.Assign(ATTR_TREQ_JOBID_ALLOW_LIST, jids);
+	}
+
+	// This response ad from the schedd will contain:
+	//	ATTR_TREQ_INVALID_REQUEST (set to true)
+	//	ATTR_TREQ_INVALID_REASON
+	//
+	//	OR
+	//
+	//	ATTR_TREQ_INVALID_REQUEST (set to false)
+	//	ATTR_TREQ_CAPABILITY
+	//	ATTR_TREQ_TD_SINFUL
+	//	ATTR_TREQ_FTP
+	//	ATTR_TREQ_JOBID_ALLOW_LIST
+	//
+	dprintf(D_ALWAYS, "Scheduler::treq_download_post_push_callback() "
+		"Responding to client about sandbox request and closing connection.\n");
+	respad.put(*rsock);
+	rsock->eom();
+
+	// close the connection to the client now that I've told it where it can
+	// get its files.
+	delete rsock;
+	
+	// I told the client to go away, so I don't have this anymore.
+	treq->set_client_sock(NULL);
+
+	// Keep processing this request
+	return TREQ_ACTION_CONTINUE;
+}
+
+TreqAction
+Scheduler::treq_download_update_callback(TransferRequest *treq, 
+	TransferDaemon *td, ClassAd *update)
+{
+	int i;
+	ExtArray<PROC_ID> *jobs;
+	time_t now;
+
+	dprintf(D_ALWAYS, "Scheduler::treq_download_update_callback() called.\n");
+
+	////////////////////////////////////////////////////////////////////////
+	// Determine if I like the update callback.
+	////////////////////////////////////////////////////////////////////////
+
+	// XXX TODO
+	// assume it is ok.
+
+	////////////////////////////////////////////////////////////////////////
+	// The Mojo to get the job off of hold now that the transfer is complete
+	////////////////////////////////////////////////////////////////////////
+
+	jobs = treq->get_procids();
+	ASSERT(jobs);
+
+	now = time(NULL);
+
+	for (i=0; i < treq->get_num_transfers(); i++) {
+		SetAttributeInt((*jobs)[i].cluster, (*jobs)[i].proc,
+			ATTR_STAGE_OUT_FINISH, now);
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	// I'm done with this treq, so get rid of it because I own the memory
+	// in the case where I tell the engine to terminate processing of
+	// the request.
+	////////////////////////////////////////////////////////////////////////
+
+	delete treq;
+
+	return TREQ_ACTION_TERMINATE;
+}
+
+TreqAction
+Scheduler::treq_download_reaper_callback(TransferRequest *treq)
+{
+	////////////////////////////////////////////////////////////////////////
+	// The td is no longer alive, so maybe schedd wants to reinvoke
+	// another one here and repass it the treq among other manipulation of
+	// the jobs associated with this treq.
+	////////////////////////////////////////////////////////////////////////
+
+	dprintf(D_ALWAYS, "Scheduler::treq_download_reaper_callback() called.\n");
+
+	////////////////////////////////////////////////////////////////////////
+	// XXX I might want requeue this or not, I have to check the treq to see 
+	// what state it was in (did it have a capability? etc) to figure out 
+	// what to do about it.
+	////////////////////////////////////////////////////////////////////////
+
+	return TREQ_ACTION_CONTINUE;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #if 0
@@ -626,7 +1181,7 @@ Scheduler::spoolJobFilesWorkerThread(void *arg, Stream* s)
 		// stat() can't tell the difference between:
 		//   1) A job starts up, touches a file, and exits all in one second
 		//   2) A job starts up, doesn't touch the file, and exits all in one 
-		//      second
+		//	  second
 		// So if we force the start time of the job to be one second later than
 		// the time we know the files were written, stat() should be able
 		// to perceive what happened, if anything.

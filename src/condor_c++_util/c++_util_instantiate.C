@@ -45,6 +45,7 @@ template class List<char>; 		template class Item<char>;
 template class List<int>; 		template class Item<int>;
 template class SimpleList<int>; 
 template class SimpleList<float>;
+template class ExtArray<PROC_ID>;
 template class ExtArray<char *>;
 template class ExtArray<int>;
 template class ExtArray<MyString>;
