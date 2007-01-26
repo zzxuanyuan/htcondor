@@ -5,12 +5,12 @@
    set up for the user for the creation of the following schema objects.
 */
 
-CREATE TABLE cdb_users (
+CREATE TABLE cdb_user (
 username varchar(8),
 password character(32),
 admin varchar(5));
 
-CREATE TABLE  transfers (
+CREATE TABLE  transfer (
 globaljobid  	varchar(4000),
 src_name  	varchar(4000),
 src_host  	varchar(4000),
@@ -24,7 +24,7 @@ dst_daemon  varchar(15),
 checksum    varchar(32),
 last_modified    timestamp(3) with time zone);
 
-CREATE TABLE files (
+CREATE TABLE file (
 file_id  	int NOT NULL,
 name  		varchar(4000), 
 host  		varchar(4000),
@@ -35,7 +35,7 @@ checksum  	varchar(32),
 PRIMARY KEY (file_id)
 );
 
-CREATE TABLE fileusages (
+CREATE TABLE fileusage (
 globaljobid  	varchar(4000),
 file_id         int REFERENCES files(file_id),
 usagetype  	varchar(4000));

@@ -526,10 +526,10 @@ TTManager::event_maintain()
 				} else if (strcasecmp(eventtype, "Events") == 0) {
 					if  (insertEvents(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcasecmp(eventtype, "Files") == 0) {
+				} else if (strcasecmp(eventtype, "File") == 0) {
 					if  (insertFiles(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcasecmp(eventtype, "Fileusages") == 0) {
+				} else if (strcasecmp(eventtype, "Fileusage") == 0) {
 					if  (insertFileusages(ad) == FAILURE) 
 						goto DBERROR;
 				} else if (strcasecmp(eventtype, "History") == 0) {
@@ -547,7 +547,7 @@ TTManager::event_maintain()
 				} else if (strcasecmp(eventtype, "Runs") == 0) {
 					if  (insertRuns(ad) == FAILURE) 
 						goto DBERROR;
-				} else if (strcasecmp(eventtype, "Transfers") == 0) {
+				} else if (strcasecmp(eventtype, "Transfer") == 0) {
 					if  (insertTransfers(ad) == FAILURE) 
 						goto DBERROR;					
 				} else {
@@ -2482,7 +2482,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	}
 
 	sql_stmt.sprintf(
-			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr, f_name, f_host, f_path, ts_expr, f_size, hexSum, f_name, f_path, f_host, ts_expr);
+			"INSERT INTO file (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM file WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr, f_name, f_host, f_path, ts_expr, f_size, hexSum, f_name, f_path, f_host, ts_expr);
 
 	free(seqexpr);
 	free(ts_expr);
@@ -2564,7 +2564,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	}
 
 	sql_stmt.sprintf(
-			"INSERT INTO fileusages (globaljobid, file_id, usagetype) SELECT '%s', file_id, '%s' FROM files WHERE  name='%s' and path='%s' and host='%s' and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr, onerow_expr);
+			"INSERT INTO fileusage (globaljobid, file_id, usagetype) SELECT '%s', file_id, '%s' FROM file WHERE  name='%s' and path='%s' and host='%s' and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr, onerow_expr);
 	
 	free(ts_expr);
 	free(onerow_expr);
@@ -2865,7 +2865,7 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 		hexSum[0] = '\0';
   
   sql_stmt.sprintf(
-          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, checksum, last_modified) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified);
+          "INSERT INTO transfer (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, checksum, last_modified) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified);
 
 	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
