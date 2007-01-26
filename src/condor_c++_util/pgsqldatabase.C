@@ -203,6 +203,11 @@ PGSQLDatabase::execCommand(const char* sql,
 	PGresult 	*result;
 	char*		num_result_str = NULL;
 	int         db_err_code;
+	struct timeval tvStart, tvEnd;
+
+#ifdef TT_TIME_SQL
+	gettimeofday( &tvStart, NULL );
+#endif	
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
@@ -232,6 +237,14 @@ PGSQLDatabase::execCommand(const char* sql,
 			num_result = atoi(num_result_str);
 		}
 	}
+
+#ifdef TT_TIME_SQL
+	gettimeofday( &tvEnd, NULL );
+
+	dprintf(D_FULLDEBUG, "Execution time: %d\n", 
+			(tvEnd.tv_sec - tvStart.tv_sec)*1000 + 
+			(tvEnd.tv_usec - tvStart.tv_usec)/1000);
+#endif
 	
 	if(result) {
 		PQclear(result);		

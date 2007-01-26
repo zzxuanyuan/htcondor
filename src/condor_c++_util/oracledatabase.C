@@ -350,6 +350,8 @@ QuillErrCode
 ORACLEDatabase::execCommand(const char* sql, 
 						   int &num_result)
 {
+	struct timeval tvStart, tvEnd;
+
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execCommand\n");
 		return FAILURE;
@@ -360,6 +362,10 @@ ORACLEDatabase::execCommand(const char* sql,
 #ifdef TT_COLLECT_SQL
 	fprintf(sqllog_fp, "%s;\n", sql);
 	fflush(sqllog_fp);
+#endif
+
+#ifdef TT_TIME_SQL
+	gettimeofday( &tvStart, NULL );
 #endif
 
 	try {
@@ -384,6 +390,15 @@ ORACLEDatabase::execCommand(const char* sql,
 	}
 
 	conn->terminateStatement (stmt);	
+
+#ifdef TT_TIME_SQL
+	gettimeofday( &tvEnd, NULL );
+
+	dprintf(D_FULLDEBUG, "Execution time: %d\n", 
+			(tvEnd.tv_sec - tvStart.tv_sec)*1000 + 
+			(tvEnd.tv_usec - tvStart.tv_usec)/1000);
+#endif
+	
 	stmt = NULL;
 	return SUCCESS;
 }
