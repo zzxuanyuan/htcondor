@@ -94,7 +94,8 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 					  int *procarray, 
 					  int numprocs,
 					  char *schedd, 
-					  bool isfullscan)
+					  bool isfullscan,
+					  time_t scheddBirthdate)
 {
 	QuillErrCode st;
 		// initialize index variables

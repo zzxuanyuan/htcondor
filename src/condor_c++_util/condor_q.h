@@ -88,6 +88,7 @@ class CondorQ
 	int addDBConstraint (CondorQIntCategories, int);
 
 	int addSchedd (char *);  // what schedd are we querying?
+	int addScheddBirthdate (time_t value);  // what 
 	// fetch the job ads from the schedd corresponding to the given classad
 	// which pass the criterion specified by the constraints; default is
 	// from the local schedd
@@ -115,6 +116,7 @@ class CondorQ
 	int numprocs;
 	char owner[MAXOWNERLEN];
 	char schedd[MAXSCHEDDLEN];
+	time_t scheddBirthdate;
 	
 	// helper functions
 	int getAndFilterAds( ClassAd &, ClassAdList & );

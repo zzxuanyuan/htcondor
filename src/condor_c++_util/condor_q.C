@@ -97,6 +97,7 @@ CondorQ ()
 
 	owner[0] = '\0';
 	schedd[0] = '\0';
+	scheddBirthdate = 0;
 }
 
 
@@ -201,6 +202,13 @@ addSchedd (char *value)
 }
 
 int CondorQ::
+addScheddBirthdate (time_t value)
+{  
+	scheddBirthdate = value;
+	return 0;
+}
+
+int CondorQ::
 fetchQueue (ClassAdList &list, ClassAd *ad, CondorError* errstack)
 {
 	Qmgr_connection *qmgr;
@@ -294,7 +302,8 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 						 procarray,
 						 numprocs,
 						 schedd,
-						 FALSE);
+						 FALSE,
+						 scheddBirthdate);
 
 	if (rv == FAILURE) {
 		delete jqSnapshot;
@@ -389,7 +398,8 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 						 procarray,
 						 numprocs,
 						schedd,
-						 FALSE);
+						 FALSE,
+						scheddBirthdate);
 
 	if (rv == FAILURE) {
 		delete jqSnapshot;

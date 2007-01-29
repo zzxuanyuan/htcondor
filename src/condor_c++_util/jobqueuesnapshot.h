@@ -46,7 +46,8 @@ public:
 					     int *procarray, 
 					     int numprocs,
 				    	     char *owner, 
-					     bool isfullscan);
+					     bool isfullscan,
+						time_t scheddBirthdate);
 	//! iterate one by one
 	QuillErrCode iterateAllClassAds(ClassAd*& ad);
 	//! release snapshot
