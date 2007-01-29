@@ -9845,7 +9845,6 @@ Scheduler::Init()
 		CronMgr->Initialize( );
 	}
 
-	daemonCore->UpdateLocalAd(ad);
 	first_time_in_init = false;
 }
 
@@ -10067,6 +10066,14 @@ Scheduler::reconfig()
 		SetMaxHistoricalLogs(atoi(tmpbuf));
 		free(tmpbuf);
 	}
+	update_local_ad_file();
+}
+
+void
+Scheduler::update_local_ad_file() 
+{
+	daemonCore->UpdateLocalAd(ad);
+	return;
 }
 
 // This function is called by a timer when we are shutting down

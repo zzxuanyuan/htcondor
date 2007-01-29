@@ -149,6 +149,7 @@ main_init(int argc, char* argv[])
 
 		// Do a timeout now at startup to get the ball rolling...
 	scheduler.timeout();
+	scheduler.update_local_ad_file();
 
 	return 0;
 } 
