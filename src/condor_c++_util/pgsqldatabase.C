@@ -665,12 +665,12 @@ PGSQLDatabase::openCursorsHistory(SQLQuery *queryhor,
 	QuillErrCode st = SUCCESS;
 
 	if ((st = execCommand(queryhor->getDeclareCursorStmt())) == FAILURE) {
-		printf("error while opening history_horizontal cursor\n");
+		printf("error while opening Jobs_Horizontal_History cursor\n");
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 	if (longformat && 
 		(st = execCommand(queryver->getDeclareCursorStmt())) == FAILURE) {
-		printf("error while opening history_vertical cursor\n");
+		printf("error while opening Jobs_Vertical_History cursor\n");
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
 
@@ -703,7 +703,7 @@ PGSQLDatabase::closeCursorsHistory(SQLQuery *queryhor,
 	return SUCCESS;
 }
 
-//! get a value retrieved from History_Horizontal table
+//! get a value retrieved from Jobs_Horizontal_History table
 QuillErrCode
 PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor, 
 								  int row, int col, const char **value)
@@ -711,7 +711,7 @@ PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor,
 	QuillErrCode st;
 	
 	if(row < historyHorFirstRowIndex) {
-		dprintf(D_ALWAYS, "ERROR: Trying to access history_horizontal\n"); 
+		dprintf(D_ALWAYS, "ERROR: Trying to access Jobs_Horizontal_History\n"); 
 		dprintf(D_ALWAYS, "before the start of the current range.\n");
 		dprintf(D_ALWAYS, "Backwards iteration is currently not supported\n");
 		return FAILURE_QUERY_HISTORYADS_HOR;
@@ -739,7 +739,7 @@ PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor,
 	return SUCCESS;
 }
 
-//! get a value retrieved from History_Vertical table
+//! get a value retrieved from Jobs_Vertical_History table
 QuillErrCode
 PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver, 
 								  int row, int col, const char **value)
@@ -747,7 +747,7 @@ PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver,
 	QuillErrCode st;
 
 	if(row < historyVerFirstRowIndex) {
-		dprintf(D_ALWAYS, "ERROR: Trying to access history_vertical\n"); 
+		dprintf(D_ALWAYS, "ERROR: Trying to access Jobs_Vertical_History\n"); 
 		dprintf(D_ALWAYS, "before the start of the current range.\n");
 		dprintf(D_ALWAYS, "Backwards iteration is currently not supported\n");
 		return FAILURE_QUERY_HISTORYADS_VER;

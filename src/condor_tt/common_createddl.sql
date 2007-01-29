@@ -5,12 +5,12 @@
    set up for the user for the creation of the following schema objects.
 */
 
-CREATE TABLE cdb_user (
+CREATE TABLE cdb_users (
 username varchar(8),
 password character(32),
 admin varchar(5));
 
-CREATE TABLE  transfer (
+CREATE TABLE  transfers (
 globaljobid  	varchar(4000),
 src_name  	varchar(4000),
 src_host  	varchar(4000),
@@ -24,7 +24,7 @@ dst_daemon  varchar(15),
 checksum    varchar(32),
 last_modified    timestamp(3) with time zone);
 
-CREATE TABLE file (
+CREATE TABLE files (
 file_id  	int NOT NULL,
 name  		varchar(4000), 
 host  		varchar(4000),
@@ -35,7 +35,7 @@ checksum  	varchar(32),
 PRIMARY KEY (file_id)
 );
 
-CREATE TABLE fileusage (
+CREATE TABLE fileusages (
 globaljobid  	varchar(4000),
 file_id         int REFERENCES files(file_id),
 usagetype  	varchar(4000));
@@ -44,7 +44,7 @@ CREATE sequence condor_seqfileid;
 
 -- Added by pachu
 
-CREATE TABLE machine (
+CREATE TABLE machines_vertical (
 machine_id varchar(4000) NOT NULL,
 attr       varchar(2000) NOT NULL, 
 val        varchar(4000), 
@@ -52,7 +52,7 @@ start_time timestamp(3) with time zone,
 Primary Key (machine_id, attr)
 );
 
-CREATE TABLE machine_history (
+CREATE TABLE machines_vertical_history (
 machine_id varchar(4000),
 attr       varchar(4000), 
 val        varchar(4000), 
@@ -60,7 +60,7 @@ start_time timestamp(3) with time zone,
 end_time   timestamp(3) with time zone
 );
 
-CREATE TABLE machine_classad (
+CREATE TABLE machines_horizontal (
 machine_id             varchar(4000) NOT NULL,
 opsys                  varchar(4000),
 arch                   varchar(4000),
@@ -95,7 +95,7 @@ lastheardfrom_epoch    integer,
 Primary Key (machine_id)
 );
 
-CREATE TABLE machine_classad_history (
+CREATE TABLE machines_horizontal_history (
 machine_id             varchar(4000),
 opsys                  varchar(4000),
 arch                   varchar(4000),
@@ -181,7 +181,7 @@ val		varchar(4000),
 primary key (scheddname,cluster_id, proc, attr)
 );
 
-CREATE TABLE History_Vertical (
+CREATE TABLE Jobs_Vertical_History (
 scheddname	varchar(4000) NOT NULL,
 cluster_id	integer NOT NULL,
 proc		integer NOT NULL,
@@ -190,7 +190,7 @@ val		varchar(4000),
 primary key (scheddname, cluster_id, proc, attr)
 );
 
-CREATE TABLE History_Horizontal (
+CREATE TABLE Jobs_Horizontal_History (
 scheddname   varchar(4000) NOT NULL,
 cluster_id              integer NOT NULL,
 proc                    integer NOT NULL,
@@ -259,7 +259,7 @@ enteredhistorytable     timestamp(3) with time zone,
 primary key		(scheddname, cluster_id, proc)
 );
 
-CREATE INDEX Hist_H_I_owner ON History_Horizontal (owner);
+CREATE INDEX Hist_H_I_owner ON Jobs_Horizontal_History (owner);
 
 CREATE SEQUENCE SeqRunId;
 
@@ -355,7 +355,7 @@ INSERT INTO L_JobStatus VALUES(6, 'E', 'SUBMISSION_ERROR');
 
 --END Eric
 
-CREATE TABLE thrown(
+CREATE TABLE throwns(
 fileName       varchar(4000),
 machine_id     varchar(4000),
 log_size           integer,
@@ -403,7 +403,7 @@ INSERT INTO L_eventType values (22, 'RSC socket lost');
 INSERT INTO L_eventType values (23, 'RSC socket re-established');
 INSERT INTO L_eventType values (24, 'RSC reconnect failure');
 
-CREATE TABLE Generic (
+CREATE TABLE GenericMessages (
 eventType	varchar(4000),
 eventKey	varchar(4000),
 eventTime	timestamp(3) with time zone,
@@ -429,12 +429,12 @@ last_cmd_value       varchar(4000)
 
 CREATE INDEX JQ_I_Schedd ON JobQueuePollingInfo(scheddname);
 
-CREATE TABLE Currency(
+CREATE TABLE Currencies(
 datasource varchar(4000),
 lastupdate timestamp(3) with time zone
 );
 
-CREATE TABLE Daemon_Horizontal (
+CREATE TABLE Daemons_Horizontal (
 MyType				VARCHAR(100) NOT NULL,
 Name				VARCHAR(500) NOT NULL,
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -452,7 +452,7 @@ lastheardfrom_epoch             integer,
 PRIMARY KEY (MyType, Name)
 );
 
-CREATE TABLE Daemon_Vertical (
+CREATE TABLE Daemons_Vertical (
 MyType				VARCHAR(100) NOT NULL,
 Name				VARCHAR(500) NOT NULL,
 attr				VARCHAR(4000) NOT NULL,
@@ -461,7 +461,7 @@ LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 PRIMARY KEY (MyType, Name, attr)
 );
 
-CREATE TABLE Daemon_Horizontal_History (
+CREATE TABLE Daemons_Horizontal_History (
 MyType				VARCHAR(100),
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -478,7 +478,7 @@ UpdatesHistory			VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Daemon_Vertical_History (
+CREATE TABLE Daemons_Vertical_History (
 MyType				VARCHAR(100),
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -487,7 +487,7 @@ val				VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Schedd_Horizontal (
+CREATE TABLE Schedds_Horizontal (
 Name				VARCHAR(500) NOT NULL,
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 NumUsers			INTEGER,
@@ -500,7 +500,7 @@ TotalRemovedJobs		INTEGER,
 PRIMARY KEY (Name)
 );
 
-CREATE TABLE Schedd_Horizontal_History (
+CREATE TABLE Schedds_Horizontal_History (
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 NumUsers			INTEGER,
@@ -513,7 +513,7 @@ TotalRemovedJobs		INTEGER,
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Schedd_Vertical (
+CREATE TABLE Schedds_Vertical (
 Name				VARCHAR(500) NOT NULL,
 attr				VARCHAR(4000) NOT NULL,
 val				VARCHAR(4000),
@@ -521,7 +521,7 @@ LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 PRIMARY KEY (Name, attr)
 );
 
-CREATE TABLE Schedd_Vertical_History (
+CREATE TABLE Schedds_Vertical_History (
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),
@@ -529,7 +529,7 @@ val				VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Master_Vertical (
+CREATE TABLE Masters_Vertical (
 Name				VARCHAR(500) NOT NULL,
 attr				VARCHAR(4000) NOT NULL,
 val				VARCHAR(4000),
@@ -537,7 +537,7 @@ LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 PRIMARY KEY (Name, attr)
 );
 
-CREATE TABLE Master_Vertical_History (
+CREATE TABLE Masters_Vertical_History (
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),
@@ -545,7 +545,7 @@ val				VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Negotiator_Vertical (
+CREATE TABLE Negotiators_Vertical (
 Name				VARCHAR(500) NOT NULL,
 attr				VARCHAR(4000) NOT NULL,
 val				VARCHAR(4000),
@@ -553,7 +553,7 @@ LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 PRIMARY KEY (Name, attr)
 );
 
-CREATE TABLE Negotiator_Vertical_History (
+CREATE TABLE Negotiators_Vertical_History (
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),

@@ -161,35 +161,35 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_ALL_HOR:
 	  if (dt == T_PGSQL) {
 			sprintf(declare_cursor_str, 
-					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL ORDER BY scheddname, cluster_id, proc;", quill_history_hor_select_list);
+					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History ORDER BY scheddname, cluster_id, proc;", quill_history_hor_select_list);
 			sprintf(fetch_cursor_str,
 				"FETCH FORWARD 100 FROM HISTORY_ALL_HOR_CUR");
 			sprintf(close_cursor_str,
 				"CLOSE HISTORY_ALL_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL ORDER BY scheddname, cluster_id, proc", quill_history_hor_select_list);
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History ORDER BY scheddname, cluster_id, proc", quill_history_hor_select_list);
 	  }
     
     break;
   case HISTORY_ALL_VER:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_ALL_VER_CUR CURSOR FOR SELECT %s FROM HISTORY_VERTICAL ORDER BY scheddname, cluster_id, proc;", quill_history_ver_select_list);
+			"DECLARE HISTORY_ALL_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History ORDER BY scheddname, cluster_id, proc;", quill_history_ver_select_list);
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_ALL_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_ALL_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.HISTORY_VERTICAL ORDER BY scheddname, cluster_id, proc", quill_history_ver_select_list);
+				  "SELECT %s FROM quillwriter.Jobs_Vertical_History ORDER BY scheddname, cluster_id, proc", quill_history_ver_select_list);
 	  }
 
     break;
   case HISTORY_CLUSTER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
+			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
 				quill_history_hor_select_list, 
 				*((int *)parameters[0]));
 		sprintf(fetch_cursor_str,
@@ -198,7 +198,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_CLUSTER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
 				  quill_history_hor_select_list, 
 				  *((int *)parameters[0]));
 	  }
@@ -207,7 +207,7 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_CLUSTER_VER:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_VER_CUR CURSOR FOR SELECT %s FROM HISTORY_VERTICAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
+			"DECLARE HISTORY_CLUSTER_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc;",
 				quill_history_ver_select_list,
 				*((int *)parameters[0]));
 		sprintf(fetch_cursor_str,
@@ -216,7 +216,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_CLUSTER_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.HISTORY_VERTICAL WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
+				  "SELECT %s FROM quillwriter.Jobs_Vertical_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc",
 				  quill_history_ver_select_list, 
 				  *((int *)parameters[0]));
 	  }
@@ -224,7 +224,7 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_CLUSTER_PROC_HOR:
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc;",
+			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc;",
 				quill_history_hor_select_list,
 				*((int *)parameters[0]), *((int *)parameters[1]));
 		sprintf(fetch_cursor_str,
@@ -233,7 +233,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_CLUSTER_PROC_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc",
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d and proc=%d ORDER BY scheddname, cluster_id, proc",
 				  quill_history_hor_select_list, 
 				  *((int *)parameters[0]), *((int *)parameters[1]));
 	  }
@@ -242,7 +242,7 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_CLUSTER_PROC_VER:
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_PROC_VER_CUR CURSOR FOR SELECT %s FROM HISTORY_VERTICAL WHERE cluster_id=%d and proc=%d "
+			"DECLARE HISTORY_CLUSTER_PROC_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History WHERE cluster_id=%d and proc=%d "
 			"ORDER BY scheddname, cluster, proc;",
 				quill_history_ver_select_list, 
 				*((int *)parameters[0]), *((int *)parameters[1]));
@@ -252,7 +252,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_CLUSTER_PROC_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.HISTORY_VERTICAL WHERE cluster_id=%d and proc=%d "
+				  "SELECT %s FROM quillwriter.Jobs_Vertical_History WHERE cluster_id=%d and proc=%d "
 				  "ORDER BY scheddname, cluster_id, proc",
 				  quill_history_ver_select_list, 
 				  *((int *)parameters[0]), *((int *)parameters[1]));
@@ -262,7 +262,7 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_OWNER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
-			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
+			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE \"Owner\"='\"%s\"' "
 			"ORDER BY scheddname, cluster_id, proc;",
 				quill_history_hor_select_list,
 			((char *)parameters[0]));
@@ -272,7 +272,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_OWNER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str,
-				  "SELECT %s FROM quillwriter.HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE \"Owner\"='\"%s\"' "
 				  "ORDER BY scheddname, cluster_id,proc",
 				  quill_history_hor_select_list,
 				  ((char *)parameters[0]));
@@ -283,7 +283,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
 			"DECLARE HISTORY_OWNER_VER_CUR CURSOR FOR SELECT hv.cluster_id,hv.proc,hv.attr,hv.val FROM "
-			"HISTORY_HORIZONTAL hh, HISTORY_VERTICAL hv "
+			"Jobs_Horizontal_History hh, Jobs_Vertical_History hv "
 			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc=hv.proc AND hh.\"Owner\"='\"%s\"'"
 			" ORDER BY scheddname, cluster_id,proc;",
 			((char *)parameters[0]));
@@ -294,7 +294,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str,
 				  "SELECT hv.cluster_id,hv.proc,hv.attr,hv.val FROM "
-				  "quillwriter.HISTORY_HORIZONTAL hh, quillwriter.HISTORY_VERTICAL hv "
+				  "quillwriter.Jobs_Horizontal_History hh, quillwriter.Jobs_Vertical_History hv "
 				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc=hv.proc AND hh.\"Owner\"='\"%s\"'"
 				  " ORDER BY scheddname, cluster_id,proc",
 				  ((char *)parameters[0]));
@@ -304,7 +304,7 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_COMPLETEDSINCE_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
-			"DECLARE HISTORY_COMPLETEDSINCE_HOR_CUR CURSOR FOR SELECT %s FROM History_Horizontal "
+			"DECLARE HISTORY_COMPLETEDSINCE_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History "
 			"WHERE \"CompletionDate\" > "
 			"date_part('epoch', '%s'::timestamp with time zone) "
 			"ORDER BY scheddname, cluster_id,proc;",
@@ -316,7 +316,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_COMPLETEDSINCE_HOR_CUR");
 	  } else if (dt == T_ORACLE)
 		  sprintf(query_str,
-				  "SELECT %s FROM quillwriter.History_Horizontal "
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History "
 				  "WHERE (to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(\"CompletionDate\"/86400) || ' ' || floor(mod(\"CompletionDate\",86400)/3600) || ':' || floor(mod(\"CompletionDate\", 3600)/60) || ':' || mod(\"CompletionDate\", 60))) > "
 				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') "
 				  "ORDER BY scheddname, cluster_id,proc",
@@ -329,7 +329,7 @@ createQueryString(query_types qtype, void **parameters) {
 		sprintf(declare_cursor_str,
 			"SET enable_mergejoin=false; "
 			"DECLARE HISTORY_COMPLETEDSINCE_VER_CUR CURSOR FOR SELECT hv.cluster_id,hv.proc,hv.attr,hv.val FROM "
-			"HISTORY_HORIZONTAL hh, HISTORY_VERTICAL hv "
+			"Jobs_Horizontal_History hh, Jobs_Vertical_History hv "
 			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc=hv.proc AND "
 			"hh.\"CompletionDate\" > "
 			"date_part('epoch', '%s'::timestamp with time zone) "
@@ -343,7 +343,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  else if (dt == T_ORACLE)
 		  sprintf(query_str,
 				  "SELECT hv.cluster_id,hv.proc,hv.attr,hv.val FROM "
-				  "quillwriter.HISTORY_HORIZONTAL hh, quillwriter.HISTORY_VERTICAL hv "
+				  "quillwriter.Jobs_Horizontal_History hh, quillwriter.Jobs_Vertical_History hv "
 				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc=hv.proc AND "
 				  "(to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(hh.\"CompletionDate\"/86400) || ' ' || floor(mod(hh.\"CompletionDate\",86400)/3600) || ':' || floor(mod(hh.\"CompletionDate\", 3600)/60) || ':' || mod(hh.\"CompletionDate\", 60))) > "
 				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') "

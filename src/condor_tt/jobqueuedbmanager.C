@@ -205,7 +205,7 @@ JobQueueDBManager::config(bool reconfig)
 			/* create an entry in currency table if this schedd is the first
 			 * time being logged to database 
 			 */
-		sql_str.sprintf("INSERT INTO currency (datasource) SELECT '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM currency WHERE datasource = '%s')", scheddname, scheddname);
+		sql_str.sprintf("INSERT INTO currencies (datasource) SELECT '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM currencies WHERE datasource = '%s')", scheddname, scheddname);
 
 		ret_st = DBObj->execCommand(sql_str.GetCStr());
 		if (ret_st == FAILURE) {

@@ -40,7 +40,7 @@ QuillErrCode schedd_files_ins_file(
 	tmp.sprintf("f_size = %d", fsize);
 	tmpClP1->Insert(tmp.GetCStr());	
 
-	return FILEObj->file_newEvent("File", tmpClP1);
+	return FILEObj->file_newEvent("Files", tmpClP1);
 }
 
 void schedd_files_ins_usage(
@@ -73,7 +73,7 @@ void schedd_files_ins_usage(
 	tmp.sprintf("type = \"%s\"", type);
 	tmpClP1->Insert(tmp.GetCStr());	
 
-	FILEObj->file_newEvent("Fileusage", tmpClP1);
+	FILEObj->file_newEvent("Fileusages", tmpClP1);
 }
 
 void schedd_files_ins(

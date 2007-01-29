@@ -5,7 +5,7 @@ Before installing this script, the following must have been prepared
 */
 
 
-CREATE TABLE Error_Sqllog (
+CREATE TABLE Error_Sqllogs (
 LogName   varchar(100),
 Host      varchar(50),
 LastModified timestamp(3) with time zone,
@@ -13,11 +13,11 @@ ErrorSql  text,
 LogBody   text
 );
 
-CREATE INDEX Error_Sqllog_idx ON Error_Sqllog (LogName, Host, LastModified);
+CREATE INDEX Error_Sqllog_idx ON Error_Sqllogs (LogName, Host, LastModified);
 
 CREATE VIEW AGG_User_Jobs_Fin_Last_Day AS
   SELECT h.owner, count(*) as jobs_completed 
-    FROM history_horizontal h 
+    FROM jobs_horizontal_history h 
     WHERE h.jobstatus = 4 
       AND h.completiondate >= (current_timestamp - interval '24 hour')
     GROUP BY h.owner;
@@ -26,10 +26,10 @@ CREATE VIEW AGG_User_Jobs_Fin_Last_Day AS
 -- (an anti-join between machine_classad history and jobs)
 CREATE VIEW HISTORY_JOBS_FLOCKED_IN AS 
 SELECT DISTINCT globaljobid
-FROM machine_classad_history 
+FROM machines_horizontal_history 
 WHERE SUBSTRING(globaljobid FROM 1 FOR (POSITION('#' IN globaljobid)-1)) 
       NOT IN (SELECT DISTINCT scheddname 
-              FROM history_horizontal UNION 
+              FROM jobs_horizontal_history UNION 
               SELECT DISTINCT scheddname 
               FROM clusterads_horizontal);
 
@@ -37,10 +37,10 @@ WHERE SUBSTRING(globaljobid FROM 1 FOR (POSITION('#' IN globaljobid)-1))
 -- (an anti-join between machine_classad and jobs)
 CREATE VIEW CURRENT_JOBS_FLOCKED_IN AS 
 SELECT DISTINCT globaljobid 
-FROM machine_classad
+FROM machines_horizontal
 WHERE SUBSTRING(globaljobid FROM 1 FOR (POSITION('#' IN globaljobid)-1)) 
       NOT IN (SELECT DISTINCT scheddname 
-              FROM history_horizontal UNION 
+              FROM jobs_horizontal_history UNION 
               SELECT DISTINCT scheddname 
               FROM clusterads_horizontal);
 
@@ -55,7 +55,7 @@ FROM runs R
 WHERE R.endts IS NOT NULL AND
    R.machine_id != R.scheddname AND
    R.machine_id NOT IN 
-  (SELECT DISTINCT substring(M.machine_id from (position('@' in M.machine_id)+1)) FROM machine_classad M);
+  (SELECT DISTINCT substring(M.machine_id from (position('@' in M.machine_id)+1)) FROM machines_horizontal M);
 
 -- Jobs that are currently flocking out to another pool for execution
 -- (an anti-join between runs table and machine_classad)
@@ -67,7 +67,7 @@ FROM runs R, clusterads_horizontal C
 WHERE R.endts IS NULL AND
    R.machine_id != R.scheddname AND
    R.machine_id NOT IN 
-  (SELECT DISTINCT substring(M.machine_id from (position('@' in M.machine_id)+1)) FROM machine_classad M where M.lastheardfrom >= now() - interval '10 minutes') AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
+  (SELECT DISTINCT substring(M.machine_id from (position('@' in M.machine_id)+1)) FROM machines_horizontal M where M.lastheardfrom >= now() - interval '10 minutes') AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
 
 /*
 quill_purgeHistory for PostgresSQL database.
@@ -138,49 +138,49 @@ BEGIN
 /* first purge resource history data */
 
 -- purge machine vertical attributes older than resourceHistoryDuration days
-DELETE FROM machine_history
+DELETE FROM machines_vertical_history
 WHERE start_time < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge machine classads older than resourceHistoryDuration days
-DELETE FROM machine_classad_history
+DELETE FROM machines_horizontal_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge daemon vertical attributes older than certain days
-DELETE FROM daemon_vertical_history
+DELETE FROM daemons_vertical_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge daemon classads older than certain days
-DELETE FROM daemon_horizontal_history
+DELETE FROM daemons_horizontal_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge schedd vertical attributes older than certain days
-DELETE FROM schedd_vertical_history
+DELETE FROM schedds_vertical_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge schedd classads older than certain days
-DELETE FROM schedd_horizontal_history
+DELETE FROM schedds_horizontal_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge master vertical attributes older than certain days
-DELETE FROM master_vertical_history
+DELETE FROM masters_vertical_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
 -- purge negotiator vertical attributes older than certain days
-DELETE FROM negotiator_vertical_history
+DELETE FROM negotiators_vertical_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
@@ -190,7 +190,7 @@ WHERE lastheardfrom <
 -- find the set of jobs for which the run history are going to be purged
 INSERT INTO History_Jobs_To_Purge 
 SELECT scheddname, cluster_id, proc, globaljobid
-FROM History_Horizontal
+FROM Jobs_Horizontal_History
 WHERE enteredhistorytable < 
       (current_timestamp - 
        cast (runHistoryDuration || ' day' as interval));
@@ -250,30 +250,30 @@ TRUNCATE TABLE History_Jobs_To_Purge;
 -- find the set of jobs for which history data are to be purged
 INSERT INTO History_Jobs_To_Purge 
 SELECT scheddname, cluster_id, proc, globaljobid
-FROM History_Horizontal
+FROM Jobs_Horizontal_History
 WHERE enteredhistorytable < 
       (current_timestamp - 
        cast (jobHistoryDuration || ' day' as interval));
 
 -- purge vertical attributes for jobs older than certain days
-DELETE FROM History_Vertical
+DELETE FROM Jobs_Vertical_History
 WHERE exists (SELECT * 
               FROM History_Jobs_To_Purge AS H
-              WHERE H.scheddname = History_Vertical.scheddname AND
-                    H.cluster_id = History_Vertical.cluster_id AND
-                    H.proc = History_Vertical.proc);
+              WHERE H.scheddname = Jobs_Vertical_History.scheddname AND
+                    H.cluster_id = Jobs_Vertical_History.cluster_id AND
+                    H.proc = Jobs_Vertical_History.proc);
 
 -- purge classads for jobs older than certain days
-DELETE FROM History_Horizontal
-WHERE History_Horizontal.globaljobid IN (SELECT globaljobid 
+DELETE FROM Jobs_Horizontal_History
+WHERE Jobs_Horizontal_History.globaljobid IN (SELECT globaljobid 
                         FROM History_Jobs_To_Purge);
 
 
 -- purge log thrown events older than jobHistoryDuration
 -- The thrown table doesn't fall precisely into any of the categories 
 -- but we don't want the table to grow unbounded either.
-DELETE FROM thrown
-WHERE thrown.throwTime < 
+DELETE FROM throwns
+WHERE throwns.throwTime < 
      (current_timestamp - 
        cast (jobHistoryDuration || ' day' as interval));
 
@@ -287,44 +287,44 @@ analyze RUNS;
 analyze REJECTS;
 analyze MATCHES;
 analyze L_JOBSTATUS;
-analyze THROWN;
+analyze THROWNs;
 analyze EVENTS;
 analyze L_EVENTTYPE;
-analyze GENERIC;
+analyze GENERICMessages;
 analyze JOBQUEUEPOLLINGINFO;
-analyze CURRENCY;
-analyze DAEMON_VERTICAL;
-analyze DAEMON_HORIZONTAL_HISTORY;
-analyze DAEMON_VERTICAL_HISTORY;
-analyze SCHEDD_HORIZONTAL;
-analyze SCHEDD_HORIZONTAL_HISTORY;
-analyze SCHEDD_VERTICAL;
-analyze SCHEDD_VERTICAL_HISTORY;
-analyze MASTER_VERTICAL;
-analyze MASTER_VERTICAL_HISTORY;
-analyze NEGOTIATOR_VERTICAL;
-analyze NEGOTIATOR_VERTICAL_HISTORY;
+analyze CURRENCIES;
+analyze DAEMONS_VERTICAL;
+analyze DAEMONS_HORIZONTAL_HISTORY;
+analyze DAEMONS_VERTICAL_HISTORY;
+analyze SCHEDDS_HORIZONTAL;
+analyze SCHEDDS_HORIZONTAL_HISTORY;
+analyze SCHEDDS_VERTICAL;
+analyze SCHEDDS_VERTICAL_HISTORY;
+analyze MASTERS_VERTICAL;
+analyze MASTERS_VERTICAL_HISTORY;
+analyze NEGOTIATORS_VERTICAL;
+analyze NEGOTIATORS_VERTICAL_HISTORY;
 analyze DUMMY_SINGLE_ROW_TABLE;
 analyze CDB_USERS;
 analyze TRANSFERS;
 analyze FILES;
 analyze FILEUSAGES;
-analyze MACHINE;
-analyze MACHINE_HISTORY;
-analyze MACHINE_CLASSAD_HISTORY;
+analyze MACHINES_VERTICAL;
+analyze MACHINES_VERTICAL_HISTORY;
+analyze MACHINES_HORIZONTAL_HISTORY;
 analyze CLUSTERADS_HORIZONTAL;
 analyze PROCADS_HORIZONTAL;
 analyze CLUSTERADS_VERTICAL;
 analyze PROCADS_VERTICAL;
-analyze HISTORY_VERTICAL;
-analyze HISTORY_HORIZONTAL;
-analyze MACHINE_CLASSAD;
-analyze DAEMON_HORIZONTAL;
+analyze JOBS_VERTICAL_HISTORY;
+analyze JOBS_HORIZONTAL_HISTORY;
+analyze MACHINES_HORIZONTAL;
+analyze DAEMONS_HORIZONTAL;
 analyze HISTORY_JOBS_TO_PURGE;
 
 SELECT ROUND(SUM(relpages)*8192/(1024*1024)) INTO totalUsedMB
 FROM pg_class
-WHERE relname IN ('procads_vertical', 'history_vertical', 'clusterads_vertical', 'procads_horizontal', 'clusterads_horizontal', 'history_horizontal', 'files', 'fileusages', 'schedd_vertical', 'schedd_horizontal', 'runs', 'master_vertical', 'machine', 'machine_classad', 'daemon_vertical', 'daemon_horizontal', 'transfers', 'schedd_vertical_history', 'schedd_horizontal_history', 'rejects', 'negotiator_vertical_history', 'matches', 'master_vertical_history', 'machine_history', 'machine_classad_history', 'events', 'daemon_vertical_history', 'daemon_horizontal_history');
+WHERE relname IN ('procads_vertical', 'jobs_vertical_history', 'clusterads_vertical', 'procads_horizontal', 'clusterads_horizontal', 'jobs_horizontal_history', 'files', 'fileusages', 'schedds_vertical', 'schedds_horizontal', 'runs', 'masters_vertical', 'machines_vertical', 'machines_horizontal', 'daemons_vertical', 'daemons_horizontal', 'transfers', 'schedds_vertical_history', 'schedds_horizontal_history', 'rejects', 'negotiators_vertical_history', 'matches', 'masters_vertical_history', 'machines_vertical_history', 'machines_horizontal_history', 'events', 'daemons_vertical_history', 'daemons_horizontal_history');
 
 RAISE NOTICE 'totalUsedMB=% MegaBytes', totalUsedMB;
 
@@ -338,15 +338,15 @@ grant select on cdb_users to quillreader;
 grant select on transfers to quillreader;
 grant select on files to quillreader;
 grant select on fileusages to quillreader;
-grant select on machine to quillreader;
-grant select on machine_history to quillreader;
-grant select on machine_classad_history to quillreader;
+grant select on machines_vertical to quillreader;
+grant select on machines_vertical_history to quillreader;
+grant select on machines_horizontal_history to quillreader;
 grant select on ClusterAds_Horizontal to quillreader;
 grant select on ProcAds_Horizontal to quillreader;
 grant select on ClusterAds_Vertical to quillreader;
 grant select on ProcAds_Vertical to quillreader;
-grant select on History_Vertical to quillreader;
-grant select on History_Horizontal to quillreader;
+grant select on Jobs_Vertical_History to quillreader;
+grant select on Jobs_Horizontal_History to quillreader;
 grant select on Runs to quillreader;
 grant select on Rejects to quillreader;
 grant select on Matches to quillreader;
@@ -354,31 +354,30 @@ grant select on AGG_User_Jobs_Waiting to quillreader;
 grant select on AGG_User_Jobs_Held to quillreader;
 grant select on AGG_User_Jobs_Running to quillreader;
 grant select on L_Jobstatus to quillreader;
-grant select on thrown to quillreader;
+grant select on throwns to quillreader;
 grant select on events to quillreader;
 grant select on L_eventType to quillreader;
-grant select on Generic to quillreader;
+grant select on GenericMessages to quillreader;
 grant select on JobQueuePollingInfo to quillreader;
-grant select on Currency to quillreader;
-grant select on Daemon_Horizontal to quillreader;
-grant select on Daemon_Vertical to quillreader;
-grant select on Daemon_Horizontal_History to quillreader;
-grant select on Daemon_Vertical_History to quillreader;
-grant select on Schedd_Horizontal to quillreader;
-grant select on Schedd_Horizontal_History to quillreader;
-grant select on Schedd_Vertical to quillreader;
-grant select on Schedd_Vertical_History to quillreader;
-grant select on Master_Vertical to quillreader;
-grant select on Master_Vertical_History to quillreader;
-grant select on Negotiator_Vertical to quillreader;
-grant select on Negotiator_Vertical_History to quillreader;
-grant select on Error_Sqllog to quillreader;
+grant select on Currencies to quillreader;
+grant select on Daemons_Horizontal to quillreader;
+grant select on Daemons_Vertical to quillreader;
+grant select on Daemons_Horizontal_History to quillreader;
+grant select on Daemons_Vertical_History to quillreader;
+grant select on Schedds_Horizontal to quillreader;
+grant select on Schedds_Horizontal_History to quillreader;
+grant select on Schedds_Vertical to quillreader;
+grant select on Schedds_Vertical_History to quillreader;
+grant select on Masters_Vertical to quillreader;
+grant select on Masters_Vertical_History to quillreader;
+grant select on Negotiators_Vertical to quillreader;
+grant select on Negotiators_Vertical_History to quillreader;
+grant select on Error_Sqllogs to quillreader;
 grant select on AGG_User_Jobs_Fin_Last_Day to quillreader;
 grant select on HISTORY_JOBS_FLOCKED_IN to quillreader;
 grant select on CURRENT_JOBS_FLOCKED_IN to quillreader;
 grant select on History_JOBS_FLOCKED_OUT to quillreader;
 grant select on CURRENT_JOBS_FLOCKED_OUT to quillreader;
-grant select on quill_schema_version to quillreader;
 
 -- the creation of the schema version table should be the last step 
 -- because it is used by quill daemon to decide whether we have the 
@@ -389,4 +388,8 @@ minor int,
 back_to_major int, 
 back_to_minor int);
 
+grant select on quill_schema_version to quillreader;
+
+DELETE FROM quill_schema_version;
 INSERT INTO quill_schema_version (major, minor, back_to_major, back_to_minor) VALUES (2,0,2,0);
+
