@@ -665,12 +665,12 @@ PGSQLDatabase::openCursorsHistory(SQLQuery *queryhor,
 	QuillErrCode st = SUCCESS;
 
 	if ((st = execCommand(queryhor->getDeclareCursorStmt())) == FAILURE) {
-		printf("error while opening Jobs_Horizontal_History cursor\n");
+		dprintf(D_ALWAYS, "error opening Jobs_Horizontal_History cursor\n");
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 	if (longformat && 
 		(st = execCommand(queryver->getDeclareCursorStmt())) == FAILURE) {
-		printf("error while opening Jobs_Vertical_History cursor\n");
+		dprintf(D_ALWAYS, "error opening Jobs_Vertical_History cursor\n");
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
 
