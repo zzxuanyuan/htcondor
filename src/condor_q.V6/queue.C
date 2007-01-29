@@ -350,6 +350,7 @@ int main (int argc, char **argv)
 			sprintf( scheddAddr, "%s", schedd.addr() );
 			if( (tmp = schedd.name()) ) {
 				sprintf( scheddName, "%s", tmp );
+				Q.addSchedd(scheddName);
 			} else {
 				sprintf( scheddName, "Unknown" );
 			}
