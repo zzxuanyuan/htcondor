@@ -71,6 +71,7 @@ class JobQueueDBManager : public Service
 	JobQueueDatabase* getJobQueueDBObj() { return DBObj; }
 	ClassAdLogParser* getClassAdLogParser();
 	const char* getScheddname() { return scheddname; }
+	time_t getScheddbirthdate() { return scheddbirthdate; }
 	dbtype getJobQueueDBType() { return dt; }
 	char *   fillEscapeCharacters(const char *str);
 
@@ -166,6 +167,7 @@ class JobQueueDBManager : public Service
 	char*	jobQueueDBName;         //!< DB Name
 	char*   jobQueueDBUser;
 	char*   scheddname;
+	time_t	scheddbirthdate;
 	dbtype  dt;
 };
 

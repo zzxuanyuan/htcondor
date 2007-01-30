@@ -2591,14 +2591,15 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   const char *scheddname = jqDBManager.getScheddname();
+  const time_t scheddbirthdate = jqDBManager.getScheddbirthdate();
 
   ad->EvalInteger (ATTR_CLUSTER_ID, NULL, cid);
   ad->EvalInteger (ATTR_PROC_ID, NULL, pid);
 
   sql_stmt.sprintf(
-          "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND cluster_id = %d AND proc = %d", scheddname, cid, pid);
+          "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
   sql_stmt2.sprintf(
-          "INSERT INTO Jobs_Horizontal_History(scheddname, cluster_id, proc, enteredhistorytable) VALUES('%s', %d, %d, current_timestamp)", scheddname, cid, pid);
+          "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
   if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2682,23 +2683,23 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  ts_expr = condor_ttdb_buildts(&clock, dt);	
 				  
 			  sql_stmt.sprintf(
-					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name.GetCStr(), ts_expr, scheddname, cid, pid);
+					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc = %d", name.GetCStr(), ts_expr, scheddname, (unsigned long)scheddbirthdate, cid, pid);
 			  free(ts_expr);
 
 		  }	else {
 			  newvalue = jqDBManager.fillEscapeCharacters(value.GetCStr());
 			  sql_stmt.sprintf( 
-					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name.GetCStr(), newvalue, scheddname, cid, pid);			  
+					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc = %d", name.GetCStr(), newvalue, scheddname, (unsigned long)scheddbirthdate, cid, pid);			  
 			  free(newvalue);
 		  }
 	  } else {
 		  newvalue = jqDBManager.fillEscapeCharacters(value.GetCStr());
 		  
 		  sql_stmt.sprintf(
-				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND cluster_id = %d AND proc = %d AND attr = '%s'", scheddname, cid, pid, name.GetCStr());
+				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr());
 			  
 		  sql_stmt2.sprintf( 
-				  "INSERT INTO Jobs_Vertical_History(scheddname, cluster_id, proc, attr, val) VALUES('%s', %d, %d, '%s', '%s')", scheddname, cid, pid, name.GetCStr(), newvalue);
+				  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr(), newvalue);
 
 		  free(newvalue);
 	  }	  

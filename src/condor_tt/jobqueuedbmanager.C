@@ -191,6 +191,9 @@ JobQueueDBManager::config(bool reconfig)
 			dprintf(D_FULLDEBUG, "scheddname built from default daemon name: %s\n", scheddname);
 		}
 
+		//HACK! Fixme!
+		scheddbirthdate = 0;
+
 			/* create an entry in jobqueuepollinginfo if this schedd is the 
 			 * first time being logged to database
 			 */
