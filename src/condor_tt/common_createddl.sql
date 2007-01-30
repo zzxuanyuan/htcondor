@@ -10,19 +10,26 @@ username varchar(8),
 password character(32),
 admin varchar(5));
 
+
 CREATE TABLE  transfers (
 globaljobid  	varchar(4000),
 src_name  	varchar(4000),
 src_host  	varchar(4000),
+src_port	integer,
 src_path 	varchar(4000),
+src_daemon      varchar(30),
 dst_name  	varchar(4000),
 dst_host  	varchar(4000),
+dst_port        integer,
 dst_path  	varchar(4000),
-transfer_size   integer,
-elapsed  	integer,
-dst_daemon  varchar(15),
-checksum    varchar(32),
-last_modified    timestamp(3) with time zone);
+dst_daemon  	varchar(30),
+transfer_size_bytes   numeric(38),
+elapsed  	numeric(38),
+checksum    	varchar(256),
+transfer_time	timestamp(3) with time zone,
+last_modified	timestamp(3) with time zone,
+is_encrypted    varchar(5)
+);
 
 CREATE TABLE files (
 file_id  	int NOT NULL,

@@ -2744,14 +2744,17 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   char dst_daemon[15];
   char f_ts[30];
   time_t old_ts;
-  char *last_modified;
+  MyString last_modified;
   int transfer_size, elapsed;
   char *tmp1, *tmpVal = NULL;
   int len, f_size;
   bool fileSame = TRUE;
   struct stat file_status;
   char hexSum[MAC_SIZE*2+1] = "", sum[MAC_SIZE+1] = "";
-  
+  time_t transfer_time;
+  MyString transfer_time_expr;
+  char *tmp;
+
   ad->sPrint(classAd);
 
   classAd.Tokenize();
@@ -2789,20 +2792,35 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
       transfer_size = atoi(attVal);
     } else if (strcasecmp(attName, "elapsed") == 0) {
       elapsed = atoi(attVal);
+    } else if (strcasecmp(attName, "transfer_time") == 0) {
+      transfer_time = atoi(attVal);
     }
 
     free(attName);
     iter = classAd.GetNextToken("\n", true);
   }
 
-  // Build timestamp expression
+  // Build timestamp expressions 
   old_ts = atoi(f_ts);
-  last_modified = condor_ttdb_buildts(&old_ts, dt);
+  tmp = condor_ttdb_buildts(&old_ts, dt);
 
-  if (last_modified == NULL) {
-    dprintf(D_ALWAYS, "ERROR: Timestamp expression not build in TTManager::insertTransfers\n");
+  if (tmp == NULL) {
+    dprintf(D_ALWAYS, "ERROR: Timestamp expression not build in TTManager::insertTransfers 1\n");
     return FAILURE;
   }
+
+  last_modified = tmp;
+  free(tmp);
+
+  tmp = condor_ttdb_buildts(&transfer_time, dt);
+
+  if (tmp == NULL) {
+    dprintf(D_ALWAYS, "ERROR: Timestamp expression not build in TTManager::insertTransfers 2\n");
+    return FAILURE;
+  }
+
+  transfer_time_expr = tmp;
+  free(tmp);
   
   // Compute the checksum
   // We don't want to use the file on the starter side since it is
@@ -2863,7 +2881,7 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 		hexSum[0] = '\0';
   
   sql_stmt.sprintf(
-          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, checksum, last_modified) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified);
+          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size_bytes, elapsed, dst_daemon, checksum, last_modified, transfer_time) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s, %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified.GetCStr(), transfer_time_expr.GetCStr());
 
 	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");

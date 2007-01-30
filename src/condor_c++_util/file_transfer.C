@@ -1663,6 +1663,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		record.daemon = daemon;
 
 		record.sockp =s;
+		record.transfer_time = start;
 
 		file_transfer_db(&record, jobAd);
 	}

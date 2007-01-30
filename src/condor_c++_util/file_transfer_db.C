@@ -130,6 +130,9 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	tmp.sprintf("f_ts = %d", (int)file_status.st_mtime);
 	tmpClP1->Insert(tmp.GetCStr());
 
+	tmp.sprintf("transfer_time = %d", (int)rp->transfer_time);
+	tmpClP1->Insert(tmp.GetCStr());	
+
 	FILEObj->file_newEvent("Transfers", tmpClP1);
 
 }
