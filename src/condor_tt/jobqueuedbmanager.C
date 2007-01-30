@@ -1052,8 +1052,27 @@ JobQueueDBManager::processSetAttribute(char* key,
 		break;
 	case IS_PROC_ID:
 		if(isHorizontalProcAttribute(name)) {
-			sql_str_del_in.sprintf(
-					 "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, value, scheddname, cid, pid);
+			if (strcasecmp(name, "shadowbday") == 0) {
+				time_t clock;
+				char *ts_expr;
+				clock = atoi(value);
+				
+				ts_expr = condor_ttdb_buildts(&clock, dt);
+
+				if (ts_expr == NULL) {
+					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
+					return FAILURE;
+				}
+				
+				sql_str_del_in.sprintf(
+									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, ts_expr, scheddname, cid, pid);
+				free(ts_expr);
+			} else {
+				newvalue = fillEscapeCharacters(value);
+				sql_str_del_in.sprintf(
+									   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, newvalue, scheddname, cid, pid);
+				free(newvalue);
+			}
 		} else {
 			newvalue = fillEscapeCharacters(value);
 			sql_str_del_in.sprintf(

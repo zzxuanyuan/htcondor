@@ -10,7 +10,6 @@ username varchar(8),
 password character(32),
 admin varchar(5));
 
-
 CREATE TABLE  transfers (
 globaljobid  	varchar(4000),
 src_name  	varchar(4000),
@@ -72,7 +71,6 @@ machine_id             varchar(4000) NOT NULL,
 opsys                  varchar(4000),
 arch                   varchar(4000),
 ckptserver             varchar(4000),
-ckpt_server_host       varchar(4000),
 state                  varchar(4000),
 activity               varchar(4000),
 keyboardidle           integer,
@@ -107,7 +105,6 @@ machine_id             varchar(4000),
 opsys                  varchar(4000),
 arch                   varchar(4000),
 ckptserver             varchar(4000),
-ckpt_server_host       varchar(4000),
 state                  varchar(4000),
 activity               varchar(4000),
 keyboardidle           integer,
@@ -139,38 +136,6 @@ end_time	       timestamp(3) with time zone
 -- END Added by Pachu
 
 -- BEGIN Added by Ameet
-CREATE TABLE ClusterAds_Horizontal(
-scheddname          varchar(4000) NOT NULL,
-cluster_id             integer NOT NULL,
-owner               varchar(20),
-jobstatus           integer,
-jobprio             integer,
-imagesize           integer,
-qdate               timestamp(3) with time zone,
-remoteusercpu       double precision,
-remotewallclocktime double precision,
-cmd                 varchar(4000),
-args                varchar(4000),
-primary key(scheddname,cluster_id)
-);
-
-CREATE INDEX CA_H_I_owner ON ClusterAds_Horizontal (owner);
-
-CREATE TABLE ProcAds_Horizontal(
-scheddname		varchar(4000) NOT NULL,
-cluster_id	 	integer NOT NULL,
-proc 			integer NOT NULL,
-jobstatus 		integer,
-imagesize 		integer,
-remoteusercpu	        double precision,
-remotewallclocktime 	double precision,
-remotehost              varchar(4000),
-globaljobid        	varchar(4000),
-jobprio            	integer,
-args                    varchar(4000),
-primary key(scheddname,cluster_id,proc)
-);
-
 CREATE TABLE ClusterAds_Vertical (
 scheddname	varchar(4000) NOT NULL,
 cluster_id		integer NOT NULL,
@@ -197,78 +162,6 @@ attr		varchar(2000) NOT NULL,
 val		varchar(4000),
 primary key (scheddname,scheddbirthdate, cluster_id, proc, attr)
 );
-
-CREATE TABLE Jobs_Horizontal_History (
-scheddname   varchar(4000) NOT NULL,
-scheddbirthdate     integer NOT NULL,
-cluster_id              integer NOT NULL,
-proc                    integer NOT NULL,
-qdate                   integer, -- condor_history requires an integer for qdate
-owner                   varchar(20),
-globaljobid             varchar(4000),
-numckpts                integer,
-numrestarts             integer,
-numsystemholds          integer,
-condorversion           varchar(4000),
-condorplatform          varchar(4000),
-rootdir                 varchar(4000),
-Iwd                     varchar(4000),
-jobuniverse             integer,
-cmd                     varchar(4000),
-minhosts                integer,
-maxhosts                integer,
-jobprio                 integer,
-user_j                	varchar(4000),
-env                     varchar(4000),
-userlog                 varchar(4000),
-coresize                integer,
-killsig                 varchar(4000),
-rank                    varchar(4000),
-in_j	              	varchar(4000),
-transferin              varchar(5),
-out                     varchar(4000),
-transferout             varchar(5),
-err                     varchar(4000),
-transfererr             varchar(5),
-shouldtransferfiles     varchar(4000),
-transferfiles           varchar(4000),
-executablesize          integer,
-diskusage               integer,
-requirements            varchar(4000),
-filesystemdomain        varchar(4000),
-args                    varchar(4000),
-lastmatchtime           timestamp(3) with time zone,
-numjobmatches           integer,
-jobstartdate            timestamp(3) with time zone,
-jobcurrentstartdate     timestamp(3) with time zone,
-jobruncount             integer,
-filereadcount           double precision,
-filereadbytes           double precision,
-filewritecount          double precision,
-filewritebytes          double precision,
-fileseekcount           double precision,
-totalsuspensions        integer,
-imagesize               integer,
-exitstatus              integer,
-localusercpu            double precision,
-localsyscpu             double precision,
-remoteusercpu           double precision,
-remotesyscpu            double precision,
-bytessent      	        double precision,
-bytesrecvd              double precision,
-rscbytessent            double precision,
-rscbytesrecvd           double precision,
-exitcode                integer,
-jobstatus               integer,
-enteredcurrentstatus    timestamp(3) with time zone,
-remotewallclocktime     double precision,
-lastremotehost          varchar(4000),
-completiondate          integer, -- condor_history requires an integer 
-enteredhistorytable     timestamp(3) with time zone,
-primary key		(scheddname,scheddbirthdate, cluster_id, proc)
-);
-
-CREATE INDEX Hist_H_I_owner ON Jobs_Horizontal_History (owner);
 
 CREATE SEQUENCE SeqRunId;
 
@@ -325,27 +218,6 @@ remote_priority real       -- Preempted user's priority
 );
 
 --END Srinath
---ADDED by Eric
-CREATE VIEW AGG_User_Jobs_Waiting AS
-  SELECT c.owner, count(*) AS jobs_waiting
-    FROM clusterads_horizontal c, procads_horizontal p
-    WHERE c.cluster_id = p.cluster_id
-      AND (p.jobstatus IS NULL OR p.jobstatus = 0 OR p.jobstatus = 1)
-    GROUP BY c.owner; 
-
-CREATE VIEW AGG_User_Jobs_Held AS
-  SELECT c.owner, count(*) as jobs_held
-    FROM clusterads_horizontal c, procads_horizontal p
-    WHERE c.cluster_id = p.cluster_id
-      AND (p.jobstatus=5)
-    GROUP BY c.owner;
-
-CREATE VIEW AGG_User_Jobs_Running AS
-  SELECT c.owner, count(*) as jobs_running
-    FROM clusterads_horizontal c, procads_horizontal p
-    WHERE c.cluster_id = p.cluster_id
-      AND (p.jobstatus=2)
-    GROUP BY c.owner;
 
 CREATE TABLE L_Jobstatus (
 jobstatus	integer NOT NULL,

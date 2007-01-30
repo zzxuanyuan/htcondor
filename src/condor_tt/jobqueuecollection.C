@@ -529,6 +529,34 @@ JobQueueCollection::loadAd(char* cid,
 				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", value);
 					break;
+				case CONDOR_TT_TYPE_TIMESTAMP:
+					time_t clock;
+					char *ts_expr;
+					clock = atoi(value);
+
+					ts_expr = condor_ttdb_buildts(&clock, dt);	
+
+					if (ts_expr == NULL) {
+						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
+						free(attNameList);
+						free(attValList);	
+						free(tmpVal);
+						free(value);
+						return FAILURE;
+					}
+					
+					sprintf(tmpVal, "%s", ts_expr);
+					free(ts_expr);
+					
+						/* the converted timestamp value is longer, so realloc
+						   the buffer for attValList
+						*/
+					
+					len = strlen(attValList) + strlen(tmpVal) + 8;
+
+					attValList = (char *) realloc (attValList, len);
+					
+					break;
 				default:
 					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
 
@@ -745,6 +773,7 @@ bool isHorizontalHistoryAttribute(const char *attr) {
      (strcasecmp(attr, "enteredcurrentstatus") == 0) ||
      (strcasecmp(attr, "remotewallclocktime") == 0) ||
      (strcasecmp(attr, "lastremotehost") == 0) ||
+	 (strcasecmp(attr, "shadowbday") == 0) || 
      (strcasecmp(attr, "completiondate") == 0)) {
 	  return true;
   }
@@ -778,6 +807,7 @@ bool isHorizontalProcAttribute(const char *attr) {
      (strcasecmp(attr, "remoteusercpu") == 0) ||
 	 (strcasecmp(attr, "jobprio") == 0) ||
 	 (strcasecmp(attr, "args") == 0) || 
+	 (strcasecmp(attr, "shadowbday") == 0) || 
 	 (strcasecmp(attr, "remotehost") == 0)) {
     return true;
   }
@@ -804,7 +834,8 @@ typeOf(char *attName)
 		)
 		return CONDOR_TT_TYPE_NUMBER;
 
-	if (!(strcasecmp(attName, "qdate"))
+	if (!(strcasecmp(attName, "qdate") &&
+		  strcasecmp(attName, "shadowbday"))
 		)
 		return CONDOR_TT_TYPE_TIMESTAMP;
 
