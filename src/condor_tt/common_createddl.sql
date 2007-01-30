@@ -190,11 +190,12 @@ primary key (scheddname,cluster_id, proc, attr)
 
 CREATE TABLE Jobs_Vertical_History (
 scheddname	varchar(4000) NOT NULL,
+scheddbirthdate integer NOT NULL,
 cluster_id	integer NOT NULL,
 proc		integer NOT NULL,
 attr		varchar(2000) NOT NULL,
 val		varchar(4000),
-primary key (scheddname, cluster_id, proc, attr)
+primary key (scheddname,scheddbirthdate, cluster_id, proc, attr)
 );
 
 CREATE TABLE Jobs_Horizontal_History (
