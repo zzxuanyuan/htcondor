@@ -134,6 +134,7 @@ end_time	       timestamp(3) with time zone
 -- BEGIN Added by Ameet
 CREATE TABLE ClusterAds_Horizontal(
 scheddname          varchar(4000) NOT NULL,
+scheddbirthdate     integer NOT NULL,
 cluster_id             integer NOT NULL,
 owner               varchar(20),
 jobstatus           integer,
@@ -144,13 +145,14 @@ remoteusercpu       double precision,
 remotewallclocktime double precision,
 cmd                 varchar(4000),
 args                varchar(4000),
-primary key(scheddname,cluster_id)
+primary key(scheddname,scheddbirthdate,cluster_id)
 );
 
 CREATE INDEX CA_H_I_owner ON ClusterAds_Horizontal (owner);
 
 CREATE TABLE ProcAds_Horizontal(
 scheddname		varchar(4000) NOT NULL,
+scheddbirthdate     integer NOT NULL,
 cluster_id	 	integer NOT NULL,
 proc 			integer NOT NULL,
 jobstatus 		integer,
@@ -161,37 +163,41 @@ remotehost              varchar(4000),
 globaljobid        	varchar(4000),
 jobprio            	integer,
 args                    varchar(4000),
-primary key(scheddname,cluster_id,proc)
+primary key(scheddname,scheddbirthdate,cluster_id,proc)
 );
 
 CREATE TABLE ClusterAds_Vertical (
 scheddname	varchar(4000) NOT NULL,
+scheddbirthdate     integer NOT NULL,
 cluster_id		integer NOT NULL,
 attr	        varchar(2000) NOT NULL,
 val		varchar(4000),
-primary key (scheddname,cluster_id, attr)
+primary key (scheddname,scheddbirthdate,cluster_id, attr)
 );
 
 CREATE TABLE ProcAds_Vertical (
 scheddname	varchar(4000) NOT NULL,
 cluster_id	integer NOT NULL,
+scheddbirthdate     integer NOT NULL,
 proc		integer NOT NULL,
 attr	        varchar(2000) NOT NULL,
 val		varchar(4000),
-primary key (scheddname,cluster_id, proc, attr)
+primary key (scheddname,scheddbirthdate, cluster_id, proc, attr)
 );
 
 CREATE TABLE Jobs_Vertical_History (
 scheddname	varchar(4000) NOT NULL,
+scheddbirthdate     integer NOT NULL,
 cluster_id	integer NOT NULL,
 proc		integer NOT NULL,
 attr		varchar(2000) NOT NULL,
 val		varchar(4000),
-primary key (scheddname, cluster_id, proc, attr)
+primary key (scheddname, scheddbirthdate, cluster_id, proc, attr)
 );
 
 CREATE TABLE Jobs_Horizontal_History (
 scheddname   varchar(4000) NOT NULL,
+scheddbirthdate     integer NOT NULL,
 cluster_id              integer NOT NULL,
 proc                    integer NOT NULL,
 qdate                   integer, -- condor_history requires an integer for qdate
@@ -256,7 +262,7 @@ remotewallclocktime     double precision,
 lastremotehost          varchar(4000),
 completiondate          integer, -- condor_history requires an integer 
 enteredhistorytable     timestamp(3) with time zone,
-primary key		(scheddname, cluster_id, proc)
+primary key		(scheddname,scheddbirthdate, cluster_id, proc)
 );
 
 CREATE INDEX Hist_H_I_owner ON Jobs_Horizontal_History (owner);
