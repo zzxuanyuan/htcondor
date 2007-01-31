@@ -191,9 +191,6 @@ JobQueueDBManager::config(bool reconfig)
 			dprintf(D_FULLDEBUG, "scheddname built from default daemon name: %s\n", scheddname);
 		}
 
-		//HACK! Fixme!
-		scheddbirthdate = 0;
-
 			/* create an entry in jobqueuepollinginfo if this schedd is the 
 			 * first time being logged to database
 			 */
@@ -278,7 +275,12 @@ JobQueueDBManager::maintain()
 		// polling
 	probe_st = prober->probe(caLogParser->getCurCALogEntry(), 
 							 caLogParser->getFileDescriptor());
-	
+
+	// no harm in doing this every time - if someone shutdown and reset
+	// the schedd, we want to be sure to have the latest verison (we could
+	// check for it in either the INIT_QUILL or COMPRESSED state too)
+	scheddbirthdate = prober->getCurProbedCreationTime();
+
 		// {init|add}JobQueueDB processes the  Log and stores probing
 		// information into DB documentation for how do we determine 
 		// the correct state is in the Prober->probe method
