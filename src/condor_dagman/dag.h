@@ -443,8 +443,7 @@ class Dag {
 	static bool CheckForDagAbort(Job *job, const char *type);
 
 		// takes a userlog event and returns the corresponding node
-	Job* LogEventNodeLookup( int logsource, const ULogEvent* event,
-				bool recovery );
+	Job* LogEventNodeLookup( int logsource, const ULogEvent* event );
 
 		// check whether a userlog event is sane, or "impossible"
 
@@ -455,8 +454,7 @@ class Dag {
 		// earlier in the submit command's stdout (which we stashed in
 		// the Job object)
 
-	bool SanityCheckSubmitEvent( const CondorID condorID, const Job* node,
-								 const bool recovery );
+	bool SanityCheckSubmitEvent( const CondorID condorID, const Job* node );
 
 		// The log file name specified by the -Condorlog command line
 		// argument (not used for much anymore).

@@ -482,7 +482,7 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 	case ULOG_OK:
 		{
 			ASSERT( event != NULL );
-			Job *job = LogEventNodeLookup( logsource, event, recovery );
+			Job *job = LogEventNodeLookup( logsource, event );
 			PrintEvent( DEBUG_VERBOSE, event, job );
 			if( !job ) {
 					// event is for a job outside this DAG; ignore it
@@ -2601,8 +2601,7 @@ Dag::RemoveDependency( Job *parent, Job *child, MyString &whynot )
 
 
 Job*
-Dag::LogEventNodeLookup( int logsource, const ULogEvent* event,
-			bool recovery )
+Dag::LogEventNodeLookup( int logsource, const ULogEvent* event )
 {
 	ASSERT( event );
 	Job *node = NULL;
@@ -2642,7 +2641,7 @@ Dag::LogEventNodeLookup( int logsource, const ULogEvent* event,
 						 "DAG Node: %1023s", nodeName ) == 1 ) {
 				node = GetJob( nodeName );
 				if( node ) {
-					SanityCheckSubmitEvent( condorID, node, recovery );
+					SanityCheckSubmitEvent( condorID, node );
 					node->_CondorID = condorID;
 				}
 			} else {
@@ -2745,11 +2744,13 @@ Dag::EventSanityCheck( int logsource, const ULogEvent* event,
 // in the submit command's stdout (which we stashed in the Job object)
 
 bool
-Dag::SanityCheckSubmitEvent( const CondorID condorID, const Job* node,
-							 const bool recovery )
+Dag::SanityCheckSubmitEvent( const CondorID condorID, const Job* node )
 {
-	if( recovery ) {
-			// we no longer have the submit command stdout to check against
+		// Changed this if from "if( recovery )" during work on PR 806 --
+		// this is better because if you get two submit events for the
+		// same node you'll still get a warning in recovery mode.
+		// wenger 2007-01-31.
+	if( node->_CondorID == _defaultCondorId ) {
 		return true;
 	}
 	if( condorID._cluster == node->_CondorID._cluster ) {
