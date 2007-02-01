@@ -503,8 +503,8 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
 	int i;
 
 	if(isfullscan) {
-		procAds_hor_query.sprintf("SELECT cluster_id, proc, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args  FROM procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc;", scheddname);
-		procAds_ver_query.sprintf("SELECT cluster_id, proc, attr, val FROM procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc;", scheddname);
+		procAds_hor_query.sprintf("SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args  FROM procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id;", scheddname);
+		procAds_ver_query.sprintf("SELECT cluster_id, proc_id, attr, val FROM procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id;", scheddname);
 
 		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id;", scheddname);
 
@@ -604,10 +604,10 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
 
 
 		procAds_hor_query.sprintf( 
-			"SELECT cluster_id, proc, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args FROM procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc;", scheddname, procpredicate.Value() );
+			"SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args FROM procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id;", scheddname, procpredicate.Value() );
 
 		procAds_ver_query.sprintf(
-	"SELECT cluster_id, proc, attr, val FROM procads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc;", 
+	"SELECT cluster_id, proc_id, attr, val FROM procads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id;", 
 			scheddname, procpredicate.Value() );
 
 		clusterAds_hor_query.sprintf(

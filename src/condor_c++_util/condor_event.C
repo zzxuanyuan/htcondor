@@ -1182,7 +1182,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		tmp.sprintf("cluster_id = %d", cluster);
 		tmpClP2->Insert(tmp.GetCStr());
 
-		tmp.sprintf("proc = %d", proc);
+		tmp.sprintf("proc_id = %d", proc);
 		tmpClP2->Insert(tmp.GetCStr());
 
 		tmp.sprintf("spid = %d", subproc);
@@ -1212,7 +1212,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		tmp.sprintf( "cluster_id = %d", cluster);
 		tmpClP1->Insert(tmp.GetCStr());		
 
-		tmp.sprintf( "proc = %d", proc);
+		tmp.sprintf( "proc_id = %d", proc);
 		tmpClP1->Insert(tmp.GetCStr());		
 
 		tmp.sprintf( "spid = %d", subproc);
@@ -1497,7 +1497,7 @@ writeEvent (FILE *file)
   tmp.sprintf("cluster_id = %d", cluster);
   tmpClP2->Insert(tmp.GetCStr());
 
-  tmp.sprintf("proc = %d", proc);
+  tmp.sprintf("proc_id = %d", proc);
   tmpClP2->Insert(tmp.GetCStr());
 
   tmp.sprintf("spid = %d", subproc);
@@ -1524,7 +1524,7 @@ writeEvent (FILE *file)
   tmp.sprintf("cluster_id = %d", cluster);
   tmpClP3->Insert(tmp.GetCStr());
   
-  tmp.sprintf("proc = %d", proc);
+  tmp.sprintf("proc_id = %d", proc);
   tmpClP3->Insert(tmp.GetCStr());
   
   tmp.sprintf("spid = %d", subproc);
@@ -1649,7 +1649,7 @@ writeEvent (FILE *file)
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP2->Insert(tmp.GetCStr());
 
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP2->Insert(tmp.GetCStr());
 
 	tmp.sprintf( "spid = %d", subproc);
@@ -1784,7 +1784,7 @@ writeEvent (FILE *file)
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
 	tmp.sprintf( "spid = %d", subproc);
@@ -2179,7 +2179,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   tmp.sprintf( "cluster_id = %d", cluster);
   tmpClP2->Insert(tmp.GetCStr());
 
-  tmp.sprintf( "proc = %d", proc);
+  tmp.sprintf( "proc_id = %d", proc);
   tmpClP2->Insert(tmp.GetCStr());
 
   tmp.sprintf( "spid = %d", subproc);
@@ -2378,7 +2378,7 @@ writeEvent (FILE *file)
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
 	tmp.sprintf( "spid = %d", subproc);
@@ -2597,7 +2597,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP2->Insert(tmp.GetCStr());
 
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP2->Insert(tmp.GetCStr());
 
 	tmp.sprintf( "spid = %d", subproc);
@@ -2726,7 +2726,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
   tmp.sprintf( "cluster_id = %d", cluster);
   tmpClP2->Insert(tmp.GetCStr());
   
-  tmp.sprintf( "proc = %d", proc);
+  tmp.sprintf( "proc_id = %d", proc);
   tmpClP2->Insert(tmp.GetCStr());
 
   tmp.sprintf( "spid = %d", subproc);
@@ -3007,7 +3007,7 @@ writeEvent (FILE *file)
 		tmp.sprintf( "cluster_id = %d", cluster);
 		tmpClP2->Insert(tmp.GetCStr());
 
-		tmp.sprintf( "proc = %d", proc);
+		tmp.sprintf( "proc_id = %d", proc);
 		tmpClP2->Insert(tmp.GetCStr());
 
 		tmp.sprintf( "spid = %d", subproc);
@@ -3031,7 +3031,7 @@ writeEvent (FILE *file)
 		tmp.sprintf( "cluster_id = %d", cluster);
 		tmpClP1->Insert(tmp.GetCStr());	
 
-		tmp.sprintf( "proc = %d", proc);
+		tmp.sprintf( "proc_id = %d", proc);
 		tmpClP1->Insert(tmp.GetCStr());		
 		
 		tmp.sprintf( "spid = %d", subproc);
@@ -3164,7 +3164,7 @@ writeEvent (FILE *file)
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
 	tmp.sprintf( "spid = %d", subproc);
@@ -3262,7 +3262,7 @@ writeEvent (FILE *file)
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
 	tmp.sprintf( "spid = %d", subproc);
@@ -3438,7 +3438,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
 	tmp.sprintf( "spid = %d", subproc);
@@ -3614,7 +3614,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	tmp.sprintf( "cluster_id = %d", cluster);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
-	tmp.sprintf( "proc = %d", proc);
+	tmp.sprintf( "proc_id = %d", proc);
 	tmpClP1->Insert(tmp.GetCStr());		
 	
 	tmp.sprintf( "spid = %d", subproc);

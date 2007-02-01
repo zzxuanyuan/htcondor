@@ -859,8 +859,8 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 	int i;
 
 	if(isfullscan) {
-		procAds_hor_query.sprintf("SELECT cluster_id, proc, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args  FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc", scheddname);
-		procAds_ver_query.sprintf("SELECT cluster_id, proc, attr, val FROM quillwriter.procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc", scheddname);
+		procAds_hor_query.sprintf("SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args  FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id", scheddname);
+		procAds_ver_query.sprintf("SELECT cluster_id, proc_id, attr, val FROM quillwriter.procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id", scheddname);
 
 		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, (extract(day from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM quillwriter.clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id", scheddname);
 
@@ -960,10 +960,10 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 
 
 		procAds_hor_query.sprintf( 
-			"SELECT cluster_id, proc, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc", scheddname, procpredicate.Value() );
+			"SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id", scheddname, procpredicate.Value() );
 
 		procAds_ver_query.sprintf(
-	"SELECT cluster_id, proc, attr, val FROM quillwriter.procads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc", 
+	"SELECT cluster_id, proc_id, attr, val FROM quillwriter.procads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id", 
 			scheddname, procpredicate.Value() );
 
 		clusterAds_hor_query.sprintf(
