@@ -3152,7 +3152,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 	snprintf(tmp, 512, "cluster_id = %d", cluster);
 	tmpClP->Insert(tmp);
 
-	snprintf(tmp, 512, "proc = %d", proc);
+	snprintf(tmp, 512, "proc_id = %d", proc);
 	tmpClP->Insert(tmp);
 
 	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
@@ -3216,7 +3216,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	snprintf(tmp, 512, "cluster_id = %d", cluster);
 	tmpClP->Insert(tmp);
 
-	snprintf(tmp, 512, "proc = %d", proc);
+	snprintf(tmp, 512, "proc_id = %d", proc);
 	tmpClP->Insert(tmp);
 
 	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
