@@ -190,8 +190,9 @@ class Dag {
 	    @param The event.
 		@param The job corresponding to this event.
 		@param Whether we're in recovery mode.
+		@param Whether the submit event is considered "sane".
 	*/
-	void ProcessSubmitEvent(Job *job, bool recovery);
+	void ProcessSubmitEvent(Job *job, bool recovery, bool &submitEventIsSane);
 
 	/** Process an event indicating that a job is in an idle state.
 	    Note that this method only does processing relating to keeping
@@ -443,7 +444,8 @@ class Dag {
 	static bool CheckForDagAbort(Job *job, const char *type);
 
 		// takes a userlog event and returns the corresponding node
-	Job* LogEventNodeLookup( int logsource, const ULogEvent* event );
+	Job* LogEventNodeLookup( int logsource, const ULogEvent* event,
+				bool &submitEventIsSane );
 
 		// check whether a userlog event is sane, or "impossible"
 
