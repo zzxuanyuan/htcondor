@@ -2329,7 +2329,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				scheddname = newvalue;
 			} else if (strcasecmp(attName, "cluster_id") == 0) {
 				cluster = newvalue;
-			} else if (strcasecmp(attName, "proc") == 0) {
+			} else if (strcasecmp(attName, "proc_id") == 0) {
 				proc = newvalue;
 			} else if (strcasecmp(attName, "spid") == 0) {
 				subproc = newvalue;
@@ -2347,10 +2347,10 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 		}
 
 	if (eventtype == ULOG_JOB_ABORTED || eventtype == ULOG_JOB_HELD || ULOG_JOB_RELEASED) {
-		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc, eventtype, eventtime, description) VALUES ('%s', %s, %s, %d, %s, '%s')", 
+		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, eventtype, eventtime, description) VALUES ('%s', %s, %s, %d, %s, '%s')", 
 				scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), eventtype, eventts.GetCStr(), messagestr.GetCStr());
 	} else {
-		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc = %s AND spid = %s AND endtype is null", scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), eventtype, eventts.GetCStr(), messagestr.GetCStr(), scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), subproc.GetCStr());
+		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc_id = %s AND spid = %s AND endtype is null", scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), eventtype, eventts.GetCStr(), messagestr.GetCStr(), scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), subproc.GetCStr());
 	}
 
 	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
@@ -2453,7 +2453,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 
 		// check if the file is still there and the same
 	if (stat(pathname, &file_status) < 0) {
-		dprintf(D_FULLDEBUG, "ERROR: File '%s' can not be accessed.\n", 
+		dprintf(D_FULLDEBUG, "ERROR in TTManager::insertFiles: File '%s' can not be accessed.\n", 
 				pathname);
 		fileSame = FALSE;
 	} else {
@@ -2597,9 +2597,9 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   ad->EvalInteger (ATTR_PROC_ID, NULL, pid);
 
   sql_stmt.sprintf(
-          "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
+          "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
   sql_stmt2.sprintf(
-          "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
+          "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
   if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2684,23 +2684,23 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			  ts_expr = condor_ttdb_buildts(&clock, dt);	
 				  
 			  sql_stmt.sprintf(
-					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc = %d", name.GetCStr(), ts_expr, scheddname, (unsigned long)scheddbirthdate, cid, pid);
+					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.GetCStr(), ts_expr, scheddname, (unsigned long)scheddbirthdate, cid, pid);
 			  free(ts_expr);
 
 		  }	else {
 			  newvalue = jqDBManager.fillEscapeCharacters(value.GetCStr());
 			  sql_stmt.sprintf( 
-					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc = %d", name.GetCStr(), newvalue, scheddname, (unsigned long)scheddbirthdate, cid, pid);			  
+					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.GetCStr(), newvalue, scheddname, (unsigned long)scheddbirthdate, cid, pid);			  
 			  free(newvalue);
 		  }
 	  } else {
 		  newvalue = jqDBManager.fillEscapeCharacters(value.GetCStr());
 		  
 		  sql_stmt.sprintf(
-				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr());
+				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr());
 			  
 		  sql_stmt2.sprintf( 
-				  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr(), newvalue);
+				  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr(), newvalue);
 
 		  free(newvalue);
 	  }	  
@@ -2863,7 +2863,7 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 
   // Check if file is still there with same last modified time
 	if (stat(pathname, &file_status) < 0) {
-		dprintf(D_FULLDEBUG, "ERROR: File '%s' can not be accessed.\n", 
+		dprintf(D_FULLDEBUG, "ERROR in TTManager::insertTransfers: File '%s' can not be accessed.\n", 
 				pathname);
 		fileSame = FALSE;
 	} else {
@@ -3184,6 +3184,8 @@ typeOf(char *attName)
 		  strcasecmp(attName, ATTR_UPDATESTATS_LOST) &&
 		  strcasecmp(attName, "cluster") && 
 		  strcasecmp(attName, "proc") &&
+		  strcasecmp(attName, "cluster_id") && 
+		  strcasecmp(attName, "proc_id") &&
 		  strcasecmp(attName, ATTR_NUM_USERS) &&
 		  strcasecmp(attName, ATTR_TOTAL_IDLE_JOBS) &&
 		  strcasecmp(attName, ATTR_TOTAL_RUNNING_JOBS) &&

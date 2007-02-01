@@ -147,20 +147,20 @@ primary key (scheddname,cluster_id, attr)
 CREATE TABLE ProcAds_Vertical (
 scheddname	varchar(4000) NOT NULL,
 cluster_id	integer NOT NULL,
-proc		integer NOT NULL,
+proc_id		integer NOT NULL,
 attr	        varchar(2000) NOT NULL,
 val		varchar(4000),
-primary key (scheddname,cluster_id, proc, attr)
+primary key (scheddname,cluster_id, proc_id, attr)
 );
 
 CREATE TABLE Jobs_Vertical_History (
 scheddname	varchar(4000) NOT NULL,
 scheddbirthdate integer NOT NULL,
 cluster_id	integer NOT NULL,
-proc		integer NOT NULL,
+proc_id		integer NOT NULL,
 attr		varchar(2000) NOT NULL,
 val		varchar(4000),
-primary key (scheddname,scheddbirthdate, cluster_id, proc, attr)
+primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
 );
 
 CREATE SEQUENCE SeqRunId;
@@ -170,7 +170,7 @@ run_id 	                NUMERIC(12) NOT NULL,
 machine_id              varchar(4000),
 scheddname	        varchar(4000),
 cluster_id              integer,
-proc                    integer,
+proc_id			integer,
 spid                    integer,
 StartTS                 timestamp(3) with time zone,
 EndTS                   timestamp(3) with time zone,
@@ -195,7 +195,7 @@ reject_time     timestamp(3) with time zone, -- Time the job was rejected
 username        varchar(4000),
 scheddname      varchar(4000),
 cluster_id      integer,
-proc            integer,
+proc_id		integer,
 globaljobid     varchar(4000),
 requirements	integer,
 jobprio 	integer,
@@ -210,7 +210,7 @@ match_time      timestamp(3) with time zone, -- Time the match was made
 username        varchar(4000),
 scheddname      varchar(4000),
 cluster_id      integer,
-proc            integer,
+proc_id		integer,
 globaljobid     varchar(4000), 
 machine_id      varchar(4000),
 remote_user     varchar(4000),   -- The user that was preempted
@@ -246,7 +246,7 @@ throwTime      timestamp(3) with time zone
 CREATE TABLE events (
 scheddname      varchar(4000),
 cluster_id      integer,
-proc      	integer,
+proc_id		integer,
 runId     	numeric(12, 0),
 eventType       integer,
 eventTime       timestamp(3) with time zone,

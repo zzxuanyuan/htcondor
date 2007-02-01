@@ -29,6 +29,7 @@
 #include "misc_utils.h"
 #include "jobqueuedatabase.h"
 #include "condor_ttdb.h"
+#include "jobqueuedbmanager.h"
 
 static int typeOf(char *attName);
 
@@ -103,6 +104,11 @@ void JobQueueCollection::setDBObj(JobQueueDatabase *DBObj)
 void JobQueueCollection::setDBtype(dbtype dt)
 {
 	this->dt = dt;
+}
+
+void JobQueueCollection::setJobQueueDBManager(JobQueueDBManager *ptr)
+{
+	this->jqDBManager = ptr;
 }
 
 //! find a ProcAd
@@ -476,13 +482,14 @@ JobQueueCollection::loadAd(char* cid,
 	int len;
 	char* attNameList = NULL, *attValList = NULL;
 	char* tmpVal = NULL;
+	char* newvalue = NULL;
 
 		// first generate the key columns
 	if (pid != NULL) {
 		attNameList = (char *) malloc (50);
 		attValList = (char *) malloc (strlen(scheddname) +
 									  strlen(cid) + strlen(pid) + 10); 
-		sprintf(attNameList, "(scheddname, cluster_id, proc");
+		sprintf(attNameList, "(scheddname, cluster_id, proc_id");
 		sprintf(attValList, "('%s', %s, %s", scheddname, cid, pid);
 	} else {
 		attNameList = (char *) malloc (50);
@@ -515,16 +522,18 @@ JobQueueCollection::loadAd(char* cid,
 												strlen(name) + 5);
 				attValList = (char *) realloc (attValList, 
 											   strlen(attValList) + 
-											   strlen(value) + 8);
+											   2*strlen(value) + 8);
 				strcat(attNameList, ", ");
 				strcat(attNameList, name);
 
 				strcat(attValList, ", ");
-				tmpVal = (char  *) malloc(strlen(value) + 300);
+				tmpVal = (char  *) malloc(2*strlen(value) + 300);
 
 				switch (typeOf(name)) {				
 				case CONDOR_TT_TYPE_STRING:	
-					sprintf(tmpVal, "'%s'", value);
+					newvalue = jqDBManager->fillEscapeCharacters(value);
+					sprintf(tmpVal, "'%s'", newvalue);
+					free(newvalue);
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", value);
@@ -570,11 +579,13 @@ JobQueueCollection::loadAd(char* cid,
 				free(tmpVal);
 			} else {			
 					// this is a vertical attribute
+				newvalue = jqDBManager->fillEscapeCharacters(value);
 				len = 1024 + strlen(name) + strlen(scheddname) +
-					strlen(value) + strlen(cid) + strlen(pid);
+					strlen(newvalue) + strlen(cid) + strlen(pid);
 				sql_str = (char *) malloc(len);
 				snprintf(sql_str, len, "INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", 
-						 scheddname,cid, pid, name, value);
+						 scheddname,cid, pid, name, newvalue);
+				free(newvalue);
 
 				if (DBObj->execCommand(sql_str) == FAILURE) {
 					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
@@ -593,7 +604,7 @@ JobQueueCollection::loadAd(char* cid,
 				attNameList = (char *) realloc (attNameList, 
 												len);
 
-				len = strlen(attValList) + strlen(value) + 8;
+				len = strlen(attValList) + 2*strlen(value) + 8;
 
 				attValList = (char *) realloc (attValList, 
 											   len);
@@ -601,11 +612,13 @@ JobQueueCollection::loadAd(char* cid,
 				strcat(attNameList, name);
 
 				strcat(attValList, ", ");
-				tmpVal = (char  *) malloc(strlen(value) + 300);
+				tmpVal = (char  *) malloc(2*strlen(value) + 300);
 
 				switch (typeOf(name)) {				
 				case CONDOR_TT_TYPE_STRING:	
-					sprintf(tmpVal, "'%s'", value);
+					newvalue = jqDBManager->fillEscapeCharacters(value);
+					sprintf(tmpVal, "'%s'", newvalue);
+					free(newvalue);
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", value);
@@ -650,11 +663,12 @@ JobQueueCollection::loadAd(char* cid,
 				free(tmpVal); 				
 			} else {
 					// this is a vertical attribute
+				newvalue = jqDBManager->fillEscapeCharacters(value);
 				len = 1024 + strlen(name) + strlen(scheddname) +
-					strlen(value) + strlen(cid);
+					strlen(newvalue) + strlen(cid);
 				sql_str = (char *) malloc(len);
-				snprintf(sql_str, len, "INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, value);
-
+				snprintf(sql_str, len, "INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue);
+				free(newvalue);
 				if (DBObj->execCommand(sql_str) == FAILURE) {
 					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
 					free(sql_str);

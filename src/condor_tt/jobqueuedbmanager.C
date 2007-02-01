@@ -422,6 +422,7 @@ JobQueueDBManager::buildAndWriteJobQueue()
 
 	jobQueue->setDBObj(DBObj);
 	jobQueue->setDBtype(dt);
+	jobQueue->setJobQueueDBManager(this);
 
 	dprintf(D_FULLDEBUG, "Bulkloading 1st Phase: Parsing a job_queue.log "
 			"file and building job collection!\n");
@@ -888,7 +889,7 @@ JobQueueDBManager::processNewClassAd(char* key,
 		break;
 	case IS_PROC_ID:
 		sql_str.sprintf(
-				"INSERT INTO ProcAds_Horizontal (scheddname, cluster_id, proc) VALUES ('%s', '%s', '%s')", scheddname, cid, pid);
+				"INSERT INTO ProcAds_Horizontal (scheddname, cluster_id, proc_id) VALUES ('%s', '%s', '%s')", scheddname, cid, pid);
 
 		break;
 	case IS_UNKNOWN_ID:
@@ -956,11 +957,11 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 	case IS_PROC_ID:
 			/* generate SQL to remove the job from job tables */
 		sql_str1.sprintf(
-				"DELETE FROM ProcAds_horizontal WHERE scheddname = '%s' and cluster_id = %s AND proc = %s", 
+				"DELETE FROM ProcAds_horizontal WHERE scheddname = '%s' and cluster_id = %s AND proc_id = %s", 
 				 scheddname, cid, pid);
 		
 		sql_str2.sprintf(
-				"DELETE FROM ProcAds_vertical WHERE scheddname = '%s' and cluster_id = %s AND proc = %s", 
+				"DELETE FROM ProcAds_vertical WHERE scheddname = '%s' and cluster_id = %s AND proc_id = %s", 
 				 scheddname, cid, pid);
 		break;
 	case IS_UNKNOWN_ID:
@@ -1067,21 +1068,21 @@ JobQueueDBManager::processSetAttribute(char* key,
 				}
 				
 				sql_str_del_in.sprintf(
-									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, ts_expr, scheddname, cid, pid);
+									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, ts_expr, scheddname, cid, pid);
 				free(ts_expr);
 			} else {
 				newvalue = fillEscapeCharacters(value);
 				sql_str_del_in.sprintf(
-									   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc = '%s'", name, newvalue, scheddname, cid, pid);
+									   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, newvalue, scheddname, cid, pid);
 				free(newvalue);
 			}
 		} else {
 			newvalue = fillEscapeCharacters(value);
 			sql_str_del_in.sprintf(
-					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s' AND attr = '%s'", scheddname, cid, pid, name);
+					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc_id = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 
 			sql_str2.sprintf(
-					 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue);	
+					 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc_id, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue);	
 
 			free(newvalue);
 		}
@@ -1156,10 +1157,10 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 	case IS_PROC_ID:
 		if(isHorizontalProcAttribute(name)) {
 			sql_str.sprintf(
-					 "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s'", name, scheddname, cid, pid);
+					 "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster_id = '%s' AND proc_id = '%s'", name, scheddname, cid, pid);
 		} else {
 			sql_str.sprintf(
-					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc = '%s' AND attr = '%s'", scheddname, cid, pid, name);
+					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc_id = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 			
 		}
 

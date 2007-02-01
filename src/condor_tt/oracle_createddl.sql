@@ -23,7 +23,7 @@ CREATE INDEX CA_H_I_owner ON ClusterAds_Horizontal (owner);
 CREATE TABLE ProcAds_Horizontal(
 scheddname		varchar(4000) NOT NULL,
 cluster_id	 	integer NOT NULL,
-proc 			integer NOT NULL,
+proc_id			integer NOT NULL,
 jobstatus 		integer,
 imagesize 		integer,
 remoteusercpu	        double precision,
@@ -33,14 +33,14 @@ globaljobid        	varchar(4000),
 jobprio            	integer,
 args                    clob,
 shadowbday		timestamp(3) with time zone,
-primary key(scheddname,cluster_id,proc)
+primary key(scheddname,cluster_id,proc_id)
 );
 
 CREATE TABLE Jobs_Horizontal_History (
 scheddname   varchar(4000) NOT NULL,
 scheddbirthdate     integer NOT NULL,
 cluster_id              integer NOT NULL,
-proc                    integer NOT NULL,
+proc_id			integer NOT NULL,
 qdate                   integer, -- condor_history requires an integer for qdate
 owner                   varchar(20),
 globaljobid             varchar(4000),
@@ -104,7 +104,7 @@ lastremotehost          varchar(4000),
 completiondate          integer, -- condor_history requires an integer 
 enteredhistorytable     timestamp(3) with time zone,
 shadowbday		timestamp(3) with time zone,
-primary key		(scheddname,scheddbirthdate, cluster_id, proc)
+primary key		(scheddname,scheddbirthdate, cluster_id, proc_id)
 );
 
 CREATE INDEX Hist_H_I_owner ON Jobs_Horizontal_History (owner);
@@ -175,7 +175,7 @@ WHERE SUBSTR(globaljobid, 1, (INSTR('#', globaljobid)-1))
 -- jobs are executed locally on the schedd machine even if it's not 
 -- a normal executing host.
 CREATE VIEW History_JOBS_FLOCKED_OUT AS
-SELECT DISTINCT scheddname, cluster_id, proc
+SELECT DISTINCT scheddname, cluster_id, proc_id
 FROM runs R 
 WHERE R.endts IS NOT NULL AND
    R.machine_id != R.scheddname AND
@@ -187,7 +187,7 @@ WHERE R.endts IS NOT NULL AND
 -- machines must have reported less than 10 minutes ago to be counted
 -- toward this pool.
 CREATE VIEW CURRENT_JOBS_FLOCKED_OUT AS
-SELECT DISTINCT R.scheddname, R.cluster_id, R.proc
+SELECT DISTINCT R.scheddname, R.cluster_id, R.proc_id
 FROM runs R, clusterads_horizontal C 
 WHERE R.endts IS NULL AND
    R.machine_id != R.scheddname AND
@@ -247,7 +247,7 @@ DROP TABLE History_Jobs_To_Purge;
 CREATE GLOBAL TEMPORARY TABLE History_Jobs_To_Purge(
 scheddname   varchar(4000),
 cluster_id   integer, 
-proc         integer,
+proc_id      integer,
 globaljobid  varchar(4000)) ON COMMIT DELETE ROWS;
 
 CREATE OR REPLACE PROCEDURE 
@@ -314,7 +314,7 @@ COMMIT;
 
 -- find the set of jobs for which the run history are going to be purged
 INSERT INTO History_Jobs_To_Purge 
-SELECT scheddname, cluster_id, proc, globaljobid
+SELECT scheddname, cluster_id, proc_id, globaljobid
 FROM Jobs_Horizontal_History
 WHERE enteredhistorytable < 
       (current_timestamp - 
@@ -342,7 +342,7 @@ WHERE exists (SELECT *
               FROM History_Jobs_To_Purge H
               WHERE H.scheddname = R.scheddname AND
                     H.cluster_id = R.cluster_id AND
-                    H.proc = R.proc);
+                    H.proc_id = R.proc_id);
 
 -- purge rejects data for jobs older than certain days
 DELETE FROM Rejects R
@@ -350,7 +350,7 @@ WHERE exists (SELECT *
               FROM History_Jobs_To_Purge H
               WHERE H.scheddname = R.scheddname AND
                     H.cluster_id = R.cluster_id AND
-                    H.proc = R.proc);
+                    H.proc_id = R.proc_id);
 
 -- purge matches data for jobs older than certain days
 DELETE FROM matches M
@@ -358,7 +358,7 @@ WHERE exists (SELECT *
               FROM History_Jobs_To_Purge H
               WHERE H.scheddname = M.scheddname AND
                     H.cluster_id = M.cluster_id AND
-                    H.proc = M.proc);
+                    H.proc_id = M.proc_id);
 
 -- purge events data for jobs older than certain days
 DELETE FROM events E
@@ -366,7 +366,7 @@ WHERE exists (SELECT *
               FROM History_Jobs_To_Purge H
               WHERE H.scheddname = E.scheddname AND
                     H.cluster_id = E.cluster_id AND
-                    H.proc = E.proc);
+                    H.proc_id = E.proc_id);
 
 COMMIT; -- commit will truncate the temporary table History_Jobs_To_Purge
 
@@ -374,7 +374,7 @@ COMMIT; -- commit will truncate the temporary table History_Jobs_To_Purge
 
 -- find the set of jobs for which history data are to be purged
 INSERT INTO History_Jobs_To_Purge 
-SELECT scheddname, cluster_id, proc, globaljobid
+SELECT scheddname, cluster_id, proc_id, globaljobid
 FROM Jobs_Horizontal_History
 WHERE enteredhistorytable < 
       (current_timestamp - 
@@ -386,7 +386,7 @@ WHERE exists (SELECT *
               FROM History_Jobs_To_Purge H
               WHERE H.scheddname = V.scheddname AND
                     H.cluster_id = V.cluster_id AND
-                    H.proc = V.proc);
+                    H.proc_id = V.proc_id);
 
 -- purge classads for jobs older than certain days
 DELETE FROM Jobs_Horizontal_History H

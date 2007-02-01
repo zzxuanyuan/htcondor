@@ -30,6 +30,7 @@
 #include "quill_enums.h"
 
 class JobQueueDatabase;
+class JobQueueDBManager;
 
 //! ClassAdBucket
 /*! Bucket Class for a Hash Table used internally by JobQueueCollection
@@ -150,6 +151,7 @@ public:
 
 	void 		setDBObj(JobQueueDatabase *DBObj);
 	void 		setDBtype(dbtype dt);
+	void 		setJobQueueDBManager(JobQueueDBManager *ptr);
 private:
        	//
        	// helper functions
@@ -178,6 +180,7 @@ private:
 	char*   scheddname;
 	JobQueueDatabase*	DBObj;
 	dbtype dt;
+	JobQueueDBManager* jqDBManager;
 };
 
 bool isHorizontalClusterAttribute(const char *attr);
