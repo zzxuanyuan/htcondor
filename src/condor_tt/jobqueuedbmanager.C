@@ -1055,7 +1055,8 @@ JobQueueDBManager::processSetAttribute(char* key,
 		break;
 	case IS_PROC_ID:
 		if(isHorizontalProcAttribute(name)) {
-			if (strcasecmp(name, "shadowbday") == 0) {
+			if ((strcasecmp(name, "shadowbday") == 0) ||
+				(strcasecmp(name, "enteredcurrentstatus") == 0)) {
 				time_t clock;
 				char *ts_expr;
 				clock = atoi(value);

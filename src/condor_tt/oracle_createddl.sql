@@ -5,7 +5,7 @@ Before installing this script, the following must have been prepared
 
 CREATE TABLE ClusterAds_Horizontal(
 scheddname          varchar(4000) NOT NULL,
-cluster_id             integer NOT NULL,
+cluster_id          integer NOT NULL,
 owner               varchar(20),
 jobstatus           integer,
 jobprio             integer,
@@ -15,6 +15,7 @@ remoteusercpu       double precision,
 remotewallclocktime double precision,
 cmd                 varchar(4000),
 args                clob,
+jobuniverse         integer,
 primary key(scheddname,cluster_id)
 );
 
@@ -33,6 +34,8 @@ globaljobid        	varchar(4000),
 jobprio            	integer,
 args                    clob,
 shadowbday		timestamp(3) with time zone,
+enteredcurrentstatus    timestamp(3) with time zone,
+numrestarts             integer,
 primary key(scheddname,cluster_id,proc_id)
 );
 

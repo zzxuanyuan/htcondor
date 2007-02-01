@@ -16,6 +16,7 @@ remoteusercpu       double precision,
 remotewallclocktime double precision,
 cmd                 varchar(4000),
 args                text,
+jobuniverse         integer,
 primary key(scheddname,cluster_id)
 );
 
@@ -34,6 +35,8 @@ globaljobid        	varchar(4000),
 jobprio            	integer,
 args                    text,
 shadowbday              timestamp(3) with time zone,
+enteredcurrentstatus    timestamp(3) with time zone,
+numrestarts             integer,
 primary key(scheddname,cluster_id,proc_id)
 );
 

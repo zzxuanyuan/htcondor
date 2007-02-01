@@ -805,6 +805,7 @@ bool isHorizontalClusterAttribute(const char *attr) {
      (strcasecmp(attr, "remoteusercpu") == 0) ||
      (strcasecmp(attr, "remotewallclocktime") == 0) ||
      (strcasecmp(attr, "cmd") == 0) ||
+	 (strcasecmp(attr, "jobuniverse") == 0) ||
      (strcasecmp(attr, "args") == 0)) {
     return true;
   }
@@ -822,6 +823,8 @@ bool isHorizontalProcAttribute(const char *attr) {
 	 (strcasecmp(attr, "jobprio") == 0) ||
 	 (strcasecmp(attr, "args") == 0) || 
 	 (strcasecmp(attr, "shadowbday") == 0) || 
+	 (strcasecmp(attr, "enteredcurrentstatus") == 0) || 
+	 (strcasecmp(attr, "numrestarts") == 0) || 
 	 (strcasecmp(attr, "remotehost") == 0)) {
     return true;
   }
@@ -844,12 +847,15 @@ typeOf(char *attName)
 		  strcasecmp(attName, "imagesize") &&
 		  strcasecmp(attName, "remoteusercpu") && 
 		  strcasecmp(attName, "remotewallclocktime") &&
+		  strcasecmp(attName, "jobuniverse") &&
+		  strcasecmp(attName, "numrestarts") &&
 		  strcasecmp(attName, "jobprio"))
 		)
 		return CONDOR_TT_TYPE_NUMBER;
 
 	if (!(strcasecmp(attName, "qdate") &&
-		  strcasecmp(attName, "shadowbday"))
+		  strcasecmp(attName, "shadowbday") &&
+		  strcasecmp(attName, "enteredcurrentstatus"))
 		)
 		return CONDOR_TT_TYPE_TIMESTAMP;
 
