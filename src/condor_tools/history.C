@@ -321,6 +321,32 @@ main(int argc, char* argv[])
 				  exit(1);
 			  }
 		  }
+	  } else {
+			// they just typed 'condor_history' on the command line and want
+			// to use quill, so get the schedd ad for the local machine if
+			// we can, figure out the name of the schedd and the 
+			// jobqueuebirthdate
+		Daemon schedd( DT_SCHEDD, 0, 0 );
+
+        if ( schedd.locate() ) {
+			char *scheddname;	
+			if( (scheddname = schedd.name()) ) {
+				queryhor.setScheddname(scheddname);	
+				queryver.setScheddname(scheddname);	
+            } else {
+				// set it to NULL?
+            }
+			
+			ClassAd *daemonAd = schedd.daemonAd();
+			int scheddbirthdate;
+			if(daemonAd) {
+				if(daemonAd->LookupInteger( ATTR_JOB_QUEUE_BIRTHDATE, 	
+							scheddbirthdate) ) {
+					queryhor.setJobqueuebirthdate( (time_t)scheddbirthdate);	
+					queryver.setJobqueuebirthdate( (time_t)scheddbirthdate);	
+				}
+			}
+		}
 	  }
 	  dbconn = getDBConnStr(quillName,dbIpAddr,dbName,queryPassword);
 	  historySnapshot = new HistorySnapshot(dbconn);
