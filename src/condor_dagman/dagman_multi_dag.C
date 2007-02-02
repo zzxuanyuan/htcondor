@@ -53,7 +53,6 @@ GetLogFiles(/* const */ StringList &dagFiles, bool useDagDir,
 	char *dagFile;
 	while ( (dagFile = dagFiles.next()) != NULL ) {
 
-//TEMPTEMP -- should I duplicate a lot of this code to get the config file, or should I come up with some way of avoiding that?
 		const char *	file;
 		if ( useDagDir ) {
 			MyString	tmpErrMsg;
@@ -132,16 +131,18 @@ GetConfigFile(/* const */ StringList &dagFiles, bool useDagDir,
 			MyString &configFile, MyString &errMsg)
 {
 	bool		result = true;
-//TEMPTEMP -- this should test for conflict between different DAG files and also conflict between the DAG file and the command-line spec
-//TEMPTEMP -- hmm -- need to convert everything to absolute paths?  canonical paths?  what about symlinks causing conflict?
-//TEMPTEMP -- be sure to test config files with multiple DAGs with and without usedagdir
 
 	TmpDir		dagDir;
 
 	dagFiles.rewind();
 	char *dagFile;
 	while ( (dagFile = dagFiles.next()) != NULL ) {
-		const char *	file;
+
+			//
+			// Change to the DAG file's directory if necessary, and
+			// get the filename we need to use for it from that directory.
+			//
+		const char *	newDagFile;
 		if ( useDagDir ) {
 			MyString	tmpErrMsg;
 			if ( !dagDir.Cd2TmpDirFile( dagFile, tmpErrMsg ) ) {
@@ -150,17 +151,16 @@ GetConfigFile(/* const */ StringList &dagFiles, bool useDagDir,
 						tmpErrMsg );
 				return false;
 			}
-			file = condor_basename( dagFile );
+			newDagFile = condor_basename( dagFile );
 		} else {
-			file = dagFile;
+			newDagFile = dagFile;
 		}
 
-printf("DIAG file: <%s>\n", file);//TEMPTEMP
-
-
-		//TEMPTEMP -- get config file here
+			//
+			// Get the list of config files from the current DAG file.
+			//
 		StringList		configFiles;
-		MyString msg = MultiLogFiles::getValuesFromFile( file, "config",
+		MyString msg = MultiLogFiles::getValuesFromFile( newDagFile, "config",
 					configFiles);
 		if ( msg != "" ) {
 			AppendError( errMsg,
@@ -168,30 +168,35 @@ printf("DIAG file: <%s>\n", file);//TEMPTEMP
 					msg );
 			result = false;
 		}
-//TEMPTEMP -- make all config file paths absolute?
 
+			//
+			// Check the specified config file(s) against whatever we
+			// currently have, setting the config file if it hasn't
+			// been set yet, flagging an error if config files conflict.
+			//
 		configFiles.rewind();
-		char *		cFile;
-		while ( (cFile = configFiles.next()) ) {
-printf( "DIAG cFile: <%s>\n", cFile );//TEMPTEMP
-				//TEMPTEMP -- change name below?
-			MyString	config = cFile;
-			if ( MakePathAbsolute( config ) ) {
+		char *		cfgFile;
+		while ( (cfgFile = configFiles.next()) ) {
+			MyString	cfgFileMS = cfgFile;
+			MyString	tmpErrMsg;
+			if ( MakePathAbsolute( cfgFileMS, tmpErrMsg ) ) {
 				if ( configFile == "" ) {
-					configFile = config;
-				} else if ( configFile != config ) {
-					fprintf( stderr, "Conflicting DAGMan config files "
-								"specified: %s and %s\n", configFile.Value(),
-								config.Value() );
+					configFile = cfgFileMS;
+				} else if ( configFile != cfgFileMS ) {
+					AppendError( errMsg, MyString("Conflicting DAGMan ") +
+								"config files specified: " + configFile +
+								" and " + cfgFileMS );
 					result = false;
-					//TEMPTEMP -- bail out of loop?
 				}
 			} else {
+				AppendError( errMsg, tmpErrMsg );
 				result = false;
-				//TEMPTEMP -- bail out of loop?
 			}
 		}
 
+			//
+			// Go back to our original directory.
+			//
 		MyString	tmpErrMsg;
 		if ( !dagDir.Cd2MainDir( tmpErrMsg ) ) {
 			AppendError( errMsg,
@@ -206,7 +211,7 @@ printf( "DIAG cFile: <%s>\n", cFile );//TEMPTEMP
 
 //-------------------------------------------------------------------------
 bool
-MakePathAbsolute(MyString &filePath)
+MakePathAbsolute(MyString &filePath, MyString &errMsg)
 {
 	bool		result = true;
 
@@ -216,9 +221,9 @@ MakePathAbsolute(MyString &filePath)
 		if ( getcwd(tmpCwd, PATH_MAX) ) {
 			currentDir = tmpCwd;
 		} else {
-			fprintf( stderr,
-						"ERROR: getcwd() failed with errno %d (%s) at %s:%d\n",
-						errno, strerror(errno), __FILE__, __LINE__);
+			errMsg = MyString( "getcwd() failed with errno " ) +
+						errno + " (" + strerror(errno) + ") at " + __FILE__
+						+ ":" + __LINE__;
 			result = false;
 		}
 

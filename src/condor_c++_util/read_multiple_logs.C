@@ -1,4 +1,3 @@
-//TEMPTEMP -- make a method to make a filename absolute?
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -511,7 +510,6 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 			// Note: we now do further checking that doesn't rely on
 			// comparing paths to the log files.  wenger 2004-05-27.
 		if ( !fullpath(logFileName.Value()) ) {
-			//TEMPTEMP -- do we need this if?
 			if ( currentDir != "" ) {
 				logFileName = currentDir + DIR_DELIM_STRING + logFileName;
 			} else {
@@ -739,15 +737,15 @@ MultiLogFiles::getQueueCountFromSubmitFile(const MyString &strSubFilename,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//TEMPTEMP -- do the following:
-// make a method that takes a file and returns the value(s) for a given keyword
-//   (can be used to get a list of submit files)
 
-//TEMPTEMP -- split this into a method that gets a list of the submit files, and one that gets the log files from the submit files? -- what if we have a super-big DAG?  will it cause any problems to have a StringList with 100,000 entries?  make a test?
-//TEMPTEMP -- be sure to re-run the multi-log-file test code after mods
+// Note: it would probably make sense to have this method use the new
+// getValuesFromFile() method in order to reduce more-or-less duplicate
+// code.  However, I'm just leaving it alone for now.  If
+// getJobLogsFromSubmitFiles() were to use getValuesFromFile(),
+// getValuesFromFile() would have to have another argument to specify
+// the number of tokens to skip between the keyword and the value.
+
 MyString
-
-//TEMPTEMP -- have this use getValuesFromFile
 MultiLogFiles::getJobLogsFromSubmitFiles(const MyString &strDagFileName,
             const MyString &jobKeyword, const MyString &dirKeyword,
 			StringList &listLogFilenames)
@@ -859,8 +857,6 @@ MyString
 MultiLogFiles::getValuesFromFile(const MyString &fileName, 
 			const MyString &keyword, StringList &values)
 {
-	dprintf( D_ALWAYS /*D_FULLDEBUG TEMPTEMP*/, "MultiLogFiles::getValuesFromFile(%s)\n",
-				fileName.Value() );
 
 	MyString	errorMsg;
 	StringList	logicalLines;
@@ -883,15 +879,12 @@ MultiLogFiles::getValuesFromFile(const MyString &fileName,
 
 					// Get the value.
 				const char *newValue = tokens.next();
-				if ( !newValue ) {
-					//TEMPTEMP -- change this message!
-					MyString result = "Improperly-formatted DAG file: "
-								"submit file missing from job line";
-					dprintf(D_ALWAYS, "MultiLogFiles error: %s\n",
-								result.Value());
+				if ( !newValue || !strcmp( newValue, "") ) {
+					MyString result = MyString( "Improperly-formatted DAG "
+								"file: value missing after keyword <" ) +
+								keyword + ">";
 			    	return result;
 				}
-dprintf(D_ALWAYS, "DIAG found value: <%s>\n", newValue);//TEMPTEMP
 
 					// Add the value we just found to the values list
 					// (if it's not already in the list -- we don't want
