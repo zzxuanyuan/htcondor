@@ -136,6 +136,15 @@ the machine. In the second case, a \Condor{schedd} would incorrectly
 be run. The problem exists in all previous 6.8 and 6.9 series
 releases.
 
+\item Fixed a bug in the handling of local universe jobs.
+If the \Condor{schedd} is very busy, it is possible that when
+a local universe job completes, the \Condor{starter} will not
+be able to connect to the job queue to update final information
+about the job (exit status, etc). Previously, when this happened,
+the \Condor{starter} would hang indefinitely. Now, it will attempt
+to retry a few times (with a delay in between each one) before
+exiting with a fatal error (which would cause the job to restart).
+
 \end{itemize}
 
 \noindent Known Bugs:
