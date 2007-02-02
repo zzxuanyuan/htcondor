@@ -56,6 +56,8 @@ class SQLQuery
 	char * getFetchCursorStmt();
 	char * getCloseCursorStmt();
 	void setQuery(query_types qtype, void **parameters);
+	void setScheddname(char *name);
+	void setJobqueuebirthdate(time_t birthdate);
 	query_types getType();
 
 	//print
@@ -72,6 +74,8 @@ class SQLQuery
 	char *fetch_cursor_str; 
 	char *close_cursor_str; 
 	query_types type;
+	char *scheddname;
+	time_t jobqueuebirthdate;
 
 	int createQueryString(query_types qtype, void **parameters);
 };

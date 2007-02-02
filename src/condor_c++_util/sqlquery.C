@@ -77,6 +77,8 @@ SQLQuery ()
   declare_cursor_str = 0;
   fetch_cursor_str = 0;
   close_cursor_str = 0;
+  scheddname = 0;
+  jobqueuebirthdate = 0;
 }
 
 SQLQuery::
@@ -97,6 +99,8 @@ SQLQuery::
 	  free(fetch_cursor_str);
   if(close_cursor_str) 
 	  free(close_cursor_str);
+  if(scheddname) 
+	  free(scheddname);
 }
 
 query_types SQLQuery::
@@ -135,6 +139,19 @@ setQuery(query_types qtype, void **parameters)
   createQueryString(qtype, parameters);
 }
 
+void SQLQuery::
+setScheddname(char *name) 
+{
+	if(name) {
+		scheddname = strdup(scheddname);
+	}
+}
+
+void SQLQuery::
+setJobqueuebirthdate(time_t birthdate)
+{
+	jobqueuebirthdate = birthdate;
+}
 int SQLQuery::
 createQueryString(query_types qtype, void **parameters) {
   char *tmp;
