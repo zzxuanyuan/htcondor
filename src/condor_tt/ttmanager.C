@@ -255,12 +255,12 @@ TTManager::maintain()
 		time_t clock;
 		int ret_st;
 		const char *scheddname;
-		char  *ts_expr;
+		MyString ts_expr;
 
 		(void)time(  (time_t *)&clock );
 		ts_expr = condor_ttdb_buildts(&clock, dt);
 	
-		if (ts_expr == NULL) 
+		if (ts_expr.IsEmpty()) 
 			{
 				dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 				return;
@@ -268,13 +268,11 @@ TTManager::maintain()
 
 		scheddname = jqDBManager.getScheddname();
 
-		sql_str.sprintf("UPDATE currencies SET lastupdate = %s WHERE datasource = '%s'", ts_expr, scheddname);
+		sql_str.sprintf("UPDATE currencies SET lastupdate = %s WHERE datasource = '%s'", ts_expr.Value(), scheddname);
 
-		free(ts_expr);
-
-		ret_st = DBObj->execCommand(sql_str.GetCStr());
+		ret_st = DBObj->execCommand(sql_str.Value());
 		if (ret_st == FAILURE) {
-			dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str.GetCStr());
+			dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str.Value());
 		}
 
 		ret_st = DBObj->commitTransaction();
@@ -835,6 +833,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	int  attr_type;
 	int  num_result = 0;
 
+	MyString ts_expr;
+
 	ad->sPrint(classAd);
 
 	// Insert stuff into Machines_Horizontal
@@ -891,12 +891,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
 						time_t clock;
-						char *ts_expr;
 						clock = atoi(attVal);
 						
 						ts_expr = condor_ttdb_buildts(&clock, dt);
 
-						if (ts_expr == NULL) {
+						if (ts_expr.IsEmpty()) {
 							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 							if (attName) {
 								free(attName);
@@ -906,13 +905,12 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						}
 
 						if (strcasecmp(attName, "lastheardfrom") == 0) {
-							attValList.sprintf("(%s, %s", ts_expr, attVal);
-							lastHeardFrom.sprintf("%s", ts_expr);
+							attValList.sprintf("(%s, %s", ts_expr.Value(), 
+											   attVal);
+							lastHeardFrom.sprintf("%s", ts_expr.Value());
 						} else {
-							attValList.sprintf("(%s", ts_expr);
+							attValList.sprintf("(%s", ts_expr.Value());
 						}
-
-						free(ts_expr);
 
 						break;
 					case CONDOR_TT_TYPE_NUMBER:
@@ -954,12 +952,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
 						time_t clock;
-						char *ts_expr;
 						clock = atoi(attVal);
 
 						ts_expr = condor_ttdb_buildts(&clock, dt);
 
-						if (ts_expr == NULL) {
+						if (ts_expr.IsEmpty()) {
 							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 							if (attName) {
 								free(attName);
@@ -969,13 +966,12 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						}
 						
 						if (strcasecmp(attName, "lastheardfrom") == 0) {
-							tmpVal.sprintf("%s, %s", ts_expr, attVal);
-							lastHeardFrom.sprintf("%s", ts_expr);
+							tmpVal.sprintf("%s, %s", ts_expr.Value(), 
+										   attVal);
+							lastHeardFrom.sprintf("%s", ts_expr.Value());
 						} else {
-							tmpVal.sprintf("%s", ts_expr);
+							tmpVal.sprintf("%s", ts_expr.Value());
 						}
-
-						free(ts_expr);
 
 						break;
 					case CONDOR_TT_TYPE_NUMBER:
@@ -1025,11 +1021,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// get the previous lastheardfrom from the database 
 	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
 
-	ret_st = DBObj->execQuery(sql_stmt.GetCStr(), num_result);
+	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
 	
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -1042,32 +1038,32 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// set end time if the previous lastHeardFrom matches, otherwise
 		// leave it as NULL (by default)
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastHeardFrom.GetCStr(), machine_id.Value());
+		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastHeardFrom.Value(), machine_id.Value());
 	} else {
 		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
 	}
 	 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
 
 	 sql_stmt.sprintf("DELETE FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
 
-	 sql_stmt.sprintf("INSERT INTO Machines_Horizontal %s VALUES %s", attNameList.GetCStr(), attValList.GetCStr());
+	 sql_stmt.sprintf("INSERT INTO Machines_Horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
@@ -1078,27 +1074,27 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 // daemon has been shutdown for a while, we should move everything
 		 // into the machines_vertical_history (with a NULL end_time)!
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom.GetCStr(), machine_id.Value(), inlist.GetCStr());
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), machine_id.Value(), inlist.Value());
 	 } else {
 		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time) SELECT machine_id, attr, val, start_time FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
 	 }
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
 		
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist.GetCStr());
+		 sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist.Value());
 	 } else {
 		 sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
 	 }
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
@@ -1106,29 +1102,29 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 		 
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom.GetCStr(), machine_id.Value(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), machine_id.Value(), aName.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }
 			
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.GetCStr(), machine_id.Value(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), machine_id.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());		
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.GetCStr(), machine_id.Value(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), machine_id.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			errorSqlStmt = sql_stmt;
 			return FAILURE;
 		 }		 
@@ -1162,6 +1158,8 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	int	 ret_st;
 	int  attr_type;
 	int  num_result = 0;
+
+	MyString ts_expr;
 
 		// first generate MyType='Scheduler' attribute
 	attNameList.sprintf("(MyType");
@@ -1214,12 +1212,11 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					char *ts_expr;
 					clock = atoi(attVal);
 
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
-					if (ts_expr == NULL) {
+					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 						if (attName) {
 							free(attName);
@@ -1229,14 +1226,12 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 					}
 
 					if (strcasecmp(attName, "lastheardfrom") == 0) { 
-						tmpVal.sprintf("%s, %s", ts_expr, attVal);
-						lastHeardFrom.sprintf("%s", ts_expr);
+						tmpVal.sprintf("%s, %s", ts_expr.Value(), attVal);
+						lastHeardFrom.sprintf("%s", ts_expr.Value());
 					} else {
-						tmpVal.sprintf("%s", ts_expr);
+						tmpVal.sprintf("%s", ts_expr.Value());
 					}
 					
-					free(ts_expr);
-
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					tmpVal.sprintf("%s", attVal);
@@ -1267,12 +1262,11 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
 						time_t clock;
-						char *ts_expr;
 						clock = atoi(attVal);
 
 						ts_expr = condor_ttdb_buildts(&clock, dt);
 
-						if (ts_expr == NULL) {
+						if (ts_expr.IsEmpty()) {
 							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 							if (attName) {
 								free(attName);
@@ -1281,9 +1275,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 							return FAILURE;							
 						}
 												
-						attValList2.sprintf("(%s", ts_expr);
-						
-						free(ts_expr);
+						attValList2.sprintf("(%s", ts_expr.Value());
 
 						break;
 					case CONDOR_TT_TYPE_NUMBER:
@@ -1311,12 +1303,11 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
 						time_t clock;
-						char *ts_expr;
 						clock = atoi(attVal);
 
 						ts_expr = condor_ttdb_buildts(&clock, dt);
 
-						if (ts_expr == NULL) {
+						if (ts_expr.IsEmpty()) {
 							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 							if (attName) {
 								free(attName);
@@ -1325,9 +1316,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 							return FAILURE;							
 						}
 
-						tmpVal.sprintf("%s", ts_expr);
-
-						free(ts_expr);
+						tmpVal.sprintf("%s", ts_expr.Value());
 
 						break;
 					case CONDOR_TT_TYPE_NUMBER:
@@ -1380,13 +1369,13 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	if (!inlist.IsEmpty()) inlist += ")";
 
 		// get the previous lastheardfrom from the database 
-	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName.Value());
 
-	ret_st = DBObj->execQuery(sql_stmt.GetCStr(), num_result);
+	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -1401,23 +1390,23 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName.Value());
 	}
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
 	
-	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Scheduler' AND Name = '%s'", daemonName.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -1427,43 +1416,43 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Schedds_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, endtime) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, %s FROM Schedds_Horizontal WHERE Name = '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Schedds_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, endtime) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, %s FROM Schedds_Horizontal WHERE Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO Schedds_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs FROM Schedds_Horizontal WHERE Name = '%s'", daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Schedds_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs FROM Schedds_Horizontal WHERE Name = '%s'", daemonName.Value());
 	}
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
 	
-	sql_stmt.sprintf("DELETE FROM  Schedds_Horizontal WHERE Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("DELETE FROM  Schedds_Horizontal WHERE Name = '%s'", daemonName.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;		
 		return FAILURE;
 	}
 	 
 		// insert new tuple into daemons_horizontal 
-	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.GetCStr(), attValList.GetCStr());
+	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;	
 		 return FAILURE;
 	 }	 
 
 		 // insert new tuple into schedds_horizontal 
-	 sql_stmt.sprintf("INSERT INTO schedds_horizontal %s VALUES %s", attNameList2.GetCStr(), attValList2.GetCStr());
+	 sql_stmt.sprintf("INSERT INTO schedds_horizontal %s VALUES %s", attNameList2.Value(), attValList2.Value());
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;	
 		 return FAILURE;
 	 }	 
@@ -1477,27 +1466,27 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			don't appear in the new class ad
 		 */
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Schedds_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Schedds_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.GetCStr(), daemonName.GetCStr(), inlist.GetCStr());
+		 sql_stmt.sprintf("INSERT INTO Schedds_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Schedds_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("INSERT INTO Schedds_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Schedds_Vertical WHERE name = '%s'", daemonName.GetCStr());		 
+		 sql_stmt.sprintf("INSERT INTO Schedds_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Schedds_Vertical WHERE name = '%s'", daemonName.Value());		 
 	 }	 
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
 
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM schedds_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.GetCStr(), inlist.GetCStr());
+		 sql_stmt.sprintf("DELETE FROM schedds_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("DELETE FROM schedds_vertical WHERE name = '%s'", daemonName.GetCStr());		 
+		 sql_stmt.sprintf("DELETE FROM schedds_vertical WHERE name = '%s'", daemonName.Value());		 
 	 }
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;		 
 		 return FAILURE;
 	 }
@@ -1506,29 +1495,29 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 
-		 sql_stmt.sprintf("INSERT INTO schedds_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM schedds_vertical WHERE name = '%s' AND attr = '%s')", daemonName.GetCStr(), aName.Value(), aVal.Value(), lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO schedds_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM schedds_vertical WHERE name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("INSERT INTO schedds_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM schedds_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("INSERT INTO schedds_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM schedds_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());		
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
 			 errorSqlStmt = sql_stmt;			 
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE schedds_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE schedds_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
 		 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			errorSqlStmt = sql_stmt;	
 			return FAILURE;
 		 }
@@ -1559,6 +1548,8 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	int	 ret_st;
 	int  attr_type;
 	int  num_result = 0;
+
+	MyString ts_expr;
 
 		// first generate MyType='Master' attribute
 	attNameList.sprintf("(MyType");
@@ -1611,12 +1602,11 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					char *ts_expr;
 					clock = atoi(attVal);
 
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
-					if (ts_expr == NULL) {
+					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");	
 						if (attName) {
 							free(attName);
@@ -1626,14 +1616,12 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 					}
 
 					if (strcasecmp(attName, "lastheardfrom") == 0) { 
-						tmpVal.sprintf("%s, %s", ts_expr, attVal);
-						lastHeardFrom.sprintf("%s", ts_expr);
+						tmpVal.sprintf("%s, %s", ts_expr.Value(), attVal);
+						lastHeardFrom.sprintf("%s", ts_expr.Value());
 					} else {
-						tmpVal.sprintf("%s", ts_expr);
+						tmpVal.sprintf("%s", ts_expr.Value());
 					}
 					
-					free(ts_expr);
-
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					tmpVal.sprintf("%s", attVal);
@@ -1681,13 +1669,13 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	if (!inlist.IsEmpty()) inlist += ")";
 
 		// get the previous lastheardfrom from the database 
-	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
 	
-	ret_st = DBObj->execQuery(sql_stmt.GetCStr(), num_result);
+	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;		
 		return FAILURE;
 	}
@@ -1702,33 +1690,33 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
 	}
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}	
 
-	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
 	
 		// insert new tuple into daemons_horizontal 
-	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.GetCStr(), attValList.GetCStr());
+	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}		 
@@ -1742,27 +1730,27 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		   don't appear in the new class ad
 		*/
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Masters_Vertical_History (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Masters_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.GetCStr(), daemonName.GetCStr(), inlist.GetCStr());
+		 sql_stmt.sprintf("INSERT INTO Masters_Vertical_History (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Masters_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("INSERT INTO Masters_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Masters_Vertical WHERE name = '%s'", daemonName.GetCStr());
+		 sql_stmt.sprintf("INSERT INTO Masters_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Masters_Vertical WHERE name = '%s'", daemonName.Value());
 	 } 
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
 
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM masters_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.GetCStr(), inlist.GetCStr());
+		 sql_stmt.sprintf("DELETE FROM masters_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("DELETE FROM masters_vertical WHERE name = '%s'", daemonName.GetCStr());
+		 sql_stmt.sprintf("DELETE FROM masters_vertical WHERE name = '%s'", daemonName.Value());
 	 }
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }	 
@@ -1770,29 +1758,29 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 sql_stmt.sprintf("INSERT INTO masters_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM masters_vertical WHERE name = '%s' AND attr = '%s')", daemonName.GetCStr(), aName.Value(), aVal.Value(), lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO masters_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM masters_vertical WHERE name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }	 
 
-		 sql_stmt.sprintf("INSERT INTO masters_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM masters_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("INSERT INTO masters_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM masters_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());		
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE masters_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE masters_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
 		 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			errorSqlStmt = sql_stmt;
 			return FAILURE;
 		 }
@@ -1823,6 +1811,8 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	int	 ret_st;
 	int  attr_type;
 	int  num_result = 0;
+
+	MyString ts_expr;
 	
 		// first generate MyType='Negotiator' attribute
 	attNameList.sprintf("(MyType");
@@ -1875,12 +1865,11 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					char *ts_expr;
 					clock = atoi(attVal);
 
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
-					if (ts_expr == NULL) {
+					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 						if (attName) {
 							free(attName);
@@ -1890,14 +1879,12 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 					}
 
 					if (strcasecmp(attName, "lastheardfrom") == 0) {
-						tmpVal.sprintf("%s, %s", ts_expr, attVal);
-						lastHeardFrom.sprintf("%s", ts_expr);
+						tmpVal.sprintf("%s, %s", ts_expr.Value(), attVal);
+						lastHeardFrom.sprintf("%s", ts_expr.Value());
 					} else {
-						tmpVal.sprintf("%s", ts_expr);
+						tmpVal.sprintf("%s", ts_expr.Value());
 					}
 					
-					free(ts_expr);					
-
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					tmpVal.sprintf("%s", attVal);
@@ -1945,13 +1932,13 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	if (!inlist.IsEmpty()) inlist += ")";
 
 		// get the previous lastheardfrom from the database 
-	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName.Value());
 	
-	ret_st = DBObj->execQuery(sql_stmt.GetCStr(), num_result);
+	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -1966,32 +1953,32 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName.GetCStr());
+		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName.Value());
 	}
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
 
-	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName.GetCStr());
+	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Negotiator' AND Name = '%s'", daemonName.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
 		// insert new tuple into daemons_horizontal 
-	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.GetCStr(), attValList.GetCStr());
+	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2007,27 +1994,27 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		   don't appear in the new class ad
 		*/
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Negotiators_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Negotiators_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.GetCStr(), daemonName.GetCStr(), inlist.GetCStr());
+		 sql_stmt.sprintf("INSERT INTO Negotiators_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Negotiators_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("INSERT INTO Negotiators_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Negotiators_Vertical WHERE name = '%s'", daemonName.GetCStr());
+		 sql_stmt.sprintf("INSERT INTO Negotiators_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Negotiators_Vertical WHERE name = '%s'", daemonName.Value());
 	 }
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }
 
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM negotiators_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.GetCStr(), inlist.GetCStr());
+		 sql_stmt.sprintf("DELETE FROM negotiators_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("DELETE FROM negotiators_vertical WHERE name = '%s'", daemonName.GetCStr());
+		 sql_stmt.sprintf("DELETE FROM negotiators_vertical WHERE name = '%s'", daemonName.Value());
 	 }
 
-	 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
 	 }	 
@@ -2035,29 +2022,29 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 sql_stmt.sprintf("INSERT INTO negotiators_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM negotiators_vertical WHERE name = '%s' AND attr = '%s')", daemonName.GetCStr(), aName.Value(), aVal.Value(), lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO negotiators_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM negotiators_vertical WHERE name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }	 
 
-		 sql_stmt.sprintf("INSERT INTO negotiators_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM negotiators_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("INSERT INTO negotiators_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM negotiators_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());	
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());	
 			 errorSqlStmt = sql_stmt;
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE negotiators_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.GetCStr(), daemonName.GetCStr(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE negotiators_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
 		 
-		 if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 			errorSqlStmt = sql_stmt;
 			return FAILURE;
 		 }
@@ -2070,7 +2057,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	MyString sql_stmt;
 	MyString classAd;
 	const char *iter;	
-	char *newvalue;
+	MyString newvalue;
 
 	char *attName = NULL, *attVal;
 	MyString attNameList = "";
@@ -2122,7 +2109,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 
 				newvalue = condor_ttdb_buildts(&clock, dt);
 
-				if (newvalue == NULL) {
+				if (newvalue.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertBasic\n");
 					if (attName) {
 						free(attName);
@@ -2135,7 +2122,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 					/* for other values, check if it contains escape char 
 					   escape single quote if any within the value
 					*/
-				newvalue = jqDBManager.fillEscapeCharacters(attVal);	   
+				newvalue = condor_ttdb_fillEscapeCharacters(attVal, dt);
 			}
 
 			if (isFirst) {
@@ -2150,9 +2137,9 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 					   of its data type 
 					*/
 				if (newvalue[0] == '"') {
-					attValList.sprintf("('%s'", newvalue);
+					attValList.sprintf("('%s'", newvalue.Value());
 				} else {
-					attValList.sprintf("(%s", newvalue);
+					attValList.sprintf("(%s", newvalue.Value());
 				}
 			} else {					
 						// is not the first in the list
@@ -2168,7 +2155,6 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 				}
 			}
 
-			free(newvalue);
 			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -2176,11 +2162,11 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	if (!attNameList.IsEmpty()) attNameList += ")";
 	if (!attValList.IsEmpty()) attValList += ")";
 
-	sql_stmt.sprintf("INSERT INTO %s %s VALUES %s", tableName, attNameList.GetCStr(), attValList.GetCStr());
+	sql_stmt.sprintf("INSERT INTO %s %s VALUES %s", tableName, attNameList.Value(), attValList.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2192,26 +2178,24 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 	MyString sql_stmt;
 	MyString classAd;
 	const char *iter;	
-	char *newvalue;
+	MyString newvalue;
 
 	char *attName = NULL, *attVal;
     MyString attNameList = "";
 	MyString attValList = "";
 
-	char *runid_expr;
+	MyString runid_expr;
 
 		// first generate runid attribute
 	runid_expr = condor_ttdb_buildseq(dt, "SeqRunId");
 
-	if (!runid_expr) {
+	if (runid_expr.IsEmpty()) {
 		dprintf(D_ALWAYS, "Sequence expression not build in TTManager::insertRuns\n");
 		return FAILURE;
 	}
 
 	attNameList.sprintf("(run_id");
-	attValList.sprintf("(%s", runid_expr);
-
-	free(runid_expr);
+	attValList.sprintf("(%s", runid_expr.Value());
 
 	ad->sPrint(classAd);
 
@@ -2233,7 +2217,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 				clock = atoi(attVal);
 				newvalue = condor_ttdb_buildts(&clock, dt);
 
-				if (newvalue == NULL) {
+				if (newvalue.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
 					if (attName) {
 						free(attName);
@@ -2245,7 +2229,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 			} else {
 
 					// escape single quote if any within the value
-				newvalue = jqDBManager.fillEscapeCharacters(attVal);		
+				newvalue = condor_ttdb_fillEscapeCharacters(attVal, dt);
 			}
 
 				// is not the first in the list
@@ -2260,7 +2244,6 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 				attValList += "'";
 			}
 
-			free(newvalue);
 			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -2268,11 +2251,11 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 	if (!attNameList.IsEmpty()) attNameList += ")";
 	if (!attValList.IsEmpty()) attValList += ")";
 
-	sql_stmt.sprintf("INSERT INTO Runs %s VALUES %s", attNameList.GetCStr(), attValList.GetCStr());
+	sql_stmt.sprintf("INSERT INTO Runs %s VALUES %s", attNameList.Value(), attValList.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2293,7 +2276,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 	MyString messagestr = "";
 
 	int eventtype;
-	char *newvalue;
+	MyString newvalue;
 
 	ad->sPrint(classAd);
 
@@ -2314,7 +2297,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				clock = atoi(attVal);
 				newvalue = condor_ttdb_buildts(&clock, dt);
 
-				if (newvalue == NULL) {
+				if (newvalue.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertEvents\n");
 					free(attName);
 					return FAILURE;
@@ -2322,7 +2305,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				
 			} else {
 					// escape single quote if any within the value
-				newvalue = jqDBManager.fillEscapeCharacters(attVal);
+				newvalue = condor_ttdb_fillEscapeCharacters(attVal, dt);
 			}
 
 			if (strcasecmp(attName, "scheddname") == 0) {
@@ -2334,28 +2317,27 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 			} else if (strcasecmp(attName, "spid") == 0) {
 				subproc = newvalue;
 			} else if (strcasecmp(attName, "eventtype") == 0) {
-				eventtype = atoi(newvalue);
+				eventtype = atoi(newvalue.Value());
 			} else if (strcasecmp(attName, "eventtime") == 0) {
 				eventts = newvalue;
 			} else if (strcasecmp(attName, "description") == 0) {
 				messagestr = newvalue;
 			}
 			
-			free(newvalue);
 			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
 	if (eventtype == ULOG_JOB_ABORTED || eventtype == ULOG_JOB_HELD || ULOG_JOB_RELEASED) {
 		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, eventtype, eventtime, description) VALUES ('%s', %s, %s, %d, %s, '%s')", 
-				scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), eventtype, eventts.GetCStr(), messagestr.GetCStr());
+				scheddname.Value(), cluster.Value(), proc.Value(), eventtype, eventts.Value(), messagestr.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc_id = %s AND spid = %s AND endtype is null", scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), eventtype, eventts.GetCStr(), messagestr.GetCStr(), scheddname.GetCStr(), cluster.GetCStr(), proc.GetCStr(), subproc.GetCStr());
+		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc_id = %s AND spid = %s AND endtype is null", scheddname.Value(), cluster.Value(), proc.Value(), eventtype, eventts.Value(), messagestr.Value(), scheddname.Value(), cluster.Value(), proc.Value(), subproc.Value());
 	}
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2368,7 +2350,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	MyString classAd;
 	const char *iter;	
 	char *attName = NULL, *attVal;
-	char *seqexpr;
+	MyString seqexpr;
 
 	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", 
 		f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "";
@@ -2380,7 +2362,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	bool fileSame = TRUE;
 	struct stat file_status;
 	time_t old_ts;
-	char *ts_expr;
+	MyString ts_expr;
 
 	ad->sPrint(classAd);
 
@@ -2417,7 +2399,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	old_ts = atoi(f_ts);
 	ts_expr = condor_ttdb_buildts(&old_ts, dt);	
 
-	if (ts_expr == NULL) {
+	if (ts_expr.IsEmpty()) {
 		dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertFiles\n");
 
 		return FAILURE;
@@ -2473,21 +2455,17 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 
 	seqexpr = condor_ttdb_buildseq(dt, "condor_seqfileid");
 
-	if (!seqexpr) {
+	if (seqexpr.IsEmpty()) {
 		dprintf(D_ALWAYS, "Sequence expression not built in TTManager::insertFiles\n");
-		free(ts_expr);
 		return FAILURE;
 	}
 
 	sql_stmt.sprintf(
-			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr, f_name, f_host, f_path, ts_expr, f_size, hexSum, f_name, f_path, f_host, ts_expr);
+			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr.Value(), f_name, f_host, f_path, ts_expr.Value(), f_size, hexSum, f_name, f_path, f_host, ts_expr.Value());
 
-	free(seqexpr);
-	free(ts_expr);
-	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2505,8 +2483,8 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	int f_size;
 
 	time_t clock;
-	char *ts_expr;
-	char *onerow_expr;
+	MyString ts_expr;
+	MyString onerow_expr;
 
 	ad->sPrint(classAd);
 
@@ -2545,7 +2523,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	clock = atoi(f_ts);
 	ts_expr = condor_ttdb_buildts(&clock, dt);	
 
-	if (ts_expr == NULL) {
+	if (ts_expr.IsEmpty()) {
 		dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertFileusages\n");
 
 		return FAILURE;
@@ -2553,23 +2531,18 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 
 	onerow_expr = condor_ttdb_onerow_clause(dt);	
 
-	if (onerow_expr == NULL) {
+	if (onerow_expr.IsEmpty()) {
 		dprintf(D_ALWAYS, "ERROR: LIMIT 1 expression not built in TTManager::insertFileusages\n");
-
-		free(ts_expr);
 
 		return FAILURE;
 	}
 
 	sql_stmt.sprintf(
-			"INSERT INTO fileusages (globaljobid, file_id, usagetype) SELECT '%s', file_id, '%s' FROM files WHERE  name='%s' and path='%s' and host='%s' and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr, onerow_expr);
+			"INSERT INTO fileusages (globaljobid, file_id, usagetype) SELECT '%s', file_id, '%s' FROM files WHERE  name='%s' and path='%s' and host='%s' and lastmodified=%s %s", globaljobid, type, f_name, f_path, f_host, ts_expr.Value(), onerow_expr.Value());
 	
-	free(ts_expr);
-	free(onerow_expr);
-
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2586,7 +2559,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   ExprTree *R_expr;
   MyString value = "";
   MyString name = "";
-  char *newvalue;
+  MyString newvalue;
   char *tmp = NULL;
 
   bool flag1=false, flag2=false,flag3=false, flag4=false;
@@ -2601,16 +2574,16 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   sql_stmt2.sprintf(
           "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
-  if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 	  errorSqlStmt = sql_stmt;
 	  return FAILURE;	  
   }
 
-  if (DBObj->execCommand(sql_stmt2.GetCStr()) == FAILURE) {
+  if (DBObj->execCommand(sql_stmt2.Value()) == FAILURE) {
 	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.GetCStr());
+	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
 	  errorSqlStmt = sql_stmt2;
 	  return FAILURE;	  
   }
@@ -2640,83 +2613,79 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 			 the attribute of a cluster ad. And this is because 
 		     attribute list of cluster ad is chained to a job ad.
 		   */
-	  if(strcasecmp(name.GetCStr(), "jobstatus") == 0) {
+	  if(strcasecmp(name.Value(), "jobstatus") == 0) {
 		  if(flag4) continue;
 		  flag4 = true;
 	  }
 
-	  if(strcasecmp(name.GetCStr(), "remotewallclocktime") == 0) {
+	  if(strcasecmp(name.Value(), "remotewallclocktime") == 0) {
 		  if(flag1) continue;
 		  flag1 = true;
 	  }
-	  else if(strcasecmp(name.GetCStr(), "completiondate") == 0) {
+	  else if(strcasecmp(name.Value(), "completiondate") == 0) {
 		  if(flag2) continue;
 		  flag2 = true;
 	  }
-	  else if(strcasecmp(name.GetCStr(), "committedtime") == 0) {
+	  else if(strcasecmp(name.Value(), "committedtime") == 0) {
 		  if(flag3) continue;
 		  flag3 = true;
 	  }
 
-	  if(isHorizontalHistoryAttribute(name.GetCStr())) {
-		  if(strcasecmp(name.GetCStr(), "in") == 0 ||
-			 strcasecmp(name.GetCStr(), "user") == 0) {
+	  if(isHorizontalHistoryAttribute(name.Value())) {
+		  if(strcasecmp(name.Value(), "in") == 0 ||
+			 strcasecmp(name.Value(), "user") == 0) {
 			  name += "_j";
 		  }
   
 		  sql_stmt2 = "";
 
-		  if(strcasecmp(name.GetCStr(), "lastmatchtime") == 0 || 
-			 strcasecmp(name.GetCStr(), "jobstartdate") == 0 || 
-			 strcasecmp(name.GetCStr(), "jobcurrentstartdate") == 0 ||
-			 strcasecmp(name.GetCStr(), "enteredcurrentstatus") == 0 ||
-			 strcasecmp(name.GetCStr(), "shadowbday") == 0
+		  if(strcasecmp(name.Value(), "lastmatchtime") == 0 || 
+			 strcasecmp(name.Value(), "jobstartdate") == 0 || 
+			 strcasecmp(name.Value(), "jobcurrentstartdate") == 0 ||
+			 strcasecmp(name.Value(), "enteredcurrentstatus") == 0 ||
+			 strcasecmp(name.Value(), "shadowbday") == 0
 			 ) {
 				  // avoid updating with epoch time
-			  if (strcmp(value.GetCStr(), "0") == 0) {
+			  if (strcmp(value.Value(), "0") == 0) {
 				  continue;
 			  } 
 			
 			  time_t clock;
-			  char *ts_expr;
-			  clock = atoi(value.GetCStr());
+			  MyString ts_expr;
+			  clock = atoi(value.Value());
 			  
 			  ts_expr = condor_ttdb_buildts(&clock, dt);	
 				  
 			  sql_stmt.sprintf(
-					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.GetCStr(), ts_expr, scheddname, (unsigned long)scheddbirthdate, cid, pid);
-			  free(ts_expr);
+					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), ts_expr.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
 		  }	else {
-			  newvalue = jqDBManager.fillEscapeCharacters(value.GetCStr());
+			  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 			  sql_stmt.sprintf( 
-					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.GetCStr(), newvalue, scheddname, (unsigned long)scheddbirthdate, cid, pid);			  
-			  free(newvalue);
+					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), newvalue.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);			  
 		  }
 	  } else {
-		  newvalue = jqDBManager.fillEscapeCharacters(value.GetCStr());
+		  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 		  
 		  sql_stmt.sprintf(
-				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr());
+				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
 			  
 		  sql_stmt2.sprintf( 
-				  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.GetCStr(), newvalue);
+				  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value(), newvalue.Value());
+	  }
 
-		  free(newvalue);
-	  }	  
-
-	  if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		  
 		  errorSqlStmt = sql_stmt;
 
 		  return FAILURE;
 	  }
 		  
-	  if (!sql_stmt2.IsEmpty() && (DBObj->execCommand(sql_stmt2.GetCStr()) == FAILURE)) {
+	  if (!sql_stmt2.IsEmpty() && (DBObj->execCommand(sql_stmt2.Value()) == FAILURE)) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.GetCStr());
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
 		  
 		  errorSqlStmt = sql_stmt2;
 
@@ -2804,26 +2773,20 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 
   // Build timestamp expressions 
   old_ts = atoi(f_ts);
-  tmp = condor_ttdb_buildts(&old_ts, dt);
+  last_modified = condor_ttdb_buildts(&old_ts, dt);
 
-  if (tmp == NULL) {
+  if (last_modified.IsEmpty()) {
     dprintf(D_ALWAYS, "ERROR: Timestamp expression not build in TTManager::insertTransfers 1\n");
     return FAILURE;
   }
 
-  last_modified = tmp;
-  free(tmp);
+  transfer_time_expr = condor_ttdb_buildts(&transfer_time, dt);
 
-  tmp = condor_ttdb_buildts(&transfer_time, dt);
-
-  if (tmp == NULL) {
+  if (transfer_time_expr.IsEmpty()) {
     dprintf(D_ALWAYS, "ERROR: Timestamp expression not build in TTManager::insertTransfers 2\n");
     return FAILURE;
   }
 
-  transfer_time_expr = tmp;
-  free(tmp);
-  
   // Compute the checksum
   // We don't want to use the file on the starter side since it is
   // a temporary file
@@ -2883,11 +2846,11 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 		hexSum[0] = '\0';
   
   sql_stmt.sprintf(
-          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size_bytes, elapsed, dst_daemon, checksum, last_modified, transfer_time) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s, %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified.GetCStr(), transfer_time_expr.GetCStr());
+          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size_bytes, elapsed, dst_daemon, checksum, last_modified, transfer_time) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s, %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified.Value(), transfer_time_expr.Value());
 
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -2903,7 +2866,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 	MyString setList = "";
 	MyString whereList = "";
 	char *attName = NULL, *attVal;
-	char *newvalue;
+	MyString newvalue;
 	bool isRuns = FALSE;
 
 	if (strcasecmp (tableName, "Runs") == 0) {
@@ -2931,7 +2894,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 				clock = atoi(attVal);
 				newvalue = condor_ttdb_buildts(&clock, dt);
 
-				if (newvalue == NULL) {
+				if (newvalue.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
 					free(attName);
 					return FAILURE;
@@ -2940,7 +2903,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			} else {
 			
 					// escape single quote if any within the value
-				newvalue = jqDBManager.fillEscapeCharacters(attVal);
+				newvalue = condor_ttdb_fillEscapeCharacters(attVal, dt);
 			}
 			
 			setList += attName;
@@ -2954,7 +2917,6 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			}			
 			setList += ", ";
 			
-			free(newvalue);
 			free(attName);
 
 			iter = classAd.GetNextToken("\n", true);
@@ -2994,14 +2956,14 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 					clock = atoi(attVal);
 					newvalue = condor_ttdb_buildts(&clock, dt);
 
-					if (newvalue == NULL) {
+					if (newvalue.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
 						free(attName);
 						return FAILURE;
 					}
 					
 				} else {					
-					newvalue = strdup(attVal);
+					newvalue = attVal;
 				}
 				
 				whereList += attName;
@@ -3018,7 +2980,6 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 				whereList += " and ";
 
 				free(attName);
-				free(newvalue);
 
 				iter = classAd1.GetNextToken("\n", true);
 			}
@@ -3028,11 +2989,11 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 	}
 
 		// build sql stmt
-	sql_stmt.sprintf("UPDATE %s SET %s WHERE %s", tableName, setList.GetCStr(), whereList.GetCStr());		
+	sql_stmt.sprintf("UPDATE %s SET %s WHERE %s", tableName, setList.Value(), whereList.Value());		
 	
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		errorSqlStmt = sql_stmt;
 		return FAILURE;
 	}
@@ -3052,9 +3013,9 @@ void TTManager::handleErrorSqlLog()
 	char buffer[4096];
 	int rv;
 	FILESQL *filesqlobj = NULL;
-	char *newvalue;
+	MyString newvalue;
 
-	filesqlobj = new FILESQL(currentSqlLog.GetCStr(), O_RDWR);
+	filesqlobj = new FILESQL(currentSqlLog.Value(), O_RDWR);
 	
 	if (!filesqlobj) goto ERROREXIT;
 	
@@ -3067,54 +3028,47 @@ void TTManager::handleErrorSqlLog()
 	}		
 
 		/* get the last modified time for the sql log */
-	stat(currentSqlLog.GetCStr(), &file_status);
+	stat(currentSqlLog.Value(), &file_status);
 	f_ts = file_status.st_mtime;
 	
-	tmp = condor_ttdb_buildts(&f_ts, dt);
-
-	ts_expr = tmp;
-	free(tmp);
+	ts_expr = condor_ttdb_buildts(&f_ts, dt);
 
 		/* get the host name where the sql log sits */
 	hostname_val = my_full_hostname();
 
 		/* escape quotation in error sql */
-	newvalue = jqDBManager.fillEscapeCharacters(errorSqlStmt.GetCStr());
+	newvalue = condor_ttdb_fillEscapeCharacters(errorSqlStmt.Value(), dt);
 
 		/* insert an entry into the Error_Sqllogs table */
 	sql_stmt.sprintf("INSERT INTO Error_Sqllogs (LogName, Host, LastModified, ErrorSql, LogBody) VALUES ('%s', '%s', %s, '%s', '')", 
-					 currentSqlLog.GetCStr(), 
-					 hostname_val.GetCStr(), 
-					 ts_expr.GetCStr(), 
-					 newvalue);
+					 currentSqlLog.Value(), 
+					 hostname_val.Value(), 
+					 ts_expr.Value(), 
+					 newvalue.Value());
 
-	free(newvalue);	
-
-	if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		goto ERROREXIT;
 	}	
 	
 		/* copy the body in the sql log to the LogBody field of the entry */
-	src = safe_open_wrapper (currentSqlLog.GetCStr(), O_RDONLY);
+	src = safe_open_wrapper (currentSqlLog.Value(), O_RDONLY);
 
 	rv = read(src, buffer, 2048);
 
 	while(rv > 0) {
-		newvalue = jqDBManager.fillEscapeCharacters(buffer);
+		newvalue = condor_ttdb_fillEscapeCharacters(buffer, dt);
 
 		sql_stmt.sprintf("UPDATE Error_Sqllogs SET LogBody = LogBody || '%s' WHERE LogName = '%s' and Host = '%s' and LastModified = %s", 
-						 newvalue, 
-						 currentSqlLog.GetCStr(), 
-						 hostname_val.GetCStr(), 
-						 ts_expr.GetCStr());
+						 newvalue.Value(), 
+						 currentSqlLog.Value(), 
+						 hostname_val.Value(), 
+						 ts_expr.Value());
 
-		free(newvalue);
-
-		if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+		if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.GetCStr());			
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());			
 			goto ERROREXIT;
 		}
 		

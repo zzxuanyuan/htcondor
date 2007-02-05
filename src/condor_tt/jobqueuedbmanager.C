@@ -196,10 +196,10 @@ JobQueueDBManager::config(bool reconfig)
 			 */
 		sql_str.sprintf("INSERT INTO jobqueuepollinginfo (scheddname, last_file_mtime, last_file_size) SELECT '%s', 0, 0 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s')", scheddname, scheddname);
 		
-		ret_st = DBObj->execCommand(sql_str.GetCStr());
+		ret_st = DBObj->execCommand(sql_str.Value());
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
-					sql_str.GetCStr());
+					sql_str.Value());
 		}
 	
 			/* create an entry in currency table if this schedd is the first
@@ -207,9 +207,9 @@ JobQueueDBManager::config(bool reconfig)
 			 */
 		sql_str.sprintf("INSERT INTO currencies (datasource) SELECT '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM currencies WHERE datasource = '%s')", scheddname, scheddname);
 
-		ret_st = DBObj->execCommand(sql_str.GetCStr());
+		ret_st = DBObj->execCommand(sql_str.Value());
 		if (ret_st == FAILURE) {
-			dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str.GetCStr());
+			dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str.Value());
 		}
 	
 		
@@ -341,7 +341,7 @@ JobQueueDBManager::cleanupJobQueueTables()
 			 scheddname);
 
 	for (i = 0; i < sqlNum; i++) {
-		if (DBObj->execCommand(sql_str[i].GetCStr()) == FAILURE) {
+		if (DBObj->execCommand(sql_str[i].Value()) == FAILURE) {
 			displayErrorMsg("Clean UP ALL Data --- ERROR");
 			
 			return FAILURE;
@@ -422,7 +422,6 @@ JobQueueDBManager::buildAndWriteJobQueue()
 
 	jobQueue->setDBObj(DBObj);
 	jobQueue->setDBtype(dt);
-	jobQueue->setJobQueueDBManager(this);
 
 	dprintf(D_FULLDEBUG, "Bulkloading 1st Phase: Parsing a job_queue.log "
 			"file and building job collection!\n");
@@ -899,7 +898,7 @@ JobQueueDBManager::processNewClassAd(char* key,
 	}
 
 
-	if (DBObj->execCommand(sql_str.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
 		displayErrorMsg("New ClassAd Processing --- ERROR");
 		return FAILURE;
 	}
@@ -970,12 +969,12 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		break;
 	}
   
-	if (DBObj->execCommand(sql_str1.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_str1.Value()) == FAILURE) {
 		displayErrorMsg("Destroy ClassAd Processing --- ERROR");
 		return FAILURE; // return a error code, 0
 	}
 
-	if (DBObj->execCommand(sql_str2.GetCStr()) == FAILURE) {
+	if (DBObj->execCommand(sql_str2.Value()) == FAILURE) {
 		displayErrorMsg("Destroy ClassAd Processing --- ERROR");
 		return FAILURE; // return a error code, 0
 	}
@@ -1007,7 +1006,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 	char pid[512];
 	int  job_id_type;
 		//int		ret_st;
-	char *newvalue = NULL;
+	MyString newvalue;
 
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -1018,38 +1017,33 @@ JobQueueDBManager::processSetAttribute(char* key,
 		if(isHorizontalClusterAttribute(name)) {
 			if (strcasecmp(name, "qdate") == 0) {
 				time_t clock;
-				char *ts_expr;
+				MyString ts_expr;
 				clock = atoi(value);
 				
 				ts_expr = condor_ttdb_buildts(&clock, dt);
 
-				if (ts_expr == NULL) {
+				if (ts_expr.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
 					return FAILURE;
 				}
 
 				sql_str_del_in.sprintf(
-						 "UPDATE ClusterAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s'", name, ts_expr, scheddname, cid);
-				
-				free(ts_expr);
+						 "UPDATE ClusterAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s'", name, ts_expr.Value(), scheddname, cid);
 
 			} else {
-				newvalue = fillEscapeCharacters(value);
+				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 					// escape single quote within the value
 				sql_str_del_in.sprintf(
-						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s'", name, newvalue, scheddname, cid);
-				free(newvalue);
+						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s'", name, newvalue.Value(), scheddname, cid);
 
 			}
 		} else {
-			newvalue = fillEscapeCharacters(value);
+			newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 			sql_str_del_in.sprintf(
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND attr = '%s'", scheddname, cid, name);
 
 			sql_str2.sprintf(
-					 "INSERT INTO ClusterAds_Vertical (scheddname, cluster_id, attr, val) VALUES ('%s', '%s', '%s', '%s')", scheddname, cid, name, newvalue);
-
-			free(newvalue);
+					 "INSERT INTO ClusterAds_Vertical (scheddname, cluster_id, attr, val) VALUES ('%s', '%s', '%s', '%s')", scheddname, cid, name, newvalue.Value());
 		}
 
 		break;
@@ -1058,34 +1052,30 @@ JobQueueDBManager::processSetAttribute(char* key,
 			if ((strcasecmp(name, "shadowbday") == 0) ||
 				(strcasecmp(name, "enteredcurrentstatus") == 0)) {
 				time_t clock;
-				char *ts_expr;
+				MyString ts_expr;
 				clock = atoi(value);
 				
 				ts_expr = condor_ttdb_buildts(&clock, dt);
 
-				if (ts_expr == NULL) {
+				if (ts_expr.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
 					return FAILURE;
 				}
 				
 				sql_str_del_in.sprintf(
-									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, ts_expr, scheddname, cid, pid);
-				free(ts_expr);
+									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, ts_expr.Value(), scheddname, cid, pid);
 			} else {
-				newvalue = fillEscapeCharacters(value);
+				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 				sql_str_del_in.sprintf(
-									   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, newvalue, scheddname, cid, pid);
-				free(newvalue);
+									   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, newvalue.Value(), scheddname, cid, pid);
 			}
 		} else {
-			newvalue = fillEscapeCharacters(value);
+			newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 			sql_str_del_in.sprintf(
 					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc_id = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 
 			sql_str2.sprintf(
-					 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc_id, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue);	
-
-			free(newvalue);
+					 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc_id, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue.Value());	
 		}
 		
 		break;
@@ -1097,22 +1087,22 @@ JobQueueDBManager::processSetAttribute(char* key,
   
 	QuillErrCode ret_st;
 
-	ret_st = DBObj->execCommand(sql_str_del_in.GetCStr());
+	ret_st = DBObj->execCommand(sql_str_del_in.Value());
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
-				sql_str_del_in.GetCStr());
+				sql_str_del_in.Value());
 		displayErrorMsg("Set Attribute --- ERROR");      
 
 		return FAILURE;
 	}
 
 	if (!sql_str2.IsEmpty()) {
-		ret_st = DBObj->execCommand(sql_str2.GetCStr());
+		ret_st = DBObj->execCommand(sql_str2.Value());
 
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
-					sql_str2.GetCStr());
+					sql_str2.Value());
 			displayErrorMsg("Set Attribute --- ERROR");      
 
 			return FAILURE;
@@ -1173,11 +1163,11 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 	}
 
 	if (!sql_str.IsEmpty()) {
-		ret_st = DBObj->execCommand(sql_str.GetCStr());
+		ret_st = DBObj->execCommand(sql_str.Value());
 		
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n",
-					sql_str.GetCStr());
+					sql_str.Value());
 			displayErrorMsg("Delete Attribute --- ERROR");
 
 			return FAILURE;
@@ -1241,11 +1231,11 @@ JobQueueDBManager::getJQPollingInfo()
 
 	sql_str.sprintf("SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s'", scheddname);
 
-	ret_st = DBObj->execQuery(sql_str.GetCStr(), num_result);
+	ret_st = DBObj->execQuery(sql_str.Value(), num_result);
 		
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Reading JobQueuePollInfo --- ERROR [SQL] %s\n", 
-				sql_str.GetCStr());
+				sql_str.Value());
 		displayErrorMsg("Reading JobQueuePollInfo --- ERROR");
 		return FAILURE;
 	}
@@ -1372,46 +1362,3 @@ JobQueueDBManager::setJQPollingInfo()
 	}
 	return ret_st;
 }
-
-char * JobQueueDBManager::fillEscapeCharacters(const char * str) {
-	int i, j;
-	
-	int len = strlen(str);
-
-		/* here we allocate for the worst case -- every byte going to the
-		   database needs to be escaped, except the trailing null */
-	char *newstr = (char *) malloc(( 2 * len + 1) * sizeof(char));
-        
-	j = 0;
-	for (i = 0; i < len; i++) {
-		switch(str[i]) {
-        case '\\':
-			if (dt == T_PGSQL) {
-					/* postgres need to escape backslash */
-				newstr[j] = '\\';
-				newstr[j+1] = '\\';
-				j += 2;
-			} else {
-					/* other database only include oracle, which doesn't
-					   need to escape backslash */
-				newstr[j] = str[i];
-				j++;
-			}
-            break;
-        case '\'':
-				/* both oracle and postgres can escape a single quote with 
-				   another single quote */
-            newstr[j] = '\'';
-            newstr[j+1] = '\'';
-            j += 2;
-            break;
-        default:
-            newstr[j] = str[i];
-            j++;
-            break;
-		}
-	}
-	newstr[j] = '\0';
-    return newstr;
-}
-

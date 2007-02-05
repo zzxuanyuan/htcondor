@@ -106,11 +106,6 @@ void JobQueueCollection::setDBtype(dbtype dt)
 	this->dt = dt;
 }
 
-void JobQueueCollection::setJobQueueDBManager(JobQueueDBManager *ptr)
-{
-	this->jqDBManager = ptr;
-}
-
 //! find a ProcAd
 /*! \param cid Cluster Id
  *  \param pid Proc Id
@@ -482,7 +477,8 @@ JobQueueCollection::loadAd(char* cid,
 	int len;
 	char* attNameList = NULL, *attValList = NULL;
 	char* tmpVal = NULL;
-	char* newvalue = NULL;
+	MyString newvalue;
+	MyString ts_expr;
 
 		// first generate the key columns
 	if (pid != NULL) {
@@ -531,21 +527,19 @@ JobQueueCollection::loadAd(char* cid,
 
 				switch (typeOf(name)) {				
 				case CONDOR_TT_TYPE_STRING:	
-					newvalue = jqDBManager->fillEscapeCharacters(value);
-					sprintf(tmpVal, "'%s'", newvalue);
-					free(newvalue);
+					newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
+					sprintf(tmpVal, "'%s'", newvalue.Value());
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", value);
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					char *ts_expr;
 					clock = atoi(value);
 
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
-					if (ts_expr == NULL) {
+					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
 						free(attNameList);
 						free(attValList);	
@@ -554,8 +548,7 @@ JobQueueCollection::loadAd(char* cid,
 						return FAILURE;
 					}
 					
-					sprintf(tmpVal, "%s", ts_expr);
-					free(ts_expr);
+					sprintf(tmpVal, "%s", ts_expr.Value());
 					
 						/* the converted timestamp value is longer, so realloc
 						   the buffer for attValList
@@ -579,13 +572,12 @@ JobQueueCollection::loadAd(char* cid,
 				free(tmpVal);
 			} else {			
 					// this is a vertical attribute
-				newvalue = jqDBManager->fillEscapeCharacters(value);
+				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 				len = 1024 + strlen(name) + strlen(scheddname) +
-					strlen(newvalue) + strlen(cid) + strlen(pid);
+					newvalue.Length() + strlen(cid) + strlen(pid);
 				sql_str = (char *) malloc(len);
 				snprintf(sql_str, len, "INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", 
-						 scheddname,cid, pid, name, newvalue);
-				free(newvalue);
+						 scheddname,cid, pid, name, newvalue.Value());
 
 				if (DBObj->execCommand(sql_str) == FAILURE) {
 					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
@@ -616,21 +608,19 @@ JobQueueCollection::loadAd(char* cid,
 
 				switch (typeOf(name)) {				
 				case CONDOR_TT_TYPE_STRING:	
-					newvalue = jqDBManager->fillEscapeCharacters(value);
-					sprintf(tmpVal, "'%s'", newvalue);
-					free(newvalue);
+					newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
+					sprintf(tmpVal, "'%s'", newvalue.Value());
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
 					sprintf(tmpVal, "%s", value);
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					char *ts_expr;
 					clock = atoi(value);					
 					
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
-					if (ts_expr == NULL) {
+					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
 						free(attNameList);
 						free(attValList);	
@@ -639,8 +629,7 @@ JobQueueCollection::loadAd(char* cid,
 						return FAILURE;
 					}
 					
-					sprintf(tmpVal, "%s", ts_expr);
-					free(ts_expr);	
+					sprintf(tmpVal, "%s", ts_expr.Value());
 					
 						/* the converted timestamp value is longer, so realloc
 						   the buffer for attValList
@@ -663,12 +652,11 @@ JobQueueCollection::loadAd(char* cid,
 				free(tmpVal); 				
 			} else {
 					// this is a vertical attribute
-				newvalue = jqDBManager->fillEscapeCharacters(value);
+				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 				len = 1024 + strlen(name) + strlen(scheddname) +
-					strlen(newvalue) + strlen(cid);
+					newvalue.Length() + strlen(cid);
 				sql_str = (char *) malloc(len);
-				snprintf(sql_str, len, "INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue);
-				free(newvalue);
+				snprintf(sql_str, len, "INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue.Value());
 				if (DBObj->execCommand(sql_str) == FAILURE) {
 					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
 					free(sql_str);

@@ -24,11 +24,14 @@
 #ifndef _CONDOR_TTDB_H_
 #define _CONDOR_TTDB_H_
 
+#include "condor_common.h"
+#include "MyString.h"
 #include <time.h>
 #include "quill_enums.h"
 
-char *condor_ttdb_buildts(time_t *tv, dbtype dt);
-char *condor_ttdb_buildseq(dbtype dt, char *seqName);
-char *condor_ttdb_onerow_clause(dbtype dt);
+MyString condor_ttdb_buildts(time_t *tv, dbtype dt);
+MyString condor_ttdb_buildseq(dbtype dt, char *seqName);
+MyString condor_ttdb_onerow_clause(dbtype dt);
+MyString condor_ttdb_fillEscapeCharacters(const char * str, dbtype dt);
 
 #endif /* _CONDOR_TTDB_H_ */

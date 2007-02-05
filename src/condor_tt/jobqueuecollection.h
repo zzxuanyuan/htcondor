@@ -151,7 +151,6 @@ public:
 
 	void 		setDBObj(JobQueueDatabase *DBObj);
 	void 		setDBtype(dbtype dt);
-	void 		setJobQueueDBManager(JobQueueDBManager *ptr);
 private:
        	//
        	// helper functions
@@ -180,7 +179,6 @@ private:
 	char*   scheddname;
 	JobQueueDatabase*	DBObj;
 	dbtype dt;
-	JobQueueDBManager* jqDBManager;
 };
 
 bool isHorizontalClusterAttribute(const char *attr);

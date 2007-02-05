@@ -26,12 +26,14 @@
 #include "misc_utils.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include "MyString.h"
 
-char *condor_ttdb_buildts(time_t *tv, dbtype dt)
+MyString condor_ttdb_buildts(time_t *tv, dbtype dt)
 {
 	char tsv[100];
 	struct tm *tm;	
-	char *rv;
+	MyString rv;
 
 	tm = localtime(tv);		
 
@@ -46,61 +48,84 @@ char *condor_ttdb_buildts(time_t *tv, dbtype dt)
 
 	switch(dt) {
 	case T_ORACLE:
-		rv = (char *)malloc(200);
-		snprintf(rv, 200, "TO_TIMESTAMP_TZ('%s', 'MM/DD/YYYY HH24:MI:SS TZD')",
-				 tsv);
+		rv.sprintf("TO_TIMESTAMP_TZ('%s', 'MM/DD/YYYY HH24:MI:SS TZD')", tsv);
 		break;
 	case T_PGSQL:
-		rv = (char *)malloc(100);
-		snprintf(rv, 100, "'%s'", 
-				 tsv);		
+		rv.sprintf("'%s'", tsv);		
 		break;
 	default:
-		rv = NULL;
 		break;
 	}
 
 	return rv;
 }
 
-char *condor_ttdb_buildseq(dbtype dt, char *seqName)
+MyString condor_ttdb_buildseq(dbtype dt, char *seqName)
 {
-	char *rv;
+	MyString rv;
 
 	switch(dt) {
 	case T_ORACLE:
-		rv = (char *)malloc(50);
-		snprintf(rv, 50, "%s.nextval", seqName);
+		rv.sprintf("%s.nextval", seqName);
 		break;
 	case T_PGSQL:
-		rv = (char *)malloc(50);
-		snprintf(rv, 50, "nextval('%s')", seqName);		
+		rv.sprintf("nextval('%s')", seqName);		
 		break;
 	default:
-		rv = NULL;
 		break;
 	}
 
 	return rv;
 }
 
-char *condor_ttdb_onerow_clause(dbtype dt)
+MyString condor_ttdb_onerow_clause(dbtype dt)
 {
-	char *rv;
+	MyString rv;
 
 	switch(dt) {
 	case T_ORACLE:
-		rv = (char *)malloc(50);
-		snprintf(rv, 50, " and ROWNUM <= 1");
+		rv.sprintf(" and ROWNUM <= 1");
 		break;
 	case T_PGSQL:
-		rv = (char *)malloc(50);
-		snprintf(rv, 50, " LIMIT 1");
+		rv.sprintf(" LIMIT 1");
 		break;
 	default:
-		rv = NULL;
 		break;
 	}
 
 	return rv;	
+}
+
+MyString condor_ttdb_fillEscapeCharacters(const char * str, dbtype dt) {
+	int i;
+	
+	int len = strlen(str);
+
+	MyString newstr;
+        
+	for (i = 0; i < len; i++) {
+		switch(str[i]) {
+        case '\\':
+			if (dt == T_PGSQL) {
+					/* postgres need to escape backslash */
+				newstr += '\\';
+				newstr += '\\';
+			} else {
+					/* other database only include oracle, which doesn't
+					   need to escape backslash */
+				newstr += str[i];
+			}
+            break;
+        case '\'':
+				/* both oracle and postgres can escape a single quote with 
+				   another single quote */
+            newstr += '\'';
+            newstr += '\'';
+            break;
+        default:
+            newstr += str[i];
+            break;
+		}
+	}
+    return newstr;
 }
