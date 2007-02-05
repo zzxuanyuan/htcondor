@@ -331,40 +331,6 @@ static MyString getWritePassword(const char *write_passwd_fname,
 	return passwd;
 }
 
-MyString fillEscapeCharacters(const char * str) {
-    int i;
-
-    int len = strlen(str);
-
-    MyString newstr;
-
-    for (i = 0; i < len; i++) {
-        switch(str[i]) {
-        case '\\':
-            if (dt == T_PGSQL) {
-                    /* postgres need to escape backslash */
-                newstr += '\\';
-                newstr += '\\';
-            } else {
-                    /* other database only include oracle, which doesn't
-                       need to escape backslash */
-                newstr += str[i];
-            }
-            break;
-        case '\'':
-                /* both oracle and postgres can escape a single quote with
-                   another single quote */
-            newstr += '\'';
-            newstr += '\'';
-            break;
-        default:
-            newstr += str[i];
-            break;
-        }
-    }
-    return newstr;
-}
-
 QuillErrCode insertHistoryJob(AttrList *ad) {
   int        cid, pid;
   MyString   sql_stmt, sql_stmt2;
@@ -456,21 +422,20 @@ QuillErrCode insertHistoryJob(AttrList *ad) {
 			  } 
 			
 			  time_t clock;
-			  char *ts_expr;
+			  MyString ts_expr;
 			  clock = atoi(value.GetCStr());
 			  
 			  ts_expr = condor_ttdb_buildts(&clock, dt);	
 				  
-			  sql_stmt.sprintf("UPDATE History_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name.GetCStr(), ts_expr, scheddname, cid, pid);
-			  free(ts_expr);
+			  sql_stmt.sprintf("UPDATE History_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name.GetCStr(), ts_expr.Value(), scheddname, cid, pid);
 
 		  }	else {
-			  newvalue = fillEscapeCharacters(value.GetCStr());
+			  newvalue = condor_ttdb_fillEscapeCharacters(value.GetCStr(), dt);
 			  sql_stmt.sprintf("UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = %d and proc = %d", name.GetCStr(), newvalue.GetCStr(), 
 							   scheddname, cid, pid);			  
 		  }
 	  } else {
-		  newvalue = fillEscapeCharacters(value.GetCStr());
+		  newvalue = condor_ttdb_fillEscapeCharacters(value.GetCStr(), dt);
 		  
 		  sql_stmt = ""; 
 		  sql_stmt2 = ""; 
