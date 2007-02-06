@@ -824,6 +824,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	MyString aName, aVal, temp, machine_id;
 
 	MyString lastHeardFrom = "";
+	MyString clob_comp_expr;
 
 		// previous LastHeardFrom from the current classad
 		// previous LastHeardFrom from the database's machines_horizontal
@@ -1111,7 +1112,9 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 			
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), machine_id.Value(), aName.Value(), aVal.Value());
+		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
+
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1120,7 +1123,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), machine_id.Value(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1160,7 +1163,8 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	int  num_result = 0;
 
 	MyString ts_expr;
-
+	MyString clob_comp_expr;
+	
 		// first generate MyType='Scheduler' attribute
 	attNameList.sprintf("(MyType");
 	attValList.sprintf("('Scheduler'");
@@ -1504,7 +1508,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("INSERT INTO schedds_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM schedds_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
+		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
+
+		 sql_stmt.sprintf("INSERT INTO schedds_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM schedds_vertical WHERE name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1512,8 +1518,8 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 errorSqlStmt = sql_stmt;			 
 			 return FAILURE;
 		 }
-
-		 sql_stmt.sprintf("UPDATE schedds_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
+		 
+		 sql_stmt.sprintf("UPDATE schedds_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1550,6 +1556,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	int  num_result = 0;
 
 	MyString ts_expr;
+	MyString clob_comp_expr;
 
 		// first generate MyType='Master' attribute
 	attNameList.sprintf("(MyType");
@@ -1767,7 +1774,9 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 return FAILURE;
 		 }	 
 
-		 sql_stmt.sprintf("INSERT INTO masters_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM masters_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
+		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
+
+		 sql_stmt.sprintf("INSERT INTO masters_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM masters_vertical WHERE name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1776,7 +1785,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE masters_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE masters_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1813,7 +1822,8 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	int  num_result = 0;
 
 	MyString ts_expr;
-	
+	MyString clob_comp_expr;
+
 		// first generate MyType='Negotiator' attribute
 	attNameList.sprintf("(MyType");
 	attValList.sprintf("('Negotiator'");
@@ -2031,7 +2041,9 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			 return FAILURE;
 		 }	 
 
-		 sql_stmt.sprintf("INSERT INTO negotiators_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM negotiators_vertical WHERE name = '%s' AND attr = '%s' AND val != '%s'", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
+		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
+
+		 sql_stmt.sprintf("INSERT INTO negotiators_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM negotiators_vertical WHERE name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2040,7 +2052,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE negotiators_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND val != '%s'", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), aVal.Value());
+		 sql_stmt.sprintf("UPDATE negotiators_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");

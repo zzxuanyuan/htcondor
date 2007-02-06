@@ -3,17 +3,33 @@ Before installing this script, the following must have been prepared
 1. quillreader account has been created
 */
 
+CREATE TABLE machines_vertical (
+machine_id varchar(4000) NOT NULL,
+attr       varchar(2000) NOT NULL, 
+val        clob, 
+start_time timestamp(3) with time zone, 
+Primary Key (machine_id, attr)
+);
+
+CREATE TABLE machines_vertical_history (
+machine_id varchar(4000),
+attr       varchar(4000), 
+val        clob, 
+start_time timestamp(3) with time zone, 
+end_time   timestamp(3) with time zone
+);
+
 CREATE TABLE ClusterAds_Horizontal(
 scheddname          varchar(4000) NOT NULL,
 cluster_id          integer NOT NULL,
-owner               varchar(20),
+owner               varchar(30),
 jobstatus           integer,
 jobprio             integer,
-imagesize           integer,
+imagesize           numeric(38),
 qdate               timestamp(3) with time zone,
-remoteusercpu       double precision,
-remotewallclocktime double precision,
-cmd                 varchar(4000),
+remoteusercpu       numeric(38),
+remotewallclocktime numeric(38),
+cmd                 clob,
 args                clob,
 jobuniverse         integer,
 primary key(scheddname,cluster_id)
@@ -26,9 +42,9 @@ scheddname		varchar(4000) NOT NULL,
 cluster_id	 	integer NOT NULL,
 proc_id			integer NOT NULL,
 jobstatus 		integer,
-imagesize 		integer,
-remoteusercpu	        double precision,
-remotewallclocktime 	double precision,
+imagesize 		numeric(38),
+remoteusercpu	        numeric(38),
+remotewallclocktime 	numeric(38),
 remotehost              varchar(4000),
 globaljobid        	varchar(4000),
 jobprio            	integer,
@@ -45,7 +61,7 @@ scheddbirthdate     integer NOT NULL,
 cluster_id              integer NOT NULL,
 proc_id			integer NOT NULL,
 qdate                   integer, -- condor_history requires an integer for qdate
-owner                   varchar(20),
+owner                   varchar(30),
 globaljobid             varchar(4000),
 numckpts                integer,
 numrestarts             integer,
@@ -55,14 +71,14 @@ condorplatform          varchar(4000),
 rootdir                 varchar(4000),
 Iwd                     varchar(4000),
 jobuniverse             integer,
-cmd                     varchar(4000),
+cmd                     clob,
 minhosts                integer,
 maxhosts                integer,
 jobprio                 integer,
 user_j                	varchar(4000),
 env                     varchar(4000),
 userlog                 varchar(4000),
-coresize                integer,
+coresize                numeric(38),
 killsig                 varchar(4000),
 rank                    varchar(4000),
 in_j	              	varchar(4000),
@@ -73,7 +89,7 @@ err                     varchar(4000),
 transfererr             varchar(5),
 shouldtransferfiles     varchar(4000),
 transferfiles           varchar(4000),
-executablesize          integer,
+executablesize          numeric(38),
 diskusage               integer,
 requirements            varchar(4000),
 filesystemdomain        varchar(4000),
@@ -83,26 +99,26 @@ numjobmatches           integer,
 jobstartdate            timestamp(3) with time zone,
 jobcurrentstartdate     timestamp(3) with time zone,
 jobruncount             integer,
-filereadcount           double precision,
-filereadbytes           double precision,
-filewritecount          double precision,
-filewritebytes          double precision,
-fileseekcount           double precision,
+filereadcount           numeric(38),
+filereadbytes           numeric(38),
+filewritecount          numeric(38),
+filewritebytes          numeric(38),
+fileseekcount           numeric(38),
 totalsuspensions        integer,
-imagesize               integer,
+imagesize               numeric(38),
 exitstatus              integer,
-localusercpu            double precision,
-localsyscpu             double precision,
-remoteusercpu           double precision,
-remotesyscpu            double precision,
-bytessent      	        double precision,
-bytesrecvd              double precision,
-rscbytessent            double precision,
-rscbytesrecvd           double precision,
+localusercpu            numeric(38),
+localsyscpu             numeric(38),
+remoteusercpu           numeric(38),
+remotesyscpu            numeric(38),
+bytessent      	        numeric(38),
+bytesrecvd              numeric(38),
+rscbytessent            numeric(38),
+rscbytesrecvd           numeric(38),
 exitcode                integer,
 jobstatus               integer,
 enteredcurrentstatus    timestamp(3) with time zone,
-remotewallclocktime     double precision,
+remotewallclocktime     numeric(38),
 lastremotehost          varchar(4000),
 completiondate          integer, -- condor_history requires an integer 
 enteredhistorytable     timestamp(3) with time zone,
@@ -111,6 +127,109 @@ primary key		(scheddname,scheddbirthdate, cluster_id, proc_id)
 );
 
 CREATE INDEX Hist_H_I_owner ON Jobs_Horizontal_History (owner);
+
+CREATE TABLE ClusterAds_Vertical (
+scheddname	varchar(4000) NOT NULL,
+cluster_id		integer NOT NULL,
+attr	        varchar(2000) NOT NULL,
+val		clob,
+primary key (scheddname,cluster_id, attr)
+);
+
+CREATE TABLE ProcAds_Vertical (
+scheddname	varchar(4000) NOT NULL,
+cluster_id	integer NOT NULL,
+proc_id		integer NOT NULL,
+attr	        varchar(2000) NOT NULL,
+val		clob,
+primary key (scheddname,cluster_id, proc_id, attr)
+);
+
+CREATE TABLE Jobs_Vertical_History (
+scheddname	varchar(4000) NOT NULL,
+scheddbirthdate integer NOT NULL,
+cluster_id	integer NOT NULL,
+proc_id		integer NOT NULL,
+attr		varchar(2000) NOT NULL,
+val		clob,
+primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
+);
+
+CREATE TABLE GenericMessages (
+eventType	varchar(4000),
+eventKey	varchar(4000),
+eventTime	timestamp(3) with time zone,
+eventLoc        varchar(4000),
+attName	        varchar(4000),
+attValue	clob,
+attType	varchar(4000)
+);
+
+CREATE TABLE Daemons_Vertical (
+MyType				VARCHAR(100) NOT NULL,
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				clob,
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (MyType, Name, attr)
+);
+
+CREATE TABLE Daemons_Vertical_History (
+MyType				VARCHAR(100),
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				clob,
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Schedds_Vertical (
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				clob,
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (Name, attr)
+);
+
+CREATE TABLE Schedds_Vertical_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				clob,
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Masters_Vertical (
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				clob,
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (Name, attr)
+);
+
+CREATE TABLE Masters_Vertical_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				clob,
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
+
+CREATE TABLE Negotiators_Vertical (
+Name				VARCHAR(500) NOT NULL,
+attr				VARCHAR(4000) NOT NULL,
+val				clob,
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+PRIMARY KEY (Name, attr)
+);
+
+CREATE TABLE Negotiators_Vertical_History (
+Name				VARCHAR(500),
+LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+attr				VARCHAR(4000),
+val				clob,
+EndTime				TIMESTAMP(3) WITH TIME ZONE
+);
 
 CREATE TABLE Error_Sqllogs (
 LogName   varchar(100),

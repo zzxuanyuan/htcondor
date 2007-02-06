@@ -6,7 +6,7 @@
 */
 
 CREATE TABLE cdb_users (
-username varchar(8),
+username varchar(30),
 password character(32),
 admin varchar(5));
 
@@ -49,22 +49,6 @@ usagetype  	varchar(4000));
 CREATE sequence condor_seqfileid;
 
 -- Added by pachu
-
-CREATE TABLE machines_vertical (
-machine_id varchar(4000) NOT NULL,
-attr       varchar(2000) NOT NULL, 
-val        varchar(4000), 
-start_time timestamp(3) with time zone, 
-Primary Key (machine_id, attr)
-);
-
-CREATE TABLE machines_vertical_history (
-machine_id varchar(4000),
-attr       varchar(4000), 
-val        varchar(4000), 
-start_time timestamp(3) with time zone, 
-end_time   timestamp(3) with time zone
-);
 
 CREATE TABLE machines_horizontal (
 machine_id             varchar(4000) NOT NULL,
@@ -136,32 +120,6 @@ end_time	       timestamp(3) with time zone
 -- END Added by Pachu
 
 -- BEGIN Added by Ameet
-CREATE TABLE ClusterAds_Vertical (
-scheddname	varchar(4000) NOT NULL,
-cluster_id		integer NOT NULL,
-attr	        varchar(2000) NOT NULL,
-val		varchar(4000),
-primary key (scheddname,cluster_id, attr)
-);
-
-CREATE TABLE ProcAds_Vertical (
-scheddname	varchar(4000) NOT NULL,
-cluster_id	integer NOT NULL,
-proc_id		integer NOT NULL,
-attr	        varchar(2000) NOT NULL,
-val		varchar(4000),
-primary key (scheddname,cluster_id, proc_id, attr)
-);
-
-CREATE TABLE Jobs_Vertical_History (
-scheddname	varchar(4000) NOT NULL,
-scheddbirthdate integer NOT NULL,
-cluster_id	integer NOT NULL,
-proc_id		integer NOT NULL,
-attr		varchar(2000) NOT NULL,
-val		varchar(4000),
-primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
-);
 
 CREATE SEQUENCE SeqRunId;
 
@@ -182,8 +140,8 @@ RunLocalUsageUser       integer,
 RunLocalUsageSystem     integer,
 RunRemoteUsageUser      integer,
 RunRemoteUsageSystem    integer,
-RunBytesSent            double precision,
-RunBytesReceived        double precision, 
+RunBytesSent            numeric(38),
+RunBytesReceived        numeric(38), 
 PRIMARY KEY (run_id));
 
 -- END Added by Ameet
@@ -278,16 +236,6 @@ INSERT INTO L_eventType values (22, 'RSC socket lost');
 INSERT INTO L_eventType values (23, 'RSC socket re-established');
 INSERT INTO L_eventType values (24, 'RSC reconnect failure');
 
-CREATE TABLE GenericMessages (
-eventType	varchar(4000),
-eventKey	varchar(4000),
-eventTime	timestamp(3) with time zone,
-eventLoc        varchar(4000),
-attName	        varchar(4000),
-attValue	varchar(4000),
-attType	varchar(4000)
-);
-
 CREATE TABLE JobQueuePollingInfo (
 scheddname           varchar(4000),
 last_file_mtime      INTEGER, 
@@ -314,8 +262,8 @@ MyType				VARCHAR(100) NOT NULL,
 Name				VARCHAR(500) NOT NULL,
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 MonitorSelfTime			TIMESTAMP(3) WITH TIME ZONE,
-MonitorSelfCPUUsage		DOUBLE PRECISION,
-MonitorSelfImageSize		DOUBLE PRECISION,
+MonitorSelfCPUUsage		numeric(38),
+MonitorSelfImageSize		numeric(38),
 MonitorSelfResidentSetSize	INTEGER,
 MonitorSelfAge			INTEGER,
 UpdateSequenceNumber		INTEGER,
@@ -327,22 +275,13 @@ lastheardfrom_epoch             integer,
 PRIMARY KEY (MyType, Name)
 );
 
-CREATE TABLE Daemons_Vertical (
-MyType				VARCHAR(100) NOT NULL,
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				VARCHAR(4000),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (MyType, Name, attr)
-);
-
 CREATE TABLE Daemons_Horizontal_History (
 MyType				VARCHAR(100),
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 MonitorSelfTime			TIMESTAMP(3) WITH TIME ZONE,
-MonitorSelfCPUUsage		DOUBLE PRECISION,
-MonitorSelfImageSize		DOUBLE PRECISION,
+MonitorSelfCPUUsage		numeric(38),
+MonitorSelfImageSize		numeric(38),
 MonitorSelfResidentSetSize	INTEGER,
 MonitorSelfAge			INTEGER,
 UpdateSequenceNumber		INTEGER,
@@ -350,15 +289,6 @@ UpdatesTotal			INTEGER,
 UpdatesSequenced		INTEGER,
 UpdatesLost			INTEGER,
 UpdatesHistory			VARCHAR(4000),
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Daemons_Vertical_History (
-MyType				VARCHAR(100),
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
@@ -385,54 +315,6 @@ TotalJobAds			INTEGER,
 TotalHeldJobs			INTEGER,
 TotalFlockedJobs		INTEGER,
 TotalRemovedJobs		INTEGER,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Schedds_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				VARCHAR(4000),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Schedds_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				VARCHAR(4000),
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Masters_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				VARCHAR(4000),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Masters_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				VARCHAR(4000),
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Negotiators_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				VARCHAR(4000),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Negotiators_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 

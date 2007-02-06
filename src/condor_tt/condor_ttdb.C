@@ -129,3 +129,22 @@ MyString condor_ttdb_fillEscapeCharacters(const char * str, dbtype dt) {
 	}
     return newstr;
 }
+
+
+MyString condor_ttdb_compare_clob_to_lit(dbtype dt, const char* col_nam, const char* literal)
+{
+	MyString rv;
+
+	switch(dt) {
+	case T_ORACLE:
+		rv.sprintf("dbms_lob.compare(%s, '%s') != 0", col_nam, literal);
+		break;
+	case T_PGSQL:
+		rv.sprintf("%s != '%s'", col_nam, literal);
+		break;
+	default:
+		break;
+	}
+
+	return rv;
+}

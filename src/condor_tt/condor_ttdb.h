@@ -33,5 +33,6 @@ MyString condor_ttdb_buildts(time_t *tv, dbtype dt);
 MyString condor_ttdb_buildseq(dbtype dt, char *seqName);
 MyString condor_ttdb_onerow_clause(dbtype dt);
 MyString condor_ttdb_fillEscapeCharacters(const char * str, dbtype dt);
+MyString condor_ttdb_compare_clob_to_lit(dbtype dt, const char* col_nam, const char* literal);
 
 #endif /* _CONDOR_TTDB_H_ */
