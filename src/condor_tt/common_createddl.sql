@@ -197,12 +197,6 @@ scheddname      varchar(4000),
 cluster_id      integer,
 proc_id		integer,
 globaljobid     varchar(4000),
-requirements	integer,
-jobprio 	integer,
-rank		integer,
-policy		integer,
-network		integer,
-networkshare	integer
 );
 
 CREATE TABLE Matches (
