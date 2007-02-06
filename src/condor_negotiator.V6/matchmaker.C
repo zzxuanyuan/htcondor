@@ -2058,14 +2058,6 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 		// request attributes
 	int				requestAutoCluster = -1;
 
-		// Counts for various reject reasons
-	int		requirements_num = 0;
-	int 		rank_num = 0;
-	int 		priority_num = 0;
-	int 		policy_num = 0;
-	int 		network_num = 0;
-	int 		networkshare_num = 0;
-	
 	request.LookupInteger(ATTR_AUTO_CLUSTER_ID, requestAutoCluster);
 
 		// If this incoming job is from the same user, same schedd,
@@ -2205,7 +2197,6 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 		if( !( *candidate == request ) ) {
 				// they don't match; continue
 			dprintf(D_FULLDEBUG,"They don't match \n");
-			requirements_num++;
 			continue;
 		}
 
@@ -2241,7 +2232,6 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 					// offer does not strictly prefer this request.
 					// try the next offer since only_for_statdrank flag is set
 					dprintf(D_FULLDEBUG,"Only for startd rank \n");
-					rank_num++;
 
 				continue;
 			}
@@ -2273,8 +2263,6 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						!(PreemptionReq->EvalTree(candidate,&request,&result) &&
 						result.type == LX_INTEGER && result.i == TRUE) ) {
 					rejPreemptForPolicy++;
-					/* CONDORDB Insert into rejects table */
-					policy_num++;
 					continue;
 				}
 					// (2) we need to make sure that the machine ranks the job
@@ -2284,8 +2272,6 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						result.type == LX_INTEGER && result.i == TRUE ) ) {
 						// machine doesn't like this job as much -- find another
 					rejPreemptForRank++;
-					/* CONDORDB Insert into rejects table */
-					rank_num++;
 					continue;
 				}
 			} else {
@@ -2296,8 +2282,6 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						// preempt one of our own jobs!
 					rejPreemptForPrio++;
 				}
-				/* CONDORDB Insert into rejects table */
-				priority_num++;
 				continue;
 			}
 		}
@@ -2310,13 +2294,9 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 										   ckptSize, request, *candidate);
 		if (rval == 1) {
 			rejForNetworkShare++;
-			/* CONDORDB Insert into rejects table */
-			networkshare_num++;
 			continue;
 		} else if (rval == 0) {
 			rejForNetwork++;
-			/* CONDORDB Insert into rejects table */
-			network_num++;
 			continue;
 		}
 #endif
@@ -2429,10 +2409,11 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 								*bestSoFar);
 	}
 #endif
-	/* Insert a tuple into the rejects tables, but only if at least one of these numbers is greater than 0 */
-	if(requirements_num || rank_num || priority_num || policy_num || network_num || networkshare_num)
-		insert_into_rejects(scheddName,request,requirements_num,rank_num,priority_num,policy_num,network_num,networkshare_num);
-
+	if(!bestSoFar)
+	{
+	/* Insert an entry into the rejects table only if no matches were found at all */
+		insert_into_rejects(scheddName,request);
+	}
 	// this is the best match
 	return bestSoFar;
 }
@@ -3119,7 +3100,7 @@ Matchmaker::invalidateNegotiatorAd( void )
 }
 
 /* CONDORDB functions */
-void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requirements_num, int rank_num, int priority_num, int policy_num, int network_num, int networkshare_num)
+void Matchmaker::insert_into_rejects(char *userName, ClassAd& job)
 {
 	int cluster, proc;
 //	char startdname[80];
@@ -3138,7 +3119,6 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 	job.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
 	get_scheddname_from_gjid(globaljobid,scheddName);
 //	machine.LookupString(ATTR_NAME, startdname);
-	dprintf(D_FULLDEBUG,"%d %d %d %d %d %d\n",requirements_num,priority_num,rank_num,policy_num,network_num,networkshare_num);
 
 	snprintf(tmp, 512, "reject_time = %d", (int)clock);
 	tmpClP->Insert(tmp);
@@ -3157,29 +3137,6 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, int requireme
 
 	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
 	tmpClP->Insert(tmp);
-	
-	snprintf(tmp, 512, "requirements = %d", requirements_num);
-	tmpClP->Insert(tmp);
-	
-	snprintf(tmp, 512, "jobprio = %d", priority_num);
-	tmpClP->Insert(tmp);
-	
-	snprintf(tmp, 512, "rank = %d", rank_num);
-	tmpClP->Insert(tmp);
-	
-	snprintf(tmp, 512, "policy = %d", policy_num);
-	tmpClP->Insert(tmp);
-	
-	snprintf(tmp, 512, "network = %d", network_num);
-	tmpClP->Insert(tmp);
-	
-	snprintf(tmp, 512, "networkshare = %d", networkshare_num);
-	tmpClP->Insert(tmp);
-//	snprintf(tmp, 512, "startdname = \"%s\"", startdname);
-//	tmpClP->Insert(tmp);
-	
-//	snprintf(tmp, 512, "diagnosis = \"%s\"", diagnosis);
-//	tmpClP->Insert(tmp);
 	
 	FILEObj->file_newEvent("Rejects", tmpClP);
 }

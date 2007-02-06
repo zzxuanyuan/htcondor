@@ -154,7 +154,7 @@ class Matchmaker : public Service
 		int trimStartdAds(ClassAdList &startdAds);
 
 		/* ODBC insert functions */
-		void insert_into_rejects(char *userName, ClassAd& job, int requirements_num, int rank_num, int priority_num, int policy_num, int network_num, int networkshare_num);
+		void insert_into_rejects(char *userName, ClassAd& job);
 		void insert_into_matches(char * userName, ClassAd& request, ClassAd& offer);
 		
 		// configuration information
