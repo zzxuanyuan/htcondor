@@ -423,8 +423,12 @@ DCSchedd::register_transferd(MyString sinful, MyString id, int timeout,
 		ReliSock **regsock_ptr, CondorError *errstack) 
 {
 	ReliSock *rsock;
-	int msg_ack = 0;
+	int invalid_request = 0;
 	char *tmp = NULL;
+	ClassAd regad;
+	ClassAd respad;
+	MyString errstr;
+	MyString reason;
 
 	if (regsock_ptr != NULL) {
 		// Our caller wants a pointer to the socket we used to succesfully
@@ -458,33 +462,42 @@ DCSchedd::register_transferd(MyString sinful, MyString id, int timeout,
 
 	rsock->encode();
 
-	// now, send the sinful string of the transferd to the schedd.
-	// this is bad form on a number of levels.... A) I'm type casting away
-	// constness, B) code can modify its arguments if it is in decode mode,
-	// thereby corrupting the pointer returned and that aliasing into sinful.
-	tmp = (char*)sinful.Value();
-	rsock->code(tmp);
-	rsock->eom();
+	// set up my registration request.
+	regad.Assign(ATTR_TREQ_TD_SINFUL, sinful);
+	regad.Assign(ATTR_TREQ_TD_ID, id);
 
-	// send the identification string the schedd supplied me with back to the
-	// schedd
-	tmp = (char*)id.Value();
-	rsock->code(tmp);
+	// This is the initial registration identification ad to the schedd
+	// It contains:
+	//	ATTR_TREQ_TD_SINFUL
+	//	ATTR_TREQ_TD_ID
+	regad.put(*rsock);
 	rsock->eom();
 
 	// Get the response from the schedd.
 	rsock->decode();
 
-	// schedd responds with an acknowledgement integer and a reason string.
-	rsock->code(msg_ack);
+	// This is the response ad from the schedd:
+	// It contains:
+	//	ATTR_TREQ_INVALID_REQUEST
+	//
+	// OR
+	// 
+	//	ATTR_TREQ_INVALID_REQUEST
+	//	ATTR_TREQ_INVALID_REASON
+	respad.initFromStream(*rsock);
 	rsock->eom();
 
-	if (msg_ack == 1) {
+	respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid_request);
+
+	if (invalid_request == FALSE) {
+		// not an invalid request
 		*regsock_ptr = rsock;
 		return true;
 	}
 
-	errstack->push("DC_SCHEDD", 1, "Schedd refused registration.");
+	respad.LookupString(ATTR_TREQ_INVALID_REASON, reason);
+	errstr.sprintf("Schedd refused registration: %s", reason.Value());
+	errstack->push("DC_SCHEDD", 1, errstr.Value());
 
 	return false;
 }

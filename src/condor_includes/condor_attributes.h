@@ -570,6 +570,7 @@ extern const char * ATTR_TREQ_JOBID_LIST;
 extern const char * ATTR_TREQ_PEER_VERSION;
 extern const char * ATTR_TREQ_FTP;
 extern const char * ATTR_TREQ_TD_SINFUL;
+extern const char * ATTR_TREQ_TD_ID;
 extern const char * ATTR_TREQ_CONSTRAINT;
 extern const char * ATTR_TREQ_JOBID_ALLOW_LIST;
 extern const char * ATTR_TREQ_JOBID_DENY_LIST;

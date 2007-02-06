@@ -59,7 +59,6 @@ DCTransferD::setup_treq_channel(ReliSock **treq_sock_ptr,
 	int timeout, CondorError *errstack) 
 {
 	ReliSock *rsock;
-	int hello = -1;
 
 	if (treq_sock_ptr != NULL) {
 		// Our caller wants a pointer to the socket we used to succesfully
@@ -100,36 +99,16 @@ DCTransferD::setup_treq_channel(ReliSock **treq_sock_ptr,
 		return false;
 	}
 
-	/////////////////////////////////////////////////////////////////////////
-	// Send a hello
-	/////////////////////////////////////////////////////////////////////////
-
-	hello = 1;
-	rsock->encode();
-	rsock->code(hello);
-	rsock->eom();
-
-	// make sure it changes after the decode
-	hello = 0;
-
-	/////////////////////////////////////////////////////////////////////////
-	// Receive an acknowledgement
-	/////////////////////////////////////////////////////////////////////////
-
-	rsock->decode();
-	rsock->code(hello);
-	rsock->eom();
-
 	rsock->encode();
 
-	if (hello == 1) {
-		*treq_sock_ptr = rsock;
-		return true;
-	}
+	/////////////////////////////////////////////////////////////////////////
+	// At this point, the socket passed all of the authentication protocols
+	// so it is ready for use.
+	/////////////////////////////////////////////////////////////////////////
 
-	errstack->push("DC_TRANSFERD", 1, "Transferd did bad handshake.");
+	*treq_sock_ptr = rsock;
 
-	return false;
+	return true;
 }
 
 // upload the files associated with the jobads to the sandbox at td_sinful
@@ -145,7 +124,6 @@ DCTransferD::upload_job_files(int JobAdsArrayLen, ClassAd* JobAdsArray[],
 	ReliSock *rsock = NULL;
 	int timeout = 60 * 60 * 8; // transfers take a long time...
 	int i;
-	int result = -1;
 	ClassAd reqad, respad;
 	MyString cap;
 	int ftp;
@@ -314,7 +292,6 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 	ReliSock *rsock = NULL;
 	int timeout = 60 * 60 * 8; // transfers take a long time...
 	int i;
-	int result = -1;
 	ClassAd reqad, respad;
 	MyString cap;
 	int ftp;

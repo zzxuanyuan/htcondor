@@ -398,7 +398,7 @@ Scheduler::requestSandboxLocation(int mode, Stream* s)
 	// the td, the schedd is given a chance to play with the jobads represented
 	// by this array, and then update the treq with the real jobads it wants
 	// the td to use.
-	// This object gets ownership over this memory.
+	// This treq object gets ownership over the passed in memory.
 	treq->set_procids(modify_allow_jobs);
 
 	// Stash the client socket into the treq for later use in a callback...
@@ -528,12 +528,27 @@ Scheduler::requestSandboxLocation(int mode, Stream* s)
 			// manager for it to start. Stash the client socket into the object
 			// so when it comes online, we can continue our discussion with the
 			// client.
+
 			// XXX Should I test this against the keys in the manager table
 			// to ensure there are unique ids for the transferds I have
 			// requested to invoke--a collision would be nasty here.
 			rand_id.randomlyGenerateHex(64); 
+
 			td = new TransferDaemon(fquser, rand_id, TD_PRE_INVOKED);
+
 			ASSERT(td != NULL);
+			// set up the registration callback
+			desc = "Transferd Registration callback";
+			td->set_reg_callback(desc, 
+				(TDRegisterCallback)
+					&Scheduler::td_register_callback, this);
+
+			// set up the reaper callback
+			desc = "Transferd Reaper callback";
+			td->set_reaper_callback(desc, 
+				(TDReaperCallback)
+					&Scheduler::td_reaper_callback, this);
+
 		} else {
 			// clear the fact there was a living daemon associated with this
 			// object, and let the invoke_a_td() call restart the daemon.
@@ -567,8 +582,8 @@ Scheduler::requestSandboxLocation(int mode, Stream* s)
 	}
 	rsock->eom();
 
-	// queue the transfer request to the waiting td who will own the memory
-	// and the socket.
+	// queue the transfer request to the waiting td who will own the 
+	// transfer request memory which owns the socket.
 	td->add_transfer_request(treq);
 
 	// Push the request to the td itself, where the callbacks from the 
@@ -581,13 +596,38 @@ Scheduler::requestSandboxLocation(int mode, Stream* s)
 	return KEEP_STREAM;
 }
 
+///////////////////////////////////////////////////////////////////////////
+// A callback notification from the TDMan object the schedd gets when the 
+// registration of a transferd is complete and the transferd is considered
+// open for business.
+///////////////////////////////////////////////////////////////////////////
+TdAction
+Scheduler::td_register_callback(TransferDaemon *td)
+{
+	dprintf(D_ALWAYS, "Scheduler::td_register_callback() called\n");
+
+	return TD_ACTION_CONTINUE;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// A callback notification from the TDMan object the schedd gets when the 
+// transferd has died.
+///////////////////////////////////////////////////////////////////////////
+TdAction
+Scheduler::td_reaper_callback(long pid, int status, TransferDaemon *td)
+{
+	dprintf(D_ALWAYS, "Scheduler::td_reaper_callback() called\n");
+
+	return TD_ACTION_TERMINATE;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////
 // These are the callbacks related to transfer requests which are upload
 // requests.
 ///////////////////////////////////////////////////////////////////////////
 
-// In this handler, if the handler wants to return TREQ_ACTION_TERMINATE, then
+// In this handler, if the handler wants to return TREQ_ACTION_FORGET, then
 // the treq pointer is owned by this handler and must be deleted by this
 // handler, for all other return values this handler should not delete the treq.
 TreqAction
@@ -627,7 +667,7 @@ Scheduler::treq_upload_pre_push_callback(TransferRequest *treq,
 }
 
 
-// In this handler, if the handler wants to return TREQ_ACTION_TERMINATE, then
+// In this handler, if the handler wants to return TREQ_ACTION_FORGET, then
 // the treq pointer is owned by this handler and must be deleted by this
 // handler, for all other return values this handler should not delete the treq.
 TreqAction
@@ -705,7 +745,7 @@ Scheduler::treq_upload_post_push_callback(TransferRequest *treq,
 	return TREQ_ACTION_CONTINUE;
 }
 
-// In this handler, if the handler wants to return TREQ_ACTION_TERMINATE, then
+// In this handler, if the handler wants to return TREQ_ACTION_FORGET, then
 // the treq pointer is owned by this handler and must be deleted by this
 // handler, for all other return values this handler should not delete the treq.
 // If the update status is satisfactory, then update the transfer time
@@ -882,30 +922,27 @@ Scheduler::treq_upload_update_callback(TransferRequest *treq,
 	if (buf) free(buf);
 
 	////////////////////////////////////////////////////////////////////////
-	// I'm done with this treq, so get rid of it because I own the memory
-	// in the case where I tell the engine to terminate processing of
-	// the request.
+	// After proper fixing up of the job in the queue, tell the callback engine
+	// that I'm done with this request. A termination returns value will
+	// have the callback engine free the treq.
 	////////////////////////////////////////////////////////////////////////
-
-	delete treq;
 
 	return TREQ_ACTION_TERMINATE;
 }
 
+// This function does NOT own the memory passed to it ever. If you want a copy
+// of the treq, you must make one.
 TreqAction
 Scheduler::treq_upload_reaper_callback(TransferRequest *treq)
 {
-	// Hmm... the td is no longer alive, so maybe schedd wants to reinvoke
-	// another one here and repass it the treq among other manipulation of
-	// the jobs associated with this treq.
-
 	dprintf(D_ALWAYS, "Scheduler::treq_upload_reaper_callback() called.\n");
 
-	// XXX I might want requeue this or not, I have to check the treq to see 
-	// what state it was in (did it have a capability? etc) to figure out 
-	// what to do about it.
-
-	return TREQ_ACTION_CONTINUE;
+	////////////////////////////////////////////////////////////////////////
+	// Until we figure out a better solution to what we do here, leave the
+	// job on hold, and terminate the request.
+	////////////////////////////////////////////////////////////////////////
+	
+	return TREQ_ACTION_TERMINATE;
 }
 
 
@@ -1068,34 +1105,27 @@ Scheduler::treq_download_update_callback(TransferRequest *treq,
 	}
 
 	////////////////////////////////////////////////////////////////////////
-	// I'm done with this treq, so get rid of it because I own the memory
-	// in the case where I tell the engine to terminate processing of
-	// the request.
+	// After proper fixing up of the job in the queue, tell the callback engine
+	// that I'm done with this request. A termination returns value will
+	// have the callback engine free the treq.
 	////////////////////////////////////////////////////////////////////////
-
-	delete treq;
 
 	return TREQ_ACTION_TERMINATE;
 }
 
+// This function does NOT own the memory passed to it. If you want a copy
+// of the treq, you must make one.
 TreqAction
 Scheduler::treq_download_reaper_callback(TransferRequest *treq)
 {
-	////////////////////////////////////////////////////////////////////////
-	// The td is no longer alive, so maybe schedd wants to reinvoke
-	// another one here and repass it the treq among other manipulation of
-	// the jobs associated with this treq.
-	////////////////////////////////////////////////////////////////////////
-
 	dprintf(D_ALWAYS, "Scheduler::treq_download_reaper_callback() called.\n");
 
 	////////////////////////////////////////////////////////////////////////
-	// XXX I might want requeue this or not, I have to check the treq to see 
-	// what state it was in (did it have a capability? etc) to figure out 
-	// what to do about it.
+	// Until we figure out a better solution to what we do here, leave the
+	// job on hold, and terminate the request.
 	////////////////////////////////////////////////////////////////////////
-
-	return TREQ_ACTION_CONTINUE;
+	
+	return TREQ_ACTION_TERMINATE;
 }
 
 

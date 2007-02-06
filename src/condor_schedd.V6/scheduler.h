@@ -340,8 +340,15 @@ class Scheduler : public Service
 	void			add_shadow_rec_pid(shadow_rec*);
 	void			HadException( match_rec* );
 
+	// Callbacks which are notifications from the TDMan object about
+	// registrations and reaping of transfer daemons
+	// These functions DO NOT own the memory passed to them.
+	TdAction td_register_callback(TransferDaemon *td);
+	TdAction td_reaper_callback(long pid, int status, TransferDaemon *td);
+
 	// Callbacks to handle transfer requests for clients uploading files into
 	// Condor's control.
+	// These functions DO NOT own the memory passed to them.
 	TreqAction treq_upload_pre_push_callback(TransferRequest *treq, 
 		TransferDaemon *td);
 	TreqAction treq_upload_post_push_callback(TransferRequest *treq, 
@@ -352,6 +359,7 @@ class Scheduler : public Service
 
 	// Callbacks to handle transfer requests for clients downloading files
 	// out of Condor's control.
+	// These functions DO NOT own the memory passed to them.
 	TreqAction treq_download_pre_push_callback(TransferRequest *treq, 
 		TransferDaemon *td);
 	TreqAction treq_download_post_push_callback(TransferRequest *treq, 

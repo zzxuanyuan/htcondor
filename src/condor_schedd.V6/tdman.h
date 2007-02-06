@@ -27,11 +27,17 @@
 #include "../condor_transferd/condor_td.h"
 #include "HashTable.h"
 
+// used for the registration and reaping of a transferd
+enum TdAction {
+	TD_ACTION_CONTINUE,		/* everything is ok, keep going */
+	TD_ACTION_TERMINATE		/* stop the transferd and remove the object */
+};
+
 // After a transferd registers successfully, this will be called back.
-typedef int (Service::*TDRegisterCallback)(TransferDaemon *td);
+typedef TdAction (Service::*TDRegisterCallback)(TransferDaemon *td);
 
 // When a transferd dies, this will be called back
-typedef int (Service::*TDReaperCallback)(int pid, int status, 
+typedef TdAction (Service::*TDReaperCallback)(long pid, int status, 
 	TransferDaemon *td);
 
 // This holds the status for a particular transferd
@@ -81,16 +87,27 @@ class TDUpdateContinuation
 };
 
 // This represents the invocation, and current status, of a transfer daemon
-class TransferDaemon
+class TransferDaemon 
 {
 	public:
 		TransferDaemon(MyString fquser, MyString id, TDMode status);
-		/*
-		TransferDaemon(MyString fquser, MyString id, TDMode status,
-						TDRegisterCallback reg_callback, 
-						TDReaperCallback reap_callback);
-		*/
 		~TransferDaemon();
+
+		// A handler that gets called when this transferd registers itself
+		// properly.
+		void set_reg_callback(MyString desc, TDRegisterCallback callback, 
+			Service *base);
+		void get_reg_callback(MyString &desc, TDRegisterCallback &callback,
+			Service *&base);
+		TdAction call_reg_callback(TransferDaemon *td);
+
+		// If the transfer daemon has died, then this callback gets invoked
+		// so the schedd can clean things up a bit.
+		void set_reaper_callback(MyString desc, TDReaperCallback callback,
+			Service *base);
+		void get_reaper_callback(MyString &desc, TDReaperCallback &callback,
+			Service *&base);
+		TdAction call_reaper_callback(long pid, int status, TransferDaemon *td);
 
 		// This transferd had been started on behalf of a fully qualified user
 		// This records who that user is.
@@ -140,6 +157,10 @@ class TransferDaemon
 		// This function does NOT own the memory passed to it.
 		bool update_transfer_request(ClassAd *update);
 
+		// The schedd's transfer request reaper is given control of the memory
+		// of each transfer request as it is being reaped by the schedd.
+		void reap_all_transfer_requests(void);
+
 		// If I want to restart a real transferd associated with this object,
 		// then clear out the parts that represent a living daemon.
 		void clear(void);
@@ -167,22 +188,23 @@ class TransferDaemon
 		// Key: capability, Value: TransferRequest
 		HashTable<MyString, TransferRequest*> m_treqs_in_progress;
 
-		// Storage of Transfer Requests when transferd had its say about them
-		SimpleList<TransferRequest*> m_treqs_finished;
-
 		// The registration socket that the schedd also receives updates on.
 		ReliSock *m_update_sock; 
 
 		// The socket the schedd initiated to send treqs to the td
 		ReliSock *m_treq_sock;
 
-		// When the tranferd wakes up an registers, call this when the
+		// When the tranferd wakes up and registers, call this when the
 		// registration process in complete
+		MyString m_reg_func_desc;
 		TDRegisterCallback m_reg_func;
+		Service *m_reg_func_this;
 
 		// If the transferd dies, invoke this callback with its identification
 		// and how it died.
+		MyString m_reap_func_desc;
 		TDReaperCallback m_reap_func;
+		Service *m_reap_func_this;
 };
 
 class TDMan : public Service
@@ -217,7 +239,7 @@ class TDMan : public Service
 		void register_handlers(void);
 
 		// what to do when a td dies or exits
-		int transferd_reaper(int pid, int status);
+		int transferd_reaper(long pid, int status);
 
 		// deal with a td that comes back to register itself to me.
 		int transferd_registration(int cmd, Stream *sock);
@@ -242,6 +264,7 @@ class TDMan : public Service
 		// a table of pids associated with running transferds so reapers
 		// can do their work, among other things. This is a hash table
 		// of alias pointers into m_td_table.
+		// Key: pid of td process, Value: alias transferd
 		HashTable<long, TransferDaemon*> *m_td_pid_table;
 	
 	// NOTE: When we get around to implementing multiple tds per user with

@@ -52,17 +52,54 @@ TransferD::dump_state_handler(int cmd, Stream *sock)
 	return !KEEP_STREAM;
 }
 
+// inspect the transfer request data structures and exit if they have been
+// empty for too long.
+int
+TransferD::exit_due_to_inactivity_timer(void)
+{
+	time_t now;
+
+	if (m_inactivity_timer == 0) {
+		// When we accept a transfer request, we set this to zero
+		// which signifies that we are not in a timeout possible
+		// state.
+		
+		return TRUE;
+	}
+
+	// When the last transfer request is processed,
+	// then this is set to that unix time. Then, as this timer
+	// goes off, we compare "now" against that last timestamp of
+	// when something last left the queue and if the difference
+	// is greater than the timeout value, the transferd exits.
+
+	now = time(NULL);
+
+	if ((now - m_inactivity_timer) > g_td.m_features.get_timeout()) {
+		// nothing to clean up, so exit;
+		DC_Exit(TD_EXIT_TIMEOUT);
+	}
+
+	return TRUE;
+}
 
 int
 TransferD::reaper_handler(int pid, int exit_status)
 {
 	if( WIFSIGNALED(exit_status) ) {
-		dprintf( D_ALWAYS, "Process exited, pid=%d, signal=%d\n", pid,
+		dprintf( D_ALWAYS, "Unknown process exited, pid=%d, signal=%d\n", pid,
 				 WTERMSIG(exit_status) );
 	} else {
-		dprintf( D_ALWAYS, "Process exited, pid=%d, status=%d\n", pid,
+		dprintf( D_ALWAYS, "Unknown process exited, pid=%d, status=%d\n", pid,
 				 WEXITSTATUS(exit_status) );
 	}
 
 	return TRUE;
 }
+
+
+
+
+
+
+

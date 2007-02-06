@@ -42,6 +42,14 @@ TransferDaemon::TransferDaemon(MyString fquser, MyString id, TDMode status) :
 	m_sinful = "";
 	m_update_sock = NULL;
 	m_treq_sock = NULL;
+
+	m_reg_func_desc = "";
+	m_reg_func = NULL;
+	m_reg_func_this = NULL;
+
+	m_reap_func_desc = "";
+	m_reap_func = NULL;
+	m_reap_func_this = NULL;
 }
 
 TransferDaemon::~TransferDaemon()
@@ -161,7 +169,7 @@ bool
 TransferDaemon::push_transfer_requests(void)
 {
 	TransferRequest *treq = NULL;
-	int ret;
+	TreqAction ret;
 	MyString capability;
 	MyString rej_reason;
 	char *encap = "ENCAPSULATION_METHOD_OLD_CLASSADS\n";
@@ -190,23 +198,32 @@ TransferDaemon::push_transfer_requests(void)
 		// back into the treq.
 		ret = treq->call_pre_push_callback(treq, this);
 
-		/////////////////////////////////////////////////
-		// Depending what the schedd said in the return code, do we continue
-		// processing this request normally, or do we forget about it.
-		/////////////////////////////////////////////////
 		switch(ret) {
 			case TREQ_ACTION_CONTINUE:
 				// the pre callback did whatever it wanted to, and now says to
 				// continue the process of handling this request.
 				break;
 
-			case TREQ_ACTION_TERMINATE:
+			case TREQ_ACTION_FORGET:
 				// Remove this request from consideration by this transfer 
 				// daemon.
 				// It is assumed the pre callback took control of the memory
 				// and had already deleted/saved it for later requeue/etc
 				// and said something to the client about it.
 				m_treqs.DeleteCurrent();
+
+				// don't contact the transferd about this request, just go to
+				// the next request instead.
+				continue;
+
+				break;
+
+			case TREQ_ACTION_TERMINATE:
+				// Remove this request from consideration by this transfer 
+				// daemon and free the memory.
+				m_treqs.DeleteCurrent();
+
+				delete treq;
 
 				// don't contact the transferd about this request, just go to
 				// the next request instead.
@@ -299,21 +316,40 @@ TransferDaemon::push_transfer_requests(void)
 
 		ret = treq->call_post_push_callback(treq, this);
 
-		/////////////////////////////////////////////////
-		// Depending what the schedd said in the return code, do we continue
-		// processing this request normally, or do we forget about it.
-		/////////////////////////////////////////////////
+		// XXX If the transferd rejected the request, I could be a little more
+		// intelligent about how to handle a termination/forget from the 
+		// callback.... The protocol is that if the transferd rejected the
+		// treq, then the transferd doesn't have a record of it.
+
 		switch(ret) {
 			case TREQ_ACTION_CONTINUE:
 				// the post callback did whatever it wanted to, and now says to
 				// continue the process of handling this request.
 				break;
 
-			case TREQ_ACTION_TERMINATE:
+			case TREQ_ACTION_FORGET:
 				// It is assumed the post callback took control of the memory
 				// and had already deleted/saved it for later requeue/etc
 				// and said something to the client about it.
 				m_treqs.DeleteCurrent();
+
+				// XXX This is a complicated action to implement, since it
+				// means we have to contact the transferd and tell it to
+				// abort the request.
+
+				EXCEPT("TransferDaemon::push_transfer_requests(): NOT "
+					"IMPLEMENTED: aborting an treq after the push to the "
+					"transferd. To implement this functionality, you must "
+					"contact the transferd here and have it also abort "
+					"the request.");
+
+				break;
+
+			case TREQ_ACTION_TERMINATE:
+				// The callback has finished with this memory and we may delete
+				// it.
+				m_treqs.DeleteCurrent();
+				delete treq;
 
 				// XXX This is a complicated action to implement, since it
 				// means we have to contact the transferd and tell it to
@@ -357,22 +393,25 @@ TransferDaemon::update_transfer_request(ClassAd *update)
 	////////////////////////////////////////////////////////////////////////
 	update->LookupString(ATTR_TREQ_CAPABILITY, cap);
 
-	// If I'm getting an update for it, it better be in progress.
+	// If the post push callback the schedd terminated the treq,
+	// we can still get an update from the transferd about it if the transferd
+	// hadn't been informed of the termination of the request.
+	// So here we'll just log this fact, but ignore the update, since it is 
+	// for a nonexistant treq as far as the schedd is concerned.
 	if (m_treqs_in_progress.lookup(cap, treq) != 0) {
-		EXCEPT("TransferDaemon::update_transfer_request(): Programmer error. "
-			"Updating treq not found in progress table hash!");
+		dprintf(D_ALWAYS, "TransferDaemon::update_transfer_request(): "
+			"Got update for treq that the schedd had already thrown away, "
+			"ignoring.\n");
+		return TRUE;
 	}
 
 	// let the schedd look at the update and figure out if it wants to do
 	// anything with it.
 	dprintf(D_ALWAYS, "TransferDaemon::update_transfer_request(): "
 		"Calling schedd update callback\n");
+
 	ret = treq->call_update_callback(treq, td, update);
 
-	/////////////////////////////////////////////////
-	// Depending what the schedd said in the return code, do we continue
-	// processing this request normally, or do we forget about it.
-	/////////////////////////////////////////////////
 	switch(ret) {
 		case TREQ_ACTION_CONTINUE:
 			// Don't delete the request from our in progress table, and assume
@@ -380,13 +419,22 @@ TransferDaemon::update_transfer_request(ClassAd *update)
 			// to process. In effect, do nothing and wait.
 			break;
 
-		case TREQ_ACTION_TERMINATE:
+		case TREQ_ACTION_FORGET:
 			// It is assumed the update callback took control of the memory
 			// and had already deleted/saved it for later requeue/etc.
 			// For our purposes, we remove it from consideration from our table
 			// which in effect means it is removed from the transfer daemons
 			// responsibility.
 			ASSERT(m_treqs_in_progress.remove(cap) == 0);
+
+			break;
+
+		case TREQ_ACTION_TERMINATE:
+			// the callback is done with this task and its memory, so we get 
+			// rid of it.
+			ASSERT(m_treqs_in_progress.remove(cap) == 0);
+
+			delete treq;
 
 			break;
 
@@ -402,6 +450,113 @@ TransferDaemon::update_transfer_request(ClassAd *update)
 	return TRUE;
 }
 
+void
+TransferDaemon::reap_all_transfer_requests(void)
+{
+	TransferRequest *treq = NULL;
+	TreqAction ret;
+	MyString key;
+
+	////////////////////////////////////////////////////////////////////////
+	// For each transfer request, call the associated reaper for it.
+	// Also call the reaper for ones that were in progress, because we'll
+	// assume they are incomplete and should be assumed to have not been tried
+	// at all. 
+	////////////////////////////////////////////////////////////////////////
+
+	// invoke the reapers for requests
+	m_treqs.Rewind();
+	while(m_treqs.Next(treq))
+	{
+		m_treqs.DeleteCurrent();
+		
+		ret = treq->call_reaper_callback(treq);
+
+		// for now, we only support this return call from the callback
+		ASSERT(ret == TREQ_ACTION_TERMINATE);
+
+		delete treq;
+	}
+
+	// invoke all of the reapers for stuff the transferd was in the middle
+	// of doing. 
+	m_treqs_in_progress.startIterations();
+	while(m_treqs_in_progress.iterate(key, treq))
+	{
+		m_treqs_in_progress.remove(key);
+
+		ret = treq->call_reaper_callback(treq);
+
+		// for now, we only support this return call from the callback
+		ASSERT(ret == TREQ_ACTION_TERMINATE);
+
+		delete treq;
+	}
+}
+
+void 
+TransferDaemon::set_reg_callback(MyString desc, TDRegisterCallback callback, 
+	Service *base)
+{
+	m_reg_func_desc = desc;
+	m_reg_func = callback;
+	m_reg_func_this = base;
+}
+
+void 
+TransferDaemon::get_reg_callback(MyString &desc, TDRegisterCallback &callback, 
+	Service *&base)
+{
+	desc = m_reg_func_desc;
+	callback = m_reg_func;
+	base = m_reg_func_this;
+}
+
+TdAction 
+TransferDaemon::call_reg_callback(TransferDaemon *td)
+{
+	// if no regfunc had been set up, then just return the continue status
+	// signifying that the creator of the td object didn't want to care if
+	// the td had registered itself
+
+	if (m_reg_func == NULL) {
+		return TD_ACTION_CONTINUE;
+	}
+
+	return (m_reg_func_this->*(m_reg_func))(td);
+}
+
+void 
+TransferDaemon::set_reaper_callback(MyString desc, TDReaperCallback callback,
+	Service *base)
+{
+	m_reap_func_desc = desc;
+	m_reap_func = callback;
+	m_reap_func_this = base;
+}
+
+void 
+TransferDaemon::get_reaper_callback(MyString &desc, 
+	TDReaperCallback &callback, Service *&base)
+{
+	desc = m_reap_func_desc;
+	callback = m_reap_func;
+	base = m_reap_func_this;
+}
+
+TdAction 
+TransferDaemon::call_reaper_callback(long pid, int status, TransferDaemon *td)
+{
+	// if no reaper had been set up, then just return the termination status
+	// signifying that the creator of the td object didn't want to care if
+	// the td went away.
+
+	if (m_reap_func == NULL) {
+		return TD_ACTION_TERMINATE;
+	}
+
+	return (m_reap_func_this->*(m_reap_func))(pid, status, td);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -502,9 +657,9 @@ TDMan::invoke_a_td(TransferDaemon *td)
 	MyString found_id;
 	ArgList args;
 	char *td_path = NULL;
-	int rid;
 	pid_t pid;
 	MyString args_display;
+	static int rid = -1;
 
 	ASSERT(td != NULL);
 
@@ -570,14 +725,20 @@ TDMan::invoke_a_td(TransferDaemon *td)
 	args.AppendArg("--id");
 	args.AppendArg(td->get_id());
 
+	// give it a timeout of 20 minutes (hard coded for now...)
+	args.AppendArg("--timeout");
+	args.AppendArg(20*60);
+
 	//////////////////////////////////////////////////////////////////////
 	// Which reaper should handle the exiting of this program
 
 	// set up a reaper to handle the exiting of this daemon
-	rid = daemonCore->Register_Reaper("transferd_reaper",
-		(ReaperHandlercpp)&TDMan::transferd_reaper,
-		"transferd_reaper",
-		this);
+	if (rid == -1) {
+		rid = daemonCore->Register_Reaper("transferd_reaper",
+			(ReaperHandlercpp)&TDMan::transferd_reaper,
+			"transferd_reaper",
+			this);
+	}
 
 	//////////////////////////////////////////////////////////////////////
 	// Create the process
@@ -623,14 +784,60 @@ TDMan::refuse(Stream *s)
 
 // the reaper for when a transferd goes away or dies.
 int
-TDMan::transferd_reaper(int pid, int status) 
+TDMan::transferd_reaper(long pid, int status) 
 {
-	dprintf(D_ALWAYS, "TDMan: Reaped transferd %d with status %d\n", 
-		pid, status);
-	
-	// XXX find the td object associated with this td and call the reaper
-	// for it the schedd supplied.
+	MyString fquser;
+	MyString id;
+	TransferDaemon *dead_td = NULL;
+	TransferRequest *reaped_treq = NULL;
+	TdAction ret;
 
+	dprintf(D_ALWAYS, "TDMan: Reaped transferd pid %ld with status %d\n", 
+		pid, status);
+
+	//////////////////////////////////////////////////////////////////////
+	// Remove the td object from the tdmanager object. We do this right here
+	// so that if a transfer request reaper wants to invoke another one, it
+	// won't find this one which is already dead.
+	//////////////////////////////////////////////////////////////////////
+
+	// remove the alias from the pid table
+	m_td_pid_table->lookup((long)pid, dead_td);
+	ASSERT(dead_td != NULL);
+	ASSERT(m_td_pid_table->remove((long)pid) == 0);
+
+	id = dead_td->get_id();
+	fquser = dead_td->get_fquser();
+
+	// remove the association entry from the id table
+	ASSERT(m_id_table->remove(id) == 0);
+
+	// remove the td object from the fquser storage table
+	ASSERT(m_td_table->remove(fquser) == 0);
+
+	//////////////////////////////////////////////////////////////////////
+	// Pass this object to the schedd td reaper function so it can inspect
+	// it if it'd like. However, it must not delete the pointer.
+	//////////////////////////////////////////////////////////////////////
+
+	ret = dead_td->call_reaper_callback(pid, status, dead_td);
+	switch(ret) {
+		case TD_ACTION_TERMINATE:
+			/* What I'm expecting in most cases */
+			delete dead_td;
+			break;
+
+		case TD_ACTION_CONTINUE:
+			EXCEPT("TDMan::transferd_reaper(): Programmer Error! You must "
+				"return TD_ACTION_TERMINATE only from a transferd reaper!");
+			break;
+
+		default:
+			EXCEPT("TDMan::transferd_reaper(): Programmer Error! "
+				"Unknown return code from td reaper callback");
+			break;
+	}
+	
 	return TRUE;
 }
 
@@ -644,12 +851,14 @@ int
 TDMan::transferd_registration(int cmd, Stream *sock)
 {
 	ReliSock *rsock = (ReliSock*)sock;
-	int reply;
-	char *td_sinful = NULL;
-	char *td_id = NULL;
-	const char *fquser = NULL;
+	MyString td_sinful;
+	MyString td_id;
+	MyString fquser;
 	TDUpdateContinuation *tdup = NULL;
 	TransferDaemon *td = NULL;
+	TdAction ret;
+	ClassAd regad;
+	ClassAd respad;
 
 	cmd = cmd; // quiet the compiler
 
@@ -693,7 +902,7 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 	///////////////////////////////////////////////////////////////
 
 	fquser = rsock->getFullyQualifiedUser();
-	if (fquser == NULL) {
+	if (fquser == "") {
 		dprintf(D_ALWAYS, "Transferd identity is unverifiable. Denied.\n");
 		refuse(rsock);
 		dprintf(D_ALWAYS, "Leaving TDMan::transferd_registration()\n");
@@ -706,29 +915,23 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 
 	rsock->decode();
 
-	// Get the sinful string of the transferd
-	rsock->code(td_sinful);
+	// This is the initial registration ad from the transferd:
+	//	ATTR_TD_SINFUL
+	//	ATTR_TD_ID
+	regad.initFromStream(*rsock);
 	rsock->eom();
-
-	// Get the id string I requested the transferd to have so I can figure out
-	// which request I made matches it.
-	rsock->code(td_id);
-	rsock->eom();
+	regad.LookupString(ATTR_TREQ_TD_SINFUL, td_sinful);
+	regad.LookupString(ATTR_TREQ_TD_ID, td_id);
 
 	dprintf(D_ALWAYS, "Transferd %s, id: %s, owned by '%s' "
 		"attempting to register!\n",
-		td_sinful, td_id, fquser);
-
-	rsock->encode();
-
-	// send back a good reply
-	reply = 1;
-	rsock->code(reply);
-	rsock->eom();
+		td_sinful.Value(), td_id.Value(), fquser.Value());
 
 	///////////////////////////////////////////////////////////////
 	// Determine if I requested a transferd for this identity. Close if not.
 	///////////////////////////////////////////////////////////////
+
+	rsock->encode();
 
 	// See if I have a transferd by that id
 	td = find_td_by_ident(td_id);
@@ -737,9 +940,13 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 		dprintf(D_ALWAYS, 
 			"Did not request a transferd with that id for any user. "
 			"Refuse.\n");
-		refuse(rsock);
-		free(td_sinful);
-		free(td_id);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, 
+			"Did not request a transferd with that id for any user.");
+		respad.put(*rsock);
+		rsock->eom();
+
 		dprintf(D_ALWAYS, "Leaving TDMan::transferd_registration()\n");
 		return CLOSE_STREAM;
 	}
@@ -750,9 +957,13 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 		dprintf(D_ALWAYS, 
 			"Did not request a transferd with that id for this specific user. "
 			"Refuse.\n");
-		refuse(rsock);
-		free(td_sinful);
-		free(td_id);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, 
+			"Did not request a transferd with that id for this specific user.");
+		respad.put(*rsock);
+		rsock->eom();
+
 		dprintf(D_ALWAYS, "Leaving TDMan::transferd_registration()\n");
 		return CLOSE_STREAM;
 	}
@@ -760,14 +971,24 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 	// is it in the TD_INVOKED state?
 	if (td->get_status() != TD_INVOKED) {
 		// guess not, refuse it
+
 		dprintf(D_ALWAYS, 
 			"Transferd for user not in TD_PRE_INVOKED state. Refuse.\n");
-		refuse(rsock);
-		free(td_sinful);
-		free(td_id);
+
+		respad.Assign(ATTR_TREQ_INVALID_REQUEST, TRUE);
+		respad.Assign(ATTR_TREQ_INVALID_REASON, 
+			"Transferd for user not in TD_PRE_INVOKED state.\n");
+		respad.put(*rsock);
+		rsock->eom();
+
 		dprintf(D_ALWAYS, "Leaving TDMan::transferd_registration()\n");
 		return CLOSE_STREAM;
 	}
+
+	// send back a good reply if all the above passed
+	respad.Assign(ATTR_TREQ_INVALID_REQUEST, FALSE);
+	respad.put(*rsock);
+	rsock->eom();
 
 	///////////////////////////////////////////////////////////////
 	// Set up some parameters in the TD object which represent
@@ -798,7 +1019,7 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 	dprintf(D_ALWAYS, "Creating TransferRequest channel to transferd.\n");
 	CondorError errstack;
 	ReliSock *td_req_sock = NULL;
-	DCTransferD dctd(td_sinful);
+	DCTransferD dctd(td_sinful.Value());
 
 	// XXX This connect in here should be non-blocking....
 	if (dctd.setup_treq_channel(&td_req_sock, 20, &errstack) == false) {
@@ -849,24 +1070,44 @@ TDMan::transferd_registration(int cmd, Stream *sock)
 	// set up the continuation for TDMan::transferd_update()
 	daemonCore->Register_DataPtr(tdup);
 
-	free(td_sinful);
-	free(td_id);
+	///////////////////////////////////////////////////////////////
+	// If any registration callback exists, then call it so the user of
+	// the factory object knows that the registration happened.
+	// This callback could send stuff down the transferd control channel
+	// if it so desired.
+	///////////////////////////////////////////////////////////////
+
+	ret = td->call_reg_callback(td);
+	switch(ret) {
+		case TD_ACTION_CONTINUE:
+			/* good, this is what I expect */
+			break;
+
+		case TD_ACTION_TERMINATE:
+			EXCEPT("TDMan::transferd_registration() Programmer Error! "
+				"Termination of transferd in registration callback not "
+				"implemented.");
+			break;
+
+		default:
+			EXCEPT("TDMan::transferd_registration() Programmer Error! "
+				"Unknown return code from the registration callback!");
+			break;
+	}
 
 	///////////////////////////////////////////////////////////////
 	// Push any pending requests for this transfer daemon.
 	// This has the potential to call callback into the schedd.
+	// We do this after the registration callback has happened just
+	// in case the registration callback wanted to push some more 
+	// transfer requests into this transferd and we can batch them with
+	// whatever else is in the transfer request queue.
 	///////////////////////////////////////////////////////////////
 
 	dprintf(D_ALWAYS, 
 		"TDMan::transferd_registration() pushing queued requests\n");
 
 	td->push_transfer_requests();
-
-	///////////////////////////////////////////////////////////////
-	// If any registration callback exists, then call it so the user of
-	// the factory object knows that the registration happened
-	///////////////////////////////////////////////////////////////
-	// XXX TODO
 
 	dprintf(D_ALWAYS, "Leaving TDMan::transferd_registration()\n");
 	return KEEP_STREAM;
@@ -906,7 +1147,11 @@ TDMan::transferd_update(Stream *sock)
 	// grab the classad from the transferd
 	if (update.initFromStream(*rsock) == 0) {
 		// Hmm, couldn't get the update, clean up shop.
-		dprintf(D_ALWAYS, "Update socket was closed. Transferd has died!\n");
+		dprintf(D_ALWAYS, "Update socket was closed. "
+			"Transferd for user: %s with id: %s at location: %s will soon be "
+			"reaped.\n", 
+			tdup->fquser.Value(), tdup->id.Value(), tdup->sinful.Value());
+
 		delete tdup;
 		daemonCore->SetDataPtr(NULL);
 		return CLOSE_STREAM;

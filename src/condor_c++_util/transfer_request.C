@@ -416,7 +416,7 @@ TransferRequest::set_pre_push_callback(MyString desc,
 	m_pre_push_func_this = base;
 }
 
-int
+TreqAction
 TransferRequest::call_pre_push_callback(TransferRequest *treq, 
 	TransferDaemon *td)
 {
@@ -432,7 +432,7 @@ TransferRequest::set_post_push_callback(MyString desc,
 	m_post_push_func_this = base;
 }
 
-int
+TreqAction
 TransferRequest::call_post_push_callback(TransferRequest *treq, 
 	TransferDaemon *td)
 {
@@ -448,7 +448,7 @@ TransferRequest::set_update_callback(MyString desc,
 	m_update_func_this = base;
 }
 
-int
+TreqAction
 TransferRequest::call_update_callback(TransferRequest *treq, 
 	TransferDaemon *td, ClassAd *update)
 {
@@ -464,7 +464,7 @@ TransferRequest::set_reaper_callback(MyString desc,
 	m_reaper_func_this = base;
 }
 
-int
+TreqAction
 TransferRequest::call_reaper_callback(TransferRequest *treq)
 {
 	return (m_reaper_func_this->*(m_reaper_func))(treq);

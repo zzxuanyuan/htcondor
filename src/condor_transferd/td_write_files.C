@@ -398,6 +398,14 @@ TransferD::write_files_reaper(int tid, int exit_status)
 	// bye bye.
 	delete treq;
 
+	// Now, if the hash is empty, mark it down as the start of our inactivity
+	// timer
+	if (m_treqs.getNumElements() == 0) {
+		dprintf(D_ALWAYS, 
+			"Last transfer request handled. Becoming inactive.\n");
+		m_inactivity_timer = time(NULL);
+	}
+
 	return TRUE;
 }
 

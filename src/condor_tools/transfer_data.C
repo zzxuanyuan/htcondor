@@ -45,9 +45,7 @@ bool had_error = false;
 DCSchedd* schedd = NULL;
 bool All = false;
 
-/* XXX This really needs to be a default choice of the user didn't
-	specify anything */
-bool use_old_file_transfer = true;
+bool use_old_file_transfer = false;
 
 void usage();
 void procArg(const char*);

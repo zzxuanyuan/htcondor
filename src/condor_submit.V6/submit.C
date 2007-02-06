@@ -111,9 +111,7 @@ char    JobIwd[_POSIX_PATH_MAX];
 int		LineNo;
 int		ExtraLineNo;
 int		GotQueueCommand;
-/* XXX use the old method for now, this really needs to be a default if the
-	user didn't select any method they'd like */
-bool	UseOldFileTransfer = true;
+bool	UseOldFileTransfer = false;
 
 char	IckptName[_POSIX_PATH_MAX];	/* Pathname of spooled initial ckpt file */
 

@@ -5,12 +5,22 @@
 #include "MyString.h"
 #include "file_transfer.h"
 #include "condor_transfer_request.h"
+#include "exit.h"
 
 // How successful was I in registering myself to a schedd, if available?
 enum RegisterResult {
 	REG_RESULT_FAILED = 0,
 	REG_RESULT_SUCCESS,
 	REG_RESULT_NO_SCHEDD,
+};
+
+// When a TD exits, here is what it should exit with.
+enum TDExitStatus
+{
+	TD_EXIT_TIMEOUT = EXIT_SUCCESS,			// The TD exited via time out.
+	TD_EXIT_SUCCESS = TD_EXIT_TIMEOUT,		// The TD had a controlled exit.
+	TD_EXIT_EXCEPT = EXIT_EXCEPTION,		// The TD exited via EXCEPT.
+	TD_EXIT_DPRINTF_ERROR = DPRINTF_ERROR,	// The TD exited via dprintf exit
 };
 
 // This class hold features and info that have been specified on the 
@@ -78,6 +88,17 @@ class Features
 			return m_uses_stdin;
 		}
 
+		void set_timeout(unsigned long tout)
+		{
+			m_timeout = tout;
+		}
+
+		time_t get_timeout(void)
+		{
+			return m_timeout;
+		}
+
+
 	private:
 
 		///////////////////////////////////////////////////////////////////////
@@ -99,6 +120,14 @@ class Features
 		// The identity that the schedd will use to match this transferd
 		// with the request for it.
 		MyString m_id;
+
+		// --timeout <number of seconds>
+		// The number of seconds the transferd will wait while its transfer
+		// queue is empty before it exits in a well known fashion.
+		// NOTE: In the future, the schedd will probably be able to send new
+		// timeout updates via the control channel, if that happens, they
+		// should override this value.
+		unsigned long m_timeout;
 
 		// XXX DEMO hacking
 		// --shadow <upload|download>
@@ -160,7 +189,11 @@ class TransferD : public Service
 		int read_files_reaper(int tid, int exit_status);
 
 		// a periodic timer to process any active requests
-		int process_active_requests_timer();
+		int process_active_requests_timer(void);
+
+		// a periodic timer to calculate whether or not the transferd should
+		// exit due to having an empty queue for too long.
+		int exit_due_to_inactivity_timer(void);
 
 		// handler for any exiting process.
 		int reaper_handler(int pid, int exit_status);
@@ -204,6 +237,10 @@ class TransferD : public Service
 
 		// Has the init() call been called? 
 		int m_initialized;
+
+		// This is a timestamp of when the request queue became empty.
+		// When the request queue has something in it, this is set to zero.
+		time_t m_inactivity_timer;
 
 		// The list of transfers that have been requested of me to do when
 		// someone contacts me.

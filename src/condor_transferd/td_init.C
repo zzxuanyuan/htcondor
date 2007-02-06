@@ -19,6 +19,10 @@ TransferD::TransferD() :
 {
 	m_initialized = FALSE;
 	m_update_sock = NULL;
+
+	// start the timer right now, in case I get started and noone tells
+	// me anything for the timeout amount of time.
+	m_inactivity_timer = time(NULL);
 }
 
 TransferD::~TransferD()
@@ -47,13 +51,25 @@ TransferD::init(int argc, char *argv[])
 	RegisterResult ret;
 	int i;
 	ReliSock *usock = NULL;
+	unsigned long tout;
 
-	// XXX no error checking, assume arguments are correct.
+	// XXX no error checking, assume arguments are correctly formatted.
+
 	for (i = 1; i < argc; i++) {
 		// if --schedd is given, take the sinful string of the schedd.
 		if (strcmp(argv[i], "--schedd") == MATCH) {
 			if (i+1 < argc) {
 				g_td.m_features.set_schedd_sinful(argv[i+1]);
+				i++;
+			}
+		}
+
+		// if --timeout is given, take the number of seconds to timeout when
+		// the transfer queue is empty. A timeout means the transferd will exit.
+		if (strcmp(argv[i], "--timeout") == MATCH) {
+			if (i+1 < argc) {
+				tout = strtoul(argv[i+1], NULL, 10);
+				g_td.m_features.set_timeout(tout);
 				i++;
 			}
 		}
@@ -219,6 +235,9 @@ TransferD::accept_transfer_request_encapsulation_old_classads(FILE *fin)
 	// record that I've accepted it.
 	m_treqs.insert(cap, treq);
 
+	// mark it down that we are no longer need an inactivity timer
+	m_inactivity_timer = 0;
+
 	return TRUE;
 }
 
@@ -263,22 +282,6 @@ TransferD::setup_transfer_request_handler(int cmd, Stream *sock)
 			return CLOSE_STREAM;
 		} 
 	}
-
-	///////////////////////////////////////////////////////////////
-	// Do a little dance with the schedd to make sure we're kosher
-	///////////////////////////////////////////////////////////////
-
-	// stupid simple handshake.
-	rsock->decode();
-	rsock->code(hello);
-	rsock->eom();
-
-	ASSERT(hello == 1);
-
-	hello = 1;
-	rsock->encode();
-	rsock->code(hello);
-	rsock->eom();
 
 	rsock->decode();
 
@@ -589,7 +592,8 @@ TransferD::register_handlers(void)
 			(CommandHandlercpp)&TransferD::read_files_handler,
 			"read_files_handler", this, READ);
 	
-	// register the reaper
+	// register the reaper, this is for any process which isn't a read/write
+	// file transfer object.
 	daemonCore->Register_Reaper("Reaper", 
 		(ReaperHandlercpp)&TransferD::reaper_handler, "Reaper", this);
 }
@@ -602,6 +606,10 @@ TransferD::register_timers(void)
 /*	daemonCore->Register_Timer( 0, 20,*/
 /*		(TimerHandlercpp)&TransferD::process_active_requests_timer,*/
 /*		"TransferD::process_active_requests_timer", this );*/
+
+	daemonCore->Register_Timer( 0, 20,
+		(TimerHandlercpp)&TransferD::exit_due_to_inactivity_timer,
+		"TransferD::exit_due_to_inactivity_timer", this );
 }
 
 

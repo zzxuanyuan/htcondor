@@ -634,6 +634,7 @@ const char *ATTR_TREQ_JOBID_LIST = "JobIDList";
 const char *ATTR_TREQ_PEER_VERSION = "PeerVersion";
 const char *ATTR_TREQ_FTP = "FileTransferProtocol"; 
 const char *ATTR_TREQ_TD_SINFUL = "TDSinful"; 
+const char *ATTR_TREQ_TD_ID = "TDID"; 
 const char *ATTR_TREQ_CONSTRAINT = "Constraint";
 const char *ATTR_TREQ_JOBID_ALLOW_LIST = "JobIDAllowList";
 const char *ATTR_TREQ_JOBID_DENY_LIST = "JobIDDenyList";

@@ -36,10 +36,14 @@ enum TreqMode {
 */
 enum TreqAction {
 	TREQ_ACTION_CONTINUE,	/* continue processing to the next stage */
+	TREQ_ACTION_FORGET,		/* remove the treq from all internal structures,
+								but don't delete the pointer. Assume the
+								callback took control of the memory. */
 	TREQ_ACTION_TERMINATE,	/* the callback handler has decided to end the
 								processing of the transfer request. In this
-								case, the callback handler assumed 
-								responsibility for the treq pointer. */
+								case, the caller frame of the callback will
+								remove the treq from its internal data
+								structres and delete the pointer. */
 };
 
 // Move to a different header file when done!
@@ -164,20 +168,22 @@ class TransferRequest
 		/////////////////////////////////////////////////////////////////////
 		void set_pre_push_callback(MyString desc, 
 			TreqPrePushCallback callback, Service *base);
-		int call_pre_push_callback(TransferRequest *treq, TransferDaemon *td);
+		TreqAction call_pre_push_callback(TransferRequest *treq, 
+			TransferDaemon *td);
 
 		void set_post_push_callback(MyString desc,
 			TreqPostPushCallback callback, Service *base);
-		int call_post_push_callback(TransferRequest *treq, TransferDaemon *td);
+		TreqAction call_post_push_callback(TransferRequest *treq, 
+			TransferDaemon *td);
 
 		void set_update_callback(MyString desc, 
 			TreqUpdateCallback callback, Service *base);
-		int call_update_callback(TransferRequest *treq, TransferDaemon *td,
-			ClassAd *update);
+		TreqAction call_update_callback(TransferRequest *treq, 
+			TransferDaemon *td, ClassAd *update);
 
 		void set_reaper_callback(MyString desc, 
 			TreqReaperCallback callback, Service *base);
-		int call_reaper_callback(TransferRequest *treq);
+		TreqAction call_reaper_callback(TransferRequest *treq);
 
 		/////////////////////////////////////////////////////////////////////
 		// Utility functions
