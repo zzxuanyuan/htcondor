@@ -154,8 +154,7 @@ username        varchar(4000),
 scheddname      varchar(4000),
 cluster_id      integer,
 proc_id		integer,
-globaljobid     varchar(4000),
-);
+globaljobid     varchar(4000));
 
 CREATE TABLE Matches (
 match_time      timestamp(3) with time zone, -- Time the match was made
