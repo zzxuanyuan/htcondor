@@ -190,43 +190,25 @@ ProcFamilyClient::signal_process(pid_t pid, int sig)
 }
 
 bool
-ProcFamilyClient::kill_family(pid_t pid, ProcFamilyUsage* usage)
+ProcFamilyClient::kill_family(pid_t pid)
 {
-	bool ok = spree(pid, PROC_FAMILY_KILL_FAMILY);
-	if (!ok) {
-		return false;
-	}
-
-	ProcFamilyUsage ignored;
-	if (usage == NULL) {
-		usage = &ignored;
-	}
-	m_client.read_data(usage, sizeof(ProcFamilyUsage));
-	m_client.end_connection();
-
-	return true;
+	return signal_family(pid, PROC_FAMILY_KILL_FAMILY);
 }
 
 bool
 ProcFamilyClient::suspend_family(pid_t pid)
 {
-	bool ok = spree(pid, PROC_FAMILY_SUSPEND_FAMILY);
-	m_client.end_connection();
-
-	return ok;
+	return signal_family(pid, PROC_FAMILY_SUSPEND_FAMILY);
 }
 
 bool
 ProcFamilyClient::continue_family(pid_t pid)
 {
-	bool ok = spree(pid, PROC_FAMILY_CONTINUE_FAMILY);
-	m_client.end_connection();
-
-	return ok;
+	return signal_family(pid, PROC_FAMILY_CONTINUE_FAMILY);
 }
 
 bool
-ProcFamilyClient::spree(pid_t pid, proc_family_command_t command)
+ProcFamilyClient::signal_family(pid_t pid, proc_family_command_t command)
 {
 	int message_len = sizeof(proc_family_command_t) +
 	                  sizeof(pid_t);
@@ -246,6 +228,33 @@ ProcFamilyClient::spree(pid_t pid, proc_family_command_t command)
 
 	bool ok;
 	m_client.read_data(&ok, sizeof(bool));
+
+	m_client.end_connection();
+
+	return ok;
+}
+
+bool
+ProcFamilyClient::unregister_family(pid_t pid)
+{
+	int message_len = sizeof(proc_family_command_t) +
+	                  sizeof(pid_t);
+	void* buffer = malloc(message_len);
+	ASSERT(buffer != NULL);
+	char* ptr = (char*)buffer;
+
+	*(proc_family_command_t*)ptr = PROC_FAMILY_UNREGISTER_FAMILY;
+	ptr += sizeof(proc_family_command_t);
+
+	*(pid_t*)ptr = pid;
+	ptr += sizeof(pid_t);
+
+	m_client.start_connection(buffer, message_len);
+
+	bool ok;
+	m_client.read_data(&ok, sizeof(bool));
+
+	m_client.end_connection();
 
 	return ok;
 }

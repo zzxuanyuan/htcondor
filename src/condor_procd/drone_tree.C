@@ -298,13 +298,10 @@ DroneTree::kill_family(int node_id)
 	int ret = m_process_table.lookup(node_id, de);
 	assert(ret != -1);
 
-	ProcFamilyUsage usage;
-	bool ok = m_family_client.kill_family(de->pid, &usage);
+	bool ok = m_family_client.kill_family(de->pid);
 	ASSERT(ok);
 
 	m_reference_tree->family_killed(de->pid);
-
-	dump_usage(usage);
 }
 
 void

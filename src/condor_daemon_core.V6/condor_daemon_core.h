@@ -807,7 +807,7 @@ class DaemonCore : public Service
     int Get_Family_Usage(pid_t, ProcFamilyUsage&);
     int Suspend_Family(pid_t);
     int Continue_Family(pid_t);
-    int Kill_Family(pid_t, ProcFamilyUsage* = NULL);
+    int Kill_Family(pid_t);
 
     /** @name Data pointer functions.
         These functions deal with

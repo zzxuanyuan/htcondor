@@ -143,32 +143,18 @@ void ProcFamilyServer::kill_family()
 
 	bool ok = m_monitor.signal_family(pid, SIGKILL);
 
-	ProcFamilyUsage usage;
-	if (ok) {
-
-		// TODO: make sure the _all_ processes in this family
-		// (including ones that have been created since the last
-		// snapshot) are sent a SIGKILL
-	
-		// gather usage information for this family
-		//
-		ok = m_monitor.get_family_usage(pid, &usage);
-		ASSERT(ok);
-
-		// finally, unregister the family
-		//
-		ok = m_monitor.unregister_subfamily(pid);
-		ASSERT(ok);
-	}
-
-	// respond to the client with the following
-	//   - a boolean indicating success/failure
-	//   - if successful, the ProcFamilyUsage structure
-	//
 	m_server.write_data(&ok, sizeof(bool));
-	if (ok) {
-		m_server.write_data(&usage, sizeof(ProcFamilyUsage));
-	}
+}
+
+void
+ProcFamilyServer::unregister_family()
+{
+	pid_t pid;
+	m_server.read_data(&pid, sizeof(pid_t));
+
+	bool ok = m_monitor.unregister_subfamily(pid);
+
+	m_server.write_data(&ok, sizeof(bool));
 }
 
 void
@@ -279,6 +265,11 @@ ProcFamilyServer::wait_loop()
 			case PROC_FAMILY_GET_USAGE:
 				dprintf(D_ALWAYS, "PROC_FAMILY_GET_USAGE\n");
 				get_usage();
+				break;
+
+			case PROC_FAMILY_UNREGISTER_FAMILY:
+				dprintf(D_ALWAYS, "PROC_FAMILY_UNREGISTER_FAMILY\n");
+				unregister_family();
 				break;
 
 			case PROC_FAMILY_TAKE_SNAPSHOT:

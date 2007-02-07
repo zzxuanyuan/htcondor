@@ -65,7 +65,12 @@ public:
 	// tell the procd to kill an entire family (and all
 	// subfamilies of that family)
 	//
-	bool kill_family(pid_t, ProcFamilyUsage* = NULL);
+	bool kill_family(pid_t);
+
+	// tell the procd we don't care about this family any
+	// more
+	//
+	bool unregister_family(pid_t);
 
 	// tell the procd to take a snapshot
 	//
@@ -96,7 +101,7 @@ private:
 	// common code for killing, suspending, and
 	// continuing a family
 	//
-	bool spree(pid_t, proc_family_command_t);
+	bool signal_family(pid_t, proc_family_command_t);
 };
 
 #endif

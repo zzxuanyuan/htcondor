@@ -4067,6 +4067,24 @@ int DaemonCore::Send_Signal(pid_t pid, int sig)
 		}
 	}
 
+	// TODO: comment this
+	//
+	if (!target_has_dcpm && pidinfo && pidinfo->new_process_group) {
+		char* privsep_executable = param("PRIVSEP_EXECUTABLE");
+		if (privsep_executable != NULL) {
+			free(privsep_executable);
+			ASSERT(m_procd_client != NULL);
+			bool ok =  m_procd_client->signal_process(pid, sig);
+			if (!ok) {
+				dprintf(D_ALWAYS,
+				        "error using procd to send signal %d to pid %u\n",
+				        sig,
+				        pid);
+			}
+			return ok;
+		}
+	}
+
 	// handle the "special" action signals which are really just telling
 	// DaemonCore to do something.
 	switch (sig) {
@@ -5970,6 +5988,7 @@ int DaemonCore::Create_Process(
 			}
 
 			// contact the procd to register ourselves
+			ASSERT(m_procd_client != NULL);
 			bool ok =
 				m_procd_client->register_subfamily(pid,
 			                                       ::getppid(),
@@ -6729,10 +6748,10 @@ DaemonCore::Continue_Family(pid_t pid)
 }
 
 int
-DaemonCore::Kill_Family(pid_t pid, ProcFamilyUsage* usage)
+DaemonCore::Kill_Family(pid_t pid)
 {
 	ASSERT(m_procd_client != NULL);
-	return m_procd_client->kill_family(pid, usage);
+	return m_procd_client->kill_family(pid);
 }
 
 void
@@ -7457,6 +7476,7 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 			pidentry->parent_is_local = TRUE;
 			pidentry->reaper_id = defaultReaper;
 			pidentry->hung_tid = -1;
+			pidentry->new_process_group = FALSE;
 		} else {
 
 			// we did not find this pid... probably popen finished.
@@ -7549,6 +7569,18 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 	} else {
 		// TODO: the parent for this process is remote.
 		// send the parent a DC_INVOKEREAPER command.
+	}
+
+	// now that we've invoked the reaper, check if we've registered a family
+	// with the procd for this pid; if we have, unregister it now
+	//
+	if (pidentry->new_process_group == TRUE) {
+		ASSERT(m_procd_client != NULL);
+		if (!m_procd_client->unregister_family(pid)) {
+			dprintf(D_ALWAYS,
+			        "error unregistering pid %u with the procd\n",
+			        pid);
+		}
 	}
 
 	// Now remove this pid from our tables ----

@@ -69,6 +69,10 @@ private:
 	//
 	void kill_family();
 
+	// handle a "unregister family" command
+	//
+	void unregister_family();
+
 	// handle a "snapshot" command
 	//
 	void snapshot();
