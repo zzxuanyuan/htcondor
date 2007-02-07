@@ -181,14 +181,26 @@ ToolDaemonProc::StartJob()
 	priv_state priv;
 	priv = set_user_priv();
 
-	fds[0] = openStdFile( SFT_IN, ATTR_TOOL_DAEMON_INPUT, false, foo,
-						  "Tool Daemon Input file" );
+	fds[0] = openStdFile( SFT_IN,
+	                      ATTR_TOOL_DAEMON_INPUT,
+	                      false,
+	                      "Tool Daemon Input file",
+	                      NULL,
+	                      foo );
 
-	fds[1] = openStdFile( SFT_OUT, ATTR_TOOL_DAEMON_OUTPUT, false, foo,
-						  "Tool Daemon Output file" );
+	fds[1] = openStdFile( SFT_OUT,
+	                      ATTR_TOOL_DAEMON_OUTPUT,
+	                      false,
+	                      "Tool Daemon Output file",
+	                      NULL,
+	                      foo );
 
-	fds[2] = openStdFile( SFT_ERR, ATTR_TOOL_DAEMON_ERROR, false, foo,
-						  "Tool Daemon Error file" );
+	fds[2] = openStdFile( SFT_ERR,
+	                      ATTR_TOOL_DAEMON_ERROR,
+	                      false,
+	                      "Tool Daemon Error file",
+	                      NULL,
+	                      foo );
 
 	/* Bail out if we couldn't open the std files correctly */
 	if( fds[0] == -1 || fds[1] == -1 || fds[2] == -1 ) {

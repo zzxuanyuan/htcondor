@@ -107,6 +107,10 @@ protected:
 
 	bool dumped_core;
 
+private:
+
+	bool m_using_priv_sep;
+
 };
 
 #endif
