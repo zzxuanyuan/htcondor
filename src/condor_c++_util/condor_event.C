@@ -1157,10 +1157,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 			daemon_name,
 			execute_host);
 	
-	dprintf(D_ALWAYS, "just before initializing scheddname in RemoteErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if(scheddname)
-  	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if(!critical_error) error_type = "Warning";
 
@@ -1627,10 +1624,7 @@ writeEvent (FILE *file)
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
 	MyString tmp = "";
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	tmp.sprintf( "endts = %d", (int)eventclock);
 	tmpClP1->Insert(tmp.GetCStr());		
@@ -1771,10 +1765,7 @@ writeEvent (FILE *file)
 
 	sprintf(messagestr,  "Job was checkpointed");
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in CheckpointedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if(scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
 	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
@@ -2148,10 +2139,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   
   }
   
-  dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-  if (scheddname)
-    dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
   
   tmp.sprintf( "endts = %d", (int)eventclock);
   tmpClP1->Insert(tmp.GetCStr());		
@@ -2359,11 +2347,7 @@ writeEvent (FILE *file)
 	ClassAd *tmpClP1 = &tmpCl1;
 	MyString tmp = "";
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in JobAbortedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname) {
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
-	}
 
 	if (reason)
 		snprintf(messagestr,  512, "Job was aborted by the user: %s", reason);
@@ -2575,10 +2559,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 				total_recvd_bytes, header) < 0)
 		return 1;				// backwards compatibility
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in TerminteEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	tmp.sprintf( "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp.GetCStr());
@@ -2707,10 +2688,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
   
-  dprintf(D_ALWAYS, "just before initializing scheddname in JobTerminatedEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-  if (scheddname)
-    dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
   tmp.sprintf( "endts = %d", (int)eventclock);
   tmpClP1->Insert(tmp.GetCStr());
@@ -2972,10 +2950,7 @@ writeEvent (FILE *file)
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
 	MyString tmp = "";
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 	
 	snprintf(messagestr, 512, "Shadow exception: %s", message);
 
@@ -3151,10 +3126,7 @@ writeEvent (FILE *file)
 
 	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
 	
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
 	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
@@ -3249,10 +3221,7 @@ writeEvent (FILE *file)
 
 	sprintf(messagestr, "Job was unsuspended");
 	
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
 	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
@@ -3425,10 +3394,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	else
 		sprintf(messagestr, "Job was held: reason unspecified");
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
 	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
@@ -3601,10 +3567,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	else
 		sprintf(messagestr, "Job was released: reason unspecified");
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	if (scheddname)
-	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (scheddname) {
 	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
