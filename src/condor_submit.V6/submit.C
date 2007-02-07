@@ -111,7 +111,7 @@ char    JobIwd[_POSIX_PATH_MAX];
 int		LineNo;
 int		ExtraLineNo;
 int		GotQueueCommand;
-bool	UseOldFileTransfer = false;
+SandboxTransferMethod	STMethod = STM_USE_SCHEDD_ONLY;
 
 char	IckptName[_POSIX_PATH_MAX];	/* Pathname of spooled initial ckpt file */
 
@@ -573,6 +573,7 @@ main( int argc, char *argv[] )
 	char	*cmd_file = NULL;
 	int dag_pause = 0;
 	int i;
+	MyString method;
 
 	setbuf( stdout, NULL );
 
@@ -689,8 +690,14 @@ main( int argc, char *argv[] )
 					//   seeing ":<port>" at the end, which is valid for a
 					//   collector name.
 				PoolName = strnewp( *ptr );
-			} else if ( match_prefix( ptr[0], "-oldftm" ) ) {
-				UseOldFileTransfer = true;
+			} else if ( match_prefix( ptr[0], "-stm" ) ) {
+				if( !(--argc) || !(*(++ptr)) ) {
+					fprintf( stderr, "%s: -stm requires another argument\n",
+							 MyName );
+					exit(1);
+				}
+				method = *ptr;
+				string_to_stm(method, STMethod);
 			} else if ( match_prefix( ptr[0], "-help" ) ) {
 				usage();
 				exit( 0 );
@@ -701,6 +708,14 @@ main( int argc, char *argv[] )
 		} else {
 			cmd_file = *ptr;
 		}
+	}
+
+	// ensure I have a known transfer method
+	if (STMethod == STM_UNKNOWN) {
+		fprintf( stderr, 
+			"%s: Unknown sandbox transfer method: %s\n", method.Value());
+		usage();
+		exit(1);
 	}
 
 	char *dis_check = param("SUBMIT_SKIP_FILECHECKS");
@@ -855,61 +870,77 @@ main( int argc, char *argv[] )
 		bool result;
 		CondorError errstack;
 
-		if (UseOldFileTransfer == true) {
-			// The OLD METHOD for spooling my job files directly to a schedd
-
-			// perhaps check for proper schedd version here?
-			result = MySchedd->spoolJobFiles( JobAdsArrayLen,
+		switch(STMethod) {
+			case STM_USE_SCHEDD_ONLY:
+				// perhaps check for proper schedd version here?
+				result = MySchedd->spoolJobFiles( JobAdsArrayLen,
 										  JobAdsArray.getarray(),
 										  &errstack );
-			if ( !result ) {
-				fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
-				fprintf( stderr, "ERROR: Failed to spool job files.\n" );
-				exit(1);
-			}
-		} else {
-			fprintf(stdout,"Locating a Sandbox for %d jobs.\n",JobAdsArrayLen);
-			MyString td_sinful;
-			MyString td_capability;
-			ClassAd respad;
-			int invalid;
-			MyString reason;
+				if ( !result ) {
+					fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+					fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+					exit(1);
+				}
+				break;
 
-			result = MySchedd->requestSandboxLocation( FTPD_UPLOAD, JobAdsArrayLen,
-										  JobAdsArray.getarray(), FTP_CFTP,
-										  &respad, &errstack );
-			if ( !result ) {
-				fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
-				fprintf( stderr, "ERROR: Failed to get a sandbox location.\n" );
-				exit(1);
-			}
+			case STM_USE_TRANSFERD:
+				{ // start block
 
-			respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
-			if (invalid == TRUE) {
-				fprintf( stderr, "Schedd rejected sand box location request:\n");
-				respad.LookupString(ATTR_TREQ_INVALID_REASON, reason);
-				fprintf( stderr, "\t%s\n", reason.Value());
-				return false;
-			}
+				fprintf(stdout,
+					"Locating a Sandbox for %d jobs.\n",JobAdsArrayLen);
+				MyString td_sinful;
+				MyString td_capability;
+				ClassAd respad;
+				int invalid;
+				MyString reason;
 
-			respad.LookupString(ATTR_TREQ_TD_SINFUL, td_sinful);
-			respad.LookupString(ATTR_TREQ_CAPABILITY, td_capability);
+				result = MySchedd->requestSandboxLocation( FTPD_UPLOAD, 
+											JobAdsArrayLen,
+											JobAdsArray.getarray(), FTP_CFTP,
+											&respad, &errstack );
+				if ( !result ) {
+					fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+					fprintf( stderr, 
+						"ERROR: Failed to get a sandbox location.\n" );
+					exit(1);
+				}
 
-			dprintf(D_ALWAYS, "Got td: %s, cap: %s\n", td_sinful.Value(),
-				td_capability.Value());
+				respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
+				if (invalid == TRUE) {
+					fprintf( stderr, 
+						"Schedd rejected sand box location request:\n");
+					respad.LookupString(ATTR_TREQ_INVALID_REASON, reason);
+					fprintf( stderr, "\t%s\n", reason.Value());
+					return false;
+				}
 
-			fprintf(stdout,"Spooling data files for %d jobs.\n",JobAdsArrayLen);
+				respad.LookupString(ATTR_TREQ_TD_SINFUL, td_sinful);
+				respad.LookupString(ATTR_TREQ_CAPABILITY, td_capability);
 
-			DCTransferD dctd(td_sinful.Value());
+				dprintf(D_ALWAYS, "Got td: %s, cap: %s\n", td_sinful.Value(),
+					td_capability.Value());
 
-			result = dctd.upload_job_files( JobAdsArrayLen,
+				fprintf(stdout,"Spooling data files for %d jobs.\n",
+					JobAdsArrayLen);
+
+				DCTransferD dctd(td_sinful.Value());
+
+				result = dctd.upload_job_files( JobAdsArrayLen,
 										  JobAdsArray.getarray(),
 										  &respad, &errstack );
-			if ( !result ) {
-				fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
-				fprintf( stderr, "ERROR: Failed to spool job files.\n" );
-				exit(1);
-			}
+				if ( !result ) {
+					fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
+					fprintf( stderr, "ERROR: Failed to spool job files.\n" );
+					exit(1);
+				}
+
+				} // end block
+
+				break;
+
+			default:
+				EXCEPT("PROGRAMMER ERROR: Unknown sandbox transfer method\n");
+				break;
 		}
 	}
 
@@ -5572,8 +5603,11 @@ usage()
 	fprintf( stderr, "	-disable\t\tdisable file permission checks\n" );
 	fprintf( stderr, "	-spool\t\t\tspool all files to the schedd\n" );
 	fprintf( stderr, "	-password <password>\tspecify password to MyProxy server\n" );
-	fprintf( stderr, "	-pool <host>\t\tUse host as the central manager to query\n\n" );
-	fprintf( stderr, "	-oldftm \t\tUse a deprecated file transfer mechanism for spooling files.\n\n" );
+	fprintf( stderr, "	-pool <host>\t\tUse host as the central manager to query\n" );
+	fprintf( stderr, "	-stm <method>\t\thow to move a sandbox into Condor\n" );
+	fprintf( stderr, "               \t\tAvailable methods:\n\n" );
+	fprintf( stderr, "               \t\t\tstm_use_schedd_only\n" );
+	fprintf( stderr, "               \t\t\tstm_use_transferd\n\n" );
 	fprintf( stderr, "	If [cmdfile] is omitted, input is read from stdin\n" );
 }
 
@@ -5619,6 +5653,9 @@ DoCleanup(int,int,char*)
 void
 init_params()
 {
+	char *tmp = NULL;
+	MyString method;
+
 	Architecture = param( "ARCH" );
 
 	if( Architecture == NULL ) {
@@ -5649,6 +5686,15 @@ init_params()
 	My_fs_domain = param( "FILESYSTEM_DOMAIN" );
 		// Will always return something, since config() will put in a
 		// value (full hostname) if it's not in the config file.  
+	
+
+	// The default is set as the global initializer for STMethod
+	tmp = param( "SANDBOX_TRANSFER_METHOD" );
+	if ( tmp != NULL ) {
+		method = tmp;
+		free( tmp );
+		string_to_stm( method, STMethod );
+	}
 }
 
 int

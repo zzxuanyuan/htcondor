@@ -1,8 +1,10 @@
 #ifndef _CONDOR_FTP_
 #define _CONDOR_FTP_
 
+#include "MyString.h"
+
 /* This file describes the enumeration to specify the file transfer
-protocol used between a submitting client and the transferd. Please keep
+protocol used between a submitting client and the schedd/transferd. Please keep
 these in the order you find, appending new ones only at the end. */
 
 enum FTPMode /* File Transfer Protocol Mode */
@@ -17,5 +19,29 @@ enum FTPDirection
 	FTPD_UPLOAD,		/* upload from the perspective of the calling process */
 	FTPD_DOWNLOAD,		/* download from the per. of the calling process. */
 };
+
+// Used by the tools to determine how they should put a sandbox into the 
+// condor system, either via the schedd directly, or via a transferd.
+// These states are created to model backwards compatibility and feature
+// selection between submitting/retreiving clients and various versions 
+// of Condor.
+enum SandboxTransferMethod
+{
+	STM_UNKNOWN = 0,		/* don't know where/how I should move my sandbox */
+	STM_USE_SCHEDD_ONLY,	/* use the old sandbox transfer protocol which 
+								locates and store/reads a sandbox directly 
+								through the	schedd. This is the "original" 
+								method for getting a sandbox into/out of 
+								Condor */
+	STM_USE_TRANSFERD,		/* Ask the schedd where a transferd is located on 
+								behalf of the submitting/retreiving client, and
+								then the client will speak directly to the 
+								transferd */
+};
+
+// functions used to convert a SandboxTransferMethod enum back and forth to
+// a MyString
+void stm_to_string(SandboxTransferMethod stm, MyString &str);
+void string_to_stm(const MyString &str, SandboxTransferMethod &stm);
 
 #endif 
