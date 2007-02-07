@@ -324,7 +324,8 @@ main(int argc, char *argv[] )
 	dprintf( D_ALWAYS, "** %s\n", CondorPlatform() );
 	dprintf( D_ALWAYS, "*******************************************\n" );
 
-        FILEObj = createInstance();
+	bool use_sql_log = param_boolean("QUILL_ENABLED", false);
+        FILEObj = createInstance(use_sql_log);
 	
 	if( (tmp=param("RESERVED_SWAP")) == NULL ) {
 		reserved_swap = 5 * 1024;			/* 5 megabytes */

@@ -19,8 +19,8 @@ protected:
 	FILE *fp;
 public:
 	
-	FILESQL();
-	FILESQL(const char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND);
+	FILESQL(bool use_sql_logfile = false);
+	FILESQL(const char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND, bool use_sql_log = false);
 	~FILESQL();
 	bool file_isopen();
 	bool file_islocked();
@@ -37,6 +37,6 @@ public:
 	QuillErrCode  file_truncate();
 };
 
-FILESQL *createInstance();
+FILESQL *createInstance(bool use_sql_log);
 
 #endif

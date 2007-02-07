@@ -1972,8 +1972,11 @@ int main( int argc, char** argv )
 	// create a database connection object
 	//DBObj = createConnection();
 
-	// create a sql log object
-	FILEObj = createInstance(); 
+	// create a sql log object. We always have one defined, but 
+	// if quill is not enabled we never write data to the logfile
+	bool use_sql_log = param_boolean( "QUILL_ENABLED", false );
+
+	FILEObj = createInstance(use_sql_log); 
     // create an xml log object
     XMLObj = createInstanceXML();
 

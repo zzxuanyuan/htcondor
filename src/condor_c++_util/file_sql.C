@@ -8,9 +8,13 @@
 
 #define FILESIZELIMT 1900000000L
 
-FILESQL::FILESQL()
+FILESQL::FILESQL(bool use_sql_log)
 {
-    is_dummy = false;
+	if(use_sql_log == false) {
+    	is_dummy = true;
+	} else {
+		is_dummy = false;
+	}
 	is_open = false;
 	is_locked = false;
 	outfilename = (char *) 0;
@@ -20,9 +24,13 @@ FILESQL::FILESQL()
 	lock = (FileLock *)0;
 }
 
-FILESQL::FILESQL(const char *outfilename, int flags)
+FILESQL::FILESQL(const char *outfilename, int flags, bool use_sql_log)
 {
-    is_dummy = false;
+	if(use_sql_log == false) {
+    	is_dummy = true;
+	} else {
+		is_dummy = false;
+	}
 	is_open = false;
 	is_locked = false;
 	this->outfilename = strdup(outfilename);
@@ -202,6 +210,8 @@ AttrList *FILESQL::file_readAttrList()
 {
 	AttrList *ad = 0;
 
+	if(is_dummy) return ad;
+
 	if(!fp)
 		fp = fdopen(outfiledes, "r");
 
@@ -210,8 +220,7 @@ AttrList *FILESQL::file_readAttrList()
 	int EmptyFlag=0;
 
     if( !( ad=new AttrList(fp,"***\n", EndFlag, ErrorFlag, EmptyFlag) ) ){
-		dprintf(D_ALWAYS, "file_readAttrList Error:  Out of memory\n" );
-		exit( 1 );
+		EXCEPT("file_readAttrList Error:  Out of memory\n" );
     }
 
     if( ErrorFlag ) {
@@ -235,6 +244,7 @@ QuillErrCode FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 	int retval = 0;
 	struct stat file_status;
 
+    if (is_dummy) return SUCCESS;
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
@@ -281,6 +291,7 @@ QuillErrCode FILESQL::file_updateEvent(const char *eventType,
 	int retval = 0;
 	struct stat file_status;
 
+    if (is_dummy) return SUCCESS;
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
@@ -388,7 +399,7 @@ QuillErrCode FILESQL::file_deleteEvent(const char *eventType,
 
 FILESQL *FILEObj = NULL;
 
-FILESQL *createInstance() { 
+FILESQL *createInstance(bool use_sql_log) { 
 	FILESQL *ptr = NULL;
 	char *tmp; 
 	MyString outfilename = "";
@@ -420,7 +431,7 @@ FILESQL *createInstance() {
 		}
 	}
 
-	ptr = new FILESQL(outfilename.GetCStr(), O_WRONLY|O_CREAT|O_APPEND);
+	ptr = new FILESQL(outfilename.GetCStr(), O_WRONLY|O_CREAT|O_APPEND, use_sql_log);
 
 	if (ptr->file_open() == FAILURE) {
 		dprintf(D_ALWAYS, "FILESQL createInstance failed\n");
