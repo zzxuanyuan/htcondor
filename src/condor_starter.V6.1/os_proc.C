@@ -537,7 +537,7 @@ OsProc::JobCleanup( int pid, int status )
 		// to chown back
 	if (m_using_priv_sep) {
 	
-		char* privsep_executable = param(privsep_executable);
+		char* privsep_executable = param("PRIVSEP_EXECUTABLE");
 		ASSERT(privsep_executable != NULL);
 		
 		ArgList magic_box_chown_args;
