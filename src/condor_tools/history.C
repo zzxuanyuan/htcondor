@@ -352,7 +352,10 @@ main(int argc, char* argv[])
 	  historySnapshot = new HistorySnapshot(dbconn);
 	  printf ("\n\n-- Quill: %s : %s : %s\n", quillName, 
 			  dbIpAddr, dbName);
-	  
+
+	  queryhor.prepareQuery();  // create the query strings before sending off to historySnapshot
+	  queryver.prepareQuery();
+
 	  st = historySnapshot->sendQuery(&queryhor, &queryver, longformat);
 		  //if there's a failure here and if we're not posing a query on a 
 		  //remote quill daemon, we should instead query the local file
