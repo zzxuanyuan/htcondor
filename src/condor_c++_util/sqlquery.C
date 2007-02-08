@@ -143,7 +143,7 @@ void SQLQuery::
 setScheddname(char *name) 
 {
 	if(name) {
-		scheddname = strdup(scheddname);
+		scheddname = strdup(name);
 	}
 }
 
