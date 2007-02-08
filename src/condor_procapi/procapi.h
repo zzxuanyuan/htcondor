@@ -267,8 +267,10 @@ struct procInfo {
   /// pointer to next procInfo, if one exists.
   struct procInfo *next;
 
+#if !defined(WIN32)
   // the owner of this process
   uid_t owner;
+#endif
 
   // Any ancestor process identification environment variables.
   // This is always initialzed to something, but might not be filled
@@ -292,7 +294,9 @@ typedef struct procInfoRaw{
 	long majfault;
 	pid_t pid;
 	pid_t ppid;
+#if !defined(WIN32)
 	uid_t owner;
+#endif
 	
 		// Times are different on Windows
 #ifndef WIN32
@@ -493,7 +497,9 @@ class ProcAPI {
 
   static void initpi ( piPTR& );                  // initialization of pi.
 
+#if !defined(WIN32)
   static uid_t getFileOwner(int fd); // used to get process owner from /proc
+#endif
 
   /**  
 	Returns the raw OS stored data about the given pid.  Does no conversion

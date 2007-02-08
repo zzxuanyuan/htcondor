@@ -58,10 +58,13 @@ LocalServer::~LocalServer()
 	CloseHandle(m_pipe);
 }
 
+void
+LocalServer::set_client_principal(char*)
+{
+}
+
 bool LocalServer::accept_connection(int timeout)
 {
-	dprintf(D_ALWAYS, "LocalServer::accept_connection\n");
-
 	// initiate a nonblocking "accept"
 	//
 	OVERLAPPED overlapped;
@@ -69,7 +72,6 @@ bool LocalServer::accept_connection(int timeout)
 	overlapped.OffsetHigh = 0;
 	overlapped.hEvent = m_event;
 	if (ConnectNamedPipe(m_pipe, &overlapped) == TRUE) {
-		dprintf(D_ALWAYS, "  instant connection\n");
 		return true;
 	}
 
@@ -88,7 +90,6 @@ bool LocalServer::accept_connection(int timeout)
 		EXCEPT("WaitForSingleObject error: %u", GetLastError());
 	}
 	if (result == WAIT_TIMEOUT) {
-		dprintf(D_ALWAYS, "  timeout\n");
 		return false;
 	}
 
@@ -100,7 +101,6 @@ bool LocalServer::accept_connection(int timeout)
 		EXCEPT("GetOverlappedResult error: %u", GetLastError());
 	}
 
-	dprintf(D_ALWAYS, "  connection\n");
 	return true;
 }
 

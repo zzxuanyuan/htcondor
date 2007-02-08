@@ -25,8 +25,11 @@
 #define _LOCAL_SERVER_H
 
 #include "condor_common.h"
+
+#if !defined(WIN32)
 #include "named_pipe_reader.h"
 #include "named_pipe_writer.h"
+#endif
 
 class LocalServer {
 

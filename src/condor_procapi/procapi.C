@@ -2171,7 +2171,9 @@ ProcAPI::initpi ( piPTR& pi ) {
 	pi->pid      = -1;
 	pi->ppid     = -1;
 	pi->next     = NULL;
+#if !defined(WIN32)
 	pi->owner    = 0;
+#endif
 
 	pidenvid_init(&pi->penvid);
 }

@@ -27,6 +27,10 @@
 #include "proc_family_server.h"
 #include "proc_family_io.h"
 
+#if defined(WIN32)
+#include "process_control.WINDOWS.h"
+#endif
+
 // our "local server address"
 // (set with the "-A" option)
 //
@@ -54,6 +58,14 @@ static birthday_t root_birthday = 0;
 // (set with the "-S" option)
 //
 static int max_snapshot_interval = 60;
+
+#if defined(WIN32)
+// on Windows, we use an external program (condor_softkill.exe)
+// to send soft kills to jobs. the path to this program is passed
+// via the -K option
+//
+static char* windows_softkill_binary = NULL;
+#endif
 
 static inline void
 fail_illegal_option(char* option)
@@ -95,7 +107,7 @@ parse_command_line(int argc, char* argv[])
 			// attach if "-D" is given
 			//
 			case 'D':
-				kill(getpid(), SIGSTOP);
+				sleep(30);
 				break;
 
 			// local server address
@@ -162,6 +174,18 @@ parse_command_line(int argc, char* argv[])
 				max_snapshot_interval = atoi(argv[index]);
 				break;
 
+#if defined(WIN32)
+			// windows condor_softkill.exe binary path
+			//
+			case 'K':
+				if (index + 1 >= argc) {
+					fail_option_args("-K", 1);
+				}
+				index++;
+				windows_softkill_binary = argv[index];
+				break;
+#endif
+
 			// default case
 			//
 			default:
@@ -192,17 +216,10 @@ main(int argc, char* argv[])
 	fclose(stdin);
 	fclose(stdout);
 
-	// modify static variables based on the command line
+	// this modifies our static configuration variables based on
+	// our command line parameters
 	//
 	parse_command_line(argc, argv);
-
-	// if a maximum snapshot interval was given, it needs to be either
-	// a non-negative number, or -1 for "infinite"
-	//
-	if (max_snapshot_interval < -1) {
-		fprintf(stderr, "error: maximum snapshot interval must be non-negative or -1");
-		exit(1);
-	}
 
 	// setup logging if a file was given
 	//
@@ -218,6 +235,22 @@ main(int argc, char* argv[])
 			exit(1);
 		}
 	}
+
+	// if a maximum snapshot interval was given, it needs to be either
+	// a non-negative number, or -1 for "infinite"
+	//
+	if (max_snapshot_interval < -1) {
+		EXCEPT("error: maximum snapshot interval must be non-negative or -1");
+	}
+
+#if defined(WIN32)
+	// on Windows, we need to tell our "process control" module what binary
+	// to use for sending WM_CLOSE messages
+	//
+	if (windows_softkill_binary != NULL) {
+		set_windows_soft_kill_binary(windows_softkill_binary);
+	}
+#endif
 
 	// initialize the "engine" for tracking process families
 	//

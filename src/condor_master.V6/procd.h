@@ -26,6 +26,9 @@
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
+#define MAX_PID_STR_LEN 20
+#define MAX_BIRTHDAY_STR_LEN 50
+
 class ProcD : public Service {
 
 public:
@@ -72,11 +75,6 @@ private:
 	//
 	bool m_debug;
 
-	// constants for sizing buffers
-	//
-	static const int MAX_PID_STR_LEN = 20;
-	static const int MAX_BIRTHDAY_STR_LEN = 50;
-
 	// string form of the procd's root process's pid
 	//
 	char m_root_pid[MAX_PID_STR_LEN + 1];
@@ -88,6 +86,12 @@ private:
 	// if a procd is running, its PID; otherwise, -1
 	//
 	int m_pid;
+
+#if defined(WIN32)
+	// program to use for sending softkills on Winblows
+	//
+	char* m_softkill_binary;
+#endif
 };
 
 #endif

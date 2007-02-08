@@ -77,9 +77,11 @@ private:
 	//
 	void snapshot();
 
+#if defined(PROCD_DEBUG)
 	// handle a "dump" command
 	//
 	void dump();
+#endif
 
 	// handle a "quit" command
 	//

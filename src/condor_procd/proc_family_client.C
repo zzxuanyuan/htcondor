@@ -37,7 +37,7 @@ ProcFamilyClient::register_subfamily(pid_t root_pid,
                                      pid_t watcher_pid,
                                      int max_snapshot_interval,
                                      PidEnvID* penvid,
-                                     char* login)
+                                     const char* login)
 {
 	// figure out how big a buffer we need for this message;
 	// the format will be:

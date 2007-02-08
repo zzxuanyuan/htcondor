@@ -157,6 +157,7 @@ ProcFamilyServer::unregister_family()
 	m_server.write_data(&ok, sizeof(bool));
 }
 
+#if defined(PROCD_DEBUG)
 void
 ProcFamilyServer::dump()
 {
@@ -165,6 +166,7 @@ ProcFamilyServer::dump()
 
 	m_monitor.output(m_server, pid);
 }
+#endif
 
 void
 ProcFamilyServer::snapshot()
@@ -186,11 +188,11 @@ ProcFamilyServer::quit()
 void
 ProcFamilyServer::wait_loop()
 {
+	int snapshot_interval;
+	int snapshot_countdown = INT_MAX;
+
 	bool quit_received = false;
 	while(!quit_received) {
-
-		int snapshot_countdown = INT_MAX;
-		int snapshot_interval;
 
 		snapshot_interval = m_monitor.get_snapshot_interval();
 		dprintf(D_ALWAYS, "current snapshot interval: %d\n", snapshot_interval);
@@ -202,6 +204,8 @@ ProcFamilyServer::wait_loop()
 		}
 
 		// see if we need to run our timer handler
+		//
+		dprintf(D_ALWAYS, "snapshot countdown is %d\n", snapshot_countdown);
 		if (snapshot_countdown == 0) {
 			m_monitor.snapshot();
 			snapshot_countdown = snapshot_interval;
@@ -215,6 +219,7 @@ ProcFamilyServer::wait_loop()
 			// next time around by explicitly setting the
 			// countdown to zero
 			//
+			dprintf(D_ALWAYS, "timeout!\n");
 			snapshot_countdown = 0;
 			continue;
 		}
@@ -277,10 +282,12 @@ ProcFamilyServer::wait_loop()
 				snapshot();
 				break;
 
+#if defined(PROCD_DEBUG)
 			case PROC_FAMILY_DUMP:
 				dprintf(D_ALWAYS, "PROC_FAMILY_DUMP\n");
 				dump();
 				break;
+#endif
 
 			case PROC_FAMILY_QUIT:
 				dprintf(D_ALWAYS, "PROC_FAMILY_QUIT\n");

@@ -43,7 +43,7 @@ public:
 	                        pid_t,
 	                        int,
 	                        PidEnvID* = NULL,
-	                        char* = NULL);
+	                        const char* = NULL);
 
 	// ask the procd for usage information about a process
 	// family

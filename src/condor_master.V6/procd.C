@@ -85,6 +85,17 @@ ProcD::ProcD() :
 		       MAX_BIRTHDAY_STR_LEN);
 	}
 	free(pi);
+
+#if defined(WIN32)
+	// on Windows, we need to tell the procd what program to use to send
+	// softkills
+	//
+	m_softkill_binary = param("SOFTKILL_BINARY");
+	if (m_softkill_binary == NULL) {
+		EXCEPT("error: SOFTKILL_BINARY not defined");
+	}
+#endif
+
 }
 
 ProcD::~ProcD()
@@ -100,6 +111,9 @@ ProcD::~ProcD()
 	if (m_max_snapshot_interval != NULL) {
 		free(m_max_snapshot_interval);
 	}
+#if defined(WIN32)
+	free(m_softkill_binary);
+#endif
 }
 
 void
@@ -176,6 +190,13 @@ ProcD::start()
 	args.AppendArg(get_condor_uid());
 #endif
 
+#if defined(WIN32)
+	// on Windows, tell the procd what program to use for sending softkills
+	//
+	args.AppendArg("-K");
+	args.AppendArg(m_softkill_binary);
+#endif
+
 	// use Create_Process to start the procd
 	//
 	m_pid = daemonCore->Create_Process(args.GetArg(0),
@@ -247,6 +268,3 @@ ProcD::reaper(int pid, int status)
 
 	return 0;
 }
-
-const int ProcD::MAX_PID_STR_LEN;
-const int ProcD::MAX_BIRTHDAY_STR_LEN;
