@@ -30,8 +30,8 @@ private:
 */
 public:
 	
-	FILEXML() { is_dummy = true; }
-	FILEXML(char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND, bool dummy=false) : FILESQL(outfilename, flags) { is_dummy = dummy; }
+	FILEXML(bool use_xml_logfile = false) : FILESQL(use_xml_logfile) { }
+	FILEXML(const char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND, bool use_xml_logfile = false) : FILESQL(outfilename, flags, use_xml_logfile) { }
 	~FILEXML() {}
 
 /*

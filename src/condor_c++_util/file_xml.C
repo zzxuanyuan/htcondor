@@ -150,7 +150,7 @@ FILEXML *createInstanceXML() {
 		}
 	}
 
-	ptr = new FILEXML(outfilename, O_WRONLY|O_CREAT|O_APPEND);
+	ptr = new FILEXML(outfilename, O_WRONLY|O_CREAT|O_APPEND, true);
 
 	free(outfilename);
 
