@@ -144,13 +144,19 @@ const int DCJOBOPT_NO_ENV_INHERIT   = (1<<2);
 #define HAS_DCJOBOPT_NO_ENV_INHERIT(mask)  ((mask)&DCJOBOPT_NO_ENV_INHERIT)
 #define HAS_DCJOBOPT_ENV_INHERIT(mask)  (!(HAS_DCJOBOPT_NO_ENV_INHERIT(mask)))
 
-
 // structure to be used as an argument to Create_Process for tracking process
 // families
 struct FamilyInfo {
 	int max_snapshot_interval;
 	const char* login;
 };
+
+// Create_Process takes a sigset_t* as an argument for the signal mask to be
+// applied to the child, which is meaningless on Windows
+//
+#if defined(WIN32)
+typedef void sigset_t;
+#endif
 
 /** helper function for finding available port for both 
     TCP and UDP command socket */
@@ -181,9 +187,6 @@ class DaemonCore : public Service
 #ifdef WIN32
   friend int dc_main( int argc, char** argv );
   friend unsigned pidWatcherThread(void*);
-  friend DWORD WINAPI FindWinstaThread( LPVOID lpParam );
-  friend BOOL CALLBACK DCFindWindow(HWND, LPARAM);
-  friend BOOL CALLBACK DCFindWinSta(LPTSTR, LPARAM);
 #else
   friend int main(int, char**);
 #endif

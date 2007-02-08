@@ -72,8 +72,10 @@ static const int MIN_REGISTERED_SOCKET_SAFETY_LIMIT = 15;
 #include "condor_environ.h"
 #include "condor_version.h"
 #include "setenv.h"
+#include "my_popen.h"
 #ifdef WIN32
 #include "exphnd.WIN32.h"
+#include "process_control.WINDOWS.h"
 #include "condor_fix_assert.h"
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
@@ -4316,104 +4318,37 @@ int DaemonCore::Shutdown_Graceful(pid_t pid)
 
 	// WINDOWS
 
-	PidEntry *pidinfo;
-	PidEntry tmp_pidentry;
-
-	if ( (pidTable->lookup(pid, pidinfo) < 0) ) {
-
-		// This pid was not created with DaemonCore Create_Process, and thus
-		// we do not have a PidEntry for it.  So we set pidinfo to point to a
-		// dummy PidEntry which has just enough info setup so we can send
-		// a WM_CLOSE.
-		pidinfo = &tmp_pidentry;
-		pidinfo->pid = pid;
-		pidinfo->hWnd = NULL;
-		pidinfo->sinful_string[0] = '\0';
-	}
-
-	if ( pidinfo->sinful_string[0] != '\0' ) {
-		// pid is a DaemonCore Process; send it a SIGTERM signal instead.
+	// send a DC TERM signal if the target is daemon core
+	//
+	PidEntry* pidinfo;
+	if ((pidTable->lookup(pid, pidinfo) != -1) &&
+	    (pidinfo->sinful_string[0] != '\0'))
+	{
 		dprintf(D_PROCFAMILY,
-					"Shutdown_Graceful: Sending pid %d SIGTERM\n",pid);
-		return Send_Signal(pid,SIGTERM);
+		        "Shutdown_Graceful: Sending pid %d SIGTERM\n",
+		        pid);
+		return Send_Signal(pid, SIGTERM);
 	}
 
-	// Find the Window Handle to this pid, if we don't already know it
-	if ( pidinfo->hWnd == NULL ) {
-
-		// First, save the currently winsta and desktop
-		HDESK hdesk;
-		HWINSTA hwinsta;
-		hwinsta = GetProcessWindowStation();
-		hdesk = GetThreadDesktop( GetCurrentThreadId() );
-
-		if ( hwinsta && hdesk ) {
-			// Enumerate all winsta's to find the one with the job
-			// We kick this off in a separate thread, and block until
-			// it returns.
-
-			HANDLE threadHandle;
-			DWORD threadID;
-			threadHandle = CreateThread(NULL, 0, FindWinstaThread,
-									pidinfo, 0, &threadID);
-			WaitForSingleObject(threadHandle, INFINITE);
-
-			if ( pidinfo->hWnd == NULL ) {
-				// Did not find it.  This could happen because WinNT has a
-				// stupid bug where a brand new winsta does not immediately
-				// show up when you enumerate all the winstas.  Sometimes
-				// it takes a few seconds.  So lets sleep a while and try again.
-				sleep(4);
-				threadHandle = CreateThread(NULL, 0, FindWinstaThread,
-									pidinfo, 0, &threadID);
-				WaitForSingleObject(threadHandle, INFINITE);
-			}
-
- 			// Set winsta and desktop back to the service desktop (or wherever)
-			SetProcessWindowStation(hwinsta);
-			SetThreadDesktop(hdesk);
-			// don't leak handles!
-			CloseDesktop(hdesk);
-			CloseWindowStation(hwinsta);
-			CloseHandle(threadHandle);
-		}
-	}
-
-	// Now, if we know the window handle, send it a WM_CLOSE message
-	if ( pidinfo->hWnd ) {
-		if ( pidinfo->hWnd == HWND_BROADCAST ) {
-			dprintf(D_PROCFAMILY,"PostMessage to HWND_BROADCAST!\n");
-			EXCEPT("About to send WM_CLOSE to HWND_BROADCAST!");
-		}
-		if( (DebugFlags & D_PROCFAMILY) && (DebugFlags & D_FULLDEBUG) ) {
-			// A whole bunch of sanity checks
-			pid_t check_pid = 0;
-			GetWindowThreadProcessId(pidinfo->hWnd, &check_pid);
-			char check_name[_POSIX_PATH_MAX];
-			CSysinfo sysinfo;
-			sysinfo.GetProcessName(check_pid,check_name, _POSIX_PATH_MAX);
-			dprintf(D_PROCFAMILY,
-				"Sending WM_CLOSE to pid %d: hWnd=%x check_pid=%d name='%s'\n",
-				pid,pidinfo->hWnd,check_pid,check_name);
-			if ( pid != check_pid ) {
-				EXCEPT("In ShutdownGraceful: failed sanity check");
-			}
-		}
-		if ( !PostMessage(pidinfo->hWnd,WM_CLOSE,0,0) ) {
-			dprintf(D_PROCFAMILY,
-				"Shutdown_Graceful: PostMessage FAILED, err=%d\n",
-				GetLastError());
-			return FALSE;
-		} else {
-			// Success!!  We're done.
-			dprintf(D_PROCFAMILY,"Shutdown_Graceful: Success\n");
-			return TRUE;
-		}
-	} else {
-		// despite our best efforts, we cannot find the hWnd for this pid.
-		dprintf(D_PROCFAMILY,"Shutdown_Graceful: Failed cuz no hWnd\n");
+	// otherwise, invoke the condor_softkill program, which
+	// will attempt to find a top-level window owned by the
+	// target process and post a WM_CLOSE to it
+	//
+	ArgList args;
+	char* softkill_binary = param("SOFTKILL_BINARY");
+	if (softkill_binary == NULL) {
+		dprintf(D_ALWAYS, "cannot send softkill since SOFTKILL_BINARY is undefined\n");
 		return FALSE;
 	}
+	args.AppendArg(softkill_binary);
+	free(softkill_binary);
+	args.AppendArg(pid);
+	// args.AppendArg("softkill_debug.txt");
+	int ret = my_system(args);
+	dprintf(D_FULLDEBUG,
+	        "return value from my_system for softkill: %d\n",
+	        ret);
+	return (ret == 0);
 
 #else
 
@@ -4536,84 +4471,7 @@ int DaemonCore::Suspend_Process(pid_t pid)
 		return FALSE;	// cannot suspend our parent
 
 #if defined(WIN32)
-
-	// We need to enum all the threads in the process, and
-	// then suspend all the threads.  We need to repeat this
-	// process until all the threads are suspended, since a thread
-	// we have not yet suspended may continue a thread we already
-	// suspended.  Thus we may need to make several passes.
-	// Furthermore, WIN32 maintains a suspend count for each thread.
-	// We need to make certain we leave each thread's suspend count
-	// incremented only by 1, otherwise we'll screw things up on resume.
-	// Questions? See Todd Tannenbaum <tannenba@cs.wisc.edu>.
-	int i,j,numTids,allDone,numExtraSuspends;
-	ExtArray<HANDLE> hThreads;
-	ExtArray<DWORD> tids;
-
-	numTids = ntsysinfo.GetTIDs(pid,tids);
-
-	dprintf(D_DAEMONCORE,"Suspend_Process(%d) - numTids = %d\n",
-		pid, numTids);
-
-	// if numTids is 0, this process has no threads, which likely
-	// means the process does not exist (or an error in GetTIDs).
-	if ( !numTids ) {
-		dprintf(D_DAEMONCORE,
-			"Suspend_Process failed: cannot get threads for pid %d\n",pid);
-		return FALSE;
-	}
-
-	// open handles to all the threads.
-	for (j=0; j < numTids; j++) {
-		hThreads[j] = ntsysinfo.OpenThread(tids[j]);
-		dprintf(D_DAEMONCORE,
-			"Suspend_Process(%d) - thread %d  tid=%d  handle=%p\n",
-			pid, j, tids[j], hThreads[j]);
-	}
-
-	// Keep calling SuspendThread until they are all suspended.
-	numExtraSuspends = 0;
-	do {
-		allDone = TRUE;
-		for (j=0; j < numTids; j++) {
-			if ( hThreads[j] ) {
-				dprintf(D_DAEMONCORE,
-					"Suspend_Process(%d) calling SuspendThread on handle %p\n",
-					pid, hThreads[j]);
-				// Note: SuspendThread returns > 1 if already suspended
-				if ( ::SuspendThread(hThreads[j]) == 0 ) {
-					 allDone = FALSE;
-				}
-			} else {
-				dprintf(D_DAEMONCORE,
-					"Suspend_Process(%d) - NULL thread handle! (thread #%d)\n",
-					pid, j);
-			}
-		}
-		if ( allDone == FALSE ) {
-			numExtraSuspends++;
-		}
-	} while ( allDone == FALSE );
-
-	// Now all threads are suspended, but numExtraSuspends
-	// contains the number of times we called SuspendThread
-	// extraneously.  So decrement all the thread counts by this amount.
-	for (i=0;i<numExtraSuspends;i++) {
-		for (j=0; j < numTids; j++) {
-			if ( hThreads[j] ) {
-				::ResumeThread(hThreads[j]);
-			}
-		}
-	}
-
-	// Finally, close all the thread handles we opened.
-	for (j=0; j < numTids; j++) {
-		if ( hThreads[j] ) {
-			ntsysinfo.CloseThread(hThreads[j]);
-		}
-	}
-
-	return TRUE;
+	return windows_suspend(pid);
 #else
 	priv_state priv = set_root_priv();
 	int status = kill(pid, SIGSTOP);
@@ -4628,171 +4486,8 @@ int DaemonCore::Continue_Process(pid_t pid)
 		pid);
 
 #if defined(WIN32)
-	// We need to get all the threads for this process, and keep calling
-	// ResumeThread until at least one thread is no longer suspended.
-	// However, if any one thread is not suspended, we need to leave this
-	// process alone and not mess up the thread suspend counts. There is
-	// no perfect way to figure this out, but usually it is less dangerous
-	// to Suspend a running thread than to Resume a thread which the user
-	// process explicitly suspended (more likely to mess up synchronization).
-	// So, we use SuspendThread instead of ResumeThread to probe the
-	// process's thread counts.
-	// This is a lot of system calls, so we optimize for a case that is rather
-	// common in Condor : when we call Continue_Process() on a job
-	// which has not been suspended.  This optimization works as follows: we
-	// try to get the primary thread from our internal DaemonCore hashtable,
-	// and if this primary thread is not suspended, we return immediately.
-	// Questions? See Todd Tannenbaum <tannenba@cs.wisc.edu>.
-	PidEntry *pidinfo;
-	HANDLE hPriThread;	// handle to the primary thread of the child
-	DWORD PriTid;
-	DWORD result;
-	int numTids,i,j;
-	int all_done = FALSE;
-
-	if (pidTable->lookup(pid, pidinfo) < 0) {
-		hPriThread = NULL;
-		PriTid = 0;
-	} else {
-		hPriThread = pidinfo->hThread;
-		PriTid = pidinfo->tid;
-	}
-
-	if ( hPriThread ) {
-		result = ::SuspendThread(hPriThread);
-		switch ( result ) {
-		case 0xFFFFFFFF:
-			// SuspendThread had an error.  Yes, that's what 0xFFFFFFFF means.
-			// Seem like a stupid return code?  Call up Bill Gates.  ;^)
-			dprintf(D_DAEMONCORE,
-				"Continue_Process: error resuming primary thread\n");
-			return FALSE;
-			break;
-		case 0:
-			// Optimization: if SuspendThread returns 0, that means this thread
-			// was not suspended.  Thus, we have no need to go any further,
-			// just resume it to put the count back, and we're done.
-			::ResumeThread(hPriThread);
-			dprintf(D_DAEMONCORE,
-							"Continue_Process: pid %d not suspended\n",pid);
-			return TRUE;
-			break;
-		default:
-			// Here we know the primary thread was already Suspended.  So,
-			// we'll need to continue on enumerate all the threads in the process
-			// and resume them.
-			break;
-		}
-	}
-
-	// If we made it here, then the primary thread was indeed suspended.
-	// So, we need to enumerate all the threads in this process and call
-	// ResumeThread on them until at least one thread's suspend count
-	// drop all the way back down to zero.  But first probe all the thread
-	// suspend counts using SuspendThread (because it is safer than Resuming)
-	// and make certain there is not already an active thread.  Without doing
-	// this check, we may just Resume threads that the user process has
-	// explicitly Suspended (perhaps they are sleeping, waiting on an event).
-	// Remember: if we found the pid in our internal hash table, we have
-	// already called SuspendThread once on the primary thread.
-	ExtArray<HANDLE> hThreads;
-	ExtArray<DWORD> tids;
-
-	numTids = ntsysinfo.GetTIDs(pid,tids);
-	dprintf(D_DAEMONCORE,"Continue_Process: numTids = %d\n",numTids);
-
-	// if numTids is 0, this process has no threads, which likely
-	// means the process no longer exists (or an error in GetTIDs).
-	if ( !numTids ) {
-		dprintf(D_DAEMONCORE,
-			"Continue_Process failed: cannot get threads for pid %d\n",pid);
-		if ( hPriThread ) {
-			::ResumeThread(hPriThread);
-		}
-		return FALSE;
-	}
-
-	// open handles to all the threads.
-	for (j=0; j < numTids; j++) {
-		hThreads[j] = ntsysinfo.OpenThread(tids[j]);
-	}
-
-	// Probe all the thread suspend counts using SuspendThread (because
-	// it is safer than Resuming) and make certain there is not already an
-	// active thread.
-	for (j=0; j < numTids; j++) {
-		if ( hThreads[j] ) {
-			// Check if this is the primary thread.  If so, continue, since
-			// we already called SuspendThead on it above and we do not want
-			// to mess up the thread count.  Note we compare tids, not the
-			// handles, since although the handles may refer to the same object
-			// they may not be equal.  If we did not have the pid in our hash
-			// table, PriTid is 0, so we'll do the right thing.
-			if ( tids[j] == PriTid ) {
-				continue;
-			}
-			// Note: SuspendThread returns 0 if thread was previously active
-			if ( ::SuspendThread(hThreads[j]) == 0 ) {
-				// This process was already active.  Resume all
-				// the threads we have suspended and return.
-				dprintf(D_DAEMONCORE,
-						"Continue_Process: pid %d has active thread\n",pid);
-				for (i=0; i<j+1; i++ ) {
-					if ( hThreads[i] ) {
-						::ResumeThread(hThreads[i]);
-					}
-					if ( tids[i] == PriTid ) {
-						PriTid = 0;
-					}
-				}
-				if ( hPriThread && PriTid ) {
-					::ResumeThread(hPriThread);
-				}
-				all_done = TRUE;
-				break;
-			}
-		}
-	}
-
-	// Now resume all threads until some thread becomes active.
-	dprintf(D_DAEMONCORE,"Continue_Process: resuming all threads\n");
-	while ( all_done == FALSE ) {
-		// set all_done to TRUE in case all handles in hThreads are NULL
-		all_done = TRUE;
-		for (j=0; j < numTids; j++) {
-			if ( hThreads[j] ) {
-				all_done = FALSE;
-				result = ::ResumeThread(hThreads[j]);
-				dprintf(D_DAEMONCORE,
-				   "Continue_Process: ResumeThread returned %d for thread %d\n",
-				   result, j);
-				if ( result < 2 ) {
-					 all_done = TRUE;
-				} else {
-					if ( result == 0xFFFFFFFF ) {
-						all_done = -1;
-					}
-				}
-			}
-		}
-	}
-
-	// Finally, close all the thread handles we opened.
-	for (j=0; j < numTids; j++) {
-		if ( hThreads[j] ) {
-			ntsysinfo.CloseThread(hThreads[j]);
-		}
-	}
-
-	if ( all_done == -1 ) {
-		return FALSE;
-	} else {
-		return TRUE;
-	}
-
-#else	// of ifdef WIN32
-	// Implementation for UNIX
-
+	return windows_continue(pid);
+#else
 	priv_state priv = set_root_priv();
 	int status = kill(pid, SIGCONT);
 	set_priv(priv);
@@ -4880,160 +4575,6 @@ int DaemonCore::SetFDInheritFlag(int fh, int flag)
 	return TRUE;
 }
 
-// This is the thread function we use to call EnumWindowStations(). We
-// found  that calling EnumWindowStations() from the main thread would
-// later cause SetThreadDesktop() to fail, due to existing Windows or
-// hooks on the "current" desktop that were owned by the main thread.
-// By kicking it off in its own thread, we ensure that this doesn't happen.
-DWORD WINAPI
-FindWinstaThread( LPVOID pidinfo ) {
-
-	return EnumWindowStations((WINSTAENUMPROC)DCFindWinSta, (LPARAM)pidinfo);
-}
-
-// Callback function for EnumWindowStationProc call to find hWnd for a pid
-BOOL CALLBACK
-DCFindWinSta(LPTSTR winsta_name, LPARAM p)
-{
-	BOOL ret_value;
-	BOOL check_winsta0;
-	char* use_visible;
-	check_winsta0 = FALSE;
-
-	// dprintf(D_FULLDEBUG,"Opening WinSta %s\n",winsta_name);
-
-	if ( strcmp(winsta_name,"WinSta0") == 0 ) {
-
-		// if we're running the job in the foreground, we had better
-		// look in Winsta0!
-		use_visible = param("USE_VISIBLE_DESKTOP");
-		if (use_visible) {
-			check_winsta0 = ( use_visible[0] == 'T' ) || (use_visible[0] == 't' );
-			free(use_visible);
-		}
-
-		if (! check_winsta0 ) {
-			// skip the interactive Winsta to save time
-			dprintf(D_PROCFAMILY,"Skipping Winsta0\n");
-			return TRUE;
-		}
-	}
-
-	// we used to set_user_priv() here, but we found that its not
-	// needed, and worse still, would cause the startd to EXCEPT().
-	HWINSTA hwinsta = OpenWindowStation(winsta_name, FALSE, MAXIMUM_ALLOWED);
-
-	if ( hwinsta == NULL ) {
-		//dprintf(D_FULLDEBUG,"Error: Failed to open WinSta %s err=%d\n",
-		//	winsta_name,GetLastError());
-
-		// return TRUE so we continue to enumerate
-		return TRUE;
-	}
-
-	// Set the windowstation
-	if (!SetProcessWindowStation(hwinsta)) {
-			// failed; so close the handle and return TRUE to continue
-			// the enumertion.
-		dprintf(D_PROCFAMILY,
-			"Error: Failed to SetProcessWindowStation to %s\n",winsta_name);
-		CloseWindowStation(hwinsta);
-		return TRUE;
-	}
-
-	// We used to set_user_priv() here, but we found it wasn't needed.
-	// Worse still, it would cause the startd to EXCEPT().
-	HDESK hdesk = OpenDesktop( "default", 0, FALSE, MAXIMUM_ALLOWED );
-
-	if (hdesk == NULL) {
-			// failed; so close the handle and return TRUE to continue
-			// the enumertion.
-		dprintf(D_PROCFAMILY,"Error: Failed to open desktop on winsta %s\n",
-			winsta_name);
-		CloseWindowStation(hwinsta);
-		return TRUE;
-	}
-
-	// Set the desktop to be "default"
-	if (!SetThreadDesktop(hdesk)) {
-			// failed; so close the handle and return TRUE to continue
-			// the enumertion.
-		dprintf(D_PROCFAMILY,
-			"Error: Failed to SetThreadDesktop desktop on winsta %s\n",
-			winsta_name);
-		CloseDesktop(hdesk);
-		CloseWindowStation(hwinsta);
-		return TRUE;
-	}
-
-	// Now check all the windows on this desktop for our user job
-	EnumWindows((WNDENUMPROC)DCFindWindow, p);
-
-	// See if we are done; if so, return FALSE so GDI will stop
-	// enumerating window stations.
-	DaemonCore::PidEntry *entry = (DaemonCore::PidEntry *)p;
-	if ( entry->hWnd ) {
-		// we're done!  we found the user job's window
-		dprintf(D_PROCFAMILY,"Found job pid %d on winsta %s\n",
-			entry->pid,winsta_name);
-		ret_value = FALSE;
-	} else {
-
-		// Now in a post NT4 world, we have to use a different
-		// method for searching for console applications (like
-		// batch scripts or anything that isn't GUI). So we'll
-		// do that now before declaring our search for the HWND
-		// a bust.
-
-		HWND hwnd = NULL;
-		ret_value = TRUE;
-		pid_t pid = 0;
-
-		while (hwnd = FindWindowEx(HWND_MESSAGE, hwnd,
-			"ConsoleWindowClass", NULL)) {
-
-			GetWindowThreadProcessId(hwnd, &pid);
-
-			if (pid == entry->pid) {
-				entry->hWnd = hwnd;
-				ret_value = FALSE; // stop enumerating...we've got it.
-
-				dprintf(D_PROCFAMILY, "Found console window, pid=%d\n", pid);
-				break;
-			}
-		}
-	}
-
-	CloseDesktop(hdesk);
-	CloseWindowStation(hwinsta);
-
-	return ret_value;
-}
-
-// Callback function for EnumWindow call to find hWnd for a pid
-BOOL CALLBACK
-DCFindWindow(HWND hWnd, LPARAM p)
-{
-	DaemonCore::PidEntry *entry = (DaemonCore::PidEntry *)p;
-	pid_t pid = 0;
-	GetWindowThreadProcessId(hWnd, &pid);
-	if (pid == entry->pid) {
-		entry->hWnd = hWnd;
-
-		if( (DebugFlags & D_PROCFAMILY) && (DebugFlags & D_FULLDEBUG) ) {
-			char check_name[_POSIX_PATH_MAX];
-			CSysinfo sysinfo;
-			sysinfo.GetProcessName(pid,check_name, _POSIX_PATH_MAX);
-			dprintf(D_PROCFAMILY,
-				"DCFindWindow found pid %d: hWnd=%x name='%s'\n",
-				pid,hWnd,check_name);
-		}
-
-
-		return FALSE;
-	}
-	return TRUE;
-}
 #endif	// of ifdef WIN32
 
 
@@ -5163,10 +4704,9 @@ int DaemonCore::Create_Process(
 #ifdef WIN32
 
 		// declare these variables early so MSVS doesn't complain
-
 		// about them being declared inside of the goto's below.
+	DWORD create_process_flags = 0;
 	BOOL inherit_handles = FALSE;
-
 	char *newenv = NULL;
 	MyString strArgs;
 	MyString args_errors;
@@ -5352,9 +4892,6 @@ int DaemonCore::Create_Process(
 
 	STARTUPINFO si;
 	PROCESS_INFORMATION piProcess;
-	// SECURITY_ATTRIBUTES sa;
-	// SECURITY_DESCRIPTOR sd;
-
 
 	// prepare a STARTUPINFO structure for the new process
 	ZeroMemory(&si,sizeof(si));
@@ -5402,26 +4939,9 @@ int DaemonCore::Create_Process(
 		}
 	}
 
-#if 0
-	// prepare the SECURITY_ATTRIBUTES structure
-	ZeroMemory(&sa,sizeof(sa));
-	sa.nLength = sizeof(sa);
-	ZeroMemory(&sd,sizeof(sd));
-	sa.lpSecurityDescriptor = &sd;
-	sa.bInheritHandle = FALSE;
-
-	// set attributes of the SECURITY_DESCRIPTOR
-	if (InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION) == 0) {
-		dprintf(D_ALWAYS, "Create_Process: InitializeSecurityDescriptor "
-				"failed, errno = %d\n",GetLastError());
-		goto wrapup;
+	if (family_info != NULL) {
+		create_process_flags |= CREATE_NEW_PROCESS_GROUP;
 	}
-#endif
-
-	if ( new_process_group == TRUE )
-		new_process_group = CREATE_NEW_PROCESS_GROUP;
-	else
-		new_process_group =  0;
 
     // Re-nice our child -- on WinNT, this means run it at IDLE process
 	// priority class.
@@ -5432,7 +4952,7 @@ int DaemonCore::Create_Process(
 
     if ( nice_inc > 0 ) {
 		// or new_process_group with whatever we set above...
-		new_process_group |= IDLE_PRIORITY_CLASS;
+		create_process_flags |= IDLE_PRIORITY_CLASS;
 	}
 
 
@@ -5587,18 +5107,26 @@ int DaemonCore::Create_Process(
 		dprintf(D_FULLDEBUG, "GetBinaryType() returned %d\n", binType);
 	}
 
+	// if we want to create a process family for this new process, we
+	// will create the process suspended, so we can register it with the
+	// procd
+	//
+	if (family_info != NULL) {
+		create_process_flags |= CREATE_SUSPENDED;
+	}
+
+	// if we are creating a process with PRIV_USER_FINAL,
+	// we need to add flag CREATE_NEW_CONSOLE to be certain the user
+	// job starts in a new console windows.  This allows Condor to 
+	// find the window when we want to send it a WM_CLOSE
+	//
+	if ( priv == PRIV_USER_FINAL ) {
+		create_process_flags |= CREATE_NEW_CONSOLE;
+	}	
+
    	if ( priv != PRIV_USER_FINAL || !can_switch_ids() ) {
-
-			// If are not switching ids, and yet we want PRIV_USER_FINAL,
-			// we need to add flag CREATE_NEW_CONSOLE to be certain the user
-			// job starts in a new console windows.  This allows Condor to 
-			// actually find the window when we want to send it a WM_CLOSE.
-		if ( priv == PRIV_USER_FINAL ) {
-			new_process_group |= CREATE_NEW_CONSOLE;
-		}
-
 		cp_result = ::CreateProcess(bIs16Bit ? NULL : namebuf,(char*)strArgs.Value(),NULL,
-			NULL,inherit_handles, new_process_group,newenv,cwd,&si,&piProcess);
+			NULL,inherit_handles, create_process_flags,newenv,cwd,&si,&piProcess);
 	} else {
 		// here we want to create a process as user for PRIV_USER_FINAL
 
@@ -5649,10 +5177,9 @@ int DaemonCore::Create_Process(
 
 		cp_result = ::CreateProcessAsUser(user_token,bIs16Bit ? NULL : namebuf,
 			(char *)strArgs.Value(),NULL,NULL, inherit_handles,
-			new_process_group | CREATE_NEW_CONSOLE, newenv,cwd,&si,&piProcess);
+			create_process_flags, newenv,cwd,&si,&piProcess);
 
 		set_priv(s);
-
 	}
 
 	if ( !cp_result ) {
@@ -5662,7 +5189,27 @@ int DaemonCore::Create_Process(
 	}
 
 	// save pid info out of piProcess
+	//
 	newpid = piProcess.dwProcessId;
+
+	// if requested, register a process family with the procd and unsuspend
+	// the process
+	//
+	if (family_info != NULL) {
+		bool ok =
+			m_procd_client->register_subfamily(newpid,
+			                                   getpid(),
+			                                   family_info->max_snapshot_interval,
+			                                   NULL,
+			                                   family_info->login);
+		if (!ok) {
+			EXCEPT("error registering process family with procd");
+		}
+		if (ResumeThread(piProcess.hThread) == (DWORD)-1) {
+			EXCEPT("error resuming newly created process: %u",
+			       GetLastError());
+		}
+	}
 
 	// reset sockets that we had to inherit back to a
 	// non-inheritable permission
@@ -5993,7 +5540,8 @@ int DaemonCore::Create_Process(
 				m_procd_client->register_subfamily(pid,
 			                                       ::getppid(),
 				                                   family_info->max_snapshot_interval,
-				                                   &penvid);
+				                                   &penvid,
+				                                   family_info->login);
 			if (!ok) {
 				errno = 31;
 				write(errorpipe[1], &errno, sizeof(errno));
