@@ -248,6 +248,10 @@ SOURCE="..\src\condor_c++_util\condor_event.h"
 # End Source File
 # Begin Source File
 
+SOURCE="..\src\condor_c++_util\condor_ftp.C"
+# End Source File
+# Begin Source File
+
 SOURCE="..\src\condor_c++_util\condor_id.C"
 # End Source File
 # Begin Source File

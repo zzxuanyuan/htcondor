@@ -25,33 +25,58 @@
 #define _LOGIN_TRACKER_H
 
 #include "proc_family_tracker.h"
-
-class ProcFamily;
+#include "tracker_helper_list.h"
+#include "proc_family.h"
 
 class LoginTracker : public ProcFamilyTracker {
 
 public:
 
-	LoginTracker(ProcFamilyMonitor* pfm) :
-		ProcFamilyTracker(pfm),
-		m_list(NULL)
+	LoginTracker(ProcFamilyMonitor* pfm) : ProcFamilyTracker(pfm) { }
+
+	void add_entry(ProcFamily* family, char* login)
 	{
+		char* tmp = strdup(login);
+		ASSERT(tmp != NULL);
+		m_list.add_mapping(LoginTag(tmp), family);
 	}
-	virtual ~LoginTracker();
 
-	void add_entry(ProcFamily*, char*);
-	void remove_entry(ProcFamily*);
+	void remove_entry(ProcFamily* family)
+	{
+		LoginTag tmp;
+		if (m_list.remove_mapping(family, &tmp)) {
+			free(tmp.get_login());
+		}
+	}
 
-	bool check_process(procInfo*);
+	bool check_process(procInfo* pi)
+	{
+		ProcFamily* family = m_list.find_family(pi);
+		if (family != NULL) {
+			family->add_member(pi);
+			return true;
+		}
+		return false;
+	}
 
 private:
-	
-	struct ListEntry {
-		ProcFamily* family;
-		char*       login;
-		ListEntry*  next;
+
+	class LoginTag : public ProcInfoMatcher {
+
+	public:
+		LoginTag() { }
+		LoginTag(char* login);
+		char* get_login() { return m_login; }
+		bool test(procInfo*);
+
+	private:
+		char* m_login;
+#if !defined(WIN32)
+		uid_t m_uid;
+#endif
 	};
-	ListEntry* m_list;
+
+	TrackerHelperList<LoginTag> m_list;
 };
 
 #endif

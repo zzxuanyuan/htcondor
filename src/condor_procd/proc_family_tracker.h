@@ -33,6 +33,8 @@ class ProcFamilyTracker {
 public:
 
 	ProcFamilyTracker(ProcFamilyMonitor* pfm) { m_monitor = pfm; }
+
+	virtual ~ProcFamilyTracker() { }
 	
 	virtual void find_processes(procInfo*&);
 

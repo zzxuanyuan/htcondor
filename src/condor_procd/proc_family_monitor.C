@@ -50,7 +50,7 @@ ProcFamilyMonitor::ProcFamilyMonitor(pid_t pid,
 
 	// make sure we're tracking this family by its root pid/birthday
 	//
-	m_pid_tracker.add_entry(family, pid, birthday);
+	m_pid_tracker.add_mapping(family, pid, birthday);
 
 	// make this family the root-level tree node
 	//
@@ -138,14 +138,14 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 
 	// register any pidenvid or login info with the tracker objects
 	//
-	m_pid_tracker.add_entry(family,
-	                        root_pid,
-	                        member->get_proc_info()->birthday);
+	m_pid_tracker.add_mapping(family,
+	                          root_pid,
+	                          member->get_proc_info()->birthday);
 	if (login != NULL) {
 		m_login_tracker.add_entry(family, login);
 	}
 	if (penvid != NULL) {
-		m_environment_tracker.add_entry(family, penvid);
+		m_environment_tracker.add_mapping(family, penvid);
 	}
 
 	// find the family that will be this new subfamily's parent and create
@@ -530,9 +530,9 @@ ProcFamilyMonitor::unregister_subfamily(Tree<ProcFamily*>* tree)
 	// remove any information that these families might have registered with
 	// our tracker objects
 	//
-	m_pid_tracker.remove_entry(tree->get_data());
+	m_pid_tracker.remove_mapping(tree->get_data());
 	m_login_tracker.remove_entry(tree->get_data());
-	m_environment_tracker.remove_entry(tree->get_data());
+	m_environment_tracker.remove_mapping(tree->get_data());
 
 	// get rid of the hash table entry for this family
 	//

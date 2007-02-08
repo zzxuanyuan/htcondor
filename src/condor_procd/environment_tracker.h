@@ -24,35 +24,61 @@
 #ifndef _ENVIRONMENT_TRACKER_H
 #define _ENVIRONMENT_TRACKER_H
 
-#include "proc_family_tracker.h"
 #include "condor_pidenvid.h"
-
-class ProcFamily;
+#include "proc_family_tracker.h"
+#include "proc_family.h"
 
 class EnvironmentTracker : public ProcFamilyTracker {
 
 public:
 
-	EnvironmentTracker(ProcFamilyMonitor* pfm) :
-		ProcFamilyTracker(pfm),
-		m_list(NULL)
+	EnvironmentTracker(ProcFamilyMonitor* pfm) : ProcFamilyTracker(pfm) { }
+
+	void add_mapping(ProcFamily* family, PidEnvID* penvid)
 	{
+		PidEnvID* tmp = new PidEnvID;
+		ASSERT(tmp != NULL);
+		pidenvid_copy(tmp, penvid);
+		m_list.add_mapping(EnvironmentTag(tmp), family);
 	}
-	virtual ~EnvironmentTracker();
 
-	void add_entry(ProcFamily*, PidEnvID*);
-	void remove_entry(ProcFamily*);
+	void remove_mapping(ProcFamily* family)
+	{
+		EnvironmentTag tmp;
+		if (m_list.remove_mapping(family, &tmp)) {
+			delete tmp.get_penvid();
+		}
+	}
 
-	bool check_process(procInfo*);
+	bool check_process(procInfo* pi)
+	{
+		ProcFamily* family = m_list.find_family(pi);
+		if (family != NULL) {
+			family->add_member(pi);
+			return true;
+		}
+		return false;
+	}
 
 private:
 	
-	struct ListEntry {
-		ProcFamily* family;
-		PidEnvID    pidenvid;
-		ListEntry*  next;
+	class EnvironmentTag : public ProcInfoMatcher {
+
+	public:
+		EnvironmentTag() { }
+		EnvironmentTag(PidEnvID* penvid) : m_penvid(penvid) { }
+		PidEnvID* get_penvid() { return m_penvid; }
+
+		bool test(procInfo* pi)
+		{
+			return (pidenvid_match(m_penvid, &pi->penvid) == PIDENVID_MATCH);
+		}
+
+	private:
+		PidEnvID* m_penvid;
 	};
-	ListEntry* m_list;
+
+	TrackerHelperList<EnvironmentTag> m_list;
 };
 
 #endif

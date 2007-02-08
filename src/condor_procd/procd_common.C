@@ -38,120 +38,12 @@ procd_atob(char* str)
 #endif
 }
 
-bool
-login_match(procInfo* pi, char* login)
+unsigned long get_image_size(procInfo* pi)
 {
 #if defined(WIN32)
-
-	BOOL result;
-
-	// open a handle to the process in question
-	//
-	HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION,
-	                                    FALSE,
-	                                    pi->pid);
-	if (process_handle == NULL) {
-		dprintf(D_ALWAYS,
-		        "login_match: OpenProcess error: %u\n",
-		        GetLastError());
-		return false;
-	}
-
-	// now get a handle to its token
-	//
-	HANDLE token_handle;
-	result = OpenProcessToken(process_handle,
-	                          TOKEN_QUERY,
-	                          &token_handle);
-	if (result == FALSE) {
-		dprintf(D_ALWAYS,
-		        "login_match: OpenProcessToken error: %u\n",
-		        GetLastError());
-		CloseHandle(process_handle);
-		return false;
-	}
-
-	// now get the user's SID out of the token
-	//
-	DWORD sid_length;
-	GetTokenInformation(token_handle,
-	                    TokenUser,
-	                    NULL,
-	                    0,
-	                    &sid_length);
-	if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-		dprintf(D_ALWAYS,
-		        "login_match: GetTokenInformation error: %u\n",
-		        GetLastError());
-		CloseHandle(token_handle);
-		CloseHandle(process_handle);
-		return false;
-	}
-	TOKEN_USER* sid_buffer = (TOKEN_USER*)malloc(sid_length);
-	ASSERT(sid_buffer != NULL);
-	result = GetTokenInformation(token_handle,
-	                             TokenUser,
-	                             sid_buffer,
-	                             sid_length,
-	                             &sid_length);
-	if (result != NULL) {
-		dprintf(D_ALWAYS,
-		        "login_match: GetTokenInformation error: %u\n",
-		        GetLastError());
-		free(sid_buffer);
-		CloseHandle(token_handle);
-		CloseHandle(process_handle);
-	}
-
-	// ok, now lookup the user name corresponding to the SID we just got
-	//
-	char user_buffer[1024];
-	DWORD user_length = sizeof(user_buffer);
-	char domain_buffer[1024];
-	DWORD domain_length = sizeof(domain_buffer);
-	SID_NAME_USE sid_name_use;
-	result = LookupAccountSid(NULL,
-	                          sid_buffer->User.Sid,
-	                          user_buffer,
-	                          &user_length,
-	                          domain_buffer,
-	                          &domain_length,
-	                          &sid_name_use);
-	DWORD error = GetLastError();
-	free(sid_buffer);
-	CloseHandle(token_handle);
-	CloseHandle(process_handle);
-	if (result == FALSE) {
-		dprintf(D_ALWAYS,
-		        "login_match: LookupAccountSid error: %u\n",
-		        GetLastError());
-		return false;
-	}
-
-	// TODO: should we be comparing domains here as well?
-	//
-	return (stricmp(user_buffer, login) == 0);
+	return pi->rssize;
 #else
-	// FIXME: this is gonna be slow, and possibly hammer some poor
-	// LDAP or NIS server
-	//
-	errno = 0;
-	struct passwd *pwd = getpwnam(login);
-	if (pwd == NULL) {
-		if (errno != 0) {
-			dprintf(D_ALWAYS,
-			        "login_match: getpwnam error: %s (%d)\n",
-			        strerror(errno),
-			        error);
-		}
-		else {
-			dprintf(D_ALWAYS,
-			        "login_match: account \"%s\" not found\n",
-			        login);
-		}
-		return false;
-	}
-	return (pi->owner == pwd->uid);
+	return pi->imgsize;
 #endif
 }
 
@@ -187,14 +79,5 @@ send_signal(procInfo* pi, int sig)
 		dprintf(D_ALWAYS, "kill(%d, %d) error: %s (%d)\n",
 		        pi->pid, sig, strerror(errno), errno);
 	}
-#endif
-}
-
-unsigned long get_image_size(procInfo* pi)
-{
-#if defined(WIN32)
-	return pi->rssize;
-#else
-	return pi->imgsize;
 #endif
 }

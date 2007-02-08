@@ -94,10 +94,6 @@ SOURCE=..\src\condor_procd\dprintf_lite.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\environment_tracker.C
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\condor_procd\environment_tracker.h
 # End Source File
 # Begin Source File
@@ -131,10 +127,6 @@ SOURCE=..\src\condor_procd\parent_tracker.C
 # Begin Source File
 
 SOURCE=..\src\condor_procd\parent_tracker.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_procd\pid_tracker.C
 # End Source File
 # Begin Source File
 
@@ -203,6 +195,10 @@ SOURCE="..\src\condor_c++_util\process_control.WINDOWS.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\process_control.WINDOWS.h"
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_procd\tracker_helper_list.h
 # End Source File
 # End Target
 # End Project

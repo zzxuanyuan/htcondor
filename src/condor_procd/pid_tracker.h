@@ -25,6 +25,7 @@
 #define _PID_TRACKER_H
 
 #include "proc_family_tracker.h"
+#include "tracker_helper_list.h"
 
 class ProcFamily;
 
@@ -32,27 +33,46 @@ class PIDTracker : public ProcFamilyTracker {
 
 public:
 
-	PIDTracker(ProcFamilyMonitor* pfm) :
-		ProcFamilyTracker(pfm),
-		m_list(NULL)
+	PIDTracker(ProcFamilyMonitor* pfm) : ProcFamilyTracker(pfm) { }
+
+	void add_mapping(ProcFamily* family, pid_t pid, birthday_t birthday)
 	{
+		m_list.add_mapping(PIDTag(pid, birthday), family);
 	}
-	virtual ~PIDTracker();
 
-	void add_entry(ProcFamily*, pid_t, birthday_t);
-	void remove_entry(ProcFamily*);
+	void remove_mapping(ProcFamily* family)
+	{
+		m_list.remove_mapping(family);
+	}
 
-	bool check_process(procInfo*);
+	bool check_process(procInfo* pi)
+	{
+		ProcFamily* family = m_list.find_family(pi);
+		if (family != NULL) {
+			family->add_member(pi);
+			return true;
+		}
+		return false;
+	}
 
 private:
 	
-	struct ListEntry {
-		ProcFamily* family;
-		pid_t       pid;
-		birthday_t  birthday;
-		ListEntry*  next;
+	class PIDTag : public ProcInfoMatcher {
+
+	public:
+		PIDTag() { }
+		PIDTag(pid_t p, birthday_t b) : m_pid(p), m_birthday(b) { }
+
+		bool test(procInfo* pi) {
+			return ((pi->pid == m_pid) && (pi->birthday == m_birthday));
+		}
+
+	private:
+		pid_t m_pid;
+		birthday_t m_birthday;
 	};
-	ListEntry* m_list;
+
+	TrackerHelperList<PIDTag> m_list;
 };
 
 #endif

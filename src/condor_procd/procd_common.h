@@ -28,8 +28,6 @@
 
 birthday_t procd_atob(char*);
 
-bool login_match(procInfo*, char*);
-
 void send_signal(procInfo*, int);
 
 unsigned long get_image_size(procInfo*);
