@@ -25,6 +25,9 @@ NULL=
 NULL=nul
 !ENDIF 
 
+CPP=cl.exe
+RSC=rc.exe
+
 !IF  "$(CFG)" == "condor_cpp_util - Win32 Debug"
 
 OUTDIR=..\Debug
@@ -76,6 +79,7 @@ CLEAN :
 	-@erase "$(INTDIR)\dc_shadow.obj"
 	-@erase "$(INTDIR)\dc_startd.obj"
 	-@erase "$(INTDIR)\dc_starter.obj"
+	-@erase "$(INTDIR)\dc_transferd.obj"
 	-@erase "$(INTDIR)\directory.obj"
 	-@erase "$(INTDIR)\distribution.obj"
 	-@erase "$(INTDIR)\domain_tools.obj"
@@ -100,7 +104,6 @@ CLEAN :
 	-@erase "$(INTDIR)\job_lease.obj"
 	-@erase "$(INTDIR)\jobqueuesnapshot.obj"
 	-@erase "$(INTDIR)\KeyCache.obj"
-	-@erase "$(INTDIR)\killfamily.obj"
 	-@erase "$(INTDIR)\linebuffer.obj"
 	-@erase "$(INTDIR)\log.obj"
 	-@erase "$(INTDIR)\log_transaction.obj"
@@ -121,6 +124,7 @@ CLEAN :
 	-@erase "$(INTDIR)\pgsqldatabase.obj"
 	-@erase "$(INTDIR)\print_wrapped_text.obj"
 	-@erase "$(INTDIR)\proc_id.obj"
+	-@erase "$(INTDIR)\process_control.WINDOWS.obj"
 	-@erase "$(INTDIR)\read_multiple_logs.obj"
 	-@erase "$(INTDIR)\Regex.obj"
 	-@erase "$(INTDIR)\setenv.obj"
@@ -135,6 +139,7 @@ CLEAN :
 	-@erase "$(INTDIR)\time_offset.obj"
 	-@erase "$(INTDIR)\tmp_dir.obj"
 	-@erase "$(INTDIR)\token_cache.obj"
+	-@erase "$(INTDIR)\transfer_request.obj"
 	-@erase "$(INTDIR)\translation_utils.obj"
 	-@erase "$(INTDIR)\uids.obj"
 	-@erase "$(INTDIR)\usagemon.obj"
@@ -152,40 +157,7 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP=cl.exe
 CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_cpp_util.bsc" 
 BSC32_SBRS= \
@@ -233,6 +205,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\dc_shadow.obj" \
 	"$(INTDIR)\dc_startd.obj" \
 	"$(INTDIR)\dc_starter.obj" \
+	"$(INTDIR)\dc_transferd.obj" \
 	"$(INTDIR)\directory.obj" \
 	"$(INTDIR)\distribution.obj" \
 	"$(INTDIR)\domain_tools.obj" \
@@ -257,7 +230,6 @@ LIB32_OBJS= \
 	"$(INTDIR)\job_lease.obj" \
 	"$(INTDIR)\jobqueuesnapshot.obj" \
 	"$(INTDIR)\KeyCache.obj" \
-	"$(INTDIR)\killfamily.obj" \
 	"$(INTDIR)\linebuffer.obj" \
 	"$(INTDIR)\log.obj" \
 	"$(INTDIR)\log_transaction.obj" \
@@ -278,6 +250,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\pgsqldatabase.obj" \
 	"$(INTDIR)\print_wrapped_text.obj" \
 	"$(INTDIR)\proc_id.obj" \
+	"$(INTDIR)\process_control.WINDOWS.obj" \
 	"$(INTDIR)\read_multiple_logs.obj" \
 	"$(INTDIR)\Regex.obj" \
 	"$(INTDIR)\setenv.obj" \
@@ -292,6 +265,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\time_offset.obj" \
 	"$(INTDIR)\tmp_dir.obj" \
 	"$(INTDIR)\token_cache.obj" \
+	"$(INTDIR)\transfer_request.obj" \
 	"$(INTDIR)\translation_utils.obj" \
 	"$(INTDIR)\uids.obj" \
 	"$(INTDIR)\usagemon.obj" \
@@ -357,6 +331,7 @@ CLEAN :
 	-@erase "$(INTDIR)\dc_shadow.obj"
 	-@erase "$(INTDIR)\dc_startd.obj"
 	-@erase "$(INTDIR)\dc_starter.obj"
+	-@erase "$(INTDIR)\dc_transferd.obj"
 	-@erase "$(INTDIR)\directory.obj"
 	-@erase "$(INTDIR)\distribution.obj"
 	-@erase "$(INTDIR)\domain_tools.obj"
@@ -381,7 +356,6 @@ CLEAN :
 	-@erase "$(INTDIR)\job_lease.obj"
 	-@erase "$(INTDIR)\jobqueuesnapshot.obj"
 	-@erase "$(INTDIR)\KeyCache.obj"
-	-@erase "$(INTDIR)\killfamily.obj"
 	-@erase "$(INTDIR)\linebuffer.obj"
 	-@erase "$(INTDIR)\log.obj"
 	-@erase "$(INTDIR)\log_transaction.obj"
@@ -402,6 +376,7 @@ CLEAN :
 	-@erase "$(INTDIR)\pgsqldatabase.obj"
 	-@erase "$(INTDIR)\print_wrapped_text.obj"
 	-@erase "$(INTDIR)\proc_id.obj"
+	-@erase "$(INTDIR)\process_control.WINDOWS.obj"
 	-@erase "$(INTDIR)\read_multiple_logs.obj"
 	-@erase "$(INTDIR)\Regex.obj"
 	-@erase "$(INTDIR)\setenv.obj"
@@ -416,6 +391,7 @@ CLEAN :
 	-@erase "$(INTDIR)\time_offset.obj"
 	-@erase "$(INTDIR)\tmp_dir.obj"
 	-@erase "$(INTDIR)\token_cache.obj"
+	-@erase "$(INTDIR)\transfer_request.obj"
 	-@erase "$(INTDIR)\translation_utils.obj"
 	-@erase "$(INTDIR)\uids.obj"
 	-@erase "$(INTDIR)\usagemon.obj"
@@ -432,40 +408,7 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP=cl.exe
 CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_cpp_util.bsc" 
 BSC32_SBRS= \
@@ -513,6 +456,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\dc_shadow.obj" \
 	"$(INTDIR)\dc_startd.obj" \
 	"$(INTDIR)\dc_starter.obj" \
+	"$(INTDIR)\dc_transferd.obj" \
 	"$(INTDIR)\directory.obj" \
 	"$(INTDIR)\distribution.obj" \
 	"$(INTDIR)\domain_tools.obj" \
@@ -537,7 +481,6 @@ LIB32_OBJS= \
 	"$(INTDIR)\job_lease.obj" \
 	"$(INTDIR)\jobqueuesnapshot.obj" \
 	"$(INTDIR)\KeyCache.obj" \
-	"$(INTDIR)\killfamily.obj" \
 	"$(INTDIR)\linebuffer.obj" \
 	"$(INTDIR)\log.obj" \
 	"$(INTDIR)\log_transaction.obj" \
@@ -558,6 +501,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\pgsqldatabase.obj" \
 	"$(INTDIR)\print_wrapped_text.obj" \
 	"$(INTDIR)\proc_id.obj" \
+	"$(INTDIR)\process_control.WINDOWS.obj" \
 	"$(INTDIR)\read_multiple_logs.obj" \
 	"$(INTDIR)\Regex.obj" \
 	"$(INTDIR)\setenv.obj" \
@@ -572,6 +516,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\time_offset.obj" \
 	"$(INTDIR)\tmp_dir.obj" \
 	"$(INTDIR)\token_cache.obj" \
+	"$(INTDIR)\transfer_request.obj" \
 	"$(INTDIR)\translation_utils.obj" \
 	"$(INTDIR)\uids.obj" \
 	"$(INTDIR)\usagemon.obj" \
@@ -587,6 +532,36 @@ LIB32_OBJS= \
 <<
 
 !ENDIF 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
 
 
 !IF "$(NO_EXTERNAL_DEPS)" != "1"
@@ -875,6 +850,12 @@ SOURCE=..\src\condor_daemon_client\dc_starter.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=..\src\condor_daemon_client\dc_transferd.C
+
+"$(INTDIR)\dc_transferd.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE="..\src\condor_c++_util\directory.C"
 
 "$(INTDIR)\directory.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -1019,12 +1000,6 @@ SOURCE="..\src\condor_c++_util\KeyCache.C"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE="..\src\condor_c++_util\killfamily.C"
-
-"$(INTDIR)\killfamily.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
 SOURCE="..\src\condor_c++_util\linebuffer.C"
 
 "$(INTDIR)\linebuffer.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -1163,6 +1138,12 @@ SOURCE="..\src\condor_c++_util\proc_id.C"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE="..\src\condor_c++_util\process_control.WINDOWS.C"
+
+"$(INTDIR)\process_control.WINDOWS.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE="..\src\condor_c++_util\read_multiple_logs.C"
 
 "$(INTDIR)\read_multiple_logs.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -1244,6 +1225,12 @@ SOURCE="..\src\condor_c++_util\tmp_dir.C"
 SOURCE="..\src\condor_c++_util\token_cache.C"
 
 "$(INTDIR)\token_cache.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c++_util\transfer_request.C"
+
+"$(INTDIR)\transfer_request.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
