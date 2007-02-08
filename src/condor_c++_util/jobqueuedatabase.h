@@ -34,6 +34,13 @@ extern const int proc_field_num;
 extern const char *proc_field_names [];
 extern const int cluster_field_num;
 extern const char *cluster_field_names [];
+extern const bool history_hor_clob_field [];
+extern const bool history_ver_clob_field [];
+extern const bool proc_hor_clob_field [];
+extern const bool proc_ver_clob_field [];
+extern const bool cluster_hor_clob_field [];
+extern const bool cluster_ver_clob_field [];
+
 
 //! JobQueueDatabase
 /*! It provides interfaces to talk to DBMS

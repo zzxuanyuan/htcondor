@@ -36,6 +36,7 @@ using oracle::occi::Statement;
 using oracle::occi::ResultSet;
 using oracle::occi::SQLException;
 using oracle::occi::MetaData;
+using oracle::occi::Clob;
 
 //! ORACLEDataabse: Job Queue Database for Oracle
 //
