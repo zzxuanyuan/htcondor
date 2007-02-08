@@ -140,7 +140,7 @@ LoginTracker::LoginTag::LoginTag(char* login)
 			dprintf(D_ALWAYS,
 			        "login_match: getpwnam error: %s (%d)\n",
 			        strerror(errno),
-			        error);
+			        errno);
 		}
 		else {
 			dprintf(D_ALWAYS,
