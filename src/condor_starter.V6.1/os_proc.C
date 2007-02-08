@@ -130,6 +130,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 		}
 	} 
 
+#if !defined(WIN32)
 	// lookup the uid -- this probably only needs to be done for
 	// privsep.  also, it would be swank if this used the new mapfile
 	// object to map from canonical user to real UID using regex and
@@ -140,6 +141,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 	ClassAd *job_ad = Starter->jic->jobClassAd();
 	job_ad->LookupString(ATTR_OWNER,&owner);
 	pcache()->get_user_uid(owner, owner_uid);
+#endif
 
 	ArgList args;
 
@@ -161,8 +163,8 @@ OsProc::StartJob(FamilyInfo* family_info)
 		args.AppendArg(CONDOR_EXEC);
 	}
 
+#if !defined(WIN32)
 		// Support PRIVSEP_EXECUTABLE parameter...
-
 	char *privsep_executable = NULL;
 	if( !is_root() && (privsep_executable=param("PRIVSEP_EXECUTABLE")) ){
 			// make certain the privsep switchboard exists and is executable
@@ -195,16 +197,20 @@ OsProc::StartJob(FamilyInfo* family_info)
 
 		// the remainder of the args are added below
 	}
+#endif
 
 		// Support USER_JOB_WRAPPER parameter...
 
 	char *wrapper = NULL;
 	if( (wrapper=param("USER_JOB_WRAPPER")) ) {
+
+			// can't use a job wrapper in priv sep mode, yet
 		if( m_using_priv_sep ) {
 			dprintf( D_ALWAYS, "privsep combined with job wrapper not yet "
 					"supported.\n");
 			return 0;
 		}
+
 			// make certain this wrapper program exists and is executable
 		if( access(wrapper,X_OK) < 0 ) {
 			dprintf( D_ALWAYS, 
@@ -342,6 +348,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 		// Chown the sandbox to the user
 		// // // // // // 
 
+#if !defined(WIN32)
 	// again, call the magic box via my_system directly until a better
 	// API exists.
 	if( m_using_priv_sep ){
@@ -363,6 +370,7 @@ OsProc::StartJob(FamilyInfo* family_info)
 
 		free(privsep_executable);
 	}
+#endif
 
 
 		// // // // // // 
@@ -532,6 +540,7 @@ OsProc::JobCleanup( int pid, int status )
 		// now be gone
 	num_pids = 0;
 
+#if !defined(WIN32)
 		// if we are using priv sep, we chowned the starter's working
 		// dir over to the user before spawning the job; now its time
 		// to chown back
@@ -554,6 +563,7 @@ OsProc::JobCleanup( int pid, int status )
 
 		free(privsep_executable);
 	}
+#endif
 
 		// check to see if the job dropped a core file.  if so, we
 		// want to rename that file so that it won't clobber other
