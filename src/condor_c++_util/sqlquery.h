@@ -60,6 +60,8 @@ class SQLQuery
 	void setJobqueuebirthdate(time_t birthdate);
 	query_types getType();
 
+	void prepareQuery(); // Prepares the query string(s)
+
 	//print
 	void Print();
 
@@ -74,6 +76,7 @@ class SQLQuery
 	char *fetch_cursor_str; 
 	char *close_cursor_str; 
 	query_types type;
+	void **query_predicates;
 	char *scheddname;
 	time_t jobqueuebirthdate;
 
@@ -81,10 +84,3 @@ class SQLQuery
 };
 
 #endif
-
-
-
-
-
-
-

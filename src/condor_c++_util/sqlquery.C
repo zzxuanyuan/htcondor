@@ -79,12 +79,13 @@ SQLQuery ()
   close_cursor_str = 0;
   scheddname = 0;
   jobqueuebirthdate = 0;
+  query_predicates = NULL;
 }
 
 SQLQuery::
 SQLQuery (query_types qtype, void **parameters)
 {
-	createQueryString(qtype,parameters);
+	setQuery(qtype,parameters);
 }
 
 
@@ -136,7 +137,14 @@ getCloseCursorStmt()
 void SQLQuery::
 setQuery(query_types qtype, void **parameters) 
 {
-  createQueryString(qtype, parameters);
+	type = qtype;
+	query_predicates = parameters;
+}
+
+void SQLQuery::
+prepareQuery() 
+{
+  createQueryString(type, query_predicates);
 }
 
 void SQLQuery::
@@ -173,126 +181,145 @@ createQueryString(query_types qtype, void **parameters) {
   fetch_cursor_str = (char *) malloc(MAX_QUERY_SIZE * sizeof(char));
   close_cursor_str = (char *) malloc(MAX_QUERY_SIZE * sizeof(char));
 
+  MyString schedd_predicate_full = "";
+  MyString schedd_predicate_part = "";
+  MyString schedd_predicate_hh = "";
+  if (scheddname) { 
+	  schedd_predicate_full.sprintf_cat("WHERE scheddname = '%s'", scheddname);
+	  schedd_predicate_part.sprintf_cat("AND scheddname = '%s'", scheddname);
+	  schedd_predicate_hh.sprintf_cat("AND hh.scheddname = '%s'", scheddname);
+
+	  if (jobqueuebirthdate) {
+		  schedd_predicate_full.sprintf_cat(" AND scheddbirthdate = %d", jobqueuebirthdate);
+		  schedd_predicate_part.sprintf_cat(" AND scheddbirthdate = %d", jobqueuebirthdate);
+		  schedd_predicate_hh.sprintf_cat(" AND hh.scheddbirthdate = %d", jobqueuebirthdate);
+	  }
+  }
+
   switch(qtype) {
     
   case HISTORY_ALL_HOR:
 	  if (dt == T_PGSQL) {
 			sprintf(declare_cursor_str, 
-					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History ORDER BY scheddname, cluster_id, proc_id;", quill_history_hor_select_list);
+					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History %s ORDER BY scheddname, cluster_id, proc_id;", 
+					quill_history_hor_select_list, schedd_predicate_full.Value());
 			sprintf(fetch_cursor_str,
 				"FETCH FORWARD 100 FROM HISTORY_ALL_HOR_CUR");
 			sprintf(close_cursor_str,
 				"CLOSE HISTORY_ALL_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History ORDER BY scheddname, cluster_id, proc_id", quill_history_hor_select_list);
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History %s ORDER BY scheddname, cluster_id, proc_id", 
+				  quill_history_hor_select_list, schedd_predicate_full.Value());
 	  }
     
     break;
   case HISTORY_ALL_VER:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_ALL_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History ORDER BY scheddname, cluster_id, proc_id;", quill_history_ver_select_list);
+			"DECLARE HISTORY_ALL_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History %s ORDER BY scheddname, cluster_id, proc_id;", 
+				quill_history_ver_select_list, schedd_predicate_full.Value());
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_ALL_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_ALL_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.Jobs_Vertical_History ORDER BY scheddname, cluster_id, proc_id", quill_history_ver_select_list);
+				  "SELECT %s FROM quillwriter.Jobs_Vertical_History %s ORDER BY scheddname, cluster_id, proc_id", 
+				  quill_history_ver_select_list, schedd_predicate_full.Value());
 	  }
 
     break;
   case HISTORY_CLUSTER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc_id;",
+			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d %s ORDER BY scheddname, cluster_id, proc_id;",
 				quill_history_hor_select_list, 
-				*((int *)parameters[0]));
+				*((int *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_CLUSTER_HOR_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc_id",
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d %s ORDER BY scheddname, cluster_id, proc_id",
 				  quill_history_hor_select_list, 
-				  *((int *)parameters[0]));
+				  *((int *)parameters[0]), schedd_predicate_part.Value() );
 	  }
 
     break;
   case HISTORY_CLUSTER_VER:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc_id;",
+			"DECLARE HISTORY_CLUSTER_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History WHERE cluster_id=%d %s ORDER BY scheddname, cluster_id, proc_id;",
 				quill_history_ver_select_list,
-				*((int *)parameters[0]));
+				*((int *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_CLUSTER_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.Jobs_Vertical_History WHERE cluster_id=%d ORDER BY scheddname, cluster_id, proc_id",
+				  "SELECT %s FROM quillwriter.Jobs_Vertical_History WHERE cluster_id=%d %s ORDER BY scheddname, cluster_id, proc_id",
 				  quill_history_ver_select_list, 
-				  *((int *)parameters[0]));
+				  *((int *)parameters[0]), schedd_predicate_part.Value() );
 	  }
     break;
   case HISTORY_CLUSTER_PROC_HOR:
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d and proc_id=%d ORDER BY scheddname, cluster_id, proc_id;",
+			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d and proc_id=%d %s ORDER BY scheddname, cluster_id, proc_id;",
 				quill_history_hor_select_list,
-				*((int *)parameters[0]), *((int *)parameters[1]));
+				*((int *)parameters[0]), *((int *)parameters[1]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_CLUSTER_PROC_HOR_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_PROC_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d and proc_id=%d ORDER BY scheddname, cluster_id, proc_id",
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d and proc_id=%d %s ORDER BY scheddname, cluster_id, proc_id",
 				  quill_history_hor_select_list, 
-				  *((int *)parameters[0]), *((int *)parameters[1]));
+				  *((int *)parameters[0]), *((int *)parameters[1]), schedd_predicate_part.Value() );
 	  }
 
     break;  
   case HISTORY_CLUSTER_PROC_VER:
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
-			"DECLARE HISTORY_CLUSTER_PROC_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History WHERE cluster_id=%d and proc_id=%d "
+			"DECLARE HISTORY_CLUSTER_PROC_VER_CUR CURSOR FOR SELECT %s FROM Jobs_Vertical_History WHERE cluster_id=%d and proc_id=%d %s "
 			"ORDER BY scheddname, cluster_id, proc_id;",
 				quill_history_ver_select_list, 
-				*((int *)parameters[0]), *((int *)parameters[1]));
+				*((int *)parameters[0]), *((int *)parameters[1]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_CLUSTER_PROC_VER_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_CLUSTER_PROC_VER_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
-				  "SELECT %s FROM quillwriter.Jobs_Vertical_History WHERE cluster_id=%d and proc_id=%d "
+				  "SELECT %s FROM quillwriter.Jobs_Vertical_History WHERE cluster_id=%d and proc_id=%d %s "
 				  "ORDER BY scheddname, cluster_id, proc_id",
 				  quill_history_ver_select_list, 
-				  *((int *)parameters[0]), *((int *)parameters[1]));
+				  *((int *)parameters[0]), *((int *)parameters[1]), schedd_predicate_part.Value() );
 	  }
 
     break;  
   case HISTORY_OWNER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
-			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE \"Owner\"='\"%s\"' "
+			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE owner='\"%s\"' %s "
 			"ORDER BY scheddname, cluster_id, proc_id;",
 				quill_history_hor_select_list,
-			((char *)parameters[0]));
+				((char *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_OWNER_HOR_CUR");
 		sprintf(close_cursor_str,
 			"CLOSE HISTORY_OWNER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str,
-				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE \"Owner\"='\"%s\"' "
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE owner='\"%s\"' %s "
 				  "ORDER BY scheddname, cluster_id,proc_id",
 				  quill_history_hor_select_list,
-				  ((char *)parameters[0]));
+				  ((char *)parameters[0]), schedd_predicate_part.Value() );
 	  }
 
 	  break;
@@ -301,9 +328,9 @@ createQueryString(query_types qtype, void **parameters) {
 		sprintf(declare_cursor_str,
 			"DECLARE HISTORY_OWNER_VER_CUR CURSOR FOR SELECT hv.cluster_id,hv.proc_id,hv.attr,hv.val FROM "
 			"Jobs_Horizontal_History hh, Jobs_Vertical_History hv "
-			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.\"Owner\"='\"%s\"'"
+			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.owner='\"%s\"' %s "
 			" ORDER BY scheddname, cluster_id,proc_id;",
-			((char *)parameters[0]));
+			((char *)parameters[0]), schedd_predicate_hh.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_OWNER_VER_CUR");
 		sprintf(close_cursor_str,
@@ -312,9 +339,9 @@ createQueryString(query_types qtype, void **parameters) {
 		  sprintf(query_str,
 				  "SELECT hv.cluster_id,hv.proc_id,hv.attr,hv.val FROM "
 				  "quillwriter.Jobs_Horizontal_History hh, quillwriter.Jobs_Vertical_History hv "
-				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.\"Owner\"='\"%s\"'"
+				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.owner='\"%s\"' %s "
 				  " ORDER BY scheddname, cluster_id,proc_id",
-				  ((char *)parameters[0]));
+				  ((char *)parameters[0]), schedd_predicate_hh.Value() );
 	  }
 
 	  break;
@@ -323,10 +350,10 @@ createQueryString(query_types qtype, void **parameters) {
 		sprintf(declare_cursor_str,
 			"DECLARE HISTORY_COMPLETEDSINCE_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History "
 			"WHERE \"CompletionDate\" > "
-			"date_part('epoch', '%s'::timestamp with time zone) "
+			"date_part('epoch', '%s'::timestamp with time zone) %s "
 			"ORDER BY scheddname, cluster_id,proc_id;",
 				quill_history_hor_select_list,
-				((char *)parameters[0]));
+				((char *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_COMPLETEDSINCE_HOR_CUR");
 		sprintf(close_cursor_str,
@@ -335,10 +362,10 @@ createQueryString(query_types qtype, void **parameters) {
 		  sprintf(query_str,
 				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History "
 				  "WHERE (to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(\"CompletionDate\"/86400) || ' ' || floor(mod(\"CompletionDate\",86400)/3600) || ':' || floor(mod(\"CompletionDate\", 3600)/60) || ':' || mod(\"CompletionDate\", 60))) > "
-				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') "
+				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') %s "
 				  "ORDER BY scheddname, cluster_id,proc_id",
 				  quill_history_hor_select_list,
-				  ((char *)parameters[0]));
+				  ((char *)parameters[0]), schedd_predicate_part.Value() );
 		  
 	  break;
   case HISTORY_COMPLETEDSINCE_VER:
@@ -349,9 +376,9 @@ createQueryString(query_types qtype, void **parameters) {
 			"Jobs_Horizontal_History hh, Jobs_Vertical_History hv "
 			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND "
 			"hh.\"CompletionDate\" > "
-			"date_part('epoch', '%s'::timestamp with time zone) "
+			"date_part('epoch', '%s'::timestamp with time zone) %s "
 			"ORDER BY hh.scheddname, hh.cluster_id,hh.proc_id;",
-			((char *)parameters[0]));
+			((char *)parameters[0]), schedd_predicate_hh.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 5000 FROM HISTORY_COMPLETEDSINCE_VER_CUR");
 		sprintf(close_cursor_str,
@@ -363,9 +390,9 @@ createQueryString(query_types qtype, void **parameters) {
 				  "quillwriter.Jobs_Horizontal_History hh, quillwriter.Jobs_Vertical_History hv "
 				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND "
 				  "(to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(hh.\"CompletionDate\"/86400) || ' ' || floor(mod(hh.\"CompletionDate\",86400)/3600) || ':' || floor(mod(hh.\"CompletionDate\", 3600)/60) || ':' || mod(hh.\"CompletionDate\", 60))) > "
-				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') "
+				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') %s "
 				  "ORDER BY hh.scheddname, hh.cluster_id,hh.proc_id",
-				  ((char *)parameters[0]));
+				  ((char *)parameters[0]), schedd_predicate_hh.Value() );
 	  break;
   case QUEUE_AVG_TIME:
 	  if (dt == T_PGSQL) 
