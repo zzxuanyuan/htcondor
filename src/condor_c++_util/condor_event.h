@@ -183,7 +183,8 @@ class ULogEvent {
 		@param a pointer to the ClassAd to initialize from
 	*/
 	virtual void initFromClassAd(ClassAd* ad);
-	    
+	   
+	void setGlobalJobId(const char *gjid) { m_gjid = gjid; } 
     /// The event last read, or to be written.
     ULogEventNumber    eventNumber;
 
@@ -257,6 +258,10 @@ class ULogEvent {
         @return 0 for failure, 1 for success
     */
     int writeHeader (FILE *file);
+
+	/// the global job id for the job associated with this event
+	void insertCommonIdentifiers(ClassAd *adToFill);
+	const char *m_gjid;
 };
 
 //----------------------------------------------------------------------------

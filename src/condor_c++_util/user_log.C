@@ -39,16 +39,17 @@ extern "C" char *find_env (const char *, const char *);
 extern "C" char *get_env_val (const char *);
 
 UserLog::UserLog (const char *owner, const char *domain, const char *file,
-				  int c, int p, int s, bool xml)
+				  int c, int p, int s, bool xml, const char *gjid)
     :  in_block(FALSE), path(0), fp(0), lock(NULL)
 {
 	UserLog();
 	use_xml = xml;
-	initialize (owner, domain, file, c, p, s);
+	initialize (owner, domain, file, c, p, s, gjid);
 }
 
 /* This constructor is just like the constructor above, except
- * that it doesn't take a domain, and it passes NULL for the domain.
+ * that it doesn't take a domain, and it passes NULL for the domain and
+ * the globaljobid. Hopefully it's not called anywhere by the condor code...
  * It's a convenience function, requested by our friends in LCG. */
 UserLog::UserLog (const char *owner, const char *file,
 				  int c, int p, int s, bool xml)
@@ -56,7 +57,7 @@ UserLog::UserLog (const char *owner, const char *file,
 {
 	UserLog();
 	use_xml = xml;
-	initialize (owner, NULL, file, c, p, s);
+	initialize (owner, NULL, file, c, p, s, NULL);
 }
 
 /* --- The following two functions are taken from the shadow's ulog.c --- */
@@ -116,7 +117,7 @@ get_env_val( const char *str )
 }
 
 bool UserLog::
-initialize( const char *file, int c, int p, int s )
+initialize( const char *file, int c, int p, int s, const char *gjid)
 {
 	int 			fd;
 
@@ -175,12 +176,12 @@ initialize( const char *file, int c, int p, int s )
 		lock = new FileLock( -1 );
 	}
 
-	return initialize(c, p, s);
+	return initialize(c, p, s, gjid);
 }
 
 bool UserLog::
 initialize( const char *owner, const char *domain, const char *file,
-	   	int c, int p, int s )
+	   	int c, int p, int s, const char *gjid )
 {
 	priv_state		priv;
 
@@ -194,7 +195,7 @@ initialize( const char *owner, const char *domain, const char *file,
 	priv = set_user_priv();
 
 		// initialize log file
-	bool res = initialize(file,c,p,s);
+	bool res = initialize(file,c,p,s,gjid);
 
 		// get back to whatever UID and GID we started with
 	set_priv(priv);
@@ -203,11 +204,14 @@ initialize( const char *owner, const char *domain, const char *file,
 }
 
 bool UserLog::
-initialize( int c, int p, int s )
+initialize( int c, int p, int s, const char *gjid )
 {
 	cluster = c;
 	proc = p;
 	subproc = s;
+	if(gjid) {
+		m_gjid = strdup(gjid);
+	}
 	return TRUE;
 }
 
@@ -215,6 +219,7 @@ UserLog::~UserLog()
 {
 	delete [] path;
 	delete lock;
+	if(m_gjid) free(m_gjid);
 	if (fp != 0) fclose( fp );
 }
 
@@ -243,6 +248,7 @@ writeEvent (ULogEvent *event)
 	event->cluster = cluster;
 	event->proc = proc;
 	event->subproc = subproc;
+	event->setGlobalJobId(m_gjid);
 
 	lock->obtain (WRITE_LOCK);
 	fseek (fp, 0, SEEK_END);
@@ -379,7 +385,7 @@ InitUserLog( const char *own, const char *domain, const char *file,
 {
 	UserLog	*answer;
 
-	answer = new UserLog( own, domain, file, c, p, s );
+	answer = new UserLog( own, domain, file, c, p, s, NULL );
 	return (LP *)answer;
 }
 

@@ -461,6 +461,33 @@ initFromClassAd(ClassAd* ad)
 	ad->LookupInteger("Subproc", subproc);
 }
 
+void ULogEvent::
+insertCommonIdentifiers(ClassAd *adToFill)
+{
+	MyString tmp;
+
+	if( !adToFill ) return;
+	if(scheddname) {
+	  tmp.sprintf("scheddname = \"%s\"", scheddname);
+	  adToFill->Insert(tmp.GetCStr());
+	}
+
+	if(m_gjid) {
+	  tmp.sprintf("globaljobid = \"%s\"", m_gjid);
+	  adToFill->Insert(tmp.GetCStr());
+	}
+ 
+	tmp.sprintf("cluster_id = %d", cluster);
+	adToFill->Insert(tmp.GetCStr());
+
+	tmp.sprintf("proc_id = %d", proc);
+	adToFill->Insert(tmp.GetCStr());
+
+	tmp.sprintf("spid = %d", subproc);
+	adToFill->Insert(tmp.GetCStr());
+}
+
+
 // ----- the SubmitEvent class
 SubmitEvent::
 SubmitEvent()
@@ -1170,20 +1197,9 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		
 		tmp.sprintf("endmessage = \"%s\"", messagestr);
 		tmpClP1->Insert(tmp.GetCStr());
-		
-		if(scheddname) {
-		  tmp.sprintf("scheddname = \"%s\"", scheddname);
-		  tmpClP2->Insert(tmp.GetCStr());
-		}
-  
-		tmp.sprintf("cluster_id = %d", cluster);
-		tmpClP2->Insert(tmp.GetCStr());
-
-		tmp.sprintf("proc_id = %d", proc);
-		tmpClP2->Insert(tmp.GetCStr());
-
-		tmp.sprintf("spid = %d", subproc);
-		tmpClP2->Insert(tmp.GetCStr());
+	
+		// this inserts scheddname, cluster, proc, etc
+		insertCommonIdentifiers(tmpClP2);		
 
 		tmp.sprintf("endtype = null");
 		tmpClP2->Insert(tmp.GetCStr());
@@ -1201,19 +1217,8 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		}
 
 	} else {		
-		if (scheddname) {	
-		  tmp.sprintf("scheddname = \"%s\"", scheddname);
-		  tmpClP1->Insert(tmp.GetCStr());		
-		}
-
-		tmp.sprintf( "cluster_id = %d", cluster);
-		tmpClP1->Insert(tmp.GetCStr());		
-
-		tmp.sprintf( "proc_id = %d", proc);
-		tmpClP1->Insert(tmp.GetCStr());		
-
-		tmp.sprintf( "spid = %d", subproc);
-		tmpClP1->Insert(tmp.GetCStr());				
+		        // this inserts scheddname, cluster, proc, etc
+        insertCommonIdentifiers(tmpClP1);           
 
 		tmp.sprintf( "eventtype = %d", ULOG_REMOTE_ERROR);
 		tmpClP1->Insert(tmp.GetCStr());
@@ -1486,19 +1491,8 @@ writeEvent (FILE *file)
   tmp.sprintf("endmessage = \"UNKNOWN ERROR\"");
   tmpClP1->Insert(tmp.GetCStr());
  
-  if (scheddname) {
-    tmp.sprintf("scheddname = \"%s\"", scheddname);
-    tmpClP2->Insert(tmp.GetCStr());
-  } 
-
-  tmp.sprintf("cluster_id = %d", cluster);
-  tmpClP2->Insert(tmp.GetCStr());
-
-  tmp.sprintf("proc_id = %d", proc);
-  tmpClP2->Insert(tmp.GetCStr());
-
-  tmp.sprintf("spid = %d", subproc);
-  tmpClP2->Insert(tmp.GetCStr());
+  // this inserts scheddname, cluster, proc, etc
+  insertCommonIdentifiers(tmpClP2);           
 
   tmp.sprintf("endtype = null");
   tmpClP2->Insert(tmp.GetCStr());
@@ -1513,19 +1507,8 @@ writeEvent (FILE *file)
   tmp.sprintf("machine_id = \"%s\"", remoteName);
   tmpClP3->Insert(tmp.GetCStr());
 
-  if(scheddname) {
-    tmp.sprintf("scheddname = \"%s\"", scheddname);
-    tmpClP3->Insert(tmp.GetCStr());
-  }
-
-  tmp.sprintf("cluster_id = %d", cluster);
-  tmpClP3->Insert(tmp.GetCStr());
-  
-  tmp.sprintf("proc_id = %d", proc);
-  tmpClP3->Insert(tmp.GetCStr());
-  
-  tmp.sprintf("spid = %d", subproc);
-  tmpClP3->Insert(tmp.GetCStr());
+  // this inserts scheddname, cluster, proc, etc
+  insertCommonIdentifiers(tmpClP3);           
 
   tmp.sprintf("startts = %d", (int)eventclock);
   tmpClP3->Insert(tmp.GetCStr());
@@ -1635,19 +1618,8 @@ writeEvent (FILE *file)
 	tmp.sprintf( "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp.GetCStr());
 		
-	if(scheddname){
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP2->Insert(tmp.GetCStr());
-	}
-  
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP2->Insert(tmp.GetCStr());
-
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP2->Insert(tmp.GetCStr());
-
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP2->Insert(tmp.GetCStr());
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP2);           
 
 	tmp.sprintf( "endtype = null");
 	tmpClP2->Insert(tmp.GetCStr());
@@ -1767,19 +1739,8 @@ writeEvent (FILE *file)
 
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 
-	if (scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp.GetCStr());		
-	}
-	
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP1->Insert(tmp.GetCStr());		
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP1);           
 
 	tmp.sprintf( "eventtype = %d", ULOG_CHECKPOINTED);
 	tmpClP1->Insert(tmp.GetCStr());
@@ -2159,19 +2120,8 @@ JobEvictedEvent::writeEvent( FILE *file )
   tmp.sprintf( "runbytesreceived = %f", recvd_bytes);
   tmpClP1->Insert(tmp.GetCStr());
 
-  if (scheddname) {
-    tmp.sprintf( "scheddname = \"%s\"", scheddname);
-    tmpClP2->Insert(tmp.GetCStr());
-  }
-  
-  tmp.sprintf( "cluster_id = %d", cluster);
-  tmpClP2->Insert(tmp.GetCStr());
-
-  tmp.sprintf( "proc_id = %d", proc);
-  tmpClP2->Insert(tmp.GetCStr());
-
-  tmp.sprintf( "spid = %d", subproc);
-  tmpClP2->Insert(tmp.GetCStr());
+  // this inserts scheddname, cluster, proc, etc
+  insertCommonIdentifiers(tmpClP2);           
 	
   tmp.sprintf( "endtype = null");
   tmpClP2->Insert(tmp.GetCStr());
@@ -2354,19 +2304,8 @@ writeEvent (FILE *file)
 	else 
 		sprintf(messagestr,  "Job was aborted by the user");
 
-	if(scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp.GetCStr());		
-	}
-	
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP1->Insert(tmp.GetCStr());		
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP1);           
 
 	tmp.sprintf( "eventtype = %d", ULOG_JOB_ABORTED);
 	tmpClP1->Insert(tmp.GetCStr());
@@ -2569,20 +2508,9 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	
 	tmp.sprintf( "runbytesreceived = %f", recvd_bytes);
 	tmpClP1->Insert(tmp.GetCStr());	
-	
-	if(scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP2->Insert(tmp.GetCStr());	
-	}
 
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP2->Insert(tmp.GetCStr());
-
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP2->Insert(tmp.GetCStr());
-
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP2->Insert(tmp.GetCStr());
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP2);           
 	
 	tmp.sprintf( "endts = %d", (int)eventclock);
 	tmpClP2->Insert(tmp.GetCStr());
@@ -2695,20 +2623,9 @@ JobTerminatedEvent::writeEvent (FILE *file)
   
   tmp.sprintf( "endtype = %d", ULOG_JOB_TERMINATED);
   tmpClP1->Insert(tmp.GetCStr());  
-	
-  if (scheddname) {
-    tmp.sprintf( "scheddname = \"%s\"", scheddname);
-    tmpClP2->Insert(tmp.GetCStr());	
-  }
-  
-  tmp.sprintf( "cluster_id = %d", cluster);
-  tmpClP2->Insert(tmp.GetCStr());
-  
-  tmp.sprintf( "proc_id = %d", proc);
-  tmpClP2->Insert(tmp.GetCStr());
 
-  tmp.sprintf( "spid = %d", subproc);
-  tmpClP2->Insert(tmp.GetCStr());
+  // this inserts scheddname, cluster, proc, etc
+  insertCommonIdentifiers(tmpClP2);           
   
   tmp.sprintf( "endtype = null");
   tmpClP2->Insert(tmp.GetCStr());
@@ -2974,19 +2891,8 @@ writeEvent (FILE *file)
 		tmp.sprintf( "runbytesreceived = %f", recvd_bytes);
 		tmpClP1->Insert(tmp.GetCStr());
 
-		if (scheddname) {
-			tmp.sprintf( "scheddname = \"%s\"", scheddname);
-			tmpClP2->Insert(tmp.GetCStr());
-		}
-  
-		tmp.sprintf( "cluster_id = %d", cluster);
-		tmpClP2->Insert(tmp.GetCStr());
-
-		tmp.sprintf( "proc_id = %d", proc);
-		tmpClP2->Insert(tmp.GetCStr());
-
-		tmp.sprintf( "spid = %d", subproc);
-		tmpClP2->Insert(tmp.GetCStr());
+		// this inserts scheddname, cluster, proc, etc
+		insertCommonIdentifiers(tmpClP2);           
 
 		tmp.sprintf( "endtype = null");
 		tmpClP2->Insert(tmp.GetCStr());
@@ -2998,19 +2904,8 @@ writeEvent (FILE *file)
 			}
 		}
 	} else {
-		if(scheddname) {
-			tmp.sprintf( "scheddname = \"%s\"", scheddname);
-			tmpClP1->Insert(tmp.GetCStr());		
-		}
-		
-		tmp.sprintf( "cluster_id = %d", cluster);
-		tmpClP1->Insert(tmp.GetCStr());	
-
-		tmp.sprintf( "proc_id = %d", proc);
-		tmpClP1->Insert(tmp.GetCStr());		
-		
-		tmp.sprintf( "spid = %d", subproc);
-		tmpClP1->Insert(tmp.GetCStr());		
+		// this inserts scheddname, cluster, proc, etc
+        insertCommonIdentifiers(tmpClP1);           
 
 		tmp.sprintf( "eventtype = %d", ULOG_SHADOW_EXCEPTION);
 		tmpClP1->Insert(tmp.GetCStr());
@@ -3128,19 +3023,8 @@ writeEvent (FILE *file)
 	
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 
-	if (scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp.GetCStr());		
-	}
-	
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP1->Insert(tmp.GetCStr());		
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP1);           
 
 	tmp.sprintf( "eventtype = %d", ULOG_JOB_SUSPENDED);
 	tmpClP1->Insert(tmp.GetCStr());
@@ -3223,19 +3107,8 @@ writeEvent (FILE *file)
 	
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 
-	if (scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp.GetCStr());		
-	}
-	
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP1->Insert(tmp.GetCStr());		
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP1);           
 
 	tmp.sprintf( "eventtype = %d", ULOG_JOB_UNSUSPENDED);
 	tmpClP1->Insert(tmp.GetCStr());
@@ -3396,19 +3269,8 @@ JobHeldEvent::writeEvent( FILE *file )
 
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 
-	if (scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp.GetCStr());		
-	}
-	
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP1->Insert(tmp.GetCStr());		
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP1);           
 
 	tmp.sprintf( "eventtype = %d", ULOG_JOB_HELD);
 	tmpClP1->Insert(tmp.GetCStr());
@@ -3569,19 +3431,8 @@ JobReleasedEvent::writeEvent( FILE *file )
 
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 
-	if (scheddname) {
-	  tmp.sprintf( "scheddname = \"%s\"", scheddname);
-	  tmpClP1->Insert(tmp.GetCStr());		
-	}
-	
-	tmp.sprintf( "cluster_id = %d", cluster);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "proc_id = %d", proc);
-	tmpClP1->Insert(tmp.GetCStr());		
-	
-	tmp.sprintf( "spid = %d", subproc);
-	tmpClP1->Insert(tmp.GetCStr());		
+	// this inserts scheddname, cluster, proc, etc
+	insertCommonIdentifiers(tmpClP1);           
 
 	tmp.sprintf( "eventtype = %d", ULOG_JOB_RELEASED);
 	tmpClP1->Insert(tmp.GetCStr());
