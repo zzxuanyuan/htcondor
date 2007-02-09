@@ -843,6 +843,6 @@ QuillErrCode PGSQLDatabase::execCommandWithBind(const char* sql,
 		/* this function is only used and implemented by oracle database, 
 		   it should not be called anywhere if it's postgres 
 		*/
-	assert(0);
+	EXCEPT("PROGRAMMER ERROR: execCommandWithBind should never be called on postgres");
 	return FAILURE;
 }
