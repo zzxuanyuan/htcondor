@@ -221,7 +221,9 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			parsed_line_successfully = parse_vars(dag, filename, lineNumber);
 		}
 
-		// Allow a CONFIG spec (actually parsed by condor_submit_dag).
+		// Allow a CONFIG spec, but ignore it here because it
+		// is actually parsed by condor_submit_dag (config
+		// files must be processed before any other code runs)
 		else if(strcasecmp(token, "CONFIG") == 0) {
 			parsed_line_successfully = true;
 		}

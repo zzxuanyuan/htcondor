@@ -39,6 +39,9 @@
 void ExitSuccess();
 
 	// From condor_c++_util/condor_config.C
+	// Note: these functions are declared 'extern "C"' where they're
+	// implemented; if we don't do that here we get a link failure
+	// (I think because of the name mangling).  wenger 2007-02-09.
 extern "C" void process_config_source( char* file, char* name,
 			char* host, int required );
 extern "C" bool is_piped_command(const char* filename);
@@ -109,6 +112,14 @@ Dagman::~Dagman()
 	}
 }
 
+	// 
+	// In Config() we get DAGMan-related configuration values.  This
+	// is a three-step process:
+	// 1. Get the name of the DAGMan-specific config file (if any).
+	// 2. If there is a DAGMan-specific config file, process it so
+	//    that its values are added to the configuration.
+	// 3. Get the values we want from the configuration.
+	//
 bool
 Dagman::Config()
 {
@@ -128,7 +139,7 @@ Dagman::Config()
 			debug_printf( DEBUG_NORMAL,
 						"ERROR: Can't read DAGMan config file: %s\n",
 						dagman_config_file );
-    		DC_Exit( EXIT_RESTART );
+    		DC_Exit( EXIT_ERROR );
 		}
 		process_config_source( dagman_config_file, "DAGMan config",
 					NULL, true );
@@ -265,8 +276,11 @@ Dagman::Config()
 int
 main_config( bool )
 {
-	//TEMPTEMP -- do we really want to do this here?  If we got a reconfig, then config stuff would override command-line args, which is not what we want according to the comments
-	dagman.Config();
+		// This is commented out because, even if we get new config
+		// values here, they don't get passed to the Dag object (which
+		// is where most of them actually take effect).  (See Gnats
+		// PR 808.)  wenger 2007-02-09
+	// dagman.Config();
 	return 0;
 }
 
