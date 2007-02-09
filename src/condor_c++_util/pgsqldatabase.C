@@ -35,8 +35,8 @@ const char *QUILLPP_HistoryHorFields[] ={"ScheddName", "ClusterId", "ProcId", "Q
 const int proc_field_num = 11;
 const char *proc_field_names [] = { "Cluster", "Proc", "JobStatus", "ImageSize", "RemoteUserCpu", "RemoteWallClockTime", "RemoteHost", "GlobalJobId", "JobPrio", "Args", "ShadowBday" };
 
-const int cluster_field_num = 10;
-const char *cluster_field_names [] = { "Cluster", "Owner", "JobStatus", "JobPrio", "ImageSize", "QDate", "RemoteUserCpu", "RemoteWallClockTime", "Cmd", "Args" };
+const int cluster_field_num = 11;
+const char *cluster_field_names [] = { "Cluster", "Owner", "JobStatus", "JobPrio", "ImageSize", "QDate", "RemoteUserCpu", "RemoteWallClockTime", "Cmd", "Args", "JobUniverse" };
 
 //! constructor
 PGSQLDatabase::PGSQLDatabase(const char* connect)
@@ -506,7 +506,7 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
 		procAds_hor_query.sprintf("SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args, extract(epoch from shadowbday) as shadowbday  FROM procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id;", scheddname);
 		procAds_ver_query.sprintf("SELECT cluster_id, proc_id, attr, val FROM procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id;", scheddname);
 
-		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id;", scheddname);
+		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args, jobuniverse FROM clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id;", scheddname);
 
 		clusterAds_ver_query.sprintf("SELECT cluster_id, attr, val FROM clusterads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id;", scheddname);
 	}
@@ -611,7 +611,7 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
 			scheddname, procpredicate.Value() );
 
 		clusterAds_hor_query.sprintf(
-			"SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM clusterads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id;", scheddname, clusterpredicate.Value());
+			"SELECT cluster_id, owner, jobstatus, jobprio, imagesize, extract(epoch from qdate) as qdate, remoteusercpu, remotewallclocktime, cmd, args, jobuniverse FROM clusterads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id;", scheddname, clusterpredicate.Value());
 
 		clusterAds_ver_query.sprintf(
 		"SELECT cluster_id, attr, val FROM clusterads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id;", scheddname, clusterpredicate.Value());	
