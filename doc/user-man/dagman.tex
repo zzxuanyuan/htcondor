@@ -129,7 +129,6 @@ An example input file for DAGMan is
     Retry  C 3
     VARS A state="Wisconsin"
     ABORT-DAG-ON C 10 RETURN 1
-    CONFIG dagman.config
 \end{verbatim}
 \normalsize
 
@@ -487,6 +486,15 @@ to set \Condor{dagman} configuration options when running this DAG.
 The syntax for \Arg{CONFIG} is
 
 \Arg{CONFIG} \Arg{ConfigFileName}
+
+If the DAG file contains a line like this:
+
+\begin{verbatim}
+    CONFIG dagman.config
+\end{verbatim}
+
+the configuration values in the file \File{dagman.config} will be used
+for this DAG.
 
 For more information about how \Condor{dagman} configuration files work,
 see section~\ref{sec:DAGConfig}.
