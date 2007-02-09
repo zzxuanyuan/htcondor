@@ -108,10 +108,13 @@ void schedd_files_ins(
 		if (strcmp(tmpFile.GetCStr(), "/dev/null") == 0)
 			return; /* job doesn't care about this type of file */
 		
+		// basename and dirname may modify the string, so have two
+		// copies
 		pathname = tmpFile;
-		
-		path = dirname(tmpFile.GetCStr());
+		MyString tmpFile2 = tmpFile;
+
 		fileName = basename(tmpFile.GetCStr()); 
+		path = dirname(tmpFile2.GetCStr());
 	}
 	else {
 		pathname.sprintf("%s/%s", path.GetCStr(), tmpFile.GetCStr());
