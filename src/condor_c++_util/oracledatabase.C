@@ -27,9 +27,9 @@
 
 extern const bool history_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE};
 extern const bool history_ver_clob_field [] = {FALSE, FALSE, FALSE, FALSE, TRUE};
-extern const bool proc_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE};
+extern const bool proc_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE};
 const bool proc_ver_clob_field [] = {FALSE, FALSE, FALSE, TRUE};
-extern const bool cluster_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE};
+extern const bool cluster_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, FALSE};
 const bool cluster_ver_clob_field [] = {FALSE, FALSE, TRUE};
 
 static std::string getStringFromClob(ResultSet *res, int col);
@@ -868,10 +868,10 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 	int i;
 
 	if(isfullscan) {
-		procAds_hor_query.sprintf("SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args  FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id", scheddname);
+		procAds_hor_query.sprintf("SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio,  args, case when shadowbday is null then null else (extract(day from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) end as shadowbday, case when enteredcurrentstatus is null then null else (extract(day from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) end as enteredcurrentstatus, numrestarts FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id", scheddname);
 		procAds_ver_query.sprintf("SELECT cluster_id, proc_id, attr, val FROM quillwriter.procads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id, proc_id", scheddname);
 
-		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, (extract(day from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM quillwriter.clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id", scheddname);
+		clusterAds_hor_query.sprintf("SELECT cluster_id, owner, jobstatus, jobprio, imagesize, (extract(day from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, remoteusercpu, remotewallclocktime, cmd, args, jobuniverse FROM quillwriter.clusterads_horizontal WHERE scheddname=\'%s\' ORDER BY cluster_id", scheddname);
 
 		clusterAds_ver_query.sprintf("SELECT cluster_id, attr, val FROM quillwriter.clusterads_vertical WHERE scheddname=\'%s\' ORDER BY cluster_id", scheddname);
 	}
@@ -969,14 +969,14 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 
 
 		procAds_hor_query.sprintf( 
-			"SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id", scheddname, procpredicate.Value() );
+			"SELECT cluster_id, proc_id, jobstatus, imagesize, remoteusercpu, remotewallclocktime, remotehost, globaljobid, jobprio, args, case when shadowbday is null then null else (extract(day from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (shadowbday - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) end as shadowbday, case when enteredcurrentstatus is null then null else (extract(day from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) end as enteredcurrentstatus, numrestarts FROM quillwriter.procads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id", scheddname, procpredicate.Value() );
 
 		procAds_ver_query.sprintf(
 	"SELECT cluster_id, proc_id, attr, val FROM quillwriter.procads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id, proc_id", 
 			scheddname, procpredicate.Value() );
 
 		clusterAds_hor_query.sprintf(
-			"SELECT cluster_id, owner, jobstatus, jobprio, imagesize, (extract(day from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, remoteusercpu, remotewallclocktime, cmd, args FROM quillwriter.clusterads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id", scheddname, clusterpredicate.Value());
+			"SELECT cluster_id, owner, jobstatus, jobprio, imagesize, (extract(day from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, remoteusercpu, remotewallclocktime, cmd, args, jobuniverse FROM quillwriter.clusterads_horizontal WHERE scheddname=\'%s\' %s ORDER BY cluster_id", scheddname, clusterpredicate.Value());
 
 		clusterAds_ver_query.sprintf(
 		"SELECT cluster_id, attr, val FROM quillwriter.clusterads_vertical WHERE scheddname=\'%s\' %s ORDER BY cluster_id", scheddname, clusterpredicate.Value());	
@@ -1538,4 +1538,92 @@ static std::string getStringFromClob(ResultSet *res, int col)
 	}
 	
 	return rv;
+}
+
+/*! execute a command with binding variables
+ *
+ *  execaute SQL which has bind variables, the only bind variables 
+ *  supported for now is the clob data type.
+ *  
+ *  the number of bind variables in the sql must be the same as the
+ *  number of strings pointed by longstr_arr. num_str should
+ *  be the number of strings in the array. strlen_arr is the array
+ *  of string length for the strings passed in.
+ *
+ */
+QuillErrCode 
+ORACLEDatabase::execCommandWithBind(const char* sql, 
+									char** longstr_arr,
+									int *  strlen_arr,
+									int   num_str)
+{
+	struct timeval tvStart, tvEnd;
+	int i, max_strlen = 0;
+	oracle::occi::Stream *instream;
+
+	if (!connected) {
+		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execCommand\n");
+		return FAILURE;
+	}
+
+	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
+	
+#ifdef TT_COLLECT_SQL
+	fprintf(sqllog_fp, "%s;\n", sql);
+	fflush(sqllog_fp);
+#endif
+
+#ifdef TT_TIME_SQL
+	gettimeofday( &tvStart, NULL );
+#endif
+
+	for ( i = 0; i < num_str; i++) {
+		if (strlen_arr[i] > max_strlen) 
+			max_strlen = strlen_arr[i];
+	}
+
+	try {
+		stmt = conn->createStatement (sql);
+		for ( i = 1; i <= num_str; i++) {
+			stmt->setCharacterStreamMode(i, max_strlen+1);
+		}
+
+		stmt->executeUpdate ();
+
+		for ( i = 1; i <= num_str; i++) {
+			instream = stmt->getStream(i);
+			instream->writeLastBuffer(longstr_arr[i-1], strlen_arr[i-1]);
+			stmt->closeStream(instream);
+		}
+		
+	} catch (SQLException ex) {
+		dprintf(D_ALWAYS, "ERROR EXECUTING UPDATE\n");
+		dprintf(D_ALWAYS,  "[SQL: %s]\n", sql);		
+		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::execCommand\n", ex.getErrorCode(), ex.getMessage().c_str());
+
+		conn->terminateStatement (stmt);
+		stmt = NULL;
+
+			/* ORA-03113 means that the connection between Client and Server 
+			   process was broken.
+			 */
+		if (ex.getErrorCode() == 3113) {
+			disconnectDB();
+		}
+
+		return FAILURE;				
+	}
+
+	conn->terminateStatement (stmt);	
+
+#ifdef TT_TIME_SQL
+	gettimeofday( &tvEnd, NULL );
+
+	dprintf(D_FULLDEBUG, "Execution time: %d\n", 
+			(tvEnd.tv_sec - tvStart.tv_sec)*1000 + 
+			(tvEnd.tv_usec - tvStart.tv_usec)/1000);
+#endif
+	
+	stmt = NULL;
+	return SUCCESS;
 }

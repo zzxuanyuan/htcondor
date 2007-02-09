@@ -62,6 +62,10 @@ public:
 	QuillErrCode 	 	 execCommand(const char* sql, 
 									 int &num_result);
 	QuillErrCode 	 	 execCommand(const char* sql);
+	QuillErrCode		 execCommandWithBind(const char* sql, 
+											 char** longstr_arr, 
+											 int *  strlen_arr, 
+											 int   num_str);
 
 		// query methods
 	QuillErrCode 	 	 execQuery(const char* sql);

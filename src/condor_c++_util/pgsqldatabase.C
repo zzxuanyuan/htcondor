@@ -834,3 +834,15 @@ PGSQLDatabase::getDBError()
 {
 	return PQerrorMessage(connection);
 }
+
+QuillErrCode PGSQLDatabase::execCommandWithBind(const char* sql, 
+												char** longstr_arr, 
+												int *  strlen_arr, 
+												int   num_str) 
+{
+		/* this function is only used and implemented by oracle database, 
+		   it should not be called anywhere if it's postgres 
+		*/
+	assert(0);
+	return FAILURE;
+}
