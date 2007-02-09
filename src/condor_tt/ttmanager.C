@@ -2283,6 +2283,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 	MyString scheddname = "";
 	MyString cluster = "";
 	MyString proc = "";
+	MyString gjid = "";
 	MyString subproc = "";
 	MyString eventts = "";
 	MyString messagestr = "";
@@ -2328,6 +2329,8 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				proc = newvalue;
 			} else if (strcasecmp(attName, "spid") == 0) {
 				subproc = newvalue;
+			} else if (strcasecmp(attName, "globaljobid") == 0) {
+				gjid = newvalue;
 			} else if (strcasecmp(attName, "eventtype") == 0) {
 				eventtype = atoi(newvalue.Value());
 			} else if (strcasecmp(attName, "eventtime") == 0) {
@@ -2341,8 +2344,8 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 		}
 
 	if (eventtype == ULOG_JOB_ABORTED || eventtype == ULOG_JOB_HELD || ULOG_JOB_RELEASED) {
-		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, eventtype, eventtime, description) VALUES ('%s', %s, %s, %d, %s, '%s')", 
-				scheddname.Value(), cluster.Value(), proc.Value(), eventtype, eventts.Value(), messagestr.Value());
+		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, globaljobid, eventtype, eventtime, description) VALUES ('%s', %s, %s, '%s', %d, %s, '%s')", 
+				scheddname.Value(), cluster.Value(), proc.Value(), gjid.Value(), eventtype, eventts.Value(), messagestr.Value());
 	} else {
 		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc_id = %s AND spid = %s AND endtype is null", scheddname.Value(), cluster.Value(), proc.Value(), eventtype, eventts.Value(), messagestr.Value(), scheddname.Value(), cluster.Value(), proc.Value(), subproc.Value());
 	}
