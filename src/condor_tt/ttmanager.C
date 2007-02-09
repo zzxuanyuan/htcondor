@@ -436,7 +436,7 @@ TTManager::event_maintain()
 		/* copy event log files */	
 	int i;
 	for(i=0; i < numLogs; i++) {
-		filesqlobj = new FILESQL(sqlLogList[i], O_CREAT|O_RDWR);
+		filesqlobj = new FILESQL(sqlLogList[i], O_CREAT|O_RDWR, true);
 
 	    if (filesqlobj->file_open() == FAILURE) {
 			goto ERROREXIT;
@@ -470,7 +470,7 @@ TTManager::event_maintain()
 		*/
 	for(i=0; i < numLogs+1; i++) {
 		currentSqlLog = sqlLogCopyList[i];
-		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);		
+		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR, true);		
 
 		if (filesqlobj->file_open() == FAILURE) {
 			goto ERROREXIT;
@@ -673,7 +673,7 @@ void TTManager::checkAndThrowBigFiles() {
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[512];
 
-	thrownfileobj = new FILESQL(sqlLogCopyList[CONDOR_TT_THROWFILE]);
+	thrownfileobj = new FILESQL(sqlLogCopyList[CONDOR_TT_THROWFILE], O_WRONLY|O_CREAT|O_APPEND, true);
 	thrownfileobj ->file_open();
 
 	int i;
@@ -682,7 +682,7 @@ void TTManager::checkAndThrowBigFiles() {
 		
 			// if the file is bigger than the max file size, we throw it away 
 		if (file_status.st_size > CONDOR_TT_FILESIZELIMT) {
-			filesqlobj = new FILESQL(sqlLogCopyList[i], O_RDWR);
+			filesqlobj = new FILESQL(sqlLogCopyList[i], O_RDWR, true);
 			filesqlobj->file_open();
 			filesqlobj->file_truncate();
 			delete filesqlobj;
@@ -3027,7 +3027,7 @@ void TTManager::handleErrorSqlLog()
 	FILESQL *filesqlobj = NULL;
 	MyString newvalue;
 
-	filesqlobj = new FILESQL(currentSqlLog.Value(), O_RDWR);
+	filesqlobj = new FILESQL(currentSqlLog.Value(), O_RDWR, true);
 	
 	if (!filesqlobj) goto ERROREXIT;
 	
