@@ -266,6 +266,11 @@ class Scheduler : public Service
 	void			spawnLocalStarter( shadow_rec* );
 	bool			claimLocalStartd();
 	bool			isStillRunnable( int cluster, int proc, int &status ); 
+	bool			jobNeedsTransferd( int cluster, int proc, int univ ); 
+	bool			availableTransferd( int cluster, int proc ); 
+	bool			availableTransferd( int cluster, int proc, 
+						TransferDaemon *&td_ref ); 
+	bool			startTransferd( int cluster, int proc ); 
 	UserLog*		InitializeUserLog( PROC_ID job_id );
 	bool			WriteAbortToUserLog( PROC_ID job_id );
 	bool			WriteHoldToUserLog( PROC_ID job_id );

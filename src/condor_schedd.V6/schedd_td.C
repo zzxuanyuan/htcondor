@@ -562,7 +562,6 @@ Scheduler::requestSandboxLocation(int mode, Stream* s)
 
 		// let the manager object start it up for us....
 		m_tdman.invoke_a_td(td);
-/*		m_tdman.invoke_a_td(td, TDRegisterCallback, TDReaperCallback);*/
 
 		// The socket is going to be deleted later in a callback the
 		// schedd deals with and I don't want daemoncore to also delete

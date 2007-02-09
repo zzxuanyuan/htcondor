@@ -77,6 +77,7 @@
 #include "condor_netdb.h"
 #include "fs_util.h"
 #include "condor_mkstemp.h"
+#include "tdman.h"
 
 
 #define DEFAULT_SHADOW_SIZE 125
@@ -6272,6 +6273,7 @@ Scheduler::StartJobHandler()
 	PROC_ID* job_id=NULL;
 	int cluster, proc;
 	int status;
+	bool use_privsep;
 
 		// clear out our timer id since the hander just went off
 	StartJobTimer = -1;
@@ -6316,6 +6318,28 @@ Scheduler::StartJobHandler()
 			continue;
 		}
 
+		if ( param_boolean("PRIVSEP_ENABLED", false) ) {
+			// If there is no available transferd for this job (and it 
+			// requires it), then start one and put the job back into the queue
+			if ( jobNeedsTransferd(cluster, proc, srec->universe) ) {
+				if (! availableTransferd(cluster, proc) ) {
+					dprintf(D_ALWAYS, 
+						"Deferring job start until transferd is registered\n");
+
+					// stop the running of this job
+					mark_job_stopped( job_id );
+					RemoveShadowRecFromMrec(srec);
+					delete srec;
+				
+					// start up a transferd for this job.
+					startTransferd(cluster, proc);
+
+					continue;
+				}
+			}
+		}
+			
+
 			// if we got this far, we're definitely starting the job,
 			// so deal with the aboutToSpawnJobHandler hook...
 		int universe = srec->universe;
@@ -6343,6 +6367,127 @@ Scheduler::StartJobHandler()
 		tryNextJob();
 		return;
 	}
+}
+
+bool
+Scheduler::jobNeedsTransferd( int cluster, int proc, int univ )
+{
+	ClassAd *jobad = GetJobAd(cluster, proc);
+	ASSERT(jobad);
+
+	/////////////////////////////////////////////////////////////////////////
+	// Selection of a transferd is universe based. It all depends upon
+	// whether or not transfer_input/output_files is available for the
+	// universe in question.
+	/////////////////////////////////////////////////////////////////////////
+
+	switch(univ) {
+		case CONDOR_UNIVERSE_VANILLA:
+		case CONDOR_UNIVERSE_JAVA:
+		case CONDOR_UNIVERSE_MPI:
+		case CONDOR_UNIVERSE_PARALLEL:
+			return true;
+			break;
+
+		default:
+			return false;
+			break;
+	}
+
+	return false;
+}
+
+bool
+Scheduler::availableTransferd( int cluster, int proc )
+{
+	TransferDaemon *td = NULL;
+
+	return availableTransferd(cluster, proc, td);
+}
+
+bool
+Scheduler::availableTransferd( int cluster, int proc, TransferDaemon *&td_ref )
+{
+	MyString fquser;
+	TransferDaemon *td = NULL;
+	ClassAd *jobad = GetJobAd(cluster, proc);
+
+	ASSERT(jobad);
+
+	jobad->LookupString(ATTR_USER, fquser);
+
+	td_ref = NULL;
+
+	td = m_tdman.find_td_by_user(fquser);
+	if (td == NULL) {
+		return false;
+	}
+
+	// only return true if there is a transferd ready and waiting for this
+	// user
+	if (td->get_status() == TD_REGISTERED) {
+		dprintf(D_ALWAYS, "Scheduler::availableTransferd() "
+			"Found a transferd for user %s\n", fquser.Value());
+		td_ref = td;
+		return true;
+	}
+
+	return false;
+}
+
+bool
+Scheduler::startTransferd( int cluster, int proc )
+{
+	MyString fquser;
+	MyString rand_id;
+	TransferDaemon *td = NULL;
+	ClassAd *jobad = NULL;
+	MyString desc;
+
+	// just do a quick check in case a higher layer had already started one
+	// for this job.
+	if (availableTransferd(cluster, proc)) {
+		return true;
+	}
+
+	jobad = GetJobAd(cluster, proc);
+	ASSERT(jobad);
+
+	jobad->LookupString(ATTR_USER, fquser);
+
+	/////////////////////////////////////////////////////////////////////////
+	// It could be that a td had already been started, but hadn't registered
+	// yet. In that case, consider it started.
+	/////////////////////////////////////////////////////////////////////////
+
+	td = m_tdman.find_td_by_user(fquser);
+	if (td == NULL) {
+		// No td found at all in any state, so start one.
+
+		// XXX fix this rand_id to be dealt with better, like maybe the tdman
+		// object assigns it or something.
+		rand_id.randomlyGenerateHex(64);
+		td = new TransferDaemon(fquser, rand_id, TD_PRE_INVOKED);
+		ASSERT(td != NULL);
+
+		// set up the default registration callback
+		desc = "Transferd Registration callback";
+		td->set_reg_callback(desc,
+			(TDRegisterCallback)
+			 	&Scheduler::td_register_callback, this);
+
+		// set up the default reaper callback
+		desc = "Transferd Reaper callback";
+		td->set_reaper_callback(desc,
+			(TDReaperCallback)
+				&Scheduler::td_reaper_callback, this);
+	
+		// Have the td manager object start this td up.
+		// XXX deal with failure here a bit better.
+		m_tdman.invoke_a_td(td);
+	}
+
+	return true;
 }
 
 
@@ -6432,6 +6577,7 @@ Scheduler::spawnShadow( shadow_rec* srec )
 	bool nt_resource = false;
  	char* match_opsys = NULL;
  	char* match_version = NULL;
+	TransferDaemon *td = NULL;
 
 		// Until we're restorting the match ClassAd on reconnected, we
 		// wouldn't know if the startd we want to talk to supports the
@@ -6562,6 +6708,50 @@ Scheduler::spawnShadow( shadow_rec* srec )
 	}
 
 	MyString argbuf;
+
+	// send the location of the transferd the shadow should use for
+	// this user. Due to the nasty method of command line argument parsing
+	// by the shadow, this should be first on the command line.
+	if ( param_boolean("PRIVSEP_ENABLED", false) ) {
+		switch( universe ) {
+			case CONDOR_UNIVERSE_VANILLA:
+			case CONDOR_UNIVERSE_JAVA:
+			case CONDOR_UNIVERSE_MPI:
+			case CONDOR_UNIVERSE_PARALLEL:
+				if (! availableTransferd(job_id->cluster, job_id->proc, td) )
+				{
+					dprintf(D_ALWAYS,
+						"Scheduler::spawnShadow() Race condition hit. "
+						"Thought transferd was available and it wasn't. "
+						"stopping execution of job.\n");
+
+					mark_job_stopped(job_id);
+					if( find_shadow_rec(job_id) ) { 
+						// we already added the srec to our tables..
+						delete_shadow_rec( srec );
+						srec = NULL;
+					}
+				}
+				args.AppendArg("--transferd");
+				args.AppendArg(td->get_sinful());
+				break;
+
+			case CONDOR_UNIVERSE_PVM:
+				/* no transferd for this universe */
+				break;
+
+			case CONDOR_UNIVERSE_STANDARD:
+				/* no transferd for this universe */
+				break;
+
+		default:
+			EXCEPT( "StartJobHandler() does not support %d universe jobs",
+					universe );
+			break;
+
+		}
+	}
+
 	if ( sh_reads_file ) {
 		if( sh_is_dc ) { 
 			argbuf.sprintf("%d.%d",job_id->cluster,job_id->proc);
@@ -6588,6 +6778,7 @@ Scheduler::spawnShadow( shadow_rec* srec )
 		args.AppendArg(job_id->cluster);
 		args.AppendArg(job_id->proc);
 	}
+
 
 	rval = spawnJobHandlerRaw( srec, shadow_path, args, NULL, "shadow",
 							   sh_is_dc, sh_reads_file );
