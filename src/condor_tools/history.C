@@ -46,6 +46,8 @@
 #define NUM_PARAMETERS 3
 
 
+char    *mySubSystem = "TOOL";
+
 static void Usage(char* name) 
 {
 #if WANT_QUILL
