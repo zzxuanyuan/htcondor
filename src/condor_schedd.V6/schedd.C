@@ -2496,6 +2496,7 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	char domain[_POSIX_PATH_MAX];
 	char logfilename[_POSIX_PATH_MAX];
 	char iwd[_POSIX_PATH_MAX];
+	char gjid[_POSIX_PATH_MAX];
 	int use_xml;
 
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_JOB_IWD, iwd);
@@ -2509,6 +2510,7 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	domain[0] = '\0';
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_OWNER, owner);
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_NT_DOMAIN, domain);
+	GetAttributeString(job_id.cluster, job_id.proc, ATTR_GLOBAL_JOB_ID, gjid);
 
 	dprintf( D_FULLDEBUG, 
 			 "Writing record to user logfile=%s owner=%s\n",
@@ -2522,7 +2524,7 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	} else {
 		ULog->setUseXML(false);
 	}
-	if (ULog->initialize(owner, domain, logfilename, job_id.cluster, job_id.proc, 0)) {
+	if (ULog->initialize(owner, domain, logfilename, job_id.cluster, job_id.proc, 0, gjid)) {
 		return ULog;
 	} else {
 		dprintf ( D_ALWAYS,

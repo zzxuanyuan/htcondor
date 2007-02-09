@@ -719,7 +719,7 @@ void BaseShadow::initUserLog()
 		} else {
 			sprintf(logfilename, "%s/%s", iwd, tmp);
 		}
-		uLog.initialize (owner, domain, logfilename, cluster, proc, 0);
+		uLog.initialize (owner, domain, logfilename, cluster, proc, 0, gjid);
 		if (jobAd->LookupBool(ATTR_ULOG_USE_XML, use_xml)
 			&& use_xml) {
 			uLog.setUseXML(true);
