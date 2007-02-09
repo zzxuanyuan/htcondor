@@ -8,6 +8,11 @@
 ** just after this header).  Thanks!  Derek Wright, 3/17/03
 **********************************************************************
 
+02/09/07 pr777-merge-1
+  The state of the pr777-branch for a merge back to the trunk.  Changes
+  on the branch have been code reviewed and documented; there shouldn't
+  need to be any more changes on the branch.
+
 01/10/07 V6_9_1-root and V6_9_1-branch
    A branch for the 6.9.1 manual, created from
    V6_9_1-root on the trunk for doc.
