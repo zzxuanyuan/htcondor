@@ -184,6 +184,7 @@ private:
 bool isHorizontalClusterAttribute(const char *attr);
 bool isHorizontalProcAttribute(const char *attr);
 bool isHorizontalHistoryAttribute(const char *attr);
+QuillAttrDataType typeOf(char *attName);
 
 #define strip_double_quote(value) \
 { \

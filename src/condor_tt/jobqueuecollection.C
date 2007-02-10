@@ -31,12 +31,6 @@
 #include "condor_ttdb.h"
 #include "jobqueuedbmanager.h"
 
-static int typeOf(char *attName);
-
-#define CONDOR_TT_TYPE_STRING    1
-#define CONDOR_TT_TYPE_NUMBER    2
-#define CONDOR_TT_TYPE_TIMESTAMP 3
-
 //! constructor
 JobQueueCollection::JobQueueCollection(int iBucketNum)
 {
@@ -468,31 +462,31 @@ JobQueueCollection::loadAd(char* cid,
 						   char* pid, 
 						   ClassAd* ad)
 {
-	char*  sql_str;
+	MyString sql_str;
 	AssignOpBase*	expr;		// For Each Attribute in ClassAd
 	VariableBase* 	nameExpr;	// For Attribute Name
 	StringBase* 	valExpr;	// For Value
 	char name[1000];
-	char *value = NULL;
+	MyString value;
 	int len;
-	char* attNameList = NULL, *attValList = NULL;
-	char* tmpVal = NULL;
+	MyString attNameList; 
+	MyString attValList;
+	MyString tmpVal;
 	MyString newvalue;
 	MyString ts_expr;
+	char *tmp;
+	int hor_bndcnt = 0;
+	char* longstr_arr[2];
+	int   strlen_arr[2];	
+	MyString longmystr_arr[2];
 
 		// first generate the key columns
 	if (pid != NULL) {
-		attNameList = (char *) malloc (50);
-		attValList = (char *) malloc (strlen(scheddname) +
-									  strlen(cid) + strlen(pid) + 10); 
-		sprintf(attNameList, "(scheddname, cluster_id, proc_id");
-		sprintf(attValList, "('%s', %s, %s", scheddname, cid, pid);
+		attNameList.sprintf("(scheddname, cluster_id, proc_id");
+		attValList.sprintf("('%s', %s, %s", scheddname, cid, pid);
 	} else {
-		attNameList = (char *) malloc (50);
-		attValList = (char *) malloc (strlen(scheddname) +
-									  strlen(cid) + 10); 
-		sprintf(attNameList, "(scheddname, cluster_id");
-		sprintf(attValList, "('%s', %s", scheddname, cid);		
+		attNameList.sprintf("(scheddname, cluster_id");
+		attValList.sprintf("('%s', %s", scheddname, cid);		
 	}
 
 	ad->ResetExpr(); // for iteration initialization
@@ -501,11 +495,12 @@ JobQueueCollection::loadAd(char* cid,
 		nameExpr = (VariableBase*)expr->LArg(); // Name Express Tree
 		valExpr = (StringBase*)expr->RArg();	// Value Express Tree
 
-		valExpr->PrintToNewStr(&value);
+		valExpr->PrintToNewStr(&tmp);
 
-		if (value == NULL) break;
+		if (tmp == NULL) break;
 
-		//strip_double_quote(value);
+		value = tmp;
+		free(tmp);
 
 		strcpy(name, "");
 		nameExpr->PrintToStr(name);		
@@ -513,202 +508,206 @@ JobQueueCollection::loadAd(char* cid,
 			// procad
 		if (pid != NULL) {
 			if (isHorizontalProcAttribute(name)) {
-				attNameList = (char *) realloc (attNameList, 
-												strlen(attNameList) + 
-												strlen(name) + 5);
-				attValList = (char *) realloc (attValList, 
-											   strlen(attValList) + 
-											   2*strlen(value) + 8);
-				strcat(attNameList, ", ");
-				strcat(attNameList, name);
+				attNameList += ", ";
+				attNameList += name;
 
-				strcat(attValList, ", ");
-				tmpVal = (char  *) malloc(2*strlen(value) + 300);
+				attValList += ", ";
 
 				switch (typeOf(name)) {				
+				case CONDOR_TT_TYPE_CLOB:
+					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
+					if (dt != T_ORACLE || 
+						newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
+						tmpVal.sprintf("'%s'", newvalue.Value());
+					} else {
+							/* we need to use binded update for this col */
+						hor_bndcnt ++;
+						tmpVal.sprintf(":%d", hor_bndcnt);
+						
+							// since newvalue is a temp valuable, copy and 
+							// save the string value.
+						longmystr_arr[hor_bndcnt-1] = newvalue;
+						strlen_arr[hor_bndcnt-1] = newvalue.Length();
+						longstr_arr[hor_bndcnt-1] = (char *)longmystr_arr[hor_bndcnt-1].Value();
+					}
+						
+					break;
 				case CONDOR_TT_TYPE_STRING:	
-					newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
-					sprintf(tmpVal, "'%s'", newvalue.Value());
+					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
+					tmpVal.sprintf("'%s'", newvalue.Value());
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
-					sprintf(tmpVal, "%s", value);
+					tmpVal.sprintf("%s", value.Value());
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					clock = atoi(value);
+					clock = atoi(value.Value());
 
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
 					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
-						free(attNameList);
-						free(attValList);	
-						free(tmpVal);
-						free(value);
 						return FAILURE;
 					}
 					
-					sprintf(tmpVal, "%s", ts_expr.Value());
+					tmpVal.sprintf("%s", ts_expr.Value());
 					
 						/* the converted timestamp value is longer, so realloc
 						   the buffer for attValList
 						*/
 					
-					len = strlen(attValList) + strlen(tmpVal) + 8;
-
-					attValList = (char *) realloc (attValList, len);
-					
 					break;
 				default:
 					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
 
-					free(attNameList);
-					free(attValList);	
-					free(value);
-					free(tmpVal);
 					return FAILURE;
 				}
-				strcat(attValList, tmpVal);
-				free(tmpVal);
+				attValList += tmpVal;
 			} else {			
 					// this is a vertical attribute
-				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
+				newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 				len = 1024 + strlen(name) + strlen(scheddname) +
 					newvalue.Length() + strlen(cid) + strlen(pid);
-				sql_str = (char *) malloc(len);
-				snprintf(sql_str, len, "INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", 
-						 scheddname,cid, pid, name, newvalue.Value());
 
-				if (DBObj->execCommand(sql_str) == FAILURE) {
-					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
-					free(sql_str);
-					free(value);
-					free(attNameList);
-					free(attValList);
-					return FAILURE;
+				if (dt != T_ORACLE ||
+					newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
+					sql_str.sprintf("INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", scheddname,cid, pid, name, newvalue.Value());
+
+					if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
+						return FAILURE;
+					}
+				}  else {
+						/* for oracle, long string values can't be placed in 
+						   SQL as a literal, therefore we need special 
+						   mechanism to get them it 
+						*/
+					sql_str.sprintf("INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', :1)", scheddname,cid, pid, name);
+
+					longstr_arr[0] = (char *)newvalue.Value();
+					strlen_arr[0] = newvalue.Length();
+
+					if (DBObj->execCommandWithBind(sql_str.Value(), longstr_arr, strlen_arr, 1) == FAILURE) {
+						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
+						return FAILURE;
+					}					
 				}
-				free (sql_str);
 			}
 		} else {  // cluster ad
 			if (isHorizontalClusterAttribute(name)) {
-				len = strlen(attNameList) + strlen(name) + 5;
+				attNameList += ", ";
+				attNameList += name;
 
-				attNameList = (char *) realloc (attNameList, 
-												len);
-
-				len = strlen(attValList) + 2*strlen(value) + 8;
-
-				attValList = (char *) realloc (attValList, 
-											   len);
-				strcat(attNameList, ", ");
-				strcat(attNameList, name);
-
-				strcat(attValList, ", ");
-				tmpVal = (char  *) malloc(2*strlen(value) + 300);
+				attValList += ", ";
 
 				switch (typeOf(name)) {				
+				case CONDOR_TT_TYPE_CLOB:
+					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
+					if (dt != T_ORACLE || 
+						newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
+						tmpVal.sprintf("'%s'", newvalue.Value());
+					} else {
+							/* we need to use binded update for this col */
+						hor_bndcnt ++;
+						tmpVal.sprintf(":%d", hor_bndcnt);
+						
+							// since newvalue is a temp valuable, copy and 
+							// save the string value.
+						longmystr_arr[hor_bndcnt-1] = newvalue;
+						strlen_arr[hor_bndcnt-1] = newvalue.Length();
+						longstr_arr[hor_bndcnt-1] = (char *)longmystr_arr[hor_bndcnt-1].Value();
+					}
+						
+					break;					
 				case CONDOR_TT_TYPE_STRING:	
-					newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
-					sprintf(tmpVal, "'%s'", newvalue.Value());
+					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
+					tmpVal.sprintf("'%s'", newvalue.Value());
 					break;
 				case CONDOR_TT_TYPE_NUMBER:
-					sprintf(tmpVal, "%s", value);
+					tmpVal.sprintf("%s", value.Value());
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
 					time_t clock;
-					clock = atoi(value);					
+					clock = atoi(value.Value());					
 					
 					ts_expr = condor_ttdb_buildts(&clock, dt);	
 
 					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
-						free(attNameList);
-						free(attValList);	
-						free(tmpVal);
-						free(value);
 						return FAILURE;
 					}
 					
-					sprintf(tmpVal, "%s", ts_expr.Value());
+					tmpVal.sprintf("%s", ts_expr.Value());
 					
 						/* the converted timestamp value is longer, so realloc
 						   the buffer for attValList
 						*/
 					
-					len = strlen(attValList) + strlen(tmpVal) + 8;
-
-					attValList = (char *) realloc (attValList, len);
-
 					break;
 				default:
 					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
-					free(attNameList);
-					free(attValList);	
-					free(tmpVal);
-					free(value);
 					return FAILURE;
 				}
-				strcat(attValList, tmpVal);
-				free(tmpVal); 				
+				attValList += tmpVal;
 			} else {
 					// this is a vertical attribute
-				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
+				newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 				len = 1024 + strlen(name) + strlen(scheddname) +
 					newvalue.Length() + strlen(cid);
-				sql_str = (char *) malloc(len);
-				snprintf(sql_str, len, "INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue.Value());
-				if (DBObj->execCommand(sql_str) == FAILURE) {
-					dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
-					free(sql_str);
-					free(value);
-					free(attNameList);
-					free(attValList);
-					return FAILURE;
+
+				if (dt != T_ORACLE ||
+					newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
+					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue.Value());
+					if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
+						return FAILURE;
+					}
+				} else {
+						/* for oracle, long string values can't be placed in 
+						   SQL as a literal, therefore we need special 
+						   mechanism to get them it 
+						*/
+					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', :1)", scheddname,cid, name);
+
+					longstr_arr[0] = (char *)newvalue.Value();
+					strlen_arr[0] = newvalue.Length();
+
+					if (DBObj->execCommandWithBind(sql_str.Value(), longstr_arr, strlen_arr, 1) == FAILURE) {
+						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
+						return FAILURE;
+					}
 				}
-				free (sql_str);
 			}
 		}
-
-		free(value);
 	} 
 
-	strcat(attNameList, ")");
-    strcat(attValList, ")");
+	attNameList += ")";
+    attValList += ")";
 	
-		// load the horizontal tuple
-		// procad
+
+		// load the horizontal tuples
+	
+		// build the sql
 	if (pid != NULL) {
-		len = 100 + strlen(attNameList) + strlen(attValList);
-		sql_str = (char *) malloc(len);
-
-		snprintf(sql_str, len, "INSERT INTO ProcAds_Horizontal %s VALUES %s", attNameList, attValList);
-
-		if (DBObj->execCommand(sql_str) == FAILURE) {
-			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
-			free(sql_str);
-			free(attNameList);
-			free(attValList);
-			return FAILURE;
-		}
-		free (sql_str);
-	} else {  // clusterad
-		len = 100 + strlen(attNameList) + strlen(attValList);
-		sql_str = (char *) malloc(len);
-
-		snprintf(sql_str, len, "INSERT INTO ClusterAds_Horizontal %s VALUES %s", attNameList, attValList);
-
-		if (DBObj->execCommand(sql_str) == FAILURE) {
-			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str);
-			free(sql_str);
-			free(attNameList);
-			free(attValList);
-			return FAILURE;
-		}
-		free (sql_str);
+			// procad		
+		sql_str.sprintf("INSERT INTO ProcAds_Horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
+	} else { 
+			// clusterad
+		sql_str.sprintf("INSERT INTO ClusterAds_Horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 	}
 
-	free(attNameList);
-	free(attValList);
+		// execute it
+	if (hor_bndcnt == 0) {			
+		if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
+			return FAILURE;
+		}
+	} else {
+		if (DBObj->execCommandWithBind(sql_str.Value(), longstr_arr, strlen_arr, hor_bndcnt) == FAILURE) {
+			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
+			return FAILURE;
+		}			
+	}
 
 	return SUCCESS;
 }
@@ -820,18 +819,20 @@ bool isHorizontalProcAttribute(const char *attr) {
   return false;
 }
 
-static int 
-typeOf(char *attName)
+QuillAttrDataType typeOf(char *attName)
 {
-	if (!(strcasecmp(attName, "remotehost") && 
-		  strcasecmp(attName, "globaljobid") &&
-		  strcasecmp(attName, "args") && 
-		  strcasecmp(attName, "owner") && 
+	if (!(strcasecmp(attName, "args") && 
 		  strcasecmp(attName, "cmd"))
+		)
+		return CONDOR_TT_TYPE_CLOB;
+	
+	else if (!(strcasecmp(attName, "remotehost") && 
+			   strcasecmp(attName, "globaljobid") &&
+			   strcasecmp(attName, "owner"))
 		)
 		return CONDOR_TT_TYPE_STRING;
 
-	if (!(strcasecmp(attName, "jobstatus") && 
+	else if (!(strcasecmp(attName, "jobstatus") && 
 		  strcasecmp(attName, "imagesize") &&
 		  strcasecmp(attName, "remoteusercpu") && 
 		  strcasecmp(attName, "remotewallclocktime") &&
@@ -841,11 +842,11 @@ typeOf(char *attName)
 		)
 		return CONDOR_TT_TYPE_NUMBER;
 
-	if (!(strcasecmp(attName, "qdate") &&
+	else if (!(strcasecmp(attName, "qdate") &&
 		  strcasecmp(attName, "shadowbday") &&
 		  strcasecmp(attName, "enteredcurrentstatus"))
 		)
 		return CONDOR_TT_TYPE_TIMESTAMP;
 
-	return -1;
+	return CONDOR_TT_TYPE_UNKNOWN;
 }

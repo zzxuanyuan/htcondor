@@ -1007,7 +1007,11 @@ JobQueueDBManager::processSetAttribute(char* key,
 	int  job_id_type;
 		//int		ret_st;
 	MyString newvalue;
-
+	int bndcnt = 0;
+	char* longstr_arr[2];
+	int   strlen_arr[2];	
+	bool  bndForFirstStmt = TRUE;
+	
 		// It could be ProcAd or ClusterAd
 		// So need to check
 	job_id_type = getProcClusterIds(key, cid, pid);
@@ -1015,7 +1019,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
 		if(isHorizontalClusterAttribute(name)) {
-			if (strcasecmp(name, "qdate") == 0) {
+			if (typeOf(name) == CONDOR_TT_TYPE_TIMESTAMP) {
 				time_t clock;
 				MyString ts_expr;
 				clock = atoi(value);
@@ -1033,8 +1037,26 @@ JobQueueDBManager::processSetAttribute(char* key,
 			} else {
 				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 					// escape single quote within the value
-				sql_str_del_in.sprintf(
-						 "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s'", name, newvalue.Value(), scheddname, cid);
+
+				if ((typeOf(name) != CONDOR_TT_TYPE_CLOB) || 
+					(dt != T_ORACLE) ||
+					(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
+
+					sql_str_del_in.sprintf(
+										   "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s'", name, newvalue.Value(), scheddname, cid);
+				} else {
+						/* here we are dealing with a column that is clob type
+						   and the database used is oracle and the string 	
+						   length is beyond the limit for string literal.
+						   we need to use binded update interface.
+						*/
+					bndcnt ++;
+					longstr_arr[0] = (char *)newvalue.Value();
+					strlen_arr[0] = newvalue.Length();
+
+					sql_str_del_in.sprintf(
+										   "UPDATE ClusterAds_Horizontal SET %s = :%d WHERE scheddname = '%s' and cluster_id = '%s'", name, bndcnt, scheddname, cid);
+				}
 
 			}
 		} else {
@@ -1042,15 +1064,25 @@ JobQueueDBManager::processSetAttribute(char* key,
 			sql_str_del_in.sprintf(
 					 "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND attr = '%s'", scheddname, cid, name);
 
-			sql_str2.sprintf(
-					 "INSERT INTO ClusterAds_Vertical (scheddname, cluster_id, attr, val) VALUES ('%s', '%s', '%s', '%s')", scheddname, cid, name, newvalue.Value());
+			if ((dt != T_ORACLE) ||
+				(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
+				sql_str2.sprintf(
+								 "INSERT INTO ClusterAds_Vertical (scheddname, cluster_id, attr, val) VALUES ('%s', '%s', '%s', '%s')", scheddname, cid, name, newvalue.Value());
+			} else {
+				bndForFirstStmt = FALSE;
+				bndcnt ++;
+				longstr_arr[0] = (char *)newvalue.Value();
+				strlen_arr[0] = newvalue.Length();
+
+				sql_str2.sprintf(
+								 "INSERT INTO ClusterAds_Vertical (scheddname, cluster_id, attr, val) VALUES ('%s', '%s', '%s', :%d)", scheddname, cid, name, bndcnt);
+			}
 		}
 
 		break;
 	case IS_PROC_ID:
 		if(isHorizontalProcAttribute(name)) {
-			if ((strcasecmp(name, "shadowbday") == 0) ||
-				(strcasecmp(name, "enteredcurrentstatus") == 0)) {
+			if (typeOf(name) == CONDOR_TT_TYPE_TIMESTAMP) {
 				time_t clock;
 				MyString ts_expr;
 				clock = atoi(value);
@@ -1066,16 +1098,44 @@ JobQueueDBManager::processSetAttribute(char* key,
 									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, ts_expr.Value(), scheddname, cid, pid);
 			} else {
 				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
-				sql_str_del_in.sprintf(
-									   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, newvalue.Value(), scheddname, cid, pid);
+
+				if ((typeOf(name) != CONDOR_TT_TYPE_CLOB) || 
+					(dt != T_ORACLE) ||
+					(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
+					sql_str_del_in.sprintf(
+										   "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, newvalue.Value(), scheddname, cid, pid);
+				} else {
+						/* here we are dealing with a column that is clob type
+						   and the database used is oracle and the string 	
+						   length is beyond the limit for string literal.
+						   we need to use binded update interface.
+						*/
+					bndcnt ++;
+					longstr_arr[0] = (char *)newvalue.Value();
+					strlen_arr[0] = newvalue.Length();					
+					
+					sql_str_del_in.sprintf(
+										   "UPDATE ProcAds_Horizontal SET %s = :%d WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, bndcnt, scheddname, cid, pid);
+				}
 			}
 		} else {
 			newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 			sql_str_del_in.sprintf(
 					 "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cluster_id = '%s' AND proc_id = '%s' AND attr = '%s'", scheddname, cid, pid, name);
 
-			sql_str2.sprintf(
-					 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc_id, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue.Value());	
+			if ((dt != T_ORACLE) ||
+				(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
+				sql_str2.sprintf(
+								 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc_id, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s')", scheddname, cid, pid, name, newvalue.Value());	
+			} else {
+				bndForFirstStmt = FALSE;
+				bndcnt ++;
+				longstr_arr[0] = (char *)newvalue.Value();
+				strlen_arr[0] = newvalue.Length();
+
+				sql_str2.sprintf(
+								 "INSERT INTO ProcAds_Vertical (scheddname, cluster_id, proc_id, attr, val) VALUES ('%s', '%s', '%s', '%s', :%d)", scheddname, cid, pid, name, bndcnt);	
+			}
 		}
 		
 		break;
@@ -1087,7 +1147,15 @@ JobQueueDBManager::processSetAttribute(char* key,
   
 	QuillErrCode ret_st;
 
-	ret_st = DBObj->execCommand(sql_str_del_in.Value());
+	if (bndcnt == 0 ||
+		!bndForFirstStmt) {
+		ret_st = DBObj->execCommand(sql_str_del_in.Value());
+	} else {
+		ret_st = DBObj->execCommandWithBind(sql_str_del_in.Value(),
+											longstr_arr,
+											strlen_arr,
+											bndcnt);
+	}
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
@@ -1098,8 +1166,17 @@ JobQueueDBManager::processSetAttribute(char* key,
 	}
 
 	if (!sql_str2.IsEmpty()) {
-		ret_st = DBObj->execCommand(sql_str2.Value());
-
+		
+		if (bndcnt == 0 || 
+			bndForFirstStmt) {
+			ret_st = DBObj->execCommand(sql_str2.Value());
+		} else {
+			ret_st = DBObj->execCommandWithBind(sql_str2.Value(), 
+										longstr_arr,
+										strlen_arr,
+										bndcnt);
+		}
+		
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
 					sql_str2.Value());

@@ -55,15 +55,11 @@ char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG",
 #define CONDOR_TT_EVENTTYPEMAXLEN 100
 #define CONDOR_TT_TIMELEN 60
 
-#define CONDOR_TT_TYPE_STRING    1
-#define CONDOR_TT_TYPE_NUMBER    2
-#define CONDOR_TT_TYPE_TIMESTAMP 3
-
 static int attHashFunction (const MyString &str, int numBuckets);
 static int isHorizontalMachineAttr(char *attName);
 static int isHorizontalDaemonAttr(char *attName);
 static int isHorizontalScheddAttr(char *attName);
-static int typeOf(char *attName);
+static QuillAttrDataType daemonAdAttrTypeOf(char *attName);
 static int file_checksum(char *filePathName, int fileSize, char *sum);
 static QuillErrCode append(char *destF, char *srcF);
 static void stripquotes(char *strv);
@@ -470,8 +466,7 @@ TTManager::event_maintain()
 		*/
 	for(i=0; i < numLogs+1; i++) {
 		currentSqlLog = sqlLogCopyList[i];
-		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR, true);		
-
+		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR, true);
 		if (filesqlobj->file_open() == FAILURE) {
 			goto ERROREXIT;
 		}
@@ -674,6 +669,7 @@ void TTManager::checkAndThrowBigFiles() {
 	char tmp[512];
 
 	thrownfileobj = new FILESQL(sqlLogCopyList[CONDOR_TT_THROWFILE], O_WRONLY|O_CREAT|O_APPEND, true);
+
 	thrownfileobj ->file_open();
 
 	int i;
@@ -831,7 +827,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
 	int	 ret_st;
-	int  attr_type;
+	QuillAttrDataType  attr_type;
 	int  num_result = 0;
 
 	MyString ts_expr;
@@ -855,7 +851,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = typeOf(attName);
+			attr_type = daemonAdAttrTypeOf(attName);
 
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -1159,7 +1155,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
 	int	 ret_st;
-	int  attr_type;
+    QuillAttrDataType attr_type;
 	int  num_result = 0;
 
 	MyString ts_expr;
@@ -1181,7 +1177,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = typeOf(attName);
+			attr_type = daemonAdAttrTypeOf(attName);
 
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -1552,7 +1548,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
 	int	 ret_st;
-	int  attr_type;
+	QuillAttrDataType  attr_type;
 	int  num_result = 0;
 
 	MyString ts_expr;
@@ -1574,7 +1570,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = typeOf(attName);
+			attr_type = daemonAdAttrTypeOf(attName);
 
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -1818,7 +1814,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
 	int	 ret_st;
-	int  attr_type;
+	QuillAttrDataType  attr_type;
 	int  num_result = 0;
 
 	MyString ts_expr;
@@ -1840,7 +1836,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = typeOf(attName);
+			attr_type = daemonAdAttrTypeOf(attName);
 
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -2576,6 +2572,10 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   MyString name = "";
   MyString newvalue;
   char *tmp = NULL;
+  int bndcnt = 0;
+  char* longstr_arr[2];
+  int   strlen_arr[2];	
+  bool  bndForFirstStmt = TRUE;
 
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   const char *scheddname = jqDBManager.getScheddname();
@@ -2646,6 +2646,11 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  flag3 = true;
 	  }
 
+		  // initialize variables for detecting and inserting long clob 
+		  // columns
+	  bndcnt = 0;
+	  bndForFirstStmt = TRUE;
+
 	  if(isHorizontalHistoryAttribute(name.Value())) {
 		  if(strcasecmp(name.Value(), "in") == 0 ||
 			 strcasecmp(name.Value(), "user") == 0) {
@@ -2657,8 +2662,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  if(strcasecmp(name.Value(), "lastmatchtime") == 0 || 
 			 strcasecmp(name.Value(), "jobstartdate") == 0 || 
 			 strcasecmp(name.Value(), "jobcurrentstartdate") == 0 ||
-			 strcasecmp(name.Value(), "enteredcurrentstatus") == 0 ||
-			 strcasecmp(name.Value(), "shadowbday") == 0
+			 strcasecmp(name.Value(), "enteredcurrentstatus") == 0
 			 ) {
 				  // avoid updating with epoch time
 			  if (strcmp(value.Value(), "0") == 0) {
@@ -2676,35 +2680,90 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 
 		  }	else {
 			  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
-			  sql_stmt.sprintf( 
-					  "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), newvalue.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);			  
+
+			  if ((typeOf((char *)name.Value()) != CONDOR_TT_TYPE_CLOB) || 
+				  (dt != T_ORACLE) ||
+				  (newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
+				  sql_stmt.sprintf( 
+								   "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), newvalue.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
+			  } else {
+				  bndcnt ++;
+				  longstr_arr[0] = (char *)newvalue.Value();
+				  strlen_arr[0] = newvalue.Length();
+				  sql_stmt.sprintf( 
+								   "UPDATE Jobs_Horizontal_History SET %s = :1 WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
+			  }
 		  }
 	  } else {
 		  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 		  
 		  sql_stmt.sprintf(
 				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
-			  
-		  sql_stmt2.sprintf( 
-				  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value(), newvalue.Value());
+			
+			if ((dt != T_ORACLE) ||
+				(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {		  
+				sql_stmt2.sprintf( 
+								  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value(), newvalue.Value());
+			} else {
+				bndForFirstStmt = FALSE;
+				bndcnt ++;
+				longstr_arr[0] = (char *)newvalue.Value();
+				strlen_arr[0] = newvalue.Length();
+				
+				sql_stmt2.sprintf( 
+								  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', :1)", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
+			}
 	  }
 
-	  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+	  if (bndcnt == 0 ||
+		  !bndForFirstStmt) {
+		  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		  
-		  errorSqlStmt = sql_stmt;
+			  errorSqlStmt = sql_stmt;
 
-		  return FAILURE;
+			  return FAILURE;
+		  }
+	  } else {
+		  if (DBObj->execCommandWithBind(sql_stmt.Value(), 
+										 longstr_arr,
+										 strlen_arr,
+										 bndcnt) == FAILURE) {
+			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+		  
+			  errorSqlStmt = sql_stmt;
+
+			  return FAILURE;
+		  }		  
 	  }
-		  
-	  if (!sql_stmt2.IsEmpty() && (DBObj->execCommand(sql_stmt2.Value()) == FAILURE)) {
-		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
-		  
-		  errorSqlStmt = sql_stmt2;
 
-		  return FAILURE;			  
+	  if (!sql_stmt2.IsEmpty()) {
+		  
+		if (bndcnt == 0 || 
+			bndForFirstStmt) {		  
+			if ((DBObj->execCommand(sql_stmt2.Value()) == FAILURE)) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
+		  
+				errorSqlStmt = sql_stmt2;
+
+				return FAILURE;			  
+			}
+		} else {
+			if ((DBObj->execCommandWithBind(sql_stmt2.Value(),
+											longstr_arr,
+											strlen_arr,
+											bndcnt) == FAILURE)) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
+		  
+				errorSqlStmt = sql_stmt2;
+
+				return FAILURE;			  
+			}			
+		}
 	  }
 	  
 	  name = "";
@@ -3111,8 +3170,8 @@ void TTManager::handleErrorSqlLog()
 
 }
 
-static int 
-typeOf(char *attName)
+static QuillAttrDataType
+daemonAdAttrTypeOf(char *attName)
 {
 	if (!(strcasecmp(attName, ATTR_CKPT_SERVER) && 
 		  strcasecmp(attName, "CKPT_SERVER_HOST") &&
@@ -3135,7 +3194,7 @@ typeOf(char *attName)
 		)
 		return CONDOR_TT_TYPE_STRING;
 
-	if (!(strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
+	else if (!(strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
 		  strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
 		  strcasecmp(attName, ATTR_LOAD_AVG) && 
 		  strcasecmp(attName, "CondorLoadAvg") &&
@@ -3170,7 +3229,7 @@ typeOf(char *attName)
 		)
 		return CONDOR_TT_TYPE_NUMBER;
 
-	if (!(strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
+	else if (!(strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
 		  strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && 
 		  strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
 		  strcasecmp(attName, "reject_time") &&
@@ -3180,7 +3239,7 @@ typeOf(char *attName)
 		)
 		return CONDOR_TT_TYPE_TIMESTAMP;
 
-	return -1;
+	return CONDOR_TT_TYPE_UNKNOWN;
 }
 
 /* An attribute is treated as a static one if it is not one of the following
