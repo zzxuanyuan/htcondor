@@ -1818,13 +1818,13 @@ Resource::dbInsert( ClassAd *cl )
 		// make a copy so that we can add timestamp attribute into it
 	clCopy = *cl;
 
-	tmp.sprintf("%s = %d", ATTR_PREV_LAST_HEARD_FROM, prevLHF);
+	tmp.sprintf("%s = %d", "PrevLastReportedTime", prevLHF);
 	(&clCopy)->Insert(tmp.GetCStr());
 
-		// set the LastHeardFrom and make it the new prevLHF
+		// set the lastReportedTime and make it the new prevLHF
 	prevLHF = (int)time(NULL);
 
-	tmp.sprintf("%s = %d", ATTR_LAST_HEARD_FROM, prevLHF);
+	tmp.sprintf("%s = %d", "LastReportedTime", prevLHF);
 	(&clCopy)->Insert(tmp.GetCStr());
 
 	dbh->file_newEvent("Machines", &clCopy);
