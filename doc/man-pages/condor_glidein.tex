@@ -1,7 +1,10 @@
 \begin{ManPage}{\label{man-condor-glidein}\Condor{glidein}}{1}
 {add a Globus resource to a Condor pool}
-\Synopsis \SynProg{\Condor{glidein}}
+\Synopsis
+\SynProg{\Condor{glidein}}
 \oOpt{-help}
+
+\SynProg{\Condor{glidein}}
 \oOptArg{-admin}{address}
 \oOpt{-anybody}
 \oOptArg{-archdir}{dir}
@@ -24,7 +27,10 @@
 \oOptArg{-useconfig}{filename}
 \oOptArg{-usestartup}{filename}
 \oOptArg{-vms}{VMcount}
-\OptArg{\{-contactfile}{filename} \} \Bar \Opt{Globus contact string}
+\Arg{hostname} \Bar
+\Arg{-contactfile filename} \Bar
+\Arg{Globus contact string} \Bar
+\Arg{hostname/jobmanager-schedulername}
 
 \index{Condor commands!condor\_glidein}
 \index{condor\_glidein command}
