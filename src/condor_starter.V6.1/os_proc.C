@@ -39,6 +39,7 @@
 #include "condor_uid.h"
 #include "filename_tools.h"
 #include "my_popen.h"
+#include "condor_privsep.h"
 #ifdef WIN32
 #include "perm.h"
 #endif
@@ -164,13 +165,23 @@ OsProc::StartJob(FamilyInfo* family_info)
 	}
 
 #if !defined(WIN32)
-		// Support PRIVSEP_EXECUTABLE parameter...
-	char *privsep_executable = NULL;
-	if( !is_root() && (privsep_executable=param("PRIVSEP_EXECUTABLE")) ){
+	// support for privilege separation: currently, we'll just modify the
+	// command line so that Create_Process invokes the privsep swtichboard,
+	// which will switch UIDs, open the job's standard i/o FDs, and the exec
+	// the job
+	//
+	if (privsep_is_enabled()) {
+	
+		char* privsep_executable = param("PRIVSEP_EXECUTABLE");
+		if (privsep_executable == NULL) {
+			dprintf(D_ALWAYS, "error: PRIVSEP_EXECUTABLE not defined\n");
+			return 0;
+		}
+
 			// make certain the privsep switchboard exists and is executable
 		if( access(privsep_executable,X_OK) < 0 ) {
 			dprintf( D_ALWAYS, 
-					 "Cannot find/execute PRIVSEP_EXECUTABLE file %s\n",
+					 "error: can't find/execute PRIVSEP_EXECUTABLE file %s\n",
 					 privsep_executable );
 			return 0;
 		}
