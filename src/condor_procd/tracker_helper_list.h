@@ -42,6 +42,8 @@ template <class T> class TrackerHelperList {
 
 public:
 
+	TrackerHelperList() : m_head(NULL) { }
+
 	void add_mapping(T tag, ProcFamily* family)
 	{
 		ListNode* node = new ListNode;
