@@ -121,7 +121,7 @@ enteredcurrentstatus    timestamp(3) with time zone,
 remotewallclocktime     numeric(38),
 lastremotehost          varchar(4000),
 completiondate          integer, -- condor_history requires an integer 
-enteredhistorytable     timestamp(3) with time zone
+enteredhistorytable     timestamp(3) with time zone,
 primary key		(scheddname,scheddbirthdate, cluster_id, proc_id)
 );
 
@@ -175,54 +175,6 @@ PRIMARY KEY (MyType, Name, attr)
 
 CREATE TABLE Daemons_Vertical_History (
 MyType				VARCHAR(100),
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				clob,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Schedds_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				clob,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Schedds_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				clob,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Masters_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				clob,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Masters_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				clob,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Negotiators_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				clob,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Negotiators_Vertical_History (
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),
@@ -313,7 +265,7 @@ FROM runs R, clusterads_horizontal C
 WHERE R.endts IS NULL AND
    R.machine_id != R.scheddname AND
    R.machine_id NOT IN 
-  (SELECT DISTINCT SUBSTR(M.machine_id, (INSTR('@', M.machine_id)+1)) FROM machines_horizontal M where M.lastheardfrom >= current_timestamp - to_dsinterval('0 00:10:00'))  AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
+  (SELECT DISTINCT SUBSTR(M.machine_id, (INSTR('@', M.machine_id)+1)) FROM machines_horizontal M where M.lastreportedtime >= current_timestamp - to_dsinterval('0 00:10:00'))  AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
 
 /*
 quill_purgeHistory for Oracle database.
@@ -333,8 +285,6 @@ quill_purgeHistory does the following:
 -- resource history data: no need to keep them for long
 --   machine_history, machine_classad_history, 
 --   daemon_horizontal_history, daemon_vertical_history, 
---   schedd_horizontal_history, schedd_vertical_history
---   master_vertical_history, negotiator_vertical_history
 
 -- job run history data: purge when they are very old
 --   transfers, fileusages, files, runs, events, rejects, matches
@@ -345,8 +295,7 @@ quill_purgeHistory does the following:
 -- never purge current "operational data": 
 --   machine, machine_classad, clusterads_horizontal, procads_horizontal, 
 --   clusterads_vertical, procads_vertical, thrown, daemon_horizontal
---   daemon_vertical, schedd_horizontal, schedd_vertical, master_vertical
---   negotiator_vertical
+--   daemon_vertical
 
 -- resourceHistoryDuration, runHistoryDuration, jobHistoryDuration 
 -- parameters are all in number of days
@@ -356,7 +305,6 @@ quill_purgeHistory does the following:
 --SET SERVEROUTPUT ON;
 
 -- dbsize is in unit of megabytes
-DROP TABLE quillDBMonitor;
 CREATE TABLE quillDBMonitor (
 dbsize    integer
 );
@@ -364,7 +312,6 @@ dbsize    integer
 DELETE FROM quillDBMonitor;
 INSERT INTO quillDBMonitor (dbsize) VALUES (0);
 
-DROP TABLE History_Jobs_To_Purge;
 CREATE GLOBAL TEMPORARY TABLE History_Jobs_To_Purge(
 scheddname   varchar(4000),
 cluster_id   integer, 
@@ -389,7 +336,7 @@ WHERE start_time <
 
 -- purge machine classads older than resourceHistoryDuration days
 DELETE FROM machines_horizontal_history
-WHERE lastheardfrom < 
+WHERE lastreportedtime < 
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
 
@@ -405,26 +352,8 @@ WHERE lastheardfrom <
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
 
--- purge schedd vertical attributes older than certain days
-DELETE FROM schedds_vertical_history
-WHERE lastheardfrom < 
-      (current_timestamp - 
-       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
-
--- purge schedd classads older than certain days
-DELETE FROM schedds_horizontal_history
-WHERE lastheardfrom < 
-      (current_timestamp - 
-       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
-
--- purge master vertical attributes older than certain days
-DELETE FROM masters_vertical_history
-WHERE lastheardfrom < 
-      (current_timestamp - 
-       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
-
--- purge negotiator vertical attributes older than certain days
-DELETE FROM negotiators_vertical_history
+-- purge submitters classads older than certain days
+DELETE FROM submitters_horizontal_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
@@ -542,14 +471,8 @@ execute immediate 'analyze table CURRENCIES compute statistics';
 execute immediate 'analyze table DAEMONS_VERTICAL compute statistics';
 execute immediate 'analyze table DAEMONS_HORIZONTAL_HISTORY compute statistics';
 execute immediate 'analyze table DAEMONS_VERTICAL_HISTORY compute statistics';
-execute immediate 'analyze table SCHEDDS_HORIZONTAL compute statistics';
-execute immediate 'analyze table SCHEDDS_HORIZONTAL_HISTORY compute statistics';
-execute immediate 'analyze table SCHEDDS_VERTICAL compute statistics';
-execute immediate 'analyze table SCHEDDS_VERTICAL_HISTORY compute statistics';
-execute immediate 'analyze table MASTERS_VERTICAL compute statistics';
-execute immediate 'analyze table MASTERS_VERTICAL_HISTORY compute statistics';
-execute immediate 'analyze table NEGOTIATORS_VERTICAL compute statistics';
-execute immediate 'analyze table NEGOTIATORS_VERTICAL_HISTORY compute statistics';
+execute immediate 'analyze table SUBMITTERS_HORIZONTAL compute statistics';
+execute immediate 'analyze table SUBMITTERS_HORIZONTAL_HISTORY compute statistics';
 execute immediate 'analyze table DUMMY_SINGLE_ROW_TABLE compute statistics';
 execute immediate 'analyze table CDB_USERS compute statistics';
 execute immediate 'analyze table TRANSFERS compute statistics';

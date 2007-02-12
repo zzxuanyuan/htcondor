@@ -27,7 +27,8 @@ elapsed  	numeric(38),
 checksum    	varchar(256),
 transfer_time	timestamp(3) with time zone,
 last_modified	timestamp(3) with time zone,
-is_encrypted    varchar(5)
+is_encrypted    varchar(5),
+completion_code integer
 );
 
 CREATE TABLE files (
@@ -72,7 +73,7 @@ currentrank            real,
 requirements           varchar(4000),
 clockmin               integer,
 clockday               integer,
-lastheardfrom          timestamp(3) with time zone,
+lastreportedtime          timestamp(3) with time zone,
 enteredcurrentactivity timestamp(3) with time zone,
 enteredcurrentstate    timestamp(3) with time zone,
 updatesequencenumber   integer,
@@ -80,7 +81,7 @@ updatestotal           integer,
 updatessequenced       integer,
 updateslost            integer,
 globaljobid            varchar(4000),
-lastheardfrom_epoch    integer,
+lastreportedtime_epoch    integer,
 Primary Key (machine_id)
 );
 
@@ -106,7 +107,7 @@ currentrank            real,
 requirements           varchar(4000),
 clockmin               integer,
 clockday               integer,
-lastheardfrom          timestamp(3) with time zone,
+lastreportedtime          timestamp(3) with time zone,
 enteredcurrentactivity timestamp(3) with time zone,
 enteredcurrentstate    timestamp(3) with time zone,
 updatesequencenumber   integer,
@@ -293,29 +294,25 @@ UpdatesHistory			VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Schedds_Horizontal (
+CREATE TABLE Submitters_Horizontal (
 Name				VARCHAR(500) NOT NULL,
+ScheddName			VARCHAR(4000),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-NumUsers			INTEGER,
-TotalIdleJobs			INTEGER,
-TotalRunningJobs		INTEGER,
-TotalJobAds			INTEGER,
-TotalHeldJobs			INTEGER,
-TotalFlockedJobs		INTEGER,
-TotalRemovedJobs		INTEGER,
+IdleJobs			INTEGER,
+RunningJobs			INTEGER,
+HeldJobs			INTEGER,
+FlockedJobs			INTEGER,
 PRIMARY KEY (Name)
 );
 
-CREATE TABLE Schedds_Horizontal_History (
+CREATE TABLE Submitters_Horizontal_History (
 Name				VARCHAR(500),
+ScheddName			VARCHAR(4000),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-NumUsers			INTEGER,
-TotalIdleJobs			INTEGER,
-TotalRunningJobs		INTEGER,
-TotalJobAds			INTEGER,
-TotalHeldJobs			INTEGER,
-TotalFlockedJobs		INTEGER,
-TotalRemovedJobs		INTEGER,
+IdleJobs			INTEGER,
+RunningJobs			INTEGER,
+HeldJobs			INTEGER,
+FlockedJobs			INTEGER,
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 

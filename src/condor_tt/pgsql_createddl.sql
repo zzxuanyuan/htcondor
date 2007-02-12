@@ -122,7 +122,7 @@ enteredcurrentstatus    timestamp(3) with time zone,
 remotewallclocktime     numeric(38),
 lastremotehost          varchar(4000),
 completiondate          integer, -- condor_history requires an integer 
-enteredhistorytable     timestamp(3) with time zone
+enteredhistorytable     timestamp(3) with time zone,
 primary key		(scheddname,scheddbirthdate, cluster_id, proc_id)
 );
 
@@ -176,54 +176,6 @@ PRIMARY KEY (MyType, Name, attr)
 
 CREATE TABLE Daemons_Vertical_History (
 MyType				VARCHAR(100),
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				text,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Schedds_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				text,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Schedds_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				text,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Masters_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				text,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Masters_Vertical_History (
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-attr				VARCHAR(4000),
-val				text,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
-);
-
-CREATE TABLE Negotiators_Vertical (
-Name				VARCHAR(500) NOT NULL,
-attr				VARCHAR(4000) NOT NULL,
-val				text,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-PRIMARY KEY (Name, attr)
-);
-
-CREATE TABLE Negotiators_Vertical_History (
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),
@@ -314,7 +266,7 @@ FROM runs R, clusterads_horizontal C
 WHERE R.endts IS NULL AND
    R.machine_id != R.scheddname AND
    R.machine_id NOT IN 
-  (SELECT DISTINCT substring(M.machine_id from (position('@' in M.machine_id)+1)) FROM machines_horizontal M where M.lastheardfrom >= now() - interval '10 minutes') AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
+  (SELECT DISTINCT substring(M.machine_id from (position('@' in M.machine_id)+1)) FROM machines_horizontal M where M.lastreportedtime >= now() - interval '10 minutes') AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
 
 /*
 quill_purgeHistory for PostgresSQL database.
@@ -336,8 +288,6 @@ quill_purgeHistory does the following:
 -- resource history data: no need to keep them for long
 --   machine_history, machine_classad_history, 
 --   daemon_horizontal_history, daemon_vertical_history, 
---   schedd_horizontal_history, schedd_vertical_history
---   master_vertical_history, negotiator_vertical_history
 
 -- job run history data: purge when they are very old
 --   transfers, fileusages, files, runs, events, rejects, matches
@@ -348,8 +298,7 @@ quill_purgeHistory does the following:
 -- never purge current "operational data": 
 --   machine, machine_classad, clusterads_horizontal, procads_horizontal, 
 --   clusterads_vertical, procads_vertical, thrown, daemon_horizontal
---   daemon_vertical, schedd_horizontal, schedd_vertical, master_vertical
---   negotiator_vertical
+--   daemon_vertical
 
 -- resourceHistoryDuration, runHistoryDuration, jobHistoryDuration 
 -- parameters are all in number of days
@@ -358,7 +307,6 @@ quill_purgeHistory does the following:
 */
 
 -- dbsize is in unit of megabytes
-DROP TABLE quillDBMonitor;
 CREATE TABLE quillDBMonitor (
 dbsize    integer
 );
@@ -366,7 +314,6 @@ dbsize    integer
 DELETE FROM quillDBMonitor;
 INSERT INTO quillDBMonitor (dbsize) VALUES (0);
 
-DROP TABLE History_Jobs_To_Purge;
 CREATE TABLE History_Jobs_To_Purge(
 scheddname   varchar(4000),
 cluster_id   integer, 
@@ -392,7 +339,7 @@ WHERE start_time <
 
 -- purge machine classads older than resourceHistoryDuration days
 DELETE FROM machines_horizontal_history
-WHERE lastheardfrom < 
+WHERE lastreportedtime < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
@@ -408,26 +355,8 @@ WHERE lastheardfrom <
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
 
--- purge schedd vertical attributes older than certain days
-DELETE FROM schedds_vertical_history
-WHERE lastheardfrom < 
-      (current_timestamp - 
-       cast (resourceHistoryDuration || ' day' as interval));
-
--- purge schedd classads older than certain days
-DELETE FROM schedds_horizontal_history
-WHERE lastheardfrom < 
-      (current_timestamp - 
-       cast (resourceHistoryDuration || ' day' as interval));
-
--- purge master vertical attributes older than certain days
-DELETE FROM masters_vertical_history
-WHERE lastheardfrom < 
-      (current_timestamp - 
-       cast (resourceHistoryDuration || ' day' as interval));
-
--- purge negotiator vertical attributes older than certain days
-DELETE FROM negotiators_vertical_history
+-- purge submitters classads older than certain days
+DELETE FROM submitters_horizontal_history
 WHERE lastheardfrom < 
       (current_timestamp - 
        cast (resourceHistoryDuration || ' day' as interval));
@@ -543,14 +472,8 @@ analyze CURRENCIES;
 analyze DAEMONS_VERTICAL;
 analyze DAEMONS_HORIZONTAL_HISTORY;
 analyze DAEMONS_VERTICAL_HISTORY;
-analyze SCHEDDS_HORIZONTAL;
-analyze SCHEDDS_HORIZONTAL_HISTORY;
-analyze SCHEDDS_VERTICAL;
-analyze SCHEDDS_VERTICAL_HISTORY;
-analyze MASTERS_VERTICAL;
-analyze MASTERS_VERTICAL_HISTORY;
-analyze NEGOTIATORS_VERTICAL;
-analyze NEGOTIATORS_VERTICAL_HISTORY;
+analyze SUBMITTERS_HORIZONTAL;
+analyze SUBMITTERS_HORIZONTAL_HISTORY;
 analyze DUMMY_SINGLE_ROW_TABLE;
 analyze CDB_USERS;
 analyze TRANSFERS;
@@ -571,7 +494,7 @@ analyze HISTORY_JOBS_TO_PURGE;
 
 SELECT ROUND(SUM(relpages)*8192/(1024*1024)) INTO totalUsedMB
 FROM pg_class
-WHERE relname IN ('procads_vertical', 'jobs_vertical_history', 'clusterads_vertical', 'procads_horizontal', 'clusterads_horizontal', 'jobs_horizontal_history', 'files', 'fileusages', 'schedds_vertical', 'schedds_horizontal', 'runs', 'masters_vertical', 'machines_vertical', 'machines_horizontal', 'daemons_vertical', 'daemons_horizontal', 'transfers', 'schedds_vertical_history', 'schedds_horizontal_history', 'rejects', 'negotiators_vertical_history', 'matches', 'masters_vertical_history', 'machines_vertical_history', 'machines_horizontal_history', 'events', 'daemons_vertical_history', 'daemons_horizontal_history');
+WHERE relname IN ('procads_vertical', 'jobs_vertical_history', 'clusterads_vertical', 'procads_horizontal', 'clusterads_horizontal', 'jobs_horizontal_history', 'files', 'fileusages', 'submitters_horizontal', 'runs', 'machines_vertical', 'machines_horizontal', 'daemons_vertical', 'daemons_horizontal', 'transfers', 'submitters_horizontal_history', 'rejects', 'matches', 'machines_vertical_history', 'machines_horizontal_history', 'events', 'daemons_vertical_history', 'daemons_horizontal_history');
 
 RAISE NOTICE 'totalUsedMB=% MegaBytes', totalUsedMB;
 
@@ -611,14 +534,8 @@ grant select on Daemons_Horizontal to quillreader;
 grant select on Daemons_Vertical to quillreader;
 grant select on Daemons_Horizontal_History to quillreader;
 grant select on Daemons_Vertical_History to quillreader;
-grant select on Schedds_Horizontal to quillreader;
-grant select on Schedds_Horizontal_History to quillreader;
-grant select on Schedds_Vertical to quillreader;
-grant select on Schedds_Vertical_History to quillreader;
-grant select on Masters_Vertical to quillreader;
-grant select on Masters_Vertical_History to quillreader;
-grant select on Negotiators_Vertical to quillreader;
-grant select on Negotiators_Vertical_History to quillreader;
+grant select on Submitters_Horizontal to quillreader;
+grant select on Submitters_Horizontal_History to quillreader;
 grant select on Error_Sqllogs to quillreader;
 grant select on AGG_User_Jobs_Fin_Last_Day to quillreader;
 grant select on HISTORY_JOBS_FLOCKED_IN to quillreader;

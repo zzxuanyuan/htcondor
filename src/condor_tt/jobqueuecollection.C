@@ -663,16 +663,19 @@ JobQueueCollection::loadAd(char* cid,
 						return FAILURE;
 					}
 				} else {
+					char *local_longstr_arr[1];
+					int   local_strlen_arr[1];
+
 						/* for oracle, long string values can't be placed in 
 						   SQL as a literal, therefore we need special 
 						   mechanism to get them it 
 						*/
 					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', :1)", scheddname,cid, name);
 
-					longstr_arr[0] = (char *)newvalue.Value();
-					strlen_arr[0] = newvalue.Length();
+					local_longstr_arr[0] = (char *)newvalue.Value();
+					local_strlen_arr[0] = newvalue.Length();
 
-					if (DBObj->execCommandWithBind(sql_str.Value(), longstr_arr, strlen_arr, 1) == FAILURE) {
+					if (DBObj->execCommandWithBind(sql_str.Value(), local_longstr_arr, local_strlen_arr, 1) == FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 						return FAILURE;
 					}

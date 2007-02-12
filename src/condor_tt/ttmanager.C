@@ -58,7 +58,6 @@ char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG",
 static int attHashFunction (const MyString &str, int numBuckets);
 static int isHorizontalMachineAttr(char *attName);
 static int isHorizontalDaemonAttr(char *attName);
-static int isHorizontalScheddAttr(char *attName);
 static QuillAttrDataType daemonAdAttrTypeOf(char *attName);
 static int file_checksum(char *filePathName, int fileSize, char *sum);
 static QuillErrCode append(char *destF, char *srcF);
@@ -819,11 +818,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
 
-	MyString lastHeardFrom = "";
+	MyString lastReportedTime = "";
 	MyString clob_comp_expr;
 
-		// previous LastHeardFrom from the current classad
-		// previous LastHeardFrom from the database's machines_horizontal
+		// previous LastReportedTime from the current classad
+		// previous LastReportedTime from the database's machines_horizontal
     int  prevLHFInAd = 0;
     int  prevLHFInDB = 0;
 	int	 ret_st;
@@ -853,7 +852,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 			attr_type = daemonAdAttrTypeOf(attName);
 
-			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
+			if (strcasecmp(attName, "PrevLastReportedTime") == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
 			else if (isHorizontalMachineAttr(attName)) {
@@ -863,13 +862,13 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						//is the first in the list
 					isFirst = FALSE;
 					
-					if (strcasecmp(attName, "lastheardfrom") == 0) {
-							/* for lastheardfrom, we want to store both 
+					if (strcasecmp(attName, "lastreportedtime") == 0) {
+							/* for lastreportedtime, we want to store both 
 							   the epoch seconds and the string timestamp
 							   value. The epoch seconds is stored in a column
-							   named lastheardfrom_epoch.
+							   named lastreportedtime_epoch.
 							*/
-						attNameList.sprintf("(lastheardfrom, lastheardfrom_epoch");
+						attNameList.sprintf("(lastreportedtime, lastreportedtime_epoch");
 
 					} else {
 						if (strcasecmp(attName, ATTR_NAME) == 0) {
@@ -901,10 +900,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 							return FAILURE;							
 						}
 
-						if (strcasecmp(attName, "lastheardfrom") == 0) {
+						if (strcasecmp(attName, "lastreportedtime") == 0) {
 							attValList.sprintf("(%s, %s", ts_expr.Value(), 
 											   attVal);
-							lastHeardFrom.sprintf("%s", ts_expr.Value());
+							lastReportedTime.sprintf("%s", ts_expr.Value());
 						} else {
 							attValList.sprintf("(%s", ts_expr.Value());
 						}
@@ -924,10 +923,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 					}
 				} else {
 						// is not the first in the list
-					if (strcasecmp(attName, "lastheardfrom") == 0) {
+					if (strcasecmp(attName, "lastreportedtime") == 0) {
 						attNameList += ", ";
 						
-						attNameList += "lastheardfrom, lastheardfrom_epoch";
+						attNameList += "lastreportedtime, lastreportedtime_epoch";
 
 					} else {
 						attNameList += ", ";
@@ -962,10 +961,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 							return FAILURE;							
 						}
 						
-						if (strcasecmp(attName, "lastheardfrom") == 0) {
+						if (strcasecmp(attName, "lastreportedtime") == 0) {
 							tmpVal.sprintf("%s, %s", ts_expr.Value(), 
 										   attVal);
-							lastHeardFrom.sprintf("%s", ts_expr.Value());
+							lastReportedTime.sprintf("%s", ts_expr.Value());
 						} else {
 							tmpVal.sprintf("%s", ts_expr.Value());
 						}
@@ -1015,8 +1014,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	if (!inlist.IsEmpty())
 		inlist += ")";
 
-		// get the previous lastheardfrom from the database 
-	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+		// get the previous lastreportedtime from the database 
+	sql_stmt.sprintf("SELECT lastreportedtime_epoch FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
 
 	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
 	
@@ -1032,12 +1031,12 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	
 	DBObj->releaseQueryResult();
 
-		// set end time if the previous lastHeardFrom matches, otherwise
+		// set end time if the previous lastReporteTime matches, otherwise
 		// leave it as NULL (by default)
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastHeardFrom.Value(), machine_id.Value());
+		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastReportedTime.Value(), machine_id.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastheardfrom, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
 	}
 	 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -1067,11 +1066,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 
 		// Insert changes into Machine
 
-		 // if the previous lastHeardFrom doesn't match, this means the 
+		 // if the previous lastReportedTime doesn't match, this means the 
 		 // daemon has been shutdown for a while, we should move everything
-		 // into the machines_vertical_history (with a NULL end_time)!
+		 // into the Machines_vertical_history (with a NULL end_time)!
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), machine_id.Value(), inlist.Value());
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", lastReportedTime.Value(), machine_id.Value(), inlist.Value());
 	 } else {
 		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time) SELECT machine_id, attr, val, start_time FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
 	 }
@@ -1099,7 +1098,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 		 
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), machine_id.Value(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastReportedTime.Value(), machine_id.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1110,7 +1109,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			
 		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
 
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND %s", lastReportedTime.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1119,7 +1118,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND %s", aVal.Value(), lastReportedTime.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1142,8 +1141,6 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	MyString attNameList = "";
 	MyString attValList = "";
 	MyString tmpVal = "";
-	MyString attNameList2 = "";
-	MyString attValList2 = "";
 	int firstScheddAttr = TRUE;
 	MyString aName, aVal, temp;
 	MyString inlist = "";
@@ -1248,95 +1245,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 				attValList += tmpVal;
 			}
 
-			if (isHorizontalScheddAttr(attName)) {
-				if (firstScheddAttr) {
-						//is the first in the list
-					firstScheddAttr = FALSE;
-					
-					attNameList2.sprintf("(%s", attName);
-
-					switch (attr_type) {
-
-					case CONDOR_TT_TYPE_STRING:
-						attValList2.sprintf("('%s'", attVal);
-						break;
-					case CONDOR_TT_TYPE_TIMESTAMP:
-						time_t clock;
-						clock = atoi(attVal);
-
-						ts_expr = condor_ttdb_buildts(&clock, dt);
-
-						if (ts_expr.IsEmpty()) {
-							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
-							if (attName) {
-								free(attName);
-								attName = NULL;
-							}
-							return FAILURE;							
-						}
-												
-						attValList2.sprintf("(%s", ts_expr.Value());
-
-						break;
-					case CONDOR_TT_TYPE_NUMBER:
-						attValList2.sprintf("(%s", attVal);
-						break;
-					default:
-						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute %s\n", attName);
-						if (attName) {
-							free(attName);
-							attName = NULL;
-						}
-						return FAILURE;
-					}
-				} else {
-						// is not the first in the list
-					attNameList2 += ", ";
-					attNameList2 += attName;
-
-					attValList2 += ", ";
-
-					switch (attr_type) {
-
-					case CONDOR_TT_TYPE_STRING:
-						tmpVal.sprintf("'%s'", attVal);
-						break;
-					case CONDOR_TT_TYPE_TIMESTAMP:
-						time_t clock;
-						clock = atoi(attVal);
-
-						ts_expr = condor_ttdb_buildts(&clock, dt);
-
-						if (ts_expr.IsEmpty()) {
-							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
-							if (attName) {
-								free(attName);
-								attName = NULL;
-							}
-							return FAILURE;							
-						}
-
-						tmpVal.sprintf("%s", ts_expr.Value());
-
-						break;
-					case CONDOR_TT_TYPE_NUMBER:
-						tmpVal.sprintf("%s", attVal);
-						break;
-					default:
-						dprintf(D_ALWAYS, "insertScheddAd: Unsupported horizontal schedd attribute %s\n", attName);
-						if (attName) {
-							free(attName);
-							attName = NULL;
-						}
-						return FAILURE;
-					}
-
-					attValList2 += tmpVal;
-				}
-			}
-
-			if (!isHorizontalScheddAttr(attName) && 
-				!isHorizontalDaemonAttr(attName) &&
+			if (!isHorizontalDaemonAttr(attName) &&
 				strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) != 0) {
 					// the rest of attributes go to the vertical schedd table
 				aName = attName;
@@ -1364,8 +1273,6 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 
 	if (!attNameList.IsEmpty()) attNameList += ")";
 	if (!attValList.IsEmpty()) attValList += ")";
-	if (!attNameList2.IsEmpty()) attNameList2 += ")";
-	if (!attValList2.IsEmpty()) attValList2 += ")";
 	if (!inlist.IsEmpty()) inlist += ")";
 
 		// get the previous lastheardfrom from the database 
@@ -1411,32 +1318,6 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		return FAILURE;
 	}
 
-		/* move the horizontal schedd attributes tuple to history
-		   set end time if the previous lastHeardFrom matches, otherwise
-		   leave it as NULL (by default)	
-		*/
-	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Schedds_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, endtime) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs, %s FROM Schedds_Horizontal WHERE Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
-	} else {
-		sql_stmt.sprintf("INSERT INTO Schedds_Horizontal_History (Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs) SELECT Name, LastHeardFrom, NumUsers, TotalIdleJobs, TotalRunningJobs, TotalJobAds, TotalHeldJobs, TotalFlockedJobs, TotalRemovedJobs FROM Schedds_Horizontal WHERE Name = '%s'", daemonName.Value());
-	}
-	
-	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		errorSqlStmt = sql_stmt;
-		return FAILURE;
-	}
-	
-	sql_stmt.sprintf("DELETE FROM  Schedds_Horizontal WHERE Name = '%s'", daemonName.Value());
-
-	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		errorSqlStmt = sql_stmt;		
-		return FAILURE;
-	}
-	 
 		// insert new tuple into daemons_horizontal 
 	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 
@@ -1447,28 +1328,18 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 		 return FAILURE;
 	 }	 
 
-		 // insert new tuple into schedds_horizontal 
-	 sql_stmt.sprintf("INSERT INTO schedds_horizontal %s VALUES %s", attNameList2.Value(), attValList2.Value());
-
-	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		 errorSqlStmt = sql_stmt;	
-		 return FAILURE;
-	 }	 
-
-		// Make changes into schedds_vertical and schedds_vertical_history
+		// Make changes into daemons_vertical and daemons_vertical_history
 
 		 /* if the previous lastHeardFrom doesn't match, this means the 
 			daemon has been shutdown for a while, we should move everything
-			into the schedds_vertical_history (with a NULL end_time)!
+			into the daemons_vertical_history (with a NULL end_time)!
 			if the previous lastHeardFrom matches, only move attributes that 
 			don't appear in the new class ad
 		 */
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Schedds_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Schedds_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
+		 sql_stmt.sprintf("INSERT INTO Daemons_Vertical_History (MyType, Name, LastHeardFrom, attr, val, endtime) SELECT MyType, name, lastheardfrom, attr, val, %s FROM Daemons_Vertical WHERE MyType = 'Scheduler' AND name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("INSERT INTO Schedds_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Schedds_Vertical WHERE name = '%s'", daemonName.Value());		 
+		 sql_stmt.sprintf("INSERT INTO Daemons_Vertical_History (MyType, Name, LastHeardFrom, attr, val) SELECT MyType, name, lastheardfrom, attr, val FROM Daemons_Vertical WHERE MyType = 'Scheduler' AND name = '%s'", daemonName.Value());		 
 	 }	 
 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -1479,9 +1350,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	 }
 
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM schedds_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
+		 sql_stmt.sprintf("DELETE FROM daemons_vertical WHERE MyType = 'Scheduler' AND name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("DELETE FROM schedds_vertical WHERE name = '%s'", daemonName.Value());		 
+		 sql_stmt.sprintf("DELETE FROM daemons_vertical WHERE MyType = 'Scheduler' AND name = '%s'", daemonName.Value());		 
 	 }
 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -1495,7 +1366,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
 
-		 sql_stmt.sprintf("INSERT INTO schedds_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM schedds_vertical WHERE name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO daemons_vertical (MyType, name, attr, val, lastheardfrom) SELECT 'Scheduler', '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM daemons_vertical WHERE MyType = 'Scheduler' AND name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1506,7 +1377,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 
 		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
 
-		 sql_stmt.sprintf("INSERT INTO schedds_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM schedds_vertical WHERE name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("INSERT INTO daemons_vertical_history (MyType, name, lastheardfrom, attr, val, endtime) SELECT MyType, name, lastheardfrom, attr, val, %s FROM daemons_vertical WHERE MyType = 'Scheduler' AND name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1515,7 +1386,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 		 
-		 sql_stmt.sprintf("UPDATE schedds_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("UPDATE daemons_vertical SET val = '%s', lastheardfrom = %s WHERE MyType = 'Scheduler' AND name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1724,18 +1595,18 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		return FAILURE;
 	}		 
 
-		// Make changes into masters_vertical and masters_vertical_history	
+		// Make changes into daemons_vertical and daemons_vertical_history	
 
 		/* if the previous lastHeardFrom doesn't match, this means the 
 		   daemon has been shutdown for a while, we should move everything
-		   into the schedds_vertical_history (with a NULL end_time)!
+		   into the daemons_vertical_history (with a NULL end_time)!
 		   if the previous lastHeardFrom matches, only move attributes that 
 		   don't appear in the new class ad
 		*/
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Masters_Vertical_History (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Masters_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
+		 sql_stmt.sprintf("INSERT INTO Daemons_Vertical_History (MyType, name, lastheardfrom, attr, val, endtime) SELECT MyType, name, lastheardfrom, attr, val, %s FROM Daemons_Vertical WHERE MyType = 'Master' AND name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("INSERT INTO Masters_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Masters_Vertical WHERE name = '%s'", daemonName.Value());
+		 sql_stmt.sprintf("INSERT INTO Daemons_Vertical_History (MyType, Name, LastHeardFrom, attr, val) SELECT MyType, name, lastheardfrom, attr, val FROM Daemons_Vertical WHERE MyType = 'Master' AND name = '%s'", daemonName.Value());
 	 } 
 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -1746,9 +1617,9 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	 }
 
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM masters_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
+		 sql_stmt.sprintf("DELETE FROM daemons_vertical WHERE MyType = 'Master' AND name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("DELETE FROM masters_vertical WHERE name = '%s'", daemonName.Value());
+		 sql_stmt.sprintf("DELETE FROM daemons_vertical WHERE MyType = 'Master' AND name = '%s'", daemonName.Value());
 	 }
 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -1761,7 +1632,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 sql_stmt.sprintf("INSERT INTO masters_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM masters_vertical WHERE name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO daemons_vertical (MyType, name, attr, val, lastheardfrom) SELECT 'Master', '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM daemons_vertical WHERE MyType = 'Master' AND name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1772,7 +1643,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 
 		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
 
-		 sql_stmt.sprintf("INSERT INTO masters_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM masters_vertical WHERE name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("INSERT INTO daemons_vertical_history (MyType, name, lastheardfrom, attr, val, endtime) SELECT MyType, name, lastheardfrom, attr, val, %s FROM daemons_vertical WHERE MyType = 'Master' AND name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1781,7 +1652,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE masters_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("UPDATE daemons_vertical SET val = '%s', lastheardfrom = %s WHERE MyType = 'Master' AND name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1989,20 +1860,20 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		return FAILURE;
 	}
 
-		/* Make changes into negotiators_vertical and 
-		   negotiators_vertical_history
+		/* Make changes into daemons_vertical and 
+		   daemons_vertical_history
 		*/
 
 		/* if the previous lastHeardFrom doesn't match, this means the 
 		   daemon has been shutdown for a while, we should move everything
-		   into the schedds_vertical_history (with a NULL end_time)!
+		   into the daemons_vertical_history (with a NULL end_time)!
 		   if the previous lastHeardFrom matches, only move attributes that 
 		   don't appear in the new class ad
 		*/
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Negotiators_Vertical_History (Name, LastHeardFrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM Negotiators_Vertical WHERE name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
+		 sql_stmt.sprintf("INSERT INTO Daemons_Vertical_History (MyType, Name, LastHeardFrom, attr, val, endtime) SELECT MyType, name, lastheardfrom, attr, val, %s FROM Daemons_Vertical WHERE MyType = 'Negotiator' AND name = '%s' AND attr NOT IN %s", lastHeardFrom.Value(), daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("INSERT INTO Negotiators_Vertical_History (Name, LastHeardFrom, attr, val) SELECT name, lastheardfrom, attr, val FROM Negotiators_Vertical WHERE name = '%s'", daemonName.Value());
+		 sql_stmt.sprintf("INSERT INTO Daemons_Vertical_History (MyType, Name, LastHeardFrom, attr, val) SELECT MyType, name, lastheardfrom, attr, val FROM Daemons_Vertical WHERE MyType = 'Negotiator' AND name = '%s'", daemonName.Value());
 	 }
 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -2013,9 +1884,9 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	 }
 
 	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM negotiators_vertical WHERE name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
+		 sql_stmt.sprintf("DELETE FROM daemons_vertical WHERE MyType = 'Negotiator' AND name = '%s' AND attr NOT IN %s", daemonName.Value(), inlist.Value());
 	 } else {
-		 sql_stmt.sprintf("DELETE FROM negotiators_vertical WHERE name = '%s'", daemonName.Value());
+		 sql_stmt.sprintf("DELETE FROM daemons_vertical WHERE MyType = 'Negotiator' AND name = '%s'", daemonName.Value());
 	 }
 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -2028,7 +1899,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 		 // insert the vertical attributes
 	 newClAd.startIterations();
 	 while (newClAd.iterate(aName, aVal)) {
-		 sql_stmt.sprintf("INSERT INTO negotiators_vertical (name, attr, val, lastheardfrom) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM negotiators_vertical WHERE name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
+		 sql_stmt.sprintf("INSERT INTO daemons_vertical (MyType, name, attr, val, lastheardfrom) SELECT 'Negotiator', '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM daemons_vertical WHERE MyType = 'Negotiator' AND name = '%s' AND attr = '%s')", daemonName.Value(), aName.Value(), aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2039,7 +1910,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 
 		 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
 
-		 sql_stmt.sprintf("INSERT INTO negotiators_vertical_history (name, lastheardfrom, attr, val, endtime) SELECT name, lastheardfrom, attr, val, %s FROM negotiators_vertical WHERE name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("INSERT INTO daemons_vertical_history (MyType, name, lastheardfrom, attr, val, endtime) SELECT MyType, name, lastheardfrom, attr, val, %s FROM daemons_vertical WHERE MyType = 'Negotiator' AND name = '%s' AND attr = '%s' AND %s", lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2048,7 +1919,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			 return FAILURE;
 		 }
 
-		 sql_stmt.sprintf("UPDATE negotiators_vertical SET val = '%s', lastheardfrom = %s WHERE name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
+		 sql_stmt.sprintf("UPDATE daemons_vertical SET val = '%s', lastheardfrom = %s WHERE MyType = 'Negotiator' AND name = '%s' AND attr = '%s' AND %s", aVal.Value(), lastHeardFrom.Value(), daemonName.Value(), aName.Value(), clob_comp_expr.Value());
 		 
 		 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -3234,6 +3105,7 @@ daemonAdAttrTypeOf(char *attName)
 		  strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
 		  strcasecmp(attName, "reject_time") &&
 		  strcasecmp(attName, "match_time") && 
+			   strcasecmp(attName, "LastReportedTime") && 
 		  strcasecmp(attName, "MonitorSelfTime")
 		  )
 		)
@@ -3277,7 +3149,7 @@ static int isHorizontalMachineAttr(char *attName)
 			strcasecmp(attName, ATTR_UPDATESTATS_LOST) &&
 			strcasecmp(attName, ATTR_NAME) && 
 			strcasecmp(attName, "GlobalJobId") &&
-			strcasecmp(attName, "LastHeardFrom")
+			strcasecmp(attName, "LastReportedTime")
 			);
 }
 
@@ -3299,23 +3171,6 @@ static int isHorizontalDaemonAttr(char *attName)
 			!strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) ||
 			!strcasecmp(attName, ATTR_UPDATESTATS_LOST) ||
 			!strcasecmp(attName, ATTR_UPDATESTATS_HISTORY));
-}
-
-/* The following attributes are treated as horizontal schedd attributes.
-   Notice that if you add more attributes to the following list, the horizontal
-   schema for Schedds_Horizontal needs to revised accordingly.
-*/
-static int isHorizontalScheddAttr(char *attName)
-{
-	return (!strcasecmp(attName, ATTR_NAME) ||
-			!strcasecmp(attName, ATTR_LAST_HEARD_FROM) ||
-			!strcasecmp(attName, ATTR_NUM_USERS) ||
-			!strcasecmp(attName, ATTR_TOTAL_IDLE_JOBS) ||
-			!strcasecmp(attName, ATTR_TOTAL_RUNNING_JOBS) ||
-			!strcasecmp(attName, ATTR_TOTAL_JOB_ADS) ||
-			!strcasecmp(attName, ATTR_TOTAL_HELD_JOBS) ||
-			!strcasecmp(attName, ATTR_TOTAL_FLOCKED_JOBS) ||
-			!strcasecmp(attName, ATTR_TOTAL_REMOVED_JOBS));
 }
 
 static int file_checksum(char *filePathName, int fileSize, char *sum) {
