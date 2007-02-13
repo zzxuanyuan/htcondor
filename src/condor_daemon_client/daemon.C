@@ -1850,6 +1850,9 @@ Daemon::readLocalClassAd( const char* subsys )
 	int adIsEOF, errorReadingAd, adEmpty = 0;
 	adFromFile = new ClassAd(addr_fp, "...", adIsEOF, errorReadingAd, adEmpty);
 	ASSERT(adFromFile);
+	if(!m_daemon_ad_ptr) {
+		m_daemon_ad_ptr = new ClassAd(*adFromFile);
+	}
 	counted_ptr<ClassAd> smart_ad_ptr(adFromFile);
 	
 	fclose(addr_fp);
