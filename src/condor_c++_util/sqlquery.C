@@ -26,11 +26,13 @@
 #include "quill_enums.h"
 #include "condor_config.h"
 
-#define quill_history_hor_select_list "scheddname, cluster_id, proc_id, qdate, owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, user_j, env, userlog, coresize, killsig, rank, in_j, transferin, out, transferout, err, transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, requirements, filesystemdomain, args, lastmatchtime, numjobmatches, jobstartdate, jobcurrentstartdate, jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, rscbytesrecvd, exitcode, jobstatus, enteredcurrentstatus, remotewallclocktime, lastremotehost, completiondate"
+#define quill_oracle_history_hor_select_list "scheddname, cluster_id, proc_id, (extract(day from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (qdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, user_j, env, userlog, coresize, killsig, rank, in_j, transferin, out, transferout, err, transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, requirements, filesystemdomain, args,(extract(day from (lastmatchtime - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (lastmatchtime - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (lastmatchtime - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (lastmatchtime - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as lastmatchtime, numjobmatches,(extract(day from (jobstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (jobstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (jobstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (jobstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as jobstartdate, (extract(day from (jobcurrentstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (jobcurrentstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (jobcurrentstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (jobcurrentstartdate - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as jobcurrentstartdate, jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, rscbytesrecvd, exitcode, jobstatus, (extract(day from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (enteredcurrentstatus - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as enteredcurrentstatus, remotewallclocktime, lastremotehost, completiondate"
+
+#define quill_pgsql_history_hor_select_list "scheddname, cluster_id, proc_id, extract(epoch from qdate) as qdate, owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, user_j, env, userlog, coresize, killsig, rank, in_j, transferin, out, transferout, err, transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, requirements, filesystemdomain, args, extract(epoch from lastmatchtime) as lastmatchtime, numjobmatches, extract(epoch from jobstartdate) as jobstartdate, extract(epoch from jobcurrentstartdate) as jobcurrentstartdate, jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, rscbytesrecvd, exitcode, jobstatus, extract(epoch from enteredcurrentstatus) as enteredcurrentstatus, remotewallclocktime, lastremotehost, completiondate"
 
 #define quill_history_ver_select_list "scheddname, cluster_id, proc_id, attr, val"
 
-#define quill_avg_time_template_pgsql "SELECT avg((now() - 'epoch'::timestamp with time zone) - cast(QDate || ' seconds' as interval)) \
+#define quill_avg_time_template_pgsql "SELECT avg(now() - QDate) \
          FROM \
            (SELECT \
              c.QDate AS QDate, \
@@ -54,7 +56,7 @@
    After the averge of number of seconds is computed, we convert the avg back 
    to the format of 'days hours:minutes:seconds' for display.
 */
-#define quill_avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' || floor(mod(t.elapsed, 86400)/3600) || ':' || floor(mod(t.elapsed, 3600)/60) || ':' || floor(mod(t.elapsed, 60))  FROM (SELECT avg((extract(day from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(QDate/86400))*86400 + (extract(hour from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(mod(QDate, 86400)/3600))*3600 + (extract(minute from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - floor(mod(QDate, 3600)/60))*60 + (extract(second from (current_timestamp - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD'))) - mod(QDate, 60))) as elapsed \
+#define quill_avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' || floor(mod(t.elapsed, 86400)/3600) || ':' || floor(mod(t.elapsed, 3600)/60) || ':' || floor(mod(t.elapsed, 60))  FROM (SELECT avg((extract(day from (current_timestamp - QDate)))*86400 + (extract(hour from (current_timestamp - QDate)))*3600 + (extract(minute from (current_timestamp - QDate)))*60 + (extract(second from (current_timestamp - QDate)))) as elapsed \
          FROM \
            (SELECT \
              c.QDate AS QDate, \
@@ -202,7 +204,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  if (dt == T_PGSQL) {
 			sprintf(declare_cursor_str, 
 					"DECLARE HISTORY_ALL_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History %s ORDER BY scheddname, cluster_id, proc_id;", 
-					quill_history_hor_select_list, schedd_predicate_full.Value());
+					quill_pgsql_history_hor_select_list, schedd_predicate_full.Value());
 			sprintf(fetch_cursor_str,
 				"FETCH FORWARD 100 FROM HISTORY_ALL_HOR_CUR");
 			sprintf(close_cursor_str,
@@ -210,7 +212,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
 				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History %s ORDER BY scheddname, cluster_id, proc_id", 
-				  quill_history_hor_select_list, schedd_predicate_full.Value());
+				  quill_oracle_history_hor_select_list, schedd_predicate_full.Value());
 	  }
     
     break;
@@ -234,7 +236,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str, 
 			"DECLARE HISTORY_CLUSTER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d %s ORDER BY scheddname, cluster_id, proc_id;",
-				quill_history_hor_select_list, 
+				quill_pgsql_history_hor_select_list, 
 				*((int *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_CLUSTER_HOR_CUR");
@@ -243,7 +245,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
 				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d %s ORDER BY scheddname, cluster_id, proc_id",
-				  quill_history_hor_select_list, 
+				  quill_oracle_history_hor_select_list, 
 				  *((int *)parameters[0]), schedd_predicate_part.Value() );
 	  }
 
@@ -269,7 +271,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  if (dt == T_PGSQL) {
     	sprintf(declare_cursor_str, 
 			"DECLARE HISTORY_CLUSTER_PROC_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE cluster_id=%d and proc_id=%d %s ORDER BY scheddname, cluster_id, proc_id;",
-				quill_history_hor_select_list,
+				quill_pgsql_history_hor_select_list,
 				*((int *)parameters[0]), *((int *)parameters[1]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_CLUSTER_PROC_HOR_CUR");
@@ -278,7 +280,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str, 
 				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE cluster_id=%d and proc_id=%d %s ORDER BY scheddname, cluster_id, proc_id",
-				  quill_history_hor_select_list, 
+				  quill_oracle_history_hor_select_list, 
 				  *((int *)parameters[0]), *((int *)parameters[1]), schedd_predicate_part.Value() );
 	  }
 
@@ -308,7 +310,7 @@ createQueryString(query_types qtype, void **parameters) {
 		sprintf(declare_cursor_str,
 			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE owner='\"%s\"' %s "
 			"ORDER BY scheddname, cluster_id, proc_id;",
-				quill_history_hor_select_list,
+				quill_pgsql_history_hor_select_list,
 				((char *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_OWNER_HOR_CUR");
@@ -318,7 +320,7 @@ createQueryString(query_types qtype, void **parameters) {
 		  sprintf(query_str,
 				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE owner='\"%s\"' %s "
 				  "ORDER BY scheddname, cluster_id,proc_id",
-				  quill_history_hor_select_list,
+				  quill_oracle_history_hor_select_list,
 				  ((char *)parameters[0]), schedd_predicate_part.Value() );
 	  }
 
@@ -352,7 +354,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"WHERE \"CompletionDate\" > "
 			"date_part('epoch', '%s'::timestamp with time zone) %s "
 			"ORDER BY scheddname, cluster_id,proc_id;",
-				quill_history_hor_select_list,
+				quill_pgsql_history_hor_select_list,
 				((char *)parameters[0]), schedd_predicate_part.Value() );
 		sprintf(fetch_cursor_str,
 			"FETCH FORWARD 100 FROM HISTORY_COMPLETEDSINCE_HOR_CUR");
@@ -364,7 +366,7 @@ createQueryString(query_types qtype, void **parameters) {
 				  "WHERE (to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD') + to_dsinterval(floor(\"CompletionDate\"/86400) || ' ' || floor(mod(\"CompletionDate\",86400)/3600) || ':' || floor(mod(\"CompletionDate\", 3600)/60) || ':' || mod(\"CompletionDate\", 60))) > "
 				  "to_timestamp_tz('%s', 'MM/DD/YYYY HH24:MI:SS TZD') %s "
 				  "ORDER BY scheddname, cluster_id,proc_id",
-				  quill_history_hor_select_list,
+				  quill_oracle_history_hor_select_list,
 				  ((char *)parameters[0]), schedd_predicate_part.Value() );
 		  
 	  break;

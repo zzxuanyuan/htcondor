@@ -2533,7 +2533,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  if(strcasecmp(name.Value(), "lastmatchtime") == 0 || 
 			 strcasecmp(name.Value(), "jobstartdate") == 0 || 
 			 strcasecmp(name.Value(), "jobcurrentstartdate") == 0 ||
-			 strcasecmp(name.Value(), "enteredcurrentstatus") == 0
+			 strcasecmp(name.Value(), "enteredcurrentstatus") == 0 ||
+			 strcasecmp(name.Value(), "qdate") == 0 
 			 ) {
 				  // avoid updating with epoch time
 			  if (strcmp(value.Value(), "0") == 0) {

@@ -60,7 +60,7 @@ scheddname   varchar(4000) NOT NULL,
 scheddbirthdate     integer NOT NULL,
 cluster_id              integer NOT NULL,
 proc_id			integer NOT NULL,
-qdate                   integer, -- condor_history requires an integer for qdate
+qdate                   timestamp(3) with time zone,
 owner                   varchar(30),
 globaljobid             varchar(4000),
 numckpts                integer,
