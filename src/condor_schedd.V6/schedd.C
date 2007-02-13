@@ -749,6 +749,8 @@ Scheduler::count_jobs()
 	sprintf(tmp, "%s = True", ATTR_WANT_RESOURCE_AD );
 	ad->InsertOrUpdate(tmp);
 
+	daemonCore->UpdateLocalAd(ad);
+
 		// Update collectors
 	int num_updates = Collectors->sendUpdates ( UPDATE_SCHEDD_AD, ad, NULL, true );
 	dprintf( D_FULLDEBUG, 
@@ -10068,9 +10070,9 @@ Scheduler::reconfig()
 		SetMaxHistoricalLogs(atoi(tmpbuf));
 		free(tmpbuf);
 	}
-	update_local_ad_file();
 }
 
+// NOTE: this is likely unreachable now, and may be removed
 void
 Scheduler::update_local_ad_file() 
 {
