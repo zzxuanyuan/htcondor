@@ -44,3 +44,4 @@ DROP PROCEDURE quill_purgeHistory;
 DROP TABLE History_Jobs_To_Purge;
 DROP TABLE quillDBMonitor;
 DROP TABLE quill_schema_version;
+DROP TABLE maintenance_log;

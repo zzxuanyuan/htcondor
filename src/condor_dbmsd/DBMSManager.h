@@ -44,6 +44,8 @@ private:
 	int m_public_ad_update_timer;
 	int m_database_purge_interval;
 	int m_database_purge_timer;
+	int m_database_reindex_interval;
+	int m_database_reindex_timer;
 
 	class CollectorList *m_collectors;
 	class ManagedDatabase **m_databases;
@@ -53,6 +55,7 @@ private:
 	void InvalidatePublicAd();
 
 	void TimerHandler_PurgeDatabase();
+	void TimerHandler_ReindexDatabase();
 };
 
 #endif

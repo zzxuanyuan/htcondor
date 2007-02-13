@@ -107,7 +107,7 @@ DBMSManager::config() {
 
 	InitPublicAd();
 
-	int update_interval = 60;
+	int update_interval = 60; // default of 60 seconds
 	char *update_interval_str = param("UPDATE_INTERVAL");
 	if(update_interval_str) {
 		update_interval = atoi(update_interval_str);
@@ -131,7 +131,7 @@ DBMSManager::config() {
 	}
 
 		/* register the database purging callback */
-	int purge_interval = 60;
+	int purge_interval = 86400; // default of 24 hours
 	char *purge_interval_str = param("DATABASE_PURGE_INTERVAL");
 	if(purge_interval_str) {
 		purge_interval = atoi(purge_interval_str);
@@ -152,6 +152,31 @@ DBMSManager::config() {
 			m_database_purge_interval,
 			(Eventcpp)&DBMSManager::TimerHandler_PurgeDatabase,
 			"DBMSManager::TimerHandler_PurgeDatabase",
+			this);
+	}
+
+		/* register the database reindexing callback */
+	int reindex_interval = 86400; // default of 24 hours
+	char *reindex_interval_str = param("DATABASE_REINDEX_INTERVAL");
+	if(reindex_interval_str) {
+		reindex_interval = atoi(reindex_interval_str);
+		free(reindex_interval_str);
+	}
+
+	if(m_database_reindex_interval != reindex_interval) {
+		m_database_reindex_interval = reindex_interval;
+
+		if(m_database_reindex_timer >= 0) {
+			daemonCore->Cancel_Timer(m_database_reindex_timer);
+			m_database_reindex_timer = -1;
+		}
+		dprintf(D_FULLDEBUG, "Setting database reindex interval to %d\n",
+				m_database_reindex_interval);
+		m_database_reindex_timer = daemonCore->Register_Timer(
+			0,
+			m_database_reindex_interval,
+			(Eventcpp)&DBMSManager::TimerHandler_ReindexDatabase,
+			"DBMSManager::TimerHandler_ReindexDatabase",
 			this);
 	}
 	
@@ -192,4 +217,17 @@ DBMSManager::TimerHandler_PurgeDatabase() {
 		}
 	}	
 	dprintf(D_ALWAYS, "******** End of Purging Old Data ********\n");
+}
+
+void
+DBMSManager::TimerHandler_ReindexDatabase() {
+	dprintf(D_ALWAYS, "******** Start of Reindexing Database ********\n");
+	if(m_databases) {
+		int i = 0;
+		while (m_databases[i]) {
+			m_databases[i]->ReindexDatabase();
+			i++;
+		}
+	}	
+	dprintf(D_ALWAYS, "******** End of Reindexing Database ********\n");
 }

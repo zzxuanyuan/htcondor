@@ -316,6 +316,11 @@ FlockedJobs			INTEGER,
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
+CREATE TABLE Maintenance_Log(
+	EventTS			TIMESTAMP(3) WITH TIME ZONE,
+	EventMsg		VARCHAR(4000)
+);
+
 -- this table is used internally by the quill daemon for constructing a 
 -- single tuple in a sql statement for updating database, end users 
 -- don't need to access this table

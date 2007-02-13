@@ -328,6 +328,12 @@ BEGIN
 
 /* first purge resource history data */
 
+-- purge maintenance log older than resourceHistoryDuration days
+DELETE FROM maintenance_log 
+WHERE eventTS < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
 -- purge machine vertical attributes older than resourceHistoryDuration days
 DELETE FROM machines_vertical_history
 WHERE start_time < 
@@ -458,6 +464,7 @@ COMMIT;
 -- one caveat: index size is not counted in the usage calculation
 -- analyze tables first to have correct statistics 
 
+execute immediate 'analyze table maintenance_log  compute statistics';
 execute immediate 'analyze table RUNS  compute statistics';
 execute immediate 'analyze table REJECTS compute statistics';
 execute immediate 'analyze table MATCHES compute statistics';
@@ -497,6 +504,10 @@ FROM USER_TABLES;
 DBMS_OUTPUT.PUT_LINE('totalUsedMB=' || totalUsedMB || ' MegaBytes');
 
 UPDATE quillDBMonitor SET dbsize = totalUsedMB;
+
+-- finally record this in the maintenance_log table 
+INSERT INTO maintenance_log(eventts,eventmsg) 
+VALUES(current_timestamp, 'purged data');
 
 COMMIT;
 

@@ -33,6 +33,7 @@ class ManagedDatabase {
 	ManagedDatabase();
 	virtual ~ManagedDatabase();
 	void PurgeDatabase();
+	void ReindexDatabase();
 
 	dbtype dt;
 	char *dbIpAddress;

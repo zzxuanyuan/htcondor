@@ -331,6 +331,12 @@ BEGIN
 
 /* first purge resource history data */
 
+-- purge maintenance log older than resourceHistoryDuration days
+DELETE FROM maintenance_log 
+WHERE eventTS < 
+      (current_timestamp - 
+       cast (resourceHistoryDuration || ' day' as interval));
+
 -- purge machine vertical attributes older than resourceHistoryDuration days
 DELETE FROM machines_vertical_history
 WHERE start_time < 
@@ -459,11 +465,12 @@ TRUNCATE TABLE History_Jobs_To_Purge;
 -- one caveat: index size is not counted in the usage calculation
 -- analyze tables first to have correct statistics 
 
+analyze MAINTENANCE_LOG;
 analyze RUNS;
 analyze REJECTS;
 analyze MATCHES;
 analyze L_JOBSTATUS;
-analyze THROWNs;
+analyze THROWNS;
 analyze EVENTS;
 analyze L_EVENTTYPE;
 analyze GENERICMessages;
@@ -500,8 +507,57 @@ RAISE NOTICE 'totalUsedMB=% MegaBytes', totalUsedMB;
 
 UPDATE quillDBMonitor SET dbsize = totalUsedMB;
 
+-- finally record this in the maintenance_log table 
+INSERT INTO maintenance_log(eventts,eventmsg) 
+VALUES(timestamp with time zone 'now', 'purged data');
+
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION quill_reindexTables() RETURNS void AS $$
+DECLARE
+BEGIN
+
+reindex table RUNS;
+reindex table REJECTS;
+reindex table MATCHES;
+reindex table L_JOBSTATUS;
+reindex table THROWNS;
+reindex table EVENTS;
+reindex table L_EVENTTYPE;
+reindex table GENERICMessages;
+reindex table JOBQUEUEPOLLINGINFO;
+reindex table CURRENCIES;
+reindex table DAEMONS_VERTICAL;
+reindex table DAEMONS_HORIZONTAL_HISTORY;
+reindex table DAEMONS_VERTICAL_HISTORY;
+reindex table SUBMITTERS_HORIZONTAL;
+reindex table SUBMITTERS_HORIZONTAL_HISTORY;
+reindex table DUMMY_SINGLE_ROW_TABLE;
+reindex table CDB_USERS;
+reindex table TRANSFERS;
+reindex table FILES;
+reindex table FILEUSAGES;
+reindex table MACHINES_VERTICAL;
+reindex table MACHINES_VERTICAL_HISTORY;
+reindex table MACHINES_HORIZONTAL_HISTORY;
+reindex table CLUSTERADS_HORIZONTAL;
+reindex table PROCADS_HORIZONTAL;
+reindex table CLUSTERADS_VERTICAL;
+reindex table PROCADS_VERTICAL;
+reindex table JOBS_VERTICAL_HISTORY;
+reindex table JOBS_HORIZONTAL_HISTORY;
+reindex table MACHINES_HORIZONTAL;
+reindex table DAEMONS_HORIZONTAL;
+reindex table HISTORY_JOBS_TO_PURGE;
+
+-- record this in the maintenance_log table 
+INSERT INTO maintenance_log(eventts,eventmsg) 
+VALUES(timestamp with time zone 'now', 'reindexed all tables');
+
+END;
+$$ LANGUAGE plpgsql;
+
 
 -- grant read access on relevant tables to quillreader
 grant select on cdb_users to quillreader;

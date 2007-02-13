@@ -270,3 +270,43 @@ void ManagedDatabase::PurgeDatabase() {
 		return;
 	}		
 }
+
+void ManagedDatabase::ReindexDatabase() {
+	QuillErrCode ret_st;
+	MyString sql_str;
+
+	switch (dt) {				
+	case T_ORACLE: // we dont currently reindex oracle databases
+		break;
+	case T_PGSQL:
+		ret_st = DBObj->connectDB();
+		
+			/* call the reindex routine */
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "ManagedDatabase::ReindexDatabase: unable to connect to DB--- ERROR\n");
+			return;
+		}	
+		
+		sql_str.sprintf("select quill_reindexTables()");
+
+		ret_st = DBObj->execCommand(sql_str.GetCStr());
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "ManagedDatabase::ReindexDatabase --- ERROR [SQL] %s\n", 
+					sql_str.GetCStr());
+		}
+
+
+		ret_st = DBObj->disconnectDB();
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "ManagedDatabase::disconnectDB: unable to disconnect --- ERROR\n");
+			return;
+		}		
+
+		break;
+	default:
+			// can't have this case
+		ASSERT(0);
+		break;
+	}
+
+}
