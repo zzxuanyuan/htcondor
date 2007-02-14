@@ -825,6 +825,7 @@ bool isHorizontalProcAttribute(const char *attr) {
 QuillAttrDataType typeOf(char *attName)
 {
 	if (!(strcasecmp(attName, "args") && 
+		  strcasecmp(attName, "env") &&
 		  strcasecmp(attName, "cmd"))
 		)
 		return CONDOR_TT_TYPE_CLOB;
