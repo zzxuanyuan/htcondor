@@ -155,42 +155,42 @@ primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
 );
 
 CREATE TABLE generic_messages (
-eventType	varchar(4000),
-eventKey	varchar(4000),
-eventTime	timestamp(3) with time zone,
-eventLoc        varchar(4000),
-attName	        varchar(4000),
-attValue	clob,
-attType	varchar(4000)
+eventtype	varchar(4000),
+eventkey	varchar(4000),
+eventtime	timestamp(3) with time zone,
+eventloc        varchar(4000),
+attname	        varchar(4000),
+attvalue	clob,
+atttype	varchar(4000)
 );
 
 CREATE TABLE daemons_vertical (
-MyType				VARCHAR(100) NOT NULL,
-Name				VARCHAR(500) NOT NULL,
+mytype				VARCHAR(100) NOT NULL,
+name				VARCHAR(500) NOT NULL,
 attr				VARCHAR(4000) NOT NULL,
 val				clob,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
 PRIMARY KEY (MyType, Name, attr)
 );
 
 CREATE TABLE daemons_vertical_history (
-MyType				VARCHAR(100),
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
+mytype				VARCHAR(100),
+name				VARCHAR(500),
+lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),
 val				clob,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
+endtime				TIMESTAMP(3) WITH TIME ZONE
 );
 
 CREATE TABLE error_sqllogs (
-LogName   varchar(100),
-Host      varchar(50),
-LastModified timestamp(3) with time zone,
-ErrorSql  varchar(4000),
-LogBody   clob
+logname   varchar(100),
+host      varchar(50),
+lastmodified timestamp(3) with time zone,
+errorsql  varchar(4000),
+logbody   clob
 );
 
-CREATE INDEX error_sqllog_idx ON error_sqllogs (LogName, Host, LastModified);
+CREATE INDEX error_sqllog_idx ON error_sqllogs (logname, host, lastmodified);
 
 CREATE VIEW agg_user_jobs_waiting AS
   SELECT c.owner, count(*) AS jobs_waiting
@@ -330,7 +330,7 @@ BEGIN
 
 -- purge maintenance log older than resourceHistoryDuration days
 DELETE FROM maintenance_log 
-WHERE eventTS < 
+WHERE eventts < 
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
 
@@ -454,7 +454,7 @@ WHERE H.globaljobid IN (SELECT globaljobid
 -- The thrown table doesn't fall precisely into any of the categories 
 -- but we don't want the table to grow unbounded either.
 DELETE FROM throwns T
-WHERE T.throwTime < 
+WHERE T.throwtime < 
      (current_timestamp - 
       to_dsinterval(jobHistoryDuration || ' 00:00:00'));
 

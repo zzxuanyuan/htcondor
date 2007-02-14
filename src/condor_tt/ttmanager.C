@@ -2214,7 +2214,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, globaljobid, eventtype, eventtime, description) VALUES ('%s', %s, %s, '%s', %d, %s, '%s')", 
 				scheddname.Value(), cluster.Value(), proc.Value(), gjid.Value(), eventtype, eventts.Value(), messagestr.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, runid, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc_id = %s AND spid = %s AND endtype is null", scheddname.Value(), cluster.Value(), proc.Value(), eventtype, eventts.Value(), messagestr.Value(), scheddname.Value(), cluster.Value(), proc.Value(), subproc.Value());
+		sql_stmt.sprintf("INSERT INTO events (scheddname, cluster_id, proc_id, run_id, eventtype, eventtime, description) SELECT '%s', %s, %s, run_id, %d, %s, '%s'  FROM runs WHERE scheddname = '%s'  AND cluster_id = %s and proc_id = %s AND spid = %s AND endtype is null", scheddname.Value(), cluster.Value(), proc.Value(), eventtype, eventts.Value(), messagestr.Value(), scheddname.Value(), cluster.Value(), proc.Value(), subproc.Value());
 	}
 
 	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {

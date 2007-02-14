@@ -188,21 +188,21 @@ description     varchar(4000),
 primary key	(jobstatus)
 );
 
-INSERT INTO L_JobStatus VALUES(0, 'U', 'UNEXPANDED');
-INSERT INTO L_JobStatus VALUES(1, 'I', 'IDLE');
-INSERT INTO L_JobStatus VALUES(2, 'R', 'RUNNING');
-INSERT INTO L_JobStatus VALUES(3, 'X', 'REMOVED');
-INSERT INTO L_JobStatus VALUES(4, 'C', 'COMPLETED');
-INSERT INTO L_JobStatus VALUES(5, 'H', 'HELD');
-INSERT INTO L_JobStatus VALUES(6, 'E', 'SUBMISSION_ERROR');
+INSERT INTO l_jobstatus VALUES(0, 'U', 'UNEXPANDED');
+INSERT INTO l_jobstatus VALUES(1, 'I', 'IDLE');
+INSERT INTO l_jobstatus VALUES(2, 'R', 'RUNNING');
+INSERT INTO l_jobstatus VALUES(3, 'X', 'REMOVED');
+INSERT INTO l_jobstatus VALUES(4, 'C', 'COMPLETED');
+INSERT INTO l_jobstatus VALUES(5, 'H', 'HELD');
+INSERT INTO l_jobstatus VALUES(6, 'E', 'SUBMISSION_ERROR');
 
 --END Eric
 
 CREATE TABLE throwns(
-fileName       varchar(4000),
+filename       varchar(4000),
 machine_id     varchar(4000),
 log_size       numeric(38),
-throwTime      timestamp(3) with time zone
+throwtime      timestamp(3) with time zone
 );
 
 CREATE TABLE events (
@@ -210,42 +210,42 @@ scheddname      varchar(4000),
 cluster_id      integer,
 proc_id		integer,
 globaljobid varchar(4000),
-runId     	numeric(12, 0),
-eventType       integer,
-eventTime       timestamp(3) with time zone,
+run_id     	numeric(12, 0),
+eventtype       integer,
+eventtime       timestamp(3) with time zone,
 description     varchar(4000)
 );
 
 CREATE TABLE l_eventtype (
-eventType     integer,
+eventtype     integer,
 description   varchar(4000)
 );
 
-INSERT INTO L_eventType values (0, 'Job submitted');
-INSERT INTO L_eventType values (1, 'Job now running');
-INSERT INTO L_eventType values (2, 'Error in executable');
-INSERT INTO L_eventType values (3, 'Job was checkpointed');
-INSERT INTO L_eventType values (4, 'Job evicted from machine');
-INSERT INTO L_eventType values (5, 'Job terminated');
-INSERT INTO L_eventType values (6, 'Image size of job updated');
-INSERT INTO L_eventType values (7, 'Shadow threw an exception');
-INSERT INTO L_eventType values (8, 'Generic Log Event');
-INSERT INTO L_eventType values (9, 'Job Aborted');
-INSERT INTO L_eventType values (10, 'Job was suspended');
-INSERT INTO L_eventType values (11, 'Job was unsuspended');
-INSERT INTO L_eventType values (12, 'Job was held');
-INSERT INTO L_eventType values (13, 'Job was released');
-INSERT INTO L_eventType values (14, 'Parallel Node executed');
-INSERT INTO L_eventType values (15, 'Parallel Node terminated');
-INSERT INTO L_eventType values (16, 'POST script terminated');
-INSERT INTO L_eventType values (17, 'Job Submitted to Globus');
-INSERT INTO L_eventType values (18, 'Globus Submit failed');
-INSERT INTO L_eventType values (19, 'Globus Resource Up');
-INSERT INTO L_eventType values (20, 'Globus Resource Down');
-INSERT INTO L_eventType values (21, 'Remote Error');
-INSERT INTO L_eventType values (22, 'RSC socket lost');
-INSERT INTO L_eventType values (23, 'RSC socket re-established');
-INSERT INTO L_eventType values (24, 'RSC reconnect failure');
+INSERT INTO l_eventtype values (0, 'Job submitted');
+INSERT INTO l_eventtype values (1, 'Job now running');
+INSERT INTO l_eventtype values (2, 'Error in executable');
+INSERT INTO l_eventtype values (3, 'Job was checkpointed');
+INSERT INTO l_eventtype values (4, 'Job evicted from machine');
+INSERT INTO l_eventtype values (5, 'Job terminated');
+INSERT INTO l_eventtype values (6, 'Image size of job updated');
+INSERT INTO l_eventtype values (7, 'Shadow threw an exception');
+INSERT INTO l_eventtype values (8, 'Generic Log Event');
+INSERT INTO l_eventtype values (9, 'Job Aborted');
+INSERT INTO l_eventtype values (10, 'Job was suspended');
+INSERT INTO l_eventtype values (11, 'Job was unsuspended');
+INSERT INTO l_eventtype values (12, 'Job was held');
+INSERT INTO l_eventtype values (13, 'Job was released');
+INSERT INTO l_eventtype values (14, 'Parallel Node executed');
+INSERT INTO l_eventtype values (15, 'Parallel Node terminated');
+INSERT INTO l_eventtype values (16, 'POST script terminated');
+INSERT INTO l_eventtype values (17, 'Job Submitted to Globus');
+INSERT INTO l_eventtype values (18, 'Globus Submit failed');
+INSERT INTO l_eventtype values (19, 'Globus Resource Up');
+INSERT INTO l_eventtype values (20, 'Globus Resource Down');
+INSERT INTO l_eventtype values (21, 'Remote Error');
+INSERT INTO l_eventtype values (22, 'RSC socket lost');
+INSERT INTO l_eventtype values (23, 'RSC socket re-established');
+INSERT INTO l_eventtype values (24, 'RSC reconnect failure');
 
 CREATE TABLE jobqueuepollinginfo (
 scheddname           varchar(4000),
@@ -269,65 +269,65 @@ lastupdate timestamp(3) with time zone
 );
 
 CREATE TABLE daemons_horizontal (
-MyType				VARCHAR(100) NOT NULL,
-Name				VARCHAR(500) NOT NULL,
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-MonitorSelfTime			TIMESTAMP(3) WITH TIME ZONE,
-MonitorSelfCPUUsage		numeric(38),
-MonitorSelfImageSize		numeric(38),
-MonitorSelfResidentSetSize	numeric(38),
-MonitorSelfAge			INTEGER,
-UpdateSequenceNumber		INTEGER,
-UpdatesTotal			INTEGER,
-UpdatesSequenced		INTEGER,
-UpdatesLost			INTEGER,
-UpdatesHistory			VARCHAR(4000),
+mytype				VARCHAR(100) NOT NULL,
+name				VARCHAR(500) NOT NULL,
+lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+monitorselftime			TIMESTAMP(3) WITH TIME ZONE,
+monitorselfcpuusage		numeric(38),
+monitorselfimagesize		numeric(38),
+monitorselfresidentsetsize	numeric(38),
+monitorselfage			INTEGER,
+updatesequencenumber		INTEGER,
+updatestotal			INTEGER,
+updatessequenced		INTEGER,
+updateslost			INTEGER,
+updateshistory			VARCHAR(4000),
 lastheardfrom_epoch             integer,
 PRIMARY KEY (MyType, Name)
 );
 
 CREATE TABLE daemons_horizontal_history (
-MyType				VARCHAR(100),
-Name				VARCHAR(500),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-MonitorSelfTime			TIMESTAMP(3) WITH TIME ZONE,
-MonitorSelfCPUUsage		numeric(38),
-MonitorSelfImageSize		numeric(38),
-MonitorSelfResidentSetSize	numeric(38),
-MonitorSelfAge			INTEGER,
-UpdateSequenceNumber		INTEGER,
-UpdatesTotal			INTEGER,
-UpdatesSequenced		INTEGER,
-UpdatesLost			INTEGER,
-UpdatesHistory			VARCHAR(4000),
-EndTime				TIMESTAMP(3) WITH TIME ZONE
+mytype				VARCHAR(100),
+name				VARCHAR(500),
+lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+monitorselftime			TIMESTAMP(3) WITH TIME ZONE,
+monitorselfcpuusage		numeric(38),
+monitorselfimagesize		numeric(38),
+monitorselfresidentsetsize	numeric(38),
+monitorselfage			INTEGER,
+updatesequencenumber		INTEGER,
+updatestotal			INTEGER,
+updatessequenced		INTEGER,
+updateslost			INTEGER,
+updateshistory			VARCHAR(4000),
+endtime				TIMESTAMP(3) WITH TIME ZONE
 );
 
 CREATE TABLE submitters_horizontal (
-Name				VARCHAR(500) NOT NULL,
-ScheddName			VARCHAR(4000),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-IdleJobs			INTEGER,
-RunningJobs			INTEGER,
-HeldJobs			INTEGER,
-FlockedJobs			INTEGER,
+name				VARCHAR(500) NOT NULL,
+scheddname			VARCHAR(4000),
+lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+idlejobs			INTEGER,
+runningjobs			INTEGER,
+heldjobs			INTEGER,
+flockedjobs			INTEGER,
 PRIMARY KEY (Name)
 );
 
 CREATE TABLE submitters_horizontal_history (
-Name				VARCHAR(500),
-ScheddName			VARCHAR(4000),
-LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
-IdleJobs			INTEGER,
-RunningJobs			INTEGER,
-HeldJobs			INTEGER,
-FlockedJobs			INTEGER,
-EndTime				TIMESTAMP(3) WITH TIME ZONE
+name				VARCHAR(500),
+scheddname			VARCHAR(4000),
+lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+idlejobs			INTEGER,
+runningjobs			INTEGER,
+heldjobs			INTEGER,
+flockedjobs			INTEGER,
+endtime				TIMESTAMP(3) WITH TIME ZONE
 );
 
 CREATE TABLE maintenance_log(
-	EventTS			TIMESTAMP(3) WITH TIME ZONE,
-	EventMsg		VARCHAR(4000)
+eventts				TIMESTAMP(3) WITH TIME ZONE,
+eventmsg			VARCHAR(4000)
 );
 
 -- this table is used internally by the quill daemon for constructing a 
