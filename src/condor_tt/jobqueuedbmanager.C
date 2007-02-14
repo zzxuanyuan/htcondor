@@ -431,6 +431,7 @@ JobQueueDBManager::buildAndWriteJobQueue()
 
 		//construct the in memory job queue and history
 	if (buildJobQueue(jobQueue) == FAILURE) {
+		delete jobQueue;
 		return FAILURE;
 	}
 
@@ -438,6 +439,7 @@ JobQueueDBManager::buildAndWriteJobQueue()
 
 		// For job queue tables, send COPY string to RDBMS: 
 	if (loadJobQueue(jobQueue) == FAILURE) {
+		delete jobQueue;
 		return FAILURE;
 	}
 
@@ -743,50 +745,48 @@ JobQueueDBManager::processLogEntry(int op_type)
 		//	each get*ClassAdBody() funtion allocates the memory of 
 		// 	parameters. Therefore, they all must be deallocated here,
 		//  and they are at the end of the routine
-	switch(op_type) {
-	case CondorLogOp_NewClassAd:
-		if (caLogParser->getNewClassAdBody(key, mytype, targettype) == FAILURE)
-			{
-				return FAILURE; 
-			}
 
+	switch(op_type) {
+	case CondorLogOp_LogHistoricalSequenceNumber: 
+		break;
+	case CondorLogOp_NewClassAd:
+		st = caLogParser->getNewClassAdBody(key, mytype, targettype);
+		if (st == FAILURE) {
+			break;
+		}
 		st = processNewClassAd(key, mytype, targettype);
-			
 		break;
 	case CondorLogOp_DestroyClassAd:
-		if (caLogParser->getDestroyClassAdBody(key) == FAILURE)
-			return FAILURE;
-			
+		st = caLogParser->getDestroyClassAdBody(key);
+		if (st == FAILURE) {
+			break;
+		}		
 		st = processDestroyClassAd(key);
-			
 		break;
 	case CondorLogOp_SetAttribute:
-		if (caLogParser->getSetAttributeBody(key, name, value) == FAILURE) {
-			return FAILURE;
+		st = caLogParser->getSetAttributeBody(key, name, value);
+		if (st == FAILURE) {
+			break;
 		}
-
 		st = processSetAttribute(key, name, value);
-			
 		break;
 	case CondorLogOp_DeleteAttribute:
-		if (caLogParser->getDeleteAttributeBody(key, name) == FAILURE) {
-			return FAILURE;
+		st = caLogParser->getDeleteAttributeBody(key, name);
+		if (st == FAILURE) {
+			break;
 		}
-
 		st = processDeleteAttribute(key, name);
-		
 		break;
 	case CondorLogOp_BeginTransaction:
 		st = processBeginTransaction(false);
-
 		break;
 	case CondorLogOp_EndTransaction:
 		st = processEndTransaction(false);
-
 		break;
 	default:
-		dprintf(D_ALWAYS, "[QUILL++] Unsupported Job Queue Command [%d]\n", op_type);
-		return FAILURE;
+		dprintf(D_ALWAYS, "[QUILL++] Unsupported Job Queue Command [%d]\n", 
+				op_type);
+		st = FAILURE;
 		break;
 	}
 
