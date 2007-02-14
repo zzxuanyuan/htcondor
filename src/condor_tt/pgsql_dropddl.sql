@@ -25,7 +25,7 @@ DROP TABLE l_jobstatus;
 DROP TABLE throwns;
 DROP TABLE events;
 DROP TABLE l_eventtype;
-DROP TABLE genericmessages;
+DROP TABLE generic_messages;
 DROP TABLE jobqueuepollinginfo CASCADE;
 DROP TABLE currencies;
 DROP TABLE daemons_horizontal;

@@ -155,7 +155,7 @@ val		text,
 primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
 );
 
-CREATE TABLE genericmessages (
+CREATE TABLE generic_messages (
 eventType	varchar(4000),
 eventKey	varchar(4000),
 eventTime	timestamp(3) with time zone,
@@ -473,7 +473,7 @@ analyze l_jobstatus;
 analyze throwns;
 analyze events;
 analyze l_eventtype;
-analyze genericmessages;
+analyze generic_messages;
 analyze jobqueuepollinginfo;
 analyze currencies;
 analyze daemons_vertical;
@@ -526,7 +526,7 @@ reindex table l_jobstatus;
 reindex table throwns;
 reindex table events;
 reindex table l_eventtype;
-reindex table genericmessages;
+reindex table generic_messages;
 reindex table jobqueuepollinginfo;
 reindex table currencies;
 reindex table daemons_vertical;
@@ -584,7 +584,7 @@ grant select on l_jobstatus to quillreader;
 grant select on throwns to quillreader;
 grant select on events to quillreader;
 grant select on l_eventtype to quillreader;
-grant select on genericmessages to quillreader;
+grant select on generic_messages to quillreader;
 grant select on jobqueuepollinginfo to quillreader;
 grant select on currencies to quillreader;
 grant select on daemons_horizontal to quillreader;

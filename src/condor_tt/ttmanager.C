@@ -1954,7 +1954,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	else if (strcasecmp(tableName, "Throwns") == 0) 
 		isThrown = TRUE;
 
-	else if (strcasecmp(tableName, "GenericMessages") == 0) 
+	else if (strcasecmp(tableName, "generic_messages") == 0) 
 		isGeneric = TRUE;
 
 	ad->sPrint(classAd);

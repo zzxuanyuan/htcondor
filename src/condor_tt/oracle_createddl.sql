@@ -154,7 +154,7 @@ val		clob,
 primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
 );
 
-CREATE TABLE genericmessages (
+CREATE TABLE generic_messages (
 eventType	varchar(4000),
 eventKey	varchar(4000),
 eventTime	timestamp(3) with time zone,
@@ -472,7 +472,7 @@ execute immediate 'analyze table l_jobstatus compute statistics';
 execute immediate 'analyze table throwns compute statistics';
 execute immediate 'analyze table events compute statistics';
 execute immediate 'analyze table l_eventtype compute statistics';
-execute immediate 'analyze table genericmessages compute statistics';
+execute immediate 'analyze table generic_messages compute statistics';
 execute immediate 'analyze table jobqueuepollinginfo compute statistics';
 execute immediate 'analyze table currencies compute statistics';
 execute immediate 'analyze table daemons_vertical compute statistics';
