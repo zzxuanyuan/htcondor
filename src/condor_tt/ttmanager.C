@@ -2343,7 +2343,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	}
 
 	sql_stmt.sprintf(
-			"INSERT INTO files (file_id, name, host, path, lastmodified, file_size, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr.Value(), f_name, f_host, f_path, ts_expr.Value(), f_size, hexSum, f_name, f_path, f_host, ts_expr.Value());
+			"INSERT INTO files (file_id, name, host, path, lastmodified, filesize, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr.Value(), f_name, f_host, f_path, ts_expr.Value(), f_size, hexSum, f_name, f_path, f_host, ts_expr.Value());
 
 	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");

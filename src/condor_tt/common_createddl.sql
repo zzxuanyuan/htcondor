@@ -46,7 +46,7 @@ host  		varchar(4000),
 path  		varchar(4000),
 acl_id      integer,
 lastmodified    timestamp(3) with time zone,
-file_size  	numeric(38),
+filesize  	numeric(38),
 checksum  	varchar(32), 
 PRIMARY KEY (file_id)
 );
