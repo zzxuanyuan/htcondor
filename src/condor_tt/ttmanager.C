@@ -2523,10 +2523,25 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 	  bndForFirstStmt = TRUE;
 
 	  if(isHorizontalHistoryAttribute(name.Value())) {
-		  if(strcasecmp(name.Value(), "in") == 0 ||
-			 strcasecmp(name.Value(), "user") == 0) {
-			  name += "_j";
+			  /* change the names for the following attributes
+				 because they conflict with keywords of some
+				 databases 
+			  */
+		  if (strcasecmp(name.Value(), "out") == 0) {
+			  name = "stdout";
 		  }
+
+		  if (strcasecmp(name.Value(), "err") == 0) {
+			  name = "stderr";
+		  }
+
+		  if (strcasecmp(name.Value(), "in") == 0) {
+			  name = "stdin";
+		  }		
+
+		  if (strcasecmp(name.Value(), "user") == 0) {
+			  name = "negotiation_user_name";
+		  }		  
   
 		  sql_stmt2 = "";
 
