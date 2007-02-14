@@ -122,9 +122,9 @@ end_time	       timestamp(3) with time zone
 
 -- BEGIN Added by Ameet
 
-CREATE SEQUENCE SeqRunId;
+CREATE SEQUENCE seqrunid;
 
-CREATE TABLE Runs (
+CREATE TABLE runs (
 run_id 	                NUMERIC(12) NOT NULL,
 machine_id              varchar(4000),
 scheddname	        varchar(4000),
@@ -150,7 +150,7 @@ PRIMARY KEY (run_id));
 
 -- BEGIN Srinath
 
-CREATE TABLE Rejects (
+CREATE TABLE rejects (
 reject_time     timestamp(3) with time zone, -- Time the job was rejected
 username        varchar(4000),
 scheddname      varchar(4000),
@@ -158,7 +158,7 @@ cluster_id      integer,
 proc_id		integer,
 globaljobid     varchar(4000));
 
-CREATE TABLE Matches (
+CREATE TABLE matches (
 match_time      timestamp(3) with time zone, -- Time the match was made
 username        varchar(4000),
 scheddname      varchar(4000),
@@ -172,7 +172,7 @@ remote_priority real       -- Preempted user's priority
 
 --END Srinath
 
-CREATE TABLE L_Jobstatus (
+CREATE TABLE l_jobstatus (
 jobstatus	integer NOT NULL,
 abbrev	        char(1),
 description     varchar(4000),
@@ -207,7 +207,7 @@ eventTime       timestamp(3) with time zone,
 description     varchar(4000)
 );
 
-CREATE TABLE L_eventType (
+CREATE TABLE l_eventtype (
 eventType     integer,
 description   varchar(4000)
 );
@@ -238,7 +238,7 @@ INSERT INTO L_eventType values (22, 'RSC socket lost');
 INSERT INTO L_eventType values (23, 'RSC socket re-established');
 INSERT INTO L_eventType values (24, 'RSC reconnect failure');
 
-CREATE TABLE JobQueuePollingInfo (
+CREATE TABLE jobqueuepollinginfo (
 scheddname           varchar(4000),
 last_file_mtime      INTEGER, 
 last_file_size       numeric(38), 
@@ -252,14 +252,14 @@ last_cmd_name        varchar(4000),
 last_cmd_value       varchar(4000)
 ); 
 
-CREATE INDEX JQ_I_Schedd ON JobQueuePollingInfo(scheddname);
+CREATE INDEX jq_i_schedd ON jobqueuepollinginfo(scheddname);
 
-CREATE TABLE Currencies(
+CREATE TABLE currencies(
 datasource varchar(4000),
 lastupdate timestamp(3) with time zone
 );
 
-CREATE TABLE Daemons_Horizontal (
+CREATE TABLE daemons_horizontal (
 MyType				VARCHAR(100) NOT NULL,
 Name				VARCHAR(500) NOT NULL,
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -277,7 +277,7 @@ lastheardfrom_epoch             integer,
 PRIMARY KEY (MyType, Name)
 );
 
-CREATE TABLE Daemons_Horizontal_History (
+CREATE TABLE daemons_horizontal_history (
 MyType				VARCHAR(100),
 Name				VARCHAR(500),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -294,7 +294,7 @@ UpdatesHistory			VARCHAR(4000),
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Submitters_Horizontal (
+CREATE TABLE submitters_horizontal (
 Name				VARCHAR(500) NOT NULL,
 ScheddName			VARCHAR(4000),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -305,7 +305,7 @@ FlockedJobs			INTEGER,
 PRIMARY KEY (Name)
 );
 
-CREATE TABLE Submitters_Horizontal_History (
+CREATE TABLE submitters_horizontal_history (
 Name				VARCHAR(500),
 ScheddName			VARCHAR(4000),
 LastHeardFrom			TIMESTAMP(3) WITH TIME ZONE,
@@ -316,7 +316,7 @@ FlockedJobs			INTEGER,
 EndTime				TIMESTAMP(3) WITH TIME ZONE
 );
 
-CREATE TABLE Maintenance_Log(
+CREATE TABLE maintenance_log(
 	EventTS			TIMESTAMP(3) WITH TIME ZONE,
 	EventMsg		VARCHAR(4000)
 );
