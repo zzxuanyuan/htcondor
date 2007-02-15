@@ -28,9 +28,6 @@
 const int QUILLPP_HistoryHorFieldNum = 64;
 const char *QUILLPP_HistoryHorFields[] ={"ScheddName", "ClusterId", "ProcId", "QDate", "Owner", "GlobalJobId", "NumCkpts", "NumRestarts", "NumSystemHolds", "CondorVersion", "CondorPlatform", "RootDir", "Iwd", "JobUniverse", "Cmd", "MinHosts", "MaxHosts", "JobPrio", "User", "Env", "UserLog", "CoreSize", "KillSig", "Rank", "In", "TransferIn", "Out", "TransferOut", "Err", "TransferErr", "ShouldTransferFiles", "TransferFiles", "ExecutableSize", "DiskUsage", "Requirements", "FileSystemDomain", "Args", "LastMatchTime", "NumJobMatches", "JobStartDate", "JobCurrentStartDate", "JobRunCount", "FileReadCount", "FileReadBytes", "FileWriteCount", "FileWriteBytes", "FileSeekCount", "TotalSuspensions", "ImageSize", "ExitStatus", "LocalUserCpu", "LocalSysCpu", "RemoteUserCpu", "RemoteSysCpu", "BytesSent", "BytesRecvd", "RSCBytesSent", "RSCBytesRecvd", "ExitCode", "JobStatus", "EnteredCurrentStatus", "RemoteWallClockTime", "LastRemoteHost", "CompletionDate", 0};
 
-const int *QUILLPP_HistoryHorIsQuoted[] ={/*"ScheddName"*/1, /*"ClusterId"*/0, /*"ProcId"*/0, /*"QDate"*/0, /*"Owner"*/1, /*"GlobalJobId"*/1, /*"NumCkpts"*/0, /*"NumRestarts"*/0, /*"NumSystemHolds"*/0, /*"CondorVersion"*/1, /*"CondorPlatform"*/1, /*"RootDir"*/1, /*"Iwd"*/1, /*"JobUniverse"*/0, /*"Cmd"*/1, /*"MinHosts"*/0, /*"MaxHosts"*/0, /*"JobPrio"*/0, /*"User"*/1, /*"Env"*/1, /*"UserLog"*/1, /*"CoreSize"*/0, /*"KillSig"*/1, /*"Rank"*/0, /*"In"*/1, /*"TransferIn"*/1, /*"Out"*/1, /*"TransferOut"*/1, /*"Err"*/1, /*"TransferErr"*/1, /*"ShouldTransferFiles"*/1, /*"TransferFiles"*/1, /*"ExecutableSize"*/0, /*"DiskUsage"*/0, /*"Requirements"*/0, /*"FileSystemDomain"*/1, /*"Args"*/1, /*"LastMatchTime"*/0, /*"NumJobMatches"*/0, /*"JobStartDate"*/0, /*"JobCurrentStartDate"*/0, /*"JobRunCount"*/0, /*"FileReadCount"*/0, /*"FileReadBytes"*/0, /*"FileWriteCount"*/0, /*"FileWriteBytes"*/0, /*"FileSeekCount"*/0, /*"TotalSuspensions"*/0, /*"ImageSize"*/0, /*"ExitStatus"*/0, /*"LocalUserCpu"*/0, /*"LocalSysCpu"*/0, /*"RemoteUserCpu"*/0, /*"RemoteSysCpu"*/0, /*"BytesSent"*/0, /*"BytesRecvd"*/0, /*"RSCBytesSent"*/0, /*"RSCBytesRecvd"*/0, /*"ExitCode"*/0, /*"JobStatus"*/0, /*"EnteredCurrentStatus"*/0, /*"RemoteWallClockTime"*/0, /*"LastRemoteHost"*/1, /*"CompletionDate"*/0, 0};
-
-
 
 /* NOTE - we project out a few column names, so this only has the results
    AFTER the select  - ie the "schedd name" field from the database is not
@@ -38,12 +35,10 @@ const int *QUILLPP_HistoryHorIsQuoted[] ={/*"ScheddName"*/1, /*"ClusterId"*/0, /
 const int proc_field_num = 13;
 const char *proc_field_names [] = { "Cluster", "Proc", "JobStatus", "ImageSize", "RemoteUserCpu", "RemoteWallClockTime", "RemoteHost", "GlobalJobId", "JobPrio", "Args", "ShadowBday", "EnteredCurrentStatus", "NumRestarts" };
 
-const int *proc_field_is_quoted [] = { /*"Cluster"*/ 0, /*"Proc"*/0, /*"JobStatus"*/0, /*"ImageSize"*/0, /*"RemoteUserCpu"*/0, /*"RemoteWallClockTime"*/0, /*"RemoteHost"*/1, /*"GlobalJobId"*/1, /*"JobPrio"*/0, /*"Args"*/1, /*"ShadowBday"*/0, /*"EnteredCurrentStatus"*/0, /*"NumRestarts"*/0 };
 
 const int cluster_field_num = 11;
 const char *cluster_field_names [] = { "Cluster", "Owner", "JobStatus", "JobPrio", "ImageSize", "QDate", "RemoteUserCpu", "RemoteWallClockTime", "Cmd", "Args", "JobUniverse" };
 
-const int *cluster_field_is_quoted [] = { /*"Cluster"*/0, /*"Owner"*/1, /*"JobStatus"*/0, /*"JobPrio"*/0, /*"ImageSize"*/0, /*"QDate"*/0, /*"RemoteUserCpu"*/0, /*"RemoteWallClockTime"*/0, /*"Cmd"*/1, /*"Args"*/1, /*"JobUniverse"*/0 };
 
 //! constructor
 PGSQLDatabase::PGSQLDatabase(const char* connect)
