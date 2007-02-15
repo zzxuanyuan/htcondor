@@ -1974,7 +1974,7 @@ int main( int argc, char** argv )
 
 	// create a sql log object. We always have one defined, but 
 	// if quill is not enabled we never write data to the logfile
-	bool use_sql_log = param_boolean( "QUILL_ENABLED", false );
+	bool use_sql_log = param_boolean( "QUILL_USE_SQL_LOG", false );
 
 	FILEObj = createInstance(use_sql_log); 
     // create an xml log object
