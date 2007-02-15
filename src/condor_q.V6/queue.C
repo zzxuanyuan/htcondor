@@ -1797,8 +1797,8 @@ usage (char *myName)
 		"\t\t-jobads <file>\t\tFile of job ads to display\n"
 		"\t\t-machineads <file>\tFile of machine ads for analysis\n"
 #if WANT_QUILL
-		"\t\t-direct <rdbms | quilld | schedd>\n"
-		"\t\t\tPerform a direct query to the rdbms, or to the quilld,\n"
+		"\t\t-direct <rdbms | schedd>\n"
+		"\t\t\tPerform a direct query to the rdbms\n"
 		"\t\t\tor to the schedd without falling back to the queue\n"
 		"\t\t\tlocation discovery algortihm, even in case of error\n"
 #else
