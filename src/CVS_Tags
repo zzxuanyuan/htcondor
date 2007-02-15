@@ -1,3 +1,10 @@
+02/15/07 V6_8-dagman-PR806-merge-1
+  The state of the V6_8-dagman-PR806-branch for a merge to the trunk.
+  Note that there are modifications committed beyond this tag on the
+  branch, but Peter and I decided to abandon them.  (In terms of the
+  actual source code, this tag is the same thing as
+  V6_8-dagman-PR806-branch-phase1.)
+
 02/01/07 V6_8-dagman-PR806-branch-phase1
   This branch has DAGMan fixes related to PR 806.  Phase 1 has stuff
   I'm sure I want to merge back into V6_8; there is other stuff committed
