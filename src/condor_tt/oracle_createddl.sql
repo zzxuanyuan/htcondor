@@ -482,7 +482,7 @@ execute immediate 'analyze table submitters_horizontal compute statistics';
 execute immediate 'analyze table submitters_horizontal_history compute statistics';
 execute immediate 'analyze table dummy_single_row_table compute statistics';
 execute immediate 'analyze table cdb_users compute statistics';
-execute immediate 'analyze table tranfers compute statistics';
+execute immediate 'analyze table transfers compute statistics';
 execute immediate 'analyze table files compute statistics';
 execute immediate 'analyze table fileusages compute statistics';
 execute immediate 'analyze table machines_vertical compute statistics';
