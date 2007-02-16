@@ -1469,6 +1469,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 	int hold_subcode = 0;
 	MyString error_buf;
 	file_transfer_record record;
+	int delegation_method = 0; /* 0 means this transfer is not a delegation. 1 means it is.*/
 	time_t start, elapsed;
   char daemon[15];
 
@@ -1595,6 +1596,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 			} else {
 				rc = -1;
 			}
+			delegation_method = 1;/* This is a delegation, unseuccessful or not */
 		} else if ( TransferFilePermissions ) {
 			rc = s->get_file_with_permissions( &bytes, fullname );
 		} else {
@@ -1664,7 +1666,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 
 		record.sockp =s;
 		record.transfer_time = start;
-
+		record.delegation_method_id = delegation_method;
 		file_transfer_db(&record, jobAd);
 	}
 

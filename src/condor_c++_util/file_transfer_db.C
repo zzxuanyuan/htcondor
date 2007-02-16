@@ -36,6 +36,10 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	ClassAd *tmpClP1 = &tmpCl1;
 	MyString tmp;
 
+	int dst_port = 0;
+	int src_port = 0;
+	MyString isEncrypted = "";
+
 		// this function access the following pointers
 	if  (!rp || !ad || !FILEObj)
 		return;
@@ -58,6 +62,9 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	if (rp->sockp && 
 		(tmpp = sin_to_hostname(rp->sockp->endpoint(), NULL))) {
 		snprintf(src_host, MAXMACHNAME, "%s", tmpp);
+		dst_port = rp->sockp->get_port(); /* get_port retrieves the local port */
+		src_port = rp->sockp->endpoint_port();
+		isEncrypted = (rp->sockp->is_encrypt()==FALSE)?"FALSE":"TRUE";
 	}
 
 		// src_name, src_path
@@ -106,6 +113,9 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	tmp.sprintf("src_host = \"%s\"", src_host);
 	tmpClP1->Insert(tmp.GetCStr());
 
+	tmp.sprintf("src_port = %d", src_port);
+	tmpClP1->Insert(tmp.GetCStr());
+
 	tmp.sprintf("src_path = \"%s\"", src_path.GetCStr());
 	tmpClP1->Insert(tmp.GetCStr());
 
@@ -113,6 +123,9 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	tmpClP1->Insert(tmp.GetCStr());
 
 	tmp.sprintf("dst_host = \"%s\"", dst_host.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());
+
+	tmp.sprintf("dst_port = %d", dst_port);
 	tmpClP1->Insert(tmp.GetCStr());
 
 	tmp.sprintf("dst_path = \"%s\"", dst_path.GetCStr());
@@ -124,13 +137,19 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	tmp.sprintf("elapsed = %d", (int)rp->elapsed);
 	tmpClP1->Insert(tmp.GetCStr());
 
-	tmp.sprintf("dst_daemon = %s", rp->daemon);
+	tmp.sprintf("dst_daemon = \"%s\"", rp->daemon);
 	tmpClP1->Insert(tmp.GetCStr());
 
 	tmp.sprintf("f_ts = %d", (int)file_status.st_mtime);
 	tmpClP1->Insert(tmp.GetCStr());
 
 	tmp.sprintf("transfer_time = %d", (int)rp->transfer_time);
+	tmpClP1->Insert(tmp.GetCStr());	
+
+	tmp.sprintf("is_encrypted = %s", isEncrypted.GetCStr());
+	tmpClP1->Insert(tmp.GetCStr());	
+
+	tmp.sprintf("delegation_method_id = %d", rp->delegation_method_id);
 	tmpClP1->Insert(tmp.GetCStr());	
 
 	FILEObj->file_newEvent("Transfers", tmpClP1);
