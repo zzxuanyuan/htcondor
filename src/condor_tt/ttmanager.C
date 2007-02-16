@@ -2675,6 +2675,9 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   char pathname[2*_POSIX_PATH_MAX];
   char dst_daemon[15];
   char f_ts[30];
+  int src_port = 0,dst_port = 0;
+  int delegation_method_id = 0;
+  char is_encrypted[6] = "";
   time_t old_ts;
   MyString last_modified;
   int transfer_size, elapsed;
@@ -2708,12 +2711,16 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
       strncpy(src_name, attVal, _POSIX_PATH_MAX);
     } else if (strcasecmp(attName, "src_host") == 0) {
       strncpy(src_host, attVal, 50);
+    } else if (strcasecmp(attName, "src_port") == 0) {
+      src_port = atoi(attVal); 
     } else if (strcasecmp(attName, "src_path") == 0) {
       strncpy(src_path, attVal, _POSIX_PATH_MAX);
     } else if (strcasecmp(attName, "dst_name") == 0) {
       strncpy(dst_name, attVal, _POSIX_PATH_MAX);
     } else if (strcasecmp(attName, "dst_host") == 0) {
       strncpy(dst_host, attVal, 50);
+    } else if (strcasecmp(attName, "dst_port") == 0) {
+      dst_port = atoi(attVal); 
     } else if (strcasecmp(attName, "dst_path") == 0) {
       strncpy(dst_path, attVal, _POSIX_PATH_MAX);
     } else if (strcasecmp(attName, "dst_daemon") == 0) {
@@ -2726,6 +2733,10 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
       elapsed = atoi(attVal);
     } else if (strcasecmp(attName, "transfer_time") == 0) {
       transfer_time = atoi(attVal);
+    } else if (strcasecmp(attName, "is_encrypted") == 0) {
+      strncpy(is_encrypted, attVal, 6);
+    } else if (strcasecmp(attName, "delegation_method_id") == 0) {
+      delegation_method_id = atoi(attVal);
     }
 
     free(attName);
@@ -2807,7 +2818,7 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 		hexSum[0] = '\0';
   
   sql_stmt.sprintf(
-          "INSERT INTO transfers (globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size_bytes, elapsed, dst_daemon, checksum, last_modified, transfer_time) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s', %s, %s)", globaljobid, src_name, src_host, src_path, dst_name, dst_host, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified.Value(), transfer_time_expr.Value());
+          "INSERT INTO transfers (globaljobid, src_name, src_host, src_port, src_path, dst_name, dst_host, dst_port, dst_path, transfer_size_bytes, elapsed, dst_daemon, checksum, last_modified, transfer_time, is_encrypted, delegation_method_id) VALUES ('%s', '%s', '%s', %d, '%s', '%s', '%s', %d, '%s', %d, %d, '%s', '%s', %s, %s,'%s',%d)", globaljobid, src_name, src_host, src_port, src_path, dst_name, dst_host, dst_port, dst_path, transfer_size, elapsed, dst_daemon, hexSum, last_modified.Value(), transfer_time_expr.Value(),is_encrypted,delegation_method_id);
 
 	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
