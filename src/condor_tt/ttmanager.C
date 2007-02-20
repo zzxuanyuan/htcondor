@@ -1034,9 +1034,9 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// set end time if the previous lastReporteTime matches, otherwise
 		// leave it as NULL (by default)
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastReportedTime.Value(), machine_id.Value());
+		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastReportedTime.Value(), machine_id.Value());
 	} else {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, ckptserver, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, rank, currentrank , requirements, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
 	}
 	 
 	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
@@ -3071,13 +3071,9 @@ void TTManager::handleErrorSqlLog()
 static QuillAttrDataType
 daemonAdAttrTypeOf(char *attName)
 {
-	if (!(strcasecmp(attName, ATTR_CKPT_SERVER) && 
-		  strcasecmp(attName, "CKPT_SERVER_HOST") &&
-		  strcasecmp(attName, ATTR_STATE) && 
+	if (!(strcasecmp(attName, ATTR_STATE) && 
 		  strcasecmp(attName, ATTR_ACTIVITY) &&
 		  strcasecmp(attName, ATTR_CPU_IS_BUSY) && 
-		  strcasecmp(attName, ATTR_RANK) && 
-		  strcasecmp(attName, ATTR_REQUIREMENTS) && 
 		  strcasecmp(attName, ATTR_NAME) &&
 		  strcasecmp(attName, ATTR_OPSYS) && 
 		  strcasecmp(attName, ATTR_ARCH) &&
@@ -3149,7 +3145,6 @@ static int isHorizontalMachineAttr(char *attName)
 {
 	return !(strcasecmp(attName, ATTR_OPSYS) && 
 			strcasecmp(attName, ATTR_ARCH) &&
-			strcasecmp(attName, ATTR_CKPT_SERVER) && 
 			strcasecmp(attName, ATTR_STATE) && 
 			strcasecmp(attName, ATTR_ACTIVITY) &&
 			strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
@@ -3162,9 +3157,7 @@ static int isHorizontalMachineAttr(char *attName)
 			strcasecmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
 			strcasecmp(attName, ATTR_CPU_BUSY_TIME) && 
 			strcasecmp(attName, ATTR_CPU_IS_BUSY) &&
-			strcasecmp(attName, ATTR_RANK) && 
 			strcasecmp(attName, ATTR_CURRENT_RANK) &&
-			strcasecmp(attName, ATTR_REQUIREMENTS) && 
 			strcasecmp(attName, ATTR_CLOCK_MIN) &&
 			strcasecmp(attName, ATTR_CLOCK_DAY) && 
 			strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&

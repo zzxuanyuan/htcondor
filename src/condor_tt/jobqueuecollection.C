@@ -737,7 +737,6 @@ bool isHorizontalHistoryAttribute(const char *attr) {
      (strcasecmp(attr, "userlog") == 0) ||
      (strcasecmp(attr, "coresize") == 0) ||
      (strcasecmp(attr, "killsig") == 0) ||
-     (strcasecmp(attr, "rank") == 0) ||
      (strcasecmp(attr, "in") == 0) ||
      (strcasecmp(attr, "transferin") == 0) ||
      (strcasecmp(attr, "out") == 0) ||
@@ -748,7 +747,6 @@ bool isHorizontalHistoryAttribute(const char *attr) {
      (strcasecmp(attr, "transferfiles") == 0) ||
      (strcasecmp(attr, "executablesize") == 0) ||
      (strcasecmp(attr, "diskusage") == 0) ||
-     (strcasecmp(attr, "requirements") == 0) ||
      (strcasecmp(attr, "filesystemdomain") == 0) ||
      (strcasecmp(attr, "args") == 0) ||
      (strcasecmp(attr, "lastmatchtime") == 0) ||
