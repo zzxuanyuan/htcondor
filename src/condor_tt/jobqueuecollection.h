@@ -181,27 +181,4 @@ private:
 	dbtype dt;
 };
 
-bool isHorizontalClusterAttribute(const char *attr);
-bool isHorizontalProcAttribute(const char *attr);
-bool isHorizontalHistoryAttribute(const char *attr);
-QuillAttrDataType typeOf(char *attName);
-
-#define strip_double_quote(value) \
-{ \
-        int len = strlen(value); \
-                if (value[0] == '\"') { \
-                        strncpy(value, &value[1], len-2); \
-                        value[len-2] = '\0'; \
-                } \
-}
-
-/* change the surrounding double quote to the single quote */
-#define double_quote_to_single(value) \
-{ \
-  if (value[0] == '\"')  \
-    value[0] = '\''; \
-  if (value[strlen(value)-1] == '\"')  \
-    value[strlen(value)-1] = '\''; \
-}
-
 #endif

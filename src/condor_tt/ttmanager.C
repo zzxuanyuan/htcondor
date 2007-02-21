@@ -44,6 +44,7 @@
 #include "pgsqldatabase.h"
 #include "misc_utils.h"
 #include "condor_ttdb.h"
+#include "dbms_utils.h"
 
 char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", 
 						   "SHADOW_SQLLOG", "STARTER_SQLLOG", 
@@ -56,12 +57,8 @@ char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG",
 #define CONDOR_TT_TIMELEN 60
 
 static int attHashFunction (const MyString &str, int numBuckets);
-static int isHorizontalMachineAttr(char *attName);
-static int isHorizontalDaemonAttr(char *attName);
-static QuillAttrDataType daemonAdAttrTypeOf(char *attName);
 static int file_checksum(char *filePathName, int fileSize, char *sum);
 static QuillErrCode append(char *destF, char *srcF);
-static void stripquotes(char *strv);
 
 //! constructor
 TTManager::TTManager()
@@ -850,13 +847,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = daemonAdAttrTypeOf(attName);
-
 			if (strcasecmp(attName, "PrevLastReportedTime") == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
-			else if (isHorizontalMachineAttr(attName)) {
-
+			else if (isHorizontalMachineAttr(attName, attr_type)) {
 					// should go into machines_horizontal table
 				if (isFirst) {
 						//is the first in the list
@@ -873,7 +867,6 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 					} else {
 						if (strcasecmp(attName, ATTR_NAME) == 0) {
 							attNameList.sprintf("(machine_id");
-							machine_id = attVal;
 						} else {
 							attNameList.sprintf("(%s", attName);
 						}
@@ -883,6 +876,19 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 					switch (attr_type) {
 
 					case CONDOR_TT_TYPE_STRING:
+						if (!stripdoublequotes(attVal)) {
+							dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in TTManager::insertMachines\n", attName);
+						}
+						
+						if (strcasecmp(attName, ATTR_NAME) == 0) {
+							machine_id = attVal;
+						}
+
+						attValList.sprintf("('%s'", attVal);
+						break;
+					case CONDOR_TT_TYPE_BOOL:
+							// boolean value are stored as string in db, but 
+							// its value is not double quoted
 						attValList.sprintf("('%s'", attVal);
 						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
@@ -933,7 +939,6 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 						if (strcasecmp(attName, ATTR_NAME) == 0) {
 							attNameList += "machine_id";
-							machine_id = attVal;
 						} else {
 							attNameList += attName;
 						}
@@ -944,6 +949,14 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 					switch (attr_type) {
 
 					case CONDOR_TT_TYPE_STRING:
+						if (!stripdoublequotes(attVal)) {
+							dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in TTManager::insertMachines\n", attName);
+						}
+						
+						if (strcasecmp(attName, ATTR_NAME) == 0) {
+							machine_id = attVal;
+						}
+
 						tmpVal.sprintf("'%s'", attVal);
 						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
@@ -1174,22 +1187,15 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = daemonAdAttrTypeOf(attName);
-
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
 
-			if (strcasecmp(attName, ATTR_NAME) == 0) {
-				daemonName.sprintf("%s", attVal);
-			}
-			
 				/* notice that the Name and LastHeardFrom are both a 
 				   horizontal daemon attribute and horizontal schedd attribute,
 				   therefore we need to check both seperately.
 				*/
-			if (isHorizontalDaemonAttr(attName)) {
-
+			if (isHorizontalDaemonAttr(attName, attr_type)) {
 				if (strcasecmp(attName, "lastheardfrom") == 0) {
 					attNameList += ", ";
 					
@@ -1205,6 +1211,14 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 				switch (attr_type) {
 
 				case CONDOR_TT_TYPE_STRING:
+					if (!stripdoublequotes(attVal)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in TTManager::insertSchedd\n", attName);
+					}
+
+					if (strcasecmp(attName, ATTR_NAME) == 0) {
+						daemonName.sprintf("%s", attVal);
+					}
+								
 					tmpVal.sprintf("'%s'", attVal);
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
@@ -1243,10 +1257,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 				}
 
 				attValList += tmpVal;
-			}
 
-			if (!isHorizontalDaemonAttr(attName) &&
-				strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) != 0) {
+			} else if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) != 0) {
+
 					// the rest of attributes go to the vertical schedd table
 				aName = attName;
 				aVal = attVal;
@@ -1441,21 +1454,15 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = daemonAdAttrTypeOf(attName);
-
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
 			}
-			
-			if (strcasecmp(attName, ATTR_NAME) == 0) {
-				daemonName.sprintf("%s", attVal);
-			}
-			
+						
 				/* notice that the Name and LastHeardFrom are both a 
 				   horizontal daemon attribute and horizontal schedd attribute,
 				   therefore we need to check both seperately.
 				*/
-			if (isHorizontalDaemonAttr(attName)) {
+			if (isHorizontalDaemonAttr(attName, attr_type)) {
 				if (strcasecmp(attName, "lastheardfrom") == 0) {
 					attNameList += ", ";
 					
@@ -1472,6 +1479,14 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 				switch (attr_type) {
 
 				case CONDOR_TT_TYPE_STRING:
+					if (!stripdoublequotes(attVal)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in TTManager::insertSchedd\n", attName);
+					}						
+
+					if (strcasecmp(attName, ATTR_NAME) == 0) {
+						daemonName.sprintf("%s", attVal);
+					}
+
 					tmpVal.sprintf("'%s'", attVal);
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
@@ -1707,21 +1722,15 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
-			attr_type = daemonAdAttrTypeOf(attName);
-
 			if (strcasecmp(attName, ATTR_PREV_LAST_HEARD_FROM) == 0) {
 				prevLHFInAd = atoi(attVal);
-			}
-
-			if (strcasecmp(attName, ATTR_NAME) == 0) {
-				daemonName.sprintf("%s", attVal);
 			}
 			
 				/* notice that the Name and LastHeardFrom are both a 
 				   horizontal daemon attribute and horizontal schedd attribute,
 				   therefore we need to check both seperately.
 				*/
-			if (isHorizontalDaemonAttr(attName)) {
+			if (isHorizontalDaemonAttr(attName, attr_type)) {
 				if (strcasecmp(attName, "lastheardfrom") == 0) {
 					attNameList += ", ";
 					
@@ -1738,6 +1747,14 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 				switch (attr_type) {
 
 				case CONDOR_TT_TYPE_STRING:
+					if (!stripdoublequotes(attVal)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in TTManager::insertNegotiatorAd\n", attName);
+					}
+
+					if (strcasecmp(attName, ATTR_NAME) == 0) {
+						daemonName.sprintf("%s", attVal);
+					}
+
 					tmpVal.sprintf("'%s'", attVal);
 					break;
 				case CONDOR_TT_TYPE_TIMESTAMP:
@@ -1944,6 +1961,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	int isFirst = TRUE;
 	bool isMatches = FALSE, isRejects = FALSE, 
 		isThrown = FALSE, isGeneric = FALSE;
+	bool isString = FALSE;
 
 	if (strcasecmp(tableName, "Matches") == 0) 
 		isMatches = TRUE;
@@ -2016,6 +2034,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 					   of its data type 
 					*/
 				if (newvalue[0] == '"') {
+					stripdoublequotes_MyString(newvalue);
 					attValList.sprintf("('%s'", newvalue.Value());
 				} else {
 					attValList.sprintf("(%s", newvalue.Value());
@@ -2027,9 +2046,13 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 				attValList += ", ";				
 				if (newvalue[0] == '"') {
 					attValList += "'";
-				}
+					stripdoublequotes_MyString(newvalue);
+					isString = TRUE;
+				} else 
+					isString = FALSE;
+				
 				attValList += newvalue;
-				if (newvalue[0] == '"') {
+				if (isString) {
 					attValList += "'";
 				}
 			}
@@ -2064,6 +2087,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 	MyString attValList = "";
 
 	MyString runid_expr;
+	bool isString = FALSE;
 
 		// first generate runid attribute
 	runid_expr = condor_ttdb_buildseq(dt, "SeqRunId");
@@ -2117,9 +2141,13 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 			attValList += ", ";
 			if (newvalue[0] == '"') {
 				attValList += "'";
-			}
+				stripdoublequotes_MyString(newvalue);
+				isString = TRUE;
+			} else
+				isString = FALSE;
+
 			attValList += newvalue;
-			if (newvalue[0] == '"') {
+			if (isString) {
 				attValList += "'";
 			}
 
@@ -2184,6 +2212,9 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				}
 				
 			} else {
+					// strip double qutoes if any
+				stripdoublequotes(attVal);
+
 					// escape single quote if any within the value
 				newvalue = condor_ttdb_fillEscapeCharacters(attVal, dt);
 			}
@@ -2260,6 +2291,9 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 			attVal = strstr(iter, "= ");
 			attVal += 2;
 
+				// strip double quotes if any
+			stripdoublequotes(attVal);
+
 			if (strcasecmp(attName, "f_name") == 0) {
 				strcpy(f_name, attVal);
 			} else if (strcasecmp(attName, "f_host") == 0) {
@@ -2287,32 +2321,6 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 		return FAILURE;
 	}	
 	
-		// strip the quotes from path and name so that we can compute checksum
-	len = strlen(f_path);
-
-	if (f_path[len-1] == '"')
-		f_path[len-1] = 0;
-	
-	if (f_path[0] == '"') {
-		tmpVal = (char *) malloc(strlen(f_path));
-		tmp1 = f_path+1;
-		strcpy(tmpVal, tmp1);
-		strcpy(f_path, tmpVal);
-		free(tmpVal);
-	}
-
-	len = strlen(f_name);
-	if (f_name[len-1] == '"')
-		f_name[len-1] = 0;
-	
-	if (f_name[0] == '"') {
-		tmpVal = (char *) malloc(strlen(f_name));
-		tmp1 = f_name+1;
-		strcpy(tmpVal, tmp1);
-		strcpy(f_name, tmpVal);
-		free(tmpVal);
-	}
-
 	sprintf(pathname, "%s/%s", f_path, f_name);
 
 		// check if the file is still there and the same
@@ -2343,7 +2351,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	}
 
 	sql_stmt.sprintf(
-			"INSERT INTO files (file_id, name, host, path, lastmodified, filesize, checksum) SELECT %s, '\"%s\"', '%s', '\"%s\"', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='\"%s\"' and path='\"%s\"' and host='%s' and lastmodified=%s)", seqexpr.Value(), f_name, f_host, f_path, ts_expr.Value(), f_size, hexSum, f_name, f_path, f_host, ts_expr.Value());
+			"INSERT INTO files (file_id, name, host, path, lastmodified, filesize, checksum) SELECT %s, '%s', '%s', '%s', %s, %d, '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM files WHERE  name='%s' and path='%s' and host='%s' and lastmodified=%s)", seqexpr.Value(), f_name, f_host, f_path, ts_expr.Value(), f_size, hexSum, f_name, f_path, f_host, ts_expr.Value());
 
 	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2381,6 +2389,8 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
+
+			stripdoublequotes(attVal);
 
 			if (strcasecmp(attName, "f_name") == 0) {
 				strcpy(f_name, attVal);
@@ -2447,6 +2457,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   char* longstr_arr[2];
   int   strlen_arr[2];	
   bool  bndForFirstStmt = TRUE;
+  QuillAttrDataType  attr_type;
 
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   const char *scheddname = jqDBManager.getScheddname();
@@ -2522,7 +2533,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 	  bndcnt = 0;
 	  bndForFirstStmt = TRUE;
 
-	  if(isHorizontalHistoryAttribute(name.Value())) {
+	  if(isHorizontalHistoryAttribute(name.Value(), attr_type)) {
 			  /* change the names for the following attributes
 				 because they conflict with keywords of some
 				 databases 
@@ -2544,13 +2555,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  }		  
   
 		  sql_stmt2 = "";
-
-		  if(strcasecmp(name.Value(), "lastmatchtime") == 0 || 
-			 strcasecmp(name.Value(), "jobstartdate") == 0 || 
-			 strcasecmp(name.Value(), "jobcurrentstartdate") == 0 ||
-			 strcasecmp(name.Value(), "enteredcurrentstatus") == 0 ||
-			 strcasecmp(name.Value(), "qdate") == 0 
-			 ) {
+		  
+		  if(attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
 				  // avoid updating with epoch time
 			  if (strcmp(value.Value(), "0") == 0) {
 				  continue;
@@ -2566,9 +2572,18 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), ts_expr.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
 		  }	else {
+				  /* strip double quotes for string values */
+			  if (attr_type == CONDOR_TT_TYPE_CLOB ||
+				  attr_type == CONDOR_TT_TYPE_STRING) {
+				  
+				  if (!stripdoublequotes_MyString(value)) {
+					  dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in TTManager::insertHistoryJob\n", name.Value());
+				  }
+			  }
+			  
 			  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 
-			  if ((typeOf((char *)name.Value()) != CONDOR_TT_TYPE_CLOB) || 
+			  if ((attr_type != CONDOR_TT_TYPE_CLOB) || 
 				  (dt != T_ORACLE) ||
 				  (newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
 				  sql_stmt.sprintf( 
@@ -2696,14 +2711,13 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   iter = classAd.GetNextToken("\n", true);
 
   while (iter != NULL) {
-    int attValLen;
-
     // the attribute name can't be longer than the log entry line size
     attName = (char *)malloc(strlen(iter));
     sscanf(iter, "%s =", attName);
     attVal = strstr(iter, "= ");
     attVal += 2;
-    attValLen = strlen(attVal);
+
+	stripdoublequotes(attVal);
 
     if (strcasecmp(attName, "globaljobid") == 0) {
       strncpy(globaljobid, attVal, 100);
@@ -2770,41 +2784,17 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
     strncpy(name, dst_name, _POSIX_PATH_MAX);
   }
 
-  // strip the quotes from the path and name
-  len = strlen(path);
-  if (path[len-1] == '"')
-    path[len-1] = 0;
-
-  if (path[0] == '"') {
-    tmpVal = (char *) malloc(strlen(path));
-    tmp1 = path+1;
-    strncpy(tmpVal, tmp1, strlen(path));
-    strncpy(path, tmpVal, _POSIX_PATH_MAX);
-    free(tmpVal);
-  }
-
-  len = strlen(name);
-  if (name[len-1] == '"')
-    name[len-1] = 0;
-  if (name[0] == '"') {
-    tmpVal = (char *) malloc(strlen(name));
-    tmp1 = name+1;
-    strncpy(tmpVal, tmp1, strlen(name));
-    strncpy(name, tmpVal, _POSIX_PATH_MAX);
-    free(tmpVal);
-  }
-
   sprintf(pathname, "%s/%s", path, name);
 
   // Check if file is still there with same last modified time
-	if (stat(pathname, &file_status) < 0) {
-		dprintf(D_FULLDEBUG, "ERROR in TTManager::insertTransfers: File '%s' can not be accessed.\n", 
-				pathname);
-		fileSame = FALSE;
-	} else {
-		if (old_ts != file_status.st_mtime) {
-			fileSame = FALSE;
-		}
+  if (stat(pathname, &file_status) < 0) {
+	  dprintf(D_FULLDEBUG, "ERROR in TTManager::insertTransfers: File '%s' can not be accessed.\n", 
+			  pathname);
+	  fileSame = FALSE;
+  } else {
+	  if (old_ts != file_status.st_mtime) {
+		  fileSame = FALSE;
+	  }
   }
 
   f_size = file_status.st_size;
@@ -2840,6 +2830,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 	char *attName = NULL, *attVal;
 	MyString newvalue;
 	bool isRuns = FALSE;
+	bool isString = FALSE;
 
 	if (strcasecmp (tableName, "Runs") == 0) {
 		isRuns = TRUE;
@@ -2882,9 +2873,13 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			setList += " = ";
 			if (newvalue[0] == '"') {
 				setList += "'";
-			}
+				stripdoublequotes_MyString(newvalue);
+				isString = TRUE;
+			} else
+				isString = FALSE;
+
 			setList += newvalue;
-			if (newvalue[0] == '"') {
+			if (isString) {
 				setList += "'";
 			}			
 			setList += ", ";
@@ -2943,9 +2938,13 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 				if (newvalue[0] == '"') {
 					whereList += "'";
-				}							
+					stripdoublequotes_MyString(newvalue);
+					isString = TRUE;
+				} else
+					isString = FALSE;
+				
 				whereList += newvalue;
-				if (newvalue[0] == '"') {
+				if (isString) {
 					whereList += "'";
 				}	
 
@@ -3068,131 +3067,6 @@ void TTManager::handleErrorSqlLog()
 
 }
 
-static QuillAttrDataType
-daemonAdAttrTypeOf(char *attName)
-{
-	if (!(strcasecmp(attName, ATTR_STATE) && 
-		  strcasecmp(attName, ATTR_ACTIVITY) &&
-		  strcasecmp(attName, ATTR_CPU_IS_BUSY) && 
-		  strcasecmp(attName, ATTR_NAME) &&
-		  strcasecmp(attName, ATTR_OPSYS) && 
-		  strcasecmp(attName, ATTR_ARCH) &&
-		  strcasecmp(attName, "GlobalJobId") &&
-		  strcasecmp(attName, "username") &&
-		  strcasecmp(attName, "scheddname") &&
-		  strcasecmp(attName, "startdname") && 
-		  strcasecmp(attName, "diagnosis") &&
-		  strcasecmp(attName, "remote_user") && 
-		  strcasecmp(attName, ATTR_UPDATESTATS_HISTORY)
-		  )
-		)
-		return CONDOR_TT_TYPE_STRING;
-
-	else if (!(strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
-		  strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
-		  strcasecmp(attName, ATTR_LOAD_AVG) && 
-		  strcasecmp(attName, "CondorLoadAvg") &&
-		  strcasecmp(attName, ATTR_TOTAL_LOAD_AVG) && 
-		  strcasecmp(attName, ATTR_VIRTUAL_MEMORY) &&
-		  strcasecmp(attName, ATTR_MEMORY ) && 
-		  strcasecmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
-		  strcasecmp(attName, ATTR_CPU_BUSY_TIME) && 
-		  strcasecmp(attName, ATTR_CURRENT_RANK) &&
-		  strcasecmp(attName, ATTR_CLOCK_MIN) && 
-		  strcasecmp(attName, ATTR_CLOCK_DAY) && 
-		  strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && 
-		  strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) &&
-		  strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) && 
-		  strcasecmp(attName, ATTR_UPDATESTATS_LOST) &&
-		  strcasecmp(attName, "cluster") && 
-		  strcasecmp(attName, "proc") &&
-		  strcasecmp(attName, "cluster_id") && 
-		  strcasecmp(attName, "proc_id") &&
-		  strcasecmp(attName, ATTR_NUM_USERS) &&
-		  strcasecmp(attName, ATTR_TOTAL_IDLE_JOBS) &&
-		  strcasecmp(attName, ATTR_TOTAL_RUNNING_JOBS) &&
-		  strcasecmp(attName, ATTR_TOTAL_JOB_ADS) &&
-		  strcasecmp(attName, ATTR_TOTAL_HELD_JOBS) &&
-		  strcasecmp(attName, ATTR_TOTAL_FLOCKED_JOBS) && 
-		  strcasecmp(attName, ATTR_TOTAL_REMOVED_JOBS) &&
-		  strcasecmp(attName, "monitorselfcpuusage") &&
-		  strcasecmp(attName, "monitorselfimagesize") && 
-		  strcasecmp(attName, "monitorselfresidentsetsize") && 
-		  strcasecmp(attName, "monitorselfage")
-		  )
-		)
-		return CONDOR_TT_TYPE_NUMBER;
-
-	else if (!(strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
-		  strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && 
-		  strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
-		  strcasecmp(attName, "reject_time") &&
-		  strcasecmp(attName, "match_time") && 
-			   strcasecmp(attName, "LastReportedTime") && 
-		  strcasecmp(attName, "MonitorSelfTime")
-		  )
-		)
-		return CONDOR_TT_TYPE_TIMESTAMP;
-
-	return CONDOR_TT_TYPE_UNKNOWN;
-}
-
-/* An attribute is treated as a static one if it is not one of the following
-   Notice that if you add more attributes to the following list, the horizontal
-   schema for Machines_Horizontal needs to revised accordingly.
-*/
-static int isHorizontalMachineAttr(char *attName)
-{
-	return !(strcasecmp(attName, ATTR_OPSYS) && 
-			strcasecmp(attName, ATTR_ARCH) &&
-			strcasecmp(attName, ATTR_STATE) && 
-			strcasecmp(attName, ATTR_ACTIVITY) &&
-			strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
-			strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
-			strcasecmp(attName, ATTR_LOAD_AVG) && 
-			strcasecmp(attName, "CondorLoadAvg") &&
-			strcasecmp(attName, ATTR_TOTAL_LOAD_AVG) && 
-			strcasecmp(attName, ATTR_VIRTUAL_MEMORY) &&
-			strcasecmp(attName, ATTR_MEMORY ) && 
-			strcasecmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
-			strcasecmp(attName, ATTR_CPU_BUSY_TIME) && 
-			strcasecmp(attName, ATTR_CPU_IS_BUSY) &&
-			strcasecmp(attName, ATTR_CURRENT_RANK) &&
-			strcasecmp(attName, ATTR_CLOCK_MIN) &&
-			strcasecmp(attName, ATTR_CLOCK_DAY) && 
-			strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
-			strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && 
-			strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
-			strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && 
-			strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) &&
-			strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) && 
-			strcasecmp(attName, ATTR_UPDATESTATS_LOST) &&
-			strcasecmp(attName, ATTR_NAME) && 
-			strcasecmp(attName, "GlobalJobId") &&
-			strcasecmp(attName, "LastReportedTime")
-			);
-}
-
-/* The following attributes are treated as horizontal daemon attributes.
-   Notice that if you add more attributes to the following list, the horizontal
-   schema for Daemons_Horizontal needs to revised accordingly.
-*/
-static int isHorizontalDaemonAttr(char *attName)
-{
-	return (!strcasecmp(attName, ATTR_NAME) ||
-			!strcasecmp(attName, ATTR_LAST_HEARD_FROM) ||
-			!strcasecmp(attName, "monitorselftime") ||
-			!strcasecmp(attName, "monitorselfcpuusage") ||
-			!strcasecmp(attName, "monitorselfimagesize") ||
-			!strcasecmp(attName, "monitorselfresidentsetsize") ||
-			!strcasecmp(attName, "monitorselfage") ||
-			!strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) ||
-			!strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) ||
-			!strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) ||
-			!strcasecmp(attName, ATTR_UPDATESTATS_LOST) ||
-			!strcasecmp(attName, ATTR_UPDATESTATS_HISTORY));
-}
-
 static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	int fd;
 	char *data;
@@ -3273,26 +3147,3 @@ static int attHashFunction (const MyString &str, int numBuckets)
         return (hashVal % numBuckets);
 }
 
-static void stripquotes(char *attVal)
-{
-	int attValLen;
-	char *tmp1, *tmpVal;
-
-	attValLen = strlen(attVal);
-
-		/* strip enclosing double quotes or single quotes,
-		   but not the unmatched quotes because they might
-		   be part of an expression, e.g., requirements = attr == "a",
-		   here we need to keep the double quote in the end of the expression.
-		*/
-	if ((attVal[attValLen-1] == '"' && attVal[0] == '"') ||
-		(attVal[attValLen-1] == '\'' && attVal[0] == '\'')) 
-		{
-			attVal[attValLen-1] = 0;
-			tmpVal = (char *) malloc(strlen(attVal));
-			tmp1 = attVal+1;
-			strcpy(tmpVal, tmp1);
-			strcpy(attVal, tmpVal);
-			free(tmpVal);			
-		}
-}

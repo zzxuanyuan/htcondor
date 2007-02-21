@@ -1011,15 +1011,17 @@ JobQueueDBManager::processSetAttribute(char* key,
 	char* longstr_arr[2];
 	int   strlen_arr[2];	
 	bool  bndForFirstStmt = TRUE;
-	
+	QuillAttrDataType  attr_type;
+
 		// It could be ProcAd or ClusterAd
 		// So need to check
 	job_id_type = getProcClusterIds(key, cid, pid);
   
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
-		if(isHorizontalClusterAttribute(name)) {
-			if (typeOf(name) == CONDOR_TT_TYPE_TIMESTAMP) {
+		if(isHorizontalClusterAttribute(name, attr_type)) {
+
+			if (attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
 				time_t clock;
 				MyString ts_expr;
 				clock = atoi(value);
@@ -1035,10 +1037,16 @@ JobQueueDBManager::processSetAttribute(char* key,
 						 "UPDATE ClusterAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s'", name, ts_expr.Value(), scheddname, cid);
 
 			} else {
+					// strip double quote for string type values
+				if ((attr_type == CONDOR_TT_TYPE_STRING || 
+					 attr_type == CONDOR_TT_TYPE_CLOB) &&
+					!stripdoublequotes(value)) {
+					dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in JobQueueDBManager::ProcessSetAttribute\n", name);
+				}
 				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 					// escape single quote within the value
 
-				if ((typeOf(name) != CONDOR_TT_TYPE_CLOB) || 
+				if ((attr_type != CONDOR_TT_TYPE_CLOB) || 
 					(dt != T_ORACLE) ||
 					(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
 
@@ -1057,7 +1065,6 @@ JobQueueDBManager::processSetAttribute(char* key,
 					sql_str_del_in.sprintf(
 										   "UPDATE ClusterAds_Horizontal SET %s = :%d WHERE scheddname = '%s' and cluster_id = '%s'", name, bndcnt, scheddname, cid);
 				}
-
 			}
 		} else {
 			newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
@@ -1081,8 +1088,9 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 		break;
 	case IS_PROC_ID:
-		if(isHorizontalProcAttribute(name)) {
-			if (typeOf(name) == CONDOR_TT_TYPE_TIMESTAMP) {
+		if(isHorizontalProcAttribute(name, attr_type)) {
+
+			if (attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
 				time_t clock;
 				MyString ts_expr;
 				clock = atoi(value);
@@ -1097,9 +1105,16 @@ JobQueueDBManager::processSetAttribute(char* key,
 				sql_str_del_in.sprintf(
 									   "UPDATE ProcAds_Horizontal SET %s = (%s) WHERE scheddname = '%s' and cluster_id = '%s' and proc_id = '%s'", name, ts_expr.Value(), scheddname, cid, pid);
 			} else {
+					// strip double quote for string type values
+				if ((attr_type == CONDOR_TT_TYPE_STRING || 
+					 attr_type == CONDOR_TT_TYPE_CLOB) &&
+					!stripdoublequotes(value)) {
+					dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in JobQueueDBManager::ProcessSetAttribute\n", name);
+				}
+				
 				newvalue = condor_ttdb_fillEscapeCharacters(value, dt);
 
-				if ((typeOf(name) != CONDOR_TT_TYPE_CLOB) || 
+				if ((attr_type != CONDOR_TT_TYPE_CLOB) || 
 					(dt != T_ORACLE) ||
 					(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
 					sql_str_del_in.sprintf(
@@ -1206,6 +1221,7 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 	char pid[512];
 	int  job_id_type;
 	QuillErrCode  ret_st;
+	QuillAttrDataType attr_type;
 
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -1213,7 +1229,7 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
-		if(isHorizontalClusterAttribute(name)) {
+		if(isHorizontalClusterAttribute(name, attr_type)) {
 			sql_str.sprintf(
 					 "UPDATE ClusterAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster_id = '%s'", name, scheddname, cid);
 		} else {
@@ -1223,7 +1239,7 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 
 		break;
 	case IS_PROC_ID:
-		if(isHorizontalProcAttribute(name)) {
+		if(isHorizontalProcAttribute(name, attr_type)) {
 			sql_str.sprintf(
 					 "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cluster_id = '%s' AND proc_id = '%s'", name, scheddname, cid, pid);
 		} else {

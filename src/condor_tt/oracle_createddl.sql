@@ -118,7 +118,7 @@ jobstatus               integer,
 enteredcurrentstatus    timestamp(3) with time zone,
 remotewallclocktime     numeric(38),
 lastremotehost          varchar(4000),
-completiondate          integer, -- condor_history requires an integer 
+completiondate          timestamp(3) with time zone,
 enteredhistorytable     timestamp(3) with time zone,
 primary key		(scheddname,scheddbirthdate, cluster_id, proc_id)
 );

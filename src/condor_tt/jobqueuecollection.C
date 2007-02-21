@@ -30,6 +30,7 @@
 #include "jobqueuedatabase.h"
 #include "condor_ttdb.h"
 #include "jobqueuedbmanager.h"
+#include "dbms_utils.h"
 
 //! constructor
 JobQueueCollection::JobQueueCollection(int iBucketNum)
@@ -479,6 +480,7 @@ JobQueueCollection::loadAd(char* cid,
 	char* longstr_arr[2];
 	int   strlen_arr[2];	
 	MyString longmystr_arr[2];
+	QuillAttrDataType attr_type;
 
 		// first generate the key columns
 	if (pid != NULL) {
@@ -507,14 +509,19 @@ JobQueueCollection::loadAd(char* cid,
 		
 			// procad
 		if (pid != NULL) {
-			if (isHorizontalProcAttribute(name)) {
+			if (isHorizontalProcAttribute(name, attr_type)) {
 				attNameList += ", ";
 				attNameList += name;
 
 				attValList += ", ";
 
-				switch (typeOf(name)) {				
+				switch (attr_type) {				
 				case CONDOR_TT_TYPE_CLOB:
+						// strip double quotes
+					if (!stripdoublequotes_MyString(value)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in JobQueueCollection::loadAd\n", name);
+					}
+
 					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 					if (dt != T_ORACLE || 
 						newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
@@ -533,6 +540,11 @@ JobQueueCollection::loadAd(char* cid,
 						
 					break;
 				case CONDOR_TT_TYPE_STRING:	
+						// strip double quotes
+					if (!stripdoublequotes_MyString(value)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in JobQueueCollection::loadAd\n", name);
+					}
+
 					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 					tmpVal.sprintf("'%s'", newvalue.Value());
 					break;
@@ -594,14 +606,20 @@ JobQueueCollection::loadAd(char* cid,
 				}
 			}
 		} else {  // cluster ad
-			if (isHorizontalClusterAttribute(name)) {
+			if (isHorizontalClusterAttribute(name, attr_type)) {
+				char *tmpv;
 				attNameList += ", ";
 				attNameList += name;
 
 				attValList += ", ";
 
-				switch (typeOf(name)) {				
+				switch (attr_type) {				
 				case CONDOR_TT_TYPE_CLOB:
+						// strip double quotes
+					if (!stripdoublequotes_MyString(value)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in JobQueueCollection::loadAd\n", name);
+					}
+					
 					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 					if (dt != T_ORACLE || 
 						newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
@@ -619,7 +637,12 @@ JobQueueCollection::loadAd(char* cid,
 					}
 						
 					break;					
-				case CONDOR_TT_TYPE_STRING:	
+				case CONDOR_TT_TYPE_STRING:					
+						// strip double quotes
+					if (!stripdoublequotes_MyString(value)) {
+						dprintf(D_ALWAYS, "ERROR: string constant not double quoted for attribute %s in JobQueueCollection::loadAd\n", name);
+					}
+
 					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 					tmpVal.sprintf("'%s'", newvalue.Value());
 					break;
@@ -715,140 +738,6 @@ JobQueueCollection::loadAd(char* cid,
 	return SUCCESS;
 }
 
-bool isHorizontalHistoryAttribute(const char *attr) {
 
-  if((strcasecmp(attr, "qdate") == 0) || 
-     (strcasecmp(attr, "owner") == 0) ||
-     (strcasecmp(attr, "globaljobid") == 0) ||
-     (strcasecmp(attr, "numckpts") == 0) ||
-     (strcasecmp(attr, "numrestarts") == 0) ||
-     (strcasecmp(attr, "numsystemholds") == 0) ||
-     (strcasecmp(attr, "condorversion") == 0) ||
-     (strcasecmp(attr, "condorplatform") == 0) ||
-     (strcasecmp(attr, "rootdir") == 0) ||
-     (strcasecmp(attr, "iwd") == 0) ||
-     (strcasecmp(attr, "jobuniverse") == 0) ||
-     (strcasecmp(attr, "cmd") == 0) ||
-     (strcasecmp(attr, "minhosts") == 0) ||
-     (strcasecmp(attr, "maxhosts") == 0) ||
-     (strcasecmp(attr, "jobprio") == 0) ||
-     (strcasecmp(attr, "user") == 0) ||     
-     (strcasecmp(attr, "env") == 0) ||
-     (strcasecmp(attr, "userlog") == 0) ||
-     (strcasecmp(attr, "coresize") == 0) ||
-     (strcasecmp(attr, "killsig") == 0) ||
-     (strcasecmp(attr, "in") == 0) ||
-     (strcasecmp(attr, "transferin") == 0) ||
-     (strcasecmp(attr, "out") == 0) ||
-     (strcasecmp(attr, "transferout") == 0) ||
-     (strcasecmp(attr, "err") == 0) ||
-     (strcasecmp(attr, "transfererr") == 0) ||
-     (strcasecmp(attr, "shouldtransferfiles") == 0) ||
-     (strcasecmp(attr, "transferfiles") == 0) ||
-     (strcasecmp(attr, "executablesize") == 0) ||
-     (strcasecmp(attr, "diskusage") == 0) ||
-     (strcasecmp(attr, "filesystemdomain") == 0) ||
-     (strcasecmp(attr, "args") == 0) ||
-     (strcasecmp(attr, "lastmatchtime") == 0) ||
-     (strcasecmp(attr, "numjobmatches") == 0) ||
-     (strcasecmp(attr, "jobstartdate") == 0) ||
-     (strcasecmp(attr, "jobcurrentstartdate") == 0) ||
-     (strcasecmp(attr, "jobruncount") == 0) ||
-     (strcasecmp(attr, "filereadcount") == 0) ||
-     (strcasecmp(attr, "filereadbytes") == 0) ||
-     (strcasecmp(attr, "filewritecount") == 0) ||
-     (strcasecmp(attr, "filewritebytes") == 0) ||
-     (strcasecmp(attr, "fileseekcount") == 0) ||
-     (strcasecmp(attr, "totalsuspensions") == 0) ||
-     (strcasecmp(attr, "imagesize") == 0) ||
-     (strcasecmp(attr, "exitstatus") == 0) ||
-     (strcasecmp(attr, "localusercpu") == 0) ||
-     (strcasecmp(attr, "localsyscpu") == 0) ||
-     (strcasecmp(attr, "remoteusercpu") == 0) ||
-     (strcasecmp(attr, "remotesyscpu") == 0) ||
-     (strcasecmp(attr, "bytessent") == 0) ||
-     (strcasecmp(attr, "bytesrecvd") == 0) ||
-     (strcasecmp(attr, "rscbytessent") == 0) ||
-     (strcasecmp(attr, "rscbytesrecvd") == 0) ||
-     (strcasecmp(attr, "exitcode") == 0) ||
-     (strcasecmp(attr, "jobstatus") == 0) ||
-     (strcasecmp(attr, "enteredcurrentstatus") == 0) ||
-     (strcasecmp(attr, "remotewallclocktime") == 0) ||
-     (strcasecmp(attr, "lastremotehost") == 0) ||
-	 (strcasecmp(attr, "shadowbday") == 0) || 
-     (strcasecmp(attr, "completiondate") == 0)) {
-	  return true;
-  }
 
-  return false;
-}
 
-bool isHorizontalClusterAttribute(const char *attr) {
-
-  if((strcasecmp(attr, "owner") == 0) ||
-     (strcasecmp(attr, "jobstatus") == 0) ||
-     (strcasecmp(attr, "jobprio") == 0) ||
-     (strcasecmp(attr, "imagesize") == 0) ||
-     (strcasecmp(attr, "qdate") == 0) ||
-     (strcasecmp(attr, "remoteusercpu") == 0) ||
-     (strcasecmp(attr, "remotewallclocktime") == 0) ||
-     (strcasecmp(attr, "cmd") == 0) ||
-	 (strcasecmp(attr, "jobuniverse") == 0) ||
-     (strcasecmp(attr, "args") == 0)) {
-    return true;
-  }
-
-  return false;  
-}
-
-bool isHorizontalProcAttribute(const char *attr) {
-
-  if((strcasecmp(attr, "jobstatus") == 0) ||
-     (strcasecmp(attr, "imagesize") == 0) ||
-     (strcasecmp(attr, "globaljobid") == 0) ||
-     (strcasecmp(attr, "remotewallclocktime") == 0) ||
-     (strcasecmp(attr, "remoteusercpu") == 0) ||
-	 (strcasecmp(attr, "jobprio") == 0) ||
-	 (strcasecmp(attr, "args") == 0) || 
-	 (strcasecmp(attr, "shadowbday") == 0) || 
-	 (strcasecmp(attr, "enteredcurrentstatus") == 0) || 
-	 (strcasecmp(attr, "numrestarts") == 0) || 
-	 (strcasecmp(attr, "remotehost") == 0)) {
-    return true;
-  }
-     
-  return false;
-}
-
-QuillAttrDataType typeOf(char *attName)
-{
-	if (!(strcasecmp(attName, "args") && 
-		  strcasecmp(attName, "env") &&
-		  strcasecmp(attName, "cmd"))
-		)
-		return CONDOR_TT_TYPE_CLOB;
-	
-	else if (!(strcasecmp(attName, "remotehost") && 
-			   strcasecmp(attName, "globaljobid") &&
-			   strcasecmp(attName, "owner"))
-		)
-		return CONDOR_TT_TYPE_STRING;
-
-	else if (!(strcasecmp(attName, "jobstatus") && 
-		  strcasecmp(attName, "imagesize") &&
-		  strcasecmp(attName, "remoteusercpu") && 
-		  strcasecmp(attName, "remotewallclocktime") &&
-		  strcasecmp(attName, "jobuniverse") &&
-		  strcasecmp(attName, "numrestarts") &&
-		  strcasecmp(attName, "jobprio"))
-		)
-		return CONDOR_TT_TYPE_NUMBER;
-
-	else if (!(strcasecmp(attName, "qdate") &&
-		  strcasecmp(attName, "shadowbday") &&
-		  strcasecmp(attName, "enteredcurrentstatus"))
-		)
-		return CONDOR_TT_TYPE_TIMESTAMP;
-
-	return CONDOR_TT_TYPE_UNKNOWN;
-}
