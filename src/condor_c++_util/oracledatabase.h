@@ -29,6 +29,7 @@
 #include "jobqueuedatabase.h"
 #include "quill_enums.h"
 #include "occi.h"
+#include "MyString.h"
 
 using oracle::occi::Environment;
 using oracle::occi::Connection;
@@ -136,7 +137,7 @@ private:
 	Connection *conn;
 	bool in_tranx;
 	Statement *stmt;
-	std::string cv;
+	MyString cv;
 
 	FILE *sqllog_fp;
 

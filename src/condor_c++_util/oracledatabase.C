@@ -24,6 +24,7 @@
 #include "condor_common.h"
 #include "condor_io.h"
 #include "oracledatabase.h"
+#include "MyString.h"
 
 extern const bool history_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE};
 extern const bool history_ver_clob_field [] = {FALSE, FALSE, FALSE, FALSE, TRUE};
@@ -32,7 +33,7 @@ const bool proc_ver_clob_field [] = {FALSE, FALSE, FALSE, TRUE};
 extern const bool cluster_hor_clob_field [] = {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, FALSE};
 const bool cluster_ver_clob_field [] = {FALSE, FALSE, TRUE};
 
-static std::string getStringFromClob(ResultSet *res, int col);
+static MyString getStringFromClob(ResultSet *res, int col);
 
 //! constructor
 ORACLEDatabase::ORACLEDatabase(const char* connect)
@@ -581,7 +582,7 @@ ORACLEDatabase::getValue(int row, int col)
 			/* col index is 0 based, for oracle, since col index 
 			   is 1 based, therefore add 1 to the column index 
 			*/
-		cv = queryRes->getString(col+1);
+		cv = (queryRes->getString(col+1)).c_str();
 	} catch (SQLException ex) {
 		queryStmt->closeResultSet (queryRes);
 		conn->terminateStatement (queryStmt);
@@ -601,7 +602,7 @@ ORACLEDatabase::getValue(int row, int col)
 	}
 	
         
-	rv = cv.c_str();
+	rv = cv.Value();
 
 	return rv;
 }
@@ -703,8 +704,8 @@ metadata, but haven't been made to work due to a link error
 		dprintf(D_ALWAYS, "column index %d exceeds max column num %d in ORACLEDatabase::getHistoryHorFieldName.\n", col, listOfColumns.size());
 		return NULL;
 	} else {
-		cv = listOfColumns[col].getString(MetaData::ATTR_NAME);
-		return cv.c_str();;
+		cv = (listOfColumns[col].getString(MetaData::ATTR_NAME)).c_str();
+		return cv.Value();
 	}
 */
 
@@ -1106,10 +1107,16 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 			   is 1 based, therefore add 1 to the column index 
 			*/
 		if (!history_hor_clob_field[col]) {
-			cv = historyHorRes->getString(col+1);
+			cv = (historyHorRes->getString(col+1)).c_str();
 		} else {
 			cv = getStringFromClob(historyHorRes, col);
 		}
+
+			/* add double quotes back if needed */
+		if (QUILLPP_HistoryHorIsQuoted[col]) {
+			cv.sprintf("\"%s\"", cv.Value());
+		} 
+
 	} catch (SQLException ex) {
 		historyHorStmt->closeResultSet (historyHorRes);
 		conn->terminateStatement (historyHorStmt);
@@ -1129,7 +1136,7 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 
-	*value = cv.c_str();
+	*value = cv.Value();
 
 	return SUCCESS;			
 }
@@ -1178,10 +1185,11 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 			   is 1 based, therefore add 1 to the column index 
 			*/
 		if (!history_ver_clob_field[col]) {
-			cv = historyVerRes->getString(col+1);		
+			cv = (historyVerRes->getString(col+1)).c_str();		
 		} else {
 			cv = getStringFromClob(historyVerRes, col);
 		}
+
 	} catch (SQLException ex) {
 		historyVerStmt->closeResultSet (historyVerRes);
 		conn->terminateStatement (historyVerStmt);
@@ -1201,7 +1209,7 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
 	
-    *value = cv.c_str();
+    *value = cv.Value();
 
 	return SUCCESS;				
 }
@@ -1247,10 +1255,16 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 			   is 1 based, therefore add 1 to the column index 
 			*/
 		if (!proc_hor_clob_field[col]) {
-			cv = procAdsHorRes->getString(col+1);
+			cv = (procAdsHorRes->getString(col+1)).c_str();
 		} else {
 			cv = getStringFromClob(procAdsHorRes, col);
 		}		
+
+			/* add double quotes back if needed */
+		if (proc_field_is_quoted[col]) {
+			cv.sprintf("\"%s\"", cv.Value());
+		} 
+		
 	} catch (SQLException ex) {
 		procAdsHorStmt->closeResultSet (procAdsHorRes);
 		conn->terminateStatement (procAdsHorStmt);
@@ -1269,7 +1283,7 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 		return NULL;             		
 	}
 
-	rv = cv.c_str();
+	rv = cv.Value();
 
 	return rv;
 }
@@ -1315,10 +1329,11 @@ ORACLEDatabase::getJobQueueProcAds_VerValue(int row, int col)
 			   is 1 based, therefore add 1 to the column index 
 			*/
 		if (!proc_ver_clob_field[col]) {
-			cv = procAdsVerRes->getString(col+1);		
+			cv = (procAdsVerRes->getString(col+1)).c_str();		
 		} else {
 			cv = getStringFromClob(procAdsVerRes, col);
 		}
+
 	} catch (SQLException ex) {
 		procAdsVerStmt->closeResultSet (procAdsVerRes);
 		conn->terminateStatement (procAdsVerStmt);
@@ -1337,7 +1352,7 @@ ORACLEDatabase::getJobQueueProcAds_VerValue(int row, int col)
 		return NULL;             		
 	}
 
-	rv = cv.c_str();
+	rv = cv.Value();
 
 	return rv;
 }
@@ -1417,10 +1432,16 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 			   is 1 based, therefore add 1 to the column index 
 			*/
 		if (!cluster_hor_clob_field[col]) {
-			cv = clusterAdsHorRes->getString(col+1);		
+			cv = (clusterAdsHorRes->getString(col+1)).c_str();		
 		} else {
 			cv = getStringFromClob(clusterAdsHorRes, col);
 		}
+
+			/* add double quotes back if needed */
+		if (cluster_field_is_quoted[col]) {
+			cv.sprintf("\"%s\"", cv.Value());
+		} 
+		
 	} catch (SQLException ex) {
 		clusterAdsHorStmt->closeResultSet (clusterAdsHorRes);
 		conn->terminateStatement (clusterAdsHorStmt);
@@ -1439,7 +1460,7 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 		return NULL;             		
 	}
 
-	rv = cv.c_str();
+	rv = cv.Value();
 
 	return rv;
 }
@@ -1485,7 +1506,7 @@ ORACLEDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 			   is 1 based, therefore add 1 to the column index 
 			*/
 		if (!cluster_ver_clob_field[col]) {
-			cv = clusterAdsVerRes->getString(col+1);		
+			cv = (clusterAdsVerRes->getString(col+1)).c_str();		
 		} else {
 			cv = getStringFromClob(clusterAdsVerRes, col);
 		}
@@ -1508,14 +1529,14 @@ ORACLEDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 		return NULL;             		
 	}
 
-	rv = cv.c_str();
+	rv = cv.Value();
 
 	return rv;
 }
 
-static std::string getStringFromClob(ResultSet *res, int col)
+static MyString getStringFromClob(ResultSet *res, int col)
 {
-	std::string rv;
+	MyString rv;
 	
 	Clob tmplob;
 	unsigned char *tmpbuf;

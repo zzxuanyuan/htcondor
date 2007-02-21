@@ -23,6 +23,8 @@
 #include <string.h>
 #include "condor_config.h"
 #include "dbms_utils.h"
+#include "condor_attributes.h"
+#include "MyString.h"
 
 extern "C" {
 
@@ -187,6 +189,278 @@ const char* spool
 	}
 	
 	return jobQueueDBConn;
+}
+
+bool stripdoublequotes(char *attVal) {
+	int attValLen;
+
+	if (!attVal) {
+		return FALSE;
+	}
+
+	attValLen = strlen(attVal);
+
+		/* strip enclosing double quotes
+		*/
+	if (attVal[attValLen-1] == '"' && attVal[0] == '"') {
+		strncpy(attVal, &attVal[1], attValLen-2);
+		attVal[attValLen-2] = '\0';
+		return TRUE;	 
+	} else {
+		return FALSE;
+	}	
+}
+
+bool stripdoublequotes_MyString(MyString &value) {
+	int attValLen;
+
+	if (value.IsEmpty()) {
+		return FALSE;
+	}
+	
+	attValLen = value.Length();
+
+		/* strip enclosing double quotes
+		*/
+	if (value[attValLen-1] == '"' && value[0] == '"') {
+		value = value.Substr(1, attValLen-2);
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+/* The following attributes are treated as horizontal daemon attributes.
+   Notice that if you add more attributes to the following list, the horizontal
+   schema for Daemons_Horizontal needs to revised accordingly.
+*/
+bool isHorizontalDaemonAttr(
+char *attName, 
+QuillAttrDataType &attr_type) {
+	if (!(strcasecmp(attName, ATTR_NAME) &&
+		  strcasecmp(attName, ATTR_UPDATESTATS_HISTORY))) {
+		attr_type = CONDOR_TT_TYPE_STRING;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "monitorselfcpuusage") &&
+				 strcasecmp(attName, "monitorselfimagesize") && 
+				 strcasecmp(attName, "monitorselfresidentsetsize") && 
+				 strcasecmp(attName, "monitorselfage") &&
+				 strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && 
+				 strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) &&
+				 strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) && 
+				 strcasecmp(attName, ATTR_UPDATESTATS_LOST))) {
+		attr_type = CONDOR_TT_TYPE_NUMBER;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, ATTR_LAST_HEARD_FROM) &&
+				 strcasecmp(attName, "MonitorSelfTime"))) {
+		attr_type = CONDOR_TT_TYPE_TIMESTAMP;
+		return TRUE;
+
+	}
+				 
+	attr_type = CONDOR_TT_TYPE_UNKNOWN;
+	return FALSE;
+}
+
+/* An attribute is treated as a static one if it is not one of the following
+   Notice that if you add more attributes to the following list, the horizontal
+   schema for Machines_Horizontal needs to revised accordingly.
+*/
+bool isHorizontalMachineAttr(
+char *attName, 
+QuillAttrDataType &attr_type) {
+	if (!(strcasecmp(attName, ATTR_NAME) &&
+		  strcasecmp(attName, ATTR_OPSYS) && 
+		  strcasecmp(attName, ATTR_ARCH) &&		  
+		  strcasecmp(attName, ATTR_STATE) && 
+		  strcasecmp(attName, ATTR_ACTIVITY) &&		 
+		  strcasecmp(attName, ATTR_GLOBAL_JOB_ID))) {
+		attr_type = CONDOR_TT_TYPE_STRING;
+		return TRUE;
+
+	} else if (!strcasecmp(attName, ATTR_CPU_IS_BUSY)) {
+		attr_type = CONDOR_TT_TYPE_BOOL;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, ATTR_KEYBOARD_IDLE) && 
+				 strcasecmp(attName, ATTR_CONSOLE_IDLE) &&
+				 strcasecmp(attName, ATTR_LOAD_AVG) && 
+				 strcasecmp(attName, "CondorLoadAvg") &&
+				 strcasecmp(attName, ATTR_TOTAL_LOAD_AVG) && 
+				 strcasecmp(attName, ATTR_VIRTUAL_MEMORY) &&
+				 strcasecmp(attName, ATTR_MEMORY ) &&
+				 strcasecmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
+				 strcasecmp(attName, ATTR_CPU_BUSY_TIME) &&
+				 strcasecmp(attName, ATTR_CURRENT_RANK) &&
+				 strcasecmp(attName, ATTR_CLOCK_MIN) && 
+				 strcasecmp(attName, ATTR_CLOCK_DAY) &&
+				 strcasecmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) &&
+				 strcasecmp(attName, ATTR_UPDATESTATS_TOTAL) &&
+				 strcasecmp(attName, ATTR_UPDATESTATS_SEQUENCED) &&
+				 strcasecmp(attName, ATTR_UPDATESTATS_LOST))) {
+		attr_type = CONDOR_TT_TYPE_NUMBER;
+		return TRUE;
+	} else if (!(strcasecmp(attName, "LastReportedTime") &&
+				 strcasecmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) &&
+				 strcasecmp(attName, ATTR_ENTERED_CURRENT_STATE))) {
+		attr_type = CONDOR_TT_TYPE_TIMESTAMP;
+		return TRUE;
+	}
+
+	attr_type = CONDOR_TT_TYPE_UNKNOWN;
+	return FALSE;
+}
+
+bool isHorizontalProcAttribute(
+const char *attName, 
+QuillAttrDataType &attr_type) {
+	if (!(strcasecmp(attName, "args"))) {
+		attr_type = CONDOR_TT_TYPE_CLOB;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "remotehost") && 
+				 strcasecmp(attName, "globaljobid"))) {
+		attr_type = CONDOR_TT_TYPE_STRING;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "jobstatus") &&
+				 strcasecmp(attName, "imagesize") &&
+				 strcasecmp(attName, "remoteusercpu") &&
+				 strcasecmp(attName, "remotewallclocktime") &&
+				 strcasecmp(attName, "jobprio") &&
+				 strcasecmp(attName, "numrestarts"))) {
+		attr_type = CONDOR_TT_TYPE_NUMBER;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "shadowbday") && 
+				 strcasecmp(attName, "enteredcurrentstatus"))) {
+		attr_type = CONDOR_TT_TYPE_TIMESTAMP;
+		return TRUE;
+	}
+
+	attr_type = CONDOR_TT_TYPE_UNKNOWN;
+	return FALSE;
+}
+
+bool isHorizontalClusterAttribute(
+const char *attName, 
+QuillAttrDataType &attr_type) {
+	if (!(strcasecmp(attName, "cmd") && 
+		  strcasecmp(attName, "args"))
+		) {
+		attr_type = CONDOR_TT_TYPE_CLOB;
+		return TRUE;
+
+	} else if (!strcasecmp(attName, "owner")) {
+		attr_type = CONDOR_TT_TYPE_STRING;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "jobstatus") &&
+				 strcasecmp(attName, "jobprio") &&
+				 strcasecmp(attName, "imagesize") &&
+				 strcasecmp(attName, "remoteusercpu") &&
+				 strcasecmp(attName, "remotewallclocktime") &&
+				 strcasecmp(attName, "jobuniverse"))) {
+		attr_type = CONDOR_TT_TYPE_NUMBER;
+		return TRUE;
+
+	} else if (!strcasecmp(attName, "qdate")) {
+		attr_type = CONDOR_TT_TYPE_TIMESTAMP;
+		return TRUE;
+	}
+
+	attr_type = CONDOR_TT_TYPE_UNKNOWN;
+	return FALSE;
+}
+
+bool isHorizontalHistoryAttribute(
+const char *attName, 
+QuillAttrDataType &attr_type) {
+
+	if (!(strcasecmp(attName, "cmd") && 
+		  strcasecmp(attName, "env") &&
+		  strcasecmp(attName, "args"))
+		) {
+		attr_type = CONDOR_TT_TYPE_CLOB;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "transferin") && 
+				 strcasecmp(attName, "transferout") &&
+				 strcasecmp(attName, "transfererr"))
+			   ) {
+		
+		attr_type = CONDOR_TT_TYPE_BOOL;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "owner") &&
+				 strcasecmp(attName, "globaljobid") &&				 
+				 strcasecmp(attName, "condorversion") &&
+				 strcasecmp(attName, "condorplatform") &&
+				 strcasecmp(attName, "rootdir") &&
+				 strcasecmp(attName, "Iwd") &&
+				 strcasecmp(attName, "user") &&
+				 strcasecmp(attName, "userlog")	&&
+				 strcasecmp(attName, "killsig") &&
+				 strcasecmp(attName, "in") &&
+				 strcasecmp(attName, "out") &&
+				 strcasecmp(attName, "err") &&
+				 strcasecmp(attName, "shouldtransferfiles")  &&
+				 strcasecmp(attName, "transferfiles") &&
+				 strcasecmp(attName, "filesystemdomain") &&
+				 strcasecmp(attName, "lastremotehost") 
+				 )) {
+		attr_type = CONDOR_TT_TYPE_STRING;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "numckpts") && 
+				 strcasecmp(attName, "numrestarts") &&
+				 strcasecmp(attName, "numsystemholds") &&
+				 strcasecmp(attName, "jobuniverse") &&
+				 strcasecmp(attName, "minhosts") &&
+				 strcasecmp(attName, "maxhosts") &&
+				 strcasecmp(attName, "jobprio") &&
+				 strcasecmp(attName, "coresize") &&
+				 strcasecmp(attName, "executablesize") &&
+				 strcasecmp(attName, "diskusage") &&
+				 strcasecmp(attName, "numjobmatches") &&
+				 strcasecmp(attName, "jobruncount") &&
+				 strcasecmp(attName, "filereadcount") &&
+				 strcasecmp(attName, "filereadbytes") &&
+				 strcasecmp(attName, "filewritecount") &&
+				 strcasecmp(attName, "filewritebytes") &&
+				 strcasecmp(attName, "fileseekcount") &&
+				 strcasecmp(attName, "totalsuspensions") &&
+				 strcasecmp(attName, "imagesize") &&
+				 strcasecmp(attName, "exitstatus") && 
+				 strcasecmp(attName, "localusercpu") &&
+				 strcasecmp(attName, "localsyscpu") &&
+				 strcasecmp(attName, "remoteusercpu") &&
+				 strcasecmp(attName, "remotesyscpu") &&
+				 strcasecmp(attName, "bytessent") &&
+				 strcasecmp(attName, "bytesrecvd") && 
+				 strcasecmp(attName, "rscbytessent") &&
+				 strcasecmp(attName, "rscbytesrecvd") &&
+				 strcasecmp(attName, "exitcode") && 
+				 strcasecmp(attName, "jobstatus") &&
+				 strcasecmp(attName, "remotewallclocktime")
+				 )) {
+		attr_type = CONDOR_TT_TYPE_NUMBER;
+		return TRUE;
+
+	} else if (!(strcasecmp(attName, "qdate") &&
+		  strcasecmp(attName, "lastmatchtime") &&		  
+		  strcasecmp(attName, "jobstartdate") &&	
+		  strcasecmp(attName, "jobcurrentstartdate") &&	
+		  strcasecmp(attName, "enteredcurrentstatus") && 
+		  strcasecmp(attName, "completiondate"))) {
+		attr_type = CONDOR_TT_TYPE_TIMESTAMP;
+		return TRUE;
+	}
+
+	attr_type = CONDOR_TT_TYPE_UNKNOWN;
+	return FALSE;
 }
 
 } // extern "C"

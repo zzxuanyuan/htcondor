@@ -36,7 +36,18 @@ extern "C" {
 					   const char* jobQueueDBUser,
 					   const char* spool
 					   );
-
+	bool stripdoublequotes(char *attVal);
+	bool stripdoublequotes_MyString(MyString &value);
+	bool isHorizontalHistoryAttribute(const char *attName, 
+									  QuillAttrDataType &attr_type);
+	bool isHorizontalClusterAttribute(const char *attName, 
+									  QuillAttrDataType &attr_type);
+	bool isHorizontalProcAttribute(const char *attName,
+								   QuillAttrDataType &attr_type);
+	bool isHorizontalMachineAttr(char *attName, 
+								 QuillAttrDataType &attr_type);
+	bool isHorizontalDaemonAttr(char *attName, 
+								QuillAttrDataType &attr_type);
 
 #if defined( __cplusplus )
 }
