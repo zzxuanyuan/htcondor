@@ -30,10 +30,13 @@
 
 extern const int QUILLPP_HistoryHorFieldNum;
 extern const char *QUILLPP_HistoryHorFields[];
+extern const int QUILLPP_HistoryHorIsQuoted[];
 extern const int proc_field_num;
 extern const char *proc_field_names [];
+extern const int proc_field_is_quoted [];
 extern const int cluster_field_num;
 extern const char *cluster_field_names [];
+extern const int cluster_field_is_quoted [];
 extern const bool history_hor_clob_field [];
 extern const bool history_ver_clob_field [];
 extern const bool proc_hor_clob_field [];
