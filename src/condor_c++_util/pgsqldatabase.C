@@ -741,7 +741,15 @@ PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor,
 		}
 	}
 
-	*value = PQgetvalue(historyHorRes, row - historyHorFirstRowIndex, col);
+	const char *dataptr = PQgetvalue(historyHorRes, row - historyHorFirstRowIndex, col);
+	if(QUILLPP_HistoryHorIsQuoted[col]) {
+		bufferedResult.sprintf("\"%s\"", dataptr);
+		*value =  bufferedResult.GetCStr();
+	} else {
+		*value = dataptr;
+	}
+	
+	//QUOTE
 	return SUCCESS;
 }
 
@@ -786,7 +794,14 @@ PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver,
 const char*
 PGSQLDatabase::getJobQueueProcAds_HorValue(int row, int col)
 {
-	return PQgetvalue(procAdsHorRes, row, col);
+	const char *dataptr = PQgetvalue(procAdsHorRes, row, col);
+
+	if(proc_field_is_quoted[col]) {
+		bufferedResult.sprintf("\"%s\"", dataptr);
+		return bufferedResult.GetCStr();
+	} else {
+		return dataptr;
+	}
 }
 
 //! get a value retrieved from ProcAds_Ver table
@@ -800,7 +815,14 @@ PGSQLDatabase::getJobQueueProcAds_VerValue(int row, int col)
 const char*
 PGSQLDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 {
-	return PQgetvalue(clusterAdsHorRes, row, col);
+	const char *dataptr = PQgetvalue(clusterAdsHorRes, row, col);
+
+	if(cluster_field_is_quoted[col]) {
+		bufferedResult.sprintf("\"%s\"", dataptr);
+		return bufferedResult.GetCStr();
+	} else {
+		return dataptr;
+	}
 }
 
 //! get a value retrieved from ClusterAds_Ver table

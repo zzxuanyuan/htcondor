@@ -145,6 +145,8 @@ private:
 	PGconn		         *connection;	//!< connection object
 	PGresult	         *queryRes; 	//!< result for general query
 	char				 *con_str;		//!< connection string
+	
+	MyString			bufferedResult;
 
 		// history relevant members
 	PGresult             *historyHorRes;
