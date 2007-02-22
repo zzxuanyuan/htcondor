@@ -46,6 +46,7 @@
 #include "pgsqldatabase.h"
 #include "condor_ttdb.h"
 #include "jobqueuecollection.h"
+#include "dbms_utils.h"
 
 #undef ATTR_VERSION
 
@@ -391,6 +392,7 @@ QuillErrCode insertHistoryJob(AttrList *ad) {
   char* longstr_arr[2];
   int   strlen_arr[2];  
   bool  bndForFirstStmt = TRUE;
+  QuillAttrDataType  attr_type;
 
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   char *scheddname = ScheddName;
@@ -464,7 +466,7 @@ QuillErrCode insertHistoryJob(AttrList *ad) {
       bndcnt = 0;
       bndForFirstStmt = TRUE;
 
-      if(isHorizontalHistoryAttribute(name.Value())) {
+      if(isHorizontalHistoryAttribute(name.Value(), attr_type)) {
               /* change the names for the following attributes
                  because they conflict with keywords of some
                  databases 
@@ -487,12 +489,7 @@ QuillErrCode insertHistoryJob(AttrList *ad) {
   
           sql_stmt2 = "";
 
-          if(strcasecmp(name.Value(), "lastmatchtime") == 0 || 
-             strcasecmp(name.Value(), "jobstartdate") == 0 || 
-             strcasecmp(name.Value(), "jobcurrentstartdate") == 0 ||
-             strcasecmp(name.Value(), "enteredcurrentstatus") == 0 ||
-             strcasecmp(name.Value(), "qdate") == 0 
-             ) {
+          if(attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
                   // avoid updating with epoch time
               if (strcmp(value.Value(), "0") == 0) {
                   continue;
@@ -510,7 +507,7 @@ QuillErrCode insertHistoryJob(AttrList *ad) {
           } else {
               newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 
-              if ((typeOf((char *)name.Value()) != CONDOR_TT_TYPE_CLOB) || 
+              if ((attr_type != CONDOR_TT_TYPE_CLOB) || 
                   (dt != T_ORACLE) ||
                   (newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
                   sql_stmt.sprintf( 
