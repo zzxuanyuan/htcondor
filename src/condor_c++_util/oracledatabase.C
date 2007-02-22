@@ -1114,7 +1114,8 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 
 			/* add double quotes back if needed */
 		if (QUILLPP_HistoryHorIsQuoted[col]) {
-			cv.sprintf("\"%s\"", cv.Value());
+			MyString temp = cv;
+			cv.sprintf("\"%s\"", temp.Value());
 		} 
 
 	} catch (SQLException ex) {
@@ -1262,7 +1263,8 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 
 			/* add double quotes back if needed */
 		if (proc_field_is_quoted[col]) {
-			cv.sprintf("\"%s\"", cv.Value());
+			MyString temp = cv;
+			cv.sprintf("\"%s\"", temp.Value());
 		} 
 		
 	} catch (SQLException ex) {
@@ -1439,7 +1441,8 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 
 			/* add double quotes back if needed */
 		if (cluster_field_is_quoted[col]) {
-			cv.sprintf("\"%s\"", cv.Value());
+			MyString temp = cv;
+			cv.sprintf("\"%s\"", temp.Value());
 		} 
 		
 	} catch (SQLException ex) {
