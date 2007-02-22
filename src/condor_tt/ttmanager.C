@@ -959,6 +959,11 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 						tmpVal.sprintf("'%s'", attVal);
 						break;
+					case CONDOR_TT_TYPE_BOOL:
+							// boolean value are stored as string in db, but 
+							// its value is not double quoted
+						tmpVal.sprintf("'%s'", attVal);
+						break;
 					case CONDOR_TT_TYPE_TIMESTAMP:
 						time_t clock;
 						clock = atoi(attVal);
