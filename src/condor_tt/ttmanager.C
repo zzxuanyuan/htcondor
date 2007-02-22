@@ -644,10 +644,11 @@ TTManager::event_maintain()
 		   connection), we check if a sql log has exceeded its 	
 		   size limit, and if so, we throw it away.
 		*/
-	if (!errorSqlStmt.IsEmpty() &&
-		!currentSqlLog.IsEmpty()
-		&& (DBObj->checkConnection() == SUCCESS)) {
-		this -> handleErrorSqlLog();
+	if (DBObj->checkConnection() == SUCCESS) {
+		if (!errorSqlStmt.IsEmpty() &&
+			!currentSqlLog.IsEmpty()) {
+			this -> handleErrorSqlLog();
+		}
 	} else {
 		this -> checkAndThrowBigFiles();
 		DBObj->resetConnection();
