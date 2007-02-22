@@ -2563,11 +2563,6 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 		  sql_stmt2 = "";
 		  
 		  if(attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
-				  // avoid updating with epoch time
-			  if (strcmp(value.Value(), "0") == 0) {
-				  continue;
-			  } 
-			
 			  time_t clock;
 			  MyString ts_expr;
 			  clock = atoi(value.Value());
