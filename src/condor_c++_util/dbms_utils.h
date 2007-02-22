@@ -24,6 +24,7 @@
 #define _DBMS_UTILS_H
 
 #include "quill_enums.h"
+#include "MyString.h"
 
 #if defined( __cplusplus )
 extern "C" {
