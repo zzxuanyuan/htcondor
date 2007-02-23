@@ -147,13 +147,13 @@ main(int argc, char* argv[])
         if( (scheddname = schedd.name()) ) {
             ScheddName = strdup(scheddname);
         } else {
-            fprintf(stderr, "You did not specify a Schedd name and Job Queue"
-                           "Birthdate on the command line"
-                           "and there was an error getting the Schedd"
-                           "name from the local Schedd Daemon Ad. Please"
-                           "check that the SCHEDD_DAEMON_AD_FILE config"
-                           "parameter is set and the file contains a valid"
-                           "Schedd Daemon ad.");
+            fprintf(stderr, "You did not specify a Schedd name and Job Queue "
+                           "Birthdate on the command line "
+                           "and there was an error getting the Schedd "
+                           "name from the local Schedd Daemon Ad. Please "
+                           "check that the SCHEDD_DAEMON_AD_FILE config "
+                           "parameter is set and the file contains a valid "
+                           "Schedd Daemon ad.\n");
             exit(1);
         }
         ClassAd *daemonAd = schedd.daemonAd();
@@ -161,17 +161,26 @@ main(int argc, char* argv[])
             if (!(daemonAd->LookupInteger( ATTR_JOB_QUEUE_BIRTHDATE, 
                         ScheddBirthdate) )) {
                 // Can't find the job queue birthdate
-                fprintf(stderr, "You did not specify a Schedd name and"
-                           "Job Queue Birthdate on the command line"
-                           "and there was an error getting the Job Queue"
-                           "Birthdate from the local Schedd Daemon Ad. Please"
-                           "check that the SCHEDD_DAEMON_AD_FILE config"
-                           "parameter is set and the file contains a valid"
-                           "Schedd Daemon ad.");
+                fprintf(stderr, "You did not specify a Schedd name and "
+                           "Job Queue Birthdate on the command line "
+                           "and there was an error getting the Job Queue "
+                           "Birthdate from the local Schedd Daemon Ad. Please "
+                           "check that the SCHEDD_DAEMON_AD_FILE config "
+                           "parameter is set and the file contains a valid "
+                           "Schedd Daemon ad.\n");
                 exit(1);
             }
         }
-    }
+    } else {
+
+		fprintf(stderr, "You did not specify a Schedd name and Job Queue "
+				        "Birthdate on the command line and there was "
+				        "an error getting the Schedd Daemon Ad. Please "
+				        "check that Condor is running and the SCHEDD_DAEMON_AD_FILE "
+				        "config parameter is set and the file contains a valid "
+				        "Schedd Daemon ad.\n");
+		exit(1);
+	}
   }
 
   doDBconfig();
@@ -378,221 +387,9 @@ static MyString getWritePassword(const char *write_passwd_fname,
 }
 
 QuillErrCode insertHistoryJob(AttrList *ad) {
-  int        cid, pid;
-  MyString sql_stmt;
-  MyString sql_stmt2;
-  ExprTree *expr;
-  ExprTree *L_expr;
-  ExprTree *R_expr;
-  MyString value = "";
-  MyString name = "";
-  MyString newvalue;
-  char *tmp = NULL;
-  int bndcnt = 0;
-  char* longstr_arr[2];
-  int   strlen_arr[2];  
-  bool  bndForFirstStmt = TRUE;
-  QuillAttrDataType  attr_type;
 
-  bool flag1=false, flag2=false,flag3=false, flag4=false;
-  char *scheddname = ScheddName;
-  time_t scheddbirthdate = (time_t) ScheddBirthdate;
-
-  ad->EvalInteger (ATTR_CLUSTER_ID, NULL, cid);
-  ad->EvalInteger (ATTR_PROC_ID, NULL, pid);
-
-  sql_stmt.sprintf(
-          "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
-  sql_stmt2.sprintf(
-          "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
-
-  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-          dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-          dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-          return FAILURE;         
-  }
-
-  if (DBObj->execCommand(sql_stmt2.Value()) == FAILURE) {
-          dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-          dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
-          return FAILURE;         
-  }
-
-  ad->ResetExpr(); // for iteration initialization
-  while((expr=ad->NextExpr()) != NULL) {
-      L_expr = expr->LArg();
-      L_expr->PrintToNewStr(&tmp);
-
-      if (tmp == NULL) break;
-      
-      name = tmp;
-      free(tmp);
-
-      R_expr = expr->RArg();
-      R_expr->PrintToNewStr(&tmp);
-      
-      if (tmp == NULL) {
-          break;          
-      }
-
-      value = tmp;
-      free(tmp);
-
-          /* the following are to avoid overwriting the attr values. The hack 
-             is based on the fact that an attribute of a job ad comes before 
-             the attribute of a cluster ad. And this is because 
-             attribute list of cluster ad is chained to a job ad.
-           */
-      if(strcasecmp(name.Value(), "jobstatus") == 0) {
-          if(flag4) continue;
-          flag4 = true;
-      }
-
-      if(strcasecmp(name.Value(), "remotewallclocktime") == 0) {
-          if(flag1) continue;
-          flag1 = true;
-      }
-      else if(strcasecmp(name.Value(), "completiondate") == 0) {
-          if(flag2) continue;
-          flag2 = true;
-      }
-      else if(strcasecmp(name.Value(), "committedtime") == 0) {
-          if(flag3) continue;
-          flag3 = true;
-      }
-
-          // initialize variables for detecting and inserting long clob 
-          // columns
-      bndcnt = 0;
-      bndForFirstStmt = TRUE;
-
-      if(isHorizontalHistoryAttribute(name.Value(), attr_type)) {
-              /* change the names for the following attributes
-                 because they conflict with keywords of some
-                 databases 
-              */
-          if (strcasecmp(name.Value(), "out") == 0) {
-              name = "stdout";
-          }
-
-          if (strcasecmp(name.Value(), "err") == 0) {
-              name = "stderr";
-          }
-
-          if (strcasecmp(name.Value(), "in") == 0) {
-              name = "stdin";
-          }     
-
-          if (strcasecmp(name.Value(), "user") == 0) {
-              name = "negotiation_user_name";
-          }       
-  
-          sql_stmt2 = "";
-
-          if(attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
-                  // avoid updating with epoch time
-              if (strcmp(value.Value(), "0") == 0) {
-                  continue;
-              } 
-            
-              time_t clock;
-              MyString ts_expr;
-              clock = atoi(value.Value());
-              
-              ts_expr = condor_ttdb_buildts(&clock, dt);    
-
-              sql_stmt.sprintf(
-                      "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), ts_expr.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
-
-          } else {
-              newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
-
-              if ((attr_type != CONDOR_TT_TYPE_CLOB) || 
-                  (dt != T_ORACLE) ||
-                  (newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
-                  sql_stmt.sprintf( 
-                                   "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), newvalue.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
-              } else {
-                  bndcnt ++;
-                  longstr_arr[0] = (char *)newvalue.Value();
-                  strlen_arr[0] = newvalue.Length();
-                  sql_stmt.sprintf( 
-                                   "UPDATE Jobs_Horizontal_History SET %s = :1 WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
-              }
-          }
-      } else {
-          newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
-          
-          sql_stmt.sprintf(
-                  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
-            
-            if ((dt != T_ORACLE) ||
-                (newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {         
-                sql_stmt2.sprintf( 
-                                  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value(), newvalue.Value());
-            } else {
-                bndForFirstStmt = FALSE;
-                bndcnt ++;
-                longstr_arr[0] = (char *)newvalue.Value();
-                strlen_arr[0] = newvalue.Length();
-                
-                sql_stmt2.sprintf( 
-                                  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', :1)", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
-            }
-      }
-
-      if (bndcnt == 0 ||
-          !bndForFirstStmt) {
-          if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-              dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-              dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-
-              return FAILURE;
-          }
-      } else {
-          if (DBObj->execCommandWithBind(sql_stmt.Value(), 
-                                         longstr_arr,
-                                         strlen_arr,
-                                         bndcnt) == FAILURE) {
-              dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-              dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-          
-
-              return FAILURE;
-          }       
-      }
-
-      if (!sql_stmt2.IsEmpty()) {
-          
-        if (bndcnt == 0 || 
-            bndForFirstStmt) {        
-            if ((DBObj->execCommand(sql_stmt2.Value()) == FAILURE)) {
-                dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-                dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
-          
-
-                return FAILURE;           
-            }
-        } else {
-            if ((DBObj->execCommandWithBind(sql_stmt2.Value(),
-                                            longstr_arr,
-                                            strlen_arr,
-                                            bndcnt) == FAILURE)) {
-                dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-                dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
-          
-
-                return FAILURE;           
-            }           
-        }
-      }
-      
-      name = "";
-      value = "";
-  }  
-
-  return SUCCESS;
-
+	MyString errorSqlStmt;
+	return insertHistoryJobCommon(ad, DBObj, dt, errorSqlStmt, ScheddName, (time_t) ScheddBirthdate);
 }
 
 // Read the history from a single file and print it out. 
