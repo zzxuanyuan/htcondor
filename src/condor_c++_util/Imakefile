@@ -27,7 +27,7 @@ C_PLUS_FLAGS =	\
 		New_classads_defines \
 		New_classads_includes \
 		$(QUILL_INC) \
-		$(TT_INC)
+		$(TT_INC) -I../condor_tt
 
 CFLAGS = $(STD_C_FLAGS) New_classads_includes
 LIB = $(STD_LIBS)

@@ -25,6 +25,7 @@
 
 #include "quill_enums.h"
 #include "MyString.h"
+#include "jobqueuedatabase.h"
 
 #if defined( __cplusplus )
 extern "C" {
@@ -50,6 +51,9 @@ extern "C" {
 	bool isHorizontalDaemonAttr(char *attName, 
 								QuillAttrDataType &attr_type);
 
+		// insert a job into the history tables
+	QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtype dt, MyString & errorSqlStmt, 
+										const char*scheddname, const time_t scheddbirthdate);
 #if defined( __cplusplus )
 }
 #endif
