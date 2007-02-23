@@ -26,6 +26,7 @@
 #include "quill_enums.h"
 #include "MyString.h"
 #include "jobqueuedatabase.h"
+#include "condor_attrlist.h"
 
 #if defined( __cplusplus )
 extern "C" {
