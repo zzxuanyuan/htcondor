@@ -457,6 +457,15 @@ WHERE throwns.throwtime <
      (current_timestamp - 
        cast (jobHistoryDuration || ' day' as interval));
 
+-- purge sql error events older than jobHistoryDuration
+-- The error_sqllogs table doesn't fall precisely into any of the categories, 
+-- it may contain information about job history log that causes a sql error.
+-- We don't want the table to grow unbounded either.
+DELETE FROM error_sqllogs 
+WHERE error_sqllogs.lastmodified < 
+     (current_timestamp - 
+       cast (jobHistoryDuration || ' day' as interval));
+
 TRUNCATE TABLE history_jobs_to_purge;
 
 /* lastly check if db size is above 75 percentage of specified limit */

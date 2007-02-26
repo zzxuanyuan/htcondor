@@ -449,10 +449,20 @@ WHERE H.globaljobid IN (SELECT globaljobid
 
 
 -- purge log thrown events older than jobHistoryDuration
--- The thrown table doesn't fall precisely into any of the categories 
--- but we don't want the table to grow unbounded either.
+-- The thrown table doesn't fall precisely into any of the categories,
+-- it may contain information about job history log that is truncated.
+-- We don't want the table to grow unbounded either.
 DELETE FROM throwns T
 WHERE T.throwtime < 
+     (current_timestamp - 
+      to_dsinterval(jobHistoryDuration || ' 00:00:00'));
+
+-- purge sql error events older than jobHistoryDuration
+-- The error_sqllogs table doesn't fall precisely into any of the categories, 
+-- it may contain information about job history log that causes a sql error.
+-- We don't want the table to grow unbounded either.
+DELETE FROM error_sqllogs S
+WHERE S.lastmodified < 
      (current_timestamp - 
       to_dsinterval(jobHistoryDuration || ' 00:00:00'));
 
