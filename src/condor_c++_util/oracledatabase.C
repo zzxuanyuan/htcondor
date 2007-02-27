@@ -932,21 +932,21 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 	    if(numclusters > 0) {
 			// build up the cluster predicate
 			clusterpredicate.sprintf("%s%d)", 
-					" AND ( (cluster = ",clusterarray[0]);
+					" AND ( (cluster_id = ",clusterarray[0]);
 			for(i=1; i < numclusters; i++) {
 				clusterpredicate.sprintf_cat( 
-				"%s%d) ", " OR (cluster = ", clusterarray[i] );
+				"%s%d) ", " OR (cluster_id = ", clusterarray[i] );
       		}
 
 			// now build up the proc predicate string. 	
 			// first decide how to open it
 			 if(procarray[0] != -1) {
 					procpredicate.sprintf("%s%d%s%d)", 
-							" AND ( (cluster = ", clusterarray[0], 
-							" AND proc = ", procarray[0]);
+							" AND ( (cluster_id = ", clusterarray[0], 
+							" AND proc_id = ", procarray[0]);
 	 		} else {  // no proc for this entry, so only have cluster
 					procpredicate.sprintf( "%s%d)", 
-								" AND ( (cluster = ", clusterarray[0]);
+								" AND ( (cluster_id = ", clusterarray[0]);
 	 		}
 	
 			// fill in the rest of hte proc predicate 
@@ -955,10 +955,10 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 			for(i=1; i < numclusters; i++) {
 				if(procarray[i] != -1) {
 					procpredicate.sprintf_cat( "%s%d%s%d) ", 
-					" OR (cluster = ",clusterarray[i]," AND proc = ",procarray[i]);
+					" OR (cluster_id = ",clusterarray[i]," AND proc_id = ",procarray[i]);
 				} else { 
 					procpredicate.sprintf_cat( "%s%d) ", 
-						" OR (cluster = ", clusterarray[i]);
+						" OR (cluster_id = ", clusterarray[i]);
 				}
 			} //end offor loop
 
