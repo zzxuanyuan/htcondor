@@ -308,7 +308,7 @@ createQueryString(query_types qtype, void **parameters) {
   case HISTORY_OWNER_HOR:
 	  if (dt == T_PGSQL) {
 		sprintf(declare_cursor_str,
-			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE owner='\"%s\"' %s "
+			"DECLARE HISTORY_OWNER_HOR_CUR CURSOR FOR SELECT %s FROM Jobs_Horizontal_History WHERE owner='%s' %s "
 			"ORDER BY scheddname, cluster_id, proc_id;",
 				quill_pgsql_history_hor_select_list,
 				((char *)parameters[0]), schedd_predicate_part.Value() );
@@ -318,7 +318,7 @@ createQueryString(query_types qtype, void **parameters) {
 			"CLOSE HISTORY_OWNER_HOR_CUR");
 	  } else if (dt == T_ORACLE) {
 		  sprintf(query_str,
-				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE owner='\"%s\"' %s "
+				  "SELECT %s FROM quillwriter.Jobs_Horizontal_History WHERE owner='%s' %s "
 				  "ORDER BY scheddname, cluster_id,proc_id",
 				  quill_oracle_history_hor_select_list,
 				  ((char *)parameters[0]), schedd_predicate_part.Value() );
@@ -330,7 +330,7 @@ createQueryString(query_types qtype, void **parameters) {
 		sprintf(declare_cursor_str,
 			"DECLARE HISTORY_OWNER_VER_CUR CURSOR FOR SELECT hv.cluster_id,hv.proc_id,hv.attr,hv.val FROM "
 			"Jobs_Horizontal_History hh, Jobs_Vertical_History hv "
-			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.owner='\"%s\"' %s "
+			"WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.owner='%s' %s "
 			" ORDER BY scheddname, cluster_id,proc_id;",
 			((char *)parameters[0]), schedd_predicate_hh.Value() );
 		sprintf(fetch_cursor_str,
@@ -341,7 +341,7 @@ createQueryString(query_types qtype, void **parameters) {
 		  sprintf(query_str,
 				  "SELECT hv.cluster_id,hv.proc_id,hv.attr,hv.val FROM "
 				  "quillwriter.Jobs_Horizontal_History hh, quillwriter.Jobs_Vertical_History hv "
-				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.owner='\"%s\"' %s "
+				  "WHERE hh.cluster_id=hv.cluster_id AND hh.proc_id=hv.proc_id AND hh.owner='%s' %s "
 				  " ORDER BY scheddname, cluster_id,proc_id",
 				  ((char *)parameters[0]), schedd_predicate_hh.Value() );
 	  }
