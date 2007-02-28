@@ -494,7 +494,8 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 	switch (qType) {
 	case AVG_TIME_IN_QUEUE:
 
-		sqlquery.setQuery(QUEUE_AVG_TIME, NULL);
+		sqlquery.setQuery(QUEUE_AVG_TIME, NULL);		
+		sqlquery.prepareQuery();
 
 		DBObj->execQuery(sqlquery.getQuery(), ntuples);
 
@@ -506,10 +507,12 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 		
 		rowvalue = DBObj -> getValue(0, 0);
 
-		if(strcmp(rowvalue,"") == 0) {
+		if(strcmp(rowvalue,"") == 0 ||  // result from empty job queue in pgsql
+		   strcmp(rowvalue, " ::") == 0) //result from empty jobqueue in oracle
+			{ 
 			printf("\nJob queue is curently empty\n");
 		} else {
-			printf("\nAverage time in queue for uncompleted jobs (in hh:mm:ss)\n");
+			printf("\nAverage time in queue for uncompleted jobs (in days hh:mm:ss)\n");
 			printf("%s\n", rowvalue);		 
 		}
 		

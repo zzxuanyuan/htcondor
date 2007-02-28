@@ -46,7 +46,7 @@
 	                jobstatus AS JobStatus \
 	              FROM clusterads_horizontal where cluster_id != 0) AS c \
             WHERE p.cluster_id = c.cluster_id) AS h \
-         WHERE (jobStatus != '3'::text) and (jobstatus != '4'::text) t"
+         WHERE (jobStatus != 3) and (jobstatus != 4)"
 
 
 /* oracle doesn't support avg over time interval, therefore, the following 
@@ -60,17 +60,17 @@
          FROM \
            (SELECT \
              c.QDate AS QDate, \
-             (CASE WHEN p.JobStatus ISNULL THEN c.JobStatus ELSE p.JobStatus END) AS JobStatus \
+             (CASE WHEN p.JobStatus IS NULL THEN c.JobStatus ELSE p.JobStatus END) AS JobStatus \
             FROM (select cluster_id, proc_id, \
           	        NULL AS QDate, \
               	    jobstatus AS JobStatus \
-	              FROM quillwriter.procads_horizontal where cluster_id != 0) AS p, \
+	              FROM quillwriter.procads_horizontal where cluster_id != 0)  p, \
                  (select cluster_id, \
  	                qdate AS QDate, \
 	                jobstatus AS JobStatus \
-	              FROM quillwriter.clusterads_horizontal where cluster_id != 0) AS c \
-            WHERE p.cluster_id = c.cluster_id) AS h \
-         WHERE (jobStatus != '3'::text) and (jobstatus != '4'::text)) t"
+	              FROM quillwriter.clusterads_horizontal where cluster_id != 0) c \
+            WHERE p.cluster_id = c.cluster_id) h \
+         WHERE (jobStatus != 3) and (jobstatus != 4)) t"
 
 SQLQuery::
 SQLQuery ()
