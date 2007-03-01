@@ -150,7 +150,7 @@ public:
 
 
 		// get the error string
-	virtual char*	getDBError() = 0;
+	virtual const char*	getDBError() = 0;
 
 		// high level job queue fetching code - the corresponding 
 		// functionality for history is now done inside getHistoryHorValue 

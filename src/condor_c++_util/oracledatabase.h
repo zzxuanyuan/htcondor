@@ -116,15 +116,15 @@ public:
 	const char*	         getJobQueueClusterAds_HorValue(int row, int col);
 	const char*	         getJobQueueClusterAds_VerValue(int row, int col);
 
-	QuillErrCode          getHistoryHorValue(SQLQuery *queryhor, int row, int col, const char **value);
-	QuillErrCode          getHistoryVerValue(SQLQuery *queryver, int row, int col, const char **value);
+	QuillErrCode         getHistoryHorValue(SQLQuery *queryhor, int row, int col, const char **value);
+	QuillErrCode         getHistoryVerValue(SQLQuery *queryver, int row, int col, const char **value);
 
 		//QuillErrCode   		 fetchNext();
 	const char*	         getValue(int row, int col);
-		//int  				 getIntValue(int col);
+		//int  			 getIntValue(int col);
 	
 	//! get a DBMS error message
-	char*	getDBError();
+	const char*			 getDBError();
 
 private:
 		// database connection parameters
@@ -171,6 +171,7 @@ private:
 	ResultSet  *clusterAdsVerRes;//!< result for ClusterAds_num table
 	Statement  *clusterAdsVerStmt;
 	int         clusterAdsVerResCursor;
+	MyString    errorMsg;
 };
 
 #endif /* _PGSQLDATABSE_H_ */

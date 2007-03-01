@@ -136,7 +136,7 @@ public:
 
 
 		// get the error string 
-	char*		         getDBError();
+	const char*			getDBError();
 
 		// for printing useful warning messages 
 	int                  getDatabaseVersion();

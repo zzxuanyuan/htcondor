@@ -857,7 +857,7 @@ PGSQLDatabase::releaseJobQueueResults()
 }
 
 //! get a DBMS error message
-char*
+const char*
 PGSQLDatabase::getDBError()
 {
 	return PQerrorMessage(connection);

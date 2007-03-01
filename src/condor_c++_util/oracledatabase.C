@@ -235,7 +235,9 @@ ORACLEDatabase::connectDB()
 		dprintf(D_ALWAYS, "ERROR CREATING CONNECTION\n");
 		dprintf(D_ALWAYS, "Database connect string: %s, User name: %s\n",  connectString, userName);
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::connectDB\n", ex.getErrorCode(), ex.getMessage().c_str());
-		
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
+
 		return FAILURE;
 	}
 	connected = true;       
@@ -296,6 +298,8 @@ ORACLEDatabase::commitTransaction()
 
 		dprintf(D_ALWAYS, "ERROR COMMITTING TRANSACTION\n");
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::commitTransaction\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
@@ -333,6 +337,8 @@ ORACLEDatabase::rollbackTransaction()
 
 		dprintf(D_ALWAYS, "ERROR ROLLING BACK TRANSACTION\n");
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::rollbackTransaction\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
@@ -385,6 +391,8 @@ ORACLEDatabase::execCommand(const char* sql,
 		dprintf(D_ALWAYS, "ERROR EXECUTING UPDATE\n");
 		dprintf(D_ALWAYS,  "[SQL: %s]\n", sql);		
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::execCommand\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 
 		conn->terminateStatement (stmt);
 		stmt = NULL;
@@ -463,6 +471,8 @@ ORACLEDatabase::execQuery(const char* sql,
 		dprintf(D_ALWAYS, "ERROR EXECUTING QUERY\n");
 		dprintf(D_ALWAYS,  "[SQL: %s]\n", sql);         
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::execQuery\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -520,6 +530,8 @@ ORACLEDatabase::fetchNext()
 
 		dprintf(D_ALWAYS, "ERROR FETCHING NEXT\n");
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::fetchNext\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 
 		if (ex.getErrorCode() == 3113) {
 			disconnectDB();
@@ -590,6 +602,8 @@ ORACLEDatabase::getValue(int row, int col)
 		queryRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getValue\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -837,10 +851,10 @@ ORACLEDatabase::releaseJobQueueResults()
 }
 
 //! get a DBMS error message
-char*
+const char*
 ORACLEDatabase::getDBError()
 {
-	return "DB Error message unsupported\n";
+	return errorMsg.Value();
 }
 
 /*! get the job queue
@@ -1125,6 +1139,8 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 		historyHorRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getJobQueueHistoryHorValue\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -1198,6 +1214,8 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 		historyVerRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getJobQueueHistoryVerValue\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -1274,6 +1292,8 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 		procAdsHorRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getJobQueueProcAds_HorValue\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -1343,6 +1363,8 @@ ORACLEDatabase::getJobQueueProcAds_VerValue(int row, int col)
 		procAdsVerRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getJobQueueProcAds_VerValue\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -1452,6 +1474,8 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 		clusterAdsHorRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getJobQueueClusterAds_HorValue\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 		
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
@@ -1521,7 +1545,9 @@ ORACLEDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 		clusterAdsVerRes = NULL;
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getJobQueueClusterAds_VerValue\n", ex.getErrorCode(), ex.getMessage().c_str());
-		
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());		
+
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
@@ -1624,6 +1650,8 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 		dprintf(D_ALWAYS, "ERROR EXECUTING UPDATE\n");
 		dprintf(D_ALWAYS,  "[SQL: %s]\n", sql);		
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::execCommand\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
 
 		conn->terminateStatement (stmt);
 		stmt = NULL;
