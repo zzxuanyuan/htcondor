@@ -2759,7 +2759,7 @@ void TTManager::handleErrorSqlLog()
 	struct stat file_status;
 	time_t f_ts; 
 	int src;
-	char buffer[4096];
+	char buffer[2050];
 	int rv;
 	FILESQL *filesqlobj = NULL;
 	MyString newvalue;
@@ -2789,11 +2789,12 @@ void TTManager::handleErrorSqlLog()
 	newvalue = condor_ttdb_fillEscapeCharacters(errorSqlStmt.Value(), dt);
 
 		/* insert an entry into the Error_Sqllogs table */
-	sql_stmt.sprintf("INSERT INTO Error_Sqllogs (LogName, Host, LastModified, ErrorSql, LogBody) VALUES ('%s', '%s', %s, '%s', '')", 
+	sql_stmt.sprintf("INSERT INTO Error_Sqllogs (LogName, Host, LastModified, ErrorSql, LogBody, ErrorMessage) VALUES ('%s', '%s', %s, '%s', '', '%s')", 
 					 currentSqlLog.Value(), 
 					 hostname_val.Value(), 
 					 ts_expr.Value(), 
-					 newvalue.Value());
+					 newvalue.Value(), 
+					 DBObj->getDBError());
 
 	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -2807,6 +2808,8 @@ void TTManager::handleErrorSqlLog()
 	rv = read(src, buffer, 2048);
 
 	while(rv > 0) {
+			// end the string properly
+		buffer[rv] = '\0';
 		newvalue = condor_ttdb_fillEscapeCharacters(buffer, dt);
 
 		sql_stmt.sprintf("UPDATE Error_Sqllogs SET LogBody = LogBody || '%s' WHERE LogName = '%s' and Host = '%s' and LastModified = %s", 

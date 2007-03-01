@@ -185,7 +185,8 @@ logname   varchar(100),
 host      varchar(50),
 lastmodified timestamp(3) with time zone,
 errorsql  varchar(4000),
-logbody   clob
+logbody   clob, 
+errormessage varchar(4000)
 );
 
 CREATE INDEX error_sqllog_idx ON error_sqllogs (logname, host, lastmodified);
