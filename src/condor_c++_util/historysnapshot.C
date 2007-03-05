@@ -23,14 +23,41 @@
 
 #include "condor_common.h"
 #include "condor_attributes.h"
-
+#include "condor_config.h"
 #include "pgsqldatabase.h"
 #include "historysnapshot.h"
+#include "quill_enums.h"
+
+#undef ATTR_VERSION
+#include "oracledatabase.h"
 
 //! constructor
 HistorySnapshot::HistorySnapshot(const char* dbcon_str)
 {
-	jqDB = new PGSQLDatabase(dbcon_str);
+	char *tmp;
+
+	tmp = param("QUILL_DB_TYPE");
+	if (tmp) {
+		if (strcasecmp(tmp, "ORACLE") == 0) {
+			dt = T_ORACLE;
+		} else if (strcasecmp(tmp, "PGSQL") == 0) {
+			dt = T_PGSQL;
+		}
+	} else {
+		dt = T_PGSQL; // assume PGSQL by default
+	}
+
+	switch (dt) {				
+	case T_ORACLE:
+		jqDB = new ORACLEDatabase(dbcon_str);
+		break;
+	case T_PGSQL:
+		jqDB = new PGSQLDatabase(dbcon_str);
+		break;
+	default:
+		break;;
+	}
+
 	curAd = NULL;
 	curClusterId_hor = curProcId_hor = curClusterId_ver = curProcId_ver = -1;
 	isHistoryEmptyFlag = false;
@@ -66,11 +93,27 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
 	  return FAILURE;
   }
 
+	  /* to ensure read consistency with while maximizing concurrency, 
+		 use read only transaction if a database supports it.
+	  */
+  if (dt == T_ORACLE) {
+	  if(jqDB->execCommand("SET TRANSACTION READ ONLY") == FAILURE) {
+		  printf("Error while querying the database: unable to set transaction read only");
+		  return FAILURE;
+	  }
+  }
+  
   st = jqDB->openCursorsHistory(queryhor, 
 								queryver, 
 								longformat);
   
-  if (st != SUCCESS) {
+  if (st == HISTORY_EMPTY) {
+	  isHistoryEmptyFlag = true;
+	  return HISTORY_EMPTY;
+  }
+
+  if (st == FAILURE_QUERY_HISTORYADS_HOR ||
+	  st == FAILURE_QUERY_HISTORYADS_VER) {
 	  printf("Error while opening the history cursors: %s\n", jqDB->getDBError());
 	  return FAILURE;
   }
@@ -186,12 +229,12 @@ QuillErrCode
 HistorySnapshot::getNextAd_Hor(AttrList*& ad, SQLQuery *queryhor)
 {
 	QuillErrCode st;
-	char *cid, *pid, *attr, *val;
+	const char *cid, *pid, *attr, *val;	
 	char *expr;
 	int i;
 	
 	st = jqDB->getHistoryHorValue(queryhor, 
-								  cur_historyads_hor_index, 0, &cid); // cid
+								  cur_historyads_hor_index, 1, &cid); // cid
 
 		
 		// we only check the return value, st,  for the first call to 
@@ -206,22 +249,22 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad, SQLQuery *queryhor)
 		return st;
 	}
 
-	jqDB->getHistoryHorValue(queryhor, 
-							 cur_historyads_hor_index, 1, &pid); // pid
-
 	if (ad != NULL) {
 		delete ad;
 		ad = NULL;
 	}
 	ad = new AttrList();
 
-	curClusterId_hor = atoi((char *)cid);
-	curProcId_hor = atoi((char *) pid);
-
+	curClusterId_hor = atoi(cid);
 	expr = (char*)malloc(strlen(ATTR_CLUSTER_ID) + strlen(cid) + 4);
 	sprintf(expr, "%s = %s", ATTR_CLUSTER_ID, cid);
 	ad->Insert(expr);
 	free(expr);
+
+	jqDB->getHistoryHorValue(queryhor, 
+							 cur_historyads_hor_index, 2, &pid); // pid
+
+	curProcId_hor = atoi(pid);
 
 	expr = (char*)malloc(strlen(ATTR_PROC_ID) + strlen(pid) + 4);
 	sprintf(expr, "%s = %s", ATTR_PROC_ID, pid);
@@ -234,14 +277,16 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad, SQLQuery *queryhor)
 
 	int numfields = jqDB->getHistoryHorNumFields();
 
-		//starting from 2 as 0 and 1 are cid and pid respectively
-	for(i=2; i < numfields; i++) {
+		// starting from 3 as 0, 1, and 2 are scheddname, cid and pid 
+		// respectively
+	for(i=3; i < numfields; i++) {
 	  attr = (char *) jqDB->getHistoryHorFieldName(i); // attr
 	  jqDB->getHistoryHorValue(queryhor, cur_historyads_hor_index, i, &val); // val
 	  
 	  expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
 	  sprintf(expr, "%s = %s", attr, val);
 	  // add an attribute with a value into ClassAd
+	  // printf("Inserting %s as an expr\n", expr);
 	  ad->Insert(expr);
 	  free(expr);
 	}
@@ -259,11 +304,12 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad, SQLQuery *queryhor)
 QuillErrCode
 HistorySnapshot::getNextAd_Ver(AttrList*& ad, SQLQuery *queryver)
 {
-	char	*cid, *pid, *attr, *val;
+	const char	*cid, *pid, *val, *temp;
+	char *attr;
 	QuillErrCode st = SUCCESS;
 
 	st = jqDB->getHistoryVerValue(queryver, 
-								  cur_historyads_ver_index, 0, &cid); // cid
+								  cur_historyads_ver_index, 1, &cid); // cid
 
 		// we only check the return value for the first call, 
 		// in this case for getting cid
@@ -271,44 +317,63 @@ HistorySnapshot::getNextAd_Ver(AttrList*& ad, SQLQuery *queryver)
 		return st;
 	}
 
+	curClusterId_ver = atoi(cid);
+	
 	jqDB->getHistoryVerValue(queryver, 
-							 cur_historyads_ver_index, 1, &pid); // pid
+							 cur_historyads_ver_index, 2, &pid); // pid
 
-	curClusterId_ver = atoi((char *)cid);
-	curProcId_ver = atoi((char *) pid);
+	curProcId_ver = atoi(pid);
 
 	// for HistoryAds table
 	while(1) {
 		st = jqDB->getHistoryVerValue(queryver, 
-									  cur_historyads_ver_index, 0, &cid);// cid
+									  cur_historyads_ver_index, 1, &cid);// cid
 		
 			// we only check the return value for the first call, 
 			// in this case for getting cid
 		if(st == DONE_HISTORY_VER_CURSOR  || st == FAILURE_QUERY_HISTORYADS_VER)
 			break;
 
-		st = jqDB->getHistoryVerValue(queryver, 
-									  cur_historyads_ver_index, 1, &pid); // pid
-
 		if (cid == NULL  
-		   || curClusterId_ver != atoi(cid) 
-		   || curProcId_ver != atoi(pid)) {
+			|| curClusterId_ver != atoi(cid)) {
+			break;
+		}    
+
+		st = jqDB->getHistoryVerValue(queryver, 
+									  cur_historyads_ver_index, 2, &pid); // pid
+		
+		if (pid == NULL || 
+			curProcId_ver != atoi(pid)) {
 			break;
 		}
 
 		jqDB->getHistoryVerValue(queryver, 
-								 cur_historyads_ver_index, 2, &attr); // attr
+								 cur_historyads_ver_index, 3, &temp); // attr
+
+		if (temp != NULL) {
+			attr = strdup(temp);
+		} else {
+			attr = NULL;
+		}
+
 		jqDB->getHistoryVerValue(queryver, 
-								 cur_historyads_ver_index, 3, &val); // val
+								 cur_historyads_ver_index, 4, &val); // val
 
 		cur_historyads_ver_index++;
 
-			// add the attribute,value pair to the classad
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
-		sprintf(expr, "%s = %s", attr, val);
-		ad->Insert(expr);
-		free(expr);
-	};
+		if ((attr != NULL) && (val != NULL)) {
+				// add the attribute,value pair to the classad
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 4);
+			sprintf(expr, "%s = %s", attr, val);
+			ad->Insert(expr);
+			free(expr);
+		}
+
+		if (attr != NULL) {
+			free (attr);
+			attr = NULL;
+		}
+	}
 	
 	return st;
 }

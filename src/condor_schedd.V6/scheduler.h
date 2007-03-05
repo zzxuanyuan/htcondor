@@ -217,6 +217,7 @@ class Scheduler : public Service
 	void			shutdown_graceful();
 	void			schedd_exit();
 	void			invalidate_ads();
+	void			update_local_ad_file(); // warning, may be removed
 	
 	// negotiation
 	int				doNegotiate(int, Stream *);

@@ -79,6 +79,7 @@
 #include "condor_mkstemp.h"
 #include "tdman.h"
 
+#include "schedd_files.h"
 
 
 #define DEFAULT_SHADOW_SIZE 125
@@ -749,6 +750,8 @@ Scheduler::count_jobs()
         // Tell negotiator to send us the startd ad
 	sprintf(tmp, "%s = True", ATTR_WANT_RESOURCE_AD );
 	ad->InsertOrUpdate(tmp);
+
+	daemonCore->UpdateLocalAd(ad);
 
 		// Update collectors
 	int num_updates = Collectors->sendUpdates ( UPDATE_SCHEDD_AD, ad, NULL, true );
@@ -2497,6 +2500,7 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	char domain[_POSIX_PATH_MAX];
 	char logfilename[_POSIX_PATH_MAX];
 	char iwd[_POSIX_PATH_MAX];
+	char gjid[_POSIX_PATH_MAX];
 	int use_xml;
 
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_JOB_IWD, iwd);
@@ -2510,6 +2514,7 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	domain[0] = '\0';
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_OWNER, owner);
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_NT_DOMAIN, domain);
+	GetAttributeString(job_id.cluster, job_id.proc, ATTR_GLOBAL_JOB_ID, gjid);
 
 	dprintf( D_FULLDEBUG, 
 			 "Writing record to user logfile=%s owner=%s\n",
@@ -2523,7 +2528,7 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 	} else {
 		ULog->setUseXML(false);
 	}
-	if (ULog->initialize(owner, domain, logfilename, job_id.cluster, job_id.proc, 0)) {
+	if (ULog->initialize(owner, domain, logfilename, job_id.cluster, job_id.proc, 0, gjid)) {
 		return ULog;
 	} else {
 		dprintf ( D_ALWAYS,
@@ -8831,6 +8836,7 @@ Scheduler::child_exit(int pid, int status)
 	int				StartJobsFlag=TRUE;
 	int				q_status;  // status of this job in the queue 
 	PROC_ID			job_id;
+	ClassAd        *jobad;
 
 	srec = FindSrecByPid(pid);
 	job_id.cluster = srec->job_id.cluster;
@@ -8952,6 +8958,13 @@ Scheduler::child_exit(int pid, int status)
 				break;
 			case JOB_EXITED:
 				dprintf(D_FULLDEBUG, "Reaper: JOB_EXITED\n");
+
+					// get job outputs into files table only if it's completed successfully	
+					// pass true to make sure $$ variables are replaced
+				jobad = GetJobAd( job_id.cluster, job_id.proc, true);
+				schedd_files(jobad);
+				delete jobad;				
+
 			case JOB_COREDUMPED:
 				if( q_status != HELD ) {
 					set_job_status( srec->job_id.cluster,
@@ -9983,7 +9996,6 @@ Scheduler::Init()
 		CronMgr->Initialize( );
 	}
 
-	daemonCore->UpdateLocalAd(ad);
 	first_time_in_init = false;
 }
 
@@ -10207,6 +10219,14 @@ Scheduler::reconfig()
 
 	int max_saved_rotations = param_integer( "MAX_JOB_QUEUE_LOG_ROTATIONS", DEFAULT_MAX_JOB_QUEUE_LOG_ROTATIONS );
 	SetMaxHistoricalLogs(max_saved_rotations);
+}
+
+// NOTE: this is likely unreachable now, and may be removed
+void
+Scheduler::update_local_ad_file() 
+{
+	daemonCore->UpdateLocalAd(ad);
+	return;
 }
 
 // This function is called by a timer when we are shutting down

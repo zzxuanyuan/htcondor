@@ -46,6 +46,8 @@
 #define NUM_PARAMETERS 3
 
 
+char    *mySubSystem = "TOOL";
+
 static void Usage(char* name) 
 {
 #if WANT_QUILL
@@ -116,6 +118,8 @@ main(int argc, char* argv[])
   int i;
   parameters = (void **) malloc(NUM_PARAMETERS * sizeof(void *));
   myDistro->Init( argc, argv );
+
+  config();
 
 #if WANT_QUILL
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
@@ -247,6 +251,11 @@ main(int argc, char* argv[])
 		queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
 #endif /* WANT_QUILL */
     }
+    else if (strcmp(argv[i],"-debug")==0) {
+          // dprintf to console
+          Termlog = 1;
+          dprintf_config ("TOOL", 2 );
+    }
     else {
 		if (constraint) break;
 		owner = (char *) malloc(512 * sizeof(char));
@@ -262,7 +271,6 @@ main(int argc, char* argv[])
   }
   if (i<argc) Usage(argv[0]);
   
-  config();
   
   if( constraint && Parse( constraint, constraintExpr ) ) {
 	  fprintf( stderr, "Error:  could not parse constraint %s\n", constraint );
@@ -315,6 +323,32 @@ main(int argc, char* argv[])
 				  exit(1);
 			  }
 		  }
+	  } else {
+			// they just typed 'condor_history' on the command line and want
+			// to use quill, so get the schedd ad for the local machine if
+			// we can, figure out the name of the schedd and the 
+			// jobqueuebirthdate
+		Daemon schedd( DT_SCHEDD, 0, 0 );
+
+        if ( schedd.locate() ) {
+			char *scheddname;	
+			if( (scheddname = schedd.name()) ) {
+				queryhor.setScheddname(scheddname);	
+				queryver.setScheddname(scheddname);	
+            } else {
+				// set it to NULL?
+            }
+			
+			ClassAd *daemonAd = schedd.daemonAd();
+			int scheddbirthdate;
+			if(daemonAd) {
+				if(daemonAd->LookupInteger( ATTR_JOB_QUEUE_BIRTHDATE, 	
+							scheddbirthdate) ) {
+					queryhor.setJobqueuebirthdate( (time_t)scheddbirthdate);	
+					queryver.setJobqueuebirthdate( (time_t)scheddbirthdate);	
+				}
+			}
+		}
 	  }
 	  dbconn = getDBConnStr(quillName,dbIpAddr,dbName,queryPassword);
 	  historySnapshot = new HistorySnapshot(dbconn);
@@ -322,6 +356,9 @@ main(int argc, char* argv[])
 		  printf ("\n\n-- Quill: %s : %s : %s\n", quillName, 
 			  dbIpAddr, dbName);
 		}		
+
+	  queryhor.prepareQuery();  // create the query strings before sending off to historySnapshot
+	  queryver.prepareQuery();
 	  
 	  st = historySnapshot->sendQuery(&queryhor, &queryver, longformat,
 	  	false, customFormat, &mask);
@@ -468,11 +505,11 @@ static char * getDBConnStr(char *&quillName,
 	  //here we break up the ipaddress:port string and assign the  
 	  //individual parts to separate string variables host and port
   ptr_colon = strchr(databaseIp, ':');
-  strcpy(host, "host= ");
+  strcpy(host, "host=");
   strncat(host,
           databaseIp+1,
           ptr_colon - databaseIp-1);
-  strcpy(port, "port= ");
+  strcpy(port, "port=");
   strcat(port, ptr_colon+1);
   port[strlen(port)-1] = '\0';
   

@@ -127,6 +127,8 @@ static  bool directDBquery = false;
 	failover semantics */
 static unsigned int direct = DIRECT_ALL;
 
+static char    *mySubSystem = "TOOL";
+
 static 	int verbose = 0, summarize = 1, global = 0, show_io = 0, dag = 0, show_held = 0;
 static  int use_xml = 0;
 static  bool expert = false;
@@ -350,6 +352,7 @@ int main (int argc, char **argv)
 			sprintf( scheddAddr, "%s", schedd.addr() );
 			if( (tmp = schedd.name()) ) {
 				sprintf( scheddName, "%s", tmp );
+				Q.addSchedd(scheddName);
 			} else {
 				sprintf( scheddName, "Unknown" );
 			}
@@ -638,6 +641,7 @@ int main (int argc, char **argv)
 
 			/* If the quill information is available, try to use it first */
 			useDB = TRUE;
+			Q.addSchedd(scheddName);
 
 				/* get the quill info for fail-over processing */
 			ASSERT(ad->LookupString(ATTR_MACHINE, &quillMachine));
@@ -962,6 +966,7 @@ processCommandLineArguments (int argc, char *argv[])
 			}
 			sprintf (constraint, "%s == \"%s\"", ATTR_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
+			Q.addSchedd(daemonname);
 
 			sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
 			scheddQuery.addORConstraint (constraint);
@@ -1271,10 +1276,11 @@ unsigned int process_direct_argument(char *arg)
 	if (strcasecmp(arg, "rdbms") == MATCH) {
 		return DIRECT_RDBMS;
 	}
-
+/*
 	if (strcasecmp(arg, "quilld") == MATCH) {
 		return DIRECT_QUILLD;
 	}
+*/
 #endif
 
 	if (strcasecmp(arg, "schedd") == MATCH) {
@@ -1283,7 +1289,8 @@ unsigned int process_direct_argument(char *arg)
 
 #if WANT_QUILL
 	fprintf( stderr, 
-		"Error: Argument -direct requires [rdbms | quilld | schedd]\n" );
+/*		"Error: Argument -direct requires [rdbms | quilld | schedd]\n" ); */
+		"Error: Argument -direct requires [rdbms | schedd]\n" );
 #else
 	fprintf( stderr, 
 		"Error: Quill feature set is not available.\n"
@@ -1790,8 +1797,8 @@ usage (char *myName)
 		"\t\t-jobads <file>\t\tFile of job ads to display\n"
 		"\t\t-machineads <file>\tFile of machine ads for analysis\n"
 #if WANT_QUILL
-		"\t\t-direct <rdbms | quilld | schedd>\n"
-		"\t\t\tPerform a direct query to the rdbms, or to the quilld,\n"
+		"\t\t-direct <rdbms | schedd>\n"
+		"\t\t\tPerform a direct query to the rdbms\n"
 		"\t\t\tor to the schedd without falling back to the queue\n"
 		"\t\t\tlocation discovery algortihm, even in case of error\n"
 #else
@@ -2998,11 +3005,11 @@ static char * getDBConnStr(char *&quillName,
 		//here we break up the ipaddress:port string and assign the
 		//individual parts to separate string variables host and port
 	ptr_colon = strchr(databaseIp, ':');
-	strcpy(host, "host= ");
+	strcpy(host, "host=");
 	strncat(host,
 			databaseIp+1,
 			ptr_colon - databaseIp -1);
-	strcpy(port, "port= ");
+	strcpy(port, "port=");
 	strcat(port, ptr_colon+1);
 	port[strlen(port)-1] = '\0';
 

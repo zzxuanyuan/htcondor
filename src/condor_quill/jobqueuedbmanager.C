@@ -74,8 +74,9 @@ JobQueueDBManager::~JobQueueDBManager()
 	if (caLogParser != NULL) {
 		delete caLogParser;
 	}
-	if (jqDatabase != NULL) {
-		delete jqDatabase;
+
+	if (DBObj != NULL) {
+		delete DBObj;
 	}
 		// release strings
 	if (jobQueueLogFile != NULL) {
@@ -285,7 +286,8 @@ JobQueueDBManager::config(bool reconfig)
 		prober = new Prober();
 		caLogParser = new ClassAdLogParser();
 
-		jqDatabase = new PGSQLDatabase(jobQueueDBConn);
+		DBObj = new PGSQLDatabase(jobQueueDBConn);
+
 		xactState = NOT_IN_XACT;
 		numTimesPolled = 0; 
 
@@ -301,7 +303,7 @@ JobQueueDBManager::config(bool reconfig)
 	if(connectDB(NOT_IN_XACT) == FAILURE) {
 		displayDBErrorMsg("Unable to connect to database in order to retrieve the PostgreSQL version --- ERROR");
 	}         
-	pg_version_number = jqDatabase->getDatabaseVersion();
+	pg_version_number = DBObj->getDatabaseVersion();
 	if(pg_version_number <= 0) {
 		dprintf(D_ALWAYS, "Using unknown PostgreSQL version\n");
 	}
@@ -437,7 +439,7 @@ JobQueueDBManager::maintain()
 				clock);
 		
 		connectDB(NOT_IN_XACT);
-		jqDatabase->execCommand(sql_str);
+		DBObj->execCommand(sql_str);
 		disconnectDB(NOT_IN_XACT);
 		if(sql_str)
 			free(sql_str);
@@ -473,7 +475,7 @@ JobQueueDBManager::cleanupJobQueueTables()
 			"INSERT INTO JobQueuePollingInfo (last_file_mtime, last_file_size,log_seq_num,log_creation_time) VALUES (0,0,0,0);");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
+		if (DBObj->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("Clean UP ALL Data --- ERROR");
 			return FAILURE; 
 		}
@@ -507,7 +509,7 @@ JobQueueDBManager::tuneupJobQueueTables()
 			"VACUUM ANALYZE Jobqueuepollinginfo;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
+		if (DBObj->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("VACUUM Database --- ERROR");
 			return FAILURE; 
 		}
@@ -560,7 +562,7 @@ JobQueueDBManager::purgeOldHistoryRows()
 
 		//ending at 2 since only the first 2 can be wrapped inside xact
 	for (i = 0; i < 2; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
+		if (DBObj->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("Purge History Rows --- ERROR");
 			disconnectDB(ABORT_XACT);
 			return FAILURE; 
@@ -576,7 +578,7 @@ JobQueueDBManager::purgeOldHistoryRows()
 		}
 		//statements 2 and 3 should not wrapped inside xact
 		for (i = 2; i < 4; i++) {
-			if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
+			if (DBObj->execCommand(sql_str[i]) == FAILURE) {
 				displayDBErrorMsg("Vacuum History Rows --- ERROR");
 				disconnectDB(NOT_IN_XACT);
 				return FAILURE; 
@@ -647,7 +649,7 @@ QuillErrCode
 JobQueueDBManager::connectDB(XactState Xact)
 {
 	int st = 0;
-	st = jqDatabase->connectDB(jobQueueDBConn);
+	st = DBObj->connectDB(jobQueueDBConn);
 	if (st == FAILURE) { // connect to DB
 		isConnectedToDB = false;		
 		return FAILURE;
@@ -655,7 +657,7 @@ JobQueueDBManager::connectDB(XactState Xact)
 	
 	isConnectedToDB = true;
 	if (Xact == BEGIN_XACT) {
-		if (jqDatabase->beginTransaction() == FAILURE) { // begin XACT
+		if (DBObj->beginTransaction() == FAILURE) { // begin XACT
 			return FAILURE;
 		}
 	}
@@ -671,14 +673,14 @@ QuillErrCode
 JobQueueDBManager::disconnectDB(XactState commit)
 {
 	if (commit == COMMIT_XACT) {
-		jqDatabase->commitTransaction(); // commit XACT
+		DBObj->commitTransaction(); // commit XACT
 		xactState = NOT_IN_XACT;
 	} else if (commit == ABORT_XACT) { // abort XACT
-		jqDatabase->rollbackTransaction();
+		DBObj->rollbackTransaction();
 		xactState = NOT_IN_XACT;
 	}
 
-	jqDatabase->disconnectDB(); // disconnect from DB
+	DBObj->disconnectDB(); // disconnect from DB
 
 	return SUCCESS;
 }
@@ -725,7 +727,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			// we need to issue the COPY command first
 			sprintf(sql_str, "COPY ClusterAds_Str FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
+			if (DBObj->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ClusterAds_Str --- ERROR");
 				return FAILURE; // return a error code, 0
 			}
@@ -734,7 +736,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		}
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+			if (DBObj->sendBulkData(ret_str) == FAILURE) {
 				return FAILURE;
 			}
 		}
@@ -742,7 +744,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	}
 	
 	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+		if (DBObj->sendBulkDataEnd() == FAILURE) {
 			return FAILURE;
 		}
 	  
@@ -757,7 +759,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	  		
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			sprintf(sql_str, "COPY ClusterAds_Num FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
+			if (DBObj->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ClusterAds_Num --- ERROR");
 				return FAILURE; // return a error code, 0
 			}
@@ -766,7 +768,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		}
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+			if (DBObj->sendBulkData(ret_str) == FAILURE) {
 				return FAILURE;
 			}	
 		}		
@@ -774,7 +776,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	}
 	
 	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+		if (DBObj->sendBulkDataEnd() == FAILURE) {
 			return FAILURE;
 		}
 	  	  
@@ -792,7 +794,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	while((ret_str = jobQueue->getNextProcAd_StrCopyStr()) != NULL) {
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			sprintf(sql_str, "COPY ProcAds_Str FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
+			if (DBObj->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ProcAds_Str --- ERROR");
 				return FAILURE; 
 			}
@@ -802,7 +804,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	  
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+			if (DBObj->sendBulkData(ret_str) == FAILURE) {
 				return FAILURE;
 			}
 		}
@@ -811,7 +813,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	
 	if (bFirst == false) {
 	  
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+		if (DBObj->sendBulkDataEnd() == FAILURE) {
 			return FAILURE;
 		}
 	  	  
@@ -826,7 +828,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	while((ret_str = jobQueue->getNextProcAd_NumCopyStr()) != NULL) {
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			sprintf(sql_str, "COPY ProcAds_Num FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) == FAILURE) {
+			if (DBObj->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ProcAds_Num --- ERROR");
 				return FAILURE; 
 			}
@@ -835,7 +837,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		}
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+			if (DBObj->sendBulkData(ret_str) == FAILURE) {
 				return FAILURE;
 			}
 		}
@@ -844,7 +846,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	
 	
 	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+		if (DBObj->sendBulkDataEnd() == FAILURE) {
 			return FAILURE;
 		}
 	  
@@ -882,8 +884,8 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 				So our semantics here is ignore the error and
 				move on to the next command in the job_queue.log
 			*/
-		st2 = jqDatabase->execCommand(ret_str);
-		st2 = jqDatabase->execCommand(ret_str2);
+		st2 = DBObj->execCommand(ret_str);
+		st2 = DBObj->execCommand(ret_str2);
 
 			//these need to be nullified as the next routine expects
 			//them to be so.  This is not a memory leak since these 
@@ -1409,7 +1411,7 @@ void
 JobQueueDBManager::displayDBErrorMsg(const char* errmsg)
 {
 	dprintf(D_ALWAYS, "[QUILL] %s\n", errmsg);
-	dprintf(D_ALWAYS, "\t%s\n", jqDatabase->getDBError());
+	dprintf(D_ALWAYS, "\t%s\n", DBObj->getDBError());
 }
 
 /*! separate a key into Cluster Id and Proc Id 
@@ -1521,11 +1523,11 @@ JobQueueDBManager::processNewClassAd(char* key,
 
 
 	if (exec_later == false) { // execute them now
-		if (jqDatabase->execCommand(sql_str1) == FAILURE) {
+		if (DBObj->execCommand(sql_str1) == FAILURE) {
 			displayDBErrorMsg("New ClassAd Processing --- ERROR");
 			return FAILURE; 
 		}
-		if (jqDatabase->execCommand(sql_str2) == FAILURE) {
+		if (DBObj->execCommand(sql_str2) == FAILURE) {
 			displayDBErrorMsg("New ClassAd Processing --- ERROR");
 			return FAILURE; 
 		}
@@ -1718,16 +1720,16 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 				below is to roll back the erroneous transaction and 
 				proceed with processing the job queue file
 			*/
-			st1 = jqDatabase->execCommand(sql_str3);
+			st1 = DBObj->execCommand(sql_str3);
 			if(st1 == FAILURE && xactState == BEGIN_XACT) {
-				st3 = jqDatabase->rollbackTransaction();
+				st3 = DBObj->rollbackTransaction();
 				if(st3 == FAILURE) {
 					return FAILURE;
 				}
 			}
-			st2 = jqDatabase->execCommand(sql_str4);
+			st2 = DBObj->execCommand(sql_str4);
 			if(st2 == FAILURE && xactState == BEGIN_XACT) {
-				st3 = jqDatabase->rollbackTransaction();
+				st3 = DBObj->rollbackTransaction();
 				if(st3 == FAILURE) {
 					return FAILURE;
 				}
@@ -1741,11 +1743,11 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 			}
 		}
 
-		if (jqDatabase->execCommand(sql_str1) == FAILURE) {
+		if (DBObj->execCommand(sql_str1) == FAILURE) {
 			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
 			return FAILURE; 
 		}
-		if (jqDatabase->execCommand(sql_str2) == FAILURE) {
+		if (DBObj->execCommand(sql_str2) == FAILURE) {
 			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
 			return FAILURE; 
 		}
@@ -1892,7 +1894,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 	QuillErrCode ret_st;
 
 	if (exec_later == false) {
-		ret_st = jqDatabase->execCommand(sql_str_del_in);
+		ret_st = DBObj->execCommand(sql_str_del_in);
 
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
@@ -1996,7 +1998,7 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 
 	if (sql_str1 != NULL && sql_str2 != NULL) {
 		if (exec_later == false) {
-			ret_st = jqDatabase->execCommand(sql_str1, num_result, db_err_code);
+			ret_st = DBObj->execCommand(sql_str1, num_result, db_err_code);
 		
 			if (ret_st == FAILURE) {
 				dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n", 
@@ -2005,7 +2007,7 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 				return FAILURE;
 			}
 			else if (ret_st == SUCCESS && num_result == 0) {
-				ret_st = jqDatabase->execCommand(sql_str2);
+				ret_st = DBObj->execCommand(sql_str2);
 			
 				if (ret_st == FAILURE) {
 					dprintf(D_ALWAYS, "Delete Attribute --- ERROR [SQL] %s\n",
@@ -2047,7 +2049,7 @@ JobQueueDBManager::processBeginTransaction(bool exec_later)
 {
 	if(!exec_later) {
 			// the connection is not in Xact by default, so begin it
-		if (jqDatabase->beginTransaction() == FAILURE) { 
+		if (DBObj->beginTransaction() == FAILURE) { 
 			return FAILURE;			   				   
 		}
 	}
@@ -2062,7 +2064,7 @@ QuillErrCode
 JobQueueDBManager::processEndTransaction(bool exec_later)
 {
 	if(!exec_later) {		
-		if (jqDatabase->commitTransaction() == FAILURE) {
+		if (DBObj->commitTransaction() == FAILURE) {
 			return FAILURE;			   				   
 		}
 	}
@@ -2127,19 +2129,19 @@ JobQueueDBManager::getJQPollingInfo()
 			"JobQueuePollingInfo;");
 	
 		// connect to DB
-	ret_st = connectDB();
+	ret_st = connectDB(NOT_IN_XACT);
 
 	if(ret_st == FAILURE) {
 		return FAILURE;
 	}
 
-	ret_st = jqDatabase->execQuery(sql_str, num_result);
+	ret_st = DBObj->execQuery(sql_str, num_result);
 	
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Reading JobQueuePollingInfo --- ERROR [SQL] %s\n", 
 				sql_str);
 		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR");
-		disconnectDB(ABORT_XACT);
+		disconnectDB(NOT_IN_XACT);
 		return FAILURE;
 	}
 	else if (ret_st == SUCCESS && num_result == 0) {
@@ -2148,23 +2150,23 @@ JobQueueDBManager::getJQPollingInfo()
 		
 		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
-		disconnectDB(ABORT_XACT);
+		disconnectDB(NOT_IN_XACT);
 		return FAILURE;
 	} 
 	
-	mtime = atol(jqDatabase->getValue(0,0)); // last_file_mtime
-	size = atol(jqDatabase->getValue(0,1)); // last_file_size
-	seq_num = atol(jqDatabase->getValue(0,10)); //historical sequence number
-	creation_time = atol(jqDatabase->getValue(0,11)); //creation time
+	mtime = atol(DBObj->getValue(0,0)); // last_file_mtime
+	size = atol(DBObj->getValue(0,1)); // last_file_size
+	seq_num = atol(DBObj->getValue(0,10)); //historical sequence number
+	creation_time = atol(DBObj->getValue(0,11)); //creation time
 
 	prober->setLastModifiedTime(mtime);
 	prober->setLastSize(size);
 	prober->setLastSequenceNumber(seq_num);
 	prober->setLastCreationTime(creation_time);
 
-	lcmd->next_offset = atoi(jqDatabase->getValue(0,2)); // last_next_cmd_offset
-	lcmd->offset = atoi(jqDatabase->getValue(0,3)); // last_cmd_offset
-	lcmd->op_type = atoi(jqDatabase->getValue(0,4)); // last_cmd_type
+	lcmd->next_offset = atoi(DBObj->getValue(0,2)); // last_next_cmd_offset
+	lcmd->offset = atoi(DBObj->getValue(0,3)); // last_cmd_offset
+	lcmd->op_type = atoi(DBObj->getValue(0,4)); // last_cmd_type
 	
 	if(lcmd->key) { 
 		free(lcmd->key);
@@ -2182,17 +2184,17 @@ JobQueueDBManager::getJQPollingInfo()
 		free(lcmd->value);
 	}
 	
-	lcmd->key = strdup(jqDatabase->getValue(0,5)); // last_cmd_key
-	lcmd->mytype = strdup(jqDatabase->getValue(0,6)); // last_cmd_mytype
-	lcmd->targettype = strdup(jqDatabase->getValue(0,7)); // last_cmd_targettype
-	lcmd->name = strdup(jqDatabase->getValue(0,8)); // last_cmd_name
-	lcmd->value = strdup(jqDatabase->getValue(0,9)); // last_cmd_value
+	lcmd->key = strdup(DBObj->getValue(0,5)); // last_cmd_key
+	lcmd->mytype = strdup(DBObj->getValue(0,6)); // last_cmd_mytype
+	lcmd->targettype = strdup(DBObj->getValue(0,7)); // last_cmd_targettype
+	lcmd->name = strdup(DBObj->getValue(0,8)); // last_cmd_name
+	lcmd->value = strdup(DBObj->getValue(0,9)); // last_cmd_value
 	
 		// disconnect to DB
-	disconnectDB();
+	disconnectDB(NOT_IN_XACT);
 	
 		// release Query Result since it is no longer needed
-	jqDatabase->releaseQueryResult(); 
+	DBObj->releaseQueryResult(); 
 	
 	return SUCCESS;	
 }
@@ -2253,7 +2255,7 @@ JobQueueDBManager::setJQPollingInfo()
 	
 	strcat(sql_str, ";");
 	
-	ret_st = jqDatabase->execCommand(sql_str, num_result, db_err_code);
+	ret_st = DBObj->execCommand(sql_str, num_result, db_err_code);
 	
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Update JobQueuePollingInfo --- ERROR [SQL] %s\n", 
@@ -2315,31 +2317,31 @@ JobQueueDBManager::checkSchema()
 		dprintf(D_FULLDEBUG, "Temporary connection to DB created\n");
 
 		sprintf(sql_str, "CREATE DATABASE \"%s\"", jobQueueDBName);
-		JobQueueDatabase *tmp_jqdb = new PGSQLDatabase(tmp_conn);
+		Database *tmp_db = new PGSQLDatabase(tmp_conn);
 
-		tmp_st = tmp_jqdb->connectDB(tmp_conn);
+		tmp_st = tmp_db->connectDB(tmp_conn);
 	  
 		if (tmp_st == FAILURE) { // connect to template1 databae
 			dprintf(D_ALWAYS, "Error: Failed while trying to create "
 					"database %s.\n", 
 					jobQueueDBName);
-			delete tmp_jqdb;
+			delete tmp_db;
 			free(tmp_conn);
 			tmp_conn = NULL;
 			return FAILURE;
 		}
-		tmp_st = tmp_jqdb->execCommand(sql_str);
+		tmp_st = tmp_db->execCommand(sql_str);
 		if (tmp_st == FAILURE) { // executing the create command
 			dprintf(D_ALWAYS, "Error: Failed while trying to create "
 					"database %s.\n", 
 					jobQueueDBName);
-			delete tmp_jqdb;
+			delete tmp_db;
 			free(tmp_conn);
 			tmp_conn = NULL;
 			return FAILURE;
 		}
-		tmp_jqdb->disconnectDB();
-		delete tmp_jqdb;
+		tmp_db->disconnectDB();
+		delete tmp_db;
 		free(tmp_conn);	  
 		tmp_conn = NULL;
 	}
@@ -2348,9 +2350,8 @@ JobQueueDBManager::checkSchema()
 		// SCHEMA_CHECK_STR is defined in quill_dbschema_def.h
 
 		// execute DB schema check!
-	ret_st = jqDatabase->execQuery(sql_str, num_result);
-		// free the query result since its no longer needed
-	jqDatabase->releaseQueryResult();
+	ret_st = DBObj->execQuery(sql_str, num_result);
+	DBObj->releaseQueryResult();
 
 	if (ret_st == SUCCESS && num_result == SCHEMA_SYS_TABLE_NUM) {
 		dprintf(D_ALWAYS, "Schema Check OK!\n");
@@ -2362,28 +2363,28 @@ JobQueueDBManager::checkSchema()
 		dprintf(D_ALWAYS, "Schema is not defined!\n");
 		dprintf(D_ALWAYS, "Create DB Schema for quill!\n");
 			// this conn is not in Xact so begin transaction here
-		if (jqDatabase->beginTransaction() == FAILURE) {			
+		if (DBObj->beginTransaction() == FAILURE) {			
 			return FAILURE;			   				 
 		}
 			//
 			// Here, Create DB Schema:
 			//
 		strcpy(sql_str, SCHEMA_CREATE_PROCADS_TABLE_STR);
-		ret_st = jqDatabase->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
 		strcpy(sql_str, SCHEMA_CREATE_CLUSTERADS_TABLE_STR);
-		ret_st = jqDatabase->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
 		strcpy(sql_str, SCHEMA_CREATE_HISTORY_TABLE_STR);
-		ret_st = jqDatabase->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
@@ -2391,20 +2392,20 @@ JobQueueDBManager::checkSchema()
 
 
 		strcpy(sql_str, SCHEMA_CREATE_JOBQUEUEPOLLINGINFO_TABLE_STR);
-		ret_st = jqDatabase->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
 		strcpy(sql_str, SCHEMA_CREATE_SCHEMA_VERSION_TABLE_STR);
-		ret_st = jqDatabase->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
-		if (jqDatabase->commitTransaction() == FAILURE) {			
+		if (DBObj->commitTransaction() == FAILURE) {			
 			// TODO: did this just leak transactionResults?
 			disconnectDB(ABORT_XACT);
 			return FAILURE;			   				 
@@ -2420,20 +2421,20 @@ JobQueueDBManager::checkSchema()
 	strcpy(sql_str, SCHEMA_VERSION_STR); 
 		// SCHEMA_VERSION_STR is defined in quill_dbschema_def.h
 
-	ret_st = jqDatabase->execQuery(sql_str, num_result);
+	ret_st = DBObj->execQuery(sql_str, num_result);
 
 	if (ret_st == SUCCESS && num_result == SCHEMA_VERSION_COUNT) {
 		const char *tmp_ptr1, *tmp_ptr2, *tmp_ptr3, *tmp_ptr4;
 
 		int major, minor, back_to_major, back_to_minor;
 		
-		tmp_ptr1 = jqDatabase->getValue(0,0);
-		tmp_ptr2 = jqDatabase->getValue(0,1);
-		tmp_ptr3 = jqDatabase->getValue(0,2);
-		tmp_ptr4 = jqDatabase->getValue(0,3);
+		tmp_ptr1 = DBObj->getValue(0,0);
+		tmp_ptr2 = DBObj->getValue(0,1);
+		tmp_ptr3 = DBObj->getValue(0,2);
+		tmp_ptr4 = DBObj->getValue(0,3);
 
 		if  (!tmp_ptr1 || !tmp_ptr2 || !tmp_ptr3 || !tmp_ptr4) {
-			jqDatabase->releaseQueryResult();
+			DBObj->releaseQueryResult();
 			return FAILURE;
 		}
 		
@@ -2445,31 +2446,31 @@ JobQueueDBManager::checkSchema()
 		dprintf(D_ALWAYS, "Schema Version Check OK!\n");
 
 			// free the query result because we dont need it anymore
-		jqDatabase->releaseQueryResult();
+		DBObj->releaseQueryResult();
 
 		if ((major == 1 ) && (minor == 0) && (back_to_major == 1) && 
 			(back_to_minor == 0)) {
 				// we need to upgrade the schema to add a last_poll_time
 				// column into the jobqueuepollinginfo table
 			strcpy(sql_str, SCHEMA_CREATE_JOBQUEUEPOLLINGINFO_UPDATE1);
-			ret_st = jqDatabase->execCommand(sql_str);
+			ret_st = DBObj->execCommand(sql_str);
 			if(ret_st == FAILURE) {
 				disconnectDB(NOT_IN_XACT);
 				return FAILURE;
 			}
 
 				// and also update the minor in schema version			
-			if (jqDatabase->beginTransaction() == FAILURE) {			
+			if (DBObj->beginTransaction() == FAILURE) {			
 				return FAILURE;			   				 
 			}
 			
 			strcpy(sql_str, SCHEMA_VERSION_TABLE_UPDATE);
-			ret_st = jqDatabase->execCommand(sql_str);
+			ret_st = DBObj->execCommand(sql_str);
 			if(ret_st == FAILURE) {
 				disconnectDB(ABORT_XACT);
 				return FAILURE;
 			}
-			if (jqDatabase->commitTransaction() == FAILURE) {
+			if (DBObj->commitTransaction() == FAILURE) {
 				disconnectDB(ABORT_XACT);
 				return FAILURE;						
 			}
@@ -2478,21 +2479,21 @@ JobQueueDBManager::checkSchema()
 		// instead of just seeing if we got something back
 	} else {
 		// if for some reason its not freed above already
-		jqDatabase->releaseQueryResult();
+		DBObj->releaseQueryResult();
 
 		// create a schema version table. this is cut and paste from
 		// above, so revamp this once it's working
-		if (jqDatabase->beginTransaction() == FAILURE) {			
+		if (DBObj->beginTransaction() == FAILURE) {			
 			return FAILURE;			   				 
 		}
 		strcpy(sql_str, SCHEMA_CREATE_SCHEMA_VERSION_TABLE_STR);
-		ret_st = jqDatabase->execCommand(sql_str);
+		ret_st = DBObj->execCommand(sql_str);
 		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
 			return FAILURE;
 		}
 
-		if (jqDatabase->commitTransaction() == FAILURE) {			
+		if (DBObj->commitTransaction() == FAILURE) {			
 			// TODO: did this just leak transactionResults?
 			disconnectDB(ABORT_XACT);
 			return FAILURE;			   				 

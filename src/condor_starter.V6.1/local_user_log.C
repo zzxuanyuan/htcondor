@@ -55,7 +55,8 @@ LocalUserLog::init( const char* filename, bool is_xml,
 	priv_state priv;
 	priv = set_user_priv();
 
-	if( ! u_log.initialize(filename, cluster, proc, subproc) ) {
+	// FIXME - set the real gjid here
+	if( ! u_log.initialize(filename, cluster, proc, subproc, NULL) ) {
 		dprintf( D_ALWAYS, 
 				 "Failed to initialize Starter's UserLog, aborting\n" );
 		set_priv( priv );
