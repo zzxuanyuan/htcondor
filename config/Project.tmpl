@@ -448,9 +448,11 @@ PCRE_LIB = $(PCRE_DIR)/lib/libpcre.a
 TT_LIB = $(POSTGRESQL_LIB)/libpq.a $(ORACLE_HOME)/lib/libocci10.a $(ORACLE_HOME)/lib/libclntst10.a $(ORACLE_HOME)/lib/libnnz10.a -lirc -lpthread
 */
 
-TT_LIB = $(POSTGRESQL_LIB)/libpq.a -L$(ORACLE_HOME)/lib/ -locci -lclntsh -lnnz10 
-TT_INC = -I$(POSTGRESQL_INC) -I$(ORACLE_HOME)/rdbms/public
-TT_FLAGS = -DWANT_TT 
+POSTGRESQL_LIBS = $(POSTGRESQL_LIB)/libpq.a 
+
+TT_LIB = $(POSTGRESQL_LIBS) $(ORACLE_LIB)
+TT_INC = -I$(POSTGRESQL_INC) $(ORACLE_INC)
+TT_FLAGS = -DWANT_TT  
 #else
 TT_LIB =
 TT_INC =
