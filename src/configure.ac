@@ -1835,6 +1835,11 @@ if test x$_cv_ld_is_gnu = xyes; then
   CONDOR_EXTERNAL_VERSION([gcb],[1.4.1])
 fi
 
+AX_LIB_ORACLE_OCI("10.0.0")
+if test $HAVE_ORACLE_OCI = yes; then
+  AC_DEFINE(HAVE_ORACLE,1,[Do we have Oracle support])
+fi
+
 CONDOR_EXTERNAL_VERSION([postgresql],[8.0.2])
 #AC_MSG_CHECKING([postgresql])
 #AC_MSG_RESULT([$_cv_ext_postgresql_version])

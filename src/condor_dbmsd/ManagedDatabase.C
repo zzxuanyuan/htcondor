@@ -28,8 +28,10 @@
 #include "pgsqldatabase.h"
 #include "condor_email.h"
 
+#if HAVE_ORACLE
 #undef ATTR_VERSION
 #include "oracledatabase.h"
+#endif
 
 ManagedDatabase::ManagedDatabase() {
 	char *tmp;
@@ -78,7 +80,12 @@ ManagedDatabase::ManagedDatabase() {
 
 	switch (dt) {				
 	case T_ORACLE:
+#if HAVE_ORACLE
 		DBObj = new ORACLEDatabase(dbConnStr);
+#else
+		EXCEPT("Oracle database requested, but this version of Condor is com
+piled without Oracle!\n");
+#endif
 		break;
 	case T_PGSQL:
 		DBObj = new PGSQLDatabase(dbConnStr);
