@@ -869,9 +869,10 @@ PGSQLDatabase::getDBError()
 }
 
 QuillErrCode PGSQLDatabase::execCommandWithBind(const char* sql, 
-												char** longstr_arr, 
-												int *  strlen_arr, 
-												int   num_str) 
+												int bnd_cnt,
+												const char** val_arr,
+												QuillAttrDataType *typ_arr,
+												int *  len_arr) 
 {
 		/* this function is only used and implemented by oracle database, 
 		   it should not be called anywhere if it's postgres 

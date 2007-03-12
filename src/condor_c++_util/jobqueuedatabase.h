@@ -74,9 +74,10 @@ public:
 											int &num_result) = 0;
 	virtual QuillErrCode		execCommand(const char* sql) = 0;
 	virtual QuillErrCode		execCommandWithBind(const char* sql, 
-													char** longstr_arr, 
-													int*   strlen_arr,
-													int    num_str) = 0;
+													int bnd_cnt,
+													const char** val_arr,
+													QuillAttrDataType *typ_arr,
+													int *  len_arr) = 0;
 
 	//! execute a SQL query
 	virtual QuillErrCode		execQuery(const char* sql) = 0;

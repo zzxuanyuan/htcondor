@@ -479,11 +479,20 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
   MyString name = "";
   MyString newvalue;
   char *tmp = NULL;
-  int bndcnt = 0;
-  char* longstr_arr[2];
-  int   strlen_arr[2];	
-  bool  bndForFirstStmt = TRUE;
+  int bndcnt1 = 0;
+  const char* data_arr1[7];
+  int   data_len1[7];	
+  QuillAttrDataType data_typ1[7];
+
+  int bndcnt2 = 0;
+  const char* data_arr2[7];
+  int   data_len2[7];	
+  QuillAttrDataType data_typ2[7];
+
   QuillAttrDataType  attr_type;
+
+  MyString scheddbirthdate_str;
+  MyString ts_expr_val;
 
   bool flag1=false, flag2=false,flag3=false, flag4=false;
 	  //const char *scheddname = jqDBManager.getScheddname();
@@ -492,26 +501,75 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
   ad->EvalInteger (ATTR_CLUSTER_ID, NULL, cid);
   ad->EvalInteger (ATTR_PROC_ID, NULL, pid);
 
-  sql_stmt.sprintf(
-          "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
-  sql_stmt2.sprintf(
-          "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
+  scheddbirthdate_str.sprintf("%lu", scheddbirthdate);
 
+  if (dt == T_ORACLE) {
+	  data_arr1[0] = scheddname;
+	  data_typ1[0] = CONDOR_TT_TYPE_STRING;
+	  data_len1[0] = strlen(scheddname);
 
-  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-	  errorSqlStmt = sql_stmt;
-	  return FAILURE;	  
+	  data_arr1[1] = scheddbirthdate_str.Value();
+	  data_typ1[1] = CONDOR_TT_TYPE_STRING;
+	  data_len1[1] = scheddbirthdate_str.Length();
+
+	  data_arr1[2] = (char *)&cid;
+	  data_typ1[2] = CONDOR_TT_TYPE_NUMBER;
+	  data_len1[2] = sizeof(cid);
+
+	  data_arr1[3] = (char *)&pid;
+	  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
+	  data_len1[3] = sizeof(pid);
+	  
+	  bndcnt1 = 4;
+
+	  sql_stmt.sprintf(
+					   "DELETE FROM Jobs_Horizontal_History WHERE scheddname = :1 AND scheddbirthdate = :2 AND cluster_id = :3 AND proc_id = :4");
+
+	  if (DBObj->execCommandWithBind(sql_stmt.Value(),
+							 bndcnt1,
+							 data_arr1,
+							 data_typ1,
+							 data_len1) == FAILURE) {
+		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+		  errorSqlStmt = sql_stmt;
+		  return FAILURE;	  
+	  }
+
+	  sql_stmt2.sprintf(
+						"INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES(:1, :2, :3, :4, current_timestamp)");
+
+	  if (DBObj->execCommandWithBind(sql_stmt2.Value(),
+							 bndcnt1,
+							 data_arr1,
+							 data_typ1,
+							 data_len1) == FAILURE) {
+		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
+		  errorSqlStmt = sql_stmt2;
+		  return FAILURE;	  
+	  }	  
+  } else {
+	  sql_stmt.sprintf(
+					   "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
+	  sql_stmt2.sprintf(
+						"INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
+
+	  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+		  errorSqlStmt = sql_stmt;
+		  return FAILURE;	  
+	  }
+
+	  if (DBObj->execCommand(sql_stmt2.Value()) == FAILURE) {
+		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
+		  errorSqlStmt = sql_stmt2;
+		  return FAILURE;	  
+	  }
   }
 
-  if (DBObj->execCommand(sql_stmt2.Value()) == FAILURE) {
-	  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-	  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
-	  errorSqlStmt = sql_stmt2;
-	  return FAILURE;	  
-  }
-  
   ad->ResetExpr(); // for iteration initialization
   while((expr=ad->NextExpr()) != NULL) {
 	  L_expr = expr->LArg();
@@ -557,8 +615,8 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 
 		  // initialize variables for detecting and inserting long clob 
 		  // columns
-	  bndcnt = 0;
-	  bndForFirstStmt = TRUE;
+	  bndcnt1 = 0;
+	  bndcnt2 = 0;
 
 	  if(isHorizontalHistoryAttribute(name.Value(), attr_type)) {
 			  /* change the names for the following attributes
@@ -586,13 +644,42 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 		  if(attr_type == CONDOR_TT_TYPE_TIMESTAMP) {
 			  time_t clock;
 			  MyString ts_expr;
-			  clock = atoi(value.Value());
-			  
-			  ts_expr = condor_ttdb_buildts(&clock, dt);	
-				  
-			  sql_stmt.sprintf(
-					  "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), ts_expr.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
+			  clock = atoi(value.Value());
+
+			  if (dt == T_ORACLE) {
+				  ts_expr_val = condor_ttdb_buildtsval(&clock, dt);
+				  
+				  data_arr1[0] = ts_expr_val.Value();
+				  data_typ1[0] = CONDOR_TT_TYPE_TIMESTAMP;
+				  data_len1[0] = ts_expr_val.Length();				  
+
+				  data_arr1[1] = scheddname;
+				  data_typ1[1] = CONDOR_TT_TYPE_STRING;
+				  data_len1[1] = strlen(scheddname);
+
+				  data_arr1[2] = scheddbirthdate_str.Value();
+				  data_typ1[2] = CONDOR_TT_TYPE_STRING;
+				  data_len1[2] = scheddbirthdate_str.Length();				  
+
+				  data_arr1[3] = (char *)&cid;
+				  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
+				  data_len1[3] = sizeof(cid);
+
+				  data_arr1[4] = (char *)&pid;
+				  data_typ1[4] = CONDOR_TT_TYPE_NUMBER;
+				  data_len1[4] = sizeof(pid);
+
+				  bndcnt1 = 5;
+
+				  sql_stmt.sprintf(
+								   "UPDATE Jobs_Horizontal_History SET %s = (:1) WHERE scheddname = :2 and scheddbirthdate = :3 and cluster_id = :4 and proc_id = :5", name.Value());
+			  } else {
+				  ts_expr = condor_ttdb_buildts(&clock, dt);	
+				  
+				  sql_stmt.sprintf(
+								   "UPDATE Jobs_Horizontal_History SET %s = (%s) WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), ts_expr.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
+			  }
 		  }	else {
 				  /* strip double quotes for string values */
 			  if (attr_type == CONDOR_TT_TYPE_CLOB ||
@@ -605,42 +692,105 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 			  
 			  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 
-			  if ((attr_type != CONDOR_TT_TYPE_CLOB) || 
-				  (dt != T_ORACLE) ||
-				  (newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {
+			  if (dt != T_ORACLE) {
 				  sql_stmt.sprintf( 
 								   "UPDATE Jobs_Horizontal_History SET %s = '%s' WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), newvalue.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
 			  } else {
-				  bndcnt ++;
-				  longstr_arr[0] = (char *)newvalue.Value();
-				  strlen_arr[0] = newvalue.Length();
+				  data_arr1[0] = (char *)newvalue.Value();
+				  data_typ1[0] = CONDOR_TT_TYPE_STRING;
+				  data_len1[0] = newvalue.Length();				  
+
+				  data_arr1[1] = scheddname;
+				  data_typ1[1] = CONDOR_TT_TYPE_STRING;
+				  data_len1[1] = strlen(scheddname);
+
+				  data_arr1[2] = scheddbirthdate_str.Value();
+				  data_typ1[2] = CONDOR_TT_TYPE_STRING;
+				  data_len1[2] = scheddbirthdate_str.Length();				  
+
+				  data_arr1[3] = (char *)&cid;
+				  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
+				  data_len1[3] = sizeof(cid);
+
+				  data_arr1[4] = (char *)&pid;
+				  data_typ1[4] = CONDOR_TT_TYPE_NUMBER;
+				  data_len1[4] = sizeof(pid);
+
+				  bndcnt1 = 5;
+				  
 				  sql_stmt.sprintf( 
-								   "UPDATE Jobs_Horizontal_History SET %s = :1 WHERE scheddname = '%s' and scheddbirthdate = %lu and cluster_id = %d and proc_id = %d", name.Value(), scheddname, (unsigned long)scheddbirthdate, cid, pid);
+								   "UPDATE Jobs_Horizontal_History SET %s = :1 WHERE scheddname = :2 and scheddbirthdate = :3 and cluster_id = :4 and proc_id = :5", name.Value());
 			  }
 		  }
 	  } else {
 		  newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
 		  
-		  sql_stmt.sprintf(
-				  "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
+		  if (dt == T_ORACLE) {
+			  data_arr1[0] = scheddname;
+			  data_typ1[0] = CONDOR_TT_TYPE_STRING;
+			  data_len1[0] = strlen(scheddname);
+
+			  data_arr1[1] = scheddbirthdate_str.Value();
+			  data_typ1[1] = CONDOR_TT_TYPE_STRING;
+			  data_len1[1] = scheddbirthdate_str.Length();
+
+			  data_arr1[2] = (char *)&cid;
+			  data_typ1[2] = CONDOR_TT_TYPE_NUMBER;
+			  data_len1[2] = sizeof(cid);
+
+			  data_arr1[3] = (char *)&pid;
+			  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
+			  data_len1[3] = sizeof(pid);
+
+			  data_arr1[4] = name.Value();
+			  data_typ1[4] = CONDOR_TT_TYPE_STRING;
+			  data_len1[4] = name.Length();
+	  
+			  bndcnt1 = 5;
+			  
+			  sql_stmt.sprintf(
+							   "DELETE FROM Jobs_Vertical_History WHERE scheddname = :1 AND scheddbirthdate = :2 AND cluster_id = :3 AND proc_id = :4 AND attr = :5");
+		  } else {
+			  sql_stmt.sprintf(
+							   "DELETE FROM Jobs_Vertical_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d AND attr = '%s'", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
+		  }
 			
-			if ((dt != T_ORACLE) ||
-				(newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT)) {		  
-				sql_stmt2.sprintf( 
-								  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value(), newvalue.Value());
-			} else {
-				bndForFirstStmt = FALSE;
-				bndcnt ++;
-				longstr_arr[0] = (char *)newvalue.Value();
-				strlen_arr[0] = newvalue.Length();
-				
-				sql_stmt2.sprintf( 
-								  "INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', :1)", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value());
-			}
+		  if (dt != T_ORACLE) {
+			  sql_stmt2.sprintf( 
+								"INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES('%s', %lu, %d, %d, '%s', '%s')", scheddname, (unsigned long)scheddbirthdate, cid, pid, name.Value(), newvalue.Value());
+		  } else {
+			  data_arr2[0] = scheddname;
+			  data_typ2[0] = CONDOR_TT_TYPE_STRING;
+			  data_len2[0] = strlen(scheddname);
+
+			  data_arr2[1] = scheddbirthdate_str.Value();
+			  data_typ2[1] = CONDOR_TT_TYPE_STRING;
+			  data_len2[1] = scheddbirthdate_str.Length();
+
+			  data_arr2[2] = (char *)&cid;
+			  data_typ2[2] = CONDOR_TT_TYPE_NUMBER;
+			  data_len2[2] = sizeof(cid);
+
+			  data_arr2[3] = (char *)&pid;
+			  data_typ2[3] = CONDOR_TT_TYPE_NUMBER;
+			  data_len2[3] = sizeof(pid);
+
+			  data_arr2[4] = name.Value();
+			  data_typ2[4] = CONDOR_TT_TYPE_STRING;
+			  data_len2[4] = name.Length();
+	  
+			  data_arr2[5] = newvalue.Value();
+			  data_typ2[5] = CONDOR_TT_TYPE_STRING;
+			  data_len2[5] = newvalue.Length();
+
+			  bndcnt2 = 6;			  
+
+			  sql_stmt2.sprintf( 
+								"INSERT INTO Jobs_Vertical_History(scheddname, scheddbirthdate, cluster_id, proc_id, attr, val) VALUES(:1, :2, :3, :4, :5, :6)");
+		  }
 	  }
 
-	  if (bndcnt == 0 ||
-		  !bndForFirstStmt) {
+	  if (bndcnt1 == 0) {
 		  if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
@@ -651,9 +801,10 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 		  }
 	  } else {
 		  if (DBObj->execCommandWithBind(sql_stmt.Value(), 
-										 longstr_arr,
-										 strlen_arr,
-										 bndcnt) == FAILURE) {
+										 bndcnt1,
+										 data_arr1,
+										 data_typ1,
+										 data_len1) == FAILURE) {
 			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		  
@@ -665,8 +816,7 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 
 	  if (!sql_stmt2.IsEmpty()) {
 		  
-		if (bndcnt == 0 || 
-			bndForFirstStmt) {		  
+		if (bndcnt2 == 0) {		  
 			if ((DBObj->execCommand(sql_stmt2.Value()) == FAILURE)) {
 				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
@@ -677,9 +827,10 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 			}
 		} else {
 			if ((DBObj->execCommandWithBind(sql_stmt2.Value(),
-											longstr_arr,
-											strlen_arr,
-											bndcnt) == FAILURE)) {
+											bndcnt2,
+											data_arr2,
+											data_typ2,
+											data_len2) == FAILURE)) {
 				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
 		  

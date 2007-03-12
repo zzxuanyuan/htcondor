@@ -31,6 +31,8 @@
 #include "occi.h"
 #include "MyString.h"
 
+#define QUILL_ORACLE_TIMESTAMP_FORAMT "MM/DD/YYYY HH24:MI:SS TZD"
+
 using oracle::occi::Environment;
 using oracle::occi::Connection;
 using oracle::occi::Statement;
@@ -63,10 +65,11 @@ public:
 	QuillErrCode 	 	 execCommand(const char* sql, 
 									 int &num_result);
 	QuillErrCode 	 	 execCommand(const char* sql);
-	QuillErrCode		 execCommandWithBind(const char* sql, 
-											 char** longstr_arr, 
-											 int *  strlen_arr, 
-											 int   num_str);
+	QuillErrCode		 execCommandWithBind(const char* sql,
+											 int bnd_cnt,
+											 const char** val_arr,
+											 QuillAttrDataType *typ_arr,
+											 int *  len_arr);
 
 		// query methods
 	QuillErrCode 	 	 execQuery(const char* sql);

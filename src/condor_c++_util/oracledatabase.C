@@ -1592,20 +1592,23 @@ static MyString getStringFromClob(ResultSet *res, int col)
 
 /*! execute a command with binding variables
  *
- *  execaute SQL which has bind variables, the only bind variables 
- *  supported for now is the clob data type.
+ *  execaute SQL which has bind variables, the only data types
+ *  supported for now are: string, timestamp, integer and clob
  *  
  *  the number of bind variables in the sql must be the same as the
- *  number of strings pointed by longstr_arr. num_str should
- *  be the number of strings in the array. strlen_arr is the array
- *  of string length for the strings passed in.
+ *  number of strings pointed by val_arr. 
+ *  1) bnd_cnt should be the number of strings in the array;
+ *  2) val_arr is the array of strings;
+ *  3) typ_arr is the array of data types for the strings;
+ *  4) len_arr is the array of string length.
  *
  */
 QuillErrCode 
 ORACLEDatabase::execCommandWithBind(const char* sql, 
-									char** longstr_arr,
-									int *  strlen_arr,
-									int   num_str)
+									int bnd_cnt,
+									const char** val_arr,
+									QuillAttrDataType *typ_arr,
+									int *  len_arr)
 {
 	struct timeval tvStart, tvEnd;
 	int i, max_strlen = 0;
@@ -1627,23 +1630,45 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 	gettimeofday( &tvStart, NULL );
 #endif
 
-	for ( i = 0; i < num_str; i++) {
-		if (strlen_arr[i] > max_strlen) 
-			max_strlen = strlen_arr[i];
+		/* find the maximum length of clob */
+	for ( i = 0; i < bnd_cnt; i++) {
+		if (typ_arr[i] == CONDOR_TT_TYPE_CLOB && 
+			len_arr[i] > max_strlen) { 
+			max_strlen = len_arr[i];
+		}
 	}
 
 	try {
 		stmt = conn->createStatement (sql);
-		for ( i = 1; i <= num_str; i++) {
-			stmt->setCharacterStreamMode(i, max_strlen+1);
+		for ( i = 1; i <= bnd_cnt; i++) {
+			if (typ_arr[i-1] == CONDOR_TT_TYPE_CLOB) {
+				stmt->setCharacterStreamMode(i, max_strlen+1);
+			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_STRING) {
+				stmt->setString(i, val_arr[i-1]);
+			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_NUMBER) {
+				stmt->setInt(i, *(int *)val_arr[i-1]);
+			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_TIMESTAMP) {
+					// timestamp
+				oracle::occi::Timestamp ts1;
+				ts1.fromText(val_arr[i-1], 
+							 QUILL_ORACLE_TIMESTAMP_FORAMT, 
+							 "", env);
+				stmt->setTimestamp(i, ts1);				
+			} else {
+				dprintf(D_ALWAYS, "unknown data type in ORACLEDatabase::execCommandWithBind\n");
+				conn->terminateStatement (stmt);
+				return FAILURE;				
+			}
 		}
 
 		stmt->executeUpdate ();
 
-		for ( i = 1; i <= num_str; i++) {
-			instream = stmt->getStream(i);
-			instream->writeLastBuffer(longstr_arr[i-1], strlen_arr[i-1]);
-			stmt->closeStream(instream);
+		for ( i = 1; i <= bnd_cnt; i++) {
+			if (typ_arr[i-1] == CONDOR_TT_TYPE_CLOB) {
+				instream = stmt->getStream(i);
+				instream->writeLastBuffer((char *)val_arr[i-1], len_arr[i-1]);
+				stmt->closeStream(instream);
+			}
 		}
 		
 	} catch (SQLException ex) {
