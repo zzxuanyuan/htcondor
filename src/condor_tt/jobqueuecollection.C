@@ -477,8 +477,9 @@ JobQueueCollection::loadAd(char* cid,
 	MyString ts_expr;
 	char *tmp;
 	int hor_bndcnt = 0;
-	char* longstr_arr[2];
+	const char* longstr_arr[2];
 	int   strlen_arr[2];	
+	QuillAttrDataType typ_arr[2];
 	MyString longmystr_arr[2];
 	QuillAttrDataType attr_type;
 
@@ -535,7 +536,8 @@ JobQueueCollection::loadAd(char* cid,
 							// save the string value.
 						longmystr_arr[hor_bndcnt-1] = newvalue;
 						strlen_arr[hor_bndcnt-1] = newvalue.Length();
-						longstr_arr[hor_bndcnt-1] = (char *)longmystr_arr[hor_bndcnt-1].Value();
+						longstr_arr[hor_bndcnt-1] = longmystr_arr[hor_bndcnt-1].Value();
+						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_CLOB;
 					}
 						
 					break;
@@ -581,8 +583,7 @@ JobQueueCollection::loadAd(char* cid,
 				len = 1024 + strlen(name) + strlen(scheddname) +
 					newvalue.Length() + strlen(cid) + strlen(pid);
 
-				if (dt != T_ORACLE ||
-					newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
+				if (dt != T_ORACLE) {
 					sql_str.sprintf("INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", scheddname,cid, pid, name, newvalue.Value());
 
 					if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
@@ -590,16 +591,40 @@ JobQueueCollection::loadAd(char* cid,
 						return FAILURE;
 					}
 				}  else {
-						/* for oracle, long string values can't be placed in 
-						   SQL as a literal, therefore we need special 
-						   mechanism to get them it 
-						*/
-					sql_str.sprintf("INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', :1)", scheddname,cid, pid, name);
+					const char* data_arr[6];
+					int         data_len[6];
+					QuillAttrDataType data_typ[6];
+					int bndcnt = 0;
 
-					longstr_arr[0] = (char *)newvalue.Value();
-					strlen_arr[0] = newvalue.Length();
+					data_arr[0] = scheddname;
+					data_typ[0] = CONDOR_TT_TYPE_STRING;
+					data_len[0] = strlen(scheddname);
 
-					if (DBObj->execCommandWithBind(sql_str.Value(), longstr_arr, strlen_arr, 1) == FAILURE) {
+					data_arr[1] = cid;
+					data_typ[1] = CONDOR_TT_TYPE_STRING;
+					data_len[1] = strlen(cid);
+
+					data_arr[2] = pid;
+					data_typ[2] = CONDOR_TT_TYPE_STRING;
+					data_len[2] = strlen(pid);
+
+					data_arr[3] = name;
+					data_typ[3] = CONDOR_TT_TYPE_STRING;
+					data_len[3] = strlen(name);
+					
+					data_arr[4] = newvalue.Value();
+					data_typ[4] = CONDOR_TT_TYPE_STRING;
+					data_len[4] = newvalue.Length();
+
+					bndcnt = 5;
+
+					sql_str.sprintf("INSERT INTO ProcAds_Vertical VALUES(:1, :2, :3, :4, :5)");
+
+					if (DBObj->execCommandWithBind(sql_str.Value(), 
+												   bndcnt, 
+												   data_arr, 
+												   data_typ,
+												   data_len) == FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 						return FAILURE;
 					}					
@@ -633,7 +658,8 @@ JobQueueCollection::loadAd(char* cid,
 							// save the string value.
 						longmystr_arr[hor_bndcnt-1] = newvalue;
 						strlen_arr[hor_bndcnt-1] = newvalue.Length();
-						longstr_arr[hor_bndcnt-1] = (char *)longmystr_arr[hor_bndcnt-1].Value();
+						longstr_arr[hor_bndcnt-1] = longmystr_arr[hor_bndcnt-1].Value();
+						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_CLOB;
 					}
 						
 					break;					
@@ -678,27 +704,43 @@ JobQueueCollection::loadAd(char* cid,
 				len = 1024 + strlen(name) + strlen(scheddname) +
 					newvalue.Length() + strlen(cid);
 
-				if (dt != T_ORACLE ||
-					newvalue.Length() < QUILL_ORACLE_STRINGLIT_LIMIT) {
+				if (dt != T_ORACLE) {
 					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue.Value());
 					if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 						return FAILURE;
 					}
 				} else {
-					char *local_longstr_arr[1];
-					int   local_strlen_arr[1];
+					const char *data_arr[5];
+					int   data_len[5];
+					QuillAttrDataType data_typ[5];
+					int   bndcnt = 0;
 
-						/* for oracle, long string values can't be placed in 
-						   SQL as a literal, therefore we need special 
-						   mechanism to get them it 
-						*/
-					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', :1)", scheddname,cid, name);
+					data_arr[0] = scheddname;
+					data_typ[0] = CONDOR_TT_TYPE_STRING;
+					data_len[0] = strlen(scheddname);
 
-					local_longstr_arr[0] = (char *)newvalue.Value();
-					local_strlen_arr[0] = newvalue.Length();
+					data_arr[1] = cid;
+					data_typ[1] = CONDOR_TT_TYPE_STRING;
+					data_len[1] = strlen(cid);
 
-					if (DBObj->execCommandWithBind(sql_str.Value(), local_longstr_arr, local_strlen_arr, 1) == FAILURE) {
+					data_arr[2] = name;
+					data_typ[2] = CONDOR_TT_TYPE_STRING;
+					data_len[2] = strlen(name);
+					
+					data_arr[3] = newvalue.Value();
+					data_typ[3] = CONDOR_TT_TYPE_STRING;
+					data_len[3] = newvalue.Length();
+
+					bndcnt = 4;
+					
+					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES(:1, :2, :3, :4)");
+
+					if (DBObj->execCommandWithBind(sql_str.Value(),
+												   bndcnt,
+												   data_arr, 
+												   data_typ,
+												   data_len) == FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 						return FAILURE;
 					}
@@ -729,7 +771,9 @@ JobQueueCollection::loadAd(char* cid,
 			return FAILURE;
 		}
 	} else {
-		if (DBObj->execCommandWithBind(sql_str.Value(), longstr_arr, strlen_arr, hor_bndcnt) == FAILURE) {
+		if (DBObj->execCommandWithBind(sql_str.Value(), hor_bndcnt,
+									   longstr_arr, typ_arr,
+									   strlen_arr) == FAILURE) {
 			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 			return FAILURE;
 		}			
@@ -737,7 +781,3 @@ JobQueueCollection::loadAd(char* cid,
 
 	return SUCCESS;
 }
-
-
-
-

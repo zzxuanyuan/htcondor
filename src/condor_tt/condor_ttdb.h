@@ -30,6 +30,7 @@
 #include "quill_enums.h"
 
 MyString condor_ttdb_buildts(time_t *tv, dbtype dt);
+MyString condor_ttdb_buildtsval(time_t *tv, dbtype dt);
 MyString condor_ttdb_buildseq(dbtype dt, char *seqName);
 MyString condor_ttdb_onerow_clause(dbtype dt);
 MyString condor_ttdb_fillEscapeCharacters(const char * str, dbtype dt);
