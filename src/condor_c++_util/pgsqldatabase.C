@@ -208,7 +208,6 @@ PGSQLDatabase::execCommand(const char* sql,
 {
 	PGresult 	*result;
 	char*		num_result_str = NULL;
-	int         db_err_code;
 	struct timeval tvStart, tvEnd;
 
 #ifdef TT_TIME_SQL
@@ -252,7 +251,7 @@ PGSQLDatabase::execCommand(const char* sql,
 #ifdef TT_TIME_SQL
 	gettimeofday( &tvEnd, NULL );
 
-	dprintf(D_FULLDEBUG, "Execution time: %d\n", 
+	dprintf(D_FULLDEBUG, "Execution time: %ld\n", 
 			(tvEnd.tv_sec - tvStart.tv_sec)*1000 + 
 			(tvEnd.tv_usec - tvStart.tv_usec)/1000);
 #endif

@@ -632,7 +632,6 @@ JobQueueCollection::loadAd(char* cid,
 			}
 		} else {  // cluster ad
 			if (isHorizontalClusterAttribute(name, attr_type)) {
-				char *tmpv;
 				attNameList += ", ";
 				attNameList += name;
 

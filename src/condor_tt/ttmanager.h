@@ -101,7 +101,7 @@ class TTManager : public Service
 	int		pollingPeriod;		   // polling time period in seconds
 
 	CollectorList   *collectors;
-	ClassAd         *ad;
+	ClassAd         *quillad;
 
 	JobQueueDatabase* DBObj;
 	JobQueueDBManager jqDBManager;

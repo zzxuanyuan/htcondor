@@ -196,13 +196,13 @@ TTManager::pollingTime()
 
 	dprintf(D_ALWAYS, "++++++++ Sending Quill ad to collector ++++++++\n");
 
-	if(!ad) {
+	if(!quillad) {
 		createQuillAd();
 	}
 
 	updateQuillAd();
 
-	collectors->sendUpdates ( UPDATE_QUILL_AD, ad, NULL, true );
+	collectors->sendUpdates ( UPDATE_QUILL_AD, quillad, NULL, true );
 
 	dprintf(D_ALWAYS, "++++++++ Sent Quill ad to collector ++++++++\n");
 
@@ -340,19 +340,19 @@ void TTManager::updateQuillAd(void) {
 
 	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_LAST_BATCH, 
 			 lastBatchSqlProcessed);
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_TOTAL, 
 			 totalSqlProcessed);
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	sprintf( expr, "%s = %d", "TimeToProcessLastBatch", 
 			 secsLastBatch);
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	sprintf( expr, "%s = %d", "IsConnectedToDB", 
 			 isConnectedToDB);
-	ad->Insert(expr);
+	quillad->Insert(expr);
 	*/
 }
 
@@ -369,11 +369,11 @@ void TTManager::createQuillAd(void) {
 	char *mysockname;
 	char *tmp;
 
-	ad = new ClassAd();
-	ad->SetMyTypeName(QUILL_ADTYPE);
-	ad->SetTargetTypeName("");
+	quillad = new ClassAd();
+	quillad->SetMyTypeName(QUILL_ADTYPE);
+	quillad->SetTargetTypeName("");
   
-	config_fill_ad(ad);
+	config_fill_ad(quillad);
 
 		// schedd info is used to identify the schedd 
 		// corresponding to this quill 
@@ -395,10 +395,10 @@ void TTManager::createQuillAd(void) {
 	} else {
 		sprintf( expr, "%s = FALSE", ATTR_QUILL_IS_REMOTELY_QUERYABLE);
 	}
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	sprintf( expr, "%s = %d", "QuillPollingPeriod", pollingPeriod );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	/*
 	char *quill_query_passwd = param("QUILL_DB_QUERY_PASSWORD");
@@ -409,38 +409,38 @@ void TTManager::createQuillAd(void) {
   
 	sprintf( expr, "%s = \"%s\"", ATTR_QUILL_DB_QUERY_PASSWORD, 
 			 quill_query_passwd );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 	*/
 
 	sprintf( expr, "%s = \"%s\"", ATTR_NAME, quill_name );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_NAME, scheddName );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	if(scheddName) {
 		delete scheddName;
 	}
 
 	sprintf( expr, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() ); 
-	ad->Insert(expr);
+	quillad->Insert(expr);
   
 		// Put in our sinful string.  Note, this is never going to
 		// change, so we only need to initialize it once.
 	mysockname = strdup( daemonCore->InfoCommandSinfulString() );
 
 	sprintf( expr, "%s = \"%s\"", ATTR_MY_ADDRESS, mysockname );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 
 	/*
 	sprintf( expr, "%s = \"<%s>\"", ATTR_QUILL_DB_IP_ADDR, 
 			 jobQueueDBIpAddress );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 	*/
 
 	/*
 	sprintf( expr, "%s = \"%s\"", ATTR_QUILL_DB_NAME, jobQueueDBName );
-	ad->Insert(expr);
+	quillad->Insert(expr);
 	*/
 
 	collectors = CollectorList::create();
@@ -1315,7 +1315,6 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	MyString attNameList = "";
 	MyString attValList = "";
 	MyString tmpVal = "";
-	int firstScheddAttr = TRUE;
 	MyString aName, aVal, temp;
 	MyString inlist = "";
 	MyString lastHeardFrom = "";

@@ -43,8 +43,8 @@ ORACLEDatabase::ORACLEDatabase(const char* connect)
  	char host[100]="";
 	char port[10]="";
 	char dbname[100]="";
-	char userName[100]="";
-	char password[100]="";
+	char user_name[100]="";
+	char pass_word[100]="";
 	int  len1, len2, len3;
 	char *token;	
 
@@ -81,12 +81,12 @@ ORACLEDatabase::ORACLEDatabase(const char* connect)
 
 		token = strtok(NULL, " ");
 		if(token) {
-			sscanf(token, "user=%s", userName);
+			sscanf(token, "user=%s", user_name);
 		}
 
 		token = strtok(NULL, " ");
 		if(token) {
-			sscanf(token, "password=%s", password);
+			sscanf(token, "password=%s", pass_word);
 		}
 
 		token = strtok(NULL, " ");
@@ -98,14 +98,14 @@ ORACLEDatabase::ORACLEDatabase(const char* connect)
 			   and connectString if available, 
 			   the connectString has this format: [host[:port]][/database] 
 			*/
-		len1 = strlen(userName);
+		len1 = strlen(user_name);
 
 		this->userName = (char*)malloc(len1 + 1);
-		strcpy(this->userName, userName);		
+		strcpy(this->userName, user_name);		
 
-		len1 = strlen(password);
+		len1 = strlen(pass_word);
 		this->password = (char*)malloc(len1+1);
-		strcpy(this->password, password);
+		strcpy(this->password, pass_word);
 
 		len1 = strlen(host);
 		len2 = strlen(port);
@@ -412,7 +412,7 @@ ORACLEDatabase::execCommand(const char* sql,
 #ifdef TT_TIME_SQL
 	gettimeofday( &tvEnd, NULL );
 
-	dprintf(D_FULLDEBUG, "Execution time: %d\n", 
+	dprintf(D_FULLDEBUG, "Execution time: %ld\n", 
 			(tvEnd.tv_sec - tvStart.tv_sec)*1000 + 
 			(tvEnd.tv_usec - tvStart.tv_usec)/1000);
 #endif
@@ -1646,7 +1646,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_STRING) {
 				stmt->setString(i, val_arr[i-1]);
 			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_NUMBER) {
-				stmt->setInt(i, *(int *)val_arr[i-1]);
+				stmt->setInt(i, *(const int *)val_arr[i-1]);
 			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_TIMESTAMP) {
 					// timestamp
 				oracle::occi::Timestamp ts1;
@@ -1696,7 +1696,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 #ifdef TT_TIME_SQL
 	gettimeofday( &tvEnd, NULL );
 
-	dprintf(D_FULLDEBUG, "Execution time: %d\n", 
+	dprintf(D_FULLDEBUG, "Execution time: %ld\n", 
 			(tvEnd.tv_sec - tvStart.tv_sec)*1000 + 
 			(tvEnd.tv_usec - tvStart.tv_usec)/1000);
 #endif

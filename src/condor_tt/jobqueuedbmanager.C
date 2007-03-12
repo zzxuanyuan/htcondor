@@ -290,8 +290,8 @@ JobQueueDBManager::config(bool reconfig)
 void
 JobQueueDBManager::setJobQueueFileName(const char* jqName)
 {
-	prober->setJobQueueName((char*)jqName);
-	caLogParser->setJobQueueName((char*)jqName);
+	prober->setJobQueueName(jqName);
+	caLogParser->setJobQueueName(jqName);
 }
 
 //! get the parser
@@ -883,7 +883,7 @@ JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
 {
 	int key_len, i;
 	long iCid;
-	char*	pid_in_key;
+	const char*	pid_in_key;
 
 	if (key == NULL) {
 		return IS_UNKNOWN_ID;
@@ -910,7 +910,7 @@ JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
 	sprintf(cid,"%ld", iCid);
 
 
-	pid_in_key = (char*)(key + (i + 1));
+	pid_in_key = (key + (i + 1));
 	strcpy(pid, pid_in_key);
 
 	if (atol(pid) == -1) {// Cluster ID
@@ -1074,10 +1074,10 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 			bndcnt = 2;
 			
 			sql_str1.sprintf(
-							 "DELETE FROM ClusterAds_Horizontal WHERE scheddname = :1 and cluster_id = :2", scheddname, cid);
+							 "DELETE FROM ClusterAds_Horizontal WHERE scheddname = :1 and cluster_id = :2");
     
 			sql_str2.sprintf(
-							 "DELETE FROM ClusterAds_Vertical WHERE scheddname = :1 and cluster_id = :2", scheddname, cid);
+							 "DELETE FROM ClusterAds_Vertical WHERE scheddname = :1 and cluster_id = :2");
 		} else {
 			sql_str1.sprintf(
 							 "DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' and cluster_id = %s", scheddname, cid);
