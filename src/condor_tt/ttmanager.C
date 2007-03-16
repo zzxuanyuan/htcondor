@@ -251,7 +251,6 @@ TTManager::maintain()
 		int bndcnt = 0;
 		const char *data_arr[3];
 		QuillAttrDataType   data_typ[3];
-		int   data_len[3];	
 		
 		(void)time(  (time_t *)&clock );
 
@@ -270,11 +269,9 @@ TTManager::maintain()
 
 			data_arr[0] = ts_expr_val.Value();
 			data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
-			data_len[0] = ts_expr_val.Length();
 
 			data_arr[1] = scheddname;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(scheddname);
 			
 			bndcnt = 2;
 			
@@ -283,8 +280,7 @@ TTManager::maintain()
 			ret_st = DBObj->execCommandWithBind(sql_str.Value(),
 										bndcnt,
 										data_arr,
-										data_typ,
-										data_len);
+										data_typ);
 			if (ret_st == FAILURE) {
 				dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str.Value());
 			}			
@@ -868,6 +864,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	MyString ts_expr;
 
+	int bndcnt = 0;
+	const char *data_arr[7];
+	QuillAttrDataType   data_typ[7];
+
 	ad->sPrint(classAd);
 
 	// Insert stuff into Machines_Horizontal
@@ -1074,11 +1074,29 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	if (!inlist.IsEmpty())
 		inlist += ")";
 
-		// get the previous lastreportedtime from the database 
-	sql_stmt.sprintf("SELECT lastreportedtime_epoch FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+	if (dt == T_ORACLE) {
+		data_arr[0] = machine_id.Value();
+		data_typ[0] = CONDOR_TT_TYPE_STRING;
+		bndcnt = 1;
 
-	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
-	
+			// get the previous lastreportedtime from the database 
+		sql_stmt.sprintf("SELECT lastreportedtime_epoch FROM Machines_Horizontal WHERE machine_id = :1");
+
+		ret_st = DBObj->execQueryWithBind(sql_stmt.Value(), 
+										  bndcnt,
+										  data_arr,
+										  data_typ,
+										  num_result);	
+		
+		bndcnt = 0;
+
+	} else {
+			// get the previous lastreportedtime from the database 
+		sql_stmt.sprintf("SELECT lastreportedtime_epoch FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+
+		ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
+	}
+
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
@@ -1094,214 +1112,247 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		// set end time if the previous lastReporteTime matches, otherwise
 		// leave it as NULL (by default)
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastReportedTime.Value(), machine_id.Value());
+		if (dt == T_ORACLE) {
+			data_arr[0] = lastReportedTimeValue.Value();
+			data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
+		
+			data_arr[1] = machine_id.Value();
+			data_typ[1] = CONDOR_TT_TYPE_STRING;
+		
+			bndcnt = 2;
+
+			sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, :1 FROM Machines_Horizontal WHERE machine_id = :2");
+		} else {
+			sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History(machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, end_time) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid, %s FROM Machines_Horizontal WHERE machine_id = '%s'", lastReportedTime.Value(), machine_id.Value());
+		}
 	} else {
-		sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+		if (dt == T_ORACLE) {
+			data_arr[0] = machine_id.Value();
+			data_typ[0] = CONDOR_TT_TYPE_STRING;
+		
+			bndcnt = 1;
+
+			sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = :1");
+		} else {
+			sql_stmt.sprintf("INSERT INTO Machines_Horizontal_History (machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank , clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid) SELECT machine_id, opsys, arch, state, activity, keyboardidle, consoleidle, loadavg, condorloadavg, totalloadavg, virtualmemory, memory, totalvirtualmemory, cpubusytime, cpuisbusy, currentrank, clockmin, clockday, lastreportedtime, enteredcurrentactivity, enteredcurrentstate, updatesequencenumber, updatestotal, updatessequenced, updateslost, globaljobid FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+		}
 	}
-	 
-	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+	
+	if (bndcnt > 0) {
+		if (DBObj->execCommandWithBind(sql_stmt.Value(),
+									   bndcnt,
+									   data_arr,
+									   data_typ) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}
+		
+			// clean up bndcnt
+		bndcnt = 0;
+	} else {
+		if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}
+	}
+
+	if (dt == T_ORACLE) {
+		data_arr[0] = machine_id.Value();
+		data_typ[0] = CONDOR_TT_TYPE_STRING;
+		
+		bndcnt = 1;
+
+		sql_stmt.sprintf("DELETE FROM Machines_Horizontal WHERE machine_id = :1");
+
+		if (DBObj->execCommandWithBind(sql_stmt.Value(),
+									   bndcnt,
+									   data_arr,
+									   data_typ) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}
+	} else {
+		sql_stmt.sprintf("DELETE FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
+
+		if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}
+	}
+
+	sql_stmt.sprintf("INSERT INTO Machines_Horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
+
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		 errorSqlStmt = sql_stmt;
 		 return FAILURE;
-	 }
-
-	 sql_stmt.sprintf("DELETE FROM Machines_Horizontal WHERE machine_id = '%s'", machine_id.Value());
-
-	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		 errorSqlStmt = sql_stmt;
-		 return FAILURE;
-	 }
-
-	 sql_stmt.sprintf("INSERT INTO Machines_Horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
-
-	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		 errorSqlStmt = sql_stmt;
-		 return FAILURE;
-	 }
+	}
 	 
 		// Insert changes into Machine
 
-		 // if the previous lastReportedTime doesn't match, this means the 
-		 // daemon has been shutdown for a while, we should move everything
-		 // into the Machines_vertical_history (with a NULL end_time)!
-	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", lastReportedTime.Value(), machine_id.Value(), inlist.Value());
-	 } else {
-		 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time) SELECT machine_id, attr, val, start_time FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
-	 }
+		// if the previous lastReportedTime doesn't match, this means the 
+		// daemon has been shutdown for a while, we should move everything
+		// into the Machines_vertical_history (with a NULL end_time)!
+	if (prevLHFInDB == prevLHFInAd) {
+		sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", lastReportedTime.Value(), machine_id.Value(), inlist.Value());
+	} else {
+		sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time) SELECT machine_id, attr, val, start_time FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
+	}
 
-	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		 errorSqlStmt = sql_stmt;
-		 return FAILURE;
-	 }
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+		errorSqlStmt = sql_stmt;
+		return FAILURE;
+	}
 		
-	 if (prevLHFInDB == prevLHFInAd) {
-		 sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist.Value());
-	 } else {
-		 sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
-	 }
+	if (prevLHFInDB == prevLHFInAd) {
+		sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s' AND attr NOT IN %s", machine_id.Value(), inlist.Value());
+	} else {
+		sql_stmt.sprintf("DELETE FROM Machines_Vertical WHERE machine_id = '%s'", machine_id.Value());		 
+	}
 
-	 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		 errorSqlStmt = sql_stmt;
-		 return FAILURE;
-	 }
+	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+		errorSqlStmt = sql_stmt;
+		return FAILURE;
+	}
 	 
-	 newClAd.startIterations();
-	 while (newClAd.iterate(aName, aVal)) {
+	newClAd.startIterations();
+	while (newClAd.iterate(aName, aVal)) {
 		 
-			 // we use binded update for oracle to avoid repeated parse
-		 if (dt == T_ORACLE) {
-			 int bndcnt = 0;
-			 const char *data_arr[7];
-			 QuillAttrDataType   data_typ[7];
-			 int   data_len[7];
+			// we use binded update for oracle to avoid repeated parse
+		if (dt == T_ORACLE) {
 
-			 data_arr[0] = machine_id.Value();
-			 data_typ[0] = CONDOR_TT_TYPE_STRING; 
-			 data_len[0] = machine_id.Length();
-
-			 data_arr[1] = aName.Value();
-			 data_typ[1] = CONDOR_TT_TYPE_STRING;
-			 data_len[1] = aName.Length();
-			 
-			 data_arr[2] = aVal.Value();
-			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = aVal.Length();
-
-			 data_arr[3] = lastReportedTimeValue.Value();
-			 data_typ[3] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[3] = lastReportedTimeValue.Length();
-			 
-			 data_arr[4] = machine_id.Value();
-			 data_typ[4] = CONDOR_TT_TYPE_STRING;
-			 data_len[4] = machine_id.Length();
-			 
-			 data_arr[5] = aName.Value();
-			 data_typ[5] = CONDOR_TT_TYPE_STRING;
-			 data_len[5] = aName.Length();
-
-			 bndcnt = 6;
-
-			 sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT :1, :2, :3, :4 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = :5 AND attr = :6)");
-
-			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
-											bndcnt,
-											data_arr,
-											data_typ,
-											data_len) == FAILURE) {
-				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-				 errorSqlStmt = sql_stmt;
-				 return FAILURE;
-			 }
-
-			 data_arr[0] = lastReportedTimeValue.Value();
-			 data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[0] = lastReportedTimeValue.Length();
-
-			 data_arr[1] = machine_id.Value();
-			 data_typ[1] = CONDOR_TT_TYPE_STRING;
-			 data_len[1] = machine_id.Length();
-
-			 data_arr[2] = aName.Value();
-			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = aName.Length();
-
-			 data_arr[3] = aVal.Value();
-			 data_typ[3] = CONDOR_TT_TYPE_STRING;
-			 data_len[3] = aVal.Length();
-
-			 bndcnt = 4;
-
-			 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, :1 FROM Machines_Vertical WHERE machine_id = :2 AND attr = :3 AND dbms_lob.compare(val, :4) != 0");
-
-			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
-											bndcnt,
-											data_arr,
-											data_typ,
-											data_len) == FAILURE) {
-				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
-				 errorSqlStmt = sql_stmt;
-				 return FAILURE;
-			 }
-
-			 data_arr[0] = aVal.Value();
-			 data_typ[0] = CONDOR_TT_TYPE_STRING;
-			 data_len[0] = aVal.Length();
-
-			 data_arr[1] = lastReportedTimeValue.Value();
-			 data_typ[1] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[1] = lastReportedTimeValue.Length();
-
-			 data_arr[2] = machine_id.Value();
-			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = machine_id.Length();
-			 
-			 data_arr[3] = aName.Value();
-			 data_typ[3] = CONDOR_TT_TYPE_STRING;
-			 data_len[3] = aName.Length();
-
-			 data_arr[4] = aVal.Value();
-			 data_typ[4] = CONDOR_TT_TYPE_STRING;
-			 data_len[4] = aVal.Length();
-
-			 bndcnt = 5;
-
-			 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = :1, start_time = :2 WHERE machine_id = :3 AND attr = :4 AND dbms_lob.compare(val, :5) != 0");
-
-			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
-											bndcnt,
-											data_arr,
-											data_typ,
-											data_len) == FAILURE) {
-				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-				 errorSqlStmt = sql_stmt;
-				 return FAILURE;
-			 }		 
-		 } else {
-			 sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastReportedTime.Value(), machine_id.Value(), aName.Value());
-
-			 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-				 errorSqlStmt = sql_stmt;
-				 return FAILURE;
-			 }
+			data_arr[0] = machine_id.Value();
+			data_typ[0] = CONDOR_TT_TYPE_STRING; 
 			
-			 clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
+			data_arr[1] = aName.Value();
+			data_typ[1] = CONDOR_TT_TYPE_STRING;
+			
+			data_arr[2] = aVal.Value();
+			data_typ[2] = CONDOR_TT_TYPE_STRING;
+			
+			data_arr[3] = lastReportedTimeValue.Value();
+			data_typ[3] = CONDOR_TT_TYPE_TIMESTAMP;
+			
+			data_arr[4] = machine_id.Value();
+			data_typ[4] = CONDOR_TT_TYPE_STRING;
+			
+			data_arr[5] = aName.Value();
+			data_typ[5] = CONDOR_TT_TYPE_STRING;
+			
+			bndcnt = 6;
+			
+			sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT :1, :2, :3, :4 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = :5 AND attr = :6)");
+			
+			if (DBObj->execCommandWithBind(sql_stmt.Value(),
+										   bndcnt,
+										   data_arr,
+										   data_typ) == FAILURE) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+				errorSqlStmt = sql_stmt;
+				return FAILURE;
+			}
 
-			 sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND %s", lastReportedTime.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
+			data_arr[0] = lastReportedTimeValue.Value();
+			data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
 
-			 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
-				 errorSqlStmt = sql_stmt;
-				 return FAILURE;
-			 }
+			data_arr[1] = machine_id.Value();
+			data_typ[1] = CONDOR_TT_TYPE_STRING;
+			
+			data_arr[2] = aName.Value();
+			data_typ[2] = CONDOR_TT_TYPE_STRING;
 
-			 sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND %s", aVal.Value(), lastReportedTime.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
+			data_arr[3] = aVal.Value();
+			data_typ[3] = CONDOR_TT_TYPE_STRING;
 
-			 if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-				 errorSqlStmt = sql_stmt;
-				 return FAILURE;
-			 }		 
-		 }
-	 }
+			bndcnt = 4;
 
-	 return SUCCESS;
+			sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, :1 FROM Machines_Vertical WHERE machine_id = :2 AND attr = :3 AND dbms_lob.compare(val, :4) != 0");
+
+			if (DBObj->execCommandWithBind(sql_stmt.Value(),
+										   bndcnt,
+										   data_arr,
+										   data_typ) == FAILURE) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
+				errorSqlStmt = sql_stmt;
+				return FAILURE;
+			}
+
+			data_arr[0] = aVal.Value();
+			data_typ[0] = CONDOR_TT_TYPE_STRING;
+			
+			data_arr[1] = lastReportedTimeValue.Value();
+			data_typ[1] = CONDOR_TT_TYPE_TIMESTAMP;
+			
+			data_arr[2] = machine_id.Value();
+			data_typ[2] = CONDOR_TT_TYPE_STRING;
+			 
+			data_arr[3] = aName.Value();
+			data_typ[3] = CONDOR_TT_TYPE_STRING;
+
+			data_arr[4] = aVal.Value();
+			data_typ[4] = CONDOR_TT_TYPE_STRING;
+
+			bndcnt = 5;
+
+			sql_stmt.sprintf("UPDATE Machines_Vertical SET val = :1, start_time = :2 WHERE machine_id = :3 AND attr = :4 AND dbms_lob.compare(val, :5) != 0");
+
+			if (DBObj->execCommandWithBind(sql_stmt.Value(),
+										   bndcnt,
+										   data_arr,
+										   data_typ) == FAILURE) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+				errorSqlStmt = sql_stmt;
+				return FAILURE;
+			}		 
+		} else {
+			sql_stmt.sprintf("INSERT INTO Machines_Vertical (machine_id, attr, val, start_time) SELECT '%s', '%s', '%s', %s FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s')", machine_id.Value(), aName.Value(), aVal.Value(), lastReportedTime.Value(), machine_id.Value(), aName.Value());
+
+			if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+				errorSqlStmt = sql_stmt;
+				return FAILURE;
+			}
+			
+			clob_comp_expr = condor_ttdb_compare_clob_to_lit(dt, "val", aVal.Value());
+
+			sql_stmt.sprintf("INSERT INTO Machines_Vertical_History (machine_id, attr, val, start_time, end_time) SELECT machine_id, attr, val, start_time, %s FROM Machines_Vertical WHERE machine_id = '%s' AND attr = '%s' AND %s", lastReportedTime.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
+
+			if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
+				errorSqlStmt = sql_stmt;
+				return FAILURE;
+			}
+
+			sql_stmt.sprintf("UPDATE Machines_Vertical SET val = '%s', start_time = %s WHERE machine_id = '%s' AND attr = '%s' AND %s", aVal.Value(), lastReportedTime.Value(), machine_id.Value(), aName.Value(), clob_comp_expr.Value());
+
+			if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+				errorSqlStmt = sql_stmt;
+				return FAILURE;
+			}		 
+		}
+	}
+
+	return SUCCESS;
 }
 
 QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
@@ -1545,31 +1596,24 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 int bndcnt = 0;
 			 const char *data_arr[7];
 			 QuillAttrDataType   data_typ[7];
-			 int   data_len[7];			 
 
 			 data_arr[0] = daemonName.Value();
 			 data_typ[0] = CONDOR_TT_TYPE_STRING;
-			 data_len[0] = daemonName.Length();
 
 			 data_arr[1] = aName.Value();
 			 data_typ[1] = CONDOR_TT_TYPE_STRING;
-			 data_len[1] = aName.Length();
 
 			 data_arr[2] = aVal.Value();
 			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = aVal.Length();
 
 			 data_arr[3] = lastHeardFromValue.Value();
 			 data_typ[3] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[3] = lastHeardFromValue.Length();
 
 			 data_arr[4] = daemonName.Value();
 			 data_typ[4] = CONDOR_TT_TYPE_STRING;
-			 data_len[4] = daemonName.Length();
 			 
 			 data_arr[5] = aName.Value();
 			 data_typ[5] = CONDOR_TT_TYPE_STRING;
-			 data_len[5] = aName.Length();
 
 			 bndcnt = 6;
 			 
@@ -1578,8 +1622,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
 											bndcnt,
 											data_arr,
-											data_typ,
-											data_len) == FAILURE) {
+											data_typ) == FAILURE) {
 				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 				 errorSqlStmt = sql_stmt;
@@ -1588,19 +1631,15 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 
 			 data_arr[0] = lastHeardFromValue.Value();
 			 data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[0] = lastHeardFromValue.Length();
 
 			 data_arr[1] = daemonName.Value();
 			 data_typ[1] = CONDOR_TT_TYPE_STRING;
-			 data_len[1] = daemonName.Length();
 
 			 data_arr[2] = aName.Value();
 			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = aName.Length();
 
 			 data_arr[3] = aVal.Value();
 			 data_typ[3] = CONDOR_TT_TYPE_STRING;
-			 data_len[3] = aVal.Length();
 
 			 bndcnt = 4;
 
@@ -1609,8 +1648,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
 											bndcnt,
 											data_arr,
-											data_typ,
-											data_len) == FAILURE) {
+											data_typ) == FAILURE) {
 				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
 				 errorSqlStmt = sql_stmt;			 
@@ -1619,23 +1657,18 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 
 			 data_arr[0] = aVal.Value();
 			 data_typ[0] = CONDOR_TT_TYPE_STRING;
-			 data_len[0] = aVal.Length();
 
 			 data_arr[1] = lastHeardFromValue.Value();
 			 data_typ[1] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[1] = lastHeardFromValue.Length();
 
 			 data_arr[2] = daemonName.Value();
 			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = daemonName.Length();
 			 
 			 data_arr[3] = aName.Value();
 			 data_typ[3] = CONDOR_TT_TYPE_STRING;
-			 data_len[3] = aName.Length();
 
 			 data_arr[4] = aVal.Value();
 			 data_typ[4] = CONDOR_TT_TYPE_STRING;
-			 data_len[4] = aVal.Length();
 
 			 bndcnt = 5;
 		 
@@ -1644,8 +1677,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
 									bndcnt,
 									data_arr,
-									data_typ,
-									data_len) == FAILURE) {
+									data_typ) == FAILURE) {
 				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 				 errorSqlStmt = sql_stmt;	
@@ -1711,6 +1743,10 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 
 	MyString ts_expr;
 	MyString clob_comp_expr;
+
+	int bndcnt = 0;
+	const char *data_arr[7];
+	QuillAttrDataType   data_typ[7];
 
 		// first generate MyType='Master' attribute
 	attNameList.sprintf("(MyType");
@@ -1832,10 +1868,26 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	if (!attValList.IsEmpty()) attValList += ")";
 	if (!inlist.IsEmpty()) inlist += ")";
 
-		// get the previous lastheardfrom from the database 
-	sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
+	if (dt == T_ORACLE) {
+		data_arr[0] = daemonName.Value();
+		data_typ[0] = CONDOR_TT_TYPE_STRING;
+		bndcnt = 1;
+
+			// get the previous lastheardfrom from the database 
+		sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Master' AND Name = :1");
 	
-	ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
+		ret_st = DBObj->execQueryWithBind(sql_stmt.Value(), 
+										  bndcnt,
+										  data_arr,
+										  data_typ,
+										  num_result);		
+		bndcnt = 0;
+	} else {
+			// get the previous lastheardfrom from the database 
+		sql_stmt.sprintf("SELECT lastheardfrom_epoch FROM daemons_horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
+	
+		ret_st = DBObj->execQuery(sql_stmt.Value(), num_result);
+	}
 
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
@@ -1854,27 +1906,81 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 		   leave it as NULL (by default)	
 		*/
 	if (prevLHFInDB == prevLHFInAd) {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
+		if (dt == T_ORACLE) {
+			data_arr[0] = lastHeardFromValue.Value();
+			data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
+		
+			data_arr[1] = daemonName.Value();
+			data_typ[1] = CONDOR_TT_TYPE_STRING;
+		
+			bndcnt = 2;
+
+			sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, :1 FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = :2");
+		} else {
+			sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, endtime) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory, %s FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", lastHeardFrom.Value(), daemonName.Value());
+		}
 	} else {
-		sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
+		if (dt == T_ORACLE) {
+			data_arr[0] = daemonName.Value();
+			data_typ[0] = CONDOR_TT_TYPE_STRING;
+		
+			bndcnt = 1;
+			
+			sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = :1");
+		} else {		
+			sql_stmt.sprintf("INSERT INTO Daemons_Horizontal_History (MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory) SELECT MyType, Name, LastHeardFrom, MonitorSelfTime, MonitorSelfCPUUsage, MonitorSelfImageSize, MonitorSelfResidentSetSize, MonitorSelfAge, UpdateSequenceNumber, UpdatesTotal, UpdatesSequenced, UpdatesLost, UpdatesHistory FROM Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
+		}
 	}
 	
-	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		errorSqlStmt = sql_stmt;
-		return FAILURE;
-	}	
+	if (bndcnt > 0) {
+		if (DBObj->execCommandWithBind(sql_stmt.Value(),
+									   bndcnt,
+									   data_arr,
+									   data_typ) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}
 
-	sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
-
-	if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
-		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
-		errorSqlStmt = sql_stmt;
-		return FAILURE;
+		bndcnt = 0;
+	} else {
+		if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}	
 	}
-	
+
+	if (dt == T_ORACLE) {
+		data_arr[0] = daemonName.Value();
+		data_typ[0] = CONDOR_TT_TYPE_STRING;
+		
+		bndcnt = 1;		
+
+		sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Master' AND Name = :1");
+
+		if (DBObj->execCommandWithBind(sql_stmt.Value(),
+							   bndcnt,
+							   data_arr,
+							   data_typ) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}		
+	} else {
+		sql_stmt.sprintf("DELETE FROM  Daemons_Horizontal WHERE MyType = 'Master' AND Name = '%s'", daemonName.Value());
+
+		if (DBObj->execCommand(sql_stmt.Value()) == FAILURE) {
+			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
+			errorSqlStmt = sql_stmt;
+			return FAILURE;
+		}
+	}
+
 		// insert new tuple into daemons_horizontal 
 	sql_stmt.sprintf("INSERT INTO daemons_horizontal %s VALUES %s", attNameList.Value(), attValList.Value());
 	
@@ -1924,34 +2030,24 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	 while (newClAd.iterate(aName, aVal)) {
 
 		 if (dt == T_ORACLE) {
-			 int bndcnt = 0;
-			 const char *data_arr[7];
-			 QuillAttrDataType   data_typ[7];
-			 int   data_len[7];
 
 			 data_arr[0] = daemonName.Value();
 			 data_typ[0] = CONDOR_TT_TYPE_STRING;
-			 data_len[0] = daemonName.Length();
 
 			 data_arr[1] = aName.Value();
 			 data_typ[1] = CONDOR_TT_TYPE_STRING;
-			 data_len[1] = aName.Length();
 
 			 data_arr[2] = aVal.Value();
 			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = aVal.Length();
 
 			 data_arr[3] = lastHeardFromValue.Value();
 			 data_typ[3] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[3] = lastHeardFromValue.Length();
 
 			 data_arr[4] = daemonName.Value();
 			 data_typ[4] = CONDOR_TT_TYPE_STRING;
-			 data_len[4] = daemonName.Length();
 			 
 			 data_arr[5] = aName.Value();
 			 data_typ[5] = CONDOR_TT_TYPE_STRING;
-			 data_len[5] = aName.Length();
 
 			 bndcnt = 6;
 			 
@@ -1960,8 +2056,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
 										   bndcnt,
 										   data_arr,
-										   data_typ,
-										   data_len) == FAILURE) {
+										   data_typ) == FAILURE) {
 				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 				 errorSqlStmt = sql_stmt;
@@ -1970,19 +2065,15 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 
 			 data_arr[0] = lastHeardFromValue.Value();
 			 data_typ[0] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[0] = lastHeardFromValue.Length();
 
 			 data_arr[1] = daemonName.Value();
 			 data_typ[1] = CONDOR_TT_TYPE_STRING;
-			 data_len[1] = daemonName.Length();
 
 			 data_arr[2] = aName.Value();
 			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = aName.Length();
 
 			 data_arr[3] = aVal.Value();
 			 data_typ[3] = CONDOR_TT_TYPE_STRING;
-			 data_len[3] = aVal.Length();
 
 			 bndcnt = 4;
 			 
@@ -1991,8 +2082,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
 										   bndcnt,
 										   data_arr,
-										   data_typ,
-										   data_len) == FAILURE) {
+										   data_typ) == FAILURE) {
 				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());		
 				 errorSqlStmt = sql_stmt;
@@ -2001,23 +2091,18 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 
 			 data_arr[0] = aVal.Value();
 			 data_typ[0] = CONDOR_TT_TYPE_STRING;
-			 data_len[0] = aVal.Length();
 
 			 data_arr[1] = lastHeardFromValue.Value();
 			 data_typ[1] = CONDOR_TT_TYPE_TIMESTAMP;
-			 data_len[1] = lastHeardFromValue.Length();
 
 			 data_arr[2] = daemonName.Value();
 			 data_typ[2] = CONDOR_TT_TYPE_STRING;
-			 data_len[2] = daemonName.Length();
 			 
 			 data_arr[3] = aName.Value();
 			 data_typ[3] = CONDOR_TT_TYPE_STRING;
-			 data_len[3] = aName.Length();
 
 			 data_arr[4] = aVal.Value();
 			 data_typ[4] = CONDOR_TT_TYPE_STRING;
-			 data_len[4] = aVal.Length();
 
 			 bndcnt = 5;
 
@@ -2026,8 +2111,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			 if (DBObj->execCommandWithBind(sql_stmt.Value(),
 										   bndcnt,
 										   data_arr,
-										   data_typ, 
-										   data_len) == FAILURE) {
+										   data_typ) == FAILURE) {
 				 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 				 errorSqlStmt = sql_stmt;

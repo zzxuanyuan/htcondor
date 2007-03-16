@@ -101,7 +101,6 @@ JobQueueDBManager::config(bool reconfig)
 	int bndcnt = 0;
 	const char *data_arr[3];
 	QuillAttrDataType   data_typ[3];
-	int   data_len[3];	
 
 	if (param_boolean("QUILL_ENABLED", false) == false) {
 		EXCEPT("Quill++ is currently disabled. Please set QUILL_ENABLED to "
@@ -204,11 +203,9 @@ JobQueueDBManager::config(bool reconfig)
 		if (dt == T_ORACLE) {
 			data_arr[0] = scheddname;
 			data_typ[0] = CONDOR_TT_TYPE_STRING;
-			data_len[0] = strlen(scheddname);
 
 			data_arr[1] = scheddname;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(scheddname);
 		
 			bndcnt = 2;
 
@@ -220,8 +217,7 @@ JobQueueDBManager::config(bool reconfig)
 			ret_st = DBObj->execCommandWithBind(sql_str.Value(),
 												bndcnt,
 												data_arr,
-												data_typ,
-												data_len);
+												data_typ);
 			if (ret_st == FAILURE) {
 				dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
 						sql_str.Value());
@@ -242,11 +238,9 @@ JobQueueDBManager::config(bool reconfig)
 		if (dt == T_ORACLE) {
 			data_arr[0] = scheddname;
 			data_typ[0] = CONDOR_TT_TYPE_STRING;
-			data_len[0] = strlen(scheddname);
 
 			data_arr[1] = scheddname;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(scheddname);
 		
 			bndcnt = 2;
 
@@ -258,8 +252,7 @@ JobQueueDBManager::config(bool reconfig)
 			ret_st = DBObj->execCommandWithBind(sql_str.Value(),
 												bndcnt,
 												data_arr,
-												data_typ,
-												data_len);
+												data_typ);
 			if (ret_st == FAILURE) {
 				dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str.Value());
 			}
@@ -310,14 +303,6 @@ JobQueueDBManager::maintain()
 	ProbeResultType probe_st;	
 	struct stat fstat;
 
-	st = getJQPollingInfo(); // get the last polling information
-
-		//if we are unable to get to the polling info file, then either the 
-		//postgres server is down or the database is deleted.
-	if(st == FAILURE) {
-		return FAILURE;
-	}
-
 		// check if the job queue log exists, if not just skip polling
 	if ((stat(caLogParser->getJobQueueName(), &fstat) == -1)) {
 		if (errno == ENOENT) {
@@ -329,10 +314,18 @@ JobQueueDBManager::maintain()
 		
 	}
 
-        fst = caLogParser->openFile();
-        if(fst == FILE_OPEN_ERROR) {
-                return FAILURE;
-        }
+	st = getJQPollingInfo(); // get the last polling information
+
+		//if we are unable to get to the polling info file, then either the 
+		//postgres server is down or the database is deleted.
+	if(st == FAILURE) {
+		return FAILURE;
+	}
+
+	fst = caLogParser->openFile();
+	if(fst == FILE_OPEN_ERROR) {
+		return FAILURE;
+	}
 	
 		// polling
 	probe_st = prober->probe(caLogParser->getCurCALogEntry(), 
@@ -940,7 +933,6 @@ JobQueueDBManager::processNewClassAd(char* key,
 	int   bndcnt = 0;
 	const char *data_arr[4];
 	QuillAttrDataType  data_typ[4];
-	int   data_len[4];
 
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -951,11 +943,9 @@ JobQueueDBManager::processNewClassAd(char* key,
 		if (dt == T_ORACLE) {
 			data_arr[0] = scheddname;
 			data_typ[0] = CONDOR_TT_TYPE_STRING;
-			data_len[0] = strlen(scheddname);
 			
 			data_arr[1] = cid;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(cid);
 
 			bndcnt = 2;
 
@@ -971,15 +961,12 @@ JobQueueDBManager::processNewClassAd(char* key,
 		if (dt == T_ORACLE) {
 			data_arr[0] = scheddname;
 			data_typ[0] = CONDOR_TT_TYPE_STRING;
-			data_len[0] = strlen(scheddname);
 			
 			data_arr[1] = cid;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(cid);
 
 			data_arr[2] = pid;
 			data_typ[2] = CONDOR_TT_TYPE_STRING;
-			data_len[2] = strlen(pid);
 
 			bndcnt = 3;
 
@@ -1001,8 +988,7 @@ JobQueueDBManager::processNewClassAd(char* key,
 		if (DBObj->execCommandWithBind(sql_str.Value(),
 									   bndcnt,
 									   data_arr,
-									   data_typ,
-									   data_len) == FAILURE) {
+									   data_typ) == FAILURE) {
 			displayErrorMsg("New ClassAd Processing --- ERROR");
 			return FAILURE;
 		}		
@@ -1053,7 +1039,6 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 	int   bndcnt = 0;
 	const char *data_arr[4];
 	QuillAttrDataType  data_typ[4];
-	int   data_len[4];
 
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -1065,11 +1050,9 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		if (dt == T_ORACLE) {
 			data_arr[0] = scheddname;
 			data_typ[0] = CONDOR_TT_TYPE_STRING;
-			data_len[0] = strlen(scheddname);
 			
 			data_arr[1] = cid;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(cid);
 
 			bndcnt = 2;
 			
@@ -1091,15 +1074,12 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		if (dt == T_ORACLE) {
 			data_arr[0] = scheddname;
 			data_typ[0] = CONDOR_TT_TYPE_STRING;
-			data_len[0] = strlen(scheddname);
 			
 			data_arr[1] = cid;
 			data_typ[1] = CONDOR_TT_TYPE_STRING;
-			data_len[1] = strlen(cid);
 
 			data_arr[2] = pid;
 			data_typ[2] = CONDOR_TT_TYPE_STRING;
-			data_len[2] = strlen(pid);
 
 			bndcnt = 3;
 
@@ -1128,8 +1108,7 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		if (DBObj->execCommandWithBind(sql_str1.Value(),
 									   bndcnt,
 									   data_arr,
-									   data_typ,
-									   data_len) == FAILURE) {
+									   data_typ) == FAILURE) {
 			displayErrorMsg("Destroy ClassAd Processing --- ERROR");
 			return FAILURE; // return a error code, 0
 		}
@@ -1137,8 +1116,7 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		if (DBObj->execCommandWithBind(sql_str2.Value(),
 									   bndcnt,
 									   data_arr,
-									   data_typ,
-									   data_len) == FAILURE) {
+									   data_typ) == FAILURE) {
 			displayErrorMsg("Destroy ClassAd Processing --- ERROR");
 			return FAILURE; // return a error code, 0
 		}
@@ -1186,12 +1164,10 @@ JobQueueDBManager::processSetAttribute(char* key,
 	int   bndcnt1 = 0;
 	const char *data_arr1[6];
 	QuillAttrDataType  data_typ1[6];
-	int   data_len1[6];	
 
 	int   bndcnt2 = 0;
 	const char *data_arr2[6];
 	QuillAttrDataType  data_typ2[6];
-	int   data_len2[6];	
 
 	QuillAttrDataType  attr_type;
 
@@ -1219,15 +1195,12 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 					data_arr1[0] = ts_expr_val.Value();
 					data_typ1[0] = CONDOR_TT_TYPE_TIMESTAMP;
-					data_len1[0] = ts_expr_val.Length();
 
 					data_arr1[1] = scheddname;
 					data_typ1[1] = CONDOR_TT_TYPE_STRING;
-					data_len1[1] = strlen(scheddname);
 
 					data_arr1[2] = cid;
 					data_typ1[2] = CONDOR_TT_TYPE_STRING;
-					data_len1[2] = strlen(cid);					
 
 					bndcnt1 = 3;
 
@@ -1262,15 +1235,12 @@ JobQueueDBManager::processSetAttribute(char* key,
 				} else {
 					data_arr1[0] = newvalue.Value();
 					data_typ1[0] = CONDOR_TT_TYPE_STRING;
-					data_len1[0] = newvalue.Length();
 
 					data_arr1[1] = scheddname;
 					data_typ1[1] = CONDOR_TT_TYPE_STRING;
-					data_len1[1] = strlen(scheddname);
 
 					data_arr1[2] = cid;
 					data_typ1[2] = CONDOR_TT_TYPE_STRING;
-					data_len1[2] = strlen(cid);
 
 					bndcnt1 = 3;
 
@@ -1284,15 +1254,12 @@ JobQueueDBManager::processSetAttribute(char* key,
 			if (dt == T_ORACLE) {
 				data_arr1[0] = scheddname;
 				data_typ1[0] = CONDOR_TT_TYPE_STRING;
-				data_len1[0] = strlen(scheddname);
 				
 				data_arr1[1] = cid;
 				data_typ1[1] = CONDOR_TT_TYPE_STRING;
-				data_len1[1] = strlen(cid);
 
 				data_arr1[2] = name;
 				data_typ1[2] = CONDOR_TT_TYPE_STRING;
-				data_len1[2] = strlen(name);
 
 				bndcnt1 = 3;
 				
@@ -1310,19 +1277,15 @@ JobQueueDBManager::processSetAttribute(char* key,
 			} else {
 				data_arr2[0] = scheddname;
 				data_typ2[0] = CONDOR_TT_TYPE_STRING;
-				data_len2[0] = strlen(scheddname);
 				
 				data_arr2[1] = cid;
 				data_typ2[1] = CONDOR_TT_TYPE_STRING;
-				data_len2[1] = strlen(cid);
 
 				data_arr2[2] = name;
 				data_typ2[2] = CONDOR_TT_TYPE_STRING;
-				data_len2[2] = strlen(name);
 
 				data_arr2[3] = newvalue.Value();
 				data_typ2[3] = CONDOR_TT_TYPE_STRING;
-				data_len2[3] = newvalue.Length();
 				
 				bndcnt2 = 4;				
 				
@@ -1349,19 +1312,15 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 					data_arr1[0] = ts_expr_val.Value();
 					data_typ1[0] = CONDOR_TT_TYPE_TIMESTAMP;
-					data_len1[0] = ts_expr_val.Length();
 
 					data_arr1[1] = scheddname;
 					data_typ1[1] = CONDOR_TT_TYPE_STRING;
-					data_len1[1] = strlen(scheddname);
 
 					data_arr1[2] = cid;
 					data_typ1[2] = CONDOR_TT_TYPE_STRING;
-					data_len1[2] = strlen(cid);					
 
 					data_arr1[3] = pid;
 					data_typ1[3] = CONDOR_TT_TYPE_STRING;
-					data_len1[3] = strlen(pid);	
 
 					bndcnt1 = 4;
 
@@ -1395,19 +1354,15 @@ JobQueueDBManager::processSetAttribute(char* key,
 				} else {
 					data_arr1[0] = newvalue.Value();
 					data_typ1[0] = CONDOR_TT_TYPE_STRING;
-					data_len1[0] = newvalue.Length();
 
 					data_arr1[1] = scheddname;
 					data_typ1[1] = CONDOR_TT_TYPE_STRING;
-					data_len1[1] = strlen(scheddname);
 
 					data_arr1[2] = cid;
 					data_typ1[2] = CONDOR_TT_TYPE_STRING;
-					data_len1[2] = strlen(cid);
 
 					data_arr1[3] = pid;
 					data_typ1[3] = CONDOR_TT_TYPE_STRING;
-					data_len1[3] = strlen(pid);
 
 					bndcnt1 = 4;
 
@@ -1421,19 +1376,15 @@ JobQueueDBManager::processSetAttribute(char* key,
 			if (dt == T_ORACLE) {
 				data_arr1[0] = scheddname;
 				data_typ1[0] = CONDOR_TT_TYPE_STRING;
-				data_len1[0] = strlen(scheddname);
 				
 				data_arr1[1] = cid;
 				data_typ1[1] = CONDOR_TT_TYPE_STRING;
-				data_len1[1] = strlen(cid);
 
 				data_arr1[2] = pid;
 				data_typ1[2] = CONDOR_TT_TYPE_STRING;
-				data_len1[2] = strlen(pid);
 
 				data_arr1[3] = name;
 				data_typ1[3] = CONDOR_TT_TYPE_STRING;
-				data_len1[3] = strlen(name);
 
 				bndcnt1 = 4;
 				
@@ -1450,23 +1401,18 @@ JobQueueDBManager::processSetAttribute(char* key,
 			} else {
 				data_arr2[0] = scheddname;
 				data_typ2[0] = CONDOR_TT_TYPE_STRING;
-				data_len2[0] = strlen(scheddname);
 				
 				data_arr2[1] = cid;
 				data_typ2[1] = CONDOR_TT_TYPE_STRING;
-				data_len2[1] = strlen(cid);
 
 				data_arr2[2] = pid;
 				data_typ2[2] = CONDOR_TT_TYPE_STRING;
-				data_len2[2] = strlen(pid);
 
 				data_arr2[3] = name;
 				data_typ2[3] = CONDOR_TT_TYPE_STRING;
-				data_len2[3] = strlen(name);
 
 				data_arr2[4] = newvalue.Value();
 				data_typ2[4] = CONDOR_TT_TYPE_STRING;
-				data_len2[4] = newvalue.Length();
 				
 				bndcnt2 = 5;		
 				
@@ -1490,8 +1436,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 		ret_st = DBObj->execCommandWithBind(sql_str_del_in.Value(),
 											bndcnt1,
 											data_arr1,
-											data_typ1,
-											data_len1);
+											data_typ1);
 	}
 
 	if (ret_st == FAILURE) {
@@ -1510,8 +1455,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 			ret_st = DBObj->execCommandWithBind(sql_str2.Value(), 
 												bndcnt2,
 												data_arr2,
-												data_typ2,
-												data_len2);
+												data_typ2);
 		}
 		
 		if (ret_st == FAILURE) {

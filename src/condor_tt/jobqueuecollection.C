@@ -478,7 +478,6 @@ JobQueueCollection::loadAd(char* cid,
 	char *tmp;
 	int hor_bndcnt = 0;
 	const char* longstr_arr[2];
-	int   strlen_arr[2];	
 	QuillAttrDataType typ_arr[2];
 	MyString longmystr_arr[2];
 	QuillAttrDataType attr_type;
@@ -535,9 +534,8 @@ JobQueueCollection::loadAd(char* cid,
 							// since newvalue is a temp valuable, copy and 
 							// save the string value.
 						longmystr_arr[hor_bndcnt-1] = newvalue;
-						strlen_arr[hor_bndcnt-1] = newvalue.Length();
 						longstr_arr[hor_bndcnt-1] = longmystr_arr[hor_bndcnt-1].Value();
-						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_CLOB;
+						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_STRING;
 					}
 						
 					break;
@@ -592,29 +590,23 @@ JobQueueCollection::loadAd(char* cid,
 					}
 				}  else {
 					const char* data_arr[6];
-					int         data_len[6];
 					QuillAttrDataType data_typ[6];
 					int bndcnt = 0;
 
 					data_arr[0] = scheddname;
 					data_typ[0] = CONDOR_TT_TYPE_STRING;
-					data_len[0] = strlen(scheddname);
 
 					data_arr[1] = cid;
 					data_typ[1] = CONDOR_TT_TYPE_STRING;
-					data_len[1] = strlen(cid);
 
 					data_arr[2] = pid;
 					data_typ[2] = CONDOR_TT_TYPE_STRING;
-					data_len[2] = strlen(pid);
 
 					data_arr[3] = name;
 					data_typ[3] = CONDOR_TT_TYPE_STRING;
-					data_len[3] = strlen(name);
 					
 					data_arr[4] = newvalue.Value();
 					data_typ[4] = CONDOR_TT_TYPE_STRING;
-					data_len[4] = newvalue.Length();
 
 					bndcnt = 5;
 
@@ -623,8 +615,7 @@ JobQueueCollection::loadAd(char* cid,
 					if (DBObj->execCommandWithBind(sql_str.Value(), 
 												   bndcnt, 
 												   data_arr, 
-												   data_typ,
-												   data_len) == FAILURE) {
+												   data_typ) == FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 						return FAILURE;
 					}					
@@ -656,9 +647,8 @@ JobQueueCollection::loadAd(char* cid,
 							// since newvalue is a temp valuable, copy and 
 							// save the string value.
 						longmystr_arr[hor_bndcnt-1] = newvalue;
-						strlen_arr[hor_bndcnt-1] = newvalue.Length();
 						longstr_arr[hor_bndcnt-1] = longmystr_arr[hor_bndcnt-1].Value();
-						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_CLOB;
+						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_STRING;
 					}
 						
 					break;					
@@ -711,25 +701,20 @@ JobQueueCollection::loadAd(char* cid,
 					}
 				} else {
 					const char *data_arr[5];
-					int   data_len[5];
 					QuillAttrDataType data_typ[5];
 					int   bndcnt = 0;
 
 					data_arr[0] = scheddname;
 					data_typ[0] = CONDOR_TT_TYPE_STRING;
-					data_len[0] = strlen(scheddname);
 
 					data_arr[1] = cid;
 					data_typ[1] = CONDOR_TT_TYPE_STRING;
-					data_len[1] = strlen(cid);
 
 					data_arr[2] = name;
 					data_typ[2] = CONDOR_TT_TYPE_STRING;
-					data_len[2] = strlen(name);
 					
 					data_arr[3] = newvalue.Value();
 					data_typ[3] = CONDOR_TT_TYPE_STRING;
-					data_len[3] = newvalue.Length();
 
 					bndcnt = 4;
 					
@@ -738,8 +723,7 @@ JobQueueCollection::loadAd(char* cid,
 					if (DBObj->execCommandWithBind(sql_str.Value(),
 												   bndcnt,
 												   data_arr, 
-												   data_typ,
-												   data_len) == FAILURE) {
+												   data_typ) == FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 						return FAILURE;
 					}
@@ -771,8 +755,7 @@ JobQueueCollection::loadAd(char* cid,
 		}
 	} else {
 		if (DBObj->execCommandWithBind(sql_str.Value(), hor_bndcnt,
-									   longstr_arr, typ_arr,
-									   strlen_arr) == FAILURE) {
+									   longstr_arr, typ_arr) == FAILURE) {
 			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
 			return FAILURE;
 		}			
