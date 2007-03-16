@@ -481,12 +481,10 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
   char *tmp = NULL;
   int bndcnt1 = 0;
   const char* data_arr1[7];
-  int   data_len1[7];	
   QuillAttrDataType data_typ1[7];
 
   int bndcnt2 = 0;
   const char* data_arr2[7];
-  int   data_len2[7];	
   QuillAttrDataType data_typ2[7];
 
   QuillAttrDataType  attr_type;
@@ -506,19 +504,15 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
   if (dt == T_ORACLE) {
 	  data_arr1[0] = scheddname;
 	  data_typ1[0] = CONDOR_TT_TYPE_STRING;
-	  data_len1[0] = strlen(scheddname);
 
 	  data_arr1[1] = scheddbirthdate_str.Value();
 	  data_typ1[1] = CONDOR_TT_TYPE_STRING;
-	  data_len1[1] = scheddbirthdate_str.Length();
 
 	  data_arr1[2] = (char *)&cid;
 	  data_typ1[2] = CONDOR_TT_TYPE_NUMBER;
-	  data_len1[2] = sizeof(cid);
 
 	  data_arr1[3] = (char *)&pid;
 	  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
-	  data_len1[3] = sizeof(pid);
 	  
 	  bndcnt1 = 4;
 
@@ -528,8 +522,7 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 	  if (DBObj->execCommandWithBind(sql_stmt.Value(),
 							 bndcnt1,
 							 data_arr1,
-							 data_typ1,
-							 data_len1) == FAILURE) {
+							 data_typ1) == FAILURE) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		  errorSqlStmt = sql_stmt;
@@ -542,8 +535,7 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 	  if (DBObj->execCommandWithBind(sql_stmt2.Value(),
 							 bndcnt1,
 							 data_arr1,
-							 data_typ1,
-							 data_len1) == FAILURE) {
+							 data_typ1) == FAILURE) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
 		  errorSqlStmt = sql_stmt2;
@@ -652,23 +644,18 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 				  
 				  data_arr1[0] = ts_expr_val.Value();
 				  data_typ1[0] = CONDOR_TT_TYPE_TIMESTAMP;
-				  data_len1[0] = ts_expr_val.Length();				  
 
 				  data_arr1[1] = scheddname;
 				  data_typ1[1] = CONDOR_TT_TYPE_STRING;
-				  data_len1[1] = strlen(scheddname);
 
 				  data_arr1[2] = scheddbirthdate_str.Value();
 				  data_typ1[2] = CONDOR_TT_TYPE_STRING;
-				  data_len1[2] = scheddbirthdate_str.Length();				  
 
 				  data_arr1[3] = (char *)&cid;
 				  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
-				  data_len1[3] = sizeof(cid);
 
 				  data_arr1[4] = (char *)&pid;
 				  data_typ1[4] = CONDOR_TT_TYPE_NUMBER;
-				  data_len1[4] = sizeof(pid);
 
 				  bndcnt1 = 5;
 
@@ -698,23 +685,18 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 			  } else {
 				  data_arr1[0] = (char *)newvalue.Value();
 				  data_typ1[0] = CONDOR_TT_TYPE_STRING;
-				  data_len1[0] = newvalue.Length();				  
 
 				  data_arr1[1] = scheddname;
 				  data_typ1[1] = CONDOR_TT_TYPE_STRING;
-				  data_len1[1] = strlen(scheddname);
 
 				  data_arr1[2] = scheddbirthdate_str.Value();
 				  data_typ1[2] = CONDOR_TT_TYPE_STRING;
-				  data_len1[2] = scheddbirthdate_str.Length();				  
 
 				  data_arr1[3] = (char *)&cid;
 				  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
-				  data_len1[3] = sizeof(cid);
 
 				  data_arr1[4] = (char *)&pid;
 				  data_typ1[4] = CONDOR_TT_TYPE_NUMBER;
-				  data_len1[4] = sizeof(pid);
 
 				  bndcnt1 = 5;
 				  
@@ -728,23 +710,18 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 		  if (dt == T_ORACLE) {
 			  data_arr1[0] = scheddname;
 			  data_typ1[0] = CONDOR_TT_TYPE_STRING;
-			  data_len1[0] = strlen(scheddname);
 
 			  data_arr1[1] = scheddbirthdate_str.Value();
 			  data_typ1[1] = CONDOR_TT_TYPE_STRING;
-			  data_len1[1] = scheddbirthdate_str.Length();
 
 			  data_arr1[2] = (char *)&cid;
 			  data_typ1[2] = CONDOR_TT_TYPE_NUMBER;
-			  data_len1[2] = sizeof(cid);
 
 			  data_arr1[3] = (char *)&pid;
 			  data_typ1[3] = CONDOR_TT_TYPE_NUMBER;
-			  data_len1[3] = sizeof(pid);
 
 			  data_arr1[4] = name.Value();
 			  data_typ1[4] = CONDOR_TT_TYPE_STRING;
-			  data_len1[4] = name.Length();
 	  
 			  bndcnt1 = 5;
 			  
@@ -761,27 +738,21 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 		  } else {
 			  data_arr2[0] = scheddname;
 			  data_typ2[0] = CONDOR_TT_TYPE_STRING;
-			  data_len2[0] = strlen(scheddname);
 
 			  data_arr2[1] = scheddbirthdate_str.Value();
 			  data_typ2[1] = CONDOR_TT_TYPE_STRING;
-			  data_len2[1] = scheddbirthdate_str.Length();
 
 			  data_arr2[2] = (char *)&cid;
 			  data_typ2[2] = CONDOR_TT_TYPE_NUMBER;
-			  data_len2[2] = sizeof(cid);
 
 			  data_arr2[3] = (char *)&pid;
 			  data_typ2[3] = CONDOR_TT_TYPE_NUMBER;
-			  data_len2[3] = sizeof(pid);
 
 			  data_arr2[4] = name.Value();
 			  data_typ2[4] = CONDOR_TT_TYPE_STRING;
-			  data_len2[4] = name.Length();
 	  
 			  data_arr2[5] = newvalue.Value();
 			  data_typ2[5] = CONDOR_TT_TYPE_STRING;
-			  data_len2[5] = newvalue.Length();
 
 			  bndcnt2 = 6;			  
 
@@ -803,8 +774,7 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 		  if (DBObj->execCommandWithBind(sql_stmt.Value(), 
 										 bndcnt1,
 										 data_arr1,
-										 data_typ1,
-										 data_len1) == FAILURE) {
+										 data_typ1) == FAILURE) {
 			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt.Value());
 		  
@@ -829,8 +799,7 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 			if ((DBObj->execCommandWithBind(sql_stmt2.Value(),
 											bndcnt2,
 											data_arr2,
-											data_typ2,
-											data_len2) == FAILURE)) {
+											data_typ2) == FAILURE)) {
 				dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 				dprintf(D_ALWAYS, "sql = %s\n", sql_stmt2.Value());
 		  

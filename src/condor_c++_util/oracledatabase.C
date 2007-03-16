@@ -1593,25 +1593,23 @@ static MyString getStringFromClob(ResultSet *res, int col)
 /*! execute a command with binding variables
  *
  *  execaute SQL which has bind variables, the only data types
- *  supported for now are: string, timestamp, integer and clob
+ *  supported for now are: string, timestamp, integer
  *  
  *  the number of bind variables in the sql must be the same as the
  *  number of strings pointed by val_arr. 
  *  1) bnd_cnt should be the number of strings in the array;
  *  2) val_arr is the array of strings;
  *  3) typ_arr is the array of data types for the strings;
- *  4) len_arr is the array of string length.
  *
  */
 QuillErrCode 
 ORACLEDatabase::execCommandWithBind(const char* sql, 
 									int bnd_cnt,
 									const char** val_arr,
-									QuillAttrDataType *typ_arr,
-									int *  len_arr)
+									QuillAttrDataType *typ_arr)
 {
 	struct timeval tvStart, tvEnd;
-	int i, max_strlen = 0;
+	int i;
 	oracle::occi::Stream *instream;
 
 	if (!connected) {
@@ -1630,20 +1628,10 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 	gettimeofday( &tvStart, NULL );
 #endif
 
-		/* find the maximum length of clob */
-	for ( i = 0; i < bnd_cnt; i++) {
-		if (typ_arr[i] == CONDOR_TT_TYPE_CLOB && 
-			len_arr[i] > max_strlen) { 
-			max_strlen = len_arr[i];
-		}
-	}
-
 	try {
 		stmt = conn->createStatement (sql);
 		for ( i = 1; i <= bnd_cnt; i++) {
-			if (typ_arr[i-1] == CONDOR_TT_TYPE_CLOB) {
-				stmt->setCharacterStreamMode(i, max_strlen+1);
-			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_STRING) {
+			if (typ_arr[i-1] == CONDOR_TT_TYPE_STRING) {
 				stmt->setString(i, val_arr[i-1]);
 			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_NUMBER) {
 				stmt->setInt(i, *(const int *)val_arr[i-1]);
@@ -1663,14 +1651,6 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 
 		stmt->executeUpdate ();
 
-		for ( i = 1; i <= bnd_cnt; i++) {
-			if (typ_arr[i-1] == CONDOR_TT_TYPE_CLOB) {
-				instream = stmt->getStream(i);
-				instream->writeLastBuffer((char *)val_arr[i-1], len_arr[i-1]);
-				stmt->closeStream(instream);
-			}
-		}
-		
 	} catch (SQLException ex) {
 		dprintf(D_ALWAYS, "ERROR EXECUTING UPDATE\n");
 		dprintf(D_ALWAYS,  "[SQL: %s]\n", sql);		
@@ -1702,5 +1682,102 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 #endif
 	
 	stmt = NULL;
+	return SUCCESS;
+}
+
+/*! execute a query with binding variables
+ *
+ *  execaute SQL which has bind variables, the only data types
+ *  supported for now are: string, timestamp, integer
+ *  
+ *  the number of bind variables in the sql must be the same as the
+ *  number of strings pointed by val_arr. 
+ *  1) bnd_cnt should be the number of strings in the array;
+ *  2) val_arr is the array of strings;
+ *  3) typ_arr is the array of data types for the strings;
+ *
+ */
+/*! execute a SQL query
+ */
+QuillErrCode
+ORACLEDatabase::execQueryWithBind(const char* sql,
+						  int bnd_cnt,
+						  const char **val_arr,
+						  QuillAttrDataType *typ_arr,
+						  int &num_result)
+{
+	ResultSet *res;
+	ResultSet::Status rs;
+	int temp=0;
+	int i;
+
+	queryResCursor = -1;
+
+	if (!connected) {
+		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execQuery\n");
+		num_result = -1;
+		return FAILURE;
+	}
+
+	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
+
+	try {
+		queryStmt = conn->createStatement (sql);
+
+		for ( i = 1; i <= bnd_cnt; i++) {
+			if (typ_arr[i-1] == CONDOR_TT_TYPE_STRING) {
+				queryStmt->setString(i, val_arr[i-1]);
+			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_NUMBER) {
+				queryStmt->setInt(i, *(const int *)val_arr[i-1]);
+			} else if (typ_arr[i-1] == CONDOR_TT_TYPE_TIMESTAMP) {
+					// timestamp
+				oracle::occi::Timestamp ts1;
+				ts1.fromText(val_arr[i-1], 
+							 QUILL_ORACLE_TIMESTAMP_FORAMT, 
+							 "", env);
+				queryStmt->setTimestamp(i, ts1);				
+			} else {
+				dprintf(D_ALWAYS, "unknown data type in ORACLEDatabase::execQueryWithBind\n");
+				conn->terminateStatement (queryStmt);
+				return FAILURE;				
+			}
+		}
+
+		res = queryStmt->executeQuery ();
+		
+			/* fetch from res to count the number of rows */
+		while ((rs = res->next()) != ResultSet::END_OF_FETCH) {
+			temp++;  	
+		}
+
+		queryStmt->closeResultSet (res);
+		
+			/* query again to get new result structure to pass back */
+		queryRes = queryStmt->executeQuery();
+		num_result = temp;	
+		
+	} catch (SQLException ex) {
+		conn->terminateStatement (queryStmt);
+		queryRes = NULL;
+		queryStmt = NULL;
+		
+		dprintf(D_ALWAYS, "ERROR EXECUTING QUERY\n");
+		dprintf(D_ALWAYS,  "[SQL: %s]\n", sql);         
+		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::execQuery\n", ex.getErrorCode(), ex.getMessage().c_str());
+		errorMsg.sprintf("Error number: %d, Error message: %s", 
+						ex.getErrorCode(), ex.getMessage().c_str());
+		
+			/* ORA-03113 means that the connection between Client 
+			   and Server process was broken.
+			*/
+		if (ex.getErrorCode() == 3113) {
+			disconnectDB();
+		}               
+     
+		num_result = -1;
+
+		return FAILURE;                 
+	}
+
 	return SUCCESS;
 }
