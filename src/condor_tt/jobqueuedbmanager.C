@@ -272,6 +272,13 @@ JobQueueDBManager::config(bool reconfig)
 		if (ret_st == FAILURE) {
 			dprintf(D_ALWAYS, "Commit transaction failed in JobQueueDBManager::config\n");
 		}
+
+		if (param_boolean("QUILL_MAINTAIN_DB_CONN", true) == false) {
+			ret_st = DBObj->disconnectDB();
+			if (ret_st == FAILURE) {
+				dprintf(D_ALWAYS, "JobQueueDBManager:config: unable to disconnect database --- ERROR\n");
+			}	
+		}
 	}
 
 		//this function assumes that certain members have been initialized

@@ -108,6 +108,7 @@ class TTManager : public Service
 	dbtype dt;
 	MyString  currentSqlLog;
 	MyString  errorSqlStmt;
+	bool      maintain_db_conn;
 };
 
 #endif /* _TTMANAGER_H_ */

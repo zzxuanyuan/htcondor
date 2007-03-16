@@ -160,6 +160,8 @@ TTManager::config(bool reconfig)
 		dprintf(D_ALWAYS, "%s ", sqlLogList[i]);
 	dprintf(D_ALWAYS, "\n");
 
+	maintain_db_conn = param_boolean("QUILL_MAINTAIN_DB_CONN", true);
+
 	jqDBManager.config(reconfig);
 	jqDBManager.init();
 
@@ -213,6 +215,16 @@ TTManager::maintain()
 {	
 	QuillErrCode retcode;
 	bool bothOk = TRUE;
+	QuillErrCode ret_st;
+
+	if (maintain_db_conn == false) {
+		dprintf(D_FULLDEBUG, "TTManager::maintain: connect to DB\n");
+		ret_st = DBObj->connectDB();
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "TTManager::maintain: unable to connect to DB--- ERROR\n");
+			return;
+		}		
+	}
 
 		// first call the job queue maintain function
 	dprintf(D_ALWAYS, "******** Start of Polling Job Queue Log ********\n");
@@ -321,6 +333,14 @@ TTManager::maintain()
 		dprintf(D_ALWAYS, "********* End of Polling XML Log *********\n");
 	}
 
+	if (maintain_db_conn == false) {
+		dprintf(D_FULLDEBUG, "TTManager::maintain: disconnect from DB\n");
+		ret_st = DBObj->disconnectDB();
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "TTManager::maintain: unable to disconnect from DB--- ERROR\n");
+			return;
+		}		
+	}
 }
 
 
@@ -3311,7 +3331,7 @@ void TTManager::handleErrorSqlLog()
 
 static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	int fd;
-	char *data;
+	void *data;
 	Condor_MD_MAC *checker = new Condor_MD_MAC();
 	unsigned char *checksum;
 
@@ -3324,15 +3344,20 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 		return FALSE;
 	}
 
-	data = (char *)mmap(0, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (data == ((char *) -1))
+	data = mmap(0, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (data == MAP_FAILED) {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: mmap failed\n");
+		close(fd);
+		return FALSE;
+	}
 
 	close(fd);
 
 	checker->addMD((unsigned char *) data, fileSize);
-	if (munmap(data, fileSize) < 0)
+	if (munmap(data, fileSize) < 0) {		
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: munmap failed\n");
+		return FALSE;
+	}
 
 	checksum = checker->computeMD();
 
