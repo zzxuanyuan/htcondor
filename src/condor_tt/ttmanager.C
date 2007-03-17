@@ -3331,33 +3331,28 @@ void TTManager::handleErrorSqlLog()
 
 static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	int fd;
-	void *data;
+	char data[4097];
 	Condor_MD_MAC *checker = new Condor_MD_MAC();
 	unsigned char *checksum;
+	int rv;
 
 	if (!filePathName || !sum) 
 		return FALSE;
 
-	fd = safe_open_wrapper(filePathName, O_RDONLY, 0);
+	fd = safe_open_wrapper(filePathName, O_RDONLY);
 	if (fd < 0) {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: can't open %s\n", filePathName);
 		return FALSE;
 	}
 
-	data = mmap(0, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (data == MAP_FAILED) {
-		dprintf(D_FULLDEBUG, "schedd_file_checksum: mmap failed\n");
-		close(fd);
-		return FALSE;
+	rv = read(fd, data, 4096);
+
+	while (rv > 0) {
+		checker->addMD((unsigned char *) data, rv);
+		rv = read(fd, data, 4096);
 	}
 
 	close(fd);
-
-	checker->addMD((unsigned char *) data, fileSize);
-	if (munmap(data, fileSize) < 0) {		
-		dprintf(D_FULLDEBUG, "schedd_file_checksum: munmap failed\n");
-		return FALSE;
-	}
 
 	checksum = checker->computeMD();
 
@@ -3378,7 +3373,7 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 static QuillErrCode append(char *destF, char *srcF) 
 {	
 	int dest, src;
-	char buffer[4096];
+	char buffer[4097];
 	int rv;
 
 	dest = safe_open_wrapper (destF, O_WRONLY|O_CREAT|O_APPEND, 0644);
