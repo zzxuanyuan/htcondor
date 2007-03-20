@@ -481,8 +481,12 @@ AC_DEFUN([CHECK_PATH_PROG],
  fi
 ])
 
-
-dnl $Id: aclocal.m4,v 1.5.26.1 2007-03-06 23:12:55 epaulson Exp $
+dnl - I found this on the internet. It was from gdal, which is MIT-licensed.
+dnl The license on the macro is listed as "AllPermissive" which according to
+dnl http://ac-archive.sourceforge.net/doc/contribute.html
+dnl means "assumed MIT-style"
+dnl
+dnl $Id: aclocal.m4,v 1.5.26.2 2007-03-20 20:55:39 epaulson Exp $
 dnl
 dnl @synopsis AX_LIB_ORACLE_OCI([MINIMUM-VERSION])
 dnl
@@ -516,7 +520,7 @@ dnl
 dnl @category InstalledPackages
 dnl @category Cxx
 dnl @author Mateusz Loskot <mateusz@loskot.net>
-dnl @version $Date: 2007-03-06 23:12:55 $
+dnl @version $Date: 2007-03-20 20:55:39 $
 dnl @license AllPermissive
 dnl
 AC_DEFUN([AX_LIB_ORACLE_OCI],
