@@ -298,7 +298,8 @@ int main (int argc, char **argv)
 {
 	ClassAd		*ad;
 	bool		first;
-	char		scheddName[64];
+	char		scheddName[128];
+	char		daemonAdName[128];
 	char		scheddMachine[64];
 	char		*tmp;
 	bool        useDB; /* Is there a database to query for a schedd */
@@ -621,10 +622,9 @@ int main (int argc, char **argv)
 #endif
 
 		freeConnectionStrings();
-
 		useDB = FALSE;
 		if ( ! (ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr)  &&
-				 ad->LookupString(ATTR_NAME, scheddName)		&&
+				 ad->LookupString(ATTR_NAME, scheddName)		&& 
 				 ad->LookupString(ATTR_MACHINE, scheddMachine) ) ) 
 		{
 			/* something is wrong with this schedd/quill ad, try the next one */
@@ -641,7 +641,11 @@ int main (int argc, char **argv)
 
 			/* If the quill information is available, try to use it first */
 			useDB = TRUE;
-			Q.addSchedd(scheddName);
+	    	if (ad->LookupString(ATTR_SCHEDD_NAME, daemonAdName)) {
+				Q.addSchedd(daemonAdName);
+			} else {
+				Q.addSchedd(scheddName);
+			}
 
 				/* get the quill info for fail-over processing */
 			ASSERT(ad->LookupString(ATTR_MACHINE, &quillMachine));
