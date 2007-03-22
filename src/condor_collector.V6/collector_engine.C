@@ -1255,9 +1255,7 @@ void CollectorEngine::logInsert(ClassAd *cl, int LHF, const char *label)
 		negotiatorPrevLHF = LHF;
 
 		dbh->file_newEvent("NegotiatorAd", &clCopy);	
-	} else {
-		dprintf(D_FULLDEBUG, "%s ad type unsupported by quill++\n", label);
-	}
+	} 
 }
 
 static void
