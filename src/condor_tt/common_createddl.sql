@@ -149,6 +149,8 @@ runbytessent            numeric(38),
 runbytesreceived        numeric(38), 
 PRIMARY KEY (run_id));
 
+CREATE INDEX runs_idx1 ON runs(scheddname, cluster_id, proc_id);
+
 -- END Added by Ameet
 
 -- BEGIN Srinath
