@@ -264,6 +264,8 @@ datasource varchar(4000),
 lastupdate timestamp(3) with time zone
 );
 
+CREATE INDEX currencies_idx ON currencies(datasource);
+
 CREATE TABLE daemons_horizontal (
 mytype				VARCHAR(100) NOT NULL,
 name				VARCHAR(500) NOT NULL,
