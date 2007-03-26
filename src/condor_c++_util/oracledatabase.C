@@ -1279,6 +1279,10 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 			cv = getStringFromClob(procAdsHorRes, col);
 		}		
 
+		if (procAdsHorRes->isNull(col+1)) {
+			return NULL;
+		}
+
 			/* add double quotes back if needed */
 		if (proc_field_is_quoted[col]) {
 			MyString temp = cv;
@@ -1459,6 +1463,10 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 			cv = (clusterAdsHorRes->getString(col+1)).c_str();		
 		} else {
 			cv = getStringFromClob(clusterAdsHorRes, col);
+		}
+
+		if (clusterAdsHorRes->isNull(col+1)) {
+			return NULL;
 		}
 
 			/* add double quotes back if needed */
