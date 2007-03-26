@@ -799,6 +799,7 @@ const char*
 PGSQLDatabase::getJobQueueProcAds_HorValue(int row, int col)
 {
 	const char *dataptr = PQgetvalue(procAdsHorRes, row, col);
+	if(PQgetisnull(procAdsHorRes, row, col)) { return NULL; }
 
 	if(proc_field_is_quoted[col]) {
 		bufferedResult.sprintf("\"%s\"", dataptr);
@@ -820,6 +821,8 @@ const char*
 PGSQLDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 {
 	const char *dataptr = PQgetvalue(clusterAdsHorRes, row, col);
+
+	if(PQgetisnull(clusterAdsHorRes, row, col)) { return NULL; }
 
 	if(cluster_field_is_quoted[col]) {
 		bufferedResult.sprintf("\"%s\"", dataptr);

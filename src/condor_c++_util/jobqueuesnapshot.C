@@ -245,11 +245,13 @@ JobQueueSnapshot::getNextClusterAd(char* cluster_id, ClassAd*& ad)
 		attr = (char *)jqDB->getJobQueueClusterHorFieldName(i);
 		val = jqDB->getJobQueueClusterAds_HorValue(
 				cur_clusterads_hor_index, i); // val
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
-		sprintf(expr, "%s = %s", attr, val);
+		if(val) {
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
+			sprintf(expr, "%s = %s", attr, val);
 			// add an attribute with a value into ClassAd
-		ad->Insert(expr);
-		free(expr);
+			ad->Insert(expr);
+			free(expr);
+		}
 	}
 	cur_clusterads_hor_index++;
 
@@ -400,11 +402,13 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 		attr = (char *)jqDB->getJobQueueProcHorFieldName(i);
 		val = jqDB->getJobQueueProcAds_HorValue(
 				cur_procads_hor_index, i); // val
-		char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
-		sprintf(expr, "%s = %s", attr, val);
+		if(val) {
+			char* expr = (char*)malloc(strlen(attr) + strlen(val) + 6);
+			sprintf(expr, "%s = %s", attr, val);
 			// add an attribute with a value into ClassAd
-		ad->Insert(expr);
-		free(expr);
+			ad->Insert(expr);
+			free(expr);
+		}
 	}
 
 	ad->SetMyTypeName("Job");
