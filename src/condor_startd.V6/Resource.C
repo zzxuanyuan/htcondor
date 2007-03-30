@@ -868,8 +868,8 @@ Resource::do_update( void )
 
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
 
-		// insert classad into DB
-	this->dbInsert(&public_ad);
+		// log classad into sql log so that it can be updated to DB
+	daemonAdInsert(&public_ad, "Machines", FILEObj, prevLHF);
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( UPDATE_STARTD_AD, &public_ad,
@@ -1806,26 +1806,4 @@ Resource::endCODLoadHack( void )
 	r_hack_load_for_cod = false;
 	r_pre_cod_total_load = 0.0;
 	r_pre_cod_condor_load = 0.0;
-}
-
-void
-Resource::dbInsert( ClassAd *cl )
-{
-	FILESQL *dbh = FILEObj;
-	ClassAd clCopy;
-	MyString tmp;
-
-		// make a copy so that we can add timestamp attribute into it
-	clCopy = *cl;
-
-	tmp.sprintf("%s = %d", "PrevLastReportedTime", prevLHF);
-	(&clCopy)->Insert(tmp.GetCStr());
-
-		// set the lastReportedTime and make it the new prevLHF
-	prevLHF = (int)time(NULL);
-
-	tmp.sprintf("%s = %d", "LastReportedTime", prevLHF);
-	(&clCopy)->Insert(tmp.GetCStr());
-
-	dbh->file_newEvent("Machines", &clCopy);
 }
