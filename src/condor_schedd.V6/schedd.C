@@ -80,7 +80,7 @@
 #include "tdman.h"
 
 #include "schedd_files.h"
-
+#include "file_sql.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -128,6 +128,8 @@ extern char *DebugLock;
 
 extern Scheduler scheduler;
 extern DedicatedScheduler dedicated_scheduler;
+
+extern FILESQL *FILEObj;
 
 // priority records
 extern prio_rec *PrioRec;
@@ -366,6 +368,7 @@ Scheduler::Scheduler() :
 
 	last_reschedule_request = 0;
 	jobThrottleNextJobDelay = 0;
+	prevLHF = 0;
 }
 
 
@@ -753,6 +756,9 @@ Scheduler::count_jobs()
 
 	daemonCore->UpdateLocalAd(ad);
 
+		// log classad into sql log so that it can be updated to DB
+	daemonAdInsert(ad, "ScheddAd", FILEObj, prevLHF);
+	
 		// Update collectors
 	int num_updates = Collectors->sendUpdates ( UPDATE_SCHEDD_AD, ad, NULL, true );
 	dprintf( D_FULLDEBUG, 

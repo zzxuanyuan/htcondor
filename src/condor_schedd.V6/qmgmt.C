@@ -3726,7 +3726,7 @@ static void AppendHistory(ClassAd* ad)
 
   MaybeRotateHistory(ad_size);
 
-  if (FILEObj->file_newEvent("History", ad) == FAILURE) {
+  if (FILEObj->file_newEvent("History", ad) == QUILL_FAILURE) {
 	  dprintf(D_ALWAYS, "AppendHistory Logging History Event --- Error\n");
   }
 

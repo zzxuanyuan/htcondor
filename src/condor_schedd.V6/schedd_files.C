@@ -139,7 +139,7 @@ void schedd_files_ins(
 									file_status.st_mtime, 
 									file_status.st_size);
 	
-	if (retcode == FAILURE) {
+	if (retcode == QUILL_FAILURE) {
 			// fail to insert the file
 		return;
 	}

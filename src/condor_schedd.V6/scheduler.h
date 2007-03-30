@@ -618,6 +618,7 @@ private:
 	char *quill_db_name;
 	char *quill_db_ip_addr;
 	char *quill_db_query_password;
+	int prevLHF;
 #endif
 
 };
