@@ -110,7 +110,7 @@ cpuisbusy              varchar(5),
 currentrank            real,
 clockmin               integer,
 clockday               integer,
-lastreportedtime          timestamp(3) with time zone,
+lastreportedtime       timestamp(3) with time zone,
 enteredcurrentactivity timestamp(3) with time zone,
 enteredcurrentstate    timestamp(3) with time zone,
 updatesequencenumber   integer,
@@ -269,7 +269,7 @@ CREATE INDEX currencies_idx ON currencies(datasource);
 CREATE TABLE daemons_horizontal (
 mytype				VARCHAR(100) NOT NULL,
 name				VARCHAR(500) NOT NULL,
-lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+lastreportedtime		TIMESTAMP(3) WITH TIME ZONE,
 monitorselftime			TIMESTAMP(3) WITH TIME ZONE,
 monitorselfcpuusage		numeric(38),
 monitorselfimagesize		numeric(38),
@@ -280,14 +280,14 @@ updatestotal			INTEGER,
 updatessequenced		INTEGER,
 updateslost			INTEGER,
 updateshistory			VARCHAR(4000),
-lastheardfrom_epoch             integer,
+lastreportedtime_epoch          integer,
 PRIMARY KEY (MyType, Name)
 );
 
 CREATE TABLE daemons_horizontal_history (
 mytype				VARCHAR(100),
 name				VARCHAR(500),
-lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+lastreportedtime		TIMESTAMP(3) WITH TIME ZONE,
 monitorselftime			TIMESTAMP(3) WITH TIME ZONE,
 monitorselfcpuusage		numeric(38),
 monitorselfimagesize		numeric(38),
@@ -304,7 +304,7 @@ endtime				TIMESTAMP(3) WITH TIME ZONE
 CREATE TABLE submitters_horizontal (
 name				VARCHAR(500) NOT NULL,
 scheddname			VARCHAR(4000),
-lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+lastreportedtime		TIMESTAMP(3) WITH TIME ZONE,
 idlejobs			INTEGER,
 runningjobs			INTEGER,
 heldjobs			INTEGER,
@@ -315,7 +315,7 @@ PRIMARY KEY (Name)
 CREATE TABLE submitters_horizontal_history (
 name				VARCHAR(500),
 scheddname			VARCHAR(4000),
-lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+lastreportedtime		TIMESTAMP(3) WITH TIME ZONE,
 idlejobs			INTEGER,
 runningjobs			INTEGER,
 heldjobs			INTEGER,

@@ -167,14 +167,14 @@ mytype				VARCHAR(100) NOT NULL,
 name				VARCHAR(500) NOT NULL,
 attr				VARCHAR(4000) NOT NULL,
 val				clob,
-lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+lastreportedtime		TIMESTAMP(3) WITH TIME ZONE,
 PRIMARY KEY (MyType, Name, attr)
 );
 
 CREATE TABLE daemons_vertical_history (
 mytype				VARCHAR(100),
 name				VARCHAR(500),
-lastheardfrom			TIMESTAMP(3) WITH TIME ZONE,
+lastreportedtime		TIMESTAMP(3) WITH TIME ZONE,
 attr				VARCHAR(4000),
 val				clob,
 endtime				TIMESTAMP(3) WITH TIME ZONE
@@ -347,19 +347,19 @@ WHERE lastreportedtime <
 
 -- purge daemon vertical attributes older than certain days
 DELETE FROM daemons_vertical_history
-WHERE lastheardfrom < 
+WHERE lastreportedtime < 
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
 
 -- purge daemon classads older than certain days
 DELETE FROM daemons_horizontal_history
-WHERE lastheardfrom < 
+WHERE lastreportedtime < 
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
 
 -- purge submitters classads older than certain days
 DELETE FROM submitters_horizontal_history
-WHERE lastheardfrom < 
+WHERE lastreportedtime < 
       (current_timestamp - 
        to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
 

@@ -559,7 +559,7 @@ JobQueueCollection::loadAd(char* cid,
 
 					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 					
 					tmpVal.sprintf("%s", ts_expr.Value());
@@ -572,7 +572,7 @@ JobQueueCollection::loadAd(char* cid,
 				default:
 					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
 
-					return FAILURE;
+					return QUILL_FAILURE;
 				}
 				attValList += tmpVal;
 			} else {			
@@ -584,9 +584,9 @@ JobQueueCollection::loadAd(char* cid,
 				if (dt != T_ORACLE) {
 					sql_str.sprintf("INSERT INTO ProcAds_Vertical VALUES('%s', %s, %s, '%s', '%s')", scheddname,cid, pid, name, newvalue.Value());
 
-					if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+					if (DBObj->execCommand(sql_str.Value()) == QUILL_FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 				}  else {
 					const char* data_arr[6];
@@ -615,9 +615,9 @@ JobQueueCollection::loadAd(char* cid,
 					if (DBObj->execCommandWithBind(sql_str.Value(), 
 												   bndcnt, 
 												   data_arr, 
-												   data_typ) == FAILURE) {
+												   data_typ) == QUILL_FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
-						return FAILURE;
+						return QUILL_FAILURE;
 					}					
 				}
 			}
@@ -672,7 +672,7 @@ JobQueueCollection::loadAd(char* cid,
 
 					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not builtin JobQueueCollection::loadAd\n");
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 					
 					tmpVal.sprintf("%s", ts_expr.Value());
@@ -684,7 +684,7 @@ JobQueueCollection::loadAd(char* cid,
 					break;
 				default:
 					dprintf(D_ALWAYS, "loadAd: unsupported horizontal proc ad attribute\n");
-					return FAILURE;
+					return QUILL_FAILURE;
 				}
 				attValList += tmpVal;
 			} else {
@@ -695,9 +695,9 @@ JobQueueCollection::loadAd(char* cid,
 
 				if (dt != T_ORACLE) {
 					sql_str.sprintf("INSERT INTO ClusterAds_Vertical VALUES('%s', %s, '%s', '%s')", scheddname,cid, name, newvalue.Value());
-					if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+					if (DBObj->execCommand(sql_str.Value()) == QUILL_FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 				} else {
 					const char *data_arr[5];
@@ -723,9 +723,9 @@ JobQueueCollection::loadAd(char* cid,
 					if (DBObj->execCommandWithBind(sql_str.Value(),
 												   bndcnt,
 												   data_arr, 
-												   data_typ) == FAILURE) {
+												   data_typ) == QUILL_FAILURE) {
 						dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 				}
 			}
@@ -749,17 +749,17 @@ JobQueueCollection::loadAd(char* cid,
 
 		// execute it
 	if (hor_bndcnt == 0) {			
-		if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+		if (DBObj->execCommand(sql_str.Value()) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 	} else {
 		if (DBObj->execCommandWithBind(sql_str.Value(), hor_bndcnt,
-									   longstr_arr, typ_arr) == FAILURE) {
+									   longstr_arr, typ_arr) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "JobQueueCollection::loadAd - ERROR [SQL] %s\n", sql_str.Value());
-			return FAILURE;
+			return QUILL_FAILURE;
 		}			
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }

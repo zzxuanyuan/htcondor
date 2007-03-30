@@ -179,7 +179,7 @@ JobQueueDBManager::config(bool reconfig)
 		QuillErrCode ret_st;
 
 		ret_st = DBObj->connectDB();
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			displayErrorMsg("config: unable to connect to DB--- ERROR");
 			EXCEPT("config: unable to connect to DB\n");
 		}
@@ -218,7 +218,7 @@ JobQueueDBManager::config(bool reconfig)
 												bndcnt,
 												data_arr,
 												data_typ);
-			if (ret_st == FAILURE) {
+			if (ret_st == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
 						sql_str.Value());
 			}
@@ -229,7 +229,7 @@ JobQueueDBManager::config(bool reconfig)
 			sql_str.sprintf("INSERT INTO jobqueuepollinginfo (scheddname, last_file_mtime, last_file_size) SELECT '%s', 0, 0 FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s')", scheddname, scheddname);
 		
 			ret_st = DBObj->execCommand(sql_str.Value());
-			if (ret_st == FAILURE) {
+			if (ret_st == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
 						sql_str.Value());
 			}			
@@ -253,7 +253,7 @@ JobQueueDBManager::config(bool reconfig)
 												bndcnt,
 												data_arr,
 												data_typ);
-			if (ret_st == FAILURE) {
+			if (ret_st == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str.Value());
 			}
 		} else {
@@ -263,19 +263,19 @@ JobQueueDBManager::config(bool reconfig)
 			sql_str.sprintf("INSERT INTO currencies (datasource) SELECT '%s' FROM dummy_single_row_table WHERE NOT EXISTS (SELECT * FROM currencies WHERE datasource = '%s')", scheddname, scheddname);
 
 			ret_st = DBObj->execCommand(sql_str.Value());
-			if (ret_st == FAILURE) {
+			if (ret_st == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str.Value());
 			}
 		}
 		
 		ret_st = DBObj->commitTransaction();
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Commit transaction failed in JobQueueDBManager::config\n");
 		}
 
 		if (param_boolean("QUILL_MAINTAIN_DB_CONN", true) == false) {
 			ret_st = DBObj->disconnectDB();
-			if (ret_st == FAILURE) {
+			if (ret_st == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "JobQueueDBManager:config: unable to disconnect database --- ERROR\n");
 			}	
 		}
@@ -313,10 +313,10 @@ JobQueueDBManager::maintain()
 		// check if the job queue log exists, if not just skip polling
 	if ((stat(caLogParser->getJobQueueName(), &fstat) == -1)) {
 		if (errno == ENOENT) {
-			return SUCCESS;
+			return QUILL_SUCCESS;
 		} else {
 				// otherwise there is an error accessing the log
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 		
 	}
@@ -325,13 +325,13 @@ JobQueueDBManager::maintain()
 
 		//if we are unable to get to the polling info file, then either the 
 		//postgres server is down or the database is deleted.
-	if(st == FAILURE) {
-		return FAILURE;
+	if(st == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	fst = caLogParser->openFile();
 	if(fst == FILE_OPEN_ERROR) {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	
 		// polling
@@ -365,11 +365,11 @@ JobQueueDBManager::maintain()
 		break;
 	case NO_CHANGE:
 		dprintf(D_ALWAYS, "JOB QUEUE POLLING RESULT: NO CHANGE\n");	
-		ret_st = SUCCESS;
+		ret_st = QUILL_SUCCESS;
 		break;
 	default:
 		dprintf(D_ALWAYS, "ERROR HAPPENED DURING JOB QUEUE POLLING\n");
-		ret_st = FAILURE;
+		ret_st = QUILL_FAILURE;
 	}
 
 	fst = caLogParser->closeFile();
@@ -403,14 +403,14 @@ JobQueueDBManager::cleanupJobQueueTables()
 			 scheddname);
 
 	for (i = 0; i < sqlNum; i++) {
-		if (DBObj->execCommand(sql_str[i].Value()) == FAILURE) {
+		if (DBObj->execCommand(sql_str[i].Value()) == QUILL_FAILURE) {
 			displayErrorMsg("Clean UP ALL Data --- ERROR");
 			
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! build the job queue collection from job_queue.log file
@@ -423,18 +423,18 @@ JobQueueDBManager::buildJobQueue(JobQueueCollection *jobQueue)
 
 	st = caLogParser->readLogEntry(op_type);
 	if(st == FILE_OPEN_ERROR) {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	while (st == FILE_READ_SUCCESS) {
-		if (processLogEntry(op_type, jobQueue) == FAILURE) {
+		if (processLogEntry(op_type, jobQueue) == QUILL_FAILURE) {
 				// process each ClassAd Log Entry
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 		st = caLogParser->readLogEntry(op_type);
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! load job ads in a job queue collection into DB
@@ -451,7 +451,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	jobQueue->initAllJobAdsIteration();
 
 	while(jobQueue->loadNextClusterAd(errStatus)) {
-		if (errStatus == FAILURE) 
+		if (errStatus == QUILL_FAILURE) 
 			return errStatus;
 	}
 	
@@ -461,11 +461,11 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		//
 	jobQueue->initAllJobAdsIteration();
 	while(jobQueue->loadNextProcAd(errStatus)) {
-		if (errStatus == FAILURE) 
+		if (errStatus == QUILL_FAILURE) 
 			return errStatus;
 	}
 			
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -492,22 +492,22 @@ JobQueueDBManager::buildAndWriteJobQueue()
 	caLogParser->setNextOffset(0);
 
 		//construct the in memory job queue and history
-	if (buildJobQueue(jobQueue) == FAILURE) {
+	if (buildJobQueue(jobQueue) == QUILL_FAILURE) {
 		delete jobQueue;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "Bulkloading 2nd Phase: Loading jobs into DBMS!\n");
 
 		// For job queue tables, send COPY string to RDBMS: 
-	if (loadJobQueue(jobQueue) == FAILURE) {
+	if (loadJobQueue(jobQueue) == QUILL_FAILURE) {
 		delete jobQueue;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 		//  END OF SECOND PHASE OF BULKLOADING
 	delete jobQueue;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -523,9 +523,9 @@ JobQueueDBManager::readAndWriteLogEntries()
 		// index regardless whether the statistics are correct or not.
 		// this feature is postgres specific, comment it out for now.
 		/* 
-	if (DBObj->execCommand("set enable_seqscan=false;") == FAILURE) {
+	if (DBObj->execCommand("set enable_seqscan=false;") == QUILL_FAILURE) {
 		displayErrorMsg("Turning off seq scan --- ERROR");
-		return FAILURE; 
+		return QUILL_FAILURE; 
 	}
 		*/
 
@@ -533,21 +533,21 @@ JobQueueDBManager::readAndWriteLogEntries()
 
 		// Process ClassAd Log Entry
 	while (st == FILE_READ_SUCCESS) {
-		if (processLogEntry(op_type) == FAILURE) {
-			return FAILURE; 
+		if (processLogEntry(op_type) == QUILL_FAILURE) {
+			return QUILL_FAILURE; 
 		}
 		st = caLogParser->readLogEntry(op_type);
 	}
 
 		// turn on sequential scan again
 		/*
-	if (DBObj->execCommand("set enable_seqscan=true;") == FAILURE) {
+	if (DBObj->execCommand("set enable_seqscan=true;") == QUILL_FAILURE) {
 		displayErrorMsg("Turning on seq scan --- ERROR");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 		*/
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! process only DELTA, i.e. entries of the job queue log which were
@@ -566,7 +566,7 @@ JobQueueDBManager::addJobQueueTables()
 	st = readAndWriteLogEntries();
 
 		// Store a polling information into DB
-	if (st == SUCCESS) {
+	if (st == QUILL_SUCCESS) {
 		setJQPollingInfo();
 	} else {
 		// a transaction might have been began, need to be rolled back
@@ -588,22 +588,22 @@ JobQueueDBManager::initJobQueueTables()
 
 	st = DBObj->beginTransaction();
 
-	if(st == FAILURE) {
+	if(st == QUILL_FAILURE) {
 		displayErrorMsg("JobQueueDBManager::initJobQueueTables: unable to begin a transaction --- ERROR");
-		return FAILURE; 
+		return QUILL_FAILURE; 
 	}
 	
 	st = cleanupJobQueueTables(); // delete all job queue tables
 
-	if(st == FAILURE) {
+	if(st == QUILL_FAILURE) {
 		displayErrorMsg("JobQueueDBManager::initJobQueueTables: unable to clean up job queue tables --- ERROR");
-		return FAILURE; 
+		return QUILL_FAILURE; 
 	}
 
 	st = buildAndWriteJobQueue(); // bulk load job queue log
 
 		// Store polling information in database
-	if (st == SUCCESS) {
+	if (st == QUILL_SUCCESS) {
 		setJQPollingInfo();
 
 			// VACUUM should be called outside XACT
@@ -627,7 +627,7 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 {
 	char *key, *mytype, *targettype, *name, *value;
 	key = mytype = targettype = name = value = NULL;
-	QuillErrCode st = SUCCESS;
+	QuillErrCode st = QUILL_SUCCESS;
 
 	int job_id_type;
 	char cid[512];
@@ -639,9 +639,9 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		// and they are at the end of the routine
 	switch(op_type) {
 	case CondorLogOp_NewClassAd: {
-		if (caLogParser->getNewClassAdBody(key, mytype, targettype) == FAILURE)
+		if (caLogParser->getNewClassAdBody(key, mytype, targettype) == QUILL_FAILURE)
 			{
-				st = FAILURE;
+				st = QUILL_FAILURE;
 				break;
 			}
 		job_id_type = getProcClusterIds(key, cid, pid);
@@ -660,15 +660,15 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 
 		default:
 			dprintf(D_ALWAYS, "[QUILL++] New ClassAd --- ERROR\n");
-			st = FAILURE; 
+			st = QUILL_FAILURE; 
 			break;
 		}
 
 		break;
 	}
 	case CondorLogOp_DestroyClassAd: {
-		if (caLogParser->getDestroyClassAdBody(key) == FAILURE) {
-			st = FAILURE; 
+		if (caLogParser->getDestroyClassAdBody(key) == QUILL_FAILURE) {
+			st = QUILL_FAILURE; 
 			break;		
 		}
 
@@ -686,7 +686,7 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 			    dprintf(D_ALWAYS, 
 						"[QUILL++] Destroy ClassAd --- Cannot find clusterad "
 						"or procad in memory job queue");
-				st = FAILURE; 
+				st = QUILL_FAILURE; 
 				break;
 			}
 
@@ -696,15 +696,15 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		}
 		default:
 			dprintf(D_ALWAYS, "[QUILL++] Destroy ClassAd --- ERROR\n");
-			st = FAILURE; 
+			st = QUILL_FAILURE; 
 			break;
 		}
 
 		break;
 	}
 	case CondorLogOp_SetAttribute: {	
-		if (caLogParser->getSetAttributeBody(key, name, value) == FAILURE) {
-			st = FAILURE; 
+		if (caLogParser->getSetAttributeBody(key, name, value) == QUILL_FAILURE) {
+			st = QUILL_FAILURE; 
 			break;
 		}
 						
@@ -737,14 +737,14 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		}
 		default:
 			dprintf(D_ALWAYS, "[QUILL++] Set Attribute --- ERROR\n");
-			st = FAILURE; 
+			st = QUILL_FAILURE; 
 			break;
 		}
 		break;
 	}
 	case CondorLogOp_DeleteAttribute: {
-		if (caLogParser->getDeleteAttributeBody(key, name) == FAILURE) {
-			st = FAILURE; 
+		if (caLogParser->getDeleteAttributeBody(key, name) == QUILL_FAILURE) {
+			st = QUILL_FAILURE; 
 			break;
 		}
 
@@ -763,7 +763,7 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		}
 		default:
 			dprintf(D_ALWAYS, "[QUILL++] Delete Attribute --- ERROR\n");
-			st = FAILURE; 
+			st = QUILL_FAILURE; 
 		}
 		break;
 	}
@@ -778,7 +778,7 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		break;
 	default:
 		printf("[QUILL++] Unsupported Job Queue Command\n");
-		st = FAILURE; 
+		st = QUILL_FAILURE; 
 		break;
 	}
 
@@ -801,7 +801,7 @@ JobQueueDBManager::processLogEntry(int op_type)
 {
 	char *key, *mytype, *targettype, *name, *value;
 	key = mytype = targettype = name = value = NULL;
-	QuillErrCode	st = SUCCESS;
+	QuillErrCode	st = QUILL_SUCCESS;
 
 		// REMEMBER:
 		//	each get*ClassAdBody() funtion allocates the memory of 
@@ -813,28 +813,28 @@ JobQueueDBManager::processLogEntry(int op_type)
 		break;
 	case CondorLogOp_NewClassAd:
 		st = caLogParser->getNewClassAdBody(key, mytype, targettype);
-		if (st == FAILURE) {
+		if (st == QUILL_FAILURE) {
 			break;
 		}
 		st = processNewClassAd(key, mytype, targettype);
 		break;
 	case CondorLogOp_DestroyClassAd:
 		st = caLogParser->getDestroyClassAdBody(key);
-		if (st == FAILURE) {
+		if (st == QUILL_FAILURE) {
 			break;
 		}		
 		st = processDestroyClassAd(key);
 		break;
 	case CondorLogOp_SetAttribute:
 		st = caLogParser->getSetAttributeBody(key, name, value);
-		if (st == FAILURE) {
+		if (st == QUILL_FAILURE) {
 			break;
 		}
 		st = processSetAttribute(key, name, value);
 		break;
 	case CondorLogOp_DeleteAttribute:
 		st = caLogParser->getDeleteAttributeBody(key, name);
-		if (st == FAILURE) {
+		if (st == QUILL_FAILURE) {
 			break;
 		}
 		st = processDeleteAttribute(key, name);
@@ -848,7 +848,7 @@ JobQueueDBManager::processLogEntry(int op_type)
 	default:
 		dprintf(D_ALWAYS, "[QUILL++] Unsupported Job Queue Command [%d]\n", 
 				op_type);
-		st = FAILURE;
+		st = QUILL_FAILURE;
 		break;
 	}
 
@@ -987,7 +987,7 @@ JobQueueDBManager::processNewClassAd(char* key,
 		break;
 	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "New ClassAd Processing --- ERROR\n");
-		return FAILURE; // return a error code, 0
+		return QUILL_FAILURE; // return a error code, 0
 		break;
 	}
 
@@ -995,18 +995,18 @@ JobQueueDBManager::processNewClassAd(char* key,
 		if (DBObj->execCommandWithBind(sql_str.Value(),
 									   bndcnt,
 									   data_arr,
-									   data_typ) == FAILURE) {
+									   data_typ) == QUILL_FAILURE) {
 			displayErrorMsg("New ClassAd Processing --- ERROR");
-			return FAILURE;
+			return QUILL_FAILURE;
 		}		
 	} else {
-		if (DBObj->execCommand(sql_str.Value()) == FAILURE) {
+		if (DBObj->execCommand(sql_str.Value()) == QUILL_FAILURE) {
 			displayErrorMsg("New ClassAd Processing --- ERROR");
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! process DestroyClassAd command, working with DBMS
@@ -1107,7 +1107,7 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		break;
 	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "[QUILL++] Destroy ClassAd --- ERROR\n");
-		return FAILURE; // return a error code, 0
+		return QUILL_FAILURE; // return a error code, 0
 		break;
 	}
   
@@ -1115,31 +1115,31 @@ JobQueueDBManager::processDestroyClassAd(char* key)
 		if (DBObj->execCommandWithBind(sql_str1.Value(),
 									   bndcnt,
 									   data_arr,
-									   data_typ) == FAILURE) {
+									   data_typ) == QUILL_FAILURE) {
 			displayErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return FAILURE; // return a error code, 0
+			return QUILL_FAILURE; // return a error code, 0
 		}
 
 		if (DBObj->execCommandWithBind(sql_str2.Value(),
 									   bndcnt,
 									   data_arr,
-									   data_typ) == FAILURE) {
+									   data_typ) == QUILL_FAILURE) {
 			displayErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return FAILURE; // return a error code, 0
+			return QUILL_FAILURE; // return a error code, 0
 		}
 	} else {
-		if (DBObj->execCommand(sql_str1.Value()) == FAILURE) {
+		if (DBObj->execCommand(sql_str1.Value()) == QUILL_FAILURE) {
 			displayErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return FAILURE; // return a error code, 0
+			return QUILL_FAILURE; // return a error code, 0
 		}
 
-		if (DBObj->execCommand(sql_str2.Value()) == FAILURE) {
+		if (DBObj->execCommand(sql_str2.Value()) == QUILL_FAILURE) {
 			displayErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return FAILURE; // return a error code, 0
+			return QUILL_FAILURE; // return a error code, 0
 		}
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! process SetAttribute command, working with DBMS
@@ -1197,7 +1197,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 					if (ts_expr_val.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 
 					data_arr1[0] = ts_expr_val.Value();
@@ -1220,7 +1220,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 
 					sql_str_del_in.sprintf(
@@ -1314,7 +1314,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 					if (ts_expr_val.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 
 					data_arr1[0] = ts_expr_val.Value();
@@ -1339,7 +1339,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 
 					if (ts_expr.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in JobQueueDBManager::processSetAttribute\n");
-						return FAILURE;
+						return QUILL_FAILURE;
 					}
 				
 					sql_str_del_in.sprintf(
@@ -1431,7 +1431,7 @@ JobQueueDBManager::processSetAttribute(char* key,
 		break;
 	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "Set Attribute Processing --- ERROR\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 		break;
 	}
   
@@ -1446,12 +1446,12 @@ JobQueueDBManager::processSetAttribute(char* key,
 											data_typ1);
 	}
 
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
 				sql_str_del_in.Value());
 		displayErrorMsg("Set Attribute --- ERROR");      
 
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	if (!sql_str2.IsEmpty()) {
@@ -1465,16 +1465,16 @@ JobQueueDBManager::processSetAttribute(char* key,
 												data_typ2);
 		}
 		
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
 					sql_str2.Value());
 			displayErrorMsg("Set Attribute --- ERROR");      
 
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 	}	
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -1524,23 +1524,23 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 		break;
 	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "Delete Attribute Processing --- ERROR\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 		break;
 	}
 
 	if (!sql_str.IsEmpty()) {
 		ret_st = DBObj->execCommand(sql_str.Value());
 		
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n",
 					sql_str.Value());
 			displayErrorMsg("Delete Attribute --- ERROR");
 
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! process BeginTransaction command
@@ -1551,10 +1551,10 @@ JobQueueDBManager::processBeginTransaction(bool exec_later)
 {
 	xactState = BEGIN_XACT;
 	if (!exec_later) {
-		if (DBObj->beginTransaction() == FAILURE) 
-			return FAILURE;
+		if (DBObj->beginTransaction() == QUILL_FAILURE) 
+			return QUILL_FAILURE;
 	}			   				
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! process EndTransaction command
@@ -1565,10 +1565,10 @@ JobQueueDBManager::processEndTransaction(bool exec_later)
 {
 	xactState = COMMIT_XACT;
 	if (!exec_later) {
-		if (DBObj->commitTransaction() == FAILURE) 
-			return FAILURE;			   			
+		if (DBObj->commitTransaction() == QUILL_FAILURE) 
+			return QUILL_FAILURE;			   			
 	}
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! initialize: currently check the DB schema
@@ -1577,7 +1577,7 @@ JobQueueDBManager::processEndTransaction(bool exec_later)
 QuillErrCode
 JobQueueDBManager::init()
 {
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get Last Job Queue File Polling Information
@@ -1599,19 +1599,19 @@ JobQueueDBManager::getJQPollingInfo()
 
 	ret_st = DBObj->execQuery(sql_str.Value(), num_result);
 		
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "Reading JobQueuePollInfo --- ERROR [SQL] %s\n", 
 				sql_str.Value());
 		displayErrorMsg("Reading JobQueuePollInfo --- ERROR");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
-	else if (ret_st == SUCCESS && num_result == 0) {
+	else if (ret_st == QUILL_SUCCESS && num_result == 0) {
 			// This case is a rare one since the jobqueuepollinginfo
 			// table contains one tuple at all times 		
 		displayErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
 		DBObj->releaseQueryResult(); // release Query Result
-		return FAILURE;
+		return QUILL_FAILURE;
 	} 
 
 	mtime = atoi(DBObj->getValue(0, 0)); // last_file_mtime
@@ -1654,7 +1654,7 @@ JobQueueDBManager::getJQPollingInfo()
 	
 	DBObj->releaseQueryResult(); // release Query Result
 										  // since it is no longer needed
-	return SUCCESS;	
+	return QUILL_SUCCESS;	
 }
 
 void 
@@ -1704,19 +1704,19 @@ JobQueueDBManager::setJQPollingInfo()
 	
 	ret_st = DBObj->execCommand(sql_str, num_result);
 	
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", 
 				sql_str);
 		displayErrorMsg("Update JobQueuePollInfo --- ERROR");
 	}
-	else if (ret_st == SUCCESS && num_result == 0) {
+	else if (ret_st == QUILL_SUCCESS && num_result == 0) {
 			// This case is a rare one since the jobqueuepollinginfo
 			// table contains one tuple at all times 
 
 		dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", 
 				sql_str);
 		displayErrorMsg("Update JobQueuePollInfo --- ERROR");
-		ret_st = FAILURE;
+		ret_st = QUILL_FAILURE;
 	} 	
 	
 	if (sql_str) {
