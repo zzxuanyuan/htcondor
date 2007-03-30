@@ -89,22 +89,22 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
   
   st = jqDB->connectDB();
   
-  if(st == FAILURE) {
-    return FAILURE;
+  if(st == QUILL_FAILURE) {
+    return QUILL_FAILURE;
   }
 
-  if(jqDB->beginTransaction() == FAILURE) {
+  if(jqDB->beginTransaction() == QUILL_FAILURE) {
 	  printf("Error while querying the database: unable to start new transaction");
-	  return FAILURE;
+	  return QUILL_FAILURE;
   }
 
 	  /* to ensure read consistency with while maximizing concurrency, 
 		 use read only transaction if a database supports it.
 	  */
   if (dt == T_ORACLE) {
-	  if(jqDB->execCommand("SET TRANSACTION READ ONLY") == FAILURE) {
+	  if(jqDB->execCommand("SET TRANSACTION READ ONLY") == QUILL_FAILURE) {
 		  printf("Error while querying the database: unable to set transaction read only");
-		  return FAILURE;
+		  return QUILL_FAILURE;
 	  }
   }
   
@@ -120,7 +120,7 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
   if (st == FAILURE_QUERY_HISTORYADS_HOR ||
 	  st == FAILURE_QUERY_HISTORYADS_VER) {
 	  printf("Error while opening the history cursors: %s\n", jqDB->getDBError());
-	  return FAILURE;
+	  return QUILL_FAILURE;
   }
   
   st = printResults(queryhor, 
@@ -130,26 +130,26 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
 					custForm,
 					pmask);
   
-  if (st != SUCCESS) {
+  if (st != QUILL_SUCCESS) {
 	  printf("Error while querying the history cursors: %s\n", jqDB->getDBError());
-	  return FAILURE;
+	  return QUILL_FAILURE;
   }
   
   st = jqDB->closeCursorsHistory(queryhor,
 								 queryver,
 								 longformat);
   
-  if (st != SUCCESS) {
+  if (st != QUILL_SUCCESS) {
     printf("Error while closing the history cursors: %s\n", jqDB->getDBError());
-    return FAILURE;
+    return QUILL_FAILURE;
   }
 
-  if(jqDB->commitTransaction() == FAILURE) {
+  if(jqDB->commitTransaction() == QUILL_FAILURE) {
 	  printf("Error while querying the database: unable to commit transaction");
-	  return FAILURE;
+	  return QUILL_FAILURE;
   }
 
-  return SUCCESS;
+  return QUILL_SUCCESS;
 }
 
 QuillErrCode
@@ -158,7 +158,7 @@ HistorySnapshot::printResults(SQLQuery *queryhor,
 							  bool longformat, bool fileformat,
 							  bool custForm, AttrListPrintMask *pmask) {
   AttrList *ad = 0;
-  QuillErrCode st = SUCCESS;
+  QuillErrCode st = QUILL_SUCCESS;
 
   // initialize index variables
    
@@ -174,7 +174,7 @@ HistorySnapshot::printResults(SQLQuery *queryhor,
   while(1) {
 	  st = getNextAd_Hor(ad, queryhor);
 
-	  if(st != SUCCESS) 
+	  if(st != QUILL_SUCCESS) 
 		  break;
 	  
 	  if (longformat) { 
@@ -185,7 +185,7 @@ HistorySnapshot::printResults(SQLQuery *queryhor,
 		  // and 2) the horizontal cursor will correctly determine when
 		  // to stop - this is because in all cases, we only pull out those
           // tuples from vertical which join with a horizontal tuple
-		  if(st != SUCCESS && st != DONE_HISTORY_VER_CURSOR) 
+		  if(st != QUILL_SUCCESS && st != DONE_HISTORY_VER_CURSOR) 
 			  break;
 		  if (fileformat) { // Print out the job ads in history file format, i.e., print the *** delimiters
 			  MyString owner, ad_str, temp;
@@ -227,7 +227,7 @@ HistorySnapshot::printResults(SQLQuery *queryhor,
   if(st == FAILURE_QUERY_HISTORYADS_HOR || st == FAILURE_QUERY_HISTORYADS_VER)
 	  return st;
 
-  return SUCCESS;
+  return QUILL_SUCCESS;
 }
 
 QuillErrCode
@@ -299,7 +299,7 @@ HistorySnapshot::getNextAd_Hor(AttrList*& ad, SQLQuery *queryhor)
 		// increment water
 	cur_historyads_hor_index++;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -311,7 +311,7 @@ HistorySnapshot::getNextAd_Ver(AttrList*& ad, SQLQuery *queryver)
 {
 	const char	*cid, *pid, *val, *temp;
 	char *attr;
-	QuillErrCode st = SUCCESS;
+	QuillErrCode st = QUILL_SUCCESS;
 
 	st = jqDB->getHistoryVerValue(queryver, 
 								  cur_historyads_ver_index, 1, &cid); // cid
@@ -391,11 +391,11 @@ HistorySnapshot::release()
 	st1 = jqDB->releaseHistoryResults();
 	st2 = jqDB->disconnectDB();
 
-	if(st1 == SUCCESS && st2 == SUCCESS) {
-		return SUCCESS;
+	if(st1 == QUILL_SUCCESS && st2 == QUILL_SUCCESS) {
+		return QUILL_SUCCESS;
 	}
 	else {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 

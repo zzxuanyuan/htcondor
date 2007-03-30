@@ -178,7 +178,7 @@ public:
 
 		ret_st = this->execQuery(sql_str, num_result);
 
-		if ((ret_st != SUCCESS) || (num_result != 1)) {
+		if ((ret_st != QUILL_SUCCESS) || (num_result != 1)) {
 			EXCEPT("schema version not found or incorrect\n");
 		} else {
 			int major, minor, back_to_major, back_to_minor;

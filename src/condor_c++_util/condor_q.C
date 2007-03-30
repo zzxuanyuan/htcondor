@@ -308,7 +308,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 						 FALSE,
 						 scheddBirthdate);
 
-	if (rv == FAILURE) {
+	if (rv == QUILL_FAILURE) {
 		delete jqSnapshot;
 		return Q_COMMUNICATION_ERROR;
 	} else if (rv == JOB_QUEUE_EMPTY) {
@@ -405,7 +405,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 						 FALSE,
 						scheddBirthdate);
 
-	if (rv == FAILURE) {
+	if (rv == QUILL_FAILURE) {
 		delete jqSnapshot;
 		return Q_COMMUNICATION_ERROR;
 	}
@@ -492,7 +492,7 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 		break;;
 	}
 
-	if (!DBObj || (DBObj->connectDB() == FAILURE))
+	if (!DBObj || (DBObj->connectDB() == QUILL_FAILURE))
 	{
 		fprintf(stderr, "\n-- Failed to connect to the database\n");
 		return;

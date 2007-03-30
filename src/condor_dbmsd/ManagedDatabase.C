@@ -132,7 +132,7 @@ piled without Oracle!\n");
 		
 		/* check if schema version is ok */
 	ret_st = DBObj->connectDB();
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "config: unable to connect to DB--- ERROR");
 		EXCEPT("config: unable to connect to DB\n");
 	}	
@@ -179,7 +179,7 @@ void ManagedDatabase::PurgeDatabase() {
 	ret_st = DBObj->connectDB();
 
 		/* call the puging routine */
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "ManagedDatabase::PurgeDatabase: unable to connect to DB--- ERROR\n");
 		return;
 	}	
@@ -204,13 +204,13 @@ void ManagedDatabase::PurgeDatabase() {
 	}
 
 	ret_st = DBObj->execCommand(sql_str.GetCStr());
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "ManagedDatabase::PurgeDatabase --- ERROR [SQL] %s\n", 
 				sql_str.GetCStr());
 	}
 
 	ret_st = DBObj->commitTransaction();
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "ManagedDatabase::PurgeDatabase --- ERROR [COMMIT] \n");
 	}
 	
@@ -221,7 +221,7 @@ void ManagedDatabase::PurgeDatabase() {
 	sql_str.sprintf("SELECT dbsize FROM quillDBMonitor");
 	ret_st = DBObj->execQuery(sql_str.GetCStr(), num_result);
 
-	if ((ret_st == SUCCESS) && 
+	if ((ret_st == QUILL_SUCCESS) && 
 		(num_result == 1)) {
 		dbsize = atoi(DBObj->getValue(0, 0));		
 		
@@ -272,7 +272,7 @@ void ManagedDatabase::PurgeDatabase() {
 	DBObj->releaseQueryResult();
 
 	ret_st = DBObj->disconnectDB();
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "ManagedDatabase::disconnectDB: unable to disconnect --- ERROR\n");
 		return;
 	}		
@@ -289,7 +289,7 @@ void ManagedDatabase::ReindexDatabase() {
 		ret_st = DBObj->connectDB();
 		
 			/* call the reindex routine */
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "ManagedDatabase::ReindexDatabase: unable to connect to DB--- ERROR\n");
 			return;
 		}	
@@ -297,14 +297,14 @@ void ManagedDatabase::ReindexDatabase() {
 		sql_str.sprintf("select quill_reindexTables()");
 
 		ret_st = DBObj->execCommand(sql_str.GetCStr());
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "ManagedDatabase::ReindexDatabase --- ERROR [SQL] %s\n", 
 					sql_str.GetCStr());
 		}
 
 
 		ret_st = DBObj->disconnectDB();
-		if (ret_st == FAILURE) {
+		if (ret_st == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "ManagedDatabase::disconnectDB: unable to disconnect --- ERROR\n");
 			return;
 		}		

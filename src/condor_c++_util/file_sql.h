@@ -39,4 +39,7 @@ public:
 
 FILESQL *createInstance(bool use_sql_log);
 
+void daemonAdInsert(ClassAd *cl, const char *adType,
+					FILESQL *dbh, int &prevLHF);
+
 #endif

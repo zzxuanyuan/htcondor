@@ -90,7 +90,7 @@ PGSQLDatabase::connectDB()
 	if ((connection = PQconnectdb(con_str)) == NULL)
 	{
 		dprintf(D_ALWAYS, "Fatal error - unable to allocate connection to DB\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	
 	if (PQstatus(connection) != CONNECTION_OK)
@@ -104,12 +104,12 @@ PGSQLDatabase::connectDB()
 			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", dbname);
 			PQfinish(connection);
 			connection = NULL;
-			return FAILURE;
+			return QUILL_FAILURE;
         }
 
 	connected = true;
 	
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //@ disconnect from DBMS
@@ -123,7 +123,7 @@ PGSQLDatabase::disconnectDB()
 	}
 
 	connected = false;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! begin Transaction
@@ -142,11 +142,11 @@ PGSQLDatabase::beginTransaction()
 		}
 
 		dprintf(D_FULLDEBUG, "SQL COMMAND: BEGIN TRANSACTION\n");
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 	else {
 		dprintf(D_ALWAYS, "ERROR STARTING NEW TRANSACTION\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 
@@ -165,11 +165,11 @@ PGSQLDatabase::commitTransaction()
 			result = NULL;
 		}
 		dprintf(D_FULLDEBUG, "SQL COMMAND: COMMIT TRANSACTION\n");
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 	else {
 		dprintf(D_ALWAYS, "ERROR COMMITTING TRANSACTION\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 
@@ -189,10 +189,10 @@ PGSQLDatabase::rollbackTransaction()
 		}
 
 		dprintf(D_FULLDEBUG, "SQL COMMAND: ROLLBACK TRANSACTION\n");
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 	else {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 
@@ -221,7 +221,7 @@ PGSQLDatabase::execCommand(const char* sql,
 			"[SQL EXECUTION ERROR1] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[SQL: %s]\n", sql);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else if ((PQresultStatus(result) != PGRES_COMMAND_OK) &&
 			(PQresultStatus(result) != PGRES_COPY_IN) && 
@@ -239,7 +239,7 @@ PGSQLDatabase::execCommand(const char* sql,
 		//	"[SQLERRORCODE: %d]\n", db_err_code);
 
 		PQclear(result);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else {
 		num_result_str = PQcmdTuples(result);
@@ -261,7 +261,7 @@ PGSQLDatabase::execCommand(const char* sql,
 		result = NULL;
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 QuillErrCode 
@@ -291,7 +291,7 @@ PGSQLDatabase::execQuery(const char* sql,
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[ERRONEOUS SQL: %s]\n", sql);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
 		dprintf(D_ALWAYS, 
@@ -303,12 +303,12 @@ PGSQLDatabase::execQuery(const char* sql,
 			result = NULL;
 		}
 
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	num_result = PQntuples(result);
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -341,10 +341,10 @@ PGSQLDatabase::fetchNext()
 {
 	if (row_idx < num_result) {
 		row_idx++;
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 	else {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 */
@@ -380,7 +380,7 @@ PGSQLDatabase::releaseQueryResult()
 	
 	queryRes = NULL;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! check if the connection is ok
@@ -389,11 +389,11 @@ PGSQLDatabase::checkConnection()
 {
 	if (PQstatus(connection) == CONNECTION_OK) {
 		dprintf(D_FULLDEBUG, "DB Connection Ok\n");
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 	else {
 		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 
@@ -405,11 +405,11 @@ PGSQLDatabase::resetConnection()
 
 	if (PQstatus(connection) == CONNECTION_OK) {
 		dprintf(D_FULLDEBUG, "DB Connection Ok\n");
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 	else {
 		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }
 
@@ -482,7 +482,7 @@ PGSQLDatabase::releaseHistoryResults()
 	}
 	historyVerRes = NULL;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! get the job queue
@@ -490,7 +490,7 @@ PGSQLDatabase::releaseHistoryResults()
  *	\return 
  *		JOB_QUEUE_EMPTY: There is no job in the queue
  *      FAILURE_QUERY_* : error querying table *
- *		SUCCESS: There is some job in the queue and query was successful
+ *		QUILL_SUCCESS: There is some job in the queue and query was successful
  *
  *		
  */
@@ -634,22 +634,22 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
 
 	  // Query against ClusterAds_Hor Table
   if ((st = execQuery(clusterAds_hor_query.Value(), clusterAdsHorRes, 
-					clusterAdsHorRes_num)) == FAILURE) {
+					clusterAdsHorRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_CLUSTERADS_HOR;
   }
 	  // Query against ClusterAds_Ver Table
   if ((st = execQuery(clusterAds_ver_query.Value(), clusterAdsVerRes, 
-					clusterAdsVerRes_num)) == FAILURE) {
+					clusterAdsVerRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_CLUSTERADS_VER;
   }
 	  // Query against procAds_Hor Table
   if ((st = execQuery(procAds_hor_query.Value(), procAdsHorRes, 
-									procAdsHorRes_num)) == FAILURE) {
+									procAdsHorRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_PROCADS_HOR;
   }
 	  // Query against procAds_ver Table
   if ((st = execQuery(procAds_ver_query.Value(), procAdsVerRes, 
-									procAdsVerRes_num)) == FAILURE) {
+									procAdsVerRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_PROCADS_VER;
   }
   
@@ -657,13 +657,13 @@ PGSQLDatabase::getJobQueueDB( int *clusterarray, int numclusters,
     return JOB_QUEUE_EMPTY;
   }
 
-  return SUCCESS;
+  return QUILL_SUCCESS;
 }
 
 /*! get the historical information
  *
  *	\return
- *		SUCCESS: declare cursor succeeded 
+ *		QUILL_SUCCESS: declare cursor succeeded 
  *		FAILURE_QUERY_*: query failed
  */
 QuillErrCode
@@ -672,14 +672,14 @@ PGSQLDatabase::openCursorsHistory(SQLQuery *queryhor,
 								  bool longformat)
 
 {  
-	QuillErrCode st = SUCCESS;
+	QuillErrCode st = QUILL_SUCCESS;
 
-	if ((st = execCommand(queryhor->getDeclareCursorStmt())) == FAILURE) {
+	if ((st = execCommand(queryhor->getDeclareCursorStmt())) == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "error opening Jobs_Horizontal_History cursor\n");
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 	if (longformat && 
-		(st = execCommand(queryver->getDeclareCursorStmt())) == FAILURE) {
+		(st = execCommand(queryver->getDeclareCursorStmt())) == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "error opening Jobs_Vertical_History cursor\n");
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
@@ -692,7 +692,7 @@ PGSQLDatabase::openCursorsHistory(SQLQuery *queryhor,
 	historyHorFirstRowIndex = 0;
 	historyVerFirstRowIndex = 0;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 QuillErrCode
@@ -702,15 +702,15 @@ PGSQLDatabase::closeCursorsHistory(SQLQuery *queryhor,
 
 {  
 	QuillErrCode st;
-	if ((st = execCommand(queryhor->getCloseCursorStmt())) == FAILURE) {
+	if ((st = execCommand(queryhor->getCloseCursorStmt())) == QUILL_FAILURE) {
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 	if (longformat 
-		&& (st = execCommand(queryver->getCloseCursorStmt())) == FAILURE) {
+		&& (st = execCommand(queryver->getCloseCursorStmt())) == QUILL_FAILURE) {
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get a value retrieved from Jobs_Horizontal_History table
@@ -737,7 +737,7 @@ PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor,
 
 		if ((st = execQuery(queryhor->getFetchCursorStmt(), 
 							historyHorRes, 
-							historyHorNumRowsFetched)) == FAILURE) {
+							historyHorNumRowsFetched)) == QUILL_FAILURE) {
 			return FAILURE_QUERY_HISTORYADS_HOR;
 		}
 		if(historyHorNumRowsFetched == 0) {
@@ -754,7 +754,7 @@ PGSQLDatabase::getHistoryHorValue(SQLQuery *queryhor,
 	}
 	
 	//QUOTE
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get a value retrieved from Jobs_Vertical_History table
@@ -781,7 +781,7 @@ PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver,
 
 		if((st = execQuery(queryver->getFetchCursorStmt(), 
 						   historyVerRes, 
-						   historyVerNumRowsFetched)) == FAILURE) {
+						   historyVerNumRowsFetched)) == QUILL_FAILURE) {
 			return FAILURE_QUERY_HISTORYADS_VER;
 		}
 		if(historyVerNumRowsFetched == 0) {
@@ -791,7 +791,7 @@ PGSQLDatabase::getHistoryVerValue(SQLQuery *queryver,
 	}
 	*value = PQgetvalue(historyVerRes, row - historyVerFirstRowIndex, col);
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get a value retrieved from ProcAds_Hor table
@@ -860,7 +860,7 @@ PGSQLDatabase::releaseJobQueueResults()
 		clusterAdsVerRes = NULL;
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get a DBMS error message
@@ -879,7 +879,7 @@ QuillErrCode PGSQLDatabase::execCommandWithBind(const char* sql,
 		   it should not be called anywhere if it's postgres 
 		*/
 	EXCEPT("PROGRAMMER ERROR: execCommandWithBind should never be called on postgres");
-	return FAILURE;
+	return QUILL_FAILURE;
 }
 
 QuillErrCode PGSQLDatabase::execQueryWithBind(const char* sql, 
@@ -892,6 +892,6 @@ QuillErrCode PGSQLDatabase::execQueryWithBind(const char* sql,
 		   it should not be called anywhere if it's postgres 
 		*/
 	EXCEPT("PROGRAMMER ERROR: execQueryWithBind should never be called on postgres");
-	return FAILURE;
+	return QUILL_FAILURE;
 }
 

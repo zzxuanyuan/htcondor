@@ -25,16 +25,16 @@ QuillErrCode FILEXML::file_newEvent(const char *eventType, AttrList *info) {
 	struct stat file_status;
     int xml_log_limit;
 
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
-	if(file_lock() == FAILURE) {
-		return FAILURE;
+	if(file_lock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	fstat(outfiledes, &file_status);
@@ -68,14 +68,14 @@ QuillErrCode FILEXML::file_newEvent(const char *eventType, AttrList *info) {
         retval = write(outfiledes, temp.Value(), temp.Length());
 	}
 	
-	if(file_unlock() == FAILURE) {
-		return FAILURE;
+	if(file_unlock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	if (retval < 0) {
-		return FAILURE;
+		return QUILL_FAILURE;
 	} else {
-		return SUCCESS;	
+		return QUILL_SUCCESS;	
 	}
 }
 
@@ -83,10 +83,10 @@ QuillErrCode FILEXML::file_updateEvent(const char *eventType,
 									   AttrList *info, 
 									   AttrList *condition) {
 
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 
 	dprintf(D_ALWAYS,"file_updateEvent: Method not implemented for XML log files\n");
-	return FAILURE;
+	return QUILL_FAILURE;
 
 
 }
@@ -96,7 +96,7 @@ QuillErrCode FILEXML::file_deleteEvent(const char *eventType,
 									   AttrList *condition) {
 
 	dprintf(D_ALWAYS,"file_deleteEvent: Method not implemented for XML log files\n");
-	return FAILURE;
+	return QUILL_FAILURE;
 
 }
 #endif
@@ -154,7 +154,7 @@ FILEXML *createInstanceXML() {
 
 	free(outfilename);
 
-	if (ptr->file_open() == FAILURE) {
+	if (ptr->file_open() == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "FILEXML createInstance failed\n");
 	}
 

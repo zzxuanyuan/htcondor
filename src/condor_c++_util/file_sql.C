@@ -65,30 +65,30 @@ bool FILESQL::file_islocked()
 QuillErrCode FILESQL::file_truncate() {
 	int retval;
 
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 
 	if(!file_isopen()) {
 		dprintf(D_ALWAYS, "Error calling truncate: the file needs to be first opened\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	retval = ftruncate(outfiledes, 0);
 
 	if(retval < 0) {
 		dprintf(D_ALWAYS, "Error calling ftruncate, errno = %d\n", errno);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 QuillErrCode FILESQL::file_open()
 {
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
     
 	if (!outfilename) {
 		dprintf(D_ALWAYS,"No SQL log file specified");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	outfiledes = safe_open_wrapper(outfilename,fileflags,0644);
@@ -97,13 +97,13 @@ QuillErrCode FILESQL::file_open()
 	{
 		dprintf(D_ALWAYS,"Error opening SQL log file %s : %s",outfilename,strerror(errno));
 		is_open = false;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else
 	{
 		is_open = true;
 		lock = new FileLock(outfiledes,NULL); /* Create a lock object when opening the file */
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 }
 
@@ -111,10 +111,10 @@ QuillErrCode FILESQL::file_close()
 {
 	int retval;
 	
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 	
     if (!is_open)
-		return FAILURE;
+		return QUILL_FAILURE;
 
 	if (lock) {
 			/* This also releases the lock on the file, were it held */
@@ -141,59 +141,59 @@ QuillErrCode FILESQL::file_close()
 	outfiledes = -1;
 
 	if (retval < 0) {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else {
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 }
 
 QuillErrCode FILESQL::file_lock()
 {
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 	
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error locking :SQL log file %s not open yet",outfilename);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	if(is_locked)
-		return SUCCESS;
+		return QUILL_SUCCESS;
 
 	if(lock->obtain(WRITE_LOCK) == 0) /* 0 means an unsuccessful lock */
 	{
 		dprintf(D_ALWAYS,"Error locking SQL log file %s ",outfilename);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else
 		is_locked = true;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 QuillErrCode FILESQL::file_unlock()
 {
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 	
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error unlocking :SQL log file %s not open yet",outfilename);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	if(!is_locked)
-		return SUCCESS;
+		return QUILL_SUCCESS;
 
 	if(lock->release() == 0) /* 0 means an unsuccessful lock */
 	{
 		dprintf(D_ALWAYS,"Error unlocking SQL log file %s ",outfilename);
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else
 		is_locked = false;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 int FILESQL::file_readline(MyString *buf) 
@@ -244,15 +244,15 @@ QuillErrCode FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 	int retval = 0;
 	struct stat file_status;
 
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
-	if(file_lock() == FAILURE) {
-		return FAILURE;
+	if(file_lock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	fstat(outfiledes, &file_status);
@@ -274,14 +274,14 @@ QuillErrCode FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 		retval = write(outfiledes,"\n",1); /* Now the newline*/
 	}
 	
-	if(file_unlock() == FAILURE) {
-		return FAILURE;
+	if(file_unlock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	if (retval < 0) {
-		return FAILURE;
+		return QUILL_FAILURE;
 	} else {
-		return SUCCESS;	
+		return QUILL_SUCCESS;	
 	}
 }
 
@@ -291,15 +291,15 @@ QuillErrCode FILESQL::file_updateEvent(const char *eventType,
 	int retval = 0;
 	struct stat file_status;
 
-    if (is_dummy) return SUCCESS;
+    if (is_dummy) return QUILL_SUCCESS;
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
-	if(file_lock() == FAILURE) {
-		return FAILURE;
+	if(file_lock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	fstat(outfiledes, &file_status);
@@ -328,14 +328,14 @@ QuillErrCode FILESQL::file_updateEvent(const char *eventType,
 		retval = write(outfiledes,"\n",1); /* Now the newline*/	
 	}
 
-	if(file_unlock() == FAILURE) {
-		return FAILURE;
+	if(file_unlock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	if (retval < 0) {
-		return FAILURE;	
+		return QUILL_FAILURE;	
 	} else {
-		return SUCCESS;	
+		return QUILL_SUCCESS;	
 	}
 }
 
@@ -348,11 +348,11 @@ QuillErrCode FILESQL::file_deleteEvent(const char *eventType,
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
-	if(file_lock() == FAILURE) {
-		return FAILURE;
+	if(file_lock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	fstat(outfiledes, &file_status);
@@ -374,15 +374,15 @@ QuillErrCode FILESQL::file_deleteEvent(const char *eventType,
 		retval = write(outfiledes,"\n",1); /* Now the newline*/
 	}
 
-	if(file_unlock() == FAILURE) {
-		return FAILURE;
+	if(file_unlock() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
 	if (retval < 0) {
-		return FAILURE;	
+		return QUILL_FAILURE;	
 	}
 	else {
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 
 }
@@ -433,10 +433,34 @@ FILESQL *createInstance(bool use_sql_log) {
 
 	ptr = new FILESQL(outfilename.GetCStr(), O_WRONLY|O_CREAT|O_APPEND, use_sql_log);
 
-	if (ptr->file_open() == FAILURE) {
+	if (ptr->file_open() == QUILL_FAILURE) {
 		dprintf(D_ALWAYS, "FILESQL createInstance failed\n");
 	}
 
 	return ptr;
 }
 
+
+void daemonAdInsert(
+ClassAd *cl, 
+const char *adType,
+FILESQL *dbh, 
+int &prevLHF)
+{
+	ClassAd clCopy;
+	MyString tmp;
+	
+		// make a copy so that we can add timestamp attribute into it
+	clCopy = *cl;
+	
+	tmp.sprintf("%s = %d", "PrevLastReportedTime", prevLHF);
+	(&clCopy)->Insert(tmp.GetCStr());
+
+		// set the lastReportedTime and make it the new prevLHF
+	prevLHF = (int)time(NULL);
+
+	tmp.sprintf("%s = %d", "LastReportedTime", prevLHF);
+	(&clCopy)->Insert(tmp.GetCStr());
+
+	dbh->file_newEvent(adType, &clCopy);	
+}

@@ -1210,7 +1210,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 			// need to log events for non-daemons.
 		if (FILEObj) {
 			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) 
-				== FAILURE) {	
+				== QUILL_FAILURE) {	
 				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
 				return 0; // return a error code, 0
 			}		
@@ -1230,7 +1230,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		tmpClP1->Insert(tmp.GetCStr());	
 				
 		if (FILEObj) {
-			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
 				return 0; // return a error code, 0
 			}			
@@ -1498,7 +1498,7 @@ writeEvent (FILE *file)
   tmpClP2->Insert(tmp.GetCStr());
   
   if (FILEObj) {
-	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == QUILL_FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -1514,7 +1514,7 @@ writeEvent (FILE *file)
   tmpClP3->Insert(tmp.GetCStr());
 
   if(FILEObj) {
-	  if (FILEObj->file_newEvent("Runs", tmpClP3) == FAILURE) {
+	  if (FILEObj->file_newEvent("Runs", tmpClP3) == QUILL_FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -1625,7 +1625,7 @@ writeEvent (FILE *file)
 	tmpClP2->Insert(tmp.GetCStr());
   
 	if (FILEObj) {
-		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 12--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -1752,7 +1752,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
-		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 6--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -2127,7 +2127,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   tmpClP2->Insert(tmp.GetCStr());
   
   if (FILEObj) {
-	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == QUILL_FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -2317,7 +2317,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
-		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 7--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -2516,7 +2516,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	tmpClP2->Insert(tmp.GetCStr());
 
 	if (FILEObj) {
-		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -2631,7 +2631,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
   tmpClP2->Insert(tmp.GetCStr());
 
   if (FILEObj) {
-	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == QUILL_FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -2898,7 +2898,7 @@ writeEvent (FILE *file)
 		tmpClP2->Insert(tmp.GetCStr());
   
 		if (FILEObj) {
-			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
+			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
 				return 0; // return a error code, 0
 			}
@@ -2917,7 +2917,7 @@ writeEvent (FILE *file)
 		tmpClP1->Insert(tmp.GetCStr());	
 				
 		if (FILEObj) {
-			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+			if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 				dprintf(D_ALWAYS, "Logging Event 14 --- Error\n");
 				return 0; // return a error code, 0
 			}
@@ -3036,7 +3036,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
-		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 8--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3120,7 +3120,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
- 	    if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+ 	    if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 9--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3282,7 +3282,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
-		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 10--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3444,7 +3444,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	tmpClP1->Insert(tmp.GetCStr());	
 				
 	if (FILEObj) {
-		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == QUILL_FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 11--- Error\n");
 			return 0; // return a error code, 0
 		}

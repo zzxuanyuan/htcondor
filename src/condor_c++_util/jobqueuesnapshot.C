@@ -90,9 +90,9 @@ JobQueueSnapshot::~JobQueueSnapshot()
 //! prepare iteration of Job Ads in the job queue database
 /*
 	Return:
-		FAILURE: Error
+		QUILL_FAILURE: Error
 		JOB_QUEUE_EMPTY: No Result
-		SUCCESS: Success
+		QUILL_SUCCESS: Success
 */
 QuillErrCode 
 JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
@@ -112,25 +112,25 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 	procads_hor_num = procads_ver_num = 
 	clusterads_hor_num = clusterads_ver_num = 0;
 	
-	if(jqDB->connectDB() == FAILURE) {
-		return FAILURE;
+	if(jqDB->connectDB() == QUILL_FAILURE) {
+		return QUILL_FAILURE;
 	}
 
-	if(jqDB->beginTransaction() == FAILURE) {
+	if(jqDB->beginTransaction() == QUILL_FAILURE) {
 		printf("Error while querying the database: unable to start new transaction");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	if (dt == T_ORACLE) {
-		if(jqDB->execCommand("SET TRANSACTION READ ONLY") == FAILURE) {
+		if(jqDB->execCommand("SET TRANSACTION READ ONLY") == QUILL_FAILURE) {
 			printf("Error while setting xact to be read only\n");
-			return FAILURE;
+			return QUILL_FAILURE;
 		}		
 	} else {
 		if(jqDB->execCommand("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE") 
-		   == FAILURE) {
+		   == QUILL_FAILURE) {
 			printf("Error while setting xact isolation level to serializable\n");
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 	}
 
@@ -145,31 +145,31 @@ JobQueueSnapshot::startIterateAllClassAds(int *clusterarray,
 				 clusterads_hor_num, 
 				 clusterads_ver_num); // this retriesves DB
 	
-	if(jqDB->commitTransaction() == FAILURE) {
+	if(jqDB->commitTransaction() == QUILL_FAILURE) {
 		printf("Error while querying the database: unable to commit transaction");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	if (st == JOB_QUEUE_EMPTY) {// There is no live jobs
 		return JOB_QUEUE_EMPTY;
 	}
 
-	if (st != SUCCESS) {// Got some error
-		return FAILURE;
+	if (st != QUILL_SUCCESS) {// Got some error
+		return QUILL_FAILURE;
 	}
 
 	if (getNextClusterAd(curClusterId, curClusterAd) == DONE_CLUSTERADS_CURSOR) {
 		return JOB_QUEUE_EMPTY;
 	}
 
-	return SUCCESS; // Success
+	return QUILL_SUCCESS; // Success
 }
 
 //! iterate one by one
 /*
 	Return:
-		 SUCCESS
-		 FAILURE
+		 QUILL_SUCCESS
+		 QUILL_FAILURE
 		 DONE_CLUSTERADS_CURSOR
 */
 QuillErrCode
@@ -195,10 +195,10 @@ JobQueueSnapshot::getNextClusterAd(char* cluster_id, ClassAd*& ad)
 		strncpy(cluster_id, cid, 20);
 		curProcId[0] = '\0';
 	}
-		//FAILURE case as each time we consume all attributes of the ad
+		//QUILL_FAILURE case as each time we consume all attributes of the ad
 		//so getting a cid which is equal to cluster_id is bizarre
 	else {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 		//
@@ -255,15 +255,15 @@ JobQueueSnapshot::getNextClusterAd(char* cluster_id, ClassAd*& ad)
 	}
 	cur_clusterads_hor_index++;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*
 	Return:
 		DONE_PROCADS_CURSOR
 		DONE_PROCADS_CUR_CLUSTERAD
-		SUCCESS
-		FAILURE
+		QUILL_SUCCESS
+		QUILL_FAILURE
 */
 QuillErrCode
 JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
@@ -348,7 +348,7 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 	else if (strcmp(pid, curProcId) == 0) {
 		delete ad;
 		ad = NULL;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	else  { /* pid and curProcId are not NULL and not equal */ 
 		strncpy(curProcId, pid, 20);
@@ -426,15 +426,15 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 	// add an attribute with a value into ClassAd
 	ad->Insert(expr);
 	free(expr);
-	return SUCCESS;
+	return QUILL_SUCCESS;
 
 }
 
 /*
 	Return:
-	    SUCCESS
+	    QUILL_SUCCESS
 		DONE_JOBS_CURSOR
-	    FAILURE
+	    QUILL_FAILURE
 */
 QuillErrCode
 JobQueueSnapshot::iterateAllClassAds(ClassAd*& ad)
@@ -477,19 +477,19 @@ JobQueueSnapshot::iterateAllClassAds(ClassAd*& ad)
 		st1 = getNextProcAd(ad);
 	};
 
-	if (st1 == SUCCESS) {
+	if (st1 == QUILL_SUCCESS) {
 		ad->ChainToAd(curClusterAd);
 	}	
 
 		//the third check here is triggered when the above bizarre race 
 		//condition occurs
 	else if (st1 == DONE_PROCADS_CURSOR 
-			 || st1 == FAILURE 
+			 || st1 == QUILL_FAILURE 
 			 || (st1 == DONE_PROCADS_CUR_CLUSTERAD 
 				 && st2 == DONE_CLUSTERADS_CURSOR)) {
 		return DONE_JOBS_CURSOR;
 	}
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! release snapshot
@@ -500,10 +500,10 @@ JobQueueSnapshot::release()
 	st1 = jqDB->releaseJobQueueResults();
 	st2 = jqDB->disconnectDB();
 
-	if(st1 == SUCCESS && st2 == SUCCESS) {
-		return SUCCESS;
+	if(st1 == QUILL_SUCCESS && st2 == QUILL_SUCCESS) {
+		return QUILL_SUCCESS;
 	}
 	else {
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 }

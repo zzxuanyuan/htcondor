@@ -226,7 +226,7 @@ ORACLEDatabase::connectDB()
 		
 		if (env == NULL) {
 			dprintf(D_ALWAYS, "ERROR CREATING Environment in ORACLEDatabase::connectDB, Check if ORACLE environment variables are set correctly\n");
-			return FAILURE;
+			return QUILL_FAILURE;
 		}
 		
 		conn = env->createConnection(userName, password, connectString);
@@ -238,10 +238,10 @@ ORACLEDatabase::connectDB()
 		errorMsg.sprintf("Error number: %d, Error message: %s", 
 						ex.getErrorCode(), ex.getMessage().c_str());
 
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 	connected = true;       
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //@ disconnect from DBMS
@@ -257,7 +257,7 @@ ORACLEDatabase::disconnectDB()
 	}
 
 	connected = false;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! begin Transaction
@@ -266,16 +266,16 @@ ORACLEDatabase::beginTransaction()
 {
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::beginTransaction\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	if (in_tranx) {
 		dprintf(D_ALWAYS, "Can't start a tranx within a tranx in ORACLEDatabase::beginTransaction\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	in_tranx = true;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! commit Transaction
@@ -284,7 +284,7 @@ ORACLEDatabase::commitTransaction()
 {	
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::commitTransaction\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 #ifdef TT_COLLECT_SQL
@@ -309,12 +309,12 @@ ORACLEDatabase::commitTransaction()
 		}
 
 		in_tranx = false;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: COMMIT TRANSACTION\n");
 	in_tranx = false;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! abort Transaction
@@ -323,7 +323,7 @@ ORACLEDatabase::rollbackTransaction()
 {
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::rollbackTransaction\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 #ifdef TT_COLLECT_SQL
@@ -348,12 +348,12 @@ ORACLEDatabase::rollbackTransaction()
 		}
 
 		in_tranx = false;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: ROLLBACK TRANSACTION\n");
 	in_tranx = false;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! execute a command
@@ -370,7 +370,7 @@ ORACLEDatabase::execCommand(const char* sql,
 
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execCommand\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
@@ -404,7 +404,7 @@ ORACLEDatabase::execCommand(const char* sql,
 			disconnectDB();
 		}
 
-		return FAILURE;				
+		return QUILL_FAILURE;				
 	}
 
 	conn->terminateStatement (stmt);	
@@ -418,7 +418,7 @@ ORACLEDatabase::execCommand(const char* sql,
 #endif
 	
 	stmt = NULL;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 QuillErrCode 
@@ -443,7 +443,7 @@ ORACLEDatabase::execQuery(const char* sql,
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execQuery\n");
 		num_result = -1;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
@@ -483,10 +483,10 @@ ORACLEDatabase::execQuery(const char* sql,
      
 		num_result = -1;
 
-		return FAILURE;                 
+		return QUILL_FAILURE;                 
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -517,7 +517,7 @@ ORACLEDatabase::fetchNext()
 
 	if (!rset) {
 		dprintf(D_ALWAYS, "no result to fetch in ORACLEDatabase::fetchNext\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	try {
@@ -537,7 +537,7 @@ ORACLEDatabase::fetchNext()
 			disconnectDB();
 		}		
 	
-		return FAILURE;			
+		return QUILL_FAILURE;			
 	}
 
 	if (rs == ResultSet::END_OF_FETCH) {
@@ -545,9 +545,9 @@ ORACLEDatabase::fetchNext()
 		conn->terminateStatement (stmt); 
 		rset = NULL;
 		stmt = NULL;
-		return FAILURE;
+		return QUILL_FAILURE;
 	} else {
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	}
 }
 */
@@ -668,7 +668,7 @@ ORACLEDatabase::releaseQueryResult()
 		queryRes = NULL;
 	}
 	
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! check if the connection is ok
@@ -676,9 +676,9 @@ QuillErrCode
 ORACLEDatabase::checkConnection()
 {
 	if (connected) 
-		return SUCCESS;
+		return QUILL_SUCCESS;
 	else 
-		return FAILURE;
+		return QUILL_FAILURE;
 }
 
 //! check if the connection is ok
@@ -792,7 +792,7 @@ ORACLEDatabase::releaseHistoryResults()
 		historyVerRes = NULL;
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! release the job queue query result object
@@ -847,7 +847,7 @@ ORACLEDatabase::releaseJobQueueResults()
 		clusterAdsHorRes = NULL;
 	}
 	
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get a DBMS error message
@@ -862,7 +862,7 @@ ORACLEDatabase::getDBError()
  *	\return 
  *		JOB_QUEUE_EMPTY: There is no job in the queue
  *      FAILURE_QUERY_* : error querying table *
- *		SUCCESS: There is some job in the queue and query was successful
+ *		QUILL_SUCCESS: There is some job in the queue and query was successful
  *
  *		
  */
@@ -1005,26 +1005,26 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
 	  // Query against ClusterAds_Hor Table
   if ((st = execQuery(clusterAds_hor_query.Value(), clusterAdsHorRes, 
 					  clusterAdsHorStmt,
-					  clusterAdsHorRes_num)) == FAILURE) {
+					  clusterAdsHorRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_CLUSTERADS_HOR;
   }
 	  // Query against ClusterAds_Ver Table
   if ((st = execQuery(clusterAds_ver_query.Value(), clusterAdsVerRes, 
 					  clusterAdsVerStmt,
-					  clusterAdsVerRes_num)) == FAILURE) {
+					  clusterAdsVerRes_num)) == QUILL_FAILURE) {
 		// FIXME to return something other than clusterads_num!
 	  return FAILURE_QUERY_CLUSTERADS_VER;
   }
 	  // Query against procAds_Hor Table
   if ((st = execQuery(procAds_hor_query.Value(), procAdsHorRes, 
 					  procAdsHorStmt,
-					  procAdsHorRes_num)) == FAILURE) {
+					  procAdsHorRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_PROCADS_HOR;
   }
 	  // Query against procAds_ver Table
   if ((st = execQuery(procAds_ver_query.Value(), procAdsVerRes, 
 					  procAdsVerStmt,
-					  procAdsVerRes_num)) == FAILURE) {
+					  procAdsVerRes_num)) == QUILL_FAILURE) {
 	  return FAILURE_QUERY_PROCADS_VER;
   }
   
@@ -1035,13 +1035,13 @@ ORACLEDatabase::getJobQueueDB(int *clusterarray, int numclusters,
   clusterAdsVerResCursor = clusterAdsHorResCursor = procAdsVerResCursor 
   = procAdsHorResCursor = -1;
 
-  return SUCCESS;
+  return QUILL_SUCCESS;
 }
 
 /*! get the historical information
  *
  *	\return
- *		SUCCESS: declare cursor succeeded 
+ *		QUILL_SUCCESS: declare cursor succeeded 
  *		FAILURE_QUERY_*: query failed
  */
 QuillErrCode
@@ -1051,7 +1051,7 @@ ORACLEDatabase::openCursorsHistory(SQLQuery *queryhor,
 {
 	QuillErrCode st;
 	int num_result;
-	if ((st = execQuery(queryhor->getQuery(), historyHorRes, historyHorStmt, num_result)) == FAILURE) {
+	if ((st = execQuery(queryhor->getQuery(), historyHorRes, historyHorStmt, num_result)) == QUILL_FAILURE) {
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
 
@@ -1059,13 +1059,13 @@ ORACLEDatabase::openCursorsHistory(SQLQuery *queryhor,
 		return HISTORY_EMPTY;
 	}
 
-	if (longformat && (st = execQuery(queryver->getQuery(), historyVerRes, historyVerStmt, num_result)) == FAILURE) {
+	if (longformat && (st = execQuery(queryver->getQuery(), historyVerRes, historyVerStmt, num_result)) == QUILL_FAILURE) {
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
 	
 	historyHorResCursor = historyVerResCursor = -1;
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 
@@ -1075,7 +1075,7 @@ ORACLEDatabase::closeCursorsHistory(SQLQuery *queryhor,
                                   bool longformat)
 {	
 		/* nothing to be done for oracle */
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 //! get a value retrieved from History_Horizontal table
@@ -1155,7 +1155,7 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 
 	*value = cv.Value();
 
-	return SUCCESS;			
+	return QUILL_SUCCESS;			
 }
 
 
@@ -1230,7 +1230,7 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 	
     *value = cv.Value();
 
-	return SUCCESS;				
+	return QUILL_SUCCESS;				
 }
 
 //! get a value retrieved from ProcAds_Hor table
@@ -1622,7 +1622,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execCommand\n");
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
@@ -1653,7 +1653,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 			} else {
 				dprintf(D_ALWAYS, "unknown data type in ORACLEDatabase::execCommandWithBind\n");
 				conn->terminateStatement (stmt);
-				return FAILURE;				
+				return QUILL_FAILURE;				
 			}
 		}
 
@@ -1676,7 +1676,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 			disconnectDB();
 		}
 
-		return FAILURE;				
+		return QUILL_FAILURE;				
 	}
 
 	conn->terminateStatement (stmt);	
@@ -1690,7 +1690,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 #endif
 	
 	stmt = NULL;
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }
 
 /*! execute a query with binding variables
@@ -1724,7 +1724,7 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
 	if (!connected) {
 		dprintf(D_ALWAYS, "Not connected to database in ORACLEDatabase::execQuery\n");
 		num_result = -1;
-		return FAILURE;
+		return QUILL_FAILURE;
 	}
 
 	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
@@ -1747,7 +1747,7 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
 			} else {
 				dprintf(D_ALWAYS, "unknown data type in ORACLEDatabase::execQueryWithBind\n");
 				conn->terminateStatement (queryStmt);
-				return FAILURE;				
+				return QUILL_FAILURE;				
 			}
 		}
 
@@ -1784,8 +1784,8 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
      
 		num_result = -1;
 
-		return FAILURE;                 
+		return QUILL_FAILURE;                 
 	}
 
-	return SUCCESS;
+	return QUILL_SUCCESS;
 }

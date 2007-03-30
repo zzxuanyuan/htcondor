@@ -316,7 +316,7 @@ static void doDBconfig() {
 	QuillErrCode ret_st;
 
 	ret_st = DBObj->connectDB();
-	if (ret_st == FAILURE) {
+	if (ret_st == QUILL_FAILURE) {
 		fprintf(stderr, "doDBconfig: unable to connect to DB--- ERROR");
 		exit(1);
 	}
@@ -471,16 +471,16 @@ static void readHistoryFromFile(char *JobHistoryFileName)
   sql_stmt.sprintf("DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cluster_id = %d AND proc = %d", scheddname, cid, pid);
   sql_stmt2.sprintf("INSERT INTO History_Horizontal(scheddname, cluster_id, proc, enteredhistorytable) VALUES('%s', %d, %d, current_timestamp)", scheddname, cid, pid);
 
-  if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+  if (DBObj->execCommand(sql_stmt.GetCStr()) == QUILL_FAILURE) {
 	  fprintf(stderr, "Executing Statement --- Error\n");
 	  fprintf(stderr, "sql = %s\n", sql_stmt.GetCStr());
 	  return FAILURE;	  
   }
 
-  if (DBObj->execCommand(sql_stmt2.GetCStr()) == FAILURE) {
+  if (DBObj->execCommand(sql_stmt2.GetCStr()) == QUILL_FAILURE) {
 	  fprintf(stderr, "Executing Statement --- Error\n");
 	  fprintf(stderr, "sql = %s\n", sql_stmt2.GetCStr());
-	  return FAILURE;	  
+	  return QUILL_FAILURE;	  
   }
   
 
@@ -567,22 +567,22 @@ static void readHistoryFromFile(char *JobHistoryFileName)
 
 	  }	  
 
-	  if (DBObj->execCommand(sql_stmt.GetCStr()) == FAILURE) {
+	  if (DBObj->execCommand(sql_stmt.GetCStr()) == QUILL_FAILURE) {
 		  fprintf(stderr, "Executing Statement --- Error\n");
 		  fprintf(stderr, "sql = %s\n", sql_stmt.GetCStr());
 		  
-		  return FAILURE;
+		  return QUILL_FAILURE;
 	  }
 		  
-	  if (sql_stmt2 != "" && (DBObj->execCommand(sql_stmt2.GetCStr()) == FAILURE)) {
+	  if (sql_stmt2 != "" && (DBObj->execCommand(sql_stmt2.GetCStr()) == QUILL_FAILURE)) {
 		  fprintf(stderr, "Executing Statement --- Error\n");
 		  fprintf(stderr, "sql = %s\n", sql_stmt2.GetCStr());
 		  
-		  return FAILURE;			  
+		  return QUILL_FAILURE;			  
 	  }
 	  
   }  
 
-  return SUCCESS;
+  return QUILL_SUCCESS;
 
 #endif

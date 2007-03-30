@@ -36,7 +36,7 @@ enum    XactState {    NOT_IN_XACT,
                         COMMIT_XACT,
                         ABORT_XACT};
 
-enum QuillErrCode {	FAILURE,
+enum QuillErrCode {	    QUILL_FAILURE,
 						FAILURE_QUERY_PROCADS_HOR,
 						FAILURE_QUERY_PROCADS_VER,
 						FAILURE_QUERY_CLUSTERADS_HOR,
@@ -51,7 +51,7 @@ enum QuillErrCode {	FAILURE,
 						DONE_CLUSTERADS_CURSOR,
 						DONE_PROCADS_CURSOR,
 						DONE_PROCADS_CUR_CLUSTERAD,
-						SUCCESS};
+						QUILL_SUCCESS};
 
 
 enum ProbeResultType {  PROBE_ERROR, 
