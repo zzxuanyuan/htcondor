@@ -38,7 +38,7 @@
 #include "internet.h"
 #include "strupr.h"
 #include "condor_netdb.h"
-
+#include "file_sql.h"
 
 // these are defined in master.C
 extern int 		MasterLockFD;
@@ -58,6 +58,8 @@ extern time_t	GetTimeStamp(char* file);
 extern int 	   	NewExecutable(char* file, time_t* tsp);
 extern void		tail_log( FILE*, char*, int );
 extern int		run_preen(Service*);
+
+extern FILESQL *FILEObj;
 
 int		hourly_housekeeping(void);
 
@@ -1334,6 +1336,7 @@ Daemons::Daemons()
 	immediate_restart = FALSE;
 	immediate_restart_master = FALSE;
 	procd = NULL;
+	prevLHF = 0;
 }
 
 
@@ -2084,6 +2087,9 @@ Daemons::UpdateCollector()
 	Update(ad);
     daemonCore->monitor_data.ExportData(ad);
 
+		// log classad into sql log so that it can be updated to DB
+	daemonAdInsert(ad, "MasterAd", FILEObj, prevLHF);
+	
 	if (Collectors) {
 		Collectors->sendUpdates (UPDATE_MASTER_AD, ad, NULL, true);
 	}

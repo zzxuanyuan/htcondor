@@ -201,6 +201,7 @@ private:
 	AllGoneT all_daemons_gone_action;
 	ReaperT reaper;
 	ProcD* procd;
+	int prevLHF;
 };
 
 #endif /* _CONDOR_MASTER_H */
