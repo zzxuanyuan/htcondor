@@ -111,6 +111,8 @@ Matchmaker ()
 
 	strcpy(RejectsTable, "rejects");
 	strcpy(MatchesTable, "matches");
+
+	prevLHF = 0;
 }
 
 
@@ -3033,6 +3035,8 @@ void
 Matchmaker::updateCollector() {
 	dprintf(D_FULLDEBUG, "enter Matchmaker::updateCollector\n");
 
+		// log classad into sql log so that it can be updated to DB
+	daemonAdInsert(publicAd, "NegotiatorAd", FILEObj, prevLHF);	
    
 	if (Collectors && publicAd) {
 		Collectors->sendUpdates (UPDATE_NEGOTIATOR_AD, publicAd, NULL, true);

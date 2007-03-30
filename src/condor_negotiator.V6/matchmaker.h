@@ -313,6 +313,7 @@ class Matchmaker : public Service
 		
 		char RejectsTable[40];
 		char MatchesTable[40];
+		int prevLHF;
 };
 
 
