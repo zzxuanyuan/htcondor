@@ -3339,6 +3339,7 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	if (!filePathName || !sum) 
 		return FALSE;
 
+#if 0
 	fd = safe_open_wrapper(filePathName, O_RDONLY);
 	if (fd < 0) {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: can't open %s\n", filePathName);
@@ -3353,7 +3354,8 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	}
 
 	close(fd);
-
+#endif
+	checker->addMDFile(filePathName);
 	checksum = checker->computeMD();
 
 	if (checksum){
