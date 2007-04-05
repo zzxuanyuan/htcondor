@@ -471,41 +471,41 @@ COMMIT;
 
 /* lastly check if db size is above 75 percentage of specified limit */
 -- one caveat: index size is not counted in the usage calculation
--- analyze tables first to have correct statistics 
+-- gather stats first to have correct statistics 
 
-execute immediate 'analyze table maintenance_log  compute statistics';
-execute immediate 'analyze table runs  compute statistics';
-execute immediate 'analyze table rejects compute statistics';
-execute immediate 'analyze table matches compute statistics';
-execute immediate 'analyze table l_jobstatus compute statistics';
-execute immediate 'analyze table throwns compute statistics';
-execute immediate 'analyze table events compute statistics';
-execute immediate 'analyze table l_eventtype compute statistics';
-execute immediate 'analyze table generic_messages compute statistics';
-execute immediate 'analyze table jobqueuepollinginfo compute statistics';
-execute immediate 'analyze table currencies compute statistics';
-execute immediate 'analyze table daemons_vertical compute statistics';
-execute immediate 'analyze table daemons_horizontal_history compute statistics';
-execute immediate 'analyze table daemons_vertical_history compute statistics';
-execute immediate 'analyze table submitters_horizontal compute statistics';
-execute immediate 'analyze table submitters_horizontal_history compute statistics';
-execute immediate 'analyze table dummy_single_row_table compute statistics';
-execute immediate 'analyze table cdb_users compute statistics';
-execute immediate 'analyze table transfers compute statistics';
-execute immediate 'analyze table files compute statistics';
-execute immediate 'analyze table fileusages compute statistics';
-execute immediate 'analyze table machines_vertical compute statistics';
-execute immediate 'analyze table machines_vertical_history compute statistics';
-execute immediate 'analyze table clusterads_horizontal compute statistics';
-execute immediate 'analyze table procads_horizontal compute statistics';
-execute immediate 'analyze table clusterads_vertical compute statistics';
-execute immediate 'analyze table procads_vertical compute statistics';
-execute immediate 'analyze table jobs_vertical_history compute statistics';
-execute immediate 'analyze table jobs_horizontal_history compute statistics';
-execute immediate 'analyze table machines_horizontal compute statistics';
-execute immediate 'analyze table machines_horizontal_history compute statistics';
-execute immediate 'analyze table daemons_horizontal compute statistics';
-execute immediate 'analyze table history_jobs_to_purge compute statistics';
+DBMS_STATS.GATHER_TABLE_STATS(null, 'maintenance_log');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'runs');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'rejects');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'matches');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'l_jobstatus');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'throwns');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'events');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'l_eventtype');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'generic_messages');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'jobqueuepollinginfo');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'currencies');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_vertical');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_horizontal_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_vertical_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'submitters_horizontal');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'submitters_horizontal_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'dummy_single_row_table');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'cdb_users');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'transfers');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'files');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'fileusages');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_vertical');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_vertical_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'clusterads_horizontal');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'procads_horizontal');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'clusterads_vertical');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'procads_vertical');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'jobs_vertical_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'jobs_horizontal_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_horizontal');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_horizontal_history');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_horizontal');
+DBMS_STATS.GATHER_TABLE_STATS(null, 'history_jobs_to_purge');
 
 SELECT ROUND(SUM(NUM_ROWS*AVG_ROW_LEN)/(1024*1024)) INTO totalUsedMB
 FROM user_tables;
