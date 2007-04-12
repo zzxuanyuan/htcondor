@@ -301,10 +301,11 @@ ORACLEDatabase::commitTransaction()
 		errorMsg.sprintf("Error number: %d, Error message: %s", 
 						ex.getErrorCode(), ex.getMessage().c_str());
 
-			/* ORA-03113 means that the connection between Client and Server 
-			   process was broken.
+			/* ORA-03113 or 03114 mean that the connection between Client and 
+			   Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}
 
@@ -343,7 +344,8 @@ ORACLEDatabase::rollbackTransaction()
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}
 
@@ -400,7 +402,8 @@ ORACLEDatabase::execCommand(const char* sql,
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
 			 */
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}
 
@@ -477,7 +480,8 @@ ORACLEDatabase::execQuery(const char* sql,
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
      
@@ -533,7 +537,8 @@ ORACLEDatabase::fetchNext()
 		errorMsg.sprintf("Error number: %d, Error message: %s", 
 						ex.getErrorCode(), ex.getMessage().c_str());
 
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+		    ex.getErrorCode() == 3114 ) {
 			disconnectDB();
 		}		
 	
@@ -608,7 +613,8 @@ ORACLEDatabase::getValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
         
@@ -643,7 +649,8 @@ ORACLEDatabase::getIntValue(int col)
 
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getIntValue\n", ex.getErrorCode(), ex.getMessage().c_str());
 
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+		    ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}		
 	
@@ -1145,7 +1152,8 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
      
@@ -1220,7 +1228,8 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
         
@@ -1302,7 +1311,8 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
         
@@ -1373,7 +1383,8 @@ ORACLEDatabase::getJobQueueProcAds_VerValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
         
@@ -1488,7 +1499,8 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
         
@@ -1559,7 +1571,8 @@ ORACLEDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
         
@@ -1672,7 +1685,8 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
 			 */
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}
 
@@ -1778,7 +1792,8 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
-		if (ex.getErrorCode() == 3113) {
+		if (ex.getErrorCode() == 3113 ||
+			ex.getErrorCode() == 3114) {
 			disconnectDB();
 		}               
      
