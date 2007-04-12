@@ -576,6 +576,7 @@ grant select on fileusages to quillreader;
 grant select on machines_vertical to quillreader;
 grant select on machines_vertical_history to quillreader;
 grant select on machines_horizontal_history to quillreader;
+grant select on machines_horizontal to quillreader;
 grant select on clusterads_horizontal to quillreader;
 grant select on procads_horizontal to quillreader;
 grant select on clusterads_vertical to quillreader;
@@ -607,6 +608,8 @@ grant select on history_jobs_flocked_in to quillreader;
 grant select on current_jobs_flocked_in to quillreader;
 grant select on history_jobs_flocked_out to quillreader;
 grant select on current_jobs_flocked_out to quillreader;
+grant select on quilldbmonitor to quillreader;
+grant select on maintenance_log to quillreader;
 
 -- the creation of the schema version table should be the last step 
 -- because it is used by quill daemon to decide whether we have the 
