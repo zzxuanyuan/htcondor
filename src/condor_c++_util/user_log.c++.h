@@ -78,7 +78,7 @@ class UserLog {
   public:
     ///
     UserLog() : cluster(-1), proc(-1), subproc(-1), in_block(FALSE), path(0),
-				fp(0), lock(NULL), use_xml(XML_USERLOG_DEFAULT) {}
+				fp(0), lock(NULL), use_xml(XML_USERLOG_DEFAULT), m_gjid(0) {}
     
     /** Constructor
         @param owner Username of the person whose job is being logged
@@ -89,7 +89,8 @@ class UserLog {
 		@param xml  make this TRUE to write XML logs, FALSE to use the old form
     */
     UserLog(const char *owner, const char *domain, const char *file,
-			int clu, int proc, int subp, bool xml = XML_USERLOG_DEFAULT);
+			int clu, int proc, int subp, bool xml = XML_USERLOG_DEFAULT,
+			const char *gjid = NULL);
     
     UserLog(const char *owner, const char *file,
 			int clu, int proc, int subp, bool xml = XML_USERLOG_DEFAULT);
@@ -101,10 +102,11 @@ class UserLog {
         @param c the condor ID cluster to put into each ULogEvent
         @param p the condor ID proc    to put into each ULogEvent
         @param s the condor ID subproc to put into each ULogEvent
+        @param gjid the condor global job id to put into each ULogEvent
 		@return TRUE on success
     */
     bool initialize(const char *owner, const char *domain, const char *file,
-		   	int c, int p, int s);
+		   	int c, int p, int s, const char *gjid);
     
     /** Initialize the log file.
         @param file the path name of the log file to be written (copied)
@@ -113,7 +115,7 @@ class UserLog {
         @param s the condor ID subproc to put into each ULogEvent
 		@return TRUE on success
     */
-    bool initialize(const char *file, int c, int p, int s);
+    bool initialize(const char *file, int c, int p, int s, const char *gjid);
     
     /** Initialize the condorID, which will fill in the condorID
         for each ULogEvent passed to writeEvent().
@@ -123,7 +125,7 @@ class UserLog {
         @param s the condor ID subproc to put into each ULogEvent
 		@return TRUE on success
     */
-    bool initialize(int c, int p, int s);
+    bool initialize(int c, int p, int s, const char *gjid);
 
 	void setUseXML(bool new_use_xml){ use_xml = new_use_xml; }
 
@@ -160,6 +162,7 @@ class UserLog {
     /** The log file                 */  FILE     * fp;
     /** The log file lock            */  FileLock * lock;
 	/** Whether we use XML or not    */  bool       use_xml;
+	/** The GlobalJobID for this job */  char     * m_gjid;		
 };
 
 

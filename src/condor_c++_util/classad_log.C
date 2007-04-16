@@ -31,7 +31,6 @@
 #include "util_lib_proto.h"
 #include "classad_merge.h"
 
-
 // explicitly instantiate the HashTable template
 template class HashTable<HashKey, ClassAd*>;
 template class HashBucket<HashKey,ClassAd*>;
@@ -50,7 +49,6 @@ template class HashBucket<HashKey,ClassAd*>;
 if (ptr) free(ptr); \
 ptr = NULL;
 /************************************************************/
-
 
 ClassAdLog::ClassAdLog() : table(1024, hashFunction)
 {
@@ -745,7 +743,6 @@ LogDestroyClassAd::ReadBody(FILE* fp)
 	free(key);
 	return readword(fp, key);
 }
-
 
 LogSetAttribute::LogSetAttribute(const char *k, const char *n, const char *val)
 {

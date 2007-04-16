@@ -38,6 +38,9 @@ extern "C" void event_mgr (void);
 
 #include "condor_attributes.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "file_sql.h"
+
+extern FILESQL *FILEObj;
 
 //-------------------------------------------------------------
 
@@ -899,6 +902,7 @@ updateClassAd (CollectorHashTable &hashTable,
 		}
 		
 		insert = 1;
+		
 		return new_ad;
 	}
 	else
@@ -926,6 +930,7 @@ updateClassAd (CollectorHashTable &hashTable,
 
 			// Now, finally, store the new ClassAd
 			old_ad->ExchangeExpressions (new_ad);
+
 			delete new_ad;
 		}
 

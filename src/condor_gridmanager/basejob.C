@@ -868,6 +868,7 @@ InitializeUserLog( ClassAd *job_ad )
 	int cluster, proc;
 	char userLogFile[_POSIX_PATH_MAX];
 	char domain[_POSIX_PATH_MAX];
+	char gjid[_POSIX_PATH_MAX];
 	bool use_xml = false;
 
 	userLogFile[0] = '\0';
@@ -880,10 +881,11 @@ InitializeUserLog( ClassAd *job_ad )
 	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
 	job_ad->LookupInteger( ATTR_PROC_ID, proc );
 	job_ad->LookupString( ATTR_NT_DOMAIN, domain );
+	job_ad->LookupString( ATTR_GLOBAL_JOB_ID, gjid );
 	job_ad->LookupBool( ATTR_ULOG_USE_XML, use_xml );
 
 	UserLog *ULog = new UserLog();
-	ULog->initialize(Owner, domain, userLogFile, cluster, proc, 0);
+	ULog->initialize(Owner, domain, userLogFile, cluster, proc, 0, gjid);
 	ULog->setUseXML( use_xml );
 	return ULog;
 }
