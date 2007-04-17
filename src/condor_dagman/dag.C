@@ -1,3 +1,5 @@
+//TEMPTEMP -- maybe commit this stuff, let the nightly builds/tests run on it, before commiting functional changes
+//TEMPTEMP -- or should we really make this a state machine, and have a method that's something like "NodeNextStep()"?
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -565,7 +567,7 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 	return result;
 }
 
-
+//---------------------------------------------------------------------------
 void
 Dag::ProcessAbortEvent(const ULogEvent *event, Job *job,
 		bool recovery) {
@@ -757,6 +759,7 @@ Dag::RemoveBatchJob(Job *node) {
 void
 Dag::ProcessJobProcEnd(Job *job, bool recovery, bool failed) {
 
+#if 0 //TEMPTEMP?
 	//
 	// Note: structure here should be cleaned up, but I'm leaving it for
 	// now to make sure parallel universe support is complete for 6.7.17.
@@ -770,6 +773,7 @@ Dag::ProcessJobProcEnd(Job *job, bool recovery, bool failed) {
 			//
 
 		} else if( job->GetRetries() < job->GetRetryMax() ) {
+//TEMPTEMP -- hmm -- is this an error if we have multiple job procs?
 			RestartNode( job, recovery );
 			return;
 
@@ -791,6 +795,7 @@ Dag::ProcessJobProcEnd(Job *job, bool recovery, bool failed) {
 			return;
 		}
 	}
+#endif //TEMPTEMP
 
 	if ( job->_queuedNodeJobProcs == 0 ) {
 			// All procs for this job are done.
@@ -806,11 +811,64 @@ Dag::ProcessJobProcEnd(Job *job, bool recovery, bool failed) {
 				_postScriptQ->Run( job->_scriptPost );
 			}
 		}
+//TEMPTEMP -- *always* call NodeEnd here
+#if 1 //TEMPTEMP
+		else {
+			NodeEnd(job, recovery);
+		}
+#else //TEMPTEMP
 			// no POST script was specified, so update DAG with
 			// node's successful completion if the node succeeded.
 		else if ( job->_Status != Job::STATUS_ERROR ) {
 			TerminateJob( job, recovery );
 		}
+#endif //TEMPTEMP
+	}
+}
+
+//---------------------------------------------------------------------------
+void
+Dag::NodeEnd(Job *node, bool recovery) {
+	//TEMPTEMP -- check for DAG abort
+	//TEMPTEMP -- check for retries
+	//TEMPTEMP -- other?
+	//TEMPTEMP -- call TerminateJob if status is okay
+
+	//
+	// Check for DAG abort (shortcuts node retries).
+	//
+	bool abort = CheckForDagAbort(node, "job");
+	// if dag abort happened, we never return here!
+	if( abort ) {
+		return;
+	}
+
+	if ( node->_Status == Job::STATUS_ERROR ) { //TEMPTEMP -- is this the right test?
+		//
+		// Do retries if necessary.
+		//
+		if( node->GetRetries() < node->GetRetryMax() ) {
+			RestartNode( node, recovery );
+
+		} else {
+				// no more retries -- node failed
+			if( node->GetRetryMax() > 0 ) {
+					// add # of retries to error_text
+				char *tmp = strnewp( node->error_text );
+				snprintf( node->error_text, JOB_ERROR_TEXT_MAXLEN,
+						"%s (after %d node retries)", tmp,
+						node->GetRetries() );
+				delete [] tmp;   
+			}
+
+			_numNodesFailed++;
+		}
+
+	} else {
+		//
+		// Node terminated successfully -- remove dependency from children.
+		//
+		TerminateJob( node, recovery );
 	}
 }
 
@@ -878,6 +936,7 @@ Dag::ProcessPostTermEvent(const ULogEvent *event, Job *job,
 				job->retval = (0 - termEvent->signalNumber);
 			}
 
+#if 0 //TEMPTEMP
 				//
 				// Deal with retries.
 				//
@@ -886,9 +945,13 @@ Dag::ProcessPostTermEvent(const ULogEvent *event, Job *job,
 			} else {
 					// no more retries -- node failed
 				_numNodesFailed++;
+//#endif //TEMPTEMP
 
 				MyString	errMsg;
 
+//TEMPTEMP -- note -- need to get some of this stuff into NodeEnd
+//TEMPTEMP -- maybe need a variable in the Job to hold a separate POST script error code?
+//TEMPTEMP -- or do we *always* want to print this?
 				if( mainJobRetval > 0 ) {
 					errMsg.sprintf( "Job exited with status %d and ",
 								mainJobRetval);
@@ -920,7 +983,9 @@ Dag::ProcessPostTermEvent(const ULogEvent *event, Job *job,
 				strncpy( job->error_text, errMsg.Value(),
 							JOB_ERROR_TEXT_MAXLEN );
 				job->error_text[JOB_ERROR_TEXT_MAXLEN - 1] = '\0';
+//#if 0 //TEMPTEMP?
 			}
+#endif //TEMPTEMP
 
 		} else {
 				// POST script succeeded.
@@ -928,14 +993,18 @@ Dag::ProcessPostTermEvent(const ULogEvent *event, Job *job,
 			debug_dprintf( D_ALWAYS | D_NOHEADER, DEBUG_NORMAL,
 						"completed successfully.\n" );
 			job->retval = 0;
-			TerminateJob( job, recovery );
+			//TEMPTEMP? TerminateJob( job, recovery );
 		}
 
+		NodeEnd( job, recovery );//TEMPTEMP?
+
+#if 0 //TEMPTEMP
 		bool abort = CheckForDagAbort(job, "POST script");
 		// if dag abort happened, we never return here!
 		if( abort ) {
 			return;
 		}
+#endif //TEMPTEMP
 
 		PrintReadyQ( DEBUG_DEBUG_4 );
 	}
@@ -1524,6 +1593,7 @@ Dag::PreScriptReaper( const char* nodeName, int status )
         job->_Status = Job::STATUS_ERROR;
 		_preRunNodeCount--;
 
+#if 0 //TEMPTEMP?
 		if( job->GetRetries() < job->GetRetryMax() ) {
 			RestartNode( job, false );
 		}
@@ -1538,6 +1608,9 @@ Dag::PreScriptReaper( const char* nodeName, int status )
 				delete [] tmp;   
 			}
 		}
+#else //TEMPTEMP?
+		NodeEnd( job, recovery );
+#endif //TEMPTEMP?
 	}
 	else {
 		debug_printf( DEBUG_QUIET, "PRE Script of Node %s completed "
