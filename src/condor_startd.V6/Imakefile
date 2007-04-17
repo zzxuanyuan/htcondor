@@ -15,8 +15,8 @@ BOINC_OBJS = boinc_mgr.o
 #endif /* HAVE_BOINC */
 BACKFILL_OBJS = $(BOINC_OBJS) backfill_mgr.o
 #endif /* HAVE_BACKFILL */
+
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
-LDFLAGS = $(STD_LDFLAGS)
 
 LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 
