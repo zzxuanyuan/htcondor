@@ -58,12 +58,19 @@ open(FILE, $baseCmd) || die("Failed to open base command file '$baseCmd'");
 @lines = <FILE>;
 close(FILE);
 
+##
+## If we encounter an abort, and this flag isn't set, then
+## we know it's a mistake
+##
+my $ABORTING = 0;
+
 ## -----------------------------------------------------
 ## Test Parameters
 ## -----------------------------------------------------
 @exact   = ( ); # Exact Execution Timestamp (Set to true to use)
 @deltas  = ( ); # Offset CurrentTime
-@windows = ( ); # Preparation Window
+@windows = ( ); # Deferral Window
+@preps   = ( ); # Number of Seconds to prep job
 @fail    = ( ); # If set to true, then this test is meant to fail
 
 ##
@@ -73,6 +80,7 @@ close(FILE);
 push(@exact,   0);
 push(@deltas,  60);
 push(@windows, 0);
+push(@preps,   20);
 push(@fail,    0);
 
 ##
@@ -84,6 +92,7 @@ push(@fail,    0);
 push(@exact,   1);
 push(@deltas,  60);
 push(@windows, 0);
+push(@preps,   20);
 push(@fail,    0);
 
 ##
@@ -92,10 +101,10 @@ push(@fail,    0);
 ## that the job fails. We don't want jobs to run when 
 ## they shouldn't
 ##
-push(@exact,   0);
-push(@deltas,  -600); # 600 sec = 10 min
-push(@windows, 0);
-push(@fail,    1);
+#push(@exact,   0);
+#push(@deltas,  -600); # 600 sec = 10 min
+#push(@windows, 0);
+#push(@fail,    1);
 
 ##
 ## Test #4
@@ -104,9 +113,10 @@ push(@fail,    1);
 ## jobs that missed their run time but are within the
 ## the window can still run.
 ##
-push(@exact,   0);
+push(@exact,   1);
 push(@deltas,  -120);  # 120 sec = 2 min
 push(@windows, 180); # 180 sec = 3 min
+push(@preps,   20);
 push(@fail,    0);
 
 ## -----------------------------------------------------
@@ -119,6 +129,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	my $exact   = $exact[$ctr];
 	my $delta   = $deltas[$ctr];
 	my $window  = $windows[$ctr];
+	my $prep	= $preps[$ctr];
 	my $fail    = $fail[$ctr];
 	my $test    = $testname."Test \#".($ctr + 1);
 	my $cmdFile = $baseCmd.$ctr;
@@ -156,7 +167,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	##
 	## Add the test parameters to a new submit file
 	##
-    open(FILE, "> $cmdFile") || die("Failed to open command file '$cmdFile' for writing");
+	open(FILE, "> $cmdFile") || die("Failed to open command file '$cmdFile' for writing");
 	print FILE "@lines\n";
 	print FILE "Universe = $universe\n";
 	
@@ -186,10 +197,14 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	}
 	
 	##
-	## We will only put in the window if the value is not empty
+	## We will only put in the deferral window and prep time if 
+	## the valeus are not empty
 	##
 	if ($window > 0) {
 		print FILE "DeferralWindow = $window\n";
+	}
+	if ($prep > 0) {
+		print FILE "DeferralPrep = $prep\n";
 	}
 	
 	##
@@ -203,10 +218,13 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	close(FILE);
 	
 	##
+	## success
 	## Dynamically create our callback function
 	##
-	my $successCallback = sub {
+	my $success = sub {
 		my %info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
 		##
 		## This is the time we get from our log that says they
 		## begun execution
@@ -219,11 +237,12 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my @output = <FILE>;
 		close(FILE);
 		my $reportTime  = "@output";
+		chomp($reportTime);
 		
-		#print "\n";
-		#print "\texecute:  $executeTime\n";
-		#print "\treport:   $reportTime\n";
-		#print "-----------------------------------------\n\n";
+		print "\n-----------------------------------------\n";
+		print "\texecute:  $executeTime\n";
+		print "\treport:   $reportTime\n";
+		print "\texpected: $expectedTime\n\n";
 		
 		##
 		## If this job wasn't suppose to fail, make sure we ran
@@ -233,8 +252,9 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			##
 			## No timestamp is bad mojo!
 			##
-			if (!$timestamp) {
-				$testFailure = "Unable to extract execution timestamp from log file! ".
+			if (!$executeTime) {
+				$testFailure = "Bad - Unable to extract execution timestamp from ".
+							   "log file for Job $cluster.$job! ".
 							   "Cowardly failing!";
 				return (0);
 			}
@@ -247,8 +267,9 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## that the offset insured that it ran based on our time not 
 			## its own
 			##
-			if ($timestamp < $expectedTime) {
-				$testFailure = "Job executed ".($expectedTime - $timestamp).
+			if ($executeTime < $expectedTime) {
+				$testFailure = "Bad - Job $cluster.$job executed ".
+							   ($expectedTime - $executeTime).
 							   " seconds before it was suppose to!\n";
 				return (0);
 			}
@@ -260,15 +281,20 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## on our time not its own.
 			##
 			## Just for sanity, I am allowing the job to be 1 second off
+			## We only do this test if the window time is wasn't in the past (Test #4)
 			##
-			if ( $exact &&
-				($timestamp != $expectedTime) &&
-				($timestamp != $expectedTime + 1) ) {
-				$testFailure = "Job execution time differs by ".
-								($expectedTime - $timestamp)." seconds ".
+			if ( $exact && 
+				($delta >= 0 ) &&
+				($executeTime != $expectedTime) &&
+				($executeTime != ($expectedTime + 1)) ) {
+				$testFailure = "Bad - Job $cluster.$job execution time differs by ".
+								abs($expectedTime - $executeTime)." seconds ".
 								"from when it was suppose to run exactly at.\n";
 				return (0);
 			}
+			
+			print "Good - Job $cluster.$job executed successfully!\n";
+			
 		##
 		## The job was suppose to fail and never run
 		## Make sure that it didn't!
@@ -278,7 +304,8 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## Bums! It ran!
 			##
 			if ($reportTime) {
-				$testFailure = "Job was not suppose to execute but it did!\n";
+				$testFailure = "Bad - Job $cluster.$job was not suppose to ".
+							   "execute but it did!\n";
 				return (0);
 			}
 		}
@@ -287,36 +314,129 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	
 	##
 	## Failure callback
+	## When the deferral fails, the job will be put on hold
 	##
-	my $failCallback = sub {
+	my $held = sub {
+		%info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+	
 		##
 		## If this test wasn't suppose to fail
 		##
 		if ( !$fail ) {
-			$testFailure = "Job failed but wasn't suppose to!\n";
+			$testFailure = "Bad - Job $cluster.$job failed but wasn't suppose to!\n";
 			return (0);
+		}
+		
+		print "Good - Job $cluster.$job failed to run when it was suppose to!\n";
+		
+		##
+		## Remove the job
+		## We set the aborting flag so that we know the abort message 
+		## isn't a mistake
+		##
+		$ABORTING = 1;
+		my @adarray;
+		my $status = 1;
+		my $cmd = "condor_rm $cluster";
+		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+		if ( !$status ) {
+			print "ERROR: Test failure due to Condor Tool Failure<$cmd>\n";
+			return(0);
 		}
 		return (1);
 	};
 	
 	##
+	## aborted
+	## The job is being aborted, so we need to make sure that
+	## we are the one doing the abort
+	##
+	my $aborted = sub {
+		%info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+	
+		##
+		## Make sure this was meant to happen
+		## 
+		if ( $ABORTING ) {
+			print "Good - Job $cluster.$job is being removed after being held.\n";
+		##
+		## Bad mojo!
+		##
+		} else {
+			print "Bad - Job $cluster.$job received an unexpected abort event.\n";
+			exit(1);
+		}
+	};
+	
+	##
+	## submitted
+	## We need to get the info for the job when it is submitted
+	##
+	my $submitted = sub {
+		%info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+	
+		print "Good - Job $cluster.$job was submitted!\n";
+	};
+		
+	##
+	## timeout
+	## If the job never matches and run, we'll execute this method
+	##
+	my $timeout = sub {
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+		
+		print "Bad - Job $cluster.$job never began execution! Removing...\n";
+		
+		##
+		## Remove the job from the queue
+		##
+		my @adarray;
+		my $status = 1;
+		my $cmd = "condor_rm $cluster";
+		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+		if ( !$status ) {
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
+			exit(1);
+		}
+		return (0);
+	};
+	
+	##
 	## Run ye olde' test
 	##
-	CondorTest::RegisterAbort($test, $failCallback);
-	CondorTest::RegisterExitedSuccess($test, $successCallback );
+	CondorTest::RegisterSubmit( $test, $submitted );
+	CondorTest::RegisterAbort( $test, $aborted );
+	CondorTest::RegisterHold( $test, $held );
+	CondorTest::RegisterExitedSuccess( $test, $success );
+	
+	##
+	## This callback is to make sure our job actually runs
+	## Sometimes the job fails to match and execute.
+	##
+	CondorTest::RegisterTimed( $test, $timeout, abs($delta * 2) );
+	
 	##
 	## Kind of a hack
 	## Our callback methods will set global variables that 
 	## we can check to see if the job executed/aborted the
 	## way we expected it to 
 	##
+	$ABORTING = 0;
 	CondorTest::RunTest( $test, $cmdFile, 0);
 	if ($testFailure) {
 		print "$test: CondorTest::RunTest() failed - $testFailure\n";
 		$success = false;
 	} else {
 		print "$test: SUCCESS\n";
-	}		
+	}
+	CondorTest::RemoveTimed( $test );
 	
 	##
 	## Clean up the files after we run if we were told to
@@ -366,10 +486,10 @@ sub extractExecuteTime {
     ## The current log file does not include the year of when a job
     ## was executed so we will use the current year
 	##
-	($_sec, $_min, $_hour, $_day, $_month, $_year) = localtime(time); 
-	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $_year);
+	(undef, undef, undef, undef, undef, $year, undef, undef, $isdst) = localtime(time); 
+	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $year, 0, 0, $isdst);
     
-    #print "$month/$day/".($_year + 1900)." $hour:$minute:$second\n";
+    #print "$month/$day/".($year + 1900)." $hour:$minute:$second\n";
     #print "RUN TIME: $timestamp\n";
     return ($timestamp);
 };
