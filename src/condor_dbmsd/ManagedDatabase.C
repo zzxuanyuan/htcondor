@@ -83,8 +83,7 @@ ManagedDatabase::ManagedDatabase() {
 #if HAVE_ORACLE
 		DBObj = new ORACLEDatabase(dbConnStr);
 #else
-		EXCEPT("Oracle database requested, but this version of Condor is com
-piled without Oracle!\n");
+		EXCEPT("Oracle database requested, but this version of Condor is compiled without Oracle!\n");
 #endif
 		break;
 	case T_PGSQL:
