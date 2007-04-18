@@ -21,6 +21,7 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 #include <string.h>
+#include "condor_common.h"
 #include "condor_config.h"
 #include "dbms_utils.h"
 #include "condor_attributes.h"
