@@ -869,7 +869,7 @@ Resource::do_update( void )
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
 
 		// log classad into sql log so that it can be updated to DB
-	daemonAdInsert(&public_ad, "Machines", FILEObj, prevLHF);
+	FILESQL::daemonAdInsert(&public_ad, "Machines", FILEObj, prevLHF);
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( UPDATE_STARTD_AD, &public_ad,

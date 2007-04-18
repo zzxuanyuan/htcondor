@@ -2023,7 +2023,7 @@ int main( int argc, char** argv )
 	// if quill is not enabled we never write data to the logfile
 	bool use_sql_log = param_boolean( "QUILL_USE_SQL_LOG", false );
 
-	FILEObj = createInstance(use_sql_log); 
+	FILEObj = FILESQL::createInstance(use_sql_log); 
     // create an xml log object
     XMLObj = createInstanceXML();
 

@@ -1,9 +1,13 @@
-#include <string.h>
-#include <file_lock.h>
-#include <condor_attrlist.h>
-#include "quill_enums.h"
 #ifndef FILESQL_H
 #define FILESQL_H
+
+class FileLock;
+class AttrList;
+class MyString;
+
+#include <stdio.h> // for FILE *
+
+#include "quill_enums.h"
 
 class FILESQL 
 {
@@ -21,7 +25,7 @@ public:
 	
 	FILESQL(bool use_sql_logfile = false);
 	FILESQL(const char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND, bool use_sql_log = false);
-	~FILESQL();
+	virtual ~FILESQL();
 	bool file_isopen();
 	bool file_islocked();
 	QuillErrCode file_open();
@@ -35,11 +39,12 @@ public:
 	int  file_readline(MyString *buf);
 	AttrList  *file_readAttrList();
 	QuillErrCode  file_truncate();
-};
 
-FILESQL *createInstance(bool use_sql_log);
+	static FILESQL *createInstance(bool use_sql_log);
 
-void daemonAdInsert(ClassAd *cl, const char *adType,
+	static void daemonAdInsert(ClassAd *cl, const char *adType,
 					FILESQL *dbh, int &prevLHF);
+
+};
 
 #endif

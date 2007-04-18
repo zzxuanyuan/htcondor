@@ -328,7 +328,7 @@ main(int argc, char *argv[] )
 	reserved_swap *= 1024; /* megabytes -> kb */
 
 	bool use_sql_log = param_boolean("QUILL_USE_SQL_LOG", false);
-    FILEObj = createInstance(use_sql_log);
+    FILEObj = FILESQL::createInstance(use_sql_log);
 	
 	free_swap = sysapi_swap_space();
 

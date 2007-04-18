@@ -3098,7 +3098,7 @@ Matchmaker::updateCollector() {
 	dprintf(D_FULLDEBUG, "enter Matchmaker::updateCollector\n");
 
 		// log classad into sql log so that it can be updated to DB
-	daemonAdInsert(publicAd, "NegotiatorAd", FILEObj, prevLHF);	
+	FILESQL::daemonAdInsert(publicAd, "NegotiatorAd", FILEObj, prevLHF);	
    
 	if (publicAd) {
 		daemonCore->sendUpdates(UPDATE_NEGOTIATOR_AD, publicAd, NULL, true);

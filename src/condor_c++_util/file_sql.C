@@ -24,7 +24,7 @@ FILESQL::FILESQL(bool use_sql_log)
 	lock = (FileLock *)0;
 }
 
-FILESQL::FILESQL(const char *outfilename, int flags, bool use_sql_log)
+FILESQL::FILESQL(const char *outputfilename, int flags, bool use_sql_log)
 {
 	if(use_sql_log == false) {
     	is_dummy = true;
@@ -33,7 +33,7 @@ FILESQL::FILESQL(const char *outfilename, int flags, bool use_sql_log)
 	}
 	is_open = false;
 	is_locked = false;
-	this->outfilename = strdup(outfilename);
+	this->outfilename = strdup(outputfilename);
 	fileflags = flags;
 	outfiledes = -1;
 	fp = NULL;
@@ -399,7 +399,8 @@ QuillErrCode FILESQL::file_deleteEvent(const char *eventType,
 
 FILESQL *FILEObj = NULL;
 
-FILESQL *createInstance(bool use_sql_log) { 
+/*static */ FILESQL *
+FILESQL::createInstance(bool use_sql_log) { 
 	FILESQL *ptr = NULL;
 	char *tmp; 
 	MyString outfilename = "";
@@ -441,7 +442,8 @@ FILESQL *createInstance(bool use_sql_log) {
 }
 
 
-void daemonAdInsert(
+/*static */ void 
+FILESQL::daemonAdInsert(
 ClassAd *cl, 
 const char *adType,
 FILESQL *dbh, 

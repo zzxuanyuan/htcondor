@@ -1,10 +1,7 @@
-#include <string.h>
-#include <file_lock.h>
-#include <condor_attrlist.h>
-#include "quill_enums.h"
-#include "file_sql.h"
 #ifndef FILEXML_H
 #define FILEXML_H
+
+#include "file_sql.h"
 
 /*
  * Config params used by XML Logger:
@@ -31,8 +28,8 @@ private:
 public:
 	
 	FILEXML(bool use_xml_logfile = false) : FILESQL(use_xml_logfile) { }
-	FILEXML(const char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND, bool use_xml_logfile = false) : FILESQL(outfilename, flags, use_xml_logfile) { }
-	~FILEXML() {}
+	FILEXML(const char *outputfilename,int flags=O_WRONLY|O_CREAT|O_APPEND, bool use_xml_logfile = false) : FILESQL(outfilename, flags, use_xml_logfile) { }
+	virtual ~FILEXML() {}
 
 /*
 	bool file_isopen();
@@ -51,8 +48,8 @@ public:
 	AttrList  *file_readAttrList();
 //	QuillErrCode  file_truncate();
 
+	static FILEXML *createInstanceXML();
 };
 
-FILEXML *createInstanceXML();
 
 #endif

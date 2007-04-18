@@ -20,7 +20,7 @@ AttrList *FILEXML::file_readAttrList()
 	return ad;
 }
 
-QuillErrCode FILEXML::file_newEvent(const char *eventType, AttrList *info) {
+QuillErrCode FILEXML::file_newEvent(const char * /*eventType*/, AttrList *info) {
 	int retval = 0;
 	struct stat file_status;
     int xml_log_limit;
@@ -79,9 +79,9 @@ QuillErrCode FILEXML::file_newEvent(const char *eventType, AttrList *info) {
 	}
 }
 
-QuillErrCode FILEXML::file_updateEvent(const char *eventType, 
-									   AttrList *info, 
-									   AttrList *condition) {
+QuillErrCode FILEXML::file_updateEvent(const char * /*eventType*/, 
+									   AttrList * /*info*/, 
+									   AttrList * /*condition*/) {
 
     if (is_dummy) return QUILL_SUCCESS;
 
@@ -111,7 +111,8 @@ QuillErrCode FILEXML::file_deleteEvent(const char *eventType,
 
 FILEXML *XMLObj = NULL;
 
-FILEXML *createInstanceXML() { 
+/*static */FILEXML *
+FILEXML::createInstanceXML() { 
 	FILEXML *ptr = NULL;
 	char *tmp, *outfilename;
 	char *tmpParamName;

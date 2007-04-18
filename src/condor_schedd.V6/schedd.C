@@ -754,7 +754,7 @@ Scheduler::count_jobs()
 	daemonCore->UpdateLocalAd(ad);
 
 		// log classad into sql log so that it can be updated to DB
-	daemonAdInsert(ad, "ScheddAd", FILEObj, prevLHF);
+	FILESQL::daemonAdInsert(ad, "ScheddAd", FILEObj, prevLHF);
 	
 		// Update collectors
 	int num_updates = daemonCore->sendUpdates(UPDATE_SCHEDD_AD, ad, NULL, true);
