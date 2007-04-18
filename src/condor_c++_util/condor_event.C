@@ -35,8 +35,6 @@
 
 //added by Ameet
 #include "condor_environ.h"
-#include <sys/types.h>
-#include <sys/socket.h>
 //--------------------------------------------------------
 #include "condor_debug.h"
 //--------------------------------------------------------
