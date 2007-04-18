@@ -526,39 +526,17 @@ CREATE OR REPLACE FUNCTION quill_reindextables() RETURNS void AS $$
 DECLARE
 BEGIN
 
-reindex table maintenance_log;
-reindex table runs;
-reindex table rejects;
-reindex table matches;
-reindex table l_jobstatus;
-reindex table throwns;
-reindex table events;
-reindex table l_eventtype;
-reindex table generic_messages;
 reindex table jobqueuepollinginfo;
 reindex table currencies;
-reindex table daemons_vertical;
-reindex table daemons_horizontal_history;
-reindex table daemons_vertical_history;
-reindex table submitters_horizontal;
-reindex table submitters_horizontal_history;
-reindex table dummy_single_row_table;
-reindex table cdb_users;
-reindex table transfers;
-reindex table files;
-reindex table fileusages;
-reindex table machines_vertical;
-reindex table machines_vertical_history;
-reindex table machines_horizontal_history;
-reindex table clusterads_horizontal;
-reindex table procads_horizontal;
-reindex table clusterads_vertical;
-reindex table procads_vertical;
-reindex table jobs_vertical_history;
-reindex table jobs_horizontal_history;
-reindex table machines_horizontal;
 reindex table daemons_horizontal;
-reindex table history_jobs_to_purge;
+reindex table daemons_vertical;
+reindex table submitters_horizontal;
+reindex table machines_horizontal;
+reindex table machines_vertical;
+reindex table clusterads_horizontal;
+reindex table clusterads_vertical;
+reindex table procads_horizontal;
+reindex table procads_vertical;
 
 -- record this in the maintenance_log table 
 INSERT INTO maintenance_log(eventts,eventmsg) 
