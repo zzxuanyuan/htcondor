@@ -764,15 +764,19 @@ ReliSock::end_of_message()
     resetCrypto();
 	switch(_coding){
 		case stream_encode:
+//TEMPTEMP -- looks like we should go to this case
 			if ( ignore_next_encode_eom == TRUE ) {
 				ignore_next_encode_eom = FALSE;
+//TEMPTEMP -- can't get here because we wouldn't assert.
 				return TRUE;
 			}
 			if (!snd_msg.buf.empty()) {
+//TEMPTEMP -- seems like this is the only place we can get to
 				return snd_msg.snd_packet(_sock, TRUE, _timeout);
 			}
 			if ( allow_empty_message_flag ) {
 				allow_empty_message_flag = FALSE;
+//TEMPTEMP -- can't get here because we wouldn't assert.
 				return TRUE;
 			}
 			break;
@@ -780,16 +784,19 @@ ReliSock::end_of_message()
 		case stream_decode:
 			if ( ignore_next_decode_eom == TRUE ) {
 				ignore_next_decode_eom = FALSE;
+//TEMPTEMP -- can't get here because we wouldn't assert.
 				return TRUE;
 			}
 			if ( rcv_msg.ready ) {
 				if ( rcv_msg.buf.consumed() )
+//TEMPTEMP -- can't get here because we wouldn't assert.
 					ret_val = TRUE;
 				rcv_msg.ready = FALSE;
 				rcv_msg.buf.reset();
 			}
 			if ( allow_empty_message_flag ) {
 				allow_empty_message_flag = FALSE;
+//TEMPTEMP -- can't get here because we wouldn't assert.
 				return TRUE;
 			}
 			break;
@@ -1057,14 +1064,17 @@ int ReliSock::SndMsg::snd_packet( int _sock, int end, int _timeout )
         if (mode_ != MD_OFF) {
             if (!buf.computeMD(&hdr[5], mdChecker_)) {
                 dprintf(D_ALWAYS, "IO: Failed to compute Message Digest/MAC\n");
+//TEMPTEMP -- can't get here or we'd get the above error message
                 return FALSE;
             }
         }
 
         if (buf.flush(_sock, hdr, header_size, _timeout) != (ns+header_size)){
+//TEMPTEMP -- seems like we must have gotten here
             return FALSE;
         }
         
+//TEMPTEMP -- can't get here or we wouldn't assert
 	return TRUE;
 }
 

@@ -99,6 +99,7 @@ int Buf::flush(
 	int		dbg_fd;
 */
 
+//TEMPTEMP -- could we have hit this?
 	if (sz > max_size()) return -1;
 	if (hdr && sz > 0){
 		memcpy(_dta, hdr, sz);
@@ -120,6 +121,7 @@ int Buf::flush(
 */
 
 
+//TEMPTEMP -- could we have gotten here?
 	sz = write(sockd, -1, timeout);
 	reset();
 

@@ -1,3 +1,9 @@
+//TEMPTEMP -- need to pass PRE script exit code to POST script -- add 256? -- see _retValJob
+//TEMPTEMP -- or do we want to just get rid of job->_scriptPost->_retValJob and use job->retval?? hmm -- maybe not, if we want to add 256 to the PRE script return value to pass to the POST script, but keep the existing node return value if the PRE script fails and there is no POST script
+//TEMPTEMP -- config option defaults to old behavior? -- YES
+//TEMPTEMP -- look at related email thread with Peter
+//TEMPTEMP -- shit! -- should abort code still bypass node retries?
+//TEMPTEMP -- Maybe we could do something like have a "NodeEnd" method that figures out whether to re-try the node, abort the DAG, etc.
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -74,13 +80,14 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 		  bool useDagDir, int maxIdleJobProcs, bool retrySubmitFirst,
 		  bool retryNodeFirst, const char *condorRmExe,
 		  const char *storkRmExe, const CondorID *DAGManJobId,
-		  bool prohibitMultiJobs) :
+		  bool prohibitMultiJobs, bool runPostAfterPreFails) :
     _maxPreScripts        (maxPreScripts),
     _maxPostScripts       (maxPostScripts),
 	DAG_ERROR_CONDOR_SUBMIT_FAILED (-1001),
 	DAG_ERROR_CONDOR_JOB_ABORTED (-1002),
 	DAG_ERROR_DAGMAN_HELPER_COMMAND_FAILED (-1101),
 	MAX_SIGNAL			  (64),
+	PRE_SCRIPT_VALUE_OFFSET (256),
 	_condorLogName		  (NULL),
     _condorLogInitialized (false),
     _dapLogName           (NULL),
@@ -107,7 +114,8 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 	_checkStorkEvents     (),
 	_maxJobsDeferredCount (0),
 	_maxIdleDeferredCount (0),
-	_prohibitMultiJobs	  (prohibitMultiJobs)
+	_prohibitMultiJobs	  (prohibitMultiJobs),
+	_runPostAfterPreFails (runPostAfterPreFails)
 {
 	ASSERT( dagFiles.number() >= 1 );
 
@@ -601,7 +609,7 @@ Dag::ProcessAbortEvent(const ULogEvent *event, Job *job,
 				RemoveBatchJob( job );
 			}
 			if ( job->_scriptPost != NULL) {
-					// let the script know the job's exit status
+					// let the POST script know the job's exit status
 				job->_scriptPost->_retValJob = job->retval;
 			}
 		}
@@ -652,7 +660,7 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 							termEvent->returnValue );
 					job->retval = termEvent->returnValue;
 					if ( job->_scriptPost != NULL) {
-							// let the script know the job's exit status
+							// let the POST script know the job's exit status
 						job->_scriptPost->_retValJob = job->retval;
 					}
 				} else {
@@ -662,7 +670,7 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 							termEvent->signalNumber );
 					job->retval = (0 - termEvent->signalNumber);
 					if ( job->_scriptPost != NULL) {
-							// let the script know the job's exit status
+							// let the POST script know the job's exit status
 						job->_scriptPost->_retValJob = job->retval;
 					}
 				}
@@ -684,7 +692,7 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 			if ( job->_Status != Job::STATUS_ERROR ) {
 				job->retval = 0;
 				if ( job->_scriptPost != NULL) {
-						// let the script know the job's exit status
+						// let the POST script know the job's exit status
 					job->_scriptPost->_retValJob = job->retval;
 				}
 			}
@@ -694,6 +702,7 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 							termEvent->cluster, termEvent->proc );
 		}
 
+		//TEMPTEMP -- should this be before ProcessJobProcEnd?
 		if( job->_scriptPost == NULL ) {
 			bool abort = CheckForDagAbort(job, "job");
 			// if dag abort happened, we never return here!
@@ -1349,6 +1358,8 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 	  _postScriptQ->Run( job->_scriptPost );
 	} else {
 	  job->_Status = Job::STATUS_ERROR;
+	  job->retval = DAG_ERROR_DAGMAN_HELPER_COMMAND_FAILED;//TEMPTEMP?
+	  job->_scriptPost->_retValJob = job->retval;//TEMPTEMP?
 	  _numNodesFailed++;
 	}
 	// the problem might be specific to that job, so keep submitting...
@@ -1509,6 +1520,11 @@ Dag::PreScriptReaper( const char* nodeName, int status )
 					"PRE Script died on %s",
 					daemonCore->GetExceptionString(status) );
             job->retval = ( 0 - WTERMSIG(status ) );
+			if ( job->_scriptPost != NULL) {
+				// let the POST script know the job's exit status
+				job->_scriptPost->_retValJob = -MAX_SIGNAL - job->retval;
+			}
+
 		}
 		else if( WEXITSTATUS( status ) != 0 ) {
 			// if script returned failure
@@ -1519,23 +1535,36 @@ Dag::PreScriptReaper( const char* nodeName, int status )
 					"PRE Script failed with status %d",
 					WEXITSTATUS(status) );
             job->retval = WEXITSTATUS( status );
+			if ( job->_scriptPost != NULL) {
+				// let the POST script know the job's exit status
+				job->_scriptPost->_retValJob = PRE_SCRIPT_VALUE_OFFSET +
+							job->retval;
+			}
 		}
 
-        job->_Status = Job::STATUS_ERROR;
 		_preRunNodeCount--;
 
-		if( job->GetRetries() < job->GetRetryMax() ) {
-			RestartNode( job, false );
-		}
-		else {
-			_numNodesFailed++;
-			if( job->GetRetryMax() > 0 ) {
-				// add # of retries to error_text
-				char *tmp = strnewp( job->error_text );
-				snprintf( job->error_text, JOB_ERROR_TEXT_MAXLEN,
-						 "%s (after %d node retries)", tmp,
-						 job->GetRetries() );
-				delete [] tmp;   
+		if ( !_runPostAfterPreFails || job->_scriptPost == NULL ) {
+			if( job->GetRetries() < job->GetRetryMax() ) {
+				RestartNode( job, false );
+			} else {
+				_numNodesFailed++;
+				if( job->GetRetryMax() > 0 ) {
+					// add # of retries to error_text
+					char *tmp = strnewp( job->error_text );
+					snprintf( job->error_text, JOB_ERROR_TEXT_MAXLEN,
+						 	"%s (after %d node retries)", tmp,
+						 	job->GetRetries() );
+					delete [] tmp;   
+				}
+			}
+		} else {
+        	job->_Status = Job::STATUS_POSTRUN;
+			_postRunNodeCount++;
+ 
+			//TEMPTEMP -- shit! -- need to think about how all of this interacts with recovery mode
+			if( !_recovery ) {
+				_postScriptQ->Run( job->_scriptPost );
 			}
 		}
 	}
@@ -1543,15 +1572,19 @@ Dag::PreScriptReaper( const char* nodeName, int status )
 		debug_printf( DEBUG_QUIET, "PRE Script of Node %s completed "
 					  "successfully.\n", job->GetJobName() );
 		job->retval = 0; // for safety on retries
+		job->_scriptPost->_retValJob = 0;//TEMPTEMP?
 		job->_Status = Job::STATUS_READY;
 		_preRunNodeCount--;
 		_readyQ->Append( job );
 	}
 
-	bool abort = CheckForDagAbort(job, "PRE script");
-	// if dag abort happened, we never return here!
-	if( abort ) {
-		return true;
+//TEMPTEMP -- need to make a test for the abort value getting checked when _runPostAfterPreFails is false but there is no post script
+	if ( !_runPostAfterPreFails || job->_scriptPost == NULL ) {
+		bool abort = CheckForDagAbort(job, "PRE script");
+		// if dag abort happened, we never return here!
+		if( abort ) {
+			return true;
+		}
 	}
 
 	return true;

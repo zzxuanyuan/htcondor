@@ -232,6 +232,7 @@ do_REMOTE_syscall()
 			result = ( ad->put(*syscall_sock) );
 			ASSERT( result );
 		}
+//TEMPTEMP -- note -- it looks like result *could* get set to -1 below (see Buf::flush()
 		result = ( syscall_sock->end_of_message() );
 		ASSERT( result );
 		return 0;

@@ -125,6 +125,10 @@ class Dagman {
 		// all but the first will be aborted).
 	bool abortDuplicates;
 
+		// Whether to *always* run the POST script for a node (even if
+		// the PRE script fails or returns the DAG abort value).
+	bool runPostAfterPreFails;
+
 		// the Condor job id of the DAGMan job
 	CondorID DAGManJobId;
 

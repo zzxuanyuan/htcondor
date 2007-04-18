@@ -230,6 +230,12 @@ Dagman::Config()
 	debug_printf( DEBUG_NORMAL, "DAGMAN_ABORT_DUPLICATES setting: %d\n",
 				abortDuplicates );
 
+	runPostAfterPreFails = param_boolean( "DAGMAN_RUN_POST_AFTER_PRE_FAILURE",
+				false );
+	debug_printf( DEBUG_NORMAL,
+				"DAGMAN_RUN_POST_AFTER_PRE_FAILURE setting: %d\n",
+				runPostAfterPreFails );
+
 	return true;
 }
 
@@ -550,7 +556,8 @@ int main_init (int argc, char ** const argv) {
 						  dagman.maxIdle, dagman.retrySubmitFirst,
 						  dagman.retryNodeFirst, dagman.condorRmExe,
 						  dagman.storkRmExe, &dagman.DAGManJobId,
-						  dagman.prohibitMultiJobs );
+						  dagman.prohibitMultiJobs,
+						  dagman.runPostAfterPreFails );
 
     if( dagman.dag == NULL ) {
         EXCEPT( "ERROR: out of memory!\n");

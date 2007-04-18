@@ -83,6 +83,9 @@ class Dag {
 		@param DAGManJobId Condor ID of this DAGMan process
 		@param prohibitMultiJobs whether submit files queueing multiple
 			   job procs are prohibited
+		@param runPostAfterPreFails whether to *always* run the POST
+			   script for a node (even if the PRE script fails or returns
+			   the DAG abort value)
     */
 
     Dag( /* const */ StringList &dagFiles, char *condorLogName,
@@ -92,7 +95,7 @@ class Dag {
 		 bool useDagDir, int maxIdleJobProcs, bool retrySubmitFirst,
 		 bool retryNodeFirst, const char *condorRmExe,
 		 const char *storkRmExe, const CondorID *DAGManJobId,
-		 bool prohibitMultiJobs);
+		 bool prohibitMultiJobs, bool runPostAfterPreFails);
 
     ///
     ~Dag();
@@ -383,6 +386,7 @@ class Dag {
 		*/
 	void PrintDeferrals( debug_level_t level, bool force ) const;
 
+//TEMPTEMP -- 256-511 are PRE script return codes -- hmm -- what if PRE is killed by signal? -65 to -127??
 		// non-exe failure codes for return value integers -- we
 		// represent DAGMan, batch-system, or other external errors
 		// with the integer return-code space *below* -64.  So, 0-255
@@ -396,6 +400,10 @@ class Dag {
 		// The maximum signal we can deal with in the error-reporting
 		// code.
 	const int MAX_SIGNAL;
+
+		// The value we add to the PRE script return value to avoid
+		// ambiguation with job return values.
+	const int PRE_SCRIPT_VALUE_OFFSET;
 
 	bool ProhibitMultiJobs() const { return _prohibitMultiJobs; }
 	
@@ -598,6 +606,11 @@ class Dag {
 		// whether or not to prohibit multiple job proc submitsn (e.g.,
 		// node jobs that create more than one job proc)
 	bool		_prohibitMultiJobs;
+
+		// Whether to *always* run the POST script for a node (even if
+		// the PRE script fails or returns the DAG abort value).
+	bool		_runPostAfterPreFails;
+
 
 		// The next time we're allowed to try submitting a job -- 0 means
 		// go ahead and submit right away.
