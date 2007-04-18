@@ -382,6 +382,26 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		$job = $info{"job"};
 	
 		print "Good - Job $cluster.$job was submitted!\n";
+		
+		##
+		## To help improve the chances of our job running, we're going 
+		## to call a 'condor_reschedule'
+		##
+		my @adarray;
+		my $status = 1;
+		my $cmd = "condor_reschedule";
+		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
+		if ( !$status ) {
+			print "Test failure due to Condor Tool Failure <$cmd>\n";
+			exit(1);
+		}
+		my $cmd = "condor_q";
+		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
+		if ( !$status ) {
+			print "Test failure due to Condor Tool Failure <$cmd>\n";
+			exit(1);
+		}
+		print "Output from condor_q:\n".join("\n", @adarray)."\n";
 	};
 		
 	##
@@ -400,9 +420,9 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my @adarray;
 		my $status = 1;
 		my $cmd = "condor_rm $cluster";
-		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
 		if ( !$status ) {
-			print "Test failure due to Condor Tool Failure<$cmd>\n";
+			print "Test failure due to Condor Tool Failure <$cmd>\n";
 			exit(1);
 		}
 		return (0);
