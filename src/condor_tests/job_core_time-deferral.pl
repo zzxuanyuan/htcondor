@@ -78,9 +78,9 @@ my $ABORTING = 0;
 ## Have the job set to be deferred based on their time
 ##
 push(@exact,   0);
-push(@deltas,  60);
+push(@deltas,  90);
 push(@windows, 0);
-push(@preps,   20);
+push(@preps,   30);
 push(@fail,    0);
 
 ##
@@ -395,7 +395,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			print "Test failure due to Condor Tool Failure <$cmd>\n";
 			exit(1);
 		}
-		my $cmd = "condor_q";
+		my $cmd = "condor_q -anal";
 		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
 		if ( !$status ) {
 			print "Test failure due to Condor Tool Failure <$cmd>\n";
