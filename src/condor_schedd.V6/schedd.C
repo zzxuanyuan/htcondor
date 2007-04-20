@@ -12217,7 +12217,7 @@ Scheduler::calculateCronTabSchedules( )
  * next run time for all our jobs
  * 
  * @param jobAd - the job to calculate the ne
- * @para calculate - if true, we will always calculate a new run time
+ * @param calculate - if true, we will always calculate a new run time
  * @return true if no error occured, false otherwise
  * @see condor_crontab.C
  **/
