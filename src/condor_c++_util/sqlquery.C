@@ -26,11 +26,59 @@
 #include "quill_enums.h"
 #include "condor_config.h"
 
-#define quill_oracle_history_hor_select_list "scheddname, cluster_id, proc_id, (extract(day from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, negotiation_user_name, env, userlog, coresize, killsig, stdin, transferin, stdout, transferout, stderr, transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, filesystemdomain, args,(extract(day from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as lastmatchtime, numjobmatches,(extract(day from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as jobstartdate, (extract(day from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as jobcurrentstartdate, jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, rscbytesrecvd, exitcode, jobstatus, (extract(day from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as enteredcurrentstatus, remotewallclocktime, lastremotehost, (extract(day from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as completiondate"
+/*
+The macroc below contains expressions for extracting unix time from a 
+timestamp value in Oracle.
+Because the timestamp attributes are stored in timestamp type in 
+database, instead of the unix time (the number of seconds since Epoch) that is 
+required by Condor tools (condor_q, condor_history), the expression tries to 
+convert a timestamp value back to the unix time. The way we do is to extract 
+number of days, number of hours, number of minutes and number of seconds 
+since Epoch and add up their weighted sum.
 
-#define quill_pgsql_history_hor_select_list "scheddname, cluster_id, proc_id, extract(epoch from qdate) as qdate, owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, negotiation_user_name, env, userlog, coresize, killsig, stdin, transferin, stdout, transferout, stderr, transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, filesystemdomain, args, extract(epoch from lastmatchtime) as lastmatchtime, numjobmatches, extract(epoch from jobstartdate) as jobstartdate, extract(epoch from jobcurrentstartdate) as jobcurrentstartdate, jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, rscbytesrecvd, exitcode, jobstatus, extract(epoch from enteredcurrentstatus) as enteredcurrentstatus, remotewallclocktime, lastremotehost, extract(epoch from completiondate) as completiondate"
+For postgres, the expression is simpler since it provides a function 
+for extracting epoch directly from a timestamp value.
+ */
 
-#define quill_history_ver_select_list "scheddname, cluster_id, proc_id, attr, val"
+#define quill_oracle_history_hor_select_list "scheddname, cluster_id, \
+proc_id, \
+(extract(day from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, \
+owner, globaljobid, numckpts, numrestarts, numsystemholds, condorversion, \
+condorplatform, rootdir, Iwd, jobuniverse, cmd, minhosts, maxhosts, jobprio, \
+negotiation_user_name, env, userlog, coresize, killsig, stdin, transferin, \
+stdout, transferout, stderr, transfererr, shouldtransferfiles, transferfiles, \
+executablesize, diskusage, filesystemdomain, args, \
+(extract(day from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(lastmatchtime) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as lastmatchtime, \
+numjobmatches, \
+(extract(day from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(jobstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as jobstartdate, \
+(extract(day from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(jobcurrentstartdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as jobcurrentstartdate, \
+jobruncount, filereadcount, filereadbytes, filewritecount, filewritebytes, \
+fileseekcount, totalsuspensions, imagesize, exitstatus, localusercpu, \
+localsyscpu, remoteusercpu, remotesyscpu, bytessent, bytesrecvd, \
+rscbytessent, rscbytesrecvd, exitcode, jobstatus, \
+(extract(day from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as enteredcurrentstatus, \
+remotewallclocktime, lastremotehost, \
+(extract(day from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as completiondate"
+
+#define quill_pgsql_history_hor_select_list "scheddname, cluster_id, proc_id, \
+extract(epoch from qdate) as qdate, owner, globaljobid, numckpts, \
+numrestarts, numsystemholds, condorversion, condorplatform, rootdir, Iwd, \
+jobuniverse, cmd, minhosts, maxhosts, jobprio, negotiation_user_name, env, \
+userlog, coresize, killsig, stdin, transferin, stdout, transferout, stderr, \
+transfererr, shouldtransferfiles, transferfiles, executablesize, diskusage, \
+filesystemdomain, args, extract(epoch from lastmatchtime) as lastmatchtime, \
+numjobmatches, extract(epoch from jobstartdate) as jobstartdate, \
+extract(epoch from jobcurrentstartdate) as jobcurrentstartdate, jobruncount, \
+filereadcount, filereadbytes, filewritecount, filewritebytes, fileseekcount, \
+totalsuspensions, imagesize, exitstatus, localusercpu, localsyscpu, \
+remoteusercpu, remotesyscpu, bytessent, bytesrecvd, rscbytessent, \
+rscbytesrecvd, exitcode, jobstatus, \
+extract(epoch from enteredcurrentstatus) as enteredcurrentstatus, \
+remotewallclocktime, lastremotehost, \
+extract(epoch from completiondate) as completiondate"
+
+#define quill_history_ver_select_list "scheddname, cluster_id, proc_id, \
+attr, val"
 
 #define quill_avg_time_template_pgsql "SELECT avg(now() - QDate) \
          FROM \
@@ -56,7 +104,10 @@
    After the averge of number of seconds is computed, we convert the avg back 
    to the format of 'days hours:minutes:seconds' for display.
 */
-#define quill_avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' || floor(mod(t.elapsed, 86400)/3600) || ':' || floor(mod(t.elapsed, 3600)/60) || ':' || floor(mod(t.elapsed, 60))  FROM (SELECT avg((extract(day from (current_timestamp - QDate)))*86400 + (extract(hour from (current_timestamp - QDate)))*3600 + (extract(minute from (current_timestamp - QDate)))*60 + (extract(second from (current_timestamp - QDate)))) as elapsed \
+#define quill_avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' \
+|| floor(mod(t.elapsed, 86400)/3600) || ':' || floor(mod(t.elapsed, 3600)/60) \
+|| ':' || floor(mod(t.elapsed, 60)) \
+FROM (SELECT avg((extract(day from (current_timestamp - QDate)))*86400 + (extract(hour from (current_timestamp - QDate)))*3600 + (extract(minute from (current_timestamp - QDate)))*60 + (extract(second from (current_timestamp - QDate)))) as elapsed \
          FROM \
            (SELECT \
              c.QDate AS QDate, \
