@@ -2025,7 +2025,7 @@ int main( int argc, char** argv )
 
 	FILEObj = FILESQL::createInstance(use_sql_log); 
     // create an xml log object
-    XMLObj = createInstanceXML();
+    XMLObj = FILEXML::createInstanceXML();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );
