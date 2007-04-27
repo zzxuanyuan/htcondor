@@ -124,7 +124,8 @@ enteredhistorytable     timestamp(3) with time zone,
 primary key		(scheddname,scheddbirthdate, cluster_id, proc_id)
 );
 
-CREATE INDEX hist_h_i_owner ON jobs_horizontal_history (owner);
+CREATE INDEX jobs_hor_his_ix1 ON jobs_horizontal_history (owner);
+CREATE INDEX jobs_hor_his_ix2 ON jobs_horizontal_history (enteredhistorytable);
 
 CREATE TABLE clusterads_vertical (
 scheddname	varchar(4000) NOT NULL,
@@ -315,6 +316,7 @@ INSERT INTO quilldbmonitor (dbsize) VALUES (0);
 
 CREATE TABLE history_jobs_to_purge(
 scheddname   varchar(4000),
+scheddbirthdate integer,
 cluster_id   integer, 
 proc_id         integer,
 globaljobid  varchar(4000));
@@ -370,7 +372,7 @@ WHERE lastreportedtime <
 
 -- find the set of jobs for which the run history are going to be purged
 INSERT INTO history_jobs_to_purge 
-SELECT scheddname, cluster_id, proc_id, globaljobid
+SELECT scheddname, scheddbirthdate, cluster_id, proc_id, globaljobid
 FROM jobs_horizontal_history
 WHERE enteredhistorytable < 
       (current_timestamp - 
@@ -430,24 +432,29 @@ TRUNCATE TABLE history_jobs_to_purge;
 
 -- find the set of jobs for which history data are to be purged
 INSERT INTO history_jobs_to_purge 
-SELECT scheddname, cluster_id, proc_id, globaljobid
+SELECT scheddname, scheddbirthdate, cluster_id, proc_id, globaljobid
 FROM jobs_horizontal_history
 WHERE enteredhistorytable < 
       (current_timestamp - 
        cast (jobHistoryDuration || ' day' as interval));
 
 -- purge vertical attributes for jobs older than certain days
-DELETE FROM jobs_vertical_history
+DELETE FROM jobs_vertical_history 
 WHERE exists (SELECT * 
               FROM history_jobs_to_purge AS H
-              WHERE H.scheddname = Jobs_Vertical_History.scheddname AND
-                    H.cluster_id = Jobs_Vertical_History.cluster_id AND
-                    H.proc_id = Jobs_Vertical_History.proc_id);
+              WHERE H.scheddname = jobs_vertical_history.scheddname AND
+	    	    H.scheddbirthdate = jobs_vertical_history.scheddbirthdate AND
+                    H.cluster_id = jobs_vertical_history.cluster_id AND
+                    H.proc_id = jobs_vertical_history.proc_id);
 
 -- purge classads for jobs older than certain days
-DELETE FROM jobs_horizontal_history
-WHERE jobs_horizontal_history.globaljobid IN (SELECT globaljobid 
-                        FROM history_jobs_to_purge);
+DELETE FROM jobs_horizontal_history 
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge AS H2
+              WHERE jobs_horizontal_history.scheddname = H2.scheddname AND
+		    jobs_horizontal_history.scheddbirthdate = H2.scheddbirthdate AND
+                    jobs_horizontal_history.cluster_id = H2.cluster_id AND
+                    jobs_horizontal_history.proc_id = H2.proc_id);
 
 
 -- purge log thrown events older than jobHistoryDuration
