@@ -157,7 +157,7 @@ void Condor_MD_MAC::addMDFile(const char * filePathName)
 		return; // I could just assert and take out the process, but nah
 	}
 
-	size_t count = read(fd, buffer, 1024*1024); 
+	ssize_t count = read(fd, buffer, 1024*1024); 
 	while( count > 0) {
 		MD5_Update(&(context_->md5_), buffer, count); 
 		memset(buffer, 0, 1024*1024);
