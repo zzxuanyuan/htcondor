@@ -40,6 +40,8 @@ For postgres, the expression is simpler since it provides a function
 for extracting epoch directly from a timestamp value.
  */
 
+#ifndef WIN32
+
 #define quill_oracle_history_hor_select_list "scheddname, cluster_id, \
 proc_id, \
 (extract(day from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(qdate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as qdate, \
@@ -59,6 +61,10 @@ rscbytessent, rscbytesrecvd, exitcode, jobstatus, \
 (extract(day from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(enteredcurrentstatus) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as enteredcurrentstatus, \
 remotewallclocktime, lastremotehost, \
 (extract(day from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*86400 + extract(hour from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*3600 + extract(minute from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))*60 + extract(second from (SYS_EXTRACT_UTC(completiondate) - to_timestamp_tz('01/01/1970 UTC', 'MM/DD/YYYY TZD')))) as completiondate"
+
+#else
+#define quill_oracle_history_hor_select_list "fix_me()"
+#endif
 
 #define quill_pgsql_history_hor_select_list "scheddname, cluster_id, proc_id, \
 extract(epoch from qdate) as qdate, owner, globaljobid, numckpts, \
