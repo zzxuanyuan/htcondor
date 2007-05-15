@@ -4,6 +4,18 @@ Before installing this script, the following must have been prepared
 2. pl/pgSQL language has been created with "createlang plpgsql [dbname]"
 */
 
+CREATE TABLE maintenance_events(
+id                              INTEGER,
+msg                             VARCHAR(4000),
+PRIMARY KEY (id)
+);
+
+CREATE TABLE maintenance_log(
+eventid                         integer REFERENCES maintenance_events(id),
+eventts                         TIMESTAMP(3) WITH TIME ZONE,
+eventdur                        INTERVAL
+);
+
 CREATE TABLE machines_vertical (
 machine_id varchar(4000) NOT NULL,
 attr       varchar(2000) NOT NULL, 

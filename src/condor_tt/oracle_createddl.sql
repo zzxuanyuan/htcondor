@@ -3,6 +3,18 @@ Before installing this script, the following must have been prepared
 1. quillreader account has been created
 */
 
+CREATE TABLE maintenance_events(
+id                              INTEGER,
+msg                             VARCHAR(4000),
+PRIMARY KEY (id)
+);
+
+CREATE TABLE maintenance_log(
+eventid                         integer REFERENCES maintenance_events(id),
+eventts                         TIMESTAMP(3) WITH TIME ZONE,
+eventdur                        INTERVAL DAY TO SECOND
+);
+
 CREATE TABLE machines_vertical (
 machine_id varchar(4000) NOT NULL,
 attr       varchar(2000) NOT NULL, 
