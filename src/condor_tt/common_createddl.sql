@@ -323,9 +323,17 @@ flockedjobs			INTEGER,
 endtime				TIMESTAMP(3) WITH TIME ZONE
 );
 
+CREATE TABLE maintenance_events(
+id				INTEGER,
+msg				VARCHAR(4000),
+PRIMARY KEY (id)
+);
+
+ 
 CREATE TABLE maintenance_log(
+eventid 			integer REFERENCES maintenance_events(id),
 eventts				TIMESTAMP(3) WITH TIME ZONE,
-eventmsg			VARCHAR(4000)
+eventdur			INTERVAL
 );
 
 -- this table is used internally by the quill daemon for constructing a 

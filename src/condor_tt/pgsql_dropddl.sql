@@ -36,4 +36,5 @@ DROP TABLE history_jobs_to_purge;
 DROP TABLE quilldbmonitor;
 DROP TABLE quill_schema_version;
 DROP TABLE maintenance_log;
+DROP TABLE maintenance_events;
 DROP FUNCTION quill_purgehistory(resourceHistoryDuration integer, runHistoryDuration integer, jobHistoryDuration integer);

@@ -319,7 +319,12 @@ scheddname   varchar(4000),
 scheddbirthdate integer,
 cluster_id   integer, 
 proc_id         integer,
-globaljobid  varchar(4000));
+globaljobid  varchar(4000),
+Primary key (scheddname, scheddbirthdate, cluster_id, proc_id)
+);
+
+INSERT INTO maintenance_events(id,msg) VALUES (1, 'issued purge command');
+INSERT INTO maintenance_events(id,msg) VALUES (2, 'issued reindex command');
 
 CREATE OR REPLACE FUNCTION
 quill_purgehistory(
@@ -328,7 +333,13 @@ runHistoryDuration integer,
 jobHistoryDuration integer) RETURNS void AS $$
 DECLARE
 totalUsedMB NUMERIC;
+start_time timestamp with time zone;
+end_time timestamp with time zone;
+	
 BEGIN
+
+-- start timer
+select into start_time timeofday();
 
 /* first purge resource history data */
 
@@ -389,18 +400,19 @@ WHERE globaljobid IN (SELECT globaljobid
                       FROM history_jobs_to_purge);
 
 -- purge files that are not referenced any more
-DELETE FROM files 
-WHERE NOT EXISTS (SELECT *
-                  FROM fileusages 
-                  WHERE fileusages.file_id = files.file_id);
+DELETE FROM files
+WHERE file_id IN (SELECT distinct(file_id) 
+		FROM files 
+		EXCEPT 
+		SELECT f.file_id FROM files f, fileusages fu WHERE f.file_id = fu.file_id);
 
 -- purge run data for jobs older than certain days
 DELETE FROM runs 
-WHERE exists (SELECT * 
-              FROM history_jobs_to_purge AS H
-              WHERE H.scheddname = Runs.scheddname AND
-                    H.cluster_id = Runs.cluster_id AND
-                    H.proc_id = Runs.proc_id);
+WHERE run_id IN (SELECT distinct run_id 
+		FROM runs R, history_jobs_to_purge H
+		WHERE 	h.scheddname = r.scheddname AND 
+			h.cluster_id = r.cluster_id AND 
+			h.proc_id = r.proc_id);
 
 -- purge rejects data for jobs older than certain days
 DELETE FROM rejects
@@ -480,39 +492,8 @@ TRUNCATE TABLE history_jobs_to_purge;
 -- one caveat: index size is not counted in the usage calculation
 -- analyze tables first to have correct statistics 
 
-analyze maintenance_log;
-analyze runs;
-analyze rejects;
-analyze matches;
-analyze l_jobstatus;
-analyze throwns;
-analyze events;
-analyze l_eventtype;
-analyze generic_messages;
-analyze jobqueuepollinginfo;
-analyze currencies;
-analyze daemons_vertical;
-analyze daemons_horizontal_history;
-analyze daemons_vertical_history;
-analyze submitters_horizontal;
-analyze submitters_horizontal_history;
-analyze dummy_single_row_table;
-analyze cdb_users;
-analyze transfers;
-analyze files;
-analyze fileusages;
-analyze machines_vertical;
-analyze machines_vertical_history;
-analyze machines_horizontal_history;
-analyze clusterads_horizontal;
-analyze procads_horizontal;
-analyze clusterads_vertical;
-analyze procads_vertical;
-analyze jobs_vertical_history;
-analyze jobs_horizontal_history;
-analyze machines_horizontal;
-analyze daemons_horizontal;
-analyze history_jobs_to_purge;
+-- without any parameters, meaning, analyze all tables in database
+ANALYZE;
 
 SELECT ROUND(SUM(relpages)*8192/(1024*1024)) INTO totalUsedMB
 FROM pg_class
@@ -522,17 +503,27 @@ RAISE NOTICE 'totalUsedMB=% MegaBytes', totalUsedMB;
 
 UPDATE quilldbmonitor SET dbsize = totalUsedMB;
 
+-- end timer
+select into end_time timeofday();
+
+
 -- finally record this in the maintenance_log table 
-INSERT INTO maintenance_log(eventts,eventmsg) 
-VALUES(timestamp with time zone 'now', 'purged data');
+INSERT INTO maintenance_log(eventid,eventts,eventdur) 
+VALUES(1, timestamp with time zone 'now', end_time-start_time);
 
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION quill_reindextables() RETURNS void AS $$
 DECLARE
+start_time timestamp with time zone;
+end_time timestamp with time zone;
 BEGIN
 
+-- start timer
+select into start_time timeofday();
+
+reindex table error_sqllogs;
 reindex table jobqueuepollinginfo;
 reindex table currencies;
 reindex table daemons_horizontal;
@@ -544,10 +535,14 @@ reindex table clusterads_horizontal;
 reindex table clusterads_vertical;
 reindex table procads_horizontal;
 reindex table procads_vertical;
+reindex table jobs_horizontal_history;
+reindex table runs;
+-- end timer
+select into end_time timeofday();
 
--- record this in the maintenance_log table 
-INSERT INTO maintenance_log(eventts,eventmsg) 
-VALUES(timestamp with time zone 'now', 'reindexed all tables');
+-- finally record this in the maintenance_log table 
+INSERT INTO maintenance_log(eventid,eventts,eventdur) 
+VALUES(2, timestamp with time zone 'now', end_time-start_time);
 
 END;
 $$ LANGUAGE plpgsql;

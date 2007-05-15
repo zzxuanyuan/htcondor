@@ -268,6 +268,8 @@ WHERE R.endts IS NULL AND
    R.machine_id NOT IN 
   (SELECT DISTINCT SUBSTR(M.machine_id, (INSTR('@', M.machine_id)+1)) FROM machines_horizontal M where M.lastreportedtime >= current_timestamp - to_dsinterval('0 00:10:00'))  AND R.scheddname = C.scheddname AND R.cluster_id = C.cluster_id;
 
+INSERT INTO maintenance_events(id,msg) VALUES (1, 'issued purge command');
+
 /*
 quill_purgehistory for Oracle database.
 
@@ -328,7 +330,11 @@ jobHistoryDuration integer) AS
 totalUsedMB NUMBER;
 begints integer;
 endts integer;
+begints_overall timestamp with time zone;
+endts_overall timestamp with time zone;
 BEGIN
+
+SELECT current_timestamp INTO begints_overall FROM dual;
 
 /* first purge resource history data */
 
@@ -634,9 +640,11 @@ DBMS_OUTPUT.PUT_LINE('totalUsedMB=' || totalUsedMB || ' MegaBytes');
 
 UPDATE quilldbmonitor SET dbsize = totalUsedMB;
 
+SELECT current_timestamp INTO endts_overall FROM dual;
+
 -- finally record this in the maintenance_log table 
-INSERT INTO maintenance_log(eventts,eventmsg) 
-VALUES(current_timestamp, 'purged data');
+INSERT INTO maintenance_log(eventid,eventts,eventdur) 
+VALUES(1, current_timestamp, endts_overall-begints_overall);
 
 COMMIT;
 
