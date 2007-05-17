@@ -4488,6 +4488,30 @@ These macros affect the \Condor{collector}.
   and send e-mail about it.  It is defined in seconds and 
   defaults to 10800 (3 hours).
 
+\item[\Macro{COLLECTOR\_REQUIREMENTS}]
+  \label{param:CollectorRequirements} This macro defines an expression
+  that may be used to filter out unwanted ClassAd updates.  This
+  expression is only evaluated for ClassAd updates that have already
+  passed through whatever security authorization checks you have
+  configured.  The default behavior when this expression is not
+  defined is to allow all ClassAd updates to take place.  If this
+  expression is defined and does not evaluate to \Expr{True}, the
+  ClassAd update will be rejected.  Of course, it is better to rely
+  upon a dependable security mechanism to authorize or deny updates to
+  the \Condor{collector}, but if you must use host-based security, and
+  you do not trust all processes that run on the hosts in your pool,
+  this expression may be used to at least throw out ClassAds that
+  should not be allowed.  For example, if you configure all of your
+  \Condor{startd} daemons to run on a fixed port, you could use this
+  expression to ensure that only machine ClassAds advertising the expected
+  fixed port are accepted.  As a convenience, before evaluating your
+  expression, some basic sanity checks are performed on the ClassAd to
+  ensure that all of the ClassAd attributes used by Condor to contain
+  IP:port information are consistent.  If you are validating this
+  information in your expression, you should use
+  \AdAttr{TARGET.MyAddress} as the attribute to check.
+ 
+
 \item[\Macro{CLIENT\_TIMEOUT}] \label{param:ClientTimeout} Network
   timeout that the \Condor{collector} uses when talking to any daemons
   or tools that are sending it a ClassAd update.
