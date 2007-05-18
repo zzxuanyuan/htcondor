@@ -285,6 +285,19 @@ method on UNIX Condor installations.
 \item Fixed a bug in the \Condor{shadow} on Windows where it would
 fail to correctly perform the PASSWORD authentication method.
 
+\item The Windows \Condor{credd} now uses the configuration parameter
+\Attr{CREDD\_HOST}, if defined, to set its name when advertising itself
+to the \Condor{collector}. Thus, if \Attr{CREDD\_HOST} is set to something
+other than then \Condor{credd}'s hostname, clients can still locate the
+daemon.
+
+\item Fixed a bug in the \Condor{c-gahp} that could cause it to not
+perform hold, release, or remove commands on jobs in the remote
+\Condor{schedd}.
+
+\item Fixed the default value of configuration parameter
+\Attr{STARTD\_AD\_REEVAL\_EXPR}.
+
 \end{itemize}
 
 \noindent Known Bugs:
