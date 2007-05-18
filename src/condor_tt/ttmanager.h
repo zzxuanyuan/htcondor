@@ -30,7 +30,7 @@
 #include "quill_enums.h"
 
 #define CONDOR_TT_MAXLOGNUM 7
-#define CONDOR_TT_MAXLOGPATHLEN 100
+#define CONDOR_TT_MAXLOGPATHLEN 1024
 
 // TTManager
 /* This class implements TT's SQL log parsing and database updating logic
