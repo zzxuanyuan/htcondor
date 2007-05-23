@@ -303,9 +303,14 @@ ORACLEDatabase::commitTransaction()
 
 			/* ORA-03113 or 03114 mean that the connection between Client and 
 			   Server process was broken.
+
+			   ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
 			*/
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}
 
@@ -344,8 +349,13 @@ ORACLEDatabase::rollbackTransaction()
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}
 
@@ -402,8 +412,13 @@ ORACLEDatabase::execCommand(const char* sql,
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
 			 */
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}
 
@@ -480,11 +495,16 @@ ORACLEDatabase::execQuery(const char* sql,
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			*/
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}               
-     
+		}                   
+
 		num_result = -1;
 
 		return QUILL_FAILURE;                 
@@ -538,10 +558,11 @@ ORACLEDatabase::fetchNext()
 						ex.getErrorCode(), ex.getMessage().c_str());
 
 		if (ex.getErrorCode() == 3113 ||
-		    ex.getErrorCode() == 3114 ) {
+		    ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}		
-	
+		}   
+
 		return QUILL_FAILURE;			
 	}
 
@@ -613,8 +634,13 @@ ORACLEDatabase::getValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}               
         
@@ -650,10 +676,11 @@ ORACLEDatabase::getIntValue(int col)
 		dprintf(D_ALWAYS, "Error number: %d, Error message: %s in ORACLEDatabase::getIntValue\n", ex.getErrorCode(), ex.getMessage().c_str());
 
 		if (ex.getErrorCode() == 3113 ||
-		    ex.getErrorCode() == 3114) {
+		    ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}		
-	
+		}   
+
 		return 0;			
 	}
 
@@ -1152,11 +1179,16 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */		
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}               
-     
+		}    
+
 		*value = NULL;
 		return FAILURE_QUERY_HISTORYADS_HOR;
 	}
@@ -1228,11 +1260,16 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}               
-        
+		}       
+
 		*value = NULL;
 		return FAILURE_QUERY_HISTORYADS_VER;
 	}
@@ -1311,11 +1348,16 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}               
-        
+
 		return NULL;             		
 	}
 
@@ -1383,11 +1425,16 @@ ORACLEDatabase::getJobQueueProcAds_VerValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */		
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}               
-        
+		}
+
 		return NULL;             		
 	}
 
@@ -1499,10 +1546,15 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}               
+		}
         
 		return NULL;             		
 	}
@@ -1571,11 +1623,16 @@ ORACLEDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}               
-        
+
 		return NULL;             		
 	}
 
@@ -1685,8 +1742,13 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 			/* ORA-03113 means that the connection between Client and Server 
 			   process was broken.
 			 */
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
 		}
 
@@ -1792,11 +1854,16 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
 			/* ORA-03113 means that the connection between Client 
 			   and Server process was broken.
 			*/
+			/* ORA-04031 means that shared pool is out of memory. Disconnect
+			   so that we avoid getting the same error over and over. Also 
+			   this will avoid the sql log being truncated.
+			 */
 		if (ex.getErrorCode() == 3113 ||
-			ex.getErrorCode() == 3114) {
+			ex.getErrorCode() == 3114 ||
+			ex.getErrorCode() == 4031) {
 			disconnectDB();
-		}               
-     
+		}    
+
 		num_result = -1;
 
 		return QUILL_FAILURE;                 
