@@ -1549,8 +1549,10 @@ AC_CHECK_FUNC(crypt, ,AC_CHECK_LIB(crypt,crypt))
 # error here.  Under IA64, there is a different interface to clone
 # (clone2), and the header files appear to be out of sync with the
 # library, so avoid using clone() on that architecture.
-if test $os = "Linux" && test $arch != "ia64"; then
-  AC_CHECK_DECLS([clone,CLONE_VM,CLONE_VFORK],[AC_DEFINE([USE_CLONE],[1],[Define to 1 to use clone() for fast forking])],[AC_MSG_ERROR( [expecting to find clone() on this platform] )],[#include<sched.h>])
+# Also, ppc64 is not working with clone().  Disable until we have
+# reason to investigate.
+if test $os = "Linux" && test $arch != "ia64" && test $arch != "ppc64"; then
+  AC_CHECK_DECLS([clone,CLONE_VM,CLONE_VFORK],[AC_DEFINE([HAVE_CLONE],[1],[Define to 1 to use clone() for fast forking])],[AC_MSG_ERROR( [expecting to find clone() on this platform] )],[#include<sched.h>])
 fi
 
 AC_CHECK_DECLS([res_init],[],[],[
