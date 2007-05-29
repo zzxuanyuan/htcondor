@@ -27,6 +27,7 @@
 #include "sqlquery.h"
 #include "quill_enums.h"
 #include "condor_debug.h"
+#include "condor_email.h"
 
 extern const int QUILLPP_HistoryHorFieldNum;
 extern const char *QUILLPP_HistoryHorFields[];
@@ -198,6 +199,25 @@ public:
 
 		this->releaseQueryResult();		
 	}
+
+	void emailDBError(int errorcode, const char *dbtype) {
+		FILE *email;
+		char msg_body[4000];
+		
+		snprintf(msg_body, 4000, "Database system error occurred: error code = "
+				 "%d, database type = %s\n", 
+				 errorcode, dbtype);
+
+		email = email_admin_open(msg_body);
+
+		if (email) {
+			email_close ( email );
+		} else {
+			dprintf( D_ALWAYS, "ERROR: Can't send email to the Condor "
+					 "Administrator\n" );
+		}		
+	}
+
 protected:
 	bool	connected; 	//!< connection status
 };

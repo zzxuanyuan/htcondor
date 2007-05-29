@@ -311,6 +311,7 @@ ORACLEDatabase::commitTransaction()
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}
 
@@ -356,6 +357,7 @@ ORACLEDatabase::rollbackTransaction()
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}
 
@@ -419,6 +421,7 @@ ORACLEDatabase::execCommand(const char* sql,
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}
 
@@ -502,6 +505,7 @@ ORACLEDatabase::execQuery(const char* sql,
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}                   
 
@@ -560,6 +564,7 @@ ORACLEDatabase::fetchNext()
 		if (ex.getErrorCode() == 3113 ||
 		    ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}   
 
@@ -641,6 +646,7 @@ ORACLEDatabase::getValue(int row, int col)
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}               
         
@@ -678,6 +684,7 @@ ORACLEDatabase::getIntValue(int col)
 		if (ex.getErrorCode() == 3113 ||
 		    ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}   
 
@@ -1186,6 +1193,7 @@ ORACLEDatabase::getHistoryHorValue(SQLQuery *queryhor, int row, int col, const c
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}    
 
@@ -1267,6 +1275,7 @@ ORACLEDatabase::getHistoryVerValue(SQLQuery *queryver, int row, int col, const c
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}       
 
@@ -1355,6 +1364,7 @@ ORACLEDatabase::getJobQueueProcAds_HorValue(int row, int col)
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}               
 
@@ -1432,6 +1442,7 @@ ORACLEDatabase::getJobQueueProcAds_VerValue(int row, int col)
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}
 
@@ -1553,6 +1564,7 @@ ORACLEDatabase::getJobQueueClusterAds_HorValue(int row, int col)
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}
         
@@ -1630,6 +1642,7 @@ ORACLEDatabase::getJobQueueClusterAds_VerValue(int row, int col)
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}               
 
@@ -1749,6 +1762,7 @@ ORACLEDatabase::execCommandWithBind(const char* sql,
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}
 
@@ -1861,6 +1875,7 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
 		if (ex.getErrorCode() == 3113 ||
 			ex.getErrorCode() == 3114 ||
 			ex.getErrorCode() == 4031) {
+			emailDBError(ex.getErrorCode(), "Oracle");
 			disconnectDB();
 		}    
 
