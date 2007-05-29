@@ -374,13 +374,29 @@ will vary according  to the target programming language.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{description}
-\item [\Code{StatusAndTransaction beginTransaction(int duration)}]
+\item [\Code{beginTransaction}]
+  A prototype is
+  
+  \Code{StatusAndTransaction beginTransaction(int duration);}
+  
   Begin a transaction.
-\item [\Code{Status commitTransaction(Transaction transaction)}]
+\item [\Code{commitTransaction}]
+  A prototype is
+
+  \Code{Status commitTransaction(Transaction transaction);}
+
   Commits a transaction.
-\item [\Code{Status abortTransaction(Transaction transaction)}]
+\item [\Code{abortTransaction}]
+  A prototype is
+
+  \Code{Status abortTransaction(Transaction transaction);}
+
   Abort a transaction.
-\item [\Code{StatusAndTransaction extendTransaction(Transaction transaction, int duration)}]
+\item [\Code{extendTransaction}]
+  A prototype is
+
+  \Code{StatusAndTransaction extendTransaction(Transaction transaction, int duration);}
+
   Request an extension in duration for a specific transaction.
 \end{description}
 
@@ -389,9 +405,19 @@ will vary according  to the target programming language.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{description}
-\item [\Code{Status submit(Transaction transaction, int clusterId, int jobId, ClassAd jobAd)}]
+\item [\Code{submit}]
+  A prototype is
+
+  \Code{Status submit(Transaction transaction, int clusterId, int jobId, ClassAd jobAd);}
+
   Submit a job.
-\item [\Code{StatusAndClassAd createJobTemplate(int clusterId, int jobId, String owner, UniverseType type, String command, String arguments, String requirements)}]
+\item [\Code{createJobTemplate}]
+  A prototype is 
+
+  \Code{StatusAndClassAd createJobTemplate(int clusterId, int jobId,
+  String owner, UniverseType type, String command, String arguments, 
+  String requirements);}
+ 
   Request a job Class Ad, given some of the job requirements.
   This job Class Ad will be suitable for use when submitting the job.
 
@@ -404,19 +430,41 @@ will vary according  to the target programming language.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{description}
-\item [\Code{Status declareFile(Transaction transaction, int clusterId, int jobId, String name, int size, HashType hashType, String hash)}]
+\item [\Code{declareFile}]
+  A prototype is 
+
+  \Code{Status declareFile(Transaction transaction, int clusterId, 
+  int jobId, String name, int size, HashType hashType, String hash);}
+
   Declare a file that may be used by a job.
-\item [\Code{Status sendFile(Transaction transaction, int clusterId, int jobId, String name, int offset, Base64 data)}]
+\item [\Code{sendFile}]
+  A prototype is 
+
+  \Code{Status sendFile(Transaction transaction, int clusterId, int jobId, String name, int offset, Base64 data);}
+
   Send a file that a job may use.
-\item [\Code{StatusAndBase64 getFile(Transaction transaction, int clusterId, int jobId, String name, int offset, int length)}]
+\item [\Code{getFile}]
+  A prototype is 
+
+  \Code{StatusAndBase64 getFile(Transaction transaction, int clusterId, 
+  int jobId, String name, int offset, int length);}
+
   Get a file from a job's spool.
   Does not need to occur in a transaction.
-\item [\Code{Status closeSpool(Transaction transaction, int clusterId, int jobId)}]
+\item [\Code{closeSpool}]
+  A prototype is 
+
+  \Code{Status closeSpool(Transaction transaction, int clusterId, int jobId);}
+
   Close a job's spool.
   Does not need to occur in a transaction.
   All the files in the job's spool can be deleted. 
   %%  deleted before or after this method returns/is invoked?
-\item [\Code{StatusAndFileInfoArray listSpool(Transaction transaction, int clusterId, int jobId)}]
+\item [\Code{listSpool}]
+  A prototype is 
+
+  \Code{FileInfoArrayAndStatus listSpool(Transaction transaction, int clusterId, int jobId);}
+
   List the files in a job's spool.
   Does not need to occur in a transaction.
 \end{description}
@@ -426,33 +474,70 @@ will vary according  to the target programming language.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{description}
-\item [\Code{StatusAndInteger newCluster(Transaction transaction)}]
+\item [\Code{newCluster}]
+  A prototype is 
+
+  \Code{StatusAndInteger newCluster(Transaction transaction);}
+
   Create a new job cluster.
-\item [\Code{Status removeCluster(Transaction transaction, int clusterId, String reason)}]
+\item [\Code{removeCluster}]
+  A prototype is 
+
+  \Code{Status removeCluster(Transaction transaction, int clusterId,
+  String reason);}
+
   Remove a job cluster, and all the jobs within it.
   %% What does it mean within Condor to remove a cluster?
   Does not need to occur in a transaction.
-\item [\Code{StatusAndInteger newJob(Transaction transaction, int clusterId)}]
+\item [\Code{newJob}]
+  A prototype is 
+
+  \Code{StatusAndInteger newJob(Transaction transaction, int clusterId);}
+
   Creates a new job within the most recently created job cluster.
   %% Why pass the clusterId if there's only 1 that we can use?
   %% Is this to mimic the behaviour of commands within a submit file
   %%     WRT the queue command?
-\item [\Code{Status removeJob(Transaction transaction, int clusterId, int jobId, String reason, boolean forceRemoval)}]
+\item [\Code{removeJob}]
+  A prototype is 
+
+  \Code{Status removeJob(Transaction transaction, int clusterId, 
+  int jobId, String reason, boolean forceRemoval);}
+
   Remove a job, regardless of the job's state.
   Does not need to occur in a transaction.
-\item [\Code{Status holdJob()}]
+\item [\Code{holdJob}]
+  A prototype is 
+
+  \Code{Status holdJob();}
   %% Needs parameters.
+
   Put a job into the Hold state, regardless of the job's current state.
   Does not need to occur in a transaction.
-\item [\Code{Status releaseJob(Transaction transaction, int clusterId, int jobId, String reason, boolean emailUser, boolean emailAdmin)}]
+\item [\Code{releaseJob}]
+  A prototype is 
+
+  \Code{Status releaseJob(Transaction transaction, int clusterId, 
+  int jobId, String reason, boolean emailUser, boolean emailAdmin);}
+
   Release a job that has been in the Hold state.
   Does not need to occur in a transaction.
 
-\item [\Code{StatusAndClassAdArray getJobAds(Transaction transaction, String constraint)}]
+\item [\Code{getJobAds}]
+  A prototype is 
+
+  \Code{StatusAndClassAdArray getJobAds(Transaction transaction, 
+  String constraint);}
+
   Find all the job ClassAds matching the given constraint.
   %% Find them from where?  The API's set of cluster/jobs or Condor's?
   Does not need to occur in a transaction.
-\item [\Code{StatusAndClassAd getJobAd(Transaction transaction, int clusterId, int jobId)}]
+\item [\Code{getJobAd}]
+  A prototype is 
+
+  \Code{StatusAndClassAd getJobAd(Transaction transaction, 
+  int clusterId, int jobId);}
+
    Find a specific job ClassAd. 
    This method does much the same as the first element from the array 
    returned by
@@ -464,7 +549,11 @@ getJobAds(transaction, "(ClusterId==clusterId && JobId==jobId)")
 \normalsize
 
 
-\item [\Code{Status  requestReschedule()}]
+\item [\Code{requestReschedule}]
+  A prototype is 
+
+  \Code{Status  requestReschedule();}
+
    Request a \Condor{reschedule} from the \Condor{schedd} daemon.
 \end{description}
 
