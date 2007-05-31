@@ -304,7 +304,11 @@ perform hold, release, or remove commands on jobs in the remote
 
 \begin{itemize}
 
-\item None.
+% Gnats PR 954/condor-support 2012.
+\item \Condor{dagman} incorrectly parses DAG file VARS lines specifying
+more than one macroname/value pair.  You can work around this problem
+by specifying each macroname/value pair on a separate line.  (This bug
+was introduced in version 6.8.5.)
 
 \end{itemize}
 
