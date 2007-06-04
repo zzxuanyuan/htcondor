@@ -172,6 +172,14 @@ SOURCE=..\src\condor_schedd.V6\schedd_cronmgr.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_schedd.V6\schedd_files.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_schedd.V6\schedd_files.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_schedd.V6\schedd_main.C
 # End Source File
 # Begin Source File

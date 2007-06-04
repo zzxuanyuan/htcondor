@@ -486,11 +486,35 @@ SOURCE="..\src\condor_c++_util\file_lock.C"
 # End Source File
 # Begin Source File
 
+SOURCE="..\src\condor_c++_util\file_sql.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\file_sql.h"
+# End Source File
+# Begin Source File
+
 SOURCE="..\src\condor_c++_util\file_transfer.C"
 # End Source File
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\file_transfer.h"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\file_transfer_db.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\file_transfer_db.h"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\file_xml.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\file_xml.h"
 # End Source File
 # Begin Source File
 
@@ -763,6 +787,14 @@ SOURCE="..\src\condor_c++_util\Regex.C"
 # End Source File
 # Begin Source File
 
+SOURCE="..\src\condor_c++_util\selector.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\selector.h"
+# End Source File
+# Begin Source File
+
 SOURCE="..\src\condor_c++_util\Set.h"
 # End Source File
 # Begin Source File
@@ -920,14 +952,6 @@ SOURCE="..\src\condor_c++_util\windows_firewall.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\windows_firewall.h"
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_c++_util\selector.C
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_c++_util\selector.h
 # End Source File
 # End Target
 # End Project

@@ -3,7 +3,7 @@
 #include "schedd_files.h"
 #include "condor_attributes.h"
 #include "condor_md.h"
-#include <sys/mman.h>
+//#include <sys/mman.h>
 #include "basename.h"
 #include "my_hostname.h"
 #include "file_sql.h"
@@ -108,13 +108,13 @@ void schedd_files_ins(
 		if (strcmp(tmpFile.GetCStr(), "/dev/null") == 0)
 			return; /* job doesn't care about this type of file */
 		
-		// basename and dirname may modify the string, so have two
+		// condor_basename and condor_dirname may modify the string, so have two
 		// copies
 		pathname = tmpFile;
 		MyString tmpFile2 = tmpFile;
 
-		fileName = basename(tmpFile.GetCStr()); 
-		path = dirname(tmpFile2.GetCStr());
+		fileName = condor_basename(tmpFile.GetCStr()); 
+		path = condor_dirname(tmpFile2.GetCStr());
 	}
 	else {
 		pathname.sprintf("%s/%s", path.GetCStr(), tmpFile.GetCStr());

@@ -54,8 +54,8 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		// is called in the destination process, dst_host is my
 		// hostname
 	dst_host = my_full_hostname();
-	dst_name = basename(rp->fullname);
-	dst_path = dirname(rp->fullname);
+	dst_name = condor_basename(rp->fullname);
+	dst_path = condor_dirname(rp->fullname);
 
 		// src_host
 	src_host[0] = '\0';
@@ -72,8 +72,8 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		(strcmp(dst_name.GetCStr(), CONDOR_EXEC) == 0)) {
 		ad->LookupString(ATTR_ORIG_JOB_CMD, job_name);
 		if (!job_name.IsEmpty() && fullpath(job_name.GetCStr())) {
-			src_name = basename(job_name.GetCStr());
-			src_path = dirname(job_name.GetCStr());
+			src_name = condor_basename(job_name.GetCStr());
+			src_path = condor_dirname(job_name.GetCStr());
 		} else
 			src_name = job_name;
 		

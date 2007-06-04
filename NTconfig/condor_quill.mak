@@ -13,8 +13,8 @@ CFG=condor_quill - Win32 Release
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "condor_quill - Win32 Debug" (based on "Win32 (x86) Console Application")
-!MESSAGE "condor_quill - Win32 Release" (based on "Win32 (x86) Console Application")
+!MESSAGE "condor_quill - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "condor_quill - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE 
 !ERROR An invalid configuration is specified.
 !ENDIF 
@@ -35,11 +35,11 @@ OutDir=.\..\Debug
 
 !IF "$(RECURSE)" == "0" 
 
-ALL : "$(OUTDIR)\condor_quill.exe"
+ALL : "$(OUTDIR)\condor_quill.lib"
 
 !ELSE 
 
-ALL : "condor_procd_client - Win32 Debug" "condor_sysapi - Win32 Debug" "condor_procapi - Win32 Debug" "condor_util_lib - Win32 Debug" "condor_io - Win32 Debug" "condor_daemon_core - Win32 Debug" "condor_cpp_util - Win32 Debug" "condor_classad - Win32 Debug" "$(OUTDIR)\condor_quill.exe"
+ALL : "condor_procd_client - Win32 Debug" "condor_sysapi - Win32 Debug" "condor_procapi - Win32 Debug" "condor_util_lib - Win32 Debug" "condor_io - Win32 Debug" "condor_daemon_core - Win32 Debug" "condor_cpp_util - Win32 Debug" "condor_classad - Win32 Debug" "$(OUTDIR)\condor_quill.lib"
 
 !ENDIF 
 
@@ -50,25 +50,19 @@ CLEAN :
 !ENDIF 
 	-@erase "$(INTDIR)\classadlogentry.obj"
 	-@erase "$(INTDIR)\classadlogparser.obj"
-	-@erase "$(INTDIR)\jobqueuecollection.obj"
-	-@erase "$(INTDIR)\jobqueuedbmanager.obj"
 	-@erase "$(INTDIR)\prober.obj"
-	-@erase "$(INTDIR)\quill_main.obj"
-	-@erase "$(INTDIR)\requestservice.obj"
 	-@erase "$(INTDIR)\soap_quillC.obj"
 	-@erase "$(INTDIR)\soap_quillServer.obj"
 	-@erase "$(INTDIR)\soap_quillStub.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
-	-@erase "$(OUTDIR)\condor_quill.exe"
-	-@erase "$(OUTDIR)\condor_quill.ilk"
-	-@erase "$(OUTDIR)\condor_quill.pdb"
+	-@erase "$(OUTDIR)\condor_quill.lib"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -105,16 +99,12 @@ BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_quill.bsc" 
 BSC32_SBRS= \
 	
-LINK32=link.exe
-LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_quill.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_quill.exe" /pdbtype:sept 
-LINK32_OBJS= \
+LIB32=link.exe -lib
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_quill.lib" 
+LIB32_OBJS= \
 	"$(INTDIR)\classadlogentry.obj" \
 	"$(INTDIR)\classadlogparser.obj" \
-	"$(INTDIR)\jobqueuecollection.obj" \
-	"$(INTDIR)\jobqueuedbmanager.obj" \
 	"$(INTDIR)\prober.obj" \
-	"$(INTDIR)\quill_main.obj" \
-	"$(INTDIR)\requestservice.obj" \
 	"$(INTDIR)\soap_quillC.obj" \
 	"$(INTDIR)\soap_quillServer.obj" \
 	"$(INTDIR)\soap_quillStub.obj" \
@@ -127,26 +117,26 @@ LINK32_OBJS= \
 	"$(OUTDIR)\condor_sysapi.lib" \
 	"$(OUTDIR)\condor_procd_client.lib"
 
-"$(OUTDIR)\condor_quill.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
-    $(LINK32) @<<
-  $(LINK32_FLAGS) $(LINK32_OBJS)
+"$(OUTDIR)\condor_quill.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
+    $(LIB32) @<<
+  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
 <<
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
-OUTDIR=.\../Release
-INTDIR=.\../Release
+OUTDIR=.\..\Release
+INTDIR=.\..\Release
 # Begin Custom Macros
-OutDir=.\../Release
+OutDir=.\..\Release
 # End Custom Macros
 
 !IF "$(RECURSE)" == "0" 
 
-ALL : "$(OUTDIR)\condor_quill.exe"
+ALL : "$(OUTDIR)\condor_quill.lib"
 
 !ELSE 
 
-ALL : "condor_procd_client - Win32 Release" "condor_sysapi - Win32 Release" "condor_procapi - Win32 Release" "condor_util_lib - Win32 Release" "condor_io - Win32 Release" "condor_daemon_core - Win32 Release" "condor_cpp_util - Win32 Release" "condor_classad - Win32 Release" "$(OUTDIR)\condor_quill.exe"
+ALL : "condor_procd_client - Win32 Release" "condor_sysapi - Win32 Release" "condor_procapi - Win32 Release" "condor_util_lib - Win32 Release" "condor_io - Win32 Release" "condor_daemon_core - Win32 Release" "condor_cpp_util - Win32 Release" "condor_classad - Win32 Release" "$(OUTDIR)\condor_quill.lib"
 
 !ENDIF 
 
@@ -157,23 +147,18 @@ CLEAN :
 !ENDIF 
 	-@erase "$(INTDIR)\classadlogentry.obj"
 	-@erase "$(INTDIR)\classadlogparser.obj"
-	-@erase "$(INTDIR)\jobqueuecollection.obj"
-	-@erase "$(INTDIR)\jobqueuedbmanager.obj"
 	-@erase "$(INTDIR)\prober.obj"
-	-@erase "$(INTDIR)\quill_main.obj"
-	-@erase "$(INTDIR)\requestservice.obj"
 	-@erase "$(INTDIR)\soap_quillC.obj"
 	-@erase "$(INTDIR)\soap_quillServer.obj"
 	-@erase "$(INTDIR)\soap_quillStub.obj"
 	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\condor_quill.exe"
-	-@erase "$(OUTDIR)\condor_quill.map"
+	-@erase "$(OUTDIR)\condor_quill.lib"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -210,16 +195,12 @@ BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_quill.bsc" 
 BSC32_SBRS= \
 	
-LINK32=link.exe
-LINK32_FLAGS=../Release/condor_common.obj ../Release/condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_quill.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_quill.exe" 
-LINK32_OBJS= \
+LIB32=link.exe -lib
+LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_quill.lib" 
+LIB32_OBJS= \
 	"$(INTDIR)\classadlogentry.obj" \
 	"$(INTDIR)\classadlogparser.obj" \
-	"$(INTDIR)\jobqueuecollection.obj" \
-	"$(INTDIR)\jobqueuedbmanager.obj" \
 	"$(INTDIR)\prober.obj" \
-	"$(INTDIR)\quill_main.obj" \
-	"$(INTDIR)\requestservice.obj" \
 	"$(INTDIR)\soap_quillC.obj" \
 	"$(INTDIR)\soap_quillServer.obj" \
 	"$(INTDIR)\soap_quillStub.obj" \
@@ -232,9 +213,9 @@ LINK32_OBJS= \
 	"$(OUTDIR)\condor_sysapi.lib" \
 	"$(OUTDIR)\condor_procd_client.lib"
 
-"$(OUTDIR)\condor_quill.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
-    $(LINK32) @<<
-  $(LINK32_FLAGS) $(LINK32_OBJS)
+"$(OUTDIR)\condor_quill.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
+    $(LIB32) @<<
+  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
 <<
 
 !ENDIF 
@@ -471,33 +452,9 @@ SOURCE=..\src\condor_quill\classadlogparser.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=..\src\condor_quill\jobqueuecollection.C
-
-"$(INTDIR)\jobqueuecollection.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_quill\jobqueuedbmanager.C
-
-"$(INTDIR)\jobqueuedbmanager.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
 SOURCE=..\src\condor_quill\prober.C
 
 "$(INTDIR)\prober.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_quill\quill_main.C
-
-"$(INTDIR)\quill_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_quill\requestservice.C
-
-"$(INTDIR)\requestservice.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -505,7 +462,7 @@ SOURCE=..\src\condor_quill\soap_quillC.C
 
 !IF  "$(CFG)" == "condor_quill - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\soap_quillC.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -515,7 +472,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
-CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\soap_quillC.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -529,7 +486,7 @@ SOURCE=..\src\condor_quill\soap_quillServer.C
 
 !IF  "$(CFG)" == "condor_quill - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\soap_quillServer.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -539,7 +496,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
-CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\soap_quillServer.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -553,7 +510,7 @@ SOURCE=..\src\condor_quill\soap_quillStub.C
 
 !IF  "$(CFG)" == "condor_quill - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\soap_quillStub.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
@@ -563,7 +520,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
-CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 "$(INTDIR)\soap_quillStub.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<

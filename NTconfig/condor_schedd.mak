@@ -59,6 +59,7 @@ CLEAN :
 	-@erase "$(INTDIR)\schedd_api.obj"
 	-@erase "$(INTDIR)\schedd_cronjob.obj"
 	-@erase "$(INTDIR)\schedd_cronmgr.obj"
+	-@erase "$(INTDIR)\schedd_files.obj"
 	-@erase "$(INTDIR)\schedd_main.obj"
 	-@erase "$(INTDIR)\schedd_td.obj"
 	-@erase "$(INTDIR)\shadow_mgr.obj"
@@ -127,6 +128,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\schedd_api.obj" \
 	"$(INTDIR)\schedd_cronjob.obj" \
 	"$(INTDIR)\schedd_cronmgr.obj" \
+	"$(INTDIR)\schedd_files.obj" \
 	"$(INTDIR)\schedd_main.obj" \
 	"$(INTDIR)\schedd_td.obj" \
 	"$(INTDIR)\shadow_mgr.obj" \
@@ -182,6 +184,7 @@ CLEAN :
 	-@erase "$(INTDIR)\schedd_api.obj"
 	-@erase "$(INTDIR)\schedd_cronjob.obj"
 	-@erase "$(INTDIR)\schedd_cronmgr.obj"
+	-@erase "$(INTDIR)\schedd_files.obj"
 	-@erase "$(INTDIR)\schedd_main.obj"
 	-@erase "$(INTDIR)\schedd_td.obj"
 	-@erase "$(INTDIR)\shadow_mgr.obj"
@@ -248,6 +251,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\schedd_api.obj" \
 	"$(INTDIR)\schedd_cronjob.obj" \
 	"$(INTDIR)\schedd_cronmgr.obj" \
+	"$(INTDIR)\schedd_files.obj" \
 	"$(INTDIR)\schedd_main.obj" \
 	"$(INTDIR)\schedd_td.obj" \
 	"$(INTDIR)\shadow_mgr.obj" \
@@ -554,6 +558,12 @@ SOURCE=..\src\condor_schedd.V6\schedd_cronjob.C
 SOURCE=..\src\condor_schedd.V6\schedd_cronmgr.C
 
 "$(INTDIR)\schedd_cronmgr.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_schedd.V6\schedd_files.C
+
+"$(INTDIR)\schedd_files.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

@@ -317,6 +317,23 @@ SOURCE=..\src\h\syscall_numbers.tmpl
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_includes\truncate.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_util_lib\truncate.WIN32.c
+
+!IF  "$(CFG)" == "condor_util_lib - Win32 Debug"
+
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ELSEIF  "$(CFG)" == "condor_util_lib - Win32 Release"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_util_lib\win32_posix.c
 # End Source File
 # End Target

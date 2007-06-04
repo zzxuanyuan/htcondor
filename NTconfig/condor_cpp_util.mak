@@ -90,7 +90,10 @@ CLEAN :
 	-@erase "$(INTDIR)\error_utils.obj"
 	-@erase "$(INTDIR)\extra_param_info.obj"
 	-@erase "$(INTDIR)\file_lock.obj"
+	-@erase "$(INTDIR)\file_sql.obj"
 	-@erase "$(INTDIR)\file_transfer.obj"
+	-@erase "$(INTDIR)\file_transfer_db.obj"
+	-@erase "$(INTDIR)\file_xml.obj"
 	-@erase "$(INTDIR)\format_time.obj"
 	-@erase "$(INTDIR)\gahp_common.obj"
 	-@erase "$(INTDIR)\generic_query.obj"
@@ -127,6 +130,7 @@ CLEAN :
 	-@erase "$(INTDIR)\process_control.WINDOWS.obj"
 	-@erase "$(INTDIR)\read_multiple_logs.obj"
 	-@erase "$(INTDIR)\Regex.obj"
+	-@erase "$(INTDIR)\selector.obj"
 	-@erase "$(INTDIR)\setenv.obj"
 	-@erase "$(INTDIR)\sig_name.obj"
 	-@erase "$(INTDIR)\sqlquery.obj"
@@ -150,7 +154,6 @@ CLEAN :
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(INTDIR)\which.obj"
 	-@erase "$(INTDIR)\windows_firewall.obj"
-	-@erase "$(INTDIR)\selector.obj"
 	-@erase "$(OUTDIR)\condor_cpp_util.lib"
 	-@erase "..\Debug\condor_common.obj"
 	-@erase "..\Debug\condor_common.pch"
@@ -253,7 +256,10 @@ LIB32_OBJS= \
 	"$(INTDIR)\error_utils.obj" \
 	"$(INTDIR)\extra_param_info.obj" \
 	"$(INTDIR)\file_lock.obj" \
+	"$(INTDIR)\file_sql.obj" \
 	"$(INTDIR)\file_transfer.obj" \
+	"$(INTDIR)\file_transfer_db.obj" \
+	"$(INTDIR)\file_xml.obj" \
 	"$(INTDIR)\format_time.obj" \
 	"$(INTDIR)\gahp_common.obj" \
 	"$(INTDIR)\generic_query.obj" \
@@ -290,6 +296,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\process_control.WINDOWS.obj" \
 	"$(INTDIR)\read_multiple_logs.obj" \
 	"$(INTDIR)\Regex.obj" \
+	"$(INTDIR)\selector.obj" \
 	"$(INTDIR)\setenv.obj" \
 	"$(INTDIR)\sig_name.obj" \
 	"$(INTDIR)\sqlquery.obj" \
@@ -310,7 +317,6 @@ LIB32_OBJS= \
 	"$(INTDIR)\user_log.obj" \
 	"$(INTDIR)\utc_time.obj" \
 	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\selector.obj" \
 	"$(INTDIR)\windows_firewall.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
@@ -383,7 +389,10 @@ CLEAN :
 	-@erase "$(INTDIR)\error_utils.obj"
 	-@erase "$(INTDIR)\extra_param_info.obj"
 	-@erase "$(INTDIR)\file_lock.obj"
+	-@erase "$(INTDIR)\file_sql.obj"
 	-@erase "$(INTDIR)\file_transfer.obj"
+	-@erase "$(INTDIR)\file_transfer_db.obj"
+	-@erase "$(INTDIR)\file_xml.obj"
 	-@erase "$(INTDIR)\format_time.obj"
 	-@erase "$(INTDIR)\gahp_common.obj"
 	-@erase "$(INTDIR)\generic_query.obj"
@@ -420,6 +429,7 @@ CLEAN :
 	-@erase "$(INTDIR)\process_control.WINDOWS.obj"
 	-@erase "$(INTDIR)\read_multiple_logs.obj"
 	-@erase "$(INTDIR)\Regex.obj"
+	-@erase "$(INTDIR)\selector.obj"
 	-@erase "$(INTDIR)\setenv.obj"
 	-@erase "$(INTDIR)\sig_name.obj"
 	-@erase "$(INTDIR)\sqlquery.obj"
@@ -441,7 +451,6 @@ CLEAN :
 	-@erase "$(INTDIR)\utc_time.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\which.obj"
-	-@erase "$(INTDIR)\selector.obj"
 	-@erase "$(INTDIR)\windows_firewall.obj"
 	-@erase "$(OUTDIR)\condor_cpp_util.lib"
 	-@erase "..\Release\condor_common.obj"
@@ -545,7 +554,10 @@ LIB32_OBJS= \
 	"$(INTDIR)\error_utils.obj" \
 	"$(INTDIR)\extra_param_info.obj" \
 	"$(INTDIR)\file_lock.obj" \
+	"$(INTDIR)\file_sql.obj" \
 	"$(INTDIR)\file_transfer.obj" \
+	"$(INTDIR)\file_transfer_db.obj" \
+	"$(INTDIR)\file_xml.obj" \
 	"$(INTDIR)\format_time.obj" \
 	"$(INTDIR)\gahp_common.obj" \
 	"$(INTDIR)\generic_query.obj" \
@@ -582,6 +594,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\process_control.WINDOWS.obj" \
 	"$(INTDIR)\read_multiple_logs.obj" \
 	"$(INTDIR)\Regex.obj" \
+	"$(INTDIR)\selector.obj" \
 	"$(INTDIR)\setenv.obj" \
 	"$(INTDIR)\sig_name.obj" \
 	"$(INTDIR)\sqlquery.obj" \
@@ -602,7 +615,6 @@ LIB32_OBJS= \
 	"$(INTDIR)\user_log.obj" \
 	"$(INTDIR)\utc_time.obj" \
 	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\selector.obj" \
 	"$(INTDIR)\windows_firewall.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
@@ -1001,9 +1013,27 @@ SOURCE="..\src\condor_c++_util\file_lock.C"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE="..\src\condor_c++_util\file_sql.C"
+
+"$(INTDIR)\file_sql.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE="..\src\condor_c++_util\file_transfer.C"
 
 "$(INTDIR)\file_transfer.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c++_util\file_transfer_db.C"
+
+"$(INTDIR)\file_transfer_db.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c++_util\file_xml.C"
+
+"$(INTDIR)\file_xml.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1241,6 +1271,12 @@ SOURCE="..\src\condor_c++_util\Regex.C"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE="..\src\condor_c++_util\selector.C"
+
+"$(INTDIR)\selector.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE="..\src\condor_c++_util\setenv.C"
 
 "$(INTDIR)\setenv.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -1358,12 +1394,6 @@ SOURCE="..\src\condor_c++_util\utc_time.C"
 SOURCE="..\src\condor_c++_util\which.C"
 
 "$(INTDIR)\which.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE="..\src\condor_c++_util\selector.C"
-
-"$(INTDIR)\selector.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

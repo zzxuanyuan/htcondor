@@ -1,9 +1,13 @@
+
+#include "condor_common.h"
 #include "condor_api.h"
 #include "condor_config.h"
 #include <errno.h>
 #include <string.h>
 #include "file_sql.h"
+#include "truncate.h"
 #include "get_mysubsystem.h"
+
 #include <sys/stat.h>
 
 #define FILESIZELIMT 1900000000L
