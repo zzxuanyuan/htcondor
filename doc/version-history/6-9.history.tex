@@ -131,6 +131,11 @@ configuration, but this is no longer a legal value, as of 6.9.2.
 \item \Condor{glidein} was not setting necessary configuration parameters
 for \Condor{procd} in the default glidein configuration.
 
+\item On Windows systems, the truncate function no longer leaks file handles.
+
+\item \Condor{condor_quill} project was change from an executable project
+to a static library project, allowing the Windows build to work.
+
 \end{itemize}
 
 \noindent Known Bugs:
