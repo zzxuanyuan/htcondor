@@ -1,3 +1,16 @@
+06/12/07 V6_8-dagman-for-ligo-merge-end
+  State of V6_8 at the *end* of what I need to merge to
+  V6_9-dagman-for-ligo-branch.
+
+06/12/07 V6_8-dagman-for-ligo-merge-start
+  State of V6_8 at the beginning of what I need to merge to
+  V6_9-dagman-for-ligo-branch to make a special pre-release DAGMan for
+  LIGO.  This tag is almost the same as V6_8-merge-7, except that
+  V6_8-merge-7 seems to be at the wrong place on
+  condor_c++_util/check_events.[Ch] and
+  condor_c++_util/read_multiple_logs.[Ch] (there are changes just past
+  the tag in those files that have already been merged to V6_9/trunk).
+
 01/08/07 V6_9_3-{root,branch}
   The branch for V6_9_3 off of the trunk. Branched from
   BUILD-V6_9-trunk-2007-6-7.
