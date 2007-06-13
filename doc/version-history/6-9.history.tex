@@ -251,6 +251,54 @@ using the ProcD is that it is newer, less-hardened code.
 
 \end{itemize}
 
+\noindent Configuration Variable Additions and Changes:
+
+\begin{itemize}
+
+\item The \Macro{SECONDARY\_COLLECTOR\_LIST} configuration variable has
+  been removed.
+  Sites relying on this variable should instead use the configuration
+  variable \Macro{COLLECTOR\_HOST} to
+  define a list of \Condor{collector} daemon hosts.
+
+\item Added new configuration variables \Macro{START\_LOCAL\_UNIVERSE}
+  and \Macro{START\_SCHEDULER\_UNIVERSE} for the \Condor{schedd} daemon.
+  These boolean expressions default to \Expr{True}.
+  \MacroNI{START\_LOCAL\_UNIVERSE} is relevant only to local universe jobs.
+  \MacroNI{START\_SCHEDULER\_UNIVERSE} is relevant only to scheduler 
+  universe jobs.
+  These new variables allow an administrator to define
+  a \MacroNI{START} expression specific to these jobs. 
+  The expression is evaluated
+  against the job's ClassAd before the \AdAttr{Requirements} expression.
+
+\item Added new configuration variables \Macro{SCHEDD\_INTERVAL\_TIMESLICE}
+  and \Macro{PERIODIC\_EXPR\_TIMESLICE}.  These configuration variables
+  address a scalability issue for very large job queues.
+  Previously, the \Condor{schedd} daemon handled an activity related
+  to counting jobs, as well as the activity related to evaluating
+  periodic expressions for jobs at the fixed time interval of 5 minutes.
+  With large job queues, the fraction of the \Condor{schedd} daemon
+  execution time devoted to these two activities became excessive,
+  such that it could be doing little else.
+  The fixed time interval is now gone, and Condor calculates the amount
+  of time spent on the two activities, using these new configuration
+  variables to calculate an appropriate time interval.
+  
+  Each is a floating point value within the range
+  (noninclusive) 0.0 to 1.0.
+  Each determines the maximum fraction of the time interval that the 
+  \Condor{schedd} daemon  will spend on the respective
+  activity.
+  \MacroNI{SCHEDD\_INTERVAL\_TIMESLICE} defaults to the value 0.05,
+  such that the calculated time interval will be 20 * the amount
+  of time spent on the counting jobs activity.
+  \MacroNI{PERIODIC\_EXPR\_TIMESLICE} defaults to the value 0.01,
+  such that the calculated time interval will be 100 * the amount
+  of time spent on the periodic expression evaluation activity.
+
+\end{itemize}
+
 \noindent Bugs Fixed:
 
 \begin{itemize}
