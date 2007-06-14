@@ -297,6 +297,62 @@ using the ProcD is that it is newer, less-hardened code.
   such that the calculated time interval will be 100 * the amount
   of time spent on the periodic expression evaluation activity.
 
+\item Added new configuration variable 
+  \Macro{USE\_CLONE\_TO\_CREATE\_PROCESSES}, relevant only to the
+  Intel Linux platform.  
+  This boolean value defaults to \Expr{True}, and it results in scalability
+  improvements for Condor processes using large amounts of memory.
+  These processes may clone themselves instead of forking themselves.
+  An example of the improvement occurs for a \Condor{schedd}
+  deamon with a lot of jobs in the queue.
+
+\item Added new configuration variable \Macro{STARTER\_UPLOAD\_TIMEOUT},
+  which allows a configurable time (in seconds) for a timeout used by the 
+  \Condor{starter}.
+  The default value of 200 seconds replaces the previously hardcoded
+  value of 20 seconds.
+  This timeout before job failure is to upload output files to the
+  \Condor{shadow} upon job exit.
+  The default value should be sufficient for serial jobs.
+  For parallel jobs, it may need to
+  be increased if there are many large output files.
+
+\item Added new configuration variable \Macro{DAGMAN\_ABORT\_ON\_SCARY\_SUBMIT}.
+  This boolean variable defaults to \Expr{True}, and causes
+  \Condor{dagman} to abort the DAG on ``scary'' submit events.
+  These are submit events in which
+  the Condor ID of the event does not match the expected value.
+  Previously, \Condor{dagman} printed a warning, but continued.
+  To restore Condor to the previous behavior,
+  set \MacroNI{DAGMAN\_ABORT\_ON\_SCARY\_SUBMIT} to \Expr{False}.
+
+\item Added new configuration variable \Macro{NEGOTIATOR\_MATCH\_EXPRS}.
+  It causes the \Condor{negotiator} to
+  insert expressions into the matched ClassAd.  See
+  page~\pageref{param:NegotiatorMatchExprs} for details.
+
+\item Added new configuration variable
+  \Macro{DEDICATED\_EXECUTE\_ACCOUNT\_REGEXP} to replace the retired 
+  \Macro{EXECUTE\_LOGIN\_IS\_DEDICATED},
+  because \MacroNI{EXECUTE\_LOGIN\_IS\_DEDICATED} could not
+  handle a policy where some jobs run as the job owner and others run as
+  dedicated execution accounts.  Also added support for
+  the existing configuration variable
+  \Macro{STARTER\_ALLOW\_RUNAS\_OWNER} under Unix.  See
+  Section~\ref{param:DedicatedExecuteAccountRegexp} and
+  Section~\ref{sec:RunAsNobody} for more information.
+
+\item Added new configuration variable \Macro{USE\_PROCD}.
+  This boolean variable defaults to \Expr{False} for the
+  \Condor{master}, and \Expr{True} for all other daemons.
+  When \Expr{True}, the daemon will use the
+  \Condor{procd} program to monitor process families.
+  When \Expr{False}, a daemon will execute process family
+  monitoring logic on its own.
+  The \Condor{procd} is more scalable and is also an essential
+  piece in the ongoing privilege separation effort. The disadvantage of
+  using the \Condor{procd} is that it is newer, less-hardened code.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
