@@ -413,7 +413,12 @@ fixed.
 
 \begin{itemize}
 
-\item None.
+\item The 6.9.3 \Condor{schedd} is not able to successfully reconnect
+to jobs that were left running when the \Condor{schedd} was last shut
+down.  The result is that the orphaned jobs are left running for the
+duration of the job's lease time (default 20 minutes).  The state of the
+job in the queue is independent of the orphaned running job, so it may
+begin running on some other machine while the orphan is still running.
 
 \end{itemize}
 
