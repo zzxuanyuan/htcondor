@@ -407,15 +407,15 @@ fixed.
 
 \begin{itemize}
 
-\item The 6.9.3 \Condor{schedd} incorrectly handles jobs with leases
+\item The 6.9.3 \Condor{schedd} daemon incorrectly handles jobs with leases
 (true by default for vanilla, java, and parallel universe jobs) when
 shutting down gracefully.  These jobs are allowed to continue running,
-but when the \Condor{schedd} is started back up, it fails to reconnect
+but when the \Condor{schedd} daemon is started back up, it fails to reconnect
 to them.  The result is that the orphaned jobs are left running for
-the duration of the job's lease time (default 20 minutes).  The state
-of the job in the restarted schedd queue is independent of the
-orphaned running job, so it may begin running on some other machine
-while the orphan is still running.
+the duration of the job's lease time (a default time of 20 minutes).
+The state of the jobs in the restarted queue is independent of any
+orphaned running jobs, so these queued jobs may begin running on another
+machine while orphans are still running.
 
 \end{itemize}
 
