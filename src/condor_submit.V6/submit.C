@@ -74,6 +74,7 @@
 #include "directory.h"
 #include "filename_tools.h"
 #include "fs_util.h"
+#include "condor_classad_util.h"
 #include "dc_transferd.h"
 #include "condor_ftp.h"
 
@@ -377,6 +378,8 @@ void SetJarFiles();
 void SetJavaVMArgs();
 void SetParallelStartupScripts(); //JDB
 void SetMaxJobRetirementTime();
+void signClassAd(ClassAd *ca, StringList *include, MyString &signature);
+
 bool mightTransfer( int universe );
 bool isTrue( const char* attr );
 
@@ -5686,7 +5689,14 @@ init_params()
 	My_fs_domain = param( "FILESYSTEM_DOMAIN" );
 		// Will always return something, since config() will put in a
 		// value (full hostname) if it's not in the config file.  
-	
+	StringList include("MyType,TargetType,ClusterId,QDate,Owner,CondorVersion,CondorPlatform,RootDir,Iwd,JobUniverse,Cmd,MinHosts,MaxHosts,User,NiceUser,WantRemoteIO,In,TransferIn,Out,StreamOut,Err,StreamErr,ShouldTransferFiles,TransferFiles,FileSystemDomain,Arguments,GlobalJobId,ProcId");
+
+	MyString signature;
+	signClassAd(job, &include, signature);
+	//MyString foo;
+	//job->sPrint(foo);
+	//cout << signature << endl;
+	InsertIntoAd(job, "ClassAdSignature", signature.GetCStr());
 
 	// The default is set as the global initializer for STMethod
 	tmp = param( "SANDBOX_TRANSFER_METHOD" );
@@ -5857,7 +5867,7 @@ SaveClassAd ()
 	if ( Remote ) {
 		char tbuf[200];
 		sprintf(tbuf,"%s=%d",ATTR_CLUSTER_ID, ClusterId);
-		job->Insert(tbuf);
+		job->Insert(tbuf); 
 		sprintf(tbuf,"%s=%d",ATTR_PROC_ID, ProcId);
 		job->Insert(tbuf);
 		if ( ProcId == 0 ) {
