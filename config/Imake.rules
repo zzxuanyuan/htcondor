@@ -415,8 +415,8 @@ XCOMM End translation of func(jar_target)
 	generated sources from soapcpp2 
 */
 #define soapobjs(daemon) @@\
-SOAP_OBJS = Concat(soapname(daemon),C).o Concat(soapname(daemon),Server).o Concat(soapname(daemon),Stub).o @@\
-SOAP_SRC = Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h
+SOAP_OBJS = Concat(soapname(daemon),C).o Concat(soapname(daemon),Server).o Concat(soapname(daemon),Client).o Concat(soapname(daemon),Stub).o @@\
+SOAP_SRC = Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C Concat(soapname(daemon),Client).C Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h
 
 /* given a daemon name, and a service, use the soap compiler to produce a 
 	set of interface files in a temporary directory and then copy the files
@@ -427,9 +427,10 @@ SOAP_SRC = Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C Concat
 soapfiles:: gsoapname(daemon).h @@\
 	/bin/rm -rf junkdir(daemon) @@\
 	/bin/mkdir junkdir(daemon) @@\
-	$(SOAPCPP2) -I ../condor_daemon_core.V6 -d junkdir(daemon) -p soapname(daemon) gsoapname(daemon).h @@\
+	$(SOAPCPP2) -I ../condor_daemon_core.V6 $(GSOAP_EXTRAS_INCLUDE) -d junkdir(daemon) -p soapname(daemon) gsoapname(daemon).h @@\
 	cp junkdir(daemon)/Concat(soapname(daemon),C).cpp Concat(soapname(daemon),C).C @@\
 	cp junkdir(daemon)/Concat(soapname(daemon),Server).cpp Concat(soapname(daemon),Server).C @@\
+	cp junkdir(daemon)/Concat(soapname(daemon),Client).cpp Concat(soapname(daemon),Client).C @@\
 	cp junkdir(daemon)/service.nsmap . @@\
 	cp junkdir(daemon)/Concat(soapname(daemon),H).h . @@\
 	cp junkdir(daemon)/Concat(soapname(daemon),Stub).h . @@\
