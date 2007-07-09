@@ -1,8 +1,8 @@
-Only in j/scratch/ian/gsoap_install_extras: dom.o
-Only in j/scratch/ian/gsoap_install_extras: how
-diff -cr gsoap_install_extras/plugin/smdevp.C j/scratch/ian/gsoap_install_extras/plugin/smdevp.C
-*** gsoap_install_extras/plugin/smdevp.C	Tue Aug 16 19:52:57 2005
---- j/scratch/ian/gsoap_install_extras/plugin/smdevp.C	Fri Feb 23 10:49:54 2007
+Only in j/scratch/ian/gsoap_extras: dom.o
+Only in j/scratch/ian/gsoap_extras: how
+diff -cr gsoap_extras/plugin/smdevp.C j/scratch/ian/gsoap_extras/plugin/smdevp.C
+*** gsoap_extras/plugin/smdevp.C	Tue Aug 16 19:52:57 2005
+--- j/scratch/ian/gsoap_extras/plugin/smdevp.C	Fri Feb 23 10:49:54 2007
 ***************
 *** 389,395 ****
   */
@@ -20,10 +20,10 @@ diff -cr gsoap_install_extras/plugin/smdevp.C j/scratch/ian/gsoap_install_extras
     /* finalize the digest or signature computation */
     switch (data->alg)
     { case SOAP_SMD_DGST_MD5:
-Only in j/scratch/ian/gsoap_install_extras/plugin: smdevp.o
-diff -cr gsoap_install_extras/plugin/wsseapi.C j/scratch/ian/gsoap_install_extras/plugin/wsseapi.C
-*** gsoap_install_extras/plugin/wsseapi.C	Fri Aug 19 09:41:29 2005
---- j/scratch/ian/gsoap_install_extras/plugin/wsseapi.C	Fri Feb 23 11:37:09 2007
+Only in j/scratch/ian/gsoap_extras/plugin: smdevp.o
+diff -cr gsoap_extras/plugin/wsseapi.C j/scratch/ian/gsoap_extras/plugin/wsseapi.C
+*** gsoap_extras/plugin/wsseapi.C	Fri Aug 19 09:41:29 2005
+--- j/scratch/ian/gsoap_extras/plugin/wsseapi.C	Fri Feb 23 11:37:09 2007
 ***************
 *** 918,924 ****
     { time_t now = time(NULL), expired;
@@ -204,5 +204,5 @@ diff -cr gsoap_install_extras/plugin/wsseapi.C j/scratch/ian/gsoap_install_extra
       /* then compute the signature and add it */
       soap_wsse_add_SignatureValue(soap, data->sign_alg, data->sign_key, data->sign_keylen);
       /* the code below ensures we increase the message length counter */
-Only in j/scratch/ian/gsoap_install_extras/plugin: wsseapi.o
-Only in j/scratch/ian/gsoap_install_extras: stdsoap2.o
+Only in j/scratch/ian/gsoap_extras/plugin: wsseapi.o
+Only in j/scratch/ian/gsoap_extras: stdsoap2.o
