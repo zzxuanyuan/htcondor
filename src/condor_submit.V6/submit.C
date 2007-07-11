@@ -378,10 +378,10 @@ void SetJarFiles();
 void SetJavaVMArgs();
 void SetParallelStartupScripts(); //JDB
 void SetMaxJobRetirementTime();
-void signClassAd(ClassAd *ca, StringList *include, MyString &signature);
-
 bool mightTransfer( int universe );
 bool isTrue( const char* attr );
+
+void signClassAd(ClassAd *ca, StringList *include, MyString &signature);
 
 char *owner = NULL;
 char *ntdomain = NULL;
@@ -5689,14 +5689,6 @@ init_params()
 	My_fs_domain = param( "FILESYSTEM_DOMAIN" );
 		// Will always return something, since config() will put in a
 		// value (full hostname) if it's not in the config file.  
-	StringList include("MyType,TargetType,ClusterId,QDate,Owner,CondorVersion,CondorPlatform,RootDir,Iwd,JobUniverse,Cmd,MinHosts,MaxHosts,User,NiceUser,WantRemoteIO,In,TransferIn,Out,StreamOut,Err,StreamErr,ShouldTransferFiles,TransferFiles,FileSystemDomain,Arguments,GlobalJobId,ProcId");
-
-	MyString signature;
-	signClassAd(job, &include, signature);
-	//MyString foo;
-	//job->sPrint(foo);
-	//cout << signature << endl;
-	InsertIntoAd(job, "ClassAdSignature", signature.GetCStr());
 
 	// The default is set as the global initializer for STMethod
 	tmp = param( "SANDBOX_TRANSFER_METHOD" );
@@ -5833,7 +5825,17 @@ SaveClassAd ()
 		}
 	}
 
-	
+	StringList include("MyType,TargetType,ClusterId,QDate,Owner,CondorVersion,CondorPlatform,RootDir,Iwd,JobUniverse,Cmd,MinHosts,MaxHosts,User,NiceUser,WantRemoteIO,In,TransferIn,Out,StreamOut,Err,StreamErr,ShouldTransferFiles,TransferFiles,FileSystemDomain,Arguments,GlobalJobId,ProcId");
+
+	MyString signature;
+
+	// Check and return error code: handle how?
+	// How to expose GSI credential to this function?
+	signClassAd(job, &include, signature);
+
+	InsertIntoAd(job, "ClassAdSignature", signature.GetCStr());	
+
+	dprintf(D_SECURITY, "ClassAdSignature = \"%s\"\n", signature.GetCStr());
 
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
