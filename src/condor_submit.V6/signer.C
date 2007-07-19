@@ -134,7 +134,7 @@ MyString getClassAdSig(ClassAd *ad)
 	struct condor__ClassAdStruct *adStruct;
 	struct _condor__signatureRequest req;
 	char *quoted_sca;
-	MyString rv;
+	MyString rv=NULL;
 
     soap_register_plugin(soap, soap_wsse);
     //soap_omode(&soap, SOAP_ENC_ZLIB | SOAP_XML_GRAPH); // see 8.12
@@ -153,10 +153,10 @@ MyString getClassAdSig(ClassAd *ad)
 	if(sca_mem == MAP_FAILED) {
 		perror("mmap");
 		fprintf(stderr, "Dying: mmap in signClassAd.\n");
-	}
+		}	
 			
     soap_begin(soap);
-    //soap_wsse_add_Security(&soap);
+		//soap_wsse_add_Security(&soap);
     //soap_wsse_add_Timestamp(&soap, "Time", 1000);
     static char hmac_key[16] =
         { 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88,
@@ -164,16 +164,24 @@ MyString getClassAdSig(ClassAd *ad)
     if(soap_wsse_sign_body(soap, SOAP_SMD_HMAC_SHA1,
                            hmac_key, sizeof(hmac_key))) {
         soap_print_fault(soap, stderr);
-    }
-
+    }	
+	
     soap_wsse_verify_auto(soap, SOAP_SMD_HMAC_SHA1, hmac_key, sizeof(hmac_key));
 	adStruct = (struct condor__ClassAdStruct *)
 		soap_malloc(soap, sizeof(struct condor__ClassAdStruct));
-
+	
 	convert_ad_to_adStruct(soap, ad, adStruct, true);
 	req.classAd = adStruct;
     if(soap_send___condor__signature(soap, "http://", NULL, &req) == SOAP_OK) {
 //    if(soap_call___ns1__successor(soap, "http://ferdinand.cs.wisc.edu:31310", NULL, x, &succ) == SOAP_OK) {
+		soap_end_send(soap);
+		soap_closesock(soap);
+		soap_end(soap);
+		soap_done(soap);
+		free(soap);
+		close(tmp_fd);
+		dprintf(D_SECURITY, "Signature length: %d\n", strlen(sca_mem));
+		dprintf(D_SECURITY, "Signature bytes: %d %d %d\n", *sca_mem, *(sca_mem+1), *(sca_mem+2));
 		quoted_sca = quote_classad_string(sca_mem);
 		if(!quoted_sca) {
 			dprintf(D_SECURITY, "Error quoting string '%s'.\n",sca_mem);
@@ -182,7 +190,9 @@ MyString getClassAdSig(ClassAd *ad)
 		//InsertIntoAd(ad,"ClassAdSignature",*quoted_sca);
 		rv = MyString(quoted_sca);
 		free(quoted_sca);
+		return rv;
     } else {
+		dprintf(D_SECURITY, "Problem with soap_send___condor__signature.\n");
         soap_print_fault(soap, stderr);
     }
 //    soap_destroy(soap)
