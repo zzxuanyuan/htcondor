@@ -198,6 +198,7 @@ char	*NiceUser		= "nice_user";
 
 char	*GridResource	= "grid_resource";
 char	*X509UserProxy	= "x509userproxy";
+char    *WantSignedClassAds = "want_signed_classads";
 char	*GlobusScheduler = "globusscheduler";
 char	*GlobusJobmanagerType = "jobmanager_type";
 char    *GridShell = "gridshell";
@@ -381,7 +382,9 @@ void SetMaxJobRetirementTime();
 bool mightTransfer( int universe );
 bool isTrue( const char* attr );
 
-void signClassAd(ClassAd *ca, StringList *include, MyString &signature);
+MyString signClassAd(ClassAd *ca, StringList *include);
+int verifySignedClassAd(ClassAd *ca);
+int insertProxyCertIntoAd(ClassAd *ad);
 
 char *owner = NULL;
 char *ntdomain = NULL;
@@ -4437,12 +4440,25 @@ SetGSICredentials()
 		}
 	}
 
+	char * param_sca = condor_param( WantSignedClassAds );
+	bool want_sca = param_sca != NULL && (param_sca[0] == 'Y' 
+										  || param_sca[0] == 'y');
+
+	if ( proxy_file == NULL && want_sca) {
+		proxy_file = get_x509_proxy_filename();
+		if( proxy_file == NULL ) {
+			fprintf( stderr, "\nERROR: can't determine proxy filename.\n");
+			fprintf( stderr, "x509 user proxy is required for "
+					 "signed ClassAds.\n");
+			exit (1);
+		}
+	}
+
 	if (proxy_file != NULL) {
 		if ( proxy_file[0] == '#' ) {
 			(void) sprintf(buffer, "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT, 
 						   &proxy_file[1]);
 			InsertJobExpr(buffer);	
-
 //			(void) sprintf(buffer, "%s=\"%s\"", ATTR_X509_USER_PROXY, 
 //						   proxy_file);
 //			InsertJobExpr(buffer);	
@@ -5825,18 +5841,38 @@ SaveClassAd ()
 		}
 	}
 
-	StringList include("MyType,TargetType,ClusterId,QDate,Owner,CondorVersion,CondorPlatform,RootDir,Iwd,JobUniverse,Cmd,MinHosts,MaxHosts,User,NiceUser,WantRemoteIO,In,TransferIn,Out,StreamOut,Err,StreamErr,ShouldTransferFiles,TransferFiles,FileSystemDomain,Arguments,GlobalJobId,ProcId");
+	StringList include("MyType,TargetType,Owner,CondorVersion,CondorPlatform,RootDir,Iwd,JobUniverse,Cmd,MinHosts,MaxHosts,User,NiceUser,WantRemoteIO,In,TransferIn,Out,StreamOut,Err,StreamErr,ShouldTransferFiles,TransferFiles,FileSystemDomain,Arguments,x509userproxy,ClassAdSignatureCert");
 
 	MyString signature;
 
+	dprintf(D_SECURITY, "Inserting proxy certificate into job "
+			"before signing.\n");
+	if(!insertProxyCertIntoAd(job)) {
+		fprintf(stderr, "Error inserting proxy cert into ad.\n");
+		exit(1);
+	}
 	// Check and return error code: handle how?
 	// How to expose GSI credential to this function?
-	signClassAd(job, &include, signature);
+	dprintf(D_SECURITY, "Signing classad.\n");
+	signature = signClassAd(job, &include);
 
-	InsertIntoAd(job, "ClassAdSignature", signature.GetCStr());	
+//	MyString signature2;
+//	signClassAd(job, &include, signature2);
+	//dprintf(D_SECURITY, "Got signature: '%s'\n", signature.GetCStr());
+	
+	if(!InsertIntoAd(job, "ClassAdSignature", signature.GetCStr())) {
+		fprintf(stderr, "Error inserting signature into ad.\n");
+	}
+	//job->fPrint(stderr);
 
-	dprintf(D_SECURITY, "ClassAdSignature = \"%s\"\n", signature.GetCStr());
-
+	//dprintf(D_SECURITY, "ClassAdSignature = '%s'\n", signature.GetCStr());
+	dprintf(D_SECURITY, "Verifying signature.\n");
+	if(verifySignedClassAd(job)) {
+		dprintf(D_SECURITY, "Signature check OK.\n");
+	} else {
+		fprintf(stderr, "Signature check bad. :(\n");
+		}
+	
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
 		lhstr = NULL;
