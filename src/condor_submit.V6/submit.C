@@ -40,6 +40,7 @@
 #include "condor_scanner.h"
 #include "condor_distribution.h"
 #include "condor_ver_info.h"
+#include "condor_signed_classad.h"
 //#include "condor_crontab.h"
 #if !defined(WIN32)
 #include <pwd.h>
@@ -381,10 +382,6 @@ void SetParallelStartupScripts(); //JDB
 void SetMaxJobRetirementTime();
 bool mightTransfer( int universe );
 bool isTrue( const char* attr );
-
-MyString signClassAd(ClassAd *ca, StringList *include);
-int verifySignedClassAd(ClassAd *ca);
-int insertProxyCertIntoAd(ClassAd *ad);
 
 char *owner = NULL;
 char *ntdomain = NULL;
