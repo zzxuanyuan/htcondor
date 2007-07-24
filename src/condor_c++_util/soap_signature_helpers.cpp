@@ -29,7 +29,8 @@
 template class List<ClassAd>;
 template class Item<ClassAd>;
 
-char get_bits(char in) {
+char 
+get_bits(char in) {
 	if(in >= '0' && in <= '9') {
 		return in-'0';
 	}
@@ -52,15 +53,12 @@ bin2hex(char *input, int input_len, char **output)
 	static const char ct[] = "0123456789abcdef";
 	int i = 0;
 	for(i = 0; i < input_len; i++) {
-		//fprintf(stderr, "Signature byte %d: %d\n", i, sig[i]);
 		int h1 = 0x0f&(input[i]>>4);
 		int h2 = 0x0f&input[i];
-		//fprintf(stderr, "Converting to: %d %d\n", h1, h2);
 		hex[2*i] = ct[h1];
 		hex[2*i+1] = ct[h2];
 	}
 	hex[2*i] = '\0';
-	//fprintf(stderr, "Computed hex sig: %s\n", hex);
 	*output = hex;
 	return 1;
 }
@@ -85,22 +83,18 @@ char *unquote_classad_string(char *input) {
 			switch(input[i+1]) {
 			case 'n':
 				output[ctr] = '\n';
-//				dprintf(D_SECURITY, "unquoted \\n\n");
 				++i;
 				break;
 			case '"':
 				output[ctr] = '"';
-//				dprintf(D_SECURITY, "unquoted \\\"\n");
 				++i;
 				break;
 			case '\\':
 				output[ctr] = '\\';
-//				dprintf(D_SECURITY, "unquoted \\\\\n");
 				++i;
 				break;
 			default:
 				output[ctr] = '\\';
-//				dprintf(D_SECURITY, "skipped \\\n");
 				break;
 			}
 		} else {
@@ -108,7 +102,6 @@ char *unquote_classad_string(char *input) {
 		}
 		++ctr;
 	}
-	//dprintf(D_SECURITY, "Unquote: was %d, now %d\n", len-1, strlen(output));
 	return output;
 }
 
@@ -119,7 +112,7 @@ char *quote_classad_string(const char *input) {
 
 	// I'm not sure if this is the right debug level for fatal errors.
 	if(len < 1) {
-		dprintf(D_SECURITY, "Error in quote_classad_string: short input.\n");
+		fprintf(stderr, "Error in quote_classad_string: short input.\n");
 		return 0;
 	}
 	output = (char *)malloc(len*2);
