@@ -41,6 +41,7 @@
 #include "../condor_sysapi/sysapi.h"
 #include "build_job_env.h"
 #include "get_port_range.h"
+#include "condor_signed_classad.h"
 
 #include "perm.h"
 #include "filename_tools.h"
@@ -778,6 +779,14 @@ CStarter::jobEnvironmentReady( void )
 	char* tmp = NULL;
 	MyString attr;
 
+	
+	// Additions for signed classads: is this the right place in the starter code?
+	if(! verifySignedClassAd(jobAd) ) {
+		dprintf(D_ALWAYS, "ClassAd signature verification failed.  exiting\n");
+		main_shutdown_fast();
+		return FALSE;
+	}
+
 	attr = "Pre";
 	attr += ATTR_JOB_CMD;
 	if( jobAd->LookupString(attr.GetCStr(), &tmp) ) {
@@ -814,7 +823,6 @@ CStarter::jobEnvironmentReady( void )
 		// spawn the main job
 	return SpawnJob();
 }
-
 
 int
 CStarter::SpawnJob( void )
