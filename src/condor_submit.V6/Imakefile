@@ -5,52 +5,20 @@ all_target($(NAME))
 CLIPPED = -DCLIPPED
 #endif
 
-GSOAP_EXTRAS_DIR = ./gsoap_extras
-GSOAP_EXTRAS_INCLUDE = -I $(GSOAP_EXTRAS_DIR) -I $(GSOAP_EXTRAS_DIR)/plugin -I $(GSOAP_EXTRAS_DIR)/import
-
-CFLAGS = $(STD_C_FLAGS) $(CLIPPED) -I$(GSOAP_INC) $(GSOAP_EXTRAS_INCLUDE) -I. -DWITH_DOM -DWITH_OPENSSL
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) -I$(GSOAP_INC) $(GSOAP_EXTRAS_INCLUDE) -I.
+CFLAGS = $(STD_C_FLAGS) $(CLIPPED) -I$(GSOAP_INC) \
+        -DWITH_DOM -DWITH_OPENSSL
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) -I$(GSOAP_INC)
 LIB = $(STD_LIBS)
 # -lrt
 
-# How to determine this automatically?
-GSOAP_VERSION = 2.7.6c-p1
-
-# how to add something to the clean target?
-clean::
-	rm -rf ${GSOAP_EXTRAS_DIR}
-
 soapobjs(submit)
 
-OBJ = submit.o signer.o \
-	$(GSOAP_EXTRAS_DIR)/plugin/smdevp.o \
-	$(GSOAP_EXTRAS_DIR)/plugin/wsseapi.o \
-	$(GSOAP_EXTRAS_DIR)/dom.o \
-	$(GSOAP_EXTRAS_DIR)/stdsoap2.o \
-	$(SOAP_OBJS)
+SIGOBJS = ../condor_daemon_core.V6/smdevp.o \
+	../condor_daemon_core.V6/dom.o \
+	../condor_daemon_core.V6/stdsoap2.o \
+	sign_classad.o 
 
-soapfiles::
-	rm -rf gsoap-${GSOAP_VERSION}
-	tar xfz ${EXT_ROOT}/bundles/gsoap/${GSOAP_VERSION}/gsoap-${GSOAP_VERSION}.tar.gz
-	rm -rf ${GSOAP_EXTRAS_DIR}
-	mkdir ${GSOAP_EXTRAS_DIR}
-	cp gsoap-${GSOAP_VERSION}/soapcpp2/stdsoap2.cpp ${GSOAP_EXTRAS_DIR}/stdsoap2.C
-	cp gsoap-${GSOAP_VERSION}/soapcpp2/dom.c ${GSOAP_EXTRAS_DIR}/dom.C
-	cp gsoap-${GSOAP_VERSION}/soapcpp2/stdsoap2.h ${GSOAP_EXTRAS_DIR}/
-	cp gsoap-${GSOAP_VERSION}/soapcpp2/typemap.dat ${GSOAP_EXTRAS_DIR}/
-	cp -r gsoap-${GSOAP_VERSION}/soapcpp2/import ${GSOAP_EXTRAS_DIR}/
-	cp -r gsoap-${GSOAP_VERSION}/soapcpp2/plugin ${GSOAP_EXTRAS_DIR}/
-	mv ${GSOAP_EXTRAS_DIR}/plugin/wsseapi.c ${GSOAP_EXTRAS_DIR}/plugin/wsseapi.C
-	mv ${GSOAP_EXTRAS_DIR}/plugin/smdevp.c ${GSOAP_EXTRAS_DIR}/plugin/smdevp.C
-	patch -p0 < gsoap_diff.txt
-	rm -rf gsoap-${GSOAP_VERSION}
-	rm -f soapStub.h
-	rm -f soapH.h
-	ln -s soap_submitStub.h soapStub.h
-	ln -s soap_submitH.h soapH.h
-
-
-submit_signer.C: soap_submitH.h ../condor_c++_util/soap_helpers.cpp
+OBJ = submit.o $(SIGOBJS) $(SOAP_OBJS)
 
 # soap_submitStub.C: ../condor_c++_util/soap_helpers.cpp
 
