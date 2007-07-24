@@ -74,7 +74,8 @@ convert_ad_to_adStruct(struct soap *s,
   // We have to add MyType and TargetType manually.
   // Argh, and ServerTime. XXX: This is getting silly, we need a schema.
   num_attrs += 2;
-  num_attrs += 1;
+// IAN: taking this out for signed ClassAds.  A hidden attribute that changes every second really screws up signatures.
+//  num_attrs += 1;
 
   // allocate space for attributes
   ad_struct->__size = num_attrs;
@@ -105,14 +106,15 @@ convert_ad_to_adStruct(struct soap *s,
 		  (char *) curr_ad->GetTargetTypeName();
   }
   attr_index++;
-  // And, ServerTime...
+// IAN: Taking this out for signed classAds.
+/*  // And, ServerTime...
   ad_struct->__ptr[attr_index].name = (char *) ATTR_SERVER_TIME;
   ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
   MyString timeString = MyString((int) time(NULL));
   ad_struct->__ptr[attr_index].value =
 	  (char *) soap_malloc(s, strlen(timeString.GetCStr()) + 1);
   strcpy(ad_struct->__ptr[attr_index].value, timeString.GetCStr());
-  attr_index++;
+  attr_index++;*/
 
   curr_ad->ResetExpr();
   while( (tree = curr_ad->NextExpr()) ) {
