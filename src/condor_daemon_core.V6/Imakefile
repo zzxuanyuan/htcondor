@@ -26,7 +26,7 @@ OBJ = stdsoap2.o soap_core.o timer_manager.o daemon_core.o daemon_core_main.o \
   daemon_core_instantiate.o condor_ipverify.o condor_perms.o \
   condor_lock_base.o condor_lock_implementation.o condor_lock_file.o \
   condor_lock.o self_monitor.o httpget.o datathread.o \
-  self_draining_queue.o
+  self_draining_queue.o smdevp.o dom.o
 
 library_target(daemon_core.a,$(OBJ))
 c_plus_target(testit,test_daemon_core.o daemon_core.a,$(LIB))
@@ -36,6 +36,9 @@ release:: all
 stripped:: all
 static:: all
 
+# Something similar should be done for the source files for
+# smdevp.C and dom.C but for now we just copy them from
+# the distribution since I haven't modified the external.  -Ian
 stdsoap2.C:
 	cp $(GSOAP_INC)/stdsoap2.h ../condor_includes/
 	cp $(GSOAP_DIR)/src/stdsoap2.cpp stdsoap2.C
