@@ -29,8 +29,10 @@
 template class List<ClassAd>;
 template class Item<ClassAd>;
 
+/* Given ascii hex, return actual binary value. */
 char 
-get_bits(char in) {
+get_bits(char in) 
+{
 	if(in >= '0' && in <= '9') {
 		return in-'0';
 	}
@@ -41,6 +43,10 @@ get_bits(char in) {
 	exit(1);
 }
 
+/* Given a binary input (sequence of bytes), convert
+ * it to ascii hex.  Doubles the size of the input.
+ * Returns 1 indicating success.
+ */	
 int
 bin2hex(char *input, int input_len, char **output) 
 {
@@ -63,7 +69,12 @@ bin2hex(char *input, int input_len, char **output)
 	return 1;
 }
 
-char *unquote_classad_string(char *input) {
+/* Opposite of quote_classad_string: convert the input
+ * a classad value to output same as gsoap serialization.
+ */
+char *
+unquote_classad_string(char *input) 
+{
 	int len = strlen(input);
 	int i, ctr = 0;
 	char *output;
@@ -105,19 +116,23 @@ char *unquote_classad_string(char *input) {
 	return output;
 }
 
-char *quote_classad_string(const char *input) {
+/* Convert the input (the output of gsoap serialization) 
+ * to a format appropriate for using as a classad value.
+ */
+char *
+quote_classad_string(const char *input) 
+{
 	int len = strlen(input)+1;
 	int i, ctr = 0;
 	char *output;
 
-	// I'm not sure if this is the right debug level for fatal errors.
 	if(len < 1) {
 		fprintf(stderr, "Error in quote_classad_string: short input.\n");
 		return 0;
 	}
 	output = (char *)malloc(len*2);
 	if(output == NULL) {
-		dprintf(D_SECURITY, "Malloc error.\n");
+		fprintf(stderr, "Malloc error.\n");
 		return 0;
 	}
 	memset(output, 0, len*2);
@@ -126,17 +141,14 @@ char *quote_classad_string(const char *input) {
 		case '\n':
 			output[ctr++] = '\\';
 			output[ctr] = 'n';
-//			dprintf(D_SECURITY, "quoted \\n\n");
 			break;
 		case '\"':
 			output[ctr++] = '\\';
 			output[ctr] = '\"';
-//			dprintf(D_SECURITY, "quoted \\\"\n");
 			break;
 		case '\\':
 			output[ctr++] = '\\';
 			output[ctr] = '\\';
-//			dprintf(D_SECURITY, "quoted \\\\\n");
 			break;
 		default:
 			output[ctr] = input[i];
@@ -144,57 +156,8 @@ char *quote_classad_string(const char *input) {
 		}
 		++ctr;
 	}
-	//dprintf(D_SECURITY, "Quote: was %d, now %d\n", len-1, strlen(output));
 	return output;
 }
-
-/* int verify_unquotedWSSE(char *unquoted_sig) 
-{
-	struct soap *soap;
-	//soap = soap_new();
-	char tmp_file[] = "/tmp/.condor_scaXXXXXX";
-	int tmp_fd;
-	//struct condor__ClassAdStruct *adStruct;
-	struct __condor__signature sig;
-
-	int rv = 0;
-
-	soap = soap_new1(SCA_XML_FORMAT);
-    soap_register_plugin(soap, soap_wsse);
-	soap_wsse_verify_auto(soap, SOAP_SMD_HMAC_SHA1, key, sizeof(key));
-	
-	tmp_fd = mkstemp(tmp_file);
-	if(tmp_fd == -1) {
-		perror("mkstemp");
-		dprintf(D_SECURITY, "Couldn't create temp file in verifySignedClassAd.\n");
-		goto return_error;
-	}
-
-	fprintf(stderr, "Signature length: %d\n", strlen(unquoted_sig));
-	//fprintf(stderr, "Sig: '%s'\n", unquoted_sig);
-	write(tmp_fd, unquoted_sig, strlen(unquoted_sig)+1);
-	close(tmp_fd);
-	tmp_fd = safe_open_wrapper(tmp_file, O_RDONLY);
-	if(tmp_fd == -1) {
-		perror("open");
-		dprintf(D_SECURITY, "Couldn't read temp file in verifySignedClassAd.\n");
-		goto return_error;
-	}
-	soap->recvfd = tmp_fd;
-	if(soap_recv___condor__signature(soap, &sig)) {
-		fprintf(stderr, "The signature didn't verify.\n");
-		goto return_error;
-	} else {
-		fprintf(stderr, "The signature verified OK.\n");
-		rv = 1;
-	}
- return_error:
-    soap_end(soap);
-    soap_done(soap);
-    free(soap);
-    return rv;
-
-}  */
 
 /*
  * get_raw_sig: given an adStruct, return the raw signature.
@@ -260,92 +223,10 @@ get_raw_sig(soap *soap, EVP_PKEY * key,
 	// TODO: free soap object, etc.
 	return 0;
 }
-/*
-MyString 
-getClassAdSigWSSE(ClassAd *ad)
-{
-    //struct soap *soap;
-    //soap = soap_new1(SCA_XML_FORMAT);
-	char tmp_file[] = "/tmp/.condor_scaXXXXXX";
-	int tmp_fd;
-	char *sca_mem;
-	struct condor__ClassAdStruct *adStruct;
-	struct _condor__signatureRequest req;
-	char *quoted_sca;
-	MyString rv;
 
-	struct soap *soap = soap_new1(SCA_XML_FORMAT);
-    soap_register_plugin(soap, soap_wsse);
-    //soap_omode(&soap, SOAP_ENC_ZLIB | SOAP_XML_GRAPH); // see 8.12
-    //soap_omode(soap, SOAP_ENC_XML | SOAP_XML_GRAPH | SOAP_XML_INDENT);
-    //soap_omode(soap, SOAP_ENC_XML | SOAP_XML_GRAPH | SOAP_XML_CANONICAL);
-
-	tmp_fd = mkstemp(tmp_file);
-	if(tmp_fd == -1) {
-		perror("mkstemp");
-		dprintf(D_SECURITY, "Couldn't create temp file in signClassAd.\n");
-		goto return_error;
-	}
-	
-	soap->sendfd = tmp_fd;
-	sca_mem = (char *)mmap(0, SCA_MEMBUF_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE, tmp_fd, 0);
-	if(sca_mem == MAP_FAILED) {
-		perror("mmap");
-		fprintf(stderr, "Dying: mmap in signClassAd.\n");
-	}	
-	
-    soap_begin(soap);
-	
-    //soap_wsse_add_Security(&soap);
-    //soap_wsse_add_Timestamp(&soap, "Time", 1000);
-
-    if(soap_wsse_sign_body(soap, SOAP_SMD_HMAC_SHA1,
-                           key, sizeof(key))) {
-        soap_print_fault(soap, stderr);
-    }	
-	
-    soap_wsse_verify_auto(soap, SOAP_SMD_HMAC_SHA1, key, sizeof(key));
-	adStruct = (struct condor__ClassAdStruct *)
-		soap_malloc(soap, sizeof(struct condor__ClassAdStruct));
-	
-	convert_ad_to_adStruct(soap, ad, adStruct, true);
-	req.classAd = adStruct;
-	if(soap_wsse_sign_body(soap, SOAP_SMD_HMAC_SHA1, key, sizeof(key))) {
-		dprintf(D_SECURITY, "Soap error occurred.\n");
-		goto return_error;
-	}
-    if(soap_send___condor__signature(soap, "http://", NULL, &req) == SOAP_OK) {
-//    if(soap_call___ns1__successor(soap, "http://ferdinand.cs.wisc.edu:31310", NULL, x, &succ) == SOAP_OK) {
-		soap_end_send(soap);
-		soap_closesock(soap);
-		soap_end(soap);
-		soap_done(soap);
-		free(soap);
-		close(tmp_fd);
-		verify_unquotedWSSE(sca_mem);
-		dprintf(D_SECURITY, "Signature length: %d\n", strlen(sca_mem));
-		//dprintf(D_SECURITY, "Signature bytes: %s\n", sca_mem);
-		quoted_sca = quote_classad_string(sca_mem);
-		if(!quoted_sca) {
-			dprintf(D_SECURITY, "Error quoting string '%s'.\n",sca_mem);
-			goto return_error;
-		}
-		//InsertIntoAd(ad,"ClassAdSignature",*quoted_sca);
-		rv = MyString(quoted_sca);
-		free(quoted_sca);
-		return rv;
-    } else {
-		dprintf(D_SECURITY, "Problem with soap_send___condor__signature.\n");
-        soap_print_fault(soap, stderr);
-    }
-//    soap_destroy(soap)
- return_error:
-    soap_end(soap);
-    soap_done(soap);
-    free(soap);
-    return rv;
-}*/
-
+/* Get the key from the classad.  Returns NULL on error.
+ * Finds the value in the attribute "ClassAdSignatureCert."
+ */
 EVP_PKEY *
 get_proxy_cert_from_ad(ClassAd *ad) 
 {
@@ -389,28 +270,9 @@ get_proxy_cert_from_ad(ClassAd *ad)
 	return rv;
 }
 
-/*	char tmp_file[] = "/tmp/scaXXXXXX";
-	int tmp_fd;
-	tmp_fd = mkstemp(tmp_file); // close tmp_fd
-	if(tmp_fd == -1) {
-		perror("mkstemp");
-		fprintf(stderr, "Couldn't create temp file.\n");
-		return NULL;
-	}
-	int data_len = cert.Length();
-	if(write(tmp_fd, cert.GetCStr(), data_len) != data_len) {
-		fprintf(stderr, "Write error.\n");
-		close(tmp_fd);
-		return NULL;
-	}
-	close(tmp_fd);
-	tmp_fd = safe_open_wrapper(tmp_file, O_RDONLY);
-	if(tmp_fd == -1) {
-		perror("open");
-		fprintf(stderr, "Error opening temp file.\n");
-		return NULL;
-		}*/
-
+/* Find the proxy cert (in the filesystem) and add it to
+ * the classad, in the ClassAdSignatureCert attribute.
+ */
 int
 insertProxyCertIntoAd(ClassAd *ad) 
 {
@@ -429,40 +291,25 @@ insertProxyCertIntoAd(ClassAd *ad)
 		return 0;
 	}
 	free(proxy_filename);
-/*	char *line = (char *)malloc(100); // free me;
-	if(line == NULL) {
-		perror("malloc");
-		fprintf(stderr, "Couldn't malloc in signClassAd.\n");
-		fclose(fp);
-		return 0;
-	}
-	int mrv = 0; */
 	MyString cert = "";
-/*	size_t line_len = 0;
-	while((mrv = getline(&line, &line_len, fp)) > 0) {
-*/
+
 	char *line = NULL;
 	while((line = getline(fp))) {
 		cert += line;
 		cert += "\n";
-		//dprintf(D_SECURITY, "Got line '%s'\n",line);
-		//free(line);
 		if(!strcmp(line, "-----END CERTIFICATE-----")) {
 			break;
 		}
 	}
 	fclose(fp);
-/*	free(line);
-	if(mrv <= 0) {
-		fprintf(stderr, "Error reading from x509 user proxy file.\n");
-		return 0;
-		} */
 	while(cert.replaceString("\n", "\\n")) { ; }
-	//fprintf(stderr, "Inserting cert into ad: '%s'\n", cert.GetCStr());
 	InsertIntoAd(ad,"ClassAdSignatureCert",cert.GetCStr());
 	return 1;
 }
 
+/* Get the proxy certificate private key from the filesystem.
+ * Returns null on error.
+ */
 EVP_PKEY *
 get_proxy_private_key(ClassAd *ad)
 {
@@ -486,6 +333,10 @@ get_proxy_private_key(ClassAd *ad)
 	return rv;
 }
 
+/* Get the text of the classad signature.  Includes both the
+ * bitstring and the text of what's signed.
+ * Returns "" on error.
+ */
 MyString
 getClassAdSigSMD(ClassAd *ad)
 {
@@ -639,26 +490,6 @@ signClassAd(ClassAd *ad, StringList *include)
 	delete(new_ad);
 	return rv;
 }
-
-/*
-int
-verifySignedClassAdWSSE(ClassAd *jobad) 
-{
-	char *unquoted_sig;
-	char *sig_val = NULL;
-	
-	jobad->LookupString("ClassAdSignature", &sig_val);
-	if(sig_val == NULL) {
-		fprintf(stderr, "Couldn't get classAd Signature.\n");
-		exit(1);
-	} else { 
-		//fprintf(stderr, "ClassAdSignature = '%s'\n", sig_val);
-	}
-	unquoted_sig = unquote_classad_string(sig_val);
-	return verify_unquotedWSSE(unquoted_sig);
-
-}
-*/
 
 int 
 getSigAndDataFromAd(ClassAd *ad, char **signature, int *sig_len, 
@@ -820,9 +651,6 @@ verifySignedClassAdSMD(ClassAd *jobad)
 		free(signature);
 		return 0;
 	}
-	//sigAd->fPrint(stderr);
-	//dprintf(D_SECURITY, "Getting key.\n");
-//	sigAd->fPrint(stderr);
 	EVP_PKEY *key = get_proxy_cert_from_ad(sigAd);
 	if(!key) {
 		fprintf(stderr, "Couldn't get proxy certificate from ClassAd.\n");
@@ -887,38 +715,10 @@ verifySignedClassAdSMD(ClassAd *jobad)
 	free(soap);
 	return rv;
 }
-	
-/*	MyString sig2 = getClassAdSigSMD(&ad);
-	return !strncmp(sig2.GetCStr(), sig_val, 40);
-	return 0;
-	// Check that the adStruct+key produces the same signature.
-	int verify_siglen;
-	char *verify_sig;
-	char dummy_tmp_file[] = "/tmp/scaXXXXXX";
-	fprintf(stderr, "Computing verification sig.\n");
-	if(!get_raw_sig(soap, adStruct, &verify_siglen, &verify_sig, 
-					dummy_tmp_file)) {
-		fprintf(stderr, "error getting signature.\n");
-		// goto return_error;
-	} else {
-		char *pv;
-		bin2hex(verify_sig, verify_siglen, &pv);
-		fprintf(stderr, "Verification sig: %s\n", pv);
-		if(strncmp(verify_sig, binary_sig, verify_siglen)) {
-			fprintf(stderr, "Error: signatures don't match.\n");
-			// goto return error;
-		} else {
-			fprintf(stderr, "Success: signatures match.\n");
-			return 1;
-		}
-	}
-	// return the ad and the boolean result
-	return 0;
-*/
-
 
 int
-verifySignedClassAd(ClassAd *jobad) 
+verifySignedClassAd(ClassAd *jobad, StringList *include) 
 {
+  
 	return verifySignedClassAdSMD(jobad);
 }

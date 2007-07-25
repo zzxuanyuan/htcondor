@@ -21,7 +21,11 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-MyString signClassAd(ClassAd *ca, StringList *include);
-int verifySignedClassAd(ClassAd *ca);
-int insertProxyCertIntoAd(ClassAd *ad);
+//MyString signClassAd(ClassAd *ca, StringList *include);
+int signClassAd(ClassAd *ca, StringList *include);
+
+//int verifySignedClassAd(ClassAd *ca);
+int verifySignedClassAd(ClassAd *ca, StringList *include);
+
+//int insertProxyCertIntoAd(ClassAd *ad);
 
