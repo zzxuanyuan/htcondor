@@ -1921,6 +1921,12 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
             }
             fprintf(fp, "\n");
         }
+
+		// Priority.
+		if ( job->_hasNodePriority ) {
+			fprintf( fp, "PRIORITY %s %d\n", job->GetJobName(),
+						job->_nodePriority );
+		}
     }
 
     //
