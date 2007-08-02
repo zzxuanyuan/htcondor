@@ -130,7 +130,7 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 
 	ASSERT( TotalLogFileCount() > 0 ) ;
 
- 	_readyQ = new SimpleList<Job*>;
+ 	_readyQ = new PrioritySimpleList<Job*>;
 	_preScriptQ = new ScriptQ( this );
 	_postScriptQ = new ScriptQ( this );
 	_submitQ = new Queue<Job*>;
@@ -1229,12 +1229,12 @@ Dag::StartNode( Job *node, bool isRetry )
     }
 	// no PRE script exists or is done, so add job to the queue of ready jobs
 	if ( isRetry && m_retryNodeFirst ) {
-		_readyQ->Prepend( node );
+		_readyQ->Prepend( node, node->_nodePriority );
 	} else {
 		if ( _submitDepthFirst ) {
-			_readyQ->Prepend( node );
+			_readyQ->Prepend( node, node->_nodePriority );
 		} else {
-			_readyQ->Append( node );
+			_readyQ->Append( node, node->_nodePriority );
 		}
 	}
 	return TRUE;
@@ -1466,9 +1466,9 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 				thisSubmitDelay == 1 ? "" : "s" );
 
 		if ( m_retrySubmitFirst ) {
-		  _readyQ->Prepend(job);
+		  _readyQ->Prepend(job, job->_nodePriority);
 		} else {
-		  _readyQ->Append(job);
+		  _readyQ->Append(job, job->_nodePriority);
 		}
 	  }
 
@@ -1570,9 +1570,9 @@ Dag::PreScriptReaper( const char* nodeName, int status )
 		job->_Status = Job::STATUS_READY;
 		_preRunNodeCount--;
 		if ( _submitDepthFirst ) {
-			_readyQ->Prepend( job );
+			_readyQ->Prepend( job, job->_nodePriority );
 		} else {
-			_readyQ->Append( job );
+			_readyQ->Append( job, job->_nodePriority );
 		}
 	}
 

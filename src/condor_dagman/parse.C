@@ -21,6 +21,11 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+//----------------------------------------------------------------
+// IMPORTANT NOTE:  Any changes in the DAG file implemented here
+// must also be reflected in Dag::Rescue().
+//----------------------------------------------------------------
+
 #include "condor_common.h"
 
 #include "job.h"
