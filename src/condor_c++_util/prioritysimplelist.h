@@ -26,38 +26,40 @@
 #define _PRIO_SMPL_LIST_H_
 
 #include "simplelist.h"
+#include "binary_search.h"
 
 template <class ObjType>
 class PrioritySimpleList : public SimpleList<ObjType>
 {
   public:
-    // ctor, dtor
+    	// Constructor
     PrioritySimpleList ();
 
-    // Copy Constructor
+    	// Copy Constructor
     PrioritySimpleList (const PrioritySimpleList<ObjType> & list);
 
+    	// Destructor
     virtual inline	~PrioritySimpleList () { delete [] priorities; }
 
-    // General
+    	// General
     virtual bool	Append( const ObjType &item ) { return Append( item, 0 ); }
 	virtual bool	Prepend( const ObjType &item ) { return Prepend( item, 0 ); }
     virtual bool	Append( const ObjType &item, int prio );
 	virtual bool	Prepend( const ObjType &item, int prio );
 
-    // Scans
+    	// Scans
     virtual void    DeleteCurrent();
 	virtual bool	Delete(const ObjType &, bool delete_all = false);
 
   protected:
 	virtual bool	resize (int);
 
-	// Find the last item with a priority higher (numerically lower) than
-	// the given priority.  Note:  can return -1.
+		// Find the last item with a priority higher (numerically lower) than
+		// the given priority.  Note:  can return -1.
 	int				FindLastBefore(int priority);
 
-	// Find the first item with a priority lower (numerically higher) than
-	// the given priority.  Note:  can return size.
+		// Find the first item with a priority lower (numerically higher) than
+		// the given priority.  Note:  can return size.
 	int FindFirstAfter(int priority);
 
 	bool			InsertAt( int index, const ObjType &item, int prio );
@@ -66,8 +68,7 @@ class PrioritySimpleList : public SimpleList<ObjType>
 };
 
 template <class ObjType>
-PrioritySimpleList<ObjType>::
-PrioritySimpleList() : SimpleList<ObjType>()
+PrioritySimpleList<ObjType>::PrioritySimpleList() : SimpleList<ObjType>()
 {
 	priorities = new int[maximum_size];
 }
@@ -82,7 +83,8 @@ PrioritySimpleList (const PrioritySimpleList<ObjType> & list) :
 }
 
 template <class ObjType>
-bool PrioritySimpleList<ObjType>::
+bool
+PrioritySimpleList<ObjType>::
 Append( const ObjType &item, int prio )
 {
 	int		index = FindFirstAfter( prio );
@@ -91,7 +93,8 @@ Append( const ObjType &item, int prio )
 }
 
 template <class ObjType>
-bool PrioritySimpleList<ObjType>::
+bool
+PrioritySimpleList<ObjType>::
 Prepend( const ObjType &item, int prio )
 {
 	int		index = FindLastBefore( prio );
@@ -100,13 +103,16 @@ Prepend( const ObjType &item, int prio )
 }
 
 template <class ObjType>
-void PrioritySimpleList<ObjType>::
+void
+PrioritySimpleList<ObjType>::
 DeleteCurrent()
 {
     if ( current >= size || current < 0 ) {
 		return;
 	}
 
+		// Note: we may want to change this around to be faster -- wenger
+		// 2007-08-07.
     for ( int i = current; i < size - 1; i++ ) {
 		priorities [i] = priorities [i+1];
 	}
@@ -115,7 +121,8 @@ DeleteCurrent()
 }
 
 template <class ObjType>
-bool PrioritySimpleList<ObjType>::
+bool
+PrioritySimpleList<ObjType>::
 Delete( const ObjType &item, bool delete_all )
 {
 	bool found_it = false;
@@ -123,6 +130,8 @@ Delete( const ObjType &item, bool delete_all )
 	for ( int i = 0; i < size; i++ ) {
 		if ( items[i] == item ) {
 			found_it = true;
+				// Note: we may want to change this around to be faster --
+				// wenger 2007-08-07.
 			for ( int j = i; j < size - 1; j++ ) {
 				items[j] = items[j+1];
 				priorities[j] = priorities[j+1];
@@ -142,7 +151,8 @@ Delete( const ObjType &item, bool delete_all )
 }
 
 template <class ObjType>
-bool PrioritySimpleList<ObjType>::
+bool
+PrioritySimpleList<ObjType>::
 resize( int newsize )
 {
 	int		*buf = new int[newsize];
@@ -160,16 +170,16 @@ resize( int newsize )
 }
 
 template <class ObjType>
-int PrioritySimpleList<ObjType>::
+int
+PrioritySimpleList<ObjType>::
 FindLastBefore( int priority )
 {
-	int		index = size - 1;
-
-	//TEMP -- switch to binary search!!!
-	for ( int i = 0; i < size; i++ ) {
-		if ( priorities[i] >= priority ) {
-			index = i - 1;
-			break;
+	int		index = BinarySearch<int>::Search( priorities, size, priority );
+	if ( index < 0 ) {
+		index = -index - 2;
+	} else {
+		for ( ; index >= 0; index-- ) {
+			if ( priorities[index] < priority ) break;
 		}
 	}
 
@@ -177,16 +187,16 @@ FindLastBefore( int priority )
 }
 
 template <class ObjType>
-int PrioritySimpleList<ObjType>::
+int
+PrioritySimpleList<ObjType>::
 FindFirstAfter( int priority )
 {
-	int		index = 0;
-
-	//TEMP -- switch to binary search!!!
-	for ( int i = size - 1; i >= 0; i-- ) {
-		if ( priorities[i] <= priority ) {
-			index = i + 1;
-			break;
+	int		index = BinarySearch<int>::Search( priorities, size, priority );
+	if ( index < 0 ) {
+		index = -(index+1);
+	} else {
+		for ( ; index < size; index++ ) {
+			if ( priorities[index] > priority ) break;
 		}
 	}
 
@@ -194,23 +204,26 @@ FindFirstAfter( int priority )
 }
 
 template <class ObjType>
-bool PrioritySimpleList<ObjType>::
+bool
+PrioritySimpleList<ObjType>::
 InsertAt( int index, const ObjType &item, int prio )
 {
-	// Enlarge if necessary.
+		// Enlarge if necessary.
     if (size >= maximum_size) {
 		if ( !resize( 2 * maximum_size ) ) {
 			return false;
 		}
 	}
 
-	// Move following stuff back one slot.
+		// Move following stuff back one slot.
+		// Note: we may want to change this around to be faster -- wenger
+		// 2007-08-07.
 	for ( int i = size; i > index; i-- ) {
 		items[i] = items[i-1];
 		priorities[i] = priorities[i-1];
 	}
 
-	// Insert the new item.
+		// Insert the new item.
 	items[index] = item;
 	priorities[index] = prio;
 	size++;

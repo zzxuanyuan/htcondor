@@ -27,6 +27,7 @@
 
 template class SimpleList<int>;
 template class PrioritySimpleList<int>;
+template class BinarySearch<int>;
 
 void
 PrintList( SimpleList<int> &sl )
@@ -75,6 +76,27 @@ CheckList( SimpleList<int> &sl, int expectedSize, int expectedList[] )
 	}
 
 	return 0;
+}
+
+// Returns 0 if okay, 1 if error
+int
+CheckList( PrioritySimpleList<int> &psl )
+{
+	int		result = 0;
+
+	psl.Rewind();
+
+	int		prev = -1;
+	int		curr;
+	while ( psl.Next( curr ) ) {
+		if ( prev > curr ) {
+			fprintf( stderr, "Error: %d before %d\n", prev, curr );
+			result = 1;
+		}
+		prev = curr;
+	}
+
+	return result;
 }
 
 // Just test a regular SimpleList.
@@ -260,6 +282,60 @@ int test3()
 	return result;
 }
 
+// Test a large list.
+int test4()
+{
+
+	printf( "Testing a large PrioritySimpleList...\n" );
+
+	PrioritySimpleList<int>		psl;
+
+	struct timeval	tvStart, tvStop;
+	gettimeofday( &tvStart, NULL );
+
+	const int	size = 100000;
+
+		// Insert in increasing order -- this should be fast.
+	for ( int i = 0; i < size; i++ ) {
+		psl.Prepend( i, i );
+	}
+
+	psl.Prepend( 0, 0 );
+	psl.Prepend( 1, 1 );
+	psl.Append( size/2, size/2 );
+	psl.Append( size-1, size-1 );
+
+	gettimeofday( &tvStop, NULL );
+	double	start = tvStart.tv_sec + ((double)tvStart.tv_usec / (1000 * 1000));
+	double	stop = tvStop.tv_sec + ((double)tvStop.tv_usec / (1000 * 1000));
+	double	duration = stop - start;
+	printf( "List has %d elements; %f sec\n", psl.Number(), duration );
+
+	int result = CheckList( psl );
+
+
+	psl.Clear();
+
+	gettimeofday( &tvStart, NULL );
+
+		// Insert in decreasing order -- this will be slower because we
+		// have to keep moving the existing entries.
+	for ( int i = size-1; i >= 0; i-- ) {
+		psl.Append( i, i );
+	}
+
+	gettimeofday( &tvStop, NULL );
+	start = tvStart.tv_sec + ((double)tvStart.tv_usec / (1000 * 1000));
+	stop = tvStop.tv_sec + ((double)tvStop.tv_usec / (1000 * 1000));
+	duration = stop - start;
+	printf( "List has %d elements; %f sec\n", psl.Number(), duration );
+
+	result |= CheckList( psl );
+
+	printf( "...%s\n", result == 0 ? "OK" : "Failed" );
+	return result;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -271,6 +347,7 @@ main(int argc, char *argv[])
 	result |= test1();
 	result |= test2();
 	result |= test3();
+	result |= test4();
 
 	if ( result == 0 ) {
 		printf( "Test succeeded\n" );

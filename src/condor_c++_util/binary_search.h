@@ -21,28 +21,47 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "condor_common.h"
-#include "dag.h"
-#include "job.h"
-#include "script.h"
-#include "MyString.h"
-#include "read_multiple_logs.h"
-#include "prioritysimplelist.h"
-#include "binary_search.h"
 
-template class List<Job>;
-template class List<MyString>;
-template class Item<Job>;
-template class Item<MyString>;
-template class ListIterator<MyString>;
-template class ListIterator<Job>;
-template class SimpleListIterator<JobID_t>;
-template class HashTable<int, Script*>;
-template class Queue<Script*>;
-template class Queue<Job*>;
-template class SimpleList<Job*>;
-template class PrioritySimpleList<Job*>;
-template class BinarySearch<int>;
-CHECK_EVENTS_HASH_INSTANCE;
-template class HashTable<MyString, Job *>;
-template class HashTable<JobID_t, Job *>;
+#ifndef _BINARY_SEARCH_H_
+#define _BINARY_SEARCH_H_
+
+template <class ObjType>
+class BinarySearch
+{
+  public:
+	/** Binary search.  Array must be sorted lowest-to-highest.
+	TEMPTEMP
+		@param array The array to search.
+		@param length The length of the array.
+		@param key The value to search for
+		@return If key is found, the index at which it is found;
+			if key is not found, TEMPTEMP
+	*/
+	static int Search(const ObjType array[], int length, ObjType key);
+};
+
+template <class ObjType>
+int
+BinarySearch<ObjType>::Search(const ObjType array[], int length, ObjType key)
+{
+	int		low = 0;
+	int		high = length - 1;
+
+	while ( low <= high ) {
+			// Avoid possibility of low + high overflowing.
+		int		mid = low + ((high - low) / 2);
+		ObjType	midVal = array[mid];
+
+		if ( midVal < key ) {
+			low = mid + 1;
+		} else if ( midVal > key ) {
+			high = mid - 1;
+		} else {
+			return mid; // key found
+		}
+	}
+
+	return -(low + 1); // key not found
+}
+
+#endif // _BINARY_SEARCH_H_
