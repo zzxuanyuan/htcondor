@@ -54,11 +54,11 @@ class PrioritySimpleList : public SimpleList<ObjType>
   protected:
 	virtual bool	resize (int);
 
-		// Find the last item with a priority higher (numerically lower) than
+		// Find the last item with a priority better (numerically lower) than
 		// the given priority.  Note:  can return -1.
 	int				FindLastBefore(int priority);
 
-		// Find the first item with a priority lower (numerically higher) than
+		// Find the first item with a priority worse (numerically higher) than
 		// the given priority.  Note:  can return size.
 	int FindFirstAfter(int priority);
 
@@ -68,7 +68,8 @@ class PrioritySimpleList : public SimpleList<ObjType>
 };
 
 template <class ObjType>
-PrioritySimpleList<ObjType>::PrioritySimpleList() : SimpleList<ObjType>()
+PrioritySimpleList<ObjType>::
+PrioritySimpleList() : SimpleList<ObjType>()
 {
 	priorities = new int[maximum_size];
 }
@@ -174,13 +175,15 @@ int
 PrioritySimpleList<ObjType>::
 FindLastBefore( int priority )
 {
-	int		index = BinarySearch<int>::Search( priorities, size, priority );
-	if ( index < 0 ) {
-		index = -index - 2;
-	} else {
+	int		index;
+	bool	found = BinarySearch<int>::Search( priorities, size, priority,
+				index );
+	if ( found ) {
 		for ( ; index >= 0; index-- ) {
 			if ( priorities[index] < priority ) break;
 		}
+	} else {
+		index = index - 1;
 	}
 
 	return index;
@@ -191,10 +194,10 @@ int
 PrioritySimpleList<ObjType>::
 FindFirstAfter( int priority )
 {
-	int		index = BinarySearch<int>::Search( priorities, size, priority );
-	if ( index < 0 ) {
-		index = -(index+1);
-	} else {
+	int		index;
+	bool	found = BinarySearch<int>::Search( priorities, size, priority,
+				index );
+	if ( found ) {
 		for ( ; index < size; index++ ) {
 			if ( priorities[index] > priority ) break;
 		}

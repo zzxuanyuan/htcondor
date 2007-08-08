@@ -1,4 +1,3 @@
-//TEMP -- check whether making functions here virtual is okay!!!!!!
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice

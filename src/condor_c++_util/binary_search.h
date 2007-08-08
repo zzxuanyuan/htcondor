@@ -30,19 +30,22 @@ class BinarySearch
 {
   public:
 	/** Binary search.  Array must be sorted lowest-to-highest.
-	TEMPTEMP
 		@param array The array to search.
 		@param length The length of the array.
-		@param key The value to search for
-		@return If key is found, the index at which it is found;
-			if key is not found, TEMPTEMP
+		@param key The value to search for.
+		@param index Receives the value of index at which the key value
+			is found, or else the index at which it should be inserted if it
+			is not found.
+		@return true if the key is found, false otherwise.
 	*/
-	static int Search(const ObjType array[], int length, ObjType key);
+	static bool Search( const ObjType array[], int length, ObjType key,
+				int &index );
 };
 
 template <class ObjType>
-int
-BinarySearch<ObjType>::Search(const ObjType array[], int length, ObjType key)
+bool
+BinarySearch<ObjType>::Search( const ObjType array[], int length, ObjType key,
+			int &index )
 {
 	int		low = 0;
 	int		high = length - 1;
@@ -57,11 +60,15 @@ BinarySearch<ObjType>::Search(const ObjType array[], int length, ObjType key)
 		} else if ( midVal > key ) {
 			high = mid - 1;
 		} else {
-			return mid; // key found
+				// key found
+			index = mid;
+			return true;
 		}
 	}
 
-	return -(low + 1); // key not found
+		// key not found
+	index = low;	
+	return false;
 }
 
 #endif // _BINARY_SEARCH_H_
