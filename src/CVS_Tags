@@ -1,3 +1,8 @@
+08/9/07 V6_9-dag_node_priority-merge-1
+  The state of V6_9-dag_node_priority-branch after code review & associated
+  fixes.  Ready to merge to the trunk; no further development should happen
+  on this branch.
+
 06/12/07 V6_9-dagman-for-ligo-{root,branch}
   A branch to create a special pre-release DAGMan for LIGO.  The reason
   for the branch is to get the latest goodness from both 6.8 and 6.9, so
