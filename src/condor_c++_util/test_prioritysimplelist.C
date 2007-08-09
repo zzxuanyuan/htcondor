@@ -203,13 +203,13 @@ int test2()
 
 	PrioritySimpleList<int>		psl;
 
-	psl.Append( 1, 0 );
-	psl.Append( 2, 0 );
-	psl.Append( 3, -1 );
-	psl.Prepend( 4, 0 );
-	psl.Append( 5, -1 );
-	psl.Prepend( 6, 1 );
-	psl.Prepend( 7, 3 );
+	psl.Append( 1, 0 ); // 1
+	psl.Append( 2, 0 ); // 1, 2
+	psl.Append( 3, -1 ); // 3, 1, 2
+	psl.Prepend( 4, 0 ); // 3, 4, 1, 2
+	psl.Append( 5, -1 ); // 3, 5, 4, 1, 2
+	psl.Prepend( 6, 1 ); // 3, 5, 4, 1, 2, 6
+	psl.Prepend( 7, 3 ); // 3, 5, 4, 1, 2, 6, 7
 
 	int expected[] = { 3, 5, 4, 1, 2, 6, 7 };
 	int result = CheckList( psl, sizeof( expected ) / sizeof( int ), expected );

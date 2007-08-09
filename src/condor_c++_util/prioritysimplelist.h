@@ -54,13 +54,14 @@ class PrioritySimpleList : public SimpleList<ObjType>
   protected:
 	virtual bool	resize (int);
 
-		// Find the last item with a priority better (numerically lower) than
-		// the given priority.  Note:  can return -1.
-	int				FindLastBefore(int priority);
+		// Find the index at which to insert a node before nodes of the
+		// given or worse (numerically higher) priority.
+	int				FindInsertBefore(int priority);
 
-		// Find the first item with a priority worse (numerically higher) than
-		// the given priority.  Note:  can return size.
-	int FindFirstAfter(int priority);
+		// Find the index at which to insert a node after nodes of the
+		// given or better (numerically lower) priority.
+		// Note:  can return size (one past the last existing item).
+	int FindInsertAfter(int priority);
 
 	bool			InsertAt( int index, const ObjType &item, int prio );
 
@@ -88,7 +89,7 @@ bool
 PrioritySimpleList<ObjType>::
 Append( const ObjType &item, int prio )
 {
-	int		index = FindFirstAfter( prio );
+	int		index = FindInsertAfter( prio );
 
 	return InsertAt( index, item, prio );
 }
@@ -98,9 +99,9 @@ bool
 PrioritySimpleList<ObjType>::
 Prepend( const ObjType &item, int prio )
 {
-	int		index = FindLastBefore( prio );
+	int		index = FindInsertBefore( prio );
 
-	return InsertAt( index + 1, item, prio );
+	return InsertAt( index, item, prio );
 }
 
 template <class ObjType>
@@ -173,7 +174,7 @@ resize( int newsize )
 template <class ObjType>
 int
 PrioritySimpleList<ObjType>::
-FindLastBefore( int priority )
+FindInsertBefore( int priority )
 {
 	int		index;
 	bool	found = BinarySearch<int>::Search( priorities, size, priority,
@@ -182,8 +183,7 @@ FindLastBefore( int priority )
 		for ( ; index >= 0; index-- ) {
 			if ( priorities[index] < priority ) break;
 		}
-	} else {
-		index = index - 1;
+		index++;
 	}
 
 	return index;
@@ -192,7 +192,7 @@ FindLastBefore( int priority )
 template <class ObjType>
 int
 PrioritySimpleList<ObjType>::
-FindFirstAfter( int priority )
+FindInsertAfter( int priority )
 {
 	int		index;
 	bool	found = BinarySearch<int>::Search( priorities, size, priority,
