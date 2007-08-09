@@ -176,6 +176,9 @@ int
 PrioritySimpleList<ObjType>::
 FindInsertBefore( int priority )
 {
+		// Make the most common case fast.
+	if ( size == 0 || priorities[0] >= priority) return 0;
+
 	int		index;
 	bool	found = BinarySearch<int>::Search( priorities, size, priority,
 				index );
@@ -194,6 +197,9 @@ int
 PrioritySimpleList<ObjType>::
 FindInsertAfter( int priority )
 {
+		// Make the most common case fast.
+	if ( size == 0 || priorities[size-1] <= priority) return size;
+
 	int		index;
 	bool	found = BinarySearch<int>::Search( priorities, size, priority,
 				index );

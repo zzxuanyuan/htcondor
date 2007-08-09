@@ -336,6 +336,51 @@ int test4()
 	return result;
 }
 
+// Test a PrioritySimpleList vs. a SimpleList (for speed).
+int test5()
+{
+	int		result = 0;
+
+	printf( "Testing a large SimpleList vs. a PrioritySimpleList...\n" );
+
+	SimpleList<int>		sl;
+
+	struct timeval	tvStart, tvStop;
+	gettimeofday( &tvStart, NULL );
+
+	const int	size = 1000000;
+
+		// Insert in increasing order -- this should be fast.
+	for ( int i = 0; i < size; i++ ) {
+		sl.Append( i );
+	}
+
+	gettimeofday( &tvStop, NULL );
+	double	start = tvStart.tv_sec + ((double)tvStart.tv_usec / (1000 * 1000));
+	double	stop = tvStop.tv_sec + ((double)tvStop.tv_usec / (1000 * 1000));
+	double	duration = stop - start;
+	printf( "SimpleList has %d elements; %f sec\n", sl.Number(), duration );
+
+
+	gettimeofday( &tvStart, NULL );
+
+	PrioritySimpleList<int>		psl;
+		// Insert in increasing order -- this should be fast.
+	for ( int i = 0; i < size; i++ ) {
+		psl.Append( i );
+	}
+
+	gettimeofday( &tvStop, NULL );
+	start = tvStart.tv_sec + ((double)tvStart.tv_usec / (1000 * 1000));
+	stop = tvStop.tv_sec + ((double)tvStop.tv_usec / (1000 * 1000));
+	duration = stop - start;
+	printf( "PrioritySimpleList has %d elements; %f sec\n", sl.Number(),
+				duration );
+
+	printf( "...%s\n", result == 0 ? "OK" : "Failed" );
+	return result;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -348,6 +393,7 @@ main(int argc, char *argv[])
 	result |= test2();
 	result |= test3();
 	result |= test4();
+	result |= test5();
 
 	if ( result == 0 ) {
 		printf( "Test succeeded\n" );
