@@ -9134,7 +9134,6 @@ Scheduler::child_exit(int pid, int status)
 	shadow_rec*		srec;
 	int				StartJobsFlag=TRUE;
 	PROC_ID			job_id;
-	bool			srec_was_local_universe = false;
 
 	srec = FindSrecByPid(pid);
 	job_id.cluster = srec->job_id.cluster;
@@ -9153,13 +9152,13 @@ Scheduler::child_exit(int pid, int status)
 		if( SchedUniverseJobsRunning > 0 ) {
 			SchedUniverseJobsRunning--;
 		}
+		
 	} else if (srec) {
 		char* name = NULL;
 			//
 			// Local Universe
 			//
 		if( IsLocalUniverse(srec) ) {
-			srec_was_local_universe = true;
 			name = "Local starter";
 				//
 				// Following the scheduler universe example, we need
@@ -9232,7 +9231,7 @@ Scheduler::child_exit(int pid, int status)
 		// call count on it so that it can be marked idle again
 		// if need be.
 		//
-	if ( srec_was_local_universe == true ) {
+	if ( srec != NULL && IsLocalUniverse(srec) ) {
 		ClassAd *job_ad = GetJobAd( job_id.cluster, job_id.proc );
 		count( job_ad );
 	}
@@ -9400,10 +9399,7 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 			CronTab *cronTab = NULL;
 			if ( this->cronTabs->lookup( job_id, cronTab ) >= 0 ) {
 					// Delete the cached object				
-				if ( cronTab ) {
-					delete cronTab;
-					this->cronTabs->remove(job_id);
-				}
+				if ( cronTab ) delete cronTab;
 			} // CronTab
 			break;
 		}
@@ -12143,10 +12139,7 @@ Scheduler::jobIsFinishedHandler( ServiceData* data )
 	id.proc    = proc;
 	CronTab *cronTab;
 	if ( this->cronTabs->lookup( id, cronTab ) >= 0 ) {
-		if ( cronTab != NULL) {
-			delete cronTab;
-			this->cronTabs->remove(id);
-		}
+		if ( cronTab != NULL) delete cronTab;
 	}
 	
 	if( jobCleanupNeedsThread(cluster, proc) ) {
