@@ -39,7 +39,7 @@ get_bits(char in)
 	if(in >= 'a' && in <= 'f') {
 		return in-'a'+10;
 	}
-	fprintf(stderr, "Illegal character in signature: %d.\n", in-'0');
+	dprintf(D_SECURITY, "Illegal character in signature: %d.\n", in-'0');
 	exit(1);
 }
 
@@ -48,12 +48,12 @@ get_bits(char in)
  * Returns 1 indicating success.
  */	
 int
-bin2hex(char *input, int input_len, char **output) 
+bin_2_hex(char *input, int input_len, char **output) 
 {
 	char *hex = (char *)malloc(2*input_len+2);
 	if(!hex) {
 		perror("malloc");
-		fprintf(stderr, "bin2hex: Couldn't malloc.\n");
+		dprintf(D_SECURITY, "bin_2_hex: Couldn't malloc.\n");
 		return 0;
 	}
 	static const char ct[] = "0123456789abcdef";
@@ -80,12 +80,12 @@ unquote_classad_string(char *input)
 	char *output;
 
 	if( len < 1 ) {
-		dprintf(D_SECURITY, "Error in unquote_classad_string: short input.\n");
+		dprintf(D_SECURITY, "Can't unquote short input.\n");
 		return 0;
 	}
 	output = (char *)malloc(len+1);
 	if(output == NULL) {
-		dprintf(D_SECURITY, "Malloc error.\n");
+		dprintf(D_SECURITY, "unquote malloc error.\n");
 		return 0;
 	}
 	memset(output, 0, len);
@@ -127,12 +127,12 @@ quote_classad_string(const char *input)
 	char *output;
 
 	if(len < 1) {
-		fprintf(stderr, "Error in quote_classad_string: short input.\n");
+		dprintf(D_SECURITY, "Can't quote short input.\n");
 		return 0;
 	}
 	output = (char *)malloc(len*2);
 	if(output == NULL) {
-		fprintf(stderr, "Malloc error.\n");
+		dprintf(D_SECURITY, "quote malloc error.\n");
 		return 0;
 	}
 	memset(output, 0, len*2);
@@ -174,11 +174,11 @@ get_raw_sig(soap *soap, EVP_PKEY * key,
 	tmp_fd = mkstemp(tmp_file);
 	if(tmp_fd == -1) {
 		perror("mkstemp");
-		dprintf(D_SECURITY, "get_raw_sig: "
+		dprintf(D_SECURITY, 
 				"Couldn't create temp file: '%s'\n", tmp_file);
 		goto return_error_end;
 	}		
-	//fprintf(stderr, "Serializing to file %s\n", tmp_file);
+	//dprintf(D_SECURITY, "Serializing to file %s\n", tmp_file);
 
 	soap->sendfd = tmp_fd;
 	
@@ -188,7 +188,7 @@ get_raw_sig(soap *soap, EVP_PKEY * key,
 		SOAP_MALLOC(soap, smd_size);
 	if(!sig) {
 		perror("malloc");
-		fprintf(stderr, "Couldn't malloc for signed ClassAd signature.\n");
+		dprintf(D_SECURITY, "raw signature malloc error.\n");
 		goto return_error_close;
 	}
 	
@@ -205,7 +205,7 @@ get_raw_sig(soap *soap, EVP_PKEY * key,
 												  "condor:ClassAdStruct")
 	   || soap_smd_end(soap, sig, &siglen)) {
 		soap_print_fault(soap, stderr);
-		fprintf(stderr, "error performing signature.\n");
+		dprintf(D_SECURITY, "error performing signature.\n");
 		goto return_error_free;
 	} else {
 		/*dprintf(D_SECURITY, "Signature computed: "
@@ -224,16 +224,71 @@ get_raw_sig(soap *soap, EVP_PKEY * key,
 	return 0;
 }
 
+/* 
+ *
+ */
+bool
+substring_of_file(char *str, const char *filename)
+{
+	if(!filename) {
+		dprintf(D_SECURITY, "Null filename.\n");
+		return false;
+	}
+	FILE *fp = safe_fopen_wrapper(filename, "r");
+	
+	if(!fp) {
+		dprintf(D_SECURITY, "Can't open file '%s'\n", filename);
+		return false;
+	}
+	StringList certs;
+	MyString one_cert = "";
+	char *line = NULL;
+	bool in_key = false;
+	while((line = getline(fp))) {
+		if(in_key) {
+			if(!strcmp(line, "-----END RSA PRIVATE KEY-----")) { // key start
+				in_key = false;
+				one_cert = "";
+			}
+			// see if we're done with key.
+		} else {
+			if(!strcmp(line, "-----BEGIN RSA PRIVATE KEY-----")) {
+				in_key = true;
+			} else {
+				one_cert += line;
+				one_cert += "\n";
+				if(!strcmp(line, "-----END CERTIFICATE-----")) {
+					certs.append(one_cert.GetCStr());
+					one_cert = "";
+				}
+				// Do we need to free line?
+			}
+		}
+	}
+	certs.rewind();
+	int num = certs.number();
+	dprintf(D_SECURITY, "Got %d certs in proxy file.\n", num);
+	int i = 0;
+	char *cert = NULL;
+	for (i = 0 ; i < num-1; i++) {
+		cert = certs.next();
+	}
+	if(!strcmp(cert, str)) {
+		return true;
+	}
+	return false;
+}
+
 /* Get the key from the classad.  Returns NULL on error.
  * Finds the value in the attribute "ClassAdSignatureCert."
  */
-EVP_PKEY *
-get_proxy_cert_from_ad(ClassAd *ad) 
+char *
+get_proxy_cert_text(ClassAd *ad) 
 {
 	char *tmp_cert = NULL;
 	ad->LookupString("ClassAdSignatureCert",&tmp_cert); // free tmp_cert
 	if(tmp_cert == NULL) {
-		fprintf(stderr, "Can't get signing cert from ad.\n");
+		dprintf(D_SECURITY, "Can't get signing cert from ad.\n");
 		return NULL;
 	}
 	MyString cert = tmp_cert;
@@ -244,29 +299,30 @@ get_proxy_cert_from_ad(ClassAd *ad)
 	char *tmp = (char *)malloc(cert.Length()+1);
 	if(!tmp) {
 		perror("malloc");
-		fprintf(stderr, "Malloc error.\n");
+		dprintf(D_SECURITY, "Malloc error.\n");
 		return NULL;
 	}
 	sprintf(tmp, "%s", cert.GetCStr());
-
+	return tmp;
+}
+EVP_PKEY *
+get_proxy_cert(char *text) 
+{
 	BIO *mem;
-	mem = BIO_new_mem_buf(tmp, -1);
+	mem = BIO_new_mem_buf(text, -1);
 	if(!mem) {
-		fprintf(stderr, "Error getting memory buffer for cert pub key.\n");
-		free(tmp);
+		dprintf(D_SECURITY, "Error getting memory buffer for cert pub key.\n");
 		return NULL;
 	}
 	X509 *s_cert = PEM_read_bio_X509(mem, NULL, NULL, NULL);
 	if(!s_cert) {
-		fprintf(stderr, "Can't read cert.\n");
+		dprintf(D_SECURITY, "Can't read cert.\n");
 		BIO_free(mem);
-		free(tmp);
 		return NULL;
 	}
 	EVP_PKEY *rv = X509_extract_key(s_cert);
 	BIO_free(mem);		
 	X509_free(s_cert);
-	free(tmp);
 	return rv;
 }
 
@@ -274,17 +330,17 @@ get_proxy_cert_from_ad(ClassAd *ad)
  * the classad, in the ClassAdSignatureCert attribute.
  */
 int
-insertProxyCertIntoAd(ClassAd *ad) 
+insert_proxy_cert_into_ad(ClassAd *ad) 
 {
 	char *proxy_filename = NULL;
 	ad->LookupString("x509userproxy", &proxy_filename); // free me
 	if(proxy_filename == NULL) {
-		fprintf(stderr, "Can't get x509userproxy from ClassAd.\n");
+		dprintf(D_SECURITY, "Can't get x509userproxy from ClassAd.\n");
 		return 0;
 	}
 	FILE *fp = safe_fopen_wrapper(proxy_filename, "r"); // close me
 	if(!fp) {
-		fprintf(stderr, "insert_proxy_cert_into_ad: "
+		dprintf(D_SECURITY, 
 				"Can't open the x509 user proxy file '%s'.\n",
 				proxy_filename);
 		free(proxy_filename);
@@ -316,12 +372,12 @@ get_proxy_private_key(ClassAd *ad)
 	char *proxy_filename = NULL;
 	ad->LookupString("x509userproxy", &proxy_filename);
 	if(proxy_filename == NULL) {
-		fprintf(stderr, "Can't get x509userproxy from ClassAd.\n");
+		dprintf(D_SECURITY, "Can't get x509userproxy from ClassAd.\n");
 		return NULL;
 	}
 	FILE *fd = safe_fopen_wrapper(proxy_filename, "r");
 	if(!fd) {
-		fprintf(stderr, "get_proxy_private_key: "
+		dprintf(D_SECURITY, 
 				"Can't open the x509 user proxy file '%s'.\n",
 				proxy_filename);
 		free(proxy_filename);
@@ -338,13 +394,13 @@ get_proxy_private_key(ClassAd *ad)
  * Returns "" on error.
  */
 MyString
-getClassAdSigSMD(ClassAd *ad)
+get_classad_sig_smd(ClassAd *ad)
 {
 	char *quoted_rv;
 	MyString quoted_mrv;
 	struct soap *soap = soap_new1(SCA_XML_FORMAT);
 	if(!soap) {
-		fprintf(stderr, "Error creating soap object.\n");
+		dprintf(D_SECURITY, "Error creating soap object.\n");
 		return "";
 	}
 
@@ -356,7 +412,7 @@ getClassAdSigSMD(ClassAd *ad)
 		soap_end(soap);
 		soap_destroy(soap);
 		free(soap);
-		fprintf(stderr, "Couldn't malloc for signed ClassAd structure.\n");
+		dprintf(D_SECURITY, "Couldn't malloc for signed ClassAd structure.\n");
 		return "";
 	}
 	convert_ad_to_adStruct(soap, ad, adStruct, true);
@@ -364,7 +420,7 @@ getClassAdSigSMD(ClassAd *ad)
 	// get private key.
 	EVP_PKEY *key = get_proxy_private_key(ad);
 	if(!key) {
-		fprintf(stderr, "Couldn't get x509 user proxy.\n");
+		dprintf(D_SECURITY, "Couldn't get x509 user proxy.\n");
 		soap_end(soap);
 		soap_destroy(soap);
 		free(soap);
@@ -377,7 +433,7 @@ getClassAdSigSMD(ClassAd *ad)
 
 	//dprintf(D_SECURITY, "getting raw signature.\n");
 	if(!get_raw_sig(soap, key, adStruct, &siglen, &sig, tmp_file)) {
-		fprintf(stderr, "error getting signature.\n");
+		dprintf(D_SECURITY, "error getting signature.\n");
 		soap_end(soap);
 		soap_destroy(soap);
 		free(soap);
@@ -388,8 +444,8 @@ getClassAdSigSMD(ClassAd *ad)
 		free(soap);
 		//dprintf(D_SECURITY, "Got raw signature.\n");
 		char *hex;
-		if(!bin2hex(sig, siglen, &hex)) {
-			fprintf(stderr, "Couldn't convert binary signature to hex.\n");
+		if(!bin_2_hex(sig, siglen, &hex)) {
+			dprintf(D_SECURITY, "Couldn't convert binary signature to hex.\n");
 			free(hex);
 			goto error_free;
 		}
@@ -402,13 +458,13 @@ getClassAdSigSMD(ClassAd *ad)
 		int tmp_fd = safe_open_wrapper(tmp_file, O_RDONLY);
 		if(tmp_fd == -1) {
 			perror("open");
-			fprintf(stderr, "Couldn't open temp file in signClassAd.\n");
+			dprintf(D_SECURITY, "Couldn't open temp file '%s'.\n", tmp_file);
 			goto error_free;
 		}
 		char *line = (char *)malloc(1025);
 		if(line == NULL) {
 			perror("malloc");
-			fprintf(stderr, "Couldn't malloc in signClassAd.\n");
+			dprintf(D_SECURITY, "Couldn't malloc for line.\n");
 			close(tmp_fd);
 			goto error_free;
 		}
@@ -419,7 +475,7 @@ getClassAdSigSMD(ClassAd *ad)
 			switch(mrv) {
 			case -1:
 				perror("read");
-				fprintf(stderr, "Error reading from serialized "
+				dprintf(D_SECURITY, "Error reading from serialized "
 						"signed ClassAd.\n");
 				done = 1;
 				break;
@@ -445,18 +501,24 @@ getClassAdSigSMD(ClassAd *ad)
 	return "";
 }
 
-
+/* 
+ * Given a ClassAd, extract the value of the ClassAdSignature attribute. 
+ */
 MyString 
-getClassAdSig(ClassAd *ad) 
+get_classad_sig(ClassAd *ad) 
 {
 	//dprintf(D_SECURITY, "Signing.\n");
-	MyString rv = getClassAdSigSMD(ad);
+	MyString rv = get_classad_sig_smd(ad);
 	//dprintf(D_SECURITY, "Signed.\n");
 	return rv;
 }
 
+/* 
+ * Return a new ClassAd which contains only the attributes listed in the 
+ * include list. 
+ */
 ClassAd *
-limitClassAd(ClassAd *ad, StringList *include) 
+limit_classad(ClassAd *ad, StringList *include) 
 {
 	ClassAd *rv = new ClassAd(*ad);
 	ExprTree *ad_expr;
@@ -477,22 +539,46 @@ limitClassAd(ClassAd *ad, StringList *include)
 	// Suggestion: check the include list for attributes not found in the ad?
 	return rv;
 }
-    
-MyString
-signClassAd(ClassAd *ad, StringList *include)
+
+/*
+ * Public API: given a ClassAd and list of attributes to sign,
+ * produce a signature and add it to the ClassAd.
+ */
+bool
+sign_classad(ClassAd *ad, StringList *include)
 {
-	ClassAd *new_ad = limitClassAd(ad, include);
-	if(!new_ad) {
-		fprintf(stderr, "Can't get limited class ad.\n");
-		return "";
+	MyString signature;
+
+	dprintf(D_SECURITY, "Inserting proxy certificate into job "
+			"before signing.\n");
+	if(!insert_proxy_cert_into_ad(ad)) {
+		dprintf(D_SECURITY, "Error inserting proxy cert into ad.\n");
+		return false;
 	}
-	MyString rv = getClassAdSig(new_ad);
+	// Check and return error code: handle how?
+	// How to expose GSI credential to this function?
+	dprintf(D_SECURITY, "Signing classad.\n");
+	ClassAd *new_ad = limit_classad(ad, include);
+	if(!new_ad) {
+		dprintf(D_SECURITY, "Can't get limited class ad.\n");
+		return false;
+	}
+	signature = get_classad_sig(new_ad);
 	delete(new_ad);
-	return rv;
+
+	if(!InsertIntoAd(ad, "ClassAdSignature", signature.GetCStr())) {
+		dprintf(D_SECURITY, "Error inserting signature into ad.\n");
+		return false;
+	}
+	return true;
 }
 
+/*
+ * Given a signed ClassAd, extract the signature and the signed data
+ * (which will be raw xml format).
+ */
 int 
-getSigAndDataFromAd(ClassAd *ad, char **signature, int *sig_len, 
+get_sig_and_data_from_ad(ClassAd *ad, char **signature, int *sig_len, 
 						MyString *rdata)
 {
 	// cas = ClassAd signature
@@ -504,16 +590,14 @@ getSigAndDataFromAd(ClassAd *ad, char **signature, int *sig_len,
 	
 	ad->LookupString("ClassAdSignature", &cas); // free me
 	if(cas == NULL) {
-		fprintf(stderr, "getSigAndDataFromAd: "
-				"Couldn't get classAd Signature.\n");
+		dprintf(D_SECURITY, "Couldn't get classAd Signature.\n");
 		return 0;
 	}
 	unquoted_cas = unquote_classad_string(cas); //free me
 	free(cas);
 	cas = NULL;
 	if(unquoted_cas == NULL) {
-		fprintf(stderr, "getSigAndDataFromAd: "
-				"Couldn't unquote raw signature.\n");
+		dprintf(D_SECURITY, "Couldn't unquote raw signature.\n");
 		return 0;
 	}
 
@@ -533,8 +617,7 @@ getSigAndDataFromAd(ClassAd *ad, char **signature, int *sig_len,
 		}
 	}
 	if(i >= u_cas_len || data == NULL || ascii_sig_len == 0) {
-		fprintf(stderr, "getSigAndDataFromAd: "
-				"Couldn't find ':' separator in ClassAdSignature.\n");
+		dprintf(D_SECURITY, "Couldn't find ':' separator in ClassAdSignature.\n");
 		free(unquoted_cas);
 		return 0;
 	}
@@ -543,7 +626,7 @@ getSigAndDataFromAd(ClassAd *ad, char **signature, int *sig_len,
 	char *binary_sig = (char *)malloc(binary_sig_len); // caller frees me
 	if(binary_sig == NULL) {
 		perror("malloc");
-		fprintf(stderr, "getSigAndDataFromAd: can't malloc.\n");
+		dprintf(D_SECURITY, "can't malloc.\n");
 		free(unquoted_cas);
 		return 0;
 	}
@@ -561,8 +644,11 @@ getSigAndDataFromAd(ClassAd *ad, char **signature, int *sig_len,
 	return 1;
 }
 
+/*
+ * Given the raw xml from the signature, convert it to a ClassAd.
+ */
 int
-getAdFromSigData(MyString rdata, ClassAd *ret_ad) 
+get_ad_from_sig_data(MyString rdata, ClassAd *ret_ad) 
 {
 	int rv = 0;
 	char tmp_file[] = "/tmp/scaXXXXXX";
@@ -577,26 +663,26 @@ getAdFromSigData(MyString rdata, ClassAd *ret_ad)
 
 	if(!adStruct) {
 		perror("malloc");
-		fprintf(stderr, "Couldn't malloc for signed ClassAd structure.\n");
+		dprintf(D_SECURITY, "Couldn't malloc for signed ClassAd structure.\n");
 		goto error_soap_done;
 	}
 	tmp_fd = mkstemp(tmp_file);
 	if(tmp_fd == -1) {
 		perror("mkstemp");
-		fprintf(stderr, "Couldn't create temp file.\n");
+		dprintf(D_SECURITY, "Couldn't create temp file.\n");
 		goto error_free_adstruct;
 	}
 
 	data_len = rdata.Length();
 	if(write(tmp_fd, rdata.GetCStr(), data_len) != data_len) {
-		fprintf(stderr, "Write error.\n");
+		dprintf(D_SECURITY, "Write error.\n");
 		goto error_close_fd;
 	}
 	close(tmp_fd);
 	tmp_fd = safe_open_wrapper(tmp_file, O_RDONLY);
 	if(tmp_fd == -1) {
 		perror("open");
-		fprintf(stderr, "Couldn't read temp file.\n");
+		dprintf(D_SECURITY, "Couldn't read temp file.\n");
 		goto error_unlink_tmp;
 	}
 
@@ -607,7 +693,7 @@ getAdFromSigData(MyString rdata, ClassAd *ret_ad)
 												"condor:ClassAd",
 												"condor:ClassAdStruct")) {
 		soap_print_fault(soap, stderr);
-		fprintf(stderr, "Error deserializing.");
+		dprintf(D_SECURITY, "Error deserializing.");
 		goto error_soap_end_recv;
 	}
 
@@ -628,36 +714,115 @@ getAdFromSigData(MyString rdata, ClassAd *ret_ad)
 	free(soap);
 	return rv;
 }
-int
-verifySignedClassAdSMD(ClassAd *jobad)
+
+/*
+ * Verify that the attributes listed in subset are present and have the
+ * same values in both the jobad and the sigad.
+ */
+bool
+verify_same_subset_attributes(ClassAd *jobAd, ClassAd *sigAd, StringList *subset) 
+{
+	ExprTree *jobAdExpr, *sigAdExpr;
+	char *attr_name;
+	subset->rewind();
+	while( (attr_name = subset->next()) ) {
+		jobAdExpr = jobAd->Lookup(attr_name);
+		sigAdExpr = sigAd->Lookup(attr_name);
+		if( ! jobAdExpr ) {
+			dprintf(D_SECURITY, 
+					"Job Ad doesn't contain attribute '%s'.\n", 
+					attr_name);
+			return false;
+		}
+		if( ! sigAdExpr ) {
+			dprintf(D_SECURITY, 
+					"Signature doesn't contain attribute '%s'.\n",
+					attr_name);
+			return false;
+		}
+		if( !(*jobAdExpr == *sigAdExpr) ) {
+			dprintf(D_SECURITY, 
+					"Job attribute '%s' doesn't match signature attribute.\n",
+					attr_name);
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
+ * SMD implementation: verify signature on the classad, for the listed attributes.
+ */
+bool
+verify_signed_classad_smd(ClassAd *jobad, StringList *include)
 {
 	MyString rdata;
 	char *signature;
 	int sig_len;
 	int rv = 0;
 	//dprintf(D_SECURITY, "Getting sig and data from ad.\n");
-	if(!getSigAndDataFromAd(jobad, 
+	if(!get_sig_and_data_from_ad(jobad, 
 							&signature, // free signature
 							&sig_len, 
 							&rdata)) { 
-		fprintf(stderr, "Error obtaining signature and data from ClassAd.\n");
+		dprintf(D_SECURITY, "Error obtaining signature and data from ClassAd.\n");
 		return 0;
 	}
 	//dprintf(D_SECURITY, "getting ad from sig data.\n");
 	ClassAd *sigAd = new ClassAd();
-	if(!getAdFromSigData(rdata, sigAd)) {
-		fprintf(stderr, "Couldn't extract the signed ad "
+	if(!get_ad_from_sig_data(rdata, sigAd)) {
+		dprintf(D_SECURITY, "Couldn't extract the signed ad "
 				"from the signature.\n");
 		free(signature);
 		return 0;
 	}
-	EVP_PKEY *key = get_proxy_cert_from_ad(sigAd);
-	if(!key) {
-		fprintf(stderr, "Couldn't get proxy certificate from ClassAd.\n");
+	if(!verify_same_subset_attributes(jobad, sigAd, include)) {
+		dprintf(D_SECURITY, "Signed attributes don't match job attributes.\n");
 		free(signature);
 		delete(sigAd);
 		return 0;
 	}
+
+    // If this doesn't actually contain the right cert, maybe
+    // the environment will contain a pointer.
+	char *proxy_fullname;
+	jobad->LookupString("x509userproxy", proxy_fullname);
+	if(proxy_fullname == NULL) {
+		dprintf(D_SECURITY, "Can't get x509userproxy from ClassAd.\n");
+		free(signature);
+		delete(sigAd);
+		return 0;
+	}
+	const char *proxy_filename = condor_basename(proxy_fullname);
+	char *proxy_text = get_proxy_cert_text(sigAd);
+	if(!proxy_text) {
+		dprintf(D_SECURITY, "Can't get the certificate from the signature.\n");
+		free(signature);
+		free(proxy_fullname);
+		delete(sigAd);
+		return 0;
+	}
+	if(!substring_of_file(proxy_text, proxy_filename)) {
+		dprintf(D_SECURITY, "Can't find signing certificate in current "
+				"proxy credential.\n");
+		//free(proxy_filename);
+		free(proxy_text);
+		free(proxy_fullname);
+		free(signature);
+		delete(sigAd);
+		return 0;
+	}
+	free(proxy_fullname);
+
+	EVP_PKEY *key = get_proxy_cert(proxy_text);
+	if(!key) {
+		dprintf(D_SECURITY, "Couldn't get proxy certificate from ClassAd.\n");
+		free(proxy_text);
+		free(signature);
+		delete(sigAd);
+		return 0;
+	}
+	free(proxy_text);
 	//dprintf(D_SECURITY, "got key.\n");
 	struct soap *soap = soap_new1(SCA_XML_FORMAT);
 	struct condor__ClassAdStruct *adStruct = (struct condor__ClassAdStruct *)
@@ -667,7 +832,7 @@ verifySignedClassAdSMD(ClassAd *jobad)
 		perror("malloc");
 		free(signature);
 		delete(sigAd);
-		fprintf(stderr, "Couldn't malloc for signed ClassAd structure.\n");
+		dprintf(D_SECURITY, "Couldn't malloc for signed ClassAd structure.\n");
 		return 0;
 	}
 	//dprintf(D_SECURITY, "Starting verify sig of len %d.\n", sig_len);
@@ -679,13 +844,13 @@ verifySignedClassAdSMD(ClassAd *jobad)
 	tmp_fd = mkstemp(tmp_file);
 	if(tmp_fd == -1) {
 		perror("mkstemp");
-		dprintf(D_SECURITY, "get_raw_sig: "
+		dprintf(D_SECURITY, 
 				"Couldn't create temp file: '%s'\n", tmp_file);
 		free(signature);
 		delete(sigAd);
 		return 0;
 	}		
-	//fprintf(stderr, "Verify: Serializing to file %s\n", tmp_file);
+	//dprintf(D_SECURITY, "Verify: Serializing to file %s\n", tmp_file);
 
 	soap->sendfd = tmp_fd;
 
@@ -716,9 +881,38 @@ verifySignedClassAdSMD(ClassAd *jobad)
 	return rv;
 }
 
-int
-verifySignedClassAd(ClassAd *jobad, StringList *include) 
+/* Figure out what files are going to get transfered, add them to the 
+ * new attribute ClassAdSignatureFiles, and then add a checksum
+ * for each to ClassAdSignatureHashes.
+ */
+bool
+add_file_hashes(ClassAd *jobad, StringList *include)
 {
-  
-	return verifySignedClassAdSMD(jobad);
+	char *cmd = NULL;
+	jobad->LookupString("Cmd", &cmd);  // free me
+	if(!cmd) {
+		dprintf(D_SECURITY, "Can't find cmd attribute for hash signing.\n");
+		return false;
+	}
+	char *cmd_hash = condor_hash_file(cmd); // free me
+	InsertIntoAd(jobad,"CmdHash",cmd_hash);
+	include->append("CmdHash");
+	// need to repeat this for every file in transferfiles
+	free(cmd);
+	free(cmd_hash);
+	
+
+}
+
+/*
+ * Public API: verify signature for the listed attributes.
+ */
+bool
+verify_signed_classad(ClassAd *jobad, StringList *include) 
+{
+	if(!add_file_hashes(jobad, include)) {
+		dprintf(D_SECURITY, "Error signing file hashes.\n");
+		return false;
+	}
+	return verify_signed_classad_smd(jobad, include);
 }
