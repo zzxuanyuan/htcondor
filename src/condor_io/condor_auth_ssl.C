@@ -24,7 +24,7 @@
 #include "condor_common.h"
 
 #if !defined(SKIP_AUTHENTICATION) && defined(SSL_AUTHENTICATION)
-#define ouch(x) dprintf(D_ALWAYS,x)
+#define ouch(x) dprintf(D_SECURITY,x)
 #include "condor_auth_ssl.h"
 #include "condor_string.h"
 #include "condor_environ.h"
@@ -32,6 +32,8 @@
 #include "get_full_hostname.h"
 #include "openssl/rand.h"
 #include "condor_netdb.h"
+
+#define WANT_NATIVE_PROXY_SUPPORT
 
 Condor_Auth_SSL :: Condor_Auth_SSL(ReliSock * sock, int remote)
     : Condor_Auth_Base    ( sock, CAUTH_SSL )
@@ -44,6 +46,138 @@ Condor_Auth_SSL :: ~Condor_Auth_SSL()
     ERR_remove_state( 0 );
 	if(m_crypto) delete(m_crypto);
 }
+
+/* The following procedure will create an index for the ex_data
+   store in the X509 validation context the first time it's called.
+   Subsequent calls will return the same index.  */
+static int get_proxy_auth_ex_data_idx(void)
+{
+    static volatile int idx = -1;
+    if (idx < 0) {
+        CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+        if (idx < 0) {
+            idx = X509_STORE_CTX_get_ex_new_index(0,
+                                                  (void *)"for verify callback",
+                                                  NULL,NULL,NULL);
+		}
+        CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+	}
+    return idx;
+}
+
+/* Callback to be given to the X509 validation procedure.  */
+static int my_verify_callback(int ok, X509_STORE_CTX *ctx)
+{
+	char data[256];
+	X509 *xs = ctx->current_cert;
+
+	dprintf(D_SECURITY, "Entering my_verify_callback: %d.\n", ok);
+
+	X509_NAME_oneline( X509_get_issuer_name( xs ), data, 256 );
+	dprintf( D_SECURITY, "  issuer   = %s\n", data );
+	X509_NAME_oneline( X509_get_subject_name( xs ), data, 256 );
+	dprintf( D_SECURITY, "  subject  = %s\n", data );
+
+    if (ok == 1) {
+#ifdef WANT_NATIVE_PROXY_SUPPORT		
+        if (xs->ex_flags & EXFLAG_PROXY) {
+			dprintf(D_SECURITY, "Got EXFLAG_PROXY.\n");
+            PROXY_CERT_INFO_EXTENSION *pci;
+			pci = (PROXY_CERT_INFO_EXTENSION *)
+				X509_get_ext_d2i(xs, NID_proxyCertInfo, NULL, NULL);
+			if(pci == NULL) 
+				pci = (PROXY_CERT_INFO_EXTENSION *)
+					X509_get_ext_d2i(xs, NID_globusProxyCertInfo, NULL, NULL);
+			if(pci == NULL)
+				dprintf(D_SECURITY, "Can't get policyCertInfo.\n");
+			else {
+				switch (OBJ_obj2nid(pci->proxyPolicy->policyLanguage)) {
+				case NID_Independent:
+					dprintf(D_SECURITY, "Got NID_Inependent\n");
+					break;
+				case NID_id_ppl_inheritAll:
+					dprintf(D_SECURITY, "Got NID_id_ppl_inheritAll\n");
+					/* This is basically a NOP, we simply let the current
+					   rights stand as they are. */
+					break;
+				default:
+					/* This is usually the most complex section of code.
+					   You really do whatever you want as long as you
+					   follow RFC 3820.  In the example we use here, the
+					   simplest thing to do is to build another, temporary
+					   bit array and fill it with the rights granted by
+					   the current proxy certificate, then use it as a
+					   mask on the accumulated rights bit array, and
+					   voil�, you now have a new accumulated rights bit
+					   array.  */
+					{
+						dprintf(D_SECURITY, "Proxy policy: something else.\n");
+						break;
+					}
+				
+					PROXY_CERT_INFO_EXTENSION_free(pci);
+				}
+			}
+		} else if (!(xs->ex_flags & EXFLAG_CA)) {
+			/* We have a EE certificate, let's use it to set default!
+			 */
+			dprintf(D_SECURITY, "Got EXFLAG_CA\n");
+		} else if(!(xs->ex_flags & EXFLAG_CRITICAL)) {
+			dprintf(D_SECURITY, "Got EXFLAG_CRITICAL\n");
+		}
+#endif /* WANT_NATIVE_PROXY_SUPPORT */
+	}
+	dprintf(D_SECURITY, "Exiting my_verify_callback: %d.\n", ok);
+    return ok;
+}
+
+/*
+ * TODO: kill nevermind, notneeded...
+ */
+static int my_X509_verify_cert(X509_STORE_CTX *ctx,
+                                 void *nevermind)
+{
+    int (*save_verify_cb)(int ok,X509_STORE_CTX *ctx) = ctx->verify_cb;
+	int notneeded;
+	int ok = 0;
+    char data[256];
+ 
+	dprintf(D_SECURITY, "Entering my_X509_verify_cert.\n");
+    X509_STORE_CTX_set_verify_cb(ctx, my_verify_callback);
+    X509_STORE_CTX_set_ex_data(ctx, get_proxy_auth_ex_data_idx(), &notneeded);
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_ALLOW_PROXY_CERTS);
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_IGNORE_CRITICAL);
+    ok = X509_verify_cert(ctx);
+	dprintf(D_SECURITY, "X509_verify_cert returns %d.\n", ok);
+
+	X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+	if(cert == NULL) {
+		dprintf(D_SECURITY, "Got null cert.\n");
+		return 0;
+	}
+
+	X509_NAME_oneline( X509_get_issuer_name( cert ), data, 256 );
+	dprintf( D_SECURITY, "  issuer   = %s\n", data );
+	X509_NAME_oneline( X509_get_subject_name( cert ), data, 256 );
+	dprintf( D_SECURITY, "  subject  = %s\n", data );
+    
+	if (!ok) {
+        int  depth = X509_STORE_CTX_get_error_depth( ctx );
+        int  err = X509_STORE_CTX_get_error( ctx );
+
+        dprintf( D_SECURITY, "-Error with certificate at depth: %i\n", depth );
+        dprintf( D_SECURITY, "  err %i:%s\n", err, X509_verify_cert_error_string( err ) );
+    } else {
+		dprintf( D_SECURITY, "-No error with certificate.\n" );
+	}
+
+    X509_STORE_CTX_set_verify_cb(ctx, save_verify_cb);
+
+	dprintf(D_SECURITY, "Exiting my_X509_verify_cert.\n");
+    return ok;
+  }
+
+
 
 int Condor_Auth_SSL::authenticate(const char * remoteHost, CondorError* errstack)
 {
@@ -627,7 +761,7 @@ int Condor_Auth_SSL :: init_OpenSSL(void)
     return AUTH_SSL_A_OK;
 }
 
-int verify_callback(int ok, X509_STORE_CTX *store)
+/* int verify_callback(int ok, X509_STORE_CTX *store)
 {
     char data[256];
  
@@ -646,7 +780,7 @@ int verify_callback(int ok, X509_STORE_CTX *store)
  
     return ok;
 }
-
+*/
 int Condor_Auth_SSL :: send_status( int status )
 {
     mySock_ ->encode( );
@@ -1016,13 +1150,15 @@ SSL_CTX *Condor_Auth_SSL :: setup_ssl_ctx( bool is_server )
         goto setup_server_ctx_err;
     }
 		// TODO where's this?
-    SSL_CTX_set_verify( ctx, SSL_VERIFY_PEER, verify_callback ); 
-    SSL_CTX_set_verify_depth( ctx, 4 ); // TODO arbitrary?
+	dprintf(D_SECURITY, "Setting callbacks.\n");
+    SSL_CTX_set_verify( ctx, SSL_VERIFY_PEER, my_verify_callback ); 
+    SSL_CTX_set_verify_depth( ctx, 8 ); // TODO arbitrary?
     SSL_CTX_set_options( ctx, SSL_OP_ALL|SSL_OP_NO_SSLv2 );
     if(SSL_CTX_set_cipher_list( ctx, cipherlist ) != 1 ) {
         ouch( "Error setting cipher list (no valid ciphers)\n" );
         goto setup_server_ctx_err;
     }
+	SSL_CTX_set_cert_verify_callback( ctx, my_X509_verify_cert, NULL );
     if(cafile)          free(cafile);
     if(cadir)           free(cadir);
     if(certfile)        free(certfile);
