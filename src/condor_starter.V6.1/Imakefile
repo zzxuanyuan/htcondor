@@ -28,6 +28,11 @@ SIGOBJS = ../condor_daemon_core.V6/smdevp.o \
 	../condor_daemon_core.V6/stdsoap2.o \
         verify_signed_classad.o
 
+SOAP_INCLUDED =  ../condor_c++_util/soap_signature_helpers.cpp \
+	../condor_c++_util/soap_helpers.cpp
+
+verify_signed_classad.o: $(SOAP_INCLUDED)
+
 # this can (and will have to) be made better, but
 # it will suffice for now:
 OBJ = starter_v61_main.o starter.o NTsenders.o user_proc.o \

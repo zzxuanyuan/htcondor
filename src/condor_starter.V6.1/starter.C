@@ -50,6 +50,8 @@
 
 #include "condor_auth_x509.h"
 
+#define X509_USER_PROXY "X509_USER_PROXY"
+
 extern "C" int get_random_int();
 extern int main_shutdown_fast();
 
@@ -763,6 +765,16 @@ CStarter::removeDeferredJobs() {
 	return ( ret );
 }
 
+bool
+ShouldVerifySignedClassAds()
+{
+	char * param_sca = param("VERIFY_SIGNED_CLASSADS");
+	bool want_sca = param_sca != NULL && (param_sca[0] == 'Y' 
+										  || param_sca[0] == 'y');
+	free(param_sca);
+	return want_sca;
+}
+
 int
 CStarter::jobEnvironmentReady( void )
 {
@@ -777,14 +789,17 @@ CStarter::jobEnvironmentReady( void )
 		// first, see if we're going to need any pre and post scripts
 	ClassAd* jobAd = jic->jobClassAd();
 	char* tmp = NULL;
-	MyString attr;
+	MyString attr;		
 
-	
-	// Additions for signed classads: is this the right place in the starter code?
-	if(! verifySignedClassAd(jobAd) ) {
-		dprintf(D_ALWAYS, "ClassAd signature verification failed.  exiting\n");
-		main_shutdown_fast();
-		return FALSE;
+	if(ShouldVerifySignedClassAds()) {		
+		StringList include(param("VERIFY_CLASSAD_ATTRIBUTES"));
+		
+		// Additions for signed classads: is this the right place in the starter code?
+		if(! verify_signed_classad(jobAd, &include) ) {
+			dprintf(D_ALWAYS, "ClassAd signature verification failed.  exiting\n");
+			main_shutdown_fast();
+			return FALSE;
+		}
 	}
 
 	attr = "Pre";

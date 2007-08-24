@@ -31,8 +31,12 @@
 #include "condor_io.h"
 #include "condor_string.h"
 #include "list.h"
+#include "hash_file.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>
+
+#include <openssl/evp.h>
+#include <openssl/pem.h>
 
 #include "../condor_c++_util/soap_signature_helpers.cpp"

@@ -4408,6 +4408,18 @@ SetGlobusParams()
 	}
 }
 
+bool
+WantClassAdSigned()
+{
+	// If "want_signed_classads = yes" in the submit file,
+    // then we need to include a ponter to the proxy file
+	char * param_sca = condor_param( WantSignedClassAds );
+	bool want_sca = param_sca != NULL && (param_sca[0] == 'Y' 
+										  || param_sca[0] == 'y');
+	free(param_sca);
+	return want_sca;
+}
+
 void
 SetGSICredentials()
 {
@@ -4437,9 +4449,7 @@ SetGSICredentials()
 		}
 	}
 
-	char * param_sca = condor_param( WantSignedClassAds );
-	bool want_sca = param_sca != NULL && (param_sca[0] == 'Y' 
-										  || param_sca[0] == 'y');
+	bool want_sca = WantClassAdSigned();
 
 	if ( proxy_file == NULL && want_sca) {
 		proxy_file = get_x509_proxy_filename();
@@ -5817,7 +5827,6 @@ log_submit()
 	}
 }
 
-
 int
 SaveClassAd ()
 {
@@ -5838,38 +5847,15 @@ SaveClassAd ()
 		}
 	}
 
-	StringList include("MyType,TargetType,Owner,CondorVersion,CondorPlatform,RootDir,Iwd,JobUniverse,Cmd,MinHosts,MaxHosts,User,NiceUser,WantRemoteIO,In,TransferIn,Out,StreamOut,Err,StreamErr,ShouldTransferFiles,TransferFiles,FileSystemDomain,Arguments,x509userproxy,ClassAdSignatureCert");
-
-	MyString signature;
-
-	dprintf(D_SECURITY, "Inserting proxy certificate into job "
-			"before signing.\n");
-	if(!insertProxyCertIntoAd(job)) {
-		fprintf(stderr, "Error inserting proxy cert into ad.\n");
-		exit(1);
-	}
-	// Check and return error code: handle how?
-	// How to expose GSI credential to this function?
-	dprintf(D_SECURITY, "Signing classad.\n");
-	signature = signClassAd(job, &include);
-
-//	MyString signature2;
-//	signClassAd(job, &include, signature2);
-	//dprintf(D_SECURITY, "Got signature: '%s'\n", signature.GetCStr());
-	
-	if(!InsertIntoAd(job, "ClassAdSignature", signature.GetCStr())) {
-		fprintf(stderr, "Error inserting signature into ad.\n");
-	}
-	//job->fPrint(stderr);
-
-	//dprintf(D_SECURITY, "ClassAdSignature = '%s'\n", signature.GetCStr());
-	dprintf(D_SECURITY, "Verifying signature.\n");
-	if(verifySignedClassAd(job)) {
-		dprintf(D_SECURITY, "Signature check OK.\n");
-	} else {
-		fprintf(stderr, "Signature check bad. :(\n");
+	if(WantClassAdSigned()) {
+		StringList include(param("SIGN_CLASSAD_ATTRIBUTES"));
+		
+		if(!sign_classad(job, &include)) {
+			fprintf( stderr, "Unable to sign ClassAd.  Use -debug to see details.\n");
+			return -1;
 		}
-	
+	}
+
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
 		lhstr = NULL;

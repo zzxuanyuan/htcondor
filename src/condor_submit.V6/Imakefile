@@ -6,9 +6,9 @@ CLIPPED = -DCLIPPED
 #endif
 
 CFLAGS = $(STD_C_FLAGS) $(CLIPPED) -I$(GSOAP_INC) \
-        -DWITH_DOM -DWITH_OPENSSL
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) -I$(GSOAP_INC)
-LIB = $(STD_LIBS)
+        -DWITH_DOM -DWITH_OPENSSL -I$(OPENSSL_DIR)/include
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) -I$(GSOAP_INC) -I$(OPENSSL_DIR)/include
+LIB = $(STD_LIBS) -lcrypto -L$(OPENSSL_DIR)/lib
 # -lrt
 
 soapobjs(submit)
@@ -17,6 +17,11 @@ SIGOBJS = ../condor_daemon_core.V6/smdevp.o \
 	../condor_daemon_core.V6/dom.o \
 	../condor_daemon_core.V6/stdsoap2.o \
 	sign_classad.o 
+
+SOAP_INCLUDED =  ../condor_c++_util/soap_signature_helpers.cpp \
+	../condor_c++_util/soap_helpers.cpp
+
+sign_classad.o: $(SOAP_INCLUDED)
 
 OBJ = submit.o $(SIGOBJS) $(SOAP_OBJS)
 
