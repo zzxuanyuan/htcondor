@@ -307,6 +307,7 @@ const int INVALIDATE_ADS_GENERIC = 59;
 #define DC_OFF_PEACEFUL     (DC_BASE+15)
 #define DC_SET_PEACEFUL_SHUTDOWN (DC_BASE+16)
 #define DC_TIME_OFFSET      (DC_BASE+17)
+#define DC_SIGN_CERT_REQUEST (DC_BASE+18)
 
 /*
 *** Log type supported by DC_FETCH_LOG
