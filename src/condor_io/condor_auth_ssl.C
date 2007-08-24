@@ -33,7 +33,7 @@
 #include "openssl/rand.h"
 #include "condor_netdb.h"
 
-#define WANT_NATIVE_PROXY_SUPPORT
+// #define WANT_NATIVE_PROXY_SUPPORT
 
 Condor_Auth_SSL :: Condor_Auth_SSL(ReliSock * sock, int remote)
     : Condor_Auth_Base    ( sock, CAUTH_SSL )
@@ -145,7 +145,9 @@ static int my_X509_verify_cert(X509_STORE_CTX *ctx,
 	dprintf(D_SECURITY, "Entering my_X509_verify_cert.\n");
     X509_STORE_CTX_set_verify_cb(ctx, my_verify_callback);
     X509_STORE_CTX_set_ex_data(ctx, get_proxy_auth_ex_data_idx(), &notneeded);
+#ifdef WANT_NATIVE_PROXY_SUPPORT
     X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_ALLOW_PROXY_CERTS);
+#endif
     X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_IGNORE_CRITICAL);
     ok = X509_verify_cert(ctx);
 	dprintf(D_SECURITY, "X509_verify_cert returns %d.\n", ok);
