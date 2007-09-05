@@ -57,6 +57,10 @@ core files in addition to attaching to stripped executables during runtime.
 any node job events.  (This is to help diagnose the problem if
 \Condor{dagman} gets "stuck".)
 
+% This is a back-port from 6.9
+\item Optimized the submission of grid-type gt4 grid universe jobs to the
+remote resource. Submission now takes one operation instead of three.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
@@ -116,6 +120,10 @@ exiting.  Too many such processes could result in memory exhaustion.
 % Gnats PR 868/condor-admin 15848
 \item Fixed a bug in \Condor{dagman}: \Attr{DIR} and \Attr{ABORT-DAG-ON}
 specifications were not propagated to rescue DAGs.
+
+\item Added a workaround for a bug in the Globus GRAM JobManager
+(\URL{http://bugzilla.mcs.anl.gov/globus/show\_bug.cgi?id=5467})
+that can cause very short jobs' standard output and error to be lost.
 
 \end{itemize}
 
