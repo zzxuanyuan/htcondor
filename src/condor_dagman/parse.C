@@ -1,3 +1,5 @@
+//TEMPTEMP -- test node category throttling with multiple DAGs
+//TEMPTEMP -- if there are multiple MAXJOBS settings for one category, the final one overrides other -- also print warning
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -64,6 +66,8 @@ static bool parse_vars(Dag *dag,
 		const char *filename, int lineNumber);
 static bool parse_priority(Dag *dag, 
 		const char *filename, int lineNumber);
+static bool parse_category(Dag *dag, const char *filename, int lineNumber);
+static bool parse_maxjobs(Dag *dag, const char *filename, int lineNumber);
 static MyString munge_job_name(const char *jobName);
 
 
@@ -235,6 +239,20 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 						lineNumber);
 		}
 
+		// Handle a Category spec
+		// Example syntax is: Category JobName Simulation
+		else if(strcasecmp(token, "CATEGORY") == 0) {
+			parsed_line_successfully = parse_category(dag, filename,
+						lineNumber);
+		}
+
+		// Handle a MaxJobs spec
+		// Example syntax is: MaxJobs Category 10
+		else if(strcasecmp(token, "MAXJOBS") == 0) {
+			parsed_line_successfully = parse_maxjobs(dag, filename,
+						lineNumber);
+		}
+
 		// Allow a CONFIG spec, but ignore it here because it
 		// is actually parsed by condor_submit_dag (config
 		// files must be processed before any other code runs)
@@ -246,7 +264,8 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		else {
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
 				"Expected JOB, DATA, SCRIPT, PARENT, RETRY, ABORT-DAG-ON, "
-				"DOT or VARS token\n", filename, lineNumber );
+				"DOT, VARS, PRIORITY, CATEGORY, MAXJOBS or CONFIG token\n",
+				filename, lineNumber );
 			parsed_line_successfully = false;
 		}
 		
@@ -753,7 +772,7 @@ parse_abort(
 
 		// RETURN keyword.
 	bool haveReturnVal = false;
-	int returnVal;
+	int returnVal = 9999; // assign value to avoid compiler warning
 	const char *nextWord = strtok( NULL, DELIMITERS );
 	if ( nextWord != NULL ) {
 		if ( strcasecmp ( nextWord, "RETURN" ) != 0 ) {
@@ -1002,9 +1021,8 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 // 
 // Function: parse_priority
 // Purpose:  Parses a line specifying the priority of a node
-//           submit description file
 //           The format of this line must be
-//           Priority JobName Value
+//           Priority <JobName> <Value>
 //-----------------------------------------------------------------------------
 static bool 
 parse_priority(
@@ -1020,7 +1038,6 @@ parse_priority(
 	//
 	const char *jobName = strtok(NULL, DELIMITERS);
 	const char *jobNameOrig = jobName; // for error output
-	const char * rest = jobName; // For subsequent tokens
 	if (jobName == NULL) {
 		debug_printf( DEBUG_QUIET, "%s (line %d): Missing job name\n",
 					  filename, lineNumber );
@@ -1050,6 +1067,7 @@ parse_priority(
 	// Next token is the priority value.
 	//
 	const char *valueStr = strtok(NULL, DELIMITERS);
+//TEMPTEMP -- check for null!!!
 
 	int priorityVal;
 	char *tmp;
@@ -1076,6 +1094,152 @@ parse_priority(
 
 	job->_hasNodePriority = true;
 	job->_nodePriority = priorityVal;
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// 
+// Function: parse_category
+// Purpose:  Parses a line specifying the type of a node
+//           The format of this line must be
+//           Category <JobName> <Category>
+//TEMPTEMP -- no whitespace in category name?
+//-----------------------------------------------------------------------------
+static bool 
+parse_category(
+	Dag  *dag, 
+	const char *filename, 
+	int  lineNumber)
+{
+	const char * example = "CATEGORY JobName TypeName";
+	Job * job = NULL;
+
+	//
+	// Next token is the JobName
+	//
+	const char *jobName = strtok(NULL, DELIMITERS);
+	const char *jobNameOrig = jobName; // for error output
+	if (jobName == NULL) {
+		debug_printf( DEBUG_QUIET, "%s (line %d): Missing job name\n",
+					  filename, lineNumber );
+		exampleSyntax (example);
+		return false;
+	} else if (isReservedWord(jobName)) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): JobName cannot be a reserved word\n",
+					  filename, lineNumber );
+		exampleSyntax (example);
+		return false;
+	} else {
+		debug_printf(DEBUG_DEBUG_1, "jobName: %s\n", jobName);
+		MyString tmpJobName = munge_job_name(jobName);
+		jobName = tmpJobName.Value();
+
+		job = dag->FindNodeByName( jobName );
+		if (job == NULL) {
+			debug_printf( DEBUG_QUIET, 
+						  "%s (line %d): Unknown Job %s\n",
+						  filename, lineNumber, jobNameOrig );
+			return false;
+		}
+	}
+
+	//
+	// Next token is the category name.
+	//
+	const char *categoryName = strtok(NULL, DELIMITERS);
+	if ( categoryName == NULL ) {
+		debug_printf( DEBUG_QUIET, 
+					  "%s (line %d): Missing CATEGORY node value\n",
+					  filename, lineNumber );
+		exampleSyntax( example );
+		return false;
+	}
+
+	//
+	// Check for illegal extra tokens.
+	//
+	const char *tmpStr = strtok(NULL, DELIMITERS);
+	if ( tmpStr != NULL ) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): Extra token (%s) on CATEGORY line\n",
+					  filename, lineNumber, tmpStr );
+		exampleSyntax( example );
+		return false;
+	}
+
+	job->SetCategory( categoryName );
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// 
+// Function: parse_maxjobs
+// Purpose:  Parses a line specifying the maximum number of jobs for
+//           a given node category.
+//           The format of this line must be
+//           MaxJobs <Category> <Value>
+//TEMPTEMP -- no whitespace in category name?
+//-----------------------------------------------------------------------------
+static bool 
+parse_maxjobs(
+	Dag  *dag, 
+	const char *filename, 
+	int  lineNumber)
+{
+	const char * example = "MAXJOBS TypeName Value";
+
+	//
+	// Next token is the category name.
+	//
+	const char *categoryName = strtok(NULL, DELIMITERS);
+	if ( categoryName == NULL ) {
+		debug_printf( DEBUG_QUIET, 
+					  "%s (line %d): Missing MAXJOBS category name\n",
+					  filename, lineNumber );
+		exampleSyntax( example );
+		return false;
+	}
+
+	//
+	// Next token is the maxjobs value.
+	//
+	const char *valueStr = strtok(NULL, DELIMITERS);
+	if ( valueStr == NULL ) {
+		debug_printf( DEBUG_QUIET, 
+					  "%s (line %d): Missing MAXJOBS value\n",
+					  filename, lineNumber );
+		exampleSyntax( example );
+		return false;
+	}
+
+	int maxJobsVal;
+	char *tmp;
+	maxJobsVal = (int)strtol( valueStr, &tmp, 10 );
+	if( tmp == valueStr ) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): Invalid MAXJOBS value \"%s\"\n",
+					  filename, lineNumber, valueStr );
+		exampleSyntax( example );
+		return false;
+	}
+
+	//
+	// Check for illegal extra tokens.
+	//
+	valueStr = strtok(NULL, DELIMITERS);
+	if ( valueStr != NULL ) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): Extra token (%s) on MAXJOBS line\n",
+					  filename, lineNumber, valueStr );
+		exampleSyntax( example );
+		return false;
+	}
+
+	debug_printf( DEBUG_QUIET, "MaxJobs value for category %s is %d\n", categoryName, maxJobsVal );//TEMPTEMP
+	//TEMPTEMP -- actually set limit in ThrottleByCategory object
 
 	return true;
 }

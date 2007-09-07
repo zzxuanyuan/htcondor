@@ -285,6 +285,11 @@ class Job {
     */
 	bool IsActive() const;
 
+	/** Sets the node's category (used for throttling by category).
+		@param categoryName: the name of the node's category
+		*/
+	void SetCategory( const char *categoryName );
+
     /** */ CondorID _CondorID;
     /** */ status_t _Status;
 
@@ -402,6 +407,10 @@ private:
 
 		// True if the node job has been submitted and is idle.
 	bool _isIdle;
+
+		// This node's category; points to a buffer "owned" by the
+		// ThrottleByCategory object.
+	const char *_categoryName;
 
 };
 

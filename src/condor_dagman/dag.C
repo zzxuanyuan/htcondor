@@ -1971,6 +1971,8 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
 						job->_nodePriority );
 		}
 
+		//TEMPTEMP -- add category here
+
         fprintf( fp, "\n" );
     }
 
@@ -1994,6 +1996,8 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
             fprintf (fp, "\n");
         }
     }
+
+	//TEMPTEMP -- add maxjobs here
 
     fclose(fp);
 }

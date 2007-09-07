@@ -608,3 +608,10 @@ Job::NumParents()
 	int n = _queues[Q_PARENTS].Number();
 	return n;
 }
+
+void
+Job::SetCategory( const char *categoryName )
+{
+    dprintf( D_ALWAYS, "Job(%s)::SetCategory(%s)\n", GetJobName(), categoryName );//TEMPTEMP
+	
+}

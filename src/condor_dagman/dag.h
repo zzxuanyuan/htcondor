@@ -1,3 +1,4 @@
+//TEMPTEMP -- need to have "node type" here -- but DON'T store a copy of the string for each node -- just point to a string in an object that handles the "node type" stuff
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
