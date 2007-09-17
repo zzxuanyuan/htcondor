@@ -24,9 +24,12 @@
 #include "condor_common.h"
 #include "user_log.c++.h"
 #include "condor_debug.h"
+#include "condor_config.h"
+#include "condor_distribution.h"
+#include "MyString.h"
 #include <stdio.h>
 
-static const char *	VERSION = "0.9.1";
+static const char *	VERSION = "0.9.2";
 
 enum Status { STATUS_OK, STATUS_CANCEL, STATUS_ERROR };
 
@@ -34,6 +37,12 @@ enum Verbosity { VERB_NONE = 0, VERB_ERROR, VERB_WARNING, VERB_ALL };
 
 struct Arguments {
 	const char *	logFile;
+	const char *	persistFile;
+	bool			readPersist;
+	bool			writePersist;
+	bool			rotation;
+	bool			dumpState;
+	bool			exitAfterInit;
 	int				maxExec;
 	int				sleep;
 	int				term;
@@ -46,13 +55,29 @@ CheckArgs(int argc, char **argv, Arguments &args);
 int // 0 == okay, 1 == error
 ReadEvents(Arguments &args);
 
+const char *timestr( struct tm &tm );
+
+// Simple term signal handler
+static bool	global_done = false;
+void handle_sig(int sig)
+{
+	(void) sig;
+	printf( "Got signal; shutting down\n" );
+	global_done = true;
+}
+
 int
 main(int argc, char **argv)
 {
+	DebugFlags = D_ALWAYS;
+
+		// initialize to read from config file
+	myDistro->Init( argc, argv );
+	config();
+
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("test_log_reader");
-	DebugFlags = D_ALWAYS;
+	dprintf_config("TEST_READER");
 
 	int		result = 0;
 
@@ -78,21 +103,38 @@ CheckArgs(int argc, char **argv, Arguments &args)
 {
 	Status	status = STATUS_OK;
 
-	const char *	usage = "Usage: test_log_reader [options]\n"
-			"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
-			"  -logfile <filename>: the log file to write\n"
-			"  -maxexec <number>: maximum number of execute events to read\n"
-			"  -sleep <number>: how many seconds to sleep between events\n"
-			"  -term <number>: number of terminate events to exit after\n"
-			"  -usage: print this message and exit\n"
-			"  -verbosity <number>: set verbosity level (default is 1)\n"
-			"  -version: print the version number and compile date\n";
+	const char *	usage =
+		"Usage: test_log_reader [options]\n"
+		"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
+		"  -logfile <filename>: the log file to read\n"
+		"  -maxexec <number>: maximum number of execute events to read\n"
+		"  -persist <filename>: file to persist to/from (implies -rotation)\n"
+		"  -persist-ro <filename>: like -persist, but read-only\n"
+		"  -persist-wo <filename>: like -persist, but write-only\n"
+		"  -persist-dump: dump the persistent file state after reading it\n"
+		"  -init-only: exit after initialization\n"
+		"  -ro: Set persitent state to read-only\n"
+		"  -rotation: enable rotation handling\n"
+		"  -rw: Set persitent state to read/write\n"
+		"  -no-rotation: disable rotation handling\n"
+		"  -sleep <number>: how many seconds to sleep between events\n"
+		"  -term <number>: number of terminate events to exit after\n"
+		"  -usage: print this message and exit\n"
+		"  -verbosity <number>: set verbosity level (default is 1)\n"
+		"  -version: print the version number and compile date\n"
+		"  -wo: Set persitent state to write-only\n";
 
 	args.logFile = NULL;
+	args.persistFile = NULL;
+	args.readPersist = false;
+	args.writePersist = false;
 	args.maxExec = 0;
 	args.sleep = 5;
 	args.term = 1;
 	args.verbosity = 1;
+	args.rotation = false;
+	args.exitAfterInit = false;
+	args.dumpState = false;
 
 	for ( int index = 1; index < argc; ++index ) {
 		if ( !strcmp(argv[index], "-debug") ) {
@@ -121,6 +163,64 @@ CheckArgs(int argc, char **argv, Arguments &args)
 			} else {
 				args.maxExec = atoi(argv[index]);
 			}
+
+		} else if ( !strcmp(argv[index], "-persist") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -persist argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.persistFile = argv[index];
+				args.rotation = true;
+				args.readPersist = true;
+				args.writePersist = true;
+			}
+
+		} else if ( !strcmp(argv[index], "-persist-wo") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -persist-wo argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.persistFile = argv[index];
+				args.rotation = true;
+				args.readPersist = false;
+				args.writePersist = true;
+			}
+
+		} else if ( !strcmp(argv[index], "-persist-ro") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -persist-ro argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.persistFile = argv[index];
+				args.rotation = true;
+				args.readPersist = true;
+				args.writePersist = false;
+			}
+
+		} else if ( !strcmp(argv[index], "-persist-dump") ) {
+			args.dumpState = true;
+
+		} else if ( !strcmp(argv[index], "-init-only") ) {
+			args.exitAfterInit = true;
+
+		} else if ( !strcmp(argv[index], "-ro") ) {
+			args.readPersist = true;
+			args.writePersist = false;
+
+		} else if ( !strcmp(argv[index], "-rw") ) {
+			args.readPersist = true;
+			args.writePersist = true;
+
+		} else if ( !strcmp(argv[index], "-rotation") ) {
+			args.rotation = true;
+
+
+		} else if ( !strcmp(argv[index], "-no-rotation") ) {
+			args.rotation = false;
+
 
 		} else if ( !strcmp(argv[index], "-sleep") ) {
 			if ( ++index >= argc ) {
@@ -157,6 +257,10 @@ CheckArgs(int argc, char **argv, Arguments &args)
 			printf("test_log_reader: %s, %s\n", VERSION, __DATE__);
 			status = STATUS_CANCEL;
 
+		} else if ( !strcmp(argv[index], "-wo") ) {
+			args.readPersist = false;
+			args.writePersist = true;
+
 		} else {
 			fprintf(stderr, "Unrecognized argument: <%s>\n", argv[index]);
 			printf("%s", usage);
@@ -178,20 +282,78 @@ ReadEvents(Arguments &args)
 {
 	int		result = 0;
 
-	ReadUserLog	log(args.logFile);
+	// Create & initialize the state
+	ReadUserLog::FileState	state;
+	ReadUserLog::InitFileState( state );
+
+	ReadUserLog	log;
+
+	// Initialize the reader from the persisted state
+	if ( args.readPersist ) {
+		int	fd = safe_open_wrapper( args.persistFile, O_RDONLY, 0 );
+		if ( fd >= 0 ) {
+			if ( read( fd, state.buf, state.size ) != state.size ) {
+				fprintf( stderr, "Failed reading persistent file\n" );
+				return STATUS_ERROR;
+			}
+			close( fd );
+			if ( !log.initialize( state, args.rotation ) ) {
+				fprintf( stderr, "Failed to initialize from state\n" );
+				return STATUS_ERROR;
+			}
+			printf( "Initialized log reader from state %s\n",
+					args.persistFile );
+		}
+		if ( args.dumpState ) {
+			MyString	str;
+			log.FormatFileState( str, "Restore File State" );
+			puts( str.GetCStr() );
+		}
+	}
+
+	// If, after the above, the reader isn't initialized, do so now
+	if ( !log.isInitialized() ) {
+		if ( !log.initialize( args.logFile, args.rotation, args.rotation ) ) {
+			fprintf( stderr, "Failed to initialize with file\n" );
+			return STATUS_ERROR;
+		}
+	}
+
+	// -init-only ?
+	if ( args.exitAfterInit ) {
+		printf( "Exiting after init (due to -init-only)\n" );
+		return STATUS_OK;
+	}
+
+	signal( SIGTERM, handle_sig );
+	signal( SIGQUIT, handle_sig );
+	signal( SIGINT, handle_sig );
 
 	int		executeEventCount = 0;
 	int		terminatedEventCount = 0;
 	bool	done = false;
 
-	while ( !done ) {
+	while ( !done && !global_done ) {
 		ULogEvent	*event = NULL;
 
 		ULogEventOutcome	outcome = log.readEvent(event);
 		if ( outcome == ULOG_OK ) {
 			if ( args.verbosity >= VERB_ALL ) {
-				printf("Got an event from %d.%d.%d", event->cluster,
-						event->proc, event->subproc);
+				printf("Got an event from %d.%d.%d @ %s", event->cluster,
+						event->proc, event->subproc,timestr(event->eventTime));
+			}
+
+			// Store off the persisted state
+			if ( args.writePersist && log.GetFileState( state ) ) {
+				int	fd = safe_open_wrapper( args.persistFile,
+											O_WRONLY|O_CREAT,
+											S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP );
+				if ( fd >= 0 ) {
+					if ( write( fd, state.buf, state.size ) != state.size ) {
+						fprintf( stderr, "Failed writing persistent file\n" );
+					}
+					close( fd );
+				}
 			}
 
 			switch ( event->eventNumber ) {
@@ -222,8 +384,8 @@ ReadEvents(Arguments &args)
 				}
 				if ( args.term != 0 && ++terminatedEventCount >= args.term ) {
 					if ( args.verbosity >= VERB_ALL ) {
-						printf("Reached terminated event limit (%d); "
-								"exiting\n", args.term);
+						printf( "Reached terminated event limit (%d); %s\n",
+								args.term, "exiting" );
 					}
 					done = true;
 				}
@@ -240,6 +402,9 @@ ReadEvents(Arguments &args)
 		} else if ( outcome == ULOG_NO_EVENT ) {
 			sleep(args.sleep);
 
+		} else if ( outcome == ULOG_MISSED_EVENT ) {
+			printf( "Missed event\n" );
+
 		} else if ( outcome == ULOG_RD_ERROR || outcome == ULOG_UNK_ERROR ) {
 			if ( args.verbosity >= VERB_ERROR ) {
 				fprintf(stderr, "Error reading event\n");
@@ -250,5 +415,35 @@ ReadEvents(Arguments &args)
 		delete event;
 	}
 
+	if ( args.dumpState ) {
+		MyString	str;
+		log.FormatFileState( str, "Final File State" );
+		puts( str.GetCStr() );
+	}
+	if ( args.writePersist ) {
+		fputs( "Storing final state...", stdout );
+		int	fd = safe_open_wrapper( args.persistFile,
+									O_WRONLY|O_CREAT,
+									S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP );
+		if ( fd >= 0 ) {
+			if ( write( fd, state.buf, state.size ) != state.size ) {
+				fputs( "Failed writing persistent file\n", stderr );
+			}
+			close( fd );
+		}
+		fputs( "  Done\n", stdout );
+	}
+
 	return result;
+}
+
+const char *timestr( struct tm &tm )
+{
+	static char	tbuf[64];
+	strncpy( tbuf, asctime( &tm ), sizeof(tbuf) );
+	tbuf[sizeof(tbuf)-1] = '\0';
+	if ( strlen(tbuf) ) {
+		tbuf[strlen(tbuf)-1] = '\0';
+	}
+	return tbuf;
 }

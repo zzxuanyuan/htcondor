@@ -22,7 +22,9 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "condor_distribution.h"
 #include "user_log.c++.h"
+#include "condor_config.h"
 #include "condor_debug.h"
 #include <stdio.h>
 
@@ -37,10 +39,15 @@ struct Arguments {
 	const char *	logFile;
 	int				numExec;
 	int				sleep;
+	int				cluster;
+	int				proc;
+	int				subproc;
 	bool			stork;
 	const char *	submitNote;
 	int				verbosity;
 };
+
+char*	mySubSystem = "TEST_LOG_WRITER";
 
 Status
 CheckArgs(int argc, char **argv, Arguments &args);
@@ -48,9 +55,25 @@ CheckArgs(int argc, char **argv, Arguments &args);
 int // 0 == okay, 1 == error
 WriteEvents(Arguments &args);
 
+const char *timestr( void );
+
+// Simple term signal handler
+static bool	global_done = false;
+void handle_sig(int sig)
+{
+	(void) sig;
+	printf( "Got signal; shutting down\n" );
+	global_done = true;
+}
+
 int
 main(int argc, char **argv)
 {
+
+		// initialize to read from config file
+	myDistro->Init( argc, argv );
+	config();
+
 		// Set up the dprintf stuff...
 	Termlog = true;
 	dprintf_config("test_log_writer");
@@ -80,34 +103,67 @@ CheckArgs(int argc, char **argv, Arguments &args)
 {
 	Status	status = STATUS_OK;
 
-	const char *	usage = "Usage: test_log_writer [options]\n"
-			"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
-			"  -logfile <filename>: the log file to write\n"
-			"  -numexec <number>: number of execute events to write\n"
-			"  -sleep <number>: how many seconds to sleep between events\n"
-			"  -stork: simulate Stork (-1 for proc and subproc)\n"
-			"  -submit_note <string>: submit event note\n"
-			"  -usage: print this message and exit\n"
-			"  -verbosity <number>: set verbosity level (default is 1)\n"
-			"  -version: print the version number and compile date\n"
-			"  -xml: write the log in XML\n";
+	const char *	usage =
+		"Usage: test_log_writer [options]\n"
+		"  -cluster <number>: Use cluster %d (default = getpid())\n"
+		"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
+		"  -logfile <filename>: the log file to write\n"
+		"  -jobid <c.p.s>: combined -cluster, -proc, -subproc\n"
+		"  -numexec <number>: number of execute events to write\n"
+		"  -proc <number>: Use proc %d (default = 0)\n"
+		"  -sleep <number>: how many seconds to sleep between events\n"
+		"  -stork: simulate Stork (-1 for proc and subproc)\n"
+		"  -submit_note <string>: submit event note\n"
+		"  -subproc <number>: Use subproc %d (default = 0)\n"
+		"  -usage: print this message and exit\n"
+		"  -verbosity <number>: set verbosity level (default is 1)\n"
+		"  -version: print the version number and compile date\n"
+		"  -xml: write the log in XML\n";
 
 	args.isXml = false;
 	args.logFile = NULL;
 	args.numExec = 10;
+	args.cluster = getpid();
+	args.proc = 0;
+	args.subproc = 0;
 	args.sleep = 5;
 	args.stork = false;
 	args.submitNote = "";
 	args.verbosity = 1;
 
 	for ( int index = 1; index < argc; ++index ) {
-		if ( !strcmp(argv[index], "-debug") ) {
+		if ( !strcmp(argv[index], "-cluster") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -cluster argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.cluster = atoi( argv[index] );
+			}
+
+		} else if ( !strcmp(argv[index], "-debug") ) {
 			if ( ++index >= argc ) {
 				fprintf(stderr, "Value needed for -debug argument\n");
 				printf("%s", usage);
 				status = STATUS_ERROR;
 			} else {
 				set_debug_flags( argv[index] );
+			}
+
+		} else if ( !strcmp(argv[index], "-jobid") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -jobid argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				if ( *argv[index] == '.' ) {
+					sscanf( argv[index], ".%d.%d", 
+							&args.proc, &args.subproc );
+				}
+				else {
+					sscanf( argv[index], "%d.%d.%d",
+							&args.cluster, &args.proc, &args.subproc );
+				}
 			}
 
 		} else if ( !strcmp(argv[index], "-logfile") ) {
@@ -128,6 +184,15 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				args.numExec = atoi(argv[index]);
 			}
 
+		} else if ( !strcmp(argv[index], "-proc") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -proc argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.proc = atoi(argv[index]);
+			}
+
 		} else if ( !strcmp(argv[index], "-sleep") ) {
 			if ( ++index >= argc ) {
 				fprintf(stderr, "Value needed for -sleep argument\n");
@@ -139,6 +204,15 @@ CheckArgs(int argc, char **argv, Arguments &args)
 
 		} else if ( !strcmp(argv[index], "-stork") ) {
 			args.stork = true;
+
+		} else if ( !strcmp(argv[index], "-subproc") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -subproc argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.subproc = atoi(argv[index]);
+			}
 
 		} else if ( !strcmp(argv[index], "-submit_note") ) {
 			if ( ++index >= argc ) {
@@ -190,20 +264,24 @@ WriteEvents(Arguments &args)
 {
 	int		result = 0;
 
-	int proc = 0;
-	int subproc = 0;
 	if ( args.stork ) {
-		proc = -1;
-		subproc = -1;
+		args.proc = -1;
+		args.subproc = -1;
 	}
 
-	UserLog	log("owner", args.logFile, getpid(), proc, subproc, args.isXml);
+	signal( SIGTERM, handle_sig );
+	signal( SIGQUIT, handle_sig );
+	signal( SIGINT, handle_sig );
+
+	UserLog	log("owner", args.logFile,
+				args.cluster, args.proc, args.subproc, args.isXml);
 
 		//
 		// Write the submit event.
 		//
 	if ( args.verbosity >= VERB_ALL ) {
-		printf("Writing submit event\n");
+		printf("Writing submit event (%d.%d.%d) @ %s\n",
+			   args.cluster, args.proc, args.subproc, timestr() );
 	}
 	SubmitEvent	submit;
 	strcpy(submit.submitHost, "<128.105.165.12:32779>");
@@ -224,8 +302,12 @@ WriteEvents(Arguments &args)
 		// Write execute events.
 		//
 	for ( int event = 0; event < args.numExec; ++event ) {
+		if ( global_done ) {
+			break;
+		}
 		if ( args.verbosity >= VERB_ALL ) {
-			printf("Writing execute event\n");
+			printf("Writing execute event (%d.%d.%d) @ %s\n",
+				   args.cluster, args.proc, args.subproc, timestr() );
 		}
 		ExecuteEvent	execute;
 		strcpy(execute.executeHost, "<128.105.165.12:32779>");
@@ -244,7 +326,8 @@ WriteEvents(Arguments &args)
 		// Write the terminated event.
 		//
 	if ( args.verbosity >= VERB_ALL ) {
-		printf("Writing terminated event\n");
+		printf("Writing terminate event (%d.%d.%d) @ %s\n",
+			   args.cluster, args.proc, args.subproc, timestr() );
 	}
 	JobTerminatedEvent	terminated;
 	terminated.normal = true;
@@ -263,4 +346,16 @@ WriteEvents(Arguments &args)
 	}
 
 	return result;
+}
+
+const char *timestr( void )
+{
+	static char	tbuf[64];
+	time_t now = time( NULL );
+	strncpy( tbuf, ctime( &now ), sizeof(tbuf) );
+	tbuf[sizeof(tbuf)-1] = '\0';
+	if ( strlen(tbuf) ) {
+		tbuf[strlen(tbuf)-1] = '\0';
+	}
+	return tbuf;
 }
