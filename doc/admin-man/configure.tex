@@ -1557,7 +1557,8 @@ server, shadow, and starter, none of which use DaemonCore yet).
   Starting with Condor version 6.9.3, whenever a daemon is about to
   publish a ClassAd update to the \Condor{collector}, it will evaluate
   this expression.
-  If it evaluates to TRUE, the daemon will gracefully shut itself down
+  If it evaluates to \Expr{True}, the daemon will gracefully shut itself down,
+  exit with the exit code 99,
   and will not be restarted by the \Condor{master} (as if it sent
   itself a \Condor{off} command).
   The expression is evaluated in the context of the ClassAd that is
