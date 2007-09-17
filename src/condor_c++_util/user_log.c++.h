@@ -457,9 +457,10 @@ class ReadUserLog
     ULogEventOutcome readEventOld (ULogEvent * & event);
 
 	/** Reopen the log file
+		@param called during initialization?
 		@return the outcome of the re-open attempt
 	 */
-	ULogEventOutcome ReopenLogFile( void );
+	ULogEventOutcome ReopenLogFile( bool init = false );
 
 	/** Find the previous log file starting with start
 		@param log file rotation # to start the search with
