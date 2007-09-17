@@ -122,3 +122,18 @@ GT4 web services      &   8443  \\ \hline
 \label{daemoncore-commands}
 \end{table}
 \end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{DaemonCore Daemon Exit Codes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{center}
+\begin{table}[hbt]
+\begin{tabular}{|l|c|} \hline
+\emph{Exit Code} & \emph{Description}   \\ \hline \hline
+0     & Normal exit of daemon                                  \\ \hline
+99    & \Macro{DAEMON\_SHUTDOWN} evaluated to \Expr{True}      \\ \hline
+\end{tabular}
+\label{daemoncore-exit-codes}
+\end{table}
+\end{center}
