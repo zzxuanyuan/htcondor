@@ -54,7 +54,7 @@ UserLog::UserLog (const char *owner,
                   bool xml, const char *gjid)
 {
 	UserLog();
-	use_xml = xml;
+	m_use_xml = xml;
 
 	initialize (owner, domain, file, c, p, s, gjid);
 }
@@ -71,7 +71,7 @@ UserLog::UserLog (const char *owner,
                   bool xml)
 {
 	Reset( );
-	use_xml = xml;
+	m_use_xml = xml;
 
 	initialize (owner, NULL, file, c, p, s, NULL);
 }
@@ -84,17 +84,17 @@ UserLog::Reset( void )
 	subproc = -1;
 	in_block = FALSE; 
 
-	write_user_log = true;
-	path = NULL;
-	fp = NULL; 
-	lock = NULL;
+	m_write_user_log = true;
+	m_path = NULL;
+	m_fp = NULL; 
+	m_lock = NULL;
 
-	write_global_log = true;
-	global_path = NULL;
-	global_fp = NULL; 
-	global_lock = NULL;
+	m_write_global_log = true;
+	m_global_path = NULL;
+	m_global_fp = NULL; 
+	m_global_lock = NULL;
 
-	use_xml = XML_USERLOG_DEFAULT;
+	m_use_xml = XML_USERLOG_DEFAULT;
 	m_gjid = NULL;
 
 #if !defined(WIN32)
@@ -117,7 +117,7 @@ UserLog::Reset( void )
 	base += tv.tv_usec;
 	base += '.';
 
-	m_uniq_base = base.GetCStr( );
+	m_uniq_base = strdup( base.GetCStr( ) );
 }
 
 /* --- The following two functions are taken from the shadow's ulog.c --- */
@@ -196,16 +196,15 @@ open_file(const char *file,
 		return true;
 	}
 	
-#ifndef WIN32
+# if !defined(WIN32)
 	// Unix
+	int	flags = O_WRONLY | O_CREAT;
+	mode_t mode = 0664;
+
 	if (privsep_enabled() && log_as_user) {
 		ASSERT(m_privsep_uid != 0);
 		ASSERT(m_privsep_gid != 0);
-		fd = privsep_open(m_privsep_uid,
-		                  m_privsep_gid,
-		                  file,
-		                  O_WRONLY | O_CREAT,
-		                  0664);
+		fd = privsep_open(m_privsep_uid, m_privsep_gid, file, flags, mode);
 		if (fd == -1) {
 			dprintf(D_ALWAYS,
 		            "UserLog::initialize: privsep_open(\"%s\") failed\n",
@@ -214,7 +213,7 @@ open_file(const char *file,
 		}
 	}
 	else {
-		fd = safe_open_wrapper( file, O_CREAT | O_WRONLY, 0664 );
+		fd = safe_open_wrapper( file, flags, mode );
 		if( fd < 0 ) {
 			dprintf( D_ALWAYS,
 			         "UserLog::initialize: "
@@ -234,7 +233,7 @@ open_file(const char *file,
 		close( fd );
 		return false;
 	}
-#else
+# else
 	// Windows (Visual C++)
 	if( (fp = safe_fopen_wrapper(file,"a+tc")) == NULL ) {
 		dprintf( D_ALWAYS, "UserLog::initialize: "
@@ -244,10 +243,10 @@ open_file(const char *file,
 	}
 
 	fd = _fileno(fp);
-#endif
+# endif
 
 		// set the stdio stream for line buffering
-	if( setvbuf(fp,NULL,_IOLBF,BUFSIZ) < 0 ) {
+	if( setvbuf(m_fp,NULL,_IOLBF,BUFSIZ) < 0 ) {
 		dprintf( D_ALWAYS, "setvbuf failed in UserLog::initialize\n" );
 	}
 
@@ -266,23 +265,43 @@ initialize_global_log()
 {
 	bool ret_val = true;
 
-	if (global_path) {
-		free(global_path);
-		global_path = NULL;
+	if (m_global_path) {
+		free(m_global_path);
+		m_global_path = NULL;
 	}
-	if (global_lock) {
-		delete global_lock;
-		global_lock = NULL;
+	if (m_global_lock) {
+		delete m_global_lock;
+		m_global_lock = NULL;
 	}
-	if (global_fp != NULL) {
-		fclose(global_fp);
-		global_fp = NULL;
+	if (m_global_fp != NULL) {
+		fclose(m_global_fp);
+		m_global_fp = NULL;
 	}
 
-	global_path = param("EVENT_LOG");
+	m_global_path = param("EVENT_LOG");
+	m_global_use_xml = param_boolean("EVENT_LOG_USE_XML",false);
 
-	if ( global_path ) {
-		 ret_val = open_file(global_path,false,global_lock,global_fp);
+	if ( m_global_path ) {
+		ret_val = open_file(m_global_path, false, m_global_lock, m_global_fp);
+
+		if(  ( m_global_path ) &&
+			 (! ftell(m_global_fp) )  ) {
+			GenericEvent	event;
+			MyString file_id;
+			GenerateUniq( file_id );
+			snprintf(event.info, sizeof(event.info),
+					 "Global JobLog: "
+					 "ctime=%d id=%s size=%ld events=%ld",
+					 (int) time(NULL),
+					 file_id.GetCStr(), 0L, 0L
+					 );
+			int		len = strlen( event.info );
+			while( len < 256 ) {
+				strcat( event.info, " " );
+				len++;
+			}
+			ret_val = doWriteEvent( m_global_fp, &event, m_global_use_xml );
+		}
 	}
 
 	return ret_val;
@@ -292,20 +311,20 @@ bool UserLog::
 initialize( const char *file, int c, int p, int s, const char *gjid)
 {
 		// Save parameter info
-	path = new char[ strlen(file) + 1 ];
-	strcpy( path, file );
+	m_path = new char[ strlen(file) + 1 ];
+	strcpy( m_path, file );
 	in_block = FALSE;
 
-	if( fp ) {
-		if( fclose( fp ) != 0 ) {
+	if( m_fp ) {
+		if( fclose( m_fp ) != 0 ) {
 			dprintf( D_ALWAYS, "UserLog::initialize: "
-					 "fclose(\"%s\") failed - errno %d (%s)\n", path,
+					 "fclose(\"%s\") failed - errno %d (%s)\n", m_path,
 					 errno, strerror(errno) );
 		}
-		fp = NULL;
+		m_fp = NULL;
 	}
 
-	if ( write_user_log && !open_file(file,true,lock,fp) ) {
+	if ( m_write_user_log && !open_file(file,true,m_lock,m_fp) ) {
 		return false;
 	}
 
@@ -365,8 +384,8 @@ initialize( int c, int p, int s, const char *gjid )
 	subproc = s;
 
 		// Important for performance : note we do not re-open the global log
-		// if we already have done so (i.e. if global_fp is not NULL).
-	if ( write_global_log && !global_fp ) {
+		// if we already have done so (i.e. if m_global_fp is not NULL).
+	if ( m_write_global_log && !m_global_fp ) {
 		initialize_global_log();
 	}
 
@@ -379,23 +398,24 @@ initialize( int c, int p, int s, const char *gjid )
 
 UserLog::~UserLog()
 {
-	if (path) delete [] path;
-	if (lock) delete lock;
-	if(m_gjid) free(m_gjid);
-	if (fp != NULL) fclose( fp );
+	if (m_path) delete [] m_path;
+	if (m_lock) delete m_lock;
+	if (m_gjid) free(m_gjid);
+	if (m_fp != NULL) fclose( m_fp );
+	if (m_uniq_base != NULL) free( m_uniq_base );
 
-	if (global_path) free(global_path);
-	if (global_lock) delete global_lock;
-	if (global_fp != NULL) fclose(global_fp);
+	if (m_global_path) free(m_global_path);
+	if (m_global_lock) delete m_global_lock;
+	if (m_global_fp != NULL) fclose(m_global_fp);
 }
 
 #if 0 /* deprecated cruft */
 void
 UserLog::display()
 {
-	dprintf( D_ALWAYS, "Path = \"%s\"\n", path );
+	dprintf( D_ALWAYS, "Path = \"%s\"\n", m_path );
 	dprintf( D_ALWAYS, "Job = %d.%d.%d\n", proc, cluster, subproc );
-	dprintf( D_ALWAYS, "fp = %p\n", fp );
+	dprintf( D_ALWAYS, "fp = %p\n", m_fp );
 	lock->display();
 	dprintf( D_ALWAYS, "in_block = %s\n", in_block ? "TRUE" : "FALSE" );
 }
@@ -411,26 +431,26 @@ handleGlobalLogRotation()
 	static long previous_filesize = 0L;
 	long current_filesize = 0L;
 
-	if (!global_fp) return false;
+	if (!m_global_fp) return false;
 
-	current_filesize = ftell(global_fp);
+	current_filesize = ftell(m_global_fp);
 
 	int global_max_filesize = param_integer("MAX_EVENT_LOG",1000000);
-	if ( global_path && current_filesize > global_max_filesize ) {
-		MyString old_name(global_path);
+	if ( m_global_path && current_filesize > global_max_filesize ) {
+		MyString old_name(m_global_path);
 		old_name += ".old";
-		if ( global_lock ) {
-			delete global_lock;
-			global_lock = NULL;
+		if ( m_global_lock ) {
+			delete m_global_lock;
+			m_global_lock = NULL;
 		}
-		if ( global_fp) {
-			fclose(global_fp);	// on win32, cannot rename an open file
-			global_fp = NULL;
+		if ( m_global_fp) {
+			fclose(m_global_fp);	// on win32, cannot rename an open file
+			m_global_fp = NULL;
 		}
-		if ( rotate_file(global_path,old_name.Value()) == 0 ) {
+		if ( rotate_file(m_global_path,old_name.Value()) == 0 ) {
 			rotated = true;
-			dprintf(D_ALWAYS,"Rotated event log %s at size %d bytes\n",
-					global_path, current_filesize);
+			dprintf(D_ALWAYS,"Rotated event log %s at size %ld bytes\n",
+					m_global_path, current_filesize);
 		}
 	}
 
@@ -441,10 +461,10 @@ handleGlobalLogRotation()
 			// recreate our lock.
 		initialize_global_log();	// this will re-open and re-create locks
 		rotated = true;
-		if ( global_lock ) {
-			global_lock->obtain(WRITE_LOCK);
-			fseek (global_fp, 0, SEEK_END);
-			current_filesize = ftell(global_fp);
+		if ( m_global_lock ) {
+			m_global_lock->obtain(WRITE_LOCK);
+			fseek (m_global_fp, 0, SEEK_END);
+			current_filesize = ftell(m_global_fp);
 		}
 	}
 
@@ -454,72 +474,41 @@ handleGlobalLogRotation()
 }
 
 int UserLog::
-doWriteEvent(ULogEvent *event, bool is_global_event, ClassAd *)
+doWriteEvent( ULogEvent *event, bool is_global_event, ClassAd *)
 {
 	int success;
-	FILE* local_fp;
-	FileLock* local_lock;
-	bool local_use_xml;
+	FILE* fp;
+	FileLock* lock;
+	bool use_xml;
 	priv_state priv;
-	ClassAd* eventAd = NULL;
 
 	if (is_global_event) {
-		local_fp = global_fp;
-		local_lock = global_lock;
-		local_use_xml = param_boolean("EVENT_LOG_USE_XML",false);
+		fp = m_global_fp;
+		lock = m_global_lock;
+		use_xml = m_global_use_xml;
 		priv = set_condor_priv();
 	} else {
-		local_fp = fp;
-		local_lock = lock;
-		local_use_xml = use_xml;
+		fp = m_fp;
+		lock = m_lock;
+		use_xml = m_use_xml;
 		priv = set_user_priv();
 	}
 
-	local_lock->obtain (WRITE_LOCK);
-	fseek (local_fp, 0, SEEK_END);
+	lock->obtain (WRITE_LOCK);
+	fseek (fp, 0, SEEK_END);
 
 		// rotate the global event log if it is too big
 	if ( is_global_event ) {
 		if ( handleGlobalLogRotation() ) {
 				// if we rotated the log, we have a new fp and lock
-			local_fp = global_fp;
-			local_lock = global_lock;
+			fp = m_global_fp;
+			lock = m_global_lock;
 		}
 	}
 
-	if( local_use_xml ) {
-		dprintf( D_ALWAYS, "Asked to write event of number %d.\n",
-				 event->eventNumber);
-		eventAd = event->toClassAd();	// must delete eventAd eventually
-		MyString adXML;
-		if (!eventAd) {
-			success = FALSE;
-		} else {
-			ClassAdXMLUnparser xmlunp;
-			xmlunp.SetUseCompactSpacing(FALSE);
-			xmlunp.SetOutputTargetType(FALSE);
-			xmlunp.Unparse(eventAd, adXML);
-			if (fprintf (local_fp, adXML.GetCStr()) < 0) {
-				success = FALSE;
-			} else {
-				success = TRUE;
-			}
-		}
-	} else {
-		success = event->putEvent (local_fp);
-		if (!success) {
-			fputc ('\n', local_fp);
-		}
-		if (fprintf (local_fp, SynchDelimiter) < 0) {
-			success = FALSE;
-		}
-	}
+	success = doWriteEvent( fp, event, use_xml );
 
-	if ( eventAd ) {
-		delete eventAd;
-	}		
-
-	if ( fflush(local_fp) != 0 ) {
+	if ( fflush(fp) != 0 ) {
 		dprintf( D_ALWAYS, "fflush() failed in UserLog::doWriteEvent - "
 				"errno %d (%s)\n", errno, strerror(errno) );
 		// Note:  should we set success to false here?
@@ -529,14 +518,56 @@ doWriteEvent(ULogEvent *event, bool is_global_event, ClassAd *)
 	// *before* we release our write lock!
 	// For now, for performance, do not sync the global event log.
 	if ( is_global_event == false ) {
-		if ( fsync( fileno( local_fp ) ) != 0 ) {
+		if ( fsync( fileno( fp ) ) != 0 ) {
 			dprintf( D_ALWAYS, "fsync() failed in UserLog::writeEvent - "
 					"errno %d (%s)\n", errno, strerror(errno) );
 			// Note:  should we set success to false here?
 		}
 	}
-	local_lock->release ();
+	lock->release ();
 	set_priv( priv );
+	return success;
+}
+
+int
+UserLog::doWriteEvent( FILE *fp, ULogEvent *event, bool use_xml )
+{
+	ClassAd* eventAd = NULL;
+	int success = TRUE;
+
+	if( use_xml ) {
+		dprintf( D_ALWAYS, "Asked to write event of number %d.\n",
+				 event->eventNumber);
+
+		eventAd = event->toClassAd();	// must delete eventAd eventually
+		MyString adXML;
+		if (!eventAd) {
+			success = FALSE;
+		} else {
+			ClassAdXMLUnparser xmlunp;
+			xmlunp.SetUseCompactSpacing(FALSE);
+			xmlunp.SetOutputTargetType(FALSE);
+			xmlunp.Unparse(eventAd, adXML);
+			if (fprintf ( fp, adXML.GetCStr()) < 0) {
+				success = FALSE;
+			} else {
+				success = TRUE;
+			}
+		}
+	} else {
+		success = event->putEvent ( fp);
+		if (!success) {
+			fputc ('\n', fp);
+		}
+		if (fprintf ( fp, SynchDelimiter) < 0) {
+			success = FALSE;
+		}
+	}
+
+	if ( eventAd ) {
+		delete eventAd;
+	}
+
 	return success;
 }
 
@@ -544,10 +575,10 @@ doWriteEvent(ULogEvent *event, bool is_global_event, ClassAd *)
 
 // Return FALSE(0) on error, TRUE(1) on goodness
 int UserLog::
-writeEvent (ULogEvent *event, ClassAd *param_jobad)
+writeEvent ( ULogEvent *event, ClassAd *param_jobad)
 {
 	// the the log is not initialized, don't bother --- just return OK
-	if (!fp && !global_fp) {
+	if (!m_fp && !m_global_fp) {
 		return TRUE;
 	}
 	
@@ -555,11 +586,11 @@ writeEvent (ULogEvent *event, ClassAd *param_jobad)
 	if (!event) {
 		return FALSE;
 	}
-	if (fp) {
-		if (!lock) return FALSE;
+	if (m_fp) {
+		if (!m_lock) return FALSE;
 	}
-	if (global_fp) {
-		if (!global_lock) return FALSE;
+	if (m_global_fp) {
+		if (!m_global_lock) return FALSE;
 	}
 
 	// fill in event context
@@ -569,14 +600,14 @@ writeEvent (ULogEvent *event, ClassAd *param_jobad)
 	event->setGlobalJobId(m_gjid);
 	
 	// write global event
-	if ( write_global_log && global_fp && 
+	if ( m_write_global_log && m_global_fp && 
 		 doWriteEvent(event,true,param_jobad)==FALSE ) 
 	{
 		return FALSE;
 	}
 
 	char *attrsToWrite = param("EVENT_LOG_JOB_AD_INFORMATION_ATTRS");
-	if ( write_global_log && global_fp && attrsToWrite ) {
+	if ( m_write_global_log && m_global_fp && attrsToWrite ) {
 		ExprTree *tree;
 		EvalResult result;
 		char *curr;
@@ -633,7 +664,7 @@ writeEvent (ULogEvent *event, ClassAd *param_jobad)
 	}
 		
 	// write ulog event
-	if ( write_user_log && fp && doWriteEvent(event,false,param_jobad)==FALSE ) {
+	if ( m_write_user_log && m_fp && doWriteEvent(event,false,param_jobad)==FALSE ) {
 		return FALSE;
 	}
 
@@ -647,17 +678,17 @@ UserLog::put( const char *fmt, ... )
 	va_list		ap;
 	va_start( ap, fmt );
 
-	if( !fp ) {
+	if( !m_fp ) {
 		return;
 	}
 
 	if( !in_block ) {
 		lock->obtain( WRITE_LOCK );
-		fseek( fp, 0, SEEK_END );
+		fseek( m_fp, 0, SEEK_END );
 	}
 
 	output_header();
-	vfprintf( fp, fmt, ap );
+	vfprintf( m_fp, fmt, ap );
 
 	if( !in_block ) {
 		lock->release();
@@ -670,16 +701,16 @@ UserLog::begin_block()
 	struct tm	*tm;
 	time_t		clock;
 
-	if( !fp ) {
+	if( !m_fp ) {
 		return;
 	}
 
 	lock->obtain( WRITE_LOCK );
-	fseek( fp, 0, SEEK_END );
+	fseek( m_fp, 0, SEEK_END );
 
 	(void)time(  (time_t *)&clock );
 	tm = localtime( (time_t *)&clock );
-	fprintf( fp, "(%d.%d.%d) %d/%d %02d:%02d:%02d\n",
+	fprintf( m_fp, "(%d.%d.%d) %d/%d %02d:%02d:%02d\n",
 		cluster, proc, subproc,
 		tm->tm_mon + 1, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec
@@ -690,7 +721,7 @@ UserLog::begin_block()
 void
 UserLog::end_block()
 {
-	if( !fp ) {
+	if( !m_fp ) {
 		return;
 	}
 
@@ -704,16 +735,16 @@ UserLog::output_header()
 	struct tm	*tm;
 	time_t		clock;
 
-	if( !fp ) {
+	if( !m_fp ) {
 		return;
 	}
 
 	if( in_block ) {
-		fprintf( fp, "(%d.%d.%d) ", cluster, proc, subproc );
+		fprintf( m_fp, "(%d.%d.%d) ", cluster, proc, subproc );
 	} else {
 		(void)time(  (time_t *)&clock );
 		tm = localtime( (time_t *)&clock );
-		fprintf( fp, "(%d.%d.%d) %d/%d %02d:%02d:%02d ",
+		fprintf( m_fp, "(%d.%d.%d) %d/%d %02d:%02d:%02d ",
 			cluster, proc, subproc,
 			tm->tm_mon + 1, tm->tm_mday,
 			tm->tm_hour, tm->tm_min, tm->tm_sec
@@ -772,17 +803,7 @@ EndUserLogBlock( LP *lp )
 
 #endif  /* deprecated cruft */
 
-#if 0
-// Generates a uniq ID, store it into the state
-void
-UserLog::GenerateUniq( void )
-{
-	MyString	id;
-	GenerateUniq( id );
-	m_state->UniqId( id );
-}
-
-// Generates a uniq ID for external use
+// Generates a uniq file ID
 void
 UserLog::GenerateUniq( MyString &id ) const
 {
@@ -793,7 +814,5 @@ UserLog::GenerateUniq( MyString &id ) const
 	id += tv.tv_sec;
 	id += '.';
 	id += tv.tv_usec;
-	id += '.';
 }
 
-#endif

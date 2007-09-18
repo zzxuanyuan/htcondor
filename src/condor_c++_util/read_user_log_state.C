@@ -37,10 +37,14 @@
 
 static const char FileStateSignature[] = "UserLogReader::FileState";
 
-ReadUserLogState::ReadUserLogState( const char *path, int max_rot )
+ReadUserLogState::ReadUserLogState(
+	const char		*path,
+	int				 max_rot,
+	int				 recent_thresh )
 {
 	Clear( true );
 	m_max_rot = max_rot;
+	m_recent_thresh = recent_thresh;
 	if ( path ) {
 		int		len = strlen( path );
 
@@ -52,11 +56,14 @@ ReadUserLogState::ReadUserLogState( const char *path, int max_rot )
 	}
 }
 
-ReadUserLogState::ReadUserLogState( const ReadUserLog::FileState &state,
-									int max_rot )
+ReadUserLogState::ReadUserLogState(
+	const ReadUserLog::FileState	&state,
+	int								 max_rot,
+	int								 recent_thresh )
 {
 	Clear( true );
 	m_max_rot = max_rot;
+	m_recent_thresh = recent_thresh;
 	SetState( state );
 }
 
@@ -132,6 +139,7 @@ ReadUserLogState::Rotation( int rotation, StatStructType &statbuf )
 	m_uniq_id = "";
 	GeneratePath( rotation, m_cur_path );
 	m_cur_rot = rotation;
+	m_log_type = LOG_TYPE_UNKNOWN;
 
 	return StatFile( statbuf );
 }
@@ -261,7 +269,7 @@ ReadUserLogState::ScoreFile( const StatStructType &statbuf, int rot ) const
 		rot = m_cur_rot;
 	}
 
-	bool	is_recent = ( time(NULL) < (m_update_time + 60) );
+	bool	is_recent = ( time(NULL) < (m_update_time + m_recent_thresh) );
 	bool	is_current = ( rot == m_cur_rot );
 	bool	same_size = ( statbuf.st_size == m_stat_buf.st_size );
 	bool 	has_grown = ( statbuf.st_size > m_stat_buf.st_size );
@@ -310,6 +318,20 @@ ReadUserLogState::ScoreFile( const StatStructType &statbuf, int rot ) const
 	}
 
 	return score;
+}
+
+int
+ReadUserLogState::CompareUniqId( const MyString &id ) const
+{
+	if ( ( m_uniq_id == "" ) || ( id == "" ) ) {
+		return 0;
+	}
+	else if ( m_uniq_id == id ) {
+		return 1;
+	}
+	else {
+		return -1;
+	}
 }
 
 bool

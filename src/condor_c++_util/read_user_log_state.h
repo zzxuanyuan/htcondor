@@ -40,8 +40,12 @@ public:
 	};
 	struct FileState;
 
-	ReadUserLogState( const char *path, int max_rot );
-	ReadUserLogState( const ReadUserLog::FileState &state, int max_rot );
+	ReadUserLogState( const char *path,
+					  int max_rot,
+					  int recent_thresh );
+	ReadUserLogState( const ReadUserLog::FileState &state,
+					  int max_rot,
+					  int recent_thresh );
 	~ReadUserLogState( void );
 
 	// Reset parameters about the current file (offset, stat info, etc.)
@@ -66,6 +70,10 @@ public:
 	void UniqId( const char *id ) { m_uniq_id = id; };
 	void UniqId( const MyString &id ) { m_uniq_id = id; };
 	const char *UniqId( void ) { return m_uniq_id.GetCStr(); };
+
+	// Compare the ID to the one stored
+	// 0==one (or both) are empty, 1=same, -1=different
+	int CompareUniqId( const MyString &id ) const;
 
 	// Get updated stat of the file
 	int StatFile( void );
@@ -133,6 +141,7 @@ private:
 	bool			m_stat_valid;		// Stat buffer valid?
 
 	int				m_max_rot;			// Max rot #
+	int				m_recent_thresh;	// Max time for a stat to be "recent"
 };
 
 #endif

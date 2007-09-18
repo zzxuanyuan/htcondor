@@ -43,6 +43,38 @@ const int SCORE_THRESH_FWSEARCH		= 3;
 const int SCORE_THRESH_NONROT		= 3;
 const int SCORE_MIN_MATCH			= 1;
 
+// Threshold to consider file stat's as recent
+const int SCORE_RECENT_THRESH		= 60;
+
+
+// Simple class to extract info from a log file header event
+class ReadUserLogHeaderInfo
+{
+public:
+	ReadUserLogHeaderInfo( void ) { m_valid = false; };
+	ReadUserLogHeaderInfo( const ULogEvent *event ) {
+		m_valid = false;
+		ExtractEvent( event );
+	};
+	~ReadUserLogHeaderInfo( void ) { };
+
+	// Extract data from an event
+	int ExtractEvent( const ULogEvent *);
+
+	// Valid?
+	bool IsValid( void ) const { return m_valid; };
+
+	// Get extracted info
+	void Id( MyString &id ) const { id = m_id; };
+	const char *Id( void ) const { return m_id.GetCStr(); };
+	time_t Ctime( void ) const { return m_ctime; };
+
+private:
+	MyString	m_id;
+	time_t		m_ctime;
+	bool		m_valid;
+};
+
 
 // Class to manage score the user logs
 // This class was created because you can't pre-declare the
@@ -53,32 +85,47 @@ class ReadUserLogMatch
 public:
 
 	// Constructor & destructor
-	ReadUserLogMatch( ReadUserLogState *state );
-	~ReadUserLogMatch( void );
+	ReadUserLogMatch( ReadUserLogState *state ) {
+		m_state = state;
+	};
+	~ReadUserLogMatch( void ) { };
 
 	// Results of file compare
 	enum MatchResult {
-		ERROR = -1, MATCH = 0, NOMATCH = 1
+		ERROR = -1, MATCH = 0, UNKNOWN, NOMATCH,
 	};
 	
 	// Compare the specified file / file info with the cached info
-	MatchResult Match( int rot,
-					   int match_thresh,
-					   int *score = NULL ) const;
-	MatchResult Match( const char *path,
-					   int rot,
-					   int match_thresh,
-					   int *score = NULL ) const;
-	MatchResult Match( StatStructType &statbuf,
-					   int rot,
-					   int match_thresh,
-					   int *score = NULL ) const;
+	MatchResult Match(
+		int				 rot,
+		int				 match_thresh,
+		int				*score = NULL ) const;
+	MatchResult Match(
+		const char		*path,
+		int				 rot,
+		int				 match_thresh,
+		int				*score = NULL ) const;
+	MatchResult Match(
+		StatStructType	&statbuf,
+		int				 rot,
+		int				 match_thresh,
+		int				*score = NULL ) const;
+
+	// Read the header from a file
+	int ReadFileHeader(
+		int						 rot,
+		const char				*path,
+		ReadUserLogHeaderInfo	&info ) const;
 
 private:
-	MatchResult MatchInternal( int rot,
-							   const char *path,
-							   int match_thresh,
-							   int *state_score ) const;
+	MatchResult MatchInternal(
+		int				 rot,
+		const char		*path,
+		int				 match_thresh,
+		int				*state_score ) const;
+	MatchResult EvalScore(
+		int				 max_thresh,
+		int				 score ) const;
 
 	ReadUserLogState	*m_state;		// File state info
 };
@@ -115,7 +162,7 @@ ReadUserLog::initialize( const ReadUserLog::FileState &state,
 	m_handle_rot = handle_rotation;
 	m_max_rot = handle_rotation ? 1 : 0;
 
-	m_state = new ReadUserLogState( state, m_max_rot );
+	m_state = new ReadUserLogState( state, m_max_rot, SCORE_RECENT_THRESH );
 	m_match = new ReadUserLogMatch( m_state );
 	return initialize( handle_rotation, false, true );
 }
@@ -128,7 +175,7 @@ ReadUserLog::initialize( const char *filename,
 	m_handle_rot = handle_rotation;
 	m_max_rot = handle_rotation ? 1 : 0;
 
-	m_state = new ReadUserLogState( filename, m_max_rot );
+	m_state = new ReadUserLogState( filename, m_max_rot, SCORE_RECENT_THRESH );
 	m_match = new ReadUserLogMatch( m_state );
 
 	if (! initialize( handle_rotation, check_for_old, false ) ) {
@@ -189,7 +236,7 @@ ReadUserLog::initialize ( bool handle_rotation,
 		}
 	}
 	else {
-		if ( ULOG_OK != OpenLogFile( true, restore ) ) {
+		if ( ULOG_OK != OpenLogFile( restore ) ) {
 			dprintf( D_ALWAYS,
 					 "ReadUserLog::initialize: error opening file\n" );
 			releaseResources();
@@ -227,13 +274,14 @@ ReadUserLog::CloseLogFile( void )
 	if ( m_is_locked ) {
 		m_lock->release();
 		m_is_locked = false;
+		m_lock_rot = -1;
 	}
 
 	return true;
 }
 
 ULogEventOutcome
-ReadUserLog::OpenLogFile( bool first, bool do_seek )
+ReadUserLog::OpenLogFile( bool do_seek )
 {
 	// Note: For whatever reason, we obtain a WRITE lock in method
 	// readEvent.  On Linux, if the file is opened O_RDONLY, then a
@@ -242,8 +290,13 @@ ReadUserLog::OpenLogFile( bool first, bool do_seek )
 	//  
 	// NOTE: we tried changing this to O_READONLY once and things
 	// stopped working right, so don't try it again, smarty-pants!
-	dprintf( D_FULLDEBUG, "Opening log '%s' (first=%s,seek=%s)\n",
-			 m_state->CurPath(), first ? "true" : "false",
+
+	// Is the lock current?
+	bool	is_lock_current = ( m_state->Rotation() == m_lock_rot );
+
+	dprintf( D_FULLDEBUG, "Opening log '%s' (is_lock_cur=%s,seek=%s)\n",
+			 m_state->CurPath(),
+			 is_lock_current ? "true" : "false",
 			 do_seek ? "true" : "false" );
 
 	m_fd = safe_open_wrapper( m_state->CurPath(), O_RDWR, 0 );
@@ -265,26 +318,33 @@ ReadUserLog::OpenLogFile( bool first, bool do_seek )
 		}
 	}
 
-	// prepare to lock the file
+	// Prepare to lock the file
 	if ( m_lock_file ) {
-		if ( first && m_lock ) {
+
+		// If the lock isn't for the current file (rotation #), destroy it
+		if ( ( !is_lock_current ) && m_lock ) {
 			delete m_lock;
 			m_lock = NULL;
+			m_lock_rot = -1;
 		}
+
+		// Create a lock if none exists
+		// otherwise, update the lock's fd & fp
 		if ( ! m_lock ) {
 			m_lock = new FileLock( m_fd, m_fp, m_state->CurPath() );
 			if( ! m_lock ) {
 				CloseLogFile( );
 				return ULOG_RD_ERROR;
 			}
+			m_lock_rot = m_state->Rotation( );
 		}
 		else {
 			m_lock->SetFdFp( m_fd, m_fp );
 		}
 	}
 
-	// Determine the type of the log file
-	if( first && m_state->IsLogType( ReadUserLogState::LOG_TYPE_UNKNOWN) ) {
+	// Determine the type of the log file (if needed)
+	if ( m_state->IsLogType( ReadUserLogState::LOG_TYPE_UNKNOWN) ) {
 		if ( !determineLogType() ) {
 			dprintf( D_ALWAYS,
 					 "ReadUserLog::OpenLogFile(): Can't log type\n" );
@@ -308,7 +368,7 @@ ReadUserLog::determineLogType( void )
 	Lock();
 
 	// store file position so we can rewind to this location
-	long filepos = ftell(m_fp);
+	long filepos = ftell( m_fp );
 	if( filepos < 0 ) {
 		dprintf(D_ALWAYS, "ftell failed in ReadUserLog::determineLogType\n");
 		Unlock();
@@ -461,7 +521,7 @@ ReadUserLog::ReopenLogFile( bool init )
 
 	// If we're not handling rotation, just try to reopen the file
 	if ( ! m_handle_rot ) {
-		return OpenLogFile( false, true );
+		return OpenLogFile( true );
 	}
 
 	// If we don't have valid info, do a new file search, just like init
@@ -477,7 +537,7 @@ ReadUserLog::ReopenLogFile( bool init )
 				return ULOG_NO_EVENT;
 			}
 		}
-		return OpenLogFile( true, false );
+		return OpenLogFile( false );
 	}
 
 	// Search forward, starting with the "current" file, looking
@@ -495,10 +555,10 @@ ReadUserLog::ReopenLogFile( bool init )
 		if ( ReadUserLogMatch::ERROR == result ) {
 			scores[rot] = -1;
 		}
-		else if ( MATCH == result ) {
+		else if ( ReadUserLogMatch::MATCH == result ) {
 			new_rot = rot;
 		}
-		else {
+		else if ( ReadUserLogMatch::UNKNOWN == result ) {
 			scores[rot] = score;
 			if ( score > max_score ) {
 				max_score_rot = rot;
@@ -519,7 +579,7 @@ ReadUserLog::ReopenLogFile( bool init )
 		if ( m_state->Rotation( new_rot ) ) {
 			return ULOG_RD_ERROR;
 		}
-		return OpenLogFile( true, true );
+		return OpenLogFile( true );
 	}
 
 	// If we got here, no match found.  :(
@@ -528,7 +588,13 @@ ReadUserLog::ReopenLogFile( bool init )
 }
 
 ULogEventOutcome
-ReadUserLog::readEvent (ULogEvent *& event)
+ReadUserLog::readEvent (ULogEvent *& event )
+{
+	return readEvent( event, true );
+}
+
+ULogEventOutcome
+ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 {
 	// If the file was closed on us...
 	if ( !m_fp && m_close_file ) {
@@ -544,7 +610,6 @@ ReadUserLog::readEvent (ULogEvent *& event)
 
 	ULogEventOutcome	outcome = ULOG_OK;
 	if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_UNKNOWN ) ) {
-
 	    if( !determineLogType() ) {
 			outcome = ULOG_RD_ERROR;
 			goto CLEANUP;
@@ -553,16 +618,7 @@ ReadUserLog::readEvent (ULogEvent *& event)
 
 	// Now, read the actual event (depending on the file type)
 	bool	try_again;
-	if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_XML ) ) {
-		outcome = readEventXML( event );
-		try_again = (outcome == ULOG_NO_EVENT );
-	} else if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_OLD ) ) {
-		outcome = readEventOld( event );
-		try_again = (outcome == ULOG_NO_EVENT );
-	} else {
-		outcome = ULOG_NO_EVENT;
-		try_again = false;
-	}
+	outcome = readEvent( event, &try_again );
 	if ( ! m_handle_rot ) {
 		try_again = false;
 	}
@@ -586,16 +642,17 @@ ReadUserLog::readEvent (ULogEvent *& event)
 		// (a file that isn't a ".old" or ".1", etc.)
 		else {
 			// Same file?
-			ReadUserLogMatch::MatchResult result =
-				m_match->Match( m_state->CurPath(), m_state->Rotation(),
-								 SCORE_THRESH_NONROT );
+			ReadUserLogMatch::MatchResult result;
+			result = m_match->Match( m_state->CurPath(),
+									 m_state->Rotation(),
+									 SCORE_THRESH_NONROT );
 			dprintf( D_FULLDEBUG,
 					 "readEvent: checking for rotation (%s): %d\n",
 					 m_state->CurPath(), result );
 			if ( result == ReadUserLogMatch::NOMATCH ) {
 				CloseLogFile( );
 				m_state->StatFile( );
-				OpenLogFile( true, false );
+				OpenLogFile( false );
 			}
 			else {
 				try_again = false;
@@ -606,18 +663,12 @@ ReadUserLog::readEvent (ULogEvent *& event)
 	// Finally, one more attempt to read an event
 	if ( try_again ) {
 		if ( ULOG_OK == ReopenLogFile() ) {
-			if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_XML ) ) {
-				outcome = readEventXML( event );
-			} else if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_OLD ) ) {
-				outcome = readEventOld( event );
-			} else {
-				outcome = ULOG_NO_EVENT;
-			}
+			outcome = readEvent( event, (bool*)NULL );
 		}
 	}
 
 	// Store off our current offset
-	if ( ULOG_OK == outcome ) {
+	if (  ( ULOG_OK == outcome ) && ( store_state )  )  {
 		long	pos = ftell( m_fp );
 		if ( pos > 0 ) {
 			m_state->Offset( pos );
@@ -634,6 +685,30 @@ ReadUserLog::readEvent (ULogEvent *& event)
 	return outcome;
 
 }	
+
+ULogEventOutcome
+ReadUserLog::readEvent( ULogEvent *& event, bool *try_again )
+{
+	ULogEventOutcome	outcome;
+
+	if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_XML ) ) {
+		outcome = readEventXML( event );
+		if ( try_again ) {
+			*try_again = (outcome == ULOG_NO_EVENT );
+		}
+	} else if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_OLD ) ) {
+		outcome = readEventOld( event );
+		if ( try_again ) {
+			*try_again = (outcome == ULOG_NO_EVENT );
+		}
+	} else {
+		outcome = ULOG_NO_EVENT;
+		if ( try_again ) {
+			try_again = false;
+		}
+	}
+	return outcome;
+}
 
 ULogEventOutcome
 ReadUserLog::readEventXML(ULogEvent *& event)
@@ -1028,6 +1103,7 @@ ReadUserLog::clear( void )
 	m_fp = NULL;
 	m_lock = NULL;
 	m_is_locked = false;
+	m_lock_rot = -1;
 }
 
 void
@@ -1057,6 +1133,7 @@ ReadUserLog::releaseResources( void )
 	if (m_is_locked) {
 		m_lock->release();
 		m_is_locked = false;
+		m_lock_rot = -1;
 	}
 
 	delete m_lock;
@@ -1083,18 +1160,6 @@ ReadUserLog::FormatFileState ( MyString &str, const char *label ) const
 // **********************************
 // ReadUserLogMatch methods
 // **********************************
-
-// Constructor
-ReadUserLogMatch::ReadUserLogMatch (
-	ReadUserLogState	*state )
-{
-	m_state = state;
-}
-
-// Destructor
-ReadUserLogMatch::~ReadUserLogMatch ( void )
-{
-}
 
 // Compare a file by rotation # to the cached info
 ReadUserLogMatch::MatchResult
@@ -1160,30 +1225,26 @@ ReadUserLogMatch::MatchInternal(
 	int				 match_thresh,
 	int				*score_ptr ) const
 {
-	int	state_score = *score_ptr;
+	ULogEventOutcome	outcome;
+	int					score = *score_ptr;
 
-	dprintf( D_FULLDEBUG, "SFI: score = %d\n", state_score );
+	dprintf( D_FULLDEBUG, "SFI: score = %d\n", score );
 
 	// Quick look at the score passed in from the state comparison
 	// We can return immediately in some cases
 
-	// < 0 is an error
-	if ( state_score < 0 ) {
-		dprintf( D_FULLDEBUG, "SFI: returning ERROR\n" );
-		return ERROR;
-	}
-	// Less than the min threshold - give up, declare "no match"
-	else if ( state_score < SCORE_MIN_MATCH ) {
-		dprintf( D_FULLDEBUG, "SFI: returning NOMATCH\n" );
-		return NOMATCH;
-	}
-	// Or, if it's above the min match threshold, 
-	else if ( state_score >= match_thresh ) {
-		dprintf( D_FULLDEBUG, "SFI: returning MATCH\n" );
-		return MATCH;
+	MatchResult result = EvalScore( match_thresh, score );
+	if ( UNKNOWN != result ) {
+		return result;
 	}
 
-	// Here we want to look more closesly
+
+	// Here, we have an indeterminate result
+	// Read the file's header info
+
+	// We'll instantiate a new log reader to do this for us
+	// Note: we disable rotation for this one, so we won't recurse infinitely
+	ReadUserLog			 reader;
 
 	// If no path provided, generate one
 	MyString temp_path;
@@ -1191,10 +1252,141 @@ ReadUserLogMatch::MatchInternal(
 		m_state->GeneratePath( rot, temp_path );
 		path = temp_path.GetCStr( );
 	}
+	dprintf( D_FULLDEBUG, "SFI: reading file %s\n", path );
 
+	// Initialize the reader
+	if ( !reader.initialize( path, false, false ) ) {
+		return ERROR;
+	}
+
+	// Now, read the event itself
+	ULogEvent			*event;
+	outcome = reader.readEvent( event );
+	if ( ULOG_RD_ERROR == outcome ) {
+		return ERROR;
+	}
+	else if ( ULOG_OK != outcome ) {
+		return NOMATCH;
+	}
+
+	// Read the file's header info
+	ReadUserLogHeaderInfo	info;
+	int status = ReadFileHeader( rot, path, info );
+	if( status < 0 ) {
+		return ERROR;
+	}
+	else if ( status > 0 ) {
+		return EvalScore( match_thresh, score );
+	}
+
+	// Finally, extract the ID & store it
+	MyString	id;
+	info.Id( id );
+	int	id_result = m_state->CompareUniqId( id );
+	if ( id_result > 0 ) {
+		score += 100;
+	}
+	else if ( id_result < 0 ) {
+		score = 0;
+	}
+
+	// And, last but not least, re-evaluate the score
+	return EvalScore( match_thresh, score );
+}
+
+// Read the header from a file
+int
+ReadUserLogMatch::ReadFileHeader(
+	int						 rot,
+	const char				*path,
+	ReadUserLogHeaderInfo	&info ) const
+{
 	// Here, we have an indeterminate result
 	// Read the file's header info
-	// TODO TODO TODO
-	// int score = state_score;
-	return NOMATCH;
+
+	// We'll instantiate a new log reader to do this for us
+	// Note: we disable rotation for this one, so we won't recurse infinitely
+	ReadUserLog			 reader;
+
+	// If no path provided, generate one
+	MyString temp_path;
+	if ( NULL == path ) {
+		m_state->GeneratePath( rot, temp_path );
+		path = temp_path.GetCStr( );
+	}
+	dprintf( D_FULLDEBUG, "RFH: reading file %s\n", path );
+
+	// Initialize the reader
+	if ( !reader.initialize( path, false, false ) ) {
+		return -1;
+	}
+
+	// Now, read the event itself
+	ULogEvent			*event;
+	ULogEventOutcome	outcome;
+	outcome = reader.readEvent( event );
+	if ( ULOG_RD_ERROR == outcome ) {
+		return -1;
+	}
+	else if ( ULOG_OK != outcome ) {
+		return 1;
+	}
+
+	// Finally, if it's a generic event, let's see if we can parse it
+	dprintf( D_FULLDEBUG, "RFH: looking at event type %s\n",
+			 event->eventName( ) );
+	int status = info.ExtractEvent( event );
+	delete event;
+
+	return status;
+}
+
+ReadUserLogMatch::MatchResult
+ReadUserLogMatch::EvalScore( int match_thresh, int score ) const
+{
+
+	// < 0 is an error
+	if ( score < 0 ) {
+		return ERROR;
+	}
+	// Less than the min threshold - give up, declare "no match"
+	else if ( score < SCORE_MIN_MATCH ) {
+		return NOMATCH;
+	}
+	// Or, if it's above the min match threshold, 
+	else if ( score >= match_thresh ) {
+		return MATCH;
+	}
+	else {
+		return UNKNOWN;
+	}
+}
+
+
+// Extract info from an event
+int
+ReadUserLogHeaderInfo::ExtractEvent( const ULogEvent *event )
+{
+	// Not a generic event -- ignore it
+	if ( ULOG_GENERIC != event->eventNumber ) {
+		return 1;
+	}
+
+	const GenericEvent	*generic = dynamic_cast <const GenericEvent*>( event );
+	if ( ! generic ) {
+		dprintf( D_ALWAYS, "Can't pointer cast generic event!\n" );
+		return -1;
+	} else {
+		int		ctime;
+		char	id[256];
+
+		if ( sscanf( generic->info, "ctime=%d id=%s\n",
+					 &ctime, id ) == 2) {
+			m_id = id;
+			m_ctime = ctime;
+			m_valid = true;
+			return 0;
+		}
+		return 1;
+	}
 }

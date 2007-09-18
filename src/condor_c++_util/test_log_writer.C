@@ -45,6 +45,7 @@ struct Arguments {
 	bool			stork;
 	const char *	submitNote;
 	int				verbosity;
+	const char *	genericEventStr;
 };
 
 char*	mySubSystem = "TEST_LOG_WRITER";
@@ -108,6 +109,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -cluster <number>: Use cluster %d (default = getpid())\n"
 		"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
 		"  -logfile <filename>: the log file to write\n"
+		"  -generic <string>: Write generic event\n"
 		"  -jobid <c.p.s>: combined -cluster, -proc, -subproc\n"
 		"  -numexec <number>: number of execute events to write\n"
 		"  -proc <number>: Use proc %d (default = 0)\n"
@@ -116,6 +118,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -submit_note <string>: submit event note\n"
 		"  -subproc <number>: Use subproc %d (default = 0)\n"
 		"  -usage: print this message and exit\n"
+		"  -v: increase verbose level by 1\n"
 		"  -verbosity <number>: set verbosity level (default is 1)\n"
 		"  -version: print the version number and compile date\n"
 		"  -xml: write the log in XML\n";
@@ -130,6 +133,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	args.stork = false;
 	args.submitNote = "";
 	args.verbosity = 1;
+	args.genericEventStr = NULL;
 
 	for ( int index = 1; index < argc; ++index ) {
 		if ( !strcmp(argv[index], "-cluster") ) {
@@ -164,6 +168,15 @@ CheckArgs(int argc, char **argv, Arguments &args)
 					sscanf( argv[index], "%d.%d.%d",
 							&args.cluster, &args.proc, &args.subproc );
 				}
+			}
+
+		} else if ( !strcmp(argv[index], "-generic") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -generic argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.genericEventStr = argv[index];
 			}
 
 		} else if ( !strcmp(argv[index], "-logfile") ) {
@@ -236,6 +249,9 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				args.verbosity = atoi(argv[index]);
 			}
 
+		} else if ( !strcmp(argv[index], "-v") ) {
+			args.verbosity++;
+
 		} else if ( !strcmp(argv[index], "-version") ) {
 			printf("test_log_writer: %s, %s\n", VERSION, __DATE__);
 			status = STATUS_CANCEL;
@@ -296,6 +312,25 @@ WriteEvents(Arguments &args)
 			fprintf(stderr, "Error writing log event\n");
 		}
 		result = 1;
+	}
+
+		//
+		// Write a single generic event
+		//
+	if ( args.genericEventStr ) {
+		GenericEvent	generic;
+		strncpy(generic.info, args.genericEventStr, sizeof(generic.info) );
+		generic.info[sizeof(generic.info)-1] = '\0';
+		if ( args.verbosity >= VERB_ALL ) {
+			printf("Writing generic event '%s' @ %s\n",
+				   generic.info, timestr() );
+		}
+		if ( !log.writeEvent(&generic) ) {
+			if ( args.verbosity >= VERB_ERROR ) {
+				fprintf(stderr, "Error writing log event\n");
+			}
+			result = 1;
+		}
 	}
 
 		//

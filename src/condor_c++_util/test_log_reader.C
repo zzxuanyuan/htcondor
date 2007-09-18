@@ -339,8 +339,9 @@ ReadEvents(Arguments &args)
 		ULogEventOutcome	outcome = log.readEvent(event);
 		if ( outcome == ULOG_OK ) {
 			if ( args.verbosity >= VERB_ALL ) {
-				printf("Got an event from %d.%d.%d @ %s", event->cluster,
-						event->proc, event->subproc,timestr(event->eventTime));
+				printf( "Got an event from %d.%d.%d @ %s",
+						event->cluster, event->proc, event->subproc,
+						timestr(event->eventTime) );
 			}
 
 			// Store off the persisted state
@@ -393,7 +394,8 @@ ReadEvents(Arguments &args)
 
 			default:
 				if ( args.verbosity >= VERB_ALL ) {
-					printf(" (other)\n");
+					const char *name = event->eventName( );
+					printf(" (%s)\n", name ? name : "UNKNOWN" );
 				}
 				break;
 

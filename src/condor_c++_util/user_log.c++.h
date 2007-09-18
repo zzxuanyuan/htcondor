@@ -55,6 +55,10 @@ typedef int BOOL_T;
 #endif
 #include <limits.h>             /* for _POSIX_PATH_MAX */
 
+/* Predeclare some classes */
+class MyString;
+
+
 /** API for writing a log file.  Since an API for reading a log file
     was not originally needed, a ReadUserLog class did not exist,
     so it was not forseen to call this class WriteUserLog. <p>
@@ -147,10 +151,10 @@ class UserLog {
     */
     bool initialize(int c, int p, int s, const char *gjid);
 
-	void setUseXML(bool new_use_xml){ use_xml = new_use_xml; }
+	void setUseXML(bool new_use_xml){ m_use_xml = new_use_xml; }
 
-	void setWriteUserLog(bool b){ write_user_log = b; }
-	void setWriteGlobalLog(bool b){ write_global_log = b; }
+	void setWriteUserLog(bool b){ m_write_user_log = b; }
+	void setWriteGlobalLog(bool b){ m_write_global_log = b; }
 
     /** Write an event to the log file.  Caution: if the log file is
         not initialized, then no event will be written, and this function
@@ -175,10 +179,13 @@ class UserLog {
 	bool open_file( const char *file, bool log_as_user, FileLock* & lock, 
 					FILE* & fp );
 
-	int doWriteEvent(ULogEvent *event, bool is_global_event, ClassAd *ad);
+	int doWriteEvent( ULogEvent *event, bool is_global_event, ClassAd *ad);
+	int doWriteEvent( FILE *fp, ULogEvent *event, bool do_use_xml );
+	void GenerateUniq( MyString &id ) const;
 
 	bool handleGlobalLogRotation();
 
+	
 #if 0 /* deprecated cruft */
     /// Deprecated Function.  Print the header to the log.
     void        output_header();
@@ -196,24 +203,25 @@ class UserLog {
     /// Deprecated.  Are we currently in a block?
     int         in_block;
 
-	/** Write to the user log? */		 bool		write_user_log;
-    /** Copy of path to the log file */  char     * path;
-    /** The log file                 */  FILE     * fp;
-    /** The log file lock            */  FileLock * lock;
+	/** Write to the user log? */		 bool		m_write_user_log;
+    /** Copy of path to the log file */  char     * m_path;
+    /** The log file                 */  FILE     * m_fp;
+    /** The log file lock            */  FileLock * m_lock;
 
-	/** Write to the global log? */		 bool		write_global_log;
-    /** Copy of path to global log   */  char     * global_path;
-    /** The global log file          */  FILE     * global_fp;
-    /** The global log file lock     */  FileLock * global_lock;
+	/** Write to the global log? */		 bool		m_write_global_log;
+    /** Copy of path to global log   */  char     * m_global_path;
+    /** The global log file          */  FILE     * m_global_fp;
+    /** The global log file lock     */  FileLock * m_global_lock;
+	/** Whether we use XML or not    */  bool       m_global_use_xml;
 
-	/** Whether we use XML or not    */  bool       use_xml;
+	/** Whether we use XML or not    */  bool       m_use_xml;
 
 #if !defined(WIN32)
 	/** PrivSep: the user's UID      */  uid_t      m_privsep_uid;
 	/** PrivSep: the user's GID      */  gid_t      m_privsep_gid;
 #endif
 	/** The GlobalJobID for this job */  char     * m_gjid;
-	/** The log file uniq ID base    */  const char* m_uniq_base;
+	/** The log file uniq ID base    */  char     * m_uniq_base;
 };
 
 
@@ -224,7 +232,6 @@ class UserLog {
     so it does not contain the old deprecated functions and parameters that
     the UserLog class is plagued with.
 */
-class MyString;
 class ReadUserLogState;
 class ReadUserLogMatch;
 class ReadUserLog
@@ -428,6 +435,21 @@ class ReadUserLog
 	*/
 	void releaseResources( void );
 
+    /** Read the next event from the log file.  The event pointer to
+        set to point to a newly instatiated ULogEvent object.
+        @param event pointer to be set to new object
+		@param store the state after the read?
+        @return the outcome of attempting to read the log
+    */
+    ULogEventOutcome readEvent (ULogEvent * & event, bool store_state );
+
+    /** Raw read of the next event from the log file.
+        @param event pointer to be set to new object
+		@param should the caller try the read again (after reopen) (returned)?
+        @return the outcome of attempting to read the log
+    */
+    ULogEventOutcome readEvent (ULogEvent * & event, bool *try_again );
+
 	/** Determine the type of log this is; note that if called on an
 	    empty log, this will return TRUE and the log type will stay
 		LOG_TYPE_UNKNOWN.
@@ -470,17 +492,16 @@ class ReadUserLog
 	 */
 	bool FindPrevFile( int start, int num, bool store_stat );
 
-	/** Close the log file between operations
-		@return true:success, false:failure
-	 */
-	bool CloseLogFile( void );
-
 	/** Open the log file
-		@param Is this a new/different file?
 		@param Seek to previous location?
 		@return outcome of the open attempt
 	 */
-	ULogEventOutcome OpenLogFile( bool first, bool do_seek );
+	ULogEventOutcome OpenLogFile( bool do_seek );
+
+	/** Close the log file between operations
+		@return true:success, false:failure
+	 */
+	bool CloseLogFile( );
 
 
 	/** Class private data
@@ -500,6 +521,7 @@ class ReadUserLog
 	bool				 m_lock_file;	/** Should we lock the file?  */
     FileLock			*m_lock;		/** The log file lock         */
 	bool				 m_is_locked;	/** Is the file locked?       */
+	int					 m_lock_rot;	/** Lock managing what rotation #? */
 };
 
 #endif /* __cplusplus */
