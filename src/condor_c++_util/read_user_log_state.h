@@ -29,11 +29,6 @@
 #include "MyString.h"
 #include "stat_wrapper.h"
 
-// Special rotation number
-const int USE_CURRENT_ROTATION = -1;
-
-// Pre-declare the file state structure
-
 // Internal verion of the file state
 class ReadUserLogState
 {

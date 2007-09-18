@@ -39,7 +39,9 @@
 static const char SynchDelimiter[] = "...\n";
 
 // Values for min scores
-const int MINSCORE_FWSEARCH		= 3;
+const int SCORE_THRESH_FWSEARCH		= 3;
+const int SCORE_THRESH_NONROT		= 3;
+const int SCORE_MIN_MATCH			= 1;
 
 
 // Class to manage the uniq ident & related info
@@ -61,21 +63,21 @@ public:
 	
 	// Compare the specified file / file info with the cached info
 	ScoreResult ScoreFile( int rot,
-						   int min_score,
+						   int match_thresh,
 						   int *score = NULL ) const;
 	ScoreResult ScoreFile( const char *path,
 						   int rot,
-						   int min_score,
+						   int match_thresh,
 						   int *score = NULL ) const;
 	ScoreResult ScoreFile( StatStructType &statbuf,
 						   int rot,
-						   int min_score,
+						   int match_thresh,
 						   int *score = NULL ) const;
 
 private:
 	ScoreResult ScoreFileInternal( int rot,
 								   const char *path,
-								   int min_score,
+								   int match_thresh,
 								   int *state_score ) const;
 
 	ReadUserLogState	*m_state;		// File state info
@@ -490,11 +492,10 @@ ReadUserLog::ReopenLogFile( bool init )
 	int scores[m_max_rot];
 	int	start = m_state->Rotation();
 	for( int rot = start; (rot <= m_max_rot) && (new_rot < 0); rot++ ) {
-
 		int		score;
 
 		ReadUserLogId::ScoreResult result =
-			m_id->ScoreFile( rot, MINSCORE_FWSEARCH, &score );
+			m_id->ScoreFile( rot, SCORE_THRESH_FWSEARCH, &score );
 		if ( ReadUserLogId::ERROR == result ) {
 			scores[rot] = -1;
 		}
@@ -511,13 +512,18 @@ ReadUserLog::ReopenLogFile( bool init )
 	}
 
 	// No good match found, fall back to highest score
+	dprintf( D_FULLDEBUG, "Reopen: new=%d ms=%d msr=%d\n",
+			 new_rot, max_score, max_score_rot );
 	if ( ( new_rot < 0 )  &&  ( max_score > 0 )  ) {
 		new_rot = max_score_rot;
 	}
 
 	// If we've found a good match, or a high score, do it
-	if ( new_rot ) {
-		m_state->Rotation( new_rot );
+	if ( new_rot >= 0 ) {
+		if ( m_state->Rotation( new_rot ) ) {
+			return ULOG_RD_ERROR;
+		}
+		return OpenLogFile( true, true );
 	}
 
 	// If we got here, no match found.  :(
@@ -585,7 +591,8 @@ ReadUserLog::readEvent (ULogEvent *& event)
 		else {
 			// Same file?
 			ReadUserLogId::ScoreResult result =
-				m_id->ScoreFile( m_state->CurPath(), m_state->Rotation(), 1 );
+				m_id->ScoreFile( m_state->CurPath(), m_state->Rotation(),
+								 SCORE_THRESH_NONROT );
 			dprintf( D_FULLDEBUG,
 					 "readEvent: checking for rotation (%s): %d\n",
 					 m_state->CurPath(), result );
@@ -593,10 +600,6 @@ ReadUserLog::readEvent (ULogEvent *& event)
 				CloseLogFile( );
 				m_state->StatFile( );
 				OpenLogFile( true, false );
-
-				MyString	s;
-				m_state->GetState(s, "readEvent after close/open" );
-				puts( s.GetCStr() );
 			}
 			else {
 				try_again = false;
@@ -604,6 +607,7 @@ ReadUserLog::readEvent (ULogEvent *& event)
 		}
 	}
 
+	// Finally, one more attempt to read an event
 	if ( try_again ) {
 		if ( ULOG_OK == ReopenLogFile() ) {
 			if( m_state->IsLogType( ReadUserLogState::LOG_TYPE_XML ) ) {
@@ -613,8 +617,6 @@ ReadUserLog::readEvent (ULogEvent *& event)
 			} else {
 				outcome = ULOG_NO_EVENT;
 			}
-			dprintf( D_FULLDEBUG, "Retry status %d\n", outcome );
-			sleep( 2 );
 		}
 	}
 
@@ -1099,7 +1101,7 @@ ReadUserLogId::~ReadUserLogId ( void )
 // Compare a file by rotation # to the cached info
 ReadUserLogId::ScoreResult
 ReadUserLogId::ScoreFile( int rot,
-						  int min_score,
+						  int match_thresh,
 						  int *score_ptr ) const
 {
 	// Get the initial score from the state
@@ -1110,14 +1112,14 @@ ReadUserLogId::ScoreFile( int rot,
 	*score_ptr = m_state->ScoreFile( rot );
 
 	// Generate the final score using the internal logic
-	return ScoreFileInternal( rot, NULL, min_score, score_ptr );
+	return ScoreFileInternal( rot, NULL, match_thresh, score_ptr );
 }
 
 // Compare the "current" file to the cached info
 ReadUserLogId::ScoreResult
 ReadUserLogId::ScoreFile( const char *path,
 						  int rot,
-						  int min_score,
+						  int match_thresh,
 						  int *score_ptr ) const
 {
 	// Get the initial score from the state
@@ -1128,14 +1130,14 @@ ReadUserLogId::ScoreFile( const char *path,
 	*score_ptr = m_state->ScoreFile( path, rot );
 
 	// Generate the final score using the internal logic
-	return ScoreFileInternal( rot, path, min_score, score_ptr );
+	return ScoreFileInternal( rot, path, match_thresh, score_ptr );
 }
 
 // Compare the stat info passed in to the cached info
 ReadUserLogId::ScoreResult
 ReadUserLogId::ScoreFile( StatStructType &statbuf,
 						  int rot,
-						  int min_score,
+						  int match_thresh,
 						  int *score_ptr ) const
 {
 	// Get the initial score from the state
@@ -1146,38 +1148,46 @@ ReadUserLogId::ScoreFile( StatStructType &statbuf,
 	*score_ptr = m_state->ScoreFile( statbuf, rot );
 
 	// Generate the final score using the internal logic
-	return ScoreFileInternal( rot, NULL, min_score, score_ptr );
+	return ScoreFileInternal( rot, NULL, match_thresh, score_ptr );
 }
 
 // Score analysis
 ReadUserLogId::ScoreResult
 ReadUserLogId::ScoreFileInternal( int rot,
 								  const char *path,
-								  int min_score,
+								  int match_thresh,
 								  int *score_ptr ) const
 {
 	int	state_score = *score_ptr;
 
-	// First, look at the score from the stat info
+	dprintf( D_FULLDEBUG, "SFI: score = %d\n", state_score );
+
+	// Quick look at the score passed in from the state comparison
+	// We can return immediately in some cases
+
+	// < 0 is an error
 	if ( state_score < 0 ) {
+		dprintf( D_FULLDEBUG, "SFI: returning ERROR\n" );
 		return ERROR;
 	}
+	// Less than the min threshold - give up, declare "no match"
+	else if ( state_score < SCORE_MIN_MATCH ) {
+		dprintf( D_FULLDEBUG, "SFI: returning NOMATCH\n" );
+		return NOMATCH;
+	}
+	// Or, if it's above the min match threshold, 
+	else if ( state_score >= match_thresh ) {
+		dprintf( D_FULLDEBUG, "SFI: returning MATCH\n" );
+		return MATCH;
+	}
 
+	// Here we want to look more closesly
+
+	// If no path provided, generate one
 	MyString temp_path;
 	if ( NULL == path ) {
 		m_state->GeneratePath( rot, temp_path );
 		path = temp_path.GetCStr( );
-	}
-
-	dprintf( D_FULLDEBUG, "compare: state score = %d\n", state_score );
-
-	// If we're above the min score, declare success
-	// If we have a score of zero, though, give up
-	if ( state_score >= min_score ) {
-		return MATCH;
-	}
-	else if ( 0 == state_score ) {
-		return NOMATCH;
 	}
 
 	// Here, we have an indeterminate result

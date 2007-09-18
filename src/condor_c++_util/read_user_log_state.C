@@ -89,7 +89,7 @@ ReadUserLogState::Clear( bool init )
 		m_base_path = NULL;
 	}
 	m_cur_path = "";
-	m_cur_rot = 0;
+	m_cur_rot = -1;
 
 	m_uniq_id = "";
 
@@ -119,16 +119,9 @@ ReadUserLogState::Rotation( int rotation, bool store_stat )
 int
 ReadUserLogState::Rotation( int rotation, StatStructType &statbuf ) 
 {
-	if ( rotation > m_max_rot ) {
+	// Check the rotation parameter
+	if (  ( rotation < 0 ) || ( rotation > m_max_rot )  ) {
 		return -1;
-	}
-
-	// If not "use current", set the current to the passed in value
-	if ( USE_CURRENT_ROTATION != rotation ) {
-		if ( m_cur_rot != rotation ) {
-			m_uniq_id = "";
-		}
-		m_cur_rot = rotation;
 	}
 
 	// No change?  We're done
@@ -136,7 +129,9 @@ ReadUserLogState::Rotation( int rotation, StatStructType &statbuf )
 		return 0;
 	}
 
-	GeneratePath( m_cur_rot, m_cur_path );
+	m_uniq_id = "";
+	GeneratePath( rotation, m_cur_path );
+	m_cur_rot = rotation;
 
 	return StatFile( statbuf );
 }
@@ -144,19 +139,18 @@ ReadUserLogState::Rotation( int rotation, StatStructType &statbuf )
 bool
 ReadUserLogState::GeneratePath( int rotation, MyString &path ) const
 {
-	if ( rotation > m_max_rot ) {
-		return -1;
+	// Check the rotation parameter
+	if (  ( rotation < 0 ) || ( rotation > m_max_rot )  ) {
+		return false;
 	}
 
-	if ( USE_CURRENT_ROTATION == rotation ) {
-		rotation = m_cur_rot;
-	}
-
+	// No base path set???  Nothing we can do here.
 	if ( ! m_base_path ) {
 		path = "";
 		return false;
 	}
 
+	// For starters, copy the base path
 	path = m_base_path;
 	if ( rotation ) {
 		path += ".old";
@@ -187,7 +181,6 @@ ReadUserLogState::StatFile( const char *path, StatStructType &statbuf ) const
 {
 	StatWrapper	statwrap( path );
 	if ( statwrap.GetStatus( )  ) {
-		dprintf( D_FULLDEBUG, "StatFile: errno = %d\n", statwrap.GetErrno() );
 		return statwrap.GetStatus( );
 	}
 
