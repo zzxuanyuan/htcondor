@@ -226,7 +226,7 @@ class UserLog {
 */
 class MyString;
 class ReadUserLogState;
-class ReadUserLogId;
+class ReadUserLogMatch;
 class ReadUserLog
 {
   public:
@@ -488,7 +488,7 @@ class ReadUserLog
 	bool				 m_initialized;	/** Are we initialized? */
 
 	ReadUserLogState	*m_state;		/** The state of the file     */
-	ReadUserLogId		*m_id;			/** Identifying information */
+	ReadUserLogMatch	*m_match;		/** Detects file matches */
 
     int    				 m_fd;			/** The log's file descriptor */
     FILE				*m_fp;			/** The log's file pointer    */

@@ -44,41 +44,41 @@ const int SCORE_THRESH_NONROT		= 3;
 const int SCORE_MIN_MATCH			= 1;
 
 
-// Class to manage the uniq ident & related info
+// Class to manage score the user logs
 // This class was created because you can't pre-declare the
 // StructStatType in the main header file, so I created this simple
 // class to manage all related stuff
-class ReadUserLogId
+class ReadUserLogMatch
 {
 public:
 
 	// Constructor & destructor
-	ReadUserLogId( ReadUserLogState *state );
-	~ReadUserLogId( void );
+	ReadUserLogMatch( ReadUserLogState *state );
+	~ReadUserLogMatch( void );
 
 	// Results of file compare
-	enum ScoreResult {
+	enum MatchResult {
 		ERROR = -1, MATCH = 0, NOMATCH = 1
 	};
 	
 	// Compare the specified file / file info with the cached info
-	ScoreResult ScoreFile( int rot,
-						   int match_thresh,
-						   int *score = NULL ) const;
-	ScoreResult ScoreFile( const char *path,
-						   int rot,
-						   int match_thresh,
-						   int *score = NULL ) const;
-	ScoreResult ScoreFile( StatStructType &statbuf,
-						   int rot,
-						   int match_thresh,
-						   int *score = NULL ) const;
+	MatchResult Match( int rot,
+					   int match_thresh,
+					   int *score = NULL ) const;
+	MatchResult Match( const char *path,
+					   int rot,
+					   int match_thresh,
+					   int *score = NULL ) const;
+	MatchResult Match( StatStructType &statbuf,
+					   int rot,
+					   int match_thresh,
+					   int *score = NULL ) const;
 
 private:
-	ScoreResult ScoreFileInternal( int rot,
-								   const char *path,
-								   int match_thresh,
-								   int *state_score ) const;
+	MatchResult MatchInternal( int rot,
+							   const char *path,
+							   int match_thresh,
+							   int *state_score ) const;
 
 	ReadUserLogState	*m_state;		// File state info
 };
@@ -116,7 +116,7 @@ ReadUserLog::initialize( const ReadUserLog::FileState &state,
 	m_max_rot = handle_rotation ? 1 : 0;
 
 	m_state = new ReadUserLogState( state, m_max_rot );
-	m_id = new ReadUserLogId( m_state );
+	m_match = new ReadUserLogMatch( m_state );
 	return initialize( handle_rotation, false, true );
 }
 
@@ -129,7 +129,7 @@ ReadUserLog::initialize( const char *filename,
 	m_max_rot = handle_rotation ? 1 : 0;
 
 	m_state = new ReadUserLogState( filename, m_max_rot );
-	m_id = new ReadUserLogId( m_state );
+	m_match = new ReadUserLogMatch( m_state );
 
 	if (! initialize( handle_rotation, check_for_old, false ) ) {
 		return false;
@@ -459,10 +459,6 @@ ReadUserLog::ReopenLogFile( bool init )
 		return ULOG_OK;
 	}
 
-	MyString	s;
-	m_state->GetState(s, "ReopenLogFile()" );
-	puts( s.GetCStr() );
-	
 	// If we're not handling rotation, just try to reopen the file
 	if ( ! m_handle_rot ) {
 		return OpenLogFile( false, true );
@@ -494,9 +490,9 @@ ReadUserLog::ReopenLogFile( bool init )
 	for( int rot = start; (rot <= m_max_rot) && (new_rot < 0); rot++ ) {
 		int		score;
 
-		ReadUserLogId::ScoreResult result =
-			m_id->ScoreFile( rot, SCORE_THRESH_FWSEARCH, &score );
-		if ( ReadUserLogId::ERROR == result ) {
+		ReadUserLogMatch::MatchResult result =
+			m_match->Match( rot, SCORE_THRESH_FWSEARCH, &score );
+		if ( ReadUserLogMatch::ERROR == result ) {
 			scores[rot] = -1;
 		}
 		else if ( MATCH == result ) {
@@ -590,13 +586,13 @@ ReadUserLog::readEvent (ULogEvent *& event)
 		// (a file that isn't a ".old" or ".1", etc.)
 		else {
 			// Same file?
-			ReadUserLogId::ScoreResult result =
-				m_id->ScoreFile( m_state->CurPath(), m_state->Rotation(),
+			ReadUserLogMatch::MatchResult result =
+				m_match->Match( m_state->CurPath(), m_state->Rotation(),
 								 SCORE_THRESH_NONROT );
 			dprintf( D_FULLDEBUG,
 					 "readEvent: checking for rotation (%s): %d\n",
 					 m_state->CurPath(), result );
-			if ( result == ReadUserLogId::NOMATCH ) {
+			if ( result == ReadUserLogMatch::NOMATCH ) {
 				CloseLogFile( );
 				m_state->StatFile( );
 				OpenLogFile( true, false );
@@ -713,7 +709,8 @@ ReadUserLog::readEventOld(ULogEvent *& event)
 	// rewind to this location
 	if (!m_fp || ((filepos = ftell(m_fp)) == -1L))
 	{
-		dprintf( D_FULLDEBUG, "ReadUserLog: invalid m_fp, or ftell() failed\n" );
+		dprintf( D_FULLDEBUG,
+				 "ReadUserLog: invalid m_fp, or ftell() failed\n" );
 		if (!m_is_locked) {
 			m_lock->release();
 		}
@@ -1026,7 +1023,7 @@ ReadUserLog::clear( void )
 {
 	m_initialized = false;
 	m_state = NULL;
-	m_id = NULL;
+	m_match = NULL;
     m_fd = -1;
 	m_fp = NULL;
 	m_lock = NULL;
@@ -1036,9 +1033,9 @@ ReadUserLog::clear( void )
 void
 ReadUserLog::releaseResources( void )
 {
-	if ( m_id ) {
-		delete m_id;
-		m_id = NULL;
+	if ( m_match ) {
+		delete m_match;
+		m_match = NULL;
 	}
 
 	if ( m_state ) {
@@ -1084,25 +1081,27 @@ ReadUserLog::FormatFileState ( MyString &str, const char *label ) const
 
 
 // **********************************
-// ReadUserLog class ID methods
+// ReadUserLogMatch methods
 // **********************************
 
 // Constructor
-ReadUserLogId::ReadUserLogId ( ReadUserLogState *state )
+ReadUserLogMatch::ReadUserLogMatch (
+	ReadUserLogState	*state )
 {
 	m_state = state;
 }
 
 // Destructor
-ReadUserLogId::~ReadUserLogId ( void )
+ReadUserLogMatch::~ReadUserLogMatch ( void )
 {
 }
 
 // Compare a file by rotation # to the cached info
-ReadUserLogId::ScoreResult
-ReadUserLogId::ScoreFile( int rot,
-						  int match_thresh,
-						  int *score_ptr ) const
+ReadUserLogMatch::MatchResult
+ReadUserLogMatch::Match(
+	int				 rot,
+	int				 match_thresh,
+	int				*score_ptr ) const
 {
 	// Get the initial score from the state
 	int	local_score;
@@ -1112,15 +1111,16 @@ ReadUserLogId::ScoreFile( int rot,
 	*score_ptr = m_state->ScoreFile( rot );
 
 	// Generate the final score using the internal logic
-	return ScoreFileInternal( rot, NULL, match_thresh, score_ptr );
+	return MatchInternal( rot, NULL, match_thresh, score_ptr );
 }
 
 // Compare the "current" file to the cached info
-ReadUserLogId::ScoreResult
-ReadUserLogId::ScoreFile( const char *path,
-						  int rot,
-						  int match_thresh,
-						  int *score_ptr ) const
+ReadUserLogMatch::MatchResult
+ReadUserLogMatch::Match(
+	const char		*path,
+	int				 rot,
+	int				 match_thresh,
+	int				*score_ptr ) const
 {
 	// Get the initial score from the state
 	int	local_score;
@@ -1130,15 +1130,16 @@ ReadUserLogId::ScoreFile( const char *path,
 	*score_ptr = m_state->ScoreFile( path, rot );
 
 	// Generate the final score using the internal logic
-	return ScoreFileInternal( rot, path, match_thresh, score_ptr );
+	return MatchInternal( rot, path, match_thresh, score_ptr );
 }
 
 // Compare the stat info passed in to the cached info
-ReadUserLogId::ScoreResult
-ReadUserLogId::ScoreFile( StatStructType &statbuf,
-						  int rot,
-						  int match_thresh,
-						  int *score_ptr ) const
+ReadUserLogMatch::MatchResult
+ReadUserLogMatch::Match(
+	StatStructType 	&statbuf,
+	int				 rot,
+	int				 match_thresh,
+	int				*score_ptr ) const
 {
 	// Get the initial score from the state
 	int	local_score;
@@ -1148,15 +1149,16 @@ ReadUserLogId::ScoreFile( StatStructType &statbuf,
 	*score_ptr = m_state->ScoreFile( statbuf, rot );
 
 	// Generate the final score using the internal logic
-	return ScoreFileInternal( rot, NULL, match_thresh, score_ptr );
+	return MatchInternal( rot, NULL, match_thresh, score_ptr );
 }
 
 // Score analysis
-ReadUserLogId::ScoreResult
-ReadUserLogId::ScoreFileInternal( int rot,
-								  const char *path,
-								  int match_thresh,
-								  int *score_ptr ) const
+ReadUserLogMatch::MatchResult
+ReadUserLogMatch::MatchInternal(
+	int				 rot,
+	const char		*path,
+	int				 match_thresh,
+	int				*score_ptr ) const
 {
 	int	state_score = *score_ptr;
 
