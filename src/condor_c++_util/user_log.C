@@ -32,6 +32,7 @@
 #include "condor_xml_classads.h"
 #include "condor_config.h"
 #include "utc_time.h"
+#include "stat_wrapper.h"
 #include "../condor_privsep/condor_privsep.h"
 
 
@@ -285,23 +286,29 @@ initialize_global_log()
 	if ( m_global_path ) {
 		ret_val = open_file(m_global_path, false, m_global_lock, m_global_fp);
 
-		if(  ( m_global_path ) && (! ftell(m_global_fp) )  ) {
-			GenericEvent	event;
-			MyString file_id;
-			GenerateUniq( file_id );
-			snprintf(event.info, sizeof(event.info),
-					 "Global JobLog: "
-					 "ctime=%d id=%s size=%ld events=%ld",
-					 (int) time(NULL),
-					 file_id.GetCStr(), 0L, 0L
-					 );
-			dprintf( D_FULLDEBUG, "Writing log header: '%s'\n", event.info );
-			int		len = strlen( event.info );
-			while( len < 256 ) {
-				strcat( event.info, " " );
-				len++;
+		if( m_global_path ) {
+			StatWrapper		statinfo;
+			if (  ( !(statinfo.Stat(m_global_path))  ) && 
+				  ( !(statinfo.GetStatBuf()->st_size) )  ) {
+				GenericEvent	event;
+				MyString file_id;
+				GenerateUniq( file_id );
+				snprintf(event.info, sizeof(event.info),
+						 "Global JobLog: "
+						 "ctime=%d id=%s size=%ld events=%ld",
+						 (int) time(NULL),
+						 file_id.GetCStr(), 0L, 0L
+						 );
+				dprintf( D_FULLDEBUG, "Writing log header: '%s'\n",
+						 event.info );
+				int		len = strlen( event.info );
+				while( len < 256 ) {
+					strcat( event.info, " " );
+					len++;
+				}
+				ret_val = doWriteEvent( m_global_fp, &event,
+										m_global_use_xml );
 			}
-			ret_val = doWriteEvent( m_global_fp, &event, m_global_use_xml );
 		}
 	}
 
