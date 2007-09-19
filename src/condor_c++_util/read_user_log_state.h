@@ -99,6 +99,17 @@ public:
 	UserLogType LogType( UserLogType t ) { return m_log_type = t; };
 	bool IsLogType( UserLogType t ) const { return m_log_type == t; };
 
+	// Set the score factors
+	enum ScoreFactors {
+		SCORE_CTIME,		// ctime values match
+		SCORE_INODE,		// inodes match
+		SCORE_SAME_SIZE,	// File is the same size
+		SCORE_GROWN,		// current file has grown
+		SCORE_SHRUNK,		// File has shrunk
+	};
+	void SetScoreFactor( enum ScoreFactors which, int factor );
+
+
 	// Generate an external file state structure
 	static bool InitState( ReadUserLog::FileState &state );
 	bool GetState( ReadUserLog::FileState &state ) const;
@@ -146,6 +157,13 @@ private:
 
 	int				m_max_rot;			// Max rot #
 	int				m_recent_thresh;	// Max time for a stat to be "recent"
+
+	// Score factors
+	int				m_score_fact_ctime;		// ctime values match
+	int				m_score_fact_inode;		// inodes match
+	int				m_score_fact_same_size;	// File is the same size
+	int				m_score_fact_grown;		// current file has grown
+	int				m_score_fact_shrunk;	// File has shrunk
 };
 
 #endif

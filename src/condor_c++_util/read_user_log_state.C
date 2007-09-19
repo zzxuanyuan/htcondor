@@ -274,40 +274,31 @@ ReadUserLogState::ScoreFile( const StatStructType &statbuf, int rot ) const
 
 # if defined(WIN32)
 	if ( m_stat_buf.st_ctime == statbuf.st_ctime ) {
-		score += 2;
+		score += m_score_fact_ctime;
 	}
 # else
 
-	// For Windoze, st_ino is meaningless, so we ignore it;
-	// For UNIX, we look at the inode & ctime
-	//  Note: inodes are recycled; and thus an idential inode number
-	//  does *not* garentee the we have the same file
-	//  Also note that ctime is "change time" of the inode *not* 
-	//  creation time, we can't completely rely on it, either  :(
-	dprintf( D_FULLDEBUG, "check: m_stat_buf: %d %d; sbuf: %d %d\n",
-			 (int) m_stat_buf.st_ino, (int) m_stat_buf.st_ctime,
-			 (int) statbuf.st_ino, (int) statbuf.st_ctime );
 	if ( m_stat_buf.st_ino == statbuf.st_ino ) {
-		score += 2;
+		score += m_score_fact_inode;
 	}
 	if ( m_stat_buf.st_ctime == statbuf.st_ctime ) {
-		score++;
+		score += m_score_fact_ctime;
 	}
 # endif
 
 	// If it's the same size, it's a good sign..
 	if ( same_size ) {
-		score += 2;
+		score += m_score_fact_same_size;
 	}
 	// If it's the current file and recently stat()ed, if it's grown
 	// we're OK with that, too
 	else if ( is_recent && is_current && has_grown ) {
-		score++;
+		score += m_score_fact_grown;
 	}
 
 	// If the file has shrunk, that doesn't bode well, though, in *any* case
 	if ( m_stat_buf.st_size > statbuf.st_size ) {
-		score -= 5;
+		score += m_score_fact_shrunk;
 	}
 
 	// Min score is zero
@@ -316,6 +307,32 @@ ReadUserLogState::ScoreFile( const StatStructType &statbuf, int rot ) const
 	}
 
 	return score;
+}
+
+void
+ReadUserLogState::SetScoreFactor( enum ScoreFactors which, int factor )
+{
+	switch ( which )
+	{
+	case SCORE_CTIME:
+		m_score_fact_ctime = factor;
+		break;
+	case SCORE_INODE:
+		m_score_fact_inode = factor;
+		break;
+	case SCORE_SAME_SIZE:
+		m_score_fact_same_size = factor;
+		break;
+	case SCORE_GROWN:
+		m_score_fact_grown = factor;
+		break;
+	case SCORE_SHRUNK:
+		m_score_fact_shrunk = factor;
+		break;
+	default:
+		// Ignore
+		break;
+	}
 }
 
 int

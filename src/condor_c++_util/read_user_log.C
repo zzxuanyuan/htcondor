@@ -39,9 +39,29 @@
 static const char SynchDelimiter[] = "...\n";
 
 // Values for min scores
-const int SCORE_THRESH_FWSEARCH		= 3;
+const int SCORE_THRESH_FWSEARCH		= 4;
 const int SCORE_THRESH_NONROT		= 3;
 const int SCORE_MIN_MATCH			= 1;
+
+// Score factor values
+// For Windoze, st_ino is meaningless, so we ignore it;
+// For UNIX, we look at the inode & ctime
+//  Note: inodes are recycled; and thus an idential inode number
+//  does *not* garentee the we have the same file
+//  Also note that ctime is "change time" of the inode *not* 
+//  creation time, we can't completely rely on it, either  :(
+const int SCORE_FACTOR_UNIQ_MATCH	= 100;
+# if defined(WIN32)
+const int SCORE_FACTOR_CTIME		= 2;
+const int SCORE_FACTOR_INODE		= 0;
+# else
+const int SCORE_FACTOR_CTIME		= 1;
+const int SCORE_FACTOR_INODE		= 2;
+# endif
+const int SCORE_FACTOR_SAME_SIZE	= 2;
+const int SCORE_FACTOR_GROWN		= 1;
+const int SCORE_FACTOR_SHRUNK		= -5;
+
 
 // Threshold to consider file stat's as recent
 const int SCORE_RECENT_THRESH		= 60;
@@ -200,6 +220,17 @@ ReadUserLog::initialize ( bool handle_rotation,
 			 handle_rotation ? "true" : "false",
 			 check_for_rotation ? "true" : "false",
 			 restore ? "true" : "false" );
+
+	m_state->SetScoreFactor( ReadUserLogState::SCORE_CTIME,
+							 SCORE_FACTOR_CTIME );
+	m_state->SetScoreFactor( ReadUserLogState::SCORE_INODE,
+							 SCORE_FACTOR_INODE );
+	m_state->SetScoreFactor( ReadUserLogState::SCORE_SAME_SIZE,
+							 SCORE_FACTOR_SAME_SIZE );
+	m_state->SetScoreFactor( ReadUserLogState::SCORE_GROWN,
+							 SCORE_FACTOR_GROWN );
+	m_state->SetScoreFactor( ReadUserLogState::SCORE_SHRUNK,
+							 SCORE_FACTOR_SHRUNK );
 
 	if ( restore ) {
 		// Do nothing
@@ -1396,7 +1427,7 @@ ReadUserLogMatch::MatchInternal(
 	// Finally, extract the ID & store it
 	int	id_result = m_state->CompareUniqId( header.Id() );
 	if ( id_result > 0 ) {
-		score += 100;
+		score += SCORE_FACTOR_UNIQ_MATCH;
 	}
 	else if ( id_result < 0 ) {
 		score = 0;
