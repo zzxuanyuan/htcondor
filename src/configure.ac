@@ -1686,6 +1686,7 @@ AC_CHECK_TYPES([__int64])
 AC_CHECK_FUNCS([strsignal])
 AC_CHECK_FUNCS([stat64])
 AC_CHECK_FUNCS([fseeko])
+AC_CHECK_FUNCS([ftello])
 AC_CHECK_FUNCS([lchown])
 AC_CHECK_FUNC(crypt, ,AC_CHECK_LIB(crypt,crypt))
 AC_SEARCH_LIBS([dlopen], [dl],
