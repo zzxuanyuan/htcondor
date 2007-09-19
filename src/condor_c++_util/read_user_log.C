@@ -44,8 +44,10 @@ const int SCORE_THRESH_NONROT		= 3;
 const int SCORE_MIN_MATCH			= 1;
 
 // Score factor values
-// For Windoze, st_ino is meaningless, so we ignore it;
-// For UNIX, we look at the inode & ctime
+// For Windoze:
+//  st_ino is meaningless, so we ignore it; set it's factor to zero
+// UNIX:
+//  We look at the inode & ctime
 //  Note: inodes are recycled; and thus an idential inode number
 //  does *not* garentee the we have the same file
 //  Also note that ctime is "change time" of the inode *not* 
@@ -63,7 +65,7 @@ const int SCORE_FACTOR_GROWN		= 1;
 const int SCORE_FACTOR_SHRUNK		= -5;
 
 
-// Threshold to consider file stat's as recent
+// Threshold to consider file stat's as recent (seconds)
 const int SCORE_RECENT_THRESH		= 60;
 
 
