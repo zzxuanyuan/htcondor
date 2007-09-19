@@ -138,6 +138,9 @@ public:
 		int				 match_thresh,
 		int				*score = NULL ) const;
 
+	// Get a string to match the result value
+	const char *MatchStr( MatchResult value ) const;
+
 private:
 	MatchResult MatchInternal(
 		int				 rot,
@@ -342,10 +345,12 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 	// Is the lock current?
 	bool	is_lock_current = ( m_state->Rotation() == m_lock_rot );
 
-	dprintf( D_FULLDEBUG, "Opening log '%s' (is_lock_cur=%s,seek=%s)\n",
+	dprintf( D_FULLDEBUG, "Opening log '%s' "
+			 "(is_lock_cur=%s,seek=%s,read_header=%s)\n",
 			 m_state->CurPath(),
 			 is_lock_current ? "true" : "false",
-			 do_seek ? "true" : "false" );
+			 do_seek ? "true" : "false",
+			 read_header ? "true" : "false" );
 
 	m_fd = safe_open_wrapper( m_state->CurPath(), O_RDWR, 0 );
 	if ( m_fd < 0 ) {
@@ -695,11 +700,12 @@ ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 		// We've hit the end of a ".old" or ".1", ".2" ... file
 		if ( m_state->Rotation() > 0 ) {
 			CloseLogFile( );
+
+			bool found = FindPrevFile( m_state->Rotation() - 1, 1, true );
 			dprintf( D_FULLDEBUG,
-					 "readEvent: checking for previous file (%d)\n",
-					 m_state->Rotation() );
-			
-			if ( !FindPrevFile( m_state->Rotation() - 1, 1, true ) ) {
+					 "readEvent: checking for previous file (%d) = %s\n",
+					 m_state->Rotation(), found ? "Found" : "Not found" );
+			if ( !found ) {
 				try_again = false;
 			}
 		}
@@ -713,10 +719,11 @@ ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 									 m_state->Rotation(),
 									 SCORE_THRESH_NONROT );
 			dprintf( D_FULLDEBUG,
-					 "readEvent: checking for rotation (%s): %d\n",
-					 m_state->CurPath(), result );
+					 "readEvent: checking for rotation (%s) = %s\n",
+					 m_state->CurPath(), m_match->MatchStr(result) );
 			if ( result == ReadUserLogMatch::NOMATCH ) {
 				CloseLogFile( );
+				m_state->Reset( );
 				m_state->StatFile( );
 				OpenLogFile( false );
 			}
@@ -1460,3 +1467,22 @@ ReadUserLogMatch::EvalScore( int match_thresh, int score ) const
 		return UNKNOWN;
 	}
 }
+
+const char *
+ReadUserLogMatch::MatchStr( ReadUserLogMatch::MatchResult value ) const
+{
+	switch( value ) {
+	case ERROR:
+		return "ERROR";
+	case MATCH:
+		return "MATCH";
+	case UNKNOWN:
+		return "UNKNOWN";
+	case NOMATCH:
+		return "NOMATCH";
+	default:
+		return "<invalid>";
+	};
+	
+}
+		
