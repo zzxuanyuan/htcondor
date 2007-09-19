@@ -125,18 +125,18 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -version: print the version number and compile date\n"
 		"  -xml: write the log in XML\n";
 
-	args.isXml = false;
-	args.logFile = NULL;
-	args.numExec = 10;
-	args.cluster = getpid();
-	args.proc = 0;
-	args.subproc = 0;
-	args.sleep = 5;
-	args.stork = false;
-	args.submitNote = "";
-	args.verbosity = 1;
+	args.isXml			= false;
+	args.logFile		= NULL;
+	args.numExec		= 10;
+	args.cluster		= -1;
+	args.proc			= -1;
+	args.subproc		= -1;
+	args.sleep			= 5;
+	args.stork			= false;
+	args.submitNote		= "";
+	args.verbosity		= 1;
 	args.genericEventStr = NULL;
-	args.persistFile = NULL;
+	args.persistFile	= NULL;
 
 	for ( int index = 1; index < argc; ++index ) {
 		if ( !strcmp(argv[index], "-cluster") ) {
@@ -284,17 +284,30 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		status = STATUS_ERROR;
 	}
 
+	// Read the persisted file (if specified)
 	if ( args.persistFile ) {
-		FILE	*fp;
-		fp = safe_fopen_wrapper( args.persistFile, "r" );
+		FILE	*fp = safe_fopen_wrapper( args.persistFile, "r" );
 		if ( fp ) {
-			fscanf( fp, "%d.%d.%d", &args.cluster, &args.proc, &args.subproc );
-			args.cluster++;
+			int		cluster, proc, subproc;
+			if ( 3 == fscanf( fp, "%d.%d.%d", &cluster, &proc, &subproc ) ) {
+				if ( args.cluster < 0 ) args.cluster = cluster;
+				if ( args.proc < 0 )    args.proc    = proc;
+				if ( args.subproc < 0 ) args.subproc = subproc;
+			}
 			fclose( fp );
 		}
-		fp = safe_fopen_wrapper( args.persistFile, "w" );
+	}
+
+	// Set defaults for the cluster, proc & subproc
+	if ( args.cluster < 0 ) args.cluster = getpid();
+	if ( args.proc < 0 )    args.proc    = 0;
+	if ( args.subproc < 0 ) args.subproc = 0;
+
+	// Update the persisted file (if specified)
+	if ( args.persistFile ) {
+		FILE	*fp = safe_fopen_wrapper( args.persistFile, "w" );
 		if ( fp ) {
-			fprintf( fp, "%d.%d.%d", args.cluster, args.proc, args.subproc );
+			fprintf( fp, "%d.%d.%d", args.cluster+1, args.proc, args.subproc );
 			fclose( fp );
 		}
 	}
