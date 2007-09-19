@@ -249,9 +249,8 @@ ReadUserLogState::ScoreFile( const char *path, int rot ) const
 	if ( rot < 0 ) {
 		rot = m_cur_rot;
 	}
-	dprintf( D_FULLDEBUG, "CheckFileStat: Stating %s\n", path );
 	if ( StatFile( path, statbuf ) ) {
-		dprintf( D_FULLDEBUG, "CheckFileStat: stat Error\n" );
+		dprintf( D_FULLDEBUG, "ScoreFile: stat Error\n" );
 		return -1;
 	}
 

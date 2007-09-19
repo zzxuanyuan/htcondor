@@ -221,11 +221,7 @@ ReadUserLog::initialize ( bool handle_rotation,
 	m_max_rot = handle_rotation ? 1 : 0;
 	m_read_header = enable_header_read;
 
-	dprintf( D_FULLDEBUG, "ReadUserLog::initialize( hr=%s, cr=%s, r=%s )\n",
-			 handle_rotation ? "true" : "false",
-			 check_for_rotation ? "true" : "false",
-			 restore ? "true" : "false" );
-
+	// Set the score factor in the file state manager
 	m_state->SetScoreFactor( ReadUserLogState::SCORE_CTIME,
 							 SCORE_FACTOR_CTIME );
 	m_state->SetScoreFactor( ReadUserLogState::SCORE_INODE,
@@ -345,7 +341,7 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 	// Is the lock current?
 	bool	is_lock_current = ( m_state->Rotation() == m_lock_rot );
 
-	dprintf( D_FULLDEBUG, "Opening log '%s' "
+	dprintf( D_FULLDEBUG, "Opening log file '%s'"
 			 "(is_lock_cur=%s,seek=%s,read_header=%s)\n",
 			 m_state->CurPath(),
 			 is_lock_current ? "true" : "false",
@@ -1255,7 +1251,6 @@ ReadUserLogHeader::ReadFileHeader(
 		state->GeneratePath( rot, temp_path );
 		path = temp_path.GetCStr( );
 	}
-	dprintf( D_FULLDEBUG, "RFH: reading file %s\n", path );
 
 	// Initialize the reader
 	if ( !reader.initialize( path, false, false ) ) {
@@ -1274,8 +1269,6 @@ ReadUserLogHeader::ReadFileHeader(
 	}
 
 	// Finally, if it's a generic event, let's see if we can parse it
-	dprintf( D_FULLDEBUG, "RFH: looking at event type %d/%s\n",
-			 event->eventNumber, event->eventName( ) );
 	int status = ExtractEvent( event );
 	delete event;
 
@@ -1382,7 +1375,7 @@ ReadUserLogMatch::MatchInternal(
 	ULogEventOutcome	outcome;
 	int					score = *score_ptr;
 
-	dprintf( D_FULLDEBUG, "SFI: score = %d\n", score );
+	dprintf( D_FULLDEBUG, "Match: score of %s = %d\n", path?path:"", score );
 
 	// Quick look at the score passed in from the state comparison
 	// We can return immediately in some cases
@@ -1406,7 +1399,7 @@ ReadUserLogMatch::MatchInternal(
 		m_state->GeneratePath( rot, temp_path );
 		path = temp_path.GetCStr( );
 	}
-	dprintf( D_FULLDEBUG, "SFI: reading file %s\n", path );
+	dprintf( D_FULLDEBUG, "Match: reading file %s\n", path );
 
 	// Initialize the reader
 	if ( !reader.initialize( path, false, false ) ) {
@@ -1443,7 +1436,7 @@ ReadUserLogMatch::MatchInternal(
 	}
 
 	// And, last but not least, re-evaluate the score
-	dprintf( D_FULLDEBUG, "SFI: Final score is %d\n", score );
+	dprintf( D_FULLDEBUG, "Match: Final score is %d\n", score );
 	return EvalScore( match_thresh, score );
 }
 

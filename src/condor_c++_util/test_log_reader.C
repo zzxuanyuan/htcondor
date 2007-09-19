@@ -77,7 +77,7 @@ main(int argc, char **argv)
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("TEST_READER");
+	dprintf_config("TEST_LOG_READER");
 
 	int		result = 0;
 
