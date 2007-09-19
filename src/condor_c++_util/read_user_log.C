@@ -48,15 +48,20 @@ const int SCORE_RECENT_THRESH		= 60;
 
 
 // Simple class to extract info from a log file header event
-class ReadUserLogHeaderInfo
+class ReadUserLogHeader
 {
 public:
-	ReadUserLogHeaderInfo( void ) { m_valid = false; };
-	ReadUserLogHeaderInfo( const ULogEvent *event ) {
+	ReadUserLogHeader( void ) { m_valid = false; };
+	ReadUserLogHeader( const ULogEvent *event ) {
 		m_valid = false;
 		ExtractEvent( event );
 	};
-	~ReadUserLogHeaderInfo( void ) { };
+	~ReadUserLogHeader( void ) { };
+
+	// Read the header from a file
+	int ReadFileHeader( int rot,
+						const char *path,
+						const ReadUserLogState *state );
 
 	// Extract data from an event
 	int ExtractEvent( const ULogEvent *);
@@ -66,7 +71,7 @@ public:
 
 	// Get extracted info
 	void Id( MyString &id ) const { id = m_id; };
-	const char *Id( void ) const { return m_id.GetCStr(); };
+	const MyString &Id( void ) const { return m_id; };
 	time_t Ctime( void ) const { return m_ctime; };
 
 private:
@@ -111,12 +116,6 @@ public:
 		int				 match_thresh,
 		int				*score = NULL ) const;
 
-	// Read the header from a file
-	int ReadFileHeader(
-		int						 rot,
-		const char				*path,
-		ReadUserLogHeaderInfo	&info ) const;
-
 private:
 	MatchResult MatchInternal(
 		int				 rot,
@@ -157,14 +156,14 @@ ReadUserLog::ReadUserLog ( const ReadUserLog::FileState &state )
 //  restored in "state" passed to us by the application
 bool
 ReadUserLog::initialize( const ReadUserLog::FileState &state,
-						 bool handle_rotation)
+						 bool handle_rotation )
 {
 	m_handle_rot = handle_rotation;
 	m_max_rot = handle_rotation ? 1 : 0;
 
 	m_state = new ReadUserLogState( state, m_max_rot, SCORE_RECENT_THRESH );
 	m_match = new ReadUserLogMatch( m_state );
-	return initialize( handle_rotation, false, true );
+	return initialize( handle_rotation, false, true, true );
 }
 
 bool
@@ -178,7 +177,9 @@ ReadUserLog::initialize( const char *filename,
 	m_state = new ReadUserLogState( filename, m_max_rot, SCORE_RECENT_THRESH );
 	m_match = new ReadUserLogMatch( m_state );
 
-	if (! initialize( handle_rotation, check_for_old, false ) ) {
+	bool	enable_header_read = handle_rotation;
+	if (! initialize( handle_rotation, check_for_old,
+					  false, enable_header_read ) ) {
 		return false;
 	}
 
@@ -188,10 +189,17 @@ ReadUserLog::initialize( const char *filename,
 bool
 ReadUserLog::initialize ( bool handle_rotation,
 						  bool check_for_rotation,
-						  bool restore )
+						  bool restore,
+						  bool enable_header_read )
 {	
 	m_handle_rot = handle_rotation;
 	m_max_rot = handle_rotation ? 1 : 0;
+	m_read_header = enable_header_read;
+
+	dprintf( D_FULLDEBUG, "ReadUserLog::initialize( hr=%s, cr=%s, r=%s )\n",
+			 handle_rotation ? "true" : "false",
+			 check_for_rotation ? "true" : "false",
+			 restore ? "true" : "false" );
 
 	if ( restore ) {
 		// Do nothing
@@ -225,10 +233,16 @@ ReadUserLog::initialize ( bool handle_rotation,
 # endif
 
 	// Now, open the file, setup locks, read the header, etc.
-	dprintf( D_FULLDEBUG, "init: Opening file %s\n",
-			 m_state->CurPath() );
 	if ( restore ) {
-		if ( ReopenLogFile( true ) != ULOG_OK ) {
+		dprintf( D_FULLDEBUG, "init: ReOpening file %s\n",
+				 m_state->CurPath() );
+		ULogEventOutcome status = ReopenLogFile( );
+		if ( ULOG_MISSED_EVENT == status ) {
+			m_missed_event = true;	// We'll check this during readEvent()
+			dprintf( D_FULLDEBUG,
+					 "ReadUserLog::initialize: Missed event\n" );
+		}
+		else if ( status != ULOG_OK ) {
 			dprintf( D_ALWAYS,
 					 "ReadUserLog::initialize: error re-opening file\n" );
 			releaseResources();
@@ -236,6 +250,7 @@ ReadUserLog::initialize ( bool handle_rotation,
 		}
 	}
 	else {
+		dprintf( D_FULLDEBUG, "init: Opening file %s\n", m_state->CurPath() );
 		if ( ULOG_OK != OpenLogFile( restore ) ) {
 			dprintf( D_ALWAYS,
 					 "ReadUserLog::initialize: error opening file\n" );
@@ -281,7 +296,7 @@ ReadUserLog::CloseLogFile( void )
 }
 
 ULogEventOutcome
-ReadUserLog::OpenLogFile( bool do_seek )
+ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 {
 	// Note: For whatever reason, we obtain a WRITE lock in method
 	// readEvent.  On Linux, if the file is opened O_RDONLY, then a
@@ -352,6 +367,17 @@ ReadUserLog::OpenLogFile( bool do_seek )
 			return ULOG_RD_ERROR;
 		}
 	}
+
+	// Read the file's header event
+	if ( read_header && m_read_header && ( !m_state->ValidUniqId()) ) {
+		ReadUserLogHeader	header;
+		if ( ! header.ReadFileHeader( m_state->Rotation(),
+									  m_state->CurPath(),
+									  m_state ) ) {
+			m_state->UniqId( header.Id() );
+		}
+	}
+	
 
 	return ULOG_OK;
 }
@@ -510,9 +536,8 @@ ReadUserLog::FindPrevFile( int start, int num, bool store_stat )
 }
 
 ULogEventOutcome
-ReadUserLog::ReopenLogFile( bool init )
+ReadUserLog::ReopenLogFile( void )
 {
-	(void) init;
 
 	// First, if the file's open, we're done.  :)
 	if ( m_fp ) {
@@ -525,7 +550,7 @@ ReadUserLog::ReopenLogFile( bool init )
 	}
 
 	// If we don't have valid info, do a new file search, just like init
-	if ( ! m_state->StatValid() ) {
+	if ( ! m_state->IsValid() ) {
 		if ( m_handle_rot ) {
 			dprintf( D_FULLDEBUG, "reopen: looking for previous file...\n" );
 			if (! FindPrevFile( m_max_rot, 0, true ) ) {
@@ -596,8 +621,16 @@ ReadUserLog::readEvent (ULogEvent *& event )
 ULogEventOutcome
 ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 {
-	// If the file was closed on us...
-	if ( !m_fp && m_close_file ) {
+	// Previous operation (initialization) detected a missed event
+	// but couldn't report it to the application (the API doesn't
+	// allow us to return that type of info).
+	if ( m_missed_event ) {
+		m_missed_event = false;
+		return ULOG_MISSED_EVENT;
+	}
+
+	// If the file was closed on us, try to reopen it
+	if ( !m_fp ) {
 		ULogEventOutcome	status = ReopenLogFile( );
 		if ( ULOG_OK != status ) {
 			return status;
@@ -1097,6 +1130,7 @@ void
 ReadUserLog::clear( void )
 {
 	m_initialized = false;
+	m_missed_event = false;
 	m_state = NULL;
 	m_match = NULL;
     m_fd = -1;
@@ -1154,6 +1188,86 @@ ReadUserLog::FormatFileState ( MyString &str, const char *label ) const
 	}
 
 	m_state->GetState( str, label );
+}
+
+
+// **********************************
+// ReadUserLogHeader methods
+// **********************************
+
+// Read the header from a file
+int
+ReadUserLogHeader::ReadFileHeader(
+	int						 rot,
+	const char				*path,
+	const ReadUserLogState	*state )
+{
+	// Here, we have an indeterminate result
+	// Read the file's header info
+
+	// We'll instantiate a new log reader to do this for us
+	// Note: we disable rotation for this one, so we won't recurse infinitely
+	ReadUserLog			 reader;
+
+	// If no path provided, generate one
+	MyString temp_path;
+	if ( NULL == path ) {
+		state->GeneratePath( rot, temp_path );
+		path = temp_path.GetCStr( );
+	}
+	dprintf( D_FULLDEBUG, "RFH: reading file %s\n", path );
+
+	// Initialize the reader
+	if ( !reader.initialize( path, false, false ) ) {
+		return -1;
+	}
+
+	// Now, read the event itself
+	ULogEvent			*event;
+	ULogEventOutcome	outcome;
+	outcome = reader.readEvent( event );
+	if ( ULOG_RD_ERROR == outcome ) {
+		return -1;
+	}
+	else if ( ULOG_OK != outcome ) {
+		return 1;
+	}
+
+	// Finally, if it's a generic event, let's see if we can parse it
+	dprintf( D_FULLDEBUG, "RFH: looking at event type %d/%s\n",
+			 event->eventNumber, event->eventName( ) );
+	int status = ExtractEvent( event );
+	delete event;
+
+	return status;
+}
+
+// Extract info from an event
+int
+ReadUserLogHeader::ExtractEvent( const ULogEvent *event )
+{
+	// Not a generic event -- ignore it
+	if ( ULOG_GENERIC != event->eventNumber ) {
+		return 1;
+	}
+
+	const GenericEvent	*generic = dynamic_cast <const GenericEvent*>( event );
+	if ( ! generic ) {
+		dprintf( D_ALWAYS, "Can't pointer cast generic event!\n" );
+		return -1;
+	} else {
+		int		ctime;
+		char	id[256];
+
+		if ( sscanf( generic->info, "Global JobLog: ctime=%d id=%s\n",
+					 &ctime, id ) == 2) {
+			m_id = id;
+			m_ctime = ctime;
+			m_valid = true;
+			return 0;
+		}
+		return 1;
+	}
 }
 
 
@@ -1270,8 +1384,8 @@ ReadUserLogMatch::MatchInternal(
 	}
 
 	// Read the file's header info
-	ReadUserLogHeaderInfo	info;
-	int status = ReadFileHeader( rot, path, info );
+	ReadUserLogHeader	header;
+	int status = header.ReadFileHeader( rot, path, m_state );
 	if( status < 0 ) {
 		return ERROR;
 	}
@@ -1280,9 +1394,7 @@ ReadUserLogMatch::MatchInternal(
 	}
 
 	// Finally, extract the ID & store it
-	MyString	id;
-	info.Id( id );
-	int	id_result = m_state->CompareUniqId( id );
+	int	id_result = m_state->CompareUniqId( header.Id() );
 	if ( id_result > 0 ) {
 		score += 100;
 	}
@@ -1291,54 +1403,8 @@ ReadUserLogMatch::MatchInternal(
 	}
 
 	// And, last but not least, re-evaluate the score
+	dprintf( D_FULLDEBUG, "SFI: Final score is %d\n", score );
 	return EvalScore( match_thresh, score );
-}
-
-// Read the header from a file
-int
-ReadUserLogMatch::ReadFileHeader(
-	int						 rot,
-	const char				*path,
-	ReadUserLogHeaderInfo	&info ) const
-{
-	// Here, we have an indeterminate result
-	// Read the file's header info
-
-	// We'll instantiate a new log reader to do this for us
-	// Note: we disable rotation for this one, so we won't recurse infinitely
-	ReadUserLog			 reader;
-
-	// If no path provided, generate one
-	MyString temp_path;
-	if ( NULL == path ) {
-		m_state->GeneratePath( rot, temp_path );
-		path = temp_path.GetCStr( );
-	}
-	dprintf( D_FULLDEBUG, "RFH: reading file %s\n", path );
-
-	// Initialize the reader
-	if ( !reader.initialize( path, false, false ) ) {
-		return -1;
-	}
-
-	// Now, read the event itself
-	ULogEvent			*event;
-	ULogEventOutcome	outcome;
-	outcome = reader.readEvent( event );
-	if ( ULOG_RD_ERROR == outcome ) {
-		return -1;
-	}
-	else if ( ULOG_OK != outcome ) {
-		return 1;
-	}
-
-	// Finally, if it's a generic event, let's see if we can parse it
-	dprintf( D_FULLDEBUG, "RFH: looking at event type %s\n",
-			 event->eventName( ) );
-	int status = info.ExtractEvent( event );
-	delete event;
-
-	return status;
 }
 
 ReadUserLogMatch::MatchResult
@@ -1359,34 +1425,5 @@ ReadUserLogMatch::EvalScore( int match_thresh, int score ) const
 	}
 	else {
 		return UNKNOWN;
-	}
-}
-
-
-// Extract info from an event
-int
-ReadUserLogHeaderInfo::ExtractEvent( const ULogEvent *event )
-{
-	// Not a generic event -- ignore it
-	if ( ULOG_GENERIC != event->eventNumber ) {
-		return 1;
-	}
-
-	const GenericEvent	*generic = dynamic_cast <const GenericEvent*>( event );
-	if ( ! generic ) {
-		dprintf( D_ALWAYS, "Can't pointer cast generic event!\n" );
-		return -1;
-	} else {
-		int		ctime;
-		char	id[256];
-
-		if ( sscanf( generic->info, "ctime=%d id=%s\n",
-					 &ctime, id ) == 2) {
-			m_id = id;
-			m_ctime = ctime;
-			m_valid = true;
-			return 0;
-		}
-		return 1;
 	}
 }

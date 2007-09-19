@@ -39,6 +39,10 @@ public:
 		LOG_TYPE_UNKNOWN = 0, LOG_TYPE_OLD, LOG_TYPE_XML
 	};
 	struct FileState;
+	// Reset type
+	enum ResetType {
+		RESET_FILE, RESET_FULL, RESET_INIT,
+	};
 
 	ReadUserLogState( const char *path,
 					  int max_rot,
@@ -49,14 +53,14 @@ public:
 	~ReadUserLogState( void );
 
 	// Reset parameters about the current file (offset, stat info, etc.)
-	void Reset( void );
+	void Reset( ResetType type = RESET_FILE );
 
 	// Accessors
 	const char *BasePath( void ) const { return m_base_path; };
 	const char *CurPath( void ) const { return m_cur_path.GetCStr( ); };
 	int Rotation( void ) const { return m_cur_rot; };
 	filesize_t Offset( void ) const { return m_offset; };
-	bool StatValid( void ) const { return m_stat_valid; };
+	bool IsValid( void ) const { return (m_cur_rot >= 0); };
 
 	// Set methods
 	int Rotation( int rotation, bool store_stat = false );
@@ -67,9 +71,9 @@ public:
 		{ return m_offset = (filesize_t) offset; };
 
 	// Get / set the uniq identifier
-	void UniqId( const char *id ) { m_uniq_id = id; };
 	void UniqId( const MyString &id ) { m_uniq_id = id; };
-	const char *UniqId( void ) { return m_uniq_id.GetCStr(); };
+	const char *UniqId( void ) const { return m_uniq_id.GetCStr(); };
+	bool ValidUniqId( void ) const { return ( m_uniq_id.Length() != 0 ); };
 
 	// Compare the ID to the one stored
 	// 0==one (or both) are empty, 1=same, -1=different
@@ -131,14 +135,14 @@ private:
 	char			*m_base_path;		// The log's base path
 	MyString		m_cur_path;			// The current (reading) log's path
 	int				m_cur_rot;			// Current file rotation number
-	time_t			m_update_time;		// Time of last stat
 	MyString		m_uniq_id;			// File's uniq identifier
 
-	UserLogType		m_log_type;			// Type of this log
-
 	StatStructType	m_stat_buf;			// file stat data
-	filesize_t		m_offset;			// Our current offset
 	bool			m_stat_valid;		// Stat buffer valid?
+	time_t			m_update_time;		// Time of last stat
+
+	UserLogType		m_log_type;			// Type of this log
+	filesize_t		m_offset;			// Our current offset
 
 	int				m_max_rot;			// Max rot #
 	int				m_recent_thresh;	// Max time for a stat to be "recent"

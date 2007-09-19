@@ -31,6 +31,7 @@
 #include "condor_uid.h"
 #include "condor_xml_classads.h"
 #include "condor_config.h"
+#include "utc_time.h"
 #include "../condor_privsep/condor_privsep.h"
 
 
@@ -110,11 +111,11 @@ UserLog::Reset( void )
 	base += getpid();
 	base += '.';
 
-	struct timeval	tv;
-	gettimeofday( &tv, NULL );
-	base += tv.tv_sec;
+	UtcTime	utc;
+	utc.getTime();
+	base += utc.seconds();
 	base += '.';
-	base += tv.tv_usec;
+	base += utc.microseconds();
 	base += '.';
 
 	m_uniq_base = strdup( base.GetCStr( ) );
@@ -284,8 +285,7 @@ initialize_global_log()
 	if ( m_global_path ) {
 		ret_val = open_file(m_global_path, false, m_global_lock, m_global_fp);
 
-		if(  ( m_global_path ) &&
-			 (! ftell(m_global_fp) )  ) {
+		if(  ( m_global_path ) && (! ftell(m_global_fp) )  ) {
 			GenericEvent	event;
 			MyString file_id;
 			GenerateUniq( file_id );
@@ -295,6 +295,7 @@ initialize_global_log()
 					 (int) time(NULL),
 					 file_id.GetCStr(), 0L, 0L
 					 );
+			dprintf( D_FULLDEBUG, "Writing log header: '%s'\n", event.info );
 			int		len = strlen( event.info );
 			while( len < 256 ) {
 				strcat( event.info, " " );
@@ -809,10 +810,10 @@ UserLog::GenerateUniq( MyString &id ) const
 {
 	id = m_uniq_base;
 
-	struct timeval	tv;
-	gettimeofday( &tv, NULL );
-	id += tv.tv_sec;
+	UtcTime	utc;
+	utc.getTime();
+	id += utc.seconds();
 	id += '.';
-	id += tv.tv_usec;
+	id += utc.microseconds();
 }
 

@@ -120,6 +120,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -sleep <number>: how many seconds to sleep between events\n"
 		"  -term <number>: number of terminate events to exit after\n"
 		"  -usage: print this message and exit\n"
+		"  -v: Increase verbosity level by 1\n"
 		"  -verbosity <number>: set verbosity level (default is 1)\n"
 		"  -version: print the version number and compile date\n"
 		"  -wo: Set persitent state to write-only\n";
@@ -243,6 +244,9 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		} else if ( !strcmp(argv[index], "-usage") ) {
 			printf("%s", usage);
 			status = STATUS_CANCEL;
+
+		} else if ( !strcmp(argv[index], "-v") ) {
+			args.verbosity++;
 
 		} else if ( !strcmp(argv[index], "-verbosity") ) {
 			if ( ++index >= argc ) {
@@ -405,7 +409,7 @@ ReadEvents(Arguments &args)
 			sleep(args.sleep);
 
 		} else if ( outcome == ULOG_MISSED_EVENT ) {
-			printf( "Missed event\n" );
+			printf( "*** Missed event ***\n" );
 
 		} else if ( outcome == ULOG_RD_ERROR || outcome == ULOG_UNK_ERROR ) {
 			if ( args.verbosity >= VERB_ERROR ) {

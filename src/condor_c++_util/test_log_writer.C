@@ -46,6 +46,7 @@ struct Arguments {
 	const char *	submitNote;
 	int				verbosity;
 	const char *	genericEventStr;
+	const char *    persistFile;
 };
 
 char*	mySubSystem = "TEST_LOG_WRITER";
@@ -112,6 +113,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -generic <string>: Write generic event\n"
 		"  -jobid <c.p.s>: combined -cluster, -proc, -subproc\n"
 		"  -numexec <number>: number of execute events to write\n"
+		"  -persist <file>: persist writer state to file (for jobid gen)\n"
 		"  -proc <number>: Use proc %d (default = 0)\n"
 		"  -sleep <number>: how many seconds to sleep between events\n"
 		"  -stork: simulate Stork (-1 for proc and subproc)\n"
@@ -134,6 +136,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	args.submitNote = "";
 	args.verbosity = 1;
 	args.genericEventStr = NULL;
+	args.persistFile = NULL;
 
 	for ( int index = 1; index < argc; ++index ) {
 		if ( !strcmp(argv[index], "-cluster") ) {
@@ -206,6 +209,15 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				args.proc = atoi(argv[index]);
 			}
 
+		} else if ( !strcmp(argv[index], "-persist") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -persist argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.persistFile = argv[index];
+			}
+
 		} else if ( !strcmp(argv[index], "-sleep") ) {
 			if ( ++index >= argc ) {
 				fprintf(stderr, "Value needed for -sleep argument\n");
@@ -270,6 +282,21 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		fprintf(stderr, "Log file must be specified\n");
 		printf("%s", usage);
 		status = STATUS_ERROR;
+	}
+
+	if ( args.persistFile ) {
+		FILE	*fp;
+		fp = safe_fopen_wrapper( args.persistFile, "r" );
+		if ( fp ) {
+			fscanf( fp, "%d.%d.%d", &args.cluster, &args.proc, &args.subproc );
+			args.cluster++;
+			fclose( fp );
+		}
+		fp = safe_fopen_wrapper( args.persistFile, "w" );
+		if ( fp ) {
+			fprintf( fp, "%d.%d.%d", args.cluster, args.proc, args.subproc );
+			fclose( fp );
+		}
 	}
 
 	return status;

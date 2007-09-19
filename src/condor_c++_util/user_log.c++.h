@@ -421,11 +421,13 @@ class ReadUserLog
 		@param Handle file rotation?
 		@param check_for_old try to open rotated (".old") file first?
 		@param Restore previous file position
+		@param Enable reading of the file header?
         @return TRUE for success
     */
     bool initialize ( bool handle_rotation,
 					  bool check_for_rotated,
-					  bool restore_position );
+					  bool restore_position,
+					  bool enable_header_read );
 
 	/** Set all members to their cleared values.
 	*/
@@ -479,10 +481,9 @@ class ReadUserLog
     ULogEventOutcome readEventOld (ULogEvent * & event);
 
 	/** Reopen the log file
-		@param called during initialization?
 		@return the outcome of the re-open attempt
 	 */
-	ULogEventOutcome ReopenLogFile( bool init = false );
+	ULogEventOutcome ReopenLogFile( void );
 
 	/** Find the previous log file starting with start
 		@param log file rotation # to start the search with
@@ -494,9 +495,10 @@ class ReadUserLog
 
 	/** Open the log file
 		@param Seek to previous location?
+		@param Read file header?
 		@return outcome of the open attempt
 	 */
-	ULogEventOutcome OpenLogFile( bool do_seek );
+	ULogEventOutcome OpenLogFile( bool do_seek, bool read_header = true );
 
 	/** Close the log file between operations
 		@return true:success, false:failure
@@ -507,6 +509,7 @@ class ReadUserLog
 	/** Class private data
 	 */
 	bool				 m_initialized;	/** Are we initialized? */
+	bool				 m_missed_event; /** Need to report event lost? */
 
 	ReadUserLogState	*m_state;		/** The state of the file     */
 	ReadUserLogMatch	*m_match;		/** Detects file matches */
@@ -517,6 +520,7 @@ class ReadUserLog
 	bool				 m_close_file;	/** Close file between operations? */
 	bool				 m_handle_rot;	/** Do we handle file rotation? */
 	int					 m_max_rot;		/** Max rotation number */
+	bool				 m_read_header;	/** Read the file's header? */
 
 	bool				 m_lock_file;	/** Should we lock the file?  */
     FileLock			*m_lock;		/** The log file lock         */

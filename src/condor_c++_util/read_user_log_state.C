@@ -42,7 +42,7 @@ ReadUserLogState::ReadUserLogState(
 	int				 max_rot,
 	int				 recent_thresh )
 {
-	Clear( true );
+	Reset( RESET_INIT );
 	m_max_rot = max_rot;
 	m_recent_thresh = recent_thresh;
 	if ( path ) {
@@ -61,7 +61,7 @@ ReadUserLogState::ReadUserLogState(
 	int								 max_rot,
 	int								 recent_thresh )
 {
-	Clear( true );
+	Reset( RESET_INIT );
 	m_max_rot = max_rot;
 	m_recent_thresh = recent_thresh;
 	SetState( state );
@@ -69,38 +69,36 @@ ReadUserLogState::ReadUserLogState(
 
 ReadUserLogState::~ReadUserLogState( void )
 {
-	Clear( false );
+	Reset( RESET_FULL );
 }
 
 void
-ReadUserLogState::Reset( void )
+ReadUserLogState::Reset( ResetType type )
 {
-
-	memset( &m_stat_buf, 0, sizeof(m_stat_buf) );
-	m_offset = 0;
-	m_stat_valid = false;
-
-	m_log_type = LOG_TYPE_UNKNOWN;
-}
-
-void
-ReadUserLogState::Clear( bool init )
-{
-	if ( init ) {
-		m_base_path = NULL;
-		m_cur_path = NULL;
-	}
-
-	if ( m_base_path ) {
-		delete [] m_base_path;
+	// Initial reset: Set pointers to NULL
+	if ( RESET_INIT == type ) {
 		m_base_path = NULL;
 	}
+
+	// Full reset: Free up memory
+	else if ( RESET_FULL == type ) {
+		if ( m_base_path ) {
+			delete [] m_base_path;
+			m_base_path = NULL;
+		}
+	}
+
+	// Always: Reset everything else
 	m_cur_path = "";
 	m_cur_rot = -1;
-
 	m_uniq_id = "";
 
-	Reset( );
+	memset( &m_stat_buf, 0, sizeof(m_stat_buf) );
+	m_stat_valid = false;
+	m_update_time = 0;
+
+	m_offset = 0;
+	m_log_type = LOG_TYPE_UNKNOWN;
 }
 
 int
