@@ -42,6 +42,7 @@ struct Arguments {
 	int				cluster;
 	int				proc;
 	int				subproc;
+	int				numProcs;
 	bool			stork;
 	const char *	submitNote;
 	int				verbosity;
@@ -55,7 +56,7 @@ Status
 CheckArgs(int argc, char **argv, Arguments &args);
 
 int // 0 == okay, 1 == error
-WriteEvents(Arguments &args);
+WriteEvents(Arguments &args, int cluster, int proc, int subproc );
 
 const char *timestr( void );
 
@@ -88,7 +89,13 @@ main(int argc, char **argv)
 	Status tmpStatus = CheckArgs(argc, argv, args);
 
 	if ( tmpStatus == STATUS_OK ) {
-		result = WriteEvents(args);
+		int		max_proc = args.proc + args.numProcs - 1;
+		for( int proc = args.proc; proc <= max_proc; proc++ ) {
+			result = WriteEvents(args, args.cluster, proc, 0 );
+			if ( result ) {
+				break;
+			}
+		}
 	} else if ( tmpStatus == STATUS_ERROR ) {
 		result = 1;
 	}
@@ -112,7 +119,8 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -logfile <filename>: the log file to write\n"
 		"  -generic <string>: Write generic event\n"
 		"  -jobid <c.p.s>: combined -cluster, -proc, -subproc\n"
-		"  -numexec <number>: number of execute events to write\n"
+		"  -numexec <number>: number of execute events to write / proc\n"
+		"  -numprocs <number>: Number of procs (default = 10)\n"
 		"  -persist <file>: persist writer state to file (for jobid gen)\n"
 		"  -proc <number>: Use proc %d (default = 0)\n"
 		"  -sleep <number>: how many seconds to sleep between events\n"
@@ -127,10 +135,11 @@ CheckArgs(int argc, char **argv, Arguments &args)
 
 	args.isXml			= false;
 	args.logFile		= NULL;
-	args.numExec		= 10;
+	args.numExec		= 1;
 	args.cluster		= -1;
 	args.proc			= -1;
 	args.subproc		= -1;
+	args.numProcs		= 10;
 	args.sleep			= 5;
 	args.stork			= false;
 	args.submitNote		= "";
@@ -198,6 +207,15 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				status = STATUS_ERROR;
 			} else {
 				args.numExec = atoi(argv[index]);
+			}
+
+		} else if ( !strcmp(argv[index], "-numprocs") ) {
+			if ( ++index >= argc ) {
+				fprintf(stderr, "Value needed for -numprocs argument\n");
+				printf("%s", usage);
+				status = STATUS_ERROR;
+			} else {
+				args.numProcs = atoi(argv[index]);
 			}
 
 		} else if ( !strcmp(argv[index], "-proc") ) {
@@ -303,6 +321,12 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	if ( args.proc < 0 )    args.proc    = 0;
 	if ( args.subproc < 0 ) args.subproc = 0;
 
+	// Stork sets these to -1
+	if ( args.stork ) {
+		args.proc = -1;
+		args.subproc = -1;
+	}
+
 	// Update the persisted file (if specified)
 	if ( args.persistFile ) {
 		FILE	*fp = safe_fopen_wrapper( args.persistFile, "w" );
@@ -316,28 +340,22 @@ CheckArgs(int argc, char **argv, Arguments &args)
 }
 
 int
-WriteEvents(Arguments &args)
+WriteEvents(Arguments &args, int cluster, int proc, int subproc )
 {
 	int		result = 0;
-
-	if ( args.stork ) {
-		args.proc = -1;
-		args.subproc = -1;
-	}
 
 	signal( SIGTERM, handle_sig );
 	signal( SIGQUIT, handle_sig );
 	signal( SIGINT, handle_sig );
 
-	UserLog	log("owner", args.logFile,
-				args.cluster, args.proc, args.subproc, args.isXml);
+	UserLog	log("owner", args.logFile, cluster, proc, subproc, args.isXml);
 
 		//
 		// Write the submit event.
 		//
 	if ( args.verbosity >= VERB_ALL ) {
 		printf("Writing submit event (%d.%d.%d) @ %s\n",
-			   args.cluster, args.proc, args.subproc, timestr() );
+			   cluster, proc, subproc, timestr() );
 	}
 	SubmitEvent	submit;
 	strcpy(submit.submitHost, "<128.105.165.12:32779>");
@@ -376,13 +394,17 @@ WriteEvents(Arguments &args)
 		//
 		// Write execute events.
 		//
+	if ( args.verbosity >= VERB_ALL ) {
+		printf( "Writing %d events for job %d.%d.%d\n",
+				args.numExec, cluster, proc, subproc );
+	}
 	for ( int event = 0; event < args.numExec; ++event ) {
 		if ( global_done ) {
 			break;
 		}
 		if ( args.verbosity >= VERB_ALL ) {
 			printf("Writing execute event (%d.%d.%d) @ %s\n",
-				   args.cluster, args.proc, args.subproc, timestr() );
+				   cluster, proc, subproc, timestr() );
 		}
 		ExecuteEvent	execute;
 		strcpy(execute.executeHost, "<128.105.165.12:32779>");
@@ -402,7 +424,7 @@ WriteEvents(Arguments &args)
 		//
 	if ( args.verbosity >= VERB_ALL ) {
 		printf("Writing terminate event (%d.%d.%d) @ %s\n",
-			   args.cluster, args.proc, args.subproc, timestr() );
+			   cluster, proc, subproc, timestr() );
 	}
 	JobTerminatedEvent	terminated;
 	terminated.normal = true;
