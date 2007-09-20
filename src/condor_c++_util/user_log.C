@@ -296,10 +296,12 @@ initialize_global_log()
 				GenerateGlobalId( file_id );
 				snprintf(event.info, sizeof(event.info),
 						 "Global JobLog: "
-						 "ctime=%d id=%s size=%ld events=%ld",
+						 "ctime=%d id=%s sequence=%d size=%ld events=%ld",
 						 (int) time(NULL),
-						 file_id.GetCStr(), 0L, 0L
+						 file_id.GetCStr(), m_global_sequence,
+						 0L, 0L
 						 );
+				m_global_sequence++;
 				dprintf( D_FULLDEBUG, "Writing log header: '%s'\n",
 						 event.info );
 				int		len = strlen( event.info );
@@ -820,7 +822,7 @@ UserLog::GenerateGlobalId( MyString &id )
 	utc.getTime();
 
 	id =  m_global_uniq_base;
-	id += m_global_sequence++;
+	id += m_global_sequence;
 	id += '.';
 	id += utc.seconds();
 	id += '.';
