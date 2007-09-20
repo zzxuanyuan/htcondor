@@ -119,7 +119,8 @@ UserLog::Reset( void )
 	base += utc.microseconds();
 	base += '.';
 
-	m_uniq_base = strdup( base.GetCStr( ) );
+	m_global_uniq_base = strdup( base.GetCStr( ) );
+	m_global_sequence = 1;
 }
 
 /* --- The following two functions are taken from the shadow's ulog.c --- */
@@ -292,7 +293,7 @@ initialize_global_log()
 				  ( !(statinfo.GetStatBuf()->st_size) )  ) {
 				GenericEvent	event;
 				MyString file_id;
-				GenerateUniq( file_id );
+				GenerateGlobalId( file_id );
 				snprintf(event.info, sizeof(event.info),
 						 "Global JobLog: "
 						 "ctime=%d id=%s size=%ld events=%ld",
@@ -410,11 +411,11 @@ UserLog::~UserLog()
 	if (m_lock) delete m_lock;
 	if (m_gjid) free(m_gjid);
 	if (m_fp != NULL) fclose( m_fp );
-	if (m_uniq_base != NULL) free( m_uniq_base );
 
 	if (m_global_path) free(m_global_path);
 	if (m_global_lock) delete m_global_lock;
 	if (m_global_fp != NULL) fclose(m_global_fp);
+	if (m_global_uniq_base != NULL) free( m_global_uniq_base );
 }
 
 #if 0 /* deprecated cruft */
@@ -811,16 +812,17 @@ EndUserLogBlock( LP *lp )
 
 #endif  /* deprecated cruft */
 
-// Generates a uniq file ID
+// Generates a uniq global file ID
 void
-UserLog::GenerateUniq( MyString &id ) const
+UserLog::GenerateGlobalId( MyString &id )
 {
-	id = m_uniq_base;
-
 	UtcTime	utc;
 	utc.getTime();
+
+	id =  m_global_uniq_base;
+	id += m_global_sequence++;
+	id += '.';
 	id += utc.seconds();
 	id += '.';
 	id += utc.microseconds();
 }
-

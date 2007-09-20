@@ -181,7 +181,7 @@ class UserLog {
 
 	int doWriteEvent( ULogEvent *event, bool is_global_event, ClassAd *ad);
 	int doWriteEvent( FILE *fp, ULogEvent *event, bool do_use_xml );
-	void GenerateUniq( MyString &id ) const;
+	void GenerateGlobalId( MyString &id );
 
 	bool handleGlobalLogRotation();
 
@@ -213,6 +213,8 @@ class UserLog {
     /** The global log file          */  FILE     * m_global_fp;
     /** The global log file lock     */  FileLock * m_global_lock;
 	/** Whether we use XML or not    */  bool       m_global_use_xml;
+	/** The log file uniq ID base    */  char     * m_global_uniq_base;
+	/** The current sequence number  */  int        m_global_sequence;
 
 	/** Whether we use XML or not    */  bool       m_use_xml;
 
@@ -221,7 +223,6 @@ class UserLog {
 	/** PrivSep: the user's GID      */  gid_t      m_privsep_gid;
 #endif
 	/** The GlobalJobID for this job */  char     * m_gjid;
-	/** The log file uniq ID base    */  char     * m_uniq_base;
 };
 
 
