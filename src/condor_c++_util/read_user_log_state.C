@@ -418,6 +418,7 @@ ReadUserLogState::GetState( ReadUserLog::FileState &state ) const
 	else {
 		memset( istate->uniq_id, 0, sizeof(istate->uniq_id) );
 	}
+	istate->sequence = m_sequence;
 
 	istate->inode = m_stat_buf.st_ino;
 	istate->ctime = m_stat_buf.st_ctime;
@@ -450,6 +451,7 @@ ReadUserLogState::SetState( const ReadUserLog::FileState &state )
 
 	m_log_type = istate->log_type;
 	m_uniq_id = istate->uniq_id;
+	m_sequence = istate->sequence;
 
 	m_stat_buf.st_ino = istate->inode;
 	m_stat_buf.st_ctime = istate->ctime;
@@ -475,11 +477,11 @@ ReadUserLogState::GetState( MyString &str, const char *label ) const
 	str.sprintf_cat (
 		"  BasePath = %s\n"
 		"  CurPath = %s\n"
-		"  UniqId = %s\n"
+		"  UniqId = %s, seq = %d\n"
 		"  rotation = %d; offset = %ld; type = %d\n"
 		"  inode = %d; ctime = %d; size = %ld\n",
 		m_base_path, m_cur_path.GetCStr(),
-		m_uniq_id.GetCStr() ? m_uniq_id.GetCStr() : "",
+		m_uniq_id.GetCStr() ? m_uniq_id.GetCStr() : "", m_sequence,
 		m_cur_rot, (long) m_offset, m_log_type,
 		(int)m_stat_buf.st_ino, (int)m_stat_buf.st_ctime,
 		(long)m_stat_buf.st_size );

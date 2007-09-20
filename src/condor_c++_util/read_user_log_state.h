@@ -75,6 +75,10 @@ public:
 	const char *UniqId( void ) const { return m_uniq_id.GetCStr(); };
 	bool ValidUniqId( void ) const { return ( m_uniq_id.Length() != 0 ); };
 
+	// Get / set the sequence number
+	void Sequence( int seq ) { m_sequence = seq; };
+	int Sequence( void ) const { return m_sequence; };
+
 	// Compare the ID to the one stored
 	// 0==one (or both) are empty, 1=same, -1=different
 	int CompareUniqId( const MyString &id ) const;
@@ -125,6 +129,7 @@ public:
 		char			signature[64];		// File state signature
 		char			path[_POSIX_PATH_MAX]; // The log's path
 		char			uniq_id[128];		// File's uniq identifier
+		int				sequence;			// File's sequence number
 		int				rotation;			// 0 == the "current" file
 		UserLogType		log_type;			// The log's type
 		StatStructInode	inode;				// The log's inode #
@@ -147,6 +152,7 @@ private:
 	MyString		m_cur_path;			// The current (reading) log's path
 	int				m_cur_rot;			// Current file rotation number
 	MyString		m_uniq_id;			// File's uniq identifier
+	int				m_sequence;			// File's sequence number
 
 	StatStructType	m_stat_buf;			// file stat data
 	bool			m_stat_valid;		// Stat buffer valid?

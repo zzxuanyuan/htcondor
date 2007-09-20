@@ -94,11 +94,14 @@ public:
 	// Get extracted info
 	void Id( MyString &id ) const { id = m_id; };
 	const MyString &Id( void ) const { return m_id; };
+	int Sequence( void ) const { return m_sequence; };
 	time_t Ctime( void ) const { return m_ctime; };
 
 private:
 	MyString	m_id;
+	int			m_sequence;
 	time_t		m_ctime;
+
 	bool		m_valid;
 };
 
@@ -412,9 +415,12 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 									  m_state->CurPath(),
 									  m_state ) ) {
 			m_state->UniqId( header.Id() );
+			m_state->Sequence( header.Sequence() );
 			dprintf( D_FULLDEBUG,
-					 "Set UniqId of '%s' to '%s'\n",
-					 m_state->CurPath(), header.Id().GetCStr() );
+					 "%s: Set UniqId to '%s', sequence to %d\n",
+					 m_state->CurPath(),
+					 header.Id().GetCStr(),
+					 header.Sequence() );
 		}
 	}
 	
@@ -1298,12 +1304,14 @@ ReadUserLogHeader::ExtractEvent( const ULogEvent *event )
 		return -1;
 	} else {
 		int		ctime;
+		int		sequence;
 		char	id[256];
-
-		if ( sscanf( generic->info, "Global JobLog: ctime=%d id=%s\n",
-					 &ctime, id ) == 2) {
+		if ( sscanf( generic->info,
+					 "Global JobLog: ctime=%d id=%s sequence=%d\n",
+					 &ctime, id, &sequence ) == 3) {
 			m_id = id;
 			m_ctime = ctime;
+			m_sequence = sequence;
 			m_valid = true;
 			return 0;
 		}
