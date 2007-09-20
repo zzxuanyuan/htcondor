@@ -42,6 +42,7 @@ struct Arguments {
 	bool			writePersist;
 	bool			rotation;
 	bool			dumpState;
+	bool			missedCheck;
 	bool			exitAfterInit;
 	int				maxExec;
 	int				sleep;
@@ -104,18 +105,17 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	Status	status = STATUS_OK;
 
 	const char *	usage =
-		"Usage: test_log_reader [options]\n"
+		"Usage: test_log_reader [options] <filename>\n"
 		"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
-		"  -logfile <filename>: the log file to read\n"
 		"  -maxexec <number>: maximum number of execute events to read\n"
+		"  -misscheck: Enable missed event checking "
+		"(valid only with test writer)\n"
 		"  -persist <filename>: file to persist to/from (implies -rotation)\n"
-		"  -persist-ro <filename>: like -persist, but read-only\n"
-		"  -persist-wo <filename>: like -persist, but write-only\n"
 		"  -persist-dump: dump the persistent file state after reading it\n"
+		"  -ro|-rw|-wo: Set persitent state to "
+		"read-only/read-write/write-only\n"
 		"  -init-only: exit after initialization\n"
-		"  -ro: Set persitent state to read-only\n"
 		"  -rotation: enable rotation handling\n"
-		"  -rw: Set persitent state to read/write\n"
 		"  -no-rotation: disable rotation handling\n"
 		"  -sleep <number>: how many seconds to sleep between events\n"
 		"  -term <number>: number of terminate events to exit after\n"
@@ -123,7 +123,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -v: Increase verbosity level by 1\n"
 		"  -verbosity <number>: set verbosity level (default is 1)\n"
 		"  -version: print the version number and compile date\n"
-		"  -wo: Set persitent state to write-only\n";
+		"  <filename>: the log file to read\n";
 
 	args.logFile = NULL;
 	args.persistFile = NULL;
@@ -136,6 +136,7 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	args.rotation = false;
 	args.exitAfterInit = false;
 	args.dumpState = false;
+	args.missedCheck = false;
 
 	for ( int index = 1; index < argc; ++index ) {
 		if ( !strcmp(argv[index], "-debug") ) {
@@ -147,15 +148,6 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				set_debug_flags( argv[index] );
 			}
 
-		} else if ( !strcmp(argv[index], "-logfile") ) {
-			if ( ++index >= argc ) {
-				fprintf(stderr, "Value needed for -logfile argument\n");
-				printf("%s", usage);
-				status = STATUS_ERROR;
-			} else {
-				args.logFile = argv[index];
-			}
-
 		} else if ( !strcmp(argv[index], "-maxexec") ) {
 			if ( ++index >= argc ) {
 				fprintf(stderr, "Value needed for -maxexec argument\n");
@@ -164,6 +156,9 @@ CheckArgs(int argc, char **argv, Arguments &args)
 			} else {
 				args.maxExec = atoi(argv[index]);
 			}
+
+		} else if ( !strcmp(argv[index], "-misscheck") ) {
+			args.missedCheck = true;
 
 		} else if ( !strcmp(argv[index], "-persist") ) {
 			if ( ++index >= argc ) {
@@ -175,30 +170,6 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				args.rotation = true;
 				args.readPersist = true;
 				args.writePersist = true;
-			}
-
-		} else if ( !strcmp(argv[index], "-persist-wo") ) {
-			if ( ++index >= argc ) {
-				fprintf(stderr, "Value needed for -persist-wo argument\n");
-				printf("%s", usage);
-				status = STATUS_ERROR;
-			} else {
-				args.persistFile = argv[index];
-				args.rotation = true;
-				args.readPersist = false;
-				args.writePersist = true;
-			}
-
-		} else if ( !strcmp(argv[index], "-persist-ro") ) {
-			if ( ++index >= argc ) {
-				fprintf(stderr, "Value needed for -persist-ro argument\n");
-				printf("%s", usage);
-				status = STATUS_ERROR;
-			} else {
-				args.persistFile = argv[index];
-				args.rotation = true;
-				args.readPersist = true;
-				args.writePersist = false;
 			}
 
 		} else if ( !strcmp(argv[index], "-persist-dump") ) {
@@ -264,6 +235,9 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		} else if ( !strcmp(argv[index], "-wo") ) {
 			args.readPersist = false;
 			args.writePersist = true;
+
+		} else if ( argv[index][0] != '-' ) {
+			args.logFile = argv[index];
 
 		} else {
 			fprintf(stderr, "Unrecognized argument: <%s>\n", argv[index]);
@@ -336,6 +310,8 @@ ReadEvents(Arguments &args)
 	int		executeEventCount = 0;
 	int		terminatedEventCount = 0;
 	bool	done = false;
+	bool	missedLast = false;
+	int		prevCluster=999, prevProc=999, prevSubproc=999;
 
 	while ( !done && !global_done ) {
 		ULogEvent	*event = NULL;
@@ -361,11 +337,30 @@ ReadEvents(Arguments &args)
 				}
 			}
 
+			if (args.missedCheck ) {
+				bool isPrevCluster = ( prevCluster == event->cluster );
+				bool isPrevProc = (  ( prevProc   == event->proc )  ||
+									 ( prevProc+1 == event->proc )  );
+				if ( missedLast && isPrevCluster && isPrevProc ) {
+					printf( "\n** Bad missed **\n" );
+					global_done = true;
+				}
+				else if ( (!missedLast) && isPrevCluster && (!isPrevProc) ) {
+					printf( "\n** Undetected missed event **\n" );
+					global_done = true;
+					
+				}
+			}
+			prevCluster = event->cluster;
+			prevProc = event->proc;
+			prevSubproc = event->subproc;
+
 			switch ( event->eventNumber ) {
 			case ULOG_SUBMIT:
 				if ( args.verbosity >= VERB_ALL ) {
 					printf(" (submit)\n");
 				}
+				missedLast = false;
 				break;
 
 			case ULOG_EXECUTE:
@@ -381,6 +376,7 @@ ReadEvents(Arguments &args)
 					result = 1;
 					done = true;
 				}
+				missedLast = false;
 				break;
 
 			case ULOG_JOB_TERMINATED:
@@ -394,7 +390,21 @@ ReadEvents(Arguments &args)
 					}
 					done = true;
 				}
+				missedLast = false;
 				break;
+
+			case ULOG_GENERIC:
+			{
+				const GenericEvent	*generic =
+					dynamic_cast <const GenericEvent*>( event );
+				if ( ! generic ) {
+					fprintf( stderr, "Can't pointer cast generic event!\n" );
+				}
+				else {
+					printf( "(generic): '%s'\n", generic->info );
+				}
+				break;
+			}
 
 			default:
 				if ( args.verbosity >= VERB_ALL ) {
@@ -407,9 +417,11 @@ ReadEvents(Arguments &args)
 
 		} else if ( outcome == ULOG_NO_EVENT ) {
 			sleep(args.sleep);
+			missedLast = false;
 
 		} else if ( outcome == ULOG_MISSED_EVENT ) {
-			printf( "*** Missed event ***\n" );
+			printf( "\n*** Missed event ***\n" );
+			missedLast = true;
 
 		} else if ( outcome == ULOG_RD_ERROR || outcome == ULOG_UNK_ERROR ) {
 			if ( args.verbosity >= VERB_ERROR ) {
@@ -427,7 +439,7 @@ ReadEvents(Arguments &args)
 		puts( str.GetCStr() );
 	}
 	if ( args.writePersist ) {
-		fputs( "Storing final state...", stdout );
+		fputs( "\n\nStoring final state...", stdout );
 		int	fd = safe_open_wrapper( args.persistFile,
 									O_WRONLY|O_CREAT,
 									S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP );
@@ -437,7 +449,7 @@ ReadEvents(Arguments &args)
 			}
 			close( fd );
 		}
-		fputs( "  Done\n", stdout );
+		fputs( "  Done\n\n\n", stdout );
 	}
 
 	return result;
