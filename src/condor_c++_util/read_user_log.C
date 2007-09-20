@@ -341,12 +341,15 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 	// Is the lock current?
 	bool	is_lock_current = ( m_state->Rotation() == m_lock_rot );
 
-	dprintf( D_FULLDEBUG, "Opening log file '%s'"
+	dprintf( D_FULLDEBUG, "Opening log file #%d '%s'"
 			 "(is_lock_cur=%s,seek=%s,read_header=%s)\n",
-			 m_state->CurPath(),
+			 m_state->Rotation(), m_state->CurPath(),
 			 is_lock_current ? "true" : "false",
 			 do_seek ? "true" : "false",
 			 read_header ? "true" : "false" );
+	if ( m_state->Rotation() < 0 ) {
+		m_state->Rotation(-1);
+	}
 
 	m_fd = safe_open_wrapper( m_state->CurPath(), O_RDWR, 0 );
 	if ( m_fd < 0 ) {
@@ -409,6 +412,9 @@ ReadUserLog::OpenLogFile( bool do_seek, bool read_header )
 									  m_state->CurPath(),
 									  m_state ) ) {
 			m_state->UniqId( header.Id() );
+			dprintf( D_FULLDEBUG,
+					 "Set UniqId of '%s' to '%s'\n",
+					 m_state->CurPath(), header.Id().GetCStr() );
 		}
 	}
 	
@@ -627,8 +633,6 @@ ReadUserLog::ReopenLogFile( void )
 	}
 
 	// No good match found, fall back to highest score
-	dprintf( D_FULLDEBUG, "Reopen: new=%d ms=%d msr=%d\n",
-			 new_rot, max_score, max_score_rot );
 	if ( ( new_rot < 0 )  &&  ( max_score > 0 )  ) {
 		new_rot = max_score_rot;
 	}
@@ -657,7 +661,7 @@ ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 {
 	// Previous operation (initialization) detected a missed event
 	// but couldn't report it to the application (the API doesn't
-	// allow us to return that type of info).
+	// allow us to reliably return that type of info).
 	if ( m_missed_event ) {
 		m_missed_event = false;
 		return ULOG_MISSED_EVENT;
@@ -693,37 +697,40 @@ ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 	// If we hit the end of a rotated file, try the previous one
 	if ( try_again ) {
 
-		// We've hit the end of a ".old" or ".1", ".2" ... file
-		if ( m_state->Rotation() > 0 ) {
-			CloseLogFile( );
-
-			bool found = FindPrevFile( m_state->Rotation() - 1, 1, true );
-			dprintf( D_FULLDEBUG,
-					 "readEvent: checking for previous file (%d) = %s\n",
-					 m_state->Rotation(), found ? "Found" : "Not found" );
-			if ( !found ) {
-				try_again = false;
-			}
+		// We've hit the end of file and file has been closed
+		// This means that we've missed an event :(
+		if ( m_state->Rotation() < 0 ) {
+			return ULOG_MISSED_EVENT;
 		}
 
 		// We've hit the end of a non-rotated file
 		// (a file that isn't a ".old" or ".1", etc.)
-		else {
+		else if ( m_state->Rotation() == 0 ) {
 			// Same file?
 			ReadUserLogMatch::MatchResult result;
 			result = m_match->Match( m_state->CurPath(),
 									 m_state->Rotation(),
 									 SCORE_THRESH_NONROT );
 			dprintf( D_FULLDEBUG,
-					 "readEvent: checking for rotation (%s) = %s\n",
+					 "readEvent: checking to see if file (%s) matches: %s\n",
 					 m_state->CurPath(), m_match->MatchStr(result) );
 			if ( result == ReadUserLogMatch::NOMATCH ) {
 				CloseLogFile( );
-				m_state->Reset( );
-				m_state->StatFile( );
-				OpenLogFile( false );
 			}
 			else {
+				try_again = false;
+			}
+		}
+
+		// We've hit the end of a ".old" or ".1", ".2" ... file
+		else {
+			CloseLogFile( );
+
+			bool found = FindPrevFile( m_state->Rotation() - 1, 1, true );
+			dprintf( D_FULLDEBUG,
+					 "readEvent: checking for previous file (%d): %s\n",
+					 m_state->Rotation(), found ? "Found" : "Not found" );
+			if ( !found ) {
 				try_again = false;
 			}
 		}
@@ -731,7 +738,8 @@ ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 
 	// Finally, one more attempt to read an event
 	if ( try_again ) {
-		if ( ULOG_OK == ReopenLogFile() ) {
+		outcome = ReopenLogFile();
+		if ( ULOG_OK == outcome ) {
 			outcome = readEvent( event, (bool*)NULL );
 		}
 	}
@@ -1375,7 +1383,16 @@ ReadUserLogMatch::MatchInternal(
 	ULogEventOutcome	outcome;
 	int					score = *score_ptr;
 
-	dprintf( D_FULLDEBUG, "Match: score of %s = %d\n", path?path:"", score );
+	{
+		MyString temp_path;
+		if ( NULL == path ) {
+			m_state->GeneratePath( rot, temp_path );
+		} else {
+			temp_path = path;
+		}
+		dprintf( D_FULLDEBUG, "Match: score of '%s' = %d\n",
+				 temp_path.GetCStr(), score );
+	}
 
 	// Quick look at the score passed in from the state comparison
 	// We can return immediately in some cases
@@ -1428,12 +1445,17 @@ ReadUserLogMatch::MatchInternal(
 
 	// Finally, extract the ID & store it
 	int	id_result = m_state->CompareUniqId( header.Id() );
+	const char *result_str = "unknown";
 	if ( id_result > 0 ) {
 		score += SCORE_FACTOR_UNIQ_MATCH;
+		result_str = "match";
 	}
 	else if ( id_result < 0 ) {
 		score = 0;
+		result_str = "no match";
 	}
+	dprintf( D_FULLDEBUG, "Read ID from '%s' as '%s': %d (%s)\n",
+			 path, header.Id().GetCStr(), id_result, result_str );
 
 	// And, last but not least, re-evaluate the score
 	dprintf( D_FULLDEBUG, "Match: Final score is %d\n", score );
