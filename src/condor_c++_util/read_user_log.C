@@ -1383,16 +1383,15 @@ ReadUserLogMatch::MatchInternal(
 	ULogEventOutcome	outcome;
 	int					score = *score_ptr;
 
-	{
-		MyString temp_path;
-		if ( NULL == path ) {
-			m_state->GeneratePath( rot, temp_path );
-		} else {
-			temp_path = path;
-		}
-		dprintf( D_FULLDEBUG, "Match: score of '%s' = %d\n",
-				 temp_path.GetCStr(), score );
+	// If no path provided, generate one
+	MyString path_str;
+	if ( NULL == path ) {
+		m_state->GeneratePath( rot, path_str );
+	} else {
+		path_str = path;
 	}
+	dprintf( D_FULLDEBUG, "Match: score of '%s' = %d\n",
+			 path_str.GetCStr(), score );
 
 	// Quick look at the score passed in from the state comparison
 	// We can return immediately in some cases
@@ -1409,17 +1408,10 @@ ReadUserLogMatch::MatchInternal(
 	// We'll instantiate a new log reader to do this for us
 	// Note: we disable rotation for this one, so we won't recurse infinitely
 	ReadUserLog			 reader;
-
-	// If no path provided, generate one
-	MyString temp_path;
-	if ( NULL == path ) {
-		m_state->GeneratePath( rot, temp_path );
-		path = temp_path.GetCStr( );
-	}
-	dprintf( D_FULLDEBUG, "Match: reading file %s\n", path );
+	dprintf( D_FULLDEBUG, "Match: reading file %s\n", path_str.GetCStr() );
 
 	// Initialize the reader
-	if ( !reader.initialize( path, false, false ) ) {
+	if ( !reader.initialize( path_str.GetCStr(), false, false ) ) {
 		return ERROR;
 	}
 
@@ -1435,7 +1427,7 @@ ReadUserLogMatch::MatchInternal(
 
 	// Read the file's header info
 	ReadUserLogHeader	header;
-	int status = header.ReadFileHeader( rot, path, m_state );
+	int status = header.ReadFileHeader( rot, path_str.GetCStr(), m_state );
 	if( status < 0 ) {
 		return ERROR;
 	}
@@ -1455,7 +1447,8 @@ ReadUserLogMatch::MatchInternal(
 		result_str = "no match";
 	}
 	dprintf( D_FULLDEBUG, "Read ID from '%s' as '%s': %d (%s)\n",
-			 path, header.Id().GetCStr(), id_result, result_str );
+			 path_str.GetCStr(), header.Id().GetCStr(),
+			 id_result, result_str );
 
 	// And, last but not least, re-evaluate the score
 	dprintf( D_FULLDEBUG, "Match: Final score is %d\n", score );

@@ -401,7 +401,7 @@ ReadEvents(Arguments &args)
 					fprintf( stderr, "Can't pointer cast generic event!\n" );
 				}
 				else {
-					printf( "(generic): '%s'\n", generic->info );
+					printf( " (generic): '%s'\n", generic->info );
 				}
 				break;
 			}
@@ -439,7 +439,7 @@ ReadEvents(Arguments &args)
 		puts( str.GetCStr() );
 	}
 	if ( args.writePersist ) {
-		fputs( "\n\nStoring final state...", stdout );
+		fputs( "\nStoring final state...", stdout );
 		int	fd = safe_open_wrapper( args.persistFile,
 									O_WRONLY|O_CREAT,
 									S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP );
@@ -449,7 +449,7 @@ ReadEvents(Arguments &args)
 			}
 			close( fd );
 		}
-		fputs( "  Done\n\n\n", stdout );
+		fputs( "  Done\n", stdout );
 	}
 
 	return result;
