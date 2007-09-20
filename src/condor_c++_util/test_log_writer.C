@@ -38,7 +38,8 @@ struct Arguments {
 	bool			isXml;
 	const char *	logFile;
 	int				numExec;
-	int				sleep;
+	int				sleep_seconds;
+	int				sleep_useconds;
 	int				cluster;
 	int				proc;
 	int				subproc;
@@ -92,7 +93,7 @@ main(int argc, char **argv)
 		int		max_proc = args.proc + args.numProcs - 1;
 		for( int proc = args.proc; proc <= max_proc; proc++ ) {
 			result = WriteEvents(args, args.cluster, proc, 0 );
-			if ( result ) {
+			if ( result || global_done ) {
 				break;
 			}
 		}
@@ -113,10 +114,9 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	Status	status = STATUS_OK;
 
 	const char *	usage =
-		"Usage: test_log_writer [options]\n"
+		"Usage: test_log_writer [options] <filename>\n"
 		"  -cluster <number>: Use cluster %d (default = getpid())\n"
 		"  -debug <level>: debug level (e.g., D_FULLDEBUG)\n"
-		"  -logfile <filename>: the log file to write\n"
 		"  -generic <string>: Write generic event\n"
 		"  -jobid <c.p.s>: combined -cluster, -proc, -subproc\n"
 		"  -numexec <number>: number of execute events to write / proc\n"
@@ -131,7 +131,8 @@ CheckArgs(int argc, char **argv, Arguments &args)
 		"  -v: increase verbose level by 1\n"
 		"  -verbosity <number>: set verbosity level (default is 1)\n"
 		"  -version: print the version number and compile date\n"
-		"  -xml: write the log in XML\n";
+		"  -xml: write the log in XML\n"
+		"  <filename>: the log file to write to\n";
 
 	args.isXml			= false;
 	args.logFile		= NULL;
@@ -140,7 +141,8 @@ CheckArgs(int argc, char **argv, Arguments &args)
 	args.proc			= -1;
 	args.subproc		= -1;
 	args.numProcs		= 10;
-	args.sleep			= 5;
+	args.sleep_seconds	= 5;
+	args.sleep_useconds	= 0;
 	args.stork			= false;
 	args.submitNote		= "";
 	args.verbosity		= 1;
@@ -191,15 +193,6 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				args.genericEventStr = argv[index];
 			}
 
-		} else if ( !strcmp(argv[index], "-logfile") ) {
-			if ( ++index >= argc ) {
-				fprintf(stderr, "Value needed for -logfile argument\n");
-				printf("%s", usage);
-				status = STATUS_ERROR;
-			} else {
-				args.logFile = argv[index];
-			}
-
 		} else if ( !strcmp(argv[index], "-numexec") ) {
 			if ( ++index >= argc ) {
 				fprintf(stderr, "Value needed for -numexec argument\n");
@@ -242,7 +235,10 @@ CheckArgs(int argc, char **argv, Arguments &args)
 				printf("%s", usage);
 				status = STATUS_ERROR;
 			} else {
-				args.sleep = atoi(argv[index]);
+				double	sec = atof(argv[index]);
+				args.sleep_seconds  = (int) trunc( sec );
+				args.sleep_useconds =
+					(int) (1e6 * ( sec - args.sleep_seconds ) );
 			}
 
 		} else if ( !strcmp(argv[index], "-stork") ) {
@@ -288,6 +284,9 @@ CheckArgs(int argc, char **argv, Arguments &args)
 
 		} else if ( !strcmp(argv[index], "-xml") ) {
 			args.isXml = true;
+
+		} else if ( argv[index][0] != '-' ) {
+			args.logFile = argv[index];
 
 		} else {
 			fprintf(stderr, "Unrecognized argument: <%s>\n", argv[index]);
@@ -416,7 +415,12 @@ WriteEvents(Arguments &args, int cluster, int proc, int subproc )
 			result = 1;
 		}
 
-		sleep(args.sleep);
+		if ( args.sleep_seconds ) {
+			sleep( args.sleep_seconds);
+		}
+		if ( args.sleep_useconds ) {
+			usleep( args.sleep_useconds);
+		}
 	}
 
 		//
