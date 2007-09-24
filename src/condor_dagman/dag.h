@@ -1,4 +1,3 @@
-//TEMPTEMP -- need to have "node type" here -- but DON'T store a copy of the string for each node -- just point to a string in an object that handles the "node type" stuff
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -37,6 +36,7 @@
 #include "check_events.h"
 #include "condor_id.h"
 #include "prioritysimplelist.h"
+#include "throttle_by_category.h"
 
 // NOTE: must be kept in sync with Job::job_type_t
 enum Log_source{
@@ -344,7 +344,7 @@ class Dag {
 			if true
     */
     void Rescue (const char * rescue_file, const char * datafile,
-    			bool useDagDir) const;
+    			bool useDagDir) /* const */;
 
 	int PreScriptReaper( const char* nodeName, int status );
 	int PostScriptReaper( const char* nodeName, int status );
@@ -427,6 +427,10 @@ class Dag {
 		*/
 	void SetPendingNodeReportInterval( int interval );
 	
+		//TEMP -- document
+	//TEMP -- should this be protected?
+	ThrottleByCategory		_catThrottles;
+
   protected:
 
 	/** Print a numbered list of the DAG files.

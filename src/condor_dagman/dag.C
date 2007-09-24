@@ -1825,7 +1825,7 @@ void Dag::RemoveRunningScripts ( ) const {
 
 //-----------------------------------------------------------------------------
 void Dag::Rescue (const char * rescue_file, const char * datafile,
-			bool useDagDir) const {
+			bool useDagDir) /* const */ {
     FILE *fp = safe_fopen_wrapper(rescue_file, "w");
     if (fp == NULL) {
         debug_printf( DEBUG_QUIET, "Could not open %s for writing.\n",
@@ -1971,7 +1971,11 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
 						job->_nodePriority );
 		}
 
-		//TEMPTEMP -- add category here
+			// Print the CATEGORY line, if any.
+		if ( job->GetThrottleInfo() ) {
+			fprintf( fp, "CATEGORY %s %s\n", job->GetJobName(),
+						job->GetThrottleInfo()->_category->Value() );
+		}
 
         fprintf( fp, "\n" );
     }
@@ -1997,7 +2001,10 @@ void Dag::Rescue (const char * rescue_file, const char * datafile,
         }
     }
 
-	//TEMPTEMP -- add maxjobs here
+	//
+	// Print "throttle by node category" settings.
+	//
+	_catThrottles.PrintThrottles( fp );
 
     fclose(fp);
 }

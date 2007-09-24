@@ -1,5 +1,4 @@
-//TEMPTEMP -- test node category throttling with multiple DAGs
-//TEMPTEMP -- if there are multiple MAXJOBS settings for one category, the final one overrides other -- also print warning
+//TEMP -- test node category throttling with multiple DAGs
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -1067,7 +1066,7 @@ parse_priority(
 	// Next token is the priority value.
 	//
 	const char *valueStr = strtok(NULL, DELIMITERS);
-//TEMPTEMP -- check for null!!!
+//TEMP -- check for null!!!
 
 	int priorityVal;
 	char *tmp;
@@ -1104,7 +1103,7 @@ parse_priority(
 // Purpose:  Parses a line specifying the type of a node
 //           The format of this line must be
 //           Category <JobName> <Category>
-//TEMPTEMP -- no whitespace in category name?
+//TEMP -- no whitespace in category name?
 //-----------------------------------------------------------------------------
 static bool 
 parse_category(
@@ -1169,7 +1168,7 @@ parse_category(
 		return false;
 	}
 
-	job->SetCategory( categoryName );
+	job->SetCategory( categoryName, dag->_catThrottles );
 
 	return true;
 }
@@ -1181,7 +1180,7 @@ parse_category(
 //           a given node category.
 //           The format of this line must be
 //           MaxJobs <Category> <Value>
-//TEMPTEMP -- no whitespace in category name?
+//TEMP -- no whitespace in category name?
 //-----------------------------------------------------------------------------
 static bool 
 parse_maxjobs(
@@ -1238,8 +1237,8 @@ parse_maxjobs(
 		return false;
 	}
 
-	debug_printf( DEBUG_QUIET, "MaxJobs value for category %s is %d\n", categoryName, maxJobsVal );//TEMPTEMP
-	//TEMPTEMP -- actually set limit in ThrottleByCategory object
+	MyString	tmpName( categoryName );
+	dag->_catThrottles.SetThrottle( &tmpName, maxJobsVal );
 
 	return true;
 }

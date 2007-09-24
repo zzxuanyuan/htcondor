@@ -24,8 +24,41 @@
 #ifndef _THROTTLE_BY_CATEGORY_H
 #define _THROTTLE_BY_CATEGORY_H
 
-class ThrottleByCategory {
+#include "HashTable.h"
 
+//TEMP -- document -- some fanciness is to avoid duplicating strings; some is to allow either MAXJOBS or NODECATEGORY to come first; HashTable doesn't provide a way to get an index
+
+class ThrottleByCategory {
+public:
+	static const int	noThrottleSetting = -1;
+
+	struct ThrottleInfo {
+		const MyString *_category;
+		int				_maxJobs;
+		int				_currentJobs;
+	};
+
+		//TEMP -- document
+	ThrottleByCategory();
+
+		//TEMP -- document
+	~ThrottleByCategory();
+
+		//TEMP -- document
+	ThrottleInfo *AddCategory( const MyString *category,
+				int maxJobs = noThrottleSetting );
+
+		//TEMP -- document
+	void	SetThrottle( const MyString *category, int maxJobs );
+
+		//TEMP -- document
+	ThrottleInfo *	GetThrottleInfo( const MyString *category );
+
+		//TEMP -- document
+	void		PrintThrottles( FILE *fp ) /* const */;
+
+private:
+	HashTable<MyString, ThrottleInfo *>	_throttles;
 };
 
 #endif	// _THROTTLE_BY_CATEGORY_H

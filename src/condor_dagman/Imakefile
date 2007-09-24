@@ -23,7 +23,7 @@ soapobjs(dagman)
 
 OBJ = dagman_main.o submit.o dag.o job.o util.o parse.o debug.o \
 	script.o scriptQ.o helper.o dagman_instantiate.o dagman_commands.o \
-	dagman_multi_dag.o $(SOAP_OBJS)
+	dagman_multi_dag.o throttle_by_category.o $(SOAP_OBJS)
 
 public_c_plus_target($(NAME),bin,$(OBJ),$(LIB))
 

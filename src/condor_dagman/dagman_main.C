@@ -629,6 +629,12 @@ int main_init (int argc, char ** const argv) {
 					 	dagFile );
     	}
 	}
+
+#if 1 //TEMP
+	dprintf( D_ALWAYS, "Exiting after parsing DAG(s)\n" );
+	//ExitSuccess();
+	main_shutdown_rescue( 0 );
+#endif //TEMP
     
 #ifndef NOT_DETECT_CYCLE
 	if( dagman.startup_cycle_detect && dagman.dag->isCycle() )
