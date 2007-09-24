@@ -450,14 +450,12 @@ handleGlobalLogRotation()
 	if ( m_global_path && current_filesize > global_max_filesize ) {
 		MyString old_name(m_global_path);
 		old_name += ".old";
-		if ( m_global_lock ) {
-			delete m_global_lock;
-			m_global_lock = NULL;
-		}
+#ifdef WIN32
 		if ( m_global_fp) {
 			fclose(m_global_fp);	// on win32, cannot rename an open file
 			m_global_fp = NULL;
 		}
+#endif
 		if ( rotate_file(m_global_path,old_name.Value()) == 0 ) {
 			rotated = true;
 			dprintf(D_ALWAYS,"Rotated event log %s at size %ld bytes\n",
