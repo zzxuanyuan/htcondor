@@ -401,6 +401,13 @@ ReadEvents(Arguments &args)
 					fprintf( stderr, "Can't pointer cast generic event!\n" );
 				}
 				else {
+					int	l = strlen( generic->info );
+					char	*p = (char*)generic->info+l-1;
+					while( l && isspace(*p) ) {
+						*p = '\0';
+						p--;
+						l--;
+					}
 					printf( " (generic): '%s'\n", generic->info );
 				}
 				break;
