@@ -443,11 +443,13 @@ handleGlobalLogRotation()
 	long current_filesize = 0L;
 
 	if (!m_global_fp) return false;
+	if (!m_global_path) return false;
 
-	current_filesize = ftell(m_global_fp);
+	StatWrapper	swrap( m_global_path );
+	current_filesize = swrap.GetStatBuf()->st_size;
 
 	int global_max_filesize = param_integer("MAX_EVENT_LOG",1000000);
-	if ( m_global_path && current_filesize > global_max_filesize ) {
+	if ( current_filesize > global_max_filesize ) {
 		MyString old_name(m_global_path);
 		old_name += ".old";
 #ifdef WIN32
