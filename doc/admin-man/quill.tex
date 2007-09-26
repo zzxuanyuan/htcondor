@@ -201,6 +201,7 @@ configured to use Quill, since by default Quill is configured to be off.
 \footnotesize
 \begin{verbatim}
 QUILL_ENABLED           = TRUE
+QUILL_USE_SQL_LOG		= FALSE
 QUILL_NAME              = some-unique-quill-name.cs.wisc.edu
 QUILL_DB_NAME           = database-for-some-unique-quill-name
 QUILL_DB_IP_ADDR        = databaseipaddress:port
@@ -214,6 +215,8 @@ QUILL_MANAGE_VACUUM = FALSE
 QUILL_IS_REMOTELY_QUERYABLE = TRUE
 QUILL_DB_QUERY_PASSWORD =  password-for-database-user-quillreader
 QUILL_ADDRESS_FILE      = $(LOG)/.quill_address
+QUILL_DB_TYPE			= "PGSQL"
+
 \end{verbatim}
 \normalsize
 
@@ -237,6 +240,7 @@ If more than one Quill server are sharing the same database
 server, then the \MacroNI{QUILL\_DB\_NAME} variable for all of them should
 be unique.  Otherwise, there would be record overwriting and corruption
 of job queue information.
+
 
 \item[\Macro{QUILL\_NAME}]
 Each quill daemon in the pool has to be uniquely named.
