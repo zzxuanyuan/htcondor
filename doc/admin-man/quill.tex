@@ -134,6 +134,11 @@ and be ready to enter the corresponding passwords when prompted.
 
 Answer ``no'' to the question about the ability for role creation.
 
+\item Create a database for Quill to store data in. 
+This database should be created with the quillwriter user as the owner.
+This is the database that you will use with the \MacroNI{QUILL\_DB\_NAME}
+in a few steps.
+
 \item The \Condor{quill} and \Condor{dbmsd} daemons need read and write access
 to the database.
 They connects as user \Username{quillwriter},
