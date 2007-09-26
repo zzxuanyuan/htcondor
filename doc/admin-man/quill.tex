@@ -236,12 +236,6 @@ it creates.  More than one Quill server can talk to the same database
 server.  This can be done by simply letting all the 
 \MacroNI{QUILL\_DB\_IP\_ADDR} point to the same database server.
 
-If more than one Quill server are sharing the same database
-server, then the \MacroNI{QUILL\_DB\_NAME} variable for all of them should
-be unique.  Otherwise, there would be record overwriting and corruption
-of job queue information.
-
-
 \item[\Macro{QUILL\_NAME}]
 Each quill daemon in the pool has to be uniquely named.
 
