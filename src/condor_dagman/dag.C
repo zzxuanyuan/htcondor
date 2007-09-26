@@ -618,6 +618,11 @@ Dag::ProcessAbortEvent(const ULogEvent *event, Job *job,
 		ASSERT( job->_queuedNodeJobProcs >= 0 );
 		if( job->_queuedNodeJobProcs == 0 ) {
 			_numJobsSubmitted--;
+			if ( job->GetThrottleInfo() ) {
+				job->GetThrottleInfo()->_currentJobs--;
+dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
+				ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
+			}
 		}
 		ASSERT( _numJobsSubmitted >= 0 );
 
@@ -654,6 +659,11 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 		ASSERT( job->_queuedNodeJobProcs >= 0 );
 		if( job->_queuedNodeJobProcs == 0 ) {
 			_numJobsSubmitted--;
+			if ( job->GetThrottleInfo() ) {
+				job->GetThrottleInfo()->_currentJobs--;
+dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
+				ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
+			}
 		}
 		ASSERT( _numJobsSubmitted >= 0 );
 
@@ -1003,6 +1013,11 @@ Dag::ProcessSubmitEvent(Job *job, bool recovery, bool &submitEventIsSane) {
 				// the *first* proc of a job.
 			if( job->_queuedNodeJobProcs == 1 ) {
 				_numJobsSubmitted++;
+				if ( job->GetThrottleInfo() ) {
+					job->GetThrottleInfo()->_currentJobs++;
+dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
+					ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
+				}
 			}
 		}
 
@@ -1519,6 +1534,11 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 		// maxjobs (now really maxnodes) if it takes a while to see
 		// the submit events.  wenger 2006-02-10.
     _numJobsSubmitted++;
+	if ( job->GetThrottleInfo() ) {
+		job->GetThrottleInfo()->_currentJobs++;
+dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
+		ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
+	}
     
         // stash the job ID reported by the submit command, to compare
         // with what we see in the userlog later as a sanity-check

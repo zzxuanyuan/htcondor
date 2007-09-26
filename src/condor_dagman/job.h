@@ -296,7 +296,7 @@ class Job {
 				ThrottleByCategory &catThrottles );
 
 		//TEMP -- document
-	const ThrottleByCategory::ThrottleInfo *GetThrottleInfo() {
+	ThrottleByCategory::ThrottleInfo *GetThrottleInfo() {
 			return _throttleInfo; }
 
     /** */ CondorID _CondorID;
@@ -419,7 +419,7 @@ private:
 
 		// This node's category; points to an object "owned" by the
 		// ThrottleByCategory object.
-	const ThrottleByCategory::ThrottleInfo *_throttleInfo;
+	ThrottleByCategory::ThrottleInfo *_throttleInfo;
 
 };
 

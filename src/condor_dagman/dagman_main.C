@@ -630,7 +630,7 @@ int main_init (int argc, char ** const argv) {
     	}
 	}
 
-#if 1 //TEMP
+#if 0 //TEMP
 	dprintf( D_ALWAYS, "Exiting after parsing DAG(s)\n" );
 	//ExitSuccess();
 	main_shutdown_rescue( 0 );
