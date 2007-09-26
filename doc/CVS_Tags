@@ -8,6 +8,10 @@
 ** just after this header).  Thanks!  Derek Wright, 3/17/03
 **********************************************************************
 
+09/26/07 V6_9_4-merge-1
+   The state of the doc directory in the V6_9_4-branch for a
+   first time merge into the trunk.
+
 09/26/07  V6_9_4-pre-merge-V6_8-merge-15
           V6_9_4-post-merge-V6_8-merge-15
    The state of the doc directory in V6_9_4-branch before and after
