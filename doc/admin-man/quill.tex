@@ -152,6 +152,10 @@ with exactly one line.
 This line contains the name of the server running
 the database, followed by the TCP port number, followed by the
 name of the database, followed by "quillwriter", followed by the password.
+The name of the server must match exactly the setting for 
+\Macro{QUILL\_DB\_IP\_ADDR}.
+Condor uses a string comparison between the two, and does not resolve the
+hostnames to compare IP addresses.
 Example:
 \begin{verbatim}
 machinename.cs.wisc.edu:5432:quill:quillwriter:password
