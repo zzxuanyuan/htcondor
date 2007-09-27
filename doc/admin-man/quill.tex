@@ -222,6 +222,7 @@ QUILL_RUN_HISTORY_DURATION = 7
 QUILL_JOB_HISTORY_DURATION = 3650
 #The DB Size limit is in gigabytes
 QUILL_DBSIZE_LIMIT = 20
+QUILL_MAINTAIN_DB_CONN = TRUE
 
 \end{verbatim}
 \normalsize
@@ -294,6 +295,13 @@ Quill can estimate the size of the database, and send email to the Condor
 administrator if the database size exceeds this threshold. 
 The estimate is checked after every \MacroNI{DATABASE\_PURGE\_INTERVAL}.
 The limit is given as gigabytes, and the default is 20.
+
+\item[\Macro{QUILL\_MAINTAIN\_DB\_CONN}]
+Quill can maintain an open connection the database server, which speeds up
+updates to the database. 
+However, each open connection consumes resources at the database server.
+The default is TRUE, but for large pools we recommend setting this 
+FALSE.
 
 \item[\Macro{QUILL\_MANAGE\_VACUUM}]
 Set to \Expr{False} by default, this variable determines whether Quill is to 
