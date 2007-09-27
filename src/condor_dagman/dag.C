@@ -1,3 +1,4 @@
+//TEMPTEMP -- make sure this all works in recovery mode (job counts get set correctly)
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -1282,9 +1283,11 @@ Dag::StartNode( Job *node, bool isRetry )
 }
 
 // returns number of jobs submitted
+//TEMPTEMP -- break this up into smaller methods??
 int
 Dag::SubmitReadyJobs(const Dagman &dm)
 {
+	dprintf( D_ALWAYS, "Dag::SubmitReadyJobs()\n" );//TEMPTEMP
 #if defined(BUILD_HELPER)
 	Helper helperObj;
 #endif
@@ -1349,6 +1352,13 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 		ASSERT( removeResult == 0 );
 	}
 	job->_CondorID = _defaultCondorId;
+
+//TEMPTEMP -- check here whether category throttle applies?
+// if it does, do we need to have a separate queue of nodes that have been throttled??? (at least partly because we don't want to keep infinitely looping on the ready queue if all jobs are throttled...)
+	ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
+	if ( catThrottle && catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
+dprintf( D_ALWAYS, "Job %s should be throttled by category throttle\n", job->GetJobName() ); //TEMPTEMP
+	}
 
 	if( job->NumParents() > 0 && dm.submit_delay == 0 &&
 				TotalLogFileCount() > 1 ) {
