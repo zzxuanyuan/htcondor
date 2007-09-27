@@ -6894,11 +6894,22 @@ quill-for-schedd_name@machinename.fully.qualified.address
 \end{verbatim}
 \normalsize
 
+\item[\Macro{QUILL\_USE\_SQL\_LOG}] \label{param:QuillUseSQLLog}
+  In order for Quill to store historical job information or resource
+  information, the Condor daemons must write information to the SQL logfile.
+  By default, this is set to \Expr{False}, and the only information Quill
+  stores in the database is the current job queue.
+  This can be set on a per daemon basis. For example, to store information
+  about historical jobs, but not store execute resource information, set
+  \MacroNI{QUILL\_USE\_SQL\_LOG} to \Expr{False} and set
+  \MacroNI{SCHEDD.\_QUIIL\_USE\_SQL\_LOG} to \Expr{True}.
+
 \item[\Macro{QUILL\_DB\_NAME}] \label{param:QuillDBName}
   A string that identifies a database within a database server.
 
 \item[\Macro{QUILL\_DB\_IP\_ADDR}] \label{param:QuillDBIPAddr}
-  An IP address of the database server.
+  The host address of the database server. It can be either an IP address
+  or an IP address. It must match exactly what is used in the .pgpass file.
 
 \item[\Macro{QUILL\_POLLING\_PERIOD}] \label{param:QuillPollingPeriod}
   The frequency, in number of seconds, at which the Quill daemon
@@ -6906,16 +6917,63 @@ quill-for-schedd_name@machinename.fully.qualified.address
   New information in the log file is sent to the database.
   The default value is 10.
 
-\item[\Macro{QUILL\_HISTORY\_CLEANING\_INTERVAL}] 
-  \label{param:QuillHistoryCleaningInterval}
-  The interval, in hours, between scans of the database to identify and
-  delete jobs that are beyond their \MacroNI{QUILL\_HISTORY\_DURATION}
-  time. The default value is 24.
+\item[\Macro{QUILL\_NOT\_RESPONDING\_TIMEOUT}]
+  When the \Condor{quill} is processing a very long logfile, it 
+  may not be able to communicate with the master. The \Condor{master} may
+  decide that this means the \Condor{quill} is hung, and the \Condor{master}
+  may kill and restart the \Condor{quill}. 
+  The default for this setting is 3600 seconds, or one hour. It may be
+  advisable to increase this to several hours. 
 
-\item[\Macro{QUILL\_HISTORY\_DURATION}] \label{param:QuillHistoryDuration}
+\item[\Macro{QUILL\_MAINTAIN\_DB\_CONN}] \label{param:QuillMaintainDBConn}
+  Quill can maintain an open connection the database server, which speeds up
+  updates to the database.
+  However, each open connection consumes resources at the database server.
+  The default is TRUE, but for large pools we recommend setting this
+  FALSE.
+
+\item[\Macro{DATABASE\_PURGE\_INTERVAL}] 
+  \label{param:QuillDatabasePurgeInterval}
+  The interval, in seconds, between scans of the database to identify and
+  delete records that are beyond their history durations. 
+  The default value is 86400, or one day.
+
+\item[\Macro{DATABASE\_REINDEX\_INTERVAL}] 
+  \label{param:QuillDatabaseReindexInterval}
+  The interval, in seconds, between reindex commands on the database.
+  The default value is 86400, or one day.
+  This is only used when the \MacroNI{QUILL\_DB\_TYPE} is set to PGSQL.
+
+\item[\Macro{QUILL\_JOB\_HISTORY\_DURATION}] \label{param:QuillJobHistoryDuration}
   The number of days after entry into the database that a job will
   remain in the database.
-  After \MacroNI{QUILL\_HISTORY\_DURATION} days, the job is deleted.
+  After \MacroNI{QUILL\_JOB\_HISTORY\_DURATION} days, the job is deleted.
+  The job history is the final classad, and contains all information 
+  necessary for condor\_history to succeed.
+  The default is 3650, or about 10 years. 
+
+\item[\Macro{QUILL\_RUN\_HISTORY\_DURATION}] \label{param:QuillRunHistoryDuration}
+  The number of days after entry into the database that extra information 
+  about the job will remain in the database.
+  After \MacroNI{QUILL\_RUN\_HISTORY\_DURATION} days, the records are deleted.
+  This data includes matches made for the job, file transfers the job 
+  performed, and user log events.
+  The default is 7, or one week. 
+
+\item[\Macro{QUILL\_RESOURCE\_HISTORY\_DURATION}] \label{param:QuillResourceHistoryDuration}
+  The number of days after entry into the database that a resource record will
+  remain in the database.
+  After \MacroNI{QUILL\_RESOURCE\_HISTORY\_DURATION} days, the record is 
+  deleted.
+  The resource history data includes things like the classad of a compute slot,
+  submitter ads, and daemon ads.
+  The default is 7, or one week. 
+
+\item[\Macro{QUILL\_DBSIZE\_LIMIT}] \label{param:QuillDBSizeLimit}
+  After each purge, Quill estimates the size of the database. 
+  If the size of the database exceeds this limit, Quill will email the
+  administrator a warning. 
+  This size is given in gigabytes, and defaults to 20. 
 
 \item[\Macro{QUILL\_MANAGE\_VACUUM}]
   \label{param:QuillManageVacuum}
@@ -6953,6 +7011,15 @@ quill-for-schedd_name@machinename.fully.qualified.address
 \item[\Macro{DBMSD\_LOG}] \label{param:DBMSDLog}
   Path to the \Condor{dbmsd} daemon's log file.
   The default log location is \File{\$(LOG)/DbmsdLog}.
+
+\item[\Macro{DBSMD\_NOT\_RESPONDING\_TIMEOUT}]
+  When the \Condor{dbmsd} is purging or reindexing a very large database, it 
+  may not be able to communicate with the master. The \Condor{master} may
+  decide that this means the \Condor{dbmsd} is hung, and the \Condor{master}
+  may kill and restart the \Condor{dbmsd}. 
+  The default for this setting is 3600 seconds, or one hour. It may be
+  advisable to increase this to several hours. 
+
 \end{description}
 
 
