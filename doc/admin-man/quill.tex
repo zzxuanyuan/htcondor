@@ -207,15 +207,21 @@ QUILL_DB_NAME           = database-for-some-unique-quill-name
 QUILL_DB_IP_ADDR        = databaseipaddress:port
 # the following parameter's units is in seconds
 QUILL_POLLING_PERIOD    = 10
-# the following parameter's units is in hours
-QUILL_HISTORY_CLEANING_INTERVAL = 24
-# the following parameter's units is in days
 QUILL_HISTORY_DURATION 	= 30
 QUILL_MANAGE_VACUUM = FALSE
 QUILL_IS_REMOTELY_QUERYABLE = TRUE
 QUILL_DB_QUERY_PASSWORD =  password-for-database-user-quillreader
 QUILL_ADDRESS_FILE      = $(LOG)/.quill_address
 QUILL_DB_TYPE			= "PGSQL"
+# The Purage and Reindex intervals are in seconds
+DATABASE_PURGE_INTERVAL	= 86400
+DATABASE_REINDEX_INTERVAL = 86400
+# The History durations are all in days 
+QUILL_RESOURCE_HISTORY_DURATION  = 7
+QUILL_RUN_HISTORY_DURATION = 7
+QUILL_JOB_HISTORY_DURATION = 3650
+#The DB Size limit is in gigabytes
+QUILL_DBSIZE_LIMIT = 20
 
 \end{verbatim}
 \normalsize
@@ -247,21 +253,47 @@ those updates to the database, this variable controls the trade off between
 the currency of query results and Quill's load on the system, which
 is usually negligible.
 
-\item[\Macro{QUILL\_HISTORY\_CLEANING\_INTERVAL} and 
-		\Macro{QUILL\_HISTORY\_DURATION}]
-These two variables control the deletion of historical jobs from the
+\item[ \Macro{QUILL\_RESOURCE\_HISTORY\_DURATION}, 
+		\Macro{QUILL\_RUN\_HISTORY\_DURATION}, and
+		\Macro{QUILL\_JOB\_HISTORY\_DURATION}]
+These three variables control the deletion of historical information from the
 database. 
-\MacroNI{QUILL\_HISTORY\_DURATION} is the number of days
+\MacroNI{QUILL\_RESOURCE\_HISTORY\_DURATION} is the number of days
+historical information about the state of a resource will be kept in the 
+database. 
+The default for resource history is 7 days.
+An example of a resource is the classad for a compute slot.
+\MacroNI{QUILL\_RUN\_HISTORY\_DURATION} is the number of days
+after completion that auxiliary information about a  given job will stay in 
+the database.  
+This includes user log events, file transfers performed by the job, the matches
+that were made for a job, et cetera. 
+The default for run history is 7 days.
+\MacroNI{QUILL\_JOB\_HISTORY\_DURATION} is the number of days
 after completion that a given job will stay in the database.  
 A more precise definition is the number of days since the history ad got 
 into the history database; those two might be different,
 if a job is completed but stays in the queue for a while.
-All jobs beyond \MacroNI{QUILL\_HISTORY\_DURATION} will be deleted.
+The default for job history is 3,650 days (about 10 years.)
+
+\item[\Macro{DATABASE\_PURGE\_INTERVAL}]
 As scanning the entire database for old jobs can be expensive,
-the other variable \MacroNI{QUILL\_HISTORY\_CLEANING\_INTERVAL}
-is the number of hours between two successive scans.  By default,
-\MacroNI{QUILL\_HISTORY\_DURATION} is set to 180 days and
-\MacroNI{QUILL\_HISTORY\_CLEANING\_INTERVAL} is set to 24 hours.
+the other variable \MacroNI{DATABAE\_PURGE\_INTERVAL}
+is the number of seconds between two successive scans.  
+\MacroNI{DATABASE\_PURGE\_INTERVAL} is set to 86400 seconds, or one day.
+
+\item[\Macro{DATABASE\_REINDEX\_INTERVAL}]
+\Prog{PostgreSQL} does not aggresively maintain the index structures for
+deleted tuples. This can lead to bloated index structures.
+Quill can periodically reindex the database, which is controlled by the
+variable \MacroNI{DATABAE\_REINDEX\_INTERVAL}.
+\MacroNI{DATABASE\_PURGE\_INTERVAL} is set to 86400 seconds, or one day.
+
+\item[\Macro{QUILL\_DBSIZE\_LIMIT}]
+Quill can estimate the size of the database, and send email to the Condor
+administrator if the database size exceeds this threshold. 
+The estimate is checked after every \MacroNI{DATABASE\_PURGE\_INTERVAL}.
+The limit is given as gigabytes, and the default is 20.
 
 \item[\Macro{QUILL\_MANAGE\_VACUUM}]
 Set to \Expr{False} by default, this variable determines whether Quill is to 
