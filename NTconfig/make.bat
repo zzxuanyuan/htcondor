@@ -11,23 +11,6 @@ REM from Perl, which doesn't understand ERRORLEVEL.
 set INTERACTIVE=/b
 IF "%1" == "/exit" set INTERACTIVE=
 
-REM This fixes the wierdness in condor_cpp_util.mak -stolley 08/2002
-awk "{ gsub(/\.\\\.\.\\Debug/, \"..\\Debug\") } { gsub(/\.\\\.\.\\Release/, \"..\\Release\") } { print }" condor_cpp_util.mak > ~temp.mak
-del condor_cpp_util.mak
-ren ~temp.mak condor_cpp_util.mak
-
-REM InputDir is stupidly defined by an absolute path by MSVS. So we
-REM have to have awk clean up by making everything relative.
-for %%f in ( *.mak ) do awk "{ b = gensub(/InputDir=(.*)\\src\\(.+)/, \"InputDir=..\\\\src\\\\\\2\", $0); print b }" %%f > %%f.tmp
-
-if exist condor_util_lib.mak.tmp (
-	del *.mak
-	ren *.tmp *.
-		) ELSE (
-			echo awk makefile cleanup failed!
-		   	exit /b 1
-		)
-
 REM Although we have it as a rule in the .dsp files, somehow our prebuild 
 REM rule for syscall_numbers.h gets lost into the translation to .mak files, 
 REM so we deal with it here explicitly.

@@ -7,23 +7,6 @@ setlocal
 call dorenames.bat > NUL
 if not errorlevel 2 call dorenames.bat > NUL
 
-REM This fixes the wierdness in condor_cpp_util.mak -stolley 08/2002
-awk "{ gsub(/\.\\\.\.\\Debug/, \"..\\Debug\") } { gsub(/\.\\\.\.\\Release/, \"..\\Release\") } { print }" condor_cpp_util.mak > ~temp.mak
-del condor_cpp_util.mak
-ren ~temp.mak condor_cpp_util.mak
-
-REM InputDir is stupidly defined by an absolute path by MSVS. So we
-REM have to have awk clean up by making everything relative.
-for %%f in ( *.mak ) do awk "{ b = gensub(/InputDir=(.*)\\src\\(.+)/, \"InputDir=..\\\\src\\\\\\2\", $0); print b }" %%f > %%f.tmp
-
-if exist condor_util_lib.mak.tmp (
-	del *.mak
-	ren *.tmp *.
-		) ELSE (
-			echo awk makefile cleanup failed!
-		   	exit /b 1
-		)
-
 REM Although we have it as a rule in the .dsp files, somehow our prebuild 
 REM rule for syscall_numbers.h gets lost into the translation to .mak files, 
 REM so we deal with it here explicitly.
@@ -47,7 +30,7 @@ if not gsoap%ERRORLEVEL% == gsoap0 goto failure
 rem If we are using vc8 we may be using the free express version, so check for
 rem if it exists after we try the real vc8 launcher.
 if exist "%DevEnvDir%\devenv.exe" (
-    "%DevEnvDir%\devenv.exe" /useenv condor.sln 
+    cmd /k "%DevEnvDir%\devenv.exe" /useenv condor.sln 
 ) else ( 
     echo Is Visual Studio installed?!
     goto failure
