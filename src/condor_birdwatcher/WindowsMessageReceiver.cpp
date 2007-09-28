@@ -99,7 +99,7 @@ void WindowsMessageReceiver::createHwnd()
 		{
 			int iRand = rand()%10000;
 			char sRand[32];
-			itoa(iRand, sRand, 10);
+			_itoa(iRand, sRand, 10);
 			string strTemp = string("WindowsMessageReceiver") + sRand;
 			
 			strcpy(pszClassNameBuf, strTemp.c_str());

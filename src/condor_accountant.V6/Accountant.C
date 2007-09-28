@@ -24,7 +24,9 @@
 #include "condor_common.h"
 
 #include <math.h>
-#include <iomanip.h>
+/* the following was not found in the Platform SDKs and is not used 
+   in here either ... [7/12/2007 Ben Burnett] */
+//#include <iomanip.h> 
 
 #include "condor_accountant.h"
 #include "condor_debug.h"
@@ -668,7 +670,7 @@ void Accountant::UpdatePriorities()
 	LastUpdateTime=T;
 	return;
   }
-  float AgingFactor=(float) ::pow(0.5,float(TimePassed)/HalfLifePeriod);
+  float AgingFactor=(float) ::pow(float(0.5),float(TimePassed)/HalfLifePeriod);
   LastUpdateTime=T;
   SetAttributeInt(AcctRecord,LastUpdateTimeAttr,LastUpdateTime);
 

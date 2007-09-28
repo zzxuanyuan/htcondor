@@ -94,6 +94,10 @@ double dtime()
 #endif
 
 #ifdef WIN32
+// Many CRT functions now have more secure versions. This turns deprecation
+// off for the the original "insecure" functions:
+#define _CRT_SECURE_NO_DEPRECATE
+
 #include <windows.h>
 #include <sys/types.h>
 #include <sys/timeb.h>

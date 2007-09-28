@@ -32,6 +32,21 @@
 // Disable warnings about multiple template instantiations (done for gcc)
 #pragma warning( disable : 4660 )  
 
+// Disable warnings about deprecated ISO conformant names (for some reason 
+// defining fileno and fdopen to the right ones does not work in VS2K5)
+#pragma warning( disable : 4996 )
+
+// Many CRT functions now have more secure versions. This turns deprecation
+// off for the the original "insecure" functions:
+#define _CRT_SECURE_NO_DEPRECATE
+
+// As above, this lets us use the less secure sprintf family of functions
+#define _CRT_NON_CONFORMING_SWPRINTFS
+
+// Some functions--like strchr--now return const pointers, this will  
+// reinstate the old behavior:
+#define _CONST_RETURN
+
 // #define NOGDI
 #define NOSOUND
 
@@ -71,6 +86,7 @@ typedef unsigned __int32 uint32_t;
 #define MAXPATHLEN 1024
 #define MAXHOSTNAMELEN 64
 #define	_POSIX_PATH_MAX 255
+#define _POSIX_ARG_MAX 4096
 #define pipe(fds) _pipe(fds,2048,_O_BINARY)
 #define popen _popen
 #define pclose _pclose
@@ -91,6 +107,16 @@ typedef unsigned __int32 uint32_t;
 #define itoa _itoa
 #define utime _utime
 #define utimbuf _utimbuf
+
+// New ISO names
+#define close _close
+#define stricmp _stricmp
+#define unlink _unlink
+#define read _read
+#define write _write
+#define strnicmp _strnicmp
+#define stricmp	_stricmp
+
 #define R_OK 4
 #define W_OK 2
 #define X_OK 4

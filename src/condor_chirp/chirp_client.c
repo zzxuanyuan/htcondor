@@ -27,6 +27,12 @@ This public domain software is provided "as is".  See the Chirp License
 for details.
 */
 
+#if defined(WIN32)
+    // Many CRT functions now have more secure versions. This turns deprecation
+    // off for the the original "insecure" functions:
+    #define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include "chirp_protocol.h"
 #include "chirp_client.h"
 
@@ -37,8 +43,12 @@ for details.
 #include <stdarg.h>
 #include <ctype.h>
 
-/* Sockets */
 #if defined(WIN32)
+    #define fdopen _fdopen
+#endif
+
+/* Sockets */
+#if defined(WIN32)	
 	#include <winsock2.h>
 	#include <windows.h>
 	#include <io.h>

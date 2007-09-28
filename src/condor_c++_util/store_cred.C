@@ -671,7 +671,7 @@ store_cred(const char* user, const char* pw, int mode, Daemon* d, bool force) {
 
 			// first see if we're operating on the pool password
 		int cmd = STORE_CRED;
-		char *tmp = strchr(user, '@');
+		const char *tmp = strchr(user, '@');
 		if (tmp == NULL || tmp == user || *(tmp + 1) == '\0') {
 			dprintf(D_ALWAYS, "store_cred: user not in user@domain format\n");
 			return FAILURE;

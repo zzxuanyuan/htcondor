@@ -132,7 +132,10 @@ void dprintf_touch_log(void);
 #if !( defined(LINUX) && defined(GLIBC) || defined(Darwin) || defined(CONDOR_FREEBSD) )
 extern DLL_IMPORT_MAGIC int		errno;
 extern DLL_IMPORT_MAGIC int		sys_nerr;
+#if _MSC_VER < 1400
+// VC2K5 sees this as function return returning an array
 extern DLL_IMPORT_MAGIC char		*sys_errlist[];
+#endif
 #endif
 
 extern int	_EXCEPT_Line;			/* Line number of the exception    */

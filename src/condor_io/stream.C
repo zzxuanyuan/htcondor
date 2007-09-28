@@ -254,6 +254,7 @@ Stream::code( unsigned long long	&l)
 }
 #else  // Windows
 
+int
 Stream::code( LONGLONG &l)
 {
 	switch(_coding){

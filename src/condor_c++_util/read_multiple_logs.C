@@ -456,8 +456,8 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 	}
 
 	MyString	currentDir;
-	char	tmpCwd[PATH_MAX];
-	if ( getcwd(tmpCwd, PATH_MAX) ) {
+	char	tmpCwd[_POSIX_PATH_MAX];
+	if ( getcwd(tmpCwd, _POSIX_PATH_MAX) ) {
 		currentDir = tmpCwd;
 	} else {
 		dprintf(D_ALWAYS,

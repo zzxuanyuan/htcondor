@@ -67,7 +67,11 @@
    #ifdef fopen
    #  undef fopen
    #endif
-   #define fopen (Calls_to_fopen_must_use___safe_fopen_wrapper___instead)   
+   /* Our fopen macro does not play well with the new 
+	  version of the Platform SDK for Vista	*/
+   #ifndef WIN32
+   #   define fopen (Calls_to_fopen_must_use___safe_fopen_wrapper___instead)   
+   #endif
    #ifdef __GNUC__
    #   pragma GCC poison Calls_to_fopen_must_use___safe_fopen_wrapper___instead
    #endif
