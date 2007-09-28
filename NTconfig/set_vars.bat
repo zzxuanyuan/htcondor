@@ -9,10 +9,13 @@ REM totally lame but there's nothing we can do about it.
 REM ======================================================================
 
 REM Set paths to Visual C++, the Platform SDKs, and Perl
-set VC_DIR=C:\Program Files\Microsoft Visual Studio\VC98\Bin
-set SDK_DIR=C:\Program Files\Microsoft Platform SDK
-set SDK_XP_DIR=C:\Program Files\Microsoft Platform SDK for Windows XP SP2
-set PERL_DIR=C:\Perl\bin
+REM NOTE: we assume that everything has been installed in the default location
+REM       if this is not the case, then you will need to change these paths
+set VC_DIR=%SystemDrive%\Program Files\Microsoft Visual Studio 8\VC\Bin
+echo Using VC_DIR: %VC_DIR% & echo.
+set SDK_DIR=%SystemDrive%\Program Files\Microsoft Platform SDK
+set SDK_XP_DIR=%SystemDrive%\Program Files\Microsoft Platform SDK for Windows XP SP2
+set PERL_DIR=%SystemDrive%\Perl\bin
 
 REM Where do the completed externals live?
 if A%EXTERN_DIR%==A  set EXTERN_DIR=%cd%\..\externals
@@ -31,14 +34,14 @@ set EXT_PCRE_VERSION=pcre-5.0
 set EXT_DRMAA_VERSION=drmaa-1.4
 
 REM Now tell the build system what externals we need built.
-set EXTERNALS_NEEDED=%EXT_GSOAP_VERSION% %EXT_OPENSSL_VERSION% %EXT_KERBEROS_VERSION% %EXT_GLOBUS_VERSION% %EXT_PCRE_VERSION% %EXT_POSTGRESQL_VERSION% %EXT_DRMAA_VERSION%
+set EXTERNALS_NEEDED=%EXT_GSOAP_VERSION% %EXT_OPENSSL_VERSION% %EXT_KERBEROS_VERSION% %EXT_PCRE_VERSION% %EXT_POSTGRESQL_VERSION% %EXT_DRMAA_VERSION%
 
 REM Put NTConfig in the PATH, since it's got lots of stuff we need
-REM like awk, gunzip, tar, bison, yacc...
+REM like awk, gunzip, tar, bison, yacc... 
 set PATH=%cd%;%SystemRoot%;%SystemRoot%\system32;%PERL_DIR%;%VC_DIR%;%SDK_DIR%;%SDK_XP_DIR%
 
 call vcvars32.bat
-if not defined INCLUDE ( echo . && echo *** Failed to run VCVARS32.BAT! Is Microsoft Visual Studio 6.0 installed? && exit /B 1 )
+if not defined INCLUDE ( echo . && echo *** Failed to run VCVARS32.BAT! Is Microsoft Visual Studio installed? && exit /B 1 )
 call setenv /2000 /RETAIL
 if not defined MSSDK ( echo . && echo *** Failed to run SETENV.BAT! Is Microsoft Platform SDK installed? && exit /B 1 )
 
@@ -60,6 +63,15 @@ set NO_EXTERNAL_DEPS=1
 REM ======================================================================
 REM Now set the individual variables specific to each external package.
 REM Some have been defined, but are not in use yet.
+rem
+rem [BCB] I've commented out the ones we don't use--namely globus--if in 
+rem the future we do use them, you will also need to add them back into 
+rem the project files as they were removed from there as well since they 
+rem served only to give warnings for years upon years.
+rem
+rem _INCLUDE ones go in C/C++ > Command Line > Additional options:
+rem _LIB* ones go in Linker > Input > Additional Dependencies
+rem
 REM ======================================================================
 
 REM ** GSOAP
@@ -68,9 +80,9 @@ set CONDOR_GSOAP_LIB=
 set CONDOR_GSOAP_LIBPATH=
 
 REM ** GLOBUS
-set CONDOR_GLOBUS_INCLUDE=
-set CONDOR_GLOBUS_LIB=
-set CONDOR_GLOBUS_LIBPATH=
+rem set CONDOR_GLOBUS_INCLUDE=
+rem set CONDOR_GLOBUS_LIB=
+rem set CONDOR_GLOBUS_LIBPATH=
 
 REM ** OPENSSL
 set CONDOR_OPENSSL_INCLUDE=/I %EXT_INSTALL%\%EXT_OPENSSL_VERSION%\inc32 /D CONDOR_BLOWFISH_ENCRYPTION /D CONDOR_MD /D CONDOR_ENCRYPTION /D CONDOR_3DES_ENCRYPTION /D SSL_AUTHENTICATION
