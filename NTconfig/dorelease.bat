@@ -27,8 +27,6 @@ copy ..\src\condor_starter.V6.1\*.class %1\lib
 copy ..\src\condor_starter.V6.1\*.jar %1\lib
 copy ..\src\condor_chirp\Chirp.jar %1\lib
 copy ..\src\condor_examples\condor_config.* %1\etc
-copy msvcrt.dll %1\bin
-copy msvcirt.dll %1\bin
 copy pdh.dll %1\bin
 pushd .
 cd ..\src
