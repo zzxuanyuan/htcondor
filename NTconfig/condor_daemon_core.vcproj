@@ -1,14 +1,17 @@
-<?xml version="1.0" encoding = "Windows-1252"?>
+<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="7.00"
+	Version="8.00"
 	Name="condor_daemon_core"
-	SccProjectName=""
-	SccLocalPath="">
+	ProjectGUID="{E90385AB-4376-4306-A036-7514F86C3C9D}"
+	>
 	<Platforms>
 		<Platform
-			Name="Win32"/>
+			Name="Win32"
+		/>
 	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
@@ -16,45 +19,74 @@
 			IntermediateDirectory=".\../Release"
 			ConfigurationType="4"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="$(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="1"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\src\h,..\src\condor_includes,..\src\condor_c++_util,..\src\condor_daemon_client"
-				PreprocessorDefinitions="WIN32,NDEBUG,_WINDOWS"
-				StringPooling="TRUE"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
+				StringPooling="true"
 				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="TRUE"
-				UsePrecompiledHeader="3"
+				EnableFunctionLevelLinking="true"
+				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="condor_common.h"
 				PrecompiledHeaderFile="..\Release\condor_common.pch"
 				AssemblerListingLocation=".\../Release/"
 				ObjectFile=".\../Release/"
 				ProgramDataBaseFileName=".\../Release/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
+				SuppressStartupBanner="true"
 				DebugInformationFormat="1"
-				CompileAs="2"/>
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
 				Name="VCLibrarianTool"
 				OutputFile=".\../Release\condor_daemon_core.lib"
-				SuppressStartupBanner="TRUE"/>
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCMIDLTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
+				Name="VCXDCMakeTool"
+			/>
 			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\../Release/condor_daemon_core.bsc"
+			/>
 			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCFxCopTool"
+			/>
 			<Tool
-				Name="VCResourceCompilerTool"
-				Culture="1033"/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
@@ -62,74 +94,502 @@
 			IntermediateDirectory=".\..\Debug"
 			ConfigurationType="4"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="$(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src\h,..\src\condor_includes,..\src\condor_c++_util,..\src\condor_daemon_client"
-				PreprocessorDefinitions="WIN32,_DEBUG,_WINDOWS"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
+				MinimalRebuild="true"
 				RuntimeLibrary="1"
-				UsePrecompiledHeader="3"
+				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="condor_common.h"
 				PrecompiledHeaderFile="..\Debug\condor_common.pch"
 				AssemblerListingLocation=".\..\Debug/"
 				ObjectFile=".\..\Debug/"
 				ProgramDataBaseFileName=".\..\Debug/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
+				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
-				CompileAs="2"/>
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
 				Name="VCLibrarianTool"
 				OutputFile="..\Debug\condor_daemon_core.lib "
-				SuppressStartupBanner="TRUE"/>
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCMIDLTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
+				Name="VCXDCMakeTool"
+			/>
 			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\..\Debug/condor_daemon_core.bsc"
+			/>
 			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCFxCopTool"
+			/>
 			<Tool
-				Name="VCResourceCompilerTool"
-				Culture="1033"/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 	</Configurations>
+	<References>
+	</References>
 	<Files>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\accessdesktop.WIN32.C">
+			RelativePath="..\src\condor_daemon_core.V6\accessdesktop.WIN32.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\condor_daemon_core.h">
+			RelativePath="..\src\condor_daemon_core.V6\condor_daemon_core.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\condor_ipverify.C">
+			RelativePath="..\src\condor_daemon_core.V6\condor_ipverify.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\condor_ipverify.h">
+			RelativePath="..\src\condor_daemon_core.V6\condor_ipverify.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\condor_timer_manager.h">
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\daemon_core.C">
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\daemon_core_main.C">
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock_base.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\exphnd.WIN32.C">
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock_base.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\exphnd.WIN32.h">
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock_file.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_daemon_core.V6\timer_manager.C">
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock_file.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock_implementation.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\condor_lock_implementation.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\condor_timer_manager.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\daemon_core.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\daemon_core_main.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\datathread.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\exphnd.WIN32.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\exphnd.WIN32.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\httpget.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\httpget.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\pipe.WIN32.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\pipe.WIN32.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\self_draining_queue.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\self_draining_queue.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\self_monitor.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\self_monitor.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\soap_core.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\soap_core.h"
+			>
+		</File>
+		<File
+			RelativePath="$(EXT_INSTALL)\$(EXT_GSOAP_VERSION)\src\stdsoap2.cpp"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					UsePrecompiledHeader="0"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					UsePrecompiledHeader="0"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_daemon_core.V6\timer_manager.C"
+			>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 	</Files>
 	<Globals>

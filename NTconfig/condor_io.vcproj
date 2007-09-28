@@ -1,14 +1,17 @@
-<?xml version="1.0" encoding = "Windows-1252"?>
+<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="7.00"
+	Version="8.00"
 	Name="condor_io"
-	SccProjectName=""
-	SccLocalPath="">
+	ProjectGUID="{B61C06AC-86DD-4589-8B6C-6E791737415E}"
+	>
 	<Platforms>
 		<Platform
-			Name="Win32"/>
+			Name="Win32"
+		/>
 	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
@@ -16,43 +19,72 @@
 			IntermediateDirectory=".\..\Debug"
 			ConfigurationType="4"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="$(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src\h,..\src\condor_includes,..\src\condor_c++_util,..\src\condor_daemon_client"
-				PreprocessorDefinitions="WIN32,_DEBUG,_WINDOWS"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
+				MinimalRebuild="true"
 				RuntimeLibrary="1"
-				UsePrecompiledHeader="3"
+				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="condor_common.h"
 				PrecompiledHeaderFile="..\Debug\condor_common.pch"
 				AssemblerListingLocation=".\..\Debug/"
 				ObjectFile=".\..\Debug/"
 				ProgramDataBaseFileName=".\..\Debug/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
+				SuppressStartupBanner="true"
 				DebugInformationFormat="3"
-				CompileAs="2"/>
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
-			<Tool
-				Name="VCLibrarianTool"
-				AdditionalDependencies="mswsock.lib"
-				OutputFile=".\..\Debug\condor_io.lib"
-				SuppressStartupBanner="TRUE"/>
-			<Tool
-				Name="VCMIDLTool"/>
-			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
-			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				Culture="1033"/>
+				Culture="1033"
+			/>
 			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLibrarianTool"
+				OutputFile=".\..\Debug\condor_io.lib"
+				SuppressStartupBanner="true"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\..\Debug/condor_io.bsc"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
@@ -60,149 +92,678 @@
 			IntermediateDirectory=".\..\Release"
 			ConfigurationType="4"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="$(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="1"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\src\h,..\src\condor_includes,..\src\condor_c++_util,..\src\condor_daemon_client"
-				PreprocessorDefinitions="WIN32,NDEBUG,_WINDOWS"
-				StringPooling="TRUE"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
+				StringPooling="true"
 				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="TRUE"
-				UsePrecompiledHeader="3"
+				EnableFunctionLevelLinking="true"
+				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="condor_common.h"
 				PrecompiledHeaderFile="..\Release\condor_common.pch"
 				AssemblerListingLocation=".\..\Release/"
 				ObjectFile=".\..\Release/"
 				ProgramDataBaseFileName=".\..\Release/"
 				WarningLevel="3"
-				SuppressStartupBanner="TRUE"
+				SuppressStartupBanner="true"
 				DebugInformationFormat="1"
-				CompileAs="2"/>
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				Culture="1033"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
 				Name="VCLibrarianTool"
 				OutputFile=".\..\Release\condor_io.lib"
-				SuppressStartupBanner="TRUE"/>
+				SuppressStartupBanner="true"
+			/>
 			<Tool
-				Name="VCMIDLTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
+				Name="VCXDCMakeTool"
+			/>
 			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCBscMakeTool"
+				SuppressStartupBanner="true"
+				OutputFile=".\..\Release/condor_io.bsc"
+			/>
 			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCFxCopTool"
+			/>
 			<Tool
-				Name="VCResourceCompilerTool"
-				Culture="1033"/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 	</Configurations>
+	<References>
+	</References>
 	<Files>
 		<File
-			RelativePath="..\src\condor_io\CryptKey.C">
+			RelativePath="..\src\condor_io\authentication.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\CryptKey.h">
+			RelativePath="..\src\condor_includes\authentication.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\SafeMsg.C">
+			RelativePath="..\src\condor_io\buffers.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\SafeMsg.h">
+			RelativePath="..\src\condor_includes\buffers.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\authentication.C">
+			RelativePath="..\src\condor_io\cedar_no_ckpt.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\authentication.h">
+			RelativePath="..\src\condor_io\condor_auth.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\buffers.C">
+			RelativePath="..\src\condor_includes\condor_auth.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\buffers.h">
+			RelativePath="..\src\condor_io\condor_auth_anonymous.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_auth.C">
+			RelativePath="..\src\condor_io\condor_auth_claim.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\condor_auth.h">
+			RelativePath="..\src\condor_includes\condor_auth_claim.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_auth_anonymous.C">
+			RelativePath="..\src\condor_io\condor_auth_kerberos.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					UsePrecompiledHeader="0"
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					UsePrecompiledHeader="0"
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_auth_claim.C">
+			RelativePath="..\src\condor_io\condor_auth_passwd.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\condor_auth_claim.h">
+			RelativePath="..\src\condor_includes\condor_auth_passwd.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_auth_sspi.C">
+			RelativePath="..\src\condor_io\condor_auth_ssl.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\condor_auth_sspi.h">
+			RelativePath="..\src\condor_includes\condor_auth_ssl.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_crypt.C">
+			RelativePath="..\src\condor_io\condor_auth_sspi.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\condor_crypt.h">
+			RelativePath="..\src\condor_includes\condor_auth_sspi.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\condor_io.h">
+			RelativePath="..\src\condor_io\condor_crypt.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_rw.C">
+			RelativePath="..\src\condor_includes\condor_crypt.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_rw.h">
+			RelativePath="..\src\condor_io\condor_crypt_3des.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\condor_secman.C">
+			RelativePath="..\src\condor_io\condor_crypt_blowfish.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					UsePrecompiledHeader="0"
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					UsePrecompiledHeader="0"
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\errno_num.C">
+			RelativePath="..\src\condor_includes\condor_io.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\open_flags.c">
+			RelativePath="..\src\condor_io\condor_rw.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\reli_sock.C">
+			RelativePath="..\src\condor_io\condor_rw.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\reli_sock.h">
+			RelativePath="..\src\condor_io\condor_secman.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\safe_sock.C">
+			RelativePath="..\src\condor_io\CryptKey.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\safe_sock.h">
+			RelativePath="..\src\condor_includes\CryptKey.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\sock.C">
+			RelativePath="..\src\condor_io\errno_num.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\sock.h">
+			RelativePath="..\src\condor_io\open_flags.c"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\sockCache.C">
+			RelativePath="..\src\condor_io\reli_sock.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\sockCache.h">
+			RelativePath="..\src\condor_includes\reli_sock.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\sspi.NT.h">
+			RelativePath="..\src\condor_io\safe_sock.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_io\stream.C">
+			RelativePath="..\src\condor_includes\safe_sock.h"
+			>
 		</File>
 		<File
-			RelativePath="..\src\condor_includes\stream.h">
+			RelativePath="..\src\condor_io\SafeMsg.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_includes\SafeMsg.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_io\sock.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_includes\sock.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_io\sockCache.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_includes\sockCache.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_io\stream.C"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_includes\stream.h"
+			>
 		</File>
 	</Files>
 	<Globals>
