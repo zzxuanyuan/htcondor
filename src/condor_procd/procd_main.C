@@ -256,14 +256,16 @@ main(int argc, char* argv[])
 	//
 	ProcFamilyMonitor monitor(root_pid, root_birthday, max_snapshot_interval);
 
-	// initialize the server for accepting requests from clients. if a local
-	// client principal was given, tell the server to accept connections from
-	// this principal
+	// initialize the server for accepting requests from clients
 	//
 	ProcFamilyServer server(monitor, local_server_address);
-	if (local_client_principal != NULL) {
-		server.set_client_principal(local_client_principal);
-	}
+
+	// specify the client that we'll be accepting connections from. note
+	// that passing NULL may have special meaning here: for example on
+	// UNIX we'll check to see if we were invoked as a setuid root program
+	// and if so use our real UID as the client principal
+	//
+	server.set_client_principal(local_client_principal);
 
 	// now that we've initialized the server, close out standard error.
 	// this way, calling programs can set up a pipe to block on until
