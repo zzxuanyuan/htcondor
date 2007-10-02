@@ -160,7 +160,7 @@ name of the database, followed by "quillwriter", followed by the password.
 The name of the server must match exactly the setting for 
 \Macro{QUILL\_DB\_IP\_ADDR}.
 Condor uses a string comparison between the two, and does not resolve the
-hostnames to compare IP addresses.
+host names to compare IP addresses.
 Example:
 \begin{verbatim}
 machinename.cs.wisc.edu:5432:quill:quillwriter:password
@@ -201,19 +201,19 @@ configured to use Quill, since by default Quill is configured to be off.
 \footnotesize
 \begin{verbatim}
 QUILL_ENABLED           = TRUE
-QUILL_USE_SQL_LOG		= FALSE
+QUILL_USE_SQL_LOG       = FALSE
 QUILL_NAME              = some-unique-quill-name.cs.wisc.edu
 QUILL_DB_NAME           = database-for-some-unique-quill-name
 QUILL_DB_IP_ADDR        = databaseipaddress:port
 # the following parameter's units is in seconds
 QUILL_POLLING_PERIOD    = 10
 QUILL_HISTORY_DURATION 	= 30
-QUILL_MANAGE_VACUUM = FALSE
+QUILL_MANAGE_VACUUM     = FALSE
 QUILL_IS_REMOTELY_QUERYABLE = TRUE
 QUILL_DB_QUERY_PASSWORD =  password-for-database-user-quillreader
 QUILL_ADDRESS_FILE      = $(LOG)/.quill_address
-QUILL_DB_TYPE			= "PGSQL"
-# The Purage and Reindex intervals are in seconds
+QUILL_DB_TYPE           = "PGSQL"
+# The Purge and Reindex intervals are in seconds
 DATABASE_PURGE_INTERVAL	= 86400
 DATABASE_REINDEX_INTERVAL = 86400
 # The History durations are all in days 
@@ -221,8 +221,8 @@ QUILL_RESOURCE_HISTORY_DURATION  = 7
 QUILL_RUN_HISTORY_DURATION = 7
 QUILL_JOB_HISTORY_DURATION = 3650
 #The DB Size limit is in gigabytes
-QUILL_DBSIZE_LIMIT = 20
-QUILL_MAINTAIN_DB_CONN = TRUE
+QUILL_DBSIZE_LIMIT      = 20
+QUILL_MAINTAIN_DB_CONN  = TRUE
 
 \end{verbatim}
 \normalsize
@@ -279,15 +279,15 @@ The default for job history is 3,650 days (about 10 years.)
 
 \item[\Macro{DATABASE\_PURGE\_INTERVAL}]
 As scanning the entire database for old jobs can be expensive,
-the other variable \MacroNI{DATABAE\_PURGE\_INTERVAL}
+the other variable \MacroNI{DATABASE\_PURGE\_INTERVAL}
 is the number of seconds between two successive scans.  
 \MacroNI{DATABASE\_PURGE\_INTERVAL} is set to 86400 seconds, or one day.
 
 \item[\Macro{DATABASE\_REINDEX\_INTERVAL}]
-\Prog{PostgreSQL} does not aggresively maintain the index structures for
+\Prog{PostgreSQL} does not aggressively maintain the index structures for
 deleted tuples. This can lead to bloated index structures.
 Quill can periodically reindex the database, which is controlled by the
-variable \MacroNI{DATABAE\_REINDEX\_INTERVAL}.
+variable \MacroNI{DATABASE\_REINDEX\_INTERVAL}.
 \MacroNI{DATABASE\_PURGE\_INTERVAL} is set to 86400 seconds, or one day.
 
 \item[\Macro{QUILL\_DBSIZE\_LIMIT}]

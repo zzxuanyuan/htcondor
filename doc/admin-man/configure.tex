@@ -6909,14 +6909,20 @@ quill-for-schedd_name@machinename.fully.qualified.address
   This can be set on a per daemon basis. For example, to store information
   about historical jobs, but not store execute resource information, set
   \MacroNI{QUILL\_USE\_SQL\_LOG} to \Expr{False} and set
-  \MacroNI{SCHEDD.\_QUIIL\_USE\_SQL\_LOG} to \Expr{True}.
+  \MacroNI{SCHEDD.\_QUILL\_USE\_SQL\_LOG} to \Expr{True}.
 
 \item[\Macro{QUILL\_DB\_NAME}] \label{param:QuillDBName}
   A string that identifies a database within a database server.
 
+\item[\Macro{QUILL\_DB\_TYPE}] \label{param:QuillDBType}
+  A string that distinguishes between database system types.
+  Defaults to the only database system currently defined,
+  \verb@"PGSQL"@.
+
 \item[\Macro{QUILL\_DB\_IP\_ADDR}] \label{param:QuillDBIPAddr}
   The host address of the database server. It can be either an IP address
-  or an IP address. It must match exactly what is used in the .pgpass file.
+  or an IP address.
+  It must match exactly what is used in the \File{.pgpass} file.
 
 \item[\Macro{QUILL\_POLLING\_PERIOD}] \label{param:QuillPollingPeriod}
   The frequency, in number of seconds, at which the Quill daemon
@@ -6925,19 +6931,24 @@ quill-for-schedd_name@machinename.fully.qualified.address
   The default value is 10.
 
 \item[\Macro{QUILL\_NOT\_RESPONDING\_TIMEOUT}]
-  When the \Condor{quill} is processing a very long logfile, it 
-  may not be able to communicate with the master. The \Condor{master} may
-  decide that this means the \Condor{quill} is hung, and the \Condor{master}
-  may kill and restart the \Condor{quill}. 
-  The default for this setting is 3600 seconds, or one hour. It may be
+  \label{param:QuillNotRespondingTimeout}
+  The length of time, in seconds, before the \Condor{master}
+  may decide that the \Condor{quill} daemon is hung due to 
+  a lack of communication,
+  potentially causing  the \Condor{master} to kill and
+  restart the \Condor{quill} daemon.
+  When the \Condor{quill} daemon is processing a very long log file, it 
+  may not be able to communicate with the master. 
+  The default is 3600 seconds, or one hour. It may be
   advisable to increase this to several hours. 
 
 \item[\Macro{QUILL\_MAINTAIN\_DB\_CONN}] \label{param:QuillMaintainDBConn}
-  Quill can maintain an open connection the database server, which speeds up
-  updates to the database.
-  However, each open connection consumes resources at the database server.
-  The default is TRUE, but for large pools we recommend setting this
-  FALSE.
+  A boolean variable that defaults to \Expr{True}.
+  When \Expr{True}, the \Condor{quill} daemon
+  maintains an open connection the database server,
+  which speeds up updates to the database.
+  As each open connection consumes resources at the database server,
+  we recommend a setting of \Expr{False} for large pools.
 
 \item[\Macro{DATABASE\_PURGE\_INTERVAL}] 
   \label{param:QuillDatabasePurgeInterval}
@@ -6949,46 +6960,52 @@ quill-for-schedd_name@machinename.fully.qualified.address
   \label{param:QuillDatabaseReindexInterval}
   The interval, in seconds, between reindex commands on the database.
   The default value is 86400, or one day.
-  This is only used when the \MacroNI{QUILL\_DB\_TYPE} is set to PGSQL.
+  This is only used when the \MacroNI{QUILL\_DB\_TYPE} is set to
+  \verb@"PGSQL"@.
 
-\item[\Macro{QUILL\_JOB\_HISTORY\_DURATION}] \label{param:QuillJobHistoryDuration}
+\item[\Macro{QUILL\_JOB\_HISTORY\_DURATION}]
+  \label{param:QuillJobHistoryDuration}
   The number of days after entry into the database that a job will
   remain in the database.
   After \MacroNI{QUILL\_JOB\_HISTORY\_DURATION} days, the job is deleted.
-  The job history is the final classad, and contains all information 
-  necessary for condor\_history to succeed.
+  The job history is the final ClassAd, and contains all information 
+  necessary for \Condor{history} to succeed.
   The default is 3650, or about 10 years. 
 
-\item[\Macro{QUILL\_RUN\_HISTORY\_DURATION}] \label{param:QuillRunHistoryDuration}
+\item[\Macro{QUILL\_RUN\_HISTORY\_DURATION}]
+  \label{param:QuillRunHistoryDuration}
   The number of days after entry into the database that extra information 
   about the job will remain in the database.
   After \MacroNI{QUILL\_RUN\_HISTORY\_DURATION} days, the records are deleted.
   This data includes matches made for the job, file transfers the job 
   performed, and user log events.
-  The default is 7, or one week. 
+  The default is 7 days, or one week. 
 
-\item[\Macro{QUILL\_RESOURCE\_HISTORY\_DURATION}] \label{param:QuillResourceHistoryDuration}
+\item[\Macro{QUILL\_RESOURCE\_HISTORY\_DURATION}]
+  \label{param:QuillResourceHistoryDuration}
   The number of days after entry into the database that a resource record will
   remain in the database.
   After \MacroNI{QUILL\_RESOURCE\_HISTORY\_DURATION} days, the record is 
   deleted.
-  The resource history data includes things like the classad of a compute slot,
-  submitter ads, and daemon ads.
-  The default is 7, or one week. 
+  The resource history data includes the ClassAd of a compute slot,
+  submitter ClassAds, and daemon ClassAds.
+  The default is 7 days, or one week. 
 
 \item[\Macro{QUILL\_DBSIZE\_LIMIT}] \label{param:QuillDBSizeLimit}
-  After each purge, Quill estimates the size of the database. 
-  If the size of the database exceeds this limit, Quill will email the
-  administrator a warning. 
+  After each purge, the \Condor{quill} daemon estimates 
+  the size of the database. 
+  If the size of the database exceeds this limit, 
+  the \Condor{quill} daemon will e-mail the administrator a warning. 
   This size is given in gigabytes, and defaults to 20. 
 
 \item[\Macro{QUILL\_MANAGE\_VACUUM}]
   \label{param:QuillManageVacuum}
   A boolean value that defaults to \Expr{False}.
-  When \Expr{True}, Quill takes on the maintenance task of vacuuming
-  the database. As of \Prog{PostgreSQL} version 8.1, the database
-  can perform this task automatically; therefore having Quill vacuum
-  is not necessary.
+  When \Expr{True}, the \Condor{quill} daemon takes on 
+  the maintenance task of vacuuming the database.
+  As of \Prog{PostgreSQL} version 8.1, the database
+  can perform this task automatically; 
+  therefore, having the \Condor{quill} daemon vacuum is not necessary.
   A value of \Expr{True} causes warnings to be written to the log file.
 
 \item[\Macro{QUILL\_IS\_REMOTELY\_QUERYABLE}]
@@ -7005,10 +7022,10 @@ quill-for-schedd_name@machinename.fully.qualified.address
   When defined, it specifies the path and file name of a local file
   containing the IP address and port number of the Quill daemon.
   By using the file, tools executed on the local machine do not need
-  to query the central manager in order to find the Quill daemon.
+  to query the central manager in order to find the \Condor{quill} daemon.
 
-\item[\Macro{DBMSD}] \label{param:DBMSD}  The full path name to the
-  \Condor{dbmsd} daemon.
+\item[\Macro{DBMSD}] \label{param:DBMSD} 
+  The full path name to the \Condor{dbmsd} daemon.
   The default location is \File{\$(SBIN)/condor\_dbmsd}.
 
 \item[\Macro{DBMSD\_ARGS}] \label{param:DBMSDArgs} Arguments
@@ -7019,12 +7036,14 @@ quill-for-schedd_name@machinename.fully.qualified.address
   Path to the \Condor{dbmsd} daemon's log file.
   The default log location is \File{\$(LOG)/DbmsdLog}.
 
-\item[\Macro{DBSMD\_NOT\_RESPONDING\_TIMEOUT}]
+\item[\Macro{DBMSD\_NOT\_RESPONDING\_TIMEOUT}]
+  The length of time, in seconds, before the \Condor{master}
+  may decide that the \Condor{dbmsd} is hung due to a lack of communication,
+  potentially causing  the \Condor{master} to kill and
+  restart the \Condor{dbmsd} daemon.
   When the \Condor{dbmsd} is purging or reindexing a very large database, it 
-  may not be able to communicate with the master. The \Condor{master} may
-  decide that this means the \Condor{dbmsd} is hung, and the \Condor{master}
-  may kill and restart the \Condor{dbmsd}. 
-  The default for this setting is 3600 seconds, or one hour. It may be
+  may not be able to communicate with the master. 
+  The default is 3600 seconds, or one hour. It may be
   advisable to increase this to several hours. 
 
 \end{description}
