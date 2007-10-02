@@ -8,6 +8,11 @@ REM exceeding 255 chars, so be careful when editing this file! It's
 REM totally lame but there's nothing we can do about it.
 REM ======================================================================
 
+rem For externals: it just tells them we are building with VC2005
+rem (In the future, when we do not have VC6, we can remove this--
+rem after we, of coutse, remove any reference to them from the externals)
+set USING_VC8_TO_BUILD=True
+
 REM Set paths to Visual C++, the Platform SDKs, and Perl
 REM NOTE: we assume that everything has been installed in the default location
 REM       if this is not the case, then you will need to change these paths
