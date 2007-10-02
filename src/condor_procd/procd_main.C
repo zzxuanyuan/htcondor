@@ -47,12 +47,6 @@ static char* local_client_principal = NULL;
 //
 static char* log_file_name = NULL;
 
-// info about the root process of the family we'll be monitoring
-// (set with the two-argument "-P" option)
-//
-static pid_t root_pid = 0;
-static birthday_t root_birthday = 0;
-
 // the maximum number of seconds we'll wait in between
 // taking snapshots (one minute by default)
 // (set with the "-S" option)
@@ -140,30 +134,6 @@ parse_command_line(int argc, char* argv[])
 				log_file_name = argv[index];
 				break;
 
-			// root process information
-			//
-			case 'P':
-				if (index + 2 >= argc) {
-					fail_option_args("-P", 2);
-				}
-				index++;
-				root_pid = atoi(argv[index]);
-				if (root_pid == 0) {
-					fprintf(stderr,
-					        "error: invalid root process id: %s",
-					        argv[index]);
-					exit(1);
-				}
-				index++;
-				root_birthday = procd_atob(argv[index]);
-				if (root_birthday == 0) {
-					fprintf(stderr,
-					        "error: invalid root process birthday: %s",
-					        argv[index]);
-					exit(1);
-				}
-				break;
-
 			// maximum snapshot interval
 			//
 			case 'S':
@@ -202,10 +172,33 @@ parse_command_line(int argc, char* argv[])
 		fprintf(stderr, "error: the \"-A\" option is required");
 		exit(1);
 	}
-	if (root_pid == 0 || root_birthday == 0) {
-		fprintf(stderr, "error: the \"-P\" option is required");
+}
+
+static void
+get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
+{
+	procInfo* own_pi = NULL;
+	procInfo* parent_pi = NULL;
+
+	int ignored;
+	if (ProcAPI::getProcInfo(getpid(), own_pi, ignored) != PROCAPI_SUCCESS) {
+		fprintf(stderr, "error: getProcInfo failed on own PID");
 		exit(1);
 	}
+	if (ProcAPI::getProcInfo(own_pi->ppid, parent_pi, ignored) != PROCAPI_SUCCESS) {
+		fprintf(stderr, "error: getProcInfo failed on parent PID");
+		exit(1);
+	}
+	if (parent_pi->birthday > own_pi->birthday) {
+		fprintf(stderr, "error: parent process's birthday is later than our own");
+		exit(1);
+	}
+
+	parent_pid = parent_pi->pid;
+	parent_birthday = parent_pi->birthday;
+
+	free(own_pi);
+	free(parent_pi);
 }
 
 int
@@ -220,6 +213,13 @@ main(int argc, char* argv[])
 	// our command line parameters
 	//
 	parse_command_line(argc, argv);
+
+	// get the PID and birthday of our parent (whose process
+	// tree we'll be monitoring)
+	//
+	pid_t parent_pid;
+	birthday_t parent_birthday;
+	get_parent_info(parent_pid, parent_birthday);
 
 	// setup logging if a file was given
 	//
@@ -254,7 +254,7 @@ main(int argc, char* argv[])
 
 	// initialize the "engine" for tracking process families
 	//
-	ProcFamilyMonitor monitor(root_pid, root_birthday, max_snapshot_interval);
+	ProcFamilyMonitor monitor(parent_pid, parent_birthday, max_snapshot_interval);
 
 	// initialize the server for accepting requests from clients
 	//

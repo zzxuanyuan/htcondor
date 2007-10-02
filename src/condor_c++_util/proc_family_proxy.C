@@ -283,10 +283,6 @@ ProcFamilyProxy::start_procd()
 	//
 	ASSERT(m_procd_pid == -1);
 
-	// the ProcD's "root pid" (a.k.a. the daddy pid) is going to be us
-	//
-	pid_t root_pid = daemonCore->getpid();
-
 	// now, we build up an ArgList for the procd
 	//
 	MyString exe;
@@ -327,27 +323,6 @@ ProcFamilyProxy::start_procd()
 	//
 	args.AppendArg("-A");
 	args.AppendArg(m_procd_addr);
-
-	// PID and birthday of the procd's "root process" (which is us)
-	//
-	MyString root_pid_arg;
-	root_pid_arg.sprintf("%u", root_pid);
-	int ignored;
-	procInfo* pi = NULL;
-	priv_state priv = set_root_priv();
-	if (ProcAPI::getProcInfo(root_pid, pi, ignored) != PROCAPI_SUCCESS) {
-		dprintf(D_ALWAYS,
-		        "start_procd: unable to get own process information\n");
-		set_priv(priv);
-		return false;
-	}
-	set_priv(priv);
-	MyString root_birthday_arg;
-	root_birthday_arg.sprintf(PROCAPI_BIRTHDAY_FORMAT, pi->birthday);
-	delete pi;
-	args.AppendArg("-P");
-	args.AppendArg(root_pid_arg.Value());
-	args.AppendArg(root_birthday_arg.Value());
 
 	// the (optional) procd log file
 	//
