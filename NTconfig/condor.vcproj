@@ -42,6 +42,7 @@
 			IntermediateDirectory=".\Release"
 			ConfigurationType="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
+			BuildLogFile="$(IntDir)\$(InputName).BuildLog.htm"
 			>
 			<Tool
 				Name="VCNMakeTool"

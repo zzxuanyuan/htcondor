@@ -22,6 +22,7 @@
 			UseOfMFC="1"
 			ATLMinimizesCRunTimeLibraryUsage="false"
 			CharacterSet="2"
+			BuildLogFile="$(IntDir)\$(InputName).BuildLog.htm"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"

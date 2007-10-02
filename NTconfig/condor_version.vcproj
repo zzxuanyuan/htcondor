@@ -111,6 +111,7 @@
 			IntermediateDirectory=".\..\Release"
 			ConfigurationType="1"
 			CharacterSet="2"
+			BuildLogFile="$(IntDir)\$(InputName).BuildLog.htm"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
