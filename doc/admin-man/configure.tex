@@ -1044,8 +1044,8 @@ File System Configuration File Entries''.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \index{configuration!daemon logging configuration variables}
-These entries control how and where the Condor daemons write their log
-files.  Each of the entries in this section represents multiple
+These entries control how and where the Condor daemons write to log
+files.  Many of the entries in this section represents multiple
 macros. There is one for each subsystem (listed
 in section~\ref{sec:Condor-Subsystem-Names}).
 The macro name for each substitutes \MacroNI{<SUBSYS>} with the name
@@ -1346,6 +1346,38 @@ Log files may optionally be specified per debug level as follows:
 \item[\Macro{TRUNC\_<SUBSYS>\_<LEVEL>\_LOG\_ON\_OPEN}]
   \label{param:TruncSubsysLevelLogOnOpen} Similar to
   \Macro{TRUNC\_<SUBSYS>\_LOG\_ON\_OPEN}.
+
+\end{description}
+
+The following macros control where and what is written to the 
+event log,
+a file that receives job user log events, 
+but across all users and user's jobs.
+
+\begin{description}
+
+\item[\Macro{EVENT\_LOG}] \label{param:EventLog}
+  The full path and file name of the event log.
+  There is no default value for this variable,
+  so no event log will be written, if not defined.
+
+\item[\Macro{MAX\_EVENT\_LOG}] \label{param:MaxEventLog}
+  Controls the maximum length in bytes to which the event log
+  will be allowed to grow. The log file will grow to the specified length,
+  then be saved to a file with the suffix .old.
+  The .old  files are overwritten each time the log is saved.
+  A value of 0 specifies that the file may grow without bounds.
+  The default is 1 Mbyte.
+  
+\item[\Macro{EVENT\_LOG\_USE\_XML}] \label{param:EventLogUseXML}
+  A boolean value that defaults to \Expr{False}.
+  When \Expr{True}, events are logged in XML format.
+
+\item[\Macro{EVENT\_LOG\_JOB\_AD\_INFORMATION\_ATTRS}]
+  \label{param:EventLogJobAdInformationAttrs}
+  A comma-separated list of job ClassAd attributes,
+  whose evaluated values form a new event, the JobAdInformationEvent.
+  This new event is placed in the event log in addition to each logged event.
 
 \end{description}
 
