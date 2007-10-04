@@ -286,6 +286,12 @@ builds and manages a database that represents a copy of the
 Condor job queue.
 The \Condor{q} and \Condor{history} tools can then query the database.
 
+\item[\Condor{dbmsd}] This daemon
+\index{Condor daemon!condor\_dbmsd@\Condor{dbmsd}}
+\index{daemon!condor\_dbmsd@\Condor{dbmsd}}
+\index{condor\_dbmsd daemon}
+assists the \Condor{quill} daemon.
+
 \item[\Condor{gridmanager}] This daemon
 \index{Condor daemon!condor\_gridmanager@\Condor{gridmanager}}
 \index{daemon!condor\_gridmanager@\Condor{gridmanager}}
@@ -316,6 +322,12 @@ assists the \Condor{had} daemon by keeping an updated copy of the
 pool's state. This state provides a better transition
 from one machine to the next, in the event 
 that the central manager machine stops working.
+
+\item[\Condor{procd}] This daemon
+\index{Condor daemon!condor\_procd@\Condor{procd}}
+\index{daemon!condor\_procd@\Condor{procd}}
+\index{condor\_procd daemon}
+controls and monitors process families within Condor.
 
 \end{description} 
 
