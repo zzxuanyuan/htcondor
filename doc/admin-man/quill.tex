@@ -203,6 +203,7 @@ configured to use Quill, since by default Quill is configured to be off.
 QUILL_ENABLED           = TRUE
 QUILL_USE_SQL_LOG       = FALSE
 QUILL_NAME              = some-unique-quill-name.cs.wisc.edu
+QUILL_DB_USER           = quillwriter
 QUILL_DB_NAME           = database-for-some-unique-quill-name
 QUILL_DB_IP_ADDR        = databaseipaddress:port
 # the following parameter's units is in seconds
@@ -229,6 +230,25 @@ QUILL_MAINTAIN_DB_CONN  = TRUE
 
 \end{description}
 
+One machine should run the \Condor{dbmsd}.  On this machine, add it to
+the DAEMON\_LIST.  All quill-enabled machines should also run 
+the \Condor{quilld}.  The machine running the \condor{dbmsd} can also 
+run a \Condor{quilld}.  An example DAEMON\_LIST for a machine running
+both daemons, a schedd and a central manager might look like the following:
+
+\begin{verbatim}
+DAEMON_LIST                    = MASTER, SCHEDD, COLLECTOR, NEGOTIATOR, DBMSD, QUILL
+\end{verbatim}
+
+The DBMSD daemon will need configuration file entries common to all daemons.
+If not already in the config file, add the following entries:
+
+\begin{verbatim}
+DBMSD = $(SBIN)/condor_dbmsd
+DBMSD_ARGS = -f
+DBMSD_LOG = $(LOG)/DbmsdLog
+MAX_DBMSD_LOG = 10000000
+\end{verbatim}
 
 Descriptions of these and other configuration variables are in
 section~\ref{sec:Quill-Config-File-Entries}.
