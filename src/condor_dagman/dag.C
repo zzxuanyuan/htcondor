@@ -616,7 +616,6 @@ Dag::ProcessAbortEvent(const ULogEvent *event, Job *job,
 			_numJobsSubmitted--;
 			if ( job->GetThrottleInfo() ) {
 				job->GetThrottleInfo()->_currentJobs--;
-dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
 				ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
 			}
 		}
@@ -657,7 +656,6 @@ Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 			_numJobsSubmitted--;
 			if ( job->GetThrottleInfo() ) {
 				job->GetThrottleInfo()->_currentJobs--;
-dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
 				ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
 			}
 		}
@@ -1011,7 +1009,6 @@ Dag::ProcessSubmitEvent(Job *job, bool recovery, bool &submitEventIsSane) {
 				_numJobsSubmitted++;
 				if ( job->GetThrottleInfo() ) {
 					job->GetThrottleInfo()->_currentJobs++;
-dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
 					ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
 				}
 			}
@@ -1279,11 +1276,13 @@ Dag::StartNode( Job *node, bool isRetry )
 
 //-------------------------------------------------------------------------
 // returns number of jobs submitted
-//TEMPTEMP -- break this up into smaller methods??
 int
 Dag::SubmitReadyJobs(const Dagman &dm)
 {
 	dprintf( D_ALWAYS, "Dag::SubmitReadyJobs()\n" );//TEMPTEMP
+
+		// Jobs deferred by category throttles.
+	PrioritySimpleList<Job*> deferredJobs;
 
 	int numSubmitsThisCycle = 0;
 
@@ -1301,7 +1300,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 
 			// no jobs ready to submit
     	if( _readyQ->IsEmpty() ) {
-			break;
+			break; // break out of while loop
     	}
 
     		// max jobs already submitted
@@ -1312,7 +1311,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
                       	_maxJobsSubmitted, _readyQ->Number(),
 					  	_readyQ->Number() == 1 ? "" : "s" );
 			_maxJobsDeferredCount += _readyQ->Number();
-			break;
+			break; // break out of while loop
     	}
 		if ( _maxIdleJobProcs && (_numIdleJobProcs >= _maxIdleJobProcs) ) {
         	debug_printf( DEBUG_DEBUG_1,
@@ -1321,7 +1320,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 					  	_maxIdleJobProcs, _readyQ->Number(),
 					  	_readyQ->Number() == 1 ? "" : "s" );
 			_maxIdleDeferredCount += _readyQ->Number();
-			break;
+			break; // break out of while loop
 		}
 
 			// remove & submit first job from ready queue
@@ -1339,31 +1338,46 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 
 		ASSERT( job->GetStatus() == Job::STATUS_READY );
 
-//TEMPTEMP -- check here whether category throttle applies?
-// if it does, do we need to have a separate queue of nodes that have been throttled??? (at least partly because we don't want to keep infinitely looping on the ready queue if all jobs are throttled...)
+			// Check for throttling by node category.
 		ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
-		if ( catThrottle && catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
-dprintf( D_ALWAYS, "Job %s should be throttled by category throttle\n", job->GetJobName() ); //TEMPTEMP
-		}
-
-
-
-    	CondorID condorID(0,0,0);
-		submit_result_t submit_result = SubmitNodeJob( dm, job, condorID );
-	
-		if ( submit_result == SUBMIT_RESULT_OK ) {
-			ProcessSuccessfulSubmit( job, condorID, numSubmitsThisCycle );
-
-		} else if ( submit_result == SUBMIT_RESULT_FAILED ) {
-			ProcessFailedSubmit( job, dm.max_submit_attempts );
-			break;
-
-		} else if ( submit_result == SUBMIT_RESULT_NO_SUBMIT ) {
-			// No op.
-
+		if ( catThrottle &&
+					catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
+			debug_printf( DEBUG_VERBOSE,
+						"Node %s deferred by category throttle (%s, %d)\n",
+						job->GetJobName(), catThrottle->_category->Value(),
+						catThrottle->_maxJobs );
+			deferredJobs.Prepend( job, job->_nodePriority );
 		} else {
-			EXCEPT( "Illegal submit_result_t value: %d\n", submit_result );
+    		CondorID condorID(0,0,0);
+			submit_result_t submit_result = SubmitNodeJob( dm, job, condorID );
+	
+				// Note: if instead of switch here so we can use break
+				// to break out of while loop.
+			if ( submit_result == SUBMIT_RESULT_OK ) {
+				ProcessSuccessfulSubmit( job, condorID, numSubmitsThisCycle );
+
+			} else if ( submit_result == SUBMIT_RESULT_FAILED ) {
+				ProcessFailedSubmit( job, dm.max_submit_attempts );
+				break; // break out of while loop
+
+			} else if ( submit_result == SUBMIT_RESULT_NO_SUBMIT ) {
+				// No op.
+
+			} else {
+				EXCEPT( "Illegal submit_result_t value: %d\n", submit_result );
+			}
 		}
+	}
+
+		// Put any deferred jobs back into the ready queue for next time.
+	deferredJobs.Rewind();
+	Job *job;
+	while ( deferredJobs.Next( job ) ) {
+		debug_printf( DEBUG_DEBUG_1,
+					"Returning deferred node %s to the ready queue\n",
+					job->GetJobName() );
+		//TEMPTEMP -- do we ever want to append?
+		_readyQ->Prepend( job, job->_nodePriority );
 	}
 
 	return numSubmitsThisCycle;
@@ -2949,7 +2963,6 @@ Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID,
     _numJobsSubmitted++;
 	if ( node->GetThrottleInfo() ) {
 		node->GetThrottleInfo()->_currentJobs++;
-dprintf( D_ALWAYS, "Category %s current job count: %d\n", node->GetThrottleInfo()->_category->Value(), node->GetThrottleInfo()->_currentJobs );//TEMPTEMP
 		ASSERT( node->GetThrottleInfo()->_currentJobs >= 0 );
 	}
     
