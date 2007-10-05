@@ -1277,6 +1277,7 @@ Dag::StartNode( Job *node, bool isRetry )
 	return TRUE;
 }
 
+//-------------------------------------------------------------------------
 // returns number of jobs submitted
 //TEMPTEMP -- break this up into smaller methods??
 int
@@ -1284,236 +1285,87 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 {
 	dprintf( D_ALWAYS, "Dag::SubmitReadyJobs()\n" );//TEMPTEMP
 
+	int numSubmitsThisCycle = 0;
+
 		// Check whether we have to wait longer before submitting again
 		// (if a previous submit attempt failed).
 	if ( _nextSubmitTime && time(NULL) < _nextSubmitTime) {
 		sleep(1);
-        return 0;
+        return numSubmitsThisCycle;
 	}
 
 
-	int numSubmitsThisCycle = 0;
 	while( numSubmitsThisCycle < dm.max_submits_per_interval ) {
 
-//	PrintReadyQ( DEBUG_DEBUG_4 );
+//		PrintReadyQ( DEBUG_DEBUG_4 );
 
-	// no jobs ready to submit
-    if( _readyQ->IsEmpty() ) {
-        return numSubmitsThisCycle;
-    }
+			// no jobs ready to submit
+    	if( _readyQ->IsEmpty() ) {
+			break;
+    	}
 
-    // max jobs already submitted
-    if( _maxJobsSubmitted && (_numJobsSubmitted >= _maxJobsSubmitted) ) {
-        debug_printf( DEBUG_DEBUG_1,
-                      "Max jobs (%d) already running; "
-					  "deferring submission of %d ready job%s.\n",
-                      _maxJobsSubmitted, _readyQ->Number(),
-					  _readyQ->Number() == 1 ? "" : "s" );
-		_maxJobsDeferredCount += _readyQ->Number();
-        return numSubmitsThisCycle;
-    }
-	if ( _maxIdleJobProcs && (_numIdleJobProcs >= _maxIdleJobProcs) ) {
-        debug_printf( DEBUG_DEBUG_1,
-					  "Hit max number of idle DAG nodes (%d); "
-					  "deferring submission of %d ready job%s.\n",
-					  _maxIdleJobProcs, _readyQ->Number(),
-					  _readyQ->Number() == 1 ? "" : "s" );
-		_maxIdleDeferredCount += _readyQ->Number();
-        return numSubmitsThisCycle;
-	}
+    		// max jobs already submitted
+    	if( _maxJobsSubmitted && (_numJobsSubmitted >= _maxJobsSubmitted) ) {
+        	debug_printf( DEBUG_DEBUG_1,
+                      	"Max jobs (%d) already running; "
+					  	"deferring submission of %d ready job%s.\n",
+                      	_maxJobsSubmitted, _readyQ->Number(),
+					  	_readyQ->Number() == 1 ? "" : "s" );
+			_maxJobsDeferredCount += _readyQ->Number();
+			break;
+    	}
+		if ( _maxIdleJobProcs && (_numIdleJobProcs >= _maxIdleJobProcs) ) {
+        	debug_printf( DEBUG_DEBUG_1,
+					  	"Hit max number of idle DAG nodes (%d); "
+					  	"deferring submission of %d ready job%s.\n",
+					  	_maxIdleJobProcs, _readyQ->Number(),
+					  	_readyQ->Number() == 1 ? "" : "s" );
+			_maxIdleDeferredCount += _readyQ->Number();
+			break;
+		}
 
-	// remove & submit first job from ready queue
-	Job* job;
-	_readyQ->Rewind();
-	_readyQ->Next( job );
-	_readyQ->DeleteCurrent();
-	ASSERT( job != NULL );
+			// remove & submit first job from ready queue
+		Job* job;
+		_readyQ->Rewind();
+		_readyQ->Next( job );
+		_readyQ->DeleteCurrent();
+		ASSERT( job != NULL );
 
-		// Mainly printing this so we have some idea what the heck
-		// happened if we blow the following assert (see Gnats PR
-		// 734/condor-admin 13872).
-	debug_printf( DEBUG_VERBOSE, "Got node %s from the ready queue\n",
-				  job->GetJobName() );
+			// Mainly printing this so we have some idea what the heck
+			// happened if we blow the following assert (see Gnats PR
+			// 734/condor-admin 13872).
+		debug_printf( DEBUG_VERBOSE, "Got node %s from the ready queue\n",
+				  	job->GetJobName() );
 
-	ASSERT( job->GetStatus() == Job::STATUS_READY );
-
-		// Resetting the Condor ID here fixes PR 799.  wenger 2007-01-24.
-	if ( job->_CondorID._cluster != _defaultCondorId._cluster ) {
-		int removeResult = GetEventIDHash( job->JobType() )->
-					remove( job->_CondorID._cluster );
-		ASSERT( removeResult == 0 );
-	}
-	job->_CondorID = _defaultCondorId;
+		ASSERT( job->GetStatus() == Job::STATUS_READY );
 
 //TEMPTEMP -- check here whether category throttle applies?
 // if it does, do we need to have a separate queue of nodes that have been throttled??? (at least partly because we don't want to keep infinitely looping on the ready queue if all jobs are throttled...)
-	ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
-	if ( catThrottle && catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
+		ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
+		if ( catThrottle && catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
 dprintf( D_ALWAYS, "Job %s should be throttled by category throttle\n", job->GetJobName() ); //TEMPTEMP
-	}
-
-	if( job->NumParents() > 0 && dm.submit_delay == 0 &&
-				TotalLogFileCount() > 1 ) {
-			// if we don't already have a submit_delay, sleep for one
-			// second here, so we can be sure that this job's submit
-			// event will be unambiguously later than the termination
-			// events of its parents, given that userlog timestamps
-			// only have a resolution of one second.  (Because of the
-			// new feature allowing distinct userlogs for each job, we
-			// can't just rely on the physical order in a single log
-			// file.)
-
-			// TODO: as an optimization, check if, for all parents,
-			// the logfile is the same as the child -- if yes, we can
-			// skip the sleep...
-		debug_printf( DEBUG_VERBOSE,
-					"Sleeping for one second for log file consistency\n" );
-		sleep( 1 );
-	}
-
-		// sleep for a specified time before submitting
-	if( dm.submit_delay ) {
-		debug_printf( DEBUG_VERBOSE, "Sleeping for %d s "
-					  "(DAGMAN_SUBMIT_DELAY) to throttle submissions...\n",
-					  dm.submit_delay );
-		sleep( dm.submit_delay );
-	}
-
-	debug_printf( DEBUG_VERBOSE, "Submitting %s Node %s job(s)...\n",
-				  job->JobTypeString(), job->GetJobName() );
-
-    MyString cmd_file = job->GetCmdFile();
-
-	bool submit_success;
-    CondorID condorID(0,0,0);
-
-		// Note: we're checking for a missing log file spec here instead of
-		// inside the submit code because we don't want to re-try the submit
-		// if the log file spec is missing in the submit file.  wenger
-	if ( !_allowLogError && !job->CheckForLogFile() ) {
-		debug_printf( DEBUG_NORMAL, "ERROR: No 'log =' value found in "
-					"submit file %s for node %s\n", job->GetCmdFile(),
-					job->GetJobName() );
-		job->_Status = Job::STATUS_ERROR;
-		snprintf( job->error_text, JOB_ERROR_TEXT_MAXLEN,
-					"No 'log =' value found in submit file %s",
-					job->GetCmdFile() );
-	  	_numNodesFailed++;
-		continue;
-	}
-
-    if( job->JobType() == Job::TYPE_CONDOR ) {
-	  job->_submitTries++;
-      submit_success =
-		  condor_submit( dm, cmd_file.Value(), condorID, job->GetJobName(),
-						 ParentListString( job ), job->varNamesFromDag,
-						 job->varValsFromDag, job->GetDirectory() );
-    } else if( job->JobType() == Job::TYPE_STORK ) {
-	  job->_submitTries++;
-      submit_success = stork_submit( dm, cmd_file.Value(), condorID,
-				   job->GetJobName(), job->GetDirectory() );
-    } else {
-	    debug_printf( DEBUG_QUIET, "Illegal job type: %d\n", job->JobType() );
-		ASSERT(false);
-	}
-
-
-    if( !submit_success ) {
-
-	  	// Set the times to wait twice as long as last time.
-	  int thisSubmitDelay = _nextSubmitDelay;
-	  _nextSubmitTime = time(NULL) + thisSubmitDelay;
-	  _nextSubmitDelay *= 2;
-
-	  if ( job->_submitTries >= dm.max_submit_attempts ) {
-		// We're out of submit attempts, treat this as a submit failure.
-
-			// To match the existing behavior, we're resetting the times
-			// here.
-		_nextSubmitTime = 0;
-		_nextSubmitDelay = 1;
-
-		debug_printf( DEBUG_QUIET, "Job submit failed after %d tr%s.\n",
-				job->_submitTries, job->_submitTries == 1 ? "y" : "ies" );
-
-        snprintf( job->error_text, JOB_ERROR_TEXT_MAXLEN,
-				"Job submit failed" );
-
-        // NOTE: this failure short-circuits the "retry" feature
-		// because it's already exhausted a number of retries
-		// (maybe we should make sure dm.max_submit_attempts >
-		// job->retries before assuming this is a good idea...)
-		debug_printf( DEBUG_NORMAL, "Shortcutting node %s retries because "
-					"of submit failure(s)\n", job->GetJobName() );
-        job->retries = job->GetRetryMax();
-
-        if( job->_scriptPost ) {
-	      // a POST script is specified for the job, so run it
-	      job->_Status = Job::STATUS_POSTRUN;
-		  _postRunNodeCount++;
-	      job->_scriptPost->_retValJob = DAG_ERROR_CONDOR_SUBMIT_FAILED;
-	      _postScriptQ->Run( job->_scriptPost );
-        } else {
-	      job->_Status = Job::STATUS_ERROR;
-	      _numNodesFailed++;
-        }
-
-	  } else {
-	      // We have more submit attempts left, put this job back into the
-		  // ready queue.
-		debug_printf( DEBUG_NORMAL, "Job submit try %d/%d failed, "
-				"will try again in >= %d second%s.\n", job->_submitTries,
-				dm.max_submit_attempts, thisSubmitDelay,
-				thisSubmitDelay == 1 ? "" : "s" );
-
-		if ( m_retrySubmitFirst ) {
-		  _readyQ->Prepend(job, job->_nodePriority);
-		} else {
-		  _readyQ->Append(job, job->_nodePriority);
 		}
-	  }
 
-	  return numSubmitsThisCycle;
-    }
-    
-	  // Set the times to *not* wait before trying another submit, since
-	  // the most recent submit worked.
-	_nextSubmitTime = 0;
-	_nextSubmitDelay = 1;
 
-    // append job to the submit queue so we can match it with its
-    // submit event once the latter appears in the Condor job log
-    if( _submitQ->enqueue( job ) == -1 ) {
-		debug_printf( DEBUG_QUIET, "ERROR: _submitQ->enqueue() failed!\n" );
+
+    	CondorID condorID(0,0,0);
+		submit_result_t submit_result = SubmitNodeJob( dm, job, condorID );
+	
+		if ( submit_result == SUBMIT_RESULT_OK ) {
+			ProcessSuccessfulSubmit( job, condorID, numSubmitsThisCycle );
+
+		} else if ( submit_result == SUBMIT_RESULT_FAILED ) {
+			ProcessFailedSubmit( job, dm.max_submit_attempts );
+			break;
+
+		} else if ( submit_result == SUBMIT_RESULT_NO_SUBMIT ) {
+			// No op.
+
+		} else {
+			EXCEPT( "Illegal submit_result_t value: %d\n", submit_result );
+		}
 	}
 
-    job->_Status = Job::STATUS_SUBMITTED;
-
-		// Note: I assume we're incrementing this here instead of when
-		// we see the submit events so that we don't accidentally exceed
-		// maxjobs (now really maxnodes) if it takes a while to see
-		// the submit events.  wenger 2006-02-10.
-    _numJobsSubmitted++;
-	if ( job->GetThrottleInfo() ) {
-		job->GetThrottleInfo()->_currentJobs++;
-dprintf( D_ALWAYS, "Category %s current job count: %d\n", job->GetThrottleInfo()->_category->Value(), job->GetThrottleInfo()->_currentJobs );//TEMPTEMP
-		ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
-	}
-    
-        // stash the job ID reported by the submit command, to compare
-        // with what we see in the userlog later as a sanity-check
-        // (note: this sanity-check is not possible during recovery,
-        // since we won't have seen the submit command stdout...)
-	job->_CondorID = condorID;
-	int insertResult = GetEventIDHash( job->JobType() )->
-				insert( condorID._cluster, job );
-	ASSERT( insertResult == 0 );
-
-	debug_printf( DEBUG_VERBOSE, "\tassigned %s ID (%d.%d)\n",
-				  job->JobTypeString(), condorID._cluster, condorID._proc );
-    
-    numSubmitsThisCycle++;
-	}
 	return numSubmitsThisCycle;
 }
 
@@ -2583,6 +2435,7 @@ Dag::ChooseDotFileName(MyString &dot_file_name)
 	return;
 }
 
+//---------------------------------------------------------------------------
 bool Dag::Add( Job& job )
 {
 	int insertResult = _nodeNameHash.insert( job.GetJobName(), &job );
@@ -2595,6 +2448,7 @@ bool Dag::Add( Job& job )
 }
 
 
+//---------------------------------------------------------------------------
 bool
 Dag::RemoveNode( const char *name, MyString &whynot )
 {
@@ -2691,6 +2545,7 @@ Dag::RemoveNode( const char *name, MyString &whynot )
 }
 
 
+//---------------------------------------------------------------------------
 bool
 Dag::RemoveDependency( Job *parent, Job *child )
 {
@@ -2698,6 +2553,7 @@ Dag::RemoveDependency( Job *parent, Job *child )
 	return RemoveDependency( parent, child, whynot );
 }
 
+//---------------------------------------------------------------------------
 bool
 Dag::RemoveDependency( Job *parent, Job *child, MyString &whynot )
 {
@@ -2736,6 +2592,7 @@ Dag::RemoveDependency( Job *parent, Job *child, MyString &whynot )
 }
 
 
+//---------------------------------------------------------------------------
 Job*
 Dag::LogEventNodeLookup( int logsource, const ULogEvent* event,
 			bool &submitEventIsSane )
@@ -2819,6 +2676,7 @@ Dag::LogEventNodeLookup( int logsource, const ULogEvent* event,
 }
 
 
+//---------------------------------------------------------------------------
 // Checks whether this is a "good" event ("bad" events include Condor
 // sometimes writing a terminated/aborted pair instead of just
 // aborted, and the "submit once, run twice" bug).  Extra abort events
@@ -2894,6 +2752,7 @@ Dag::EventSanityCheck( int logsource, const ULogEvent* event,
 }
 
 
+//---------------------------------------------------------------------------
 // compares a submit event's job ID with the one that appeared earlier
 // in the submit command's stdout (which we stashed in the Job object)
 
@@ -2981,3 +2840,188 @@ Dag::GetEventIDHash(int jobType) const
 // NOTE: dag addnode/removenode/adddep/removedep methods don't
 // necessarily insure internal consistency...that's currently up to
 // the higher level calling them to get right...
+
+
+//---------------------------------------------------------------------------
+Dag::submit_result_t
+Dag::SubmitNodeJob( const Dagman &dm, Job *node, CondorID &condorID )
+{
+	submit_result_t result = SUBMIT_RESULT_NO_SUBMIT;
+
+		// Resetting the Condor ID here fixes PR 799.  wenger 2007-01-24.
+	if ( node->_CondorID._cluster != _defaultCondorId._cluster ) {
+		int removeResult = GetEventIDHash( node->JobType() )->
+					remove( node->_CondorID._cluster );
+		ASSERT( removeResult == 0 );
+	}
+	node->_CondorID = _defaultCondorId;
+
+		// sleep for a specified time before submitting
+	if( dm.submit_delay != 0 ) {
+		debug_printf( DEBUG_VERBOSE, "Sleeping for %d s "
+					  "(DAGMAN_SUBMIT_DELAY) to throttle submissions...\n",
+					  dm.submit_delay );
+		sleep( dm.submit_delay );
+
+	} else if( node->NumParents() > 0 && TotalLogFileCount() > 1 ) {
+			// if we don't already have a submit_delay, sleep for one
+			// second here, so we can be sure that this job's submit
+			// event will be unambiguously later than the termination
+			// events of its parents, given that userlog timestamps
+			// only have a resolution of one second.  (Because of the
+			// new feature allowing distinct userlogs for each node, we
+			// can't just rely on the physical order in a single log
+			// file.)
+
+			// TODO: as an optimization, check if, for all parents,
+			// the logfile is the same as the child -- if yes, we can
+			// skip the sleep...
+		debug_printf( DEBUG_VERBOSE,
+					"Sleeping for one second for log file consistency\n" );
+		sleep( 1 );
+	}
+
+		// Note: we're checking for a missing log file spec here instead of
+		// inside the submit code because we don't want to re-try the submit
+		// if the log file spec is missing in the submit file.  wenger
+	if ( !_allowLogError && !node->CheckForLogFile() ) {
+		debug_printf( DEBUG_NORMAL, "ERROR: No 'log =' value found in "
+					"submit file %s for node %s\n", node->GetCmdFile(),
+					node->GetJobName() );
+		node->_Status = Job::STATUS_ERROR;
+		snprintf( node->error_text, JOB_ERROR_TEXT_MAXLEN,
+					"No 'log =' value found in submit file %s",
+					node->GetCmdFile() );
+	  	_numNodesFailed++;
+		result = SUBMIT_RESULT_NO_SUBMIT;
+
+	} else {
+		debug_printf( DEBUG_VERBOSE, "Submitting %s Node %s job(s)...\n",
+				  	node->JobTypeString(), node->GetJobName() );
+
+    	MyString cmd_file = node->GetCmdFile();
+		bool submit_success = false;
+
+    	if( node->JobType() == Job::TYPE_CONDOR ) {
+	  		node->_submitTries++;
+      		submit_success = condor_submit( dm, cmd_file.Value(), condorID,
+						node->GetJobName(), ParentListString( node ),
+						node->varNamesFromDag, node->varValsFromDag,
+						node->GetDirectory() );
+    	} else if( node->JobType() == Job::TYPE_STORK ) {
+	  		node->_submitTries++;
+      		submit_success = stork_submit( dm, cmd_file.Value(), condorID,
+				   	node->GetJobName(), node->GetDirectory() );
+    	} else {
+	    	debug_printf( DEBUG_QUIET, "Illegal job type: %d\n",
+						node->JobType() );
+			ASSERT(false);
+		}
+
+		result = submit_success ? SUBMIT_RESULT_OK : SUBMIT_RESULT_FAILED;
+	}
+
+	return result;
+}
+
+//---------------------------------------------------------------------------
+void
+Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID,
+			int &numSubmitsThisCycle )
+{
+	  // Set the times to *not* wait before trying another submit, since
+	  // the most recent submit worked.
+	_nextSubmitTime = 0;
+	_nextSubmitDelay = 1;
+
+    // append node to the submit queue so we can match it with its
+    // submit event once the latter appears in the Condor job log
+    if( _submitQ->enqueue( node ) == -1 ) {
+		debug_printf( DEBUG_QUIET, "ERROR: _submitQ->enqueue() failed!\n" );
+	}
+
+    node->_Status = Job::STATUS_SUBMITTED;
+
+		// Note: I assume we're incrementing this here instead of when
+		// we see the submit events so that we don't accidentally exceed
+		// maxjobs (now really maxnodes) if it takes a while to see
+		// the submit events.  wenger 2006-02-10.
+    _numJobsSubmitted++;
+	if ( node->GetThrottleInfo() ) {
+		node->GetThrottleInfo()->_currentJobs++;
+dprintf( D_ALWAYS, "Category %s current job count: %d\n", node->GetThrottleInfo()->_category->Value(), node->GetThrottleInfo()->_currentJobs );//TEMPTEMP
+		ASSERT( node->GetThrottleInfo()->_currentJobs >= 0 );
+	}
+    
+        // stash the job ID reported by the submit command, to compare
+        // with what we see in the userlog later as a sanity-check
+        // (note: this sanity-check is not possible during recovery,
+        // since we won't have seen the submit command stdout...)
+	node->_CondorID = condorID;
+	int insertResult = GetEventIDHash( node->JobType() )->
+				insert( condorID._cluster, node );
+	ASSERT( insertResult == 0 );
+
+	debug_printf( DEBUG_VERBOSE, "\tassigned %s ID (%d.%d)\n",
+				  node->JobTypeString(), condorID._cluster, condorID._proc );
+    
+    numSubmitsThisCycle++;
+}
+
+//---------------------------------------------------------------------------
+void
+Dag::ProcessFailedSubmit( Job *node, int max_submit_attempts )
+{
+		// Set the times to wait twice as long as last time.
+	int thisSubmitDelay = _nextSubmitDelay;
+	_nextSubmitTime = time(NULL) + thisSubmitDelay;
+	_nextSubmitDelay *= 2;
+
+	if ( node->_submitTries >= max_submit_attempts ) {
+			// We're out of submit attempts, treat this as a submit failure.
+
+			// To match the existing behavior, we're resetting the times
+			// here.
+		_nextSubmitTime = 0;
+		_nextSubmitDelay = 1;
+
+		debug_printf( DEBUG_QUIET, "Job submit failed after %d tr%s.\n",
+					node->_submitTries, node->_submitTries == 1 ? "y" : "ies" );
+
+		snprintf( node->error_text, JOB_ERROR_TEXT_MAXLEN,
+					"Job submit failed" );
+
+			// NOTE: this failure short-circuits the "retry" feature
+			// because it's already exhausted a number of retries
+			// (maybe we should make sure max_submit_attempts >
+			// node->retries before assuming this is a good idea...)
+		debug_printf( DEBUG_NORMAL, "Shortcutting node %s retries because "
+					"of submit failure(s)\n", node->GetJobName() );
+		node->retries = node->GetRetryMax();
+
+		if ( node->_scriptPost ) {
+				// a POST script is specified for the node, so run it
+			node->_Status = Job::STATUS_POSTRUN;
+			_postRunNodeCount++;
+			node->_scriptPost->_retValJob = DAG_ERROR_CONDOR_SUBMIT_FAILED;
+			_postScriptQ->Run( node->_scriptPost );
+		} else {
+			node->_Status = Job::STATUS_ERROR;
+			_numNodesFailed++;
+		}
+
+	} else {
+			// We have more submit attempts left, put this node back into the
+			// ready queue.
+		debug_printf( DEBUG_NORMAL, "Job submit try %d/%d failed, "
+					"will try again in >= %d second%s.\n", node->_submitTries,
+					max_submit_attempts, thisSubmitDelay,
+					thisSubmitDelay == 1 ? "" : "s" );
+
+		if ( m_retrySubmitFirst ) {
+ 			_readyQ->Prepend(node, node->_nodePriority);
+		} else {
+			_readyQ->Append(node, node->_nodePriority);
+		}
+	}
+}

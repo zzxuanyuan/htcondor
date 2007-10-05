@@ -452,6 +452,23 @@ class Dag {
     */
     bool StartNode( Job *node, bool isRetry );
 
+	typedef enum {
+		SUBMIT_RESULT_OK,
+		SUBMIT_RESULT_FAILED,
+		SUBMIT_RESULT_NO_SUBMIT,
+	} submit_result_t;
+
+	//TEMPTEMP -- document
+	submit_result_t SubmitNodeJob( const Dagman &dm, Job *node,
+				CondorID &condorID );
+
+	//TEMPTEMP -- document
+	void ProcessSuccessfulSubmit( Job *node, const CondorID &condorID,
+				int &numSubmitsThisCycle );
+
+	//TEMPTEMP -- document
+	void ProcessFailedSubmit( Job *node, int max_submit_attempts );
+
     // add job to termination queue and report termination to all
     // child jobs by removing job ID from each child's waiting queue
     void TerminateJob( Job* job, bool bootstrap = false );
