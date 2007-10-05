@@ -318,7 +318,7 @@ class Dag {
 			@return number of jobs successfully submitted
 		*/
     int SubmitReadyJobs(const Dagman &dm);
-  
+
     /** Remove all jobs (using condor_rm) that are currently running.
         All jobs currently marked Job::STATUS_SUBMITTED will be fed
         as arguments to condor_rm via popen.  This function is called
@@ -408,7 +408,6 @@ class Dag {
 		// batch-system, or other external errors
 	const int DAG_ERROR_CONDOR_SUBMIT_FAILED;
 	const int DAG_ERROR_CONDOR_JOB_ABORTED;
-	const int DAG_ERROR_DAGMAN_HELPER_COMMAND_FAILED;
 
 		// The maximum signal we can deal with in the error-reporting
 		// code.

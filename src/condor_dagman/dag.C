@@ -50,10 +50,6 @@
 #include "string_list.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
-#if defined(BUILD_HELPER)
-#include "helper.h"
-#endif
-
 const CondorID Dag::_defaultCondorId;
 
 //---------------------------------------------------------------------------
@@ -80,7 +76,6 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
     _maxPostScripts       (maxPostScripts),
 	DAG_ERROR_CONDOR_SUBMIT_FAILED (-1001),
 	DAG_ERROR_CONDOR_JOB_ABORTED (-1002),
-	DAG_ERROR_DAGMAN_HELPER_COMMAND_FAILED (-1101),
 	MAX_SIGNAL			  (64),
 	_condorLogName		  (NULL),
     _condorLogInitialized (false),
@@ -1288,9 +1283,6 @@ int
 Dag::SubmitReadyJobs(const Dagman &dm)
 {
 	dprintf( D_ALWAYS, "Dag::SubmitReadyJobs()\n" );//TEMPTEMP
-#if defined(BUILD_HELPER)
-	Helper helperObj;
-#endif
 
 		// Check whether we have to wait longer before submitting again
 		// (if a previous submit attempt failed).
@@ -1391,48 +1383,6 @@ dprintf( D_ALWAYS, "Job %s should be throttled by category throttle\n", job->Get
 				  job->JobTypeString(), job->GetJobName() );
 
     MyString cmd_file = job->GetCmdFile();
-
-#if defined(BUILD_HELPER)
-    char *helper = param( "DAGMAN_HELPER_COMMAND" );
-    if( helper ) {
-      debug_printf( DEBUG_VERBOSE, "  passing original submit file (%s) "
-		    "to helper (%s)\n", cmd_file.Value(), helper );
-      cmd_file = helperObj.resolve( cmd_file.Value() ).c_str();
-      if( cmd_file.Length() == 0 ) {
-	debug_printf( DEBUG_QUIET, "ERROR: helper (%s) "
-		      "failed for Job %s: submit aborted\n", helper,
-		      job->GetJobName() );
-	snprintf( job->error_text, JOB_ERROR_TEXT_MAXLEN, "helper (%s) failed",
-		 helper );
-	free( helper );
-	helper = NULL;
-
-	// NOTE: this failure short-circuits the "retry" feature
-	debug_printf( DEBUG_NORMAL, "Shortcutting node %s retries because "
-				"of helper command failure\n", job->GetJobName() );
-	job->retries = job->GetRetryMax();
-
-	if( job->_scriptPost ) {
-	  // a POST script is specified for the job, so run it
-	  job->_Status = Job::STATUS_POSTRUN;
-	  _postRunNodeCount++;
-	  job->retval = DAG_ERROR_DAGMAN_HELPER_COMMAND_FAILED;
-	  job->_scriptPost->_retValJob = job->retval;
-	  _postScriptQ->Run( job->_scriptPost );
-	} else {
-	  job->_Status = Job::STATUS_ERROR;
-	  _numNodesFailed++;
-	}
-	// the problem might be specific to that job, so keep submitting...
-	continue;  // while( numSubmitsThisCycle < max_submits_per_interval )
-      }
-      debug_printf( DEBUG_VERBOSE,
-		    "  using new submit file (%s) from helper for node %s\n",
-		    cmd_file.Value(), job->GetJobName() );
-      free( helper );
-      helper = NULL;
-    }
-#endif //BUILD_HELPER
 
 	bool submit_success;
     CondorID condorID(0,0,0);
