@@ -230,18 +230,24 @@ QUILL_MAINTAIN_DB_CONN  = TRUE
 
 \end{description}
 
-One machine should run the \Condor{dbmsd}.  On this machine, add it to
-the DAEMON\_LIST.  All quill-enabled machines should also run 
-the \Condor{quilld}.  The machine running the \condor{dbmsd} can also 
-run a \Condor{quilld}.  An example DAEMON\_LIST for a machine running
-both daemons, a schedd and a central manager might look like the following:
+One machine should run the \Condor{dbmsd} daemon.  
+On this machine, add it to the \MacroNI{DAEMON\_LIST} configuration variable.
+All Quill-enabled machines should also run the \Condor{quill} daemon.
+The machine running the \Condor{dbmsd} daemon can also 
+run a \Condor{quill} daemon.  An example \MacroNI{DAEMON\_LIST}
+for a machine running both daemons,
+and acting as both a submit machine and a central manager might 
+look like the following:
 
+\footnotesize
 \begin{verbatim}
-DAEMON_LIST                    = MASTER, SCHEDD, COLLECTOR, NEGOTIATOR, DBMSD, QUILL
+DAEMON_LIST  = MASTER, SCHEDD, COLLECTOR, NEGOTIATOR, DBMSD, QUILL
 \end{verbatim}
+\normalsize
 
-The DBMSD daemon will need configuration file entries common to all daemons.
-If not already in the config file, add the following entries:
+The \Condor{dbmsd} daemon will need configuration file entries
+common to all daemons.
+If not already in the configuration file, add the following entries:
 
 \begin{verbatim}
 DBMSD = $(SBIN)/condor_dbmsd
