@@ -6946,6 +6946,11 @@ quill-for-schedd_name@machinename.fully.qualified.address
 \item[\Macro{QUILL\_DB\_NAME}] \label{param:QuillDBName}
   A string that identifies a database within a database server.
 
+\item[\Macro{QUILL\_DB\_USER}]
+	A string that identifies the \Prog{PostgreSQL} user that Quill will
+    connect to the database as.
+	We recommend \Username{quillwriter} for this setting. 
+
 \item[\Macro{QUILL\_DB\_TYPE}] \label{param:QuillDBType}
   A string that distinguishes between database system types.
   Defaults to the only database system currently defined,

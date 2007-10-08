@@ -269,6 +269,12 @@ it creates.  More than one Quill server can talk to the same database
 server.  This can be done by simply letting all the 
 \MacroNI{QUILL\_DB\_IP\_ADDR} point to the same database server.
 
+\item[\Macro{QUILL\_DB\_USER}] 
+This is the Postgres user that Quill will connect as to the database.
+We recommend \Username{quillwriter} for this setting. 
+There is no default setting for \MacroNI{QUILL\_DB\_USER}, so it must
+be specified in the configuration file. 
+
 \item[\Macro{QUILL\_NAME}]
 Each quill daemon in the pool has to be uniquely named.
 
