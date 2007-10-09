@@ -306,7 +306,7 @@ class ReadUserLog
                                       
     /** Destructor.
 	*/
-    inline ~ReadUserLog() { releaseResources(); }
+    ~ReadUserLog() { releaseResources(); }
                                       
     /** Detect whether the object has been initialized
 	*/
@@ -354,8 +354,8 @@ class ReadUserLog
     bool synchronize ();
 
     /// Get the log's file descriptor
-    inline int getfd() const { return m_fd; }
-	inline FILE *getfp() const { return m_fp; }
+    int getfd() const { return m_fd; }
+	FILE *getfp() const { return m_fp; }
 
 	void outputFilePos(const char *pszWhereAmI);
 

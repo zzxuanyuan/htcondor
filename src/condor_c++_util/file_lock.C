@@ -88,17 +88,17 @@ FileLock::SetFdFp( int fd, FILE *fp )
 void
 FileLock::display()
 {
-	printf( "fd = %d\n", m_fd );
-	printf( "blocking = %s\n", blocking ? "TRUE" : "FALSE" );
+	dprintf( D_FULLDEBUG, "fd = %d\n", m_fd );
+	dprintf( D_FULLDEBUG, "blocking = %s\n", blocking ? "TRUE" : "FALSE" );
 	switch( state ) {
 	  case READ_LOCK:
-		printf( "state = READ\n" );
+		dprintf( D_FULLDEBUG, "state = READ\n" );
 		break;
 	  case WRITE_LOCK:
-		printf( "state = WRITE\n" );
+		dprintf( D_FULLDEBUG, "state = WRITE\n" );
 		break;
 	  case UN_LOCK:
-		printf( "state = UNLOCKED\n" );
+		dprintf( D_FULLDEBUG, "state = UNLOCKED\n" );
 		break;
 	}
 }

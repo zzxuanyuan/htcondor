@@ -219,7 +219,7 @@ ReadUserLog::initialize ( bool handle_rotation,
 						  bool check_for_rotation,
 						  bool restore,
 						  bool enable_header_read )
-{	
+{
 	m_handle_rot = handle_rotation;
 	m_max_rot = handle_rotation ? 1 : 0;
 	m_read_header = enable_header_read;
