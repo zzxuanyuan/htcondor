@@ -1,4 +1,3 @@
-//TEMPTEMP -- make sure this all works in recovery mode (job counts get set correctly)
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -1279,7 +1278,7 @@ Dag::StartNode( Job *node, bool isRetry )
 int
 Dag::SubmitReadyJobs(const Dagman &dm)
 {
-	dprintf( D_ALWAYS, "Dag::SubmitReadyJobs()\n" );//TEMPTEMP
+	debug_printf( DEBUG_DEBUG_1, "Dag::SubmitReadyJobs()\n" );
 
 		// Jobs deferred by category throttles.
 	PrioritySimpleList<Job*> deferredJobs;
@@ -1330,19 +1329,19 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 		_readyQ->DeleteCurrent();
 		ASSERT( job != NULL );
 
-			// Mainly printing this so we have some idea what the heck
-			// happened if we blow the following assert (see Gnats PR
-			// 734/condor-admin 13872).
-		debug_printf( DEBUG_VERBOSE, "Got node %s from the ready queue\n",
+		debug_printf( DEBUG_DEBUG_1, "Got node %s from the ready queue\n",
 				  	job->GetJobName() );
 
-		ASSERT( job->GetStatus() == Job::STATUS_READY );
+		if ( job->GetStatus() != Job::STATUS_READY ) {
+			EXCEPT( "Job %s status is %d, not STATUS_READY",
+						job->GetJobName(), job->GetStatus() );
+		}
 
 			// Check for throttling by node category.
 		ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
 		if ( catThrottle &&
 					catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
-			debug_printf( DEBUG_VERBOSE,
+			debug_printf( DEBUG_DEBUG_1,
 						"Node %s deferred by category throttle (%s, %d)\n",
 						job->GetJobName(), catThrottle->_category->Value(),
 						catThrottle->_maxJobs );
@@ -1354,7 +1353,8 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 				// Note: if instead of switch here so we can use break
 				// to break out of while loop.
 			if ( submit_result == SUBMIT_RESULT_OK ) {
-				ProcessSuccessfulSubmit( job, condorID, numSubmitsThisCycle );
+				ProcessSuccessfulSubmit( job, condorID );
+    			numSubmitsThisCycle++;
 
 			} else if ( submit_result == SUBMIT_RESULT_FAILED ) {
 				ProcessFailedSubmit( job, dm.max_submit_attempts );
@@ -1376,7 +1376,6 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 		debug_printf( DEBUG_DEBUG_1,
 					"Returning deferred node %s to the ready queue\n",
 					job->GetJobName() );
-		//TEMPTEMP -- do we ever want to append?
 		_readyQ->Prepend( job, job->_nodePriority );
 	}
 
@@ -2940,8 +2939,7 @@ Dag::SubmitNodeJob( const Dagman &dm, Job *node, CondorID &condorID )
 
 //---------------------------------------------------------------------------
 void
-Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID,
-			int &numSubmitsThisCycle )
+Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID )
 {
 	  // Set the times to *not* wait before trying another submit, since
 	  // the most recent submit worked.
@@ -2977,8 +2975,6 @@ Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID,
 
 	debug_printf( DEBUG_VERBOSE, "\tassigned %s ID (%d.%d)\n",
 				  node->JobTypeString(), condorID._cluster, condorID._proc );
-    
-    numSubmitsThisCycle++;
 }
 
 //---------------------------------------------------------------------------

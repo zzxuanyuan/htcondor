@@ -295,7 +295,9 @@ class Job {
 	void SetCategory( const char *categoryName,
 				ThrottleByCategory &catThrottles );
 
-		//TEMP -- document
+	/** Get the category throttle information for this node.
+		@return pointer to throttle info (may be NULL)
+	*/
 	ThrottleByCategory::ThrottleInfo *GetThrottleInfo() {
 			return _throttleInfo; }
 

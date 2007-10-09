@@ -95,6 +95,8 @@ ThrottleByCategory::GetThrottleInfo( const MyString *category )
 }
 
 //---------------------------------------------------------------------------
+// Note: don't change the format here -- this is used for rescue DAG files,
+// so what we print has to be parseable by parse().
 void
 ThrottleByCategory::PrintThrottles( FILE *fp ) /* const */
 {

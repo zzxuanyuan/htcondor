@@ -38,23 +38,42 @@ public:
 		int				_currentJobs;
 	};
 
-		//TEMP -- document
+	/** Constructor.
+	*/
 	ThrottleByCategory();
 
-		//TEMP -- document
+	/** Destructor.
+	*/
 	~ThrottleByCategory();
 
-		//TEMP -- document
+	/** Add a category to the list of categories.  This will fail if the
+		category already exists.
+		@param the name of the category
+		@param (optional) the throttle setting (max # of jobs for this
+			category)
+		@return a pointer to this object's category name MyString (to
+			avoid duplicate copies of the MyString)
+	*/
 	ThrottleInfo *AddCategory( const MyString *category,
 				int maxJobs = noThrottleSetting );
 
-		//TEMP -- document
+	/** Set the throttle (max # of jobs) for a category.  Adds the category
+		if it doesn't already exist.
+		@param the category name
+		@param the throttle setting
+	*/
 	void	SetThrottle( const MyString *category, int maxJobs );
 
-		//TEMP -- document
+	/** Get the throttle info for a category.
+		@param the category name
+		@return a pointer to the throttle info for this category (NULL
+			if the category doesn't exist)
+	*/
 	ThrottleInfo *	GetThrottleInfo( const MyString *category );
 
-		//TEMP -- document
+	/** Print the throttle info.
+		@param the FILE to print to
+	*/
 	void		PrintThrottles( FILE *fp ) /* const */;
 
 private:

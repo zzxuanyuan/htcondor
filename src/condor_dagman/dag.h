@@ -426,8 +426,7 @@ class Dag {
 		*/
 	void SetPendingNodeReportInterval( int interval );
 	
-		//TEMP -- document
-	//TEMP -- should this be protected?
+		// Node category throttle information for the DAG.
 	ThrottleByCategory		_catThrottles;
 
   protected:
@@ -458,15 +457,29 @@ class Dag {
 		SUBMIT_RESULT_NO_SUBMIT,
 	} submit_result_t;
 
-	//TEMPTEMP -- document
+	/** Submit the Condor or Stork job for a node, including doing
+		some higher-level work such as sleeping before the actual submit
+		if necessary.
+		@param the appropriate Dagman object
+		@param the node for which to submit a job
+		@param reference to hold the Condor ID the job is assigned
+		@return submit_result_t (see above)
+	*/
 	submit_result_t SubmitNodeJob( const Dagman &dm, Job *node,
 				CondorID &condorID );
 
-	//TEMPTEMP -- document
-	void ProcessSuccessfulSubmit( Job *node, const CondorID &condorID,
-				int &numSubmitsThisCycle );
+	/** Do the post-processing of a successful submit of a Condor or
+		Stork job.
+		@param the node for which the job was just submitted
+		@param the Condor ID of the associated job
+	*/	
+	void ProcessSuccessfulSubmit( Job *node, const CondorID &condorID );
 
-	//TEMPTEMP -- document
+	/** Do the post-processing of a failed submit of a Condor or
+		Stork job.
+		@param the node for which the job was just submitted
+		@param the maximum number of submit attempts allowed for a job.
+	*/
 	void ProcessFailedSubmit( Job *node, int max_submit_attempts );
 
     // add job to termination queue and report termination to all
