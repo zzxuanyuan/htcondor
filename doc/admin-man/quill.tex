@@ -26,11 +26,14 @@ Obtain \Prog{PostgreSQL} from
 \URL{http://www.postgresql.org/ftp/source/}
 
 Installation instructions are detailed in:
-\URL{http://www.postgresql.org/docs/8.1/static/installation.html}
+\URL{http://www.postgresql.org/docs/8.2/static/installation.html}
 
 Configure \Prog{PostgreSQL} after installation:
 
 \begin{enumerate}
+
+\item Initialize the database with the \Prog{PostgreSQL} command 
+\verb@initdb@.
 
 \item Configure to accept TCP/IP connections.
 For \Prog{PostgreSQL} version 8,
@@ -85,7 +88,7 @@ as well as the database users
 For example, to give
 database users \Username{quillreader} and \Username{quillwriter}
 password-enabled access to all databases on current machine from any
-other machine in the network, add the following:
+machine in the 128.105.0.0/16 subnet, add the following:
 
 \begin{tabular}{llllll}
 host&all&quillreader&128.105.0.0&255.255.0.0&md5\\
@@ -99,8 +102,9 @@ the \Condor{quill} daemon also needs access to the database
 In order to create the database in the first place, 
 the \Condor{quill} daemon needs to connect to the database.
 
-\item Start the \Prog{PostgreSQL} server service. See the URL for the
-installation instructions for the appropriate method to start the service.
+\item Start the \Prog{PostgreSQL} server service. See the
+installation instructions for the appropriate method to start the service at
+\URL{http://www.postgresql.org/docs/8.2/static/installation.html}
 
 \item The \Condor{quill} and \Condor{dbmsd} daemons and client tools connect
 to the database as users \Username{quillreader} and 
@@ -125,46 +129,59 @@ and be ready to enter the corresponding passwords when prompted.
 \footnotesize
 \begin{verbatim}
 /path/to/postgreSQL/bin/directory/createuser quillreader \
-	--no-createdb --no-adduser --pwprompt
+	--no-createdb --no-createrole --pwprompt
 
 /path/to/postgreSQL/bin/directory/createuser quillwriter \
-	--createdb --no-adduser --pwprompt
+	--createdb --no-createrole --pwprompt
 \end{verbatim}
 \normalsize
 
 Answer ``no'' to the question about the ability for role creation.
 
-\item Create a database for Quill to store data in. 
-This database should be created with the quillwriter user as the owner.
-This is the database that you will use with the \MacroNI{QUILL\_DB\_NAME}
-in a few steps.
+\item Create a database for Quill to store data in
+with the \verb@createdb@ command. 
+Create this database with the \Username{quillwriter} user as the owner.
+A sample command to do this is
+\footnotesize
+\begin{verbatim}
+createdb -O quillwriter quill
+\end{verbatim}
+\normalsize
+\verb@quill@ is the database name to use with the \MacroNI{QUILL\_DB\_NAME}
+configuration variable.
 
 \item The \Condor{quill} and \Condor{dbmsd} daemons need read and write access
 to the database.
-They connects as user \Username{quillwriter},
+They connect as user \Username{quillwriter},
 which has owner privileges to the database.
 Since this gives all access to the \Username{quillwriter} user,
-this password cannot be stored in a public place 
-(such as the \Condor{collector}).
+its password cannot be stored in a public place 
+(such as in a ClassAd).
 For this reason, the \Username{quillwriter} password is stored
 in a file named \File{.pgpass} in the Condor spool directory.
 Appropriate protections on this file guarantee secure access to the database.
 This file must be created and protected by the site administrator;
 if this file does not exist as and where expected, the \Condor{quill}
 and \Condor{dbmsd} daemons log an error and exit.
-The \File{.pgpass} is a colon-separated file
-with exactly one line. 
-This line contains the name of the server running
-the database, followed by the TCP port number, followed by the
-name of the database, followed by "quillwriter", followed by the password.
-The name of the server must match exactly the setting for 
-\Macro{QUILL\_DB\_IP\_ADDR}.
-Condor uses a string comparison between the two, and does not resolve the
+The \File{.pgpass} file contains exactly one line.
+The line has fields separated by colons.
+The first field may be either the machine name and fully qualified domain,
+or it may be a dotted quad IP address.
+This is followed by four fields containing:
+the TCP port number, 
+the name of the database,
+the "quillwriter" user name,
+and the password.
+The form used in the first field must exactly match the value set for 
+the configuration variable \Macro{QUILL\_DB\_IP\_ADDR}.
+Condor uses a string comparison between the two, and it does not resolve the
 host names to compare IP addresses.
 Example:
+\footnotesize
 \begin{verbatim}
 machinename.cs.wisc.edu:5432:quill:quillwriter:password
 \end{verbatim}
+\normalsize
 
 \end{enumerate}
 
@@ -181,9 +198,10 @@ Then, load the Quill schema from the sql files in the \File{sql} subdirectory
 of the Condor release directory:
 
 \begin{verbatim}
-psql < common_createddl.sql
-psql < pgsql_createddl.sql
+psql [databasename] [username] < common_createddl.sql
+psql [databasename] [username] < pgsql_createddl.sql
 \end{verbatim}
+where \verb@[username]@ will be \verb@quillwriter@.
 
 
 After \Prog{PostgreSQL} is configured and running, Condor must also be
@@ -205,7 +223,7 @@ QUILL_USE_SQL_LOG       = FALSE
 QUILL_NAME              = some-unique-quill-name.cs.wisc.edu
 QUILL_DB_USER           = quillwriter
 QUILL_DB_NAME           = database-for-some-unique-quill-name
-QUILL_DB_IP_ADDR        = databaseipaddress:port
+QUILL_DB_IP_ADDR        = databaseIPaddress:port
 # the following parameter's units is in seconds
 QUILL_POLLING_PERIOD    = 10
 QUILL_HISTORY_DURATION 	= 30
@@ -224,6 +242,8 @@ QUILL_JOB_HISTORY_DURATION = 3650
 #The DB Size limit is in gigabytes
 QUILL_DBSIZE_LIMIT      = 20
 QUILL_MAINTAIN_DB_CONN  = TRUE
+SCHEDD_SQLLOG           = $(LOG)/schedd_sql.log
+SCHEDD_DAEMON_AD_FILE   = $(LOG)/.schedd_classad
 
 \end{verbatim}
 \normalsize
@@ -266,17 +286,17 @@ Here are further brief details:
 These two variables are used to determine the location of the database
 server that this Quill would talk to, and the name of the database that
 it creates.  More than one Quill server can talk to the same database
-server.  This can be done by simply letting all the 
-\MacroNI{QUILL\_DB\_IP\_ADDR} point to the same database server.
+server.  This can be accomplished by letting all the 
+\MacroNI{QUILL\_DB\_IP\_ADDR} values point to the same database server.
 
 \item[\Macro{QUILL\_DB\_USER}] 
-This is the Postgres user that Quill will connect as to the database.
+This is the \Prog{PostgreSQL} user that Quill will connect as to the database.
 We recommend \Username{quillwriter} for this setting. 
 There is no default setting for \MacroNI{QUILL\_DB\_USER}, so it must
 be specified in the configuration file. 
 
 \item[\Macro{QUILL\_NAME}]
-Each quill daemon in the pool has to be uniquely named.
+Each \Condor{quill} daemon in the pool has to be uniquely named.
 
 \item[\Macro{QUILL\_POLLING\_PERIOD}]
 This controls the frequency with which Quill polls the
@@ -433,7 +453,7 @@ It fetches all jobs
 which got into the 'Completed' state on or after the
 specified time stamp.  It use the \Prog{PostgreSQL} date/time
 syntax rules, as it encompasses most format options.  See
-\URL{http://www.postgresql.org/docs/8.0/static/datatype-datetime.html\#AEN4516}
+\URL{http://www.postgresql.org/docs/8.2/static/datatype-datetime.html}
 for the various time stamp formats.
 
 \end{enumerate}
@@ -459,13 +479,14 @@ GRANT command when it first creates the tables in the database.  Note that
 access to the \Username{quillreader} password itself can be blocked by
 blocking access to the collector, a feature already supported in Condor.
 
-\item The \Condor{quill} daemon, on the other hand, needs read and write access
-to the database.  As such, it connects as user \Username{quillwriter},
+\item The \Condor{quill} and \Condor{dbmsd} daemons, on the other hand,
+need read and write access to the database.
+As such, they connect as user \Username{quillwriter},
 who has owner privileges to the database.  Since this gives all
 access to the \Username{quillwriter} user, this password cannot
 be stored in a public place (such as the collector).  For this
 reason, the \Username{quillwriter} password is stored in a file called
-\File{.quillwritepassword} in the Condor spool directory.
+\File{.pgpass} in the Condor spool directory.
 Appropriate protections on this file guarantee secure access to the database.
 This file must be created and protected by the site administrator;
 if this file does not exist as and where expected, the \Condor{quill}
