@@ -6222,7 +6222,12 @@ Relating to Virtual Machines}
 \index{configuration!virtual machine configuration variables}
 These macros affect how Condor runs \SubmitCmd{vm} universe jobs on
 a matched machine within the pool.
-They specify items related to the \Condor{vm-gahp}.
+They specify items related to the \Condor{vm-gahp}.  Please note that 
+this files does not inherit macros from \Condor{config}.  So, for
+instance, \File{\MacroUNI{BIN}/condor_vm_vmware.pl} will not work for
+\Macro{VM\_GAHP\_LOG}.  Instead, the macro \MacroUNI{BIN} must be 
+re-declared, or a full paths must be used in every case.  This applies 
+to configurations using Xen as well.
 
 \begin{description}
 \item[\Macro{VM\_GAHP\_SERVER}]
@@ -6344,8 +6349,11 @@ virtual machine-specific configuration file used by the \Condor{vm-gahp}.
 \item[\Macro{VM\_VERSION}]
   \label{param:VMVersion}
   Specifies the version of supported virtual machine software
-  defined by \MacroNI{VM\_TYPE}.
+  defined by \MacroNI{VM\_TYPE}.  
   There is no default value for this required configuration variable.
+  This configuration variable does not currently alter the behavior of
+  the \Condor{vm-gahp}; instead, it is used in \Condor{status} when
+  printing VM-capable hosts and slots.
 
 \item[\Macro{VM\_MAX\_MEMORY}]
   \label{param:VMMaxMemory}
