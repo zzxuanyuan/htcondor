@@ -1,4 +1,3 @@
-//TEMP -- do valgrind before committing
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice

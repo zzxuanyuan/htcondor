@@ -26,7 +26,10 @@
 
 #include "HashTable.h"
 
-//TEMP -- document -- some fanciness is to avoid duplicating strings; some is to allow either MAXJOBS or NODECATEGORY to come first; HashTable doesn't provide a way to get an index
+// Note: some of the complexity in this class is to allow a category maxjobs
+// line to come before or after the corresponding node(s).  Also, the fact
+// that HashTable doesn't provide a way to get the index, and we want to
+// avoid duplicate MyStrings causes more complexity.  wenger 2007-10-10.
 
 class ThrottleByCategory {
 public:

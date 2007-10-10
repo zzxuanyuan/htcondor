@@ -614,6 +614,12 @@ Job::NumParents()
 void
 Job::SetCategory( const char *categoryName, ThrottleByCategory &catThrottles )
 {
+	if ( _throttleInfo != NULL ) {
+		debug_printf( DEBUG_NORMAL, "Warning: new category %s for node %s "
+					"overrides old value %s\n", categoryName, GetJobName(),
+					_throttleInfo->_category->Value() );
+	}
+
 	MyString	tmpName( categoryName );
 	ThrottleByCategory::ThrottleInfo *throttleInfo =
 				catThrottles.GetThrottleInfo( &tmpName );

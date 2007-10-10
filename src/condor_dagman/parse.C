@@ -1,4 +1,3 @@
-//TEMP -- test node category throttling with multiple DAGs
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -1066,7 +1065,13 @@ parse_priority(
 	// Next token is the priority value.
 	//
 	const char *valueStr = strtok(NULL, DELIMITERS);
-//TEMP -- check for null!!!
+	if ( valueStr == NULL ) {
+		debug_printf( DEBUG_QUIET, 
+					  "%s (line %d): Missing PRIORITY value\n",
+					  filename, lineNumber );
+		exampleSyntax( example );
+		return false;
+	}
 
 	int priorityVal;
 	char *tmp;
@@ -1091,6 +1096,11 @@ parse_priority(
 		return false;
 	}
 
+	if ( job->_hasNodePriority && job->_nodePriority != priorityVal ) {
+		debug_printf( DEBUG_NORMAL, "Warning: new priority %d for node %s "
+					"overrides old value %d\n", priorityVal,
+					job->GetJobName(), job->_nodePriority );
+	}
 	job->_hasNodePriority = true;
 	job->_nodePriority = priorityVal;
 
@@ -1103,7 +1113,7 @@ parse_priority(
 // Purpose:  Parses a line specifying the type of a node
 //           The format of this line must be
 //           Category <JobName> <Category>
-//TEMP -- no whitespace in category name?
+//			 No whitespace is allowed in the category name
 //-----------------------------------------------------------------------------
 static bool 
 parse_category(
@@ -1150,7 +1160,7 @@ parse_category(
 	const char *categoryName = strtok(NULL, DELIMITERS);
 	if ( categoryName == NULL ) {
 		debug_printf( DEBUG_QUIET, 
-					  "%s (line %d): Missing CATEGORY node value\n",
+					  "%s (line %d): Missing CATEGORY name\n",
 					  filename, lineNumber );
 		exampleSyntax( example );
 		return false;
@@ -1180,7 +1190,7 @@ parse_category(
 //           a given node category.
 //           The format of this line must be
 //           MaxJobs <Category> <Value>
-//TEMP -- no whitespace in category name?
+//			 No whitespace is allowed in the category name
 //-----------------------------------------------------------------------------
 static bool 
 parse_maxjobs(
