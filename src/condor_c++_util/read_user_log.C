@@ -118,6 +118,7 @@ public:
 	ReadUserLogMatch( ReadUserLogState *state ) {
 		m_state = state;
 	};
+	// Note: *Don't* delete m_state -- see the comment below
 	~ReadUserLogMatch( void ) { };
 
 	// Results of file compare
@@ -154,6 +155,8 @@ private:
 		int				 max_thresh,
 		int				 score ) const;
 
+	// NOTE: m_state is *not* owned by this object, but, rather,
+	//  we store a pointer to it for easy access
 	ReadUserLogState	*m_state;		// File state info
 };
 

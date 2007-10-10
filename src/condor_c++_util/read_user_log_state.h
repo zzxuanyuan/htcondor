@@ -67,8 +67,6 @@ public:
 	int Rotation( int rotation, StatStructType &statbuf );
 	filesize_t Offset( filesize_t offset )
 		{ return m_offset = offset; };
-	filesize_t Offset( long offset )
-		{ return m_offset = (filesize_t) offset; };
 
 	// Get / set the uniq identifier
 	void UniqId( const MyString &id ) { m_uniq_id = id; };
