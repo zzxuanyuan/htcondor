@@ -164,7 +164,7 @@ StatWrapper::DoStat( const char *path_arg )
 	// into lstat_buf
 	lstat_rc = 0;
 	lstat_errno = 0;
-	lstat_buf = m_stat_buf;
+	m_lstat_buf = m_stat_buf;
 #endif
 
 	// Set the valid flags
