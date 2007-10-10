@@ -123,7 +123,7 @@ public:
 
 	// Results of file compare
 	enum MatchResult {
-		ERROR = -1, MATCH = 0, UNKNOWN, NOMATCH,
+		MATCH_ERROR = -1, MATCH = 0, UNKNOWN, NOMATCH,
 	};
 	
 	// Compare the specified file / file info with the cached info
@@ -626,7 +626,7 @@ ReadUserLog::ReopenLogFile( void )
 
 		ReadUserLogMatch::MatchResult result =
 			m_match->Match( rot, SCORE_THRESH_FWSEARCH, &score );
-		if ( ReadUserLogMatch::ERROR == result ) {
+		if ( ReadUserLogMatch::MATCH_ERROR == result ) {
 			scores[rot] = -1;
 		}
 		else if ( ReadUserLogMatch::MATCH == result ) {
@@ -1423,14 +1423,14 @@ ReadUserLogMatch::MatchInternal(
 
 	// Initialize the reader
 	if ( !reader.initialize( path_str.GetCStr(), false, false ) ) {
-		return ERROR;
+		return MATCH_ERROR;
 	}
 
 	// Now, read the event itself
 	ULogEvent			*event;
 	outcome = reader.readEvent( event );
 	if ( ULOG_RD_ERROR == outcome ) {
-		return ERROR;
+		return MATCH_ERROR;
 	}
 	else if ( ULOG_OK != outcome ) {
 		return NOMATCH;
@@ -1440,7 +1440,7 @@ ReadUserLogMatch::MatchInternal(
 	ReadUserLogHeader	header;
 	int status = header.ReadFileHeader( rot, path_str.GetCStr(), m_state );
 	if( status < 0 ) {
-		return ERROR;
+		return MATCH_ERROR;
 	}
 	else if ( status > 0 ) {
 		return EvalScore( match_thresh, score );
@@ -1472,7 +1472,7 @@ ReadUserLogMatch::EvalScore( int match_thresh, int score ) const
 
 	// < 0 is an error
 	if ( score < 0 ) {
-		return ERROR;
+		return MATCH_ERROR;
 	}
 	// Less than the min threshold - give up, declare "no match"
 	else if ( score < SCORE_MIN_MATCH ) {
@@ -1491,7 +1491,7 @@ const char *
 ReadUserLogMatch::MatchStr( ReadUserLogMatch::MatchResult value ) const
 {
 	switch( value ) {
-	case ERROR:
+	case MATCH_ERROR:
 		return "ERROR";
 	case MATCH:
 		return "MATCH";
