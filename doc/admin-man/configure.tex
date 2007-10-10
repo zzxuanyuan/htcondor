@@ -6222,12 +6222,7 @@ Relating to Virtual Machines}
 \index{configuration!virtual machine configuration variables}
 These macros affect how Condor runs \SubmitCmd{vm} universe jobs on
 a matched machine within the pool.
-They specify items related to the \Condor{vm-gahp}.  Please note that 
-this files does not inherit macros from \Condor{config}.  So, for
-instance, \File{\MacroUNI{BIN}/condor_vm_vmware.pl} will not work for
-\Macro{VM\_GAHP\_LOG}.  Instead, the macro \MacroUNI{BIN} must be 
-re-declared, or a full paths must be used in every case.  This applies 
-to configurations using Xen as well.
+They specify items related to the \Condor{vm-gahp}.
 
 \begin{description}
 \item[\Macro{VM\_GAHP\_SERVER}]
@@ -6322,6 +6317,18 @@ to configurations using Xen as well.
 The following configuration variable may be specified in both
 the Condor configuration file and in the separate
 virtual machine-specific configuration file used by the \Condor{vm-gahp}.
+Please note that this machine-specific configuration file 
+used by the \Condor{vm-gahp} does not inherit configuration
+from Condor.  Therefore, definitions may not utilize the values
+of configuration variables set outside this file.
+For example,
+a setting of \File{\$(BIN)/condor\_vm\_vmware.pl} for
+\Macro{VMWARE\_PERL} cannot work,
+as \MacroUNI{BIN} is defined within Condor's configuration,
+and not in the machine-specific configuration file
+used by the \Condor{vm-gahp}.
+Instead, \MacroNI{BIN} must be redefined,
+or a full path must be used in every case.
 
 \begin{description}
 \item[\Macro{VM\_NETWORKING}]
@@ -6337,6 +6344,18 @@ virtual machine-specific configuration file used by the \Condor{vm-gahp}.
 The following configuration variables are not specific to either the VMware
 or the Xen virtual machine software, but will appear in the
 virtual machine-specific configuration file used by the \Condor{vm-gahp}.
+Please note that this machine-specific configuration file 
+used by the \Condor{vm-gahp} does not inherit configuration
+from Condor.  Therefore, definitions may not utilize the values
+of configuration variables set outside this file.
+For example,
+a setting of \File{\$(BIN)/condor\_vm\_vmware.pl} for
+\Macro{VMWARE\_PERL} cannot work,
+as \MacroUNI{BIN} is defined within Condor's configuration,
+and not in the machine-specific configuration file
+used by the \Condor{vm-gahp}.
+Instead, \MacroNI{BIN} must be redefined,
+or a full path must be used in every case.
 
 \begin{description}
 
@@ -6377,6 +6396,18 @@ The following configuration variables are specific to the VMware
 virtual machine software.  They are specified within the separate configuration
 file read by the \Condor{vm-gahp} and allow the \Condor{vm-gahp} to
 correctly interface with the VMware software.
+Please note that this machine-specific configuration file 
+used by the \Condor{vm-gahp} does not inherit configuration
+from Condor.  Therefore, definitions may not utilize the values
+of configuration variables set outside this file.
+For example,
+a setting of \File{\$(BIN)/condor\_vm\_vmware.pl} for
+\Macro{VMWARE\_PERL} cannot work,
+as \MacroUNI{BIN} is defined within Condor's configuration,
+and not in the machine-specific configuration file
+used by the \Condor{vm-gahp}.
+Instead, \MacroNI{BIN} must be redefined,
+or a full path must be used in every case.
 
 \begin{description}
 \item[\Macro{VMWARE\_PERL}]
@@ -6400,6 +6431,18 @@ The following configuration variables are specific to the Xen
 virtual machine software.  They are specified within the separate configuration
 file read by the \Condor{vm-gahp} and allow the \Condor{vm-gahp} to
 correctly interface with the Xen software.
+Please note that this machine-specific configuration file 
+used by the \Condor{vm-gahp} does not inherit configuration
+from Condor.  Therefore, definitions may not utilize the values
+of configuration variables set outside this file.
+For example,
+a setting of \File{\$(BIN)/condor\_vm\_vmware.pl} for
+\Macro{VMWARE\_PERL} cannot work,
+as \MacroUNI{BIN} is defined within Condor's configuration,
+and not in the machine-specific configuration file
+used by the \Condor{vm-gahp}.
+Instead, \MacroNI{BIN} must be redefined,
+or a full path must be used in every case.
 
 \begin{description}
 
