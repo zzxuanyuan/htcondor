@@ -447,7 +447,7 @@ ReadUserLog::determineLogType( void )
 	if( filepos < 0 ) {
 		dprintf(D_ALWAYS, "ftell failed in ReadUserLog::determineLogType\n");
 		Unlock();
-		return FALSE;
+		return false;
 	}
 	m_state->Offset( filepos );
 
@@ -464,7 +464,7 @@ ReadUserLog::determineLogType( void )
 		if( !skipXMLHeader(afterangle, filepos) ) {
 			m_state->LogType( ReadUserLogState::LOG_TYPE_UNKNOWN );
 			Unlock();
-		    return FALSE;
+		    return false;
 		}
 
 	} else {
@@ -473,19 +473,19 @@ ReadUserLog::determineLogType( void )
 		if( fseek( m_fp, filepos, SEEK_SET) )	{
 			dprintf(D_ALWAYS, "fseek failed in ReadUserLog::determineLogType");
 			Unlock();
-			return FALSE;
+			return false;
 		}
 
 		int nothing;
 		if( fscanf( m_fp, " %d", &nothing) > 0 ) {
 
-			setIsOldLog(TRUE);
+			setIsOldLog(true);
 
 			if( fseek( m_fp, filepos, SEEK_SET) )	{
 				dprintf(D_ALWAYS,
 						"fseek failed in ReadUserLog::determineLogType");
 				Unlock();
-				return FALSE;
+				return false;
 			}
 		} else {
 			// what sort of log is this!
@@ -494,16 +494,16 @@ ReadUserLog::determineLogType( void )
 				dprintf(D_ALWAYS,
 						"fseek failed in ReadUserLog::determineLogType");
 				Unlock();
-				return FALSE;
+				return false;
 			}
 			Unlock();
-			return FALSE;
+			return false;
 		}
 	}
 
 	Unlock();
 
-	return TRUE;
+	return true;
 }
 
 bool ReadUserLog::
@@ -522,7 +522,7 @@ skipXMLHeader(char afterangle, long filepos)
 			}
 
 			if( nextchar == EOF ) {
-				return FALSE;
+				return false;
 			}
 
 			// skip until we get to the next tag, saving our location as
@@ -532,7 +532,7 @@ skipXMLHeader(char afterangle, long filepos)
 				nextchar = fgetc(m_fp);
 			}
 			if( nextchar == EOF ) {
-				return FALSE;
+				return false;
 			}
 			nextchar = fgetc(m_fp);
 		}
@@ -541,19 +541,19 @@ skipXMLHeader(char afterangle, long filepos)
 		// we're all set
 		if( fseek(m_fp, filepos, SEEK_SET) )	{
 			dprintf(D_ALWAYS, "fseek failed in ReadUserLog::skipXMLHeader");
-			return FALSE;
+			return false;
 		}
 	} else {
 		// there was no prolog, so go back to the beginning
 		if( fseek(m_fp, filepos, SEEK_SET) )	{
 			dprintf(D_ALWAYS, "fseek failed in ReadUserLog::skipXMLHeader");
-			return FALSE;
+			return false;
 		}
 	}
 
 	m_state->Offset( filepos );
 
-	return TRUE;
+	return true;
 }
 
 bool
@@ -669,6 +669,10 @@ ReadUserLog::readEvent (ULogEvent *& event )
 ULogEventOutcome
 ReadUserLog::readEvent (ULogEvent *& event, bool store_state )
 {
+	if ( !m_initialized ) {
+		return ULOG_RD_ERROR;
+	}
+
 	// Previous operation (initialization) detected a missed event
 	// but couldn't report it to the application (the API doesn't
 	// allow us to reliably return that type of info).
@@ -1114,6 +1118,7 @@ ReadUserLog::SetFileState( const ReadUserLog::FileState &state )
 void
 ReadUserLog::Lock()
 {
+	ASSERT ( m_initialized );
 	if ( !m_is_locked ) {
 		m_is_locked = m_lock->obtain( WRITE_LOCK );
 	}
@@ -1123,6 +1128,7 @@ ReadUserLog::Lock()
 void
 ReadUserLog::Unlock()
 {
+	ASSERT ( m_initialized );
 	if ( m_is_locked ) {
 		m_is_locked = ! m_lock->release();
 	}
@@ -1132,19 +1138,24 @@ ReadUserLog::Unlock()
 bool
 ReadUserLog::synchronize ()
 {
+	if ( !m_initialized ) {
+		return false;
+	}
+
 	const int bufSize = 512;
     char buffer[bufSize];
     while( fgets( buffer, bufSize, m_fp ) != NULL ) {
 		if( strcmp( buffer, SynchDelimiter) == 0 ) {
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 void
 ReadUserLog::outputFilePos(const char *pszWhereAmI)
 {
+	ASSERT ( m_initialized );
 	dprintf(D_ALWAYS, "Filepos: %ld, context: %s\n", ftell(m_fp), pszWhereAmI);
 }
 
