@@ -55,7 +55,7 @@ UserLog::UserLog (const char *owner,
                   int s,
                   bool xml, const char *gjid)
 {
-	UserLog();
+	Reset();
 	m_use_xml = xml;
 
 	initialize (owner, domain, file, c, p, s, gjid);

@@ -95,6 +95,7 @@ class UserLog {
         @param proc condorID proc    to put into each ULogEvent
         @param subp condorID subproc to put into each ULogEvent
 		@param xml  make this TRUE to write XML logs, FALSE to use the old form
+		@param gjid global job ID
     */
     UserLog(const char *owner, const char *domain, const char *file,
 			int clu, int proc, int subp, bool xml = XML_USERLOG_DEFAULT,
