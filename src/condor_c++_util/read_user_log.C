@@ -440,13 +440,13 @@ ReadUserLog::determineLogType( void )
 	// we obtain a write lock here not because we want to write
 	// anything, but because we want to ensure we don't read
 	// mid-way through someone else's write
-	Lock();
+	Lock( false );
 
 	// store file position so we can rewind to this location
 	long filepos = ftell( m_fp );
 	if( filepos < 0 ) {
 		dprintf(D_ALWAYS, "ftell failed in ReadUserLog::determineLogType\n");
-		Unlock();
+		Unlock( false );
 		return false;
 	}
 	m_state->Offset( filepos );
@@ -463,7 +463,7 @@ ReadUserLog::determineLogType( void )
 
 		if( !skipXMLHeader(afterangle, filepos) ) {
 			m_state->LogType( ReadUserLogState::LOG_TYPE_UNKNOWN );
-			Unlock();
+			Unlock( false );
 		    return false;
 		}
 
@@ -472,7 +472,7 @@ ReadUserLog::determineLogType( void )
 		// XML; go back to the beginning and take another look
 		if( fseek( m_fp, filepos, SEEK_SET) )	{
 			dprintf(D_ALWAYS, "fseek failed in ReadUserLog::determineLogType");
-			Unlock();
+			Unlock( false );
 			return false;
 		}
 
@@ -484,7 +484,7 @@ ReadUserLog::determineLogType( void )
 			if( fseek( m_fp, filepos, SEEK_SET) )	{
 				dprintf(D_ALWAYS,
 						"fseek failed in ReadUserLog::determineLogType");
-				Unlock();
+				Unlock( false );
 				return false;
 			}
 		} else {
@@ -493,15 +493,15 @@ ReadUserLog::determineLogType( void )
 			if( fseek( m_fp, filepos, SEEK_SET) )	{
 				dprintf(D_ALWAYS,
 						"fseek failed in ReadUserLog::determineLogType");
-				Unlock();
+				Unlock( false );
 				return false;
 			}
-			Unlock();
+			Unlock( false );
 			return false;
 		}
 	}
 
-	Unlock();
+	Unlock( false );
 
 	return true;
 }
@@ -809,14 +809,14 @@ ReadUserLog::readEventXML(ULogEvent *& event)
 	// we obtain a write lock here not because we want to write
 	// anything, but because we want to ensure we don't read
 	// mid-way through someone else's write
-	Lock();
+	Lock( true );
 
 	// store file position so that if we are unable to read the event, we can
 	// rewind to this location
   	long     filepos;
   	if (!m_fp || ((filepos = ftell(m_fp)) == -1L))
   	{
-  		Unlock();
+  		Unlock( true );
 		event = NULL;
   		return ULOG_UNK_ERROR;
   	}
@@ -824,7 +824,7 @@ ReadUserLog::readEventXML(ULogEvent *& event)
 	ClassAd* eventad;
 	eventad = xmlp.ParseClassAd(m_fp);
 
-	Unlock();
+	Unlock( true );
 
 	if( !eventad ) {
 		// we don't have the full event in the stream yet; restore file
@@ -1115,10 +1115,13 @@ ReadUserLog::SetFileState( const ReadUserLog::FileState &state )
 	return m_state->SetState( state );
 }
 
+
 void
-ReadUserLog::Lock()
+ReadUserLog::Lock( bool verify_init )
 {
-	ASSERT ( m_initialized );
+	if( verify_init ) {
+		ASSERT ( m_initialized );
+	}
 	if ( !m_is_locked ) {
 		m_is_locked = m_lock->obtain( WRITE_LOCK );
 	}
@@ -1126,9 +1129,11 @@ ReadUserLog::Lock()
 }
 
 void
-ReadUserLog::Unlock()
+ReadUserLog::Unlock( bool verify_init )
 {
-	ASSERT ( m_initialized );
+	if( verify_init ) {
+		ASSERT ( m_initialized );
+	}
 	if ( m_is_locked ) {
 		m_is_locked = ! m_lock->release();
 	}

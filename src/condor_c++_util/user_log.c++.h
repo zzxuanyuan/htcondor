@@ -359,8 +359,10 @@ class ReadUserLog
 
 	void outputFilePos(const char *pszWhereAmI);
 
-	void Lock();
-	void Unlock();
+	/** Lock / unlock the file
+	 */
+	void Lock(void)   { Lock(true);   };
+	void Unlock(void) { Unlock(true); };
 
 	/** Set whether the log file should be treated as XML. The constructor will
 		attempt to figure this out on its own.
@@ -472,6 +474,12 @@ class ReadUserLog
 					  bool restore_position,
 					  bool enable_header_read );
 
+	/** Internal lock/unlock methods
+		@param Verify that initialization has been done
+	 */
+	void Lock( bool verify_init );
+	void Unlock( bool verify_init );
+	
 	/** Set all members to their cleared values.
 	*/
 	void clear( void );
