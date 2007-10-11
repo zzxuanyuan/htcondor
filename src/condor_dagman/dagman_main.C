@@ -315,7 +315,8 @@ int main_shutdown_rescue( int exitVal ) {
 	if( dagman.dag ) {
 		debug_printf( DEBUG_NORMAL, "Writing Rescue DAG to %s...\n",
 					  dagman.rescue_file );
-		dagman.dag->Rescue( dagman.rescue_file, dagman.primaryDagFile );
+		dagman.dag->Rescue( dagman.rescue_file, dagman.primaryDagFile,
+					dagman.useDagDir );
 			// we write the rescue DAG *before* removing jobs because
 			// otherwise if we crashed, failed, or were killed while
 			// removing them, we would leave the DAG in an
@@ -628,7 +629,7 @@ int main_init (int argc, char ** const argv) {
 					 	dagFile );
     	}
 	}
-    
+
 #ifndef NOT_DETECT_CYCLE
 	if( dagman.startup_cycle_detect && dagman.dag->isCycle() )
 	{
