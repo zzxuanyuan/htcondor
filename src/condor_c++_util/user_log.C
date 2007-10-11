@@ -249,7 +249,7 @@ open_file(const char *file,
 # endif
 
 		// set the stdio stream for line buffering
-	if( setvbuf(m_fp,NULL,_IOLBF,BUFSIZ) < 0 ) {
+	if( setvbuf( fp,NULL,_IOLBF,BUFSIZ) < 0 ) {
 		dprintf( D_ALWAYS, "setvbuf failed in UserLog::initialize\n" );
 	}
 
