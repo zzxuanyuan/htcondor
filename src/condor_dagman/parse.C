@@ -1234,6 +1234,12 @@ parse_maxjobs(
 		exampleSyntax( example );
 		return false;
 	}
+	if ( maxJobsVal < 0 ) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): MAXJOBS value must be non-negative\n",
+					  filename, lineNumber );
+		return false;
+	}
 
 	//
 	// Check for illegal extra tokens.

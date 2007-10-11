@@ -1340,6 +1340,8 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 			// Check for throttling by node category.
 		ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
 		if ( catThrottle &&
+					catThrottle->_maxJobs !=
+					ThrottleByCategory::noThrottleSetting &&
 					catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
 			debug_printf( DEBUG_DEBUG_1,
 						"Node %s deferred by category throttle (%s, %d)\n",

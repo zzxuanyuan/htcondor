@@ -102,7 +102,9 @@ ThrottleByCategory::PrintThrottles( FILE *fp ) /* const */
 	_throttles.startIterations();
 	ThrottleInfo	*info;
 	while ( _throttles.iterate( info ) ) {
-		fprintf( fp, "MAXJOBS %s %d\n", info->_category->Value(),
-					info->_maxJobs );
+		if ( info->_maxJobs != noThrottleSetting ) {
+			fprintf( fp, "MAXJOBS %s %d\n", info->_category->Value(),
+						info->_maxJobs );
+		}
 	}
 }
