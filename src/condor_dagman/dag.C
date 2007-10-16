@@ -106,6 +106,7 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 	_checkStorkEvents     (),
 	_maxJobsDeferredCount (0),
 	_maxIdleDeferredCount (0),
+	_catThrottleDeferredCount (0),
 	_prohibitMultiJobs	  (prohibitMultiJobs),
 	_submitDepthFirst	  (submitDepthFirst)
 {
@@ -1348,6 +1349,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 						job->GetJobName(), catThrottle->_category->Value(),
 						catThrottle->_maxJobs );
 			deferredJobs.Prepend( job, job->_nodePriority );
+			_catThrottleDeferredCount++;
 		} else {
     		CondorID condorID(0,0,0);
 			submit_result_t submit_result = SubmitNodeJob( dm, job, condorID );
@@ -2221,6 +2223,11 @@ Dag::PrintDeferrals( debug_level_t level, bool force ) const
 		debug_printf( level, "Note: %d total job deferrals because "
 					"of -MaxIdle limit (%d)\n", _maxIdleDeferredCount,
 					_maxIdleJobProcs );
+	}
+
+	if( _catThrottleDeferredCount > 0 || force ) {
+		debug_printf( level, "Note: %d total job deferrals because "
+					"of node category throttles\n", _catThrottleDeferredCount );
 	}
 
 	if( _preScriptQ->GetScriptDeferredCount() > 0 || force ) {

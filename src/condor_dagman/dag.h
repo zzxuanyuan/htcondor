@@ -680,6 +680,9 @@ class Dag {
 		// multiple times).
 	int		_maxIdleDeferredCount;
 
+		// Total count of jobs deferred because of node category throttles.
+	int		_catThrottleDeferredCount;
+
 		// whether or not to prohibit multiple job proc submitsn (e.g.,
 		// node jobs that create more than one job proc)
 	bool		_prohibitMultiJobs;
