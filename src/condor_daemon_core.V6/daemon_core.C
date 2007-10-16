@@ -5076,6 +5076,76 @@ void exit(int status)
 }
 #endif
 
+// helper function for registering a family with our ProcFamily
+// logic. the first 3 arguments are mandatory for registration.
+// the last three are optional and specify what tracking methods
+// should be used for the new process family. if group is non-NULL
+// then we will ask the ProcD to track by supplementary group
+// ID - the ID that the ProcD chooses for this purpose is returned
+// in the location pointed to by the argument
+//
+bool
+DaemonCore::Register_Family(pid_t       child_pid,
+                            pid_t       parent_pid,
+                            int         max_snapshot_interval,
+                            PidEnvID*   penvid,
+                            const char* login,
+                            gid_t*      group)
+{
+	bool success = false;
+	bool family_registered = false;
+	if (!m_proc_family->register_subfamily(child_pid,
+	                                       parent_pid,
+	                                       max_snapshot_interval))
+	{
+		dprintf(D_ALWAYS,
+		        "Create_Process: error registering family for pid %u\n",
+		        child_pid);
+		goto REGISTER_FAMILY_DONE;
+	}
+	family_registered = true;
+	if (penvid != NULL) {
+		if (!m_proc_family->track_family_via_environment(child_pid, *penvid)) {
+			dprintf(D_ALWAYS,
+			        "Create_Process: error tracking family "
+			            "with root %u via environment\n",
+					child_pid);
+			goto REGISTER_FAMILY_DONE;
+		}
+	}
+	if (login != NULL) {
+		if (!m_proc_family->track_family_via_login(child_pid, login)) {
+			dprintf(D_ALWAYS,
+			        "Create_Process: error tracking family "
+			            "with root %u via login (name: %s)\n",
+			        child_pid,
+			        login);
+			goto REGISTER_FAMILY_DONE;
+		}
+	}
+	if (group != NULL) {
+		if (!m_proc_family->track_family_via_supplementary_group(child_pid,
+		                                                         *group)) {
+			dprintf(D_ALWAYS,
+			        "Create_Process: error tracking family "
+			            "with root %u via group ID\n",
+			        child_pid);
+			goto REGISTER_FAMILY_DONE;
+		}
+	}
+	success = true;
+REGISTER_FAMILY_DONE:
+	if (family_registered && !success) {
+		if (!m_proc_family->unregister_family(child_pid)) {
+			dprintf(D_ALWAYS,
+			        "Create_Process: error unregistering family "
+			            "with root %u\n",
+			        child_pid);
+		}
+	}
+	return success;
+}
+
 #ifndef WIN32
 
 /*************************************************************
@@ -5536,15 +5606,33 @@ void CreateProcessForkit::exec() {
 #else
 		PidEnvID* penvid_ptr = NULL;
 #endif
+
+			// yet another linux-only tracking method: supplementary GID
+			//
+		gid_t tracking_gid;
+		gid_t* tracking_gid_ptr = NULL;
+#if defined(LINUX)
+		if ((m_priv == PRIV_USER_FINAL) &&
+		    (can_switch_ids()) &&
+		    (param_boolean("USE_GID_PROCESS_TRACKING", false)))
+		{
+			tracking_gid_ptr = &tracking_gid;
+		}
+#endif
+
 		ASSERT(daemonCore->m_proc_family != NULL);
-		bool ok =
-			daemonCore->m_proc_family->register_subfamily_child(
-				pid,
-				ppid,
-				m_family_info->max_snapshot_interval,
-				penvid_ptr,
-				m_family_info->login
-			);
+		bool ok;
+		if (daemonCore->m_proc_family->register_from_child()) {
+			ok = daemonCore->Register_Family(pid,
+			                                 ppid,
+			                                 m_family_info->max_snapshot_interval,
+			                                 penvid_ptr,
+			                                 m_family_info->login,
+			                                 tracking_gid_ptr);
+		}
+		if (tracking_gid_ptr != NULL) {
+			set_user_tracking_gid(*tracking_gid_ptr);
+		}
 		if (!ok) {
 			errno = ERRNO_REGISTRATION_FAILED;
 			write(m_errorpipe[1], &errno, sizeof(errno));
@@ -5723,6 +5811,11 @@ void CreateProcessForkit::exec() {
 			// internal bookkeeping that we don't want, because the parent
 			// will see these changes and will get confused.
 		set_priv_no_memory_changes( m_priv );
+
+			// the user tracking group ID may also have been set above. unset
+			// it here, to restore the parent's state, if we happen to be
+			// sharing memory
+		unset_user_tracking_gid();
 
 			// From here on, the priv-switching code doesn't know our
 			// true priv state (i.e. the priv state we just switched to),
@@ -6514,7 +6607,7 @@ int DaemonCore::Create_Process(
 
 			case ERRNO_REGISTRATION_FAILED:
 				dprintf( D_ALWAYS, "Create_Process: child failed becuase "
-				         "it failed to register itself with the ProcD " );
+				         "it failed to register itself with the ProcD\n" );
 				break;
 
 			case ERRNO_PID_COLLISION:
@@ -6661,17 +6754,13 @@ int DaemonCore::Create_Process(
 	// here, we do any parent-side work needed to register the new process
 	// with our ProcFamily logic
 	//
-	if (family_info != NULL) {
-		if (!m_proc_family->register_subfamily_parent(newpid,
-		                                              getpid(),
-		                                              family_info->max_snapshot_interval,
-		                                              &pidtmp->penvid,
-		                                              family_info->login))
-		{
-			dprintf(D_ALWAYS,
-			        "Create_Process: error registering family for pid %u\n",
-			        newpid);
-		}
+	if ((family_info != NULL) && !m_proc_family->register_from_child()) {
+		Register_Family(newpid,
+		                getpid(),
+		                family_info->max_snapshot_interval,
+		                &pidtmp->penvid,
+		                family_info->login,
+		                NULL);
 	}
 #endif
 

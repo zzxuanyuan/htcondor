@@ -53,6 +53,15 @@ static char* log_file_name = NULL;
 //
 static int max_snapshot_interval = 60;
 
+#if defined(LINUX)
+// a range of group IDs that can be used to track process
+// families by placing them in their supplementary group
+// lists
+//
+static gid_t min_tracking_gid = 0;
+static gid_t max_tracking_gid = 0;
+#endif
+
 #if defined(WIN32)
 // on Windows, we use an external program (condor_softkill.exe)
 // to send soft kills to jobs. the path to this program is passed
@@ -143,6 +152,20 @@ parse_command_line(int argc, char* argv[])
 				index++;
 				max_snapshot_interval = atoi(argv[index]);
 				break;
+
+#if defined(LINUX)
+			// tracking group ID range
+			//
+			case 'G':
+				if (index + 2 >= argc) {
+					fail_option_args("-G", 2);
+				}
+				index++;
+				min_tracking_gid = (gid_t)atoi(argv[index]);
+				index++;
+				max_tracking_gid = (gid_t)atoi(argv[index]);
+				break;
+#endif
 
 #if defined(WIN32)
 			// windows condor_softkill.exe binary path
@@ -240,7 +263,9 @@ main(int argc, char* argv[])
 	// a non-negative number, or -1 for "infinite"
 	//
 	if (max_snapshot_interval < -1) {
-		EXCEPT("error: maximum snapshot interval must be non-negative or -1");
+		fprintf(stderr,
+		        "error: maximum snapshot interval must be non-negative or -1");
+		exit(1);
 	}
 
 #if defined(WIN32)
@@ -255,6 +280,22 @@ main(int argc, char* argv[])
 	// initialize the "engine" for tracking process families
 	//
 	ProcFamilyMonitor monitor(parent_pid, parent_birthday, max_snapshot_interval);
+
+#if defined(LINUX)
+	// if a "-G" option was given, enable group ID tracking in the
+	// monitor
+	//
+	if (min_tracking_gid != 0) {
+		if (min_tracking_gid > max_tracking_gid) {
+			fprintf(stderr,
+			        "invalid group range given: %u - %u\n",
+			        min_tracking_gid,
+			        max_tracking_gid);
+			exit(1);
+		}
+		monitor.enable_group_tracking(min_tracking_gid, max_tracking_gid);
+	}
+#endif
 
 	// initialize the server for accepting requests from clients
 	//

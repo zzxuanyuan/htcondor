@@ -1295,6 +1295,13 @@ class DaemonCore : public Service
                         Service* s, 
                         int is_cpp);
 
+	bool Register_Family(pid_t child_pid,
+	                     pid_t parent_pid,
+	                     int max_snapshot_interval,
+	                     PidEnvID* penvid,
+	                     const char* login,
+	                     gid_t* group);
+
 	void CheckForTimeSkip(time_t time_before, time_t okay_delta);
 
 		// If this platform supports clone() as a faster alternative to fork(), use it (or not).

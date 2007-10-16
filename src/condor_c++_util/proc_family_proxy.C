@@ -183,11 +183,9 @@ ProcFamilyProxy::~ProcFamilyProxy()
 }
 
 bool
-ProcFamilyProxy::register_subfamily_child(pid_t root_pid,
-                                          pid_t watcher_pid,
-                                          int max_snapshot_interval,
-                                          PidEnvID* penvid,
-                                          const char* login)
+ProcFamilyProxy::register_subfamily(pid_t root_pid,
+                                    pid_t watcher_pid,
+                                    int max_snapshot_interval)
 {
 	// HACK: we treat this call specially, since it is only called
 	// from forked children on UNIX. this means that if we were to
@@ -195,16 +193,64 @@ ProcFamilyProxy::register_subfamily_child(pid_t root_pid,
 	// information in the child, and the parent wouldn't see the
 	// changes. therefore, we consider it an error if communication
 	// with the ProcD fails
-
+	//
 	bool response;
 	if (!m_client->register_subfamily(root_pid,
 	                                  watcher_pid,
 	                                  max_snapshot_interval,
-	                                  penvid,
-	                                  login,
 	                                  response))
 	{
 		dprintf(D_ALWAYS, "register_subfamily: ProcD communication error\n");
+		return false;
+	}
+	return response;
+}
+
+bool
+ProcFamilyProxy::track_family_via_environment(pid_t pid, PidEnvID& penvid)
+{
+	// see "HACK" comment in register_subfamily for why we don't try
+	// to recover from errors here
+	//
+	bool response;
+	if (!m_client->track_family_via_environment(pid, penvid, response)) {
+		dprintf(D_ALWAYS,
+		        "track_family_via_environment: "
+		            "ProcD communication error\n");
+		return false;
+	}
+	return response;
+}
+
+bool
+ProcFamilyProxy::track_family_via_login(pid_t pid, const char* login)
+{
+	// see "HACK" comment in register_subfamily for why we don't try
+	// to recover from errors here
+	//
+	bool response;
+	if (!m_client->track_family_via_login(pid, login, response)) {
+		dprintf(D_ALWAYS,
+		        "track_family_via_login: "
+		            "ProcD communication error\n");
+		return false;
+	}
+	return response;
+}
+
+bool
+ProcFamilyProxy::track_family_via_supplementary_group(pid_t pid, gid_t& gid)
+{ 
+	// see "HACK" comment in register_subfamily for why we don't try
+	// to recover from errors here
+	//
+	bool response;
+	if (!m_client->track_family_via_supplementary_group(pid,
+	                                                       response,
+	                                                       gid)) {
+		dprintf(D_ALWAYS,
+		        "track_family_via_supplementary_group: "
+		            "ProcD communication error\n");
 		return false;
 	}
 	return response;
@@ -388,6 +434,39 @@ ProcFamilyProxy::start_procd()
 		args.AppendArg("-K");
 		args.AppendArg(softkill_path);
 		free(softkill_path);
+	}
+#endif
+
+#if defined(LINUX)
+	// enable group-based tracking if a group ID range is given in the
+	// config file
+	//
+	if (param_boolean("USE_GID_PROCESS_TRACKING", false)) {
+		if (!can_switch_ids()) {
+			EXCEPT("USE_GID_PROCESS_TRACKING enabled, but can't modify "
+			           "the group list of our children unless running as "
+			           "root or using PrivSep");
+		}
+		int min_tracking_gid = param_integer("MIN_TRACKING_GID", 0);
+		if (min_tracking_gid == 0) {
+			EXCEPT("USE_GID_PROCESS_TRACKING enabled, "
+			           "but MIN_TRACKING_GID is %d\n",
+			       min_tracking_gid);
+		}
+		int max_tracking_gid = param_integer("MAX_TRACKING_GID", 0);
+		if (max_tracking_gid == 0) {
+			EXCEPT("USE_GID_PROCESS_TRACKING enabled, "
+			           "but MAX_TRACKING_GID is %d\n",
+			       max_tracking_gid);
+		}
+		if (min_tracking_gid > max_tracking_gid) {
+			EXCEPT("invalid tracking gid range: %d - %d\n",
+			       min_tracking_gid,
+			       max_tracking_gid);
+		}
+		args.AppendArg("-G");
+		args.AppendArg(min_tracking_gid);
+		args.AppendArg(max_tracking_gid);
 	}
 #endif
 
