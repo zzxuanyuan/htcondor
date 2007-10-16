@@ -33,7 +33,7 @@
 #ifndef BOOLEAN_TYPE_DEFINED
 typedef int BOOLEAN;
 typedef int BOOL_T;
-#define BOOLAN_TYPE_DEFINED
+#define BOOLEAN_TYPE_DEFINED
 #endif
 
 #if !defined(TRUE)
