@@ -14,9 +14,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-// TODO: remove this before checking in!
-#include <signal.h>
-
 #include "safe.h"
 #include "parse_config.h"
 
@@ -31,10 +28,6 @@ extern char **environ;
 #define CONF_SAFE_GIDS			"wheel : admin"
 #undef  CONF_SAFE_UIDS
 #undef  CONF_SAFE_GIDS
-
-/* TODO: take this out before committing */
-#define CONF_SAFE_UIDS "greg"
-#define CONF_SAFE_GIDS "greg"
 
 /* the path the main configuration file */
 #define CONF_FILE			"/etc/condor/switchboard_config"
@@ -1100,8 +1093,6 @@ static void do_command(const char *cmd, int cmd_fd, configuration *c)
 int main(int argc, char **argv)
 {
     configuration conf;
-
-    //kill(getpid(), SIGSTOP);
 
     if (argc != 4) {
         fatal_error_exit(1, "wrong number of arguments");
