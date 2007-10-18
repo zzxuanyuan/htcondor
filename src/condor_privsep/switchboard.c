@@ -55,7 +55,7 @@ extern char **environ;
 #undef  CONF_SAFE_GIDS
 
 /* the path the main configuration file */
-#define CONF_FILE			"/etc/condor/switchboard_config"
+#define CONF_FILE			"/etc/condor/privsep_config"
 
 id_range_list conf_safe_uids;
 id_range_list conf_safe_gids;
