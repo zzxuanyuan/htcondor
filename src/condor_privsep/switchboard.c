@@ -40,9 +40,11 @@
 #include "safe.h"
 #include "parse_config.h"
 
+#include "config.h"
+
 extern char **environ;
 
-#ifdef MISSING_LCHOWN
+#if !HAVE_LCHOWN
 #define lchown chown
 #endif
 
