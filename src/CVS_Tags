@@ -1,3 +1,7 @@
+10/18/07 V6_9-userlog_rotation_2-merge-1
+  The state of the user log rotation branch at the first (and
+  hopefully only) merge to the trunk.
+
 09/28/07 V6_9-procd_osg-{root,branch}
   A branch for making some improvements to the ProcD to make it
   suitable for deployment as a general service in OSG.
