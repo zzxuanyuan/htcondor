@@ -19,15 +19,11 @@
 #include "safe.h"
 #include "parse_config.h"
 
-
-
 #define MAX_CONFIG_LINE		4096
 #define MAX_CONFIG_VALUE_LENGTH	(1024 * 1024)
 #define MAX_CONFIG_FILE_SIZE	(10 * 1024 * 1024)
 
-
-int
-open_config_stream(config_file * cf, const char *filename, FILE * F)
+int open_config_stream(config_file *cf, const char *filename, FILE * F)
 {
     cf->line_num = 0;
     cf->bytes_read = 0;
@@ -38,9 +34,7 @@ open_config_stream(config_file * cf, const char *filename, FILE * F)
     return 0;
 }
 
-
-int
-open_config_file(config_file * cf, const char *filename)
+int open_config_file(config_file *cf, const char *filename)
 {
     FILE *F = fopen(filename, "r");
     int r;
@@ -55,18 +49,14 @@ open_config_file(config_file * cf, const char *filename)
     return r;
 }
 
-
-int
-close_config_stream(config_file * cf)
+int close_config_stream(config_file *cf)
 {
     cf->F = 0;
 
     return 0;
 }
 
-
-int
-close_config_file(config_file * cf)
+int close_config_file(config_file *cf)
 {
     int r = fclose(cf->F);
     if (r) {
@@ -76,9 +66,7 @@ close_config_file(config_file * cf)
     return close_config_stream(cf);
 }
 
-
-int
-next_cf_value(config_file * cf, char **key, char **value)
+int next_cf_value(config_file *cf, char **key, char **value)
 {
     char line_buf[MAX_CONFIG_LINE];
     char *sep_ptr;
@@ -108,7 +96,8 @@ next_cf_value(config_file * cf, char **key, char **value)
         }
 
         /* check for line too long */
-        if (line_len == MAX_CONFIG_LINE - 1 && line_buf[line_len - 1] != '\n') {
+        if (line_len == MAX_CONFIG_LINE - 1
+            && line_buf[line_len - 1] != '\n') {
             fatal_error_exit(1,
                              "next_cf_value(): line too long in file: %s:%d",
                              cf->filename, cf->line_num);
@@ -122,7 +111,8 @@ next_cf_value(config_file * cf, char **key, char **value)
 
         /* find first non-whitespace in line */
         first_nonwhitespace_ptr = line_buf;
-        while (*first_nonwhitespace_ptr && isspace(*first_nonwhitespace_ptr)) {
+        while (*first_nonwhitespace_ptr
+               && isspace(*first_nonwhitespace_ptr)) {
             ++first_nonwhitespace_ptr;
         }
 
@@ -136,8 +126,7 @@ next_cf_value(config_file * cf, char **key, char **value)
             *key = trim_whitespace(first_nonwhitespace_ptr, sep_ptr);
             *value = trim_whitespace(sep_ptr + 1, line_buf + line_len);
 
-        }
-        else if ((sep_ptr = strchr(first_nonwhitespace_ptr, '<'))) {
+        } else if ((sep_ptr = strchr(first_nonwhitespace_ptr, '<'))) {
             /* line is of the form:    key <n>
              *   where n bytes after the newline form the value
              */
@@ -209,10 +198,10 @@ next_cf_value(config_file * cf, char **key, char **value)
             }
 
             cf->bytes_read += value_length;
-        }
-        else {
+        } else {
             *key =
-                trim_whitespace(first_nonwhitespace_ptr, line_buf + line_len);
+                trim_whitespace(first_nonwhitespace_ptr,
+                                line_buf + line_len);
             *value = 0;
         }
 

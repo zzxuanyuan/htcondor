@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-
 /* Configuration file format:
  *
  * Each line of the configuration file is one of the following formats
@@ -47,9 +46,7 @@
  *  5.  <SP>* <KEYCHAR>+ <SP>* '<' <SP>* <DIGIT>* <SP>* '>' <SP>* <NL> <ANY>{n}
  */
 
-
-typedef struct config_file
-{
+typedef struct config_file {
     int line_num;
     size_t bytes_read;
     size_t prev_value_extra_lines;
@@ -57,9 +54,8 @@ typedef struct config_file
     FILE *F;
 } config_file;
 
-
-int open_config_stream(config_file * cf, const char *filename, FILE * F);
-int open_config_file(config_file * cf, const char *filename);
-int close_config_stream(config_file * cf);
-int close_config_file(config_file * cf);
-int next_cf_value(config_file * cf, char **key, char **value);
+int open_config_stream(config_file *cf, const char *filename, FILE * F);
+int open_config_file(config_file *cf, const char *filename);
+int close_config_stream(config_file *cf);
+int close_config_file(config_file *cf);
+int next_cf_value(config_file *cf, char **key, char **value);

@@ -26,7 +26,6 @@ extern char **environ;
 #define lchown chown
 #endif
 
-
 /* user and group ids that are secure, if these can be compromised so can root */
 #define CONF_SAFE_UIDS			"wheel : admin"
 #define CONF_SAFE_GIDS			"wheel : admin"
@@ -40,18 +39,13 @@ extern char **environ;
 /* the path the main configuration file */
 #define CONF_FILE			"/etc/condor/switchboard_config"
 
-
-
 id_range_list conf_safe_uids;
 id_range_list conf_safe_gids;
 
 FILE *cmd_conf_stream = 0;
 const char *cmd_conf_stream_name = 0;
 
-
-
-typedef struct configuration
-{
+typedef struct configuration {
     id_range_list valid_real_uids;
     id_range_list valid_real_gids;
 
@@ -67,9 +61,7 @@ typedef struct configuration
     string_list valid_user_executable_dirs;
 } configuration;
 
-
-static void
-init_configuration(configuration * c)
+static void init_configuration(configuration *c)
 {
     init_id_range_list(&c->valid_real_uids);
     init_id_range_list(&c->valid_real_gids);
@@ -86,9 +78,7 @@ init_configuration(configuration * c)
     init_string_list(&c->valid_user_executable_dirs);
 }
 
-
-static void
-validate_configuration(configuration * c)
+static void validate_configuration(configuration *c)
 {
     if (is_id_list_empty(&c->valid_real_uids)) {
         fatal_error_exit(1, "real-uid not set in configuration file %s",
@@ -114,7 +104,8 @@ validate_configuration(configuration * c)
     }
 
     if (!c->procd_executable) {
-        fatal_error_exit(1, "procd-executable not set in configuration file %s",
+        fatal_error_exit(1,
+                         "procd-executable not set in configuration file %s",
                          CONF_FILE);
     }
 
@@ -131,9 +122,7 @@ validate_configuration(configuration * c)
     }
 }
 
-
-typedef struct exec_params
-{
+typedef struct exec_params {
     uid_t user_uid;
     string_list exec_args;
     string_list exec_env;
@@ -145,9 +134,7 @@ typedef struct exec_params
     id_range_list keep_open_fds;
 } exec_params;
 
-
-static void
-init_exec_params(exec_params * c)
+static void init_exec_params(exec_params *c)
 {
     c->user_uid = 0;
 
@@ -163,9 +150,7 @@ init_exec_params(exec_params * c)
     init_id_range_list(&c->keep_open_fds);
 }
 
-
-static void
-validate_exec_params(exec_params * c)
+static void validate_exec_params(exec_params *c)
 {
     if (c->user_uid == 0) {
         fatal_error_exit(1, "user-uid not set");
@@ -180,24 +165,18 @@ validate_exec_params(exec_params * c)
     }
 }
 
-
-typedef struct dir_cmd_params
-{
+typedef struct dir_cmd_params {
     uid_t user_uid;
     char *user_dir;
 } dir_cmd_params;
 
-
-static void
-init_dir_cmd_params(dir_cmd_params * c)
+static void init_dir_cmd_params(dir_cmd_params *c)
 {
     c->user_uid = 0;
     c->user_dir = 0;
 }
 
-
-static void
-validate_dir_cmd_params(dir_cmd_params * c)
+static void validate_dir_cmd_params(dir_cmd_params *c)
 {
     if (c->user_uid == 0) {
         fatal_error_exit(1, "user-uid not set");
@@ -208,31 +187,23 @@ validate_dir_cmd_params(dir_cmd_params * c)
     }
 }
 
-
-typedef struct transferd_params
-{
+typedef struct transferd_params {
     uid_t user_uid;
 } transferd_params;
 
-
-static void
-init_transferd_params(transferd_params * c)
+static void init_transferd_params(transferd_params *c)
 {
     c->user_uid = 0;
 }
 
-
-static void
-validate_transferd_params(transferd_params * c)
+static void validate_transferd_params(transferd_params *c)
 {
     if (c->user_uid == 0) {
         fatal_error_exit(1, "user-uid not set");
     }
 }
 
-
-typedef enum config_key_enum
-{
+typedef enum config_key_enum {
     REAL_UID,
     REAL_GID,
     VALID_USER_UIDS,
@@ -258,13 +229,10 @@ typedef enum config_key_enum
     INVALID
 } config_key_enum;
 
-
-typedef struct key_to_enum
-{
+typedef struct key_to_enum {
     config_key_enum e;
     const char *s;
 } key_to_enum;
-
 
 key_to_enum key_to_enum_map[] = {
     {REAL_UID, "real-uid"},
@@ -290,13 +258,12 @@ key_to_enum key_to_enum_map[] = {
     {EXEC_KEEP_OPEN_FDS, "exec-keep-open-fd"}
 };
 
-
-static config_key_enum
-key_name_to_enum(const char *key)
+static config_key_enum key_name_to_enum(const char *key)
 {
     unsigned int i;
 
-    for (i = 0; i < sizeof key_to_enum_map / sizeof key_to_enum_map[0]; ++i) {
+    for (i = 0; i < sizeof key_to_enum_map / sizeof key_to_enum_map[0];
+         ++i) {
         if (!strcmp(key_to_enum_map[i].s, key)) {
             return key_to_enum_map[i].e;
         }
@@ -305,9 +272,8 @@ key_name_to_enum(const char *key)
     return INVALID;
 }
 
-
 static void
-check_id_error(const char *key, const char *value, config_file * cf,
+check_id_error(const char *key, const char *value, config_file *cf,
                const char *endptr, const char *id_name)
 {
     const char *last_nonwhite_char = skip_whitespace_const(endptr);
@@ -316,35 +282,31 @@ check_id_error(const char *key, const char *value, config_file * cf,
         fatal_error_exit(1,
                          "option '%s' has an out of range %s in file: %s:%d",
                          key, id_name, cf->filename, cf->line_num);
-    }
-    else if (errno == EINVAL
-             || (value == endptr && *last_nonwhite_char != '\0')) {
+    } else if (errno == EINVAL
+               || (value == endptr && *last_nonwhite_char != '\0')) {
         fatal_error_exit(1, "option '%s' has an invalid %s in file: %s:%d",
                          key, id_name, cf->filename, cf->line_num);
-    }
-    else if (value == endptr) {
-        fatal_error_exit(1, "option '%s' has an empty value in file: %s:%d",
+    } else if (value == endptr) {
+        fatal_error_exit(1,
+                         "option '%s' has an empty value in file: %s:%d",
                          key, cf->filename, cf->line_num);
-    }
-    else if (errno != 0) {
+    } else if (errno != 0) {
         fatal_error_exit(1,
                          "option '%s' has an unexpected error (%s) in file: %s:%d",
                          key, strerror(errno), cf->filename, cf->line_num);
-    }
-    else if (*last_nonwhite_char != '\0') {
+    } else if (*last_nonwhite_char != '\0') {
         fatal_error_exit(1,
                          "option '%s' has a syntax error in %s list in file: %s:%d",
                          key, id_name, cf->filename, cf->line_num);
     }
 }
 
-
-void config_parse_id(id_t * id, const char *key, const char *value,
-                     config_file * cf);
+void config_parse_id(id_t *id, const char *key, const char *value,
+                     config_file *cf);
 
 void
-config_parse_id(id_t * id, const char *key, const char *value,
-                config_file * cf)
+config_parse_id(id_t *id, const char *key, const char *value,
+                config_file *cf)
 {
     const char *endptr;
 
@@ -353,10 +315,9 @@ config_parse_id(id_t * id, const char *key, const char *value,
     check_id_error(key, value, cf, endptr, "id");
 }
 
-
 static void
 config_parse_uid(uid_t * uid, const char *key, const char *value,
-                 config_file * cf)
+                 config_file *cf)
 {
     const char *endptr;
 
@@ -365,13 +326,12 @@ config_parse_uid(uid_t * uid, const char *key, const char *value,
     check_id_error(key, value, cf, endptr, "uid");
 }
 
-
 void config_parse_gid(gid_t * gid, const char *key, const char *value,
-                      config_file * cf);
+                      config_file *cf);
 
 void
 config_parse_gid(gid_t * gid, const char *key, const char *value,
-                 config_file * cf)
+                 config_file *cf)
 {
     const char *endptr;
 
@@ -380,10 +340,9 @@ config_parse_gid(gid_t * gid, const char *key, const char *value,
     check_id_error(key, value, cf, endptr, "gid");
 }
 
-
 static void
-config_parse_id_list(id_range_list * list, const char *key,
-                     const char *value, config_file * cf)
+config_parse_id_list(id_range_list *list, const char *key,
+                     const char *value, config_file *cf)
 {
     const char *endptr;
 
@@ -392,10 +351,9 @@ config_parse_id_list(id_range_list * list, const char *key,
     check_id_error(key, value, cf, endptr, "id");
 }
 
-
 static void
-config_parse_uid_list(id_range_list * list, const char *key,
-                      const char *value, config_file * cf)
+config_parse_uid_list(id_range_list *list, const char *key,
+                      const char *value, config_file *cf)
 {
     const char *endptr;
 
@@ -404,10 +362,9 @@ config_parse_uid_list(id_range_list * list, const char *key,
     check_id_error(key, value, cf, endptr, "uid");
 }
 
-
 static void
-config_parse_gid_list(id_range_list * list, const char *key,
-                      const char *value, config_file * cf)
+config_parse_gid_list(id_range_list *list, const char *key,
+                      const char *value, config_file *cf)
 {
     const char *endptr;
 
@@ -416,9 +373,9 @@ config_parse_gid_list(id_range_list * list, const char *key,
     check_id_error(key, value, cf, endptr, "gid");
 }
 
-
 static void
-config_parse_string(char **s, const char *key, char *value, config_file * cf)
+config_parse_string(char **s, const char *key, char *value,
+                    config_file *cf)
 {
     if (!value) {
         fatal_error_exit(1,
@@ -441,10 +398,9 @@ config_parse_string(char **s, const char *key, char *value, config_file * cf)
     *s = value;
 }
 
-
 static void
-config_parse_string_list(string_list * list, const char *key, char *value,
-                         config_file * cf)
+config_parse_string_list(string_list *list, const char *key, char *value,
+                         config_file *cf)
 {
     if (!value) {
         fatal_error_exit(1,
@@ -465,7 +421,7 @@ config_parse_string_list(string_list * list, const char *key, char *value,
 
 static void
 config_parse_bool(int *b, const char *key, const char *value,
-                  config_file * cf)
+                  config_file *cf)
 {
     if (value) {
         fatal_error_exit(1,
@@ -478,8 +434,7 @@ config_parse_bool(int *b, const char *key, const char *value,
 
 #endif
 
-static int
-process_config_file(configuration * c, const char *filename)
+static int process_config_file(configuration *c, const char *filename)
 {
     config_file cf;
     char *key;
@@ -493,8 +448,7 @@ process_config_file(configuration * c, const char *filename)
         fatal_error_exit(1,
                          "error in checking safety of configuration file path (%s)",
                          filename);
-    }
-    else if (r == PATH_UNTRUSTED) {
+    } else if (r == PATH_UNTRUSTED) {
         fatal_error_exit(1,
                          "unsafe permissions in configuration file path (%s)",
                          filename);
@@ -529,8 +483,8 @@ process_config_file(configuration * c, const char *filename)
             config_parse_string(&c->procd_executable, key, value, &cf);
             break;
         case VALID_USER_EXECUTABLES:
-            config_parse_string_list(&c->valid_user_executables, key, value,
-                                     &cf);
+            config_parse_string_list(&c->valid_user_executables, key,
+                                     value, &cf);
             break;
         case VALID_USER_EXECUTABLE_DIRS:
             config_parse_string_list(&c->valid_user_executable_dirs, key,
@@ -543,7 +497,7 @@ process_config_file(configuration * c, const char *filename)
             break;
         }
 
-        free((char *)key);
+        free((char *) key);
     }
 
     close_config_file(&cf);
@@ -553,9 +507,7 @@ process_config_file(configuration * c, const char *filename)
     return 0;
 }
 
-
-static int
-process_user_exec_config(exec_params * c, int do_validate)
+static int process_user_exec_config(exec_params *c, int do_validate)
 {
     config_file cf;
     char *key;
@@ -604,21 +556,19 @@ process_user_exec_config(exec_params * c, int do_validate)
             break;
         }
 
-        free((char *)key);
+        free((char *) key);
     }
 
     close_config_stream(&cf);
 
-	if (do_validate) {
-    	validate_exec_params(c);
-	}
+    if (do_validate) {
+        validate_exec_params(c);
+    }
 
     return 0;
 }
 
-
-static int
-process_dir_cmd_config(dir_cmd_params * c)
+static int process_dir_cmd_config(dir_cmd_params *c)
 {
     config_file cf;
     char *key;
@@ -646,7 +596,7 @@ process_dir_cmd_config(dir_cmd_params * c)
             break;
         }
 
-        free((char *)key);
+        free((char *) key);
     }
 
     close_config_stream(&cf);
@@ -656,9 +606,7 @@ process_dir_cmd_config(dir_cmd_params * c)
     return 0;
 }
 
-
-static int
-process_transferd_config(transferd_params * c)
+static int process_transferd_config(transferd_params *c)
 {
     config_file cf;
     char *key;
@@ -683,7 +631,7 @@ process_transferd_config(transferd_params * c)
             break;
         }
 
-        free((char *)key);
+        free((char *) key);
     }
 
     close_config_stream(&cf);
@@ -692,7 +640,6 @@ process_transferd_config(transferd_params * c)
 
     return 0;
 }
-
 
 void safe_conf_check_id_error(const char *value, const char *endptr,
                               const char *id_name);
@@ -707,33 +654,29 @@ safe_conf_check_id_error(const char *value, const char *endptr,
         fatal_error_exit(1,
                          "<built-in> safe conf %s list has an out of range %s",
                          id_name, id_name);
-    }
-    else if (errno == EINVAL
-             || (value == endptr && *last_nonwhite_char != '\0')) {
-        fatal_error_exit(1, "<built-in> safe conf %s list has an invalid %s",
+    } else if (errno == EINVAL
+               || (value == endptr && *last_nonwhite_char != '\0')) {
+        fatal_error_exit(1,
+                         "<built-in> safe conf %s list has an invalid %s",
                          id_name, id_name);
-    }
-    else if (value == endptr) {
-        fatal_error_exit(1, "<built-in> safe conf %s list is empty", id_name);
-    }
-    else if (errno != 0) {
+    } else if (value == endptr) {
+        fatal_error_exit(1, "<built-in> safe conf %s list is empty",
+                         id_name);
+    } else if (errno != 0) {
         fatal_error_exit(1,
                          "<built-in> safe conf %s list has an unexpected error (%s)",
                          id_name, strerror(errno));
-    }
-    else if (*last_nonwhite_char != '\0') {
+    } else if (*last_nonwhite_char != '\0') {
         fatal_error_exit(1,
                          "<built-in> safe conf %s list has a syntax error",
                          id_name);
     }
 }
 
-
-static void
-init_safe_conf_uids(void)
+static void init_safe_conf_uids(void)
 {
     const char *endptr;
-    (void)endptr;
+    (void) endptr;
 
     init_id_range_list(&conf_safe_uids);
     init_id_range_list(&conf_safe_gids);
@@ -751,27 +694,24 @@ init_safe_conf_uids(void)
 #endif
 }
 
-
-static void
-validate_real_ids(configuration * c)
+static void validate_real_ids(configuration *c)
 {
     uid_t real_uid = getuid();
     gid_t real_gid = getgid();
 
     if (!is_id_in_list(&c->valid_real_uids, real_uid)) {
         fatal_error_exit(1, "invalid real uid (%lu)",
-                         (unsigned long)real_uid);
+                         (unsigned long) real_uid);
     }
 
     if (!is_id_in_list(&c->valid_real_gids, real_gid)) {
         fatal_error_exit(1, "invalid real gid (%lu)",
-                         (unsigned long)real_gid);
+                         (unsigned long) real_gid);
     }
 }
 
-
-static char *
-do_common_dir_cmd_tasks(configuration * c, dir_cmd_params * dir_cmd_conf)
+static char *do_common_dir_cmd_tasks(configuration *c,
+                                     dir_cmd_params *dir_cmd_conf)
 {
     const char *pathname;
     uid_t uid;
@@ -807,8 +747,7 @@ do_common_dir_cmd_tasks(configuration * c, dir_cmd_params * dir_cmd_conf)
         fatal_error_exit(1,
                          "error in checking safety of user directory parent (%s)",
                          dir_parent);
-    }
-    else if (r == PATH_UNTRUSTED) {
+    } else if (r == PATH_UNTRUSTED) {
         fatal_error_exit(1,
                          "unsafe permissions in user directory parent (%s)",
                          dir_parent);
@@ -835,9 +774,7 @@ do_common_dir_cmd_tasks(configuration * c, dir_cmd_params * dir_cmd_conf)
     return dir_name;
 }
 
-
-static void
-do_mkdir(configuration * c)
+static void do_mkdir(configuration *c)
 {
     dir_cmd_params dir_cmd_conf;
     char *dir_name;
@@ -854,11 +791,11 @@ do_mkdir(configuration * c)
 
     uid = dir_cmd_conf.user_uid;
     r = safe_switch_effective_to_uid(uid,
-	                                 &c->valid_user_uids,
-	                                 &c->valid_user_gids);
+                                     &c->valid_user_uids,
+                                     &c->valid_user_gids);
     if (r < 0) {
         fatal_error_exit(1, "error switching user to uid %lu",
-                         (unsigned long)uid);
+                         (unsigned long) uid);
     }
 
     gid = getegid();
@@ -871,28 +808,26 @@ do_mkdir(configuration * c)
     r = chown(dir_name, uid, gid);
     if (r == -1) {
         fatal_error_exit(1, "error chown'ing dir (%s) to uid=%lu gid=%lu",
-                         dir_name, (unsigned long)uid, (unsigned long)gid);
+                         dir_name, (unsigned long) uid,
+                         (unsigned long) gid);
     }
 
     free(dir_name);
 }
 
-
 static int
 rmdir_func(const char *filename, const struct stat *stat_buf, void *data)
 {
     int r = 0;
-    (void)data;
+    (void) data;
 
     if (stat_buf) {
         if (S_ISDIR(stat_buf->st_mode)) {
             r = rmdir(filename);
-        }
-        else {
+        } else {
             r = unlink(filename);
         }
-    }
-    else {
+    } else {
         /* no stat, try both */
         r = unlink(filename);
         if (r == -1 && errno == EISDIR) {
@@ -903,9 +838,7 @@ rmdir_func(const char *filename, const struct stat *stat_buf, void *data)
     return r;
 }
 
-
-static void
-do_rmdir(configuration * c)
+static void do_rmdir(configuration *c)
 {
     dir_cmd_params dir_cmd_conf;
     char *dir_name;
@@ -926,11 +859,11 @@ do_rmdir(configuration * c)
 
     uid = dir_cmd_conf.user_uid;
     r = safe_switch_effective_to_uid(uid,
-	                                 &c->valid_user_uids,
-	                                 &c->valid_user_gids);
+                                     &c->valid_user_uids,
+                                     &c->valid_user_gids);
     if (r < 0) {
         fatal_error_exit(1, "error switching user to uid %lu",
-                         (unsigned long)uid);
+                         (unsigned long) uid);
     }
 
     r = safe_dir_walk(dir_name, rmdir_func, 0, 64);
@@ -938,7 +871,7 @@ do_rmdir(configuration * c)
         fatal_error_exit(1, "error in recursive delete of directory");
     }
 
-    (void)seteuid(0);
+    (void) seteuid(0);
 
     r = rmdir_func(dir_name, &stat_buf, 0);
     if (r != 0) {
@@ -948,29 +881,24 @@ do_rmdir(configuration * c)
     free(dir_name);
 }
 
-
-typedef struct uid_pair
-{
+typedef struct uid_pair {
     uid_t uid;
     gid_t gid;
 } uid_pair;
-
 
 static int
 chown_func(const char *filename, const struct stat *stat_buf, void *data)
 {
     int r = 0;
     uid_pair *ids = data;
-    (void)stat_buf;
+    (void) stat_buf;
 
     r = lchown(filename, ids->uid, ids->gid);
 
     return r;
 }
 
-
-static void
-do_chown_dir(configuration * c)
+static void do_chown_dir(configuration *c)
 {
     dir_cmd_params dir_cmd_conf;
     char *dir_name;
@@ -982,16 +910,16 @@ do_chown_dir(configuration * c)
 
     uid = dir_cmd_conf.user_uid;
     r = safe_switch_effective_to_uid(uid,
-	                                 &c->valid_user_uids,
-	                                 &c->valid_user_gids);
-	if (r < 0) {
-		r = safe_switch_effective_to_uid(uid,
-		                                 &c->valid_real_uids,
-		                                 &c->valid_real_gids);
-	}
+                                     &c->valid_user_uids,
+                                     &c->valid_user_gids);
+    if (r < 0) {
+        r = safe_switch_effective_to_uid(uid,
+                                         &c->valid_real_uids,
+                                         &c->valid_real_gids);
+    }
     if (r < 0) {
         fatal_error_exit(1, "error switching user to uid %lu",
-                         (unsigned long)uid);
+                         (unsigned long) uid);
     }
 
     ids.uid = geteuid();
@@ -1015,71 +943,55 @@ do_chown_dir(configuration * c)
     free(dir_name);
 }
 
-
-
-static void
-do_start_procd(configuration * c)
+static void do_start_procd(configuration *c)
 {
     id_range_list all_ids;
-	exec_params procd_conf;
-	char** procd_argv;
-	int r;
+    exec_params procd_conf;
+    char **procd_argv;
+    int r;
 
     init_id_range_list(&all_ids);
     add_id_range_to_list(&all_ids, 0, UINT_MAX);
 
-	// read in the execution config (we'll only be looking
-	// at the executable path and the argument list)
-	//
+    // read in the execution config (we'll only be looking
+    // at the executable path and the argument list)
+    //
     r = process_user_exec_config(&procd_conf, 0);
     if (r != 0) {
         fatal_error_exit(1, "error reading config for command: pd");
     }
-
-	// checks on the given executable:
-	//   1) does it match the configured procd binary?
-	//   2) is its path safe?
-	//
-	if (strcmp(procd_conf.exec_filename, c->procd_executable) != 0) {
-		fatal_error_exit(1,
-		                 "invalid procd executable given: %s",
-		                 procd_conf.exec_filename);
-	}
+    // checks on the given executable:
+    //   1) does it match the configured procd binary?
+    //   2) is its path safe?
+    //
+    if (strcmp(procd_conf.exec_filename, c->procd_executable) != 0) {
+        fatal_error_exit(1,
+                         "invalid procd executable given: %s",
+                         procd_conf.exec_filename);
+    }
     r = safe_is_path_trusted(procd_conf.exec_filename,
-	                         &conf_safe_uids,
-	                         &conf_safe_gids);
+                             &conf_safe_uids, &conf_safe_gids);
     if (r < 0) {
         fatal_error_exit(1,
                          "error in checking safety of procd file path (%s)",
                          procd_conf.exec_filename);
-    }
-    else if (r == PATH_UNTRUSTED) {
+    } else if (r == PATH_UNTRUSTED) {
         fatal_error_exit(1, "unsafe permissions procd file path (%s)",
                          procd_conf.exec_filename);
     }
-
-	// it's a go
-	//
-	procd_argv = null_terminated_list_from_string_list(&procd_conf.exec_args);
-    r = safe_exec_as_user(0,
-	                      &all_ids,
-	                      &all_ids,
-	                      procd_conf.exec_filename,
-	                      procd_argv,
-	                      environ,
-	                      &all_ids,
-	                      NULL,
-	                      NULL,
-	                      NULL,
-	                      "/");
+    // it's a go
+    //
+    procd_argv =
+        null_terminated_list_from_string_list(&procd_conf.exec_args);
+    r = safe_exec_as_user(0, &all_ids, &all_ids, procd_conf.exec_filename,
+                          procd_argv, environ, &all_ids, NULL, NULL, NULL,
+                          "/");
     if (r) {
         fatal_error_exit(1, "error exec'ing user job");
     }
 }
 
-
-static void
-do_start_transferd(configuration * c)
+static void do_start_transferd(configuration *c)
 {
     transferd_params td_conf;
     int r;
@@ -1113,9 +1025,7 @@ do_start_transferd(configuration * c)
     }
 }
 
-
-static void
-do_exec_job(configuration * c)
+static void do_exec_job(configuration *c)
 {
     int r;
     int error_fd;
@@ -1139,24 +1049,23 @@ do_exec_job(configuration * c)
                                                                 exec_args),
                           null_terminated_list_from_string_list(&exec_conf.
                                                                 exec_env),
-                          &exec_conf.keep_open_fds, exec_conf.stdin_filename,
+                          &exec_conf.keep_open_fds,
+                          exec_conf.stdin_filename,
                           exec_conf.stdout_filename,
-                          exec_conf.stderr_filename, exec_conf.exec_init_dir);
+                          exec_conf.stderr_filename,
+                          exec_conf.exec_init_dir);
 
     if (r) {
         fatal_error_exit(1, "error exec'ing user job");
     }
 }
 
-
-static void
-configure_cmd_conf_stream(int fd)
+static void configure_cmd_conf_stream(int fd)
 {
     if (fd == 0) {
         cmd_conf_stream = stdin;
         cmd_conf_stream_name = "<stdin>";
-    }
-    else {
+    } else {
         cmd_conf_stream = fdopen(fd, "r");
         cmd_conf_stream_name = "<option_fd>";
     }
@@ -1167,42 +1076,32 @@ configure_cmd_conf_stream(int fd)
     }
 }
 
-
-static void
-do_command(const char *cmd, int cmd_fd, configuration * c)
+static void do_command(const char *cmd, int cmd_fd, configuration *c)
 {
     configure_cmd_conf_stream(cmd_fd);
 
     if (!strcmp(cmd, "pd")) {
         do_start_procd(c);
-    }
-    else if (!strcmp(cmd, "td")) {
+    } else if (!strcmp(cmd, "td")) {
         do_start_transferd(c);
-    }
-    else if (!strcmp(cmd, "exec")) {
+    } else if (!strcmp(cmd, "exec")) {
         do_exec_job(c);
-    }
-    else if (!strcmp(cmd, "mkdir")) {
+    } else if (!strcmp(cmd, "mkdir")) {
         do_mkdir(c);
-    }
-    else if (!strcmp(cmd, "rmdir")) {
+    } else if (!strcmp(cmd, "rmdir")) {
         do_rmdir(c);
-    }
-    else if (!strcmp(cmd, "chowndir")) {
+    } else if (!strcmp(cmd, "chowndir")) {
         do_chown_dir(c);
-    }
-    else {
+    } else {
         fatal_error_exit(1, "unknown command: %s", cmd);
     }
 }
 
-
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     configuration conf;
 
-	//kill(getpid(), SIGSTOP);
+    //kill(getpid(), SIGSTOP);
 
     if (argc != 4) {
         fatal_error_exit(1, "wrong number of arguments");

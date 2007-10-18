@@ -21,17 +21,13 @@
 
 #include "safe.h"
 
-
-
 /***********************************************************************
  *
  * Initialize global variables
  *
  ***********************************************************************/
 
-const id_t err_id = (id_t) - 1;
-
-
+const id_t err_id = (id_t) -1;
 
 /***********************************************************************
  *
@@ -39,9 +35,7 @@ const id_t err_id = (id_t) - 1;
  *
  ***********************************************************************/
 
-
 static FILE *err_stream = 0;
-
 
 /*
  * fatal_error_exit
@@ -56,8 +50,7 @@ static FILE *err_stream = 0;
  * returns
  *	nothing
  */
-void
-fatal_error_exit(int status, const char *fmt, ...)
+void fatal_error_exit(int status, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -78,7 +71,6 @@ fatal_error_exit(int status, const char *fmt, ...)
     _exit(status);
 }
 
-
 /*
  * setup_err_stream
  *
@@ -92,15 +84,15 @@ fatal_error_exit(int status, const char *fmt, ...)
  * returns
  *	nothing
  */
-void
-setup_err_stream(int fd)
+void setup_err_stream(int fd)
 {
     int r;
     int flags;
 
     int new_fd = dup(fd);
     if (new_fd == -1) {
-        fatal_error_exit(1, "dup failed on fd=%d: %s", fd, strerror(errno));
+        fatal_error_exit(1, "dup failed on fd=%d: %s", fd,
+                         strerror(errno));
     }
 
     flags = fcntl(new_fd, F_GETFD);
@@ -122,10 +114,9 @@ setup_err_stream(int fd)
                          strerror(errno));
     }
 
-	/* TODO: ask Jim if we can just not dup */
-	close(fd);
+    /* TODO: ask Jim if we can just not dup */
+    close(fd);
 }
-
 
 /*
  * get_error_fd
@@ -135,27 +126,20 @@ setup_err_stream(int fd)
  * returns
  * 	The file descriptor or -1 if setup_err_stream had not been called.
  */
-int
-get_error_fd()
+int get_error_fd()
 {
     if (err_stream) {
         return fileno(err_stream);
-    }
-    else {
+    } else {
         return -1;
     }
 }
-
-
-
-
 
 /***********************************************************************
  *
  * Functions for manipulating string lists
  *
  ***********************************************************************/
-
 
 /*
  * init_string_list
@@ -167,17 +151,15 @@ get_error_fd()
  * returns
  * 	nothing
  */
-void
-init_string_list(string_list * list)
+void init_string_list(string_list *list)
 {
     list->count = 0;
     list->capacity = 10;
-    list->list = (char **)malloc(list->capacity * sizeof(list->list[0]));
+    list->list = (char **) malloc(list->capacity * sizeof(list->list[0]));
     if (list->list == 0) {
         fatal_error_exit(1, "malloc failed in init_string_list");
     }
 }
-
 
 /*
  * add_one_capacity_to_string_list
@@ -190,12 +172,12 @@ init_string_list(string_list * list)
  * returns
  * 	nothing
  */
-static void
-add_one_capacity_to_string_list(string_list * list)
+static void add_one_capacity_to_string_list(string_list *list)
 {
     if (list->count == list->capacity) {
         size_t new_capacity = 10 + 11 * list->capacity / 10;
-        char **new_list = (char **)malloc(new_capacity * sizeof(new_list[0]));
+        char **new_list =
+            (char **) malloc(new_capacity * sizeof(new_list[0]));
         if (new_list == 0) {
             fatal_error_exit(1,
                              "malloc failed in add_one_capacity_to_string_list");
@@ -206,7 +188,6 @@ add_one_capacity_to_string_list(string_list * list)
         list->capacity = new_capacity;
     }
 }
-
 
 /*
  * add_string_to_list
@@ -219,13 +200,11 @@ add_one_capacity_to_string_list(string_list * list)
  * returns
  * 	nothing
  */
-void
-add_string_to_list(string_list * list, char *s)
+void add_string_to_list(string_list *list, char *s)
 {
     add_one_capacity_to_string_list(list);
     list->list[list->count++] = s;
 }
-
 
 /*
  * prepend_string_to_list
@@ -238,8 +217,7 @@ add_string_to_list(string_list * list, char *s)
  * returns
  * 	nothing
  */
-void
-prepend_string_to_list(string_list * list, char *s)
+void prepend_string_to_list(string_list *list, char *s)
 {
     int i;
 
@@ -251,7 +229,6 @@ prepend_string_to_list(string_list * list, char *s)
     list->list[0] = s;
 }
 
-
 /*
  * destroy_string_list
  * 	Destroy a string_list, including any memory acquired.
@@ -261,19 +238,17 @@ prepend_string_to_list(string_list * list, char *s)
  * returns
  * 	nothing
  */
-void
-destroy_string_list(string_list * list)
+void destroy_string_list(string_list *list)
 {
     int i;
     for (i = 0; i < list->count; ++i) {
-        free((char *)list->list[i]);
+        free((char *) list->list[i]);
     }
     list->capacity = 0;
     list->count = 0;
     free(list->list);
     list->list = 0;
 }
-
 
 /*
  * null_terminated_list_from_string_list
@@ -286,14 +261,12 @@ destroy_string_list(string_list * list)
  * returns
  * 	pointer to the null terminated array of strings
  */
-char **
-null_terminated_list_from_string_list(string_list * list)
+char **null_terminated_list_from_string_list(string_list *list)
 {
     add_one_capacity_to_string_list(list);
     list->list[list->count] = 0;
     return list->list;
 }
-
 
 /*
  * is_string_in_list
@@ -307,8 +280,7 @@ null_terminated_list_from_string_list(string_list * list)
  * returns
  * 	boolean of (string in the list)
  */
-int
-is_string_in_list(string_list * list, const char *s)
+int is_string_in_list(string_list *list, const char *s)
 {
     int i;
     for (i = 0; i < list->count; ++i) {
@@ -320,7 +292,6 @@ is_string_in_list(string_list * list, const char *s)
     return 0;
 }
 
-
 /*
  * is_string_list_empty
  * 	Returns true if the string_list contains 0 items.
@@ -330,22 +301,16 @@ is_string_in_list(string_list * list, const char *s)
  * returns
  * 	boolean of (string list is empty)
  */
-int
-is_string_list_empty(string_list * list)
+int is_string_list_empty(string_list *list)
 {
     return (list->count == 0);
 }
-
-
-
-
 
 /***********************************************************************
  *
  * Functions for manipulating id range lists
  *
  ***********************************************************************/
-
 
 /*
  * init_id_range_list
@@ -357,18 +322,17 @@ is_string_list_empty(string_list * list)
  * returns
  * 	nothing
  */
-void
-init_id_range_list(id_range_list * list)
+void init_id_range_list(id_range_list *list)
 {
     list->count = 0;
     list->capacity = 10;
     list->list =
-        (id_range_list_elem *) malloc(list->capacity * sizeof(list->list[0]));
+        (id_range_list_elem *) malloc(list->capacity *
+                                      sizeof(list->list[0]));
     if (list->list == 0) {
         fatal_error_exit(1, "malloc failed in init_id_range_list");
     }
 }
-
 
 /*
  * add_id_range_to_list
@@ -384,13 +348,13 @@ init_id_range_list(id_range_list * list)
  * returns
  * 	nothing
  */
-void
-add_id_range_to_list(id_range_list * list, id_t min_id, id_t max_id)
+void add_id_range_to_list(id_range_list *list, id_t min_id, id_t max_id)
 {
     if (list->count == list->capacity) {
         size_t new_capacity = 10 + 11 * list->capacity / 10;
         id_range_list_elem *new_list =
-            (id_range_list_elem *) malloc(new_capacity * sizeof(new_list[0]));
+            (id_range_list_elem *) malloc(new_capacity *
+                                          sizeof(new_list[0]));
         if (new_list == 0) {
             fatal_error_exit(1, "malloc failed in add_id_range_to_list");
         }
@@ -404,7 +368,6 @@ add_id_range_to_list(id_range_list * list, id_t min_id, id_t max_id)
     list->list[list->count++].max_value = max_id;
 }
 
-
 /*
  * add_id_to_list
  * 	Add the single id to the list.  This is the same as calling
@@ -417,12 +380,10 @@ add_id_range_to_list(id_range_list * list, id_t min_id, id_t max_id)
  * returns
  * 	nothing
  */
-void
-add_id_to_list(id_range_list * list, id_t id)
+void add_id_to_list(id_range_list *list, id_t id)
 {
     add_id_range_to_list(list, id, id);
 }
-
 
 /*
  * destroy_id_range_list
@@ -433,15 +394,13 @@ add_id_to_list(id_range_list * list, id_t id)
  * returns
  * 	nothing
  */
-void
-destroy_id_range_list(id_range_list * list)
+void destroy_id_range_list(id_range_list *list)
 {
     list->capacity = 0;
     list->count = 0;
     free(list->list);
     list->list = 0;
 }
-
 
 /*
  * is_id_in_list
@@ -454,8 +413,7 @@ destroy_id_range_list(id_range_list * list)
  * returns
  * 	True if the id is in one of the ranges, false otherwise.
  */
-int
-is_id_in_list(id_range_list * list, id_t id)
+int is_id_in_list(id_range_list *list, id_t id)
 {
     int i;
     for (i = 0; i < list->count; ++i) {
@@ -467,7 +425,6 @@ is_id_in_list(id_range_list * list, id_t id)
     return 0;
 }
 
-
 /*
  * is_id_list_empty
  * 	Returns true if the id_range_list contains 0 ranges.
@@ -477,22 +434,16 @@ is_id_in_list(id_range_list * list, id_t id)
  * returns
  * 	boolean of (id_range_list is empty)
  */
-int
-is_id_list_empty(id_range_list * list)
+int is_id_list_empty(id_range_list *list)
 {
     return (list->count == 0);
 }
-
-
-
-
 
 /***********************************************************************
  *
  * Functions for parsing ids, id ranges and id lists of numbers, uids and gids
  *
  ***********************************************************************/
-
 
 /*
  * skip_whitespace_const
@@ -504,8 +455,7 @@ is_id_list_empty(id_range_list * list)
  * returns
  * 	location of first non-whitespace
  */
-const char *
-skip_whitespace_const(const char *s)
+const char *skip_whitespace_const(const char *s)
 {
     while (*s && isspace(*s)) {
         ++s;
@@ -513,7 +463,6 @@ skip_whitespace_const(const char *s)
 
     return s;
 }
-
 
 /*
  * skip_whitespace
@@ -526,8 +475,7 @@ skip_whitespace_const(const char *s)
  * returns
  * 	location of first non-whitespace
  */
-char *
-skip_whitespace(char *s)
+char *skip_whitespace(char *s)
 {
     while (*s && isspace(*s)) {
         ++s;
@@ -535,7 +483,6 @@ skip_whitespace(char *s)
 
     return s;
 }
-
 
 /*
  * trim_whitespace
@@ -548,8 +495,7 @@ skip_whitespace(char *s)
  * returns
  * 	location of first non-whitespace
  */
-char *
-trim_whitespace(const char *s, const char *endp)
+char *trim_whitespace(const char *s, const char *endp)
 {
     char *new_value;
     size_t trimmed_len;
@@ -561,7 +507,7 @@ trim_whitespace(const char *s, const char *endp)
     }
 
     trimmed_len = endp - s;
-    new_value = (char *)malloc(trimmed_len + 1);
+    new_value = (char *) malloc(trimmed_len + 1);
     if (new_value == 0) {
         fatal_error_exit(1, "malloc failed in trim_whitespace");
     }
@@ -572,7 +518,6 @@ trim_whitespace(const char *s, const char *endp)
     return new_value;
 }
 
-
 /*
  * name_to_error
  * 	Always return the err id (-1) and set errno to EINVAL.
@@ -582,14 +527,12 @@ trim_whitespace(const char *s, const char *endp)
  * returns
  * 	err_id and errno = EINVAL
  */
-static id_t
-name_to_error(const char *name)
+static id_t name_to_error(const char *name)
 {
-    (void)name;
+    (void) name;
     errno = EINVAL;
     return err_id;
 }
-
 
 /*
  * name_to_uid
@@ -603,8 +546,7 @@ name_to_error(const char *name)
  * 	the uid corresponding to name if it exists, or the same as
  * 	name_to_error if it does not.
  */
-static id_t
-name_to_uid(const char *name)
+static id_t name_to_uid(const char *name)
 {
     struct passwd *pw = getpwnam(name);
 
@@ -616,7 +558,6 @@ name_to_uid(const char *name)
 
     return pw->pw_uid;
 }
-
 
 /*
  * name_to_gid
@@ -630,8 +571,7 @@ name_to_uid(const char *name)
  * 	the gid corresponding to name if it exists, or the same as
  * 	name_to_error if it does not.
  */
-static id_t
-name_to_gid(const char *name)
+static id_t name_to_gid(const char *name)
 {
     struct group *gr = getgrnam(name);
 
@@ -643,7 +583,6 @@ name_to_gid(const char *name)
 
     return gr->gr_gid;
 }
-
 
 /*
  * strto_id
@@ -679,10 +618,10 @@ name_to_gid(const char *name)
  * returns
  * 	nothing, but sets *id, *endptr, and errno
  */
-typedef id_t(*lookup_func) (const char *);
+typedef id_t (*lookup_func) (const char *);
 
 static void
-strto_id(id_t * id, const char *value, const char **endptr,
+strto_id(id_t *id, const char *value, const char **endptr,
          lookup_func lookup)
 {
     const char *endp = value;
@@ -696,8 +635,7 @@ strto_id(id_t * id, const char *value, const char **endptr,
         char *e;
         *id = strtoul(id_begin, &e, 10);
         endp = e;
-    }
-    else if (*id_begin) {
+    } else if (*id_begin) {
         /* is not numeric, parse as a name using lookup function */
         char *id_name;
         size_t id_len;
@@ -718,8 +656,7 @@ strto_id(id_t * id, const char *value, const char **endptr,
 
         *id = lookup(id_name);
         free(id_name);
-    }
-    else {
+    } else {
         /* value contains nothing parsable */
         *id = err_id;
         errno = EINVAL;
@@ -729,7 +666,6 @@ strto_id(id_t * id, const char *value, const char **endptr,
         *endptr = endp;
     }
 }
-
 
 /*
  * parse_uid
@@ -749,8 +685,7 @@ strto_id(id_t * id, const char *value, const char **endptr,
  * returns
  * 	the user id, also updates *endptr and errno
  */
-uid_t
-parse_uid(const char *value, const char **endptr)
+uid_t parse_uid(const char *value, const char **endptr)
 {
     uid_t uid;
 
@@ -758,7 +693,6 @@ parse_uid(const char *value, const char **endptr)
 
     return uid;
 }
-
 
 /*
  * parse_gid
@@ -778,8 +712,7 @@ parse_uid(const char *value, const char **endptr)
  * returns
  * 	the group id, also updates *endptr and errno
  */
-gid_t
-parse_gid(const char *value, const char **endptr)
+gid_t parse_gid(const char *value, const char **endptr)
 {
     gid_t gid;
 
@@ -787,7 +720,6 @@ parse_gid(const char *value, const char **endptr)
 
     return gid;
 }
-
 
 /*
  * parse_id
@@ -807,8 +739,7 @@ parse_gid(const char *value, const char **endptr)
  * returns
  * 	the group id, also updates *endptr and errno
  */
-id_t
-parse_id(const char *value, const char **endptr)
+id_t parse_id(const char *value, const char **endptr)
 {
     id_t id;
 
@@ -816,7 +747,6 @@ parse_id(const char *value, const char **endptr)
 
     return id;
 }
-
 
 /*
  * strto_id_range
@@ -855,7 +785,7 @@ parse_id(const char *value, const char **endptr)
  * 	nothing, but sets *min_id, *max_id, *endptr, and errno
  */
 static void
-strto_id_range(id_t * min_id, id_t * max_id, const char *value,
+strto_id_range(id_t *min_id, id_t *max_id, const char *value,
                const char **endptr, lookup_func lookup)
 {
     const char *endp;
@@ -869,16 +799,13 @@ strto_id_range(id_t * min_id, id_t * max_id, const char *value,
             if (*value == '*') {
                 *max_id = UINT_MAX;
                 endp = value + 1;
-            }
-            else {
+            } else {
                 strto_id(max_id, value, &endp, lookup);
             }
-        }
-        else {
+        } else {
             *max_id = *min_id;
         }
-    }
-    else {
+    } else {
         *max_id = *min_id;
     }
 
@@ -890,7 +817,6 @@ strto_id_range(id_t * min_id, id_t * max_id, const char *value,
         errno = EINVAL;
     }
 }
-
 
 /*
  * strto_id_list
@@ -923,7 +849,7 @@ strto_id_range(id_t * min_id, id_t * max_id, const char *value,
  * 	nothing, but adds entries to *list, and sets *endptr, and errno
  */
 static void
-strto_id_list(id_range_list * list, const char *value, const char **endptr,
+strto_id_list(id_range_list *list, const char *value, const char **endptr,
               lookup_func lookup)
 {
     const char *endp = value;
@@ -942,8 +868,7 @@ strto_id_list(id_range_list * list, const char *value, const char **endptr,
         value = skip_whitespace_const(endp);
         if (*value == ':') {
             ++value;
-        }
-        else {
+        } else {
             break;
         }
     }
@@ -952,7 +877,6 @@ strto_id_list(id_range_list * list, const char *value, const char **endptr,
         *endptr = endp;
     }
 }
-
 
 /*
  * parse_id_list
@@ -981,11 +905,10 @@ strto_id_list(id_range_list * list, const char *value, const char **endptr,
  * 	nothing, but adds entries to *list, and sets *endptr, and errno
  */
 void
-parse_id_list(id_range_list * list, const char *value, const char **endptr)
+parse_id_list(id_range_list *list, const char *value, const char **endptr)
 {
     strto_id_list(list, value, endptr, name_to_error);
 }
-
 
 /*
  * parse_uid_list
@@ -1015,11 +938,10 @@ parse_id_list(id_range_list * list, const char *value, const char **endptr)
  * 	nothing, but adds entries to *list, and sets *endptr, and errno
  */
 void
-parse_uid_list(id_range_list * list, const char *value, const char **endptr)
+parse_uid_list(id_range_list *list, const char *value, const char **endptr)
 {
     strto_id_list(list, value, endptr, name_to_uid);
 }
-
 
 /*
  * parse_gid_list
@@ -1049,21 +971,16 @@ parse_uid_list(id_range_list * list, const char *value, const char **endptr)
  * 	nothing, but adds entries to *list, and sets *endptr, and errno
  */
 void
-parse_gid_list(id_range_list * list, const char *value, const char **endptr)
+parse_gid_list(id_range_list *list, const char *value, const char **endptr)
 {
     strto_id_list(list, value, endptr, name_to_gid);
 }
-
-
-
-
 
 /***********************************************************************
  *
  * Environment related functions
  *
  ***********************************************************************/
-
 
 #ifdef MISSING_CLEARENV
 /*
@@ -1080,8 +997,7 @@ parse_gid_list(id_range_list * list, const char *value, const char **endptr)
  * returns
  * 	0 on success.  non-zero on failure.
  */
-int
-clearenv(void)
+int clearenv(void)
 {
     int r;                      /* status value */
     const char var_name[] = "x";        /* temp env name to set and delete */
@@ -1104,7 +1020,6 @@ clearenv(void)
 }
 #endif
 
-
 /*
  * safe_reset_environment
  * 	Clears the environment, and retains the TZ value and sets
@@ -1114,8 +1029,7 @@ clearenv(void)
  * returns
  * 	0 on success, -1 on failure.
  */
-int
-safe_reset_environment()
+int safe_reset_environment()
 {
     int r;                      /* status value */
 
@@ -1156,16 +1070,11 @@ safe_reset_environment()
     return 0;
 }
 
-
-
-
-
 /***********************************************************************
  *
  * File descriptor related functions
  *
  ***********************************************************************/
-
 
 /*
  * get_open_max
@@ -1175,8 +1084,7 @@ safe_reset_environment()
  * returns
  * 	maximum number of file descriptors that can be open
  */
-static int
-get_open_max(void)
+static int get_open_max(void)
 {
     static int open_max = 0;
 
@@ -1191,8 +1099,7 @@ get_open_max(void)
             int r = getrlimit(RLIMIT_NOFILE, &rlim);
             if (r == 0 && rlim.rlim_max != RLIM_INFINITY) {
                 open_max = rlim.rlim_max;
-            }
-            else {
+            } else {
                 /* could not find the max */
                 open_max = -1;
             }
@@ -1201,7 +1108,6 @@ get_open_max(void)
 
     return open_max;
 }
-
 
 /*
  * safe_close_fds_between
@@ -1214,8 +1120,7 @@ get_open_max(void)
  * returns
  * 	0 on success, the result of the failing close on failure
  */
-int
-safe_close_fds_between(int min_fd, int max_fd)
+int safe_close_fds_between(int min_fd, int max_fd)
 {
     int fd;
 
@@ -1230,7 +1135,6 @@ safe_close_fds_between(int min_fd, int max_fd)
     return 0;
 }
 
-
 /*
  * safe_close_fds_starting_at
  *	Close all file descriptors that are >= min_fd
@@ -1240,8 +1144,7 @@ safe_close_fds_between(int min_fd, int max_fd)
  * returns
  * 	0 on success, non-zero on failure
  */
-int
-safe_close_fds_starting_at(int min_fd)
+int safe_close_fds_starting_at(int min_fd)
 {
     int open_max = get_open_max();
     if (open_max == -1) {
@@ -1252,7 +1155,6 @@ safe_close_fds_starting_at(int min_fd)
     return safe_close_fds_between(min_fd, open_max - 1);
 }
 
-
 /*
  * safe_close_fds_except
  *	Close all file descriptors except those in list
@@ -1262,8 +1164,7 @@ safe_close_fds_starting_at(int min_fd)
  * returns
  * 	0 on success, non-zero on failure
  */
-int
-safe_close_fds_except(id_range_list * ids)
+int safe_close_fds_except(id_range_list *ids)
 {
     int fd;
     int open_max = get_open_max();
@@ -1285,9 +1186,7 @@ safe_close_fds_except(id_range_list * ids)
     return 0;
 }
 
-
 const char DEV_NULL_FILENAME[] = "/dev/null";
-
 
 /*
  * safe_open_std_file
@@ -1304,8 +1203,7 @@ const char DEV_NULL_FILENAME[] = "/dev/null";
  * returns
  * 	0 on success, non-zero on failure
  */
-int
-safe_open_std_file(int fd, const char *filename)
+int safe_open_std_file(int fd, const char *filename)
 {
     int new_fd = -1;
     const int open_mask = S_IRUSR | S_IWUSR;    /* read & write for user only */
@@ -1319,17 +1217,16 @@ safe_open_std_file(int fd, const char *filename)
         return -1;
     }
 
-    (void)close(fd);
+    (void) close(fd);
 
     /* open the files */
     if (fd == 0) {
         new_fd = open(filename, O_RDONLY);
-    }
-    else if (fd == 1 || fd == 2) {
+    } else if (fd == 1 || fd == 2) {
         /* set umask so it doesn't restrict permissions we want */
         int old_mask = umask(0);
         new_fd = open(filename, O_CREAT | O_EXCL | O_WRONLY, open_mask);
-        (void)umask(old_mask);
+        (void) umask(old_mask);
         if (new_fd == -1 && errno == EEXIST) {
             new_fd = open(filename, O_WRONLY);
         }
@@ -1343,11 +1240,11 @@ safe_open_std_file(int fd, const char *filename)
     if (new_fd != fd) {
         int r = dup2(new_fd, fd);
         if (r == -1) {
-            (void)close(new_fd);
+            (void) close(new_fd);
             return -1;
         }
 
-        (void)close(new_fd);
+        (void) close(new_fd);
     }
 
     return 0;
@@ -1361,8 +1258,7 @@ safe_open_std_file(int fd, const char *filename)
  * returns
  * 	0 on success, non-zero on failure
  */
-int
-safe_open_std_files_to_null()
+int safe_open_std_files_to_null()
 {
     int i;
 
@@ -1376,16 +1272,11 @@ safe_open_std_files_to_null()
     return 0;
 }
 
-
-
-
-
 /***********************************************************************
  *
  * Function to safely switch user and groups
  *
  ***********************************************************************/
-
 
 /*
  * safe_checks_and_set_gids
@@ -1418,8 +1309,8 @@ safe_open_std_files_to_null()
  * 	-8	a supplementary group was not safe
  */
 static int
-safe_checks_and_set_gids(uid_t uid, id_range_list * safe_uids,
-                         id_range_list * safe_gids, gid_t * primary_gid)
+safe_checks_and_set_gids(uid_t uid, id_range_list *safe_uids,
+                         id_range_list *safe_gids, gid_t * primary_gid)
 {
     struct passwd *pw;
     gid_t gid = *primary_gid;
@@ -1487,7 +1378,6 @@ safe_checks_and_set_gids(uid_t uid, id_range_list * safe_uids,
     return 0;
 }
 
-
 /*
  * safe_switch_to_uid
  *	Set the real uid, real gid and supplementary groups as appropriate for
@@ -1507,8 +1397,8 @@ safe_checks_and_set_gids(uid_t uid, id_range_list * safe_uids,
  * 	-11	some id did not change properly
  */
 int
-safe_switch_to_uid(uid_t uid, id_range_list * safe_uids,
-                   id_range_list * safe_gids)
+safe_switch_to_uid(uid_t uid, id_range_list *safe_uids,
+                   id_range_list *safe_gids)
 {
     gid_t gid;
     int r;
@@ -1538,7 +1428,6 @@ safe_switch_to_uid(uid_t uid, id_range_list * safe_uids,
     return 0;
 }
 
-
 /*
  * safe_switch_effective_to_uid
  *	Set the effective uid, real gid and supplementary groups as appropriate
@@ -1557,8 +1446,8 @@ safe_switch_to_uid(uid_t uid, id_range_list * safe_uids,
  * 	-10	couldn't set effective uid
  */
 int
-safe_switch_effective_to_uid(uid_t uid, id_range_list * safe_uids,
-                             id_range_list * safe_gids)
+safe_switch_effective_to_uid(uid_t uid, id_range_list *safe_uids,
+                             id_range_list *safe_gids)
 {
     gid_t gid;
     int r;
@@ -1581,16 +1470,11 @@ safe_switch_effective_to_uid(uid_t uid, id_range_list * safe_uids,
     return 0;
 }
 
-
-
-
-
 /***********************************************************************
  *
  * Safely exec'ing a program as a user
  *
  ***********************************************************************/
-
 
 /*
  * safe_exec_as_user
@@ -1651,12 +1535,12 @@ safe_switch_effective_to_uid(uid_t uid, id_range_list * safe_uids,
  */
 int
 safe_exec_as_user(uid_t uid,
-                  id_range_list * safe_uids,
-                  id_range_list * safe_gids,
+                  id_range_list *safe_uids,
+                  id_range_list *safe_gids,
                   const char *exec_name,
                   char **args,
                   char **env,
-                  id_range_list * keep_open_fds,
+                  id_range_list *keep_open_fds,
                   const char *stdin_filename,
                   const char *stdout_filename,
                   const char *stderr_filename, const char *initial_dir)
@@ -1667,7 +1551,8 @@ safe_exec_as_user(uid_t uid,
      * groups, verify that they are all safe */
     r = safe_switch_to_uid(uid, safe_uids, safe_gids);
     if (r < 0) {
-        fatal_error_exit(1, "error switching to uid %lu", (unsigned long)uid);
+        fatal_error_exit(1, "error switching to uid %lu",
+                         (unsigned long) uid);
     }
 
     /* change the directory to initial_dir or "/" if NULL */
@@ -1711,7 +1596,7 @@ safe_exec_as_user(uid_t uid,
     }
 
     /* finally do the exec */
-    r = execve(exec_name, (char **)args, (char **)env);
+    r = execve(exec_name, (char **) args, (char **) env);
     if (r == -1) {
         fatal_error_exit(1, "error exec'ing: %s", strerror(errno));
     }
@@ -1719,16 +1604,11 @@ safe_exec_as_user(uid_t uid,
     return 0;
 }
 
-
-
-
-
 /***********************************************************************
  *
  * Functions to check the safety of the directory or path
  *
  ***********************************************************************/
-
 
 /*
  * is_mode_trusted
@@ -1748,8 +1628,8 @@ safe_exec_as_user(uid_t uid,
  *	3   PATH_TRUSTED_CONFIDENTIAL 
  */
 static int
-is_mode_trusted(struct stat *stat_buf, id_range_list * trusted_uids,
-                id_range_list * trusted_gids)
+is_mode_trusted(struct stat *stat_buf, id_range_list *trusted_uids,
+                id_range_list *trusted_gids)
 {
     mode_t mode = stat_buf->st_mode;
     uid_t uid = stat_buf->st_uid;
@@ -1757,7 +1637,8 @@ is_mode_trusted(struct stat *stat_buf, id_range_list * trusted_uids,
     int is_untrusted_uid = (uid != 0 && !is_id_in_list(trusted_uids, uid));
     int is_dir = S_ISDIR(mode);
     int is_untrusted_group = !is_id_in_list(trusted_gids, gid);
-    int is_untrusted_group_writable = is_untrusted_group && (mode & S_IWGRP);
+    int is_untrusted_group_writable = is_untrusted_group
+        && (mode & S_IWGRP);
     int is_other_writable = (mode & S_IWOTH);
 
     int is_trusted = PATH_UNTRUSTED;
@@ -1774,15 +1655,12 @@ is_mode_trusted(struct stat *stat_buf, id_range_list * trusted_uids,
 
         if (is_other_readable || is_untrusted_group_readable) {
             is_trusted = PATH_TRUSTED;
-        }
-        else {
+        } else {
             is_trusted = PATH_TRUSTED_CONFIDENTIAL;
         }
-    }
-    else if (S_ISLNK(mode)) {
+    } else if (S_ISLNK(mode)) {
         is_trusted = PATH_TRUSTED;
-    }
-    else {
+    } else {
         int is_sticky_dir = (mode & S_ISVTX) && is_dir;
 
         if (is_sticky_dir && !is_untrusted_uid) {
@@ -1793,15 +1671,12 @@ is_mode_trusted(struct stat *stat_buf, id_range_list * trusted_uids,
     return is_trusted;
 }
 
-
 /* abbreviations to make trust_matrix initialization easier to read */
-enum
-{ PATH_U = PATH_UNTRUSTED,
+enum { PATH_U = PATH_UNTRUSTED,
     PATH_S = PATH_TRUSTED_STICKY_DIR,
     PATH_T = PATH_TRUSTED,
     PATH_C = PATH_TRUSTED_CONFIDENTIAL
 };
-
 
 /* trust composition table, given the trust of the parent directory and the child
  * this is only valid for directories.  is_component_in_dir_trusted() modifies it
@@ -1815,7 +1690,6 @@ static int trust_matrix[][4] = {
     /*      PATH_T  */ {PATH_U, PATH_S, PATH_T, PATH_C},
     /*      PATH_C  */ {PATH_U, PATH_S, PATH_T, PATH_C}
 };
-
 
 /*
  * is_component_in_dir_trusted
@@ -1841,8 +1715,8 @@ static int trust_matrix[][4] = {
 static int
 is_component_in_dir_trusted(int parent_dir_trust,
                             struct stat *child_stat_buf,
-                            id_range_list * trusted_uids,
-                            id_range_list * trusted_gids)
+                            id_range_list *trusted_uids,
+                            id_range_list *trusted_gids)
 {
     int child_trust =
         is_mode_trusted(child_stat_buf, trusted_uids, trusted_gids);
@@ -1857,7 +1731,6 @@ is_component_in_dir_trusted(int parent_dir_trust,
 
     return status;
 }
-
 
 /*
  * is_current_working_directory_trusted
@@ -1881,8 +1754,8 @@ is_component_in_dir_trusted(int parent_dir_trust,
  *	3   PATH_TRUSTED_CONFIDENTIAL 
  */
 static int
-is_current_working_directory_trusted(id_range_list * trusted_uids,
-                                     id_range_list * trusted_gids)
+is_current_working_directory_trusted(id_range_list *trusted_uids,
+                                     id_range_list *trusted_gids)
 {
     int saved_dir = -1;
     int parent_dir_fd = -1;
@@ -1892,7 +1765,6 @@ is_current_working_directory_trusted(id_range_list * trusted_uids,
     struct stat cur_stat;
     struct stat prev_stat;
     int not_at_root;
-
 
     /* save the cwd, so it can be restored */
     saved_dir = open(".", O_RDONLY);
@@ -1907,7 +1779,6 @@ is_current_working_directory_trusted(id_range_list * trusted_uids,
         goto restore_dir_and_exit;
     }
 
-
     /* Walk the directory tree, from the directory given to the root.
      *
      * If there is a directory that is_trusted_mode returns PATH_UNTRUSTED
@@ -1916,7 +1787,8 @@ is_current_working_directory_trusted(id_range_list * trusted_uids,
      * Assumes no hard links to directories.
      */
     do {
-        cur_status = is_mode_trusted(&cur_stat, trusted_uids, trusted_gids);
+        cur_status =
+            is_mode_trusted(&cur_stat, trusted_uids, trusted_gids);
         if (status == PATH_UNTRUSTED) {
             /* this is true only the first time through the loop (the cwd).
              * The return result is the value of the cwd.
@@ -1969,7 +1841,6 @@ is_current_working_directory_trusted(id_range_list * trusted_uids,
         parent_dir_fd = -1;
     } while (not_at_root);
 
-
   restore_dir_and_exit:
     /* restore the old working directory & close open file descriptors if needed
      * and return value 
@@ -1995,8 +1866,6 @@ is_current_working_directory_trusted(id_range_list * trusted_uids,
     return status;
 }
 
-
-
 /*
  * is_current_working_directory_trusted_r
  * 	Returns the trustedness of the current working directory.  If any
@@ -2015,8 +1884,8 @@ is_current_working_directory_trusted(id_range_list * trusted_uids,
  *	3   PATH_TRUSTED_CONFIDENTIAL 
  */
 static int
-is_current_working_directory_trusted_r(id_range_list * trusted_uids,
-                                       id_range_list * trusted_gids)
+is_current_working_directory_trusted_r(id_range_list *trusted_uids,
+                                       id_range_list *trusted_gids)
 {
     int r;
     int status = PATH_UNTRUSTED;        /* trust of cwd or error value */
@@ -2026,7 +1895,6 @@ is_current_working_directory_trusted_r(id_range_list * trusted_uids,
     int not_at_root;
     char path[PATH_MAX] = ".";
     char *path_end = &path[0];
-
 
     r = lstat(path, &cur_stat);
     if (r == -1) {
@@ -2041,7 +1909,8 @@ is_current_working_directory_trusted_r(id_range_list * trusted_uids,
      * Assumes no hard links to directories.
      */
     do {
-        cur_status = is_mode_trusted(&cur_stat, trusted_uids, trusted_gids);
+        cur_status =
+            is_mode_trusted(&cur_stat, trusted_uids, trusted_gids);
         if (status == PATH_UNTRUSTED) {
             /* this is true only the first time through the loop (the cwd).
              * The return result is the value of the cwd.
@@ -2091,26 +1960,20 @@ is_current_working_directory_trusted_r(id_range_list * trusted_uids,
     return status;
 }
 
-
-
 #ifdef SYMLOOP_MAX
 #define MAX_SYMLINK_DEPTH SYMLOOP_MAX
 #else
 #define MAX_SYMLINK_DEPTH 32
 #endif
 
-typedef struct dir_stack
-{
-    struct dir_path
-    {
+typedef struct dir_stack {
+    struct dir_path {
         char *original_ptr;
         char *cur_position;
     } stack[MAX_SYMLINK_DEPTH];
 
     int count;
 } dir_stack;
-
-
 
 /*
  * init_dir_stack
@@ -2121,12 +1984,10 @@ typedef struct dir_stack
  * returns
  *	Nothing
  */
-static void
-init_dir_stack(dir_stack * stack)
+static void init_dir_stack(dir_stack *stack)
 {
     stack->count = 0;
 }
-
 
 /*
  * destroy_dir_stack
@@ -2138,14 +1999,12 @@ init_dir_stack(dir_stack * stack)
  * returns
  *	Nothing
  */
-static void
-destroy_dir_stack(dir_stack * stack)
+static void destroy_dir_stack(dir_stack *stack)
 {
     while (stack->count > 0) {
         free(stack->stack[--stack->count].original_ptr);
     }
 }
-
 
 /*
  * push_path_on_stack
@@ -2160,8 +2019,7 @@ destroy_dir_stack(dir_stack * stack)
  *	<0 on error (if the stack if contains MAX_SYMLINK_DEPTH directories
  *		errno = ELOOP for detecting symbolic link loops
  */
-static int
-push_path_on_stack(dir_stack * stack, const char *path)
+static int push_path_on_stack(dir_stack *stack, const char *path)
 {
     char *new_path;
 
@@ -2183,7 +2041,6 @@ push_path_on_stack(dir_stack * stack, const char *path)
     return 0;
 }
 
-
 /*
  * get_next_component
  * 	Returns the next directory component that was pushed on the stack.
@@ -2204,16 +2061,14 @@ push_path_on_stack(dir_stack * stack, const char *path)
  *	0  on sucess
  *	<0 on stack empty
  */
-static int
-get_next_component(dir_stack * stack, const char **path)
+static int get_next_component(dir_stack *stack, const char **path)
 {
     while (stack->count > 0) {
         if (!*stack->stack[stack->count - 1].cur_position) {
             /* current top is now empty, delete it, and try again */
             --stack->count;
             free(stack->stack[stack->count].original_ptr);
-        }
-        else {
+        } else {
             /* get beginning of the path */
             char *cur_path = stack->stack[stack->count - 1].cur_position;
 
@@ -2226,15 +2081,14 @@ get_next_component(dir_stack * stack, const char **path)
                     stack->stack[stack->count - 1].original_ptr) {
                     /* at the beginning of an absolute path, return root directory */
                     *path = "/";
-                }
-                else {
+                } else {
                     /* terminate the path returned just after the end of the component */
                     *dir_sep_pos = '\0';
                 }
                 /* set the pointer for the next call */
-                stack->stack[stack->count - 1].cur_position = dir_sep_pos + 1;
-            }
-            else {
+                stack->stack[stack->count - 1].cur_position =
+                    dir_sep_pos + 1;
+            } else {
                 /* at the last component, set the pointer to the end of the string */
                 stack->stack[stack->count - 1].cur_position +=
                     strlen(cur_path);
@@ -2249,7 +2103,6 @@ get_next_component(dir_stack * stack, const char **path)
     return -1;
 }
 
-
 /*
  * is_stack_empty
  * 	Returns true if the stack is empty, false otherwise.
@@ -2260,8 +2113,7 @@ get_next_component(dir_stack * stack, const char **path)
  *	0  if stack is not empty
  *	1  is stack is empty
  */
-static int
-is_stack_empty(dir_stack * stack)
+static int is_stack_empty(dir_stack *stack)
 {
     /* since the empty items are not removed until the next call to
      * get_next_component(), we need to check all the items on the stack
@@ -2277,7 +2129,6 @@ is_stack_empty(dir_stack * stack)
 
     return 1;
 }
-
 
 /*
  * safe_is_path_trusted
@@ -2328,8 +2179,8 @@ is_stack_empty(dir_stack * stack)
  *	3   PATH_TRUSTED_CONFIDENTIAL 
  */
 int
-safe_is_path_trusted(const char *pathname, id_range_list * trusted_uids,
-                     id_range_list * trusted_gids)
+safe_is_path_trusted(const char *pathname, id_range_list *trusted_uids,
+                     id_range_list *trusted_gids)
 {
     int r;
     int status = -1;
@@ -2347,7 +2198,8 @@ safe_is_path_trusted(const char *pathname, id_range_list * trusted_uids,
     if (*pathname != '/') {
         /* relative path */
         status =
-            is_current_working_directory_trusted(trusted_uids, trusted_gids);
+            is_current_working_directory_trusted(trusted_uids,
+                                                 trusted_gids);
         if (status <= PATH_UNTRUSTED) {
             /* an error or untrusted current working directory */
             goto restore_dir_and_exit;
@@ -2450,8 +2302,7 @@ safe_is_path_trusted(const char *pathname, id_range_list * trusted_uids,
             free(link_path);
 
             continue;
-        }
-        else if (!is_stack_empty(&paths)) {
+        } else if (!is_stack_empty(&paths)) {
             /* more components remaining, change directory
              * it is not a sym link, so it must be a directory, or an error
              */
@@ -2462,7 +2313,6 @@ safe_is_path_trusted(const char *pathname, id_range_list * trusted_uids,
             }
         }
     }
-
 
   restore_dir_and_exit:
 
@@ -2481,11 +2331,8 @@ safe_is_path_trusted(const char *pathname, id_range_list * trusted_uids,
         }
     }
 
-
     return status;
 }
-
-
 
 /*
  * safe_is_path_trusted_fork
@@ -2538,8 +2385,9 @@ safe_is_path_trusted(const char *pathname, id_range_list * trusted_uids,
  *	3   PATH_TRUSTED_CONFIDENTIAL 
  */
 int
-safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
-                          id_range_list * trusted_gids)
+safe_is_path_trusted_fork(const char *pathname,
+                          id_range_list *trusted_uids,
+                          id_range_list *trusted_gids)
 {
     int r;
     int status = 0;
@@ -2550,8 +2398,7 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
     sigset_t save_mask;
     sigset_t all_signals_mask;
 
-    struct result_struct
-    {
+    struct result_struct {
         int status;
         int err;
     };
@@ -2591,11 +2438,10 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
     if (pid < 0) {
         status = -1;
         goto restore_mask_and_exit;
-    }
-    else if (pid == 0) {
+    } else if (pid == 0) {
         /* in the child process */
 
-        char *buf = (char *)&result;
+        char *buf = (char *) &result;
         ssize_t bytes_to_send = sizeof result;
 
         /* close the read end of the pipe */
@@ -2611,8 +2457,7 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
             if (bytes_sent != bytes_to_send && errno != EINTR) {
                 status = -1;
                 break;
-            }
-            else if (bytes_sent > 0) {
+            } else if (bytes_sent > 0) {
                 buf += bytes_sent;
                 bytes_to_send -= bytes_sent;
             }
@@ -2625,11 +2470,10 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
 
         /* do not do any cleanup (atexit, etc) leave it to the parent */
         _exit(status);
-    }
-    else {
+    } else {
         /* in the parent process */
 
-        char *buf = (char *)&result;
+        char *buf = (char *) &result;
         ssize_t bytes_to_read = sizeof result;
         int child_status;
 
@@ -2653,12 +2497,10 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
             ssize_t bytes_read = read(fd[0], buf, bytes_to_read);
             if (bytes_read != bytes_to_read && errno != EINTR) {
                 status = -1;
-            }
-            else if (bytes_read > 0) {
+            } else if (bytes_read > 0) {
                 buf += bytes_read;
                 bytes_to_read -= bytes_read;
-            }
-            else if (bytes_read == 0) {
+            } else if (bytes_read == 0) {
                 /* EOF - pipe was closed before all the data was written */
                 status = -1;
             }
@@ -2687,7 +2529,6 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
         }
     }
 
-
   restore_mask_and_exit:
 
     r = sigprocmask(SIG_SETMASK, &save_mask, NULL);
@@ -2697,8 +2538,6 @@ safe_is_path_trusted_fork(const char *pathname, id_range_list * trusted_uids,
 
     return status;
 }
-
-
 
 static int
 append_dir_entry_to_path(char *path, char **path_end, char *buf_end,
@@ -2767,8 +2606,6 @@ append_dir_entry_to_path(char *path, char **path_end, char *buf_end,
     return 0;
 }
 
-
-
 /*
  * safe_is_path_trusted_r
  *
@@ -2814,8 +2651,8 @@ append_dir_entry_to_path(char *path, char **path_end, char *buf_end,
  *	3   PATH_TRUSTED_CONFIDENTIAL 
  */
 int
-safe_is_path_trusted_r(const char *pathname, id_range_list * trusted_uids,
-                       id_range_list * trusted_gids)
+safe_is_path_trusted_r(const char *pathname, id_range_list *trusted_uids,
+                       id_range_list *trusted_gids)
 {
     int r;
     int status = -1;
@@ -2942,8 +2779,7 @@ safe_is_path_trusted_r(const char *pathname, id_range_list * trusted_uids,
             status = prev_status;
             path_end = prev_path_end;
             *path_end = '\0';
-        }
-        else {
+        } else {
             if (!is_stack_empty(&paths) && !S_ISDIR(stat_buf.st_mode)) {
                 status = -1;
                 errno = ENOTDIR;
@@ -2951,7 +2787,6 @@ safe_is_path_trusted_r(const char *pathname, id_range_list * trusted_uids,
             }
         }
     }
-
 
   cleanup_and_exit:
 
@@ -2963,24 +2798,18 @@ safe_is_path_trusted_r(const char *pathname, id_range_list * trusted_uids,
      */
     if (status == -1 && errno == ENAMETOOLONG) {
         status =
-            safe_is_path_trusted_fork(pathname, trusted_uids, trusted_gids);
+            safe_is_path_trusted_fork(pathname, trusted_uids,
+                                      trusted_gids);
     }
-
 
     return status;
 }
-
-
-
 
 /***********************************************************************
  *
  * Functions to walk a directory tree
  *
  ***********************************************************************/
-
-
-
 
 /*
  * do_dir_contents_one_fd
@@ -2994,8 +2823,7 @@ safe_is_path_trusted_r(const char *pathname, id_range_list * trusted_uids,
  *	 0  on success
  *	-1  on error
  */
-static int
-do_dir_contents_one_fd(safe_dir_walk_func func, void *data)
+static int do_dir_contents_one_fd(safe_dir_walk_func func, void *data)
 {
     DIR *dir;
     int dir_fd;
@@ -3045,8 +2873,7 @@ do_dir_contents_one_fd(safe_dir_walk_func func, void *data)
                     break;
                 }
                 add_string_to_list(&dirs, dir_name);
-            }
-            else {
+            } else {
                 status = func(de->d_name, statp, data);
                 if (status != 0) {
                     break;
@@ -3115,7 +2942,6 @@ do_dir_contents_one_fd(safe_dir_walk_func func, void *data)
 
     return status;
 }
-
 
 /*
  * do_dir_contents
@@ -3196,7 +3022,6 @@ do_dir_contents(safe_dir_walk_func func, void *data, int num_fds)
 
     return status;
 }
-
 
 /*
  * safe_dir_walk
