@@ -29,6 +29,7 @@
 #include "vm_common.h"
 #include "VMRegister.h"
 #include "file_sql.h"
+#include "signed_classads.h"
 
 extern FILESQL *FILEObj;
 
@@ -870,6 +871,16 @@ Resource::do_update( void )
 	if (FILEObj) {
 		FILESQL::daemonAdInsert(&public_ad, "Machines", FILEObj, prevLHF);
 	}	
+
+	    // sign ads
+	if(!generic_sign_classad(public_ad)) {
+		dprintf(D_SECURITY, "Error signing public ad.\n");
+		// TODO something more severe?
+	}
+	if(!generic_sign_classad(private_ad)) {
+		dprintf(D_SECURITY, "Error signing private ad.\n");
+		// TODO something more severe?
+	}
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( UPDATE_STARTD_AD, &public_ad,
