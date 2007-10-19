@@ -318,6 +318,12 @@ privsep_exec_set_std_file(FILE* fp, int target_fd, const char* path)
 	fprintf(fp, "exec-%s=%s\n", handle_name_array[target_fd], path);
 }
 
+void
+privsep_exec_set_is_std_univ(FILE* fp)
+{
+	fprintf(fp, "exec-is-std-univ\n");
+}
+
 bool
 privsep_create_dir(uid_t uid, const char* pathname)
 {

@@ -66,6 +66,7 @@ void privsep_exec_set_env(FILE* fp, Env& env);
 void privsep_exec_set_iwd(FILE* fp, const char* iwd);
 void privsep_exec_set_inherit_fd(FILE* fp, int fd);
 void privsep_exec_set_std_file(FILE* fp, int target_fd, const char* path);
+void privsep_exec_set_is_std_univ(FILE* fp);
 
 // spawn a ProcD - our pid and birthday are passed in as a convenience
 //

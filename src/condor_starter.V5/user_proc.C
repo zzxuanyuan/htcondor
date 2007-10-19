@@ -761,6 +761,7 @@ UserProc::execute()
 		privsep_exec_set_inherit_fd(switchboard_in_fp, pipe_fds[0]);
 		privsep_exec_set_inherit_fd(switchboard_in_fp, RSC_SOCK);
 		privsep_exec_set_inherit_fd(switchboard_in_fp, CLIENT_LOG);
+		privsep_exec_set_is_std_univ(switchboard_in_fp);
 		fclose(switchboard_in_fp);
 
 		if (!privsep_get_switchboard_response(switchboard_err_fp)) {

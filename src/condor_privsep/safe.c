@@ -42,6 +42,10 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
+#if defined(LINUX)
+#include <sys/personality.h>
+#endif
+
 #include "safe.h"
 
 /***********************************************************************
@@ -1566,7 +1570,9 @@ safe_exec_as_user(uid_t uid,
                   id_range_list *keep_open_fds,
                   const char *stdin_filename,
                   const char *stdout_filename,
-                  const char *stderr_filename, const char *initial_dir)
+                  const char *stderr_filename,
+                  const char *initial_dir,
+                  int is_std_univ)
 {
     int r;
 
@@ -1617,6 +1623,22 @@ safe_exec_as_user(uid_t uid,
             fatal_error_exit(1, "error opening stderr");
         }
     }
+
+#if defined(LINUX)
+    /*
+       on linux, set the personality for std univ jobs
+           - PER_LINUX32 turns off exec shield
+           - 0x4000 is ADDR_NO_RANDOMIZE, but the macro is
+             not defined in many of our supported distros
+    */
+    if (is_std_univ) {
+        if (personality(PER_LINUX32 | 0x40000) == -1) {
+            fatal_error_exit(1,
+                             "error setting personality: %s",
+                             strerror(errno));
+        }
+    }
+#endif
 
     /* finally do the exec */
     r = execve(exec_name, (char **) args, (char **) env);

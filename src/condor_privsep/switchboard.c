@@ -149,6 +149,7 @@ typedef struct exec_params {
     char *stdin_filename;
     char *stdout_filename;
     char *stderr_filename;
+    int is_std_univ;
     id_range_list keep_open_fds;
 } exec_params;
 
@@ -164,6 +165,8 @@ static void init_exec_params(exec_params *c)
     c->stdin_filename = 0;
     c->stdout_filename = 0;
     c->stderr_filename = 0;
+
+    c->is_std_univ = 0;
 
     init_id_range_list(&c->keep_open_fds);
 }
@@ -242,6 +245,7 @@ typedef enum config_key_enum {
     EXEC_STDIN,
     EXEC_STDOUT,
     EXEC_STDERR,
+    EXEC_IS_STD_UNIV,
     EXEC_KEEP_OPEN_FDS,
 
     INVALID
@@ -273,6 +277,7 @@ key_to_enum key_to_enum_map[] = {
     {EXEC_STDIN, "exec-stdin"},
     {EXEC_STDOUT, "exec-stdout"},
     {EXEC_STDERR, "exec-stderr"},
+    {EXEC_IS_STD_UNIV, "exec-is-std-univ"},
     {EXEC_KEEP_OPEN_FDS, "exec-keep-open-fd"}
 };
 
@@ -319,10 +324,8 @@ check_id_error(const char *key, const char *value, config_file *cf,
     }
 }
 
-void config_parse_id(id_t *id, const char *key, const char *value,
-                     config_file *cf);
-
-void
+#if 0
+static void
 config_parse_id(id_t *id, const char *key, const char *value,
                 config_file *cf)
 {
@@ -332,6 +335,7 @@ config_parse_id(id_t *id, const char *key, const char *value,
 
     check_id_error(key, value, cf, endptr, "id");
 }
+#endif
 
 static void
 config_parse_uid(uid_t * uid, const char *key, const char *value,
@@ -344,10 +348,8 @@ config_parse_uid(uid_t * uid, const char *key, const char *value,
     check_id_error(key, value, cf, endptr, "uid");
 }
 
-void config_parse_gid(gid_t * gid, const char *key, const char *value,
-                      config_file *cf);
-
-void
+#if 0
+static void
 config_parse_gid(gid_t * gid, const char *key, const char *value,
                  config_file *cf)
 {
@@ -357,6 +359,7 @@ config_parse_gid(gid_t * gid, const char *key, const char *value,
 
     check_id_error(key, value, cf, endptr, "gid");
 }
+#endif
 
 static void
 config_parse_id_list(id_range_list *list, const char *key,
@@ -435,8 +438,6 @@ config_parse_string_list(string_list *list, const char *key, char *value,
     add_string_to_list(list, value);
 }
 
-#if 0
-
 static void
 config_parse_bool(int *b, const char *key, const char *value,
                   config_file *cf)
@@ -449,8 +450,6 @@ config_parse_bool(int *b, const char *key, const char *value,
 
     *b = 1;
 }
-
-#endif
 
 static int process_config_file(configuration *c, const char *filename)
 {
@@ -563,6 +562,9 @@ static int process_user_exec_config(exec_params *c, int do_validate)
             break;
         case EXEC_STDERR:
             config_parse_string(&c->stderr_filename, key, value, &cf);
+            break;
+        case EXEC_IS_STD_UNIV:
+            config_parse_bool(&c->is_std_univ, key, value, &cf);
             break;
         case EXEC_KEEP_OPEN_FDS:
             config_parse_id_list(&c->keep_open_fds, key, value, &cf);
@@ -1003,7 +1005,7 @@ static void do_start_procd(configuration *c)
         null_terminated_list_from_string_list(&procd_conf.exec_args);
     r = safe_exec_as_user(0, &all_ids, &all_ids, procd_conf.exec_filename,
                           procd_argv, environ, &all_ids, NULL, NULL, NULL,
-                          "/");
+                          "/", 0);
     if (r) {
         fatal_error_exit(1, "error exec'ing user job");
     }
@@ -1036,7 +1038,7 @@ static void do_start_transferd(configuration *c)
                           &c->valid_user_uids,
                           &c->valid_user_gids,
                           args[0],
-                          args, environ, &keep_open_fds, 0, 0, 0, "/");
+                          args, environ, &keep_open_fds, 0, 0, 0, "/", 0);
 
     if (r) {
         fatal_error_exit(1, "error exec'ing user job");
@@ -1071,7 +1073,8 @@ static void do_exec_job(configuration *c)
                           exec_conf.stdin_filename,
                           exec_conf.stdout_filename,
                           exec_conf.stderr_filename,
-                          exec_conf.exec_init_dir);
+                          exec_conf.exec_init_dir,
+                          exec_conf.is_std_univ);
 
     if (r) {
         fatal_error_exit(1, "error exec'ing user job");
