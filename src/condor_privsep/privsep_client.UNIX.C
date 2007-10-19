@@ -313,6 +313,7 @@ privsep_exec_set_inherit_fd(FILE* fp, int fd)
 void
 privsep_exec_set_std_file(FILE* fp, int target_fd, const char* path)
 {
+	ASSERT((target_fd >= 0) && (target_fd <= 2));
 	static const char* handle_name_array[3] = {"stdin", "stdout", "stderr"};
 	fprintf(fp, "exec-%s=%s\n", handle_name_array[target_fd], path);
 }
