@@ -119,8 +119,7 @@ int safe_exec_as_user(uid_t uid,
                       const char *stdin_filename,
                       const char *stdout_filename,
                       const char *stderr_filename,
-                      const char *initial_dir,
-                      int is_std_univ);
+                      const char *initial_dir, int is_std_univ);
 
 enum { PATH_UNTRUSTED =
         0, PATH_TRUSTED_STICKY_DIR, PATH_TRUSTED, PATH_TRUSTED_CONFIDENTIAL

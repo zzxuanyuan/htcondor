@@ -1019,12 +1019,11 @@ parse_gid_list(id_range_list *list, const char *value, const char **endptr)
  *   sufficient for (a) our simple use of setenv from this module (b)
  *   on the one or two platforms we have that don't have setenv.
  */
-static int
-setenv(const char* var, const char* val, int overwrite)
+static int setenv(const char *var, const char *val, int overwrite)
 {
-    char* tmp;
+    char *tmp;
 
-	(void)overwrite;
+    (void) overwrite;
 
     tmp = malloc(strlen(var) + strlen(val) + 2);
     if (tmp == NULL) {
@@ -1601,8 +1600,7 @@ safe_exec_as_user(uid_t uid,
                   const char *stdin_filename,
                   const char *stdout_filename,
                   const char *stderr_filename,
-                  const char *initial_dir,
-                  int is_std_univ)
+                  const char *initial_dir, int is_std_univ)
 {
     int r;
 
@@ -1653,14 +1651,13 @@ safe_exec_as_user(uid_t uid,
             fatal_error_exit(1, "error opening stderr");
         }
     }
-
 #if HAVE_SYS_PERSONALITY_H
     /*
        on linux, set the personality for std univ jobs
-           - PER_LINUX32 turns off exec shield
-           - 0x4000 is ADDR_NO_RANDOMIZE, but the macro is
-             not defined in many of our supported distros
-    */
+       - PER_LINUX32 turns off exec shield
+       - 0x4000 is ADDR_NO_RANDOMIZE, but the macro is
+       not defined in many of our supported distros
+     */
     if (is_std_univ) {
         if (personality(PER_LINUX32 | 0x40000) == -1) {
             fatal_error_exit(1,
@@ -2903,52 +2900,50 @@ safe_is_path_trusted_r(const char *pathname, id_range_list *trusted_uids,
  *   -1 on error
  */
 static int
-opendir_with_fd(const char* path,
-                DIR** dir_ptr,
-                int* fd_ptr,
-                struct stat* stat_buf)
+opendir_with_fd(const char *path,
+                DIR ** dir_ptr, int *fd_ptr, struct stat *stat_buf)
 {
-	int fd = -1;
-	struct stat tmp_stat_buf;
-	DIR* dir = NULL;
-	dev_t dev;
-	ino_t ino;
+    int fd = -1;
+    struct stat tmp_stat_buf;
+    DIR *dir = NULL;
+    dev_t dev;
+    ino_t ino;
 
-	fd = open(path, O_RDONLY);
-	if (fd == -1) {
-		goto OPENDIR_WITH_FD_FAILURE;
-	}
-	if (fstat(fd, &tmp_stat_buf) == -1) {
-		goto OPENDIR_WITH_FD_FAILURE;
-	}
-	dir = opendir(path);
-	if (dir == NULL) {
-		goto OPENDIR_WITH_FD_FAILURE;
-	}
-	dev = tmp_stat_buf.st_dev;
-	ino = tmp_stat_buf.st_ino;
-	if (lstat(".", &tmp_stat_buf) == -1) {
-		goto OPENDIR_WITH_FD_FAILURE;
-	}
-	if ((tmp_stat_buf.st_dev != dev) || (tmp_stat_buf.st_ino != ino)) {
-		goto OPENDIR_WITH_FD_FAILURE;
-	}
+    fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        goto OPENDIR_WITH_FD_FAILURE;
+    }
+    if (fstat(fd, &tmp_stat_buf) == -1) {
+        goto OPENDIR_WITH_FD_FAILURE;
+    }
+    dir = opendir(path);
+    if (dir == NULL) {
+        goto OPENDIR_WITH_FD_FAILURE;
+    }
+    dev = tmp_stat_buf.st_dev;
+    ino = tmp_stat_buf.st_ino;
+    if (lstat(".", &tmp_stat_buf) == -1) {
+        goto OPENDIR_WITH_FD_FAILURE;
+    }
+    if ((tmp_stat_buf.st_dev != dev) || (tmp_stat_buf.st_ino != ino)) {
+        goto OPENDIR_WITH_FD_FAILURE;
+    }
 
-	*dir_ptr = dir;
-	*fd_ptr = fd;
-	if (stat_buf != NULL) {
-		memcpy(stat_buf, &tmp_stat_buf, sizeof(struct stat));
-	}
-	return 0;
+    *dir_ptr = dir;
+    *fd_ptr = fd;
+    if (stat_buf != NULL) {
+        memcpy(stat_buf, &tmp_stat_buf, sizeof(struct stat));
+    }
+    return 0;
 
-OPENDIR_WITH_FD_FAILURE:
-	if (fd != -1) {
-		close(fd);
-	}
-	if (dir != NULL) {
-		closedir(dir);
-	}
-	return -1;
+  OPENDIR_WITH_FD_FAILURE:
+    if (fd != -1) {
+        close(fd);
+    }
+    if (dir != NULL) {
+        closedir(dir);
+    }
+    return -1;
 }
 #endif
 
@@ -2990,10 +2985,10 @@ static int do_dir_contents_one_fd(safe_dir_walk_func func, void *data)
         status = -1;
     }
 #else
-	if (opendir_with_fd(".", &dir, &dir_fd, &stat_buf) == -1) {
-		return -1;
-	}
-	close(dir_fd);
+    if (opendir_with_fd(".", &dir, &dir_fd, &stat_buf) == -1) {
+        return -1;
+    }
+    close(dir_fd);
 #endif
 
     cur_dir_dev = stat_buf.st_dev;
@@ -3116,7 +3111,6 @@ do_dir_contents(safe_dir_walk_func func, void *data, int num_fds)
     if (num_fds <= 1) {
         return do_dir_contents_one_fd(func, data);
     }
-
 #if HAVE_DIRFD
     dir = opendir(".");
     if (dir == NULL) {
@@ -3124,9 +3118,9 @@ do_dir_contents(safe_dir_walk_func func, void *data, int num_fds)
     }
     dir_fd = dirfd(dir);
 #else
-	if (opendir_with_fd(".", &dir, &dir_fd, NULL) == -1) {
-		return -1;
-	}
+    if (opendir_with_fd(".", &dir, &dir_fd, NULL) == -1) {
+        return -1;
+    }
 #endif
 
     while ((de = readdir(dir)) != 0) {
@@ -3167,7 +3161,7 @@ do_dir_contents(safe_dir_walk_func func, void *data, int num_fds)
 
     r = closedir(dir);
 #if !HAVE_DIRFD
-	close(dir_fd);
+    close(dir_fd);
 #endif
 
     if (status == 0) {

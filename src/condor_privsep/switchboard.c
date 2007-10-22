@@ -1071,8 +1071,7 @@ static void do_exec_job(configuration *c)
                           exec_conf.stdin_filename,
                           exec_conf.stdout_filename,
                           exec_conf.stderr_filename,
-                          exec_conf.exec_init_dir,
-                          exec_conf.is_std_univ);
+                          exec_conf.exec_init_dir, exec_conf.is_std_univ);
 
     if (r) {
         fatal_error_exit(1, "error exec'ing user job");
@@ -1119,9 +1118,9 @@ static void do_command(const char *cmd, int cmd_fd, configuration *c)
 int main(int argc, char **argv)
 {
     configuration conf;
-	char* cmd;
-	int cmd_fd;
-	int err_fd;
+    char *cmd;
+    int cmd_fd;
+    int err_fd;
 
     if (argc != 4) {
         fatal_error_exit(1, "wrong number of arguments");
