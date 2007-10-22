@@ -926,6 +926,12 @@ class DaemonCore : public Service
 
     //@}
 
+	/** "Special" errno values that may be set when Create_Process fails
+	*/
+	static const int ERRNO_EXEC_AS_ROOT;
+	static const int ERRNO_PID_COLLISION;
+	static const int ERRNO_REGISTRATION_FAILED;
+
     /** Methods for operating on a process family
     */
     int Get_Family_Usage(pid_t, ProcFamilyUsage&, bool full = false);

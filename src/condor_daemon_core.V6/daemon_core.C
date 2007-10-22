@@ -53,15 +53,11 @@ static const int DEFAULT_MAXSOCKETS = 8;
 static const int DEFAULT_MAXPIPES = 8;
 static const int DEFAULT_MAXREAPS = 100;
 static const int DEFAULT_PIDBUCKETS = 11;
-static const int ERRNO_EXEC_AS_ROOT = 666666;
-static const int ERRNO_PID_COLLISION = 666667;
-static const int ERRNO_REGISTRATION_FAILED = 666668;
 static const int DEFAULT_MAX_PID_COLLISIONS = 9;
 static const char* DEFAULT_INDENT = "DaemonCore--> ";
 static const int MAX_TIME_SKIP = (60*20); //20 minutes
 static const int MIN_FILE_DESCRIPTOR_SAFETY_LIMIT = 20;
 static const int MIN_REGISTERED_SOCKET_SAFETY_LIMIT = 15;
-
 
 #include "authentication.h"
 #include "daemon.h"
@@ -103,6 +99,11 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "selector.h"
 #include "proc_family_interface.h"
 #include "condor_netdb.h"
+
+// special errno values that may be returned from Create_Process
+const int DaemonCore::ERRNO_EXEC_AS_ROOT = 666666;
+const int DaemonCore::ERRNO_PID_COLLISION = 666667;
+const int DaemonCore::ERRNO_REGISTRATION_FAILED = 666668;
 
 // Make this the last include to fix assert problems on Win32 -- see
 // the comments about assert at the end of condor_debug.h to understand
@@ -5417,7 +5418,7 @@ void CreateProcessForkit::exec() {
 	if( (daemonCore->pidTable->lookup(pid, pidinfo) >= 0) ) {
 			// we've already got this pid in our table! we've got
 			// to bail out immediately so our parent can retry.
-		int child_errno = ERRNO_PID_COLLISION;
+		int child_errno = DaemonCore::ERRNO_PID_COLLISION;
 		write(m_errorpipe[1], &child_errno, sizeof(child_errno));
 		exit(4);
 	}
@@ -5634,7 +5635,7 @@ void CreateProcessForkit::exec() {
 			set_user_tracking_gid(*tracking_gid_ptr);
 		}
 		if (!ok) {
-			errno = ERRNO_REGISTRATION_FAILED;
+			errno = DaemonCore::ERRNO_REGISTRATION_FAILED;
 			write(m_errorpipe[1], &errno, sizeof(errno));
 			exit(4);
 		}
@@ -5827,7 +5828,7 @@ void CreateProcessForkit::exec() {
 	if ( m_priv != PRIV_ROOT ) {
 			// Final check to make sure we're not root anymore.
 		if( getuid() == 0 ) {
-			int priv_errno = ERRNO_EXEC_AS_ROOT;
+			int priv_errno = DaemonCore::ERRNO_EXEC_AS_ROOT;
 			write(m_errorpipe[1], &priv_errno, sizeof(priv_errno));
 			exit(4);
 		}
