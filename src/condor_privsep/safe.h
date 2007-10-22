@@ -29,8 +29,18 @@
 #include <unistd.h>
 #include <limits.h>
 
+#include "config.h"
+
 #ifdef NEEDS_ID_T
 typedef uid_t id_t;
+#endif
+
+#if !HAVE_SETEUID
+#define seteuid(euid) setreuid(-1, euid)
+#endif
+
+#if !HAVE_SETEGID
+#define setegid(egid) setregid(-1, egid)
 #endif
 
 /* id used when an error occurs */

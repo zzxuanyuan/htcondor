@@ -1696,6 +1696,8 @@ AC_CHECK_FUNCS([stat64])
 AC_CHECK_FUNCS([lchown])
 AC_CHECK_FUNCS([dirfd])
 AC_CHECK_FUNCS([clearenv])
+AC_CHECK_FUNCS([seteuid])
+AC_CHECK_FUNCS([setegid])
 AC_CHECK_FUNC(crypt, ,AC_CHECK_LIB(crypt,crypt))
 AC_SEARCH_LIBS([dlopen], [dl],
   AC_DEFINE([HAVE_DLOPEN], [1], [dlopen function is available]))

@@ -40,8 +40,6 @@
 #include "safe.h"
 #include "parse_config.h"
 
-#include "config.h"
-
 extern char **environ;
 
 #if !HAVE_LCHOWN
