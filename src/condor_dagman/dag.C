@@ -610,16 +610,7 @@ Dag::ProcessAbortEvent(const ULogEvent *event, Job *job,
   // same *job* (not job proc).
 
 	if ( job ) {
-		job->_queuedNodeJobProcs--;
-		ASSERT( job->_queuedNodeJobProcs >= 0 );
-		if( job->_queuedNodeJobProcs == 0 ) {
-			_numJobsSubmitted--;
-			if ( job->GetThrottleInfo() ) {
-				job->GetThrottleInfo()->_currentJobs--;
-				ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
-			}
-		}
-		ASSERT( _numJobsSubmitted >= 0 );
+		DecrementJobCounts( job );
 
 			// Only change the node status, error info,
 			// etc., if we haven't already gotten an error
@@ -650,16 +641,7 @@ void
 Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 		bool recovery) {
 	if( job ) {
-		job->_queuedNodeJobProcs--;
-		ASSERT( job->_queuedNodeJobProcs >= 0 );
-		if( job->_queuedNodeJobProcs == 0 ) {
-			_numJobsSubmitted--;
-			if ( job->GetThrottleInfo() ) {
-				job->GetThrottleInfo()->_currentJobs--;
-				ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
-			}
-		}
-		ASSERT( _numJobsSubmitted >= 0 );
+		DecrementJobCounts( job );
 
 		const JobTerminatedEvent * termEvent =
 					(const JobTerminatedEvent*) event;
@@ -1000,17 +982,13 @@ Dag::ProcessSubmitEvent(Job *job, bool recovery, bool &submitEventIsSane) {
 	}
 
 		// Note:  in non-recovery mode, we increment _numJobsSubmitted
-		// in SubmitReadyJobs().
+		// in ProcessSuccessfulSubmit().
 	if ( recovery ) {
 		if ( submitEventIsSane || job->GetStatus() != Job::STATUS_SUBMITTED ) {
 				// Only increment the submitted job count on
 				// the *first* proc of a job.
 			if( job->_queuedNodeJobProcs == 1 ) {
-				_numJobsSubmitted++;
-				if ( job->GetThrottleInfo() ) {
-					job->GetThrottleInfo()->_currentJobs++;
-					ASSERT( job->GetThrottleInfo()->_currentJobs >= 0 );
-				}
+				UpdateJobCounts( job, 1 );
 			}
 		}
 
@@ -2967,11 +2945,7 @@ Dag::ProcessSuccessfulSubmit( Job *node, const CondorID &condorID )
 		// we see the submit events so that we don't accidentally exceed
 		// maxjobs (now really maxnodes) if it takes a while to see
 		// the submit events.  wenger 2006-02-10.
-    _numJobsSubmitted++;
-	if ( node->GetThrottleInfo() ) {
-		node->GetThrottleInfo()->_currentJobs++;
-		ASSERT( node->GetThrottleInfo()->_currentJobs >= 0 );
-	}
+	UpdateJobCounts( node, 1 );
     
         // stash the job ID reported by the submit command, to compare
         // with what we see in the userlog later as a sanity-check
@@ -3041,5 +3015,30 @@ Dag::ProcessFailedSubmit( Job *node, int max_submit_attempts )
 		} else {
 			_readyQ->Append(node, node->_nodePriority);
 		}
+	}
+}
+
+//---------------------------------------------------------------------------
+void
+Dag::DecrementJobCounts( Job *node )
+{
+	node->_queuedNodeJobProcs--;
+	ASSERT( node->_queuedNodeJobProcs >= 0 );
+
+	if( node->_queuedNodeJobProcs == 0 ) {
+		UpdateJobCounts( node, -1 );
+	}
+}
+
+//---------------------------------------------------------------------------
+void
+Dag::UpdateJobCounts( Job *node, int change )
+{
+    _numJobsSubmitted += change;
+	ASSERT( _numJobsSubmitted >= 0 );
+
+	if ( node->GetThrottleInfo() ) {
+		node->GetThrottleInfo()->_currentJobs += change;
+		ASSERT( node->GetThrottleInfo()->_currentJobs >= 0 );
 	}
 }

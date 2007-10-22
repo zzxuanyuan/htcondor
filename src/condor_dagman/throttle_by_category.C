@@ -50,6 +50,8 @@ ThrottleByCategory::~ThrottleByCategory()
 ThrottleByCategory::ThrottleInfo *
 ThrottleByCategory::AddCategory( const MyString *category, int maxJobs )
 {
+	ASSERT( category != NULL );
+
 	ThrottleInfo *	info = new ThrottleInfo();
 	info->_category = new MyString( *category );
 	info->_maxJobs = maxJobs;
@@ -65,6 +67,8 @@ ThrottleByCategory::AddCategory( const MyString *category, int maxJobs )
 void
 ThrottleByCategory::SetThrottle( const MyString *category, int maxJobs )
 {
+	ASSERT( category != NULL );
+
 	ThrottleInfo	*info;
 	if ( _throttles.lookup( *category, info ) != 0 ) {
 		// category not in table
@@ -85,6 +89,8 @@ ThrottleByCategory::SetThrottle( const MyString *category, int maxJobs )
 ThrottleByCategory::ThrottleInfo *
 ThrottleByCategory::GetThrottleInfo( const MyString *category )
 {
+	ASSERT( category != NULL );
+
 	ThrottleInfo	*info;
 	if ( _throttles.lookup( *category, info ) != 0 ) {
 		return NULL;
@@ -99,6 +105,8 @@ ThrottleByCategory::GetThrottleInfo( const MyString *category )
 void
 ThrottleByCategory::PrintThrottles( FILE *fp ) /* const */
 {
+	ASSERT( fp != NULL );
+
 	_throttles.startIterations();
 	ThrottleInfo	*info;
 	while ( _throttles.iterate( info ) ) {

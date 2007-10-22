@@ -482,6 +482,19 @@ class Dag {
 	*/
 	void ProcessFailedSubmit( Job *node, int max_submit_attempts );
 
+	/** Decrement the job counts for this node.
+		@param The node for which to decrement the job counts.
+	*/
+	void DecrementJobCounts( Job *node );
+
+	// Note: there's no IncrementJobCounts method because the code isn't
+	// exactly duplicated when incrementing.
+
+	/** Update the job counts for the given node.
+		@param The amount by which to change the job counts.
+	*/
+	void UpdateJobCounts( Job *node, int change );
+
     // add job to termination queue and report termination to all
     // child jobs by removing job ID from each child's waiting queue
     void TerminateJob( Job* job, bool bootstrap = false );
