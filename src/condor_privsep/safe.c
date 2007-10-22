@@ -1064,6 +1064,7 @@ int clearenv(void)
      * if needed */
     environ = 0;
 
+#if HAVE_UNSETENV
     /* set an environment and clear it so the environment array gets
      * allocated properly and will work correctly if code later tries
      * to access directly */
@@ -1071,6 +1072,7 @@ int clearenv(void)
     if (r == 0) {
         unsetenv(var_name);
     }
+#endif
 
     return r;
 }
