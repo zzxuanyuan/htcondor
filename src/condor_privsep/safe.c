@@ -42,7 +42,9 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
-#if defined(LINUX)
+#include "config.h"
+
+#if HAVE_SYS_PERSONALITY_H
 #include <sys/personality.h>
 #endif
 
@@ -1009,7 +1011,7 @@ parse_gid_list(id_range_list *list, const char *value, const char **endptr)
  *
  ***********************************************************************/
 
-#ifdef MISSING_CLEARENV
+#if !HAVE_CLEARENV
 /*
  * clearenv
  * 	Clears the environment.  There is no standard for clearing the
@@ -1624,7 +1626,7 @@ safe_exec_as_user(uid_t uid,
         }
     }
 
-#if defined(LINUX)
+#if HAVE_SYS_PERSONALITY_H
     /*
        on linux, set the personality for std univ jobs
            - PER_LINUX32 turns off exec shield
@@ -2856,6 +2858,72 @@ safe_is_path_trusted_r(const char *pathname, id_range_list *trusted_uids,
  *
  ***********************************************************************/
 
+#if !HAVE_DIRFD
+/*
+ * opendir_with_fd
+ * parameters
+ *  path
+ *      the path to the dir to open
+ *  dir_ptr
+ *      receives the DIR* from the opendir
+ *  fd_ptr
+ *      receives an FD for this same directory
+ *  stat_buf
+ *      receives stat buffer for this directory
+ *  returns
+ *    0 on success
+ *   -1 on error
+ */
+static int
+opendir_with_fd(const char* path,
+                DIR** dir_ptr,
+                int* fd_ptr,
+                struct stat* stat_buf)
+{
+	int fd = -1;
+	struct stat tmp_stat_buf;
+	DIR* dir = NULL;
+	dev_t dev;
+	ino_t ino;
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1) {
+		goto OPENDIR_WITH_FD_FAILURE;
+	}
+	if (fstat(fd, &tmp_stat_buf) == -1) {
+		goto OPENDIR_WITH_FD_FAILURE;
+	}
+	dir = opendir(path);
+	if (dir == NULL) {
+		goto OPENDIR_WITH_FD_FAILURE;
+	}
+	dev = tmp_stat_buf.st_dev;
+	ino = tmp_stat_buf.st_ino;
+	if (lstat(".", &tmp_stat_buf) == -1) {
+		goto OPENDIR_WITH_FD_FAILURE;
+	}
+	if ((tmp_stat_buf.st_dev != dev) || (tmp_stat_buf.st_ino != ino)) {
+		goto OPENDIR_WITH_FD_FAILURE;
+	}
+
+	*dir_ptr = dir;
+	*fd_ptr = fd;
+	if (stat_buf != NULL) {
+		memcpy(stat_buf, &tmp_stat_buf, sizeof(struct stat));
+	}
+	return 0;
+
+OPENDIR_WITH_FD_FAILURE:
+	if (fd != -1) {
+		close(fd);
+	}
+	if (dir != NULL) {
+		closedir(dir);
+	}
+	return -1;
+}
+#endif
+
 /*
  * do_dir_contents_one_fd
  *
@@ -2883,17 +2951,22 @@ static int do_dir_contents_one_fd(safe_dir_walk_func func, void *data)
 
     init_string_list(&dirs);
 
+#if HAVE_DIRFD
     dir = opendir(".");
     if (dir == NULL) {
         return -1;
     }
-
     dir_fd = dirfd(dir);
-
     r = fstat(dir_fd, &stat_buf);
     if (r == -1) {
         status = -1;
     }
+#else
+	if (opendir_with_fd(".", &dir, &dir_fd, &stat_buf) == -1) {
+		return -1;
+	}
+	close(dir_fd);
+#endif
 
     cur_dir_dev = stat_buf.st_dev;
     cur_dir_ino = stat_buf.st_ino;
@@ -3016,12 +3089,17 @@ do_dir_contents(safe_dir_walk_func func, void *data, int num_fds)
         return do_dir_contents_one_fd(func, data);
     }
 
+#if HAVE_DIRFD
     dir = opendir(".");
     if (dir == NULL) {
         return -1;
     }
-
     dir_fd = dirfd(dir);
+#else
+	if (opendir_with_fd(".", &dir, &dir_fd, NULL) == -1) {
+		return -1;
+	}
+#endif
 
     while ((de = readdir(dir)) != 0) {
         struct stat stat_buf;
@@ -3060,6 +3138,9 @@ do_dir_contents(safe_dir_walk_func func, void *data, int num_fds)
     }
 
     r = closedir(dir);
+#if !HAVE_DIRFD
+	close(dir_fd);
+#endif
 
     if (status == 0) {
         status = r;
