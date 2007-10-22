@@ -31,7 +31,7 @@
 
 #include "config.h"
 
-#ifdef NEEDS_ID_T
+#if !HAVE_ID_T
 typedef uid_t id_t;
 #endif
 

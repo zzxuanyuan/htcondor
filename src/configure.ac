@@ -1682,6 +1682,7 @@ AC_CHECK_HEADERS([resolv.h],[],[],[
 AC_CHECK_TYPES([int64_t])
 AC_CHECK_TYPES([long long])
 AC_CHECK_TYPES([__int64])
+AC_CHECK_TYPES([id_t])
 
 # checks for structures
 
