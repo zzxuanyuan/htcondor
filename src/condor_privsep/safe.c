@@ -1011,6 +1011,34 @@ parse_gid_list(id_range_list *list, const char *value, const char **endptr)
  *
  ***********************************************************************/
 
+#if !HAVE_SETENV
+/*
+ * setenv
+ *   Implementation of setenv for platforms that don't have it. Leaks
+ *   memory if called twice for the same variable, but it should be
+ *   sufficient for (a) our simple use of setenv from this module (b)
+ *   on the one or two platforms we have that don't have setenv.
+ */
+static int
+setenv(const char* var, const char* val, int overwrite)
+{
+    char* tmp;
+
+	(void)overwrite;
+
+    tmp = malloc(strlen(var) + strlen(val) + 2);
+    if (tmp == NULL) {
+        return -1;
+    }
+    sprintf(tmp, "%s=%s", var, val);
+    if (putenv(tmp) != 0) {
+        free(tmp);
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 #if !HAVE_CLEARENV
 /*
  * clearenv
@@ -1019,13 +1047,14 @@ parse_gid_list(id_range_list *list, const char *value, const char **endptr)
  * 	wish to setenv, getenv, and unsetenv, as you are not allowed
  * 	to use them after directly changing the environ variable
  *
- * 	This function should work in most cases and on may platforms
+ * 	This function should work in most cases and on many platforms
  * 	is part of the standard library.
  * parameters
  * 	n/a
  * returns
  * 	0 on success.  non-zero on failure.
  */
+extern char **environ;
 int clearenv(void)
 {
     int r;                      /* status value */
@@ -1034,7 +1063,6 @@ int clearenv(void)
     /* setting environ will make most implementation of getenv, setenv,
      * unsetenv, and putenv properly work and recreate the environment
      * if needed */
-    extern char **environ;
     environ = 0;
 
     /* set an environment and clear it so the environment array gets
