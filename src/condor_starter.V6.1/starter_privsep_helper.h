@@ -36,7 +36,7 @@
 
 class ArgList;
 class Env;
-class FamilyInfo;
+struct FamilyInfo;
 
 class StarterPrivSepHelper {
 

@@ -24,16 +24,16 @@
 #ifndef _CONDOR_PRIVSEP_H
 #define _CONDOR_PRIVSEP_H
 
+#include "condor_uid.h"
+
 class MyString;
 class ArgList;
 class Env;
-class FamilyInfo;
+struct FamilyInfo;
 
 // are we running in PrivSep mode?
 //
 bool privsep_enabled();
-
-#if !defined(WIN32)
 
 // get pipes for communicating with a privsep switchboard
 //
@@ -101,7 +101,5 @@ bool privsep_remove_dir(uid_t uid, const char* pathname);
 // change the ownership of a directory tree to the given user
 //
 bool privsep_chown_dir(uid_t uid, const char* pathname);
-
-#endif
 
 #endif
