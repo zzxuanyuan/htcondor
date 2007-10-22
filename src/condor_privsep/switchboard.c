@@ -1121,13 +1121,16 @@ static void do_command(const char *cmd, int cmd_fd, configuration *c)
 int main(int argc, char **argv)
 {
     configuration conf;
+	char* cmd;
+	int cmd_fd;
+	int err_fd;
 
     if (argc != 4) {
         fatal_error_exit(1, "wrong number of arguments");
     }
-    char *cmd = argv[1];
-    int cmd_fd = atoi(argv[2]);
-    int err_fd = atoi(argv[3]);
+    cmd = argv[1];
+    cmd_fd = atoi(argv[2]);
+    err_fd = atoi(argv[3]);
 
     setup_err_stream(err_fd);
     safe_reset_environment();
