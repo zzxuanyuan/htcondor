@@ -58,9 +58,11 @@ public:
 	//
 	bool track_family_via_login(pid_t pid, const char* login, bool&);
 
+#if defined(LINUX)
 	// tell ProcD to track a family via supplementary group id
 	//
 	bool track_family_via_supplementary_group(pid_t pid, bool&, gid_t&);
+#endif
 
 	// ask the procd for usage information about a process
 	// family

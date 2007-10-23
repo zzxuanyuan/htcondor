@@ -251,6 +251,7 @@ ProcFamilyClient::track_family_via_login(pid_t pid,
 	return true;
 }
 
+#if defined(LINUX)
 bool
 ProcFamilyClient::track_family_via_supplementary_group(pid_t pid,
                                                        bool& response,
@@ -307,6 +308,7 @@ ProcFamilyClient::track_family_via_supplementary_group(pid_t pid,
 	response = (err == PROC_FAMILY_ERROR_SUCCESS);
 	return true;
 }
+#endif
 
 bool
 ProcFamilyClient::get_usage(pid_t pid, ProcFamilyUsage& usage, bool& response)

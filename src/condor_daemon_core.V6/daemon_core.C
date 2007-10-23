@@ -5125,6 +5125,7 @@ DaemonCore::Register_Family(pid_t       child_pid,
 		}
 	}
 	if (group != NULL) {
+#if defined(LINUX)
 		if (!m_proc_family->track_family_via_supplementary_group(child_pid,
 		                                                         *group)) {
 			dprintf(D_ALWAYS,
@@ -5133,6 +5134,10 @@ DaemonCore::Register_Family(pid_t       child_pid,
 			        child_pid);
 			goto REGISTER_FAMILY_DONE;
 		}
+#else
+		EXCEPT("Internal error: "
+		           "group-based tracking unsupported on this platform");
+#endif
 	}
 	success = true;
 REGISTER_FAMILY_DONE:
@@ -6398,12 +6403,12 @@ int DaemonCore::Create_Process(
 	//
 	if (family_info != NULL) {
 		ASSERT(m_proc_family != NULL);
-		bool ok =
-			m_proc_family->register_subfamily(newpid,
-			                                  getpid(),
-			                                  family_info->max_snapshot_interval,
-			                                  NULL,
-			                                  family_info->login);
+		bool ok = Register_Family(newpid,
+		                          getpid(),
+		                          family_info->max_snapshot_interval,
+		                          NULL,
+		                          family_info->login,
+		                          NULL);
 		if (!ok) {
 			EXCEPT("error registering process family with procd");
 		}

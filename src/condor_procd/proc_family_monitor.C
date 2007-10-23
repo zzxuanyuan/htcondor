@@ -24,10 +24,13 @@
 #include "condor_common.h"
 #include "proc_family_monitor.h"
 #include "pid_tracker.h"
-#include "group_tracker.h"
 #include "login_tracker.h"
 #include "environment_tracker.h"
 #include "parent_tracker.h"
+
+#if defined(LINUX)
+#include "group_tracker.h"
+#endif
 
 ProcFamilyMonitor::ProcFamilyMonitor(pid_t pid,
                                      birthday_t birthday,

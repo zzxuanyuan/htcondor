@@ -57,7 +57,9 @@ public:
 	//
 	bool track_family_via_environment(pid_t, PidEnvID&);
 	bool track_family_via_login(pid_t, const char*);
+#if defined(LINUX)
 	bool track_family_via_supplementary_group(pid_t, gid_t&);
+#endif
 
 	// ask the procd for usage information about a process
 	// family

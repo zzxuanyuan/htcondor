@@ -40,13 +40,14 @@ static int SwitchIds = TRUE;
 static int UserIdsInited = FALSE;
 static int OwnerIdsInited = FALSE;
 
+#if !defined(WIN32)
 /*
    supplementary group used to track process families. if nonzero,
    this group id will be inserted into the group list when we switch
    into USER_PRIV_FINAL
 */
 static gid_t TrackingGid = 0;
-
+#endif
 
 /* must be listed in the same order as enum priv_state in condor_uid.h */
 static char *priv_state_name[] = {

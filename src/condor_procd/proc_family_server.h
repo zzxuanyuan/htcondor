@@ -64,7 +64,9 @@ private:
 	void register_subfamily();
 	void track_family_via_environment();
 	void track_family_via_login();
+#if defined(LINUX)
 	void track_family_via_supplementary_group();
+#endif
 	void get_usage();
 	void signal_process();
 	void suspend_family();

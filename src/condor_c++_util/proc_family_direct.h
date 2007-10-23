@@ -52,10 +52,12 @@ public:
 	bool track_family_via_environment(pid_t, PidEnvID&);
 	bool track_family_via_login(pid_t, const char*);
 
+#if defined(LINUX)
 	// this class doesn't support tracking via supplementary
 	// group
 	//
 	bool track_family_via_supplementary_group(pid_t, gid_t&) { return false; }
+#endif
 
 	bool get_usage(pid_t, ProcFamilyUsage&, bool);
 

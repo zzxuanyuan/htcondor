@@ -238,6 +238,7 @@ ProcFamilyProxy::track_family_via_login(pid_t pid, const char* login)
 	return response;
 }
 
+#if defined(LINUX)
 bool
 ProcFamilyProxy::track_family_via_supplementary_group(pid_t pid, gid_t& gid)
 { 
@@ -255,6 +256,7 @@ ProcFamilyProxy::track_family_via_supplementary_group(pid_t pid, gid_t& gid)
 	}
 	return response;
 }
+#endif
 
 bool
 ProcFamilyProxy::get_usage(pid_t pid, ProcFamilyUsage& usage, bool)

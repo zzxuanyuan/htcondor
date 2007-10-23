@@ -145,6 +145,7 @@ ProcFamilyServer::track_family_via_login()
 	write_to_client(&err, sizeof(proc_family_error_t));
 }
 
+#if defined(LINUX)
 void
 ProcFamilyServer::track_family_via_supplementary_group()
 {
@@ -160,6 +161,7 @@ ProcFamilyServer::track_family_via_supplementary_group()
 		write_to_client(&gid, sizeof(gid_t));
 	}
 }
+#endif
 
 void
 ProcFamilyServer::get_usage()
@@ -336,11 +338,13 @@ ProcFamilyServer::wait_loop()
 				track_family_via_login();
 				break;
 
+#if defined(LINUX)
 			case PROC_FAMILY_TRACK_FAMILY_VIA_SUPPLEMENTARY_GROUP:
 				dprintf(D_ALWAYS,
 				        "PROC_FAMILY_TRACK_FAMILY_VIA_SUPPLEMENTARY_GROUP\n");
 				track_family_via_supplementary_group();
 				break;
+#endif
 
 			case PROC_FAMILY_SIGNAL_PROCESS:
 				dprintf(D_ALWAYS, "PROC_FAMILY_SIGNAL_PROCESS\n");
