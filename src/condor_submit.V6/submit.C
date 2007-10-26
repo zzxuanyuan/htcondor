@@ -82,6 +82,8 @@
 #include "list.h"
 #include "condor_vm_universe_types.h"
 #include "vm_univ_utils.h"
+#include "signed_classads.h"
+#include "condor_auth_ssl.h"
 
 
 // TODO: hashFunction() is case-insenstive, but when a MyString is the
@@ -6319,7 +6321,11 @@ SaveClassAd ()
 		}
 	}
 
-	
+	/* Here's where we sign the classad. */
+	if(!generic_sign_classad(*job)) {
+		fprintf(stderr, "Error signing classad.\n");
+		return -1;
+	}
 
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
