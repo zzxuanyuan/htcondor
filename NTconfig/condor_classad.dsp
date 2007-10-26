@@ -211,6 +211,14 @@ SOURCE=..\src\condor_classad\scanner.C
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_classad\signed_classads.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_includes\signed_classads.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_classad\value.C
 # End Source File
 # Begin Source File

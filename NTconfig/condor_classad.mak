@@ -63,6 +63,7 @@ CLEAN :
 	-@erase "$(INTDIR)\parser.obj"
 	-@erase "$(INTDIR)\registration.obj"
 	-@erase "$(INTDIR)\scanner.obj"
+	-@erase "$(INTDIR)\signed_classads.obj"
 	-@erase "$(INTDIR)\value.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
@@ -130,6 +131,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\scanner.obj" \
 	"$(INTDIR)\value.obj" \
 	"$(INTDIR)\xml_classads.obj" \
+	"$(INTDIR)\signed_classads.obj" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib"
 
@@ -176,6 +178,7 @@ CLEAN :
 	-@erase "$(INTDIR)\parser.obj"
 	-@erase "$(INTDIR)\registration.obj"
 	-@erase "$(INTDIR)\scanner.obj"
+	-@erase "$(INTDIR)\signed_classads.obj"
 	-@erase "$(INTDIR)\value.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\xml_classads.obj"
@@ -242,6 +245,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\scanner.obj" \
 	"$(INTDIR)\value.obj" \
 	"$(INTDIR)\xml_classads.obj" \
+	"$(INTDIR)\signed_classads.obj" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib"
 
@@ -421,6 +425,12 @@ SOURCE=..\src\condor_classad\registration.C
 SOURCE=..\src\condor_classad\scanner.C
 
 "$(INTDIR)\scanner.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_classad\signed_classads.C
+
+"$(INTDIR)\signed_classads.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
