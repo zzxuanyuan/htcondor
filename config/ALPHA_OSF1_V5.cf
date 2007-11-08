@@ -1,7 +1,0 @@
-/* gSOAP headers files require TRU64. */
-#define PlatformFlags	-DDUX=DUX -DDUX5=DUX5 -DTRU64
-
-#define IS_CLIPPED	YES
-
-#define PVM_ARCH       ALPHA
-
