@@ -363,12 +363,11 @@ be beneficial when the use of thousands
 of short term accounting groups leads to scalability
 issues.
 
-Note that the name of an accounting group may include a period (.),
-and the period character has
-no special interpretation for group accounting.
-For group users, 
-as described in the next section,
-a period does have special meaning.
+Note that the name of an accounting group may include a period (.).
+Inclusion of a period character in the accounting group name
+only has relevance if the portion of the name before the
+period matches a group name,
+as described in the next section on group quotas.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:group-quotas}Group Quotas}
@@ -400,38 +399,41 @@ This routes jobs to execute on specific machines,
 perhaps causing more preemption than necessary.
 The (fair allocation) policy desired is likely somewhat different,
 if these thirty machines have been pooled.
-It does not tie users to specific sets of machines,
+The desired policy does not tie users to specific sets of machines,
 but to numbers of machines (a quota).
 Given thirty similar machines,
 the desired policy allows users within the physics group to have
 preference on up to twenty of the machines within the pool,
 and the machines can be any of the machines that are available.
 
-A quota for a set of users requires an identification for
+A quota for a set of users requires an identification of
 the set; members are called group users.
-Jobs to be negotiated for under the group quota
+Jobs under the group quota
 specify the group user with the 
-\AdAttr{AccountingGroup} job ClassAd attribute, as described above,
-except that \Arg{group}.\Arg{user} must be specified, not just \Arg{group}.
+\AdAttr{AccountingGroup} job ClassAd attribute.
+This is the same attribute as is used with group accounting.
 
-The submit file syntax for specifying a group user is
+The submit file syntax for specifying a group user includes 
+both a group name and a user name.
+The syntax is
 \begin{verbatim}
   +AccountingGroup = "<group>.<user>"
 \end{verbatim}
 The \verb@group@ is a name chosen for the group.
+Group names are case-insensitive for negotiation.
 Group names are not required to begin with the
 string \AdStr{group\_},
 as in the examples
 \AdStr{group\_physics.newton} and \AdStr{group\_chemistry.curie},
-but it is a useful convention because group names
-must not conflict with user names.
+but it is a useful convention,
+because group names must not conflict with user names.
 The period character between the group and the user name is
-a required part of the syntax.  \Bold{Note:  if you specify an accounting
-group value without the period, your job will not be considered part of the
-group when negotiating, even if the group name you specify has a quota.
-Furthermore, you will not receive any warnings that the group quota is not
-in effect for your job.}  Group names are case-insensitive for
-negotiation.
+a required part of the syntax.  \Note  An accounting
+group value lacking the period will cause the job to not 
+be considered part of the
+group when negotiating, even if the group name has a quota.
+Furthermore, there will be no warnings that the group quota is not
+in effect for the job, as this syntax defines group accounting.
 
 Configuration controls the order of negotiation for
 groups and individual users,
@@ -440,7 +442,7 @@ as well as sets quotas
 for the groups.
 A declared number of virtual machines specifies the quota for each group
 (see \MacroNI{GROUP\_QUOTA\_<groupname>}
-in section~\ref{sec:Negotiator-Config-File-Entries}).
+in section~\ref{param:GroupQuotaGroupname}).
 The sum of the quotas for all groups must be less than or equal to
 the number of virtual machines in the entire pool.
 If the sum is less than the number of
@@ -523,8 +525,10 @@ get 20 machines and the \verb@group_chemistry@ users will get
 ten machines.  \verb@group_physics@ users will never get more than
 20 machines; however, \verb@group_chemistry@ users can potentially get
 more than ten machines because \Macro{GROUP\_AUTOREGROUP\_chemistry}
-is true (this could happen, for example, if there are only 15 jobs
-submitted by \verb@group_physics@ users).  Also, the default priority
+is true.
+This could happen, for example, if there are only 15 jobs
+submitted by \verb@group_physics@ users.
+Also, the default priority
 factor for the physics groups is 1.0, and the default priority factor
 for the chemistry group is 3.0.
 
@@ -532,8 +536,7 @@ for the chemistry group is 3.0.
 \begin{verbatim}
   ####################
   #
-  # Example 2
-  # Submit file for group quota user
+  # Submit description file for group quota user
   #
   ####################
   ...
@@ -542,6 +545,7 @@ for the chemistry group is 3.0.
 \end{verbatim}
 
 This submit file specifies that this job is to be negotiated as part of
-the \verb@group_physics@ group and that the user is newton (remember that
+the \verb@group_physics@ group and that the user is newton.
+Remember that
 both the group name and the user name are required for the group quota
-to take effect).
+to take effect.
