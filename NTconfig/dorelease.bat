@@ -14,15 +14,15 @@ rem Set up environment
 call set_vars.bat
 
 REM Set up release-dir directories
-echo Creating Release Directory...
+echo Creating release directory...
 if not exist %1\bin\NUL mkdir %1\bin
 if not exist %1\lib\NUL mkdir %1\lib
 if not exist %1\lib\webservice\NUL mkdir %1\lib\webservice
 if not exist %1\etc\NUL mkdir %1\etc
+
 echo Copying files...
 copy ..\Release\*.exe %1\bin
 copy ..\Release\*.dll %1\bin
-copy ..\Release\*.pdb %1\bin
 copy ..\src\condor_starter.V6.1\*.class %1\lib
 copy ..\src\condor_starter.V6.1\*.jar %1\lib
 copy ..\src\condor_chirp\Chirp.jar %1\lib
@@ -33,11 +33,15 @@ cd ..\src
 for /R %%f in (*.wsdl) do copy %%f %1\lib\webservice
 popd
 
-echo Cleaning out debug symbols that are not required ...
-for %%f in (master startd quill had credd schedd collector negotiator shadow starter) do echo %%f && move condor_%%f.pdb condor_%%f.save
-del *.pdb
-for %%f in (master startd quill had credd schedd collector negotiator shadow starter) do move condor_%%f.save condor_%%f.pdb
+echo Adding debug symbols that are required...
+for %%f in (master startd quill had credd schedd 
+            collector negotiator shadow starter) do (
+    echo condor_%%f.pdb && copy ..\Release\condor_%%f.pdb %1\bin
+)
 
+echo Making copies of executables that have multiple functions...
+pushd .
+cd %1\bin
 copy condor_rm.exe condor_hold.exe
 copy condor_rm.exe condor_release.exe
 copy condor_rm.exe condor_vacate_job.exe
@@ -49,6 +53,7 @@ copy condor.exe condor_reschedule.exe
 copy condor.exe condor_vacate.exe
 copy condor_cod.exe condor_cod_request.exe
 
+echo Adding DRMAA extension kit...
 cd ..
 if not exist include\NUL mkdir include
 copy %EXT_INSTALL%\%EXT_DRMAA_VERSION%\include\* include
