@@ -19,6 +19,15 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item There are some known vulnerabilities in the Virtual Machine
+  (VM) universe support included in this release that can allow VM
+  universe jobs to read arbitrary files on the host machine.
+  VM universe is disabled by default, so this potential vulnerability
+  does not affect most sites.
+  However, VM universe should not be enabled unless the job policy
+  only allows users that you trust completely to run jobs on the
+  machine.
+
 \item Condor is now licensed under the terms of the Apache License
   version 2.0.
 
@@ -457,6 +466,15 @@ or with streaming a job's standard output or error.
 \item Condor on MacOSX 10.4 on the PowerPC architecture.
 will report zero image size and resident set size for jobs. This
 is due to bugs in the MacOSX 10.4 kernel on the PowerPC.
+
+\item There are some known vulnerabilities in the Virtual Machine
+  (VM) universe support included in this release that can allow VM
+  universe jobs to read arbitrary files on the host machine.
+  VM universe is disabled by default, so this potential vulnerability
+  does not affect most sites.
+  However, VM universe should not be enabled unless the job policy
+  only allows users that you trust completely to run jobs on the
+  machine.
 
 \end{itemize}
 
