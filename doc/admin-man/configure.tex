@@ -4773,6 +4773,17 @@ do not specify their own with:
   a large group of jobs.
   The default value is False.
 
+\item[\Macro{WARN\_ON\_UNUSED\_SUBMIT\_FILE\_MACROS}]
+  \label{param:WarnOnUnusedSubmitFileMacros}  A boolean variable that
+  defaults to \Expr{True}.  When \Expr{True}, \Condor{submit}
+  performs checks on the job's submit description file contents
+  for commands that define a macro, but do not use the macro within
+  the file.
+  A warning is issued, but job submission continues.
+  A definition of a new macro occurs when the lhs of a command is not
+  a known submit command.  This check may help spot spelling errors
+  of known submit commands.
+
 \item[\Macro{SUBMIT\_SEND\_RESCHEDULE}] \label{param:SubmitSendReschedule}
   A boolean expression that when False, prevents \Condor{submit} from
   automatically sending a \Condor{reschedule} command as it completes.
