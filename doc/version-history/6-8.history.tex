@@ -65,6 +65,11 @@ stable series release, which is planned to happen near the end of
 
 \item Fixed a bug in Condor's network message integrity checking.
 
+\item Fixed a forward-compatibility problem when a 6.8 \Condor{startd}
+runs jobs for a 6.9 or later \Condor{schedd} and the communication
+between them is configured to use integrity checking or encryption.
+The problem caused the \Condor{startd} to crash.
+
 \item Fixed a problem that sometimes caused corruption of ClassAd data
 that is forwarded from one collector to another via
 \MacroNI{CONDOR\_VIEW\_HOST}.
