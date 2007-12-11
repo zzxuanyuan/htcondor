@@ -1170,6 +1170,13 @@ This macro
   on the length of time that the daemon was not running.
   Defaults to 60 seconds.
 
+\item[\Macro{LOGS\_USE\_TIMESTAMP}] \label{param:LogsUseTimestamp}
+  This macro controls how the current time is formatted at the start of
+  each line in the daemon log files. When \Expr{True}, the unix time is
+  printed (number of seconds since 00:00:00 UTC, January 1, 1970).
+  When \Expr{False} (the default value), the time is printed like so:
+  \Expr{<Month>/<Day> <Hour>:<Minute>:<Second>} in the local timezone.
+
 \item[\MacroB{<SUBSYS>\_DEBUG}] \label{param:SubsysDebug}
 \index{SUBSYS\_DEBUG macro@\texttt{<SUBSYS>\_DEBUG} macro}
   All of the
