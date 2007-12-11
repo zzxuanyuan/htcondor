@@ -1597,6 +1597,17 @@ server, shadow, and starter, none of which use DaemonCore yet).
   with the appropriate subsystem string as defined in
   section~\ref{sec:Condor-Subsystem-Names}.
   
+\item[\MacroB{<SUBSYS>\_DAEMON\_AD\_FILE}]
+  \label{param:SubsysDaemonAdFile}
+  \index{SUBSYS\_DAEMON\_AD\_FILE macro@\texttt{<SUBSYS>\_DAEMON\_AD\_FILE} macro}
+  \index{SCHEDD\_DAEMON\_AD\_FILE macro@\texttt{SCHEDD\_DAEMON\_AD\_FILE} macro}
+  \index{configuration macro!\texttt{SCHEDD\_DAEMON\_AD\_FILE}}
+  A complete path to a file that is to contain the ClassAd for a daemon.
+  When the daemon sends a ClassAd describing itself to the
+  \Condor{collector}, it will also place a copy of the ClassAd in this
+  file. Currently, this setting only works for the \Condor{schedd}
+  (i.e. \Arg{SCHEDD\_DAEMON\_AD\_FILE}) and is required for Quill.
+
 \item[\MacroB{<SUBSYS>\_ATTRS} or \label{param:SubsysExprs}
   \MacroB{<SUBSYS>\_EXPRS}] \label{param:SubsysAttrs}
   \index{SUBSYS\_ATTRS macro@\texttt{<SUBSYS>\_ATTRS} macro}
