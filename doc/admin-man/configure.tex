@@ -2810,7 +2810,9 @@ will not want to change them for any reason.
   \label{param:UseProcessGroups} 
   A boolean value that defaults to \Expr{True}.  When \Expr{False},
   Condor daemons on Unix machines will \emph{not} create new sessions
-  or process groups. 
+  or process groups. Condor uses processes groups to help it track the
+  descendents of processes it creates. This can cause problems when
+  Condor is run under another job execution system (e.g. Condor Glidein).
 
 \end{description}
 
