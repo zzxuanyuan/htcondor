@@ -1679,6 +1679,15 @@ server, shadow, and starter, none of which use DaemonCore yet).
   daemon will use the fast shutdown mode (as if it sent itself a
   \Condor{off} command using the \Opt{-fast} option).
 
+\item[\Macro{USE\_CLONE\_TO\_CREATE\_PROCESSES}] \label{param:UseCloneToCreateProcesses}
+  This setting controls how a Condor daemon creates a new process under
+  certain versions of Linux. If set to \Expr{True} (the default value),
+  the \Expr{clone} system call is used. Otherwise, the \Expr{fork} system
+  call is used. \Expr{clone} provides scalability improvements for daemons
+  using a large amount of memory (e.g. a \Condor{schedd} with a lot of
+  jobs in the queue). Currently, the use of \Expr{clone} is available on
+  Linux systems other than IA-64, but not when GCB is enabled.
+
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
