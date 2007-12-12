@@ -59,6 +59,7 @@ struct SubmitDagOptions
 	bool useDagDir;
 	MyString strDebugDir;
 	MyString strConfigFile;
+	StringList appendLines; // append to .condor.sub file before queue
 	
 	// non-command line options
 	MyString strLibOut;
@@ -489,6 +490,14 @@ void writeSubmitFile(/* const */ SubmitDagOptions &opts)
 	{	
 		fprintf(pSubFile, "notification\t= %s\n", opts.strNotification.Value());
     }
+
+		// Append user-specified stuff to submit file.
+	opts.appendLines.rewind();
+	char *command;
+	while ((command = opts.appendLines.next()) != NULL) {
+    	fprintf(pSubFile, "%s\n", command);
+	}
+
     fprintf(pSubFile, "queue\n");
 
 	fclose(pSubFile);
@@ -651,6 +660,14 @@ void parseCommandLine(SubmitDagOptions &opts, int argc, char *argv[])
 	    			exit( 1 );
 				}
 			}
+			else if (strArg.find("-app") != -1) // -append
+			{
+				if (iArg + 1 >= argc) {
+					fprintf(stderr, "-append argument needs a value\n");
+					printUsage();
+				}
+				opts.appendLines.append(argv[++iArg]);
+			}
 			else
 			{
 				fprintf( stderr, "ERROR: unknown option %s\n", strArg.Value() );
@@ -698,5 +715,6 @@ int printUsage()
     printf("    -outfile_dir <path> (Directory into which to put the dagman.out file,\n");
 	printf("         instead of the default\n");
     printf("    -config <filename>  (Specify a DAGMan configuration file)\n");
+	printf("    -append <command>   (Append specified command to .condor.sub file)\n");
 	exit(1);
 }
