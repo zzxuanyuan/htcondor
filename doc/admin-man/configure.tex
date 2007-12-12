@@ -1020,11 +1020,12 @@ File System Configuration File Entries''.
   % Defined in the default config file: NO
   % Default definition in config file: N/A
   % Result if not defined or RHS is empty: defaults to 20 seconds.
+
 \item[\Macro{PASSWD\_CACHE\_REFRESH}]
   \label{param:PasswdCacheRefresh}
   Condor can cause NIS servers to become overwhelmed by queries for uid
   and group information in large pools. In order to avoid this problem,
-  Condor caches UID and group information internally. This setting allows
+  Condor caches UID and group information internally. This integer value allows
   pool administrators to specify (in seconds) how long Condor should wait
   until refreshes a cache entry. The default is set to 300 seconds, or
   5 minutes, plus a random number of seconds between 0 and 60 to avoid
