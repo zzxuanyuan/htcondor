@@ -381,7 +381,7 @@ JobQueueDBManager::maintain()
 QuillErrCode
 JobQueueDBManager::cleanupJobQueueTables()
 {
-	int		sqlNum = 4;
+	const int	sqlNum = 4;
 	int		i;
 	MyString sql_str[sqlNum];
 	
