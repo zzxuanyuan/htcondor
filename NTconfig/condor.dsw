@@ -140,6 +140,9 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name condor_chirp
     End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name condor_tt
+    End Project Dependency
 }}}
 
 ###############################################################################
@@ -1632,6 +1635,36 @@ Package=<4>
 
 ###############################################################################
 
+Project: "condor_tt"=".\condor_tt.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name condor_cpp_util
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name condor_daemon_core
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name condor_util_lib
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name condor_classad
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name condor_quill
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name condor_sysapi
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "condor_userlog"=".\condor_userlog.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -1682,6 +1715,18 @@ Package=<4>
     Begin Project Dependency
     Project_Dep_Name condor_sysapi
     End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "condor_util_lib"=".\condor_util_lib.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
 }}}
 
 ###############################################################################
