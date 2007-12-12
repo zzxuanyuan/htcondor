@@ -81,6 +81,17 @@ the pool password authentication method.
 \item Fixed a bug that caused Condor daemons to crash when encountering
 some types of invalid ClassAd expressions.
 
+% PR 921
+\item \Condor{submit\_dag} now avoids possibly running off the end
+of the argument list if an argument requiring a value does not have one.
+
+\item The \Condor{submit\_dag} \Opt{-debug} argument now must be
+specified with at least \Opt{-de} to avoid conflict with the
+\Opt{-dagman} argument.
+
+\item Added missing information about the \Opt{-config} argument to
+\Condor{submit\_dag}'s usage message.
+
 \end{itemize}
 
 \noindent Known Bugs:
