@@ -115,15 +115,7 @@ SOURCE="..\src\condor_dbmsd\ManagedDatabase.h"
 # Begin Source File
 
 SOURCE=..\src\condor_dbmsd\soap_dbmsdC.C
-
-!IF  "$(CFG)" == "condor_dbmsd - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_dbmsd - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -132,15 +124,7 @@ SOURCE=..\src\condor_dbmsd\soap_dbmsdH.h
 # Begin Source File
 
 SOURCE=..\src\condor_dbmsd\soap_dbmsdServer.C
-
-!IF  "$(CFG)" == "condor_dbmsd - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_dbmsd - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
