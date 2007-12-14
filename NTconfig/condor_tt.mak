@@ -103,11 +103,11 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_quill.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_quill.exe" /pdbtype:sept 
 LINK32_OBJS= \
-	"$(INTDIR)\tt_main.obj" \
-	"$(INTDIR)\ttmanager.obj" \
+	"$(INTDIR)\condor_ttdb.obj" \
 	"$(INTDIR)\jobqueuecollection.obj" \
 	"$(INTDIR)\jobqueuedbmanager.obj" \
-	"$(INTDIR)\condor_ttdb.obj" \
+	"$(INTDIR)\tt_main.obj" \
+	"$(INTDIR)\ttmanager.obj" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
@@ -196,11 +196,11 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Release/condor_common.obj ../Release/condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_quill.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_quill.exe" 
 LINK32_OBJS= \
-	"$(INTDIR)\tt_main.obj" \
-	"$(INTDIR)\ttmanager.obj" \
+	"$(INTDIR)\condor_ttdb.obj" \
 	"$(INTDIR)\jobqueuecollection.obj" \
 	"$(INTDIR)\jobqueuedbmanager.obj" \
-	"$(INTDIR)\condor_ttdb.obj" \
+	"$(INTDIR)\tt_main.obj" \
+	"$(INTDIR)\ttmanager.obj" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \

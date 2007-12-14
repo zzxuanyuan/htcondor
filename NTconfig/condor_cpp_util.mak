@@ -27,10 +27,10 @@ NULL=nul
 
 !IF  "$(CFG)" == "condor_cpp_util - Win32 Debug"
 
-OUTDIR=..\Debug
-INTDIR=..\Debug
+OUTDIR=.\..\Debug
+INTDIR=.\..\Debug
 # Begin Custom Macros
-OutDir=..\Debug
+OutDir=.\..\Debug
 # End Custom Macros
 
 ALL : "$(OUTDIR)\condor_cpp_util.lib"
@@ -260,6 +260,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\daemon_list.obj" \
 	"$(INTDIR)\daemon_types.obj" \
 	"$(INTDIR)\date_util.obj" \
+	"$(INTDIR)\dbms_utils.obj" \
 	"$(INTDIR)\dc_collector.obj" \
 	"$(INTDIR)\dc_message.obj" \
 	"$(INTDIR)\dc_schedd.obj" \
@@ -348,8 +349,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\utc_time.obj" \
 	"$(INTDIR)\vm_univ_utils.obj" \
 	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\windows_firewall.obj" \
-	"$(INTDIR)\dbms_utils.obj"
+	"$(INTDIR)\windows_firewall.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -358,10 +358,10 @@ LIB32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "condor_cpp_util - Win32 Release"
 
-OUTDIR=..\Release
-INTDIR=..\Release
+OUTDIR=.\..\Release
+INTDIR=.\..\Release
 # Begin Custom Macros
-OutDir=..\Release
+OutDir=.\..\Release
 # End Custom Macros
 
 ALL : "$(OUTDIR)\condor_cpp_util.lib"
@@ -590,6 +590,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\daemon_list.obj" \
 	"$(INTDIR)\daemon_types.obj" \
 	"$(INTDIR)\date_util.obj" \
+	"$(INTDIR)\dbms_utils.obj" \
 	"$(INTDIR)\dc_collector.obj" \
 	"$(INTDIR)\dc_message.obj" \
 	"$(INTDIR)\dc_schedd.obj" \
@@ -678,8 +679,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\utc_time.obj" \
 	"$(INTDIR)\vm_univ_utils.obj" \
 	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\windows_firewall.obj" \
-	"$(INTDIR)\dbms_utils.obj"
+	"$(INTDIR)\windows_firewall.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
