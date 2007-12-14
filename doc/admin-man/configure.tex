@@ -1173,7 +1173,7 @@ This macro
 
 \item[\Macro{LOGS\_USE\_TIMESTAMP}] \label{param:LogsUseTimestamp}
   This macro controls how the current time is formatted at the start of
-  each line in the daemon log files. When \Expr{True}, the unix time is
+  each line in the daemon log files. When \Expr{True}, the Unix time is
   printed (number of seconds since 00:00:00 UTC, January 1, 1970).
   When \Expr{False} (the default value), the time is printed like so:
   \Expr{<Month>/<Day> <Hour>:<Minute>:<Second>} in the local timezone.
@@ -2821,7 +2821,7 @@ will not want to change them for any reason.
   A boolean value that defaults to \Expr{True}.  When \Expr{False},
   Condor daemons on Unix machines will \emph{not} create new sessions
   or process groups. Condor uses processes groups to help it track the
-  descendents of processes it creates. This can cause problems when
+  descendants of processes it creates. This can cause problems when
   Condor is run under another job execution system (e.g. Condor Glidein).
 
 \end{description}
@@ -3941,6 +3941,22 @@ These macros control the \Condor{schedd}.
   \end{verbatim}
   \normalsize
   
+\item[\Macro{STARTER\_LOCAL}] \label{param:StarterLocal}
+  The complete path and executable name of the \Condor{starter} to
+  run for \SubmitCmd{local} universe jobs.  This variable's value
+  is defined in the initial configuration provided with Condor as
+  \footnotesize
+  \begin{verbatim}
+  STARTER_LOCAL = $(SBIN)/condor_starter
+  \end{verbatim}
+  \normalsize
+  This variable would only be modified or hand added into 
+  the configuration for a pool to be upgraded from one
+  running a version of Condor that existed before the
+  \SubmitCmd{local} universe to one that includes the
+  \SubmitCmd{local} universe, but without utilizing the newer, provided
+  configuration files.
+
 \item[\Macro{START\_SCHEDULER\_UNIVERSE}] \label{param:StartSchedulerUniverse}
   A boolean value that defaults to \Expr{True}.
   The \Condor{schedd} uses this macro to determine whether to start
