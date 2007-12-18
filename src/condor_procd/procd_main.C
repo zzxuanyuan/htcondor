@@ -42,6 +42,13 @@ static char* local_server_address = NULL;
 //
 static char* local_client_principal = NULL;
 
+// the PID of the process to monitor (set with the "-P"
+// option). this option is only allowed if the ProcD is
+// started by root. otherwise, the default behavior of
+// monitoring the parent process must be used
+//
+static pid_t root_pid = 0;
+
 // log file (no logging by default)
 // (set with the "-L" option)
 //
@@ -133,6 +140,16 @@ parse_command_line(int argc, char* argv[])
 				local_client_principal = argv[index];
 				break;
 
+			// pid to monitor
+			//
+			case 'P':
+				if (index + 1 >= argc) {
+					fail_option_args("-P", 1);
+				}
+				index++;
+				root_pid = atoi(argv[index]);
+				break;
+
 			// log file name
 			//
 			case 'L':
@@ -189,39 +206,62 @@ parse_command_line(int argc, char* argv[])
 		index++;
 	}
 
-	// now that we're done parsing, enforce required options
+	// now that we're done parsing, enforce constraints
 	//
 	if (local_server_address == NULL) {
 		fprintf(stderr, "error: the \"-A\" option is required");
 		exit(1);
 	}
+	if ((root_pid != 0) && (getuid() != 0)) {
+		fprintf(stderr,
+		        "error: only root can specify \"-P\" option\n");
+		exit(1);
+	}
 }
 
 static void
-get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
+get_root_pid_info(pid_t& pid, birthday_t& birthday)
 {
-	procInfo* own_pi = NULL;
-	procInfo* parent_pi = NULL;
-
+	procInfo* pi = NULL;
+	int ret;
 	int ignored;
-	if (ProcAPI::getProcInfo(getpid(), own_pi, ignored) != PROCAPI_SUCCESS) {
-		fprintf(stderr, "error: getProcInfo failed on own PID");
-		exit(1);
+
+	if (root_pid != 0) {
+		ret = ProcAPI::getProcInfo(root_pid, pi, ignored);
+		if (ret != PROCAPI_SUCCESS) {
+			fprintf(stderr,
+			        "error: getProcInfo failed on PID %u\n",
+			        root_pid);
+			exit(1);
+		}	
 	}
-	if (ProcAPI::getProcInfo(own_pi->ppid, parent_pi, ignored) != PROCAPI_SUCCESS) {
-		fprintf(stderr, "error: getProcInfo failed on parent PID");
-		exit(1);
-	}
-	if (parent_pi->birthday > own_pi->birthday) {
-		fprintf(stderr, "error: parent process's birthday is later than our own");
-		exit(1);
+	else {
+		procInfo* own_pi = NULL;
+		ret = ProcAPI::getProcInfo(getpid(), own_pi, ignored);
+		if (ret != PROCAPI_SUCCESS) {
+			fprintf(stderr,
+			        "error: getProcInfo failed on own PID");
+			exit(1);
+		}
+		ret = ProcAPI::getProcInfo(own_pi->ppid, pi, ignored);
+		if (ret != PROCAPI_SUCCESS) {
+			fprintf(stderr,
+			        "error: getProcInfo failed on parent PID");
+			exit(1);
+		}
+		if (pi->birthday > own_pi->birthday) {
+			fprintf(stderr,
+			        "error: parent process's birthday is "
+			            "later than our own\n");
+			exit(1);
+		}
+		delete own_pi;
 	}
 
-	parent_pid = parent_pi->pid;
-	parent_birthday = parent_pi->birthday;
+	pid = pi->pid;
+	birthday = pi->birthday;
 
-	free(own_pi);
-	free(parent_pi);
+	delete pi;
 }
 
 int
@@ -237,12 +277,11 @@ main(int argc, char* argv[])
 	//
 	parse_command_line(argc, argv);
 
-	// get the PID and birthday of our parent (whose process
+	// get the PID and birthday of our "root pid" (whose process
 	// tree we'll be monitoring)
 	//
-	pid_t parent_pid;
-	birthday_t parent_birthday;
-	get_parent_info(parent_pid, parent_birthday);
+	birthday_t root_birthday;
+	get_root_pid_info(root_pid, root_birthday);
 
 	// setup logging if a file was given
 	//
@@ -279,7 +318,7 @@ main(int argc, char* argv[])
 
 	// initialize the "engine" for tracking process families
 	//
-	ProcFamilyMonitor monitor(parent_pid, parent_birthday, max_snapshot_interval);
+	ProcFamilyMonitor monitor(root_pid, root_birthday, max_snapshot_interval);
 
 #if defined(LINUX)
 	// if a "-G" option was given, enable group ID tracking in the

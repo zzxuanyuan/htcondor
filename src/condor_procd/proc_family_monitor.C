@@ -456,17 +456,6 @@ ProcFamilyMonitor::snapshot()
 	//
 	procInfo* pi_list = ProcAPI::getProcInfoList();
 
-	// print info about all procInfo allocations
-	//
-	//procInfo* pi = pi_list;
-	//while (pi != NULL) {
-	//	dprintf(D_ALWAYS,
-	//	        "PROCINFO ALLOCATION: %p for pid %u\n",
-	//	        pi,
-	//	        pi->pid);
-	//	pi = pi->next;
-	//}
-
 	// scan through the latest snapshot looking for processes
 	// that we've seen before in previous calls to snapshot();
 	// for each such process we find:
@@ -793,7 +782,7 @@ ProcFamilyMonitor::unregister_subfamily(Tree<ProcFamily*>* tree)
 	// family up into its parent family
 	//
 	ASSERT(tree->get_parent() != NULL);
-	tree->get_data()->give_away_members(tree->get_parent()->get_data());
+	tree->get_data()->fold_into_parent(tree->get_parent()->get_data());
 
 	// remove the current node from the tree, reparenting all
 	// children up to our parent
@@ -834,9 +823,15 @@ ProcFamilyMonitor::output(LocalServer& server, pid_t pid)
 	//
 	Tree<ProcFamily*>* tree;
 	int ret = m_family_table.lookup(pid, tree);
-	bool ok = (ret != -1);
-	server.write_data(&ok, sizeof(bool));
-	if (!ok) {
+	proc_family_error_t err;
+	if (ret == -1) {
+		err = PROC_FAMILY_ERROR_FAMILY_NOT_FOUND;
+	}
+	else {
+		err = PROC_FAMILY_ERROR_SUCCESS;
+	}
+	server.write_data(&err, sizeof(proc_family_error_t));
+	if (err != PROC_FAMILY_ERROR_SUCCESS) {
 		dprintf(D_ALWAYS,
 		        "output failure: family with root %u not found\n",
 		        pid);

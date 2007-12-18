@@ -606,6 +606,9 @@ ProcFamilyClient::dump(pid_t pid)
 
 	proc_family_error_t err;
 	m_client->read_data(&err, sizeof(proc_family_error_t));
+
+	log_exit("dump", err);
+
 	if (err != PROC_FAMILY_ERROR_SUCCESS) {
 		m_client->end_connection();
 		return NULL;
