@@ -22,113 +22,124 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-#include "drone_tree.h"
+#include "condor_fix_iostream.h"
+#include "condor_config.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "setenv.h"
+#include "proc_family_client.h"
+#include "drone_manager.h"
+#include "proc_family_state.h"
 
 #include <iostream>
+#include <fstream>
 #include <string>
 using namespace std;
 
-int
-main(int argc, char* argv[])
-{
-	//kill(getpid(), SIGSTOP);
+char* mySubSystem = "PROCD_TEST_CONTROLLER";
 
-	if (argc < 2) {
-		fprintf(stderr,
-	            "usage: procd_test_controller <procd_addr> [drone_binary]\n");
-		exit(1);
+int
+main_init(int, char*[])
+{
+	char* tmp = param("PROCD_TEST_INPUT");
+	if (tmp == NULL) {
+		EXCEPT("PROCD_TEST_INPUT not defined");
+	}
+	ifstream in(tmp);
+	if (!in) {
+		EXCEPT("error opening input file %s", tmp);
+	}
+	free(tmp);
+
+	daemonCore->Proc_Family_Init();	
+	const char* procd_address = GetEnv("CONDOR_PROCD_ADDRESS");
+	ASSERT(procd_address != NULL);
+	ProcFamilyClient proc_family_client;
+	if (!proc_family_client.initialize(procd_address)) {
+		EXCEPT("error initializing ProcFamilyClient");
 	}
 
-	DroneTree drone_tree(argv[1], (argc > 2) ? argv[2] : NULL);
+	DroneManager drone_manager;
+
+	pid_t initial_drone_pid = drone_manager.get_drone_pid(1);
+
+	ProcFamilyState reference_state(initial_drone_pid, getpid());
 
 	while (true) {
 
-		drone_tree.dump();
+		dprintf(D_ALWAYS, "reference state:\n");
+		reference_state.display();
+		LocalClient* client = proc_family_client.dump(initial_drone_pid);
+		ASSERT(client != NULL);
+		ProcFamilyState actual_state(client);
+		dprintf(D_ALWAYS, "procd state:\n");
+		actual_state.display();
 
 		string cmd;
-		cin >> cmd;
-		if (!cin) {
+		in >> cmd;
+		if (!in) {
 			break;
 		}
-		if (cmd == "SPIN") {
-			int node_id;
-			cin >> node_id;
-			if (!cin) {
-				break;
-			}
-			printf("SPIN %d\n", node_id);
-			drone_tree.send_spin(node_id);
-		}
-		else if (cmd == "SPAWN") {
+
+		if (cmd == "SPAWN") {
+		
 			int parent_id, child_id;
-			cin >> parent_id >> child_id;
-			if (!cin) {
-				break;
+			char registered;
+			
+			in >> parent_id >> child_id >> registered;
+			registered = tolower(registered);
+			if (!in) {
+				EXCEPT("input error handling SPAWN\n");
 			}
-			printf("SPAWN %d %d\n", parent_id, child_id);
-			drone_tree.send_spawn(parent_id, child_id);
 		}
+
 		else if (cmd == "DIE") {
+
 			int node_id;
-			cin >> node_id;
-			if (!cin) {
-				break;
+
+			in >> node_id;
+			if (!in) {
+				EXCEPT("input error handling DIE\n");
 			}
-			printf("DIE %d\n", node_id);
-			drone_tree.send_die(node_id);
 		}
-		else if (cmd == "SNAPSHOT") {
-			printf("SNAPSHOT\n");
-			drone_tree.snapshot();
-		}
-		else if (cmd == "REGISTER_SUBFAMILY") {
-			int node_id, watcher_node_id;
-			cin >> node_id >> watcher_node_id;
-			if (!cin) {
-				break;
-			}
-			printf("REGISTER_SUBFAMILY %d %d\n",
-			       node_id,
-			       watcher_node_id);
-			drone_tree.register_subfamily(node_id,
-			                              watcher_node_id);
-		}
-		else if (cmd == "SIGNAL_PROCESS") {
-			int node_id;
-			cin >> node_id;
-			if (!cin) {
-				break;
-			}
-			printf("SIGNAL_PROCESS %d\n", node_id);
-			drone_tree.signal_process(node_id);
-		}
-		else if (cmd == "KILL_FAMILY") {
-			int node_id;
-			cin >> node_id;
-			if (!cin) {
-				break;
-			}
-			printf("KILL_FAMILY %d\n", node_id);
-			drone_tree.kill_family(node_id);
-		}
-		else if (cmd == "GET_FAMILY_USAGE") {
-			int node_id;
-			cin >> node_id;
-			if (!cin) {
-				break;
-			}
-			printf("GET_FAMILY_USAGE %d\n", node_id);
-			drone_tree.get_family_usage(node_id);
-		}
+
 		else {
-			printf("unknown command: %s\n", cmd.c_str());
-			exit(1);
+			EXCEPT("unknown command: %s\n", cmd.c_str());
 		}
-	}
-	if (!cin.eof()) {
-		printf("error in input stream\n");
-		exit(1);
 	}
 
+	return 0;
+}
+
+int
+main_pre_dc_init(int, char*[])
+{
+	return 0;
+}
+
+int
+main_pre_command_sock_init()
+{
+	return 0;
+}
+
+int
+main_config(bool)
+{
+	ASSERT(0);
+	return 0;
+}
+
+int
+main_shutdown_graceful()
+{
+	ASSERT(0);
+	return 0;
+}
+
+int
+main_shutdown_fast()
+{
+	ASSERT(0);
+	return 0;
 	return 0;
 }

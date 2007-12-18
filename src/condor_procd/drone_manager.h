@@ -21,11 +21,35 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef _DRONE_H
-#define _DRONE_H
+#ifndef _DRONE_MANAGER_H
+#define _DRONE_MANAGER_H
 
-#define PROCD_TEST_BASE         3100
-#define PROCD_TEST_CREATE_DRONE (PROCD_TEST_BASE + 0)
-#define PROCD_TEST_KILL_DRONE   (PROCD_TEST_BASE + 1)
+#include "HashTable.h"
+
+class DroneManager {
+
+public:
+
+	DroneManager();
+	~DroneManager();
+
+	pid_t create_drone(int parent_id, int child_id, bool registered);
+
+	pid_t kill_drone(int id);
+
+	pid_t get_drone_pid(int id);
+	
+private:
+
+	// map from id to (pid, sinful) tuple
+	//
+	struct DroneEntry {
+		pid_t m_pid;
+		MyString m_sinful;
+		DroneEntry(pid_t pid, const char* sinful) :
+			m_pid(pid), m_sinful(sinful) { }
+	};
+	HashTable<int, DroneEntry*> m_drone_table;
+};
 
 #endif

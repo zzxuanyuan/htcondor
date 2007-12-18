@@ -22,150 +22,175 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "condor_debug.h"
+#include "condor_config.h"
 #include "drone.h"
-#include "network_util.h"
-#include "process_util.h"
 
-static char* drone_path = NULL;
-static pid_t parent_pid = -1;
-static int controller_port = -1;
-static SOCKET sock_fd = INVALID_SOCKET;
+char* mySubSystem = "PROCD_TEST_DRONE";
 
-void
-handle_signal(int)
+static int reaper_id;
+
+int
+reaper(Service*, int pid, int status)
 {
-	assert(controller_port != -1);
-	assert(sock_fd != INVALID_SOCKET);
-	pid_t pid = get_process_id();
-	if (send(sock_fd,
-	         (char*)&pid,
-	         sizeof(pid_t),
-	         0) == SOCKET_ERROR)
-	{
-		socket_error("send");
-		exit(1);
-	}
-}
-
-void
-init_controller_socket()
-{
-	sock_fd = get_bound_socket();
-	disable_socket_inheritance(sock_fd);
-	
-	// make the socket's default address point to the controller
-	struct sockaddr_in sin;
-	memset(&sin, 0, sizeof(struct sockaddr_in));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = htons(controller_port);
-	if (connect(sock_fd,
-	            (struct sockaddr*)&sin,
-	            sizeof(struct sockaddr_in)) == SOCKET_ERROR)
-	{
-		socket_error("connect");
-		exit(1);
-	}
-
-	// send our pid and ppid up to the controller
-	pid_t ids[2] = {get_process_id(), parent_pid};
-	if (send(sock_fd,
-	         (char*)&ids,
-	         sizeof(ids),
-	         0) == SOCKET_ERROR)
-	{
-		socket_error("send");
-		exit(1);
-	}
-}
-
-static void
-spin()
-{
-	pid_t pid;
-	for (int i = 0; i < 150000000; i++){ 
-		pid = get_process_id();
-	}
-	if (send(sock_fd, (char*)&pid, sizeof(pid), 0) == SOCKET_ERROR) {
-		socket_error("send");
-		exit(1);
-	}
-}
-
-static void
-spawn(unsigned short port)
-{
-	char port_str[10];
-	snprintf(port_str, 10, "%hu", port);
-	char pid_str[10];
-	snprintf(pid_str, 10, "%u", get_process_id());
-	char* argv[] = {drone_path, port_str, pid_str, NULL};
-	create_detached_child(argv);
-}
-
-void
-process_command()
-{
-	char* buffer = new char[MAX_COMMAND_SIZE];
-	assert(buffer != NULL);
-	while (true) {
-		ssize_t bytes = recv(sock_fd,
-		                     buffer,
-		                     MAX_COMMAND_SIZE,
-		                     0);
-		if (bytes == -1) {
-#if !defined(WIN32)
-			if (errno == EINTR) {
-				continue;
-			}
-#endif
-			socket_error("recv");
-			exit(1);
-		}
-		break;
-	}
-
-	drone_command_t command = *(drone_command_t*)buffer;
-	switch (command) {
-		case COMMAND_SPIN:
-			spin();
-			break;
-		case COMMAND_SPAWN:
-			spawn(controller_port);
-			break;
-		case COMMAND_DIE:
-			network_cleanup();
-			exit(0);
-		default:
-			fprintf(stderr, "invalid command\n");
-			exit(1);
-	}
-
-	delete[] buffer;
+	dprintf(D_ALWAYS, "pid %d exited with status %d\n", pid, status);
+	return TRUE;
 }
 
 int
-main(int argc, char* argv[])
+handle_spawn(Service*, int, Stream* stream)
 {
-	// make sure we are passed in a controller port
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <contoller_port> <ppid>\n", argv[0]);
-		exit(1);
-	}
-	drone_path = argv[0];
-	controller_port = atoi(argv[1]);
-	assert(controller_port);
-	parent_pid = atoi(argv[2]);
-	assert(parent_pid);
-	
-	// set up our "signal handler"
-	init_signal_handler(handle_signal);
-	
-	// set up our "command sock"
-	network_init();
-	init_controller_socket();
+	int result;
+	char* tmp;
 
-	while (true) {
-		process_command();
+	int should_register;
+	result = stream->code(should_register);
+	ASSERT(result != FALSE);
+
+	result = stream->end_of_message();
+	ASSERT(result != FALSE);
+
+	tmp = param("PROCD_TEST_DRONE");
+	ASSERT(tmp != NULL);
+	MyString drone_binary = tmp;
+	free(tmp);
+
+	ArgList args;
+	args.AppendArg(drone_binary.Value());
+	args.AppendArg("-f");
+
+	FamilyInfo* fi = NULL;
+	if (should_register == TRUE) {
+		fi = new FamilyInfo;
 	}
+
+	int pipe_handles[2];
+	if (daemonCore->Create_Pipe(pipe_handles) == FALSE) {
+		EXCEPT("Create_Pipe error");
+	}
+	int std_fds[3] = {-1, pipe_handles[1], -1};
+
+	int child_pid = daemonCore->Create_Process(drone_binary.Value(),
+	                                           args,
+	                                           PRIV_CONDOR,
+	                                           reaper_id,
+	                                           FALSE,
+	                                           NULL,
+	                                           NULL,
+	                                           fi,
+	                                           NULL,
+	                                           std_fds);
+	ASSERT(child_pid != FALSE);
+
+	if (fi != NULL) {
+		delete fi;
+	}
+
+	if (daemonCore->Close_Pipe(pipe_handles[1]) == FALSE) {
+		EXCEPT("Close_Pipe error");
+	}
+
+	stream->encode();
+
+	result = stream->code(child_pid);
+	ASSERT(result != FALSE);
+
+
+	MyString child_sinful;
+	while (true) {
+		char buf[33];
+		int bytes = daemonCore->Read_Pipe(pipe_handles[0], buf, sizeof(buf) - 1);
+		if (bytes == -1) {
+			EXCEPT("Read_Pipe error");
+		}
+		if (bytes == 0) {
+			if (daemonCore->Close_Pipe(pipe_handles[0]) == FALSE) {
+				EXCEPT("Close_Pipe error");
+			}
+			break;
+		}
+		buf[bytes] = '\0';
+		child_sinful += buf;
+	}
+	tmp = const_cast<char*>(child_sinful.Value());
+	result = stream->code(tmp);
+	ASSERT(result != FALSE);
+
+	return TRUE;
 }
+
+int
+handle_die(Service*, int, Stream* stream)
+{
+	int result = stream->end_of_message();
+	ASSERT(result != FALSE);
+	DC_Exit(0);
+	return TRUE;
+}
+
+int
+main_init(int, char *[])
+{
+	dprintf(D_ALWAYS, "main_init() called\n");
+
+	int result;
+
+	char* sinful = daemonCore->InfoCommandSinfulString();
+	ASSERT(sinful != NULL);
+	printf("%s", sinful);
+	fclose(stdout);
+
+	reaper_id = daemonCore->Register_Reaper("reaper",
+	                                        reaper,
+	                                        "reaper");
+	ASSERT(result != FALSE);
+
+	result = daemonCore->Register_Command(PROCD_TEST_CREATE_DRONE,
+	                                      "PROCD_TEST_CREATE_DRONE",
+	                                      handle_spawn,
+	                                      "handle_spawn");
+	ASSERT(result != -1);
+
+	result = daemonCore->Register_Command(PROCD_TEST_KILL_DRONE,
+	                                      "PROCD_TEST_KILL_DRONE",
+	                                      handle_die,
+	                                      "handle_die");
+	ASSERT(result != -1);
+
+	return TRUE;
+}
+
+int 
+main_config( bool )
+{
+	dprintf(D_ALWAYS, "main_config() called\n");
+	return TRUE;
+}
+
+int
+main_shutdown_fast()
+{
+	dprintf(D_ALWAYS, "main_shutdown_fast() called\n");
+	DC_Exit(0);
+	return TRUE;	// to satisfy c++
+}
+
+int main_shutdown_graceful()
+{
+	dprintf(D_ALWAYS, "main_shutdown_graceful() called\n");
+	DC_Exit(0);
+	return TRUE;	// to satisfy c++
+}
+
+void
+main_pre_dc_init( int, char*[] )
+{
+		// dprintf isn't safe yet...
+}
+
+void
+main_pre_command_sock_init( )
+{
+}
+

@@ -20,12 +20,8 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+#include "condor_common.h"
 
-#ifndef _DRONE_H
-#define _DRONE_H
-
-#define PROCD_TEST_BASE         3100
-#define PROCD_TEST_CREATE_DRONE (PROCD_TEST_BASE + 0)
-#define PROCD_TEST_KILL_DRONE   (PROCD_TEST_BASE + 1)
-
-#endif
+#include "condorDrone.nsmap"
+   
+#include "../condor_daemon_core.V6/soap_daemon_core.cpp"

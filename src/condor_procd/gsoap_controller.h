@@ -20,12 +20,6 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-
-#ifndef _DRONE_H
-#define _DRONE_H
-
-#define PROCD_TEST_BASE         3100
-#define PROCD_TEST_CREATE_DRONE (PROCD_TEST_BASE + 0)
-#define PROCD_TEST_KILL_DRONE   (PROCD_TEST_BASE + 1)
-
-#endif
+//gsoap condor service name: condorController
+ 
+#import "gsoap_daemon_core.h"
