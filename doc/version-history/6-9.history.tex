@@ -485,6 +485,14 @@ set to True.  This was also the case in 6.9.4.
 \item The pool password authentication method fails to authenticate
 (and in fact will cause the client to crash).
 
+% PR 906
+\item If \Condor{dagman} cannot execute a PRE or POST script
+(for example, if the script name is specified incorrectly),
+\Condor{dagman} will hang indefinitely.  (Note that if the 
+script is executed and fails, \Condor{dagman} deals with this
+correctly.)  (This bug was fixed in version 6.8.7.)
+
+
 \end{itemize}
 
 
