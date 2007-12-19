@@ -38,15 +38,16 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item This release fixes a security vulnerability that affects only
+\item This release fixes a security vulnerability that affects
 those who rely upon Condor's network message integrity checking
 (e.g. \MacroNI{SEC\_DEFAULT\_INTEGRITY}=REQUIRED).  Not all of
 Condor's network communications are vulnerable to the integrity
 checking bug, so based on the scope of the affected parts, we consider
-the level of threat to be modest.  For users of the 6.9 development
-series, a fix for this problem will be released as part of the new 7.0
-stable series release, which is planned to happen near the end of
-2007.
+the level of threat to be modest.  A denial of service attack could be
+launched against Condor by an attacker who tampers with Condor's
+network communications.  For users of the 6.9 development series, a
+fix for this problem will be released as part of the new 7.0.0 stable
+series release, which is planned to happen near the end of 2007.
 
 \end{itemize}
 
