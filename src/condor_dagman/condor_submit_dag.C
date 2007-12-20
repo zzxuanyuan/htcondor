@@ -28,6 +28,7 @@
 #include "basename.h"
 #include "read_multiple_logs.h"
 #include "condor_getcwd.h"
+#include "condor_includes/condor_string.h" // for getline()
 
 
 #ifdef WIN32
@@ -59,6 +60,7 @@ struct SubmitDagOptions
 	bool useDagDir;
 	MyString strDebugDir;
 	MyString strConfigFile;
+	MyString appendFile; // append to .condor.sub file before queue
 	StringList appendLines; // append to .condor.sub file before queue
 	
 	// non-command line options
@@ -88,6 +90,7 @@ struct SubmitDagOptions
 		primaryDagFile = "";
 		useDagDir = false;
 		strConfigFile = "";
+		appendFile = param("DAGMAN_INSERT_SUB_FILE");
 	}
 
 };
@@ -491,7 +494,26 @@ void writeSubmitFile(/* const */ SubmitDagOptions &opts)
 		fprintf(pSubFile, "notification\t= %s\n", opts.strNotification.Value());
     }
 
-		// Append user-specified stuff to submit file.
+		// Append user-specified stuff to submit file...
+		// ...first, the insert file, if any...
+	if (opts.appendFile.Value() != "") {
+		FILE *aFile = safe_fopen_wrapper(opts.appendFile.Value(), "r");
+		if (!aFile)
+		{
+			fprintf( stderr, "ERROR: unable to read submit append file (%s)\n",
+				 	opts.appendFile.Value() );
+			exit( 1 );
+		}
+
+		char *line;
+		while ((line = getline(aFile)) != NULL) {
+    		fprintf(pSubFile, "%s\n", line);
+		}
+
+		fclose(aFile);
+	}
+
+		// ...now things specified directly on the command line.
 	opts.appendLines.rewind();
 	char *command;
 	while ((command = opts.appendLines.next()) != NULL) {
@@ -668,6 +690,20 @@ void parseCommandLine(SubmitDagOptions &opts, int argc, char *argv[])
 				}
 				opts.appendLines.append(argv[++iArg]);
 			}
+			else if (strArg.find("-insert") != -1) // -insert_sub_file
+			{
+				if (iArg + 1 >= argc) {
+					fprintf(stderr, "-insert_sub_file argument needs a value\n");
+					printUsage();
+				}
+				++iArg;
+				if (opts.appendFile != "") {
+					printf("Note: -insert_sub_file value (%s) overriding "
+								"DAGMAN_INSERT_SUB_FILE setting (%s)\n",
+								argv[iArg], opts.appendFile.Value());
+				}
+				opts.appendFile = argv[iArg];
+			}
 			else
 			{
 				fprintf( stderr, "ERROR: unknown option %s\n", strArg.Value() );
@@ -716,5 +752,6 @@ int printUsage()
 	printf("         instead of the default\n");
     printf("    -config <filename>  (Specify a DAGMan configuration file)\n");
 	printf("    -append <command>   (Append specified command to .condor.sub file)\n");
+	printf("    -insert_sub_file <filename>   (Insert specified file into .condor.sub file)\n");
 	exit(1);
 }
