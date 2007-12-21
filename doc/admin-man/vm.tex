@@ -1,15 +1,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{\label{sec:vm-install}VM Universe}
+\section{\label{sec:vm-install}Virtual Machines}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\index{installation!VM Universe}
-\index{VM Universe}
+\index{virtual machines}
+\index{installation!vm universe}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\subsection{Introduction}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-Virtual Machines can be executed on any execution site with WMware or Xen
+Virtual Machines can be executed on any execution site with VMware or Xen
 (via \Prog{libvirt}).  To do this, Condor must be informed of some details 
 of the VM installation.
 
@@ -35,12 +31,12 @@ for creation of CD-ROM disk images. Fourth, the \Prog{pygrub} program must be
 available, for execution of VMs whose disks contain the kernel they will run.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Condor Options}
+\subsection{Condor Configuration}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Condor's configuration file, \Condor{config}, includes several of the 
+Condor's configuration file, includes several of the 
 VM configuration options.  Some options are required, while others are 
-optional.  Here we only discus those that are required.
+optional.  Here we only discuss those that are required.
 
 First, you are required to specify the type of VM that is installed. 
 For instance, the following tells Condor we are using VMware:
@@ -49,9 +45,9 @@ For instance, the following tells Condor we are using VMware:
 VM_TYPE = vmware
 \end{verbatim}
 
-You are also required to specify the location of \Condor{vm-gaph}, as well as 
-its configuration file. A basic \Condor{vm-gaph} configuration is shipped 
-with Condor and can be copied to reside alongside \Condor{config}. For a 
+You are also required to specify the location of \Condor{vm-gahp}, as well as 
+its configuration file. A basic \Condor{vm-gahp} configuration is shipped 
+with Condor and can be copied to reside alongside the configuration file. For a 
 Windows installation, these options may look like this:
 
 \begin{verbatim}
@@ -60,10 +56,10 @@ VM_GAHP_CONFIG = $(RELEASE_DIR)/condor_vmgahp_config.vmware
 \end{verbatim}
 
 The final required configuration setting is the location where the
-\Condor{vm-gaph} should write its logs. By default, this is set to 
-\Code{/dev/null} on UNIX and Linux and \Code{NUL} on Windows; however, if 
+\Condor{vm-gahp} should write its logs. By default, this is set to 
+\File{/dev/null} on Unix and Linux and \File{NUL} on Windows; however, if 
 logging is required, it can be set to a specific path.  The following will 
-work on both Windows and UNIX/Linux systems, provided the 
+work on both Windows and Unix/Linux systems, provided the 
 \Code{VMGahpLogs} directory exists:
 
 \begin{verbatim}
@@ -71,7 +67,7 @@ VM_GAHP_LOG = $(LOG)/VMGahpLogs/VMGahpLog.$(USERNAME)
 \end{verbatim}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{VM-Gahp Options}
+\subsection{Configuration for the \Condor{vm-gahp}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The next set of options that need to be set, belong in the \Condor{vm-gahp}'s 
@@ -82,7 +78,7 @@ software that is installed on the host:
 VM_TYPE = vmware
 \end{verbatim}
 
-You must also tell the \Condor{vm-gaph} which version of the software you 
+You must also tell the \Condor{vm-gahp} which version of the software you 
 are using:
 
 \begin{verbatim}
@@ -90,15 +86,13 @@ VM_VERSION = server1.0.4
 \end{verbatim}
 
 While required, this option does not alter the behavior of the 
-\Condor{vm-gaph}. Instead, it is added to the ClassAd for the machine, so it 
+\Condor{vm-gahp}. Instead, it is added to the ClassAd for the machine, so it 
 can be matched against.  This way, if future releases of VMware/Xen support
 new features that are desirable for your job, you can match on this string.
 
-\begin{verbatim}
-\end{verbatim}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{VMware-Specific Options}
+\subsubsection{VMware-Specific Configuration}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 If you are using VMware you also need to set the location of the Perl 
@@ -118,29 +112,29 @@ Windows the following is valid:
 VMWARE_PERL = C:\condor\bin\condor_vm_vmware.pl
 \end{verbatim}
 
-On UNIX/Linux installations the path must be set to reflect the location of
+On Unix/Linux installations the path must be set to reflect the location of
 your installation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Xen-Specific Options}
+\subsubsection{Xen-Specific Configuration}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\Todo
 
-Unlike its partner, VMware, Xen configurations must set which local users 
-are eligible to execute the \Condor{vm-gaph}:
+Xen configurations must set which local users 
+are eligible to execute the \Condor{vm-gahp}:
 
 \begin{verbatim}
 ALLOW_USERS = condor
 \end{verbatim}
 
 This is a requirement because Xen requires root privileges and therefore
-\Condor{vm-gaph} is installed with setuid-root.  The defaults is initially 
+\Condor{vm-gahp} is installed with setuid-root.  The default is initially 
 set to \Code{condor} as is illustrated above; however, there may be reasons
 to add other users to this list.
 
 Next you must set which program controls the Xen hypervisor.  In most cases 
-you will not need a full path, as \Code{ /usr/sbin} is in the root user's 
-path; however, if you are not running the vm-gahp as root, then you will need 
+you will not need a full path, as \File{/usr/sbin} is in the root user's 
+path; however, if you are not running the \Condor{vm-gahp} as root,
+then you will need 
 to specify the complete path to the control program.  For instance:
 
 \begin{verbatim}
@@ -169,7 +163,7 @@ It's not a required option, but if you do decide to use it, there are a
 few things that you should be careful with.  Unlike the kernel image above,
 this image cannot be the stock one used to boot the system.  The reason
 for this is that Xen requires several device drivers in DomUs: \Prog{xennet} 
-and \Prog{xenblk}.  This can be easily fixed by creating a new \Code{initrd}
+and \Prog{xenblk}.  This can be easily fixed by creating a new \Prog{initrd}
 using \Prog{mkinitrd} and loading the drivers into it.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -200,7 +194,7 @@ installation, and a variety of other factors. We can offer only limited
 advice on these matters:
 
 For Xen, the VM Universe is only available when root starts Condor.
-This is a restriction currently imposed because root priveleges are 
+This is a restriction currently imposed because root privileges are 
 required to create a VM on top of a Xen kernel. Specifically, root is needed 
 to properly use the \Prog{virsh} or \Prog{xm} utilities that control 
 creation and management of Xen guest virtual machines. This restriction 
