@@ -292,7 +292,7 @@ Resource::deactivate_claim_forcibly( void )
 void
 Resource::removeClaim( Claim* c )
 {
-	if( c->isCOD() ) {
+	if( c->type() == CLAIM_COD ) {
 		r_cod_mgr->removeClaim( c );
 		return;
 	}
@@ -546,7 +546,7 @@ Resource::starterExited( Claim* cur_claim )
 		EXCEPT( "Resource::starterExited() called with no Claim!" );
 	}
 
-	if( cur_claim->isCOD() ) {
+	if( cur_claim->type() == CLAIM_COD ) {
  		r_cod_mgr->starterExited( cur_claim );
 		return;
 	}

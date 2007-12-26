@@ -49,7 +49,7 @@ public:
 	void	exited();
 	pid_t	pid() {return s_pid;};
 	bool	is_dc() {return s_is_dc;};
-	bool	isCOD(); 
+	ClaimType	claimType(); 
 	bool	active();
 	float	percentCpuUsage( void );
 	unsigned long	imageSize( void );

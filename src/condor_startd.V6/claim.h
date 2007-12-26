@@ -59,7 +59,7 @@ class CODMgr;
 class ClaimId
 {
 public:
-	ClaimId( bool is_cod = false );
+	ClaimId( ClaimType claim_type = CLAIM_OPPORTUNISTIC );
 	~ClaimId();
 
 	char*	id() {return c_id;};
@@ -114,7 +114,8 @@ private:
 class Claim : public Service
 {
 public:
-	Claim( Resource*, bool is_cod = false, int lease_duration = -1 );
+	Claim( Resource*, ClaimType claim_type = CLAIM_OPPORTUNISTIC,
+		   int lease_duration = -1 );
 	~Claim();
 
 		// Operations you can perform on a Claim
@@ -169,7 +170,7 @@ public:
 		// Functions that return data
 	float		rank()			{return c_rank;};
 	float		oldrank()		{return c_oldrank;};
-	bool		isCOD()			{return c_is_cod;};
+	ClaimType	type()			{return c_type;};
 	char*		codId()			{return c_id->codId();};
     char*       id();
 	char const *publicClaimId();
@@ -256,6 +257,7 @@ private:
 	Resource	*c_rip;
 	Client 		*c_client;
 	ClaimId 	*c_id;
+	ClaimType	c_type;
 	ClassAd*	c_ad;
 	Starter*	c_starter;
 	float		c_rank;
@@ -290,7 +292,6 @@ private:
 	int			c_lease_duration; // Duration of our claim/job lease
 	int			c_aliveint;		// Alive interval for this claim
 
-	bool		c_is_cod;       // are we a COD claim or not?
 	char*		c_cod_keyword;	// COD keyword for this claim, if any
 	int			c_has_job_ad;	// Do we have a job ad for the COD claim?
 

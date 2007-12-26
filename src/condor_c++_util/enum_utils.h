@@ -29,6 +29,7 @@
 #include "translation_utils.h"
 
 typedef enum { 
+	CLAIM_NONE=0,
 	CLAIM_COD=1,
 	CLAIM_OPPORTUNISTIC,
 } ClaimType;

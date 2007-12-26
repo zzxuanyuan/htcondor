@@ -107,7 +107,7 @@ Claim*
 CODMgr::addClaim( int lease_duration ) 
 {
 	Claim* new_claim;
-	new_claim = new Claim( rip, true, lease_duration );
+	new_claim = new Claim( rip, CLAIM_COD, lease_duration );
 	new_claim->beginClaim();
 	claims.Append( new_claim );
 	return new_claim;

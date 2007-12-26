@@ -552,7 +552,7 @@ Starter::spawn( time_t now, Stream* s )
 		// if execute dir has not been set, choose one now
 	finalizeExecuteDir();
 
-	if( isCOD() ) {
+	if( claimType() == CLAIM_COD ) {
 		s_pid = execCODStarter();
 #if HAVE_BOINC
 	} else if( isBOINC() ) {
@@ -1194,13 +1194,13 @@ Starter::cleanupAfterGlexec()
 }
 #endif // !WIN32
 
-bool
-Starter::isCOD()
+ClaimType
+Starter::claimType()
 {
 	if( ! s_claim ) {
-		return false;
+		return CLAIM_NONE;
 	}
-	return s_claim->isCOD();
+	return s_claim->type();
 }
 
 

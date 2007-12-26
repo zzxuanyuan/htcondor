@@ -23,6 +23,7 @@
 
 
 struct Translation ClaimTypeTranslation[] = {
+	{ "NONE", CLAIM_NONE },
 	{ "COD", CLAIM_COD },
 	{ "OPPORTUNISTIC", CLAIM_OPPORTUNISTIC },
 	{ "NULL", 0 }
