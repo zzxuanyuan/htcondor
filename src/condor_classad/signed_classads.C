@@ -721,6 +721,89 @@ verify_classad(ClassAd& ad,
 	return verify_same_subset_attributes(ad, sad, attributes_to_verify);
 }
 
+char *
+get_signing_certfile(bool use_gsi, ClassAd &ad)
+{
+	char *ssl_cert_filename = NULL;
+	if(! use_gsi) {
+		ssl_cert_filename = param( AUTH_SSL_CLIENT_CERTFILE_STR );
+		if(ssl_cert_filename == NULL) {
+			fprintf(stderr,
+					"Specify the certificate file for signing using '%s' in the config files.\n",
+					AUTH_SSL_CLIENT_CERTFILE_STR);
+			return NULL;
+		}
+		return ssl_cert_filename;
+	}
+	// OK, must be GSI.
+	static const char *ad_type;
+	ad_type = ad.GetMyTypeName();
+	if(!strcmp(ad_type, "Job")) {
+		char *proxy_filename = NULL;
+		ad.LookupString("x509userproxy", &proxy_filename);
+		if(proxy_filename == NULL) {
+			fprintf(stderr,
+					"Can't get X509UserProxy from job ad.");
+			return NULL;
+		}
+		return proxy_filename;
+	} else {
+		char *eec_key_filename = NULL;
+		eec_key_filename = param( "GSI_DAEMON_CERT" );
+		if(eec_key_filename == NULL) {
+			fprintf(stderr, 
+					"Specify the key file for signing using '%s' in the config files.\n",
+					"GSI_DAEMON_KEY");
+			return NULL;
+		}
+		return eec_key_filename;
+	}
+	// unreachable
+	// return NULL;
+
+}
+
+char *
+get_signing_keyfile(bool use_gsi, ClassAd &ad) 
+{
+	char *ssl_key_filename = NULL;
+	if(! use_gsi) {
+		ssl_key_filename = param( AUTH_SSL_CLIENT_KEYFILE_STR );
+		if(ssl_key_filename == NULL) {
+			fprintf(stderr,
+					"Specify the key file for signing using '%s' in the config files.\n", 
+					AUTH_SSL_CLIENT_KEYFILE_STR);
+			return NULL;
+		}
+		return ssl_key_filename;
+	}
+	// OK, must be GSI.
+	static const char *ad_type;
+	ad_type = ad.GetMyTypeName();
+	if(!strcmp(ad_type, "Job")) {
+		char *proxy_filename = NULL;
+		ad.LookupString("x509userproxy", &proxy_filename);
+		if(proxy_filename == NULL) {
+			fprintf(stderr,
+					"Can't get X509UserProxy from job ad.");
+			return NULL;
+		}
+		return proxy_filename;
+	} else {
+		char *eec_key_filename = NULL;
+		eec_key_filename = param( "GSI_DAEMON_KEY" );
+		if(eec_key_filename == NULL) {
+			fprintf(stderr, 
+					"Specify the key file for signing using '%s' in the config files.\n",
+					"GSI_DAEMON_KEY");
+			return NULL;
+		}
+		return eec_key_filename;
+	}
+	// unreachable
+	// return NULL;
+}
+
 bool
 generic_sign_classad(ClassAd &ad)
 {
@@ -744,20 +827,36 @@ generic_sign_classad(ClassAd &ad)
 	}
 	StringList include(attr_c);
 	free(attr_c);
-	char *keyfile_c = param( AUTH_SSL_CLIENT_KEYFILE_STR );
+
+	bool use_gsi = false;
+	char *sca_type = param("CLASSAD_SIGNATURE_CREDENTIAL_TYPE");
+	if(sca_type == NULL) {
+		fprintf(stderr,
+				"Specify the credential type using '%s'.\n",
+				"CLASSAD_SIGNATURE_CREDENTIAL_TYPE");
+		return false;
+	}
+	if(!strcmp(sca_type, "GSI")) {
+		use_gsi = true;
+	} else {
+		if(!strcmp(sca_type, "SSL")) {
+			use_gsi = false;
+		} else {
+			fprintf(stderr, 
+					"Credential type of '%s' must be 'GSI' or 'SSL'.\n",
+					"CLASSAD_SIGNATURE_CREDENTIAL_TYPE");
+			return false;
+		}
+	}
+
+	char *keyfile_c = get_signing_keyfile(use_gsi, ad);
 	if(keyfile_c == NULL) {
-		fprintf(stderr, 
-				"Specify the key file for signing using '%s'.\n", 
-				AUTH_SSL_CLIENT_KEYFILE_STR);
 		return false;
 	}
 	MyString keyfile(keyfile_c);
 	free(keyfile_c);
-	char *certfile_c = param( AUTH_SSL_CLIENT_CERTFILE_STR );
+	char *certfile_c = get_signing_certfile(use_gsi, ad);
 	if(certfile_c == NULL) {
-		fprintf(stderr, 
-				"Specify the certificate file for signed ClassAds "
-				"using '%s'.\n", AUTH_SSL_CLIENT_CERTFILE_STR );
 		return false;
 	}
 	MyString certfile(certfile_c);
@@ -766,12 +865,6 @@ generic_sign_classad(ClassAd &ad)
 		fprintf( stderr, "Unable to sign ClassAd.\n");
 		return false;
 	}
-	/*
-	  if(!verify_classad(ad, include)) {
-	  fprintf( stderr, "Unable to verify signed Classad.\n");
-	  return false;
-	  }
-	*/
 	return true;
 }
 
@@ -798,7 +891,7 @@ generic_verify_classad(ClassAd ad)
 	}
 	StringList include(attr_c);
 	free(attr_c);
-
+	
 	if(!verify_classad(ad, include)) {
 		fprintf( stderr, "Unable to verify signed Classad.\n");
 		return false;
