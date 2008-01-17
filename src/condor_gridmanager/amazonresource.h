@@ -1,7 +1,7 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
-  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+  * Copyright (C) 1990-2008, Condor Team, Computer Sciences Department,
   * University of Wisconsin-Madison, WI.
   *
   * This source code is covered by the Condor Public License, which can
@@ -31,7 +31,7 @@
 #include "baseresource.h"
 #include "gahp-client.h"
 
-#define AMAZON_RESOURCE_NAME "AMAZON"
+#define AMAZON_RESOURCE_NAME "amazon"
   
 class AmazonJob;
 class AmazonResource;
@@ -40,22 +40,32 @@ class AmazonResource : public BaseResource
 {
 public:
 	void Reconfig();
-
-	static AmazonResource* FindOrCreateResource( const char *resource_name );
+	
+	static const char *HashName( const char * resource_name, 
+								 const char * access_key_file, 
+								 const char * secret_key_file );
+	
+	static AmazonResource* FindOrCreateResource( const char * resource_name, 
+												 const char * access_key_file, 
+												 const char * secret_key_file );
 
 	GahpClient *gahp;
 
-	// in future add status_all() for all jobs. It will display all the jobs running on the Amazon resource.
-
-protected:
-	// the constructor should be protected so that we can use Singleton Pattern
-	AmazonResource(const char *resource_name );
+	AmazonResource(const char * resource_name, 
+				   const char * access_key_file, 
+				   const char * secret_key_file );
+	
 	~AmazonResource();	
+
+	static HashTable <HashKey, AmazonResource *> ResourcesByName;
 	
 private:
-	void DoPing(time_t& ping_delay, bool& ping_complete, bool& ping_succeeded  );
+	void DoPing(time_t & ping_delay, 
+				bool & ping_complete, 
+				bool & ping_succeeded  );
 	
-	static AmazonResource* _instance;	// for singleton pattern
+	char* m_access_key_file;
+	char* m_secret_key_file;	
 };    
   
 #endif
