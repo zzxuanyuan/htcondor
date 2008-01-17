@@ -373,6 +373,21 @@ but that return values and parameter specification
 will vary according  to the target programming language.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{WebService-Gotchas} Get These Items Correct}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{itemize}
+\item For jobs that are to be executed on Windows platforms,
+  explicitly set the job ClassAd attribute \Attr{NTDomain}.
+  This attribute defines the NT domain within which the
+  job's owner authenticates.  The attribute is necessary,
+  and it is not set for the job by the \Procedure{createJobTemplate}
+  function.
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{WebService-Transactions} Methods for Transaction Management}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -487,6 +502,9 @@ will vary according  to the target programming language.
 \item [\Code{createJobTemplate}]
   Request a job Class Ad, given some of the job requirements.
   This job Class Ad will be suitable for use when submitting the job.
+  Note that the job attribute \Attr{NTDomain} is not set by this
+  function, but must be set for jobs that will execute on Windows
+  platforms.
   A prototype is 
 
   \Code{StatusAndClassAd createJobTemplate(int clusterId, 
