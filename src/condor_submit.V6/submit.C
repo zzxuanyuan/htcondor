@@ -346,6 +346,15 @@ char    *VM_Checkpoint = "vm_checkpoint";
 char    *VM_Networking = "vm_networking";
 char    *VM_Networking_Type = "vm_networking_type";
 
+//******************* added by fangcao for Amazon Job **************//
+char* AmazonAccessKey = "AmazonAccessKey";
+char* AmazonSecretKey = "AmazonSecretKey";
+char* AmazonAmiID = "AmazonAmiID";
+char* AmazonKeyPair = "AmazonKeyPair";
+char* AmazonGroupName = "AmazonGroupName";
+char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
+char* AmazonUploadDirName = "AmazonUploadDirName";
+//******************* end of add by fangcao for Amazon Job **************//
 
 const char * REMOTE_PREFIX="Remote_";
 
@@ -1561,6 +1570,7 @@ SetUniverse()
 				(stricmp (JobGridType, "naregi") == MATCH) ||
 				(stricmp (JobGridType, "condor") == MATCH) ||
 				(stricmp (JobGridType, "nordugrid") == MATCH) ||
+				(stricmp (JobGridType, "amazon") == MATCH) ||	// added by fangcao for amazon job
 				(stricmp (JobGridType, "unicore") == MATCH) ||
 				(stricmp (JobGridType, "oracle") == MATCH) ||
 				(stricmp (JobGridType, "cream") == MATCH)){
@@ -4411,8 +4421,7 @@ SetGlobusParams()
 
 	tmp = condor_param( GridResource, ATTR_GRID_RESOURCE );
 	if ( tmp ) {
-			// If we find grid_resource, then just toss it into the job ad
-
+		// If we find grid_resource, then just toss it into the job ad
 		if ( !unified_syntax ) {
 				fprintf( stderr, "ERROR: Attribute %s cannot be used with "
 						 "schedds older than 6.7.11\n", GridResource );
@@ -4420,11 +4429,11 @@ SetGlobusParams()
 				exit( 1 );
 		}
 
-			// TODO validate number of fields in grid_resource?
+		// TODO validate number of fields in grid_resource?
 
 		sprintf( buffer, "%s = \"%s\"", ATTR_GRID_RESOURCE, tmp );
 		InsertJobExpr( buffer );
-
+				
 		if ( strstr(tmp,"$$") ) {
 				// We need to perform matchmaking on the job in order
 				// to fill GridResource.
@@ -4604,7 +4613,7 @@ SetGlobusParams()
 			}
 
 			free( host );
-		}
+		}		
 
 		if ( stricmp ( JobGridType, "unicore" ) == MATCH ) {
 
@@ -4773,6 +4782,80 @@ SetGlobusParams()
 		DoCleanup( 0, 0, NULL );
 		exit( 1 );
 	}
+	
+	//*********************added by fangcao for Amazon Job *****************************//
+	if ( (tmp = condor_param( AmazonAccessKey )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonAccessKey, tmp );
+		InsertJobExpr( buffer );
+		free( tmp );
+	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
+		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonAccessKey );
+		DoCleanup( 0, 0, NULL );
+		exit( 1 );
+	}
+	
+	if ( (tmp = condor_param( AmazonSecretKey )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonSecretKey, tmp );
+		InsertJobExpr( buffer );
+		free( tmp );
+	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
+		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonSecretKey );
+		DoCleanup( 0, 0, NULL );
+		exit( 1 );
+	}
+	
+	// AmazonKeyPair is not a necessary parameter
+	if ( (tmp = condor_param( AmazonKeyPair )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonKeyPair, tmp );
+		free( tmp );
+		InsertJobExpr( buffer );		
+	}
+	
+	// AmazonKeyPairFileName is not a necessary parameter
+	if( (tmp = condor_param( AmazonKeyPairFileName )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonKeyPairFileName, tmp );
+		free( tmp );
+		InsertJobExpr( buffer );
+	}
+	
+	// AmazonGroupName is not a necessary parameter
+	if( (tmp = condor_param( AmazonGroupName )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonGroupName, tmp );
+		free( tmp );
+		InsertJobExpr( buffer );
+	}
+	
+	// AmazonUploadDirName and AmazonAmiID shouldn't exist in the same submit file
+	bool has_amiid = false;
+	bool has_uploaddir = false;
+	
+	if ( (tmp = condor_param( AmazonAmiID )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonAmiID, tmp );
+		InsertJobExpr( buffer );
+		free( tmp );
+		has_amiid = true;
+	}
+	
+	if ( (tmp = condor_param( AmazonUploadDirName )) ) {
+		sprintf( buffer, "%s = \"%s\"", AmazonUploadDirName, tmp );
+		InsertJobExpr( buffer );
+		free( tmp );
+		has_uploaddir = true;
+	}
+	
+	if (has_amiid && has_uploaddir) {
+		// two attributes appear in the same submit file
+		fprintf(stderr, "\nERROR: Parameters \"%s\" and \"%s\" exist in same Amazon job\n", AmazonAmiID, AmazonUploadDirName);
+		DoCleanup( 0, 0, NULL );
+		exit(1);
+	} else if ( !has_amiid && !has_uploaddir ) {
+		// at least one of them should appear in the submit file
+		fprintf(stderr, "\nERROR: One of the parameters \"%s\" and \"%s\" should exist in an Amazon job\n", AmazonAmiID, AmazonUploadDirName);
+		DoCleanup( 0, 0, NULL );
+		exit(1);
+	}	
+		
+	//*********************end of adding by fangcao ***********************************//
 }
 
 void

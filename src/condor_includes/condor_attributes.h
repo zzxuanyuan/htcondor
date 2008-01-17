@@ -646,6 +646,18 @@ extern const char *ATTR_VM_GUEST_MEM;
 extern const char *ATTR_VM_CKPT_MAC;
 extern const char *ATTR_VM_CKPT_IP;
 
+
+//************* Added for Amazon Jobs by fangcao ***************************//
+extern const char *ATTR_AMAZON_ACCESS_KEY;
+extern const char *ATTR_AMAZON_SECRET_KEY;
+extern const char *ATTR_AMAZON_AMI_ID;
+extern const char *ATTR_AMAZON_KEY_PAIR;
+extern const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME;
+extern const char *ATTR_AMAZON_GROUP_NAME;
+extern const char *ATTR_AMAZON_UPLOAD_DIR_NAME;
+//************* End of changes for Amamzon Jobs by fangcao *****************//
+
+
 // This is a record of the job exit status from a standard universe job exit
 // via waitpid. It is in the job ad to implement the terminate_pending
 // feature. It has to be here because of rampant global variable usage in the

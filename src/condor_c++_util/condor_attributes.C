@@ -734,3 +734,16 @@ const char *MANAGED_SCHEDD				 = "Schedd";
 const char *MANAGED_DONE				 = "ScheddDone";
 const char * COLLECTOR_REQUIREMENTS = "COLLECTOR_REQUIREMENTS";
 const char *ATTR_PREV_LAST_HEARD_FROM	= "PrevLastHeardFrom";
+
+
+//************* Added for Amazon Jobs by fangcao ***************************//
+const char *ATTR_AMAZON_ACCESS_KEY = "AmazonAccessKey";
+const char *ATTR_AMAZON_SECRET_KEY = "AmazonSecretKey";
+const char *ATTR_AMAZON_AMI_ID = "AmazonAmiID";
+const char *ATTR_AMAZON_KEY_PAIR = "AmazonKeyPair";
+const char *ATTR_AMAZON_GROUP_NAME = "AmazonGroupName";
+const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME = "AmazonKeyPairFileName";
+const char *ATTR_AMAZON_UPLOAD_DIR_NAME = "AmazonUploadDirName";
+//************* End of changes for Amamzon Jobs by fangcao *****************//
+
+
