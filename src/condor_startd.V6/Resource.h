@@ -126,6 +126,8 @@ public:
 
 	Claim*	newCODClaim( int lease_duration );
 
+	bool	updateClaim(ClassAd* job_ad);
+
 		// Called when the starter of one of our claims exits
 	void	starterExited( Claim* cur_claim );	
 
@@ -159,6 +161,7 @@ public:
 	int		eval_is_owner( void );		// EXCEPT's on undefined
 	int		eval_start( void );			// returns -1 on undefined
 	int		eval_cpu_busy( void );		// returns FALSE on undefined
+	bool	willingToRun( ClassAd* job_ad );
 
 #if HAVE_BACKFILL
 	int		eval_start_backfill( void ); 

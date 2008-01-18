@@ -36,6 +36,10 @@
 #include "starter_mgr.h"
 #include "vmuniverse_mgr.h"
 
+#if HAVE_FETCH_WORK
+#include "FetchWorkMgr.h"
+#endif /* HAVE_FETCH_WORK */
+
 #if HAVE_BACKFILL
 #include "backfill_mgr.h"
 #if HAVE_BOINC
@@ -182,6 +186,11 @@ public:
 	void backfillMgrDone();
 #endif /* HAVE_BACKFILL */
 
+#if HAVE_FETCH_WORK
+	FetchWorkMgr* m_fetch_work_mgr;
+	void fetchWorkMgrDone();
+#endif /* HAVE_FETCH_WORK */
+
 	time_t	now( void ) { return cur_time; };
 
 	void FillExecuteDirsList( class StringList *list );
@@ -289,6 +298,11 @@ private:
 	bool backfillConfig( void );
 	bool m_backfill_shutdown_pending;
 #endif /* HAVE_BACKFILL */
+
+#if HAVE_FETCH_WORK
+	bool fetchWorkConfig( void );
+	bool m_fetch_work_shutdown_pending;
+#endif /* HAVE_FETCH_WORK */
 
 };
 

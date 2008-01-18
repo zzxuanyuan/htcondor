@@ -330,6 +330,16 @@ ResState::eval( void )
 		if( (r_act == busy_act || r_act == retiring_act) && (rip->wants_pckpt()) ) {
 			rip->periodic_checkpoint();
 		}
+
+#if HAVE_FETCH_WORK
+			// If we're compiled to support fetching work
+			// automatically and configured to do so, check now if
+			// there's any work we can fetch and perform.
+		if (r_act == idle_act && resmgr->m_fetch_work_mgr) {
+			resmgr->m_fetch_work_mgr->fetchWork(rip);
+		}
+#endif /* HAVE_FETCH_WORK */
+
 		if( rip->r_reqexp->restore() ) {
 				// Our reqexp changed states, send an update
 			rip->update();
@@ -355,6 +365,15 @@ ResState::eval( void )
 			// Check to see if we should run benchmarks
 		deal_with_benchmarks( rip );
 
+#if HAVE_FETCH_WORK
+			// If we're compiled to support fetching work
+			// automatically and configured to do so, check now if
+			// there's any work we can fetch and perform.
+		if (resmgr->m_fetch_work_mgr) {
+			resmgr->m_fetch_work_mgr->fetchWork(rip);
+		}
+#endif /* HAVE_FETCH_WORK */
+
 #if HAVE_BACKFILL
 			// check if we should go into the Backfill state.  only do
 			// so if a) we've got a BackfillMgr object configured and
@@ -377,6 +396,17 @@ ResState::eval( void )
 			dprintf( D_ALWAYS, "State change: IS_OWNER is false\n" );
 			change( unclaimed_state );
 		}
+#if HAVE_FETCH_WORK
+			// If we're compiled to support fetching work
+			// automatically and configured to do so, check now if
+			// there's any work we can fetch and perform.  Even if
+			// we're in the owner state, we can still see if the
+			// expressions allow any fetched work at this point.
+		if (resmgr->m_fetch_work_mgr) {
+			resmgr->m_fetch_work_mgr->fetchWork(rip);
+		}
+#endif /* HAVE_FETCH_WORK */
+
 		break;	
 		
 	case matched_state:
@@ -423,6 +453,15 @@ ResState::eval( void )
 			dprintf( D_ALWAYS, "WARNING: EVICT_BACKFILL is UNDEFINED, "
 					 "staying in Backfill state\n" );
 		}
+
+#if HAVE_FETCH_WORK
+			// If we're compiled to support fetching work
+			// automatically and configured to do so, check now if
+			// there's any work we can fetch and perform.
+		if (resmgr->m_fetch_work_mgr) {
+			resmgr->m_fetch_work_mgr->fetchWork(rip);
+		}
+#endif /* HAVE_FETCH_WORK */
 
 		if( r_act == idle_act ) {
 				// if we're in Backfill/Idle, try to spawn a backfill job
@@ -734,6 +773,8 @@ ResState::set_destination( State new_state )
 	case claimed_state:
 			// this is only valid if we've got a pending request to
 			// claim that's already been stashed in our Claim object 
+
+			// TODO: or if it's a fetch Claim...
 		if( ! rip->r_cur->requestStream() ) {
 			EXCEPT( "set_destination(Claimed) called but there's no "
 					"pending request stream set in our current Claim" );

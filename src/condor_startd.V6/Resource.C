@@ -1846,3 +1846,25 @@ Resource::endCODLoadHack( void )
 	r_pre_cod_total_load = 0.0;
 	r_pre_cod_condor_load = 0.0;
 }
+
+
+bool
+Resource::updateClaim(ClassAd* job_ad)
+{
+		// TODO-fetch
+	return true;
+}
+
+
+bool
+Resource::willingToRun(ClassAd* job_ad)
+{
+		// TODO-fetch: check current state and RANK if necessary...
+	int tmp;
+	if ((r_classad->EvalBool("START", job_ad, tmp)) == 0) { 
+			// Treat undefined as FALSE...
+		return false;
+	}
+	return (bool)tmp;
+}
+

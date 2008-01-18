@@ -48,3 +48,8 @@ template class ExtArray<BackfillSlot*>;
 #endif /* HAVE_BACKFILL */
 
 
+#if HAVE_FETCH_WORK
+class FetchClient;
+template class SimpleList<FetchClient*>;
+#endif /* HAVE_FETCH_WORK */
+
