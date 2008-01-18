@@ -638,6 +638,15 @@ AC_ARG_WITH(purecachedir,
 )
 AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 
+AC_ARG_WITH(fetch-work,
+  [AS_HELP_STRING([--with-fetch-work],
+     [Add support for hook-based work fetching])],
+  [FETCH_WORK=$withval],
+  [FETCH_WORK=yes])
+if test $FETCH_WORK != no; then
+  AC_DEFINE([HAVE_FETCH_WORK], [1], [Define to 1 to support hook-based work fetching])
+fi
+
 
 ############################################################
 # checks for programs
