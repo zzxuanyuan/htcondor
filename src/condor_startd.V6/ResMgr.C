@@ -41,6 +41,10 @@ ResMgr::ResMgr()
 	m_backfill_shutdown_pending = false;
 #endif
 
+#if HAVE_FETCH_WORK
+	m_fetch_work_mgr = NULL;
+#endif
+
 	id_disp = NULL;
 
 	nresources = 0;
@@ -63,6 +67,12 @@ ResMgr::~ResMgr()
 #if HAVE_BACKFILL
 	if( m_backfill_mgr ) {
 		delete m_backfill_mgr;
+	}
+#endif
+
+#if HAVE_FETCH_WORK
+	if (m_fetch_work_mgr) {
+		delete m_fetch_work_mgr;
 	}
 #endif
 
@@ -373,6 +383,10 @@ ResMgr::init_resources( void )
 	backfillConfig();
 #endif
 
+#if HAVE_FETCH_WORK
+	m_fetch_work_mgr = new FetchWorkMgr;
+	m_fetch_work_mgr->init();
+#endif
 }
 
 bool
@@ -388,6 +402,12 @@ ResMgr::reconfig_resources( void )
 #if HAVE_BACKFILL
 	backfillConfig();
 #endif
+
+#if HAVE_FETCH_WORK
+	m_fetch_work_mgr->reconfig();
+#endif
+
+
 		// See if any new types were defined.  Don't except if there's
 		// any errors, just dprintf().
 	initTypes( 0 );
