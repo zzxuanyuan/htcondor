@@ -32,6 +32,7 @@ typedef enum {
 	CLAIM_NONE=0,
 	CLAIM_COD=1,
 	CLAIM_OPPORTUNISTIC,
+	CLAIM_FETCH,
 } ClaimType;
 
 const char* getClaimTypeString( ClaimType type );
