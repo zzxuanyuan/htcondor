@@ -1189,12 +1189,17 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		// function after the preemption has completed when the startd
 		// is finally ready to reply to the and finish the claiming
 		// process.
-	return accept_request_claim( rip );
+	accept_request_claim( rip );
+
+		// We always need to return KEEP_STREAM so that daemon core
+		// doesn't try to delete the stream we've already deleted.
+	return KEEP_STREAM;
+
 }
 #undef ABORT
 
 
-int
+void
 abort_accept_claim( Resource* rip, Stream* stream )
 {
 	stream->encode();
@@ -1212,17 +1217,17 @@ abort_accept_claim( Resource* rip, Stream* stream )
 			*/
 		rip->dprintf( D_ALWAYS, "Claiming protocol failed\n" );
 		rip->set_destination_state( owner_state );
-		return KEEP_STREAM;
+		return;
 	}
 #endif /* HAVE_BACKFILL */
 
 	rip->dprintf( D_ALWAYS, "State change: claiming protocol failed\n" );
 	rip->change_state( owner_state );
-	return KEEP_STREAM;
+	return;
 }
 
 
-int
+bool
 accept_request_claim( Resource* rip )
 {
 	int interval;
@@ -1240,11 +1245,13 @@ accept_request_claim( Resource* rip )
 	stream->encode();
 	if( !stream->put( OK ) ) {
 		rip->dprintf( D_ALWAYS, "Can't to send cmd to schedd.\n" );
-		return abort_accept_claim( rip, stream );
+		abort_accept_claim( rip, stream );
+		return false;
 	}
 	if( !stream->eom() ) {
 		rip->dprintf( D_ALWAYS, "Can't to send eom to schedd.\n" );
-		return abort_accept_claim( rip, stream );
+		abort_accept_claim( rip, stream );
+		return false;
 	}
 
 		// Grab the schedd addr and alive interval if the alive interval is still
@@ -1256,7 +1263,8 @@ accept_request_claim( Resource* rip )
 		stream->decode();
 		if( ! stream->code(client_addr) ) {
 			rip->dprintf( D_ALWAYS, "Can't receive schedd addr.\n" );
-			return abort_accept_claim( rip, stream );
+			abort_accept_claim( rip, stream );
+			return false;
 		} else {
 			rip->dprintf( D_FULLDEBUG, "Schedd addr = %s\n", client_addr );
 		}
@@ -1264,7 +1272,8 @@ accept_request_claim( Resource* rip )
 			rip->dprintf( D_ALWAYS, "Can't receive alive interval\n" );
 			free( client_addr );
 			client_addr = NULL;
-			return abort_accept_claim( rip, stream );
+			abort_accept_claim( rip, stream );
+			return false;
 		} else {
 			rip->dprintf( D_FULLDEBUG, "Alive interval = %d\n", interval );
 		}
@@ -1332,10 +1341,7 @@ accept_request_claim( Resource* rip )
 
 	rip->dprintf( D_FAILURE|D_ALWAYS, "State change: claiming protocol successful\n" );
 	rip->change_state( claimed_state );
-
-		// Want to return KEEP_STREAM so that daemon core doesn't try
-		// to delete the stream we've already deleted.
-	return KEEP_STREAM;
+	return true;
 }
 
 

@@ -798,9 +798,10 @@ ResState::set_destination( State new_state )
 	case unclaimed_state:
 		if( r_destination == claimed_state ) {
 				// this is a little weird, but we can't just enter
-				// claimed directly, we have to do all this gnarly
-				// claiming protocol stuff, first...
-			accept_request_claim( rip );
+				// claimed directly, we have to see what kind of claim
+				// it is and potentailly do all the gnarly claiming
+				// protocol stuff, first...
+			rip->acceptClaimRequest();
 		} else {
 			change( r_destination );
 		}
@@ -816,7 +817,7 @@ ResState::set_destination( State new_state )
 		if( r_act == idle_act ) {
 				// if we're idle, we can go immediately 
 			if( r_destination == claimed_state ) {
-				accept_request_claim( rip );
+				rip->acceptClaimRequest();
 			} else {
 				change( r_destination );
 			}
@@ -862,8 +863,8 @@ ResState::starterExited( void )
 			// pending request is gone for some reason, go back to
 			// the Owner state... 
 		dprintf( D_ALWAYS, "State change: starter exited\n" );
-		if( rip->r_cur->requestStream() ) {
-			accept_request_claim( rip );
+		if (rip->acceptClaimRequest()) {
+				// Successfully accepted the claim and changed state.
 			return TRUE;
 		} else {
 			r_destination = no_state;

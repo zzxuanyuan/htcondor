@@ -712,7 +712,7 @@ Resource::leave_preempting_state( void )
 			r_pre = NULL;
 			remove_pre(); // do full cleanup of pre stuff
 				// STATE TRANSITION preempting -> claimed
-			accept_request_claim( this );
+			acceptClaimRequest();
 			return;
 		}
 			// Else, fall through, no break.
@@ -763,7 +763,7 @@ Resource::leave_preempting_state( void )
 		r_pre = NULL;
 		remove_pre(); // do full cleanup of pre stuff
 			// STATE TRANSITION preempting -> claimed
-		accept_request_claim( this );
+		acceptClaimRequest();
 	} else {
 			// STATE TRANSITION preempting -> owner
 		remove_pre();
@@ -1853,6 +1853,27 @@ Resource::updateClaim(ClassAd* job_ad)
 {
 		// TODO-fetch
 	return true;
+}
+
+
+bool
+Resource::acceptClaimRequest()
+{
+	switch (r_cur->type()) {
+	case CLAIM_OPPORTUNISTIC:
+		if (r_cur->requestStream()) {
+				// We have a pending opportunistic claim, try to accept it.
+			return accept_request_claim(this);
+		}
+		else {
+			return false;
+		}
+		break;
+
+	case CLAIM_COD:
+			// TODO?
+		break;
+	}
 }
 
 

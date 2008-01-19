@@ -128,6 +128,12 @@ public:
 
 	bool	updateClaim(ClassAd* job_ad);
 
+		/**
+		   Try to finish accepting a pending claim request.
+		   @return true if we accepted and began a claim, false if not.
+		*/
+	bool	acceptClaimRequest();
+
 		// Called when the starter of one of our claims exits
 	void	starterExited( Claim* cur_claim );	
 
