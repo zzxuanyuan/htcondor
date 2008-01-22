@@ -3388,6 +3388,13 @@ search for the corresponding attribute names using ``slot'', instead.
   make Condor advertise more slots than there are CPUs on the machine.
   To do that, use \Macro{NUM\_CPUS}.
 
+\item[\Macro{ALLOW\_VM\_CRUFT}]
+\label{param:AllowVMCruft}
+  A boolean value that defaults to \Expr{True}.  When \Expr{True},
+  Condor looks for configuration variables named with the
+  previously used string \MacroNI{VM} instead of the currently
+  used string \MacroNI{SLOT}.
+
 \end{description}
 
 The following macros describe the \Prog{cron} capabilities of Condor.
