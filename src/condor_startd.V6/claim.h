@@ -136,13 +136,6 @@ public:
 		*/
 	void beginClaim( void );	
 
-		/** We accepted a request to activate the claim and spawn a
-			starter.  Pull all the information we need out of the
-			request and store it in this Claim object, along with any
-			attributes that care about the time the job was spawned. 
-		*/
-	void beginActivation( time_t now ); 
-
 		/** Load info used by the accountant into this object from the
 			current classad.
 		 */
@@ -208,7 +201,7 @@ public:
 	void preemptIsTrue() {c_preempt_was_true=true;}
 
 		// starter-related functions
-	int	 spawnStarter( time_t, Stream* = NULL );
+	int	 spawnStarter( Stream* = NULL );
 	void setStarter( Starter* s );
 	void starterExited( void );
 	bool starterPidMatches( pid_t starter_pid );
@@ -313,6 +306,14 @@ private:
 			reset it by clearing out all the activation-specific data
 		*/
 	void resetClaim( void );
+
+		/**
+		   We accepted a request to activate the claim and spawn a
+		   starter.  Pull all the information we need out of the
+		   request and store it in this Claim object, along with any
+		   attributes that care about the time the job was spawned. 
+		*/
+	void beginActivation( time_t now ); 
 };
 
 

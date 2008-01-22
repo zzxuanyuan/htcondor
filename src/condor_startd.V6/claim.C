@@ -1177,7 +1177,7 @@ Claim::getCODMgr( void )
 }
 
 int
-Claim::spawnStarter( time_t now, Stream* s )
+Claim::spawnStarter( Stream* s )
 {
 	int rval;
 	if( ! c_starter ) {
@@ -1187,6 +1187,8 @@ Claim::spawnStarter( time_t now, Stream* s )
 		return FALSE;
 	}
 
+	time_t now = time(NULL);
+
 	rval = c_starter->spawn( now, s );
 	if( ! rval ) {
 		resetClaim();
@@ -1194,6 +1196,9 @@ Claim::spawnStarter( time_t now, Stream* s )
 	}
 
 	changeState( CLAIM_RUNNING );
+
+		// Do other bookkeeping so this claim knows it started an activation.
+	beginActivation(now);
 
 		// WE USED TO....
 		//

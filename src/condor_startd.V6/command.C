@@ -1553,8 +1553,6 @@ activate_claim( Resource* rip, Stream* stream )
 	}
 #endif	// of ifdef WIN32
 
-	time_t now = time( NULL );
-
 		// now that we've gotten this far, we're really going to try
 		// to spawn the starter.  set it in our Claim object.  Once
 		// it's there, we no longer control this memory so we should
@@ -1574,17 +1572,13 @@ activate_claim( Resource* rip, Stream* stream )
 	req_classad = NULL;
 
 		// Actually spawn the starter
-	if( ! rip->r_cur->spawnStarter(now, shadow_sock) ) {
+	if( ! rip->r_cur->spawnStarter(shadow_sock) ) {
 			// if Claim::spawnStarter fails, it resets the Claim
 			// object to clear out all the info we just stashed above
 			// with setStarter() and saveJobInfo().  it's safe to just
 			// abort now, and all the state will be happy.
 		ABORT;
 	}
-
-		// Grab everything we need/want out of the request and store
-		// it in our current claim 
-	rip->r_cur->beginActivation( now );
 
 	if( job_univ == CONDOR_UNIVERSE_VM ) {
 		if( resmgr->m_vmuniverse_mgr.allocVM(vm_starter->pid(), vm_classad, rip->executeDir()) 
