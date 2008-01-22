@@ -131,7 +131,9 @@ void dprintf_touch_log(void);
 #if !( defined(LINUX) && defined(GLIBC) || defined(Darwin) || defined(CONDOR_FREEBSD) )
 extern DLL_IMPORT_MAGIC int		errno;
 extern DLL_IMPORT_MAGIC int		sys_nerr;
-extern DLL_IMPORT_MAGIC char		*sys_errlist[];
+#if !defined(WIN32)
+extern DLL_IMPORT_MAGIC char	*sys_errlist[];
+#endif
 #endif
 
 extern int	_EXCEPT_Line;			/* Line number of the exception    */
