@@ -1427,6 +1427,36 @@ Claim::starterKillHard( void )
 
 
 bool
+Claim::makeStarterArgs( ArgList &args )
+{
+	switch (c_type) {
+	case CLAIM_COD:
+		return makeCODStarterArgs(args);
+		break;
+#if HAVE_FETCH_WORK
+	case CLAIM_FETCH:
+		return makeFetchStarterArgs(args);
+		break;
+#endif /* HAVE_FETCH_WORK */
+	default:
+		EXCEPT("Impossible: makeStarterArgs() called with unsupported claim type"); 
+	}
+	return false;
+}
+
+#if HAVE_FETCH_WORK
+bool
+Claim::makeFetchStarterArgs( ArgList &args )
+{
+	args.AppendArg("condor_starter");
+	args.AppendArg("-f");
+	args.AppendArg("-job-input-ad");
+	args.AppendArg("-");
+}
+#endif /* HAVE_FETCH_WORK */
+
+
+bool
 Claim::makeCODStarterArgs( ArgList &args )
 {
 		// first deal with everthing that's shared, no matter what.

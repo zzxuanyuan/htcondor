@@ -177,6 +177,10 @@ public:
 	bool	hardkill_backfill( void );
 #endif /* HAVE_BACKFILL */
 
+#if HAVE_FETCH_WORK
+	bool	spawnFetchedWork( void );
+#endif /* HAVE_FETCH_WORK */
+
 	bool    claimWorklifeExpired();
 	int		retirementExpired( void );
 	int		mayUnretire( void );

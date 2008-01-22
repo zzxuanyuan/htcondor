@@ -552,15 +552,23 @@ Starter::spawn( time_t now, Stream* s )
 		// if execute dir has not been set, choose one now
 	finalizeExecuteDir();
 
-	if( claimType() == CLAIM_COD ) {
-		s_pid = execCODStarter();
+	if (claimType() == CLAIM_COD) {
+		s_pid = execJobPipeStarter();
+	}
+#if HAVE_FETCH_WORK
+	else if (claimType() == CLAIM_FETCH) {
+		s_pid = execJobPipeStarter();
+	}
+#endif /* HAVE_FETCH_WORK */
 #if HAVE_BOINC
-	} else if( isBOINC() ) {
+	else if( isBOINC() ) {
 		s_pid = execBOINCStarter(); 
+	}
 #endif /* HAVE_BOINC */
-	} else if( is_dc() ) {
+	else if( is_dc() ) {
 		s_pid = execDCStarter( s ); 
-	} else {
+	}
+	else {
 			// Use old icky non-daemoncore starter.
 		s_pid = execOldStarter();
 	}
@@ -601,7 +609,7 @@ Starter::exited()
 
 
 int
-Starter::execCODStarter( void )
+Starter::execJobPipeStarter( void )
 {
 	int rval;
 	MyString lock_env;
@@ -609,23 +617,25 @@ Starter::execCODStarter( void )
 	Env env;
 	char* tmp;
 
-	tmp = param( "LOCK" );
-	if( ! tmp ) { 
-		tmp = param( "LOG" );
-	}
-	if( ! tmp ) { 
-		EXCEPT( "LOG not defined!" );
-	}
-	lock_env = "_condor_STARTER_LOCK=";
-	lock_env += tmp;
-	free( tmp );
-	lock_env += DIR_DELIM_CHAR;
-	lock_env += "StarterLock.cod";
+	if (s_claim->type() == CLAIM_COD) {
+		tmp = param( "LOCK" );
+		if( ! tmp ) { 
+			tmp = param( "LOG" );
+		}
+		if( ! tmp ) { 
+			EXCEPT( "LOG not defined!" );
+		}
+		lock_env = "_condor_STARTER_LOCK=";
+		lock_env += tmp;
+		free( tmp );
+		lock_env += DIR_DELIM_CHAR;
+		lock_env += "StarterLock.cod";
 
-	env.SetEnv(lock_env.Value());
+		env.SetEnv(lock_env.Value());
+	}
 
-	if(!s_claim->makeCODStarterArgs(args)) {
-		dprintf( D_ALWAYS, "ERROR: failed to create COD starter args.\n");
+	if(!s_claim->makeStarterArgs(args)) {
+		dprintf( D_ALWAYS, "ERROR: failed to create starter argument list.\n");
 		return 0;
 	}
 

@@ -614,7 +614,7 @@ ResState::enter_action( State s, Activity a,
 				// Generate a preempting claim object
 			rip->r_pre = new Claim( rip );
 		}
-		if( a == suspended_act ) {
+		if (a == suspended_act) {
 			if( ! rip->r_cur->suspendClaim() ) {
 				rip->r_cur->starterKillPg( SIGKILL );
 				dprintf( D_ALWAYS,
@@ -622,7 +622,7 @@ ResState::enter_action( State s, Activity a,
 				return change( owner_state );
 			}
 		}
-		if( a == busy_act ) {
+		else if (a == busy_act) {
 			resmgr->start_poll_timer();
 
 			if( rip->inRetirement() ) {
@@ -634,13 +634,35 @@ ResState::enter_action( State s, Activity a,
 				return change( retiring_act );
 			}
 		}
-		if( a == retiring_act ) {
+		else if (a == retiring_act) {
 			if( ! rip->claimIsActive() ) {
 				// The starter exited by the time we got here.
 				// No need to wait around in retirement.
 				return change( preempting_state );
 			}
 		}
+#if HAVE_FETCH_WORK
+		else if (a == idle_act) {
+			if (rip->r_cur->type() == CLAIM_FETCH) {
+				if (statechange) {
+						// We just entered Claimed/Idle on a state change,
+						// and we've got a fetch claim, so try to activate it.
+					ASSERT(rip->r_cur->hasJobAd());
+					rip->spawnFetchedWork();
+						// spawnFetchedWork() *always* causes a state change.
+					return TRUE;
+				}
+				else {
+						// We just entered Claimed/Idle, but not due
+						// to a state change.  The starter must have
+						// exited, so therefore, we should leave
+						// Claimed, destroy the claim, and start over.
+					return change(owner_state);
+				}
+			}
+		}
+#endif /* HAVE_FETCH_WORK */
+
 		break;
 
 	case unclaimed_state:

@@ -215,7 +215,7 @@ public:
 	bool starterKillPg( int sig );
 	bool starterKillSoft( void );
 	bool starterKillHard( void );
-	bool makeCODStarterArgs( ArgList &args );
+	bool makeStarterArgs( ArgList &args );
 	bool verifyCODAttrs( ClassAd* req );
 	bool publishStarterAd( ClassAd* ad );
 
@@ -314,6 +314,12 @@ private:
 		   attributes that care about the time the job was spawned. 
 		*/
 	void beginActivation( time_t now ); 
+
+	bool makeCODStarterArgs( ArgList &args );
+#if HAVE_FETCH_WORK
+	bool makeFetchStarterArgs( ArgList &args );
+#endif /* HAVE_FETCH_WORK */
+
 };
 
 

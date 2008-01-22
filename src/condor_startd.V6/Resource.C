@@ -1870,6 +1870,14 @@ Resource::acceptClaimRequest()
 		}
 		break;
 
+#if HAVE_FETCH_WORK
+	case CLAIM_FETCH:
+		dprintf(D_FAILURE|D_ALWAYS, "State change: Finished fetching work successfully\n" );
+			// Enter Claimed/Idle will trigger all the actions we need.
+		change_state(claimed_state);
+		break;
+#endif /* HAVE_FETCH_WORK */
+
 	case CLAIM_COD:
 			// TODO?
 		break;
@@ -1889,3 +1897,30 @@ Resource::willingToRun(ClassAd* job_ad)
 	return (bool)tmp;
 }
 
+#if HAVE_FETCH_WORK
+bool
+Resource::spawnFetchedWork(void)
+{
+        // First, we have to find a Starter that will work.
+    Starter* tmp_starter;
+    tmp_starter = resmgr->starter_mgr.findStarter(r_cur->ad(), r_classad);
+	if( ! tmp_starter ) {
+		dprintf(D_ALWAYS|D_FAILURE, "ERROR: Could not find a starter that can run fetched work request, aborting.\n");
+		change_state(owner_state);
+		return false;
+	}
+	
+	r_cur->setStarter(tmp_starter);
+
+	if (!r_cur->spawnStarter()) {
+		dprintf(D_ALWAYS|D_FAILURE, "ERROR: Failed to spawn starter for fetched work request, aborting.\n");
+		change_state(owner_state);
+			// spawnStarter() deletes the Claim's starter object on
+			// failure, so there's no worry about leaking tmp_starter here.
+		return false;
+	}
+
+	change_state(busy_act);
+	return true;
+}
+#endif /* HAVE_FETCH_WORK */
