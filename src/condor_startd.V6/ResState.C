@@ -655,9 +655,10 @@ ResState::enter_action( State s, Activity a,
 				else {
 						// We just entered Claimed/Idle, but not due
 						// to a state change.  The starter must have
-						// exited, so therefore, we should leave
-						// Claimed, destroy the claim, and start over.
-					return change(owner_state);
+						// exited, so therefore, we should wrap up 
+						// the fetch claim (always causes state change).
+					rip->terminateFetchedWork();
+					return TRUE;
 				}
 			}
 		}

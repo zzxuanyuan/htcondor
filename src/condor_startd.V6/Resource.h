@@ -179,6 +179,7 @@ public:
 
 #if HAVE_FETCH_WORK
 	bool	spawnFetchedWork( void );
+	void	terminateFetchedWork( void );
 #endif /* HAVE_FETCH_WORK */
 
 	bool    claimWorklifeExpired();

@@ -80,7 +80,7 @@ public:
 		/**
 
 		 */
-	bool claimRemoved(ClassAd* job_ad, ClassAd* slot_ad);
+	bool claimRemoved(Claim* claim);
 
 
 private:

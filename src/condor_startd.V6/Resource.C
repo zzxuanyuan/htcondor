@@ -1923,4 +1923,12 @@ Resource::spawnFetchedWork(void)
 	change_state(busy_act);
 	return true;
 }
+
+
+void
+Resource::terminateFetchedWork(void)
+{
+	resmgr->m_fetch_work_mgr->claimRemoved(r_cur);
+	change_state(preempting_state, vacating_act);
+}
 #endif /* HAVE_FETCH_WORK */

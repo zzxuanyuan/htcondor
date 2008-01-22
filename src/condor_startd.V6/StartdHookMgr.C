@@ -216,6 +216,14 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 }
 
 
+bool
+FetchWorkMgr::claimRemoved(Claim* claim)
+{
+		// TODO-fetch
+	return true;
+}
+
+
 // // // // // // // // // // // // 
 // FetchClient class
 // // // // // // // // // // // // 
