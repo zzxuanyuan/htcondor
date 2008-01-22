@@ -95,8 +95,8 @@ FetchWorkMgr::initHookPath( const char* hook_param )
 	char* tmp = param(hook_param);
 	if (tmp) {
 		StatInfo si(tmp);
-		int si_errno = si.Errno();
-		if (si_errno) {
+		if (si.Error() != SIGood) {
+			int si_errno = si.Errno();
 			dprintf(D_ALWAYS, "ERROR: invalid path specified for %s (%s): "
 					"stat() failed with errno %d (%s)\n",
 					hook_param, tmp, si_errno, strerror(si_errno));
