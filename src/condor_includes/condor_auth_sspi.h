@@ -69,6 +69,7 @@ class Condor_Auth_SSPI : public Condor_Auth_Base {
 				int &    output_len);
 
  private:
+    int
     sspi_client_auth( CredHandle&    cred, 
                       CtxtHandle&    cliCtx, 
                       const char *   tokenSource );
@@ -78,6 +79,7 @@ class Condor_Auth_SSPI : public Condor_Auth_Base {
     // RETURNS:
     //------------------------------------------
 
+	int
     sspi_server_auth(CredHandle& cred,CtxtHandle& srvCtx);
     //------------------------------------------
     // PURPOSE: 
