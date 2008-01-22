@@ -63,12 +63,14 @@
 
 #ifndef _CONDOR_ALLOW_FOPEN
 #  include "../condor_c++_util/condor_open.h"
-#  ifdef fopen
-#    undef fopen
-#  endif
-#  define fopen (Calls_to_fopen_must_use___safe_fopen_wrapper___instead)
-#  ifdef __GNUC__
-#    pragma GCC poison Calls_to_fopen_must_use___safe_fopen_wrapper___instead
+#  ifndef WIN32
+#    ifdef fopen
+#      undef fopen
+#    endif
+#    define fopen (Calls_to_fopen_must_use___safe_fopen_wrapper___instead)
+#    ifdef __GNUC__
+#      pragma GCC poison Calls_to_fopen_must_use___safe_fopen_wrapper___instead
+#    endif
 #  endif
 #endif 
 
