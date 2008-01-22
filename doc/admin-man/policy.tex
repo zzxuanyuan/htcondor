@@ -1998,10 +1998,11 @@ CONTINUE = (SlotID == 2) && \
 \end{verbatim}
 \normalsize
 
-Note that in this example, the job ClassAd attribute \MacroNI{IsHighPrioJob}
-has no special meaning to Condor.  It just happens to be the name chosen
-in this example.  It is therefore up to the user to submit high priority
-jobs with something like the following line in the submit file:
+Note that in this example, the job ClassAd attribute \Attr{IsHighPrioJob}
+has no special meaning to Condor.  It is an invented name chosen
+for this example.  To take advantage of the policy, a user
+must submit high priority jobs with this attribute defined.
+The following line appears in the job's submit description file as
 \begin{verbatim}
 +IsHighPrioJob = True
 \end{verbatim}
