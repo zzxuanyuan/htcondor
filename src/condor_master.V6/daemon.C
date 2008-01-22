@@ -384,10 +384,12 @@ daemon::DoConfig( bool init )
 	// Default to on_hold = false, set to true of state eq "off"
 	if ( init ) {
 		sprintf(buf, "MASTER_%s_CONTROLLER", name_in_config_file );
-		controller_name = strupr( param( buf ) );
+		tmp = param( buf );
+		controller_name = NULL;
 		controller = NULL;		// Setup later in Daemons::CheckDaemonConfig()
 		on_hold = true;
-		if ( controller_name ) {
+		if ( tmp ) {
+			controller_name = strupr( tmp );
 			dprintf( D_FULLDEBUG, "Daemon %s is controlled by %s\n",
 					 name_in_config_file, controller_name );
 		}
