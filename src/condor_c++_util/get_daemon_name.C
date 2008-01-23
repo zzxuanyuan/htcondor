@@ -40,7 +40,7 @@ extern "C" {
 const char*
 get_host_part( const char* name )
 {
-	char const *tmp;
+	char* tmp;
 	if (name == NULL) return NULL;
 	tmp = strrchr( name, '@' );
 	if( tmp ) {

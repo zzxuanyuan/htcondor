@@ -27,7 +27,6 @@
 ** Compatibility routine for systems that don't have an snprintf
 */
 
-#if !defined ( WIN32 )
 #ifndef HAVE_SNPRINTF
 int 
 snprintf(
@@ -58,8 +57,7 @@ vsnprintf(
 {
 	return condor_vsnprintf(output, buffer_size, format, args);
 }
-#endif /* HAVE_SNPRINTF */
-#endif /* !defined ( WIN32 ) */
+#endif
 
 // This is snprintf, and it works like you expect. buffer_size is the 
 // size of the buffer, and at most buffer_size-1 characters will be printed,

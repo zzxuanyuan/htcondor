@@ -856,8 +856,8 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;
-	char *attName = NULL, *attVal = NULL;
+	const char *iter;
+	char *attName = NULL, *attVal;
 	MyString tmpVal = "";
 	MyString attNameList = "";
 	MyString attValList = "";
@@ -897,12 +897,10 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 				   leak. 
 				*/
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if (strcasecmp(attName, "PrevLastReportedTime") == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -958,11 +956,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 							if (attName) {
 								free(attName);
-								attName = NULL;							
-							}
-							if (attVal) {
-								free(attVal);
-								attVal = NULL;
+								attName = NULL;
 							}
 							return QUILL_FAILURE;							
 						}
@@ -984,11 +978,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute %s\n", attName);
 						if (attName) {
 							free(attName);
-							attName = NULL;							
-						}
-						if (attVal) {
-							free(attVal);
-							attVal = NULL;
+							attName = NULL;
 						}						
 						return QUILL_FAILURE;
 						break;							
@@ -1040,11 +1030,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 							dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 							if (attName) {
 								free(attName);
-								attName = NULL;							
-							}
-							if (attVal) {
-								free(attVal);
-								attVal = NULL;
+								attName = NULL;
 							}							
 							return QUILL_FAILURE;							
 						}
@@ -1066,11 +1052,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 						dprintf(D_ALWAYS, "insertMachines: Unsupported horizontal machine attribute %s\n", attName);
 						if (attName) {
 							free(attName);
-							attName = NULL;							
-						}
-						if (attVal) {
-							free(attVal);
-							attVal = NULL;
+							attName = NULL;
 						}
 						return QUILL_FAILURE;
 					}
@@ -1094,10 +1076,6 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 			if (attName) {
 				free(attName);
 				attName = NULL;
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
 			}
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -1397,9 +1375,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;
+	const char *iter;
 	
-	char *attName = NULL, *attVal = NULL;
+	char *attName = NULL, *attVal;
 	MyString attNameList = "";
 	MyString attValList = "";
 	MyString tmpVal = "";
@@ -1432,12 +1410,9 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 	while (iter != NULL)
 		{
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if (strcasecmp(attName, "PrevLastReportedTime") == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -1483,11 +1458,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 						if (attName) {
 							free(attName);
-							attName = NULL;							
-						}
-						if (attVal) {
-							free(attVal);
-							attVal = NULL;
+							attName = NULL;
 						}
 						return QUILL_FAILURE;							
 					}
@@ -1508,11 +1479,7 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 					dprintf(D_ALWAYS, "insertScheddAd: unsupported horizontal daemon attribute %s\n", attName);
 					if (attName) {
 						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
+						attName = NULL;
 					}
 					return QUILL_FAILURE;
 				}
@@ -1541,10 +1508,6 @@ QuillErrCode TTManager::insertScheddAd(AttrList *ad) {
 			if (attName) {
 				free (attName);
 				attName = NULL;
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
 			}
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -1774,9 +1737,9 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;
+	const char *iter;
 	
-	char *attName = NULL, *attVal = NULL;
+	char *attName = NULL, *attVal;
 	MyString aName, aVal, temp;
 	MyString attNameList = "";
 	MyString attValList = "";
@@ -1812,12 +1775,9 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 	while (iter != NULL)
 		{
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if (strcasecmp(attName, "PrevLastReportedTime") == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -1864,11 +1824,7 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");	
 						if (attName) {
 							free(attName);
-							attName = NULL;							
-						}
-						if (attVal) {
-							free(attVal);
-							attVal = NULL;
+							attName = NULL;
 						}
 						return QUILL_FAILURE;							
 					}
@@ -1888,12 +1844,8 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 				default:
 					dprintf(D_ALWAYS, "insertMasterAd: unsupported horizontal daemon attribute %s\n", attName);
 					if (attName) {
-						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
+						free(attName);					
+						attName = NULL;
 					}
 					return QUILL_FAILURE;
 				}
@@ -1921,12 +1873,8 @@ QuillErrCode TTManager::insertMasterAd(AttrList *ad) {
 			}
 			
 			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
+				free (attName);
+				attName = NULL;
 			}
 			iter = classAd.GetNextToken("\n", true);
 		}
@@ -2224,9 +2172,9 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;
+	const char *iter;
 	
-	char *attName = NULL, *attVal = NULL;
+	char *attName = NULL, *attVal;
 	MyString aName, aVal, temp;
 	MyString attNameList = "";
 	MyString attValList = "";
@@ -2257,12 +2205,9 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 	while (iter != NULL)
 		{
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if (strcasecmp(attName, "PrevLastReportedTime") == 0) {
 				prevLHFInAd = atoi(attVal);
@@ -2309,11 +2254,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built\n");
 						if (attName) {
 							free(attName);
-							attName = NULL;							
-						}
-						if (attVal) {
-							free(attVal);
-							attVal = NULL;
+							attName = NULL;
 						}
 						return QUILL_FAILURE;
 					}
@@ -2333,11 +2274,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 					dprintf(D_ALWAYS, "insertNegotiatorAd: unsupported horizontal daemon attribute\n");
 					if (attName) {
 						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
+						attName = NULL;
 					}				
 					return QUILL_FAILURE;
 				}
@@ -2366,11 +2303,7 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 
 			if (attName) {
 				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
+				attName = NULL;
 			}
 			iter = classAd.GetNextToken("\n", true);
 		}	
@@ -2506,10 +2439,10 @@ QuillErrCode TTManager::insertNegotiatorAd(AttrList *ad) {
 QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;	
+	const char *iter;	
 	MyString newvalue;
 
-	char *attName = NULL, *attVal = NULL;
+	char *attName = NULL, *attVal;
 	MyString attNameList = "";
 	MyString attValList = "";
 	int isFirst = TRUE;
@@ -2538,12 +2471,10 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 		{
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if ((isMatches && 
 				 (strcasecmp(attName, "match_time") == 0)) ||
@@ -2566,11 +2497,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertBasic\n");
 					if (attName) {
 						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
+						attName = NULL;
 					}
 					return QUILL_FAILURE;							
 				}	
@@ -2617,14 +2544,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 				}
 			}
 
-			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
-			}
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -2646,10 +2566,10 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 QuillErrCode TTManager::insertRuns(AttrList *ad) {
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;	
+	const char *iter;	
 	MyString newvalue;
 
-	char *attName = NULL, *attVal = NULL;
+	char *attName = NULL, *attVal;
     MyString attNameList = "";
 	MyString attValList = "";
 
@@ -2676,12 +2596,10 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 		{
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if ((strcasecmp(attName, "startts") == 0) || 
 				(strcasecmp(attName, "endts") == 0)) {
@@ -2693,11 +2611,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
 					if (attName) {
 						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
+						attName = NULL;
 					}
 					return QUILL_FAILURE;
 				}
@@ -2724,14 +2638,7 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 				attValList += "'";
 			}
 
-			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
-			}
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -2753,8 +2660,8 @@ QuillErrCode TTManager::insertRuns(AttrList *ad) {
 QuillErrCode TTManager::insertEvents(AttrList *ad) {
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;	
-	char *attName = NULL, *attVal = NULL;
+	const char *iter;	
+	char *attName = NULL, *attVal;
 	MyString scheddname = "";
 	MyString cluster = "";
 	MyString proc = "";
@@ -2775,12 +2682,10 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 		{
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if (strcasecmp(attName, "eventtime") == 0) {
 				time_t clock;
@@ -2789,14 +2694,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 
 				if (newvalue.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertEvents\n");
-					if (attName) {
-						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
-					}
+					free(attName);
 					return QUILL_FAILURE;
 				}
 				
@@ -2826,14 +2724,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				messagestr = newvalue;
 			}
 			
-			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
-			}
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -2857,8 +2748,8 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;	
-	char *attName = NULL, *attVal = NULL;
+	const char *iter;	
+	char *attName = NULL, *attVal;
 	MyString seqexpr;
 
 	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", 
@@ -2881,13 +2772,9 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
 			
-			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 				// strip double quotes if any
 			stripdoublequotes(attVal);
@@ -2904,14 +2791,8 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 				f_size = atoi(attVal);
 			}
 			
-			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
-			}
+			free(attName);
+
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -2970,8 +2851,8 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	MyString sql_stmt;
 	MyString classAd;
-	const char *iter, *attPos;	
-	char *attName, *attVal = NULL;
+	const char *iter;	
+	char *attName, *attVal;
 	
 	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "", globaljobid[100] = "", type[20] = "";
 	int f_size;
@@ -2990,13 +2871,9 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
 			
-			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			stripdoublequotes(attVal);
 
@@ -3016,14 +2893,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 				strcpy(type, attVal);
 			}
 
-			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
-			}
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -3065,8 +2935,8 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 QuillErrCode TTManager::insertTransfers(AttrList *ad) {
   MyString sql_stmt;
   MyString classAd;
-  const char *iter, *attPos;
-  char *attName = NULL, *attVal = NULL;
+  const char *iter;
+  char *attName = NULL, *attVal;
 
   char globaljobid[100];
   char src_name[_POSIX_PATH_MAX] = "", src_host[50] = "",
@@ -3097,13 +2967,10 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
 
   while (iter != NULL) {
     // the attribute name can't be longer than the log entry line size
-	attName = (char *)malloc(strlen(iter));
-	sscanf(iter, "%s =", attName);			
-	attPos = strstr(iter, "= ") + 2;
-	if (strlen(attPos) > 0) {
-		attVal = (char *)malloc(strlen(attPos));
-		strcpy(attVal, attPos);
-	}
+    attName = (char *)malloc(strlen(iter));
+    sscanf(iter, "%s =", attName);
+    attVal = strstr(iter, "= ");
+    attVal += 2;
 
 	stripdoublequotes(attVal);
 
@@ -3141,14 +3008,7 @@ QuillErrCode TTManager::insertTransfers(AttrList *ad) {
       delegation_method_id = atoi(attVal);
     }
 
-	if (attName) {
-		free(attName);
-		attName = NULL;							
-	}
-	if (attVal) {
-		free(attVal);
-		attVal = NULL;
-	}
+    free(attName);
     iter = classAd.GetNextToken("\n", true);
   }
 
@@ -3223,10 +3083,10 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 									char *tableName) {
 	MyString sql_stmt;
 	MyString classAd, classAd1;
-	const char *iter, *attPos;	
+	const char *iter;	
 	MyString setList = "";
 	MyString whereList = "";
-	char *attName = NULL, *attVal = NULL;
+	char *attName = NULL, *attVal;
 	MyString newvalue;
 	bool isRuns = FALSE;
 	bool isString = FALSE;
@@ -3246,12 +3106,10 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 		{
 				// the attribute name can't be longer than the log entry line size
 			attName = (char *)malloc(strlen(iter));
-			sscanf(iter, "%s =", attName);			
-			attPos = strstr(iter, "= ") + 2;
-			if (strlen(attPos) > 0) {
-				attVal = (char *)malloc(strlen(attPos));
-				strcpy(attVal, attPos);
-			}
+			
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 			if (isRuns && (strcasecmp(attName, "endts") == 0)) {
 				time_t clock;
@@ -3260,14 +3118,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 				if (newvalue.IsEmpty()) {
 					dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
-					if (attName) {
-						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
-					}
+					free(attName);
 					return QUILL_FAILURE;
 				}
 				
@@ -3292,14 +3143,8 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			}			
 			setList += ", ";
 			
-			if (attName) {
-				free(attName);
-				attName = NULL;							
-			}
-			if (attVal) {
-				free(attVal);
-				attVal = NULL;
-			}
+			free(attName);
+
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -3316,26 +3161,18 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 			{
 					// the attribute name can't be longer than the log entry line size
 				attName = (char *)malloc(strlen(iter));
-				sscanf(iter, "%s =", attName);			
-				attPos = strstr(iter, "= ") + 2;
-				if (strlen(attPos) > 0) {
-					attVal = (char *)malloc(strlen(attPos));
-					strcpy(attVal, attPos);
-				}	
+				
+				sscanf(iter, "%s =", attName);
+				attVal = strstr(iter, "= ");
+				attVal += 2;			
 
 					// change smth=null (in classad) to smth is null (in sql)
 				if (strcasecmp(attVal, "null") == 0) {
 					whereList += attName;
 				    whereList += " is null and ";
 
-					if (attName) {
-						free(attName);
-						attName = NULL;							
-					}
-					if (attVal) {
-						free(attVal);
-						attVal = NULL;
-					}
+					free(attName);
+
 					iter = classAd1.GetNextToken("\n", true);
 					continue;
 				}
@@ -3347,14 +3184,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 					if (newvalue.IsEmpty()) {
 						dprintf(D_ALWAYS, "ERROR: Timestamp expression not built in TTManager::insertRuns\n");
-						if (attName) {
-							free(attName);
-							attName = NULL;							
-						}
-						if (attVal) {
-							free(attVal);
-							attVal = NULL;
-						}
+						free(attName);
 						return QUILL_FAILURE;
 					}
 					
@@ -3379,14 +3209,8 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 
 				whereList += " and ";
 
-				if (attName) {
-					free(attName);
-					attName = NULL;							
-				}
-				if (attVal) {
-					free(attVal);
-					attVal = NULL;
-				}
+				free(attName);
+
 				iter = classAd1.GetNextToken("\n", true);
 			}
 		

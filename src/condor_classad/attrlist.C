@@ -2449,10 +2449,7 @@ bool AttrList::IsExternalReference(const char *name, char **simplified_name) con
 		is_external = false;
 	}
 
-	// Evil *nix slackness, if the first param is const, the return
-	// will be too... SO DON'T CHANGE IT! (maybe bellow should
-	// be strincmp?)
-	seperator = (char*)strchr(name,'.');
+	seperator = strchr(name,'.');
 
 	// We have a prefix, so we examine it. 
 	if (seperator) {

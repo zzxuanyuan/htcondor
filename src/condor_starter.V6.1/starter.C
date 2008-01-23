@@ -1502,7 +1502,7 @@ CStarter::getMySlotNumber( void )
 {
 	
 	char *logappend = param("STARTER_LOG");		
-	char const *tmp = NULL;
+	char *tmp = NULL;
 		
 	int slot_number = 0; // default to 0, let our caller decide how to 
 						 // interpret that.  

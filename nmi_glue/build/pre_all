@@ -20,7 +20,7 @@
 
 
 ######################################################################
-# $Id: pre_all,v 1.12.6.1 2008-01-22 18:57:55 burnett Exp $ 
+# $Id: pre_all,v 1.12.6.2 2008-01-23 15:58:36 burnett Exp $ 
 # Submit-side NMI build system infrastructure to prepare sources for
 # the Condor build
 #
@@ -269,7 +269,7 @@ safe_sys( "cp $buildid_file $src_tar_dir" );
 
 safe_sys( "cp $SrcDir/README.building $src_tar_dir" );
 safe_sys( "cp src/condor_release/LICENSE-2.0.txt $src_tar_dir" );
-safe_sys( "mv msbuild config imake src externals $src_tar_dir" );
+safe_sys( "mv NTconfig config imake src externals $src_tar_dir" );
 safe_sys( "tar --exclude=CVS -zcf $src_tarball $src_tar_dir" );
 print "Done creating source tarball\n";
 

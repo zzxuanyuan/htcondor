@@ -549,7 +549,7 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 		ASSERT(prefix);
 		Directory tmp( prefix, PRIV_USER );
 		const char *f;
-		char const *dot;
+		char *dot;
 		int fname_pid;
 		int mypid = daemonCore->getpid();
 		int scratch_pre_len = strlen(scratch_prefix);

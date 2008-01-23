@@ -453,8 +453,8 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 	}
 
 	MyString	currentDir;
-	char	tmpCwd[_POSIX_PATH_MAX];
-	if ( getcwd(tmpCwd, _POSIX_PATH_MAX) ) {
+	char	tmpCwd[PATH_MAX];
+	if ( getcwd(tmpCwd, PATH_MAX) ) {
 		currentDir = tmpCwd;
 	} else {
 		dprintf(D_ALWAYS,
@@ -649,7 +649,7 @@ MultiLogFiles::loadLogFileNamesFromStorkSubFile(
 		// All logfile must be fully qualified paths.  Prepend the current
 		// working directory if logfile not a fully qualified path.
 		if ( ! fullpath(logfile.c_str() ) ) {
-			char	tmpCwd[_POSIX_PATH_MAX];
+			char	tmpCwd[PATH_MAX];
 			if ( ! getcwd(tmpCwd, sizeof(tmpCwd) ) ) {
 				rtnVal.sprintf("getcwd() failed with errno %d (%s)",
 						errno, strerror(errno));

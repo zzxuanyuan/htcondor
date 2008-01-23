@@ -1,4 +1,3 @@
-
 /***************************************************************
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
@@ -40,13 +39,10 @@ const IID IID_IEnumVARIANT = { 132100, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
 
 /* for condor_mail */
 const IID IID_IDispatch = { 132096, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
+const IID IID_IPersistFile = { 267, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
 const IID IID_IClassFactory = { 1, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
 
 const IID IID_IDropTarget = { 290, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
+const IID IID_IStream = { 12, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
 const IID IID_IUnknown = { 0, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
 
-#if _MSC_VER == 1200
-// only on VC6
-const IID IID_IPersistFile = { 267, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
-const IID IID_IStream = { 12, 0, 0, {0xc0, 0, 0, 0, 0, 0, 0, 0x46} };
-#endif
