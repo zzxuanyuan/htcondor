@@ -3390,10 +3390,14 @@ search for the corresponding attribute names using ``slot'', instead.
 
 \item[\Macro{ALLOW\_VM\_CRUFT}]
 \label{param:AllowVMCruft}
-  A boolean value that defaults to \Expr{True}.  When \Expr{True},
+  A boolean value that Condor sets and uses internally, currently
+  defaulting to \Expr{True}.  When \Expr{True},
   Condor looks for configuration variables named with the
-  previously used string \MacroNI{VM} instead of the currently
-  used string \MacroNI{SLOT}.
+  previously used string \MacroNI{VM} after searching unsuccessfully
+  for variables named with the currently used string \MacroNI{SLOT}.
+  When \Expr{False}, Condor does \emph{not} look for variables named
+  with the previously used string \MacroNI{VM} after searching
+  unsuccessfully for the string \MacroNI{SLOT}. 
 
 \end{description}
 
