@@ -80,7 +80,7 @@ public:
 		/**
 
 		 */
-	bool claimRemoved(Claim* claim);
+	bool claimRemoved(Resource* rip);
 
 
 private:

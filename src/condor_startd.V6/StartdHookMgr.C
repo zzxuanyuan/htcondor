@@ -217,7 +217,7 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 
 
 bool
-FetchWorkMgr::claimRemoved(Claim* claim)
+FetchWorkMgr::claimRemoved(Resource* rip)
 {
 		// TODO-fetch
 	return true;
