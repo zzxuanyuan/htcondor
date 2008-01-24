@@ -68,6 +68,10 @@ typedef unsigned __int32 uint32_t;
 #define MAXPATHLEN 1024
 #define MAXHOSTNAMELEN 64
 #define	_POSIX_PATH_MAX 255
+#if _MSC_VER == 1200
+#define _POSIX_ARG_MAX 4096
+#define vsnprintf _vsnprintf
+#endif
 #define pipe(fds) _pipe(fds,2048,_O_BINARY)
 #define popen _popen
 #define pclose _pclose
@@ -78,7 +82,6 @@ typedef unsigned __int32 uint32_t;
 #define strupr _strupr
 #define strlwr _strlwr
 #define snprintf _snprintf
-#define vsnprintf _vsnprintf
 #define chdir _chdir
 #define fsync _commit
 #define access _access
