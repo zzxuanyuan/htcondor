@@ -1265,18 +1265,20 @@ RemoteErrorEvent::writeEvent(FILE *file)
     }
 
 	//output each line of error_str, indented by one tab
-	char const *line = error_str;
-	if(line)
-	while(*line) {
-		char *next_line = strchr(line,'\n');
-		if(next_line) *next_line = '\0';
+	char *line = strdup(error_str);
+	if(line) {
+		while(*line) {
+			char *next_line = strchr(line,'\n');
+			if(next_line) *next_line = '\0';
 
-		retval = fprintf(file,"\t%s\n",line);
-		if(retval < 0) return 0;
+			retval = fprintf(file,"\t%s\n",line);
+			if(retval < 0) return 0;
 
-		if(!next_line) break;
-		*next_line = '\n';
-		line = next_line+1;
+			if(!next_line) break;
+			*next_line = '\n';
+			line = next_line+1;
+		}
+		free(line);
 	}
 
 	if (hold_reason_code) {
