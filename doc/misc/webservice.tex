@@ -1127,7 +1127,28 @@ getJobAds(transaction, "(ClusterId==clusterId && JobId==jobId)")
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\subsubsection{\label{WebService-DataStructures} Common Data Structures}
+\subsubsection{\label{WebService-DataStructures} Common Data Structures}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Not yet in this list:
+Many methods return a status.
+Table ~\ref{WebService-StatusCode} lists and defines the
+\Code{StatusCode} return values.
+
+
+\begin{center}
+\begin{table}[hbt]
+\begin{tabular}{|l|l|l|} \hline
+\textbf{Value} & \textbf{Identifier} & \textbf{Definition}\\ \hline \hline
+0  &  \Code{SUCCESS}           &  All OK \\             \hline
+1  &  \Code{FAIL}              &  An error occurred that is not specific to another error code   \\ \hline
+2  &  \Code{INVALIDTRANSACTION}&  No such transaction exists  \\ \hline
+3  &  \Code{UNKNOWNCLUSTER}    &  The specified cluster is not the currently active one  \\ \hline
+4  &  \Code{UNKNOWNJOB}        &  The specified job does not exist within the specified cluster \\ \hline
+5  &  \Code{UNKNOWNFILE}       &    \\ \hline
+6  &  \Code{INCOMPLETE}        &    \\ \hline
+7  &  \Code{INVALIDOFFSET}     &    \\ \hline
+8  &  \Code{ALREADYEXISTS}     &  For this job, the specified file already exists  \\ \hline
+\end{tabular}
+\caption{\label{WebService-StatusCode}\Code{StatusCode} definitions}
+\end{table}
+\end{center}
