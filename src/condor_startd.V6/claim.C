@@ -712,9 +712,13 @@ Claim::setaliveint( int new_alive )
 void
 Claim::saveJobInfo( ClassAd* request_ad )
 {
-		// this does not make a copy, so we assume we have control
+		// This does not make a copy, so we assume we have control
 		// over the ClassAd once this method has been called.
-	setad( request_ad );
+		// However, don't clobber our ad if the caller passes NULL.
+	if (request_ad) {
+		setad(request_ad);
+	}
+	ASSERT(c_ad);
 
 	c_ad->LookupInteger( ATTR_CLUSTER_ID, c_cluster );
 	c_ad->LookupInteger( ATTR_PROC_ID, c_proc );

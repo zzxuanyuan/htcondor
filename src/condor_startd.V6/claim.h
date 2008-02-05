@@ -141,12 +141,16 @@ public:
 		 */
 	void loadAccountingInfo();
 
-		/** We're servicing a request to activate a claim and we want
+		/** 
+			We're servicing a request to activate a claim and we want
 			to save the request classad into our claim object for
 			future use.  This method also gets some info out of the
 			ClassAd we'll need to spawn the job, like the job ID.
+
+			@param request_ad The ClassAd for the current activation.
+			  If NULL, we reuse the ClassAd already in the claim object.
 		*/
-	void saveJobInfo( ClassAd* request_ad );
+	void saveJobInfo( ClassAd* request_ad = NULL );
 
 		// Timer functions
 	void start_match_timer();
