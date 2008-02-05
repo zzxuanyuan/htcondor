@@ -181,7 +181,7 @@ public:
 	unsigned long	imageSize( void );
 	CODMgr*		getCODMgr( void );
 	bool		hasPendingCmd() {return c_pending_cmd != -1;};
-	bool		hasJobAd()		{return c_has_job_ad != 0;};
+	bool		hasJobAd();
 	int  		pendingCmd()	{return c_pending_cmd;};
 	bool		wantsRemove()	{return c_wants_remove;};
 	time_t      getJobTotalRunTime();

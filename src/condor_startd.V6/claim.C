@@ -1093,6 +1093,21 @@ Claim::alive()
 }
 
 
+bool
+Claim::hasJobAd() {
+	bool has_it = false;
+	if (c_has_job_ad != 0) {
+		has_it = true;
+	}
+#if HAVE_FETCH_WORK
+	else if (c_type == CLAIM_FETCH && c_ad != NULL) {
+		has_it = true;
+	}
+#endif /* HAVE_FETCH_WORK */
+	return has_it;
+}
+
+
 // Set our ad to the given pointer
 void
 Claim::setad(ClassAd *cad) 
