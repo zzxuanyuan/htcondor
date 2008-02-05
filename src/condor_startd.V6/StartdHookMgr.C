@@ -273,8 +273,8 @@ FetchClient::hookExited(int exit_status) {
 	HookClient::hookExited(exit_status);
 	if (m_std_err.Length()) {
 		dprintf(D_ALWAYS,
-				"Warning, hook %s (pid %d) printed data to stderr\n",
-				m_hook_path, (int)m_pid);
+				"Warning, hook %s (pid %d) printed to stderr: %s\n",
+				m_hook_path, (int)m_pid, m_std_err.Value());
 	}
 	m_job_ad = new ClassAd();
 	m_std_out.Tokenize();
@@ -287,5 +287,6 @@ FetchClient::hookExited(int exit_status) {
 			return;
 		}
 	}
-	m_job_ad->dPrint(D_JOB);
+		// Finally, let the work manager know this fetch result is done.
+	resmgr->m_fetch_work_mgr->handleFetchResult(this);
 }
