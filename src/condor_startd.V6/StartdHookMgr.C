@@ -32,6 +32,7 @@
 // // // // // // // // // // // // 
 
 FetchWorkMgr::FetchWorkMgr()
+	: HookClientMgr()
 {
 	dprintf( D_FULLDEBUG, "Instantiating a FetchWorkMgr\n" );
 	m_hook_fetch_work = NULL;
@@ -69,9 +70,10 @@ FetchWorkMgr::clearHookPaths()
 
 
 bool
-FetchWorkMgr::init()
+FetchWorkMgr::initialize()
 {
-	return reconfig();
+	reconfig();
+    return HookClientMgr::initialize();
 }
 
 
@@ -148,7 +150,7 @@ FetchWorkMgr::initHookPath( const char* hook_param )
 FetchClient*
 FetchWorkMgr::buildFetchClient(Resource* rip)
 {
-	FetchClient* new_client = new FetchClient(rip);
+	FetchClient* new_client = new FetchClient(rip, m_hook_fetch_work);
 	if (new_client) {
 		m_fetch_clients.Append(new_client);
 	}
@@ -160,6 +162,7 @@ bool
 FetchWorkMgr::removeFetchClient(FetchClient* fetch_client)
 {
 	if (m_fetch_clients.Delete(fetch_client)) {
+		remove((HookClient*)fetch_client);
 		delete fetch_client;
 		return true;
 	}
@@ -217,7 +220,7 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 
 
 bool
-FetchWorkMgr::claimRemoved(Resource* rip)
+FetchWorkMgr::claimRemoved(Resource* /* rip */)
 {
 		// TODO-fetch
 	return true;
@@ -228,7 +231,8 @@ FetchWorkMgr::claimRemoved(Resource* rip)
 // FetchClient class
 // // // // // // // // // // // // 
 
-FetchClient::FetchClient(Resource* rip)
+FetchClient::FetchClient(Resource* rip, const char* hook_path)
+	: HookClient(hook_path)
 {
 	m_rip = rip;
 	m_job_ad = NULL;
@@ -247,16 +251,41 @@ bool
 FetchClient::startFetch()
 {
 	ASSERT(m_rip);
-
-		// TODO-fetch
-
-	return false;
+	ArgList args;
+	ClassAd slot_ad;
+    m_rip->publish(&slot_ad, A_ALL_PUB);
+	MyString slot_ad_txt;
+	slot_ad.sPrint(slot_ad_txt);
+	resmgr->m_fetch_work_mgr->spawn(this, args, &slot_ad_txt);
+	return true;
 }
 
 
 ClassAd*
 FetchClient::reply()
 {
-		// TODO-fetch: do we read more or did this already happen?
 	return m_job_ad;
+}
+
+
+void
+FetchClient::hookExited(int exit_status) {
+	HookClient::hookExited(exit_status);
+	if (m_std_err.Length()) {
+		dprintf(D_ALWAYS,
+				"Warning, hook %s (pid %d) printed data to stderr\n",
+				m_hook_path, (int)m_pid);
+	}
+	m_job_ad = new ClassAd();
+	m_std_out.Tokenize();
+	const char* hook_line = NULL;
+	while ((hook_line = m_std_out.GetNextToken("\n", true))) {
+		if (!m_job_ad->Insert(hook_line)) {
+			dprintf(D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
+					"ignoring invalid hook output\n", hook_line);
+				// TODO-pipe howto abort?
+			return;
+		}
+	}
+	m_job_ad->dPrint(D_JOB);
 }

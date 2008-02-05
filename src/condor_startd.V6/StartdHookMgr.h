@@ -25,6 +25,8 @@
 
 #include "condor_common.h"
 #include "startd.h"
+#include "HookClientMgr.h"
+#include "HookClient.h"
 
 class FetchClient;
 
@@ -32,13 +34,13 @@ class FetchClient;
    The FetchWorkMgr manages all attempts to fetch work via hooks.
 */
 
-class FetchWorkMgr : public Service
+class FetchWorkMgr : public HookClientMgr
 {
 public:
 	FetchWorkMgr(); 
 	~FetchWorkMgr();
 
-	bool init();
+	bool initialize();
 	bool reconfig();
 
 		/**
@@ -101,13 +103,14 @@ private:
 /**
    Each FetchClient object manages an invocation of the fetch work hook.
 */
-class FetchClient : public Service
+class FetchClient : public HookClient
 {
 public:
 	friend class FetchWorkMgr;
 
-	FetchClient(Resource* rip);
+	FetchClient(Resource* rip, const char* hook_path);
 	virtual ~FetchClient();
+	virtual void hookExited(int exit_status);
 
 	bool startFetch();
 	ClassAd* reply();

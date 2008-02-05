@@ -385,7 +385,7 @@ ResMgr::init_resources( void )
 
 #if HAVE_FETCH_WORK
 	m_fetch_work_mgr = new FetchWorkMgr;
-	m_fetch_work_mgr->init();
+	m_fetch_work_mgr->initialize();
 #endif
 }
 
