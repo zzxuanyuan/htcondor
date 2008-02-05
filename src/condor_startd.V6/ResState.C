@@ -796,8 +796,15 @@ ResState::set_destination( State new_state )
 	case claimed_state:
 			// this is only valid if we've got a pending request to
 			// claim that's already been stashed in our Claim object 
-
-			// TODO: or if it's a fetch Claim...
+#if HAVE_FETCH_WORK
+		if (rip->r_cur->type() == CLAIM_FETCH) {
+			if (rip->r_cur->ad() == NULL) {
+				EXCEPT( "set_destination(Claimed) called but there's no "
+						"fetched job classad in our current Claim" );
+			}
+		}
+		else
+#endif /* HAVE_FETCH_WORK */
 		if( ! rip->r_cur->requestStream() ) {
 			EXCEPT( "set_destination(Claimed) called but there's no "
 					"pending request stream set in our current Claim" );
