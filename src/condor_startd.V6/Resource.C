@@ -1859,14 +1859,12 @@ Resource::updateClaim(ClassAd* job_ad)
 bool
 Resource::acceptClaimRequest()
 {
+	bool accepted = false;
 	switch (r_cur->type()) {
 	case CLAIM_OPPORTUNISTIC:
 		if (r_cur->requestStream()) {
 				// We have a pending opportunistic claim, try to accept it.
-			return accept_request_claim(this);
-		}
-		else {
-			return false;
+			accepted = accept_request_claim(this);
 		}
 		break;
 
@@ -1875,13 +1873,21 @@ Resource::acceptClaimRequest()
 		dprintf(D_FAILURE|D_ALWAYS, "State change: Finished fetching work successfully\n" );
 			// Enter Claimed/Idle will trigger all the actions we need.
 		change_state(claimed_state);
+		accepted = true;
 		break;
 #endif /* HAVE_FETCH_WORK */
 
 	case CLAIM_COD:
 			// TODO?
 		break;
+
+	default:
+		EXCEPT("Inside Resource::acceptClaimRequest() "
+			   "with unexpected claim type: %s",
+			   getClaimTypeString(r_cur->type()));
+		break;
 	}
+	return accepted;
 }
 
 
