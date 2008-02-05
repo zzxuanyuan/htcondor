@@ -17,26 +17,29 @@
  *
  ***************************************************************/
 
+#ifndef _CONDOR_HOOK_CLIENT_MGR_H
+#define _CONDOR_HOOK_CLIENT_MGR_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
-#include "KeyCache.h"
-#include "string_list.h"
-#include "HashTable.h"
-#include "simplelist.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "HookClient.h"
 
-extern bool operator==(const struct in_addr a, const struct in_addr b);
+class HookClientMgr : public Service
+{
+public:
+	HookClientMgr();
+	~HookClientMgr();
 
-template class HashTable<MyString, perm_mask_t>;
-template class HashTable<pid_t, DaemonCore::PidEntry*>;
-template class HashTable<struct in_addr, perm_mask_t>;
-template class HashTable<struct in_addr, HashTable<MyString, perm_mask_t> *>;
-template class ExtArray<DaemonCore::SockEnt>;
-template class ExtArray<DaemonCore::PipeEnt>;
-template class Queue<DaemonCore::WaitpidEntry>;
-template class Queue<ServiceData*>;
-template class HashTable<MyString, StringList *>;
-template class List<DaemonCore::TimeSkipWatcher>;
-template class Item<DaemonCore::TimeSkipWatcher>;
-template class SimpleList<HookClient*>;
+	bool initialize();
+
+	int reaper(int exit_pid, int exit_status);
+	bool spawn(HookClient* client, ArgList args, MyString* hook_stdin);
+	bool remove(HookClient* client);
+
+private:
+	int m_reaper_id;
+    SimpleList<HookClient*> m_client_list;
+
+};
+
+#endif /* _CONDOR_HOOK_CLIENT_MGR_H */
