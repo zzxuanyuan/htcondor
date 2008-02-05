@@ -634,10 +634,8 @@ Starter::execJobPipeStarter( void )
 		env.SetEnv(lock_env.Value());
 	}
 
-	if(!s_claim->makeStarterArgs(args)) {
-		dprintf( D_ALWAYS, "ERROR: failed to create starter argument list.\n");
-		return 0;
-	}
+		// Create an argument list for this starter, based on the claim.
+	s_claim->makeStarterArgs(args);
 
 	int* std_fds_p = NULL;
 	int std_fds[3];

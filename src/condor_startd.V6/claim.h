@@ -219,7 +219,7 @@ public:
 	bool starterKillPg( int sig );
 	bool starterKillSoft( void );
 	bool starterKillHard( void );
-	bool makeStarterArgs( ArgList &args );
+	void makeStarterArgs( ArgList &args );
 	bool verifyCODAttrs( ClassAd* req );
 	bool publishStarterAd( ClassAd* ad );
 
@@ -319,9 +319,9 @@ private:
 		*/
 	void beginActivation( time_t now ); 
 
-	bool makeCODStarterArgs( ArgList &args );
+	void makeCODStarterArgs( ArgList &args );
 #if HAVE_FETCH_WORK
-	bool makeFetchStarterArgs( ArgList &args );
+	void makeFetchStarterArgs( ArgList &args );
 #endif /* HAVE_FETCH_WORK */
 
 };
