@@ -210,7 +210,7 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 
 		// We're ready to start running the job, so we need to update
 		// the current Claim and Client objects to remember this work.
-	rip->updateClaim(job_ad);
+	rip->createFetchClaim(job_ad);
 
 		// Start moving towards Claimed so we actually spawn the job.
 	rip->r_state->set_destination(claimed_state);

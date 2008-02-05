@@ -126,7 +126,6 @@ public:
 
 	Claim*	newCODClaim( int lease_duration );
 
-	bool	updateClaim(ClassAd* job_ad);
 
 		/**
 		   Try to finish accepting a pending claim request.
@@ -178,6 +177,7 @@ public:
 #endif /* HAVE_BACKFILL */
 
 #if HAVE_FETCH_WORK
+	void	createFetchClaim( ClassAd* job_ad );
 	bool	spawnFetchedWork( void );
 	void	terminateFetchedWork( void );
 #endif /* HAVE_FETCH_WORK */

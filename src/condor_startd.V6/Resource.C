@@ -1849,14 +1849,6 @@ Resource::endCODLoadHack( void )
 
 
 bool
-Resource::updateClaim(ClassAd* job_ad)
-{
-		// TODO-fetch
-	return true;
-}
-
-
-bool
 Resource::acceptClaimRequest()
 {
 	bool accepted = false;
@@ -1904,6 +1896,17 @@ Resource::willingToRun(ClassAd* job_ad)
 }
 
 #if HAVE_FETCH_WORK
+
+void
+Resource::createFetchClaim(ClassAd* job_ad)
+{
+	delete r_cur;
+	r_cur = new Claim(this, CLAIM_FETCH);
+	r_cur->setad(job_ad);
+		// TODO-fetch: Initialize the Client object, too?
+}
+
+
 bool
 Resource::spawnFetchedWork(void)
 {
@@ -1916,6 +1919,12 @@ Resource::spawnFetchedWork(void)
 		return false;
 	}
 	
+		// Update the claim object with info from this job ClassAd now
+		// that we're actually activating it. By not passing any
+		// argument here, we tell saveJobInfo() to keep the copy of
+		// the ClassAd it already has instead of clobbering it.
+	r_cur->saveJobInfo();
+
 	r_cur->setStarter(tmp_starter);
 
 	if (!r_cur->spawnStarter()) {
