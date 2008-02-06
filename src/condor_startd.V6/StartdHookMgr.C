@@ -190,6 +190,8 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 {
 	ClassAd* job_ad = NULL;
 	Resource* rip = fetch_client->m_rip;
+	float rank = 0;
+	bool willing = true;
 
 	if (!(job_ad = fetch_client->reply())) {
 			// No work or error reading the reply, bail out.
@@ -201,6 +203,24 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		// If we got here, we've got a ClassAd describing the job, so
 		// see if this slot is willing to run it.
 	if (!rip->willingToRun(job_ad)) {
+		willing = false;
+	}
+	else {
+		rank = compute_rank(rip->r_classad, job_ad);
+		rip->dprintf(D_FULLDEBUG, "Rank of this fetched claim is: %f\n", rank);
+		if (rip->state() == claimed_state) {
+				// Make sure it's got a high enough rank to preempt us.
+			if (rank <= rip->r_cur->rank()) {
+					// For fetched jobs, there's no user priority
+					// preemption, so the newer claim has to have higher,
+					// not just equal rank.
+				rip->dprintf(D_ALWAYS, "Fetched claim doesn't have sufficient rank, refusing.\n");
+				willing = false;
+			}
+		}
+	}
+
+	if (!willing) {
 			// TODO-fetch: tell the fetch client about this.
 		removeFetchClient(fetch_client);
 			// TODO-fetch: matchmaking on other slots?
@@ -210,10 +230,27 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 
 		// We're ready to start running the job, so we need to update
 		// the current Claim and Client objects to remember this work.
-	rip->createFetchClaim(job_ad);
+	rip->createFetchClaim(job_ad, rank);
 
-		// Start moving towards Claimed so we actually spawn the job.
-	rip->r_state->set_destination(claimed_state);
+		// Now, depending on our current state, initiate a state change.
+	if (rip->state() == claimed_state) {
+			// If we're already claimed, it means we're going to
+			// preempt the current job first.
+		rip->dprintf(D_ALWAYS, "State change: preempting claim based on "
+					 "machine rank of fetched work.\n");
+
+			// Force resource to take note of the preempting claim.
+			// This results in a reversible transition to the
+			// retiring activity.  If the preempting claim goes
+			// away before the current claim retires, the current
+			// claim can unretire and continue without any disturbance.
+		rip->eval_state();
+	}
+	else {
+			// Start moving towards Claimed so we actually spawn the job.
+		dprintf(D_ALWAYS, "State change: Finished fetching work successfully\n");
+		rip->r_state->set_destination(claimed_state);
+	}
 
 	return true;
 }
