@@ -256,6 +256,10 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		rip->r_state->set_destination(claimed_state);
 	}
 
+		// And now that we've generated a Claim, saved the ClassAd,
+		// and initiated our state change, we're done with this client.
+	removeFetchClient(fetch_client);
+
 	return true;
 }
 
