@@ -24,7 +24,8 @@
 #include "condor_common.h"
 #include "startd.h"
 #include "directory.h"
-
+#include "basename.h"
+#include "status_string.h"
 
 
 // // // // // // // // // // // // 
@@ -38,6 +39,7 @@ FetchWorkMgr::FetchWorkMgr()
 	m_hook_fetch_work = NULL;
 	m_hook_claim_response = NULL;
 	m_hook_claim_destroy = NULL;
+	m_reaper_ignore_id = -1;
 }
 
 
@@ -48,6 +50,10 @@ FetchWorkMgr::~FetchWorkMgr()
 
 		// Delete our copies of the paths for each hook.
 	clearHookPaths();
+
+	if (m_reaper_ignore_id != -1) {
+		daemonCore->Cancel_Reaper(m_reaper_ignore_id);
+	}
 }
 
 
@@ -73,7 +79,11 @@ bool
 FetchWorkMgr::initialize()
 {
 	reconfig();
-    return HookClientMgr::initialize();
+	m_reaper_ignore_id = daemonCore->
+		Register_Reaper("FetchWorkMgr Ignore Reaper",
+						(ReaperHandlercpp) &FetchWorkMgr::reaperIgnore,
+						"FetchWorkMgr Ignore Reaper", this);
+	return HookClientMgr::initialize();
 }
 
 
@@ -219,8 +229,10 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		}
 	}
 
+		// Either way, if the claim reply hook is configured, invoke it.
+	sendClaimReply(willing, job_ad, rip->r_classad);
+
 	if (!willing) {
-			// TODO-fetch: tell the fetch client about this.
 		removeFetchClient(fetch_client);
 			// TODO-fetch: matchmaking on other slots?
 		return false;
@@ -262,6 +274,34 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 	return true;
 }
 
+void
+FetchWorkMgr::sendClaimReply(bool claimed, ClassAd* job_ad, ClassAd* slot_ad)
+{
+	if (m_hook_claim_response) {
+		int std_fds[3] = {DC_STD_FD_PIPE, -1, -1};
+		ArgList args;
+		args.AppendArg(condor_basename(m_hook_claim_response));
+		args.AppendArg((claimed ? "accept" : "reject"));
+		int hook_pid = daemonCore->
+			Create_Process(m_hook_claim_response, args, PRIV_CONDOR,
+						   m_reaper_ignore_id, FALSE, NULL, NULL,
+						   NULL, NULL, std_fds);
+		if (hook_pid == FALSE) {		
+			dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
+					"FetchWorkMgr::sendClaimReply()\n");
+			return;
+		}
+		MyString hook_stdin;
+		job_ad->sPrint(hook_stdin);
+		hook_stdin += "-----\n";  // TODO-fetch: better delimiter?
+		slot_ad->sPrint(hook_stdin);
+		daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
+									 hook_stdin.Length());
+		daemonCore->Close_Stdin_Pipe(hook_pid);
+			// That's it, we don't care about the output at all...
+	}
+}
+
 
 bool
 FetchWorkMgr::claimRemoved(Resource* /* rip */)
@@ -270,6 +310,18 @@ FetchWorkMgr::claimRemoved(Resource* /* rip */)
 	return true;
 }
 
+
+int
+FetchWorkMgr::reaperIgnore(int exit_pid, int exit_status)
+{
+		// Some hook that we don't care about the output for just
+		// exited.  All we need is to print a log message (if that).
+	MyString status_txt;
+	status_txt.sprintf("Hook (pid %d) ", exit_pid);
+	statusString(exit_status, status_txt);
+	dprintf(D_FULLDEBUG, "%s\n", status_txt.Value());
+	return TRUE;
+}
 
 // // // // // // // // // // // // 
 // FetchClient class
@@ -298,7 +350,7 @@ FetchClient::startFetch()
 	ASSERT(m_rip);
 	ArgList args;
 	ClassAd slot_ad;
-    m_rip->publish(&slot_ad, A_ALL_PUB);
+	m_rip->publish(&slot_ad, A_ALL_PUB);
 	MyString slot_ad_txt;
 	slot_ad.sPrint(slot_ad_txt);
 	resmgr->m_fetch_work_mgr->spawn(this, args, &slot_ad_txt);

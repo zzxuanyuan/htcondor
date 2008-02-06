@@ -84,6 +84,8 @@ public:
 		 */
 	bool claimRemoved(Resource* rip);
 
+		/// Reaper that just ignores the reaped children.
+	int reaperIgnore(int exit_pid, int exit_status);
 
 private:
 	FetchClient* buildFetchClient(Resource* rip);
@@ -97,6 +99,8 @@ private:
 	char* m_hook_fetch_work;
 	char* m_hook_claim_response;
 	char* m_hook_claim_destroy;
+
+	int m_reaper_ignore_id;
 };
 
 
