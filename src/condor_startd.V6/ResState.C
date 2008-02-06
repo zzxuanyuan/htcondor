@@ -335,7 +335,7 @@ ResState::eval( void )
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if
 			// there's any work we can fetch and perform.
-		if (r_act == idle_act && resmgr->m_fetch_work_mgr) {
+		if (r_act != suspended_act && resmgr->m_fetch_work_mgr) {
 			resmgr->m_fetch_work_mgr->fetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
