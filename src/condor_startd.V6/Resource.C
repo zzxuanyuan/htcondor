@@ -1895,15 +1895,25 @@ Resource::willingToRun(ClassAd* job_ad)
 	return (bool)tmp;
 }
 
+
 #if HAVE_FETCH_WORK
 
 void
-Resource::createFetchClaim(ClassAd* job_ad)
+Resource::createFetchClaim(ClassAd* job_ad, float rank)
 {
-	delete r_cur;
-	r_cur = new Claim(this, CLAIM_FETCH);
-	r_cur->setad(job_ad);
-		// TODO-fetch: Initialize the Client object, too?
+	Claim* new_claim = new Claim(this, CLAIM_FETCH);
+	new_claim->setad(job_ad);
+	new_claim->setrank(rank);
+
+	if (state() == claimed_state) {
+		remove_pre();
+		r_pre = new_claim;
+	}
+	else {
+		delete r_cur;
+		r_cur = new_claim;
+	}
+	// TODO-fetch: Initialize the Client object, too?
 }
 
 
