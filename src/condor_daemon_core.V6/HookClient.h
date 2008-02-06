@@ -45,6 +45,7 @@ protected:
 	int m_pid;
 	MyString m_std_out;
 	MyString m_std_err;
+	int m_exit_status;
 	bool m_has_exited;
 };
 

@@ -26,6 +26,7 @@
 HookClient::HookClient(const char* hook_path) {
 	m_hook_path = strdup(hook_path);
 	m_pid = -1;
+	m_exit_status = -1;
 	m_has_exited = false;
 }
 
@@ -92,6 +93,7 @@ HookClient::getStdErr() {
 void
 HookClient::hookExited(int exit_status) {
 	m_has_exited = true;
+	m_exit_status = exit_status;
 
 	MyString status_txt;
 	status_txt.sprintf("HookClient %s (pid %d) ", m_hook_path, m_pid);
