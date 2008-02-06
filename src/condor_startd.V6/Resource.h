@@ -180,6 +180,8 @@ public:
 	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
 	bool	spawnFetchedWork( void );
 	void	terminateFetchedWork( void );
+	void	startedFetch( void );
+	bool	willingToFetch( void );
 #endif /* HAVE_FETCH_WORK */
 
 	bool    claimWorklifeExpired();
@@ -231,6 +233,11 @@ private:
 
 	MyString m_execute_dir;
 	MyString m_execute_partition_id;
+
+#if HAVE_FETCH_WORK
+	time_t	m_last_fetched_work;
+#endif /* HAVE_FETCH_WORK */
+
 };
 
 

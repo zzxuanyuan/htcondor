@@ -120,6 +120,7 @@ extern const char * ATTR_EXCEPTION_TYPE;
 extern const char * ATTR_EXECUTABLE_SIZE;
 extern const char * ATTR_EXIT_REASON;
 extern const char * ATTR_FETCH_FILES;
+extern const char * ATTR_FETCH_WORK_INTERVAL;
 extern const char * ATTR_FILE_NAME;
 extern const char * ATTR_FILE_SIZE;
 extern const char * ATTR_FILE_SYSTEM_DOMAIN;

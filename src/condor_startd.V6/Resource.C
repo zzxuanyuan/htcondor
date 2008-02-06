@@ -95,6 +95,10 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_pre_cod_total_load = 0.0;
 	r_pre_cod_condor_load = 0.0;
 
+#if HAVE_FETCH_WORK
+	m_last_fetched_work = 0;
+#endif
+
 	if( r_attr->type() ) {
 		dprintf( D_ALWAYS, "New machine resource of type %d allocated\n",  
 				 r_attr->type() );
@@ -2008,4 +2012,43 @@ Resource::terminateFetchedWork(void)
 	resmgr->m_fetch_work_mgr->claimRemoved(this);
 	change_state(preempting_state, vacating_act);
 }
+
+
+void
+Resource::startedFetch(void)
+{
+	m_last_fetched_work = time(NULL);
+}
+
+
+bool
+Resource::willingToFetch(void)
+{
+	static bool warned_undefined = false;
+
+		// First, make sure we haven't fetched too recently already.
+	int value = 0;
+	if (r_classad->EvalInteger(ATTR_FETCH_WORK_INTERVAL, NULL, value) == 0) { 
+			// If undefined, disable the throttle completely.
+		if (!warned_undefined) { 
+			dprintf(D_FULLDEBUG, "%s is UNDEFINED, no throttle in use\n",
+					ATTR_FETCH_WORK_INTERVAL);
+			warned_undefined = true;
+		}
+		value = 0;
+	}
+	if (value > 0) {
+		time_t now = time(NULL);
+		if (now < (m_last_fetched_work + value)) {
+				// Throttle is defined, and the interval hasn't passed
+				// since the last time we checked, so bail out.
+			return false;
+		}
+	}
+
+		// Finally, ensure the START expression isn't locally FALSE.
+	return willingToRun(NULL);
+}
+
+
 #endif /* HAVE_FETCH_WORK */

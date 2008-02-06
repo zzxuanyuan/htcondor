@@ -126,6 +126,9 @@ ResMgr::init_config_classad( void )
 	configInsert( config_classad, "START_BACKFILL", false );
 	configInsert( config_classad, "EVICT_BACKFILL", false );
 #endif /* HAVE_BACKFILL */
+#if HAVE_FETCH_WORK
+	configInsert( config_classad, ATTR_FETCH_WORK_INTERVAL, false );
+#endif /* HAVE_FETCH_WORK */
 
 		// Next, try the IS_OWNER expression.  If it's not there, give
 		// them a resonable default, instead of leaving it undefined. 

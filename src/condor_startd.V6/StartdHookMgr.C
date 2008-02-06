@@ -173,8 +173,7 @@ FetchWorkMgr::removeFetchClient(FetchClient* fetch_client)
 bool
 FetchWorkMgr::fetchWork(Resource* rip)
 {
-	if (!rip->willingToRun(NULL)) {
-			// START locally evaluates to FALSE, give up now.
+	if (!rip->willingToFetch()) {
 		return false;
 	}
 	FetchClient* fetch_client = buildFetchClient(rip);
@@ -303,6 +302,7 @@ FetchClient::startFetch()
 	MyString slot_ad_txt;
 	slot_ad.sPrint(slot_ad_txt);
 	resmgr->m_fetch_work_mgr->spawn(this, args, &slot_ad_txt);
+	m_rip->startedFetch();
 	return true;
 }
 
