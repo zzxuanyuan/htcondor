@@ -224,7 +224,6 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 			// TODO-fetch: tell the fetch client about this.
 		removeFetchClient(fetch_client);
 			// TODO-fetch: matchmaking on other slots?
-		delete job_ad;
 		return false;
 	}
 
