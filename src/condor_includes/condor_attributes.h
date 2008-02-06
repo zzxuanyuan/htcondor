@@ -280,6 +280,7 @@ extern const char * ATTR_LAST_CKPT_TIME;
 extern const char * ATTR_LAST_PUBLIC_CLAIM_ID;
 extern const char * ATTR_LAST_PUBLIC_CLAIM_IDS;
 extern const char * ATTR_LAST_CLAIM_STATE;
+extern const char * ATTR_LAST_FETCHED_WORK;
 extern const char * ATTR_LAST_VACATE_TIME;
 extern const char * ATTR_LAST_HEARD_FROM;
 extern const char * ATTR_LAST_HOLD_REASON;

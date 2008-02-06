@@ -1473,6 +1473,13 @@ Resource::publish( ClassAd* cap, amask_t mask )
 
 	free(ptr);
 
+#if HAVE_FETCH_WORK
+	if (IS_PUBLIC(mask)) {
+		my_line.sprintf("%s=%d", ATTR_LAST_FETCHED_WORK, m_last_fetched_work);
+		cap->Insert(my_line.Value());
+	}
+#endif /* HAVE_FETCH_WORK */
+
 		// Update info from the current Claim object, if it exists.
 	if( r_cur ) {
 		r_cur->publish( cap, mask );

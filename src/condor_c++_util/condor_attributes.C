@@ -342,6 +342,7 @@ const char *ATTR_LAST_CKPT_TIME			 = "LastCkptTime";
 const char *ATTR_LAST_PUBLIC_CLAIM_ID    = "LastPublicClaimId";
 const char *ATTR_LAST_PUBLIC_CLAIM_IDS   = "LastPublicClaimIds";
 const char *ATTR_LAST_CLAIM_STATE         = "LastClaimState";
+const char *ATTR_LAST_FETCHED_WORK       = "LastFetchedWork";
 const char *ATTR_LAST_VACATE_TIME		 = "LastVacateTime";
 const char *ATTR_LAST_HEARD_FROM          = "LastHeardFrom";
 const char *ATTR_LAST_HOLD_REASON         = "LastHoldReason";
