@@ -166,7 +166,7 @@ public:
 	int		eval_is_owner( void );		// EXCEPT's on undefined
 	int		eval_start( void );			// returns -1 on undefined
 	int		eval_cpu_busy( void );		// returns FALSE on undefined
-	bool	willingToRun( ClassAd* job_ad );
+	bool	willingToRun( ClassAd* request_ad );
 
 #if HAVE_BACKFILL
 	int		eval_start_backfill( void ); 

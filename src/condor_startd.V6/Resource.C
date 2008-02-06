@@ -1862,7 +1862,6 @@ Resource::acceptClaimRequest()
 
 #if HAVE_FETCH_WORK
 	case CLAIM_FETCH:
-		dprintf(D_FAILURE|D_ALWAYS, "State change: Finished fetching work successfully\n" );
 			// Enter Claimed/Idle will trigger all the actions we need.
 		change_state(claimed_state);
 		accepted = true;
@@ -1884,15 +1883,68 @@ Resource::acceptClaimRequest()
 
 
 bool
-Resource::willingToRun(ClassAd* job_ad)
+Resource::willingToRun(ClassAd* request_ad)
 {
-		// TODO-fetch: check current state and RANK if necessary...
-	int tmp;
-	if ((r_classad->EvalBool("START", job_ad, tmp)) == 0) { 
-			// Treat undefined as FALSE...
+	int slot_requirements = 1, req_requirements = 1;
+
+		// First, verify that the slot and job meet each other's
+		// requirements at all.
+	if (request_ad) {
+		r_reqexp->restore();
+		if (r_classad->EvalBool(ATTR_REQUIREMENTS, 
+								request_ad, slot_requirements) == 0) {
+				// Since we have the request ad, treat UNDEFINED as FALSE.
+			slot_requirements = 0;
+		}
+
+			// Since we have a request ad, we can also check its requirements.
+		Starter* tmp_starter;
+		tmp_starter = resmgr->starter_mgr.findStarter(request_ad, r_classad);
+		if (!tmp_starter) {
+			req_requirements = 0;
+		}
+		else {
+			delete(tmp_starter);
+			req_requirements = 1;
+		}
+	}
+	else {
+			// All we can do is locally evaluate START.  We don't want
+			// the full-blown ATTR_REQUIREMENTS since that includes
+			// the valid checkpoint platform clause, which will always
+			// be undefined (and irrelevant for our decision here).
+		if (r_classad->EvalBool(ATTR_START, NULL, slot_requirements) == 0) {
+				// Without a request classad, treat UNDEFINED as TRUE.
+			slot_requirements = 1;
+		}
+	}
+
+	if (!slot_requirements || !req_requirements) {
+		if (!slot_requirements) {
+			dprintf(D_FAILURE|D_ALWAYS, "Slot requirements not satisfied.\n");
+		}
+		if (!req_requirements) {
+			dprintf(D_FAILURE|D_ALWAYS, "Job requirements not satisfied.\n");
+		}
+	}
+
+		// Possibly print out the ads we just got to the logs.
+	if (request_ad && (DebugFlags & D_JOB)) {
+		dprintf(D_JOB, "REQ_CLASSAD:\n");
+		request_ad->dPrint(D_JOB);
+	}
+	if (DebugFlags & D_MACHINE) {
+		dprintf(D_MACHINE, "MACHINE_CLASSAD:\n");
+		r_classad->dPrint(D_MACHINE);
+	}
+
+	if (!slot_requirements || !req_requirements) {
+			// Not willing -- no sense checking state, RANK, etc.
 		return false;
 	}
-	return (bool)tmp;
+
+		// TODO: check state, RANK, etc.?
+	return true;
 }
 
 

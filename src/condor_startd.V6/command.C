@@ -930,10 +930,9 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 {
 		// Formerly known as "reqservice"
 
-	ClassAd	*req_classad = new ClassAd, *mach_classad = rip->r_classad;
-	int cmd, mach_requirements = 1, req_requirements = 1;
-	float rank = 0;
-	float oldrank = 0;
+	ClassAd	*req_classad = new ClassAd;
+	int cmd;
+	float rank = 0, oldrank = 0;
 	char *client_addr = NULL;
 	int interval;
 	ClaimIdParser idp(id);
@@ -1001,52 +1000,15 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 	rip->dprintf( D_FULLDEBUG,
 				  "Received ClaimId from schedd (%s)\n", idp.publicClaimId() );
 
-		// Make sure we're willing to run this job at all.  Verify that 
-		// the machine and job meet each other's requirements.
-	rip->r_reqexp->restore();
-	if( mach_classad->EvalBool( ATTR_REQUIREMENTS, 
-								req_classad, mach_requirements ) == 0 ) {
-		mach_requirements = 0;
-	}
-
-	Starter* tmp_starter;
-	tmp_starter = resmgr->starter_mgr.findStarter( req_classad,
-												   mach_classad );
-	if( ! tmp_starter ) {
-		req_requirements = 0;
-	} else {
-		delete( tmp_starter );
-		req_requirements = 1;
-	}
-
-	if( !mach_requirements || !req_requirements ) {
-	    rip->dprintf( D_ALWAYS, "Request to claim resource refused.\n" );
-		if( !mach_requirements ) {
-			rip->dprintf( D_FAILURE|D_ALWAYS, 
-						  "Machine requirements not satisfied.\n" );
-		}
-		if( !req_requirements ) {
-			rip->dprintf( D_FAILURE|D_ALWAYS, 
-						  "Job requirements not satisfied.\n" );
-		}
-		refuse( stream );
+		// Make sure we're willing to run this job at all.
+	if (!rip->willingToRun(req_classad)) {
+	    rip->dprintf(D_ALWAYS, "Request to claim resource refused.\n");
+		refuse(stream);
 		ABORT;
 	}
 
-		// Possibly print out the ads we just got to the logs.
-	rip->dprintf( D_JOB, "REQ_CLASSAD:\n" );
-	if( DebugFlags & D_JOB ) {
-		req_classad->dPrint( D_JOB );
-	}
-	  
-	rip->dprintf( D_MACHINE, "MACHINE_CLASSAD:\n" );
-	if( DebugFlags & D_MACHINE ) {
-		mach_classad->dPrint( D_MACHINE );
-	}
-
 		// Now, make sure it's got a high enough rank to preempt us.
-	rank = compute_rank( mach_classad, req_classad );
-
+	rank = compute_rank(rip->r_classad, req_classad);
 	rip->dprintf( D_FULLDEBUG, "Rank of this claim is: %f\n", rank );
 
 	if( rip->state() == claimed_state ) {
