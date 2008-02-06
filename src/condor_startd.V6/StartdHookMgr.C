@@ -312,16 +312,23 @@ FetchClient::hookExited(int exit_status) {
 				"Warning, hook %s (pid %d) printed to stderr: %s\n",
 				m_hook_path, (int)m_pid, m_std_err.Value());
 	}
-	m_job_ad = new ClassAd();
-	m_std_out.Tokenize();
-	const char* hook_line = NULL;
-	while ((hook_line = m_std_out.GetNextToken("\n", true))) {
-		if (!m_job_ad->Insert(hook_line)) {
-			dprintf(D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
-					"ignoring invalid hook output\n", hook_line);
-				// TODO-pipe howto abort?
-			return;
+	if (m_std_out.Length()) {
+		ASSERT(m_job_ad == NULL);
+		m_job_ad = new ClassAd();
+		m_std_out.Tokenize();
+		const char* hook_line = NULL;
+		while ((hook_line = m_std_out.GetNextToken("\n", true))) {
+			if (!m_job_ad->Insert(hook_line)) {
+				dprintf(D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
+						"ignoring invalid hook output\n", hook_line);
+					// TODO-pipe howto abort?
+				return;
+			}
 		}
+	}
+	else {
+		dprintf(D_FULLDEBUG, "Hook %s (pid %d) returned no data\n",
+				m_hook_path, (int)m_pid);
 	}
 		// Finally, let the work manager know this fetch result is done.
 	resmgr->m_fetch_work_mgr->handleFetchResult(this);
