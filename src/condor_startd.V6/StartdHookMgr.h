@@ -115,6 +115,15 @@ public:
 	bool startFetch();
 	ClassAd* reply();
 
+		/**
+		   Clear out the ClassAd pointer once it's been passed on to
+		   another entity to control the memory.  Once we create a
+		   Claim object for work we've fetched, the Claim has full
+		   control over the ClassAd, so we need to clear out our copy
+		   of the pointer to ensure we don't try to delete it twice.
+		*/
+	void clearReplyAd();
+
 protected:
 	Resource* m_rip;
 	ClassAd* m_job_ad;

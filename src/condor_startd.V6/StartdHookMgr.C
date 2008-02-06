@@ -231,6 +231,11 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		// the current Claim and Client objects to remember this work.
 	rip->createFetchClaim(job_ad, rank);
 
+		// Once we've done that, the Claim object in the Resource has
+		// control over the job classad, so we want to NULL-out our
+		// copy here to avoid a double-free.
+	fetch_client->clearReplyAd();
+
 		// Now, depending on our current state, initiate a state change.
 	if (rip->state() == claimed_state) {
 			// If we're already claimed, it means we're going to
@@ -279,6 +284,7 @@ FetchClient::~FetchClient()
 {
 	if (m_job_ad) {
 		delete m_job_ad;
+		m_job_ad = NULL;
 	}
 }
 
@@ -332,4 +338,10 @@ FetchClient::hookExited(int exit_status) {
 	}
 		// Finally, let the work manager know this fetch result is done.
 	resmgr->m_fetch_work_mgr->handleFetchResult(this);
+}
+
+
+void
+FetchClient::clearReplyAd(void) {
+	m_job_ad = NULL;
 }
