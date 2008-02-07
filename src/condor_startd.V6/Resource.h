@@ -177,7 +177,7 @@ public:
 #endif /* HAVE_BACKFILL */
 
 #if HAVE_FETCH_WORK
-	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
+	void	createOrUpdateFetchClaim( ClassAd* job_ad, float rank = 0 );
 	bool	spawnFetchedWork( void );
 	void	terminateFetchedWork( void );
 	void	startedFetch( void );
@@ -236,6 +236,8 @@ private:
 
 #if HAVE_FETCH_WORK
 	time_t	m_last_fetched_work;
+	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
+
 #endif /* HAVE_FETCH_WORK */
 
 };

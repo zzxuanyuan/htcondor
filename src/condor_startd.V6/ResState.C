@@ -655,10 +655,18 @@ ResState::enter_action( State s, Activity a,
 				else {
 						// We just entered Claimed/Idle, but not due
 						// to a state change.  The starter must have
-						// exited, so therefore, we should wrap up 
-						// the fetch claim (always causes state change).
-					rip->terminateFetchedWork();
-					return TRUE;
+						// exited, so we should try to fetch more work.
+					if (!resmgr->m_fetch_work_mgr->tryFetchWork(rip)) {
+							// Eeek, for some reason, we decided not
+							// to try to fetch, so we should destroy
+							// this fetch claim and return to Owner.
+						rip->terminateFetchedWork();
+						return TRUE;
+					}
+						// Starting the fetch doesn't cause a state
+						// change, only the handler does, so we should
+						// just return FALSE.
+					return FALSE;
 				}
 			}
 		}

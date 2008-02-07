@@ -1962,6 +1962,27 @@ Resource::willingToRun(ClassAd* request_ad)
 #if HAVE_FETCH_WORK
 
 void
+Resource::createOrUpdateFetchClaim(ClassAd* job_ad, float rank)
+{
+	if (state() == claimed_state && activity() == idle_act
+		&& r_cur && r_cur->type() == CLAIM_FETCH)
+	{
+			// We're currently claimed with a fetch claim, and we just
+			// fetched another job. Instead of generating a new Claim,
+			// we just need to update r_cur with the new job ad.
+		r_cur->setad(job_ad);
+		r_cur->setrank(rank);
+	}
+	else {
+			// We're starting a new claim for this fetched work, so
+			// create a new Claim object and initialize it.
+		createFetchClaim(job_ad, rank);
+	}
+		// Either way, maybe we should initialize the Client object, too?
+		// TODO-fetch
+}
+
+void
 Resource::createFetchClaim(ClassAd* job_ad, float rank)
 {
 	Claim* new_claim = new Claim(this, CLAIM_FETCH);
@@ -1976,7 +1997,6 @@ Resource::createFetchClaim(ClassAd* job_ad, float rank)
 		delete r_cur;
 		r_cur = new_claim;
 	}
-	// TODO-fetch: Initialize the Client object, too?
 }
 
 

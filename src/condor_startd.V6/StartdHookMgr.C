@@ -201,11 +201,22 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 	Resource* rip = fetch_client->m_rip;
 	float rank = 0;
 	bool willing = true;
+		// Are we currently in Claimed/Idle with a fetched claim?
+	bool idle_fetch_claim = (rip->r_cur->type() == CLAIM_FETCH
+							 && rip->state() == claimed_state
+							 && rip->activity() == idle_act);
 
 	if (!(job_ad = fetch_client->reply())) {
 			// No work or error reading the reply, bail out.
 		removeFetchClient(fetch_client);
 			// Try other hooks?
+		if (idle_fetch_claim) {
+				// we're currently Claimed/Idle with a fetched
+				// claim. If the fetch hook just returned no data, it
+				// means we're out of work, we should destroy this
+				// claim, and return to the Owner state.
+			rip->terminateFetchedWork();
+		}
 		return false;
 	}
 	
@@ -217,7 +228,7 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 	else {
 		rank = compute_rank(rip->r_classad, job_ad);
 		rip->dprintf(D_FULLDEBUG, "Rank of this fetched claim is: %f\n", rank);
-		if (rip->state() == claimed_state) {
+		if (rip->state() == claimed_state && !idle_fetch_claim) {
 				// Make sure it's got a high enough rank to preempt us.
 			if (rank <= rip->r_cur->rank()) {
 					// For fetched jobs, there's no user priority
@@ -235,12 +246,18 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 	if (!willing) {
 		removeFetchClient(fetch_client);
 			// TODO-fetch: matchmaking on other slots?
+		if (idle_fetch_claim) {
+				// The slot is Claimed/Idle with a fetch claim. If we
+				// just fetched work and aren't willing to run it, we
+				// need to destroy this claim and return to Owner.
+			rip->terminateFetchedWork();
+		}
 		return false;
 	}
 
 		// We're ready to start running the job, so we need to update
 		// the current Claim and Client objects to remember this work.
-	rip->createFetchClaim(job_ad, rank);
+	rip->createOrUpdateFetchClaim(job_ad, rank);
 
 		// Once we've done that, the Claim object in the Resource has
 		// control over the job classad, so we want to NULL-out our
@@ -249,8 +266,14 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 
 		// Now, depending on our current state, initiate a state change.
 	if (rip->state() == claimed_state) {
-			// If we're already claimed, it means we're going to
-			// preempt the current job first.
+		if (idle_fetch_claim) {
+				// We've got an idle fetch claim and we just got more
+				// work, so we should spawn it.
+			rip->spawnFetchedWork();
+			return true;
+		}
+			// We're already claimed, but not via an idle fetch claim,
+			// so we need to preempt the current job first.
 		rip->dprintf(D_ALWAYS, "State change: preempting claim based on "
 					 "machine rank of fetched work.\n");
 
