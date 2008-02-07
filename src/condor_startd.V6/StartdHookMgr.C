@@ -181,7 +181,7 @@ FetchWorkMgr::removeFetchClient(FetchClient* fetch_client)
 
 
 bool
-FetchWorkMgr::fetchWork(Resource* rip)
+FetchWorkMgr::tryFetchWork(Resource* rip)
 {
 	if (!rip->willingToFetch()) {
 		return false;

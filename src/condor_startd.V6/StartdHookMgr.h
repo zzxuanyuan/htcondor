@@ -44,15 +44,16 @@ public:
 	bool reconfig();
 
 		/**
-		   Figure out if we should try to fetch work, invoke the hook
-		   with a slot classad, and register a handler for the reply.
+		   Figure out if we should try to fetch work.  If so, invoke
+		   the fetching hook with a slot classad, and register a
+		   handler for the reply.
 
 		   This never initiates a state change, only the handler does.
 
 		   @param rip Pointer to a Resource object to try to fetch work for.
 		   @return True if a request was sent and a handler registered.
 		*/
-	bool fetchWork(Resource* rip);
+	bool tryFetchWork(Resource* rip);
 
 		/**
 		   Handle a reply to a request to fetch work.

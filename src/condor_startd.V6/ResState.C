@@ -333,10 +333,10 @@ ResState::eval( void )
 
 #if HAVE_FETCH_WORK
 			// If we're compiled to support fetching work
-			// automatically and configured to do so, check now if
-			// there's any work we can fetch and perform.
+			// automatically and configured to do so, check now if we
+			// should try to fetch more work.
 		if (r_act != suspended_act && resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->fetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -367,10 +367,10 @@ ResState::eval( void )
 
 #if HAVE_FETCH_WORK
 			// If we're compiled to support fetching work
-			// automatically and configured to do so, check now if
-			// there's any work we can fetch and perform.
+			// automatically and configured to do so, check now if we
+			// should try to fetch more work.
 		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->fetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -398,12 +398,12 @@ ResState::eval( void )
 		}
 #if HAVE_FETCH_WORK
 			// If we're compiled to support fetching work
-			// automatically and configured to do so, check now if
-			// there's any work we can fetch and perform.  Even if
-			// we're in the owner state, we can still see if the
-			// expressions allow any fetched work at this point.
+			// automatically and configured to do so, check now if we
+			// should try to fetch more work.  Even if we're in the
+			// owner state, we can still see if the expressions allow
+			// any fetched work at this point.
 		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->fetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -456,10 +456,10 @@ ResState::eval( void )
 
 #if HAVE_FETCH_WORK
 			// If we're compiled to support fetching work
-			// automatically and configured to do so, check now if
-			// there's any work we can fetch and perform.
+			// automatically and configured to do so, check now if we
+			// should try to fetch more work.
 		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->fetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
