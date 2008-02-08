@@ -1475,7 +1475,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 
 #if HAVE_FETCH_WORK
 	if (IS_PUBLIC(mask)) {
-		my_line.sprintf("%s=%d", ATTR_LAST_FETCHED_WORK, m_last_fetched_work);
+		my_line.sprintf("%s=%d", ATTR_LAST_FETCHED_WORK, (int)m_last_fetched_work);
 		cap->Insert(my_line.Value());
 	}
 #endif /* HAVE_FETCH_WORK */
