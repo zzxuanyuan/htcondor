@@ -235,7 +235,7 @@ private:
 	MyString m_execute_partition_id;
 
 #if HAVE_FETCH_WORK
-	time_t	m_last_fetched_work;
+	time_t	m_last_fetch_work;
 	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
 
 #endif /* HAVE_FETCH_WORK */

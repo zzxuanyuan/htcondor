@@ -96,7 +96,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_pre_cod_condor_load = 0.0;
 
 #if HAVE_FETCH_WORK
-	m_last_fetched_work = 0;
+	m_last_fetch_work = 0;
 #endif
 
 	if( r_attr->type() ) {
@@ -1475,7 +1475,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 
 #if HAVE_FETCH_WORK
 	if (IS_PUBLIC(mask)) {
-		my_line.sprintf("%s=%d", ATTR_LAST_FETCHED_WORK, (int)m_last_fetched_work);
+		my_line.sprintf("%s=%d", ATTR_LAST_FETCH_WORK, (int)m_last_fetch_work);
 		cap->Insert(my_line.Value());
 	}
 #endif /* HAVE_FETCH_WORK */
@@ -2044,7 +2044,7 @@ Resource::terminateFetchedWork(void)
 void
 Resource::startedFetch(void)
 {
-	m_last_fetched_work = time(NULL);
+	m_last_fetch_work = time(NULL);
 }
 
 
@@ -2066,7 +2066,7 @@ Resource::willingToFetch(void)
 	}
 	if (value > 0) {
 		time_t now = time(NULL);
-		if (now < (m_last_fetched_work + value)) {
+		if (now < (m_last_fetch_work + value)) {
 				// Throttle is defined, and the interval hasn't passed
 				// since the last time we checked, so bail out.
 			return false;
