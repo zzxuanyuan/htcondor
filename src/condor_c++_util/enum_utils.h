@@ -55,7 +55,7 @@ ClaimState  getClaimStateNum( const char* string );
 typedef enum { 
     HOOK_FETCH_WORK=0,
     HOOK_REPLY_CLAIM,
-    HOOK_DESTROY_CLAIM,
+    HOOK_EVICT_CLAIM,
 } HookType;
 
 const char* getHookTypeString( HookType type );
