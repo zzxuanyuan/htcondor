@@ -336,7 +336,7 @@ ResState::eval( void )
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
 		if (r_act != suspended_act && resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -370,7 +370,7 @@ ResState::eval( void )
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
 		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -403,7 +403,7 @@ ResState::eval( void )
 			// owner state, we can still see if the expressions allow
 			// any fetched work at this point.
 		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -459,7 +459,7 @@ ResState::eval( void )
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
 		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryFetchWork(rip);
+			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_FETCH_WORK */
 
@@ -656,7 +656,7 @@ ResState::enter_action( State s, Activity a,
 						// We just entered Claimed/Idle, but not due
 						// to a state change.  The starter must have
 						// exited, so we should try to fetch more work.
-					if (!resmgr->m_fetch_work_mgr->tryFetchWork(rip)) {
+					if (!resmgr->m_fetch_work_mgr->tryHookFetchWork(rip)) {
 							// Eeek, for some reason, we decided not
 							// to try to fetch, so we should destroy
 							// this fetch claim and return to Owner.

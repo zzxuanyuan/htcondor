@@ -2036,7 +2036,7 @@ Resource::spawnFetchedWork(void)
 void
 Resource::terminateFetchedWork(void)
 {
-	resmgr->m_fetch_work_mgr->claimRemoved(this);
+	resmgr->m_fetch_work_mgr->hookEvictClaim(this);
 	change_state(preempting_state, vacating_act);
 }
 

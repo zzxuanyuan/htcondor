@@ -51,5 +51,6 @@ template class ExtArray<BackfillSlot*>;
 #if HAVE_FETCH_WORK
 class FetchClient;
 template class SimpleList<FetchClient*>;
+template class HashTable<MyString,char**>;
 #endif /* HAVE_FETCH_WORK */
 

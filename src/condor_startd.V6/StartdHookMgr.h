@@ -53,12 +53,12 @@ public:
 		   @param rip Pointer to a Resource object to try to fetch work for.
 		   @return True if a request was sent and a handler registered.
 		*/
-	bool tryFetchWork(Resource* rip);
+	bool tryHookFetchWork(Resource* rip);
 
 		/**
 		   Handle a reply to a request to fetch work.
 		   
-		   2 Possible responses:
+		   2 Possible replies:
 		   #1 Indication there's no work to do:
 		   ?? See if another server might have work and try another fetch.
 		   -- Return false.
@@ -73,34 +73,96 @@ public:
 
 		   @return True if work was accepted.
 		*/
-	bool handleFetchResult(FetchClient* fetch_client);
+	bool handleHookFetchWork(FetchClient* fetch_client);
 
 		/**
-
+		   Invoke the REPLY_CLAIM hook to tell the outside world what
+		   we decided to do with a given claim request.
+		   @param claimed Did we accept the claim or not?
+		   @param job_ad ClassAd of the job we considered.
+		   @param rip Resource that considered the claim.
 		 */
-	void sendClaimReply(bool claimed, ClassAd* job_ad, ClassAd* slot_ad);
+	void hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip);
 
 		/**
-
+		   TODO
 		 */
-	bool claimRemoved(Resource* rip);
+	bool hookEvictClaim(Resource* rip);
 
-		/// Reaper that just ignores the reaped children.
+		/**
+		   Reaper that just ignores the reaped child. Used for hooks
+		   that the startd expects no output from.
+		*/
 	int reaperIgnore(int exit_pid, int exit_status);
 
 private:
+		/// Number of hooks used by the startd
+	const int NUM_HOOKS;
+
+		/**
+		   Magic "constant" char* that we use to remember that we
+		   tried to lookup and validate a given hook path or keyword,
+		   since we only do lazy discovery and NULL means we haven't
+		   even tried to find it yet.
+		*/
+	char* UNDEFINED;
+
 	FetchClient* buildFetchClient(Resource* rip);
 
 	bool removeFetchClient(FetchClient* fetch_client);
 
 	SimpleList<FetchClient*> m_fetch_clients;
 
-	void clearHookPaths( void );
-	char* initHookPath( const char* hook_param );
-	char* m_hook_fetch_work;
-	char* m_hook_claim_response;
-	char* m_hook_claim_destroy;
+		/**
+		   Find the keyword to use for the given resource/slot.
+		   @param rip Resource you want the keyword for.
+		   @return Hook keyword to use, or NULL if none.
+		*/
+	char* getHookKeyword(Resource* rip);
 
+		/**
+		   Returns the valid path for the given hook on a specific slot.
+		   @param hook_type What kind of hook we need the path for.
+		   @param rip Resource you need the path for.
+		   @return Path to the valid hook, or NULL if undefined or invalid.
+		*/
+	char* getHookPath(HookType hook_type, Resource* rip);
+
+		/**
+		   Lookup the given hook config parameter and make sure it is
+		   defined, pointing to a valid executable, and that we have
+		   some reason to believe that executable is trust-worthy.
+
+		   @return The strdup'ed string from param() if everything is
+		     ok, otherwise NULL.
+		*/
+	char* validateHookPath( const char* hook_param );
+
+		/// Clears out all the hook paths we've validated and saved.
+	void clearHookPaths( void );
+
+		/**
+		   Array of hook keywords for each slot.  Indexed by slot id.
+		   If uninitialized, the value is NULL.  If we already
+		   searched for the keyword and it's not defined in the config
+		   file, the value is the 'UNDEFINED' constant declared above.
+		*/
+	ExtArray<char*> m_slot_hook_keywords;
+
+		/**
+		   HashTable that contains an array of strings for each
+		   keyword. Table is hashed on hook keyword.  Each array is
+		   indexed by the HookType enum, and stores the validated path
+		   of the implementation for each hook, UNDEFINED if we
+		   searched and it's not defined or invalid, and NULL if it
+		   hasn't been initialized yet.
+		*/
+	HashTable<MyString, char**> m_keyword_hook_paths;
+
+		/// Default hook keyword if the per-slot settings aren't defined.
+	char* m_startd_job_hook_keyword;
+
+		/// DC reaper ID. @see reaperIgnore()
 	int m_reaper_ignore_id;
 };
 

@@ -33,19 +33,22 @@
 // // // // // // // // // // // // 
 
 FetchWorkMgr::FetchWorkMgr()
-	: HookClientMgr()
+	: HookClientMgr(),
+	  NUM_HOOKS(3),
+	  UNDEFINED((char*)1),
+	  m_slot_hook_keywords(resmgr->numSlots()),
+	  m_keyword_hook_paths(MyStringHash)
 {
 	dprintf( D_FULLDEBUG, "Instantiating a FetchWorkMgr\n" );
-	m_hook_fetch_work = NULL;
-	m_hook_claim_response = NULL;
-	m_hook_claim_destroy = NULL;
 	m_reaper_ignore_id = -1;
+	m_slot_hook_keywords.setFiller(NULL);
+	m_startd_job_hook_keyword = NULL;
 }
 
 
 FetchWorkMgr::~FetchWorkMgr()
 {
-	dprintf( D_FULLDEBUG, "Destroying a FetchWorkMgr\n" );
+	dprintf( D_FULLDEBUG, "Deleting the FetchWorkMgr\n" );
 		// TODO-fetch: clean up m_fetch_clients, too?
 
 		// Delete our copies of the paths for each hook.
@@ -60,18 +63,31 @@ FetchWorkMgr::~FetchWorkMgr()
 void
 FetchWorkMgr::clearHookPaths()
 {
-	if (m_hook_fetch_work) {
-		free(m_hook_fetch_work);
-		m_hook_fetch_work = NULL;
+	if (m_startd_job_hook_keyword) {
+		free(m_startd_job_hook_keyword);
+		m_startd_job_hook_keyword = NULL;
 	}
-	if (m_hook_claim_response) {
-		free(m_hook_claim_response);
-		m_hook_claim_response = NULL;
+
+	int i;
+	for (i=0; i <= m_slot_hook_keywords.getlast(); i++) {
+		if (m_slot_hook_keywords[i] && m_slot_hook_keywords[i] != UNDEFINED) {
+			free(m_slot_hook_keywords[i]);
+		}
+		m_slot_hook_keywords[i] = NULL;
 	}
-	if (m_hook_claim_destroy) {
-		free(m_hook_claim_destroy);
-		m_hook_claim_destroy = NULL;
+
+	MyString key;
+	char** hook_paths;
+	m_keyword_hook_paths.startIterations();
+	while (m_keyword_hook_paths.iterate(key, hook_paths)) {
+		for (i=0; i<NUM_HOOKS; i++) {
+			if (hook_paths[i] && hook_paths[i] != UNDEFINED) {
+				free(hook_paths[i]);
+			}
+		}
+		delete [] hook_paths;
 	}
+	m_keyword_hook_paths.clear();
 }
 
 
@@ -93,16 +109,15 @@ FetchWorkMgr::reconfig()
 		// Clear out our old copies of each hook's path.
 	clearHookPaths();
 
-	m_hook_fetch_work = initHookPath("STARTD_FETCH_WORK_HOOK");
-	m_hook_claim_response = initHookPath("STARTD_CLAIM_RESPONSE_HOOK");
-	m_hook_claim_destroy = initHookPath("STARTD_CLAIM_DESTROYED_HOOK");
+		// Grab the global setting if the per-slot keywords aren't defined.
+	m_startd_job_hook_keyword = param("STARTD_JOB_HOOK_KEYWORD");
 
 	return true;
 }
 
 
 char*
-FetchWorkMgr::initHookPath( const char* hook_param )
+FetchWorkMgr::validateHookPath( const char* hook_param )
 {
 	char* tmp = param(hook_param);
 	if (tmp) {
@@ -143,24 +158,82 @@ FetchWorkMgr::initHookPath( const char* hook_param )
 		}
 	}
 
-	if (tmp) {
-		dprintf(D_ALWAYS, "Hook configuration: %s is \"%s\"\n",
-				hook_param, tmp);
-	}
-	else {
-		dprintf(D_FULLDEBUG, "Hook configuration: %s is not defined\n",
-				hook_param);
-	}
+	dprintf(D_FULLDEBUG, "Hook %s: %s\n", hook_param, tmp ? tmp : "UNDEFINED");
+
 		// If we got this far, we've either got a valid hook or it
 		// wasn't defined. Either way, we can just return that directly.
 	return tmp;
 }
 
 
+char*
+FetchWorkMgr::getHookPath(HookType hook_type, Resource* rip)
+{
+	char* keyword = getHookKeyword(rip);
+
+	if (!keyword) {
+			// Nothing defined, bail now.
+		return NULL;
+	}
+
+	int i;
+	MyString key(keyword);
+	char** hook_paths;
+	if (m_keyword_hook_paths.lookup(key, hook_paths) < 0) {
+			// No entry, initialize it.
+		hook_paths = new char*[NUM_HOOKS];
+		for (i=0; i<NUM_HOOKS; i++) {
+			hook_paths[i] = NULL;
+		}
+		m_keyword_hook_paths.insert(key, hook_paths);
+	}
+
+	char* path = hook_paths[(int)hook_type];
+	if (!path) {
+		MyString _param;
+		_param.sprintf("%s_HOOK_%s", keyword, getHookTypeString(hook_type));
+		path = validateHookPath(_param.Value());
+		if (!path) {
+			hook_paths[(int)hook_type] = UNDEFINED;
+		}
+		else {
+			hook_paths[(int)hook_type] = path;
+		}
+	}
+	else if (path == UNDEFINED) {
+		path = NULL;
+	}
+	return path;
+}
+
+
+char*
+FetchWorkMgr::getHookKeyword(Resource* rip)
+{
+	int slot_id = rip->r_id;
+	char* keyword = m_slot_hook_keywords[slot_id];
+	if (!keyword) {
+		MyString param_name;
+		param_name.sprintf("%s_JOB_HOOK_KEYWORD", rip->r_id_str);
+		keyword = param(param_name.Value());
+		m_slot_hook_keywords[slot_id] = keyword ? keyword : UNDEFINED;
+	}
+	else if (keyword == UNDEFINED) {
+		keyword = NULL;
+	}
+	return keyword ? keyword : m_startd_job_hook_keyword;
+}
+
+
 FetchClient*
 FetchWorkMgr::buildFetchClient(Resource* rip)
 {
-	FetchClient* new_client = new FetchClient(rip, m_hook_fetch_work);
+	char* hook_path = getHookPath(HOOK_FETCH_WORK, rip);
+	if (!hook_path) {
+			// No fetch hook defined for this slot, abort.
+		return NULL;
+	}
+	FetchClient* new_client = new FetchClient(rip, hook_path);
 	if (new_client) {
 		m_fetch_clients.Append(new_client);
 	}
@@ -181,7 +254,7 @@ FetchWorkMgr::removeFetchClient(FetchClient* fetch_client)
 
 
 bool
-FetchWorkMgr::tryFetchWork(Resource* rip)
+FetchWorkMgr::tryHookFetchWork(Resource* rip)
 {
 	if (!rip->willingToFetch()) {
 		return false;
@@ -195,7 +268,7 @@ FetchWorkMgr::tryFetchWork(Resource* rip)
 
 
 bool
-FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
+FetchWorkMgr::handleHookFetchWork(FetchClient* fetch_client)
 {
 	ClassAd* job_ad = NULL;
 	Resource* rip = fetch_client->m_rip;
@@ -213,7 +286,7 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		if (idle_fetch_claim) {
 				// we're currently Claimed/Idle with a fetched
 				// claim. If the fetch hook just returned no data, it
-				// means we're out of work, we should destroy this
+				// means we're out of work, we should evict this
 				// claim, and return to the Owner state.
 			rip->terminateFetchedWork();
 		}
@@ -240,8 +313,8 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		}
 	}
 
-		// Either way, if the claim reply hook is configured, invoke it.
-	sendClaimReply(willing, job_ad, rip->r_classad);
+		// Either way, if the reply claim hook is configured, invoke it.
+	hookReplyClaim(willing, job_ad, rip);
 
 	if (!willing) {
 		removeFetchClient(fetch_client);
@@ -249,7 +322,7 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 		if (idle_fetch_claim) {
 				// The slot is Claimed/Idle with a fetch claim. If we
 				// just fetched work and aren't willing to run it, we
-				// need to destroy this claim and return to Owner.
+				// need to evict this claim and return to Owner.
 			rip->terminateFetchedWork();
 		}
 		return false;
@@ -298,26 +371,26 @@ FetchWorkMgr::handleFetchResult(FetchClient* fetch_client)
 }
 
 void
-FetchWorkMgr::sendClaimReply(bool claimed, ClassAd* job_ad, ClassAd* slot_ad)
+FetchWorkMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 {
-	if (m_hook_claim_response) {
+	char* hook_path = getHookPath(HOOK_REPLY_CLAIM, rip);
+	if (hook_path) {
 		int std_fds[3] = {DC_STD_FD_PIPE, -1, -1};
 		ArgList args;
-		args.AppendArg(condor_basename(m_hook_claim_response));
+		args.AppendArg(condor_basename(hook_path));
 		args.AppendArg((claimed ? "accept" : "reject"));
 		int hook_pid = daemonCore->
-			Create_Process(m_hook_claim_response, args, PRIV_CONDOR,
-						   m_reaper_ignore_id, FALSE, NULL, NULL,
-						   NULL, NULL, std_fds);
+			Create_Process(hook_path, args, PRIV_CONDOR, m_reaper_ignore_id,
+						   FALSE, NULL, NULL, NULL, NULL, std_fds);
 		if (hook_pid == FALSE) {		
 			dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
-					"FetchWorkMgr::sendClaimReply()\n");
+					"FetchWorkMgr::hookReplyClaim()\n");
 			return;
 		}
 		MyString hook_stdin;
 		job_ad->sPrint(hook_stdin);
 		hook_stdin += "-----\n";  // TODO-fetch: better delimiter?
-		slot_ad->sPrint(hook_stdin);
+		rip->r_classad->sPrint(hook_stdin);
 		daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
 									 hook_stdin.Length());
 		daemonCore->Close_Stdin_Pipe(hook_pid);
@@ -327,7 +400,7 @@ FetchWorkMgr::sendClaimReply(bool claimed, ClassAd* job_ad, ClassAd* slot_ad)
 
 
 bool
-FetchWorkMgr::claimRemoved(Resource* /* rip */)
+FetchWorkMgr::hookEvictClaim(Resource* /* rip */)
 {
 		// TODO-fetch
 	return true;
@@ -416,7 +489,7 @@ FetchClient::hookExited(int exit_status) {
 				m_hook_path, (int)m_pid);
 	}
 		// Finally, let the work manager know this fetch result is done.
-	resmgr->m_fetch_work_mgr->handleFetchResult(this);
+	resmgr->m_fetch_work_mgr->handleHookFetchWork(this);
 }
 
 
