@@ -390,10 +390,20 @@ FetchWorkMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 				"FetchWorkMgr::hookReplyClaim()\n");
 		return;
 	}
+
+		// Construct the output to write to STDIN.
 	MyString hook_stdin;
 	job_ad->sPrint(hook_stdin);
 	hook_stdin += "-----\n";  // TODO-fetch: better delimiter?
 	rip->r_classad->sPrint(hook_stdin);
+	if (claimed) {
+			// Also include the claim id in the slot classad.
+		hook_stdin += ATTR_CLAIM_ID;
+		hook_stdin += " = \"";
+		hook_stdin += rip->r_cur->id();
+		hook_stdin += "\"\n";
+	}
+
 	daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
 								 hook_stdin.Length());
 	daemonCore->Close_Stdin_Pipe(hook_pid);
@@ -420,10 +430,18 @@ FetchWorkMgr::hookEvictClaim(Resource* rip)
 				"FetchWorkMgr::hookEvictClaim()\n");
 		return;
 	}
+
+		// Construct the output to write to STDIN.
 	MyString hook_stdin;
 	rip->r_cur->ad()->sPrint(hook_stdin);
 	hook_stdin += "-----\n";  // TODO-fetch: better delimiter?
 	rip->r_classad->sPrint(hook_stdin);
+		// Also include the claim id in the slot classad.
+	hook_stdin += ATTR_CLAIM_ID;
+	hook_stdin += " = \"";
+	hook_stdin += rip->r_cur->id();
+	hook_stdin += "\"\n";
+
 	daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
 								 hook_stdin.Length());
 	daemonCore->Close_Stdin_Pipe(hook_pid);
