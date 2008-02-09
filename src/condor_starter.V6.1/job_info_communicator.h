@@ -63,9 +63,8 @@ public:
 		/// Read anything relevent from the config file
 	virtual void config( void ) = 0;
 
-		/** Setup the execution environment for the job.  
-		 */
-	virtual void setupJobEnvironment( void ) = 0;
+		/// Setup the execution environment for the job.  
+	virtual void setupJobEnvironment( void );
 
 	void setStdin( const char* path );
 	void setStdout( const char* path );
@@ -413,6 +412,11 @@ protected:
 	bool user_priv_is_initialized;
 
 	bool m_execute_account_is_dedicated;
+
+private:
+		/// The Base class finally thinks the job environment is ready.
+	void jobEnvironmentReady( void );
+
 };
 
 

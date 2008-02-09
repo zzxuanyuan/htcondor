@@ -1811,9 +1811,8 @@ JICShadow::transferCompleted( FileTransfer *ftrans )
 		}
 	}
 
-		// Now that we're done transfering files, we can let the
-		// Starter object know the execution environment is ready. 
-	Starter->jobEnvironmentReady();
+		// Now that we're done, let our parent class do its thing.
+	JobInfoCommunicator::setupJobEnvironment();
 
 	return TRUE;
 }

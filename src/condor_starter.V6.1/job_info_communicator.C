@@ -624,3 +624,20 @@ JobInfoCommunicator::checkForStarterDebugging( void )
         dprintf( D_JOB, "--- End of ClassAd ---\n" );
 	}
 }
+
+
+void
+JobInfoCommunicator::setupJobEnvironment( void )
+{
+		// TODO-fetch: check the classad for a hook keyword and invoke it
+	jobEnvironmentReady();
+}
+
+
+void
+JobInfoCommunicator::jobEnvironmentReady( void )
+{
+		// Now that every layer of the JIC is done, let the Starter
+		// object know the execution environment is ready.
+	Starter->jobEnvironmentReady();
+}
