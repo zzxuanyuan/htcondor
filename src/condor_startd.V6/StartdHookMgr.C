@@ -313,7 +313,18 @@ FetchWorkMgr::handleHookFetchWork(FetchClient* fetch_client)
 		}
 	}
 
-		// Either way, if the reply claim hook is configured, invoke it.
+		// Make sure that the job classad defines ATTR_HOOK_KEYWORD,
+		// and if not, insert this slot's keyword.
+	char buf[1];	// We don't care what it is, just if it's there.
+	if (!job_ad->LookupString(ATTR_HOOK_KEYWORD, buf, 1)) {
+		char* keyword = getHookKeyword(rip);
+		ASSERT(keyword && keyword != UNDEFINED);
+		MyString keyword_attr;
+		keyword_attr.sprintf("%s = \"%s\"", ATTR_HOOK_KEYWORD, keyword);
+		job_ad->Insert(keyword_attr.Value());
+	}
+
+		// No matter what, if the reply claim hook is configured, invoke it.
 	hookReplyClaim(willing, job_ad, rip);
 
 	if (!willing) {
