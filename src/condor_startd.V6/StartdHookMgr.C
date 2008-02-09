@@ -401,11 +401,33 @@ FetchWorkMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 }
 
 
-bool
-FetchWorkMgr::hookEvictClaim(Resource* /* rip */)
+void
+FetchWorkMgr::hookEvictClaim(Resource* rip)
 {
-		// TODO-fetch
-	return true;
+	char* hook_path = getHookPath(HOOK_EVICT_CLAIM, rip);
+	if (!hook_path) {
+		return;
+	}
+
+	ArgList args;
+	args.AppendArg(condor_basename(hook_path));
+	int std_fds[3] = {DC_STD_FD_PIPE, -1, -1};
+	int hook_pid = daemonCore->
+		Create_Process(hook_path, args, PRIV_CONDOR, m_reaper_ignore_id,
+					   FALSE, NULL, NULL, NULL, NULL, std_fds);
+	if (hook_pid == FALSE) {		
+		dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
+				"FetchWorkMgr::hookEvictClaim()\n");
+		return;
+	}
+	MyString hook_stdin;
+	rip->r_cur->ad()->sPrint(hook_stdin);
+	hook_stdin += "-----\n";  // TODO-fetch: better delimiter?
+	rip->r_classad->sPrint(hook_stdin);
+	daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
+								 hook_stdin.Length());
+	daemonCore->Close_Stdin_Pipe(hook_pid);
+		// That's it, we don't care about the output at all...
 }
 
 

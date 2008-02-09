@@ -85,9 +85,13 @@ public:
 	void hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip);
 
 		/**
-		   TODO
+		   Invoke the EVICT_CLAIM hook to tell the outside world that
+		   the fetched claim on a given slot is being evicted.
+		   The job ClassAd written to stdin is of the most recent job
+		   we fetched.
+		   @param rip Resource that is evicting its fetched claim.
 		 */
-	bool hookEvictClaim(Resource* rip);
+	void hookEvictClaim(Resource* rip);
 
 		/**
 		   Reaper that just ignores the reaped child. Used for hooks
