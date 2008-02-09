@@ -26,6 +26,8 @@
 #include "user_proc.h"
 #include "local_user_log.h"
 #include "condor_holdcodes.h"
+#include "enum_utils.h"
+
 
 /** 
 	This class is a base class for the various ways a starter can
@@ -348,9 +350,11 @@ protected:
 			job which the starter will want to know.  This should
 			init the following: orig_job_name, job_input_name, 
 			job_output_name, job_error_name, job_iwd, 
-			job_universe, job_cluster, job_proc, and job_subproc
+			job_universe, job_cluster, job_proc, and job_subproc.
+			The base class also looks up the hook keyword from the job
+			ClassAd (if any) and initializes the corresponding paths.
 			@return true on success, false on failure */
-	virtual	bool initJobInfo( void ) = 0;
+	virtual	bool initJobInfo( void );
 
 		/** Since we want to support the ATTR_STARTER_WAIT_FOR_DEBUG,
 			as soon as we have the job ad, each JIC subclass will want
@@ -417,6 +421,24 @@ private:
 		/// The Base class finally thinks the job environment is ready.
 	void jobEnvironmentReady( void );
 
+		/// The hook keyword defined in the job, or NULL if not present.
+	char* m_hook_keyword;
+		/// The path to HOOK_PREPARE_JOB, if defined.
+	char* m_hook_prepare_job;
+		/// The path to HOOK_UPDATE_JOB_INFO, if defined.
+	char* m_hook_update_job_info;
+		/// The path to HOOK_FINAL_JOB_INFO, if defined.
+	char* m_hook_final_job_info;
+		/// The path to HOOK_EVICT_JOB, if defined.
+	char* m_hook_evict_job;
+
+		/**
+		   If the job we're running defines a hook keyword, find the
+		   validate path to the given hook.
+		   @param hook_type The hook you want the path for.
+		   @return Path to the hook if defined and valid, otherwise NULL.
+		*/
+	char* getHookPath(HookType hook_type);
 };
 
 

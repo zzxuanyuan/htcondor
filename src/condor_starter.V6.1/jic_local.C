@@ -345,6 +345,9 @@ JICLocal::initUserPriv( void )
 bool
 JICLocal::initJobInfo( void ) 
 {
+		// Give our base class a chance.
+	JobInfoCommunicator::initJobInfo();
+
 	char *orig_job_iwd;
 
 	if( ! job_ad ) {
