@@ -45,7 +45,11 @@ struct Translation ClaimStateTranslation[] = {
 struct Translation HookTypeTranslation[] = {
 	{ "FETCH_WORK", HOOK_FETCH_WORK },
 	{ "REPLY_CLAIM", HOOK_REPLY_CLAIM },
-	{ "EVICT_CLAIM", HOOK_EVICT_CLAIM }
+	{ "EVICT_CLAIM", HOOK_EVICT_CLAIM },
+	{ "PREPARE_JOB", HOOK_PREPARE_JOB },
+	{ "UPDATE_JOB_INFO", HOOK_UPDATE_JOB_INFO },
+	{ "FINAL_JOB_INFO", HOOK_FINAL_JOB_INFO },
+	{ "EVICT_JOB", HOOK_EVICT_JOB }
 };
 
 
