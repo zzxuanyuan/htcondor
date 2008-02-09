@@ -23,8 +23,8 @@
 
 #include "condor_common.h"
 #include "startd.h"
-#include "directory.h"
 #include "basename.h"
+#include "hook_utils.h"
 #include "status_string.h"
 
 
@@ -117,56 +117,6 @@ FetchWorkMgr::reconfig()
 
 
 char*
-FetchWorkMgr::validateHookPath( const char* hook_param )
-{
-	char* tmp = param(hook_param);
-	if (tmp) {
-		StatInfo si(tmp);
-		if (si.Error() != SIGood) {
-			int si_errno = si.Errno();
-			dprintf(D_ALWAYS, "ERROR: invalid path specified for %s (%s): "
-					"stat() failed with errno %d (%s)\n",
-					hook_param, tmp, si_errno, strerror(si_errno));
-			free(tmp);
-			return NULL;
-		}
-		mode_t mode = si.GetMode();
-		if (mode & S_IWOTH) {
-			dprintf(D_ALWAYS, "ERROR: path specified for %s (%s) "
-					"is world-writable! Refusing to use.\n",
-					hook_param, tmp);
-			free(tmp);
-			return NULL;
-		}
-		if (!si.IsExecutable()) {
-			dprintf(D_ALWAYS, "ERROR: path specified for %s (%s) "
-					"is not executable.\n", hook_param, tmp);
-			free(tmp);
-			return NULL;
-		}
-			// TODO: forbid symlinks, too?
-		
-			// Now, make sure the parent directory isn't world-writable.
-		StatInfo dir_si(si.DirPath());
-		mode_t dir_mode = dir_si.GetMode();
-		if (dir_mode & S_IWOTH) {
-			dprintf(D_ALWAYS, "ERROR: path specified for %s (%s) "
-					"is a world-writable directory (%s)! Refusing to use.\n",
-					hook_param, tmp, si.DirPath());
-			free(tmp);
-			return NULL;
-		}
-	}
-
-	dprintf(D_FULLDEBUG, "Hook %s: %s\n", hook_param, tmp ? tmp : "UNDEFINED");
-
-		// If we got this far, we've either got a valid hook or it
-		// wasn't defined. Either way, we can just return that directly.
-	return tmp;
-}
-
-
-char*
 FetchWorkMgr::getHookPath(HookType hook_type, Resource* rip)
 {
 	char* keyword = getHookKeyword(rip);
@@ -199,6 +149,8 @@ FetchWorkMgr::getHookPath(HookType hook_type, Resource* rip)
 		else {
 			hook_paths[(int)hook_type] = path;
 		}
+		rip->dprintf(D_FULLDEBUG, "Hook %s: %s\n", _param.Value(),
+					 path ? path : "UNDEFINED");
 	}
 	else if (path == UNDEFINED) {
 		path = NULL;

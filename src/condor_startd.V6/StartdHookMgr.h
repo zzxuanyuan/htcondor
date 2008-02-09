@@ -132,16 +132,6 @@ private:
 		*/
 	char* getHookPath(HookType hook_type, Resource* rip);
 
-		/**
-		   Lookup the given hook config parameter and make sure it is
-		   defined, pointing to a valid executable, and that we have
-		   some reason to believe that executable is trust-worthy.
-
-		   @return The strdup'ed string from param() if everything is
-		     ok, otherwise NULL.
-		*/
-	char* validateHookPath( const char* hook_param );
-
 		/// Clears out all the hook paths we've validated and saved.
 	void clearHookPaths( void );
 
