@@ -73,7 +73,7 @@ int Condor_Auth_SSL::authenticate(const char * remoteHost, CondorError* errstack
     dprintf(D_SECURITY,"Got hostname for peer: '%s'\n", peerHostName);
     */
 
-	// allocate a large buffer for comminications
+	// allocate a large buffer for communications
 	buffer = (char*) malloc( AUTH_SSL_BUF_SIZE );
     
     if( mySock_->isClient() ) {
