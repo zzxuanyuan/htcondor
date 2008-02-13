@@ -644,7 +644,7 @@ AC_ARG_WITH(job-hooks,
   [JOB_HOOKS=$withval],
   [JOB_HOOKS=yes])
 if test $JOB_HOOKS != no; then
-  AC_DEFINE([HAVE_JOB_HOOKS], [Define to 1 to support invoking hooks throughout the workflow of a job])
+  AC_DEFINE([HAVE_JOB_HOOKS], [1], [Define to 1 to support invoking hooks throughout the workflow of a job])
 fi
 
 
