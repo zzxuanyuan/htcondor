@@ -20,8 +20,8 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _CONDOR_FETCH_WORK_MGR_H
-#define _CONDOR_FETCH_WORK_MGR_H
+#ifndef _CONDOR_STARTD_HOOK_MGR_H
+#define _CONDOR_STARTD_HOOK_MGR_H
 
 #include "condor_common.h"
 #include "startd.h"
@@ -31,14 +31,14 @@
 class FetchClient;
 
 /**
-   The FetchWorkMgr manages all attempts to fetch work via hooks.
+   The StartdHookMgr manages all attempts to fetch work via hooks.
 */
 
-class FetchWorkMgr : public HookClientMgr
+class StartdHookMgr : public HookClientMgr
 {
 public:
-	FetchWorkMgr(); 
-	~FetchWorkMgr();
+	StartdHookMgr(); 
+	~StartdHookMgr();
 
 	bool initialize();
 	bool reconfig();
@@ -167,7 +167,7 @@ private:
 class FetchClient : public HookClient
 {
 public:
-	friend class FetchWorkMgr;
+	friend class StartdHookMgr;
 
 	FetchClient(Resource* rip, const char* hook_path);
 	virtual ~FetchClient();
@@ -191,4 +191,4 @@ protected:
 };
 
 
-#endif /* _CONDOR_FETCH_WORK_MGR_H */
+#endif /* _CONDOR_STARTD_HOOK_MGR_H */

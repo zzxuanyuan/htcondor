@@ -29,26 +29,26 @@
 
 
 // // // // // // // // // // // // 
-// FetchWorkMgr
+// StartdHookMgr
 // // // // // // // // // // // // 
 
-FetchWorkMgr::FetchWorkMgr()
+StartdHookMgr::StartdHookMgr()
 	: HookClientMgr(),
 	  NUM_HOOKS(3),
 	  UNDEFINED((char*)1),
 	  m_slot_hook_keywords(resmgr->numSlots()),
 	  m_keyword_hook_paths(MyStringHash)
 {
-	dprintf( D_FULLDEBUG, "Instantiating a FetchWorkMgr\n" );
+	dprintf( D_FULLDEBUG, "Instantiating a StartdHookMgr\n" );
 	m_reaper_ignore_id = -1;
 	m_slot_hook_keywords.setFiller(NULL);
 	m_startd_job_hook_keyword = NULL;
 }
 
 
-FetchWorkMgr::~FetchWorkMgr()
+StartdHookMgr::~StartdHookMgr()
 {
-	dprintf( D_FULLDEBUG, "Deleting the FetchWorkMgr\n" );
+	dprintf( D_FULLDEBUG, "Deleting the StartdHookMgr\n" );
 		// TODO-fetch: clean up m_fetch_clients, too?
 
 		// Delete our copies of the paths for each hook.
@@ -61,7 +61,7 @@ FetchWorkMgr::~FetchWorkMgr()
 
 
 void
-FetchWorkMgr::clearHookPaths()
+StartdHookMgr::clearHookPaths()
 {
 	if (m_startd_job_hook_keyword) {
 		free(m_startd_job_hook_keyword);
@@ -92,19 +92,19 @@ FetchWorkMgr::clearHookPaths()
 
 
 bool
-FetchWorkMgr::initialize()
+StartdHookMgr::initialize()
 {
 	reconfig();
 	m_reaper_ignore_id = daemonCore->
-		Register_Reaper("FetchWorkMgr Ignore Reaper",
-						(ReaperHandlercpp) &FetchWorkMgr::reaperIgnore,
-						"FetchWorkMgr Ignore Reaper", this);
+		Register_Reaper("StartdHookMgr Ignore Reaper",
+						(ReaperHandlercpp) &StartdHookMgr::reaperIgnore,
+						"StartdHookMgr Ignore Reaper", this);
 	return HookClientMgr::initialize();
 }
 
 
 bool
-FetchWorkMgr::reconfig()
+StartdHookMgr::reconfig()
 {
 		// Clear out our old copies of each hook's path.
 	clearHookPaths();
@@ -117,7 +117,7 @@ FetchWorkMgr::reconfig()
 
 
 char*
-FetchWorkMgr::getHookPath(HookType hook_type, Resource* rip)
+StartdHookMgr::getHookPath(HookType hook_type, Resource* rip)
 {
 	char* keyword = getHookKeyword(rip);
 
@@ -160,7 +160,7 @@ FetchWorkMgr::getHookPath(HookType hook_type, Resource* rip)
 
 
 char*
-FetchWorkMgr::getHookKeyword(Resource* rip)
+StartdHookMgr::getHookKeyword(Resource* rip)
 {
 	int slot_id = rip->r_id;
 	char* keyword = m_slot_hook_keywords[slot_id];
@@ -178,7 +178,7 @@ FetchWorkMgr::getHookKeyword(Resource* rip)
 
 
 FetchClient*
-FetchWorkMgr::buildFetchClient(Resource* rip)
+StartdHookMgr::buildFetchClient(Resource* rip)
 {
 	char* hook_path = getHookPath(HOOK_FETCH_WORK, rip);
 	if (!hook_path) {
@@ -194,7 +194,7 @@ FetchWorkMgr::buildFetchClient(Resource* rip)
 
 
 bool
-FetchWorkMgr::removeFetchClient(FetchClient* fetch_client)
+StartdHookMgr::removeFetchClient(FetchClient* fetch_client)
 {
 	if (m_fetch_clients.Delete(fetch_client)) {
 		remove((HookClient*)fetch_client);
@@ -206,7 +206,7 @@ FetchWorkMgr::removeFetchClient(FetchClient* fetch_client)
 
 
 bool
-FetchWorkMgr::tryHookFetchWork(Resource* rip)
+StartdHookMgr::tryHookFetchWork(Resource* rip)
 {
 	if (!rip->willingToFetch()) {
 		return false;
@@ -220,7 +220,7 @@ FetchWorkMgr::tryHookFetchWork(Resource* rip)
 
 
 bool
-FetchWorkMgr::handleHookFetchWork(FetchClient* fetch_client)
+StartdHookMgr::handleHookFetchWork(FetchClient* fetch_client)
 {
 	ClassAd* job_ad = NULL;
 	Resource* rip = fetch_client->m_rip;
@@ -334,7 +334,7 @@ FetchWorkMgr::handleHookFetchWork(FetchClient* fetch_client)
 }
 
 void
-FetchWorkMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
+StartdHookMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 {
 	char* hook_path = getHookPath(HOOK_REPLY_CLAIM, rip);
 	if (!hook_path) {
@@ -350,7 +350,7 @@ FetchWorkMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 					   FALSE, NULL, NULL, NULL, NULL, std_fds);
 	if (hook_pid == FALSE) {		
 		dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
-				"FetchWorkMgr::hookReplyClaim()\n");
+				"StartdHookMgr::hookReplyClaim()\n");
 		return;
 	}
 
@@ -375,7 +375,7 @@ FetchWorkMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 
 
 void
-FetchWorkMgr::hookEvictClaim(Resource* rip)
+StartdHookMgr::hookEvictClaim(Resource* rip)
 {
 	char* hook_path = getHookPath(HOOK_EVICT_CLAIM, rip);
 	if (!hook_path) {
@@ -390,7 +390,7 @@ FetchWorkMgr::hookEvictClaim(Resource* rip)
 					   FALSE, NULL, NULL, NULL, NULL, std_fds);
 	if (hook_pid == FALSE) {		
 		dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
-				"FetchWorkMgr::hookEvictClaim()\n");
+				"StartdHookMgr::hookEvictClaim()\n");
 		return;
 	}
 
@@ -413,7 +413,7 @@ FetchWorkMgr::hookEvictClaim(Resource* rip)
 
 
 int
-FetchWorkMgr::reaperIgnore(int exit_pid, int exit_status)
+StartdHookMgr::reaperIgnore(int exit_pid, int exit_status)
 {
 		// Some hook that we don't care about the output for just
 		// exited.  All we need is to print a log message (if that).
@@ -423,6 +423,7 @@ FetchWorkMgr::reaperIgnore(int exit_pid, int exit_status)
 	dprintf(D_FULLDEBUG, "%s\n", status_txt.Value());
 	return TRUE;
 }
+
 
 // // // // // // // // // // // // 
 // FetchClient class
@@ -454,7 +455,7 @@ FetchClient::startFetch()
 	m_rip->publish(&slot_ad, A_ALL_PUB);
 	MyString slot_ad_txt;
 	slot_ad.sPrint(slot_ad_txt);
-	resmgr->m_fetch_work_mgr->spawn(this, args, &slot_ad_txt);
+	resmgr->m_hook_mgr->spawn(this, args, &slot_ad_txt);
 	m_rip->startedFetch();
 	return true;
 }
@@ -494,7 +495,7 @@ FetchClient::hookExited(int exit_status) {
 				m_hook_path, (int)m_pid);
 	}
 		// Finally, let the work manager know this fetch result is done.
-	resmgr->m_fetch_work_mgr->handleHookFetchWork(this);
+	resmgr->m_hook_mgr->handleHookFetchWork(this);
 }
 
 

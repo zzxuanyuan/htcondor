@@ -42,7 +42,7 @@ ResMgr::ResMgr()
 #endif
 
 #if HAVE_JOB_HOOKS
-	m_fetch_work_mgr = NULL;
+	m_hook_mgr = NULL;
 #endif
 
 	id_disp = NULL;
@@ -71,8 +71,8 @@ ResMgr::~ResMgr()
 #endif
 
 #if HAVE_JOB_HOOKS
-	if (m_fetch_work_mgr) {
-		delete m_fetch_work_mgr;
+	if (m_hook_mgr) {
+		delete m_hook_mgr;
 	}
 #endif
 
@@ -387,8 +387,8 @@ ResMgr::init_resources( void )
 #endif
 
 #if HAVE_JOB_HOOKS
-	m_fetch_work_mgr = new FetchWorkMgr;
-	m_fetch_work_mgr->initialize();
+	m_hook_mgr = new StartdHookMgr;
+	m_hook_mgr->initialize();
 #endif
 }
 
@@ -407,7 +407,7 @@ ResMgr::reconfig_resources( void )
 #endif
 
 #if HAVE_JOB_HOOKS
-	m_fetch_work_mgr->reconfig();
+	m_hook_mgr->reconfig();
 #endif
 
 

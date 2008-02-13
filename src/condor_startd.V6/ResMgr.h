@@ -37,7 +37,7 @@
 #include "vmuniverse_mgr.h"
 
 #if HAVE_JOB_HOOKS
-#include "FetchWorkMgr.h"
+#include "StartdHookMgr.h"
 #endif /* HAVE_JOB_HOOKS */
 
 #if HAVE_BACKFILL
@@ -187,8 +187,8 @@ public:
 #endif /* HAVE_BACKFILL */
 
 #if HAVE_JOB_HOOKS
-	FetchWorkMgr* m_fetch_work_mgr;
-	void fetchWorkMgrDone();
+	StartdHookMgr* m_hook_mgr;
+	void startdHookMgrDone();
 #endif /* HAVE_JOB_HOOKS */
 
 	time_t	now( void ) { return cur_time; };
@@ -301,7 +301,7 @@ private:
 
 #if HAVE_JOB_HOOKS
 	bool fetchWorkConfig( void );
-	bool m_fetch_work_shutdown_pending;
+	bool m_startd_hook_shutdown_pending;
 #endif /* HAVE_JOB_HOOKS */
 
 };

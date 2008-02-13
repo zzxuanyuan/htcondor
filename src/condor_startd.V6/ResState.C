@@ -335,8 +335,8 @@ ResState::eval( void )
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
-		if (r_act != suspended_act && resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
+		if (r_act != suspended_act && resmgr->m_hook_mgr) {
+			resmgr->m_hook_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_JOB_HOOKS */
 
@@ -369,8 +369,8 @@ ResState::eval( void )
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
-		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
+		if (resmgr->m_hook_mgr) {
+			resmgr->m_hook_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_JOB_HOOKS */
 
@@ -402,8 +402,8 @@ ResState::eval( void )
 			// should try to fetch more work.  Even if we're in the
 			// owner state, we can still see if the expressions allow
 			// any fetched work at this point.
-		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
+		if (resmgr->m_hook_mgr) {
+			resmgr->m_hook_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_JOB_HOOKS */
 
@@ -458,8 +458,8 @@ ResState::eval( void )
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
-		if (resmgr->m_fetch_work_mgr) {
-			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
+		if (resmgr->m_hook_mgr) {
+			resmgr->m_hook_mgr->tryHookFetchWork(rip);
 		}
 #endif /* HAVE_JOB_HOOKS */
 
@@ -656,7 +656,7 @@ ResState::enter_action( State s, Activity a,
 						// We just entered Claimed/Idle, but not due
 						// to a state change.  The starter must have
 						// exited, so we should try to fetch more work.
-					if (!resmgr->m_fetch_work_mgr->tryHookFetchWork(rip)) {
+					if (!resmgr->m_hook_mgr->tryHookFetchWork(rip)) {
 							// Eeek, for some reason, we decided not
 							// to try to fetch, so we should destroy
 							// this fetch claim and return to Owner.
