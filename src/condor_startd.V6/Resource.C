@@ -95,7 +95,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_pre_cod_total_load = 0.0;
 	r_pre_cod_condor_load = 0.0;
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	m_last_fetch_work = 0;
 #endif
 
@@ -1473,12 +1473,12 @@ Resource::publish( ClassAd* cap, amask_t mask )
 
 	free(ptr);
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	if (IS_PUBLIC(mask)) {
 		my_line.sprintf("%s=%d", ATTR_LAST_FETCH_WORK, (int)m_last_fetch_work);
 		cap->Insert(my_line.Value());
 	}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 		// Update info from the current Claim object, if it exists.
 	if( r_cur ) {
@@ -1871,13 +1871,13 @@ Resource::acceptClaimRequest()
 		}
 		break;
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	case CLAIM_FETCH:
 			// Enter Claimed/Idle will trigger all the actions we need.
 		change_state(claimed_state);
 		accepted = true;
 		break;
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 	case CLAIM_COD:
 			// TODO?
@@ -1959,7 +1959,7 @@ Resource::willingToRun(ClassAd* request_ad)
 }
 
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 
 void
 Resource::createOrUpdateFetchClaim(ClassAd* job_ad, float rank)
@@ -2078,4 +2078,4 @@ Resource::willingToFetch(void)
 }
 
 
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */

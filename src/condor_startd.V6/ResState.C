@@ -331,14 +331,14 @@ ResState::eval( void )
 			rip->periodic_checkpoint();
 		}
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
 		if (r_act != suspended_act && resmgr->m_fetch_work_mgr) {
 			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 		if( rip->r_reqexp->restore() ) {
 				// Our reqexp changed states, send an update
@@ -365,14 +365,14 @@ ResState::eval( void )
 			// Check to see if we should run benchmarks
 		deal_with_benchmarks( rip );
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
 		if (resmgr->m_fetch_work_mgr) {
 			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 #if HAVE_BACKFILL
 			// check if we should go into the Backfill state.  only do
@@ -396,7 +396,7 @@ ResState::eval( void )
 			dprintf( D_ALWAYS, "State change: IS_OWNER is false\n" );
 			change( unclaimed_state );
 		}
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.  Even if we're in the
@@ -405,7 +405,7 @@ ResState::eval( void )
 		if (resmgr->m_fetch_work_mgr) {
 			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 		break;	
 		
@@ -454,14 +454,14 @@ ResState::eval( void )
 					 "staying in Backfill state\n" );
 		}
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 			// If we're compiled to support fetching work
 			// automatically and configured to do so, check now if we
 			// should try to fetch more work.
 		if (resmgr->m_fetch_work_mgr) {
 			resmgr->m_fetch_work_mgr->tryHookFetchWork(rip);
 		}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 		if( r_act == idle_act ) {
 				// if we're in Backfill/Idle, try to spawn a backfill job
@@ -641,7 +641,7 @@ ResState::enter_action( State s, Activity a,
 				return change( preempting_state );
 			}
 		}
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 		else if (a == idle_act) {
 			if (rip->r_cur->type() == CLAIM_FETCH) {
 				if (statechange) {
@@ -670,7 +670,7 @@ ResState::enter_action( State s, Activity a,
 				}
 			}
 		}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 		break;
 
@@ -804,7 +804,7 @@ ResState::set_destination( State new_state )
 	case claimed_state:
 			// this is only valid if we've got a pending request to
 			// claim that's already been stashed in our Claim object 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 		if (rip->r_cur->type() == CLAIM_FETCH) {
 			if (rip->r_cur->ad() == NULL) {
 				EXCEPT( "set_destination(Claimed) called but there's no "
@@ -812,7 +812,7 @@ ResState::set_destination( State new_state )
 			}
 		}
 		else
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 		if( ! rip->r_cur->requestStream() ) {
 			EXCEPT( "set_destination(Claimed) called but there's no "
 					"pending request stream set in our current Claim" );

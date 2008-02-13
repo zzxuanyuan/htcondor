@@ -1103,11 +1103,11 @@ Claim::hasJobAd() {
 	if (c_has_job_ad != 0) {
 		has_it = true;
 	}
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	else if (c_type == CLAIM_FETCH && c_ad != NULL) {
 		has_it = true;
 	}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 	return has_it;
 }
 
@@ -1452,17 +1452,17 @@ Claim::makeStarterArgs( ArgList &args )
 	case CLAIM_COD:
 		makeCODStarterArgs(args);
 		break;
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	case CLAIM_FETCH:
 		makeFetchStarterArgs(args);
 		break;
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 	default:
 		EXCEPT("Impossible: makeStarterArgs() called with unsupported claim type"); 
 	}
 }
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 void
 Claim::makeFetchStarterArgs( ArgList &args )
 {
@@ -1471,7 +1471,7 @@ Claim::makeFetchStarterArgs( ArgList &args )
 	args.AppendArg("-job-input-ad");
 	args.AppendArg("-");
 }
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 
 void

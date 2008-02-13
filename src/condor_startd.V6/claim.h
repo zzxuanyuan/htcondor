@@ -320,9 +320,9 @@ private:
 	void beginActivation( time_t now ); 
 
 	void makeCODStarterArgs( ArgList &args );
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	void makeFetchStarterArgs( ArgList &args );
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 };
 

@@ -555,11 +555,11 @@ Starter::spawn( time_t now, Stream* s )
 	if (claimType() == CLAIM_COD) {
 		s_pid = execJobPipeStarter();
 	}
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	else if (claimType() == CLAIM_FETCH) {
 		s_pid = execJobPipeStarter();
 	}
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 #if HAVE_BOINC
 	else if( isBOINC() ) {
 		s_pid = execBOINCStarter(); 

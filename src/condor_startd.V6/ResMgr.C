@@ -41,7 +41,7 @@ ResMgr::ResMgr()
 	m_backfill_shutdown_pending = false;
 #endif
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	m_fetch_work_mgr = NULL;
 #endif
 
@@ -70,7 +70,7 @@ ResMgr::~ResMgr()
 	}
 #endif
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	if (m_fetch_work_mgr) {
 		delete m_fetch_work_mgr;
 	}
@@ -126,9 +126,9 @@ ResMgr::init_config_classad( void )
 	configInsert( config_classad, "START_BACKFILL", false );
 	configInsert( config_classad, "EVICT_BACKFILL", false );
 #endif /* HAVE_BACKFILL */
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	configInsert( config_classad, ATTR_FETCH_WORK_INTERVAL, false );
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 		// Next, try the IS_OWNER expression.  If it's not there, give
 		// them a resonable default, instead of leaving it undefined. 
@@ -386,7 +386,7 @@ ResMgr::init_resources( void )
 	backfillConfig();
 #endif
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	m_fetch_work_mgr = new FetchWorkMgr;
 	m_fetch_work_mgr->initialize();
 #endif
@@ -406,7 +406,7 @@ ResMgr::reconfig_resources( void )
 	backfillConfig();
 #endif
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	m_fetch_work_mgr->reconfig();
 #endif
 

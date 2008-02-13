@@ -176,13 +176,13 @@ public:
 	bool	hardkill_backfill( void );
 #endif /* HAVE_BACKFILL */
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	void	createOrUpdateFetchClaim( ClassAd* job_ad, float rank = 0 );
 	bool	spawnFetchedWork( void );
 	void	terminateFetchedWork( void );
 	void	startedFetch( void );
 	bool	willingToFetch( void );
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 	bool    claimWorklifeExpired();
 	int		retirementExpired( void );
@@ -234,11 +234,11 @@ private:
 	MyString m_execute_dir;
 	MyString m_execute_partition_id;
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	time_t	m_last_fetch_work;
 	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
 
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 };
 

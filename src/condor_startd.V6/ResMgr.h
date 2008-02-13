@@ -36,9 +36,9 @@
 #include "starter_mgr.h"
 #include "vmuniverse_mgr.h"
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 #include "FetchWorkMgr.h"
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 #if HAVE_BACKFILL
 #include "backfill_mgr.h"
@@ -186,10 +186,10 @@ public:
 	void backfillMgrDone();
 #endif /* HAVE_BACKFILL */
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	FetchWorkMgr* m_fetch_work_mgr;
 	void fetchWorkMgrDone();
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 	time_t	now( void ) { return cur_time; };
 
@@ -299,10 +299,10 @@ private:
 	bool m_backfill_shutdown_pending;
 #endif /* HAVE_BACKFILL */
 
-#if HAVE_FETCH_WORK
+#if HAVE_JOB_HOOKS
 	bool fetchWorkConfig( void );
 	bool m_fetch_work_shutdown_pending;
-#endif /* HAVE_FETCH_WORK */
+#endif /* HAVE_JOB_HOOKS */
 
 };
 
