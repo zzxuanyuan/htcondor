@@ -25,13 +25,8 @@
 #include "amazongahp_common.h"
 #include "amazonCommands.h"
 
-static char success_output[] = "0";
-static char error_output[] = "1";
-
 static MyString working_dir;
 static MyString amazon_lib_path;
-
-template class SimpleList<AmazonGahpCommand*>;
 
 // List for all amazon commands
 static SimpleList<AmazonGahpCommand*> amazon_gahp_commands;
@@ -280,8 +275,6 @@ parse_gahp_command (const char* raw, Gahp_Args* args) {
 
 	free (buff);
 	return TRUE;
-
-
 }
 
 bool
@@ -313,7 +306,7 @@ check_create_file(const char *file)
 	fp = safe_fopen_wrapper(file, "w");
 	if( !fp ) {
 		dprintf(D_ALWAYS, "failed to safe_fopen_wrapper %s in write mode: "
-				"safe_fopen_wrapper(%s) returns %s\n", file, strerror(errno));
+				"safe_fopen_wrapper returns %s\n", file, strerror(errno));
 		return false;
 	}
 
@@ -574,7 +567,7 @@ create_success_result( int req_id, StringList *result_list)
 
 	const char *tmp_result[index_count];
 
-	tmp_result[0] = success_output;
+	tmp_result[0] = AMAZON_COMMAND_SUCCESS_OUTPUT;
 
 	int i = 1;
 	if( result_list && (result_list->number() > 0) ) {
@@ -590,16 +583,19 @@ create_success_result( int req_id, StringList *result_list)
 }
 
 MyString 
-create_failure_result( int req_id, const char *err_msg)
+create_failure_result( int req_id, const char *err_msg, const char* err_code)
 {
-	const char *tmp_result[2];
-	tmp_result[0] = error_output;
-	tmp_result[1] = err_msg;
+	const char *tmp_result[3];
+	tmp_result[0] = AMAZON_COMMAND_ERROR_OUTPUT;
 
-	int num = 1;
-	if( err_msg ) {
-		num = 2;
+	if( !err_code ) {
+		err_code = "GAHPERROR";
 	}
+	if( !err_msg ) {
+		err_msg = "GAHP_ERROR";
+	}
+	tmp_result[1] = err_code;
+	tmp_result[2] = err_msg;
 
-	return create_output_string(req_id, tmp_result, num);
+	return create_output_string(req_id, tmp_result, 3);
 }

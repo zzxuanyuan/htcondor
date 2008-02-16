@@ -28,6 +28,9 @@
 #define AMAZON_SCRIPT_INTERPRETER "perl"
 #define AMAZON_SCRIPT_NAME "condor_amazon.pl"
 
+#define AMAZON_COMMAND_SUCCESS_OUTPUT	"0"
+#define AMAZON_COMMAND_ERROR_OUTPUT		"1"
+
 typedef bool (*ioCheckfn)(char **argv, int argc);
 typedef bool (*workerfn)(char **argv, int argc, MyString &output_string);
 
@@ -75,7 +78,7 @@ int verify_min_number_args (const int, const int);
 
 bool check_access_and_secret_key_file(const char* accesskeyfile, const char* secretkeyfile, MyString &err_msg);
 
-MyString create_failure_result( int req_id, const char *err_msg);
+MyString create_failure_result( int req_id, const char *err_msg, const char* err_code = NULL);
 MyString create_success_result( int req_id, StringList *result_list);
 
 #endif

@@ -38,8 +38,6 @@ PipeBuffer request_buffer;
 int RESULT_OUTBOX = -1;
 int REQUEST_INBOX = -1;
 
-int io_loop_pid = -1;
-
 // this appears at the bottom of this file
 extern "C" int display_dprintf_header(FILE *fp);
 
@@ -83,10 +81,6 @@ main_config( bool )
 int
 main_shutdown_fast()
 {
-#ifndef WIN32
-	if (io_loop_pid != -1)
-		kill(io_loop_pid, SIGKILL);
-#endif
 	DC_Exit(0);
 	return TRUE;	// to satisfy c++
 }
@@ -94,10 +88,6 @@ main_shutdown_fast()
 int
 main_shutdown_graceful()
 {
-#ifndef WIN32
-	if (io_loop_pid != -1)
-		kill(io_loop_pid, SIGTERM);
-#endif
 	DC_Exit(0);
 	return TRUE;	// to satify c++
 }

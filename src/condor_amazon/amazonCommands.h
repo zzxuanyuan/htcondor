@@ -62,6 +62,10 @@ class AmazonRequest {
 
 		MyString m_amazon_lib_prog;
 		MyString m_amazon_lib_path;
+
+		// Error msg
+		MyString error_msg;
+		MyString error_code;
 };
 
 // EC2 Commands
@@ -88,8 +92,6 @@ class AmazonVMStart : public AmazonRequest {
 		// Result 
 		MyString instance_id;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMStop : public AmazonRequest {
@@ -109,8 +111,6 @@ class AmazonVMStop : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMReboot : public AmazonRequest {
@@ -130,8 +130,6 @@ class AmazonVMReboot : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 #define AMAZON_STATUS_RUNNING "running"
@@ -169,8 +167,6 @@ class AmazonVMStatus : public AmazonRequest {
 		// Result 
 		AmazonStatusResult status_result;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMStatusAll : public AmazonRequest {
@@ -191,8 +187,6 @@ class AmazonVMStatusAll : public AmazonRequest {
 		AmazonStatusResult *status_results;
 		int status_num;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMCreateGroup : public AmazonRequest {
@@ -213,8 +207,6 @@ class AmazonVMCreateGroup : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMDeleteGroup : public AmazonRequest {
@@ -234,8 +226,6 @@ class AmazonVMDeleteGroup : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMGroupNames : public AmazonRequest {
@@ -255,8 +245,6 @@ class AmazonVMGroupNames : public AmazonRequest {
 		// Result 
 		StringList groupnames;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonGroupRule {
@@ -287,8 +275,6 @@ class AmazonVMGroupRules : public AmazonRequest {
 		AmazonGroupRule *rules;
 		int rules_num;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMAddGroupRule : public AmazonRequest {
@@ -309,8 +295,6 @@ class AmazonVMAddGroupRule : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMDelGroupRule : public AmazonRequest {
@@ -331,8 +315,6 @@ class AmazonVMDelGroupRule : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMCreateKeypair : public AmazonRequest {
@@ -353,8 +335,6 @@ class AmazonVMCreateKeypair : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMDestroyKeypair : public AmazonRequest {
@@ -374,8 +354,6 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMKeypairNames : public AmazonRequest {
@@ -395,8 +373,6 @@ class AmazonVMKeypairNames : public AmazonRequest {
 		// Result 
 		StringList keynames;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMRegisterImage : public AmazonRequest {
@@ -417,8 +393,6 @@ class AmazonVMRegisterImage : public AmazonRequest {
 		// Result 
 		MyString ami_id;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonVMDeregisterImage : public AmazonRequest {
@@ -438,8 +412,6 @@ class AmazonVMDeregisterImage : public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 
@@ -461,8 +433,6 @@ class AmazonS3AllBuckets: public AmazonRequest {
 		// Result 
 		StringList bucketnames;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3CreateBucket: public AmazonRequest {
@@ -482,8 +452,6 @@ class AmazonS3CreateBucket: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3DeleteBucket: public AmazonRequest {
@@ -503,8 +471,6 @@ class AmazonS3DeleteBucket: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3ListBucket: public AmazonRequest {
@@ -526,8 +492,6 @@ class AmazonS3ListBucket: public AmazonRequest {
 		// Result 
 		StringList keynames;
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3UploadFile: public AmazonRequest {
@@ -549,8 +513,6 @@ class AmazonS3UploadFile: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3UploadDir: public AmazonRequest {
@@ -571,8 +533,6 @@ class AmazonS3UploadDir: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3DeleteFile: public AmazonRequest {
@@ -593,8 +553,6 @@ class AmazonS3DeleteFile: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3DownloadFile: public AmazonRequest {
@@ -616,8 +574,6 @@ class AmazonS3DownloadFile: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 class AmazonS3DownloadBucket: public AmazonRequest {
@@ -638,8 +594,6 @@ class AmazonS3DownloadBucket: public AmazonRequest {
 
 		// Result 
 
-		// Error msg
-		MyString error_msg;
 };
 
 

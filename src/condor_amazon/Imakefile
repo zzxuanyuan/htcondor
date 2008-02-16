@@ -12,17 +12,14 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 soapobjs(amazongahp)
 
-WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o $(SOAP_OBJS)
+WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o $(SOAP_OBJS)
+
+IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o amazonCommands.o request.o amazongahp_instantiate.o 
+
+template_inst( amazongahp_instantiate.C, amazongahp_instantiate.o )
 
 public_c_plus_target($(WORKER_THREAD),sbin,$(WORKER_THREAD_OBJ),$(LIB))
-
-c_plus_target(AvailStats.t,AvailStats.o AvailStats.t.o startd_instantiate.o,$(LIB))
-
-
-IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o amazonCommands.o
-
 public_c_plus_target($(IO_THREAD),sbin,$(IO_THREAD_OBJ),$(LIB))
-
 
 html:
 

@@ -32,9 +32,10 @@
 
 #define PERL_SCRIPT_SUCCESS_TAG "#SUCCESS"
 #define PERL_SCRIPT_ERROR_TAG "#ERROR"
+#define PERL_SCRIPT_ERROR_CODE "#ECODE"
 
 static bool
-__systemCommand(ArgList &args, StringList &output)
+__systemCommand(ArgList &args, StringList &output, MyString &error_code)
 {
 	FILE *fp = NULL;
 	fp = my_popen(args, "r", FALSE);
@@ -53,6 +54,7 @@ __systemCommand(ArgList &args, StringList &output)
 	while( fgets(buf, 2048, fp) ) {
 		one_line = buf;
 		one_line.chomp();
+		one_line.trim();
 
 		output.append(one_line.Value());
 		read_something = true;
@@ -74,6 +76,26 @@ __systemCommand(ArgList &args, StringList &output)
 		output.remove(one_line.Value());
 	}
 
+	// Check if the last line is PERL_SCRIPT_ERROR_TAG
+	// find error code if available
+	if( !strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
+		char* x = NULL;	
+
+		output.rewind();
+		while( (x = output.next()) != NULL ) {
+			if( !strncmp(x, PERL_SCRIPT_ERROR_CODE, 
+						strlen(PERL_SCRIPT_ERROR_CODE)) ) {
+				// Found error code
+				MyString name;
+				MyString value;
+				parse_param_string(x, name, value, true);
+				error_code = value;
+				break;
+			}
+		}
+		return false;
+	}
+
 	// Check if the last line is PERL_SCRIPT_SUCCESS_TAG
 	if( strcmp(one_line.Value(), PERL_SCRIPT_SUCCESS_TAG) ) {
 		return false;
@@ -83,7 +105,7 @@ __systemCommand(ArgList &args, StringList &output)
 }
 
 static bool 
-systemCommand(ArgList &args, const char *chdir_path, StringList &output)
+systemCommand(ArgList &args, const char *chdir_path, StringList &output, MyString &ecode)
 {
 	bool tmp_result = false;
 
@@ -96,7 +118,7 @@ systemCommand(ArgList &args, const char *chdir_path, StringList &output)
 	}
 
 	output.clearAll();
-	tmp_result = __systemCommand(args, output);
+	tmp_result = __systemCommand(args, output, ecode);
 
 	if( chdir_path ) {
 		chdir(get_working_dir());
@@ -311,6 +333,8 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
+	dprintf (D_FULLDEBUG, "AmazonVMStart workerFunction is called\n");
+	
 	if( !verify_min_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
@@ -348,7 +372,7 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		StringList result_list;
@@ -404,12 +428,14 @@ bool AmazonVMStart::Request()
 	}
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -444,6 +470,8 @@ bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMStop workerFunction is called\n");
+
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -468,7 +496,7 @@ bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -508,12 +536,14 @@ bool AmazonVMStop::Request()
 	systemcmd.AppendArg(instance_id);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -541,6 +571,8 @@ bool AmazonVMReboot::workerFunction(char **argv, int argc, MyString &result_stri
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
+	dprintf (D_FULLDEBUG, "AmazonVMReboot workerFunction is called\n");
+
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -565,7 +597,7 @@ bool AmazonVMReboot::workerFunction(char **argv, int argc, MyString &result_stri
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -605,12 +637,14 @@ bool AmazonVMReboot::Request()
 	systemcmd.AppendArg(instance_id);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -638,6 +672,8 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
+	dprintf (D_FULLDEBUG, "AmazonVMStatus workerFunction is called\n");
+
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -662,7 +698,7 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		StringList result_list;
@@ -704,11 +740,13 @@ bool AmazonVMStatus::Request()
 	systemcmd.AppendArg(instance_id);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -754,6 +792,8 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 {
 	int req_id = 0;
 	get_int(argv[1], &req_id);
+
+	dprintf (D_FULLDEBUG, "AmazonVMStatusAll workerFunction is called\n");
 	
 	if( !verify_number_args(argc ,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
@@ -772,7 +812,7 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		if( request.status_num == 0 ) {
@@ -815,12 +855,14 @@ bool AmazonVMStatusAll::Request()
 	systemcmd.AppendArg(secretkeyfile);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -879,6 +921,8 @@ bool AmazonVMCreateGroup::workerFunction(char **argv, int argc, MyString &result
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMCreateGroup workerFunction is called\n");
+
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -898,7 +942,7 @@ bool AmazonVMCreateGroup::workerFunction(char **argv, int argc, MyString &result
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -946,12 +990,14 @@ bool AmazonVMCreateGroup::Request()
 	systemcmd.AppendArg(group_description);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -979,6 +1025,8 @@ bool AmazonVMDeleteGroup::workerFunction(char **argv, int argc, MyString &result
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMDeleteGroup workerFunction is called\n");
+
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -997,7 +1045,7 @@ bool AmazonVMDeleteGroup::workerFunction(char **argv, int argc, MyString &result
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1037,12 +1085,14 @@ bool AmazonVMDeleteGroup::Request()
 	systemcmd.AppendArg(groupname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1069,6 +1119,8 @@ bool AmazonVMGroupNames::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMGroupNames workerFunction is called\n");
+
 	if( !verify_number_args(argc,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -1086,7 +1138,7 @@ bool AmazonVMGroupNames::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.groupnames);
@@ -1118,12 +1170,14 @@ bool AmazonVMGroupNames::Request()
 	systemcmd.AppendArg(secretkeyfile);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1183,6 +1237,8 @@ bool AmazonVMGroupRules::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMGroupRules workerFunction is called\n");
+
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be = %d, but %d) to %s\n", 
@@ -1201,7 +1257,7 @@ bool AmazonVMGroupRules::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		if( request.rules_num == 0 ) {
@@ -1247,12 +1303,14 @@ bool AmazonVMGroupRules::Request()
 	systemcmd.AppendArg(groupname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1316,6 +1374,8 @@ bool AmazonVMAddGroupRule::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMAddGroupRule workerFunction is called\n");
+
 	if( !verify_min_number_args(argc,8) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be >=%d, but %d) to %s\n", 
@@ -1341,7 +1401,7 @@ bool AmazonVMAddGroupRule::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1386,12 +1446,14 @@ bool AmazonVMAddGroupRule::Request()
 	}
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1425,6 +1487,8 @@ bool AmazonVMDelGroupRule::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMDelGroupRule workerFunction is called\n");
+
 	if( !verify_min_number_args(argc,8) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be >=%d, but %d) to %s\n", 
@@ -1450,7 +1514,7 @@ bool AmazonVMDelGroupRule::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1495,12 +1559,14 @@ bool AmazonVMDelGroupRule::Request()
 	}
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1529,6 +1595,8 @@ bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &resu
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMCreateKeypair workerFunction is called\n");
+
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -1548,7 +1616,7 @@ bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &resu
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1597,12 +1665,14 @@ bool AmazonVMCreateKeypair::Request()
 	systemcmd.AppendArg(outputfile);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1630,6 +1700,8 @@ bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &res
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMDestroyKeypair workerFunction is called\n");
+
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -1648,7 +1720,7 @@ bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &res
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1688,12 +1760,14 @@ bool AmazonVMDestroyKeypair::Request()
 	systemcmd.AppendArg(keyname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1720,6 +1794,8 @@ bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonVMKeypairNames workerFunction is called\n");
+
 	if( !verify_number_args(argc,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -1737,7 +1813,7 @@ bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.keynames);
@@ -1769,12 +1845,14 @@ bool AmazonVMKeypairNames::Request()
 	systemcmd.AppendArg(secretkeyfile);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1817,6 +1895,8 @@ bool AmazonVMRegisterImage::workerFunction(char **argv, int argc, MyString &resu
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
+	dprintf (D_FULLDEBUG, "AmazonVMRegisterImage workerFunction is called\n");
+
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -1835,7 +1915,7 @@ bool AmazonVMRegisterImage::workerFunction(char **argv, int argc, MyString &resu
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		StringList result_list;
@@ -1871,12 +1951,14 @@ bool AmazonVMRegisterImage::Request()
 	systemcmd.AppendArg(location);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1909,6 +1991,8 @@ bool AmazonVMDeregisterImage::workerFunction(char **argv, int argc, MyString &re
 {
 	int req_id = 0;
 	get_int(argv[1], &req_id);
+
+	dprintf (D_FULLDEBUG, "AmazonVMDeregisterImage workerFunction is called\n");
 	
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
@@ -1928,7 +2012,7 @@ bool AmazonVMDeregisterImage::workerFunction(char **argv, int argc, MyString &re
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1962,12 +2046,14 @@ bool AmazonVMDeregisterImage::Request()
 	systemcmd.AppendArg(ami_id);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -1996,6 +2082,8 @@ bool AmazonS3AllBuckets::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3AllBuckets workerFunction is called\n");
+
 	if( !verify_number_args(argc,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2013,7 +2101,7 @@ bool AmazonS3AllBuckets::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.bucketnames);
@@ -2045,12 +2133,14 @@ bool AmazonS3AllBuckets::Request()
 	systemcmd.AppendArg(secretkeyfile);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2085,6 +2175,8 @@ bool AmazonS3CreateBucket::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3CreateBucket workerFunction is called\n");
+
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2103,7 +2195,7 @@ bool AmazonS3CreateBucket::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2137,12 +2229,14 @@ bool AmazonS3CreateBucket::Request()
 	systemcmd.AppendArg(bucketname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2169,6 +2263,8 @@ bool AmazonS3DeleteBucket::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3DeleteBucket workerFunction is called\n");
+
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2187,7 +2283,7 @@ bool AmazonS3DeleteBucket::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2222,12 +2318,14 @@ bool AmazonS3DeleteBucket::Request()
 	systemcmd.AppendArg("-force");
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2254,6 +2352,8 @@ bool AmazonS3ListBucket::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3ListBucket workerFunction is called\n");
+
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2272,7 +2372,7 @@ bool AmazonS3ListBucket::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.keynames);
@@ -2306,12 +2406,14 @@ bool AmazonS3ListBucket::Request()
 	systemcmd.AppendArg(bucketname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2357,6 +2459,8 @@ bool AmazonS3UploadFile::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3UploadFile workerFunction is called\n");
+
 	if( !verify_number_args(argc,7) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2377,7 +2481,7 @@ bool AmazonS3UploadFile::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2420,12 +2524,14 @@ bool AmazonS3UploadFile::Request()
 	systemcmd.AppendArg(keyname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2453,6 +2559,8 @@ bool AmazonS3UploadDir::workerFunction(char **argv, int argc, MyString &result_s
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3UploadDir workerFunction is called\n");
+
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2472,7 +2580,7 @@ bool AmazonS3UploadDir::workerFunction(char **argv, int argc, MyString &result_s
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2514,12 +2622,14 @@ bool AmazonS3UploadDir::Request()
 	systemcmd.AppendArg("-ec2");
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2547,6 +2657,8 @@ bool AmazonS3DeleteFile::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3DeleteFile workerFunction is called\n");
+
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2566,7 +2678,7 @@ bool AmazonS3DeleteFile::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2602,12 +2714,14 @@ bool AmazonS3DeleteFile::Request()
 	systemcmd.AppendArg(bucketname);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2636,6 +2750,8 @@ bool AmazonS3DownloadFile::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3DownloadFile workerFunction is called\n");
+
 	if( !verify_number_args(argc,7) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2656,7 +2772,7 @@ bool AmazonS3DownloadFile::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2694,12 +2810,14 @@ bool AmazonS3DownloadFile::Request()
 	systemcmd.AppendArg(outputfile);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
@@ -2727,6 +2845,8 @@ bool AmazonS3DownloadBucket::workerFunction(char **argv, int argc, MyString &res
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
+	dprintf (D_FULLDEBUG, "AmazonS3DownloadBucket workerFunction is called\n");
+
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
@@ -2746,7 +2866,7 @@ bool AmazonS3DownloadBucket::workerFunction(char **argv, int argc, MyString &res
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr());
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2782,12 +2902,14 @@ bool AmazonS3DownloadBucket::Request()
 	systemcmd.AppendArg(localdir);
 
 	StringList output;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output);
+	MyString ecode;
+	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
 	if( tmp_result == false ){
 		error_msg = output.next();
+		error_code = ecode;
 		return false;
 	}
 
