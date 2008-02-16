@@ -24,7 +24,7 @@ our %EXPORT_TAGS = ( 'all' => [ qw( validation_options ), map { @{ $tags{$_} } }
 		   );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{all} }, 'validation_options' );
 
-$VERSION = sprintf '%2d.%02d', q$Revision: 1.1.2.1 $ =~ /(\d+)\.(\d+)/;
+$VERSION = sprintf '%2d.%02d', q$Revision: 1.1.2.2 $ =~ /(\d+)\.(\d+)/;
 
 
 sub UNIVERSAL::Validate : ATTR(CODE, INIT)

@@ -1,4 +1,4 @@
-# $Id: Simple.pm,v 1.1.2.1 2008-01-18 01:47:18 jyoon Exp $
+# $Id: Simple.pm,v 1.1.2.2 2008-02-16 19:51:13 jyoon Exp $
 
 package XML::Simple;
 
