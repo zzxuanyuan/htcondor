@@ -22,7 +22,7 @@
 
 #
 # Amazon EC2/S3 Control Tool
-# V0.2 / 2007-Dec-13 / Jaeyoung Yoon / jyoon@cs.wisc.edu
+# V0.3 / 2008-Feb-13 / Jaeyoung Yoon / jyoon@cs.wisc.edu
 #
 
 use strict;
@@ -54,12 +54,10 @@ my $owner_id = undef;
 my $owner_displayname = undef;
 my $xml_acl_string = undef; 
 
-# stdout will be directed to stderr
-#open STDOUT, ">&STDERR";
-
 sub printerror
 {
 	print STDOUT "(ERROR) @_\n";
+	print STDOUT "#ECODE=EC2SCRIPTERROR\n";
 	print STDOUT "#ERROR\n";
 	exit(1);
 }
@@ -80,7 +78,7 @@ sub _content_sub {
 	my $blksize   = $stat->blksize || 4096;
 
 	unless( -r $filename and $remaining ) {
-		printerror "$filename not a readable file with fixed size";
+		printerror "$filename is not a readable file with fixed size";
 	}
 
 	open DATA, "< $filename" or printerror "Could not open $filename: $!";
@@ -226,6 +224,11 @@ delgroupingress -a <accesskeyfile> -s <secretkeyfile> -group <groupname> -protoc
 loginkeynames   -a <accesskeyfile> -s <secretkeyfile>
 createloginkey  -a <accesskeyfile> -s <secretkeyfile> -keyname <keyname> -output <outputfile>
 deleteloginkey  -a <accesskeyfile> -s <secretkeyfile> -keyname <keyname>
+showlaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id>
+addlaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id> -userid <userid>
+removelaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id> -userid<userid>
+resetlaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id>
+
 
 #######################################################################################
 
@@ -294,12 +297,16 @@ sub createErrorOutput
 	my $error_string = $_[0];
 	my $error_code = $_[1];
 
-	if( $error_code ) {
-		print "$error_code\t$error_string\n";
-	}elsif ( $error_string ) {
+	if( $error_string ) {
 		print "$error_string\n";
 	}else {
 		print "UnknownError\n";
+	}
+
+	if( $error_code ) {
+		print "#ECODE=$error_code\n";
+	}else {
+		print "#ECODE=UNKNOWNERROR\n";
 	}
 	print "#ERROR\n";
 	exit(1);
@@ -500,7 +507,7 @@ sub reboot
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
@@ -671,7 +678,7 @@ sub images
 {
 	# -a <accesskeyfile> -s <secretkeyfile> [ -id <AMI-id> -owner <owner> -owner <anotherowner> -location <location on S3> ]
 	# 
-	# On success, output will have one line for each AMI image.
+	# On success, output will have one line for each AMI.
 	# The format of one line is AMIID<tab>LOCATION<tab>OWNERID
 	# e.g.)ami-2bb65342	ec2-public-images/demo-paid-AMI.manifest.xml	amazon
 	#
@@ -729,7 +736,7 @@ sub images
 		$input_params{"ImageId"} = $amiid;
 	}
 
-	# describe AMI images
+	# describe AMIs
 	my $ami_images = $ec2->describe_images(%input_params);
 
 	if( ! defined($ami_images) ) {
@@ -737,9 +744,9 @@ sub images
 			# It means that error happened
 			createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 		}else {
-			# It means there is no AMI image
+			# It means there is no AMI
 			printSuccessOutput();
-			printverbose "There is no AMI image";
+			printverbose "There is no AMI";
 			return;
 		}
 	}
@@ -755,7 +762,7 @@ sub images
 			my $result_location = $image->{imageLocation};
 
 			# if location is given,
-			# only AMI image for the location will be described
+			# only AMI for the location will be described
 			if( $location ) {
 				if( $location ne $result_location ) {
 					next;
@@ -768,7 +775,7 @@ sub images
 	}
 
 	printSuccessOutput();
-	printverbose "succeeded to describe AMI images";
+	printverbose "succeeded to describe AMIs";
 	return;
 }
 
@@ -825,7 +832,7 @@ sub registerimage
 	createSuccessOutput( $ami_image);
 
 	printSuccessOutput();
-	printverbose "succeeded to register AMI image($location) to EC2";
+	printverbose "succeeded to register AMI($location) to EC2";
 	return;
 }
 
@@ -879,12 +886,12 @@ sub deregisterimage
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
 	printSuccessOutput();
-	printverbose "succeeded to deregister AMI image($amiid) from EC2";
+	printverbose "succeeded to deregister AMI($amiid) from EC2";
 	return;
 }
 
@@ -946,7 +953,7 @@ sub creategroup
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
@@ -1071,7 +1078,7 @@ sub delgroup
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
@@ -1256,7 +1263,7 @@ sub setgroupingress
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
@@ -1347,7 +1354,7 @@ sub delgroupingress
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
@@ -1544,12 +1551,284 @@ sub deleteloginkey
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}else {
 		if( ! $retval ) {
-			createErrorOutput( "UnknownError", "UnKnownError" );
+			createErrorOutput();
 		}
 	}
 
 	printSuccessOutput();
 	printverbose "succeeded to delete a login key($keyname)";
+
+	return;
+}
+
+sub showlaunchpermission
+{
+	# -a <accesskeyfile> -s <secretkeyfile> -id <ami-id>
+	# 
+	# On success, output will have one line like this
+	# 	<user_id><tab><user_id>
+	#
+	# On failure, output will include "error code".
+
+	printverbose "showlaunchpermission is called(@ARGV)";
+
+	my $accessfile = undef;
+	my $secretfile = undef;
+	my $amiid = undef;
+
+	if( !GetOptions ('a=s' => \$accessfile, 
+			's=s' => \$secretfile,
+			'id=s' => \$amiid )) {
+		usage();
+	}
+
+	if( ! $accessfile ) {
+		printerror "You need to specify the account key file.";
+	}
+	if( ! $secretfile ) {
+		printerror "You need to specify the private key file.";
+	}
+	if( ! $amiid ) {
+		printerror "You need to specify the image id of the AMI that you want to describe attributes for.";
+	}
+
+	# Read access key file
+	readAccessKey($accessfile, $secretfile);		
+
+	my $ec2 = Net::Amazon::EC2->new(
+		AWSAccessKeyId => $access_public_key,
+		SecretAccessKey => $access_secret_key
+	);
+
+	if( ! defined($ec2) ) {
+		printerror "Cannot allocate a new ec2 handler"; 
+	}
+
+	# create parameters
+	my %input_params;
+	$input_params{"ImageId"} = $amiid;
+	$input_params{"Attribute"} = "launchPermission";
+
+	my $attributes = $ec2->describe_image_attribute(%input_params);
+
+	if( ! defined($attributes) ) {
+		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+	}
+
+	if( exists $attributes->{launchPermission}{item} ) {
+		my $result_string = undef;
+		foreach my $permission ( @{$attributes->{launchPermission}{item}} ) {
+			if( exists $permission->{userId} ) {
+				if( defined( $result_string ) ) {
+					$result_string .= "\t";
+				}
+				$result_string .= "$permission->{userId}";
+			}
+		}
+		createSuccessOutput($result_string);
+	}
+
+	printSuccessOutput();
+	printverbose "succeeded to describe image attributes for AMI($amiid)";
+
+	return;
+}
+
+sub addlaunchpermission
+{
+	# -a <accesskeyfile> -s <secretkeyfile> -id <ami-id> -userid <userid>
+	# 
+	# On success, output will include nothing
+	# On failure, output will include "error code".
+
+	printverbose "addlaunchpermission is called(@ARGV)";
+
+	my $accessfile = undef;
+	my $secretfile = undef;
+	my $amiid = undef;
+	my $userid = undef;
+
+	if( !GetOptions ('a=s' => \$accessfile, 
+			's=s' => \$secretfile,
+			'id=s' => \$amiid,
+			'userid=s' => \$userid )) {
+		usage();
+	}
+
+	if( ! $accessfile ) {
+		printerror "You need to specify the account key file.";
+	}
+	if( ! $secretfile ) {
+		printerror "You need to specify the private key file.";
+	}
+	if( ! $amiid ) {
+		printerror "You need to specify the image id of the AMI that you want to modify launch permission.";
+	}
+	if( ! $userid ) {
+		printerror "You need to specify the user id that you want to add launch permission to.";
+	}
+
+	# Read access key file
+	readAccessKey($accessfile, $secretfile);		
+
+	my $ec2 = Net::Amazon::EC2->new(
+		AWSAccessKeyId => $access_public_key,
+		SecretAccessKey => $access_secret_key
+	);
+
+	if( ! defined($ec2) ) {
+		printerror "Cannot allocate a new ec2 handler"; 
+	}
+
+	# create parameters
+	my %input_params;
+	$input_params{"ImageId"} = $amiid;
+	$input_params{"Attribute"} = "launchPermission";
+	$input_params{"OperationType"} = "add";
+	$input_params{"UserId"} = $userid;
+	$input_params{"UserGroup"} = "all";
+
+	my $retval = $ec2->modify_image_attribute(%input_params);
+	if( ! defined($retval) ) {
+		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+	}else {
+		if( ! $retval ) {
+			createErrorOutput();
+		}
+	}
+
+	printSuccessOutput();
+	printverbose "succeeded to add launch permission to user($userid) for AMI($amiid)";
+
+	return;
+}
+
+sub removelaunchpermission
+{
+	# -a <accesskeyfile> -s <secretkeyfile> -id <ami-id> -userid <userid>
+	# 
+	# On success, output will include nothing
+	# On failure, output will include "error code".
+
+	printverbose "removelaunchpermission is called(@ARGV)";
+
+	my $accessfile = undef;
+	my $secretfile = undef;
+	my $amiid = undef;
+	my $userid = undef;
+
+	if( !GetOptions ('a=s' => \$accessfile, 
+			's=s' => \$secretfile,
+			'id=s' => \$amiid,
+			'userid=s' => \$userid )) {
+		usage();
+	}
+
+	if( ! $accessfile ) {
+		printerror "You need to specify the account key file.";
+	}
+	if( ! $secretfile ) {
+		printerror "You need to specify the private key file.";
+	}
+	if( ! $amiid ) {
+		printerror "You need to specify the image id of the AMI that you want to modify launch permission.";
+	}
+	if( ! $userid ) {
+		printerror "You need to specify the user id that you want to remove launch permission from.";
+	}
+
+	# Read access key file
+	readAccessKey($accessfile, $secretfile);		
+
+	my $ec2 = Net::Amazon::EC2->new(
+		AWSAccessKeyId => $access_public_key,
+		SecretAccessKey => $access_secret_key
+	);
+
+	if( ! defined($ec2) ) {
+		printerror "Cannot allocate a new ec2 handler"; 
+	}
+
+	# create parameters
+	my %input_params;
+	$input_params{"ImageId"} = $amiid;
+	$input_params{"Attribute"} = "launchPermission";
+	$input_params{"OperationType"} = "remove";
+	$input_params{"UserId"} = $userid;
+	$input_params{"UserGroup"} = "all";
+
+	my $retval = $ec2->modify_image_attribute(%input_params);
+	if( ! defined($retval) ) {
+		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+	}else {
+		if( ! $retval ) {
+			createErrorOutput();
+		}
+	}
+
+	printSuccessOutput();
+	printverbose "succeeded to remove launch permission from user($userid) for AMI($amiid)";
+
+	return;
+}
+
+sub resetlaunchpermission
+{
+	# -a <accesskeyfile> -s <secretkeyfile> -id <ami-id>
+	# 
+	# On success, output will include nothing
+	# On failure, output will include "error code".
+
+	printverbose "resetlaunchpermission is called(@ARGV)";
+
+	my $accessfile = undef;
+	my $secretfile = undef;
+	my $amiid = undef;
+
+	if( !GetOptions ('a=s' => \$accessfile, 
+			's=s' => \$secretfile,
+			'id=s' => \$amiid )) {
+		usage();
+	}
+
+	if( ! $accessfile ) {
+		printerror "You need to specify the account key file.";
+	}
+	if( ! $secretfile ) {
+		printerror "You need to specify the private key file.";
+	}
+	if( ! $amiid ) {
+		printerror "You need to specify the image id of the AMI that you want to reset launch permission.";
+	}
+
+	# Read access key file
+	readAccessKey($accessfile, $secretfile);		
+
+	my $ec2 = Net::Amazon::EC2->new(
+		AWSAccessKeyId => $access_public_key,
+		SecretAccessKey => $access_secret_key
+	);
+
+	if( ! defined($ec2) ) {
+		printerror "Cannot allocate a new ec2 handler"; 
+	}
+
+	# create parameters
+	my %input_params;
+	$input_params{"ImageId"} = $amiid;
+	$input_params{"Attribute"} = "launchPermission";
+
+	my $retval = $ec2->reset_image_attribute(%input_params);
+	if( ! defined($retval) ) {
+		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+	}else {
+		if( ! $retval ) {
+			createErrorOutput();
+		}
+	}
+
+	printSuccessOutput();
+	printverbose "succeeded to reset launch permission for AMI($amiid)";
 
 	return;
 }
@@ -1707,7 +1986,7 @@ sub uploadfile
 
 sub uploaddir
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -dir <directory> -bucket <bucketname>
+	# -a <accesskeyfile> -s <secretkeyfile> -dir <directory> -bucket <bucketname> -ec2
 	# On success, output will include nothing.
 	# On failure, output will include "error code".
 
@@ -2351,6 +2630,10 @@ elsif ($ARGV[0] eq "delgroupingress") { delgroupingress(); }
 elsif ($ARGV[0] eq "loginkeynames") { loginkeynames(); }
 elsif ($ARGV[0] eq "createloginkey") { createloginkey(); }
 elsif ($ARGV[0] eq "deleteloginkey") { deleteloginkey(); }
+elsif ($ARGV[0] eq "showlaunchpermission") { showlaunchpermission(); }
+elsif ($ARGV[0] eq "addlaunchpermission") { addlaunchpermission(); }
+elsif ($ARGV[0] eq "removelaunchpermission") { removelaunchpermission(); }
+elsif ($ARGV[0] eq "resetlaunchpermission") { resetlaunchpermission(); }
 
 #### S3 command
 elsif ($ARGV[0] eq "listallbuckets") { listallbuckets(); }
