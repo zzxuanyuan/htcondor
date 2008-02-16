@@ -940,7 +940,9 @@ IOProcess::removeAllRequestsFromWorker(Worker *worker)
 			dprintf (D_ALWAYS, "Req(id=%d) is forcedly removed from worker[%d]\n",
 					req_id, worker->m_pid);
 
-			printf("%d %s GAHP_ERROR\n", req_id, AMAZON_COMMAND_ERROR_OUTPUT);
+			MyString output_result;
+			output_result = create_failure_result( req_id, "Req is forcedly removed from worker");
+			printf("%s", output_result.Value());
 		}
 	}
 }
