@@ -820,12 +820,12 @@ IOProcess::workerManager()
 	int currentkey = 0;
 	Worker *worker = NULL;
 
-
 	int num_extra_workers = 0;
-	if( numOfRealWorkers() > m_min_workers ) {
+	int num_real_workers = numOfRealWorkers();
+	if( num_real_workers > m_min_workers ) {
 		// Too much workers
 		// We need to kill extra ones
-		num_extra_workers = numOfRealWorkers() - m_min_workers;
+		num_extra_workers = num_real_workers - m_min_workers;
 	}
 
 	m_workers_list.startIterations();
