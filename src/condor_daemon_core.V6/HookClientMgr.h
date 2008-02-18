@@ -36,8 +36,20 @@ public:
 	bool spawn(HookClient* client, ArgList args, MyString* hook_stdin);
 	bool remove(HookClient* client);
 
+		/**
+		   Reaper that just ignores the reaped child. Used for hooks
+		   that the caller expects no output from.
+		*/
+	int reaperIgnore(int exit_pid, int exit_status);
+
+protected:
+		/// DC reaper ID. @see reaperIgnore()
+	int m_reaper_ignore_id;
+
 private:
+		/// DC reaper ID for the default reaper that handles hooks with output.
 	int m_reaper_id;
+
     SimpleList<HookClient*> m_client_list;
 
 };

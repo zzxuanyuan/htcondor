@@ -93,12 +93,6 @@ public:
 		 */
 	void hookEvictClaim(Resource* rip);
 
-		/**
-		   Reaper that just ignores the reaped child. Used for hooks
-		   that the startd expects no output from.
-		*/
-	int reaperIgnore(int exit_pid, int exit_status);
-
 private:
 		/// Number of hooks used by the startd
 	const int NUM_HOOKS;
@@ -156,8 +150,6 @@ private:
 		/// Default hook keyword if the per-slot settings aren't defined.
 	char* m_startd_job_hook_keyword;
 
-		/// DC reaper ID. @see reaperIgnore()
-	int m_reaper_ignore_id;
 };
 
 

@@ -21,10 +21,12 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "HookClientMgr.h"
 #include "HookClient.h"
+#include "status_string.h"
 
 
 HookClientMgr::HookClientMgr() {
 	m_reaper_id = -1;
+	m_reaper_ignore_id = -1;
 }
 
 
@@ -39,16 +41,24 @@ HookClientMgr::~HookClientMgr() {
 	if (m_reaper_id != -1) {
 		daemonCore->Cancel_Reaper(m_reaper_id);
 	}
+	if (m_reaper_ignore_id != -1) {
+		daemonCore->Cancel_Reaper(m_reaper_ignore_id);
+	}
 }
 
 
 bool
 HookClientMgr::initialize() {
 	m_reaper_id = daemonCore->
-		Register_Reaper("HookClientMgr Reaper",
+		Register_Reaper("HookClientMgr Output Reaper",
 						(ReaperHandlercpp) &HookClientMgr::reaper,
-						"HookClientMgr Reaper", this);
-	return (m_reaper_id != FALSE);
+						"HookClientMgr Output Reaper", this);
+	m_reaper_ignore_id = daemonCore->
+		Register_Reaper("HookClientMgr Ignore Reaper",
+						(ReaperHandlercpp) &HookClientMgr::reaperIgnore,
+						"HookClientMgr Ignore Reaper", this);
+
+	return (m_reaper_id != FALSE && m_reaper_ignore_id != FALSE);
 }
 
 
@@ -90,5 +100,18 @@ HookClientMgr::reaper(int exit_pid, int exit_status)
 		return FALSE;
 	}
 	client->hookExited(exit_status);
+	return TRUE;
+}
+
+
+int
+HookClientMgr::reaperIgnore(int exit_pid, int exit_status)
+{
+		// Some hook that we don't care about the output for just
+		// exited.  All we need is to print a log message (if that).
+	MyString status_txt;
+	status_txt.sprintf("Hook (pid %d) ", exit_pid);
+	statusString(exit_status, status_txt);
+	dprintf(D_FULLDEBUG, "%s\n", status_txt.Value());
 	return TRUE;
 }

@@ -25,7 +25,6 @@
 #include "startd.h"
 #include "basename.h"
 #include "hook_utils.h"
-#include "status_string.h"
 
 
 // // // // // // // // // // // // 
@@ -40,7 +39,6 @@ StartdHookMgr::StartdHookMgr()
 	  m_keyword_hook_paths(MyStringHash)
 {
 	dprintf( D_FULLDEBUG, "Instantiating a StartdHookMgr\n" );
-	m_reaper_ignore_id = -1;
 	m_slot_hook_keywords.setFiller(NULL);
 	m_startd_job_hook_keyword = NULL;
 }
@@ -54,9 +52,6 @@ StartdHookMgr::~StartdHookMgr()
 		// Delete our copies of the paths for each hook.
 	clearHookPaths();
 
-	if (m_reaper_ignore_id != -1) {
-		daemonCore->Cancel_Reaper(m_reaper_ignore_id);
-	}
 }
 
 
@@ -95,10 +90,6 @@ bool
 StartdHookMgr::initialize()
 {
 	reconfig();
-	m_reaper_ignore_id = daemonCore->
-		Register_Reaper("StartdHookMgr Ignore Reaper",
-						(ReaperHandlercpp) &StartdHookMgr::reaperIgnore,
-						"StartdHookMgr Ignore Reaper", this);
 	return HookClientMgr::initialize();
 }
 
@@ -409,19 +400,6 @@ StartdHookMgr::hookEvictClaim(Resource* rip)
 								 hook_stdin.Length());
 	daemonCore->Close_Stdin_Pipe(hook_pid);
 		// That's it, we don't care about the output at all...
-}
-
-
-int
-StartdHookMgr::reaperIgnore(int exit_pid, int exit_status)
-{
-		// Some hook that we don't care about the output for just
-		// exited.  All we need is to print a log message (if that).
-	MyString status_txt;
-	status_txt.sprintf("Hook (pid %d) ", exit_pid);
-	statusString(exit_status, status_txt);
-	dprintf(D_FULLDEBUG, "%s\n", status_txt.Value());
-	return TRUE;
 }
 
 
