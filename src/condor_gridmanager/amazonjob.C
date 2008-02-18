@@ -53,7 +53,7 @@
 #define GM_PROBE_JOB					11
 #define GM_START						12
 #define GM_CREATE_BUCKET				13
-#define GM_CREATE_IMAGES				14
+#define GM_UPLOAD_IMAGES				14
 #define GM_REGISTER_IMAGE				15
 #define GM_CREATE_KEYPAIR				16
 #define GM_CREATE_SG					17
@@ -77,7 +77,7 @@ static char *GMStateNames[] = {
 	"GM_PROBE_JOB",
 	"GM_START",
 	"GM_CREATE_BUCKET",
-	"GM_CREATE_IMAGES",
+	"GM_UPLOAD_IMAGES",
 	"GM_REGISTER_IMAGE",
 	"GM_CREATE_KEYPAIR",
 	"GM_CREATE_SG",
@@ -153,7 +153,10 @@ BaseJob* AmazonJobCreate( ClassAd *jobad )
 
 int AmazonJob::probeInterval = 3;	// default value
 int AmazonJob::submitInterval = 300;	// default value
-int AmazonJob::gahpCallTimeout = 1800;	// default value
+	
+// Since some operations are time-consuming, we will set the timeout value to 5 hours
+int AmazonJob::gahpCallTimeout = 21600;	// default value
+
 int AmazonJob::maxConnectFailures = 3;	// default value
 
 
@@ -645,7 +648,7 @@ int AmazonJob::doEvaluateState()
 				break;
 			
 
-			case GM_CREATE_BUCKET:	// GM_CREATE_KEYPAIR, GM_HOLD
+			case GM_CREATE_BUCKET:	// GM_CREATE_KEYPAIR, GM_HOLD, GM_UPLOAD_IMAGES
 				{
 				// Check if image_names is set.
 				// If yes, we need to create a temporary bucket in S3 to save these files
@@ -664,7 +667,7 @@ int AmazonJob::doEvaluateState()
 						break;
 					} else if ( rc == 0 ) {
 						// the bucket has been created successfully in S3
-						gmState = GM_CREATE_IMAGES;
+						gmState = GM_UPLOAD_IMAGES;
 					} else {
 						// What to do about a failed cancel?
 						errorString = gahp->getErrorString();
@@ -683,7 +686,7 @@ int AmazonJob::doEvaluateState()
 				break;
 			
 			
-			case GM_CREATE_IMAGES:	// GM_REGISTER_IMAGE, GM_HOLD
+			case GM_UPLOAD_IMAGES:	// GM_REGISTER_IMAGE, GM_HOLD
 
 				// Don't need to check if m_dir_name is set since this job have
 				// been done in state GM_CREATE_BUCKET
@@ -966,7 +969,7 @@ int AmazonJob::doEvaluateState()
 					holdReason[sizeof(holdReason)-1] = '\0';
 					jobAd->LookupString( ATTR_HOLD_REASON, holdReason, sizeof(holdReason) - 1 );
 					if ( holdReason[0] == '\0' && errorString != "" ) {
-					strncpy( holdReason, errorString.Value(), sizeof(holdReason) - 1 );
+						strncpy( holdReason, errorString.Value(), sizeof(holdReason) - 1 );
 					}
 					if ( holdReason[0] == '\0' ) {
 						strncpy( holdReason, "Unspecified gridmanager error", sizeof(holdReason) - 1 );
