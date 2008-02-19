@@ -45,7 +45,7 @@ HookClient::~HookClient() {
 
 bool
 HookClient::spawn(ArgList args, MyString* hook_stdin, int reaper_id) {
-    int std_fds[3];
+    int std_fds[3] = {DC_STD_FD_NOPIPE, DC_STD_FD_NOPIPE, DC_STD_FD_NOPIPE};
     if (hook_stdin && hook_stdin->Length()) {
 		std_fds[0] = DC_STD_FD_PIPE;
 	}
