@@ -18,6 +18,7 @@
  ***************************************************************/
 
 #include "condor_common.h"
+#include "condor_config.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "HookClientMgr.h"
 #include "HookClient.h"
@@ -87,9 +88,14 @@ HookClientMgr::spawn(HookClient* client, ArgList* args, MyString *hook_stdin) {
 		reaper_id = m_reaper_ignore_id;
 	}
 
+		// Tell DaemonCore to register the process family so we can
+		// safely kill everything from the reaper. 
+	FamilyInfo fi;
+	fi.max_snapshot_interval = param_integer("PID_SNAPSHOT_INTERVAL", 15);
+
 	int pid = daemonCore->
 		Create_Process(hook_path, final_args, PRIV_CONDOR, reaper_id,
-					   FALSE, NULL, NULL, NULL, NULL, std_fds);
+					   FALSE, NULL, NULL, &fi, NULL, std_fds);
 	client->setPid(pid);
 	if (pid == FALSE) {
 		dprintf( D_ALWAYS, "ERROR: Create_Process failed in HookClient::spawn()!\n");
@@ -119,6 +125,9 @@ HookClientMgr::remove(HookClient* client) {
 int
 HookClientMgr::reaperOutput(int exit_pid, int exit_status)
 {
+		// First, make sure the hook didn't leak any processes.
+	daemonCore->Kill_Family(exit_pid);
+
 	bool found_it = false;
 	HookClient *client;	
 	m_client_list.Rewind();
@@ -150,6 +159,9 @@ HookClientMgr::reaperOutput(int exit_pid, int exit_status)
 int
 HookClientMgr::reaperIgnore(int exit_pid, int exit_status)
 {
+		// First, make sure the hook didn't leak any processes.
+	daemonCore->Kill_Family(exit_pid);
+
 		// Some hook that we don't care about the output for just
 		// exited.  All we need is to print a log message (if that).
 	MyString status_txt;
