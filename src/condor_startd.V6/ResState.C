@@ -656,13 +656,8 @@ ResState::enter_action( State s, Activity a,
 						// We just entered Claimed/Idle, but not due
 						// to a state change.  The starter must have
 						// exited, so we should try to fetch more work.
-					if (!resmgr->m_hook_mgr->tryHookFetchWork(rip)) {
-							// Eeek, for some reason, we decided not
-							// to try to fetch, so we should destroy
-							// this fetch claim and return to Owner.
-						rip->terminateFetchedWork();
-						return TRUE;
-					}
+					resmgr->m_hook_mgr->tryHookFetchWork(rip);
+
 						// Starting the fetch doesn't cause a state
 						// change, only the handler does, so we should
 						// just return FALSE.
