@@ -56,11 +56,9 @@ JobInfoCommunicator::JobInfoCommunicator()
 	change_iwd = false;
 	user_priv_is_initialized = false;
 	m_execute_account_is_dedicated = false;
-	m_hook_keyword = NULL;
-	m_hook_prepare_job = NULL;
-	m_hook_update_job_info = NULL;
-	m_hook_final_job_info = NULL;
-	m_hook_evict_job = NULL;
+#if HAVE_JOB_HOOKS
+    m_hook_mgr = NULL;
+#endif
 }
 
 
@@ -93,21 +91,11 @@ JobInfoCommunicator::~JobInfoCommunicator()
 	if( job_output_ad_file ) {
 		free( job_output_ad_file );
 	}
-	if (m_hook_keyword) {
-		free(m_hook_keyword);
-	}
-	if (m_hook_prepare_job) {
-		free(m_hook_prepare_job);
-	}
-	if (m_hook_update_job_info) {
-		free(m_hook_update_job_info);
-	}
-	if (m_hook_final_job_info) {
-		free(m_hook_final_job_info);
-	}
-	if (m_hook_evict_job) {
-		free(m_hook_evict_job);
-	}
+#if HAVE_JOB_HOOKS
+    if (m_hook_mgr) {
+        delete m_hook_mgr;
+    }
+#endif
 }
 
 
@@ -622,13 +610,11 @@ JobInfoCommunicator::initUserPrivWindows( void )
 bool
 JobInfoCommunicator::initJobInfo( void )
 {
-	if (!job_ad->LookupString(ATTR_HOOK_KEYWORD, &m_hook_keyword)) {
-		return true;
-	}
-	m_hook_prepare_job = getHookPath(HOOK_PREPARE_JOB);
-	m_hook_update_job_info = getHookPath(HOOK_UPDATE_JOB_INFO);
-	m_hook_final_job_info = getHookPath(HOOK_FINAL_JOB_INFO);
-	m_hook_evict_job = getHookPath(HOOK_EVICT_JOB);
+#if HAVE_JOB_HOOKS
+	m_hook_mgr = new StarterHookMgr;
+	m_hook_mgr->initialize(job_ad);
+#endif
+	return true;
 }
 
 
@@ -665,27 +651,30 @@ JobInfoCommunicator::checkForStarterDebugging( void )
 void
 JobInfoCommunicator::setupJobEnvironment( void )
 {
-		// TODO-fetch: check the classad for a hook keyword and invoke it
-	jobEnvironmentReady();
-}
+#if HAVE_JOB_HOOKS
+	if (m_hook_mgr) {
+		int rval = m_hook_mgr->tryHookPrepareJob();
+		switch (rval) {
+		case -1:   // Error
+			Starter->RemoteShutdownFast(0);
+			return;
+			break;
 
+		case 0:    // Hook not configured
+				// Nothing to do, break out and finish.
+			break;
 
-void
-JobInfoCommunicator::jobEnvironmentReady( void )
-{
-		// Now that every layer of the JIC is done, let the Starter
-		// object know the execution environment is ready.
-	Starter->jobEnvironmentReady();
-}
-
-
-char*
-JobInfoCommunicator::getHookPath(HookType hook_type)
-{
-	if (!m_hook_keyword) {
-		return NULL;
+		case 1:    // Spawned the hook.
+				// We need to bail now, and let the handler call
+				// jobEnvironmentReady() when the hook returns.
+			return;
+			break;
+		}
 	}
-	MyString _param;
-	_param.sprintf("%s_HOOK_%s", m_hook_keyword, getHookTypeString(hook_type));
-	return validateHookPath(_param.Value());
+#endif /* HAVE_JOB_HOOKS */
+
+		// If we made it here, either we're not compiled for hook
+		// support, or we didn't spawn a hook.  Either way, we're
+		// done and should tell the starter we're ready.
+	Starter->jobEnvironmentReady();
 }
