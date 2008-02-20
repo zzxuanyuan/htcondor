@@ -28,7 +28,6 @@ class HookClient : public Service
 public:
 	HookClient(const char* hook_path, bool wants_output);
 	virtual ~HookClient();
-	bool spawn(ArgList args, MyString* hook_stdin);
 
 		// Functions to retrieve data about this client.
 	int getPid() {return m_pid;};
