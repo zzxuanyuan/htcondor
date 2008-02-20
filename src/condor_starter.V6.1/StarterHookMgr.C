@@ -26,6 +26,7 @@
 #include "StarterHookMgr.h"
 #include "condor_attributes.h"
 #include "hook_utils.h"
+#include "status_string.h"
 
 extern CStarter *Starter;
 
@@ -160,8 +161,16 @@ HookPrepareJobClient::HookPrepareJobClient(const char* hook_path)
 void
 HookPrepareJobClient::hookExited(int exit_status) {
 	HookClient::hookExited(exit_status);
-		// TODO: check exit status, bail on failure, etc.
-	Starter->jobEnvironmentReady();
+	if (WIFSIGNALED(exit_status) || WEXITSTATUS(exit_status) != 0) {
+		MyString status_msg;
+		statusString(exit_status, status_msg);
+		dprintf(D_ALWAYS|D_FAILURE, "HOOK_PREPARE_JOB failed (%s), aborting\n",
+				status_msg.Value());
+		Starter->RemoteShutdownFast(0);
+	}
+	else {
+		Starter->jobEnvironmentReady();
+	}
 }
 
 
