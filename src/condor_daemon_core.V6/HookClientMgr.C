@@ -25,7 +25,7 @@
 
 
 HookClientMgr::HookClientMgr() {
-	m_reaper_id = -1;
+	m_reaper_output_id = -1;
 	m_reaper_ignore_id = -1;
 }
 
@@ -38,8 +38,8 @@ HookClientMgr::~HookClientMgr() {
 		m_client_list.DeleteCurrent();
 		delete client;
 	}
-	if (m_reaper_id != -1) {
-		daemonCore->Cancel_Reaper(m_reaper_id);
+	if (m_reaper_output_id != -1) {
+		daemonCore->Cancel_Reaper(m_reaper_output_id);
 	}
 	if (m_reaper_ignore_id != -1) {
 		daemonCore->Cancel_Reaper(m_reaper_ignore_id);
@@ -49,26 +49,63 @@ HookClientMgr::~HookClientMgr() {
 
 bool
 HookClientMgr::initialize() {
-	m_reaper_id = daemonCore->
+	m_reaper_output_id = daemonCore->
 		Register_Reaper("HookClientMgr Output Reaper",
-						(ReaperHandlercpp) &HookClientMgr::reaper,
+						(ReaperHandlercpp) &HookClientMgr::reaperOutput,
 						"HookClientMgr Output Reaper", this);
 	m_reaper_ignore_id = daemonCore->
 		Register_Reaper("HookClientMgr Ignore Reaper",
 						(ReaperHandlercpp) &HookClientMgr::reaperIgnore,
 						"HookClientMgr Ignore Reaper", this);
 
-	return (m_reaper_id != FALSE && m_reaper_ignore_id != FALSE);
+	return (m_reaper_output_id != FALSE && m_reaper_ignore_id != FALSE);
 }
 
 
 bool
-HookClientMgr::spawn(HookClient* client, ArgList args, MyString *hook_stdin) {
-	if (!client->spawn(args, hook_stdin, m_reaper_id)) {
-		dprintf(D_ALWAYS|D_FAILURE, "ERROR: Failed to spawn hook client\n");
+HookClientMgr::spawn(HookClient* client, ArgList* args, MyString *hook_stdin) {
+	int reaper_id;
+	bool wants_output = client->wantsOutput();
+	const char* hook_path = client->path();
+
+	ArgList final_args;
+	final_args.AppendArg(hook_path);
+	if (args) {
+		final_args.AppendArgsFromArgList(*args);
+	}
+
+    int std_fds[3] = {DC_STD_FD_NOPIPE, DC_STD_FD_NOPIPE, DC_STD_FD_NOPIPE};
+    if (hook_stdin && hook_stdin->Length()) {
+		std_fds[0] = DC_STD_FD_PIPE;
+	}
+	if (wants_output) {
+		std_fds[1] = DC_STD_FD_PIPE;
+		std_fds[2] = DC_STD_FD_PIPE;
+		reaper_id = m_reaper_output_id;
+	}
+	else {
+		reaper_id = m_reaper_ignore_id;
+	}
+
+	int pid = daemonCore->
+		Create_Process(hook_path, final_args, PRIV_CONDOR, reaper_id,
+					   FALSE, NULL, NULL, NULL, NULL, std_fds);
+	client->setPid(pid);
+	if (pid == FALSE) {
+		dprintf( D_ALWAYS, "ERROR: Create_Process failed in HookClient::spawn()!\n");
 		return false;
 	}
-	m_client_list.Append(client);
+
+		// If we've got initial input to write to stdin, do so now.
+    if (hook_stdin && hook_stdin->Length()) {
+		daemonCore->Write_Stdin_Pipe(pid, hook_stdin->Value(),
+									 hook_stdin->Length());
+		daemonCore->Close_Stdin_Pipe(pid);
+	}
+
+	if (wants_output) {
+		m_client_list.Append(client);
+	}
 	return true;
 }
 
@@ -80,7 +117,7 @@ HookClientMgr::remove(HookClient* client) {
 
 
 int
-HookClientMgr::reaper(int exit_pid, int exit_status)
+HookClientMgr::reaperOutput(int exit_pid, int exit_status)
 {
 	bool found_it = false;
 	HookClient *client;	

@@ -32,9 +32,14 @@ public:
 
 	bool initialize();
 
-	int reaper(int exit_pid, int exit_status);
-	bool spawn(HookClient* client, ArgList args, MyString* hook_stdin);
+	bool spawn(HookClient* client, ArgList* args, MyString* hook_stdin);
 	bool remove(HookClient* client);
+
+		/**
+		   Reaper that saves all output written to std(out|err) and
+		   records the exit status of the hook.
+		*/
+	int reaperOutput(int exit_pid, int exit_status);
 
 		/**
 		   Reaper that just ignores the reaped child. Used for hooks
@@ -42,13 +47,12 @@ public:
 		*/
 	int reaperIgnore(int exit_pid, int exit_status);
 
-protected:
+private:
 		/// DC reaper ID. @see reaperIgnore()
 	int m_reaper_ignore_id;
 
-private:
-		/// DC reaper ID for the default reaper that handles hooks with output.
-	int m_reaper_id;
+		/// DC reaper ID. @see reaperOutput()
+	int m_reaper_output_id;
 
     SimpleList<HookClient*> m_client_list;
 

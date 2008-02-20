@@ -23,11 +23,12 @@
 #include "status_string.h"
 
 
-HookClient::HookClient(const char* hook_path) {
+HookClient::HookClient(const char* hook_path, bool wants_output) {
 	m_hook_path = strdup(hook_path);
 	m_pid = -1;
 	m_exit_status = -1;
 	m_has_exited = false;
+	m_wants_output = wants_output;
 }
 
 
@@ -40,35 +41,6 @@ HookClient::~HookClient() {
 			// TODO
 			// kill -9 m_pid
 	}
-}
-
-
-bool
-HookClient::spawn(ArgList args, MyString* hook_stdin, int reaper_id) {
-    int std_fds[3] = {DC_STD_FD_NOPIPE, DC_STD_FD_NOPIPE, DC_STD_FD_NOPIPE};
-    if (hook_stdin && hook_stdin->Length()) {
-		std_fds[0] = DC_STD_FD_PIPE;
-	}
-	std_fds[1] = DC_STD_FD_PIPE;
-	std_fds[2] = DC_STD_FD_PIPE;
-
-	m_pid = daemonCore->
-		Create_Process(m_hook_path, args, PRIV_CONDOR, reaper_id,
-					   FALSE, NULL, NULL, NULL, NULL, std_fds);
-	if (m_pid == FALSE) {
-		dprintf( D_ALWAYS, "ERROR: Create_Process failed in HookClient::spawn()!\n");
-		m_pid = 0;
-		return false;
-	}
-
-		// If we've got initial input to write to stdin, do so now.
-    if (hook_stdin && hook_stdin->Length()) {
-		daemonCore->Write_Stdin_Pipe(m_pid, hook_stdin->Value(),
-									 hook_stdin->Length());
-		daemonCore->Close_Stdin_Pipe(m_pid);
-	}
-
-	return true;
 }
 
 

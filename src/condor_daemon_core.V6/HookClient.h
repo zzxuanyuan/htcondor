@@ -26,14 +26,19 @@
 class HookClient : public Service
 {
 public:
-	HookClient(const char* hook_path);
+	HookClient(const char* hook_path, bool wants_output);
 	virtual ~HookClient();
-	bool spawn(ArgList args, MyString* hook_stdin, int reaper_id);
+	bool spawn(ArgList args, MyString* hook_stdin);
 
 		// Functions to retrieve data about this client.
 	int getPid() {return m_pid;};
+	const char* path() {return (const char*)m_hook_path;};
+	bool wantsOutput() {return m_wants_output;};
 	MyString* getStdOut();
 	MyString* getStdErr();
+
+		/// Records the pid of this client once spawned.
+	void setPid(int pid) {m_pid = pid;};
 
 		/**
 		   Called when this hook client has actually exited.
@@ -47,6 +52,7 @@ protected:
 	MyString m_std_err;
 	int m_exit_status;
 	bool m_has_exited;
+	bool m_wants_output;
 };
 
 

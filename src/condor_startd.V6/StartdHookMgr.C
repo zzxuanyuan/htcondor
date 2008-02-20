@@ -332,18 +332,9 @@ StartdHookMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 		return;
 	}
 
-	ArgList args;
-	args.AppendArg(condor_basename(hook_path));
-	args.AppendArg((claimed ? "accept" : "reject"));
-	int std_fds[3] = {DC_STD_FD_PIPE, -1, -1};
-	int hook_pid = daemonCore->
-		Create_Process(hook_path, args, PRIV_CONDOR, m_reaper_ignore_id,
-					   FALSE, NULL, NULL, NULL, NULL, std_fds);
-	if (hook_pid == FALSE) {		
-		dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
-				"StartdHookMgr::hookReplyClaim()\n");
-		return;
-	}
+		// Since we're not saving the output, this can just live on
+		// the stack and be destroyed as soon as we return.
+	HookClient hook_client(hook_path, false);
 
 		// Construct the output to write to STDIN.
 	MyString hook_stdin;
@@ -358,10 +349,10 @@ StartdHookMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 		hook_stdin += "\"\n";
 	}
 
-	daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
-								 hook_stdin.Length());
-	daemonCore->Close_Stdin_Pipe(hook_pid);
-		// That's it, we don't care about the output at all...
+	ArgList args;
+	args.AppendArg((claimed ? "accept" : "reject"));
+
+	spawn(&hook_client, &args, &hook_stdin);
 }
 
 
@@ -373,17 +364,9 @@ StartdHookMgr::hookEvictClaim(Resource* rip)
 		return;
 	}
 
-	ArgList args;
-	args.AppendArg(condor_basename(hook_path));
-	int std_fds[3] = {DC_STD_FD_PIPE, -1, -1};
-	int hook_pid = daemonCore->
-		Create_Process(hook_path, args, PRIV_CONDOR, m_reaper_ignore_id,
-					   FALSE, NULL, NULL, NULL, NULL, std_fds);
-	if (hook_pid == FALSE) {		
-		dprintf(D_ALWAYS, "ERROR: Create_Process() failed in "
-				"StartdHookMgr::hookEvictClaim()\n");
-		return;
-	}
+		// Since we're not saving the output, this can just live on
+		// the stack and be destroyed as soon as we return.
+	HookClient hook_client(hook_path, false);
 
 		// Construct the output to write to STDIN.
 	MyString hook_stdin;
@@ -396,10 +379,7 @@ StartdHookMgr::hookEvictClaim(Resource* rip)
 	hook_stdin += rip->r_cur->id();
 	hook_stdin += "\"\n";
 
-	daemonCore->Write_Stdin_Pipe(hook_pid, hook_stdin.Value(),
-								 hook_stdin.Length());
-	daemonCore->Close_Stdin_Pipe(hook_pid);
-		// That's it, we don't care about the output at all...
+	spawn(&hook_client, NULL, &hook_stdin);
 }
 
 
@@ -408,7 +388,7 @@ StartdHookMgr::hookEvictClaim(Resource* rip)
 // // // // // // // // // // // // 
 
 FetchClient::FetchClient(Resource* rip, const char* hook_path)
-	: HookClient(hook_path)
+	: HookClient(hook_path, true)
 {
 	m_rip = rip;
 	m_job_ad = NULL;
@@ -428,12 +408,11 @@ bool
 FetchClient::startFetch()
 {
 	ASSERT(m_rip);
-	ArgList args;
 	ClassAd slot_ad;
 	m_rip->publish(&slot_ad, A_ALL_PUB);
 	MyString slot_ad_txt;
 	slot_ad.sPrint(slot_ad_txt);
-	resmgr->m_hook_mgr->spawn(this, args, &slot_ad_txt);
+	resmgr->m_hook_mgr->spawn(this, NULL, &slot_ad_txt);
 	m_rip->startedFetch();
 	return true;
 }
