@@ -47,7 +47,6 @@ StartdHookMgr::StartdHookMgr()
 StartdHookMgr::~StartdHookMgr()
 {
 	dprintf( D_FULLDEBUG, "Deleting the StartdHookMgr\n" );
-		// TODO-fetch: clean up m_fetch_clients, too?
 
 		// Delete our copies of the paths for each hook.
 	clearHookPaths();
@@ -177,22 +176,7 @@ StartdHookMgr::buildFetchClient(Resource* rip)
 		return NULL;
 	}
 	FetchClient* new_client = new FetchClient(rip, hook_path);
-	if (new_client) {
-		m_fetch_clients.Append(new_client);
-	}
 	return new_client;
-}
-
-
-bool
-StartdHookMgr::removeFetchClient(FetchClient* fetch_client)
-{
-	if (m_fetch_clients.Delete(fetch_client)) {
-		remove((HookClient*)fetch_client);
-		delete fetch_client;
-		return true;
-	}
-	return false;
 }
 
 
@@ -224,7 +208,6 @@ StartdHookMgr::handleHookFetchWork(FetchClient* fetch_client)
 
 	if (!(job_ad = fetch_client->reply())) {
 			// No work or error reading the reply, bail out.
-		removeFetchClient(fetch_client);
 			// Try other hooks?
 		if (idle_fetch_claim) {
 				// we're currently Claimed/Idle with a fetched
@@ -271,7 +254,6 @@ StartdHookMgr::handleHookFetchWork(FetchClient* fetch_client)
 	hookReplyClaim(willing, job_ad, rip);
 
 	if (!willing) {
-		removeFetchClient(fetch_client);
 			// TODO-fetch: matchmaking on other slots?
 		if (idle_fetch_claim) {
 				// The slot is Claimed/Idle with a fetch claim. If we
@@ -316,11 +298,6 @@ StartdHookMgr::handleHookFetchWork(FetchClient* fetch_client)
 		dprintf(D_ALWAYS, "State change: Finished fetching work successfully\n");
 		rip->r_state->set_destination(claimed_state);
 	}
-
-		// And now that we've generated a Claim, saved the ClassAd,
-		// and initiated our state change, we're done with this client.
-	removeFetchClient(fetch_client);
-
 	return true;
 }
 

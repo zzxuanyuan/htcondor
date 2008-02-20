@@ -40,7 +40,10 @@ public:
 	void setPid(int pid) {m_pid = pid;};
 
 		/**
-		   Called when this hook client has actually exited.
+		   Called when this hook client has actually exited (if it was
+		   spawned expecting output).  Once this function returns, the
+		   HookClient is removed from the HookClientMgr's list, and
+		   the HookClient object itself is deleted.
 		*/
 	virtual void hookExited(int exit_status);
 

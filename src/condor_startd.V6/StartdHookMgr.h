@@ -107,10 +107,6 @@ private:
 
 	FetchClient* buildFetchClient(Resource* rip);
 
-	bool removeFetchClient(FetchClient* fetch_client);
-
-	SimpleList<FetchClient*> m_fetch_clients;
-
 		/**
 		   Find the keyword to use for the given resource/slot.
 		   @param rip Resource you want the keyword for.

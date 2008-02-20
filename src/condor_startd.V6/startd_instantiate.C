@@ -49,8 +49,6 @@ template class ExtArray<BackfillSlot*>;
 
 
 #if HAVE_JOB_HOOKS
-class FetchClient;
-template class SimpleList<FetchClient*>;
 template class HashTable<MyString,char**>;
 #endif /* HAVE_JOB_HOOKS */
 

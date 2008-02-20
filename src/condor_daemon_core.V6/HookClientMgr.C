@@ -137,6 +137,12 @@ HookClientMgr::reaperOutput(int exit_pid, int exit_status)
 		return FALSE;
 	}
 	client->hookExited(exit_status);
+
+		// Now that hookExited() returned, we need to delete this
+		// client object and remove it from our list.
+	m_client_list.DeleteCurrent();
+	delete client;
+
 	return TRUE;
 }
 
