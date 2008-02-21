@@ -638,10 +638,10 @@ AC_ARG_WITH(purecachedir,
 )
 AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 
-AC_ARG_WITH(job-hooks,
-  [AS_HELP_STRING([--with-job-hooks],
-     [Add support for invoking hooks throughout the workflow of a job])],
-  [JOB_HOOKS=$withval],
+AC_ARG_ENABLE(job-hooks,
+  [AS_HELP_STRING([--enable-job-hooks],
+     [Support for invoking hooks throughout the workflow of a job])],
+  [JOB_HOOKS=$enableval],
   [JOB_HOOKS=yes])
 if test $JOB_HOOKS != no; then
   AC_DEFINE([HAVE_JOB_HOOKS], [1], [Define to 1 to support invoking hooks throughout the workflow of a job])
