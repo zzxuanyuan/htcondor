@@ -49,12 +49,31 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 
 	bool read_something = false;
 	char buf[2048];
+	bool has_error = false;
 	MyString one_line;
+	MyString tmp_error_code;
 
 	while( fgets(buf, 2048, fp) ) {
 		one_line = buf;
 		one_line.chomp();
 		one_line.trim();
+
+		// find error line
+		if( !strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
+			has_error = true;
+			break;
+		}
+
+		// find error code if available
+		if( !strncmp(one_line.Value(), PERL_SCRIPT_ERROR_CODE, 
+					strlen(PERL_SCRIPT_ERROR_CODE)) ) {
+			// Found error code
+			MyString name;
+			MyString value;
+			parse_param_string(one_line.Value(), name, value, true);
+			tmp_error_code = value;
+			continue;
+		}
 
 		output.append(one_line.Value());
 		read_something = true;
@@ -63,6 +82,12 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 	}
 	my_pclose(fp);
 
+	error_code = tmp_error_code;
+
+	if( has_error ) {
+		return false;
+	}
+
 	if( !read_something ) {
 		MyString args_string;
 		args.GetArgsStringForDisplay(&args_string,0);
@@ -70,37 +95,14 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		return false;
 	}
 
-	// delete the last line
-	if( !strcmp(one_line.Value(), PERL_SCRIPT_SUCCESS_TAG) ||
-		!strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
-		output.remove(one_line.Value());
-	}
-
-	// Check if the last line is PERL_SCRIPT_ERROR_TAG
-	// find error code if available
-	if( !strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
-		char* x = NULL;	
-
-		output.rewind();
-		while( (x = output.next()) != NULL ) {
-			if( !strncmp(x, PERL_SCRIPT_ERROR_CODE, 
-						strlen(PERL_SCRIPT_ERROR_CODE)) ) {
-				// Found error code
-				MyString name;
-				MyString value;
-				parse_param_string(x, name, value, true);
-				error_code = value;
-				break;
-			}
-		}
-		return false;
-	}
-
 	// Check if the last line is PERL_SCRIPT_SUCCESS_TAG
-	if( strcmp(one_line.Value(), PERL_SCRIPT_SUCCESS_TAG) ) {
+	if( !strcmp(one_line.Value(), PERL_SCRIPT_SUCCESS_TAG) ) {
+		// delete the last line
+		output.remove(one_line.Value());
+	}else {
 		return false;
 	}
-		
+
 	return true;
 }
 
