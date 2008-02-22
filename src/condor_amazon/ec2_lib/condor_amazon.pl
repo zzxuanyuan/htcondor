@@ -196,6 +196,25 @@ sub _set_acl_for_ec2 {
 	return;	
 }
 
+sub createprocess
+{
+	defined(my $pid = fork ) or printerror "Cannot fork: $!";
+	unless ( $pid ) {
+		# Child process is here
+		exec $progname, @ARGV;
+		printerror "cannot exec $progname @ARGV: $!";
+	}
+#	print "fork=$pid\n";
+}
+
+sub waitallchilds
+{
+	my $kid;
+	do {
+		$kid = waitpid(-1, 0);
+#		print "waitpid = $kid\n";
+	} while $kid > 0;
+}
 
 sub usage()
 {
@@ -239,8 +258,8 @@ listallbuckets  -a <accesskeyfile> -s <secretkeyfile>
 createbucket    -a <accesskeyfile> -s <secretkeyfile> -bucket <bucketname>
 listbucket      -a <accesskeyfile> -s <secretkeyfile> -bucket <bucketname> [ -prefix <prefix> -marker <marker> ]
 deletebucket    -a <accesskeyfile> -s <secretkeyfile> -bucket <bucketname> [ -force ]
-uploadfile      -a <accesskeyfile> -s <secretkeyfile> -file <filename> -bucket <bucketname> [ -keyname <keyname> -mimetype [mimetype] ]
-uploaddir       -a <accesskeyfile> -s <secretkeyfile> -dir <directory> -bucket <bucketname> -ec2
+uploadfile      -a <accesskeyfile> -s <secretkeyfile> -file <filename> -bucket <bucketname> [ -keyname <keyname> -mimetype [mimetype] -ec2 ]
+uploaddir       -a <accesskeyfile> -s <secretkeyfile> -dir <directory> -bucket <bucketname> [ -ec2 ]
 downloadfile    -a <accesskeyfile> -s <secretkeyfile> -name <keyname> -bucket <bucketname> [ -output <outputfile> ]
 downloadbucket  -a <accesskeyfile> -s <secretkeyfile> -bucket <bucketname> [ -outputdir <outputdir> ]
 deletefile      -a <accesskeyfile> -s <secretkeyfile> -name <keyname> -bucket <bucketname>
@@ -1899,7 +1918,7 @@ sub listallbuckets
 
 sub uploadfile
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -file <filename> -bucket <bucketname> [ -keyname <keyname> -mimetype [mimetype] ]
+	# -a <accesskeyfile> -s <secretkeyfile> -file <filename> -bucket <bucketname> [ -keyname <keyname> -mimetype [mimetype] -ec2 ]
 	# On success, output will include nothing.
 	# On failure, output will include "error code".
 
@@ -1912,6 +1931,7 @@ sub uploadfile
 	my $keyname = undef;
 	my $mimetype = undef;
 	my $quietflag = 0;
+	my $ec2flag = 0;
 
 	if( !GetOptions ('a=s' => \$accessfile, 
 			's=s' => \$secretfile,
@@ -1919,7 +1939,8 @@ sub uploadfile
 			'bucket=s' => \$bucketname,
 			'keyname=s' => \$keyname,
 			'mimetype=s' => \$mimetype,
-			'quiet' => \$quietflag)) {
+			'quiet' => \$quietflag,
+			'ec2' => \$ec2flag)) {
 		usage();
 	}
 
@@ -1982,6 +2003,11 @@ sub uploadfile
 		createErrorOutput( $error_str, $error_code );
 	}
 
+	if( $ec2flag == 1 ) {
+		# Set file ACL to allow EC2 read access
+		_set_acl_for_ec2($accessfile,$secretfile,$bucketname,$keyname);
+	}
+
 	if( $quietflag == 0 ) {
 		printSuccessOutput();
 	}
@@ -1992,7 +2018,7 @@ sub uploadfile
 
 sub uploaddir
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -dir <directory> -bucket <bucketname> -ec2
+	# -a <accesskeyfile> -s <secretkeyfile> -dir <directory> -bucket <bucketname> [ -ec2 -fork ]
 	# On success, output will include nothing.
 	# On failure, output will include "error code".
 
@@ -2003,11 +2029,13 @@ sub uploaddir
 	my $bucketname = undef;
 	my $dirname = undef;
 	my $ec2flag = 0;
+	my $forkflag = 0;
 
 	if( !GetOptions ('a=s' => \$accessfile, 
 			's=s' => \$secretfile,
 			'dir=s' => \$dirname,
 			'bucket=s' => \$bucketname,
+			'fork' => \$forkflag,
 			'ec2' => \$ec2flag)) {
 	   	usage();
 	}
@@ -2041,15 +2069,18 @@ sub uploaddir
 		next if $onefile =~ /^\./; # skip over dot files
 		next if -d "$dirname/$onefile"; # skip over directories
 
-		@ARGV = ("uploadfile", "-a", "$accessfile", "-s", "$secretfile", "-file", "$dirname/$onefile", "-bucket", "$bucketname", "-keyname", "$onefile", "-quiet");
-		uploadfile();
+		@ARGV = ("uploadfile", "-a", "$accessfile", "-s", "$secretfile", "-file", "$dirname/$onefile", "-bucket", "$bucketname", "-keyname", "$onefile", "-ec2", "-quiet");
 
-		if( $ec2flag == 1 ) {
-			# Set file ACL to allow EC2 read access
-			_set_acl_for_ec2($accessfile,$secretfile,$bucketname,$onefile);
+		if( $forkflag == 1 ) {
+			createprocess();
+		}else {
+			uploadfile();
 		}
 	}
 	@ARGV = @ORIARGV;
+	if( $forkflag == 1 ) {
+		waitallchilds();
+	}
 
 	printSuccessOutput();
 	printverbose "succeeded to upload all files in $dirname into bucket($bucketname)";
@@ -2179,7 +2210,9 @@ sub downloadbucket
 	if( ! $outputdir ) {
 		$outputdir = cwd();
 	}else {
-		mkdir("$outputdir") || printerror "Cannot mkdir '$outputdir'";
+		if( ! -d "$outputdir" ) {
+			mkdir("$outputdir") || printerror "Cannot mkdir '$outputdir'";
+		}
 	}
 	
 	# Read access key file
@@ -2211,8 +2244,10 @@ sub downloadbucket
 	foreach my $entry ( @entries ) {
 		@ARGV = ("downloadfile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$entry->{Key}", "-bucket", "$bucketname", "-output", "$outputdir/$entry->{Key}", "-quiet");
 		downloadfile();
+		#createprocess();
 	}
 	@ARGV = @ORIARGV;
+	#waitallchilds();
 
 	printSuccessOutput();
 	printverbose "succeeded to get all objects from bucket($bucketname)";
@@ -2346,8 +2381,10 @@ sub deleteallfilesinbucket
 	foreach my $entry ( @entries ) {
 		@ARGV = ("deletefile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$entry->{Key}", "-bucket", "$bucketname", "-quiet");
 		deletefile();
+		#createprocess();
 	}
 	@ARGV = @ORIARGV;
+	#waitallchilds();
 
 	if( $quietflag == 0 ) {
 		printSuccessOutput();
@@ -2670,3 +2707,4 @@ elsif ($ARGV[0] eq "deletefile") { deletefile(); }
 elsif ($ARGV[0] eq "deleteallfilesinbucket") { deleteallfilesinbucket(); }
 elsif ($ARGV[0] eq "setec2acl") { setec2acl(); }
 else { printerror "Unknown command \"$ARGV[0]\". See $progname --help."; }
+
