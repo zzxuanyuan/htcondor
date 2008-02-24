@@ -183,9 +183,15 @@ sub _set_acl_for_ec2 {
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "put acl error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "put acl error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	# Get acl again 
@@ -1900,9 +1906,15 @@ sub listallbuckets
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "List all my buckets error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "List all my buckets error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	my @buckets = @{$response->entries};
@@ -1998,9 +2010,15 @@ sub uploadfile
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "put file($filename) with key($keyname) in bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "put file($filename) with key($keyname) in bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	if( $ec2flag == 1 ) {
@@ -2149,9 +2167,15 @@ sub downloadfile
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "get object($keyname) from bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "get object($keyname) from bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	my $outputdata = $response->object->data;
@@ -2233,9 +2257,15 @@ sub downloadbucket
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "list bucket($bucketname) error in downloadbucket : http response $retcode";
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error in downloadbucket : http response $retcode";
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	my @entries = @{$response->entries};
@@ -2308,9 +2338,15 @@ sub deletefile
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 204 ) {
-		my $error_str = "delete object($keyname) from bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "delete object($keyname) from bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	if( $quietflag == 0 ) {
@@ -2370,9 +2406,15 @@ sub deleteallfilesinbucket
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "list bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	my @entries = @{$response->entries};
@@ -2441,9 +2483,15 @@ sub createbucket
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "create bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "create bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	printSuccessOutput();
@@ -2510,9 +2558,15 @@ sub listbucket
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "list bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	my @entries = @{$response->entries};
@@ -2594,9 +2648,15 @@ sub deletebucket
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 204 ) {
-		my $error_str = "delete bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "delete bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	printSuccessOutput();
@@ -2654,9 +2714,15 @@ sub setec2acl
 
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
-		my $error_str = "list bucket($bucketname) error : http response $retcode"; 
-		my $error_code = $retcode;
-		createErrorOutput( $error_str, $error_code );
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
 	}
 
 	my @entries = @{$response->entries};

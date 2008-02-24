@@ -15,6 +15,7 @@ use warnings;
 package S3::Response;
 
 use Carp;
+use XML::Simple;
 
 sub new {
     my $proto = shift;
@@ -41,6 +42,26 @@ sub http_response {
 sub body {
     my ($self) = @_;
     return $self->{BODY};
+}
+
+sub xml {
+    my ($self) = @_;
+	my $xs = XML::Simple->new;
+	my $ref = $xs->XMLin($self->{BODY});
+	return $ref;
+}
+
+sub error {
+    my ($self) = @_;
+	my $xml = $self->xml();
+	my $errstruct;
+	if ( grep { defined && length } $xml->{Code} ) {
+		$errstruct->{error} = $xml->{Message};
+		$errstruct->{errorcode} = $xml->{Code};
+		return $errstruct;
+	}
+
+	return undef;
 }
 
 1;
