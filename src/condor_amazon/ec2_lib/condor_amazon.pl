@@ -2649,13 +2649,17 @@ sub deletebucket
 	my $retcode = $response->http_response->code;
 	if( $retcode != 204 ) {
 		my $errvar = $response->error;
-		if( defined($errvar) ) {
-			createErrorOutput($errvar->{error}, $errvar->{errorcode});
-		}else {
-			createErrorOutput();
-			#my $error_str = "delete bucket($bucketname) error : http response $retcode"; 
-			#my $error_code = $retcode;
-			#createErrorOutput( $error_str, $error_code );
+		if( !defined($errvar) || ($errvar->{errorcode} ne "NoSuchBucket") ) {
+
+			if( defined($errvar) ) {
+				createErrorOutput($errvar->{error}, $errvar->{errorcode});
+			}else {
+				createErrorOutput();
+				#my $error_str = "delete bucket($bucketname) error : http response $retcode"; 
+				#my $error_code = $retcode;
+				#createErrorOutput( $error_str, $error_code );
+			}
+
 		}
 	}
 
