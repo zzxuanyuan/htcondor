@@ -70,6 +70,41 @@ sub printverbose
 	return;
 }
 
+sub createErrorOutput
+{
+	my $error_string = $_[0];
+	my $error_code = $_[1];
+
+	if( $error_string ) {
+		print "$error_string\n";
+	}else {
+		print "UnknownError\n";
+	}
+
+	if( $error_code ) {
+		print "#ECODE=$error_code\n";
+	}else {
+		print "#ECODE=UNKNOWNERROR\n";
+	}
+	print "#ERROR\n";
+	exit(1);
+	return;
+}
+
+sub createSuccessOutput
+{
+	my $result_string = $_[0];
+
+	print "$result_string\n";
+	return;
+}
+
+sub printSuccessOutput
+{
+	print "#SUCCESS\n";
+	return;
+}
+
 # This function comes from CPAN Net::Amazon::S3::Bucket.pm
 sub _content_sub {
 	my $filename  = shift;
@@ -138,7 +173,16 @@ sub _set_acl_for_ec2 {
 
 		my $tmpretcode = $tmpresponse->http_response->code;
 		if( $tmpretcode != 200 ) {
-			printerror "List all my buckets error : http response $tmpretcode"; 
+			my $errvar = $tmpresponse->error;
+			if( defined($errvar) ) {
+				createErrorOutput($errvar->{error}, $errvar->{errorcode});
+			}else {
+				createErrorOutput();
+				#my $error_str = "List all my buckets error : http response $tmpretcode"; 
+				#my $error_code = $tmpretcode;
+				#createErrorOutput( $error_str, $error_code );
+			}
+
 		}
 
 		$owner_id = $tmpresponse->owner_id;
@@ -316,41 +360,6 @@ sub readAccessKey
 	if( ! $access_secret_key ) {
 		printerror "File('$privatekeyfile') must contain the AWS secret access key";
 	}
-	return;
-}
-
-sub createErrorOutput
-{
-	my $error_string = $_[0];
-	my $error_code = $_[1];
-
-	if( $error_string ) {
-		print "$error_string\n";
-	}else {
-		print "UnknownError\n";
-	}
-
-	if( $error_code ) {
-		print "#ECODE=$error_code\n";
-	}else {
-		print "#ECODE=UNKNOWNERROR\n";
-	}
-	print "#ERROR\n";
-	exit(1);
-	return;
-}
-
-sub createSuccessOutput
-{
-	my $result_string = $_[0];
-
-	print "$result_string\n";
-	return;
-}
-
-sub printSuccessOutput
-{
-	print "#SUCCESS\n";
 	return;
 }
 
@@ -2404,29 +2413,35 @@ sub deleteallfilesinbucket
 		printerror "Cannot allocate response handler";	
 	}
 
+	my $hasbucket = 1;
 	my $retcode = $response->http_response->code;
 	if( $retcode != 200 ) {
+		$hasbucket = 0;
+
 		my $errvar = $response->error;
-		if( defined($errvar) ) {
-			createErrorOutput($errvar->{error}, $errvar->{errorcode});
-		}else {
-			createErrorOutput();
-			#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
-			#my $error_code = $retcode;
-			#createErrorOutput( $error_str, $error_code );
+		if( !defined($errvar) || ($errvar->{errorcode} ne "NoSuchBucket") ) {
+			if( defined($errvar) ) {
+				createErrorOutput($errvar->{error}, $errvar->{errorcode});
+			}else {
+				createErrorOutput();
+				#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+				#my $error_code = $retcode;
+				#createErrorOutput( $error_str, $error_code );
+			}
 		}
 	}
 
-	my @entries = @{$response->entries};
-
-	my @ORIARGV = @ARGV;
-	foreach my $entry ( @entries ) {
-		@ARGV = ("deletefile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$entry->{Key}", "-bucket", "$bucketname", "-quiet");
-		deletefile();
-		#createprocess();
+	if( $hasbucket == 1 ) {
+		my @entries = @{$response->entries};
+		my @ORIARGV = @ARGV;
+		foreach my $entry ( @entries ) {
+			@ARGV = ("deletefile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$entry->{Key}", "-bucket", "$bucketname", "-quiet");
+			deletefile();
+			#createprocess();
+		}
+		@ARGV = @ORIARGV;
+		#waitallchilds();
 	}
-	@ARGV = @ORIARGV;
-	#waitallchilds();
 
 	if( $quietflag == 0 ) {
 		printSuccessOutput();
