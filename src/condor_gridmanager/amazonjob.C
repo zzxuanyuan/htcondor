@@ -159,6 +159,9 @@ int AmazonJob::gahpCallTimeout = 21600;	// default value
 
 int AmazonJob::maxConnectFailures = 3;	// default value
 
+// When meet errors in creating bucket & uploading directory, we should retry several times
+int AmazonJob::maxReTries = 3;
+
 
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -650,6 +653,9 @@ int AmazonJob::doEvaluateState()
 
 			case GM_CREATE_BUCKET:	// GM_CREATE_KEYPAIR, GM_HOLD, GM_UPLOAD_IMAGES
 				{
+				// Retry maxReTries times when meet some errors		
+				int retry = maxReTries;
+				
 				// Check if image_names is set.
 				// If yes, we need to create a temporary bucket in S3 to save these files
 				m_dir_name = build_dirname();
@@ -658,22 +664,34 @@ int AmazonJob::doEvaluateState()
 					// we need to create a bucket in S3 where our image file will be saved.
 					// The name of this bucket will be same as the group name
 					if (!m_bucket_name) 
-						m_bucket_name =	(char*)temporary_bucket_name();			
+						m_bucket_name =	(char*)temporary_bucket_name();	
+						
+					// if the return value is not success, retry to create bucket
+					do {
 
-					// call gahp_server function to create a temporary bucket
-					rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name);
-					
+						// call gahp_server function to create a temporary bucket
+						rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name);
+						
+						// check if the return value is success or pending
+						// if yes, break the loop, else we should retry the operation 3 times.
+						if ( (rc==0) || (rc==GAHPCLIENT_COMMAND_NOT_SUBMITTED) || (rc==GAHPCLIENT_COMMAND_PENDING) )
+							break;
+						else  
+							retry--;
+						
+					} while( retry > 0 );
+						
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
 					} else if ( rc == 0 ) {
 						// the bucket has been created successfully in S3
 						gmState = GM_UPLOAD_IMAGES;
 					} else {
-						// What to do about a failed cancel?
 						errorString = gahp->getErrorString();
 						dprintf(D_ALWAYS,"(%d.%d) job create temporary bucket in S3 failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
 						gmState = GM_HOLD;
 					}
+									
 				} else {
 					// ami_id has been set (no need to register image in S3).
 					// we can jump to GM_CREATE_KEYPAIR directly and pass
@@ -687,7 +705,11 @@ int AmazonJob::doEvaluateState()
 			
 			
 			case GM_UPLOAD_IMAGES:	// GM_REGISTER_IMAGE, GM_HOLD
-
+				{
+				// Retry maxReTries times when meet some errors		
+				int retry = maxReTries;
+				
+				
 				// Don't need to check if m_dir_name is set since this job have
 				// been done in state GM_CREATE_BUCKET
 				
@@ -695,7 +717,20 @@ int AmazonJob::doEvaluateState()
 				// Note:
 				// amazon_vm_s3_upload_dir() can upload all the image files saved in one directory
 				// to the S3. So we don't need to upload image files one by one.
-				rc = gahp->amazon_vm_s3_upload_dir(m_access_key_file, m_secret_key_file, m_dir_name->Value(), m_bucket_name);
+				
+				// if the return value is not success, retry to uploading directory
+				do {
+				
+					rc = gahp->amazon_vm_s3_upload_dir(m_access_key_file, m_secret_key_file, m_dir_name->Value(), m_bucket_name);
+					
+					// check if the return value is success or pending
+					// if yes, break the loop, else we should retry the operation 3 times.
+					if ( (rc==0) || (rc==GAHPCLIENT_COMMAND_NOT_SUBMITTED) || (rc==GAHPCLIENT_COMMAND_PENDING) )
+						break;
+					else  
+						retry--;
+						
+				} while( retry > 0 );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					// don't do anything, will come to next loop
@@ -708,7 +743,8 @@ int AmazonJob::doEvaluateState()
 					dprintf(D_ALWAYS,"(%d.%d) job upload images to S3 failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
 					gmState = GM_HOLD;
 				}
-
+				}
+				
 				break;
 
 
@@ -1087,10 +1123,14 @@ MyString* AmazonJob::build_keypairfilename()
 	char* buffer = NULL;
 	
 	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR_FILE_NAME, &buffer ) ) {
+		// clinet define the location where this SSH keypair file will be written to
 		*file_name = buffer;
 	} else {
 		// If client doesn't assign keypair output file name, we will create a temporary one 
 		// Note: keypair output filename = SSHFILE_ condor_pool_name + job_id
+		
+		// This is a temporary solution, just for testing. In normal situation, we should
+		// NOT place this SSH keypair file in the /tmp directory
 		*file_name = temporary_keypair_file();
 	}
 	

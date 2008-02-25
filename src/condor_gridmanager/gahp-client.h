@@ -1,28 +1,31 @@
-/***************************************************************
- *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
- * University of Wisconsin-Madison, WI.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License.  You may
- * obtain a copy of the License at
- * 
- *    http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- ***************************************************************/
-
+/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+  *
+  * Condor Software Copyright Notice
+  * Copyright (C) 1990-2008, Condor Team, Computer Sciences Department,
+  * University of Wisconsin-Madison, WI.
+  *
+  * This source code is covered by the Condor Public License, which can
+  * be found in the accompanying LICENSE.TXT file, or online at
+  * www.condorproject.org.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
+  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
+  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
+  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
+  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
+  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
+  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
+  * RIGHT.
+  *
+  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #ifndef CONDOR_GAHP_CLIENT_H
 #define CONDOR_GAHP_CLIENT_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "gahp_common.h"
 
 #include "classad_hashtable.h"
@@ -186,6 +189,11 @@ class GahpServer : public Service {
 	void *globus_gt2_gram_user_callback_arg;
 	globus_gram_client_callback_func_t globus_gt2_gram_callback_func;
 	int globus_gt2_gram_callback_reqid;
+
+	char *globus_gt3_gram_callback_contact;
+	void *globus_gt3_gram_user_callback_arg;
+	globus_gram_client_callback_func_t globus_gt3_gram_callback_func;
+	int globus_gt3_gram_callback_reqid;
 
 	char *globus_gt4_gram_callback_contact;
 	void *globus_gt4_gram_user_callback_arg;
@@ -383,6 +391,50 @@ class GahpClient : public Service {
 		///
 		int
 		globus_gass_server_superez_init( char **gass_url, int port );
+
+
+		///
+		int
+		gt3_gram_client_callback_allow(
+			globus_gram_client_callback_func_t callback_func,
+			void * user_callback_arg,
+			char ** callback_contact);
+
+		///
+		int 
+		gt3_gram_client_job_create(const char * resource_manager_contact,
+			const char * description,
+			const char * callback_contact,
+			char ** job_contact);
+
+		///
+		int
+		gt3_gram_client_job_start(const char *job_contact);
+
+		///
+		int 
+		gt3_gram_client_job_destroy(const char * job_contact);
+
+		///
+		int
+		gt3_gram_client_job_status(const char * job_contact,
+			int * job_status);
+
+		///
+		int
+		gt3_gram_client_job_callback_register(const char * job_contact,
+			const char * callback_contact);
+
+		///
+		int 
+		gt3_gram_client_ping(const char * resource_manager_contact);
+
+		///
+		int
+		gt3_gram_client_job_refresh_credentials(const char *job_contact);
+
+
+
 
 
 		///
@@ -605,8 +657,8 @@ class GahpClient : public Service {
 		// we support multiple groupnames 
 		// return: seq_id + success/failed + instance id (string)
 		// Should look like:
-		//		seq_id 0 instance_id
-		//		seq_id 1 error_string
+		//		seq_id 0 <instance_id>
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1 
 		int amazon_vm_start( const char * accesskeyfile,
 							 const char * secretkeyfile,
@@ -620,8 +672,8 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0
-		//		seq_id 1 error_string
-		//		seq_id 1 
+		//		seq_id 1 <error_code> <error_string>
+		//		seq_id 1
 		int amazon_vm_stop( const char * accesskeyfile,
 							const char * secretkeyfile,
 							const char * instance_id );
@@ -631,7 +683,7 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1 	
 		int amazon_vm_reboot( const char * accesskeyfile,
 							  const char * secretkeyfile,
@@ -643,7 +695,7 @@ class GahpClient : public Service {
 		// return status is "<instance_id> <status> <ami_id> <public_dns> <private_dns> <keypairname> <group> <group> <group> ...
 		// Should look like:
 		//		seq_id 0 <instance_id> <status> <ami_id> <public_dns> <private_dns> <keypairname> <group> <group> <group> ... 
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
 		// We use NULL to replace the empty items. and there at least has one group.		
 		
@@ -665,7 +717,7 @@ class GahpClient : public Service {
 		// return: success/failed + <instance_id> <status> <ami_id> <instance_id> <status> <ami_id>     NULL
 		// Should look like:
 		//		seq_id 0 <instance_id> <status> <ami_id> <instance_id> <status> <ami_id> ... 
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
 		// We use NULL to replace the empty items.
 		int amazon_vm_status_all( const char * accesskeyfile,
@@ -677,7 +729,7 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1 
 		
 		int amazon_vm_create_group( const char * accesskeyfile, 
@@ -690,7 +742,7 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1 
 		int amazon_vm_delete_group( const char * accesskeyfile,
 									const char * secretkeyfile,
@@ -701,7 +753,7 @@ class GahpClient : public Service {
 		// return: success/failed + <groupname> <groupname> ... at least one group name
 		// Should look like:
 		//		seq_id 0 + <groupname> <groupname> ...
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1 
 		int amazon_vm_group_names( const char * accesskeyfile,
 								   const char * secretkeyfile,
@@ -712,7 +764,7 @@ class GahpClient : public Service {
 		// return: success/failed + { <protocol> + <start_port> + <end_port> + <ip_range> }
 		// Should look like:
 		//		seq_id 0 { <protocol> + <start_port> + <end_port> + <ip_range> }
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
 		int amazon_vm_group_rules( const char * accesskeyfile,
 								   const char * secretkeyfile,
@@ -725,7 +777,7 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
 		int amazon_vm_add_group_rule( const char * accesskeyfile,
 								   	  const char * secretkeyfile,
@@ -741,7 +793,7 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
 		int amazon_vm_del_group_rule( const char * accesskeyfile,
 								   	  const char * secretkeyfile,
@@ -806,7 +858,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_create_keypair( const char * accesskeyfile,
 								   	  const char * secretkeyfile,
 								   	  const char * keyname,
@@ -819,7 +871,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_destroy_keypair( const char * accesskeyfile,
 								   	   const char * secretkeyfile,
 								   	   const char * keyname );
@@ -829,8 +881,8 @@ class GahpClient : public Service {
 		// return: success/failed
 		// Should look like:
 		//		seq_id 0 <keypair_name> <keypair_name> <keypair_name> ...
-		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_keypair_names( const char * accesskeyfile,
 									 const char * secretkeyfile,
 									 StringList & keypair_names );
@@ -841,7 +893,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0 <bucket_name> <bucket_name> <bucket_name> ...
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_all_buckets( const char * accesskeyfile,
 									  const char * secretkeyfile,
 									  StringList & bucket_names );
@@ -852,7 +904,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_create_bucket( const char * accesskeyfile,
 									    const char * secretkeyfile,
 									    const char * bucketname );
@@ -863,7 +915,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_delete_bucket( const char * accesskeyfile,
 									    const char * secretkeyfile,
 									    const char * bucketname );
@@ -874,7 +926,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0 <entry_name> <entry_name> <entry_name> ...
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_list_bucket( const char * accesskeyfile,
 									  const char * secretkeyfile,
 									  const char * bucketname,
@@ -886,7 +938,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_upload_file( const char * accesskeyfile,
 									  const char * secretkeyfile,
 									  const char * filename,
@@ -899,7 +951,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_download_file( const char * accesskeyfile,
 									    const char * secretkeyfile,
 									    const char * bucketname,
@@ -912,7 +964,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_delete_file( const char * accesskeyfile,
 									  const char * secretkeyfile,
 									  const char * keyname,
@@ -924,7 +976,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0 ami_id
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_register_image( const char* accesskeyfile,
 									  const char* secretkeyfile,
 									  const char* imagename,
@@ -936,7 +988,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_deregister_image( const char* accesskeyfile,
 										const char* secretkeyfile,
 										const char* ami_id );
@@ -947,7 +999,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_upload_dir( const char* accesskeyfile,
 									 const char* secretkeyfile,
 									 const char* dirname,
@@ -959,7 +1011,7 @@ class GahpClient : public Service {
 		// Should look like:
 		//		seq_id 0
 		//		seq_id 1
-		//		seq_id 1 error_string
+		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_download_bucket( const char* accesskeyfile,
 										  const char* secretkeyfile,
 										  const char* bucketname,
@@ -973,7 +1025,7 @@ class GahpClient : public Service {
 	globus_duroc_control_barrier_release();
 	globus_duroc_control_init();
 	globus_duroc_control_job_cancel();
-	globus_duroc_control_job_request();
+	globus_droc_control_job_request();
 	globus_duroc_control_subjob_states();
 	globus_duroc_error_get_gram_client_error();
 	globus_duroc_error_string();
@@ -996,7 +1048,7 @@ class GahpClient : public Service {
 			// Private Data Members
 		unsigned int m_timeout;
 		mode m_mode;
-		char *pending_command;
+		char pending_command[150];
 		char *pending_args;
 		int pending_reqid;
 		Gahp_Args* pending_result;
@@ -1014,7 +1066,7 @@ class GahpClient : public Service {
 			// server, all the below data members are static.
 		GahpServer *server;
 
-};	// end of class GahpClient
+};	// end of class GahpClien
 
 
 #endif /* ifndef CONDOR_GAHP_CLIENT_H */

@@ -58,6 +58,7 @@ public:
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
+	static int maxReTries;
 
 	static void setProbeInterval( int new_interval ) 	{ probeInterval = new_interval; }
 	static void setSubmitInterval( int new_interval )	{ submitInterval = new_interval; }
