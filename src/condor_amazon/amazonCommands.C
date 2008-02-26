@@ -27,6 +27,8 @@
 #include "util_lib_proto.h"
 #include "internet.h"
 #include "my_popen.h"
+#include "basename.h"
+#include "vm_univ_utils.h"
 #include "amazongahp_common.h"
 #include "amazonCommands.h"
 
@@ -119,8 +121,22 @@ systemCommand(ArgList &args, const char *chdir_path, StringList &output, MyStrin
 		}
 	}
 
-	output.clearAll();
-	tmp_result = __systemCommand(args, output, ecode);
+	int i = 0;
+	for( i = 0; i < 3; i++ ) {
+		output.clearAll();
+		ecode = "";
+		tmp_result = __systemCommand(args, output, ecode);
+
+		if( strcasecmp(ecode.Value(), "InternalError") != 0 ) {
+			break;
+		}
+
+		// This is an internal error in either S3 or EC2
+		// So I will retry this command
+		MyString args_string;
+		args.GetArgsStringForDisplay(&args_string,0);
+		dprintf(D_ALWAYS, "Command(%s) got InternalError, so retrying it...\n", args_string.Value());
+	}
 
 	if( chdir_path ) {
 		chdir(get_working_dir());
@@ -2609,6 +2625,7 @@ bool AmazonS3UploadDir::Request()
 		return false;
 	}
 
+#if 0
 	ArgList systemcmd;
 	systemcmd.AppendArg(AMAZON_SCRIPT_INTERPRETER);
 	systemcmd.AppendArg(m_amazon_lib_prog);
@@ -2622,10 +2639,61 @@ bool AmazonS3UploadDir::Request()
 	systemcmd.AppendArg("-bucket");
 	systemcmd.AppendArg(bucketname);
 	systemcmd.AppendArg("-ec2");
+#endif
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = false;
+
+	// Find all files in dir
+	StringList file_list;
+	find_all_files_in_dir(dirname.Value(), file_list, true);
+	file_list.rewind();
+
+	char *one_file = NULL;
+	while( (one_file = file_list.next()) != NULL ) {
+		ArgList systemcmd;
+		systemcmd.AppendArg(AMAZON_SCRIPT_INTERPRETER);
+		systemcmd.AppendArg(m_amazon_lib_prog);
+		systemcmd.AppendArg("uploadfile");
+		systemcmd.AppendArg("-a");
+		systemcmd.AppendArg(accesskeyfile);
+		systemcmd.AppendArg("-s");
+		systemcmd.AppendArg(secretkeyfile);
+		systemcmd.AppendArg("-file");
+		systemcmd.AppendArg(one_file);
+		systemcmd.AppendArg("-bucket");
+		systemcmd.AppendArg(bucketname);
+		systemcmd.AppendArg("-keyname");
+		systemcmd.AppendArg(condor_basename(one_file));
+
+		output.clearAll();
+		ecode = "";
+		tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+
+		output.rewind();
+		if( tmp_result == false ){
+			error_msg = output.next();
+			error_code = ecode;
+			return false;
+		}
+	}
+
+	// Set EC2 acl
+	ArgList systemcmd;
+	systemcmd.AppendArg(AMAZON_SCRIPT_INTERPRETER);
+	systemcmd.AppendArg(m_amazon_lib_prog);
+	systemcmd.AppendArg("setec2acl");
+	systemcmd.AppendArg("-a");
+	systemcmd.AppendArg(accesskeyfile);
+	systemcmd.AppendArg("-s");
+	systemcmd.AppendArg(secretkeyfile);
+	systemcmd.AppendArg("-bucket");
+	systemcmd.AppendArg(bucketname);
+
+	output.clearAll();
+	ecode = "";
+	tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
 
 	output.rewind();
 
