@@ -62,8 +62,6 @@ bool check_read_access_file(const char *file);
 bool check_create_file(const char *file);
 
 bool find_amazon_lib(MyString &lib_name);
-MyString delete_quotation_marks(const char *value);
-void parse_param_string(const char *line, MyString &name, MyString &value, bool del_quotes);
 
 int get_int (const char *, int *);
 int get_ulong (const char *, unsigned long *);
