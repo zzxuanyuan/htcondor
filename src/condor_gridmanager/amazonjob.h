@@ -1,25 +1,22 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
-  *
-  * Condor Software Copyright Notice
-  * Copyright (C) 1990-2008, Condor Team, Computer Sciences Department,
-  * University of Wisconsin-Madison, WI.
-  *
-  * This source code is covered by the Condor Public License, which can
-  * be found in the accompanying LICENSE.TXT file, or online at
-  * www.condorproject.org.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
-  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
-  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
-  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
-  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
-  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
-  * RIGHT.
-  *
-  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+/***************************************************************
+ *
+ * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, WI.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.  You may
+ * obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ***************************************************************/
+
   
 #ifndef AMAZONJOB_H
 #define AMAZONJOB_H
@@ -58,7 +55,6 @@ public:
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
-	static int maxReTries;
 
 	static void setProbeInterval( int new_interval ) 	{ probeInterval = new_interval; }
 	static void setSubmitInterval( int new_interval )	{ submitInterval = new_interval; }
@@ -96,23 +92,34 @@ private:
 	char * m_access_key_file;
 	char * m_secret_key_file;
 	char * m_bucket_name;
-	char* m_xml_file;
+	char * m_xml_file;
+	char * m_error_code;
+	
 	MyString* m_ami_id;
 	MyString* m_key_pair;
 	MyString* m_key_pair_file_name;
 	MyString* m_dir_name;
-	StringList* m_group_names;	
+	StringList* m_group_names;
+	
+	// used by Failure Recovery to decide which state we have reached
+	int m_submit_step;
 	
 	// create temporary names when clients don't assign the values
 	const char* temporary_keypair_name();
-	const char* temporary_keypair_file();
 	const char* temporary_security_group();
 	const char* temporary_bucket_name();
 	
 	// remove created temporary keypair file
 	bool remove_keypair_file(const char* filename);
+
 	// create common temporary name
 	const char* get_common_temp_name();
+	
+	// print out error codes returned from grid_manager
+	void print_error_code(char* error_code, const char* function_name);
+	
+	// before calling another gahp function, reset m_error_code to NULL
+	void reset_error_code();
 };
 
 #endif
