@@ -1,25 +1,22 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
-  *
-  * Condor Software Copyright Notice
-  * Copyright (C) 1990-2008, Condor Team, Computer Sciences Department,
-  * University of Wisconsin-Madison, WI.
-  *
-  * This source code is covered by the Condor Public License, which can
-  * be found in the accompanying LICENSE.TXT file, or online at
-  * www.condorproject.org.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
-  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
-  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
-  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
-  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
-  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
-  * RIGHT.
-  *
-  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+/***************************************************************
+ *
+ * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, WI.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.  You may
+ * obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ***************************************************************/
+
   
 #include "condor_common.h"
 #include "condor_attributes.h"
@@ -92,6 +89,12 @@ static char *GMStateNames[] = {
 #define AMAZON_VM_STATE_SHUTTINGDOWN	"shutting-down"
 #define AMAZON_VM_STATE_TERMINATED		"terminated"
 
+// define some submit states which will be used by failure recovery
+#define AMAZON_RECOVERY_STEP_INIT 1
+#define AMAZON_RECOVERY_STEP_BEFORE_KEYPAIR 2
+#define AMAZON_RECOVERY_STEP_AFTER_KEYPAIR 3
+
+
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
 #	define file_strcmp _stricmp
@@ -159,9 +162,6 @@ int AmazonJob::gahpCallTimeout = 21600;	// default value
 
 int AmazonJob::maxConnectFailures = 3;	// default value
 
-// When meet errors in creating bucket & uploading directory, we should retry several times
-int AmazonJob::maxReTries = 3;
-
 
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -208,7 +208,9 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	m_key_pair_file_name = NULL ;
 	m_dir_name = NULL;
 	m_xml_file = NULL;
+	m_error_code = NULL;
 	m_bucket_name = NULL;
+	m_submit_step = 0;
 		
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start (unless the job is already held).
@@ -361,19 +363,31 @@ int AmazonJob::doEvaluateState()
 				if ( now >= lastSubmitAttempt + submitInterval ) {
 
 					// construct input parameters for amazon_vm_start()
-					char *instance_id = NULL;
+					char* instance_id = NULL;
 					
 					// For a given Amazon Job, in its life cycle, the attributes will not change 					
 					
 					// m_ami_id/m_key_pair/m_group_names are NOT required variable
 					if ( m_ami_id == NULL )			m_ami_id = build_ami_id();
 					if ( m_key_pair == NULL )		m_key_pair = build_keypair();
+					
 					if ( m_group_names == NULL )	m_group_names = build_groupnames();
 					
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
 												m_ami_id->Value(), m_key_pair->Value(), 
-												*m_group_names, instance_id);
+												*m_group_names, instance_id, m_error_code);
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_start()");
+					}					
+					reset_error_code();									
 				
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						// Every first time this function will come to here, just exit doEvaluateState()
@@ -594,7 +608,18 @@ int AmazonJob::doEvaluateState()
 
 					// need to call amazon_vm_status(), amazon_vm_status() will check input arguments
 					// The VM status we need is saved in the second string of the returned status StringList
-					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, *returnStatus );
+					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, *returnStatus, m_error_code );
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_status()");
+					}					
+					reset_error_code();
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -634,7 +659,18 @@ int AmazonJob::doEvaluateState()
 
 				// need to call amazon_vm_stop(), it will only return STOP operation is success or failed
 				// amazon_vm_stop() will check the input arguments
-				rc = gahp->amazon_vm_stop(m_access_key_file, m_secret_key_file, remoteJobId);
+				rc = gahp->amazon_vm_stop(m_access_key_file, m_secret_key_file, remoteJobId, m_error_code);
+			
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+					// should wait for several minutes before restart this operations
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_stop()");
+				}					
+				reset_error_code();
 			
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -653,33 +689,32 @@ int AmazonJob::doEvaluateState()
 
 			case GM_CREATE_BUCKET:	// GM_CREATE_KEYPAIR, GM_HOLD, GM_UPLOAD_IMAGES
 				{
-				// Retry maxReTries times when meet some errors		
-				int retry = maxReTries;
-				
 				// Check if image_names is set.
 				// If yes, we need to create a temporary bucket in S3 to save these files
 				m_dir_name = build_dirname();
 
-				if ( m_dir_name != NULL ) {
+				if ( strcmp(m_dir_name->Value(), "") != 0 ) {
+
+dprintf( D_ALWAYS, "GM_CREATE_BUCKET 1: \n" );
+
 					// we need to create a bucket in S3 where our image file will be saved.
 					// The name of this bucket will be same as the group name
 					if (!m_bucket_name) 
 						m_bucket_name =	(char*)temporary_bucket_name();	
 						
-					// if the return value is not success, retry to create bucket
-					do {
-
-						// call gahp_server function to create a temporary bucket
-						rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name);
-						
-						// check if the return value is success or pending
-						// if yes, break the loop, else we should retry the operation 3 times.
-						if ( (rc==0) || (rc==GAHPCLIENT_COMMAND_NOT_SUBMITTED) || (rc==GAHPCLIENT_COMMAND_PENDING) )
-							break;
-						else  
-							retry--;
-						
-					} while( retry > 0 );
+					// call gahp_server function to create a temporary bucket
+					rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_s3_create_bucket()");
+					}					
+					reset_error_code();
 						
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -693,6 +728,7 @@ int AmazonJob::doEvaluateState()
 					}
 									
 				} else {
+dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 					// ami_id has been set (no need to register image in S3).
 					// we can jump to GM_CREATE_KEYPAIR directly and pass
 					// the steps for uploading and registering images.
@@ -706,10 +742,6 @@ int AmazonJob::doEvaluateState()
 			
 			case GM_UPLOAD_IMAGES:	// GM_REGISTER_IMAGE, GM_HOLD
 				{
-				// Retry maxReTries times when meet some errors		
-				int retry = maxReTries;
-				
-				
 				// Don't need to check if m_dir_name is set since this job have
 				// been done in state GM_CREATE_BUCKET
 				
@@ -718,20 +750,19 @@ int AmazonJob::doEvaluateState()
 				// amazon_vm_s3_upload_dir() can upload all the image files saved in one directory
 				// to the S3. So we don't need to upload image files one by one.
 				
-				// if the return value is not success, retry to uploading directory
-				do {
+				rc = gahp->amazon_vm_s3_upload_dir(m_access_key_file, m_secret_key_file, m_dir_name->Value(), m_bucket_name, m_error_code);
 				
-					rc = gahp->amazon_vm_s3_upload_dir(m_access_key_file, m_secret_key_file, m_dir_name->Value(), m_bucket_name);
-					
-					// check if the return value is success or pending
-					// if yes, break the loop, else we should retry the operation 3 times.
-					if ( (rc==0) || (rc==GAHPCLIENT_COMMAND_NOT_SUBMITTED) || (rc==GAHPCLIENT_COMMAND_PENDING) )
-						break;
-					else  
-						retry--;
-						
-				} while( retry > 0 );
-
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+					// should wait for several minutes before restart this operations
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_s3_upload_dir()");
+				}					
+				reset_error_code();
+				
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					// don't do anything, will come to next loop
 				} else if ( rc == 0 ) {
@@ -764,7 +795,18 @@ int AmazonJob::doEvaluateState()
 				} else {
 					char* ami_id = NULL;
 					
-					rc = gahp->amazon_vm_register_image(m_access_key_file, m_secret_key_file, m_xml_file, ami_id);
+					rc = gahp->amazon_vm_register_image(m_access_key_file, m_secret_key_file, m_xml_file, ami_id, m_error_code);
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_register_image()");
+					}					
+					reset_error_code();
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						// don't do anything, will come to next loop
@@ -789,7 +831,7 @@ int AmazonJob::doEvaluateState()
 				// create the a temporary name and temporary output file name and register it.
 				// If yes, load it from JobAd's environment
 	
-				// Before we create the SSH keypair, we should have keypair name and output file name
+				// Before we create the SSH keypair, we should have keypair name and its output file name
 				if ( m_key_pair == NULL ) {
 					m_key_pair = build_keypair();
 				}
@@ -797,6 +839,9 @@ int AmazonJob::doEvaluateState()
 				// if it is a temporary keypair name, we should create a temporary keypair output file name
 				// and then we should create/register this keypair
 				if ( strcmp(m_key_pair->Value(), temporary_keypair_name()) == 0 ) {
+					
+					// we are using temporary keypair name, so we should find out where the output file 
+					// should be written to.
 
 					// create temporary keypair output file name
 					if ( m_key_pair_file_name == NULL ) {
@@ -805,7 +850,18 @@ int AmazonJob::doEvaluateState()
 
 					// now create and register this keypair by using amazon_vm_create_keypair()
 					rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
-														m_key_pair->Value(), m_key_pair_file_name->Value());
+														m_key_pair->Value(), m_key_pair_file_name->Value(), m_error_code);
+				
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_create_keypair()");
+					}					
+					reset_error_code();
 				
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -819,10 +875,12 @@ int AmazonJob::doEvaluateState()
 					}
 				}
 				else {
+					// client has assigned a existing keypair name
+					
 					// we don't need to register an existing keypair
 					// come to next state directly.
 					gmState = GM_CREATE_SG;
-					//gmState = GM_SUBMIT; // test only
+					// gmState = GM_SUBMIT; // test only
 				}			
 				
 				break;
@@ -830,6 +888,14 @@ int AmazonJob::doEvaluateState()
 
 			case GM_CREATE_SG:	// GM_SUBMIT, GM_HOLD
 
+				// for every amazon job, creating security group for every security policy 
+				// is a necessary step
+				
+				// Based on the stage 1 of the development, we don't need to care about the
+				// security group problem, this state should be overleapped directly by providing 
+				// attribute AmazonGroupName in condor submit file directly.
+
+				// In the stage 2, we will foucs on the following codes
 				{ // add "{" here in case of  "crosses initialization" error
 				
 				// check if the clients have assigned a security group name, if not, we should create
@@ -847,9 +913,20 @@ int AmazonJob::doEvaluateState()
 
 					// prepare for the groupname and group_description
 					const char * group_description = "temporary security group name created by Condor"; 
-	
+				
 					// now add this temporary group name							
-					rc = gahp->amazon_vm_create_group(m_access_key_file, m_secret_key_file, sg_name, group_description);
+					rc = gahp->amazon_vm_create_group(m_access_key_file, m_secret_key_file, sg_name, group_description, m_error_code);
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_create_group()");
+					}					
+					reset_error_code();
 							
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -873,6 +950,13 @@ int AmazonJob::doEvaluateState()
 			
 
 			case GM_DESTROY_SG:		// GM_DESTROY_KEYPAIR, GM_FAILED
+				
+				// Based on the stage 1 of the development, we don't need to care about the
+				// security group problem, this state should be overleapped directly.
+				
+				// gmState = GM_DESTROY_KEYPAIR;
+				// break;
+				
 				{
 				// first, we should check if the current group name is temporary group name
 				m_group_names->rewind();
@@ -880,8 +964,22 @@ int AmazonJob::doEvaluateState()
 				char* current_group_name = m_group_names->next(); 
 				
 				if (strcmp(current_group_name, temporary_security_group()) == 0) {
+					
+dprintf( D_ALWAYS, "GM_DESTROY_SG 1: \n" );					
 					// yes, EC2 is using temporary group name
-					rc = gahp->amazon_vm_delete_group(m_access_key_file, m_secret_key_file, current_group_name);
+					
+					rc = gahp->amazon_vm_delete_group(m_access_key_file, m_secret_key_file, current_group_name, m_error_code);
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_delete_group()");
+					}					
+					reset_error_code();
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -894,6 +992,7 @@ int AmazonJob::doEvaluateState()
 						gmState = GM_FAILED;
 					}					
 				} else {
+dprintf( D_ALWAYS, "GM_DESTROY_SG 2: \n" );					
 					// no, EC2 is using the group name provided by client
 					// don't need to do any extra work, just come to GM_DESTROY_KEYPAIR directly
 					gmState = GM_DESTROY_KEYPAIR;
@@ -907,21 +1006,31 @@ int AmazonJob::doEvaluateState()
 				{
 				// check if current keypair is a temporary keypair
 				if ( strcmp(m_key_pair->Value(), temporary_keypair_name()) == 0 ) {
+dprintf( D_ALWAYS, "GM_DESTROY_KEYPAIR 1: \n" );						
+					// Yes, now let's destroy the temporary keypair 
+					rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair->Value(), m_error_code);
 					
-					// now let's destroy the temporary keypair 
-					rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair->Value());
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_destroy_keypair()");
+					}					
+					reset_error_code();
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
 					} else if (rc == 0) {
 						// when we registered a temporary keypair, a temporary file will also
 						// be created at the local disk. Now we need to remove it.
-						rc = remove(m_key_pair_file_name->Value());
-						if ( rc != 0 ) {
+						if ( remove_keypair_file(m_key_pair_file_name->Value()) ) {
+							gmState = GM_UNREGISTER_IMAGE;
+						} else {
 							dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
 							gmState = GM_FAILED;
-						} else {
-							gmState = GM_UNREGISTER_IMAGE;
 						}
 					} else {
 						errorString = gahp->getErrorString();
@@ -946,10 +1055,22 @@ int AmazonJob::doEvaluateState()
 				
 				// should check if m_dir_name is empty. don't need to check if m_ami_id is empty since after
 				// state GM_REGISTER_IMAGE, this variable should have been assigned.
-				if ( m_dir_name != NULL ) {
+				if ( strcmp(m_dir_name->Value(), "") != 0 ) {
 					// should do lots of things: deregister image, download images and destroy bucket
+dprintf( D_ALWAYS, "GM_UNREGISTER_IMAGE 1: \n" );
 					
-					rc = gahp->amazon_vm_deregister_image(m_access_key_file, m_secret_key_file, m_ami_id->Value());
+					rc = gahp->amazon_vm_deregister_image(m_access_key_file, m_secret_key_file, m_ami_id->Value(), m_error_code);
+					
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						// go ahead
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// should wait for several minutes before restart this operations
+					} else {
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_deregister_image()");
+					}					
+					reset_error_code();
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -963,6 +1084,7 @@ int AmazonJob::doEvaluateState()
 					}
 				
 				} else {
+dprintf( D_ALWAYS, "GM_UNREGISTER_IMAGE 2: \n" );
 					// ami_id is provided by client, don't need to anything 
 					// jump to GM_FAILED directly
 					gmState = GM_FAILED;
@@ -975,12 +1097,23 @@ int AmazonJob::doEvaluateState()
 	
 			case GM_DESTROY_IMAGE_AND_BUCKET:	// GM_FAILED
 				// remove the temporary bucket from S3 after the image files have been deleted from S3
-				rc = gahp->amazon_vm_s3_delete_bucket(m_access_key_file, m_secret_key_file, m_bucket_name);
+				rc = gahp->amazon_vm_s3_delete_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
+				
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+					// should wait for several minutes before restart this operations
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_s3_delete_bucket()");
+				}					
+				reset_error_code();
 				
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
 				} else if ( rc == 0 ) {
-					// the bucket has been created successfully in S3
+					// the bucket has been deleted successfully from S3
 					gmState = GM_FAILED;
 				} else {
 					// What to do about a failed cancel?
@@ -1101,6 +1234,12 @@ MyString* AmazonJob::build_ami_id()
 
 MyString* AmazonJob::build_keypair()
 {
+	// Notice:
+	// 		we can have two kinds of SSH keypair names, 
+	// 		1. the name assigned by client in the condor submit file with attribute AmazonKeyPair
+	// 		2. if there is no attribute AmazonKeyPair in the condor submit file, we should create
+	//		   a temporary one, which is "SSH_ + condor_pool_name + global_job_id"
+				
 	MyString* key_pair = new MyString();
 	char* buffer = NULL;
 	
@@ -1108,7 +1247,7 @@ MyString* AmazonJob::build_keypair()
 		*key_pair = buffer;
 	} else {
 		// If client doesn't assign keypair name, we will create a temporary one
-		// Note: keypair name = SSH_ + condor_pool_name + job_id
+		// Note: keypair name = SSH_ + condor_pool_name + global_job_id
 		*key_pair = temporary_keypair_name();
 	}
 	
@@ -1119,6 +1258,13 @@ MyString* AmazonJob::build_keypair()
 
 MyString* AmazonJob::build_keypairfilename()
 {
+	// Notice:
+	// 		we can have two kinds of SSH keypair output file names or the place where the output private
+	// file should be written to, 
+	// 		1. the name assigned by client in the condor submit file with attribute "AmazonKeyPairFileName"
+	// 		2. if there is no attribute "AmazonKeyPairFileName" in the condor submit file, we should discard
+	// 		   this private file by writing to NULL_FILE
+		
 	MyString* file_name = new MyString();
 	char* buffer = NULL;
 	
@@ -1126,12 +1272,12 @@ MyString* AmazonJob::build_keypairfilename()
 		// clinet define the location where this SSH keypair file will be written to
 		*file_name = buffer;
 	} else {
-		// If client doesn't assign keypair output file name, we will create a temporary one 
-		// Note: keypair output filename = SSHFILE_ condor_pool_name + job_id
+		// If client doesn't assign keypair output file name, we should discard it by 
+		// writing this private file to /dev/null
 		
 		// This is a temporary solution, just for testing. In normal situation, we should
 		// NOT place this SSH keypair file in the /tmp directory
-		*file_name = temporary_keypair_file();
+		*file_name = NULL_FILE;
 	}
 	
 	free (buffer);
@@ -1153,6 +1299,7 @@ MyString* AmazonJob::build_dirname()
 		*dir_name = buffer;
 	} else {
 		// client doesn't assign directory name
+		*dir_name = NULL;
 	}
 	
 	free (buffer);
@@ -1208,6 +1355,7 @@ StringList* AmazonJob::build_groupnames()
 }
 
 
+// Create the temporary name for the SSH keypair (not its output file name) 
 const char* AmazonJob::temporary_keypair_name()
 {
 	// Note: keypair name = SSH_ + condor_pool_name + job_id
@@ -1216,18 +1364,6 @@ const char* AmazonJob::temporary_keypair_name()
 	// construct the temporary keypair name
 	keypair_name.sprintf("SSH_%s", get_common_temp_name());
 	return strdup(keypair_name.Value());
-}
-
-
-const char* AmazonJob::temporary_keypair_file()
-{
-	// Note: keypair output file name = SSHFILE_ condor_pool_name + job_id
-	MyString keypair_file;
-
-	// construct the temporary keypair name
-	// now we save these temporary files at directory "/tmp"
-	keypair_file.sprintf("/tmp/SSHFILE_%s", get_common_temp_name());
-	return strdup(keypair_file.Value());
 }
 
 
@@ -1240,6 +1376,7 @@ const char* AmazonJob::temporary_security_group()
 	security_group.sprintf("SG_%s", get_common_temp_name());
 	return strdup(security_group.Value());
 }
+
 
 const char* AmazonJob::temporary_bucket_name()
 {
@@ -1257,6 +1394,8 @@ const char* AmazonJob::temporary_bucket_name()
 
 const char* AmazonJob::get_common_temp_name()
 {
+	// common temporary name = pool_name + global_job_id
+	
 	MyString temp_name;
 	
 	// get condor pool name
@@ -1268,7 +1407,7 @@ const char* AmazonJob::get_common_temp_name()
 
 	// construct the temporary name
 	temp_name.sprintf("%s_%s", pool_name, job_id);
-	return strdup(temp_name.Value());	
+	return strdup(temp_name.Value());
 }
 
 
@@ -1282,15 +1421,26 @@ bool AmazonJob::remove_keypair_file(const char* filename)
 		return true;
 	} else {
 		// check if the file name is what we should create
-		if ( strcmp(filename, (const char*)temporary_keypair_file()) != 0 ) {
-			return false;
-		}
-		
-		// delete this file
-		if (remove(filename) == 0) {
+		if ( strcmp(filename, NULL_FILE) == 0 ) {
+			// no need to delete it since it is /dev/null
 			return true;
 		} else {
-			return false;
+			if (remove(filename) == 0) 	
+				return true;
+			else 
+				return false;
 		}
 	}
+}
+
+// print out the error code received from grid_manager
+void AmazonJob::print_error_code(char* error_code, const char* function_name)
+{
+	dprintf( D_ALWAYS, "Receiving error code = %s from function %s !", error_code, function_name );	
+}
+
+// reset error code
+void AmazonJob::reset_error_code()
+{
+	m_error_code = NULL;
 }
