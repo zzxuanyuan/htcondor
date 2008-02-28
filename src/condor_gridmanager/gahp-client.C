@@ -5904,7 +5904,7 @@ GahpClient::cream_job_lease(const char *service, const char *job_id, time_t &lea
 
 //  Start VM
 int GahpClient::amazon_vm_start( const char * accesskeyfile, const char * secretkeyfile, const char * ami_id, 
-								 const char * keypair, StringList & groupnames, char * &instance_id )
+								 const char * keypair, StringList & groupnames, char * &instance_id, char * &error_code)
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <groupname> <groupname> ...
@@ -5993,7 +5993,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile, const char * secret
 			instance_id = strdup(result->argv[2]);
 		} else if ( result->argc == 4 ) {
 			// get the error code
- 			rc = atoi(result->argv[2]);	
+ 			error_code = result->argv[2];	
  			error_string = result->argv[3];		
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -6017,7 +6017,8 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile, const char * secret
 
 
 // Stop VM
-int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretkeyfile, const char * instance_id )
+int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretkeyfile, 
+								const char * instance_id, char* & error_code )
 {	
 	// command line looks like:
 	// AMAZON_COMMAND_VM_STOP <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -6076,7 +6077,7 @@ int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretk
 			if (rc == 1) error_string = "";
 		} else if ( result->argc == 4 ) {
 			// get the error code
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];			
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -6100,7 +6101,8 @@ int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretk
 
 
 // Restart VM
-int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secretkeyfile, const char * instance_id )		
+int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secretkeyfile, 
+								  const char * instance_id, char* & error_code )		
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_REBOOT <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -6159,7 +6161,7 @@ int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secre
 			if (rc == 1) error_string = "";
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];				
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -6184,7 +6186,7 @@ int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secre
 
 // Check VM status
 int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secretkeyfile,
-							  const char * instance_id, StringList &returnStatus )
+							  const char * instance_id, StringList &returnStatus, char* & error_code )
 {	
 	// command line looks like:
 	// AMAZON_COMMAND_VM_STATUS <return 0;"AMAZON_VM_STATUS";
@@ -6250,7 +6252,7 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 			}
 		} 
 		else if (result->argc == 4) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		}
 		else if (result->argc == 5)
@@ -6314,7 +6316,8 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 
 
 // List the status of all VMs
-int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * secretkeyfile, StringList &returnStatus )		
+int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * secretkeyfile, 
+									  StringList &returnStatus, char* & error_code )		
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
@@ -6378,7 +6381,7 @@ int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * s
 			}
 		}
 		else if (result->argc == 4) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		}
 		else if ( ((result->argc - 2)%3) != 0 ) {
@@ -6417,7 +6420,7 @@ int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * s
 
 // Create group
 int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char * secretkeyfile,
-									const char * groupname, const char * group_description )	
+									    const char * groupname, const char * group_description, char* & error_code )	
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_CREATE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname> <group description>
@@ -6480,7 +6483,7 @@ int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char *
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -6504,7 +6507,8 @@ int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char *
 
 
 // Delete given group
-int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char * secretkeyfile, const char * groupname )		
+int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char * secretkeyfile, 
+										const char * groupname, char* & error_code )		
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_DELETE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname>
@@ -6565,7 +6569,7 @@ int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char *
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -6589,7 +6593,8 @@ int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char *
 
 
 //  Show group names
-int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * secretkeyfile, StringList &group_names )
+int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * secretkeyfile, 
+									   StringList &group_names, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_GROUP_NAMES <req_id> <accesskeyfile> <secretkeyfile>
@@ -6655,7 +6660,7 @@ int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * 
 		else if ( result->argc >= 4 ) {
 			rc = atoi(result->argv[1]);
 			if (rc == 1) { // returned msg is error message
-				rc = atoi(result->argv[2]);
+				error_code = result->argv[2];
 				error_string = result->argv[3];
 			} else {
 				// get groups' names
@@ -6687,7 +6692,8 @@ int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * 
 
 
 // Show group rules
-int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * secretkeyfile, const char * groupname, StringList & returnStatus )
+int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * secretkeyfile, const char * groupname, 
+									  StringList & returnStatus, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_GROUP_RULES <req_id> <accesskeyfile> <secretkeyfile> <groupname>
@@ -6752,7 +6758,7 @@ int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * s
 			}			
 		}
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		}
 		else if ( (result->argc - 2)%4 != 0 ) {
@@ -6790,7 +6796,7 @@ int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * s
 
 // Add group rule
 int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char * secretkeyfile, const char * groupname,
-							 const char * protocol, const char * start_port, const char * end_port, const char * ip_range )
+							 const char * protocol, const char * start_port, const char * end_port, const char * ip_range, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_ADD_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> 
@@ -6864,7 +6870,7 @@ int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char 
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -6889,7 +6895,7 @@ int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char 
 
 // Delete group rule 
 int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char * secretkeyfile, const char * groupname,
-							 const char * protocol, const char * start_port, const char * end_port, const char * ip_range )
+							 const char * protocol, const char * start_port, const char * end_port, const char * ip_range, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_DEL_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> <groupname> 
@@ -6962,7 +6968,7 @@ int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char 
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7036,7 +7042,7 @@ int GahpClient::amazon_ping(const char * accesskeyfile, const char * secretkeyfi
 
 // Create and register SSH keypair
 int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char * secretkeyfile,
-								   	      const char * keyname, const char * outputfile)
+								   	      const char * keyname, const char * outputfile, char* & error_code)
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_CREATE_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <groupname> <outputfile> 
@@ -7100,7 +7106,7 @@ int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7127,7 +7133,8 @@ int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char
 // The destroy keypair function will delete the name of keypair, it will not touch the output file of 
 // keypair. So in Amazon Job, we should delete keypair output file manually. We don't need to care about
 // the keypair name/output file in Amazon, it will be removed automatically.
-int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const char * secretkeyfile, const char * keyname)
+int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const char * secretkeyfile, 
+										   const char * keyname, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_DESTROY_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <groupname> 
@@ -7189,7 +7196,7 @@ int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const cha
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7213,7 +7220,8 @@ int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const cha
 
 
 //  List all existing SSH Keypair name
-int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char * secretkeyfile, StringList &keypair_names)
+int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char * secretkeyfile, 
+										 StringList &keypair_names, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_KEYPAIR_NAMES <req_id> <accesskeyfile> <secretkeyfile> 
@@ -7280,7 +7288,7 @@ int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char 
 		else if ( result->argc >= 3 ) {
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
-				rc = atoi(result->argv[2]);	
+				error_code = result->argv[2];	
 				error_string = result->argv[3];
 			} else {
 				// get keypairs' names
@@ -7312,7 +7320,8 @@ int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char 
 
 
 // List all S3 Bucket names
-int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char * secretkeyfile, StringList & bucket_names)
+int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char * secretkeyfile, 
+										  StringList & bucket_names, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_S3_ALL_BUCKETS <req_id> <accesskeyfile> <secretkeyfile>
@@ -7379,7 +7388,7 @@ int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char
 		else if ( result->argc >= 3 ) {
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
-				rc = atoi(result->argv[2]);	
+				error_code = result->argv[2];	
 				error_string = result->argv[3];
 			} else {
 				// get keypairs' names
@@ -7412,7 +7421,8 @@ int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char
 
 
 // Create Bucket in S3
-int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const char * secretkeyfile, const char * bucketname)
+int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const char * secretkeyfile, 
+											const char * bucketname, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_S3_CREATE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
@@ -7473,7 +7483,7 @@ int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const ch
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7497,7 +7507,8 @@ int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const ch
 
 
 // Delete Bucket in S3
-int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const char * secretkeyfile, const char * bucketname )
+int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const char * secretkeyfile, 
+											const char * bucketname, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_S3_DELETE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
@@ -7559,7 +7570,7 @@ int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const ch
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7584,7 +7595,7 @@ int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const ch
 
 // List all entries in a given Bucket
 int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char * secretkeyfile, 
-	                                      const char * bucketname, StringList & entry_names)
+	                                      const char * bucketname, StringList & entry_names, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_S3_LIST_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> 
@@ -7653,7 +7664,7 @@ int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char
 		else if ( result->argc >= 3 ) {
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
-				rc = atoi(result->argv[2]);	
+				error_code = result->argv[2];	
 				error_string = result->argv[3];
 			} else {
 				// get keypairs' names
@@ -7686,7 +7697,7 @@ int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char
 
 // Upload file into S3
 int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char * secretkeyfile, const char * filename,
-							  const char * bucketname, const char * keyname)
+							  const char * bucketname, const char * keyname, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_S3_UPLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <filename> <keyname>
@@ -7756,7 +7767,7 @@ int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7781,7 +7792,7 @@ int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char
 
 // Download file from S3 to a local file
 int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const char * secretkeyfile, const char * bucketname,
-								const char * keyname, const char * outputname)
+								const char * keyname, const char * outputname, char* & error_code )
 {
 	// command line looks like:
 	// AMAZON_COMMAND_S3_DOWNLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <keyname> <outputname>
@@ -7851,7 +7862,7 @@ int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const ch
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7876,7 +7887,7 @@ int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const ch
 
 // Delete file from S3
 int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char * secretkeyfile,
-									      const char * keyname, const char * bucketname)
+									      const char * keyname, const char * bucketname, char* & error_code )
 {
 	// command line looks like:
 	//AMAZON_COMMAND_S3_DELETE_FILE <req_id> <accesskeyfile> <secretkeyfile> <keyname> <bucketname>
@@ -7939,7 +7950,7 @@ int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char
 				error_string = "";
 			}
 		} else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -7963,7 +7974,8 @@ int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char
 
 
 // Register EC2 Image
-int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char* secretkeyfile, const char* imagename, char* & ami_id )
+int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char* secretkeyfile, 
+										  const char* imagename, char* & ami_id, char* & error_code )
 {
 	// command line looks like:
 	//AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <imagetname>
@@ -8026,7 +8038,7 @@ int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char*
 			rc = atoi(result->argv[1]);
 			ami_id = strdup(result->argv[2]);
 		} else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -8050,7 +8062,8 @@ int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char*
 
 
 // Deregister EC2 Image
-int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const char* secretkeyfile, const char* ami_id )
+int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const char* secretkeyfile, 
+											const char* ami_id, char* & error_code )
 {
 	// command line looks like:
 	//AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <imagetname>
@@ -8111,7 +8124,7 @@ int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const cha
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -8136,7 +8149,7 @@ int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const cha
 
 // Upload files in a directory to the S3
 int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* secretkeyfile, 
-										 const char* dirname, const char* bucketname )
+										 const char* dirname, const char* bucketname, char* & error_code )
 {
 	// command line looks like:
 	//AMAZON_COMMAND_S3_UPLOAD_DIR <req_id> <accesskeyfile> <secretkeyfile> <dirname> <bucketname>
@@ -8200,7 +8213,7 @@ int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* 
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
@@ -8225,7 +8238,7 @@ int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* 
 
 //  Download all files in a bucket to the local disk
 int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const char* secretkeyfile,
-											  const char* bucketname, const char* localdirname )
+											  const char* bucketname, const char* localdirname, char* & error_code )
 {
 	// command line looks like:
 	//AMAZON_COMMAND_S3_DOWNLOAD_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <localdirname>
@@ -8289,7 +8302,7 @@ int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const c
 			}
 		} 
 		else if ( result->argc == 4 ) {
-			rc = atoi(result->argv[2]);
+			error_code = result->argv[2];
 			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );

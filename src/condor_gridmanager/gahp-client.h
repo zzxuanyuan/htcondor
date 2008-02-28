@@ -613,7 +613,8 @@ class GahpClient : public Service {
 							 const char * ami_id,
 							 const char * keypair,
 							 StringList & groupnames,
-							 char * &instance_id );
+							 char* & instance_id,
+							 char* & error_code );
 		
 		// 2. Stop VM:
 		// AMAZON_COMMAND_VM_STOP <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -624,7 +625,8 @@ class GahpClient : public Service {
 		//		seq_id 1
 		int amazon_vm_stop( const char * accesskeyfile,
 							const char * secretkeyfile,
-							const char * instance_id );
+							const char * instance_id,
+							char* & error_code );
 							
 		// 3. Reboot VM:
 		// AMAZON_COMMAND_VM_REBOOT <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -635,7 +637,8 @@ class GahpClient : public Service {
 		//		seq_id 1 	
 		int amazon_vm_reboot( const char * accesskeyfile,
 							  const char * secretkeyfile,
-							  const char * instance_id );		
+							  const char * instance_id,
+							  char* & error_code );		
 		
 		// 4. Status VM:
 		// AMAZON_COMMAND_VM_STATUS <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -658,7 +661,8 @@ class GahpClient : public Service {
 		int amazon_vm_status( const char * accesskeyfile,
 							  const char * secretkeyfile,
 							  const char * instance_id,
-							  StringList & returnStatus );
+							  StringList & returnStatus,
+							  char* & error_code );
 				
 		// 5. Status ALL VM:
 		// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
@@ -670,7 +674,8 @@ class GahpClient : public Service {
 		// We use NULL to replace the empty items.
 		int amazon_vm_status_all( const char * accesskeyfile,
 								  const char * secretkeyfile,
-								  StringList & returnStatus );		
+								  StringList & returnStatus,
+								  char* & error_code );		
 		
 		// 6. Create Group:
 		// AMAZON_COMMAND_VM_CREATE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname> <group description>
@@ -683,7 +688,8 @@ class GahpClient : public Service {
 		int amazon_vm_create_group( const char * accesskeyfile, 
 									const char * secretkeyfile,
 									const char * groupname, 
-									const char * group_description );		
+									const char * group_description,
+									char* & error_code );		
 		
 		// 7. Delete Group:
 		// AMAZON_COMMAND_VM_DELETE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname>
@@ -694,7 +700,8 @@ class GahpClient : public Service {
 		//		seq_id 1 
 		int amazon_vm_delete_group( const char * accesskeyfile,
 									const char * secretkeyfile,
-									const char * groupname );		
+									const char * groupname,
+									char* & error_code );		
 		
 		// 8. Show group Names
 		// AMAZON_COMMAND_VM_GROUP_NAMES <req_id> <accesskeyfile> <secretkeyfile>
@@ -705,7 +712,8 @@ class GahpClient : public Service {
 		//		seq_id 1 
 		int amazon_vm_group_names( const char * accesskeyfile,
 								   const char * secretkeyfile,
-								   StringList & group_names );
+								   StringList & group_names,
+								   char* & error_code );
 		
 		// 9. Show group rules
 		// AMAZON_COMMAND_VM_GROUP_RULES <req_id> <accesskeyfile> <secretkeyfile> <groupname>
@@ -717,7 +725,8 @@ class GahpClient : public Service {
 		int amazon_vm_group_rules( const char * accesskeyfile,
 								   const char * secretkeyfile,
 								   const char * groupname,
-								   StringList & returnStatus );
+								   StringList & returnStatus,
+								   char* & error_code );
 		
 		// 10. Add group rule
 		// AMAZON_COMMAND_VM_ADD_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> <groupname> <protocol> <start_port> <end_port> <ip_range>
@@ -733,7 +742,8 @@ class GahpClient : public Service {
 								   	  const char * protocol,
 								   	  const char * start_port,
 								   	  const char * end_port,
-								   	  const char * ip_range );
+								   	  const char * ip_range,
+								   	  char* & error_code );
 		
 		// 11. Delete group rule 
 		// AMAZON_COMMAND_VM_DEL_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> <groupname> <protocol> <start_port> <end_port> <ip_range>
@@ -749,7 +759,8 @@ class GahpClient : public Service {
 								   	  const char * protocol,
 								   	  const char * start_port,
 								   	  const char * end_port,
-								   	  const char * ip_range );		
+								   	  const char * ip_range,
+								   	  char* & error_code );		
 		
 		// 12. Ping
 		// we also need to define a ping function, which will be used by amazon_resource
@@ -810,7 +821,8 @@ class GahpClient : public Service {
 		int amazon_vm_create_keypair( const char * accesskeyfile,
 								   	  const char * secretkeyfile,
 								   	  const char * keyname,
-								   	  const char * outputfile );
+								   	  const char * outputfile,
+								   	  char* & error_code );
 		
 		// 14. Deregister and destory SSH Keypair
 		// AMAZON_COMMAND_VM_DESTORY_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <keyname>
@@ -822,7 +834,8 @@ class GahpClient : public Service {
 		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_destroy_keypair( const char * accesskeyfile,
 								   	   const char * secretkeyfile,
-								   	   const char * keyname );
+								   	   const char * keyname,
+								   	   char* & error_code );
 								   	   
 		// 15. List all existing SSH Keypair name
 		// AMAZON_COMMAND_VM_KEYPAIR_NAMES <req_id> <accesskeyfile> <secretkeyfile>
@@ -833,7 +846,8 @@ class GahpClient : public Service {
 		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_keypair_names( const char * accesskeyfile,
 									 const char * secretkeyfile,
-									 StringList & keypair_names );
+									 StringList & keypair_names,
+									 char* & error_code );
 									 
 		// 16. List all S3 Bucket names
 		// AMAZON_COMMAND_S3_ALL_BUCKETS <req_id> <accesskeyfile> <secretkeyfile>
@@ -844,7 +858,8 @@ class GahpClient : public Service {
 		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_all_buckets( const char * accesskeyfile,
 									  const char * secretkeyfile,
-									  StringList & bucket_names );
+									  StringList & bucket_names,
+									  char* & error_code );
 		
 		// 17. Create Bucket in S3
 		// AMAZON_COMMAND_S3_CREATE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
@@ -855,7 +870,8 @@ class GahpClient : public Service {
 		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_create_bucket( const char * accesskeyfile,
 									    const char * secretkeyfile,
-									    const char * bucketname );
+									    const char * bucketname,
+									    char* & error_code );
 		
 		// 18. Delete Bucket in S3
 		// AMAZON_COMMAND_S3_DELETE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
@@ -866,7 +882,8 @@ class GahpClient : public Service {
 		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_s3_delete_bucket( const char * accesskeyfile,
 									    const char * secretkeyfile,
-									    const char * bucketname );
+									    const char * bucketname,
+									    char* & error_code );
 		
 		// 19. List all entries in a given Bucket
 		// AMAZON_COMMAND_S3_LIST_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> 
@@ -878,7 +895,8 @@ class GahpClient : public Service {
 		int amazon_vm_s3_list_bucket( const char * accesskeyfile,
 									  const char * secretkeyfile,
 									  const char * bucketname,
-									  StringList & entry_names );
+									  StringList & entry_names,
+									  char* & error_code );
 									    
 		// 20. Upload file into S3
 		// AMAZON_COMMAND_S3_UPLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <filename> <bucketname> <keyname>
@@ -891,7 +909,8 @@ class GahpClient : public Service {
 									  const char * secretkeyfile,
 									  const char * filename,
 									  const char * bucketname,
-									  const char * keyname );
+									  const char * keyname,
+									  char* & error_code );
 		
 		// 21. Download file from S3 to a local file
 		// AMAZON_COMMAND_S3_DOWNLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <keyname> <outputname>
@@ -904,7 +923,8 @@ class GahpClient : public Service {
 									    const char * secretkeyfile,
 									    const char * bucketname,
 									    const char * keyname,
-									    const char * outputname );
+									    const char * outputname,
+									    char* & error_code );
 		
 		// 22. Delete file from S3
 		// AMAZON_COMMAND_S3_DELETE_FILE <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <keyname> 
@@ -916,7 +936,8 @@ class GahpClient : public Service {
 		int amazon_vm_s3_delete_file( const char * accesskeyfile,
 									  const char * secretkeyfile,
 									  const char * keyname,
-									  const char * bucketname );
+									  const char * bucketname,
+									  char* & error_code );
 									    
 		// 23. Register EC2 Image
 		// AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <imagename>
@@ -928,7 +949,8 @@ class GahpClient : public Service {
 		int amazon_vm_register_image( const char* accesskeyfile,
 									  const char* secretkeyfile,
 									  const char* imagename,
-									  char * & ami_id );
+									  char * & ami_id,
+									  char* & error_code );
 									  
 		// 24. Deregister EC2 Image
 		// AMAZON_COMMAND_VM_DEREGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <ami_id>
@@ -939,7 +961,8 @@ class GahpClient : public Service {
 		//		seq_id 1 <error_code> <error_string>
 		int amazon_vm_deregister_image( const char* accesskeyfile,
 										const char* secretkeyfile,
-										const char* ami_id );
+										const char* ami_id,
+										char* & error_code );
 										
 		// 25. Upload files in a directory to the S3
 		// AMAZON_COMMAND_S3_UPLOAD_DIR <req_id> <accesskeyfile> <secretkeyfile> <dirname> <bucketname>
@@ -951,7 +974,8 @@ class GahpClient : public Service {
 		int amazon_vm_s3_upload_dir( const char* accesskeyfile,
 									 const char* secretkeyfile,
 									 const char* dirname,
-									 const char* bucketname );		
+									 const char* bucketname,
+									 char* & error_code );		
 		
 		// 26. download all files in a bucket to the local disk
 		// AMAZON_COMMAND_S3_DOWNLOAD_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <localdirname>
@@ -963,7 +987,8 @@ class GahpClient : public Service {
 		int amazon_vm_s3_download_bucket( const char* accesskeyfile,
 										  const char* secretkeyfile,
 										  const char* bucketname,
-										  const char* localdirname );
+										  const char* localdirname,
+										  char* & error_code );
 			
 		//************* End of changes for Amamzon Jobs by fangcao *****************//
 			
