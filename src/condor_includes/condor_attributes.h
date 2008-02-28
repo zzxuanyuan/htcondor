@@ -659,6 +659,7 @@ extern const char *ATTR_AMAZON_KEY_PAIR;
 extern const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME;
 extern const char *ATTR_AMAZON_GROUP_NAME;
 extern const char *ATTR_AMAZON_UPLOAD_DIR_NAME;
+extern const char *ATTR_AMAZON_SECURITY_POLICY;
 //************* End of changes for Amamzon Jobs by fangcao *****************//
 
 
