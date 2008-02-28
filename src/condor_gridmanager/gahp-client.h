@@ -1,31 +1,28 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
-  *
-  * Condor Software Copyright Notice
-  * Copyright (C) 1990-2008, Condor Team, Computer Sciences Department,
-  * University of Wisconsin-Madison, WI.
-  *
-  * This source code is covered by the Condor Public License, which can
-  * be found in the accompanying LICENSE.TXT file, or online at
-  * www.condorproject.org.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
-  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
-  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
-  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
-  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
-  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
-  * RIGHT.
-  *
-  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+/***************************************************************
+ *
+ * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, WI.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.  You may
+ * obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ***************************************************************/
+
 
 #ifndef CONDOR_GAHP_CLIENT_H
 #define CONDOR_GAHP_CLIENT_H
 
 #include "condor_common.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "condor_daemon_core.h"
 #include "gahp_common.h"
 
 #include "classad_hashtable.h"
@@ -189,11 +186,6 @@ class GahpServer : public Service {
 	void *globus_gt2_gram_user_callback_arg;
 	globus_gram_client_callback_func_t globus_gt2_gram_callback_func;
 	int globus_gt2_gram_callback_reqid;
-
-	char *globus_gt3_gram_callback_contact;
-	void *globus_gt3_gram_user_callback_arg;
-	globus_gram_client_callback_func_t globus_gt3_gram_callback_func;
-	int globus_gt3_gram_callback_reqid;
 
 	char *globus_gt4_gram_callback_contact;
 	void *globus_gt4_gram_user_callback_arg;
@@ -391,50 +383,6 @@ class GahpClient : public Service {
 		///
 		int
 		globus_gass_server_superez_init( char **gass_url, int port );
-
-
-		///
-		int
-		gt3_gram_client_callback_allow(
-			globus_gram_client_callback_func_t callback_func,
-			void * user_callback_arg,
-			char ** callback_contact);
-
-		///
-		int 
-		gt3_gram_client_job_create(const char * resource_manager_contact,
-			const char * description,
-			const char * callback_contact,
-			char ** job_contact);
-
-		///
-		int
-		gt3_gram_client_job_start(const char *job_contact);
-
-		///
-		int 
-		gt3_gram_client_job_destroy(const char * job_contact);
-
-		///
-		int
-		gt3_gram_client_job_status(const char * job_contact,
-			int * job_status);
-
-		///
-		int
-		gt3_gram_client_job_callback_register(const char * job_contact,
-			const char * callback_contact);
-
-		///
-		int 
-		gt3_gram_client_ping(const char * resource_manager_contact);
-
-		///
-		int
-		gt3_gram_client_job_refresh_credentials(const char *job_contact);
-
-
-
 
 
 		///
@@ -1025,7 +973,7 @@ class GahpClient : public Service {
 	globus_duroc_control_barrier_release();
 	globus_duroc_control_init();
 	globus_duroc_control_job_cancel();
-	globus_droc_control_job_request();
+	globus_duroc_control_job_request();
 	globus_duroc_control_subjob_states();
 	globus_duroc_error_get_gram_client_error();
 	globus_duroc_error_string();
@@ -1048,7 +996,7 @@ class GahpClient : public Service {
 			// Private Data Members
 		unsigned int m_timeout;
 		mode m_mode;
-		char pending_command[150];
+		char *pending_command;
 		char *pending_args;
 		int pending_reqid;
 		Gahp_Args* pending_result;
@@ -1066,7 +1014,7 @@ class GahpClient : public Service {
 			// server, all the below data members are static.
 		GahpServer *server;
 
-};	// end of class GahpClien
+};	// end of class GahpClient
 
 
 #endif /* ifndef CONDOR_GAHP_CLIENT_H */
