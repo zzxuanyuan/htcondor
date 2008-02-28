@@ -359,6 +359,7 @@ char* AmazonKeyPair = "AmazonKeyPair";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
 char* AmazonUploadDirName = "AmazonUploadDirName";
+char* AmazonSecurityPolicy = "AmazonSecurityPolicy";
 //******************* end of add by fangcao for Amazon Job **************//
 
 char const *next_job_start_delay = "next_job_start_delay";
@@ -5024,6 +5025,13 @@ SetGlobusParams()
 		InsertJobExpr( buffer.Value() );
 	}
 	
+	// // AmazonSecurityPolicy is not a necessary parameter
+	if( (tmp = condor_param( AmazonSecurityPolicy )) ) {
+		buffer.sprintf( "%s = \"%s\"", AmazonSecurityPolicy, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+	
 	// AmazonUploadDirName and AmazonAmiID shouldn't exist in the same submit file
 	bool has_amiid = false;
 	bool has_uploaddir = false;
@@ -5052,7 +5060,7 @@ SetGlobusParams()
 		fprintf(stderr, "\nERROR: One of the parameters \"%s\" and \"%s\" should exist in an Amazon job\n", AmazonAmiID, AmazonUploadDirName);
 		DoCleanup( 0, 0, NULL );
 		exit(1);
-	}	
+	}
 		
 	//*********************end of adding by fangcao ***********************************//
 }
