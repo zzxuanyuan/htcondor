@@ -94,7 +94,9 @@ unsigned __stdcall pipe_forward_thread(void *)
 static void io_process_exit(int exit_num)
 {
 	// kill all child processes
-	ioprocess->killWorker(0, true);
+	if( ioprocess ) {
+		ioprocess->killWorker(0, true);
+	}
 	DC_Exit( exit_num );
 }
 
