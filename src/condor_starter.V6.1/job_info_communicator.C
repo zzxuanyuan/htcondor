@@ -59,6 +59,7 @@ JobInfoCommunicator::JobInfoCommunicator()
 #if HAVE_JOB_HOOKS
     m_hook_mgr = NULL;
 #endif
+	m_periodic_job_update_tid = -1;
 }
 
 
@@ -96,6 +97,7 @@ JobInfoCommunicator::~JobInfoCommunicator()
         delete m_hook_mgr;
     }
 #endif
+	cancelUpdateTimer();
 }
 
 
@@ -235,6 +237,24 @@ int
 JobInfoCommunicator::jobSubproc( void )
 {
 	return job_subproc;
+}
+
+
+void
+JobInfoCommunicator::allJobsSpawned( void )
+{
+		// Now that everything is running, start a timer to handle
+		// periodic job updates.
+	startUpdateTimer();
+}
+
+
+bool
+JobInfoCommunicator::allJobsDone( void )
+{
+		// Now that all the jobs are gone, we can stop our periodic updates.
+	cancelUpdateTimer();
+	return true;
 }
 
 
@@ -677,4 +697,64 @@ JobInfoCommunicator::setupJobEnvironment( void )
 		// support, or we didn't spawn a hook.  Either way, we're
 		// done and should tell the starter we're ready.
 	Starter->jobEnvironmentReady();
+}
+
+
+void
+JobInfoCommunicator::cancelUpdateTimer( void )
+{
+	if (m_periodic_job_update_tid >= 0) {
+		daemonCore->Cancel_Timer(m_periodic_job_update_tid);
+		m_periodic_job_update_tid = -1;
+	}
+}
+
+
+void
+JobInfoCommunicator::startUpdateTimer( void )
+{
+	if( m_periodic_job_update_tid >= 0 ) {
+			// already registered the timer...
+		return;
+	}
+
+	// default interval is 5 minutes, with 8 seconds as the initial value.
+	int update_interval = param_integer( "STARTER_UPDATE_INTERVAL", 300 );
+	int initial_interval = param_integer( "STARTER_INITIAL_UPDATE_INTERVAL", 8 );
+
+	if( update_interval < initial_interval ) {
+		initial_interval = update_interval;
+	}
+	m_periodic_job_update_tid = daemonCore->
+		Register_Timer(initial_interval, update_interval,
+	      (TimerHandlercpp)&JobInfoCommunicator::periodicJobUpdateTimerHandler,
+		  "JobInfoCommunicator::periodicJobUpdateTimerHandler", this);
+	if( m_periodic_job_update_tid < 0 ) {
+		EXCEPT( "Can't register DC Timer!" );
+	}
+}
+
+
+/* 
+   We can't just have our periodic timer call periodicJobUpdate()
+   directly, since it passes in arguments that screw up the default
+   bool that determines if we want to ensure the update works.  So,
+   the periodic updates call this function instead, which calls the
+   non-ensure version.
+*/
+int
+JobInfoCommunicator::periodicJobUpdateTimerHandler( void )
+{
+	if( periodicJobUpdate(NULL, false) ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+bool
+JobInfoCommunicator::periodicJobUpdate(ClassAd* update_ad, bool insure_update)
+{
+		// TODO-hooks: invoke HOOK_UPDATE_JOB_INFO
+	return true;
 }

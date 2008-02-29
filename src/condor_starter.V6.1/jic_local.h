@@ -110,10 +110,6 @@ public:
 		// Job execution and state changes
 		// // // // // // // // // // // //
 
-		/** All jobs have been spawned by the starter.
-		 */
-	void allJobsSpawned( void );
-
 		/** The starter has been asked to suspend.  Take whatever
 			steps make sense for the JIC, and notify our job
 			controller what happend.

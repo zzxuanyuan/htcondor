@@ -161,9 +161,14 @@ public:
 		// Job execution and state changes
 		// // // // // // // // // // // //
 
-		/** All jobs have been spawned by the starter.
+		/**
+		   All jobs have been spawned by the starter.
+
+		   In the baseclass, this handles starting a timer for the
+		   periodic job updates.  Subclasses might care about other
+		   things at this point, too.
 		 */
-	virtual void allJobsSpawned( void ) = 0;
+	virtual void allJobsSpawned( void );
 
 		/** The starter has been asked to suspend.  Take whatever
 			steps make sense for the JIC, and notify our job
@@ -186,7 +191,7 @@ public:
 			back to DaemonCore awaiting other events before it can
 			finish the task...
 		*/
-	virtual bool allJobsDone( void ) = 0;
+	virtual bool allJobsDone( void );
 
 		/** The last job this starter is controlling has been
 			completely cleaned up.  Do whatever final work we want to
@@ -234,7 +239,6 @@ public:
 	virtual bool notifyJobExit( int exit_status, int reason, 
 								UserProc* user_proc ) = 0;
 
-
 	virtual bool notifyStarterError( const char* err_msg, bool critical, int hold_reason_code, int hold_reason_subcode ) = 0;
 
 
@@ -242,6 +246,36 @@ public:
 	const char* getOutputAdFile( void ) { return job_output_ad_file; };
 	bool writeOutputAdFile( ClassAd* ad );
 	void initOutputAdFile( void );
+
+		/**
+		   Send a periodic update ClassAd to our controller.  The
+		   "insure_update" just controls if we make sure the update
+		   gets there (which is dependent on the children class to
+		   implement something if its relevant, for example, using TCP
+		   vs. UDP for talking to a shadow).  It has nothing to do
+		   with the "insure" memory analysis tool.
+
+		   @param update_ad Update ad to use if you've already got the info
+		   @param insure_update Should we insure the update gets there?
+		   @return true if success, false if failure
+		*/
+	virtual bool periodicJobUpdate(ClassAd* update_ad = NULL,
+								   bool insure_update = false);
+
+		/**
+		   Function to be called periodically to update the controller.
+		   We can't just register a timer to call periodicJobUpdate()
+		   directly, since DaemonCore isn't passing any args to timer
+		   handlers, and therefore, it doesn't know it's supposed to
+		   honor the default arguments.  So, we use this seperate
+		   function to register for the periodic 
+		   updates, and this ensures that we use the UDP version of
+		   UpdateShadow().
+
+		   This returns an int just to keep DaemonCore happy about the types.
+		   @return TRUE on success, FALSE on failure
+		*/
+	int periodicJobUpdateTimerHandler( void );
 
 		// // // // // // // // // // // //
 		// Misc utilities
@@ -424,6 +458,15 @@ protected:
 	StarterHookMgr* m_hook_mgr;
 #endif /* HAVE_JOB_HOOKS */
 
+private:
+		/// Start a timer for the periodic job updates
+	void startUpdateTimer( void );
+
+		/// Cancel our timer for the periodic job updates
+	void cancelUpdateTimer( void );
+
+		/// timer id for periodically sending info on job to Shadow
+	int m_periodic_job_update_tid;
 };
 
 

@@ -55,7 +55,6 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	shadow = NULL;
 	shadow_version = NULL;
 	filetrans = NULL;
-	shadowupdate_tid = -1;
 	
 	trust_uid_domain = false;
 	uid_domain = NULL;
@@ -96,10 +95,6 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 
 JICShadow::~JICShadow()
 {
-	if( shadowupdate_tid != -1 && daemonCore ) {
-		daemonCore->Cancel_Timer(shadowupdate_tid);
-		shadowupdate_tid = -1;
-	}
 	if( shadow ) {
 		delete shadow;
 	}
@@ -286,15 +281,6 @@ JICShadow::bytesReceived( void )
 
 
 void
-JICShadow::allJobsSpawned( void )
-{
-		// at this point, all we care about now that the jobs have
-		// been spawned is 
-	startUpdateTimer();
-}
-
-
-void
 JICShadow::Suspend( void )
 {
 
@@ -351,13 +337,8 @@ JICShadow::Continue( void )
 bool
 JICShadow::allJobsDone( void )
 {
-
-		// now that all the jobs are gone, we can stop our periodic
-		// shadow updates.
-	if( shadowupdate_tid >= 0 ) {
-		daemonCore->Cancel_Timer( shadowupdate_tid );
-		shadowupdate_tid = -1;
-	}
+		// Give the base class a chance to do its own thing.
+	JobInfoCommunicator::allJobsDone();
 
 		// transfer output files back if requested job really
 		// finished.  may as well do this in the foreground,
@@ -1650,46 +1631,13 @@ JICShadow::publishUpdateAd( ClassAd* ad )
 }
 
 
-void
-JICShadow::startUpdateTimer( void )
+bool
+JICShadow::periodicJobUpdate( ClassAd* update_ad, bool insure_update )
 {
-	if( shadowupdate_tid >= 0 ) {
-			// already registered the timer...
-		return;
-	}
-
-	// default interval is 5 minutes, with 8 seconds as the initial value.
-	int update_interval = param_integer( "STARTER_UPDATE_INTERVAL", 300 );
-	int initial_interval = param_integer( "STARTER_INITIAL_UPDATE_INTERVAL", 8 );
-
-	if( update_interval < initial_interval ) {
-		initial_interval = update_interval;
-	}
-	shadowupdate_tid = daemonCore->
-		Register_Timer(initial_interval, update_interval,
-					   (TimerHandlercpp)&JICShadow::periodicShadowUpdate,
-					   "JICShadow::periodicShadowUpdate", this);
-	if( shadowupdate_tid < 0 ) {
-		EXCEPT( "Can't register DC Timer!" );
-	}
-}
-
-
-
-
-/* 
-   We can't just have our periodic timer call updateShadow() directly,
-   since it passes in arguments that screw up the default bool that
-   determines if we want TCP or UDP for the update.  So, the periodic
-   updates call this function instead, which forces the UDP version.
-*/
-int
-JICShadow::periodicShadowUpdate( void )
-{
-	if( updateShadow(NULL, false) ) {
-		return TRUE;
-	}
-	return FALSE;
+	bool r1, r2;
+	r1 = JobInfoCommunicator::periodicJobUpdate(update_ad, insure_update);
+	r2 = updateShadow(update_ad, insure_update);
+	return (r1 && r2);
 }
 
 

@@ -100,11 +100,6 @@ public:
 		// Job execution and state changes
 		// // // // // // // // // // // //
 
-		/** All jobs have been spawned by the starter.  Start a
-			timer to update the shadow periodically.
-		 */
-	void allJobsSpawned( void );
-
 		/** The starter has been asked to suspend.  Suspend file
 			transfer activity and notify the shadow.
 		*/
@@ -165,6 +160,16 @@ public:
 	                         int hold_reason_code, int hold_reason_subcode);
 
 
+		/**
+		   Send a periodic update ClassAd to the shadow.
+
+		   @param update_ad Update ad to use if you've already got the info
+		   @param insure_update Should we insure the update gets there?
+		   @return true if success, false if failure
+		*/
+	virtual bool periodicJobUpdate(ClassAd* update_ad = NULL,
+								   bool insure_update = false);
+
 
 		// // // // // // // // // // // //
 		// Misc utilities
@@ -202,9 +207,6 @@ private:
 		*/ 
 	bool publishUpdateAd( ClassAd* ad );
 
-		/// Start a timer for the periodic update to the shadow
-	void startUpdateTimer( void );
-
 		/** Send an update ClassAd to the shadow.  The "insure_update"
 			just means do we make sure the update gets there.  It has
 			nothing to do with the "insure" memory analysis tool.
@@ -218,19 +220,6 @@ private:
 			@param ad Update ad
 		 */
 	void updateStartd( ClassAd *ad, bool final_update );
-
-		/** Function to be called periodically to update the shadow.
-			We can't just register a timer to call UpdateShadow()
-			directly, since DaemonCore isn't passing any args to timer
-			handlers, and therefore, it doesn't know it's supposed to
-			honor the default argument we specified above.  So, we use
-			this seperate function to register for the periodic
-			updates, and this ensures that we use the UDP version of
-			UpdateShadow().  This returns an int just to keep
-			DaemonCore happy about the types.
-			@return TRUE on success, FALSE on failure
-		*/
-	int periodicShadowUpdate( void );
 
 		/** Read all the relevent attributes out of the job ad and
 			decide if we need to transfer files.  If so, instantiate a
@@ -403,9 +392,6 @@ private:
 	bool transfer_at_vacate;
 
 	bool wants_file_transfer;
-
-		/// timer id for periodically sending info on job to Shadow
-	int shadowupdate_tid;
 
 	char* uid_domain;
 	char* fs_domain;

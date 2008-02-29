@@ -134,14 +134,6 @@ JICLocal::bytesReceived( void )
 
 
 void
-JICLocal::allJobsSpawned( void )
-{
-		// at this point, we don't care that all the jobs have been
-		// spawned...
-}
-
-
-void
 JICLocal::Suspend( void )
 {
 		// We need the update ad for our job.  We'll use this for the
@@ -172,9 +164,10 @@ JICLocal::Continue( void )
 bool
 JICLocal::allJobsDone( void )
 {
-		// we don't care about anything at this stage.  we'll tell the
-		// user about the jobs exiting when we get the notifyJobExit()
-	return true;
+		// We don't care about anything at this stage.  We'll tell the
+		// user about the jobs exiting when notifyJobExit() is called.
+		// So, just give the base class a chance to do its own thing.
+	return JobInfoCommunicator::allJobsDone();
 }
 
 
