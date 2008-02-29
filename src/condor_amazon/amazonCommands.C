@@ -60,6 +60,9 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		one_line.chomp();
 		one_line.trim();
 
+		read_something = true;
+		dprintf(D_FULLDEBUG, "__systemCommand got : %s\n", one_line.Value());
+
 		// find error line
 		if( !strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
 			has_error = true;
@@ -78,9 +81,6 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		}
 
 		output.append(one_line.Value());
-		read_something = true;
-
-		dprintf(D_FULLDEBUG, "__systemCommand got : %s\n", one_line.Value());
 	}
 	my_pclose(fp);
 
@@ -127,15 +127,23 @@ systemCommand(ArgList &args, const char *chdir_path, StringList &output, MyStrin
 		ecode = "";
 		tmp_result = __systemCommand(args, output, ecode);
 
+		if( ecode.IsEmpty() == true ) {
+			break;
+		}
+
+		MyString args_string;
+		args.GetArgsStringForDisplay(&args_string,0);
+
+		dprintf(D_ALWAYS, "Command(%s) got error code(%s)\n", 
+				args_string.Value(), ecode.Value());
+
 		if( strcasecmp(ecode.Value(), "InternalError") != 0 ) {
 			break;
 		}
 
 		// This is an internal error in either S3 or EC2
-		// So I will retry this command
-		MyString args_string;
-		args.GetArgsStringForDisplay(&args_string,0);
-		dprintf(D_ALWAYS, "Command(%s) got InternalError, so retrying it...\n", args_string.Value());
+		// So I will retry this command after one second
+		sleep(1);
 	}
 
 	if( chdir_path ) {
