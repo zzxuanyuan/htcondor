@@ -755,6 +755,20 @@ JobInfoCommunicator::periodicJobUpdateTimerHandler( void )
 bool
 JobInfoCommunicator::periodicJobUpdate(ClassAd* update_ad, bool insure_update)
 {
-		// TODO-hooks: invoke HOOK_UPDATE_JOB_INFO
+#if HAVE_JOB_HOOKS
+	if (m_hook_mgr) {
+		ClassAd ad;
+		ClassAd* update_ad_ptr = NULL;
+		if (update_ad) {
+			update_ad_ptr = update_ad;
+		}
+		else {
+			publishUpdateAd(&ad);
+			update_ad_ptr = &ad;
+		}
+		m_hook_mgr->hookUpdateJobInfo(update_ad_ptr);
+	}
+#endif
+
 	return true;
 }

@@ -57,8 +57,10 @@ public:
 		   Invoke HOOK_UPDATE_JOB_INFO to provide a periodic update
 		   for job information such as image size, CPU time, etc.
 		   Also called on temporary state changes like suspend/resume.
+		   @param job_info ClassAd of job info for the update.
+		   @return True if a hook is spawned, otherwise false.
 		*/
-	void hookUpdateJobInfo(ClassAd* job_info);
+	bool hookUpdateJobInfo(ClassAd* job_info);
 
 		/**
 		   Invoke HOOK_FINAL_JOB_INFO to tell the outside world the

@@ -147,6 +147,36 @@ StarterHookMgr::tryHookPrepareJob()
 }
 
 
+bool
+StarterHookMgr::hookUpdateJobInfo(ClassAd* job_info)
+{
+	if (!m_hook_update_job_info) {
+			// No need to dprintf() here, since this happens a lot.
+		return false;
+	}
+	ASSERT(job_info);
+
+	MyString hook_stdin;
+	job_info->sPrint(hook_stdin);
+
+		// Since we're not saving the output, this can just live on
+        // the stack and be destroyed as soon as we return.
+    HookClient hook_client(m_hook_update_job_info, false);
+
+	if (!spawn(&hook_client, NULL, &hook_stdin)) {
+		dprintf(D_ALWAYS|D_FAILURE,
+				"ERROR in StarterHookMgr::hookUpdateJobInfo: "
+				"failed to spawn HOOK_UPDATE_JOB_INFO (%s)\n",
+				m_hook_update_job_info);
+		return false;
+	}
+
+	dprintf(D_FULLDEBUG, "HOOK_PREPARE_JOB (%s) invoked.\n",
+			m_hook_prepare_job);
+	return true;
+}
+
+
 // // // // // // // // // // // //
 // HookPrepareJobClient class
 // // // // // // // // // // // //
