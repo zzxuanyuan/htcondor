@@ -22,6 +22,7 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "condor_config.h"
 #include "starter.h"
 #include "StarterHookMgr.h"
 #include "condor_attributes.h"
@@ -82,11 +83,23 @@ StarterHookMgr::clearHookPaths()
 bool
 StarterHookMgr::initialize(ClassAd* job_ad)
 {
-	if (!job_ad->LookupString(ATTR_HOOK_KEYWORD, &m_hook_keyword)) {
+	char* tmp = param("STARTER_HOOK_KEYWORD");
+	if (tmp) {
+		m_hook_keyword = tmp;
+		dprintf(D_FULLDEBUG,
+				"Using STARTER_HOOK_KEYWORD value from config file: \"%s\"\n",
+				m_hook_keyword);
+	}
+	else if (!job_ad->LookupString(ATTR_HOOK_KEYWORD, &m_hook_keyword)) {
 		dprintf(D_FULLDEBUG,
 				"Job does not define %s, not invoking any job hooks.\n",
 				ATTR_HOOK_KEYWORD);
 		return false;
+	}
+	else {
+		dprintf(D_FULLDEBUG,
+				"Using %s value from job ClassAd: \"%s\"\n",
+				ATTR_HOOK_KEYWORD, m_hook_keyword);
 	}
 	reconfig();
 	return HookClientMgr::initialize();
