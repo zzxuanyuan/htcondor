@@ -29,7 +29,7 @@
 #include "enum_utils.h"
 
 class HookPrepareJobClient;
-class HookFinalJobInfoClient;
+class HookJobExitClient;
 class HookEvictJobClient;
 
 
@@ -63,14 +63,14 @@ public:
 	bool hookUpdateJobInfo(ClassAd* job_info);
 
 		/**
-		   Invoke HOOK_FINAL_JOB_INFO to tell the outside world the
+		   Invoke HOOK_JOB_EXIT to tell the outside world the
 		   final status of a given job, including the exit status,
 		   total CPU time, final image size, etc.  The starter will
 		   wait until this hook returns before exiting, although all
 		   output from the hook is ignored, including the exit status.
 		 */
-	bool tryHookFinalJobInfo(ClassAd* job_info);
-	bool handleHookFinalJobInfo();
+	bool tryHookJobExit(ClassAd* job_info);
+	bool handleHookJobExit();
 
 		/**
 		   Invoke HOOK_EVICT_JOB to tell the outside world that a
@@ -93,8 +93,8 @@ private:
 	char* m_hook_prepare_job;
 		/// The path to HOOK_UPDATE_JOB_INFO, if defined.
 	char* m_hook_update_job_info;
-		/// The path to HOOK_FINAL_JOB_INFO, if defined.
-	char* m_hook_final_job_info;
+		/// The path to HOOK_JOB_EXIT, if defined.
+	char* m_hook_job_exit;
 		/// The path to HOOK_EVICT_JOB, if defined.
 	char* m_hook_evict_job;
 
@@ -132,14 +132,14 @@ public:
 
 
 /**
-   Manages an invocation of HOOK_FINAL_JOB_INFO.
+   Manages an invocation of HOOK_JOB_EXIT.
 */
-class HookFinalJobInfoClient : public HookClient
+class HookJobExitClient : public HookClient
 {
 public:
 	friend class StarterHookMgr;
 
-	HookFinalJobInfoClient(const char* hook_path);
+	HookJobExitClient(const char* hook_path);
 	virtual void hookExited(int exit_status);
 };
 

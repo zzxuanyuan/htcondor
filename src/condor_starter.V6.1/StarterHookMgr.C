@@ -42,7 +42,7 @@ StarterHookMgr::StarterHookMgr()
 	m_hook_keyword = NULL;
 	m_hook_prepare_job = NULL;
 	m_hook_update_job_info = NULL;
-	m_hook_final_job_info = NULL;
+	m_hook_job_exit = NULL;
 	m_hook_evict_job = NULL;
 
 	dprintf( D_FULLDEBUG, "Instantiating a StarterHookMgr\n" );
@@ -71,8 +71,8 @@ StarterHookMgr::clearHookPaths()
 	if (m_hook_update_job_info) {
 		free(m_hook_update_job_info);
 	}
-	if (m_hook_final_job_info) {
-		free(m_hook_final_job_info);
+	if (m_hook_job_exit) {
+		free(m_hook_job_exit);
 	}
 	if (m_hook_evict_job) {
 		free(m_hook_evict_job);
@@ -112,7 +112,7 @@ StarterHookMgr::reconfig()
 
 	m_hook_prepare_job = getHookPath(HOOK_PREPARE_JOB);
 	m_hook_update_job_info = getHookPath(HOOK_UPDATE_JOB_INFO);
-	m_hook_final_job_info = getHookPath(HOOK_FINAL_JOB_INFO);
+	m_hook_job_exit = getHookPath(HOOK_JOB_EXIT);
 	m_hook_evict_job = getHookPath(HOOK_EVICT_JOB);
 
 	return true;
@@ -216,10 +216,10 @@ HookPrepareJobClient::hookExited(int exit_status) {
 
 
 // // // // // // // // // // // //
-// HookFinalJobInfoClient class
+// HookJobExitClient class
 // // // // // // // // // // // //
 
-HookFinalJobInfoClient::HookFinalJobInfoClient(const char* hook_path)
+HookJobExitClient::HookJobExitClient(const char* hook_path)
 	: HookClient(hook_path, true)
 {
 		// Nothing special needed in the child class.
@@ -227,7 +227,7 @@ HookFinalJobInfoClient::HookFinalJobInfoClient(const char* hook_path)
 
 
 void
-HookFinalJobInfoClient::hookExited(int exit_status) {
+HookJobExitClient::hookExited(int exit_status) {
 	HookClient::hookExited(exit_status);
 		// TODO
 }

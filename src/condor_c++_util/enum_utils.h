@@ -58,7 +58,7 @@ typedef enum {
     HOOK_EVICT_CLAIM,
     HOOK_PREPARE_JOB,
     HOOK_UPDATE_JOB_INFO,
-    HOOK_FINAL_JOB_INFO,
+    HOOK_JOB_EXIT,
     HOOK_EVICT_JOB,
 } HookType;
 
