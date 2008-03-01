@@ -38,9 +38,9 @@ public:
 			process as head. */
 	virtual int StartJob();
 
-		/** call OsProc::JobCleanup(); make certain all decendants are
+		/** call OsProc::JobReaper(); make certain all decendants are
 			dead with family->hardkill() */
-	virtual int JobCleanup(int pid, int status);
+	virtual bool JobReaper(int pid, int status);
 
 		/** Call family->suspend() */
 	virtual void Suspend();

@@ -310,13 +310,13 @@ ScriptProc::StartJob()
 
 
 
-int
-ScriptProc::JobCleanup( int pid, int status )
+bool
+ScriptProc::JobReaper( int pid, int status )
 {
-	dprintf( D_FULLDEBUG, "Inside ScriptProc::JobCleanup()\n" );
+	dprintf( D_FULLDEBUG, "Inside ScriptProc::JobReaper()\n" );
 
 	if( JobPid != pid ) {		
-		return 0;
+		return false;
 	}
 
 	job_exit_time.getTime();
@@ -324,7 +324,7 @@ ScriptProc::JobCleanup( int pid, int status )
 		// save the exit status for future use.
 	exit_status = status;
 
-	return 1;
+	return true;
 }
 
 

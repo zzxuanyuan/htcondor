@@ -175,10 +175,10 @@ VanillaProc::PublishUpdateAd( ClassAd* ad )
 }
 
 
-int
-VanillaProc::JobCleanup(int pid, int status)
+bool
+VanillaProc::JobReaper(int pid, int status)
 {
-	dprintf(D_FULLDEBUG,"in VanillaProc::JobCleanup()\n");
+	dprintf(D_FULLDEBUG,"in VanillaProc::JobReaper()\n");
 
 		// make sure that nothing was left behind
 	if (pid == JobPid) {
@@ -186,7 +186,7 @@ VanillaProc::JobCleanup(int pid, int status)
 	}
 
 		// This will reset num_pids for us, too.
-	return OsProc::JobCleanup( pid, status );
+	return OsProc::JobReaper( pid, status );
 }
 
 
@@ -272,7 +272,7 @@ VanillaProc::ShutdownFast()
 
 	// this used to be the only place where we would clean up the process
 	// family. this, however, wouldn't properly clean up local universe jobs
-	// so a call to Kill_Family has been added to JobCleanup(). i'm not sure
+	// so a call to Kill_Family has been added to JobReaper(). i'm not sure
 	// that this call is still needed, but am unwilling to remove it on the
 	// eve of Condor 7
 	//   -gquinn, 2007-11-14

@@ -515,13 +515,13 @@ OsProc::StartJob(FamilyInfo* family_info)
 }
 
 
-int
-OsProc::JobCleanup( int pid, int status )
+bool
+OsProc::JobReaper( int pid, int status )
 {
-	dprintf( D_FULLDEBUG, "Inside OsProc::JobCleanup()\n" );
+	dprintf( D_FULLDEBUG, "Inside OsProc::JobReaper()\n" );
 
 	if( JobPid != pid ) {		
-		return 0;
+		return false;
 	}
 
 	job_exit_time.getTime();
@@ -538,7 +538,7 @@ OsProc::JobCleanup( int pid, int status )
 		// core files back at the submit site.  
 	checkCoreFile();
 
-	return 1;
+	return true;
 }
 
 

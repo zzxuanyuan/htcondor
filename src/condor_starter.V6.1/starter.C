@@ -856,7 +856,7 @@ CStarter::jobWaitUntilExecuteTime( void )
 			//
 		dprintf( D_ALWAYS, "%s Aborting.\n", error.Value() );
 		OsProc proc( jobAd );
-		proc.JobCleanup( -1, JOB_MISSED_DEFERRAL_TIME );
+		proc.JobReaper( -1, JOB_MISSED_DEFERRAL_TIME );
 		this->jic->notifyJobExit( -1, JOB_MISSED_DEFERRAL_TIME, &proc );
 		this->allJobsDone();
 		ret = false;
@@ -1252,7 +1252,7 @@ CStarter::Reaper(int pid, int exit_status)
 				 WEXITSTATUS(exit_status) );
 	}
 
-	if( pre_script && pre_script->JobCleanup(pid, exit_status) ) {		
+	if( pre_script && pre_script->JobReaper(pid, exit_status) ) {		
 			// TODO: deal with shutdown case?!?
 		
 			// when the pre script exits, we know the JobList is going
@@ -1267,7 +1267,7 @@ CStarter::Reaper(int pid, int exit_status)
 		return TRUE;
 	}
 
-	if( post_script && post_script->JobCleanup(pid, exit_status) ) {		
+	if( post_script && post_script->JobReaper(pid, exit_status) ) {		
 			// when the post script exits, we know the JobList is going
 			// to be empty, so don't bother with any of the rest of
 			// this.  instead, the starter is now able to call
@@ -1280,7 +1280,7 @@ CStarter::Reaper(int pid, int exit_status)
 	JobList.Rewind();
 	while ((job = JobList.Next()) != NULL) {
 		all_jobs++;
-		if( job->GetJobPid()==pid && job->JobCleanup(pid, exit_status) ) {
+		if( job->GetJobPid()==pid && job->JobReaper(pid, exit_status) ) {
 			handled_jobs++;
 			JobList.DeleteCurrent();
 			CleanedUpJobList.Append(job);

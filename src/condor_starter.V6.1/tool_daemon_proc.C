@@ -287,10 +287,10 @@ ToolDaemonProc::StartJob()
 }
 
 
-int
-ToolDaemonProc::JobCleanup(int pid, int /*status*/)
+bool
+ToolDaemonProc::JobReaper(int pid, int /*status*/)
 {
-    dprintf( D_FULLDEBUG, "Inside ToolDaemonProc::JobCleanup()\n" );
+    dprintf( D_FULLDEBUG, "Inside ToolDaemonProc::JobReaper()\n" );
 
 		// If the tool exited, we want to shutdown everything, and
 		// also return a 1 so the CStarter knows it can put us on the
@@ -304,10 +304,10 @@ ToolDaemonProc::JobCleanup(int pid, int /*status*/)
 			        "error killing process family for job cleanup\n");
 		}
 
-		return 1;
+		return true;
     } 
 
-    return 0;
+    return false;
 }
 
 
