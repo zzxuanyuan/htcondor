@@ -139,9 +139,9 @@ public:
 		 **/
 	virtual int SpawnPreScript( void );
 
-		/** Does final cleanup once all the jobs (and post script, if
-			any) have completed.  This deals with everything on the
-			m_reaped_job_list, notifies the JIC, etc.
+		/** Does initial cleanup once all the jobs (and post script, if
+			any) have completed.  This notifies the JIC so it can
+			initiate HOOK_JOB_EXIT, file transfer, etc.
 		*/
 	virtual bool allJobsDone( void );
 
@@ -151,6 +151,27 @@ public:
 			@param exit_status The exit status of the dead pid
 		*/
 	virtual int Reaper(int pid, int exit_status);
+
+		/** Called after HOOK_JOB_EXIT returns (if defined), when
+			we're ready to transfer output.  This only initiates a
+			file transfer in the case of talking to a shadow, but it
+			helps keep the job exit code path sane to have this
+			function at this level of the code.  This basically just
+			turns around to invoke JIC::transferOutput(), but if that
+			fails, we assume we're disconnected and return to
+			DaemonCore, whereas if it succeeds, we know we're done
+			with the file transfer and can call cleanupJobs().
+		*/
+	virtual bool transferOutput( void );
+
+		/** Called after allJobsDone() and friends have finished doing
+			all of their work (invoking HOOK_JOB_EXIT, file transfer,
+			etc) when we're ready for the final cleanup of the jobs.
+			This iterates over all of the UserProc objects and invokes
+			JobExit() on each of them, removes them from the list, and
+			once everything is cleaned, calls JIC::allJobsGone().
+		*/
+	virtual bool cleanupJobs( void );
 
 		/** Return the Working dir */
 	const char *GetWorkingDir() const { return WorkingDir.Value(); }
@@ -202,6 +223,7 @@ public:
 	int classadCommand( int, Stream* );
 
 	int updateX509Proxy( int cmd, Stream* );
+
 protected:
 	List<UserProc> m_job_list;
 	List<UserProc> m_reaped_job_list;

@@ -161,16 +161,6 @@ JICLocal::Continue( void )
 }
 
 
-bool
-JICLocal::allJobsDone( void )
-{
-		// We don't care about anything at this stage.  We'll tell the
-		// user about the jobs exiting when notifyJobExit() is called.
-		// So, just give the base class a chance to do its own thing.
-	return JobInfoCommunicator::allJobsDone();
-}
-
-
 void
 JICLocal::allJobsGone( void )
 {

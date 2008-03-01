@@ -110,11 +110,10 @@ public:
 		*/
 	void Continue( void );
 
-		/** The last job this starter is controlling has exited.  Stop
-			the timer for updating the shadow, initiate the final file
-			transfer, if needed.
+		/** Once all the jobs are done, and after the optional
+			HOOK_JOB_EXIT has returned, initiate the file transfer.
 		*/
-	bool allJobsDone( void );
+	bool transferOutput( void );
 
 		/** The last job this starter is controlling has been
    			completely cleaned up.  We don't care, since we just wait

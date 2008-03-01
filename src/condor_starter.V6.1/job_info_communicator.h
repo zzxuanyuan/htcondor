@@ -193,6 +193,14 @@ public:
 		*/
 	virtual bool allJobsDone( void );
 
+		/** Once all the jobs are done, and after the optional
+			HOOK_JOB_EXIT has returned, we need a step to handle
+			internal file transfer for the output.  This only makes
+			sense for JICShadow, but we need this step to be included
+			in all JICs so that the code path during cleanup is sane.
+		*/
+	virtual bool transferOutput( void ) = 0;
+
 		/** The last job this starter is controlling has been
 			completely cleaned up.  Do whatever final work we want to
 			do to shutdown, notify others, etc.

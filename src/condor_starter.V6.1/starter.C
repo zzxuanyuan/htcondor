@@ -1322,9 +1322,21 @@ CStarter::Reaper(int pid, int exit_status)
 bool
 CStarter::allJobsDone( void )
 {
-		// No more jobs, notify our JobInfoCommunicator
-	static bool needs_jic_allJobsDone = true;
-	if( needs_jic_allJobsDone && ! jic->allJobsDone() ) {
+		// No more jobs, notify our JobInfoCommunicator.
+	if (jic->allJobsDone()) {
+			// JIC::allJobsDone returned true: we're ready to move on.
+		return transferOutput();
+	}
+		// JIC::allJobsDone() returned false: propagate that so we
+		// halt the cleanup process and wait for external events.
+	return false;
+}
+
+
+bool
+CStarter::transferOutput( void )
+{
+	if (!jic->transferOutput()) {
 			/*
 			  there was an error with the JIC in this step.  at this
 			  point, the only possible reason is if we're talking to a
@@ -1333,17 +1345,23 @@ CStarter::allJobsDone( void )
 			  other events (like the shadow reconnecting or the startd
 			  deciding the job lease expired and killing us)
 			*/
-
-		dprintf( D_ALWAYS, "JIC::allJobsDone() failed, waiting for job "
+		dprintf( D_ALWAYS, "JIC::transferOutput() failed, waiting for job "
 				 "lease to expire or for a reconnect attempt\n" );
 		return false;
 	}
-	needs_jic_allJobsDone = false;
 
-		// Now that we're done transfering files and/or doing all
-		// our cleanup, we can finally go through the
-		// m_reaped_job_list and call JobExit() on all the procs in
-		// there.
+		// If we're here, the JIC successfully transfered output.
+		// We're ready to move on to the next cleanup stage.
+	return cleanupJobs();
+}
+
+
+bool
+CStarter::cleanupJobs( void )
+{
+		// Now that we're done with HOOK_JOB_EXIT and transfering
+		// files, we can finally go through the m_reaped_job_list and
+		// call JobExit() on all the procs in there.
 	UserProc *job;
 	m_reaped_job_list.Rewind();
 	while( (job = m_reaped_job_list.Next()) != NULL) {

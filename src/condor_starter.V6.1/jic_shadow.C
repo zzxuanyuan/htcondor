@@ -335,10 +335,13 @@ JICShadow::Continue( void )
 
 
 bool
-JICShadow::allJobsDone( void )
+JICShadow::transferOutput( void )
 {
-		// Give the base class a chance to do its own thing.
-	JobInfoCommunicator::allJobsDone();
+		// make sure we only do this step once.
+	static bool did_transfer = false;
+	if (did_transfer) {
+		return true;
+	}
 
 		// transfer output files back if requested job really
 		// finished.  may as well do this in the foreground,
@@ -406,6 +409,11 @@ JICShadow::allJobsDone( void )
 			return false;
 		}
 	}
+		// Either the job doesn't need transfer, or we just succeeded.
+		// In both cases, we should record that we were successful so
+		// that if we ever come through here again to retry the whole
+		// job cleanup process we don't attempt to transfer again.
+	did_transfer = true;
 	return true;
 }
 

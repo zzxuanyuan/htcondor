@@ -252,8 +252,17 @@ JobInfoCommunicator::allJobsSpawned( void )
 bool
 JobInfoCommunicator::allJobsDone( void )
 {
+		// Make sure we only call this once so that in case we need to
+		// retry the job cleanup process, we don't repeat this step.
+	static bool did_all_jobs_done = false;
+	if (did_all_jobs_done) {
+		return true;
+	}
+
 		// Now that all the jobs are gone, we can stop our periodic updates.
 	cancelUpdateTimer();
+
+	did_all_jobs_done = true;
 	return true;
 }
 
