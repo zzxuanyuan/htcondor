@@ -83,12 +83,10 @@ StarterHookMgr::clearHookPaths()
 bool
 StarterHookMgr::initialize(ClassAd* job_ad)
 {
-	char* tmp = param("STARTER_HOOK_KEYWORD");
+	char* tmp = param("STARTER_JOB_HOOK_KEYWORD");
 	if (tmp) {
 		m_hook_keyword = tmp;
-		dprintf(D_FULLDEBUG,
-				"Using STARTER_HOOK_KEYWORD value from config file: \"%s\"\n",
-				m_hook_keyword);
+		dprintf(D_FULLDEBUG, "Using STARTER_JOB_HOOK_KEYWORD value from config file: \"%s\"\n", m_hook_keyword);
 	}
 	else if (!job_ad->LookupString(ATTR_HOOK_KEYWORD, &m_hook_keyword)) {
 		dprintf(D_FULLDEBUG,
