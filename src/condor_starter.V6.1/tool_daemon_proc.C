@@ -294,7 +294,7 @@ ToolDaemonProc::JobReaper(int pid, int /*status*/)
 
 		// If the tool exited, we want to shutdown everything, and
 		// also return a 1 so the CStarter knows it can put us on the
-		// CleanedUpJobList.
+		// m_reaped_job_list.
     if( JobPid == pid ) {	
 	
 		job_exit_time.getTime();

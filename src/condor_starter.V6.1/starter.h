@@ -74,23 +74,23 @@ public:
 		 * without the JIC thinking it was told from the outside
 		 *************************************************************/
 
-		/** Call Suspend() on all elements in JobList */
+		/** Call Suspend() on all elements in m_job_list */
 	virtual int RemoteSuspend( int );
 	virtual bool Suspend( void );
 
-		/** Call Continue() on all elements in JobList */
+		/** Call Continue() on all elements in m_job_list */
 	virtual int RemoteContinue( int );
 	virtual bool Continue( void );
 
-		/** Call Ckpt() on all elements in JobList */
+		/** Call Ckpt() on all elements in m_job_list */
 	virtual int RemotePeriodicCkpt( int );
 	virtual bool PeriodicCkpt( void );
 
-		/** Call Remove() on all elements in JobList */
+		/** Call Remove() on all elements in m_job_list */
 	virtual int RemoteRemove( int );
 	virtual bool Remove( void );
 
-		/** Call Hold() on all elements in JobList */
+		/** Call Hold() on all elements in m_job_list */
 	virtual int RemoteHold(int);
 	virtual bool Hold( void );
 
@@ -141,7 +141,7 @@ public:
 
 		/** Does final cleanup once all the jobs (and post script, if
 			any) have completed.  This deals with everything on the
-			CleanedUpJobList, notifies the JIC, etc.
+			m_reaped_job_list, notifies the JIC, etc.
 		*/
 	virtual bool allJobsDone( void );
 
@@ -203,8 +203,8 @@ public:
 
 	int updateX509Proxy( int cmd, Stream* );
 protected:
-	List<UserProc> JobList;
-	List<UserProc> CleanedUpJobList;
+	List<UserProc> m_job_list;
+	List<UserProc> m_reaped_job_list;
 
 private:
 
