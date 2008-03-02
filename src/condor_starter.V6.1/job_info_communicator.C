@@ -266,10 +266,13 @@ JobInfoCommunicator::allJobsDone( void )
 
 #if HAVE_JOB_HOOKS
 	if (m_hook_mgr) {
-		ClassAd job_info;
-			// TODO: publish real data.
+		static ClassAd* job_exit_ad = NULL;
+		if (!job_exit_ad) {
+			job_exit_ad = new ClassAd(*job_ad);
+			Starter->publishJobExitAd(job_exit_ad);
+		}
 		const char* exit_reason = "exited";  // TODO: get real reason.
-		int rval = m_hook_mgr->tryHookJobExit(&job_info, exit_reason);
+		int rval = m_hook_mgr->tryHookJobExit(job_exit_ad, exit_reason);
 		switch (rval) {
 		case -1:   // Error
 				// TODO: set a timer to retry allJobsDone()
