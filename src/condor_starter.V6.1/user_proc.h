@@ -57,7 +57,7 @@ public:
 			of jobs that are already reaped.
 		    @return true if this UserProc is no longer active, false if it is
 		*/
-	virtual bool JobReaper(int pid, int status) = 0;
+	virtual bool JobReaper(int pid, int status);
 
 		/** Job exits.  Starter has decided it's done with everything
 			it needs to do, and we can now notify the job's controller
@@ -126,6 +126,7 @@ protected:
 	int job_universe;
 	int exit_status;
 	bool requested_exit;
+	bool m_proc_exited;
 
 		/** This is the identifier for this UserProc.  It's used for
 			dprintf messages() and in some cases as a prefix for

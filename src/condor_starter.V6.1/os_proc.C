@@ -520,25 +520,17 @@ OsProc::JobReaper( int pid, int status )
 {
 	dprintf( D_FULLDEBUG, "Inside OsProc::JobReaper()\n" );
 
-	if( JobPid != pid ) {		
-		return false;
+	if (JobPid == pid) {
+			// clear out num_pids... everything under this process
+			// should now be gone
+		num_pids = 0;
+
+			// check to see if the job dropped a core file.  if so, we
+			// want to rename that file so that it won't clobber other
+			// core files back at the submit site.
+		checkCoreFile();
 	}
-
-	job_exit_time.getTime();
-
-		// save the exit status for future use.
-	exit_status = status;
-
-		// clear out num_pids... everything under this process should
-		// now be gone
-	num_pids = 0;
-
-		// check to see if the job dropped a core file.  if so, we
-		// want to rename that file so that it won't clobber other
-		// core files back at the submit site.  
-	checkCoreFile();
-
-	return true;
+	return UserProc::JobReaper(pid, status);
 }
 
 

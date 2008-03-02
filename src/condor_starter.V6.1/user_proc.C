@@ -47,6 +47,7 @@ UserProc::initialize( void )
 	JobPid = -1;
 	exit_status = -1;
 	requested_exit = false;
+	m_proc_exited = false;
 	job_universe = 0;  // we'll fill in a real value if we can...
 	if( JobAd ) {
 		initKillSigs();
@@ -97,6 +98,18 @@ UserProc::initKillSigs( void )
 	dprintf( D_FULLDEBUG, "%s HoldKillSignal: %d (%s)\n", 
 			 name ? name : "Main job", hold_kill_sig, 
 			 tmp ? tmp : "Unknown" );
+}
+
+
+bool
+UserProc::JobReaper(int pid, int status)
+{
+	if (JobPid == pid) {
+		m_proc_exited = true;
+		exit_status = status;
+		job_exit_time.getTime();
+	}
+	return m_proc_exited;
 }
 
 
