@@ -311,7 +311,7 @@ StartdHookMgr::hookReplyClaim(bool claimed, ClassAd* job_ad, Resource* rip)
 
 		// Since we're not saving the output, this can just live on
 		// the stack and be destroyed as soon as we return.
-	HookClient hook_client(hook_path, false);
+	HookClient hook_client(HOOK_REPLY_CLAIM, hook_path, false);
 
 		// Construct the output to write to STDIN.
 	MyString hook_stdin;
@@ -343,7 +343,7 @@ StartdHookMgr::hookEvictClaim(Resource* rip)
 
 		// Since we're not saving the output, this can just live on
 		// the stack and be destroyed as soon as we return.
-	HookClient hook_client(hook_path, false);
+	HookClient hook_client(HOOK_EVICT_CLAIM, hook_path, false);
 
 		// Construct the output to write to STDIN.
 	MyString hook_stdin;
@@ -365,7 +365,7 @@ StartdHookMgr::hookEvictClaim(Resource* rip)
 // // // // // // // // // // // // 
 
 FetchClient::FetchClient(Resource* rip, const char* hook_path)
-	: HookClient(hook_path, true)
+	: HookClient(HOOK_FETCH_WORK, hook_path, true)
 {
 	m_rip = rip;
 	m_job_ad = NULL;

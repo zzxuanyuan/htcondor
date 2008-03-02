@@ -23,8 +23,11 @@
 #include "status_string.h"
 
 
-HookClient::HookClient(const char* hook_path, bool wants_output) {
+HookClient::HookClient(HookType hook_type, const char* hook_path,
+					   bool wants_output)
+{
 	m_hook_path = strdup(hook_path);
+	m_hook_type = hook_type;
 	m_pid = -1;
 	m_exit_status = -1;
 	m_has_exited = false;

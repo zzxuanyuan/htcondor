@@ -21,17 +21,19 @@
 #define _CONDOR_HOOK_CLIENT_H
 
 #include "condor_common.h"
+#include "enum_utils.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 class HookClient : public Service
 {
 public:
-	HookClient(const char* hook_path, bool wants_output);
+	HookClient(HookType hook_type, const char* hook_path, bool wants_output);
 	virtual ~HookClient();
 
 		// Functions to retrieve data about this client.
 	int getPid() {return m_pid;};
 	const char* path() {return (const char*)m_hook_path;};
+	HookType type() {return m_hook_type;};
 	bool wantsOutput() {return m_wants_output;};
 	MyString* getStdOut();
 	MyString* getStdErr();
@@ -49,6 +51,7 @@ public:
 
 protected:
 	char* m_hook_path;
+	HookType m_hook_type;
 	int m_pid;
 	MyString m_std_out;
 	MyString m_std_err;

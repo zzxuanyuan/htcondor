@@ -172,9 +172,9 @@ StarterHookMgr::hookUpdateJobInfo(ClassAd* job_info)
 
 		// Since we're not saving the output, this can just live on
         // the stack and be destroyed as soon as we return.
-    HookClient hook_client(m_hook_update_job_info, false);
+    HookClient client(HOOK_UPDATE_JOB_INFO, m_hook_update_job_info, false);
 
-	if (!spawn(&hook_client, NULL, &hook_stdin)) {
+	if (!spawn(&client, NULL, &hook_stdin)) {
 		dprintf(D_ALWAYS|D_FAILURE,
 				"ERROR in StarterHookMgr::hookUpdateJobInfo: "
 				"failed to spawn HOOK_UPDATE_JOB_INFO (%s)\n",
@@ -193,7 +193,7 @@ StarterHookMgr::hookUpdateJobInfo(ClassAd* job_info)
 // // // // // // // // // // // //
 
 HookPrepareJobClient::HookPrepareJobClient(const char* hook_path)
-	: HookClient(hook_path, true)
+	: HookClient(HOOK_PREPARE_JOB, hook_path, true)
 {
 		// Nothing special needed in the child class.
 }
@@ -220,7 +220,7 @@ HookPrepareJobClient::hookExited(int exit_status) {
 // // // // // // // // // // // //
 
 HookJobExitClient::HookJobExitClient(const char* hook_path)
-	: HookClient(hook_path, true)
+	: HookClient(HOOK_JOB_EXIT, hook_path, true)
 {
 		// Nothing special needed in the child class.
 }
@@ -238,7 +238,7 @@ HookJobExitClient::hookExited(int exit_status) {
 // // // // // // // // // // // //
 
 HookEvictJobClient::HookEvictJobClient(const char* hook_path)
-	: HookClient(hook_path, true)
+	: HookClient(HOOK_EVICT_JOB, hook_path, true)
 {
 		// Nothing special needed in the child class.
 }
@@ -249,5 +249,3 @@ HookEvictJobClient::hookExited(int exit_status) {
 	HookClient::hookExited(exit_status);
 		// TODO
 }
-
-
