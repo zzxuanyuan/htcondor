@@ -739,7 +739,7 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 	dprintf( D_FULLDEBUG, "Inside OsProc::PublishUpdateAd()\n" );
 	MyString buf;
 
-	if( exit_status >= 0 ) {
+	if (m_proc_exited) {
 		buf.sprintf( "%s=\"Exited\"", ATTR_JOB_STATE );
 	} else if( is_checkpointed ) {
 		buf.sprintf( "%s=\"Checkpointed\"", ATTR_JOB_STATE );
@@ -753,7 +753,7 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 	buf.sprintf( "%s=%d", ATTR_NUM_PIDS, num_pids );
 	ad->Insert( buf.Value() );
 
-	if( exit_status >= 0 ) {
+	if (m_proc_exited) {
 		if( dumped_core ) {
 			buf.sprintf( "%s = True", ATTR_JOB_CORE_DUMPED );
 			ad->Insert( buf.Value() );

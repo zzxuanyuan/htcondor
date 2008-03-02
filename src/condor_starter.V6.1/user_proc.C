@@ -130,7 +130,7 @@ UserProc::PublishUpdateAd( ClassAd* ad )
 		ad->Insert( buf );
 	}
 
-	if( exit_status >= 0 ) {
+	if (m_proc_exited) {
 
 		if( job_exit_time.seconds() > 0 ) {
 			sprintf( buf, "%s%s=%f", name ? name : "", ATTR_JOB_DURATION, 
@@ -174,7 +174,7 @@ UserProc::PublishUpdateAd( ClassAd* ad )
 void
 UserProc::PublishToEnv( Env* proc_env )
 {
-	if( exit_status >= 0 ) {
+	if (m_proc_exited) {
 			// TODO: what should these really be called?  use
 			// myDistro?  mySubSystem?  hard to say...
 		MyString base;
