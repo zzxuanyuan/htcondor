@@ -151,11 +151,11 @@ VanillaProc::PublishUpdateAd( ClassAd* ad )
 	dprintf( D_FULLDEBUG, "In VanillaProc::PublishUpdateAd()\n" );
 
 	ProcFamilyUsage* usage;
+	ProcFamilyUsage cur_usage;
 	if (m_proc_exited) {
 		usage = &m_final_usage;
 	}
 	else {
-		ProcFamilyUsage cur_usage;
 		if (daemonCore->Get_Family_Usage(JobPid, cur_usage) == FALSE) {
 			dprintf(D_ALWAYS, "error getting family usage in "
 					"VanillaProc::PublishUpdateAd() for pid %d\n", JobPid);
