@@ -187,6 +187,15 @@ public:
 	bool publishPreScriptUpdateAd( ClassAd* ad );
 	bool publishPostScriptUpdateAd( ClassAd* ad );
 
+		/**
+		   Publish all attributes once the jobs have exited into the
+		   given ClassAd.  Walk through all the reaped UserProc
+		   objects and have them publish.
+		   @param ad pointer to the classad to publish into
+		   @return true if we published any info, false if not.
+		*/
+	bool publishJobExitAd( ClassAd* ad );
+
 		/** Put all the environment variables we'd want a Proc to have
 			into the given Env object.  This will figure out what Proc
 			objects we've got and will call their respective
@@ -241,6 +250,22 @@ private:
 		/// Special cleanup for exiting after being invoked via glexec
 	void exitAfterGlexec( int code );
 #endif
+
+		/**
+		   Iterate through a UserProc list and have each UserProc
+		   publish itself to the given ClassAd.
+
+		   @param proc_list List of UserProc objects to iterate.
+		   @param ad ClassAd to publish info into.
+
+		   @return true if we published anything, otherwise false.
+
+		   @see CStarter::publishUpdateAd()
+		   @see CStarter::publishJobExitAd()
+		   @see UserProc::PublishUpdateAd()
+		*/
+	bool publishJobInfoAd(List<UserProc>* proc_list, ClassAd* ad);
+
 
 		// // // // // // // //
 		// Private Data Members

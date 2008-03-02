@@ -1388,7 +1388,20 @@ CStarter::cleanupJobs( void )
 bool
 CStarter::publishUpdateAd( ClassAd* ad )
 {
+	return publishJobInfoAd(&m_job_list, ad);
+}
 
+
+bool
+CStarter::publishJobExitAd( ClassAd* ad )
+{
+	return publishJobInfoAd(&m_reaped_job_list, ad);
+}
+
+
+bool
+CStarter::publishJobInfoAd(List<UserProc>* proc_list, ClassAd* ad)
+{
 		// Iterate through all our UserProcs and have those publish,
 		// as well.  This method is virtual, so we'll get all the
 		// goodies from derived classes, as well.  If any of them put
@@ -1398,8 +1411,8 @@ CStarter::publishUpdateAd( ClassAd* ad )
 		found_one = true;
 	}
 	UserProc *job;
-	m_job_list.Rewind();
-	while ((job = m_job_list.Next()) != NULL) {
+	proc_list->Rewind();
+	while ((job = proc_list->Next()) != NULL) {
 		if( job->PublishUpdateAd(ad) ) {
 			found_one = true;
 		}
