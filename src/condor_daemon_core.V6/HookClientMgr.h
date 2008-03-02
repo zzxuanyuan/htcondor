@@ -47,14 +47,19 @@ public:
 		*/
 	int reaperIgnore(int exit_pid, int exit_status);
 
+protected:
+		/**
+		   List of HookClient objects we've spawned and are waiting
+		   for output from.
+		*/
+    SimpleList<HookClient*> m_client_list;
+
 private:
 		/// DC reaper ID. @see reaperIgnore()
 	int m_reaper_ignore_id;
 
 		/// DC reaper ID. @see reaperOutput()
 	int m_reaper_output_id;
-
-    SimpleList<HookClient*> m_client_list;
 
 };
 
