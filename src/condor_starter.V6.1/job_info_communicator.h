@@ -486,6 +486,13 @@ private:
 	int m_periodic_job_update_tid;
 
 	bool m_allJobsDone_finished;
+
+		/**
+		   @return The exit reason string representing what happened to
+		     the job.  Possible values: "exit" (on its own), "hold",
+		     "remove", or "evict" (PREEMPT, condor_vacate, condor_off).
+		*/
+	const char* getExitReasonString( void );
 };
 
 

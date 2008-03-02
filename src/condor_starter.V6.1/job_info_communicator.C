@@ -271,7 +271,7 @@ JobInfoCommunicator::allJobsDone( void )
 			job_exit_ad = new ClassAd(*job_ad);
 			Starter->publishJobExitAd(job_exit_ad);
 		}
-		const char* exit_reason = "exited";  // TODO: get real reason.
+		const char* exit_reason = getExitReasonString();
 		int rval = m_hook_mgr->tryHookJobExit(job_exit_ad, exit_reason);
 		switch (rval) {
 		case -1:   // Error
@@ -824,4 +824,20 @@ JobInfoCommunicator::periodicJobUpdate(ClassAd* update_ad, bool insure_update)
 #endif
 
 	return true;
+}
+
+
+const char*
+JobInfoCommunicator::getExitReasonString( void )
+{
+	if (requested_exit == true) {
+		if (had_hold) {
+			return "hold";
+		}
+		else if (had_remove) {
+			return "remove";
+		}
+		return "evict";
+	}
+	return "exit";
 }
