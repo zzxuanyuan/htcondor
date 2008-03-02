@@ -193,6 +193,15 @@ public:
 		*/
 	virtual bool allJobsDone( void );
 
+#if HAVE_JOB_HOOKS
+		/**
+		   Non-blocking API for allJobsDone().  This is called by the
+		   handler for HOOK_JOB_EXIT so that the JIC knows the hook
+		   is done and can resume the job cleanup process.
+		*/
+	void finishAllJobsDone( void );
+#endif /* HAVE_JOB_HOOKS */
+
 		/** Once all the jobs are done, and after the optional
 			HOOK_JOB_EXIT has returned, we need a step to handle
 			internal file transfer for the output.  This only makes
@@ -475,6 +484,8 @@ private:
 
 		/// timer id for periodically sending info on job to Shadow
 	int m_periodic_job_update_tid;
+
+	bool m_allJobsDone_finished;
 };
 
 

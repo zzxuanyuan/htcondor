@@ -188,6 +188,60 @@ StarterHookMgr::hookUpdateJobInfo(ClassAd* job_info)
 }
 
 
+int
+StarterHookMgr::tryHookJobExit(ClassAd* job_info, const char* exit_reason)
+{
+	if (!m_hook_job_exit) {
+		static bool logged_not_configured = false;
+		if (!logged_not_configured) {
+			dprintf(D_FULLDEBUG, "HOOK_JOB_EXIT not configured.\n");
+			logged_not_configured = true;
+		}
+		return 0;
+	}
+
+	HookClient *hook_client;
+
+		// Next, in case of retry, make sure we didn't already spawn
+		// this hook and are just waiting for it to return.
+    m_client_list.Rewind();
+    while (m_client_list.Next(hook_client)) {
+		if (hook_client->type() == HOOK_JOB_EXIT) {
+			dprintf(D_FULLDEBUG, 
+					"StarterHookMgr::tryHookJobExit() retried while still "
+					"waiting for HOOK_JOB_EXIT to return - ignoring\n");
+				// We want to return 1 here to indicate to the JIC
+				// that the hook is currently running and it should
+				// wait before moving on.
+			return 1;
+		}
+	}
+
+	ASSERT(job_info);
+	ASSERT(exit_reason);
+
+	MyString hook_stdin;
+	job_info->sPrint(hook_stdin);
+
+	ArgList args;
+	args.AppendArg(exit_reason);
+
+	hook_client = new HookJobExitClient(m_hook_job_exit);
+
+	if (!spawn(hook_client, &args, &hook_stdin)) {
+		dprintf(D_ALWAYS|D_FAILURE,
+				"ERROR in StarterHookMgr::tryHookJobExit: "
+				"failed to spawn HOOK_JOB_EXIT (%s)\n", m_hook_job_exit);
+		return -1;
+	}
+
+	dprintf(D_FULLDEBUG, "HOOK_JOB_EXIT (%s) invoked with reason: \"%s\"\n",
+			m_hook_job_exit, exit_reason);
+	return 1;
+}
+
+
+
 // // // // // // // // // // // //
 // HookPrepareJobClient class
 // // // // // // // // // // // //
@@ -229,7 +283,8 @@ HookJobExitClient::HookJobExitClient(const char* hook_path)
 void
 HookJobExitClient::hookExited(int exit_status) {
 	HookClient::hookExited(exit_status);
-		// TODO
+		// Tell the JIC that it can mark allJobsDone() finished.
+	Starter->jic->finishAllJobsDone();
 }
  
 

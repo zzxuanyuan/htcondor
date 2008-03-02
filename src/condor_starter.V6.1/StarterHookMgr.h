@@ -68,9 +68,18 @@ public:
 		   total CPU time, final image size, etc.  The starter will
 		   wait until this hook returns before exiting, although all
 		   output from the hook is ignored, including the exit status.
+
+		   @param job_info ClassAd of final info about the job.
+		   @param exit_reason String explaining why the job exited.
+		     Possible values: "exit" (on its own), "hold", "remove",
+			 or "evict" (PREEMPT, condor_vacate, condor_off, etc).
+			 This string is passed as argv[1] for the hook.
+
+		   @return 1 if we spawned the hook or it's already running,
+		     0 if we're not configured to use this hook for the job's
+		     hook keyword, or -1 on error.
 		 */
-	bool tryHookJobExit(ClassAd* job_info);
-	bool handleHookJobExit();
+	int tryHookJobExit(ClassAd* job_info, const char* exit_reason);
 
 		/**
 		   Invoke HOOK_EVICT_JOB to tell the outside world that a

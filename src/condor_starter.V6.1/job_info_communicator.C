@@ -60,6 +60,7 @@ JobInfoCommunicator::JobInfoCommunicator()
     m_hook_mgr = NULL;
 #endif
 	m_periodic_job_update_tid = -1;
+	m_allJobsDone_finished = false;
 }
 
 
@@ -254,17 +255,57 @@ JobInfoCommunicator::allJobsDone( void )
 {
 		// Make sure we only call this once so that in case we need to
 		// retry the job cleanup process, we don't repeat this step.
-	static bool did_all_jobs_done = false;
-	if (did_all_jobs_done) {
+	if (m_allJobsDone_finished) {
 		return true;
 	}
 
 		// Now that all the jobs are gone, we can stop our periodic updates.
+		// It's safe to call this multiple times since it's just a no-op if
+		// the timer is already canceled.
 	cancelUpdateTimer();
 
-	did_all_jobs_done = true;
+#if HAVE_JOB_HOOKS
+	if (m_hook_mgr) {
+		ClassAd job_info;
+			// TODO: publish real data.
+		const char* exit_reason = "exited";  // TODO: get real reason.
+		int rval = m_hook_mgr->tryHookJobExit(&job_info, exit_reason);
+		switch (rval) {
+		case -1:   // Error
+				// TODO: set a timer to retry allJobsDone()
+			return false;
+			break;
+
+		case 0:    // Hook not configured
+				// Nothing to do, break out and finish.
+			break;
+
+		case 1:    // Spawned the hook.
+				// We need to bail now, and let the handler call
+				// finishAllJobsDone() when the hook returns.
+			return false;
+			break;
+		}
+	}
+#endif /* HAVE_JOB_HOOKS */
+
+		// If we're here, there was no hook and we're definitely done
+		// with this step, so remember that in case of retries.
+	m_allJobsDone_finished = true;
 	return true;
 }
+
+
+#if HAVE_JOB_HOOKS
+void
+JobInfoCommunicator::finishAllJobsDone( void )
+{
+		// Record the fact the hook finished.
+	m_allJobsDone_finished = true;
+		// Tell the starter to try job cleanup again so it can move on.
+	Starter->allJobsDone();
+}
+#endif /* HAVE_JOB_HOOKS */
 
 
 void
