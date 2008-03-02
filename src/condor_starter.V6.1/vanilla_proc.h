@@ -38,8 +38,9 @@ public:
 			process as head. */
 	virtual int StartJob();
 
-		/** call OsProc::JobReaper(); make certain all decendants are
-			dead with family->hardkill() */
+		/** Make certain all decendants are	dead via the ProcFamily,
+			save final usage statistics, and call OsProc::JobReaper().
+		*/
 	virtual bool JobReaper(int pid, int status);
 
 		/** Call family->suspend() */
@@ -64,6 +65,10 @@ public:
 			@return true if success, false if failure
 		*/
 	virtual bool PublishUpdateAd( ClassAd* ad );
+
+private:
+		/// Final usage stats for this proc and all its children.
+	ProcFamilyUsage m_final_usage;
 };
 
 #endif
