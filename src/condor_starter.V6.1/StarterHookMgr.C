@@ -146,9 +146,14 @@ StarterHookMgr::tryHookPrepareJob()
 	HookClient* hook_client = new HookPrepareJobClient(m_hook_prepare_job);
 
 	if (!spawn(hook_client, NULL, &hook_stdin)) {
+		MyString err_msg;
+		err_msg.sprintf("failed to execute HOOK_PREPARE_JOB (%s)",
+						m_hook_prepare_job);
 		dprintf(D_ALWAYS|D_FAILURE,
-				"ERROR in StarterHookMgr::tryHookPrepareJob: "
-				"failed to spawn HOOK_PREPARE_JOB (%s)\n", m_hook_prepare_job);
+				"ERROR in StarterHookMgr::tryHookPrepareJob: %s\n",
+				err_msg.Value());
+		Starter->jic->notifyStarterError(err_msg.Value(), true,
+						 CONDOR_HOLD_CODE_HookPrepareJobFailure, 0);
 		return -1;
 	}
 
@@ -257,10 +262,23 @@ void
 HookPrepareJobClient::hookExited(int exit_status) {
 	HookClient::hookExited(exit_status);
 	if (WIFSIGNALED(exit_status) || WEXITSTATUS(exit_status) != 0) {
-		MyString status_msg;
+		MyString status_msg = "";
 		statusString(exit_status, status_msg);
-		dprintf(D_ALWAYS|D_FAILURE, "HOOK_PREPARE_JOB failed (%s), aborting\n",
-				status_msg.Value());
+		int subcode;
+		if (WIFSIGNALED(exit_status)) {
+			subcode = -1 * WTERMSIG(exit_status);
+		}
+		else {
+			subcode = WEXITSTATUS(exit_status);
+		}
+		MyString err_msg;
+		err_msg.sprintf("HOOK_PREPARE_JOB (%s) failed (%s)", m_hook_path,
+						status_msg.Value());
+		dprintf(D_ALWAYS|D_FAILURE,
+				"ERROR in StarterHookMgr::tryHookPrepareJob: %s\n",
+				err_msg.Value());
+		Starter->jic->notifyStarterError(err_msg.Value(), true,
+							 CONDOR_HOLD_CODE_HookPrepareJobFailure, subcode);
 		Starter->RemoteShutdownFast(0);
 	}
 	else {
