@@ -60,6 +60,10 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		one_line.chomp();
 		one_line.trim();
 
+		if( one_line.IsEmpty() ) {
+			continue;
+		}
+
 		read_something = true;
 		dprintf(D_FULLDEBUG, "__systemCommand got : %s\n", one_line.Value());
 
