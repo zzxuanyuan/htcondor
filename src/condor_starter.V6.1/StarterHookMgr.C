@@ -28,6 +28,7 @@
 #include "condor_attributes.h"
 #include "hook_utils.h"
 #include "status_string.h"
+#include "classad_merge.h"
 
 extern CStarter *Starter;
 
@@ -172,8 +173,11 @@ StarterHookMgr::hookUpdateJobInfo(ClassAd* job_info)
 	}
 	ASSERT(job_info);
 
+	ClassAd update_ad(*(Starter->jic->jobClassAd()));
+	MergeClassAds(&update_ad, job_info, true);
+
 	MyString hook_stdin;
-	job_info->sPrint(hook_stdin);
+	update_ad.sPrint(hook_stdin);
 
 		// Since we're not saving the output, this can just live on
         // the stack and be destroyed as soon as we return.
