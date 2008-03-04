@@ -113,10 +113,11 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 }
 
 static bool 
-systemCommand(ArgList &args, const char *chdir_path, StringList &output, MyString &ecode)
+systemCommand(ArgList &args, StringList &output, MyString &ecode)
 {
 	bool tmp_result = false;
 
+	/*
 	if( chdir_path ) {
 		if( chdir(chdir_path) < 0 ) {
 			dprintf(D_ALWAYS, "Cannot switch dir to %s\n", chdir_path);
@@ -124,6 +125,7 @@ systemCommand(ArgList &args, const char *chdir_path, StringList &output, MyStrin
 			return -1;
 		}
 	}
+	*/
 
 	int i = 0;
 	for( i = 0; i < 3; i++ ) {
@@ -150,9 +152,11 @@ systemCommand(ArgList &args, const char *chdir_path, StringList &output, MyStrin
 		sleep(1);
 	}
 
+	/*
 	if( chdir_path ) {
 		chdir(get_working_dir());
 	}
+	*/
 
 	return tmp_result;
 }
@@ -459,7 +463,7 @@ bool AmazonVMStart::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -567,7 +571,7 @@ bool AmazonVMStop::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -668,7 +672,7 @@ bool AmazonVMReboot::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -771,7 +775,7 @@ bool AmazonVMStatus::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 	if( tmp_result == false ){
@@ -886,7 +890,7 @@ bool AmazonVMStatusAll::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1021,7 +1025,7 @@ bool AmazonVMCreateGroup::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1116,7 +1120,7 @@ bool AmazonVMDeleteGroup::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1201,7 +1205,7 @@ bool AmazonVMGroupNames::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1334,7 +1338,7 @@ bool AmazonVMGroupRules::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1477,7 +1481,7 @@ bool AmazonVMAddGroupRule::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1590,7 +1594,7 @@ bool AmazonVMDelGroupRule::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1696,7 +1700,7 @@ bool AmazonVMCreateKeypair::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1791,7 +1795,7 @@ bool AmazonVMDestroyKeypair::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1876,7 +1880,7 @@ bool AmazonVMKeypairNames::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -1982,7 +1986,7 @@ bool AmazonVMRegisterImage::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2077,7 +2081,7 @@ bool AmazonVMDeregisterImage::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2164,7 +2168,7 @@ bool AmazonS3AllBuckets::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2260,7 +2264,7 @@ bool AmazonS3CreateBucket::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2349,7 +2353,7 @@ bool AmazonS3DeleteBucket::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2437,7 +2441,7 @@ bool AmazonS3ListBucket::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2555,7 +2559,7 @@ bool AmazonS3UploadFile::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2681,7 +2685,7 @@ bool AmazonS3UploadDir::Request()
 
 		output.clearAll();
 		ecode = "";
-		tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+		tmp_result = systemCommand(systemcmd, output, ecode);
 
 		output.rewind();
 		if( tmp_result == false ){
@@ -2705,7 +2709,7 @@ bool AmazonS3UploadDir::Request()
 
 	output.clearAll();
 	ecode = "";
-	tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2797,7 +2801,7 @@ bool AmazonS3DeleteFile::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2893,7 +2897,7 @@ bool AmazonS3DownloadFile::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
@@ -2985,7 +2989,7 @@ bool AmazonS3DownloadBucket::Request()
 
 	StringList output;
 	MyString ecode;
-	bool tmp_result = systemCommand(systemcmd, m_amazon_lib_path.GetCStr(), output, ecode);
+	bool tmp_result = systemCommand(systemcmd, output, ecode);
 
 	output.rewind();
 
