@@ -28,9 +28,11 @@
 use strict;
 #use warnings;
 
+use FindBin();
+use lib "$FindBin::Bin";
+
 use File::Basename;
 use File::stat;
-
 
 use Getopt::Std;
 use Getopt::Long;
