@@ -277,7 +277,7 @@ print STDERR <<EOF;
 Usage: $progname command [parameters]
 
 EC2-Command         Parameters 
-start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> ]
+start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> -userdata <base64 encoded data> ]
 stop            -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 reboot          -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 status          -a <accesskeyfile> -s <secretkeyfile> [ -instanceid <instance-id> -amiid <ami-id> -group <groupname> ]
@@ -367,7 +367,7 @@ sub readAccessKey
 
 sub start
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> ]
+	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <base64 encoded data> ]
 	# On success, output will include "instanceID"
 	# On failure, output will include "error code".
 	#
@@ -377,6 +377,7 @@ sub start
 	my $secretfile = undef;
 	my $amiid = undef;
 	my $loginkeypair = undef;
+	my $userdata = undef;
 	my @groupname = ();
 
 	if( !GetOptions ('a=s' => \$accessfile, 
@@ -384,6 +385,7 @@ sub start
 			'id=s' => \$amiid, 
 			'id=s' => \$amiid, 
 			'key=s' => \$loginkeypair, 
+			'userdata=s' => \$userdata, 
 			'group=s@' => \@groupname )) {
 		usage();
 	}
@@ -422,6 +424,9 @@ sub start
 	}
 	if( @groupname ) {
 		$input_params{"SecurityGroup"} = [ @groupname ];
+	}
+	if( $userdata ) {
+		$input_params{"UserData"} = $userdata;
 	}
 
 	my $instance = $ec2->run_instances( %input_params );
