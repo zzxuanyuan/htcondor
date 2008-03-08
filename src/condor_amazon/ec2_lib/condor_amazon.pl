@@ -1095,7 +1095,7 @@ sub delgroup
 		printerror "You need to specify the private key file.";
 	}
 	if( ! $groupname ) {
-		printerror "You need to specify the name of the new group to create.";
+		printerror "You need to specify the name of the new group to remove.";
 	}
 
 	# Read access key file
