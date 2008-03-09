@@ -340,7 +340,7 @@ AmazonGroupRule::clearAll()
 AmazonRequest::AmazonRequest(const char* lib_path)
 {
 	m_amazon_lib_path = lib_path;
-	m_amazon_lib_prog = AMAZON_SCRIPT_NAME;
+	m_amazon_lib_prog.sprintf("%s%c%s", lib_path, DIR_DELIM_CHAR, AMAZON_SCRIPT_NAME);
 }
 
 AmazonRequest::~AmazonRequest() {}
