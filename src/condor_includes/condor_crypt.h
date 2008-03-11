@@ -21,26 +21,38 @@
 #ifndef CONDOR_CRYPTO
 #define CONDOR_CRYPTO
 
+#include "openssl/evp.h"
+
 #include "condor_common.h"
 
 #include "CryptKey.h"
 
-class Condor_Crypt_Base {
+class Condor_Crypt {
 
  public:
-    Condor_Crypt_Base(Protocol, const KeyInfo& key);
+    Condor_Crypt(const KeyInfo& key);
     //------------------------------------------
     // PURPOSE: Cryto base class constructor
     // REQUIRE: None
     // RETURNS: None
     //------------------------------------------
 
-    virtual ~Condor_Crypt_Base();
+    ~Condor_Crypt();
     //------------------------------------------
     // PURPOSE: Crypto base class destructor
     // REQUIRE: None
     // RETURNS: None
     //------------------------------------------
+
+    bool encrypt(unsigned char *  input, 
+                 int              input_len, 
+                 unsigned char *& output, 
+                 int&             output_len);
+
+    bool decrypt(unsigned char *  input, 
+                 int              input_len, 
+                 unsigned char *& output, 
+                 int&             output_len);
 
     static unsigned char * randomKey(int length = 24);
     static unsigned char * oneWayHashKey(const char * initialKey);
@@ -62,23 +74,13 @@ class Condor_Crypt_Base {
 
     const KeyInfo& get_key() { return keyInfo_; }
 
-    virtual void resetState() = 0;
+    void resetState();
     //------------------------------------------
     // PURPOSE: Reset encryption state. This is 
     //          required for UPD encryption
     // REQUIRE: None
     // RETURNS: None
     //------------------------------------------
-
-    virtual bool encrypt(unsigned char *   input, 
-                         int               input_len, 
-                         unsigned char *&  output, 
-                         int&              output_len) = 0;
-
-    virtual bool decrypt(unsigned char *  input, 
-                         int              input_len, 
-                         unsigned char *& output, 
-                         int&             output_len) = 0;
 
  protected:
     static int encryptedSize(int inputLength, int blockSize = 8);
@@ -92,13 +94,43 @@ class Condor_Crypt_Base {
     // RETURNS: size of the cipher text
     //------------------------------------------
 
+	bool operateCipher(unsigned char *  input, 
+					   int              input_len, 
+                       unsigned char *& output, 
+                       int&             output_len,
+					   int              encrypt_or_decrypt);
+
+
+
  protected:
-    Condor_Crypt_Base();
+    Condor_Crypt();
     //------------------------------------------
-    // Pricate constructor
+    // Private constructor
     //------------------------------------------
+
  private:
-    KeyInfo       keyInfo_;
+    KeyInfo              keyInfo_;
+	int                  cryptKeyLen_;
+	const EVP_CIPHER   * cryptCipher_;
+
+	unsigned char      * encryptKeyData_;
+	unsigned char      * decryptKeyData_;
+
+	unsigned char        encryptIVec_[EVP_MAX_IV_LENGTH];
+	unsigned char        decryptIVec_[EVP_MAX_IV_LENGTH];
+
+	EVP_CIPHER_CTX       encryptCtx_;
+	EVP_CIPHER_CTX       decryptCtx_;
+
+	// For legacy compatability:
+	des_key_schedule     keySchedule1_;
+	des_key_schedule     keySchedule2_;
+	des_key_schedule     keySchedule3_;
+	
+	BF_KEY               key_;
+
+	unsigned char        ivec_[8];
+	int                  num_;
 };
 
 #endif

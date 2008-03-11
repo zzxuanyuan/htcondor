@@ -1949,7 +1949,7 @@ newIdString( char** id_str_ptr )
 	id += '#';
 	id += sequence_num;
 	id += "#";
-	unsigned char *rand_bytes = Condor_Crypt_Base::randomKey(sizeof(int));
+	unsigned char *rand_bytes = Condor_Crypt::randomKey(sizeof(int));
 	id += *((unsigned int *)rand_bytes); // this is the "top-secret" cookie
 	free( rand_bytes );
 	*id_str_ptr = strdup( id.Value() );

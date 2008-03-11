@@ -132,8 +132,8 @@ Condor_Auth_Passwd::setupCrypto(unsigned char* key, const int keylen)
 	}
 
 		// This could be 3des -- maybe we should use "best crypto" indirection.
-	KeyInfo thekey(key,keylen,CONDOR_3DES);
-	m_crypto = new Condor_Crypt_3des(thekey);
+	KeyInfo thekey(key,keylen,CONDOR_AES256);
+	m_crypto = new Condor_Crypt(thekey);
 	return m_crypto ? true : false;
 }
 
@@ -942,7 +942,7 @@ Condor_Auth_Passwd::authenticate(const char * remoteHost,
 		dprintf(D_SECURITY, "PW: Generating ra.\n");
 	        
         if(client_status == AUTH_PW_A_OK) {
-			t_client.ra = Condor_Crypt_Base::randomKey(AUTH_PW_KEY_LEN);
+			t_client.ra = Condor_Crypt::randomKey(AUTH_PW_KEY_LEN);
 			if(!t_client.ra) {
 				dprintf(D_SECURITY, "Malloc error in random key?\n");
 				client_status = AUTH_PW_ERROR;
@@ -1023,7 +1023,7 @@ Condor_Auth_Passwd::authenticate(const char * remoteHost,
 			} else {
 				dprintf(D_SECURITY, "PW: Server generating rb.\n");
 		//server_status = server_gen_rand_rb(&t_server);
-	            t_server.rb = Condor_Crypt_Base::randomKey(AUTH_PW_KEY_LEN);
+	            t_server.rb = Condor_Crypt::randomKey(AUTH_PW_KEY_LEN);
 				if(t_client.a) {
 					t_server.a = strdup(t_client.a);
 				} else {
@@ -1746,8 +1746,8 @@ Condor_Auth_Passwd::set_session_key(struct msg_t_buf *t_buf, struct sk_buf *sk)
 
 	dprintf(D_SECURITY, "Key length: %d\n", key_len);
 		// Fill the key structure.
-	KeyInfo thekey(key,(int)key_len,CONDOR_3DES);
-	m_crypto = new Condor_Crypt_3des(thekey);
+	KeyInfo thekey(key,(int)key_len,CONDOR_AES256);
+	m_crypto = new Condor_Crypt(thekey);
 
 	if ( key ) free(key);	// KeyInfo makes a copy of the key
 

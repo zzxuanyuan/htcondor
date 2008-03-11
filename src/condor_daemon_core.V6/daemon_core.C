@@ -3713,14 +3713,14 @@ int DaemonCore::HandleReq(Stream *insock)
 							goto finalize;
 						}
 
-						unsigned char* rkey = Condor_Crypt_Base::randomKey(24);
-						unsigned char  rbuf[24];
+						unsigned char* rkey = Condor_Crypt::randomKey(EVP_MAX_KEY_LENGTH);
+						unsigned char  rbuf[EVP_MAX_KEY_LENGTH];
 						if (rkey) {
-							memcpy (rbuf, rkey, 24);
+							memcpy (rbuf, rkey, EVP_MAX_KEY_LENGTH);
 							// this was malloced in randomKey
 							free (rkey);
 						} else {
-							memset (rbuf, 0, 24);
+							memset (rbuf, 0, EVP_MAX_KEY_LENGTH);
 							dprintf ( D_SECURITY, "DC_AUTHENTICATE: unable to generate key - no crypto available!\n");							
 							free( crypto_method );
 							crypto_method = NULL;
@@ -3728,22 +3728,45 @@ int DaemonCore::HandleReq(Stream *insock)
 							goto finalize;
 						}
 
-						switch (toupper(crypto_method[0])) {
-							case 'B': // blowfish
-								dprintf (D_SECURITY, "DC_AUTHENTICATE: generating BLOWFISH key for session %s...\n", the_sid);
-								the_key = new KeyInfo(rbuf, 24, CONDOR_BLOWFISH);
-								break;
-							case '3': // 3des
-							case 'T': // Tripledes
-								dprintf (D_SECURITY, "DC_AUTHENTICATE: generating 3DES key for session %s...\n", the_sid);
-								the_key = new KeyInfo(rbuf, 24, CONDOR_3DES);
-								break;
-							default:
-								dprintf (D_SECURITY, "DC_AUTHENTICATE: generating RANDOM key for session %s...\n", the_sid);
-								the_key = new KeyInfo(rbuf, 24);
-								break;
+						Protocol prot = CONDOR_NO_PROTOCOL;
+						if(!stricmp(crypto_method, "blowfish")
+						   || !stricmp(crypto_method, "blowfish-legacy")) {
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "BLOWFISH key for session %s...\n", the_sid);
+							prot = CONDOR_BLOWFISH_PRE_EVP;
+						} else if(!stricmp(crypto_method, "3des")
+								  || !stricmp(crypto_method,"tripledes")
+								  || !stricmp(crypto_method,"3des-legacy") 
+								  || !stricmp(crypto_method,"tripledes-legacy")) {
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "3DES key for session %s...\n", the_sid);
+							prot = CONDOR_3DES_PRE_EVP;
+						} else if(!stricmp(crypto_method, "3des-new")) {
+							dprintf(D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "3DES key for session %s...\n", the_sid);
+							prot = CONDOR_3DES_EVP;
+						} else if(!stricmp(crypto_method, "blowfish-new")) {
+							dprintf(D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "BLOWFISH key for session %s...\n", the_sid);
+							prot = CONDOR_BLOWFISH_EVP;							
+						} else if(!stricmp(crypto_method, "AES256")) {
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "AES256 key for session %s...\n", the_sid);
+							prot = CONDOR_AES256;
+						} else if(!stricmp(crypto_method, "AES192")) {
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "AES192 key for session %s...\n", the_sid);
+							prot = CONDOR_AES192;
+						} else if(!stricmp(crypto_method, "AES128")) {
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "AES128 key for session %s...\n", the_sid);
+							prot = CONDOR_AES128;
+						} else {
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating "
+									 "RANDOM key for session %s...\n", the_sid);
 						}
 
+						the_key = new KeyInfo(rbuf, EVP_MAX_KEY_LENGTH, prot);
 						free( crypto_method );
 						crypto_method = NULL;
 

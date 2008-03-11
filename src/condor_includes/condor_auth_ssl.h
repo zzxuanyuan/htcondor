@@ -28,7 +28,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
 #include "condor_auth.h"        // Condor_Auth_Base class is defined here
-#include "condor_crypt_3des.h"
+#include "condor_crypt.h"
 
 #define AUTH_SSL_BUF_SIZE         1048576
 #define AUTH_SSL_ERROR            -1
@@ -114,7 +114,7 @@ class Condor_Auth_SSL : public Condor_Auth_Base {
 		/** This stores the shared session key produced as output of
 			the protocol. 
 		*/
-	Condor_Crypt_3des* m_crypto;
+	Condor_Crypt* m_crypto;
 
 		/** Produce the shared key object from raw key material.
 		 */

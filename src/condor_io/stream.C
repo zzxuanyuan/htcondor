@@ -25,8 +25,6 @@
 #include "condor_debug.h"
 
 #ifdef HAVE_EXT_OPENSSL
-#include "condor_crypt_blowfish.h"
-#include "condor_crypt_3des.h"
 #include "condor_md.h"                // Message authentication stuff
 #endif
 
@@ -1449,7 +1447,7 @@ Stream::get( int		&i)
 			for (int s=0; s < INT_SIZE-(int)sizeof(int); s++) { // chk 4 overflow
 				if (pad[s] != sign) {
                     dprintf(D_NETWORK,
-                            "Stream::get(int) incorrect pad received: %x\n",
+                            "Stream::get(int) incorrect pad received: %02x\n",
                             pad[s]);
 					return FALSE; // overflow
 				}
@@ -2043,19 +2041,9 @@ Stream::initialize_crypto(KeyInfo * key)
 
     // Will try to do a throw/catch later on
     if (key) {
-        switch (key->getProtocol()) 
-        {
 #ifdef HAVE_EXT_OPENSSL
-        case CONDOR_BLOWFISH :
-            crypto_ = new Condor_Crypt_Blowfish(*key);
-            break;
-        case CONDOR_3DES:
-            crypto_ = new Condor_Crypt_3des(*key);
-            break;
+		crypto_ = new Condor_Crypt(*key);
 #endif
-        default:
-            break;
-        }
     }
 
     return (crypto_ != 0);
@@ -2139,7 +2127,7 @@ Stream::set_crypto_key(bool enable, KeyInfo * key, const char * keyId)
     
         if (_coding == stream_encode) {
             // generate random data
-            unsigned char * ran = Condor_Crypt_Base::randomKey(PADDING_LEN);
+            unsigned char * ran = Condor_Crypt::randomKey(PADDING_LEN);
             memcpy(data, ran, PADDING_LEN);
             memcpy(data+PADDING_LEN, key->getKeyData(), key->getKeyLength());
             free(ran);

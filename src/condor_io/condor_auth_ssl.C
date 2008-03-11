@@ -501,8 +501,8 @@ Condor_Auth_SSL::setup_crypto(unsigned char* key, const int keylen)
 	}
 
 		// This could be 3des -- maybe we should use "best crypto" indirection.
-	KeyInfo thekey(key,keylen,CONDOR_3DES);
-	m_crypto = new Condor_Crypt_3des(thekey);
+	KeyInfo thekey(key,keylen,CONDOR_AES256);
+	m_crypto = new Condor_Crypt(thekey);
 	return m_crypto ? true : false;
 }
 
