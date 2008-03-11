@@ -63,7 +63,7 @@ Scheduler::InitPublicAd() {
 
 void
 Scheduler::config() {
-	char *name = param("JOB_ROUTER_NAME");
+	char *name = param("SCHEDD7_NAME");
 	if(name) {
 		char *valid_name = build_valid_daemon_name(name);
 		m_name = valid_name;
