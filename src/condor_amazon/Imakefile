@@ -21,6 +21,8 @@ template_inst( amazongahp_instantiate.C, amazongahp_instantiate.o )
 public_c_plus_target($(WORKER_THREAD),sbin,$(WORKER_THREAD_OBJ),$(LIB))
 public_c_plus_target($(IO_THREAD),sbin,$(IO_THREAD_OBJ),$(LIB))
 
+public_copy_target(ec2_lib/condor_amazon.pl,libexec,condor_amazon.pl,EXECUTABLE_MODE)
+
 html:
 
 IMPORT_LINKS = ../../config/import_links
