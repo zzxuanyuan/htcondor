@@ -30,7 +30,6 @@
 
 class HookPrepareJobClient;
 class HookJobExitClient;
-class HookEvictJobClient;
 
 
 /**
@@ -81,17 +80,6 @@ public:
 		 */
 	int tryHookJobExit(ClassAd* job_info, const char* exit_reason);
 
-		/**
-		   Invoke HOOK_EVICT_JOB to tell the outside world that a
-		   specific job is being evicted. The hook should attempt to
-		   save whatever work can be saved and gracefully cleanup the
-		   job ASAP. The starter will wait to kill the job outright
-		   until this hook returns, but there's no guarantee how much
-		   time this hook has to run before it will be killed along
-		   with the starter.
-		 */
-	void tryHookEvictJob(bool graceful);
-	void handleHookEvictJob();
 
 private:
 
@@ -104,8 +92,6 @@ private:
 	char* m_hook_update_job_info;
 		/// The path to HOOK_JOB_EXIT, if defined.
 	char* m_hook_job_exit;
-		/// The path to HOOK_EVICT_JOB, if defined.
-	char* m_hook_evict_job;
 
 		/**
 		   If the job we're running defines a hook keyword, find the
@@ -149,19 +135,6 @@ public:
 	friend class StarterHookMgr;
 
 	HookJobExitClient(const char* hook_path);
-	virtual void hookExited(int exit_status);
-};
-
-
-/**
-   Manages an invocation of HOOK_EVICT_JOB.
-*/
-class HookEvictJobClient : public HookClient
-{
-public:
-	friend class StarterHookMgr;
-
-	HookEvictJobClient(const char* hook_path);
 	virtual void hookExited(int exit_status);
 };
 
