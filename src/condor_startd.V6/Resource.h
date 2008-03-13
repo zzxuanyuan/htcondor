@@ -177,11 +177,12 @@ public:
 #endif /* HAVE_BACKFILL */
 
 #if HAVE_JOB_HOOKS
+	bool	tryFetchWork( void );
 	void	createOrUpdateFetchClaim( ClassAd* job_ad, float rank = 0 );
 	bool	spawnFetchedWork( void );
 	void	terminateFetchedWork( void );
 	void	startedFetch( void );
-	bool	willingToFetch( void );
+	void	fetchCompleted( void );
 #endif /* HAVE_JOB_HOOKS */
 
 	bool    claimWorklifeExpired();
@@ -235,9 +236,14 @@ private:
 	MyString m_execute_partition_id;
 
 #if HAVE_JOB_HOOKS
-	time_t	m_last_fetch_work;
+	time_t	m_last_fetch_work_spawned;
+	time_t	m_last_fetch_work_completed;
+	bool	m_currently_fetching;
+	int		m_next_fetch_work_delay;
+	int		m_next_fetch_work_tid;
+	int		evalNextFetchWorkDelay( void );
 	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
-
+	void	resetFetchWorkTimer( int next_fetch = 0 );
 #endif /* HAVE_JOB_HOOKS */
 
 };

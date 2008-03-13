@@ -181,11 +181,8 @@ StartdHookMgr::buildFetchClient(Resource* rip)
 
 
 bool
-StartdHookMgr::tryHookFetchWork(Resource* rip)
+StartdHookMgr::invokeHookFetchWork(Resource* rip)
 {
-	if (!rip->willingToFetch()) {
-		return false;
-	}
 	FetchClient* fetch_client = buildFetchClient(rip);
 	if (!fetch_client) {
 		return false;
@@ -420,6 +417,8 @@ FetchClient::hookExited(int exit_status) {
 				dprintf(D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
 						"ignoring invalid hook output\n", hook_line);
 					// TODO-pipe howto abort?
+					// Tell the slot this fetch invocation completed.
+				m_rip->fetchCompleted();
 				return;
 			}
 		}
@@ -428,8 +427,11 @@ FetchClient::hookExited(int exit_status) {
 		dprintf(D_FULLDEBUG, "Hook %s (pid %d) returned no data\n",
 				m_hook_path, (int)m_pid);
 	}
-		// Finally, let the work manager know this fetch result is done.
+		// Let the work manager know this fetch result is done.
 	resmgr->m_hook_mgr->handleHookFetchWork(this);
+
+		// Tell the slot this fetch invocation completed.
+	m_rip->fetchCompleted();
 }
 
 

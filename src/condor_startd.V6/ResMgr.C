@@ -127,7 +127,7 @@ ResMgr::init_config_classad( void )
 	configInsert( config_classad, "EVICT_BACKFILL", false );
 #endif /* HAVE_BACKFILL */
 #if HAVE_JOB_HOOKS
-	configInsert( config_classad, ATTR_FETCH_WORK_INTERVAL, false );
+	configInsert( config_classad, ATTR_FETCH_WORK_DELAY, false );
 #endif /* HAVE_JOB_HOOKS */
 
 		// Next, try the IS_OWNER expression.  If it's not there, give

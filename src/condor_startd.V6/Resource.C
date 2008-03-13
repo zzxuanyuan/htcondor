@@ -96,7 +96,11 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_pre_cod_condor_load = 0.0;
 
 #if HAVE_JOB_HOOKS
-	m_last_fetch_work = 0;
+	m_last_fetch_work_spawned = 0;
+	m_last_fetch_work_completed = 0;
+	m_next_fetch_work_delay = -1;
+	m_next_fetch_work_tid = -1;
+	m_currently_fetching = false;
 #endif
 
 	if( r_attr->type() ) {
@@ -117,6 +121,16 @@ Resource::~Resource()
 		}
 		update_tid = -1;
 	}
+
+#if HAVE_JOB_HOOKS
+	if (m_next_fetch_work_tid != -1) {
+		if (daemonCore->Cancel_Timer(m_next_fetch_work_tid) < 0 ) {
+			::dprintf(D_ALWAYS, "failed to cancel update timer (%d): "
+					  "daemonCore error\n", m_next_fetch_work_tid);
+		}
+		m_next_fetch_work_tid = -1;
+	}
+#endif /* HAVE_JOB_HOOKS */
 
 	delete r_state;
 	delete r_classad;
@@ -1475,7 +1489,14 @@ Resource::publish( ClassAd* cap, amask_t mask )
 
 #if HAVE_JOB_HOOKS
 	if (IS_PUBLIC(mask)) {
-		my_line.sprintf("%s=%d", ATTR_LAST_FETCH_WORK, (int)m_last_fetch_work);
+		my_line.sprintf("%s=%d", ATTR_LAST_FETCH_WORK_SPAWNED,
+						(int)m_last_fetch_work_spawned);
+		cap->Insert(my_line.Value());
+		my_line.sprintf("%s=%d", ATTR_LAST_FETCH_WORK_COMPLETED,
+						(int)m_last_fetch_work_completed);
+		cap->Insert(my_line.Value());
+		my_line.sprintf("%s=%d", ATTR_NEXT_FETCH_WORK_DELAY,
+						m_next_fetch_work_delay);
 		cap->Insert(my_line.Value());
 	}
 #endif /* HAVE_JOB_HOOKS */
@@ -2044,37 +2065,121 @@ Resource::terminateFetchedWork(void)
 void
 Resource::startedFetch(void)
 {
-	m_last_fetch_work = time(NULL);
+		// Record that we just fetched.
+	m_last_fetch_work_spawned = time(NULL);
+	m_currently_fetching = true;
+
 }
 
 
-bool
-Resource::willingToFetch(void)
+void
+Resource::fetchCompleted(void)
+{
+	m_currently_fetching = false;
+
+		// Record that we just finished fetching.
+	m_last_fetch_work_completed = time(NULL);
+
+		// Now that a fetch hook returned, (re)set our timer to try
+		// fetching again based on the delay expression.
+	resetFetchWorkTimer();
+}
+
+
+int
+Resource::evalNextFetchWorkDelay(void)
 {
 	static bool warned_undefined = false;
-
-		// First, make sure we haven't fetched too recently already.
 	int value = 0;
-	if (r_classad->EvalInteger(ATTR_FETCH_WORK_INTERVAL, NULL, value) == 0) { 
+	ClassAd* job_ad = NULL;
+	if (r_cur) {
+		job_ad = r_cur->ad();
+	}
+	if (r_classad->EvalInteger(ATTR_FETCH_WORK_DELAY, job_ad, value) == 0) { 
 			// If undefined, disable the throttle completely.
 		if (!warned_undefined) { 
 			dprintf(D_FULLDEBUG, "%s is UNDEFINED, no throttle in use\n",
-					ATTR_FETCH_WORK_INTERVAL);
+					ATTR_FETCH_WORK_DELAY);
 			warned_undefined = true;
 		}
 		value = 0;
 	}
-	if (value > 0) {
+	m_next_fetch_work_delay = value;
+	return value;
+}
+
+
+bool
+Resource::tryFetchWork(void)
+{
+		// First, make sure we're not currently fetching.
+	if (m_currently_fetching) {
+			// No need to log a message about this, it's not an error.
+		return false;
+	}
+
+		// Now, make sure we  haven't fetched too recently.
+	evalNextFetchWorkDelay();
+	if (m_next_fetch_work_delay > 0) {
 		time_t now = time(NULL);
-		if (now < (m_last_fetch_work + value)) {
-				// Throttle is defined, and the interval hasn't passed
-				// since the last time we checked, so bail out.
+		time_t delta = now - m_last_fetch_work_completed;
+		if (delta < m_next_fetch_work_delay) {
+				// Throttle is defined, and the time since we last
+				// fetched is shorter than the desired delay. Reset
+				// our timer to go off again when we think we'd be
+				// ready, and bail out.
+			resetFetchWorkTimer(m_next_fetch_work_delay - delta);
 			return false;
 		}
 	}
 
 		// Finally, ensure the START expression isn't locally FALSE.
-	return willingToRun(NULL);
+	if (!willingToRun(NULL)) {
+			// We're not currently willing to run any jobs at all, so
+			// don't bother invoking the hook. However, we know the
+			// fetching delay was already reached, so we should reset
+			// our timer for another full delay.
+		resetFetchWorkTimer();
+		return false;
+	}
+
+		// We're ready to invoke the hook. The timer to re-fetch will
+		// be reset once the hook completes.
+	resmgr->m_hook_mgr->invokeHookFetchWork(this);
+	return true;
+}
+
+
+void
+Resource::resetFetchWorkTimer(int next_fetch)
+{
+	int next = 1;  // Default if there's no throttle set
+	if (next_fetch) {
+			// We already know how many seconds we want to wait until
+			// the next fetch, so just use that.
+		next = next_fetch;
+	}
+	else {
+			// A fetch invocation just completed, we don't need to
+			// recompute any times and deltas.  We just need to
+			// reevaluate the delay expression and set a timer to go
+			// off in that many seconds.
+		evalNextFetchWorkDelay();
+		if (m_next_fetch_work_delay > 0) {
+			next = m_next_fetch_work_delay;
+		}
+	}
+
+	if (m_next_fetch_work_tid == -1) {
+			// Never registered.
+		m_next_fetch_work_tid = daemonCore->Register_Timer(
+			next, 100000, (TimerHandlercpp)&Resource::tryFetchWork,
+			"Resource::tryFetchWork", this);
+	}
+	else {
+			// Already registered, just reset it.
+		daemonCore->Reset_Timer(m_next_fetch_work_tid, next, 100000);
+	}
 }
 
 
