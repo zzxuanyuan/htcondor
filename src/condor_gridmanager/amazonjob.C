@@ -90,10 +90,10 @@ static char *GMStateNames[] = {
 #define AMAZON_VM_STATE_TERMINATED		"terminated"
 
 // define some submit states which will be used by failure recovery
-#define AMAZON_RECOVERY_STEP_INIT 1
-#define AMAZON_RECOVERY_STEP_BEFORE_KEYPAIR 2
-#define AMAZON_RECOVERY_STEP_AFTER_KEYPAIR 3
-
+#define AMAZON_SUBMIT_STEP_INIT			"amazon_job_init"
+#define AMAZON_SUBMIT_STEP_KEYPAIR		"amazon_job_keypair"
+#define AMAZON_SUBMIT_STEP_START_VM		3
+#define AMAZON_SUBMIT_STEP_SETUP_JOBID	4
 
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
@@ -118,7 +118,7 @@ void AmazonJobInit()
 void AmazonJobReconfig()
 {
 	// change interval time for 5 minute
-	int tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 5 * 30 ); 
+	int tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 30 * 60 ); 
 	AmazonJob::setProbeInterval( tmp_int );
 		
 	// Tell all the resource objects to deal with their new config values
@@ -153,15 +153,14 @@ BaseJob* AmazonJobCreate( ClassAd *jobad )
 	return (BaseJob *)new AmazonJob( jobad );
 }
 
-
-int AmazonJob::probeInterval = 3;	// default value
-int AmazonJob::submitInterval = 300;	// default value
-	
 // Since some operations are time-consuming, we will set the timeout value to 5 hours
-int AmazonJob::gahpCallTimeout = 21600;	// default value
-
-int AmazonJob::maxConnectFailures = 3;	// default value
-
+int AmazonJob::gahpCallTimeout = 21600;
+int AmazonJob::probeInterval = 3;
+int AmazonJob::submitInterval = 300;
+int AmazonJob::maxConnectFailures = 3;
+int AmazonJob::maxRetryTimes = 3; // default value for maximum retry times
+int AmazonJob::funcRetryDelay = 30;
+int AmazonJob::funcRetryInterval = 30;
 
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -211,6 +210,8 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	m_error_code = NULL;
 	m_bucket_name = NULL;
 	m_submit_step = 0;
+	m_retry_tid = -1;
+	m_retry_times = 0;
 		
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start (unless the job is already held).
@@ -299,9 +300,16 @@ int AmazonJob::doEvaluateState()
 		}
 	}
 	
+	// For Failure Recovery:
+	// check if the GridJobID equals empty
+	// If not, it means we have run this job before but it was interrupted for some
+	// reason. So we should call Failure Recovery process to deal with it
+	//FailureRecovery();
+	
+	
 	do {
 		reevaluate_state = false;
-		old_gm_state = gmState;		
+		old_gm_state = gmState;
 		
 		switch ( gmState ) 
 		{
@@ -334,6 +342,11 @@ int AmazonJob::doEvaluateState()
 					}
 					gmState = GM_SUBMITTED;
 				}
+				
+				// For recovery: 
+				// set RemoteJobID to "amazon job init" which corresponding to 
+				// stage AMAZON_SUBMIT_STEP_INIT.
+				SetRemoteJobId("amazon job init");
 
 				break;
 				
@@ -367,6 +380,8 @@ int AmazonJob::doEvaluateState()
 					
 					// For a given Amazon Job, in its life cycle, the attributes will not change 					
 					
+					reset_error_code();	
+					
 					// m_ami_id/m_key_pair/m_group_names are NOT required variable
 					if ( m_ami_id == NULL )			m_ami_id = build_ami_id();
 					if ( m_key_pair == NULL )		m_key_pair = build_keypair();
@@ -378,24 +393,95 @@ int AmazonJob::doEvaluateState()
 												m_ami_id->Value(), m_key_pair->Value(), 
 												*m_group_names, instance_id, m_error_code);
 					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_start()");
-					}					
-					reset_error_code();									
-				
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						// Every first time this function will come to here, just exit doEvaluateState()
 						// and later gahp_client will call this function again. At that time, we can expect
 						// the return value will be success and will come to the following statements.
 						break;
 					}
+					
+					// The upper limit of instances is 20, so when the client reaches this limit, we should
+					// wait and retry for several times before we change its job's status to HOLD. Current, 
+					// only command VM_START will meet this problem. Other commands will not meet the error
+					// code = "InstanceLimitExceeded".
+				
+					// Everytime when we execute the commands, we will get two answers. The first one is 
+					// the quick one answer without any uesful information. The second one is the one we
+					// need. So each time the first one will always be success and when we get this answer
+					// we will try to clean the timer (if we have setup). This is why we place the codes 
+					// for "InstanceLimitExceeded" scenario after GAHPCLIENT_COMMAND_NOT_SUBMITTED and
+					// GAHPCLIENT_COMMAND_PENDING.
 
+					// processing error code received
+					if ( m_error_code == NULL ) {
+						
+						// go ahead since the operation is successful
+	
+						// but if we have set the timer function, we should release it
+						if( m_retry_tid != -1 ) {
+							// we have setup the timer before, so we need to remove it now	
+							daemonCore->Cancel_Timer(m_retry_tid);
+							m_retry_tid = -1;
+							m_retry_times = 0;
+						}
+
+					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						
+						// meet the resource limitation (maximum 20 instances)
+						// should setup a timer and retry this command later
+						
+						if ( m_retry_tid != -1 ) {
+
+							// we have already setup a timer
+							
+							// now need to check if we have reached the up limit of retries
+							m_retry_times++;
+													
+							if ( m_retry_times == maxRetryTimes) {
+							
+								// we have reached the up limit of retry times
+								// now we need to close the timer and print out some error messages							
+								dprintf(D_ALWAYS,"(%d.%d) job submit failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+								
+								// 	close the timer we have started
+								daemonCore->Cancel_Timer(m_retry_tid);
+								m_retry_tid = -1;
+								m_retry_times = 0;
+								
+								errorString = gahp->getErrorString();
+								
+								// the Amazon Job's state should be moved to GM_HOLD
+								gmState = GM_HOLD;
+								break;
+																
+							} else {
+								// not reach the up limit yet, don't need to any thing, just wait for next timer calling
+								return true;
+							}
+							
+						} else {
+	
+							// It is the first time we meet such an error
+							// let's register a timer and retry this function after several minutes
+							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, 
+																	 funcRetryInterval, 
+																	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
+																	 "AmazonJob::doEvaluateState", 
+																	 (Service*)this);
+							return true;
+						}			
+				
+					} else {
+						// received the errors we cannot processed					
+						// print out the received error code
+						print_error_code(m_error_code, "amazon_vm_start()");
+					}
+					
+					// Since the error_code is a global variable, we should reset it before it
+					// will be used by other command			
+					reset_error_code();	
+					
+					// to process other return values of this command
 					lastSubmitAttempt = time(NULL);
 					numSubmitAttempts++;
 
@@ -610,20 +696,27 @@ int AmazonJob::doEvaluateState()
 					// The VM status we need is saved in the second string of the returned status StringList
 					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, *returnStatus, m_error_code );
 					
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_status()");
-					}					
-					reset_error_code();
-					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						reset_error_code();
+						
+						// change Job's status to CANCEL
+						gmState = GM_CANCEL;
 						break;
-					} else if ( rc != 0 ) {
+					}
+					
+					if ( rc != 0 ) {
 						// What to do about failure?
 						errorString = gahp->getErrorString();
 						dprintf( D_ALWAYS, "(%d.%d) job probe failed: %s, the condor job should be removed. \n", procID.cluster, procID.proc, errorString.Value() );
@@ -661,20 +754,27 @@ int AmazonJob::doEvaluateState()
 				// amazon_vm_stop() will check the input arguments
 				rc = gahp->amazon_vm_stop(m_access_key_file, m_secret_key_file, remoteJobId, m_error_code);
 			
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					break;
+				} 
+				
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
 				// processing error code received
 				if ( m_error_code == NULL ) {
 					// go ahead
-				} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-					// should wait for several minutes before restart this operations
 				} else {
 					// print out the received error code
 					print_error_code(m_error_code, "amazon_vm_stop()");
-				}					
-				reset_error_code();
-			
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					reset_error_code();
+					
+					// change Job's status to CANCEL
+					gmState = GM_FAILED;
 					break;
-				} else if ( rc == 0 ) {
+				}
+				
+				if ( rc == 0 ) {
 					// gmState = GM_FAILED;
 					gmState = GM_DESTROY_SG;
 				} else {
@@ -695,8 +795,6 @@ int AmazonJob::doEvaluateState()
 
 				if ( strcmp(m_dir_name->Value(), "") != 0 ) {
 
-dprintf( D_ALWAYS, "GM_CREATE_BUCKET 1: \n" );
-
 					// we need to create a bucket in S3 where our image file will be saved.
 					// The name of this bucket will be same as the group name
 					if (!m_bucket_name) 
@@ -704,21 +802,28 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 1: \n" );
 						
 					// call gahp_server function to create a temporary bucket
 					rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
+											
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					} 
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_s3_create_bucket()");
-					}					
-					reset_error_code();
-						
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						reset_error_code();
+					
+						// change Job's status to CANCEL
+						gmState = GM_HOLD;
 						break;
-					} else if ( rc == 0 ) {
+					}
+					
+					if ( rc == 0 ) {
 						// the bucket has been created successfully in S3
 						gmState = GM_UPLOAD_IMAGES;
 					} else {
@@ -728,7 +833,6 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 1: \n" );
 					}
 									
 				} else {
-dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 					// ami_id has been set (no need to register image in S3).
 					// we can jump to GM_CREATE_KEYPAIR directly and pass
 					// the steps for uploading and registering images.
@@ -752,20 +856,27 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 				
 				rc = gahp->amazon_vm_s3_upload_dir(m_access_key_file, m_secret_key_file, m_dir_name->Value(), m_bucket_name, m_error_code);
 				
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					// don't do anything, will come to next loop
+				} 
+				
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+				
 				// processing error code received
 				if ( m_error_code == NULL ) {
 					// go ahead
-				} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-					// should wait for several minutes before restart this operations
 				} else {
 					// print out the received error code
 					print_error_code(m_error_code, "amazon_vm_s3_upload_dir()");
-				}					
-				reset_error_code();
+					reset_error_code();
 				
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-					// don't do anything, will come to next loop
-				} else if ( rc == 0 ) {
+					// change Job's status to CANCEL
+					gmState = GM_HOLD;
+					break;
+				}
+				
+				if ( rc == 0 ) {
 					// the images have been successfully uploaded to S3's given bucket
 					gmState = GM_REGISTER_IMAGE;						
 				} else {
@@ -797,20 +908,27 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 					
 					rc = gahp->amazon_vm_register_image(m_access_key_file, m_secret_key_file, m_xml_file, ami_id, m_error_code);
 					
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						// don't do anything, will come to next loop
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_register_image()");
-					}					
-					reset_error_code();
+						reset_error_code();
 					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						// don't do anything, will come to next loop
-					} else if ( rc == 0 ) {
+						// change Job's status to CANCEL
+						gmState = GM_HOLD;
+						break;
+					}
+					
+					if ( rc == 0 ) {
 						*m_ami_id = strdup(ami_id); // saved ami_id of register image to a global variable 
 						gmState = GM_CREATE_KEYPAIR;
 						free(ami_id);
@@ -830,6 +948,11 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 				// check if the clients have assigned keypair's name, if not, we should
 				// create the a temporary name and temporary output file name and register it.
 				// If yes, load it from JobAd's environment
+				
+				// For recovery: 
+				// set RemoteJobID to "amazon job init" which corresponding to 
+				// stage AMAZON_SUBMIT_STEP_INIT.
+				SetRemoteJobId("amazon job before_keypair");
 	
 				// Before we create the SSH keypair, we should have keypair name and its output file name
 				if ( m_key_pair == NULL ) {
@@ -852,20 +975,27 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 					rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
 														m_key_pair->Value(), m_key_pair_file_name->Value(), m_error_code);
 				
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_create_keypair()");
-					}					
-					reset_error_code();
-				
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						reset_error_code();
+					
+						// change Job's status to CANCEL
+						gmState = GM_HOLD;
 						break;
-					} else if (rc == 0) {
+					}
+					
+					if (rc == 0) {
 						// let's register the security group
 						gmState = GM_CREATE_SG;
 					} else {
@@ -917,20 +1047,27 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 					// now add this temporary group name							
 					rc = gahp->amazon_vm_create_group(m_access_key_file, m_secret_key_file, sg_name, group_description, m_error_code);
 					
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_create_group()");
-					}					
-					reset_error_code();
-							
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						reset_error_code();
+					
+						// change Job's status to CANCEL
+						gmState = GM_HOLD;
 						break;
-					} else if (rc == 0) {
+					}
+					
+					if (rc == 0) {
 						// register the security group successfully
 						gmState = GM_SUBMIT;
 					} else {
@@ -964,26 +1101,32 @@ dprintf( D_ALWAYS, "GM_CREATE_BUCKET 2: \n" );
 				char* current_group_name = m_group_names->next(); 
 				
 				if (strcmp(current_group_name, temporary_security_group()) == 0) {
-					
-dprintf( D_ALWAYS, "GM_DESTROY_SG 1: \n" );					
+				
 					// yes, EC2 is using temporary group name
 					
 					rc = gahp->amazon_vm_delete_group(m_access_key_file, m_secret_key_file, current_group_name, m_error_code);
 					
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_delete_group()");
-					}					
-					reset_error_code();
+						reset_error_code();
 					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						// change Job's status to CANCEL
+						gmState = GM_FAILED;
 						break;
-					} else if (rc == 0) {
+					}
+					
+					if (rc == 0) {
 						// let's destroy the key pair
 						gmState = GM_DESTROY_KEYPAIR;
 					} else {
@@ -992,7 +1135,6 @@ dprintf( D_ALWAYS, "GM_DESTROY_SG 1: \n" );
 						gmState = GM_FAILED;
 					}					
 				} else {
-dprintf( D_ALWAYS, "GM_DESTROY_SG 2: \n" );					
 					// no, EC2 is using the group name provided by client
 					// don't need to do any extra work, just come to GM_DESTROY_KEYPAIR directly
 					gmState = GM_DESTROY_KEYPAIR;
@@ -1006,24 +1148,31 @@ dprintf( D_ALWAYS, "GM_DESTROY_SG 2: \n" );
 				{
 				// check if current keypair is a temporary keypair
 				if ( strcmp(m_key_pair->Value(), temporary_keypair_name()) == 0 ) {
-dprintf( D_ALWAYS, "GM_DESTROY_KEYPAIR 1: \n" );						
+
 					// Yes, now let's destroy the temporary keypair 
 					rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair->Value(), m_error_code);
+					
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_destroy_keypair()");
-					}					
-					reset_error_code();
+						reset_error_code();
 					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						// change Job's status to CANCEL
+						gmState = GM_FAILED;
 						break;
-					} else if (rc == 0) {
+					}
+					
+					if (rc == 0) {
 						// when we registered a temporary keypair, a temporary file will also
 						// be created at the local disk. Now we need to remove it.
 						if ( remove_keypair_file(m_key_pair_file_name->Value()) ) {
@@ -1056,25 +1205,30 @@ dprintf( D_ALWAYS, "GM_DESTROY_KEYPAIR 1: \n" );
 				// should check if m_dir_name is empty. don't need to check if m_ami_id is empty since after
 				// state GM_REGISTER_IMAGE, this variable should have been assigned.
 				if ( strcmp(m_dir_name->Value(), "") != 0 ) {
-					// should do lots of things: deregister image, download images and destroy bucket
-dprintf( D_ALWAYS, "GM_UNREGISTER_IMAGE 1: \n" );
 					
 					rc = gahp->amazon_vm_deregister_image(m_access_key_file, m_secret_key_file, m_ami_id->Value(), m_error_code);
+					
+					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+					}
+					
+					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 					// processing error code received
 					if ( m_error_code == NULL ) {
 						// go ahead
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						// should wait for several minutes before restart this operations
 					} else {
 						// print out the received error code
 						print_error_code(m_error_code, "amazon_vm_deregister_image()");
-					}					
-					reset_error_code();
+						reset_error_code();
 					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						// change Job's status to CANCEL
+						gmState = GM_FAILED;
 						break;
-					} else if (rc == 0) {
+					}
+					
+					if (rc == 0) {
 						// let's destroy the key pair
 						gmState = GM_DESTROY_IMAGE_AND_BUCKET;
 					} else {
@@ -1084,7 +1238,6 @@ dprintf( D_ALWAYS, "GM_UNREGISTER_IMAGE 1: \n" );
 					}
 				
 				} else {
-dprintf( D_ALWAYS, "GM_UNREGISTER_IMAGE 2: \n" );
 					// ami_id is provided by client, don't need to anything 
 					// jump to GM_FAILED directly
 					gmState = GM_FAILED;
@@ -1099,20 +1252,27 @@ dprintf( D_ALWAYS, "GM_UNREGISTER_IMAGE 2: \n" );
 				// remove the temporary bucket from S3 after the image files have been deleted from S3
 				rc = gahp->amazon_vm_s3_delete_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
 				
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					break;
+				} 
+				
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+				
 				// processing error code received
 				if ( m_error_code == NULL ) {
 					// go ahead
-				} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
-					// should wait for several minutes before restart this operations
 				} else {
 					// print out the received error code
 					print_error_code(m_error_code, "amazon_vm_s3_delete_bucket()");
-				}					
-				reset_error_code();
-				
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					reset_error_code();
+					
+					// change Job's status to CANCEL
+					gmState = GM_FAILED;
 					break;
-				} else if ( rc == 0 ) {
+				}
+				
+				if ( rc == 0 ) {
 					// the bucket has been deleted successfully from S3
 					gmState = GM_FAILED;
 				} else {
@@ -1212,6 +1372,33 @@ void AmazonJob::SetRemoteJobId( const char *job_id )
 		full_job_id.sprintf( "amazon %s %s", AMAZON_RESOURCE_NAME, job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
+}
+
+
+void AmazonJob::FailureRecovery()
+{
+	// check the content of GridJobId
+	char* submit_status = NULL;
+	SetRemoteJobId("this is a test");
+	
+	if ( jobAd->LookupString( "GridJobId", &submit_status ) ) {
+		
+		// This job has been executed before. Now let's check its current submitting steps
+		// for the failure recovery.
+dprintf(D_ALWAYS, "The GridJobId = %s\n", submit_status);
+		
+		if (strcmp(submit_status, "amazon job init") == 0) {
+			// amazon job is at state GM_START
+			gmState = GM_START;
+		}
+		else {
+			// need to add codes here	
+		}
+		
+	} else {
+		dprintf(D_ALWAYS,"The GridJobId is EMPTY\n");
+		
+	}
 }
 
 
@@ -1444,3 +1631,4 @@ void AmazonJob::reset_error_code()
 {
 	m_error_code = NULL;
 }
+
