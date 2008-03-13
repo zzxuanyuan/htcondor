@@ -1465,6 +1465,7 @@ SecManStartCommand::startCommand_inner_noauth()
 				m_sock->set_crypto_key(true, ki, buf);
 
 				dprintf ( D_SECURITY, "SECMAN: successfully enabled encryption!\n");
+
 			} // if (will_enable_enc)
 
 			if (ki) {
@@ -1751,6 +1752,7 @@ SecManStartCommand::startCommand_inner_noauth()
 			m_sock->set_crypto_key(true, ki);
 
 			dprintf ( D_SECURITY, "SECMAN: successfully enabled encryption!\n");
+
 		} else {
 			// we aren't going to enable encryption for everything.  but we should
 			// still have a secret key ready to go in case someone decides to turn
@@ -2550,7 +2552,7 @@ MyString SecMan::getDefaultAuthenticationMethods() {
 
 MyString SecMan::getDefaultCryptoMethods() {
 #ifdef HAVE_EXT_OPENSSL
-	return "3DES,BLOWFISH";
+	return "AES256,AES192,AES128,3DES,BLOWFISH";
 #else
 	return "";
 #endif

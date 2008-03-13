@@ -5,10 +5,7 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -DHEADER_DES_LOCL_H
 LIB = libcedar.a $(STD_LIBS)
 
 #if HAVE_EXT_OPENSSL
-CONDOR_DES_OBJ = condor_crypt_3des.o
 AUTH_PASSWD_OBJ = condor_auth_passwd.o
-CONDOR_BLOWFISH_OBJ = condor_crypt_blowfish.o
-CONDOR_CRYPT_OBJ = $(CONDOR_DES_OBJ) $(CONDOR_BLOWFISH_OBJ)
 AUTH_SSL_OBJ = condor_auth_ssl.o
 #endif
 
@@ -28,7 +25,7 @@ CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o errno_num.o
 
 OBJ = stream.o sock.o reli_sock.o safe_sock.o buffers.o sockCache.o \
 		$(CONDOR_AUTH_OBJ) $(CONDOR_TYPE_OBJ) condor_rw.o \
-		SafeMsg.o condor_crypt.o $(CONDOR_CRYPT_OBJ) CryptKey.o \
+		SafeMsg.o condor_crypt.o CryptKey.o \
 		condor_secman.o cedar_no_ckpt.o 
 /*		autoTest.o manTest.o */
 

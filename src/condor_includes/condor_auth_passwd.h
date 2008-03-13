@@ -24,7 +24,7 @@
 #if !defined(SKIP_AUTHENTICATION) && defined(HAVE_EXT_OPENSSL)
 
 #include "condor_auth.h"        // Condor_Auth_Base class is defined here
-#include "condor_crypt_3des.h"
+#include "condor_crypt.h"
 
 
 
@@ -139,7 +139,7 @@ class Condor_Auth_Passwd : public Condor_Auth_Base {
 		/** This stores the shared session key produced as output of
 			the protocol. 
 		*/
-	Condor_Crypt_3des* m_crypto;
+	Condor_Crypt* m_crypto;
 
 		/** Produce the shared key object from raw key material.
 		 */
