@@ -50,11 +50,16 @@ public:
 	int doEvaluateState();
 	BaseResource *GetResource();
 	void SetRemoteJobId( const char *job_id );
+	
+	void FailureRecovery();
 
 	static int probeInterval;
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
+	static int maxRetryTimes;
+	static int funcRetryDelay;
+	static int funcRetryInterval;
 
 	static void setProbeInterval( int new_interval ) 	{ probeInterval = new_interval; }
 	static void setSubmitInterval( int new_interval )	{ submitInterval = new_interval; }
@@ -94,6 +99,9 @@ private:
 	char * m_bucket_name;
 	char * m_xml_file;
 	char * m_error_code;
+	
+	int m_retry_tid; // timer id for retry functions
+	int m_retry_times; // function retry times
 	
 	MyString* m_ami_id;
 	MyString* m_key_pair;
