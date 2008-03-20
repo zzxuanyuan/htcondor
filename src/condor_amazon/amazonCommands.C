@@ -934,6 +934,78 @@ bool AmazonVMStatusAll::Request()
 	return true;
 }
 
+/// Amazon VMRunningKeypair
+AmazonVMRunningKeypair::AmazonVMRunningKeypair(const char* lib_path) : AmazonVMStatusAll(lib_path)
+{
+}
+
+AmazonVMRunningKeypair::~AmazonVMRunningKeypair()
+{
+}
+
+// Expecting:AMAZON_VM_RUNNING_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile>
+bool AmazonVMRunningKeypair::ioCheck(char **argv, int argc)
+{
+	return verify_number_args(argc, 4) &&
+		verify_request_id(argv[1]) &&
+		verify_string_name(argv[2]) &&
+		verify_string_name(argv[3]);
+}
+
+bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &result_string) 
+{
+	int req_id = 0;
+	get_int(argv[1], &req_id);
+
+	dprintf (D_FULLDEBUG, "AmazonVMRunningKeypair workerFunction is called\n");
+	
+	if( !verify_number_args(argc ,4) ) {
+		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+				4, argc, argv[0]);
+		return FALSE;
+	}
+
+	AmazonVMRunningKeypair request(get_amazon_lib_path());
+
+	request.accesskeyfile = argv[2];
+	request.secretkeyfile = argv[3];
+
+	// Send Request
+	bool tmp_result = request.Request();
+
+	if( tmp_result == false ) {
+		// Fail
+		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+	}else {
+		// Success
+		if( request.status_num == 0 ) {
+			result_string = create_success_result(req_id, NULL);
+		}else {
+			StringList result_list;
+			int i = 0;
+			for( i = 0; i < request.status_num; i++ ) {
+				if( strcasecmp( request.status_results[i].status.Value(), 
+							AMAZON_STATUS_RUNNING) || 
+						request.status_results[i].keyname.IsEmpty()) {
+					continue;
+				}
+
+				result_list.append(request.status_results[i].instance_id.Value());
+				result_list.append(request.status_results[i].keyname.Value());
+			}
+			result_string = create_success_result(req_id, &result_list);
+		}
+	}
+	return true;
+}
+
+bool AmazonVMRunningKeypair::Request()
+{
+	return AmazonVMStatusAll::Request();
+}
+
+
 /// Amazon VMCreateGroup
 AmazonVMCreateGroup::AmazonVMCreateGroup(const char* lib_path) : AmazonRequest(lib_path) {}
 

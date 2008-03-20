@@ -31,6 +31,7 @@
 #define AMAZON_COMMAND_VM_REBOOT			"AMAZON_VM_REBOOT"
 #define AMAZON_COMMAND_VM_STATUS			"AMAZON_VM_STATUS"
 #define AMAZON_COMMAND_VM_STATUS_ALL		"AMAZON_VM_STATUS_ALL"
+#define AMAZON_COMMAND_VM_RUNNING_KEYPAIR	"AMAZON_VM_RUNNING_KEYPAIR"
 #define AMAZON_COMMAND_VM_CREATE_GROUP		"AMAZON_VM_CREATE_GROUP"
 #define AMAZON_COMMAND_VM_DELETE_GROUP		"AMAZON_VM_DELETE_GROUP"
 #define AMAZON_COMMAND_VM_GROUP_NAMES		"AMAZON_VM_GROUP_NAMES"
@@ -187,6 +188,17 @@ class AmazonVMStatusAll : public AmazonRequest {
 		AmazonStatusResult *status_results;
 		int status_num;
 
+};
+
+class AmazonVMRunningKeypair : public AmazonVMStatusAll {
+	public:
+		AmazonVMRunningKeypair(const char* lib_path);
+		virtual ~AmazonVMRunningKeypair();
+
+		static bool ioCheck(char **argv, int argc);
+		static bool workerFunction(char **argv, int argc, MyString &result_string);
+
+		virtual bool Request();
 };
 
 class AmazonVMCreateGroup : public AmazonRequest {

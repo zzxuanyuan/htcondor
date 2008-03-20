@@ -78,6 +78,9 @@ registerAllAmazonCommands(void)
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STATUS_ALL, 
 			AmazonVMStatusAll::ioCheck, AmazonVMStatusAll::workerFunction);
 
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_RUNNING_KEYPAIR, 
+			AmazonVMRunningKeypair::ioCheck, AmazonVMRunningKeypair::workerFunction);
+
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_GROUP, 
 			AmazonVMCreateGroup::ioCheck, AmazonVMCreateGroup::workerFunction);
 
