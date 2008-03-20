@@ -47,12 +47,14 @@ class Worker {
 	 }
 
 	int resultHandler();
+	int stderrHandler();
 	bool removeRequest(int req_id);
 	bool canUse(void) { return (!m_need_kill && m_can_use); }
 	int numOfRequest(void) { return m_request_list.Number(); }
 				   
 	PipeBuffer m_request_buffer;
 	PipeBuffer m_result_buffer;
+	PipeBuffer m_stderr_buffer;
 	
 	int m_pid;
 	bool m_can_use;

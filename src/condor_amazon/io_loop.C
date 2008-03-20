@@ -402,6 +402,43 @@ Worker::resultHandler()
 	return TRUE;
 }
 
+int
+Worker::stderrHandler() 
+{
+	if( m_stderr_buffer.getPipeEnd() == -1 ) {
+		return FALSE;
+	}
+
+	MyString* line = NULL;
+	while ((line = m_stderr_buffer.GetNextLine()) != NULL) {
+		dprintf (D_ALWAYS, "Worker[%d]: (stderr) %s\n", m_pid, line->Value());
+		delete line;
+	}
+
+	if (m_stderr_buffer.IsError() || m_stderr_buffer.IsEOF()) {
+
+		int pipe_end = m_stderr_buffer.getPipeEnd();
+
+		if( pipe_end > 0 ) {
+			// Close pipe
+			daemonCore->Close_Pipe( m_stderr_buffer.getPipeEnd() );
+			m_stderr_buffer.setPipeEnd(-1);
+		}
+
+		m_need_kill = true;
+		ioprocess->resetWorkerManagerTimer();
+
+		if( ioprocess->numOfWorkers() == 1 ) { 
+			// This worker is the last one 
+			dprintf (D_ALWAYS, "Stderr buffer for the last worker[%d] "
+					"has error, Exiting..\n", m_pid);
+			io_process_exit(1);
+		}
+	}
+
+	return TRUE;
+}
+
 bool
 Worker::removeRequest(int req_id)
 {
@@ -673,12 +710,15 @@ IOProcess::createNewWorker(void)
 
 	int result_pipe[2];
 	int request_pipe[2];
+	int stderr_pipe[2];
 
+	// To avod deadlock, the pipe for writing request to worker 
+	// is non-blocking mode
 	if (!daemonCore->Create_Pipe(request_pipe,
 				true,	// read end registerable
 				false,	// write end not registerable
 				false,	// read end blocking
-				true	// write end blocking
+				true	// write end non-blocking
 				) ||
 			!daemonCore->Create_Pipe (result_pipe,
 				true	// read end registerable
@@ -689,13 +729,32 @@ IOProcess::createNewWorker(void)
 		return NULL;
 	}
 
+	// The pipe for errors from worker's stderr is always non-blocking mode
+	if (!daemonCore->Create_Pipe(stderr_pipe,
+				true,	// read end registerable
+				false,	// write end not registerable
+				true,	// read end non-blocking
+				true	// write end non-blocking 
+				)) {
+		dprintf (D_ALWAYS, "Failed to create stderr pipe for a new worker\n");
+		delete new_worker;
+		return NULL;
+	}
+
 	new_worker->m_request_buffer.setPipeEnd(request_pipe[1]);
 	new_worker->m_result_buffer.setPipeEnd(result_pipe[0]);
+	new_worker->m_stderr_buffer.setPipeEnd(stderr_pipe[0]);
 
 	(void)daemonCore->Register_Pipe(new_worker->m_result_buffer.getPipeEnd(),
 			"result pipe",
 			(PipeHandlercpp)&Worker::resultHandler,
 			"Worker::resultHandler",
+			(Service*)new_worker);
+
+	(void)daemonCore->Register_Pipe(new_worker->m_stderr_buffer.getPipeEnd(),
+			"Worker stderr pipe",
+			(PipeHandlercpp)&Worker::stderrHandler,
+			"Worker::stderrHandler",
 			(Service*)new_worker);
 
 	ArgList args;
@@ -712,7 +771,7 @@ IOProcess::createNewWorker(void)
 	int std_fds[3];
 	std_fds[0] = request_pipe[0];
 	std_fds[1] = result_pipe[1];
-	std_fds[2] = fileno(stderr);
+	std_fds[2] = stderr_pipe[1];
 
 	// set up a FamilyInfo structure to register a family 
 	//FamilyInfo fi;
@@ -740,6 +799,7 @@ IOProcess::createNewWorker(void)
 
 	daemonCore->Close_Pipe( std_fds[0] );
 	daemonCore->Close_Pipe( std_fds[1] );
+	daemonCore->Close_Pipe( std_fds[2] );
 
 	if( new_worker->m_pid == FALSE ) {
 		dprintf(D_ALWAYS, "Failed to start a new worker : %s\n", 
@@ -897,11 +957,23 @@ IOProcess::killWorker(Worker *worker, bool graceful)
 	worker->m_can_use = false;
 
 	if( worker->m_pid > 0 ) {
-		// First, close pipe
-		int pipe_end = worker->m_result_buffer.getPipeEnd();
+		// First, close pipes
+		int pipe_end = worker->m_request_buffer.getPipeEnd();
+		if( pipe_end > 0 ) {
+			daemonCore->Close_Pipe( pipe_end );
+			worker->m_request_buffer.setPipeEnd(-1);
+		}
+
+		pipe_end = worker->m_result_buffer.getPipeEnd();
 		if( pipe_end > 0 ) {
 			daemonCore->Close_Pipe( pipe_end );
 			worker->m_result_buffer.setPipeEnd(-1);
+		}
+
+		pipe_end = worker->m_stderr_buffer.getPipeEnd();
+		if( pipe_end > 0 ) {
+			daemonCore->Close_Pipe( pipe_end );
+			worker->m_stderr_buffer.setPipeEnd(-1);
 		}
 
 		//daemonCore->Kill_Family(worker->m_pid);
