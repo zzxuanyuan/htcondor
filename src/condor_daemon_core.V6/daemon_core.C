@@ -3167,6 +3167,7 @@ int DaemonCore::HandleReq(Stream *insock)
 
 
 		// get the info, if there is any
+		// TODO: start here with the integrity stuff: not md5
 		const char * cleartext_info = ((SafeSock*)stream)->isIncomingDataMD5ed();
 		char * sess_id = NULL;
 		char * return_address_ss = NULL;
