@@ -5932,6 +5932,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	if ( !keypair ) keypair = NULLSTRING;
 	
 	// groupnames is optional, but since it is the last argument, don't need to set it as "NULL"
+	// XXX: You probably should specify a NULL for all "optional" parameters -matt
 							
 	MyString reqline;
 	

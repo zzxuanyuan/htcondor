@@ -774,7 +774,7 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 					if ( m_ami_id == NULL )			m_ami_id = build_ami_id();
 					if ( m_key_pair == NULL )		m_key_pair = build_keypair();
 					
-					if ( m_group_names == NULL )	m_group_names = build_groupnames();
+					if ( m_group_names == NULL )	m_group_names = new StringList();
 					
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
@@ -1463,54 +1463,54 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				}
 
 				// check if the security group name is temporary one
-				m_group_names->rewind();
+//				m_group_names->rewind();
 				// if we have a temporary name, it must be the first element in m_group_names
-				char* sg_name = m_group_names->next();
+//				char* sg_name = m_group_names->next();
 
-				if (strcmp(sg_name, temporary_security_group()) == 0) {
+//				if (strcmp(sg_name, temporary_security_group()) == 0) {
 
 					// prepare for the groupname and group_description
-					const char * group_description = "temporary security group name created by Condor"; 
+//					const char * group_description = "temporary security group name created by Condor"; 
 				
 					// now add this temporary group name							
-					rc = gahp->amazon_vm_create_group(m_access_key_file, m_secret_key_file, sg_name, group_description, m_error_code);
+//					rc = gahp->amazon_vm_create_group(m_access_key_file, m_secret_key_file, sg_name, group_description, m_error_code);
 					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						break;
-					}
+//					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+//						break;
+//					}
 					
 					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
 					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 					// processing error code received
-					if ( m_error_code == NULL ) {
+//					if ( m_error_code == NULL ) {
 						// go ahead
-					} else {
+//					} else {
 						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_create_group()");
-						reset_error_code();
+//						print_error_code(m_error_code, "amazon_vm_create_group()");
+//						reset_error_code();
 					
 						// change Job's status to CANCEL
-						gmState = GM_HOLD;
-						break;
-					}
+//						gmState = GM_HOLD;
+//						break;
+//					}
 					
-					if (rc == 0) {
+//					if (rc == 0) {
 						// register the security group successfully
 						// gmState = GM_SUBMIT; 
-						gmState = GM_BEFORE_STARTVM;
+//						gmState = GM_BEFORE_STARTVM;
 						 
-					} else {
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job create temporary security group failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_HOLD;
-					}
-				} else {
+//					} else {
+//						errorString = gahp->getErrorString();
+//						dprintf(D_ALWAYS,"(%d.%d) job create temporary security group failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+//						gmState = GM_HOLD;
+//					}
+//				} else {
 					// security group name is provided by client
 					// come to next state directly
 					// gmState = GM_SUBMIT;
 					gmState = GM_BEFORE_STARTVM;
-				}
+//				}
 				
 				}
 				
@@ -2001,9 +2001,9 @@ StringList* AmazonJob::build_groupnames()
 		// If client doesn't assign a group name, we will create a temporary
 		// security group name for it.
 		// Note: Name = SG_ + condor_pool_name + job_id
-		const char* temp_name = temporary_security_group();
-		group_names = new StringList();
-		group_names->append(temp_name); // when test, comment this line
+//		const char* temp_name = temporary_security_group();
+//		group_names = new StringList();
+//		group_names->append(temp_name); // when test, comment this line
 	}
 	
 	free (buffer);
