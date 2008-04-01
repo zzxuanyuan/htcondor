@@ -355,11 +355,12 @@ AmazonVMStart::~AmazonVMStart() {}
 // we support multiple groupnames
 bool AmazonVMStart::ioCheck(char **argv, int argc)
 {
-	return verify_min_number_args(argc, 5) &&
+	return verify_min_number_args(argc, 6) &&
 		verify_request_id(argv[1]) &&
 		verify_string_name(argv[2]) &&
 		verify_string_name(argv[3]) &&
-		verify_ami_id(argv[4]);
+		verify_ami_id(argv[4]) &&
+		verify_string_name(argv[5]);
 }
 
 bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_string)
@@ -369,10 +370,10 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	
 	dprintf (D_FULLDEBUG, "AmazonVMStart workerFunction is called\n");
 	
-	if( !verify_min_number_args(argc ,5) ) {
+	if( !verify_min_number_args(argc, 6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
-				5, argc, argv[0]);
+				6, argc, argv[0]);
 		return FALSE;
 	}
 
@@ -388,16 +389,21 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	request.secretkeyfile = argv[3];
 	request.ami_id = argv[4];
 
-	if( argc >= 6 ) {
-		if( strcasecmp(argv[5], "NULL") ) {
-			request.keypair = argv[5];
-		}
+		// XXX: "NULL" should be NULLSTRING just like in the
+		// gridmanager/gahp-client.C
 
-		int i = 0;
-		for( i = 6; i < argc; i++ ) {
-			if( strcasecmp(argv[i], "NULL") ) {
-				request.groupnames.append(argv[i]);
-			}
+	if( argc >= 6 && strcasecmp(argv[5], "NULL") ) {
+		request.keypair = argv[5];
+	}
+
+	if( argc >= 7 && strcasecmp(argv[6], "NULL") ) {
+		request.user_data = argv[6];
+	}
+
+	int i = 0;
+	for( i = 7; i < argc; i++ ) {
+		if( strcasecmp(argv[i], "NULL") ) {
+			request.groupnames.append(argv[i]);
 		}
 	}
 
@@ -452,6 +458,12 @@ bool AmazonVMStart::Request()
 		systemcmd.AppendArg("-key");
 		systemcmd.AppendArg(keypair);
 	}
+
+	if( user_data.IsEmpty() == false ) {
+		systemcmd.AppendArg("-u");
+		systemcmd.AppendArg(user_data);
+	}
+
 	if( groupnames.isEmpty() == false ) {
 		char *one_group = NULL;
 		groupnames.rewind();

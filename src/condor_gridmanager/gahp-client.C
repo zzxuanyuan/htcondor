@@ -5903,8 +5903,14 @@ GahpClient::cream_job_lease(const char *service, const char *job_id, time_t &lea
 //************* Added for Amazon Jobs by fangcao ***************************//
 
 //  Start VM
-int GahpClient::amazon_vm_start( const char * accesskeyfile, const char * secretkeyfile, const char * ami_id, 
-								 const char * keypair, StringList & groupnames, char * &instance_id, char * &error_code)
+int GahpClient::amazon_vm_start( const char * accesskeyfile,
+								 const char * secretkeyfile,
+								 const char * ami_id, 
+								 const char * keypair,
+								 const char * user_data,
+								 StringList & groupnames,
+								 char * &instance_id,
+								 char * &error_code)
 {
 	// command line looks like:
 	// AMAZON_COMMAND_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <groupname> <groupname> ...
@@ -5934,7 +5940,8 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile, const char * secret
 	char* esc3 = strdup( escapeGahpString(ami_id) );
 	char* esc4 = strdup( escapeGahpString(keypair) );
 	
-	bool x = reqline.sprintf("%s %s %s %s", esc1, esc2, esc3, esc4 );
+	bool x = reqline.sprintf("%s %s %s %s %s", esc1, esc2, esc3, esc4,
+							 user_data ? escapeGahpString(user_data) : NULLSTRING );
 	
 	free( esc1 );
 	free( esc2 );

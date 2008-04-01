@@ -175,7 +175,7 @@ int AmazonJob::funcRetryInterval = 30;
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
 {
-	char buff[4096];
+	char buff[16385]; // user data can be 16K, this is 16K+1
 	MyString error_string = "";
 	char *gahp_path = NULL;
 	ArgList args;
@@ -209,6 +209,21 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	if ( strlen(m_secret_key_file) == 0 ) {
 		error_string = "Secret key file not defined";
 		goto error_exit;
+	}
+
+		// XXX: Buffer Overflow if the user_data is > 16K? This code
+		// should be unprivileged.
+
+		// XXX: It is bad to assume the buff is initialized to 0s,
+		// always use memset? All this code should be changed to get
+		// at the attribute in a better way.
+
+	memset(buff, 0, 16385);
+	jobAd->LookupString( ATTR_AMAZON_USER_DATA, buff );
+	if ( '\0' == buff[0] ) {
+		m_user_data = NULL;
+	} else {
+		m_user_data = strdup(buff);
 	}
 
 	m_ami_id = NULL;
@@ -280,6 +295,7 @@ AmazonJob::~AmazonJob()
 	if ( m_secret_key_file != NULL ) delete m_secret_key_file;
 	if ( m_ami_id != NULL ) delete m_ami_id;
 	if ( m_key_pair != NULL ) delete m_key_pair;
+	if ( m_user_data != NULL ) delete m_user_data;
 	if ( m_group_names != NULL ) delete m_group_names;
 }
 
@@ -763,6 +779,7 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
 												m_ami_id->Value(), m_key_pair->Value(), 
+												m_user_data, 
 												*m_group_names, instance_id, m_error_code);
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {

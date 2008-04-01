@@ -95,6 +95,7 @@ private:
 	
 	char * m_access_key_file;
 	char * m_secret_key_file;
+	char * m_user_data;
 	char * m_bucket_name;
 	char * m_xml_file;
 	char * m_error_code;

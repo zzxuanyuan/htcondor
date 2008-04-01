@@ -86,6 +86,7 @@ class AmazonVMStart : public AmazonRequest {
 		MyString secretkeyfile;
 		MyString ami_id;
 		MyString keypair;
+		MyString user_data;
 
 		// we support multiple group names
 		StringList groupnames;
