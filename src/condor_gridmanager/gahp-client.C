@@ -8324,6 +8324,105 @@ int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const c
 	return GAHPCLIENT_COMMAND_PENDING;
 	
 }
-						
+
+
+// Check all the running VM instances and their corresponding keypair name
+int GahpClient::amazon_vm_vm_keypair_all( const char* accesskeyfile, const char* secretkeyfile,
+										  StringList & returnStatus, char* & error_code )
+{
+	// command line looks like:
+	// AMAZON_COMMAND_VM_KEYPAIR_ALL <req_id> <accesskeyfile> <secretkeyfile>
+	static const char* command = "AMAZON_VM_RUNNING_KEYPAIR";
+	
+	// check if this command is supported
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
+		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
+	}
+	
+	// check input arguments
+	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) ) {
+		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
+	}
+	
+	// Generate request line
+	MyString reqline;
+	
+	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
+	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	
+	bool x = reqline.sprintf("%s %s", esc1, esc2 );
+	
+	free( esc1 );
+	free( esc2 );
+	ASSERT( x == true );
+	
+	const char *buf = reqline.Value();
+		
+	// Check if this request is currently pending. If not, make it the pending request.
+	if ( !is_pending(command,buf) ) {
+		// Command is not pending, so go ahead and submit a new one if our command mode permits.
+		if ( m_mode == results_only ) {
+			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
+		}
+		now_pending(command, buf, deleg_proxy);
+	}
+	
+	// If we made it here, command is pending.
+
+	// Check first if command completed.
+	Gahp_Args* result = get_pending_result(command, buf);
+	
+	// we expect the following return:
+	//		seq_id 0 <instance_id> <keypair> <instance_id> <keypair> ... 
+	//		seq_id 1 <error_code> <error_string>
+	//		seq_id 1
+	
+	// Notice: the running VM instances without keypair name will not be ruturned by gahp_server
+
+	if ( result ) {
+		// command completed and the return value looks like:
+		int rc = atoi(result->argv[1]);
+		
+		if (rc == 1) {
+			
+			if (result->argc == 2) {
+				error_string = "";
+			} else if (result->argc == 4) {
+				error_code = strdup(result->argv[2]);
+				error_string = strdup(result->argv[3]);
+			} else {
+				EXCEPT("Bad %s Result",command);
+			}
+			
+		} else {	// rc == 0
+			
+			if ( ( (result->argc-2) % 2) != 0 ) {
+				EXCEPT("Bad %s Result",command);
+			} else {
+				// get the status info
+				for (int i=2; i<result->argc; i++) {
+					returnStatus.append( strdup(result->argv[i]) );
+				}
+				returnStatus.rewind();
+			}
+		}		
+		
+		delete result;
+		return rc;
+	}
+
+	// Now check if pending command timed out.
+	if ( check_pending_timeout(command, buf) ) 
+	{
+		// pending command timed out.
+		error_string.sprintf( "%s timed out", command );
+		return GAHPCLIENT_COMMAND_TIMED_OUT;
+	}
+
+	// If we made it here, command is still pending...
+	return GAHPCLIENT_COMMAND_PENDING;	
+
+}
+				
 //************* End of changes for Amamzon Jobs by fangcao *****************//
 	

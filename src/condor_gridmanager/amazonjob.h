@@ -49,10 +49,9 @@ public:
 	void Reconfig();
 	int doEvaluateState();
 	BaseResource *GetResource();
-	void SetRemoteJobId( const char *job_id );
+	void SetRemoteJobId( const char * job_id );
+	void SetSubmitStepInfo(const char * info);
 	
-	void FailureRecovery();
-
 	static int probeInterval;
 	static int submitInterval;
 	static int gahpCallTimeout;
@@ -102,15 +101,13 @@ private:
 	
 	int m_retry_tid; // timer id for retry functions
 	int m_retry_times; // function retry times
+	int m_submit_step;
 	
 	MyString* m_ami_id;
 	MyString* m_key_pair;
 	MyString* m_key_pair_file_name;
 	MyString* m_dir_name;
 	StringList* m_group_names;
-	
-	// used by Failure Recovery to decide which state we have reached
-	int m_submit_step;
 	
 	// create temporary names when clients don't assign the values
 	const char* temporary_keypair_name();
@@ -128,6 +125,8 @@ private:
 	
 	// before calling another gahp function, reset m_error_code to NULL
 	void reset_error_code();
+	
+	void stopcode();
 };
 
 #endif

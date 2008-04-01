@@ -668,7 +668,7 @@ class GahpClient : public Service {
 		// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
 		// return: success/failed + <instance_id> <status> <ami_id> <instance_id> <status> <ami_id>     NULL
 		// Should look like:
-		//		seq_id 0 <instance_id> <status> <ami_id> <instance_id> <status> <ami_id> ... 
+		//		seq_id 0 <instance_id> <status> <ami_id>  <instance_id> <status> <ami_id> ... 
 		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
 		// We use NULL to replace the empty items.
@@ -848,7 +848,7 @@ class GahpClient : public Service {
 									 const char * secretkeyfile,
 									 StringList & keypair_names,
 									 char* & error_code );
-									 
+												 
 		// 16. List all S3 Bucket names
 		// AMAZON_COMMAND_S3_ALL_BUCKETS <req_id> <accesskeyfile> <secretkeyfile>
 		// return: success/failed
@@ -989,7 +989,19 @@ class GahpClient : public Service {
 										  const char* bucketname,
 										  const char* localdirname,
 										  char* & error_code );
-			
+		
+		// 27. check all the running VM instances and their corresponding keypair name								  
+		// AMAZON_COMMAND_VM_KEYPAIR_ALL <req_id> <accesskeyfile> <secretkeyfile>
+		// return: success/failed + <instance_id> <keypair_name> <instance_id> <keypair_name> ...
+		// Should look like:
+		//		seq_id 0 <instance_id> <keypair> <instance_id> <keypair> ... 
+		//		seq_id 1 <error_code> <error_string>
+		//		seq_id 1
+		int amazon_vm_vm_keypair_all( const char* accesskeyfile,
+									  const char* secretkeyfile,
+									  StringList & returnStatus,
+								  	  char* & error_code );
+		
 		//************* End of changes for Amamzon Jobs by fangcao *****************//
 			
 
