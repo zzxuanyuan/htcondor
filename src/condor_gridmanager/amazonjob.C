@@ -2041,7 +2041,7 @@ StringList* AmazonJob::build_groupnames()
 
 
 // Create the temporary name for the SSH keypair (not its output file name) 
-const char* AmazonJob::temporary_keypair_name()
+char* AmazonJob::temporary_keypair_name()
 {
 	// Note: keypair name = SSH_ + condor_pool_name + job_id
 	MyString keypair_name;
@@ -2052,7 +2052,7 @@ const char* AmazonJob::temporary_keypair_name()
 }
 
 
-const char* AmazonJob::temporary_security_group()
+char* AmazonJob::temporary_security_group()
 {
 	// Note: Name = SG_ + condor_pool_name + job_id
 	MyString security_group;
