@@ -24,15 +24,12 @@
 #include "condor_string.h"	// for strnewp and friends
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
-#include "condor_ckpt_name.h"
 #include "nullfile.h"
 #include "filename_tools.h"
 
-#include "globus_utils.h"
 #include "gridmanager.h"
 #include "amazonjob.h"
 #include "condor_config.h"
-#include "globusjob.h" // for rsl_stringify()
   
 #define GM_INIT							0
 #define GM_UNSUBMITTED					1
