@@ -460,7 +460,7 @@ bool AmazonVMStart::Request()
 	}
 
 	if( user_data.IsEmpty() == false ) {
-		systemcmd.AppendArg("-u");
+		systemcmd.AppendArg("-userdata");
 		systemcmd.AppendArg(user_data);
 	}
 
