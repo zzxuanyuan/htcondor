@@ -1794,7 +1794,6 @@ bool AmazonVMCreateKeypair::Request()
 		return false;
 	}
 
-#if defined(LINUX)
 	// To make sure actual updates on a disk
 	if( strcmp(outputfile.Value(), NULL_FILE) ) {
 
@@ -1831,7 +1830,6 @@ bool AmazonVMCreateKeypair::Request()
 			return false;
 		}
 	}
-#endif
 
 	// There is no output for success
 	return true;
