@@ -1794,6 +1794,45 @@ bool AmazonVMCreateKeypair::Request()
 		return false;
 	}
 
+#if defined(LINUX)
+	// To make sure actual updates on a disk
+	if( strcmp(outputfile.Value(), NULL_FILE) ) {
+
+		bool write_success = false;
+		int fd = safe_open_wrapper(outputfile.Value(), O_RDONLY);
+		if( fd > 0 ) {
+			if( fsync(fd) == 0 ) {
+				write_success = true;
+			}
+			close(fd);
+		}
+
+		if( write_success == false ) {
+			// Try to cleanup ssh key created in EC2
+			ArgList systemcmd2;
+			systemcmd2.AppendArg(AMAZON_SCRIPT_INTERPRETER);
+			systemcmd2.AppendArg(m_amazon_lib_prog);
+			systemcmd2.AppendArg("deleteloginkey");
+			systemcmd2.AppendArg("-a");
+			systemcmd2.AppendArg(accesskeyfile);
+			systemcmd2.AppendArg("-s");
+			systemcmd2.AppendArg(secretkeyfile);
+			systemcmd2.AppendArg("-keyname");
+			systemcmd2.AppendArg(keyname);
+
+			StringList tmpoutput;
+			MyString tmpecode;
+			systemCommand(systemcmd2, tmpoutput, tmpecode);
+
+			//delete output file
+			unlink(outputfile.Value());
+
+			error_msg = "Failed to write data to disk";
+			return false;
+		}
+	}
+#endif
+
 	// There is no output for success
 	return true;
 }
