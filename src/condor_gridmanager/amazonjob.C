@@ -883,13 +883,13 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 						// test for AMAZON_SUBMIT_BEFORE_VM (the VM does start successfully)
 						// Don't need to re-start the VM again.
 						// stopcode(); // test only
-						
-						
+
 						ASSERT( instance_id != NULL );
 						
 						// SetRemoteJobId() now is only used to update global variable remoteJobId
 						// It doesn't change the value of GridJobId
 						SetRemoteJobId( instance_id );
+						WriteGridSubmitEventToUserLog(jobAd);
 						free( instance_id );
 											
 						// gmState = GM_SUBMIT_SAVE; 
@@ -959,8 +959,10 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 					}				
 					daemonCore->Reset_Timer( evaluateStateTid, delay );
 					
-					// change condor job status to Running.
-					JobRunning();
+					if (remoteJobState == AMAZON_VM_STATE_RUNNING) {
+						// change condor job status to Running.
+						JobRunning();
+					}
 				}			
 
 				break;
