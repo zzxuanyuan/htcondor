@@ -59,6 +59,7 @@ public:
 	static int maxRetryTimes;
 	static int funcRetryDelay;
 	static int funcRetryInterval;
+	static int pendingWaitTime;
 
 	static void setProbeInterval( int new_interval ) 	{ probeInterval = new_interval; }
 	static void setSubmitInterval( int new_interval )	{ submitInterval = new_interval; }

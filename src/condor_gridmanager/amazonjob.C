@@ -171,6 +171,7 @@ int AmazonJob::maxConnectFailures = 3;
 int AmazonJob::maxRetryTimes = 3;
 int AmazonJob::funcRetryDelay = 30;
 int AmazonJob::funcRetryInterval = 30;
+int AmazonJob::pendingWaitTime = 15;
 
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -962,7 +963,12 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 					if (remoteJobState == AMAZON_VM_STATE_RUNNING) {
 						// change condor job status to Running.
 						JobRunning();
-					}
+					} else {
+						// amazon_vm_status() returns too fast so have to stop 
+						// pendingWaitTime seconds first before retry
+						sleep(pendingWaitTime);
+						gmState = GM_PROBE_JOB;
+					}	
 				}			
 
 				break;
