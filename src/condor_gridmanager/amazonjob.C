@@ -929,9 +929,7 @@ int AmazonJob::doEvaluateState()
 						// change condor job status to Running.
 						JobRunning();
 					} else {
-						// amazon_vm_status() returns too fast so have to stop 
-						// pendingWaitTime seconds first before retry
-						sleep(pendingWaitTime);
+						// need to recheck the status until it is "running"
 						gmState = GM_PROBE_JOB;
 					}	
 				}			
@@ -1126,6 +1124,32 @@ int AmazonJob::doEvaluateState()
 							public_dns = strdup(returnStatus->next());
 							SetRemoteVMName( public_dns );
 						}
+						
+						// check the status of VM. If status is not "running", we should start a timer and recheck it later
+						// Notice: since amazon_vm_status() returns very quickly, if we don't set a timer for it, we will
+						// invoke this function more than 30 times before we can reach the "running" state.
+						if (remoteJobState == AMAZON_VM_STATE_RUNNING) {
+							// if we have setup the timer before, we need to remove it now
+							if( m_retry_tid != -1 ) {
+								daemonCore->Cancel_Timer(m_retry_tid);
+								m_retry_tid = -1;
+							}
+						} else {
+							// job status is not "running", we should setup a timer and recheck it later
+							if ( m_retry_tid != -1 ) {
+								// we have already setup a timer but still have the same issue
+								// don't need to any thing, just wait for next timer calling
+								return true;
+							} else {
+								// It is the first time we meet such an error
+								// let's register a timer and retry this function after several seconds
+								m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
+																	 	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
+																	 	 "AmazonJob::doEvaluateState", (Service*)this );
+								return true;
+							}
+						}
+											
 					}
 
 					if ( new_status ) free( new_status );
