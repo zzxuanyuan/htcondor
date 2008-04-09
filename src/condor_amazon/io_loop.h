@@ -70,7 +70,7 @@ class IOProcess : public Service {
 	IOProcess();
 	~IOProcess();
 	 
-	bool startUp(int stdin_pipe, const char* worker_prog, int min_workers, int max_workers);
+	bool startUp(int stdin_pipe, const char* worker_prog, int min_workers, int max_workers, int wm_interval);
 
 	int stdinPipeHandler();
 	int workerThreadReaper(int pid, int exit_status);
@@ -106,6 +106,7 @@ class IOProcess : public Service {
 	int m_new_results_signaled;
 	int m_min_workers;
 	int m_max_workers;
+	int m_wm_interval;
 
  private: 
 	void killWorker(Worker *worker, bool graceful);

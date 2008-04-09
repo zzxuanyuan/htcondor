@@ -260,17 +260,24 @@ main_init( int argc, char ** const argv )
 
 	int min_workers = MIN_NUMBER_WORKERS;
 	int max_workers = -1;
+	int wm_interval = WORKER_MANAGER_TIMER_INTERVAL;
 
-	char* num_workers = param("AMAZON_GAHP_WORKER_MIN_NUM");
-	if (num_workers) {
-		min_workers = atoi(num_workers);
-		free(num_workers);
+	char* paramval = param("AMAZON_GAHP_WORKER_MIN_NUM");
+	if (paramval) {
+		min_workers = atoi(paramval);
+		free(paramval);
 	}
 
-	num_workers = param("AMAZON_GAHP_WORKER_MAX_NUM");
-	if (num_workers) {
-		max_workers = atoi(num_workers);
-		free(num_workers);
+	paramval = param("AMAZON_GAHP_WORKER_MAX_NUM");
+	if (paramval) {
+		max_workers = atoi(paramval);
+		free(paramval);
+	}
+
+	paramval = param("AMAZON_GAHP_WORKER_MANAGER_INTERVAL");
+	if (paramval) {
+		wm_interval = atoi(paramval);
+		free(paramval);
 	}
 
 	// Create IOProcess class
@@ -278,7 +285,7 @@ main_init( int argc, char ** const argv )
 	ASSERT(ioprocess);
 
 	if( ioprocess->startUp(stdin_pipe, worker_exec_name.Value(), 
-				min_workers, max_workers) == false ) {
+				min_workers, max_workers, wm_interval) == false ) {
 		dprintf(D_ALWAYS, "Failed to start IO Process\n");
 		delete ioprocess;
 		DC_Exit(1);
@@ -462,6 +469,7 @@ IOProcess::IOProcess(void)
 {
 	m_min_workers = MIN_NUMBER_WORKERS;
 	m_max_workers = -1;
+	m_wm_interval = WORKER_MANAGER_TIMER_INTERVAL;
 	m_async_mode = 0;
 	m_new_results_signaled = 0;
 	m_flush_request_tid = -1;
@@ -475,10 +483,11 @@ IOProcess::~IOProcess()
 }
 
 bool
-IOProcess::startUp(int stdin_pipe, const char* worker_prog, int min_workers, int max_workers)
+IOProcess::startUp(int stdin_pipe, const char* worker_prog, int min_workers, int max_workers, int wm_interval)
 {
 	m_min_workers = min_workers;
 	m_max_workers = max_workers;
+	m_wm_interval = wm_interval;
 	m_worker_exec_name = worker_prog;
 	m_stdin_buffer.setPipeEnd(stdin_pipe);
 
@@ -511,8 +520,8 @@ IOProcess::startUp(int stdin_pipe, const char* worker_prog, int min_workers, int
 	}
 
 	m_worker_manager_tid = 
-		daemonCore->Register_Timer (WORKER_MANAGER_TIMER_INTERVAL,
-				WORKER_MANAGER_TIMER_INTERVAL,
+		daemonCore->Register_Timer (m_wm_interval,
+				m_wm_interval,
 				(TimerHandlercpp)&IOProcess::workerManager,
 				"IOProcess::workerManager", 
 				this);
@@ -915,7 +924,7 @@ void
 IOProcess::resetWorkerManagerTimer(void)
 {
 	if( m_worker_manager_tid > 0 ) {
-		daemonCore->Reset_Timer(m_worker_manager_tid, 0, WORKER_MANAGER_TIMER_INTERVAL);
+		daemonCore->Reset_Timer(m_worker_manager_tid, 0, m_wm_interval);
 	}
 }
 
