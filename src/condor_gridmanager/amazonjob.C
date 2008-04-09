@@ -104,6 +104,7 @@ static char *GMStateNames[] = {
 #define AMAZON_SUBMIT_AFTER_SSH		1
 #define AMAZON_SUBMIT_BEFORE_VM		2
 #define AMAZON_SUBMIT_AFTER_VM		3
+#define AMAZON_SHUTDOWN_VM			100
 
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
@@ -387,6 +388,7 @@ GM_BEFORE_SSH_KEYPAIR
 GM_AFTER_SSH_KEYPAIR
 GM_BEFORE_STARTVM
 GM_AFTER_STARTVM
+AMAZON_SHUTDOWN_VM
 
 In the future, for every new gahp function which need to be logged, we should add two new states
 for it, one is before and one is after. Some of these adjacent states can be merged, but to make
@@ -408,6 +410,12 @@ dprintf(D_ALWAYS, "GM_RECOVERY: Should Recovery: The GridJobId = %s\n", submit_s
 					StringList * submit_steps = new StringList(submit_status, " ");
 					submit_steps->rewind();
 					m_submit_step = submit_steps->number() - 1;	// get the size of StatusList
+					
+					// check if we have reached shut-down stage, this requires us to check
+					// current condor state is REMOVED
+					if ( condorState == REMOVED ) {
+						m_submit_step = AMAZON_SHUTDOWN_VM;
+					}
 
 dprintf(D_ALWAYS, "GM_RECOVERY: m_submit_step = %d\n", m_submit_step);	
 					
@@ -639,6 +647,14 @@ dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_AFTER_VM \n" );
 							}
 							
 							break;
+							
+							
+						case AMAZON_SHUTDOWN_VM:
+							
+							// we should redo the shutdown process
+							gmState = GM_CANCEL;
+							break;
+						
 						
 						default:
 							gmState = GM_HOLD;							
