@@ -1182,7 +1182,7 @@ int AmazonJob::doEvaluateState()
 					// we need to create a bucket in S3 where our image file will be saved.
 					// The name of this bucket will be same as the group name
 					if (!m_bucket_name) 
-						m_bucket_name =	(char*)temporary_bucket_name();	
+						m_bucket_name =	temporary_bucket_name();	
 						
 					// call gahp_server function to create a temporary bucket
 					rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
@@ -1798,11 +1798,11 @@ char* AmazonJob::build_xml_file(const char* dirname)
 		// we suppose only one XML file exists in the uploading directory
 		// No matter how many XML files we got, we only return the first one
 		xml_names->rewind();
-		char* xml_name = (char*) condor_basename(xml_names->next());
+		MyString xml_name = condor_basename(xml_names->next());
 		
 		// create the S3 Location
 		MyString image_location;	
-		image_location.sprintf("/%s/%s", m_bucket_name, xml_name);
+		image_location.sprintf("/%s/%s", m_bucket_name, xml_name.Value());
 		return strdup(image_location.Value());
 	}
 	else
@@ -1861,7 +1861,7 @@ const char* AmazonJob::temporary_security_group()
 }
 
 
-const char* AmazonJob::temporary_bucket_name()
+char* AmazonJob::temporary_bucket_name()
 {
 	// Note: Name = Condor_ + Random characters
 	MyString random;

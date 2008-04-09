@@ -112,7 +112,7 @@ private:
 	// create temporary names when clients don't assign the values
 	const char* temporary_keypair_name();
 	const char* temporary_security_group();
-	const char* temporary_bucket_name();
+	char* temporary_bucket_name();
 	
 	// remove created temporary keypair file
 	bool remove_keypair_file(const char* filename);
