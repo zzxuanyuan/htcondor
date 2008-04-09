@@ -771,11 +771,9 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 					
 					reset_error_code();	
 					
-					// m_ami_id/m_key_pair/m_group_names are NOT required variable
 					if ( m_ami_id == NULL )			m_ami_id = build_ami_id();
 					if ( m_key_pair == NULL )		m_key_pair = build_keypair();
-					
-					if ( m_group_names == NULL )	m_group_names = new StringList();
+					if ( m_group_names == NULL )	m_group_names = build_groupnames();
 					
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
@@ -1427,139 +1425,24 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				// don't need to re-register again.
 				// stopcode(); // test only
 
-				// for every amazon job, creating security group for every security policy 
-				// is a necessary step
-				
-				// Based on the stage 1 of the development, we don't need to care about the
-				// security group problem, this state should be overleapped directly by providing 
-				// attribute AmazonGroupName in condor submit file directly.
-
-				// In the stage 2, we will foucs on the following codes
-				{ // add "{" here in case of  "crosses initialization" error
-
-				// check if the clients have assigned a security group name, if not, we should create
-				// the a temporary name and register it. If yes, just load it from JobAd's environment
+				// check if the clients have assigned a security group name, if not, we should assign
+				// "default" to it and register it. If yes, just load it from JobAd's environment
 				if (m_group_names == NULL) {
 					m_group_names = build_groupnames();
 				}
 
-				// check if the security group name is temporary one
-//				m_group_names->rewind();
-				// if we have a temporary name, it must be the first element in m_group_names
-//				char* sg_name = m_group_names->next();
-
-//				if (strcmp(sg_name, temporary_security_group()) == 0) {
-
-					// prepare for the groupname and group_description
-//					const char * group_description = "temporary security group name created by Condor"; 
-				
-					// now add this temporary group name							
-//					rc = gahp->amazon_vm_create_group(m_access_key_file, m_secret_key_file, sg_name, group_description, m_error_code);
-					
-//					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-//						break;
-//					}
-					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-//					if ( m_error_code == NULL ) {
-						// go ahead
-//					} else {
-						// print out the received error code
-//						print_error_code(m_error_code, "amazon_vm_create_group()");
-//						reset_error_code();
-					
-						// change Job's status to CANCEL
-//						gmState = GM_HOLD;
-//						break;
-//					}
-					
-//					if (rc == 0) {
-						// register the security group successfully
-						// gmState = GM_SUBMIT; 
-//						gmState = GM_BEFORE_STARTVM;
-						 
-//					} else {
-//						errorString = gahp->getErrorString();
-//						dprintf(D_ALWAYS,"(%d.%d) job create temporary security group failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-//						gmState = GM_HOLD;
-//					}
-//				} else {
-					// security group name is provided by client
-					// come to next state directly
-					// gmState = GM_SUBMIT;
-					gmState = GM_BEFORE_STARTVM;
-//				}
-				
-				}
+				// security group name is provided by client, come to next state directly
+				gmState = GM_BEFORE_STARTVM;
 				
 				break; 	
 			
 
 			case GM_DESTROY_SG:
 				
-				// Based on the stage 1 of the development, we don't need to care about the
-				// security group problem, this state should be overleapped directly.
+				// EC2 is using the group name provided by client
+				// don't need to do any extra work, just come to GM_DESTROY_KEYPAIR directly
+				gmState = GM_DESTROY_KEYPAIR;
 				
-				// gmState = GM_DESTROY_KEYPAIR;
-				// break;
-				
-				{
-				// if we don't set the security groups, we can skip this state.
-				if ( m_group_names == NULL ) {
-					gmState = GM_DESTROY_KEYPAIR;
-					break;
-				}
-				
-				// first, we should check if the current group name is temporary group name
-				
-				m_group_names->rewind();
-				// If we use temporary group name, it must be saved at the first element in the StringList
-				char* current_group_name = m_group_names->next(); 
-				
-				if (strcmp(current_group_name, temporary_security_group()) == 0) {
-				
-					// yes, EC2 is using temporary group name
-					
-					rc = gahp->amazon_vm_delete_group(m_access_key_file, m_secret_key_file, current_group_name, m_error_code);
-					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						break;
-					}
-					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_delete_group()");
-						reset_error_code();
-					
-						// change Job's status to CANCEL
-						gmState = GM_FAILED;
-						break;
-					}
-					
-					if (rc == 0) {
-						// let's destroy the key pair
-						gmState = GM_DESTROY_KEYPAIR;
-					} else {
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary security group failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_FAILED;
-					}					
-				} else {
-					// no, EC2 is using the group name provided by client
-					// don't need to do any extra work, just come to GM_DESTROY_KEYPAIR directly
-					gmState = GM_DESTROY_KEYPAIR;
-				}
-				
-				}
 				break;	
 			
 
@@ -1965,15 +1848,18 @@ StringList* AmazonJob::build_groupnames()
 	StringList* group_names = NULL;
 	char* buffer = NULL;
 	
+	// Notice:
+	// Based on the meeting in 04/01/2008, now we will not create any temporary security groups
+	// 1. clients assign ATTR_AMAZON_GROUP_NAME in condor_submit file, then we will use those 
+	//    security group names.
+	// 2. clients don't assign ATTR_AMAZON_GROUP_NAME in condor_submit file, then we will use
+	//    a security group named "default"
+	
 	if ( jobAd->LookupString( ATTR_AMAZON_GROUP_NAME, &buffer ) ) {
-		group_names = new StringList( buffer, " " );
+		group_names = new StringList( strdup(buffer), " " );
 	} else {
-		// If client doesn't assign a group name, we will create a temporary
-		// security group name for it.
-		// Note: Name = SG_ + condor_pool_name + job_id
-//		const char* temp_name = temporary_security_group();
-//		group_names = new StringList();
-//		group_names->append(temp_name); // when test, comment this line
+		group_names = new StringList();
+		group_names->append("default");
 	}
 	
 	free (buffer);
