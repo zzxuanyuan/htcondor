@@ -34,8 +34,6 @@
 #include "condor_config.h"
 #include "globusjob.h" // for rsl_stringify()
   
-// GridManager job states
-// For Amazon Jobs, we only need to keep 13 states
 #define GM_INIT							0
 #define GM_UNSUBMITTED					1
 #define GM_SUBMIT						2
@@ -353,49 +351,53 @@ int AmazonJob::doEvaluateState()
 				gmState = GM_RECOVERY;
 				break;
 				
-//////////////////////////////////////////////////////////////////////////
-
-/*
-*** Design for Failure Recovery ***
-
-To implement failure recovery, we will use the environmental variable "GridJobID" to 
-record the submitting step of the Amazon Job.
-
-A new state call GM_RECOVERY will be added and will be placed between GM_INIT and GM_START.
-
-1. before registering SSH keypair		// test OK
-	GridJobID = "ssh_keypair_name"
-	In this step, we should check in EC2, if the given ssh_keypair has been registered or not
-	
-2. after registering SSH_keypair		// test OK
-	GridJobID = "ssh_keypair_name ssh_done"
-	 
-3. before starting VM
-	GridJobID = "ssh_keypair_name ssh_done vm_starting"
-	In this step, we should check in EC2, if the given VM has been started or not. But based  
-	on the current implementation, we just re-start VM. 
-	
-4. after starting VM
-	GridJobID = "ssh_keypair_name ssh_done vm_starting vm_instance_id"
-	
-To save the log information into GridJobId, we should use SetSubmitStepInfo(). To save them to 
-the schedd, we should use requestScheddUpdate(). But requestScheddUpdate() works a little like 
-the Amazon Gahp commands, its first return value is always false and we should use break to keep
-watching on its return value. So the four places where we will calling 
-SetSubmitStepInfo()/requestScheddUpdate(), we should use four new states for them:
-
-GM_BEFORE_SSH_KEYPAIR
-GM_AFTER_SSH_KEYPAIR
-GM_BEFORE_STARTVM
-GM_AFTER_STARTVM
-AMAZON_SHUTDOWN_VM
-
-In the future, for every new gahp function which need to be logged, we should add two new states
-for it, one is before and one is after. Some of these adjacent states can be merged, but to make
-our implementation easy to understand and graceful, we will not merge them.
-
-*** Design for Failure Recovery ***
-*/
+			/*
+			*** Design for Failure Recovery ***
+			
+			To implement failure recovery, we will use the environmental variable "GridJobID" to 
+			record the submitting step of the Amazon Job.
+			
+			A new state call GM_RECOVERY will be added and will be placed between GM_INIT and GM_START.
+			
+			1. before registering SSH keypair		// test OK
+				GridJobID = "ssh_keypair_name"
+				In this step, we should check in EC2, if the given ssh_keypair has been registered or not
+				
+			2. after registering SSH_keypair		// test OK
+				GridJobID = "ssh_keypair_name ssh_done"
+				 
+			3. before starting VM
+				GridJobID = "ssh_keypair_name ssh_done vm_starting"
+				In this step, we should check in EC2, if the given VM has been started or not. But based  
+				on the current implementation, we just re-start VM. 
+				
+			4. after starting VM
+				GridJobID = "ssh_keypair_name ssh_done vm_starting vm_instance_id"
+				
+			5. after we start to shutdown the VM 
+				GridJobID = "ssh_keypair_name ssh_done vm_starting vm_instance_id"
+				In this step, we also need to check the current condor state should be HOLD or REMOVE
+				When GridManager finds a given Amazon Job's state is this, the gmState will be redirected
+				to GM_CANCEL.
+				
+			To save the log information into GridJobId, we should use SetSubmitStepInfo(). To save them to 
+			the schedd, we should use requestScheddUpdate(). But requestScheddUpdate() works a little like 
+			the Amazon Gahp commands, its first return value is always false and we should use break to keep
+			watching on its return value. So the four places where we will calling 
+			SetSubmitStepInfo()/requestScheddUpdate(), we should use four new states for them:
+			
+			GM_BEFORE_SSH_KEYPAIR
+			GM_AFTER_SSH_KEYPAIR
+			GM_BEFORE_STARTVM
+			GM_AFTER_STARTVM
+			AMAZON_SHUTDOWN_VM
+			
+			In the future, for every new gahp function which need to be logged, we should add two new states
+			for it, one is before and one is after. Some of these adjacent states can be merged, but to make
+			our implementation easy to understand and graceful, we will not merge them.
+			
+			*** End of Design for Failure Recovery ***
+			*/
 			
 			case GM_RECOVERY:
 				{
@@ -404,8 +406,7 @@ our implementation easy to understand and graceful, we will not merge them.
 				char* submit_status = NULL;
 				
 				if ( jobAd->LookupString( "GridJobId", &submit_status ) ) {
-dprintf(D_ALWAYS, "GM_RECOVERY: Should Recovery: The GridJobId = %s\n", submit_status);				
-					
+
 					// checking which step this job has reached
 					StringList * submit_steps = new StringList(submit_status, " ");
 					submit_steps->rewind();
@@ -417,8 +418,6 @@ dprintf(D_ALWAYS, "GM_RECOVERY: Should Recovery: The GridJobId = %s\n", submit_s
 						m_submit_step = AMAZON_SHUTDOWN_VM;
 					}
 
-dprintf(D_ALWAYS, "GM_RECOVERY: m_submit_step = %d\n", m_submit_step);	
-					
 					switch( m_submit_step ) 
 					{
 						case AMAZON_SUBMIT_UNDEFINED:
@@ -431,8 +430,6 @@ dprintf(D_ALWAYS, "GM_RECOVERY: m_submit_step = %d\n", m_submit_step);
 						case AMAZON_SUBMIT_BEFORE_SSH:
 							
 							{
-dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_BEFORE_SSH\n");									
-								
 							// get the SSH keypair name
 							submit_steps->rewind();
 							char* existing_ssh_keypair = strdup(submit_steps->next());
@@ -512,9 +509,7 @@ dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_BEFORE_SSH\n");
 							break;							
 							
 						case AMAZON_SUBMIT_AFTER_SSH:
-							
 							{
-dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_AFTER_SSH\n");								
 							// set some global variables we needed			
 							submit_steps->rewind();
 							m_key_pair = new MyString(submit_steps->next());
@@ -544,9 +539,7 @@ dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_AFTER_SSH\n");
 							break;
 							
 						case AMAZON_SUBMIT_BEFORE_VM:
-							
 							{
-dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_BEFORE_VM \n" );															
 							// we should also get the SSH keypair which will be used in vm_start()
 							submit_steps->rewind();
 							m_key_pair = new MyString(submit_steps->next());
@@ -627,9 +620,7 @@ dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_BEFORE_VM \n" );
 							
 							
 						case AMAZON_SUBMIT_AFTER_VM:
-							
 							{
-dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_AFTER_VM \n" );								
 							// save the SSH keypair which will be used later (removing the VM, SSH keypair)
 							submit_steps->rewind();
 							m_key_pair = new MyString(submit_steps->next());
@@ -662,7 +653,6 @@ dprintf(D_ALWAYS, "GM_RECOVERY: AMAZON_SUBMIT_AFTER_VM \n" );
 					}
 					
 				} else {
-dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 					// the GridJonID is empty, it is a new job, don't need to do any recovery work
 					gmState = GM_START;
 				}
@@ -672,9 +662,7 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				break;
 				
 				
-//////////////////////////////////////////////////////////////////////////
-
-			case GM_BEFORE_SSH_KEYPAIR:	// OK
+			case GM_BEFORE_SSH_KEYPAIR:
 				// Fail Recovery: before register SSH keypair
 
 				// First we should set the value of SSH keypair. In normal situation, this
@@ -695,7 +683,7 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				break;
 				
 
-			case GM_AFTER_SSH_KEYPAIR:	// OK
+			case GM_AFTER_SSH_KEYPAIR:
 
 				// Fail Recovery: after register SSH keypair
 				SetSubmitStepInfo("ssh_done");
@@ -706,7 +694,7 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				break;
 				
 
-			case GM_BEFORE_STARTVM:		// OK
+			case GM_BEFORE_STARTVM:
 
 				// Fail Recovery: before starting VM
 				SetSubmitStepInfo("vm_starting");
@@ -717,7 +705,7 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				break;
 
 
-			case GM_AFTER_STARTVM:		// OK
+			case GM_AFTER_STARTVM:
 
 				// Fail Recovery: after starting VM
 				SetSubmitStepInfo(remoteJobId);
@@ -727,8 +715,6 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 				}				
 				break;
 
-//////////////////////////////////////////////////////////////////////////
-			
 											
 			case GM_START:
 
