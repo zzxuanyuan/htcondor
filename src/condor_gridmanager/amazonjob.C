@@ -167,7 +167,6 @@ int AmazonJob::gahpCallTimeout = 21600;
 int AmazonJob::probeInterval = 3;
 int AmazonJob::submitInterval = 300;
 int AmazonJob::maxConnectFailures = 3;
-int AmazonJob::maxRetryTimes = 3;
 int AmazonJob::funcRetryDelay = 30;
 int AmazonJob::funcRetryInterval = 30;
 int AmazonJob::pendingWaitTime = 15;
@@ -235,7 +234,6 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	m_error_code = NULL;
 	m_bucket_name = NULL;
 	m_retry_tid = -1;
-	m_retry_times = 0;
 	
 	// set the default value/status for current submit step
 	m_submit_step = AMAZON_SUBMIT_UNDEFINED;
@@ -812,52 +810,22 @@ int AmazonJob::doEvaluateState()
 							// we have setup the timer before, so we need to remove it now	
 							daemonCore->Cancel_Timer(m_retry_tid);
 							m_retry_tid = -1;
-							m_retry_times = 0;
 						}
 	
 					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
 						
 						// meet the resource limitation (maximum 20 instances)
 						// should setup a timer and retry this command later
-						
 						if ( m_retry_tid != -1 ) {
-	
-							// we have already setup a timer
-							
-							// now need to check if we have reached the up limit of retries
-							m_retry_times++;
-													
-							if ( m_retry_times == maxRetryTimes) {
-							
-								// we have reached the up limit of retry times
-								// now we need to close the timer and print out some error messages							
-								dprintf(D_ALWAYS,"(%d.%d) job submit failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-								
-								// 	close the timer we have started
-								daemonCore->Cancel_Timer(m_retry_tid);
-								m_retry_tid = -1;
-								m_retry_times = 0;
-								
-								errorString = gahp->getErrorString();
-								
-								// the Amazon Job's state should be moved to GM_HOLD
-								gmState = GM_HOLD;
-								break;
-																
-							} else {
-								// not reach the up limit yet, don't need to any thing, just wait for next timer calling
-								return true;
-							}
-							
+							// we have already setup a timer but still have the same issue
+							// don't need to any thing, just wait for next timer calling
+							return true;
 						} else {
-		
 							// It is the first time we meet such an error
 							// let's register a timer and retry this function after several minutes
-							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, 
-																	 funcRetryInterval, 
+							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
 																	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
-																	 "AmazonJob::doEvaluateState", 
-																	 (Service*)this);
+																	 "AmazonJob::doEvaluateState", (Service*)this);
 							return true;
 						}			
 				
