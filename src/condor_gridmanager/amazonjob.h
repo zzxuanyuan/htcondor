@@ -51,6 +51,7 @@ public:
 	BaseResource *GetResource();
 	void SetRemoteJobId( const char * job_id );
 	void SetSubmitStepInfo(const char * info);
+	void SetRemoteVMName(const char * name);
 	
 	static int probeInterval;
 	static int submitInterval;

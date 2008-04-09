@@ -1074,6 +1074,7 @@ int AmazonJob::doEvaluateState()
 					gmState = GM_CANCEL;
 				} else {
 					char * new_status = NULL;
+					char * public_dns = NULL;
 					StringList * returnStatus = new StringList();
 
 					// need to call amazon_vm_status(), amazon_vm_status() will check input arguments
@@ -1116,12 +1117,23 @@ int AmazonJob::doEvaluateState()
 						new_status = strdup(returnStatus->next());
 						remoteJobState = new_status;
 						SetRemoteJobStatus( new_status );
+						
+						returnStatus->rewind();
+						int size = returnStatus->number();
+						// only when status changed to running, can we have the public dns name
+						// at this situation, the number of return value is larger than 4
+						if (size >=4 ) {
+							for (int i=0; i<3; i++) {
+								returnStatus->next();							
+							}
+							public_dns = strdup(returnStatus->next());
+							SetRemoteVMName( public_dns );
+						}
 					}
 
-					if ( new_status ) {
-						free( new_status );
-					}
-					
+					if ( new_status ) free( new_status );
+					if ( public_dns ) free( public_dns );
+ 					
 					if ( returnStatus != NULL ) { 
 						delete returnStatus;
 					}
@@ -1630,6 +1642,23 @@ int AmazonJob::doEvaluateState()
 BaseResource* AmazonJob::GetResource()
 {
 	return (BaseResource *)myResource;
+}
+
+
+// steup the public name of amazon remote VM, which can be used the clients 
+void AmazonJob::SetRemoteVMName(const char * name)
+{
+	MyString public_name;
+	
+	if (name) {
+		public_name = name;
+	} else {
+		public_name = "";
+	}
+	
+	jobAd->Assign(ATTR_AMAZON_REMOTE_VM_NAME, public_name.Value());
+	
+	requestScheddUpdate( this );
 }
 
 
