@@ -35,6 +35,7 @@
 #define PERL_SCRIPT_SUCCESS_TAG "#SUCCESS"
 #define PERL_SCRIPT_ERROR_TAG "#ERROR"
 #define PERL_SCRIPT_ERROR_CODE "#ECODE"
+#define NULLSTRING "NULL"
 
 static bool
 __systemCommand(ArgList &args, StringList &output, MyString &error_code)
@@ -291,17 +292,17 @@ static void create_status_output(AmazonStatusResult *status, StringList &output)
 		if( status->public_dns.IsEmpty() == false ) {
 			output.append(status->public_dns.Value());
 		}else {
-			output.append("NULL");
+			output.append(NULLSTRING);
 		}
 		if( status->private_dns.IsEmpty() == false ) {
 			output.append(status->private_dns.Value());
 		}else {
-			output.append("NULL");
+			output.append(NULLSTRING);
 		}
 		if( status->keyname.IsEmpty() == false ) {
 			output.append(status->keyname.Value());
 		}else {
-			output.append("NULL");
+			output.append(NULLSTRING);
 		}
 		if( status->groupnames.isEmpty() == false ) {
 			char *one_group = NULL;
@@ -310,7 +311,7 @@ static void create_status_output(AmazonStatusResult *status, StringList &output)
 				output.append(one_group);
 			}
 		}else {
-			output.append("NULL");
+			output.append(NULLSTRING);
 		}
 	}
 }
@@ -389,20 +390,17 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	request.secretkeyfile = argv[3];
 	request.ami_id = argv[4];
 
-		// XXX: "NULL" should be NULLSTRING just like in the
-		// gridmanager/gahp-client.C
-
-	if( argc >= 6 && strcasecmp(argv[5], "NULL") ) {
+	if( argc >= 6 && strcasecmp(argv[5], NULLSTRING) ) {
 		request.keypair = argv[5];
 	}
 
-	if( argc >= 7 && strcasecmp(argv[6], "NULL") ) {
+	if( argc >= 7 && strcasecmp(argv[6], NULLSTRING) ) {
 		request.user_data = argv[6];
 	}
 
 	int i = 0;
 	for( i = 7; i < argc; i++ ) {
-		if( strcasecmp(argv[i], "NULL") ) {
+		if( strcasecmp(argv[i], NULLSTRING) ) {
 			request.groupnames.append(argv[i]);
 		}
 	}
