@@ -1576,8 +1576,7 @@ int AmazonJob::doEvaluateState()
 					jobAd->LookupString( ATTR_HOLD_REASON, holdReason, sizeof(holdReason) - 1 );
 					if ( holdReason[0] == '\0' && errorString != "" ) {
 						strncpy( holdReason, errorString.Value(), sizeof(holdReason) - 1 );
-					}
-					if ( holdReason[0] == '\0' ) {
+					} else if ( holdReason[0] == '\0' ) {
 						strncpy( holdReason, "Unspecified gridmanager error", sizeof(holdReason) - 1 );
 					}
 
@@ -1585,7 +1584,7 @@ int AmazonJob::doEvaluateState()
 				}
 			
 				gmState = GM_DELETE;
-						
+				
 				break;
 				
 			case GM_FAILED:
