@@ -1364,85 +1364,58 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 
 			case GM_CREATE_KEYPAIR:
 				{
-				// check if the clients have assigned keypair's name, if not, we should
-				// create the a temporary name and temporary output file name and register it.
-				// If yes, load it from JobAd's environment
-				
-				// Before we create the SSH keypair, we should have keypair name and and this job 
-				// is done in the state GM_BEFORE_SSH_KEYPAIR. 
+				// In state GM_BEFORE_SSH_KEYPAIR we should already create temporary key pair name
+				// maybe we also need to create a temporary output file name
 				
 				// test for AMAZON_SUBMIT_BEFORE_SSH (the SSH didn't register successfully)
 				// need to re-register again.
 				// stopcode(); // test only
-				
-				// Here we should check if the SSH keypair name we get is a temporary one or not.
-				char* buffer = NULL;
-				bool is_temporary = true;
-				if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR, &buffer ) ) {
-					// this value is assigned by clients
-					is_temporary = false;	
-				}				
-
-				// if it is a temporary keypair name, we should create a temporary keypair output file name
-				// and then we should create/register this keypair
-				if ( is_temporary ) {
-				
-					// we are using temporary keypair name, so we should find out where the output file 
-					// should be written to.
 	
-					// create temporary keypair output file name
-					if ( m_key_pair_file_name == NULL ) {
-						m_key_pair_file_name = build_keypairfilename();
-					}
+				// create/get a temporary keypair output file name
+				if ( m_key_pair_file_name == NULL ) {
+					m_key_pair_file_name = build_keypairfilename();
+				}
 					
-					// now create and register this keypair by using amazon_vm_create_keypair()
-					rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
-														m_key_pair->Value(), m_key_pair_file_name->Value(), m_error_code);
+				// now create and register this keypair by using amazon_vm_create_keypair()
+				rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
+													m_key_pair->Value(), m_key_pair_file_name->Value(), m_error_code);
 
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						break;
-					}
-					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_create_keypair()");
-						reset_error_code();
-					
-						// change Job's status to CANCEL
-						gmState = GM_HOLD;
-						break;
-					}
-					
-					if (rc == 0) {
-						// let's register the security group
-						// gmState = GM_CREATE_SG;
-						gmState = GM_AFTER_SSH_KEYPAIR;
-						
-						// test for AMAZON_SUBMIT_BEFORE_SSH (the SSH registered successfully)
-						// don't need to re-register again.
-						// stopcode(); // test only
-										
-					} else {
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_HOLD;
-						break;
-					}
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					break;
 				}
-				else {
-					// client has assigned a existing keypair name so we don't need to register an existing keypair
-					// Let's come to the next state directly.
-					// gmState = GM_CREATE_SG;
-					// gmState = GM_SUBMIT; // test only
-					gmState = GM_AFTER_SSH_KEYPAIR;
-				}
+					
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_create_keypair()");
+					reset_error_code();
 				
+					// change Job's status to CANCEL
+					gmState = GM_HOLD;
+					break;
+				}
+					
+				if (rc == 0) {
+					// let's register the security group
+					// gmState = GM_CREATE_SG;
+					gmState = GM_AFTER_SSH_KEYPAIR;
+					
+					// test for AMAZON_SUBMIT_BEFORE_SSH (the SSH registered successfully)
+					// don't need to re-register again.
+					// stopcode(); // test only
+									
+				} else {
+					errorString = gahp->getErrorString();
+					dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					gmState = GM_HOLD;
+					break;
+				}
+								
 				}				
 				
 				break;
@@ -1592,60 +1565,49 @@ dprintf(D_ALWAYS,"GM_RECOVERY: The GridJobId is EMPTY, No need to RECOVERY!\n");
 
 			case GM_DESTROY_KEYPAIR:
 				{
-				// check if current keypair is a temporary keypair
-				if ( strcmp(m_key_pair->Value(), temporary_keypair_name()) == 0 ) {
+				// Yes, now let's destroy the temporary keypair 
+				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair->Value(), m_error_code);
 
-					// Yes, now let's destroy the temporary keypair 
-					rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair->Value(), m_error_code);
-
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						break;
-					}
-
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_destroy_keypair()");
-						reset_error_code();
-					
-						// change Job's status to CANCEL
-						gmState = GM_FAILED;
-						break;
-					}
-
-					if (rc == 0) {
-
-						// when we registered a temporary keypair, a temporary file will also
-						// be created at the local disk. Now we need to remove it.
-						
-						// create temporary keypair output file name
-						if ( m_key_pair_file_name == NULL ) {
-							m_key_pair_file_name = build_keypairfilename();
-						}
-						
-						if ( remove_keypair_file(m_key_pair_file_name->Value()) ) {
-							gmState = GM_UNREGISTER_IMAGE;
-						} else {
-							dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
-							gmState = GM_FAILED;
-						}
-						
-					} else {
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_FAILED;
-					}
-
-				} else {
-					// keypair is provided by client, don't need to do anything here
-					gmState = GM_UNREGISTER_IMAGE;
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					break;
 				}
+
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_destroy_keypair()");
+					reset_error_code();
+				
+					// change Job's status to CANCEL
+					gmState = GM_FAILED;
+					break;
+				}
+
+				if (rc == 0) {
+					// remove temporary keypair local output file
+
+					if ( m_key_pair_file_name == NULL ) {
+						m_key_pair_file_name = build_keypairfilename();
+					}
+					
+					if ( remove_keypair_file(m_key_pair_file_name->Value()) ) {
+						gmState = GM_UNREGISTER_IMAGE;
+					} else {
+						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
+						gmState = GM_FAILED;
+					}
+					
+				} else {
+					errorString = gahp->getErrorString();
+					dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					gmState = GM_FAILED;
+				}
+									
 				}
 
 				break; 	
@@ -1899,25 +1861,12 @@ MyString* AmazonJob::build_ami_id()
 
 MyString* AmazonJob::build_keypair()
 {
-	// Notice:
-	// 		we can have two kinds of SSH keypair names, 
-	// 		1. the name assigned by client in the condor submit file with attribute AmazonKeyPair
-	// 		2. if there is no attribute AmazonKeyPair in the condor submit file, we should create
-	//		   a temporary one, which is "SSH_ + condor_pool_name + global_job_id"
-				
-	MyString* key_pair = new MyString();
-	char* buffer = NULL;
-	
-	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR, &buffer ) ) {
-		*key_pair = buffer;
-	} else {
-		// If client doesn't assign keypair name, we will create a temporary one
-		// Note: keypair name = SSH_ + condor_pool_name + global_job_id
-		*key_pair = temporary_keypair_name();
-	}
-	
-	free (buffer);
-	
+	// Since we're relying on the key-pair name being unique for each job for 
+	// recovery purposes, we don't want to let the user specify it. Everytime
+	// we will create a temporary one.
+
+	// keypair name = SSH_ + condor_pool_name + global_job_id
+	MyString* key_pair = new MyString(temporary_keypair_name());
 	return key_pair;
 }
 

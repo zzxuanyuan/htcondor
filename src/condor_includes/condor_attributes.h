@@ -651,11 +651,11 @@ extern const char *ATTR_VM_CKPT_MAC;
 extern const char *ATTR_VM_CKPT_IP;
 
 
-//************* Added for Amazon Jobs by fangcao ***************************//
+//************* Added for Amazon Jobs by Fangcao ***************************//
 extern const char *ATTR_AMAZON_ACCESS_KEY;
 extern const char *ATTR_AMAZON_SECRET_KEY;
 extern const char *ATTR_AMAZON_AMI_ID;
-extern const char *ATTR_AMAZON_KEY_PAIR;
+//Extern const char *ATTR_AMAZON_KEY_PAIR;
 extern const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME;
 extern const char *ATTR_AMAZON_GROUP_NAME;
 extern const char *ATTR_AMAZON_UPLOAD_DIR_NAME;

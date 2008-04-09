@@ -355,7 +355,7 @@ char    *VM_Networking_Type = "vm_networking_type";
 char* AmazonAccessKey = "AmazonAccessKey";
 char* AmazonSecretKey = "AmazonSecretKey";
 char* AmazonAmiID = "AmazonAmiID";
-char* AmazonKeyPair = "AmazonKeyPair";
+//char* AmazonKeyPair = "AmazonKeyPair";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
 char* AmazonUploadDirName = "AmazonUploadDirName";
@@ -5004,12 +5004,12 @@ SetGlobusParams()
 		exit( 1 );
 	}
 	
-	// AmazonKeyPair is not a necessary parameter
-	if ( (tmp = condor_param( AmazonKeyPair )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonKeyPair, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
+//	// AmazonKeyPair is not a necessary parameter
+//	if ( (tmp = condor_param( AmazonKeyPair )) ) {
+//		buffer.sprintf( "%s = \"%s\"", AmazonKeyPair, tmp );
+//		free( tmp );
+//		InsertJobExpr( buffer.Value() );
+//	}
 	
 	// AmazonKeyPairFileName is not a necessary parameter
 	if( (tmp = condor_param( AmazonKeyPairFileName )) ) {
