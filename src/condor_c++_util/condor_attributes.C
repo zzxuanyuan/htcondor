@@ -754,6 +754,7 @@ const char *ATTR_AMAZON_UPLOAD_DIR_NAME = "AmazonUploadDirName";
 const char *ATTR_AMAZON_SECURITY_POLICY = "AmazonSecurityPolicy";
 const char *ATTR_AMAZON_USER_DATA = "AmazonUserData";
 const char *ATTR_AMAZON_REMOTE_VM_NAME = "AmazonRemoteVirtualMachineName";
+const char *ATTR_AMAZON_RECOVERY_STEPS = "AmazonRecoverySteps";
 //************* End of changes for Amamzon Jobs by fangcao *****************//
 
 

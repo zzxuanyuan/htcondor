@@ -378,7 +378,7 @@ int AmazonJob::doEvaluateState()
 				When GridManager finds a given Amazon Job's state is this, the gmState will be redirected
 				to GM_CANCEL.
 				
-			To save the log information into GridJobId, we should use SetSubmitStepInfo(). To save them to 
+			To save the log information into AmazonRecoverySteps, we should use SetSubmitStepInfo(). To save them to 
 			the schedd, we should use requestScheddUpdate(). But requestScheddUpdate() works a little like 
 			the Amazon Gahp commands, its first return value is always false and we should use break to keep
 			watching on its return value. So the four places where we will calling 
@@ -403,7 +403,7 @@ int AmazonJob::doEvaluateState()
 				// Now we should first check the value of "GridJobID"
 				char* submit_status = NULL;
 				
-				if ( jobAd->LookupString( "GridJobId", &submit_status ) ) {
+				if ( jobAd->LookupString( "AmazonRecoverySteps", &submit_status ) ) {
 
 					// checking which step this job has reached
 					StringList * submit_steps = new StringList(submit_status, " ");
@@ -854,9 +854,6 @@ int AmazonJob::doEvaluateState()
 						// stopcode(); // test only
 
 						ASSERT( instance_id != NULL );
-						
-						// SetRemoteJobId() now is only used to update global variable remoteJobId
-						// It doesn't change the value of GridJobId
 						SetRemoteJobId( instance_id );
 						WriteGridSubmitEventToUserLog(jobAd);
 						free( instance_id );
@@ -1663,8 +1660,6 @@ void AmazonJob::SetRemoteVMName(const char * name)
 
 
 // SetRemoteJobId() is used to set the value of global variable "remoteJobID"
-// Now this function doesn't change the value of GridJobId. GridJobId will only
-// be updated by SetSubmitStepInfo().
 void AmazonJob::SetRemoteJobId( const char *job_id )
 {
 	free( remoteJobId );
@@ -1675,11 +1670,11 @@ void AmazonJob::SetRemoteJobId( const char *job_id )
 		remoteJobId = NULL;
 	}
 
-//	MyString full_job_id;
-//	if ( job_id ) {
-//		full_job_id.sprintf( "amazon %s %s", AMAZON_RESOURCE_NAME, job_id );
-//	}
-//	BaseJob::SetRemoteJobId( full_job_id.Value() );
+	MyString full_job_id;
+	if ( job_id ) {
+		full_job_id.sprintf( "amazon %s %s", AMAZON_RESOURCE_NAME, job_id );
+	}
+	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
 
 
@@ -1691,7 +1686,7 @@ void AmazonJob::SetSubmitStepInfo(const char * info)
 	MyString updated_info;
 
 	// the new submit step information will be appended to the existing info
-	if ( jobAd->LookupString( "GridJobId", &exist_info ) ) {
+	if ( jobAd->LookupString( "AmazonRecoverySteps", &exist_info ) ) {
 		
 		// should check if the last log in exist_info is same with the new one
 		StringList * logs = new StringList(exist_info, " ");
@@ -1708,15 +1703,17 @@ void AmazonJob::SetSubmitStepInfo(const char * info)
 		} else {
 			// appending the new log item to the existing one
 			updated_info.sprintf("%s %s", exist_info, new_info);
-			BaseJob::SetRemoteJobId( updated_info.Value() );
+			jobAd->Assign(ATTR_AMAZON_RECOVERY_STEPS, updated_info.Value());
 		}
 		
 		delete logs;
 		free( last_log );
 		
 	} else {
-		BaseJob::SetRemoteJobId( new_info );
+		jobAd->Assign(ATTR_AMAZON_RECOVERY_STEPS, new_info);
 	}
+	
+	requestScheddUpdate( this );
 	
 	free( exist_info );
 	free( new_info );			
