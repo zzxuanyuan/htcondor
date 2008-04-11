@@ -491,7 +491,9 @@ sub stop
 	my $instance = $ec2->terminate_instances( %input_params );
 	
 	if( ! defined($instance) ) {
-		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+		if( $ec2->{errorcode} ne "InvalidInstanceID.NotFound" ) {
+			createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+		}
 	}
 
 	printSuccessOutput();
@@ -1118,7 +1120,9 @@ sub delgroup
 	my $retval = $ec2->delete_security_group( %input_params );
 
 	if( ! defined($retval) ) {
-		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+		if( $ec2->{errorcode} ne "InvalidGroup.NotFound" ) {
+			createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+		}
 	}else {
 		if( ! $retval ) {
 			createErrorOutput();
@@ -1591,7 +1595,9 @@ sub deleteloginkey
 	my $retval = $ec2->delete_key_pair(%input_params);
 	
 	if( ! defined($retval) ) {
-		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+		if( $ec2->{errorcode} ne "InvalidKeyPair.NotFound" ) { 
+			createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+		}
 	}else {
 		if( ! $retval ) {
 			createErrorOutput();
