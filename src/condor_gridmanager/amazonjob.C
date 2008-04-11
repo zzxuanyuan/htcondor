@@ -104,6 +104,12 @@ static char *GMStateNames[] = {
 #define AMAZON_SUBMIT_AFTER_VM		3
 #define AMAZON_SHUTDOWN_VM			100
 
+#define AMAZON_REMOVE_EMPTY			0
+#define AMAZON_REMOVE_BEFORE_SSH	1
+#define AMAZON_REMOVE_AFTER_SSH		2
+#define AMAZON_REMOVE_BEFORE_VM		3
+#define AMAZON_REMOVE_AFTER_VM		4
+
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
 #	define file_strcmp _stricmp
@@ -639,11 +645,168 @@ int AmazonJob::doEvaluateState()
 							
 							
 						case AMAZON_SHUTDOWN_VM:
+							{
+							// we should redo the shutdown process based on the information we saved
 							
-							// we should redo the shutdown process
-							gmState = GM_CANCEL;
-							break;
+							// first we should check how many steps we have already done
+							int steps_done = submit_steps->number();
+							
+							switch (steps_done) {
+								
+								case AMAZON_REMOVE_EMPTY:
+
+									// we didn't write any recovery record yet. It means we didn't
+									// register SSH_key and start VM so just stop and exit
+									gmState = GM_FAILED;
+									break;
+									
+								case AMAZON_REMOVE_BEFORE_SSH:
+								case AMAZON_REMOVE_AFTER_SSH:
+									{
+									// we have recoreded "SSH key" and/or "ssh_done". In this situation, we
+									// should try to remove the SSH key but don't do anything for VM since there
+									// is no started VM yet 
+									
+									// get the SSH keypair and corresponding output file name
+									submit_steps->rewind();
+									m_key_pair = new MyString(submit_steps->next());
+
+									if ( m_key_pair_file_name == NULL ) {
+										m_key_pair_file_name = build_keypairfilename();
+									}
+									
+									// Notice: unregister a non-existing SSH keypair will return success
+									gmState = GM_DESTROY_KEYPAIR;
+									}
+									
+									break;
+									
+								case AMAZON_REMOVE_BEFORE_VM:
+									{
+									// we have recorded "SSH key" and "ssh_done" and we also recorded "vm_starting".
+									// In this situation we should based on SSH key to find out if there is a running
+									// VM in amazon. If no, we just remove the SSH key, if yes, we should stop the VM
+									
+									// get the SSH keypair and corresponding output file name
+									submit_steps->rewind();
+									m_key_pair = new MyString(submit_steps->next());
+
+									if ( m_key_pair_file_name == NULL ) {
+										m_key_pair_file_name = build_keypairfilename();
+									}
+									
+									// now try to find if there is running VM corresponding to this SSH key
+									StringList * returnStatus = new StringList();
+							
+									rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
+															    		*returnStatus, m_error_code);
+
+									if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+										break;
+									}
+							
+									// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+									// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
+									// processing error code received
+									if ( m_error_code == NULL ) {
+										// go ahead
+									} else {
+										// print out the received error code
+										print_error_code(m_error_code, "amazon_vm_create_keypair()");
+										reset_error_code();
+					
+										// change Job's status to HOLD since we meet the errors we cannot proceed
+										gmState = GM_HOLD;
+										break;
+									}
+
+									if (rc == 0) {
+
+										// now we should check, corresponding to a given SSH keypair, in EC2, is there
+										// existing any running VM instances? If these are some ones, we just return the
+										// first one we found.
+										bool is_running = false;
+										char* instance_id = NULL;
+										char* keypair_name = NULL;
+								
+										int size = returnStatus->number();
+										returnStatus->rewind();
+								
+										for (int i=0; i<size/2; i++) {
+									
+											instance_id = returnStatus->next();
+											keypair_name = returnStatus->next();
+
+											if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
+												is_running = true;
+												break;
+											}
+										}
+								
+										if ( is_running ) {
+											
+											// save the instance ID which will be used when delete VM instance
+											SetRemoteJobId( instance_id );
+											
+											// there is a running VM instance corresponding to the given SSH keypair
+											// we should remove it and its corresponding SSH key
+											// Notice: even when we are deleting a non-existing VM, it will return success 
+											gmState = GM_CANCEL;
+									
+										} else {
+											// No running VM corresponding to this SSH key. We only need to remove the SSH key
+											gmState = GM_DESTROY_KEYPAIR;
+										}
+									} else {
+										errorString = gahp->getErrorString();
+										dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+										gmState = GM_HOLD;
+									}
+												
+									}
+									
+									break;
+									
+								case AMAZON_REMOVE_AFTER_VM:
+									{
+									// we have recorded "SSH key" and "ssh_done". We also recorded "vm_starting" and instance id.
+									// In this situation, we should remove everything.
+									
+									// get the SSH keypair and corresponding output file name
+									submit_steps->rewind();
+									m_key_pair = new MyString(submit_steps->next());
+
+									if ( m_key_pair_file_name == NULL ) {
+										m_key_pair_file_name = build_keypairfilename();
+									}
+									
+									// get the running VM's instance id
+									submit_steps->rewind();
+									for (int i=0; i<AMAZON_SUBMIT_AFTER_VM; i++) {
+										submit_steps->next();
+									}
+									
+									SetRemoteJobId( strdup(submit_steps->next()) );
+									
+									// now try to delete VM and SSH key
+									// Notice: even when we are deleting a non-existing VM, it will return success 
+									gmState = GM_CANCEL;									
+									}
+									
+									break;
+									
+								default:
+									
+									// there should be some errors when reach this branch
+									gmState = GM_HOLD;
+									
+									break;
+							} // end of switch(steps_done)
 						
+							}
+							
+							break;						
 						
 						default:
 							gmState = GM_HOLD;							
@@ -1634,7 +1797,12 @@ int AmazonJob::doEvaluateState()
 				break;
 				
 			case GM_DELETE:
-
+				
+				// set remote job id to null so that schedd should remove it
+				if ( (condorState == REMOVED) || (condorState == HELD) ) {
+					SetRemoteJobId( NULL );
+				}
+				
 				// The job has completed or been removed. Delete it from the schedd.
 				DoneWithJob();
 				// This object will be deleted when the update occurs
