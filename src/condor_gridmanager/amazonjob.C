@@ -651,6 +651,11 @@ int AmazonJob::doEvaluateState()
 							// first we should check how many steps we have already done
 							int steps_done = submit_steps->number();
 							
+							// In some situations the gridmanger will stopped by client before it can
+							// successfully start the VM in EC2. In this process, if the gridmanager is
+							// crashed, we should recover the stopping process based on the recovery record
+							// saved in the RecoverySteps.
+							
 							switch (steps_done) {
 								
 								case AMAZON_REMOVE_EMPTY:

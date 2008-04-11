@@ -355,7 +355,7 @@ char    *VM_Networking_Type = "vm_networking_type";
 char* AmazonAccessKey = "AmazonAccessKey";
 char* AmazonSecretKey = "AmazonSecretKey";
 char* AmazonAmiID = "AmazonAmiID";
-//char* AmazonKeyPair = "AmazonKeyPair";
+char* AmazonUserData = "AmazonUserData";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
 char* AmazonUploadDirName = "AmazonUploadDirName";
@@ -5008,6 +5008,14 @@ SetGlobusParams()
 	if( (tmp = condor_param( AmazonKeyPairFileName )) ) {
 		// for the relative path, the keypair output file will be written to the IWD
 		buffer.sprintf( "%s = \"%s\"", AmazonKeyPairFileName, full_path(tmp) );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+	
+	// AmazonUserData is not a necessary parameter
+	if( (tmp = condor_param( AmazonUserData )) ) {
+		// for the relative path, the keypair output file will be written to the IWD
+		buffer.sprintf( "%s = \"%s\"", AmazonUserData, full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
