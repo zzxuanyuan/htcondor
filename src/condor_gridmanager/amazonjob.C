@@ -1872,13 +1872,12 @@ StringList* AmazonJob::build_groupnames()
 	// 1. clients assign ATTR_AMAZON_GROUP_NAME in condor_submit file, then we will use those 
 	//    security group names.
 	// 2. clients don't assign ATTR_AMAZON_GROUP_NAME in condor_submit file, then we will use
-	//    a security group named "default"
+	//    the default security group (by just keeping group_names is empty).
 	
 	if ( jobAd->LookupString( ATTR_AMAZON_GROUP_NAME, &buffer ) ) {
 		group_names = new StringList( strdup(buffer), " " );
 	} else {
 		group_names = new StringList();
-		group_names->append("default");
 	}
 	
 	free (buffer);
