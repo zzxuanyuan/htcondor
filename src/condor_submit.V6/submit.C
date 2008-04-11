@@ -5004,16 +5004,10 @@ SetGlobusParams()
 		exit( 1 );
 	}
 	
-//	// AmazonKeyPair is not a necessary parameter
-//	if ( (tmp = condor_param( AmazonKeyPair )) ) {
-//		buffer.sprintf( "%s = \"%s\"", AmazonKeyPair, tmp );
-//		free( tmp );
-//		InsertJobExpr( buffer.Value() );
-//	}
-	
 	// AmazonKeyPairFileName is not a necessary parameter
 	if( (tmp = condor_param( AmazonKeyPairFileName )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonKeyPairFileName, tmp );
+		// for the relative path, the keypair output file will be written to the IWD
+		buffer.sprintf( "%s = \"%s\"", AmazonKeyPairFileName, full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}

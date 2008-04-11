@@ -1786,23 +1786,7 @@ MyString* AmazonJob::build_keypairfilename()
 	
 	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR_FILE_NAME, &buffer ) ) {
 		// clinet define the location where this SSH keypair file will be written to
-		
-		// check the path is a full path (start with '/') or just a relative one
-		if (buffer[0] == '/') {
-			*file_name = buffer;
-		} else {
-			// add JobID's IWD before it
-			char* iwd = NULL;
-			if ( jobAd->LookupString( "Iwd", &iwd ) ) {
-				// add IWD before the relative path
-				file_name->sprintf("/%s/%s", strdup(iwd), buffer);
-			} else {
-				// No IWD? it's wired, write the file to /dev/null
-				*file_name = NULL_FILE;
-			}
-			free( iwd );
-		}
-		
+		*file_name = buffer;
 	} else {
 		// If client doesn't assign keypair output file name, we should discard it by 
 		// writing this private file to /dev/null
