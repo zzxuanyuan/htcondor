@@ -64,6 +64,11 @@ class AmazonRequest {
 		MyString m_amazon_lib_prog;
 		MyString m_amazon_lib_path;
 
+		// Access key
+		MyString accesskeyfile;
+		// Secret key
+		MyString secretkeyfile;
+
 		// Error msg
 		MyString error_msg;
 		MyString error_code;
@@ -82,8 +87,6 @@ class AmazonVMStart : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString ami_id;
 		MyString keypair;
 		MyString user_data;
@@ -107,8 +110,6 @@ class AmazonVMStop : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString instance_id;
 
 		// Result 
@@ -126,8 +127,6 @@ class AmazonVMReboot : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString instance_id;
 
 		// Result 
@@ -162,8 +161,6 @@ class AmazonVMStatus : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString instance_id;
 
 		// Result 
@@ -182,8 +179,6 @@ class AmazonVMStatusAll : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 
 		// Result 
 		AmazonStatusResult *status_results;
@@ -213,8 +208,6 @@ class AmazonVMCreateGroup : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString groupname;
 		MyString group_description;
 
@@ -233,8 +226,6 @@ class AmazonVMDeleteGroup : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString groupname;
 
 		// Result 
@@ -252,8 +243,6 @@ class AmazonVMGroupNames : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 
 		// Result 
 		StringList groupnames;
@@ -280,8 +269,6 @@ class AmazonVMGroupRules : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString groupname;
 
 		// Result 
@@ -301,8 +288,6 @@ class AmazonVMAddGroupRule : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString groupname;
 		AmazonGroupRule rule;
 
@@ -321,8 +306,6 @@ class AmazonVMDelGroupRule : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString groupname;
 		AmazonGroupRule rule;
 
@@ -341,8 +324,6 @@ class AmazonVMCreateKeypair : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString keyname;
 		MyString outputfile;
 
@@ -361,8 +342,6 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString keyname;
 
 		// Result 
@@ -380,8 +359,6 @@ class AmazonVMKeypairNames : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 
 		// Result 
 		StringList keynames;
@@ -399,8 +376,6 @@ class AmazonVMRegisterImage : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString location;
 
 		// Result 
@@ -419,8 +394,6 @@ class AmazonVMDeregisterImage : public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString ami_id;
 
 		// Result 
@@ -440,8 +413,6 @@ class AmazonS3AllBuckets: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 
 		// Result 
 		StringList bucketnames;
@@ -459,8 +430,6 @@ class AmazonS3CreateBucket: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString bucketname;
 
 		// Result 
@@ -478,8 +447,6 @@ class AmazonS3DeleteBucket: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString bucketname;
 
 		// Result 
@@ -497,8 +464,6 @@ class AmazonS3ListBucket: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString bucketname;
 		MyString prefix;
 
@@ -518,8 +483,6 @@ class AmazonS3UploadFile: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString filename;
 		MyString bucketname;
 		MyString keyname;
@@ -539,8 +502,6 @@ class AmazonS3UploadDir: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString dirname;
 		MyString bucketname;
 
@@ -559,8 +520,6 @@ class AmazonS3DeleteFile: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString bucketname;
 		MyString keyname;
 
@@ -579,8 +538,6 @@ class AmazonS3DownloadFile: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString bucketname;
 		MyString keyname;
 		MyString outputfile;
@@ -600,8 +557,6 @@ class AmazonS3DownloadBucket: public AmazonRequest {
 		virtual bool Request();
 
 		// Request Args
-		MyString accesskeyfile;
-		MyString secretkeyfile;
 		MyString bucketname;
 		MyString localdir;
 
