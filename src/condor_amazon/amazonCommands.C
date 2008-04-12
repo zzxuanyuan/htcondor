@@ -128,28 +128,28 @@ systemCommand(ArgList &args, StringList &output, MyString &ecode)
 	}
 	*/
 
+	MyString args_string;
+	args.GetArgsStringForDisplay(&args_string,0);
+
 	int i = 0;
 	for( i = 0; i < 3; i++ ) {
 		output.clearAll();
 		ecode = "";
 		tmp_result = __systemCommand(args, output, ecode);
 
-		if( ecode.IsEmpty() == true ) {
+		if( tmp_result == true ) {
 			break;
 		}
-
-		MyString args_string;
-		args.GetArgsStringForDisplay(&args_string,0);
 
 		dprintf(D_ALWAYS, "Command(%s) got error code(%s)\n", 
 				args_string.Value(), ecode.Value());
 
+		// If ecode is InternalError, retry it up to 3 times
 		if( strcasecmp(ecode.Value(), "InternalError") != 0 ) {
 			break;
 		}
 
-		// This is an internal error in either S3 or EC2
-		// So I will retry this command after one second
+		// Retry this command after one second
 		sleep(1);
 	}
 
@@ -477,9 +477,27 @@ bool AmazonVMStart::Request()
 
 	output.rewind();
 
+	MyString tmp_error_msg = output.next();
+
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		if( ecode.IsEmpty() ) {
+			// If ecode doesn't exist, 
+			// it might be networking failure 
+			// so there might be an running instance in EC2
+			// (e.g. Networking Failure before getting instance id)
+			if( tmp_error_msg.IsEmpty() ) {
+				error_msg.sprintf("Failed to start a VM with '%s' but "
+					"need to check if the instance is left running "
+					"in EC2", ami_id.Value());
+			}else {
+				error_msg = tmp_error_msg;
+			}
+
+			error_code = "NEED_CHECK_VM_START";
+		}else {
+			error_msg = tmp_error_msg;
+			error_code = ecode;
+		}
 		return false;
 	}
 
@@ -1754,11 +1772,18 @@ bool AmazonVMCreateKeypair::Request()
 		return false;
 	}
 
+	bool has_outputfile = false;
+	if( strcmp(outputfile.Value(), NULL_FILE) ) { 
+		has_outputfile = true;
+	}
+
 	// check if output file could be created
-	if( check_create_file(outputfile.GetCStr()) == false ) {
-		error_msg = "No_permission_for_keypair_outputfile";
-		dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
-		return false;
+	if( has_outputfile ) { 
+		if( check_create_file(outputfile.GetCStr()) == false ) {
+			error_msg = "No_permission_for_keypair_outputfile";
+			dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
+			return false;
+		}
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
@@ -1766,6 +1791,7 @@ bool AmazonVMCreateKeypair::Request()
 		dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
 		return false;
 	}
+
 
 	ArgList systemcmd;
 	systemcmd.AppendArg(AMAZON_SCRIPT_INTERPRETER);
@@ -1777,8 +1803,12 @@ bool AmazonVMCreateKeypair::Request()
 	systemcmd.AppendArg(secretkeyfile);
 	systemcmd.AppendArg("-keyname");
 	systemcmd.AppendArg(keyname);
-	systemcmd.AppendArg("-output");
-	systemcmd.AppendArg(outputfile);
+
+	// If output file is null file, we don't provide output option
+	if( has_outputfile ) {
+		systemcmd.AppendArg("-output");
+		systemcmd.AppendArg(outputfile);
+	}
 
 	StringList output;
 	MyString ecode;
@@ -1786,51 +1816,83 @@ bool AmazonVMCreateKeypair::Request()
 
 	output.rewind();
 
-	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
-		return false;
-	}
+	MyString tmp_error_msg = output.next();
 
-	// To make sure actual updates on a disk
-	if( strcmp(outputfile.Value(), NULL_FILE) ) {
+	bool need_delete = false;
+	if( tmp_result == false ) {
+		if( ecode.IsEmpty() ) {
+			// If ecode doesn't exist, 
+			// it might be either networking failure or
+			// a failure during writing data to a file
+			need_delete = true;
+		}else {
+			// There is a specific error code
+			// Don't need to try to delete login key
+			
+			if( has_outputfile ) { 
+				unlink(outputfile.Value());
+			}
 
+			error_msg = tmp_error_msg;
+			error_code = ecode;
+			return false;
+		}
+	}else if( has_outputfile ) {
+		// To make sure actual updates on a disk
 		bool write_success = false;
 		int fd = safe_open_wrapper(outputfile.Value(), O_RDONLY);
 		if( fd > 0 ) {
 			if( fsync(fd) == 0 ) {
 				write_success = true;
+			}else {
+				dprintf (D_ALWAYS, "AmazonVMDestroyKeypair Disk Writing Error!\n");
 			}
 			close(fd);
+		}else {
+			dprintf (D_ALWAYS, "AmazonVMDestroyKeypair File Open Error!\n");
 		}
 
-		if( write_success == false ) {
-			// Try to cleanup ssh key created in EC2
-			ArgList systemcmd2;
-			systemcmd2.AppendArg(AMAZON_SCRIPT_INTERPRETER);
-			systemcmd2.AppendArg(m_amazon_lib_prog);
-			systemcmd2.AppendArg("deleteloginkey");
-			systemcmd2.AppendArg("-a");
-			systemcmd2.AppendArg(accesskeyfile);
-			systemcmd2.AppendArg("-s");
-			systemcmd2.AppendArg(secretkeyfile);
-			systemcmd2.AppendArg("-keyname");
-			systemcmd2.AppendArg(keyname);
-
-			StringList tmpoutput;
-			MyString tmpecode;
-			systemCommand(systemcmd2, tmpoutput, tmpecode);
-
-			//delete output file
-			unlink(outputfile.Value());
-
-			error_msg = "Failed to write data to disk";
-			return false;
+		if( !write_success ) {
+			need_delete = true;
 		}
 	}
 
-	// There is no output for success
-	return true;
+	if( !need_delete ) {
+		// There is no output for success
+		return true;
+	}
+
+	//delete output file
+	if( has_outputfile ) {
+		unlink(outputfile.Value());
+	}
+
+	// Try to delete the key pair created in EC2
+	AmazonVMDestroyKeypair tmpcommand(get_amazon_lib_path());
+	tmpcommand.accesskeyfile = accesskeyfile;
+	tmpcommand.secretkeyfile = secretkeyfile;
+	tmpcommand.keyname = keyname;
+
+	tmp_result = tmpcommand.Request();
+
+	if( tmp_result == false ) {
+		// something wrong
+		if( tmpcommand.error_msg.IsEmpty() ) {
+			error_msg.sprintf("Failed to create login key(%s) in EC2 but "
+					"need to check if there is still the login key in EC2", 
+					keyname.Value());
+		}else {
+			error_msg = tmpcommand.error_msg;
+		}
+		error_code = "NEED_CHECK_SSHKEY";
+	}else {
+		// Succeeded to delete login key from EC2
+		error_msg.sprintf("Failed to create login key(%s) in EC2", 
+				keyname.Value());
+		error_code = "";
+	}
+
+	return false;
 }
 
 /// Amazon VMDestroyKeypair
