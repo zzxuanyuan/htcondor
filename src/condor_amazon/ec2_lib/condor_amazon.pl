@@ -33,6 +33,7 @@ use lib "$FindBin::Bin";
 
 use File::Basename;
 use File::stat;
+use MIME::Base64 qw(encode_base64 decode_base64);
 
 use Getopt::Std;
 use Getopt::Long;
@@ -106,6 +107,50 @@ sub printSuccessOutput
 	print "#SUCCESS\n";
 	return;
 }
+
+sub readAccessKey
+{
+	my $accesskeyfile = $_[0];
+	my $privatekeyfile = $_[1];
+
+	if( ! $accesskeyfile || ! $privatekeyfile ) {
+		usage();
+	}
+
+	unless( -r $accesskeyfile ) { 
+		printerror "Access key file $accesskeyfile is not readable.";
+	}
+	unless( -r $privatekeyfile ) { 
+		printerror "Access key file $privatekeyfile is not readable.";
+	}
+
+	# Read access key file
+	open(AWSKEYFILE, "$accesskeyfile")
+		or printerror "Cannot open the file($accesskeyfile) : $!";
+
+	my $key_line = <AWSKEYFILE>;
+	chomp($key_line);
+	close AWSKEYFILE;
+	$access_public_key = $key_line;
+
+	# Read private key file
+	open(AWSKEYFILE, "$privatekeyfile")
+		or printerror "Cannot open the file($privatekeyfile) : $!";
+
+	$key_line = <AWSKEYFILE>;
+	chomp($key_line);
+	close AWSKEYFILE;
+	$access_secret_key = $key_line;
+
+	if( ! $access_public_key ) {
+		printerror "File('$accesskeyfile') must contain the AWS access key";
+	}
+	if( ! $access_secret_key ) {
+		printerror "File('$privatekeyfile') must contain the AWS secret access key";
+	}
+	return;
+}
+
 
 # This function comes from CPAN Net::Amazon::S3::Bucket.pm
 sub _content_sub {
@@ -277,7 +322,7 @@ print STDERR <<EOF;
 Usage: $progname command [parameters]
 
 EC2-Command         Parameters 
-start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> -userdata <base64 encoded data> ]
+start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> -userdata <data> -userdatafile <datafile> ]
 stop            -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 reboot          -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 status          -a <accesskeyfile> -s <secretkeyfile> [ -instanceid <instance-id> -amiid <ami-id> -group <groupname> ]
@@ -323,52 +368,9 @@ EOF
 exit(1);
 }
 
-sub readAccessKey
-{
-	my $accesskeyfile = $_[0];
-	my $privatekeyfile = $_[1];
-
-	if( ! $accesskeyfile || ! $privatekeyfile ) {
-		usage();
-	}
-
-	unless( -r $accesskeyfile ) { 
-		printerror "Access key file $accesskeyfile is not readable.";
-	}
-	unless( -r $privatekeyfile ) { 
-		printerror "Access key file $privatekeyfile is not readable.";
-	}
-
-	# Read access key file
-	open(AWSKEYFILE, "$accesskeyfile")
-		or printerror "Cannot open the file($accesskeyfile) : $!";
-
-	my $key_line = <AWSKEYFILE>;
-	chomp($key_line);
-	close AWSKEYFILE;
-	$access_public_key = $key_line;
-
-	# Read private key file
-	open(AWSKEYFILE, "$privatekeyfile")
-		or printerror "Cannot open the file($privatekeyfile) : $!";
-
-	$key_line = <AWSKEYFILE>;
-	chomp($key_line);
-	close AWSKEYFILE;
-	$access_secret_key = $key_line;
-
-	if( ! $access_public_key ) {
-		printerror "File('$accesskeyfile') must contain the AWS access key";
-	}
-	if( ! $access_secret_key ) {
-		printerror "File('$privatekeyfile') must contain the AWS secret access key";
-	}
-	return;
-}
-
 sub start
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <base64 encoded data> ]
+	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <data> -userdatafile <datafile> ]
 	# On success, output will include "instanceID"
 	# On failure, output will include "error code".
 	#
@@ -379,6 +381,7 @@ sub start
 	my $amiid = undef;
 	my $loginkeypair = undef;
 	my $userdata = undef;
+	my $userdatafile = undef;
 	my @groupname = ();
 
 	if( !GetOptions ('a=s' => \$accessfile, 
@@ -387,6 +390,7 @@ sub start
 			'id=s' => \$amiid, 
 			'key=s' => \$loginkeypair, 
 			'userdata=s' => \$userdata, 
+			'userdatafile=s' => \$userdatafile, 
 			'group=s@' => \@groupname )) {
 		usage();
 	}
@@ -399,6 +403,15 @@ sub start
 	}
 	if( ! $amiid ) {
 		printerror "You need to specify the AMI ID you want to start an instance of"; 
+	}
+
+	if( $userdatafile ) {
+		open(DATAFILE, "$userdatafile")
+			or printerror "Cannot open the file($userdatafile) : $!";
+		
+		$userdata = <DATAFILE>;
+		chomp($userdata);
+		close DATAFILE;
 	}
 
 	# Read access key file
@@ -427,7 +440,8 @@ sub start
 		$input_params{"SecurityGroup"} = [ @groupname ];
 	}
 	if( $userdata ) {
-		$input_params{"UserData"} = $userdata;
+		my $encoded_data = encode_base64($userdata, '');
+		$input_params{"UserData"} = $encoded_data;
 	}
 
 	my $instance = $ec2->run_instances( %input_params );
