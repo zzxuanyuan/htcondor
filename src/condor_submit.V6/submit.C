@@ -356,6 +356,7 @@ char* AmazonAccessKey = "AmazonAccessKey";
 char* AmazonSecretKey = "AmazonSecretKey";
 char* AmazonAmiID = "AmazonAmiID";
 char* AmazonUserData = "AmazonUserData";
+char* AmazonUserDataFile = "AmazonUserDataFile";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
 char* AmazonUploadDirName = "AmazonUploadDirName";
@@ -4985,7 +4986,7 @@ SetGlobusParams()
 	
 	//*********************added by fangcao for Amazon Job *****************************//
 	if ( (tmp = condor_param( AmazonAccessKey )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonAccessKey, tmp );
+		buffer.sprintf( "%s = \"%s\"", AmazonAccessKey, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
@@ -4995,7 +4996,7 @@ SetGlobusParams()
 	}
 	
 	if ( (tmp = condor_param( AmazonSecretKey )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonSecretKey, tmp );
+		buffer.sprintf( "%s = \"%s\"", AmazonSecretKey, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
@@ -5014,8 +5015,15 @@ SetGlobusParams()
 	
 	// AmazonUserData is not a necessary parameter
 	if( (tmp = condor_param( AmazonUserData )) ) {
-		// for the relative path, the keypair output file will be written to the IWD
-		buffer.sprintf( "%s = \"%s\"", AmazonUserData, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA, tmp);
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+
+	// AmazonUserDataFile is not a necessary parameter
+	if( (tmp = condor_param( AmazonUserDataFile )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA_FILE, 
+				full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
