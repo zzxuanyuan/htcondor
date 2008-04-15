@@ -5946,7 +5946,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	char* esc5 = strdup( escapeGahpString(user_data) );
 	char* esc6 = strdup( escapeGahpString(user_data_file) );
 	
-	bool x = reqline.sprintf("%s %s %s %s %s", esc1, esc2, esc3, esc4, esc5, esc6);
+	bool x = reqline.sprintf("%s %s %s %s %s %s", esc1, esc2, esc3, esc4, esc5, esc6);
 	
 	free( esc1 );
 	free( esc2 );

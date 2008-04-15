@@ -4991,9 +4991,9 @@ SetGlobusParams()
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open access key file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
-			free( fp );
 			exit(1);
 		}
+		fclose(fp);
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_ACCESS_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
@@ -5008,9 +5008,9 @@ SetGlobusParams()
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open secret key file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
-			free( fp );
 			exit(1);
 		}
+		fclose(fp);
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECRET_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
@@ -5041,9 +5041,9 @@ SetGlobusParams()
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open user data file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
-			free( fp );
 			exit(1);
 		}
+		fclose(fp);
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA_FILE, 
 				full_path(tmp) );
 		free( tmp );
@@ -5093,9 +5093,6 @@ SetGlobusParams()
 		DoCleanup( 0, 0, NULL );
 		exit(1);
 	}
-	
-	free (fp);
-	
 	//*********************end of adding by fangcao ***********************************//
 }
 
