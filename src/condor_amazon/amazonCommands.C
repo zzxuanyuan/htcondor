@@ -497,36 +497,38 @@ bool AmazonVMStart::Request()
 
 	output.rewind();
 
-	MyString tmp_error_msg = output.next();
+	MyString tmp_msg = output.next();
 
-	if( tmp_result == false ){
+	if( tmp_result == false ) {
+		// fail
 		if( ecode.IsEmpty() ) {
 			// If ecode doesn't exist, 
 			// it might be networking failure 
 			// so there might be an running instance in EC2
 			// (e.g. Networking Failure before getting instance id)
-			if( tmp_error_msg.IsEmpty() ) {
+			if( tmp_msg.IsEmpty() ) {
 				error_msg.sprintf("Failed to start a VM with '%s' but "
 					"need to check if the instance is left running "
 					"in EC2", ami_id.Value());
 			}else {
-				error_msg = tmp_error_msg;
+				error_msg = tmp_msg;
 			}
 
 			error_code = "NEED_CHECK_VM_START";
 		}else {
-			error_msg = tmp_error_msg;
+			error_msg = tmp_msg;
 			error_code = ecode;
 		}
 		return false;
-	}
+	}else {
+		// Success
+		// Read output file
+		instance_id = tmp_msg;
 
-	// Read output file
-	instance_id = output.next();
-
-	if( instance_id.IsEmpty() ) {
-		dprintf(D_ALWAYS, "Failed to get instance id during AmazonVMStart\n");
-		return false;
+		if( instance_id.IsEmpty() ) {
+			dprintf(D_ALWAYS, "Failed to get instance id during AmazonVMStart\n");
+			return false;
+		}
 	}
 
 	return true;
@@ -1836,7 +1838,7 @@ bool AmazonVMCreateKeypair::Request()
 
 	output.rewind();
 
-	MyString tmp_error_msg = output.next();
+	MyString tmp_msg = output.next();
 
 	bool need_delete = false;
 	if( tmp_result == false ) {
@@ -1853,7 +1855,7 @@ bool AmazonVMCreateKeypair::Request()
 				unlink(outputfile.Value());
 			}
 
-			error_msg = tmp_error_msg;
+			error_msg = tmp_msg;
 			error_code = ecode;
 			return false;
 		}
