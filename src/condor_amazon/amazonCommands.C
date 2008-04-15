@@ -351,17 +351,19 @@ AmazonVMStart::AmazonVMStart(const char* lib_path) : AmazonRequest(lib_path) {}
 
 AmazonVMStart::~AmazonVMStart() {}
 
-// Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <groupname> <groupname> ..
-// <keypair> and <groupname> are optional ones.
+// Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <groupname> <groupname> ..
+// <groupname> are optional ones.
 // we support multiple groupnames
 bool AmazonVMStart::ioCheck(char **argv, int argc)
 {
-	return verify_min_number_args(argc, 6) &&
+	return verify_min_number_args(argc, 8) &&
 		verify_request_id(argv[1]) &&
 		verify_string_name(argv[2]) &&
 		verify_string_name(argv[3]) &&
 		verify_ami_id(argv[4]) &&
 		verify_string_name(argv[5]);
+		verify_string_name(argv[6]);
+		verify_string_name(argv[7]);
 }
 
 bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_string)
@@ -371,10 +373,10 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	
 	dprintf (D_FULLDEBUG, "AmazonVMStart workerFunction is called\n");
 	
-	if( !verify_min_number_args(argc, 6) ) {
+	if( !verify_min_number_args(argc, 8) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		dprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
-				6, argc, argv[0]);
+				8, argc, argv[0]);
 		return FALSE;
 	}
 
@@ -390,16 +392,21 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	request.secretkeyfile = argv[3];
 	request.ami_id = argv[4];
 
-	if( argc >= 6 && strcasecmp(argv[5], NULLSTRING) ) {
+	// we already know the number of arguments is >= 8
+	if( strcasecmp(argv[5], NULLSTRING) ) {
 		request.keypair = argv[5];
 	}
 
-	if( argc >= 7 && strcasecmp(argv[6], NULLSTRING) ) {
+	if( strcasecmp(argv[6], NULLSTRING) ) {
 		request.user_data = argv[6];
 	}
 
+	if( strcasecmp(argv[7], NULLSTRING) ) {
+		request.user_data_file = argv[7];
+	}
+
 	int i = 0;
-	for( i = 7; i < argc; i++ ) {
+	for( i = 8; i < argc; i++ ) {
 		if( strcasecmp(argv[i], NULLSTRING) ) {
 			request.groupnames.append(argv[i]);
 		}
@@ -427,6 +434,14 @@ bool AmazonVMStart::Request()
 				secretkeyfile.GetCStr(), error_msg) ) {
 		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
 		return false;
+	}
+
+	if( user_data_file.IsEmpty() == false ) {
+		if( !check_read_access_file( user_data_file.GetCStr()) ) {
+			error_msg.sprintf("Cannot read the file for user data(%s)", 
+					user_data_file.Value());
+			return false;
+		}
 	}
 
 	if( ami_id.IsEmpty() ) {
@@ -457,9 +472,14 @@ bool AmazonVMStart::Request()
 		systemcmd.AppendArg(keypair);
 	}
 
-	if( user_data.IsEmpty() == false ) {
-		systemcmd.AppendArg("-userdata");
-		systemcmd.AppendArg(user_data);
+	if( user_data_file.IsEmpty() == false ) {
+		systemcmd.AppendArg("-userdatafile");
+		systemcmd.AppendArg(user_data_file);
+	}else {
+		if( user_data.IsEmpty() == false ) {
+			systemcmd.AppendArg("-userdata");
+			systemcmd.AppendArg(user_data);
+		}
 	}
 
 	if( groupnames.isEmpty() == false ) {
