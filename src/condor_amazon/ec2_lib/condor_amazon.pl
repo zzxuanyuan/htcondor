@@ -37,7 +37,7 @@ use MIME::Base64 qw(encode_base64 decode_base64);
 
 use Getopt::Std;
 use Getopt::Long;
-use Net::Amazon::EC2;
+use Net::Amazon::EC2 0.04;
 
 use S3;
 use S3::AWSAuthConnection;
