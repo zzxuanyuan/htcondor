@@ -355,6 +355,8 @@ char    *VM_Networking_Type = "vm_networking_type";
 char* AmazonAccessKey = "AmazonAccessKey";
 char* AmazonSecretKey = "AmazonSecretKey";
 char* AmazonAmiID = "AmazonAmiID";
+char* AmazonUserData = "AmazonUserData";
+char* AmazonUserDataFile = "AmazonUserDataFile";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
 char* AmazonUploadDirName = "AmazonUploadDirName";
@@ -4612,6 +4614,7 @@ SetGlobusParams()
 	char *tmp;
 	bool unified_syntax;
 	MyString buffer;
+	FILE* fp;
 
 	if ( JobUniverse != CONDOR_UNIVERSE_GRID )
 		return;
@@ -4984,7 +4987,14 @@ SetGlobusParams()
 	
 	//*********************added by fangcao for Amazon Job *****************************//
 	if ( (tmp = condor_param( AmazonAccessKey )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonAccessKey, tmp );
+		// check access key file can be opened
+		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			fprintf( stderr, "\nERROR: Failed to open access key file %s (%s)\n", 
+							 full_path(tmp), strerror(errno));
+			free( fp );
+			exit(1);
+		}
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_ACCESS_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
@@ -4994,7 +5004,14 @@ SetGlobusParams()
 	}
 	
 	if ( (tmp = condor_param( AmazonSecretKey )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonSecretKey, tmp );
+		// check access key file can be opened
+		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			fprintf( stderr, "\nERROR: Failed to open secret key file %s (%s)\n", 
+							 full_path(tmp), strerror(errno));
+			free( fp );
+			exit(1);
+		}
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECRET_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
@@ -5006,21 +5023,43 @@ SetGlobusParams()
 	// AmazonKeyPairFileName is not a necessary parameter
 	if( (tmp = condor_param( AmazonKeyPairFileName )) ) {
 		// for the relative path, the keypair output file will be written to the IWD
-		buffer.sprintf( "%s = \"%s\"", AmazonKeyPairFileName, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_KEY_PAIR_FILE_NAME, full_path(tmp) );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+	
+	// AmazonUserData is not a necessary parameter
+	if( (tmp = condor_param( AmazonUserData )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA, tmp);
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+
+	// AmazonUserDataFile is not a necessary parameter
+	if( (tmp = condor_param( AmazonUserDataFile )) ) {
+		// check secret key file can be opened
+		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
+			fprintf( stderr, "\nERROR: Failed to open user data file %s (%s)\n", 
+							 full_path(tmp), strerror(errno));
+			free( fp );
+			exit(1);
+		}
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA_FILE, 
+				full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
 	
 	// AmazonGroupName is not a necessary parameter
 	if( (tmp = condor_param( AmazonGroupName )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonGroupName, tmp );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_GROUP_NAME, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
 	
 	// // AmazonSecurityPolicy is not a necessary parameter
 	if( (tmp = condor_param( AmazonSecurityPolicy )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonSecurityPolicy, tmp );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECURITY_POLICY, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
@@ -5030,14 +5069,14 @@ SetGlobusParams()
 	bool has_uploaddir = false;
 	
 	if ( (tmp = condor_param( AmazonAmiID )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonAmiID, tmp );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_AMI_ID, tmp );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 		has_amiid = true;
 	}
 	
 	if ( (tmp = condor_param( AmazonUploadDirName )) ) {
-		buffer.sprintf( "%s = \"%s\"", AmazonUploadDirName, tmp );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_UPLOAD_DIR_NAME, tmp );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 		has_uploaddir = true;
@@ -5054,7 +5093,9 @@ SetGlobusParams()
 		DoCleanup( 0, 0, NULL );
 		exit(1);
 	}
-		
+	
+	free (fp);
+	
 	//*********************end of adding by fangcao ***********************************//
 }
 

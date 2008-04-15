@@ -5908,6 +5908,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 								 const char * ami_id, 
 								 const char * keypair,
 								 const char * user_data,
+								 const char * user_data_file,
 								 StringList & groupnames,
 								 char * &instance_id,
 								 char * &error_code)
@@ -5928,8 +5929,10 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	
 	// Generate request line
 	
-	// keypair is not a required field. when empty, need to be replaced by "NULL"
+	// keypair/user_data/user_data_file is a required field. when empty, need to be replaced by "NULL"
 	if ( !keypair ) keypair = NULLSTRING;
+	if ( !user_data ) user_data = NULLSTRING;
+	if ( !user_data_file ) user_data_file = NULLSTRING;
 	
 	// groupnames is optional, but since it is the last argument, don't need to set it as "NULL"
 	// XXX: You probably should specify a NULL for all "optional" parameters -matt
@@ -5940,14 +5943,17 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
 	char* esc3 = strdup( escapeGahpString(ami_id) );
 	char* esc4 = strdup( escapeGahpString(keypair) );
+	char* esc5 = strdup( escapeGahpString(user_data) );
+	char* esc6 = strdup( escapeGahpString(user_data_file) );
 	
-	bool x = reqline.sprintf("%s %s %s %s %s", esc1, esc2, esc3, esc4,
-							 user_data ? escapeGahpString(user_data) : NULLSTRING );
+	bool x = reqline.sprintf("%s %s %s %s %s", esc1, esc2, esc3, esc4, esc5, esc6);
 	
 	free( esc1 );
 	free( esc2 );
 	free( esc3 );
 	free( esc4 );
+	free( esc5 );
+	free( esc6 );
 	ASSERT( x == true );
 	
 	const char * group_name;

@@ -660,6 +660,7 @@ extern const char *ATTR_AMAZON_GROUP_NAME;
 extern const char *ATTR_AMAZON_UPLOAD_DIR_NAME;
 extern const char *ATTR_AMAZON_SECURITY_POLICY;
 extern const char *ATTR_AMAZON_USER_DATA;
+extern const char *ATTR_AMAZON_USER_DATA_FILE;
 extern const char *ATTR_AMAZON_REMOTE_VM_NAME;
 extern const char *ATTR_AMAZON_RECOVERY_STEPS;
 //************* End of changes for Amamzon Jobs by fangcao *****************//

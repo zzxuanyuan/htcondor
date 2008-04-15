@@ -33,10 +33,11 @@ use lib "$FindBin::Bin";
 
 use File::Basename;
 use File::stat;
+use MIME::Base64 qw(encode_base64 decode_base64);
 
 use Getopt::Std;
 use Getopt::Long;
-use Net::Amazon::EC2;
+use Net::Amazon::EC2 0.04;
 
 use S3;
 use S3::AWSAuthConnection;
@@ -107,8 +108,67 @@ sub printSuccessOutput
 	return;
 }
 
+sub readAccessKey
+{
+	my $accesskeyfile = $_[0];
+	my $privatekeyfile = $_[1];
+
+	if( ! $accesskeyfile || ! $privatekeyfile ) {
+		usage();
+	}
+
+	unless( -r $accesskeyfile ) { 
+		printerror "Access key file $accesskeyfile is not readable.";
+	}
+	unless( -r $privatekeyfile ) { 
+		printerror "Access key file $privatekeyfile is not readable.";
+	}
+
+	# Read access key file
+	open(AWSKEYFILE, "$accesskeyfile")
+		or printerror "Cannot open the file($accesskeyfile) : $!";
+
+	my $key_line = <AWSKEYFILE>;
+	chomp($key_line);
+	close AWSKEYFILE;
+	$access_public_key = $key_line;
+
+	# Read private key file
+	open(AWSKEYFILE, "$privatekeyfile")
+		or printerror "Cannot open the file($privatekeyfile) : $!";
+
+	$key_line = <AWSKEYFILE>;
+	chomp($key_line);
+	close AWSKEYFILE;
+	$access_secret_key = $key_line;
+
+	if( ! $access_public_key ) {
+		printerror "File('$accesskeyfile') must contain the AWS access key";
+	}
+	if( ! $access_secret_key ) {
+		printerror "File('$privatekeyfile') must contain the AWS secret access key";
+	}
+	return;
+}
+
+sub read_entire_file
+{
+	my $file = $_[0];
+	local($/) = undef;
+	local(*F);
+
+	open(F, "<$file")
+		or printerror "Cannot open the file($file) : $!";
+
+	my $content = <F>;
+	close F;
+
+	return $content;
+}
+
 # This function comes from CPAN Net::Amazon::S3::Bucket.pm
-sub _content_sub {
+sub _content_sub 
+{
 	my $filename  = shift;
 	my $stat      = stat($filename);
 	my $remaining = $stat->size;
@@ -277,7 +337,7 @@ print STDERR <<EOF;
 Usage: $progname command [parameters]
 
 EC2-Command         Parameters 
-start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> -userdata <base64 encoded data> ]
+start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> -userdata <data> -userdatafile <datafile> ]
 stop            -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 reboot          -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 status          -a <accesskeyfile> -s <secretkeyfile> [ -instanceid <instance-id> -amiid <ami-id> -group <groupname> ]
@@ -301,6 +361,7 @@ showlaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id>
 addlaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id> -userid <userid>
 removelaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id> -userid<userid>
 resetlaunchpermission -a <accesskeyfile> -s <secretkeyfile> -id <ami-id>
+getconsoleoutput -a <accesskeyfile> -s <secretkeyfile> -id <instance-id> [ -output <outputfile> ]  
 
 
 #######################################################################################
@@ -322,52 +383,9 @@ EOF
 exit(1);
 }
 
-sub readAccessKey
-{
-	my $accesskeyfile = $_[0];
-	my $privatekeyfile = $_[1];
-
-	if( ! $accesskeyfile || ! $privatekeyfile ) {
-		usage();
-	}
-
-	unless( -r $accesskeyfile ) { 
-		printerror "Access key file $accesskeyfile is not readable.";
-	}
-	unless( -r $privatekeyfile ) { 
-		printerror "Access key file $privatekeyfile is not readable.";
-	}
-
-	# Read access key file
-	open(AWSKEYFILE, "$accesskeyfile")
-		or printerror "Cannot open the file($accesskeyfile) : $!";
-
-	my $key_line = <AWSKEYFILE>;
-	chomp($key_line);
-	close AWSKEYFILE;
-	$access_public_key = $key_line;
-
-	# Read private key file
-	open(AWSKEYFILE, "$privatekeyfile")
-		or printerror "Cannot open the file($privatekeyfile) : $!";
-
-	$key_line = <AWSKEYFILE>;
-	chomp($key_line);
-	close AWSKEYFILE;
-	$access_secret_key = $key_line;
-
-	if( ! $access_public_key ) {
-		printerror "File('$accesskeyfile') must contain the AWS access key";
-	}
-	if( ! $access_secret_key ) {
-		printerror "File('$privatekeyfile') must contain the AWS secret access key";
-	}
-	return;
-}
-
 sub start
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <base64 encoded data> ]
+	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <data> -userdatafile <datafile> ]
 	# On success, output will include "instanceID"
 	# On failure, output will include "error code".
 	#
@@ -378,6 +396,7 @@ sub start
 	my $amiid = undef;
 	my $loginkeypair = undef;
 	my $userdata = undef;
+	my $userdatafile = undef;
 	my @groupname = ();
 
 	if( !GetOptions ('a=s' => \$accessfile, 
@@ -386,6 +405,7 @@ sub start
 			'id=s' => \$amiid, 
 			'key=s' => \$loginkeypair, 
 			'userdata=s' => \$userdata, 
+			'userdatafile=s' => \$userdatafile, 
 			'group=s@' => \@groupname )) {
 		usage();
 	}
@@ -398,6 +418,10 @@ sub start
 	}
 	if( ! $amiid ) {
 		printerror "You need to specify the AMI ID you want to start an instance of"; 
+	}
+
+	if( $userdatafile ) {
+		$userdata = read_entire_file($userdatafile);
 	}
 
 	# Read access key file
@@ -426,7 +450,8 @@ sub start
 		$input_params{"SecurityGroup"} = [ @groupname ];
 	}
 	if( $userdata ) {
-		$input_params{"UserData"} = $userdata;
+		my $encoded_data = encode_base64($userdata, '');
+		$input_params{"UserData"} = $encoded_data;
 	}
 
 	my $instance = $ec2->run_instances( %input_params );
@@ -1505,12 +1530,22 @@ sub createloginkey
 	if( ! $keyname ) {
 		printerror "You need to specify a name for this key.";
 	}
-	if( ! $outputfile ) {
-		printerror "You need to specify the output file into which result private key will be saved.";
-	}
+
+	# If output file is not defined, we will throw away actual key contents.
+	
+	#if( ! $outputfile ) {
+	#	printerror "You need to specify the output file into which result private key will be saved.";
+	#}
 
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
+
+	my $filehandle = undef;
+	if( defined($outputfile) ) {
+		# Try to open an output file with truncated write mode
+		open $filehandle, "> $outputfile"
+			or printerror "Cannot create the outputfile('$outputfile') : $!";
+	}
 
 	my $ec2 = Net::Amazon::EC2->new(
 		AWSAccessKeyId => $access_public_key,
@@ -1532,13 +1567,15 @@ sub createloginkey
 		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
 	}
 
-	open KEYOUTPUT, "> $outputfile"
-		or printerror "Cannot create the outputfile('$outputfile') : $!";
-	print KEYOUTPUT "$keypair->{keyMaterial}";
-	close KEYOUTPUT;
+	if( defined($outputfile) ) {
+		print $filehandle "$keypair->{keyMaterial}" 
+			or die "Cannot write the loginkey('$keyname') into ('$outputfile') : $!";
+		close $filehandle;
 
-	# For security, the key output file will be set to be only readable by owner.
-	chmod 0600, $outputfile;
+		# For security, 
+		# the key output file will be set to be only readable by owner.
+		chmod 0600, $outputfile;
+	}
 
 	printSuccessOutput();
 	printverbose "succeeded to create a login key($keyname)";
@@ -1878,6 +1915,80 @@ sub resetlaunchpermission
 
 	printSuccessOutput();
 	printverbose "succeeded to reset launch permission for AMI($amiid)";
+
+	return;
+}
+
+sub getconsoleoutput
+{
+	# -a <accesskeyfile> -s <secretkeyfile> -id <instance-id> [ -output <outputfile> ]  
+	# 
+	# On success, output will include the output from the console for the instance
+	# On failure, output will include "error code".
+
+	printverbose "getconsoleoutput is called(@ARGV)";
+
+	my $accessfile = undef;
+	my $secretfile = undef;
+	my $instanceid = undef;
+	my $outputfile = undef;
+
+	if( !GetOptions ('a=s' => \$accessfile, 
+			's=s' => \$secretfile,
+			'id=s' => \$instanceid,
+			'output=s' => \$outputfile )) {
+		usage();
+	}
+
+	if( ! $accessfile ) {
+		printerror "You need to specify the account key file.";
+	}
+	if( ! $secretfile ) {
+		printerror "You need to specify the private key file.";
+	}
+	if( ! $instanceid ) {
+		printerror "You need to specify the instance ID you want to stop"; 
+	}
+
+	# Read access key file
+	readAccessKey($accessfile, $secretfile);		
+
+	my $filehandle = undef;
+	if( defined($outputfile) ) {
+		# Try to open an output file with truncated write mode
+		open $filehandle, "> $outputfile"
+			or printerror "Cannot create the outputfile('$outputfile') : $!";
+	}
+
+	my $ec2 = Net::Amazon::EC2->new(
+		AWSAccessKeyId => $access_public_key,
+		SecretAccessKey => $access_secret_key
+	);
+
+	if( ! defined($ec2) ) {
+		printerror "Cannot allocate a new ec2 handler"; 
+	}
+
+	# create parameters
+	my %input_params;
+	$input_params{"InstanceId"} = $instanceid;
+
+	my $retval = $ec2->get_console_output(%input_params);
+	if( ! defined($retval) ) {
+		createErrorOutput( $ec2->{error}, $ec2->{errorcode} );
+	}
+
+	if( defined($outputfile) ) {
+		print $filehandle "$retval"
+			or printerror "Cannot write the output from console into ('$outputfile') : $!";
+
+		close $filehandle;
+	}else {
+		print STDERR "$retval\n";
+	}
+
+	printSuccessOutput();
+	printverbose "succeeded to get the output from vritual console for instance('$instanceid')";
 
 	return;
 }
@@ -2791,6 +2902,7 @@ elsif ($ARGV[0] eq "showlaunchpermission") { showlaunchpermission(); }
 elsif ($ARGV[0] eq "addlaunchpermission") { addlaunchpermission(); }
 elsif ($ARGV[0] eq "removelaunchpermission") { removelaunchpermission(); }
 elsif ($ARGV[0] eq "resetlaunchpermission") { resetlaunchpermission(); }
+elsif ($ARGV[0] eq "getconsoleoutput") { getconsoleoutput(); }
 
 #### S3 command
 elsif ($ARGV[0] eq "listallbuckets") { listallbuckets(); }

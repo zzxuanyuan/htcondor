@@ -24,15 +24,12 @@
 #include "condor_string.h"	// for strnewp and friends
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
-#include "condor_ckpt_name.h"
 #include "nullfile.h"
 #include "filename_tools.h"
 
-#include "globus_utils.h"
 #include "gridmanager.h"
 #include "amazonjob.h"
 #include "condor_config.h"
-#include "globusjob.h" // for rsl_stringify()
   
 #define GM_INIT							0
 #define GM_UNSUBMITTED					1
@@ -224,13 +221,19 @@ AmazonJob::AmazonJob( ClassAd *classad )
 		// at the attribute in a better way.
 
 	memset(buff, 0, 16385);
-	jobAd->LookupString( ATTR_AMAZON_USER_DATA, buff );
-	if ( '\0' == buff[0] ) {
-		m_user_data = NULL;
+	m_user_data = NULL;
+	m_user_data_file = NULL;	
+	
+	// if user assigns both user_data and user_data_file, only user_data_file
+	// will be used.
+	if ( jobAd->LookupString( ATTR_AMAZON_USER_DATA_FILE, buff ) ) {
+		m_user_data_file = strdup(buff);	
 	} else {
-		m_user_data = strdup(buff);
-	}
-
+		if ( jobAd->LookupString( ATTR_AMAZON_USER_DATA, buff ) ) {
+			m_user_data = strdup(buff);
+		}
+	}	
+	
 	m_ami_id = NULL;
 	m_key_pair = NULL;
 	m_group_names = NULL;
@@ -946,7 +949,7 @@ int AmazonJob::doEvaluateState()
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
 												m_ami_id->Value(), m_key_pair->Value(), 
-												m_user_data, 
+												m_user_data, m_user_data_file,
 												*m_group_names, instance_id, m_error_code);
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -2044,7 +2047,7 @@ StringList* AmazonJob::build_groupnames()
 
 
 // Create the temporary name for the SSH keypair (not its output file name) 
-const char* AmazonJob::temporary_keypair_name()
+char* AmazonJob::temporary_keypair_name()
 {
 	// Note: keypair name = SSH_ + condor_pool_name + job_id
 	MyString keypair_name;
@@ -2055,7 +2058,7 @@ const char* AmazonJob::temporary_keypair_name()
 }
 
 
-const char* AmazonJob::temporary_security_group()
+char* AmazonJob::temporary_security_group()
 {
 	// Note: Name = SG_ + condor_pool_name + job_id
 	MyString security_group;

@@ -97,6 +97,7 @@ private:
 	char * m_access_key_file;
 	char * m_secret_key_file;
 	char * m_user_data;
+	char * m_user_data_file;
 	char * m_bucket_name;
 	char * m_xml_file;
 	char * m_error_code;
@@ -111,8 +112,8 @@ private:
 	StringList* m_group_names;
 	
 	// create temporary names when clients don't assign the values
-	const char* temporary_keypair_name();
-	const char* temporary_security_group();
+	char* temporary_keypair_name();
+	char* temporary_security_group();
 	char* temporary_bucket_name();
 	
 	// remove created temporary keypair file
