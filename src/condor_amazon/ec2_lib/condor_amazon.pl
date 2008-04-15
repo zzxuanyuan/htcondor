@@ -151,9 +151,24 @@ sub readAccessKey
 	return;
 }
 
+sub read_entire_file
+{
+	my $file = $_[0];
+	local($/) = undef;
+	local(*F);
+
+	open(F, "<$file")
+		or printerror "Cannot open the file($file) : $!";
+
+	my $content = <F>;
+	close F;
+
+	return $content;
+}
 
 # This function comes from CPAN Net::Amazon::S3::Bucket.pm
-sub _content_sub {
+sub _content_sub 
+{
 	my $filename  = shift;
 	my $stat      = stat($filename);
 	my $remaining = $stat->size;
@@ -406,12 +421,7 @@ sub start
 	}
 
 	if( $userdatafile ) {
-		open(DATAFILE, "$userdatafile")
-			or printerror "Cannot open the file($userdatafile) : $!";
-		
-		$userdata = <DATAFILE>;
-		chomp($userdata);
-		close DATAFILE;
+		$userdata = read_entire_file($userdatafile);
 	}
 
 	# Read access key file
