@@ -58,6 +58,8 @@
 #define GM_AFTER_SSH_KEYPAIR			24
 #define GM_BEFORE_STARTVM				25
 #define GM_AFTER_STARTVM				26
+#define GM_NEED_CHECK_VM				27
+#define GM_NEED_CHECK_KEYPAIR			28
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -86,7 +88,9 @@ static char *GMStateNames[] = {
 	"GM_BEFORE_SSH_KEYPAIR",
 	"GM_AFTER_SSH_KEYPAIR",
 	"GM_BEFORE_STARTVM",
-	"GM_AFTER_STARTVM"
+	"GM_AFTER_STARTVM",
+	"GM_NEED_CHECK_VM",
+	"GM_NEED_CHECK_KEYPAIR"
 };
 
 #define AMAZON_VM_STATE_RUNNING			"running"
@@ -173,6 +177,7 @@ int AmazonJob::maxConnectFailures = 3;
 int AmazonJob::funcRetryDelay = 30;
 int AmazonJob::funcRetryInterval = 30;
 int AmazonJob::pendingWaitTime = 15;
+int AmazonJob::maxRetryTimes = 3;
 
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -243,6 +248,8 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	m_error_code = NULL;
 	m_bucket_name = NULL;
 	m_retry_tid = -1;
+	m_vm_check_times = 0;
+	m_keypair_check_times = 0;
 	
 	// set the default value/status for current submit step
 	m_submit_step = AMAZON_SUBMIT_UNDEFINED;
@@ -1000,6 +1007,20 @@ int AmazonJob::doEvaluateState()
 							return true;
 						}			
 				
+					} else if ( strcmp(m_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
+						
+						// get an error code from gahp server said that we should check if 
+						// the VM has been started successfully in EC2
+						
+						// Maxmium retry times is 3, if exceeds this limitation, we will go to HOLD state
+						if ( m_vm_check_times++ == maxRetryTimes ) {
+							gmState = GM_HOLD;
+						} else {
+							gmState = GM_NEED_CHECK_VM;
+						}
+						
+						break;							
+										
 					} else {
 						// received the errors we cannot processed					
 						// print out the received error code
@@ -1047,6 +1068,144 @@ int AmazonJob::doEvaluateState()
 				}
 
 				break;
+				
+			
+			case GM_NEED_CHECK_VM:
+				
+				{
+					
+				// check if the VM has been started successfully
+				StringList * returnStatus = new StringList();
+							
+				rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
+												    *returnStatus, m_error_code);
+
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+						break;
+				}
+							
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_create_keypair()");
+					reset_error_code();
+					
+					// change Job's status to HOLD since we meet the errors we cannot proceed
+					gmState = GM_HOLD;
+					break;
+				}
+
+				if (rc == 0) {
+
+					// now we should check, corresponding to a given SSH keypair, in EC2, is there
+					// existing any running VM instances? If these are some ones, we just return the
+					// first one we found.
+					bool is_running = false;
+					char* instance_id = NULL;
+					char* keypair_name = NULL;
+								
+					int size = returnStatus->number();
+					returnStatus->rewind();
+								
+					for (int i=0; i<size/2; i++) {
+									
+						instance_id = returnStatus->next();
+						keypair_name = returnStatus->next();
+
+						if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
+							is_running = true;
+							break;
+						}
+					}
+								
+					if ( is_running ) {
+
+						// there is a running VM instance corresponding to the given SSH keypair
+						gmState = GM_AFTER_STARTVM;
+						// save the instance ID which will be used when delete VM instance
+						SetRemoteJobId( instance_id );
+									
+					} else {
+						// we shoudl re-start the VM again with the corresponding SSH keypair
+						gmState = GM_BEFORE_STARTVM;
+					}
+				} else {
+					errorString = gahp->getErrorString();
+					dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					gmState = GM_HOLD;
+				}
+												
+				}				
+				
+				break;			
+			
+			
+			case GM_NEED_CHECK_KEYPAIR:
+			
+				{
+				// check if this SSH keypair has already been registered in EC2
+				StringList * returnKeys = new StringList();
+							
+				rc = gahp->amazon_vm_keypair_names(m_access_key_file, m_secret_key_file,
+												   *returnKeys, m_error_code);
+
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
+					break;
+				}
+							
+				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
+				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
+					
+				// processing error code received
+				if ( m_error_code == NULL ) {
+					// go ahead
+				} else {
+					// print out the received error code
+					print_error_code(m_error_code, "amazon_vm_create_keypair()");
+					reset_error_code();
+					
+					// change Job's status to HOLD since we meet the errors we cannot proceed
+					gmState = GM_HOLD;
+					break;
+				}
+							
+				if (rc == 0) {
+					// now we should check if this SSH keypair has already been registered in EC2
+					bool is_registered = false;
+					int size = returnKeys->number();
+					returnKeys->rewind();
+					for (int i=0; i<size; i++) {
+						// this is not failure recovery, we can find keypair from m_key_pair
+						if (strcmp(m_key_pair->Value(), returnKeys->next()) == 0) {
+							is_registered = true;
+							break;
+						}
+					}
+
+					if ( is_registered ) {
+						// we have registered SSH keypair successfully
+						gmState = GM_AFTER_SSH_KEYPAIR;
+					} else {
+						// we have to redo the registering SSH keypair
+						gmState = GM_BEFORE_SSH_KEYPAIR;
+					}
+				} else {
+					errorString = gahp->getErrorString();
+					dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					gmState = GM_HOLD;
+				}
+
+				delete returnKeys;	
+
+				}
+				
+				break;
+
 			
 			case GM_SUBMIT_SAVE:
 
@@ -1066,6 +1225,7 @@ int AmazonJob::doEvaluateState()
 				}
 
 				break;
+				
 			
 			case GM_SUBMITTED:
 
@@ -1107,6 +1267,7 @@ int AmazonJob::doEvaluateState()
 
 				break;
 				
+				
 			case GM_DONE_SAVE:
 
 				if ( condorState != HELD && condorState != REMOVED ) {
@@ -1130,7 +1291,8 @@ int AmazonJob::doEvaluateState()
 					gmState = GM_CLEAR_REQUEST;
 				}
 			
-				break;				
+				break;
+						
 				
 			case GM_CLEAR_REQUEST:
 
@@ -1562,6 +1724,20 @@ int AmazonJob::doEvaluateState()
 				// processing error code received
 				if ( m_error_code == NULL ) {
 					// go ahead
+				} else if ( strcmp(m_error_code, "NEED_CHECK_SSHKEY" ) == 0 ) {
+						
+					// get an error code from gahp server said that we should check if 
+					// the SSH keypair has been registered successfully in EC2
+						
+					// Maxmium retry times is 3, if exceeds this limitation, we will go to HOLD state
+					if ( m_keypair_check_times++ == maxRetryTimes ) {
+						gmState = GM_HOLD;
+					} else {
+						gmState = GM_NEED_CHECK_KEYPAIR;
+					}
+						
+					break;	
+				
 				} else {
 					// print out the received error code
 					print_error_code(m_error_code, "amazon_vm_create_keypair()");

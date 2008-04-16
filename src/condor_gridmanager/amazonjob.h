@@ -60,7 +60,8 @@ public:
 	static int funcRetryDelay;
 	static int funcRetryInterval;
 	static int pendingWaitTime;
-
+	static int maxRetryTimes;
+	
 	static void setProbeInterval( int new_interval ) 	{ probeInterval = new_interval; }
 	static void setSubmitInterval( int new_interval )	{ submitInterval = new_interval; }
 	static void setGahpCallTimeout( int new_timeout )	{ gahpCallTimeout = new_timeout; }
@@ -104,6 +105,8 @@ private:
 	
 	int m_retry_tid; // timer id for retry functions
 	int m_submit_step;
+	int m_vm_check_times;
+	int m_keypair_check_times;
 	
 	MyString* m_ami_id;
 	MyString* m_key_pair;
