@@ -22,12 +22,8 @@
 
 #
 # Amazon EC2/S3 Control Tool
-# V1.0 / 2008-Apr-17 / Jaeyoung Yoon / jyoon@cs.wisc.edu
+# V0.3 / 2008-Feb-13 / Jaeyoung Yoon / jyoon@cs.wisc.edu
 #
-# History: 
-# V1.0 
-# 	uses Net::Amazon::EC2 0.04 with some patches
-# 	uses Net::Amazon::S3
 
 use strict;
 #use warnings;
@@ -41,16 +37,18 @@ use MIME::Base64 qw(encode_base64 decode_base64);
 
 use Getopt::Std;
 use Getopt::Long;
-use Cwd;
-use Net::Amazon::EC2;
-use Net::Amazon::S3;
+use Net::Amazon::EC2 0.04;
+
+use S3;
+use S3::AWSAuthConnection;
+use S3::QueryStringAuthGenerator;
 
 #use Crypt::SSLeay
 my $use_ssl = 0;
 
 # program version information
 my $progdesc = "Condor Amazon EC2/S3 Perl Tool";
-my $version = "1.0";
+my $version = "0.1";
 my $verbose = undef;
 my $progname = $0;
 my $access_public_key = undef;
@@ -168,6 +166,43 @@ sub read_entire_file
 	return $content;
 }
 
+# This function comes from CPAN Net::Amazon::S3::Bucket.pm
+sub _content_sub 
+{
+	my $filename  = shift;
+	my $stat      = stat($filename);
+	my $remaining = $stat->size;
+	my $blksize   = $stat->blksize || 4096;
+
+	unless( -r $filename and $remaining ) {
+		printerror "$filename is not a readable file with fixed size";
+	}
+
+	open DATA, "< $filename" or printerror "Could not open $filename: $!";
+
+	return sub {
+		my $buffer;
+
+		# warn "read remaining $remaining";
+		unless ( my $read = read( DATA, $buffer, $blksize ) ) {
+
+#                       warn "read $read buffer $buffer remaining $remaining";
+			if( $! and $remaining ) {
+				printerror "Error while reading upload content $filename ($remaining remaining) $!";
+			}
+
+			# otherwise, we found EOF
+			close DATA
+				or printerror "close of upload content $filename failed: $!";
+			$buffer ||= ''
+			;    # LWP expects an emptry string on finish, read returns 0
+		}
+		$remaining -= length($buffer);
+		return $buffer;
+	};
+}
+
+
 # format : accessfile secretfile bucketname keyname
 sub _set_acl_for_ec2 {
 	printverbose "_set_acl_for_ec2 is called(@_)";
@@ -182,31 +217,38 @@ sub _set_acl_for_ec2 {
 		readAccessKey($accessfile, $secretfile);
 	}
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
 	if( ! defined($xml_acl_string) ) {
 		# Get owner_id and owner_displayname
 
-		my $tmpresponse = $s3->buckets;
+		my $tmpresponse = $conn->list_all_my_buckets;
 
 		if( ! defined($tmpresponse) ) {
 			# It means that error happened
-			createErrorOutput($s3->errstr, $s3->err);
+			printerror "Cannot allocate response handler";	
 		}
 
-		$owner_id = $tmpresponse->{owner_id};
-		$owner_displayname = $tmpresponse->{owner_displayname};
+		my $tmpretcode = $tmpresponse->http_response->code;
+		if( $tmpretcode != 200 ) {
+			my $errvar = $tmpresponse->error;
+			if( defined($errvar) ) {
+				createErrorOutput($errvar->{error}, $errvar->{errorcode});
+			}else {
+				createErrorOutput();
+				#my $error_str = "List all my buckets error : http response $tmpretcode"; 
+				#my $error_code = $tmpretcode;
+				#createErrorOutput( $error_str, $error_code );
+			}
+
+		}
+
+		$owner_id = $tmpresponse->owner_id;
+		$owner_displayname = $tmpresponse->owner_displayname;
 
 		if ( ! $owner_id || ! $owner_displayname ) {
 			printerror "Cannot get owner_id and displayname"; 
@@ -239,20 +281,28 @@ sub _set_acl_for_ec2 {
 	}
 
 	# Set acl 
-	my $bucket = $s3->bucket($bucketname);
-	$bucket->set_acl( 
-		{
-			key => $keyname,
-			acl_xml => $xml_acl_string,
+	my $response = $conn->put_acl($bucketname, $keyname, $xml_acl_string);
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "put acl error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
 		}
-	) or createErrorOutput($s3->errstr, $s3->err);
+	}
 
 	# Get acl again 
-	#my $acl = bucket->get_acl( 
-	#	{
-	#		key => $keyname,
-	#	}
-	#) or createErrorOutput($s3->errstr, $s3->err);
+	#$response = $conn->get_acl($bucketname, $keyname);
+	#my $acl = $response->object->data;
 	#print "acl = $acl\n";
 
 	return;	
@@ -1973,29 +2023,37 @@ sub listallbuckets
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
 	# list all buckets that I own
-	my $response = $s3->buckets;
+	my $response = $conn->list_all_my_buckets;
 
 	if( ! defined($response) ) {
 		# It means that error happened
-		createErrorOutput($s3->errstr, $s3->err);
+		printerror "Cannot allocate response handler";	
 	}
 
-	foreach my $bucket ( @{ $response->{buckets} } ) {
-		createSuccessOutput( $bucket->bucket );
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "List all my buckets error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
+
+	my @buckets = @{$response->entries};
+
+	foreach my $onebucket ( @buckets ) {
+		createSuccessOutput( $onebucket->{Name} );
 	}
 
 	printSuccessOutput();
@@ -2050,31 +2108,52 @@ sub uploadfile
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->bucket($bucketname );
+	my $value = _content_sub($filename);
+	my $filesize ||= -s $filename;
 
-	# store a file in the bucket
+	my $response = undef;
+
 	if( $mimetype ) {
-		$bucket->add_key_filename( $keyname, $filename,
-			{ content_type => $mimetype, },
-		) or createErrorOutput($s3->errstr, $s3->err);
+		$response = $conn->put(
+			$bucketname,
+			$keyname,
+			S3::S3Object->new($value),
+			{'Content-Type' => $mimetype},
+			{'Content-Length' => $filesize});
 	}else {
-		$bucket->add_key_filename($keyname, $filename) 
-			or createErrorOutput($s3->errstr, $s3->err);
+#		$mimetype = "application/octet-stream";
+
+		$response = $conn->put(
+			$bucketname,
+			$keyname,
+			S3::S3Object->new($value),
+			{'Content-Length' => $filesize});
 	}
 	
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "put file($filename) with key($keyname) in bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
+
 	if( $ec2flag == 1 ) {
 		# Set file ACL to allow EC2 read access
 		_set_acl_for_ec2($accessfile,$secretfile,$bucketname,$keyname);
@@ -2206,23 +2285,47 @@ sub downloadfile
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->bucket($bucketname );
+	my $response = $conn->get( $bucketname, $keyname);
 
-	$bucket->get_key_filename($keyname, 'GET', $outputfile )
-		or createErrorOutput($s3->errstr, $s3->err);
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "get object($keyname) from bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
+
+	my $outputdata = $response->object->data;
+
+	open OUTPUTFILE, "> $outputfile"
+		or printerror "Cannot create the outputfile('$outputfile') : $!";
+	print OUTPUTFILE "$outputdata";
+	close OUTPUTFILE;
+
+
+	# check file size
+	my $filesize ||= -s $outputfile;
+	my $headerfilesize = $response->http_response->header('Content-Length');
+
+	if( $filesize != $headerfilesize ) {
+		printerror "Downloaded size: $filesize HeaderFilesize: $headerfilesize";
+	}
 
 	if( $quietflag == 0 ) {
 		printSuccessOutput();
@@ -2272,29 +2375,37 @@ sub downloadbucket
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->bucket($bucketname );
+	my $response = $conn->list_bucket($bucketname);	
 
-	my $response = $bucket->list_all
-		or createErrorOutput($s3->errstr, $s3->err);
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error in downloadbucket : http response $retcode";
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
+
+	my @entries = @{$response->entries};
 
 	my @ORIARGV = @ARGV;
-	foreach my $key ( @{ $response->{keys} } ) {
-		my $key_name = $key->{key};
-		my $key_size = $key->{size};
-		@ARGV = ("downloadfile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$key_name", "-bucket", "$bucketname", "-output", "$outputdir/$key_name", "-quiet");
+	foreach my $entry ( @entries ) {
+		@ARGV = ("downloadfile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$entry->{Key}", "-bucket", "$bucketname", "-output", "$outputdir/$entry->{Key}", "-quiet");
 		downloadfile();
 		#createprocess();
 	}
@@ -2345,23 +2456,31 @@ sub deletefile
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->bucket($bucketname );
+	my $response = $conn->delete($bucketname, $keyname);
 
-	$bucket->delete_key($keyname) 
-		or createErrorOutput($s3->errstr, $s3->err);
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 204 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "delete object($keyname) from bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
 
 	if( $quietflag == 0 ) {
 		printSuccessOutput();
@@ -2404,38 +2523,43 @@ sub deleteallfilesinbucket
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->bucket($bucketname );
-
 	# list bucket
-	my $response = $bucket->list_all;
+	my $response = $conn->list_bucket($bucketname);
+
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
 
 	my $hasbucket = 1;
-	if( ! $response ) {
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
 		$hasbucket = 0;
-		if( $s3->err ne "NoSuchBucket" ) {
-			createErrorOutput($s3->errstr, $s3->err);
+
+		my $errvar = $response->error;
+		if( !defined($errvar) || ($errvar->{errorcode} ne "NoSuchBucket") ) {
+			if( defined($errvar) ) {
+				createErrorOutput($errvar->{error}, $errvar->{errorcode});
+			}else {
+				createErrorOutput();
+				#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+				#my $error_code = $retcode;
+				#createErrorOutput( $error_str, $error_code );
+			}
 		}
 	}
 
 	if( $hasbucket == 1 ) {
+		my @entries = @{$response->entries};
 		my @ORIARGV = @ARGV;
-		foreach my $key ( @{ $response->{keys} } ) {
-			my $key_name = $key->{key};
-			my $key_size = $key->{size};
-			@ARGV = ("deletefile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$key_name", "-bucket", "$bucketname", "-quiet");
+		foreach my $entry ( @entries ) {
+			@ARGV = ("deletefile", "-a", "$accessfile", "-s", "$secretfile", "-name", "$entry->{Key}", "-bucket", "$bucketname", "-quiet");
 			deletefile();
 			#createprocess();
 		}
@@ -2483,21 +2607,31 @@ sub createbucket
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
-
-	if( ! defined($s3) ) {
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->add_bucket( { bucket => $bucketname } )
-		or createErrorOutput($s3->errstr, $s3->err);
+	# create bucket with name
+	my $response = $conn->create_bucket($bucketname);
+
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "create bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
 
 	printSuccessOutput();
 	printverbose "succeeded to create bucket($bucketname)";
@@ -2540,48 +2674,53 @@ sub listbucket
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
-
-	my $bucket = $s3->bucket($bucketname );
 
 	# list bucket
 	my $response = undef;
 	if( $prefix ) {
-		$response = $bucket->list( 
-			{	bucket => $bucketname, 
-				prefix => $prefix,
-			}
-		);
+		$response = $conn->list_bucket($bucketname, {prefix => $prefix});
 	}elsif( $marker ) {
-		$response = $bucket->list(
-			{	bucket => $bucketname, 
-				marker => $marker,
-			}
-		);
+		$response = $conn->list_bucket($bucketname, {marker => $marker});
 	}else {
-		$response = $bucket->list_all;
+		$response = $conn->list_bucket($bucketname);
 	}
 
-	if( ! $response ) {
-		createErrorOutput($s3->errstr, $s3->err);
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
 	}
 
-	foreach my $key ( @{ $response->{keys} } ) {
-		my $key_name = $key->{key};
-		my $key_size = $key->{size};
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
 
-		my $result_string = "$key_name\t$key_size";
+	my @entries = @{$response->entries};
+
+	#$response = $conn->get_bucket_acl($bucketname);
+	#my $acl = $response->object->data;
+	#print "$acl\n";
+
+	foreach my $entry ( @entries ) {
+		my $result_string = "$entry->{Key}\t$entry->{Size}";
+
+		#$response = $conn->get_acl($bucketname, $entry->{Key});
+		#my $acl = $response->object->data;
+		#print "$acl\n";
+
 		createSuccessOutput( $result_string );
 	}
 
@@ -2632,27 +2771,34 @@ sub deletebucket
 	# Read access key file
 	readAccessKey($accessfile, $secretfile);		
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
-	my $bucket = $s3->bucket($bucketname );
-
 	# delete bucket with name
-	my $response = $bucket->delete_bucket;
+	my $response = $conn->delete_bucket($bucketname);
 
-	if( ! $response ) {
-		if( $s3->err ne "NoSuchBucket" ) {
-			createErrorOutput($s3->errstr, $s3->err);
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
+
+	my $retcode = $response->http_response->code;
+	if( $retcode != 204 ) {
+		my $errvar = $response->error;
+		if( !defined($errvar) || ($errvar->{errorcode} ne "NoSuchBucket") ) {
+
+			if( defined($errvar) ) {
+				createErrorOutput($errvar->{error}, $errvar->{errorcode});
+			}else {
+				createErrorOutput();
+				#my $error_str = "delete bucket($bucketname) error : http response $retcode"; 
+				#my $error_code = $retcode;
+				#createErrorOutput( $error_str, $error_code );
+			}
+
 		}
 	}
 
@@ -2695,30 +2841,38 @@ sub setec2acl
 	# Set bucket ACL to allow EC2 read access
 	_set_acl_for_ec2($accessfile,$secretfile,$bucketname);
 
-	my $s3 = Net::Amazon::S3->new( 
-		{	aws_access_key_id		=> $access_public_key,
-			aws_secret_access_key	=> $access_secret_key,
-			retry			=> 1,
-			# secure		=> 1,
-			# timeout		=> 30,
-		}
-	);
+	my $conn = S3::AWSAuthConnection->new( $access_public_key, $access_secret_key, $use_ssl );
 
-	if( ! defined($s3) ) {
+	if( ! defined($conn) ) {
 		printerror "Cannot allocate a new s3 handler"; 
 	}
 
 	# list bucket
-	my $bucket = $s3->bucket($bucketname );
-	my $response = $bucket->list_all
-		or createErrorOutput($s3->errstr, $s3->err);
+	my $response = $conn->list_bucket($bucketname);
 
-	foreach my $key ( @{ $response->{keys} } ) {
-		my $key_name = $key->{key};
-		my $key_size = $key->{size};
+	if( ! defined($response) ) {
+		# It means that error happened
+		printerror "Cannot allocate response handler";	
+	}
 
+	my $retcode = $response->http_response->code;
+	if( $retcode != 200 ) {
+		my $errvar = $response->error;
+		if( defined($errvar) ) {
+			createErrorOutput($errvar->{error}, $errvar->{errorcode});
+		}else {
+			createErrorOutput();
+			#my $error_str = "list bucket($bucketname) error : http response $retcode"; 
+			#my $error_code = $retcode;
+			#createErrorOutput( $error_str, $error_code );
+		}
+	}
+
+	my @entries = @{$response->entries};
+
+	foreach my $entry ( @entries ) {
 		# Set file ACL to allow EC2 read access
-		_set_acl_for_ec2($accessfile,$secretfile,$bucketname, $key_name);
+		_set_acl_for_ec2($accessfile,$secretfile,$bucketname, $entry->{Key});
 	}
 
 	printSuccessOutput();
