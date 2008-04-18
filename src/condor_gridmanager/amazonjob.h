@@ -91,16 +91,12 @@ private:
 	MyString* build_ami_id();
 	MyString* build_keypair();
 	MyString* build_keypairfilename();
-	MyString* build_dirname();
-	char* build_xml_file(const char* dirname);
 	StringList* build_groupnames();
 	
 	char * m_access_key_file;
 	char * m_secret_key_file;
 	char * m_user_data;
 	char * m_user_data_file;
-	char * m_bucket_name;
-	char * m_xml_file;
 	char * m_error_code;
 	
 	int m_retry_tid; // timer id for retry functions
@@ -116,8 +112,6 @@ private:
 	
 	// create temporary names when clients don't assign the values
 	char* temporary_keypair_name();
-	char* temporary_security_group();
-	char* temporary_bucket_name();
 	
 	// remove created temporary keypair file
 	bool remove_keypair_file(const char* filename);

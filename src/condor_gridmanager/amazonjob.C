@@ -44,22 +44,15 @@
 #define GM_HOLD							10
 #define GM_PROBE_JOB					11
 #define GM_START						12
-#define GM_CREATE_BUCKET				13
-#define GM_UPLOAD_IMAGES				14
-#define GM_REGISTER_IMAGE				15
-#define GM_CREATE_KEYPAIR				16
-#define GM_CREATE_SG					17
-#define GM_DESTROY_SG					18
-#define GM_DESTROY_KEYPAIR				19
-#define GM_UNREGISTER_IMAGE				20
-#define GM_DESTROY_IMAGE_AND_BUCKET		21
-#define GM_RECOVERY						22
-#define GM_BEFORE_SSH_KEYPAIR			23
-#define GM_AFTER_SSH_KEYPAIR			24
-#define GM_BEFORE_STARTVM				25
-#define GM_AFTER_STARTVM				26
-#define GM_NEED_CHECK_VM				27
-#define GM_NEED_CHECK_KEYPAIR			28
+#define GM_CREATE_KEYPAIR				13
+#define GM_DESTROY_KEYPAIR				14
+#define GM_RECOVERY						15
+#define GM_BEFORE_SSH_KEYPAIR			16
+#define GM_AFTER_SSH_KEYPAIR			17
+#define GM_BEFORE_STARTVM				18
+#define GM_AFTER_STARTVM				19
+#define GM_NEED_CHECK_VM				20
+#define GM_NEED_CHECK_KEYPAIR			21
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -75,15 +68,8 @@ static char *GMStateNames[] = {
 	"GM_HOLD",
 	"GM_PROBE_JOB",
 	"GM_START",
-	"GM_CREATE_BUCKET",
-	"GM_UPLOAD_IMAGES",
-	"GM_REGISTER_IMAGE",
 	"GM_CREATE_KEYPAIR",
-	"GM_CREATE_SG",
-	"GM_DESTROY_SG",
 	"GM_DESTROY_KEYPAIR",
-	"GM_UNREGISTER_IMAGE",
-	"GM_DESTROY_IMAGE_AND_BUCKET",
 	"GM_RECOVERY",
 	"GM_BEFORE_SSH_KEYPAIR",
 	"GM_AFTER_SSH_KEYPAIR",
@@ -243,10 +229,7 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	m_key_pair = NULL;
 	m_group_names = NULL;
 	m_key_pair_file_name = NULL ;
-	m_dir_name = NULL;
-	m_xml_file = NULL;
 	m_error_code = NULL;
-	m_bucket_name = NULL;
 	m_retry_tid = -1;
 	m_vm_check_times = 0;
 	m_keypair_check_times = 0;
@@ -311,6 +294,8 @@ AmazonJob::~AmazonJob()
 	if ( m_key_pair != NULL ) delete m_key_pair;
 	if ( m_user_data != NULL ) delete m_user_data;
 	if ( m_group_names != NULL ) delete m_group_names;
+	if ( m_error_code != NULL ) delete m_error_code;
+	if ( m_user_data_file != NULL ) delete m_user_data_file;
 }
 
 
@@ -466,7 +451,7 @@ int AmazonJob::doEvaluateState()
 								// go ahead
 							} else {
 								// print out the received error code
-								print_error_code(m_error_code, "amazon_vm_create_keypair()");
+								print_error_code(m_error_code, "amazon_vm_keypair_names()");
 								reset_error_code();
 					
 								// change Job's status to HOLD since we meet the errors we cannot proceed
@@ -542,7 +527,7 @@ int AmazonJob::doEvaluateState()
 								gmState = GM_HOLD;
 							} else {
 								// in this situation, we have registered the SSH keypair, keep doing it
-								gmState = GM_CREATE_SG;
+								gmState = GM_BEFORE_STARTVM;
 								// don't need to clean the submitting log here
 							}
 							
@@ -563,10 +548,10 @@ int AmazonJob::doEvaluateState()
 							}
 
 							// check if the VM has been started successfully
-							StringList * returnStatus = new StringList();
+							StringList returnStatus;
 							
 							rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
-															    *returnStatus, m_error_code);
+															    returnStatus, m_error_code);
 
 							if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 								break;
@@ -580,7 +565,7 @@ int AmazonJob::doEvaluateState()
 								// go ahead
 							} else {
 								// print out the received error code
-								print_error_code(m_error_code, "amazon_vm_create_keypair()");
+								print_error_code(m_error_code, "amazon_vm_vm_keypair_all()");
 								reset_error_code();
 					
 								// change Job's status to HOLD since we meet the errors we cannot proceed
@@ -597,13 +582,13 @@ int AmazonJob::doEvaluateState()
 								char* instance_id = NULL;
 								char* keypair_name = NULL;
 								
-								int size = returnStatus->number();
-								returnStatus->rewind();
+								int size = returnStatus.number();
+								returnStatus.rewind();
 								
 								for (int i=0; i<size/2; i++) {
 									
-									instance_id = returnStatus->next();
-									keypair_name = returnStatus->next();
+									instance_id = returnStatus.next();
+									keypair_name = returnStatus.next();
 
 									if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
 										is_running = true;
@@ -627,8 +612,8 @@ int AmazonJob::doEvaluateState()
 								dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
 								gmState = GM_HOLD;
 							}
-												
-							}
+											
+							}							
 
 							break;
 							
@@ -711,10 +696,10 @@ int AmazonJob::doEvaluateState()
 									}
 									
 									// now try to find if there is running VM corresponding to this SSH key
-									StringList * returnStatus = new StringList();
+									StringList returnStatus;
 							
 									rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
-															    		*returnStatus, m_error_code);
+															    		returnStatus, m_error_code);
 
 									if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 										break;
@@ -728,7 +713,7 @@ int AmazonJob::doEvaluateState()
 										// go ahead
 									} else {
 										// print out the received error code
-										print_error_code(m_error_code, "amazon_vm_create_keypair()");
+										print_error_code(m_error_code, "amazon_vm_vm_keypair_all()");
 										reset_error_code();
 					
 										// change Job's status to HOLD since we meet the errors we cannot proceed
@@ -745,13 +730,13 @@ int AmazonJob::doEvaluateState()
 										char* instance_id = NULL;
 										char* keypair_name = NULL;
 								
-										int size = returnStatus->number();
-										returnStatus->rewind();
+										int size = returnStatus.number();
+										returnStatus.rewind();
 								
 										for (int i=0; i<size/2; i++) {
 									
-											instance_id = returnStatus->next();
-											keypair_name = returnStatus->next();
+											instance_id = returnStatus.next();
+											keypair_name = returnStatus.next();
 
 											if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
 												is_running = true;
@@ -778,7 +763,7 @@ int AmazonJob::doEvaluateState()
 										dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
 										gmState = GM_HOLD;
 									}
-												
+
 									}
 									
 									break;
@@ -865,7 +850,7 @@ int AmazonJob::doEvaluateState()
 				SetSubmitStepInfo("ssh_done");
 				done = requestScheddUpdate( this );
 				if ( done ) {
-					gmState = GM_CREATE_SG; 
+					gmState = GM_BEFORE_STARTVM; 
 				}
 				break;
 				
@@ -917,7 +902,7 @@ int AmazonJob::doEvaluateState()
 				if ( (condorState == REMOVED) || (condorState == HELD) ) {
 					gmState = GM_DELETE;
 				} else {
-					gmState = GM_CREATE_BUCKET;
+					gmState = GM_BEFORE_SSH_KEYPAIR;
 				}
 				
 				break;
@@ -1075,10 +1060,10 @@ int AmazonJob::doEvaluateState()
 				{
 					
 				// check if the VM has been started successfully
-				StringList * returnStatus = new StringList();
+				StringList returnStatus;
 							
 				rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
-												    *returnStatus, m_error_code);
+												    returnStatus, m_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -1092,7 +1077,7 @@ int AmazonJob::doEvaluateState()
 					// go ahead
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_create_keypair()");
+					print_error_code(m_error_code, "amazon_vm_vm_keypair_all()");
 					reset_error_code();
 					
 					// change Job's status to HOLD since we meet the errors we cannot proceed
@@ -1109,13 +1094,13 @@ int AmazonJob::doEvaluateState()
 					char* instance_id = NULL;
 					char* keypair_name = NULL;
 								
-					int size = returnStatus->number();
-					returnStatus->rewind();
+					int size = returnStatus.number();
+					returnStatus.rewind();
 								
 					for (int i=0; i<size/2; i++) {
 									
-						instance_id = returnStatus->next();
-						keypair_name = returnStatus->next();
+						instance_id = returnStatus.next();
+						keypair_name = returnStatus.next();
 
 						if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
 							is_running = true;
@@ -1136,10 +1121,10 @@ int AmazonJob::doEvaluateState()
 					}
 				} else {
 					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf(D_ALWAYS,"(%d.%d) job need check VM operation failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
 					gmState = GM_HOLD;
 				}
-												
+
 				}				
 				
 				break;			
@@ -1166,7 +1151,7 @@ int AmazonJob::doEvaluateState()
 					// go ahead
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_create_keypair()");
+					print_error_code(m_error_code, "amazon_vm_keypair_names()");
 					reset_error_code();
 					
 					// change Job's status to HOLD since we meet the errors we cannot proceed
@@ -1196,7 +1181,7 @@ int AmazonJob::doEvaluateState()
 					}
 				} else {
 					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf(D_ALWAYS,"(%d.%d) job need check keypair operation failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
 					gmState = GM_HOLD;
 				}
 
@@ -1281,7 +1266,7 @@ int AmazonJob::doEvaluateState()
 				}
 				
 				if ( condorState == COMPLETED || condorState == REMOVED ) {
-					gmState = GM_DESTROY_SG;
+					gmState = GM_DESTROY_KEYPAIR;
 				} else {
 					// Clear the contact string here because it may not get
 					// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
@@ -1403,11 +1388,11 @@ int AmazonJob::doEvaluateState()
 				} else {
 					char * new_status = NULL;
 					char * public_dns = NULL;
-					StringList * returnStatus = new StringList();
+					StringList returnStatus;
 
 					// need to call amazon_vm_status(), amazon_vm_status() will check input arguments
 					// The VM status we need is saved in the second string of the returned status StringList
-					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, *returnStatus, m_error_code );
+					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, returnStatus, m_error_code );
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -1437,24 +1422,24 @@ int AmazonJob::doEvaluateState()
 						break;
 					} else {
 						// VM Status is the second value in the return string list
-						returnStatus->rewind();
+						returnStatus.rewind();
 						// jump to the value I need
 						for (int i=0; i<1; i++) {
-							returnStatus->next();
+							returnStatus.next();
 						}
-						new_status = strdup(returnStatus->next());
+						new_status = strdup(returnStatus.next());
 						remoteJobState = new_status;
 						SetRemoteJobStatus( new_status );
 						
-						returnStatus->rewind();
-						int size = returnStatus->number();
+						returnStatus.rewind();
+						int size = returnStatus.number();
 						// only when status changed to running, can we have the public dns name
 						// at this situation, the number of return value is larger than 4
 						if (size >=4 ) {
 							for (int i=0; i<3; i++) {
-								returnStatus->next();							
+								returnStatus.next();							
 							}
-							public_dns = strdup(returnStatus->next());
+							public_dns = strdup(returnStatus.next());
 							SetRemoteVMName( public_dns );
 						}
 						
@@ -1487,10 +1472,6 @@ int AmazonJob::doEvaluateState()
 
 					if ( new_status ) free( new_status );
 					if ( public_dns ) free( public_dns );
- 					
-					if ( returnStatus != NULL ) { 
-						delete returnStatus;
-					}
 					
 					lastProbeTime = now;
 					gmState = GM_SUBMITTED;
@@ -1526,7 +1507,7 @@ int AmazonJob::doEvaluateState()
 				
 				if ( rc == 0 ) {
 					// gmState = GM_FAILED;
-					gmState = GM_DESTROY_SG;
+					gmState = GM_DESTROY_KEYPAIR;
 				} else {
 					// What to do about a failed cancel?
 					errorString = gahp->getErrorString();
@@ -1535,165 +1516,6 @@ int AmazonJob::doEvaluateState()
 				}
 				
 				break;
-			
-
-			case GM_CREATE_BUCKET:
-				{
-				// Check if image_names is set.
-				// If yes, we need to create a temporary bucket in S3 to save these files
-				m_dir_name = build_dirname();
-
-				if ( strcmp(m_dir_name->Value(), "") != 0 ) {
-
-					// we need to create a bucket in S3 where our image file will be saved.
-					// The name of this bucket will be same as the group name
-					if (!m_bucket_name) 
-						m_bucket_name =	temporary_bucket_name();	
-						
-					// call gahp_server function to create a temporary bucket
-					rc = gahp->amazon_vm_s3_create_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
-											
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						break;
-					} 
-					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_s3_create_bucket()");
-						reset_error_code();
-					
-						// change Job's status to CANCEL
-						gmState = GM_HOLD;
-						break;
-					}
-					
-					if ( rc == 0 ) {
-						// the bucket has been created successfully in S3
-						gmState = GM_UPLOAD_IMAGES;
-					} else {
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job create temporary bucket in S3 failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_HOLD;
-					}
-									
-				} else {
-					// ami_id has been set (no need to register image in S3).
-					// we can jump to GM_CREATE_KEYPAIR directly and pass
-					// the steps for uploading and registering images.
-					// gmState = GM_CREATE_KEYPAIR;
-					gmState = GM_BEFORE_SSH_KEYPAIR;
-				}
-				
-				}
-			
-				break;
-			
-			
-			case GM_UPLOAD_IMAGES:
-				{
-				// Don't need to check if m_dir_name is set since this job have
-				// been done in state GM_CREATE_BUCKET
-				
-				// call gahp_server function to upload image files
-				// Note:
-				// amazon_vm_s3_upload_dir() can upload all the image files saved in one directory
-				// to the S3. So we don't need to upload image files one by one.
-				
-				rc = gahp->amazon_vm_s3_upload_dir(m_access_key_file, m_secret_key_file, m_dir_name->Value(), m_bucket_name, m_error_code);
-				
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-					// don't do anything, will come to next loop
-				} 
-				
-				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-				
-				// processing error code received
-				if ( m_error_code == NULL ) {
-					// go ahead
-				} else {
-					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_s3_upload_dir()");
-					reset_error_code();
-				
-					// change Job's status to CANCEL
-					gmState = GM_HOLD;
-					break;
-				}
-				
-				if ( rc == 0 ) {
-					// the images have been successfully uploaded to S3's given bucket
-					gmState = GM_REGISTER_IMAGE;						
-				} else {
-					// What to do about a failed cancel?
-					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job upload images to S3 failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-					gmState = GM_HOLD;
-				}
-				}
-				
-				break;
-
-
-			case GM_REGISTER_IMAGE:
-
-				// find out the XML description file for the uploaded image
-				// Note: this XML file should already be uploaded into S3 and m_xml_file should be 
-				// the location in the S3.
-				m_xml_file = build_xml_file(m_dir_name->Value());
-				
-				if (m_ami_id == NULL)
-					m_ami_id = new MyString();
-				
-				if (m_xml_file == NULL) {
-					dprintf( D_ALWAYS, "(%d.%d) job register image failed: No XML description file\n", procID.cluster, procID.proc);
-					gmState = GM_HOLD;
-				} else {
-					char* ami_id = NULL;
-					
-					rc = gahp->amazon_vm_register_image(m_access_key_file, m_secret_key_file, m_xml_file, ami_id, m_error_code);
-					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						// don't do anything, will come to next loop
-					}
-					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_register_image()");
-						reset_error_code();
-					
-						// change Job's status to CANCEL
-						gmState = GM_HOLD;
-						break;
-					}
-					
-					if ( rc == 0 ) {
-						*m_ami_id = strdup(ami_id); // saved ami_id of register image to a global variable 
-						// gmState = GM_CREATE_KEYPAIR;
-						gmState = GM_BEFORE_SSH_KEYPAIR;
-						
-						free(ami_id);
-					} else {
-						// What to do about a failed cancel?
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job upload images to S3 failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_HOLD;
-					}
-				}		
-
-				break;		
 				
 
 			case GM_CREATE_KEYPAIR:
@@ -1750,7 +1572,6 @@ int AmazonJob::doEvaluateState()
 					
 				if (rc == 0) {
 					// let's register the security group
-					// gmState = GM_CREATE_SG;
 					gmState = GM_AFTER_SSH_KEYPAIR;
 					
 					// test for AMAZON_SUBMIT_BEFORE_SSH (the SSH registered successfully)
@@ -1768,33 +1589,6 @@ int AmazonJob::doEvaluateState()
 				
 				break;
 
-
-			case GM_CREATE_SG:
-
-				// test for AMAZON_SUBMIT_AFTER_SSH (the SSH registered successfully)
-				// don't need to re-register again.
-				// stopcode(); // test only
-
-				// check if the clients have assigned a security group name, if not, we should assign
-				// "default" to it and register it. If yes, just load it from JobAd's environment
-				if (m_group_names == NULL) {
-					m_group_names = build_groupnames();
-				}
-
-				// security group name is provided by client, come to next state directly
-				gmState = GM_BEFORE_STARTVM;
-				
-				break; 	
-			
-
-			case GM_DESTROY_SG:
-				
-				// EC2 is using the group name provided by client
-				// don't need to do any extra work, just come to GM_DESTROY_KEYPAIR directly
-				gmState = GM_DESTROY_KEYPAIR;
-				
-				break;	
-			
 
 			case GM_DESTROY_KEYPAIR:
 				{
@@ -1829,7 +1623,7 @@ int AmazonJob::doEvaluateState()
 					}
 					
 					if ( remove_keypair_file(m_key_pair_file_name->Value()) ) {
-						gmState = GM_UNREGISTER_IMAGE;
+						gmState = GM_FAILED;
 					} else {
 						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
 						gmState = GM_FAILED;
@@ -1844,102 +1638,6 @@ int AmazonJob::doEvaluateState()
 				}
 
 				break; 	
-			
-
-			case GM_UNREGISTER_IMAGE:
-				{
-				// check if the ami_id is provided by client or from registeration, if by client,  
-				// we can skip states GM_UNREGISTER_IMAGE, GM_DESTROY_IMAGE and GM_DESTROY_BUCKET
-				
-				// should check if m_dir_name is empty. don't need to check if m_ami_id is empty since after
-				// state GM_REGISTER_IMAGE, this variable should have been assigned.
-				
-				if ( m_dir_name == NULL ) {
-					// we don't have upload directory, it means client provides ami-id, so we don't need
-					// to unregister it. The exiting process can stop now.
-					gmState = GM_FAILED;
-					break;
-				}
-				
-				if ( strcmp(m_dir_name->Value(), "") != 0 ) {
-					
-					rc = gahp->amazon_vm_deregister_image(m_access_key_file, m_secret_key_file, m_ami_id->Value(), m_error_code);
-					
-					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						break;
-					}
-					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
-					// processing error code received
-					if ( m_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_deregister_image()");
-						reset_error_code();
-					
-						// change Job's status to CANCEL
-						gmState = GM_FAILED;
-						break;
-					}
-					
-					if (rc == 0) {
-						// let's destroy the key pair
-						gmState = GM_DESTROY_IMAGE_AND_BUCKET;
-					} else {
-						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job deregister image failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_FAILED;
-					}
-				
-				} else {
-					// ami_id is provided by client, don't need to anything 
-					// jump to GM_FAILED directly
-					gmState = GM_FAILED;
-				}
-				
-				}
-				
-				break;	
-				
-	
-			case GM_DESTROY_IMAGE_AND_BUCKET:
-				// remove the temporary bucket from S3 after the image files have been deleted from S3
-				rc = gahp->amazon_vm_s3_delete_bucket(m_access_key_file, m_secret_key_file, m_bucket_name, m_error_code);
-				
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-					break;
-				} 
-				
-				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-				
-				// processing error code received
-				if ( m_error_code == NULL ) {
-					// go ahead
-				} else {
-					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_s3_delete_bucket()");
-					reset_error_code();
-					
-					// change Job's status to CANCEL
-					gmState = GM_FAILED;
-					break;
-				}
-				
-				if ( rc == 0 ) {
-					// the bucket has been deleted successfully from S3
-					gmState = GM_FAILED;
-				} else {
-					// What to do about a failed cancel?
-					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job destroy temporary bucket in S3 failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-					gmState = GM_FAILED;
-				}
-
-				break;	
 				
 
 			case GM_HOLD:
@@ -1967,6 +1665,7 @@ int AmazonJob::doEvaluateState()
 				
 				break;
 				
+				
 			case GM_FAILED:
 
 				SetRemoteJobId( NULL );
@@ -1980,6 +1679,7 @@ int AmazonJob::doEvaluateState()
 
 				break;
 				
+				
 			case GM_DELETE:
 				
 				// set remote job id to null so that schedd should remove it
@@ -1992,6 +1692,7 @@ int AmazonJob::doEvaluateState()
 				// This object will be deleted when the update occurs
 				
 				break;							
+				
 			
 			default:
 				EXCEPT( "(%d.%d) Unknown gmState %d!", procID.cluster, procID.proc, gmState );
@@ -2150,53 +1851,6 @@ MyString* AmazonJob::build_keypairfilename()
 	return file_name;
 }
 
-// If upload directory name is empty, client must have assigned ami_id value
-// otherwise the condor_submit will report an error.
-// Client will save the image files in a directory. One of these file should 
-// be an XML file, which is used to describe the image. Later when we try to register
-// image file in EC2, we should use this XML file.
-MyString* AmazonJob::build_dirname()
-{
-	MyString* dir_name = new MyString();
-	char* buffer = NULL;
-	
-	if ( jobAd->LookupString( ATTR_AMAZON_UPLOAD_DIR_NAME, &buffer ) ) {
-		*dir_name = buffer;
-	} else {
-		// client doesn't assign directory name
-		*dir_name = NULL;
-	}
-	
-	free (buffer);
-
-	return dir_name;	
-}
-
-
-// find out the XML description file from the given directory
-char* AmazonJob::build_xml_file(const char* dirname)
-{
-	StringList* xml_names = new StringList();
-	
-	if ( suffix_matched_files_in_dir(dirname, *xml_names, "xml", true) == true )
-	{
-		// we suppose only one XML file exists in the uploading directory
-		// No matter how many XML files we got, we only return the first one
-		xml_names->rewind();
-		MyString xml_name = condor_basename(xml_names->next());
-		
-		// create the S3 Location
-		MyString image_location;	
-		image_location.sprintf("/%s/%s", m_bucket_name, xml_name.Value());
-		return strdup(image_location.Value());
-	}
-	else
-	{
-		// cannot find the XML file, return NULL
-		return NULL;
-	}
-}
-
 
 StringList* AmazonJob::build_groupnames()
 {
@@ -2231,31 +1885,6 @@ char* AmazonJob::temporary_keypair_name()
 	// construct the temporary keypair name
 	keypair_name.sprintf("SSH_%s", get_common_temp_name());
 	return strdup(keypair_name.Value());
-}
-
-
-char* AmazonJob::temporary_security_group()
-{
-	// Note: Name = SG_ + condor_pool_name + job_id
-	MyString security_group;
-	
-	// construct the temporary keypair name
-	security_group.sprintf("SG_%s", get_common_temp_name());
-	return strdup(security_group.Value());
-}
-
-
-char* AmazonJob::temporary_bucket_name()
-{
-	// Note: Name = Condor_ + Random characters
-	MyString random;
-	random.randomlyGenerateHex(6);
-	
-	// Condor bucket names cannot contain: Captial, *, :, ., etc
-	
-	MyString bucket_name;
-	bucket_name.sprintf("condor_%s", random.Value());
-	return strdup(bucket_name.Value());
 }
 
 

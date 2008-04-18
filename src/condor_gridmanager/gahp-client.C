@@ -6008,7 +6008,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 		} else if ( result->argc == 4 ) {
 			// get the error code
  			error_code = strdup(result->argv[2]);	
- 			error_string = strdup(result->argv[3]);		
+ 			error_string = result->argv[3];		
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -6092,7 +6092,7 @@ int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretk
 		} else if ( result->argc == 4 ) {
 			// get the error code
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);			
+			error_string = result->argv[3];			
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -6176,7 +6176,7 @@ int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secre
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);				
+			error_string = result->argv[3];				
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -6267,7 +6267,7 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 		} 
 		else if (result->argc == 4) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		}
 		else if (result->argc == 5)
 		{
@@ -6396,7 +6396,7 @@ int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * s
 		}
 		else if (result->argc == 4) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		}
 		else if ( ((result->argc - 2)%3) != 0 ) {
 			EXCEPT("Bad %s Result",command);
@@ -6498,7 +6498,7 @@ int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char *
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -6584,7 +6584,7 @@ int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char *
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -6675,7 +6675,7 @@ int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * 
 			rc = atoi(result->argv[1]);
 			if (rc == 1) { // returned msg is error message
 				error_code = strdup(result->argv[2]);
-				error_string = strdup(result->argv[3]);
+				error_string = result->argv[3];
 			} else {
 				// get groups' names
 				for (int i=2; i<result->argc; i++) {
@@ -6773,7 +6773,7 @@ int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * s
 		}
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		}
 		else if ( (result->argc - 2)%4 != 0 ) {
 			EXCEPT( "Bad %s result", command );
@@ -6885,7 +6885,7 @@ int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char 
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -6983,7 +6983,7 @@ int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char 
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7121,7 +7121,7 @@ int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7211,7 +7211,7 @@ int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const cha
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7303,7 +7303,7 @@ int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char 
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
 				error_code = strdup(result->argv[2]);	
-				error_string = strdup(result->argv[3]);
+				error_string = result->argv[3];
 			} else {
 				// get keypairs' names
 				for (int i=2; i<result->argc; i++) {
@@ -7403,7 +7403,7 @@ int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
 				error_code = strdup(result->argv[2]);	
-				error_string = strdup(result->argv[3]);
+				error_string = result->argv[3];
 			} else {
 				// get keypairs' names
 				for (int i=2; i<result->argc; i++) {
@@ -7498,7 +7498,7 @@ int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const ch
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7585,7 +7585,7 @@ int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const ch
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7679,7 +7679,7 @@ int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
 				error_code = strdup(result->argv[2]);	
-				error_string = strdup(result->argv[3]);
+				error_string = result->argv[3];
 			} else {
 				// get keypairs' names
 				for (int i=2; i<result->argc; i++) {
@@ -7782,7 +7782,7 @@ int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7877,7 +7877,7 @@ int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const ch
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -7965,7 +7965,7 @@ int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char
 			}
 		} else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -8053,7 +8053,7 @@ int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char*
 			ami_id = strdup(result->argv[2]);
 		} else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -8139,7 +8139,7 @@ int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const cha
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -8228,7 +8228,7 @@ int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* 
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -8317,7 +8317,7 @@ int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const c
 		} 
 		else if ( result->argc == 4 ) {
 			error_code = strdup(result->argv[2]);
-			error_string = strdup(result->argv[3]);
+			error_string = result->argv[3];
 		} else {
 			EXCEPT( "Bad %s result", command );
 		}
@@ -8403,7 +8403,7 @@ int GahpClient::amazon_vm_vm_keypair_all( const char* accesskeyfile, const char*
 				error_string = "";
 			} else if (result->argc == 4) {
 				error_code = strdup(result->argv[2]);
-				error_string = strdup(result->argv[3]);
+				error_string = result->argv[3];
 			} else {
 				EXCEPT("Bad %s Result",command);
 			}

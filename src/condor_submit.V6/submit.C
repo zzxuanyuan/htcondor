@@ -351,7 +351,7 @@ char    *VM_Checkpoint = "vm_checkpoint";
 char    *VM_Networking = "vm_networking";
 char    *VM_Networking_Type = "vm_networking_type";
 
-//******************* added by fangcao for Amazon Job **************//
+//******************* added for Amazon Job **************//
 char* AmazonAccessKey = "AmazonAccessKey";
 char* AmazonSecretKey = "AmazonSecretKey";
 char* AmazonAmiID = "AmazonAmiID";
@@ -359,9 +359,8 @@ char* AmazonUserData = "AmazonUserData";
 char* AmazonUserDataFile = "AmazonUserDataFile";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
-char* AmazonUploadDirName = "AmazonUploadDirName";
 char* AmazonSecurityPolicy = "AmazonSecurityPolicy";
-//******************* end of add by fangcao for Amazon Job **************//
+//******************* end of adding for Amazon Job **************//
 
 char const *next_job_start_delay = "next_job_start_delay";
 char const *next_job_start_delay2 = "NextJobStartDelay";
@@ -1670,7 +1669,7 @@ SetUniverse()
 				(stricmp (JobGridType, "naregi") == MATCH) ||
 				(stricmp (JobGridType, "condor") == MATCH) ||
 				(stricmp (JobGridType, "nordugrid") == MATCH) ||
-				(stricmp (JobGridType, "amazon") == MATCH) ||	// added by fangcao for amazon job
+				(stricmp (JobGridType, "amazon") == MATCH) ||	// added for amazon job
 				(stricmp (JobGridType, "unicore") == MATCH) ||
 				(stricmp (JobGridType, "oracle") == MATCH) ||
 				(stricmp (JobGridType, "cream") == MATCH)){
@@ -4985,7 +4984,7 @@ SetGlobusParams()
 		exit( 1 );
 	}
 	
-	//*********************added by fangcao for Amazon Job *****************************//
+	//*********************added for Amazon Job *****************************//
 	if ( (tmp = condor_param( AmazonAccessKey )) ) {
 		// check access key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
@@ -5028,12 +5027,37 @@ SetGlobusParams()
 		InsertJobExpr( buffer.Value() );
 	}
 	
+	// AmazonGroupName is not a necessary parameter
+	if( (tmp = condor_param( AmazonGroupName )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_GROUP_NAME, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+	
+	// AmazonSecurityPolicy is not a necessary parameter
+	if( (tmp = condor_param( AmazonSecurityPolicy )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECURITY_POLICY, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
+	}
+	
+	if ( (tmp = condor_param( AmazonAmiID )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_AMI_ID, tmp );
+		InsertJobExpr( buffer.Value() );
+		free( tmp );
+	}
+	
+	// AmazonUserData and AmazonUserDataFile cannot exist in the same submit file
+	bool has_userdata = false;
+	bool has_userdatafile = false;
+	
 	// AmazonUserData is not a necessary parameter
 	if( (tmp = condor_param( AmazonUserData )) ) {
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA, tmp);
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
-	}
+		has_userdata = true;
+	}	
 
 	// AmazonUserDataFile is not a necessary parameter
 	if( (tmp = condor_param( AmazonUserDataFile )) ) {
@@ -5048,51 +5072,17 @@ SetGlobusParams()
 				full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
+		has_userdatafile = true;
 	}
 	
-	// AmazonGroupName is not a necessary parameter
-	if( (tmp = condor_param( AmazonGroupName )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_GROUP_NAME, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-	
-	// // AmazonSecurityPolicy is not a necessary parameter
-	if( (tmp = condor_param( AmazonSecurityPolicy )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECURITY_POLICY, tmp );
-		free( tmp );
-		InsertJobExpr( buffer.Value() );
-	}
-	
-	// AmazonUploadDirName and AmazonAmiID shouldn't exist in the same submit file
-	bool has_amiid = false;
-	bool has_uploaddir = false;
-	
-	if ( (tmp = condor_param( AmazonAmiID )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_AMI_ID, tmp );
-		InsertJobExpr( buffer.Value() );
-		free( tmp );
-		has_amiid = true;
-	}
-	
-	if ( (tmp = condor_param( AmazonUploadDirName )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_UPLOAD_DIR_NAME, tmp );
-		InsertJobExpr( buffer.Value() );
-		free( tmp );
-		has_uploaddir = true;
-	}
-	
-	if (has_amiid && has_uploaddir) {
+	if (has_userdata && has_userdatafile) {
 		// two attributes appear in the same submit file
-		fprintf(stderr, "\nERROR: Parameters \"%s\" and \"%s\" exist in same Amazon job\n", AmazonAmiID, AmazonUploadDirName);
-		DoCleanup( 0, 0, NULL );
-		exit(1);
-	} else if ( !has_amiid && !has_uploaddir ) {
-		// at least one of them should appear in the submit file
-		fprintf(stderr, "\nERROR: One of the parameters \"%s\" and \"%s\" should exist in an Amazon job\n", AmazonAmiID, AmazonUploadDirName);
+		fprintf(stderr, "\nERROR: Parameters \"%s\" and \"%s\" exist in same Amazon job\n", 
+						AmazonUserData, AmazonUserDataFile);
 		DoCleanup( 0, 0, NULL );
 		exit(1);
 	}
+	
 	//*********************end of adding by fangcao ***********************************//
 }
 

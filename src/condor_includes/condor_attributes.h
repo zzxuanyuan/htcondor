@@ -651,19 +651,18 @@ extern const char *ATTR_VM_CKPT_MAC;
 extern const char *ATTR_VM_CKPT_IP;
 
 
-//************* Added for Amazon Jobs by fangcao ***************************//
+//************* Added for Amazon Jobs ***************************//
 extern const char *ATTR_AMAZON_ACCESS_KEY;
 extern const char *ATTR_AMAZON_SECRET_KEY;
 extern const char *ATTR_AMAZON_AMI_ID;
 extern const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME;
 extern const char *ATTR_AMAZON_GROUP_NAME;
-extern const char *ATTR_AMAZON_UPLOAD_DIR_NAME;
 extern const char *ATTR_AMAZON_SECURITY_POLICY;
 extern const char *ATTR_AMAZON_USER_DATA;
 extern const char *ATTR_AMAZON_USER_DATA_FILE;
 extern const char *ATTR_AMAZON_REMOTE_VM_NAME;
 extern const char *ATTR_AMAZON_RECOVERY_STEPS;
-//************* End of changes for Amamzon Jobs by fangcao *****************//
+//************* End of changes for Amamzon Jobs *****************//
 
 
 // This is a record of the job exit status from a standard universe job exit
