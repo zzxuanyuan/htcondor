@@ -120,7 +120,7 @@ void AmazonJobInit()
 void AmazonJobReconfig()
 {
 	// change interval time for 5 minute
-	int tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 30 * 60 ); 
+	int tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 30 * 1 ); 
 	AmazonJob::setProbeInterval( tmp_int );
 		
 	// Tell all the resource objects to deal with their new config values
@@ -155,13 +155,12 @@ BaseJob* AmazonJobCreate( ClassAd *jobad )
 	return (BaseJob *)new AmazonJob( jobad );
 }
 
-// Since some operations are time-consuming, we will set the timeout value to 6 hours
-int AmazonJob::gahpCallTimeout = 21600;
-int AmazonJob::probeInterval = 3;
+int AmazonJob::gahpCallTimeout = 600;
+int AmazonJob::probeInterval = 300;
 int AmazonJob::submitInterval = 300;
 int AmazonJob::maxConnectFailures = 3;
-int AmazonJob::funcRetryDelay = 30;
-int AmazonJob::funcRetryInterval = 30;
+int AmazonJob::funcRetryDelay = 15;
+int AmazonJob::funcRetryInterval = 15;
 int AmazonJob::pendingWaitTime = 15;
 int AmazonJob::maxRetryTimes = 3;
 
@@ -1229,7 +1228,7 @@ int AmazonJob::doEvaluateState()
 						lastProbeTime = 0;
 						probeNow = false;
 					}
-
+					
 					if ( now >= lastProbeTime + probeInterval ) {
 						gmState = GM_PROBE_JOB;
 						break;
@@ -1241,13 +1240,34 @@ int AmazonJob::doEvaluateState()
 					}				
 					daemonCore->Reset_Timer( evaluateStateTid, delay );
 					
+					// check the status of VM. If status is not "running", we should start a  
+					// timer and recheck it later.
 					if (remoteJobState == AMAZON_VM_STATE_RUNNING) {
+						
 						// change condor job status to Running.
 						JobRunning();
+						
+						// if we have setup the timer before, we need to remove it now
+						if( m_retry_tid != -1 ) {
+							daemonCore->Cancel_Timer(m_retry_tid);
+							m_retry_tid = -1;
+						}
 					} else {
-						// need to recheck the status until it is "running"
-						gmState = GM_PROBE_JOB;
-					}	
+						// job status is not "running", we should setup a timer and recheck it later
+					
+						if ( m_retry_tid != -1 ) {
+							// we have already setup a timer and now we should jump to GM_PROBE_JOB
+							gmState = GM_PROBE_JOB;
+							return true;
+						} else {
+							// It is the first time we meet such an error
+							// let's register a timer and retry this function after several seconds
+							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
+																 	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
+																 	 "AmazonJob::doEvaluateState", (Service*)this );
+							return true;
+						}						
+					}
 				}			
 
 				break;
@@ -1442,32 +1462,6 @@ int AmazonJob::doEvaluateState()
 							public_dns = strdup(returnStatus.next());
 							SetRemoteVMName( public_dns );
 						}
-						
-						// check the status of VM. If status is not "running", we should start a timer and recheck it later
-						// Notice: since amazon_vm_status() returns very quickly, if we don't set a timer for it, we will
-						// invoke this function more than 30 times before we can reach the "running" state.
-						if (remoteJobState == AMAZON_VM_STATE_RUNNING) {
-							// if we have setup the timer before, we need to remove it now
-							if( m_retry_tid != -1 ) {
-								daemonCore->Cancel_Timer(m_retry_tid);
-								m_retry_tid = -1;
-							}
-						} else {
-							// job status is not "running", we should setup a timer and recheck it later
-							if ( m_retry_tid != -1 ) {
-								// we have already setup a timer but still have the same issue
-								// don't need to any thing, just wait for next timer calling
-								return true;
-							} else {
-								// It is the first time we meet such an error
-								// let's register a timer and retry this function after several seconds
-								m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
-																	 	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
-																	 	 "AmazonJob::doEvaluateState", (Service*)this );
-								return true;
-							}
-						}
-											
 					}
 
 					if ( new_status ) free( new_status );
