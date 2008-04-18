@@ -176,7 +176,6 @@ AmazonJob::AmazonJob( ClassAd *classad )
 	remoteJobState = "";
 	gmState = GM_INIT;
 	lastProbeTime = 0;
-	probeNow = false;
 	enteredCurrentGmState = time(NULL);
 	lastSubmitAttempt = 0;
 	numSubmitAttempts = 0;
@@ -1224,50 +1223,25 @@ int AmazonJob::doEvaluateState()
 					if ( lastProbeTime < enteredCurrentGmState ) {
 						lastProbeTime = enteredCurrentGmState;
 					}
-					if ( probeNow ) {
-						lastProbeTime = 0;
-						probeNow = false;
+					
+					// if current state isn't "running", we should check its state
+					// every "funcRetryInterval" seconds. Otherwise the interval should
+					// be "probeInterval" seconds.  
+					int interval = probeInterval;
+					if ( remoteJobState != AMAZON_VM_STATE_RUNNING ) {
+						interval = funcRetryInterval;
 					}
 					
-					if ( now >= lastProbeTime + probeInterval ) {
+					if ( now >= lastProbeTime + interval ) {
 						gmState = GM_PROBE_JOB;
 						break;
 					}
-				
+					
 					unsigned int delay = 0;
-					if ( (lastProbeTime + probeInterval) > now ) {
-						delay = (lastProbeTime + probeInterval) - now;
-					}				
-					daemonCore->Reset_Timer( evaluateStateTid, delay );
-					
-					// check the status of VM. If status is not "running", we should start a  
-					// timer and recheck it later.
-					if (remoteJobState == AMAZON_VM_STATE_RUNNING) {
-						
-						// change condor job status to Running.
-						JobRunning();
-						
-						// if we have setup the timer before, we need to remove it now
-						if( m_retry_tid != -1 ) {
-							daemonCore->Cancel_Timer(m_retry_tid);
-							m_retry_tid = -1;
-						}
-					} else {
-						// job status is not "running", we should setup a timer and recheck it later
-					
-						if ( m_retry_tid != -1 ) {
-							// we have already setup a timer and now we should jump to GM_PROBE_JOB
-							gmState = GM_PROBE_JOB;
-							return true;
-						} else {
-							// It is the first time we meet such an error
-							// let's register a timer and retry this function after several seconds
-							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
-																 	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
-																 	 "AmazonJob::doEvaluateState", (Service*)this );
-							return true;
-						}						
+					if ( (lastProbeTime + interval) > now ) {
+						delay = (lastProbeTime + interval) - now;
 					}
+					daemonCore->Reset_Timer( evaluateStateTid, delay );
 				}			
 
 				break;
@@ -1448,8 +1422,16 @@ int AmazonJob::doEvaluateState()
 							returnStatus.next();
 						}
 						new_status = strdup(returnStatus.next());
+						
+						// if amazon VM's state is "running", change condor job status to Running.
+						if ( remoteJobState != AMAZON_VM_STATE_RUNNING && 
+							 (strcmp(new_status, AMAZON_VM_STATE_RUNNING) == 0) ) {
+							JobRunning();
+						}
+												
 						remoteJobState = new_status;
 						SetRemoteJobStatus( new_status );
+										
 						
 						returnStatus.rewind();
 						int size = returnStatus.number();

@@ -69,7 +69,6 @@ public:
 
 	int gmState;
 	time_t lastProbeTime;
-	bool probeNow;
 	time_t enteredCurrentGmState;
 	time_t lastSubmitAttempt;
 	int numSubmitAttempts;
