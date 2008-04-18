@@ -36,6 +36,7 @@ use File::stat;
 
 use Getopt::Std;
 use Getopt::Long;
+use Cwd;
 use Net::Amazon::EC2;
 use Net::Amazon::S3;
 
