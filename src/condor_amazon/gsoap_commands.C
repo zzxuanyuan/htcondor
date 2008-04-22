@@ -65,7 +65,7 @@ static char* base64_encode(const unsigned char *input, int length)
 }
 
 void
-AmazonRequest::ParseSoapError(const char* callerstring = NULL)
+AmazonRequest::ParseSoapError(const char* callerstring) 
 {
 	if( !m_soap ) {
 		return;

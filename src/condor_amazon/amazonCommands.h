@@ -87,7 +87,7 @@ class AmazonRequest {
 		EVP_PKEY *m_rsa_privk;
 		X509 *m_cert;
 
-		void ParseSoapError(void);
+		void ParseSoapError(const char* callerstring = NULL);
 		bool SetupSoap(void);
 		void CleanupSoap(void);
 #endif
