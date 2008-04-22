@@ -16,9 +16,9 @@ soapobjs(amazongahp)
 SOAP_CLIENT_OBJ = gsoap_commands.o wsseapi.o smdevp.o dom.o ec2C.o ec2Client.o soap_serve_dummy.o
 #endif
 
-WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o $(SOAP_CLIENT_OBJ)
+WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o amazon_io_checkfn.o $(SOAP_CLIENT_OBJ)
 
-IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o amazonCommands.o request.o amazongahp_instantiate.o $(SOAP_OBJS)
+IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o request.o amazongahp_instantiate.o amazon_io_checkfn.o $(SOAP_OBJS)
 
 template_inst( amazongahp_instantiate.C, amazongahp_instantiate.o )
 

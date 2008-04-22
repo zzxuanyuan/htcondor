@@ -31,8 +31,8 @@
 // For gsoap
 #include <stdsoap2.h>
 #include <smdevp.h> 
+#include "ec2H.h"
 #include <wsseapi.h>
-#include "soapH.h"
 #include "AmazonEC2Binding.nsmap"
 
 // For base64 encoding
