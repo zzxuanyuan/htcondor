@@ -176,6 +176,6 @@ SRB_LIB =
 SRB_INC =
 GSOAP_DIR = /usr
 SOAPCPP2 = soapcpp2
-WSDL2H = wsdl2
+WSDL2H = wsdl2h
 
 #endif
