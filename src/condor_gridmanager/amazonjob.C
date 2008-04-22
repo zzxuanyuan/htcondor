@@ -120,7 +120,7 @@ void AmazonJobInit()
 void AmazonJobReconfig()
 {
 	// change interval time for 5 minute
-	int tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 30 * 1 ); 
+	int tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 60 * 5 ); 
 	AmazonJob::setProbeInterval( tmp_int );
 		
 	// Tell all the resource objects to deal with their new config values
@@ -167,6 +167,7 @@ int AmazonJob::maxRetryTimes = 3;
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
 {
+dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n");
 	char buff[16385]; // user data can be 16K, this is 16K+1
 	MyString error_string = "";
 	char *gahp_path = NULL;
@@ -223,15 +224,33 @@ AmazonJob::AmazonJob( ClassAd *classad )
 		}
 	}	
 	
-	m_ami_id = NULL;
-	m_key_pair = NULL;
 	m_group_names = NULL;
-	m_key_pair_file_name = NULL ;
 	m_error_code = NULL;
 	m_retry_tid = -1;
 	m_vm_check_times = 0;
 	m_keypair_check_times = 0;
+
+	// for SSH keypair output file
+	{
+	char* buffer = NULL;
 	
+	// Notice:
+	// 	we can have two kinds of SSH keypair output file names or the place where the 
+	// output private file should be written to, 
+	// 	1. the name assigned by client in the condor submit file with attribute "AmazonKeyPairFileName"
+	// 	2. if there is no attribute "AmazonKeyPairFileName" in the condor submit file, we 
+	// 	   should discard this private file by writing to NULL_FILE
+	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR_FILE_NAME, &buffer ) ) {
+		// clinet define the location where this SSH keypair file will be written to
+		m_key_pair_file_name = buffer;
+	} else {
+		// If client doesn't assign keypair output file name, we should discard it by 
+		// writing this private file to /dev/null
+		m_key_pair_file_name = NULL_FILE;
+	}
+	free (buffer);
+	}
+
 	// set the default value/status for current submit step
 	m_submit_step = AMAZON_SUBMIT_UNDEFINED;
 		
@@ -286,14 +305,12 @@ AmazonJob::~AmazonJob()
 	if ( remoteJobId ) free( remoteJobId );
 	
 	if ( gahp != NULL ) delete gahp;
-	if ( m_access_key_file != NULL ) delete m_access_key_file;
-	if ( m_secret_key_file != NULL ) delete m_secret_key_file;
-	if ( m_ami_id != NULL ) delete m_ami_id;
-	if ( m_key_pair != NULL ) delete m_key_pair;
-	if ( m_user_data != NULL ) delete m_user_data;
-	if ( m_group_names != NULL ) delete m_group_names;
-	if ( m_error_code != NULL ) delete m_error_code;
-	if ( m_user_data_file != NULL ) delete m_user_data_file;
+	free (m_access_key_file);
+	free (m_secret_key_file);
+	free (m_user_data);
+	if (m_group_names != NULL) delete m_group_names;
+	if (m_error_code) free(m_error_code);
+	free(m_user_data_file);
 }
 
 
@@ -477,11 +494,7 @@ int AmazonJob::doEvaluateState()
 									gmState = GM_AFTER_SSH_KEYPAIR;
 																		
 									// save SSH keypair to global variable
-									m_key_pair = new MyString(existing_ssh_keypair);
-									// get global variable m_key_pair_file_name 
-									if ( m_key_pair_file_name == NULL ) {
-										m_key_pair_file_name = build_keypairfilename();
-									}
+									m_key_pair = existing_ssh_keypair;
 									
 								} else {
 									
@@ -509,11 +522,7 @@ int AmazonJob::doEvaluateState()
 							{
 							// set some global variables we needed			
 							submit_steps->rewind();
-							m_key_pair = new MyString(submit_steps->next());
-							// get global variable m_key_pair_file_name 
-							if ( m_key_pair_file_name == NULL ) {
-								m_key_pair_file_name = build_keypairfilename();
-							}
+							m_key_pair = submit_steps->next();
 							
 							// double check the information saved is correct
 							char* ssh_done = strdup(submit_steps->next());	
@@ -539,11 +548,7 @@ int AmazonJob::doEvaluateState()
 							{
 							// we should also get the SSH keypair which will be used in vm_start()
 							submit_steps->rewind();
-							m_key_pair = new MyString(submit_steps->next());
-							// get global variable m_key_pair_file_name 
-							if ( m_key_pair_file_name == NULL ) {
-								m_key_pair_file_name = build_keypairfilename();
-							}
+							m_key_pair = submit_steps->next();
 
 							// check if the VM has been started successfully
 							StringList returnStatus;
@@ -588,7 +593,7 @@ int AmazonJob::doEvaluateState()
 									instance_id = returnStatus.next();
 									keypair_name = returnStatus.next();
 
-									if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
+									if (strcmp(m_key_pair.Value(), keypair_name) == 0) {
 										is_running = true;
 										break;
 									}
@@ -620,10 +625,7 @@ int AmazonJob::doEvaluateState()
 							{
 							// save the SSH keypair which will be used later (removing the VM, SSH keypair)
 							submit_steps->rewind();
-							m_key_pair = new MyString(submit_steps->next());
-							// get global variable m_key_pair_file_name 
-							if ( m_key_pair_file_name == NULL ) 
-								m_key_pair_file_name = build_keypairfilename();
+							m_key_pair = submit_steps->next();
 							
 							// VM instance ID should also be saved to global variable
 							submit_steps->rewind();
@@ -667,11 +669,7 @@ int AmazonJob::doEvaluateState()
 									
 									// get the SSH keypair and corresponding output file name
 									submit_steps->rewind();
-									m_key_pair = new MyString(submit_steps->next());
-
-									if ( m_key_pair_file_name == NULL ) {
-										m_key_pair_file_name = build_keypairfilename();
-									}
+									m_key_pair = submit_steps->next();
 									
 									// Notice: unregister a non-existing SSH keypair will return success
 									gmState = GM_DESTROY_KEYPAIR;
@@ -687,11 +685,7 @@ int AmazonJob::doEvaluateState()
 									
 									// get the SSH keypair and corresponding output file name
 									submit_steps->rewind();
-									m_key_pair = new MyString(submit_steps->next());
-
-									if ( m_key_pair_file_name == NULL ) {
-										m_key_pair_file_name = build_keypairfilename();
-									}
+									m_key_pair = submit_steps->next();
 									
 									// now try to find if there is running VM corresponding to this SSH key
 									StringList returnStatus;
@@ -736,7 +730,7 @@ int AmazonJob::doEvaluateState()
 											instance_id = returnStatus.next();
 											keypair_name = returnStatus.next();
 
-											if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
+											if (strcmp(m_key_pair.Value(), keypair_name) == 0) {
 												is_running = true;
 												break;
 											}
@@ -773,11 +767,7 @@ int AmazonJob::doEvaluateState()
 									
 									// get the SSH keypair and corresponding output file name
 									submit_steps->rewind();
-									m_key_pair = new MyString(submit_steps->next());
-
-									if ( m_key_pair_file_name == NULL ) {
-										m_key_pair_file_name = build_keypairfilename();
-									}
+									m_key_pair = submit_steps->next();
 									
 									// get the running VM's instance id
 									submit_steps->rewind();
@@ -826,12 +816,10 @@ int AmazonJob::doEvaluateState()
 
 				// First we should set the value of SSH keypair. In normal situation, this
 				// name should be dynamically created. 
-				if ( m_key_pair == NULL ) {
-					m_key_pair = build_keypair();
-				}
+				m_key_pair = build_keypair();
 
 				// Save this temporarily created SSH keypair to the submitting log
-				SetSubmitStepInfo(m_key_pair->Value());
+				SetSubmitStepInfo(m_key_pair.Value());
 
 				done = requestScheddUpdate( this );
 				
@@ -932,13 +920,13 @@ int AmazonJob::doEvaluateState()
 					
 					reset_error_code();	
 					
-					if ( m_ami_id == NULL )			m_ami_id = build_ami_id();
-					if ( m_key_pair == NULL )		m_key_pair = build_keypair();
+					m_ami_id = build_ami_id();
+					m_key_pair = build_keypair();
 					if ( m_group_names == NULL )	m_group_names = build_groupnames();
 					
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
-												m_ami_id->Value(), m_key_pair->Value(), 
+												m_ami_id.Value(), m_key_pair.Value(), 
 												m_user_data, m_user_data_file,
 												*m_group_names, instance_id, m_error_code);
 					
@@ -1100,7 +1088,7 @@ int AmazonJob::doEvaluateState()
 						instance_id = returnStatus.next();
 						keypair_name = returnStatus.next();
 
-						if (strcmp(m_key_pair->Value(), keypair_name) == 0) {
+						if (strcmp(m_key_pair.Value(), keypair_name) == 0) {
 							is_running = true;
 							break;
 						}
@@ -1164,7 +1152,7 @@ int AmazonJob::doEvaluateState()
 					returnKeys->rewind();
 					for (int i=0; i<size; i++) {
 						// this is not failure recovery, we can find keypair from m_key_pair
-						if (strcmp(m_key_pair->Value(), returnKeys->next()) == 0) {
+						if (strcmp(m_key_pair.Value(), returnKeys->next()) == 0) {
 							is_registered = true;
 							break;
 						}
@@ -1502,15 +1490,10 @@ int AmazonJob::doEvaluateState()
 				// test for AMAZON_SUBMIT_BEFORE_SSH (the SSH didn't register successfully)
 				// need to re-register again.
 				// stopcode(); // test only
-	
-				// create/get a temporary keypair output file name
-				if ( m_key_pair_file_name == NULL ) {
-					m_key_pair_file_name = build_keypairfilename();
-				}
 					
 				// now create and register this keypair by using amazon_vm_create_keypair()
 				rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
-													m_key_pair->Value(), m_key_pair_file_name->Value(), m_error_code);
+													m_key_pair.Value(), m_key_pair_file_name.Value(), m_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1569,7 +1552,7 @@ int AmazonJob::doEvaluateState()
 			case GM_DESTROY_KEYPAIR:
 				{
 				// Yes, now let's destroy the temporary keypair 
-				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair->Value(), m_error_code);
+				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair.Value(), m_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1593,12 +1576,7 @@ int AmazonJob::doEvaluateState()
 
 				if (rc == 0) {
 					// remove temporary keypair local output file
-
-					if ( m_key_pair_file_name == NULL ) {
-						m_key_pair_file_name = build_keypairfilename();
-					}
-					
-					if ( remove_keypair_file(m_key_pair_file_name->Value()) ) {
+					if ( remove_keypair_file(m_key_pair_file_name.Value()) ) {
 						gmState = GM_FAILED;
 					} else {
 						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
@@ -1777,56 +1755,29 @@ void AmazonJob::SetSubmitStepInfo(const char * info)
 
 // if ami_id is empty, client must have assigned upload file name value
 // otherwise the condor_submit will report an error.
-MyString* AmazonJob::build_ami_id()
+MyString AmazonJob::build_ami_id()
 {
-	MyString* ami_id = new MyString();
+	MyString ami_id;
 	char* buffer = NULL;
 	
 	if ( jobAd->LookupString( ATTR_AMAZON_AMI_ID, &buffer ) ) {
-		*ami_id = buffer;
+		ami_id = buffer;
 		free (buffer);
 	}
 	return ami_id;
 }
 
 
-MyString* AmazonJob::build_keypair()
+MyString AmazonJob::build_keypair()
 {
 	// Since we're relying on the key-pair name being unique for each job for 
 	// recovery purposes, we don't want to let the user specify it. Everytime
 	// we will create a temporary one.
 
 	// keypair name = SSH_ + condor_pool_name + global_job_id
-	MyString* key_pair = new MyString(temporary_keypair_name());
+	MyString key_pair = temporary_keypair_name();
 	return key_pair;
 }
-
-MyString* AmazonJob::build_keypairfilename()
-{
-	// Notice:
-	// 		we can have two kinds of SSH keypair output file names or the place where the output private
-	// file should be written to, 
-	// 		1. the name assigned by client in the condor submit file with attribute "AmazonKeyPairFileName"
-	// 		2. if there is no attribute "AmazonKeyPairFileName" in the condor submit file, we should discard
-	// 		   this private file by writing to NULL_FILE
-		
-	MyString* file_name = new MyString();
-	char* buffer = NULL;
-	
-	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR_FILE_NAME, &buffer ) ) {
-		// clinet define the location where this SSH keypair file will be written to
-		*file_name = buffer;
-	} else {
-		// If client doesn't assign keypair output file name, we should discard it by 
-		// writing this private file to /dev/null
-		*file_name = NULL_FILE;
-	}
-	
-	free (buffer);
-	
-	return file_name;
-}
-
 
 StringList* AmazonJob::build_groupnames()
 {
@@ -1916,6 +1867,7 @@ void AmazonJob::print_error_code(char* error_code, const char* function_name)
 // reset error code
 void AmazonJob::reset_error_code()
 {
+	free (m_error_code);
 	m_error_code = NULL;
 }
 

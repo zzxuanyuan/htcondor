@@ -87,9 +87,8 @@ public:
 
 private:
 	// create dynamic input parameters
-	MyString* build_ami_id();
-	MyString* build_keypair();
-	MyString* build_keypairfilename();
+	MyString build_ami_id();
+	MyString build_keypair();
 	StringList* build_groupnames();
 	
 	char * m_access_key_file;
@@ -103,10 +102,9 @@ private:
 	int m_vm_check_times;
 	int m_keypair_check_times;
 	
-	MyString* m_ami_id;
-	MyString* m_key_pair;
-	MyString* m_key_pair_file_name;
-	MyString* m_dir_name;
+	MyString m_ami_id;
+	MyString m_key_pair;
+	MyString m_key_pair_file_name;
 	StringList* m_group_names;
 	
 	// create temporary names when clients don't assign the values
