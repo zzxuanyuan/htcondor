@@ -375,17 +375,6 @@ AmazonVMStart::~AmazonVMStart()
 // Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <groupname> <groupname> ..
 // <groupname> are optional ones.
 // we support multiple groupnames
-bool AmazonVMStart::ioCheck(char **argv, int argc)
-{
-	return verify_min_number_args(argc, 8) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_ami_id(argv[4]) &&
-		verify_string_name(argv[5]);
-		verify_string_name(argv[6]);
-		verify_string_name(argv[7]);
-}
 
 bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_string)
 {
@@ -565,14 +554,6 @@ AmazonVMStop::AmazonVMStop(const char* lib_path) : AmazonRequest(lib_path) {}
 AmazonVMStop::~AmazonVMStop() {}
 
 // Expecting:AMAZON_VM_STOP <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
-bool AmazonVMStop::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_instance_id(argv[4]);
-}
 
 bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -670,14 +651,6 @@ AmazonVMReboot::AmazonVMReboot(const char* lib_path) : AmazonRequest(lib_path) {
 AmazonVMReboot::~AmazonVMReboot() {}
 
 // Expecting:AMAZON_VM_REBOOT <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
-bool AmazonVMReboot::ioCheck(char **argv, int argc) 
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_instance_id(argv[4]);
-}
 
 bool AmazonVMReboot::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -771,14 +744,6 @@ AmazonVMStatus::AmazonVMStatus(const char* lib_path) : AmazonRequest(lib_path) {
 AmazonVMStatus::~AmazonVMStatus() {}
 
 // Expecting:AMAZON_VM_STATUS <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
-bool AmazonVMStatus::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_instance_id(argv[4]);
-}
 
 bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -897,13 +862,6 @@ AmazonVMStatusAll::~AmazonVMStatusAll()
 }
 
 // Expecting:AMAZON_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
-bool AmazonVMStatusAll::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 4) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]);
-}
 
 bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1031,13 +989,6 @@ AmazonVMRunningKeypair::~AmazonVMRunningKeypair()
 }
 
 // Expecting:AMAZON_VM_RUNNING_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile>
-bool AmazonVMRunningKeypair::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 4) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]);
-}
 
 bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1103,15 +1054,6 @@ AmazonVMCreateGroup::AmazonVMCreateGroup(const char* lib_path) : AmazonRequest(l
 AmazonVMCreateGroup::~AmazonVMCreateGroup() {}
 
 // Expecting:AMAZON_VM_CREATE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname> <group description>
-bool AmazonVMCreateGroup::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 6) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]);
-}
 
 bool AmazonVMCreateGroup::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1208,14 +1150,6 @@ AmazonVMDeleteGroup::AmazonVMDeleteGroup(const char* lib_path) : AmazonRequest(l
 AmazonVMDeleteGroup::~AmazonVMDeleteGroup() {}
 
 // Expecting:AMAZON_VM_DELETE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname>
-bool AmazonVMDeleteGroup::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonVMDeleteGroup::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1303,13 +1237,6 @@ AmazonVMGroupNames::AmazonVMGroupNames(const char* lib_path) : AmazonRequest(lib
 AmazonVMGroupNames::~AmazonVMGroupNames() {}
 
 // Expecting:AMAZON_VM_GROUP_NAMES <req_id> <accesskeyfile> <secretkeyfile>
-bool AmazonVMGroupNames::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 4) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]);
-}
 
 bool AmazonVMGroupNames::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1420,14 +1347,6 @@ AmazonVMGroupRules::~AmazonVMGroupRules()
 }
 
 // Expecting:AMAZON_VM_GROUP_RULES <req_id> <accesskeyfile> <secretkeyfile> <groupname>
-bool AmazonVMGroupRules::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonVMGroupRules::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1552,19 +1471,6 @@ AmazonVMAddGroupRule::~AmazonVMAddGroupRule() {}
 
 // Expecting:AMAZON_VM_ADD_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> <groupname> <protocol> <start_port> <end_port> <ip_range>
 // <ip_range> is optional one.
-bool AmazonVMAddGroupRule::ioCheck(char **argv, int argc)
-{
-	return verify_min_number_args(argc, 8) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]) &&
-		verify_number(argv[6]) &&
-		verify_number(argv[7]) && 
-		( (argc == 8) || 
-		  ((argc == 9) && is_valid_network(argv[8], NULL, NULL)));
-}
 
 bool AmazonVMAddGroupRule::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1665,19 +1571,6 @@ AmazonVMDelGroupRule::~AmazonVMDelGroupRule() {}
 
 // Expecting:AMAZON_VM_DEL_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> <groupname> <protocol> <start_port> <end_port> <ip_range>
 // <ip_range> is optional one.
-bool AmazonVMDelGroupRule::ioCheck(char **argv, int argc)
-{
-	return verify_min_number_args(argc, 8) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]) &&
-		verify_number(argv[6]) &&
-		verify_number(argv[7]) && 
-		( (argc == 8) || 
-		  ((argc == 9) && is_valid_network(argv[8], NULL, NULL)));
-}
 
 bool AmazonVMDelGroupRule::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1779,15 +1672,6 @@ AmazonVMCreateKeypair::AmazonVMCreateKeypair(const char* lib_path) : AmazonReque
 AmazonVMCreateKeypair::~AmazonVMCreateKeypair() {}
 
 // Expecting:AMAZON_VM_CREATE_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <keyname> <outputfile>
-bool AmazonVMCreateKeypair::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 6) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]);
-}
 
 bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1969,14 +1853,6 @@ AmazonVMDestroyKeypair::AmazonVMDestroyKeypair(const char* lib_path) : AmazonReq
 AmazonVMDestroyKeypair::~AmazonVMDestroyKeypair() {}
 
 // Expecting:AMAZON_VM_DESTROY_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <keyname>
-bool AmazonVMDestroyKeypair::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2068,13 +1944,6 @@ AmazonVMKeypairNames::AmazonVMKeypairNames(const char* lib_path) : AmazonRequest
 AmazonVMKeypairNames::~AmazonVMKeypairNames() {}
 
 // Expecting:AMAZON_VM_KEYPAIR_NAMES <req_id> <accesskeyfile> <secretkeyfile>
-bool AmazonVMKeypairNames::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 4) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]);
-}
 
 bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2172,14 +2041,6 @@ AmazonVMRegisterImage::AmazonVMRegisterImage(const char* lib_path) : AmazonReque
 AmazonVMRegisterImage::~AmazonVMRegisterImage() {}
 
 // Expecting:AMAZON_VM_REGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <location on S3>
-bool AmazonVMRegisterImage::ioCheck(char **argv, int argc) 
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonVMRegisterImage::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2269,14 +2130,6 @@ AmazonVMDeregisterImage::AmazonVMDeregisterImage(const char* lib_path) : AmazonR
 AmazonVMDeregisterImage::~AmazonVMDeregisterImage() {}
 
 // Expecting:AMAZON_VM_DEREGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <ami-id>
-bool AmazonVMDeregisterImage::ioCheck(char **argv, int argc) 
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_ami_id(argv[4]);
-}
 
 bool AmazonVMDeregisterImage::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2360,13 +2213,6 @@ AmazonS3AllBuckets::AmazonS3AllBuckets(const char* lib_path) : AmazonRequest(lib
 AmazonS3AllBuckets::~AmazonS3AllBuckets() {}
 
 // Expecting:AMAZON_S3_ALL_BUCKETS <req_id> <accesskeyfile> <secretkeyfile>
-bool AmazonS3AllBuckets::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 4) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]);
-}
 
 bool AmazonS3AllBuckets::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2452,14 +2298,6 @@ AmazonS3CreateBucket::AmazonS3CreateBucket(const char* lib_path) : AmazonRequest
 AmazonS3CreateBucket::~AmazonS3CreateBucket() {}
 
 // Expecting:AMAZON_S3_CREATE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
-bool AmazonS3CreateBucket::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonS3CreateBucket::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2540,14 +2378,6 @@ AmazonS3DeleteBucket::AmazonS3DeleteBucket(const char* lib_path) : AmazonRequest
 AmazonS3DeleteBucket::~AmazonS3DeleteBucket() {}
 
 // Expecting:AMAZON_S3_DELETE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
-bool AmazonS3DeleteBucket::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonS3DeleteBucket::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2629,14 +2459,6 @@ AmazonS3ListBucket::AmazonS3ListBucket(const char* lib_path) : AmazonRequest(lib
 AmazonS3ListBucket::~AmazonS3ListBucket() {}
 
 // Expecting:AMAZON_S3_LIST_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
-bool AmazonS3ListBucket::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 5) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]);
-}
 
 bool AmazonS3ListBucket::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2734,16 +2556,6 @@ AmazonS3UploadFile::AmazonS3UploadFile(const char* lib_path) : AmazonRequest(lib
 AmazonS3UploadFile::~AmazonS3UploadFile() {}
 
 // Expecting:AMAZON_S3_UPLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <filename> <bucketname> <keyname>
-bool AmazonS3UploadFile::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 7) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]) &&
-		verify_string_name(argv[6]);
-}
 
 bool AmazonS3UploadFile::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2835,15 +2647,6 @@ AmazonS3UploadDir::AmazonS3UploadDir(const char* lib_path) : AmazonRequest(lib_p
 AmazonS3UploadDir::~AmazonS3UploadDir() {}
 
 // Expecting:AMAZON_S3_UPLOAD_DIR <req_id> <accesskeyfile> <secretkeyfile> <dirname> <bucketname>
-bool AmazonS3UploadDir::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 6) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]);
-}
 
 bool AmazonS3UploadDir::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -2985,15 +2788,6 @@ AmazonS3DeleteFile::AmazonS3DeleteFile(const char* lib_path) : AmazonRequest(lib
 AmazonS3DeleteFile::~AmazonS3DeleteFile() {}
 
 // Expecting:AMAZON_S3_DELETE_FILE <req_id> <accesskeyfile> <secretkeyfile> <keyname> <bucketname>
-bool AmazonS3DeleteFile::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 6) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]);
-}
 
 bool AmazonS3DeleteFile::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -3077,16 +2871,6 @@ AmazonS3DownloadFile::AmazonS3DownloadFile(const char* lib_path) : AmazonRequest
 AmazonS3DownloadFile::~AmazonS3DownloadFile() {}
 
 // Expecting:AMAZON_S3_DOWNLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <keyname> <bucketname> <outputfile>
-bool AmazonS3DownloadFile::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 7) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]) &&
-		verify_string_name(argv[6]);
-}
 
 bool AmazonS3DownloadFile::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -3173,15 +2957,6 @@ AmazonS3DownloadBucket::AmazonS3DownloadBucket(const char* lib_path) : AmazonReq
 AmazonS3DownloadBucket::~AmazonS3DownloadBucket() {}
 
 // Expecting:AMAZON_S3_DOWNLOAD_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <localdir>
-bool AmazonS3DownloadBucket::ioCheck(char **argv, int argc)
-{
-	return verify_number_args(argc, 6) &&
-		verify_request_id(argv[1]) &&
-		verify_string_name(argv[2]) &&
-		verify_string_name(argv[3]) &&
-		verify_string_name(argv[4]) &&
-		verify_string_name(argv[5]);
-}
 
 bool AmazonS3DownloadBucket::workerFunction(char **argv, int argc, MyString &result_string) 
 {
