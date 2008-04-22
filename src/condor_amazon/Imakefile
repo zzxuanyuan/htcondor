@@ -12,7 +12,11 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 soapobjs(amazongahp)
 
+#if AMAZON_GSOAP_ENABLED
+WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o gsoap_commands.o $(SOAP_OBJS)
+#else
 WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o $(SOAP_OBJS)
+#endfi
 
 IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o amazonCommands.o request.o amazongahp_instantiate.o 
 

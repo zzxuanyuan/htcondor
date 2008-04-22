@@ -342,14 +342,35 @@ AmazonRequest::AmazonRequest(const char* lib_path)
 {
 	m_amazon_lib_path = lib_path;
 	m_amazon_lib_prog.sprintf("%s%c%s", lib_path, DIR_DELIM_CHAR, AMAZON_SCRIPT_NAME);
+
+#ifdef AMAZON_GSOAP_ENABLED
+	// For gsoap
+	m_soap = NULL;
+	rsa_privk = NULL;
+	cert = NULL;
+#endif
 }
 
-AmazonRequest::~AmazonRequest() {}
+AmazonRequest::~AmazonRequest() 
+{
+#ifdef AMAZON_GSOAP_ENABLED
+	CleanupSoap();
+#endif
+}
 
 /// Amazon VMStart
-AmazonVMStart::AmazonVMStart(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMStart::AmazonVMStart(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	base64_userdata = NULL;
+}
 
-AmazonVMStart::~AmazonVMStart() {}
+AmazonVMStart::~AmazonVMStart() 
+{
+	if( base64_userdata ) {
+		free(base64_userdata);
+		base64_userdata = NULL;
+	}
+}
 
 // Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <groupname> <groupname> ..
 // <groupname> are optional ones.
@@ -413,7 +434,11 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	}
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -576,7 +601,11 @@ bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string
 	request.instance_id = argv[4];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -778,7 +807,11 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 	request.instance_id = argv[4];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -892,7 +925,11 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 	request.secretkeyfile = argv[3];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -1022,7 +1059,11 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 	request.secretkeyfile = argv[3];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -1731,7 +1772,9 @@ bool AmazonVMDelGroupRule::Request()
 }
 
 /// Amazon AmazonVMCreateKeypair
-AmazonVMCreateKeypair::AmazonVMCreateKeypair(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMCreateKeypair::AmazonVMCreateKeypair(const char* lib_path) : AmazonRequest(lib_path) {
+	has_outputfile = false;
+}
 
 AmazonVMCreateKeypair::~AmazonVMCreateKeypair() {}
 
@@ -1768,7 +1811,11 @@ bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &resu
 	request.outputfile = argv[5];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -1794,7 +1841,6 @@ bool AmazonVMCreateKeypair::Request()
 		return false;
 	}
 
-	bool has_outputfile = false;
 	if( strcmp(outputfile.Value(), NULL_FILE) ) { 
 		has_outputfile = true;
 	}
@@ -1953,7 +1999,11 @@ bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &res
 	request.keyname = argv[4];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail
@@ -2046,7 +2096,11 @@ bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &resul
 	request.secretkeyfile = argv[3];
 
 	// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+	bool tmp_result = request.gsoapRequest();
+#else 
 	bool tmp_result = request.Request();
+#endif
 
 	if( tmp_result == false ) {
 		// Fail

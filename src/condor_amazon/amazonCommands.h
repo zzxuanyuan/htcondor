@@ -25,6 +25,10 @@
 #include "MyString.h"
 #include "string_list.h"
 
+#ifdef AMAZON_GSOAP_ENABLED
+#include <smdevp.h>
+#endif
+
 // EC2 Commands
 #define AMAZON_COMMAND_VM_START				"AMAZON_VM_START"
 #define AMAZON_COMMAND_VM_STOP				"AMAZON_VM_STOP"
@@ -55,6 +59,10 @@
 #define AMAZON_COMMAND_S3_DOWNLOAD_FILE		"AMAZON_S3_DOWNLOAD_FILE"
 #define AMAZON_COMMAND_S3_DOWNLOAD_BUCKET	"AMAZON_S3_DOWNLOAD_BUCKET"
 
+#define GENERAL_GAHP_ERROR_CODE	"GAHPERROR"
+#define GENERAL_GAHP_ERROR_MSG	"GAHP_ERROR"
+
+#define AWS_URL "https://ec2.amazonaws.com/"
 
 class AmazonRequest {
 	public:
@@ -64,14 +72,25 @@ class AmazonRequest {
 		MyString m_amazon_lib_prog;
 		MyString m_amazon_lib_path;
 
-		// Access key
+		// Access key or User certificate
 		MyString accesskeyfile;
-		// Secret key
+		// Secret key or User private Key
 		MyString secretkeyfile;
 
 		// Error msg
 		MyString error_msg;
 		MyString error_code;
+
+#ifdef AMAZON_GSOAP_ENABLED
+		// for gsoap
+		struct soap *m_soap;
+		EVP_PKEY *m_rsa_privk;
+		X509 *m_cert;
+
+		void ParseSoapError(void);
+		bool SetupSoap(void);
+		void CleanupSoap(void);
+#endif
 };
 
 // EC2 Commands
@@ -86,11 +105,17 @@ class AmazonVMStart : public AmazonRequest {
 
 		virtual bool Request();
 
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
+
 		// Request Args
 		MyString ami_id;
 		MyString keypair;
 		MyString user_data;
 		MyString user_data_file;
+		MyString instance_type; //m1.small, m1.large, and m1.xlarge
+		char *base64_userdata;
 
 		// we support multiple group names
 		StringList groupnames;
@@ -109,6 +134,10 @@ class AmazonVMStop : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
 
 		// Request Args
 		MyString instance_id;
@@ -149,6 +178,7 @@ class AmazonStatusResult {
 		MyString private_dns;
 		MyString keyname;
 		StringList groupnames;
+		MyString instancetype;
 };
 
 class AmazonVMStatus : public AmazonRequest {
@@ -160,6 +190,10 @@ class AmazonVMStatus : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
 
 		// Request Args
 		MyString instance_id;
@@ -179,6 +213,10 @@ class AmazonVMStatusAll : public AmazonRequest {
 
 		virtual bool Request();
 
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
+
 		// Request Args
 
 		// Result 
@@ -196,6 +234,10 @@ class AmazonVMRunningKeypair : public AmazonVMStatusAll {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
 };
 
 class AmazonVMCreateGroup : public AmazonRequest {
@@ -324,6 +366,12 @@ class AmazonVMCreateKeypair : public AmazonRequest {
 
 		virtual bool Request();
 
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
+
+		bool has_outputfile;
+
 		// Request Args
 		MyString keyname;
 		MyString outputfile;
@@ -342,6 +390,10 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 
 		virtual bool Request();
 
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
+
 		// Request Args
 		MyString keyname;
 
@@ -358,6 +410,10 @@ class AmazonVMKeypairNames : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+
+#ifdef AMAZON_GSOAP_ENABLED
+		virtual bool gsoapRequest();
+#endif
 
 		// Request Args
 

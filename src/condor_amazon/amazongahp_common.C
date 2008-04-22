@@ -320,6 +320,7 @@ check_create_file(const char *file)
 bool
 find_amazon_lib(MyString &lib_path)
 {
+#ifndef AMAZON_GSOAP_ENABLED
 	MyString tmp_lib_path;
 	MyString tmp_lib_prog;
 	char * lib_path_ptr = param("AMAZON_EC2_LIB");
@@ -338,6 +339,7 @@ find_amazon_lib(MyString &lib_path)
 	}
 
 	lib_path = tmp_lib_path;
+#endif
 	return true;
 }
 
@@ -523,10 +525,10 @@ create_failure_result( int req_id, const char *err_msg, const char* err_code)
 	tmp_result[0] = AMAZON_COMMAND_ERROR_OUTPUT;
 
 	if( !err_code ) {
-		err_code = "GAHPERROR";
+		err_code = GENERAL_GAHP_ERROR_CODE;
 	}
 	if( !err_msg ) {
-		err_msg = "GAHP_ERROR";
+		err_msg = GENERAL_GAHP_ERROR_MSG;
 	}
 	tmp_result[1] = err_code;
 	tmp_result[2] = err_msg;
