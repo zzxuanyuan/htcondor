@@ -170,28 +170,28 @@ AmazonRequest::SetupSoap(void)
 
 	// Timestamp must be signed, the "Timestamp" value just needs
 	// to be non-NULL
-	if( soap_wsse_add_Timestamp(soap, "Timestamp", 10)) { 
+	if( soap_wsse_add_Timestamp(m_soap, "Timestamp", 10)) { 
 		error_msg = "Failed to sign timestamp";
 		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
-	if( soap_wsse_add_BinarySecurityTokenX509(soap, "BinarySecurityToken", m_cert)) {
+	if( soap_wsse_add_BinarySecurityTokenX509(m_soap, "BinarySecurityToken", m_cert)) {
 		error_msg.sprintf("Could not set BinarySecurityToken from: %s", 
-				cerficate.Value());
+				accesskeyfile.Value());
 		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
 	// May be optional
-	if( soap_wsse_add_KeyInfo_SecurityTokenReferenceX509(soap, "#X509Token") ) {
+	if( soap_wsse_add_KeyInfo_SecurityTokenReferenceX509(m_soap, "#X509Token") ) {
 		error_msg = "Failed to setup SecurityTokenReference";
 		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
 	// Body must be signed
-	if( soap_wsse_sign_body(soap, SOAP_SMD_SIGN_RSA_SHA1, m_rsa_privk, 0)) {
+	if( soap_wsse_sign_body(m_soap, SOAP_SMD_SIGN_RSA_SHA1, m_rsa_privk, 0)) {
 		error_msg = "Failed to setup signing of SOAP body";
 		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
@@ -302,7 +302,7 @@ AmazonVMCreateKeypair::gsoapRequest(void)
 	struct ec2__CreateKeyPairType request;
 	struct ec2__CreateKeyPairResponseType response;
 
-	request.keyName = keyname.GetCStr();
+	request.keyName = (char *) keyname.GetCStr();
 
 	if (!(code = soap_call___ec2__CreateKeyPair(m_soap,
 					AWS_URL,
@@ -359,7 +359,7 @@ AmazonVMDestroyKeypair::gsoapRequest(void)
 	struct ec2__DeleteKeyPairType request;
 	struct ec2__DeleteKeyPairResponseType response;
 
-	request.keyName = keyname.GetCStr();
+	request.keyName = (char *) keyname.GetCStr();
 
 	if (!(code = soap_call___ec2__DeleteKeyPair(m_soap,
 					AWS_URL,
@@ -454,15 +454,15 @@ AmazonVMStart::gsoapRequest(void)
 	}
 
 	// image id
-	request.imageId = ami_id.Value();
+	request.imageId = (char *) ami_id.Value();
 	// min Count
-	request.mincount = 1;
+	request.minCount = 1;
 	// max Count
 	request.maxCount = 1;
 
 	// Keypair
 	if( keypair.IsEmpty() == false ) {
-		request.keyName = keypair.Value();
+		request.keyName = (char *) keypair.Value();
 	}else {
 		request.keyName = NULL;
 	}
@@ -516,7 +516,7 @@ AmazonVMStart::gsoapRequest(void)
 
 	// instanceType
 	if( instance_type.IsEmpty() == false ) {
-		request.instanceType = instance_type.Value();
+		request.instanceType = (char *) instance_type.Value();
 	}else {
 		request.instanceType = NULL;
 	}
@@ -532,8 +532,8 @@ AmazonVMStart::gsoapRequest(void)
 			groupItems = NULL;
 		}
 
-		if( response.instancesSet && response.instanceSet->item ) {
-			instance_id = response.instanceSet->item[0].instanceId;
+		if( response.instancesSet && response.instancesSet->item ) {
+			instance_id = response.instancesSet->item[0].instanceId;
 			return true;
 		}
 	}else {
@@ -574,7 +574,7 @@ AmazonVMStop::gsoapRequest(void)
 	struct ec2__TerminateInstancesInfoType instanceSet;
 	struct ec2__TerminateInstancesItemType item;
 
-	item.instanceId = instance_id.GetCStr();
+	item.instanceId = (char *) instance_id.GetCStr();
 
 	instanceSet.__sizeitem = 1;
 	instanceSet.item = &item;
@@ -622,7 +622,7 @@ AmazonVMStatus::gsoapRequest(void)
 
 	struct ec2__DescribeInstancesInfoType instancesSet;
 	struct ec2__DescribeInstancesItemType item;
-	item.instanceId = instance_id.GetCStr();
+	item.instanceId = (char *) instance_id.GetCStr();
 
 	instancesSet.__sizeitem = 1;
 	instancesSet.item = &item;
@@ -646,7 +646,7 @@ AmazonVMStatus::gsoapRequest(void)
 					continue;
 				}
 
-				struct ec2__RunningInstancesSetType *instance = 
+				struct ec2__RunningInstancesItemType *instance = 
 					instancesSet->item;
 
 				if( !instance || !instance->instanceId ) {
@@ -661,13 +661,13 @@ AmazonVMStatus::gsoapRequest(void)
 
 				if( !strcmp(instance->instanceId, instance_id.Value()) ) {
 
-					status_results.status = instance->instanceState->name;
-					status_results.instance_id = instance->instanceId;
-					status_results.ami_id = instance->imageId;
-					status_results.public_dns = instance->dnsName;
-					status_results.private_dns = instance->privateDnsName;
-					status_results.keyname = instance->keyName;
-					status_results.instancetype = instance->instanceType;
+					status_result.status = instance->instanceState->name;
+					status_result.instance_id = instance->instanceId;
+					status_result.ami_id = instance->imageId;
+					status_result.public_dns = instance->dnsName;
+					status_result.private_dns = instance->privateDnsName;
+					status_result.keyname = instance->keyName;
+					status_result.instancetype = instance->instanceType;
 
 					// Set group names
 					struct ec2__GroupSetType* groupSet =
@@ -676,7 +676,7 @@ AmazonVMStatus::gsoapRequest(void)
 					if( groupSet && groupSet->item ) {
 						int j = 0;
 						for( j = 0; j < groupSet->__sizeitem; j++ ) {
-							status_results.groupnames.append(groupSet->item[j].groupId);
+							status_result.groupnames.append(groupSet->item[j].groupId);
 						}
 					}
 
@@ -734,7 +734,7 @@ AmazonVMStatusAll::gsoapRequest(void)
 					continue;
 				}
 
-				struct ec2__RunningInstancesSetType *instance = 
+				struct ec2__RunningInstancesItemType *instance = 
 					instancesSet->item;
 
 				if( !instance || !instance->instanceId ) {
