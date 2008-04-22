@@ -47,5 +47,5 @@ gen_soapfiles(amazongahp,condorAmazongahp)
 gsoap_commands.C: ec2H.h
 
 ec2H.h ec2Stub.h ec2C.c ec2Client.c: 2007-08-29.ec2.h
-	$(SOAPCPP2) -C -L -s -w -x -pec2 -I. 2007-08-29.ec2.h
+	$(SOAPCPP2) -C -L -w -x -pec2 -I. 2007-08-29.ec2.h
 #endif
