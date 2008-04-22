@@ -340,14 +340,14 @@ AmazonGroupRule::clearAll()
 
 AmazonRequest::AmazonRequest(const char* lib_path)
 {
+#ifndef AMAZON_GSOAP_ENABLED
 	m_amazon_lib_path = lib_path;
 	m_amazon_lib_prog.sprintf("%s%c%s", lib_path, DIR_DELIM_CHAR, AMAZON_SCRIPT_NAME);
-
-#ifdef AMAZON_GSOAP_ENABLED
+#else
 	// For gsoap
 	m_soap = NULL;
-	rsa_privk = NULL;
-	cert = NULL;
+	m_rsa_privk = NULL;
+	m_cert = NULL;
 #endif
 }
 
