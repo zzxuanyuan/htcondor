@@ -45,7 +45,6 @@ class AmazonGahpCommand
 
 void
 registerAmazonGahpCommand(const char* command, ioCheckfn iofunc, workerfn workerfunc);
-bool registerAllAmazonCommands(void);
 int numofAmazonCommands(void);
 int allAmazonCommands(StringList &output);
 bool executeIOCheckFunc(const char* cmd, char **argv, int argc);

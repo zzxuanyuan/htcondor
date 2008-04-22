@@ -34,6 +34,7 @@ import(../condor_util_lib, setsyscalls.o )
 
 gen_soapfiles(amazongahp,condorAmazongahp)
 
+#if AMAZON_GSOAP_ENABLED
 2007-08-29.ec2.wsdl:
 	wget "http://ec2.amazonaws.com/doc/2007-08-29/AmazonEC2.wsdl"
 
@@ -43,7 +44,8 @@ gen_soapfiles(amazongahp,condorAmazongahp)
 	echo "#import \"wsse.h\"" >> 2007-08-29.ec2.h
 	echo "struct SOAP_ENV__Header { mustUnderstand _wsse__Security *wsse__Security; };" >> 2007-08-29.ec2.h
 
-amazongahp_common.C: ec2H.h
+gsoap_commands.C: ec2H.h
 
 ec2H.h ec2Stub.h ec2C.c ec2Client.c: 2007-08-29.ec2.h
 	$(SOAPCPP2) -C -L -s -w -x -pec2 -I. 2007-08-29.ec2.h
+#endif

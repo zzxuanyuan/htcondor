@@ -177,6 +177,98 @@ usage()
 	DC_Exit( 1 );
 }
 
+static bool
+registerAllIOCommands(void)
+{
+	if( numofAmazonCommands() > 0 ) {
+		dprintf(D_ALWAYS, "There are already registered commands\n");
+		return false;
+	}
+
+	// EC2 Commands
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_START, 
+			AmazonVMStart::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STOP, 
+			AmazonVMStop::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_REBOOT, 
+			AmazonVMReboot::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STATUS, 
+			AmazonVMStatus::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STATUS_ALL, 
+			AmazonVMStatusAll::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_RUNNING_KEYPAIR, 
+			AmazonVMRunningKeypair::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_GROUP, 
+			AmazonVMCreateGroup::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DELETE_GROUP, 
+			AmazonVMDeleteGroup::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_GROUP_NAMES, 
+			AmazonVMGroupNames::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_GROUP_RULES, 
+			AmazonVMGroupRules::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_ADD_GROUP_RULE, 
+			AmazonVMAddGroupRule::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DEL_GROUP_RULE, 
+			AmazonVMDelGroupRule::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_KEYPAIR, 
+			AmazonVMCreateKeypair::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DESTROY_KEYPAIR, 
+			AmazonVMDestroyKeypair::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_KEYPAIR_NAMES, 
+			AmazonVMKeypairNames::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_REGISTER_IMAGE, 
+			AmazonVMRegisterImage::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DEREGISTER_IMAGE, 
+			AmazonVMDeregisterImage::ioCheck, NULL);
+
+
+	// S3 Commands
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_ALL_BUCKETS,
+			AmazonS3AllBuckets::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_CREATE_BUCKET,
+			AmazonS3CreateBucket::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DELETE_BUCKET,
+			AmazonS3DeleteBucket::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_LIST_BUCKET,
+			AmazonS3ListBucket::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_UPLOAD_FILE,
+			AmazonS3UploadFile::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_UPLOAD_DIR,
+			AmazonS3UploadDir::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DELETE_FILE,
+			AmazonS3DeleteFile::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DOWNLOAD_FILE,
+			AmazonS3DownloadFile::ioCheck, NULL);
+
+	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DOWNLOAD_BUCKET,
+			AmazonS3DownloadBucket::ioCheck, NULL);
+
+	return true;
+}
+
 int
 main_init( int argc, char ** const argv )
 {
@@ -215,7 +307,7 @@ main_init( int argc, char ** const argv )
 	}
 
 	// Register all amazon commands
-	if( registerAllAmazonCommands() == false ) {
+	if( registerAllIOCommands() == false ) {
 		dprintf(D_ALWAYS, "Can't register Amazon Commands\n");
 		DC_Exit( 1 );
 	}

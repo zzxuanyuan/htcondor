@@ -20,7 +20,6 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "simplelist.h"
 #include "amazongahp_common.h"
 #include "amazonCommands.h"
@@ -41,9 +40,9 @@ AmazonGahpCommand::AmazonGahpCommand(const char* cmd, ioCheckfn iofunc, workerfn
 void
 registerAmazonGahpCommand(const char* command, ioCheckfn iofunc, workerfn workerfunc)
 {
-	if( !command || !iofunc || !workerfunc ) {
-		dprintf(D_ALWAYS, "registerAmazonGahpCommand: Invalid amazon command(%s)\n", 
-				command? command: "");
+	if( !command ) {
+		dprintf(D_ALWAYS, "registerAmazonGahpCommand: Invalid amazon "
+				"command(%s)\n", command? command: "");
 		return;
 	}
 
@@ -51,99 +50,6 @@ registerAmazonGahpCommand(const char* command, ioCheckfn iofunc, workerfn worker
 	ASSERT(newcommand);
 
 	amazon_gahp_commands.Append(newcommand);
-}
-
-bool
-registerAllAmazonCommands(void)
-{
-	if( amazon_gahp_commands.Number() > 0 ) {
-		dprintf(D_ALWAYS, "There are already registered commands\n");
-		return false;
-	}
-
-	// EC2 Commands
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_START, 
-			AmazonVMStart::ioCheck, AmazonVMStart::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STOP, 
-			AmazonVMStop::ioCheck, AmazonVMStop::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_REBOOT, 
-			AmazonVMReboot::ioCheck, AmazonVMReboot::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STATUS, 
-			AmazonVMStatus::ioCheck, AmazonVMStatus::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STATUS_ALL, 
-			AmazonVMStatusAll::ioCheck, AmazonVMStatusAll::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_RUNNING_KEYPAIR, 
-			AmazonVMRunningKeypair::ioCheck, AmazonVMRunningKeypair::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_GROUP, 
-			AmazonVMCreateGroup::ioCheck, AmazonVMCreateGroup::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DELETE_GROUP, 
-			AmazonVMDeleteGroup::ioCheck, AmazonVMDeleteGroup::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_GROUP_NAMES, 
-			AmazonVMGroupNames::ioCheck, AmazonVMGroupNames::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_GROUP_RULES, 
-			AmazonVMGroupRules::ioCheck, AmazonVMGroupRules::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_ADD_GROUP_RULE, 
-			AmazonVMAddGroupRule::ioCheck, AmazonVMAddGroupRule::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DEL_GROUP_RULE, 
-			AmazonVMDelGroupRule::ioCheck, AmazonVMDelGroupRule::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_KEYPAIR, 
-			AmazonVMCreateKeypair::ioCheck, AmazonVMCreateKeypair::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DESTROY_KEYPAIR, 
-			AmazonVMDestroyKeypair::ioCheck, AmazonVMDestroyKeypair::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_KEYPAIR_NAMES, 
-			AmazonVMKeypairNames::ioCheck, AmazonVMKeypairNames::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_REGISTER_IMAGE, 
-			AmazonVMRegisterImage::ioCheck, AmazonVMRegisterImage::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DEREGISTER_IMAGE, 
-			AmazonVMDeregisterImage::ioCheck, AmazonVMDeregisterImage::workerFunction);
-
-
-	// S3 Commands
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_ALL_BUCKETS,
-			AmazonS3AllBuckets::ioCheck, AmazonS3AllBuckets::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_CREATE_BUCKET,
-			AmazonS3CreateBucket::ioCheck, AmazonS3CreateBucket::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DELETE_BUCKET,
-			AmazonS3DeleteBucket::ioCheck, AmazonS3DeleteBucket::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_LIST_BUCKET,
-			AmazonS3ListBucket::ioCheck, AmazonS3ListBucket::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_UPLOAD_FILE,
-			AmazonS3UploadFile::ioCheck, AmazonS3UploadFile::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_UPLOAD_DIR,
-			AmazonS3UploadDir::ioCheck, AmazonS3UploadDir::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DELETE_FILE,
-			AmazonS3DeleteFile::ioCheck, AmazonS3DeleteFile::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DOWNLOAD_FILE,
-			AmazonS3DownloadFile::ioCheck, AmazonS3DownloadFile::workerFunction);
-
-	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DOWNLOAD_BUCKET,
-			AmazonS3DownloadBucket::ioCheck, AmazonS3DownloadBucket::workerFunction);
-
-	return true;
 }
 
 int
@@ -176,7 +82,8 @@ executeIOCheckFunc(const char* cmd, char **argv, int argc)
 
 	amazon_gahp_commands.Rewind();
 	while( amazon_gahp_commands.Next(one_cmd) ) {
-		if( !strcasecmp(one_cmd->command.Value(), cmd) ) {
+		if( !strcasecmp(one_cmd->command.Value(), cmd) && 
+		 	one_cmd->iocheckfunction ) {
 			return one_cmd->iocheckfunction(argv, argc);
 		}
 	}
@@ -196,7 +103,8 @@ executeWorkerFunc(const char* cmd, char **argv, int argc, MyString &output_strin
 
 	amazon_gahp_commands.Rewind();
 	while( amazon_gahp_commands.Next(one_cmd) ) {
-		if( !strcasecmp(one_cmd->command.Value(), cmd) ) {
+		if( !strcasecmp(one_cmd->command.Value(), cmd) && 
+			one_cmd->workerfunction ) {
 			return one_cmd->workerfunction(argv, argc, output_string);
 		}
 	}
