@@ -16,7 +16,7 @@ soapobjs(amazongahp)
 WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o gsoap_commands.o $(SOAP_OBJS)
 #else
 WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o $(SOAP_OBJS)
-#endfi
+#endif
 
 IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o amazonCommands.o request.o amazongahp_instantiate.o 
 
