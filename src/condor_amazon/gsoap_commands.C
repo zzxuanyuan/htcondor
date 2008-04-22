@@ -639,15 +639,15 @@ AmazonVMStatus::gsoapRequest(void)
 			int total_nums = response.reservationSet->__sizeitem;
 
 			for (i = 0; i < total_nums; i++) {
-				struct ec2__RunningInstancesSetType* instancesSet = 
+				struct ec2__RunningInstancesSetType* _instancesSet = 
 					response.reservationSet->item[i].instancesSet;
 
-				if( !instancesSet ) {
+				if( !_instancesSet ) {
 					continue;
 				}
 
 				struct ec2__RunningInstancesItemType *instance = 
-					instancesSet->item;
+					_instancesSet->item;
 
 				if( !instance || !instance->instanceId ) {
 					continue;
