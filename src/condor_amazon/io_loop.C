@@ -880,13 +880,19 @@ IOProcess::createNewWorker(void)
 	// take snapshots at no more than 15 seconds in between, by default
 	//fi.max_snapshot_interval = param_integer("PID_SNAPSHOT_INTERVAL", 15);
 
+
+	Env job_env;
+	MyString env_string;
+	env_string.sprintf("0x%x", DebugFlags);
+	job_env.SetEnv("DebugLevel", env_string.Value());
+
 	new_worker->m_pid = daemonCore->Create_Process (
 				m_worker_exec_name.Value(),
 				args,
 				PRIV_UNKNOWN,
 				m_reaper_id,
 				FALSE,			// no command port
-				NULL,			// env
+				&job_env,			// env
 				NULL,			// cwd	
 				// &fi,			// family_info
 				NULL,			
