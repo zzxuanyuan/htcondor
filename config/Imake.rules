@@ -361,8 +361,8 @@ SOAP_SRC = Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C Concat
 #define gen_soapfiles(daemon,service) @@\
 soapfiles:: gsoapname(daemon).h @@\
 	$(SOAPCPP2) -I ../condor_daemon_core.V6 -S -L -x -p soapname(daemon) gsoapname(daemon).h @@\
-	cp Concat(soapname(daemon),C).cpp Concat(soapname(daemon),C).C @@\
-	cp Concat(soapname(daemon),Server).cpp Concat(soapname(daemon),Server).C @@\
+	mv Concat(soapname(daemon),C).cpp Concat(soapname(daemon),C).C @@\
+	mv Concat(soapname(daemon),Server).cpp Concat(soapname(daemon),Server).C @@\
 	touch soapfiles @@\
 	@@\
 release_copy_target(service.wsdl,lib/webservice,service.wsdl,TEXT_MODE) @@\
