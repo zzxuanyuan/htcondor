@@ -42,6 +42,10 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 
+// TODO List
+// We need to handle the error code "InternalError" 
+// for retrying up to 3 times
+
 // Caller need to free the returned pointer
 static char* base64_encode(const unsigned char *input, int length)
 {
@@ -77,7 +81,7 @@ AmazonRequest::ParseSoapError(const char* callerstring)
 	if( *code ) {
 		// NOTE: The faultcode appears to have a qualifying 
 		// namespace, which we need to strip
-		char *s = strchr(*code, ':');
+		char *s = strrchr(*code, '.');
 		if( s ) {
 			s++;
 			error_code = s;
@@ -237,20 +241,20 @@ AmazonVMKeypairNames::gsoapRequest(void)
 		return false;
 	}
 
-	int code = -1;
-	int i = 0;
-	struct ec2__DescribeKeyPairsType request;
-	struct ec2__DescribeKeyPairsResponseType response;
+	ec2__DescribeKeyPairsType request;
+	ec2__DescribeKeyPairsResponseType response;
 
 	// Want info on all keys...
 	request.keySet = NULL;
+
+	int code = -1;
 	if (!(code = soap_call___ec2__DescribeKeyPairs(m_soap,
 					AWS_URL,
 					NULL,
 					&request,
 					&response))) {
-
 		if( response.keySet && response.keySet->item ) {
+			int i = 0;
 			for (i = 0; i < response.keySet->__sizeitem; i++) {
 				keynames.append(response.keySet->item[i]->keyName);
 			}
@@ -298,12 +302,12 @@ AmazonVMCreateKeypair::gsoapRequest(void)
 		}
 	}
 
+	ec2__CreateKeyPairType request;
+	ec2__CreateKeyPairResponseType response;
+
+	request.keyName = (char *)keyname.GetCStr();
+
 	int code = -1;
-	struct ec2__CreateKeyPairType request;
-	struct ec2__CreateKeyPairResponseType response;
-
-	request.keyName = (char *) keyname.GetCStr();
-
 	if (!(code = soap_call___ec2__CreateKeyPair(m_soap,
 					AWS_URL,
 					NULL,
@@ -355,12 +359,12 @@ AmazonVMDestroyKeypair::gsoapRequest(void)
 		return false;
 	}
 
-	int code = -1;
-	struct ec2__DeleteKeyPairType request;
-	struct ec2__DeleteKeyPairResponseType response;
+	ec2__DeleteKeyPairType request;
+	ec2__DeleteKeyPairResponseType response;
 
 	request.keyName = (char *) keyname.GetCStr();
 
+	int code = -1;
 	if (!(code = soap_call___ec2__DeleteKeyPair(m_soap,
 					AWS_URL,
 					NULL,
@@ -408,10 +412,6 @@ AmazonVMStart::gsoapRequest(void)
 		return false;
 	}
 
-	int code = -1;
-	struct ec2__RunInstancesType request;
-	struct ec2__ReservationInfoType response;
-
 	// userData
 	if( user_data_file.IsEmpty() == false ) {
 		// Need to read file
@@ -453,8 +453,11 @@ AmazonVMStart::gsoapRequest(void)
 		}
 	}
 
+	ec2__RunInstancesType request;
+	ec2__ReservationInfoType response;
+
 	// image id
-	request.imageId = (char *) ami_id.Value();
+	request.imageId = (char *)ami_id.GetCStr();
 	// min Count
 	request.minCount = 1;
 	// max Count
@@ -462,32 +465,38 @@ AmazonVMStart::gsoapRequest(void)
 
 	// Keypair
 	if( keypair.IsEmpty() == false ) {
-		request.keyName = (char *) keypair.Value();
+		request.keyName = (char *)keypair.GetCStr();
 	}else {
 		request.keyName = NULL;
 	}
 
 	// groupSet
-	struct ec2__GroupSetType groupSet;
-	struct ec2__GroupItemType *groupItems = NULL;
+	ec2__GroupSetType groupSet;
+	ec2__GroupItemType **groupItems = NULL;
 
 	if( groupnames.isEmpty() == false ) {
 		int group_nums = groupnames.number();
 
-		groupItems = (struct ec2__GroupItemType *)
-			soap_malloc(m_soap,
-						sizeof(struct ec2__GroupItemType)*group_nums);
+		groupItems = (ec2__GroupItemType **)soap_malloc(m_soap, 
+				sizeof(ec2__GroupItemType *)*group_nums);
 		ASSERT(groupItems);
 
 		int i=0;
 		char *one_group = NULL;
 		groupnames.rewind();
+	
+		ec2__GroupItemType *one_group_item = NULL;
 		while((one_group = groupnames.next()) != NULL ) {
-			groupItems[i++].groupId = one_group;
+			one_group_item = (ec2__GroupItemType *)soap_malloc(m_soap, 
+					sizeof(ec2__GroupItemType));
+			ASSERT(one_group_item);
+
+			one_group_item->groupId = one_group; 
+			groupItems[i++] = one_group_item;
 		}
 
 		groupSet.__sizeitem = group_nums;
-		groupSet.item = &groupItems;
+		groupSet.item = groupItems;
 
 		request.groupSet = &groupSet;
 	}else {
@@ -498,7 +507,7 @@ AmazonVMStart::gsoapRequest(void)
 	request.additionalInfo = NULL;
 
 	// user data
-	struct ec2__UserDataType userdata_type;
+	ec2__UserDataType userdata_type;
 	if( base64_userdata ) {
 		// TODO 
 		// Need to check
@@ -517,21 +526,17 @@ AmazonVMStart::gsoapRequest(void)
 
 	// instanceType
 	if( instance_type.IsEmpty() == false ) {
-		request.instanceType = (char *) instance_type.Value();
+		request.instanceType = (char *) instance_type.GetCStr();
 	}else {
 		request.instanceType = NULL;
 	}
 
+	int code = -1;
 	if (!(code = soap_call___ec2__RunInstances(m_soap,
 					AWS_URL,
 					NULL,
 					&request,
 					&response))) {
-
-		if( groupItems ) {
-			free(groupItems);
-			groupItems = NULL;
-		}
 
 		if( response.instancesSet && response.instancesSet->item ) {
 			instance_id = response.instancesSet->item[0]->instanceId;
@@ -539,10 +544,6 @@ AmazonVMStart::gsoapRequest(void)
 		}
 	}else {
 		// Error
-		if( groupItems ) {
-			free(groupItems);
-			groupItems = NULL;
-		}
 		ParseSoapError("RunInstances");
 	}
 	return false;
