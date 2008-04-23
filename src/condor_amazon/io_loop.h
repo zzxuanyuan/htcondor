@@ -21,7 +21,6 @@
 #define IO_LOOP_H
 
 #include "condor_common.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "gahp_common.h"
 #include "simplelist.h"
 #include "PipeBuffer.h"
