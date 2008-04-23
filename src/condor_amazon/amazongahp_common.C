@@ -30,6 +30,37 @@ static MyString amazon_lib_path;
 // List for all amazon commands
 static SimpleList<AmazonGahpCommand*> amazon_gahp_commands;
 
+int vmprintf_debug_level = D_ALWAYS;
+
+void vmprintf( int flags, const char *fmt, ... )
+{
+	if( !fmt ) {
+		return;
+	}
+
+	if( Termlog ) {
+		if( !(flags & vmprintf_debug_level) ) {
+			return;
+		}
+	}
+
+	MyString output;
+	va_list args;
+	va_start(args, fmt);
+	output.vsprintf(fmt, args);
+	va_end(args);
+	if( output.IsEmpty() ) {
+		return;
+	}
+
+	if( Termlog ) {
+		fprintf(stderr, "%s", output.Value());
+	}else {
+		dprintf(flags, "%s", output.Value());
+	}
+	return;
+}
+
 AmazonGahpCommand::AmazonGahpCommand(const char* cmd, ioCheckfn iofunc, workerfn workerfunc)
 {
 	command = cmd;
@@ -41,8 +72,6 @@ void
 registerAmazonGahpCommand(const char* command, ioCheckfn iofunc, workerfn workerfunc)
 {
 	if( !command ) {
-		dprintf(D_ALWAYS, "registerAmazonGahpCommand: Invalid amazon "
-				"command(%s)\n", command? command: "");
 		return;
 	}
 
@@ -88,7 +117,7 @@ executeIOCheckFunc(const char* cmd, char **argv, int argc)
 		}
 	}
 
-	dprintf (D_ALWAYS, "Unknown command %s\n", cmd);
+	vmprintf (D_ALWAYS, "Unknown command %s\n", cmd);
 	return false;
 }
 
@@ -108,7 +137,7 @@ executeWorkerFunc(const char* cmd, char **argv, int argc, MyString &output_strin
 			return one_cmd->workerfunction(argv, argc, output_string);
 		}
 	}
-	dprintf (D_ALWAYS, "Unknown command %s\n", cmd);
+	vmprintf (D_ALWAYS, "Unknown command %s\n", cmd);
 	return false;
 }
 
@@ -140,7 +169,7 @@ int
 parse_gahp_command (const char* raw, Gahp_Args* args) {
 
 	if (!raw) {
-		dprintf(D_ALWAYS,"ERROR parse_gahp_command: empty command\n");
+		vmprintf(D_ALWAYS,"ERROR parse_gahp_command: empty command\n");
 		return FALSE;
 	}
 
@@ -198,7 +227,7 @@ check_read_access_file(const char *file)
 	int ret = access(file, R_OK);
 
 	if(ret < 0 ) {
-		dprintf(D_ALWAYS, "File(%s) can't be read\n", file);
+		vmprintf(D_ALWAYS, "File(%s) can't be read\n", file);
 		return false;
 	}
 
@@ -216,7 +245,7 @@ check_create_file(const char *file)
 
 	fp = safe_fopen_wrapper(file, "w");
 	if( !fp ) {
-		dprintf(D_ALWAYS, "failed to safe_fopen_wrapper %s in write mode: "
+		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper %s in write mode: "
 				"safe_fopen_wrapper returns %s\n", file, strerror(errno));
 		return false;
 	}
@@ -242,7 +271,7 @@ find_amazon_lib(MyString &lib_path)
 	tmp_lib_prog.sprintf("%s%c%s", tmp_lib_path.Value(), DIR_DELIM_CHAR, AMAZON_SCRIPT_NAME);
 
 	if( check_read_access_file(tmp_lib_prog.Value()) == false ) {
-		dprintf(D_ALWAYS, "Can't read amazon library path(%s)\n", tmp_lib_path.Value());
+		vmprintf(D_ALWAYS, "Can't read amazon library path(%s)\n", tmp_lib_path.Value());
 		return false;
 	}
 
@@ -254,7 +283,7 @@ find_amazon_lib(MyString &lib_path)
 int
 verify_number_args (const int is, const int should_be) {
 	if (is != should_be) {
-		dprintf (D_ALWAYS, "Wrong # of args %d, should be %d\n", is, should_be);
+		vmprintf (D_ALWAYS, "Wrong # of args %d, should be %d\n", is, should_be);
 		return FALSE;
 	}
 	return TRUE;
@@ -263,7 +292,7 @@ verify_number_args (const int is, const int should_be) {
 int
 verify_min_number_args (const int is, const int minimum) {
 	if (is < minimum ) {
-		dprintf (D_ALWAYS, "Wrong # of args %d, should be more than or equal to %d\n", is, minimum);
+		vmprintf (D_ALWAYS, "Wrong # of args %d, should be more than or equal to %d\n", is, minimum);
 		return FALSE;
 	}
 	return TRUE;
@@ -274,7 +303,7 @@ verify_request_id (const char * s) {
     unsigned int i;
 	for (i=0; i<strlen(s); i++) {
 		if (!isdigit(s[i])) {
-			dprintf (D_ALWAYS, "Bad request id %s\n", s);
+			vmprintf (D_ALWAYS, "Bad request id %s\n", s);
 			return FALSE;
 		}
 	}
@@ -285,7 +314,7 @@ verify_request_id (const char * s) {
 int
 verify_string_name(const char * s) {
 	if( !( (s != NULL) && (strlen(s) > 0) ) ) {
-		dprintf (D_ALWAYS, "NULL string\n");
+		vmprintf (D_ALWAYS, "NULL string\n");
 		return false;
 	}
     return true;
@@ -299,7 +328,7 @@ verify_ami_id(const char * s) {
 	}
 
 	if( strncasecmp(s, "ami-", strlen("ami-")) ) {
-		dprintf (D_ALWAYS, "Bad AMI ID %s\n", s);
+		vmprintf (D_ALWAYS, "Bad AMI ID %s\n", s);
 		return false;
 	}
 	return true;
@@ -311,7 +340,7 @@ verify_instance_id(const char * s) {
 		return false;
 	}
 	if( strncasecmp(s, "i-", strlen("i-")) ) {
-		dprintf (D_ALWAYS, "Bad Instance ID %s\n", s);
+		vmprintf (D_ALWAYS, "Bad Instance ID %s\n", s);
 		return false;
 	}
 
@@ -321,7 +350,7 @@ verify_instance_id(const char * s) {
 int
 verify_number (const char * s) {
 	if (!s || !(*s)) {
-		dprintf (D_ALWAYS, "No digit number\n");
+		vmprintf (D_ALWAYS, "No digit number\n");
 		return FALSE;
 	}
 	
@@ -329,7 +358,7 @@ verify_number (const char * s) {
    
 	do {
 		if (s[i]<'0' || s[i]>'9') {
-			dprintf (D_ALWAYS, "Bad digit number %s\n", s);
+			vmprintf (D_ALWAYS, "Bad digit number %s\n", s);
 			return FALSE;
 		}
 	} while (s[++i]);
@@ -342,14 +371,14 @@ bool check_access_and_secret_key_file(const char* accesskeyfile, const char* sec
 	// check the accesskeyfile
 	if( !check_read_access_file(accesskeyfile) ) {
 		err_msg.sprintf("Cannot_read_access_key_file(%s)", accesskeyfile? accesskeyfile:"");
-		dprintf (D_ALWAYS, "Error: %s\n", err_msg.Value());
+		vmprintf (D_ALWAYS, "Error: %s\n", err_msg.Value());
 		return false;
 	}
 
 	// check the accesskeyfile and secretkeyfile
 	if( !check_read_access_file(secretkeyfile) ) {
 		err_msg.sprintf("Cannot_read_secret_key_file(%s)", secretkeyfile? secretkeyfile:"");
-		dprintf (D_ALWAYS, "Error: %s\n", err_msg.Value());
+		vmprintf (D_ALWAYS, "Error: %s\n", err_msg.Value());
 		return false;
 	}
 
