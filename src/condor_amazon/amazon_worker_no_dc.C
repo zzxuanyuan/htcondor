@@ -208,6 +208,9 @@ main( int argc, char ** const argv )
 		vmprintf_debug_level = debug_level;
 	}
 
+	// For Testing for exec perl
+	//set_amazon_lib_path("/scratch/amazonCompile/src/condor_amazon/ec2_lib");
+	
 	vmprintf(D_FULLDEBUG, "Welcome to the AMAZON-GAHP\n");
 
 	// Save current working_dir;
