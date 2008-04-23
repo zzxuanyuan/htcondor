@@ -252,7 +252,7 @@ AmazonVMKeypairNames::gsoapRequest(void)
 
 		if( response.keySet && response.keySet->item ) {
 			for (i = 0; i < response.keySet->__sizeitem; i++) {
-				keynames.append(response.keySet->item[i].keyName);
+				keynames.append(response.keySet->item[i]->keyName);
 			}
 		}
 		return true;
@@ -474,8 +474,9 @@ AmazonVMStart::gsoapRequest(void)
 	if( groupnames.isEmpty() == false ) {
 		int group_nums = groupnames.number();
 
-		groupItems = (struct ec2__GroupItemType *)malloc(
-				sizeof(struct ec2__GroupItemType)*group_nums);
+		groupItems = (struct ec2__GroupItemType *)
+			soap_malloc(m_soap,
+						sizeof(struct ec2__GroupItemType)*group_nums);
 		ASSERT(groupItems);
 
 		int i=0;
@@ -486,7 +487,7 @@ AmazonVMStart::gsoapRequest(void)
 		}
 
 		groupSet.__sizeitem = group_nums;
-		groupSet.item = groupItems;
+		groupSet.item = &groupItems;
 
 		request.groupSet = &groupSet;
 	}else {
@@ -533,7 +534,7 @@ AmazonVMStart::gsoapRequest(void)
 		}
 
 		if( response.instancesSet && response.instancesSet->item ) {
-			instance_id = response.instancesSet->item[0].instanceId;
+			instance_id = response.instancesSet->item[0]->instanceId;
 			return true;
 		}
 	}else {
@@ -572,9 +573,13 @@ AmazonVMStop::gsoapRequest(void)
 	struct ec2__TerminateInstancesResponseType response;
 
 	struct ec2__TerminateInstancesInfoType instanceSet;
-	struct ec2__TerminateInstancesItemType item;
+	struct ec2__TerminateInstancesItemType *item;
 
-	item.instanceId = (char *) instance_id.GetCStr();
+	item = (struct ec2__TerminateInstancesItemType *)
+		soap_malloc(m_soap, sizeof(struct ec2__TerminateInstancesItemType));
+	ASSERT(item);
+
+	item->instanceId = (char *) instance_id.GetCStr();
 
 	instanceSet.__sizeitem = 1;
 	instanceSet.item = &item;
@@ -621,8 +626,13 @@ AmazonVMStatus::gsoapRequest(void)
 	struct ec2__DescribeInstancesResponseType response;
 
 	struct ec2__DescribeInstancesInfoType instancesSet;
-	struct ec2__DescribeInstancesItemType item;
-	item.instanceId = (char *) instance_id.GetCStr();
+	struct ec2__DescribeInstancesItemType *item;
+
+	item = (struct ec2__DescribeInstancesItemType *)
+		soap_malloc(m_soap, sizeof(struct ec2__DescribeInstancesItemType));
+	ASSERT(item);
+
+	item->instanceId = (char *) instance_id.GetCStr();
 
 	instancesSet.__sizeitem = 1;
 	instancesSet.item = &item;
@@ -640,43 +650,43 @@ AmazonVMStatus::gsoapRequest(void)
 
 			for (i = 0; i < total_nums; i++) {
 				struct ec2__RunningInstancesSetType* _instancesSet = 
-					response.reservationSet->item[i].instancesSet;
+					response.reservationSet->item[i]->instancesSet;
 
 				if( !_instancesSet ) {
 					continue;
 				}
 
-				struct ec2__RunningInstancesItemType *instance = 
+				struct ec2__RunningInstancesItemType **instance = 
 					_instancesSet->item;
 
-				if( !instance || !instance->instanceId ) {
+				if( !instance || !(*instance)->instanceId ) {
 					continue;
 				}
 
-				if( !instance->instanceState || 
-						!instance->instanceState->name) {
+				if( !(*instance)->instanceState || 
+						!(*instance)->instanceState->name) {
 					dprintf(D_ALWAYS, "Failed to get valid status\n");
 					continue;
 				}
 
-				if( !strcmp(instance->instanceId, instance_id.Value()) ) {
+				if( !strcmp((*instance)->instanceId, instance_id.Value()) ) {
 
-					status_result.status = instance->instanceState->name;
-					status_result.instance_id = instance->instanceId;
-					status_result.ami_id = instance->imageId;
-					status_result.public_dns = instance->dnsName;
-					status_result.private_dns = instance->privateDnsName;
-					status_result.keyname = instance->keyName;
-					status_result.instancetype = instance->instanceType;
+					status_result.status = (*instance)->instanceState->name;
+					status_result.instance_id = (*instance)->instanceId;
+					status_result.ami_id = (*instance)->imageId;
+					status_result.public_dns = (*instance)->dnsName;
+					status_result.private_dns = (*instance)->privateDnsName;
+					status_result.keyname = (*instance)->keyName;
+					status_result.instancetype = (*instance)->instanceType;
 
 					// Set group names
 					struct ec2__GroupSetType* groupSet =
-						response.reservationSet->item[i].groupSet;
+						response.reservationSet->item[i]->groupSet;
 
 					if( groupSet && groupSet->item ) {
 						int j = 0;
 						for( j = 0; j < groupSet->__sizeitem; j++ ) {
-							status_result.groupnames.append(groupSet->item[j].groupId);
+							status_result.groupnames.append(groupSet->item[j]->groupId);
 						}
 					}
 
@@ -728,50 +738,50 @@ AmazonVMStatusAll::gsoapRequest(void)
 
 			for (i = 0; i < total_nums; i++) {
 				struct ec2__RunningInstancesSetType* instancesSet = 
-					response.reservationSet->item[i].instancesSet;
+					response.reservationSet->item[i]->instancesSet;
 
 				if( !instancesSet ) {
 					continue;
 				}
 
-				struct ec2__RunningInstancesItemType *instance = 
+				struct ec2__RunningInstancesItemType **instance = 
 					instancesSet->item;
 
-				if( !instance || !instance->instanceId ) {
+				if( !instance || !(*instance)->instanceId ) {
 					continue;
 				}
 
-				if( !instance->instanceState || 
-						!instance->instanceState->name) {
+				if( !(*instance)->instanceState || 
+						!(*instance)->instanceState->name) {
 					dprintf(D_ALWAYS, "Failed to get valid status\n");
 					continue;
 				}
 
 				status_results[status_num].status = 
-					instance->instanceState->name;
+					(*instance)->instanceState->name;
 
 				status_results[status_num].instance_id =
-				   	instance->instanceId;
+				   	(*instance)->instanceId;
 				status_results[status_num].ami_id = 
-					instance->imageId;
+					(*instance)->imageId;
 				status_results[status_num].public_dns =
-					instance->dnsName;
+					(*instance)->dnsName;
 				status_results[status_num].private_dns =
-					instance->privateDnsName;
+					(*instance)->privateDnsName;
 				status_results[status_num].keyname =
-					instance->keyName;
+					(*instance)->keyName;
 				status_results[status_num].instancetype =
-					instance->instanceType;
+					(*instance)->instanceType;
 
 				// Set group names
 				struct ec2__GroupSetType* groupSet =
-					response.reservationSet->item[i].groupSet;
+					response.reservationSet->item[i]->groupSet;
 
 				if( groupSet && groupSet->item ) {
 					int j = 0;
 					for( j = 0; j < groupSet->__sizeitem; j++ ) {
 						status_results[status_num].groupnames.append(
-								groupSet->item[j].groupId);
+								groupSet->item[j]->groupId);
 					}
 				}
 
