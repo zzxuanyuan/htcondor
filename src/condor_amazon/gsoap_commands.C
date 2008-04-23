@@ -99,7 +99,7 @@ AmazonRequest::ParseSoapError(const char* callerstring)
 
 	soap_sprint_fault(m_soap, buffer, sizeof(buffer));
 	if( strlen(buffer) ) { 
-		dprintf(D_ALWAYS, "Call to %s failed: %s\n", 
+		vmprintf(D_ALWAYS, "Call to %s failed: %s\n", 
 				callerstring? callerstring:"", buffer);
 	}
 	return;
@@ -109,11 +109,11 @@ bool
 AmazonRequest::SetupSoap(void)
 {
 	if( secretkeyfile.IsEmpty() ) {
-		dprintf(D_ALWAYS, "There is no privatekey\n");
+		vmprintf(D_ALWAYS, "There is no privatekey\n");
 		return false;
 	}
 	if( accesskeyfile.IsEmpty() ) {
-		dprintf(D_ALWAYS, "There is no accesskeyfile\n");
+		vmprintf(D_ALWAYS, "There is no accesskeyfile\n");
 		return false;
 	}
 
@@ -124,7 +124,7 @@ AmazonRequest::SetupSoap(void)
 	// Must use canoicalization
 	if( !(m_soap = soap_new1(SOAP_XML_CANONICAL))) {
 		error_msg = "Failed to create SOAP context";
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
@@ -141,13 +141,13 @@ AmazonRequest::SetupSoap(void)
 		if( !m_rsa_privk ) {
 			error_msg.sprintf("Could not read private RSA key from: %s",
 					secretkeyfile.Value());
-			dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+			vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 			return false;
 		}
 	} else {
 		error_msg.sprintf("Could not read private key file: %s",
 				secretkeyfile.Value());
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
@@ -158,13 +158,13 @@ AmazonRequest::SetupSoap(void)
 		if (!m_cert) {
 			error_msg.sprintf("Could not read accesskeyfile from: %s",
 					accesskeyfile.Value());
-			dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+			vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 			return false;
 		}
 	} else {
 		error_msg.sprintf("Could not read accesskeyfile file: %s",
 				accesskeyfile.Value());
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
@@ -172,28 +172,28 @@ AmazonRequest::SetupSoap(void)
 	// to be non-NULL
 	if( soap_wsse_add_Timestamp(m_soap, "Timestamp", 10)) { 
 		error_msg = "Failed to sign timestamp";
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
 	if( soap_wsse_add_BinarySecurityTokenX509(m_soap, "BinarySecurityToken", m_cert)) {
 		error_msg.sprintf("Could not set BinarySecurityToken from: %s", 
 				accesskeyfile.Value());
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
 	// May be optional
 	if( soap_wsse_add_KeyInfo_SecurityTokenReferenceX509(m_soap, "#X509Token") ) {
 		error_msg = "Failed to setup SecurityTokenReference";
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 
 	// Body must be signed
 	if( soap_wsse_sign_body(m_soap, SOAP_SMD_SIGN_RSA_SHA1, m_rsa_privk, 0)) {
 		error_msg = "Failed to setup signing of SOAP body";
-		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
 	
@@ -227,13 +227,13 @@ bool
 AmazonVMKeypairNames::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(),
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -269,19 +269,19 @@ bool
 AmazonVMCreateKeypair::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( keyname.IsEmpty() ) {
 		error_msg = "Empty_Keyname";
-		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -293,7 +293,7 @@ AmazonVMCreateKeypair::gsoapRequest(void)
 	if( has_outputfile ) { 
 		if( check_create_file(outputfile.GetCStr()) == false ) {
 			error_msg = "No_permission_for_keypair_outputfile";
-			dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
+			vmprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
 			return false;
 		}
 	}
@@ -318,7 +318,7 @@ AmazonVMCreateKeypair::gsoapRequest(void)
 				error_msg.sprintf("failed to safe_fopen_wrapper %s in write mode: "
 						"safe_fopen_wrapper returns %s", 
 						outputfile.Value(), strerror(errno));
-				dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+				vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 				return false;
 			}
 
@@ -337,20 +337,20 @@ bool
 AmazonVMDestroyKeypair::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(),
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", 
+		vmprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", 
 				error_msg.Value());
 		return false;
 	}
 
 	if( keyname.IsEmpty() ) {
 		error_msg = "Empty_Keyname";
-		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", 
+		vmprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", 
 				error_msg.Value());
 		return false;
 	}
@@ -384,13 +384,13 @@ bool
 AmazonVMStart::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(),
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -404,7 +404,7 @@ AmazonVMStart::gsoapRequest(void)
 
 	if( ami_id.IsEmpty() ) {
 		error_msg = "Empty_AMI_ID";
-		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -421,7 +421,7 @@ AmazonVMStart::gsoapRequest(void)
 			error_msg.sprintf("failed to safe_open_wrapper file(%s) : "
 					"safe_open_wrapper returns %s", user_data_file.Value(), 
 					strerror(errno));
-			dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+			vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 			return false;
 		}
 
@@ -438,7 +438,7 @@ AmazonVMStart::gsoapRequest(void)
 		if( ret != file_size ) {
 			error_msg.sprintf("failed to read(need %d but real read %d) "
 					"in file(%s)", file_size, ret, user_data_file.Value());
-			dprintf(D_ALWAYS, "%s\n", error_msg.Value());
+			vmprintf(D_ALWAYS, "%s\n", error_msg.Value());
 
 			free(readbuffer);
 			readbuffer = NULL;
@@ -552,19 +552,19 @@ bool
 AmazonVMStop::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(),
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
 		error_msg = "Empty_Instance_ID";
-		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -604,19 +604,19 @@ bool
 AmazonVMStatus::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(),
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
 		error_msg = "Empty_Instance_ID";
-		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -665,7 +665,7 @@ AmazonVMStatus::gsoapRequest(void)
 
 				if( !(*instance)->instanceState || 
 						!(*instance)->instanceState->name) {
-					dprintf(D_ALWAYS, "Failed to get valid status\n");
+					vmprintf(D_ALWAYS, "Failed to get valid status\n");
 					continue;
 				}
 
@@ -707,13 +707,13 @@ bool
 AmazonVMStatusAll::gsoapRequest(void)
 {
 	if( !SetupSoap() ) {
-		dprintf(D_ALWAYS, "Failed to setup SOAP context\n");
+		vmprintf(D_ALWAYS, "Failed to setup SOAP context\n");
 		return false;
 	}
 
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(),
 				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
+		vmprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -753,7 +753,7 @@ AmazonVMStatusAll::gsoapRequest(void)
 
 				if( !(*instance)->instanceState || 
 						!(*instance)->instanceState->name) {
-					dprintf(D_ALWAYS, "Failed to get valid status\n");
+					vmprintf(D_ALWAYS, "Failed to get valid status\n");
 					continue;
 				}
 
