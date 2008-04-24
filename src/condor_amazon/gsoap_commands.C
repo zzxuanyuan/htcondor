@@ -42,6 +42,12 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 
+// For changing dprintf to vmprintf
+#ifdef dprintf
+#undef dprintf
+#define dprintf vmprintf
+#endif
+
 // TODO List
 // We need to handle the error code "InternalError" 
 // for retrying up to 3 times
@@ -79,12 +85,33 @@ AmazonRequest::ParseSoapError(const char* callerstring)
 	code = soap_faultcode(m_soap);
 
 	if( *code ) {
+		// For real error code, refer to 
+		// http://docs.amazonwebservices.com/AWSEC2/2007-08-29/DeveloperGuide/api-error-codes.html
+		//
+		// Client error codes suggest that the error was caused by 
+		// something the client did, such as an authentication failure or 
+		// an invalid AMI identifier. 
+		// In the SOAP API, These error codes are prefixed with Client. 
+		// For example: Client.AuthFailure. 
+		//
+		// Server error codes suggest a server-side issue caused 
+		// the error and should be reported. 
+		// In the SOAP API, these error codes are prefixed with Server. 
+		// For example: Server.Unavailable.
+	
+
 		// NOTE: The faultcode appears to have a qualifying 
 		// namespace, which we need to strip
-		char *s = strrchr(*code, '.');
+		char *s = strrchr(*code, ':');
 		if( s ) {
 			s++;
-			error_code = s;
+			if( !strncasecmp(s, "Client.", strlen("Client.")) ) {
+				error_code = s + strlen("Client.");
+			}else if( !strncasecmp(s, "Server.", strlen("Server.")) ) {
+				error_code = s + strlen("Server.");
+			}else {
+				error_code = s;
+			}
 		}
 	}
 
@@ -374,6 +401,10 @@ AmazonVMDestroyKeypair::gsoapRequest(void)
 	}else {
 		// Error
 		ParseSoapError("DeleteKeyPair");
+
+		if( !strcasecmp(error_code.Value(), "InvalidKeyPair.NotFound") ) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -569,15 +600,14 @@ AmazonVMStop::gsoapRequest(void)
 		return false;
 	}
 
-	int code = -1;
-	struct ec2__TerminateInstancesType request;
-	struct ec2__TerminateInstancesResponseType response;
+	ec2__TerminateInstancesType request;
+	ec2__TerminateInstancesResponseType response;
 
-	struct ec2__TerminateInstancesInfoType instanceSet;
-	struct ec2__TerminateInstancesItemType *item;
+	ec2__TerminateInstancesInfoType instanceSet;
+	ec2__TerminateInstancesItemType *item;
 
-	item = (struct ec2__TerminateInstancesItemType *)
-		soap_malloc(m_soap, sizeof(struct ec2__TerminateInstancesItemType));
+	item = (ec2__TerminateInstancesItemType *)
+		soap_malloc(m_soap, sizeof(ec2__TerminateInstancesItemType));
 	ASSERT(item);
 
 	item->instanceId = (char *) instance_id.GetCStr();
@@ -587,6 +617,7 @@ AmazonVMStop::gsoapRequest(void)
 
 	request.instancesSet = &instanceSet;
 
+	int code = -1;
 	if (!(code = soap_call___ec2__TerminateInstances(m_soap,
 					AWS_URL,
 					NULL,
@@ -596,7 +627,9 @@ AmazonVMStop::gsoapRequest(void)
 	}else {
 		// Error
 		ParseSoapError("TerminateInstances");
-
+		if( !strcasecmp(error_code.Value(), "InvalidInstanceID.NotFound")) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -621,16 +654,14 @@ AmazonVMStatus::gsoapRequest(void)
 		return false;
 	}
 
-	int code = -1;
-	int i = 0;
-	struct ec2__DescribeInstancesType request;
-	struct ec2__DescribeInstancesResponseType response;
+	ec2__DescribeInstancesType request;
+	ec2__DescribeInstancesResponseType response;
 
-	struct ec2__DescribeInstancesInfoType instancesSet;
-	struct ec2__DescribeInstancesItemType *item;
+	ec2__DescribeInstancesInfoType instancesSet;
+	ec2__DescribeInstancesItemType *item;
 
-	item = (struct ec2__DescribeInstancesItemType *)
-		soap_malloc(m_soap, sizeof(struct ec2__DescribeInstancesItemType));
+	item = (ec2__DescribeInstancesItemType *)
+		soap_malloc(m_soap, sizeof(ec2__DescribeInstancesItemType));
 	ASSERT(item);
 
 	item->instanceId = (char *) instance_id.GetCStr();
@@ -638,8 +669,13 @@ AmazonVMStatus::gsoapRequest(void)
 	instancesSet.__sizeitem = 1;
 	instancesSet.item = &item;
 
+	// Show a specific running instance
+	// TODO
+	// We need to make sure if this works
+	// With perl, even if we give a specific instance, it dones't work.
 	request.instancesSet = &instancesSet;
 
+	int code = -1;
 	if (!(code = soap_call___ec2__DescribeInstances(m_soap,
 					AWS_URL,
 					NULL,
@@ -649,15 +685,16 @@ AmazonVMStatus::gsoapRequest(void)
 		if( response.reservationSet && response.reservationSet->item ) {
 			int total_nums = response.reservationSet->__sizeitem;
 
+			int i = 0;
 			for (i = 0; i < total_nums; i++) {
-				struct ec2__RunningInstancesSetType* _instancesSet = 
+				ec2__RunningInstancesSetType* _instancesSet = 
 					response.reservationSet->item[i]->instancesSet;
 
 				if( !_instancesSet ) {
 					continue;
 				}
 
-				struct ec2__RunningInstancesItemType **instance = 
+				ec2__RunningInstancesItemType **instance = 
 					_instancesSet->item;
 
 				if( !instance || !(*instance)->instanceId ) {
@@ -681,7 +718,7 @@ AmazonVMStatus::gsoapRequest(void)
 					status_result.instancetype = (*instance)->instanceType;
 
 					// Set group names
-					struct ec2__GroupSetType* groupSet =
+					ec2__GroupSetType* groupSet =
 						response.reservationSet->item[i]->groupSet;
 
 					if( groupSet && groupSet->item ) {
@@ -718,13 +755,13 @@ AmazonVMStatusAll::gsoapRequest(void)
 		return false;
 	}
 
-	int code = -1;
-	int i = 0;
-	struct ec2__DescribeInstancesType request;
-	struct ec2__DescribeInstancesResponseType response;
+	ec2__DescribeInstancesType request;
+	ec2__DescribeInstancesResponseType response;
 
+	// Show all running instances
 	request.instancesSet = NULL;
 
+	int code = -1;
 	if (!(code = soap_call___ec2__DescribeInstances(m_soap,
 					AWS_URL,
 					NULL,
@@ -734,19 +771,21 @@ AmazonVMStatusAll::gsoapRequest(void)
 		if( response.reservationSet && response.reservationSet->item ) {
 			int total_nums = response.reservationSet->__sizeitem;
 
+			status_num = 0;
 			status_results = new AmazonStatusResult[total_nums];
 			ASSERT(status_results);
 
+			int i = 0;
 			for (i = 0; i < total_nums; i++) {
-				struct ec2__RunningInstancesSetType* instancesSet = 
+				ec2__RunningInstancesSetType* _instancesSet = 
 					response.reservationSet->item[i]->instancesSet;
 
-				if( !instancesSet ) {
+				if( !_instancesSet ) {
 					continue;
 				}
 
-				struct ec2__RunningInstancesItemType **instance = 
-					instancesSet->item;
+				ec2__RunningInstancesItemType **instance = 
+					_instancesSet->item;
 
 				if( !instance || !(*instance)->instanceId ) {
 					continue;
@@ -775,7 +814,7 @@ AmazonVMStatusAll::gsoapRequest(void)
 					(*instance)->instanceType;
 
 				// Set group names
-				struct ec2__GroupSetType* groupSet =
+				ec2__GroupSetType* groupSet =
 					response.reservationSet->item[i]->groupSet;
 
 				if( groupSet && groupSet->item ) {
