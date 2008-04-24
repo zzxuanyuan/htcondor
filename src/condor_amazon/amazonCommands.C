@@ -37,6 +37,12 @@
 #define PERL_SCRIPT_ERROR_CODE "#ECODE"
 #define NULLSTRING "NULL"
 
+// For changing dprintf to vmprintf
+#ifdef dprintf
+#undef dprintf
+#define dprintf vmprintf
+#endif
+
 static bool
 __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 {
