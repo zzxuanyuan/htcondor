@@ -418,7 +418,7 @@ IOProcess::stdinPipeHandler()
 
 		const char *command = line->Value();
 
-		vmprintf (D_ALWAYS, "got stdin: %s\n", command);
+		vmprintf (D_FULLDEBUG, "got stdin: %s\n", command);
 
 		Gahp_Args args;
 
