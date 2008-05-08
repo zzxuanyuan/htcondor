@@ -60,10 +60,12 @@ static pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void io_process_exit(int exit_num)
 {
-	// kill all child processes
+#if 0
+	// kill all workers threads
 	if( ioprocess ) {
 		ioprocess->killWorker(0);
 	}
+#endif
 	exit( exit_num );
 }
 
@@ -789,6 +791,7 @@ IOProcess::addRequestToWorker(Request* request, Worker* worker)
 	pthread_mutex_unlock(&worker->m_mutex);
 }
 
+#if 0
 void 
 IOProcess::killWorker(int id)
 {
@@ -844,6 +847,7 @@ IOProcess::killWorker(Worker *worker)
 	// pthread_cancel(worker->m_thread_t);
 	pthread_kill(worker->m_thread_t, SIGTERM);
 }
+#endif
 
 Request* popRequest(Worker* worker)
 {
