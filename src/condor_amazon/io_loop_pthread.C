@@ -92,8 +92,10 @@ registerAllAmazonCommands(void)
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STOP, 
 			AmazonVMStop::ioCheck, AmazonVMStop::workerFunction);
 
+	/*
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_REBOOT, 
 			AmazonVMReboot::ioCheck, AmazonVMReboot::workerFunction);
+	*/
 
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_STATUS, 
 			AmazonVMStatus::ioCheck, AmazonVMStatus::workerFunction);
@@ -104,6 +106,7 @@ registerAllAmazonCommands(void)
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_RUNNING_KEYPAIR, 
 			AmazonVMRunningKeypair::ioCheck, AmazonVMRunningKeypair::workerFunction);
 
+	/*
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_GROUP, 
 			AmazonVMCreateGroup::ioCheck, AmazonVMCreateGroup::workerFunction);
 
@@ -122,6 +125,8 @@ registerAllAmazonCommands(void)
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DEL_GROUP_RULE, 
 			AmazonVMDelGroupRule::ioCheck, AmazonVMDelGroupRule::workerFunction);
 
+	*/
+
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_CREATE_KEYPAIR, 
 			AmazonVMCreateKeypair::ioCheck, AmazonVMCreateKeypair::workerFunction);
 
@@ -131,14 +136,17 @@ registerAllAmazonCommands(void)
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_KEYPAIR_NAMES, 
 			AmazonVMKeypairNames::ioCheck, AmazonVMKeypairNames::workerFunction);
 
+	/*
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_REGISTER_IMAGE, 
 			AmazonVMRegisterImage::ioCheck, AmazonVMRegisterImage::workerFunction);
 
 	registerAmazonGahpCommand(AMAZON_COMMAND_VM_DEREGISTER_IMAGE, 
 			AmazonVMDeregisterImage::ioCheck, AmazonVMDeregisterImage::workerFunction);
+	*/
 
 
 	// S3 Commands
+	/*
 	registerAmazonGahpCommand(AMAZON_COMMAND_S3_ALL_BUCKETS,
 			AmazonS3AllBuckets::ioCheck, AmazonS3AllBuckets::workerFunction);
 
@@ -165,6 +173,7 @@ registerAllAmazonCommands(void)
 
 	registerAmazonGahpCommand(AMAZON_COMMAND_S3_DOWNLOAD_BUCKET,
 			AmazonS3DownloadBucket::ioCheck, AmazonS3DownloadBucket::workerFunction);
+	*/
 
 	return true;
 }
