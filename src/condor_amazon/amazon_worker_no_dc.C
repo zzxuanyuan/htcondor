@@ -233,5 +233,5 @@ main( int argc, char ** const argv )
 		waitForCommand();
 	}
 
-	return TRUE;
+	return 0;
 }
