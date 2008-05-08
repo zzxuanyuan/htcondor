@@ -1049,4 +1049,6 @@ static void *worker_function( void *ptr )
 		new_request = NULL;
 
 	}
+
+	return NULL;
 }
