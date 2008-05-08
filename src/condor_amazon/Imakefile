@@ -29,6 +29,8 @@ public_copy_target(ec2_lib/condor_amazon.pl,libexec,condor_amazon.pl,EXECUTABLE_
 
 html:
 
+testbin:: all
+
 IMPORT_LINKS = ../../config/import_links
 import(../condor_util_lib, setsyscalls.o )
 
