@@ -335,7 +335,7 @@ exit(1);
 
 sub start
 {
-	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <data> -userdatafile <datafile> ]
+	# -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <data> -userdatafile <datafile> -instancetype <machinetype> ]
 	# On success, output will include "instanceID"
 	# On failure, output will include "error code".
 	#
@@ -347,6 +347,7 @@ sub start
 	my $loginkeypair = undef;
 	my $userdata = undef;
 	my $userdatafile = undef;
+	my $instancetype = undef;
 	my @groupname = ();
 
 	if( !GetOptions ('a=s' => \$accessfile, 
@@ -356,6 +357,7 @@ sub start
 			'key=s' => \$loginkeypair, 
 			'userdata=s' => \$userdata, 
 			'userdatafile=s' => \$userdatafile, 
+			'instancetype=s' => \$instancetype, 
 			'group=s@' => \@groupname )) {
 		usage();
 	}
@@ -402,6 +404,16 @@ sub start
 	if( $userdata ) {
 		my $encoded_data = encode_base64($userdata, '');
 		$input_params{"UserData"} = $encoded_data;
+	}
+	if( $instancetype ) {
+		$input_params{"InstanceType"} = $instancetype;
+		# m1.small 
+		#   1 EC2 Compute Unit (1 virtual core with 1 EC2 Compute Unit). 32-bit, 1.7GB RAM, 160GB disk
+		# m1.large
+		#   4 EC2 Compute Units (2 virtual core with 2 EC2 Compute Units each). 64-bit, 7.5GB RAM, 850GB disk
+		# m1.xlarge
+		#   8 EC2 Compute Units (4 virtual core with 2 EC2 Compute Units each). 64-bit, 15GB RAM, 1690GB dis
+		#
 	}
 
 	my $instance = $ec2->run_instances( %input_params );
@@ -589,16 +601,13 @@ sub status
 	my $running_instances = undef;
 
 	# create parameters
-	$running_instances = $ec2->describe_instances();
-
-	#if( $instanceid ) {
-	#	my %input_params;
-	#	$input_params{"InstanceId"} = $instanceid;
-	#	printverbose "instanceid = $instanceid\n";
-	#	$running_instances = $ec2->describe_instances( %input_params );
-	#}else {
-	#	$running_instances = $ec2->describe_instances();
-	#}
+	if( $instanceid ) {
+		my %input_params;
+		$input_params{"InstanceId"} = $instanceid;
+		$running_instances = $ec2->describe_instances( %input_params );
+	}else {
+		$running_instances = $ec2->describe_instances();
+	}
 
 	if( ! defined($running_instances) ) {
 		if( defined($ec2->{error}) ) {
