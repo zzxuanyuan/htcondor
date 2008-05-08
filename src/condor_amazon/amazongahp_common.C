@@ -32,6 +32,32 @@ static SimpleList<AmazonGahpCommand*> amazon_gahp_commands;
 
 int vmprintf_debug_level = D_ALWAYS;
 
+static FILE *gahp_log_file = stderr;
+
+bool set_gahp_log_file(const char* logfile)
+{
+	if( !logfile ) {
+		return false;
+	}
+
+	if( gahp_log_file && ( gahp_log_file != stderr ) ) {
+		fclose(gahp_log_file);
+		gahp_log_file = stderr;
+	}
+
+	FILE *fp = NULL;
+	fp = safe_fopen_wrapper(logfile, "a", 0644);
+
+	if( !fp ) {
+		fprintf(stderr, "failed to safe_fopen_wrapper %s in append mode: "
+				"safe_fopen_wrapper returns %s\n", logfile, strerror(errno));
+		return false;
+	}
+
+	gahp_log_file = fp;
+	return true;
+}
+
 void vmprintf( int flags, const char *fmt, ... )
 {
 	if( !fmt ) {
@@ -54,7 +80,18 @@ void vmprintf( int flags, const char *fmt, ... )
 	}
 
 	if( Termlog ) {
-		fprintf(stderr, "%s", output.Value());
+		time_t clock_now;
+		struct tm *tm;
+		memset((void*)&clock_now, 0, sizeof(time_t));
+		(void)time( &clock_now );
+		tm = localtime(&clock_now);
+
+		fprintf(gahp_log_file, "%d/%d %02d:%02d:%02d ",
+				tm->tm_mon + 1, tm->tm_mday, tm->tm_hour,
+				tm->tm_min, tm->tm_sec );
+
+		fprintf(gahp_log_file, "[pid:%ld] %s", (long)getpid(), output.Value());
+		fflush(gahp_log_file);
 	}else {
 		dprintf(flags, "%s", output.Value());
 	}
