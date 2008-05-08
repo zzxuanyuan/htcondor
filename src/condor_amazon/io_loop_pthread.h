@@ -40,21 +40,8 @@
 
 class Worker {
  public:
-	Worker(int worker_id) {
-		m_id = worker_id;
-		m_can_use = false;
-		m_is_doing = false;
-		m_is_waiting = false;
-		m_must_be_alive = false;
-
-		pthread_mutex_init(&m_mutex, NULL);
-		pthread_cond_init(&m_cond, NULL);
-	}
-
-	~Worker() {
-		pthread_cond_destroy(&m_cond);
-		pthread_mutex_destroy(&m_mutex);
-	}
+	Worker(int worker_id);
+	~Worker();
 
 	bool removeRequest(int req_id);
 	int numOfRequest(void) { return m_request_list.Number(); }

@@ -358,6 +358,35 @@ gahp_output_return_error() {
 	gahp_output_return (result, 1);
 }
 
+Worker::Worker(int worker_id) 
+{
+	m_id = worker_id;
+	m_can_use = false;
+	m_is_doing = false;
+	m_is_waiting = false;
+	m_must_be_alive = false;
+
+	pthread_mutex_init(&m_mutex, NULL);
+	pthread_cond_init(&m_cond, NULL);
+}
+
+Worker::~Worker() 
+{
+	pthread_mutex_lock(&m_mutex);
+
+	Request *request = NULL;
+	m_request_list.Rewind();
+	while( m_request_list.Next(request) ) {
+		m_request_list.DeleteCurrent();
+		delete request;
+	}
+
+	pthread_mutex_unlock(&m_mutex);
+
+	pthread_cond_destroy(&m_cond);
+	pthread_mutex_destroy(&m_mutex);
+}
+
 bool
 Worker::removeRequest(int req_id)
 {
@@ -377,7 +406,7 @@ Worker::removeRequest(int req_id)
 
 
 // Functions for IOProcess class
-IOProcess::IOProcess(void) 
+IOProcess::IOProcess() 
 	: m_workers_list(20, &hashFuncInt)
 {
 	m_async_mode = false;
@@ -937,8 +966,9 @@ static void worker_exit(Worker *worker, bool force)
 		}
 
 		if( need_remove ) {
-			// worker pinter will be deleted inside removeWorkerFromWorkerList
+			// worker will be deleted inside removeWorkerFromWorkerList
 			ioprocess->removeWorkerFromWorkerList(worker->m_id);
+			worker = NULL;
 			ioprocess->m_avail_workers_num--;
 
 		}
