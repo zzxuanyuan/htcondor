@@ -1,6 +1,16 @@
---- /u/j/y/jyoon/EC2.pm	Thu Apr 17 17:02:28 2008
-+++ ./EC2.pm	Sat Apr 12 10:52:16 2008
-@@ -209,6 +209,7 @@ sub register_image {
+--- /u/j/y/jyoon/EC2.pm	Thu May  8 15:43:26 2008
++++ EC2.pm	Thu May  8 15:36:40 2008
+@@ -99,7 +99,8 @@ sub _init {
+ 	my $ts = time2isoz();
+ 
+ 	$self->{signature_version} = 1;
+-	$self->{version} = '2007-01-19';
++	#$self->{version} = '2007-01-19';
++	$self->{version} = '2007-08-29';
+ 	$self->{base_url} = 'http://ec2.amazonaws.com';
+ 	$self->{AWSAccessKeyId} = $args{AWSAccessKeyId};
+ 	$self->{SecretAccessKey} = $args{SecretAccessKey};
+@@ -209,6 +210,7 @@ sub register_image {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -8,7 +18,7 @@
  
  		return undef;
  	}
-@@ -295,6 +296,7 @@ sub describe_images {
+@@ -295,6 +297,7 @@ sub describe_images {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -16,7 +26,7 @@
  		
  		return undef;
  	}
-@@ -331,6 +333,7 @@ sub deregister_image {
+@@ -331,6 +334,7 @@ sub deregister_image {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -24,7 +34,15 @@
  
  		return undef;
  	}
-@@ -429,6 +432,7 @@ sub run_instances {
+@@ -411,6 +415,7 @@ sub run_instances {
+ 								KeyName			=> { type => SCALAR, optional => 1 },
+ 								SecurityGroup	=> { type => SCALAR | ARRAYREF, optional => 1 },
+ 								UserData		=> { type => SCALAR, optional => 1 },
++								InstanceType	=> { type => SCALAR, optional => 1 },
+ 								AddressingType	=> { type => SCALAR, optional => 1 },
+ 	});
+ 	
+@@ -429,6 +434,7 @@ sub run_instances {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -32,7 +50,7 @@
  
  		return undef;
  	}
-@@ -506,6 +510,7 @@ sub describe_instances {
+@@ -506,6 +512,7 @@ sub describe_instances {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -40,7 +58,7 @@
  
  		return undef;
  	}
-@@ -583,6 +588,7 @@ sub terminate_instances {
+@@ -583,6 +590,7 @@ sub terminate_instances {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -48,7 +66,7 @@
  
  		return undef;
  	}
-@@ -640,6 +646,7 @@ sub create_key_pair {
+@@ -640,6 +648,7 @@ sub create_key_pair {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -56,7 +74,7 @@
  
  		return undef;
  	}
-@@ -694,6 +701,7 @@ sub describe_key_pairs {
+@@ -694,6 +703,7 @@ sub describe_key_pairs {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -64,7 +82,7 @@
  
  		return undef;
  	}
-@@ -733,6 +741,7 @@ sub delete_key_pair {
+@@ -733,6 +743,7 @@ sub delete_key_pair {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -72,7 +90,7 @@
  
  		return undef;
  	}
-@@ -795,6 +804,7 @@ sub modify_image_attribute {
+@@ -795,6 +806,7 @@ sub modify_image_attribute {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -80,7 +98,7 @@
  
  		return undef;
  	}
-@@ -835,6 +845,7 @@ sub reset_image_attribute {
+@@ -835,6 +847,7 @@ sub reset_image_attribute {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -88,7 +106,7 @@
  
  		return undef;
  	}
-@@ -876,6 +887,7 @@ sub create_security_group {
+@@ -876,6 +889,7 @@ sub create_security_group {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -96,7 +114,7 @@
  
  		return undef;
  	}
-@@ -947,6 +959,7 @@ sub describe_security_groups {
+@@ -947,6 +961,7 @@ sub describe_security_groups {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -104,7 +122,7 @@
  
  		return undef;
  	}
-@@ -983,6 +996,7 @@ sub delete_security_group {
+@@ -983,6 +998,7 @@ sub delete_security_group {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -112,7 +130,7 @@
  
  		return undef;
  	}
-@@ -1059,6 +1073,7 @@ sub authorize_security_group_ingress {
+@@ -1059,6 +1075,7 @@ sub authorize_security_group_ingress {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -120,7 +138,7 @@
  
  		return undef;
  	}
-@@ -1135,6 +1150,7 @@ sub revoke_security_group_ingress {
+@@ -1135,6 +1152,7 @@ sub revoke_security_group_ingress {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -128,7 +146,7 @@
  
  		return undef;
  	}
-@@ -1171,6 +1187,7 @@ sub get_console_output {
+@@ -1171,6 +1189,7 @@ sub get_console_output {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -136,7 +154,7 @@
  
  		return undef;
  	}
-@@ -1216,6 +1233,7 @@ sub reboot_instances {
+@@ -1216,6 +1235,7 @@ sub reboot_instances {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -144,7 +162,7 @@
  
  		return undef;
  	}
-@@ -1266,6 +1284,7 @@ sub describe_image_attribute {
+@@ -1266,6 +1286,7 @@ sub describe_image_attribute {
  	if ( grep { defined && length } $xml->{Errors} ) {
  		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
  		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -152,7 +170,7 @@
  
  		return undef;
  	}
-@@ -1306,4 +1325,4 @@ under the same terms as Perl itself.
+@@ -1306,4 +1327,4 @@ under the same terms as Perl itself.
  
  =head1 SEE ALSO
  
