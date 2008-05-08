@@ -47,9 +47,8 @@ class Worker {
 
 	int resultHandler();
 	int stderrHandler();
-	bool removeRequest(int req_id);
 	bool canUse(void) { return (!m_need_kill && m_can_use); }
-	int numOfRequest(void) { return m_request_list.Number(); }
+	bool isDoing(void) { return m_request ? true:false; }
 				   
 	PipeBuffer m_request_buffer;
 	PipeBuffer m_result_buffer;
@@ -58,7 +57,8 @@ class Worker {
 	int m_pid;
 	bool m_can_use;
 	bool m_need_kill;
-	SimpleList<Request*> m_request_list;
+
+	Request *m_request;
 };
 
 #define MIN_NUMBER_WORKERS 2
@@ -81,17 +81,18 @@ class IOProcess : public Service {
 	int numOfRealWorkers(void);
 
 	Worker* findFreeWorker(void);
-	Worker* findWorkerWithFewestRequest(void);
 	Worker* findWorker(int pid);
 
 	int workerManager();
 	void resetWorkerManagerTimer(void);
 	void killWorker(int pid, bool graceful);
-	void removeAllRequestsFromWorker(Worker *worker);
+	void removeRequestFromWorker(Worker *worker);
 
 	Request* addNewRequest(const char* cmd);	
 	Request* findRequest(int req_id);
 	bool removeRequest(int req_id);
+
+	Request *popWaitingRequest(void);
 
 	void addResult(const char* result);
 	int numOfResult(void) { return m_result_list.number(); }
@@ -118,6 +119,8 @@ class IOProcess : public Service {
 	StringList m_result_list; // The list of results ready to be output to IO
 	HashTable<int, Worker*> m_workers_list;
 	HashTable<int, Request*> m_pending_req_list;
+
+	SimpleList<Request*> m_waiting_request_list;
 };
 
 #endif

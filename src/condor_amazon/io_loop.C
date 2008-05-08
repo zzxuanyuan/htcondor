@@ -457,22 +457,28 @@ Worker::resultHandler()
 
 		req_id = atoi(args.argv[0]);
 
-		// remove this from worker request queue
-		removeRequest(req_id);
+		if( !m_request || m_request->m_reqid != req_id ) {
+			dprintf (D_ALWAYS, "Invalid result from worker[%d]:\"%s\"\n",
+					m_pid, line->Value());
+		}else {
+			// Add this to the result list
+			ioprocess->addResult(line->Value());
+
+			if (ioprocess->m_async_mode) {
+				if (!ioprocess->m_new_results_signaled) {
+					printf ("R\n");
+					fflush (stdout);
+				}
+				ioprocess->m_new_results_signaled = TRUE;	
+				// So that we only do it once
+			}
+		}
+
+		// remove this from worker request
+		m_request = NULL;
 
 		//remove this from request queue
 		ioprocess->removeRequest(req_id);
-
-		// Add this to the result list
-		ioprocess->addResult(line->Value());
-
-		if (ioprocess->m_async_mode) {
-			if (!ioprocess->m_new_results_signaled) {
-				printf ("R\n");
-				fflush (stdout);
-			}
-			ioprocess->m_new_results_signaled = TRUE;	// So that we only do it once
-		}
 
 		delete line;
 	}
@@ -495,6 +501,14 @@ Worker::resultHandler()
 			dprintf (D_ALWAYS, "Result buffer for the last worker[%d] "
 					"has error, Exiting..\n", m_pid);
 			io_process_exit(1);
+		}
+	}else {
+		// Now we check if there are waiting requests
+		m_request = ioprocess->popWaitingRequest();
+
+		if( m_request ) {
+			m_request->m_worker = (Worker *)this;
+			ioprocess->flushRequest(m_request);
 		}
 	}
 
@@ -536,23 +550,6 @@ Worker::stderrHandler()
 	}
 
 	return TRUE;
-}
-
-bool
-Worker::removeRequest(int req_id)
-{
-	Request *request = NULL;
-	m_request_list.Rewind();
-	while( m_request_list.Next(request) ) {
-
-		if( request->m_reqid == req_id ) {
-			// remove this request from worker request queue
-			m_request_list.DeleteCurrent();
-			return true;
-		}	
-	}
-
-	return false;
 }
 
 // Functions for IOProcess class
@@ -741,7 +738,7 @@ IOProcess::workerThreadReaper(int pid, int exit_status)
 	Worker* worker = findWorker(pid);
 	if( worker ) {
 		if( !is_shutdowning ) {
-			removeAllRequestsFromWorker(worker);
+			removeRequestFromWorker(worker);
 		}
 
 		// remove this worker from worker list
@@ -763,7 +760,7 @@ IOProcess::workerThreadReaper(int pid, int exit_status)
 void
 IOProcess::flushRequest(Request* request) 
 {
-	if( !request ) {
+	if( !request || !request->m_worker ) {
 		return;
 	}
 
@@ -934,37 +931,12 @@ IOProcess::findFreeWorker(void)
 			continue;
 		}
 
-		if( worker->numOfRequest() == 0 ) {
+		if( worker->isDoing() == false ) {
 			return worker;
 		}
 	}
 
 	return NULL;
-}
-
-Worker* 
-IOProcess::findWorkerWithFewestRequest(void)
-{
-	int currentkey = 0;
-	Worker *worker = NULL;
-	Worker *min_worker = NULL;
-	
-	m_workers_list.startIterations();
-	while( m_workers_list.iterate(currentkey, worker) != 0 ) {
-		if( worker->canUse() == false ) {
-			continue;
-		}
-
-		if( !min_worker ) {
-			min_worker = worker;
-		}else {
-			if( worker->numOfRequest() < min_worker->numOfRequest() ) {
-				min_worker = worker;
-			}
-		}
-	}
-
-	return min_worker;
 }
 
 Worker* 
@@ -997,7 +969,7 @@ IOProcess::workerManager()
 			killWorker(worker, true);
 		}
 
-		if( worker->m_can_use && (worker->numOfRequest() == 0) ) {
+		if( worker->m_can_use && (worker->isDoing() == false) ) {
 			if( num_extra_workers > 0 ) {
 				dprintf(D_FULLDEBUG, "Worker[%d] will be killed "
 						"because it is extra one\n", worker->m_pid);
@@ -1092,7 +1064,7 @@ IOProcess::killWorker(Worker *worker, bool graceful)
 }
 
 void 
-IOProcess::removeAllRequestsFromWorker(Worker *worker)
+IOProcess::removeRequestFromWorker(Worker *worker)
 {
 	if( !worker ) {
 		return;
@@ -1100,25 +1072,26 @@ IOProcess::removeAllRequestsFromWorker(Worker *worker)
 
 	// If there are pending requests given to this worker, 
 	// just reply errors for the requests
-	Request *request = NULL;
-	worker->m_request_list.Rewind();
-	while( worker->m_request_list.Next(request) ) {
+	Request *request = worker->m_request;
 
-		// remove this request from worker request queue
-		worker->m_request_list.DeleteCurrent();
+	if( request ) {
+		// remove this request from worker
+		worker->m_request = NULL;
 
 		int req_id = request->m_reqid;
 
 		// remove this request from request queue
 		if( removeRequest(req_id) ) {
 			// this request was in request queue
-			
+
 			dprintf (D_ALWAYS, "Req(id=%d) is forcedly removed from worker[%d]\n",
 					req_id, worker->m_pid);
 
 			MyString output_result;
-			output_result = create_failure_result( req_id, "Req is forcedly removed from worker");
+			output_result = create_failure_result( req_id, 
+					"Req is forcedly removed from worker");
 			printf("%s", output_result.Value());
+			fflush(stdout);
 		}
 	}
 }
@@ -1158,20 +1131,18 @@ IOProcess::addNewRequest(const char *cmd)
 			// Create one worker
 			worker = createNewWorker();
 		}
+	}
 
-		if( !worker ) {
-			// Here, we will use the worker with the smallest number of req.
-			worker = findWorkerWithFewestRequest();
-			if( !worker ) {
-				dprintf (D_ALWAYS, "Ooops!! There is no worker..exiting\n");
-				io_process_exit(1);
-			}
-		}
+	new_req->m_worker = worker;
+
+	if( !worker ) {
+		// There is no available worker now.
+		// So we will put this request into waiting request list
+		m_waiting_request_list.Append(new_req);
+	}else {
+		worker->m_request = new_req;
 	}
 	
-	new_req->m_worker = worker;
-	worker->m_request_list.Append(new_req);
-
 	// Finally put this request into request queue
 	m_pending_req_list.insert(new_req->m_reqid, new_req);
 	return new_req;
@@ -1225,3 +1196,19 @@ IOProcess::numOfRealWorkers(void)
 
 	return real_workers;
 }
+
+Request *
+IOProcess::popWaitingRequest(void)
+{
+	Request *new_request = NULL;
+
+	m_waiting_request_list.Rewind();
+	m_waiting_request_list.Next(new_request);	
+
+	if( new_request ) {
+		m_waiting_request_list.DeleteCurrent();
+	}
+
+	return new_request;
+}
+
