@@ -378,7 +378,7 @@ AmazonVMStart::~AmazonVMStart()
 	}
 }
 
-// Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <groupname> <groupname> ..
+// Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <instancetype> <groupname> <groupname> ..
 // <groupname> are optional ones.
 // we support multiple groupnames
 
@@ -389,10 +389,10 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	
 	vmprintf (D_FULLDEBUG, "AmazonVMStart workerFunction is called\n");
 	
-	if( !verify_min_number_args(argc, 8) ) {
+	if( !verify_min_number_args(argc, 9) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
 		vmprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
-				8, argc, argv[0]);
+				9, argc, argv[0]);
 		return FALSE;
 	}
 
@@ -408,7 +408,7 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	request.secretkeyfile = argv[3];
 	request.ami_id = argv[4];
 
-	// we already know the number of arguments is >= 8
+	// we already know the number of arguments is >= 9
 	if( strcasecmp(argv[5], NULLSTRING) ) {
 		request.keypair = argv[5];
 	}
@@ -421,8 +421,12 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 		request.user_data_file = argv[7];
 	}
 
+	if( strcasecmp(argv[8], NULLSTRING) ) {
+		request.instance_type = argv[8];
+	}
+
 	int i = 0;
-	for( i = 8; i < argc; i++ ) {
+	for( i = 9; i < argc; i++ ) {
 		if( strcasecmp(argv[i], NULLSTRING) ) {
 			request.groupnames.append(argv[i]);
 		}
@@ -500,6 +504,11 @@ bool AmazonVMStart::Request()
 			systemcmd.AppendArg("-userdata");
 			systemcmd.AppendArg(user_data);
 		}
+	}
+
+	if( instance_type.IsEmpty() == false ) {
+		systemcmd.AppendArg("-instancetype");
+		systemcmd.AppendArg(instance_type);
 	}
 
 	if( groupnames.isEmpty() == false ) {

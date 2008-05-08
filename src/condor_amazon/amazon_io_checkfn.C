@@ -30,19 +30,20 @@
 #include "amazongahp_common.h"
 #include "amazonCommands.h"
 
-// Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <groupname> <groupname> ..
+// Expecting:AMAZON_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <userdata> <userdatafile> <instancetype> <groupname> <groupname> ..
 // <groupname> are optional ones.
 // we support multiple groupnames
 bool AmazonVMStart::ioCheck(char **argv, int argc)
 {
-	return verify_min_number_args(argc, 8) &&
+	return verify_min_number_args(argc, 9) &&
 		verify_request_id(argv[1]) &&
 		verify_string_name(argv[2]) &&
 		verify_string_name(argv[3]) &&
 		verify_ami_id(argv[4]) &&
-		verify_string_name(argv[5]);
-		verify_string_name(argv[6]);
-		verify_string_name(argv[7]);
+		verify_string_name(argv[5]) &&
+		verify_string_name(argv[6]) &&
+		verify_string_name(argv[7]) &&
+		verify_string_name(argv[8]);
 }
 
 // Expecting:AMAZON_VM_STOP <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
