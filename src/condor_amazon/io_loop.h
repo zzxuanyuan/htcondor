@@ -83,7 +83,6 @@ class IOProcess : public Service {
 	Worker* findFreeWorker(void);
 	Worker* findWorkerWithFewestRequest(void);
 	Worker* findWorker(int pid);
-	Worker* findWorkerwithFewestRequest(void);
 
 	int workerManager();
 	void resetWorkerManagerTimer(void);
