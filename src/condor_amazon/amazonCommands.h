@@ -62,7 +62,7 @@
 #define GENERAL_GAHP_ERROR_CODE	"GAHPERROR"
 #define GENERAL_GAHP_ERROR_MSG	"GAHP_ERROR"
 
-#define AWS_URL "http://ec2.amazonaws.com/"
+#define AWS_URL "https://ec2.amazonaws.com/"
 
 class AmazonRequest {
 	public:
