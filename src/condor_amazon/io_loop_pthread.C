@@ -397,6 +397,8 @@ IOProcess::IOProcess(void)
 
 IOProcess::~IOProcess()
 {
+	pthread_mutex_destroy(&m_result_mutex);
+	pthread_mutex_destroy(&m_worker_list_mutex);
 }
 
 bool

@@ -51,6 +51,11 @@ class Worker {
 		pthread_cond_init(&m_cond, NULL);
 	}
 
+	~Worker() {
+		pthread_cond_destroy(&m_cond);
+		pthread_mutex_destroy(&m_mutex);
+	}
+
 	bool removeRequest(int req_id);
 	int numOfRequest(void) { return m_request_list.Number(); }
 	
