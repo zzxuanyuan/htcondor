@@ -287,7 +287,7 @@ print STDERR <<EOF;
 Usage: $progname command [parameters]
 
 EC2-Command         Parameters 
-start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -group <groupname> -userdata <data> -userdatafile <datafile> ]
+start           -a <accesskeyfile> -s <secretkeyfile> -id <AMI-id> [ -key <loginkeypair> -group <groupname> -userdata <data> -userdatafile <datafile> -instancetype <m1.small,m1.large,m1.xlarge> ]
 stop            -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 reboot          -a <accesskeyfile> -s <secretkeyfile> -id <instance-id>
 status          -a <accesskeyfile> -s <secretkeyfile> [ -instanceid <instance-id> -amiid <ami-id> -group <groupname> ]
