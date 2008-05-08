@@ -1780,6 +1780,31 @@ NORDUGRID_GAHP = $(SBIN)/nordugrid_gahp
 #MYPROXY_GET_DELEGATION = /path/to/myproxy-get-delegation
 
 ##
+## EC2: Universe = Grid, Grid_Resource = Amazon
+##
+
+## The location of the amazon-gahp programs, required
+AMAZON_GAHP = $(SBIN)/amazon-gahp
+AMAZON_GAHP_WORKER = $(SBIN)/amazon-gahp_worker_thread
+
+## The location of the amazon-gaph EC2 interface script,
+## condor_amazon.pl, required
+AMAZON_EC2_LIB = $(LIBEXEC)
+
+## Location of log files, useful for debugging, must be in
+## a directory writable by any user, such as /tmp
+AMAZON_GAHP_LOG = /tmp/AmazonGahpLog.$(USERNAME)
+AMAZON_GAHP_WORKER_THREAD_LOG = /tmp/AmazonGahpWorkerLog.$(USERNAME)
+
+## The number of seconds between status update requests to EC2. You can
+## make this short (5 seconds) if you want Condor to respond quickly to
+## instances as they terminate, or you can make it long (300 seconds = 5
+## minutes) if you know your instances will run for awhile and don't mind
+## delay between when they stop and when Condor responds to them
+## stopping.
+GRIDMANAGER_JOB_PROBE_INTERVAL = 300
+
+##
 ##--------------------------------------------------------------------
 ##  condor_credd credential managment daemon
 ##--------------------------------------------------------------------
