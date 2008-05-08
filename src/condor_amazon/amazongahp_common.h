@@ -78,6 +78,7 @@ bool check_access_and_secret_key_file(const char* accesskeyfile, const char* sec
 MyString create_failure_result( int req_id, const char *err_msg, const char* err_code = NULL);
 MyString create_success_result( int req_id, StringList *result_list);
 
+bool set_gahp_log_file(const char* logfile);
 void vmprintf( int flags, const char *fmt, ... );
 extern int vmprintf_debug_level;
 
