@@ -970,17 +970,10 @@ IOProcess::findWorkerWithFewestRequest(void)
 Worker* 
 IOProcess::findWorker(int pid)
 {
-	int currentkey = 0;
 	Worker *worker = NULL;
 
-	m_workers_list.startIterations();
-	while( m_workers_list.iterate(currentkey, worker) != 0 ) {
-		if( worker->m_pid == pid ) {
-			return worker;
-		}
-	}
-
-	return NULL;
+	m_workers_list.lookup(pid, worker);
+	return worker;
 }
 
 int
@@ -1032,17 +1025,19 @@ IOProcess::killWorker(int pid, bool graceful)
 	int currentkey = 0;
 	Worker *worker = NULL;
 
-	// pid == 0 means killing all workers
-	m_workers_list.startIterations();
-	while( m_workers_list.iterate(currentkey, worker) != 0 ) {
-		if( !pid || (worker->m_pid == pid) ) {
-			
+	if( pid > 0 ) {
+		worker = findWorker(pid);
+		if( worker ) {
 			killWorker(worker, graceful);
+		}
+		return;
+	}
 
-			if( pid > 0 ) {
-				// we wanted just one
-				return;
-			}
+	// pid == 0 means killing all workers
+	if( pid == 0 ) {
+		m_workers_list.startIterations();
+		while( m_workers_list.iterate(currentkey, worker) != 0 ) {
+			killWorker(worker, graceful);
 		}
 	}
 }
@@ -1188,11 +1183,7 @@ IOProcess::findRequest(int req_id)
 	Request* request = NULL;
 	m_pending_req_list.lookup(req_id, request);
 
-	if( request ) {
-		return request;
-	}
-
-	return NULL;
+	return request;
 }
 
 bool
