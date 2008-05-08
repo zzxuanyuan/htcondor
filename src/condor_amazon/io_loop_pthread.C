@@ -372,9 +372,9 @@ Worker::Worker(int worker_id)
 
 Worker::~Worker() 
 {
-	pthread_mutex_lock(&m_mutex);
-
 	Request *request = NULL;
+
+	pthread_mutex_lock(&m_mutex);
 	m_request_list.Rewind();
 	while( m_request_list.Next(request) ) {
 		m_request_list.DeleteCurrent();
@@ -391,15 +391,20 @@ bool
 Worker::removeRequest(int req_id)
 {
 	Request *request = NULL;
+
+	pthread_mutex_lock(&m_mutex);
 	m_request_list.Rewind();
 	while( m_request_list.Next(request) ) {
 
 		if( request->m_reqid == req_id ) {
 			// remove this request from worker request queue
 			m_request_list.DeleteCurrent();
+			delete request;
+			pthread_mutex_unlock(&m_mutex);
 			return true;
 		}	
 	}
+	pthread_mutex_unlock(&m_mutex);
 
 	return false;
 }
