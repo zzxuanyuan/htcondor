@@ -1,0 +1,55 @@
+WORKER_THREAD = amazon-gahp_worker_thread 
+IO_THREAD = amazon-gahp
+
+PROGRAMS = $(WORKER_THREAD) $(IO_THREAD)
+
+all_target( $(PROGRAMS) )
+
+CFLAGS = $(STD_C_FLAGS)
+
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(CONFIGURE_GSOAP_LDFLAGS)
+
+soapobjs(amazongahp)
+
+#if AMAZON_GSOAP_ENABLED
+SOAP_CLIENT_OBJ = gsoap_commands.o wsseapi.o smdevp.o dom.o ec2C.o ec2Client.o soap_serve_dummy.o
+#endif
+
+WORKER_THREAD_OBJ = PipeBuffer.o amazon_worker.o amazongahp_common.o amazonCommands.o amazongahp_instantiate.o amazon_io_checkfn.o $(SOAP_CLIENT_OBJ)
+
+IO_THREAD_OBJ = PipeBuffer.o io_loop.o amazongahp_common.o request.o amazongahp_instantiate.o amazon_io_checkfn.o $(SOAP_OBJS)
+
+template_inst( amazongahp_instantiate.C, amazongahp_instantiate.o )
+
+public_c_plus_target($(WORKER_THREAD),sbin,$(WORKER_THREAD_OBJ),$(LIB))
+public_c_plus_target($(IO_THREAD),sbin,$(IO_THREAD_OBJ),$(LIB))
+
+public_copy_target(ec2_lib/condor_amazon.pl,libexec,condor_amazon.pl,EXECUTABLE_MODE)
+
+html:
+
+testbin:: all
+
+IMPORT_LINKS = ../../config/import_links
+import(../condor_util_lib, setsyscalls.o )
+
+gen_soapfiles(amazongahp,condorAmazongahp)
+
+#if AMAZON_GSOAP_ENABLED
+2007-08-29.ec2.wsdl:
+	wget "http://ec2.amazonaws.com/doc/2007-08-29/AmazonEC2.wsdl"
+
+2007-08-29.ec2.h: 2007-08-29.ec2.wsdl
+	$(WSDL2H) -s -nec2 -Nec2 2007-08-29.ec2.wsdl
+	echo "NOTICE: patching 2007-08-29.ec2.h"
+	echo "#import \"wsse.h\"" >> 2007-08-29.ec2.h
+	echo "struct SOAP_ENV__Header { mustUnderstand _wsse__Security *wsse__Security; };" >> 2007-08-29.ec2.h
+
+gsoap_commands.C: ec2H.h
+
+ec2H.h ec2Stub.h ec2C.C ec2Client.C: 2007-08-29.ec2.h
+	$(SOAPCPP2) -C -L -w -x -pec2 -I. 2007-08-29.ec2.h
+	mv ec2C.cpp ec2C.C
+	mv ec2Client.cpp ec2Client.C
+#endif
