@@ -20,7 +20,6 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "PipeBuffer.h"
-#include "amazongahp_common.h"
 
 PipeBuffer::PipeBuffer (int _pipe_end) {
 	pipe_end = _pipe_end;
