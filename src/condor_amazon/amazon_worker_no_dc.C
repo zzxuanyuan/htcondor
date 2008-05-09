@@ -53,12 +53,12 @@ handle_gahp_command(char ** argv, int argc)
 {
 	// Assume it's been verified
 	if( argc < 2 ) {
-		vmprintf (D_ALWAYS, "Invalid request\n");
+		dprintf (D_ALWAYS, "Invalid request\n");
 		return FALSE;
 	}
 
 	if( !verify_request_id(argv[1]) ) {
-		vmprintf (D_ALWAYS, "Invalid request ID\n");
+		dprintf (D_ALWAYS, "Invalid request ID\n");
 		return FALSE;
 	}
 
@@ -78,14 +78,14 @@ waitForCommand(void)
 	MyString* next_line = NULL;
 	while ((next_line = request_buffer.GetNextLine()) != NULL) {
 
-		vmprintf (D_FULLDEBUG, "got work request: %s\n", next_line->Value());
+		dprintf (D_FULLDEBUG, "got work request: %s\n", next_line->Value());
 
 		Gahp_Args args;
 
 		// Parse the command...
 		if (!( parse_gahp_command (next_line->Value(), &args) &&
 					handle_gahp_command (args.argv, args.argc) )) {
-			vmprintf (D_ALWAYS, "ERROR processing %s\n", next_line->Value());
+			dprintf (D_ALWAYS, "ERROR processing %s\n", next_line->Value());
 		}
 
 		// Clean up...
@@ -94,7 +94,7 @@ waitForCommand(void)
 
 	// check for an error in GetNextLine
 	if (request_buffer.IsError() || request_buffer.IsEOF()) {
-		vmprintf (D_ALWAYS, "Request pipe closed. Exiting...\n");
+		dprintf (D_ALWAYS, "Request pipe closed. Exiting...\n");
 		exit (1);
 	}
 
@@ -105,7 +105,7 @@ static bool
 registerAllAmazonCommands(void)
 {
 	if( numofAmazonCommands() > 0 ) {
-		vmprintf(D_ALWAYS, "There are already registered commands\n");
+		dprintf(D_ALWAYS, "There are already registered commands\n");
 		return false;
 	}
 
@@ -198,32 +198,30 @@ int
 main( int argc, char ** const argv )
 {
 	// All log should be printed to stderr
-	Termlog = 1;
+	set_gahp_log_file(NULL);	
 
 	// get env
 	MyString debug_string = getenv("DebugLevel");
-	int debug_level = (int)strtol(debug_string.Value(), (char**)NULL, 16);
-
-	if( debug_level > 0 ) {
-		vmprintf_debug_level = debug_level;
+	if( debug_string.IsEmpty() == false ) {
+		set_debug_flags( (char* )debug_string.GetCStr());
 	}
 
 	// For Testing for exec perl
 	//set_amazon_lib_path("/scratch/amazonCompile/src/condor_amazon/ec2_lib");
 	
-	vmprintf(D_FULLDEBUG, "Welcome to the AMAZON-GAHP\n");
+	dprintf(D_FULLDEBUG, "Welcome to the AMAZON-GAHP\n");
 
 	// Save current working_dir;
 	char tmpCwd[_POSIX_PATH_MAX];
 	if( !getcwd(tmpCwd, _POSIX_PATH_MAX) ) {
-		vmprintf(D_ALWAYS, "Failed to getcwd\n");
+		dprintf(D_ALWAYS, "Failed to getcwd\n");
 		exit(1);
 	}
 	set_working_dir(tmpCwd);
 
 	// Register all amazon commands
 	if( registerAllAmazonCommands() == false ) {
-		vmprintf(D_ALWAYS, "Can't register Amazon Commands\n");
+		dprintf(D_ALWAYS, "Can't register Amazon Commands\n");
 		exit( 1 );
 	}
 

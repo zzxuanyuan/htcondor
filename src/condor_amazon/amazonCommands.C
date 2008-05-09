@@ -37,12 +37,6 @@
 #define PERL_SCRIPT_ERROR_CODE "#ECODE"
 #define NULLSTRING "NULL"
 
-// For changing dprintf to vmprintf
-#ifdef dprintf
-#undef dprintf
-#define dprintf vmprintf
-#endif
-
 static bool
 __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 {
@@ -52,7 +46,7 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 	if( !fp ) {
 		MyString args_string;
 		args.GetArgsStringForDisplay(&args_string,0);
-		vmprintf(D_ALWAYS, "Failed to execute my_popen: %s\n", args_string.Value());
+		dprintf(D_ALWAYS, "Failed to execute my_popen: %s\n", args_string.Value());
 		return false;
 	}
 
@@ -72,7 +66,7 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		}
 
 		read_something = true;
-		vmprintf(D_FULLDEBUG, "__systemCommand got : %s\n", one_line.Value());
+		dprintf(D_FULLDEBUG, "__systemCommand got : %s\n", one_line.Value());
 
 		// find error line
 		if( !strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
@@ -104,7 +98,7 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 	if( !read_something ) {
 		MyString args_string;
 		args.GetArgsStringForDisplay(&args_string,0);
-		vmprintf(D_ALWAYS, "Error: '%s' did not produce any valid output\n", args_string.Value());
+		dprintf(D_ALWAYS, "Error: '%s' did not produce any valid output\n", args_string.Value());
 		return false;
 	}
 
@@ -127,7 +121,7 @@ systemCommand(ArgList &args, StringList &output, MyString &ecode)
 	/*
 	if( chdir_path ) {
 		if( chdir(chdir_path) < 0 ) {
-			vmprintf(D_ALWAYS, "Cannot switch dir to %s\n", chdir_path);
+			dprintf(D_ALWAYS, "Cannot switch dir to %s\n", chdir_path);
 			chdir(get_working_dir());
 			return -1;
 		}
@@ -147,7 +141,7 @@ systemCommand(ArgList &args, StringList &output, MyString &ecode)
 			break;
 		}
 
-		vmprintf(D_ALWAYS, "Command(%s) got error code(%s)\n", 
+		dprintf(D_ALWAYS, "Command(%s) got error code(%s)\n", 
 				args_string.Value(), ecode.Value());
 
 		// If ecode is InternalError, retry it up to 3 times
@@ -182,11 +176,11 @@ static bool parseAmazonStatusResult( const char* result_line, AmazonStatusResult
 		return false;
 	}
 
-	vmprintf(D_FULLDEBUG, "get status: %s\n", result_line);
+	dprintf(D_FULLDEBUG, "get status: %s\n", result_line);
 
 	StringList result_string(result_line, ",");
 	if( result_string.isEmpty() ) {
-		vmprintf(D_ALWAYS, "Invalid status format(%s)\n", result_line);
+		dprintf(D_ALWAYS, "Invalid status format(%s)\n", result_line);
 		return false;
 	}
 
@@ -240,7 +234,7 @@ static bool parseAmazonStatusResult( const char* result_line, AmazonStatusResult
 	}
 
 	if( output.status.IsEmpty() ) {
-		vmprintf(D_ALWAYS, "Failed to get valid status\n");
+		dprintf(D_ALWAYS, "Failed to get valid status\n");
 		return false;
 	}
 
@@ -261,17 +255,17 @@ static bool parseAmazonGroupRuleResult( const char* result_line, AmazonGroupRule
 		return false;
 	}
 
-	vmprintf(D_FULLDEBUG, "get status: %s\n", result_line);
+	dprintf(D_FULLDEBUG, "get status: %s\n", result_line);
 
 	StringList result_string(result_line, "\t");
 	if( result_string.isEmpty() ) {
-		vmprintf(D_ALWAYS, "Invalid group rule format(%s)\n", result_line);
+		dprintf(D_ALWAYS, "Invalid group rule format(%s)\n", result_line);
 		return false;
 	}
 
 	result_string.rewind();
 	if( result_string.number() != 4 ) {
-		vmprintf(D_ALWAYS, "Invalid group rule format(%s)\n", result_line);
+		dprintf(D_ALWAYS, "Invalid group rule format(%s)\n", result_line);
 	}
 
 	output.ip_range = result_string.next();
@@ -387,18 +381,18 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
-	vmprintf (D_FULLDEBUG, "AmazonVMStart workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMStart workerFunction is called\n");
 	
 	if( !verify_min_number_args(argc, 9) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
 				9, argc, argv[0]);
 		return FALSE;
 	}
 
 	if( !verify_ami_id(argv[4]) ) {
 		result_string = create_failure_result( req_id, "Invalid_AMI_ID");
-		vmprintf (D_ALWAYS, "Invalid AMI Id format %s to %s\n", argv[4], argv[0]);
+		dprintf (D_ALWAYS, "Invalid AMI Id format %s to %s\n", argv[4], argv[0]);
 		return FALSE;
 	}
 	
@@ -456,7 +450,7 @@ bool AmazonVMStart::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -470,13 +464,13 @@ bool AmazonVMStart::Request()
 
 	if( ami_id.IsEmpty() ) {
 		error_msg = "Empty_AMI_ID";
-		vmprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -555,7 +549,7 @@ bool AmazonVMStart::Request()
 		instance_id = tmp_msg;
 
 		if( instance_id.IsEmpty() ) {
-			vmprintf(D_ALWAYS, "Failed to get instance id during AmazonVMStart\n");
+			dprintf(D_ALWAYS, "Failed to get instance id during AmazonVMStart\n");
 			return false;
 		}
 	}
@@ -575,18 +569,18 @@ bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMStop workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMStop workerFunction is called\n");
 
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
 
 	if( !verify_instance_id(argv[4]) ) {
 		result_string = create_failure_result( req_id, "Invalid_Instance_Id");
-		vmprintf (D_ALWAYS, "Invalid Instance Id format %s to %s\n", argv[4], argv[0]);
+		dprintf (D_ALWAYS, "Invalid Instance Id format %s to %s\n", argv[4], argv[0]);
 		return FALSE;
 	}
 	
@@ -617,19 +611,19 @@ bool AmazonVMStop::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
 		error_msg = "Empty_Instance_ID";
-		vmprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -672,18 +666,18 @@ bool AmazonVMReboot::workerFunction(char **argv, int argc, MyString &result_stri
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
-	vmprintf (D_FULLDEBUG, "AmazonVMReboot workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMReboot workerFunction is called\n");
 
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
 
 	if( !verify_instance_id(argv[4]) ) {
 		result_string = create_failure_result( req_id, "Invalid_Instance_Id");
-		vmprintf (D_ALWAYS, "Invalid Instance Id format %s to %s\n", argv[4], argv[0]);
+		dprintf (D_ALWAYS, "Invalid Instance Id format %s to %s\n", argv[4], argv[0]);
 		return FALSE;
 	}
 
@@ -710,19 +704,19 @@ bool AmazonVMReboot::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
 		error_msg = "Empty_Instance_ID";
-		vmprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -765,18 +759,18 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
-	vmprintf (D_FULLDEBUG, "AmazonVMStatus workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMStatus workerFunction is called\n");
 
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
 
 	if( !verify_instance_id(argv[4]) ) {
 		result_string = create_failure_result( req_id, "Invalid_Instance_Id");
-		vmprintf (D_ALWAYS, "Invalid Instance Id format %s to %s\n", argv[4], argv[0]);
+		dprintf (D_ALWAYS, "Invalid Instance Id format %s to %s\n", argv[4], argv[0]);
 		return FALSE;
 	}
 
@@ -809,19 +803,19 @@ bool AmazonVMStatus::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
 		error_msg = "Empty_Instance_ID";
-		vmprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -849,7 +843,7 @@ bool AmazonVMStatus::Request()
 
 	char *result_line = output.next();
 	if( !result_line ) {
-		vmprintf(D_ALWAYS, "Failed to get status output during AmazonVMStatus\n");
+		dprintf(D_ALWAYS, "Failed to get status output during AmazonVMStatus\n");
 		return false;
 	}
 
@@ -883,11 +877,11 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMStatusAll workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMStatusAll workerFunction is called\n");
 	
 	if( !verify_number_args(argc ,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -929,13 +923,13 @@ bool AmazonVMStatusAll::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1010,11 +1004,11 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMRunningKeypair workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMRunningKeypair workerFunction is called\n");
 	
 	if( !verify_number_args(argc ,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -1075,11 +1069,11 @@ bool AmazonVMCreateGroup::workerFunction(char **argv, int argc, MyString &result
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMCreateGroup workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMCreateGroup workerFunction is called\n");
 
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				6, argc, argv[0]);
 		return FALSE;
 	}
@@ -1108,25 +1102,25 @@ bool AmazonVMCreateGroup::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( groupname.IsEmpty() ) {
 		error_msg = "Empty_Group_Name";
-		vmprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( group_description.IsEmpty() ) {
 		error_msg = "Empty_Group_Description";
-		vmprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1171,11 +1165,11 @@ bool AmazonVMDeleteGroup::workerFunction(char **argv, int argc, MyString &result
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMDeleteGroup workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMDeleteGroup workerFunction is called\n");
 
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -1203,19 +1197,19 @@ bool AmazonVMDeleteGroup::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( groupname.IsEmpty() ) {
 		error_msg = "Empty_Group_Name";
-		vmprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1258,11 +1252,11 @@ bool AmazonVMGroupNames::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMGroupNames workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMGroupNames workerFunction is called\n");
 
 	if( !verify_number_args(argc,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -1289,13 +1283,13 @@ bool AmazonVMGroupNames::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1322,7 +1316,7 @@ bool AmazonVMGroupNames::Request()
 
 	if( output.number() == 0 ) {
 		// At least there must be "default" group.
-		vmprintf(D_ALWAYS, "Failed to get group name during AmazonVMGroupNames\n");
+		dprintf(D_ALWAYS, "Failed to get group name during AmazonVMGroupNames\n");
 		return false;
 	}
 
@@ -1368,11 +1362,11 @@ bool AmazonVMGroupRules::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMGroupRules workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMGroupRules workerFunction is called\n");
 
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be = %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be = %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -1412,13 +1406,13 @@ bool AmazonVMGroupRules::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1492,11 +1486,11 @@ bool AmazonVMAddGroupRule::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMAddGroupRule workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMAddGroupRule workerFunction is called\n");
 
 	if( !verify_min_number_args(argc,8) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be >=%d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be >=%d, but %d) to %s\n", 
 				8, argc, argv[0]);
 		return FALSE;
 	}
@@ -1531,13 +1525,13 @@ bool AmazonVMAddGroupRule::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1592,11 +1586,11 @@ bool AmazonVMDelGroupRule::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMDelGroupRule workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMDelGroupRule workerFunction is called\n");
 
 	if( !verify_min_number_args(argc,8) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be >=%d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be >=%d, but %d) to %s\n", 
 				8, argc, argv[0]);
 		return FALSE;
 	}
@@ -1631,13 +1625,13 @@ bool AmazonVMDelGroupRule::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1693,11 +1687,11 @@ bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &resu
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMCreateKeypair workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMCreateKeypair workerFunction is called\n");
 
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				6, argc, argv[0]);
 		return FALSE;
 	}
@@ -1730,13 +1724,13 @@ bool AmazonVMCreateKeypair::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( keyname.IsEmpty() ) {
 		error_msg = "Empty_Keyname";
-		vmprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1748,14 +1742,14 @@ bool AmazonVMCreateKeypair::Request()
 	if( has_outputfile ) { 
 		if( check_create_file(outputfile.GetCStr()) == false ) {
 			error_msg = "No_permission_for_keypair_outputfile";
-			vmprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
+			dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
 			return false;
 		}
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1812,11 +1806,11 @@ bool AmazonVMCreateKeypair::Request()
 			if( fsync(fd) == 0 ) {
 				write_success = true;
 			}else {
-				vmprintf (D_ALWAYS, "AmazonVMDestroyKeypair Disk Writing Error!\n");
+				dprintf (D_ALWAYS, "AmazonVMDestroyKeypair Disk Writing Error!\n");
 			}
 			close(fd);
 		}else {
-			vmprintf (D_ALWAYS, "AmazonVMDestroyKeypair File Open Error!\n");
+			dprintf (D_ALWAYS, "AmazonVMDestroyKeypair File Open Error!\n");
 		}
 
 		if( !write_success ) {
@@ -1874,11 +1868,11 @@ bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &res
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMDestroyKeypair workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMDestroyKeypair workerFunction is called\n");
 
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -1910,19 +1904,19 @@ bool AmazonVMDestroyKeypair::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( keyname.IsEmpty() ) {
 		error_msg = "Empty_Keyname";
-		vmprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -1965,11 +1959,11 @@ bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMKeypairNames workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMKeypairNames workerFunction is called\n");
 
 	if( !verify_number_args(argc,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -2000,13 +1994,13 @@ bool AmazonVMKeypairNames::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2062,11 +2056,11 @@ bool AmazonVMRegisterImage::workerFunction(char **argv, int argc, MyString &resu
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 	
-	vmprintf (D_FULLDEBUG, "AmazonVMRegisterImage workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMRegisterImage workerFunction is called\n");
 
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -2096,13 +2090,13 @@ bool AmazonVMRegisterImage::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2133,7 +2127,7 @@ bool AmazonVMRegisterImage::Request()
 	ami_id = output.next();
 
 	if( ami_id.IsEmpty() ) {
-		vmprintf(D_ALWAYS, "Failed to get ami id during AmazonVMRegisterImage\n");
+		dprintf(D_ALWAYS, "Failed to get ami id during AmazonVMRegisterImage\n");
 		return false;
 	}
 	return true;
@@ -2151,11 +2145,11 @@ bool AmazonVMDeregisterImage::workerFunction(char **argv, int argc, MyString &re
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonVMDeregisterImage workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonVMDeregisterImage workerFunction is called\n");
 	
 	if( !verify_number_args(argc ,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -2183,13 +2177,13 @@ bool AmazonVMDeregisterImage::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2234,11 +2228,11 @@ bool AmazonS3AllBuckets::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3AllBuckets workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3AllBuckets workerFunction is called\n");
 
 	if( !verify_number_args(argc,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -2265,13 +2259,13 @@ bool AmazonS3AllBuckets::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2319,11 +2313,11 @@ bool AmazonS3CreateBucket::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3CreateBucket workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3CreateBucket workerFunction is called\n");
 
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -2351,13 +2345,13 @@ bool AmazonS3CreateBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2399,11 +2393,11 @@ bool AmazonS3DeleteBucket::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3DeleteBucket workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3DeleteBucket workerFunction is called\n");
 
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -2431,13 +2425,13 @@ bool AmazonS3DeleteBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2480,11 +2474,11 @@ bool AmazonS3ListBucket::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3ListBucket workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3ListBucket workerFunction is called\n");
 
 	if( !verify_number_args(argc,5) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				5, argc, argv[0]);
 		return FALSE;
 	}
@@ -2512,13 +2506,13 @@ bool AmazonS3ListBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2577,11 +2571,11 @@ bool AmazonS3UploadFile::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3UploadFile workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3UploadFile workerFunction is called\n");
 
 	if( !verify_number_args(argc,7) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				7, argc, argv[0]);
 		return FALSE;
 	}
@@ -2611,7 +2605,7 @@ bool AmazonS3UploadFile::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2622,7 +2616,7 @@ bool AmazonS3UploadFile::Request()
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2668,11 +2662,11 @@ bool AmazonS3UploadDir::workerFunction(char **argv, int argc, MyString &result_s
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3UploadDir workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3UploadDir workerFunction is called\n");
 
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				6, argc, argv[0]);
 		return FALSE;
 	}
@@ -2701,7 +2695,7 @@ bool AmazonS3UploadDir::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2712,7 +2706,7 @@ bool AmazonS3UploadDir::Request()
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2809,11 +2803,11 @@ bool AmazonS3DeleteFile::workerFunction(char **argv, int argc, MyString &result_
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3DeleteFile workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3DeleteFile workerFunction is called\n");
 
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				6, argc, argv[0]);
 		return FALSE;
 	}
@@ -2842,13 +2836,13 @@ bool AmazonS3DeleteFile::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2892,11 +2886,11 @@ bool AmazonS3DownloadFile::workerFunction(char **argv, int argc, MyString &resul
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3DownloadFile workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3DownloadFile workerFunction is called\n");
 
 	if( !verify_number_args(argc,7) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				7, argc, argv[0]);
 		return FALSE;
 	}
@@ -2926,13 +2920,13 @@ bool AmazonS3DownloadFile::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", error_msg.Value());
 		return false;
 	}
 
@@ -2978,11 +2972,11 @@ bool AmazonS3DownloadBucket::workerFunction(char **argv, int argc, MyString &res
 	int req_id = 0;
 	get_int(argv[1], &req_id);
 
-	vmprintf (D_FULLDEBUG, "AmazonS3DownloadBucket workerFunction is called\n");
+	dprintf (D_FULLDEBUG, "AmazonS3DownloadBucket workerFunction is called\n");
 
 	if( !verify_number_args(argc,6) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		vmprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
 				6, argc, argv[0]);
 		return FALSE;
 	}
@@ -3011,13 +3005,13 @@ bool AmazonS3DownloadBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
 				secretkeyfile.GetCStr(), error_msg) ) {
-		vmprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
 		error_msg = "No_Amazon_Library";
-		vmprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", error_msg.Value());
+		dprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", error_msg.Value());
 		return false;
 	}
 

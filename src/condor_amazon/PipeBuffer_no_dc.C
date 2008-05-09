@@ -49,12 +49,12 @@ PipeBuffer::GetNextLine () {
 		readahead_length = read(pipe_end, readahead_buffer, PIPE_BUFFER_READAHEAD_SIZE);
 		if (readahead_length < 0) {
 			error = true;
-			vmprintf (D_ALWAYS, "error reading from pipe %d\n", pipe_end);
+			dprintf (D_ALWAYS, "error reading from pipe %d\n", pipe_end);
 			return NULL;
 		}
 		if (readahead_length == 0) {
 			eof = true;
-			vmprintf(D_ALWAYS, "EOF reached on pipe %d\n", pipe_end);
+			dprintf(D_ALWAYS, "EOF reached on pipe %d\n", pipe_end);
 			return NULL;
 		}
 
@@ -111,7 +111,7 @@ PipeBuffer::Write (const char * towrite) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return 0;
 
-		vmprintf (D_ALWAYS, "Error %d writing to pipe %d\n", errno, pipe_end);
+		dprintf (D_ALWAYS, "Error %d writing to pipe %d\n", errno, pipe_end);
 		error = true;
 		return -1;
 	}

@@ -72,7 +72,7 @@ static void io_process_exit(int exit_num)
 void
 usage()
 {
-	vmprintf( D_ALWAYS, "Usage: amazon-gahp -f logfile -d debuglevel -w min_worker_nums\n");
+	dprintf( D_ALWAYS, "Usage: amazon-gahp -f logfile -d debuglevel -w min_worker_nums\n");
 	exit(1);
 }
 
@@ -80,7 +80,7 @@ static bool
 registerAllAmazonCommands(void)
 {
 	if( numofAmazonCommands() > 0 ) {
-		vmprintf(D_ALWAYS, "There are already registered commands\n");
+		dprintf(D_ALWAYS, "There are already registered commands\n");
 		return false;
 	}
 
@@ -188,8 +188,8 @@ quit_on_signal(int sig)
 int
 main( int argc, char ** const argv )
 {
-	// All log should be printed to either gahp log file or stderr
-	Termlog = 1;
+	// All log should be printed to stderr
+	set_gahp_log_file(NULL);
 
 #ifndef WIN32
 	/* Add the signals we want unblocked into sigSet */
@@ -217,10 +217,8 @@ main( int argc, char ** const argv )
 
 	// get env
 	MyString debug_string = getenv("DebugLevel");
-	int debug_level = (int)strtol(debug_string.Value(), (char**)NULL, 16);
-
-	if( debug_level > 0 ) {
-		vmprintf_debug_level |= debug_level;
+	if( debug_string.IsEmpty() == false ) {
+		set_debug_flags( (char* )debug_string.GetCStr());
 	}
 
 	// parse arguments
@@ -245,10 +243,10 @@ main( int argc, char ** const argv )
 				// Debug Level
 				// this string must be hexadecimal
 				debug_string = my_optarg;
-				debug_level = (int)strtol(debug_string.Value(), (char**)NULL, 16);
-				if( debug_level > 0 ) {
-					vmprintf_debug_level |= debug_level;
+				if( debug_string.IsEmpty() == false ) {
+					set_debug_flags( (char* )debug_string.GetCStr());
 				}
+
 				break;
 			case 'w':
 				// Minimum number of worker pools
@@ -262,12 +260,12 @@ main( int argc, char ** const argv )
 		}
 	}
 
-	vmprintf(D_FULLDEBUG, "Welcome to the AMAZON-GAHP\n");
+	dprintf(D_FULLDEBUG, "Welcome to the AMAZON-GAHP\n");
 
 	// Save current working dir
 	char tmpCwd[_POSIX_PATH_MAX];
 	if( !getcwd(tmpCwd, _POSIX_PATH_MAX) ) {
-		vmprintf(D_ALWAYS, "Failed to getcwd\n");
+		dprintf(D_ALWAYS, "Failed to getcwd\n");
 		exit(1);
 	}
 	set_working_dir(tmpCwd);
@@ -282,7 +280,7 @@ main( int argc, char ** const argv )
 
 	// Register all amazon commands
 	if( registerAllAmazonCommands() == false ) {
-		vmprintf(D_ALWAYS, "Can't register Amazon Commands\n");
+		dprintf(D_ALWAYS, "Can't register Amazon Commands\n");
 		exit(1);
 	}
 	
@@ -291,7 +289,7 @@ main( int argc, char ** const argv )
 	ASSERT(ioprocess);
 
 	if( ioprocess->startUp(REQUEST_INBOX, min_workers, max_workers) == false ) {
-		vmprintf(D_ALWAYS, "Failed to start IO Process\n");
+		dprintf(D_ALWAYS, "Failed to start IO Process\n");
 		delete ioprocess;
 		exit(1);
 	}
@@ -301,7 +299,7 @@ main( int argc, char ** const argv )
 	printf ("%s\n", version);
 	fflush(stdout);
 
-	vmprintf (D_FULLDEBUG, "AMAZON-GAHP initialized\n");
+	dprintf (D_FULLDEBUG, "AMAZON-GAHP initialized\n");
 
 	for(;;) {
 		ioprocess->stdinPipeHandler();
@@ -446,8 +444,8 @@ IOProcess::startUp(int stdin_pipe, int min_workers, int max_workers)
 	int i = 0;
 	for( i = 0; i < m_min_workers; i++ ) {
 		if( createNewWorker() == NULL ) {
-			vmprintf(D_ALWAYS, "Failed to create initial workers\n");
-			vmprintf(D_ALWAYS, "Exiting....\n");
+			dprintf(D_ALWAYS, "Failed to create initial workers\n");
+			dprintf(D_ALWAYS, "Exiting....\n");
 			io_process_exit(1);
 		}
 	}
@@ -463,7 +461,7 @@ IOProcess::stdinPipeHandler()
 
 		const char *command = line->Value();
 
-		vmprintf (D_FULLDEBUG, "got stdin: %s\n", command);
+		dprintf (D_FULLDEBUG, "got stdin: %s\n", command);
 
 		Gahp_Args args;
 
@@ -554,7 +552,7 @@ IOProcess::stdinPipeHandler()
 
 	// check if GetNextLine() returned NULL because of an error or EOF
 	if (m_stdin_buffer.IsError() || m_stdin_buffer.IsEOF()) {
-		vmprintf (D_ALWAYS, "stdin buffer closed, exiting\n");
+		dprintf (D_ALWAYS, "stdin buffer closed, exiting\n");
 		io_process_exit(1);
 	}
 
@@ -567,7 +565,7 @@ IOProcess::createNewWorker(void)
 	Worker *new_worker = NULL;
 	new_worker = new Worker(newWorkerId());
 
-	vmprintf (D_FULLDEBUG, "About to start a new thread\n");
+	dprintf (D_FULLDEBUG, "About to start a new thread\n");
 
 	// Set this worker is available
 	new_worker->m_can_use = true;
@@ -576,7 +574,7 @@ IOProcess::createNewWorker(void)
 	pthread_t thread;
 	if( pthread_create(&thread, NULL, 
 				worker_function, (void *)new_worker) !=  0 ) {
-		vmprintf(D_ALWAYS, "Failed to create a new thread\n");
+		dprintf(D_ALWAYS, "Failed to create a new thread\n");
 
 		delete new_worker;
 		return NULL;
@@ -593,7 +591,7 @@ IOProcess::createNewWorker(void)
 	m_avail_workers_num++;
 	pthread_mutex_unlock(&m_worker_list_mutex);
 
-	vmprintf(D_FULLDEBUG, "New Worker[id=%d] is created!\n", new_worker->m_id);
+	dprintf(D_FULLDEBUG, "New Worker[id=%d] is created!\n", new_worker->m_id);
 	return new_worker;
 }
 
@@ -708,7 +706,7 @@ IOProcess::removeAllRequestsFromWorker(Worker *worker)
 
 		int req_id = request->m_reqid;
 
-		vmprintf (D_ALWAYS, "Req(id=%d) is forcedly removed from worker[%d]\n",
+		dprintf (D_ALWAYS, "Req(id=%d) is forcedly removed from worker[%d]\n",
 				req_id, worker->m_id);
 
 		request->m_result = create_failure_result( req_id, 
@@ -745,7 +743,7 @@ IOProcess::addNewRequest(const char *cmd)
 			worker = findFirstAvailWorker();
 
 			if( !worker ) {
-				vmprintf (D_ALWAYS, "Ooops!! There is no worker..exiting\n");
+				dprintf (D_ALWAYS, "Ooops!! There is no worker..exiting\n");
 				io_process_exit(1);
 			}
 		}
@@ -809,7 +807,7 @@ IOProcess::newWorkerId(void)
 	}
 
 	// If we reached here, we are out of worker ids
-	vmprintf(D_ALWAYS, "Gahp Server Error - out of worker ids !!!?!?!?\n");
+	dprintf(D_ALWAYS, "Gahp Server Error - out of worker ids !!!?!?!?\n");
 	return -1;
 }
 
@@ -820,7 +818,7 @@ IOProcess::addRequestToWorker(Request* request, Worker* worker)
 		return;
 	}
 
-	vmprintf (D_FULLDEBUG, "Sending %s to worker %d\n", 
+	dprintf (D_FULLDEBUG, "Sending %s to worker %d\n", 
 			 request->m_raw_cmd.Value(), worker->m_id);
 
 	pthread_mutex_lock(&worker->m_mutex);
@@ -934,12 +932,12 @@ handle_gahp_command(Request* request)
 
 	// Assume it's been verified
 	if( argc < 2 ) {
-		vmprintf (D_ALWAYS, "Invalid request\n");
+		dprintf (D_ALWAYS, "Invalid request\n");
 		return false;
 	}
 
 	if( !verify_request_id(argv[1]) ) {
-		vmprintf (D_ALWAYS, "Invalid request ID\n");
+		dprintf (D_ALWAYS, "Invalid request ID\n");
 		return false;
 	}
 
@@ -981,12 +979,12 @@ static void worker_exit(Worker *worker, bool force)
 	}
 
 	if( need_remove ) {
-		vmprintf(D_FULLDEBUG, "Thread(%d) is exiting...\n", worker_id); 
+		dprintf(D_FULLDEBUG, "Thread(%d) is exiting...\n", worker_id); 
 
 		int retval = 0;
 		pthread_exit(&retval);
 	}else {
-		vmprintf(D_FULLDEBUG, "Thread(%d) is going to be used again\n",
+		dprintf(D_FULLDEBUG, "Thread(%d) is going to be used again\n",
 				worker_id);
 
 		// We need to keep this thread running
@@ -1007,7 +1005,7 @@ static void *worker_function( void *ptr )
 	Worker *worker = (Worker *)ptr;
 
 	if( !worker ) {
-		vmprintf (D_ALWAYS, "Ooops!! No input Data in worker thread\n");
+		dprintf (D_ALWAYS, "Ooops!! No input Data in worker thread\n");
 		return NULL;
 	}
 
@@ -1041,7 +1039,7 @@ static void *worker_function( void *ptr )
 			ts.tv_nsec = tp.tv_usec * 1000;
 			ts.tv_sec += WORKER_MANAGER_TIMER_INTERVAL;
 
-			vmprintf(D_FULLDEBUG, "Thread(%d) is calliing cond_wait\n", 
+			dprintf(D_FULLDEBUG, "Thread(%d) is calliing cond_wait\n", 
 					worker->m_id);
 
 			int retval = pthread_cond_timedwait(&worker->m_cond, 
@@ -1056,7 +1054,7 @@ static void *worker_function( void *ptr )
 			}else {
 				// If timeout happends, need to check m_must_be_alive
 				if( retval == ETIMEDOUT ) {
-					vmprintf(D_FULLDEBUG, "Thread(%d) Wait timed out !\n", 
+					dprintf(D_FULLDEBUG, "Thread(%d) Wait timed out !\n", 
 							worker->m_id);
 
 					if( !worker->m_must_be_alive ) {
@@ -1068,7 +1066,7 @@ static void *worker_function( void *ptr )
 						pthread_mutex_unlock(&worker->m_mutex);
 						worker_exit(worker, false);
 					}else {
-						vmprintf(D_FULLDEBUG, "Thread(%d) must be alive for "
+						dprintf(D_FULLDEBUG, "Thread(%d) must be alive for "
 								"another request\n", worker->m_id);
 					}
 				}
@@ -1082,10 +1080,10 @@ static void *worker_function( void *ptr )
 		pthread_mutex_unlock(&worker->m_mutex);
 
 		if(!handle_gahp_command(new_request) ) {
-			vmprintf(D_ALWAYS, "ERROR processing %s\n", 
+			dprintf(D_ALWAYS, "ERROR processing %s\n", 
 					new_request->m_raw_cmd.Value());
 		}else {
-			vmprintf(D_FULLDEBUG, "CMD(\"%s\") is done with result %s", 
+			dprintf(D_FULLDEBUG, "CMD(\"%s\") is done with result %s", 
 					new_request->m_raw_cmd.Value(),
 					new_request->m_result.Value());
 		}
