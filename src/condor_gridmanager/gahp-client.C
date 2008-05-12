@@ -5956,6 +5956,8 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	free( esc6 );
 	ASSERT( x == true );
 	
+// New parameter to AMAZON_VM_START, stuff in default value for now
+reqline.sprintf_cat(" m1.small");
 	const char * group_name;
 	int cnt = 0;
 	char * esc_groupname;
