@@ -311,6 +311,9 @@ AmazonJob::~AmazonJob()
 	if (m_group_names != NULL) delete m_group_names;
 	if (m_error_code) free(m_error_code);
 	free(m_user_data_file);
+	if ( m_retry_tid != -1 ) {
+		daemonCore->Cancel_Timer(m_retry_tid);
+	}
 }
 
 
