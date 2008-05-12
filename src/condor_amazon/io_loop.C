@@ -161,8 +161,10 @@ display_dprintf_header(FILE *fp)
 {
 	static pid_t mypid = 0;
 
-	if (!mypid) {
+	if (!mypid && daemonCore ) {
 		mypid = daemonCore->getpid();
+	}else {
+		mypid = getpid();
 	}
 
 	fprintf( fp, "[%ld] ", (long)mypid );

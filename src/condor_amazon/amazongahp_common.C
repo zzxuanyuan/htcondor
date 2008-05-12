@@ -316,6 +316,7 @@ find_amazon_lib(MyString &lib_path)
 	MyString tmp_lib_prog;
 	char * lib_path_ptr = param("AMAZON_EC2_LIB");
 	if( !lib_path_ptr ) {
+		dprintf(D_ALWAYS, "Can't find \"AMAZON_EC2_LIB\" in Condor config file\n");
 		return false;
 	}
 
