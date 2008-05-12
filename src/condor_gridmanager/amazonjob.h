@@ -49,7 +49,9 @@ public:
 	void Reconfig();
 	int doEvaluateState();
 	BaseResource *GetResource();
-	void SetRemoteJobId( const char * job_id );
+	void SetKeypairId( const char *keypair_id );
+	void SetInstanceId( const char *instance_id );
+	void SetRemoteJobId( const char *keypair_id, const char *instance_id );
 	void SetSubmitStepInfo(const char * info);
 	void SetRemoteVMName(const char * name);
 	

@@ -280,10 +280,28 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
-	if ( strrchr( buff, ' ' ) ) {
-		SetRemoteJobId( strrchr( buff, ' ' ) + 1 );
-	} else {
-		SetRemoteJobId( NULL );
+	if ( buff[0] ) {
+		const char *token;
+		MyString str = buff;
+
+		str.Tokenize();
+
+		token = str.GetNextToken( " ", false );
+		if ( !token || stricmp( token, "amazon" ) ) {
+			error_string.sprintf( "%s not of type amazon",
+								  ATTR_GRID_JOB_ID );
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( " ", false );
+		if ( token ) {
+			m_key_pair = token;
+		}
+
+		token = str.GetNextToken( " ", false );
+		if ( token ) {
+			remoteJobId = strdup( token );
+		}
 	}
 	
 	jobAd->LookupString( ATTR_GRID_JOB_STATUS, remoteJobState );
@@ -607,7 +625,7 @@ int AmazonJob::doEvaluateState()
 									// there is a running VM instance corresponding to the given SSH keypair
 									gmState = GM_AFTER_STARTVM;
 									// save the instance ID which will be used when delete VM instance
-									SetRemoteJobId( instance_id );
+									SetInstanceId( instance_id );
 									
 								} else {
 									// we shoudl re-start the VM again with the corresponding SSH keypair
@@ -634,7 +652,7 @@ int AmazonJob::doEvaluateState()
 							submit_steps->rewind();
 							for (int i=0; i<AMAZON_SUBMIT_AFTER_VM; i++)
 								submit_steps->next();
-							SetRemoteJobId( strdup(submit_steps->next()) );
+							SetInstanceId( submit_steps->next() );
 														
 							gmState = GM_SUBMIT_SAVE;
 							}
@@ -742,7 +760,7 @@ int AmazonJob::doEvaluateState()
 										if ( is_running ) {
 											
 											// save the instance ID which will be used when delete VM instance
-											SetRemoteJobId( instance_id );
+											SetInstanceId( instance_id );
 											
 											// there is a running VM instance corresponding to the given SSH keypair
 											// we should remove it and its corresponding SSH key
@@ -778,7 +796,7 @@ int AmazonJob::doEvaluateState()
 										submit_steps->next();
 									}
 									
-									SetRemoteJobId( strdup(submit_steps->next()) );
+									SetInstanceId( submit_steps->next() );
 									
 									// now try to delete VM and SSH key
 									// Notice: even when we are deleting a non-existing VM, it will return success 
@@ -822,6 +840,7 @@ int AmazonJob::doEvaluateState()
 				m_key_pair = build_keypair();
 
 				// Save this temporarily created SSH keypair to the submitting log
+				SetKeypairId( m_key_pair.Value() );
 				SetSubmitStepInfo(m_key_pair.Value());
 
 				done = requestScheddUpdate( this );
@@ -1020,7 +1039,7 @@ int AmazonJob::doEvaluateState()
 						// stopcode(); // test only
 
 						ASSERT( instance_id != NULL );
-						SetRemoteJobId( instance_id );
+						SetInstanceId( instance_id );
 						WriteGridSubmitEventToUserLog(jobAd);
 						free( instance_id );
 											
@@ -1102,7 +1121,7 @@ int AmazonJob::doEvaluateState()
 						// there is a running VM instance corresponding to the given SSH keypair
 						gmState = GM_AFTER_STARTVM;
 						// save the instance ID which will be used when delete VM instance
-						SetRemoteJobId( instance_id );
+						SetInstanceId( instance_id );
 									
 					} else {
 						// we shoudl re-start the VM again with the corresponding SSH keypair
@@ -1256,7 +1275,8 @@ int AmazonJob::doEvaluateState()
 					// Clear the contact string here because it may not get
 					// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
 					if ( remoteJobId != NULL ) {
-						SetRemoteJobId( NULL );
+						SetInstanceId( NULL );
+						SetKeypairId( NULL );
 					}
 					gmState = GM_CLEAR_REQUEST;
 				}
@@ -1305,7 +1325,8 @@ int AmazonJob::doEvaluateState()
 
 				errorString = "";
 				if ( remoteJobId != NULL ) {
-					SetRemoteJobId( NULL );
+					SetInstanceId( NULL );
+					SetKeypairId( NULL );
 				}
 
 				JobIdle();
@@ -1625,7 +1646,8 @@ int AmazonJob::doEvaluateState()
 				
 			case GM_FAILED:
 
-				SetRemoteJobId( NULL );
+				SetInstanceId( NULL );
+				SetKeypairId( NULL );
 
 				if ( (condorState == REMOVED) || (condorState == COMPLETED) ) {
 				//if (condorState == REMOVED) { // for test only
@@ -1641,7 +1663,8 @@ int AmazonJob::doEvaluateState()
 				
 				// set remote job id to null so that schedd should remove it
 				if ( (condorState == REMOVED) || (condorState == HELD) ) {
-					SetRemoteJobId( NULL );
+					SetInstanceId( NULL );
+					SetKeypairId( NULL );
 				}
 				
 				// The job has completed or been removed. Delete it from the schedd.
@@ -1693,20 +1716,36 @@ void AmazonJob::SetRemoteVMName(const char * name)
 }
 
 
-// SetRemoteJobId() is used to set the value of global variable "remoteJobID"
-void AmazonJob::SetRemoteJobId( const char *job_id )
+void AmazonJob::SetKeypairId( const char *keypair_id )
+{
+	if ( keypair_id == NULL ) {
+		m_key_pair = "";
+	} else {
+		m_key_pair = keypair_id;
+	}
+	SetRemoteJobId( m_key_pair.Value(), remoteJobId );
+}
+
+void AmazonJob::SetInstanceId( const char *instance_id )
 {
 	free( remoteJobId );
-	
-	if ( job_id ) {
-		remoteJobId = strdup( job_id );
+	if ( instance_id ) {
+		remoteJobId = strdup( instance_id );
 	} else {
 		remoteJobId = NULL;
 	}
+	SetRemoteJobId( m_key_pair.Value(), remoteJobId );
+}
 
+// SetRemoteJobId() is used to set the value of global variable "remoteJobID"
+void AmazonJob::SetRemoteJobId( const char *keypair_id, const char *instance_id )
+{
 	MyString full_job_id;
-	if ( job_id ) {
-		full_job_id.sprintf( "amazon %s %s", AMAZON_RESOURCE_NAME, job_id );
+	if ( keypair_id ) {
+		full_job_id.sprintf( "amazon %s", keypair_id );
+		if ( instance_id ) {
+			full_job_id.sprintf_cat( " %s", instance_id );
+		}
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
