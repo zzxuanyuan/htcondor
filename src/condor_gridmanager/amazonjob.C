@@ -616,6 +616,7 @@ int AmazonJob::doEvaluateState()
 								if ( is_running ) {
 
 									// there is a running VM instance corresponding to the given SSH keypair
+									myResource->AlreadySubmitted( this );
 									gmState = GM_AFTER_STARTVM;
 									// save the instance ID which will be used when delete VM instance
 									SetInstanceId( instance_id );
@@ -647,6 +648,7 @@ int AmazonJob::doEvaluateState()
 								submit_steps->next();
 							SetInstanceId( submit_steps->next() );
 														
+							myResource->AlreadySubmitted( this );
 							gmState = GM_SUBMIT_SAVE;
 							}
 							
@@ -752,6 +754,7 @@ int AmazonJob::doEvaluateState()
 										if ( is_running ) {
 											
 											// save the instance ID which will be used when delete VM instance
+											myResource->AlreadySubmitted( this );
 											SetInstanceId( instance_id );
 											
 											// there is a running VM instance corresponding to the given SSH keypair
@@ -788,6 +791,7 @@ int AmazonJob::doEvaluateState()
 										submit_steps->next();
 									}
 									
+									myResource->AlreadySubmitted( this );
 									SetInstanceId( submit_steps->next() );
 									
 									// now try to delete VM and SSH key
@@ -914,6 +918,7 @@ int AmazonJob::doEvaluateState()
 				// stopcode(); // test only
 
 				if ( (condorState == REMOVED) || (condorState == HELD) ) {
+					myResource->CancelSubmit( this );
 					gmState = GM_UNSUBMITTED;
 					break;
 				}
@@ -927,6 +932,12 @@ int AmazonJob::doEvaluateState()
 				// After a submit, wait at least submitInterval before trying another one.
 				if ( now >= lastSubmitAttempt + submitInterval ) {
 	
+					// Once RequestSubmit() is called at least once, you must
+					// CancelSubmit() once you're done with the request call
+					if ( myResource->RequestSubmit( this ) == false ) {
+						break;
+					}
+
 					// construct input parameters for amazon_vm_start()
 					char* instance_id = NULL;
 					
@@ -999,6 +1010,7 @@ int AmazonJob::doEvaluateState()
 					}
 					
 					// to process other return values of this command
+					myResource->SubmitComplete( this );
 					lastSubmitAttempt = time(NULL);
 					numSubmitAttempts++;
 	
@@ -1088,12 +1100,14 @@ int AmazonJob::doEvaluateState()
 					if ( is_running ) {
 
 						// there is a running VM instance corresponding to the given SSH keypair
+						myResource->SubmitComplete( this );
 						gmState = GM_AFTER_STARTVM;
 						// save the instance ID which will be used when delete VM instance
 						SetInstanceId( instance_id );
 									
 					} else {
 						// we shoudl re-start the VM again with the corresponding SSH keypair
+						myResource->CancelSubmit( this );
 						gmState = GM_BEFORE_STARTVM;
 					}
 				} else {
@@ -1237,6 +1251,7 @@ int AmazonJob::doEvaluateState()
 					}
 				}
 				
+				myResource->CancelSubmit( this );
 				if ( condorState == COMPLETED || condorState == REMOVED ) {
 					gmState = GM_DESTROY_KEYPAIR;
 				} else {
@@ -1292,6 +1307,7 @@ int AmazonJob::doEvaluateState()
 				}
 
 				errorString = "";
+				myResource->CancelSubmit( this );
 				if ( remoteJobId != NULL ) {
 					SetInstanceId( NULL );
 					SetKeypairId( NULL );
@@ -1610,6 +1626,7 @@ int AmazonJob::doEvaluateState()
 				
 			case GM_FAILED:
 
+				myResource->CancelSubmit( this );
 				SetInstanceId( NULL );
 				SetKeypairId( NULL );
 
@@ -1630,6 +1647,7 @@ int AmazonJob::doEvaluateState()
 					SetInstanceId( NULL );
 					SetKeypairId( NULL );
 				}
+				myResource->CancelSubmit( this );
 				
 				// The job has completed or been removed. Delete it from the schedd.
 				DoneWithJob();
