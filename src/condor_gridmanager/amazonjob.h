@@ -97,7 +97,6 @@ private:
 	char * m_secret_key_file;
 	char * m_user_data;
 	char * m_user_data_file;
-	char * m_error_code;
 	
 	int m_retry_tid; // timer id for retry functions
 	int m_submit_step;
@@ -119,10 +118,7 @@ private:
 	const char* get_common_temp_name();
 	
 	// print out error codes returned from grid_manager
-	void print_error_code(char* error_code, const char* function_name);
-	
-	// before calling another gahp function, reset m_error_code to NULL
-	void reset_error_code();
+	void print_error_code( const char* error_code, const char* function_name );
 	
 	void stopcode();
 };
