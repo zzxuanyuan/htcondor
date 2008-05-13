@@ -106,15 +106,9 @@ private:
 	MyString m_key_pair_file_name;
 	StringList* m_group_names;
 	
-	// create temporary names when clients don't assign the values
-	char* temporary_keypair_name();
-	
 	// remove created temporary keypair file
 	bool remove_keypair_file(const char* filename);
 
-	// create common temporary name
-	const char* get_common_temp_name();
-	
 	// print out error codes returned from grid_manager
 	void print_error_code( const char* error_code, const char* function_name );
 	
