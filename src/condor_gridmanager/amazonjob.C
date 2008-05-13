@@ -990,14 +990,14 @@ int AmazonJob::doEvaluateState()
 						if ( m_retry_tid != -1 ) {
 							// we have already setup a timer but still have the same issue
 							// don't need to any thing, just wait for next timer calling
-							return true;
+							break;
 						} else {
 							// It is the first time we meet such an error
 							// let's register a timer and retry this function after several minutes
 							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
 																	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
 																	 "AmazonJob::doEvaluateState", (Service*)this);
-							return true;
+							break;
 						}			
 				
 					} else if ( strcmp(m_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
