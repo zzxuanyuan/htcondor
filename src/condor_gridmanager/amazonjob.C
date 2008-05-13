@@ -303,6 +303,15 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	
 	jobAd->LookupString( ATTR_GRID_JOB_STATUS, remoteJobState );
 
+	// JEF: Increment a GMSession attribute for use in letting the job
+	// ad crash the gridmanager on request
+	{
+		int session = 0;
+		jobAd->LookupInteger( "GMSession", session );
+		session++;
+		jobAd->Assign( "GMSession", session );
+	}
+
 	return;
 
  error_exit:
@@ -360,6 +369,15 @@ int AmazonJob::doEvaluateState()
 		
 		char *gahp_error_code = NULL;
 
+		// JEF: Crash the gridmanager if requested by the job
+		int should_crash = 0;
+		jobAd->Assign( "GMState", gmState );
+		jobAd->SetDirtyFlag( "GMState", false );
+		if ( jobAd->EvalBool( "CrashGM", NULL, should_crash ) && should_crash ) {
+			EXCEPT( "Crashing gridmanager at the request of job %d.%d",
+					procID.cluster, procID.proc );
+		}
+
 		reevaluate_state = false;
 		old_gm_state = gmState;
 		
@@ -370,6 +388,12 @@ int AmazonJob::doEvaluateState()
 				// is first created. Here, we do things that we didn't want to
 				// do in the constructor because they could block (the
 				// constructor is called while we're connected to the schedd).
+
+				// JEF: Save GMSession to the schedd if needed
+				if ( requestScheddUpdate( this ) == false ) {
+					break;
+				}
+
 				if ( gahp->Startup() == false ) {
 					dprintf( D_ALWAYS, "(%d.%d) Error starting GAHP\n", procID.cluster, procID.proc );
 					jobAd->Assign( ATTR_HOLD_REASON, "Failed to start GAHP" );
