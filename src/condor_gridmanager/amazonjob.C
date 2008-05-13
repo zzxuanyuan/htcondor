@@ -857,7 +857,9 @@ int AmazonJob::doEvaluateState()
 
 				// First we should set the value of SSH keypair. In normal situation, this
 				// name should be dynamically created. 
-				m_key_pair = build_keypair();
+				if ( m_key_pair == "" ) {
+					m_key_pair = build_keypair();
+				}
 
 				// Save this temporarily created SSH keypair to the submitting log
 				SetKeypairId( m_key_pair.Value() );
@@ -969,7 +971,9 @@ int AmazonJob::doEvaluateState()
 					
 					
 					m_ami_id = build_ami_id();
-					m_key_pair = build_keypair();
+					if ( m_key_pair == "" ) {
+						m_key_pair = build_keypair();
+					}
 					if ( m_group_names == NULL )	m_group_names = build_groupnames();
 					
 					// amazon_vm_start() will check the input arguments
