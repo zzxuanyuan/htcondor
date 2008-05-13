@@ -59,7 +59,6 @@ public:
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
-	static int funcRetryDelay;
 	static int funcRetryInterval;
 	static int pendingWaitTime;
 	static int maxRetryTimes;
@@ -98,7 +97,6 @@ private:
 	char * m_user_data;
 	char * m_user_data_file;
 	
-	int m_retry_tid; // timer id for retry functions
 	int m_submit_step;
 	int m_vm_check_times;
 	int m_keypair_check_times;

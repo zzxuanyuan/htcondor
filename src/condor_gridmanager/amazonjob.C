@@ -159,7 +159,6 @@ int AmazonJob::gahpCallTimeout = 600;
 int AmazonJob::probeInterval = 300;
 int AmazonJob::submitInterval = 300;
 int AmazonJob::maxConnectFailures = 3;
-int AmazonJob::funcRetryDelay = 15;
 int AmazonJob::funcRetryInterval = 15;
 int AmazonJob::pendingWaitTime = 15;
 int AmazonJob::maxRetryTimes = 3;
@@ -225,7 +224,6 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	}	
 	
 	m_group_names = NULL;
-	m_retry_tid = -1;
 	m_vm_check_times = 0;
 	m_keypair_check_times = 0;
 
@@ -327,9 +325,6 @@ AmazonJob::~AmazonJob()
 	free (m_user_data);
 	if (m_group_names != NULL) delete m_group_names;
 	free(m_user_data_file);
-	if ( m_retry_tid != -1 ) {
-		daemonCore->Cancel_Timer(m_retry_tid);
-	}
 }
 
 
@@ -972,29 +967,12 @@ int AmazonJob::doEvaluateState()
 						
 						// go ahead since the operation is successful
 		
-						// but if we have set the timer function, we should release it
-						if( m_retry_tid != -1 ) {
-							// we have setup the timer before, so we need to remove it now	
-							daemonCore->Cancel_Timer(m_retry_tid);
-							m_retry_tid = -1;
-						}
-	
 					} else if ( strcmp(gahp_error_code, "InstanceLimitExceeded" ) == 0 ) {
 						
 						// meet the resource limitation (maximum 20 instances)
-						// should setup a timer and retry this command later
-						if ( m_retry_tid != -1 ) {
-							// we have already setup a timer but still have the same issue
-							// don't need to any thing, just wait for next timer calling
-							break;
-						} else {
-							// It is the first time we meet such an error
-							// let's register a timer and retry this function after several minutes
-							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
-																	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
-																	 "AmazonJob::doEvaluateState", (Service*)this);
-							break;
-						}			
+						// should retry this command later
+						daemonCore->Reset_Timer( evaluateStateTid, 60 );
+						break;
 				
 					} else if ( strcmp(gahp_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
 						
