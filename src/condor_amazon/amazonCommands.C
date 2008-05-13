@@ -1036,9 +1036,13 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 			StringList result_list;
 			int i = 0;
 			for( i = 0; i < request.status_num; i++ ) {
+				/*
 				if( strcasecmp( request.status_results[i].status.Value(), 
 							AMAZON_STATUS_RUNNING) || 
 						request.status_results[i].keyname.IsEmpty()) {
+					continue;
+				}*/
+				if( request.status_results[i].keyname.IsEmpty() ) {
 					continue;
 				}
 
