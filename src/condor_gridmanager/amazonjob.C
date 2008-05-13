@@ -159,7 +159,6 @@ int AmazonJob::gahpCallTimeout = 600;
 int AmazonJob::probeInterval = 300;
 int AmazonJob::submitInterval = 300;
 int AmazonJob::maxConnectFailures = 3;
-int AmazonJob::funcRetryDelay = 15;
 int AmazonJob::funcRetryInterval = 15;
 int AmazonJob::pendingWaitTime = 15;
 int AmazonJob::maxRetryTimes = 3;
@@ -225,8 +224,6 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	}	
 	
 	m_group_names = NULL;
-	m_error_code = NULL;
-	m_retry_tid = -1;
 	m_vm_check_times = 0;
 	m_keypair_check_times = 0;
 
@@ -280,13 +277,40 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
-	if ( strrchr( buff, ' ' ) ) {
-		SetRemoteJobId( strrchr( buff, ' ' ) + 1 );
-	} else {
-		SetRemoteJobId( NULL );
+	if ( buff[0] ) {
+		const char *token;
+		MyString str = buff;
+
+		str.Tokenize();
+
+		token = str.GetNextToken( " ", false );
+		if ( !token || stricmp( token, "amazon" ) ) {
+			error_string.sprintf( "%s not of type amazon",
+								  ATTR_GRID_JOB_ID );
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( " ", false );
+		if ( token ) {
+			m_key_pair = token;
+		}
+
+		token = str.GetNextToken( " ", false );
+		if ( token ) {
+			remoteJobId = strdup( token );
+		}
 	}
 	
 	jobAd->LookupString( ATTR_GRID_JOB_STATUS, remoteJobState );
+
+	// JEF: Increment a GMSession attribute for use in letting the job
+	// ad crash the gridmanager on request
+	{
+		int session = 0;
+		jobAd->LookupInteger( "GMSession", session );
+		session++;
+		jobAd->Assign( "GMSession", session );
+	}
 
 	return;
 
@@ -309,7 +333,6 @@ AmazonJob::~AmazonJob()
 	free (m_secret_key_file);
 	free (m_user_data);
 	if (m_group_names != NULL) delete m_group_names;
-	if (m_error_code) free(m_error_code);
 	free(m_user_data_file);
 }
 
@@ -344,6 +367,17 @@ int AmazonJob::doEvaluateState()
 	
 	do {
 		
+		char *gahp_error_code = NULL;
+
+		// JEF: Crash the gridmanager if requested by the job
+		int should_crash = 0;
+		jobAd->Assign( "GMState", gmState );
+		jobAd->SetDirtyFlag( "GMState", false );
+		if ( jobAd->EvalBool( "CrashGM", NULL, should_crash ) && should_crash ) {
+			EXCEPT( "Crashing gridmanager at the request of job %d.%d",
+					procID.cluster, procID.proc );
+		}
+
 		reevaluate_state = false;
 		old_gm_state = gmState;
 		
@@ -354,6 +388,12 @@ int AmazonJob::doEvaluateState()
 				// is first created. Here, we do things that we didn't want to
 				// do in the constructor because they could block (the
 				// constructor is called while we're connected to the schedd).
+
+				// JEF: Save GMSession to the schedd if needed
+				if ( requestScheddUpdate( this ) == false ) {
+					break;
+				}
+
 				if ( gahp->Startup() == false ) {
 					dprintf( D_ALWAYS, "(%d.%d) Error starting GAHP\n", procID.cluster, procID.proc );
 					jobAd->Assign( ATTR_HOLD_REASON, "Failed to start GAHP" );
@@ -452,7 +492,7 @@ int AmazonJob::doEvaluateState()
 							StringList * returnKeys = new StringList();
 							
 							rc = gahp->amazon_vm_keypair_names(m_access_key_file, m_secret_key_file,
-															   *returnKeys, m_error_code);
+															   *returnKeys, gahp_error_code);
 
 							if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 								break;
@@ -462,12 +502,11 @@ int AmazonJob::doEvaluateState()
 							// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 							// processing error code received
-							if ( m_error_code == NULL ) {
+							if ( gahp_error_code == NULL ) {
 								// go ahead
 							} else {
 								// print out the received error code
-								print_error_code(m_error_code, "amazon_vm_keypair_names()");
-								reset_error_code();
+								print_error_code(gahp_error_code, "amazon_vm_keypair_names()");
 					
 								// change Job's status to HOLD since we meet the errors we cannot proceed
 								gmState = GM_HOLD;
@@ -554,7 +593,7 @@ int AmazonJob::doEvaluateState()
 							StringList returnStatus;
 							
 							rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
-															    returnStatus, m_error_code);
+															    returnStatus, gahp_error_code);
 
 							if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 								break;
@@ -564,12 +603,11 @@ int AmazonJob::doEvaluateState()
 							// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 							// processing error code received
-							if ( m_error_code == NULL ) {
+							if ( gahp_error_code == NULL ) {
 								// go ahead
 							} else {
 								// print out the received error code
-								print_error_code(m_error_code, "amazon_vm_vm_keypair_all()");
-								reset_error_code();
+								print_error_code(gahp_error_code, "amazon_vm_vm_keypair_all()");
 					
 								// change Job's status to HOLD since we meet the errors we cannot proceed
 								gmState = GM_HOLD;
@@ -602,9 +640,10 @@ int AmazonJob::doEvaluateState()
 								if ( is_running ) {
 
 									// there is a running VM instance corresponding to the given SSH keypair
+									myResource->AlreadySubmitted( this );
 									gmState = GM_AFTER_STARTVM;
 									// save the instance ID which will be used when delete VM instance
-									SetRemoteJobId( instance_id );
+									SetInstanceId( instance_id );
 									
 								} else {
 									// we shoudl re-start the VM again with the corresponding SSH keypair
@@ -631,8 +670,9 @@ int AmazonJob::doEvaluateState()
 							submit_steps->rewind();
 							for (int i=0; i<AMAZON_SUBMIT_AFTER_VM; i++)
 								submit_steps->next();
-							SetRemoteJobId( strdup(submit_steps->next()) );
+							SetInstanceId( submit_steps->next() );
 														
+							myResource->AlreadySubmitted( this );
 							gmState = GM_SUBMIT_SAVE;
 							}
 							
@@ -691,7 +731,7 @@ int AmazonJob::doEvaluateState()
 									StringList returnStatus;
 							
 									rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
-															    		returnStatus, m_error_code);
+															    		returnStatus, gahp_error_code);
 
 									if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 										break;
@@ -701,12 +741,11 @@ int AmazonJob::doEvaluateState()
 									// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 									// processing error code received
-									if ( m_error_code == NULL ) {
+									if ( gahp_error_code == NULL ) {
 										// go ahead
 									} else {
 										// print out the received error code
-										print_error_code(m_error_code, "amazon_vm_vm_keypair_all()");
-										reset_error_code();
+										print_error_code(gahp_error_code, "amazon_vm_vm_keypair_all()");
 					
 										// change Job's status to HOLD since we meet the errors we cannot proceed
 										gmState = GM_HOLD;
@@ -739,7 +778,8 @@ int AmazonJob::doEvaluateState()
 										if ( is_running ) {
 											
 											// save the instance ID which will be used when delete VM instance
-											SetRemoteJobId( instance_id );
+											myResource->AlreadySubmitted( this );
+											SetInstanceId( instance_id );
 											
 											// there is a running VM instance corresponding to the given SSH keypair
 											// we should remove it and its corresponding SSH key
@@ -775,7 +815,8 @@ int AmazonJob::doEvaluateState()
 										submit_steps->next();
 									}
 									
-									SetRemoteJobId( strdup(submit_steps->next()) );
+									myResource->AlreadySubmitted( this );
+									SetInstanceId( submit_steps->next() );
 									
 									// now try to delete VM and SSH key
 									// Notice: even when we are deleting a non-existing VM, it will return success 
@@ -819,6 +860,7 @@ int AmazonJob::doEvaluateState()
 				m_key_pair = build_keypair();
 
 				// Save this temporarily created SSH keypair to the submitting log
+				SetKeypairId( m_key_pair.Value() );
 				SetSubmitStepInfo(m_key_pair.Value());
 
 				done = requestScheddUpdate( this );
@@ -900,6 +942,7 @@ int AmazonJob::doEvaluateState()
 				// stopcode(); // test only
 
 				if ( (condorState == REMOVED) || (condorState == HELD) ) {
+					myResource->CancelSubmit( this );
 					gmState = GM_UNSUBMITTED;
 					break;
 				}
@@ -913,12 +956,17 @@ int AmazonJob::doEvaluateState()
 				// After a submit, wait at least submitInterval before trying another one.
 				if ( now >= lastSubmitAttempt + submitInterval ) {
 	
+					// Once RequestSubmit() is called at least once, you must
+					// CancelSubmit() once you're done with the request call
+					if ( myResource->RequestSubmit( this ) == false ) {
+						break;
+					}
+
 					// construct input parameters for amazon_vm_start()
 					char* instance_id = NULL;
 					
 					// For a given Amazon Job, in its life cycle, the attributes will not change 					
 					
-					reset_error_code();	
 					
 					m_ami_id = build_ami_id();
 					m_key_pair = build_keypair();
@@ -928,7 +976,7 @@ int AmazonJob::doEvaluateState()
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
 												m_ami_id.Value(), m_key_pair.Value(), 
 												m_user_data, m_user_data_file,
-												*m_group_names, instance_id, m_error_code);
+												*m_group_names, instance_id, gahp_error_code);
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						// Every first time this function will come to here, just exit doEvaluateState()
@@ -950,35 +998,18 @@ int AmazonJob::doEvaluateState()
 					// GAHPCLIENT_COMMAND_PENDING.
 	
 					// processing error code received
-					if ( m_error_code == NULL ) {
+					if ( gahp_error_code == NULL ) {
 						
 						// go ahead since the operation is successful
 		
-						// but if we have set the timer function, we should release it
-						if( m_retry_tid != -1 ) {
-							// we have setup the timer before, so we need to remove it now	
-							daemonCore->Cancel_Timer(m_retry_tid);
-							m_retry_tid = -1;
-						}
-	
-					} else if ( strcmp(m_error_code, "InstanceLimitExceeded" ) == 0 ) {
+					} else if ( strcmp(gahp_error_code, "InstanceLimitExceeded" ) == 0 ) {
 						
 						// meet the resource limitation (maximum 20 instances)
-						// should setup a timer and retry this command later
-						if ( m_retry_tid != -1 ) {
-							// we have already setup a timer but still have the same issue
-							// don't need to any thing, just wait for next timer calling
-							return true;
-						} else {
-							// It is the first time we meet such an error
-							// let's register a timer and retry this function after several minutes
-							m_retry_tid = daemonCore->Register_Timer(funcRetryDelay, funcRetryInterval,
-																	 (TimerHandlercpp)&AmazonJob::doEvaluateState, 
-																	 "AmazonJob::doEvaluateState", (Service*)this);
-							return true;
-						}			
+						// should retry this command later
+						daemonCore->Reset_Timer( evaluateStateTid, 60 );
+						break;
 				
-					} else if ( strcmp(m_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
+					} else if ( strcmp(gahp_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
 						
 						// get an error code from gahp server said that we should check if 
 						// the VM has been started successfully in EC2
@@ -995,18 +1026,15 @@ int AmazonJob::doEvaluateState()
 					} else {
 						// received the errors we cannot processed					
 						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_start()");
+						print_error_code(gahp_error_code, "amazon_vm_start()");
 						
 						// change Job's status to HOLD since we meet the errors we cannot proceed
 						gmState = GM_HOLD;
 						break;
 					}
 					
-					// Since the error_code is a global variable, we should reset it before it
-					// will be used by other command			
-					reset_error_code();	
-					
 					// to process other return values of this command
+					myResource->SubmitComplete( this );
 					lastSubmitAttempt = time(NULL);
 					numSubmitAttempts++;
 	
@@ -1017,7 +1045,7 @@ int AmazonJob::doEvaluateState()
 						// stopcode(); // test only
 
 						ASSERT( instance_id != NULL );
-						SetRemoteJobId( instance_id );
+						SetInstanceId( instance_id );
 						WriteGridSubmitEventToUserLog(jobAd);
 						free( instance_id );
 											
@@ -1049,7 +1077,7 @@ int AmazonJob::doEvaluateState()
 				StringList returnStatus;
 							
 				rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
-												    returnStatus, m_error_code);
+												    returnStatus, gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -1059,12 +1087,11 @@ int AmazonJob::doEvaluateState()
 				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 				// processing error code received
-				if ( m_error_code == NULL ) {
+				if ( gahp_error_code == NULL ) {
 					// go ahead
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_vm_keypair_all()");
-					reset_error_code();
+					print_error_code(gahp_error_code, "amazon_vm_vm_keypair_all()");
 					
 					// change Job's status to HOLD since we meet the errors we cannot proceed
 					gmState = GM_HOLD;
@@ -1097,12 +1124,14 @@ int AmazonJob::doEvaluateState()
 					if ( is_running ) {
 
 						// there is a running VM instance corresponding to the given SSH keypair
+						myResource->SubmitComplete( this );
 						gmState = GM_AFTER_STARTVM;
 						// save the instance ID which will be used when delete VM instance
-						SetRemoteJobId( instance_id );
+						SetInstanceId( instance_id );
 									
 					} else {
 						// we shoudl re-start the VM again with the corresponding SSH keypair
+						myResource->CancelSubmit( this );
 						gmState = GM_BEFORE_STARTVM;
 					}
 				} else {
@@ -1123,7 +1152,7 @@ int AmazonJob::doEvaluateState()
 				StringList * returnKeys = new StringList();
 							
 				rc = gahp->amazon_vm_keypair_names(m_access_key_file, m_secret_key_file,
-												   *returnKeys, m_error_code);
+												   *returnKeys, gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1133,12 +1162,11 @@ int AmazonJob::doEvaluateState()
 				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 				// processing error code received
-				if ( m_error_code == NULL ) {
+				if ( gahp_error_code == NULL ) {
 					// go ahead
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_keypair_names()");
-					reset_error_code();
+					print_error_code(gahp_error_code, "amazon_vm_keypair_names()");
 					
 					// change Job's status to HOLD since we meet the errors we cannot proceed
 					gmState = GM_HOLD;
@@ -1247,13 +1275,15 @@ int AmazonJob::doEvaluateState()
 					}
 				}
 				
+				myResource->CancelSubmit( this );
 				if ( condorState == COMPLETED || condorState == REMOVED ) {
 					gmState = GM_DESTROY_KEYPAIR;
 				} else {
 					// Clear the contact string here because it may not get
 					// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
 					if ( remoteJobId != NULL ) {
-						SetRemoteJobId( NULL );
+						SetInstanceId( NULL );
+						SetKeypairId( NULL );
 					}
 					gmState = GM_CLEAR_REQUEST;
 				}
@@ -1301,8 +1331,10 @@ int AmazonJob::doEvaluateState()
 				}
 
 				errorString = "";
+				myResource->CancelSubmit( this );
 				if ( remoteJobId != NULL ) {
-					SetRemoteJobId( NULL );
+					SetInstanceId( NULL );
+					SetKeypairId( NULL );
 				}
 
 				JobIdle();
@@ -1374,7 +1406,7 @@ int AmazonJob::doEvaluateState()
 
 					// need to call amazon_vm_status(), amazon_vm_status() will check input arguments
 					// The VM status we need is saved in the second string of the returned status StringList
-					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, returnStatus, m_error_code );
+					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, returnStatus, gahp_error_code );
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -1384,12 +1416,11 @@ int AmazonJob::doEvaluateState()
 					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 					// processing error code received
-					if ( m_error_code == NULL ) {
+					if ( gahp_error_code == NULL ) {
 						// go ahead
 					} else {
 						// print out the received error code
-						print_error_code(m_error_code, "amazon_vm_status()");
-						reset_error_code();
+						print_error_code(gahp_error_code, "amazon_vm_status()");
 						
 						// change Job's status to HOLD
 						gmState = GM_HOLD;
@@ -1447,7 +1478,7 @@ int AmazonJob::doEvaluateState()
 
 				// need to call amazon_vm_stop(), it will only return STOP operation is success or failed
 				// amazon_vm_stop() will check the input arguments
-				rc = gahp->amazon_vm_stop(m_access_key_file, m_secret_key_file, remoteJobId, m_error_code);
+				rc = gahp->amazon_vm_stop(m_access_key_file, m_secret_key_file, remoteJobId, gahp_error_code);
 			
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1457,12 +1488,11 @@ int AmazonJob::doEvaluateState()
 				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 				// processing error code received
-				if ( m_error_code == NULL ) {
+				if ( gahp_error_code == NULL ) {
 					// go ahead
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_stop()");
-					reset_error_code();
+					print_error_code(gahp_error_code, "amazon_vm_stop()");
 					
 					// change Job's status to CANCEL
 					gmState = GM_FAILED;
@@ -1493,7 +1523,7 @@ int AmazonJob::doEvaluateState()
 					
 				// now create and register this keypair by using amazon_vm_create_keypair()
 				rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
-													m_key_pair.Value(), m_key_pair_file_name.Value(), m_error_code);
+													m_key_pair.Value(), m_key_pair_file_name.Value(), gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1503,9 +1533,9 @@ int AmazonJob::doEvaluateState()
 				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 				// processing error code received
-				if ( m_error_code == NULL ) {
+				if ( gahp_error_code == NULL ) {
 					// go ahead
-				} else if ( strcmp(m_error_code, "NEED_CHECK_SSHKEY" ) == 0 ) {
+				} else if ( strcmp(gahp_error_code, "NEED_CHECK_SSHKEY" ) == 0 ) {
 						
 					// get an error code from gahp server said that we should check if 
 					// the SSH keypair has been registered successfully in EC2
@@ -1521,8 +1551,7 @@ int AmazonJob::doEvaluateState()
 				
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_create_keypair()");
-					reset_error_code();
+					print_error_code(gahp_error_code, "amazon_vm_create_keypair()");
 				
 					// change Job's status to CANCEL
 					gmState = GM_HOLD;
@@ -1552,7 +1581,7 @@ int AmazonJob::doEvaluateState()
 			case GM_DESTROY_KEYPAIR:
 				{
 				// Yes, now let's destroy the temporary keypair 
-				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair.Value(), m_error_code);
+				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair.Value(), gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1562,12 +1591,11 @@ int AmazonJob::doEvaluateState()
 				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 				// processing error code received
-				if ( m_error_code == NULL ) {
+				if ( gahp_error_code == NULL ) {
 					// go ahead
 				} else {
 					// print out the received error code
-					print_error_code(m_error_code, "amazon_vm_destroy_keypair()");
-					reset_error_code();
+					print_error_code(gahp_error_code, "amazon_vm_destroy_keypair()");
 				
 					// change Job's status to CANCEL
 					gmState = GM_FAILED;
@@ -1622,7 +1650,9 @@ int AmazonJob::doEvaluateState()
 				
 			case GM_FAILED:
 
-				SetRemoteJobId( NULL );
+				myResource->CancelSubmit( this );
+				SetInstanceId( NULL );
+				SetKeypairId( NULL );
 
 				if ( (condorState == REMOVED) || (condorState == COMPLETED) ) {
 				//if (condorState == REMOVED) { // for test only
@@ -1638,8 +1668,10 @@ int AmazonJob::doEvaluateState()
 				
 				// set remote job id to null so that schedd should remove it
 				if ( (condorState == REMOVED) || (condorState == HELD) ) {
-					SetRemoteJobId( NULL );
+					SetInstanceId( NULL );
+					SetKeypairId( NULL );
 				}
+				myResource->CancelSubmit( this );
 				
 				// The job has completed or been removed. Delete it from the schedd.
 				DoneWithJob();
@@ -1653,6 +1685,11 @@ int AmazonJob::doEvaluateState()
 				break;
 		} // end of switch_case
 		
+			// This string is used for gahp calls, but is never needed beyond
+			// this point. This should really be a MyString.
+		free( gahp_error_code );
+		gahp_error_code = NULL;
+
 		if ( gmState != old_gm_state ) {
 			reevaluate_state = true;
 			dprintf(D_FULLDEBUG, "(%d.%d) gm state change: %s -> %s\n",
@@ -1690,20 +1727,36 @@ void AmazonJob::SetRemoteVMName(const char * name)
 }
 
 
-// SetRemoteJobId() is used to set the value of global variable "remoteJobID"
-void AmazonJob::SetRemoteJobId( const char *job_id )
+void AmazonJob::SetKeypairId( const char *keypair_id )
+{
+	if ( keypair_id == NULL ) {
+		m_key_pair = "";
+	} else {
+		m_key_pair = keypair_id;
+	}
+	SetRemoteJobId( m_key_pair.Value(), remoteJobId );
+}
+
+void AmazonJob::SetInstanceId( const char *instance_id )
 {
 	free( remoteJobId );
-	
-	if ( job_id ) {
-		remoteJobId = strdup( job_id );
+	if ( instance_id ) {
+		remoteJobId = strdup( instance_id );
 	} else {
 		remoteJobId = NULL;
 	}
+	SetRemoteJobId( m_key_pair.Value(), remoteJobId );
+}
 
+// SetRemoteJobId() is used to set the value of global variable "remoteJobID"
+void AmazonJob::SetRemoteJobId( const char *keypair_id, const char *instance_id )
+{
 	MyString full_job_id;
-	if ( job_id ) {
-		full_job_id.sprintf( "amazon %s %s", AMAZON_RESOURCE_NAME, job_id );
+	if ( keypair_id ) {
+		full_job_id.sprintf( "amazon %s", keypair_id );
+		if ( instance_id ) {
+			full_job_id.sprintf_cat( " %s", instance_id );
+		}
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
@@ -1858,17 +1911,10 @@ bool AmazonJob::remove_keypair_file(const char* filename)
 
 
 // print out the error code received from grid_manager
-void AmazonJob::print_error_code(char* error_code, const char* function_name)
+void AmazonJob::print_error_code( const char* error_code,
+								  const char* function_name )
 {
 	dprintf( D_ALWAYS, "Receiving error code = %s from function %s !", error_code, function_name );	
-}
-
-
-// reset error code
-void AmazonJob::reset_error_code()
-{
-	free (m_error_code);
-	m_error_code = NULL;
 }
 
 // test only, used to corrupt grid_manager

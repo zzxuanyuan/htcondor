@@ -49,7 +49,9 @@ public:
 	void Reconfig();
 	int doEvaluateState();
 	BaseResource *GetResource();
-	void SetRemoteJobId( const char * job_id );
+	void SetKeypairId( const char *keypair_id );
+	void SetInstanceId( const char *instance_id );
+	void SetRemoteJobId( const char *keypair_id, const char *instance_id );
 	void SetSubmitStepInfo(const char * info);
 	void SetRemoteVMName(const char * name);
 	
@@ -57,7 +59,6 @@ public:
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
-	static int funcRetryDelay;
 	static int funcRetryInterval;
 	static int pendingWaitTime;
 	static int maxRetryTimes;
@@ -95,9 +96,7 @@ private:
 	char * m_secret_key_file;
 	char * m_user_data;
 	char * m_user_data_file;
-	char * m_error_code;
 	
-	int m_retry_tid; // timer id for retry functions
 	int m_submit_step;
 	int m_vm_check_times;
 	int m_keypair_check_times;
@@ -117,10 +116,7 @@ private:
 	const char* get_common_temp_name();
 	
 	// print out error codes returned from grid_manager
-	void print_error_code(char* error_code, const char* function_name);
-	
-	// before calling another gahp function, reset m_error_code to NULL
-	void reset_error_code();
+	void print_error_code( const char* error_code, const char* function_name );
 	
 	void stopcode();
 };
