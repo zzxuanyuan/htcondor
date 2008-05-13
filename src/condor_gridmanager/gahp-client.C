@@ -6009,6 +6009,7 @@ reqline.sprintf_cat(" m1.small");
 			instance_id = strdup(result->argv[2]);
 		} else if ( result->argc == 4 ) {
 			// get the error code
+			rc = atoi( result->argv[1] );
  			error_code = strdup(result->argv[2]);	
  			error_string = result->argv[3];		
 		} else {
@@ -6093,6 +6094,7 @@ int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretk
 			if (rc == 1) error_string = "";
 		} else if ( result->argc == 4 ) {
 			// get the error code
+			rc = atoi( result->argv[1] );
 			error_code = strdup(result->argv[2]);
 			error_string = result->argv[3];			
 		} else {
@@ -6268,6 +6270,7 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 			}
 		} 
 		else if (result->argc == 4) {
+			rc = atoi( result->argv[1] );
 			error_code = strdup(result->argv[2]);
 			error_string = result->argv[3];
 		}
@@ -6397,6 +6400,7 @@ int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * s
 			}
 		}
 		else if (result->argc == 4) {
+			rc = atoi( result->argv[1] );
 			error_code = strdup(result->argv[2]);
 			error_string = result->argv[3];
 		}
@@ -7122,6 +7126,7 @@ int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char
 			}
 		} 
 		else if ( result->argc == 4 ) {
+			rc = atoi( result->argv[1] );
 			error_code = strdup(result->argv[2]);
 			error_string = result->argv[3];
 		} else {
@@ -7212,6 +7217,7 @@ int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const cha
 			}
 		} 
 		else if ( result->argc == 4 ) {
+			rc = atoi( result->argv[1] );
 			error_code = strdup(result->argv[2]);
 			error_string = result->argv[3];
 		} else {
