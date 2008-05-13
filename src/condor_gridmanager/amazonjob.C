@@ -953,11 +953,20 @@ int AmazonJob::doEvaluateState()
 				// need to re-start the VM again.
 				// stopcode(); // test only
 
+				// We only want to go to GM_UNSUBMITTED if we haven't
+				// started the START_VM command yet. Checking the submit
+				// throttle is a crude way to do this.
+				// TODO This code has some problems. For now, don't break
+				//   out of here for HELD/REMOVED jobs.
+				/*
 				if ( (condorState == REMOVED) || (condorState == HELD) ) {
-					myResource->CancelSubmit( this );
-					gmState = GM_UNSUBMITTED;
-					break;
+					if ( myResource->RequestSubmit( this ) == false ) {
+						myResource->CancelSubmit( this );
+						gmState = GM_UNSUBMITTED;
+						break;
+					}
 				}
+				*/
 				
 				if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
 					gmState = GM_HOLD;
