@@ -96,6 +96,7 @@ private:
 	char * m_secret_key_file;
 	char * m_user_data;
 	char * m_user_data_file;
+	char * m_instance_type;
 	
 	int m_submit_step;
 	int m_vm_check_times;

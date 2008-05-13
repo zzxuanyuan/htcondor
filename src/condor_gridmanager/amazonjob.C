@@ -221,7 +221,16 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 		if ( jobAd->LookupString( ATTR_AMAZON_USER_DATA, buff ) ) {
 			m_user_data = strdup(buff);
 		}
-	}	
+	}
+	
+	// get VM instance type
+	memset(buff, 0, 16385);
+	m_instance_type = NULL; // if clients don't assign this value in condor submit file,
+							// we should set the default value to NULL and gahp_server
+							// will start VM in Amazon using m1.small mode.
+	if ( jobAd->LookupString( ATTR_AMAZON_INSTANCE_TYPE, buff ) ) {
+		m_instance_type = strdup(buff);	
+	}
 	
 	m_group_names = NULL;
 	m_vm_check_times = 0;
@@ -334,6 +343,7 @@ AmazonJob::~AmazonJob()
 	free (m_user_data);
 	if (m_group_names != NULL) delete m_group_names;
 	free(m_user_data_file);
+	free(m_instance_type);
 }
 
 
@@ -975,7 +985,7 @@ int AmazonJob::doEvaluateState()
 					// amazon_vm_start() will check the input arguments
 					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
 												m_ami_id.Value(), m_key_pair.Value(), 
-												m_user_data, m_user_data_file,
+												m_user_data, m_user_data_file, m_instance_type, 
 												*m_group_names, instance_id, gahp_error_code);
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {

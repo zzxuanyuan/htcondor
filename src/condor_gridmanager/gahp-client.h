@@ -614,6 +614,7 @@ class GahpClient : public Service {
 							 const char * keypair,
 							 const char * user_data,
 							 const char * user_data_file,
+							 const char * instance_type,
 							 StringList & groupnames,
 							 char* & instance_id,
 							 char* & error_code );

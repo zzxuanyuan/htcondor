@@ -5909,6 +5909,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 								 const char * keypair,
 								 const char * user_data,
 								 const char * user_data_file,
+								 const char * instance_type,
 								 StringList & groupnames,
 								 char * &instance_id,
 								 char * &error_code)
@@ -5946,7 +5947,13 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	char* esc5 = strdup( escapeGahpString(user_data) );
 	char* esc6 = strdup( escapeGahpString(user_data_file) );
 	
-	bool x = reqline.sprintf("%s %s %s %s %s %s", esc1, esc2, esc3, esc4, esc5, esc6);
+	// currently we support the following instance type:
+	// 1. m1.small
+	// 2. m1.large
+	// 3. m1.xlarge
+	char* esc7 = strdup( escapeGahpString(instance_type) );
+	
+	bool x = reqline.sprintf("%s %s %s %s %s %s %s", esc1, esc2, esc3, esc4, esc5, esc6, esc7);
 	
 	free( esc1 );
 	free( esc2 );
@@ -5954,10 +5961,9 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	free( esc4 );
 	free( esc5 );
 	free( esc6 );
+	free( esc7 );
 	ASSERT( x == true );
 	
-// New parameter to AMAZON_VM_START, stuff in default value for now
-reqline.sprintf_cat(" m1.small");
 	const char * group_name;
 	int cnt = 0;
 	char * esc_groupname;

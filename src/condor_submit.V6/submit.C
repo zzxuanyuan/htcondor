@@ -360,6 +360,7 @@ char* AmazonUserDataFile = "AmazonUserDataFile";
 char* AmazonGroupName = "AmazonGroupName";
 char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
 char* AmazonSecurityPolicy = "AmazonSecurityPolicy";
+char* AmazonInstanceType = "AmazonInstanceType";
 //******************* end of adding for Amazon Job **************//
 
 char const *next_job_start_delay = "next_job_start_delay";
@@ -5045,6 +5046,17 @@ SetGlobusParams()
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_AMI_ID, tmp );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
+	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
+		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonAmiID );
+		DoCleanup( 0, 0, NULL );
+		exit( 1 );
+	}
+	
+	// AmazonInstanceType is not a necessary parameter
+	if( (tmp = condor_param( AmazonInstanceType )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_INSTANCE_TYPE, tmp );
+		free( tmp );
+		InsertJobExpr( buffer.Value() );
 	}
 	
 	// AmazonUserData and AmazonUserDataFile cannot exist in the same submit file

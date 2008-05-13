@@ -662,6 +662,7 @@ extern const char *ATTR_AMAZON_USER_DATA;
 extern const char *ATTR_AMAZON_USER_DATA_FILE;
 extern const char *ATTR_AMAZON_REMOTE_VM_NAME;
 extern const char *ATTR_AMAZON_RECOVERY_STEPS;
+extern const char *ATTR_AMAZON_INSTANCE_TYPE;
 //************* End of changes for Amamzon Jobs *****************//
 
 
