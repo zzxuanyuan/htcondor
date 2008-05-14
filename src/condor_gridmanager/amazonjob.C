@@ -1740,15 +1740,11 @@ BaseResource* AmazonJob::GetResource()
 // steup the public name of amazon remote VM, which can be used the clients 
 void AmazonJob::SetRemoteVMName(const char * name)
 {
-	MyString public_name;
-	
-	if (name) {
-		public_name = name;
+	if ( name ) {
+		jobAd->Assign( ATTR_AMAZON_REMOTE_VM_NAME, name );
 	} else {
-		public_name = "";
+		jobAd->AssignExpr( ATTR_AMAZON_REMOTE_VM_NAME, "Undefined" );
 	}
-	
-	jobAd->Assign(ATTR_AMAZON_REMOTE_VM_NAME, public_name.Value());
 	
 	requestScheddUpdate( this );
 }
