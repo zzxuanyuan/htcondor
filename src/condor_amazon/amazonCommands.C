@@ -748,9 +748,15 @@ bool AmazonVMReboot::Request()
 }
 
 /// Amazon VMStatus
-AmazonVMStatus::AmazonVMStatus(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMStatus::AmazonVMStatus(const char* lib_path) : AmazonRequest(lib_path)
+{
+	status_result = NULL;
+}
 
-AmazonVMStatus::~AmazonVMStatus() {}
+AmazonVMStatus::~AmazonVMStatus()
+{
+	delete status_result;
+}
 
 // Expecting:AMAZON_VM_STATUS <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
 
@@ -793,7 +799,7 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 	}else {
 		// Success
 		StringList result_list;
-		create_status_output(&request.status_result, result_list);
+		create_status_output(request.status_result, result_list);
 		result_string = create_success_result(req_id, &result_list);
 	}
 	return true;
@@ -843,11 +849,11 @@ bool AmazonVMStatus::Request()
 
 	char *result_line = output.next();
 	if( !result_line ) {
-		dprintf(D_ALWAYS, "Failed to get status output during AmazonVMStatus\n");
-		return false;
+		return true;
 	}
 
-	if( parseAmazonStatusResult(result_line, status_result) == false ) {
+	status_result = new AmazonStatusResult;
+	if( parseAmazonStatusResult(result_line, *status_result) == false ) {
 		return false;
 	}
 

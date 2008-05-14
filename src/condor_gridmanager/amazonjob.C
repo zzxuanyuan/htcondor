@@ -1461,6 +1461,13 @@ int AmazonJob::doEvaluateState()
 						gmState = GM_CANCEL;
 						break;
 					} else {
+						if ( returnStatus.number() == 0 ) {
+							// The instance has been purged, act like we
+							// got back 'terminated'
+							returnStatus.append( remoteJobId );
+							returnStatus.append( AMAZON_VM_STATE_TERMINATED );
+						}
+
 						// VM Status is the second value in the return string list
 						returnStatus.rewind();
 						// jump to the value I need

@@ -199,7 +199,7 @@ class AmazonVMStatus : public AmazonRequest {
 		MyString instance_id;
 
 		// Result 
-		AmazonStatusResult status_result;
+		AmazonStatusResult *status_result;
 
 };
 

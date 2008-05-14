@@ -6259,6 +6259,7 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 	
 	// we expect the following return:
 	//		seq_id 0 <instance_id> <status> <ami_id> <public_dns> <private_dns> <keypairname> <group> <group> <group> ... 
+	//		seq_id 0
 	//		seq_id 1 error_code error_string
 	//		seq_id 1
 	// We use "NULL" to replace the empty items. and there at least has one group.
@@ -6271,9 +6272,6 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 			rc = atoi(result->argv[1]);
 			if (rc == 1) {
 				error_string = "";
-			} else {
-				EXCEPT( "Bad %s result", command );
-				rc = 1;
 			}
 		} 
 		else if (result->argc == 4) {
