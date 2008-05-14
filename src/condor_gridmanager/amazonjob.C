@@ -898,6 +898,11 @@ int AmazonJob::doEvaluateState()
 			case GM_BEFORE_STARTVM:
 
 				// Fail Recovery: before starting VM
+				if ( (condorState == REMOVED) || (condorState == HELD) ) {
+					gmState = GM_DESTROY_KEYPAIR;
+					break;
+				}
+
 				SetSubmitStepInfo("vm_starting");
 				done = requestScheddUpdate( this );
 				if ( done ) {
