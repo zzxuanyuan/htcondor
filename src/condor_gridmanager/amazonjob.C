@@ -1427,8 +1427,8 @@ int AmazonJob::doEvaluateState()
 				if ( condorState == REMOVED || condorState == HELD ) {
 					gmState = GM_CANCEL;
 				} else {
-					char * new_status = NULL;
-					char * public_dns = NULL;
+					MyString new_status;
+					MyString public_dns;
 					StringList returnStatus;
 
 					// need to call amazon_vm_status(), amazon_vm_status() will check input arguments
@@ -1467,16 +1467,19 @@ int AmazonJob::doEvaluateState()
 						for (int i=0; i<1; i++) {
 							returnStatus.next();
 						}
-						new_status = strdup(returnStatus.next());
+						new_status = returnStatus.next();
 						
-						// if amazon VM's state is "running", change condor job status to Running.
-						if ( remoteJobState != AMAZON_VM_STATE_RUNNING && 
-							 (strcmp(new_status, AMAZON_VM_STATE_RUNNING) == 0) ) {
+						// if amazon VM's state is "running" or beyond,
+						// change condor job status to Running.
+						if ( new_status != remoteJobState &&
+							 ( new_status == AMAZON_VM_STATE_RUNNING ||
+							   new_status == AMAZON_VM_STATE_SHUTTINGDOWN ||
+							   new_status == AMAZON_VM_STATE_TERMINATED ) ) {
 							JobRunning();
 						}
 												
 						remoteJobState = new_status;
-						SetRemoteJobStatus( new_status );
+						SetRemoteJobStatus( new_status.Value() );
 										
 						
 						returnStatus.rewind();
@@ -1487,14 +1490,11 @@ int AmazonJob::doEvaluateState()
 							for (int i=0; i<3; i++) {
 								returnStatus.next();							
 							}
-							public_dns = strdup(returnStatus.next());
-							SetRemoteVMName( public_dns );
+							public_dns = returnStatus.next();
+							SetRemoteVMName( public_dns.Value() );
 						}
 					}
 
-					if ( new_status ) free( new_status );
-					if ( public_dns ) free( public_dns );
-					
 					lastProbeTime = now;
 					gmState = GM_SUBMITTED;
 				}
