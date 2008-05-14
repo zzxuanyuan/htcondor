@@ -953,21 +953,6 @@ int AmazonJob::doEvaluateState()
 				// need to re-start the VM again.
 				// stopcode(); // test only
 
-				// We only want to go to GM_UNSUBMITTED if we haven't
-				// started the START_VM command yet. Checking the submit
-				// throttle is a crude way to do this.
-				// TODO This code has some problems. For now, don't break
-				//   out of here for HELD/REMOVED jobs.
-				/*
-				if ( (condorState == REMOVED) || (condorState == HELD) ) {
-					if ( myResource->RequestSubmit( this ) == false ) {
-						myResource->CancelSubmit( this );
-						gmState = GM_UNSUBMITTED;
-						break;
-					}
-				}
-				*/
-				
 				if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
 					gmState = GM_HOLD;
 					break;
@@ -980,6 +965,15 @@ int AmazonJob::doEvaluateState()
 					// Once RequestSubmit() is called at least once, you must
 					// CancelSubmit() once you're done with the request call
 					if ( myResource->RequestSubmit( this ) == false ) {
+						// If we haven't started the START_VM call yet,
+						// we can abort the submission here for held and
+						// removed jobs.
+						if ( (condorState == REMOVED) ||
+							 (condorState == HELD) ) {
+
+							myResource->CancelSubmit( this );
+							gmState = GM_DESTROY_KEYPAIR;
+						}
 						break;
 					}
 
@@ -1082,6 +1076,11 @@ int AmazonJob::doEvaluateState()
 					}
 					
 				} else {
+					if ( (condorState == REMOVED) || (condorState == HELD) ) {
+						gmState = GM_DESTROY_KEYPAIR;
+						break;
+					}
+
 					unsigned int delay = 0;
 					if ( (lastSubmitAttempt + submitInterval) > now ) {
 						delay = (lastSubmitAttempt + submitInterval) - now;
