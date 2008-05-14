@@ -1,0 +1,409 @@
+
+--quill_purgehistory for Oracle database.
+--
+--quill_purgehistory does the following:
+--1. purge resource history data (e.g. machine history) that are older than 
+--   resourceHistoryDuration days
+--
+--2. purge job run history data (e.g. runs, matchs, ...) that are older than 
+--   runHistoryDuration days
+--
+--3. purge job history data that are older than 
+--   jobHistoryDuration days
+--
+--4. Compute the total space used by the quill database
+--
+-- resource history data: no need to keep them for long
+--   machine_history, machine_classad_history, 
+--   daemon_horizontal_history, daemon_vertical_history, 
+--
+-- job run history data: purge when they are very old
+--   transfers, fileusages, files, runs, events, rejects, matches
+--
+-- important job history data should be kept as long as possible
+--   history_vertical, history_horizontal, thrown (log thrown events)
+--
+-- never purge current "operational data": 
+--   machine, machine_classad, clusterads_horizontal, procads_horizontal, 
+--   clusterads_vertical, procads_vertical, thrown, daemon_horizontal
+--   daemon_vertical
+--
+-- resourceHistoryDuration, runHistoryDuration, jobHistoryDuration 
+-- parameters are all in number of days
+
+
+--SET SERVEROUTPUT ON;
+
+-- dbsize is in unit of megabytes
+TABLE quilldbmonitor
+dbsize    integer
+END TABLE
+
+DELETE quilldbmonitor
+
+INSERT quilldbmonitor (dbsize)
+0
+END INSERT
+
+
+#IF CREATE
+
+# CREATE ###########################################################
+
+#NOPARSE
+
+CREATE GLOBAL TEMPORARY TABLE history_jobs_to_purge(
+scheddname   varchar(4000),
+scheddbirthdate integer,
+cluster_id   integer, 
+proc_id      integer,
+globaljobid  varchar(4000)) ON COMMIT DELETE ROWS;
+
+CREATE OR REPLACE PROCEDURE 
+quill_purgehistory(
+resourceHistoryDuration integer,
+runHistoryDuration integer,
+jobHistoryDuration integer) AS 
+totalUsedMB NUMBER;
+begints integer;
+endts integer;
+begints_overall timestamp with time zone;
+endts_overall timestamp with time zone;
+BEGIN
+
+SELECT current_timestamp INTO begints_overall FROM dual;
+
+/* first purge resource history data */
+
+-- purge maintenance log older than resourceHistoryDuration days
+DELETE FROM maintenance_log 
+WHERE eventts < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge machine vertical attributes older than resourceHistoryDuration days
+DELETE FROM machines_vertical_history
+WHERE start_time < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging machines_vertical_history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge machine classads older than resourceHistoryDuration days
+DELETE FROM machines_horizontal_history
+WHERE lastreportedtime < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging machines_horizontal_history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge daemon vertical attributes older than certain days
+DELETE FROM daemons_vertical_history
+WHERE lastreportedtime < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging daemons_vertical_history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge daemon classads older than certain days
+DELETE FROM daemons_horizontal_history
+WHERE lastreportedtime < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging daemons_horizontal_history takes ' || (endts-begints)/100 || ' seconds');
+
+-- purge submitters classads older than certain days
+DELETE FROM submitters_horizontal_history
+WHERE lastreportedtime < 
+      (current_timestamp - 
+       to_dsinterval(resourceHistoryDuration || ' 00:00:00'));
+
+COMMIT;
+
+/* second purge job run history data */
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- find the set of jobs for which the run history are going to be purged
+INSERT INTO history_jobs_to_purge 
+SELECT scheddname, scheddbirthdate, cluster_id, proc_id, globaljobid
+FROM jobs_horizontal_history
+WHERE enteredhistorytable < 
+      (current_timestamp - 
+       to_dsinterval(runHistoryDuration || ' 00:00:00'));
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('get the list of jobs to purge run history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge transfers data related to jobs older than certain days
+DELETE FROM transfers 
+WHERE globaljobid IN (SELECT globaljobid 
+                      FROM history_jobs_to_purge);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging transfers takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge fileusages related to jobs older than certain days
+DELETE FROM fileusages
+WHERE globaljobid IN (SELECT globaljobid 
+                      FROM history_jobs_to_purge);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging fileusages takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge files that are not referenced any more
+DELETE FROM files 
+WHERE NOT EXISTS (SELECT *
+                  FROM fileusages 
+                  WHERE fileusages.file_id = files.file_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging files takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge run data for jobs older than certain days
+DELETE FROM runs R
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge H
+              WHERE H.scheddname = R.scheddname AND
+                    H.cluster_id = R.cluster_id AND
+                    H.proc_id = R.proc_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging runs takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge rejects data for jobs older than certain days
+DELETE FROM rejects R
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge H
+              WHERE H.scheddname = R.scheddname AND
+                    H.cluster_id = R.cluster_id AND
+                    H.proc_id = R.proc_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging rejects takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge matches data for jobs older than certain days
+DELETE FROM matches M
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge H
+              WHERE H.scheddname = M.scheddname AND
+                    H.cluster_id = M.cluster_id AND
+                    H.proc_id = M.proc_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging matches takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge events data for jobs older than certain days
+DELETE FROM events E
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge H
+              WHERE H.scheddname = E.scheddname AND
+                    H.cluster_id = E.cluster_id AND
+                    H.proc_id = E.proc_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging events takes ' || (endts-begints)/100 || ' seconds');
+
+COMMIT; -- commit will truncate the temporary table History_Jobs_To_Purge
+
+/* third purge job history data */
+
+-- find the set of jobs for which history data are to be purged
+begints := DBMS_UTILITY.GET_TIME;
+
+INSERT INTO history_jobs_to_purge 
+SELECT scheddname, scheddbirthdate, cluster_id, proc_id, globaljobid
+FROM jobs_horizontal_history
+WHERE enteredhistorytable < 
+      (current_timestamp - 
+       to_dsinterval(jobHistoryDuration || ' 00:00:00'));
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('get the list of jobs to purge takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge vertical attributes for jobs older than certain days
+DELETE FROM jobs_vertical_history V
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge H
+              WHERE H.scheddname = V.scheddname AND
+		    H.scheddbirthdate = V.scheddbirthdate AND
+                    H.cluster_id = V.cluster_id AND
+                    H.proc_id = V.proc_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging jobs_vertical_history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+-- purge classads for jobs older than certain days
+DELETE FROM jobs_horizontal_history H1
+WHERE exists (SELECT * 
+              FROM history_jobs_to_purge H2
+              WHERE H1.scheddname = H2.scheddname AND
+		    H1.scheddbirthdate = H2.scheddbirthdate AND
+                    H1.cluster_id = H2.cluster_id AND
+                    H1.proc_id = H2.proc_id);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('purging jobs_horizontal_history takes ' || (endts-begints)/100 || ' seconds');
+
+-- purge log thrown events older than jobHistoryDuration
+-- The thrown table doesn't fall precisely into any of the categories,
+-- it may contain information about job history log that is truncated.
+-- We don't want the table to grow unbounded either.
+DELETE FROM throwns T
+WHERE T.throwtime < 
+     (current_timestamp - 
+      to_dsinterval(jobHistoryDuration || ' 00:00:00'));
+
+-- purge sql error events older than jobHistoryDuration
+-- The error_sqllogs table doesn't fall precisely into any of the categories, 
+-- it may contain information about job history log that causes a sql error.
+-- We don't want the table to grow unbounded either.
+DELETE FROM error_sqllogs S
+WHERE S.lastmodified < 
+     (current_timestamp - 
+      to_dsinterval(jobHistoryDuration || ' 00:00:00'));
+
+COMMIT;
+
+/* lastly check if db size is above 75 percentage of specified limit */
+-- one caveat: index size is not counted in the usage calculation
+-- gather stats first to have correct statistics 
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'maintenance_log', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'runs', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'rejects', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'matches', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'throwns', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'events', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'generic_messages', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'jobqueuepollinginfo', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'currencies', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_vertical', block_sample => TRUE);
+
+begints := DBMS_UTILITY.GET_TIME;
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_horizontal_history', block_sample => TRUE);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('gather stats for daemons_horizontal_history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_vertical_history', block_sample => TRUE);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('gather stats for daemons_vertical_history takes ' || (endts-begints)/100 || ' seconds');
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'submitters_horizontal', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'submitters_horizontal_history', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'cdb_users', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'transfers', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'files', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'fileusages', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_vertical', block_sample => TRUE);
+
+begints := DBMS_UTILITY.GET_TIME;
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_vertical_history', block_sample => TRUE);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('gather stats for machines_vertical_history takes ' || (endts-begints)/100 || ' seconds');
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'clusterads_horizontal', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'procads_horizontal', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'clusterads_vertical', block_sample => TRUE);
+DBMS_STATS.GATHER_TABLE_STATS(null, 'procads_vertical', block_sample => TRUE);
+
+begints := DBMS_UTILITY.GET_TIME;
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'jobs_vertical_history', block_sample => TRUE);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('gather stats for jobs_vertical_history takes ' || (endts-begints)/100 || ' seconds');
+
+begints := DBMS_UTILITY.GET_TIME;
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'jobs_horizontal_history', block_sample => TRUE);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('gather stats for jobs_horizontal_history takes ' || (endts-begints)/100 || ' seconds');
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_horizontal', block_sample => TRUE);
+
+begints := DBMS_UTILITY.GET_TIME;
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'machines_horizontal_history', block_sample => TRUE);
+
+endts := DBMS_UTILITY.GET_TIME;
+DBMS_OUTPUT.PUT_LINE('gather stats for machines_horizontal_history takes ' || (endts-begints)/100 || ' seconds');
+
+DBMS_STATS.GATHER_TABLE_STATS(null, 'daemons_horizontal', block_sample => TRUE);
+
+SELECT ROUND(SUM(NUM_ROWS*AVG_ROW_LEN)/(1024*1024)) INTO totalUsedMB
+FROM user_tables;
+
+DBMS_OUTPUT.PUT_LINE('totalUsedMB=' || totalUsedMB || ' MegaBytes');
+
+UPDATE quilldbmonitor SET dbsize = totalUsedMB;
+
+SELECT current_timestamp INTO endts_overall FROM dual;
+
+-- finally record this in the maintenance_log table 
+INSERT INTO maintenance_log(eventid,eventts,eventdur) 
+VALUES(1, current_timestamp, endts_overall-begints_overall);
+
+COMMIT;
+
+END;
+
+-- grant read access to quillreader
+grant select any table to quillreader;
+
+#END NOPARSE
+
+#END IF
+
+
+# DROP ###########################################################
+
+#IF DROP
+
+#NOPARSE
+
+DROP PROCEDURE quill_purgehistory;
+DROP TABLE history_jobs_to_purge;
+
+#END NOPARSE
+
+#END IF

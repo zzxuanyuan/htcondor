@@ -1,0 +1,278 @@
+ 
+-- Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+-- University of Wisconsin-Madison, WI.
+-- 
+-- Licensed under the Apache License, Version 2.0 (the "License"); you
+-- may not use this file except in compliance with the License.  You may
+-- obtain a copy of the License at
+-- 
+--    http://www.apache.org/licenses/LICENSE-2.0
+-- 
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+
+
+--Before installing this script, the following must have been prepared
+--1. quillreader account has been created
+#IF PGSQL
+--2. pl/pgSQL language has been created with "createlang plpgsql [dbname]"
+#END IF
+
+#INCLUDE common_defines
+
+TABLE maintenance_events
+id                              INTEGER
+msg                             VARCHAR(4000)
+PRIMARY KEY (id)
+END TABLE
+
+TABLE maintenance_log
+eventid                         integer REFERENCES maintenance_events(id)
+eventts                         TIMESTAMP(3) WITH TIME ZONE
+#IF ORACLE
+eventdur                        INTERVAL DAY TO SECOND
+#END IF
+#IF PGSQL
+eventdur                        INTERVAL
+#END IF
+END TABLE
+
+TABLE machines_vertical
+machine_id                      varchar(MACHINE_ID_MAX_LEN) NOT NULL
+attr                            varchar(ATTR_MAX_LEN) NOT NULL 
+val                             text
+start_time                      timestamp(3) with time zone
+Primary Key (machine_id, attr)
+END TABLE
+
+TABLE machines_vertical_history
+machine_id                      varchar(MACHINE_ID_MAX_LEN)
+attr                            varchar(ATTR_MAX_LEN)
+val                             text
+start_time                      timestamp(3) with time zone
+end_time                        timestamp(3) with time zone
+END TABLE
+
+TABLE clusterads_horizontal CASCADE
+scheddname                      varchar(SCHEDDNAME_MAX_LEN) NOT NULL
+cluster_id                      integer NOT NULL
+owner                           varchar(30)
+jobstatus                       integer
+jobprio                         integer
+imagesize                       numeric(38)
+qdate                           timestamp(3) with time zone
+remoteusercpu                   numeric(38)
+remotewallclocktime             numeric(38)
+cmd                             text
+args                            text
+jobuniverse                     integer
+primary key (scheddname,cluster_id)
+END TABLE
+
+
+INDEX ca_h_i_owner ON clusterads_horizontal (owner)
+
+TABLE procads_horizontal CASCADE
+scheddname                      varchar(SCHEDDNAME_MAX_LEN) NOT NULL
+cluster_id                      integer NOT NULL
+proc_id                         integer NOT NULL
+jobstatus                       integer
+imagesize                       numeric(38)
+remoteusercpu                   numeric(38)
+remotewallclocktime             numeric(38)
+remotehost                      varchar(4000)
+globaljobid                     varchar(4000)
+jobprio                         integer
+args                            text
+shadowbday                      timestamp(3) with time zone
+enteredcurrentstatus            timestamp(3) with time zone
+numrestarts                     integer
+primary key (scheddname,cluster_id,proc_id)
+END TABLE
+
+TABLE jobs_horizontal_history CASCADE
+scheddname                      varchar(SCHEDDNAME_MAX_LEN) NOT NULL
+scheddbirthdate                 integer NOT NULL
+cluster_id                      integer NOT NULL
+proc_id                         integer NOT NULL
+qdate                           timestamp(3) with time zone
+owner                           varchar(30)
+globaljobid                     varchar(4000)
+numckpts                        integer
+numrestarts                     integer
+numsystemholds                  integer
+condorversion                   varchar(4000)
+condorplatform                  varchar(4000)
+rootdir                         varchar(4000)
+Iwd                             varchar(4000)
+jobuniverse                     integer
+cmd                             text
+minhosts                        integer
+maxhosts                        integer
+jobprio                         integer
+negotiation_user_name           varchar(4000)
+env                             text
+userlog                         varchar(4000)
+coresize                        numeric(38)
+killsig                         varchar(4000)
+stdin                           varchar(4000)
+transferin                      varchar(5)
+stdout                          varchar(4000)
+transferout                     varchar(5)
+stderr                          varchar(4000)
+transfererr                     varchar(5)
+shouldtransferfiles             varchar(4000)
+transferfiles                   varchar(4000)
+executablesize                  numeric(38)
+diskusage                       integer
+filesystemdomain                varchar(4000)
+args                            text
+lastmatchtime                   timestamp(3) with time zone
+numjobmatches                   integer
+jobstartdate                    timestamp(3) with time zone
+jobcurrentstartdate             timestamp(3) with time zone
+jobruncount                     integer
+filereadcount                   numeric(38)
+filereadbytes                   numeric(38)
+filewritecount                  numeric(38)
+filewritebytes                  numeric(38)
+fileseekcount                   numeric(38)
+totalsuspensions                integer
+imagesize                       numeric(38)
+exitstatus                      integer
+localusercpu                    numeric(38)
+localsyscpu                     numeric(38)
+remoteusercpu                   numeric(38)
+remotesyscpu                    numeric(38)
+bytessent                       numeric(38)
+bytesrecvd                      numeric(38)
+rscbytessent                    numeric(38)
+rscbytesrecvd                   numeric(38)
+exitcode                        integer
+jobstatus                       integer
+enteredcurrentstatus            timestamp(3) with time zone
+remotewallclocktime             numeric(38)
+lastremotehost                  varchar(4000)
+completiondate                  timestamp(3) with time zone
+enteredhistorytable             timestamp(3) with time zone
+primary key (scheddname,scheddbirthdate, cluster_id, proc_id)
+END TABLE
+
+INDEX jobs_hor_his_ix1 ON jobs_horizontal_history (owner)
+INDEX jobs_hor_his_ix2 ON jobs_horizontal_history (enteredhistorytable)
+
+
+TABLE clusterads_vertical CASCADE
+scheddname                      varchar(SCHEDDNAME_MAX_LEN) NOT NULL
+cluster_id                      integer NOT NULL
+attr                            varchar(ATTR_MAX_LEN) NOT NULL
+val                             text
+primary key (scheddname, cluster_id, attr)
+END TABLE
+
+TABLE procads_vertical CASCADE
+scheddname                      varchar(SCHEDDNAME_MAX_LEN) NOT NULL
+cluster_id                      integer NOT NULL
+proc_id                         integer NOT NULL
+attr                            varchar(ATTR_MAX_LEN) NOT NULL
+val                             text
+primary key (scheddname,cluster_id, proc_id, attr)
+END TABLE
+
+TABLE jobs_vertical_history CASCADE
+scheddname                      varchar(SCHEDDNAME_MAX_LEN) NOT NULL
+scheddbirthdate                 integer NOT NULL
+cluster_id                      integer NOT NULL
+proc_id                         integer NOT NULL
+attr                            varchar(ATTR_MAX_LEN) NOT NULL
+val                             text
+primary key (scheddname,scheddbirthdate, cluster_id, proc_id, attr)
+END TABLE
+
+TABLE generic_messages
+eventtype                       varchar(4000)
+eventkey                        varchar(4000)
+eventtime                       timestamp(3) with time zone
+eventloc                        varchar(4000)
+attname                         varchar(4000)
+attvalue                        text
+atttype                         varchar(4000)
+END TABLE
+
+TABLE daemons_vertical
+mytype                          VARCHAR(100) NOT NULL
+name                            VARCHAR(DAEMON_NAME_MAX_LEN) NOT NULL
+attr                            VARCHAR(ATTR_MAX_LEN) NOT NULL
+val                             text
+lastreportedtime                TIMESTAMP(3) WITH TIME ZONE
+PRIMARY KEY (MyType, Name, attr)
+END TABLE
+
+TABLE daemons_vertical_history
+mytype                          VARCHAR(100)
+name                            VARCHAR(DAEMON_NAME_MAX_LEN)
+lastreportedtime                TIMESTAMP(3) WITH TIME ZONE
+attr                            VARCHAR(ATTR_MAX_LEN)
+val                             text
+endtime                         TIMESTAMP(3) WITH TIME ZONE
+END TABLE
+
+TABLE error_sqllogs CASCADE
+logname                         varchar(100)
+host                            varchar(50)
+lastmodified                    timestamp(3) with time zone
+errorsql                        varchar(4000)
+logbody                         text
+errormessage                    varchar(4000)
+END TABLE
+
+INDEX error_sqllog_idx ON error_sqllogs (logname, host, lastmodified)
+
+
+#IF ORACLE && CREATE
+    #INCLUDE oracle_create_views
+#END IF
+#IF PGSQL && CREATE
+    #INCLUDE pgsql_create_views
+#END IF
+#IF DROP
+    #INCLUDE common_drop_views
+#END IF
+
+
+INSERT maintenance_events (id,msg)
+1, 'issued purge command'
+#IF PGSQL
+2, 'issued reindex command'
+#END IF
+END INSERT
+
+
+#IF ORACLE
+    #INCLUDE oracle_purge
+#END IF
+#IF PGSQL
+    #INCLUDE pgsql_purge
+#END IF
+
+
+-- the creation of the schema version table should be the last step 
+-- because it is used by quill daemon to decide whether we have the 
+-- right schema objects for it to operate correctly
+TABLE quill_schema_version
+major                           int 
+minor                           int
+back_to_major                   int
+back_to_minor                   int
+END TABLE
+
+DELETE quill_schema_version
+
+
+INSERT quill_schema_version (major, minor, back_to_major, back_to_minor)
+2,0,2,0
+END INSERT
+
