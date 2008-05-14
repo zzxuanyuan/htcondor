@@ -162,6 +162,7 @@ int AmazonJob::maxConnectFailures = 3;
 int AmazonJob::funcRetryInterval = 15;
 int AmazonJob::pendingWaitTime = 15;
 int AmazonJob::maxRetryTimes = 3;
+int AmazonJob::retryInterval = 300;
 
 AmazonJob::AmazonJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -867,9 +868,7 @@ int AmazonJob::doEvaluateState()
 
 				// First we should set the value of SSH keypair. In normal situation, this
 				// name should be dynamically created. 
-				if ( m_key_pair == "" ) {
-					m_key_pair = build_keypair();
-				}
+				m_key_pair = build_keypair();
 
 				// Save this temporarily created SSH keypair to the submitting log
 				SetKeypairId( m_key_pair.Value() );
@@ -981,9 +980,7 @@ int AmazonJob::doEvaluateState()
 					
 					
 					m_ami_id = build_ami_id();
-					if ( m_key_pair == "" ) {
-						m_key_pair = build_keypair();
-					}
+					m_key_pair = build_keypair();
 					if ( m_group_names == NULL )	m_group_names = build_groupnames();
 					
 					// amazon_vm_start() will check the input arguments
@@ -1020,7 +1017,7 @@ int AmazonJob::doEvaluateState()
 						
 						// meet the resource limitation (maximum 20 instances)
 						// should retry this command later
-						daemonCore->Reset_Timer( evaluateStateTid, 60 );
+						daemonCore->Reset_Timer( evaluateStateTid, retryInterval );
 						break;
 				
 					} else if ( strcmp(gahp_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
@@ -1837,29 +1834,12 @@ MyString AmazonJob::build_ami_id()
 
 MyString AmazonJob::build_keypair()
 {
-	// Build a name for the ssh keypair that will be unique to this job.
-	// Our pattern is SSH_<collector name>_<GlobalJobId>
+	// Since we're relying on the key-pair name being unique for each job for 
+	// recovery purposes, we don't want to let the user specify it. Everytime
+	// we will create a temporary one.
 
-	// get condor pool name
-	// In case there are multiple collectors, strip out the spaces
-	// If there's no collector, insert a dummy name
-	char* pool_name = param( "COLLECTOR_HOST" );
-	if ( pool_name ) {
-		StringList collectors( pool_name );
-		free( pool_name );
-		pool_name = collectors.print_to_string();
-	} else {
-		pool_name = strdup( "NoPool" );
-	}
-
-	// use "ATTR_GLOBAL_JOB_ID" to get unique global job id
-	MyString job_id;
-	jobAd->LookupString( ATTR_GLOBAL_JOB_ID, job_id );
-
-	MyString key_pair;
-	key_pair.sprintf( "SSH_%s_%s", pool_name, job_id.Value() );
-
-	free( pool_name );
+	// keypair name = SSH_ + condor_pool_name + global_job_id
+	MyString key_pair = temporary_keypair_name();
 	return key_pair;
 }
 
@@ -1884,6 +1864,37 @@ StringList* AmazonJob::build_groupnames()
 	free (buffer);
 	
 	return group_names;
+}
+
+
+// Create the temporary name for the SSH keypair (not its output file name) 
+char* AmazonJob::temporary_keypair_name()
+{
+	// Note: keypair name = SSH_ + condor_pool_name + job_id
+	MyString keypair_name;
+	
+	// construct the temporary keypair name
+	keypair_name.sprintf("SSH_%s", get_common_temp_name());
+	return strdup(keypair_name.Value());
+}
+
+
+const char* AmazonJob::get_common_temp_name()
+{
+	// common temporary name = pool_name + global_job_id
+	
+	MyString temp_name;
+	
+	// get condor pool name
+	char* pool_name = param( "COLLECTOR_HOST" );
+
+	// use "ATTR_GLOBAL_JOB_ID" to get unique global job id
+	char* job_id = NULL;
+	jobAd->LookupString( ATTR_GLOBAL_JOB_ID, &job_id );
+
+	// construct the temporary name
+	temp_name.sprintf("%s_%s", pool_name, job_id);
+	return strdup(temp_name.Value());
 }
 
 
