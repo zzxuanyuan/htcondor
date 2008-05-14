@@ -24,6 +24,8 @@
 #include "string_list.h"
 #include "MyString.h"
 #include "HashTable.h"
+#include "setenv.h"
+#include "condor_environ.h"
 #include "PipeBuffer.h"
 #include "io_loop.h"
 #include "amazongahp_common.h"
@@ -151,6 +153,9 @@ main_pre_dc_init( int, char*[] )
 void
 main_pre_command_sock_init( )
 {
+	// We don't want to block sending a CHILDALIVE message to the
+	// gridmanager, so pretend we weren't started by a daemoncore process.
+	UnsetEnv( EnvGetName( ENV_INHERIT ) );
 }
 
 // This function is called by dprintf - always display our pid in our
@@ -458,10 +463,17 @@ Worker::resultHandler()
 		}
 
 		req_id = atoi(args.argv[0]);
+		
+		if( !m_request ) {
+			dprintf (D_ALWAYS, "Um.. Impossible, received id(%d) but "
+					"request is NULL huh!\n", req_id);
+			continue;
+		}
 
-		if( !m_request || m_request->m_reqid != req_id ) {
-			dprintf (D_ALWAYS, "Invalid result from worker[%d]:\"%s\"\n",
-					m_pid, line->Value());
+		if( m_request->m_reqid != req_id ) {
+			dprintf (D_ALWAYS, "Invalid result(req_id=%d,recv_id=%d) "
+					"from worker[%d]:\"%s\"\n", m_request->m_reqid, 
+					req_id, m_pid, line->Value());
 		}else {
 			// Add this to the result list
 			ioprocess->addResult(line->Value());
@@ -474,13 +486,13 @@ Worker::resultHandler()
 				ioprocess->m_new_results_signaled = TRUE;	
 				// So that we only do it once
 			}
+
+			// remove this from worker request
+			m_request = NULL;
+
+			//remove this from request queue
+			ioprocess->removeRequest(req_id);
 		}
-
-		// remove this from worker request
-		m_request = NULL;
-
-		//remove this from request queue
-		ioprocess->removeRequest(req_id);
 
 		delete line;
 	}
@@ -505,12 +517,14 @@ Worker::resultHandler()
 			io_process_exit(1);
 		}
 	}else {
-		// Now we check if there are waiting requests
-		m_request = ioprocess->popWaitingRequest();
+		if( m_request == NULL ) {
+			// Now we check if there are waiting requests
+			m_request = ioprocess->popWaitingRequest();
 
-		if( m_request ) {
-			m_request->m_worker = (Worker *)this;
-			ioprocess->flushRequest(m_request);
+			if( m_request ) {
+				m_request->m_worker = (Worker *)this;
+				ioprocess->flushRequest(m_request);
+			}
 		}
 	}
 
