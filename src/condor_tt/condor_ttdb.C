@@ -55,6 +55,7 @@ MyString condor_ttdb_buildts(time_t *tv, dbtype dt)
 #endif
 
 	case T_PGSQL:
+    case T_MYSQL:
 		rv.sprintf("'%s'", tsv);		
 		break;
 	default:
@@ -172,6 +173,7 @@ MyString condor_ttdb_compare_clob_to_lit(dbtype dt, const char* col_nam, const c
 		rv.sprintf("dbms_lob.compare(%s, '%s') != 0", col_nam, literal);
 		break;
 	case T_PGSQL:
+	case T_MYSQL:
 		rv.sprintf("%s != '%s'", col_nam, literal);
 		break;
 	default:

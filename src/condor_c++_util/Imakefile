@@ -70,13 +70,13 @@ ORACLE_OBJS = oracledatabase.o
 ORACLE_OBJS = 
 #endif
 
-QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o $(ORACLE_OBJS) dbms_utils.o
+QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o mysqldatabase.o sqlquery.o $(ORACLE_OBJS) dbms_utils.o
 #else
 QUILL_OBJS =
 #endif
 
 #ifdef WANT_TT
-TT_OBJS = pgsqldatabase.o file_sql.o file_transfer_db.o 
+TT_OBJS = pgsqldatabase.o file_sql.o file_transfer_db.o mysqldatabase.o
 #else
 TT_OBJS =
 #endif

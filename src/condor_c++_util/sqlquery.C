@@ -80,6 +80,7 @@ extract(epoch from enteredcurrentstatus) as enteredcurrentstatus, \
 remotewallclocktime, lastremotehost, \
 extract(epoch from completiondate) as completiondate"
 
+
 #define quill_history_ver_select_list "scheddname, cluster_id, proc_id, \
 attr, val"
 
@@ -104,7 +105,7 @@ attr, val"
    expression converts to difference in seconds between two timestamps and 
    then compute avg over seconds passed.
 
-   After the averge of number of seconds is computed, we convert the avg back 
+   After the average of number of seconds is computed, we convert the avg back 
    to the format of 'days hours:minutes:seconds' for display.
 */
 #define quill_avg_time_template_oracle "SELECT floor(t.elapsed/86400) || ' ' \

@@ -29,27 +29,41 @@
 extern "C" {
 #endif
 
-		// get the database type specified in the config file
+	// get the database type specified in the config file
 	dbtype getConfigDBType();
+
+    char * getWritePassword(const char *write_passwd_fname, 
+							const char *host, const char *port, 
+							const char *db,
+							const char *dbuser);
+
 	char *getDBConnStr(const char* jobQueueDBIpAddress,
 					   const char* jobQueueDBName,
 					   const char* jobQueueDBUser,
-					   const char* spool
-					   );
+					   const char* spool);
+
+    JobQueueDatabase* getDBObj(dbtype& dt);
+
 	bool stripdoublequotes(char *attVal);
+
 	bool stripdoublequotes_MyString(MyString &value);
+
 	bool isHorizontalHistoryAttribute(const char *attName, 
 									  QuillAttrDataType &attr_type);
+
 	bool isHorizontalClusterAttribute(const char *attName, 
 									  QuillAttrDataType &attr_type);
+
 	bool isHorizontalProcAttribute(const char *attName,
 								   QuillAttrDataType &attr_type);
+
 	bool isHorizontalMachineAttr(char *attName, 
 								 QuillAttrDataType &attr_type);
+
 	bool isHorizontalDaemonAttr(char *attName, 
 								QuillAttrDataType &attr_type);
 
-		// insert a job into the history tables
+    // insert a job into the history tables
 	QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtype dt, MyString & errorSqlStmt, 
 										const char*scheddname, const time_t scheddbirthdate);
 #if defined( __cplusplus )

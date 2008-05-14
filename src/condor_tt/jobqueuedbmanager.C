@@ -39,6 +39,7 @@
 #include "../condor_quill/classadlogparser.h"
 #include "jobqueuedatabase.h"
 #include "pgsqldatabase.h"
+#include "mysqldatabase.h"
 #include "jobqueuecollection.h"
 
 #if HAVE_ORACLE
@@ -116,8 +117,8 @@ JobQueueDBManager::config(bool reconfig)
 			   "set properly.");
 	}
 
-		//bail out if no SPOOL variable is defined since its used to 
-		//figure out the location of the job_queue.log file
+    //bail out if no SPOOL variable is defined since its used to 
+    //figure out the location of the job_queue.log file
 	char *spool = param("SPOOL");
 	if(!spool) {
 		EXCEPT("No SPOOL variable found in config file\n");
@@ -127,59 +128,17 @@ JobQueueDBManager::config(bool reconfig)
 	snprintf(jobQueueLogFile,_POSIX_PATH_MAX * sizeof(char), 
 			 "%s/job_queue.log", spool);
 
-		/*
-		  Here we try to read the database parameters in config
-		  the db ip address format is <ipaddress:port> 
-		*/
-	dt = getConfigDBType();
 
-	jobQueueDBIpAddress = param("QUILL_DB_IP_ADDR");
-
-	jobQueueDBName = param("QUILL_DB_NAME");
-
-	jobQueueDBUser = param("QUILL_DB_USER");
-  	
-	jobQueueDBConn = getDBConnStr(jobQueueDBIpAddress,
-								  jobQueueDBName,
-								  jobQueueDBUser,
-								  spool);
-								  
 	dprintf(D_ALWAYS, "Using Job Queue File %s\n", jobQueueLogFile);
 
-	dprintf(D_ALWAYS, "Using Database Type = %s\n",
-			(dt == T_ORACLE)?"ORACLE":"Postgres");
-	dprintf(D_ALWAYS, "Using Database IpAddress = %s\n", 
-			jobQueueDBIpAddress?jobQueueDBIpAddress:"");
-	dprintf(D_ALWAYS, "Using Database Name = %s\n", 
-			jobQueueDBName?jobQueueDBName:"");
-	dprintf(D_ALWAYS, "Using Database User = %s\n", 
-			jobQueueDBUser?jobQueueDBUser:"");
 
-	if(spool) {
-		free(spool);
-		spool = NULL;
-	}
-
-		// this function is also called when condor_reconfig is issued
-		// and so we dont want to recreate all essential objects
+	// this function is also called when condor_reconfig is issued
+	// and so we dont want to recreate all essential objects
 	if(!reconfig) {
 		prober = new Prober();
 		caLogParser = new ClassAdLogParser();
 
-		switch (dt) {				
-		case T_ORACLE:
-#if HAVE_ORACLE
-			DBObj = new ORACLEDatabase(jobQueueDBConn);
-#else
-			EXCEPT("Oracle database requested, but this version of Condor is compiled without Oracle!\n");
-#endif
-			break;
-		case T_PGSQL:
-			DBObj = new PGSQLDatabase(jobQueueDBConn);
-			break;
-		default:
-			break;;
-		}
+        DBObj = getDBObj(dt);
 
 		xactState = NOT_IN_XACT;
 
@@ -288,8 +247,13 @@ JobQueueDBManager::config(bool reconfig)
 		}
 	}
 
-		//this function assumes that certain members have been initialized
-		// (specifically prober and caLogParser) and so the order is important.
+	if(spool) {
+		free(spool);
+		spool = NULL;
+	}
+
+    //this function assumes that certain members have been initialized
+    // (specifically prober and caLogParser) and so the order is important.
 	setJobQueueFileName(jobQueueLogFile);
 }
 
@@ -1602,7 +1566,7 @@ JobQueueDBManager::getJQPollingInfo()
 
 	dprintf(D_FULLDEBUG, "Get JobQueue Polling Information\n");
 
-	sql_str.sprintf("SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s'", scheddname);
+    sql_str.sprintf("SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s'", scheddname);
 
 	ret_st = DBObj->execQuery(sql_str.Value(), num_result);
 		
@@ -1613,8 +1577,8 @@ JobQueueDBManager::getJQPollingInfo()
 		return QUILL_FAILURE;
 	}
 	else if (ret_st == QUILL_SUCCESS && num_result == 0) {
-			// This case is a rare one since the jobqueuepollinginfo
-			// table contains one tuple at all times 		
+        // This case is a rare one since the jobqueuepollinginfo
+        // table contains one tuple at all times 		
 		displayErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
 		DBObj->releaseQueryResult(); // release Query Result
@@ -1627,7 +1591,7 @@ JobQueueDBManager::getJQPollingInfo()
 	prober->setLastModifiedTime(mtime);
 	prober->setLastSize(size);
 
-		// last_next_cmd_offset
+    // last_next_cmd_offset
 	lcmd->next_offset = atoi(DBObj->getValue(0,2)); 
 	lcmd->offset = atoi(DBObj->getValue(0,3)); // last_cmd_offset
 	lcmd->op_type = atoi(DBObj->getValue(0,4)); // last_cmd_type

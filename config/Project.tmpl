@@ -267,20 +267,22 @@ PCRE_LIB = $(PCRE_DIR)/lib/libpcre.a
 
 #ifdef WANT_TT
 /*
-TT_LIB = $(POSTGRESQL_LIB)/libpq.a $(ORACLE_HOME)/lib/libocci10.a $(ORACLE_HOME)/lib/libclntst10.a $(ORACLE_HOME)/lib/libnnz10.a -lirc -lpthread
+TT_LIB = $(POSTGRESQL_LIB)/libpq.a $(ORACLE_HOME)/lib/libocci10.a $(ORACLE_HOME)/lib/libclntst10.a $(ORACLE_HOME)/lib/libnnz10.a -lirc -lpthread -lz
 */
 #if HAS_EXTERNALS
 POSTGRESQL_LIBS = $(POSTGRESQL_LIB)/libpq.a 
-TT_LIB = $(POSTGRESQL_LIBS) $(ORACLE_LIB)
-TT_INC = -I$(POSTGRESQL_INC) $(ORACLE_INC)
+MYSQL_LIB = /s/mysql-5.0.41/lib/mysql
+MYSQL_INC = -I/s/mysql-5.0.41/include/mysql/
+TT_LIB = $(POSTGRESQL_LIBS) $(ORACLE_LIB) $(MYSQL_LIB)/libmysqlclient.a -lz
+TT_INC = -I$(POSTGRESQL_INC) $(ORACLE_INC) $(MYSQL_INC)
 #endif
 TT_FLAGS = -DWANT_TT  
 #endif
 
 #ifdef WANT_QUILL
 #if HAS_EXTERNALS
-QUILL_LIB = $(POSTGRESQL_LIB)/libpq.a 
-QUILL_INC = -I$(POSTGRESQL_INC) 
+QUILL_LIB = $(POSTGRESQL_LIB)/libpq.a $(MYSQL_LIB)/libmysqlclient.a -lz
+QUILL_INC = -I$(POSTGRESQL_INC) $(MYSQL_INC)
 #endif
 QUILL_FLAGS = -DWANT_QUILL 
 #endif

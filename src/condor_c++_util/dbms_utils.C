@@ -25,6 +25,7 @@
 #include "MyString.h"
 
 #include "pgsqldatabase.h"
+#include "mysqldatabase.h"
 #include "condor_ttdb.h"
 #include "jobqueuecollection.h"
 
@@ -32,7 +33,7 @@ extern "C" {
 
 //! Gets the writer password required by the quill++
 //  daemon to access the database
-static char * getWritePassword(const char *write_passwd_fname, 
+char * getWritePassword(const char *write_passwd_fname, 
 							   const char *host, const char *port, 
 							   const char *db,
 							   const char *dbuser) {
@@ -97,21 +98,24 @@ static char * getWritePassword(const char *write_passwd_fname,
 	return passwd;
 }
 
+
 dbtype getConfigDBType() 
 {
-	char *tmp;
 	dbtype dt = T_PGSQL;
 
-	tmp = param("QUILL_DB_TYPE");
+    char* tmp = param("QUILL_DB_TYPE");
+
 	if (tmp) {
 		if (strcasecmp(tmp, "ORACLE") == 0) {
 			dt = T_ORACLE;
 		} else if (strcasecmp(tmp, "PGSQL") == 0) {
 			dt = T_PGSQL;
-		}
-		free (tmp);
-	} 
-	
+		} else if (strcasecmp(tmp, "MYSQL") == 0) {
+            dt = T_MYSQL;
+        }
+		free(tmp);
+	}
+
 	return dt;
 }
 
@@ -193,6 +197,127 @@ const char* spool
 	
 	return jobQueueDBConn;
 }
+
+
+
+JobQueueDatabase* getDBObj(dbtype& dt) {
+
+    JobQueueDatabase* result = NULL;
+	char *tmp, *host = NULL, *port = NULL, *DBIpAddress=NULL, *DBName=NULL, *DBUser=NULL;
+	int len;
+
+    //bail out if no SPOOL variable is defined since its used to 
+    //figure out the location of the .pgpass file
+	char *spool = param("SPOOL");
+	if(!spool) {
+		EXCEPT("No SPOOL variable found in config file\n");
+	}
+ 
+    dt = getConfigDBType();
+
+    /*
+       Here we try to read the <ipaddress:port> stored in condor_config
+       if one is not specified, by default we use the local address 
+       and the default postgres port of 5432.  
+     */
+	DBIpAddress = param("QUILL_DB_IP_ADDR");
+	if(DBIpAddress) {
+		len = strlen(DBIpAddress);
+		host = (char *) malloc(len * sizeof(char));
+		port = (char *) malloc(len * sizeof(char));
+
+			//split the <ipaddress:port> into its two parts accordingly
+		char *ptr_colon = strchr(DBIpAddress, ':');
+		strncpy(host, DBIpAddress, 
+				ptr_colon - DBIpAddress);
+			// terminate the string properly
+		host[ptr_colon - DBIpAddress] = '\0';
+		strncpy(port, ptr_colon+1, len);
+			// terminate the string properyly
+		port[strlen(ptr_colon+1)] = '\0';
+	}
+
+    /* Here we read the database name and if one is not specified
+       use the default name - quill
+       If there are more than one quill daemons are writing to the
+       same databases, its absolutely necessary that the database
+       names be unique or else there would be clashes.  Having 
+       unique database names is the responsibility of the administrator
+     */
+	DBName = param("QUILL_DB_NAME");
+
+	DBUser = param("QUILL_DB_USER");
+
+    // get the password from the .pgpass file
+    MyString writePasswordFile; 
+	writePasswordFile.sprintf("%s/.pgpass", spool);
+
+	char* writePassword = getWritePassword(writePasswordFile.GetCStr(), 
+										   host?host:"", port?port:"", 
+										   DBName?DBName:"", 
+										   DBUser);
+	MyString DBConn;
+
+	DBConn.sprintf("host=%s port=%s user=%s password=%s dbname=%s", 
+				   host?host:"", port?port:"", 
+				   DBUser?DBUser:"", 
+				   writePassword, 
+				   DBName?DBName:"");
+  
+	fprintf(stdout, "Using Database Type = %s\n",
+			(dt == T_ORACLE) ? "ORACLE" : 
+            ((dt == T_MYSQL) ? "MYSQL" : 
+                "Postgres") );
+	fprintf(stdout, "Using Database IpAddress = %s\n", 
+			DBIpAddress?DBIpAddress:"");
+	fprintf(stdout, "Using Database Name = %s\n", 
+			DBName?DBName:"");
+	fprintf(stdout, "Using Database User = %s\n", 
+			DBUser?DBUser:"");
+
+
+	switch (dt) {				
+		case T_ORACLE:
+#if HAVE_ORACLE
+			result = new ORACLEDatabase(DBConn.GetCStr());
+#else
+			EXCEPT("Oracle database requested, but this version of Condor was compiled without Oracle support!\n");
+#endif
+			break;
+		case T_PGSQL:
+			result = new PGSQLDatabase(DBConn.GetCStr());
+			break;
+		case T_MYSQL:
+			result = new MYSQLDatabase(host,port,DBUser,writePassword,DBName);
+			break;
+		default:
+			break;;
+	}
+
+	if(spool) {
+		free(spool);
+		spool = NULL;
+	}
+	if(host) {
+		free(host);
+		host = NULL;
+	}
+	if(port) {
+		free(port);
+		port = NULL;
+	}
+    if (writePassword) {
+        free(writePassword);
+        writePassword = NULL;
+    }
+
+	free(DBIpAddress);
+	free(DBName);
+	free(DBUser);
+
+    return result;
+}
+
 
 bool stripdoublequotes(char *attVal) {
 	int attValLen;
@@ -545,7 +670,7 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 	  sql_stmt.sprintf(
 					   "DELETE FROM Jobs_Horizontal_History WHERE scheddname = '%s' AND scheddbirthdate = %lu AND cluster_id = %d AND proc_id = %d", scheddname, (unsigned long)scheddbirthdate, cid, pid);
 	  sql_stmt2.sprintf(
-						"INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
+					   "INSERT INTO Jobs_Horizontal_History(scheddname, scheddbirthdate, cluster_id, proc_id, enteredhistorytable) VALUES('%s', %lu, %d, %d, current_timestamp)", scheddname, (unsigned long)scheddbirthdate, cid, pid);
 
 	  if (DBObj->execCommand(sql_stmt.Value()) == QUILL_FAILURE) {
 		  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
