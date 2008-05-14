@@ -24,6 +24,8 @@
 #include "string_list.h"
 #include "MyString.h"
 #include "HashTable.h"
+#include "setenv.h"
+#include "condor_environ.h"
 #include "PipeBuffer.h"
 #include "io_loop.h"
 #include "amazongahp_common.h"
@@ -151,6 +153,9 @@ main_pre_dc_init( int, char*[] )
 void
 main_pre_command_sock_init( )
 {
+	// We don't want to block sending a CHILDALIVE message to the
+	// gridmanager, so pretend we weren't started by a daemoncore process.
+	UnsetEnv( EnvGetName( ENV_INHERIT ) );
 }
 
 // This function is called by dprintf - always display our pid in our
