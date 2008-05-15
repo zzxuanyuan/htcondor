@@ -1529,7 +1529,7 @@ int AmazonJob::doEvaluateState()
 					print_error_code(gahp_error_code, "amazon_vm_stop()");
 					
 					// change Job's status to CANCEL
-					gmState = GM_FAILED;
+					gmState = GM_HOLD;
 					break;
 				}
 				
@@ -1540,7 +1540,7 @@ int AmazonJob::doEvaluateState()
 					// What to do about a failed cancel?
 					errorString = gahp->getErrorString();
 					dprintf( D_ALWAYS, "(%d.%d) job cancel failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-					gmState = GM_FAILED;
+					gmState = GM_HOLD;
 				}
 				
 				break;
@@ -1632,7 +1632,7 @@ int AmazonJob::doEvaluateState()
 					print_error_code(gahp_error_code, "amazon_vm_destroy_keypair()");
 				
 					// change Job's status to CANCEL
-					gmState = GM_FAILED;
+					gmState = GM_HOLD;
 					break;
 				}
 
@@ -1648,7 +1648,7 @@ int AmazonJob::doEvaluateState()
 				} else {
 					errorString = gahp->getErrorString();
 					dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-					gmState = GM_FAILED;
+					gmState = GM_HOLD;
 				}
 									
 				}
