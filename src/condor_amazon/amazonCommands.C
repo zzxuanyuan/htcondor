@@ -645,6 +645,9 @@ bool AmazonVMStop::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
+		if( !strcasecmp(ecode.Value(), "InvalidInstanceID.NotFound")) {
+			return true;
+		}
 		error_msg = output.next();
 		error_code = ecode;
 		return false;
@@ -842,6 +845,9 @@ bool AmazonVMStatus::Request()
 
 	output.rewind();
 	if( tmp_result == false ){
+		if( !strcasecmp(ecode.Value(), "InvalidInstanceID.NotFound")) {
+			return true;
+		}
 		error_msg = output.next();
 		error_code = ecode;
 		return false;
@@ -1241,6 +1247,9 @@ bool AmazonVMDeleteGroup::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
+		if( !strcasecmp(ecode.Value(), "InvalidGroup.NotFound")) {
+			return true;
+		}
 		error_msg = output.next();
 		error_code = ecode;
 		return false;
@@ -1948,6 +1957,9 @@ bool AmazonVMDestroyKeypair::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
+		if( !strcasecmp(ecode.Value(), "InvalidKeyPair.NotFound")) {
+			return true;
+		}
 		error_msg = output.next();
 		error_code = ecode;
 		return false;
