@@ -38,6 +38,7 @@ const char * version = "$GahpVersion " AMAZON_GAHP_VERSION " Feb 15 2008 Condor\
 char *mySubSystem = "AMAZON_GAHP";	// used by Daemon Core
 
 static IOProcess *ioprocess = NULL;
+static MyString amazon_proxy_server;
 
 // this appears at the bottom of this file
 extern "C" int display_dprintf_header(FILE *fp);
@@ -378,6 +379,9 @@ main_init( int argc, char ** const argv )
 		wm_interval = atoi(paramval);
 		free(paramval);
 	}
+
+	// Try to read env for amazon_http_proxy
+	amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
 
 	// Create IOProcess class
 	ioprocess = new IOProcess;
@@ -892,12 +896,15 @@ IOProcess::createNewWorker(void)
 
 	// take snapshots at no more than 15 seconds in between, by default
 	//fi.max_snapshot_interval = param_integer("PID_SNAPSHOT_INTERVAL", 15);
-
-
+	
 	Env job_env;
 	MyString env_string;
 	env_string.sprintf("0x%x", DebugFlags);
 	job_env.SetEnv("DebugLevel", env_string.Value());
+
+	if( amazon_proxy_server.IsEmpty() == false ) {
+		job_env.SetEnv("AMAZON_HTTP_PROXY", amazon_proxy_server.Value());
+	}
 
 	new_worker->m_pid = daemonCore->Create_Process (
 				m_worker_exec_name.Value(),

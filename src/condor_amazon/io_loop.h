@@ -37,6 +37,8 @@
 #define GAHP_RESULT_ERROR "E"
 #define GAHP_RESULT_FAILURE "F"
 
+#define AMAZON_HTTP_PROXY	"AMAZON_HTTP_PROXY"
+
 class Worker {
  public:
 	 Worker() {
