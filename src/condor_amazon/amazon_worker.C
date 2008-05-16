@@ -24,6 +24,7 @@
 #include "globus_utils.h"
 #include "condor_config.h"
 #include "PipeBuffer.h"
+#include "setenv.h"
 #include "io_loop.h"
 #include "amazongahp_common.h"
 #include "amazonCommands.h"
@@ -306,6 +307,15 @@ main_init( int argc, char ** const argv )
 		DC_Exit(1);
 	}
 	set_working_dir(tmpCwd);
+
+	// Try to get proxy server information
+	MyString amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
+
+	if( amazon_proxy_server.IsEmpty() == false ) {
+		// Set http_proxy environment variable which will be used for perl program	
+		SetEnv("HTTP_PROXY", amazon_proxy_server.Value());
+		dprintf(D_ALWAYS, "Using http proxy = %s\n", amazon_proxy_server.Value());
+	}
 
 	// Register all amazon commands
 	if( registerAllAmazonCommands() == false ) {

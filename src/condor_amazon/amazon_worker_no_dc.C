@@ -206,6 +206,15 @@ main( int argc, char ** const argv )
 		set_debug_flags( (char* )debug_string.GetCStr());
 	}
 
+#define AMAZON_HTTP_PROXY	"AMAZON_HTTP_PROXY"
+	// Try to get proxy server information
+	MyString amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
+
+	if( amazon_proxy_server.IsEmpty() == false ) {
+		// Set http_proxy environment variable which will be used for perl program	
+		SetEnv("HTTP_PROXY", amazon_proxy_server.Value());
+	}
+
 	// For Testing for exec perl
 	//set_amazon_lib_path("/scratch/amazonCompile/src/condor_amazon/ec2_lib");
 	
