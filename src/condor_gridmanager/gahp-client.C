@@ -635,6 +635,13 @@ GahpServer::Startup()
 		free( tmp_char );
 	}
 
+	// For amazon gahp proxy server
+	tmp_char = param("AMAZON_HTTP_PROXY");
+	if( tmp_char ) {
+		newenv.SetEnv( "AMAZON_HTTP_PROXY", tmp_char );
+		free( tmp_char );
+	}
+
 		// Now register a reaper, if we haven't already done so.
 		// Note we use ReaperHandler instead of ReaperHandlercpp
 		// for the callback prototype, because our handler is 
