@@ -221,6 +221,12 @@ main( int argc, char ** const argv )
 		set_debug_flags( (char* )debug_string.GetCStr());
 	}
 
+	//Try to read env for amazon_http_proxy
+	MyString amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
+	if( amazon_proxy_server.IsEmtpy() == false ) {
+		set_amazon_proxy_server(amazon_proxy_server.GetCStr());
+	}
+
 	// parse arguments
 	MyString log_file;
 

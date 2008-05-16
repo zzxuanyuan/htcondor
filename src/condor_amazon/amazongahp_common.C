@@ -26,6 +26,8 @@
 
 static MyString working_dir;
 static MyString amazon_lib_path;
+static MyString amazon_proxy_host;
+static int amazon_proxy_port;
 
 // List for all amazon commands
 static SimpleList<AmazonGahpCommand*> amazon_gahp_commands;
@@ -114,6 +116,45 @@ void vmprintf( int flags, const char *fmt, ... )
 	return;
 }
 #endif
+
+void set_amazon_proxy_server(const char* url) 
+{
+	if( !url ) {
+		return;
+	}
+
+	// Need to parse host name and port
+	if( !strncasecmp("http://", url, strlen("http://"))) {
+		amazon_proxy_host = url +  strlen("http://");
+		amazon_proxy_port = 80;
+	}else if( !strncasecmp("https://", url, strlen("https://")) ) { 
+		amazon_proxy_host = url +  strlen("https://");
+		amazon_proxy_port = 443;
+	}else {
+		amazon_proxy_host = url;
+		amazon_proxy_port = 80;
+	}
+
+	char *pos = NULL; 
+	if( ( pos = strrchr( url, ':') ) ) {
+		int port = atoi(++pos);
+
+		if( port > 0 ) {
+			amazon_proxy_port = port;
+		}
+	}
+}
+
+bool get_amazon_proxy_server(const char* &host_name, int& port )
+{
+	if( amazon_proxy_host.IsEmpty() == false ) {
+		host_name = amazon_proxy_host.GetCStr();
+		port = amazon_proxy_port;
+		return true;
+	}
+
+	return false;
+}
 
 AmazonGahpCommand::AmazonGahpCommand(const char* cmd, ioCheckfn iofunc, workerfn workerfunc)
 {

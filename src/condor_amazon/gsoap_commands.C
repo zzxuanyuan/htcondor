@@ -153,6 +153,15 @@ AmazonRequest::SetupSoap(void)
 		return false;
 	}
 
+	const char* proxy_host_name;
+	int proxy_port = 0;
+	if( get_amazon_proxy_server(proxy_host_name, proxy_port) ) {
+		dprintf(D_ALWAYS, "Using proxy server, host=%s, port=%d\n",
+				proxy_host_name, proxy_port);
+		m_soap->proxy_host = proxy_host_name;
+		m_soap->proxy_port = proxy_host; 
+	}
+
 	if (soap_register_plugin(m_soap, soap_wsse)) {
 		ParseSoapError("setup WS-Security plugin");
 		return false;
@@ -221,7 +230,7 @@ AmazonRequest::SetupSoap(void)
 		dprintf(D_ALWAYS, "%s\n", error_msg.Value());
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -730,7 +739,9 @@ AmazonVMStatus::gsoapRequest(void)
 	}else {
 		// Error
 		ParseSoapError("DescribeInstance");
-
+		if( !strcasecmp(error_code.Value(), "InvalidInstanceID.NotFound")) {
+			return true;
+		}
 	}
 	return false;
 }
