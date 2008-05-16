@@ -168,7 +168,7 @@ systemCommand(ArgList &args, StringList &output, MyString &ecode)
    STATUS must be one of "pending", "running", "shutting-down", "terminated"
    PRIVATEDNS and PUBLICDNS may be empty until the instance enters a running state
 */
-static bool parseAmazonStatusResult( const char* result_line, AmazonStatusResult &output)
+static bool parseAmazonStatusResult( const char* result_line, AmazonStatusResult &output) 
 {
 	output.clearAll();
 
@@ -882,7 +882,8 @@ AmazonVMStatusAll::~AmazonVMStatusAll()
 	}
 }
 
-// Expecting:AMAZON_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
+// Expecting:AMAZON_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile> <Status>
+// <Status> is optional field. If <Status> is specified, only VMs with the status will be listed
 
 bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -891,9 +892,9 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 
 	dprintf (D_FULLDEBUG, "AmazonVMStatusAll workerFunction is called\n");
 	
-	if( !verify_number_args(argc ,4) ) {
+	if( !verify_min_number_args(argc ,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -902,6 +903,10 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 
 	request.accesskeyfile = argv[2];
 	request.secretkeyfile = argv[3];
+
+	if( argc >= 5 ) {
+		request.vm_status = argv[4];
+	}
 
 	// Send Request
 #ifdef AMAZON_GSOAP_ENABLED
@@ -989,6 +994,15 @@ bool AmazonVMStatusAll::Request()
 		if( parseAmazonStatusResult(one_instance, status_results[index]) == false ) {
 			continue;
 		}
+
+		if( vm_status.IsEmpty() == false ) {
+			if( strcasecmp( status_results[index].status.Value(), 
+						vm_status.Value()) ) {
+				// Status is different
+				continue;
+			}
+		}
+
 		index++;
 	}
 	status_num = index;
@@ -1009,7 +1023,8 @@ AmazonVMRunningKeypair::~AmazonVMRunningKeypair()
 {
 }
 
-// Expecting:AMAZON_VM_RUNNING_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile>
+// Expecting:AMAZON_VM_RUNNING_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <Status>
+// <Status> is optional field. If <Status> is specified, the keypair which belongs to VM with the status will be listed.
 
 bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &result_string) 
 {
@@ -1018,9 +1033,9 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 
 	dprintf (D_FULLDEBUG, "AmazonVMRunningKeypair workerFunction is called\n");
 	
-	if( !verify_number_args(argc ,4) ) {
+	if( !verify_min_number_args(argc ,4) ) {
 		result_string = create_failure_result( req_id, "Wrong_Argument_Number");
-		dprintf (D_ALWAYS, "Wrong args Number(should be %d, but %d) to %s\n", 
+		dprintf (D_ALWAYS, "Wrong args Number(should be >= %d, but %d) to %s\n", 
 				4, argc, argv[0]);
 		return FALSE;
 	}
@@ -1029,6 +1044,10 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 
 	request.accesskeyfile = argv[2];
 	request.secretkeyfile = argv[3];
+
+	if( argc >= 5 ) {
+		request.vm_status = argv[4];
+	}
 
 	// Send Request
 #ifdef AMAZON_GSOAP_ENABLED
@@ -1048,12 +1067,6 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 			StringList result_list;
 			int i = 0;
 			for( i = 0; i < request.status_num; i++ ) {
-				/*
-				if( strcasecmp( request.status_results[i].status.Value(), 
-							AMAZON_STATUS_RUNNING) || 
-						request.status_results[i].keyname.IsEmpty()) {
-					continue;
-				}*/
 				if( request.status_results[i].keyname.IsEmpty() ) {
 					continue;
 				}

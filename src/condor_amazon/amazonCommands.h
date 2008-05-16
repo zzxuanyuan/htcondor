@@ -218,6 +218,7 @@ class AmazonVMStatusAll : public AmazonRequest {
 #endif
 
 		// Request Args
+		MyString vm_status;
 
 		// Result 
 		AmazonStatusResult *status_results;

@@ -79,16 +79,18 @@ bool AmazonVMStatus::ioCheck(char **argv, int argc)
 // Expecting:AMAZON_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
 bool AmazonVMStatusAll::ioCheck(char **argv, int argc)
 {
-	return verify_number_args(argc, 4) &&
+	return verify_min_number_args(argc, 4) &&
 		verify_request_id(argv[1]) &&
 		verify_string_name(argv[2]) &&
 		verify_string_name(argv[3]);
 }
 
-// Expecting:AMAZON_VM_RUNNING_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile>
+// Expecting:AMAZON_VM_RUNNING_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <Status>
+// <Status> is optional field. If <Status> is specified, the keypair which belongs to VM with the status will be listed.
+
 bool AmazonVMRunningKeypair::ioCheck(char **argv, int argc)
 {
-	return verify_number_args(argc, 4) &&
+	return verify_min_number_args(argc, 4) &&
 		verify_request_id(argv[1]) &&
 		verify_string_name(argv[2]) &&
 		verify_string_name(argv[3]);
