@@ -312,6 +312,15 @@ main_init( int argc, char ** const argv )
 	MyString amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
 
 	if( amazon_proxy_server.IsEmpty() == false ) {
+
+		amazon_proxy_server.trim();
+		if(strncasecmp( amazon_proxy_server.Value(), "http://", strlen("http://"))) {
+			// We neeed to prepend http:// to the string
+			MyString tmpstring = "http://";
+			tmpstring += amazon_proxy_server;
+			amazon_proxy_server = amazon_proxy_server;
+		}
+
 		// Set http_proxy environment variable which will be used for perl program	
 		SetEnv("HTTP_PROXY", amazon_proxy_server.Value());
 		dprintf(D_ALWAYS, "Using http proxy = %s\n", amazon_proxy_server.Value());
