@@ -105,6 +105,10 @@ sub _init {
 	$self->{AWSAccessKeyId} = $args{AWSAccessKeyId};
 	$self->{SecretAccessKey} = $args{SecretAccessKey};
 	$self->{debug} = $args{debug};
+
+	#by jaeyoung for http error
+	$self->{http_error_code} = 0;
+	$self->{http_error_message} = '';
 	
 	chop($ts);
 	$ts .= '.000Z';
@@ -149,11 +153,26 @@ sub _sign {
 	my $ur = $uri->as_string();
 	$self->_debug("GENERATED QUERY URL: $ur");
 	my $ua = LWP::UserAgent->new();
+	# loading proxy server environments and setting it
+	$ua->env_proxy();
 	my $res = $ua->get($ur);
-	
+
+	# by jaeyoung
+	# We need to check the result
+	if( ! $res->is_success ) {
+		# For http errors like network failure
+		
+		$self->{http_error_code} = $res->code;
+		$self->{http_error_message} = $res->message;
+
+		return undef;
+	}
+
+	# We got a response from EC2
+
 	# We should force <item> elements to be in an array
 	my $xs = XML::Simple->new(ForceArray => qr/item/);
-	
+
 	my $ref = $xs->XMLin($res->content());
 
 	return $ref;
@@ -206,6 +225,12 @@ sub register_image {
 	});
 		
 	my $xml = $self->_sign(Action  => 'RegisterImage', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -293,6 +318,12 @@ sub describe_images {
 	}
 
 	my $xml = $self->_sign(Action  => 'DescribeImages', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -330,6 +361,12 @@ sub deregister_image {
 	
 
 	my $xml = $self->_sign(Action  => 'DeregisterImage', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -430,6 +467,12 @@ sub run_instances {
 	}
 
 	my $xml = $self->_sign(Action  => 'RunInstances', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -508,7 +551,13 @@ sub describe_instances {
 	}
 	
 	my $xml = $self->_sign(Action  => 'DescribeInstances', %args);
-	
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
+
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
 		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -586,6 +635,11 @@ sub terminate_instances {
 	
 	my $xml = $self->_sign(Action  => 'TerminateInstances', %args);	
 
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -645,6 +699,12 @@ sub create_key_pair {
 		
 	my $xml = $self->_sign(Action  => 'CreateKeyPair', %args);
 
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
+
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
 		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -700,6 +760,12 @@ sub describe_key_pairs {
 	
 	my $xml = $self->_sign(Action  => 'DescribeKeyPairs', %args);
 
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
+
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
 		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -739,6 +805,12 @@ sub delete_key_pair {
 	});
 		
 	my $xml = $self->_sign(Action  => 'DeleteKeyPair', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -802,6 +874,12 @@ sub modify_image_attribute {
 	
 	
 	my $xml = $self->_sign(Action  => 'ModifyImageAttribute', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -844,6 +922,12 @@ sub reset_image_attribute {
 	
 	my $xml = $self->_sign(Action  => 'ResetImageAttribute', %args);
 
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
+
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
 		$self->{error} = $xml->{Errors}{Error}{Message};
@@ -885,6 +969,12 @@ sub create_security_group {
 	
 	
 	my $xml = $self->_sign(Action  => 'CreateSecurityGroup', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -957,6 +1047,12 @@ sub describe_security_groups {
 	}
 	
 	my $xml = $self->_sign(Action  => 'DescribeSecurityGroups', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -994,6 +1090,12 @@ sub delete_security_group {
 	
 	
 	my $xml = $self->_sign(Action  => 'DeleteSecurityGroup', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -1071,6 +1173,12 @@ sub authorize_security_group_ingress {
 	
 	
 	my $xml = $self->_sign(Action  => 'AuthorizeSecurityGroupIngress', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -1148,6 +1256,12 @@ sub revoke_security_group_ingress {
 	
 	
 	my $xml = $self->_sign(Action  => 'RevokeSecurityGroupIngress', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -1185,6 +1299,12 @@ sub get_console_output {
 	
 	
 	my $xml = $self->_sign(Action  => 'GetConsoleOutput', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -1231,6 +1351,12 @@ sub reboot_instances {
 	}
 	
 	my $xml = $self->_sign(Action  => 'RebootInstances', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
@@ -1282,6 +1408,12 @@ sub describe_image_attribute {
 	});
 		
 	my $xml = $self->_sign(Action  => 'DescribeImageAttribute', %args);
+
+	if( ! defined($xml) ) {
+		$self->{errorcode} = $self->{http_error_code};
+		$self->{error} = $self->{http_error_message};
+		return undef;
+	}
 	
 	if ( grep { defined && length } $xml->{Errors} ) {
 		$self->_debug("ERROR: $xml->{Errors}{Error}{Message}");
