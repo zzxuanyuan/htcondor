@@ -143,6 +143,9 @@ void set_amazon_proxy_server(const char* url)
 			amazon_proxy_port = port;
 		}
 	}
+
+	dprintf(D_ALWAYS, "Using proxy server, host=%s, port=%d\n", 
+			amazon_proxy_host.Value(), amazon_proxy_port);
 }
 
 bool get_amazon_proxy_server(const char* &host_name, int& port )

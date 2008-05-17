@@ -156,8 +156,6 @@ AmazonRequest::SetupSoap(void)
 	const char* proxy_host_name;
 	int proxy_port = 0;
 	if( get_amazon_proxy_server(proxy_host_name, proxy_port) ) {
-		dprintf(D_ALWAYS, "Using proxy server, host=%s, port=%d\n",
-				proxy_host_name, proxy_port);
 		m_soap->proxy_host = proxy_host_name;
 		m_soap->proxy_port = proxy_host; 
 	}
