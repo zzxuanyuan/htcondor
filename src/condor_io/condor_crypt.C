@@ -24,12 +24,15 @@
 #include "condor_random_num.h"
 #ifdef HAVE_EXT_OPENSSL
 #include <openssl/rand.h>              // SSLeay rand function
+#else
+#error shouldntgethere
 #endif
 #include "condor_debug.h"
 
 Condor_Crypt :: Condor_Crypt(const KeyInfo& keyInfo)
 	: keyInfo_ (keyInfo)
 {
+#if !defined(SKIP_AUTHENTICATION)
 	dprintf(D_SECURITY, "Instantiating Condor_Crypt object.\n");
 
 	cryptKeyLen_ = 0;
@@ -91,10 +94,12 @@ Condor_Crypt :: Condor_Crypt(const KeyInfo& keyInfo)
 	EVP_EncryptInit_ex(&encryptCtx_, cryptCipher_, NULL, encryptKeyData_, encryptIVec_);
 	EVP_DecryptInit_ex(&decryptCtx_, cryptCipher_, NULL, decryptKeyData_, decryptIVec_);
 	//dprintf(D_SECURITY, "end constructor.\n");
+#endif
 }
 
 void Condor_Crypt :: resetState()
 {
+#if !defined(SKIP_AUTHENTICATION)
 	Protocol p = keyInfo_.getProtocol();
 	switch(p) {
 	case CONDOR_BLOWFISH_PRE_EVP:
@@ -107,6 +112,7 @@ void Condor_Crypt :: resetState()
 		memset(decryptIVec_, 0, EVP_MAX_IV_LENGTH);
 		break;
 	}
+#endif
 }
 
 Condor_Crypt :: Condor_Crypt()
@@ -115,6 +121,7 @@ Condor_Crypt :: Condor_Crypt()
 
 Condor_Crypt :: ~Condor_Crypt()
 {
+#if !defined(SKIP_AUTHENTICATION)
 	dprintf(D_SECURITY, "Encryption cleanup.\n");
 	Protocol p = keyInfo_.getProtocol();
 	switch(p) {
@@ -130,6 +137,7 @@ Condor_Crypt :: ~Condor_Crypt()
 			free(decryptKeyData_);
 		break;
 	}
+#endif
 }
 
 bool Condor_Crypt :: operateCipher(unsigned char *  input, 
