@@ -633,7 +633,7 @@ protected:
 	**	Data structures
 	*/
 
-        Condor_Crypt_Base * crypto_;         // The actual crypto
+        Condor_Crypt      * crypto_;         // The actual crypto
         bool                crypto_mode_;    // true == enabled, false == disabled.
         CONDOR_MD_MODE      mdMode_;        // MAC mode
         KeyInfo           * mdKey_;

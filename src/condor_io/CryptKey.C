@@ -20,6 +20,7 @@
 
 #include "condor_common.h"
 #include "CryptKey.h"
+#include "MyString.h"
 #include "condor_debug.h"
 
 KeyInfo:: KeyInfo()
@@ -76,6 +77,7 @@ void KeyInfo :: init(unsigned char * keyData, int keyDataLen)
     if ((keyDataLen > 0) && keyData) {
         keyDataLen_ = keyDataLen;
         keyData_    = (unsigned char *)malloc(keyDataLen_ + 1);
+		ASSERT(keyData_);
         memset(keyData_, 0, keyDataLen_ + 1);
         memcpy(keyData_, keyData, keyDataLen_);   
     }
@@ -140,7 +142,7 @@ unsigned char * KeyInfo :: getPaddedKeyData(int len) const
 	}
 		// copy the key into our new large-sized buffer
 	memcpy(padded_key_buf, keyData_, keyDataLen_);
-
+// What if they're equal?  -Ian
 		// Pad the key by if needed by
 		// simply repeating the key over and over until the 
 		// desired length is obtained.

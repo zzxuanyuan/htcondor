@@ -21,10 +21,17 @@
 #ifndef CONDOR_CRYPT_KEY
 #define CONDOR_CRYPT_KEY
 
+#include "MyString.h"
+
 enum Protocol {
     CONDOR_NO_PROTOCOL,
-    CONDOR_BLOWFISH,
-    CONDOR_3DES
+    CONDOR_BLOWFISH_PRE_EVP,
+    CONDOR_3DES_PRE_EVP,
+	CONDOR_BLOWFISH_EVP,
+	CONDOR_3DES_EVP,
+	CONDOR_AES256,
+    CONDOR_AES192,
+	CONDOR_AES128
 };
 
 class KeyInfo {
@@ -37,7 +44,7 @@ class KeyInfo {
     KeyInfo(unsigned char * keyData,
             int             keyDataLen,
             Protocol        protocol = CONDOR_NO_PROTOCOL,
-            int             duration = 0);
+			int             duration = 0);
     //------------------------------------------
     // Construct a key object
     //------------------------------------------
@@ -64,6 +71,8 @@ class KeyInfo {
     // REQUIRE: None
     // RETURNS: length
     //------------------------------------------
+	
+//	bool getString(MyString &output);
 
     Protocol getProtocol() const;
     //------------------------------------------
@@ -88,10 +97,9 @@ class KeyInfo {
 
  private:
     void init(unsigned char * keyData, int keyDataLen);
-
     unsigned char * keyData_;
     int             keyDataLen_;
-	int				keyBufferLen_;
+	//int				keyBufferLen_;
     Protocol        protocol_;
     int             duration_;
 };

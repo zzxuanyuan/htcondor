@@ -182,11 +182,6 @@ CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o errno_num.o
 
 IO_OBJ = stream.o sock.o safe_sock.o reli_sock.o buffers.o $(CONDOR_TYPE_OBJ) condor_rw.o SafeMsg.o
 
-#if HAVE_EXT_OPENSSL
-   CONDOR_DES_OBJ = condor_crypt_3des.o
-   CONDOR_BLOWFISH_OBJ = condor_crypt_blowfish.o
-#endif
-
 OPENSSL_OBJ = md5_dgst.o md5_one.o rand_lib.o md_rand.o sha1dgst.o cryptlib.o \
 	buffer.o stack.o err.o lhash.o mem.o rand_win.o mem_dbg.o b_print.o \
 	bio_lib.o bss_file.o ex_data.o mem_clr.o eng_init.o tb_rand.o \
@@ -201,10 +196,9 @@ OPENSSL_OBJ = md5_dgst.o md5_one.o rand_lib.o md_rand.o sha1dgst.o cryptlib.o \
 
 #if HAVE_EXT_OPENSSL
 CONDOR_CRYPT_OBJ = CryptKey.o condor_crypt.o condor_md.o ../condor_util_lib/get_random_num.o \
-	$(CONDOR_DES_OBJ) $(CONDOR_BLOWFISH_OBJ) $(OPENSSL_OBJ)
+	$(OPENSSL_OBJ)
 #else 
-CONDOR_CRYPT_OBJ = CryptKey.o condor_crypt.o condor_md.o ../condor_util_lib/get_random_num.o \
-	$(CONDOR_DES_OBJ) $(CONDOR_BLOWFISH_OBJ) 
+CONDOR_CRYPT_OBJ = CryptKey.o condor_crypt.o condor_md.o ../condor_util_lib/get_random_num.o
 #endif
 
 SPECIAL_IO_OBJ = authentication.o $(CONDOR_CRYPT_OBJ)
@@ -535,14 +529,6 @@ authentication.o: ../condor_io/authentication.C
 condor_md.o: ../condor_c++_util/condor_md.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_c++_util \
 	        -DSKIP_AUTHENTICATION -c ../condor_c++_util/condor_md.C
-
-condor_crypt_3des.o: ../condor_io/condor_crypt_3des.C
-	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_3des.C
-
-condor_crypt_blowfish.o: ../condor_io/condor_crypt_blowfish.C
-	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_blowfish.C
 
 CryptKey.o: ../condor_io/CryptKey.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
