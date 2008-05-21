@@ -17,10 +17,10 @@
  *
  ***************************************************************/
 
-
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
+#include "condor_daemon_core.h"
 #include "sig_install.h"
 #include "proc_family_monitor.h"
 #include "proc_family_server.h"
@@ -246,9 +246,13 @@ main_init(int argc, char* argv[])
 	// daemon_core_main.C). we should have a general mechanism for this
 	// sort of thing; we should use it for the Collector too
 
-	// finally, enter the server's wait loop
+	// enter the server's wait loop
 	//
 	server.wait_loop();
+
+	// when the wait loop returns, its time to go away
+	//
+	DC_Exit(0);
 
 	return 0;
 }
