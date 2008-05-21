@@ -20,6 +20,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "sig_install.h"
 #include "proc_family_monitor.h"
 #include "proc_family_server.h"
 #include "proc_family_io.h"
@@ -202,9 +203,29 @@ get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
 	delete parent_pi;
 }
 
+// this is a temporary hack until the ProcD becomes more fully integrated
+// with DaemonCore. as it stands, we never return from main_init().
+// however, we'd still like to be responsive to SIGQUIT and SIGTERM for
+// easier administration. we'll just respond by dying for now
+//
+static void
+fix_signal_handlers()
+{
+	install_sig_handler(SIGQUIT, SIG_DFL);
+	install_sig_handler(SIGTERM, SIG_DFL);
+	unblock_signal(SIGQUIT);
+	unblock_signal(SIGTERM);
+}
+
 int
 main_init(int argc, char* argv[])
 {
+	// invoke hack to allow us to repond (by dying) to SIGQUIT and
+	// SIGTERM, even though we currently don't ever return to
+	// DaemonCore
+	//
+	fix_signal_handlers();
+
 	// this modifies our static configuration variables based on
 	// our command line parameters
 	//
