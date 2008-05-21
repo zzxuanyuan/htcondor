@@ -28,6 +28,10 @@
 #include "process_control.WINDOWS.h"
 #endif
 
+// for DaemonCore
+//
+char* mySubSystem = "PROCD";
+
 // our "local server address"
 // (set with the "-A" option)
 //
@@ -38,11 +42,6 @@ static char* local_server_address = NULL;
 // this string will be a SID on Windows and a UID on UNIX
 //
 static char* local_client_principal = NULL;
-
-// log file (no logging by default)
-// (set with the "-L" option)
-//
-static char* log_file_name = NULL;
 
 // the maximum number of seconds we'll wait in between
 // taking snapshots (one minute by default)
@@ -130,16 +129,6 @@ parse_command_line(int argc, char* argv[])
 				local_client_principal = argv[index];
 				break;
 
-			// log file name
-			//
-			case 'L':
-				if (index + 1 >= argc) {
-					fail_option_args("-L", 1);
-				}
-				index++;
-				log_file_name = argv[index];
-				break;
-
 			// maximum snapshot interval
 			//
 			case 'S':
@@ -222,7 +211,7 @@ get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
 }
 
 int
-main(int argc, char* argv[])
+main_init(int argc, char* argv[])
 {
 	// close stdin and stdout right away, since we don't use them
 	//
@@ -240,21 +229,6 @@ main(int argc, char* argv[])
 	pid_t parent_pid;
 	birthday_t parent_birthday;
 	get_parent_info(parent_pid, parent_birthday);
-
-	// setup logging if a file was given
-	//
-	extern FILE* debug_fp;
-	if (log_file_name != NULL) {
-		debug_fp = safe_fopen_wrapper(log_file_name, "w");
-		if (debug_fp == NULL) {
-			fprintf(stderr,
-			        "error: couldn't open file \"%s\" for logging: %s (%d)",
-					log_file_name,
-			        strerror(errno),
-			        errno);
-			exit(1);
-		}
-	}
 
 	// if a maximum snapshot interval was given, it needs to be either
 	// a non-negative number, or -1 for "infinite"
@@ -316,4 +290,32 @@ main(int argc, char* argv[])
 	server.wait_loop();
 
 	return 0;
+}
+
+int
+main_config(bool)
+{
+	return FALSE;
+}
+
+int
+main_shutdown_fast()
+{
+	return FALSE;
+}
+
+int
+main_shutdown_graceful()
+{
+	return FALSE;
+}
+
+void
+main_pre_dc_init(int, char*[])
+{
+}
+
+void
+main_pre_command_sock_init()
+{
 }
