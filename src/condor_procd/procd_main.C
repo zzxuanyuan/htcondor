@@ -69,20 +69,13 @@ static char* windows_softkill_binary = NULL;
 static inline void
 fail_illegal_option(char* option)
 {
-	fprintf(stderr,
-	        "error: illegal option: %s",
-	        option);
-	exit(1);
+	EXCEPT("illegal option: %s", option);
 }
 
 static inline void
 fail_option_args(char* option, int args_required)
 {
-	fprintf(stderr,
-	        "error: option \"%s\" requires %d arguments",
-	        option,
-	        args_required);
-	exit(1);
+	EXCEPT("option \"%s\" requires %d arguments", option, args_required);
 }
 
 static void
@@ -178,8 +171,7 @@ parse_command_line(int argc, char* argv[])
 	// now that we're done parsing, enforce required options
 	//
 	if (local_server_address == NULL) {
-		fprintf(stderr, "error: the \"-A\" option is required");
-		exit(1);
+		EXCEPT("the \"-A\" option is required");
 	}
 }
 
@@ -191,16 +183,13 @@ get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
 
 	int ignored;
 	if (ProcAPI::getProcInfo(getpid(), own_pi, ignored) != PROCAPI_SUCCESS) {
-		fprintf(stderr, "error: getProcInfo failed on own PID");
-		exit(1);
+		EXCEPT("getProcInfo failed on own PID");
 	}
 	if (ProcAPI::getProcInfo(own_pi->ppid, parent_pi, ignored) != PROCAPI_SUCCESS) {
-		fprintf(stderr, "error: getProcInfo failed on parent PID");
-		exit(1);
+		EXCEPT("getProcInfo failed on parent PID");
 	}
 	if (parent_pi->birthday > own_pi->birthday) {
-		fprintf(stderr, "error: parent process's birthday is later than our own");
-		exit(1);
+		EXCEPT("parent process's birthday is later than our own");
 	}
 
 	parent_pid = parent_pi->pid;
@@ -213,11 +202,6 @@ get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
 int
 main_init(int argc, char* argv[])
 {
-	// close stdin and stdout right away, since we don't use them
-	//
-	fclose(stdin);
-	fclose(stdout);
-
 	// this modifies our static configuration variables based on
 	// our command line parameters
 	//
@@ -234,9 +218,7 @@ main_init(int argc, char* argv[])
 	// a non-negative number, or -1 for "infinite"
 	//
 	if (max_snapshot_interval < -1) {
-		fprintf(stderr,
-		        "error: maximum snapshot interval must be non-negative or -1");
-		exit(1);
+		EXCEPT("maximum snapshot interval must be non-negative or -1");
 	}
 
 #if defined(WIN32)
@@ -258,11 +240,9 @@ main_init(int argc, char* argv[])
 	//
 	if (min_tracking_gid != 0) {
 		if (min_tracking_gid > max_tracking_gid) {
-			fprintf(stderr,
-			        "invalid group range given: %u - %u\n",
-			        min_tracking_gid,
-			        max_tracking_gid);
-			exit(1);
+			EXCEPT("invalid group range given: %u - %u\n",
+			       min_tracking_gid,
+			       max_tracking_gid);
 		}
 		monitor.enable_group_tracking(min_tracking_gid, max_tracking_gid);
 	}
@@ -279,11 +259,13 @@ main_init(int argc, char* argv[])
 	//
 	server.set_client_principal(local_client_principal);
 
-	// now that we've initialized the server, close out standard error.
-	// this way, calling programs can set up a pipe to block on until
-	// we're accepting connections
-	//
-	fclose(stderr);
+	// TODO: we used to keep stderr open until we were listening for
+	// requests on our named pipe, at which point we'd close it. this
+	// allowed a parent process to block on a pipe until the ProcD
+	// was initialized. now that we're DaemonCore, we really shouldn't
+	// be using stderr for this (see Nick's comments in
+	// daemon_core_main.C). we should have a general mechanism for this
+	// sort of thing; we should use it for the Collector too
 
 	// finally, enter the server's wait loop
 	//
