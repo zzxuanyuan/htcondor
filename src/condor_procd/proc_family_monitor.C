@@ -67,14 +67,13 @@ ProcFamilyMonitor::ProcFamilyMonitor(pid_t pid,
 	m_everybody_else = new ProcFamily(this);
 	ASSERT(m_everybody_else != NULL);
 
-	// create the "root" family; set the watcher pid to be the same as
-	// the root pid: there's some special logic in delete_unwatched_families
-	// to EXCEPT if we see that the root process has exited
+	// create the "root" family; set the watcher PID to be 0, meaning
+	// that "garbage collection" won't be enabled for this family
 	//
 	ProcFamily* family = new ProcFamily(this,
 	                                    pid,
 	                                    birthday,
-	                                    pid,
+	                                    0,
 	                                    snapshot_interval);
 	ASSERT(family != NULL);
 
@@ -745,6 +744,8 @@ ProcFamilyMonitor::delete_unwatched_families(Tree<ProcFamily*>* tree)
 	}
 
 	// check to see if the current tree node's watcher has exited
+	// (a watcher PID of 0 means the family is not watched: automatic
+	// unregistering will not happen)
 	//
 	pid_t watcher_pid = tree->get_data()->get_watcher_pid();
 	if (watcher_pid == 0) {
@@ -760,14 +761,11 @@ ProcFamilyMonitor::delete_unwatched_families(Tree<ProcFamily*>* tree)
 		return;
 	}
 
-	// it looks like the watcher has exited; if this family is the
-	// "root family", then this means the Master has gone away and
-	// we should die. otherwise, simply unregister the unwatched
-	// family
+	// it looks like the watcher has exited; unregister the now unwatched
+	// family. note that this can't be the root family, since it has
+	// a watcher PID of 0
 	//
-	if (tree->get_parent() == NULL) {
-		EXCEPT("master has exited");
-	}
+	ASSERT(tree->get_parent() != NULL);
 	pid_t root_pid = tree->get_data()->get_root_pid();
 	unregister_subfamily(tree);
 
