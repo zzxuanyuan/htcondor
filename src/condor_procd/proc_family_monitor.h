@@ -153,6 +153,14 @@ private:
 	EnvironmentTracker* m_environment_tracker;
 	ParentTracker*      m_parent_tracker;
 
+	// helper for looking up families by PID. a 2nd argument of true
+	// means that a PID value of zero will cause this method to return
+	// the root of our tree (otherwise a PID of 0 causes the lookup to
+	// fail)
+	//
+	Tree<ProcFamily*>* lookup_family(pid_t pid,
+	                                 bool zero_means_root = false);
+
 	// find the minimum of all the ProcFamilys' requested "maximum
 	// snapshot intervals"
 	//

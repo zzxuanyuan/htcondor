@@ -181,9 +181,8 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 
 	// make sure this process isn't already the root of a family
 	//
-	Tree<ProcFamily*>* tree;
-	ret = m_family_table.lookup(root_pid, tree);
-	if (ret != -1) {
+	Tree<ProcFamily*>* tree = lookup_family(root_pid);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "register_subfamily: pid %u already registered\n",
 		        root_pid);
@@ -208,10 +207,10 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 	// the parent-child link
 	//
 	pid_t parent_root = member->get_proc_family()->get_root_pid();
-	Tree<ProcFamily*>* parent_tree_node;
-	ret = m_family_table.lookup(parent_root, parent_tree_node);
-	ASSERT(ret != -1);
-	Tree<ProcFamily*>* child_tree_node = parent_tree_node->add_child(family);
+	Tree<ProcFamily*>* parent_tree_node = lookup_family(parent_root);
+	ASSERT(parent_tree_node != NULL);
+	Tree<ProcFamily*>* child_tree_node =
+		parent_tree_node->add_child(family);
 	ASSERT(child_tree_node != NULL);
 
 	// move the new family's root process into the correct family
@@ -235,17 +234,30 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 	return PROC_FAMILY_ERROR_SUCCESS;
 }
 
+Tree<ProcFamily*>*
+ProcFamilyMonitor::lookup_family(pid_t pid, bool zero_means_root)
+{
+	if (zero_means_root && (pid == 0)) {
+		return m_tree;
+	}
+	Tree<ProcFamily*>* tree;
+	int ret = m_family_table.lookup(pid, tree);
+	if (ret == -1) {
+		return NULL;
+	}
+	return tree;
+}
+
 proc_family_error_t
 ProcFamilyMonitor::track_family_via_environment(pid_t pid, PidEnvID* penvid)
 {
 	// lookup the family
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "track_family_via_environment failure: "
-				    "family with root %u not found\n",
+		            "family with root %u not found\n",
 		        pid);
 		return PROC_FAMILY_ERROR_FAMILY_NOT_FOUND;
 	}
@@ -261,9 +273,8 @@ ProcFamilyMonitor::track_family_via_login(pid_t pid, char* login)
 {
 	// lookup the family
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "track_family_via_login failure: "
 				    "family with root %u not found\n",
@@ -289,9 +300,8 @@ ProcFamilyMonitor::track_family_via_supplementary_group(pid_t pid, gid_t& gid)
 
 	// lookup the family
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "track_family_via_supplementary_group failure: "
 				    "family with root %u not found\n",
@@ -313,9 +323,8 @@ ProcFamilyMonitor::unregister_subfamily(pid_t pid)
 {
 	// lookup the family
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "unregister_subfamily failure: family with root %u not found\n",
 		        pid);
@@ -351,9 +360,8 @@ ProcFamilyMonitor::signal_process(pid_t pid, int sig)
 {
 	// make sure signals are only sent to subtree roots
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "signal_process failure: family with root %u not found\n",
 				pid);
@@ -363,7 +371,7 @@ ProcFamilyMonitor::signal_process(pid_t pid, int sig)
 	// look up the Member so we can get at the procInfo struct
 	//
 	ProcFamilyMember* pm;
-	ret = m_member_table.lookup(pid, pm);
+	int ret = m_member_table.lookup(tree->get_data()->get_root_pid(), pm);
 	if (ret == -1) {
 		dprintf(D_ALWAYS,
 		        "signal_process failure: family root pid %u not found\n",
@@ -384,9 +392,8 @@ ProcFamilyMonitor::signal_family(pid_t pid, int sig)
 {
 	// find the family
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "signal_family error: family with root %u not found\n",
 		        pid);
@@ -410,9 +417,8 @@ ProcFamilyMonitor::get_family_usage(pid_t pid, ProcFamilyUsage* usage)
 {
 	// find the family
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	if (ret == -1) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	if (tree == NULL) {
 		dprintf(D_ALWAYS,
 		        "get_family_usage failure: family with root %u not found\n",
 		        pid);
@@ -614,9 +620,8 @@ ProcFamilyMonitor::add_member_to_family(ProcFamily* pf,
 		// already assigned to (i.e. pf is a "more specific"
 		// match), then move the process
 		//
-		Tree<ProcFamily*>* node;
-		ret = m_family_table.lookup(pf->get_root_pid(), node);
-		ASSERT(ret != -1);
+		Tree<ProcFamily*>* node = lookup_family(pf->get_root_pid());
+		ASSERT(node != NULL);
 		while(node->get_parent() != NULL) {
 			node = node->get_parent();
 			if (node->get_data() == pfm->get_proc_family()) {
@@ -838,9 +843,8 @@ ProcFamilyMonitor::output(LocalServer& server, pid_t pid)
 	// lookup the family. if the look fails, send "false" to the
 	// client and return. otherwise, send "true" and keep going
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	bool ok = (ret != -1);
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	bool ok = (tree != NULL);
 	server.write_data(&ok, sizeof(bool));
 	if (!ok) {
 		dprintf(D_ALWAYS,
