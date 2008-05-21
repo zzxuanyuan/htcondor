@@ -290,7 +290,7 @@ ProcFamilyMonitor::track_family_via_login(pid_t pid, char* login)
 
 #if defined(LINUX)
 proc_family_error_t
-ProcFamilyMonitor::track_family_via_supplementary_group(pid_t pid, gid_t& gid)
+ProcFamilyMonitor::track_family_via_supplementary_group(pid_t pid, gid_t gid)
 {
 	// check if group tracking is enabled
 	//

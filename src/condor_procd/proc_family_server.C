@@ -150,13 +150,12 @@ ProcFamilyServer::track_family_via_supplementary_group()
 	read_from_client(&pid, sizeof(pid_t));
 
 	gid_t gid;
+	read_from_client(&gid, sizeof(gid_t));
+
 	proc_family_error_t err =
 		m_monitor.track_family_via_supplementary_group(pid, gid);
 
 	write_to_client(&err, sizeof(proc_family_error_t));
-	if (err == PROC_FAMILY_ERROR_SUCCESS) {
-		write_to_client(&gid, sizeof(gid_t));
-	}
 }
 #endif
 

@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-
 #include "condor_common.h"
 #include "group_tracker.h"
 #include "proc_family_monitor.h"
@@ -31,9 +30,9 @@ GroupTracker::GroupTracker(ProcFamilyMonitor* pfm,
 }
 
 bool
-GroupTracker::add_mapping(ProcFamily* family, gid_t& gid)
+GroupTracker::add_mapping(ProcFamily* family, gid_t gid)
 {
-	return m_gid_pool.allocate(family, gid);
+	return m_gid_pool.associate(family, gid);
 }
 
 bool

@@ -40,16 +40,17 @@ GIDPool::~GIDPool()
 }
 
 bool
-GIDPool::allocate(ProcFamily* family, gid_t& gid)
+GIDPool::associate(ProcFamily* family, gid_t gid)
 {
-	for (int i = 0; i < m_size; i++) {
-		if (m_gid_map[i] == NULL) {
-			m_gid_map[i] = family;
-			gid = m_offset + i;
-			return true;
-		}
+	int index = gid - m_offset;
+	if ((index < 0) || (index >= m_size)) {
+		return false;
 	}
-	return false;
+	if (m_gid_map[index] != NULL) {
+		return false;
+	}
+	m_gid_map[index] = family;
+	return true;
 }
 
 bool

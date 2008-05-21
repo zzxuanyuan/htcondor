@@ -5172,14 +5172,7 @@ DaemonCore::Register_Family(pid_t       child_pid,
 	}
 	if (group != NULL) {
 #if defined(LINUX)
-		if (!m_proc_family->track_family_via_supplementary_group(child_pid,
-		                                                         *group)) {
-			dprintf(D_ALWAYS,
-			        "Create_Process: error tracking family "
-			            "with root %u via group ID\n",
-			        child_pid);
-			goto REGISTER_FAMILY_DONE;
-		}
+		EXCEPT("Internal error: group-based tracking disabled");
 #else
 		EXCEPT("Internal error: "
 		           "group-based tracking unsupported on this platform");

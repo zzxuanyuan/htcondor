@@ -251,18 +251,20 @@ ProcFamilyClient::track_family_via_login(pid_t pid,
 #if defined(LINUX)
 bool
 ProcFamilyClient::track_family_via_supplementary_group(pid_t pid,
-                                                       bool& response,
-                                                       gid_t& gid)
+                                                       gid_t gid,
+                                                       bool& response)
 {
 	ASSERT(m_initialized);
 
 	dprintf(D_PROCFAMILY,
 	        "About to tell ProcD to track family with root %u "
-	            "via GID\n",
-	        pid);
+	            "via GID %u\n",
+	        pid,
+	        gid);
 
 	int message_len = sizeof(proc_family_command_t) +
-	                  sizeof(pid_t);
+	                  sizeof(pid_t) +
+	                  sizeof(gid_t);
 	void* buffer = malloc(message_len);
 	ASSERT(buffer != NULL);
 	char* ptr = (char*)buffer;
@@ -273,6 +275,9 @@ ProcFamilyClient::track_family_via_supplementary_group(pid_t pid,
 
 	*(pid_t*)ptr = pid;
 	ptr += sizeof(pid_t);
+
+	*(gid_t*)ptr = gid;
+	ptr += sizeof(gid_t);
 
 	ASSERT(ptr - (char*)buffer == message_len);
 	
@@ -288,17 +293,6 @@ ProcFamilyClient::track_family_via_supplementary_group(pid_t pid,
 		dprintf(D_ALWAYS,
 		        "ProcFamilyClient: failed to read response from ProcD\n");
 		return false;
-	}
-	if (err == PROC_FAMILY_ERROR_SUCCESS) {
-		if (!m_client->read_data(&gid, sizeof(gid_t))) {
-			dprintf(D_ALWAYS,
-			        "ProcFamilyClient: failed to read group ID from ProcD\n");
-			return false;
-		}
-		dprintf(D_PROCFAMILY,
-		        "tracking family with root PID %u using group ID %u\n",
-		        pid,
-		        gid);
 	}
 	m_client->end_connection();
 

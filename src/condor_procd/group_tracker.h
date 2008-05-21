@@ -30,7 +30,7 @@ public:
 
 	GroupTracker(ProcFamilyMonitor* pfm, gid_t min_gid, gid_t max_gid);
 
-	bool add_mapping(ProcFamily* family, gid_t& group);
+	bool add_mapping(ProcFamily* family, gid_t group);
 	bool remove_mapping(ProcFamily* family);
 	bool check_process(procInfo* pi);
 

@@ -77,7 +77,7 @@ public:
 #if defined(LINUX)
 	// start tracking a family using a supplementary group ID
 	//
-	proc_family_error_t track_family_via_supplementary_group(pid_t, gid_t&);
+	proc_family_error_t track_family_via_supplementary_group(pid_t, gid_t);
 #endif
 
 	// remove a subfamily

@@ -58,7 +58,7 @@ public:
 #if defined(LINUX)
 	// tell ProcD to track a family via supplementary group id
 	//
-	bool track_family_via_supplementary_group(pid_t pid, bool&, gid_t&);
+	bool track_family_via_supplementary_group(pid_t pid, gid_t gid, bool&);
 #endif
 
 	// ask the procd for usage information about a process

@@ -236,26 +236,6 @@ ProcFamilyProxy::track_family_via_login(pid_t pid, const char* login)
 	return response;
 }
 
-#if defined(LINUX)
-bool
-ProcFamilyProxy::track_family_via_supplementary_group(pid_t pid, gid_t& gid)
-{ 
-	// see "HACK" comment in register_subfamily for why we don't try
-	// to recover from errors here
-	//
-	bool response;
-	if (!m_client->track_family_via_supplementary_group(pid,
-	                                                       response,
-	                                                       gid)) {
-		dprintf(D_ALWAYS,
-		        "track_family_via_supplementary_group: "
-		            "ProcD communication error\n");
-		return false;
-	}
-	return response;
-}
-#endif
-
 bool
 ProcFamilyProxy::get_usage(pid_t pid, ProcFamilyUsage& usage, bool)
 {
