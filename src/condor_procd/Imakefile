@@ -25,9 +25,6 @@ LIB_OBJ=proc_family_client.o proc_family_io.o local_client.UNIX.o \
         named_pipe_watchdog.o named_pipe_util.o
 library_target(procd_client.a,$(LIB_OBJ))
 
-c_plus_nowrap_target(procd_dump,procd_dump.o,procd_client.a $(STD_LIBS))
-c_plus_nowrap_target(procd_quit,procd_quit.o,procd_client.a $(STD_LIBS))
-
 LOCAL_SERVER_TEST_OBJ=local_server_test.o local_server.UNIX.o \
                       named_pipe_reader.o named_pipe_writer.o \
                       named_pipe_watchdog_server.o \
