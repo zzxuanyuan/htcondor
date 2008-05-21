@@ -1,10 +1,8 @@
 all_target(procd_client.a condor_procd)
 
-CFLAGS = -DPROCD_DEBUG=1 \
-         -I ../condor_procapi \
+CFLAGS = -I ../condor_procapi \
          $(STD_C_FLAGS)
-C_PLUS_FLAGS = -DPROCD_DEBUG=1 \
-               -I ../condor_procapi \
+C_PLUS_FLAGS = -I ../condor_procapi \
                $(STD_C_PLUS_FLAGS)
 
 PROCD_OBJ=procd_main.o procd_common.o \

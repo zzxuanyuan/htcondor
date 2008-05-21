@@ -28,9 +28,7 @@
 #include "proc_family_io.h"
 #include "procd_common.h"
 
-#if defined(PROCD_DEBUG)
-#include "local_server.h"
-#endif
+class LocalServer;
 
 class PIDTracker;
 #if defined(LINUX)
@@ -195,8 +193,6 @@ private:
 	//
 	void delete_all_families(Tree<ProcFamily*>*);
 
-#if defined(PROCD_DEBUG)
-
 public:
 	// output all our families
 	//
@@ -205,9 +201,7 @@ public:
 private:
 	// helper for output
 	//
-	void output(LocalServer&, pid_t, Tree<ProcFamily*>*);
-
-#endif
+	bool output(LocalServer&, pid_t, Tree<ProcFamily*>*);
 };
 
 #endif

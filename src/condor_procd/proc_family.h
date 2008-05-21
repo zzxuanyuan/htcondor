@@ -24,10 +24,7 @@
 #include "../condor_procapi/procapi.h"
 #include "proc_family_member.h"
 #include "proc_family_io.h"
-
-#if defined(PROCD_DEBUG)
 #include "local_server.h"
-#endif
 
 class ProcFamilyMonitor;
 
@@ -91,11 +88,9 @@ public:
 	//
 	void fold_into_parent(ProcFamily*);
 
-#if defined(PROCD_DEBUG)
 	// output the PIDs of all processes in this family
 	//
-	void output(LocalServer&);
-#endif
+	bool output(LocalServer&, pid_t);
 
 private:
 	// we need a pointer to the monitor that's tracking us since we

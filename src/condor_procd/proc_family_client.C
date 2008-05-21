@@ -571,10 +571,9 @@ ProcFamilyClient::quit(bool& response)
 	response = (err == PROC_FAMILY_ERROR_SUCCESS);
 	return true;
 }
-#if defined(PROCD_DEBUG)
 
-LocalClient*
-ProcFamilyClient::dump(pid_t pid)
+bool
+ProcFamilyClient::dump(pid_t pid, int& count, ProcFamilyDumpElement*& elements)
 {
 	ASSERT(m_initialized);
 
@@ -594,16 +593,48 @@ ProcFamilyClient::dump(pid_t pid)
 
 	ASSERT(ptr - (char*)buffer == message_len);
 
-	m_client->start_connection(buffer, message_len);
-
-	proc_family_error_t err;
-	m_client->read_data(&err, sizeof(proc_family_error_t));
-	if (err != PROC_FAMILY_ERROR_SUCCESS) {
-		m_client->end_connection();
-		return NULL;
+	if (!m_client->start_connection(buffer, message_len)) {
+		dprintf(D_ALWAYS,
+		        "ProcFamilyClient: "
+			    "failed to start connection with ProcD\n");
+		return false;
 	}
 
-	return m_client;
-}
+	proc_family_error_t err;
+	if (!m_client->read_data(&err, sizeof(proc_family_error_t))) {
+		dprintf(D_ALWAYS,
+		        "ProcFamilyClient: "
+			    "failed to read response from ProcD\n");
+		return false;
+	}
+	if (err != PROC_FAMILY_ERROR_SUCCESS) {
+		m_client->end_connection();
+		log_exit("dump", err);
+		count = -1;
+		return true;
+	}
 
-#endif
+	if (!m_client->read_data(&count, sizeof(int))) {
+		dprintf(D_ALWAYS,
+		        "ProcFamilyClient: "
+		            "failed to read dump count from ProcD\n");
+		return false;
+	}
+
+	elements = new ProcFamilyDumpElement[count];
+	ASSERT(elements != NULL);
+
+	for (int i = 0; i < count; i++) {
+		if (!m_client->read_data(&elements[i], sizeof(elements[i]))) {
+			dprintf(D_ALWAYS,
+			        "ProcFamilyClient: "
+			            "failed to read dump info from ProcD\n");
+			return false;
+		}
+	}
+
+	m_client->end_connection();
+
+	log_exit("dump", err);
+	return true;
+}

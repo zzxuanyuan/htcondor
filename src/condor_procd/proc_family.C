@@ -254,27 +254,29 @@ ProcFamily::fold_into_parent(ProcFamily* parent)
 	m_member_list = NULL;
 }
 
-#if defined(PROCD_DEBUG)
-
-void
-ProcFamily::output(LocalServer& server)
+bool
+ProcFamily::output(LocalServer& server, pid_t parent_root)
 {
-	// we'll send the following back to the client:
-	//   - our root pid
-	//   - each pid in the list
-	//   - zero to terminate the list
+	// we'll send a ProcFamilyDumpElement structure back for each
+	// member in our family
 	//
-
-	server.write_data(&m_root_pid, sizeof(pid_t));
-
 	ProcFamilyMember* member = m_member_list;
 	while (member != NULL) {
-		server.write_data(&member->m_proc_info->pid, sizeof(pid_t));
+		ProcFamilyDumpElement element;
+		element.pid = member->m_proc_info->pid;
+		element.ppid = member->m_proc_info->ppid;
+		element.birthday = member->m_proc_info->birthday;
+		element.user_time = member->m_proc_info->user_time;
+		element.sys_time = member->m_proc_info->sys_time;
+		element.family_pid = m_root_pid;
+		element.parent_family_pid = parent_root;
+		if (!server.write_data(&element, sizeof(element))) {
+			dprintf(D_ALWAYS,
+			        "output error: "
+				    "failure writing process data\n");
+			return false;
+		}
 		member = member->m_next;
 	}
-
-	int zero = 0;
-	server.write_data(&zero, sizeof(int));
+	return true;
 }
-
-#endif
