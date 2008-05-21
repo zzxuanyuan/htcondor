@@ -187,6 +187,7 @@ track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[])
 		        argv[0]);
 		return 1;
 	}
+	return 0;
 }
 
 static int
