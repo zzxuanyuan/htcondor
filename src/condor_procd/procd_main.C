@@ -159,12 +159,37 @@ main_init(int argc, char* argv[])
 	//
 	get_configuration();
 
-	// get the PID and birthday of our parent (whose process
-	// tree we'll be monitoring)
+	// we take a single optional argument: a PID to monitor. if not
+	// given, we default to monitoring our parent (but callers need
+	// to be careful - monitoring the parent only makes sense if the
+	// "-f" DaemonCore option is given)
 	//
-	pid_t parent_pid;
-	birthday_t parent_birthday;
-	get_parent_info(parent_pid, parent_birthday);
+	pid_t root_pid = 0;
+	if (argc > 1) {
+		root_pid = (pid_t)strtoul(argv[1], NULL, 10);
+		if (root_pid == 0) {
+			EXCEPT("invalid PID given to monitor: %s", argv[1]);
+		}
+	}
+
+	// determine the PID and birthday of the process we'll be
+	// monitoring
+	//
+	birthday_t root_birthday;
+	if (root_pid != 0) {
+		procInfo* pi = NULL;
+		int ignored;
+		int status = ProcAPI::getProcInfo(root_pid, pi, ignored);
+		if (status != PROCAPI_SUCCESS) {
+			EXCEPT("getProcInfo failed on PID %u",
+			       (unsigned)root_pid);
+		}
+		root_birthday = pi->birthday;
+		delete pi;
+	}
+	else {
+		get_parent_info(root_pid, root_birthday);
+	}
 
 	// if a maximum snapshot interval was given, it needs to be either
 	// a non-negative number, or -1 for "infinite"
@@ -184,7 +209,9 @@ main_init(int argc, char* argv[])
 
 	// initialize the "engine" for tracking process families
 	//
-	ProcFamilyMonitor monitor(parent_pid, parent_birthday, max_snapshot_interval);
+	ProcFamilyMonitor monitor(root_pid,
+	                          root_birthday,
+	                          max_snapshot_interval);
 
 #if defined(LINUX)
 	// if a "-G" option was given, enable group ID tracking in the
