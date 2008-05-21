@@ -14,7 +14,7 @@ if [ -z "$PROCD" ]
 then
 	PROCD=procd
 fi
-$PROCD $$
+$PROCD $$ &
 
 # now just exec what we were asked to
 #

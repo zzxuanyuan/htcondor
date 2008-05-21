@@ -1,10 +1,10 @@
 all_target(procd_client.a condor_procd)
 
 CFLAGS = -DPROCD_DEBUG=1 \
-         -I ../condor_procapi -I ../condor_daemon_core.V6 \
+         -I ../condor_procapi \
          $(STD_C_FLAGS)
 C_PLUS_FLAGS = -DPROCD_DEBUG=1 \
-               -I ../condor_procapi -I ../condor_daemon_core.V6 \
+               -I ../condor_procapi \
                $(STD_C_PLUS_FLAGS)
 
 PROCD_OBJ=procd_main.o procd_common.o \
@@ -22,7 +22,7 @@ template_inst(procd_instantiate.C,procd_instantiate.o)
 public_c_plus_target(condor_procd, \
                      sbin, \
                      $(PROCD_OBJ), \
-                     $(DAEMONCORE_LIB) $(STD_LIBS))
+                     $(STD_LIBS))
 
 LIB_OBJ=proc_family_client.o proc_family_io.o local_client.UNIX.o \
         named_pipe_reader.o named_pipe_writer.o \

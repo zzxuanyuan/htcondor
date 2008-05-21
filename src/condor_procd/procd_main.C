@@ -20,8 +20,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
-#include "condor_daemon_core.h"
-#include "sig_install.h"
+#include "condor_distribution.h"
 #include "proc_family_monitor.h"
 #include "proc_family_server.h"
 #include "proc_family_io.h"
@@ -29,10 +28,6 @@
 #if defined(WIN32)
 #include "process_control.WINDOWS.h"
 #endif
-
-// for DaemonCore
-//
-char* mySubSystem = "PROCD";
 
 // our "local server address"
 // (set with the "-A" option)
@@ -130,28 +125,20 @@ get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
 	delete parent_pi;
 }
 
-// this is a temporary hack until the ProcD becomes more fully integrated
-// with DaemonCore. as it stands, we never return from main_init().
-// however, we'd still like to be responsive to SIGQUIT and SIGTERM for
-// easier administration. we'll just respond by dying for now
-//
-static void
-fix_signal_handlers()
-{
-	install_sig_handler(SIGQUIT, SIG_DFL);
-	install_sig_handler(SIGTERM, SIG_DFL);
-	unblock_signal(SIGQUIT);
-	unblock_signal(SIGTERM);
-}
-
 int
-main_init(int argc, char* argv[])
+main(int argc, char* argv[])
 {
-	// invoke hack to allow us to repond (by dying) to SIGQUIT and
-	// SIGTERM, even though we currently don't ever return to
-	// DaemonCore
+	// do the distro thing: we may be "PROCD" or "CONDOR"
 	//
-	fix_signal_handlers();
+	myDistro->Init(argc, argv);
+
+	// read our configuration file
+	//
+	config();
+
+	// initialize our logging subsystem
+	//
+	dprintf_config("PROCD");
 
 	// this modifies our static configuration variables based on
 	// values in the config file; the ProcD currently doesn't support
@@ -223,7 +210,8 @@ main_init(int argc, char* argv[])
 			       min_tracking_gid,
 			       max_tracking_gid);
 		}
-		monitor.enable_group_tracking(min_tracking_gid, max_tracking_gid);
+		monitor.enable_group_tracking(min_tracking_gid,
+		                              max_tracking_gid);
 	}
 #endif
 
@@ -238,49 +226,9 @@ main_init(int argc, char* argv[])
 	//
 	server.set_client_principal(local_client_principal);
 
-	// TODO: we used to keep stderr open until we were listening for
-	// requests on our named pipe, at which point we'd close it. this
-	// allowed a parent process to block on a pipe until the ProcD
-	// was initialized. now that we're DaemonCore, we really shouldn't
-	// be using stderr for this (see Nick's comments in
-	// daemon_core_main.C). we should have a general mechanism for this
-	// sort of thing; we should use it for the Collector too
-
 	// enter the server's wait loop
 	//
 	server.wait_loop();
 
-	// when the wait loop returns, its time to go away
-	//
-	DC_Exit(0);
-
 	return 0;
-}
-
-int
-main_config(bool)
-{
-	return FALSE;
-}
-
-int
-main_shutdown_fast()
-{
-	return FALSE;
-}
-
-int
-main_shutdown_graceful()
-{
-	return FALSE;
-}
-
-void
-main_pre_dc_init(int, char*[])
-{
-}
-
-void
-main_pre_command_sock_init()
-{
 }
