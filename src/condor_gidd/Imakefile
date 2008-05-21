@@ -1,0 +1,26 @@
+all_target(gidd gidd_alloc)
+
+CFLAGS=--std=c99 -g -Wall -D _BSD_SOURCE
+NOWRAP_LDFLAGS=
+CC_LINK=$(CC)
+
+GIDD_OBJ=err.o \
+         fullio.o \
+         gidpool.o \
+         gidd.o \
+         giduse.o \
+         log.o \
+         uds.o
+c_plus_nowrap_target(gidd,$(GIDD_OBJ),)
+
+ALLOC_OBJ=alloc.o \
+          err.o \
+          giduse.o
+c_plus_nowrap_target(gidd_alloc,$(ALLOC_OBJ),)
+
+html:
+release:: all
+stripped:: all
+static:: all
+clean::
+testbin:: all

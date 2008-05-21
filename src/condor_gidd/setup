@@ -1,0 +1,4 @@
+#!/bin/sh
+
+sudo chown root.greg gidd_alloc
+sudo chmod 4750 gidd_alloc
