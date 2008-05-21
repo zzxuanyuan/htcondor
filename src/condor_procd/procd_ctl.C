@@ -29,6 +29,7 @@
 static int register_family(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int get_usage(ProcFamilyClient& pfc, int argc, char* argv[]);
+static int list(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int signal_process(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int suspend_family(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int continue_family(ProcFamilyClient& pfc, int argc, char* argv[]);
@@ -45,6 +46,7 @@ list_commands()
 	            "<pid> <watcher_pid> <max_snapshot_interval>\n");
 	fprintf(stderr, "    TRACK_BY_GID <gid> [<pid>]\n");
 	fprintf(stderr, "    GET_USAGE [<pid>]\n");
+	fprintf(stderr, "    LIST [<pid>]\n");
 	fprintf(stderr, "    SIGNAL_PROCESS <signal> [<pid>]\n");
 	fprintf(stderr, "    SUSPEND_FAMILY [<pid>]\n");
 	fprintf(stderr, "    CONTINUE_FAMILY [<pid>]\n");
@@ -93,6 +95,9 @@ main(int argc, char* argv[])
 	}
 	else if (stricmp(cmd_argv[0], "GET_USAGE") == 0) {
 		return get_usage(pfc, cmd_argc, cmd_argv);
+	}
+	else if (stricmp(cmd_argv[0], "LIST") == 0) {
+		return list(pfc, cmd_argc, cmd_argv);
 	}
 	else if (stricmp(cmd_argv[0], "SIGNAL_PROCESS") == 0) {
 		return signal_process(pfc, cmd_argc, cmd_argv);
@@ -184,6 +189,46 @@ track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[])
 	}
 }
 
+static int
+list(ProcFamilyClient& pfc, int argc, char* argv[])
+{
+	if (argc > 2) {
+		fprintf(stderr,
+		        "error: argument synopsis for %s: [<pid>]\n",
+		        argv[0]);
+		return 1;
+	}
+	pid_t pid = 0;
+	if (argc == 2) {
+		pid = atoi(argv[1]);
+		if (pid == 0) {
+			fprintf(stderr, "error: invalid pid: %s\n", argv[1]);
+			return 1;
+		}
+	}
+	int count;
+	ProcFamilyDumpElement* elements;
+	if (!pfc.dump(pid, count, elements)) {
+		fprintf(stderr, "error: communication error with ProcD\n");
+		return 1;
+	}
+	if (count == -1) {
+		fprintf(stderr,
+		        "error: %s command failed with ProcD\n",
+		        argv[0]);
+		return 1;
+	}
+	printf("PID PPID START_TIME USER_TIME SYS_TIME\n");
+	for (int i = 0; i < count; i++) {
+		printf("%u %u %lu %lu %lu\n",
+		       (unsigned)elements[i].pid,
+		       (unsigned)elements[i].ppid,
+		       (unsigned long)elements[i].birthday,
+		       (unsigned long)elements[i].user_time,
+		       (unsigned long)elements[i].sys_time);
+	}
+	return 0;
+}
 static int
 get_usage(ProcFamilyClient& pfc, int argc, char* argv[])
 {
