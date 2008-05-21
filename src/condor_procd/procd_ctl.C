@@ -27,6 +27,7 @@
 #include "proc_family_client.h"
 
 static int register_family(ProcFamilyClient& pfc, int argc, char* argv[]);
+static int track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int get_usage(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int signal_process(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int suspend_family(ProcFamilyClient& pfc, int argc, char* argv[]);
@@ -42,6 +43,7 @@ list_commands()
 	fprintf(stderr,
 	        "    REGISTER_FAMILY "
 	            "<pid> <watcher_pid> <max_snapshot_interval>\n");
+	fprintf(stderr, "    TRACK_BY_GID <gid> [<pid>]\n");
 	fprintf(stderr, "    GET_USAGE [<pid>]\n");
 	fprintf(stderr, "    SIGNAL_PROCESS <signal> [<pid>]\n");
 	fprintf(stderr, "    SUSPEND_FAMILY [<pid>]\n");
@@ -85,6 +87,9 @@ main(int argc, char* argv[])
 	char** cmd_argv = argv + 1;
 	if (stricmp(cmd_argv[0], "REGISTER_FAMILY") == 0) {
 		return register_family(pfc, cmd_argc, cmd_argv);
+	}
+	else if (stricmp(cmd_argv[0], "TRACK_BY_GID") == 0) {
+		return track_by_gid(pfc, cmd_argc, cmd_argv);
 	}
 	else if (stricmp(cmd_argv[0], "GET_USAGE") == 0) {
 		return get_usage(pfc, cmd_argc, cmd_argv);
@@ -142,6 +147,41 @@ register_family(ProcFamilyClient& pfc, int argc, char* argv[])
 		return 1;
 	}
 	return 0;
+}
+
+static int
+track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[])
+{
+	if ((argc != 2) && (argc != 3)) {
+		fprintf(stderr,
+		        "error: argument synopsis for %s: <gid> [<pid>]\n",
+		        argv[0]);
+		return 1;
+	}
+	gid_t gid = atoi(argv[1]);
+	if (gid == 0) {
+		fprintf(stderr, "invalid GID: %s\n", argv[1]);
+		return 1;
+	}
+	pid_t pid = 0;
+	if (argc == 3) {
+		pid = atoi(argv[2]);
+		if (pid == 0) {
+			fprintf(stderr, "error: invalid pid: %s\n", argv[2]);
+			return 1;
+		}
+	}
+	bool success;
+	if (!pfc.track_family_via_supplementary_group(pid, gid, success)) {
+	fprintf(stderr, "error: communication error with ProcD\n");
+		return 1;
+	}
+	if (!success) {
+		fprintf(stderr,
+		        "error: %s command failed with ProcD\n",
+		        argv[0]);
+		return 1;
+	}
 }
 
 static int
