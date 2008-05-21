@@ -22,6 +22,7 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "condor_config.h"
 #include "proc_family_client.h"
 
 static int register_family(ProcFamilyClient& pfc, int argc, char* argv[]);
@@ -52,25 +53,33 @@ list_commands()
 int
 main(int argc, char* argv[])
 {
-	if (argc < 3) {
+	if (argc < 2) {
 		fprintf(stderr,
-		        "usage: %s <procd_addr> <cmd> [<arg> ...]\n",
+		        "usage: %s <cmd> [<arg> ...]\n",
 		        argv[0]);
 		list_commands();
 		return 1;
 	}
 
+	config();
+
 	Termlog = 1;
 	dprintf_config("TOOL");
 
+	char* procd_address = param("PROCD_ADDRESS");
+	if (procd_address == NULL) {
+		fprintf(stderr, "error: PROCD_ADDRESS not defined\n");
+		return 1;
+	}
+
 	ProcFamilyClient pfc;
-	if (!pfc.initialize(argv[1])) {
+	if (!pfc.initialize(procd_address)) {
 		fprintf(stderr, "error: failed to initialize ProcD client\n");
 		return 1;
 	}
 
-	int cmd_argc = argc - 2;
-	char** cmd_argv = argv + 2;
+	int cmd_argc = argc - 1;
+	char** cmd_argv = argv + 1;
 	if (stricmp(cmd_argv[0], "REGISTER_FAMILY") == 0) {
 		return register_family(pfc, cmd_argc, cmd_argv);
 	}
