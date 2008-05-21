@@ -182,10 +182,13 @@ get_parent_info(pid_t& parent_pid, birthday_t& parent_birthday)
 	procInfo* parent_pi = NULL;
 
 	int ignored;
-	if (ProcAPI::getProcInfo(getpid(), own_pi, ignored) != PROCAPI_SUCCESS) {
+	int status;
+	status = ProcAPI::getProcInfo(getpid(), own_pi, ignored) ;
+	if (status != PROCAPI_SUCCESS) {
 		EXCEPT("getProcInfo failed on own PID");
 	}
-	if (ProcAPI::getProcInfo(own_pi->ppid, parent_pi, ignored) != PROCAPI_SUCCESS) {
+	status = ProcAPI::getProcInfo(own_pi->ppid, parent_pi, ignored);
+	if (status != PROCAPI_SUCCESS) {
 		EXCEPT("getProcInfo failed on parent PID");
 	}
 	if (parent_pi->birthday > own_pi->birthday) {
