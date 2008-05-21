@@ -17,26 +17,18 @@
  *
  ***************************************************************/
 
-// this tool queries ProcAPI for a list of processes on the system and
-// spits this information to stdout. the format of the output is simply
-// a series of procInfo structures followed by EOF
-
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "cprocapi.h"
+#include "procapi.h"
 
 int
 main(void)
 {
-	void* blob = cprocapi_first();
-	while (blob != NULL) {
-		if (fwrite(blob, cprocapi_size, 1, stdout) != 1) {
-			fprintf(stderr, "fwrite error: %s\n", strerror(errno));
-			return 1;
-		}
-		blob = cprocapi_next(blob);
+	procInfo pi;
+	while (fread(&pi, sizeof(procInfo), 1, stdin) != 0) {
+		ProcAPI::printProcInfo(&pi);
+	}
+	if (ferror(stdin)) {
+		fprintf(stderr, "fread error: %s\n", strerror(errno));
+		return 1;
 	}
 	return 0;
 }
