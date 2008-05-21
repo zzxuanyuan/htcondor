@@ -23,6 +23,7 @@
 
 #include "condor_common.h"
 #include "condor_config.h"
+#include "condor_distribution.h"
 #include "proc_family_client.h"
 
 static int register_family(ProcFamilyClient& pfc, int argc, char* argv[]);
@@ -53,6 +54,8 @@ list_commands()
 int
 main(int argc, char* argv[])
 {
+	myDistro->Init(argc, argv);
+
 	if (argc < 2) {
 		fprintf(stderr,
 		        "usage: %s <cmd> [<arg> ...]\n",

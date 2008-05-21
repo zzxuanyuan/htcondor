@@ -1,39 +1,18 @@
 #!/bin/sh
 
-# look for a PROCD_CONFIG environment variable to use
-#
-if [ -s "$PROCD_CONFIG" ]
-then
-	CONDOR_CONFIG="$PROCD_CONFIG"
-	export CONDOR_CONFIG	
-fi
-
-# now if CONDOR_CONFIG isn't set, use the environment to provide some
-# default values
-#
-if [ -z "$CONDOR_CONFIG" ]
-then
-	CONDOR_CONFIG=/dev/null
-	export CONDOR_CONFIG
-	_CONDOR_PROCD_LOG=/dev/null
-	export _CONDOR_PROCD_LOG
-	_CONDOR_PROCD_ADDRESS=procd_pipe
-	export _CONDOR_PROCD_ADDRESS
-fi
-
 # start a ProcD that will monitor this process
 #
 if [ "$0" != `basename "$0"` ]
 then
 	DIR=`dirname "$0"`
-	if [ -x "$DIR/condor_procd" ]
+	if [ -x "$DIR/procd" ]
 	then
-		PROCD="$DIR/condor_procd"
+		PROCD="$DIR/procd"
 	fi
 fi
 if [ -z "$PROCD" ]
 then
-	PROCD=condor_procd
+	PROCD=procd
 fi
 $PROCD $$
 

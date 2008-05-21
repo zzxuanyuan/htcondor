@@ -19,6 +19,7 @@
 
 #include "condor_common.h"
 #include "condor_distribution.h"
+#include "basename.h"
 
 // Constructor
 Distribution::Distribution()
@@ -31,12 +32,18 @@ int Distribution::Init( int  /*argc*/, char **argv )
 {
 	char	*argv0 = argv[0];
 
-	// Are we 'Condor' or 'Hawkeye'?
+	// Are we 'Condor' or 'Hawkeye' or 'ProcD'?
 	if (  ( strstr ( argv0, "hawkeye" ) ) ||
 		  ( strstr ( argv0, "Hawkeye" ) ) ||
 		  ( strstr ( argv0, "HAWKEYE" ) )  ) {
 		SetDistribution( "hawkeye" );
-	} else {
+	}
+	else if ( strncmp( condor_basename(argv0),
+	                   "procd",
+	                   strlen("procd") ) == 0 ) {
+		SetDistribution( "procd" );
+	}
+	else {
 		SetDistribution( "condor" );
 	}
 
