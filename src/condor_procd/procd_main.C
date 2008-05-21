@@ -20,6 +20,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "condor_config.h"
 #include "sig_install.h"
 #include "proc_family_monitor.h"
 #include "proc_family_server.h"
@@ -36,27 +37,27 @@ char* mySubSystem = "PROCD";
 // our "local server address"
 // (set with the "-A" option)
 //
-static char* local_server_address = NULL;
+static char* local_server_address;
 
 // the client prinical who will be allowed to connect to us
 // (if not given, only root/SYSTEM will be allowed access).
 // this string will be a SID on Windows and a UID on UNIX
 //
-static char* local_client_principal = NULL;
+static char* local_client_principal;
 
 // the maximum number of seconds we'll wait in between
 // taking snapshots (one minute by default)
 // (set with the "-S" option)
 //
-static int max_snapshot_interval = 60;
+static int max_snapshot_interval;
 
 #if defined(LINUX)
 // a range of group IDs that can be used to track process
 // families by placing them in their supplementary group
 // lists
 //
-static gid_t min_tracking_gid = 0;
-static gid_t max_tracking_gid = 0;
+static gid_t min_tracking_gid;
+static gid_t max_tracking_gid;
 #endif
 
 #if defined(WIN32)
@@ -64,116 +65,42 @@ static gid_t max_tracking_gid = 0;
 // to send soft kills to jobs. the path to this program is passed
 // via the -K option
 //
-static char* windows_softkill_binary = NULL;
+static char* windows_softkill_binary;
 #endif
 
-static inline void
-fail_illegal_option(char* option)
-{
-	EXCEPT("illegal option: %s", option);
-}
-
-static inline void
-fail_option_args(char* option, int args_required)
-{
-	EXCEPT("option \"%s\" requires %d arguments", option, args_required);
-}
-
 static void
-parse_command_line(int argc, char* argv[])
+get_configuration()
 {
-	int index = 1;
-	while (index < argc) {
+	local_server_address = param("PROCD_ADDRESS");
+	if (local_server_address == NULL) {
+		EXCEPT("PROCD_ADDRESS not defined");
+	}
 
-		// first, make sure the first char of the option is '-'
-		// and that there is at least one more char after that
-		//
-		if (argv[index][0] != '-' || argv[index][1] == '\0') {
-			fail_illegal_option(argv[index]);
-		}
+	local_client_principal = param("PROCD_CLIENT_PRINCIPAL");
 
-		// now switch on the option
-		//
-		switch(argv[index][1]) {
-
-			// DEBUG: stop ourselves so a debugger can
-			// attach if "-D" is given
-			//
-			case 'D':
-				sleep(30);
-				break;
-
-			// local server address
-			//
-			case 'A':
-				if (index + 1 >= argc) {
-					fail_option_args("-A", 1);
-				}
-				index++;
-				local_server_address = argv[index];
-				break;
-
-			// local client principal
-			//
-			case 'C':
-				if (index + 1 >= argc) {
-					fail_option_args("-C", 1);
-				}
-				index++;
-				local_client_principal = argv[index];
-				break;
-
-			// maximum snapshot interval
-			//
-			case 'S':
-				if (index + 1 >= argc) {
-					fail_option_args("-S", 1);
-				}
-				index++;
-				max_snapshot_interval = atoi(argv[index]);
-				break;
+	max_snapshot_interval = param_integer("PROCD_MAX_SNAPSHOT_INTERVAL",
+	                                      60,
+	                                      0);
 
 #if defined(LINUX)
-			// tracking group ID range
-			//
-			case 'G':
-				if (index + 2 >= argc) {
-					fail_option_args("-G", 2);
-				}
-				index++;
-				min_tracking_gid = (gid_t)atoi(argv[index]);
-				index++;
-				max_tracking_gid = (gid_t)atoi(argv[index]);
-				break;
+	min_tracking_gid = max_tracking_gid = 0;
+	if (param_boolean("USE_GID_PROCESS_TRACKING", false)) {
+		min_tracking_gid = param_integer("MIN_TRACKING_GID", 0, 0);
+		max_tracking_gid = param_integer("MAX_TRACKING_GID", 0, 0);
+		if (min_tracking_gid == 0) {
+			EXCEPT("USE_GID_PROCESS_TRACKING is set, but "
+			           "MIN_TRACKING_GID is not set or is 0");
+		}
+		if (max_tracking_gid == 0) {
+			EXCEPT("USE_GID_PROCESS_TRACKING is set, but "
+			           "MAX_TRACKING_GID is not set or is 0");
+		}
+	}
 #endif
 
 #if defined(WIN32)
-			// windows condor_softkill.exe binary path
-			//
-			case 'K':
-				if (index + 1 >= argc) {
-					fail_option_args("-K", 1);
-				}
-				index++;
-				windows_softkill_binary = argv[index];
-				break;
+	windows_softkill_binary = param("WINDOWS_SOFTKILL");
 #endif
-
-			// default case
-			//
-			default:
-				fail_illegal_option(argv[index]);
-				break;
-		}
-
-		index++;
-	}
-
-	// now that we're done parsing, enforce required options
-	//
-	if (local_server_address == NULL) {
-		EXCEPT("the \"-A\" option is required");
-	}
 }
 
 static void
@@ -227,9 +154,10 @@ main_init(int argc, char* argv[])
 	fix_signal_handlers();
 
 	// this modifies our static configuration variables based on
-	// our command line parameters
+	// values in the config file; the ProcD currently doesn't support
+	// reconfiguration
 	//
-	parse_command_line(argc, argv);
+	get_configuration();
 
 	// get the PID and birthday of our parent (whose process
 	// tree we'll be monitoring)
