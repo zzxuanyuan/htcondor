@@ -38,8 +38,11 @@
 #define NULLSTRING "NULL"
 
 static bool
-__systemCommand(ArgList &args, StringList &output, MyString &error_code)
+systemCommand(ArgList &args, StringList &output, MyString &error_code)
 {
+	output.clearAll();
+	error_code = "";
+
 	FILE *fp = NULL;
 	fp = my_popen(args, "r", FALSE);
 
@@ -66,7 +69,7 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		}
 
 		read_something = true;
-		dprintf(D_FULLDEBUG, "__systemCommand got : %s\n", one_line.Value());
+		dprintf(D_FULLDEBUG, "systemCommand got : %s\n", one_line.Value());
 
 		// find error line
 		if( !strcmp(one_line.Value(), PERL_SCRIPT_ERROR_TAG) ) {
@@ -102,64 +105,15 @@ __systemCommand(ArgList &args, StringList &output, MyString &error_code)
 		return false;
 	}
 
-	// Check if the last line is PERL_SCRIPT_SUCCESS_TAG
-	if( !strcmp(one_line.Value(), PERL_SCRIPT_SUCCESS_TAG) ) {
-		// delete the last line
-		output.remove(one_line.Value());
-	}else {
+	// Check if the last line is not PERL_SCRIPT_SUCCESS_TAG
+	if( strcmp(one_line.Value(), PERL_SCRIPT_SUCCESS_TAG) ) {
 		return false;
 	}
 
+	// delete the last line
+	output.remove(one_line.Value());
+
 	return true;
-}
-
-static bool 
-systemCommand(ArgList &args, StringList &output, MyString &ecode)
-{
-	bool tmp_result = false;
-
-	/*
-	if( chdir_path ) {
-		if( chdir(chdir_path) < 0 ) {
-			dprintf(D_ALWAYS, "Cannot switch dir to %s\n", chdir_path);
-			chdir(get_working_dir());
-			return -1;
-		}
-	}
-	*/
-
-	MyString args_string;
-	args.GetArgsStringForDisplay(&args_string,0);
-
-	int i = 0;
-	for( i = 0; i < 3; i++ ) {
-		output.clearAll();
-		ecode = "";
-		tmp_result = __systemCommand(args, output, ecode);
-
-		if( tmp_result == true ) {
-			break;
-		}
-
-		dprintf(D_ALWAYS, "Command(%s) got error code(%s)\n", 
-				args_string.Value(), ecode.Value());
-
-		// If ecode is InternalError, retry it up to 3 times
-		if( strcasecmp(ecode.Value(), "InternalError") != 0 ) {
-			break;
-		}
-
-		// Retry this command after one second
-		sleep(1);
-	}
-
-	/*
-	if( chdir_path ) {
-		chdir(get_working_dir());
-	}
-	*/
-
-	return tmp_result;
 }
 
 /*
@@ -358,9 +312,54 @@ AmazonRequest::~AmazonRequest()
 #endif
 }
 
+bool
+AmazonRequest::SendRequest()
+{
+	bool tmp_result = false;
+
+	// Handle InternalError
+	int i = 0;
+	for( i = 0; i < 3; i++ ) {
+		// Clean up old results
+		cleanupRequest();
+
+		// Send Request
+#ifdef AMAZON_GSOAP_ENABLED
+		CleanupSoap();
+		tmp_result = gsoapRequest();
+#else 
+		tmp_result = Request();
+#endif
+
+		if( tmp_result == true ) {
+			return true;
+		}
+
+		dprintf(D_ALWAYS, "Command(%s) got error(code:%s, msg:%s\n", 
+				m_request_name.Value(), m_error_code.Value(), m_error_msg.Value());
+
+		if( strcasecmp(m_error_code.Value(), "InternalError") ) {
+			// This error is not InternalError. So we don't have to retry
+			break;
+		}
+
+		sleep(1);
+	}
+
+	// Error handler
+	return HandleError();
+}
+
+bool
+AmazonRequest::HandleError()
+{
+	return false;
+}
+
 /// Amazon VMStart
 AmazonVMStart::AmazonVMStart(const char* lib_path) : AmazonRequest(lib_path) 
 {
+	m_request_name = AMAZON_COMMAND_VM_START;
 	base64_userdata = NULL;
 }
 
@@ -427,15 +426,11 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 	}
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		StringList result_list;
@@ -449,28 +444,28 @@ bool AmazonVMStart::workerFunction(char **argv, int argc, MyString &result_strin
 bool AmazonVMStart::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( user_data_file.IsEmpty() == false ) {
 		if( !check_read_access_file( user_data_file.GetCStr()) ) {
-			error_msg.sprintf("Cannot read the file for user data(%s)", 
+			m_error_msg.sprintf("Cannot read the file for user data(%s)", 
 					user_data_file.Value());
 			return false;
 		}
 	}
 
 	if( ami_id.IsEmpty() ) {
-		error_msg = "Empty_AMI_ID";
-		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_AMI_ID";
+		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMStart Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -530,17 +525,17 @@ bool AmazonVMStart::Request()
 			// so there might be an running instance in EC2
 			// (e.g. Networking Failure before getting instance id)
 			if( tmp_msg.IsEmpty() ) {
-				error_msg.sprintf("Failed to start a VM with '%s' but "
+				m_error_msg.sprintf("Failed to start a VM with '%s' but "
 					"need to check if the instance is left running "
 					"in EC2", ami_id.Value());
 			}else {
-				error_msg = tmp_msg;
+				m_error_msg = tmp_msg;
 			}
 
-			error_code = "NEED_CHECK_VM_START";
+			m_error_code = "NEED_CHECK_VM_START";
 		}else {
-			error_msg = tmp_msg;
-			error_code = ecode;
+			m_error_msg = tmp_msg;
+			m_error_code = ecode;
 		}
 		return false;
 	}else {
@@ -558,7 +553,10 @@ bool AmazonVMStart::Request()
 }
 
 /// Amazon VMStop
-AmazonVMStop::AmazonVMStop(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMStop::AmazonVMStop(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_STOP;
+}
 
 AmazonVMStop::~AmazonVMStop() {}
 
@@ -591,15 +589,11 @@ bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string
 	request.instance_id = argv[4];
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -610,20 +604,20 @@ bool AmazonVMStop::workerFunction(char **argv, int argc, MyString &result_string
 bool AmazonVMStop::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
-		error_msg = "Empty_Instance_ID";
-		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Instance_ID";
+		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMStop Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -645,11 +639,8 @@ bool AmazonVMStop::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		if( !strcasecmp(ecode.Value(), "InvalidInstanceID.NotFound")) {
-			return true;
-		}
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -657,8 +648,23 @@ bool AmazonVMStop::Request()
 	return true;
 }
 
+bool 
+AmazonVMStop::HandleError()
+{
+	if( !strcasecmp(m_error_code.Value(), "InvalidInstanceID.NotFound")) {
+		m_error_code = "";
+		m_error_msg = "";
+		return true;
+	}
+
+	return AmazonRequest::HandleError();
+}
+
 /// Amazon VMReboot
-AmazonVMReboot::AmazonVMReboot(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMReboot::AmazonVMReboot(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_REBOOT;
+}
 
 AmazonVMReboot::~AmazonVMReboot() {}
 
@@ -695,7 +701,7 @@ bool AmazonVMReboot::workerFunction(char **argv, int argc, MyString &result_stri
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -706,20 +712,20 @@ bool AmazonVMReboot::workerFunction(char **argv, int argc, MyString &result_stri
 bool AmazonVMReboot::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
-		error_msg = "Empty_Instance_ID";
-		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Instance_ID";
+		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMReboot Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -741,8 +747,8 @@ bool AmazonVMReboot::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -753,12 +759,16 @@ bool AmazonVMReboot::Request()
 /// Amazon VMStatus
 AmazonVMStatus::AmazonVMStatus(const char* lib_path) : AmazonRequest(lib_path)
 {
+	m_request_name = AMAZON_COMMAND_VM_STATUS;
 	status_result = NULL;
 }
 
 AmazonVMStatus::~AmazonVMStatus()
 {
-	delete status_result;
+	if( status_result ) { 
+		delete status_result;
+		status_result = NULL;
+	}
 }
 
 // Expecting:AMAZON_VM_STATUS <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -790,15 +800,11 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 	request.instance_id = argv[4];
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		StringList result_list;
@@ -811,20 +817,20 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 bool AmazonVMStatus::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( instance_id.IsEmpty() ) {
-		error_msg = "Empty_Instance_ID";
-		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Instance_ID";
+		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMStatus Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -845,11 +851,8 @@ bool AmazonVMStatus::Request()
 
 	output.rewind();
 	if( tmp_result == false ){
-		if( !strcasecmp(ecode.Value(), "InvalidInstanceID.NotFound")) {
-			return true;
-		}
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -866,9 +869,22 @@ bool AmazonVMStatus::Request()
 	return true;
 }
 
+bool 
+AmazonVMStatus::HandleError()
+{
+	if( !strcasecmp(m_error_code.Value(), "InvalidInstanceID.NotFound")) {
+		m_error_code = "";
+		m_error_msg = "";
+		return true;
+	}
+
+	return AmazonRequest::HandleError();
+}
+
 /// Amazon VMStatusAll
 AmazonVMStatusAll::AmazonVMStatusAll(const char* lib_path) : AmazonRequest(lib_path)
 {
+	m_request_name = AMAZON_COMMAND_VM_STATUS_ALL;
 	status_results = NULL;
 	status_num = 0;
 }
@@ -909,15 +925,11 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 	}
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		if( request.status_num == 0 ) {
@@ -939,14 +951,14 @@ bool AmazonVMStatusAll::workerFunction(char **argv, int argc, MyString &result_s
 bool AmazonVMStatusAll::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMStatusAll Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -966,8 +978,8 @@ bool AmazonVMStatusAll::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1017,6 +1029,7 @@ bool AmazonVMStatusAll::Request()
 /// Amazon VMRunningKeypair
 AmazonVMRunningKeypair::AmazonVMRunningKeypair(const char* lib_path) : AmazonVMStatusAll(lib_path)
 {
+	m_request_name = AMAZON_COMMAND_VM_RUNNING_KEYPAIR;
 }
 
 AmazonVMRunningKeypair::~AmazonVMRunningKeypair()
@@ -1050,15 +1063,11 @@ bool AmazonVMRunningKeypair::workerFunction(char **argv, int argc, MyString &res
 	}
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		if( request.status_num == 0 ) {
@@ -1087,7 +1096,10 @@ bool AmazonVMRunningKeypair::Request()
 
 
 /// Amazon VMCreateGroup
-AmazonVMCreateGroup::AmazonVMCreateGroup(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMCreateGroup::AmazonVMCreateGroup(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_CREATE_GROUP;
+}
 
 AmazonVMCreateGroup::~AmazonVMCreateGroup() {}
 
@@ -1119,7 +1131,7 @@ bool AmazonVMCreateGroup::workerFunction(char **argv, int argc, MyString &result
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1130,26 +1142,26 @@ bool AmazonVMCreateGroup::workerFunction(char **argv, int argc, MyString &result
 bool AmazonVMCreateGroup::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( groupname.IsEmpty() ) {
-		error_msg = "Empty_Group_Name";
-		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Group_Name";
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( group_description.IsEmpty() ) {
-		error_msg = "Empty_Group_Description";
-		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Group_Description";
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMCreateGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1173,8 +1185,8 @@ bool AmazonVMCreateGroup::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1183,7 +1195,10 @@ bool AmazonVMCreateGroup::Request()
 }
 
 /// Amazon VMDeleteGroup
-AmazonVMDeleteGroup::AmazonVMDeleteGroup(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMDeleteGroup::AmazonVMDeleteGroup(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_DELETE_GROUP;
+}
 
 AmazonVMDeleteGroup::~AmazonVMDeleteGroup() {}
 
@@ -1214,7 +1229,7 @@ bool AmazonVMDeleteGroup::workerFunction(char **argv, int argc, MyString &result
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1225,20 +1240,20 @@ bool AmazonVMDeleteGroup::workerFunction(char **argv, int argc, MyString &result
 bool AmazonVMDeleteGroup::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( groupname.IsEmpty() ) {
-		error_msg = "Empty_Group_Name";
-		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Group_Name";
+		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMDeleteGroup Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1260,11 +1275,8 @@ bool AmazonVMDeleteGroup::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		if( !strcasecmp(ecode.Value(), "InvalidGroup.NotFound")) {
-			return true;
-		}
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1272,8 +1284,23 @@ bool AmazonVMDeleteGroup::Request()
 	return true;
 }
 
+bool
+AmazonVMDeleteGroup::HandleError()
+{
+	if( !strcasecmp(m_error_code.Value(), "InvalidGroup.NotFound")) {
+		m_error_code = "";
+		m_error_msg = "";
+		return true;
+	}
+
+	return AmazonRequest::HandleError();
+}
+
 /// Amazon VMGroupnames
-AmazonVMGroupNames::AmazonVMGroupNames(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMGroupNames::AmazonVMGroupNames(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_GROUP_NAMES;
+}
 
 AmazonVMGroupNames::~AmazonVMGroupNames() {}
 
@@ -1303,7 +1330,7 @@ bool AmazonVMGroupNames::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.groupnames);
@@ -1314,14 +1341,14 @@ bool AmazonVMGroupNames::workerFunction(char **argv, int argc, MyString &result_
 bool AmazonVMGroupNames::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMGroupNames Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1341,8 +1368,8 @@ bool AmazonVMGroupNames::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1374,6 +1401,7 @@ bool AmazonVMGroupNames::Request()
 /// Amazon AmazonVMGroupRules
 AmazonVMGroupRules::AmazonVMGroupRules(const char* lib_path) : AmazonRequest(lib_path) 
 {
+	m_request_name = AMAZON_COMMAND_VM_GROUP_RULES;
 	rules = NULL;
 	rules_num = 0;
 }
@@ -1414,7 +1442,7 @@ bool AmazonVMGroupRules::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		if( request.rules_num == 0 ) {
@@ -1437,14 +1465,14 @@ bool AmazonVMGroupRules::workerFunction(char **argv, int argc, MyString &result_
 bool AmazonVMGroupRules::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMGroupRules Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1466,8 +1494,8 @@ bool AmazonVMGroupRules::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1506,7 +1534,10 @@ bool AmazonVMGroupRules::Request()
 }
 
 /// Amazon AmazonVMAddGroupRule
-AmazonVMAddGroupRule::AmazonVMAddGroupRule(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMAddGroupRule::AmazonVMAddGroupRule(const char* lib_path) : AmazonRequest(lib_path)
+{
+	m_request_name = AMAZON_COMMAND_VM_ADD_GROUP_RULE;
+}
 
 AmazonVMAddGroupRule::~AmazonVMAddGroupRule() {}
 
@@ -1545,7 +1576,7 @@ bool AmazonVMAddGroupRule::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1556,14 +1587,14 @@ bool AmazonVMAddGroupRule::workerFunction(char **argv, int argc, MyString &resul
 bool AmazonVMAddGroupRule::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMAddGroupRule Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1596,8 +1627,8 @@ bool AmazonVMAddGroupRule::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1606,7 +1637,10 @@ bool AmazonVMAddGroupRule::Request()
 }
 
 /// Amazon AmazonVMDelGroupRule
-AmazonVMDelGroupRule::AmazonVMDelGroupRule(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMDelGroupRule::AmazonVMDelGroupRule(const char* lib_path) : AmazonRequest(lib_path)
+{
+	m_request_name = AMAZON_COMMAND_VM_DEL_GROUP_RULE;
+}
 
 AmazonVMDelGroupRule::~AmazonVMDelGroupRule() {}
 
@@ -1645,7 +1679,7 @@ bool AmazonVMDelGroupRule::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1656,14 +1690,14 @@ bool AmazonVMDelGroupRule::workerFunction(char **argv, int argc, MyString &resul
 bool AmazonVMDelGroupRule::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMDelGroupRule Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1696,8 +1730,8 @@ bool AmazonVMDelGroupRule::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1706,7 +1740,9 @@ bool AmazonVMDelGroupRule::Request()
 }
 
 /// Amazon AmazonVMCreateKeypair
-AmazonVMCreateKeypair::AmazonVMCreateKeypair(const char* lib_path) : AmazonRequest(lib_path) {
+AmazonVMCreateKeypair::AmazonVMCreateKeypair(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_CREATE_KEYPAIR;
 	has_outputfile = false;
 }
 
@@ -1736,15 +1772,11 @@ bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &resu
 	request.outputfile = argv[5];
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1755,14 +1787,14 @@ bool AmazonVMCreateKeypair::workerFunction(char **argv, int argc, MyString &resu
 bool AmazonVMCreateKeypair::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( keyname.IsEmpty() ) {
-		error_msg = "Empty_Keyname";
-		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Keyname";
+		dprintf(D_ALWAYS, "AmazonVMCreateKeyPair Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1773,15 +1805,15 @@ bool AmazonVMCreateKeypair::Request()
 	// check if output file could be created
 	if( has_outputfile ) { 
 		if( check_create_file(outputfile.GetCStr()) == false ) {
-			error_msg = "No_permission_for_keypair_outputfile";
-			dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
+			m_error_msg = "No_permission_for_keypair_outputfile";
+			dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", m_error_msg.Value());
 			return false;
 		}
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMCreateKeypair Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1826,8 +1858,8 @@ bool AmazonVMCreateKeypair::Request()
 				unlink(outputfile.Value());
 			}
 
-			error_msg = tmp_msg;
-			error_code = ecode;
+			m_error_msg = tmp_msg;
+			m_error_code = ecode;
 			return false;
 		}
 	}else if( has_outputfile ) {
@@ -1870,26 +1902,29 @@ bool AmazonVMCreateKeypair::Request()
 
 	if( tmp_result == false ) {
 		// something wrong
-		if( tmpcommand.error_msg.IsEmpty() ) {
-			error_msg.sprintf("Failed to create login key(%s) in EC2 but "
+		if( tmpcommand.getErrorStr() == NULL ) {
+			m_error_msg.sprintf("Failed to create login key(%s) in EC2 but "
 					"need to check if there is still the login key in EC2", 
 					keyname.Value());
 		}else {
-			error_msg = tmpcommand.error_msg;
+			m_error_msg = tmpcommand.getErrorStr();
 		}
-		error_code = "NEED_CHECK_SSHKEY";
+		m_error_code = "NEED_CHECK_SSHKEY";
 	}else {
 		// Succeeded to delete login key from EC2
-		error_msg.sprintf("Failed to create login key(%s) in EC2", 
+		m_error_msg.sprintf("Failed to create login key(%s) in EC2", 
 				keyname.Value());
-		error_code = "";
+		m_error_code = "";
 	}
 
 	return false;
 }
 
 /// Amazon VMDestroyKeypair
-AmazonVMDestroyKeypair::AmazonVMDestroyKeypair(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMDestroyKeypair::AmazonVMDestroyKeypair(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_DESTROY_KEYPAIR;
+}
 
 AmazonVMDestroyKeypair::~AmazonVMDestroyKeypair() {}
 
@@ -1916,15 +1951,11 @@ bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &res
 	request.keyname = argv[4];
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -1935,20 +1966,20 @@ bool AmazonVMDestroyKeypair::workerFunction(char **argv, int argc, MyString &res
 bool AmazonVMDestroyKeypair::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( keyname.IsEmpty() ) {
-		error_msg = "Empty_Keyname";
-		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
+		m_error_msg = "Empty_Keyname";
+		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMDestroyKeypair Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -1970,11 +2001,8 @@ bool AmazonVMDestroyKeypair::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		if( !strcasecmp(ecode.Value(), "InvalidKeyPair.NotFound")) {
-			return true;
-		}
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -1982,8 +2010,23 @@ bool AmazonVMDestroyKeypair::Request()
 	return true;
 }
 
+bool 
+AmazonVMDestroyKeypair::HandleError()
+{
+	if( !strcasecmp(m_error_code.Value(), "InvalidKeyPair.NotFound")) {
+		m_error_code = "";
+		m_error_msg = "";
+		return true;
+	}
+
+	return AmazonRequest::HandleError();
+}
+
 /// Amazon VMKeypairNames
-AmazonVMKeypairNames::AmazonVMKeypairNames(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMKeypairNames::AmazonVMKeypairNames(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_KEYPAIR_NAMES;
+}
 
 AmazonVMKeypairNames::~AmazonVMKeypairNames() {}
 
@@ -2009,15 +2052,11 @@ bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &resul
 	request.secretkeyfile = argv[3];
 
 	// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
-	bool tmp_result = request.gsoapRequest();
-#else 
-	bool tmp_result = request.Request();
-#endif
+	bool tmp_result = request.SendRequest();
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.keynames);
@@ -2028,14 +2067,14 @@ bool AmazonVMKeypairNames::workerFunction(char **argv, int argc, MyString &resul
 bool AmazonVMKeypairNames::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMKeypairNames Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2055,8 +2094,8 @@ bool AmazonVMKeypairNames::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2080,7 +2119,10 @@ bool AmazonVMKeypairNames::Request()
 }
 
 /// Amazon VMRegisterImage
-AmazonVMRegisterImage::AmazonVMRegisterImage(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMRegisterImage::AmazonVMRegisterImage(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_REGISTER_IMAGE;
+}
 
 AmazonVMRegisterImage::~AmazonVMRegisterImage() {}
 
@@ -2111,7 +2153,7 @@ bool AmazonVMRegisterImage::workerFunction(char **argv, int argc, MyString &resu
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		StringList result_list;
@@ -2124,14 +2166,14 @@ bool AmazonVMRegisterImage::workerFunction(char **argv, int argc, MyString &resu
 bool AmazonVMRegisterImage::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMRegisterImage Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2153,8 +2195,8 @@ bool AmazonVMRegisterImage::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2169,7 +2211,10 @@ bool AmazonVMRegisterImage::Request()
 }
 
 /// Amazon VMDeregisterImage
-AmazonVMDeregisterImage::AmazonVMDeregisterImage(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonVMDeregisterImage::AmazonVMDeregisterImage(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_VM_DEREGISTER_IMAGE;
+}
 
 AmazonVMDeregisterImage::~AmazonVMDeregisterImage() {}
 
@@ -2200,7 +2245,7 @@ bool AmazonVMDeregisterImage::workerFunction(char **argv, int argc, MyString &re
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2211,14 +2256,14 @@ bool AmazonVMDeregisterImage::workerFunction(char **argv, int argc, MyString &re
 bool AmazonVMDeregisterImage::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonVMDeregisterImage Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2240,8 +2285,8 @@ bool AmazonVMDeregisterImage::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2252,7 +2297,10 @@ bool AmazonVMDeregisterImage::Request()
 
 
 /// Amazon S3AllBuckets
-AmazonS3AllBuckets::AmazonS3AllBuckets(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3AllBuckets::AmazonS3AllBuckets(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_ALL_BUCKETS;
+}
 
 AmazonS3AllBuckets::~AmazonS3AllBuckets() {}
 
@@ -2282,7 +2330,7 @@ bool AmazonS3AllBuckets::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.bucketnames);
@@ -2293,14 +2341,14 @@ bool AmazonS3AllBuckets::workerFunction(char **argv, int argc, MyString &result_
 bool AmazonS3AllBuckets::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3AllBuckets Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2320,8 +2368,8 @@ bool AmazonS3AllBuckets::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2337,7 +2385,10 @@ bool AmazonS3AllBuckets::Request()
 }
 
 /// Amazon S3CreateBucket
-AmazonS3CreateBucket::AmazonS3CreateBucket(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3CreateBucket::AmazonS3CreateBucket(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_CREATE_BUCKET;
+}
 
 AmazonS3CreateBucket::~AmazonS3CreateBucket() {}
 
@@ -2368,7 +2419,7 @@ bool AmazonS3CreateBucket::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2379,14 +2430,14 @@ bool AmazonS3CreateBucket::workerFunction(char **argv, int argc, MyString &resul
 bool AmazonS3CreateBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3CreateBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2408,8 +2459,8 @@ bool AmazonS3CreateBucket::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2417,7 +2468,10 @@ bool AmazonS3CreateBucket::Request()
 }
 
 /// Amazon S3DeleteBucket
-AmazonS3DeleteBucket::AmazonS3DeleteBucket(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3DeleteBucket::AmazonS3DeleteBucket(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_DELETE_BUCKET;
+}
 
 AmazonS3DeleteBucket::~AmazonS3DeleteBucket() {}
 
@@ -2448,7 +2502,7 @@ bool AmazonS3DeleteBucket::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2459,14 +2513,14 @@ bool AmazonS3DeleteBucket::workerFunction(char **argv, int argc, MyString &resul
 bool AmazonS3DeleteBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3DeleteBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2489,8 +2543,8 @@ bool AmazonS3DeleteBucket::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2498,7 +2552,10 @@ bool AmazonS3DeleteBucket::Request()
 }
 
 /// Amazon S3ListBucket
-AmazonS3ListBucket::AmazonS3ListBucket(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3ListBucket::AmazonS3ListBucket(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_LIST_BUCKET;
+}
 
 AmazonS3ListBucket::~AmazonS3ListBucket() {}
 
@@ -2529,7 +2586,7 @@ bool AmazonS3ListBucket::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, &request.keynames);
@@ -2540,14 +2597,14 @@ bool AmazonS3ListBucket::workerFunction(char **argv, int argc, MyString &result_
 bool AmazonS3ListBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3ListBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2569,8 +2626,8 @@ bool AmazonS3ListBucket::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2595,7 +2652,10 @@ bool AmazonS3ListBucket::Request()
 }
 
 /// Amazon S3UploadFile
-AmazonS3UploadFile::AmazonS3UploadFile(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3UploadFile::AmazonS3UploadFile(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_UPLOAD_FILE;
+}
 
 AmazonS3UploadFile::~AmazonS3UploadFile() {}
 
@@ -2628,7 +2688,7 @@ bool AmazonS3UploadFile::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2639,19 +2699,19 @@ bool AmazonS3UploadFile::workerFunction(char **argv, int argc, MyString &result_
 bool AmazonS3UploadFile::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( !check_read_access_file( filename.GetCStr()) ) {
-		error_msg.sprintf("Cannot read the file to upload(%s)", filename.Value());
+		m_error_msg.sprintf("Cannot read the file to upload(%s)", filename.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3UploadFile Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2677,8 +2737,8 @@ bool AmazonS3UploadFile::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2686,7 +2746,10 @@ bool AmazonS3UploadFile::Request()
 }
 
 /// Amazon S3UploadDir
-AmazonS3UploadDir::AmazonS3UploadDir(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3UploadDir::AmazonS3UploadDir(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_UPLOAD_DIR;
+}
 
 AmazonS3UploadDir::~AmazonS3UploadDir() {}
 
@@ -2718,7 +2781,7 @@ bool AmazonS3UploadDir::workerFunction(char **argv, int argc, MyString &result_s
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2729,19 +2792,19 @@ bool AmazonS3UploadDir::workerFunction(char **argv, int argc, MyString &result_s
 bool AmazonS3UploadDir::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( !check_read_access_file( dirname.GetCStr()) ) {
-		error_msg.sprintf("Cannot read the directory to upload(%s)", dirname.Value());
+		m_error_msg.sprintf("Cannot read the directory to upload(%s)", dirname.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3UploadDir Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2793,8 +2856,8 @@ bool AmazonS3UploadDir::Request()
 
 		output.rewind();
 		if( tmp_result == false ){
-			error_msg = output.next();
-			error_code = ecode;
+			m_error_msg = output.next();
+			m_error_code = ecode;
 			return false;
 		}
 	}
@@ -2818,8 +2881,8 @@ bool AmazonS3UploadDir::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2827,7 +2890,10 @@ bool AmazonS3UploadDir::Request()
 }
 
 /// Amazon S3DeleteFile
-AmazonS3DeleteFile::AmazonS3DeleteFile(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3DeleteFile::AmazonS3DeleteFile(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_DELETE_FILE;
+}
 
 AmazonS3DeleteFile::~AmazonS3DeleteFile() {}
 
@@ -2859,7 +2925,7 @@ bool AmazonS3DeleteFile::workerFunction(char **argv, int argc, MyString &result_
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2870,14 +2936,14 @@ bool AmazonS3DeleteFile::workerFunction(char **argv, int argc, MyString &result_
 bool AmazonS3DeleteFile::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3DeleteFile Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2901,8 +2967,8 @@ bool AmazonS3DeleteFile::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2910,7 +2976,10 @@ bool AmazonS3DeleteFile::Request()
 }
 
 /// Amazon S3DownloadFile
-AmazonS3DownloadFile::AmazonS3DownloadFile(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3DownloadFile::AmazonS3DownloadFile(const char* lib_path) : AmazonRequest(lib_path) 
+{
+	m_request_name = AMAZON_COMMAND_S3_DOWNLOAD_FILE;
+}
 
 AmazonS3DownloadFile::~AmazonS3DownloadFile() {}
 
@@ -2943,7 +3012,7 @@ bool AmazonS3DownloadFile::workerFunction(char **argv, int argc, MyString &resul
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -2954,14 +3023,14 @@ bool AmazonS3DownloadFile::workerFunction(char **argv, int argc, MyString &resul
 bool AmazonS3DownloadFile::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3DownloadFile Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -2987,8 +3056,8 @@ bool AmazonS3DownloadFile::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 
@@ -2996,7 +3065,10 @@ bool AmazonS3DownloadFile::Request()
 }
 
 /// Amazon S3DownloadBucket
-AmazonS3DownloadBucket::AmazonS3DownloadBucket(const char* lib_path) : AmazonRequest(lib_path) {}
+AmazonS3DownloadBucket::AmazonS3DownloadBucket(const char* lib_path) : AmazonRequest(lib_path)
+{
+	m_request_name = AMAZON_COMMAND_S3_DOWNLOAD_BUCKET;
+}
 
 AmazonS3DownloadBucket::~AmazonS3DownloadBucket() {}
 
@@ -3028,7 +3100,7 @@ bool AmazonS3DownloadBucket::workerFunction(char **argv, int argc, MyString &res
 
 	if( tmp_result == false ) {
 		// Fail
-		result_string = create_failure_result(req_id, request.error_msg.GetCStr(), request.error_code.GetCStr());
+		result_string = create_failure_result(req_id, request.m_error_msg.GetCStr(), request.m_error_code.GetCStr());
 	}else {
 		// Success
 		result_string = create_success_result(req_id, NULL);
@@ -3039,14 +3111,14 @@ bool AmazonS3DownloadBucket::workerFunction(char **argv, int argc, MyString &res
 bool AmazonS3DownloadBucket::Request()
 {
 	if( !check_access_and_secret_key_file(accesskeyfile.GetCStr(), 
-				secretkeyfile.GetCStr(), error_msg) ) {
-		dprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", error_msg.Value());
+				secretkeyfile.GetCStr(), m_error_msg) ) {
+		dprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
 	if( m_amazon_lib_path.IsEmpty() ) {
-		error_msg = "No_Amazon_Library";
-		dprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", error_msg.Value());
+		m_error_msg = "No_Amazon_Library";
+		dprintf(D_ALWAYS, "AmazonS3DownloadBucket Error: %s\n", m_error_msg.Value());
 		return false;
 	}
 
@@ -3070,8 +3142,8 @@ bool AmazonS3DownloadBucket::Request()
 	output.rewind();
 
 	if( tmp_result == false ){
-		error_msg = output.next();
-		error_code = ecode;
+		m_error_msg = output.next();
+		m_error_code = ecode;
 		return false;
 	}
 

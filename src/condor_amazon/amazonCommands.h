@@ -69,17 +69,29 @@ class AmazonRequest {
 		AmazonRequest(const char* lib_path);
 		virtual ~AmazonRequest();
 
-		MyString m_amazon_lib_prog;
-		MyString m_amazon_lib_path;
-
 		// Access key or User certificate
 		MyString accesskeyfile;
 		// Secret key or User private Key
 		MyString secretkeyfile;
 
+		bool SendRequest();
+		virtual bool Request() = 0;
+		virtual bool HandleError();
+		virtual void cleanupRequest() {};
+
+		const char* getErrorCode(void) { return m_error_code.GetCStr(); }
+		const char* getErrorStr(void) { return m_error_msg.GetCStr(); }
+
+	protected:
+		MyString m_amazon_lib_prog;
+		MyString m_amazon_lib_path;
+
+		// Request Name
+		MyString m_request_name;
+
 		// Error msg
-		MyString error_msg;
-		MyString error_code;
+		MyString m_error_msg;
+		MyString m_error_code;
 
 #ifdef AMAZON_GSOAP_ENABLED
 		// for gsoap
@@ -109,6 +121,13 @@ class AmazonVMStart : public AmazonRequest {
 		virtual bool gsoapRequest();
 #endif
 
+		virtual void cleanupRequest() {
+			if( base64_userdata ) {
+				free(base64_userdata);
+				base64_userdata = NULL;
+			}
+		}
+
 		// Request Args
 		MyString ami_id;
 		MyString keypair;
@@ -134,6 +153,7 @@ class AmazonVMStop : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+		virtual bool HandleError();
 
 #ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
@@ -190,10 +210,18 @@ class AmazonVMStatus : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+		virtual bool HandleError();
 
 #ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
 #endif
+
+		virtual void cleanupRequest() {
+			if( status_result ) {
+				delete status_result;
+				status_result = NULL;
+			}
+		}
 
 		// Request Args
 		MyString instance_id;
@@ -216,6 +244,14 @@ class AmazonVMStatusAll : public AmazonRequest {
 #ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
 #endif
+
+		virtual void cleanupRequest() {
+			if( status_results ) {
+				delete[] status_results;
+				status_results = NULL;
+				status_num = 0;
+			}
+		}
 
 		// Request Args
 		MyString vm_status;
@@ -268,6 +304,7 @@ class AmazonVMDeleteGroup : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+		virtual bool HandleError();
 
 		// Request Args
 		MyString groupname;
@@ -311,6 +348,14 @@ class AmazonVMGroupRules : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+
+		virtual void cleanupRequest() {
+			if( rules ) {
+				delete[] rules;
+				rules = NULL;
+				rules_num = 0;
+			}
+		}
 
 		// Request Args
 		MyString groupname;
@@ -390,6 +435,7 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
 		virtual bool Request();
+		virtual bool HandleError();
 
 #ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
