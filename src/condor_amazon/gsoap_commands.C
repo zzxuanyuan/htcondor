@@ -42,10 +42,6 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 
-// TODO List
-// We need to handle the error code "InternalError" 
-// for retrying up to 3 times
-
 // Caller need to free the returned pointer
 static char* base64_encode(const unsigned char *input, int length)
 {
@@ -402,10 +398,6 @@ AmazonVMDestroyKeypair::gsoapRequest(void)
 	}else {
 		// Error
 		ParseSoapError("DeleteKeyPair");
-
-		if( !strcasecmp(error_code.Value(), "InvalidKeyPair.NotFound") ) {
-			return true;
-		}
 	}
 	return false;
 }
@@ -628,9 +620,6 @@ AmazonVMStop::gsoapRequest(void)
 	}else {
 		// Error
 		ParseSoapError("TerminateInstances");
-		if( !strcasecmp(error_code.Value(), "InvalidInstanceID.NotFound")) {
-			return true;
-		}
 	}
 	return false;
 }
@@ -737,9 +726,6 @@ AmazonVMStatus::gsoapRequest(void)
 	}else {
 		// Error
 		ParseSoapError("DescribeInstance");
-		if( !strcasecmp(error_code.Value(), "InvalidInstanceID.NotFound")) {
-			return true;
-		}
 	}
 	return false;
 }
