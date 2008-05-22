@@ -160,12 +160,17 @@ sub _sign {
 	# by jaeyoung
 	# We need to check the result
 	if( ! $res->is_success ) {
-		# For http errors like network failure
-		
 		$self->{http_error_code} = $res->code;
 		$self->{http_error_message} = $res->message;
 
-		return undef;
+		# First of all, we need to check if there is XML.
+		# If XML is found, it means we got a response from EC2
+		# Otherwise, we use http error like 500
+		# TODO..
+		#if( $res->content == $res->status_line ) {
+		#	# there is no XML
+		#	return undef;	
+		#}
 	}
 
 	# We got a response from EC2
