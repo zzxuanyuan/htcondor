@@ -753,7 +753,6 @@ const char *ATTR_AMAZON_SECURITY_POLICY = "AmazonSecurityPolicy";
 const char *ATTR_AMAZON_USER_DATA = "AmazonUserData";
 const char *ATTR_AMAZON_USER_DATA_FILE = "AmazonUserDataFile";
 const char *ATTR_AMAZON_REMOTE_VM_NAME = "AmazonRemoteVirtualMachineName";
-const char *ATTR_AMAZON_RECOVERY_STEPS = "AmazonRecoverySteps";
 const char *ATTR_AMAZON_INSTANCE_TYPE = "AmazonInstanceType";
 //************* End of changes for Amamzon Jobs *****************//
 

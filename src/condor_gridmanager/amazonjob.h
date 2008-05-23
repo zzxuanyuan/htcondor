@@ -52,7 +52,6 @@ public:
 	void SetKeypairId( const char *keypair_id );
 	void SetInstanceId( const char *instance_id );
 	void SetRemoteJobId( const char *keypair_id, const char *instance_id );
-	void SetSubmitStepInfo(const char * info);
 	void SetRemoteVMName(const char * name);
 	
 	static int probeInterval;
@@ -81,11 +80,6 @@ public:
 	AmazonResource *myResource;
 	GahpClient *gahp;
 
-	// These get set before file stage out, but don't get handed
-	// to JobTerminated() until after file stage out succeeds.
-	int exitCode;
-	bool normalExit;
-
 private:
 	// create dynamic input parameters
 	MyString build_ami_id();
@@ -98,7 +92,6 @@ private:
 	char * m_user_data_file;
 	char * m_instance_type;
 	
-	int m_submit_step;
 	int m_vm_check_times;
 	int m_keypair_check_times;
 	
@@ -112,8 +105,6 @@ private:
 
 	// print out error codes returned from grid_manager
 	void print_error_code( const char* error_code, const char* function_name );
-	
-	void stopcode();
 };
 
 #endif
