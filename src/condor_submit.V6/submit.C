@@ -6608,6 +6608,7 @@ SaveClassAd ()
 	char *tmp = param("CMD_HASH");
 	bool want_cmd_hash = isTrue(tmp); 
 	free(tmp);
+<<<<<<< HEAD:src/condor_submit.V6/submit.C
 	
 #if !defined(HAVE_EXT_OPENSSL)
 	fprintf(stderr, "WARNING: This platform does not have support for cryptographic hashing.\n");
@@ -6630,7 +6631,36 @@ SaveClassAd ()
 				"'%s' doesn't exist.\n", 
 				cmd.GetCStr() == NULL ? "NULL" : cmd.GetCStr());
 	}
+=======
+>>>>>>> Incorporated changes from V7_1-ian_cmd_hash-branch.  If that stuff
+gets merged with the master, we'll deal with it then.:src/condor_submit.V6/submit.C
 	
+<<<<<<< HEAD:src/condor_submit.V6/submit.C
+=======
+#if !defined(HAVE_EXT_OPENSSL)
+	fprintf(stderr, "WARNING: This platform does not have support for cryptographic hashing.\n");
+#else /* !defined(HAVE_EXT_OPENSSL) - in other words we *do* have it */
+	MyString cmd;
+	job->LookupString("Cmd", cmd);
+	
+	struct stat st_buf;
+	int cmd_file_exists = (0 == stat(cmd.GetCStr(), &st_buf));
+	
+	tmp = param("CMD_HASH_TYPE");
+	MyString cr_hash_type = tmp;
+	free(tmp);
+	if(cr_hash_type == NULL || cr_hash_type == "") {
+		cr_hash_type = "sha1";
+	}
+	
+	if(want_cmd_hash && !cmd_file_exists) {
+		fprintf(stderr, "Command hashing turned on, but Cmd file "
+				"'%s' doesn't exist.\n", 
+				cmd.GetCStr() == NULL ? "NULL" : cmd.GetCStr());
+	}
+	
+>>>>>>> Incorporated changes from V7_1-ian_cmd_hash-branch.  If that stuff
+gets merged with the master, we'll deal with it then.:src/condor_submit.V6/submit.C
 	if(want_cmd_hash && cmd_file_exists) {
 		char *cr_hash = get_hash_of_file(cmd.GetCStr(),
 										 cr_hash_type.GetCStr());
@@ -6644,6 +6674,7 @@ SaveClassAd ()
 		}
     }
 #endif /* !defined(HAVE_EXT_OPENSSL) */
+<<<<<<< HEAD:src/condor_submit.V6/submit.C
 
 	/* Here's where we sign the classad. */
  	if(!generic_sign_classad(*job, true)) {
@@ -6651,6 +6682,9 @@ SaveClassAd ()
  		return -1;
  	}
 
+=======
+>>>>>>> Incorporated changes from V7_1-ian_cmd_hash-branch.  If that stuff
+gets merged with the master, we'll deal with it then.:src/condor_submit.V6/submit.C
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
 		if( tree->invisible ) {
