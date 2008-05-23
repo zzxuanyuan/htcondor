@@ -55,6 +55,13 @@ condor_query.h
     Defines CondorQuery object. This is the API for querying condor
     collector about differrent kinds of classified ads in the pool.
 
+cr_hash.C
+cr_hash.h
+
+    Provides support for cryptographic hash calculcation. Takes file
+    name and cryptographic hash type (anything OpenSSL supports) and 
+    returns string.
+
 disk.C
 condor_disk.h
 condor_updown.h
@@ -122,6 +129,12 @@ name_tab.h
 
     Implements a table of names and values. One instance of usage is
     to make a table of all the signal names and values.
+
+openssl_helpers.C
+openssl_helpers.h
+
+    Supplies a function for extracting error information from
+    OpenSSL's ERR_print_error function and passing it to dprintf.
 
 proc_obj.C
 proc_obj.h
