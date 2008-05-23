@@ -81,6 +81,11 @@
 #include "list.h"
 #include "condor_vm_universe_types.h"
 #include "vm_univ_utils.h"
+#include "cr_hash.h"
+
+#if defined(HAVE_EXT_OPENSSL)
+#include "openssl/evp.h"
+#endif
 
 
 // TODO: hashFunction() is case-insenstive, but when a MyString is the
@@ -686,6 +691,10 @@ main( int argc, char *argv[] )
 	MyString method;
 
 	setbuf( stdout, NULL );
+
+#if defined(HAVE_EXT_OPENSSL)
+	OpenSSL_add_all_digests();
+#endif
 
 #if !defined(WIN32)
 		// Make sure root isn't trying to submit.
@@ -6550,8 +6559,45 @@ SaveClassAd ()
 		}
 	}
 
+	char *tmp = param("CMD_HASH");
+	bool want_cmd_hash = isTrue(tmp); 
+	free(tmp);
 	
-
+#if !defined(HAVE_EXT_OPENSSL)
+	fprintf(stderr, "WARNING: This platform does not have support for cryptographic hashing.\n");
+#else /* !defined(HAVE_EXT_OPENSSL) - in other words we *do* have it */
+	MyString cmd;
+	job->LookupString("Cmd", cmd);
+	
+	struct stat st_buf;
+	int cmd_file_exists = (0 == stat(cmd.GetCStr(), &st_buf));
+	
+	tmp = param("CMD_HASH_TYPE");
+	MyString cr_hash_type = tmp;
+	free(tmp);
+	if(cr_hash_type == NULL || cr_hash_type == "") {
+		cr_hash_type = "sha1";
+	}
+	
+	if(want_cmd_hash && !cmd_file_exists) {
+		fprintf(stderr, "Command hashing turned on, but Cmd file "
+				"'%s' doesn't exist.\n", 
+				cmd.GetCStr() == NULL ? "NULL" : cmd.GetCStr());
+	}
+	
+	if(want_cmd_hash && cmd_file_exists) {
+		char *cr_hash = get_hash_of_file(cmd.GetCStr(),
+										 cr_hash_type.GetCStr());
+		if(!cr_hash) {
+			fprintf(stderr, "Error getting hash (type %s) of file "
+					"'%s'.\n", cr_hash_type.GetCStr(), cmd.GetCStr());
+		} else {
+			job->Assign(ATTR_CRYPTO_HASH_CMD, cr_hash);
+			job->Assign(ATTR_CRYPTO_HASH_CMD_TYPE, cr_hash_type.GetCStr());
+			free(cr_hash);
+		}
+    }
+#endif /* !defined(HAVE_EXT_OPENSSL) */
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
 		if( tree->invisible ) {
