@@ -39,6 +39,7 @@ char *mySubSystem = "AMAZON_GAHP";	// used by Daemon Core
 
 static IOProcess *ioprocess = NULL;
 static MyString amazon_proxy_server;
+static MyString ec2_url;
 
 // this appears at the bottom of this file
 extern "C" int display_dprintf_header(FILE *fp);
@@ -382,6 +383,9 @@ main_init( int argc, char ** const argv )
 
 	// Try to read env for amazon_http_proxy
 	amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
+
+	// Try to get amazon ec2 url
+	ec2_url = getenv(AMAZON_EC2_URL);
 
 	// Create IOProcess class
 	ioprocess = new IOProcess;
@@ -903,7 +907,10 @@ IOProcess::createNewWorker(void)
 	job_env.SetEnv("DebugLevel", env_string.Value());
 
 	if( amazon_proxy_server.IsEmpty() == false ) {
-		job_env.SetEnv("AMAZON_HTTP_PROXY", amazon_proxy_server.Value());
+		job_env.SetEnv(AMAZON_HTTP_PROXY, amazon_proxy_server.Value());
+	}
+	if( ec2_url.IsEmpty() == false ) {
+		job_env.SetEnv(AMAZON_EC2_URL, amazon_proxy_server.Value());
 	}
 
 	new_worker->m_pid = daemonCore->Create_Process (

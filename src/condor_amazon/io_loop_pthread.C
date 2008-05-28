@@ -221,12 +221,6 @@ main( int argc, char ** const argv )
 		set_debug_flags( (char* )debug_string.GetCStr());
 	}
 
-	//Try to read env for amazon_http_proxy
-	MyString amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
-	if( amazon_proxy_server.IsEmtpy() == false ) {
-		set_amazon_proxy_server(amazon_proxy_server.GetCStr());
-	}
-
 	// parse arguments
 	MyString log_file;
 
@@ -267,6 +261,20 @@ main( int argc, char ** const argv )
 	}
 
 	dprintf(D_FULLDEBUG, "Welcome to the AMAZON-GAHP\n");
+
+	//Try to read env for amazon_http_proxy
+	MyString amazon_proxy_server = getenv(AMAZON_HTTP_PROXY);
+	if( amazon_proxy_server.IsEmpty() == false ) {
+		set_amazon_proxy_server(amazon_proxy_server.GetCStr());
+		dprintf(D_ALWAYS, "Using http proxy = %s\n", amazon_proxy_server.Value());
+	}
+
+	// Try to get amazon ec2 url
+	MyString ec2_url = getenv(AMAZON_EC2_URL);
+	if( ec2_url.IsEmpty() == false ) {
+		set_ec2_url(ec2_url.Value());
+		dprintf(D_ALWAYS, "Using ec2 url = %s\n", get_ec2_url());
+	}
 
 	// Save current working dir
 	char tmpCwd[_POSIX_PATH_MAX];
@@ -990,8 +998,8 @@ static void worker_exit(Worker *worker, bool force)
 		int retval = 0;
 		pthread_exit(&retval);
 	}else {
-		dprintf(D_FULLDEBUG, "Thread(%d) is going to be used again\n",
-				worker_id);
+		//dprintf(D_FULLDEBUG, "Thread(%d) is going to be used again\n",
+		//		worker_id);
 
 		// We need to keep this thread running
 		pthread_mutex_lock(&worker->m_mutex);
@@ -1045,8 +1053,8 @@ static void *worker_function( void *ptr )
 			ts.tv_nsec = tp.tv_usec * 1000;
 			ts.tv_sec += WORKER_MANAGER_TIMER_INTERVAL;
 
-			dprintf(D_FULLDEBUG, "Thread(%d) is calliing cond_wait\n", 
-					worker->m_id);
+			//dprintf(D_FULLDEBUG, "Thread(%d) is calling cond_wait\n", 
+			//		worker->m_id);
 
 			int retval = pthread_cond_timedwait(&worker->m_cond, 
 					&worker->m_mutex, &ts);
@@ -1060,8 +1068,8 @@ static void *worker_function( void *ptr )
 			}else {
 				// If timeout happends, need to check m_must_be_alive
 				if( retval == ETIMEDOUT ) {
-					dprintf(D_FULLDEBUG, "Thread(%d) Wait timed out !\n", 
-							worker->m_id);
+					//dprintf(D_FULLDEBUG, "Thread(%d) Wait timed out !\n", 
+					//		worker->m_id);
 
 					if( !worker->m_must_be_alive ) {
 						// Need to die according to the min number of workers

@@ -326,6 +326,13 @@ main_init( int argc, char ** const argv )
 		dprintf(D_ALWAYS, "Using http proxy = %s\n", amazon_proxy_server.Value());
 	}
 
+	// Try to get amazon ec2 url
+	MyString ec2_url = getenv(AMAZON_EC2_URL);
+	if( ec2_url.IsEmpty() == false ) {
+		set_ec2_url(ec2_url.Value());
+		dprintf(D_ALWAYS, "Using ec2 url = %s\n", get_ec2_url());
+	}
+
 	// Register all amazon commands
 	if( registerAllAmazonCommands() == false ) {
 		dprintf(D_ALWAYS, "Can't register Amazon Commands\n");
