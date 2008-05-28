@@ -275,12 +275,13 @@ void
 AmazonStatusResult::clearAll()
 {
 	instance_id = "";
-	ami_id = "";
 	status = "";
-	private_dns = "";
+	ami_id = "";
 	public_dns = "";
+	private_dns = "";
 	keyname = "";
 	groupnames.clearAll();
+	instancetype = "";
 }
 
 void
@@ -760,15 +761,10 @@ bool AmazonVMReboot::Request()
 AmazonVMStatus::AmazonVMStatus(const char* lib_path) : AmazonRequest(lib_path)
 {
 	m_request_name = AMAZON_COMMAND_VM_STATUS;
-	status_result = NULL;
 }
 
 AmazonVMStatus::~AmazonVMStatus()
 {
-	if( status_result ) { 
-		delete status_result;
-		status_result = NULL;
-	}
 }
 
 // Expecting:AMAZON_VM_STATUS <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
@@ -808,7 +804,7 @@ bool AmazonVMStatus::workerFunction(char **argv, int argc, MyString &result_stri
 	}else {
 		// Success
 		StringList result_list;
-		create_status_output(request.status_result, result_list);
+		create_status_output(&request.status_result, result_list);
 		result_string = create_success_result(req_id, &result_list);
 	}
 	return true;
@@ -861,8 +857,7 @@ bool AmazonVMStatus::Request()
 		return true;
 	}
 
-	status_result = new AmazonStatusResult;
-	if( parseAmazonStatusResult(result_line, *status_result) == false ) {
+	if( parseAmazonStatusResult(result_line, status_result) == false ) {
 		return false;
 	}
 
