@@ -642,6 +642,13 @@ GahpServer::Startup()
 		free( tmp_char );
 	}
 
+	// For amazon ec2 URL
+	tmp_char = param("AMAZON_EC2_URL");
+	if( tmp_char ) {
+		newenv.SetEnv( "AMAZON_EC2_URL", tmp_char );
+		free( tmp_char );
+	}
+
 		// Now register a reaper, if we haven't already done so.
 		// Note we use ReaperHandler instead of ReaperHandlercpp
 		// for the callback prototype, because our handler is 
