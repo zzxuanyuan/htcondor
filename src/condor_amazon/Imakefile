@@ -46,4 +46,4 @@ smdevp.C:
 	cp $(GSOAP_SHARE)/plugin/smdevp.c smdevp.C
 
 clean::
-	rm -f mdevp.C wsseapi.C
+	rm -f smdevp.C wsseapi.C
