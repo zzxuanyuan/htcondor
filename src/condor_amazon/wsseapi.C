@@ -696,9 +696,6 @@ we simply pass a unique identification string as the second argument:
 
 */
 
-#define _CONDOR_ALLOW_OPEN_AND_FOPEN
-
-#include "ec2H.h"
 #include "wsseapi.h"
 #include "smdevp.h"
 #include "threads.h"	/* only need threads to enable mutex for MT */
@@ -1307,7 +1304,7 @@ soap_wsse_get_BinarySecurityTokenX509(struct soap *soap, const char *id)
   if (!soap_wsse_get_BinarySecurityToken(soap, id, &valueType, &data, &size)
    && valueType
    && !strcmp(valueType, wsse_X509v3URI))
-    cert = d2i_X509(NULL, (unsigned char**)&data, size);
+    cert = d2i_X509(NULL, (const unsigned char**)&data, size);
   /* verify the certificate */
   if (!cert || soap_wsse_verify_X509(soap, cert))
     return NULL;
