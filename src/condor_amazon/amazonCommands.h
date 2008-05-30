@@ -71,7 +71,6 @@ class AmazonRequest {
 		MyString secretkeyfile;
 
 		bool SendRequest();
-		virtual bool Request() = 0;
 		virtual bool gsoapRequest() = 0;
 		virtual bool HandleError();
 		virtual void cleanupRequest() {};
@@ -110,8 +109,6 @@ class AmazonVMStart : public AmazonRequest {
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
-		virtual bool Request();
-
 		virtual bool gsoapRequest();
 
 		virtual void cleanupRequest() {
@@ -145,29 +142,9 @@ class AmazonVMStop : public AmazonRequest {
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
-		virtual bool Request();
 		virtual bool HandleError();
 
 		virtual bool gsoapRequest();
-
-		// Request Args
-		MyString instance_id;
-
-		// Result 
-
-};
-
-class AmazonVMReboot : public AmazonRequest {
-	public:
-		AmazonVMReboot(const char* lib_path);
-		virtual ~AmazonVMReboot();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
 
 		// Request Args
 		MyString instance_id;
@@ -202,7 +179,6 @@ class AmazonVMStatus : public AmazonRequest {
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
-		virtual bool Request();
 		virtual bool HandleError();
 
 		virtual bool gsoapRequest();
@@ -226,8 +202,6 @@ class AmazonVMStatusAll : public AmazonRequest {
 
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
 
 		virtual bool gsoapRequest();
 
@@ -256,146 +230,7 @@ class AmazonVMRunningKeypair : public AmazonVMStatusAll {
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
-		virtual bool Request();
-
 		virtual bool gsoapRequest();
-};
-
-class AmazonVMCreateGroup : public AmazonRequest {
-	public:
-		AmazonVMCreateGroup(const char* lib_path);
-		virtual ~AmazonVMCreateGroup();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString groupname;
-		MyString group_description;
-
-		// Result 
-
-};
-
-class AmazonVMDeleteGroup : public AmazonRequest {
-	public:
-		AmazonVMDeleteGroup(const char* lib_path);
-		virtual ~AmazonVMDeleteGroup();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-		virtual bool HandleError();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString groupname;
-
-		// Result 
-
-};
-
-class AmazonVMGroupNames : public AmazonRequest {
-	public:
-		AmazonVMGroupNames(const char* lib_path);
-		virtual ~AmazonVMGroupNames();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-
-		// Result 
-		StringList groupnames;
-
-};
-
-class AmazonGroupRule {
-	public:
-		void clearAll();
-		MyString protocol;
-		MyString start_port;
-		MyString end_port;
-		MyString ip_range;
-};
-
-class AmazonVMGroupRules : public AmazonRequest {
-	public:
-		AmazonVMGroupRules(const char* lib_path);
-		virtual ~AmazonVMGroupRules();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		virtual void cleanupRequest() {
-			if( rules ) {
-				delete[] rules;
-				rules = NULL;
-				rules_num = 0;
-			}
-		}
-
-		// Request Args
-		MyString groupname;
-
-		// Result 
-		AmazonGroupRule *rules;
-		int rules_num;
-
-};
-
-class AmazonVMAddGroupRule : public AmazonRequest {
-	public:
-		AmazonVMAddGroupRule(const char* lib_path);
-		virtual ~AmazonVMAddGroupRule();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString groupname;
-		AmazonGroupRule rule;
-
-		// Result 
-
-};
-
-class AmazonVMDelGroupRule : public AmazonRequest {
-	public:
-		AmazonVMDelGroupRule(const char* lib_path);
-		virtual ~AmazonVMDelGroupRule();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString groupname;
-		AmazonGroupRule rule;
-
-		// Result 
-
 };
 
 class AmazonVMCreateKeypair : public AmazonRequest {
@@ -405,8 +240,6 @@ class AmazonVMCreateKeypair : public AmazonRequest {
 
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
 
 		virtual bool gsoapRequest();
 
@@ -428,7 +261,6 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
-		virtual bool Request();
 		virtual bool HandleError();
 
 		virtual bool gsoapRequest();
@@ -448,235 +280,12 @@ class AmazonVMKeypairNames : public AmazonRequest {
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, MyString &result_string);
 
-		virtual bool Request();
-
 		virtual bool gsoapRequest();
 
 		// Request Args
 
 		// Result 
 		StringList keynames;
-
-};
-
-class AmazonVMRegisterImage : public AmazonRequest {
-	public:
-		AmazonVMRegisterImage(const char* lib_path);
-		virtual ~AmazonVMRegisterImage();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString location;
-
-		// Result 
-		MyString ami_id;
-
-};
-
-class AmazonVMDeregisterImage : public AmazonRequest {
-	public:
-		AmazonVMDeregisterImage(const char* lib_path);
-		virtual ~AmazonVMDeregisterImage();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString ami_id;
-
-		// Result 
-
-};
-
-
-// S3 Commands
-class AmazonS3AllBuckets: public AmazonRequest {
-	public:
-		AmazonS3AllBuckets(const char* lib_path);
-		virtual ~AmazonS3AllBuckets();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-
-		// Result 
-		StringList bucketnames;
-
-};
-
-class AmazonS3CreateBucket: public AmazonRequest {
-	public:
-		AmazonS3CreateBucket(const char* lib_path);
-		virtual ~AmazonS3CreateBucket();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString bucketname;
-
-		// Result 
-
-};
-
-class AmazonS3DeleteBucket: public AmazonRequest {
-	public:
-		AmazonS3DeleteBucket(const char* lib_path);
-		virtual ~AmazonS3DeleteBucket();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString bucketname;
-
-		// Result 
-
-};
-
-class AmazonS3ListBucket: public AmazonRequest {
-	public:
-		AmazonS3ListBucket(const char* lib_path);
-		virtual ~AmazonS3ListBucket();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString bucketname;
-		MyString prefix;
-
-		// Result 
-		StringList keynames;
-
-};
-
-class AmazonS3UploadFile: public AmazonRequest {
-	public:
-		AmazonS3UploadFile(const char* lib_path);
-		virtual ~AmazonS3UploadFile();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString filename;
-		MyString bucketname;
-		MyString keyname;
-
-		// Result 
-
-};
-
-class AmazonS3UploadDir: public AmazonRequest {
-	public:
-		AmazonS3UploadDir(const char* lib_path);
-		virtual ~AmazonS3UploadDir();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString dirname;
-		MyString bucketname;
-
-		// Result 
-
-};
-
-class AmazonS3DeleteFile: public AmazonRequest {
-	public:
-		AmazonS3DeleteFile(const char* lib_path);
-		virtual ~AmazonS3DeleteFile();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString bucketname;
-		MyString keyname;
-
-		// Result 
-
-};
-
-class AmazonS3DownloadFile: public AmazonRequest {
-	public:
-		AmazonS3DownloadFile(const char* lib_path);
-		virtual ~AmazonS3DownloadFile();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString bucketname;
-		MyString keyname;
-		MyString outputfile;
-
-		// Result 
-
-};
-
-class AmazonS3DownloadBucket: public AmazonRequest {
-	public:
-		AmazonS3DownloadBucket(const char* lib_path);
-		virtual ~AmazonS3DownloadBucket();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, MyString &result_string);
-
-		virtual bool Request();
-
-		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-
-		// Request Args
-		MyString bucketname;
-		MyString localdir;
-
-		// Result 
 
 };
 
