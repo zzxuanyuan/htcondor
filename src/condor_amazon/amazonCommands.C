@@ -295,22 +295,15 @@ AmazonGroupRule::clearAll()
 
 AmazonRequest::AmazonRequest(const char* lib_path)
 {
-#ifndef AMAZON_GSOAP_ENABLED
-	m_amazon_lib_path = lib_path;
-	m_amazon_lib_prog.sprintf("%s%c%s", lib_path, DIR_DELIM_CHAR, AMAZON_SCRIPT_NAME);
-#else
 	// For gsoap
 	m_soap = NULL;
 	m_rsa_privk = NULL;
 	m_cert = NULL;
-#endif
 }
 
 AmazonRequest::~AmazonRequest() 
 {
-#ifdef AMAZON_GSOAP_ENABLED
 	CleanupSoap();
-#endif
 }
 
 bool
@@ -325,12 +318,8 @@ AmazonRequest::SendRequest()
 		cleanupRequest();
 
 		// Send Request
-#ifdef AMAZON_GSOAP_ENABLED
 		CleanupSoap();
 		tmp_result = gsoapRequest();
-#else 
-		tmp_result = Request();
-#endif
 
 		if( tmp_result == true ) {
 			return true;

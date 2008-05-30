@@ -25,9 +25,7 @@
 #include "MyString.h"
 #include "string_list.h"
 
-#ifdef AMAZON_GSOAP_ENABLED
 #include <smdevp.h>
-#endif
 
 // EC2 Commands
 #define AMAZON_COMMAND_VM_START				"AMAZON_VM_START"
@@ -92,7 +90,6 @@ class AmazonRequest {
 		MyString m_error_msg;
 		MyString m_error_code;
 
-#ifdef AMAZON_GSOAP_ENABLED
 		// for gsoap
 		struct soap *m_soap;
 		EVP_PKEY *m_rsa_privk;
@@ -101,7 +98,6 @@ class AmazonRequest {
 		void ParseSoapError(const char* callerstring = NULL);
 		bool SetupSoap(void);
 		void CleanupSoap(void);
-#endif
 };
 
 // EC2 Commands
@@ -116,9 +112,7 @@ class AmazonVMStart : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		virtual void cleanupRequest() {
 			if( base64_userdata ) {
@@ -154,9 +148,7 @@ class AmazonVMStop : public AmazonRequest {
 		virtual bool Request();
 		virtual bool HandleError();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		// Request Args
 		MyString instance_id;
@@ -175,9 +167,7 @@ class AmazonVMReboot : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString instance_id;
@@ -215,9 +205,7 @@ class AmazonVMStatus : public AmazonRequest {
 		virtual bool Request();
 		virtual bool HandleError();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		virtual void cleanupRequest() {
 			status_result.clearAll();
@@ -241,9 +229,7 @@ class AmazonVMStatusAll : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		virtual void cleanupRequest() {
 			if( status_results ) {
@@ -272,9 +258,7 @@ class AmazonVMRunningKeypair : public AmazonVMStatusAll {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 };
 
 class AmazonVMCreateGroup : public AmazonRequest {
@@ -287,9 +271,7 @@ class AmazonVMCreateGroup : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString groupname;
@@ -310,9 +292,7 @@ class AmazonVMDeleteGroup : public AmazonRequest {
 		virtual bool Request();
 		virtual bool HandleError();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString groupname;
@@ -331,9 +311,8 @@ class AmazonVMGroupNames : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
+
 		// Request Args
 
 		// Result 
@@ -360,9 +339,7 @@ class AmazonVMGroupRules : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		virtual void cleanupRequest() {
 			if( rules ) {
@@ -391,9 +368,7 @@ class AmazonVMAddGroupRule : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString groupname;
@@ -413,9 +388,7 @@ class AmazonVMDelGroupRule : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString groupname;
@@ -435,9 +408,7 @@ class AmazonVMCreateKeypair : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		bool has_outputfile;
 
@@ -460,9 +431,7 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 		virtual bool Request();
 		virtual bool HandleError();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		// Request Args
 		MyString keyname;
@@ -481,9 +450,7 @@ class AmazonVMKeypairNames : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest();
-#endif
 
 		// Request Args
 
@@ -502,9 +469,7 @@ class AmazonVMRegisterImage : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString location;
@@ -524,9 +489,7 @@ class AmazonVMDeregisterImage : public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString ami_id;
@@ -547,9 +510,7 @@ class AmazonS3AllBuckets: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 
@@ -568,9 +529,7 @@ class AmazonS3CreateBucket: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString bucketname;
@@ -589,9 +548,7 @@ class AmazonS3DeleteBucket: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString bucketname;
@@ -610,9 +567,7 @@ class AmazonS3ListBucket: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString bucketname;
@@ -633,9 +588,7 @@ class AmazonS3UploadFile: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString filename;
@@ -656,9 +609,7 @@ class AmazonS3UploadDir: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString dirname;
@@ -678,9 +629,7 @@ class AmazonS3DeleteFile: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString bucketname;
@@ -700,9 +649,7 @@ class AmazonS3DownloadFile: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString bucketname;
@@ -723,9 +670,7 @@ class AmazonS3DownloadBucket: public AmazonRequest {
 
 		virtual bool Request();
 
-#ifdef AMAZON_GSOAP_ENABLED
 		virtual bool gsoapRequest() { return false; }; // Not yet implemented
-#endif
 
 		// Request Args
 		MyString bucketname;
