@@ -170,6 +170,9 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	char buff[16385]; // user data can be 16K, this is 16K+1
 	MyString error_string = "";
 	char *gahp_path = NULL;
+	char *gahp_log = NULL;
+	char *gahp_min_workers = NULL;
+	char *gahp_debug = NULL;
 	ArgList args;
 	
 	remoteJobId = NULL;
@@ -274,8 +277,33 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 
 	snprintf( buff, sizeof(buff), AMAZON_RESOURCE_NAME ); // for client's ID
 
-	args.AppendArg("-f");
-	
+	gahp_log = param( "AMAZON_GAHP_LOG" );
+	if ( gahp_log == NULL ) {
+		dprintf(D_ALWAYS, "Warning: No AMAZON_GAHP_LOG defined\n");
+	} else {
+		args.AppendArg("-f");
+		args.AppendArg(gahp_log);
+		free(gahp_log);
+	}
+
+	args.AppendArg("-w");
+	gahp_min_workers = param( "AMAZON_GAHP_WORKER_MIN_NUM" );
+	if (!gahp_min_workers) {
+		args.AppendArg("1");
+	} else {
+		args.AppendArg(gahp_min_workers);
+	}
+
+		// FIXME: Change amazon-gahp to accept AMAZON_GAHP_WORKER_MAX_NUM
+
+	args.AppendArg("-d");
+	gahp_debug = param( "AMAZON_GAHP_DEBUG" );
+	if (!gahp_min_workers) {
+		args.AppendArg("D_ALWAYS");
+	} else {
+		args.AppendArg(gahp_debug);
+	}
+
 	gahp = new GahpClient( buff, gahp_path, &args );
 	gahp->setNotificationTimerId( evaluateStateTid );
 	gahp->setMode( GahpClient::normal );
