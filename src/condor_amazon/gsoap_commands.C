@@ -198,7 +198,7 @@ AmazonRequest::SetupSoap(void)
 
 	// Timestamp must be signed, the "Timestamp" value just needs
 	// to be non-NULL
-	if( soap_wsse_add_Timestamp(m_soap, "Timestamp", 10)) { 
+	if( soap_wsse_add_Timestamp(m_soap, "Timestamp", 137)) { 
 		m_error_msg = "Failed to sign timestamp";
 		dprintf(D_ALWAYS, "%s\n", m_error_msg.Value());
 		return false;
