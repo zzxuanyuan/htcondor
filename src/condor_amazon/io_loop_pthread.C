@@ -1094,7 +1094,7 @@ static void *worker_function( void *ptr )
 		pthread_mutex_unlock(&worker->m_mutex);
 
 		if(!handle_gahp_command(new_request) ) {
-			dprintf(D_ALWAYS, "ERROR processing %s\n", 
+			dprintf(D_ALWAYS, "ERROR (io_loop) processing %s\n", 
 					new_request->m_raw_cmd.Value());
 		}else {
 			dprintf(D_FULLDEBUG, "CMD(\"%s\") is done with result %s", 
