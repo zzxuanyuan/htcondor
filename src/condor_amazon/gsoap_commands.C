@@ -31,7 +31,7 @@
 // For gsoap
 #include <stdsoap2.h>
 #include <smdevp.h> 
-#include "ec2H.h"
+#include "soapH.h"
 #include <wsseapi.h>
 #include "AmazonEC2Binding.nsmap"
 
