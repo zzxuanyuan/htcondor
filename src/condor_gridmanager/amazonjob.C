@@ -298,7 +298,7 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 
 	args.AppendArg("-d");
 	gahp_debug = param( "AMAZON_GAHP_DEBUG" );
-	if (!gahp_min_workers) {
+	if (!gahp_debug) {
 		args.AppendArg("D_ALWAYS");
 	} else {
 		args.AppendArg(gahp_debug);

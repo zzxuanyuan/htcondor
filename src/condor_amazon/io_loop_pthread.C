@@ -241,7 +241,6 @@ main( int argc, char ** const argv )
 				break;
 			case 'd':
 				// Debug Level
-				// this string must be hexadecimal
 				debug_string = my_optarg;
 				if( debug_string.IsEmpty() == false ) {
 					set_debug_flags( (char* )debug_string.GetCStr());
