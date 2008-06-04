@@ -1249,9 +1249,9 @@ void AmazonJob::SetInstanceId( const char *instance_id )
 void AmazonJob::SetRemoteJobId( const char *keypair_id, const char *instance_id )
 {
 	MyString full_job_id;
-	if ( keypair_id ) {
+	if ( keypair_id && keypair_id[0] ) {
 		full_job_id.sprintf( "amazon %s", keypair_id );
-		if ( instance_id ) {
+		if ( instance_id && instance_id[0] ) {
 			full_job_id.sprintf_cat( " %s", instance_id );
 		}
 	}
