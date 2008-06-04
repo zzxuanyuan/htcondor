@@ -1311,12 +1311,12 @@ StringList* AmazonJob::build_groupnames()
 	
 	// Notice:
 	// Based on the meeting in 04/01/2008, now we will not create any temporary security groups
-	// 1. clients assign ATTR_AMAZON_GROUP_NAME in condor_submit file, then we will use those 
+	// 1. clients assign ATTR_AMAZON_SECURITY_GROUPS in condor_submit file, then we will use those 
 	//    security group names.
-	// 2. clients don't assign ATTR_AMAZON_GROUP_NAME in condor_submit file, then we will use
+	// 2. clients don't assign ATTR_AMAZON_SECURITY_GROUPS in condor_submit file, then we will use
 	//    the default security group (by just keeping group_names is empty).
 	
-	if ( jobAd->LookupString( ATTR_AMAZON_GROUP_NAME, &buffer ) ) {
+	if ( jobAd->LookupString( ATTR_AMAZON_SECURITY_GROUPS, &buffer ) ) {
 		group_names = new StringList( strdup(buffer), " " );
 	} else {
 		group_names = new StringList();

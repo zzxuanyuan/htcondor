@@ -359,7 +359,7 @@ char* AmazonSecretKey = "amazon_secret_key";
 char* AmazonAmiID = "amazon_ami_id";
 char* AmazonUserData = "amazon_user_data";
 char* AmazonUserDataFile = "amazon_user_data_file";
-char* AmazonGroupName = "amazon_group_name";
+char* AmazonSecurityGroups = "amazon_security_groups";
 char* AmazonKeyPairFileName = "amazon_keypair_filename";
 char* AmazonInstanceType = "amazon_instance_type";
 
@@ -5031,8 +5031,8 @@ SetGlobusParams()
 	}
 	
 	// AmazonGroupName is not a necessary parameter
-	if( (tmp = condor_param( AmazonGroupName, ATTR_AMAZON_GROUP_NAME )) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_GROUP_NAME, tmp );
+	if( (tmp = condor_param( AmazonSecurityGroups, ATTR_AMAZON_SECURITY_GROUPS )) ) {
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECURITY_GROUPS, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
