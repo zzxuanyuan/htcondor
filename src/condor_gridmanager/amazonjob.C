@@ -1057,10 +1057,14 @@ int AmazonJob::doEvaluateState()
 
 				if (rc == 0) {
 					// remove temporary keypair local output file
-					if ( remove_keypair_file(m_key_pair_file_name.Value()) ) {
-						gmState = GM_CREATE_KEYPAIR;
-					} else {
+					if ( !remove_keypair_file(m_key_pair_file_name.Value()) ) {
 						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
+					}
+					if ( condorState == REMOVED || condorState == HELD ) {
+						SetInstanceId( NULL );
+						SetKeypairId( NULL );
+						gmState = GM_DELETE;
+					} else {
 						gmState = GM_CREATE_KEYPAIR;
 					}
 					
