@@ -351,7 +351,9 @@ char    *VM_Checkpoint = "vm_checkpoint";
 char    *VM_Networking = "vm_networking";
 char    *VM_Networking_Type = "vm_networking_type";
 
-//******************* added for Amazon Job **************//
+//
+// Amazon EC2 Parameters
+//
 char* AmazonAccessKey = "amazon_access_key";
 char* AmazonSecretKey = "amazon_secret_key";
 char* AmazonAmiID = "amazon_ami_id";
@@ -360,7 +362,6 @@ char* AmazonUserDataFile = "amazon_user_data_file";
 char* AmazonGroupName = "amazon_group_name";
 char* AmazonKeyPairFileName = "amazon_keypair_filename";
 char* AmazonInstanceType = "amazon_instance_type";
-//******************* end of adding for Amazon Job **************//
 
 char const *next_job_start_delay = "next_job_start_delay";
 char const *next_job_start_delay2 = "NextJobStartDelay";
@@ -4984,7 +4985,9 @@ SetGlobusParams()
 		exit( 1 );
 	}
 	
-	//*********************added for Amazon Job *****************************//
+	//
+	// Amazon grid-type submit attributes
+	//
 	if ( (tmp = condor_param( AmazonAccessKey, ATTR_AMAZON_ACCESS_KEY )) ) {
 		// check access key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
@@ -5086,8 +5089,6 @@ SetGlobusParams()
 		DoCleanup( 0, 0, NULL );
 		exit(1);
 	}
-	
-	//*********************end of adding by fangcao ***********************************//
 }
 
 void
