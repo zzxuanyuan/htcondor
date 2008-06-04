@@ -352,14 +352,14 @@ char    *VM_Networking = "vm_networking";
 char    *VM_Networking_Type = "vm_networking_type";
 
 //******************* added for Amazon Job **************//
-char* AmazonAccessKey = "AmazonAccessKey";
-char* AmazonSecretKey = "AmazonSecretKey";
-char* AmazonAmiID = "AmazonAmiID";
-char* AmazonUserData = "AmazonUserData";
-char* AmazonUserDataFile = "AmazonUserDataFile";
-char* AmazonGroupName = "AmazonGroupName";
-char* AmazonKeyPairFileName = "AmazonKeyPairFileName";
-char* AmazonInstanceType = "AmazonInstanceType";
+char* AmazonAccessKey = "amazon_access_key";
+char* AmazonSecretKey = "amazon_secret_key";
+char* AmazonAmiID = "amazon_ami_id";
+char* AmazonUserData = "amazon_user_data";
+char* AmazonUserDataFile = "amazon_user_data_file";
+char* AmazonGroupName = "amazon_group_name";
+char* AmazonKeyPairFileName = "amazon_keypair_filename";
+char* AmazonInstanceType = "amazon_instance_type";
 //******************* end of adding for Amazon Job **************//
 
 char const *next_job_start_delay = "next_job_start_delay";
@@ -4985,7 +4985,7 @@ SetGlobusParams()
 	}
 	
 	//*********************added for Amazon Job *****************************//
-	if ( (tmp = condor_param( AmazonAccessKey )) ) {
+	if ( (tmp = condor_param( AmazonAccessKey, ATTR_AMAZON_ACCESS_KEY )) ) {
 		// check access key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open access key file %s (%s)\n", 
@@ -5002,7 +5002,7 @@ SetGlobusParams()
 		exit( 1 );
 	}
 	
-	if ( (tmp = condor_param( AmazonSecretKey )) ) {
+	if ( (tmp = condor_param( AmazonSecretKey, ATTR_AMAZON_SECRET_KEY )) ) {
 		// check access key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open secret key file %s (%s)\n", 
@@ -5020,7 +5020,7 @@ SetGlobusParams()
 	}
 	
 	// AmazonKeyPairFileName is not a necessary parameter
-	if( (tmp = condor_param( AmazonKeyPairFileName )) ) {
+	if( (tmp = condor_param( AmazonKeyPairFileName, ATTR_AMAZON_KEY_PAIR_FILE_NAME )) ) {
 		// for the relative path, the keypair output file will be written to the IWD
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_KEY_PAIR_FILE_NAME, full_path(tmp) );
 		free( tmp );
@@ -5028,13 +5028,13 @@ SetGlobusParams()
 	}
 	
 	// AmazonGroupName is not a necessary parameter
-	if( (tmp = condor_param( AmazonGroupName )) ) {
+	if( (tmp = condor_param( AmazonGroupName, ATTR_AMAZON_GROUP_NAME )) ) {
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_GROUP_NAME, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}
 	
-	if ( (tmp = condor_param( AmazonAmiID )) ) {
+	if ( (tmp = condor_param( AmazonAmiID, ATTR_AMAZON_AMI_ID )) ) {
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_AMI_ID, tmp );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
@@ -5045,7 +5045,7 @@ SetGlobusParams()
 	}
 	
 	// AmazonInstanceType is not a necessary parameter
-	if( (tmp = condor_param( AmazonInstanceType )) ) {
+	if( (tmp = condor_param( AmazonInstanceType, ATTR_AMAZON_INSTANCE_TYPE )) ) {
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_INSTANCE_TYPE, tmp );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
@@ -5056,7 +5056,7 @@ SetGlobusParams()
 	bool has_userdatafile = false;
 	
 	// AmazonUserData is not a necessary parameter
-	if( (tmp = condor_param( AmazonUserData )) ) {
+	if( (tmp = condor_param( AmazonUserData, ATTR_AMAZON_USER_DATA )) ) {
 		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_USER_DATA, tmp);
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
@@ -5064,7 +5064,7 @@ SetGlobusParams()
 	}	
 
 	// AmazonUserDataFile is not a necessary parameter
-	if( (tmp = condor_param( AmazonUserDataFile )) ) {
+	if( (tmp = condor_param( AmazonUserDataFile, ATTR_AMAZON_USER_DATA_FILE )) ) {
 		// check secret key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open user data file %s (%s)\n", 
