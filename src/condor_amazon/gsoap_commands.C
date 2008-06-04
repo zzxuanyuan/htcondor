@@ -71,6 +71,10 @@ AmazonRequest::ParseSoapError(const char* callerstring)
 		return;
 	}
 
+		// In some error cases, the soap_fault*() functions will return
+		// null strings if soap_set_fault() isn't called first.
+	soap_set_fault(m_soap);
+
 	const char** code = NULL;
 	code = soap_faultcode(m_soap);
 
