@@ -657,7 +657,6 @@ extern const char *ATTR_AMAZON_SECRET_KEY;
 extern const char *ATTR_AMAZON_AMI_ID;
 extern const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME;
 extern const char *ATTR_AMAZON_GROUP_NAME;
-extern const char *ATTR_AMAZON_SECURITY_POLICY;
 extern const char *ATTR_AMAZON_USER_DATA;
 extern const char *ATTR_AMAZON_USER_DATA_FILE;
 extern const char *ATTR_AMAZON_REMOTE_VM_NAME;

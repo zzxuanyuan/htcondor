@@ -749,7 +749,6 @@ const char *ATTR_AMAZON_SECRET_KEY = "AmazonSecretKey";
 const char *ATTR_AMAZON_AMI_ID = "AmazonAmiID";
 const char *ATTR_AMAZON_GROUP_NAME = "AmazonGroupName";
 const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME = "AmazonKeyPairFileName";
-const char *ATTR_AMAZON_SECURITY_POLICY = "AmazonSecurityPolicy";
 const char *ATTR_AMAZON_USER_DATA = "AmazonUserData";
 const char *ATTR_AMAZON_USER_DATA_FILE = "AmazonUserDataFile";
 const char *ATTR_AMAZON_REMOTE_VM_NAME = "AmazonRemoteVirtualMachineName";
