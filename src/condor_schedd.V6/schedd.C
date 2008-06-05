@@ -80,6 +80,7 @@
 #include "file_sql.h"
 #include "condor_getcwd.h"
 #include "set_user_priv_from_ad.h"
+#include "signed_classads.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
