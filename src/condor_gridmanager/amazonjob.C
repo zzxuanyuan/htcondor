@@ -506,25 +506,9 @@ int AmazonJob::doEvaluateState()
 												*m_group_names, instance_id, gahp_error_code);
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
-						// Every first time this function will come to here, just exit doEvaluateState()
-						// and later gahp_client will call this function again. At that time, we can expect
-						// the return value will be success and will come to the following statements.
 						break;
 					}
 					
-					// The upper limit of instances is 20, so when the client reaches this limit, we should
-					// wait and retry for several times before we change its job's status to HOLD. Current, 
-					// only command VM_START will meet this problem. Other commands will not meet the error
-					// code = "InstanceLimitExceeded".
-				
-					// Everytime when we execute the commands, we will get two answers. The first one is 
-					// the quick one answer without any uesful information. The second one is the one we
-					// need. So each time the first one will always be success and when we get this answer
-					// we will try to clean the timer (if we have setup). This is why we place the codes 
-					// for "InstanceLimitExceeded" scenario after GAHPCLIENT_COMMAND_NOT_SUBMITTED and
-					// GAHPCLIENT_COMMAND_PENDING.
-	
-					// processing error code received
 					if ( gahp_error_code == NULL ) {
 						
 						// go ahead since the operation is successful
@@ -610,9 +594,6 @@ int AmazonJob::doEvaluateState()
 						break;
 				}
 							
-				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
 				// processing error code received
 				if ( gahp_error_code == NULL ) {
 					// go ahead
@@ -952,9 +933,6 @@ int AmazonJob::doEvaluateState()
 					break;
 				} 
 				
-				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
 				// processing error code received
 				if ( gahp_error_code == NULL ) {
 					// go ahead
@@ -989,9 +967,6 @@ int AmazonJob::doEvaluateState()
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
 				}
-					
-				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
 					
 				// processing error code received
 				if ( gahp_error_code == NULL ) {
@@ -1088,9 +1063,6 @@ int AmazonJob::doEvaluateState()
 					break;
 				}
 
-				// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-				// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
 				// processing error code received
 				if ( gahp_error_code == NULL ) {
 					// go ahead
