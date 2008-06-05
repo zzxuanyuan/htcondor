@@ -354,8 +354,8 @@ char    *VM_Networking_Type = "vm_networking_type";
 //
 // Amazon EC2 Parameters
 //
-char* AmazonAccessKey = "amazon_access_key";
-char* AmazonSecretKey = "amazon_secret_key";
+char* AmazonPublicKey = "amazon_public_key";
+char* AmazonPrivateKey = "amazon_private_key";
 char* AmazonAmiID = "amazon_ami_id";
 char* AmazonUserData = "amazon_user_data";
 char* AmazonUserDataFile = "amazon_user_data_file";
@@ -4988,36 +4988,36 @@ SetGlobusParams()
 	//
 	// Amazon grid-type submit attributes
 	//
-	if ( (tmp = condor_param( AmazonAccessKey, ATTR_AMAZON_ACCESS_KEY )) ) {
-		// check access key file can be opened
+	if ( (tmp = condor_param( AmazonPublicKey, ATTR_AMAZON_PUBLIC_KEY )) ) {
+		// check public key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
-			fprintf( stderr, "\nERROR: Failed to open access key file %s (%s)\n", 
+			fprintf( stderr, "\nERROR: Failed to open public key file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
 			exit(1);
 		}
 		fclose(fp);
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_ACCESS_KEY, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_PUBLIC_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonAccessKey );
+		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonPublicKey );
 		DoCleanup( 0, 0, NULL );
 		exit( 1 );
 	}
 	
-	if ( (tmp = condor_param( AmazonSecretKey, ATTR_AMAZON_SECRET_KEY )) ) {
-		// check access key file can be opened
+	if ( (tmp = condor_param( AmazonPrivateKey, ATTR_AMAZON_PRIVATE_KEY )) ) {
+		// check private key file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
-			fprintf( stderr, "\nERROR: Failed to open secret key file %s (%s)\n", 
+			fprintf( stderr, "\nERROR: Failed to open private key file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));
 			exit(1);
 		}
 		fclose(fp);
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_SECRET_KEY, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_PRIVATE_KEY, full_path(tmp) );
 		InsertJobExpr( buffer.Value() );
 		free( tmp );
 	} else if ( JobGridType && stricmp( JobGridType, "amazon" ) == 0 ) {
-		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonSecretKey );
+		fprintf(stderr, "\nERROR: Amazon jobs require a \"%s\" parameter\n", AmazonPrivateKey );
 		DoCleanup( 0, 0, NULL );
 		exit( 1 );
 	}
@@ -5068,7 +5068,7 @@ SetGlobusParams()
 
 	// AmazonUserDataFile is not a necessary parameter
 	if( (tmp = condor_param( AmazonUserDataFile, ATTR_AMAZON_USER_DATA_FILE )) ) {
-		// check secret key file can be opened
+		// check user data file can be opened
 		if( ( fp=safe_fopen_wrapper(full_path(tmp),"r") ) == NULL ) {
 			fprintf( stderr, "\nERROR: Failed to open user data file %s (%s)\n", 
 							 full_path(tmp), strerror(errno));

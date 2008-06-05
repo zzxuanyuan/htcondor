@@ -744,8 +744,8 @@ const char *ATTR_TIMEOUT = "Timeout";
 
 
 //************* Added for Amazon Jobs ***************************//
-const char *ATTR_AMAZON_ACCESS_KEY = "AmazonAccessKey";
-const char *ATTR_AMAZON_SECRET_KEY = "AmazonSecretKey";
+const char *ATTR_AMAZON_PUBLIC_KEY = "AmazonPublicKey";
+const char *ATTR_AMAZON_PRIVATE_KEY = "AmazonPrivateKey";
 const char *ATTR_AMAZON_AMI_ID = "AmazonAmiID";
 const char *ATTR_AMAZON_SECURITY_GROUPS = "AmazonSecurityGroups";
 const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME = "AmazonKeyPairFileName";

@@ -5917,8 +5917,8 @@ GahpClient::cream_job_lease(const char *service, const char *job_id, time_t &lea
 //************* Added for Amazon Jobs by fangcao ***************************//
 
 //  Start VM
-int GahpClient::amazon_vm_start( const char * accesskeyfile,
-								 const char * secretkeyfile,
+int GahpClient::amazon_vm_start( const char * publickeyfile,
+								 const char * privatekeyfile,
 								 const char * ami_id, 
 								 const char * keypair,
 								 const char * user_data,
@@ -5929,7 +5929,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 								 char * &error_code)
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_START <req_id> <accesskeyfile> <secretkeyfile> <ami-id> <keypair> <groupname> <groupname> ...
+	// AMAZON_COMMAND_VM_START <req_id> <publickeyfile> <privatekeyfile> <ami-id> <keypair> <groupname> <groupname> ...
 	static const char* command = "AMAZON_VM_START";
 	
 	// check if this command is supported
@@ -5938,7 +5938,7 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 	}
 	
 	// check the input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (ami_id == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (ami_id == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
@@ -5955,8 +5955,8 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 							
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(ami_id) );
 	char* esc4 = strdup( escapeGahpString(keypair) );
 	char* esc5 = strdup( escapeGahpString(user_data) );
@@ -6055,11 +6055,11 @@ int GahpClient::amazon_vm_start( const char * accesskeyfile,
 
 
 // Stop VM
-int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_stop( const char * publickeyfile, const char * privatekeyfile, 
 								const char * instance_id, char* & error_code )
 {	
 	// command line looks like:
-	// AMAZON_COMMAND_VM_STOP <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
+	// AMAZON_COMMAND_VM_STOP <req_id> <publickeyfile> <privatekeyfile> <instance-id>
 	static const char* command = "AMAZON_VM_STOP";
 	
 	// check if this command is supported
@@ -6068,15 +6068,15 @@ int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretk
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (instance_id == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (instance_id == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(instance_id) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3 );
@@ -6140,11 +6140,11 @@ int GahpClient::amazon_vm_stop( const char * accesskeyfile, const char * secretk
 
 
 // Restart VM
-int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_reboot( const char * publickeyfile, const char * privatekeyfile, 
 								  const char * instance_id, char* & error_code )		
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_REBOOT <req_id> <accesskeyfile> <secretkeyfile> <instance-id>
+	// AMAZON_COMMAND_VM_REBOOT <req_id> <publickeyfile> <privatekeyfile> <instance-id>
 	static const char* command = "AMAZON_VM_REBOOT";
 	
 	// check if this command is supported
@@ -6153,15 +6153,15 @@ int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secre
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (instance_id == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (instance_id == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(instance_id) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3 );
@@ -6224,7 +6224,7 @@ int GahpClient::amazon_vm_reboot( const char * accesskeyfile, const char * secre
 
 
 // Check VM status
-int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secretkeyfile,
+int GahpClient::amazon_vm_status( const char * publickeyfile, const char * privatekeyfile,
 							  const char * instance_id, StringList &returnStatus, char* & error_code )
 {	
 	// command line looks like:
@@ -6237,15 +6237,15 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (instance_id == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (instance_id == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(instance_id) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3 );
@@ -6354,11 +6354,11 @@ int GahpClient::amazon_vm_status( const char * accesskeyfile, const char * secre
 
 
 // List the status of all VMs
-int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_status_all( const char * publickeyfile, const char * privatekeyfile, 
 									  StringList &returnStatus, char* & error_code )		
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <accesskeyfile> <secretkeyfile>
+	// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <publickeyfile> <privatekeyfile>
 	static const char* command = "AMAZON_VM_STATUS_ALL";
 	
 	// check if this command is supported
@@ -6367,15 +6367,15 @@ int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * s
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	
 	bool x = reqline.sprintf("%s %s", esc1, esc2 );
 	
@@ -6458,11 +6458,11 @@ int GahpClient::amazon_vm_status_all( const char * accesskeyfile, const char * s
 
 
 // Create group
-int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char * secretkeyfile,
+int GahpClient::amazon_vm_create_group( const char * publickeyfile, const char * privatekeyfile,
 									    const char * groupname, const char * group_description, char* & error_code )	
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_CREATE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname> <group description>
+	// AMAZON_COMMAND_VM_CREATE_GROUP <req_id> <publickeyfile> <privatekeyfile> <groupname> <group description>
 	static const char* command = "AMAZON_VM_CREATE_GROUP";
 	
 	// check if this command is supported
@@ -6471,7 +6471,7 @@ int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char *
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || 
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || 
 		 (groupname == NULL) || (group_description == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
@@ -6479,8 +6479,8 @@ int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char *
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(groupname) );
 	char* esc4 = strdup( escapeGahpString(group_description) );
 	
@@ -6546,11 +6546,11 @@ int GahpClient::amazon_vm_create_group( const char * accesskeyfile, const char *
 
 
 // Delete given group
-int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_delete_group( const char * publickeyfile, const char * privatekeyfile, 
 										const char * groupname, char* & error_code )		
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_DELETE_GROUP <req_id> <accesskeyfile> <secretkeyfile> <groupname>
+	// AMAZON_COMMAND_VM_DELETE_GROUP <req_id> <publickeyfile> <privatekeyfile> <groupname>
 	static const char* command = "AMAZON_VM_DELETE_GROUP";
 
 	// check if this command is supported
@@ -6559,15 +6559,15 @@ int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char *
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (groupname == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (groupname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(groupname) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3 );
@@ -6632,11 +6632,11 @@ int GahpClient::amazon_vm_delete_group( const char * accesskeyfile, const char *
 
 
 //  Show group names
-int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_group_names( const char * publickeyfile, const char * privatekeyfile, 
 									   StringList &group_names, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_GROUP_NAMES <req_id> <accesskeyfile> <secretkeyfile>
+	// AMAZON_COMMAND_VM_GROUP_NAMES <req_id> <publickeyfile> <privatekeyfile>
 	static const char* command = "AMAZON_VM_GROUP_NAMES";
 	
 	// check if this command is supported
@@ -6645,15 +6645,15 @@ int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * 
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	
 	bool x = reqline.sprintf("%s %s", esc1, esc2 );
 	
@@ -6731,11 +6731,11 @@ int GahpClient::amazon_vm_group_names( const char * accesskeyfile, const char * 
 
 
 // Show group rules
-int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * secretkeyfile, const char * groupname, 
+int GahpClient::amazon_vm_group_rules(const char * publickeyfile, const char * privatekeyfile, const char * groupname, 
 									  StringList & returnStatus, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_GROUP_RULES <req_id> <accesskeyfile> <secretkeyfile> <groupname>
+	// AMAZON_COMMAND_VM_GROUP_RULES <req_id> <publickeyfile> <privatekeyfile> <groupname>
 	static const char* command = "AMAZON_VM_GROUP_RULES";
 	
 	// check if this command is supported
@@ -6744,15 +6744,15 @@ int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * s
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (groupname == NULL)) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (groupname == NULL)) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(groupname) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3 );
@@ -6834,11 +6834,11 @@ int GahpClient::amazon_vm_group_rules(const char * accesskeyfile, const char * s
 
 
 // Add group rule
-int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char * secretkeyfile, const char * groupname,
+int GahpClient::amazon_vm_add_group_rule(const char * publickeyfile, const char * privatekeyfile, const char * groupname,
 							 const char * protocol, const char * start_port, const char * end_port, const char * ip_range, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_ADD_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> 
+	// AMAZON_COMMAND_VM_ADD_GROUP_RULE <req_id> <publickeyfile> <privatekeyfile> 
 	// <groupname> <protocol> <start_port> <end_port> <ip_range>
 	// Notice: "ip_range" is optional but since it is the last argument, it should be replaced by ""
 	static const char* command = "AMAZON_VM_ADD_GROUP_RULE";
@@ -6849,7 +6849,7 @@ int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char 
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (groupname == NULL) ||
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (groupname == NULL) ||
 		 (protocol == NULL) || (start_port == NULL) || (end_port == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
@@ -6859,8 +6859,8 @@ int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char 
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(groupname) );
 	char* esc4 = strdup( escapeGahpString(protocol) );
 	char* esc5 = strdup( escapeGahpString(start_port) );
@@ -6933,11 +6933,11 @@ int GahpClient::amazon_vm_add_group_rule(const char * accesskeyfile, const char 
 
 
 // Delete group rule 
-int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char * secretkeyfile, const char * groupname,
+int GahpClient::amazon_vm_del_group_rule(const char * publickeyfile, const char * privatekeyfile, const char * groupname,
 							 const char * protocol, const char * start_port, const char * end_port, const char * ip_range, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_DEL_GROUP_RULE <req_id> <accesskeyfile> <secretkeyfile> <groupname> 
+	// AMAZON_COMMAND_VM_DEL_GROUP_RULE <req_id> <publickeyfile> <privatekeyfile> <groupname> 
 	// + <protocol> <start_port> <end_port> <ip_range>
 	// Notice: "ip_range" is optional but since it is the last argument, it should be replaced by ""
 	static const char* command = "AMAZON_VM_DEL_GROUP_RULE";
@@ -6948,7 +6948,7 @@ int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char 
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (groupname == NULL) ||
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (groupname == NULL) ||
 		 (protocol == NULL) || (start_port == NULL) || (end_port == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
@@ -6958,8 +6958,8 @@ int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char 
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(groupname) );
 	char* esc4 = strdup( escapeGahpString(protocol) );
 	char* esc5 = strdup( escapeGahpString(start_port) );
@@ -7031,14 +7031,14 @@ int GahpClient::amazon_vm_del_group_rule(const char * accesskeyfile, const char 
 
 
 // Ping to check if the server is alive
-int GahpClient::amazon_ping(const char * accesskeyfile, const char * secretkeyfile)
+int GahpClient::amazon_ping(const char * publickeyfile, const char * privatekeyfile)
 {
 	// we can use "Status All" command to make sure Amazon Server is alive.
 	static const char* command = "AMAZON_VM_STATUS_ALL";
 	
 	// Generate request line
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	
 	MyString reqline;
 	reqline.sprintf("%s %s", esc1, esc2 );
@@ -7080,11 +7080,11 @@ int GahpClient::amazon_ping(const char * accesskeyfile, const char * secretkeyfi
 
 
 // Create and register SSH keypair
-int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char * secretkeyfile,
+int GahpClient::amazon_vm_create_keypair( const char * publickeyfile, const char * privatekeyfile,
 								   	      const char * keyname, const char * outputfile, char* & error_code)
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_CREATE_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <groupname> <outputfile> 
+	// AMAZON_COMMAND_VM_CREATE_KEYPAIR <req_id> <publickeyfile> <privatekeyfile> <groupname> <outputfile> 
 	static const char* command = "AMAZON_VM_CREATE_KEYPAIR";
 	
 	// check if this command is supported
@@ -7093,15 +7093,15 @@ int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (keyname == NULL) || (outputfile == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (keyname == NULL) || (outputfile == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// construct command line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(keyname) );
 	char* esc4 = strdup( escapeGahpString(outputfile) );
 	
@@ -7173,11 +7173,11 @@ int GahpClient::amazon_vm_create_keypair( const char * accesskeyfile, const char
 // The destroy keypair function will delete the name of keypair, it will not touch the output file of 
 // keypair. So in Amazon Job, we should delete keypair output file manually. We don't need to care about
 // the keypair name/output file in Amazon, it will be removed automatically.
-int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_destroy_keypair( const char * publickeyfile, const char * privatekeyfile, 
 										   const char * keyname, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_DESTROY_KEYPAIR <req_id> <accesskeyfile> <secretkeyfile> <groupname> 
+	// AMAZON_COMMAND_VM_DESTROY_KEYPAIR <req_id> <publickeyfile> <privatekeyfile> <groupname> 
 	static const char* command = "AMAZON_VM_DESTROY_KEYPAIR";
 	
 	// check if this command is supported
@@ -7186,15 +7186,15 @@ int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const cha
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (keyname == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (keyname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// construct command line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(keyname) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3);
@@ -7261,11 +7261,11 @@ int GahpClient::amazon_vm_destroy_keypair( const char * accesskeyfile, const cha
 
 
 //  List all existing SSH Keypair name
-int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_keypair_names( const char * publickeyfile, const char * privatekeyfile, 
 										 StringList &keypair_names, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_KEYPAIR_NAMES <req_id> <accesskeyfile> <secretkeyfile> 
+	// AMAZON_COMMAND_VM_KEYPAIR_NAMES <req_id> <publickeyfile> <privatekeyfile> 
 	static const char* command = "AMAZON_VM_KEYPAIR_NAMES";
 	
 	// check if this command is supported
@@ -7274,15 +7274,15 @@ int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char 
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// construct command line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	
 	bool x = reqline.sprintf("%s %s", esc1, esc2);
 	
@@ -7361,11 +7361,11 @@ int GahpClient::amazon_vm_keypair_names( const char * accesskeyfile, const char 
 
 
 // List all S3 Bucket names
-int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_s3_all_buckets( const char * publickeyfile, const char * privatekeyfile, 
 										  StringList & bucket_names, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_S3_ALL_BUCKETS <req_id> <accesskeyfile> <secretkeyfile>
+	// AMAZON_COMMAND_S3_ALL_BUCKETS <req_id> <publickeyfile> <privatekeyfile>
 	static const char* command = "AMAZON_S3_ALL_BUCKETS";
 	
 	// check if this command is supported
@@ -7374,15 +7374,15 @@ int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// construct command line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	
 	bool x = reqline.sprintf("%s %s", esc1, esc2);
 	
@@ -7462,11 +7462,11 @@ int GahpClient::amazon_vm_s3_all_buckets( const char * accesskeyfile, const char
 
 
 // Create Bucket in S3
-int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_s3_create_bucket( const char * publickeyfile, const char * privatekeyfile, 
 											const char * bucketname, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_S3_CREATE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
+	// AMAZON_COMMAND_S3_CREATE_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname>
 	static const char* command = "AMAZON_S3_CREATE_BUCKET";
 	
 	// check if this command is supported
@@ -7475,14 +7475,14 @@ int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const ch
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (bucketname == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (bucketname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(bucketname) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3);
@@ -7548,11 +7548,11 @@ int GahpClient::amazon_vm_s3_create_bucket( const char * accesskeyfile, const ch
 
 
 // Delete Bucket in S3
-int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_s3_delete_bucket( const char * publickeyfile, const char * privatekeyfile, 
 											const char * bucketname, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_S3_DELETE_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname>
+	// AMAZON_COMMAND_S3_DELETE_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname>
 	// All the files saved in this bucket will be deleted by force.
 	static const char* command = "AMAZON_S3_DELETE_BUCKET";
 	
@@ -7562,14 +7562,14 @@ int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const ch
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (bucketname == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (bucketname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(bucketname) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3);
@@ -7635,11 +7635,11 @@ int GahpClient::amazon_vm_s3_delete_bucket( const char * accesskeyfile, const ch
 
 
 // List all entries in a given Bucket
-int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char * secretkeyfile, 
+int GahpClient::amazon_vm_s3_list_bucket( const char * publickeyfile, const char * privatekeyfile, 
 	                                      const char * bucketname, StringList & entry_names, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_S3_LIST_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> 
+	// AMAZON_COMMAND_S3_LIST_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname> 
 	static const char* command = "AMAZON_S3_LIST_BUCKET";
 	
 	// check if this command is supported
@@ -7648,15 +7648,15 @@ int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (bucketname == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (bucketname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// construct command line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(bucketname) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3);
@@ -7737,11 +7737,11 @@ int GahpClient::amazon_vm_s3_list_bucket( const char * accesskeyfile, const char
 
 
 // Upload file into S3
-int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char * secretkeyfile, const char * filename,
+int GahpClient::amazon_vm_s3_upload_file( const char * publickeyfile, const char * privatekeyfile, const char * filename,
 							  const char * bucketname, const char * keyname, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_S3_UPLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <filename> <keyname>
+	// AMAZON_COMMAND_S3_UPLOAD_FILE <req_id> <publickeyfile> <privatekeyfile> <bucketname> <filename> <keyname>
 	static const char* command = "AMAZON_S3_UPLOAD_FILE";
 	
 	// check if this command is supported
@@ -7750,7 +7750,7 @@ int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || 
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || 
 		 (bucketname == NULL) || (filename == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
@@ -7761,8 +7761,8 @@ int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(filename) );
 	char* esc4 = strdup( escapeGahpString(bucketname) );
 	char* esc5 = strdup( escapeGahpString(keyname) );
@@ -7832,11 +7832,11 @@ int GahpClient::amazon_vm_s3_upload_file( const char * accesskeyfile, const char
 
 
 // Download file from S3 to a local file
-int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const char * secretkeyfile, const char * bucketname,
+int GahpClient::amazon_vm_s3_download_file( const char * publickeyfile, const char * privatekeyfile, const char * bucketname,
 								const char * keyname, const char * outputname, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_S3_DOWNLOAD_FILE <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <keyname> <outputname>
+	// AMAZON_COMMAND_S3_DOWNLOAD_FILE <req_id> <publickeyfile> <privatekeyfile> <bucketname> <keyname> <outputname>
 	static const char* command = "AMAZON_S3_DOWNLOAD_FILE";
 	
 	// check if this command is supported
@@ -7845,7 +7845,7 @@ int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const ch
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || 
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || 
 		 (bucketname == NULL) || (keyname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
@@ -7856,8 +7856,8 @@ int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const ch
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(bucketname) );
 	char* esc4 = strdup( escapeGahpString(keyname) );
 	char* esc5 = strdup( escapeGahpString(outputname) );
@@ -7927,11 +7927,11 @@ int GahpClient::amazon_vm_s3_download_file( const char * accesskeyfile, const ch
 
 
 // Delete file from S3
-int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char * secretkeyfile,
+int GahpClient::amazon_vm_s3_delete_file( const char * publickeyfile, const char * privatekeyfile,
 									      const char * keyname, const char * bucketname, char* & error_code )
 {
 	// command line looks like:
-	//AMAZON_COMMAND_S3_DELETE_FILE <req_id> <accesskeyfile> <secretkeyfile> <keyname> <bucketname>
+	//AMAZON_COMMAND_S3_DELETE_FILE <req_id> <publickeyfile> <privatekeyfile> <keyname> <bucketname>
 	static const char* command = "AMAZON_S3_DELETE_FILE";
 	
 	// check if this command is supported
@@ -7940,15 +7940,15 @@ int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || 
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || 
 		 (bucketname == NULL) || (keyname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(keyname) );
 	char* esc4 = strdup( escapeGahpString(bucketname) );
 	
@@ -8015,11 +8015,11 @@ int GahpClient::amazon_vm_s3_delete_file( const char * accesskeyfile, const char
 
 
 // Register EC2 Image
-int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char* secretkeyfile, 
+int GahpClient::amazon_vm_register_image( const char* publickeyfile, const char* privatekeyfile, 
 										  const char* imagename, char* & ami_id, char* & error_code )
 {
 	// command line looks like:
-	//AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <imagetname>
+	//AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <publickeyfile> <privatekeyfile> <imagetname>
 	static const char* command = "AMAZON_VM_REGISTER_IMAGE";
 	
 	// check if this command is supported
@@ -8028,14 +8028,14 @@ int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char*
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (imagename == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (imagename == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(imagename) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3);
@@ -8103,11 +8103,11 @@ int GahpClient::amazon_vm_register_image( const char* accesskeyfile, const char*
 
 
 // Deregister EC2 Image
-int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const char* secretkeyfile, 
+int GahpClient::amazon_vm_deregister_image( const char* publickeyfile, const char* privatekeyfile, 
 											const char* ami_id, char* & error_code )
 {
 	// command line looks like:
-	//AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <accesskeyfile> <secretkeyfile> <imagetname>
+	//AMAZON_COMMAND_VM_REGISTER_IMAGE <req_id> <publickeyfile> <privatekeyfile> <imagetname>
 	static const char* command = "AMAZON_VM_DEREGISTER_IMAGE";
 	
 	// check if this command is supported
@@ -8116,14 +8116,14 @@ int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const cha
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || (ami_id == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || (ami_id == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(ami_id) );
 	
 	bool x = reqline.sprintf("%s %s %s", esc1, esc2, esc3);
@@ -8189,11 +8189,11 @@ int GahpClient::amazon_vm_deregister_image( const char* accesskeyfile, const cha
 
 
 // Upload files in a directory to the S3
-int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* secretkeyfile, 
+int GahpClient::amazon_vm_s3_upload_dir( const char* publickeyfile, const char* privatekeyfile, 
 										 const char* dirname, const char* bucketname, char* & error_code )
 {
 	// command line looks like:
-	//AMAZON_COMMAND_S3_UPLOAD_DIR <req_id> <accesskeyfile> <secretkeyfile> <dirname> <bucketname>
+	//AMAZON_COMMAND_S3_UPLOAD_DIR <req_id> <publickeyfile> <privatekeyfile> <dirname> <bucketname>
 	static const char* command = "AMAZON_S3_UPLOAD_DIR";
 
 	// check if this command is supported
@@ -8202,15 +8202,15 @@ int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* 
 	}
 
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || 
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || 
 		 (dirname == NULL) || (bucketname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(dirname) );
 	char* esc4 = strdup( escapeGahpString(bucketname) );
 	
@@ -8278,11 +8278,11 @@ int GahpClient::amazon_vm_s3_upload_dir( const char* accesskeyfile, const char* 
 
 
 //  Download all files in a bucket to the local disk
-int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const char* secretkeyfile,
+int GahpClient::amazon_vm_s3_download_bucket( const char* publickeyfile, const char* privatekeyfile,
 											  const char* bucketname, const char* localdirname, char* & error_code )
 {
 	// command line looks like:
-	//AMAZON_COMMAND_S3_DOWNLOAD_BUCKET <req_id> <accesskeyfile> <secretkeyfile> <bucketname> <localdirname>
+	//AMAZON_COMMAND_S3_DOWNLOAD_BUCKET <req_id> <publickeyfile> <privatekeyfile> <bucketname> <localdirname>
 	static const char* command = "AMAZON_S3_DOWNLOAD_BUCKET";
 	
 	// check if this command is supported
@@ -8291,15 +8291,15 @@ int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const c
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) || 
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) || 
 	     (localdirname == NULL) || (bucketname == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	char* esc3 = strdup( escapeGahpString(bucketname) );
 	char* esc4 = strdup( escapeGahpString(localdirname) );
 	
@@ -8368,11 +8368,11 @@ int GahpClient::amazon_vm_s3_download_bucket( const char* accesskeyfile, const c
 
 
 // Check all the running VM instances and their corresponding keypair name
-int GahpClient::amazon_vm_vm_keypair_all( const char* accesskeyfile, const char* secretkeyfile,
+int GahpClient::amazon_vm_vm_keypair_all( const char* publickeyfile, const char* privatekeyfile,
 										  StringList & returnStatus, char* & error_code )
 {
 	// command line looks like:
-	// AMAZON_COMMAND_VM_KEYPAIR_ALL <req_id> <accesskeyfile> <secretkeyfile>
+	// AMAZON_COMMAND_VM_KEYPAIR_ALL <req_id> <publickeyfile> <privatekeyfile>
 	static const char* command = "AMAZON_VM_RUNNING_KEYPAIR";
 	
 	// check if this command is supported
@@ -8381,15 +8381,15 @@ int GahpClient::amazon_vm_vm_keypair_all( const char* accesskeyfile, const char*
 	}
 	
 	// check input arguments
-	if ( (accesskeyfile == NULL) || (secretkeyfile == NULL) ) {
+	if ( (publickeyfile == NULL) || (privatekeyfile == NULL) ) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 	
 	// Generate request line
 	MyString reqline;
 	
-	char* esc1 = strdup( escapeGahpString(accesskeyfile) );
-	char* esc2 = strdup( escapeGahpString(secretkeyfile) );
+	char* esc1 = strdup( escapeGahpString(publickeyfile) );
+	char* esc2 = strdup( escapeGahpString(privatekeyfile) );
 	
 	bool x = reqline.sprintf("%s %s", esc1, esc2 );
 	

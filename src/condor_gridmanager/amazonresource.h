@@ -39,18 +39,18 @@ public:
 	void Reconfig();
 	
 	static const char *HashName( const char * resource_name, 
-								 const char * access_key_file, 
-								 const char * secret_key_file );
+								 const char * public_key_file, 
+								 const char * private_key_file );
 	
 	static AmazonResource* FindOrCreateResource( const char * resource_name, 
-												 const char * access_key_file, 
-												 const char * secret_key_file );
+												 const char * public_key_file, 
+												 const char * private_key_file );
 
 	GahpClient *gahp;
 
 	AmazonResource(const char * resource_name, 
-				   const char * access_key_file, 
-				   const char * secret_key_file );
+				   const char * public_key_file, 
+				   const char * private_key_file );
 	
 	~AmazonResource();	
 
@@ -61,8 +61,8 @@ private:
 				bool & ping_complete, 
 				bool & ping_succeeded  );
 	
-	char* m_access_key_file;
-	char* m_secret_key_file;	
+	char* m_public_key_file;
+	char* m_private_key_file;	
 };    
   
 #endif

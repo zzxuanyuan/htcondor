@@ -652,8 +652,8 @@ extern const char *ATTR_VM_CKPT_IP;
 
 
 //************* Added for Amazon Jobs ***************************//
-extern const char *ATTR_AMAZON_ACCESS_KEY;
-extern const char *ATTR_AMAZON_SECRET_KEY;
+extern const char *ATTR_AMAZON_PUBLIC_KEY;
+extern const char *ATTR_AMAZON_PRIVATE_KEY;
 extern const char *ATTR_AMAZON_AMI_ID;
 extern const char *ATTR_AMAZON_KEY_PAIR_FILE_NAME;
 extern const char *ATTR_AMAZON_SECURITY_GROUPS;

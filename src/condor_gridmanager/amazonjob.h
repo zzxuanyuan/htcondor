@@ -86,8 +86,8 @@ private:
 	MyString build_keypair();
 	StringList* build_groupnames();
 	
-	char * m_access_key_file;
-	char * m_secret_key_file;
+	char * m_public_key_file;
+	char * m_private_key_file;
 	char * m_user_data;
 	char * m_user_data_file;
 	char * m_instance_type;

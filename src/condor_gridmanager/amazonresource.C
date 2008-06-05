@@ -31,27 +31,27 @@ HashTable <HashKey, AmazonResource *>
 	AmazonResource::ResourcesByName( HASH_TABLE_SIZE, hashFunction );
 
 const char * AmazonResource::HashName( const char * resource_name,
-		const char * access_key_file, const char * secret_key_file )
+		const char * public_key_file, const char * private_key_file )
 {								 
 	static MyString hash_name;
-	hash_name.sprintf( "%s#%s#%s", resource_name, access_key_file, secret_key_file );
+	hash_name.sprintf( "%s#%s#%s", resource_name, public_key_file, private_key_file );
 	return hash_name.Value();
 }
 
 
 AmazonResource* AmazonResource::FindOrCreateResource(const char * resource_name, 
-	const char * access_key_file, const char * secret_key_file )
+	const char * public_key_file, const char * private_key_file )
 {
 	int rc;
 	MyString resource_key;
 	AmazonResource *resource = NULL;
 
-	rc = ResourcesByName.lookup( HashKey( HashName( resource_name, access_key_file, secret_key_file ) ), resource );
+	rc = ResourcesByName.lookup( HashKey( HashName( resource_name, public_key_file, private_key_file ) ), resource );
 	if ( rc != 0 ) {
-		resource = new AmazonResource( resource_name, access_key_file, secret_key_file );
+		resource = new AmazonResource( resource_name, public_key_file, private_key_file );
 		ASSERT(resource);
 		resource->Reconfig();
-		ResourcesByName.insert( HashKey( HashName( resource_name, access_key_file, secret_key_file ) ), resource );
+		ResourcesByName.insert( HashKey( HashName( resource_name, public_key_file, private_key_file ) ), resource );
 	} else {
 		ASSERT(resource);
 	}
@@ -61,13 +61,13 @@ AmazonResource* AmazonResource::FindOrCreateResource(const char * resource_name,
 
 
 AmazonResource::AmazonResource( const char *resource_name, 
-	const char * access_key_file, const char * secret_key_file )
+	const char * public_key_file, const char * private_key_file )
 	: BaseResource( resource_name )
 {
 	// although no one will use resource_name, we still keep it for base class constructor
 	
-	m_access_key_file = strdup(access_key_file);
-	m_secret_key_file = strdup(secret_key_file);
+	m_public_key_file = strdup(public_key_file);
+	m_private_key_file = strdup(private_key_file);
 	
 	gahp = NULL;
 
@@ -93,8 +93,8 @@ AmazonResource::AmazonResource( const char *resource_name,
 AmazonResource::~AmazonResource()
 {
 	if ( gahp ) delete gahp;
-	if (m_access_key_file) free(m_access_key_file);
-	if (m_secret_key_file) free(m_secret_key_file);
+	if (m_public_key_file) free(m_public_key_file);
+	if (m_private_key_file) free(m_private_key_file);
 }
 
 
@@ -117,7 +117,7 @@ void AmazonResource::DoPing( time_t& ping_delay, bool& ping_complete, bool& ping
 	
 	ping_delay = 0;
 	
-	int rc = gahp->amazon_ping( m_access_key_file, m_secret_key_file );
+	int rc = gahp->amazon_ping( m_public_key_file, m_private_key_file );
 
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		ping_complete = false;

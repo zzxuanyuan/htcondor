@@ -162,23 +162,23 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	myResource = NULL;
 	gahp = NULL;
 	
-	// check the access_key_file
+	// check the public_key_file
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_AMAZON_ACCESS_KEY, buff );
-	m_access_key_file = strdup(buff);
+	jobAd->LookupString( ATTR_AMAZON_PUBLIC_KEY, buff );
+	m_public_key_file = strdup(buff);
 	
-	if ( strlen(m_access_key_file) == 0 ) {
-		error_string = "Access key file not defined";
+	if ( strlen(m_public_key_file) == 0 ) {
+		error_string = "Public key file not defined";
 		goto error_exit;
 	}
 
-	// check the secret_key_file
+	// check the private_key_file
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_AMAZON_SECRET_KEY, buff );
-	m_secret_key_file = strdup(buff);
+	jobAd->LookupString( ATTR_AMAZON_PRIVATE_KEY, buff );
+	m_private_key_file = strdup(buff);
 	
-	if ( strlen(m_secret_key_file) == 0 ) {
-		error_string = "Secret key file not defined";
+	if ( strlen(m_private_key_file) == 0 ) {
+		error_string = "Private key file not defined";
 		goto error_exit;
 	}
 
@@ -283,7 +283,7 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	gahp->setMode( GahpClient::normal );
 	gahp->setTimeout( gahpCallTimeout );
 
-	myResource = AmazonResource::FindOrCreateResource( AMAZON_RESOURCE_NAME, m_access_key_file, m_secret_key_file );
+	myResource = AmazonResource::FindOrCreateResource( AMAZON_RESOURCE_NAME, m_public_key_file, m_private_key_file );
 	myResource->RegisterJob( this );
 
 	buff[0] = '\0';
@@ -340,8 +340,8 @@ AmazonJob::~AmazonJob()
 	if ( remoteJobId ) free( remoteJobId );
 	
 	if ( gahp != NULL ) delete gahp;
-	free (m_access_key_file);
-	free (m_secret_key_file);
+	free (m_public_key_file);
+	free (m_private_key_file);
 	free (m_user_data);
 	if (m_group_names != NULL) delete m_group_names;
 	free(m_user_data_file);
@@ -500,7 +500,7 @@ int AmazonJob::doEvaluateState()
 					if ( m_group_names == NULL )	m_group_names = build_groupnames();
 					
 					// amazon_vm_start() will check the input arguments
-					rc = gahp->amazon_vm_start( m_access_key_file, m_secret_key_file, 
+					rc = gahp->amazon_vm_start( m_public_key_file, m_private_key_file, 
 												m_ami_id.Value(), m_key_pair.Value(), 
 												m_user_data, m_user_data_file, m_instance_type, 
 												*m_group_names, instance_id, gahp_error_code);
@@ -603,7 +603,7 @@ int AmazonJob::doEvaluateState()
 				// check if the VM has been started successfully
 				StringList returnStatus;
 							
-				rc = gahp->amazon_vm_vm_keypair_all(m_access_key_file, m_secret_key_file,
+				rc = gahp->amazon_vm_vm_keypair_all(m_public_key_file, m_private_key_file,
 												    returnStatus, gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -867,7 +867,7 @@ int AmazonJob::doEvaluateState()
 
 					// need to call amazon_vm_status(), amazon_vm_status() will check input arguments
 					// The VM status we need is saved in the second string of the returned status StringList
-					rc = gahp->amazon_vm_status(m_access_key_file, m_secret_key_file, remoteJobId, returnStatus, gahp_error_code );
+					rc = gahp->amazon_vm_status(m_public_key_file, m_private_key_file, remoteJobId, returnStatus, gahp_error_code );
 					
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
@@ -946,7 +946,7 @@ int AmazonJob::doEvaluateState()
 
 				// need to call amazon_vm_stop(), it will only return STOP operation is success or failed
 				// amazon_vm_stop() will check the input arguments
-				rc = gahp->amazon_vm_stop(m_access_key_file, m_secret_key_file, remoteJobId, gahp_error_code);
+				rc = gahp->amazon_vm_stop(m_public_key_file, m_private_key_file, remoteJobId, gahp_error_code);
 			
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -983,7 +983,7 @@ int AmazonJob::doEvaluateState()
 			case GM_CREATE_KEYPAIR:
 				{
 				// now create and register this keypair by using amazon_vm_create_keypair()
-				rc = gahp->amazon_vm_create_keypair(m_access_key_file, m_secret_key_file, 
+				rc = gahp->amazon_vm_create_keypair(m_public_key_file, m_private_key_file, 
 													m_key_pair.Value(), m_key_pair_file_name.Value(), gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -1037,7 +1037,7 @@ int AmazonJob::doEvaluateState()
 				{
 				// Something went wrong during the submit process and
 				// we need to destroy the keypair
-				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair.Value(), gahp_error_code);
+				rc = gahp->amazon_vm_destroy_keypair(m_public_key_file, m_private_key_file, m_key_pair.Value(), gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1082,7 +1082,7 @@ int AmazonJob::doEvaluateState()
 			case GM_DESTROY_KEYPAIR:
 				{
 				// Yes, now let's destroy the temporary keypair 
-				rc = gahp->amazon_vm_destroy_keypair(m_access_key_file, m_secret_key_file, m_key_pair.Value(), gahp_error_code);
+				rc = gahp->amazon_vm_destroy_keypair(m_public_key_file, m_private_key_file, m_key_pair.Value(), gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
