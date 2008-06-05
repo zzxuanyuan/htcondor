@@ -508,47 +508,22 @@ int AmazonJob::doEvaluateState()
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
 					}
-					
-					if ( gahp_error_code == NULL ) {
-						
-						// go ahead since the operation is successful
-		
-					} else if ( strcmp(gahp_error_code, "InstanceLimitExceeded" ) == 0 ) {
-						
-						// meet the resource limitation (maximum 20 instances)
-						// should retry this command later
-						daemonCore->Reset_Timer( evaluateStateTid, submitInterval );
-						break;
-				
-					} else if ( strcmp(gahp_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
-						
+
+					lastSubmitAttempt = time(NULL);
+
+					if ( rc != 0 && strcmp( gahp_error_code, "NEED_CHECK_VM_START" ) == 0 ) {
 						// get an error code from gahp server said that we should check if 
 						// the VM has been started successfully in EC2
 						
-						// Maxmium retry times is 3, if exceeds this limitation, we will go to HOLD state
-						if ( m_vm_check_times++ == maxRetryTimes ) {
-							gmState = GM_HOLD;
-						} else {
+						// Maxmium retry times is 3, if exceeds this limitation, we fall through
+						if ( m_vm_check_times++ < maxRetryTimes ) {
 							gmState = GM_CHECK_VM;
 						}
-						
-						break;							
-										
-					} else {
-						// received the errors we cannot processed					
-						// print out the received error code
-						print_error_code(gahp_error_code, "amazon_vm_start()");
-						
-						// change Job's status to HOLD since we meet the errors we cannot proceed
-						gmState = GM_HOLD;
 						break;
 					}
-					
-					// to process other return values of this command
+
 					myResource->SubmitComplete( this );
-					lastSubmitAttempt = time(NULL);
-					numSubmitAttempts++;
-	
+
 					if ( rc == 0 ) {
 						
 						ASSERT( instance_id != NULL );
@@ -558,10 +533,17 @@ int AmazonJob::doEvaluateState()
 											
 						gmState = GM_SAVE_INSTANCE_ID;
 						
-					} else {
+					} else if ( strcmp( gahp_error_code, "InstanceLimitExceeded" ) == 0 ) {
+						// meet the resource limitation (maximum 20 instances)
+						// should retry this command later
+						myResource->CancelSubmit( this );
+						daemonCore->Reset_Timer( evaluateStateTid, submitInterval );
+					 } else {
 						errorString = gahp->getErrorString();
-						dprintf(D_ALWAYS,"(%d.%d) job submit failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_UNSUBMITTED;
+						dprintf(D_ALWAYS,"(%d.%d) job submit failed: %s: %s\n",
+								procID.cluster, procID.proc, gahp_error_code,
+								errorString.Value() );
+						gmState = GM_HOLD;
 					}
 					
 				} else {
@@ -592,18 +574,6 @@ int AmazonJob::doEvaluateState()
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 						break;
-				}
-							
-				// processing error code received
-				if ( gahp_error_code == NULL ) {
-					// go ahead
-				} else {
-					// print out the received error code
-					print_error_code(gahp_error_code, "amazon_vm_vm_keypair_all()");
-					
-					// change Job's status to HOLD since we meet the errors we cannot proceed
-					gmState = GM_HOLD;
-					break;
 				}
 
 				if (rc == 0) {
@@ -647,7 +617,9 @@ int AmazonJob::doEvaluateState()
 					}
 				} else {
 					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job need check VM operation failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf(D_ALWAYS,"(%d.%d) VM check failed: %s: %s\n",
+							procID.cluster, procID.proc, gahp_error_code,
+							errorString.Value() );
 					gmState = GM_HOLD;
 				}
 
@@ -854,26 +826,14 @@ int AmazonJob::doEvaluateState()
 						break;
 					}
 					
-					// error_code should be checked after the return value of GAHPCLIENT_COMMAND_NOT_SUBMITTED
-					// and GAHPCLIENT_COMMAND_PENDING. But before all the other return values.
-					
 					// processing error code received
-					if ( gahp_error_code == NULL ) {
-						// go ahead
-					} else {
-						// print out the received error code
-						print_error_code(gahp_error_code, "amazon_vm_status()");
-						
-						// change Job's status to HOLD
-						gmState = GM_HOLD;
-						break;
-					}
-					
 					if ( rc != 0 ) {
 						// What to do about failure?
 						errorString = gahp->getErrorString();
-						dprintf( D_ALWAYS, "(%d.%d) job probe failed: %s, the condor job should be removed. \n", procID.cluster, procID.proc, errorString.Value() );
-						gmState = GM_CANCEL;
+						dprintf( D_ALWAYS, "(%d.%d) job probe failed: %s: %s\n",
+								 procID.cluster, procID.proc, gahp_error_code,
+								 errorString.Value() );
+						gmState = GM_HOLD;
 						break;
 					} else {
 						if ( returnStatus.number() == 0 ) {
@@ -933,25 +893,14 @@ int AmazonJob::doEvaluateState()
 					break;
 				} 
 				
-				// processing error code received
-				if ( gahp_error_code == NULL ) {
-					// go ahead
-				} else {
-					// print out the received error code
-					print_error_code(gahp_error_code, "amazon_vm_stop()");
-					
-					// change Job's status to CANCEL
-					gmState = GM_HOLD;
-					break;
-				}
-				
 				if ( rc == 0 ) {
-					// gmState = GM_FAILED;
 					gmState = GM_DESTROY_KEYPAIR;
 				} else {
 					// What to do about a failed cancel?
 					errorString = gahp->getErrorString();
-					dprintf( D_ALWAYS, "(%d.%d) job cancel failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf( D_ALWAYS, "(%d.%d) job cancel failed: %s: %s\n",
+							 procID.cluster, procID.proc, gahp_error_code,
+							 errorString.Value() );
 					gmState = GM_HOLD;
 				}
 				
@@ -967,38 +916,27 @@ int AmazonJob::doEvaluateState()
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
 				}
-					
-				// processing error code received
-				if ( gahp_error_code == NULL ) {
-					// go ahead
-				} else if ( strcmp(gahp_error_code, "NEED_CHECK_SSHKEY" ) == 0 ) {
-						
-					// get an error code from gahp server said that we should check if 
-					// the SSH keypair has been registered successfully in EC2
-						
-					// Maxmium retry times is 3, if exceeds this limitation, we will go to HOLD state
-					if ( m_keypair_check_times++ == maxRetryTimes ) {
-						gmState = GM_HOLD;
-					} else {
-						gmState = GM_DESTROY_KEYPAIR_SUBMIT;
-					}
-						
-					break;	
-				
-				} else {
-					// print out the received error code
-					print_error_code(gahp_error_code, "amazon_vm_create_keypair()");
-				
-					gmState = GM_HOLD;
-					break;
-				}
-					
+
 				if (rc == 0) {
 					gmState = GM_START_VM;
-					
+
 				} else {
+					if ( strcmp(gahp_error_code, "NEED_CHECK_SSHKEY" ) == 0 ) {
+						
+						// get an error code from gahp server said that we should check if 
+						// the SSH keypair has been registered successfully in EC2
+
+						// Maxmium retry times is 3, if exceeds this limitation, we will go to HOLD state
+						if ( m_keypair_check_times++ < maxRetryTimes ) {
+							gmState = GM_DESTROY_KEYPAIR_SUBMIT;
+							break;
+						}
+					}
+
 					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job create temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf(D_ALWAYS,"(%d.%d) job create keypair failed: %s: %s\n",
+							procID.cluster, procID.proc, gahp_error_code,
+							errorString.Value() );
 					gmState = GM_HOLD;
 					break;
 				}
@@ -1018,18 +956,6 @@ int AmazonJob::doEvaluateState()
 					break;
 				}
 
-				// processing error code received
-				if ( gahp_error_code == NULL ) {
-					// go ahead
-				} else {
-					// print out the received error code
-					print_error_code(gahp_error_code, "amazon_vm_destroy_keypair()");
-				
-					// change Job's status to CANCEL
-					gmState = GM_HOLD;
-					break;
-				}
-
 				if (rc == 0) {
 					// remove temporary keypair local output file
 					if ( !remove_keypair_file(m_key_pair_file.Value()) ) {
@@ -1045,7 +971,9 @@ int AmazonJob::doEvaluateState()
 					
 				} else {
 					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf( D_ALWAYS,"(%d.%d) job destroy keypair failed: %s: %s\n",
+							 procID.cluster, procID.proc, gahp_error_code,
+							 errorString.Value() );
 					gmState = GM_HOLD;
 				}
 									
@@ -1063,30 +991,20 @@ int AmazonJob::doEvaluateState()
 					break;
 				}
 
-				// processing error code received
-				if ( gahp_error_code == NULL ) {
-					// go ahead
-				} else {
-					// print out the received error code
-					print_error_code(gahp_error_code, "amazon_vm_destroy_keypair()");
-				
-					// change Job's status to CANCEL
-					gmState = GM_HOLD;
-					break;
-				}
-
 				if (rc == 0) {
 					// remove temporary keypair local output file
 					if ( remove_keypair_file(m_key_pair_file.Value()) ) {
 						gmState = GM_FAILED;
 					} else {
-						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
+						dprintf(D_ALWAYS,"(%d.%d) job destroy keypair local file failed.\n", procID.cluster, procID.proc);
 						gmState = GM_FAILED;
 					}
 					
 				} else {
 					errorString = gahp->getErrorString();
-					dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair failed: %s\n", procID.cluster, procID.proc, errorString.Value() );
+					dprintf( D_ALWAYS,"(%d.%d) job destroy keypair failed: %s: %s\n",
+							 procID.cluster, procID.proc, gahp_error_code,
+							 errorString.Value() );
 					gmState = GM_HOLD;
 				}
 									
