@@ -6643,6 +6643,12 @@ SaveClassAd ()
 			free(cr_hash);
 		}
     }
+
+	/* Here's where we sign the classad. */
+ 	if(!generic_sign_classad(*job)) {
+ 		fprintf(stderr, "Error signing classad.\n");
+ 		return -1;
+ 	}
 #endif /* !defined(HAVE_EXT_OPENSSL) */
 
 	/* Here's where we sign the classad. */

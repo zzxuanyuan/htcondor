@@ -917,9 +917,7 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 	free(sca_c);
 
 	if(!isTrue(sca.GetCStr())) {
-		return true; // Config file says not to sign.
-	}
-	
+
 	dprintf(D_SECURITY, "Signing ClassAd.\n");
 	char *attr_c = NULL;
 	if(is_job_ad) {
@@ -927,7 +925,6 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 	} else {
 		attr_c = param("SIGN_MACHINE_CLASSAD_ATTRIBUTES");
 	}
-	char *attr_c = param("SIGN_CLASSAD_ATTRIBUTES");
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
 				"SIGN_%s_CLASSAD_ATTRIBUTES.\n", 
@@ -984,9 +981,7 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 
 bool
 generic_verify_classad(ClassAd ad, bool is_job_ad)
-{
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
-	dprintf(D_SECURITY, "Verifying ClassAd.\n");
 	char *vsca_c = param( "VERIFY_SIGNED_CLASSADS" );
 	if(vsca_c == NULL) {
 		return true; // It's OK if the config file says not to sign.
