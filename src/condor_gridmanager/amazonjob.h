@@ -97,7 +97,7 @@ private:
 	
 	MyString m_ami_id;
 	MyString m_key_pair;
-	MyString m_key_pair_file_name;
+	MyString m_key_pair_file;
 	StringList* m_group_names;
 	
 	// remove created temporary keypair file

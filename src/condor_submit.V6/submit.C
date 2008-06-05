@@ -360,7 +360,7 @@ char* AmazonAmiID = "amazon_ami_id";
 char* AmazonUserData = "amazon_user_data";
 char* AmazonUserDataFile = "amazon_user_data_file";
 char* AmazonSecurityGroups = "amazon_security_groups";
-char* AmazonKeyPairFileName = "amazon_keypair_filename";
+char* AmazonKeyPairFile = "amazon_keypair_file";
 char* AmazonInstanceType = "amazon_instance_type";
 
 char const *next_job_start_delay = "next_job_start_delay";
@@ -5022,10 +5022,10 @@ SetGlobusParams()
 		exit( 1 );
 	}
 	
-	// AmazonKeyPairFileName is not a necessary parameter
-	if( (tmp = condor_param( AmazonKeyPairFileName, ATTR_AMAZON_KEY_PAIR_FILE_NAME )) ) {
+	// AmazonKeyPairFile is not a necessary parameter
+	if( (tmp = condor_param( AmazonKeyPairFile, ATTR_AMAZON_KEY_PAIR_FILE )) ) {
 		// for the relative path, the keypair output file will be written to the IWD
-		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_KEY_PAIR_FILE_NAME, full_path(tmp) );
+		buffer.sprintf( "%s = \"%s\"", ATTR_AMAZON_KEY_PAIR_FILE, full_path(tmp) );
 		free( tmp );
 		InsertJobExpr( buffer.Value() );
 	}

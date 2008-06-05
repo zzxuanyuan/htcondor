@@ -223,16 +223,16 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	// Notice:
 	// 	we can have two kinds of SSH keypair output file names or the place where the 
 	// output private file should be written to, 
-	// 	1. the name assigned by client in the condor submit file with attribute "AmazonKeyPairFileName"
-	// 	2. if there is no attribute "AmazonKeyPairFileName" in the condor submit file, we 
+	// 	1. the name assigned by client in the condor submit file with attribute "AmazonKeyPairFile"
+	// 	2. if there is no attribute "AmazonKeyPairFile" in the condor submit file, we 
 	// 	   should discard this private file by writing to NULL_FILE
-	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR_FILE_NAME, &buffer ) ) {
+	if ( jobAd->LookupString( ATTR_AMAZON_KEY_PAIR_FILE, &buffer ) ) {
 		// clinet define the location where this SSH keypair file will be written to
-		m_key_pair_file_name = buffer;
+		m_key_pair_file = buffer;
 	} else {
 		// If client doesn't assign keypair output file name, we should discard it by 
 		// writing this private file to /dev/null
-		m_key_pair_file_name = NULL_FILE;
+		m_key_pair_file = NULL_FILE;
 	}
 	free (buffer);
 	}
@@ -984,7 +984,7 @@ int AmazonJob::doEvaluateState()
 				{
 				// now create and register this keypair by using amazon_vm_create_keypair()
 				rc = gahp->amazon_vm_create_keypair(m_public_key_file, m_private_key_file, 
-													m_key_pair.Value(), m_key_pair_file_name.Value(), gahp_error_code);
+													m_key_pair.Value(), m_key_pair_file.Value(), gahp_error_code);
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED || rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1057,7 +1057,7 @@ int AmazonJob::doEvaluateState()
 
 				if (rc == 0) {
 					// remove temporary keypair local output file
-					if ( !remove_keypair_file(m_key_pair_file_name.Value()) ) {
+					if ( !remove_keypair_file(m_key_pair_file.Value()) ) {
 						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
 					}
 					if ( condorState == REMOVED || condorState == HELD ) {
@@ -1105,7 +1105,7 @@ int AmazonJob::doEvaluateState()
 
 				if (rc == 0) {
 					// remove temporary keypair local output file
-					if ( remove_keypair_file(m_key_pair_file_name.Value()) ) {
+					if ( remove_keypair_file(m_key_pair_file.Value()) ) {
 						gmState = GM_FAILED;
 					} else {
 						dprintf(D_ALWAYS,"(%d.%d) job destroy temporary keypair local file failed.\n", procID.cluster, procID.proc);
