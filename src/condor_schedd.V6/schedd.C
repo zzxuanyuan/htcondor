@@ -80,6 +80,7 @@
 #include "file_sql.h"
 #include "condor_getcwd.h"
 #include "set_user_priv_from_ad.h"
+#include "signed_classads.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -5143,6 +5144,11 @@ Scheduler::negotiate(int command, Stream* s)
 					if( ! mrec ) {
 						ASSERT( ! args );
 							// we couldn't use this match, so we're done.
+						break;
+					}
+
+					if(!generic_verify_classad(*mrec->my_match_ad)) {
+						dprintf(D_ALWAYS, "Machine ad signature verification fails.\n");
 						break;
 					}
 
