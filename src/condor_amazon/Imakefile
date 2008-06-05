@@ -47,3 +47,5 @@ smdevp.C:
 
 clean::
 	rm -f smdevp.C wsseapi.C
+
+testbin::
