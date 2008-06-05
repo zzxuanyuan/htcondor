@@ -82,6 +82,8 @@
 #include "condor_vm_universe_types.h"
 #include "vm_univ_utils.h"
 #include "cr_hash.h"
+#include "signed_classads.h"
+#include "condor_auth_ssl.h" // TODO: why -alderman
 
 #if defined(HAVE_EXT_OPENSSL)
 #include "openssl/evp.h"
@@ -2117,6 +2119,7 @@ process_input_file_list(StringList * input_list, MyString *input_files, bool * f
 				input_list->insert(tmp.Value());
 			}
 			check_open(tmp.Value(), O_RDONLY);
+			// TODO alderman put hashes in here?
 			TransferInputSize += calc_image_size(tmp.Value());
 		}
 		if ( count ) {
@@ -6597,6 +6600,12 @@ SaveClassAd ()
 			free(cr_hash);
 		}
     }
+
+	/* Here's where we sign the classad. */
+ 	if(!generic_sign_classad(*job)) {
+ 		fprintf(stderr, "Error signing classad.\n");
+ 		return -1;
+ 	}
 #endif /* !defined(HAVE_EXT_OPENSSL) */
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {

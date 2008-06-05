@@ -80,6 +80,7 @@
 #include "file_sql.h"
 #include "condor_getcwd.h"
 #include "set_user_priv_from_ad.h"
+#include "signed_classads.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -5295,6 +5296,10 @@ claimStartd( match_rec* mrec, bool is_dedicated )
 
 	dprintf( D_PROTOCOL, "Requesting resource from %s ...\n",
 			 mrec->peer ); 
+	if(!generic_verify_classad(*mrec->my_match_ad)) {
+		dprintf(D_FAILURE|D_ALWAYS|D_SECURITY, "Signature verification fails.\n");
+		return false;
+	}
 
 	if (!(sock = matched_startd.reliSock( STARTD_CONTACT_TIMEOUT, NULL, true ))) {
 		dprintf( D_FAILURE|D_ALWAYS, "Couldn't initiate connection to %s\n",
