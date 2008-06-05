@@ -80,6 +80,7 @@
 #include "file_sql.h"
 #include "condor_getcwd.h"
 #include "set_user_priv_from_ad.h"
+#include "signed_classads.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -5422,6 +5423,12 @@ Scheduler::claimedStartd( DCMsgCallback *cb ) {
 bool
 Scheduler::enqueueStartdContact( ContactStartdArgs* args )
 {
+	dprintf( D_PROTOCOL, "Requesting resource from %s ...\n",
+			 mrec->peer ); 
+	if(!generic_verify_classad(*mrec->my_match_ad)) {
+		dprintf(D_FAILURE|D_ALWAYS|D_SECURITY, "Signature verification fails.\n");
+		return false;
+	}
 	 if( startdContactQueue.enqueue(args) < 0 ) {
 		 dprintf( D_ALWAYS, "Failed to enqueue contactStartd "
 				  "startd=%s\n", args->sinful() );
