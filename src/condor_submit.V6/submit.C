@@ -6673,6 +6673,12 @@ gets merged with the master, we'll deal with it then.:src/condor_submit.V6/submi
 			free(cr_hash);
 		}
     }
+
+	/* Here's where we sign the classad. */
+ 	if(!generic_sign_classad(*job)) {
+ 		fprintf(stderr, "Error signing classad.\n");
+ 		return -1;
+ 	}
 #endif /* !defined(HAVE_EXT_OPENSSL) */
 <<<<<<< HEAD:src/condor_submit.V6/submit.C
 
