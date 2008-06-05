@@ -31,52 +31,11 @@
 #include "condor_attributes.h"
 #include "openssl_helpers.h"
 
-// See report_openssl_errors: line length for error reporting,
-// propagating OpenSSL errors through Condor's dprintf.
-#define LINE_LENGTH 70
-
-/*
- * This function is handy for determining whether an attribute (i.e. from
- * a config file) is boolean true or not, where true means "starts with 'y'
- * or 'y', ignoring case."
- *
- * This is hackishly copied from submit.C: isTrue - consolidate?
- */
-bool
-isAttrTrue( const char* attr )
-{
-	if( ! attr ) {
-		return false;
-	}
-	switch( attr[0] ) {
-	case 't':
-	case 'T':
-	case 'y':
-	case 'Y':
-		return true;
-		break;
-	default:
-		break;
-	}
-	return false;
-}
-
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 #include "openssl/evp.h"
 #include "openssl/err.h"
 #include "openssl/pem.h"
 #include "condor_auth_ssl.h"
-
-/*
- * This is just for debugging.
- */
-void
-print_ad(ClassAd ad) 
-{
-	MyString debug;
-	ad.sPrint(debug);
-	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
-}
 
 /*
  * get_bits
@@ -529,6 +488,7 @@ EVP_PKEY *get_private_key(const MyString& filename)
 }
 */
 
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 /*
  * Given a classad, prepare the "Arguments" attribute.  In existing
  * systems, this attribute is not prepared at the time of submission,
@@ -565,13 +525,22 @@ prepare_arguments(ClassAd *ad)
 	print_ad(*ad);
 	return true;
 }
+=======
+
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 
 void
 limit_classad(ClassAd &in_ad, 
 			  StringList &include,
 			  ClassAd &out_ad)
 {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	out_ad = in_ad;
+=======
+	out_ad = in_ad; // TODO: this makes a copy, right?
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	ExprTree *ad_expr;
 	char *attr_name;
 	if(include.isEmpty()) {
@@ -581,25 +550,49 @@ limit_classad(ClassAd &in_ad,
 	include.rewind();
 	while( (attr_name = include.next()) ) {
 		if(!out_ad.Lookup(attr_name)) {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 			if(stricmp(attr_name,"Arguments")) {
 				dprintf(D_SECURITY, "WARNING: "
 						"attribute '%s' missing from input, "
 						"not included in signature.\n", attr_name);
 			}
+=======
+			dprintf(D_SECURITY, "WARNING: attribute '%s' missing from input, "
+					"not included in signature.\n", attr_name);
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 		}
 	}
 	in_ad.ResetExpr();
 	while( (ad_expr = in_ad.NextExpr()) ) {
 		attr_name = ((Variable *)ad_expr->LArg())->Name();
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 		if(stricmp(attr_name, "Args"))  { // delete this later in sign_classad
 			if(!include.contains_anycase(attr_name)) {
 				out_ad.Delete(attr_name);
 			}
+=======
+		if(!include.contains_anycase(attr_name)) {
+			out_ad.Delete(attr_name);
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 		}
 	}
 	return;
 }
 
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+void
+print_ad(ClassAd ad) 
+{
+	MyString debug;
+	ad.sPrint(debug);
+	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
+}
+
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 bool 
 verify_same_subset_attributes(const ClassAd &jobAd, 
 							  const ClassAd &sigAd, StringList &subset)
@@ -720,6 +713,7 @@ sign_classad(ClassAd &ad,
 {
 	ClassAd sign_subset;
 	limit_classad(ad, attributes_to_sign, sign_subset);
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 
 	// Attribute "Arguments" is handled differently; see condor_arglist.h
 	// We skip deleteing "Args" in limit_classad so we can use it in 
@@ -733,6 +727,9 @@ sign_classad(ClassAd &ad,
 			sign_subset.Delete("Args");
 		}
 	}
+=======
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	EVP_PKEY *priv;
 	EVP_PKEY *pub;
 	priv = get_private_key(private_key_path);
@@ -938,8 +935,18 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 #endif /* defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS) */
 
 bool
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 generic_sign_classad(ClassAd &ad, bool is_job_ad)
+=======
+generic_sign_classad(ClassAd &ad)
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+	dprintf(D_SECURITY, "Signing ClassAd.\n");
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	char *sca_c = param( "SIGN_CLASSADS" );
 	if(sca_c == NULL) {
@@ -948,10 +955,16 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 
 	MyString sca(sca_c);
 	free(sca_c);
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	if(!isAttrTrue(sca.GetCStr())) {
+=======
+	if(!(sca[0] == 'Y' || sca[0] == 'y')) { // Is this the right idiom?  TODO
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 		return true; // Config file says not to sign.
 	}
 	
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Signing ClassAd.\n");
 	char *attr_c = NULL;
 	if(is_job_ad) {
@@ -959,10 +972,19 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 	} else {
 		attr_c = param("SIGN_MACHINE_CLASSAD_ATTRIBUTES");
 	}
+=======
+	char *attr_c = param("SIGN_CLASSAD_ATTRIBUTES");
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 				"SIGN_%s_CLASSAD_ATTRIBUTES.\n", 
 				is_job_ad ? "JOB" : "MACHINE");
+=======
+				"SIGN_CLASSAD_ATTRIBUTES.\n");
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 		return false;
 	}
 	StringList include(attr_c);
@@ -1005,7 +1027,11 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 		fprintf( stderr, "Unable to sign ClassAd.\n");
 		return false;
 	}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Success signing ClassAd.\n");
+=======
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	return true;
 #else // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	dprintf(D_ALL, "Can't sign ClassAd: not supported on this platform.\n");
@@ -1014,10 +1040,24 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 }
 
 bool
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 generic_verify_classad(ClassAd ad, bool is_job_ad)
+=======
+generic_verify_classad(ClassAd ad)
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
+=======
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Verifying ClassAd.\n");
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+#if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	char *vsca_c = param( "VERIFY_SIGNED_CLASSADS" );
 	if(vsca_c == NULL) {
 		return true; // It's OK if the config file says not to sign.
@@ -1025,20 +1065,35 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 
 	MyString vsca(vsca_c);
 	free(vsca_c);
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	if(!isAttrTrue(vsca.GetCStr())) {
+=======
+	if(!(vsca[0] == 'Y' || vsca[0] == 'y')) { // Is this the right idiom?  TODO
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 		return true; // Config file says not to sign.
 	}
 	
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	char *attr_c = NULL;
 	if(is_job_ad) {
 		attr_c = param("VERIFY_JOB_CLASSAD_ATTRIBUTES");
 	} else {
 		attr_c = param("VERIFY_MACHINE_CLASSAD_ATTRIBUTES");
 	}
+=======
+	char *attr_c = param("VERIFY_CLASSAD_ATTRIBUTES");
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 				"VERIFY_%s_CLASSAD_ATTRIBUTES.\n", 
 				is_job_ad ? "JOB" : "MACHINE");
+=======
+				"VERIFY_CLASSAD_ATTRIBUTES.\n");
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 		return false;
 	}
 	StringList include(attr_c);
@@ -1048,7 +1103,12 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 		fprintf( stderr, "Unable to verify signed Classad.\n");
 		return false;
 	}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Success verifying ClassAd.\n");
+=======
+
+>>>>>>> Implementation of signed ClassAds and hooks to sign and verify
+in the most obvious places.:src/condor_classad/signed_classads.C
 	return true;
 #else // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	dprintf(D_ALL, "Can't verify ClassAd: not supported on this platform.\n");
