@@ -80,10 +80,6 @@ class IOProcess {
 	void LockWorkerList(void);
 	void UnlockWorkerList(void); 
 
-	void killWorker(int id);
-
-	void removeAllRequestsFromWorker(Worker *worker);
-
 	Request* addNewRequest(const char* cmd);	
 	void addResult(const char* result);
 
@@ -91,6 +87,8 @@ class IOProcess {
 	void startResultIteration(void) { m_result_list.rewind(); }
 	char* NextResult(void) { return m_result_list.next(); }
 	void deleteCurrentResult(void) { m_result_list.deleteCurrent(); }
+	Request* popPendingRequest(void);
+	int numOfPendingRequest(void);
 
 	bool m_async_mode;
 	bool m_new_results_signaled;
@@ -100,7 +98,6 @@ class IOProcess {
 	int m_avail_workers_num;
 
  private: 
-	void killWorker(Worker *worker);
 	void addRequestToWorker(Request* request, Worker* worker);
 
 	int newWorkerId(void);
@@ -114,6 +111,9 @@ class IOProcess {
 
 	pthread_mutex_t m_worker_list_mutex;
 	HashTable<int, Worker*> m_workers_list;
+
+	pthread_mutex_t m_pending_req_list_mutex;
+	SimpleList<Request*> m_pending_req_list;
 };
 
 #endif

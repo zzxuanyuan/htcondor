@@ -60,19 +60,13 @@ static pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void io_process_exit(int exit_num)
 {
-#if 0
-	// kill all workers threads
-	if( ioprocess ) {
-		ioprocess->killWorker(0);
-	}
-#endif
 	exit( exit_num );
 }
 
 void
 usage()
 {
-	dprintf( D_ALWAYS, "Usage: amazon-gahp -f logfile -d debuglevel -w min_worker_nums\n");
+	dprintf( D_ALWAYS, "Usage: amazon-gahp -f logfile -d debuglevel -w min_worker_nums -m max_worker_nums\n");
 	exit(1);
 }
 
@@ -228,7 +222,7 @@ main( int argc, char ** const argv )
 	int max_workers = -1;
 
 	int c = 0;
-	while ( (c = my_getopt(argc, argv, "f:d:w:" )) != -1 ) {
+	while ( (c = my_getopt(argc, argv, "f:d:w:m:" )) != -1 ) {
 		switch(c) {
 			case 'f':
 				// Log file
@@ -252,6 +246,13 @@ main( int argc, char ** const argv )
 				min_workers = atoi(my_optarg);
 				if( min_workers < MIN_NUMBER_WORKERS ) {
 					min_workers = MIN_NUMBER_WORKERS;
+				}
+				break;
+			case 'm':
+				// Maximum number of worker pools
+				max_workers = atoi(my_optarg);
+				if( max_workers <= 0 ) {
+					max_workers = -1;
 				}
 				break;
 			default:
@@ -438,12 +439,14 @@ IOProcess::IOProcess()
 
 	pthread_mutex_init(&m_result_mutex, NULL);
 	pthread_mutex_init(&m_worker_list_mutex, NULL);
+	pthread_mutex_init(&m_pending_req_list_mutex, NULL);
 }
 
 IOProcess::~IOProcess()
 {
 	pthread_mutex_destroy(&m_result_mutex);
 	pthread_mutex_destroy(&m_worker_list_mutex);
+	pthread_mutex_destroy(&m_pending_req_list_mutex);
 }
 
 bool
@@ -699,39 +702,6 @@ IOProcess::UnlockWorkerList(void)
 	pthread_mutex_unlock(&m_worker_list_mutex);
 }
 
-void 
-IOProcess::removeAllRequestsFromWorker(Worker *worker)
-{
-	if( !worker ) {
-		return;
-	}	
-
-	pthread_mutex_lock(&worker->m_mutex);
-
-	// If there are pending requests given to this worker, 
-	// just reply errors for the requests
-	Request *request = NULL;
-	worker->m_request_list.Rewind();
-	while( worker->m_request_list.Next(request) ) {
-
-		// remove this request from worker request queue
-		worker->m_request_list.DeleteCurrent();
-
-		int req_id = request->m_reqid;
-
-		dprintf (D_ALWAYS, "Req(id=%d) is forcedly removed from worker[%d]\n",
-				req_id, worker->m_id);
-
-		request->m_result = create_failure_result( req_id, 
-				"Req is forcedly removed from worker");
-
-		addResult(request->m_result.GetCStr());
-		delete request;
-	}
-
-	pthread_mutex_unlock(&worker->m_mutex);
-}
-
 Request* 
 IOProcess::addNewRequest(const char *cmd)
 {
@@ -748,17 +718,8 @@ IOProcess::addNewRequest(const char *cmd)
 	if( !worker ) {
 		// There is no available worker
 
-		// For future, we may limit the max number of workers.
-		// However, for now there is no limitation for number of workers.
-		worker = createNewWorker();
-		if( !worker ) {
-			// Here, we will use the worker with the smallest number of req.
-			worker = findFirstAvailWorker();
-
-			if( !worker ) {
-				dprintf (D_ALWAYS, "Ooops!! There is no worker..exiting\n");
-				io_process_exit(1);
-			}
+		if( m_max_workers == -1 || m_avail_workers_num < m_max_workers ) {
+			worker = createNewWorker();
 		}
 	}
 
@@ -827,83 +788,63 @@ IOProcess::newWorkerId(void)
 void
 IOProcess::addRequestToWorker(Request* request, Worker* worker)
 {
-	if( !request || !worker ) {
+	if( !request ) {
 		return;
 	}
 
-	dprintf (D_FULLDEBUG, "Sending %s to worker %d\n", 
-			 request->m_raw_cmd.Value(), worker->m_id);
+	if( worker ) { 
+		dprintf (D_FULLDEBUG, "Sending %s to worker %d\n", 
+				request->m_raw_cmd.Value(), worker->m_id);
 
-	pthread_mutex_lock(&worker->m_mutex);
+		pthread_mutex_lock(&worker->m_mutex);
 
-	request->m_worker = worker;
-	worker->m_request_list.Append(request);
-	worker->m_is_doing = true;
+		request->m_worker = worker;
+		worker->m_request_list.Append(request);
+		worker->m_is_doing = true;
 
-	if( worker->m_is_waiting ) {
-		pthread_cond_signal(&worker->m_cond);
-	}
-
-	pthread_mutex_unlock(&worker->m_mutex);
-}
-
-#if 0
-void 
-IOProcess::killWorker(int id)
-{
-	int currentkey = 0;
-	Worker *worker = NULL;
-
-	// id == 0 means kill all workers
-	if( id == 0 ) {
-		pthread_mutex_lock(&m_worker_list_mutex);
-		m_workers_list.startIterations();
-		while( m_workers_list.iterate(currentkey, worker) != 0 ) {
-			if( worker ) {
-				killWorker(worker);
-				delete worker;
-			}
+		if( worker->m_is_waiting ) {
+			pthread_cond_signal(&worker->m_cond);
 		}
-		m_workers_list.clear();
-		pthread_mutex_unlock(&m_worker_list_mutex);
 
+		pthread_mutex_unlock(&worker->m_mutex);
 	}else {
-		pthread_mutex_lock(&m_worker_list_mutex);
-		m_workers_list.lookup(id, worker);
+		// There is no available worker.
+		// So we will insert this request to global pending request list
+		dprintf (D_FULLDEBUG, "Appending %s to global pending request list\n", 
+				request->m_raw_cmd.Value());
 
-		if( worker ) {
-			m_workers_list.remove(id);
-			killWorker(worker);
-			delete worker;
-		}
-		pthread_mutex_unlock(&m_worker_list_mutex);
+		pthread_mutex_lock(&m_pending_req_list_mutex);
+		m_pending_req_list.Append(request);
+		pthread_mutex_unlock(&m_pending_req_list_mutex);
 	}
 }
 
-void
-IOProcess::killWorker(Worker *worker)
+int 
+IOProcess::numOfPendingRequest(void)
 {
-	if( !worker ) {
-		return;
-	}
+	int num = 0;
+	pthread_mutex_lock(&m_pending_req_list_mutex);
+	num = m_pending_req_list.Number();
+	pthread_mutex_unlock(&m_pending_req_list_mutex);
 
-	if( worker->m_can_use == false ) {
-		// Already done
-		return;
-	}
-
-	// Remove all requests from this worker
-	removeAllRequestsFromWorker(worker);
-
-	worker->m_can_use = false;
-	worker->m_is_doing = false;
-	worker->m_is_waiting = false;
-
-	// Terminate this thread
-	// pthread_cancel(worker->m_thread_t);
-	pthread_kill(worker->m_thread_t, SIGTERM);
+	return num;
 }
-#endif
+
+Request* 
+IOProcess::popPendingRequest(void)
+{
+	Request *new_request = NULL;
+
+	pthread_mutex_lock(&m_pending_req_list_mutex);
+	m_pending_req_list.Rewind();
+	m_pending_req_list.Next(new_request);
+	if( new_request ) {
+		m_pending_req_list.DeleteCurrent();
+	}
+	pthread_mutex_unlock(&m_pending_req_list_mutex);
+
+	return new_request;
+}
 
 Request* popRequest(Worker* worker)
 {
@@ -918,6 +859,17 @@ Request* popRequest(Worker* worker)
 	if( new_request ) {
 		// Remove this request from worker request queue
 		worker->m_request_list.DeleteCurrent();
+	}else {
+		if( ioprocess ) {
+			new_request = ioprocess->popPendingRequest();
+
+			if( new_request ) {
+				new_request->m_worker = worker;
+
+				dprintf (D_FULLDEBUG, "Assigning %s to worker %d\n", 
+						new_request->m_raw_cmd.Value(), worker->m_id);
+			}
+		}
 	}
 
 	return new_request;
@@ -1052,6 +1004,12 @@ static void *worker_function( void *ptr )
 			ts.tv_nsec = tp.tv_usec * 1000;
 			ts.tv_sec += WORKER_MANAGER_TIMER_INTERVAL;
 
+			if( ioprocess ) {
+				if( ioprocess->numOfPendingRequest() > 0 ) {
+					continue;
+				}
+			}
+
 			//dprintf(D_FULLDEBUG, "Thread(%d) is calling cond_wait\n", 
 			//		worker->m_id);
 
@@ -1069,6 +1027,12 @@ static void *worker_function( void *ptr )
 				if( retval == ETIMEDOUT ) {
 					//dprintf(D_FULLDEBUG, "Thread(%d) Wait timed out !\n", 
 					//		worker->m_id);
+
+					if( ioprocess ) {
+						if( ioprocess->numOfPendingRequest() > 0 ) {
+							continue;
+						}
+					}
 
 					if( !worker->m_must_be_alive ) {
 						// Need to die according to the min number of workers
