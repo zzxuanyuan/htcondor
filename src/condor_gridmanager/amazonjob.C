@@ -1046,7 +1046,6 @@ int AmazonJob::doEvaluateState()
 				SetKeypairId( NULL );
 
 				if ( (condorState == REMOVED) || (condorState == COMPLETED) ) {
-				//if (condorState == REMOVED) { // for test only
 					gmState = GM_DELETE;
 				} else {
 					gmState = GM_CLEAR_REQUEST;
