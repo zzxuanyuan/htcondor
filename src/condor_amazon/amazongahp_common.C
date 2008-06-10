@@ -147,15 +147,19 @@ void set_amazon_proxy_server(const char* url)
 		amazon_proxy_port = 80;
 	}
 
-	char *pos = NULL; 
-	if( ( pos = strrchr( url, ':') ) ) {
-		int port = atoi(++pos);
+	int pos = -1; 
+	if( -1 != (pos = amazon_proxy_host.FindChar(':')) ) {
+		int port =
+			atoi(amazon_proxy_host.Substr(pos + 1,
+										  amazon_proxy_host.Length()).GetCStr());
 
 		if( port > 0 ) {
 			amazon_proxy_port = port;
 		}
-	}
 
+		amazon_proxy_host = amazon_proxy_host.Substr(0, pos - 1);
+	}
+         
 	dprintf(D_ALWAYS, "Using proxy server, host=%s, port=%d\n", 
 			amazon_proxy_host.Value(), amazon_proxy_port);
 }
