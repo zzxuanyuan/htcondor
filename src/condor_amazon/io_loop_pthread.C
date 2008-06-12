@@ -963,6 +963,7 @@ static void worker_exit(Worker *worker, bool force)
 		dprintf(D_FULLDEBUG, "Thread(%d) is exiting...\n", worker_id); 
 
 		int retval = 0;
+		amazon_gahp_release_big_mutex();
 		pthread_exit(&retval);
 	}else {
 		//dprintf(D_FULLDEBUG, "Thread(%d) is going to be used again\n",
