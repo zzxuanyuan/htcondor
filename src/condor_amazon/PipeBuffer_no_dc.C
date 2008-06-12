@@ -20,6 +20,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "PipeBuffer.h"
+#include "thread_control.h"
 
 PipeBuffer::PipeBuffer (int _pipe_end) {
 	pipe_end = _pipe_end;
@@ -44,8 +45,12 @@ PipeBuffer::GetNextLine () {
 
 	if (readahead_length == 0) {
 
-		// our readahead buffer is spent; read a new one in
+		// our readahead buffer is spent; read a new one in.
+		// note: read could block here on I/O, so release mutex to let 
+		// other run.
+		amazon_gahp_release_big_mutex();
 		readahead_length = read(pipe_end, readahead_buffer, PIPE_BUFFER_READAHEAD_SIZE);
+		amazon_gahp_grab_big_mutex();
 		if (readahead_length < 0) {
 			error = true;
 			dprintf (D_ALWAYS, "error reading from pipe %d\n", pipe_end);
@@ -99,7 +104,11 @@ PipeBuffer::Write (const char * towrite) {
 	if (len == 0)
 		return 0;
 
+		// write() could block, so let other threads run...
+	amazon_gahp_release_big_mutex();
 	int numwritten = write(pipe_end, buffer.Value(), len);
+	amazon_gahp_grab_big_mutex();
+
 	if (numwritten > 0) {
 			// shorten the buffer
 		buffer = buffer.Substr (numwritten, len);

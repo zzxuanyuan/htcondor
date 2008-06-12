@@ -27,6 +27,7 @@
 #include "stat_wrapper.h"
 #include "amazongahp_common.h"
 #include "amazonCommands.h"
+#include "thread_control.h"
 
 // For gsoap
 #include <stdsoap2.h>
@@ -275,12 +276,15 @@ AmazonVMKeypairNames::gsoapRequest(void)
 	// Want info on all keys...
 	request.keySet = NULL;
 
-	int code = -1;
-	if (!(code = soap_call___ec2__DescribeKeyPairs(m_soap,
+	int code = -1;		
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__DescribeKeyPairs(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		if( response.keySet && response.keySet->item ) {
 			int i = 0;
 			for (i = 0; i < response.keySet->__sizeitem; i++) {
@@ -336,12 +340,14 @@ AmazonVMCreateKeypair::gsoapRequest(void)
 	request.keyName = (char *)keyname.GetCStr();
 
 	int code = -1;
-	if (!(code = soap_call___ec2__CreateKeyPair(m_soap,
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__CreateKeyPair(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
-
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		if( has_outputfile && response.keyMaterial ) {
 
 			FILE *fp = NULL;
@@ -393,11 +399,14 @@ AmazonVMDestroyKeypair::gsoapRequest(void)
 	request.keyName = (char *) keyname.GetCStr();
 
 	int code = -1;
-	if (!(code = soap_call___ec2__DeleteKeyPair(m_soap,
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__DeleteKeyPair(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		return true;
 	}else {
 		// Error
@@ -559,12 +568,14 @@ AmazonVMStart::gsoapRequest(void)
 	}
 
 	int code = -1;
-	if (!(code = soap_call___ec2__RunInstances(m_soap,
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__RunInstances(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
-
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		if( response.instancesSet && response.instancesSet->item ) {
 			instance_id = response.instancesSet->item[0]->instanceId;
 			return true;
@@ -612,11 +623,14 @@ AmazonVMStop::gsoapRequest(void)
 	request.instancesSet = &instanceSet;
 
 	int code = -1;
-	if (!(code = soap_call___ec2__TerminateInstances(m_soap,
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__TerminateInstances(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		return true;
 	}else {
 		// Error
@@ -662,12 +676,14 @@ AmazonVMStatus::gsoapRequest(void)
 	request.instancesSet = &instancesSet;
 
 	int code = -1;
-	if (!(code = soap_call___ec2__DescribeInstances(m_soap,
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__DescribeInstances(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
-
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		if( response.reservationSet && response.reservationSet->item ) {
 			int total_nums = response.reservationSet->__sizeitem;
 
@@ -747,12 +763,14 @@ AmazonVMStatusAll::gsoapRequest(void)
 	request.instancesSet = NULL;
 
 	int code = -1;
-	if (!(code = soap_call___ec2__DescribeInstances(m_soap,
+	amazon_gahp_release_big_mutex();
+	code = soap_call___ec2__DescribeInstances(m_soap,
 					get_ec2_url(),
 					NULL,
 					&request,
-					&response))) {
-
+					&response);
+	amazon_gahp_grab_big_mutex();
+	if ( !code ) {
 		if( response.reservationSet && response.reservationSet->item ) {
 			int total_nums = response.reservationSet->__sizeitem;
 

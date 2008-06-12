@@ -33,7 +33,7 @@
 #include "amazonCommands.h"
 
 #define MIN_WORKER_NUM 1
-#define AMAZON_GAHP_VERSION	"0.0.1"
+#define AMAZON_GAHP_VERSION	"0.0.2"
 
 int RESULT_OUTBOX = 1;	// stdout
 int REQUEST_INBOX = 0; // stdin
@@ -50,6 +50,16 @@ static void gahp_output_return_success();
 static void gahp_output_return (const char ** results, const int count);
 static int verify_gahp_command(char ** argv, int argc);
 static void *worker_function( void *ptr );
+
+/* We use a big mutex to make certain only one thread is running at a time,
+ * except when that thread would be blocked on I/O or a signal.  We do
+ * this becase many data structures and methods used from utility libraries
+ * are not inheriently thread safe.  So we error on the side of correctness,
+ * and this isn't a big deal since we are only really concerned with the gahp
+ * blocking when we do network communication and SOAP/WS_SECURITY processing.
+ */
+pthread_mutex_t global_big_mutex = PTHREAD_MUTEX_INITIALIZER;
+#include "thread_control.h"
 
 static pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define amazon_gahp_io_lock()	\
@@ -314,6 +324,12 @@ main( int argc, char ** const argv )
 	fflush(stdout);
 
 	dprintf (D_FULLDEBUG, "AMAZON-GAHP initialized\n");
+
+		/* Our main thread should grab the mutex first.  We will then
+		 * release it and let other threads run when we would otherwise
+		 * block.
+		 */
+	amazon_gahp_grab_big_mutex();
 
 	for(;;) {
 		ioprocess->stdinPipeHandler();
@@ -969,8 +985,16 @@ static void *worker_function( void *ptr )
 {
 	Worker *worker = (Worker *)ptr;
 
+		/* Our new thread should grab the big mutex before starting.
+		 * We will then
+		 * release it and let other threads run when we would otherwise
+		 * block.
+		 */
+	amazon_gahp_grab_big_mutex();
+
 	if( !worker ) {
 		dprintf (D_ALWAYS, "Ooops!! No input Data in worker thread\n");
+		amazon_gahp_release_big_mutex();
 		return NULL;
 	}
 
@@ -1013,8 +1037,13 @@ static void *worker_function( void *ptr )
 			//dprintf(D_FULLDEBUG, "Thread(%d) is calling cond_wait\n", 
 			//		worker->m_id);
 
+			// The pthread_cond_timedwait will block until signalled
+			// with more work from our main thread; so we MUST release
+			// the big fat mutex here or we will deadlock.	
+			amazon_gahp_release_big_mutex();
 			int retval = pthread_cond_timedwait(&worker->m_cond, 
 					&worker->m_mutex, &ts);
+			amazon_gahp_grab_big_mutex();
 
 			if( worker->m_can_use == false ) {
 				// Need to die
@@ -1071,5 +1100,6 @@ static void *worker_function( void *ptr )
 
 	}
 
+	amazon_gahp_release_big_mutex();
 	return NULL;
 }
