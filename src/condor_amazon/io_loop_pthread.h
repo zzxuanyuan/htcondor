@@ -53,7 +53,7 @@ class Worker {
 	bool m_is_doing;
 	bool m_must_be_alive;
 
-	pthread_mutex_t m_mutex;
+//	pthread_mutex_t m_mutex;
 	pthread_cond_t m_cond;
 	bool m_is_waiting;
 
@@ -106,13 +106,13 @@ class IOProcess {
 
 	PipeBuffer m_stdin_buffer;
 
-	pthread_mutex_t m_result_mutex;
+//	pthread_mutex_t m_result_mutex;
 	StringList m_result_list; // The list of results ready to be output to IO
 
-	pthread_mutex_t m_worker_list_mutex;
+//	pthread_mutex_t m_worker_list_mutex;
 	HashTable<int, Worker*> m_workers_list;
 
-	pthread_mutex_t m_pending_req_list_mutex;
+//	pthread_mutex_t m_pending_req_list_mutex;
 	SimpleList<Request*> m_pending_req_list;
 };
 
