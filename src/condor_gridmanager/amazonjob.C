@@ -1056,17 +1056,10 @@ int AmazonJob::doEvaluateState()
 				
 			case GM_DELETE:
 				
-				// set remote job id to null so that schedd should remove it
-				if ( (condorState == REMOVED) || (condorState == HELD) ) {
-					SetInstanceId( NULL );
-					SetKeypairId( NULL );
-				}
-				myResource->CancelSubmit( this );
-				
-				// The job has completed or been removed. Delete it from the schedd.
+				// We are done with the job. Propagate any remaining updates
+				// to the schedd, then delete this object.
 				DoneWithJob();
 				// This object will be deleted when the update occurs
-				
 				break;							
 				
 			
