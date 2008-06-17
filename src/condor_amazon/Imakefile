@@ -29,7 +29,7 @@ import(../condor_util_lib, setsyscalls.o )
 	$(WSDL2H) -s -nec2 -Nec2 2007-08-29.ec2.wsdl
 	echo "NOTICE: patching 2007-08-29.ec2.h"
 	echo "#import \"wsse.h\"" >> 2007-08-29.ec2.h
-	echo "struct SOAP_ENV__Header { mustUnderstand _wsse__Security *wsse__Security; };" >> 2007-08-29.ec2.h
+	echo "struct SOAP_ENV__Header { _wsse__Security *wsse__Security; };" >> 2007-08-29.ec2.h
 
 gsoap_commands.C: soapH.h
 
