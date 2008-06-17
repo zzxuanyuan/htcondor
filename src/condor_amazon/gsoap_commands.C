@@ -533,11 +533,11 @@ AmazonVMStart::gsoapRequest(void)
 
 		groupSet.__sizeitem = group_nums;
 		groupSet.item = groupItems;
-
-		request.groupSet = &groupSet;
 	}else {
-		request.groupSet = NULL;
+		groupSet.__sizeitem = 0;
+		groupSet.item = NULL;
 	}
+	request.groupSet = &groupSet;
 
 	// additionalInfo
 	request.additionalInfo = NULL;
@@ -564,7 +564,7 @@ AmazonVMStart::gsoapRequest(void)
 	if( instance_type.IsEmpty() == false ) {
 		request.instanceType = (char *) instance_type.GetCStr();
 	}else {
-		request.instanceType = NULL;
+		request.instanceType = "m1.small";
 	}
 
 	int code = -1;
@@ -759,8 +759,13 @@ AmazonVMStatusAll::gsoapRequest(void)
 	ec2__DescribeInstancesType request;
 	ec2__DescribeInstancesResponseType response;
 
-	// Show all running instances
-	request.instancesSet = NULL;
+	ec2__DescribeInstancesInfoType instancesSet;
+
+	instancesSet.__sizeitem = 0;
+	instancesSet.item = NULL;
+
+	// Show a specific running instance
+	request.instancesSet = &instancesSet;
 
 	int code = -1;
 	amazon_gahp_release_big_mutex();
