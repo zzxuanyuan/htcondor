@@ -27,6 +27,34 @@
 #include "condor_debug.h"
 #include "condor_classad.h"
 #include "condor_config.h"
+#include "condor_arglist.h"
+#include "condor_attributes.h"
+
+/*
+ * This function is handy for determining whether an attribute (i.e. from
+ * a config file) is boolean true or not, where true means "starts with 'y'
+ * or 'y', ignoring case."
+ *
+ * This is hackishly copied from submit.C: isTrue - consolidate?
+ */
+bool
+isAttrTrue( const char* attr )
+{
+	if( ! attr ) {
+		return false;
+	}
+	switch( attr[0] ) {
+	case 't':
+	case 'T':
+	case 'y':
+	case 'Y':
+		return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
 
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 #include "openssl/evp.h"
@@ -38,6 +66,17 @@
 // See report_openssl_errors: line length for error reporting,
 // propagating OpenSSL errors through Condor's dprintf.
 #define LINE_LENGTH 70
+
+/*
+ * This is just for debugging.
+ */
+void
+print_ad(ClassAd ad) 
+{
+	MyString debug;
+	ad.sPrint(debug);
+	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
+}
 
 /*
  * get_bits
@@ -490,14 +529,49 @@ EVP_PKEY *get_private_key(const MyString& filename)
 }
 */
 
-
+/*
+ * Given a classad, prepare the "Arguments" attribute.  In existing
+ * systems, this attribute is not prepared at the time of submission,
+ * but rather at the time when a match is made.  This is due to some
+ * change in the way arguments are prepared on different platforms (or
+ * were, long, long ago --Dan Bradley tells me this exists for
+ * backwards compatibility.  Anyway, now we do it here so that what
+ * gets signed by the user will be the same as what gets verified by
+ * the starter.
+ */
+bool 
+prepare_arguments(ClassAd *ad) 
+{
+	ArgList al;
+	MyString error;
+	MyString args2;
+	if(!al.AppendArgsFromClassAd(ad, &error)) {
+		dprintf(D_SECURITY, "Couldn't get arguments from ClassAd.\n");
+		dprintf(D_SECURITY, "Error: '%s'\n", error.Value());
+		return false;
+	}
+	if(!al.GetArgsStringV2Raw(&args2,&error)) {
+		
+//	if(!al.InsertArgsIntoClassAd(ad, NULL, &error)) { // this doesn't work
+		dprintf(D_SECURITY, "Couldn't get arguments for ClassAd.\n");
+		dprintf(D_SECURITY, "Error: '%s'\n", error.Value());
+		return false;
+	}
+	ad->Assign(ATTR_JOB_ARGUMENTS2,args2.Value());
+	/* MyString arg;
+	   al.GetArgsStringForDisplay(&arg);
+	   fprintf(stderr, "Arglist: '%s'\n", arg.Value());
+	 */
+	print_ad(*ad);
+	return true;
+}
 
 void
 limit_classad(ClassAd &in_ad, 
 			  StringList &include,
 			  ClassAd &out_ad)
 {
-	out_ad = in_ad; // TODO: this makes a copy, right?
+	out_ad = in_ad;
 	ExprTree *ad_expr;
 	char *attr_name;
 	if(include.isEmpty()) {
@@ -507,26 +581,23 @@ limit_classad(ClassAd &in_ad,
 	include.rewind();
 	while( (attr_name = include.next()) ) {
 		if(!out_ad.Lookup(attr_name)) {
-			dprintf(D_SECURITY, "WARNING: attribute '%s' missing from input, "
-					"not included in signature.\n", attr_name);
+			if(stricmp(attr_name,"Arguments")) {
+				dprintf(D_SECURITY, "WARNING: "
+						"attribute '%s' missing from input, "
+						"not included in signature.\n", attr_name);
+			}
 		}
 	}
 	in_ad.ResetExpr();
 	while( (ad_expr = in_ad.NextExpr()) ) {
 		attr_name = ((Variable *)ad_expr->LArg())->Name();
-		if(!include.contains_anycase(attr_name)) {
-			out_ad.Delete(attr_name);
+		if(stricmp(attr_name, "Args"))  { // delete this later in sign_classad
+			if(!include.contains_anycase(attr_name)) {
+				out_ad.Delete(attr_name);
+			}
 		}
 	}
 	return;
-}
-
-void
-print_ad(ClassAd ad) 
-{
-	MyString debug;
-	ad.sPrint(debug);
-	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
 }
 
 bool 
@@ -649,6 +720,19 @@ sign_classad(ClassAd &ad,
 {
 	ClassAd sign_subset;
 	limit_classad(ad, attributes_to_sign, sign_subset);
+
+	// Attribute "Arguments" is handled differently; see condor_arglist.h
+	// We skip deleteing "Args" in limit_classad so we can use it in 
+	// prepare_arguments below, then delete it after if it's not to be signed.
+	if(attributes_to_sign.contains("Arguments") 
+	   && !prepare_arguments(&sign_subset)) {
+		return false;
+	}
+	if(!attributes_to_sign.contains("Args")) {
+		if(sign_subset.Lookup("Args")) {
+			sign_subset.Delete("Args");
+		}
+	}
 	EVP_PKEY *priv;
 	EVP_PKEY *pub;
 	priv = get_private_key(private_key_path);
@@ -854,9 +938,8 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 #endif /* defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS) */
 
 bool
-generic_sign_classad(ClassAd &ad)
+generic_sign_classad(ClassAd &ad, bool is_job_ad)
 {
-	dprintf(D_SECURITY, "Signing ClassAd.\n");
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	char *sca_c = param( "SIGN_CLASSADS" );
 	if(sca_c == NULL) {
@@ -865,14 +948,21 @@ generic_sign_classad(ClassAd &ad)
 
 	MyString sca(sca_c);
 	free(sca_c);
-	if(!(sca[0] == 'Y' || sca[0] == 'y')) { // Is this the right idiom?  TODO
+	if(!isAttrTrue(sca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
 	
-	char *attr_c = param("SIGN_CLASSAD_ATTRIBUTES");
+	dprintf(D_SECURITY, "Signing ClassAd.\n");
+	char *attr_c = NULL;
+	if(is_job_ad) {
+		attr_c = param("SIGN_JOB_CLASSAD_ATTRIBUTES");
+	} else {
+		attr_c = param("SIGN_MACHINE_CLASSAD_ATTRIBUTES");
+	}
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
-				"SIGN_CLASSAD_ATTRIBUTES.\n");
+				"SIGN_%s_CLASSAD_ATTRIBUTES.\n", 
+				is_job_ad ? "JOB" : "MACHINE");
 		return false;
 	}
 	StringList include(attr_c);
@@ -915,6 +1005,7 @@ generic_sign_classad(ClassAd &ad)
 		fprintf( stderr, "Unable to sign ClassAd.\n");
 		return false;
 	}
+	dprintf(D_SECURITY, "Success signing ClassAd.\n");
 	return true;
 #else // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	dprintf(D_ALL, "Can't sign ClassAd: not supported on this platform.\n");
@@ -923,10 +1014,10 @@ generic_sign_classad(ClassAd &ad)
 }
 
 bool
-generic_verify_classad(ClassAd ad)
+generic_verify_classad(ClassAd ad, bool is_job_ad)
 {
-	dprintf(D_SECURITY, "Verifying ClassAd.\n");
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
+	dprintf(D_SECURITY, "Verifying ClassAd.\n");
 	char *vsca_c = param( "VERIFY_SIGNED_CLASSADS" );
 	if(vsca_c == NULL) {
 		return true; // It's OK if the config file says not to sign.
@@ -934,14 +1025,20 @@ generic_verify_classad(ClassAd ad)
 
 	MyString vsca(vsca_c);
 	free(vsca_c);
-	if(!(vsca[0] == 'Y' || vsca[0] == 'y')) { // Is this the right idiom?  TODO
+	if(!isAttrTrue(vsca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
 	
-	char *attr_c = param("VERIFY_CLASSAD_ATTRIBUTES");
+	char *attr_c = NULL;
+	if(is_job_ad) {
+		attr_c = param("VERIFY_JOB_CLASSAD_ATTRIBUTES");
+	} else {
+		attr_c = param("VERIFY_MACHINE_CLASSAD_ATTRIBUTES");
+	}
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
-				"VERIFY_CLASSAD_ATTRIBUTES.\n");
+				"VERIFY_%s_CLASSAD_ATTRIBUTES.\n", 
+				is_job_ad ? "JOB" : "MACHINE");
 		return false;
 	}
 	StringList include(attr_c);
@@ -951,7 +1048,7 @@ generic_verify_classad(ClassAd ad)
 		fprintf( stderr, "Unable to verify signed Classad.\n");
 		return false;
 	}
-
+	dprintf(D_SECURITY, "Success verifying ClassAd.\n");
 	return true;
 #else // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	dprintf(D_ALL, "Can't verify ClassAd: not supported on this platform.\n");
