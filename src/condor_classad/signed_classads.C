@@ -493,6 +493,10 @@ EVP_PKEY *get_private_key(const MyString& filename)
 */
 
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 /*
  * Given a classad, prepare the "Arguments" attribute.  In existing
  * systems, this attribute is not prepared at the time of submission,
@@ -529,10 +533,14 @@ prepare_arguments(ClassAd *ad)
 	print_ad(*ad);
 	return true;
 }
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 
 void
 limit_classad(ClassAd &in_ad, 
@@ -540,11 +548,19 @@ limit_classad(ClassAd &in_ad,
 			  ClassAd &out_ad)
 {
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	out_ad = in_ad;
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 	out_ad = in_ad; // TODO: this makes a copy, right?
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	ExprTree *ad_expr;
 	char *attr_name;
 	if(include.isEmpty()) {
@@ -555,36 +571,53 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 	while( (attr_name = include.next()) ) {
 		if(!out_ad.Lookup(attr_name)) {
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 			if(stricmp(attr_name,"Arguments")) {
 				dprintf(D_SECURITY, "WARNING: "
 						"attribute '%s' missing from input, "
 						"not included in signature.\n", attr_name);
 			}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 			dprintf(D_SECURITY, "WARNING: attribute '%s' missing from input, "
 					"not included in signature.\n", attr_name);
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		}
 	}
 	in_ad.ResetExpr();
 	while( (ad_expr = in_ad.NextExpr()) ) {
 		attr_name = ((Variable *)ad_expr->LArg())->Name();
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		if(stricmp(attr_name, "Args"))  { // delete this later in sign_classad
 			if(!include.contains_anycase(attr_name)) {
 				out_ad.Delete(attr_name);
 			}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 		if(!include.contains_anycase(attr_name)) {
 			out_ad.Delete(attr_name);
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		}
 	}
 	return;
 }
 
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 void
@@ -597,6 +630,9 @@ print_ad(ClassAd ad)
 
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 bool 
 verify_same_subset_attributes(const ClassAd &jobAd, 
 							  const ClassAd &sigAd, StringList &subset)
@@ -718,6 +754,10 @@ sign_classad(ClassAd &ad,
 	ClassAd sign_subset;
 	limit_classad(ad, attributes_to_sign, sign_subset);
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 
 	// Attribute "Arguments" is handled differently; see condor_arglist.h
 	// We skip deleteing "Args" in limit_classad so we can use it in 
@@ -731,9 +771,13 @@ sign_classad(ClassAd &ad,
 			sign_subset.Delete("Args");
 		}
 	}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	EVP_PKEY *priv;
 	EVP_PKEY *pub;
 	priv = get_private_key(private_key_path);
@@ -940,17 +984,29 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 
 bool
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 generic_sign_classad(ClassAd &ad, bool is_job_ad)
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 generic_sign_classad(ClassAd &ad)
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 	dprintf(D_SECURITY, "Signing ClassAd.\n");
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	char *sca_c = param( "SIGN_CLASSADS" );
 	if(sca_c == NULL) {
@@ -960,15 +1016,27 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 	MyString sca(sca_c);
 	free(sca_c);
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	if(!isAttrTrue(sca.GetCStr())) {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 	if(!(sca[0] == 'Y' || sca[0] == 'y')) { // Is this the right idiom?  TODO
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		return true; // Config file says not to sign.
 	}
 	
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Signing ClassAd.\n");
 	char *attr_c = NULL;
 	if(is_job_ad) {
@@ -976,19 +1044,31 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 	} else {
 		attr_c = param("SIGN_MACHINE_CLASSAD_ATTRIBUTES");
 	}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 	char *attr_c = param("SIGN_CLASSAD_ATTRIBUTES");
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 				"SIGN_%s_CLASSAD_ATTRIBUTES.\n", 
 				is_job_ad ? "JOB" : "MACHINE");
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 				"SIGN_CLASSAD_ATTRIBUTES.\n");
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		return false;
 	}
 	StringList include(attr_c);
@@ -1032,10 +1112,18 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 		return false;
 	}
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Success signing ClassAd.\n");
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	return true;
 #else // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	dprintf(D_ALL, "Can't sign ClassAd: not supported on this platform.\n");
@@ -1045,12 +1133,21 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 
 bool
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 generic_verify_classad(ClassAd ad, bool is_job_ad)
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 generic_verify_classad(ClassAd ad)
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 =======
@@ -1059,9 +1156,17 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Verifying ClassAd.\n");
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+	dprintf(D_SECURITY, "Verifying ClassAd.\n");
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	char *vsca_c = param( "VERIFY_SIGNED_CLASSADS" );
 	if(vsca_c == NULL) {
 		return true; // It's OK if the config file says not to sign.
@@ -1070,34 +1175,58 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 	MyString vsca(vsca_c);
 	free(vsca_c);
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	if(!isAttrTrue(vsca.GetCStr())) {
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 	if(!(vsca[0] == 'Y' || vsca[0] == 'y')) { // Is this the right idiom?  TODO
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		return true; // Config file says not to sign.
 	}
 	
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	char *attr_c = NULL;
 	if(is_job_ad) {
 		attr_c = param("VERIFY_JOB_CLASSAD_ATTRIBUTES");
 	} else {
 		attr_c = param("VERIFY_MACHINE_CLASSAD_ATTRIBUTES");
 	}
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 	char *attr_c = param("VERIFY_CLASSAD_ATTRIBUTES");
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 				"VERIFY_%s_CLASSAD_ATTRIBUTES.\n", 
 				is_job_ad ? "JOB" : "MACHINE");
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 				"VERIFY_CLASSAD_ATTRIBUTES.\n");
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 		return false;
 	}
 	StringList include(attr_c);
@@ -1108,11 +1237,19 @@ in the most obvious places.:src/condor_classad/signed_classads.C
 		return false;
 	}
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	dprintf(D_SECURITY, "Success verifying ClassAd.\n");
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
 
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Added support for "Arguments" attribute.
+Some other tweaks.:src/condor_classad/signed_classads.C
 	return true;
 #else // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	dprintf(D_ALL, "Can't verify ClassAd: not supported on this platform.\n");
