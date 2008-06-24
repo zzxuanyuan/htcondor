@@ -5296,7 +5296,7 @@ claimStartd( match_rec* mrec, bool is_dedicated )
 
 	dprintf( D_PROTOCOL, "Requesting resource from %s ...\n",
 			 mrec->peer ); 
-	if(!generic_verify_classad(*mrec->my_match_ad)) {
+	if(!generic_verify_classad(*mrec->my_match_ad, false)) {
 		dprintf(D_FAILURE|D_ALWAYS|D_SECURITY, "Signature verification fails.\n");
 		return false;
 	}
