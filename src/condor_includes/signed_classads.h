@@ -21,6 +21,8 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+// bool isAttrTrue( const char* attr );
+
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 
 bool sign_classad(ClassAd &ad,
@@ -33,8 +35,8 @@ bool verify_classad(ClassAd& ad,
 
 #endif /* defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS) */
 
-bool generic_sign_classad(ClassAd &ad);
+bool generic_sign_classad(ClassAd &ad, bool is_job_ad);
 
-bool generic_verify_classad(ClassAd ad);
+bool generic_verify_classad(ClassAd ad, bool is_job_ad);
 
 
