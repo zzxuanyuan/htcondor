@@ -45,6 +45,7 @@
 #include "exit.h"
 #include "condor_auth_x509.h"
 #include "starter_privsep_helper.h"
+#include "signed_classads.h"
 
 extern "C" int get_random_int();
 extern int main_shutdown_fast();
@@ -1022,6 +1023,18 @@ CStarter::SpawnJob( void )
 	dprintf( D_ALWAYS, "Starting a %s universe job with ID: %d.%d\n",
 			 CondorUniverseName(jobUniverse), jic->jobCluster(),
 			 jic->jobProc() );
+
+	if(!generic_verify_classad(*jobAd, true)) {
+		dprintf(D_FAILURE|D_ALWAYS|D_SECURITY, "Signature verification fails.\n");
+		jic->notifyStarterError( "Signature verification fails!",
+										  true,
+										  CONDOR_HOLD_CODE_InvalidSignedClassAd,
+									      0 ); // Perhaps it would be a good idea to 
+		                            //return something more informative as a subcode?
+		EXCEPT( "Signature verification fails..." );
+		//main_shutdown_fast();
+		return FALSE;
+	}
 
 	UserProc *job;
 	switch ( jobUniverse )  
