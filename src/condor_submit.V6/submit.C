@@ -6600,13 +6600,14 @@ SaveClassAd ()
 			free(cr_hash);
 		}
     }
+#endif /* !defined(HAVE_EXT_OPENSSL) */
 
 	/* Here's where we sign the classad. */
- 	if(!generic_sign_classad(*job)) {
+ 	if(!generic_sign_classad(*job, true)) {
  		fprintf(stderr, "Error signing classad.\n");
  		return -1;
  	}
-#endif /* !defined(HAVE_EXT_OPENSSL) */
+
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
 		if( tree->invisible ) {
