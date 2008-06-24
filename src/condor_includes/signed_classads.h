@@ -34,5 +34,6 @@ bool verify_classad(ClassAd& ad,
 #endif /* defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS) */
 
 bool generic_sign_classad(ClassAd &ad, bool is_job_ad);
+
 bool generic_verify_classad(ClassAd ad, bool is_job_ad);
 
