@@ -135,6 +135,7 @@ hex_2_bin(const MyString &input, int &len, unsigned char *& output)
 
 /*
 <<<<<<< HEAD:src/condor_classad/signed_classads.C
+<<<<<<< HEAD:src/condor_classad/signed_classads.C
 =======
  * report_openssl_errors
  *
@@ -169,6 +170,8 @@ report_openssl_errors(const char *func_name) {
 /*
 >>>>>>> Implementation of signed ClassAds and hooks to sign and verify
 in the most obvious places.:src/condor_classad/signed_classads.C
+=======
+>>>>>>> Fixed compile time error where a function was doubly defined.:src/condor_classad/signed_classads.C
  * sign_data
  *
  * Given a private key, and a string (text of a classad), sign the
