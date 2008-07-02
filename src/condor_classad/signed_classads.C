@@ -134,37 +134,6 @@ hex_2_bin(const MyString &input, int &len, unsigned char *& output)
 }
 
 /*
- * report_openssl_errors
- *
- * Pulls errors from the ERR functions in OpenSSL and puts them into
- * the standard Condor dprintf.
- */
-void
-report_openssl_errors(const char *func_name) {
-	char *err_buf;
-	BIO *err_mem_bio = NULL;
-	err_mem_bio = BIO_new(BIO_s_mem());
-	if(!err_mem_bio) {
-		dprintf(D_ALWAYS, "Error creating buffer for error reporting (%s).\n", 
-				func_name);
-		return;
-	}
-	err_buf = (char *)malloc(LINE_LENGTH+1);
-	if(!err_buf) {
-		dprintf(D_ALWAYS, "Malloc error (%s).\n", func_name);
-		BIO_free(err_mem_bio);
-		return;
-	}
-	ERR_print_errors(err_mem_bio);
-	while(BIO_gets(err_mem_bio, err_buf, LINE_LENGTH)) {
-		dprintf(D_ALWAYS, "OpenSSL error (%s): '%s'\n", func_name, err_buf);
-	}
-	BIO_free(err_mem_bio);
-	free(err_buf);
-}
-
-
-/*
  * sign_data
  *
  * Given a private key, and a string (text of a classad), sign the
