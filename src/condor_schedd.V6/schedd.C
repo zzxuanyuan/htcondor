@@ -5147,7 +5147,7 @@ Scheduler::negotiate(int command, Stream* s)
 						break;
 					}
 
-					if(!generic_verify_classad(*mrec->my_match_ad)) {
+					if(!generic_verify_classad(*mrec->my_match_ad, false)) {
 						dprintf(D_ALWAYS, "Machine ad signature verification fails.\n");
 						break;
 					}
