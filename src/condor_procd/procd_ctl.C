@@ -221,7 +221,7 @@ list(ProcFamilyClient& pfc, int argc, char* argv[])
 	}
 	printf("PID PPID START_TIME USER_TIME SYS_TIME\n");
 	for (int i = 0; i < count; i++) {
-		printf("%u %u " PROCAPI_BIRTHDAY_FORMAT "%lu %lu\n",
+		printf("%u %u " PROCAPI_BIRTHDAY_FORMAT " %lu %lu\n",
 		       (unsigned)elements[i].pid,
 		       (unsigned)elements[i].ppid,
 		       (unsigned long)elements[i].birthday,
