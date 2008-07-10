@@ -29,6 +29,11 @@
 #include "condor_config.h"
 #include "condor_arglist.h"
 #include "condor_attributes.h"
+#include "openssl_helpers.h"
+
+// See report_openssl_errors: line length for error reporting,
+// propagating OpenSSL errors through Condor's dprintf.
+#define LINE_LENGTH 70
 
 /*
  * This function is handy for determining whether an attribute (i.e. from
@@ -61,11 +66,6 @@ isAttrTrue( const char* attr )
 #include "openssl/err.h"
 #include "openssl/pem.h"
 #include "condor_auth_ssl.h"
-
-
-// See report_openssl_errors: line length for error reporting,
-// propagating OpenSSL errors through Condor's dprintf.
-#define LINE_LENGTH 70
 
 /*
  * This is just for debugging.
