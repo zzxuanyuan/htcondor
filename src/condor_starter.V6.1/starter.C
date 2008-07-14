@@ -1025,19 +1025,21 @@ CStarter::SpawnJob( void )
 			 jic->jobProc() );
 
 	if(!generic_verify_classad(*jobAd, true)) {
-		dprintf(D_FAILURE|D_ALWAYS|D_SECURITY, "Signature verification fails.\n");
+		dprintf(D_FAILURE|D_ALWAYS|D_SECURITY, 
+				"Signature verification fails.\n");
 		jic->notifyStarterError( "Signature verification fails!",
-										  true,
-										  CONDOR_HOLD_CODE_InvalidSignedClassAd,
-									      0 ); // Perhaps it would be a good idea to 
-		                            //return something more informative as a subcode?
+								 true,
+								 CONDOR_HOLD_CODE_InvalidSignedClassAd,
+								 0 ); // Perhaps it would be a good idea to 
+		//return something more informative as a subcode?
 		EXCEPT( "Signature verification fails..." );
 		//main_shutdown_fast();
 		return FALSE;
 	}
 
-	// IdA: get policy stack from certificate file, check policies before proceeding.
-	// Or, pass the job ad (and the machine ad?) to a function that checks the policies.
+	// IdA: get policy stack from certificate file, check policies
+	// before proceeding.  Or, pass the job ad (and the machine ad?)
+	// to a function that checks the policies.
 	if(!CheckCertChainPolicy()) {
 		dprintf(D_ALWAYS, "Check of certificate chain policy failed.\n");
 		jic->notifyStarterError( "Certificate chain policy check failed.",
@@ -1154,8 +1156,9 @@ CStarter::CheckCertChainPolicy()
 {
 
 	char *do_policy_check = param("STARTER_CHECK_CERT_CHAIN_POLICY");
-	if(do_policy_check == NULL) {
-		dprintf(D_SECURITY, "Not checking certificate chain policy against the job ad.\n");
+	if((do_policy_check == NULL) || (!isTrue(do_policy_check))) {
+		dprintf(D_SECURITY, 
+				"Not checking certificate chain policy against the job ad.\n");
 		return true;
 	}
 
@@ -1165,6 +1168,19 @@ CStarter::CheckCertChainPolicy()
 	// policy in the chain or that there's policy there once that
 	// exactly matches what's in the job ad.
 	ClassAd *jobAd = jic->jobClassAd();
+
+	// First we want to extract the proxy location from the job ad.
+	// Then we want to extract the signed classad and the signature on
+	// it and concatenate them in the same way they are in the file
+	// trasfer object.  Then all of this gets checked against each
+	// proxy certificate in the proxy certificate file in turn.  There
+	// should be exactly one match.
+	MyString buf1, buf2, policy_to_match;
+	jobAd->LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, buf1);
+	jobAd->LookupString(ATTR_CLASSAD_SIGNATURE, buf2);
+	policy_to_match = buf1 + ";" + buf2;
+	
+
 
 	return true;
 }

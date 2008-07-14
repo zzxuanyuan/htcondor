@@ -707,6 +707,12 @@ typedef enum
 int AttrInit( void );
 const char *AttrGetName( CONDOR_ATTR );
 
+/*
+ * This function is handy for determining whether an attribute (i.e. from
+ * a config file) is boolean true or not, where true means "starts with 'y'
+ * or 'y', ignoring case."
+ */
+bool isTrue( const char* attr );
 
 // ------------------------------------------------------
 // Stuff private to the environment variable manager

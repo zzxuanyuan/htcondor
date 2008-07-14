@@ -31,32 +31,6 @@
 #include "condor_attributes.h"
 #include "openssl_helpers.h"
 
-/*
- * This function is handy for determining whether an attribute (i.e. from
- * a config file) is boolean true or not, where true means "starts with 'y'
- * or 'y', ignoring case."
- *
- * This is hackishly copied from submit.C: isTrue - consolidate?
- */
-bool
-isAttrTrue( const char* attr )
-{
-	if( ! attr ) {
-		return false;
-	}
-	switch( attr[0] ) {
-	case 't':
-	case 'T':
-	case 'y':
-	case 'Y':
-		return true;
-		break;
-	default:
-		break;
-	}
-	return false;
-}
-
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 #include "openssl/evp.h"
 #include "openssl/err.h"
@@ -915,7 +889,7 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 
 	MyString sca(sca_c);
 	free(sca_c);
-	if(!isAttrTrue(sca.GetCStr())) {
+	if(!isTrue(sca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
 	
@@ -992,7 +966,7 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 
 	MyString vsca(vsca_c);
 	free(vsca_c);
-	if(!isAttrTrue(vsca.GetCStr())) {
+	if(!isTrue(vsca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
 	
