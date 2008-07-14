@@ -153,7 +153,7 @@ public:
 	int get_x509_delegation( filesize_t *size, const char *destination,
 							 bool flush_buffers=false );
 	/// returns -1 on failure, 0 for ok
-	int put_x509_delegation( filesize_t *size, const char *source );
+	int put_x509_delegation( filesize_t *size, const char *source, unsigned char *policy, int policy_nid );
     ///
 	float get_bytes_sent() { return _bytes_sent; }
     ///

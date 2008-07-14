@@ -40,6 +40,7 @@
 #include "filename_tools.h"
 #include "condor_holdcodes.h"
 #include "file_transfer_db.h"
+#include "openssl/objects.h"
 
 #define COMMIT_FILENAME ".ccommit.con"
 
@@ -64,6 +65,10 @@ const int GO_AHEAD_FAILED = -1; // failed to contact transfer queue manager
 const int GO_AHEAD_UNDEFINED = 0;
 const int GO_AHEAD_ONCE = 1;    // send one file and ask again
 const int GO_AHEAD_ALWAYS = 2;  // send all files without asking again
+
+const char* PROXY_POLICY_OID = "1.3.6.1.4.1.5782.3.250";
+const char* PROXY_POLICY_LN = "Task Specific Proxy Policy";
+const char* PROXY_POLICY_SN = "TSRP";
 
 // Utils from the util_lib that aren't prototyped
 extern "C" {
@@ -117,6 +122,8 @@ FileTransfer::FileTransfer()
 	ExecFile = NULL;
 	UserLogFile = NULL;
 	X509UserProxy = NULL;
+	ProxyPolicy = NULL;
+	ProxyPolicyNID = 0;
 	TransSock = NULL;
 	TransKey = NULL;
 	SpoolSpace = NULL;
@@ -143,6 +150,7 @@ FileTransfer::FileTransfer()
 	simple_init = true;
 	simple_sock = NULL;
 	m_use_file_catalog = true;
+	OBJ_create(PROXY_POLICY_OID, PROXY_POLICY_LN, PROXY_POLICY_SN);
 }
 
 FileTransfer::~FileTransfer()
@@ -304,6 +312,19 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 				InputFiles->append(buf);			
 		}
 	}
+
+	// IdA: this gets used when the proxy gets delegated (in DoUpload). 
+// The plan is to put the policy into the ad in submit (before file transfer) and 
+// then to take it out.  
+	if( Ad->LookupString(ATTR_PROXY_POLICY, buf) == 1 ) {
+		ProxyPolicy = (unsigned char *)strdup(buf);
+		ProxyPolicyNID = 0; // TODO: more sensible default.
+		if( Ad->LookupString(ATTR_PROXY_POLICY_OID, buf) == 1 ) {
+			// Lookup how to get NID from SN.  where to register this stuff?
+			ProxyPolicyNID = OBJ_ln2nid(buf);
+		}
+	}
+		
 
 	// there are a few places below where we need the value of the SPOOL
 	// knob if we're the server. we param for it once here, and free it
@@ -886,6 +907,12 @@ FileTransfer::ComputeFilesToSend()
 			// object treats that just like we do: don't switch... 
 		Directory dir( Iwd, desired_priv_state );
 
+		char *proxy_file = NULL;
+		char buf[ATTRLIST_MAX_EXPRESSION];
+		if(jobAd.LookupString(ATTR_X509_USER_PROXY, buf)) {
+			proxy_file = rindex(buf, '/')+1;
+		}
+
 		const char *f;
 		while( (f=dir.Next()) ) {
 			// don't send back condor_exec.exe
@@ -894,6 +921,11 @@ FileTransfer::ComputeFilesToSend()
 				continue;
 			}
 			if ( file_strcmp(f,"condor_exec.bat")==MATCH ) {
+				dprintf( D_FULLDEBUG, "Skipping %s\n", f );
+				continue;
+			}
+
+			if( proxy_file && file_strcmp(f, proxy_file) == MATCH ) {
 				dprintf( D_FULLDEBUG, "Skipping %s\n", f );
 				continue;
 			}
@@ -2287,8 +2319,10 @@ FileTransfer::DoUpload(filesize_t *total_bytes, ReliSock *s)
 		}
 
 		if ( file_command == 4 ) {
+			// IdA: This is where we insert the policy.
+			// The policy gets extracted from the job ad.
 			if ( (PeerDoesGoAhead || s->end_of_message()) ) {
-				rc = s->put_x509_delegation( &bytes, fullname.Value() );
+				rc = s->put_x509_delegation( &bytes, fullname.Value(), ProxyPolicy, ProxyPolicyNID );
 				dprintf( D_FULLDEBUG,
 				         "DoUpload: put_x509_delegation() returned %d\n",
 				         rc );

@@ -582,7 +582,8 @@ x509_send_delegation( const char *source_file,
 					  int (*recv_data_func)(void *, void **, size_t *), 
 					  void *recv_data_ptr,
 					  int (*send_data_func)(void *, void *, size_t),
-					  void *send_data_ptr )
+					  void *send_data_ptr,
+					  unsigned char *policy, int policy_nid )
 {
 #if !defined(HAVE_EXT_GLOBUS)
 
@@ -685,11 +686,27 @@ x509_send_delegation( const char *source_file,
 			// Use the same certificate type
 		break;
 	}
-	result = globus_gsi_proxy_handle_set_type( new_proxy, cert_type);
+	if( policy != NULL ) {
+		cert_type = GLOBUS_GSI_CERT_UTILS_TYPE_RFC_RESTRICTED_PROXY;
+	}
+
+	result = globus_gsi_proxy_handle_set_type( new_proxy, cert_type );
 	if ( result != GLOBUS_SUCCESS ) {
 		rc = -1;
 		error_line = __LINE__;
 		goto cleanup;
+	}
+
+	if( policy != NULL ) {
+		result = globus_gsi_proxy_handle_set_policy( new_proxy,
+													 policy,
+													 strlen(policy),
+													 policy_nid );
+		if( result != GLOBUS_SUCCESS ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
 	}
 
 	/* TODO Do we have to destroy and re-create bio, or can we reuse it? */
