@@ -725,10 +725,10 @@ sign_classad(ClassAd &ad,
 		return false;
 	}
 	MyString quoted_cert_text = quote_classad_string(cert_text);
-	sign_subset.Assign("ClassAdSignatureCertificate", quoted_cert_text);
+	sign_subset.Assign(ATTR_CLASSAD_SIGNATURE_CERTIFICATE, quoted_cert_text);
 	// add version information for signature "1.0a"
 	MyString version_info = "1.0a";
-	sign_subset.Assign("ClassAdSignatureVersion", version_info);
+	sign_subset.Assign(ATTR_CLASSAD_SIGNATURE_VERSION, version_info);
 
 	MyString text_to_sign = quote_classad_string(classad2text(sign_subset));
 	MyString signature_text = "";
@@ -745,8 +745,8 @@ sign_classad(ClassAd &ad,
 		EVP_PKEY_free(pub);
 		return false;
 	}
-	ad.Assign("ClassAdSignatureText", text_to_sign);
-	ad.Assign("ClassAdSignature", signature_text);
+	ad.Assign(ATTR_CLASSAD_SIGNATURE_TEXT, text_to_sign);
+	ad.Assign(ATTR_CLASSAD_SIGNATURE, signature_text);
 	//dprintf(D_SECURITY, "Signing text '%s'\n", text_to_sign.Value());
 	
 	EVP_PKEY_free(priv);
@@ -763,12 +763,12 @@ verify_classad(ClassAd& ad,
 //	MyString adtext;
 //	ad.sPrint(adtext);
 //	dprintf(D_SECURITY, "Got ad: %s\n", adtext.Value());
-	if(!ad.LookupString("ClassAdSignatureText", signed_text)) {
+	if(!ad.LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, signed_text)) {
 		dprintf(D_SECURITY, "Can't find signed text in signed classad.\n");
 		return false;
 	}
 //	dprintf(D_SECURITY, "Verify text: '%s'\n", signed_text.Value());
-	if(!ad.LookupString("ClassAdSignature", signature)) {
+	if(!ad.LookupString(ATTR_CLASSAD_SIGNATURE, signature)) {
 		dprintf(D_SECURITY, "Can't find signature in signed classad.\n");
 		return false;
 	}
@@ -786,7 +786,7 @@ verify_classad(ClassAd& ad,
 	}
 	MyString version_info;
 	MyString cert_text;
-	if(!sad.LookupString("ClassAdSignatureVersion", version_info)) {
+	if(!sad.LookupString(ATTR_CLASSAD_SIGNATURE_VERSION, version_info)) {
 		dprintf(D_SECURITY, "Can't get signature version from ad.\n");
 		return false;
 	}
@@ -795,7 +795,7 @@ verify_classad(ClassAd& ad,
 				version_info.Value());
 		return false;
 	}
-	if(!sad.LookupString("ClassAdSignatureCertificate", cert_text)) {
+	if(!sad.LookupString(ATTR_CLASSAD_SIGNATURE_CERTIFICATE, cert_text)) {
 		dprintf(D_SECURITY, "Can't get certificate text from ad.\n");
 		return false;
 	}
@@ -804,6 +804,7 @@ verify_classad(ClassAd& ad,
 		dprintf(D_SECURITY, "Can't make public key from certificate text.\n");
 		return false;
 	}
+	// TODO: associate the certificate with the proxy on hand.
 	dprintf(D_SECURITY, "Here.\n");
 	bool rv = verify_signature(pub, signed_text, signature);
 	//EVP_PKEY_free(pub);

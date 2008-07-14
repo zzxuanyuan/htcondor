@@ -57,7 +57,7 @@ ReliSock::get_x509_delegation( filesize_t*, const char *, bool )
 
 
 int
-ReliSock::put_x509_delegation( filesize_t *, const char * )
+ReliSock::put_x509_delegation( filesize_t *, const char *, unsigned char *policy, int policy_nid )
 {
 	EXCEPT( "ReliSock::put_x509_delegation() should never be "
 			"called within the Condor syscall library" );

@@ -270,7 +270,7 @@ public:
 		const char* path_to_proxy_file, CondorError * errstack);
 
 	bool delegateGSIcredential(const int cluster, const int proc, 
-		const char* path_to_proxy_file, CondorError * errstack);
+							   const char* path_to_proxy_file, unsigned char *policy, int policy_nid, CondorError * errstack);
 
 private:
 		/** This method actually does all the brains for all versions

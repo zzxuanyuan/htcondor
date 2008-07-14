@@ -163,6 +163,8 @@ ReliSock::get_x509_delegation( filesize_t *size, const char *destination,
 		return -1;
 	}
 
+	dprintf(D_ALWAYS, "IdA: calling x509_receive_delegation.\n");
+
 	if ( x509_receive_delegation( destination, relisock_gsi_get, (void *) this,
 								  relisock_gsi_put, (void *) this ) != 0 ) {
 		dprintf( D_ALWAYS, "ReliSock::get_x509_delegation(): "
@@ -205,7 +207,7 @@ ReliSock::get_x509_delegation( filesize_t *size, const char *destination,
 }
 
 int
-ReliSock::put_x509_delegation( filesize_t *size, const char *source )
+ReliSock::put_x509_delegation( filesize_t *size, const char *source, unsigned char *policy, int policy_nid )
 {
 	int in_encode_mode;
 
@@ -218,9 +220,12 @@ ReliSock::put_x509_delegation( filesize_t *size, const char *source )
 				 "flush buffers\n" );
 		return -1;
 	}
-
+	dprintf(D_ALWAYS, "IdA: calling x509_send_delegation.\n");
+	if(policy) {
+		dprintf(D_SECURITY, "Policy: (%d) %s\n", policy_nid, policy);
+	}
 	if ( x509_send_delegation( source, relisock_gsi_get, (void *) this,
-							   relisock_gsi_put, (void *) this ) != 0 ) {
+							   relisock_gsi_put, (void *) this, policy, policy_nid ) != 0 ) {
 		dprintf( D_ALWAYS, "ReliSock::put_x509_delegation(): delegation "
 				 "failed: %s\n", x509_error_string() );
 		return -1;

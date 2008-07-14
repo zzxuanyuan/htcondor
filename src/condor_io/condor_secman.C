@@ -1398,7 +1398,7 @@ SecManStartCommand::startCommand_inner()
 	}
 
 
-	if (DebugFlags & D_FULLDEBUG) {
+	if (DebugFlags & D_SECURITY) {
 		dprintf ( D_SECURITY, "SECMAN: sending following classad:\n");
 		auth_info.dPrint ( D_SECURITY );
 	}

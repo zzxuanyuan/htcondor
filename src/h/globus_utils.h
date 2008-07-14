@@ -256,7 +256,8 @@ x509_send_delegation( const char *source_file,
 					  int (*recv_data_func)(void *, void **, size_t *), 
 					  void *recv_data_ptr,
 					  int (*send_data_func)(void *, void *, size_t),
-					  void *send_data_ptr );
+					  void *send_data_ptr,
+					  unsigned char *policy, int policy_nid );
 
 int
 x509_receive_delegation( const char *destination_file,

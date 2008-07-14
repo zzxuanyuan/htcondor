@@ -1036,6 +1036,18 @@ CStarter::SpawnJob( void )
 		return FALSE;
 	}
 
+	// IdA: get policy stack from certificate file, check policies before proceeding.
+	// Or, pass the job ad (and the machine ad?) to a function that checks the policies.
+	if(!CheckCertChainPolicy()) {
+		dprintf(D_ALWAYS, "Check of certificate chain policy failed.\n");
+		jic->notifyStarterError( "Certificate chain policy check failed.",
+								 true,
+								 CONDOR_HOLD_CODE_CertChainPolicyCheckFailed,
+								 0 );
+		EXCEPT( "Certificate chain policy check fails...\n" );
+		return FALSE;
+	}
+
 	UserProc *job;
 	switch ( jobUniverse )  
 	{
@@ -1135,6 +1147,26 @@ CStarter::SpawnJob( void )
 		main_shutdown_fast();
 		return FALSE;
 	}
+}
+
+bool
+CStarter::CheckCertChainPolicy()
+{
+
+	char *do_policy_check = param("STARTER_CHECK_CERT_CHAIN_POLICY");
+	if(do_policy_check == NULL) {
+		dprintf(D_SECURITY, "Not checking certificate chain policy against the job ad.\n");
+		return true;
+	}
+
+	dprintf(D_SECURITY, "Checking certificate chain policy against job ad.\n");
+
+	// What we want to do is to make sure that there's either no
+	// policy in the chain or that there's policy there once that
+	// exactly matches what's in the job ad.
+	ClassAd *jobAd = jic->jobClassAd();
+
+	return true;
 }
 
 /**
