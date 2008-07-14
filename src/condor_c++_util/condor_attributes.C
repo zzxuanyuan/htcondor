@@ -23,6 +23,25 @@
 #define _CONDOR_ATTR_MAIN
 #include "condor_attributes.h"
 
+bool
+isTrue( const char* attr )
+{
+	if( ! attr ) {
+		return false;
+	}
+	switch( attr[0] ) {
+	case 't':
+	case 'T':
+	case 'y':
+	case 'Y':
+		return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
 // Initialize our logic
 int
 AttrInit( void )

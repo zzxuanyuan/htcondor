@@ -6872,26 +6872,6 @@ mightTransfer( int universe )
 	return false;
 }
 
-
-bool
-isTrue( const char* attr )
-{
-	if( ! attr ) {
-		return false;
-	}
-	switch( attr[0] ) {
-	case 't':
-	case 'T':
-	case 'y':
-	case 'Y':
-		return true;
-		break;
-	default:
-		break;
-	}
-	return false;
-}
-
 // add a vm file to transfer_input_files
 void transfer_vm_file(const char *filename, const char *lhs ) 
 {
