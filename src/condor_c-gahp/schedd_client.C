@@ -510,10 +510,12 @@ doContactSchedd()
 		bool result;
 		errstack.clear();
 		if ( delegate_credential ) {
+			// IdA: I think it's OK to assume that there's no policy here.
 			result = dc_schedd.delegateGSIcredential( 
 												current_command->cluster_id,
 												current_command->proc_id,
 												current_command->proxy_file,
+												NULL, 0,
 												&errstack );
 		} else {
 			result = dc_schedd.updateGSIcredential( 

@@ -67,6 +67,10 @@ extern const char * ATTR_PUBLIC_CLAIM_ID;
 extern const char * ATTR_PUBLIC_CLAIM_IDS;
 extern const char * ATTR_CLAIM_STATE;
 extern const char * ATTR_CLAIM_TYPE;
+extern const char * ATTR_CLASSAD_SIGNATURE;
+extern const char * ATTR_CLASSAD_SIGNATURE_CERTIFICATE;
+extern const char * ATTR_CLASSAD_SIGNATURE_TEXT;
+extern const char * ATTR_CLASSAD_SIGNATURE_VERSION;
 extern const char * ATTR_CLIENT_MACHINE;
 extern const char * ATTR_CLOCK_DAY;
 extern const char * ATTR_CLOCK_MIN;
@@ -382,6 +386,8 @@ extern const char * ATTR_PRIO;
 extern const char * ATTR_PROC_ID;
 extern const char * ATTR_PRIVATE_NETWORK_IP_ADDR;
 extern const char * ATTR_PRIVATE_NETWORK_NAME;
+extern const char * ATTR_PROXY_POLICY;
+extern const char * ATTR_PROXY_POLICY_OID;
 extern const char * ATTR_PUBLIC_NETWORK_IP_ADDR;
 extern const char * ATTR_Q_DATE;
 extern const char * ATTR_RANK;
@@ -701,6 +707,12 @@ typedef enum
 int AttrInit( void );
 const char *AttrGetName( CONDOR_ATTR );
 
+/*
+ * This function is handy for determining whether an attribute (i.e. from
+ * a config file) is boolean true or not, where true means "starts with 'y'
+ * or 'y', ignoring case."
+ */
+bool isTrue( const char* attr );
 
 // ------------------------------------------------------
 // Stuff private to the environment variable manager

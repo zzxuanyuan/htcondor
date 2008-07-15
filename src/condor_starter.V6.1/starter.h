@@ -63,6 +63,8 @@ public:
 
 	virtual int SpawnJob( void );
 
+	virtual bool CheckCertChainPolicy( void );
+
 		/*************************************************************
 		 * Starter Commands
 		 * We now have two versions of the old commands that the Starter

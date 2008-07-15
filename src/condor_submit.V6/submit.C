@@ -6655,6 +6655,20 @@ SaveClassAd ()
  	if(!generic_sign_classad(*job, true)) {
  		fprintf(stderr, "Error signing classad.\n");
  		return -1;
+	} else {
+		// IdA: TODO Here's where we add proxy policy.  Where to remove?
+		char *tmp = param("ADD_TASK_POLICY");
+		bool add_task_policy = isTrue(tmp);
+		free(tmp);
+		if(add_task_policy) {
+			MyString buf1, buf2, buf;
+			job->LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, buf1);
+			job->LookupString(ATTR_CLASSAD_SIGNATURE, buf2);
+			buf = buf1 + ";" + buf2;
+			job->Assign(ATTR_PROXY_POLICY, buf);
+			job->Assign(ATTR_PROXY_POLICY_OID, PROXY_POLICY_OID);
+			fprintf(stderr, "Added policy.\n");
+		}
  	}
 
 	job->ResetExpr();
@@ -6859,26 +6873,6 @@ mightTransfer( int universe )
 		break;
 	default:
 		return false;
-		break;
-	}
-	return false;
-}
-
-
-bool
-isTrue( const char* attr )
-{
-	if( ! attr ) {
-		return false;
-	}
-	switch( attr[0] ) {
-	case 't':
-	case 'T':
-	case 'y':
-	case 'Y':
-		return true;
-		break;
-	default:
 		break;
 	}
 	return false;

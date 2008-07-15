@@ -116,7 +116,7 @@ DCStarter::reconnect( ClassAd* req, ClassAd* reply, ReliSock* rsock,
 
 // Based on dc_schedd.C's updateGSIcredential
 DCStarter::X509UpdateStatus
-DCStarter::updateX509Proxy( const char * filename)
+DCStarter::updateX509Proxy( const char * filename )
 {
 	ReliSock rsock;
 	rsock.timeout(60);
@@ -162,7 +162,7 @@ DCStarter::updateX509Proxy( const char * filename)
 }
 
 DCStarter::X509UpdateStatus
-DCStarter::delegateX509Proxy( const char * filename)
+DCStarter::delegateX509Proxy( const char * filename, unsigned char *policy, int policy_nid )
 {
 	ReliSock rsock;
 	rsock.timeout(60);
@@ -182,7 +182,7 @@ DCStarter::delegateX509Proxy( const char * filename)
 
 		// Send the gsi proxy
 	filesize_t file_size = 0;	// will receive the size of the file
-	if ( rsock.put_x509_delegation(&file_size,filename) < 0 ) {
+	if ( rsock.put_x509_delegation(&file_size,filename, policy, policy_nid ) < 0 ) {
 		dprintf(D_ALWAYS,
 			"DCStarter::delegateX509Proxy "
 			"failed to delegate proxy file %s (size=%ld)\n",

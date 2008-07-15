@@ -69,8 +69,8 @@ public:
 	// Declined - Success.  Other side doesn't want it.  Don't bother
 	//      to try again.
 	enum X509UpdateStatus { XUS_Error = 0, XUS_Okay = 1, XUS_Declined = 2 };
-	X509UpdateStatus updateX509Proxy(const char * filename);
-	X509UpdateStatus delegateX509Proxy(const char * filename);
+	X509UpdateStatus updateX509Proxy(const char * filename );
+	X509UpdateStatus delegateX509Proxy(const char * filename, unsigned char *policy, int policy_nid );
 
  private:
 	bool is_initialized;

@@ -139,7 +139,8 @@ RemoteResource::activateClaim( int starterVersion )
 	    (jobAd->LookupString( ATTR_X509_USER_PROXY, &proxy ) == 1) ) {
 		dprintf( D_FULLDEBUG,
 	                 "trying early delegation (for glexec) of proxy: %s\n", proxy );
-		int dReply = dc_startd->delegateX509Proxy( proxy );
+		// IdA: when the shadow delegates to the startd(?), we don't add any policy.
+		int dReply = dc_startd->delegateX509Proxy( proxy, NULL, 0 );
 		if( dReply == OK ) {
 			// early delegation was successful. this means the startd
 			// is going to launch the starter using glexec, so we need
@@ -1728,7 +1729,8 @@ RemoteResource::updateX509Proxy(const char * filename)
 
 	DCStarter::X509UpdateStatus ret = DCStarter::XUS_Error;
 	if ( param_boolean( "DELEGATE_JOB_GSI_CREDENTIALS", true ) == true ) {
-		ret = starter.delegateX509Proxy(filename);
+		// IdA: I think this should be OK; this is "Update" rather than "Delegate".
+		ret = starter.delegateX509Proxy(filename, NULL, 0 );
 	}
 	if ( ret != DCStarter::XUS_Okay ) {
 		ret = starter.updateX509Proxy(filename);

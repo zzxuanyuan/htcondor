@@ -23,6 +23,25 @@
 #define _CONDOR_ATTR_MAIN
 #include "condor_attributes.h"
 
+bool
+isTrue( const char* attr )
+{
+	if( ! attr ) {
+		return false;
+	}
+	switch( attr[0] ) {
+	case 't':
+	case 'T':
+	case 'y':
+	case 'Y':
+		return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
 // Initialize our logic
 int
 AttrInit( void )
@@ -127,6 +146,10 @@ const char *ATTR_PUBLIC_CLAIM_ID          = "PublicClaimId";
 const char *ATTR_PUBLIC_CLAIM_IDS         = "PublicClaimIds";
 const char *ATTR_CLAIM_STATE              = "ClaimState";
 const char *ATTR_CLAIM_TYPE               = "ClaimType";
+const char *ATTR_CLASSAD_SIGNATURE        = "ClassAdSignature";
+const char *ATTR_CLASSAD_SIGNATURE_CERTIFICATE = "ClassAdSignatureCertificate";
+const char *ATTR_CLASSAD_SIGNATURE_TEXT   = "ClassAdSignatureText";
+const char *ATTR_CLASSAD_SIGNATURE_VERSION = "ClassAdSignatureVersion";
 const char *ATTR_CLIENT_MACHINE           = "ClientMachine"; 
 const char *ATTR_CLOCK_DAY                = "ClockDay";
 const char *ATTR_CLOCK_MIN                = "ClockMin";
@@ -443,6 +466,8 @@ const char *ATTR_PRIO                     = "Prio";
 const char *ATTR_PROC_ID                  = "ProcId";
 const char *ATTR_PRIVATE_NETWORK_IP_ADDR  = "PrivateNetworkIpAddr";
 const char *ATTR_PRIVATE_NETWORK_NAME     = "PrivateNetworkName";
+const char *ATTR_PROXY_POLICY             = "ProxyPolicy";
+const char *ATTR_PROXY_POLICY_OID         = "ProxyPolicyOID";
 const char *ATTR_PUBLIC_NETWORK_IP_ADDR   = "PublicNetworkIpAddr";
 const char *ATTR_Q_DATE                   = "QDate";
 const char *ATTR_RANK					 = "Rank";

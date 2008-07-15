@@ -105,4 +105,7 @@ const int CONDOR_HOLD_CODE_HookPrepareJobFailure = 19;
 //starter log file for more details.
 const int CONDOR_HOLD_CODE_InvalidSignedClassAd = 20;
 
+//The policy in the certificate chain prevents the job from running.
+const int CONDOR_HOLD_CODE_CertChainPolicyCheckFailed = 21;
+
 #endif

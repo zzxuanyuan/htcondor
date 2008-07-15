@@ -563,7 +563,7 @@ DCStartd::locateStarter( const char* global_job_id,
 }
 
 int
-DCStartd::delegateX509Proxy( const char* proxy )
+DCStartd::delegateX509Proxy( const char* proxy, unsigned char *policy, int policy_nid )
 {
 	dprintf( D_FULLDEBUG, "Entering DCStartd::delegateX509Proxy()\n" );
 
@@ -641,7 +641,7 @@ DCStartd::delegateX509Proxy( const char* proxy )
 	int rv;
 	filesize_t dont_care;
 	if( use_delegation ) {
-		rv = tmp->put_x509_delegation( &dont_care, proxy );
+		rv = tmp->put_x509_delegation( &dont_care, proxy, policy, policy_nid );
 	}
 	else {
 		dprintf( D_FULLDEBUG,

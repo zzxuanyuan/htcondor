@@ -117,7 +117,7 @@ public:
 			@return OK if proxy is delegated, NOT_OK if startd doesn't
 			need it, CONDOR_ERROR on error
 		*/
-	int delegateX509Proxy( const char* proxy );
+	int delegateX509Proxy( const char* proxy, unsigned char *policy, int policy_nid );
 
 		// Generic ClassAd-only protocol for managing claims
 
