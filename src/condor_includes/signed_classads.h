@@ -36,4 +36,3 @@ bool verify_classad(ClassAd& ad,
 bool generic_sign_classad(ClassAd &ad, bool is_job_ad);
 
 bool generic_verify_classad(ClassAd ad, bool is_job_ad);
-

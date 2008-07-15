@@ -886,6 +886,8 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 	free(sca_c);
 
 	if(!isTrue(sca.GetCStr())) {
+		return true; // Config file says not to sign.
+	}
 
 	dprintf(D_SECURITY, "Signing ClassAd.\n");
 	char *attr_c = NULL;
@@ -961,7 +963,7 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 	if(!isTrue(vsca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
-	
+
 	char *attr_c = NULL;
 	if(is_job_ad) {
 		attr_c = param("VERIFY_JOB_CLASSAD_ATTRIBUTES");
