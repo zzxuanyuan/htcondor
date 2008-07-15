@@ -6630,6 +6630,7 @@ SaveClassAd ()
 				"'%s' doesn't exist.\n", 
 				cmd.GetCStr() == NULL ? "NULL" : cmd.GetCStr());
 	}
+	
 	if(want_cmd_hash && cmd_file_exists) {
 		char *cr_hash = get_hash_of_file(cmd.GetCStr(),
 										 cr_hash_type.GetCStr());
