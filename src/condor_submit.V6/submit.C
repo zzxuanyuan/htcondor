@@ -6608,7 +6608,7 @@ SaveClassAd ()
 	char *tmp = param("CMD_HASH");
 	bool want_cmd_hash = isTrue(tmp); 
 	free(tmp);
-	
+
 #if !defined(HAVE_EXT_OPENSSL)
 	fprintf(stderr, "WARNING: This platform does not have support for cryptographic hashing.\n");
 #else /* !defined(HAVE_EXT_OPENSSL) - in other words we *do* have it */

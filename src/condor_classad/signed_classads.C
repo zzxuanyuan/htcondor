@@ -31,52 +31,11 @@
 #include "condor_attributes.h"
 #include "openssl_helpers.h"
 
-// See report_openssl_errors: line length for error reporting,
-// propagating OpenSSL errors through Condor's dprintf.
-#define LINE_LENGTH 70
-
-/*
- * This function is handy for determining whether an attribute (i.e. from
- * a config file) is boolean true or not, where true means "starts with 'y'
- * or 'y', ignoring case."
- *
- * This is hackishly copied from submit.C: isTrue - consolidate?
- */
-bool
-isAttrTrue( const char* attr )
-{
-	if( ! attr ) {
-		return false;
-	}
-	switch( attr[0] ) {
-	case 't':
-	case 'T':
-	case 'y':
-	case 'Y':
-		return true;
-		break;
-	default:
-		break;
-	}
-	return false;
-}
-
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 #include "openssl/evp.h"
 #include "openssl/err.h"
 #include "openssl/pem.h"
 #include "condor_auth_ssl.h"
-
-/*
- * This is just for debugging.
- */
-void
-print_ad(ClassAd ad) 
-{
-	MyString debug;
-	ad.sPrint(debug);
-	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
-}
 
 /*
  * get_bits
@@ -600,6 +559,14 @@ limit_classad(ClassAd &in_ad,
 	return;
 }
 
+void
+print_ad(ClassAd ad) 
+{
+	MyString debug;
+	ad.sPrint(debug);
+	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
+}
+
 bool 
 verify_same_subset_attributes(const ClassAd &jobAd, 
 							  const ClassAd &sigAd, StringList &subset)
@@ -939,7 +906,6 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 
 bool
 generic_sign_classad(ClassAd &ad, bool is_job_ad)
-{
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	char *sca_c = param( "SIGN_CLASSADS" );
 	if(sca_c == NULL) {
@@ -948,7 +914,8 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 
 	MyString sca(sca_c);
 	free(sca_c);
-	if(!isAttrTrue(sca.GetCStr())) {
+
+	if(!isTrue(sca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
 	
@@ -959,6 +926,7 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 	} else {
 		attr_c = param("SIGN_MACHINE_CLASSAD_ATTRIBUTES");
 	}
+	char *attr_c = param("SIGN_CLASSAD_ATTRIBUTES");
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
 				"SIGN_%s_CLASSAD_ATTRIBUTES.\n", 
@@ -1025,7 +993,7 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 
 	MyString vsca(vsca_c);
 	free(vsca_c);
-	if(!isAttrTrue(vsca.GetCStr())) {
+	if(!isTrue(vsca.GetCStr())) {
 		return true; // Config file says not to sign.
 	}
 	

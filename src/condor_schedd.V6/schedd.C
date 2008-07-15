@@ -5428,6 +5428,28 @@ Scheduler::claimedStartd( DCMsgCallback *cb ) {
 bool
 Scheduler::enqueueStartdContact( ContactStartdArgs* args )
 {
+	dprintf( D_FULLDEBUG, "In Scheduler::enqueueStartdContact()\n" );
+
+	match_rec *mrec = NULL;
+
+	if( args->isDedicated() ) {
+		mrec = dedicated_scheduler.FindMrecByClaimID(args->claimId());
+	}
+	else {
+		mrec = scheduler.FindMrecByClaimID(args->claimId());
+	}
+
+	if(!mrec) {
+		// The match must have gotten deleted during the time this
+		// operation was queued.
+		dprintf( D_FULLDEBUG, "no match record found for %s", args->claimId() );
+		return false;
+	}
+	
+	if(!generic_verify_classad(*mrec->my_match_ad, false)) {
+		dprintf(D_ALWAYS, "Signature verification fails.\n");
+		return false;
+	}
 	 if( startdContactQueue.enqueue(args) < 0 ) {
 		 dprintf( D_ALWAYS, "Failed to enqueue contactStartd "
 				  "startd=%s\n", args->sinful() );
