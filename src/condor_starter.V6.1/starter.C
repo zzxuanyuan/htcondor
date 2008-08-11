@@ -46,6 +46,11 @@
 #include "condor_auth_x509.h"
 #include "starter_privsep_helper.h"
 #include "signed_classads.h"
+#include "globus_utils.h"
+
+#if defined(HAVE_EXT_GLOBUS)
+#     include "globus_gsi_credential.h"
+#endif
 
 extern "C" int get_random_int();
 extern int main_shutdown_fast();
@@ -1151,87 +1156,6 @@ CStarter::SpawnJob( void )
 	}
 }
 
-const char *BEGIN_CERTIFICATE = "-----BEGIN CERTIFICATE-----\n";
-const char *END_CERTIFICATE = "-----END CERTIFICATE-----\n";
-bool
-get_cert(MyString proxy_text, int n, MyString &cert_text)
-{
-	char *curpos = (char *)proxy_text.Value();
-	char *endpos = (char *)proxy_text.Value()+proxy_text.Length();
-	char *proxy_begin = curpos;
-	if(n < 0) {
-		dprintf(D_ALWAYS, "get_cert called with invalid cert number.\n");
-		return false;
-	}
-	// Find beginning.
-	while( curpos < endpos ) {
-		if(!strncmp(curpos,BEGIN_CERTIFICATE,strlen(BEGIN_CERTIFICATE))) {
-			if(n > 0) {
-				n--;
-				continue;
-			} 
-			if(n == 0) {
-				break;
-			}
-		} 
-		curpos++;
-	}
-	char *cert_begin = NULL;
-	char *cert_end = NULL;
-	if( (proxy_begin < curpos) && (curpos < endpos) )  {
-		cert_begin = curpos;
-		while( curpos < endpos ) {
-			if(!strncmp(curpos, 
-						END_CERTIFICATE, strlen(END_CERTIFICATE))) {
-				break;
-			}
-			curpos++;
-		}
-		if((cert_begin < curpos) && (curpos < endpos)) {
-			cert_end = curpos + strlen(END_CERTIFICATE);
-		}
-	}
-	if(cert_begin && cert_end) {
-		cert_text = proxy_text.Substr(cert_begin - proxy_begin, 
-									  cert_end - proxy_begin);
-		return true;
-	}
-	return false;
-}
-
-bool
-get_policy_from_cert(MyString cert) 
-{
-	BIO *mem;
-	char *buf = cert.Value();
-	if(buf == NULL) {
-		dprintf(D_SECURITY, "Can't get policy from NULL cert.\n");
-		return false;
-	}
-	mem = BIO_new_mem_buf(buf, -1);
-	if(!mem) {
-		dprintf(D_SECURITY, "Error getting memory buffer for policy.\n");
-		return false;
-	}
-	if( activate_globus_gsi() != 0 ) {
-		dprintf(D_SECURITY, "Error getting GSI.\n");
-		return false;
-	}
-	if(globus_gsi_cred_handle_attrs_init(&handle_attrs)) {
-		dprintf(D_SECURITY, "problem during internal initialization.\n");
-		goto cleanup;
-	}
-	if(globus_gsi_cred_handle_init(&handle, handle_attrs)) {
-		dprintf(D_SECURITY, "problem during internal initialization.\n" );
-		goto cleanup;
-	}
-	if(globus_gsi_cred_read_proxy_bio(handle, mem)) {
-		dprintf(D_SECURITY, "problem reading single credential.\n");
-		goto cleanup;
-	}
-	if(globus_gsi_cred_get_policy(handle, &policy
-}
-
 bool
 CStarter::CheckCertChainPolicy()
 {
@@ -1260,8 +1184,13 @@ CStarter::CheckCertChainPolicy()
 	jobAd->LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, buf1);
 	jobAd->LookupString(ATTR_CLASSAD_SIGNATURE, buf2);
 	policy_to_match = buf1 + ";" + buf2;
-	
+	int rv = false;
+
     MyString proxy_file;
+	globus_gsi_cred_handle_t handle;
+	globus_gsi_cred_handle_attrs_t handle_attrs;
+	int num_policies = 0;
+
 	jobAd->LookupString(ATTR_X509_USER_PROXY, proxy_file);
 	if(!proxy_file.Value()) {
 		dprintf(D_SECURITY, "Can't get proxy file from job ad.\n");
@@ -1269,41 +1198,63 @@ CStarter::CheckCertChainPolicy()
 	}
 	// TODO is there a race condition?  Do we need to do something to
 	// make sure this is the exact same as the signing proxy?
-	int i = 0;
-	bool rv;
-	MyString acert;
-	int num_policies = 0;
-	MyString proxy_text;
-	rv = get_file_text(proxy_file, proxy_text);
-	if(!rv) {
-		dprintf(D_SECURITY, "Couldn't get text of proxy certificate file.\n");
+	// This is done partly to activate_globus_gsi().
+	if( check_x509_proxy(proxy_file.Value()) != 0 ) {
+		dprintf(D_SECURITY, "Error with proxy file.\n");
 		return false;
 	}
 
-	while( rv = get_cert( proxy_text, i, acert ) ) {
-
-		// This will rely on globus_gsi_cred_read_proxy_bio
-		MyString policy = get_policy_from_cert( acert ); 
+	if(globus_gsi_cred_handle_attrs_init(&handle_attrs)) {
+		dprintf(D_SECURITY, "problem during internal initialization.\n");
+		goto cleanup;
+	}
+	if(globus_gsi_cred_handle_init(&handle, handle_attrs)) {
+		dprintf(D_SECURITY, "problem during internal initialization.\n" );
+		goto cleanup;
+	}
+	if(globus_gsi_cred_read_proxy(handle, proxy_file.Value())) {
+		dprintf(D_SECURITY, "problem reading credential.\n");
+		goto cleanup;
+	}
+	
+	STACK *policies;
+	if(globus_gsi_cred_get_policies(handle, &policies)) {
+		dprintf(D_SECURITY, "Problem getting policies.\n");
+		goto cleanup;
+	}
+	int j;
+	for(j = 0; j < sk_num(policies); j++) {
+		MyString policy = sk_value(policies, j);
 		if(policy == policy_to_match) {
 			++num_policies;
 			if(num_policies > 1) {
 				dprintf(D_SECURITY, "More than one policy in cert chain.\n");
-				return false;
+				goto cleanup;
 			}
 		} else {
 			dprintf(D_SECURITY, "Policy in cert chain differs from expected policy.\n");
-			return false;
+			goto cleanup;
 		}
 	}
 	if( num_policies < 1 ) {
 		dprintf(D_SECURITY, "No matching policies.\n");
-		return false;
+		goto cleanup;
 	}
 	if( num_policies > 1 ) {
 		dprintf(D_SECURITY, "Too many policies in cert chain (check sanity).\n");
-		return false;
+		goto cleanup;
 	}
-	return true;
+	rv = true;
+
+ cleanup:
+	if(policies)
+		sk_free(policies);
+	if(handle_attrs)
+		globus_gsi_cred_handle_attrs_destroy(handle_attrs);
+	if(handle)
+		globus_gsi_cred_handle_destroy(handle);
+
+	return rv;
 }
 
 /**
