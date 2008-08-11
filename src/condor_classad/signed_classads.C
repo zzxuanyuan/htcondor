@@ -37,6 +37,14 @@
 #include "openssl/pem.h"
 #include "condor_auth_ssl.h"
 
+void
+print_ad(ClassAd ad) 
+{
+	MyString debug;
+	ad.sPrint(debug);
+	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
+}
+
 /*
  * get_bits
  *
@@ -528,14 +536,6 @@ limit_classad(ClassAd &in_ad,
 	return;
 }
 
-void
-print_ad(ClassAd ad) 
-{
-	MyString debug;
-	ad.sPrint(debug);
-	dprintf(D_SECURITY, "AD: '%s'\n",debug.Value());
-}
-
 bool 
 verify_same_subset_attributes(const ClassAd &jobAd, 
 							  const ClassAd &sigAd, StringList &subset)
@@ -876,7 +876,9 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 
 bool
 generic_sign_classad(ClassAd &ad, bool is_job_ad)
+{
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
+
 	char *sca_c = param( "SIGN_CLASSADS" );
 	if(sca_c == NULL) {
 		return true; // It's OK if the config file says not to sign.
@@ -952,6 +954,7 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 
 bool
 generic_verify_classad(ClassAd ad, bool is_job_ad)
+{
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 	char *vsca_c = param( "VERIFY_SIGNED_CLASSADS" );
 	if(vsca_c == NULL) {
