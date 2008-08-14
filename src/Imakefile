@@ -59,6 +59,12 @@
 #define TTProgs
 #endif
 
+#ifdef WANT_MINICA
+#define MCAProgs minica minica_client
+#else
+#define MCAProgs
+#endif
+
 #if HAVE_EXT_OPENSSL && HAVE_EXT_GSOAP
 #define EC2 amazon
 #else
@@ -74,7 +80,8 @@
 		CreddProgs StorkProgs \
 		TTProgs DeploymentTools \
 		eventd.V2 transferd procd privsep vm-gahp EC2 \
-		JobRouterProgs
+		JobRouterProgs \
+		MCAProgs
 
 #define Libraries \
 		util_lib daemon_core.V6 daemon_client classad c++_util	\
@@ -234,6 +241,11 @@ condor_object_target(quill)
 #ifdef WANT_TT
 condor_object_target(tt)
 condor_object_target(dbmsd)
+#endif
+
+#ifdef WANT_MINICA
+condor_object_target(minica)
+condor_object_target(minica_client)
 #endif
 
 condor_object_target(startd.V6)

@@ -1,0 +1,19 @@
+NAME = condor_minica_client
+all_target($(NAME))
+
+#if IS_CLIPPED
+CLIPPED = -DCLIPPED
+#endif
+
+CFLAGS = $(STD_C_FLAGS) $(CLIPPED)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) 
+LIB =$(STD_LIBS) -lcrypto -luuid
+
+OBJ = minica_client.o ../condor_minica/minica_common.o
+
+public_c_plus_target($(NAME),bin,$(OBJ),$(LIB))
+
+
+html:
+
+testbin:: all

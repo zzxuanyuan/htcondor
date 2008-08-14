@@ -2110,6 +2110,14 @@ AC_ARG_ENABLE([tt],
 AS_IF([test "x$enable_tt" = xyes],
   [AC_DEFINE([WANT_TT], [1], [Define if enabling TT])])
 
+AC_ARG_ENABLE([minica],
+  AC_HELP_STRING([--enable-minica],
+    [enable MiniCA functionality (default: yes)]),
+  [],
+  [enable_minica=yes])
+AS_IF([test "x$enable_minica" = xyes],
+  [AC_DEFINE([WANT_MINICA], [1], [Define if enabling MiniCA])])
+
 AC_ARG_ENABLE([kbdd],
   AC_HELP_STRING([--enable-kbdd],
     [enable KBDD functionality (default: platform dependent)]),

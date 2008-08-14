@@ -1,0 +1,18 @@
+NAME = condor_minica
+all_target($(NAME))
+
+CFLAGS = $(STD_C_FLAGS) 
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) 
+LIB = $(DAEMONCORE_LIB) $(STD_LIBS) -lcrypto
+
+soapobjs(minica)
+
+OBJ = ../condor_c++_util/Regex.o minica_server_main.o minica_common.o ui_callback.o $(SOAP_OBJS)
+
+public_c_plus_target($(NAME),sbin,$(OBJ),$(LIB))
+
+html:
+
+gen_soapfiles(minica,condorMinica)
+
+testbin:: all
