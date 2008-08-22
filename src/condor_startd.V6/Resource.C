@@ -1482,15 +1482,12 @@ Resource::publish( ClassAd* cap, amask_t mask )
 			// When we finally remove all the evil startd private ad
 			// junk this can go away, too.
 		if( r_pre_pre ) {
-			sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_pre_pre->id() );
-			cap->Insert( line );
+			cap->Assign( ATTR_CAPABILITY, r_pre_pre->id() );
 		}
 		else if( r_pre ) {
-			sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_pre->id() );
-			cap->Insert( line );
+			cap->Assign( ATTR_CAPABILITY, r_pre->id() );
 		} else if( r_cur ) {
-			sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_cur->id() );
-			cap->Insert( line );
+			cap->Assign( ATTR_CAPABILITY, r_cur->id() );
 		}		
 	}
 

@@ -81,6 +81,7 @@
 #include "condor_getcwd.h"
 #include "set_user_priv_from_ad.h"
 #include "classad_visa.h"
+#include "authentication.h"
 
 #if HAVE_DLOPEN
 #include "ScheddPlugin.h"
@@ -219,6 +220,26 @@ match_rec::match_rec( char* claim_id, char* p, PROC_ID* job_id,
 	auth_hole_id = NULL;
 
 	makeDescription();
+
+	if( param_boolean("SEC_SESSION_FROM_MATCH",false) ) {
+		if( secSessionId() == NULL ) {
+			dprintf(D_FULLDEBUG,"SEC_SESSION_FROM_MATCH: did not create security session from claim id, because claim id does not contain session information: %s\n",publicClaimId());
+		}
+		else {
+			bool rc = daemonCore->getSecMan()->CreateNonNegotiatedSecuritySession(
+				DAEMON,
+				secSessionId(),
+				secSessionKey(),
+				secSessionInfo(),
+				EXECUTE_SIDE_MATCHSESSION_FQU,
+				peer,
+				0 );
+
+			if( !rc ) {
+				dprintf(D_ALWAYS,"SEC_SESSION_FROM_MATCH: failed to create security session for %s, so will try to obtain a new security session\n",publicClaimId());
+			}
+		}
+	}
 }
 
 void
@@ -263,6 +284,10 @@ match_rec::~match_rec()
 		claim_requester->setMiscDataPtr( NULL );
 		claim_requester->cancelMessage();
 		claim_requester = NULL;
+	}
+
+	if( secSessionId() ) {
+		daemonCore->getSecMan()->invalidateKey(secSessionId());
 	}
 }
 
@@ -5311,12 +5336,12 @@ Scheduler::negotiate(int command, Stream* s)
 
 
 void
-Scheduler::vacate_service(int, Stream *sock)
+Scheduler::release_claim(int, Stream *sock)
 {
 	char	*claim_id = NULL;
 	match_rec *mrec;
 
-	dprintf( D_ALWAYS, "Got VACATE_SERVICE from %s\n", 
+	dprintf( D_ALWAYS, "Got RELEASE_CLAIM from %s\n", 
 			 sin_to_string(((Sock*)sock)->endpoint()) );
 
 	if (!sock->code(claim_id)) {
@@ -5329,16 +5354,15 @@ Scheduler::vacate_service(int, Stream *sock)
 		dedicated_scheduler.DelMrec( claim_id );
 	}
 	else {
-			// The startd has sent us VACATE_SERVICE
-			// (a.k.a. RELEASE_CLAIM) because it has destroyed the
-			// claim.  There is therefore no need for us to send
-			// RELEASE_CLAIM to the startd.
+			// The startd has sent us RELEASE_CLAIM because it has
+			// destroyed the claim.  There is therefore no need for us
+			// to send RELEASE_CLAIM to the startd.
 		mrec->needs_release_claim = false;
 
 		DelMrec( mrec );
 	}
 	FREE (claim_id);
-	dprintf (D_PROTOCOL, "## 7(*)  Completed vacate_service\n");
+	dprintf (D_PROTOCOL, "## 7(*)  Completed release_claim\n");
 	return;
 }
 
@@ -8776,7 +8800,7 @@ send_vacate(match_rec* match,int cmd)
 
 	msg->setSuccessDebugLevel(D_ALWAYS);
 	msg->setTimeout( STARTD_CONTACT_TIMEOUT );
-
+	msg->setSecSessionId( match->secSessionId() );
 
 		// Eventually we should keep info in the match record about if 
 		// the startd is able to receive incoming UDP (it will know
@@ -10548,9 +10572,9 @@ Scheduler::Register()
 			"reschedule_negotiator", this, WRITE);
 	 daemonCore->Register_Command( RECONFIG, "RECONFIG", 
 			(CommandHandler)&dc_reconfig, "reconfig", 0, OWNER );
-	 daemonCore->Register_Command(VACATE_SERVICE, "VACATE_SERVICE", 
-			(CommandHandlercpp)&Scheduler::vacate_service, 
-			"vacate_service", this, WRITE);
+	 daemonCore->Register_Command(RELEASE_CLAIM, "RELEASE_CLAIM", 
+			(CommandHandlercpp)&Scheduler::release_claim, 
+			"release_claim", this, WRITE);
 	 daemonCore->Register_Command(KILL_FRGN_JOB, "KILL_FRGN_JOB", 
 			(CommandHandlercpp)&Scheduler::abort_job, 
 			"abort_job", this, WRITE);
@@ -11341,6 +11365,7 @@ sendAlive( match_rec* mrec )
 	msg->setSuccessDebugLevel(D_PROTOCOL);
 	msg->setTimeout( STARTD_CONTACT_TIMEOUT );
 	msg->setStreamType( Stream::safe_sock );
+	msg->setSecSessionId( mrec->secSessionId() );
 
 	dprintf (D_PROTOCOL,"## 6. Sending alive msg to %s\n", mrec->description());
 

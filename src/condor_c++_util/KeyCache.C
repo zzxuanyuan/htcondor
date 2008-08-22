@@ -22,7 +22,7 @@
 #include "KeyCache.h"
 #include "CryptKey.h"
 
-KeyCacheEntry::KeyCacheEntry( char *id_param, struct sockaddr_in * addr_param, KeyInfo* key_param, ClassAd * policy_param, int expiration_param) {
+KeyCacheEntry::KeyCacheEntry( char const *id_param, struct sockaddr_in * addr_param, KeyInfo* key_param, ClassAd * policy_param, int expiration_param) {
 	if (id_param) {
 		_id = strdup(id_param);
 	} else {

@@ -2708,31 +2708,43 @@ AssignExpr(char const *variable,char const *value)
 	return Insert(buf.GetCStr());
 }
 
+char const *
+AttrList::EscapeStringValue(char const *val,MyString &buf) {
+	if( !strchr(val,'"') ) {
+		return val;
+	}
+	buf = val;
+	buf.replaceString("\"","\\\"");
+	return buf.Value();
+}
+
 /* This is used for %s = "%s" style constructs */
 int AttrList::
 Assign(char const *variable, MyString &value)
 {
-	MyString buf(variable);
-
-	if (value.IsEmpty()) {
-		buf += "=UNDEFINED";
-	} else {
-		buf += "=\"";
-		buf += value.EscapeChars("\"", '\\');
-		buf += "\"";
-	}
-
-	return Insert(buf.GetCStr());
+	return Assign(variable,value.Value());
 }
 
 /* This is used for %s = "%s" style constructs */
 int AttrList::
 Assign(char const *variable,char const *value)
 {
-	MyString tmp(value);
+	MyString buf(variable);
+	MyString escape_buf;
 
-	return Assign(variable, tmp);
+	value = EscapeStringValue(value,escape_buf);
+
+	if (!value) {
+		buf += "=UNDEFINED";
+	} else {
+		buf += "=\"";
+		buf += value;
+		buf += "\"";
+	}
+
+	return Insert(buf.Value());
 }
+
 int AttrList::
 Assign(char const *variable,int value)
 {
