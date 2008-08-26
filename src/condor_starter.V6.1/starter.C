@@ -47,6 +47,7 @@
 #include "starter_privsep_helper.h"
 #include "signed_classads.h"
 #include "globus_utils.h"
+#include "cred_chain.h"
 
 #if defined(HAVE_EXT_GLOBUS)
 #     include "globus_gsi_credential.h"
@@ -693,6 +694,9 @@ CStarter::createTempExecuteDir( void )
 int
 CStarter::jobEnvironmentReady( void )
 {
+	// IdA: this is where we do the additional delegation?
+
+
 		//
 		// The Starter will determine when the job 
 		// should be started. This method will always return 
@@ -1196,27 +1200,13 @@ CStarter::CheckCertChainPolicy()
 		dprintf(D_SECURITY, "Can't get proxy file from job ad.\n");
 		return false;
 	}
-	// TODO is there a race condition?  Do we need to do something to
-	// make sure this is the exact same as the signing proxy?
-	// This is done partly to activate_globus_gsi().
-	if( check_x509_proxy(proxy_file.Value()) != 0 ) {
-		dprintf(D_SECURITY, "Error with proxy file.\n");
-		return false;
-	}
+	CredChain cc(proxy_file.Value());
 
-	if(globus_gsi_cred_handle_attrs_init(&handle_attrs)) {
-		dprintf(D_SECURITY, "problem during internal initialization.\n");
-		goto cleanup;
+	if(cc.hasMatchingPolicy(policy_to_match)
+	   && (cc.getNumPolicies() == 1)) {
+		rv = true;
 	}
-	if(globus_gsi_cred_handle_init(&handle, handle_attrs)) {
-		dprintf(D_SECURITY, "problem during internal initialization.\n" );
-		goto cleanup;
-	}
-	if(globus_gsi_cred_read_proxy(handle, proxy_file.Value())) {
-		dprintf(D_SECURITY, "problem reading credential.\n");
-		goto cleanup;
-	}
-	
+/*
 	STACK *policies;
 	if(globus_gsi_cred_get_policies(handle, &policies)) {
 		dprintf(D_SECURITY, "Problem getting policies.\n");
@@ -1253,7 +1243,7 @@ CStarter::CheckCertChainPolicy()
 		globus_gsi_cred_handle_attrs_destroy(handle_attrs);
 	if(handle)
 		globus_gsi_cred_handle_destroy(handle);
-
+*/
 	return rv;
 }
 
