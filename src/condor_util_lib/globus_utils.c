@@ -533,7 +533,7 @@ check_x509_proxy( const char *proxy_file )
 
 #if defined(HAVE_EXT_GLOBUS)
 
-static int
+int
 buffer_to_bio( char *buffer, int buffer_len, BIO **bio )
 {
 	if ( buffer == NULL ) {
@@ -553,7 +553,7 @@ buffer_to_bio( char *buffer, int buffer_len, BIO **bio )
 	return TRUE;
 }
 
-static int
+int
 bio_to_buffer( BIO *bio, char **buffer, int *buffer_len )
 {
 	if ( bio == NULL ) {
@@ -917,6 +917,7 @@ x509_receive_delegation( const char *destination_file,
 	return rc;
 #endif
 }
+
 
 void parse_resource_manager_string( const char *string, char **host,
 									char **port, char **service,
