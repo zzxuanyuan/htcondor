@@ -38,3 +38,10 @@ bool generic_sign_classad(ClassAd &ad, bool is_job_ad);
 bool generic_verify_classad(ClassAd ad, bool is_job_ad);
 
 bool get_file_text(MyString &file_name, MyString &text);
+
+bool verify_classad(ClassAd& ad,
+					StringList &attributes_to_verify);
+
+bool text2classad(const MyString &text, ClassAd &ad);
+
+bool verify_certificate(X509 *cert);

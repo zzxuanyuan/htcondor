@@ -1,28 +1,27 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
-  *
-  * Condor Software Copyright Notice
-  * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
-  * University of Wisconsin-Madison, WI.
-  *
-  * This source code is covered by the Condor Public License, which can
-  * be found in the accompanying LICENSE.TXT file, or online at
-  * www.condorproject.org.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
-  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
-  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
-  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
-  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
-  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
-  * RIGHT.
-  *
-  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+ *
+ * Condor Software Copyright Notice
+ * Copyright (C) 1990-2006, Condor Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, WI.
+ *
+ * This source code is covered by the Condor Public License, which can
+ * be found in the accompanying LICENSE.TXT file, or online at
+ * www.condorproject.org.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
+ * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
+ * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
+ * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
+ * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
+ * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
+ * RIGHT.
+ *
+ ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-
 #include "MyString.h"
 #include "condor_debug.h"
 #include "condor_classad.h"
@@ -31,11 +30,23 @@
 #include "condor_attributes.h"
 #include "openssl_helpers.h"
 
+#include "globus_utils.h"
+#if defined(HAVE_EXT_GLOBUS)
+#     include "globus_gsi_credential.h"
+#     include "globus_gsi_system_config.h"
+#     include "globus_gsi_system_config_constants.h"
+#     include "gssapi.h"
+#     include "globus_gss_assist.h"
+#     include "globus_gsi_proxy.h"
+#endif
+
+
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 #include "openssl/evp.h"
 #include "openssl/err.h"
 #include "openssl/pem.h"
 #include "condor_auth_ssl.h"
+
 
 void
 print_ad(ClassAd ad) 
@@ -994,3 +1005,344 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 #endif // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 }
 
+bool 
+host_sign_key(char *& policy, EVP_PKEY *proxy_pubkey) {
+	ClassAd policy_ad;
+	BIO *mb;
+	MyString classad_text;
+
+	mb = BIO_new(BIO_s_mem());
+	if(!mb) {
+		dprintf(D_SECURITY, "Error getting memory buffer for signing proxy.\n");
+		return false;
+	}
+	PEM_write_bio_PUBKEY(mb, proxy_pubkey);
+	char *buffer = NULL;
+	int buffer_len = 0;
+	if(FALSE == bio_to_buffer(mb, &buffer, &buffer_len)) {
+		dprintf(D_SECURITY, "Error getting buffer from bio.\n");
+		return false;
+	}
+	StringList to_sign;
+	to_sign.insert("ProxyPublicKey");
+	policy_ad.Assign("ProxyPublicKey", buffer);
+	to_sign.insert("Assertion");
+	policy_ad.Assign("Assertion","Private key associated with ProxyPublicKey is present on signing host.");
+
+	policy_ad.SetMyTypeName("Machine");
+	MyString host_cert_file;
+	host_cert_file = get_signing_certfile(true, policy_ad);
+	MyString host_key_file;
+	host_key_file = get_signing_keyfile(true, policy_ad);
+/*
+	MyString host_cert_text;
+	if(!get_file_text(host_certificate_file, host_cert_text)) {
+		dprintf(D_SECURITY, "Error getting host certificate text.\n");
+		return false;
+	}
+	to_sign.insert("HostCertificate");
+	policy_ad.Assign("HostCertificate", host_cert_text);*/
+
+	if(!sign_classad(policy_ad, to_sign, host_key_file, host_cert_file)) {
+		dprintf(D_SECURITY, "error signing service policy.\n");
+		return false;
+	}
+	policy_ad.sPrint(classad_text);
+	policy = strdup(classad_text.Value());
+	return true;
+}
+
+bool
+verify_certificate(X509 *cert)
+{
+    int ret = false;
+    X509_STORE *store;
+    X509_STORE_CTX *ctx;
+
+    ctx = X509_STORE_CTX_new();
+    store = X509_STORE_new();
+    X509_STORE_set_default_paths(store);
+    //X509_STORE_add_cert(store, pnca_cert);
+	char *tmp = param("GSI_DAEMON_DIRECTORY");
+	if(!tmp) {
+		dprintf(D_SECURITY, "Can't get GSI_DAEMON_DIRECTORY to verify certificate.\n");
+	} else {
+		X509_STORE_load_locations(store, NULL, tmp);
+		free(tmp);
+		X509_STORE_CTX_init(ctx, store, cert, NULL);
+		if (!X509_verify_cert(ctx)) {
+			dprintf(D_SECURITY, "Error verifying signature on issued certificate:\n");
+			// openssl helper use here.
+			ERR_print_errors_fp (stderr);
+		} else {
+			ret = true;
+		}
+	}
+	X509_STORE_CTX_free(ctx);
+	X509_STORE_free(store);
+	
+    return ret;
+}
+
+int
+x509_self_delegation( const char *proxy_file, const char *host_file, const char *tsp, const char *policy_oid )
+{
+#if !defined(HAVE_EXT_GLOBUS)
+
+	_globus_error_message = "This version of Condor doesn't support X509 credentials!" ;
+	return -1;
+
+#else
+	int rc = 0;
+	int error_line = 0;
+	globus_result_t result = GLOBUS_SUCCESS;
+	globus_gsi_cred_handle_t source_cred =  NULL;
+	globus_gsi_cred_handle_t host_cred = NULL;
+	globus_gsi_proxy_handle_t new_proxy = NULL;
+	BIO *bio = NULL;
+	X509 *cert = NULL;
+	STACK_OF(X509) *cert_chain = NULL;
+	int idx = 0;
+	globus_gsi_cert_utils_cert_type_t cert_type;
+	globus_gsi_cred_handle_t proxy_handle =  NULL;
+	globus_gsi_proxy_handle_t request_handle = NULL;
+	char *policy = NULL;
+	int policy_nid = 0;
+	EVP_PKEY *req_pubkey;
+	X509_REQ *req;
+	char *buffer;
+	int buffer_len;
+
+/*	if ( activate_globus_gsi() != 0 ) {
+		return -1;
+	}
+*/
+
+	result = globus_gsi_cred_handle_init( &source_cred, NULL );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	result = globus_gsi_proxy_handle_init( &new_proxy, NULL );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	result = globus_gsi_cred_read_proxy( source_cred, proxy_file );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	result = globus_gsi_proxy_handle_init( &request_handle, NULL );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	bio = BIO_new( BIO_s_mem() );
+	if ( bio == NULL ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	result = globus_gsi_proxy_create_req( request_handle, bio );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	bio_to_buffer(bio, &buffer, &buffer_len);
+
+	req = NULL;
+	if(!d2i_X509_REQ_bio(bio, &req)) {
+		rc = -1;
+		error_line = __LINE__;
+		//dprintf(D_SECURITY, "Error!\n");
+		goto cleanup;
+	}
+
+	BIO_free(bio);
+	bio = NULL;
+	buffer_to_bio(buffer, buffer_len, &bio);
+
+	result = globus_gsi_proxy_inquire_req( new_proxy, bio );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+	/* So, bio_to_buffer here, parse the buffer once using openssl */
+
+	BIO_free( bio );
+	bio = NULL;
+	// X509_REQ *d2i_X509_REQ_bio(BIO *bp, X509_REQ **x);
+
+	req_pubkey = X509_REQ_get_pubkey(req);
+	if(tsp) {
+		policy = strdup(tsp);
+	} else {
+		if(!host_sign_key(policy, req_pubkey)) {
+			dprintf(D_ALWAYS, "Error, can't get host to sign policy.\n");
+		}
+	}
+	policy_nid = OBJ_ln2nid(policy_oid);
+
+		// modify certificate properties
+		// set the appropriate proxy type
+	result = globus_gsi_cred_get_cert_type( source_cred, &cert_type );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+	switch ( cert_type ) {
+	case GLOBUS_GSI_CERT_UTILS_TYPE_CA:
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	case GLOBUS_GSI_CERT_UTILS_TYPE_EEC:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_GSI_3_INDEPENDENT_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_GSI_3_RESTRICTED_PROXY:
+		cert_type = GLOBUS_GSI_CERT_UTILS_TYPE_GSI_3_IMPERSONATION_PROXY;
+		break;
+	case GLOBUS_GSI_CERT_UTILS_TYPE_RFC_INDEPENDENT_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_RFC_RESTRICTED_PROXY:
+		cert_type = GLOBUS_GSI_CERT_UTILS_TYPE_RFC_IMPERSONATION_PROXY;
+		break;
+	case GLOBUS_GSI_CERT_UTILS_TYPE_GSI_3_IMPERSONATION_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_GSI_3_LIMITED_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_GSI_2_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_GSI_2_LIMITED_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_RFC_IMPERSONATION_PROXY:
+	case GLOBUS_GSI_CERT_UTILS_TYPE_RFC_LIMITED_PROXY:
+	default:
+			// Use the same certificate type
+		break;
+	}
+
+	if( policy != NULL ) {
+		cert_type = GLOBUS_GSI_CERT_UTILS_TYPE_RFC_RESTRICTED_PROXY;
+	}
+
+	result = globus_gsi_proxy_handle_set_type( new_proxy, cert_type );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	if( policy != NULL ) {
+		result = globus_gsi_proxy_handle_set_policy( new_proxy,
+													 (unsigned char *)policy,
+													 strlen(policy),
+													 policy_nid );
+		if( result != GLOBUS_SUCCESS ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
+	}
+
+	/* TODO Do we have to destroy and re-create bio, or can we reuse it? */
+	bio = BIO_new( BIO_s_mem() );
+	if ( bio == NULL ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	result = globus_gsi_proxy_sign_req( new_proxy, source_cred, bio );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+		// Now we need to stuff the certificate chain into in the bio.
+		// This consists of the signed certificate and its whole chain.
+	result = globus_gsi_cred_get_cert( source_cred, &cert );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+	i2d_X509_bio( bio, cert );
+	X509_free( cert );
+	cert = NULL;
+
+	result = globus_gsi_cred_get_cert_chain( source_cred, &cert_chain );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	for( idx = 0; idx < sk_X509_num( cert_chain ); idx++ ) {
+		X509 *next_cert;
+		next_cert = sk_X509_value( cert_chain, idx );
+		i2d_X509_bio( bio, next_cert );
+	}
+	sk_X509_pop_free( cert_chain, X509_free );
+	cert_chain = NULL;
+
+	result = globus_gsi_proxy_assemble_cred( request_handle, &proxy_handle,
+											 bio );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	/* globus_gsi_cred_write_proxy() declares its second argument non-const,
+	 * but never modifies it. The cast gets rid of compiler warnings.
+	 */
+	result = globus_gsi_cred_write_proxy( proxy_handle, (char *)proxy_file );
+	if ( result != GLOBUS_SUCCESS ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+ cleanup:
+	/* TODO Extract Globus error message if result isn't GLOBUS_SUCCESS */
+	if ( error_line ) {
+		char buff[1024];
+		snprintf( buff, sizeof(buff), "x509_self_delegation failed "
+				  "at line %d", error_line );
+		dprintf(D_SECURITY, "Error: %s\n", buff );
+	}
+
+	if ( bio ) {
+		BIO_free( bio );
+	}
+	if ( request_handle ) {
+		globus_gsi_proxy_handle_destroy( request_handle );
+	}
+	if ( proxy_handle ) {
+		globus_gsi_cred_handle_destroy( proxy_handle );
+	}
+	if ( new_proxy ) {
+		globus_gsi_proxy_handle_destroy( new_proxy );
+	}
+	if ( source_cred ) {
+		globus_gsi_cred_handle_destroy( source_cred );
+	}
+	if ( cert ) {
+		X509_free( cert );
+	}
+	if ( cert_chain ) {
+		sk_X509_pop_free( cert_chain, X509_free );
+	}
+
+	return rc;
+#endif
+}
