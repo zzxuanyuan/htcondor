@@ -20,5 +20,6 @@
 #if defined(HAVE_EXT_OPENSSL)
 
 char *get_hash_of_file(const char *file_name, const char *hash_type);
+char *get_hash_of_string(const char *string, const char *hash_type);
 
 #endif /* defined(HAVE_EXT_OPENSSL) */

@@ -137,4 +137,38 @@ get_hash_of_file(const char *file_name, const char *hash_type)
 	return NULL;
 }
 
+char *
+get_hash_of_string(const char *input, const char *type) 
+{
+	EVP_MD_CTX ctx;
+	const EVP_MD *md;
+	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int len;
+	int i;
+	char *rv = NULL;
+	if(input == NULL) {
+		return NULL;
+	}
+
+	md = EVP_get_digestbyname(type);
+	if(!md) {
+		dprintf(D_ALWAYS, "Can't get digest type '%s'\n", type);
+		return NULL;
+	}
+	EVP_MD_CTX_init(&ctx);
+	EVP_DigestInit_ex(&ctx, md, NULL);
+	EVP_DigestUpdate(&ctx, input, strlen(input));
+	EVP_DigestFinal_ex(&ctx, md_value, &len);
+	EVP_MD_CTX_cleanup(&ctx);
+
+	rv = (char *)malloc(2*len+1);
+	for(i = 0; i < len; i++) {
+		sprintf(rv+i*2, "%02x", md_value[i]);
+	}
+
+	return rv;
+}
+
+
+
 #endif /* defined(HAVE_EXT_OPENSSL) */
