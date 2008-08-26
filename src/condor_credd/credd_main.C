@@ -77,9 +77,14 @@ main_init( int argc, char ** const argv )
 
 	// Setup dprintf to display pid
 	DebugId = display_dprintf_header;
-
+	//_ssTable = new HashTable<MyString, MyString>( 127, &MyStringHash, rejectDuplicateKeys );
 	Init();
 	Register();
+	if (!SetupSecretsTable()) {
+		dprintf(D_ALWAYS, "Unable to setup hashtable\n");
+		return FALSE;
+	}
+
 	if (!LoadCredentialList()) {
 	  dprintf (D_ALWAYS, "Unable to Load Credentials\n");
 	  return FALSE;
@@ -106,6 +111,18 @@ Register() {
   daemonCore->Register_Command(CREDD_QUERY_CRED, "CREDD_QUERY_CRED",
                                (CommandHandler)&query_cred_handler,
                                "query_cred_handler", NULL,WRITE);
+
+  daemonCore->Register_Command(CREDD_STORE_SS, "CREDD_STORE_SS",
+							   (CommandHandler)&store_ss_handler,
+							   "store_ss_handler", NULL, WRITE);
+
+  daemonCore->Register_Command(CREDD_GET_SS, "CREDD_GET_SS",
+							   (CommandHandler)&get_ss_handler,
+							   "get_ss_handler", NULL, WRITE);
+
+//  daemonCore->Register_Command(CREDD_REMOVE_SS, "CREDD_REMOVE_SS",
+//							   (CommandHandler)&remove_ss_handler,
+//							   "remove_ss_handler", NULL, WRITE);
 
   CheckCredentials_tid = daemonCore->Register_Timer( 1, 
 						     CheckCredentials_interval,

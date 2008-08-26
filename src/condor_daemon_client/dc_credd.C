@@ -27,6 +27,7 @@
 #include "dc_credd.h"
 #include "../condor_c++_util/X509credential.h"
 #include "simplelist.h"
+#include "../condor_credd/credd_constants.h"
 
 
 #include "../condor_c++_util/credential.h"
@@ -45,6 +46,126 @@ DCCredd::DCCredd( const char* tName, const char* tPool )
 DCCredd::~DCCredd( void )
 {
 }
+
+bool
+DCCredd::storeSharedSecret (const char *data,
+							MyString ssn,
+							CondorError & condor_error) {
+	ReliSock *rsock = NULL;
+	int rc = 1;
+	char *tmp; // for de consting.
+	char *ss_name = NULL;
+
+	rsock = (ReliSock *)startCommand(CREDD_STORE_SS,
+									 Stream::reli_sock, 20,
+									 &condor_error);
+	if(!rsock) {
+		goto EXIT;
+	}
+	if(!forceAuthentication( rsock, &condor_error )) {
+		goto EXIT;
+	}
+
+	rsock->encode();
+	tmp = strdup(data);
+	if(!tmp) {
+		condor_error.pushf("DC_CREDD", 3,
+						   "Malloc error: %s", strerror(errno));
+		goto EXIT;
+	}
+	if(!rsock->code(tmp)) {
+		condor_error.pushf("DC_CREDD", 4,
+						   "Communication error, send shared secret: %s",
+						   strerror(errno));
+		free(tmp);
+		goto EXIT;
+	}
+	free(tmp);
+
+/*	tmp = strdup(ss_name);
+	if(!tmp) {
+		condor_error.pushf("DC_CREDD", 5,
+						   "Malloc error: %s", strerror(errno));
+		goto EXIT;
+	}
+	if(!rsock->code(tmp)) {
+		condor_error.pushf("DC_CREDD", 6,
+						   "Communication error, send name "
+						   "for shared secret: %s",
+						   strerror(errno));
+		free(tmp);
+		goto EXIT;
+	}
+	free(tmp); 
+*/
+
+	rsock->eom();
+	rsock->decode();
+	rsock->code(rc);
+	if(!rc) {
+		rsock->code(ss_name);
+		ssn = ss_name;
+		free(ss_name);
+	}
+	rsock->close();
+	if(rc) {
+		condor_error.pushf("DC_CREDD", 7, "Invalid CredD return code (%d)", rc);
+	}
+ EXIT:
+	if(rsock) delete rsock;
+	return (rc == 0) ? true : false;
+}
+
+bool 
+DCCredd::getSharedSecret(const char *cred_name,
+						 void *&shared_secret,
+						 CondorError & condor_error) {
+	locate();
+	ReliSock rsock;
+	rsock.timeout(20);
+	int rc = 1;
+	char * secret_str = NULL;
+	if(!rsock.connect(_addr)) {
+		condor_error.pushf("DC_CREDD", 1, "Failed connect to CredD %s", _addr);
+		return false;
+	}
+
+	if(!startCommand(CREDD_GET_SS, (Sock*)&rsock)) {
+		condor_error.pushf("DC_CREDD", 2, "Failed to start command CREDD_GET_SS");
+		return false;
+	}
+
+	if(!forceAuthentication(&rsock, &condor_error)) {
+		return false;
+	}
+
+	rsock.encode();
+	char *tmp = strdup(cred_name);
+	rsock.code(tmp);
+	free(tmp);
+	rsock.eom();
+
+	rsock.decode();
+
+	if(!rsock.code(rc)) {
+		condor_error.pushf("DC_CREDD", 3, "Failed to receive response code");
+		return false;
+	}
+	if(rc != CREDD_SUCCESS) {
+		condor_error.pushf("DC_CREDD", 4, "CredD Response code %d"
+						   " - read cred_constants.h (sorry)", rc);
+		return false;
+	}
+
+	// This gets malloc'd by the called function since it's NULL.
+	if(!rsock.code(secret_str)) {
+		condor_error.pushf("DC_CREDD", 5, "Failed to receive shared secret");
+		return false;
+	}
+	shared_secret = secret_str;
+	rsock.close();
+	return true;
+}					 
 
 bool 
 DCCredd::storeCredential (Credential * cred,

@@ -59,5 +59,14 @@ public:
 
 	bool removeCredential (const char * cred_name,
 						   CondorError & error);
+
+	bool storeSharedSecret (const char *secret,
+							MyString ssn,
+							CondorError & error);
+
+	bool getSharedSecret (const char *cred_name,
+						  void *&shared_secret,
+						  CondorError & condor_error);
+
 };
 #endif /* _CONDOR_DC_CREDD_H */

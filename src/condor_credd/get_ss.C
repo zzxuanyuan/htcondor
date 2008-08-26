@@ -17,17 +17,33 @@
  *
  ***************************************************************/
 
-#ifndef CREDD_CONSTANTS_H
-#define CREDD_CONSTANTS_H
+#include "condor_common.h"
+#include "condor_daemon_core.h"
+#include "daemon.h"
+#include "X509credential.h"
+#include "dc_credd.h"
 
-#define CREDD_SUCCESS 0
+int main(int argc, char **argv)
+{
+  char * credd_sin = argv[1];
+  char * cred_name = argv[2];
 
-#define CREDD_CREDENTIAL_NOT_FOUND 1
-#define CREDD_ERROR_CREDENTIAL_ALREADY_EXISTS 2
-#define CREDD_ERROR_NOT_AUTHORIZED 3
-#define CREDD_UNABLE_TO_STORE 4
-#define CREDD_ERROR_SECRET_NAME_ALREADY_EXISTS 5
-// catchall
-#define CREDD_FAILURE 10 
+  CondorError errorstack;
+  char * shared_secret = NULL;
+  int secret_size = 0;
 
-#endif
+  DCCredd credd(credd_sin);
+  if (credd.getSharedSecret((const char*)cred_name, 
+							(void*&)shared_secret, 
+							errorstack)) {
+      printf ("Received %d \n%s\n", secret_size, shared_secret);
+	  return 0;
+  } else {
+	  fprintf (stderr, "ERROR (%d : %s)\n", 
+			   errorstack.code(),
+			   errorstack.message());
+	  return 1;
+  }
+}
+
+  

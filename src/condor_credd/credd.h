@@ -30,6 +30,8 @@
 
 int CheckCredentials ();
 
+int SetupSecretsTable();
+
 int LoadCredentialList ();
 int SaveCredentialList ();
 
@@ -47,6 +49,12 @@ rm_cred_handler(Service * service, int i, Stream *socket);
 
 int
 query_cred_handler(Service * service, int i, Stream *stream);
+
+int
+store_ss_handler(Service * service, int i, Stream *socket);
+
+int
+get_ss_handler(Service *service, int i, Stream *socket);
  
 
 int 

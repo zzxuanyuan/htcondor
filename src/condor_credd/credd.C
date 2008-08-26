@@ -42,6 +42,13 @@
 #include "globus_utils.h"
 #include "condor_string.h"
 #include "condor_mkstemp.h"
+#include "HashTable.h"
+#include "cred_chain.h"
+#include "cr_hash.h"
+#include "signed_classads.h"
+#define WANT_CLASSAD_NAMESPACE
+#undef open
+#include "classad/classad_distribution.h"
 
 #define MAX_CRED_DATA_SIZE 100000
 #define DEF_CRED_CHECK_INTERVAL		60	/* seconds */
@@ -58,6 +65,280 @@ char * cred_index_file = NULL;
 int CheckCredentials_interval;
 
 int default_cred_expire_threshold;
+
+//template class HashTable<MyString, MyString>;
+
+HashTable<MyString, MyString> *_ssTable;// = new HashTable<MyString, MyString>( 127, &MyStringHash, rejectDuplicateKeys );
+
+	/* It would be a good to retrieve info about the certificate and
+	   the policy, and to make sure that the delegated chain has an
+	   AAE about shared secrets or execution hosts or something.  
+
+	   But for now, we'll just let anyone who can authenticate give us
+	   a shared secret, and we'll just store it and let the get method
+	   implement determining whether they can have it.
+	*/
+
+	/* There'll be an _ssTable created as follows:
+
+	_ssTable = new HashTable<MyString, MyString>
+	    ( 127, &MyStringHash, disallowDuplicateKeys );
+	ASSERT( _ssTable );
+
+	If we successfully get a name and a secret, we put it into
+	the hash table like this: _ssTable->insert( name, secret );
+
+	When we want to get it out, we use: _ssTable->lookup( name, secret );
+	(See env.C -- Env::GetEnv.)
+	
+	*/
+
+
+int 
+store_ss_handler(Service * service, int i, Stream *stream) {
+	char *secret = NULL;
+	char *ss_name = NULL;
+	MyString ss;
+	MyString ssn;
+	const char *user = NULL;
+	ReliSock * socket = (ReliSock*)stream;
+	int rc = CREDD_FAILURE;
+	const char *cred = NULL;
+	MyString *policy;
+
+	if( !socket->isAuthenticated() ) {
+		CondorError errstack; // What's the use of this?
+		if( !SecMan::authenticate_sock(socket, WRITE, &errstack) ) {
+			dprintf(D_ALWAYS, "Unable to authenticate, quitting.\n");
+			return CREDD_FAILURE;
+		}
+	}
+
+	user = socket->getFullyQualifiedUser();
+	dprintf(D_FULLDEBUG, "Store Secret request from %s, %s\n",
+			socket->getOwner(), user);
+
+	cred = socket->getRemoteCred();
+	dprintf(D_FULLDEBUG, "Got cred: '%s'\n", cred);
+	MyString cms = cred;
+	//free(cred);
+
+	CredChain cc(cms);
+
+	socket->decode();
+
+	if(!socket->code(secret)) {
+		dprintf(D_ALWAYS, "Error receiving shared secret.\n");
+		goto EXIT;
+	}
+/*	if(!socket->code(ss_name)) {
+		dprintf(D_ALWAYS, "Error receiving ss name.\n");
+		goto EXIT;
+	}
+*/
+
+	socket->eom();
+	socket->encode();
+
+	// Here's where we check the tspc to find the policy.
+	if(cc.getNumPolicies() != 1) {
+		dprintf(D_ALWAYS, "Wrong number of policies: %d\n", cc.getNumPolicies());
+		goto EXIT;
+	}
+	/* In order to store the secret, we want a checksum of the policy. */
+	policy = cc.getFirstPolicy();
+	if(policy->GetCStr() == NULL) {
+		dprintf(D_ALWAYS, "Can't get policy.\n");
+		goto EXIT;
+	}
+	dprintf(D_ALWAYS, "Policy: '%s'\n", policy->Value());
+	ss_name = get_hash_of_string(policy->Value(), "sha1");
+	if(!ss_name) {
+		dprintf(D_ALWAYS, "Can't get hash of policy: '%s'\n", policy->Value());
+		goto EXIT;
+	}
+	delete(policy);
+	ss = secret;
+	if(_ssTable->insert(ss_name, secret)) {// TODO what does this really return?
+		dprintf(D_ALWAYS, "Error inserting secret with name '%s' into"
+				" hash table: collision.\n", ss_name);
+		rc = CREDD_ERROR_SECRET_NAME_ALREADY_EXISTS;
+		socket->code(rc);
+		goto EXIT;
+	}
+	rc = CREDD_SUCCESS;
+	socket->code(rc);
+	socket->code(ssn);
+	socket->close();
+
+	dprintf(D_ALWAYS, "Credential named '%s' stored.\n", ss_name);
+
+ EXIT:
+	if(secret != NULL) {
+		free(secret);
+	}
+	if(ss_name != NULL) {
+		free(ss_name);
+	}
+	return (rc == CREDD_SUCCESS) ? TRUE : FALSE;
+}
+
+int 
+get_ss_handler(Service * service, int i, Stream *stream) {
+	char *ss_name = NULL;
+	MyString ss;
+	MyString ssn;
+	const char *user = NULL;
+	ReliSock * socket = (ReliSock*)stream;
+	int rc = CREDD_FAILURE;
+	int t, htrv;
+	char *tmp;
+	char *cred;
+
+	if( !socket->isAuthenticated() ) {
+		CondorError errstack; // What's the use of this?
+		if( !SecMan::authenticate_sock(socket, WRITE, &errstack) ) {
+			dprintf(D_ALWAYS, "Unable to authenticate, quitting.\n");
+			return FALSE;
+		}
+	}
+
+	user = socket->getFullyQualifiedUser();
+	dprintf(D_FULLDEBUG, "Get secret request from %s, %s\n",
+			socket->getOwner(), user);
+
+	socket->decode();
+
+	if(!socket->code(ss_name) || !ss_name) {
+		dprintf(D_ALWAYS, "Error receiving secret's name.\n");
+		if(ss_name) {
+			free(ss_name);
+		}
+		return FALSE;
+	}
+	socket->eom();
+	socket->encode();
+
+	/* Here's how this should work: instead of the client sending the
+	   secret name, the server should calculate the secret name by
+	   hashing the TSPCertificate.  This hash will be present also when
+	   the retrieval is done (but the retrieval isn't done by name but
+	   rather just as a request.  It's the certificate chain that's
+	   the ticket.  
+	*/
+	MyString full_cred = socket->getRemoteCred();
+	CredChain cc(full_cred);
+	MyString *tsp = cc.getFirstPolicy();
+	MyString *ssp = cc.getLastPolicy();
+	ClassAd tsp_ad;
+	if(!text2classad(tsp->Value(),tsp_ad)) {
+		dprintf(D_ALWAYS, "Error converting text to ClassAd.\n");
+		return FALSE;
+	}
+	ClassAd ssp_ad;
+	if(!text2classad(ssp->Value(), ssp_ad)) {
+		dprintf(D_ALWAYS, "Error converting ssp text to ClassAd.\n");
+		return FALSE;
+	}
+	char *tsp_hash = get_hash_of_string(tsp->GetCStr(), "sha1");
+	if(tsp_hash) {
+		dprintf(D_ALWAYS, "Error getting hash of tsp.\n");
+		return FALSE;
+	}
+	MyString aae;
+	bool aae_result;
+	MyString execution_host;
+
+	// Sanity check on cc: make sure there are two policies: TSP and SSP.
+	if(cc.getNumPolicies() != 2) {
+		dprintf(D_ALWAYS, "Incorrect number of policies in credential chain: %d\n", cc.getNumPolicies());
+		goto EXIT;
+	}
+
+    /* First, verify that the hashed TSP is the same as the name. */
+
+	if(!tsp_hash) {
+		dprintf(D_ALWAYS, "Can't get hash of policy '%s'\n", tsp->Value());
+		goto EXIT;
+	}
+	if(!strcmp(tsp_hash, ssn.Value())) {
+		dprintf(D_ALWAYS, "Requested secret name doesn't match the one in the requesting"
+				" credential chain.\n");
+		goto EXIT;
+	}
+	
+	/* Second, check that the tsp's policy contains an aae.	*/
+	if(!tsp_ad.LookupString("EXECUTION_HOST_AAE",aae)) {
+		dprintf(D_ALWAYS, "Execution host aae not present.\n");
+		goto EXIT;
+	}
+	
+    /*
+	   Third, verify the execution_host_aae:
+
+	   This will involve constructing a classad from the policy
+	   contained in the TSP, and then adding attributes.  
+
+	   The attribute "execution_host" is calculated from the SSP.
+
+	   Once the attribute(s) is added, the TSP classad AAE is
+	   evaluated, to determine whether the requester should get the
+	   secret.
+
+	*/
+	execution_host = cc.getExecutionHostDN();
+	tsp_ad.Insert("EXECUTION_HOST", execution_host.Value());
+	aae_result = false;
+
+    // How to do this?
+/*	if(!tsp_ad.EvaluateAttrBool("EXECUTION_HOST_AAE", aae_result) || aae_result != true) {
+		dprintf(D_ALWAYS, "AAE not satisfied.\n");
+		goto EXIT;
+	}
+*/
+	ssn = ss_name;
+	htrv = _ssTable->lookup(ssn, ss);
+	switch(htrv) {
+	case 0:
+		dprintf(D_ALWAYS,"Retrieved secret with name '%s'.\n", ss_name);
+		t = CREDD_SUCCESS;
+		if(!socket->code(t)) {
+			dprintf(D_ALWAYS, "Error sending success response code.\n");
+			goto EXIT;
+		}
+		tmp = strdup(ss.Value());
+		if(!tmp) {
+			dprintf(D_ALWAYS, "Malloc failure!\n");
+			goto EXIT;
+		}
+		if(!socket->code(tmp)) {
+			dprintf(D_ALWAYS, "Error sending secret.\n");
+			free(tmp);
+			goto EXIT;
+		}
+		free(tmp);
+		rc = CREDD_SUCCESS;
+		_ssTable->remove(ssn);
+		dprintf(D_ALWAYS, "Successfully deleted '%s' from hashtable.\n",
+				ss_name);
+		break;
+	default:
+		dprintf(D_ALWAYS, "Secret not found for name '%s'.\n", ss_name);
+		t = CREDD_CREDENTIAL_NOT_FOUND;
+		if(!socket->code(t)) {
+			dprintf(D_ALWAYS, "Error sending credential not found.");
+			goto EXIT;
+		}
+		break;
+	}
+
+ EXIT:
+	if(ss_name) {
+		free(ss_name);
+	}
+	socket->close();
+	return (rc == CREDD_SUCCESS) ? TRUE : FALSE;
+}
 
 
 int 
@@ -162,6 +443,9 @@ store_cred_handler(Service * service, int i, Stream *stream) {
 		  break; // found it
 	  }
   }
+
+  // Zach: this one's for you!
+  socket->eom();
 
   if (found_cred) {
 	  dprintf (D_ALWAYS, "Credential %s for owner %s already exists!\n", 
@@ -548,6 +832,12 @@ SaveCredentialList() {
   
   set_priv (priv);
   return TRUE;
+}
+
+int
+SetupSecretsTable() {
+	_ssTable = new HashTable<MyString, MyString>( 127, &MyStringHash, rejectDuplicateKeys );
+	return TRUE;
 }
 
 int
