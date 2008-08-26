@@ -278,6 +278,17 @@ int is_globus_friendly_url(const char * path);
 int check_globus_rm_contacts( char* resource );
 #endif
 
+#if defined(HAVE_EXT_GLOBUS)
+#include <openssl/bio.h>
+
+int 
+buffer_to_bio( char *buffer, int buffer_len, BIO **bio );
+
+int 
+bio_to_buffer( BIO *bio, char **buffer, int *buffer_len );
+
+#endif /* defined(HAVE_EXT_GLOBUS */
+
 END_C_DECLS
 
 #endif
