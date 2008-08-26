@@ -139,7 +139,7 @@ RemoteResource::activateClaim( int starterVersion )
 	    (jobAd->LookupString( ATTR_X509_USER_PROXY, &proxy ) == 1) ) {
 		dprintf( D_FULLDEBUG,
 	                 "trying early delegation (for glexec) of proxy: %s\n", proxy );
-		// IdA: when the shadow delegates to the startd(?), we don't add any policy.
+		// IdA: when the shadow delegates to the starter, we don't add any policy.
 		int dReply = dc_startd->delegateX509Proxy( proxy, NULL, 0 );
 		if( dReply == OK ) {
 			// early delegation was successful. this means the startd
