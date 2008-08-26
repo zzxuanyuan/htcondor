@@ -702,6 +702,13 @@ int Condor_Auth_X509::authenticate_client_gss(CondorError* errstack)
             goto clear; 
         }
 
+		gss_buffer_desc buf;
+		OM_uint32 maj_stat;
+		OM_uint32 min_stat;
+		maj_stat = gss_export_cred(&min_stat, credential_handle, GSS_C_NO_OID, 0, &buf);
+		dprintf(D_ALWAYS, "Got credential: '%s'\n", (char *)buf.value);
+		setRemoteCredential((char *)buf.value);
+
         char * server = get_server_info();
 
 		// store the raw subject name for later mapping
@@ -840,6 +847,14 @@ int Condor_Auth_X509::authenticate_server_gss(CondorError* errstack)
             }
         }
         
+		gss_buffer_desc buf;
+		OM_uint32 maj_stat;
+		OM_uint32 min_stat;
+		maj_stat = gss_export_cred(&min_stat, credential_handle, GSS_C_NO_OID, 0, &buf);
+		
+		dprintf(D_ALWAYS, "Got credential: '%s'\n", (char *)buf.value);
+		setRemoteCredential((char *)buf.value);
+
         if (GSSClientname) {
             free(GSSClientname);
         }

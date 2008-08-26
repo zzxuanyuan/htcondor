@@ -608,6 +608,19 @@ const char * Authentication::getOwner() const
 #endif  
 }               
 
+const char * Authentication::getRemoteCred() const
+{
+#if defined(SKIP_AUTHENTICATION)
+	return NULL;
+#else
+	if(authenticator_) {
+		return authenticator_->getRemoteCredential();
+	} else {
+		return NULL;
+	}
+#endif
+}
+
 const char * Authentication::getFullyQualifiedUser() const
 {
 #if defined(SKIP_AUTHENTICATION)

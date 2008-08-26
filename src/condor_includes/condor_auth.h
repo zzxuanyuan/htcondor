@@ -169,6 +169,8 @@ class Condor_Auth_Base {
     //          const char * -- name of the remote domain
     //------------------------------------------
 
+	const char * getRemoteCredential() const;
+
     Condor_Auth_Base& setAuthenticated(int authenticated);
     //------------------------------------------
     // PURPOSE: Set the state of authentication
@@ -189,6 +191,8 @@ class Condor_Auth_Base {
     // REQUIRE: Name of the remote domain
     // RETUNRS: None (this)
     //------------------------------------------
+
+	Condor_Auth_Base& setRemoteCredential(const char *cred);
 
  protected:
 
@@ -231,6 +235,7 @@ class Condor_Auth_Base {
     char *          localDomain_;    // Local user domain
     char *          fqu_;            // Fully qualified
     char *          authenticatedName_;   // Different for each method
+	char *          remoteCredential_; // for X.509: full text of proxy chain.
 };
 
 #endif

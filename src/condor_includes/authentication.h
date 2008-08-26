@@ -99,6 +99,8 @@ class Authentication {
     const char *getOwner() const;
     
     const char *getDomain() const;
+
+	const char *getRemoteCred() const;
     
     const char * getRemoteAddress() const;
     //----------------------------------------

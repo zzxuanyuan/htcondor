@@ -34,7 +34,8 @@ Condor_Auth_Base :: Condor_Auth_Base(ReliSock * sock, int mode) :
 	remoteHost_    ( NULL  ),
 	localDomain_   ( NULL  ),
 	fqu_           ( NULL  ),
-	authenticatedName_      ( NULL  )
+	authenticatedName_      ( NULL  ),
+    remoteCredential_       ( NULL  )
 {
     //if (mySock_->isClient()) {
         
@@ -93,6 +94,9 @@ Condor_Auth_Base :: ~Condor_Auth_Base()
 
 	if (authenticatedName_) {
 		free (authenticatedName_);
+	}
+	if (remoteCredential_) {
+		free(remoteCredential_);
 	}
 }
 
@@ -190,6 +194,28 @@ const char * Condor_Auth_Base :: getAuthenticatedName() const
 const char * Condor_Auth_Base :: getLocalDomain() const
 {
     return localDomain_;
+}
+
+const char * Condor_Auth_Base :: getRemoteCredential() const
+{
+	return remoteCredential_;
+}
+
+
+Condor_Auth_Base& Condor_Auth_Base :: setRemoteCredential(const char *cred)
+{
+	if(remoteCredential_) {
+		free(remoteCredential_);
+		remoteCredential_ = NULL;
+	}
+	if(cred) {
+		remoteCredential_ = strdup(cred);
+		if(!remoteCredential_) {
+			// TODO handle.
+			dprintf(D_ALWAYS,"Malloc error!\n");
+		}
+	}
+	return *this;
 }
     
 Condor_Auth_Base& Condor_Auth_Base :: setRemoteDomain(const char * domain)

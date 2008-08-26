@@ -1382,6 +1382,15 @@ ReliSock::getOwner() {
 }
 
 const char *
+ReliSock::getRemoteCred() const 
+{
+	if(authob) {
+		return( authob->getRemoteCred() );
+	}
+	return NULL;
+}
+
+const char *
 ReliSock::getFullyQualifiedUser() const {
 	if ( authob ) {
 		return( authob->getFullyQualifiedUser() );

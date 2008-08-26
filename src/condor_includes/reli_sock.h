@@ -195,6 +195,8 @@ public:
 	int authenticate( KeyInfo *& key, const char* methods, CondorError* errstack, int auth_timeout );
     ///
     virtual const char * getFullyQualifiedUser() const;
+	///
+	virtual const char * getRemoteCred() const;
     ///
 	const char *getOwner();
     ///
