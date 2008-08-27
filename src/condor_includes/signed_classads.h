@@ -22,6 +22,7 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
+#include "openssl/x509.h"
 
 bool sign_classad(ClassAd &ad,
 				  StringList &attributes_to_sign,
