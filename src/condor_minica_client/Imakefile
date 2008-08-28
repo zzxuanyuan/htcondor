@@ -7,7 +7,7 @@ CLIPPED = -DCLIPPED
 
 CFLAGS = $(STD_C_FLAGS) $(CLIPPED)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) 
-LIB =$(STD_LIBS) -lcrypto -luuid
+LIB =$(STD_LIBS) -lcrypto
 
 OBJ = minica_client.o ../condor_minica/minica_common.o
 

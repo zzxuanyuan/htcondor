@@ -880,6 +880,9 @@ Daemon::locate( void )
 	case DT_CREDD:
 	  rval = getDaemonInfo( "CREDD", CREDD_AD );
 	  break;
+	case DT_MINICA:
+		rval = getDaemonInfo( "MINICA", MINICA_AD );
+		break;
 	case DT_STORK:
 	  rval = getDaemonInfo( "STORK", ANY_AD, false );
 	  break;

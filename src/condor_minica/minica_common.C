@@ -29,14 +29,15 @@
 
 #include "minica_common.h"
 #include "file_lock.h"
+#include "condor_debug.h"
 
 /* Config file parameter: this is where openssl is located. */
-extern char * _mca_path_to_openssl;
+//extern char * _mca_path_to_openssl;
 
 /* Even the client needs this configuration file.  Perhaps we should
  * create it from the binary if it does not exist.
  */
-extern char * _mca_path_to_openssl_cnf;
+//extern char * _mca_path_to_openssl_cnf;
 
 /**
  * Get password from terminal and return it.  Typically, when a
@@ -94,7 +95,7 @@ print_argv_to_fork( char * argv[] ) {
 
     line = (char *)malloc( linelen );
     if( line == NULL ) {
-        debug_print( "Error in malloc in print_argv_to_fork.\n" );
+        dprintf(D_SECURITY, "Error in malloc in print_argv_to_fork.\n" );
         return;
     }
     i = 0;
@@ -105,27 +106,25 @@ print_argv_to_fork( char * argv[] ) {
         i++;
     }
     
-    debug_print( "%s\n", line );
+    dprintf(D_SECURITY, "%s\n", line );
 }
 
 /**
  * Write the contents of the string to the file.
- *
- * @returns 0 on success, -1 on error.
  **/
-int
-str_to_file( char * str, char * fn )
+bool
+str_to_file( const char * str, const char * fn )
 {
     FILE *fp;
     
     if( (fp = safe_fopen_wrapper( fn, "w" )) ) {
         fputs( str, fp );
         fclose( fp );
-        return 0;
+        return true;
     } else {
-        debug_print( "str_to_file: Error opening file '%s' for writing.\n", 
+        dprintf(D_SECURITY, "str_to_file: Error opening file '%s' for writing.\n", 
 					 fn );
-        return -1;
+        return false;
     }
 }
 
@@ -145,7 +144,7 @@ file_to_str( char * filename, int *err_code )
     if( (fp = safe_fopen_wrapper( filename, "r" )) ) {
         while( ( ch = fgetc( fp ) ) != EOF ) {
             if( ptr > MCA_MAX_SMALL_FILE_SIZE ) {
-                debug_print( "Attack in progress: %s is > %d chars.\n",
+                dprintf(D_SECURITY, "Attack in progress: %s is > %d chars.\n",
                              filename, MCA_MAX_SMALL_FILE_SIZE );
                 fclose( fp );
                 *err_code = MCA_ERROR_BUFFER_OVERFLOW;
@@ -157,13 +156,13 @@ file_to_str( char * filename, int *err_code )
         fclose( fp );
         rv = strdup( buf );
         if( rv == NULL ) {
-            debug_print( "file_to_str: Can't allocate memory.\n" );
+            dprintf(D_SECURITY, "file_to_str: Can't allocate memory.\n" );
             *err_code = MCA_ERROR_MALLOC;
             return NULL;
         }
         return rv;
     } else {
-        debug_print( "file_to_str: Can't read %s.\n", filename );
+        dprintf(D_SECURITY, "file_to_str: Can't read %s.\n", filename );
         *err_code = MCA_ERROR_OPEN_FILE;
         return NULL;
     }
@@ -237,7 +236,7 @@ get_mca_error_message( int err_code )
  * the (possibly encrypted result) as a blob of text.
  **/
 char *
-gen_rsa_key( char *pass, int *err_code )
+gen_rsa_key( const char *pass, const char *mca_path_to_openssl, int *err_code )
 {
     int pid, status;
 
@@ -246,17 +245,24 @@ gen_rsa_key( char *pass, int *err_code )
     int rv_size;
 
     char *rv = (char *)malloc( MCA_MAX_KEY_SIZE );
+	
+	char openssl[256];
+	if(strlen(mca_path_to_openssl) > 256) {
+		dprintf(D_ALWAYS, "Openssl Path too long!\n");
+		return NULL;
+	}
+	sprintf(openssl, "%s", mca_path_to_openssl);
 
-    char *user_argv[] = { _mca_path_to_openssl, "genrsa", "-des3",
-                     "-passout", "",
-                     "1024", NULL };
+    char *user_argv[] = { openssl, "genrsa", "-des3",
+								"-passout", "",
+								"1024", NULL };
 
-    char *host_argv[] = { _mca_path_to_openssl, "genrsa", "1024", NULL };
+    char *host_argv[] = { openssl, "genrsa", "1024", NULL };
 
-    char **argv;
+	char **argv;
 
-    if( _mca_path_to_openssl == NULL ) {
-        debug_print( "Error: _mca_path_to_openssl not defined.\n" );
+    if( mca_path_to_openssl == NULL ) {
+        dprintf(D_SECURITY, "Error: mca_path_to_openssl not defined.\n" );
         *err_code = MCA_ERROR_NULL_GLOBAL;
         return NULL;
     }
@@ -264,13 +270,13 @@ gen_rsa_key( char *pass, int *err_code )
     *err_code = MCA_ERROR_NOERROR;
 
     if( rv == 0 ) {
-        debug_print( "gen_rsa_key: Error in malloc.\n" );
+        dprintf(D_SECURITY, "gen_rsa_key: Error in malloc.\n" );
         *err_code = MCA_ERROR_MALLOC;
         return NULL;
     }
     
     if( pipe( po ) ) { // Pipe for getting the key.
-        debug_print( "gen_rsa_key: Error creating pipe.\n" );
+        dprintf(D_SECURITY, "gen_rsa_key: Error creating pipe.\n" );
         *err_code = MCA_ERROR_PIPE;
         goto error;
     }
@@ -278,10 +284,10 @@ gen_rsa_key( char *pass, int *err_code )
     if( pass == NULL ) {
         argv = host_argv;
     } else {
-        // debug_print( "Pass is not null here.\n" );
+        // dprintf(D_SECURITY, "Pass is not null here.\n" );
         argv = user_argv;
         if( pipe( pi ) ) { // Pipe for sending the password.
-            debug_print( "gen_rsa_key: Error creating pipe.\n" );
+            dprintf(D_SECURITY, "gen_rsa_key: Error creating pipe.\n" );
             *err_code = MCA_ERROR_PIPE;
             goto error;
         }
@@ -292,7 +298,7 @@ gen_rsa_key( char *pass, int *err_code )
 
     pid = fork();
     if(pid == -1) {
-        debug_print( "gen_rsa_key: Error forking.\n");
+        dprintf(D_SECURITY, "gen_rsa_key: Error forking.\n");
         *err_code = MCA_ERROR_FORK;
         goto error;
     }
@@ -306,8 +312,8 @@ gen_rsa_key( char *pass, int *err_code )
             close( pi[1] );
         }
         close( 2 );
-        execve( _mca_path_to_openssl, argv, NULL );
-        debug_print( "Exec failed?\n" );
+        execve( openssl, argv, NULL );
+        dprintf(D_SECURITY, "Exec failed?\n" );
         exit(127);
     }
     
@@ -320,7 +326,7 @@ gen_rsa_key( char *pass, int *err_code )
 
     rv_size = read( po[0], rv, MCA_MAX_KEY_SIZE );
     if( rv_size < 1 ) {
-        debug_print( "Can't read anything.\n" );
+        dprintf(D_SECURITY, "Can't read anything.\n" );
         *err_code = MCA_ERROR_PIPE_READ;
         goto error;
     }
@@ -329,7 +335,7 @@ gen_rsa_key( char *pass, int *err_code )
     do {
         if( waitpid(pid, &status, 0) == -1 ) {
             if( errno != EINTR ) {
-                debug_print( "gen_rsa_key: Problem, can't wait right." );
+                dprintf(D_SECURITY, "gen_rsa_key: Problem, can't wait right." );
                 *err_code = MCA_ERROR_WAIT;
                 goto error;
             }
@@ -347,7 +353,8 @@ gen_rsa_key( char *pass, int *err_code )
  * Given a password, repeatedly call gen_rsa_key until a key gets generated.
  **/
 char *
-repeat_gen_rsa_key( char * pass, int attempts, int wait_time, int *err_code )
+repeat_gen_rsa_key( const char * pass, int attempts, int wait_time, 
+					const char * openssl, int *err_code )
 {
     int attempt_number = 0;
     char * key_block = NULL;
@@ -355,14 +362,14 @@ repeat_gen_rsa_key( char * pass, int attempts, int wait_time, int *err_code )
     *err_code = MCA_ERROR_NOERROR;
     
     while( key_block == NULL ) {
-        debug_print( "Attempt number %d.\n", attempt_number+1 );
+        dprintf(D_SECURITY, "Attempt number %d.\n", attempt_number+1 );
         attempt_number++;
         if( attempt_number >= attempts ) {
-            debug_print( "Unable to generate key after %d tries.\n", attempt_number );
+            dprintf(D_SECURITY, "Unable to generate key after %d tries.\n", attempt_number );
             // OK to fall through because this is checked in the next block.
             continue;
         }
-        key_block = gen_rsa_key( pass, err_code );
+        key_block = gen_rsa_key( pass, openssl, err_code );
         if( key_block == NULL ) {
             sleep( wait_time );
         } else {
@@ -371,7 +378,7 @@ repeat_gen_rsa_key( char * pass, int attempts, int wait_time, int *err_code )
     }
     
     if( (key_block == NULL) || strlen( key_block ) == 0 ) {
-        debug_print( "Generate key failed.\nExiting.\n" );
+        dprintf(D_SECURITY, "Generate key failed.\nExiting.\n" );
         exit( 1 );
     }
     return key_block;
@@ -382,8 +389,12 @@ repeat_gen_rsa_key( char * pass, int attempts, int wait_time, int *err_code )
  * certificate signing request and return it.
  */
 char *
-gen_signing_request( char * key,
-                     char * common_name, char * pass, int *err_code )
+gen_signing_request( const char * key,
+                     const char * common_name, 
+					 const char * pass, 
+					 const char *mca_path_to_openssl, 
+					 const char *mca_path_to_openssl_cnf, 
+					 int *err_code )
 {
     int pid, status;
 
@@ -393,24 +404,25 @@ gen_signing_request( char * key,
     int rv_size = 0;
 
     char fdstr[ 16 ];
+	char *tmp;
 
-    debug_print( "Entering gen_signing_request.\n" );
+    dprintf(D_SECURITY, "Entering gen_signing_request.\n" );
 
     /* check the globals */
-    if( _mca_path_to_openssl == NULL ) {
-        debug_print( "Error: _mca_path_to_openssl not defined.\n" );
+    if( mca_path_to_openssl == NULL ) {
+        dprintf(D_SECURITY, "Error: mca_path_to_openssl not defined.\n" );
         *err_code = MCA_ERROR_NULL_GLOBAL;
         return NULL;
     }
-    if( _mca_path_to_openssl_cnf == NULL ) {
-        debug_print( "Error: _mca_path_to_openssl_cnf not defined.\n" );
+    if( mca_path_to_openssl_cnf == NULL ) {
+        dprintf(D_SECURITY, "Error: mca_path_to_openssl_cnf not defined.\n" );
         *err_code = MCA_ERROR_NULL_GLOBAL;
         return NULL;
     }
 
-    char *argv[ ] = { _mca_path_to_openssl, "req", "-new", "-key", key_filename,
-                      "-config", _mca_path_to_openssl_cnf, //"openssl.cnf",
-                      "-passin", "",
+    const char *argv[ ] = { mca_path_to_openssl, "req", "-new", "-key", key_filename,
+							"-config", mca_path_to_openssl_cnf, //"openssl.cnf",
+							"-passin", "",
                       0 };
     int pipeid_form[ 2 ];
     int pipeid_pass[ 2 ];
@@ -422,7 +434,7 @@ gen_signing_request( char * key,
 
     rv = (char *)malloc( MCA_MAX_CSR_SIZE );
     if( rv == NULL ) {
-        debug_print( "gen_signing_request: Error in malloc.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error in malloc.\n" );
         *err_code = MCA_ERROR_MALLOC;
         return NULL;
     }
@@ -434,19 +446,19 @@ gen_signing_request( char * key,
 
     keylen = strlen( key );
     if( write( key_fd, key, keylen ) != keylen ) {
-        debug_print( "gen_signing_request: Error writing key to temp file.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error writing key to temp file.\n" );
         *err_code = MCA_ERROR_WRITE_FILE;
         goto error_csr_unlink;
     }
 
     if( close( key_fd ) != 0 ) {
-        debug_print( "gen_signing_request: Error closing temp file.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error closing temp file.\n" );
         *err_code = MCA_ERROR_CLOSE_FILE;
         goto error_csr_unlink;
     }
 
     if( pipe( pipeid_pass ) ) {
-        debug_print( "gen_signing_request: Error creating pipe.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error creating pipe.\n" );
         // exit( 1 );
         *err_code = MCA_ERROR_PIPE;
         goto error_csr_unlink;
@@ -454,23 +466,23 @@ gen_signing_request( char * key,
     snprintf( fdstr, 16, "fd:%d", pipeid_pass[0] );
     argv[8] = fdstr;
 
-    print_argv_to_fork( argv );
+    //print_argv_to_fork( argv );
     
     if( pipe( pipeid_form ) ) {
-        debug_print( "gen_signing_request: Error creating pipe.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error creating pipe.\n" );
         *err_code = MCA_ERROR_PIPE;
         goto error_csr_unlink;
     }
 
     if( pipe( pipeid_csr ) ) {
-        debug_print( "gen_signing_request: Error creating pipe.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error creating pipe.\n" );
         *err_code = MCA_ERROR_PIPE;
         goto error_csr_unlink;
     }
 
     pid = fork();
     if(pid == -1) {
-        debug_print( "gen_signing_request: Error forking.\n" );
+        dprintf(D_SECURITY, "gen_signing_request: Error forking.\n" );
         *err_code = MCA_ERROR_FORK;
         goto error_csr_unlink;
     }
@@ -490,17 +502,15 @@ gen_signing_request( char * key,
         close( 2 );
 
         /* This global is cleared in this function */
-        execve( _mca_path_to_openssl, argv, NULL );
+		tmp = strdup(mca_path_to_openssl);
+        execve( tmp, (char **)argv, NULL );
         exit(127);
     }
 
     // parent
     close( pipeid_pass[0] );
     if( pass == NULL ) {
-        pass = strdup("\n");
-        write( pipeid_pass[1], pass, strlen( pass ) );
-        free( pass );
-        pass = NULL;
+        write( pipeid_pass[1], "\n", strlen("\n") );
     } else {
         write( pipeid_pass[1], pass, strlen( pass ) );
     }
@@ -514,7 +524,7 @@ gen_signing_request( char * key,
 
     rv_size = read( pipeid_csr[0], rv, MCA_MAX_CSR_SIZE );
     if( rv_size < 1 ) {
-        debug_print( "Can't read certificate signing request - "
+        dprintf(D_SECURITY, "Can't read certificate signing request - "
 					 "why not?" );
         *err_code = MCA_ERROR_PIPE_READ;
         goto error_csr_unlink;
@@ -522,7 +532,7 @@ gen_signing_request( char * key,
     close( pipeid_csr[0] );
 
     if( unlink( key_filename ) != 0 ) {
-        debug_print( "gen_signing_request: Problem, can't unlink "
+        dprintf(D_SECURITY, "gen_signing_request: Problem, can't unlink "
 					 "private key file!\n" );
         // *err_code = MCA_CLEANUP_ERROR;
         exit( 1 ); 
@@ -531,34 +541,34 @@ gen_signing_request( char * key,
     do {
         if( waitpid(pid, &status, 0) == -1 ) {
             if( errno != EINTR ) {
-                debug_print( "gen_signing_request: Problem, "
+                dprintf(D_SECURITY, "gen_signing_request: Problem, "
 							 "can't wait right.\n" );
                 *err_code = MCA_ERROR_WAIT;
                 goto error_csr_unlink;
             }
         } else {
             if( rv == NULL || strlen( rv ) == 0 ) {
-                debug_print( "gen_signing_request: Certificate request "
+                dprintf(D_SECURITY, "gen_signing_request: Certificate request "
 							 "is zero length.  Aborting.\n" );
                 perror( "" );
                 *err_code = MCA_ERROR_NO_RESPONSE;
                 goto error_csr_unlink;
             }
-			debug_print( "Returning OK.\n" );
+			dprintf(D_SECURITY, "Returning OK.\n" );
             return rv;
         }
     } while( 1 );
     
   error_csr_unlink:
-    debug_print( "Got error creating request.\n" );
+    dprintf(D_SECURITY, "Got error creating request.\n" );
     if( unlink( key_filename ) != 0 ) {
-        debug_print( "gen_signing_request: "
+        dprintf(D_SECURITY, "gen_signing_request: "
 					 "Problem, can't unlink private key file!\n" );
         // *err_code = MCA_CLEANUP_ERROR;
         exit( 1 ); 
     }
   error_csr_free:
-    debug_print( "Got error creating request.\n" );
+    dprintf(D_SECURITY, "Got error creating request.\n" );
     free( rv );
     return NULL;
 }

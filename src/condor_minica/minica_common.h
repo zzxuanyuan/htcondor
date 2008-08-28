@@ -116,7 +116,7 @@ enum request_type { NONE, CLIENT, HOST };
 
 /* Given a string and a file name, write the string to the file.
  */
-int str_to_file( char * str, char * fn );
+bool str_to_file( const char * str, const char * fn );
 
 /* Given a file name, return a string.
  */
@@ -130,14 +130,19 @@ char * get_mca_error_message( int error_code );
  * fails because there isn't enough randomness to satisfy the
  * /dev/random paranoia.  So we wait, and retry a few times.
  */
-char * repeat_gen_rsa_key( char * pass, int attempts, int wait_time,
+char * repeat_gen_rsa_key( const char * pass, int attempts, int wait_time,
+						   const char * openssl_bin,
                            int * err_code );
 
 /* Given a key string, and a CN, and a password to access the key,
  * return the signing request.
  */
-char * gen_signing_request( char * key, char * common_name,
-                            char * pass, int * err_code );
+char * gen_signing_request( const char * key, 
+							const char * common_name,
+                            const char * pass, 
+							const char * openssl,
+							const char * os_cnf,
+							int * err_code );
 
 /* Read a password from the terminal */
 char * my_getpass( char * prompt );

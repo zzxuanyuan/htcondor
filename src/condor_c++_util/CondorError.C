@@ -79,9 +79,9 @@ bool CondorError::pop() {
 }
 
 void CondorError::deep_copy(CondorError& copy) {
-	_subsys = strdup(copy._subsys);
+	_subsys = copy._subsys ? strdup(copy._subsys) : NULL;
 	_code = copy._code;
-	_message = strdup(copy._message);
+	_message = copy._message ? strdup(copy._message) : NULL;
 	if(copy._next) {
 		_next = new CondorError();
 		_next->deep_copy(*(copy._next));
