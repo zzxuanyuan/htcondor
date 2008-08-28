@@ -418,6 +418,7 @@ DCMinica::signRequest( CondorError &error_stack )
 							"Aborting.", m_key_filename.Value());
         goto error;
     }
+	// TODO: permissions on key file should be 600
     if(!str_to_file( m_cert_request.Value(), m_request_filename.Value() ) ) {
         m_error_stack.pushf("DC_MINICA",0,"Request generated OK, but can't save to file "
 							 "'%s'. Aborting.\n", m_request_filename.Value());

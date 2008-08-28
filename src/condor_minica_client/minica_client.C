@@ -267,7 +267,7 @@ main( int argc, char *argv[] )
 
     if( base_file_name == false ) {
 		// Make the default be $HOME/.globus/usercert.pem
-		// $HOME/.globus/usercred.p12
+		// $HOME/.globus/userkey.pem
 		// $HOME/.globus/userreq.pem
 		char *home = getenv("HOME");
 		if(!home) {
@@ -278,7 +278,7 @@ main( int argc, char *argv[] )
 		MyString key = home;
 		MyString rq = home;
 		MyString cert = home;
-		key = key + "/.globus/usercred.p12";
+		key = key + "/.globus/userkey.pem";
 		rq = rq + "/.globus/userreq.pem";
 		cert = cert + "/.globus/usercert.pem";
 		dc_minica.setKeyFilename(key);
