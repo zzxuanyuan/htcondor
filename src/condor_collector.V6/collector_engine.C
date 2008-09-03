@@ -68,6 +68,7 @@ CollectorEngine::CollectorEngine (CollectorStats *stats ) :
 	CollectorAds  (LESSER_TABLE_SIZE , &adNameHashFunction),
 	NegotiatorAds (LESSER_TABLE_SIZE , &adNameHashFunction),
 	HadAds        (LESSER_TABLE_SIZE , &adNameHashFunction),
+	MinicaAds     (LESSER_TABLE_SIZE , &adNameHashFunction),
 	GenericAds    (LESSER_TABLE_SIZE , &stringHashFunction)
 {
 	clientTimeout = 20;
@@ -97,6 +98,7 @@ CollectorEngine::
 	killHashTable (GatewayAds);
 	killHashTable (NegotiatorAds);
 	killHashTable (HadAds);
+	killHashTable (MinicaAds);
 	GenericAds.walk(killGenericHashTable);
 
 	if(m_collector_requirements) {
@@ -228,6 +230,10 @@ invokeHousekeeper (AdTypes adtype)
 			cleanHashTable (HadAds, now, makeHadAdHashKey);
 			break;			
 
+	    case MINICA_AD:
+			cleanHashTable (MinicaAds, now, makeMinicaAdHashKey);
+			break;
+
 	        case GENERIC_AD:
 			CollectorHashTable *cht;
 			GenericAds.startIterations();
@@ -329,6 +335,10 @@ walkHashTable (AdTypes adType, int (*scanFunction)(ClassAd *))
 		table = &HadAds;
 		break;
 
+	case MINICA_AD:
+		table = &MinicaAds;
+		break;
+
 	  case ANY_AD:
 		return
 			StorageAds.walk(scanFunction) &&
@@ -343,6 +353,7 @@ walkHashTable (AdTypes adType, int (*scanFunction)(ClassAd *))
 			QuillAds.walk(scanFunction) &&
 #endif
 			HadAds.walk(scanFunction) &&
+			MinicaAds.walk(scanFunction) &&
 			walkGenericTables(scanFunction);
 
 
@@ -833,6 +844,18 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		retVal=updateClassAd (HadAds, "HadAd  ", "HAD",
 							  clientAd, hk, hashString, insert, from );
 		break;
+	  case UPDATE_MINICA_AD:
+		  if(!makeMinicaAdHashKey (hk, clientAd, from)) {
+			  dprintf(D_ALWAYS, "Could not make hashkey -- ignoring ad\n");
+			  insert = -3;
+			  retVal = 0;
+			  break;
+		  }
+		  hashString.Build( hk );
+		  retVal=updateClassAd (MinicaAds, "MinicaAd  ", "MINICA",
+								clientAd, hk, hashString, insert, from );
+		  break;
+			  
 	  case UPDATE_AD_GENERIC:
 	  {
 		  const char *type_str = clientAd->GetMyTypeName();
@@ -967,7 +990,12 @@ lookup (AdTypes adType, AdNameHashKey &hk)
 			if (HadAds.lookup (hk, val) == -1)
 				return 0;
 			break;
-
+			
+    	case MINICA_AD:
+			if(MinicaAds.lookup (hk, val) == -1)
+				return 0;
+			break;
+			
 		default:
 			val = 0;
 	}
@@ -1018,6 +1046,9 @@ remove (AdTypes adType, AdNameHashKey &hk)
 
 		case HAD_AD:
 			return !HadAds.remove (hk);
+
+    	case MINICA_AD:
+			return !MinicaAds.remove (hk);
 
 		default:
 			return 0;
@@ -1140,6 +1171,9 @@ housekeeper()
 
 	dprintf (D_ALWAYS, "\tCleaning HadAds ...\n");
 	cleanHashTable (HadAds, now, makeHadAdHashKey);
+
+	dprintf (D_ALWAYS, "\tCleaning MinicaAds ...\n");
+	cleanHashTable (MinicaAds, now, makeMinicaAdHashKey);
 
 	dprintf (D_ALWAYS, "\tCleaning Generic Ads ...\n");
 	CollectorHashTable *cht;

@@ -149,6 +149,8 @@ void CollectorDaemon::Init()
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	daemonCore->Register_Command(QUERY_HAD_ADS,"QUERY_HAD_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
+	daemonCore->Register_Command(QUERY_MINICA_ADS,"QUERY_MINICA_ADS",
+   	    (CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	daemonCore->Register_Command(QUERY_ANY_ADS,"QUERY_ANY_ADS",
 		(CommandHandler)receive_query_cedar,"receive_query_cedar",NULL,READ);
 	
@@ -192,6 +194,9 @@ void CollectorDaemon::Init()
 	daemonCore->Register_Command(INVALIDATE_HAD_ADS,
 		"INVALIDATE_HAD_ADS", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
+	daemonCore->Register_Command(INVALIDATE_MINICA_ADS,
+		"INVALIDATE_MINICA_ADS", (CommandHandler)receive_invalidation,
+		"receive_invalidation",NULL,DAEMON);
 	daemonCore->Register_Command(INVALIDATE_ADS_GENERIC,
 		"INVALIDATE_ADS_GENERIC", (CommandHandler)receive_invalidation,
 		"receive_invalidation",NULL,DAEMON);
@@ -229,6 +234,8 @@ void CollectorDaemon::Init()
 		(CommandHandler)receive_update,"receive_update",NULL,NEGOTIATOR);
 	daemonCore->Register_Command(UPDATE_HAD_AD,"UPDATE_HAD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,DAEMON);
+	daemonCore->Register_Command(UPDATE_MINICA_AD,"UPDATE_MINICA_AD",
+        (CommandHandler)receive_update,"receive_update",NULL,DAEMON);
 	daemonCore->Register_Command(UPDATE_AD_GENERIC, "UPDATE_AD_GENERIC",
 				     (CommandHandler)receive_update,
 				     "receive_update", NULL, DAEMON);
@@ -381,6 +388,11 @@ CollectorDaemon::receive_query_public( int command )
 	  case QUERY_HAD_ADS:
 		dprintf (D_FULLDEBUG,"Got QUERY_HAD_ADS\n");
 		whichAds = HAD_AD;
+		break;
+		
+	case QUERY_MINICA_ADS:
+		dprintf (D_FULLDEBUG,"Got QUERY_MINICA_ADS\n");
+		whichAds = MINICA_AD;
 		break;
 
 	  case QUERY_ANY_ADS:
@@ -683,6 +695,7 @@ CollectorDaemon::sockCacheHandler( Service*, Stream* sock )
 
 int CollectorDaemon::query_scanFunc (ClassAd *cad)
 {
+	dprintf( D_ALWAYS, "In query_scanFunc.\n");
     if ((*cad) >= (*__query__))
     {
 		// Found a match --- append to our results list

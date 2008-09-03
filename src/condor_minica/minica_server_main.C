@@ -63,6 +63,7 @@
 #include "minica_common.h"
 #include "Regex.h"
 #include "ui_callback.h"
+#include "get_daemon_name.h"
 
 #define GET_SETTING( v, n )      if( v ) free( v ); v = param( n );
 
@@ -1394,11 +1395,12 @@ main_init(int argc, char *argv[])
 {
     char **    ptr;
     char       buf[ MCA_MAX_SMALL_FILE_SIZE ];
-
+	char *myname = NULL;
     ERR_load_crypto_strings();
     CRYPTO_malloc_init();
     OpenSSL_add_all_algorithms();
     
+	myname = argv[0];
 	// This should be made to use getopt?
 	// This should contact the collector so that it works like a proper condor daemon.
     for(ptr = argv + 1; *ptr; ptr++) {
@@ -1435,6 +1437,17 @@ main_init(int argc, char *argv[])
         exit( 1 );
     }
     dprintf(D_SECURITY, "Got CA Password OK.\n" );
+	ClassAd ad;
+	ad.SetMyTypeName(MINICA_ADTYPE);
+	ad.SetTargetTypeName("");
+	MyString line;
+	line.sprintf("%s = \"%s\"", ATTR_NAME, my_full_hostname());
+	ad.Insert(line.Value());
+	line.sprintf("%s = \"%s\"", "MiniCAIPAddr",
+				 daemonCore->InfoCommandSinfulString());
+	ad.Insert(line.Value());
+	daemonCore->publish(&ad);
+	daemonCore->sendUpdates(UPDATE_MINICA_AD, &ad, NULL, true);
 
     daemonCore->Register_Command( DC_SIGN_CERT_REQUEST, "SIGN_CERT_REQUEST",
                                   (CommandHandler)&sign_cert_request,
