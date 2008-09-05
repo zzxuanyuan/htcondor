@@ -2710,7 +2710,7 @@ AssignExpr(char const *variable,char const *value)
 
 char const *
 AttrList::EscapeStringValue(char const *val,MyString &buf) {
-	if( !strchr(val,'"') ) {
+	if( !val || !strchr(val,'"') ) {
 		return val;
 	}
 	buf = val;
@@ -2732,11 +2732,11 @@ Assign(char const *variable,char const *value)
 	MyString buf(variable);
 	MyString escape_buf;
 
-	value = EscapeStringValue(value,escape_buf);
-
 	if (!value) {
 		buf += "=UNDEFINED";
 	} else {
+		value = EscapeStringValue(value,escape_buf);
+
 		buf += "=\"";
 		buf += value;
 		buf += "\"";
