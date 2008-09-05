@@ -2796,6 +2796,7 @@ SecMan::CreateNonNegotiatedSecuritySession(DCpermission auth_level, char const *
 	policy.Assign(ATTR_SEC_ENACT, "YES");
 
 	if( peer_fqu ) {
+		policy.Assign(ATTR_SEC_AUTHENTICATION, SecMan::sec_feat_act_rev[SEC_FEAT_ACT_NO]);
 		policy.Assign(ATTR_SEC_TRIED_AUTHENTICATION,true);
 		policy.Assign(ATTR_SEC_USER,peer_fqu);
 	}

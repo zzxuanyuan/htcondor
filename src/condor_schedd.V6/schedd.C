@@ -8406,7 +8406,18 @@ Scheduler::delete_shadow_rec( shadow_rec *rec )
 			// for this shadow record anymore... 
 		rec->match->setStatus( M_CLAIMED );
 	}
-	RemoveShadowRecFromMrec(rec);
+
+	if( rec->keepClaimAttributes &&  rec->match ) {
+			// We are shutting down and detaching from this claim.
+			// Remove the claim record without sending RELEASE_CLAIM
+			// to the startd.
+		rec->match->needs_release_claim = false;
+		DelMrec(rec->match);
+	}
+	else {
+		RemoveShadowRecFromMrec(rec);
+	}
+
 	if( pid ) {
 		shadowsByPid->remove(pid);
 	}
