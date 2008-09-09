@@ -2949,3 +2949,19 @@ SecMan::ExportSecSessionInfo(char const *session_id,MyString &session_info) {
 	return true;
 }
 
+bool
+SecMan::SetSessionExpiration(char const *session_id,time_t expiration_time) {
+	ASSERT( session_id );
+
+	KeyCacheEntry *session_key = NULL;
+	if(!session_cache->lookup(session_id,session_key)) {
+		dprintf(D_ALWAYS,"SECMAN: SetSessionExpiration failed to find "
+				"session %s\n",session_id);
+		return false;
+	}
+	session_key->setExpiration(expiration_time);
+
+	dprintf(D_SECURITY,"Set expiration time for security session %s to %ds\n",session_id,expiration_time-time(NULL));
+
+	return true;
+}

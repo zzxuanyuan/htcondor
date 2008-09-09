@@ -87,6 +87,10 @@ int KeyCacheEntry::expiration() {
 	return _expiration;
 }
 
+void KeyCacheEntry::setExpiration(int new_expiration) {
+	_expiration = new_expiration;
+}
+
 void KeyCacheEntry::copy_storage(const KeyCacheEntry &copy) {
 	if (copy._id) {
 		_id = strdup(copy._id);

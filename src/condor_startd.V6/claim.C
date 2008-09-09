@@ -2135,7 +2135,12 @@ ClaimId::ClaimId( ClaimType claim_type, char const *slotname )
 ClaimId::~ClaimId()
 {
 	if( claimid_parser.secSessionId() ) {
-		daemonCore->getSecMan()->invalidateKey(claimid_parser.secSessionId());
+			// Expire the session after enough time to let the final
+			// RELEASE_CLAIM command finish, in case it is still in
+			// progress.  This also allows us to more gracefully
+			// handle any final communication from the schedd that may
+			// still be in flight.
+		daemonCore->getSecMan()->SetSessionExpiration(claimid_parser.secSessionId(),time(NULL)+600);
 	}
 
 	free( c_id );

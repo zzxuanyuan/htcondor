@@ -48,6 +48,7 @@ class KeyCacheEntry {
     KeyInfo*              key();
     ClassAd*              policy();
     int                   expiration();
+	void                  setExpiration(int new_expiration);
 
  private:
 

@@ -287,7 +287,12 @@ match_rec::~match_rec()
 	}
 
 	if( secSessionId() ) {
-		daemonCore->getSecMan()->invalidateKey(secSessionId());
+			// Expire the session after enough time to let the final
+			// RELEASE_CLAIM command finish, in case it is still in
+			// progress.  This also allows us to more gracefully
+			// handle any final communication from the startd that may
+			// still be in flight.
+		daemonCore->getSecMan()->SetSessionExpiration(secSessionId(),time(NULL)+600);
 	}
 }
 
