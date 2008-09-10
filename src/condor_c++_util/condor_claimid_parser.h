@@ -27,9 +27,12 @@
 
 class ClaimIdParser {
  public:
-	ClaimIdParser() {}
+	ClaimIdParser() {
+		m_suppress_session = false;
+	}
 	ClaimIdParser(char const *claim_id) {
 		m_claim_id = claim_id;
+		m_suppress_session = false;
 	}
 	void setClaimId(char const *claim_id) {
 		m_claim_id = claim_id;
@@ -62,11 +65,8 @@ class ClaimIdParser {
 			// This must return the same thing for both the schedd and
 			// the startd, so be careful making any version-incompatible
 			// changes.
-		if( m_session_id.IsEmpty() ) {
-			char const *str = m_claim_id.Value();
-			char const *end = strrchr(str,'#');
-			int length = end ? end - str : 0;
-			m_session_id.sprintf("%.*s",length,str);
+		if( m_suppress_session ) {
+			return NULL;
 		}
 		if( !ignore_session_info && !secSessionInfo() ) {
 				// There is no session info, so no security session
@@ -74,6 +74,12 @@ class ClaimIdParser {
 				// the call sites that pass the session id to
 				// startCommand().
 			return NULL;
+		}
+		if( m_session_id.IsEmpty() ) {
+			char const *str = m_claim_id.Value();
+			char const *end = strrchr(str,'#');
+			int length = end ? end - str : 0;
+			m_session_id.sprintf("%.*s",length,str);
 		}
 		return m_session_id.Value();
 	}
@@ -136,6 +142,9 @@ class ClaimIdParser {
 			// reset everything using the new claim id
 		*this = ClaimIdParser(new_claim_id.Value());
 	}
+	void suppressSecSession( bool toggle ) {
+		m_suppress_session = toggle;
+	}
 
  private:
 	MyString m_claim_id;
@@ -143,6 +152,7 @@ class ClaimIdParser {
 	MyString m_sinful_part;
 
 		// The following fields are for SEC_SESSION_FROM_MATCH
+	bool m_suppress_session; // if true, secSessionId() always returns NULL
 	MyString m_session_id;
 	MyString m_session_key;
 	MyString m_session_info;

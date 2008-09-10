@@ -221,6 +221,8 @@ match_rec::match_rec( char* claim_id, char* p, PROC_ID* job_id,
 
 	makeDescription();
 
+	bool suppress_sec_session = true;
+
 	if( param_boolean("SEC_SESSION_FROM_MATCH",false) ) {
 		if( secSessionId() == NULL ) {
 			dprintf(D_FULLDEBUG,"SEC_SESSION_FROM_MATCH: did not create security session from claim id, because claim id does not contain session information: %s\n",publicClaimId());
@@ -235,10 +237,23 @@ match_rec::match_rec( char* claim_id, char* p, PROC_ID* job_id,
 				peer,
 				0 );
 
+			if( rc ) {
+					// we're good to go; use the claimid security session
+				suppress_sec_session = false;
+			}
 			if( !rc ) {
 				dprintf(D_ALWAYS,"SEC_SESSION_FROM_MATCH: failed to create security session for %s, so will try to obtain a new security session\n",publicClaimId());
 			}
 		}
+	}
+	if( suppress_sec_session ) {
+		suppressSecSession( true );
+			// Now secSessionId() will always return NULL, so we will
+			// not try to do anything with the claimid security session.
+			// Most importantly, we will not try to delete it when this
+			// match rec is destroyed.  (If we failed to create the session,
+			// that may because it already exists, and this is a duplicate
+			// match record that will soon be thrown out.)
 	}
 }
 
@@ -11069,24 +11084,26 @@ Scheduler::AddMrec(char* id, char* peer, PROC_ID* jobId, const ClassAd* my_match
 		dprintf(D_ALWAYS, "Null parameter --- match not added\n"); 
 		return NULL;
 	} 
+	// spit out a warning and return NULL if we already have this mrec
+	match_rec *tempRec;
+	if( matches->lookup( HashKey( id ), tempRec ) == 0 ) {
+		char const *pubid = tempRec->publicClaimId();
+		dprintf( D_ALWAYS,
+				 "attempt to add pre-existing match \"%s\" ignored\n",
+				 pubid ? pubid : "(null)" );
+		if( pre_existing ) {
+			*pre_existing = tempRec;
+		}
+		return NULL;
+	}
+
+
 	rec = new match_rec(id, peer, jobId, my_match_ad, user, pool, false);
 	if(!rec)
 	{
 		EXCEPT("Out of memory!");
 	} 
 
-	// spit out a warning and return NULL if we already have this mrec
-	match_rec *tempRec;
-	if( matches->lookup( HashKey( id ), tempRec ) == 0 ) {
-		dprintf( D_ALWAYS,
-				 "attempt to add pre-existing match \"%s\" ignored\n",
-				 rec->publicClaimId() ? rec->publicClaimId() : "(null)" );
-		delete rec;
-		if( pre_existing ) {
-			*pre_existing = tempRec;
-		}
-		return NULL;
-	}
 	if( matches->insert( HashKey( id ), rec ) != 0 ) {
 		dprintf( D_ALWAYS, "match \"%s\" insert failed\n",
 				 id ? id : "(null)" );
