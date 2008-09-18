@@ -45,6 +45,7 @@
 #define SUBMITTER_ADTYPE	"Submitter"
 #define COMMAND_ADTYPE		"Command"
 #define REPLY_ADTYPE		"Reply"
+#define MINICA_ADTYPE       "MiniCA"
 
 #endif
 
