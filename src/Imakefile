@@ -59,6 +59,12 @@
 #define TTProgs
 #endif
 
+#ifdef WANT_MINICA
+#define MCAProgs minica minica_client
+#else
+#define MCAProgs
+#endif
+
 #define Programs \
 		procapi sysapi unit_tests accountant.V6 ckpt_server \
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
@@ -67,7 +73,8 @@
 		gridmanager globus starter.V6.1 shadow.V6.1 dcskel c-gahp had \
 		CreddProgs StorkProgs \
 		TTProgs DeploymentTools \
-		eventd.V2 transferd procd privsep vm-gahp JobRouterProgs
+		eventd.V2 transferd procd privsep vm-gahp JobRouterProgs \
+		MCAProgs
 
 #define Libraries \
 		util_lib daemon_core.V6 daemon_client classad c++_util	\
@@ -227,6 +234,11 @@ condor_object_target(quill)
 #ifdef WANT_TT
 condor_object_target(tt)
 condor_object_target(dbmsd)
+#endif
+
+#ifdef WANT_MINICA
+condor_object_target(minica)
+condor_object_target(minica_client)
 #endif
 
 condor_object_target(startd.V6)
