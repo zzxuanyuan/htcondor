@@ -352,7 +352,10 @@ condor_auth_config(int is_daemon)
 #if !defined(SKIP_AUTHENTICATION) && defined(HAVE_EXT_GLOBUS)
 
 		// First, if there is X509_USER_PROXY, we clear it.
-	UnsetEnv( "X509_USER_PROXY" );
+	dprintf(D_SECURITY, "Clearing user proxy.\n");
+	if(is_daemon) {
+		UnsetEnv( "X509_USER_PROXY" );
+	}
 
 		// Next, we param the configuration file for GSI related stuff and 
 		// set the corresponding environment variables for it
