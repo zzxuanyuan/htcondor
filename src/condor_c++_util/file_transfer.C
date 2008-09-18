@@ -66,10 +66,6 @@ const int GO_AHEAD_UNDEFINED = 0;
 const int GO_AHEAD_ONCE = 1;    // send one file and ask again
 const int GO_AHEAD_ALWAYS = 2;  // send all files without asking again
 
-const char* PROXY_POLICY_OID = "1.3.6.1.4.1.5782.3.250";
-const char* PROXY_POLICY_LN = "Task Specific Proxy Policy";
-const char* PROXY_POLICY_SN = "TSRP";
-
 // Utils from the util_lib that aren't prototyped
 extern "C" {
 	int		get_random_int();
@@ -150,7 +146,6 @@ FileTransfer::FileTransfer()
 	simple_init = true;
 	simple_sock = NULL;
 	m_use_file_catalog = true;
-	OBJ_create(PROXY_POLICY_OID, PROXY_POLICY_LN, PROXY_POLICY_SN);
 }
 
 FileTransfer::~FileTransfer()
@@ -320,11 +315,10 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		ProxyPolicy = (unsigned char *)strdup(buf);
 		ProxyPolicyNID = 0; // TODO: more sensible default.
 		if( Ad->LookupString(ATTR_PROXY_POLICY_OID, buf) == 1 ) {
-			// Lookup how to get NID from SN.  where to register this stuff?
 			ProxyPolicyNID = OBJ_ln2nid(buf);
 		}
 	}
-		
+	
 
 	// there are a few places below where we need the value of the SPOOL
 	// knob if we're the server. we param for it once here, and free it
