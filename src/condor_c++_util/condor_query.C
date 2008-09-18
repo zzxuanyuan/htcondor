@@ -184,7 +184,14 @@ CondorQuery (AdTypes qType)
 		query.setNumStringCats (0);
 		query.setNumIntegerCats(0);
 		query.setNumFloatCats  (0);
-		command = QUERY_ANY_ADS;
+		command = QUERY_CREDD_ADS;
+		break;
+
+	  case MINICA_AD:
+		query.setNumStringCats (0);
+		query.setNumIntegerCats(0);
+		query.setNumFloatCats  (0);
+		command = QUERY_MINICA_ADS;
 		break;
 
 	  case GENERIC_AD:
@@ -404,6 +411,10 @@ fetchAds (ClassAdList &adList, const char *poolName, CondorError* errstack)
 		queryAd.SetTargetTypeName (CREDD_ADTYPE);
 		break;
 
+	case MINICA_AD:
+		queryAd.SetTargetTypeName (MINICA_ADTYPE);
+		break;
+
 	  case GENERIC_AD:
 		queryAd.SetTargetTypeName (genericQueryType);
 		break;
@@ -523,6 +534,14 @@ getQueryAd (ClassAd &queryAd)
 
 	  case NEGOTIATOR_AD:
 		queryAd.SetTargetTypeName (NEGOTIATOR_ADTYPE);
+		break;
+
+	case CREDD_AD:
+		queryAd.SetTargetTypeName (CREDD_ADTYPE);
+		break; 
+
+	case MINICA_AD:
+		queryAd.SetTargetTypeName (MINICA_ADTYPE);
 		break;
 
 	  case GENERIC_AD:
