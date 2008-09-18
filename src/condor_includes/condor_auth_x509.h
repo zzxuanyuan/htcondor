@@ -43,6 +43,14 @@ const char STR_GSI_USER_KEY[]         = "X509_USER_KEY";
 const char STR_SSLEAY_CONF[]          = "SSLEAY_CONF";
 const char STR_GSI_MAPFILE[]          = "GRIDMAP";
 
+extern const char* TSPC_POLICY_OID;
+extern const char* TSPC_POLICY_LN;
+extern const char* TSPC_POLICY_SN;
+
+extern const char* SSPC_POLICY_OID;
+extern const char* SSPC_POLICY_LN;
+extern const char* SSPC_POLICY_SN;
+
 class Condor_Auth_X509 : public Condor_Auth_Base {
  public:
     Condor_Auth_X509(ReliSock * sock);
