@@ -28,6 +28,96 @@
 #include "condor_string.h"
 #include "CondorError.h"
 #include "setenv.h"
+#include "openssl/objects.h"
+#include "gssapi.h"
+#include "globus_gsi_callback.h"
+#include "proxycertinfo.h"
+//#include "gssapi_openssl.h"
+#include "openssl/ssl.h"
+#include "globus_gsi_credential.h"
+#include "globus_gsi_proxy.h"
+#include "globus_common.h"
+//#include "globus_gsi_gss_constants.h"
+#include "globus_utils.h"
+
+typedef enum {
+    GSS_CON_ST_HANDSHAKE = 0,
+    GSS_CON_ST_FLAGS,
+    GSS_CON_ST_REQ,
+    GSS_CON_ST_CERT,
+    GSS_CON_ST_DONE
+} gss_con_st_t;
+
+typedef enum
+{
+    GSS_DELEGATION_START,
+    GSS_DELEGATION_DONE,
+    GSS_DELEGATION_COMPLETE_CRED,
+    GSS_DELEGATION_SIGN_CERT
+} gss_delegation_state_t;
+
+typedef struct globus_l_gsi_cred_handle_attrs_s
+{
+    /* the order to search in for a certificate */
+    globus_gsi_cred_type_t *            search_order; /*{PROXY,USER,HOST}*/
+} globus_i_gsi_cred_handle_attrs_t;
+
+typedef struct globus_l_gsi_cred_handle_s
+{
+    /** The credential's signed certificate */ 
+    X509 *                              cert;
+    /** The private key of the credential */
+    EVP_PKEY *                          key;
+    /** The chain of signing certificates */
+    STACK_OF(X509) *                    cert_chain;
+    /** The immutable attributes of the credential handle */
+    globus_gsi_cred_handle_attrs_t      attrs;
+    /** The amout of time the credential is valid for */
+    time_t                              goodtill;
+} globus_i_gsi_cred_handle_t;
+
+typedef struct gss_name_desc_struct {
+    gss_OID                             name_oid;
+    X509_NAME *                         x509n;
+} gss_name_desc;
+
+typedef struct gss_cred_id_desc_struct {
+    globus_gsi_cred_handle_t            cred_handle;
+    gss_name_desc *                     globusid;
+    gss_cred_usage_t                    cred_usage;
+    SSL_CTX *                           ssl_context;
+} gss_cred_id_desc;
+
+
+
+typedef struct gss_ctx_id_desc_struct{
+    globus_mutex_t                      mutex;
+    globus_gsi_callback_data_t          callback_data;
+    gss_cred_id_desc *                  peer_cred_handle;
+    gss_cred_id_desc *                  cred_handle;
+    gss_cred_id_desc *                  deleg_cred_handle;
+    globus_gsi_proxy_handle_t           proxy_handle;
+    OM_uint32                           ret_flags;
+    OM_uint32                           req_flags;
+    OM_uint32                           ctx_flags;
+    int                                 cred_obtained;
+    SSL *                               gss_ssl; 
+    BIO *                               gss_rbio;
+    BIO *                               gss_wbio;
+    BIO *                               gss_sslbio;
+    gss_con_st_t                        gss_state;
+    int                                 locally_initiated;
+    gss_delegation_state_t              delegation_state;
+    gss_OID_set                         extension_oids;
+} gss_ctx_id_desc;
+
+// Condor oid arc base: "1.3.6.1.4.1.214.102"
+const char* TSPC_POLICY_OID = "1.3.6.1.4.1.214.102.1";
+const char* TSPC_POLICY_LN = "Task Specific Proxy Policy";
+const char* TSPC_POLICY_SN = "TSPCPolicy";
+const char* SSPC_POLICY_OID = "1.3.6.1.4.1.214.102.1";
+const char* SSPC_POLICY_LN = "Service Specific Proxy Policy";
+const char* SSPC_POLICY_SN = "SSPCPolicy";
 
 const char STR_DAEMON_NAME_FORMAT[]="$$(FULL_HOST_NAME)";
 StringList * getDaemonList(ReliSock * sock);
@@ -36,6 +126,81 @@ StringList * getDaemonList(ReliSock * sock);
 #ifdef WIN32
 HashTable<MyString, MyString> * Condor_Auth_X509::GridMap = 0;
 #endif
+
+static int 
+myfunc(
+    globus_gsi_callback_data_t          callback_data,
+    X509_EXTENSION *                    extension)
+{
+    ASN1_OBJECT *                       extension_object = NULL;
+    int                                 nid;
+    int                                 pci_NID;
+    int                                 pci_old_NID;
+
+    pci_NID = OBJ_sn2nid(PROXYCERTINFO_SN);
+    pci_old_NID = OBJ_sn2nid(PROXYCERTINFO_OLD_SN);
+    extension_object = X509_EXTENSION_get_object(extension);
+    nid = OBJ_obj2nid(extension_object);
+
+    if(nid == pci_NID || nid == pci_old_NID)
+    {
+        /* Assume that we either put it there or that it will be recognized */
+		fprintf(stderr, "Bwahaha!! All in a day's work.\n");
+		fprintf(stderr, "Proxy file: '%s'\n", get_x509_proxy_filename());
+        return GLOBUS_TRUE;
+    }
+    else
+    {
+        /* not a PCI extension */
+        return GLOBUS_FALSE;
+    }
+}
+
+char *
+get_cred_text(const globus_gsi_cred_handle_t handle) 
+{
+	BIO *bio;
+	int i;
+	char *rv = NULL;
+	int len = 0;
+//	gss_cred_id_desc *handle;
+
+//	handle = (gss_cred_id_desc *)cred_handle;
+
+	if(handle == NULL) {
+		dprintf(D_ALWAYS, "get_cred_text called with null input.\n");
+		goto error_exit;
+	}
+	bio = BIO_new(BIO_s_mem());
+	if(bio == NULL) {
+		dprintf(D_ALWAYS, "Can't create new memory bio.\n");
+		goto error_exit;
+	}
+	if(!PEM_write_bio_X509(bio, handle->cert)) {
+		dprintf(D_ALWAYS, "Can't write cert to bio.\n");
+		BIO_free(bio);
+		goto error_exit;
+	}
+	for(i = 0; i < sk_X509_num(handle->cert_chain); ++i) {
+		if(!PEM_write_bio_X509(bio, sk_X509_value(handle->cert_chain, i))) {
+			BIO_free(bio);
+			dprintf(D_ALWAYS, "Can't write cert in chain to bio.\n");
+			goto error_exit;
+		}
+	}
+	if(bio_to_buffer(bio, &rv, &len) == FALSE) {
+		dprintf(D_ALWAYS, "Error writing bio to buffer.\n");
+		BIO_free(bio);
+		goto error_exit;
+	}
+	BIO_free(bio);
+	rv[len] = '\0';
+	return rv;
+ error_exit:
+	return NULL;
+}
+
+
 
 //----------------------------------------------------------------------
 // Implementation
@@ -51,6 +216,10 @@ Condor_Auth_X509 :: Condor_Auth_X509(ReliSock * sock)
 #ifdef WIN32
 	ParseMapFile();
 #endif
+	if(	OBJ_ln2nid(TSPC_POLICY_LN) < 1 ) {
+		OBJ_create(SSPC_POLICY_OID, SSPC_POLICY_SN, SSPC_POLICY_LN);
+		OBJ_create(TSPC_POLICY_OID, TSPC_POLICY_SN, TSPC_POLICY_LN);
+	}
 }
 
 Condor_Auth_X509 ::  ~Condor_Auth_X509()
@@ -144,15 +313,18 @@ int Condor_Auth_X509 :: authenticate(const char * /* remoteHost */, CondorError*
 		if (gsi_auth_timeout>=0) {
 			old_timeout = mySock_->timeout(gsi_auth_timeout); 
 		}
-        
+		dprintf(D_SECURITY,"Entering authenticate_xxx_gss\n");
         switch ( mySock_->isClient() ) {
         case 1: 
+			dprintf(D_SECURITY, "I am the client?\n");
             status = authenticate_client_gss(errstack);
             break;
         default: 
+			dprintf(D_SECURITY, "I am the server?\n");
             status = authenticate_server_gss(errstack);
             break;
         }
+		dprintf(D_SECURITY,"Done authenticate_xxx_gss\n");
 
 		if (gsi_auth_timeout>=0) {
 			mySock_->timeout(old_timeout); //put it back to what it was before
@@ -272,6 +444,7 @@ void Condor_Auth_X509 :: print_log(OM_uint32 major_status,
 
 void  Condor_Auth_X509 :: erase_env()
 {
+	fprintf(stderr, "**************************Erasing env.\n");
 	UnsetEnv( "X509_USER_PROXY" );
 }
 
@@ -574,7 +747,9 @@ int Condor_Auth_X509::authenticate_self_gss(CondorError* errstack)
     if (isDaemon()) {
         priv = set_root_priv();
     }
-    
+
+	fprintf(stderr, "Proxy file: '%s'\n", get_x509_proxy_filename());
+
     major_status = globus_gss_assist_acquire_cred(&minor_status,
                                                   GSS_C_BOTH, 
                                                   &credential_handle);
@@ -584,6 +759,7 @@ int Condor_Auth_X509::authenticate_self_gss(CondorError* errstack)
                                                       &credential_handle);
     }
 
+	fprintf(stderr, "Proxy file: '%s'\n", get_x509_proxy_filename());
     //if (!mySock_->isClient() || isDaemon()) {
     if (isDaemon()) {
         set_priv(priv);
@@ -614,7 +790,7 @@ int Condor_Auth_X509::authenticate_self_gss(CondorError* errstack)
         return FALSE;
 	}
     
-    dprintf( D_FULLDEBUG, "This process has a valid certificate & key\n" );
+    dprintf( D_FULLDEBUG, "This process has a valid certificate & key.\n" );
     return TRUE;
 }
 
@@ -629,6 +805,31 @@ int Condor_Auth_X509::authenticate_client_gss(CondorError* errstack)
     if (isDaemon()) {
         priv = set_root_priv();
     }
+
+	major_status = globus_gss_assist_will_handle_restrictions(&minor_status,
+															  &context_handle);
+
+/*	if((context_handle == (gss_ctx_id_t) GSS_C_NO_CONTEXT) ||
+	   !(context_handle->ctx_flags & 1)) {
+		fprintf(stderr, "no context.\n");
+	} else {
+		fprintf(stderr, "context ok.\n");
+		} 
+*/
+	if(major_status != GSS_S_COMPLETE) {
+		fprintf(stderr, "Can't set handler.\n");
+	} else {
+		fprintf(stderr, "Set handler.\n");
+	}
+
+	//globus_gsi_callback_data_t cb = NULL;
+	if(GLOBUS_SUCCESS != globus_gsi_callback_data_init(&(context_handle->callback_data))) {
+		fprintf(stderr, "nope.\n");
+	}
+	if(GLOBUS_SUCCESS != globus_gsi_callback_set_extension_cb(context_handle->callback_data, myfunc)) {
+		fprintf(stderr, "nope..\n");
+	}
+	
     
     major_status = globus_gss_assist_init_sec_context(&minor_status,
                                                       credential_handle,
@@ -705,9 +906,22 @@ int Condor_Auth_X509::authenticate_client_gss(CondorError* errstack)
 		gss_buffer_desc buf;
 		OM_uint32 maj_stat;
 		OM_uint32 min_stat;
-		maj_stat = gss_export_cred(&min_stat, credential_handle, GSS_C_NO_OID, 0, &buf);
-		dprintf(D_ALWAYS, "Got credential: '%s'\n", (char *)buf.value);
-		setRemoteCredential((char *)buf.value);
+/*		maj_stat = gss_export_cred(&min_stat, context_handle->peer_cred_handle, GSS_C_NO_OID, 0, &buf);
+		if((buf.value == NULL) || (maj_stat != GSS_S_COMPLETE)) {
+			dprintf(D_SECURITY, "Can't export credential.\n");
+			goto clear;
+		}
+		char *tmp = strdup((char *)buf.value);
+		int buflen = buf.length;
+		tmp[buflen] = '\0';
+*/
+		char *tmp = get_cred_text(context_handle->peer_cred_handle->cred_handle);
+
+		dprintf(D_ALWAYS, "The following credential has length %d\n", strlen((char *)tmp));	
+//		maj_stat = gss_release_buffer(&min_stat, &buf);
+		dprintf(D_ALWAYS, "Got credential: '%s'\n", tmp);
+		setRemoteCredential(tmp);
+		free(tmp);
 
         char * server = get_server_info();
 
@@ -772,6 +986,21 @@ int Condor_Auth_X509::authenticate_server_gss(CondorError* errstack)
     
     priv = set_root_priv();
     
+	major_status = globus_gss_assist_will_handle_restrictions(&minor_status,
+															  &context_handle);
+	if(major_status != GSS_S_COMPLETE) {
+		fprintf(stderr, "Can't set handler.\n");
+	} else {
+		fprintf(stderr, "Set handler.\n");
+	}
+    
+	if(GLOBUS_SUCCESS != globus_gsi_callback_data_init(&(context_handle->callback_data))) {
+		fprintf(stderr, "nope.\n");
+	}
+	if(GLOBUS_SUCCESS != globus_gsi_callback_set_extension_cb(context_handle->callback_data, myfunc)) {
+		fprintf(stderr, "nope..\n");
+	}
+
     major_status = globus_gss_assist_accept_sec_context(&minor_status,
                                                         &context_handle, 
                                                         credential_handle,
@@ -850,11 +1079,21 @@ int Condor_Auth_X509::authenticate_server_gss(CondorError* errstack)
 		gss_buffer_desc buf;
 		OM_uint32 maj_stat;
 		OM_uint32 min_stat;
-		maj_stat = gss_export_cred(&min_stat, credential_handle, GSS_C_NO_OID, 0, &buf);
+/*		maj_stat = gss_export_cred(&min_stat, context_handle->peer_cred_handle, GSS_C_NO_OID, 0, &buf);
+		if((buf.value == NULL) || (maj_stat != GSS_S_COMPLETE)) {
+			dprintf(D_SECURITY, "Can't export credential.\n");
+		} else {
+			char *tmp = strdup((char *)buf.value);
+			int buflen = buf.length;
+			tmp[buflen] = 0;
+*/
+		char *tmp = get_cred_text(context_handle->peer_cred_handle->cred_handle);
+		dprintf(D_ALWAYS, "The following credential has length %d\n",strlen(tmp));	
+//			maj_stat = gss_release_buffer(&min_stat, &buf);
+		dprintf(D_ALWAYS, "Got credential: '%s'\n", tmp);
+		setRemoteCredential(tmp);
+		free(tmp);
 		
-		dprintf(D_ALWAYS, "Got credential: '%s'\n", (char *)buf.value);
-		setRemoteCredential((char *)buf.value);
-
         if (GSSClientname) {
             free(GSSClientname);
         }

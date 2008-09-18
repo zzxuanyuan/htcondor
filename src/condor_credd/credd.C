@@ -104,7 +104,7 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 	ReliSock * socket = (ReliSock*)stream;
 	int rc = CREDD_FAILURE;
 	const char *cred = NULL;
-	MyString *policy;
+	MyString policy;
 
 	if( !socket->isAuthenticated() ) {
 		CondorError errstack; // What's the use of this?
@@ -119,9 +119,8 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 			socket->getOwner(), user);
 
 	cred = socket->getRemoteCred();
-	dprintf(D_FULLDEBUG, "Got cred: '%s'\n", cred);
+	dprintf(D_FULLDEBUG, "Got remote cred: '%s'\n", cred);
 	MyString cms = cred;
-	//free(cred);
 
 	CredChain cc(cms);
 
@@ -131,11 +130,7 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 		dprintf(D_ALWAYS, "Error receiving shared secret.\n");
 		goto EXIT;
 	}
-/*	if(!socket->code(ss_name)) {
-		dprintf(D_ALWAYS, "Error receiving ss name.\n");
-		goto EXIT;
-	}
-*/
+	dprintf(D_SECURITY, "Got secret '%s'\n", secret);
 
 	socket->eom();
 	socket->encode();
@@ -147,28 +142,34 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 	}
 	/* In order to store the secret, we want a checksum of the policy. */
 	policy = cc.getFirstPolicy();
-	if(policy->GetCStr() == NULL) {
+	if(policy.GetCStr() == NULL) {
 		dprintf(D_ALWAYS, "Can't get policy.\n");
 		goto EXIT;
 	}
-	dprintf(D_ALWAYS, "Policy: '%s'\n", policy->Value());
-	ss_name = get_hash_of_string(policy->Value(), "sha1");
+	dprintf(D_ALWAYS, "Policy: '%s'\n", policy.Value());
+	ss_name = get_hash_of_string(policy.Value(), "sha1");
 	if(!ss_name) {
-		dprintf(D_ALWAYS, "Can't get hash of policy: '%s'\n", policy->Value());
+		dprintf(D_ALWAYS, "Can't get hash of policy: '%s'\n", policy.Value());
 		goto EXIT;
 	}
-	delete(policy);
 	ss = secret;
+	dprintf(D_SECURITY, "Storing pair '%s' '%s'\n", ss_name, secret);
 	if(_ssTable->insert(ss_name, secret)) {// TODO what does this really return?
 		dprintf(D_ALWAYS, "Error inserting secret with name '%s' into"
-				" hash table: collision.\n", ss_name);
+				" hash table: collision?\n", ss_name);
 		rc = CREDD_ERROR_SECRET_NAME_ALREADY_EXISTS;
 		socket->code(rc);
+		char *tmp = strdup("NULL");
+		socket->code(tmp);
+		free(tmp);
+		socket->close();
 		goto EXIT;
 	}
 	rc = CREDD_SUCCESS;
 	socket->code(rc);
-	socket->code(ssn);
+	dprintf(D_SECURITY, "Sending name '%s'\n", ss_name);
+	socket->code(ss_name);
+	socket->eom();
 	socket->close();
 
 	dprintf(D_ALWAYS, "Credential named '%s' stored.\n", ss_name);
@@ -185,14 +186,13 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 
 int 
 get_ss_handler(Service * service, int i, Stream *stream) {
-	char *ss_name = NULL;
 	MyString ss;
 	MyString ssn;
 	const char *user = NULL;
 	ReliSock * socket = (ReliSock*)stream;
 	int rc = CREDD_FAILURE;
 	int t, htrv;
-	char *tmp;
+	char *tmp = strdup("NULL");;
 	char *cred;
 
 	if( !socket->isAuthenticated() ) {
@@ -207,16 +207,6 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 	dprintf(D_FULLDEBUG, "Get secret request from %s, %s\n",
 			socket->getOwner(), user);
 
-	socket->decode();
-
-	if(!socket->code(ss_name) || !ss_name) {
-		dprintf(D_ALWAYS, "Error receiving secret's name.\n");
-		if(ss_name) {
-			free(ss_name);
-		}
-		return FALSE;
-	}
-	socket->eom();
 	socket->encode();
 
 	/* Here's how this should work: instead of the client sending the
@@ -228,51 +218,81 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 	*/
 	MyString full_cred = socket->getRemoteCred();
 	CredChain cc(full_cred);
-	MyString *tsp = cc.getFirstPolicy();
-	MyString *ssp = cc.getLastPolicy();
+	MyString tspf = cc.getFirstPolicy();
+	char *tsp_hash = get_hash_of_string(tspf.GetCStr(), "sha1");
+	if(!tsp_hash) {
+		dprintf(D_ALWAYS, "Error getting hash of tsp.\n");
+		return FALSE;
+	}
+	dprintf(D_SECURITY, "HASHING: '%s'\n", tspf.Value());
+	dprintf(D_ALWAYS, "Got hash '%s'\n", tsp_hash);
+	char *ad = strdup(tspf.GetCStr());
+	dprintf(D_SECURITY,"First policy: '%s'\n", ad);
+	char *sig = rindex(ad, ';');
+	if(sig) {
+		*sig = '\0';
+	}
+	tspf = ad;
+	free(ad);
+	MyString tsp = unquote_classad_string(tspf);
 	ClassAd tsp_ad;
-	if(!text2classad(tsp->Value(),tsp_ad)) {
+	//dprintf(D_ALWAYS, "Here's the tsp ad: '%s'\n", tsp.Value());
+	if(!text2classad(tsp.Value(),tsp_ad)) {
 		dprintf(D_ALWAYS, "Error converting text to ClassAd.\n");
 		return FALSE;
 	}
-	ClassAd ssp_ad;
-	if(!text2classad(ssp->Value(), ssp_ad)) {
-		dprintf(D_ALWAYS, "Error converting ssp text to ClassAd.\n");
-		return FALSE;
+
+	MyString sspf = cc.getLastPolicy();
+	ad = strdup(sspf.GetCStr());
+	dprintf(D_SECURITY,"Last policy: '%s'\n", ad);
+	sig = rindex(ad, ';');
+	if(sig) {
+		*sig = '\0';
+		sig++;
 	}
-	char *tsp_hash = get_hash_of_string(tsp->GetCStr(), "sha1");
-	if(tsp_hash) {
-		dprintf(D_ALWAYS, "Error getting hash of tsp.\n");
+	sspf = ad;
+	free(ad);
+	MyString ssp = unquote_classad_string(sspf);
+	ClassAd ssp_ad;
+	//dprintf(D_ALWAYS, "Here's the ssp ad: '%s'\n", ssp.Value());
+	if(!text2classad(ssp.Value(), ssp_ad)) {
+		dprintf(D_ALWAYS, "Error converting ssp text to ClassAd.\n");
 		return FALSE;
 	}
 	MyString aae;
 	bool aae_result;
 	MyString execution_host;
+	int result = 0;
+	MyString debug;
 
 	// Sanity check on cc: make sure there are two policies: TSP and SSP.
 	if(cc.getNumPolicies() != 2) {
 		dprintf(D_ALWAYS, "Incorrect number of policies in credential chain: %d\n", cc.getNumPolicies());
-		goto EXIT;
+		goto error;
 	}
 
     /* First, verify that the hashed TSP is the same as the name. */
 
 	if(!tsp_hash) {
-		dprintf(D_ALWAYS, "Can't get hash of policy '%s'\n", tsp->Value());
-		goto EXIT;
+		dprintf(D_ALWAYS, "Can't get hash of policy '%s'\n", tsp.Value());
+		goto error;
 	}
-	if(!strcmp(tsp_hash, ssn.Value())) {
+/*	if(!strcmp(tsp_hash, ssn.Value())) {
 		dprintf(D_ALWAYS, "Requested secret name doesn't match the one in the requesting"
 				" credential chain.\n");
-		goto EXIT;
+		goto error;
 	}
-	
+*/
+	ssn = tsp_hash;
 	/* Second, check that the tsp's policy contains an aae.	*/
-	if(!tsp_ad.LookupString("EXECUTION_HOST_AAE",aae)) {
+/*	if(!tsp_ad.LookupString("ExecutionHostAAE",aae)) {
 		dprintf(D_ALWAYS, "Execution host aae not present.\n");
-		goto EXIT;
+		MyString tspp;
+		tsp_ad.sPrint(tspp);
+		dprintf(D_ALWAYS, "In this ad: '%s'\n", tspp.Value());
+		goto error;
 	}
-	
+*/ // it's not a string; for now assume it's there.
     /*
 	   Third, verify the execution_host_aae:
 
@@ -286,55 +306,62 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 	   secret.
 
 	*/
+	dprintf(D_ALWAYS, "Getting ehdn\n");
 	execution_host = cc.getExecutionHostDN();
-	tsp_ad.Insert("EXECUTION_HOST", execution_host.Value());
+	dprintf(D_ALWAYS, "Got execution host: '%s'\n", execution_host.Value());
+	tsp_ad.Assign("ExecutionHost", execution_host.Value());
 	aae_result = false;
 
     // How to do this?
-/*	if(!tsp_ad.EvaluateAttrBool("EXECUTION_HOST_AAE", aae_result) || aae_result != true) {
-		dprintf(D_ALWAYS, "AAE not satisfied.\n");
-		goto EXIT;
+	tsp_ad.sPrint(debug);
+	dprintf(D_SECURITY, "AD: '%s'\n", debug.Value());
+	if(!tsp_ad.EvalBool("ExecutionHostAAE", NULL, result)) {
+		dprintf(D_ALWAYS, "AAE error?\n");
+		goto error;
 	}
-*/
-	ssn = ss_name;
+	aae_result = result ? true : false;
+	if(!aae_result) {
+		dprintf(D_ALWAYS, "AAE returns false.\n");
+		goto error;
+	}
+
 	htrv = _ssTable->lookup(ssn, ss);
 	switch(htrv) {
 	case 0:
-		dprintf(D_ALWAYS,"Retrieved secret with name '%s'.\n", ss_name);
-		t = CREDD_SUCCESS;
-		if(!socket->code(t)) {
-			dprintf(D_ALWAYS, "Error sending success response code.\n");
-			goto EXIT;
-		}
+		dprintf(D_ALWAYS,"Retrieved secret with name '%s': '%s'.\n", ssn.Value(), ss.Value());
+		free(tmp);
 		tmp = strdup(ss.Value());
 		if(!tmp) {
 			dprintf(D_ALWAYS, "Malloc failure!\n");
-			goto EXIT;
+			goto cleanup;
 		}
-		if(!socket->code(tmp)) {
-			dprintf(D_ALWAYS, "Error sending secret.\n");
-			free(tmp);
-			goto EXIT;
-		}
-		free(tmp);
 		rc = CREDD_SUCCESS;
-		_ssTable->remove(ssn);
-		dprintf(D_ALWAYS, "Successfully deleted '%s' from hashtable.\n",
-				ss_name);
 		break;
 	default:
-		dprintf(D_ALWAYS, "Secret not found for name '%s'.\n", ss_name);
-		t = CREDD_CREDENTIAL_NOT_FOUND;
-		if(!socket->code(t)) {
-			dprintf(D_ALWAYS, "Error sending credential not found.");
-			goto EXIT;
-		}
+		dprintf(D_ALWAYS, "Secret not found for name '%s'.\n", ssn.Value());
+		rc = CREDD_CREDENTIAL_NOT_FOUND;
+		tmp = strdup(ssn.Value());
 		break;
 	}
-
- EXIT:
-	if(ss_name) {
-		free(ss_name);
+ error:
+	if(!socket->code(rc)) {
+		dprintf(D_ALWAYS, "Error sending success response code.\n");
+		goto cleanup;
+	}
+	if(!socket->code(tmp)) {
+		dprintf(D_ALWAYS, "Error sending secret.\n");
+		free(tmp);
+		goto cleanup;
+	}
+	if(rc == CREDD_SUCCESS) {
+		_ssTable->remove(ssn);
+		dprintf(D_ALWAYS, "Successfully deleted '%s' from hashtable.\n",
+				ssn.Value());
+	}
+	socket->eom();
+ cleanup:
+	if(tmp) {
+		free(tmp);
 	}
 	socket->close();
 	return (rc == CREDD_SUCCESS) ? TRUE : FALSE;

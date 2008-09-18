@@ -29,6 +29,7 @@
 #include "condor_arglist.h"
 #include "condor_attributes.h"
 #include "openssl_helpers.h"
+#include "condor_auth_x509.h"
 
 #include "globus_utils.h"
 #if defined(HAVE_EXT_GLOBUS)
@@ -46,7 +47,7 @@
 #include "openssl/err.h"
 #include "openssl/pem.h"
 #include "condor_auth_ssl.h"
-
+#include "openssl/bio.h"
 
 void
 print_ad(ClassAd ad) 
@@ -509,7 +510,7 @@ prepare_arguments(ClassAd *ad)
 	   al.GetArgsStringForDisplay(&arg);
 	   fprintf(stderr, "Arglist: '%s'\n", arg.Value());
 	 */
-	print_ad(*ad);
+	//print_ad(*ad);
 	return true;
 }
 
@@ -551,8 +552,8 @@ bool
 verify_same_subset_attributes(const ClassAd &jobAd, 
 							  const ClassAd &sigAd, StringList &subset)
 {
-	print_ad(jobAd);
-	print_ad(sigAd);
+	//print_ad(jobAd);
+	//print_ad(sigAd);
 	ExprTree *jobAdExpr, *sigAdExpr;
 	char *attr_name;
 	subset.rewind();
@@ -740,9 +741,9 @@ verify_classad(ClassAd& ad,
 {
 	MyString signed_text;
 	MyString signature;
-//	MyString adtext;
-//	ad.sPrint(adtext);
-//	dprintf(D_SECURITY, "Got ad: %s\n", adtext.Value());
+	MyString adtext;
+	ad.sPrint(adtext);
+	dprintf(D_SECURITY, "Got ad: %s\n", adtext.Value());
 	if(!ad.LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, signed_text)) {
 		dprintf(D_SECURITY, "Can't find signed text in signed classad.\n");
 		return false;
@@ -1023,9 +1024,11 @@ host_sign_key(char *& policy, EVP_PKEY *proxy_pubkey) {
 		dprintf(D_SECURITY, "Error getting buffer from bio.\n");
 		return false;
 	}
+	buffer[buffer_len] = '\0';
 	StringList to_sign;
 	to_sign.insert("ProxyPublicKey");
-	policy_ad.Assign("ProxyPublicKey", buffer);
+	MyString quoted = quote_classad_string(buffer);
+	policy_ad.Assign("ProxyPublicKey", quoted);
 	to_sign.insert("Assertion");
 	policy_ad.Assign("Assertion","Private key associated with ProxyPublicKey is present on signing host.");
 
@@ -1047,7 +1050,11 @@ host_sign_key(char *& policy, EVP_PKEY *proxy_pubkey) {
 		dprintf(D_SECURITY, "error signing service policy.\n");
 		return false;
 	}
-	policy_ad.sPrint(classad_text);
+	MyString buf1, buf2;
+	policy_ad.LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, buf1);
+	policy_ad.LookupString(ATTR_CLASSAD_SIGNATURE, buf2);
+	classad_text = buf1 + ";" + buf2;
+	//policy_ad.sPrint(classad_text);
 	policy = strdup(classad_text.Value());
 	return true;
 }
@@ -1059,13 +1066,17 @@ verify_certificate(X509 *cert)
     X509_STORE *store;
     X509_STORE_CTX *ctx;
 
+	if(!cert) {
+		report_openssl_errors("verify_certificate");
+		return false;
+	}
     ctx = X509_STORE_CTX_new();
     store = X509_STORE_new();
     X509_STORE_set_default_paths(store);
     //X509_STORE_add_cert(store, pnca_cert);
-	char *tmp = param("GSI_DAEMON_DIRECTORY");
+	char *tmp = param("GSI_DAEMON_TRUSTED_CA_DIR");
 	if(!tmp) {
-		dprintf(D_SECURITY, "Can't get GSI_DAEMON_DIRECTORY to verify certificate.\n");
+		dprintf(D_SECURITY, "Can't get GSI_DAEMON_TRUSTED_CA_DIR to verify certificate.\n");
 	} else {
 		X509_STORE_load_locations(store, NULL, tmp);
 		free(tmp);
@@ -1073,7 +1084,9 @@ verify_certificate(X509 *cert)
 		if (!X509_verify_cert(ctx)) {
 			dprintf(D_SECURITY, "Error verifying signature on issued certificate:\n");
 			// openssl helper use here.
-			ERR_print_errors_fp (stderr);
+			//ERR_print_errors_fp (stderr);
+			//report_openssl_errors("verify_certificate");
+			dprintf(D_ALWAYS, "Error: %s\n", X509_verify_cert_error_string( ctx->error ));
 		} else {
 			ret = true;
 		}
@@ -1085,7 +1098,9 @@ verify_certificate(X509 *cert)
 }
 
 int
-x509_self_delegation( const char *proxy_file, const char *host_file, const char *tsp, const char *policy_oid )
+x509_self_delegation( const char *proxy_file, 
+					  const char *tsp, 
+					  const char *policy_oid )
 {
 #if !defined(HAVE_EXT_GLOBUS)
 
@@ -1117,7 +1132,7 @@ x509_self_delegation( const char *proxy_file, const char *host_file, const char 
 		return -1;
 	}
 */
-
+	// Send side
 	result = globus_gsi_cred_handle_init( &source_cred, NULL );
 	if ( result != GLOBUS_SUCCESS ) {
 		rc = -1;
@@ -1139,6 +1154,7 @@ x509_self_delegation( const char *proxy_file, const char *host_file, const char 
 		goto cleanup;
 	}
 
+	// Receive side
 	result = globus_gsi_proxy_handle_init( &request_handle, NULL );
 	if ( result != GLOBUS_SUCCESS ) {
 		rc = -1;
@@ -1160,41 +1176,95 @@ x509_self_delegation( const char *proxy_file, const char *host_file, const char 
 		goto cleanup;
 	}
 
-	bio_to_buffer(bio, &buffer, &buffer_len);
-
-	req = NULL;
-	if(!d2i_X509_REQ_bio(bio, &req)) {
+	if( bio_to_buffer(bio, &buffer, &buffer_len) == FALSE ) {
 		rc = -1;
 		error_line = __LINE__;
-		//dprintf(D_SECURITY, "Error!\n");
 		goto cleanup;
 	}
 
 	BIO_free(bio);
 	bio = NULL;
-	buffer_to_bio(buffer, buffer_len, &bio);
 
+	// New
+	char *tm = (char *)malloc(buffer_len);
+	if( !tm ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+	int bl = buffer_len;
+	memcpy(tm, buffer, buffer_len);
+	bio = BIO_new( BIO_s_mem() );
+	if( bio == NULL ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+	
+	if( buffer_to_bio(tm, bl, &bio) == FALSE ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	free(tm);
+	tm = NULL;
+
+	// X509_REQ *d2i_X509_REQ_bio(BIO *bp, X509_REQ **x);	
+	req = NULL;
+	if(!(req = d2i_X509_REQ_bio(bio, NULL))) {
+		rc = -1;
+		error_line = __LINE__;
+		//dprintf(D_SECURITY, "Error!\n");
+		goto cleanup;
+	}
+	
+	req_pubkey = X509_REQ_get_pubkey(req);
+	//X509_free(req);
+
+	BIO_free(bio);
+	bio = NULL;
+
+	// Send
+	if( buffer_to_bio(buffer, buffer_len, &bio) == FALSE ) {
+		rc = -1;
+		error_line = __LINE__;
+		goto cleanup;
+	}
+
+	free( buffer );
+	buffer = NULL;
+	
 	result = globus_gsi_proxy_inquire_req( new_proxy, bio );
 	if ( result != GLOBUS_SUCCESS ) {
 		rc = -1;
 		error_line = __LINE__;
 		goto cleanup;
 	}
-	/* So, bio_to_buffer here, parse the buffer once using openssl */
-
-	BIO_free( bio );
-	bio = NULL;
-	// X509_REQ *d2i_X509_REQ_bio(BIO *bp, X509_REQ **x);
-
-	req_pubkey = X509_REQ_get_pubkey(req);
-	if(tsp) {
+	
+	if(tsp && !strcmp(policy_oid, TSPC_POLICY_OID)) {
 		policy = strdup(tsp);
 	} else {
-		if(!host_sign_key(policy, req_pubkey)) {
-			dprintf(D_ALWAYS, "Error, can't get host to sign policy.\n");
+		if(!strcmp(policy_oid, SSPC_POLICY_OID)) {
+			
+			dprintf(D_SECURITY, 
+					"**************************************SSPC path.\n");
+			dprintf(D_SECURITY, "proxy file is '%s'\n", proxy_file);
+			if(!host_sign_key(policy, req_pubkey)) {
+				dprintf(D_ALWAYS, "Error, can't get host to sign policy.\n");
+			} else {
+				dprintf(D_SECURITY, "Got host to sign policy.\n");
+			}
+		} else {
+			dprintf(D_SECURITY, "Unrecognized policy oid: '%s'\n", policy_oid);
 		}
+		// Free req_pubkey;
 	}
-	policy_nid = OBJ_ln2nid(policy_oid);
+	BIO_free( bio );
+	bio = NULL;
+
+	policy_nid = OBJ_txt2nid(policy_oid);
+	dprintf(D_ALWAYS, "Policy ln: %s %d %d\n", OBJ_nid2ln(policy_nid), policy_nid, GLOBUS_GSI_CERT_UTILS_TYPE_RFC_RESTRICTED_PROXY);
 
 		// modify certificate properties
 		// set the appropriate proxy type
@@ -1239,7 +1309,8 @@ x509_self_delegation( const char *proxy_file, const char *host_file, const char 
 		error_line = __LINE__;
 		goto cleanup;
 	}
-
+	fprintf(stderr, "Policy_nid: %d\n", policy_nid);
+	fprintf(stderr, "U ext: '%s', '%s'\n", OBJ_nid2ln(655), OBJ_nid2sn(655));
 	if( policy != NULL ) {
 		result = globus_gsi_proxy_handle_set_policy( new_proxy,
 													 (unsigned char *)policy,
@@ -1311,7 +1382,7 @@ x509_self_delegation( const char *proxy_file, const char *host_file, const char 
 		error_line = __LINE__;
 		goto cleanup;
 	}
-
+	fprintf(stderr, "Got through redelegation.\n");
  cleanup:
 	/* TODO Extract Globus error message if result isn't GLOBUS_SUCCESS */
 	if ( error_line ) {
@@ -1346,3 +1417,4 @@ x509_self_delegation( const char *proxy_file, const char *host_file, const char 
 	return rc;
 #endif
 }
+

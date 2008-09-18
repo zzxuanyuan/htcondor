@@ -49,7 +49,7 @@ DCCredd::~DCCredd( void )
 
 bool
 DCCredd::storeSharedSecret (const char *data,
-							MyString ssn,
+							MyString &ssn,
 							CondorError & condor_error) {
 	ReliSock *rsock = NULL;
 	int rc = 1;
@@ -82,49 +82,32 @@ DCCredd::storeSharedSecret (const char *data,
 	}
 	free(tmp);
 
-/*	tmp = strdup(ss_name);
-	if(!tmp) {
-		condor_error.pushf("DC_CREDD", 5,
-						   "Malloc error: %s", strerror(errno));
-		goto EXIT;
-	}
-	if(!rsock->code(tmp)) {
-		condor_error.pushf("DC_CREDD", 6,
-						   "Communication error, send name "
-						   "for shared secret: %s",
-						   strerror(errno));
-		free(tmp);
-		goto EXIT;
-	}
-	free(tmp); 
-*/
-
 	rsock->eom();
 	rsock->decode();
 	rsock->code(rc);
-	if(!rc) {
-		rsock->code(ss_name);
-		ssn = ss_name;
-		free(ss_name);
-	}
+	rsock->code(ss_name);
+	rsock->eom();
 	rsock->close();
+	ssn = ss_name;
+	dprintf(D_SECURITY, "Got name '%s'\n", ssn.Value());
 	if(rc) {
 		condor_error.pushf("DC_CREDD", 7, "Invalid CredD return code (%d)", rc);
 	}
  EXIT:
 	if(rsock) delete rsock;
+	if(ss_name) free(ss_name);
 	return (rc == 0) ? true : false;
 }
 
 bool 
-DCCredd::getSharedSecret(const char *cred_name,
-						 void *&shared_secret,
+DCCredd::getSharedSecret(MyString &ss,
 						 CondorError & condor_error) {
 	locate();
 	ReliSock rsock;
 	rsock.timeout(20);
 	int rc = 1;
 	char * secret_str = NULL;
+	bool rv = false;
 	if(!rsock.connect(_addr)) {
 		condor_error.pushf("DC_CREDD", 1, "Failed connect to CredD %s", _addr);
 		return false;
@@ -139,12 +122,6 @@ DCCredd::getSharedSecret(const char *cred_name,
 		return false;
 	}
 
-	rsock.encode();
-	char *tmp = strdup(cred_name);
-	rsock.code(tmp);
-	free(tmp);
-	rsock.eom();
-
 	rsock.decode();
 
 	if(!rsock.code(rc)) {
@@ -154,7 +131,8 @@ DCCredd::getSharedSecret(const char *cred_name,
 	if(rc != CREDD_SUCCESS) {
 		condor_error.pushf("DC_CREDD", 4, "CredD Response code %d"
 						   " - read cred_constants.h (sorry)", rc);
-		return false;
+	} else {
+		rv = true;
 	}
 
 	// This gets malloc'd by the called function since it's NULL.
@@ -162,9 +140,10 @@ DCCredd::getSharedSecret(const char *cred_name,
 		condor_error.pushf("DC_CREDD", 5, "Failed to receive shared secret");
 		return false;
 	}
-	shared_secret = secret_str;
+	rsock.eom();
+	ss = secret_str;
 	rsock.close();
-	return true;
+	return rv;
 }					 
 
 bool 

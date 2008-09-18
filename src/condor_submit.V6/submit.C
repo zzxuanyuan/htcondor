@@ -84,9 +84,11 @@
 #include "cr_hash.h"
 #include "signed_classads.h"
 #include "condor_auth_ssl.h" // TODO: why -alderman
+#include "dc_credd.h"
 
 #if defined(HAVE_EXT_OPENSSL)
 #include "openssl/evp.h"
+#include "condor_auth_x509.h"
 #endif
 
 
@@ -118,6 +120,7 @@ char	*Spool;
 char	*Flavor;
 char	*ScheddName = NULL;
 char	*PoolName = NULL;
+MyString SharedSecret;
 DCSchedd* MySchedd = NULL;
 char	*My_fs_domain;
 MyString    JobRequirements;
@@ -810,10 +813,18 @@ main( int argc, char *argv[] )
 					exit( 1 );
 				}
 				extraLines.Append( *ptr );
+			} else if ( match_prefix( ptr[0], "-secret" ) ) {
+				if( !(--argc) || !(*(++ptr)) ) {
+					fprintf( stderr, "%s: -secret requires another argument\n",
+							 MyName );
+					exit(1);
+				}
+				SharedSecret = *ptr;
 			} else if ( match_prefix( ptr[0], "-password" ) ) {
 				if( !(--argc) || !(*(++ptr)) ) {
 					fprintf( stderr, "%s: -password requires another argument\n",
 							 MyName );
+					// TODO: this is a bug. should exit.
 				}
 				myproxy_password = strdup (*ptr);
 			} else if ( match_prefix( ptr[0], "-pool" ) ) {
@@ -5567,7 +5578,6 @@ queue(int num)
 	int		rval;
 
 	// First, connect to the schedd if we have not already done so
-
 	if (!DumpClassAdToFile && ActiveQueueConnection != TRUE) 
 	{
 		connect_to_the_schedd();
@@ -5580,7 +5590,7 @@ queue(int num)
 		if (NewExecutable) {
  			if ( !DumpClassAdToFile ) {
 				if ((ClusterId = NewCluster()) < 0) {
-					fprintf(stderr, "\nERROR: Failed to create cluster\n");
+					fprintf(stderr, "\nERROR: Failed to create cluster: %d\n", ClusterId);
 					if ( ClusterId == -2 ) {
 						fprintf(stderr,
 						"Number of submitted jobs would exceed MAX_JOBS_SUBMITTED\n");
@@ -6593,6 +6603,7 @@ SaveClassAd ()
 	int  retval = 0;
 	int myprocid = ProcId;
 	static ClassAd* current_cluster_ad = NULL;
+	fprintf(stderr, "Entering SaveClassAd.\n");
 
 	if ( ProcId > 0 ) {
 		SetAttributeInt (ClusterId, ProcId, ATTR_PROC_ID, ProcId);
@@ -6643,6 +6654,7 @@ SaveClassAd ()
 			free(cr_hash);
 		}
     }
+	// This is where Zach's file transfer stuff gets added.
 
 #endif /* !defined(HAVE_EXT_OPENSSL) */
 
@@ -6651,18 +6663,50 @@ SaveClassAd ()
  		fprintf(stderr, "Error signing classad.\n");
  		return -1;
 	} else {
+		fprintf(stderr, "OK with ClassAd signature.\n");
 		// IdA: TODO Here's where we add proxy policy.  Where to remove?
-		char *tmp = param("ADD_TASK_POLICY");
-		bool add_task_policy = isTrue(tmp);
-		free(tmp);
+		char *p_tmp = param("ADD_TASK_POLICY");
+		bool add_task_policy = isTrue(p_tmp);
+		free(p_tmp);
 		if(add_task_policy) {
 			MyString buf1, buf2, buf;
 			job->LookupString(ATTR_CLASSAD_SIGNATURE_TEXT, buf1);
 			job->LookupString(ATTR_CLASSAD_SIGNATURE, buf2);
 			buf = buf1 + ";" + buf2;
-			job->Assign(ATTR_PROXY_POLICY, buf);
-			job->Assign(ATTR_PROXY_POLICY_OID, PROXY_POLICY_OID);
-			fprintf(stderr, "Added policy.\n");
+//			job->Assign(ATTR_PROXY_POLICY, buf);
+//			job->Assign(ATTR_PROXY_POLICY_OID, TSPC_POLICY_OID);
+//			fprintf(stderr, "Added policy.\n");
+
+			char *proxy_loc = NULL;
+			job->LookupString("x509userproxy", &proxy_loc);
+			if(proxy_loc == NULL) {
+				fprintf(stderr, "Can't get proxy location.\n");
+				exit(1);
+			}
+			if(x509_self_delegation(proxy_loc, buf.Value(), TSPC_POLICY_OID)) {
+				fprintf(stderr, "Can't self-delegate!!!  Fatal!!!\n");
+				exit(1);
+			}
+			free(proxy_loc);
+
+			if(SharedSecret.GetCStr()) {
+				// We were given a -secret argument.
+				// We're hoping that since we just did the self-delegation, the
+				// updated file will be used for this.
+				DCCredd dc_credd(NULL);
+				CondorError errstack;
+				if( !dc_credd.locate() ) {
+					fprintf(stderr, "Error locating credd: %s\n", dc_credd.error() );
+					exit(1);
+				}
+				MyString ssn;
+				dprintf(D_SECURITY, "Storing shared secret '%s'\n", SharedSecret.Value());
+				if(! dc_credd.storeSharedSecret(SharedSecret.GetCStr(), ssn, errstack)) {
+					fprintf(stderr, "Error storing shared secret.\n");
+					exit(1);
+				}
+				fprintf(stderr, "Successfully stored shared secret.  Name: '%s'.\n", ssn.Value());
+			}
 		}
  	}
 

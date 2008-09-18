@@ -25,10 +25,60 @@
 #include "condor_attributes.h"
 #include "condor_debug.h"
 
+/**
+ * Handle attributes.
+ * @ingroup globus_gsi_credential_handle_attrs
+ */
+
+/**
+ * GSI Credential handle attributes implementation
+ * @ingroup globus_gsi_credential_handle
+ * @internal
+ *
+ * This structure contains immutable attributes
+ * of a credential handle
+ */
+typedef struct globus_l_gsi_cred_handle_attrs_s
+{
+    /* the order to search in for a certificate */
+    globus_gsi_cred_type_t *            search_order; /*{PROXY,USER,HOST}*/
+} globus_i_gsi_cred_handle_attrs_t;
+
+/**
+ * GSI Credential handle implementation
+ * @ingroup globus_gsi_credential_handle
+ * @internal
+ *
+ * Contains all the state associated with a credential handle, including
+ * 
+ * @see globus_credential_handle_init(), globus_credential_handle_destroy()
+ */
+typedef struct globus_l_gsi_cred_handle_s
+{
+    /** The credential's signed certificate */ 
+    X509 *                              cert;
+    /** The private key of the credential */
+    EVP_PKEY *                          key;
+    /** The chain of signing certificates */
+    STACK_OF(X509) *                    cert_chain;
+    /** The immutable attributes of the credential handle */
+    globus_gsi_cred_handle_attrs_t      attrs;
+    /** The amout of time the credential is valid for */
+    time_t                              goodtill;
+} globus_i_gsi_cred_handle_t;
+
+bool
+CredChain::isValid() 
+{
+	return valid;
+}
+
 bool
 CredChain::initCredChainHandles() 
 {
 	if(!valid) return false;
+	handle_attrs = NULL;
+	handle = NULL;
 
 	if(globus_gsi_cred_handle_attrs_init(&handle_attrs)) {
 		dprintf(D_SECURITY, "problem during internal initialization.\n");
@@ -42,11 +92,24 @@ CredChain::initCredChainHandles()
 	}
 	return true;
 }
-
+/*
 MyString *
-CredChain::getFirstPolicy()
+CredChain::get_cert_policy()
 {
 	MyString *rv = new MyString();
+	if(!valid) {
+		return rv;
+	}
+	PROXYCERTINFO pci = get_proxycertinfo(handle->cert);
+	PROXY_POLICY policy = PROXYCERTINFO_get_policy(pci);
+	policy_string = PROXYPOLICY_get_policy(policy, &policy_string_length);
+
+	}*/
+
+MyString
+CredChain::getLastPolicy()
+{
+	MyString rv;
 	if(!valid) {
 		return rv;
 	}
@@ -56,25 +119,25 @@ CredChain::getFirstPolicy()
 		return rv;
 	}
 	int j;
-	for(j = 0; j < sk_num(policies); j++) {
+/*	for(j = 0; j < sk_num(policies); j++) {
 		MyString policy = sk_value(policies, j);
-		if((policy != "") && (policy != "GLOBUS_NULL_POLICY")) {
-			delete(rv);
-			rv = new MyString(policy);
+		if((policy != "") && (policy != "GLOBUS_NULL_POLICY") && (policy != "(null)") && (policy != NULL)) {
+			rv = policy;
 			goto cleanup;
 		}
 	}
+*/
+	rv = sk_value(policies, 0);
  cleanup:
 	if(policies) {
 		sk_free(policies);
 	}
 	return rv;
-
 }
-MyString *
-CredChain::getLastPolicy()
+MyString 
+CredChain::getFirstPolicy()
 {
-	MyString *rv = new MyString();
+	MyString rv;
 	if(!valid) {
 		return rv;
 	}
@@ -86,9 +149,8 @@ CredChain::getLastPolicy()
 	int j;
 	for(j = 0; j < sk_num(policies); j++) {
 		MyString policy = sk_value(policies, j);
-		if(policy != "") {
-			delete(rv);
-			rv = new MyString(policy);
+		if((policy != "") && (policy != "GLOBUS_NULL_POLICY") && (policy != "(null)") && (policy != NULL)) {
+			rv = policy;
 		}
 	}
 // cleanup:
@@ -106,24 +168,35 @@ CredChain::getExecutionHostDN()
 		return NULL;
 	}
 	// Get SSP.
-	MyString *ssp = getLastPolicy();
+	MyString sspf = getLastPolicy();
 
 	// Check signature on SSP ClassAd.
+	char *ad = strdup(sspf.GetCStr());
+	dprintf(D_SECURITY,"Last policy: '%s'\n", ad);
+	char *sig = rindex(ad, ';');
+	if(sig) {
+		*sig = '\0';
+		++sig;
+	}
+	sspf = ad;
+	//free(ad);
+	MyString ssp = unquote_classad_string(sspf);
 	ClassAd ssp_ad;
-	if(!text2classad(ssp->Value(), ssp_ad)) {
+	if(!text2classad(ssp.Value(), ssp_ad)) {
 		dprintf(D_SECURITY, "Can't get classad from text.\n");
-		delete(ssp);
 		return NULL;
 	}
+	ssp_ad.Assign(ATTR_CLASSAD_SIGNATURE_TEXT, ad);
+	ssp_ad.Assign(ATTR_CLASSAD_SIGNATURE, sig);
 
-	delete(ssp);
 	StringList sl;
 	sl.insert("ProxyPublicKey");
 	sl.insert("Assertion");
 	if(!verify_classad(ssp_ad, sl)) {
-		dprintf(D_ALWAYS, "Error verifying certificate.\n");
+		dprintf(D_ALWAYS, "Error verifying classad.\n");
 		return NULL;
-	}
+	}// Shouldn't we verify that the proxy public key is the one we have in hand?
+
 
 	// Extract signing certificate.
 	MyString cert;
@@ -133,7 +206,8 @@ CredChain::getExecutionHostDN()
 	}
 
 	// Verify certificate.
-	char *buf = strdup(cert.Value());
+	MyString uqcert = unquote_classad_string(cert);
+	char *buf = strdup(uqcert.Value());
 	BIO *mem = BIO_new_mem_buf(buf, -1);
 	if(!mem) {
 		dprintf(D_SECURITY, "Error getting memory buffer for cert pub key.\n");
@@ -158,7 +232,7 @@ CredChain::hasMatchingPolicy(MyString policy_to_match)
 	}
 	bool rv = false;
 	STACK *policies;
-	if(globus_gsi_cred_get_policies(handle, &policies)) {
+	if(globus_gsi_cred_get_policies(handle, &policies) != GLOBUS_SUCCESS) {
 		dprintf(D_SECURITY, "Problem getting policies.\n");
 		return false;
 	}
@@ -190,9 +264,14 @@ CredChain::getNumPolicies()
 		return false;
 	}
 	int j;
+	dprintf(D_SECURITY, "Number of policies (total): %d\n", sk_num(policies));
 	for(j = 0; j < sk_num(policies); j++) {
 		MyString policy = sk_value(policies, j);
-		if((policy != "") && (policy != "GLOBUS_NULL_POLICY")) {
+		//dprintf(D_SECURITY, "Policy: '%s'\n", policy.Value());
+		if(!((policy.GetCStr() == NULL) || 
+			 (policy == "(null)") ||
+			 (policy == "") ||
+			 (policy == "GLOBUS_NULL_POLICY"))) {
 			rv++;
 		}
 	}
@@ -216,9 +295,12 @@ CredChain::CredChain(const char *proxy_file_path)
 		dprintf(D_SECURITY, "problem reading credential.\n");
 		valid = false;
 	}
-}
+	// Add top cert to chain:
+	// (This is a total hack.)
+	sk_X509_insert(handle->cert_chain,handle->cert, sk_num(handle->cert_chain)+1);
+	}
 
-CredChain::CredChain(const MyString full_chain) {
+/*CredChain::CredChain(const MyString full_chain) {
 	valid = true;
 	// Hack to activate_globus_gsi();
 	char *proxy_file_name = get_x509_proxy_filename();
@@ -238,4 +320,62 @@ CredChain::CredChain(const MyString full_chain) {
 		valid = false;
 		dprintf(D_SECURITY, "Problem reading credential text.\n");
 	}
+	// Add top cert to chain:
+	// (This is a total hack.)
+	sk_X509_insert(handle->cert_chain,handle->cert, sk_num(handle->cert_chain)+1);
+	//dprintf(D_SECURITY, "Got credential '%s'\n", tmp);
+	free(tmp);
+	}*/
+
+CredChain::CredChain(const MyString full_chain) {
+	// Hack to activate_globus_gsi();
+	char *proxy_file_name = get_x509_proxy_filename();
+	BIO *bp;
+	int i = 0;
+	X509 *tmp_cert = NULL;
+	const char *chain = full_chain.Value();
+	char *tmp = strdup(chain);
+
+	valid = true;
+	if(proxy_file_name) {
+		free(proxy_file_name);
+	}
+
+	if(!tmp) {
+		dprintf(D_SECURITY, "Error allocating memory.\n");
+		valid = false;
+		return;
+	}
+
+	if(!buffer_to_bio(tmp, strlen(tmp), &bp)) {
+		dprintf(D_SECURITY, "Error converting buffer to bio.\n");
+		goto error_exit;
+	}
+	initCredChainHandles();
+	if(handle->cert_chain != NULL) { // Shouldn't be necessary.
+		sk_X509_pop_free(handle->cert_chain, X509_free);
+		handle->cert_chain = NULL;
+	}
+	if((handle->cert_chain = sk_X509_new_null()) == NULL) {
+		dprintf(D_SECURITY, "Error creating stack for certificates.\n");
+		goto error_exit;
+	}
+	while(!BIO_eof(bp)) {
+		tmp_cert = NULL;
+		if(!PEM_read_bio_X509(bp, &tmp_cert, NULL, NULL)) {
+			break; 
+		}
+		if(!sk_X509_insert(handle->cert_chain, tmp_cert, i)) {
+			X509_free(tmp_cert);
+			dprintf(D_SECURITY, "Error inserting cert into stack.\n");
+			goto error_exit;
+		}
+		++i;
+	}
+	return;
+ error_exit:
+	valid = false;
+	free(tmp);
+	return;
 }
+

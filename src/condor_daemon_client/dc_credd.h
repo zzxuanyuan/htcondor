@@ -61,11 +61,10 @@ public:
 						   CondorError & error);
 
 	bool storeSharedSecret (const char *secret,
-							MyString ssn,
+							MyString & ssn,
 							CondorError & error);
 
-	bool getSharedSecret (const char *cred_name,
-						  void *&shared_secret,
+	bool getSharedSecret (MyString &ss,
 						  CondorError & condor_error);
 
 };

@@ -45,4 +45,8 @@ bool verify_classad(ClassAd& ad,
 
 bool text2classad(const MyString &text, ClassAd &ad);
 
+MyString unquote_classad_string(const MyString &in);
+
 bool verify_certificate(X509 *cert);
+
+int x509_self_delegation(const char *proxy_loc, const char *policy, const char *policy_oid);

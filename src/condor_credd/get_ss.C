@@ -20,23 +20,35 @@
 #include "condor_common.h"
 #include "condor_daemon_core.h"
 #include "daemon.h"
-#include "X509credential.h"
+//#include "X509credential.h"
+#include "condor_distribution.h"
 #include "dc_credd.h"
+#include "condor_config.h"
+#include "globus_utils.h"
 
 int main(int argc, char **argv)
 {
-  char * credd_sin = argv[1];
-  char * cred_name = argv[2];
-
   CondorError errorstack;
-  char * shared_secret = NULL;
-  int secret_size = 0;
+  MyString ss;
 
-  DCCredd credd(credd_sin);
-  if (credd.getSharedSecret((const char*)cred_name, 
-							(void*&)shared_secret, 
-							errorstack)) {
-      printf ("Received %d \n%s\n", secret_size, shared_secret);
+  myDistro->Init(argc, argv);
+  config();
+  Termlog = 1;
+  dprintf_config("TOOL");
+
+  //setenv("X509_USER_PROXY", getenv("IAN_PROXY"), 1);
+  fprintf(stderr, "Proxy file: '%s'\n", get_x509_proxy_filename());
+  
+//  char * credd_sin = argv[1];
+  
+  DCCredd credd(NULL);
+  if(!credd.locate()) {
+	  fprintf(stderr, "Can't locate credd: %s\n", credd.error());
+	  exit(1);
+  }
+//  sleep(120);
+  if (credd.getSharedSecret(ss,	errorstack)) {
+      printf ("Received '%s'\n", ss.Value());
 	  return 0;
   } else {
 	  fprintf (stderr, "ERROR (%d : %s)\n", 

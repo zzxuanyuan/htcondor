@@ -35,10 +35,11 @@ class CredChain {
 	CredChain(const char *proxy_file_path);
 	CredChain();
 //	virtual ~Credential();
+	bool isValid();
 	int getNumPolicies();
 	bool hasMatchingPolicy(MyString policy_to_match);
-	MyString *getFirstPolicy();
-	MyString *getLastPolicy();
+	MyString getFirstPolicy();
+	MyString getLastPolicy();
 	char *getExecutionHostDN();
 
  protected:

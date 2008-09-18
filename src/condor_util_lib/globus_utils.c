@@ -1263,5 +1263,6 @@ check_globus_rm_contacts(char* resource)
 
 } /* check_globus_rm_contact() */
 
+
 #endif /* 0 */
 
