@@ -84,6 +84,8 @@ class CollectorEngine : public Service
 	CollectorHashTable CollectorAds;
 	CollectorHashTable NegotiatorAds;
 	CollectorHashTable HadAds;
+	CollectorHashTable CreddAds;
+	CollectorHashTable MinicaAds;
 
 	// table for "generic" ad types
 	GenericAdHashTable GenericAds;
