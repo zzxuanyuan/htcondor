@@ -274,6 +274,14 @@ const int INVALIDATE_HAD_ADS = 57;
 const int UPDATE_AD_GENERIC = 58;
 const int INVALIDATE_ADS_GENERIC = 59;
 
+const int UPDATE_MINICA_AD = 60;
+const int QUERY_MINICA_ADS = 61;
+const int INVALIDATE_MINICA_ADS = 62;
+
+const int UPDATE_CREDD_AD = 63;
+const int QUERY_CREDD_ADS = 64;
+const int INVALIDATE_CREDD_ADS = 65;
+
 /*
 *** Daemon Core Signals
 */
@@ -310,6 +318,7 @@ const int INVALIDATE_ADS_GENERIC = 59;
 #define DC_OFF_PEACEFUL     (DC_BASE+15)
 #define DC_SET_PEACEFUL_SHUTDOWN (DC_BASE+16)
 #define DC_TIME_OFFSET      (DC_BASE+17)
+#define DC_SIGN_CERT_REQUEST (DC_BASE+18)
 
 /*
 *** Log type supported by DC_FETCH_LOG

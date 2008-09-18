@@ -43,7 +43,8 @@ enum AdTypes
 	CREDD_AD,
 	DATABASE_AD,
 	DBMSD_AD,
-	TT_AD
+	TT_AD,
+	MINICA_AD
 };
 
 #include "condor_commands.h"   // collector commands
