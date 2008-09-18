@@ -695,7 +695,24 @@ int
 CStarter::jobEnvironmentReady( void )
 {
 	// IdA: this is where we do the additional delegation?
-
+	MyString X509Path;
+	ClassAd *jobAd = this->jic->jobClassAd();
+	if(jobAd->LookupString(ATTR_X509_USER_PROXY, X509Path)) {
+		const char *proxyfilename = condor_basename(X509Path.Value());
+		CredChain cc(proxyfilename);
+		if(cc.isValid()) {
+			if(0 == x509_self_delegation(proxyfilename, NULL, SSPC_POLICY_OID)) {
+				dprintf(D_SECURITY, "Did SSPC redelegation.\n");
+			} else {
+				dprintf(D_SECURITY, "SSPC redelegation failed.\n");
+			}
+		} else {
+			dprintf(D_SECURITY, "Can't get valid cred chain for SSPC.\n");
+		}
+	} else {
+		dprintf(D_SECURITY, "Can't get proxy path for SSPC.\n");
+	}
+				
 
 		//
 		// The Starter will determine when the job 
@@ -1047,8 +1064,7 @@ CStarter::SpawnJob( void )
 	}
 
 	// IdA: get policy stack from certificate file, check policies
-	// before proceeding.  Or, pass the job ad (and the machine ad?)
-	// to a function that checks the policies.
+	// before proceeding.
 	if(!CheckCertChainPolicy()) {
 		dprintf(D_ALWAYS, "Check of certificate chain policy failed.\n");
 		jic->notifyStarterError( "Certificate chain policy check failed.",
@@ -1196,54 +1212,17 @@ CStarter::CheckCertChainPolicy()
 	int num_policies = 0;
 
 	jobAd->LookupString(ATTR_X509_USER_PROXY, proxy_file);
-	if(!proxy_file.Value()) {
+	if(!proxy_file.GetCStr()) {
 		dprintf(D_SECURITY, "Can't get proxy file from job ad.\n");
 		return false;
 	}
+	const char *proxyfilename = condor_basename(proxy_file.Value());
 	CredChain cc(proxy_file.Value());
 
 	if(cc.hasMatchingPolicy(policy_to_match)
 	   && (cc.getNumPolicies() == 1)) {
 		rv = true;
 	}
-/*
-	STACK *policies;
-	if(globus_gsi_cred_get_policies(handle, &policies)) {
-		dprintf(D_SECURITY, "Problem getting policies.\n");
-		goto cleanup;
-	}
-	int j;
-	for(j = 0; j < sk_num(policies); j++) {
-		MyString policy = sk_value(policies, j);
-		if(policy == policy_to_match) {
-			++num_policies;
-			if(num_policies > 1) {
-				dprintf(D_SECURITY, "More than one policy in cert chain.\n");
-				goto cleanup;
-			}
-		} else {
-			dprintf(D_SECURITY, "Policy in cert chain differs from expected policy.\n");
-			goto cleanup;
-		}
-	}
-	if( num_policies < 1 ) {
-		dprintf(D_SECURITY, "No matching policies.\n");
-		goto cleanup;
-	}
-	if( num_policies > 1 ) {
-		dprintf(D_SECURITY, "Too many policies in cert chain (check sanity).\n");
-		goto cleanup;
-	}
-	rv = true;
-
- cleanup:
-	if(policies)
-		sk_free(policies);
-	if(handle_attrs)
-		globus_gsi_cred_handle_attrs_destroy(handle_attrs);
-	if(handle)
-		globus_gsi_cred_handle_destroy(handle);
-*/
 	return rv;
 }
 
