@@ -39,6 +39,8 @@ void
 report_openssl_errors(const char *func_name) {
     char *err_buf;
     BIO *err_mem_bio = NULL;
+
+	dprintf(D_SECURITY, "Errors in %s\n", func_name);
     err_mem_bio = BIO_new(BIO_s_mem());
     if(!err_mem_bio) {
         dprintf(D_ALWAYS, "Error creating buffer for error reporting (%s).\n",
