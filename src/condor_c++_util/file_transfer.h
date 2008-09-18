@@ -32,10 +32,6 @@
 #include "condor_classad.h"
 #include "dc_transfer_queue.h"
 
-extern const char* PROXY_POLICY_OID;
-extern const char* PROXY_POLICY_LN;
-extern const char* PROXY_POLICY_SN;
-
 class FileTransfer;	// forward declatation
 
 
@@ -252,7 +248,7 @@ class FileTransfer {
 	char* ExecFile;
 	char* UserLogFile;
 	char* X509UserProxy;
-	unsigned char *ProxyPolicy;
+	unsigned char *ProxyPolicy; // Never used; commented out.  We add proxy before file transfer.
 	int ProxyPolicyNID;
 	char* TransSock;
 	char* TransKey;
