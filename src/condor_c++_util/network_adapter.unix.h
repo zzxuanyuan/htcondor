@@ -132,7 +132,7 @@ protected:
 #  endif
 
 	// Dump out an error
-	void derror( const char *label ) const;
+	static void derror( const char *label );
 
 	// Helper methods
 	void *MemZero( const void *buf, unsigned size );

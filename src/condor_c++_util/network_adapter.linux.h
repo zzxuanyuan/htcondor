@@ -20,6 +20,7 @@
 #ifndef _NETWORK_ADAPTER_LINUX_H_
 #define _NETWORK_ADAPTER_LINUX_H_
 
+#include "extArray.h"
 #include "network_adapter.h"
 #include "network_adapter.unix.h"
 
@@ -50,7 +51,6 @@ public:
 
 	/// Destructor
 	virtual ~LinuxNetworkAdapter ( void ) throw();
-
 
 	/** @name Adapter properties.
 	Basic device properties.

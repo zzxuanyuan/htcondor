@@ -252,7 +252,7 @@ UnixNetworkAdapter::setNetMask( const struct ifreq &ifr )
 
 // dprintf an error message
 void
-UnixNetworkAdapter::derror( const char *label ) const
+UnixNetworkAdapter::derror( const char *label )
 {
 	dprintf( D_ALWAYS,
 			 "%s failed: %s (%d)\n",
