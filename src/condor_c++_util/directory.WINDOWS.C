@@ -2062,7 +2062,7 @@ CreateUserDirectory ( HANDLE user_token, PCSTR directory ) {
                                                     admin_sid };
     DWORD                       last_error      = ERROR_SUCCESS,
                                 size            = 0,
-                                i               = 0,
+                                i               = 0, /* VC6 hell */
                                 count           = 0;
     ACE_HEADER                  *ace_header     = NULL;
     BOOL                        got_sid         = FALSE,
@@ -2300,7 +2300,7 @@ CreateUserDirectory ( HANDLE user_token, PCSTR directory ) {
         }
 
         if ( acl ) {
-             GlobalFree ( acl );
+            delete [] acl;
         }
 
     }

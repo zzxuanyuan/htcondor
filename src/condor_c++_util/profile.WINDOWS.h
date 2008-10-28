@@ -67,7 +67,7 @@ public:
     virtual BOOL create ();
     
     /* returns TRUE if a user profile was loaded; otherwise, FALSE.*/
-    virtual BOOL load ();
+    virtual BOOL load ( BOOL as_owner );
     
     /* returns TRUE if a user profile was unloaded; otherwise, FALSE.*/
     virtual BOOL unload ();
@@ -111,6 +111,15 @@ protected:
     otherwise, FALSE.*/
     virtual BOOL restore ();
 
+    /* returns TRUE if the user's real profile was locked; 
+    otherwise, FALSE. */
+    virtual BOOL lock ();
+
+    /* returns TRUE if the user's real profile was unlocked; 
+    otherwise, FALSE. */
+    virtual BOOL unlock ();
+
+
 private:
 
     /***************************************************************
@@ -130,18 +139,31 @@ private:
     /* returns TRUE if the user profile is loaded; otherwise, 
        FALSE.  This is a simple helper that does all the initialization
        required to do the loading of a profile. */
-    BOOL loadProfile ();
+    BOOL loadProfile ( CHAR *profile_path = NULL );
     
     /* returns TRUE if the user profile was unloaded; otherwise, 
        FALSE.  This is a simple helper that not only unloads the 
        profile, but ensures that it is made to look like it is 
        unloaded-- which is a state relied upon heavily in this class. */
     BOOL unloadProfile ();
-    
+
+    /* returns TRUE if a real user's profile was loaded; otherwise, 
+    FALSE.  Here it is important always fail gracefully, such that 
+    the user loging-in would never know that we've been here.*/
+    BOOL loadRealOwner ();
+
+    /* returns TRUE if a dynamic Condor account's profile was 
+    loaded; otherwise, FALSE.*/
+    BOOL loadGeneratedOwner ();
+
     /***************************************************************
      * Data
      ***************************************************************/
     
+    /* a boolean representing weather or not we are running as a 
+    real user or one of our contrived ones */
+    BOOL        load_as_owner_;
+
     /* a boolean representing the state of the profile */
     BOOL        profile_loaded_;
     

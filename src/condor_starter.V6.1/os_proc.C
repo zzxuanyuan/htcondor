@@ -412,10 +412,9 @@ OsProc::StartJob(FamilyInfo* family_info)
          run_as_owner = false;
     JobAd->LookupBool ( ATTR_JOB_LOAD_PROFILE, load_profile );
     JobAd->LookupBool ( ATTR_JOB_RUNAS_OWNER,  run_as_owner );
-    if ( load_profile && !run_as_owner ) {
-        if ( owner_profile_.load () ) {
+    if ( load_profile ) {
+        if ( owner_profile_.load ( run_as_owner ) ) {
             /* publish the users environment into that of the main 
-
             job's environment */
             if ( !owner_profile_.environment ( job_env ) ) {
                 dprintf ( D_ALWAYS, "OsProc::StartJob(): Failed to "

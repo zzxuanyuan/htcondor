@@ -32,21 +32,15 @@
 
 #include <userenv.h>    // for LoadUserProfile, etc.
 #include <sddl.h>       // for ConvertSidToStringSid
-// #include <ntsecapi.h>    // USER_INFO_4
-// #include <lm.h>          // for NetUserGetInfo
-
-/***************************************************************
-* Constants
-***************************************************************/
-
-const char *PARAM_PROFILE_TEMPLATE  = "PROFILE_TEMPLATE";
-const char *PARAM_PROFILE_CACHE     = "PROFILE_CACHE";
+#include <ntsecapi.h>   // USER_INFO_4
+#include <lm.h>         // for NetUserGetInfo
 
 /***************************************************************
 * {d,c}tor
 ***************************************************************/
 
 OwnerProfile::OwnerProfile () : 
+    load_as_owner_ ( FALSE ),
     profile_loaded_  ( FALSE ),
     user_token_ ( NULL ),
     user_name_ ( NULL ),
@@ -165,7 +159,7 @@ BOOL OwnerProfile::update () {
 
         user_token_  = priv_state_get_handle ();
         user_name_   = get_user_loginname ();
-        domain_name_ = ".";
+        domain_name_ = get_user_domainname ();
 
         if ( NULL != profile_template_ ) {
             free ( profile_template_ );
@@ -219,10 +213,10 @@ OwnerProfile::create () {
 
         /* Creating a profile is quite straight forward: simply try to 
         load it. Windows will realize that there isn't one stashed away
-        for the user, so it will creat one for us.  We can then simply
+        for the user, so it will create one for us.  We can then simply
         unload it, since we will be making a copy of the unmodified
         version of it up at a later point, so that jobs will always
-        run with a clean profile, also thereby eliminating any possible
+        run with a clean profile--thereby eliminating any possible
         cross job security issues (i.e. writting missleading data to 
         well known registry entries, etc.) */
 
@@ -236,7 +230,7 @@ OwnerProfile::create () {
             __leave;
         }
 
-        /* now simply unload the profile */
+        /* now unload the newly created profile. */
         profile_unloaded = unloadProfile ();
       
         if ( !profile_unloaded ) {            
@@ -284,8 +278,8 @@ OwnerProfile::destroy () const {
 
     dprintf ( D_FULLDEBUG, "In OwnerProfile::destroy()\n" );
 
-    DWORD       last_error      = 0;
     priv_state  priv            = PRIV_UNKNOWN;
+    DWORD       last_error      = ERROR_SUCCESS;
     PSID        user_sid        = NULL;
     LPSTR       user_sid_string = NULL;
     BOOL        got_user_sid    = FALSE,
@@ -397,12 +391,218 @@ OwnerProfile::destroy () const {
 
 /* returns TRUE if a user profile was loaded; otherwise, FALSE.*/
 BOOL
-OwnerProfile::load () {
+OwnerProfile::load ( BOOL as_owner ) {
+
+    dprintf ( D_FULLDEBUG, "In OwnerProfile::load(%s profile)\n",
+        as_owner ? "owner" : "dynamic" );
+
+    BOOL ok = FALSE;
     
-    dprintf ( D_FULLDEBUG, "In OwnerProfile::load()\n" );
+    __try {
+
+        /* short-cut if we've already loaded the profile */
+        if ( loaded () ) {
+            ok = TRUE;
+            __leave;
+        }
+
+        /* set the state of our current dilemma: are we creating a
+        bunk profile and destroying it, or are we trying are best 
+        not to damage anything the actual user might hold dear. */
+        load_as_owner_ = as_owner;
+        
+        /* now, decide which way we should load this account */
+        if ( load_as_owner_ ) {
+
+            /* load as the owner with great concern for their 
+            data and it's consistency and integrity */
+            ok = loadRealOwner ();
+
+        } else {
+
+            /* load as a dynamic user, in which case we hold no
+            regard for the state of the incomming or resulting 
+            data. we'll just be blowwing it away anyway. */
+            ok = loadGeneratedOwner ();
+        }
+
+    }
+    __finally {
+        /* no-op */
+    }
+
+    return ok;
+
+}
+
+/* returns TRUE if a real user's profile was loaded; otherwise, 
+    FALSE.  Here it is important always fail gracefully, such that 
+    the user loging-in would never know that we've been here.*/
+BOOL 
+OwnerProfile::loadRealOwner () {
+
+    dprintf ( D_FULLDEBUG, "In OwnerProfile::loadRealOwner()\n" );
+
+    priv_state		priv;
+    DWORD           last_error          = ERROR_SUCCESS;
+    PCHAR           message             = NULL;
+    PWCHAR          w_user_name		    = NULL,
+					w_domain_name	    = NULL;
+    USER_INFO_4	    user_info		        = NULL;
+	NET_API_STATUS	got_info	        = NERR_Success;
+    BOOL            disabled            = FALSE,
+                    ok                  = FALSE;
+    
+    __try {
+
+        /* we must do the following as Condor */
+        priv = set_condor_priv ();
+
+        /* we need Unicode versions of these strings for 
+        NetUserGetInfo */
+        w_user_name	  = ProduceWFromA ( user_name_ ),
+        w_domain_name = ProduceWFromA ( domain_name_ );
+        ASSERT ( w_user_name );
+		ASSERT ( w_domain_name );
+        
+        /* if the user has a roaming profile for this user, then we 
+        need to get the remote path, as it may not yet be cached 
+        here */
+		got_info = NetUserGetInfo ( 
+            w_domain_name, 
+            w_user_name, 
+			4, /* magic for plase fill user_info_4, thanks */
+            (PBYTE*) &user_info );
+
+        /* there are a few non-standard errors that may come from 
+        the above command, so we just bust out a horrid and somewhat
+        superfluous switch statement and let it do the writting for 
+        us. */
+        switch ( got_info ) {
+        case NERR_Success:
+            message = "loaded network user information";
+            break;
+        case ERROR_ACCESS_DENIED:
+            message = "The user does not have access to the "
+                      "requested information";
+            break;
+        case NERR_InvalidComputer:
+            message = "The computer name is invalid";
+            break;
+        case NERR_UserNotFound:
+            message = "The user name could not be found";
+            break;
+        default:
+            message = "Unknown error %d"
+            break;
+        }
+
+        if ( NERR_Success != got_info ) {
+            
+            dprintf ( 
+                D_FULLDEBUG, 
+                "OwnerProfile::loadRealOwner(): "
+                "%s.\n",
+                message,
+                got_info );
+
+            user_info = NULL;            
+            __leave;
+
+        }
+        
+        /* now--just for kicks--lets make sure the account is actually 
+        enabled... just in case, or for safety sake, or well, for 
+        the security colour of the month (what colour will it be next?
+        Or maybe by the time someone else sees this code the 
+        delineation of threat levels will have a fancy new names... 
+        live mauve, or something.  I don't get it, am I supposed to
+        feel a little orange?  I know how blue feels, but is orange
+        like like and almost uncomfortable red, like a little too hot,
+        but nothing to whine about?) */
+        disabled = user_info->usri4_flags & UF_ACCOUNTDISABLE;
+
+        dprintf ( 
+            D_FULLDEBUG, 
+            "OwnerProfile::loadRealOwner(): "
+            "%s@%s account it is disabled\n",
+            user_name_, 
+            domain_name_,
+            account_disabled ? "disabled!?!" : "enabled" );
+        
+        if ( account_disabled ) {
+            __leave;
+		}
+
+        /* There will aways a non-NULL home directory entry, but it
+        may be of zero length. If it is of zero length, it means this
+        is not a roaming profile.  Why is this not a set as a FLAG 
+        SOMEWHERE... I don't have a clue. */			
+		if ( wcslen ( user_info->usri4_home_dir ) <= 0 ) {
+
+            dprintf ( 
+                D_FULLDEBUG, 
+                "OwnerProfile::loadRealOwner(): "
+                "%s@%s account has no home directory defined.\n",
+                user_name_, 
+                domain_name_ );
+            
+            __leave;
+
+        }
+			
+		dprintf ( D_ALWAYS, 
+            "OwnerProfile::loadRealOwner(): "
+            "This user has a roaming profile. You may experience "
+            "a delay in execution, if the user has a large registry
+            hive.\n" );
+			
+			*home_directory = ProduceAFromW ( user_info->usri4_home_dir );
+			ASSERT ( *home_directory );
+
+			if ( NULL == *home_directory ) {
+				dprintf ( D_MALLOC, "CondorGetNetUserHomeDirectory: failed to allocate "
+									"memory for home directory string?!" );
+				ok = FALSE;
+				__leave;
+			}
+			
+			/* print the listed home directory... */			
+			dprintf ( D_FULLDEBUG, "CondorGetNetUserHomeDirectory: network home directory: "
+				"'%s'\n", *home_directory );
+
+		
+
+    }
+    __finally {
+        
+        if ( user_info ) {
+            NetApiBufferFree ( user_info );
+        }
+        if ( w_user_name ) {
+            delete [] w_user_name;
+        }
+        if ( w_domain_name ) {
+            delete [] w_domain_name;
+        }
+        
+        /* return to previous privilege level */
+		set_priv ( priv );
+
+    }
+
+    return ok;
+
+}
+
+/* returns TRUE if a user profile was loaded; otherwise, FALSE.*/
+BOOL
+OwnerProfile::loadGeneratedOwner () {
+    
+    dprintf ( D_FULLDEBUG, "In OwnerProfile::loadGeneratedOwner()\n" );
 
     HANDLE          have_access         = INVALID_HANDLE_VALUE;
-    DWORD           last_error          = 0,
+    DWORD           last_error          = ERROR_SUCCESS;
                     length              = 0,
                     i                   = 0;
     priv_state      priv                = PRIV_UNKNOWN;
@@ -414,21 +614,15 @@ OwnerProfile::load () {
 
     __try {
 
-        /* short-cut if we've already loaded the profile */
-        if ( loaded () ) {
-            ok = TRUE;
-            __leave;
-        }
-
         /* we must do the following as Condor */
         priv = set_condor_priv ();
-        
+
         /* get the user's local profile directory (if this user 
-        has a roaming profile, this is when it's cached locally) */
+        has a roaming profile, this is when i' cached locally) */
         profile_directory_ = directory ();
 
         /* if we have have a profile directory, let's make sure that 
-        we also have permissions to it.  Sometimes, if the startd were
+        we also have permissions to it. Sometimes, if the startd were
         to crash, heaven forbid, we may have access to the profile 
         directory, but it may still be locked by the previous login 
         session that was not cleaned up properly (the only resource
@@ -1025,6 +1219,62 @@ OwnerProfile::restore () {
 
 }
 
+/* returns TRUE if the user's real profile was locked; 
+otherwise, FALSE. */    
+BOOL 
+OwnerProfile::lock () {
+
+    dprintf ( D_FULLDEBUG, "In OwnerProfile::lock()\n" );
+
+    priv_state  priv                = PRIV_UNKNOWN;
+    int         length              = 0;
+    BOOL        profile_locked      = FALSE,
+                profile_unloaded    = FALSE,
+                profile_deleted     = FALSE,
+                ok                  = FALSE;    
+
+    __try {
+
+        /* Do the following as condor, since we can't do it as the 
+        user, as we are creating the profile for the *second* time, 
+        and we need administrative rights to do this (which, 
+        presumably, the "owner" of this profile does not have) */
+        priv = set_condor_priv ();
+
+        /* As discused before, creating a profile is quite simple, so
+        will leave those details for those curious enough to look 
+        into the create() function's body. Our purpose here is 
+        different.  We are creating a *second* profile for an existing
+        user by locking their current profile, which will force 
+        Windows to create a fresh one with a modified name. */
+
+        /* open the user's actual profile directory and disable 
+        sharing, so any firther attempts to open it will 
+        inextricably fail */
+        /* retrieve the profile's directory */
+        profile_directory_ = directory ();
+        
+        profile_locked = CreateFile (
+            )
+        
+
+    }
+    __finally {
+
+        /* return to previous privilege level */
+        set_priv ( priv );
+
+    }
+
+}
+
+/* returns TRUE if the user's real profile was unlocked; 
+otherwise, FALSE. */
+BOOL 
+OwnerProfile::unlock () {
+    
+}
+
 /***************************************************************
 * Helper Methods
 ***************************************************************/
@@ -1033,7 +1283,7 @@ OwnerProfile::restore () {
 FALSE.  This is a simple helper that does all the initialization
 required to do the loading of a profile. */
 BOOL 
-OwnerProfile::loadProfile () {
+OwnerProfile::loadProfile ( CHAR *profile_path ) {
 
     dprintf ( D_FULLDEBUG, "In OwnerProfile::loadProfile()\n" );
 
@@ -1057,12 +1307,11 @@ OwnerProfile::loadProfile () {
         profile for you... blah, blah, blah" dialog from being 
         displayed in the case when a roaming profile is inaccessible 
         because of a network outage, among other reasons. */
-        user_profile_.dwFlags    = PI_NOUI;
-        user_profile_.lpUserName = (char*)user_name_;
+        user_profile_.dwFlags       = PI_NOUI;
+        user_profile_.lpUserName    = (PCHAR) user_name_;
+        user_profile_.lpProfilePath = (PCHAR) profile_path;
         
-        /* load the user's profile for the first time-- this will 
-        effectively create it "for free", using the local "default"
-        account as a template. */
+        /* now, finally, load the profile */
         profile_loaded = LoadUserProfile ( 
             user_token_, 
             &user_profile_ );
