@@ -51,6 +51,14 @@ DAGs) to \Condor{dagman}.
 \item It is now possible to have multiple rotations of the ``event
   log'' file, such as ``EventLog'', ``EventLog.1'', ``EventLog.2'', ...
 
+\item Condor now supports the ability for the \Condor{master} to run a
+  program as it shuts down.  This can be particularly useful for doing
+  a graceful shutdown followed, by, say, a reboot.  This is
+  accomplished through the new See the new
+  \MacroNI{MASTER\_SHUTDOWN\_$<$Name$>$} macro family (see
+  \pageref{param:MasterShutdownProgram}) and \Condor{set\_shutdown}
+  program.
+
 \end{itemize}
 
 \noindent Configuration Variable Additions and Changes:
@@ -78,6 +86,12 @@ DAGs) to \Condor{dagman}.
   Condor will also try \MacroNI{MAX\_EVENT\_LOG}.
   See \pageref{param:EventLogMaxSize} for details.
 
+\item The configuration parameter family
+  \MacroNI{MASTER\_SHUTDOWN\_$<$Name$>$} can be used in conjunction
+  with \Condor{set\_shutdown} to cause the \Condor{master} to execute
+  a specified program as it shuts down.  See
+  \pageref{param:MasterShutdownProgram} and \Condor{set\_shutdown}
+  manual page for more details.
 
 \end{itemize}
 
