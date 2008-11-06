@@ -20,7 +20,7 @@
 #endif
 
 #if HAVE_EXT_CLASSADS && WANT_QUILL
-#define JobRouterProgs schedd.V7
+#define JobRouterProgs job_router
 #else
 #define JobRouterProgs
 #endif
@@ -298,7 +298,7 @@ condor_object_target(gridmanager)
 	condor_object_target(credd)
 #endif
 #if HAVE_EXT_CLASSADS
-	condor_object_target(schedd.V7)
+	condor_object_target(job_router)
 #endif
 condor_object_target(starter.V6.1)
 condor_object_target(shadow.V6.1)
