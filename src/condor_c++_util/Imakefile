@@ -329,7 +329,7 @@ libcondorapi-release:: $(RELEASE_DIR)/include/user_log.c++.h
 public_copy_target(condor_event.h,include,condor_event.h,TEXT_MODE)
 libcondorapi-release:: $(RELEASE_DIR)/include/condor_event.h
 
-public_copy_target(../h/file_lock.h,include,file_lock.h,TEXT_MODE)
+public_copy_target(../condor_includes/file_lock.h,include,file_lock.h,TEXT_MODE)
 libcondorapi-release:: $(RELEASE_DIR)/include/condor_event.h
 
 public_copy_target(condor_holdcodes.h,include,condor_holdcodes.h,TEXT_MODE)
