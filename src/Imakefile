@@ -76,7 +76,7 @@
 #endif
 
 #define Programs \
-		procapi sysapi unit_tests accountant.V6 ckpt_server \
+		procapi sysapi unit_tests ckpt_server \
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
 		scripts startd.V6 StdUnvProgs submit.V6 status.V6 \
 		tools KbddProgs collector.V6 dagman userlog Eventd \
@@ -93,7 +93,7 @@
 		condor_procapi/libprocapi.a condor_sysapi/libsysapi.a	\
 		io condor_ckpt_server/ckpt_server_api.a			\
 		condor_schedd.V6/libqmgmt.a				\
-		condor_accountant.V6/libacct.a StdUnvLibs NetmanLibs	\
+		StdUnvLibs NetmanLibs	\
 		condor_procd/procd_client.a \
 		condor_privsep/privsep_client.a LibQuill \
 		chirp AnalysisLibs
@@ -246,7 +246,6 @@ condor_object_target(examples)
 #if WANT_NETMAN
 condor_object_target(eventd)
 #endif
-condor_object_target(accountant.V6)
 condor_object_target(ckpt_server)
 
 condor_object_target(shadow.V6)
@@ -349,7 +348,6 @@ single_target(condor_procd,procd_client.a)
 single_target(condor_privsep,privsep_client.a)
 single_target(condor_sysapi,libsysapi.a)
 single_target(condor_schedd.V6,libqmgmt.a)
-single_target(condor_accountant.V6,libacct.a)
 single_target(condor_ckpt_server,ckpt_server_api.a)
 single_target(condor_quill,libquill.a)
 

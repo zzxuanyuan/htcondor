@@ -17,6 +17,9 @@
  *
  ***************************************************************/
 
-#include "condorCredd.nsmap"
+//gsoap condor service name: condorTt
+//gsoap condor service style: rpc
+//gsoap condor service encoding: encoded
+//gsoap condor service namespace: urn:condor
 
-#include "soap_daemon_core.cpp"
+#import "gsoap_daemon_core.h"
