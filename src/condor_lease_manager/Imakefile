@@ -31,8 +31,8 @@ OBJ =	lease_manager_main.o		\
 	lease_manager_lease.o $(SOAP_OBJS)
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
-template_inst( lease_manager.C, lease_manager.o )
-template_inst( lease_manager_resources.C, lease_manager_resources.o )
+template_inst( lease_manager.cc, lease_manager.o )
+template_inst( lease_manager_resources.cc, lease_manager_resources.o )
 
 release_target($(NAME),sbin,EXECUTABLE_MODE)
 strip_target($(NAME),sbin,EXECUTABLE_MODE)
@@ -41,7 +41,7 @@ pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
 purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
 
 c_plus_target( condor_lease_manager_test,lease_manager_test.o,$(TEST_LIB) )
-template_inst( lease_manager_test.C, lease_manager_test.o )
+template_inst( lease_manager_test.cc, lease_manager_test.o )
 
 
 html:

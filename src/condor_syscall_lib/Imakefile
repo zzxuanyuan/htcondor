@@ -129,19 +129,19 @@ SRC = \
 	receivers.epilogue \
 	receivers.prologue \
 	remote_startup.c \
-	remote_syscall.C \
+	remote_syscall.cc \
 	senders.epilogue \
 	senders.prologue \
 	switches.prologue \
 	switches.epilogue \
-	switches.special.C \
+	switches.special.cc \
 	syscall.tmpl \
-	syscall_connect.C \
+	syscall_connect.cc \
 	syscall_numbers.c \
 	xfer_file.c \
 	file_stream.c \
-        ios_stub.C \
-        ios_msg.C
+        ios_stub.cc \
+        ios_msg.cc
 
 URL_OBJ = url_condor.o include_urls.o cbstp_url.o file_url.o http_url.o \
 	cfilter_url.o filter_url.o mailto_url.o ftp_url.o
@@ -235,7 +235,7 @@ tmp_dir:
 clean::
 	/bin/rm -rf tmp_dir
 
-stubs: switches.C senders.C receivers.C
+stubs: switches.cc senders.cc receivers.cc
 
 testbin:: all
 
@@ -486,20 +486,20 @@ STUB_GEN_FLAGS = $(STUB_GEN_PLATFORM) $(DL_EXTRACT) -D$(OS) -D$(ARCH) \
 	-D$(DIST_FLAG) $(SAVE_SIGSTATE) $(FILE_TABLE) $(REMOTE_SYSCALLS) $(CLIP) \
 	$(HAS_64BIT_SYSCALLS) $(HAS_64BIT_STRUCTS)
 
-switches.C: syscall.tmpl switches.prologue stub_gen switches.epilogue
+switches.cc: syscall.tmpl switches.prologue stub_gen switches.epilogue
 	$(CPP) -DSWITCH $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
 	./stub_gen -mode switches  -p switches.prologue -e switches.epilogue \
-	> switches.C
+	> switches.cc
 
-senders.C: syscall.tmpl stub_gen senders.prologue senders.epilogue
+senders.cc: syscall.tmpl stub_gen senders.prologue senders.epilogue
 	$(CPP) -DSENDER $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
 	./stub_gen -mode senders -p senders.prologue -e senders.epilogue \
-	$(STUB_CLUMP_SIZE) > senders.C
+	$(STUB_CLUMP_SIZE) > senders.cc
 
-receivers.C: syscall.tmpl stub_gen receivers.prologue receivers.epilogue pseudo_ops.h
+receivers.cc: syscall.tmpl stub_gen receivers.prologue receivers.epilogue pseudo_ops.h
 	$(CPP) -DRECEIVER $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
 	./stub_gen -mode receivers -p receivers.prologue \
-	-e receivers.epilogue -n syscheck $(STUB_CLUMP_SIZE) > receivers.C
+	-e receivers.epilogue -n syscheck $(STUB_CLUMP_SIZE) > receivers.cc
 
 syscall-list: syscall.tmpl stub_gen libcondorsyscall.a
 	$(CPP) -DSWITCH $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
@@ -509,7 +509,7 @@ clean::
 	rm -f syscall-list
 
 clean::
-	rm -f lex.yy.c y.tab.c y.tab.h switches.C senders.C receivers.C *.o
+	rm -f lex.yy.c y.tab.c y.tab.h switches.cc senders.cc receivers.cc *.o
 
 /*depend_target($(SRC)) */
 
@@ -533,29 +533,29 @@ XCOMM to link against libcondorapi.a, which lives in the same place.
 all_symlink_target($(ZLIB_LIB)/libz.a,libcondor_z.a)
 #endif
 
-authentication.o: ../condor_io/authentication.C
+authentication.o: ../condor_io/authentication.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/authentication.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/authentication.cc
 
-condor_md.o: ../condor_c++_util/condor_md.C
+condor_md.o: ../condor_c++_util/condor_md.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_c++_util \
-	        -DSKIP_AUTHENTICATION -c ../condor_c++_util/condor_md.C
+	        -DSKIP_AUTHENTICATION -c ../condor_c++_util/condor_md.cc
 
-condor_crypt_3des.o: ../condor_io/condor_crypt_3des.C
+condor_crypt_3des.o: ../condor_io/condor_crypt_3des.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_3des.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_3des.cc
 
-condor_crypt_blowfish.o: ../condor_io/condor_crypt_blowfish.C
+condor_crypt_blowfish.o: ../condor_io/condor_crypt_blowfish.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_blowfish.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_blowfish.cc
 
-CryptKey.o: ../condor_io/CryptKey.C
+CryptKey.o: ../condor_io/CryptKey.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/CryptKey.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/CryptKey.cc
 
-condor_crypt.o: ../condor_io/condor_crypt.C
+condor_crypt.o: ../condor_io/condor_crypt.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt.cc
 
 #ifdef DOES_COMPRESS_CKPT
 $(COMPRESS_LIB) : $(SYSCALL_LIB) $(COMPRESS_OBJ)
@@ -576,7 +576,7 @@ clean::
 html:
 
 DEPEND_SRC = C_getenv.c extern_path.c file_stream.c getcwd.c remote_startup.c \
-remote_syscall.C switches.special.C syscall_connect.C xfer_file.c
+remote_syscall.cc switches.special.cc syscall_connect.cc xfer_file.c
 
 depend_source_target($(DEPEND_SRC))
 

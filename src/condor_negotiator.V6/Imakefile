@@ -10,7 +10,7 @@ soapobjs(negotiator)
 #if HAVE_DLOPEN
 PLUGIN_OBJ = NegotiatorPlugin.o
 
-%-plugin.so: %.C
+%-plugin.so: %.cc
 	$(CPlusPlus) $(C_PLUS_FLAGS) -shared $< -o $@
 #endif
 
