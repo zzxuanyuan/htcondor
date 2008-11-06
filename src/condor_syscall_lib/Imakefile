@@ -522,7 +522,7 @@ import_objs(../condor_ckpt,$(CKPT_OBJ))
 import_objs(../condor_ckpt,$(COMPRESS_OBJ))
 import_objs(../h,syscall_numbers.c)
 import_objs(../condor_util_lib,stub_gen)
-import_objs(../condor_shadow.V6,pseudo_ops.h)
+import_objs(../condor_shadow.std,pseudo_ops.h)
 import_objs(../condor_ckpt,libcondorc++support.a)
 #ifdef DOES_CHECKPOINTING
 XCOMM Always needed for the file table compressed files feature.
