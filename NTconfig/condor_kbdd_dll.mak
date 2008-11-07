@@ -29,19 +29,12 @@ NULL=nul
 
 OUTDIR=.\..\Debug
 INTDIR=.\..\Debug
-# Begin Custom Macros
-OutDir=.\..\Debug
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_kbdd_dll.dll"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\NT-kbdd-dll.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\condor_kbdd_dll.dll"
-	-@erase "$(OUTDIR)\condor_kbdd_dll.exp"
-	-@erase "$(OUTDIR)\condor_kbdd_dll.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -89,30 +82,18 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /pdb:none /machine:I386 /out:"$(OUTDIR)\condor_kbdd_dll.dll" /implib:"$(OUTDIR)\condor_kbdd_dll.lib" 
 LINK32_OBJS= \
-	"$(INTDIR)\NT-kbdd-dll.obj"
-
-"$(OUTDIR)\condor_kbdd_dll.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
-    $(LINK32) @<<
-  $(LINK32_FLAGS) $(LINK32_OBJS)
-<<
+	
 
 !ELSEIF  "$(CFG)" == "condor_kbdd_dll - Win32 Release"
 
 OUTDIR=.\..\Release
 INTDIR=.\..\Release
-# Begin Custom Macros
-OutDir=.\..\Release
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_kbdd_dll.dll"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\NT-kbdd-dll.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\condor_kbdd_dll.dll"
-	-@erase "$(OUTDIR)\condor_kbdd_dll.exp"
-	-@erase "$(OUTDIR)\condor_kbdd_dll.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -160,12 +141,7 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /pdb:none /machine:I386 /out:"$(OUTDIR)\condor_kbdd_dll.dll" /implib:"$(OUTDIR)\condor_kbdd_dll.lib" 
 LINK32_OBJS= \
-	"$(INTDIR)\NT-kbdd-dll.obj"
-
-"$(OUTDIR)\condor_kbdd_dll.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
-    $(LINK32) @<<
-  $(LINK32_FLAGS) $(LINK32_OBJS)
-<<
+	
 
 !ENDIF 
 
@@ -180,12 +156,6 @@ LINK32_OBJS= \
 
 
 !IF "$(CFG)" == "condor_kbdd_dll - Win32 Debug" || "$(CFG)" == "condor_kbdd_dll - Win32 Release"
-SOURCE="..\src\condor_kbdd\NT-kbdd-dll.C"
-
-"$(INTDIR)\NT-kbdd-dll.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
 
 !ENDIF 
 

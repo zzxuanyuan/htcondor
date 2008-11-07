@@ -29,25 +29,18 @@ NULL=nul
 
 OUTDIR=.\..\Release
 INTDIR=.\..\Release
-# Begin Custom Macros
-OutDir=.\..\Release
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_procd_client.lib"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\local_client.WINDOWS.obj"
-	-@erase "$(INTDIR)\proc_family_client.obj"
-	-@erase "$(INTDIR)\proc_family_io.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\condor_procd_client.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -87,39 +80,24 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_procd_client.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\local_client.WINDOWS.obj" \
-	"$(INTDIR)\proc_family_client.obj" \
-	"$(INTDIR)\proc_family_io.obj"
-
-"$(OUTDIR)\condor_procd_client.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
+	
 
 !ELSEIF  "$(CFG)" == "condor_procd_client - Win32 Debug"
 
 OUTDIR=.\..\Debug
 INTDIR=.\..\Debug
-# Begin Custom Macros
-OutDir=.\..\Debug
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_procd_client.lib"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\local_client.WINDOWS.obj"
-	-@erase "$(INTDIR)\proc_family_client.obj"
-	-@erase "$(INTDIR)\proc_family_io.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(INTDIR)\vc60.pdb"
-	-@erase "$(OUTDIR)\condor_procd_client.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -159,14 +137,7 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_procd_client.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\local_client.WINDOWS.obj" \
-	"$(INTDIR)\proc_family_client.obj" \
-	"$(INTDIR)\proc_family_io.obj"
-
-"$(OUTDIR)\condor_procd_client.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
+	
 
 !ENDIF 
 
@@ -181,24 +152,6 @@ LIB32_OBJS= \
 
 
 !IF "$(CFG)" == "condor_procd_client - Win32 Release" || "$(CFG)" == "condor_procd_client - Win32 Debug"
-SOURCE=..\src\condor_procd\local_client.WINDOWS.C
-
-"$(INTDIR)\local_client.WINDOWS.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_procd\proc_family_client.C
-
-"$(INTDIR)\proc_family_client.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_procd\proc_family_io.C
-
-"$(INTDIR)\proc_family_io.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
 
 !ENDIF 
 
