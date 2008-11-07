@@ -100,21 +100,21 @@ TT_OBJS =
  * to remedy the situation. If you're just reading log files, then you don't
  * need that functionality anyway. */
 CLASSAD_OBJ = \
-	../condor_classad/ast.o \
-	../condor_classad/astbase.o \
-	../condor_classad/attrlist.o \
-	../condor_classad/buildtable.o \
-	../condor_classad/classad.o \
-	../condor_classad/classad_instantiate.o \
-	../condor_classad/classifiedjobs.o \
-	../condor_classad/environment.o \
-	../condor_classad/evaluateOperators.o \
-	../condor_classad/operators.o \
-	../condor_classad/parser.o \
-	../condor_classad/scanner.o \
-	../condor_classad/value.o \
-	../condor_classad/xml_classads.o \
-	../condor_classad/registration.o \
+	../classad.old/ast.o \
+	../classad.old/astbase.o \
+	../classad.old/attrlist.o \
+	../classad.old/buildtable.o \
+	../classad.old/classad.o \
+	../classad.old/classad_instantiate.o \
+	../classad.old/classifiedjobs.o \
+	../classad.old/environment.o \
+	../classad.old/evaluateOperators.o \
+	../classad.old/operators.o \
+	../classad.old/parser.o \
+	../classad.old/scanner.o \
+	../classad.old/value.o \
+	../classad.old/xml_classads.o \
+	../classad.old/registration.o \
 	../condor_util_lib/condor_snutils.o \
 	stringSpace.o \
 	string_list.o \

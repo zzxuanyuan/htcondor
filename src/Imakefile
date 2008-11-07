@@ -89,7 +89,7 @@
 		power
 
 #define Libraries \
-		util_lib daemon_core.V6 daemon_client classad c++_util	\
+		util_lib daemon_core.V6 daemon_client Classad.old c++_util	\
 		condor_procapi/libprocapi.a condor_sysapi/libsysapi.a	\
 		io condor_ckpt_server/ckpt_server_api.a			\
 		condor_schedd.V6/libqmgmt.a				\
@@ -287,7 +287,7 @@ condor_object_target(syscall_lib)
 condor_object_target(netman)
 #endif
 condor_object_target(io)
-condor_object_target(classad)
+object_target(Classad.old,classad.old)
 condor_object_target(daemon_core.V6)
 condor_object_target(daemon_client)
 condor_object_target(prio)
