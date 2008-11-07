@@ -92,11 +92,11 @@ SOURCE=..\src\condor_starter.V6.1\condor_privsep_helper.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\condor_privsep_helper.WINDOWS.C
+SOURCE=..\src\condor_starter.V6.1\condor_privsep_helper.WINDOWS.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\io_proxy.C
+SOURCE=..\src\condor_starter.V6.1\io_proxy.cc
 # End Source File
 # Begin Source File
 
@@ -104,7 +104,7 @@ SOURCE=..\src\condor_starter.V6.1\io_proxy.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\io_proxy_handler.C
+SOURCE=..\src\condor_starter.V6.1\io_proxy_handler.cc
 # End Source File
 # Begin Source File
 
@@ -112,7 +112,7 @@ SOURCE=..\src\condor_starter.V6.1\io_proxy_handler.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\java_detect.C
+SOURCE=..\src\condor_starter.V6.1\java_detect.cc
 # End Source File
 # Begin Source File
 
@@ -120,7 +120,7 @@ SOURCE=..\src\condor_starter.V6.1\java_detect.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\java_proc.C
+SOURCE=..\src\condor_starter.V6.1\java_proc.cc
 # End Source File
 # Begin Source File
 
@@ -128,7 +128,7 @@ SOURCE=..\src\condor_starter.V6.1\java_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\jic_local.C
+SOURCE=..\src\condor_starter.V6.1\jic_local.cc
 # End Source File
 # Begin Source File
 
@@ -136,7 +136,7 @@ SOURCE=..\src\condor_starter.V6.1\jic_local.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\jic_local_config.C
+SOURCE=..\src\condor_starter.V6.1\jic_local_config.cc
 # End Source File
 # Begin Source File
 
@@ -144,7 +144,7 @@ SOURCE=..\src\condor_starter.V6.1\jic_local_config.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\jic_local_file.C
+SOURCE=..\src\condor_starter.V6.1\jic_local_file.cc
 # End Source File
 # Begin Source File
 
@@ -152,7 +152,7 @@ SOURCE=..\src\condor_starter.V6.1\jic_local_file.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\jic_local_schedd.C
+SOURCE=..\src\condor_starter.V6.1\jic_local_schedd.cc
 # End Source File
 # Begin Source File
 
@@ -160,7 +160,7 @@ SOURCE=..\src\condor_starter.V6.1\jic_local_schedd.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\jic_shadow.C
+SOURCE=..\src\condor_starter.V6.1\jic_shadow.cc
 # End Source File
 # Begin Source File
 
@@ -168,7 +168,7 @@ SOURCE=..\src\condor_starter.V6.1\jic_shadow.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\job_info_communicator.C
+SOURCE=..\src\condor_starter.V6.1\job_info_communicator.cc
 # End Source File
 # Begin Source File
 
@@ -176,7 +176,7 @@ SOURCE=..\src\condor_starter.V6.1\job_info_communicator.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\local_user_log.C
+SOURCE=..\src\condor_starter.V6.1\local_user_log.cc
 # End Source File
 # Begin Source File
 
@@ -184,7 +184,7 @@ SOURCE=..\src\condor_starter.V6.1\local_user_log.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\mpi_comrade_proc.C
+SOURCE=..\src\condor_starter.V6.1\mpi_comrade_proc.cc
 # End Source File
 # Begin Source File
 
@@ -192,7 +192,7 @@ SOURCE=..\src\condor_starter.V6.1\mpi_comrade_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\mpi_master_proc.C
+SOURCE=..\src\condor_starter.V6.1\mpi_master_proc.cc
 # End Source File
 # Begin Source File
 
@@ -200,11 +200,11 @@ SOURCE=..\src\condor_starter.V6.1\mpi_master_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\NTsenders.C
+SOURCE=..\src\condor_starter.V6.1\NTsenders.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\os_proc.C
+SOURCE=..\src\condor_starter.V6.1\os_proc.cc
 # End Source File
 # Begin Source File
 
@@ -212,7 +212,7 @@ SOURCE=..\src\condor_starter.V6.1\os_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\parallel_proc.C
+SOURCE=..\src\condor_starter.V6.1\parallel_proc.cc
 # End Source File
 # Begin Source File
 
@@ -220,7 +220,7 @@ SOURCE=..\src\condor_starter.V6.1\parallel_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\script_proc.C
+SOURCE=..\src\condor_starter.V6.1\script_proc.cc
 # End Source File
 # Begin Source File
 
@@ -228,7 +228,7 @@ SOURCE=..\src\condor_starter.V6.1\script_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\soap_starterC.C
+SOURCE=..\src\condor_starter.V6.1\soap_starterC.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -237,12 +237,12 @@ SOURCE=..\src\condor_starter.V6.1\soap_starterH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\soap_starterServer.C
+SOURCE=..\src\condor_starter.V6.1\soap_starterServer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\soap_starterStub.C
+SOURCE=..\src\condor_starter.V6.1\soap_starterStub.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -255,7 +255,7 @@ SOURCE=..\src\condor_starter.V6.1\starter.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\starter_class.C
+SOURCE=..\src\condor_starter.V6.1\starter_class.cc
 # End Source File
 # Begin Source File
 
@@ -263,7 +263,7 @@ SOURCE=..\src\condor_starter.V6.1\starter_privsep_helper.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\starter_user_policy.C
+SOURCE=..\src\condor_starter.V6.1\starter_user_policy.cc
 # End Source File
 # Begin Source File
 
@@ -271,11 +271,11 @@ SOURCE=..\src\condor_starter.V6.1\starter_user_policy.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\starter_v61_main.C
+SOURCE=..\src\condor_starter.V6.1\starter_v61_main.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\StarterHookMgr.C
+SOURCE=..\src\condor_starter.V6.1\StarterHookMgr.cc
 # End Source File
 # Begin Source File
 
@@ -283,7 +283,7 @@ SOURCE=..\src\condor_starter.V6.1\StarterHookMgr.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\stream_handler.C
+SOURCE=..\src\condor_starter.V6.1\stream_handler.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -292,7 +292,7 @@ SOURCE=..\src\condor_starter.V6.1\stream_handler.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\tool_daemon_proc.C
+SOURCE=..\src\condor_starter.V6.1\tool_daemon_proc.cc
 # End Source File
 # Begin Source File
 
@@ -300,7 +300,7 @@ SOURCE=..\src\condor_starter.V6.1\tool_daemon_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\user_proc.C
+SOURCE=..\src\condor_starter.V6.1\user_proc.cc
 # End Source File
 # Begin Source File
 
@@ -308,7 +308,7 @@ SOURCE=..\src\condor_starter.V6.1\user_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\vanilla_proc.C
+SOURCE=..\src\condor_starter.V6.1\vanilla_proc.cc
 # End Source File
 # Begin Source File
 
@@ -316,7 +316,7 @@ SOURCE=..\src\condor_starter.V6.1\vanilla_proc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\vm_gahp_request.C
+SOURCE=..\src\condor_starter.V6.1\vm_gahp_request.cc
 # End Source File
 # Begin Source File
 
@@ -324,7 +324,7 @@ SOURCE=..\src\condor_starter.V6.1\vm_gahp_request.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\vm_gahp_server.C
+SOURCE=..\src\condor_starter.V6.1\vm_gahp_server.cc
 # End Source File
 # Begin Source File
 
@@ -332,7 +332,7 @@ SOURCE=..\src\condor_starter.V6.1\vm_gahp_server.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\vm_proc.C
+SOURCE=..\src\condor_starter.V6.1\vm_proc.cc
 # End Source File
 # Begin Source File
 

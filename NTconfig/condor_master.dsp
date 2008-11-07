@@ -87,11 +87,11 @@ LINK32=link.exe
 # Name "condor_master - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\daemon_master.C
+SOURCE=..\src\condor_master.V6\daemon_master.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\master.C
+SOURCE=..\src\condor_master.V6\master.cc
 # End Source File
 # Begin Source File
 
@@ -99,11 +99,11 @@ SOURCE=..\src\condor_master.V6\master.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\service.WIN32.C
+SOURCE=..\src\condor_master.V6\service.WIN32.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\soap_masterC.C
+SOURCE=..\src\condor_master.V6\soap_masterC.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -112,12 +112,12 @@ SOURCE=..\src\condor_master.V6\soap_masterH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\soap_masterServer.C
+SOURCE=..\src\condor_master.V6\soap_masterServer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\soap_masterStub.C
+SOURCE=..\src\condor_master.V6\soap_masterStub.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

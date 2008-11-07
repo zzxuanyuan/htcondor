@@ -48,14 +48,6 @@ CLEAN :"condor_classad - Win32 DebugCLEAN" "condor_daemon_core - Win32 DebugCLEA
 !ELSE 
 CLEAN :
 !ENDIF 
-	-@erase "$(INTDIR)\classadlogentry.obj"
-	-@erase "$(INTDIR)\classadlogparser.obj"
-	-@erase "$(INTDIR)\prober.obj"
-	-@erase "$(INTDIR)\soap_quillC.obj"
-	-@erase "$(INTDIR)\soap_quillServer.obj"
-	-@erase "$(INTDIR)\soap_quillStub.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_quill.lib"
 
 "$(OUTDIR)" :
@@ -102,19 +94,9 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_quill.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\classadlogentry.obj" \
-	"$(INTDIR)\classadlogparser.obj" \
-	"$(INTDIR)\prober.obj" \
-	"$(INTDIR)\soap_quillC.obj" \
-	"$(INTDIR)\soap_quillServer.obj" \
-	"$(INTDIR)\soap_quillStub.obj" \
-	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_io.lib" \
-	"$(OUTDIR)\condor_procapi.lib" \
-	"$(OUTDIR)\condor_sysapi.lib" \
-	"$(OUTDIR)\condor_procd_client.lib" \
-	"$(OUTDIR)\condor_privsep_client.lib"
+	"$(OUTDIR)\condor_sysapi.lib"
 
 "$(OUTDIR)\condor_quill.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -144,13 +126,6 @@ CLEAN :"condor_classad - Win32 ReleaseCLEAN" "condor_daemon_core - Win32 Release
 !ELSE 
 CLEAN :
 !ENDIF 
-	-@erase "$(INTDIR)\classadlogentry.obj"
-	-@erase "$(INTDIR)\classadlogparser.obj"
-	-@erase "$(INTDIR)\prober.obj"
-	-@erase "$(INTDIR)\soap_quillC.obj"
-	-@erase "$(INTDIR)\soap_quillServer.obj"
-	-@erase "$(INTDIR)\soap_quillStub.obj"
-	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_quill.lib"
 
 "$(OUTDIR)" :
@@ -197,19 +172,9 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_quill.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\classadlogentry.obj" \
-	"$(INTDIR)\classadlogparser.obj" \
-	"$(INTDIR)\prober.obj" \
-	"$(INTDIR)\soap_quillC.obj" \
-	"$(INTDIR)\soap_quillServer.obj" \
-	"$(INTDIR)\soap_quillStub.obj" \
-	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_io.lib" \
-	"$(OUTDIR)\condor_procapi.lib" \
-	"$(OUTDIR)\condor_sysapi.lib" \
-	"$(OUTDIR)\condor_procd_client.lib" \
-	"$(OUTDIR)\condor_privsep_client.lib"
+	"$(OUTDIR)\condor_sysapi.lib"
 
 "$(OUTDIR)\condor_quill.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -234,24 +199,24 @@ LIB32_OBJS= \
 
 "condor_classad - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_classad.mak" CFG="condor_classad - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_classad.mak CFG="condor_classad - Win32 Debug" 
    cd "."
 
 "condor_classad - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_classad.mak" CFG="condor_classad - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_classad.mak CFG="condor_classad - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_classad - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_classad.mak" CFG="condor_classad - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_classad.mak CFG="condor_classad - Win32 Release" 
    cd "."
 
 "condor_classad - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_classad.mak" CFG="condor_classad - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_classad.mak CFG="condor_classad - Win32 Release" RECURSE=1 CLEAN 
    cd "."
 
 !ENDIF 
@@ -260,24 +225,24 @@ LIB32_OBJS= \
 
 "condor_daemon_core - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_daemon_core.mak" CFG="condor_daemon_core - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_daemon_core.mak CFG="condor_daemon_core - Win32 Debug" 
    cd "."
 
 "condor_daemon_core - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_daemon_core.mak" CFG="condor_daemon_core - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_daemon_core.mak CFG="condor_daemon_core - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_daemon_core - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_daemon_core.mak" CFG="condor_daemon_core - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_daemon_core.mak CFG="condor_daemon_core - Win32 Release" 
    cd "."
 
 "condor_daemon_core - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_daemon_core.mak" CFG="condor_daemon_core - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_daemon_core.mak CFG="condor_daemon_core - Win32 Release" RECURSE=1 CLEAN 
    cd "."
 
 !ENDIF 
@@ -286,24 +251,24 @@ LIB32_OBJS= \
 
 "condor_io - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_io.mak" CFG="condor_io - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_io.mak CFG="condor_io - Win32 Debug" 
    cd "."
 
 "condor_io - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_io.mak" CFG="condor_io - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_io.mak CFG="condor_io - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_io - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_io.mak" CFG="condor_io - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_io.mak CFG="condor_io - Win32 Release" 
    cd "."
 
 "condor_io - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_io.mak" CFG="condor_io - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_io.mak CFG="condor_io - Win32 Release" RECURSE=1 CLEAN 
    cd "."
 
 !ENDIF 
@@ -312,24 +277,24 @@ LIB32_OBJS= \
 
 "condor_procapi - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procapi.mak" CFG="condor_procapi - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procapi.mak CFG="condor_procapi - Win32 Debug" 
    cd "."
 
 "condor_procapi - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procapi.mak" CFG="condor_procapi - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procapi.mak CFG="condor_procapi - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_procapi - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procapi.mak" CFG="condor_procapi - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procapi.mak CFG="condor_procapi - Win32 Release" 
    cd "."
 
 "condor_procapi - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procapi.mak" CFG="condor_procapi - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procapi.mak CFG="condor_procapi - Win32 Release" RECURSE=1 CLEAN 
    cd "."
 
 !ENDIF 
@@ -338,24 +303,24 @@ LIB32_OBJS= \
 
 "condor_sysapi - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_sysapi.mak" CFG="condor_sysapi - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_sysapi.mak CFG="condor_sysapi - Win32 Debug" 
    cd "."
 
 "condor_sysapi - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_sysapi.mak" CFG="condor_sysapi - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_sysapi.mak CFG="condor_sysapi - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_sysapi - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_sysapi.mak" CFG="condor_sysapi - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_sysapi.mak CFG="condor_sysapi - Win32 Release" 
    cd "."
 
 "condor_sysapi - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_sysapi.mak" CFG="condor_sysapi - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_sysapi.mak CFG="condor_sysapi - Win32 Release" RECURSE=1 CLEAN 
    cd "."
 
 !ENDIF 
@@ -364,24 +329,24 @@ LIB32_OBJS= \
 
 "condor_procd_client - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procd_client.mak" CFG="condor_procd_client - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procd_client.mak CFG="condor_procd_client - Win32 Debug" 
    cd "."
 
 "condor_procd_client - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procd_client.mak" CFG="condor_procd_client - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procd_client.mak CFG="condor_procd_client - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_procd_client - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procd_client.mak" CFG="condor_procd_client - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procd_client.mak CFG="condor_procd_client - Win32 Release" 
    cd "."
 
 "condor_procd_client - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_procd_client.mak" CFG="condor_procd_client - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_procd_client.mak CFG="condor_procd_client - Win32 Release" RECURSE=1 CLEAN 
    cd "."
 
 !ENDIF 
@@ -390,115 +355,25 @@ LIB32_OBJS= \
 
 "condor_privsep_client - Win32 Debug" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_privsep_client.mak" CFG="condor_privsep_client - Win32 Debug" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_privsep_client.mak CFG="condor_privsep_client - Win32 Debug" 
    cd "."
 
 "condor_privsep_client - Win32 DebugCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_privsep_client.mak" CFG="condor_privsep_client - Win32 Debug" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_privsep_client.mak CFG="condor_privsep_client - Win32 Debug" RECURSE=1 CLEAN 
    cd "."
 
 !ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
 
 "condor_privsep_client - Win32 Release" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_privsep_client.mak" CFG="condor_privsep_client - Win32 Release" 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_privsep_client.mak CFG="condor_privsep_client - Win32 Release" 
    cd "."
 
 "condor_privsep_client - Win32 ReleaseCLEAN" : 
    cd "."
-   $(MAKE) /$(MAKEFLAGS) /F ".\condor_privsep_client.mak" CFG="condor_privsep_client - Win32 Release" RECURSE=1 CLEAN 
+   $(MAKE) /$(MAKEFLAGS) /F .\condor_privsep_client.mak CFG="condor_privsep_client - Win32 Release" RECURSE=1 CLEAN 
    cd "."
-
-!ENDIF 
-
-SOURCE=..\src\condor_quill\classadlogentry.C
-
-"$(INTDIR)\classadlogentry.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_quill\classadlogparser.C
-
-"$(INTDIR)\classadlogparser.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_quill\prober.C
-
-"$(INTDIR)\prober.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_quill\soap_quillC.C
-
-!IF  "$(CFG)" == "condor_quill - Win32 Debug"
-
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-"$(INTDIR)\soap_quillC.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) @<<
-  $(CPP_SWITCHES) $(SOURCE)
-<<
-
-
-!ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
-
-CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-"$(INTDIR)\soap_quillC.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) @<<
-  $(CPP_SWITCHES) $(SOURCE)
-<<
-
-
-!ENDIF 
-
-SOURCE=..\src\condor_quill\soap_quillServer.C
-
-!IF  "$(CFG)" == "condor_quill - Win32 Debug"
-
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-"$(INTDIR)\soap_quillServer.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) @<<
-  $(CPP_SWITCHES) $(SOURCE)
-<<
-
-
-!ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
-
-CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-"$(INTDIR)\soap_quillServer.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) @<<
-  $(CPP_SWITCHES) $(SOURCE)
-<<
-
-
-!ENDIF 
-
-SOURCE=..\src\condor_quill\soap_quillStub.C
-
-!IF  "$(CFG)" == "condor_quill - Win32 Debug"
-
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-"$(INTDIR)\soap_quillStub.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) @<<
-  $(CPP_SWITCHES) $(SOURCE)
-<<
-
-
-!ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
-
-CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
-
-"$(INTDIR)\soap_quillStub.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) @<<
-  $(CPP_SWITCHES) $(SOURCE)
-<<
-
 
 !ENDIF 
 

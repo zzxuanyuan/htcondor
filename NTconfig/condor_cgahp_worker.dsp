@@ -88,7 +88,7 @@ LINK32=link.exe
 # Name "condor_cgahp_worker - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\cgahp_common.C"
+SOURCE="..\src\condor_c-gahp\cgahp_common.cc"
 # End Source File
 # Begin Source File
 
@@ -100,7 +100,7 @@ SOURCE="..\src\condor_c-gahp\gsoap_cgahp_worker.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\PipeBuffer.C"
+SOURCE="..\src\condor_c-gahp\PipeBuffer.cc"
 # End Source File
 # Begin Source File
 
@@ -108,7 +108,7 @@ SOURCE="..\src\condor_c-gahp\PipeBuffer.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\schedd_client.C"
+SOURCE="..\src\condor_c-gahp\schedd_client.cc"
 # End Source File
 # Begin Source File
 
@@ -116,11 +116,11 @@ SOURCE="..\src\condor_c-gahp\schedd_client.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\schedd_client_main.C"
+SOURCE="..\src\condor_c-gahp\schedd_client_main.cc"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\SchedDCommands.C"
+SOURCE="..\src\condor_c-gahp\SchedDCommands.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -129,7 +129,7 @@ SOURCE="..\src\condor_c-gahp\SchedDCommands.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\soap_cgahp_workerC.C"
+SOURCE="..\src\condor_c-gahp\soap_cgahp_workerC.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -138,12 +138,12 @@ SOURCE="..\src\condor_c-gahp\soap_cgahp_workerH.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\soap_cgahp_workerServer.C"
+SOURCE="..\src\condor_c-gahp\soap_cgahp_workerServer.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\soap_cgahp_workerStub.C"
+SOURCE="..\src\condor_c-gahp\soap_cgahp_workerStub.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

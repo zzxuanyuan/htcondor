@@ -29,20 +29,12 @@ NULL=nul
 
 OUTDIR=.\..\Debug
 INTDIR=.\..\Debug
-# Begin Custom Macros
-OutDir=.\..\Debug
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_procapi.lib"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\procapi.obj"
-	-@erase "$(INTDIR)\procapi_killfamily.obj"
-	-@erase "$(INTDIR)\processid.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(INTDIR)\vc60.pdb"
-	-@erase "$(OUTDIR)\condor_procapi.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -88,32 +80,18 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_procapi.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\procapi.obj" \
-	"$(INTDIR)\procapi_killfamily.obj" \
-	"$(INTDIR)\processid.obj"
-
-"$(OUTDIR)\condor_procapi.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
+	
 
 !ELSEIF  "$(CFG)" == "condor_procapi - Win32 Release"
 
 OUTDIR=.\..\Release
 INTDIR=.\..\Release
-# Begin Custom Macros
-OutDir=.\..\Release
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_procapi.lib"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\procapi.obj"
-	-@erase "$(INTDIR)\procapi_killfamily.obj"
-	-@erase "$(INTDIR)\processid.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\condor_procapi.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -159,14 +137,7 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_procapi.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\procapi.obj" \
-	"$(INTDIR)\procapi_killfamily.obj" \
-	"$(INTDIR)\processid.obj"
-
-"$(OUTDIR)\condor_procapi.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
+	
 
 !ENDIF 
 
@@ -181,24 +152,6 @@ LIB32_OBJS= \
 
 
 !IF "$(CFG)" == "condor_procapi - Win32 Debug" || "$(CFG)" == "condor_procapi - Win32 Release"
-SOURCE=..\src\condor_procapi\procapi.C
-
-"$(INTDIR)\procapi.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_procapi\procapi_killfamily.C
-
-"$(INTDIR)\procapi_killfamily.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_procapi\processid.C
-
-"$(INTDIR)\processid.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
 
 !ENDIF 
 

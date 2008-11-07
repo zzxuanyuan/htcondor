@@ -103,7 +103,7 @@ SOURCE=..\src\condor_util_lib\condor_blkng_full_disk_io.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_util_lib\condor_common_c.C
+SOURCE=..\src\condor_util_lib\condor_common_c.cc
 # ADD CPP /Yc"condor_common.h"
 # End Source File
 # Begin Source File

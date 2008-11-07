@@ -86,11 +86,11 @@ LINK32=link.exe
 # Name "condor_qedit - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dc_stub.C"
+SOURCE="..\src\condor_c++_util\dc_stub.cc"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_tools\qedit.C
+SOURCE=..\src\condor_tools\qedit.cc
 # End Source File
 # End Target
 # End Project

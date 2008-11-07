@@ -87,7 +87,7 @@ SOURCE=..\src\condor_includes\condor_qmgr.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_schedd.V6\qmgmt_common.C
+SOURCE=..\src\condor_schedd.V6\qmgmt_common.cc
 # End Source File
 # Begin Source File
 
@@ -95,7 +95,7 @@ SOURCE=..\src\condor_schedd.V6\qmgmt_constants.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_schedd.V6\qmgmt_send_stubs.C
+SOURCE=..\src\condor_schedd.V6\qmgmt_send_stubs.cc
 # End Source File
 # Begin Source File
 
@@ -103,7 +103,7 @@ SOURCE=..\src\condor_schedd.V6\qmgr.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_schedd.V6\qmgr_job_updater.C
+SOURCE=..\src\condor_schedd.V6\qmgr_job_updater.cc
 # End Source File
 # Begin Source File
 
@@ -111,7 +111,7 @@ SOURCE=..\src\condor_schedd.V6\qmgr_job_updater.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_schedd.V6\qmgr_lib_support.C
+SOURCE=..\src\condor_schedd.V6\qmgr_lib_support.cc
 # End Source File
 # End Target
 # End Project

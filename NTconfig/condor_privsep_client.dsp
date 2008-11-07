@@ -86,7 +86,7 @@ SOURCE=..\src\condor_privsep\condor_privsep.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_privsep\privsep_client.WINDOWS.C
+SOURCE=..\src\condor_privsep\privsep_client.WINDOWS.cc
 # End Source File
 # End Target
 # End Project

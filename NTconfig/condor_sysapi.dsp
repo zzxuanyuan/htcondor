@@ -150,7 +150,7 @@ SOURCE=..\src\condor_sysapi\free_fs_blocks.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_sysapi\idle_time.C
+SOURCE=..\src\condor_sysapi\idle_time.cc
 # End Source File
 # Begin Source File
 
@@ -174,7 +174,7 @@ SOURCE=..\src\condor_sysapi\ncpus.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_sysapi\partition_id.C
+SOURCE=..\src\condor_sysapi\partition_id.cc
 # End Source File
 # Begin Source File
 
@@ -182,7 +182,7 @@ SOURCE=..\src\condor_sysapi\phys_mem.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_sysapi\reconfig.C
+SOURCE=..\src\condor_sysapi\reconfig.cc
 # End Source File
 # Begin Source File
 

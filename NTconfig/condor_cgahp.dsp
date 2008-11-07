@@ -88,7 +88,7 @@ LINK32=link.exe
 # Name "condor_cgahp - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\cgahp_common.C"
+SOURCE="..\src\condor_c-gahp\cgahp_common.cc"
 # ADD CPP /Yu
 # End Source File
 # Begin Source File
@@ -101,7 +101,7 @@ SOURCE="..\src\condor_c-gahp\gsoap_cgahp.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\io_loop.C"
+SOURCE="..\src\condor_c-gahp\io_loop.cc"
 # End Source File
 # Begin Source File
 
@@ -109,7 +109,7 @@ SOURCE="..\src\condor_c-gahp\io_loop.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\PipeBuffer.C"
+SOURCE="..\src\condor_c-gahp\PipeBuffer.cc"
 # End Source File
 # Begin Source File
 
@@ -117,7 +117,7 @@ SOURCE="..\src\condor_c-gahp\PipeBuffer.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\soap_cgahpC.C"
+SOURCE="..\src\condor_c-gahp\soap_cgahpC.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -126,12 +126,12 @@ SOURCE="..\src\condor_c-gahp\soap_cgahpH.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\soap_cgahpServer.C"
+SOURCE="..\src\condor_c-gahp\soap_cgahpServer.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c-gahp\soap_cgahpStub.C"
+SOURCE="..\src\condor_c-gahp\soap_cgahpStub.cc"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

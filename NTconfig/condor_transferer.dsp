@@ -85,7 +85,7 @@ LINK32=link.exe
 # Name "condor_transferer - Win32 Debug"
 # Begin Source File
 
-SOURCE=..\src\condor_had\BaseReplicaTransferer.C
+SOURCE=..\src\condor_had\BaseReplicaTransferer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -94,7 +94,7 @@ SOURCE=..\src\condor_had\BaseReplicaTransferer.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\DownloadReplicaTransferer.C
+SOURCE=..\src\condor_had\DownloadReplicaTransferer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -103,7 +103,7 @@ SOURCE=..\src\condor_had\DownloadReplicaTransferer.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\FilesOperations.C
+SOURCE=..\src\condor_had\FilesOperations.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -112,7 +112,7 @@ SOURCE=..\src\condor_had\FilesOperations.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_transfererC.C
+SOURCE=..\src\condor_had\soap_transfererC.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -121,12 +121,12 @@ SOURCE=..\src\condor_had\soap_transfererH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_transfererServer.C
+SOURCE=..\src\condor_had\soap_transfererServer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_transfererStub.C
+SOURCE=..\src\condor_had\soap_transfererStub.cc
 
 !IF  "$(CFG)" == "condor_transferer - Win32 Release"
 
@@ -143,12 +143,12 @@ SOURCE=..\src\condor_had\soap_transfererStub.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\Transferer.C
+SOURCE=..\src\condor_had\Transferer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\UploadReplicaTransferer.C
+SOURCE=..\src\condor_had\UploadReplicaTransferer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -157,7 +157,7 @@ SOURCE=..\src\condor_had\UploadReplicaTransferer.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\Utils.C
+SOURCE=..\src\condor_had\Utils.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

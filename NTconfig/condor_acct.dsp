@@ -83,7 +83,7 @@ LIB32=link.exe -lib
 # Name "condor_acct - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_accountant.V6\Accountant.C
+SOURCE=..\src\condor_accountant.V6\Accountant.cc
 # End Source File
 # Begin Source File
 

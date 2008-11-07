@@ -82,35 +82,35 @@ LIB32=link.exe -lib
 # Name "condor_classad - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_classad\ast.C
+SOURCE=..\src\condor_classad\ast.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\astbase.C
+SOURCE=..\src\condor_classad\astbase.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\attrlist.C
+SOURCE=..\src\condor_classad\attrlist.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\buildtable.C
+SOURCE=..\src\condor_classad\buildtable.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\classad.C
+SOURCE=..\src\condor_classad\classad.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\classad_list.C
+SOURCE=..\src\condor_classad\classad_list.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\classad_util.C
+SOURCE=..\src\condor_classad\classad_util.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\classifiedjobs.C
+SOURCE=..\src\condor_classad\classifiedjobs.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -179,19 +179,19 @@ SOURCE=..\src\condor_includes\condor_scanner.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\environment.C
+SOURCE=..\src\condor_classad\environment.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\evaluateOperators.C
+SOURCE=..\src\condor_classad\evaluateOperators.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\new_classads.C
+SOURCE=..\src\condor_classad\new_classads.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\operators.C
+SOURCE=..\src\condor_classad\operators.cc
 # End Source File
 # Begin Source File
 
@@ -199,19 +199,19 @@ SOURCE=..\src\condor_classad\operators.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\parser.C
+SOURCE=..\src\condor_classad\parser.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\registration.C
+SOURCE=..\src\condor_classad\registration.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\scanner.C
+SOURCE=..\src\condor_classad\scanner.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\value.C
+SOURCE=..\src\condor_classad\value.cc
 # End Source File
 # Begin Source File
 
@@ -219,7 +219,7 @@ SOURCE=..\src\condor_classad\value.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\xml_classads.C
+SOURCE=..\src\condor_classad\xml_classads.cc
 # End Source File
 # End Target
 # End Project

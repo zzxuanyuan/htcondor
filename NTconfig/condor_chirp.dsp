@@ -92,11 +92,11 @@ SOURCE=..\src\condor_chirp\chirp_protocol.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_chirp\condor_chirp.C
+SOURCE=..\src\condor_chirp\condor_chirp.cc
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dc_stub.C"
+SOURCE="..\src\condor_c++_util\dc_stub.cc"
 # End Source File
 # End Target
 # End Project

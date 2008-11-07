@@ -29,21 +29,12 @@ NULL=nul
 
 OUTDIR=.\..\Debug
 INTDIR=.\..\Debug
-# Begin Custom Macros
-OutDir=.\..\Debug
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_qmgmt.lib"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\qmgmt_common.obj"
-	-@erase "$(INTDIR)\qmgmt_send_stubs.obj"
-	-@erase "$(INTDIR)\qmgr_job_updater.obj"
-	-@erase "$(INTDIR)\qmgr_lib_support.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(INTDIR)\vc60.pdb"
-	-@erase "$(OUTDIR)\condor_qmgmt.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -89,34 +80,18 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_qmgmt.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\qmgmt_common.obj" \
-	"$(INTDIR)\qmgmt_send_stubs.obj" \
-	"$(INTDIR)\qmgr_job_updater.obj" \
-	"$(INTDIR)\qmgr_lib_support.obj"
-
-"$(OUTDIR)\condor_qmgmt.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
+	
 
 !ELSEIF  "$(CFG)" == "condor_qmgmt - Win32 Release"
 
 OUTDIR=.\..\Release
 INTDIR=.\..\Release
-# Begin Custom Macros
-OutDir=.\..\Release
-# End Custom Macros
 
-ALL : "$(OUTDIR)\condor_qmgmt.lib"
+ALL : 
 
 
 CLEAN :
-	-@erase "$(INTDIR)\qmgmt_common.obj"
-	-@erase "$(INTDIR)\qmgmt_send_stubs.obj"
-	-@erase "$(INTDIR)\qmgr_job_updater.obj"
-	-@erase "$(INTDIR)\qmgr_lib_support.obj"
-	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\condor_qmgmt.lib"
+	-@erase 
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -162,15 +137,7 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_qmgmt.lib" 
 LIB32_OBJS= \
-	"$(INTDIR)\qmgmt_common.obj" \
-	"$(INTDIR)\qmgmt_send_stubs.obj" \
-	"$(INTDIR)\qmgr_job_updater.obj" \
-	"$(INTDIR)\qmgr_lib_support.obj"
-
-"$(OUTDIR)\condor_qmgmt.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
+	
 
 !ENDIF 
 
@@ -185,30 +152,6 @@ LIB32_OBJS= \
 
 
 !IF "$(CFG)" == "condor_qmgmt - Win32 Debug" || "$(CFG)" == "condor_qmgmt - Win32 Release"
-SOURCE=..\src\condor_schedd.V6\qmgmt_common.C
-
-"$(INTDIR)\qmgmt_common.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_schedd.V6\qmgmt_send_stubs.C
-
-"$(INTDIR)\qmgmt_send_stubs.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_schedd.V6\qmgr_job_updater.C
-
-"$(INTDIR)\qmgr_job_updater.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_schedd.V6\qmgr_lib_support.C
-
-"$(INTDIR)\qmgr_lib_support.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
 
 !ENDIF 
 

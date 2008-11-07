@@ -86,15 +86,15 @@ LINK32=link.exe
 # Name "condor_dbmsd - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_tt\condor_ttdb.C"
+SOURCE="..\src\condor_tt\condor_ttdb.cc"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_dbmsd\dbmsd_main.C"
+SOURCE="..\src\condor_dbmsd\dbmsd_main.cc"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_dbmsd\DBMSManager.C"
+SOURCE="..\src\condor_dbmsd\DBMSManager.cc"
 # End Source File
 # Begin Source File
 
@@ -106,7 +106,7 @@ SOURCE="..\src\condor_dbmsd\gsoap_dbmsd.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_dbmsd\ManagedDatabase.C"
+SOURCE="..\src\condor_dbmsd\ManagedDatabase.cc"
 # End Source File
 # Begin Source File
 
@@ -114,7 +114,7 @@ SOURCE="..\src\condor_dbmsd\ManagedDatabase.h"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dbmsd\soap_dbmsdC.C
+SOURCE=..\src\condor_dbmsd\soap_dbmsdC.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -123,12 +123,12 @@ SOURCE=..\src\condor_dbmsd\soap_dbmsdH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dbmsd\soap_dbmsdServer.C
+SOURCE=..\src\condor_dbmsd\soap_dbmsdServer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_dbmsd\soap_dbmsdStub.C"
+SOURCE="..\src\condor_dbmsd\soap_dbmsdStub.cc"
 # End Source File
 # Begin Source File
 

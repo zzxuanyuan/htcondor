@@ -83,7 +83,7 @@ LIB32=link.exe -lib
 # Name "condor_procapi - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_procapi\procapi.C
+SOURCE=..\src\condor_procapi\procapi.cc
 # End Source File
 # Begin Source File
 
@@ -91,11 +91,11 @@ SOURCE=..\src\condor_procapi\procapi.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procapi\procapi_killfamily.C
+SOURCE=..\src\condor_procapi\procapi_killfamily.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procapi\processid.C
+SOURCE=..\src\condor_procapi\processid.cc
 # End Source File
 # Begin Source File
 

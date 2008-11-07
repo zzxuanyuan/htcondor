@@ -86,11 +86,11 @@ LINK32=link.exe
 # Name "condor_stats - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dc_stub.C"
+SOURCE="..\src\condor_c++_util\dc_stub.cc"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_tools\stats.C
+SOURCE=..\src\condor_tools\stats.cc
 # End Source File
 # End Target
 # End Project

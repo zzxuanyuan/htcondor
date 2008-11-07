@@ -88,7 +88,7 @@ LINK32=link.exe
 # Name "condor_replication - Win32 Debug"
 # Begin Source File
 
-SOURCE=..\src\condor_had\AbstractReplicatorStateMachine.C
+SOURCE=..\src\condor_had\AbstractReplicatorStateMachine.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -97,7 +97,7 @@ SOURCE=..\src\condor_had\AbstractReplicatorStateMachine.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\FilesOperations.C
+SOURCE=..\src\condor_had\FilesOperations.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -106,11 +106,11 @@ SOURCE=..\src\condor_had\FilesOperations.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\had_Version.C
+SOURCE=..\src\condor_had\had_Version.cc
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\Replication.C
+SOURCE=..\src\condor_had\Replication.cc
 # End Source File
 # Begin Source File
 
@@ -118,7 +118,7 @@ SOURCE=..\src\condor_had\ReplicatorState.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\ReplicatorStateMachine.C
+SOURCE=..\src\condor_had\ReplicatorStateMachine.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -127,7 +127,7 @@ SOURCE=..\src\condor_had\ReplicatorStateMachine.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_replicationC.C
+SOURCE=..\src\condor_had\soap_replicationC.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -136,12 +136,12 @@ SOURCE=..\src\condor_had\soap_replicationH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_replicationServer.C
+SOURCE=..\src\condor_had\soap_replicationServer.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_replicationStub.C
+SOURCE=..\src\condor_had\soap_replicationStub.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -150,7 +150,7 @@ SOURCE=..\src\condor_had\soap_replicationStub.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\Utils.C
+SOURCE=..\src\condor_had\Utils.cc
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
