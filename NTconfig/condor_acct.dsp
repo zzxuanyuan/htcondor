@@ -83,7 +83,7 @@ LIB32=link.exe -lib
 # Name "condor_acct - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_accountant.V6\Accountant.cc
+SOURCE=..\src\condor_negotiator.V6\Accountant.cpp
 # End Source File
 # Begin Source File
 

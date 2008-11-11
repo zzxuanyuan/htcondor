@@ -89,19 +89,19 @@ LINK32=link.exe
 # Name "condor_status - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dc_stub.cc"
+SOURCE="..\src\condor_c++_util\dc_stub.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_status.V6\prettyPrint.cc
+SOURCE=..\src\condor_status.V6\prettyPrint.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_status.V6\setflags.cc
+SOURCE=..\src\condor_status.V6\setflags.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_status.V6\status.cc
+SOURCE=..\src\condor_status.V6\status.cpp
 # End Source File
 # Begin Source File
 
@@ -109,7 +109,7 @@ SOURCE=..\src\condor_status.V6\status_types.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_status.V6\totals.cc
+SOURCE=..\src\condor_status.V6\totals.cpp
 # End Source File
 # Begin Source File
 

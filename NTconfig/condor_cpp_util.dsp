@@ -83,7 +83,7 @@ LIB32=link.exe -lib
 # Name "condor_cpp_util - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\access.cc"
+SOURCE="..\src\condor_c++_util\access.cpp"
 # End Source File
 # Begin Source File
 
@@ -91,7 +91,7 @@ SOURCE="..\src\condor_c++_util\access.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\ad_printmask.cc"
+SOURCE="..\src\condor_c++_util\ad_printmask.cpp"
 # End Source File
 # Begin Source File
 
@@ -99,7 +99,7 @@ SOURCE="..\src\condor_c++_util\ad_printmask.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\build_job_env.cc"
+SOURCE="..\src\condor_c++_util\build_job_env.cpp"
 # End Source File
 # Begin Source File
 
@@ -107,7 +107,7 @@ SOURCE="..\src\condor_c++_util\build_job_env.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\check_events.cc"
+SOURCE="..\src\condor_c++_util\check_events.cpp"
 # End Source File
 # Begin Source File
 
@@ -115,7 +115,7 @@ SOURCE="..\src\condor_c++_util\check_events.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_collection.cc"
+SOURCE="..\src\condor_c++_util\classad_collection.cpp"
 # End Source File
 # Begin Source File
 
@@ -123,7 +123,7 @@ SOURCE="..\src\condor_c++_util\classad_collection.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_command_util.cc"
+SOURCE="..\src\condor_c++_util\classad_command_util.cpp"
 # End Source File
 # Begin Source File
 
@@ -131,7 +131,7 @@ SOURCE="..\src\condor_c++_util\classad_command_util.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_hashtable.cc"
+SOURCE="..\src\condor_c++_util\classad_hashtable.cpp"
 # End Source File
 # Begin Source File
 
@@ -139,7 +139,7 @@ SOURCE="..\src\condor_c++_util\classad_hashtable.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_helpers.cc"
+SOURCE="..\src\condor_c++_util\classad_helpers.cpp"
 # End Source File
 # Begin Source File
 
@@ -147,7 +147,7 @@ SOURCE="..\src\condor_c++_util\classad_helpers.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_log.cc"
+SOURCE="..\src\condor_c++_util\classad_log.cpp"
 # End Source File
 # Begin Source File
 
@@ -155,7 +155,7 @@ SOURCE="..\src\condor_c++_util\classad_log.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_merge.cc"
+SOURCE="..\src\condor_c++_util\classad_merge.cpp"
 # End Source File
 # Begin Source File
 
@@ -163,11 +163,11 @@ SOURCE="..\src\condor_c++_util\classad_merge.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_namedlist.cc"
+SOURCE="..\src\condor_c++_util\classad_namedlist.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\classad_visa.cc"
+SOURCE="..\src\condor_c++_util\classad_visa.cpp"
 # End Source File
 # Begin Source File
 
@@ -175,7 +175,7 @@ SOURCE="..\src\condor_c++_util\classad_visa.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\command_strings.cc"
+SOURCE="..\src\condor_c++_util\command_strings.cpp"
 # End Source File
 # Begin Source File
 
@@ -183,7 +183,7 @@ SOURCE="..\src\condor_c++_util\command_strings.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\ConcurrencyLimitUtils.cc"
+SOURCE="..\src\condor_c++_util\ConcurrencyLimitUtils.cpp"
 # End Source File
 # Begin Source File
 
@@ -191,7 +191,7 @@ SOURCE="..\src\condor_c++_util\ConcurrencyLimitUtils.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_arglist.cc"
+SOURCE="..\src\condor_c++_util\condor_arglist.cpp"
 # End Source File
 # Begin Source File
 
@@ -199,11 +199,11 @@ SOURCE="..\src\condor_c++_util\condor_arglist.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_attributes.cc"
+SOURCE="..\src\condor_c++_util\condor_attributes.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_common.cc"
+SOURCE="..\src\condor_c++_util\condor_common.cpp"
 
 !IF  "$(CFG)" == "condor_cpp_util - Win32 Debug"
 
@@ -220,7 +220,7 @@ SOURCE="..\src\condor_c++_util\condor_common.cc"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_config.cc"
+SOURCE="..\src\condor_c++_util\condor_config.cpp"
 # End Source File
 # Begin Source File
 
@@ -240,7 +240,7 @@ SOURCE=..\src\condor_includes\condor_cronmgr.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_crontab.cc"
+SOURCE="..\src\condor_c++_util\condor_crontab.cpp"
 # End Source File
 # Begin Source File
 
@@ -256,7 +256,7 @@ SOURCE=..\src\condor_includes\condor_distribution.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_environ.cc"
+SOURCE="..\src\condor_c++_util\condor_environ.cpp"
 # End Source File
 # Begin Source File
 
@@ -264,7 +264,7 @@ SOURCE=..\src\condor_includes\condor_environ.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_event.cc"
+SOURCE="..\src\condor_c++_util\condor_event.cpp"
 # End Source File
 # Begin Source File
 
@@ -272,11 +272,11 @@ SOURCE="..\src\condor_c++_util\condor_event.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_ftp.cc"
+SOURCE="..\src\condor_c++_util\condor_ftp.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_getcwd.cc"
+SOURCE="..\src\condor_c++_util\condor_getcwd.cpp"
 # End Source File
 # Begin Source File
 
@@ -284,7 +284,7 @@ SOURCE="..\src\condor_c++_util\condor_getcwd.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_id.cc"
+SOURCE="..\src\condor_c++_util\condor_id.cpp"
 # End Source File
 # Begin Source File
 
@@ -292,11 +292,11 @@ SOURCE="..\src\condor_c++_util\condor_id.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_md.cc"
+SOURCE="..\src\condor_c++_util\condor_md.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_open.cc"
+SOURCE="..\src\condor_c++_util\condor_open.cpp"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -305,11 +305,11 @@ SOURCE="..\src\condor_c++_util\condor_open.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_parameters.cc"
+SOURCE="..\src\condor_c++_util\condor_parameters.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_q.cc"
+SOURCE="..\src\condor_c++_util\condor_q.cpp"
 # End Source File
 # Begin Source File
 
@@ -317,7 +317,7 @@ SOURCE="..\src\condor_c++_util\condor_q.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_query.cc"
+SOURCE="..\src\condor_c++_util\condor_query.cpp"
 # End Source File
 # Begin Source File
 
@@ -325,11 +325,11 @@ SOURCE="..\src\condor_c++_util\condor_query.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_state.cc"
+SOURCE="..\src\condor_c++_util\condor_state.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_url.cc"
+SOURCE="..\src\condor_c++_util\condor_url.cpp"
 # End Source File
 # Begin Source File
 
@@ -337,7 +337,7 @@ SOURCE="..\src\condor_c++_util\condor_url.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_user_policy.cc"
+SOURCE="..\src\condor_c++_util\condor_user_policy.cpp"
 # End Source File
 # Begin Source File
 
@@ -345,7 +345,7 @@ SOURCE="..\src\condor_c++_util\condor_user_policy.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_ver_info.cc"
+SOURCE="..\src\condor_c++_util\condor_ver_info.cpp"
 # End Source File
 # Begin Source File
 
@@ -353,12 +353,12 @@ SOURCE="..\src\condor_c++_util\condor_ver_info.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_version.cc"
+SOURCE="..\src\condor_c++_util\condor_version.cpp"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\CondorError.cc"
+SOURCE="..\src\condor_c++_util\CondorError.cpp"
 # End Source File
 # Begin Source File
 
@@ -366,27 +366,27 @@ SOURCE="..\src\condor_c++_util\CondorError.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\config.cc"
+SOURCE="..\src\condor_c++_util\config.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\cron.cc"
+SOURCE="..\src\condor_c++_util\cron.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\cronjob.cc"
+SOURCE="..\src\condor_c++_util\cronjob.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\cronjob_classad.cc"
+SOURCE="..\src\condor_c++_util\cronjob_classad.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\cronmgr.cc"
+SOURCE="..\src\condor_c++_util\cronmgr.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\daemon.cc
+SOURCE=..\src\condor_daemon_client\daemon.cpp
 # End Source File
 # Begin Source File
 
@@ -394,7 +394,7 @@ SOURCE=..\src\condor_daemon_client\daemon.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\daemon_list.cc
+SOURCE=..\src\condor_daemon_client\daemon_list.cpp
 # End Source File
 # Begin Source File
 
@@ -402,7 +402,7 @@ SOURCE=..\src\condor_daemon_client\daemon_list.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\daemon_types.cc
+SOURCE=..\src\condor_daemon_client\daemon_types.cpp
 # End Source File
 # Begin Source File
 
@@ -410,7 +410,7 @@ SOURCE=..\src\condor_daemon_client\daemon_types.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\date_util.cc"
+SOURCE="..\src\condor_c++_util\date_util.cpp"
 # End Source File
 # Begin Source File
 
@@ -418,7 +418,7 @@ SOURCE="..\src\condor_c++_util\date_util.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dbms_utils.cc"
+SOURCE="..\src\condor_c++_util\dbms_utils.cpp"
 # End Source File
 # Begin Source File
 
@@ -426,7 +426,7 @@ SOURCE="..\src\condor_c++_util\dbms_utils.h"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_collector.cc
+SOURCE=..\src\condor_daemon_client\dc_collector.cpp
 # End Source File
 # Begin Source File
 
@@ -434,7 +434,7 @@ SOURCE=..\src\condor_daemon_client\dc_collector.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_message.cc
+SOURCE=..\src\condor_daemon_client\dc_message.cpp
 # End Source File
 # Begin Source File
 
@@ -442,7 +442,7 @@ SOURCE=..\src\condor_daemon_client\dc_message.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_schedd.cc
+SOURCE=..\src\condor_daemon_client\dc_schedd.cpp
 # End Source File
 # Begin Source File
 
@@ -450,7 +450,7 @@ SOURCE=..\src\condor_daemon_client\dc_schedd.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_shadow.cc
+SOURCE=..\src\condor_daemon_client\dc_shadow.cpp
 # End Source File
 # Begin Source File
 
@@ -458,7 +458,7 @@ SOURCE=..\src\condor_daemon_client\dc_shadow.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_startd.cc
+SOURCE=..\src\condor_daemon_client\dc_startd.cpp
 # End Source File
 # Begin Source File
 
@@ -466,7 +466,7 @@ SOURCE=..\src\condor_daemon_client\dc_startd.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_starter.cc
+SOURCE=..\src\condor_daemon_client\dc_starter.cpp
 # End Source File
 # Begin Source File
 
@@ -474,7 +474,7 @@ SOURCE=..\src\condor_daemon_client\dc_starter.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_transfer_queue.cc
+SOURCE=..\src\condor_daemon_client\dc_transfer_queue.cpp
 # End Source File
 # Begin Source File
 
@@ -482,7 +482,7 @@ SOURCE=..\src\condor_daemon_client\dc_transfer_queue.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_client\dc_transferd.cc
+SOURCE=..\src\condor_daemon_client\dc_transferd.cpp
 # End Source File
 # Begin Source File
 
@@ -490,7 +490,7 @@ SOURCE=..\src\condor_daemon_client\dc_transferd.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\directory.cc"
+SOURCE="..\src\condor_c++_util\directory.cpp"
 # End Source File
 # Begin Source File
 
@@ -498,7 +498,7 @@ SOURCE="..\src\condor_c++_util\directory.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\directory.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\directory.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -506,11 +506,11 @@ SOURCE="..\src\condor_c++_util\directory.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\distribution.cc"
+SOURCE="..\src\condor_c++_util\distribution.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\domain_tools.cc"
+SOURCE="..\src\condor_c++_util\domain_tools.cpp"
 # End Source File
 # Begin Source File
 
@@ -518,7 +518,7 @@ SOURCE="..\src\condor_c++_util\domain_tools.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dynuser.cc"
+SOURCE="..\src\condor_c++_util\dynuser.cpp"
 # End Source File
 # Begin Source File
 
@@ -526,11 +526,11 @@ SOURCE="..\src\condor_c++_util\dynuser.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\email_cpp.cc"
+SOURCE="..\src\condor_c++_util\email_cpp.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\enum_utils.cc"
+SOURCE="..\src\condor_c++_util\enum_utils.cpp"
 # End Source File
 # Begin Source File
 
@@ -538,7 +538,7 @@ SOURCE="..\src\condor_c++_util\enum_utils.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\env.cc"
+SOURCE="..\src\condor_c++_util\env.cpp"
 # End Source File
 # Begin Source File
 
@@ -546,7 +546,7 @@ SOURCE="..\src\condor_c++_util\env.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\error_utils.cc"
+SOURCE="..\src\condor_c++_util\error_utils.cpp"
 # End Source File
 # Begin Source File
 
@@ -554,7 +554,7 @@ SOURCE="..\src\condor_c++_util\extArray.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\extra_param_info.cc"
+SOURCE="..\src\condor_c++_util\extra_param_info.cpp"
 # End Source File
 # Begin Source File
 
@@ -562,11 +562,11 @@ SOURCE="..\src\condor_c++_util\extra_param_info.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\file_lock.cc"
+SOURCE="..\src\condor_c++_util\file_lock.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\file_sql.cc"
+SOURCE="..\src\condor_c++_util\file_sql.cpp"
 # End Source File
 # Begin Source File
 
@@ -574,7 +574,7 @@ SOURCE="..\src\condor_c++_util\file_sql.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\file_transfer.cc"
+SOURCE="..\src\condor_c++_util\file_transfer.cpp"
 # End Source File
 # Begin Source File
 
@@ -582,7 +582,7 @@ SOURCE="..\src\condor_c++_util\file_transfer.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\file_transfer_db.cc"
+SOURCE="..\src\condor_c++_util\file_transfer_db.cpp"
 # End Source File
 # Begin Source File
 
@@ -590,7 +590,7 @@ SOURCE="..\src\condor_c++_util\file_transfer_db.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\file_xml.cc"
+SOURCE="..\src\condor_c++_util\file_xml.cpp"
 # End Source File
 # Begin Source File
 
@@ -598,11 +598,11 @@ SOURCE="..\src\condor_c++_util\file_xml.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\filename_tools_cpp.cc"
+SOURCE="..\src\condor_c++_util\filename_tools_cpp.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\forkwork.cc"
+SOURCE="..\src\condor_c++_util\forkwork.cpp"
 # End Source File
 # Begin Source File
 
@@ -610,7 +610,7 @@ SOURCE="..\src\condor_c++_util\forkwork.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\format_time.cc"
+SOURCE="..\src\condor_c++_util\format_time.cpp"
 # End Source File
 # Begin Source File
 
@@ -618,7 +618,7 @@ SOURCE="..\src\condor_c++_util\format_time.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\gahp_common.cc"
+SOURCE="..\src\condor_c++_util\gahp_common.cpp"
 # End Source File
 # Begin Source File
 
@@ -626,7 +626,7 @@ SOURCE="..\src\condor_c++_util\gahp_common.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\generic_query.cc"
+SOURCE="..\src\condor_c++_util\generic_query.cpp"
 # End Source File
 # Begin Source File
 
@@ -634,7 +634,7 @@ SOURCE="..\src\condor_c++_util\generic_query.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\get_daemon_name.cc"
+SOURCE="..\src\condor_c++_util\get_daemon_name.cpp"
 # End Source File
 # Begin Source File
 
@@ -642,11 +642,11 @@ SOURCE="..\src\condor_c++_util\get_daemon_name.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\get_full_hostname.cc"
+SOURCE="..\src\condor_c++_util\get_full_hostname.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\HashTable.cc"
+SOURCE="..\src\condor_c++_util\HashTable.cpp"
 # End Source File
 # Begin Source File
 
@@ -654,7 +654,7 @@ SOURCE="..\src\condor_c++_util\HashTable.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\hibernation_manager.cc"
+SOURCE="..\src\condor_c++_util\hibernation_manager.cpp"
 # End Source File
 # Begin Source File
 
@@ -662,7 +662,7 @@ SOURCE="..\src\condor_c++_util\hibernation_manager.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\hibernator.cc"
+SOURCE="..\src\condor_c++_util\hibernator.cpp"
 # End Source File
 # Begin Source File
 
@@ -670,7 +670,7 @@ SOURCE="..\src\condor_c++_util\hibernator.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\hibernator.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\hibernator.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -678,7 +678,7 @@ SOURCE="..\src\condor_c++_util\hibernator.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\historysnapshot.cc"
+SOURCE="..\src\condor_c++_util\historysnapshot.cpp"
 # End Source File
 # Begin Source File
 
@@ -686,7 +686,7 @@ SOURCE="..\src\condor_c++_util\historysnapshot.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\hook_utils.cc"
+SOURCE="..\src\condor_c++_util\hook_utils.cpp"
 # End Source File
 # Begin Source File
 
@@ -694,7 +694,7 @@ SOURCE="..\src\condor_c++_util\hook_utils.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\iso_dates.cc"
+SOURCE="..\src\condor_c++_util\iso_dates.cpp"
 # End Source File
 # Begin Source File
 
@@ -702,7 +702,7 @@ SOURCE="..\src\condor_c++_util\iso_dates.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\java_config.cc"
+SOURCE="..\src\condor_c++_util\java_config.cpp"
 # End Source File
 # Begin Source File
 
@@ -710,7 +710,7 @@ SOURCE="..\src\condor_c++_util\java_config.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\job_lease.cc"
+SOURCE="..\src\condor_c++_util\job_lease.cpp"
 # End Source File
 # Begin Source File
 
@@ -718,7 +718,7 @@ SOURCE="..\src\condor_c++_util\job_lease.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\jobqueuesnapshot.cc"
+SOURCE="..\src\condor_c++_util\jobqueuesnapshot.cpp"
 # End Source File
 # Begin Source File
 
@@ -726,11 +726,11 @@ SOURCE="..\src\condor_c++_util\jobqueuesnapshot.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\KeyCache.cc"
+SOURCE="..\src\condor_c++_util\KeyCache.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\killfamily.cc"
+SOURCE="..\src\condor_c++_util\killfamily.cpp"
 # End Source File
 # Begin Source File
 
@@ -738,7 +738,7 @@ SOURCE="..\src\condor_c++_util\killfamily.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\linebuffer.cc"
+SOURCE="..\src\condor_c++_util\linebuffer.cpp"
 # End Source File
 # Begin Source File
 
@@ -750,7 +750,7 @@ SOURCE="..\src\condor_c++_util\list.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\load_dll.cc"
+SOURCE="..\src\condor_c++_util\load_dll.cpp"
 # End Source File
 # Begin Source File
 
@@ -758,7 +758,7 @@ SOURCE="..\src\condor_c++_util\load_dll.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\log.cc"
+SOURCE="..\src\condor_c++_util\log.cpp"
 # End Source File
 # Begin Source File
 
@@ -766,7 +766,7 @@ SOURCE="..\src\condor_c++_util\log.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\log_transaction.cc"
+SOURCE="..\src\condor_c++_util\log_transaction.cpp"
 # End Source File
 # Begin Source File
 
@@ -774,7 +774,7 @@ SOURCE="..\src\condor_c++_util\log_transaction.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\lsa_mgr.cc"
+SOURCE="..\src\condor_c++_util\lsa_mgr.cpp"
 # End Source File
 # Begin Source File
 
@@ -782,7 +782,7 @@ SOURCE="..\src\condor_c++_util\lsa_mgr.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\MapFile.cc"
+SOURCE="..\src\condor_c++_util\MapFile.cpp"
 # End Source File
 # Begin Source File
 
@@ -790,7 +790,7 @@ SOURCE="..\src\condor_c++_util\MapFile.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\metric_units.cc"
+SOURCE="..\src\condor_c++_util\metric_units.cpp"
 # End Source File
 # Begin Source File
 
@@ -798,23 +798,23 @@ SOURCE="..\src\condor_c++_util\metric_units.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\misc_utils.cc"
+SOURCE="..\src\condor_c++_util\misc_utils.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\my_distribution.cc"
+SOURCE="..\src\condor_c++_util\my_distribution.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\my_dynuser.cc"
+SOURCE="..\src\condor_c++_util\my_dynuser.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\my_hostname.cc"
+SOURCE="..\src\condor_c++_util\my_hostname.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\my_popen.cc"
+SOURCE="..\src\condor_c++_util\my_popen.cpp"
 # End Source File
 # Begin Source File
 
@@ -822,12 +822,12 @@ SOURCE="..\src\condor_c++_util\my_popen.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\my_subsystem.cc"
+SOURCE="..\src\condor_c++_util\my_subsystem.cpp"
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\my_username.cc"
+SOURCE="..\src\condor_c++_util\my_username.cpp"
 # End Source File
 # Begin Source File
 
@@ -835,7 +835,7 @@ SOURCE="..\src\condor_c++_util\my_username.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\MyString.cc"
+SOURCE="..\src\condor_c++_util\MyString.cpp"
 # End Source File
 # Begin Source File
 
@@ -843,7 +843,7 @@ SOURCE="..\src\condor_c++_util\MyString.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\net_string_list.cc"
+SOURCE="..\src\condor_c++_util\net_string_list.cpp"
 # End Source File
 # Begin Source File
 
@@ -851,7 +851,7 @@ SOURCE="..\src\condor_c++_util\net_string_list.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\network_adapter.cc"
+SOURCE="..\src\condor_c++_util\network_adapter.cpp"
 # End Source File
 # Begin Source File
 
@@ -859,7 +859,7 @@ SOURCE="..\src\condor_c++_util\network_adapter.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\network_adapter.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\network_adapter.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -867,7 +867,7 @@ SOURCE="..\src\condor_c++_util\network_adapter.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\ntsysinfo.cc"
+SOURCE="..\src\condor_c++_util\ntsysinfo.cpp"
 # End Source File
 # Begin Source File
 
@@ -875,7 +875,7 @@ SOURCE="..\src\condor_c++_util\ntsysinfo.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\perm.cc"
+SOURCE="..\src\condor_c++_util\perm.cpp"
 # End Source File
 # Begin Source File
 
@@ -883,7 +883,7 @@ SOURCE="..\src\condor_c++_util\perm.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\pgsqldatabase.cc"
+SOURCE="..\src\condor_c++_util\pgsqldatabase.cpp"
 # End Source File
 # Begin Source File
 
@@ -891,7 +891,7 @@ SOURCE="..\src\condor_c++_util\pgsqldatabase.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\print_wrapped_text.cc"
+SOURCE="..\src\condor_c++_util\print_wrapped_text.cpp"
 # End Source File
 # Begin Source File
 
@@ -903,7 +903,7 @@ SOURCE=..\src\h\proc.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\proc_family_direct.cc"
+SOURCE="..\src\condor_c++_util\proc_family_direct.cpp"
 # End Source File
 # Begin Source File
 
@@ -911,7 +911,7 @@ SOURCE="..\src\condor_c++_util\proc_family_direct.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\proc_family_interface.cc"
+SOURCE="..\src\condor_c++_util\proc_family_interface.cpp"
 # End Source File
 # Begin Source File
 
@@ -919,7 +919,7 @@ SOURCE="..\src\condor_c++_util\proc_family_interface.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\proc_family_proxy.cc"
+SOURCE="..\src\condor_c++_util\proc_family_proxy.cpp"
 # End Source File
 # Begin Source File
 
@@ -927,11 +927,11 @@ SOURCE="..\src\condor_c++_util\proc_family_proxy.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\proc_id.cc"
+SOURCE="..\src\condor_c++_util\proc_id.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\procd_config.cc"
+SOURCE="..\src\condor_c++_util\procd_config.cpp"
 # End Source File
 # Begin Source File
 
@@ -939,7 +939,7 @@ SOURCE="..\src\condor_c++_util\procd_config.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\process_control.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\process_control.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -947,7 +947,7 @@ SOURCE="..\src\condor_c++_util\process_control.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\profile.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\profile.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -963,7 +963,7 @@ SOURCE="..\src\condor_c++_util\Queue.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\read_multiple_logs.cc"
+SOURCE="..\src\condor_c++_util\read_multiple_logs.cpp"
 # End Source File
 # Begin Source File
 
@@ -971,11 +971,11 @@ SOURCE="..\src\condor_c++_util\read_multiple_logs.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\read_user_log.cc"
+SOURCE="..\src\condor_c++_util\read_user_log.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\read_user_log_state.cc"
+SOURCE="..\src\condor_c++_util\read_user_log_state.cpp"
 # End Source File
 # Begin Source File
 
@@ -983,11 +983,11 @@ SOURCE="..\src\condor_c++_util\read_user_log_state.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\Regex.cc"
+SOURCE="..\src\condor_c++_util\Regex.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\remote_close.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\remote_close.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -995,7 +995,7 @@ SOURCE="..\src\condor_c++_util\remote_close.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\security.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\security.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -1003,7 +1003,7 @@ SOURCE="..\src\condor_c++_util\security.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\selector.cc"
+SOURCE="..\src\condor_c++_util\selector.cpp"
 # End Source File
 # Begin Source File
 
@@ -1015,7 +1015,7 @@ SOURCE="..\src\condor_c++_util\Set.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\set_user_priv_from_ad.cc"
+SOURCE="..\src\condor_c++_util\set_user_priv_from_ad.cpp"
 # End Source File
 # Begin Source File
 
@@ -1023,7 +1023,7 @@ SOURCE=..\src\condor_includes\set_user_priv_from_ad.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\setenv.cc"
+SOURCE="..\src\condor_c++_util\setenv.cpp"
 # End Source File
 # Begin Source File
 
@@ -1031,7 +1031,7 @@ SOURCE="..\src\condor_c++_util\setenv.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\setup_api_dll.cc"
+SOURCE="..\src\condor_c++_util\setup_api_dll.cpp"
 # End Source File
 # Begin Source File
 
@@ -1039,7 +1039,7 @@ SOURCE="..\src\condor_c++_util\setup_api_dll.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\sig_name.cc"
+SOURCE="..\src\condor_c++_util\sig_name.cpp"
 # End Source File
 # Begin Source File
 
@@ -1051,7 +1051,7 @@ SOURCE="..\src\condor_c++_util\simplelist.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\sqlquery.cc"
+SOURCE="..\src\condor_c++_util\sqlquery.cpp"
 # End Source File
 # Begin Source File
 
@@ -1059,7 +1059,7 @@ SOURCE="..\src\condor_c++_util\sqlquery.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\stat_info.cc"
+SOURCE="..\src\condor_c++_util\stat_info.cpp"
 # End Source File
 # Begin Source File
 
@@ -1067,7 +1067,7 @@ SOURCE="..\src\condor_c++_util\stat_info.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\stat_wrapper.cc"
+SOURCE="..\src\condor_c++_util\stat_wrapper.cpp"
 # End Source File
 # Begin Source File
 
@@ -1075,7 +1075,7 @@ SOURCE="..\src\condor_c++_util\stat_wrapper.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\stat_wrapper_internal.cc"
+SOURCE="..\src\condor_c++_util\stat_wrapper_internal.cpp"
 # End Source File
 # Begin Source File
 
@@ -1083,7 +1083,7 @@ SOURCE="..\src\condor_c++_util\stat_wrapper_internal.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\status_string.cc"
+SOURCE="..\src\condor_c++_util\status_string.cpp"
 # End Source File
 # Begin Source File
 
@@ -1091,7 +1091,7 @@ SOURCE="..\src\condor_c++_util\status_string.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\store_cred.cc"
+SOURCE="..\src\condor_c++_util\store_cred.cpp"
 # End Source File
 # Begin Source File
 
@@ -1099,7 +1099,7 @@ SOURCE="..\src\condor_c++_util\store_cred.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\string_conversion.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\string_conversion.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -1107,7 +1107,7 @@ SOURCE="..\src\condor_c++_util\string_conversion.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\string_list.cc"
+SOURCE="..\src\condor_c++_util\string_list.cpp"
 # End Source File
 # Begin Source File
 
@@ -1115,7 +1115,7 @@ SOURCE="..\src\condor_c++_util\string_list.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\stringSpace.cc"
+SOURCE="..\src\condor_c++_util\stringSpace.cpp"
 # End Source File
 # Begin Source File
 
@@ -1123,11 +1123,11 @@ SOURCE="..\src\condor_c++_util\stringSpace.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\strnewp.cc"
+SOURCE="..\src\condor_c++_util\strnewp.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\subsystem_info.cc"
+SOURCE="..\src\condor_c++_util\subsystem_info.cpp"
 # End Source File
 # Begin Source File
 
@@ -1135,7 +1135,7 @@ SOURCE="..\src\condor_c++_util\subsystem_info.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\system_info.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\system_info.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 
@@ -1143,7 +1143,7 @@ SOURCE="..\src\condor_c++_util\system_info.WINDOWS.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\time_offset.cc"
+SOURCE="..\src\condor_c++_util\time_offset.cpp"
 # End Source File
 # Begin Source File
 
@@ -1151,7 +1151,7 @@ SOURCE="..\src\condor_c++_util\time_offset.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\tmp_dir.cc"
+SOURCE="..\src\condor_c++_util\tmp_dir.cpp"
 # End Source File
 # Begin Source File
 
@@ -1159,7 +1159,7 @@ SOURCE="..\src\condor_c++_util\tmp_dir.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\token_cache.cc"
+SOURCE="..\src\condor_c++_util\token_cache.cpp"
 # End Source File
 # Begin Source File
 
@@ -1167,11 +1167,11 @@ SOURCE="..\src\condor_c++_util\token_cache.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\transfer_request.cc"
+SOURCE="..\src\condor_c++_util\transfer_request.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\translation_utils.cc"
+SOURCE="..\src\condor_c++_util\translation_utils.cpp"
 # End Source File
 # Begin Source File
 
@@ -1179,7 +1179,7 @@ SOURCE="..\src\condor_c++_util\translation_utils.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\udp_waker.cc"
+SOURCE="..\src\condor_c++_util\udp_waker.cpp"
 # End Source File
 # Begin Source File
 
@@ -1187,15 +1187,15 @@ SOURCE="..\src\condor_c++_util\udp_waker.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\uids.cc"
+SOURCE="..\src\condor_c++_util\uids.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\usagemon.cc"
+SOURCE="..\src\condor_c++_util\usagemon.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\user_job_policy.cc"
+SOURCE="..\src\condor_c++_util\user_job_policy.cpp"
 # End Source File
 # Begin Source File
 
@@ -1203,7 +1203,7 @@ SOURCE="..\src\condor_c++_util\user_job_policy.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\user_log.cc"
+SOURCE="..\src\condor_c++_util\user_log.cpp"
 # End Source File
 # Begin Source File
 
@@ -1211,7 +1211,7 @@ SOURCE="..\src\condor_c++_util\user_log.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\user_log_header.cc"
+SOURCE="..\src\condor_c++_util\user_log_header.cpp"
 # End Source File
 # Begin Source File
 
@@ -1219,7 +1219,7 @@ SOURCE="..\src\condor_c++_util\user_log.c++.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\utc_time.cc"
+SOURCE="..\src\condor_c++_util\utc_time.cpp"
 # End Source File
 # Begin Source File
 
@@ -1227,7 +1227,7 @@ SOURCE="..\src\condor_c++_util\utc_time.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\vm_univ_utils.cc"
+SOURCE="..\src\condor_c++_util\vm_univ_utils.cpp"
 # End Source File
 # Begin Source File
 
@@ -1235,7 +1235,7 @@ SOURCE="..\src\condor_c++_util\vm_univ_utils.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\waker.cc"
+SOURCE="..\src\condor_c++_util\waker.cpp"
 # End Source File
 # Begin Source File
 
@@ -1243,7 +1243,7 @@ SOURCE="..\src\condor_c++_util\waker.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\which.cc"
+SOURCE="..\src\condor_c++_util\which.cpp"
 # End Source File
 # Begin Source File
 
@@ -1251,7 +1251,7 @@ SOURCE="..\src\condor_c++_util\which.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\windows_firewall.cc"
+SOURCE="..\src\condor_c++_util\windows_firewall.cpp"
 # End Source File
 # Begin Source File
 

@@ -88,26 +88,26 @@ LINK32=link.exe
 # Name "condor_had - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_had\HAD.cc
+SOURCE=..\src\condor_had\HAD.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_hadC.cc
+SOURCE=..\src\condor_had\soap_hadC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_hadServer.cc
+SOURCE=..\src\condor_had\soap_hadServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\soap_hadStub.cc
+SOURCE=..\src\condor_had\soap_hadStub.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\StateMachine.cc
+SOURCE=..\src\condor_had\StateMachine.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -116,7 +116,7 @@ SOURCE=..\src\condor_had\StateMachine.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\Utils.cc
+SOURCE=..\src\condor_had\Utils.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

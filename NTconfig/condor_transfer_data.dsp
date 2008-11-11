@@ -86,11 +86,11 @@ LINK32=link.exe
 # Name "condor_transfer_data - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dc_stub.cc"
+SOURCE="..\src\condor_c++_util\dc_stub.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_tools\transfer_data.cc
+SOURCE=..\src\condor_tools\transfer_data.cpp
 # End Source File
 # End Target
 # End Project

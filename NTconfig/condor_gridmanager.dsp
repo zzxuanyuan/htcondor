@@ -88,7 +88,7 @@ LINK32=link.exe
 # Name "condor_gridmanager - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\amazonjob.cc
+SOURCE=..\src\condor_gridmanager\amazonjob.cpp
 # End Source File
 # Begin Source File
 
@@ -96,7 +96,7 @@ SOURCE=..\src\condor_gridmanager\amazonjob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\amazonresource.cc
+SOURCE=..\src\condor_gridmanager\amazonresource.cpp
 # End Source File
 # Begin Source File
 
@@ -104,7 +104,7 @@ SOURCE=..\src\condor_gridmanager\amazonresource.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\basejob.cc
+SOURCE=..\src\condor_gridmanager\basejob.cpp
 # End Source File
 # Begin Source File
 
@@ -112,7 +112,7 @@ SOURCE=..\src\condor_gridmanager\basejob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\baseresource.cc
+SOURCE=..\src\condor_gridmanager\baseresource.cpp
 # End Source File
 # Begin Source File
 
@@ -120,7 +120,7 @@ SOURCE=..\src\condor_gridmanager\baseresource.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\condorjob.cc
+SOURCE=..\src\condor_gridmanager\condorjob.cpp
 # End Source File
 # Begin Source File
 
@@ -128,7 +128,7 @@ SOURCE=..\src\condor_gridmanager\condorjob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\condorresource.cc
+SOURCE=..\src\condor_gridmanager\condorresource.cpp
 # End Source File
 # Begin Source File
 
@@ -136,7 +136,7 @@ SOURCE=..\src\condor_gridmanager\condorresource.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_gridmanager\gahp-client.cc"
+SOURCE="..\src\condor_gridmanager\gahp-client.cpp"
 # End Source File
 # Begin Source File
 
@@ -144,7 +144,7 @@ SOURCE="..\src\condor_gridmanager\gahp-client.h"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\globusjob.cc
+SOURCE=..\src\condor_gridmanager\globusjob.cpp
 # End Source File
 # Begin Source File
 
@@ -152,7 +152,7 @@ SOURCE=..\src\condor_gridmanager\globusjob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\globusresource.cc
+SOURCE=..\src\condor_gridmanager\globusresource.cpp
 # End Source File
 # Begin Source File
 
@@ -160,7 +160,7 @@ SOURCE=..\src\condor_gridmanager\globusresource.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\gridftpmanager.cc
+SOURCE=..\src\condor_gridmanager\gridftpmanager.cpp
 # End Source File
 # Begin Source File
 
@@ -168,7 +168,7 @@ SOURCE=..\src\condor_gridmanager\gridftpmanager.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\gridmanager.cc
+SOURCE=..\src\condor_gridmanager\gridmanager.cpp
 # End Source File
 # Begin Source File
 
@@ -176,11 +176,11 @@ SOURCE=..\src\condor_gridmanager\gridmanager.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\gridmanager_main.cc
+SOURCE=..\src\condor_gridmanager\gridmanager_main.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\gt4job.cc
+SOURCE=..\src\condor_gridmanager\gt4job.cpp
 # End Source File
 # Begin Source File
 
@@ -188,7 +188,7 @@ SOURCE=..\src\condor_gridmanager\gt4job.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\gt4resource.cc
+SOURCE=..\src\condor_gridmanager\gt4resource.cpp
 # End Source File
 # Begin Source File
 
@@ -196,7 +196,7 @@ SOURCE=..\src\condor_gridmanager\gt4resource.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\infnbatchjob.cc
+SOURCE=..\src\condor_gridmanager\infnbatchjob.cpp
 # End Source File
 # Begin Source File
 
@@ -204,7 +204,7 @@ SOURCE=..\src\condor_gridmanager\infnbatchjob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\mirrorjob.cc
+SOURCE=..\src\condor_gridmanager\mirrorjob.cpp
 # End Source File
 # Begin Source File
 
@@ -212,7 +212,7 @@ SOURCE=..\src\condor_gridmanager\mirrorjob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\mirrorresource.cc
+SOURCE=..\src\condor_gridmanager\mirrorresource.cpp
 # End Source File
 # Begin Source File
 
@@ -220,7 +220,7 @@ SOURCE=..\src\condor_gridmanager\mirrorresource.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\nordugridjob.cc
+SOURCE=..\src\condor_gridmanager\nordugridjob.cpp
 # End Source File
 # Begin Source File
 
@@ -228,7 +228,7 @@ SOURCE=..\src\condor_gridmanager\nordugridjob.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\nordugridresource.cc
+SOURCE=..\src\condor_gridmanager\nordugridresource.cpp
 # End Source File
 # Begin Source File
 
@@ -236,7 +236,7 @@ SOURCE=..\src\condor_gridmanager\nordugridresource.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\proxymanager.cc
+SOURCE=..\src\condor_gridmanager\proxymanager.cpp
 # End Source File
 # Begin Source File
 
@@ -244,7 +244,7 @@ SOURCE=..\src\condor_gridmanager\proxymanager.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\soap_gridmanagerC.cc
+SOURCE=..\src\condor_gridmanager\soap_gridmanagerC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -253,12 +253,12 @@ SOURCE=..\src\condor_gridmanager\soap_gridmanagerH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\soap_gridmanagerServer.cc
+SOURCE=..\src\condor_gridmanager\soap_gridmanagerServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\soap_gridmanagerStub.cc
+SOURCE=..\src\condor_gridmanager\soap_gridmanagerStub.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -267,7 +267,7 @@ SOURCE=..\src\condor_gridmanager\soap_gridmanagerStub.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_gridmanager\unicorejob.cc
+SOURCE=..\src\condor_gridmanager\unicorejob.cpp
 # End Source File
 # Begin Source File
 

@@ -83,7 +83,7 @@ LIB32=link.exe -lib
 # Name "condor_quill - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_quill\classadlogentry.cc
+SOURCE=..\src\condor_quill\classadlogentry.cpp
 # End Source File
 # Begin Source File
 
@@ -91,7 +91,7 @@ SOURCE=..\src\condor_quill\classadlogentry.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_quill\classadlogparser.cc
+SOURCE=..\src\condor_quill\classadlogparser.cpp
 # End Source File
 # Begin Source File
 
@@ -99,7 +99,7 @@ SOURCE=..\src\condor_quill\classadlogparser.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_quill\prober.cc
+SOURCE=..\src\condor_quill\prober.cpp
 # End Source File
 # Begin Source File
 
@@ -107,7 +107,7 @@ SOURCE=..\src\condor_quill\prober.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_quill\soap_quillC.cc
+SOURCE=..\src\condor_quill\soap_quillC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -116,12 +116,12 @@ SOURCE=..\src\condor_quill\soap_quillH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_quill\soap_quillServer.cc
+SOURCE=..\src\condor_quill\soap_quillServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_quill\soap_quillStub.cc
+SOURCE=..\src\condor_quill\soap_quillStub.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

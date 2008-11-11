@@ -86,7 +86,7 @@ LINK32=link.exe
 # Name "condor_tt - Win32 Release"
 # Begin Source File
 
-SOURCE="..\src\condor_tt\condor_ttdb.cc"
+SOURCE="..\src\condor_tt\condor_ttdb.cpp"
 # End Source File
 # Begin Source File
 
@@ -94,7 +94,7 @@ SOURCE=..\src\condor_tt\condor_ttdb.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_tt\jobqueuecollection.cc"
+SOURCE="..\src\condor_tt\jobqueuecollection.cpp"
 # End Source File
 # Begin Source File
 
@@ -102,7 +102,7 @@ SOURCE=..\src\condor_tt\jobqueuecollection.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_tt\jobqueuedbmanager.cc"
+SOURCE="..\src\condor_tt\jobqueuedbmanager.cpp"
 # End Source File
 # Begin Source File
 
@@ -110,11 +110,11 @@ SOURCE=..\src\condor_tt\jobqueuedbmanager.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_tt\tt_main.cc"
+SOURCE="..\src\condor_tt\tt_main.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_tt\ttmanager.cc"
+SOURCE="..\src\condor_tt\ttmanager.cpp"
 # End Source File
 # Begin Source File
 

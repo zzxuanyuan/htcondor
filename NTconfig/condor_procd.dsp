@@ -86,7 +86,7 @@ LINK32=link.exe
 # Name "condor_procd - Win32 Debug"
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_open.cc"
+SOURCE="..\src\condor_c++_util\condor_open.cpp"
 # End Source File
 # Begin Source File
 
@@ -94,7 +94,7 @@ SOURCE=..\src\condor_util_lib\condor_pidenvid.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\dprintf_lite.cc
+SOURCE=..\src\condor_procd\dprintf_lite.cpp
 # End Source File
 # Begin Source File
 
@@ -110,11 +110,11 @@ SOURCE=..\src\condor_procd\local_server.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\local_server.WINDOWS.cc
+SOURCE=..\src\condor_procd\local_server.WINDOWS.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\login_tracker.cc
+SOURCE=..\src\condor_procd\login_tracker.cpp
 # End Source File
 # Begin Source File
 
@@ -122,11 +122,11 @@ SOURCE=..\src\condor_procd\login_tracker.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\ntsysinfo.cc"
+SOURCE="..\src\condor_c++_util\ntsysinfo.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\parent_tracker.cc
+SOURCE=..\src\condor_procd\parent_tracker.cpp
 # End Source File
 # Begin Source File
 
@@ -138,7 +138,7 @@ SOURCE=..\src\condor_procd\pid_tracker.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family.cc
+SOURCE=..\src\condor_procd\proc_family.cpp
 # End Source File
 # Begin Source File
 
@@ -150,7 +150,7 @@ SOURCE=..\src\condor_procd\proc_family_io.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family_member.cc
+SOURCE=..\src\condor_procd\proc_family_member.cpp
 # End Source File
 # Begin Source File
 
@@ -158,7 +158,7 @@ SOURCE=..\src\condor_procd\proc_family_member.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family_monitor.cc
+SOURCE=..\src\condor_procd\proc_family_monitor.cpp
 # End Source File
 # Begin Source File
 
@@ -166,7 +166,7 @@ SOURCE=..\src\condor_procd\proc_family_monitor.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family_server.cc
+SOURCE=..\src\condor_procd\proc_family_server.cpp
 # End Source File
 # Begin Source File
 
@@ -174,7 +174,7 @@ SOURCE=..\src\condor_procd\proc_family_server.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family_tracker.cc
+SOURCE=..\src\condor_procd\proc_family_tracker.cpp
 # End Source File
 # Begin Source File
 
@@ -182,7 +182,7 @@ SOURCE=..\src\condor_procd\proc_family_tracker.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\procd_common.cc
+SOURCE=..\src\condor_procd\procd_common.cpp
 # End Source File
 # Begin Source File
 
@@ -190,11 +190,11 @@ SOURCE=..\src\condor_procd\procd_common.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\procd_main.cc
+SOURCE=..\src\condor_procd\procd_main.cpp
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\process_control.WINDOWS.cc"
+SOURCE="..\src\condor_c++_util\process_control.WINDOWS.cpp"
 # End Source File
 # Begin Source File
 

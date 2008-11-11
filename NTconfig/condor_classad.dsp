@@ -82,35 +82,35 @@ LIB32=link.exe -lib
 # Name "condor_classad - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\classad.old\ast.cc
+SOURCE=..\src\classad.old\ast.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\astbase.cc
+SOURCE=..\src\classad.old\astbase.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\attrlist.cc
+SOURCE=..\src\classad.old\attrlist.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\buildtable.cc
+SOURCE=..\src\classad.old\buildtable.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\classad.cc
+SOURCE=..\src\classad.old\classad.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\classad_list.cc
+SOURCE=..\src\classad.old\classad_list.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\classad_util.cc
+SOURCE=..\src\classad.old\classad_util.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\classifiedjobs.cc
+SOURCE=..\src\classad.old\classifiedjobs.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -179,19 +179,19 @@ SOURCE=..\src\condor_includes\condor_scanner.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\environment.cc
+SOURCE=..\src\classad.old\environment.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\evaluateOperators.cc
+SOURCE=..\src\classad.old\evaluateOperators.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\new_classads.cc
+SOURCE=..\src\classad.old\new_classads.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\operators.cc
+SOURCE=..\src\classad.old\operators.cpp
 # End Source File
 # Begin Source File
 
@@ -199,19 +199,19 @@ SOURCE=..\src\classad.old\operators.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\parser.cc
+SOURCE=..\src\classad.old\parser.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\registration.cc
+SOURCE=..\src\classad.old\registration.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\scanner.cc
+SOURCE=..\src\classad.old\scanner.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\value.cc
+SOURCE=..\src\classad.old\value.cpp
 # End Source File
 # Begin Source File
 
@@ -219,7 +219,7 @@ SOURCE=..\src\classad.old\value.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\classad.old\xml_classads.cc
+SOURCE=..\src\classad.old\xml_classads.cpp
 # End Source File
 # End Target
 # End Project

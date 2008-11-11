@@ -86,11 +86,11 @@ SOURCE=..\src\condor_procd\local_client.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\local_client.WINDOWS.cc
+SOURCE=..\src\condor_procd\local_client.WINDOWS.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family_client.cc
+SOURCE=..\src\condor_procd\proc_family_client.cpp
 # End Source File
 # Begin Source File
 
@@ -98,7 +98,7 @@ SOURCE=..\src\condor_procd\proc_family_client.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_procd\proc_family_io.cc
+SOURCE=..\src\condor_procd\proc_family_io.cpp
 # End Source File
 # Begin Source File
 

@@ -88,22 +88,22 @@ LINK32=link.exe
 # Name "condor_credd - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_credd\soap_creddC.cc
+SOURCE=..\src\condor_credd\soap_creddC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_credd\soap_creddServer.cc
+SOURCE=..\src\condor_credd\soap_creddServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_credd\soap_creddStub.cc
+SOURCE=..\src\condor_credd\soap_creddStub.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_credd\win_credd.cc
+SOURCE=..\src\condor_credd\win_credd.cpp
 # End Source File
 # End Target
 # End Project

@@ -88,7 +88,7 @@ LINK32=link.exe
 # Name "condor_dagman - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dag.cc
+SOURCE=..\src\condor_dagman\dag.cpp
 # End Source File
 # Begin Source File
 
@@ -96,7 +96,7 @@ SOURCE=..\src\condor_dagman\dag.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_commands.cc
+SOURCE=..\src\condor_dagman\dagman_commands.cpp
 # End Source File
 # Begin Source File
 
@@ -104,15 +104,15 @@ SOURCE=..\src\condor_dagman\dagman_commands.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_instantiate.cc
+SOURCE=..\src\condor_dagman\dagman_instantiate.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_main.cc
+SOURCE=..\src\condor_dagman\dagman_main.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_multi_dag.cc
+SOURCE=..\src\condor_dagman\dagman_multi_dag.cpp
 # End Source File
 # Begin Source File
 
@@ -120,15 +120,15 @@ SOURCE=..\src\condor_dagman\dagman_multi_dag.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_submit.cc
+SOURCE=..\src\condor_dagman\dagman_submit.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_util.cc
+SOURCE=..\src\condor_dagman\dagman_util.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\debug.cc
+SOURCE=..\src\condor_dagman\debug.cpp
 # End Source File
 # Begin Source File
 
@@ -136,7 +136,7 @@ SOURCE=..\src\condor_dagman\debug.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\job.cc
+SOURCE=..\src\condor_dagman\job.cpp
 # End Source File
 # Begin Source File
 
@@ -144,7 +144,7 @@ SOURCE=..\src\condor_dagman\job.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\parse.cc
+SOURCE=..\src\condor_dagman\parse.cpp
 # End Source File
 # Begin Source File
 
@@ -152,7 +152,7 @@ SOURCE=..\src\condor_dagman\parse.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\script.cc
+SOURCE=..\src\condor_dagman\script.cpp
 # End Source File
 # Begin Source File
 
@@ -160,7 +160,7 @@ SOURCE=..\src\condor_dagman\script.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\scriptQ.cc
+SOURCE=..\src\condor_dagman\scriptQ.cpp
 # End Source File
 # Begin Source File
 
@@ -168,7 +168,7 @@ SOURCE=..\src\condor_dagman\scriptQ.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\soap_dagmanC.cc
+SOURCE=..\src\condor_dagman\soap_dagmanC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -177,12 +177,12 @@ SOURCE=..\src\condor_dagman\soap_dagmanH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\soap_dagmanServer.cc
+SOURCE=..\src\condor_dagman\soap_dagmanServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\soap_dagmanStub.cc
+SOURCE=..\src\condor_dagman\soap_dagmanStub.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -195,7 +195,7 @@ SOURCE=..\src\condor_dagman\submit.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\throttle_by_category.cc
+SOURCE=..\src\condor_dagman\throttle_by_category.cpp
 # End Source File
 # Begin Source File
 

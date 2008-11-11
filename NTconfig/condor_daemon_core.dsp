@@ -82,7 +82,7 @@ LIB32=link.exe -lib
 # Name "condor_daemon_core - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\accessdesktop.WIN32.cc
+SOURCE=..\src\condor_daemon_core.V6\accessdesktop.WIN32.cpp
 # End Source File
 # Begin Source File
 
@@ -90,7 +90,7 @@ SOURCE=..\src\condor_daemon_core.V6\condor_daemon_core.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\condor_lock.cc
+SOURCE=..\src\condor_daemon_core.V6\condor_lock.cpp
 # End Source File
 # Begin Source File
 
@@ -98,7 +98,7 @@ SOURCE=..\src\condor_daemon_core.V6\condor_lock.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\condor_lock_base.cc
+SOURCE=..\src\condor_daemon_core.V6\condor_lock_base.cpp
 # End Source File
 # Begin Source File
 
@@ -106,7 +106,7 @@ SOURCE=..\src\condor_daemon_core.V6\condor_lock_base.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\condor_lock_file.cc
+SOURCE=..\src\condor_daemon_core.V6\condor_lock_file.cpp
 # End Source File
 # Begin Source File
 
@@ -114,7 +114,7 @@ SOURCE=..\src\condor_daemon_core.V6\condor_lock_file.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\condor_lock_implementation.cc
+SOURCE=..\src\condor_daemon_core.V6\condor_lock_implementation.cpp
 # End Source File
 # Begin Source File
 
@@ -126,19 +126,19 @@ SOURCE=..\src\condor_daemon_core.V6\condor_timer_manager.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\daemon_core.cc
+SOURCE=..\src\condor_daemon_core.V6\daemon_core.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\daemon_core_main.cc
+SOURCE=..\src\condor_daemon_core.V6\daemon_core_main.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\datathread.cc
+SOURCE=..\src\condor_daemon_core.V6\datathread.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\exphnd.WIN32.cc
+SOURCE=..\src\condor_daemon_core.V6\exphnd.WIN32.cpp
 # ADD CPP /Yu
 # End Source File
 # Begin Source File
@@ -147,7 +147,7 @@ SOURCE=..\src\condor_daemon_core.V6\exphnd.WIN32.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\HookClient.cc
+SOURCE=..\src\condor_daemon_core.V6\HookClient.cpp
 # End Source File
 # Begin Source File
 
@@ -155,7 +155,7 @@ SOURCE=..\src\condor_daemon_core.V6\HookClient.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\HookClientMgr.cc
+SOURCE=..\src\condor_daemon_core.V6\HookClientMgr.cpp
 # End Source File
 # Begin Source File
 
@@ -163,7 +163,7 @@ SOURCE=..\src\condor_daemon_core.V6\HookClientMgr.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\httpget.cc
+SOURCE=..\src\condor_daemon_core.V6\httpget.cpp
 # End Source File
 # Begin Source File
 
@@ -171,7 +171,7 @@ SOURCE=..\src\condor_daemon_core.V6\httpget.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\pipe.WIN32.cc
+SOURCE=..\src\condor_daemon_core.V6\pipe.WIN32.cpp
 # End Source File
 # Begin Source File
 
@@ -179,7 +179,7 @@ SOURCE=..\src\condor_daemon_core.V6\pipe.WIN32.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\self_draining_queue.cc
+SOURCE=..\src\condor_daemon_core.V6\self_draining_queue.cpp
 # End Source File
 # Begin Source File
 
@@ -187,7 +187,7 @@ SOURCE=..\src\condor_daemon_core.V6\self_draining_queue.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\self_monitor.cc
+SOURCE=..\src\condor_daemon_core.V6\self_monitor.cpp
 # End Source File
 # Begin Source File
 
@@ -195,7 +195,7 @@ SOURCE=..\src\condor_daemon_core.V6\self_monitor.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\soap_core.cc
+SOURCE=..\src\condor_daemon_core.V6\soap_core.cpp
 # End Source File
 # Begin Source File
 
@@ -208,7 +208,7 @@ SOURCE="$(EXT_INSTALL)\$(EXT_GSOAP_VERSION)\src\stdsoap2.cpp"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_daemon_core.V6\timer_manager.cc
+SOURCE=..\src\condor_daemon_core.V6\timer_manager.cpp
 # End Source File
 # End Target
 # End Project

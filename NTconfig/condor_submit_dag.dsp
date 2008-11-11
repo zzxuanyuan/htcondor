@@ -94,15 +94,15 @@ LINK32=link.exe
 # Name "condor_submit_dag - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\condor_submit_dag.cc
+SOURCE=..\src\condor_dagman\condor_submit_dag.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\dagman_multi_dag.cc
+SOURCE=..\src\condor_dagman\dagman_multi_dag.cpp
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\dc_stub.cc"
+SOURCE="..\src\condor_c++_util\dc_stub.cpp"
 # End Source File
 # End Target
 # End Project

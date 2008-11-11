@@ -88,11 +88,11 @@ LINK32=link.exe
 # Name "condor_negotiator - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_negotiator.V6\main.cc
+SOURCE=..\src\condor_negotiator.V6\main.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_negotiator.V6\matchmaker.cc
+SOURCE=..\src\condor_negotiator.V6\matchmaker.cpp
 # End Source File
 # Begin Source File
 
@@ -100,7 +100,7 @@ SOURCE=..\src\condor_negotiator.V6\matchmaker.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_negotiator.V6\soap_negotiatorC.cc
+SOURCE=..\src\condor_negotiator.V6\soap_negotiatorC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -109,12 +109,12 @@ SOURCE=..\src\condor_negotiator.V6\soap_negotiatorH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_negotiator.V6\soap_negotiatorServer.cc
+SOURCE=..\src\condor_negotiator.V6\soap_negotiatorServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_negotiator.V6\soap_negotiatorStub.cc
+SOURCE=..\src\condor_negotiator.V6\soap_negotiatorStub.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File

@@ -88,7 +88,7 @@ LINK32=link.exe
 # Name "condor_collector - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\collector.cc
+SOURCE=..\src\condor_collector.V6\collector.cpp
 # End Source File
 # Begin Source File
 
@@ -96,7 +96,7 @@ SOURCE=..\src\condor_collector.V6\collector.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\collector_engine.cc
+SOURCE=..\src\condor_collector.V6\collector_engine.cpp
 # End Source File
 # Begin Source File
 
@@ -104,11 +104,11 @@ SOURCE=..\src\condor_collector.V6\collector_engine.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\collector_main.cc
+SOURCE=..\src\condor_collector.V6\collector_main.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\collector_stats.cc
+SOURCE=..\src\condor_collector.V6\collector_stats.cpp
 # End Source File
 # Begin Source File
 
@@ -120,7 +120,7 @@ SOURCE=..\src\condor_includes\condor_collector.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\hashkey.cc
+SOURCE=..\src\condor_collector.V6\hashkey.cpp
 # End Source File
 # Begin Source File
 
@@ -132,7 +132,7 @@ SOURCE="..\src\condor_c++_util\HashTable.h"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\offline_plugin.cc
+SOURCE=..\src\condor_collector.V6\offline_plugin.cpp
 # End Source File
 # Begin Source File
 
@@ -140,7 +140,7 @@ SOURCE=..\src\condor_collector.V6\offline_plugin.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\soap_collectorC.cc
+SOURCE=..\src\condor_collector.V6\soap_collectorC.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
@@ -149,12 +149,12 @@ SOURCE=..\src\condor_collector.V6\soap_collectorH.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\soap_collectorServer.cc
+SOURCE=..\src\condor_collector.V6\soap_collectorServer.cpp
 # SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\soap_collectorStub.cc
+SOURCE=..\src\condor_collector.V6\soap_collectorStub.cpp
 # ADD CPP /Yu
 # End Source File
 # Begin Source File
@@ -163,11 +163,11 @@ SOURCE=..\src\condor_collector.V6\soap_collectorStub.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_status.V6\totals.cc
+SOURCE=..\src\condor_status.V6\totals.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_collector.V6\view_server.cc
+SOURCE=..\src\condor_collector.V6\view_server.cpp
 # End Source File
 # Begin Source File
 
