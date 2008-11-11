@@ -104,7 +104,10 @@ LINK32_OBJS= \
 	"$(INTDIR)\dc_stub.obj" \
 	"$(INTDIR)\ntsysinfo.obj" \
 	"$(INTDIR)\testprocapi.obj" \
+	"$(OUTDIR)\condor_procapi.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
+	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_io.lib" \
 	"$(OUTDIR)\condor_sysapi.lib"
 
@@ -189,7 +192,10 @@ LINK32_OBJS= \
 	"$(INTDIR)\dc_stub.obj" \
 	"$(INTDIR)\ntsysinfo.obj" \
 	"$(INTDIR)\testprocapi.obj" \
+	"$(OUTDIR)\condor_procapi.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
+	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_io.lib" \
 	"$(OUTDIR)\condor_sysapi.lib"
 

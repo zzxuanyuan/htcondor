@@ -126,10 +126,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\netusagealloc.obj" \
 	"$(INTDIR)\router.obj" \
 	"$(INTDIR)\scheduled_event.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_sysapi.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
-	"$(OUTDIR)\condor_io.lib"
+	"$(OUTDIR)\condor_io.lib" \
+	"$(OUTDIR)\condor_procapi.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_eventd.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -235,10 +239,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\netusagealloc.obj" \
 	"$(INTDIR)\router.obj" \
 	"$(INTDIR)\scheduled_event.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_sysapi.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
-	"$(OUTDIR)\condor_io.lib"
+	"$(OUTDIR)\condor_io.lib" \
+	"$(OUTDIR)\condor_procapi.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_eventd.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<

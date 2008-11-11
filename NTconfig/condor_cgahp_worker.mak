@@ -48,6 +48,16 @@ CLEAN :"condor_classad - Win32 DebugCLEAN" "condor_cpp_util - Win32 DebugCLEAN" 
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\cgahp_common.obj"
+	-@erase "$(INTDIR)\PipeBuffer.obj"
+	-@erase "$(INTDIR)\schedd_client.obj"
+	-@erase "$(INTDIR)\schedd_client_main.obj"
+	-@erase "$(INTDIR)\SchedDCommands.obj"
+	-@erase "$(INTDIR)\soap_cgahp_workerC.obj"
+	-@erase "$(INTDIR)\soap_cgahp_workerServer.obj"
+	-@erase "$(INTDIR)\soap_cgahp_workerStub.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_c-gahp_worker_thread.exe"
 	-@erase "$(OUTDIR)\condor_c-gahp_worker_thread.ilk"
 	-@erase "$(OUTDIR)\condor_c-gahp_worker_thread.pdb"
@@ -96,10 +106,24 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_c-gahp_worker_thread.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_c-gahp_worker_thread.exe" /pdbtype:sept 
 LINK32_OBJS= \
+	"$(INTDIR)\cgahp_common.obj" \
+	"$(INTDIR)\PipeBuffer.obj" \
+	"$(INTDIR)\schedd_client.obj" \
+	"$(INTDIR)\schedd_client_main.obj" \
+	"$(INTDIR)\SchedDCommands.obj" \
+	"$(INTDIR)\soap_cgahp_workerC.obj" \
+	"$(INTDIR)\soap_cgahp_workerServer.obj" \
+	"$(INTDIR)\soap_cgahp_workerStub.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_io.lib" \
+	"$(OUTDIR)\condor_procapi.lib" \
 	"$(OUTDIR)\condor_sysapi.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
-	"$(OUTDIR)\condor_daemon_core.lib"
+	"$(OUTDIR)\condor_qmgmt.lib" \
+	"$(OUTDIR)\condor_daemon_core.lib" \
+	"$(OUTDIR)\condor_procd_client.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_c-gahp_worker_thread.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -129,6 +153,15 @@ CLEAN :"condor_classad - Win32 ReleaseCLEAN" "condor_cpp_util - Win32 ReleaseCLE
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\cgahp_common.obj"
+	-@erase "$(INTDIR)\PipeBuffer.obj"
+	-@erase "$(INTDIR)\schedd_client.obj"
+	-@erase "$(INTDIR)\schedd_client_main.obj"
+	-@erase "$(INTDIR)\SchedDCommands.obj"
+	-@erase "$(INTDIR)\soap_cgahp_workerC.obj"
+	-@erase "$(INTDIR)\soap_cgahp_workerServer.obj"
+	-@erase "$(INTDIR)\soap_cgahp_workerStub.obj"
+	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_c-gahp_worker_thread.exe"
 	-@erase "$(OUTDIR)\condor_c-gahp_worker_thread.map"
 
@@ -176,10 +209,24 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Release/condor_common.obj ..\Release\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_c-gahp_worker_thread.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_c-gahp_worker_thread.exe" 
 LINK32_OBJS= \
+	"$(INTDIR)\cgahp_common.obj" \
+	"$(INTDIR)\PipeBuffer.obj" \
+	"$(INTDIR)\schedd_client.obj" \
+	"$(INTDIR)\schedd_client_main.obj" \
+	"$(INTDIR)\SchedDCommands.obj" \
+	"$(INTDIR)\soap_cgahp_workerC.obj" \
+	"$(INTDIR)\soap_cgahp_workerServer.obj" \
+	"$(INTDIR)\soap_cgahp_workerStub.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_io.lib" \
+	"$(OUTDIR)\condor_procapi.lib" \
 	"$(OUTDIR)\condor_sysapi.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
-	"$(OUTDIR)\condor_daemon_core.lib"
+	"$(OUTDIR)\condor_qmgmt.lib" \
+	"$(OUTDIR)\condor_daemon_core.lib" \
+	"$(OUTDIR)\condor_procd_client.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_c-gahp_worker_thread.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -457,6 +504,126 @@ LINK32_OBJS= \
    cd "."
    $(MAKE) /$(MAKEFLAGS) /F .\condor_privsep_client.mak CFG="condor_privsep_client - Win32 Release" RECURSE=1 CLEAN 
    cd "."
+
+!ENDIF 
+
+SOURCE="..\src\condor_c-gahp\cgahp_common.cpp"
+
+"$(INTDIR)\cgahp_common.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c-gahp\PipeBuffer.cpp"
+
+"$(INTDIR)\PipeBuffer.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c-gahp\schedd_client.cpp"
+
+"$(INTDIR)\schedd_client.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c-gahp\schedd_client_main.cpp"
+
+"$(INTDIR)\schedd_client_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c-gahp\SchedDCommands.cpp"
+
+!IF  "$(CFG)" == "condor_cgahp_worker - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\SchedDCommands.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_cgahp_worker - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\SchedDCommands.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE="..\src\condor_c-gahp\soap_cgahp_workerC.cpp"
+
+!IF  "$(CFG)" == "condor_cgahp_worker - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_cgahp_workerC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_cgahp_worker - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_cgahp_workerC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE="..\src\condor_c-gahp\soap_cgahp_workerServer.cpp"
+
+!IF  "$(CFG)" == "condor_cgahp_worker - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_cgahp_workerServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_cgahp_worker - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_cgahp_workerServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE="..\src\condor_c-gahp\soap_cgahp_workerStub.cpp"
+
+!IF  "$(CFG)" == "condor_cgahp_worker - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_cgahp_workerStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_cgahp_worker - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_cgahp_workerStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
 
 !ENDIF 
 

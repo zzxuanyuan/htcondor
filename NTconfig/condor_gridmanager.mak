@@ -48,6 +48,32 @@ CLEAN :"condor_classad - Win32 DebugCLEAN" "condor_cpp_util - Win32 DebugCLEAN" 
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\amazonjob.obj"
+	-@erase "$(INTDIR)\amazonresource.obj"
+	-@erase "$(INTDIR)\basejob.obj"
+	-@erase "$(INTDIR)\baseresource.obj"
+	-@erase "$(INTDIR)\condorjob.obj"
+	-@erase "$(INTDIR)\condorresource.obj"
+	-@erase "$(INTDIR)\gahp-client.obj"
+	-@erase "$(INTDIR)\globusjob.obj"
+	-@erase "$(INTDIR)\globusresource.obj"
+	-@erase "$(INTDIR)\gridftpmanager.obj"
+	-@erase "$(INTDIR)\gridmanager.obj"
+	-@erase "$(INTDIR)\gridmanager_main.obj"
+	-@erase "$(INTDIR)\gt4job.obj"
+	-@erase "$(INTDIR)\gt4resource.obj"
+	-@erase "$(INTDIR)\infnbatchjob.obj"
+	-@erase "$(INTDIR)\mirrorjob.obj"
+	-@erase "$(INTDIR)\mirrorresource.obj"
+	-@erase "$(INTDIR)\nordugridjob.obj"
+	-@erase "$(INTDIR)\nordugridresource.obj"
+	-@erase "$(INTDIR)\proxymanager.obj"
+	-@erase "$(INTDIR)\soap_gridmanagerC.obj"
+	-@erase "$(INTDIR)\soap_gridmanagerServer.obj"
+	-@erase "$(INTDIR)\soap_gridmanagerStub.obj"
+	-@erase "$(INTDIR)\unicorejob.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_gridmanager.exe"
 	-@erase "$(OUTDIR)\condor_gridmanager.ilk"
 	-@erase "$(OUTDIR)\condor_gridmanager.pdb"
@@ -96,10 +122,40 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_gridmanager.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_gridmanager.exe" /pdbtype:sept 
 LINK32_OBJS= \
+	"$(INTDIR)\amazonjob.obj" \
+	"$(INTDIR)\amazonresource.obj" \
+	"$(INTDIR)\basejob.obj" \
+	"$(INTDIR)\baseresource.obj" \
+	"$(INTDIR)\condorjob.obj" \
+	"$(INTDIR)\condorresource.obj" \
+	"$(INTDIR)\gahp-client.obj" \
+	"$(INTDIR)\globusjob.obj" \
+	"$(INTDIR)\globusresource.obj" \
+	"$(INTDIR)\gridftpmanager.obj" \
+	"$(INTDIR)\gridmanager.obj" \
+	"$(INTDIR)\gridmanager_main.obj" \
+	"$(INTDIR)\gt4job.obj" \
+	"$(INTDIR)\gt4resource.obj" \
+	"$(INTDIR)\infnbatchjob.obj" \
+	"$(INTDIR)\mirrorjob.obj" \
+	"$(INTDIR)\mirrorresource.obj" \
+	"$(INTDIR)\nordugridjob.obj" \
+	"$(INTDIR)\nordugridresource.obj" \
+	"$(INTDIR)\proxymanager.obj" \
+	"$(INTDIR)\soap_gridmanagerC.obj" \
+	"$(INTDIR)\soap_gridmanagerServer.obj" \
+	"$(INTDIR)\soap_gridmanagerStub.obj" \
+	"$(INTDIR)\unicorejob.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_io.lib" \
 	"$(OUTDIR)\condor_sysapi.lib" \
-	"..\src\condor_util_lib\condor_util.lib"
+	"..\src\condor_util_lib\condor_util.lib" \
+	"$(OUTDIR)\condor_qmgmt.lib" \
+	"$(OUTDIR)\condor_procapi.lib" \
+	"$(OUTDIR)\condor_procd_client.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_gridmanager.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -129,6 +185,31 @@ CLEAN :"condor_classad - Win32 ReleaseCLEAN" "condor_cpp_util - Win32 ReleaseCLE
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\amazonjob.obj"
+	-@erase "$(INTDIR)\amazonresource.obj"
+	-@erase "$(INTDIR)\basejob.obj"
+	-@erase "$(INTDIR)\baseresource.obj"
+	-@erase "$(INTDIR)\condorjob.obj"
+	-@erase "$(INTDIR)\condorresource.obj"
+	-@erase "$(INTDIR)\gahp-client.obj"
+	-@erase "$(INTDIR)\globusjob.obj"
+	-@erase "$(INTDIR)\globusresource.obj"
+	-@erase "$(INTDIR)\gridftpmanager.obj"
+	-@erase "$(INTDIR)\gridmanager.obj"
+	-@erase "$(INTDIR)\gridmanager_main.obj"
+	-@erase "$(INTDIR)\gt4job.obj"
+	-@erase "$(INTDIR)\gt4resource.obj"
+	-@erase "$(INTDIR)\infnbatchjob.obj"
+	-@erase "$(INTDIR)\mirrorjob.obj"
+	-@erase "$(INTDIR)\mirrorresource.obj"
+	-@erase "$(INTDIR)\nordugridjob.obj"
+	-@erase "$(INTDIR)\nordugridresource.obj"
+	-@erase "$(INTDIR)\proxymanager.obj"
+	-@erase "$(INTDIR)\soap_gridmanagerC.obj"
+	-@erase "$(INTDIR)\soap_gridmanagerServer.obj"
+	-@erase "$(INTDIR)\soap_gridmanagerStub.obj"
+	-@erase "$(INTDIR)\unicorejob.obj"
+	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_gridmanager.exe"
 	-@erase "$(OUTDIR)\condor_gridmanager.map"
 
@@ -176,10 +257,40 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Release/condor_common.obj ..\Release\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_gridmanager.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_gridmanager.exe" 
 LINK32_OBJS= \
+	"$(INTDIR)\amazonjob.obj" \
+	"$(INTDIR)\amazonresource.obj" \
+	"$(INTDIR)\basejob.obj" \
+	"$(INTDIR)\baseresource.obj" \
+	"$(INTDIR)\condorjob.obj" \
+	"$(INTDIR)\condorresource.obj" \
+	"$(INTDIR)\gahp-client.obj" \
+	"$(INTDIR)\globusjob.obj" \
+	"$(INTDIR)\globusresource.obj" \
+	"$(INTDIR)\gridftpmanager.obj" \
+	"$(INTDIR)\gridmanager.obj" \
+	"$(INTDIR)\gridmanager_main.obj" \
+	"$(INTDIR)\gt4job.obj" \
+	"$(INTDIR)\gt4resource.obj" \
+	"$(INTDIR)\infnbatchjob.obj" \
+	"$(INTDIR)\mirrorjob.obj" \
+	"$(INTDIR)\mirrorresource.obj" \
+	"$(INTDIR)\nordugridjob.obj" \
+	"$(INTDIR)\nordugridresource.obj" \
+	"$(INTDIR)\proxymanager.obj" \
+	"$(INTDIR)\soap_gridmanagerC.obj" \
+	"$(INTDIR)\soap_gridmanagerServer.obj" \
+	"$(INTDIR)\soap_gridmanagerStub.obj" \
+	"$(INTDIR)\unicorejob.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_io.lib" \
 	"$(OUTDIR)\condor_sysapi.lib" \
-	"..\src\condor_util_lib\condor_util.lib"
+	"..\src\condor_util_lib\condor_util.lib" \
+	"$(OUTDIR)\condor_qmgmt.lib" \
+	"$(OUTDIR)\condor_procapi.lib" \
+	"$(OUTDIR)\condor_procd_client.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_gridmanager.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -459,6 +570,204 @@ LINK32_OBJS= \
    cd "."
 
 !ENDIF 
+
+SOURCE=..\src\condor_gridmanager\amazonjob.cpp
+
+"$(INTDIR)\amazonjob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\amazonresource.cpp
+
+"$(INTDIR)\amazonresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\basejob.cpp
+
+"$(INTDIR)\basejob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\baseresource.cpp
+
+"$(INTDIR)\baseresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\condorjob.cpp
+
+"$(INTDIR)\condorjob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\condorresource.cpp
+
+"$(INTDIR)\condorresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_gridmanager\gahp-client.cpp"
+
+"$(INTDIR)\gahp-client.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\globusjob.cpp
+
+"$(INTDIR)\globusjob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\globusresource.cpp
+
+"$(INTDIR)\globusresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\gridftpmanager.cpp
+
+"$(INTDIR)\gridftpmanager.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\gridmanager.cpp
+
+"$(INTDIR)\gridmanager.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\gridmanager_main.cpp
+
+"$(INTDIR)\gridmanager_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\gt4job.cpp
+
+"$(INTDIR)\gt4job.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\gt4resource.cpp
+
+"$(INTDIR)\gt4resource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\infnbatchjob.cpp
+
+"$(INTDIR)\infnbatchjob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\mirrorjob.cpp
+
+"$(INTDIR)\mirrorjob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\mirrorresource.cpp
+
+"$(INTDIR)\mirrorresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\nordugridjob.cpp
+
+"$(INTDIR)\nordugridjob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\nordugridresource.cpp
+
+"$(INTDIR)\nordugridresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\proxymanager.cpp
+
+"$(INTDIR)\proxymanager.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_gridmanager\soap_gridmanagerC.cpp
+
+!IF  "$(CFG)" == "condor_gridmanager - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_gridmanagerC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_gridmanager - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_gridmanagerC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_gridmanager\soap_gridmanagerServer.cpp
+
+!IF  "$(CFG)" == "condor_gridmanager - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_gridmanagerServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_gridmanager - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_gridmanagerServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_gridmanager\soap_gridmanagerStub.cpp
+
+!IF  "$(CFG)" == "condor_gridmanager - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_gridmanagerStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_gridmanager - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_gridmanagerStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_gridmanager\unicorejob.cpp
+
+"$(INTDIR)\unicorejob.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
 
 
 !ENDIF 

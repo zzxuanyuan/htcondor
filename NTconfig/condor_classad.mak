@@ -48,6 +48,25 @@ CLEAN :"condor_cpp_util - Win32 DebugCLEAN" "condor_util_lib - Win32 DebugCLEAN"
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\ast.obj"
+	-@erase "$(INTDIR)\astbase.obj"
+	-@erase "$(INTDIR)\attrlist.obj"
+	-@erase "$(INTDIR)\buildtable.obj"
+	-@erase "$(INTDIR)\classad.obj"
+	-@erase "$(INTDIR)\classad_list.obj"
+	-@erase "$(INTDIR)\classad_util.obj"
+	-@erase "$(INTDIR)\classifiedjobs.obj"
+	-@erase "$(INTDIR)\environment.obj"
+	-@erase "$(INTDIR)\evaluateOperators.obj"
+	-@erase "$(INTDIR)\new_classads.obj"
+	-@erase "$(INTDIR)\operators.obj"
+	-@erase "$(INTDIR)\parser.obj"
+	-@erase "$(INTDIR)\registration.obj"
+	-@erase "$(INTDIR)\scanner.obj"
+	-@erase "$(INTDIR)\value.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\vc60.pdb"
+	-@erase "$(INTDIR)\xml_classads.obj"
 	-@erase "$(OUTDIR)\condor_classad.lib"
 
 "$(OUTDIR)" :
@@ -94,6 +113,24 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_classad.lib" 
 LIB32_OBJS= \
+	"$(INTDIR)\ast.obj" \
+	"$(INTDIR)\astbase.obj" \
+	"$(INTDIR)\attrlist.obj" \
+	"$(INTDIR)\buildtable.obj" \
+	"$(INTDIR)\classad.obj" \
+	"$(INTDIR)\classad_list.obj" \
+	"$(INTDIR)\classad_util.obj" \
+	"$(INTDIR)\classifiedjobs.obj" \
+	"$(INTDIR)\environment.obj" \
+	"$(INTDIR)\evaluateOperators.obj" \
+	"$(INTDIR)\new_classads.obj" \
+	"$(INTDIR)\operators.obj" \
+	"$(INTDIR)\parser.obj" \
+	"$(INTDIR)\registration.obj" \
+	"$(INTDIR)\scanner.obj" \
+	"$(INTDIR)\value.obj" \
+	"$(INTDIR)\xml_classads.obj" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib"
 
 "$(OUTDIR)\condor_classad.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
@@ -124,6 +161,24 @@ CLEAN :"condor_cpp_util - Win32 ReleaseCLEAN" "condor_util_lib - Win32 ReleaseCL
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\ast.obj"
+	-@erase "$(INTDIR)\astbase.obj"
+	-@erase "$(INTDIR)\attrlist.obj"
+	-@erase "$(INTDIR)\buildtable.obj"
+	-@erase "$(INTDIR)\classad.obj"
+	-@erase "$(INTDIR)\classad_list.obj"
+	-@erase "$(INTDIR)\classad_util.obj"
+	-@erase "$(INTDIR)\classifiedjobs.obj"
+	-@erase "$(INTDIR)\environment.obj"
+	-@erase "$(INTDIR)\evaluateOperators.obj"
+	-@erase "$(INTDIR)\new_classads.obj"
+	-@erase "$(INTDIR)\operators.obj"
+	-@erase "$(INTDIR)\parser.obj"
+	-@erase "$(INTDIR)\registration.obj"
+	-@erase "$(INTDIR)\scanner.obj"
+	-@erase "$(INTDIR)\value.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\xml_classads.obj"
 	-@erase "$(OUTDIR)\condor_classad.lib"
 
 "$(OUTDIR)" :
@@ -170,6 +225,24 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_classad.lib" 
 LIB32_OBJS= \
+	"$(INTDIR)\ast.obj" \
+	"$(INTDIR)\astbase.obj" \
+	"$(INTDIR)\attrlist.obj" \
+	"$(INTDIR)\buildtable.obj" \
+	"$(INTDIR)\classad.obj" \
+	"$(INTDIR)\classad_list.obj" \
+	"$(INTDIR)\classad_util.obj" \
+	"$(INTDIR)\classifiedjobs.obj" \
+	"$(INTDIR)\environment.obj" \
+	"$(INTDIR)\evaluateOperators.obj" \
+	"$(INTDIR)\new_classads.obj" \
+	"$(INTDIR)\operators.obj" \
+	"$(INTDIR)\parser.obj" \
+	"$(INTDIR)\registration.obj" \
+	"$(INTDIR)\scanner.obj" \
+	"$(INTDIR)\value.obj" \
+	"$(INTDIR)\xml_classads.obj" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib"
 
 "$(OUTDIR)\condor_classad.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
@@ -242,6 +315,126 @@ LIB32_OBJS= \
    cd "."
 
 !ENDIF 
+
+SOURCE=..\src\classad.old\ast.cpp
+
+"$(INTDIR)\ast.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\astbase.cpp
+
+"$(INTDIR)\astbase.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\attrlist.cpp
+
+"$(INTDIR)\attrlist.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\buildtable.cpp
+
+"$(INTDIR)\buildtable.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\classad.cpp
+
+"$(INTDIR)\classad.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\classad_list.cpp
+
+"$(INTDIR)\classad_list.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\classad_util.cpp
+
+"$(INTDIR)\classad_util.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\classifiedjobs.cpp
+
+!IF  "$(CFG)" == "condor_classad - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\classifiedjobs.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_classad - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\classifiedjobs.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\classad.old\environment.cpp
+
+"$(INTDIR)\environment.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\evaluateOperators.cpp
+
+"$(INTDIR)\evaluateOperators.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\new_classads.cpp
+
+"$(INTDIR)\new_classads.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\operators.cpp
+
+"$(INTDIR)\operators.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\parser.cpp
+
+"$(INTDIR)\parser.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\registration.cpp
+
+"$(INTDIR)\registration.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\scanner.cpp
+
+"$(INTDIR)\scanner.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\value.cpp
+
+"$(INTDIR)\value.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\classad.old\xml_classads.cpp
+
+"$(INTDIR)\xml_classads.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
 
 
 !ENDIF 

@@ -29,12 +29,17 @@ NULL=nul
 
 OUTDIR=.\../Release
 INTDIR=.\../Release
+# Begin Custom Macros
+OutDir=.\../Release
+# End Custom Macros
 
-ALL : 
+ALL : "$(OUTDIR)\condor_softkill.exe"
 
 
 CLEAN :
-	-@erase 
+	-@erase "$(INTDIR)\condor_softkill.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(OUTDIR)\condor_softkill.exe"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -82,18 +87,33 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib psapi.lib /nologo /subsystem:windows /incremental:no /pdb:"$(OUTDIR)\condor_softkill.pdb" /machine:I386 /out:"$(OUTDIR)\condor_softkill.exe" 
 LINK32_OBJS= \
-	
+	"$(INTDIR)\condor_softkill.obj"
+
+"$(OUTDIR)\condor_softkill.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
 
 !ELSEIF  "$(CFG)" == "condor_softkill - Win32 Debug"
 
 OUTDIR=.\../Debug
 INTDIR=.\../Debug
+# Begin Custom Macros
+OutDir=.\../Debug
+# End Custom Macros
 
-ALL : 
+ALL : "$(OUTDIR)\condor_softkill.exe" "$(OUTDIR)\condor_softkill.bsc"
 
 
 CLEAN :
-	-@erase 
+	-@erase "$(INTDIR)\condor_softkill.obj"
+	-@erase "$(INTDIR)\condor_softkill.sbr"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\vc60.pdb"
+	-@erase "$(OUTDIR)\condor_softkill.bsc"
+	-@erase "$(OUTDIR)\condor_softkill.exe"
+	-@erase "$(OUTDIR)\condor_softkill.ilk"
+	-@erase "$(OUTDIR)\condor_softkill.pdb"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -137,11 +157,22 @@ RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_softkill.bsc" 
 BSC32_SBRS= \
-	
+	"$(INTDIR)\condor_softkill.sbr"
+
+"$(OUTDIR)\condor_softkill.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
+    $(BSC32) @<<
+  $(BSC32_FLAGS) $(BSC32_SBRS)
+<<
+
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib psapi.lib /nologo /subsystem:windows /incremental:yes /pdb:"$(OUTDIR)\condor_softkill.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_softkill.exe" /pdbtype:sept 
 LINK32_OBJS= \
-	
+	"$(INTDIR)\condor_softkill.obj"
+
+"$(OUTDIR)\condor_softkill.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
 
 !ENDIF 
 
@@ -156,6 +187,24 @@ LINK32_OBJS= \
 
 
 !IF "$(CFG)" == "condor_softkill - Win32 Release" || "$(CFG)" == "condor_softkill - Win32 Debug"
+SOURCE=..\src\condor_daemon_core.V6\condor_softkill.cpp
+
+!IF  "$(CFG)" == "condor_softkill - Win32 Release"
+
+
+"$(INTDIR)\condor_softkill.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "condor_softkill - Win32 Debug"
+
+
+"$(INTDIR)\condor_softkill.obj"	"$(INTDIR)\condor_softkill.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
 
 !ENDIF 
 

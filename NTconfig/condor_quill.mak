@@ -48,6 +48,14 @@ CLEAN :"condor_classad - Win32 DebugCLEAN" "condor_daemon_core - Win32 DebugCLEA
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\classadlogentry.obj"
+	-@erase "$(INTDIR)\classadlogparser.obj"
+	-@erase "$(INTDIR)\prober.obj"
+	-@erase "$(INTDIR)\soap_quillC.obj"
+	-@erase "$(INTDIR)\soap_quillServer.obj"
+	-@erase "$(INTDIR)\soap_quillStub.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_quill.lib"
 
 "$(OUTDIR)" :
@@ -94,9 +102,19 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_quill.lib" 
 LIB32_OBJS= \
+	"$(INTDIR)\classadlogentry.obj" \
+	"$(INTDIR)\classadlogparser.obj" \
+	"$(INTDIR)\prober.obj" \
+	"$(INTDIR)\soap_quillC.obj" \
+	"$(INTDIR)\soap_quillServer.obj" \
+	"$(INTDIR)\soap_quillStub.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_io.lib" \
-	"$(OUTDIR)\condor_sysapi.lib"
+	"$(OUTDIR)\condor_procapi.lib" \
+	"$(OUTDIR)\condor_sysapi.lib" \
+	"$(OUTDIR)\condor_procd_client.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_quill.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -126,6 +144,13 @@ CLEAN :"condor_classad - Win32 ReleaseCLEAN" "condor_daemon_core - Win32 Release
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\classadlogentry.obj"
+	-@erase "$(INTDIR)\classadlogparser.obj"
+	-@erase "$(INTDIR)\prober.obj"
+	-@erase "$(INTDIR)\soap_quillC.obj"
+	-@erase "$(INTDIR)\soap_quillServer.obj"
+	-@erase "$(INTDIR)\soap_quillStub.obj"
+	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_quill.lib"
 
 "$(OUTDIR)" :
@@ -172,9 +197,19 @@ BSC32_SBRS= \
 LIB32=link.exe -lib
 LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_quill.lib" 
 LIB32_OBJS= \
+	"$(INTDIR)\classadlogentry.obj" \
+	"$(INTDIR)\classadlogparser.obj" \
+	"$(INTDIR)\prober.obj" \
+	"$(INTDIR)\soap_quillC.obj" \
+	"$(INTDIR)\soap_quillServer.obj" \
+	"$(INTDIR)\soap_quillStub.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
 	"$(OUTDIR)\condor_io.lib" \
-	"$(OUTDIR)\condor_sysapi.lib"
+	"$(OUTDIR)\condor_procapi.lib" \
+	"$(OUTDIR)\condor_sysapi.lib" \
+	"$(OUTDIR)\condor_procd_client.lib" \
+	"$(OUTDIR)\condor_privsep_client.lib"
 
 "$(OUTDIR)\condor_quill.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -374,6 +409,96 @@ LIB32_OBJS= \
    cd "."
    $(MAKE) /$(MAKEFLAGS) /F .\condor_privsep_client.mak CFG="condor_privsep_client - Win32 Release" RECURSE=1 CLEAN 
    cd "."
+
+!ENDIF 
+
+SOURCE=..\src\condor_quill\classadlogentry.cpp
+
+"$(INTDIR)\classadlogentry.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_quill\classadlogparser.cpp
+
+"$(INTDIR)\classadlogparser.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_quill\prober.cpp
+
+"$(INTDIR)\prober.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_quill\soap_quillC.cpp
+
+!IF  "$(CFG)" == "condor_quill - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_quillC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_quillC.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_quill\soap_quillServer.cpp
+
+!IF  "$(CFG)" == "condor_quill - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_quillServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_quillServer.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_quill\soap_quillStub.cpp
+
+!IF  "$(CFG)" == "condor_quill - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_quillStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_quill - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\soap_quillStub.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
 
 !ENDIF 
 

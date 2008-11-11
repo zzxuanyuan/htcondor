@@ -102,6 +102,8 @@ LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LI
 LINK32_OBJS= \
 	"$(INTDIR)\dc_stub.obj" \
 	"$(INTDIR)\test_classads.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_io.lib" \
 	"$(OUTDIR)\condor_sysapi.lib"
@@ -185,6 +187,8 @@ LINK32_FLAGS=mswsock.lib ../Release/condor_common.obj ../Release/condor_common_c
 LINK32_OBJS= \
 	"$(INTDIR)\dc_stub.obj" \
 	"$(INTDIR)\test_classads.obj" \
+	"$(OUTDIR)\condor_classad.lib" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_io.lib" \
 	"$(OUTDIR)\condor_sysapi.lib"

@@ -151,15 +151,7 @@ SOURCE=..\src\condor_sysapi\free_fs_blocks.c
 # Begin Source File
 
 SOURCE=..\src\condor_sysapi\idle_time.cpp
-
-!IF  "$(CFG)" == "condor_sysapi - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_sysapi - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -184,15 +176,7 @@ SOURCE=..\src\condor_sysapi\ncpus.c
 # Begin Source File
 
 SOURCE=..\src\condor_sysapi\partition_id.cpp
-
-!IF  "$(CFG)" == "condor_sysapi - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_sysapi - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -201,15 +185,7 @@ SOURCE=..\src\condor_sysapi\phys_mem.c
 # Begin Source File
 
 SOURCE=..\src\condor_sysapi\reconfig.cpp
-
-!IF  "$(CFG)" == "condor_sysapi - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_sysapi - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

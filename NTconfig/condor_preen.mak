@@ -48,6 +48,10 @@ CLEAN :"condor_cpp_util - Win32 DebugCLEAN" "condor_util_lib - Win32 DebugCLEAN"
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\dc_stub.obj"
+	-@erase "$(INTDIR)\preen.obj"
+	-@erase "$(INTDIR)\vc60.idb"
+	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_preen.exe"
 	-@erase "$(OUTDIR)\condor_preen.ilk"
 	-@erase "$(OUTDIR)\condor_preen.pdb"
@@ -96,8 +100,13 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_preen.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_preen.exe" /pdbtype:sept 
 LINK32_OBJS= \
+	"$(INTDIR)\dc_stub.obj" \
+	"$(INTDIR)\preen.obj" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
+	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_io.lib" \
+	"$(OUTDIR)\condor_qmgmt.lib" \
 	"$(OUTDIR)\condor_sysapi.lib"
 
 "$(OUTDIR)\condor_preen.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -128,6 +137,9 @@ CLEAN :"condor_cpp_util - Win32 ReleaseCLEAN" "condor_util_lib - Win32 ReleaseCL
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\dc_stub.obj"
+	-@erase "$(INTDIR)\preen.obj"
+	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_preen.exe"
 	-@erase "$(OUTDIR)\condor_preen.map"
 
@@ -175,8 +187,13 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Release/condor_common.obj ../Release/condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_GLOBUS_LIB) $(CONDOR_GLOBUS_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH) /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_preen.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_preen.exe" 
 LINK32_OBJS= \
+	"$(INTDIR)\dc_stub.obj" \
+	"$(INTDIR)\preen.obj" \
+	"$(OUTDIR)\condor_cpp_util.lib" \
 	"..\src\condor_util_lib\condor_util.lib" \
+	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_io.lib" \
+	"$(OUTDIR)\condor_qmgmt.lib" \
 	"$(OUTDIR)\condor_sysapi.lib"
 
 "$(OUTDIR)\condor_preen.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -353,6 +370,18 @@ LINK32_OBJS= \
    cd "."
 
 !ENDIF 
+
+SOURCE="..\src\condor_c++_util\dc_stub.cpp"
+
+"$(INTDIR)\dc_stub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_tools\preen.cpp
+
+"$(INTDIR)\preen.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
 
 
 !ENDIF 

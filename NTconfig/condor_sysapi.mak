@@ -43,12 +43,15 @@ CLEAN :
 	-@erase "$(INTDIR)\dhry21a.obj"
 	-@erase "$(INTDIR)\dhry21b.obj"
 	-@erase "$(INTDIR)\free_fs_blocks.obj"
+	-@erase "$(INTDIR)\idle_time.obj"
 	-@erase "$(INTDIR)\kernel_memory_model.obj"
 	-@erase "$(INTDIR)\kernel_version.obj"
 	-@erase "$(INTDIR)\last_x_event.obj"
 	-@erase "$(INTDIR)\load_avg.obj"
 	-@erase "$(INTDIR)\ncpus.obj"
+	-@erase "$(INTDIR)\partition_id.obj"
 	-@erase "$(INTDIR)\phys_mem.obj"
+	-@erase "$(INTDIR)\reconfig.obj"
 	-@erase "$(INTDIR)\resource_limits.obj"
 	-@erase "$(INTDIR)\timers_b.obj"
 	-@erase "$(INTDIR)\vc60.idb"
@@ -106,12 +109,15 @@ LIB32_OBJS= \
 	"$(INTDIR)\dhry21a.obj" \
 	"$(INTDIR)\dhry21b.obj" \
 	"$(INTDIR)\free_fs_blocks.obj" \
+	"$(INTDIR)\idle_time.obj" \
 	"$(INTDIR)\kernel_memory_model.obj" \
 	"$(INTDIR)\kernel_version.obj" \
 	"$(INTDIR)\last_x_event.obj" \
 	"$(INTDIR)\load_avg.obj" \
 	"$(INTDIR)\ncpus.obj" \
+	"$(INTDIR)\partition_id.obj" \
 	"$(INTDIR)\phys_mem.obj" \
+	"$(INTDIR)\reconfig.obj" \
 	"$(INTDIR)\resource_limits.obj" \
 	"$(INTDIR)\timers_b.obj" \
 	"$(INTDIR)\virt_mem.obj"
@@ -139,12 +145,15 @@ CLEAN :
 	-@erase "$(INTDIR)\dhry21a.obj"
 	-@erase "$(INTDIR)\dhry21b.obj"
 	-@erase "$(INTDIR)\free_fs_blocks.obj"
+	-@erase "$(INTDIR)\idle_time.obj"
 	-@erase "$(INTDIR)\kernel_memory_model.obj"
 	-@erase "$(INTDIR)\kernel_version.obj"
 	-@erase "$(INTDIR)\last_x_event.obj"
 	-@erase "$(INTDIR)\load_avg.obj"
 	-@erase "$(INTDIR)\ncpus.obj"
+	-@erase "$(INTDIR)\partition_id.obj"
 	-@erase "$(INTDIR)\phys_mem.obj"
+	-@erase "$(INTDIR)\reconfig.obj"
 	-@erase "$(INTDIR)\resource_limits.obj"
 	-@erase "$(INTDIR)\timers_b.obj"
 	-@erase "$(INTDIR)\vc60.idb"
@@ -201,12 +210,15 @@ LIB32_OBJS= \
 	"$(INTDIR)\dhry21a.obj" \
 	"$(INTDIR)\dhry21b.obj" \
 	"$(INTDIR)\free_fs_blocks.obj" \
+	"$(INTDIR)\idle_time.obj" \
 	"$(INTDIR)\kernel_memory_model.obj" \
 	"$(INTDIR)\kernel_version.obj" \
 	"$(INTDIR)\last_x_event.obj" \
 	"$(INTDIR)\load_avg.obj" \
 	"$(INTDIR)\ncpus.obj" \
+	"$(INTDIR)\partition_id.obj" \
 	"$(INTDIR)\phys_mem.obj" \
+	"$(INTDIR)\reconfig.obj" \
 	"$(INTDIR)\resource_limits.obj" \
 	"$(INTDIR)\timers_b.obj" \
 	"$(INTDIR)\virt_mem.obj"
@@ -319,6 +331,30 @@ SOURCE=..\src\condor_sysapi\free_fs_blocks.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=..\src\condor_sysapi\idle_time.cpp
+
+!IF  "$(CFG)" == "condor_sysapi - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\idle_time.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_sysapi - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\idle_time.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
 SOURCE=..\src\condor_sysapi\kernel_memory_model.c
 
 "$(INTDIR)\kernel_memory_model.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common_c.pch"
@@ -349,11 +385,59 @@ SOURCE=..\src\condor_sysapi\ncpus.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=..\src\condor_sysapi\partition_id.cpp
+
+!IF  "$(CFG)" == "condor_sysapi - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\partition_id.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_sysapi - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\partition_id.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
 SOURCE=..\src\condor_sysapi\phys_mem.c
 
 "$(INTDIR)\phys_mem.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common_c.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
+
+SOURCE=..\src\condor_sysapi\reconfig.cpp
+
+!IF  "$(CFG)" == "condor_sysapi - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\reconfig.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_sysapi - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD $(CONDOR_INCLUDE) $(CONDOR_DEFINES) $(CONDOR_CPPARGS) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+"$(INTDIR)\reconfig.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
 
 SOURCE=..\src\condor_sysapi\resource_limits.c
 
