@@ -344,7 +344,7 @@ SOURCE="..\src\condor_c++_util\dc_stub.C"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=..\src\condor_classad\test_classads.C
+SOURCE=..\src\classad.old\test_classads.C
 
 "$(INTDIR)\test_classads.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
