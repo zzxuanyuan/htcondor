@@ -208,14 +208,14 @@ SRB_LIBS = \
 XCOMM SRB objects need additional C_FLAGS
 /* FIXME: dap_url.o should be moved into libstorkutil.a, without SRB dependency
  */
-dap_url.o: dap_url.cc
+dap_url.o: dap_url.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(SRB_CFLAGS) -c $<
 dap_srb_util.o: dap_srb_util.c
 	$(CC) $(CFLAGS) $(SRB_CFLAGS) $(CPPFLAGS) -c $<
 /* Ugh, we use the Make default rule to build *.c files, so add restate this
  * rule with $(SRB_CFLAGS)
  */
-dap_transfer_srb.o: dap_transfer_srb.cc
+dap_transfer_srb.o: dap_transfer_srb.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(SRB_CFLAGS) -c $<
 /* The SRB external is only needed for this Stork contrib module */
 ext_target(EXT_SRB_VERSION,$(EXT_TRIGGER)/$(EXT_GLOBUS_VERSION))
@@ -258,20 +258,20 @@ NEST_LIBS = \
 	$(NEST_LIB)/libnest-client.a \
 	$(STD_LIBS)
 NEST_COPY = $(MODULE)transfer.nest
-dap_transfer_nest.o: dap_transfer_nest.cc
+dap_transfer_nest.o: dap_transfer_nest.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(NEST_CFLAGS) -c $<
 NEST_COPY_OBJS = \
 	dap_transfer_nest.o \
 	$(STORK_UTIL)
 stork_contrib_module_target($(NEST_COPY),$(NEST_COPY_OBJS),$(NEST_LIBS))
 NEST_RESERVE = reserve.nest
-dap_reserve_nest.o: dap_reserve_nest.cc
+dap_reserve_nest.o: dap_reserve_nest.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(NEST_CFLAGS) -c $<
 NEST_RESERVE_OBJS = \
 	dap_reserve_nest.o 
 stork_contrib_module_target($(NEST_RESERVE),$(NEST_RESERVE_OBJS),$(NEST_LIBS))
 NEST_RELEASE = release.nest
-dap_release_nest.o: dap_release_nest.cc
+dap_release_nest.o: dap_release_nest.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(NEST_CFLAGS) -c $<
 NEST_RELEASE_OBJS = \
 	dap_release_nest.o
@@ -319,13 +319,13 @@ static_library($(CLIENT_LIB),lib)
 TEST_LIB = $(STD_LIBS) $(NEW_CLASSADS_LINK) $(CLASSAD_CONVERSION_LIBDEFS)
 tests: stork-lm-test stork-lm-test2
 c_plus_target( stork-lm-test,stork-lm-test.o stork-lm-nodc.o,$(TEST_LIB) )
-template_inst( stork-lm-test.cc, stork-lm-test.o )
-stork-lm-nodc.o: stork-lm.cc
-	$(CPlusPlus) $(INST_C_PLUS_FLAGS) -DTEST_VERSION -c stork-lm.cc -o stork-lm-nodc.o
+template_inst( stork-lm-test.cpp, stork-lm-test.o )
+stork-lm-nodc.o: stork-lm.cpp
+	$(CPlusPlus) $(INST_C_PLUS_FLAGS) -DTEST_VERSION -c stork-lm.cpp -o stork-lm-nodc.o
 
 c_plus_target( stork-lm-test2, stork-lm-test2.o,
 	 stork-lm.o $(DAEMONCORE_LIB) $(TEST_LIB) )
-template_inst( stork-lm-test2.cc, stork-lm-test2.o )
+template_inst( stork-lm-test2.cpp, stork-lm-test2.o )
 #endif /* Nick */
 
 XCOMM Uncomment to build contrib modules as part of default build

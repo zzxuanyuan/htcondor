@@ -8,10 +8,10 @@ CFLAGS 			= -Wall $(STD_C_FLAGS)
 
 
 /* The basic classad source and object files */
-CLASSAD_SRC_0 		= debug.cc lexer.cc lexerSource.cc source.cc operators.cc attrrefs.cc fnCall.cc   \
-                      literals.cc exprTree.cc classad.cc exprList.cc value.cc \
-                      instantiations.cc sink.cc matchClassad.cc condorUtil.cc      \
-                      util.cc xmlLexer.cc xmlSink.cc xmlSource.cc cclassad.cc
+CLASSAD_SRC_0 		= debug.cpp lexer.cpp lexerSource.cpp source.cpp operators.cpp attrrefs.cpp fnCall.cpp   \
+                      literals.cpp exprTree.cpp classad.cpp exprList.cpp value.cpp \
+                      instantiations.cpp sink.cpp matchClassad.cpp condorUtil.cpp      \
+                      util.cpp xmlLexer.cpp xmlSink.cpp xmlSource.cpp cclassad.cpp
 CLASSAD_OBJ_0 		= debug.o lexer.o lexerSource.o source.o operators.o attrrefs.o fnCall.o   \
                       literals.o exprTree.o classad.o exprList.o value.o \
                       instantiations.o sink.o  matchClassad.o condorUtil.o     \
@@ -20,10 +20,10 @@ CLASSAD_OBJ_0 		= debug.o lexer.o lexerSource.o source.o operators.o attrrefs.o 
 
 /* Are collections required? */
 #if defined(COLLECTIONS)
-CLASSAD_SRC_1		= $(CLASSAD_SRC_0) view.cc collection.cc collectionBase.cc   \
-                      collectionServer.cc collectionClient.cc transaction.cc     \
-                      query.cc remoteQuery.cc coll-comm-inst.cc coll-serv-inst.cc \
-                      coll-client-inst.cc indexfile.cc 
+CLASSAD_SRC_1		= $(CLASSAD_SRC_0) view.cpp collection.cpp collectionBase.cpp   \
+                      collectionServer.cpp collectionClient.cpp transaction.cpp     \
+                      query.cpp remoteQuery.cpp coll-comm-inst.cpp coll-serv-inst.cpp \
+                      coll-client-inst.cpp indexfile.cpp 
 CLASSAD_OBJ_1		= $(CLASSAD_OBJ_0) view.o collection.o collectionBase.o   \
                       collectionServer.o collectionClient.o transaction.o     \
                       query.o remoteQuery.o	coll-comm-inst.o coll-serv-inst.o \
@@ -36,8 +36,8 @@ CLASSAD_OBJ_1		= $(CLASSAD_OBJ_0)
 
 /* Are experimental features required? */
 #if defined(EXPERIMENTAL)
-CLASSAD_SRC_2		= $(CLASSAD_SRC_1) rectangle.cc intervalTree.cc compress.cc\
-						queryProcessor.cc exp-inst.cc
+CLASSAD_SRC_2		= $(CLASSAD_SRC_1) rectangle.cpp intervalTree.cpp compress.cpp\
+						queryProcessor.cpp exp-inst.cpp
 CLASSAD_OBJ_2		= $(CLASSAD_OBJ_1) rectangle.o intervalTree.o compress.o\
 						queryProcessor.o exp-inst.o
 #else
@@ -46,7 +46,7 @@ CLASSAD_OBJ_2		= $(CLASSAD_OBJ_1)
 #endif
 
 #if defined(CLASSAD_DEPRECATED)
-CLASSAD_SRC_3		= $(CLASSAD_SRC_2) classad_deprecated.cc
+CLASSAD_SRC_3		= $(CLASSAD_SRC_2) classad_deprecated.cpp
 CLASSAD_OBJ_3		= $(CLASSAD_OBJ_2) classad_deprecated.o
 
 #else
@@ -55,7 +55,7 @@ CLASSAD_OBJ_3		= $(CLASSAD_OBJ_2)
 #endif
 
 
-SRC = $(CLASSAD_SRC_3) ../condor_c++_util/condor_attributes.cc
+SRC = $(CLASSAD_SRC_3) ../condor_c++_util/condor_attributes.cpp
 OBJ = $(CLASSAD_OBJ_3) ../condor_c++_util/condor_attributes.o
 
 
@@ -78,26 +78,26 @@ library_target(libclassad.a,$(OBJ))
 release:: all
 
 /* template instantiations go in here */
-template_inst( instantiations.cc, instantiations.o ) 	/* main classad insts */
-template_inst( test_instantiations.cc, test_instantiations.o ) /* test program insts */
-template_inst( coll-comm-inst.cc, coll-comm-inst.o ) 	/* common collection  */
-template_inst( coll-serv-inst.cc, coll-serv-inst.o ) 	/* collection server  */
-template_inst( coll-client-inst.cc,coll-client-inst.o) 	/* collection client*/
-template_inst( exp-inst.cc, exp-inst.o )					/* experimental */
+template_inst( instantiations.cpp, instantiations.o ) 	/* main classad insts */
+template_inst( test_instantiations.cpp, test_instantiations.o ) /* test program insts */
+template_inst( coll-comm-inst.cpp, coll-comm-inst.o ) 	/* common collection  */
+template_inst( coll-serv-inst.cpp, coll-serv-inst.o ) 	/* collection server  */
+template_inst( coll-client-inst.cpp,coll-client-inst.o) 	/* collection client*/
+template_inst( exp-inst.cpp, exp-inst.o )					/* experimental */
 
 /* Standalone distribution of classads/collections */
 DIST_VERSION = 1.0
 DISTRIBUTION_DIR = classads-$(DIST_VERSION)
 
 DIST_FILES = 								\
-	attrrefs.cc classad.cc classad_functional_tester.cc		\
-	classad_unit_tester.cc classad_version.cc collection.cc		\
-	collectionBase.cc cxi.cc debug.cc exprList.cc exprTree.cc		\
-	extra_tests.cc fnCall.cc indexfile.cc instantiations.cc lexer.cc	\
-	lexerSource.cc literals.cc matchClassad.cc operators.cc query.cc	\
-	sample.cc shared.cc sink.cc source.cc test_instantiations.cc		\
-	test_xml.cc tests.txt transaction.cc util.cc value.cc view.cc	\
-	xmlLexer.cc xmlSink.cc xmlSource.cc cclassad.cc README		\
+	attrrefs.cpp classad.cpp classad_functional_tester.cpp		\
+	classad_unit_tester.cpp classad_version.cpp collection.cpp		\
+	collectionBase.cpp cxi.cpp debug.cpp exprList.cpp exprTree.cpp		\
+	extra_tests.cpp fnCall.cpp indexfile.cpp instantiations.cpp lexer.cpp	\
+	lexerSource.cpp literals.cpp matchClassad.cpp operators.cpp query.cpp	\
+	sample.cpp shared.cpp sink.cpp source.cpp test_instantiations.cpp		\
+	test_xml.cpp tests.txt transaction.cpp util.cpp value.cpp view.cpp	\
+	xmlLexer.cpp xmlSink.cpp xmlSource.cpp cclassad.cpp README		\
 	CHANGELOG configure.ac Makefile.am.m4 functional_tests.txt	\
 	ClassAd.swg classads.spec classad_functional_tester.h		\
 	NOTICE.txt LICENSE-2.0.txt
@@ -156,7 +156,7 @@ doc: html
 
 #ifdef ENABLE_SHARED_LIBRARY_FUNCTIONS
 shared:
-	g++ -fPIC -shared -o libshared.so shared.cc
+	g++ -fPIC -shared -o libshared.so shared.cpp
 #endif
 
 /* Also depends on several header files, but I am ignoring that for now */

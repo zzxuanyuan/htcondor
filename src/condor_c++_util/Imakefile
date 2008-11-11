@@ -96,7 +96,7 @@ TT_OBJS =
 /* Bring in the old classad library because the user log parsing code
  * (which we form the condor api archive with) now can use xml logging and
  * classad representations of the events.
- * This brings in cedar, but we define stub functions in libcondorapi_stubs.cc
+ * This brings in cedar, but we define stub functions in libcondorapi_stubs.cpp
  * to remedy the situation. If you're just reading log files, then you don't
  * need that functionality anyway. */
 CLASSAD_OBJ = \
@@ -258,8 +258,8 @@ template_inst(test_stringSpace,test_stringSpace.o)
 
 /* this needs to be built more like a user would use the library, so it */
 /* can't have all of our usual cflags... */
-test_libcondorapi.o: test_libcondorapi.cc
-	$(CPlusPlus) -I../h -I../condor_includes -c test_libcondorapi.cc
+test_libcondorapi.o: test_libcondorapi.cpp
+	$(CPlusPlus) -I../h -I../condor_includes -c test_libcondorapi.cpp
 
 c_plus_nowrap_target(test_libcondorapi,test_libcondorapi.o,libcondorapi.a)
 
@@ -338,8 +338,8 @@ public_copy_target(../condor_includes/condor_constants.h,include,condor_constant
 foo.o: user_log.h
 test.o: user_log.h
 
-condor_version.o: condor_version.cc
-	$(CPlusPlus) $(C_PLUS_FLAGS) -c -DPLATFORM=$(PLATFORM) condor_version.cc
+condor_version.o: condor_version.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -c -DPLATFORM=$(PLATFORM) condor_version.cpp
 
 testbin:: all
 

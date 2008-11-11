@@ -11,7 +11,7 @@ soapobjs(master)
 PLUGIN_OBJ = MasterPlugin.o
 #endif
 
-%-plugin.so: %.cc
+%-plugin.so: %.cpp
    $(CPlusPlus) $(C_PLUS_FLAGS) -shared -fPIC $< -o $@
 
 OBJ = master.o daemon.o $(SOAP_OBJS) $(PLUGIN_OBJ)
