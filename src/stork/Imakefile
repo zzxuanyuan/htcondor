@@ -39,6 +39,8 @@
 /* Default build target - must be first target */
 all_target()
 
+soapobjs(stork)
+
 /* Common build flags. */
 NEW_CLASSADS_LINK =  -L$(NEW_CLASSADS_LIB) -lclassad_ns
 #if !IS_GLIBC20 && !IS_GLIBC21
@@ -75,6 +77,7 @@ library_target($(STORK_UTIL),$(UTIL_LIB_OBJS))
 
 /* server daemon */
 SERVER_OBJS  = \
+	$(SOAP_OBJS) \
 	dap_server.o \
 	dap_daemon.o \
 	dap_scheduler.o \
@@ -314,6 +317,8 @@ release_library($(CLIENT_LIB),lib)
 strip_library($(CLIENT_LIB),lib)
 static_library($(CLIENT_LIB),lib)
 #endif /* WANT_STORK_API */
+
+gen_soapfiles(stork,condorStork)
 
 #if 1 /* Nick added this */
 TEST_LIB = $(STD_LIBS) $(NEW_CLASSADS_LINK) $(CLASSAD_CONVERSION_LIBDEFS)
