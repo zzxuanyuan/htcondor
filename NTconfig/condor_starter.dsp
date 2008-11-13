@@ -255,7 +255,7 @@ SOURCE=..\src\condor_starter.V6.1\starter.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_starter.V6.1\starter_class.cpp
+SOURCE=..\src\condor_starter.V6.1\baseStarter.cpp
 # End Source File
 # Begin Source File
 

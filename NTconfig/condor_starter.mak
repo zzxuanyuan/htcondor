@@ -48,6 +48,7 @@ CLEAN :"condor_classad - Win32 DebugCLEAN" "condor_cpp_util - Win32 DebugCLEAN" 
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\baseStarter.obj"
 	-@erase "$(INTDIR)\condor_privsep_helper.WINDOWS.obj"
 	-@erase "$(INTDIR)\io_proxy.obj"
 	-@erase "$(INTDIR)\io_proxy_handler.obj"
@@ -69,7 +70,6 @@ CLEAN :
 	-@erase "$(INTDIR)\soap_starterC.obj"
 	-@erase "$(INTDIR)\soap_starterServer.obj"
 	-@erase "$(INTDIR)\soap_starterStub.obj"
-	-@erase "$(INTDIR)\starter_class.obj"
 	-@erase "$(INTDIR)\starter_user_policy.obj"
 	-@erase "$(INTDIR)\starter_v61_main.obj"
 	-@erase "$(INTDIR)\StarterHookMgr.obj"
@@ -151,7 +151,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\soap_starterC.obj" \
 	"$(INTDIR)\soap_starterServer.obj" \
 	"$(INTDIR)\soap_starterStub.obj" \
-	"$(INTDIR)\starter_class.obj" \
+	"$(INTDIR)\baseStarter.obj" \
 	"$(INTDIR)\starter_user_policy.obj" \
 	"$(INTDIR)\starter_v61_main.obj" \
 	"$(INTDIR)\StarterHookMgr.obj" \
@@ -201,6 +201,7 @@ CLEAN :"condor_classad - Win32 ReleaseCLEAN" "condor_cpp_util - Win32 ReleaseCLE
 !ELSE 
 CLEAN :
 !ENDIF 
+	-@erase "$(INTDIR)\baseStarter.obj"
 	-@erase "$(INTDIR)\condor_privsep_helper.WINDOWS.obj"
 	-@erase "$(INTDIR)\io_proxy.obj"
 	-@erase "$(INTDIR)\io_proxy_handler.obj"
@@ -222,7 +223,6 @@ CLEAN :
 	-@erase "$(INTDIR)\soap_starterC.obj"
 	-@erase "$(INTDIR)\soap_starterServer.obj"
 	-@erase "$(INTDIR)\soap_starterStub.obj"
-	-@erase "$(INTDIR)\starter_class.obj"
 	-@erase "$(INTDIR)\starter_user_policy.obj"
 	-@erase "$(INTDIR)\starter_v61_main.obj"
 	-@erase "$(INTDIR)\StarterHookMgr.obj"
@@ -302,7 +302,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\soap_starterC.obj" \
 	"$(INTDIR)\soap_starterServer.obj" \
 	"$(INTDIR)\soap_starterStub.obj" \
-	"$(INTDIR)\starter_class.obj" \
+	"$(INTDIR)\baseStarter.obj" \
 	"$(INTDIR)\starter_user_policy.obj" \
 	"$(INTDIR)\starter_v61_main.obj" \
 	"$(INTDIR)\StarterHookMgr.obj" \
@@ -603,6 +603,12 @@ LINK32_OBJS= \
 
 !ENDIF 
 
+SOURCE=..\src\condor_starter.V6.1\baseStarter.cpp
+
+"$(INTDIR)\baseStarter.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE=..\src\condor_starter.V6.1\condor_privsep_helper.WINDOWS.cpp
 
 "$(INTDIR)\condor_privsep_helper.WINDOWS.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -782,12 +788,6 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D
 
 
 !ENDIF 
-
-SOURCE=..\src\condor_starter.V6.1\starter_class.cpp
-
-"$(INTDIR)\starter_class.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
 
 SOURCE=..\src\condor_starter.V6.1\starter_user_policy.cpp
 

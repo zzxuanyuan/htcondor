@@ -27,10 +27,10 @@ NULL=nul
 
 !IF  "$(CFG)" == "condor_cpp_util - Win32 Debug"
 
-OUTDIR=..\Debug
-INTDIR=..\Debug
+OUTDIR=.\..\Debug
+INTDIR=.\..\Debug
 # Begin Custom Macros
-OutDir=..\Debug
+OutDir=.\..\Debug
 # End Custom Macros
 
 ALL : "$(OUTDIR)\condor_cpp_util.lib"
@@ -94,7 +94,7 @@ CLEAN :
 	-@erase "$(INTDIR)\distribution.obj"
 	-@erase "$(INTDIR)\domain_tools.obj"
 	-@erase "$(INTDIR)\dynuser.obj"
-	-@erase "$(INTDIR)\email_cpp.obj"
+	-@erase "$(INTDIR)\email.obj"
 	-@erase "$(INTDIR)\enum_utils.obj"
 	-@erase "$(INTDIR)\env.obj"
 	-@erase "$(INTDIR)\error_utils.obj"
@@ -299,7 +299,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\distribution.obj" \
 	"$(INTDIR)\domain_tools.obj" \
 	"$(INTDIR)\dynuser.obj" \
-	"$(INTDIR)\email_cpp.obj" \
+	"$(INTDIR)\email.obj" \
 	"$(INTDIR)\enum_utils.obj" \
 	"$(INTDIR)\env.obj" \
 	"$(INTDIR)\error_utils.obj" \
@@ -404,10 +404,10 @@ LIB32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "condor_cpp_util - Win32 Release"
 
-OUTDIR=..\Release
-INTDIR=..\Release
+OUTDIR=.\..\Release
+INTDIR=.\..\Release
 # Begin Custom Macros
-OutDir=..\Release
+OutDir=.\..\Release
 # End Custom Macros
 
 ALL : "$(OUTDIR)\condor_cpp_util.lib"
@@ -471,7 +471,7 @@ CLEAN :
 	-@erase "$(INTDIR)\distribution.obj"
 	-@erase "$(INTDIR)\domain_tools.obj"
 	-@erase "$(INTDIR)\dynuser.obj"
-	-@erase "$(INTDIR)\email_cpp.obj"
+	-@erase "$(INTDIR)\email.obj"
 	-@erase "$(INTDIR)\enum_utils.obj"
 	-@erase "$(INTDIR)\env.obj"
 	-@erase "$(INTDIR)\error_utils.obj"
@@ -675,7 +675,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\distribution.obj" \
 	"$(INTDIR)\domain_tools.obj" \
 	"$(INTDIR)\dynuser.obj" \
-	"$(INTDIR)\email_cpp.obj" \
+	"$(INTDIR)\email.obj" \
 	"$(INTDIR)\enum_utils.obj" \
 	"$(INTDIR)\env.obj" \
 	"$(INTDIR)\error_utils.obj" \
@@ -1193,9 +1193,9 @@ SOURCE="..\src\condor_c++_util\dynuser.cpp"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE="..\src\condor_c++_util\email_cpp.cpp"
+SOURCE="..\src\condor_c++_util\email.cpp"
 
-"$(INTDIR)\email_cpp.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+"$(INTDIR)\email.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

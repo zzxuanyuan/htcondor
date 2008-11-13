@@ -87,7 +87,7 @@ LINK32=link.exe
 # Name "condor_master - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_master.V6\daemon_master.cpp
+SOURCE=..\src\condor_master.V6\masterDaemon.cpp
 # End Source File
 # Begin Source File
 

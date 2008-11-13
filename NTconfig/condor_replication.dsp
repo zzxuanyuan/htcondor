@@ -106,7 +106,7 @@ SOURCE=..\src\condor_had\FilesOperations.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_had\had_Version.cpp
+SOURCE=..\src\condor_had\HAD_Version.cpp
 # End Source File
 # Begin Source File
 

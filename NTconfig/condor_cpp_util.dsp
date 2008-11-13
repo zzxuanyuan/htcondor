@@ -526,7 +526,7 @@ SOURCE="..\src\condor_c++_util\dynuser.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\email_cpp.cpp"
+SOURCE="..\src\condor_c++_util\email.cpp"
 # End Source File
 # Begin Source File
 

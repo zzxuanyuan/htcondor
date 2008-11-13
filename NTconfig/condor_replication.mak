@@ -50,7 +50,7 @@ CLEAN :
 !ENDIF 
 	-@erase "$(INTDIR)\AbstractReplicatorStateMachine.obj"
 	-@erase "$(INTDIR)\FilesOperations.obj"
-	-@erase "$(INTDIR)\had_Version.obj"
+	-@erase "$(INTDIR)\HAD_Version.obj"
 	-@erase "$(INTDIR)\Replication.obj"
 	-@erase "$(INTDIR)\ReplicatorStateMachine.obj"
 	-@erase "$(INTDIR)\soap_replicationC.obj"
@@ -107,7 +107,7 @@ LINK32_FLAGS=../Release/condor_common.obj ../Release/condor_common_c.obj $(CONDO
 LINK32_OBJS= \
 	"$(INTDIR)\AbstractReplicatorStateMachine.obj" \
 	"$(INTDIR)\FilesOperations.obj" \
-	"$(INTDIR)\had_Version.obj" \
+	"$(INTDIR)\HAD_Version.obj" \
 	"$(INTDIR)\Replication.obj" \
 	"$(INTDIR)\ReplicatorStateMachine.obj" \
 	"$(INTDIR)\soap_replicationC.obj" \
@@ -154,7 +154,7 @@ CLEAN :
 !ENDIF 
 	-@erase "$(INTDIR)\AbstractReplicatorStateMachine.obj"
 	-@erase "$(INTDIR)\FilesOperations.obj"
-	-@erase "$(INTDIR)\had_Version.obj"
+	-@erase "$(INTDIR)\HAD_Version.obj"
 	-@erase "$(INTDIR)\Replication.obj"
 	-@erase "$(INTDIR)\ReplicatorStateMachine.obj"
 	-@erase "$(INTDIR)\soap_replicationC.obj"
@@ -213,7 +213,7 @@ LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LI
 LINK32_OBJS= \
 	"$(INTDIR)\AbstractReplicatorStateMachine.obj" \
 	"$(INTDIR)\FilesOperations.obj" \
-	"$(INTDIR)\had_Version.obj" \
+	"$(INTDIR)\HAD_Version.obj" \
 	"$(INTDIR)\Replication.obj" \
 	"$(INTDIR)\ReplicatorStateMachine.obj" \
 	"$(INTDIR)\soap_replicationC.obj" \
@@ -531,9 +531,9 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "../condor_includes" /D "WI
 
 !ENDIF 
 
-SOURCE=..\src\condor_had\had_Version.cpp
+SOURCE=..\src\condor_had\HAD_Version.cpp
 
-"$(INTDIR)\had_Version.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+"$(INTDIR)\HAD_Version.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
