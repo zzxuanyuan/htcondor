@@ -3175,10 +3175,12 @@ int DaemonCore::HandleReq(Stream *insock)
 	int					old_timeout;
     int                 perm         = USER_AUTH_FAILURE;
 	MyString            user;
+	MyString            cred;
     ClassAd *the_policy     = NULL;
     KeyInfo *the_key        = NULL;
     char    *the_sid        = NULL;
     char    * who = NULL;   // Remote user
+	char    * what = NULL;  // Credential of remote user
 #ifdef HAVE_EXT_GSOAP
 	bool is_http_post = false;	// must initialize to false
 	bool is_http_get = false;   // must initialize to false
@@ -3365,6 +3367,13 @@ int DaemonCore::HandleReq(Stream *insock)
 
             // Lookup remote user
             session->policy()->LookupString(ATTR_SEC_USER, &who);
+			if(who) {
+				dprintf(D_SECURITY, "DC_IdA: got user '%s'\n", who);
+			}
+			session->policy()->LookupString(ATTR_SEC_CRED, &what);
+			if(what) {
+				dprintf(D_SECURITY, "DC_IdA: got user '%s'\n", what);
+			}
 
 			free( sess_id );
 
@@ -3456,7 +3465,16 @@ int DaemonCore::HandleReq(Stream *insock)
             // Lookup user if necessary
             if (who == NULL) {
                 session->policy()->LookupString(ATTR_SEC_USER, &who);
+				if(who) {
+					dprintf(D_SECURITY, "DC_IdA: Lookup User is '%s'\n", who);
+				}
             }
+			if (what == NULL) {
+				session->policy()->LookupString(ATTR_SEC_CRED, &what);
+				if(what) {
+					dprintf(D_SECURITY, "DC_IdA: Lookup Cred is '%s'\n", what);
+				}
+			}
 			free( sess_id );
 			if (return_address_ss) {
 				free( return_address_ss );
@@ -3467,6 +3485,10 @@ int DaemonCore::HandleReq(Stream *insock)
             ((SafeSock*)stream)->setFullyQualifiedUser(who);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticated UDP message is from %s.\n", who);
         }
+		if (what != NULL) {
+			((SafeSock*)stream)->setRemoteCred(what);
+			dprintf (D_FULLDEBUG, "DC_AUTHENTICATE: authenticated UDP message has cred '%s'\n", what);
+		}
 	}
 
 
@@ -3763,12 +3785,20 @@ int DaemonCore::HandleReq(Stream *insock)
 				if (the_policy) {
 					char *the_user  = NULL;
 					the_policy->LookupString( ATTR_SEC_USER, &the_user);
-
 					if (the_user) {
 						// copy this to the HandleReq() scope
+						dprintf(D_SECURITY, "DC_IdA: Got user '%s'\n", the_user);
 						user = the_user;
 						free( the_user );
 						the_user = NULL;
+					}
+					char *the_cred = NULL;
+					the_policy->LookupString( ATTR_SEC_CRED, &the_cred);
+					if (the_cred) {
+						dprintf(D_FULLDEBUG, "DC_IdA: Got cred '%s'\n", the_cred);
+						cred = the_cred;
+						free( the_cred );
+						the_cred = NULL;
 					}
 				}
 				new_session = false;
@@ -4069,6 +4099,10 @@ int DaemonCore::HandleReq(Stream *insock)
 					if ( fully_qualified_user ) {
 						pa_ad.Assign(ATTR_SEC_USER,fully_qualified_user);
 					}
+					const char *remote_cred = ((ReliSock*)sock)->getRemoteCred();
+					if (remote_cred) {
+						pa_ad.Assign(ATTR_SEC_CRED,remote_cred);
+					}
 
 					// session id
 					pa_ad.Assign(ATTR_SEC_SID, the_sid);
@@ -4085,6 +4119,7 @@ int DaemonCore::HandleReq(Stream *insock)
 					the_policy->Delete( ATTR_SEC_REMOTE_VERSION );
 					sec_man->sec_copy_attribute( *the_policy, auth_info, ATTR_SEC_REMOTE_VERSION );
 					sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_USER );
+					sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_CRED );
 					sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_SID );
 					sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_VALID_COMMANDS );
 
@@ -4242,6 +4277,7 @@ int DaemonCore::HandleReq(Stream *insock)
 		// authenticated user name from the value stored in the cached
 		// session.
 		if( user.Length() && !((Sock*)stream)->getFullyQualifiedUser() ) {
+			dprintf(D_SECURITY, "DC_IdA: Setting user name to '%s'.\n", user.Value());
 			((Sock*)stream)->setFullyQualifiedUser(user.Value());
 		}
 
@@ -4251,6 +4287,20 @@ int DaemonCore::HandleReq(Stream *insock)
 			if (u) {
 				user = u;
 			}
+			dprintf(D_SECURITY, "DC_IdA: Got user name '%s'\n", user.Value());
+		}
+		
+		if( cred.Length() && !((Sock*)stream)->getRemoteCred() ) {
+			((Sock*)stream)->setRemoteCred(cred.Value());
+			dprintf(D_FULLDEBUG, "DC_IdA: Setting cred to '%s'\n", cred.Value());
+		}
+
+		if (is_tcp) {
+			const char *c = ((ReliSock*)stream)->getRemoteCred();
+			if (c) {
+				cred = c;
+			}
+			dprintf(D_FULLDEBUG, "DC_IdA: Got remote cred '%s'\n", cred.Value());
 		}
 
 		if ( (perm = Verify(comTable[index].perm, ((Sock*)stream)->endpoint(), user.Value())) != USER_AUTH_SUCCESS )
@@ -4347,6 +4397,9 @@ finalize:
     if (who) {
         free(who);
     }
+	if (what) {
+		free(what);
+	}
 	if ( result != KEEP_STREAM ) {
 		stream->encode();	// we wanna "flush" below in the encode direction
 		if ( is_tcp ) {
