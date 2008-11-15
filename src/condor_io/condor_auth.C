@@ -209,6 +209,7 @@ Condor_Auth_Base& Condor_Auth_Base :: setRemoteCredential(const char *cred)
 		remoteCredential_ = NULL;
 	}
 	if(cred) {
+		dprintf(D_FULLDEBUG, "IdA: Condor_Auth_Base sets remote cred to '%s'\n", cred);
 		remoteCredential_ = strdup(cred);
 		if(!remoteCredential_) {
 			// TODO handle.
