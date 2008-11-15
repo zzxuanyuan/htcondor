@@ -670,6 +670,7 @@ const char *ATTR_SEC_INTEGRITY            = "Integrity";
 const char *ATTR_SEC_ENACT                = "Enact";
 const char *ATTR_SEC_RESPOND              = "Respond";
 const char *ATTR_SEC_COMMAND              = "Command";
+const char *ATTR_SEC_CRED                 = "Credential";
 const char *ATTR_SEC_AUTH_COMMAND         = "AuthCommand";
 const char *ATTR_SEC_SID                  = "Sid";
 const char *ATTR_SEC_SUBSYSTEM            = "Subsystem";
@@ -687,6 +688,7 @@ const char *ATTR_SEC_NEW_SESSION          = "NewSession";
 const char *ATTR_SEC_USE_SESSION          = "UseSession";
 const char *ATTR_SEC_COOKIE               = "Cookie";
 extern const char * ATTR_SEC_AUTHENTICATED_USER = "AuthenticatedUser";
+extern const char * ATTR_SEC_AUTHENTICATED_CRED = "AuthenticatedCred";
 
 const char *ATTR_MULTIPLE_TASKS_PER_PVMD  = "MultipleTasksPerPvmd";
 

@@ -587,6 +587,7 @@ extern const char * ATTR_SEC_INTEGRITY;
 extern const char * ATTR_SEC_ENACT;
 extern const char * ATTR_SEC_RESPOND;
 extern const char * ATTR_SEC_COMMAND;
+extern const char * ATTR_SEC_CRED;
 extern const char * ATTR_SEC_AUTH_COMMAND;
 extern const char * ATTR_SEC_SID;
 extern const char * ATTR_SEC_SUBSYSTEM;
@@ -604,6 +605,7 @@ extern const char * ATTR_SEC_NEW_SESSION;
 extern const char * ATTR_SEC_USE_SESSION;
 extern const char * ATTR_SEC_COOKIE;
 extern const char * ATTR_SEC_AUTHENTICATED_USER;
+extern const char * ATTR_SEC_AUTHENTICATED_CRED;
 
 extern const char * ATTR_MULTIPLE_TASKS_PER_PVMD;
 
