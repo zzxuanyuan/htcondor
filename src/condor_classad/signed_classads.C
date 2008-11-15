@@ -50,7 +50,7 @@
 #include "openssl/bio.h"
 
 void
-print_ad(ClassAd ad) 
+print_ad(ClassAd ad)
 {
 	MyString debug;
 	ad.sPrint(debug);
@@ -66,7 +66,7 @@ print_ad(ClassAd ad)
  */
 inline char
 get_bits(char in)
-{   
+{
     if(in >= '0' && in <= '9') {
         return in-'0';
     }
@@ -79,13 +79,13 @@ get_bits(char in)
 /*
  * mystring2charstar
  *
- * Utility function: creates a newly allocated char * for the value of the 
+ * Utility function: creates a newly allocated char * for the value of the
  * MyString; for type safety.  Caller frees!
  *
  * Returns malloced string the same size as the input or null.
  */
 char *
-mystring2charstar(const MyString &m) 
+mystring2charstar(const MyString &m)
 {
 	char *buf;
 	int buflen = m.Length();
@@ -134,7 +134,7 @@ bin_2_hex(unsigned char *input, unsigned int input_len, MyString& output)
 // bool hex_2_bin(const MyString& input, int *len, unsigned char *& output);
 
 bool
-hex_2_bin(const MyString &input, int &len, unsigned char *& output) 
+hex_2_bin(const MyString &input, int &len, unsigned char *& output)
 {
 	len = input.Length()/2;
 	const char *inp = input.Value();
@@ -162,8 +162,8 @@ hex_2_bin(const MyString &input, int &len, unsigned char *& output)
  *
  * Returns: true for success
  */
-bool sign_data(EVP_PKEY *pkey, 
-			   const MyString& data, 
+bool sign_data(EVP_PKEY *pkey,
+			   const MyString& data,
 			   MyString &signature);
 
 bool sign_data(EVP_PKEY *pkey,
@@ -197,6 +197,7 @@ bool sign_data(EVP_PKEY *pkey,
 		report_openssl_errors("sign_data");
         return false;
 	}
+	dprintf(D_SECURITY, "Result length: %d\n", sig_len);
     sig_buf = (unsigned char *)malloc(sig_len);
     if(!sig_buf) {
 	    fprintf(stderr, "Got error from malloc.\n");
@@ -265,7 +266,7 @@ get_private_key(const MyString& filename)
  *
  * Returns false if the file couldn't be opened, otherwise true.
  */
-bool 
+bool
 get_file_text(const MyString &filename, MyString &text)
 {
 	FILE *fd;
@@ -282,6 +283,36 @@ get_file_text(const MyString &filename, MyString &text)
 	return true;
 }
 
+bool
+get_cert_text(const MyString &filename, MyString &text)
+{
+	MyString full;
+	if(!get_file_text(filename, full)) {
+		return false;
+	}
+	bool in_key = false;
+	full.Tokenize();
+	text = "";
+	const char *tmp = NULL;
+	while((tmp = full.GetNextToken("\n",false))) {
+		dprintf(D_SECURITY, "get_cert_text: got line '%s'\n", tmp);
+		if(strcmp(tmp,"-----BEGIN RSA PRIVATE KEY-----") == 0) {
+			in_key = true;
+			continue;
+		}
+		if(strcmp(tmp,"-----END RSA PRIVATE KEY-----") == 0) {
+			in_key = false;
+			continue;
+		}
+		if(in_key) {
+			continue;
+		}
+		text += tmp;
+		text += "\n";
+	}
+	return true;
+}
+
 /*
  * get_public_key
  *
@@ -293,7 +324,7 @@ get_file_text(const MyString &filename, MyString &text)
 EVP_PKEY *get_public_key(const MyString& filename);
 
 EVP_PKEY *
-get_public_key(const MyString& filename) 
+get_public_key(const MyString& filename)
 {
 	FILE *fd;
 	EVP_PKEY *pkey = NULL;
@@ -301,7 +332,7 @@ get_public_key(const MyString& filename)
 
     fd = safe_fopen_wrapper(filename.Value(), "r");
     if(!fd) {
-        dprintf(D_SECURITY, "Can't open public key: '%s'.\n", 
+        dprintf(D_SECURITY, "Can't open public key: '%s'.\n",
 				filename.Value());
         return NULL;
     }
@@ -362,7 +393,7 @@ get_public_key_from_text(const MyString &text)
  *
  * Returns true if the signature verifies correctly.
  */
-bool verify_signature(EVP_PKEY *pkey, const MyString &data, 
+bool verify_signature(EVP_PKEY *pkey, const MyString &data,
 					  const MyString &signature);
 
 
@@ -457,12 +488,12 @@ text2classad(const MyString &text, ClassAd &ad)
 }
 
 /*
-EVP_PKEY *get_private_key(const MyString& filename) 
+EVP_PKEY *get_private_key(const MyString& filename)
 {
 	EVP_PKEY *pkey;
 	FILE *fd = safe_fopen_wrapper(filename.Value(), "r");
 	if(!fd) {
-		dprintf(D_SECURITY, "Couldn't open file '%s'.\n", 
+		dprintf(D_SECURITY, "Couldn't open file '%s'.\n",
 				filename.Value());
 		perror("fopen");
 		return NULL;
@@ -487,8 +518,7 @@ EVP_PKEY *get_private_key(const MyString& filename)
  * gets signed by the user will be the same as what gets verified by
  * the starter.
  */
-bool 
-prepare_arguments(ClassAd *ad) 
+bool prepare_arguments(ClassAd *ad)
 {
 	ArgList al;
 	MyString error;
@@ -499,7 +529,7 @@ prepare_arguments(ClassAd *ad)
 		return false;
 	}
 	if(!al.GetArgsStringV2Raw(&args2,&error)) {
-		
+
 //	if(!al.InsertArgsIntoClassAd(ad, NULL, &error)) { // this doesn't work
 		dprintf(D_SECURITY, "Couldn't get arguments for ClassAd.\n");
 		dprintf(D_SECURITY, "Error: '%s'\n", error.Value());
@@ -515,7 +545,8 @@ prepare_arguments(ClassAd *ad)
 }
 
 void
-limit_classad(ClassAd &in_ad, 
+limit_classad(ClassAd &in_ad,
+			  ClassAd *cached_ad,
 			  StringList &include,
 			  ClassAd &out_ad)
 {
@@ -530,9 +561,13 @@ limit_classad(ClassAd &in_ad,
 	while( (attr_name = include.next()) ) {
 		if(!out_ad.Lookup(attr_name)) {
 			if(stricmp(attr_name,"Arguments")) {
-				dprintf(D_SECURITY, "WARNING: "
-						"attribute '%s' missing from input, "
-						"not included in signature.\n", attr_name);
+				if(cached_ad && cached_ad->Lookup(attr_name)) {
+					out_ad.Assign(attr_name, cached_ad->Lookup(attr_name));
+				} else {
+					dprintf(D_SECURITY, "WARNING: "
+							"attribute '%s' missing from input, "
+							"not included in signature.\n", attr_name);
+				}
 			}
 		}
 	}
@@ -548,8 +583,8 @@ limit_classad(ClassAd &in_ad,
 	return;
 }
 
-bool 
-verify_same_subset_attributes(const ClassAd &jobAd, 
+bool
+verify_same_subset_attributes(const ClassAd &jobAd,
 							  const ClassAd &sigAd, StringList &subset)
 {
 	//print_ad(jobAd);
@@ -586,7 +621,7 @@ verify_same_subset_attributes(const ClassAd &jobAd,
  * a classad value to output same as gsoap serialization.
  */
 MyString
-unquote_classad_string(const MyString &input) 
+unquote_classad_string(const MyString &input)
 {
 	int len = input.Length();
 	int i;
@@ -623,11 +658,11 @@ unquote_classad_string(const MyString &input)
 	return output;
 }
 
-/* Convert the input (the output of gsoap serialization) 
+/* Convert the input (the output of gsoap serialization)
  * to a format appropriate for using as a classad value.
  */
 MyString
-quote_classad_string(MyString input) 
+quote_classad_string(MyString input)
 {
 	int len = input.Length();
 	int i;
@@ -660,19 +695,20 @@ quote_classad_string(MyString input)
 
 /* These are exposed functions. */
 
-bool 
+bool
 sign_classad(ClassAd &ad,
+			 ClassAd *cached_ad,
 			 StringList &attributes_to_sign,
 			 const MyString &private_key_path,
-			 const MyString &public_key_path) 
+			 const MyString &public_key_path)
 {
 	ClassAd sign_subset;
-	limit_classad(ad, attributes_to_sign, sign_subset);
+	limit_classad(ad, cached_ad, attributes_to_sign, sign_subset);
 
 	// Attribute "Arguments" is handled differently; see condor_arglist.h
-	// We skip deleteing "Args" in limit_classad so we can use it in 
+	// We skip deleteing "Args" in limit_classad so we can use it in
 	// prepare_arguments below, then delete it after if it's not to be signed.
-	if(attributes_to_sign.contains("Arguments") 
+	if(attributes_to_sign.contains("Arguments")
 	   && !prepare_arguments(&sign_subset)) {
 		return false;
 	}
@@ -685,26 +721,29 @@ sign_classad(ClassAd &ad,
 	EVP_PKEY *pub;
 	priv = get_private_key(private_key_path);
 	if(priv == NULL) {
-		dprintf(D_SECURITY, "Couldn't get private key for file '%s'.\n", 
+		dprintf(D_SECURITY, "Couldn't get private key for file '%s'.\n",
 				private_key_path.Value());
 		return false;
 	}
 	pub = get_public_key(public_key_path);
 	if(pub == NULL) {
 		EVP_PKEY_free(priv);
-		dprintf(D_SECURITY, "Couldn't get public key for file '%s'.\n", 
+		dprintf(D_SECURITY, "Couldn't get public key for file '%s'.\n",
 				public_key_path.Value());
 		return false;
 	}
 	// add certificate text to classad
 	MyString cert_text = "";
-	if(!get_file_text(public_key_path, cert_text)) {
-		dprintf(D_SECURITY, "Couldn't get public key text for file '%s'.\n", 
+	dprintf(D_SECURITY, "Getting certificate text from file '%s'\n", public_key_path.Value());
+	if(!get_cert_text(public_key_path, cert_text)) {
+		dprintf(D_SECURITY, "Couldn't get public key text for file '%s'.\n",
 				public_key_path.Value());
 		EVP_PKEY_free(priv);
 		EVP_PKEY_free(pub);
 		return false;
 	}
+	dprintf(D_SECURITY, "Signing using key in file '%s'\n", private_key_path.Value());
+	dprintf(D_SECURITY, "Adding text: '%s'\n", cert_text.Value());
 	MyString quoted_cert_text = quote_classad_string(cert_text);
 	sign_subset.Assign(ATTR_CLASSAD_SIGNATURE_CERTIFICATE, quoted_cert_text);
 	// add version information for signature "1.0a"
@@ -729,13 +768,13 @@ sign_classad(ClassAd &ad,
 	ad.Assign(ATTR_CLASSAD_SIGNATURE_TEXT, text_to_sign);
 	ad.Assign(ATTR_CLASSAD_SIGNATURE, signature_text);
 	//dprintf(D_SECURITY, "Signing text '%s'\n", text_to_sign.Value());
-	
+
 	EVP_PKEY_free(priv);
 	EVP_PKEY_free(pub);
 	return true;
 }
 
-bool 
+bool
 verify_classad(ClassAd& ad,
 			   StringList& attributes_to_verify)
 {
@@ -772,7 +811,7 @@ verify_classad(ClassAd& ad,
 		return false;
 	}
 	if(version_info != "1.0a") {
-		dprintf(D_SECURITY, "Can't verify signature version '%s'.\n", 
+		dprintf(D_SECURITY, "Can't verify signature version '%s'.\n",
 				version_info.Value());
 		return false;
 	}
@@ -795,15 +834,16 @@ verify_classad(ClassAd& ad,
 	} else {
 		dprintf(D_SECURITY, "Good signature.\n");
 	}
-	
+
 // now check that the attributes in the list are present.
 	return verify_same_subset_attributes(ad, sad, attributes_to_verify);
 }
 
 char *
-get_signing_certfile(bool use_gsi, ClassAd &ad)
+get_signing_certfile(bool use_gsi, ClassAd &ad, ClassAd *cached_ad)
 {
 	char *ssl_cert_filename = NULL;
+	dprintf(D_SECURITY, "Entering get_signing_certfile with use_gsi = %s\n", use_gsi ? "TRUE" : "FALSE");
 	if(! use_gsi) {
 		ssl_cert_filename = param( AUTH_SSL_CLIENT_CERTFILE_STR );
 		if(ssl_cert_filename == NULL) {
@@ -817,12 +857,16 @@ get_signing_certfile(bool use_gsi, ClassAd &ad)
 	// OK, must be GSI.
 	static const char *ad_type;
 	ad_type = ad.GetMyTypeName();
-	if(!strcmp(ad_type, "Job")) {
+	if(strcmp(ad_type, "Machine")) {
 		char *proxy_filename = NULL;
 		ad.LookupString("x509userproxy", &proxy_filename);
 		if(proxy_filename == NULL) {
-			fprintf(stderr,
-					"Can't get X509UserProxy from job ad.");
+			if(cached_ad) {
+				cached_ad->LookupString("x509userproxyorig", &proxy_filename);
+			}
+		}
+		if(proxy_filename == NULL) {
+			fprintf(stderr,	"Can't get X509UserProxy from job ad.");
 			return NULL;
 		}
 		return proxy_filename;
@@ -830,7 +874,7 @@ get_signing_certfile(bool use_gsi, ClassAd &ad)
 		char *eec_key_filename = NULL;
 		eec_key_filename = param( "GSI_DAEMON_CERT" );
 		if(eec_key_filename == NULL) {
-			fprintf(stderr, 
+			fprintf(stderr,
 					"Specify the key file for signing using '%s' in the config files.\n",
 					"GSI_DAEMON_KEY");
 			return NULL;
@@ -843,14 +887,14 @@ get_signing_certfile(bool use_gsi, ClassAd &ad)
 }
 
 char *
-get_signing_keyfile(bool use_gsi, ClassAd &ad) 
+get_signing_keyfile(bool use_gsi, ClassAd &ad, ClassAd *cached_ad)
 {
 	char *ssl_key_filename = NULL;
 	if(! use_gsi) {
 		ssl_key_filename = param( AUTH_SSL_CLIENT_KEYFILE_STR );
 		if(ssl_key_filename == NULL) {
 			fprintf(stderr,
-					"Specify the key file for signing using '%s' in the config files.\n", 
+					"Specify the key file for signing using '%s' in the config files.\n",
 					AUTH_SSL_CLIENT_KEYFILE_STR);
 			return NULL;
 		}
@@ -860,9 +904,19 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 	// TODO: check if GSI is available, at a higher level.
 	static const char *ad_type;
 	ad_type = ad.GetMyTypeName();
-	if(!strcmp(ad_type, "Job")) {
+	if(strcmp(ad_type, "Machine")) {
 		char *proxy_filename = NULL;
 		ad.LookupString("x509userproxy", &proxy_filename);
+		if(proxy_filename == NULL) {
+			if(cached_ad) {
+				cached_ad->LookupString("x509userproxyorig", &proxy_filename);
+				if(proxy_filename) {
+					dprintf(D_SECURITY, "Got x509userproxyorig = '%s' from cached ad.\n", proxy_filename);
+				}
+			}
+		} else {
+			dprintf(D_SECURITY, "Got x509userproxy = '%s' from job.\n", proxy_filename);
+		}
 		if(proxy_filename == NULL) {
 			fprintf(stderr,
 					"Can't get X509UserProxy from job ad.");
@@ -873,7 +927,7 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 		char *eec_key_filename = NULL;
 		eec_key_filename = param( "GSI_DAEMON_KEY" );
 		if(eec_key_filename == NULL) {
-			fprintf(stderr, 
+			fprintf(stderr,
 					"Specify the key file for signing using '%s' in the config files.\n",
 					"GSI_DAEMON_KEY");
 			return NULL;
@@ -887,7 +941,7 @@ get_signing_keyfile(bool use_gsi, ClassAd &ad)
 #endif /* defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS) */
 
 bool
-generic_sign_classad(ClassAd &ad, bool is_job_ad)
+generic_sign_classad(ClassAd &ad, ClassAd *cached_ad, bool is_job_ad)
 {
 #if defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 
@@ -912,7 +966,7 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 	}
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
-				"SIGN_%s_CLASSAD_ATTRIBUTES.\n", 
+				"SIGN_%s_CLASSAD_ATTRIBUTES.\n",
 				is_job_ad ? "JOB" : "MACHINE");
 		return false;
 	}
@@ -933,26 +987,26 @@ generic_sign_classad(ClassAd &ad, bool is_job_ad)
 		if(!strcmp(sca_type, "SSL")) {
 			use_gsi = false;
 		} else {
-			fprintf(stderr, 
+			fprintf(stderr,
 					"Credential type of '%s' must be 'GSI' or 'SSL'.\n",
 					"CLASSAD_SIGNATURE_CREDENTIAL_TYPE");
 			return false;
 		}
 	}
 
-	char *keyfile_c = get_signing_keyfile(use_gsi, ad);
+	char *keyfile_c = get_signing_keyfile(use_gsi, ad, cached_ad);
 	if(keyfile_c == NULL) {
 		return false;
 	}
 	MyString keyfile(keyfile_c);
 	free(keyfile_c);
-	char *certfile_c = get_signing_certfile(use_gsi, ad);
+	char *certfile_c = get_signing_certfile(use_gsi, ad, cached_ad);
 	if(certfile_c == NULL) {
 		return false;
 	}
 	MyString certfile(certfile_c);
 	free(certfile_c);
-	if(!sign_classad(ad, include, keyfile, certfile)) {
+	if(!sign_classad(ad, cached_ad, include, keyfile, certfile)) {
 		fprintf( stderr, "Unable to sign ClassAd.\n");
 		return false;
 	}
@@ -987,13 +1041,13 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 	}
 	if(attr_c == NULL) {
 		fprintf(stderr, "Specify attributes to sign using "
-				"VERIFY_%s_CLASSAD_ATTRIBUTES.\n", 
+				"VERIFY_%s_CLASSAD_ATTRIBUTES.\n",
 				is_job_ad ? "JOB" : "MACHINE");
 		return false;
 	}
 	StringList include(attr_c);
 	free(attr_c);
-	
+
 	if(!verify_classad(ad, include)) {
 		fprintf( stderr, "Unable to verify signed Classad.\n");
 		return false;
@@ -1006,7 +1060,7 @@ generic_verify_classad(ClassAd ad, bool is_job_ad)
 #endif // defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS)
 }
 
-bool 
+bool
 host_sign_key(char *& policy, EVP_PKEY *proxy_pubkey) {
 	ClassAd policy_ad;
 	BIO *mb;
@@ -1034,9 +1088,9 @@ host_sign_key(char *& policy, EVP_PKEY *proxy_pubkey) {
 
 	policy_ad.SetMyTypeName("Machine");
 	MyString host_cert_file;
-	host_cert_file = get_signing_certfile(true, policy_ad);
+	host_cert_file = get_signing_certfile(true, policy_ad, NULL);
 	MyString host_key_file;
-	host_key_file = get_signing_keyfile(true, policy_ad);
+	host_key_file = get_signing_keyfile(true, policy_ad, NULL);
 /*
 	MyString host_cert_text;
 	if(!get_file_text(host_certificate_file, host_cert_text)) {
@@ -1046,7 +1100,7 @@ host_sign_key(char *& policy, EVP_PKEY *proxy_pubkey) {
 	to_sign.insert("HostCertificate");
 	policy_ad.Assign("HostCertificate", host_cert_text);*/
 
-	if(!sign_classad(policy_ad, to_sign, host_key_file, host_cert_file)) {
+	if(!sign_classad(policy_ad, NULL, to_sign, host_key_file, host_cert_file)) {
 		dprintf(D_SECURITY, "error signing service policy.\n");
 		return false;
 	}
@@ -1093,13 +1147,14 @@ verify_certificate(X509 *cert)
 	}
 	X509_STORE_CTX_free(ctx);
 	X509_STORE_free(store);
-	
+
     return ret;
 }
 
 int
-x509_self_delegation( const char *proxy_file, 
-					  const char *tsp, 
+x509_self_delegation( const char *proxy_file,
+					  char *new_proxy_file,
+					  const char *tsp,
 					  const char *policy_oid )
 {
 #if !defined(HAVE_EXT_GLOBUS)
@@ -1112,7 +1167,7 @@ x509_self_delegation( const char *proxy_file,
 	int error_line = 0;
 	globus_result_t result = GLOBUS_SUCCESS;
 	globus_gsi_cred_handle_t source_cred =  NULL;
-	globus_gsi_cred_handle_t host_cred = NULL;
+	//globus_gsi_cred_handle_t host_cred = NULL;
 	globus_gsi_proxy_handle_t new_proxy = NULL;
 	BIO *bio = NULL;
 	X509 *cert = NULL;
@@ -1200,7 +1255,7 @@ x509_self_delegation( const char *proxy_file,
 		error_line = __LINE__;
 		goto cleanup;
 	}
-	
+
 	if( buffer_to_bio(tm, bl, &bio) == FALSE ) {
 		rc = -1;
 		error_line = __LINE__;
@@ -1210,7 +1265,7 @@ x509_self_delegation( const char *proxy_file,
 	free(tm);
 	tm = NULL;
 
-	// X509_REQ *d2i_X509_REQ_bio(BIO *bp, X509_REQ **x);	
+	// X509_REQ *d2i_X509_REQ_bio(BIO *bp, X509_REQ **x);
 	req = NULL;
 	if(!(req = d2i_X509_REQ_bio(bio, NULL))) {
 		rc = -1;
@@ -1218,7 +1273,7 @@ x509_self_delegation( const char *proxy_file,
 		//dprintf(D_SECURITY, "Error!\n");
 		goto cleanup;
 	}
-	
+
 	req_pubkey = X509_REQ_get_pubkey(req);
 	//X509_free(req);
 
@@ -1234,20 +1289,20 @@ x509_self_delegation( const char *proxy_file,
 
 	free( buffer );
 	buffer = NULL;
-	
+
 	result = globus_gsi_proxy_inquire_req( new_proxy, bio );
 	if ( result != GLOBUS_SUCCESS ) {
 		rc = -1;
 		error_line = __LINE__;
 		goto cleanup;
 	}
-	
+
 	if(tsp && !strcmp(policy_oid, TSPC_POLICY_OID)) {
 		policy = strdup(tsp);
 	} else {
 		if(!strcmp(policy_oid, SSPC_POLICY_OID)) {
-			
-			dprintf(D_SECURITY, 
+
+			dprintf(D_SECURITY,
 					"**************************************SSPC path.\n");
 			dprintf(D_SECURITY, "proxy file is '%s'\n", proxy_file);
 			if(!host_sign_key(policy, req_pubkey)) {
@@ -1376,11 +1431,39 @@ x509_self_delegation( const char *proxy_file,
 	/* globus_gsi_cred_write_proxy() declares its second argument non-const,
 	 * but never modifies it. The cast gets rid of compiler warnings.
 	 */
-	result = globus_gsi_cred_write_proxy( proxy_handle, (char *)proxy_file );
-	if ( result != GLOBUS_SUCCESS ) {
-		rc = -1;
-		error_line = __LINE__;
-		goto cleanup;
+	if( new_proxy_file ) {
+		BIO *tmp_bio = BIO_new( BIO_s_mem() );
+		result = globus_gsi_cred_write( proxy_handle, tmp_bio );
+		if ( result != GLOBUS_SUCCESS ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
+		char *tmp_buf;
+		int tmp_len;
+		if( bio_to_buffer(tmp_bio, &tmp_buf, &tmp_len) == FALSE ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
+		int tmp_fd = mkstemp( new_proxy_file );
+		if( tmp_fd == -1 ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
+		if( write(tmp_fd, tmp_buf, tmp_len) != tmp_len ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
+		if(tmp_bio) {
+			BIO_free( tmp_bio );
+		}
+		close(tmp_fd);
+		dprintf(D_SECURITY, "Delegation new file is: '%s'\n", new_proxy_file);
+	} else {
+		result = globus_gsi_cred_write_proxy( proxy_handle, (char *)proxy_file );
 	}
 	fprintf(stderr, "Got through redelegation.\n");
  cleanup:
