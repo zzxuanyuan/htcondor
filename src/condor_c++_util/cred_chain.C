@@ -264,7 +264,7 @@ CredChain::getNumPolicies()
 		return false;
 	}
 	int j;
-	dprintf(D_SECURITY, "Number of policies (total): %d\n", sk_num(policies));
+	dprintf(D_SECURITY, "Number of credentials (total): %d\n", sk_num(policies));
 	for(j = 0; j < sk_num(policies); j++) {
 		MyString policy = sk_value(policies, j);
 		//dprintf(D_SECURITY, "Policy: '%s'\n", policy.Value());
@@ -285,6 +285,7 @@ CredChain::getNumPolicies()
 CredChain::CredChain(const char *proxy_file_path) 
 {
 	valid = true;
+	dprintf(D_SECURITY, "Instantiating CredChain with path '%s'\n", proxy_file_path);
 	if( check_x509_proxy(proxy_file_path) != 0 ) {
 		dprintf(D_SECURITY, "Error with proxy file.\n");
 		valid = false;
@@ -337,6 +338,8 @@ CredChain::CredChain(const MyString full_chain) {
 	char *tmp = strdup(chain);
 
 	valid = true;
+
+	dprintf(D_SECURITY, "Instantiating CredChain with chain '%s'\n", full_chain.Value());
 	if(proxy_file_name) {
 		free(proxy_file_name);
 	}
