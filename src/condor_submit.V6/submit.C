@@ -113,6 +113,7 @@ template class HashBucket<AttrKey, MyString>;
 char* mySubSystem = "SUBMIT";	/* Used for SUBMIT_EXPRS */
 
 ClassAd  *job = NULL;
+ClassAd  *cached_cur_ad = NULL;
 
 char	*OperatingSystem;
 char	*Architecture;
@@ -5077,7 +5078,7 @@ SetGSICredentials()
 		// bomb out if we can't find it.
 
 	char *proxy_file = condor_param( X509UserProxy );
-
+	unsetenv("X509_USER_PROXY");
 	if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GRID &&
 		 JobGridType != NULL &&
 		 (stricmp (JobGridType, "gt2") == MATCH ||
@@ -5092,6 +5093,7 @@ SetGSICredentials()
 			exit (1);
 		}
 	}
+	
 
 	if (proxy_file != NULL) {
 		if ( proxy_file[0] == '#' ) {
@@ -5576,6 +5578,7 @@ queue(int num)
 	char tmp[ BUFSIZ ];
 	char const *logfile;
 	int		rval;
+	dprintf(D_SECURITY, "Entering queue(%d).\n", num);
 
 	// First, connect to the schedd if we have not already done so
 	if (!DumpClassAdToFile && ActiveQueueConnection != TRUE) 
@@ -5586,7 +5589,7 @@ queue(int num)
 	/* queue num jobs */
 	for (int i=0; i < num; i++) {
 
-	
+		
 		if (NewExecutable) {
  			if ( !DumpClassAdToFile ) {
 				if ((ClusterId = NewCluster()) < 0) {
@@ -5600,9 +5603,14 @@ queue(int num)
 			}
 				// We only need to call init_job_ad the second time we see
 				// a new Executable, because we call init_job_ad() in main()
+			MyString debug_p;
+			job->sPrint(debug_p);
+			dprintf(D_SECURITY, "QUEUE: Here '%s'\n", debug_p.Value());
 			if ( !IsFirstExecutable ) {
 				init_job_ad();
 			}
+			job->sPrint(debug_p);
+			dprintf(D_SECURITY, "QUEUE: Here '%s'\n", debug_p.Value());
 			IsFirstExecutable = false;
 			ProcId = -1;
 			ClusterAdAttrs.clear();
@@ -6604,6 +6612,13 @@ SaveClassAd ()
 	int myprocid = ProcId;
 	static ClassAd* current_cluster_ad = NULL;
 	fprintf(stderr, "Entering SaveClassAd.\n");
+	MyString debug_p;
+	job->sPrint(debug_p);
+	dprintf(D_SECURITY, "Here's the job ad: '%s'\n", debug_p.Value());
+	if(cached_cur_ad) {
+		cached_cur_ad->sPrint(debug_p);
+		dprintf(D_SECURITY, "Here's the cached ad: '%s'\n", debug_p.Value());
+	}
 
 	if ( ProcId > 0 ) {
 		SetAttributeInt (ClusterId, ProcId, ATTR_PROC_ID, ProcId);
@@ -6625,6 +6640,9 @@ SaveClassAd ()
 #else /* !defined(HAVE_EXT_OPENSSL) - in other words we *do* have it */
 	MyString cmd;
 	job->LookupString("Cmd", cmd);
+	if(!cmd.GetCStr()) {
+		cached_cur_ad->LookupString("Cmd", cmd);
+	}
 	
 	struct stat st_buf;
 	int cmd_file_exists = (0 == stat(cmd.GetCStr(), &st_buf));
@@ -6659,7 +6677,7 @@ SaveClassAd ()
 #endif /* !defined(HAVE_EXT_OPENSSL) */
 
 	/* Here's where we sign the classad. */
- 	if(!generic_sign_classad(*job, true)) {
+ 	if(!generic_sign_classad(*job, cached_cur_ad, true)) {
  		fprintf(stderr, "Error signing classad.\n");
  		return -1;
 	} else {
@@ -6680,14 +6698,44 @@ SaveClassAd ()
 			char *proxy_loc = NULL;
 			job->LookupString("x509userproxy", &proxy_loc);
 			if(proxy_loc == NULL) {
-				fprintf(stderr, "Can't get proxy location.\n");
+				cached_cur_ad->LookupString("x509userproxyorig", &proxy_loc);
+				if(proxy_loc == NULL) {
+					fprintf(stderr, "Can't get proxy location.\n");
+					exit(1);
+				} else {
+					MyString pl = proxy_loc;
+					free(proxy_loc);
+					pl.replaceString("\"","");
+					proxy_loc = strdup(pl.Value());
+					dprintf(D_SECURITY, "Got fallback proxy location: '%s'\n", proxy_loc);
+				}
+			}
+			char *new_proxy_loc = (char *)malloc(strlen(proxy_loc)+10);
+			if(!new_proxy_loc) {
+				fprintf(stderr, "malloc.\n");
 				exit(1);
 			}
-			if(x509_self_delegation(proxy_loc, buf.Value(), TSPC_POLICY_OID)) {
+			sprintf(new_proxy_loc, "%sXXXXXXXX", proxy_loc);
+			dprintf(D_SECURITY, "New proxy location: %s\n", new_proxy_loc);
+			if(x509_self_delegation(proxy_loc, new_proxy_loc, buf.Value(), TSPC_POLICY_OID)) {
 				fprintf(stderr, "Can't self-delegate!!!  Fatal!!!\n");
 				exit(1);
 			}
-			free(proxy_loc);
+			setenv("X509_USER_PROXY", new_proxy_loc, 1);
+			
+			dprintf(D_SECURITY, "deleting x509userproxy from job ad.\n");
+			job->Delete("x509userproxy");
+			dprintf(D_SECURITY, "Adding new location '%s' for x509userproxy\n", new_proxy_loc);
+			job->Assign("x509userproxy", new_proxy_loc);
+			
+			dprintf(D_SECURITY, "deleting x509userproxyorig from job ad.\n");
+			job->Delete("x509userproxyorig");
+			dprintf(D_SECURITY, "Adding new location '%s' for x509userproxyorig", proxy_loc);
+			job->Assign("x509userproxyorig", proxy_loc);
+			
+			//free(proxy_loc);
+			//free(new_proxy_loc);
+			// What to do here: put it back nto the job?  Put the old one where? How to ch in the environment?
 
 			if(SharedSecret.GetCStr()) {
 				// We were given a -secret argument.
@@ -6710,6 +6758,10 @@ SaveClassAd ()
 		}
  	}
 
+	if(!cached_cur_ad) {
+		cached_cur_ad = new ClassAd(*job);
+	}
+
 	job->ResetExpr();
 	while( (tree = job->NextExpr()) ) {
 		if( tree->invisible ) {
@@ -6725,6 +6777,10 @@ SaveClassAd ()
 					 lhstr, rhstr, ClusterId, ProcId, errno );
 			retval = -1;
 		}
+//		if(!cached_cur_ad) {
+//			cached_cur_ad = new ClassAd();
+//		}
+//		cached_cur_ad->Assign(lhstr, rhstr);
 		free(lhstr);
 		free(rhstr);
 		if(retval == -1) {
