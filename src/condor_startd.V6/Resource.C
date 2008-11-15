@@ -909,11 +909,11 @@ Resource::do_update( void )
 	}	
 
 	    // sign ads
-	if(!generic_sign_classad(public_ad, false)) {
+	if(!generic_sign_classad(public_ad, NULL, false)) {
 		dprintf(D_SECURITY, "Error signing public ad.\n");
 		// TODO something more severe?
 	}
-	if(!generic_sign_classad(private_ad, false)) {
+	if(!generic_sign_classad(private_ad, NULL, false)) {
 		dprintf(D_SECURITY, "Error signing private ad.\n");
 		// TODO something more severe?
 	}
