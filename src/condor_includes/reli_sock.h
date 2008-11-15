@@ -189,6 +189,8 @@ public:
 	/// This is called when using an existing session.
 	virtual void setFullyQualifiedUser(char const * u);
 
+	virtual void setRemoteCred(char const *u);
+
     ///
 	int authenticate( const char* methods, CondorError* errstack, int auth_timeout );
     ///
@@ -310,6 +312,7 @@ protected:
     char * _fqu;
 	char * _user;
 	char * _domain;
+	char * _remote_cred;
 };
 
 #endif
