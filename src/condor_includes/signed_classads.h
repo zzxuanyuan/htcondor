@@ -25,6 +25,7 @@
 #include "openssl/x509.h"
 
 bool sign_classad(ClassAd &ad,
+				  ClassAd *cached_ad,
 				  StringList &attributes_to_sign,
 				  const MyString &private_key_path,
 				  const MyString &public_key_path);
@@ -34,7 +35,7 @@ bool verify_classad(ClassAd& ad,
 
 #endif /* defined(HAVE_EXT_OPENSSL) || defined(HAVE_EXT_GLOBUS) */
 
-bool generic_sign_classad(ClassAd &ad, bool is_job_ad);
+bool generic_sign_classad(ClassAd &ad, ClassAd *cached_ad, bool is_job_ad);
 
 bool generic_verify_classad(ClassAd ad, bool is_job_ad);
 
@@ -49,4 +50,4 @@ MyString unquote_classad_string(const MyString &in);
 
 bool verify_certificate(X509 *cert);
 
-int x509_self_delegation(const char *proxy_loc, const char *policy, const char *policy_oid);
+int x509_self_delegation(const char *proxy_loc, char *new_proxy_loc, const char *policy, const char *policy_oid);
