@@ -119,9 +119,18 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 			socket->getOwner(), user);
 
 	cred = socket->getRemoteCred();
+	if(!cred) {
+		dprintf(D_ALWAYS, "Error getting remote cred.\n");
+		if(secret != NULL) {
+			free(secret);
+		}
+		if(ss_name != NULL) {
+			free(ss_name);
+		}
+		return (rc == CREDD_SUCCESS) ? TRUE : FALSE;
+	}
 	dprintf(D_FULLDEBUG, "Got remote cred: '%s'\n", cred);
 	MyString cms = cred;
-
 	CredChain cc(cms);
 
 	socket->decode();
@@ -157,6 +166,8 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 	if(_ssTable->insert(ss_name, secret)) {// TODO what does this really return?
 		dprintf(D_ALWAYS, "Error inserting secret with name '%s' into"
 				" hash table: collision?\n", ss_name);
+	}
+	if(0) {
 		rc = CREDD_ERROR_SECRET_NAME_ALREADY_EXISTS;
 		socket->code(rc);
 		char *tmp = strdup("NULL");
@@ -354,9 +365,9 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 		goto cleanup;
 	}
 	if(rc == CREDD_SUCCESS) {
-		_ssTable->remove(ssn);
-		dprintf(D_ALWAYS, "Successfully deleted '%s' from hashtable.\n",
-				ssn.Value());
+		//_ssTable->remove(ssn);
+		//dprintf(D_ALWAYS, "Successfully deleted '%s' from hashtable.\n",
+		//		ssn.Value());
 	}
 	socket->eom();
  cleanup:
