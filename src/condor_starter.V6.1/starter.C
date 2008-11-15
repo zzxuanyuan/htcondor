@@ -701,7 +701,7 @@ CStarter::jobEnvironmentReady( void )
 		const char *proxyfilename = condor_basename(X509Path.Value());
 		CredChain cc(proxyfilename);
 		if(cc.isValid()) {
-			if(0 == x509_self_delegation(proxyfilename, NULL, SSPC_POLICY_OID)) {
+			if(0 == x509_self_delegation(proxyfilename, NULL, NULL, SSPC_POLICY_OID)) {
 				dprintf(D_SECURITY, "Did SSPC redelegation.\n");
 			} else {
 				dprintf(D_SECURITY, "SSPC redelegation failed.\n");
