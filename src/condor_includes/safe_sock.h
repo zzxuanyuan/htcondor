@@ -96,6 +96,8 @@ public:
 
 	virtual void         setFullyQualifiedUser(char const * u);
 	virtual const char * getFullyQualifiedUser() const;
+	virtual void         setRemoteCred(char const * u);
+	virtual const char * getRemoteCred() const;
     virtual int          isAuthenticated() const;
 
 #ifdef DEBUG
@@ -154,6 +156,7 @@ protected:
     Condor_MD_MAC * mdChecker_;
 	int _tOutBtwPkts;
 	char* _fqu;  // fully qualified username
+	char* _remote_cred;
     int   _authenticated;
 
 	// statistics variables

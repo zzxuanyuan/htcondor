@@ -237,6 +237,7 @@ public:
 	void ignoreTimeoutMultiplier() { ignore_timeout_multiplier = true; }
 
 	virtual const char * getFullyQualifiedUser() const;
+	virtual const char * getRemoteCred() const;
 
 //	PRIVATE INTERFACE TO ALL SOCKS
 //
@@ -288,6 +289,7 @@ protected:
     char * serializeMdInfo() const;
         
 	virtual void setFullyQualifiedUser(char const * u);
+	virtual void setRemoteCred(char const *u);
 	///
 	virtual int encrypt(bool);
 	///
