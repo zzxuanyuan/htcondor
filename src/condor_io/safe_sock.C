@@ -49,6 +49,7 @@ void SafeSock::init()
 
 	// initialize username
 	_fqu = NULL;
+	_remote_cred = NULL;
 
 	for(int i=0; i<SAFE_SOCK_HASH_BUCKET_SIZE; i++)
 		_inMsgs[i] = NULL;
@@ -109,6 +110,9 @@ SafeSock::~SafeSock()
 	close();
 	if (_fqu) {
 		delete []_fqu;
+	}
+	if (_remote_cred) {
+		delete []_remote_cred;
 	}
 
     delete mdChecker_;
@@ -720,7 +724,7 @@ int SafeSock::attach_to_file_desc(int fd)
 char * SafeSock::serialize() const
 {
 	// here we want to save our state into a buffer
-
+	dprintf(D_SECURITY, "Entering SafeSock::serialize()\n");
 	// first, get the state from our parent class
 	char * parent_state = Sock::serialize();
 	// now concatenate our state
@@ -750,6 +754,7 @@ char * SafeSock::serialize(char *buf)
 	char *ptmp, *ptr = NULL;
     int len;
     
+	dprintf(D_SECURITY, "Entering SafeSock::serialize(char *)\n");
     if (_fqu) {
         delete[] _fqu;
         _fqu = NULL;
@@ -915,6 +920,10 @@ const char* SafeSock::getFullyQualifiedUser() const {
 	return _fqu;
 }
 
+const char* SafeSock::getRemoteCred() const {
+	return _remote_cred;
+}
+
 void SafeSock::setFullyQualifiedUser(char const * u) {
 	if (_fqu) {
 		delete []_fqu;
@@ -924,6 +933,17 @@ void SafeSock::setFullyQualifiedUser(char const * u) {
 		_fqu = strnewp(u);
 	}
 	_authenticated = (_fqu != NULL && *_fqu);
+}
+
+void SafeSock::setRemoteCred(char const * u) {
+	if(_remote_cred) {
+		delete []_remote_cred;
+		_remote_cred = NULL;
+	}
+	if(u) {
+		dprintf(D_FULLDEBUG, "IdA: Setting remote cred to '%s'\n", u);
+		_remote_cred = strnewp(u);
+	}
 }
 
 int SafeSock :: isAuthenticated() const

@@ -62,6 +62,7 @@ ReliSock::init()
     _fqu = NULL;
 	_user = NULL;
 	_domain = NULL;
+    _remote_cred = NULL;
 	snd_msg.buf.reset();                                                    
 	rcv_msg.buf.reset();   
 	rcv_msg.init_parent(this);
@@ -1171,8 +1172,9 @@ ReliSock::type()
 char * 
 ReliSock::serialize() const
 {
+	dprintf(D_SECURITY, "Entering ReliSock::serialize()\n");
 	// here we want to save our state into a buffer
-
+	
 	// first, get the state from our parent class
 	char * parent_state = Sock::serialize();
     // now concatenate our state
@@ -1215,6 +1217,7 @@ ReliSock::serialize() const
 char * 
 ReliSock::serialize(char *buf)
 {
+	dprintf(D_SECURITY, "Entering ReliSock::serialize(char *)\n");
 	char sinful_string[28], fqu[256];
 	char *ptmp, * ptr = NULL;
 	int len = 0;
@@ -1385,9 +1388,30 @@ const char *
 ReliSock::getRemoteCred() const 
 {
 	if(authob) {
+		dprintf(D_FULLDEBUG, "Getting remote cred '%s' from authob.\n", authob->getRemoteCred());
 		return( authob->getRemoteCred() );
 	}
-	return NULL;
+	dprintf(D_FULLDEBUG, "Getting remote cred '%s' from sock object.\n", _remote_cred);
+	return _remote_cred;
+}
+
+void
+ReliSock::setRemoteCred(char const * u) {
+	if( u && authob && authob->getRemoteCred() != NULL ) {
+		if( strcmp(u, authob->getRemoteCred()) == 0 ) {
+			return; // same
+		}
+		EXCEPT("ReliSock::setRemoteCred(%s) called when authob is "
+			   "already present: authob->getRemoteCred() = %s",
+			   u, authob->getRemoteCred());
+	}
+
+	free(_remote_cred);
+	_remote_cred = NULL;
+	if(u) {
+		dprintf(D_FULLDEBUG, "IdA: setting remote cred to '%s'\n", u);
+		_remote_cred = strdup(u);
+	}
 }
 
 const char *

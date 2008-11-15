@@ -915,6 +915,7 @@ SecManStartCommand::doCallback( StartCommandResult result )
 			// connected to is authorized.
 
 		char const *server_fqu = m_sock->getFullyQualifiedUser();
+		//char const *server_cred = m_sock->getRemoteCred();
 
 		if( DebugFlags & D_FULLDEBUG ) {
 			dprintf(D_SECURITY,
@@ -1398,9 +1399,9 @@ SecManStartCommand::startCommand_inner()
 	}
 
 
-	if (DebugFlags & D_SECURITY) {
-		dprintf ( D_SECURITY, "SECMAN: sending following classad:\n");
-		auth_info.dPrint ( D_SECURITY );
+	if (DebugFlags & D_FULLDEBUG) {
+		dprintf ( D_FULLDEBUG, "SECMAN: sending following classad:\n");
+		auth_info.dPrint ( D_FULLDEBUG );
 	}
 
 	// send the classad
@@ -1695,6 +1696,9 @@ SecManStartCommand::startCommand_inner()
 			if( m_sock->getFullyQualifiedUser() ) {
 				auth_info.Assign( ATTR_SEC_AUTHENTICATED_USER, m_sock->getFullyQualifiedUser() );
 			}
+			if( m_sock->getRemoteCred() ) {
+				auth_info.Assign( ATTR_SEC_AUTHENTICATED_CRED, m_sock->getRemoteCred() );
+			}
 
 			if (DebugFlags & D_FULLDEBUG) {
 				dprintf (D_SECURITY, "SECMAN: policy to be cached:\n");
@@ -1786,6 +1790,14 @@ SecManStartCommand::startCommand_inner()
 			}
 			m_sock->setFullyQualifiedUser( fqu );
 			free( fqu );
+		}
+		char *cred = NULL;
+		if( auth_info.LookupString(ATTR_SEC_AUTHENTICATED_CRED, &cred) && cred) {
+			if( DebugFlags & D_FULLDEBUG ) {
+				dprintf( D_FULLDEBUG, "Getting authenticated cred from cached session: %s\n", cred);
+			}
+			m_sock->setRemoteCred( cred );
+			free( cred );
 		}
 	}
 

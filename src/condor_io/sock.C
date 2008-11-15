@@ -1513,6 +1513,7 @@ char * Sock::serializeMdInfo(char * buf)
 
 char * Sock::serialize() const
 {
+	dprintf(D_SECURITY, "Entering Sock::serialize()\n");
 	// here we want to save our state into a buffer
 	char * outbuf = new char[500];
     if (outbuf) {
@@ -1527,6 +1528,7 @@ char * Sock::serialize() const
 
 char * Sock::serialize(char *buf)
 {
+	dprintf(D_SECURITY, "Entering Sock::serialize(char *)\n");
 	char *ptmp;
 	int i;
 	SOCKET passed_sock;
@@ -1875,7 +1877,17 @@ void Sock :: setFullyQualifiedUser(char const *)
 	return;
 }
 
+void Sock :: setRemoteCred(char const *) 
+{
+	return;
+}
+
 const char * Sock :: getFullyQualifiedUser() const
+{
+	return NULL;
+}
+
+const char * Sock :: getRemoteCred() const
 {
 	return NULL;
 }
