@@ -295,7 +295,7 @@ get_cert_text(const MyString &filename, MyString &text)
 	text = "";
 	const char *tmp = NULL;
 	while((tmp = full.GetNextToken("\n",false))) {
-		dprintf(D_SECURITY, "get_cert_text: got line '%s'\n", tmp);
+		//dprintf(D_SECURITY, "get_cert_text: got line '%s'\n", tmp);
 		if(strcmp(tmp,"-----BEGIN RSA PRIVATE KEY-----") == 0) {
 			in_key = true;
 			continue;
@@ -559,10 +559,18 @@ limit_classad(ClassAd &in_ad,
 	}
 	include.rewind();
 	while( (attr_name = include.next()) ) {
+		dprintf(D_SECURITY, "Trying to add attribute %s to out_ad.\n", attr_name);
 		if(!out_ad.Lookup(attr_name)) {
 			if(stricmp(attr_name,"Arguments")) {
 				if(cached_ad && cached_ad->Lookup(attr_name)) {
-					out_ad.Assign(attr_name, cached_ad->Lookup(attr_name));
+					dprintf(D_SECURITY, "Adding attribute from cached ad: %s\n", attr_name);
+					ExprTree *t = cached_ad->Lookup(attr_name);
+					if(t) {
+						ExprTree *n = t->DeepCopy();
+						out_ad.Insert(n, true);
+					} else {
+						dprintf(D_ALWAYS, "This shouldn't happen: lookup works once but fails a second time.\n");
+					}
 				} else {
 					dprintf(D_SECURITY, "WARNING: "
 							"attribute '%s' missing from input, "
@@ -743,7 +751,7 @@ sign_classad(ClassAd &ad,
 		return false;
 	}
 	dprintf(D_SECURITY, "Signing using key in file '%s'\n", private_key_path.Value());
-	dprintf(D_SECURITY, "Adding text: '%s'\n", cert_text.Value());
+	dprintf(D_FULLDEBUG, "Adding text: '%s'\n", cert_text.Value());
 	MyString quoted_cert_text = quote_classad_string(cert_text);
 	sign_subset.Assign(ATTR_CLASSAD_SIGNATURE_CERTIFICATE, quoted_cert_text);
 	// add version information for signature "1.0a"
