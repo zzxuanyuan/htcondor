@@ -24,16 +24,16 @@ REM Main entry point
 REM ======================================================================
 REM ======================================================================
 
-REM Rename source files so the the object file names will collide
-call :FIX_SOURCE_NAMES
-if %ERRORLEVEL% NEQ 0 goto :FAIL
-
 call :GENRATE_SYSCALL_NUMBERS
 if %ERRORLEVEL% NEQ 0 goto :FAIL
 
 REM Build the externals
 call :BUILD_EXTERNALS
 if %ERRORLEVEL% NEQ 0 goto :EXTERNALS_FAIL
+
+REM Put our config.h file in the right place
+call make_config.bat
+if %ERRORLEVEL% NEQ 0 goto :CONFIG_FAIL
 
 REM Make gsoap stubs, etc.
 call :MAKE_GSOAP
@@ -67,21 +67,15 @@ exit /b 1
 :EXTERNALS_FAIL
 echo *** Failed to build externals ***
 exit /b 1
+:CONFIG_FAIL
+echo *** Failed to make config.h ***
+exit /b 1
 :GSOAP_FAIL
 echo *** gsoap stub generator failed ***
 exit /b 1
 :IDE_FAIL
 echo *** Visual Studio IDE launch failed ***
 exit /b 1
-
-REM ======================================================================
-:FIX_SOURCE_NAMES
-REM ======================================================================
-REM Rename source files so the the object file names will collide
-REM ======================================================================
-call dorenames.bat >NUL
-if not errorlevel 2 call dorenames.bat >NUL
-exit /b 0
 
 REM ======================================================================
 :GENRATE_SYSCALL_NUMBERS
