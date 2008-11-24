@@ -258,20 +258,14 @@
 <$Component "CreateLogFolder" Create="Y" Directory_="LOGDIR">
 	<$DirectoryTree Key="LOGDIR" Dir="[INSTALLDIR]\log" MAKE="Y">
 <$/Component>
-<$Component "CreateWMGahpLogsFolder" Create="Y" Directory_="WMGAPHLOGSDIR" Condition=^USEVMUNIVERSE = "Y"^>
-	<$DirectoryTree Key="WMGAPHLOGSDIR" Dir="[LOGDIR]\VMGahpLogs" MAKE="Y">
-<$/Component>
-<$Component "CreateProfilesFolder" Create="Y" Directory_="PROFILESDIR">
-	<$DirectoryTree Key="PROFILESDIR" Dir="[INSTALLDIR]\profiles" MAKE="Y">
-<$/Component>
 
 
 ;--- Add the files (components generated) -----------------------------------
 <$Files '<$ImageRootDirectory>\*.*' SubDir='TREE' DestDir='INSTALLDIR'>
 
-;--- If using VM Universe, copy the default configuration -------------------
+;--- If using VM Universe, copy the default VMX configuration ---------------
 <$Component "CondorVMUniverse" Create="Y" Directory_="[INSTALLDIR]" Condition=^USEVMUNIVERSE = "Y"^>
-	<$Files '<$ImageRootDirectory>\etc\condor_vmgahp_config.vmware' KeyFile="*">
+	<$Files '<$ImageRootDirectory>\etc\condor_vmware_local_settings' KeyFile="*">
 <$/Component>
 
 ;--- Copy cygwin1.dll if we find one (to avoid version conflicts) -----------
@@ -406,7 +400,7 @@ Type="System" ;; run as the System account
 ;--- Set directory Permissions ----------------------------------------------
 ;-------- Set INSTALLDIR perms first ---
 #(
-<$ExeCa EXE=^[INSTALLDIR]condor_set_acls.exe^ Args=^[INSTALLDIR_NTS]^ 
+<$ExeCa EXE=^[INSTALLDIR]condor_set_acls.exe^ Args=^"[INSTALLDIR_NTS]"^ 
 WorkDir="INSTALLDIR" Condition="<$CONDITION_EXCEPT_UNINSTALL>" 
 Seq="InstallServices-"
 Rc0="N"       ;; On Vista this app will not return any useful results
