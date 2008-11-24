@@ -31,6 +31,7 @@
 #define WITH_OPENSSL 1
 #define WANT_QUILL 1
 #define HAVE_EXT_KRB5 1
+#define HAVE_SNPRINTF 1
 
 /* Disable all the new secure features of VS2008 */
 #define _CRT_SECURE_NO_DEPRECATE 1
