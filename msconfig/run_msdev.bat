@@ -24,8 +24,13 @@ REM Main entry point
 REM ======================================================================
 REM ======================================================================
 
+REM Generate the syscall header
 call :GENERATE_SYSCALL_NUMBERS
 if %ERRORLEVEL% NEQ 0 goto :FAIL
+
+REM Create the log directories
+call :CREATE_BUILD_DIR
+if %ERRORLEVEL% NEQ 0 goto :EXTERNALS_FAIL
 
 REM Build the externals
 call :BUILD_EXTERNALS
@@ -88,14 +93,31 @@ if not exist ..\src\h\syscall_numbers.h awk -f ..\src\h\awk_prog.include_file ..
 exit /b 0
 
 REM ======================================================================
+:CREATE_BUILD_DIR
+REM ======================================================================
+REM Create the log directory
+REM ======================================================================
+if not exist ..\Release\NUL mkdir ..\Release
+if not exist ..\Release\BuildLogs\NUL (
+    echo Creating Release log directory
+    mkdir ..\Release\BuildLogs
+)
+exit /b 0
+
+REM ======================================================================
 :BUILD_EXTERNALS
 REM ======================================================================
 REM Build the externals and copy any .dll files created by the externals 
 REM in debug and release
 REM ======================================================================
-call make_win32_externals.bat
+if exist ..\Release\BuildLogs\externals.build.log (
+    echo Removing old externals build log
+    rm -f ..\Release\BuildLogs\externals.build.log
+)
+echo Building externals (see externals.build.log for details)
+call make_win32_externals.bat >..\Release\BuildLogs\externals.build.log 2>&1
 if %ERRORLEVEL% NEQ 0 exit /b 1
-call copy_external_dlls.bat
+call copy_external_dlls.bat >NUL 2>NUL
 if %ERRORLEVEL% NEQ 0 exit /b 1
 exit /b 0
 
@@ -104,13 +126,9 @@ REM ======================================================================
 REM ======================================================================
 REM Make gsoap stubs, etc.
 REM ======================================================================
-if not exist ..\Release\NUL mkdir ..\Release
-if exist ..\Release\BuildLogs\NUL (
+if exist ..\Release\BuildLogs\gsoap.build.log (
     echo Removing old gsoap build log
     rm -f ..\Release\BuildLogs\gsoap.build.log
-) else (
-    echo Creating Release log directory
-    mkdir ..\Release\BuildLogs
 )
 echo Building gsoap stubs (see gsoap.build.log for details)
 nmake /NOLOGO /f gsoap.mak >..\Release\BuildLogs\gsoap.build.log 2>&1
