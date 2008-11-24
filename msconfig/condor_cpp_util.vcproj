@@ -43,7 +43,7 @@
 				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="0"
 				AdditionalIncludeDirectories="..\src\condor_tt"
-				PreprocessorDefinitions="WIN32;_DEBUG"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
@@ -3807,6 +3807,14 @@
 			>
 		</File>
 		<File
+			RelativePath="..\src\condor_c++_util\udp_waker.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_c++_util\udp_waker.h"
+			>
+		</File>
+		<File
 			RelativePath="..\src\condor_c++_util\uids.cpp"
 			>
 			<FileConfiguration
@@ -3972,6 +3980,14 @@
 		</File>
 		<File
 			RelativePath="..\src\condor_c++_util\vm_univ_utils.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_c++_util\waker.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\condor_c++_util\waker.h"
 			>
 		</File>
 		<File
