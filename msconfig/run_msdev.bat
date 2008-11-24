@@ -24,7 +24,7 @@ REM Main entry point
 REM ======================================================================
 REM ======================================================================
 
-call :GENRATE_SYSCALL_NUMBERS
+call :GENERATE_SYSCALL_NUMBERS
 if %ERRORLEVEL% NEQ 0 goto :FAIL
 
 REM Build the externals
@@ -78,7 +78,7 @@ echo *** Visual Studio IDE launch failed ***
 exit /b 1
 
 REM ======================================================================
-:GENRATE_SYSCALL_NUMBERS
+:GENERATE_SYSCALL_NUMBERS
 REM ======================================================================
 REM Although we have it as a rule in the .dsp files, somehow our prebuild 
 REM rule for syscall_numbers.h gets lost into the translation to .mak files, 

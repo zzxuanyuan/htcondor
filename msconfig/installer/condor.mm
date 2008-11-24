@@ -58,7 +58,7 @@
 <$Property "AC" VALUE="N">
 <$Property "USEVMUNIVERSE" VALUE="N">
 <$Property "VMVERSION" VALUE="server1.0">
-<$Property "VMMEMORY" VALUE="128">
+<$Property "VMMEMORY" VALUE="256">
 <$Property "VMMAXNUMBER" VALUE="$(NUM_CPUS)">
 <$Property "VMNETWORKING" VALUE="N">
 
@@ -66,8 +66,9 @@
 ;--- Persistent values -----------------------------------------------------
 ;---------------------------------------------------------------------------
 
+;--- We need to persist the INSTALLDIR with no trailing slash so that the
+;--- unistaller will not choke and fail
 <$PersistMe "INSTALLDIR_NTS" VALUE="">
-
 
 ;--- Choke if we are not running on Windows 2000 and beyond ----------------
 #(
