@@ -48,7 +48,7 @@ call :DETERMINE_CONFIGRATION
 if %ERRORLEVEL% NEQ 0 goto :FAIL
 
 REM Put our config.h file in the right place
-call make_config.bat
+call configure.bat
 if %ERRORLEVEL% NEQ 0 goto :CONFIG_FAIL
 
 REM Make gsoap stubs, etc.

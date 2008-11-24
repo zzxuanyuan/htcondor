@@ -28,7 +28,15 @@
 #define HAVE_JOB_HOOKS 1 
 #define HAVE_EXT_GSOAP 1
 #define HAVE_EXT_OPENSSL 1
+#define WITH_OPENSSL 1
 #define WANT_QUILL 1
 #define HAVE_EXT_KRB5 1
+
+/* Disable all the new secure features of VS2008 */
+#define _CRT_SECURE_NO_DEPRECATE 1
+#define _CRT_SECURE_NO_WARNINGS 1
+#define _CRT_NONSTDC_NO_WARNINGS 1
+#define _CRT_NON_CONFORMING_SWPRINTFS 1
+// #define _CONST_RETURN 1
 
 #endif /* _WINDOWS_CONFIG_H_ */
