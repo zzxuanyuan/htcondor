@@ -1,14 +1,50 @@
-@echo off
-setlocal
-if exist %1 goto process1
+@echo off & setlocal
+REM ======================================================================
+REM 
+REM  Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+REM  University of Wisconsin-Madison, WI.
+REM  
+REM  Licensed under the Apache License, Version 2.0 (the "License"); you
+REM  may not use this file except in compliance with the License.  You may
+REM  obtain a copy of the License at
+REM  
+REM     http://www.apache.org/licenses/LICENSE-2.0
+REM  
+REM  Unless required by applicable law or agreed to in writing, software
+REM  distributed under the License is distributed on an "AS IS" BASIS,
+REM  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+REM  See the License for the specific language governing permissions and
+REM  limitations under the License.
+REM 
+REM ======================================================================
+
+REM ======================================================================
+REM ======================================================================
+REM Main entry point
+REM ======================================================================
+REM ======================================================================
+
+REM We want to be able to make the release exit with an exit code instead
+REM of setting ERRORLEVEL, if, say, we're calling the bat file from Perl,
+REM which doesn't understand ERRORLEVEL.
+set INTERACTIVE=/b
+if "%1" == "/exit" ( 
+    set INTERACTIVE=
+    shift
+)
+
+REM Check if the output directory exists
+if exist %1 goto continue1
 echo Error - directory %1 does not exist
-echo Usage: dorelease.bat path_to_release_subdirectory
+echo Usage: dorelease.bat "<release_path>"
 goto end
-:process1
-if exist ..\Release goto process2
+:continue1
+REM Check if the build exists
+if exist ..\Release goto continue2
 echo Compile a Release Build of Condor first.
 goto end
-:process2
+:continue2
+
 REM Set up environment
 call set_vars.bat
 
@@ -93,5 +129,6 @@ echo. & echo Copying DRMAA files...
 copy %EXT_INSTALL%\%EXT_DRMAA_VERSION%\include\* %1\include
 copy %EXT_INSTALL%\%EXT_DRMAA_VERSION%\lib\* %1\lib
 copy %EXT_INSTALL%\%EXT_DRMAA_VERSION%\src\* %1\src\drmaa
-popd
+
 :end
+exit %INTERACTIVE% 0
