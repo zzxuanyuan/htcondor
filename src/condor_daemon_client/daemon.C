@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -73,7 +73,7 @@ Daemon::common_init() {
 }
 
 
-Daemon::Daemon( daemon_t tType, const char* tName, const char* tPool ) 
+Daemon::Daemon( daemon_t tType, const char* tName, const char* tPool )
 {
 		// We are no longer allowed to create a "default" collector
 		// since there can be more than one
@@ -97,15 +97,15 @@ Daemon::Daemon( daemon_t tType, const char* tName, const char* tPool )
 		} else {
 			_name = strnewp( tName );
 		}
-	} 
-	dprintf( D_HOSTNAME, "New Daemon obj (%s) name: \"%s\", pool: "  
-			 "\"%s\", addr: \"%s\"\n", daemonString(_type), 
+	}
+	dprintf( D_HOSTNAME, "New Daemon obj (%s) name: \"%s\", pool: "
+			 "\"%s\", addr: \"%s\"\n", daemonString(_type),
 			 _name ? _name : "NULL", _pool ? _pool : "NULL",
 			 _addr ? _addr : "NULL" );
 }
 
 
-Daemon::Daemon( const ClassAd* tAd, daemon_t tType, const char* tPool ) 
+Daemon::Daemon( const ClassAd* tAd, daemon_t tType, const char* tPool )
 {
 	if( ! tAd ) {
 		EXCEPT( "Daemon constructor called with NULL ClassAd!" );
@@ -138,12 +138,12 @@ Daemon::Daemon( const ClassAd* tAd, daemon_t tType, const char* tPool )
 	getInfoFromAd( tAd );
 
 	dprintf( D_HOSTNAME, "New Daemon obj (%s) name: \"%s\", pool: "
-			 "\"%s\", addr: \"%s\"\n", daemonString(_type), 
+			 "\"%s\", addr: \"%s\"\n", daemonString(_type),
 			 _name ? _name : "NULL", _pool ? _pool : "NULL",
 			 _addr ? _addr : "NULL" );
 
 	// let's have our own copy of the daemon's ad in this case.
-	m_daemon_ad_ptr = new ClassAd(*tAd);	
+	m_daemon_ad_ptr = new ClassAd(*tAd);
 
 }
 
@@ -156,7 +156,7 @@ Daemon::Daemon( const Daemon &copy ): ClassyCountedPtr()
 	deepCopy( copy );
 }
 
- 
+
 Daemon&
 Daemon::operator=(const Daemon &copy)
 {
@@ -185,7 +185,7 @@ Daemon::deepCopy( const Daemon &copy )
 	if( copy._error ) {
 		newError( copy._error_code, copy._error );
 	} else {
-		if( _error ) { 
+		if( _error ) {
 			delete [] _error;
 			_error = NULL;
 		}
@@ -228,7 +228,7 @@ Daemon::deepCopy( const Daemon &copy )
 }
 
 
-Daemon::~Daemon() 
+Daemon::~Daemon()
 {
 	if( DebugFlags & D_HOSTNAME ) {
 		dprintf( D_HOSTNAME, "Destroying Daemon object:\n" );
@@ -368,37 +368,37 @@ Daemon::idStr( void )
 }
 
 void
-Daemon::display( int debugflag ) 
+Daemon::display( int debugflag )
 {
-	dprintf( debugflag, "Type: %d (%s), Name: %s, Addr: %s\n", 
-			 (int)_type, daemonString(_type), 
-			 _name ? _name : "(null)", 
+	dprintf( debugflag, "Type: %d (%s), Name: %s, Addr: %s\n",
+			 (int)_type, daemonString(_type),
+			 _name ? _name : "(null)",
 			 _addr ? _addr : "(null)" );
-	dprintf( debugflag, "FullHost: %s, Host: %s, Pool: %s, Port: %d\n", 
+	dprintf( debugflag, "FullHost: %s, Host: %s, Pool: %s, Port: %d\n",
 			 _full_hostname ? _full_hostname : "(null)",
-			 _hostname ? _hostname : "(null)", 
+			 _hostname ? _hostname : "(null)",
 			 _pool ? _pool : "(null)", _port );
-	dprintf( debugflag, "IsLocal: %s, IdStr: %s, Error: %s\n", 
+	dprintf( debugflag, "IsLocal: %s, IdStr: %s, Error: %s\n",
 			 _is_local ? "Y" : "N",
-			 _id_str ? _id_str : "(null)", 
+			 _id_str ? _id_str : "(null)",
 			 _error ? _error : "(null)" );
 }
 
 
 void
-Daemon::display( FILE* fp ) 
+Daemon::display( FILE* fp )
 {
-	fprintf( fp, "Type: %d (%s), Name: %s, Addr: %s\n", 
-			 (int)_type, daemonString(_type), 
-			 _name ? _name : "(null)", 
+	fprintf( fp, "Type: %d (%s), Name: %s, Addr: %s\n",
+			 (int)_type, daemonString(_type),
+			 _name ? _name : "(null)",
 			 _addr ? _addr : "(null)" );
-	fprintf( fp, "FullHost: %s, Host: %s, Pool: %s, Port: %d\n", 
+	fprintf( fp, "FullHost: %s, Host: %s, Pool: %s, Port: %d\n",
 			 _full_hostname ? _full_hostname : "(null)",
-			 _hostname ? _hostname : "(null)", 
+			 _hostname ? _hostname : "(null)",
 			 _pool ? _pool : "(null)", _port );
-	fprintf( fp, "IsLocal: %s, IdStr: %s, Error: %s\n", 
+	fprintf( fp, "IsLocal: %s, IdStr: %s, Error: %s\n",
 			 _is_local ? "Y" : "N",
-			 _id_str ? _id_str : "(null)", 
+			 _id_str ? _id_str : "(null)",
 			 _error ? _error : "(null)" );
 }
 
@@ -620,13 +620,13 @@ Daemon::startCommand( int cmd, Sock* sock, int timeout, CondorError *errstack )
 bool
 Daemon::sendCommand( int cmd, Sock* sock, int sec, CondorError* errstack )
 {
-	
+
 	if( ! startCommand( cmd, sock, sec, errstack )) {
 		return false;
 	}
 	if( ! sock->eom() ) {
 		char err_buf[256];
-		sprintf( err_buf, "Can't send eom for %d to %s", cmd,  
+		sprintf( err_buf, "Can't send eom for %d to %s", cmd,
 				 idStr() );
 		newError( CA_COMMUNICATION_ERROR, err_buf );
 		return false;
@@ -644,7 +644,7 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec, CondorError* errs
 	}
 	if( ! tmp->eom() ) {
 		char err_buf[256];
-		sprintf( err_buf, "Can't send eom for %d to %s", cmd,  
+		sprintf( err_buf, "Can't send eom for %d to %s", cmd,
 				 idStr() );
 		newError( CA_COMMUNICATION_ERROR, err_buf );
 		delete tmp;
@@ -670,7 +670,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 {
 	if( !req ) {
 		newError( CA_INVALID_REQUEST,
-				  "sendCACmd() called with no request ClassAd" ); 
+				  "sendCACmd() called with no request ClassAd" );
 		return false;
 	}
 	if( !reply ) {
@@ -687,7 +687,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 			// this already deals w/ _error for us...
 		return false;
 	}
-	
+
 	req->SetMyTypeName( COMMAND_ADTYPE );
 	req->SetTargetTypeName( REPLY_ADTYPE );
 
@@ -738,7 +738,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 		cmd_sock->timeout( timeout );
 	}
 
-	if( ! req->put(*cmd_sock) ) { 
+	if( ! req->put(*cmd_sock) ) {
 		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send request ClassAd" );
 		return false;
@@ -770,15 +770,15 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 		return false;
 	}
 	CAResult result = getCAResultNum( result_str );
-	if( result == CA_SUCCESS ) { 
+	if( result == CA_SUCCESS ) {
 			// we recognized it and it's good, just return.
 		free( result_str );
-		return true;		
+		return true;
 	}
 
 		// Either we don't recognize the result, or it's some known
 		// failure.  Either way, look for the error string if there is
-		// one, and set it. 
+		// one, and set it.
 	char* err = NULL;
 	if( ! reply->LookupString(ATTR_ERROR_STRING, &err) ) {
 		if( ! result ) {
@@ -800,7 +800,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 		return false;
 	}
 	if( result ) {
-			// We recognized the error result code, so use that. 
+			// We recognized the error result code, so use that.
 		newError( result, err );
 	} else {
 			// The only way this is possible is if the reply is using
@@ -809,7 +809,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 			// we're not prepared to handle.  The caller can further
 			// interpret the reply classad if they know how...
 		newError( CA_INVALID_REPLY, err );
-	}			  
+	}
 	free( err );
 	free( result_str );
 	return false;
@@ -842,7 +842,7 @@ Daemon::locate( void )
 		// have to.  What we do is mostly different between regular
 		// daemons and CM daemons.  These must set: _addr, _port, and
 		// _is_local.  If possible, they will also set _full_hostname
-		// and _name. 
+		// and _name.
 	switch( _type ) {
 	case DT_ANY:
 		// don't do anything
@@ -867,13 +867,13 @@ Daemon::locate( void )
 		if( !_pool && (tmp = getCmHostFromConfig( "NEGOTIATOR" )) ) {
 				// if NEGOTIATOR_HOST (or equiv) is in the config
 				// file, we have to use the old getCmInfo() code to
-				// honor what it says... 
+				// honor what it says...
 			rval = getCmInfo( "NEGOTIATOR" );
 			free( tmp );
 			tmp = NULL;
 		} else {
 				// cool, no NEGOTIATOR_HOST, we can treat it just like
-				// any other daemon 
+				// any other daemon
 			rval = getDaemonInfo ( "NEGOTIATOR", NEGOTIATOR_AD );
 		}
 		break;
@@ -890,10 +890,10 @@ Daemon::locate( void )
 		if( (rval = getCmInfo("CONDOR_VIEW")) ) {
 				// If we found it, we're done.
 			break;
-		} 
+		}
 			// If there's nothing CONDOR_VIEW-specific, try just using
 			// "COLLECTOR".
-		rval = getCmInfo( "COLLECTOR" ); 
+		rval = getCmInfo( "COLLECTOR" );
 		break;
 	case DT_QUILL:
 		rval = getDaemonInfo( "QUILL", SCHEDD_AD );
@@ -925,12 +925,18 @@ Daemon::locate( void )
 	}
 
 		// Now that we're done with the get*Info() code, if we're a
-		// local daemon and we still don't have a name, fill it in.  
+		// local daemon and we still don't have a name, fill it in.
 	if( ! _name && _is_local) {
 		_name = localName();
 	}
 
 	return true;
+}
+
+bool
+Daemon::invalidateHost(const char *sin)
+{
+	return _sec_man.invalidateHost(sin);
 }
 
 
@@ -961,7 +967,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		if ( specified_host ) {
 				// Found an entry.  Use this name.
 			_name = strnewp( specified_host );
-			dprintf( D_HOSTNAME, 
+			dprintf( D_HOSTNAME,
 					 "No name given, but %s defined to \"%s\"\n",
 					 buf.Value(), specified_host );
 			free(specified_host);
@@ -986,7 +992,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		// be used directly.  Further name resolution is not necessary.
 	if( nameHasPort ) {
 		struct in_addr sin_addr;
-		
+
 		dprintf( D_HOSTNAME, "Port %d specified in name\n", _port );
 
 		if( is_ipaddr(host, &sin_addr) ) {
@@ -1045,14 +1051,14 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		dprintf( D_HOSTNAME, "Using \"%s\" for name in Daemon object\n",
 				 tmp );
 			// now, grab the fullhost from the name we just made...
-		tmp = strnewp( get_host_part(_name) ); 
+		tmp = strnewp( get_host_part(_name) );
 		dprintf( D_HOSTNAME,
 				 "Using \"%s\" for full hostname in Daemon object\n", tmp );
 		New_full_hostname( tmp );
 		tmp = NULL;
 
 			// Now that we got this far and have the correct name, see
-			// if that matches the name for the local daemon.  
+			// if that matches the name for the local daemon.
 			// If we were given a pool, never assume we're local --
 			// always try to query that pool...
 		if( _pool ) {
@@ -1060,7 +1066,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 					 "forcing collector query\n" );
 		} else {
 			my_name = localName();
-			dprintf( D_HOSTNAME, "Local daemon name would be \"%s\"\n", 
+			dprintf( D_HOSTNAME, "Local daemon name would be \"%s\"\n",
 					 my_name );
 			if( !strcmp(_name, my_name) ) {
 				dprintf( D_HOSTNAME, "Name \"%s\" matches local name and "
@@ -1073,13 +1079,13 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 	} else if ( _type != DT_NEGOTIATOR ) {
 			// We were passed neither a name nor an address, so use
 			// the local daemon, unless we're NEGOTIATOR, in which case
-			// we'll still query the collector even if we don't have the 
+			// we'll still query the collector even if we don't have the
             // name
 		_is_local = true;
 		New_name( localName() );
 		New_full_hostname( strnewp(my_full_hostname()) );
 		dprintf( D_HOSTNAME, "Neither name nor addr specified, using local "
-				 "values - name: \"%s\", full host: \"%s\"\n", 
+				 "values - name: \"%s\", full host: \"%s\"\n",
 				 _name, _full_hostname );
 	}
 
@@ -1104,7 +1110,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		ClassAd*			scan;
 		ClassAdList			ads;
 
-		if( _type == DT_STARTD && ! strchr(_name, '@') ) { 
+		if( _type == DT_STARTD && ! strchr(_name, '@') ) {
 				/*
 				  So long as an SMP startd has only 1 command socket
 				  per startd, we want to take advantage of that and
@@ -1113,7 +1119,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 				  still find the daemon.  For example, "condor_vacate
 				  host" will vacate all slots on that host, but only if
 				  condor_vacate can find the address in the first
-				  place.  -Derek Wright 8/19/99 
+				  place.  -Derek Wright 8/19/99
 
 				  HOWEVER, we only want to query based on ATTR_MACHINE
 				  if the name we were given doesn't include an '@'
@@ -1125,17 +1131,17 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 				  machine all reporting to the same collector.
 				  -Derek Wright 2005-03-09
 				*/
-			buf.sprintf( "%s == \"%s\"", ATTR_MACHINE, _full_hostname ); 
+			buf.sprintf( "%s == \"%s\"", ATTR_MACHINE, _full_hostname );
 			query.addANDConstraint( buf.Value() );
 		} else if ( _name ) {
-			buf.sprintf( "%s == \"%s\"", ATTR_NAME, _name ); 
+			buf.sprintf( "%s == \"%s\"", ATTR_NAME, _name );
 			query.addANDConstraint( buf.Value() );
 		} else {
 			if ( _type != DT_NEGOTIATOR ) {
 					// If we're not querying for negotiator
 					//    (which there's only one of)
 					// and we don't have the name
-					// then how will we possibly know which 
+					// then how will we possibly know which
 					// result to pick??
 				return false;
 			}
@@ -1156,10 +1162,10 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		if(!scan) {
 			dprintf( D_ALWAYS, "Can't find address for %s %s\n",
 					 daemonString(_type), _name ? _name : "" );
-			buf.sprintf( "Can't find address for %s %s", 
+			buf.sprintf( "Can't find address for %s %s",
 						 daemonString(_type), _name ? _name : "" );
 			newError( CA_LOCATE_FAILED, buf.Value() );
-			return false; 
+			return false;
 		}
 
 		if ( ! getInfoFromAd( scan ) ) {
@@ -1170,7 +1176,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 			// have located the daemon and have a copy of its ad, but just
 			// in case, don't stash another copy of it if we can't find it.
 			// I hope this is a deep copy wiht no chaining bullshit
-			m_daemon_ad_ptr = new ClassAd(*scan);	
+			m_daemon_ad_ptr = new ClassAd(*scan);
 		}
 			// The version and platfrom aren't critical, so don't
 			// return failure if we can't find them...
@@ -1178,7 +1184,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		initStringFromAd( scan, ATTR_PLATFORM, &_platform );
 	}
 
-		// Now that we have the sinful string, fill in the port. 
+		// Now that we have the sinful string, fill in the port.
 	_port = string_to_port( _addr );
 	dprintf( D_HOSTNAME, "Using port %d based on address \"%s\"\n",
 			 _port, _addr );
@@ -1213,11 +1219,11 @@ Daemon::getCmInfo( const char* subsys )
 		// just not sure which config parameter is going to find it
 		// for us).  So, by default, we want _is_local set to true,
 		// and only if either _name or _pool are set do we change
-		// _is_local to false.  
+		// _is_local to false.
 	_is_local = true;
 
 		// For CM daemons, the "pool" and "name" should be the same
-		// thing.  See if either is set, and if so, use it for both.  
+		// thing.  See if either is set, and if so, use it for both.
 	if( _name && ! _pool ) {
 		New_pool( strnewp(_name) );
 	} else if ( ! _name && _pool ) {
@@ -1261,15 +1267,15 @@ Daemon::getCmInfo( const char* subsys )
 
 	if( ! host || !host[0]) {
 		buf.sprintf("%s address or hostname not specified in config file",
-				 subsys ); 
+				 subsys );
 		newError( CA_LOCATE_FAILED, buf.Value() );
 		_is_configured = false;
 		if( host ) free( host );
 
 		return false;
-	} 
+	}
 
-	dprintf( D_HOSTNAME, "Using name \"%s\" to find daemon\n", host ); 
+	dprintf( D_HOSTNAME, "Using name \"%s\" to find daemon\n", host );
 
 		// See if it's already got a port specified in it, or if we
 		// should use the default port for this kind of daemon.
@@ -1277,7 +1283,7 @@ Daemon::getCmInfo( const char* subsys )
 	if( _port < 0 ) {
 		_port = getDefaultPort();
 		dprintf( D_HOSTNAME, "Port not specified, using default (%d)\n",
-				 _port ); 
+				 _port );
 	} else {
 		dprintf( D_HOSTNAME, "Port %d specified in name\n", _port );
 	}
@@ -1314,7 +1320,7 @@ Daemon::getCmInfo( const char* subsys )
 
 	if ( !host ) {
 		buf.sprintf( "%s address or hostname not specified in config file",
-				 subsys ); 
+				 subsys );
 		newError( CA_LOCATE_FAILED, buf.Value() );
 		_is_configured = false;
 		return false;
@@ -1349,7 +1355,7 @@ Daemon::getCmInfo( const char* subsys )
 		New_full_hostname( tmp );
 	}
 
-		// If the pool was set, we want to use _name for that, too. 
+		// If the pool was set, we want to use _name for that, too.
 	if( _pool ) {
 		New_pool( strnewp(_name) );
 	}
@@ -1395,8 +1401,8 @@ Daemon::initHostname( void )
 	struct sockaddr_in sockaddr;
 	struct hostent* hostp;
 	string_to_sin( _addr, &sockaddr );
-	hostp = condor_gethostbyaddr( (char*)&sockaddr.sin_addr, 
-						   sizeof(struct in_addr), AF_INET ); 
+	hostp = condor_gethostbyaddr( (char*)&sockaddr.sin_addr,
+						   sizeof(struct in_addr), AF_INET );
 	if( ! hostp ) {
 		New_hostname( NULL );
 		New_full_hostname( NULL );
@@ -1436,7 +1442,7 @@ Daemon::initHostnameFromFull( void )
 		}
 		New_hostname( strnewp(copy) );
 		delete [] copy;
-		return true; 
+		return true;
 	}
 	return false;
 }
@@ -1466,7 +1472,7 @@ Daemon::initVersion( void )
 
 		// If we didn't find the version string via locate(), and
 		// we're a local daemon, try to ident the daemon's binary
-		// directly. 
+		// directly.
 	if( ! _version && _is_local ) {
 		dprintf( D_HOSTNAME, "No version string in local address file, "
 				 "trying to find it in the daemon's binary\n" );
@@ -1482,7 +1488,7 @@ Daemon::initVersion( void )
 			return true;
 		} else {
 			dprintf( D_HOSTNAME, "%s not defined in config file, "
-					 "can't locate daemon binary for version info\n", 
+					 "can't locate daemon binary for version info\n",
 					 _subsys );
 			return false;
 		}
@@ -1650,7 +1656,7 @@ Daemon::readLocalClassAd( const char* subsys )
 		m_daemon_ad_ptr = new ClassAd(*adFromFile);
 	}
 	counted_ptr<ClassAd> smart_ad_ptr(adFromFile);
-	
+
 	fclose(addr_fp);
 
 	if(errorReadingAd) {
@@ -1661,7 +1667,7 @@ Daemon::readLocalClassAd( const char* subsys )
 }
 
 
-bool 
+bool
 Daemon::getInfoFromAd( const ClassAd* ad )
 {
 	MyString buf = "";
@@ -1804,7 +1810,7 @@ Daemon::New_full_hostname( char* str )
 {
 	if( _full_hostname ) {
 		delete [] _full_hostname;
-	} 
+	}
 	_full_hostname = str;
 	return str;
 }
@@ -1815,7 +1821,7 @@ Daemon::New_hostname( char* str )
 {
 	if( _hostname ) {
 		delete [] _hostname;
-	} 
+	}
 	_hostname = str;
 	return str;
 }
@@ -1826,7 +1832,7 @@ Daemon::New_addr( char* str )
 {
 	if( _addr ) {
 		delete [] _addr;
-	} 
+	}
 	_addr = str;
 	return str;
 }
@@ -1836,7 +1842,7 @@ Daemon::New_version ( char* ver )
 {
 	if( _version ) {
 		delete [] _version;
-	} 
+	}
 	_version = ver;
 	return ver;
 }
@@ -1846,7 +1852,7 @@ Daemon::New_platform ( char* plat )
 {
 	if( _platform ) {
 		delete [] _platform;
-	} 
+	}
 	_platform = plat;
 	return plat;
 }
@@ -1857,7 +1863,7 @@ Daemon::New_name( char* str )
 {
 	if( _name ) {
 		delete [] _name;
-	} 
+	}
 	_name = str;
 	return str;
 }
@@ -1868,7 +1874,7 @@ Daemon::New_pool( char* str )
 {
 	if( _pool ) {
 		delete [] _pool;
-	} 
+	}
 	_pool = str;
 	return str;
 }
@@ -1933,7 +1939,7 @@ Daemon::forceAuthentication( ReliSock* rsock, CondorError* errstack )
 void
 Daemon::setCmdStr( const char* cmd )
 {
-	if( _cmd_str ) { 
+	if( _cmd_str ) {
 		delete [] _cmd_str;
 		_cmd_str = NULL;
 	}
@@ -1945,17 +1951,17 @@ Daemon::setCmdStr( const char* cmd )
 
 char*
 getCmHostFromConfig( const char * subsys )
-{ 
+{
 	MyString buf;
 	char* host = NULL;
 
-		// Try the config file for a subsys-specific hostname 
+		// Try the config file for a subsys-specific hostname
 	buf.sprintf( "%s_HOST", subsys );
 	host = param( buf.Value() );
 	if( host ) {
 		if( host[0] ) {
-			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), 
-					 host ); 
+			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(),
+					 host );
 			if(host[0] == ':') {
 				dprintf( D_ALWAYS, "Warning: Configuration file sets '%s=%s'.  This does not look like a valid host name with optional port.\n", buf.Value(), host);
 			}
@@ -1965,7 +1971,7 @@ getCmHostFromConfig( const char * subsys )
 		}
 	}
 
-		// Try the config file for a subsys-specific IP addr 
+		// Try the config file for a subsys-specific IP addr
 	buf.sprintf ("%s_IP_ADDR", subsys );
 	host = param( buf.Value() );
 	if( host ) {
@@ -1977,12 +1983,12 @@ getCmHostFromConfig( const char * subsys )
 		}
 	}
 
-		// settings should take precedence over this). 
+		// settings should take precedence over this).
 	host = param( "CM_IP_ADDR" );
 	if( host ) {
 		if(  host[0] ) {
-			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), 
-					 host ); 
+			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(),
+					 host );
 			return host;
 		} else {
 			free( host );
@@ -1992,13 +1998,13 @@ getCmHostFromConfig( const char * subsys )
 }
 
 /**
- * Contact another daemon and initiate the time offset range 
+ * Contact another daemon and initiate the time offset range
  * determination logic. We create a socket connection, pass the
  * DC_TIME_OFFSET command then pass the Stream to the cedar stub
  * code for time offset. If this method returns false, then
  * that means we were not able to coordinate our communications
  * with the remote daemon
- * 
+ *
  * @param offset - the reference placeholder for the range
  * @return true if it was able to contact the other Daemon
  **/
@@ -2025,9 +2031,9 @@ Daemon::getTimeOffset( long &offset )
 		// Next send our command to prepare for the call out to the
 		// remote daemon
 		//
-	if( ! this->startCommand( DC_TIME_OFFSET, (Sock*)&reli_sock ) ) { 
+	if( ! this->startCommand( DC_TIME_OFFSET, (Sock*)&reli_sock ) ) {
 		dprintf( D_FULLDEBUG, "Daemon::getTimeOffset() failed to send "
-		     				  "command to remote daemon at '%s'\n", 
+		     				  "command to remote daemon at '%s'\n",
 		     				  this->_addr );
 		return ( false );
 	}
@@ -2039,14 +2045,14 @@ Daemon::getTimeOffset( long &offset )
 }
 
 /**
- * Contact another daemon and initiate the time offset range 
+ * Contact another daemon and initiate the time offset range
  * determination logic. We create a socket connection, pass the
  * DC_TIME_OFFSET command then pass the Stream to the cedar stub
  * code for time offset. The min/max range value placeholders
  * are passed in by reference. If this method returns false, then
  * that means for some reason we could not get the range and the
  * range values will default to a known value.
- * 
+ *
  * @param min_range - the minimum range value for the time offset
  * @param max_range - the maximum range value for the time offset
  * @return true if it was able to contact the other Daemon
@@ -2074,9 +2080,9 @@ Daemon::getTimeOffsetRange( long &min_range, long &max_range )
 		// Next send our command to prepare for the call out to the
 		// remote daemon
 		//
-	if( ! this->startCommand( DC_TIME_OFFSET, (Sock*)&reli_sock ) ) { 
+	if( ! this->startCommand( DC_TIME_OFFSET, (Sock*)&reli_sock ) ) {
 		dprintf( D_FULLDEBUG, "Daemon::getTimeOffsetRange() failed to send "
-		     				  "command to remote daemon at '%s'\n", 
+		     				  "command to remote daemon at '%s'\n",
 		     				  this->_addr );
 		return ( false );
 	}

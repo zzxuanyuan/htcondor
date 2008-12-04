@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,7 +17,7 @@
  *
  ***************************************************************/
 
- 
+
 
 #include "condor_common.h"
 #include "condor_config.h"
@@ -102,8 +102,8 @@ static unsigned int hashFunction( const MyString& );
 #include "file_sql.h"
 
 HashTable<AttrKey,MyString> forcedAttributes( 64, AttrKeyHashFunction );
-HashTable<MyString,int> CheckFilesRead( 577, hashFunction ); 
-HashTable<MyString,int> CheckFilesWrite( 577, hashFunction ); 
+HashTable<MyString,int> CheckFilesRead( 577, hashFunction );
+HashTable<MyString,int> CheckFilesWrite( 577, hashFunction );
 HashTable<MyString,int> ClusterAdAttrs( 31, hashFunction );
 
 // Explicit template instantiation
@@ -325,8 +325,8 @@ char	*JavaVMArgs = "java_vm_args";
 char	*JavaVMArguments1 = "java_vm_arguments";
 char	*JavaVMArguments2 = "java_vm_arguments2";
 
-char    *ParallelScriptShadow  = "parallel_script_shadow";  
-char    *ParallelScriptStarter = "parallel_script_starter"; 
+char    *ParallelScriptShadow  = "parallel_script_shadow";
+char    *ParallelScriptStarter = "parallel_script_starter";
 
 char    *MaxJobRetirementTime = "max_job_retirement_time";
 
@@ -506,7 +506,7 @@ int JobAdsArrayLen = 0;
 template class ExtArray<SubmitRec>;
 template class ExtArray<ClassAd*>;
 
-MyString 
+MyString
 condor_param_mystring( const char * name, const char * alt_name )
 {
 	char * result = condor_param(name, alt_name);
@@ -550,7 +550,7 @@ void TestFilePermissions( char *scheddAddr = NULL )
 	//    need for condor to waste time finding out if SYSTEM can
 	//    write to some path. The one exception is if the user
 	//    submits from AFS, but we're documenting that as unsupported.
-	
+
 #else
 	gid_t gid = getgid();
 	uid_t uid = getuid();
@@ -563,7 +563,7 @@ void TestFilePermissions( char *scheddAddr = NULL )
 	{
 		result = attempt_access((char *)name.Value(), ACCESS_READ, uid, gid, scheddAddr);
 		if( result == FALSE ) {
-			fprintf(stderr, "\nWARNING: File %s is not readable by condor.\n", 
+			fprintf(stderr, "\nWARNING: File %s is not readable by condor.\n",
 					name.Value());
 		}
 	}
@@ -629,13 +629,13 @@ init_job_ad()
 		}
 	}
 	if ( ok ) {
-		buffer.sprintf( "%s = %u", ATTR_WINDOWS_MAJOR_VERSION, 
+		buffer.sprintf( "%s = %u", ATTR_WINDOWS_MAJOR_VERSION,
 			os_version_info.dwMajorVersion );
 		InsertJobExpr ( buffer );
-		buffer.sprintf( "%s = %u", ATTR_WINDOWS_MINOR_VERSION, 
+		buffer.sprintf( "%s = %u", ATTR_WINDOWS_MINOR_VERSION,
 			os_version_info.dwMinorVersion );
 		InsertJobExpr ( buffer );
-		buffer.sprintf( "%s = %u", ATTR_WINDOWS_BUILD_NUMBER, 
+		buffer.sprintf( "%s = %u", ATTR_WINDOWS_BUILD_NUMBER,
 			os_version_info.dwBuildNumber );
 		InsertJobExpr ( buffer );
 		// publish the extended Windows version information if we
@@ -852,8 +852,8 @@ main( int argc, char *argv[] )
 				string_to_stm(method, STMethod);
 			} else if ( match_prefix( ptr[0], "-unused" ) ) {
 				WarnOnUnusedMacros = WarnOnUnusedMacros == 1 ? 0 : 1;
-				// TOGGLE? 
-				// -- why not? if you set it to warn on unused macros in the 
+				// TOGGLE?
+				// -- why not? if you set it to warn on unused macros in the
 				// config file, there should be a way to turn it off
 			} else if ( match_prefix( ptr[0], "-dump" ) ) {
 				if( !(--argc) || !(*(++ptr)) ) {
@@ -864,10 +864,10 @@ main( int argc, char *argv[] )
 				DumpFileName = *ptr;
 				DumpClassAdToFile = true;
 #if defined ( WIN32 )
-				// we don't really want to do this because there is no real 
+				// we don't really want to do this because there is no real
 				// schedd to query the credentials from...
 				query_credential = false;
-#endif				
+#endif
 			} else if ( match_prefix( ptr[0], "-help" ) ) {
 				usage();
 				exit( 0 );
@@ -882,7 +882,7 @@ main( int argc, char *argv[] )
 
 	// ensure I have a known transfer method
 	if (STMethod == STM_UNKNOWN) {
-		fprintf( stderr, 
+		fprintf( stderr,
 			"%s: Unknown sandbox transfer method: %s\n", MyName, method.Value());
 		usage();
 		exit(1);
@@ -891,7 +891,7 @@ main( int argc, char *argv[] )
 	// we only want communication with the schedd to take place... because
 	// that's the only type of communication we are interested in
 	if ( DumpClassAdToFile && STMethod != STM_USE_SCHEDD_ONLY ) {
-		fprintf( stderr, 
+		fprintf( stderr,
 			"%s: Dumping ClassAds to a file is not compatible with sandbox "
 			"transfer method: %s\n", MyName, method.Value());
 		usage();
@@ -917,7 +917,7 @@ main( int argc, char *argv[] )
 	// we don't want a schedd instance if we are dumping to a file
 	if ( !DumpClassAdToFile ) {
 		// Instantiate our DCSchedd so we can locate and communicate
-		// with our schedd.  
+		// with our schedd.
 		MySchedd = new DCSchedd( ScheddName, PoolName );
 		if( ! MySchedd->locate() ) {
 			if( ScheddName ) {
@@ -972,7 +972,7 @@ main( int argc, char *argv[] )
 		}
 	}
 #endif
-	
+
 	// open submit file
 	if ( !cmd_file ) {
 		// no file specified, read from stdin
@@ -989,7 +989,7 @@ main( int argc, char *argv[] )
 	_EXCEPT_Cleanup = DoCleanup;
 
 	IsFirstExecutable = true;
-	init_job_ad();	
+	init_job_ad();
 
 	if ( !DumpClassAdToFile ) {
 		if (Quiet) {
@@ -1068,13 +1068,13 @@ main( int argc, char *argv[] )
 		}
 	}
 
-	ActiveQueueConnection = FALSE; 
+	ActiveQueueConnection = FALSE;
 
 	if ( !DisableFileChecks ) {
 		TestFilePermissions( MySchedd->addr() );
 	}
 
-	// we don't want to spool jobs if we are simply writing the ClassAds to 
+	// we don't want to spool jobs if we are simply writing the ClassAds to
 	// a file, so we just skip this block entirely if we are doing this...
 	if ( !DumpClassAdToFile ) {
 		if ( Remote && JobAdsArrayLen > 0 ) {
@@ -1105,20 +1105,20 @@ main( int argc, char *argv[] )
 					int invalid;
 					MyString reason;
 
-					result = MySchedd->requestSandboxLocation( FTPD_UPLOAD, 
+					result = MySchedd->requestSandboxLocation( FTPD_UPLOAD,
 												JobAdsArrayLen,
 												JobAdsArray.getarray(), FTP_CFTP,
 												&respad, &errstack );
 					if ( !result ) {
 						fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
-						fprintf( stderr, 
+						fprintf( stderr,
 							"ERROR: Failed to get a sandbox location.\n" );
 						exit(1);
 					}
 
 					respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
 					if (invalid == TRUE) {
-						fprintf( stderr, 
+						fprintf( stderr,
 							"Schedd rejected sand box location request:\n");
 						respad.LookupString(ATTR_TREQ_INVALID_REASON, reason);
 						fprintf( stderr, "\t%s\n", reason.Value());
@@ -1169,7 +1169,7 @@ main( int argc, char *argv[] )
 		delete JobAdsArray[i];
 	}
 
-	/*	print all of the parameters that were not actually expanded/used 
+	/*	print all of the parameters that were not actually expanded/used
 		in the submit file */
 	if (WarnOnUnusedMacros) {
 		if (!Quiet) { fprintf(stdout, "\n"); }
@@ -1181,7 +1181,7 @@ main( int argc, char *argv[] )
 				fprintf(stderr, "WARNING: the line `%s = %s' was unused by condor_submit. Is it a typo?\n", key, val);
 			}
 		}
-		
+
 	}
 
 	return 0;
@@ -1232,7 +1232,7 @@ SetRemoteAttrs()
 		}
 
 		// remote_schedd and remote_pool have remote_ in front of them. :-/
-		// Special case to detect them. 
+		// Special case to detect them.
 		char * possible_key = key - REMOTE_PREFIX_LEN;
 		if(stricmp(possible_key, RemoteSchedd) == 0 ||
 			stricmp(possible_key, RemotePool) == 0) {
@@ -1290,7 +1290,7 @@ SetRemoteAttrs()
 				break;
 			}
 		}
-		
+
 
 
 	}
@@ -1317,7 +1317,7 @@ reschedule()
 
 
 
-/* check_path_length() has been deprecated in favor of 
+/* check_path_length() has been deprecated in favor of
  * check_and_universalize_path(), which not only checks
  * the length of the path string but also, on windows, it
  * takes any network drive paths and converts them to UNC
@@ -1330,7 +1330,7 @@ check_and_universalize_path( MyString &path, const char *lhs )
 	int retval = 0;
 #ifdef WIN32
 	/*
-	 * On Windows, we need to convert all drive letters (mappings) 
+	 * On Windows, we need to convert all drive letters (mappings)
 	 * to their UNC equivalents, and make sure these network devices
 	 * are accessable by the submitting user (not mapped as someone
 	 * else).
@@ -1356,7 +1356,7 @@ check_and_universalize_path( MyString &path, const char *lhs )
 		char *tmp, *net_name;
 
 			// check if the user is the submitting user.
-		
+
 		result = WNetGetUser(volume, netuser, &netuser_size);
 		tmp = my_username();
 		strncpy(my_name, tmp, sizeof(my_name));
@@ -1369,21 +1369,21 @@ check_and_universalize_path( MyString &path, const char *lhs )
 			// it's likely that the same account across different domains
 			// has the same password, and is therefore a valid path for us
 			// to use. It would be nice to check that the passwords truly
-			// are the same on both accounts too, but since that would 
+			// are the same on both accounts too, but since that would
 			// basically involve creating a whole separate mapping just to
 			// test it, the expense is not worth it.
-			
+
 			if (stricmp(my_name, net_name) != 0 ) {
 				fprintf(stderr, "\nERROR: The path '%s' is associated with\n"
 				"\tuser '%s', but you're '%s', so Condor can\n"
 			    "\tnot access it. Currently Condor only supports network\n"
-			    "\tdrives that are associated with the submitting user.\n", 
+			    "\tdrives that are associated with the submitting user.\n",
 					path.Value(), net_name, my_name);
 				DoCleanup(0,0,NULL);
 				exit( 1 );
 			}
 		} else {
-			fprintf(stderr, 
+			fprintf(stderr,
 				"\nERROR: Unable to get name of user associated with \n"
 				"the following network path (err=%d):"
 				"\n\t%s\n", result, path.Value());
@@ -1391,21 +1391,21 @@ check_and_universalize_path( MyString &path, const char *lhs )
 			exit( 1 );
 		}
 
-		result = WNetGetUniversalName(path.Value(), UNIVERSAL_NAME_INFO_LEVEL, 
+		result = WNetGetUniversalName(path.Value(), UNIVERSAL_NAME_INFO_LEVEL,
 			name_info_buf, &name_info_buf_size);
 		if ( result != NO_ERROR ) {
-			fprintf(stderr, 
+			fprintf(stderr,
 				"\nERROR: Unable to get universal name for path (err=%d):"
 				"\n\t%s\n", result, path.Value());
 			DoCleanup(0,0,NULL);
-			exit( 1 );			
+			exit( 1 );
 		} else {
 			uni = (UNIVERSAL_NAME_INFO*)&name_info_buf;
 			path = uni->lpUniversalName;
 			retval = 1; // signal that we changed somthing
 		}
 	}
-	
+
 #endif
 
 	return retval;
@@ -1438,7 +1438,7 @@ SetExecutable()
 		free( macro_value );
 	}
 
-	// In vm universe, 'Executable' parameter is not a real file 
+	// In vm universe, 'Executable' parameter is not a real file
 	// but just the name of job.
 	if ( JobUniverse == CONDOR_UNIVERSE_VM) {
 		if( transfer_it == true ) {
@@ -1466,7 +1466,7 @@ SetExecutable()
 	if ( JobUniverse != CONDOR_UNIVERSE_MPI && JobUniverse != CONDOR_UNIVERSE_PVM ) {
 		InsertJobExpr ("MinHosts = 1");
 		InsertJobExpr ("MaxHosts = 1");
-	} 
+	}
 
 	if ( JobUniverse == CONDOR_UNIVERSE_PARALLEL) {
 		InsertJobExpr ("WantIOProxy = TRUE");
@@ -1474,7 +1474,7 @@ SetExecutable()
 
 	InsertJobExpr ("CurrentHosts = 0");
 
-	switch(JobUniverse) 
+	switch(JobUniverse)
 	{
 	case CONDOR_UNIVERSE_STANDARD:
 		buffer.sprintf( "%s = TRUE", ATTR_WANT_REMOTE_SYSCALLS);
@@ -1527,23 +1527,23 @@ SetExecutable()
 	// generate initial checkpoint file
 	IckptName = gen_ckpt_name(0,ClusterId,ICKPT,0);
 
-	// ensure the executables exist and spool them only if no 
+	// ensure the executables exist and spool them only if no
 	// $$(arch).$$(opsys) are specified
 	if ( !strstr(ename,"$$") && transfer_it ) {
 
 		StatInfo si(ename);
-		if ( SINoFile == si.Error () && 
+		if ( SINoFile == si.Error () &&
 		     CONDOR_UNIVERSE_VM != JobUniverse ) {
-		  fprintf ( stderr, 
+		  fprintf ( stderr,
 			    "\nERROR: Executable file %s does not exist\n",
 			    ename );
 		  DoCleanup ( 0, 0, NULL );
 		  exit ( 1 );
 		}
-			    
+
 		if (!si.Error() && (si.GetFileSize() == 0)) {
 			fprintf( stderr,
-					 "\nERROR: Executable file %s has zero length\n", 
+					 "\nERROR: Executable file %s has zero length\n",
 					 ename );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
@@ -1560,7 +1560,7 @@ SetExecutable()
 
 			if (SendSpoolFileBytes(full_path(ename,false)) < 0) {
 				fprintf( stderr,
-						 "\nERROR: failed to transfer executable file %s\n", 
+						 "\nERROR: failed to transfer executable file %s\n",
 						 ename );
 				DoCleanup(0,0,NULL);
 				exit( 1 );
@@ -1612,7 +1612,7 @@ SetUniverse()
 	};
 
 #if !defined(WIN32)
-	if( univ && stricmp(univ,"pvm") == MATCH ) 
+	if( univ && stricmp(univ,"pvm") == MATCH )
 	{
 		char *pvmd = param("PVMD");
 
@@ -1640,15 +1640,15 @@ SetUniverse()
 
 #endif // !defined(WIN32)
 
-	if( univ && 
+	if( univ &&
 		((stricmp(univ,"globus") == MATCH) || (stricmp(univ,"grid") == MATCH))) {
 		JobUniverse = CONDOR_UNIVERSE_GRID;
-		
+
 		buffer.sprintf( "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GRID);
 		InsertJobExpr (buffer);
 		free(univ);
 		univ = 0;
-	
+
 		// Set Grid_Type
 		// Check both grid_type and grid_resource. If the latter one starts
 		// with '$$(', then we're matchmaking and don't know the grid-type.
@@ -1706,8 +1706,8 @@ SetUniverse()
 				(stricmp (JobGridType, "unicore") == MATCH) ||
 				(stricmp (JobGridType, "oracle") == MATCH) ||
 				(stricmp (JobGridType, "cream") == MATCH)){
-				// We're ok	
-				// Values are case-insensitive for gridmanager, so we don't need to change case			
+				// We're ok
+				// Values are case-insensitive for gridmanager, so we don't need to change case
 			} else if ( stricmp( JobGridType, "globus" ) == MATCH ) {
 				// Convert 'globus' to 'gt2'
 				free( JobGridType );
@@ -1718,11 +1718,11 @@ SetUniverse()
 				fprintf( stderr, "Must be one of: globus, gt2, gt4, condor, nordugrid, unicore, or oracle\n" );
 				exit( 1 );
 			}
-		}			
-		
+		}
+
 			// Setting ATTR_JOB_GRID_TYPE in the job ad has been moved to
 			// SetGlobusParams().
-		
+
 		return;
 	};
 
@@ -1730,7 +1730,7 @@ SetUniverse()
 		JobUniverse = CONDOR_UNIVERSE_PARALLEL;
 		buffer.sprintf( "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_PARALLEL);
 		InsertJobExpr (buffer);
-		
+
 		free(univ);
 		return;
 	}
@@ -1747,7 +1747,7 @@ SetUniverse()
 		JobUniverse = CONDOR_UNIVERSE_MPI;
 		buffer.sprintf( "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_MPI);
 		InsertJobExpr (buffer);
-		
+
 		free(univ);
 		return;
 	}
@@ -1787,7 +1787,7 @@ SetUniverse()
 			parse_vm_option(vm_tmp, VMCheckpoint);
 			free(vm_tmp);
 		}
-	
+
 		// need vm networking?
 		VMNetworking = false;
 		vm_tmp = condor_param(VM_Networking, ATTR_JOB_VM_NETWORKING);
@@ -1799,15 +1799,15 @@ SetUniverse()
 		if( VMCheckpoint ) {
 			if( VMNetworking ) {
 				/*
-				 * User explicitly requested vm_checkpoint = true, 
-				 * but they also turned on vm_networking, 
+				 * User explicitly requested vm_checkpoint = true,
+				 * but they also turned on vm_networking,
 				 * For now, vm_networking is not conflict with vm_checkpoint.
-				 * If user still wants to use both vm_networking 
-				 * and vm_checkpoint, they explicitly need to define 
+				 * If user still wants to use both vm_networking
+				 * and vm_checkpoint, they explicitly need to define
 				 * when_to_transfer_output = ON_EXIT_OR_EVICT.
 				 */
 				FileTransferOutput_t when_output = FTO_NONE;
-				vm_tmp = condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT, 
+				vm_tmp = condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT,
 						"when_to_transfer_output" );
 				if( vm_tmp ) {
 					when_output = getFileTransferOutputNum(vm_tmp);
@@ -1831,15 +1831,15 @@ SetUniverse()
 			set_condor_param( ATTR_SHOULD_TRANSFER_FILES, "YES");
 			set_condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT, "ON_EXIT_OR_EVICT");
 		}else {
-			// Even if we don't use vm_checkpoint, 
+			// Even if we don't use vm_checkpoint,
 			// we always turn on condor file transfer for VM universe.
 			// Here there are several reasons.
-			// For example, because we may use snapshot disks in vmware, 
-			// those snapshot disks need to be transferred back 
+			// For example, because we may use snapshot disks in vmware,
+			// those snapshot disks need to be transferred back
 			// to this submit machine.
-			// For another example, a job user want to transfer vm_cdrom_files 
+			// For another example, a job user want to transfer vm_cdrom_files
 			// but doesn't want to transfer disk files.
-			// If we need the same file system domain, 
+			// If we need the same file system domain,
 			// we will add the requirement of file system domain later as well.
 			set_condor_param( ATTR_SHOULD_TRANSFER_FILES, "YES");
 			set_condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT, "ON_EXIT");
@@ -1853,10 +1853,10 @@ SetUniverse()
 		// If we got this far, we must be a standard job.  Since we're
 		// clipped, that can't possibly work, so warn the user at
 		// submit time.  -Derek Wright 6/11/99
-	fprintf( stderr, 
+	fprintf( stderr,
 			 "\nERROR: You are trying to submit a \"%s\" job to Condor.\n",
 			 univ );
-	fprintf( stderr, 
+	fprintf( stderr,
 			 "This version of Condor only supports \"vanilla\" jobs, which\n"
 			 "perform no checkpointing or remote system calls.  See the\n"
 			 "Condor manual for details "
@@ -1877,8 +1877,8 @@ SetUniverse()
 	if ( univ ) {
 		free(univ);
 	}
-	
-	
+
+
 
 	return;
 }
@@ -1905,7 +1905,7 @@ SetMachineCount()
 			tmp = atoi(mach_count);
 			buffer.sprintf( "%s = %d", ATTR_MIN_HOSTS, tmp);
 			InsertJobExpr (buffer);
-			
+
 			for ( ; !isdigit(*ptr) && *ptr; ptr++) ;
 			if (*ptr != '\0') {
 				tmp = atoi(ptr);
@@ -1923,7 +1923,7 @@ SetMachineCount()
 			   JobUniverse == CONDOR_UNIVERSE_PARALLEL ) {
 
 		mach_count = condor_param( MachineCount, "MachineCount" );
-		if( ! mach_count ) { 
+		if( ! mach_count ) {
 				// try an alternate name
 			mach_count = condor_param( "node_count", "NodeCount" );
 		}
@@ -2000,7 +2000,7 @@ SetImageSize()
 	// proc in the cluster, since the executable cannot change.
 	if ( ProcId < 1 ) {
 		ASSERT (job->LookupString (ATTR_JOB_CMD, buff));
-		if( JobUniverse == CONDOR_UNIVERSE_VM ) { 
+		if( JobUniverse == CONDOR_UNIVERSE_VM ) {
 			executablesize = 0;
 		}else {
 			executablesize = calc_image_size( buff );
@@ -2029,7 +2029,7 @@ SetImageSize()
 
 	/* It's reasonable to expect the image size will be at least the
 		physical memory requirement, so make sure it is. */
-	  
+
 	// At one time there was some stuff to attempt to gleen this from
 	// the requirements line, but that caused many problems.
 	// Jeff Ballard 11/4/98
@@ -2037,26 +2037,26 @@ SetImageSize()
 	buffer.sprintf( "%s = %d", ATTR_IMAGE_SIZE, size);
 	InsertJobExpr (buffer);
 
-	buffer.sprintf( "%s = %u", ATTR_EXECUTABLE_SIZE, 
+	buffer.sprintf( "%s = %u", ATTR_EXECUTABLE_SIZE,
 					executablesize);
 	InsertJobExpr (buffer);
 
 	if( JobUniverse == CONDOR_UNIVERSE_VM) {
-		// In vm universe, when a VM is suspended, 
-		// memory being used by the VM will be saved into a file. 
+		// In vm universe, when a VM is suspended,
+		// memory being used by the VM will be saved into a file.
 		// So we need as much disk space as the memory.
 		int vm_disk_space = executablesize + TransferInputSize + VMMemory*1024;
 
-		// In vmware vm universe, vmware disk may be a sparse disk or 
-		// snapshot disk. So we can't estimate the disk space in advanace 
-		// because the sparse disk or snapshot disk will grow up 
+		// In vmware vm universe, vmware disk may be a sparse disk or
+		// snapshot disk. So we can't estimate the disk space in advanace
+		// because the sparse disk or snapshot disk will grow up
 		// as a VM runs. So we will add 100MB to disk space.
 		if( stricmp(VMType.Value(), CONDOR_VM_UNIVERSE_VMWARE) == MATCH ) {
 			vm_disk_space += 100*1024;
 		}
 		buffer.sprintf( "%s = %u", ATTR_DISK_USAGE, vm_disk_space);
 	}else {
-		buffer.sprintf( "%s = %u", ATTR_DISK_USAGE, 
+		buffer.sprintf( "%s = %u", ATTR_DISK_USAGE,
 				executablesize + TransferInputSize);
 	}
 	InsertJobExpr (buffer);
@@ -2167,7 +2167,7 @@ process_input_file_list(StringList * input_list, MyString *input_files, bool * f
 // is the size of all the transferred input files.  This variable is used
 // by SetImageSize().  So, SetTransferFiles() must be called _before_ calling
 // SetImageSize().
-// SetTransferFiles also sets a global "should_transfer", which is 
+// SetTransferFiles also sets a global "should_transfer", which is
 // used by SetRequirements().  So, SetTransferFiles must be called _before_
 // calling SetRequirements() as well.
 // If we are transfering files, and stdout or stderr contains
@@ -2221,7 +2221,7 @@ SetTransferFiles()
 			}
 				// If we made it here, which() gave us a real path.
 				// so, now we just have to append that to our list of
-				// files. 
+				// files.
 			input_file_list.append( dll_path.Value() );
 		}
 	}
@@ -2233,8 +2233,8 @@ SetTransferFiles()
 
 
 	macro_value = condor_param( TransferOutputFiles,
-								"TransferOutputFiles" ); 
-	if( macro_value ) 
+								"TransferOutputFiles" );
+	if( macro_value )
 	{
 		output_file_list.initializeFromString(macro_value);
 		output_file_list.rewind();
@@ -2242,7 +2242,7 @@ SetTransferFiles()
 		while ( (tmp_ptr=output_file_list.next()) ) {
 			count++;
 			tmp = tmp_ptr;
-			if ( check_and_universalize_path(tmp,TransferOutputFiles) != 0) 
+			if ( check_and_universalize_path(tmp,TransferOutputFiles) != 0)
 			{
 				// we universalized the path, so update the string list
 				output_file_list.deleteCurrent();
@@ -2251,7 +2251,7 @@ SetTransferFiles()
 		}
 		tmp_ptr = output_file_list.print_to_string();
 		if ( count ) {
-			(void) output_files.sprintf ("%s = \"%s\"", 
+			(void) output_files.sprintf ("%s = \"%s\"",
 				ATTR_TRANSFER_OUTPUT_FILES, tmp_ptr);
 			free(tmp_ptr);
 			tmp_ptr = NULL;
@@ -2267,7 +2267,7 @@ SetTransferFiles()
 		// cases, we can give reasonable defaults, but in others, it's
 		// a fatal error.  first we check for the new attribute names
 		// ("ShouldTransferFiles" and "WheToTransferOutput").  If
-		// those aren't defined, we look for the old "TransferFiles". 
+		// those aren't defined, we look for the old "TransferFiles".
 	if( ! SetNewTransferFiles() ) {
 		SetOldTransferFiles( in_files_specified, out_files_specified );
 	}
@@ -2320,7 +2320,7 @@ SetTransferFiles()
 	  executables left and right, which we don't want.
 	*/
 
-	/* 
+	/*
 	  We need to have our best guess of file transfer needs processed before
 	  we change things to deal with the jar files and class file which
 	  is the executable and should not be renamed. But we can't just
@@ -2378,7 +2378,7 @@ SetTransferFiles()
 		job->LookupString(ATTR_JOB_OUTPUT,output);
 		job->LookupString(ATTR_JOB_ERROR,error);
 
-		if(output.Length() && output != condor_basename(output.Value()) && 
+		if(output.Length() && output != condor_basename(output.Value()) &&
 		   strcmp(output.Value(),"/dev/null") != 0 && !stream_stdout_toggle)
 		{
 			char const *working_name = "_condor_stdout";
@@ -2394,7 +2394,7 @@ SetTransferFiles()
 			output_remaps.sprintf_cat("%s=%s",working_name,output.EscapeChars(";=\\",'\\').Value());
 		}
 
-		if(error.Length() && error != condor_basename(error.Value()) && 
+		if(error.Length() && error != condor_basename(error.Value()) &&
 		   strcmp(error.Value(),"/dev/null") != 0 && !stream_stderr_toggle)
 		{
 			char const *working_name = "_condor_stderr";
@@ -2417,7 +2417,7 @@ SetTransferFiles()
 	}
 
 	// if we might be using file transfer, insert in input/output
-	// exprs  
+	// exprs
 	if( should_transfer != STF_NO ) {
 		if ( input_files.Length() > 0 ) {
 			InsertJobExpr (input_files);
@@ -2427,7 +2427,7 @@ SetTransferFiles()
 		}
 	}
 
-	if( should_transfer == STF_NO && 
+	if( should_transfer == STF_NO &&
 		JobUniverse != CONDOR_UNIVERSE_GRID &&
 		JobUniverse != CONDOR_UNIVERSE_JAVA &&
 		JobUniverse != CONDOR_UNIVERSE_VM )
@@ -2534,8 +2534,8 @@ SetNewTransferFiles( void )
 	char *should, *when;
 	FileTransferOutput_t when_output = FTO_NONE;
 	MyString err_msg;
-	
-	should = condor_param( ATTR_SHOULD_TRANSFER_FILES, 
+
+	should = condor_param( ATTR_SHOULD_TRANSFER_FILES,
 						   "should_transfer_files" );
 	if( should ) {
 		should_transfer = getShouldTransferFilesNum( should );
@@ -2552,8 +2552,8 @@ SetNewTransferFiles( void )
 		}
 		found_it = true;
 	}
-	
-	when = condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT, 
+
+	when = condor_param( ATTR_WHEN_TO_TRANSFER_OUTPUT,
 						 "when_to_transfer_output" );
 	if( when ) {
 		when_output = getFileTransferOutputNum( when );
@@ -2606,8 +2606,8 @@ SetNewTransferFiles( void )
 			exit( 1 );
 		}
 	}
-	
-	if( found_it && when_output == FTO_ON_EXIT_OR_EVICT && 
+
+	if( found_it && when_output == FTO_ON_EXIT_OR_EVICT &&
 		            should_transfer == STF_IF_NEEDED ) {
 			// error, these are incompatible!
 		err_msg = "\nERROR: \"when_to_transfer_output = ON_EXIT_OR_EVICT\" "
@@ -2750,7 +2750,7 @@ InsertFileTransAttrs( FileTransferOutput_t when_output )
 	when += " = \"";
 	MyString ft = ATTR_TRANSFER_FILES;
 	ft += " = \"";
-	
+
 	should += getShouldTransferFilesString( should_transfer );
 	should += '"';
 	if( should_transfer != STF_NO ) {
@@ -2948,7 +2948,7 @@ SetStdFile( int which_file )
 	char	*generic_name;
 	MyString	 strbuffer;
 
-	switch( which_file ) 
+	switch( which_file )
 	{
 	case 0:
 		generic_name = Input;
@@ -2967,7 +2967,7 @@ SetStdFile( int which_file )
 		break;
 	default:
 		fprintf( stderr, "\nERROR: Unknown standard file descriptor (%d)\n",
-				 which_file ); 
+				 which_file );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
@@ -2996,8 +2996,8 @@ SetStdFile( int which_file )
 		transfer_it = false;
 		stream_it = false;
 	}
-	
-	if( !macro_value || *macro_value == '\0') 
+
+	if( !macro_value || *macro_value == '\0')
 	{
 		transfer_it = false;
 		stream_it = false;
@@ -3012,14 +3012,14 @@ SetStdFile( int which_file )
 			exit( 1 );
 		}
 	}
-	
-	if( whitespace(macro_value) ) 
+
+	if( whitespace(macro_value) )
 	{
-		fprintf( stderr,"\nERROR: The '%s' takes exactly one argument (%s)\n", 
+		fprintf( stderr,"\nERROR: The '%s' takes exactly one argument (%s)\n",
 				 generic_name, macro_value );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
-	}	
+	}
 
 	MyString tmp = macro_value;
 	if ( check_and_universalize_path(tmp, generic_name) != 0 ) {
@@ -3027,8 +3027,8 @@ SetStdFile( int which_file )
 		free(macro_value);
 		macro_value = strdup(tmp.Value());
 	}
-	
-	switch( which_file ) 
+
+	switch( which_file )
 	{
 	case 0:
 		strbuffer.sprintf( "%s = \"%s\"", ATTR_JOB_INPUT, macro_value);
@@ -3069,7 +3069,7 @@ SetStdFile( int which_file )
 		}
 		break;
 	}
-		
+
 	if( macro_value ) {
 		free(macro_value);
 	}
@@ -3085,19 +3085,19 @@ SetJobStatus()
 		buffer.sprintf( "%s = %d", ATTR_JOB_STATUS, HELD);
 		InsertJobExpr (buffer);
 
-		buffer.sprintf( "%s=\"submitted on hold at user's request\"", 
+		buffer.sprintf( "%s=\"submitted on hold at user's request\"",
 					   ATTR_HOLD_REASON );
 		InsertJobExpr( buffer );
 
 		buffer.sprintf( "%s = %d", ATTR_HOLD_REASON_CODE,
 				 CONDOR_HOLD_CODE_SubmittedOnHold );
 		InsertJobExpr( buffer );
-	} else 
+	} else
 	if ( Remote ) {
 		buffer.sprintf( "%s = %d", ATTR_JOB_STATUS, HELD);
 		InsertJobExpr (buffer);
 
-		buffer.sprintf( "%s=\"Spooling input data files\"", 
+		buffer.sprintf( "%s=\"Spooling input data files\"",
 					   ATTR_HOLD_REASON );
 		InsertJobExpr( buffer );
 
@@ -3125,7 +3125,7 @@ SetPriority()
 	int  prioval = 0;
 	MyString buffer;
 
-	if( prio != NULL ) 
+	if( prio != NULL )
 	{
 		prioval = atoi (prio);
 		free(prio);
@@ -3261,16 +3261,16 @@ SetLeaveInQueue()
 	MyString buffer;
 
 	if ( mirror_schedd ) {
-		
+
 		if ( erc ) {
-			fprintf( stderr, 
+			fprintf( stderr,
 				"\nERROR: %s may not be specified alongside %s - the mirroring"
 				" mechanism relies on setting %s itself\n",
 				 LeaveInQueue, MirrorSchedd, LeaveInQueue);
 			DoCleanup(0,0,NULL);
 			exit(1);
 		}
-		
+
 			// schedd job mirroring is being used
 			// set the mirrored schedd attribute
 		buffer.sprintf("%s = \"%s\"", ATTR_MIRROR_SCHEDD,mirror_schedd);
@@ -3297,7 +3297,7 @@ SetLeaveInQueue()
 				/* if remote spooling, leave in the queue after the job completes
 				   for up to 10 days, so user can grab the output.
 				 */
-			buffer.sprintf( 
+			buffer.sprintf(
 				"%s = %s == %d && (%s =?= UNDEFINED || %s == 0 || ((CurrentTime - %s) < %d))",
 				ATTR_JOB_LEAVE_IN_QUEUE,
 				ATTR_JOB_STATUS,
@@ -3305,7 +3305,7 @@ SetLeaveInQueue()
 				ATTR_COMPLETION_DATE,
 				ATTR_COMPLETION_DATE,
 				ATTR_COMPLETION_DATE,
-				60 * 60 * 24 * 10 
+				60 * 60 * 24 * 10
 				);
 		}
 	}
@@ -3348,7 +3348,7 @@ SetNoopJob(void)
 	MyString buffer;
 
 	if (noop == NULL)
-	{	
+	{
 		/* user didn't want one, so just return*/
 		return;
 	}
@@ -3369,7 +3369,7 @@ SetNoopJobExitSignal(void)
 	MyString buffer;
 
 	if (noop == NULL)
-	{	
+	{
 		/* user didn't want one, so just return*/
 		return;
 	}
@@ -3390,7 +3390,7 @@ SetNoopJobExitCode(void)
 	MyString buffer;
 
 	if (noop == NULL)
-	{	
+	{
 		/* user didn't want one, so just return*/
 		return;
 	}
@@ -3411,10 +3411,10 @@ SetWantRemoteIO(void)
 	MyString buffer;
 
 	if (how == NULL) {
-		buffer.sprintf( "%s = TRUE", 
+		buffer.sprintf( "%s = TRUE",
 						ATTR_WANT_REMOTE_IO);
 	} else {
-		buffer.sprintf( "%s = %s", ATTR_WANT_REMOTE_IO, 
+		buffer.sprintf( "%s = %s", ATTR_WANT_REMOTE_IO,
 						isTrue(how)?"TRUE":"FALSE" );
 	}
 
@@ -3434,16 +3434,16 @@ SetNotification()
 
 	if( (how == NULL) || (stricmp(how, "COMPLETE") == 0) ) {
 		notification = NOTIFY_COMPLETE;
-	} 
+	}
 	else if( stricmp(how, "NEVER") == 0 ) {
 		notification = NOTIFY_NEVER;
-	} 
+	}
 	else if( stricmp(how, "ALWAYS") == 0 ) {
 		notification = NOTIFY_ALWAYS;
-	} 
+	}
 	else if( stricmp(how, "ERROR") == 0 ) {
 		notification = NOTIFY_ERROR;
-	} 
+	}
 	else {
 		fprintf( stderr, "\nERROR: Notification must be 'Never', "
 				 "'Always', 'Complete', or 'Error'\n" );
@@ -3522,7 +3522,7 @@ SetEmailAttributes()
 
 /**
  * We search to see if the ad has any CronTab attributes defined
- * If so, then we will check to make sure they are using the 
+ * If so, then we will check to make sure they are using the
  * proper syntax and then stuff them in the ad
  **/
 void
@@ -3556,17 +3556,17 @@ SetCronTab()
 				//
 				// Go ahead and stuff it in the job ad now
 				// The parameters must be wrapped in quotation marks
-				//				
+				//
 			buffer.sprintf( "%s = \"%s\"", CronTab::attributes[ctr], param );
 			InsertJobExpr (buffer);
 			free( param );
 			NeedsJobDeferral = true;
-		}		
+		}
 	} // FOR
 		//
 		// Validation
 		// Because the scheduler universe doesn't use a Starter,
-		// we can't let them use the CronTab scheduling which needs 
+		// we can't let them use the CronTab scheduling which needs
 		// to be able to use the job deferral feature
 		//
 	if ( NeedsJobDeferral && JobUniverse == CONDOR_UNIVERSE_SCHEDULER ) {
@@ -3577,7 +3577,7 @@ SetCronTab()
 		DoCleanup( 0, 0, NULL );
 		fprintf( stderr, "Error in submit file\n" );
 		exit(1);
-	} // validation	
+	} // validation
 }
 
 void
@@ -3654,16 +3654,16 @@ SetExitRequirements()
 							  ATTR_JOB_EXIT_REQUIREMENTS );
 
 	if (who) {
-		fprintf(stderr, 
+		fprintf(stderr,
 			"\nERROR: %s is deprecated.\n"
-			"Please use on_exit_remove or on_exit_hold.\n", 
+			"Please use on_exit_remove or on_exit_hold.\n",
 			ExitRequirements );
 		free(who);
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
 }
-	
+
 void
 SetArguments()
 {
@@ -3763,7 +3763,7 @@ SetJobDeferral() {
 		free( temp );
 		NeedsJobDeferral = true;
 	}
-	
+
 		//
 		// If this job needs the job deferral functionality, we
 		// need to make sure we always add in the DeferralWindow
@@ -3771,7 +3771,7 @@ SetJobDeferral() {
 		// We have a separate if clause because SetCronTab() can
 		// also set NeedsJobDeferral
 		//
-	if ( NeedsJobDeferral ) {		
+	if ( NeedsJobDeferral ) {
 			//
 			// Job Deferral Window
 			// The window allows for some slack if the Starter
@@ -3797,7 +3797,7 @@ SetJobDeferral() {
 			// If we have a parameter from the job file, use that value
 			//
 		if ( temp != NULL ){
-			buffer.sprintf(  "%s = %s", ATTR_DEFERRAL_WINDOW, temp );	
+			buffer.sprintf(  "%s = %s", ATTR_DEFERRAL_WINDOW, temp );
 			free( temp );
 			//
 			// Otherwise, use the default value
@@ -3807,7 +3807,7 @@ SetJobDeferral() {
 				   ATTR_DEFERRAL_WINDOW, JOB_DEFERRAL_WINDOW_DEFAULT );
 		}
 		InsertJobExpr (buffer);
-		
+
 			//
 			// Job Deferral Prep Time
 			// This is how many seconds before the job should run it is
@@ -3832,7 +3832,7 @@ SetJobDeferral() {
 			// If we have a parameter from the job file, use that value
 			//
 		if ( temp != NULL ){
-			buffer.sprintf(  "%s = %s", ATTR_DEFERRAL_PREP_TIME, temp );	
+			buffer.sprintf(  "%s = %s", ATTR_DEFERRAL_PREP_TIME, temp );
 			free( temp );
 			//
 			// Otherwise, use the default value
@@ -3842,12 +3842,12 @@ SetJobDeferral() {
 				   ATTR_DEFERRAL_PREP_TIME, JOB_DEFERRAL_PREP_TIME_DEFAULT );
 		}
 		InsertJobExpr (buffer);
-		
+
 			//
 			// Schedd Polling Interval
 			// We need make sure we have this in the job ad as well
 			// because it is used by the Requirements expression generated
-			// in check_requirements() for job deferral 
+			// in check_requirements() for job deferral
 			//
 		temp = param( "SCHEDD_INTERVAL" );
 		if ( temp != NULL ) {
@@ -3858,7 +3858,7 @@ SetJobDeferral() {
 										SCHEDD_INTERVAL_DEFAULT );
 		}
 		InsertJobExpr (buffer);
-	
+
 			//
 			// Validation
 			// Because the scheduler universe doesn't use a Starter,
@@ -3872,7 +3872,7 @@ SetJobDeferral() {
 			DoCleanup( 0, 0, NULL );
 			fprintf( stderr, "Error in submit file\n" );
 			exit(1);
-		} // validation	
+		} // validation
 	}
 }
 
@@ -3963,7 +3963,7 @@ SetEnvironment()
 
 	bool MyCondorVersionRequiresV1 = false;
 	if ( !DumpClassAdToFile ) {
-		MyCondorVersionRequiresV1 = envobject.InputWasV1() 
+		MyCondorVersionRequiresV1 = envobject.InputWasV1()
 			|| envobject.CondorVersionRequiresV1(MySchedd->version());
 	}
 	bool insert_env1 = MyCondorVersionRequiresV1;
@@ -4042,11 +4042,11 @@ ComputeRootDir()
 {
 	char *rootdir = condor_param( RootDir, ATTR_JOB_ROOT_DIR );
 
-	if( rootdir == NULL ) 
+	if( rootdir == NULL )
 	{
 		JobRootdir = "/";
-	} 
-	else 
+	}
+	else
 	{
 		if( access(rootdir, F_OK|X_OK) < 0 ) {
 			fprintf( stderr, "\nERROR: No such directory: %s\n",
@@ -4078,11 +4078,11 @@ SetRequirements()
 	char *requirements = condor_param( Requirements, NULL );
 	MyString tmp;
 	MyString buffer;
-	if( requirements == NULL ) 
+	if( requirements == NULL )
 	{
 		JobRequirements = "";
-	} 
-	else 
+	}
+	else
 	{
 		JobRequirements = requirements;
 		free(requirements);
@@ -4093,12 +4093,12 @@ SetRequirements()
 	JobRequirements = tmp;
 
 	InsertJobExpr (buffer);
-	
+
 	char* fs_domain = NULL;
-	if( (should_transfer == STF_NO || should_transfer == STF_IF_NEEDED) 
+	if( (should_transfer == STF_NO || should_transfer == STF_IF_NEEDED)
 		&& ! job->LookupString(ATTR_FILE_SYSTEM_DOMAIN, &fs_domain) ) {
-		buffer.sprintf( "%s = \"%s\"", ATTR_FILE_SYSTEM_DOMAIN, 
-				 My_fs_domain ); 
+		buffer.sprintf( "%s = \"%s\"", ATTR_FILE_SYSTEM_DOMAIN,
+				 My_fs_domain );
 		InsertJobExpr( buffer );
 	}
 	if( fs_domain ) {
@@ -4111,7 +4111,7 @@ void
 SetTDP( void )
 {
 		// tdp_cmd and tdp_input are global since those effect
-		// SetRequirements() an SetTransferFiles(), too. 
+		// SetRequirements() an SetTransferFiles(), too.
 	tdp_cmd = condor_param( ToolDaemonCmd, ATTR_TOOL_DAEMON_CMD );
 	tdp_input = condor_param( ToolDaemonInput, ATTR_TOOL_DAEMON_INPUT );
 	char* tdp_args1 = condor_param( ToolDaemonArgs );
@@ -4121,7 +4121,7 @@ SetTDP( void )
 	char* tdp_args2 = condor_param( ToolDaemonArguments2 );
 	char* allow_arguments_v1 = condor_param(AllowArgumentsV1);
 	char* tdp_error = condor_param( ToolDaemonError, ATTR_TOOL_DAEMON_ERROR );
-	char* tdp_output = condor_param( ToolDaemonOutput, 
+	char* tdp_output = condor_param( ToolDaemonOutput,
 									 ATTR_TOOL_DAEMON_OUTPUT );
 	char* suspend_at_exec = condor_param( SuspendJobAtExec,
 										  ATTR_SUSPEND_JOB_AT_EXEC );
@@ -4255,7 +4255,7 @@ SetRunAsOwner()
 		free(run_as_owner);
 		return;
 	}
-			
+
 	free(run_as_owner);
 	MyString buffer;
 	buffer.sprintf(  "%s = True", ATTR_JOB_RUNAS_OWNER );
@@ -4273,11 +4273,11 @@ SetRunAsOwner()
 	}
 }
 
-void 
+void
 SetLoadUserProfile()
 {
     char *load_user_profile = condor_param (
-        LoadUserProfile, 
+        LoadUserProfile,
         ATTR_JOB_LOAD_USER_PROFILE );
 
     if ( NULL == load_user_profile ) {
@@ -4344,11 +4344,11 @@ SetRank()
 		append_rank = NULL;
 	}
 
-		// If we've got a rank to append to something that's already 
+		// If we've got a rank to append to something that's already
 		// there, we need to enclose the origional in ()'s
 	if( append_rank && (orig_rank || orig_pref || default_rank) ) {
 		rank += "(";
-	}		
+	}
 
 	if( orig_pref && orig_rank ) {
 		fprintf( stderr, "\nERROR: %s and %s may not both be specified "
@@ -4360,7 +4360,7 @@ SetRank()
 		rank += orig_pref;
 	} else if( default_rank ) {
 		rank += default_rank;
-	} 
+	}
 
 	if( append_rank ) {
 		if( rank.Length() > 0 ) {
@@ -4377,7 +4377,7 @@ SetRank()
 		rank += append_rank;
 		rank += ")";
 	}
-				
+
 	if( rank.Length() == 0 ) {
 		buffer.sprintf( "%s = 0.0", ATTR_RANK );
 		InsertJobExpr( buffer );
@@ -4386,7 +4386,7 @@ SetRank()
 		InsertJobExpr( buffer );
 	}
 
-	if ( orig_pref ) 
+	if ( orig_pref )
 		free(orig_pref);
 	if ( orig_rank )
 		free(orig_rank);
@@ -4420,29 +4420,29 @@ ComputeIWD()
 	if( JobRootdir != "/" )	{	/* Rootdir specified */
 		if( shortname ) {
 			iwd = shortname;
-		} 
+		}
 		else {
 			iwd = "/";
 		}
-	} 
-	else 
+	}
+	else
 #endif
 	{  //for WIN32, this is a block to make {}'s match. For unix, else block.
 		if( shortname  ) {
 #if defined(WIN32)
 			// if a drive letter or share is specified, we have a full pathname
-			if( shortname[1] == ':' || (shortname[0] == '\\' && shortname[1] == '\\')) 
+			if( shortname[1] == ':' || (shortname[0] == '\\' && shortname[1] == '\\'))
 #else
-			if( shortname[0] == '/' ) 
+			if( shortname[0] == '/' )
 #endif
 			{
 				iwd = shortname;
-			} 
+			}
 			else {
 				condor_getcwd( cwd );
 				iwd.sprintf( "%s%c%s", cwd.Value(), DIR_DELIM_CHAR, shortname );
 			}
-		} 
+		}
 		else {
 			condor_getcwd( iwd );
 		}
@@ -4492,11 +4492,11 @@ SetUserLog()
 	MyString buffer;
 
 	if (ulog_entry) {
-		
+
 		MyString ulog = full_path(ulog_entry);
 
 		if ( !DumpClassAdToFile ) {
-			
+
 			free(ulog_entry);
 
 			// check that the log is a valid path
@@ -4530,7 +4530,7 @@ SetUserLog()
 					DoCleanup(0,0,NULL);
 					exit( 1 );
 
-				} 
+				}
 			}
 		}
 
@@ -4640,7 +4640,7 @@ SetJobLease( void )
 			return;
 		}
 		else if (lease_duration < 20) {
-			if (! warned_too_small) { 
+			if (! warned_too_small) {
 				fprintf(stderr, "\nWARNING: %s less than 20 seconds is not "
 						"allowed, using 20 instead\n",
 						ATTR_JOB_LEASE_DURATION);
@@ -4685,7 +4685,7 @@ SetForcedAttributes()
 
 		// free memory allocated by macro expansion module
 		free( exValue );
-	}	
+	}
 }
 
 void
@@ -4769,7 +4769,7 @@ SetGlobusParams()
 					// the alternate.  if we don't have a value, we want
 					// to try again with the actual job classad value:
 				globushost = condor_param( ATTR_GLOBUS_RESOURCE, NULL );
-				if( ! globushost ) { 
+				if( ! globushost ) {
 					fprintf( stderr, "Globus/gt4 universe jobs require a "
 							 "\"GlobusScheduler\" parameter\n" );
 					DoCleanup( 0, 0, NULL );
@@ -4881,7 +4881,7 @@ SetGlobusParams()
 
 				// nordugrid is only supported in versions that use the
 				// unified grid resource syntax
-			buffer.sprintf( "%s = \"nordugrid %s\"", ATTR_GRID_RESOURCE, 
+			buffer.sprintf( "%s = \"nordugrid %s\"", ATTR_GRID_RESOURCE,
 					 host );
 			InsertJobExpr( buffer );
 
@@ -5093,17 +5093,17 @@ SetGSICredentials()
 			exit (1);
 		}
 	}
-	
+
 
 	if (proxy_file != NULL) {
 		if ( proxy_file[0] == '#' ) {
-			buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT, 
+			buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT,
 						   &proxy_file[1]);
-			InsertJobExpr(buffer);	
+			InsertJobExpr(buffer);
 
-//			(void) buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY, 
+//			(void) buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY,
 //						   proxy_file);
-//			InsertJobExpr(buffer);	
+//			InsertJobExpr(buffer);
 			free( proxy_file );
 		} else {
 #ifndef WIN32
@@ -5139,7 +5139,7 @@ SetGSICredentials()
 			* with underscores.... why?  because we need to pass this
 			* as a command line argument to the gridmanager, and until
 			* daemoncore handles command-line args w/ an argv array, spaces
-			* will cause trouble.  
+			* will cause trouble.
 			*/
 			if ( !vi.built_since_version(6,7,3) ) {
 				char *space_tmp;
@@ -5149,15 +5149,15 @@ SetGSICredentials()
 					}
 				} while (space_tmp);
 			}
-			(void) buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT, 
+			(void) buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT,
 						   proxy_subject);
-			InsertJobExpr(buffer);	
+			InsertJobExpr(buffer);
 			free( proxy_subject );
 #endif
 
-			(void) buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY, 
+			(void) buffer.sprintf( "%s=\"%s\"", ATTR_X509_USER_PROXY,
 						   full_path(proxy_file));
-			InsertJobExpr(buffer);	
+			InsertJobExpr(buffer);
 			free( proxy_file );
 		}
 	}
@@ -5199,7 +5199,7 @@ SetGSICredentials()
 		InsertJobExpr ( buffer );
 	}
 
-	if ((tmp = condor_param (ATTR_MYPROXY_NEW_PROXY_LIFETIME))) { 
+	if ((tmp = condor_param (ATTR_MYPROXY_NEW_PROXY_LIFETIME))) {
 		buffer.sprintf(  "%s = %s", ATTR_MYPROXY_NEW_PROXY_LIFETIME, tmp );
 		free( tmp );
 		InsertJobExpr ( buffer );
@@ -5337,7 +5337,7 @@ read_condor_file( FILE *fp )
 		if (*name == '+') {
 			force = 1;
 			name++;
-		} 
+		}
 		else if (*name == '-') {
 			name++;
 			strlwr( name );
@@ -5371,16 +5371,16 @@ read_condor_file( FILE *fp )
 						 "in: %s\n", name );
 				return( -1 );
 			}
-			int rval = sscanf(name+strlen("queue"), "%d", &queue_modifier); 
+			int rval = sscanf(name+strlen("queue"), "%d", &queue_modifier);
 			if( rval == EOF || rval == 0 ) {
 				queue_modifier = 1;
 			}
 			queue(queue_modifier);
 			continue;
-		}	
+		}
 
 #define isop(c)		((c) == '=')
-		
+
 		/* Separate out the parameter name */
 /*
 		for( ptr=name ; *ptr && !isspace(*ptr) && !isop(*ptr); ptr++ );
@@ -5435,13 +5435,13 @@ read_condor_file( FILE *fp )
 			}
 		}
 
-		/* if the user wanted to force the parameter into the classad, do it 
+		/* if the user wanted to force the parameter into the classad, do it
 		   We want to remove it first, so we get the new value if it's
 		   already in there. -Derek Wright 7/13/98 */
 		if (force == 1) {
 			forcedAttributes.remove( AttrKey( name ) );
 			forcedAttributes.insert( AttrKey( name ), MyString( value ) );
-		} 
+		}
 
 		strlwr( name );
 
@@ -5486,7 +5486,7 @@ condor_param( const char* name, const char* alt_name )
 		char* tmp = param( "SUBMIT_EXPRS" );
 		if( tmp ) {
 			submit_exprs = new StringList( tmp );
-			free( tmp ); 
+			free( tmp );
 		}
 		submit_exprs_initialized = true;
 	}
@@ -5498,7 +5498,7 @@ condor_param( const char* name, const char* alt_name )
 
 	if( ! pval ) {
 			// if the value isn't in the submit file, check in the
-			// submit_exprs list and use that as a default.  
+			// submit_exprs list and use that as a default.
 		if( submit_exprs ) {
 			if( submit_exprs->contains_anycase(name) ) {
 				return( param(name) );
@@ -5506,7 +5506,7 @@ condor_param( const char* name, const char* alt_name )
 			if( alt_name && submit_exprs->contains_anycase(alt_name) ) {
 				return( param(alt_name) );
 			}
-		}			
+		}
 		return( NULL );
 	}
 
@@ -5531,7 +5531,7 @@ set_condor_param( const char *name, char *value )
 }
 
 void
-set_condor_param_used( const char *name ) 
+set_condor_param_used( const char *name )
 {
 	set_macro_used(name, 1, ProcVars, PROCVARSIZE);
 }
@@ -5558,11 +5558,11 @@ connect_to_the_schedd()
 	CondorError errstack;
 	if( ConnectQ(MySchedd->addr(), 0 /* default */, false /* default */, &errstack) == 0 ) {
 		if( ScheddName ) {
-			fprintf( stderr, 
+			fprintf( stderr,
 					"\nERROR: Failed to connect to queue manager %s\n%s\n",
 					 ScheddName, errstack.getFullText(true) );
 		} else {
-			fprintf( stderr, 
+			fprintf( stderr,
 				"\nERROR: Failed to connect to local queue manager\n%s\n",
 				errstack.getFullText(true) );
 		}
@@ -5581,7 +5581,7 @@ queue(int num)
 	dprintf(D_SECURITY, "Entering queue(%d).\n", num);
 
 	// First, connect to the schedd if we have not already done so
-	if (!DumpClassAdToFile && ActiveQueueConnection != TRUE) 
+	if (!DumpClassAdToFile && ActiveQueueConnection != TRUE)
 	{
 		connect_to_the_schedd();
 	}
@@ -5589,7 +5589,7 @@ queue(int num)
 	/* queue num jobs */
 	for (int i=0; i < num; i++) {
 
-		
+
 		if (NewExecutable) {
  			if ( !DumpClassAdToFile ) {
 				if ((ClusterId = NewCluster()) < 0) {
@@ -5622,7 +5622,7 @@ queue(int num)
 						 "specifying an executable\n" );
 				exit(1);
 			}
-		
+
 			ProcId = NewProc (ClusterId);
 
 			if ( ProcId < 0 ) {
@@ -5636,18 +5636,18 @@ queue(int num)
 			}
 
 		}
-		
+
 		if (MaxProcsPerCluster && ProcId >= MaxProcsPerCluster) {
 			fprintf(stderr, "\nERROR: number of procs exceeds SUBMIT_MAX_PROCS_IN_CLUSTER\n");
 			DoCleanup(0,0,NULL);
 			exit(-1);
-		} 
+		}
 
 		if ( !DumpClassAdToFile ) {
 			/*
 			**	Insert the current idea of the cluster and
 			**	process number into the hash table.
-			*/	
+			*/
 			// GotQueueCommand = 1; // (see bellow)
 			(void)sprintf(tmp, "%d", ClusterId);
 			set_condor_param(Cluster, tmp);
@@ -5658,7 +5658,7 @@ queue(int num)
 
 		}
 
-		// we move this outside the above, otherwise it appears that we have 
+		// we move this outside the above, otherwise it appears that we have
 		// received no queue command (or several, if there were multiple ones)
 		GotQueueCommand = 1;
 
@@ -5715,7 +5715,7 @@ queue(int num)
 		SetAppendFiles();
 		SetLocalFiles();
 		SetTDP();			// before SetTransferFile() and SetRequirements()
-		SetTransferFiles();	 // must be called _before_ SetImageSize() 
+		SetTransferFiles();	 // must be called _before_ SetImageSize()
 #if defined(WIN32)
 		SetRunAsOwner();
 #endif
@@ -5730,13 +5730,13 @@ queue(int num)
 			//
 		SetCronTab();
 		SetJobDeferral();
-		
+
 			//
 			// Must be called _after_ SetTransferFiles(), SetJobDeferral(),
 			// SetCronTab(), and SetPerFileEncryption()
 			//
-		SetRequirements();	
-		
+		SetRequirements();
+
 		SetJobLease();		// must be called _after_ SetStdFile(0,1,2)
 
 		SetRemoteAttrs();
@@ -5780,8 +5780,8 @@ queue(int num)
 		}
 
 		ClusterCreated = TRUE;
-	
-		if( !Quiet ) 
+
+		if( !Quiet )
 			{
 				fprintf(stdout, "\n** Proc %d.%d:\n", ClusterId, ProcId);
 				job->fPrint (stdout);
@@ -5824,7 +5824,7 @@ queue(int num)
 
 		// SubmitInfo[x].lastjob controls how many submit events we
 		// see in the user log.  For parallel jobs, we only want
-		// one "job" submit event per cluster, no matter how many 
+		// one "job" submit event per cluster, no matter how many
 		// Procs are in that it.  Setting lastjob to zero makes this so.
 
 		if (JobUniverse == CONDOR_UNIVERSE_PARALLEL) {
@@ -5832,8 +5832,8 @@ queue(int num)
 		}
 
 		// now that we've loaded all the information into the job object
-		// we can just dump it to a file.  (In my opinion this is needlessly 
-		// ugly, here we should be using a derivation of Stream called File 
+		// we can just dump it to a file.  (In my opinion this is needlessly
+		// ugly, here we should be using a derivation of Stream called File
 		// which we would in turn serialize the job object to...)
 		if ( DumpClassAdToFile ) {
 			job->fPrint ( DumpFile );
@@ -5913,7 +5913,7 @@ check_requirements( char const *orig, MyString &answer )
 	default:
 		ptr = NULL;
 		break;
-	} 
+	}
 	if( ptr == NULL ) {
 			// Didn't find a per-universe version, try the generic,
 			// non-universe specific one:
@@ -5921,7 +5921,7 @@ check_requirements( char const *orig, MyString &answer )
 	}
 
 	if( ptr != NULL ) {
-			// We found something to append.  
+			// We found something to append.
 		if( answer.Length() ) {
 				// We've already got something in requirements, so we
 				// need to append an AND clause.
@@ -5962,12 +5962,12 @@ check_requirements( char const *orig, MyString &answer )
 	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
 		checks_mpi = findClause( answer, ATTR_HAS_MPI );
 	}
-	if( mightTransfer(JobUniverse) ) { 
+	if( mightTransfer(JobUniverse) ) {
 		switch( should_transfer ) {
 		case STF_IF_NEEDED:
 		case STF_NO:
 			checks_fsdomain = findClause( answer,
-										  ATTR_FILE_SYSTEM_DOMAIN ); 
+										  ATTR_FILE_SYSTEM_DOMAIN );
 			break;
 		case STF_YES:
 			checks_file_transfer = findClause( answer,
@@ -6001,7 +6001,7 @@ check_requirements( char const *orig, MyString &answer )
 			break;
 		}
 	}
- 
+
 	if( JobUniverse == CONDOR_UNIVERSE_JAVA ) {
 		if( answer[0] ) {
 			answer += " && ";
@@ -6071,7 +6071,7 @@ check_requirements( char const *orig, MyString &answer )
 
 	if( !checks_disk ) {
 		if ( JobUniverse == CONDOR_UNIVERSE_VM ) {
-			// VM universe uses Total Disk 
+			// VM universe uses Total Disk
 			// instead of Disk for Condor slot
 			answer += " && (TotalDisk >= DiskUsage)";
 		}else {
@@ -6080,8 +6080,8 @@ check_requirements( char const *orig, MyString &answer )
 	}
 
 	if ( JobUniverse != CONDOR_UNIVERSE_VM ) {
-		// The memory requirement for VM universe will be 
-		// added in SetVMRequirements 
+		// The memory requirement for VM universe will be
+		// added in SetVMRequirements
 		if ( !checks_mem ) {
 			answer += " && ( (Memory * 1024) >= ImageSize )";
 		}
@@ -6099,7 +6099,7 @@ check_requirements( char const *orig, MyString &answer )
 			answer += ATTR_HAS_PVM;
 			answer += ")";
 		}
-	} 
+	}
 
 	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
 		if( ! checks_mpi ) {
@@ -6111,7 +6111,7 @@ check_requirements( char const *orig, MyString &answer )
 
 
 	if( mightTransfer(JobUniverse) ) {
-			/* 
+			/*
 			   This is a kind of job that might be using file transfer
 			   or a shared filesystem.  so, tack on the appropriate
 			   clause to make sure we're either at a machine that
@@ -6123,18 +6123,18 @@ check_requirements( char const *orig, MyString &answer )
 		case STF_NO:
 				// no file transfer used.  if there's nothing about
 				// the FileSystemDomain yet, tack on a clause for
-				// that. 
+				// that.
 			if( ! checks_fsdomain ) {
 				answer += "&& (TARGET.";
 				answer += ATTR_FILE_SYSTEM_DOMAIN;
 				answer += " == MY.";
 				answer += ATTR_FILE_SYSTEM_DOMAIN;
 				answer += ")";
-			} 
+			}
 			break;
-			
+
 		case STF_YES:
-				// we're definitely going to use file transfer.  
+				// we're definitely going to use file transfer.
 			if( ! checks_file_transfer ) {
 				answer += "&& (";
 				answer += ATTR_HAS_FILE_TRANSFER;
@@ -6145,13 +6145,13 @@ check_requirements( char const *orig, MyString &answer )
 				answer += ")";
 			}
 			break;
-			
+
 		case STF_IF_NEEDED:
 				// we may or may not use file transfer, so require
 				// either the same FS domain OR the ability to file
 				// transfer.  if the user already refered to fs
 				// domain, but explictly turned on IF_NEEDED, assume
-				// they know what they're doing. 
+				// they know what they're doing.
 			if( ! checks_fsdomain ) {
 				ft_clause = "&& ((";
 				ft_clause += ATTR_HAS_FILE_TRANSFER;
@@ -6189,7 +6189,7 @@ check_requirements( char const *orig, MyString &answer )
 			answer += ATTR_HAS_JOB_DEFERRAL;
 			answer += ")";
 		}
-		
+
 			//
 			//
 			// Prepare our new requirement attribute
@@ -6199,10 +6199,10 @@ check_requirements( char const *orig, MyString &answer )
 			// our job from being matched and executed after it could
 			// possibly run
 			//
-			//	( ( ATTR_CURRENT_TIME + ATTR_SCHEDD_INTERVAL ) >= 
+			//	( ( ATTR_CURRENT_TIME + ATTR_SCHEDD_INTERVAL ) >=
 			//	  ( ATTR_DEFERRAL_TIME - ATTR_DEFERRAL_PREP_TIME ) )
 			//  &&
-			//    ( ATTR_CURRENT_TIME < 
+			//    ( ATTR_CURRENT_TIME <
 			//    ( ATTR_DEFFERAL_TIME + ATTR_DEFERRAL_WINDOW ) )
 			//  )
 			//
@@ -6218,7 +6218,7 @@ check_requirements( char const *orig, MyString &answer )
 						ATTR_DEFERRAL_WINDOW );
 		answer += " && (";
 		answer += attrib.Value();
-		answer += ")";			
+		answer += ")";
 	} // !seenBefore
 
 #if defined(WIN32)
@@ -6306,7 +6306,7 @@ check_open( const char *name, int flags )
 	strPathname = full_path(name);
 
 		/* This is only for MPI.  We test for our string that
-		   we replaced "$(NODE)" with, and replace it with "0".  Thus, 
+		   we replaced "$(NODE)" with, and replace it with "0".  Thus,
 		   we will really only try and access the 0th file only */
 	if ( JobUniverse == CONDOR_UNIVERSE_MPI ) {
 		strPathname.replaceString("#MpInOdE#", "0");
@@ -6361,7 +6361,7 @@ usage()
 	fprintf( stderr, "Usage: %s [options] [cmdfile]\n", MyName );
 	fprintf( stderr, "	Valid options:\n" );
 	fprintf( stderr, "	-verbose\t\tverbose output\n" );
-	fprintf( stderr, 
+	fprintf( stderr,
 			 "	-unused\t\t\ttoggles unused or unexpanded macro warnings\n"
 			 "         \t\t\t(overrides config file; multiple -u flags ok)\n" );
 	fprintf( stderr, "	-name <name>\t\tsubmit to the specified schedd\n" );
@@ -6389,9 +6389,9 @@ extern "C" {
 int
 DoCleanup(int,int,char*)
 {
-	if( ClusterCreated ) 
+	if( ClusterCreated )
 	{
-		// TerminateCluster() may call EXCEPT() which in turn calls 
+		// TerminateCluster() may call EXCEPT() which in turn calls
 		// DoCleanup().  This lead to infinite recursion which is bad.
 		ClusterCreated = 0;
 		if (!ActiveQueueConnection) {
@@ -6399,11 +6399,11 @@ DoCleanup(int,int,char*)
 		}
 		if (ActiveQueueConnection) {
 			// Call DestroyCluster() now in an attempt to get the schedd
-			// to unlink the initial checkpoint file (i.e. remove the 
+			// to unlink the initial checkpoint file (i.e. remove the
 			// executable we sent earlier from the SPOOL directory).
 			DestroyCluster( ClusterId );
 
-			// We purposefully do _not_ call DisconnectQ() here, since 
+			// We purposefully do _not_ call DisconnectQ() here, since
 			// we do not want the current transaction to be committed.
 		}
 	}
@@ -6458,8 +6458,8 @@ init_params()
 
 	My_fs_domain = param( "FILESYSTEM_DOMAIN" );
 		// Will always return something, since config() will put in a
-		// value (full hostname) if it's not in the config file.  
-	
+		// value (full hostname) if it's not in the config file.
+
 
 	// The default is set as the global initializer for STMethod
 	tmp = param( "SANDBOX_TRANSFER_METHOD" );
@@ -6543,7 +6543,7 @@ log_submit()
 
 	 usr_log.setUseXML(UseXMLInLog);
 
-		// don't write to the EVENT_LOG in condor_submit; that is done by 
+		// don't write to the EVENT_LOG in condor_submit; that is done by
 		// the condor_schedd (since submit likely does not have permission).
 	 usr_log.setWriteGlobalLog(false);
 
@@ -6552,8 +6552,8 @@ log_submit()
 	}
 
 	if ( DumpClassAdToFile ) {
-		// we just put some arbitrary string here: it doesn't actually mean 
-		// anything since we will never communicate the resulting ad to 
+		// we just put some arbitrary string here: it doesn't actually mean
+		// anything since we will never communicate the resulting ad to
 		// to anyone (we make the name obviously unresolvable so we know
 		// this was a generated file).
 		strcpy (jobSubmit.submitHost, "localhost-used-to-dump");
@@ -6581,8 +6581,8 @@ log_submit()
 				delete[] jobSubmit.submitEventUserNotes;
 			}
 			jobSubmit.submitEventUserNotes = strnewp( SubmitInfo[i].usernotes );
-			
-			// we don't know the gjid here, so pass in NULL as the last 
+
+			// we don't know the gjid here, so pass in NULL as the last
 			// parameter - epaulson 2/09/2007
 			usr_log.initialize(owner, ntdomain, simple_name, 0, 0, 0, NULL);
 			// Output the information
@@ -6616,6 +6616,7 @@ SaveClassAd ()
 	job->sPrint(debug_p);
 	dprintf(D_SECURITY, "Here's the job ad: '%s'\n", debug_p.Value());
 	if(cached_cur_ad) {
+		debug_p = "";
 		cached_cur_ad->sPrint(debug_p);
 		dprintf(D_SECURITY, "Here's the cached ad: '%s'\n", debug_p.Value());
 	}
@@ -6625,14 +6626,14 @@ SaveClassAd ()
 	} else {
 		myprocid = -1;		// means this is a cluster ad
 		if( SetAttributeInt (ClusterId, myprocid, ATTR_CLUSTER_ID, ClusterId) == -1 ) {
-			fprintf( stderr, "\nERROR: Failed to set %s=%d for job %d.%d (%d)\n", 
+			fprintf( stderr, "\nERROR: Failed to set %s=%d for job %d.%d (%d)\n",
 					ATTR_CLUSTER_ID, ClusterId, ClusterId, ProcId, errno);
 			return -1;
 		}
 	}
 
 	char *tmp = param("CMD_HASH");
-	bool want_cmd_hash = isTrue(tmp); 
+	bool want_cmd_hash = isTrue(tmp);
 	free(tmp);
 
 #if !defined(HAVE_EXT_OPENSSL)
@@ -6643,23 +6644,23 @@ SaveClassAd ()
 	if(!cmd.GetCStr()) {
 		cached_cur_ad->LookupString("Cmd", cmd);
 	}
-	
+
 	struct stat st_buf;
 	int cmd_file_exists = (0 == stat(cmd.GetCStr(), &st_buf));
-	
+
 	tmp = param("CMD_HASH_TYPE");
 	MyString cr_hash_type = tmp;
 	free(tmp);
 	if(cr_hash_type == NULL || cr_hash_type == "") {
 		cr_hash_type = "sha1";
 	}
-	
+
 	if(want_cmd_hash && !cmd_file_exists) {
 		fprintf(stderr, "Command hashing turned on, but Cmd file "
-				"'%s' doesn't exist.\n", 
+				"'%s' doesn't exist.\n",
 				cmd.GetCStr() == NULL ? "NULL" : cmd.GetCStr());
 	}
-	
+
 	if(want_cmd_hash && cmd_file_exists) {
 		char *cr_hash = get_hash_of_file(cmd.GetCStr(),
 										 cr_hash_type.GetCStr());
@@ -6722,17 +6723,17 @@ SaveClassAd ()
 				exit(1);
 			}
 			setenv("X509_USER_PROXY", new_proxy_loc, 1);
-			
+
 			dprintf(D_SECURITY, "deleting x509userproxy from job ad.\n");
 			job->Delete("x509userproxy");
 			dprintf(D_SECURITY, "Adding new location '%s' for x509userproxy\n", new_proxy_loc);
 			job->Assign("x509userproxy", new_proxy_loc);
-			
+
 			dprintf(D_SECURITY, "deleting x509userproxyorig from job ad.\n");
 			job->Delete("x509userproxyorig");
-			dprintf(D_SECURITY, "Adding new location '%s' for x509userproxyorig", proxy_loc);
+			dprintf(D_SECURITY, "Adding new location '%s' for x509userproxyorig\n", proxy_loc);
 			job->Assign("x509userproxyorig", proxy_loc);
-			
+
 			//free(proxy_loc);
 			//free(new_proxy_loc);
 			// What to do here: put it back nto the job?  Put the old one where? How to ch in the environment?
@@ -6747,11 +6748,17 @@ SaveClassAd ()
 					fprintf(stderr, "Error locating credd: %s\n", dc_credd.error() );
 					exit(1);
 				}
+
 				MyString ssn;
 				dprintf(D_SECURITY, "Storing shared secret '%s'\n", SharedSecret.Value());
+				dc_credd.invalidateHost(dc_credd.addr());
 				if(! dc_credd.storeSharedSecret(SharedSecret.GetCStr(), ssn, errstack)) {
 					fprintf(stderr, "Error storing shared secret.\n");
 					exit(1);
+				}
+				MyString sin = dc_credd.hostname();
+				if(!dc_credd.invalidateHost(sin.Value())) {
+					dprintf(D_SECURITY, "Couldn't toss session cache for %s.\n", sin.Value());
 				}
 				fprintf(stderr, "Successfully stored shared secret.  Name: '%s'.\n", ssn.Value());
 			}
@@ -6773,14 +6780,10 @@ SaveClassAd ()
 		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
 		if( !lhs || !rhs || !lhstr || !rhstr) { retval = -1; }
 		if( SetAttribute(ClusterId, myprocid, lhstr, rhstr) == -1 ) {
-			fprintf( stderr, "\nERROR: Failed to set %s=%s for job %d.%d (%d)\n", 
+			fprintf( stderr, "\nERROR: Failed to set %s=%s for job %d.%d (%d)\n",
 					 lhstr, rhstr, ClusterId, ProcId, errno );
 			retval = -1;
 		}
-//		if(!cached_cur_ad) {
-//			cached_cur_ad = new ClassAd();
-//		}
-//		cached_cur_ad->Assign(lhstr, rhstr);
 		free(lhstr);
 		free(rhstr);
 		if(retval == -1) {
@@ -6790,7 +6793,7 @@ SaveClassAd ()
 
 	if ( ProcId == 0 ) {
 		if( SetAttributeInt (ClusterId, ProcId, ATTR_PROC_ID, ProcId) == -1 ) {
-			fprintf( stderr, "\nERROR: Failed to set %s=%d for job %d.%d (%d)\n", 
+			fprintf( stderr, "\nERROR: Failed to set %s=%d for job %d.%d (%d)\n",
 					 ATTR_PROC_ID, ProcId, ClusterId, ProcId, errno );
 			return -1;
 		}
@@ -6825,7 +6828,7 @@ InsertJobExpr (MyString const &expr, bool clustercheck)
 	InsertJobExpr(expr.Value(),clustercheck);
 }
 
-void 
+void
 InsertJobExpr (const char *expr, bool clustercheck)
 {
 	ExprTree *tree = NULL, *lhs = NULL;
@@ -6864,9 +6867,9 @@ InsertJobExpr (const char *expr, bool clustercheck)
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
-	
+
 	if (!job->InsertOrUpdate (expr))
-	{	
+	{
 		fprintf(stderr,"\nERROR: Unable to insert expression: %s\n", expr);
 		DoCleanup(0,0,NULL);
 		exit( 1 );
@@ -6886,7 +6889,7 @@ InsertJobExpr (const char *expr, bool clustercheck)
 	delete tree;
 }
 
-void 
+void
 InsertJobExprInt(const char * name, int val, bool clustercheck /*= true*/)
 {
 	ASSERT(name);
@@ -6895,7 +6898,7 @@ InsertJobExprInt(const char * name, int val, bool clustercheck /*= true*/)
 	InsertJobExpr(buf.Value(), clustercheck);
 }
 
-void 
+void
 InsertJobExprString(const char * name, const char * val, bool clustercheck /*= true*/)
 {
 	ASSERT(name);
@@ -6905,12 +6908,12 @@ InsertJobExprString(const char * name, const char * val, bool clustercheck /*= t
 	InsertJobExpr(buf.Value(), clustercheck);
 }
 
-static unsigned int 
+static unsigned int
 hashFunction (const MyString &str)
 {
 	 int i = str.Length() - 1;
 	 unsigned int hashVal = 0;
-	 while (i >= 0) 
+	 while (i >= 0)
 	 {
 		  hashVal += (unsigned int)tolower(str[i]);
 		  i--;
@@ -6934,7 +6937,7 @@ check_umask()
 #endif
 }
 
-void 
+void
 setupAuthentication()
 {
 		//RendezvousDir for remote FS auth can be specified in submit file.
@@ -6974,7 +6977,7 @@ mightTransfer( int universe )
 }
 
 // add a vm file to transfer_input_files
-void transfer_vm_file(const char *filename, const char *lhs ) 
+void transfer_vm_file(const char *filename, const char *lhs )
 {
 	MyString fixedname;
 	MyString buffer;
@@ -6989,10 +6992,10 @@ void transfer_vm_file(const char *filename, const char *lhs )
 	MyString transfer_input_files;
 
 	// check whether the file is in transfer_input_files
-	if( job->LookupString(ATTR_TRANSFER_INPUT_FILES,transfer_input_files) 
+	if( job->LookupString(ATTR_TRANSFER_INPUT_FILES,transfer_input_files)
 				== 1 ) {
 		transfer_file_list.initializeFromString(transfer_input_files.Value());
-		if( filelist_contains_file(fixedname.Value(), 
+		if( filelist_contains_file(fixedname.Value(),
 					&transfer_file_list, true) ) {
 			// this file is already in transfer_input_files
 			return;
@@ -7027,7 +7030,7 @@ bool parse_vm_option(char *value, bool& onoff)
 
 // If a file is in transfer_input_files, the file will have just basename.
 // Otherwise, it will have full path. To get full path, iwd is used.
-bool 
+bool
 make_vm_file_path(const char *filename, const char* param, MyString& fixedname)
 {
 	if( filename == NULL ) {
@@ -7038,12 +7041,12 @@ make_vm_file_path(const char *filename, const char* param, MyString& fixedname)
 
 	MyString transfer_input_files;
 	// check whether the file will be transferred
-	if( job->LookupString(ATTR_TRANSFER_INPUT_FILES,transfer_input_files) 
+	if( job->LookupString(ATTR_TRANSFER_INPUT_FILES,transfer_input_files)
 				== 1 ) {
 		StringList transfer_file_list(NULL, ",");
 		transfer_file_list.initializeFromString(transfer_input_files.Value() );
 
-		if( filelist_contains_file(fixedname.Value(), 
+		if( filelist_contains_file(fixedname.Value(),
 					&transfer_file_list, true) ) {
 			// this file is already in transfer_input_files
 			// filename should have only basename
@@ -7057,7 +7060,7 @@ make_vm_file_path(const char *filename, const char* param, MyString& fixedname)
 	fixedname = full_path(fixedname.Value());
 	check_and_universalize_path(fixedname, param);
 	//check_open(fixedname.Value(), O_RDONLY);
-	
+
 	// we need the same file system for this file
 	vm_need_fsdomain = true;
 	return true;
@@ -7102,7 +7105,7 @@ validate_xen_disk_parm(const char *xen_disk, MyString &fixed_disk)
 		filename.trim();
 
 		MyString fixedname;
-		if( make_vm_file_path(filename.Value(), "xen_disk", fixedname) 
+		if( make_vm_file_path(filename.Value(), "xen_disk", fixedname)
 				== false ) {
 			return false;
 		}else {
@@ -7141,8 +7144,8 @@ void SetVMRequirements()
 	vmanswer += ")";
 
 	// check OS
-	/*	
-	if( (stricmp(VMType.Value(), CONDOR_VM_UNIVERSE_XEN) == MATCH ) || 
+	/*
+	if( (stricmp(VMType.Value(), CONDOR_VM_UNIVERSE_XEN) == MATCH ) ||
 			vm_need_fsdomain ) {
 		bool checks_opsys = false;
 		checks_opsys = findClause( vmanswer, ATTR_OPSYS );
@@ -7160,7 +7163,7 @@ void SetVMRequirements()
 		// some files don't use file transfer.
 		// so we need the same file system domain
 		bool checks_fsdomain = false;
-		checks_fsdomain = findClause( vmanswer, ATTR_FILE_SYSTEM_DOMAIN ); 
+		checks_fsdomain = findClause( vmanswer, ATTR_FILE_SYSTEM_DOMAIN );
 
 		if( !checks_fsdomain ) {
 			vmanswer += " && (TARGET.";
@@ -7171,24 +7174,24 @@ void SetVMRequirements()
 		}
 		MyString my_fsdomain;
 		if(job->LookupString(ATTR_FILE_SYSTEM_DOMAIN, my_fsdomain) != 1) {
-			buffer.sprintf( "%s = \"%s\"", ATTR_FILE_SYSTEM_DOMAIN, 
-					My_fs_domain ); 
+			buffer.sprintf( "%s = \"%s\"", ATTR_FILE_SYSTEM_DOMAIN,
+					My_fs_domain );
 			InsertJobExpr( buffer );
 		}
 	}
 
 	if( stricmp(VMType.Value(), CONDOR_VM_UNIVERSE_XEN) != MATCH ) {
-		// For most virtual machine programs except Xen, 
-		// it's reasonable to expect the physical memory is 
+		// For most virtual machine programs except Xen,
+		// it's reasonable to expect the physical memory is
 		// larger than the memory for VM.
-		// Especially VM universe uses Total Memory 
+		// Especially VM universe uses Total Memory
 		// instead of Memory for Condor slot.
-		// The reason why we use Total Memory is that 
-		// we may want to run smaller VM universe jobs than the number of 
+		// The reason why we use Total Memory is that
+		// we may want to run smaller VM universe jobs than the number of
 		// Condor slots.
-		// The maximum number of VM universe jobs on a execute machine is 
+		// The maximum number of VM universe jobs on a execute machine is
 		// the number of ATTR_VM_AVAIL_NUM.
-		// Generally ATTR_VM_AVAIL_NUM must be less than the number of 
+		// Generally ATTR_VM_AVAIL_NUM must be less than the number of
 		// Condor slot.
 		vmanswer += " && (";
 		vmanswer += ATTR_TOTAL_MEMORY;
@@ -7247,7 +7250,7 @@ void SetVMRequirements()
 			vmanswer += ",\",\")) ";
 		}
 	}
-			
+
 	if( VMCheckpoint ) {
 		bool checks_ckpt_arch = false;
 		bool checks_vm_ckpt_mac = false;
@@ -7255,13 +7258,13 @@ void SetVMRequirements()
 		checks_vm_ckpt_mac = findClause( vmanswer, ATTR_VM_CKPT_MAC );
 
 		if( !checks_ckpt_arch ) {
-			// VM checkpoint files created on AMD 
+			// VM checkpoint files created on AMD
 			// can not be used in INTEL. vice versa.
 			vmanswer += " && ((MY.CkptArch == Arch) ||";
 			vmanswer += " (MY.CkptArch =?= UNDEFINED))";
 		}
-		if( !checks_vm_ckpt_mac ) { 
-			// VMs with the same MAC address cannot run 
+		if( !checks_vm_ckpt_mac ) {
+			// VMs with the same MAC address cannot run
 			// on the same execute machine
 			vmanswer += " && ((MY.VM_CkptMac =?= UNDEFINED) || ";
 			vmanswer += "(TARGET.VM_All_Guest_Macs =?= UNDEFINED) || ";
@@ -7295,12 +7298,12 @@ SetVMParams()
 	InsertJobExpr(buffer);
 
 	// VM checkpoint is already set in SetUniverse
-	buffer.sprintf( "%s = %s", ATTR_JOB_VM_CHECKPOINT, 
+	buffer.sprintf( "%s = %s", ATTR_JOB_VM_CHECKPOINT,
 			VMCheckpoint? "TRUE":"FALSE");
 	InsertJobExpr(buffer);
 
 	// VM networking is already set in SetUniverse
-	buffer.sprintf( "%s = %s", ATTR_JOB_VM_NETWORKING, 
+	buffer.sprintf( "%s = %s", ATTR_JOB_VM_NETWORKING,
 			VMNetworking? "TRUE":"FALSE");
 	InsertJobExpr(buffer);
 
@@ -7311,7 +7314,7 @@ SetVMParams()
 			VMNetworkType = tmp_ptr;
 			free(tmp_ptr);
 
-			buffer.sprintf( "%s = \"%s\"", ATTR_JOB_VM_NETWORKING_TYPE, 
+			buffer.sprintf( "%s = \"%s\"", ATTR_JOB_VM_NETWORKING_TYPE,
 					VMNetworkType.Value());
 			InsertJobExpr(buffer, false );
 		}else {
@@ -7334,7 +7337,7 @@ SetVMParams()
 	if( VMMemory <= 0 ) {
 		fprintf( stderr, "\nERROR: '%s' is incorrectly specified\n"
 				"For example, for vm memroy of 128 Megabytes,\n"
-				"you need to use 128 in your submit description file.\n", 
+				"you need to use 128 in your submit description file.\n",
 				VM_Memory);
 		DoCleanup(0,0,NULL);
 		exit(1);
@@ -7342,14 +7345,14 @@ SetVMParams()
 	buffer.sprintf( "%s = %d", ATTR_JOB_VM_MEMORY, VMMemory);
 	InsertJobExpr( buffer, false );
 
-	/* 
-	 * When the parameter of "vm_no_output_vm" is TRUE, 
-	 * Condor will not transfer VM files back to a job user. 
-	 * This parameter could be used if a job user uses 
-	 * explict method to get output files from VM. 
-	 * For example, if a job user uses a ftp program 
-	 * to send output files inside VM to his/her dedicated machine for ouput, 
-	 * Maybe the job user doesn't want to get modified VM files back. 
+	/*
+	 * When the parameter of "vm_no_output_vm" is TRUE,
+	 * Condor will not transfer VM files back to a job user.
+	 * This parameter could be used if a job user uses
+	 * explict method to get output files from VM.
+	 * For example, if a job user uses a ftp program
+	 * to send output files inside VM to his/her dedicated machine for ouput,
+	 * Maybe the job user doesn't want to get modified VM files back.
 	 * So the job user can use this parameter
 	 */
 	bool vm_no_output_vm = false;
@@ -7364,14 +7367,14 @@ SetVMParams()
 	}
 
 	// 'vm_cdrom_files' defines files which will be shown in CDROM inside a VM.
-	// That is, vm-gahp on the execute machine will create a ISO file with 
+	// That is, vm-gahp on the execute machine will create a ISO file with
 	// the defined files. The ISO file will be viewed as a CDROM in a VM.
 	char *vm_cdrom_files = NULL;
 	vm_cdrom_files = condor_param("vm_cdrom_files");
 	if( vm_cdrom_files ) {
 		vm_should_transfer_cdrom_files = false;
 		tmp_ptr = condor_param("vm_should_transfer_cdrom_files");
-		if( parse_vm_option(tmp_ptr, vm_should_transfer_cdrom_files) 
+		if( parse_vm_option(tmp_ptr, vm_should_transfer_cdrom_files)
 				== false ) {
 			MyString err_msg;
 			err_msg = "\nERROR: You must explicitly specify "
@@ -7380,7 +7383,7 @@ SetVMParams()
 				"You need to define either "
 				"\"vm_should_transfer_cdrom_files = YES\" or "
 				" \"vm_should_transfer_cdrom_files = NO\". "
-				"If you define \"vm_should_transfer_cdrom_files = YES\", " 
+				"If you define \"vm_should_transfer_cdrom_files = YES\", "
 				"all files in \"vm_cdrom_files\" will be "
 				"transfered to an execute machine. "
 				"If you define \"vm_should_transfer_cdrom_files = NO\", "
@@ -7432,7 +7435,7 @@ SetVMParams()
 				final_cdrom_files += ",";
 			}
 			if( vm_should_transfer_cdrom_files ) {
-				// A file will be transferred. 
+				// A file will be transferred.
 				// So we use basename.
 				final_cdrom_files += condor_basename(cdrom_file.Value());
 			}else {
@@ -7443,13 +7446,13 @@ SetVMParams()
 		if( has_vm_iso_file && (cdrom_file_list.number() > 1)) {
 			fprintf( stderr, "\nERROR: You cannot define an iso file "
 					"with other files. You should define either "
-					"only one iso file or multiple non-iso files in %s\n", 
+					"only one iso file or multiple non-iso files in %s\n",
 					"vm_cdrom_files");
 			DoCleanup(0,0,NULL);
 			exit(1);
 		}
 
-		buffer.sprintf( "%s = \"%s\"", VMPARAM_CDROM_FILES, 
+		buffer.sprintf( "%s = \"%s\"", VMPARAM_CDROM_FILES,
 				final_cdrom_files.Value());
 		InsertJobExpr( buffer, false );
 		has_vm_cdrom_files = true;
@@ -7460,7 +7463,7 @@ SetVMParams()
 		bool real_xen_kernel_file = false;
 		bool need_xen_root_device = false;
 
-		// Read the parameter of xen_transfer_files 
+		// Read the parameter of xen_transfer_files
 		char *xen_transfer_files = NULL;
 		xen_transfer_files = condor_param("xen_transfer_files");
 		if( xen_transfer_files ) {
@@ -7488,11 +7491,11 @@ SetVMParams()
 				if( final_output.Length() > 0 ) {
 					final_output += ",";
 				}
-				// VMPARAM_XEN_TRANSFER_FILES will include 
+				// VMPARAM_XEN_TRANSFER_FILES will include
 				// basenames for files to be transferred.
 				final_output += condor_basename(one_file.Value());
 			}
-			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_TRANSFER_FILES, 
+			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_TRANSFER_FILES,
 					final_output.Value());
 			InsertJobExpr( buffer, false );
 			free(xen_transfer_files);
@@ -7506,7 +7509,7 @@ SetVMParams()
 					"Please specify 'xen_kernel' for the xen virtual machine "
 					"in your submit description file.\n"
 					"xen_kernel must be one of "
-					"\"%s\", \"%s\", \"%s\", <file-name>.\n", 
+					"\"%s\", \"%s\", \"%s\", <file-name>.\n",
 					XEN_KERNEL_ANY, XEN_KERNEL_INCLUDED, XEN_KERNEL_HW_VT);
 			DoCleanup(0,0,NULL);
 			exit(1);
@@ -7514,14 +7517,14 @@ SetVMParams()
 			MyString fixedname = delete_quotation_marks(xen_kernel);
 
 			if( stricmp(fixedname.Value(), XEN_KERNEL_ANY ) == 0 ) {
-				// Condor will use a default kernel defined 
+				// Condor will use a default kernel defined
 				// in a vmgahp config file on an execute machine
 				real_xen_kernel_file = false;
 				need_xen_root_device = true;
 			}else if ( stricmp(fixedname.Value(), XEN_KERNEL_INCLUDED) == 0) {
 				// kernel image is included in a disk image file
-				// so we will use bootloader(pygrub etc.) defined 
-				// in a vmgahp config file on an excute machine 
+				// so we will use bootloader(pygrub etc.) defined
+				// in a vmgahp config file on an excute machine
 				real_xen_kernel_file = false;
 				need_xen_root_device = false;
 			}else if ( stricmp(fixedname.Value(), XEN_KERNEL_HW_VT) == 0) {
@@ -7534,7 +7537,7 @@ SetVMParams()
 				InsertJobExpr( buffer, false );
 			}else {
 				// real kernel file
-				if( make_vm_file_path(xen_kernel, "xen_kernel", fixedname) 
+				if( make_vm_file_path(xen_kernel, "xen_kernel", fixedname)
 						== false ) {
 					DoCleanup(0,0,NULL);
 					exit(1);
@@ -7542,7 +7545,7 @@ SetVMParams()
 				real_xen_kernel_file = true;
 				need_xen_root_device = true;
 			}
-			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_KERNEL, 
+			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_KERNEL,
 					fixedname.Value());
 			InsertJobExpr(buffer, false);
 			free(xen_kernel);
@@ -7559,12 +7562,12 @@ SetVMParams()
 				exit(1);
 			}
 			MyString fixedname;
-			if( make_vm_file_path(xen_initrd, "xen_initrd", fixedname) 
+			if( make_vm_file_path(xen_initrd, "xen_initrd", fixedname)
 					== false ) {
 				DoCleanup(0,0,NULL);
 				exit(1);
 			}
-			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_INITRD, 
+			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_INITRD,
 					fixedname.Value());
 			InsertJobExpr(buffer, false);
 			free(xen_initrd);
@@ -7576,13 +7579,13 @@ SetVMParams()
 			if( !xen_root ) {
 				fprintf( stderr, "\nERROR: '%s' cannot be found.\n"
 						"Please specify '%s' for the xen virtual machine "
-						"in your submit description file.\n", "xen_root", 
+						"in your submit description file.\n", "xen_root",
 						"xen_root");
 				DoCleanup(0,0,NULL);
 				exit(1);
 			}else {
 				MyString fixedvalue = delete_quotation_marks(xen_root);
-				buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_ROOT, 
+				buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_ROOT,
 						fixedvalue.Value());
 				InsertJobExpr(buffer, false);
 				free(xen_root);
@@ -7595,13 +7598,13 @@ SetVMParams()
 		if( !xen_disk ) {
 			fprintf( stderr, "\nERROR: '%s' cannot be found.\n"
 					"Please specify '%s' for the xen virtual machine "
-					"in your submit description file.\n", 
+					"in your submit description file.\n",
 					"xen_disk", "xen_disk");
 			DoCleanup(0,0,NULL);
 			exit(1);
 		}else {
 			MyString fixedvalue = delete_quotation_marks(xen_disk);
-			if( validate_xen_disk_parm(fixedvalue.Value(), fixedvalue) 
+			if( validate_xen_disk_parm(fixedvalue.Value(), fixedvalue)
 					== false ) {
 				fprintf(stderr, "\nERROR: 'xen_disk' has incorrect format.\n"
 						"The format shoud be like "
@@ -7623,7 +7626,7 @@ SetVMParams()
 		xen_kernel_params = condor_param("xen_kernel_params");
 		if( xen_kernel_params ) {
 			MyString fixedvalue = delete_quotation_marks(xen_kernel_params);
-			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_KERNEL_PARAMS, 
+			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_KERNEL_PARAMS,
 					fixedvalue.Value());
 			InsertJobExpr( buffer, false);
 			free(xen_kernel_params);
@@ -7631,7 +7634,7 @@ SetVMParams()
 
 		if( has_vm_cdrom_files ) {
 			MyString xen_cdrom_string;
-			char *xen_cdrom_device = NULL; 
+			char *xen_cdrom_device = NULL;
 			xen_cdrom_device = condor_param("xen_cdrom_device");
 			if( !xen_cdrom_device ) {
 				fprintf(stderr, "\nERROR: To use 'vm_cdrom_files', "
@@ -7650,7 +7653,7 @@ SetVMParams()
 				exit(1);
 			}
 
-			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_CDROM_DEVICE, 
+			buffer.sprintf( "%s = \"%s\"", VMPARAM_XEN_CDROM_DEVICE,
 					xen_cdrom_string.Value());
 			InsertJobExpr( buffer, false );
 		}
@@ -7666,7 +7669,7 @@ SetVMParams()
 				"You need to define either: "
 				"\"vmware_should_transfer_files = YES\" or "
 				" \"vmware_should_transfer_files = NO\". "
-				"If you define \"vmware_should_transfer_files = YES\", " 
+				"If you define \"vmware_should_transfer_files = YES\", "
 				"vmx and vmdk files in the directory of \"vmware_dir\" "
 				"will be transfered to an execute machine. "
 				"If you define \"vmware_should_transfer_files = NO\", "
@@ -7678,7 +7681,7 @@ SetVMParams()
 		}
 		free(tmp_ptr);
 
-		buffer.sprintf( "%s = %s", VMPARAM_VMWARE_TRANSFER, 
+		buffer.sprintf( "%s = %s", VMPARAM_VMWARE_TRANSFER,
 				vmware_should_transfer_files ? "TRUE" : "FALSE");
 		InsertJobExpr( buffer, false);
 
@@ -7687,12 +7690,12 @@ SetVMParams()
 		}
 
 		/* In default, vmware vm universe uses snapshot disks.
-		 * However, when a user job is so IO-sensitive that 
-		 * the user doesn't want to use snapshot, 
-		 * the user must use both 
-		 * vmware_should_transfer_files = YES and 
+		 * However, when a user job is so IO-sensitive that
+		 * the user doesn't want to use snapshot,
+		 * the user must use both
+		 * vmware_should_transfer_files = YES and
 		 * vmware_snapshot_disk = FALSE
-		 * In vmware_should_transfer_files = NO 
+		 * In vmware_should_transfer_files = NO
 		 * snapshot disks is always used.
 		 */
 		bool vmware_snapshot_disk = true;
@@ -7742,7 +7745,7 @@ SetVMParams()
 
 		// find vmx file in the given directory
 		StringList vmxfiles;
-		if( suffix_matched_files_in_dir(f_dirname.Value(), vmxfiles, 
+		if( suffix_matched_files_in_dir(f_dirname.Value(), vmxfiles,
 					".vmx", true) == false ) {
 			fprintf( stderr, "\nERROR: no vmx file for vmware can be found "
 					"in %s.\n", f_dirname.Value());
@@ -7751,7 +7754,7 @@ SetVMParams()
 		}else {
 			if( vmxfiles.number() > 1 ) {
 				fprintf( stderr, "\nERROR: multiple vmx files exist. "
-						"Only one vmx file must be in %s.\n", 
+						"Only one vmx file must be in %s.\n",
 						f_dirname.Value());
 				DoCleanup(0,0,NULL);
 				exit(1);
@@ -7769,7 +7772,7 @@ SetVMParams()
 
 		// find vmdk files in the given directory
 		StringList vmdk_files;
-		if( suffix_matched_files_in_dir(f_dirname.Value(), vmdk_files, 
+		if( suffix_matched_files_in_dir(f_dirname.Value(), vmdk_files,
 					".vmdk", true) == true ) {
 			MyString vmdks;
 			vmdk_files.rewind();
@@ -7782,19 +7785,19 @@ SetVMParams()
 				if( vmdks.Length() > 0 ) {
 					vmdks += ",";
 				}
-				// VMPARAM_VMWARE_VMDK_FILES will include 
+				// VMPARAM_VMWARE_VMDK_FILES will include
 				// basenames for vmdks files
 				vmdks += condor_basename(tmp_file);
 			}
-			buffer.sprintf( "%s = \"%s\"", VMPARAM_VMWARE_VMDK_FILES, 
+			buffer.sprintf( "%s = \"%s\"", VMPARAM_VMWARE_VMDK_FILES,
 					vmdks.Value());
 			InsertJobExpr( buffer, false );
 		}
 	}
 
 	// Check if a job user defines 'Argument'.
-	// If 'Argument' parameter is defined, 
-	// we will create a file called "condor.arg" on an execute machine 
+	// If 'Argument' parameter is defined,
+	// we will create a file called "condor.arg" on an execute machine
 	// and add the file to input CDROM.
 	ArgList arglist;
 	MyString arg_err_msg;
@@ -7803,16 +7806,16 @@ SetVMParams()
 		arg_str = "";
 	}
 
-	// Here we check if this job submit description file is 
+	// Here we check if this job submit description file is
 	// correct for vm checkpoint
 	if( VMCheckpoint ) {
 		if( stricmp(VMType.Value(), CONDOR_VM_UNIVERSE_XEN) == MATCH ) {
 			// For vm checkpoint in Xen
 			// 1. all disk files should be in a shared file system
-			// 2. If a job uses CDROM files, it should be 
+			// 2. If a job uses CDROM files, it should be
 			// 	  single ISO file and be in a shared file system
-			if( xen_has_file_to_be_transferred || 
-				(has_vm_cdrom_files && 
+			if( xen_has_file_to_be_transferred ||
+				(has_vm_cdrom_files &&
 				 (!has_vm_iso_file || vm_should_transfer_cdrom_files)) ||
 				!arg_str.IsEmpty() ) {
 				MyString err_msg;
@@ -7849,8 +7852,8 @@ SetVMParams()
 
 	if( !arg_str.IsEmpty() && has_vm_cdrom_files ) {
 		if( has_vm_iso_file ) {
-			// A job user cannot use a iso file for input CDROM and 
-			// 'Argument' parameter together, 
+			// A job user cannot use a iso file for input CDROM and
+			// 'Argument' parameter together,
 			MyString err_msg;
 			err_msg = "\nERROR: You cannot use single iso file for "
 				"'vm_cdrom_files' and 'arguments' in a job description "
@@ -7860,7 +7863,7 @@ SetVMParams()
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}else {
-			// Because a file called "condor.arg" will be created and 
+			// Because a file called "condor.arg" will be created and
 			// be added to input CDROM on an execute machine,
 			// 'vm_cdrom_files' should not contain "condor.arg".
 			if( final_cdrom_files.find(VM_UNIV_ARGUMENT_FILE, 0) >= 0 ) {
@@ -7878,7 +7881,7 @@ SetVMParams()
 			}
 		}
 	}
-			
+
 	// Now all VM parameters are set
 	// So we need to add necessary VM attributes to Requirements
 	SetVMRequirements();

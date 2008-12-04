@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -41,14 +41,14 @@ class Daemon;
 
 template <class p> class counted_ptr; // Forward declaration
 
-/** 
+/**
   Class used to pass around and store information about a given
   daemon.  You instantiate one of these objects and pass in the type
   of daemon you care about, and optionally, the name of the daemon and
   pool that it reports to.  The pool and name arguments both default
   to NULL, which means the local pool (the pool that the machine where
-  the Daemon object was instantiated reports to) and the local  
-  daemon, respectively.  
+  the Daemon object was instantiated reports to) and the local
+  daemon, respectively.
 
   <p>Once you have the object, you call the locate() method to have
   it actually try to find all the information about the daemon it can
@@ -91,14 +91,14 @@ public:
 		  "slot1@raven.cs.wisc.edu") of the particular daemon you care
 		  about.  If you pass in a NULL (the default) for the name, we
 		  assume you want the "local" daemon.  Alternatively, you can
-		  pass in the "sinful string" of the daemon you care about.  
+		  pass in the "sinful string" of the daemon you care about.
 		  Finally, you can pass in the name of the pool you want to
 		  query.  If you pass in a NULL (the default), we assume you
 		  want the local pool.
 		  @param type The type of the daemon, specified in a daemon_t
 		  @param name The name (or sinful string) of the daemon, NULL if you want local
 		  @param pool The name of the pool, NULL if you want local */
-	Daemon( daemon_t type, const char* name = NULL, 
+	Daemon( daemon_t type, const char* name = NULL,
 				const char* pool = NULL );
 
 		/** Another version of the constructor that takes a ClassAd
@@ -170,13 +170,13 @@ public:
 		  */
 	char* hostname( void );
 
-		/** 
+		/**
 			@return The version string of this daemon, or NULL if we
 			don't know it.
 		*/
 	char* version( void );
 
-		/** 
+		/**
 			@return The platform string of this daemon, or NULL if we
 			don't know it.
 		*/
@@ -186,7 +186,7 @@ public:
 		  This is the fully qualified hostname, including the domain
 		  name.  For example, "raven.cs.wisc.edu".  This function will
 		  return NULL only if there was an error in the locate()
-		  method. 
+		  method.
 		  @return The fully-qualified hostname where the daemon is running.
 		  */
 	char* fullHostname( void );
@@ -234,8 +234,8 @@ public:
 	bool isLocal( void )			{ return _is_local; }
 
 		/** Return the classad for this daemon. We may not have the
-			ad, if we found the daemon from the config file or the 
-			address file, or it doesn't have a classad. 
+			ad, if we found the daemon from the config file or the
+			address file, or it doesn't have a classad.
 			The caller must copy the classad it gets back!
 		  */
 	ClassAd *daemonAd() { return m_daemon_ad_ptr; }
@@ -267,7 +267,7 @@ public:
 		  connect().  If there was a failure in connect(), we delete
 		  the object and return NULL.
 		  @param sec Number of seconds for the timeout on connect().
-		  @return A new ReliSock object connected to the daemon.  
+		  @return A new ReliSock object connected to the daemon.
 		  */
 	ReliSock* reliSock( int sec = 0, CondorError* errstack = 0,
 	                    bool non_blocking = false,
@@ -275,10 +275,10 @@ public:
 
 		/**	Create a new SafeSock object, connected to the daemon.
 		  Callers can optionally specify a timeout to use for the
-		  connect().  If there was a failure in connect(), we delete 
+		  connect().  If there was a failure in connect(), we delete
 		  the object and return NULL.
 		  @param sec Number of seconds for the timeout on connect().
-		  @return A new SafeSock object connected to the daemon.  
+		  @return A new SafeSock object connected to the daemon.
 		  */
 	SafeSock* safeSock( int sec = 0, CondorError* errstack = 0,
 	                    bool non_blocking = false );
@@ -286,7 +286,7 @@ public:
 public:
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, the type of Sock they
-		  want to use to send it over, and an optional timeout.  
+		  want to use to send it over, and an optional timeout.
 		  We then instantiate a new Sock of the right type and
 		  timeout, send the command, and finally, the eom().  The Sock
 		  is then destroyed.
@@ -295,10 +295,10 @@ public:
 		  @param sec The timeout you want to use on your Sock.
 		  @return Success or failure.
 		  */
-	bool sendCommand( int cmd, 
+	bool sendCommand( int cmd,
 					   Stream::stream_type st = Stream::reli_sock,
 					   int sec = 0, CondorError* errstack = NULL );
-	
+
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, a pointer to the Sock they
 		  want us to use to send it over, and an optional timeout.
@@ -327,10 +327,10 @@ public:
 		  @return NULL on error, or the Sock object to use for the
 		  rest of the command on success.
 		  */
-	Sock* startCommand( int cmd, 
+	Sock* startCommand( int cmd,
 				Stream::stream_type st = Stream::reli_sock,
 				int sec = 0, CondorError* errstack = NULL );
-	
+
 		/** Start sending the given command to the daemon.  The caller
 		  gives the command they want to send, and a pointer to the
 		  Sock they want us to use to send it over.  This method will
@@ -345,7 +345,7 @@ public:
 		*/
 	bool startCommand( int cmd, Sock* sock,
 			int sec = 0, CondorError* errstack = NULL );
-			
+
 		/** Start sending the given command to the daemon.  This
 			command claims to be nonblocking, but currently it only
 			uses nonblocking connects; everything else is blocking.
@@ -417,32 +417,34 @@ public:
 	void sendMsg( classy_counted_ptr<DCMsg> msg, Stream::stream_type st=Stream::reli_sock, int timeout=0, bool blocking=false );
 
 		/**
-		 * Contact another daemon and initiate the time offset range 
+		 * Contact another daemon and initiate the time offset range
 		 * determination logic. We create a socket connection, pass the
 		 * DC_TIME_OFFSET command then pass the Stream to the cedar stub
 		 * code for time offset. If this method returns false, then
 		 * that means we were not able to coordinate our communications
 		 * with the remote daemon
-		 * 
+		 *
 		 * @param offset - the reference placeholder for the range
 		 * @return true if it was able to contact the other Daemon
 		 **/
  	bool getTimeOffset( long &offset );
- 	
+
 		/**
-		 * Contact another daemon and initiate the time offset range 
+		 * Contact another daemon and initiate the time offset range
 		 * determination logic. We create a socket connection, pass the
 		 * DC_TIME_OFFSET command then pass the Stream to the cedar stub
 		 * code for time offset. The min/max range value placeholders
 		 * are passed in by reference. If this method returns false, then
 		 * that means for some reason we could not get the range and the
 		 * range values will default to a known value.
-		 * 
+		 *
 		 * @param min_range - the minimum range value for the time offset
 		 * @param max_range - the maximum range value for the time offset
 		 * @return true if it was able to contact the other Daemon and get range
 		 **/
 	bool getTimeOffsetRange( long &min_range, long &max_range );
+
+	bool invalidateHost(const char *sin);
 
 protected:
 	// Data members
@@ -464,7 +466,7 @@ protected:
 	bool _tried_locate;
 	bool _tried_init_hostname;
 	bool _tried_init_version;
-	bool _is_configured; 
+	bool _is_configured;
 	ClassAd *m_daemon_ad_ptr;
 	SecMan _sec_man;
 
@@ -504,7 +506,7 @@ protected:
 		  we were looking for that describe where the CM is.  This is
 		  useful when we're trying to find the condor_view collector,
 		  b/c if we can't find condor_view-specific entries, we fall
-		  back and try to just find the default collector.  
+		  back and try to just find the default collector.
 		  @param subsys The subsystem string for this daemon
 		  @return Whether or not we found the info we want
 		  */
@@ -550,7 +552,7 @@ protected:
 		  use that, and pass it to build_valid_daemon_name() to make
 		  sure we have a fully-qualified hostname.  If not, we just
 		  use my_full_hostname().  The string we return is newly
-		  allocated and should be deallocated with delete []. 
+		  allocated and should be deallocated with delete [].
 		  */
 	char* localName( void );
 
@@ -595,17 +597,17 @@ protected:
 	bool initStringFromAd( const ClassAd* ad, const char* attrname,
 						   char** value_str );
 
-	bool initStringFromAd(counted_ptr<class ClassAd>& ad, const char* attrname, 
+	bool initStringFromAd(counted_ptr<class ClassAd>& ad, const char* attrname,
 		char** value_str );
 
-		/* 
+		/*
 		   These helpers prevent memory leaks.  Whenever we want to
 		   set one of these strings, you just use the helper, which
 		   will delete any existing value of the string, and set it to
 		   the value you pass in.  Unlike newError(), this DOES NOT
 		   make a copy of what you pass (since so many of our util lib
 		   functions already allocate a string), so the string you
-		   pass in should be a strnewp()'ed or equivalent string.  
+		   pass in should be a strnewp()'ed or equivalent string.
 		   We simply return the value you pass in.
 		*/
 	char* New_full_hostname( char* );
@@ -624,11 +626,11 @@ protected:
 	void setCmdStr( const char* cmd );
 	char* _cmd_str;
 
-		/** 
+		/**
  		   Helper method for the client-side of the ClassAd-only
 		   protocol.  This method will try to: locate our daemon,
 		   connect(), send the CA_CMD int (or CA_AUTH_CMD is
-		   force_auth is true), send a ClassAd and an EOM,  
+		   force_auth is true), send a ClassAd and an EOM,
 		   read back a ClassAd and EOM, lookup the ATTR_RESULT in the
 		   reply, and if it's FALSE, lookup ATTR_ERROR_STRING.  This
 		   deals with everything for you, so all you have to do if you
@@ -640,7 +642,7 @@ protected:
 		   @param timeout Network timeout to use (ignored if < 0 )
 		   @return false if there were any network errors, if
 		   ATTR_ERROR_STRING is defined, and/or if ATTR_RESULT is not
-		   CA_SUCCESS.  Otherwise, true.   
+		   CA_SUCCESS.  Otherwise, true.
 		*/
 	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 					int timeout = -1 );
@@ -654,11 +656,11 @@ protected:
 	bool sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* sock,
 					bool force_auth, int timeout = -1 );
 
-		/** 
+		/**
 		   Helper method for commands to see if we've already got the
 		   right address for our daemon.  If not, we try to locate
-		   it.  
-		   @return true if we've got the address or found it, false 
+		   it.
+		   @return true if we've got the address or found it, false
 		   if we failed to locate it.
 		*/
 	bool checkAddr( void );

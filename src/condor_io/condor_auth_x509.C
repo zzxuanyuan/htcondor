@@ -144,7 +144,6 @@ myfunc(
     if(nid == pci_NID || nid == pci_old_NID)
     {
         /* Assume that we either put it there or that it will be recognized */
-		fprintf(stderr, "Bwahaha!! All in a day's work.\n");
 		fprintf(stderr, "Proxy file: '%s'\n", get_x509_proxy_filename());
         return GLOBUS_TRUE;
     }
@@ -244,6 +243,7 @@ int Condor_Auth_X509 :: authenticate(const char * /* remoteHost */, CondorError*
     //don't just return TRUE if isAuthenticated() == TRUE, since
     //we should BALANCE calls of Authenticate() on client/server side
     //just like end_of_message() calls must balance!
+    dprintf(D_SECURITY, "Entering authenticate.\n");
 
     if ( !authenticate_self_gss(errstack) ) {
         dprintf( D_SECURITY, "authenticate: user creds not established\n" );
@@ -730,7 +730,7 @@ int Condor_Auth_X509::authenticate_self_gss(CondorError* errstack)
     OM_uint32 minor_status;
     char comment[1024];
     if ( credential_handle != GSS_C_NO_CREDENTIAL ) { // user already auth'd
-        dprintf( D_FULLDEBUG, "This process has a valid certificate & key\n" );
+        dprintf( D_SECURITY, "This process has a valid certificate & key\n" );
         return TRUE;
     }
 
@@ -988,16 +988,16 @@ int Condor_Auth_X509::authenticate_server_gss(CondorError* errstack)
 	major_status = globus_gss_assist_will_handle_restrictions(&minor_status,
 															  &context_handle);
 	if(major_status != GSS_S_COMPLETE) {
-		fprintf(stderr, "Can't set handler.\n");
+		dprintf(D_SECURITY, "Can't set handler.\n");
 	} else {
-		fprintf(stderr, "Set handler.\n");
+		dprintf(D_SECURITY, "Set handler.\n");
 	}
 
 	if(GLOBUS_SUCCESS != globus_gsi_callback_data_init(&(context_handle->callback_data))) {
-		fprintf(stderr, "nope.\n");
+		dprintf(D_SECURITY, "Error setting GSI callback.\n");
 	}
 	if(GLOBUS_SUCCESS != globus_gsi_callback_set_extension_cb(context_handle->callback_data, myfunc)) {
-		fprintf(stderr, "nope..\n");
+		dprintf(D_SECURITY, "Error setting GSI callback.\n");
 	}
 
     major_status = globus_gss_assist_accept_sec_context(&minor_status,

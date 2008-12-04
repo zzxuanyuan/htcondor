@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -97,7 +97,7 @@ IpVerify SecMan::m_ipverify;
 
 SecMan::sec_req
 SecMan::sec_alpha_to_sec_req(char *b) {
-	if (!b || !*b) {  
+	if (!b || !*b) {
 		// ... that is the question :)
 		return SEC_REQ_INVALID;
 	}
@@ -141,7 +141,7 @@ SecMan::sec_lookup_feat_act( ClassAd &ad, const char* pname ) {
 
 SecMan::sec_feat_act
 SecMan::sec_alpha_to_sec_feat_act(char *b) {
-	if (!b || !*b) {  
+	if (!b || !*b) {
 		// ... that is the question :)
 		return SEC_FEAT_ACT_INVALID;
 	}
@@ -162,7 +162,7 @@ SecMan::sec_alpha_to_sec_feat_act(char *b) {
 /*
 SecMan::sec_act
 SecMan::sec_alpha_to_sec_act(char *b) {
-	if (!b || !*b) {  
+	if (!b || !*b) {
 		// ... that is the question :)
 		return SEC_ACT_INVALID;
 	}
@@ -289,7 +289,7 @@ void SecMan::getAuthenticationMethods( DCpermission perm, MyString *result ) {
 	}
 }
 
-char* 
+char*
 SecMan::getSecSetting( const char* fmt, DCpermissionHierarchy const &auth_level, MyString *param_name /* = NULL */, char const *check_subsystem /* = NULL */ ) {
 	DCpermission const *perms = auth_level.getConfigPerms();
 	char *result;
@@ -344,7 +344,7 @@ SecMan::getSecSetting( const char* fmt, DCpermissionHierarchy const &auth_level,
 // private key if we don't authenticate)
 
 bool
-SecMan::FillInSecurityPolicyAd( DCpermission auth_level, ClassAd* ad, 
+SecMan::FillInSecurityPolicyAd( DCpermission auth_level, ClassAd* ad,
 								bool other_side_can_negotiate )
 {
 	if( ! ad ) {
@@ -386,22 +386,22 @@ SecMan::FillInSecurityPolicyAd( DCpermission auth_level, ClassAd* ad,
 	    !ReconcileSecurityDependency (sec_negotiation, sec_encryption) ||
 		!ReconcileSecurityDependency (sec_negotiation, sec_integrity)) {
 
-		// houston, we have a problem.  
+		// houston, we have a problem.
 		dprintf (D_SECURITY, "SECMAN: failure! can't resolve security policy:\n");
 		dprintf (D_SECURITY, "SECMAN:   SEC_NEGOTIATION=\"%s\"\n",
 				SecMan::sec_req_rev[sec_negotiation]);
 		dprintf (D_SECURITY, "SECMAN:   SEC_AUTHENTICATION=\"%s\"\n",
 				SecMan::sec_req_rev[sec_authentication]);
-		dprintf (D_SECURITY, "SECMAN:   SEC_ENCRYPTION=\"%s\"\n", 
+		dprintf (D_SECURITY, "SECMAN:   SEC_ENCRYPTION=\"%s\"\n",
 				SecMan::sec_req_rev[sec_encryption]);
-		dprintf (D_SECURITY, "SECMAN:   SEC_INTEGRITY=\"%s\"\n", 
+		dprintf (D_SECURITY, "SECMAN:   SEC_INTEGRITY=\"%s\"\n",
 				SecMan::sec_req_rev[sec_integrity]);
 		return false;
 	}
 
 	// if we require negotiation and we know the other side can't speak
 	// security negotiation, may as well fail now (as opposed to later)
-	if( sec_negotiation == SEC_REQ_REQUIRED && 
+	if( sec_negotiation == SEC_REQ_REQUIRED &&
 		other_side_can_negotiate == FALSE ) {
 		dprintf (D_SECURITY, "SECMAN: failure! SEC_NEGOTIATION "
 				"is REQUIRED and other daemon is pre 6.3.3.\n");
@@ -452,7 +452,7 @@ SecMan::FillInSecurityPolicyAd( DCpermission auth_level, ClassAd* ad,
 		free(paramer);
 		paramer = NULL;
 	} else {
-		if( sec_encryption == SEC_REQ_REQUIRED || 
+		if( sec_encryption == SEC_REQ_REQUIRED ||
 			sec_integrity == SEC_REQ_REQUIRED ) {
 			dprintf( D_SECURITY, "SECMAN: no crypto methods, "
 					 "but it was required! failing...\n" );
@@ -1063,6 +1063,12 @@ SecManStartCommand::startCommand_inner()
 				m_sec_man.session_cache->expire(enc_key);
 				have_session = false;
 				enc_key = NULL;
+			//} else  // If someone called unAuthenticate on the socket, we shouldn't cache sessions.
+			//if (!(m_sock->isAuthenticated())) {
+			//	dprintf(D_SECURITY, "IdA: Expiring session cache!!!\n");
+			//	m_sec_man.session_cache->expire(enc_key);
+			//	have_session = false;
+			//	enc_key = NULL;
 			}
 		} else {
 			// the session is no longer in the cache... might as well
@@ -1101,7 +1107,7 @@ SecManStartCommand::startCommand_inner()
 		if( !m_sec_man.FillInSecurityPolicyAd( CLIENT_PERM, &auth_info,
 									 m_can_negotiate) ) {
 				// security policy was invalid.  bummer.
-			dprintf( D_ALWAYS, 
+			dprintf( D_ALWAYS,
 					 "SECMAN: ERROR: The security policy is invalid.\n" );
 			m_errstack->push("SECMAN", SECMAN_ERR_INVALID_POLICY,
 				"Configuration Problem: The security policy is invalid.\n" );
@@ -1120,9 +1126,9 @@ SecManStartCommand::startCommand_inner()
 		}
 	}
 
-	
+
 	if (DebugFlags & D_FULLDEBUG) {
-		dprintf (D_SECURITY, "SECMAN: Security Policy:\n");
+		dprintf (D_FULLDEBUG, "SECMAN: Security Policy:\n");
 		auth_info.dPrint( D_SECURITY );
 	}
 
@@ -1201,7 +1207,7 @@ SecManStartCommand::startCommand_inner()
 		unsigned char* randomjunk = NULL;
 
 		global_dc_get_cookie (len, randomjunk);
-		
+
 		auth_info.Assign(ATTR_SEC_COOKIE,randomjunk);
 		dprintf (D_SECURITY, "SECMAN: %s=\"%s\"\n", ATTR_SEC_COOKIE,randomjunk);
 
@@ -1290,11 +1296,11 @@ SecManStartCommand::startCommand_inner()
 			SecMan::sec_feat_act will_enable_enc   = m_sec_man.sec_lookup_feat_act( auth_info, ATTR_SEC_ENCRYPTION );
 			SecMan::sec_feat_act will_enable_mac   = m_sec_man.sec_lookup_feat_act( auth_info, ATTR_SEC_INTEGRITY );
 
-			if (will_authenticate == SecMan::SEC_FEAT_ACT_UNDEFINED || 
-				will_authenticate == SecMan::SEC_FEAT_ACT_INVALID || 
-				will_enable_enc == SecMan::SEC_FEAT_ACT_UNDEFINED || 
-				will_enable_enc == SecMan::SEC_FEAT_ACT_INVALID || 
-				will_enable_mac == SecMan::SEC_FEAT_ACT_UNDEFINED || 
+			if (will_authenticate == SecMan::SEC_FEAT_ACT_UNDEFINED ||
+				will_authenticate == SecMan::SEC_FEAT_ACT_INVALID ||
+				will_enable_enc == SecMan::SEC_FEAT_ACT_UNDEFINED ||
+				will_enable_enc == SecMan::SEC_FEAT_ACT_INVALID ||
+				will_enable_mac == SecMan::SEC_FEAT_ACT_UNDEFINED ||
 				will_enable_mac == SecMan::SEC_FEAT_ACT_INVALID ) {
 
 				// suck.
@@ -1311,7 +1317,7 @@ SecManStartCommand::startCommand_inner()
 			if (enc_key->key()) {
 				ki  = new KeyInfo(*(enc_key->key()));
 			}
-			
+
 			if (will_enable_mac == SecMan::SEC_FEAT_ACT_YES) {
 
 				if (!ki) {
@@ -1503,11 +1509,11 @@ SecManStartCommand::startCommand_inner()
 		SecMan::sec_feat_act will_enable_enc   = m_sec_man.sec_lookup_feat_act( auth_info, ATTR_SEC_ENCRYPTION );
 		SecMan::sec_feat_act will_enable_mac   = m_sec_man.sec_lookup_feat_act( auth_info, ATTR_SEC_INTEGRITY );
 
-		if (will_authenticate == SecMan::SEC_FEAT_ACT_UNDEFINED || 
-			will_authenticate == SecMan::SEC_FEAT_ACT_INVALID || 
-			will_enable_enc == SecMan::SEC_FEAT_ACT_UNDEFINED || 
-			will_enable_enc == SecMan::SEC_FEAT_ACT_INVALID || 
-			will_enable_mac == SecMan::SEC_FEAT_ACT_UNDEFINED || 
+		if (will_authenticate == SecMan::SEC_FEAT_ACT_UNDEFINED ||
+			will_authenticate == SecMan::SEC_FEAT_ACT_INVALID ||
+			will_enable_enc == SecMan::SEC_FEAT_ACT_UNDEFINED ||
+			will_enable_enc == SecMan::SEC_FEAT_ACT_INVALID ||
+			will_enable_mac == SecMan::SEC_FEAT_ACT_UNDEFINED ||
 			will_enable_mac == SecMan::SEC_FEAT_ACT_INVALID ) {
 
 			// missing some essential info.
@@ -1545,7 +1551,7 @@ SecManStartCommand::startCommand_inner()
 			}
 		}
 
-		
+
 
 		// at this point, we know exactly what needs to happen.  if we asked
 		// the other side, their choice is in will_authenticate.  if we
@@ -1592,12 +1598,12 @@ SecManStartCommand::startCommand_inner()
 				if(ki) {
 					delete ki;
 				}
-            	if (auth_methods) {  
+            	if (auth_methods) {
                 	free(auth_methods);
             	}
 				return StartCommandFailed;
 			}
-            if (auth_methods) {  
+            if (auth_methods) {
                 free(auth_methods);
             }
 		} else {
@@ -1612,7 +1618,7 @@ SecManStartCommand::startCommand_inner()
 			}
 		}
 
-		
+
 		if (will_enable_mac == SecMan::SEC_FEAT_ACT_YES) {
 
 			if (!ki) {
@@ -1663,7 +1669,7 @@ SecManStartCommand::startCommand_inner()
 			m_sock->encode();
 			m_sock->set_crypto_key(false, ki);
 		}
-		
+
 		if (new_session) {
 			// There is no pending data to send, so the following is a no-op.
 			// Why is it being done?  Perhaps to ensure clean state of the
@@ -1735,9 +1741,9 @@ SecManStartCommand::startCommand_inner()
 			int expiration_time = time(0) + atoi(dur);
 
 				// This makes a copy of the policy ad, so we don't
-				// have to. 
+				// have to.
 			KeyCacheEntry tmp_key( sesid, m_sock->endpoint(), ki,
-								   &auth_info, expiration_time ); 
+								   &auth_info, expiration_time );
 			dprintf (D_SECURITY, "SECMAN: added session %s to cache for %s seconds.\n", sesid, dur);
 
             if (dur) {
@@ -1769,7 +1775,7 @@ SecManStartCommand::startCommand_inner()
 					dprintf (D_ALWAYS, "SECMAN: command %s NOT mapped (insert failed!)\n", keybuf.Value());
 				}
 			}
-			
+
 			free( sesid );
             free( cmd_list );
 
@@ -2143,17 +2149,17 @@ bool SecMan :: invalidateKey(const char * key_id)
 
         // Now, remove session id
 		if (session_cache->remove(key_id)) {
-			dprintf ( D_SECURITY, 
-                      "DC_INVALIDATE_KEY: removed key id %s.\n", 
+			dprintf ( D_SECURITY,
+                      "DC_INVALIDATE_KEY: removed key id %s.\n",
                       key_id);
 		} else {
-			dprintf ( D_SECURITY, 
-                      "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n", 
+			dprintf ( D_SECURITY,
+                      "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n",
                       key_id);
 		}
 	} else {
-		dprintf ( D_ALWAYS, 
-                  "DC_INVALIDATE_KEY: did not remove %s, no KeyCache exists!\n", 
+		dprintf ( D_ALWAYS,
+                  "DC_INVALIDATE_KEY: did not remove %s, no KeyCache exists!\n",
                   key_id);
 	}
 
@@ -2166,13 +2172,13 @@ void SecMan :: remove_commands(KeyCacheEntry * keyEntry)
         char * commands = NULL;
         keyEntry->policy()->LookupString(ATTR_SEC_VALID_COMMANDS, &commands);
         char * addr = strdup(sin_to_string(keyEntry->addr()));
-    
+
         // Remove all commands from the command map
         if (commands) {
             char keybuf[128];
             StringList cmd_list(commands);
             free(commands);
-        
+
             if (command_map) {
                 cmd_list.rewind();
                 char * cmd = NULL;
@@ -2378,7 +2384,7 @@ SecMan::invalidateAllCache() {
 	command_map = new HashTable<MyString,MyString>(209, MyStringHash, updateDuplicateKeys);
 }
 
-void 
+void
 SecMan :: invalidateExpiredCache()
 {
     // Go through all cache and invalide the ones that are expired
@@ -2447,7 +2453,7 @@ MyString SecMan::getDefaultAuthenticationMethods() {
 	methods = "FS";
 #endif
 
-#if defined(HAVE_EXT_KRB5) 
+#if defined(HAVE_EXT_KRB5)
 	methods += ",KERBEROS";
 #endif
 

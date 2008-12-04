@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -72,7 +72,7 @@ HashTable<MyString, MyString> *_ssTable;// = new HashTable<MyString, MyString>( 
 
 	/* It would be a good to retrieve info about the certificate and
 	   the policy, and to make sure that the delegated chain has an
-	   AAE about shared secrets or execution hosts or something.  
+	   AAE about shared secrets or execution hosts or something.
 
 	   But for now, we'll just let anyone who can authenticate give us
 	   a shared secret, and we'll just store it and let the get method
@@ -90,11 +90,11 @@ HashTable<MyString, MyString> *_ssTable;// = new HashTable<MyString, MyString>( 
 
 	When we want to get it out, we use: _ssTable->lookup( name, secret );
 	(See env.C -- Env::GetEnv.)
-	
+
 	*/
 
 
-int 
+int
 store_ss_handler(Service * service, int i, Stream *stream) {
 	char *secret = NULL;
 	char *ss_name = NULL;
@@ -184,6 +184,8 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 	socket->close();
 
 	dprintf(D_ALWAYS, "Credential named '%s' stored.\n", ss_name);
+	// TODO: invalidate cache: does this work?
+	socket->unAuthenticate();
 
  EXIT:
 	if(secret != NULL) {
@@ -195,7 +197,7 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 	return (rc == CREDD_SUCCESS) ? TRUE : FALSE;
 }
 
-int 
+int
 get_ss_handler(Service * service, int i, Stream *stream) {
 	MyString ss;
 	MyString ssn;
@@ -225,7 +227,7 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 	   hashing the TSPCertificate.  This hash will be present also when
 	   the retrieval is done (but the retrieval isn't done by name but
 	   rather just as a request.  It's the certificate chain that's
-	   the ticket.  
+	   the ticket.
 	*/
 	MyString full_cred = socket->getRemoteCred();
 	CredChain cc(full_cred);
@@ -308,7 +310,7 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 	   Third, verify the execution_host_aae:
 
 	   This will involve constructing a classad from the policy
-	   contained in the TSP, and then adding attributes.  
+	   contained in the TSP, and then adding attributes.
 
 	   The attribute "execution_host" is calculated from the SSP.
 
@@ -379,7 +381,7 @@ get_ss_handler(Service * service, int i, Stream *stream) {
 }
 
 
-int 
+int
 store_cred_handler(Service * service, int i, Stream *stream) {
   void * data = NULL;
   int rtnVal = FALSE;
@@ -398,7 +400,7 @@ store_cred_handler(Service * service, int i, Stream *stream) {
 
   CredentialWrapper * cred_wrapper;
 
-  if (!socket->isAuthenticated()) { 
+  if (!socket->isAuthenticated()) {
     CondorError errstack;
     if( ! SecMan::authenticate_sock(socket, WRITE, &errstack) ) {
       dprintf (D_ALWAYS, "Unable to authenticate, qutting\n");
@@ -412,7 +414,7 @@ store_cred_handler(Service * service, int i, Stream *stream) {
   socket->decode();
 
   if (!socket->code (classad_str)) {
-    dprintf (D_ALWAYS, "Error receiving credential metadata\n"); 
+    dprintf (D_ALWAYS, "Error receiving credential metadata\n");
     goto EXIT;
   }
 
@@ -427,9 +429,9 @@ store_cred_handler(Service * service, int i, Stream *stream) {
 
   classad = *_classad;
   delete _classad;
-  
- 
-  
+
+
+
   int type;
   if (!classad.EvaluateAttrInt ("Type", type)) {
     dprintf (D_ALWAYS, "Missing Type attribute in classad!\n");
@@ -439,8 +441,8 @@ store_cred_handler(Service * service, int i, Stream *stream) {
 
   if (type == X509_CREDENTIAL_TYPE) {
 	cred_wrapper = new X509CredentialWrapper (classad);
-    dprintf (D_ALWAYS, "Name=%s Size=%d\n", 
-			 cred_wrapper->cred->GetName(), 
+    dprintf (D_ALWAYS, "Name=%s Size=%d\n",
+			 cred_wrapper->cred->GetName(),
 			 cred_wrapper->cred->GetDataSize());
 
   } else {
@@ -467,15 +469,15 @@ store_cred_handler(Service * service, int i, Stream *stream) {
     goto EXIT;
   }
   cred_wrapper->cred->SetData (data, data_size);
-  
+
 
   // Check whether credential under this name already exists
   found_cred=false;
   credentials.Rewind();
   while (credentials.Next(temp_cred)) {
-	  if ((strcmp(cred_wrapper->cred->GetName(), 
-				  temp_cred->cred->GetName()) == 0) && 
-		  (strcmp(cred_wrapper->cred->GetOwner(), 
+	  if ((strcmp(cred_wrapper->cred->GetName(),
+				  temp_cred->cred->GetName()) == 0) &&
+		  (strcmp(cred_wrapper->cred->GetOwner(),
 				  temp_cred->cred->GetOwner()) == 0)) {
 		  found_cred=true;
 		  break; // found it
@@ -486,8 +488,8 @@ store_cred_handler(Service * service, int i, Stream *stream) {
   socket->eom();
 
   if (found_cred) {
-	  dprintf (D_ALWAYS, "Credential %s for owner %s already exists!\n", 
-			   cred_wrapper->cred->GetName(), 
+	  dprintf (D_ALWAYS, "Credential %s for owner %s already exists!\n",
+			   cred_wrapper->cred->GetName(),
 			   cred_wrapper->cred->GetOwner());
 	  delete cred_wrapper;
 	  socket->encode();
@@ -496,12 +498,12 @@ store_cred_handler(Service * service, int i, Stream *stream) {
 	  goto EXIT;
   }
 
-  
+
   // Write data to a file
   temp_file_name = dircat (cred_store_dir, "credXXXXXX");
   condor_mkstemp (temp_file_name);
   cred_wrapper->SetStorageName (temp_file_name);
-  
+
   init_user_id_from_FQN (user);
   if (!StoreData(temp_file_name,data,data_size)) {
 	delete cred_wrapper;
@@ -543,7 +545,7 @@ EXIT:
 
 
 
-int 
+int
 get_cred_handler(Service * service, int i, Stream *stream) {
   char * name = NULL;
   int rtnVal = FALSE;
@@ -567,7 +569,7 @@ get_cred_handler(Service * service, int i, Stream *stream) {
   socket->decode();
 
   if (!socket->code(name)) {
-    dprintf (D_ALWAYS, "Error receiving credential name\n"); 
+    dprintf (D_ALWAYS, "Error receiving credential name\n");
     goto EXIT;
   }
 
@@ -583,11 +585,11 @@ get_cred_handler(Service * service, int i, Stream *stream) {
     owner = strdup (name);
     char * pColon = strchr (owner, ':');
     *pColon = '\0';
-    
+
     // Name is the second part
     sprintf (name, (char*)(pColon+sizeof(char)));
-  
-    if (strcmp (owner, user) != 0) { 
+
+    if (strcmp (owner, user) != 0) {
       dprintf (D_ALWAYS, "Requesting another user's (%s) credential %s\n", owner, name);
 
       if (!isSuperUser (user)) {
@@ -607,28 +609,28 @@ get_cred_handler(Service * service, int i, Stream *stream) {
   credentials.Rewind();
   while (credentials.Next(cred)) {
 	  if (cred->cred->GetType() == X509_CREDENTIAL_TYPE) {
-		  if ((strcmp(cred->cred->GetName(), name) == 0) && 
+		  if ((strcmp(cred->cred->GetName(), name) == 0) &&
 			  (strcmp(cred->cred->GetOwner(), owner) == 0)) {
 			  found_cred=true;
 			  break; // found it
       }
     }
   }
-  
+
   socket->encode();
 
   if (found_cred) {
     dprintf (D_FULLDEBUG, "Found cred %s\n", cred->GetStorageName());
-    
+
     int data_size;
 
-    
+
     int rc = LoadData (cred->GetStorageName(), data, data_size);
     dprintf (D_FULLDEBUG, "Credential::LoadData returned %d\n", rc);
     if (rc == 0) {
       goto EXIT;
     }
-    
+
     socket->code (data_size);
     socket->code_bytes (data, data_size);
     dprintf (D_ALWAYS, "Credential name %s for owner %s returned to user %s\n",
@@ -655,7 +657,7 @@ EXIT:
 }
 
 
-int 
+int
 query_cred_handler(Service * service, int i, Stream *stream) {
 
   classad::ClassAdUnParser unparser;
@@ -684,7 +686,7 @@ query_cred_handler(Service * service, int i, Stream *stream) {
 
   socket->decode();
   if (!socket->code(request)) {
-    dprintf (D_ALWAYS, "Error receiving request\n"); 
+    dprintf (D_ALWAYS, "Error receiving request\n");
     goto EXIT;
   }
 
@@ -695,7 +697,7 @@ query_cred_handler(Service * service, int i, Stream *stream) {
     }
   }
 
-    
+
   // Find credentials for this user
   credentials.Rewind();
   while (credentials.Next(cred)) {
@@ -712,7 +714,7 @@ query_cred_handler(Service * service, int i, Stream *stream) {
   length = result_list.Length();
   dprintf (D_FULLDEBUG, "User has %d credentials\n", length);
   socket->code (length);
-	
+
 
   Credential * _cred;
   result_list.Rewind();
@@ -725,7 +727,7 @@ query_cred_handler(Service * service, int i, Stream *stream) {
 	  delete _temp;
   }
   rtnVal = TRUE;
-  
+
 EXIT:
   if (request != NULL) {
 	  free (request);
@@ -734,7 +736,7 @@ EXIT:
 }
 
 
-int 
+int
 rm_cred_handler(Service * service, int i, Stream *stream) {
   char * name = NULL;
   int rtnVal = FALSE;
@@ -758,7 +760,7 @@ rm_cred_handler(Service * service, int i, Stream *stream) {
   socket->decode();
 
   if (!socket->code(name)) {
-    dprintf (D_ALWAYS, "Error receiving credential name\n"); 
+    dprintf (D_ALWAYS, "Error receiving credential name\n");
     goto EXIT;
   }
 
@@ -775,11 +777,11 @@ rm_cred_handler(Service * service, int i, Stream *stream) {
     owner = strdup (name);
     char * pColon = strchr (owner, ':');
     *pColon = '\0';
-    
+
     // Name is the second part
     sprintf (name, (char*)(pColon+sizeof(char)));
-  
-    if (strcmp (owner, user) != 0) { 
+
+    if (strcmp (owner, user) != 0) {
       dprintf (D_ALWAYS, "Requesting another user's (%s) credential %s\n", owner, name);
 
       if (!isSuperUser (user)) {
@@ -795,13 +797,13 @@ rm_cred_handler(Service * service, int i, Stream *stream) {
   }
 
   dprintf (D_ALWAYS, "Attempting to delete cred %s for user %s\n", name, owner);
-  
+
 
   found_cred=false;
   credentials.Rewind();
   while (credentials.Next(cred_wrapper)) {
 	  if (cred_wrapper->cred->GetType() == X509_CREDENTIAL_TYPE) {
-		  if ((strcmp(cred_wrapper->cred->GetName(), name) == 0) && 
+		  if ((strcmp(cred_wrapper->cred->GetName(), name) == 0) &&
 			  (strcmp(cred_wrapper->cred->GetOwner(), owner) == 0)) {
 			  credentials.DeleteCurrent();
 			  found_cred=true;
@@ -821,14 +823,14 @@ rm_cred_handler(Service * service, int i, Stream *stream) {
     delete cred_wrapper;
     dprintf (D_ALWAYS, "Removed credential %s for owner %s\n", name, owner);
   } else {
-    dprintf (D_ALWAYS, "Unable to remove credential %s:%s (not found)\n", owner, name); 
+    dprintf (D_ALWAYS, "Unable to remove credential %s:%s (not found)\n", owner, name);
   }
-	    
-  
+
+
   free (owner);
-  
+
   socket->encode();
- 
+
 
   rc = (found_cred)?CREDD_SUCCESS:CREDD_CREDENTIAL_NOT_FOUND;
   socket->code(rc);
@@ -867,7 +869,7 @@ SaveCredentialList() {
   }
 
   fclose (fp);
-  
+
   set_priv (priv);
   return TRUE;
 }
@@ -892,14 +894,14 @@ LoadCredentialList () {
   }
 
   credentials.Rewind();
-  
+
   classad::ClassAdXMLParser parser;
   char buff[50000];
-  
+
   priv_state priv = set_root_priv();
 
   FILE * fp = safe_fopen_wrapper(cred_index_file, "r");
-  
+
   if (!fp) {
     dprintf (D_FULLDEBUG, "Credential database %s does not exist!\n", cred_index_file);
     set_priv (priv);
@@ -910,7 +912,7 @@ LoadCredentialList () {
     if ((buff[0] == '\n') || (buff[0] == '\r')) {
       continue;
     }
-    
+
 	classad::ClassAd * classad = parser.ParseClassAd (buff);
     int type=0;
 
@@ -925,7 +927,7 @@ LoadCredentialList () {
       credentials.Append (pCred);
     }
     else {
-      dprintf (D_ALWAYS, "Invalid type %d\n",type); 
+      dprintf (D_ALWAYS, "Invalid type %d\n",type);
     }
   }
   fclose (fp);
@@ -937,14 +939,14 @@ LoadCredentialList () {
 int
 CheckCredentials () {
   CredentialWrapper * pCred;
-  credentials.Rewind();  
+  credentials.Rewind();
   dprintf (D_FULLDEBUG, "In CheckCredentials()\n");
 
   // Get current time
   time_t now = time(NULL);
 
   while (credentials.Next(pCred)) {
-    
+
     init_user_id_from_FQN (pCred->cred->GetOwner());
     priv_state priv = set_user_priv();
 
@@ -967,10 +969,10 @@ CheckCredentials () {
 	RefreshProxyThruMyProxy ((X509CredentialWrapper*)pCred);
       }
     }
-    
+
     set_priv (priv); // restore old priv
   }
-  
+
   return TRUE;
 }
 
@@ -1083,7 +1085,7 @@ int RefreshProxyThruMyProxy(X509CredentialWrapper * proxy)
   }
 
   // Optional credential name
-  if	(	((X509Credential*)proxy->cred)->GetCredentialName() && 
+  if	(	((X509Credential*)proxy->cred)->GetCredentialName() &&
   			( ((X509Credential*)proxy->cred)->GetCredentialName() )[0] ) {
 	  args.AppendArg("--credname");
 	  args.AppendArg(((X509Credential*)proxy->cred)->GetCredentialName());
@@ -1142,7 +1144,7 @@ int RefreshProxyThruMyProxy(X509CredentialWrapper * proxy)
 					myproxyGetDelegationReaperId,	// reaper_id
 					FALSE,							// want_command_port
 					&myEnv,							// env
-					NULL,							// cwd		
+					NULL,							// cwd
 					NULL,							// family_info
 					NULL,							// sock_inherit_list
 					arrIO);							// in/out/err streams
@@ -1152,7 +1154,7 @@ int RefreshProxyThruMyProxy(X509CredentialWrapper * proxy)
   myproxy_get_delegation_pgm = NULL;
 
 
-  
+
 
   if (pid == FALSE) {
     dprintf (D_ALWAYS, "Failed to run myproxy-get-delegation\n");
@@ -1170,7 +1172,7 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 {
   dprintf (D_ALWAYS, "MyProxyGetDelegationReaper pid = %d, rc = %d\n", exitPid, exitStatus);
 
-  credentials.Rewind(); 
+  credentials.Rewind();
   CredentialWrapper * cred_wrapper;
   X509CredentialWrapper * matched_entry = NULL;
   while (credentials.Next (cred_wrapper)) {
@@ -1189,7 +1191,7 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 		off_t offset = lseek(read_fd, 0, SEEK_SET);	// rewind
 		if (offset == (off_t)-1) {
 			dprintf (D_ALWAYS, "myproxy-get-delegation for proxy (%s, %s), "
-					"stderr tmp file %s lseek() failed: %s\n", 
+					"stderr tmp file %s lseek() failed: %s\n",
 					matched_entry->cred->GetOwner(),
 					matched_entry->cred->GetName(),
 					matched_entry->get_delegation_err_filename,
@@ -1202,7 +1204,7 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 		int status = fstat(read_fd, &statbuf);
 		if (status == -1) {
 			dprintf (D_ALWAYS, "myproxy-get-delegation for proxy (%s, %s), "
-					"stderr tmp file %s fstat() failed: %s\n", 
+					"stderr tmp file %s fstat() failed: %s\n",
 					matched_entry->cred->GetOwner(),
 					matched_entry->cred->GetName(),
 					matched_entry->get_delegation_err_filename,
@@ -1220,7 +1222,7 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 				);
 		if (bytes_read < 0 ) {
 			dprintf (D_ALWAYS, "myproxy-get-delegation for proxy (%s, %s), "
-					"stderr tmp file %s read() failed: %s\n", 
+					"stderr tmp file %s read() failed: %s\n",
 					matched_entry->cred->GetOwner(),
 					matched_entry->cred->GetName(),
 					matched_entry->get_delegation_err_filename,
@@ -1313,7 +1315,7 @@ Init() {
     cred_store_dir = tmp;
   } else {
     cred_store_dir = dircat (spool, "cred");
-  } 
+  }
   if ( spool != NULL ) {
 	  free (spool);
   }
@@ -1356,7 +1358,7 @@ Init() {
   } else {
     if ((stat_buff.st_mode & (S_IRWXG | S_IRWXO)) ||
 	(stat_buff.st_uid != getuid())) {
-      dprintf (D_ALWAYS, "ERROR: Invalid ownership / permissions on credential index file %s\n", 
+      dprintf (D_ALWAYS, "ERROR: Invalid ownership / permissions on credential index file %s\n",
 	       cred_index_file);
       DC_Exit (1 );
     }
@@ -1397,14 +1399,14 @@ StoreData (const char * file_name, const void * data, const int data_size) {
 int
 LoadData (const char * file_name, void *& data, int & data_size) {
   priv_state priv = set_root_priv();
-  
+
   int fd = safe_open_wrapper(file_name, O_RDONLY);
   if (fd == -1) {
     fprintf (stderr, "Can't open %s\n", file_name);
     set_priv (priv);
     return FALSE;
   }
-  
+
   char buff [MAX_CRED_DATA_SIZE+1];
   data_size = read (fd, buff, MAX_CRED_DATA_SIZE);
   buff[data_size]='\0';
@@ -1432,7 +1434,7 @@ init_user_id_from_FQN (const char * _fqn) {
   char * uid = NULL;
   char * domain = NULL;
   char * fqn = NULL;
-  
+
   if (_fqn) {
     fqn = strdup (_fqn);
     uid = fqn;
@@ -1444,7 +1446,7 @@ init_user_id_from_FQN (const char * _fqn) {
       domain = pAt+1;
     }
   }
-  
+
   if (uid == NULL) {
     uid = "nobody";
   }
