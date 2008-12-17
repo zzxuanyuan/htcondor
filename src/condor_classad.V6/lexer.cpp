@@ -17,8 +17,6 @@
  *
  ***************************************************************/
 
-
-// Includes 
 #include "classad/common.h"
 #include "classad/lexer.h"
 #include "classad/util.h"

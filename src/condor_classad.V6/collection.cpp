@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-
 #include "classad/common.h"
 #include "classad/collection.h"
 #include <fcntl.h>

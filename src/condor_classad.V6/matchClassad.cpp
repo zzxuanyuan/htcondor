@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-
 #include "classad/common.h"
 #include "classad/source.h"
 #include "classad/matchClassad.h"

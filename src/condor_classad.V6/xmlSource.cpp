@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-
 #include "classad/common.h"
 #include "classad/xmlSource.h"
 #include "classad/xmlLexer.h"

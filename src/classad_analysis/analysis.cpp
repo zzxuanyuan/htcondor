@@ -162,7 +162,8 @@ AnalyzeJobReqToBuffer( classad::ClassAd *request, ResourceGroup &offers, string 
 		if( ( *t == '&' ) && ( *( t+1 ) == '&' ) ) {
 			lastAnd = t + 2;
 		}
-		if( t >= lineStart + 80 ) {
+		// if( t >= lineStart + 80 ) {
+        if( distance( lineStart, t ) >= 80 ) {
 			if( lastAnd != lineStart ) {
 				temp_buffer.replace( lastAnd, lastAnd + 1, 1, '\n' );
 				lineStart = lastAnd + 1;
@@ -296,7 +297,7 @@ AnalyzeJobReqToBuffer( classad::ClassAd *request, ResourceGroup &offers, string 
 			// create map from original Condition order to sorted order
 		int numConds = 0;
 		profile->GetNumberOfConditions( numConds );
-		int condMap[numConds];
+		int *condMap = new int[numConds];
 		int i = 0;
 		while( mapList.Next( index ) ) {
 			condMap[index] = i;
@@ -379,6 +380,7 @@ AnalyzeJobReqToBuffer( classad::ClassAd *request, ResourceGroup &offers, string 
 			}
 		}	
 
+        delete [] condMap;
 		p++;
 	}
 	return true;
@@ -968,13 +970,16 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
 	ExtArray< string > attrs;
 	ExtArray< ValueRange * > vrs;
 	string attr = "";
-	int vr4Cond[numConds];
+	int *vr4Cond = new int[numConds];
 	int attrNum = 0;
 	int condNum = 0;
 	int vrNum = 0;
-	classad::Operation::OpKind ops[numConds];
-	Condition *conds[numConds];
-	bool tooComplex[numConds]; 
+	classad::Operation::OpKind *ops = new classad::Operation::OpKind[numConds];
+	Condition **conds = (Condition**) new Condition[numConds][1];
+    for ( int i = 0; i <= numConds; ++i ) {
+        conds[i] = NULL;
+    }
+	bool *tooComplex = new bool[numConds]; 
 //	classad::Operation::OpKind op1, op2;
 	classad::Value val;
 	p->Rewind( );
@@ -1041,14 +1046,22 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
 			for( int i = 0; i < vrs.getsize( ); i++ ){
 				delete vrs[i];
 			}
+            { 
+                /* delete allocated arrays */
+                delete [] vr4Cond;
+                for ( int i = 0; i <= numConds; ++i ) {
+                    delete conds[i];
+                }
+                delete [] tooComplex;
+            }
 			return false;
 		}
 		condNum++;
 	}
 
 	int numVRs = attrs.getsize( );
-	classad::Value *nearestValues[numVRs];
-	for( int i = 0; i < numVRs; i++ ) {
+	classad::Value **nearestValues = (classad::Value**) new classad::Value[numVRs][1];
+    for( int i = 0; i < numVRs; i++ ) {
 		nearestValues[i] = NULL;
 	}
 
@@ -1106,7 +1119,7 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
 	classad::Value currPt, currUpper, currLower;
 	BoolValue currBVal, tempBVal;
 	val.SetUndefinedValue( );
-	classad::Value *tempVals[numVRs];
+	classad::Value **tempVals = (classad::Value**) new classad::Value[numVRs][1];
 	for( int i = 0; i < numVRs; i++ ) {
 		tempVals[i] = NULL;
 	}
@@ -1164,6 +1177,7 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
             delete tempVals[i];
         }
 	}
+    delete [] tempVals;
 
 	classad::Value condVal;
 	condNum = 0;
@@ -1201,6 +1215,11 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
   		}
 		condNum++;
  	}
+
+    delete [] vr4Cond;
+    delete [] conds;
+    delete [] tooComplex;
+    delete [] nearestValues; /* tempVals[] owned its content */
 
 	return true;
 }
@@ -1396,7 +1415,8 @@ AnalyzeAttributes( classad::ClassAd *ad, ResourceGroup &rg, ClassAdExplain &caEx
 
 	int numReqs = reqList.Number( );
 
-	int firstContext[numReqs]; 
+	int *firstContext = new int[numReqs]; 
+    memset ( firstContext, 0, numReqs );
 	List< string > jobAttrs, undefAttrs, refdAttrs;
 	classad::ClassAd::iterator itr;
 
@@ -1587,7 +1607,8 @@ AnalyzeAttributes( classad::ClassAd *ad, ResourceGroup &rg, ClassAdExplain &caEx
 
 		// Convert machine map
 	int numContexts = boolValueArrayList.Number();
-	int machineForContext[numContexts];
+	int *machineForContext = new int[numContexts];
+    memset ( machineForContext, 0, numContexts );
  	int m = 0;
   	for( int i = 0; i < numContexts; i++ ) {
   	    if( ( m+1 ) < numReqs) {
@@ -1597,6 +1618,7 @@ AnalyzeAttributes( classad::ClassAd *ad, ResourceGroup &rg, ClassAdExplain &caEx
   	    }
   	    machineForContext[i] = m;
   	}
+    delete [] firstContext;
 
 		// Create BoolTable and ValueRangeTable
 	bt.Init( numContexts, numRefdAttrs );
@@ -1762,7 +1784,7 @@ AnalyzeAttributes( classad::ClassAd *ad, ResourceGroup &rg, ClassAdExplain &caEx
 			}
 		}
 	}
-
+    delete [] machineForContext;
 
 	///////////////////////////////////////
 	// STEP 4 - SET UP ATTRIBUTE EXPLAIN //

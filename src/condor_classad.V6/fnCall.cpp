@@ -17,11 +17,9 @@
  *
  ***************************************************************/
 
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
 #include "classad/common.h"
 #include "classad/exprTree.h"
 #include "classad/source.h"

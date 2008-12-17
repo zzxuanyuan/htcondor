@@ -593,8 +593,10 @@ GenerateABVList( List<AnnotatedBoolVector> &result )
 	AnnotatedBoolVector abv;
 
 	int frequency = 0;
-	bool seen[numCols];
-	bool tempContexts[numCols];
+	bool *seen = new bool[numCols];
+    memset ( seen, 0, numCols );
+	bool *tempContexts = new bool[numCols];
+    memset ( tempContexts, 0, numCols );
 	bool hasCommonTrue;
 
 	for( int i = 0; i < numCols; i++ ) {
@@ -622,6 +624,8 @@ GenerateABVList( List<AnnotatedBoolVector> &result )
 			result.Append( abv );
 		}
 	}
+    delete [] seen;
+    delete [] tempContexts;
 	return true;
 }
 
@@ -634,8 +638,8 @@ GenerateMaxTrueABVList( List<AnnotatedBoolVector> &result )
 
 	AnnotatedBoolVector *abv;
 	int frequency = 0;
-	bool seen[numCols];
-	bool tempContexts[numCols];
+	bool *seen = new bool[numCols];
+	bool *tempContexts = new bool[numCols];
 	for( int col = 0; col < numCols; col ++ ) {
 		seen[col] = false;
 		tempContexts[col] = false;
@@ -681,6 +685,8 @@ GenerateMaxTrueABVList( List<AnnotatedBoolVector> &result )
 			}
 		}
 	}
+    delete [] seen;
+    delete [] tempContexts;
 	return true;
 }
 

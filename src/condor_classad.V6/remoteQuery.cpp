@@ -18,7 +18,7 @@
  ***************************************************************/
 
 
-#include "classad/common.h"
+
 #include "collectionServer.h"
 #include "remoteQuery.h"
 

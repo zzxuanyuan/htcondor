@@ -20,7 +20,7 @@
 
 #include <string>
 
-extern "C" int SetSyscalls( int foo ) { return 0; }
+extern "C" int SetSyscalls( int foo ) { return 0; };
 
-string 	CondorErrMsg;
-int		CondorErrno;
+std::string CondorErrMsg;
+int		    CondorErrno;
