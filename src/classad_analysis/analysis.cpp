@@ -976,10 +976,10 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
 	int vrNum = 0;
 	classad::Operation::OpKind *ops = new classad::Operation::OpKind[numConds];
 	Condition **conds = (Condition**) new Condition[numConds][1];
-    for ( int i = 0; i <= numConds; ++i ) {
+    for( int i = 0; i < numConds; i++ ) {
         conds[i] = NULL;
     }
-	bool *tooComplex = new bool[numConds]; 
+    bool *tooComplex = new bool[numConds]; 
 //	classad::Operation::OpKind op1, op2;
 	classad::Value val;
 	p->Rewind( );
@@ -1049,9 +1049,7 @@ SuggestConditionModify( Profile *p, ResourceGroup &rg )
             { 
                 /* delete allocated arrays */
                 delete [] vr4Cond;
-                for ( int i = 0; i <= numConds; ++i ) {
-                    delete conds[i];
-                }
+                delete [] conds;
                 delete [] tooComplex;
             }
 			return false;
