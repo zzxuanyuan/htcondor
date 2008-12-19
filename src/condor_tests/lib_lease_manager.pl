@@ -237,7 +237,7 @@ my %tests =
 		 advertise => { },
 		 resource => {
 			 LeaseDuration		=> 60,
-			 MaxLeaseDuration	=> 240,
+			 MaxLeaseDuration	=> 360,
 			 MaxLeases			 => 5,
 		 },
 		 advertise => { },

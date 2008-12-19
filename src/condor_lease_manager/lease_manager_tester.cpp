@@ -434,6 +434,19 @@ Tests::cmdLine( int argc, const char *argv[] )
 				break;
 
 			case OP_RENEW:
+				if ( 0 == m_request_duration ) {
+					if (  !arg.getOpt(m_request_duration, true) ) {
+						fprintf(stderr, "%s: invalid/missing duration\n",
+								arg.Arg() );
+						printf("%s", usage);
+						status = -1;
+					}
+				}
+				else {
+					m_lease_ids.push_back( arg.getOpt() );
+				}
+				break;
+
 			case OP_DELETE:
 				m_lease_ids.push_back( arg.getOpt() );
 				break;
