@@ -286,6 +286,9 @@ const int INVALIDATE_LEASE_MANAGER_ADS  = 66;
 
 const int QUERY_GENERIC_ADS = QUERY_ANY_ADS;	// == 48
 
+const int CCB_REGISTER = 67;
+const int CCB_REQUEST = 68;
+const int CCB_REVERSE_CONNECT = 69;
 
 /*
 *** Commands to the starter

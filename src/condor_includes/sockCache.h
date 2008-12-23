@@ -51,7 +51,7 @@ private:
 	struct sockEntry
 	{
 		bool		valid;
-		char 		addr[32];
+		MyString	addr;
 		ReliSock	*sock;
 		int			timeStamp;
 	};

@@ -1099,10 +1099,10 @@ SecManStartCommand::startCommand_inner()
 		return WaitForSocketCallback();
 	}
 	else if( m_is_tcp && !m_sock->is_connected()) {
-		dprintf(D_SECURITY,"SECMAN: TCP connection to %s failed",
+		dprintf(D_SECURITY,"SECMAN: TCP connection to %s failed\n",
 				m_sock->peer_description());
 		m_errstack->pushf("SECMAN", SECMAN_ERR_CONNECT_FAILED,
-		                "TCP connection to %s failed\n",
+		                "TCP connection to %s failed",
 		                m_sock->peer_description());
 
 		return StartCommandFailed;
@@ -1354,7 +1354,7 @@ SecManStartCommand::sendAuthInfo_inner()
 	m_auth_info.Assign(ATTR_SEC_REMOTE_VERSION,CondorVersion());
 
 	// fill in return address, if we are a daemon
-	char* dcss = global_dc_sinful();
+	char const* dcss = global_dc_sinful();
 	if (dcss) {
 		m_auth_info.Assign(ATTR_SEC_SERVER_COMMAND_SOCK, dcss);
 	}
@@ -1441,7 +1441,7 @@ SecManStartCommand::sendAuthInfo_inner()
 				MyString key_id = m_enc_key->id();
 
 				// stick our command socket sinful string in there
-				char* dcsss = global_dc_sinful();
+				char const* dcsss = global_dc_sinful();
 				if (dcsss) {
 					key_id += ",";
 					key_id += dcsss;
@@ -1471,7 +1471,7 @@ SecManStartCommand::sendAuthInfo_inner()
 				MyString key_id = m_enc_key->id();
 
 					// stick our command socket sinful string in there
-				char* dcsss = global_dc_sinful();
+				char const* dcsss = global_dc_sinful();
 				if (dcsss) {
 					key_id += ",";
 					key_id += dcsss;

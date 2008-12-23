@@ -1620,12 +1620,10 @@ Resource::publish( ClassAd* cap, amask_t mask )
 
 	if( IS_STATIC(mask) ) {
 			// We need these for both public and private ads
-		sprintf( line, "%s = \"%s\"", ATTR_STARTD_IP_ADDR,
+		cap->Assign( ATTR_STARTD_IP_ADDR,
 				 daemonCore->InfoCommandSinfulString() );
-		cap->Insert( line );
 
-		sprintf( line, "%s = \"%s\"", ATTR_NAME, r_name );
-		cap->Insert( line );
+		cap->Assign( ATTR_NAME, r_name );
 	}
 
 	if( IS_PUBLIC(mask) && IS_STATIC(mask) ) {

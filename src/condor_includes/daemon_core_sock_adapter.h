@@ -26,7 +26,7 @@
    are linked with DaemonCore (or use the DaemonCore event loop).
    In such applications, this daemonCore interface class will not
    be initialized and it is an error if these functions are ever
-   used in such cases.
+   used in such cases.  (They will EXCEPT.)
  */
 
 #include "condor_daemon_core.h"
@@ -42,6 +42,16 @@ class DaemonCoreSockAdapterClass {
 	typedef bool (DaemonCore::*TooManyRegisteredSockets_fnptr)(int fd,MyString *msg,int num_fds);
 	typedef void (DaemonCore::*incrementPendingSockets_fnptr)();
 	typedef void (DaemonCore::*decrementPendingSockets_fnptr)();
+	typedef const char* (DaemonCore::*publicNetworkIpAddr_fnptr)();
+    typedef int (DaemonCore::*Register_Command_fnptr) (
+		int             command,
+		char const*     com_descrip,
+		CommandHandler  handler, 
+		char const*     handler_descrip,
+		Service *       s,
+		DCpermission    perm,
+		int             dprintf_flag);
+
 
 	DaemonCoreSockAdapterClass(): m_daemonCore(0) {}
 
@@ -55,7 +65,9 @@ class DaemonCoreSockAdapterClass {
 		Register_Timer_fnptr Register_Timer_fptr,
 		TooManyRegisteredSockets_fnptr TooManyRegisteredSockets_fptr,
 		incrementPendingSockets_fnptr incrementPendingSockets_fptr,
-		decrementPendingSockets_fnptr decrementPendingSockets_fptr)
+		decrementPendingSockets_fnptr decrementPendingSockets_fptr,
+		publicNetworkIpAddr_fnptr publicNetworkIpAddr_fptr,
+		Register_Command_fnptr Register_Command_fptr)
 	{
 		m_daemonCore = dC;
 		m_Register_Socket_fnptr = Register_Socket_fptr;
@@ -67,6 +79,8 @@ class DaemonCoreSockAdapterClass {
 		m_TooManyRegisteredSockets_fnptr = TooManyRegisteredSockets_fptr;
 		m_incrementPendingSockets_fnptr = incrementPendingSockets_fptr;
 		m_decrementPendingSockets_fnptr = decrementPendingSockets_fptr;
+		m_publicNetworkIpAddr_fnptr = publicNetworkIpAddr_fptr;
+		m_Register_Command_fnptr = Register_Command_fptr;
 	}
 
 		// These functions all have the same interface as the corresponding
@@ -82,6 +96,8 @@ class DaemonCoreSockAdapterClass {
 	TooManyRegisteredSockets_fnptr m_TooManyRegisteredSockets_fnptr;
 	incrementPendingSockets_fnptr m_incrementPendingSockets_fnptr;
 	decrementPendingSockets_fnptr m_decrementPendingSockets_fnptr;
+	publicNetworkIpAddr_fnptr m_publicNetworkIpAddr_fnptr;
+	Register_Command_fnptr m_Register_Command_fnptr;
 
     int Register_Socket (Stream*              iosock,
                          const char *         iosock_descrip,
@@ -147,6 +163,23 @@ class DaemonCoreSockAdapterClass {
 	void decrementPendingSockets() {
 		ASSERT(m_daemonCore);
 		(m_daemonCore->*m_decrementPendingSockets_fnptr)();
+	}
+
+	const char* publicNetworkIpAddr(void) {
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*m_publicNetworkIpAddr_fnptr)();
+	}
+
+    int Register_Command (int             command,
+                          char const*     com_descrip,
+                          CommandHandler  handler, 
+                          char const*     handler_descrip,
+                          Service *       s                = NULL,
+                          DCpermission    perm             = ALLOW,
+                          int             dprintf_flag     = D_COMMAND)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*m_Register_Command_fnptr)(command,com_descrip,handler,handler_descrip,s,perm,dprintf_flag);
 	}
 };
 

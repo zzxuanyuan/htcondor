@@ -223,15 +223,11 @@ void
 MachAttributes::publish( ClassAd* cp, amask_t how_much) 
 {
 	char line[100];
-    char *sinful = NULL;
 
 	if( IS_STATIC(how_much) || IS_PUBLIC(how_much) ) {
 
 			// STARTD_IP_ADDR
-        sinful = daemonCore->InfoCommandSinfulString();
-		sprintf( line, "%s = \"%s\"", ATTR_STARTD_IP_ADDR, 
-				 sinful );
-		cp->Insert( line );
+		cp->Assign(ATTR_STARTD_IP_ADDR,daemonCore->InfoCommandSinfulString());
 
         sprintf( line, "%s = \"%s\"", ATTR_ARCH, m_arch );
 		cp->Insert( line );

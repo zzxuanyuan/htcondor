@@ -877,3 +877,7 @@ void SafeSock::dumpSock()
 	_outMsg.dumpMsg(_outMsgID);
 }
 #endif
+
+void
+SafeSock::cancel_reverse_connect() {
+}
