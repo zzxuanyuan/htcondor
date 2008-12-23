@@ -36,11 +36,11 @@
 // Map leaseId's to the lease ClassAd -- for internal use only
 struct LeaseManagerLeaseEnt
 {
-	classad::ClassAd	*m_lease_ad;
-	int					m_lease_number;
-	classad::ClassAd	*m_leases_ad;
-	string				m_resource_name;
-	int					m_expiration;
+	classad::ClassAd		*m_lease_ad;
+	int						 m_lease_number;
+	classad::ClassAd		*m_leases_ad;
+	string					 m_resource_name;
+	int						 m_expiration;
 };
 
 // Statistics
@@ -86,17 +86,20 @@ class LeaseManagerResources
 
 	// Lease operations
 	int GetLeases(
-		classad::ClassAd			&resource_ad,
-		classad::ClassAd			&request_ad,
-		int							target_count,
-		list<classad::ClassAd *>	&leases
+		classad::ClassAd				&resource_ad,
+		classad::ClassAd				&request_ad,
+		int								 target_count,
+		list<classad::ClassAd *>		&leases
 		);
 	int RenewLeases(
-		list<const LeaseManagerLease *> &requests,
+		list<const LeaseManagerLease *>	&requests,
 		list<LeaseManagerLease *> &leases
 		);
 	int ReleaseLeases(
-		list<const LeaseManagerLease *> &requests
+		list<const LeaseManagerLease *>	&requests
+		);
+	int GetLeaseStatus(
+		list<LeaseManagerLease *>		&requests
 		);
 
 	// Resource operations
@@ -129,6 +132,9 @@ class LeaseManagerResources
 		);
 	void setDefaultMaxLeaseDuration(
 		int							default_max
+		);
+	void setDefaultLazyExpire(
+		bool						default_lazy_expire
 		);
 
   private:
@@ -252,6 +258,8 @@ class LeaseManagerResources
 	int								m_max_lease_duration;
 	int								m_max_lease_total;
 	int								m_lease_id_number;
+	bool							m_default_lazy_expire;
+
 
 	// Match statistics
 	LeaseManagerStats				m_stats;
