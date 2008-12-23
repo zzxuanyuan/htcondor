@@ -60,6 +60,7 @@ class LeaseManager : public Service
 	// Command handlers
 	int commandHandler_GetLeases(int command, Stream *stream);
 	int commandHandler_RenewLease(int command, Stream *stream);
+	int commandHandler_GetLeaseStatus(int command, Stream *stream);
 	int commandHandler_ReleaseLease(int command, Stream *stream);
 
 	// Timer handlers

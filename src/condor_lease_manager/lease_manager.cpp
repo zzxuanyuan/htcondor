@@ -247,6 +247,10 @@ LeaseManager::config( void )
 		m_resources.setMaxLeaseTotalDuration( value );
 	}
 
+	// Get "lazy expire" default
+	bool bvalue = param_boolean( "DEFAULT_LAZY_EXPIRE", true );
+	m_resources.setDefaultLazyExpire( bvalue );
+
 	// Query type
 	tmp = param( "QUERY_ADTYPE");
 	if ( tmp ) {
@@ -437,6 +441,47 @@ LeaseManager::commandHandler_RenewLease(int command, Stream *stream)
 	stream->eom();
 	dprintf (D_FULLDEBUG, "renew: %d leases renewed\n", renewed_list.size() );
 	LeaseManagerLease_FreeList( renewed_list );
+	return TRUE;
+}
+
+int
+LeaseManager::commandHandler_GetLeaseStatus(int command, Stream *stream)
+{
+	// Read the leases themselves
+	list <LeaseManagerLease *>	lease_list;
+	if ( !GetLeases( stream, lease_list ) ) {
+		dprintf (D_ALWAYS, "renew: Invalid renew request\n");
+		stream->encode( );
+		stream->put( NOT_OK );
+		return FALSE;
+	}
+	stream->encode( );
+	dprintf (D_FULLDEBUG, "get status (%d): %d leases\n",
+			 command, lease_list.size() );
+
+	// Do the actual renewal
+	DebugTimerDprintf	timer;
+	if ( m_resources.GetLeaseStatus( lease_list ) < 0 ) {
+		dprintf (D_ALWAYS, "renew: Error getting lease status\n");
+		stream->put( NOT_OK );
+		LeaseManagerLease_FreeList( lease_list );
+		return FALSE;
+	}
+
+	stream->put( OK );
+
+	// And, send back the results
+	list <const LeaseManagerLease *> *const_list =
+		(list <const LeaseManagerLease *> *) &lease_list;
+	if ( !SendLeases( stream, *const_list ) ) {
+		dprintf (D_ALWAYS, "get status: Error sending status list\n");
+		LeaseManagerLease_FreeList( lease_list );
+		return FALSE;
+	}
+
+	stream->eom();
+	dprintf (D_FULLDEBUG, "get status: %d leases\n", lease_list.size() );
+	LeaseManagerLease_FreeList( lease_list );
 	return TRUE;
 }
 
