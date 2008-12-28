@@ -6751,16 +6751,19 @@ SaveClassAd ()
 
 				MyString ssn;
 				dprintf(D_SECURITY, "Storing shared secret '%s'\n", SharedSecret.Value());
-				dc_credd.invalidateHost(dc_credd.addr());
+				//dc_credd.invalidateHost(dc_credd.addr());
 				if(! dc_credd.storeSharedSecret(SharedSecret.GetCStr(), ssn, errstack)) {
 					fprintf(stderr, "Error storing shared secret.\n");
 					exit(1);
 				}
-				MyString sin = dc_credd.hostname();
-				if(!dc_credd.invalidateHost(sin.Value())) {
-					dprintf(D_SECURITY, "Couldn't toss session cache for %s.\n", sin.Value());
-				}
 				fprintf(stderr, "Successfully stored shared secret.  Name: '%s'.\n", ssn.Value());
+				MyString sin = dc_credd.hostname();
+				//if(!dc_credd.invalidateHost(sin.Value())) {
+				if(!dc_credd.invalidateHost(dc_credd.addr())) {
+					dprintf(D_SECURITY, "Couldn't toss session cache for %s.\n", dc_credd.addr());
+				} else {
+					dprintf(D_SECURITY, "Deleted session cache for %s.\n", dc_credd.addr());
+				}
 			}
 		}
  	}
