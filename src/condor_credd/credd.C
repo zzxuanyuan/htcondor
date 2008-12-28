@@ -145,8 +145,9 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 	socket->encode();
 
 	// Here's where we check the tspc to find the policy.
-	if(cc.getNumPolicies() != 1) {
-		dprintf(D_ALWAYS, "Wrong number of policies: %d\n", cc.getNumPolicies());
+	int numPolicies = cc.getNumPolicies();
+	if(numPolicies != 1) {
+		dprintf(D_ALWAYS, "Wrong number of policies: %d\n", numPolicies);
 		goto EXIT;
 	}
 	/* In order to store the secret, we want a checksum of the policy. */
@@ -185,7 +186,7 @@ store_ss_handler(Service * service, int i, Stream *stream) {
 
 	dprintf(D_ALWAYS, "Credential named '%s' stored.\n", ss_name);
 	// TODO: invalidate cache: does this work?
-	socket->unAuthenticate();
+	//socket->unAuthenticate();
 
  EXIT:
 	if(secret != NULL) {
