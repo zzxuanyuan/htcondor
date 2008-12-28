@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -50,12 +50,12 @@ typedef struct globus_l_gsi_cred_handle_attrs_s
  * @internal
  *
  * Contains all the state associated with a credential handle, including
- * 
+ *
  * @see globus_credential_handle_init(), globus_credential_handle_destroy()
  */
 typedef struct globus_l_gsi_cred_handle_s
 {
-    /** The credential's signed certificate */ 
+    /** The credential's signed certificate */
     X509 *                              cert;
     /** The private key of the credential */
     EVP_PKEY *                          key;
@@ -68,13 +68,13 @@ typedef struct globus_l_gsi_cred_handle_s
 } globus_i_gsi_cred_handle_t;
 
 bool
-CredChain::isValid() 
+CredChain::isValid()
 {
 	return valid;
 }
 
 bool
-CredChain::initCredChainHandles() 
+CredChain::initCredChainHandles()
 {
 	if(!valid) return false;
 	handle_attrs = NULL;
@@ -134,7 +134,7 @@ CredChain::getLastPolicy()
 	}
 	return rv;
 }
-MyString 
+MyString
 CredChain::getFirstPolicy()
 {
 	MyString rv;
@@ -268,7 +268,7 @@ CredChain::getNumPolicies()
 	for(j = 0; j < sk_num(policies); j++) {
 		MyString policy = sk_value(policies, j);
 		//dprintf(D_SECURITY, "Policy: '%s'\n", policy.Value());
-		if(!((policy.GetCStr() == NULL) || 
+		if(!((policy.GetCStr() == NULL) ||
 			 (policy == "(null)") ||
 			 (policy == "") ||
 			 (policy == "GLOBUS_NULL_POLICY"))) {
@@ -282,7 +282,7 @@ CredChain::getNumPolicies()
 	return rv;
 }
 
-CredChain::CredChain(const char *proxy_file_path) 
+CredChain::CredChain(const char *proxy_file_path)
 {
 	valid = true;
 	dprintf(D_SECURITY, "Instantiating CredChain with path '%s'\n", proxy_file_path);
@@ -298,8 +298,8 @@ CredChain::CredChain(const char *proxy_file_path)
 	}
 	// Add top cert to chain:
 	// (This is a total hack.)
-	sk_X509_insert(handle->cert_chain,handle->cert, sk_num(handle->cert_chain)+1);
-	}
+	sk_X509_insert(handle->cert_chain, X509_dup(handle->cert), sk_num(handle->cert_chain)+1);
+}
 
 /*CredChain::CredChain(const MyString full_chain) {
 	valid = true;
@@ -366,15 +366,16 @@ CredChain::CredChain(const MyString full_chain) {
 	while(!BIO_eof(bp)) {
 		tmp_cert = NULL;
 		if(!PEM_read_bio_X509(bp, &tmp_cert, NULL, NULL)) {
-			break; 
+			break;
 		}
-		if(!sk_X509_insert(handle->cert_chain, tmp_cert, i)) {
+		if(!sk_X509_insert(handle->cert_chain, X509_dup(tmp_cert), i)) {
 			X509_free(tmp_cert);
 			dprintf(D_SECURITY, "Error inserting cert into stack.\n");
 			goto error_exit;
 		}
 		++i;
 	}
+	free(tmp);
 	return;
  error_exit:
 	valid = false;
