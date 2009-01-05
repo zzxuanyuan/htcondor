@@ -230,6 +230,32 @@ my %tests =
      },
 
      # Renew leases
+	 expire_1 =>
+     {
+		 config => { },
+		 config_lm => { },
+		 advertise => { },
+		 resource => {
+			 LeaseDuration		=> 60,
+			 MaxLeases			=> 4,
+		 },
+		 advertise => { },
+		 run =>
+		 {
+			 loops =>
+			 [
+			  { op => [ "GET", 60, 2 ],			expect => 2 },
+			  { op => [ "GET", 20, 2 ],			expect => 4 },
+			  { sleep => 30 },
+			  { },
+			  { op => [ "RENEW", 60, "*" ], 	expect => 5, sleep => 30 },
+			  { op => [ "RENEW", 60, "*" ], 	expect => 5, sleep => 30 },
+			  { op => [ "RENEW", 60, "*" ], 	expect => 5, sleep => 30 },
+			  ],
+		 },
+     },
+
+     # Renew leases
 	 renew_1 =>
      {
 		 config => { },
@@ -262,7 +288,7 @@ sub usage( )
 		"  -f|--force    force overwrite of test directory\n" .
 		"  -n|--no-exec  no execute / test mode\n" .
 		"  -p|--pid      append PID to test directory\n" .
-		"  -N|--no-pid   do not append PID to test directory\n" .
+		"  -N|--no-pid   do not append PID to test directory (default)\n" .
 		"  -d|--debug    enable D_FULLDEBUG debugging\n" .
 		"  -v|--verbose  increase verbose level\n" .
 		"  -s|--stop     stop after errors\n" .

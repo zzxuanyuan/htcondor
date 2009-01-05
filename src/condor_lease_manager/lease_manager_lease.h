@@ -35,15 +35,18 @@ class LeaseManagerLease
 	void setLeaseId( const string & );
 	void setLeaseDuration( int );
 	void setReleaseWhenDone( bool );
+	void setIsValid( bool );
 
 	const string &getLeaseId( void ) const { return m_id; };
 	int getDuration( void ) const { return m_duration; };
 	int getReleaseWhenDone( void ) const { return m_release_when_done; };
+	bool GetIsValid( void ) const { return m_valid; };
 
   private:
 	string		m_id;
 	int			m_duration;
 	bool		m_release_when_done;
+	bool		m_valid;
 };
 
 void LeaseManagerLease_FreeList( list<LeaseManagerLease *> &lease_list );

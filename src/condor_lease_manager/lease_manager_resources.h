@@ -33,13 +33,16 @@
 
 #include "lease_manager_lease.h"
 
+// Internal resource information -- forward declaration
+class LeaseManagerResource;
+
 // Map leaseId's to the lease ClassAd -- for internal use only
 struct LeaseManagerLeaseEnt
 {
 	classad::ClassAd		*m_lease_ad;
 	int						 m_lease_number;
 	classad::ClassAd		*m_leases_ad;
-	string					 m_resource_name;
+	LeaseManagerResource	*m_resource;
 	int						 m_expiration;
 };
 

@@ -37,6 +37,36 @@ using namespace std;
 // Set to zero to disable 2-way match making (needs classads >= 0.9.8-b3)
 #define TWO_WAY_MATCHING	1
 
+// **********************************
+// Internal resource information
+// **********************************
+class LeaseManagerResource
+{
+public:
+	LeaseManagerResource( const classad::ClassAd &resource_ad );
+	~LeaseManagerResource( void );
+
+	classAd::ClassAd & getResourceAd( void ) const;
+
+private:
+	string		m_resource_name;
+	bool		m_lazy_expire;
+};
+LeaseManagerResource::LeaseManagerResource(
+	const classad::ClassAd &resource_ad )
+{
+}
+classad::ClassAd &
+LeaseManagerResource::getResourceAd( void ) const
+{
+}
+
+static list<LeaseManagerResource *> resources;
+
+
+// **************************************************
+// Lease manager resources main class implementation
+// **************************************************
 LeaseManagerResources::LeaseManagerResources( void )
 {
 	m_lease_id_number = time( NULL );
@@ -106,6 +136,12 @@ LeaseManagerResources::setMaxLeaseTotalDuration( int max )
 	m_max_lease_total = max;
 }
 
+void
+LeaseManagerResources::setDefaultLazyExpire( bool default_lazy_expire )
+{
+	m_default_lazy_expire = default_lazy_expire;
+}
+
 int
 LeaseManagerResources::init( void )
 {
@@ -159,10 +195,43 @@ LeaseManagerResources::init( void )
 		}
 	}
 
-	restoreLeases( );
+	if ( restoreResources( ) < 0 ) {
+		dprintf( D_ALWAYS, "Error restoring resources\n" );
+		return -1;
+	}
+
+	if ( restoreLeases( ) < 0 ) {
+		dprintf( D_ALWAYS, "Error restoring leases\n" );
+		return -1;
+	}
 
 	// Make sure the log is cleaned up
 	m_collection.TruncateLog( );
+	return 0;
+}
+
+int
+LeaseManagerResources::restoreResources( void )
+{
+    const classad::View *view = m_collection.GetView( m_resources_view );
+
+	int		count = 0;
+    for ( classad::View::const_iterator iter = view->begin();
+		  iter != view->end();
+		  iter++ ) {
+        string key;
+        iter->GetKey( key );
+		classad::ClassAd	*ad = m_collection.GetClassAd( key );
+		if ( !ad ) {
+			dprintf( D_ALWAYS, "restoreResources: No ad for key '%s'\n",
+					 key.c_str() );
+			continue;
+		}
+		LeaseManagerResource *resource = new LeaseManagerResource( ad );
+		count++;
+    }
+	dprintf( D_FULLDEBUG,
+			 "restoreResources: Restored %d resources\n", count );
 	return 0;
 }
 
@@ -631,7 +700,8 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 		}
 
 		// Update the lease
-		int		duration = GetLeaseDuration( *resource_ad, *request );
+		int		request_duration = request->getDuration();
+		int		duration = GetLeaseDuration( *resource_ad, request_duration );
 		classad::ClassAd	*updates = new classad::ClassAd;
 		updates->InsertAttr( "LeaseUsed", true );
 		updates->InsertAttr( "LeaseStartTime", (int) now );
@@ -652,6 +722,34 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 		dprintf( D_FULLDEBUG, "Renewed lease %s for %ds\n",
 				 request->getLeaseId().c_str(), duration );
 	}
+
+	return 0;
+}
+
+// Public method to get the status of a list of leases
+int
+LeaseManagerResources::GetLeaseStatus(
+	list<LeaseManagerLease *> &leases )
+{
+
+	// Walk through the whole list...
+	int		count = 0;
+	int		status = 0;
+	for ( list <LeaseManagerLease *>::iterator iter = leases.begin();
+		  iter != requests.end();
+		  iter++ )
+	{
+		const LeaseManagerLease *request = *iter;
+		LeaseManagerLeaseEnt	*lease_ent = FindLease( *request );
+		if ( ! lease_ent ) {
+			dprintf( D_ALWAYS,
+					 "release: Can't find matching lease ad!\n" );
+			status = -1;
+			continue;
+		}
+		count++;
+	}
+	dprintf( D_FULLDEBUG, "%d leases found\n", count );
 
 	return 0;
 }
@@ -697,15 +795,15 @@ LeaseManagerResources::AddResource( classad::ClassAd *new_res_ad )
 	// Extract info from the resource ad
 	int			max_leases;
 	if ( !new_res_ad->EvaluateAttrInt( "MaxLeases", max_leases ) ) {
-		dprintf( D_ALWAYS,
-				 "AddResource: No MaxLeases in resource ad;"
-				 " assumming 1\n" );
-		max_leases = 1;
+		dprintf( D_ALWAYS, "AddResource: No MaxLeases in resource ad\n" );
+		delete new_res_ad;
+		return -1;
 	} else if ( max_leases < 0 ) {
-		dprintf( D_ALWAYS,
-				 "AddResource: MaxLeases < 0; setting to zero\n" );
-		max_leases = 0;
+		dprintf( D_ALWAYS, "AddResource: MaxLeases < 0; setting to zero\n" );
+		delete new_res_ad;
+		return -1;
 	}
+
 	string		resource_name;
 	if ( !new_res_ad->EvaluateAttrString( "Name", resource_name ) ) {
 		dprintf( D_ALWAYS, "AddResource: No Name in resource ad\n" );
@@ -988,7 +1086,7 @@ LeaseManagerResources::StartExpire( void )
 
 // Internal method to find & terminate expired leases
 int
-LeaseManagerResources::ExpireLeases( void )
+LeaseManagerResources::ExpireLeases( bool force )
 {
 
 	int		num_expired = 0;
@@ -1027,7 +1125,7 @@ LeaseManagerResources::PruneExpired( void )
 	int		pruned_count = 0;
 
 	// First, expire leases
-	ExpireLeases( );
+	ExpireLeases( false );
 
 	// Things we need for the query
 	classad::LocalCollectionQuery	query;

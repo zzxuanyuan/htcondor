@@ -41,6 +41,7 @@ LeaseManagerLease::setLeaseId(
 	const string		&lease_id )
 {
 	m_id = lease_id;
+	m_valid = lease_id != "";
 }
 
 void
@@ -55,6 +56,13 @@ LeaseManagerLease::setReleaseWhenDone(
 	bool				rel )
 {
 	m_release_when_done = rel;
+}
+
+void
+LeaseManagerLease::setIsValid(
+	bool				valid )
+{
+	m_valid = valid;
 }
 
 void LeaseManagerLease_FreeList( list<LeaseManagerLease *> &lease_list )

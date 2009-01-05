@@ -178,6 +178,10 @@ LeaseManager::init( void )
 		(CommandHandlercpp)&LeaseManager::commandHandler_RenewLease,
 		"command_handler", (Service *)this, DAEMON );
 	daemonCore->Register_Command(
+		LEASE_MANAGER_RENEW_LEASE, "LEASE_STATUS",
+		(CommandHandlercpp)&LeaseManager::commandHandler_GetLeasestatus,
+		"command_handler", (Service *)this, DAEMON );
+	daemonCore->Register_Command(
 		LEASE_MANAGER_RELEASE_LEASE, "RELEASE_LEASE",
 		(CommandHandlercpp)&LeaseManager::commandHandler_ReleaseLease,
 		"command_handler", (Service*)this, DAEMON );
@@ -337,6 +341,7 @@ LeaseManager::commandHandler_GetLeases(int command, Stream *stream)
 	// Keep running queries 'til we're all matched up
 	dprintf( D_FULLDEBUG, "Trying to lease %d resources\n", request_count );
 	int		num_matches = 0;	// Total matches so far
+	int		expired = 0;		// # of expirations we've gotten
 	list< classad::ClassAd *> match_list;
 	DebugTimerDprintf	timer;
 	while( num_matches < request_count ) {
@@ -377,7 +382,17 @@ LeaseManager::commandHandler_GetLeases(int command, Stream *stream)
 		// If we didn't get any, give up
 		dprintf( D_FULLDEBUG, "End of loop; got %d\n", loop_matches );
 		if ( ! loop_matches ) {
-			break;
+			// Try expiring leases
+			expired = m_resources.ExpireLeases(true);
+			if ( expired < 0 ) {
+				dprintf( D_ALWAYS, "GetLeases: ExpireLeases(true) failed\n" );
+				break;
+			}
+			else if ( 0 == expired ) {
+				// None available -- give up
+				break;
+			}
+			// We expired one or more leases -- go try again
 		}
 	}
 
