@@ -94,7 +94,7 @@ class DCLeaseManagerLease {
 	int leaseExpiration( void ) const
 		{ return m_lease_time + m_lease_duration; };
 	int secondsRemaining( time_t now = 0 ) const
-		{ return m_lease_duration + getNow( now ) - m_lease_time };
+		{ return m_lease_duration + getNow( now ) - m_lease_time; };
 	bool isExpired( time_t now = 0 ) const
 		{ return ( secondsRemaining(now) > 0 ); };
 

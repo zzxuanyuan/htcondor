@@ -45,29 +45,29 @@ public:
 		const char		*param_name,
 		int				 initial_value,
 		int				 default_value,
-		LeaseManager		*lease_manager,
+		LeaseManager	*lease_manager,
 		TimerHandlercpp	 handler );
 	~LeaseManagerIntervalTimer( void );
 	bool Config( void );
 
 private:
-	const char		*m_Name;
-	const char		*m_ParamName;
-	int				 m_Initial;
-	int				 m_Default;
+	const char			*m_Name;
+	const char			*m_ParamName;
+	int					 m_Initial;
+	int					 m_Default;
 	LeaseManager		*m_LeaseManager;
-	TimerHandlercpp	 m_Handler;
-	int				 m_TimerId;
-	int				 m_Interval;
+	TimerHandlercpp		 m_Handler;
+	int					 m_TimerId;
+	int					 m_Interval;
 };
 
 LeaseManagerIntervalTimer::LeaseManagerIntervalTimer(
-	const char		*name,
-	const char		*param_name,
-	int				 initial_value,
-	int				 default_value,
+	const char			*name,
+	const char			*param_name,
+	int					 initial_value,
+	int					 default_value,
 	LeaseManager		*lease_manager,
-	TimerHandlercpp	 handler )
+	TimerHandlercpp		 handler )
 {
 	m_Name = name;
 	m_ParamName = param_name;
@@ -179,7 +179,7 @@ LeaseManager::init( void )
 		"command_handler", (Service *)this, DAEMON );
 	daemonCore->Register_Command(
 		LEASE_MANAGER_RENEW_LEASE, "LEASE_STATUS",
-		(CommandHandlercpp)&LeaseManager::commandHandler_GetLeasestatus,
+		(CommandHandlercpp)&LeaseManager::commandHandler_GetLeaseStatus,
 		"command_handler", (Service *)this, DAEMON );
 	daemonCore->Register_Command(
 		LEASE_MANAGER_RELEASE_LEASE, "RELEASE_LEASE",
@@ -379,11 +379,11 @@ LeaseManager::commandHandler_GetLeases(int command, Stream *stream)
 		} while(  ( m_resources.QueryNext() ) &&
 				  ( num_matches < request_count )  );
 
-		// If we didn't get any, give up
+		// If we didn't get any; force expiration, then give up
 		dprintf( D_FULLDEBUG, "End of loop; got %d\n", loop_matches );
 		if ( ! loop_matches ) {
 			// Try expiring leases
-			expired = m_resources.ExpireLeases(true);
+			expired = m_resources.ExpireLeases( true );
 			if ( expired < 0 ) {
 				dprintf( D_ALWAYS, "GetLeases: ExpireLeases(true) failed\n" );
 				break;
@@ -564,7 +564,7 @@ LeaseManager::timerHandler_GetAds ( void )
 		return false;
 	}
 
-	m_resources.StartExpire( );
+	m_resources.StartExpireResources( );
 	dprintf(D_ALWAYS, "  Processing %d ads ...\n", ads.MyLength() );
 	DebugTimerDprintf	timer;
 	ads.Open( );
@@ -584,7 +584,7 @@ LeaseManager::timerHandler_GetAds ( void )
 	timer.Log( "ProcessAds", ads.MyLength() );
 	dprintf( D_ALWAYS, "  Done processing %d ads; pruning\n", ads.MyLength());
 	timer.Start( );
-	m_resources.PruneExpired( );
+	m_resources.PruneExpiredResources( );
 	timer.Log( "PruneExpired" );
 	dprintf( D_ALWAYS, "  Done pruning ads\n" );
 

@@ -33,18 +33,8 @@
 
 #include "lease_manager_lease.h"
 
-// Internal resource information -- forward declaration
-class LeaseManagerResource;
-
 // Map leaseId's to the lease ClassAd -- for internal use only
-struct LeaseManagerLeaseEnt
-{
-	classad::ClassAd		*m_lease_ad;
-	int						 m_lease_number;
-	classad::ClassAd		*m_leases_ad;
-	LeaseManagerResource	*m_resource;
-	int						 m_expiration;
-};
+class LeaseManagerLeaseEnt;
 
 // Statistics
 struct LeaseManagerStats
@@ -112,11 +102,14 @@ class LeaseManagerResources
 	int PruneResources(
 		void
 		);
-	int StartExpire(
+	int StartExpireResources(
 		void
 		);
-	int PruneExpired(
+	int PruneExpiredResources(
 		void
+		);
+	int ExpireLeases(
+		bool						force = false
 		);
 
 	int GetStats(
@@ -197,9 +190,6 @@ class LeaseManagerResources
 	bool TerminateLease(
 		LeaseManagerLeaseEnt		&lease
 		);
-	int ExpireLeases(
-		void
-		);
 	bool UpdateLeaseAd(
 		const string				&resource,
 		int							lease_number,
@@ -214,16 +204,16 @@ class LeaseManagerResources
 	int GetLeaseDuration(
 		const classad::ClassAd		&resource_ad,
 		const LeaseManagerLease		&request
-		);
+		) const;
 	int GetLeaseDuration(
 		const classad::ClassAd		&resource_ad,
 		const classad::ClassAd		&request_ad
-		);
+		) const;
 	int GetLeaseDuration(
 		const classad::ClassAd		&resource_ad,
 		int							requsted_duration
-		);
-
+		) const;
+	
 
 	// Internal query methods
 	bool QueryStart(
@@ -257,6 +247,8 @@ class LeaseManagerResources
 	classad::LocalCollectionQuery	m_expiration_query;
 
     map<string, LeaseManagerLeaseEnt*, less<string> > m_used_leases;
+    map<string, LeaseManagerLeaseEnt*, less<string> > m_expired_leases;
+
 	int								m_default_max_lease_duration;
 	int								m_max_lease_duration;
 	int								m_max_lease_total;

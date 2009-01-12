@@ -175,17 +175,18 @@ DCLeaseManager::renewLeases(
 
 bool
 DCLeaseManager::getLeaseStatus(
-	list< DCLeaseManagerLease *> &leases )
+	list<const DCLeaseManagerLease *> &leases,
+	list<DCLeaseManagerLease *> &results )
 {
 		// Create the ReliSock
 	ReliSock *rsock = (ReliSock *)startCommand(
-		LEASE_MANAGER_GET_LEASE_STATUS, Stream::reli_sock, 20 );
+		LEASE_MANAGER_LEASE_STATUS, Stream::reli_sock, 20 );
 	if ( ! rsock ) {
 		return false;
 	}
 
 	// Send the leases
-	if ( !SendLeases( rsock, leases ) ) {
+	if ( !SendLeases( rsock, const_list ) ) {
 		delete rsock;
 		return false;
 	}
@@ -205,7 +206,6 @@ DCLeaseManager::getLeaseStatus(
 	}
 
 		// Finally, read the returned leases
-	list< DCLeaseManagerLease *> &results;
 	if ( !GetLeases( rsock, results ) ) {
 		delete rsock;
 		return false;
@@ -213,11 +213,6 @@ DCLeaseManager::getLeaseStatus(
 
 	rsock->close();
 	delete rsock;
-
-	const_list 
-	DCLeaseManagerLease_updateLeases(
-		leases,
-		DCLeaseManagerLease_getConstList(results) );
 
 	return true;
 }

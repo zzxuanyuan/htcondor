@@ -37,32 +37,6 @@ using namespace std;
 // Set to zero to disable 2-way match making (needs classads >= 0.9.8-b3)
 #define TWO_WAY_MATCHING	1
 
-// **********************************
-// Internal resource information
-// **********************************
-class LeaseManagerResource
-{
-public:
-	LeaseManagerResource( const classad::ClassAd &resource_ad );
-	~LeaseManagerResource( void );
-
-	classAd::ClassAd & getResourceAd( void ) const;
-
-private:
-	string		m_resource_name;
-	bool		m_lazy_expire;
-};
-LeaseManagerResource::LeaseManagerResource(
-	const classad::ClassAd &resource_ad )
-{
-}
-classad::ClassAd &
-LeaseManagerResource::getResourceAd( void ) const
-{
-}
-
-static list<LeaseManagerResource *> resources;
-
 
 // **************************************************
 // Lease manager resources main class implementation
@@ -86,11 +60,21 @@ LeaseManagerResources::LeaseManagerResources( void )
 LeaseManagerResources::~LeaseManagerResources( void )
 {
 	map<string, LeaseManagerLeaseEnt*, less<string> >::iterator iter;
+
 	for( iter = m_used_leases.begin(); iter != m_used_leases.end(); iter++ ) {
 		LeaseManagerLeaseEnt	*lease_ent = iter->second;
 		delete lease_ent;
 		m_used_leases.erase( iter->first );
 	}
+
+	for( iter = m_expired_leases.begin();
+		 iter != m_expired_leases.end();
+		 iter++ ) {
+		LeaseManagerLeaseEnt	*lease_ent = iter->second;
+		delete lease_ent;
+		m_expired_leases.erase( iter->first );
+	}
+
 	if( m_collection_log ) {
 		free( const_cast<char*>(m_collection_log) );
 	}
@@ -326,13 +310,33 @@ LeaseManagerResources::restoreLeases( void )
 			}
 			int		expiration_time = start_time + duration;
 
+			// There had better be a resource ad to match
+			classad::ClassAd	*resource_ad = GetResourceAd( resource_name );
+			if ( !resource_ad ) {
+				dprintf( D_ALWAYS, "restore: Can't find resource for '%s'\n",
+						 resource_name.c_str() );
+				bad_leases++;
+				continue;
+			}
+
+			// Lazy expiration?
+			bool	lazy_expire = m_default_lazy_expire;
+			bool	tmp_bool;
+			if ( resource_ad->EvaluateAttrBoolean( "LazyExpire", tmp_bool ) ) {
+				lazy_expire = tmp_bool;
+			}
+
 			// Create a lease entry for it
-			LeaseManagerLeaseEnt	*lease_ent = new LeaseManagerLeaseEnt;
-			lease_ent->m_lease_ad = ad;
-			lease_ent->m_lease_number = lease_number;
-			lease_ent->m_leases_ad = leases_ad;
-			lease_ent->m_resource_name = resource;
-			lease_ent->m_expiration = expiration_time;
+			LeaseManagerLeaseEnt	*lease_ent =
+				new LeaseManagerLeaseEnt ( 
+					ad,
+					lease_number,
+					leases_ad,
+					resource,
+					resource_ad,
+					expiration_time,
+					lazy_expire
+					);
 
 			// Finally, add it to the used leases map
 			m_used_leases[lease_id] = lease_ent;
@@ -607,13 +611,25 @@ LeaseManagerResources::GetLeases( classad::ClassAd &resource_ad,
 		// Stuff it in the list to send back
 		leases.push_back( lease_ad );
 
+		// Lazy expiration?
+		bool	lazy_expire = m_default_lazy_expire;
+		bool	tmp_bool;
+		if ( resource_ad->EvaluateAttrBoolean( "LazyExpire", tmp_bool ) ) {
+			lazy_expire = tmp_bool;
+		}
+
 		// Finally, add the leaesid to the map
-		LeaseManagerLeaseEnt	*lease_ent = new LeaseManagerLeaseEnt;
-		lease_ent->m_lease_ad = ad;
-		lease_ent->m_lease_number = lease_number;
-		lease_ent->m_leases_ad = leases_ad;
-		lease_ent->m_expiration = (int) now + duration;
-		lease_ent->m_resource_name = resource_name;
+		LeaseManagerLeaseEnt	*lease_ent =
+			new LeaseManagerLeaseEnt (
+				ad,
+				lease_number,
+				leases_ad,
+				(int) now + duration,
+				resource_ad,
+				resource_name,
+				lazy_expire
+				);
+
 		m_used_leases[lease_id] = lease_ent;
 
 		// Finally, update the counts
@@ -669,39 +685,50 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 					 request->getLeaseId().c_str() );
 			continue;
 		}
+		classad::ClassAd	*lease_ad = lease_ent->m_lease_ad;
 		bool	valid = false;
-		if ( !lease_ent->m_lease_ad->EvaluateAttrBool( "LeaseValid",
-													   valid ) ) {
+		if ( !lease_ent->getValid( valid ) ) {
 			dprintf( D_ALWAYS,
 					 "renew: warning: No 'valid' flag in lease ad!\n" );
 		}
 
+		// Already expired?
+		int		expired_time = 0;
+		lease_ent->getExpiredTime( expired_time );
+
+		// Get the resource ad
+		classad::ClassAd	*resource_ad = lease_ent->getResourceAd( );
+
+		// Has it hit the max total lease time?
 		int		creation_time;
 		bool	release = !valid;
-		if ( !lease_ent->m_lease_ad->EvaluateAttrInt( "LeaseCreationTime",
-													  creation_time ) ) {
+		if ( !m_lease_ent->getCreationTime( creation_time ) ) {
 			dprintf( D_ALWAYS,
 					 "renew: warning: No 'creation time' in lease ad!\n" );
 		}
-		if ( ( creation_time + m_max_lease_total ) < now ) {
+		int		max_duration = 0;
+		if ( ( creation_time + m_max_lease_total ) > now ) {
+			max_duration = 
+				(int) ( ( creation_time + m_max_lease_total ) - now );
+		}
+		else {
 			dprintf( D_FULLDEBUG,
 					 "renew: Lease %s hit max duration\n",
 					 lease_ent->m_resource_name.c_str() );
 			release = true;
 		}
 
-		// Get the resource ad
-		classad::ClassAd	*resource_ad =
-			GetResourceAd( lease_ent->m_resource_name );
-		if ( !resource_ad ) {
-			dprintf( D_ALWAYS, "RenewLease: Can't find resource '%s'\n",
-					 lease_ent->m_resource_name.c_str() );
-			continue;
-		}
-
 		// Update the lease
 		int		request_duration = request->getDuration();
 		int		duration = GetLeaseDuration( *resource_ad, request_duration );
+
+		if ( duration > max_duration ) {
+			duration = max_duration;
+		}
+		if (  ( 0 == max_duration ) && ( 0 == expired_time )  ) {
+			expired_time = now;
+		}
+
 		classad::ClassAd	*updates = new classad::ClassAd;
 		updates->InsertAttr( "LeaseUsed", true );
 		updates->InsertAttr( "LeaseStartTime", (int) now );
@@ -734,7 +761,7 @@ LeaseManagerResources::GetLeaseStatus(
 
 	// Walk through the whole list...
 	int		count = 0;
-	int		status = 0;
+	bool	errors = 0;
 	for ( list <LeaseManagerLease *>::iterator iter = leases.begin();
 		  iter != requests.end();
 		  iter++ )
@@ -744,14 +771,15 @@ LeaseManagerResources::GetLeaseStatus(
 		if ( ! lease_ent ) {
 			dprintf( D_ALWAYS,
 					 "release: Can't find matching lease ad!\n" );
-			status = -1;
+			errors++;
 			continue;
 		}
 		count++;
 	}
-	dprintf( D_FULLDEBUG, "%d leases found\n", count );
+	dprintf( D_FULLDEBUG,
+			 "GetLeaseStatus: %d leases found, %d errors\n", count, errors );
 
-	return 0;
+	return errors ? -1 : count;
 }
 
 // Public method to release a list of leases
@@ -936,7 +964,7 @@ LeaseManagerResources::SetLeaseStates(
 	}
 
 	// The count has chagned; Update the lease list
-	dprintf( D_FULLDEBUG, "SetLeaseStates: Lease count changed; udating\n" );
+	dprintf( D_FULLDEBUG, "SetLeaseStates: Lease count changed; updating\n" );
 	DebugTimerDprintf	timer;
 
 	// Get the lease states
@@ -1056,9 +1084,9 @@ LeaseManagerResources::PruneResources( void )
 	return status;
 }
 
-// Public method to mark all resources as invalie
+// Public method to mark all resources as invalid
 int
-LeaseManagerResources::StartExpire( void )
+LeaseManagerResources::StartExpireResources( void )
 {
     const classad::View *view = m_collection.GetView( m_resources_view );
 
@@ -1100,12 +1128,19 @@ LeaseManagerResources::ExpireLeases( bool force )
 		LeaseManagerLeaseEnt	*lease_ent = iter->second;
 
 		num_examined++;
-		if ( lease_ent->m_expiration < now ) {
+
+		// If it's not expired, go check the next one
+		if ( lease_ent->m_expiration > now ) {
+			continue;
+		}
+
+		if ( force  ||  ( ! lease_ent->m_lazy_expire ) ) {
 			if ( !TerminateLease( *lease_ent ) ) {
 				dprintf( D_ALWAYS, "Error expiring lease!\n" );
 			}
 			m_used_leases.erase( iter->first );
-			delete lease_ent;
+			updates->InsertAttr( "LeaseExpiredTime", now );
+			m_expired_leases[lease_id] = lease_ent;
 			num_expired++;
 		}
 	}
@@ -1117,9 +1152,9 @@ LeaseManagerResources::ExpireLeases( bool force )
 	return 0;
 }
 
-// Public method to mark all resources
+// Public method to prune expired resources
 int
-LeaseManagerResources::PruneExpired( void )
+LeaseManagerResources::PruneExpiredResources( void )
 {
 	int		zeroed_count = 0;
 	int		pruned_count = 0;
@@ -1210,8 +1245,8 @@ LeaseManagerResources::PruneExpired( void )
 		}
 
 	} while( QueryNext( query, key ) );
-	timer.Log( "PruneExpired:zeroed", zeroed_count );
-	timer.Log( "PruneExpired:pruned", pruned_count );
+	timer.Log( "PruneExpiredResources:zeroed", zeroed_count );
+	timer.Log( "PruneExpiredResources:pruned", pruned_count );
 
 	if ( zeroed_count || pruned_count ) {
 		dprintf( D_FULLDEBUG, "Zeroed %d and pruned %d expired resources\n",
@@ -1335,24 +1370,33 @@ LeaseManagerResources::FindLease( const LeaseManagerLease &in_lease )
 {
 
 	map<string, LeaseManagerLeaseEnt*, less<string> >::iterator iter;
+
 	iter = m_used_leases.find( in_lease.getLeaseId() );
 	if ( iter != m_used_leases.end() ) {
 		return m_used_leases[ in_lease.getLeaseId() ];
 	}
+
+	iter = m_expired_leases.find( in_lease.getLeaseId() );
+	if ( iter != m_expired_leases.end() ) {
+		return m_expired_leases[ in_lease.getLeaseId() ];
+	}
+
 	return NULL;
 }
 
 int
-LeaseManagerResources::GetLeaseDuration( const classad::ClassAd &resource_ad,
-										 const LeaseManagerLease &request )
+LeaseManagerResources::GetLeaseDuration(
+	const classad::ClassAd &resource_ad,
+	const LeaseManagerLease &request ) const
 {
 	int	requested_duration = request.getDuration( );
 	return GetLeaseDuration( resource_ad, requested_duration );
 }
 
 int
-LeaseManagerResources::GetLeaseDuration( const classad::ClassAd &resource_ad,
-										 const classad::ClassAd &request_ad )
+LeaseManagerResources::GetLeaseDuration(
+	const classad::ClassAd &resource_ad,
+	const classad::ClassAd &request_ad ) const
 {
 	int	requested_duration = -1;
 	request_ad.EvaluateAttrInt( "LeaseDuration", requested_duration );
@@ -1361,8 +1405,9 @@ LeaseManagerResources::GetLeaseDuration( const classad::ClassAd &resource_ad,
 }
 
 int
-LeaseManagerResources::GetLeaseDuration( const classad::ClassAd &resource_ad,
-										 int requested_duration )
+LeaseManagerResources::GetLeaseDuration(
+	const classad::ClassAd &resource_ad,
+	int requested_duration ) const
 {
 	int	resource_max_duration = -1;
 	resource_ad.EvaluateAttrInt( "MaxLeaseDuration", resource_max_duration );

@@ -68,7 +68,7 @@ class DCLeaseManager : public Daemon
 		/** Get lease(s) which to match the requirements passed in
 			@param ad (New) ClassAd which discribe the request
 			@param leases STL List of lease information
-			The list pointers should be delete()ed when no longer used
+			  The list pointers should be delete()ed when no longer used
 			@return true on success, false on invalid input (NULL)
 		*/
 	bool getLeases( const classad::ClassAd &ad,
@@ -77,17 +77,29 @@ class DCLeaseManager : public Daemon
 
 		/** Renew the leases specified
 			@param leases STL List of leases to renew
-			Lease ID & duration are required
+			  Lease ID & duration are required
 			@param out_leases STL list of renewed leases
-			The list pointers should be delete()ed when no longer used
+			  The list pointers should be delete()ed when no longer used
+			@return true on success, false on invalid input (NULL)
 		*/
 	bool renewLeases( list< const DCLeaseManagerLease *> &leases,
 					  list< DCLeaseManagerLease *> &out_leases );
 
 
+		/** Get the status of the specified leases
+			@param leases STL List of leases to get the status of
+			@return true on success, false on invalid input (NULL) or other
+			  errors
+		*/
+	bool getLeaseStatus(
+		list< const DCLeaseManagerLease *> &leases,
+		list< DCLeaseManagerLease *> &return_leases );
+
+	
 		/** Release the leases specified
-			@param leases STL list of lease information on leases to release
-			@return true on success, false on invalid input (NULL)
+			@param leases STL list of leases to get status of
+			@param return_leases STL list of lease with updated status
+			@return true on success, false on invalid input or other errors
 		*/
 	bool releaseLeases( list <DCLeaseManagerLease *> &leases );
 
