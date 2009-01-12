@@ -328,7 +328,7 @@ LeaseManagerResources::restoreLeases( void )
 
 			// Create a lease entry for it
 			LeaseManagerLeaseEnt	*lease_ent =
-				new LeaseManagerLeaseEnt ( 
+				new LeaseManagerLeaseEnt (
 					ad,
 					lease_number,
 					leases_ad,
@@ -708,7 +708,7 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 		}
 		int		max_duration = 0;
 		if ( ( creation_time + m_max_lease_total ) > now ) {
-			max_duration = 
+			max_duration =
 				(int) ( ( creation_time + m_max_lease_total ) - now );
 		}
 		else {
