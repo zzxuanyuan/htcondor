@@ -46,6 +46,9 @@ LOCAL_CLIENT_TEST_OBJ=local_client_test.o local_client.UNIX.o \
                       named_pipe_util.o
 c_plus_target(local_client_test,$(LOCAL_CLIENT_TEST_OBJ),$(STD_LIBS))
 
+PROCD_CTL_OBJ=procd_ctl.o
+c_plus_target(procd_ctl,$(PROCD_CTL_OBJ),$(STD_LIBS))
+
 html:
 release:: all
 stripped:: all

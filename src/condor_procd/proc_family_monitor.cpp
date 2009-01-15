@@ -240,6 +240,20 @@ ProcFamilyMonitor::register_subfamily(pid_t root_pid,
 	return PROC_FAMILY_ERROR_SUCCESS;
 }
 
+Tree<ProcFamily*>*
+ProcFamilyMonitor::lookup_family(pid_t pid, bool zero_means_root)
+{
+	if (zero_means_root && (pid == 0)) {
+		return m_tree;
+	}
+	Tree<ProcFamily*>* tree;
+	int ret = m_family_table.lookup(pid, tree);
+	if (ret == -1) {
+		return NULL;
+	}
+	return tree;
+}
+
 proc_family_error_t
 ProcFamilyMonitor::track_family_via_environment(pid_t pid, PidEnvID* penvid)
 {
@@ -893,59 +907,76 @@ ProcFamilyMonitor::delete_all_families(Tree<ProcFamily*>* tree)
 	delete tree->get_data();
 }
 
-#if defined(PROCD_DEBUG)
-
 void
 ProcFamilyMonitor::output(LocalServer& server, pid_t pid)
 {
 	// lookup the family. if the look fails, send "false" to the
 	// client and return. otherwise, send "true" and keep going
 	//
-	Tree<ProcFamily*>* tree;
-	int ret = m_family_table.lookup(pid, tree);
-	bool ok = (ret != -1);
-	server.write_data(&ok, sizeof(bool));
-	if (!ok) {
+	Tree<ProcFamily*>* tree = lookup_family(pid, true);
+	proc_family_error_t err = PROC_FAMILY_ERROR_SUCCESS;
+	if (tree == NULL) {
+		err = PROC_FAMILY_ERROR_FAMILY_NOT_FOUND;
+	}
+	if (!server.write_data(&err, sizeof(proc_family_error_t))) {
+		dprintf(D_ALWAYS,
+		        "output failure: error writing response to client\n");
+		return;
+	}
+	if (err != PROC_FAMILY_ERROR_SUCCESS) {
 		dprintf(D_ALWAYS,
 		        "output failure: family with root %u not found\n",
 		        pid);
 		return;
 	}
 
+	// tell the client the number of processes we are about to send it
+	// information about
+	//
+	int count = 0;
+	ProcFamilyMember* member;
+	m_member_table.startIterations();
+	while (m_member_table.iterate(member)) {
+		if (member->get_proc_family() != m_everybody_else) {
+			count++;
+		}
+	}
+	
+	if (!server.write_data(&count, sizeof(int))) {
+		dprintf(D_ALWAYS,
+		        "output failure: error writing element count\n");
+		return;
+	}
+
 	// begin recusrsion
 	//
-	output(server, pid, tree);
-
-	// write a zero when we're done sending family info
-	//
-	int zero = 0;
-	server.write_data(&zero, sizeof(int));
+	output(server, tree->get_data()->get_root_pid(), tree);
 }
 
-void
+bool
 ProcFamilyMonitor::output(LocalServer& server,
                           pid_t pid,
                           Tree<ProcFamily*>* tree)
 {
-	// output the current family first. for each subfamily (i.e. all families
-	// except the one rooted at the given pid), we'll first send back the
-	// family's parent-family's root pid
+	// output the current family first
 	//
-	if (pid != tree->get_data()->get_root_pid()) {
-		Tree<ProcFamily*>* parent = tree->get_parent();
-		ASSERT(parent != NULL);
-		pid_t parent_root_pid = parent->get_data()->get_root_pid();
-		server.write_data(&parent_root_pid, sizeof(pid_t));
+	pid_t parent_root = 0;
+	if (tree->get_data()->get_root_pid() != pid) {
+		parent_root = tree->get_parent()->get_data()->get_root_pid();
 	}
-	tree->get_data()->output(server);
+	if (!tree->get_data()->output(server, parent_root)) {
+		return false;
+	}
 
 	// recurse on children
 	//
 	Tree<ProcFamily*>* child = tree->get_child();
 	while (child != NULL) {
-		output(server, pid, child);
+		if (!output(server, pid, child)) {
+			return false;
+		}
 		child = child->get_sibling();
 	}
-}
 
-#endif
+	return true;
+}

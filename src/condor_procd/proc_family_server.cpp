@@ -258,7 +258,6 @@ ProcFamilyServer::unregister_family()
 	write_to_client(&err, sizeof(proc_family_error_t));
 }
 
-#if defined(PROCD_DEBUG)
 void
 ProcFamilyServer::dump()
 {
@@ -267,7 +266,6 @@ ProcFamilyServer::dump()
 
 	m_monitor.output(*m_server, pid);
 }
-#endif
 
 void
 ProcFamilyServer::snapshot()
@@ -421,12 +419,10 @@ ProcFamilyServer::wait_loop()
 				snapshot();
 				break;
 
-#if defined(PROCD_DEBUG)
 			case PROC_FAMILY_DUMP:
 				dprintf(D_ALWAYS, "PROC_FAMILY_DUMP\n");
 				dump();
 				break;
-#endif
 
 			case PROC_FAMILY_QUIT:
 				dprintf(D_ALWAYS, "PROC_FAMILY_QUIT\n");
