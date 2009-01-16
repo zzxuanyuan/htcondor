@@ -30,9 +30,20 @@ $| = 1;
 use Cwd;
 my $BaseDir = getcwd();
 my $SrcDir = "$BaseDir/src";
+my $PackageDir = "$BaseDir/package";
+my $MSConfigDir = "$BaseDir/msconfig";
 my $pub_dir = "$BaseDir/public";
 my $pub_logs = "$pub_dir/logs";
 my $pub_testbin = "$pub_dir/testbin";
+
+# Fix paths for use in Windows
+if ( $ENV{NMI_PLATFORM} =~ /winnt/ ) {
+    $BaseDir =~ s/\//\\/g;
+    $PublicDir = "$BaseDir\\public";
+    $PackageDir = "$BaseDir\\package";
+    $MSConfigDir = "$BaseDir\\msconfig";    
+    $ENV{PATH} .= ";$MSConfigDir";
+}
 
 # This is debugging output for the sake of the NWO infrastructure.
 # However, it might be useful to us some day so we can see what's
@@ -44,6 +55,18 @@ if( defined $ENV{_NMI_STEP_FAILED} ) {
     print "The _NMI_STEP_FAILED variable is not set\n";
 }
 
+######################################################################
+# create an MSI and a ZIP from the build results
+######################################################################
+
+chdir("$BaseDir") || die("Can't chdir($BaseDir): $!\n");
+
+system("ls -l");
+
+mkdir("$PackageDir", 0777) || die("Can't chdir($PackageDir): $!\n");
+chdir("$MSConfigDir") || die ("Can't chdir($MSConfigDir): $!\n");
+system("dopackaging.bat $PublicDir $PackageDir");
+chdir("$BaseDir") || die("Can't chdir($BaseDir): $!\n");
 
 ######################################################################
 # save debugging results
@@ -103,6 +126,15 @@ if( $ENV{NMI_PLATFORM} ne "x86_winnt_5.1" ) {
         system( "cp -r $SrcDir/testbin_dir $pub_testbin" );
 }
 
+######################################################################
+# add the MSI and ZIP to the tarball
+######################################################################
+
+if ( $ENV{NMI_PLATFORM} =~ /winnt/ ) {
+    chdir("$MSConfigDir") || die ("Can't chdir($MSConfigDir): $!\n");
+    system( "mv -f $PackageDir $PublicDir" );
+    chdir("$BaseDir") || die("Can't chdir($BaseDir): $!\n");
+}
 
 ######################################################################
 # tar up build results

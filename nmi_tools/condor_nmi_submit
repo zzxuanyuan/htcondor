@@ -1002,6 +1002,12 @@ sub writeCommonInfo
 	# problems.  This allows our tests to generate core files
 	print $fh "+coresize = 100000000\n";
 
+    # The following allow the Windows slot-user to access the
+    # Registry.  We do this to support automating the packaging
+    # of the Windows distribution.
+    print $fh "+load_profile = True\n";
+    print $fh "load_profile = True\n";
+
     # print the tag and module in the cmdfile as the user variables
     if( defined $tag ) {
         print $fh "tag = $tag\n";
