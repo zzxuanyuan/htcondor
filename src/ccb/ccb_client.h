@@ -35,14 +35,15 @@
 #include "reli_sock.h"
 #include "dc_message.h"
 
-struct CCBClient: public Service, public ClassyCountedPtr {
+class CCBClient: public Service, public ClassyCountedPtr {
+ public:
 	CCBClient( char const *ccb_contact, ReliSock *target_sock );
 	~CCBClient();
 
 	bool ReverseConnect( CondorError *error, bool non_blocking );
 	void CancelReverseConnect();
 
-private:
+ private:
 	MyString m_ccb_contact;
 	MyString m_cur_ccb_address;
 	StringList m_ccb_contacts;

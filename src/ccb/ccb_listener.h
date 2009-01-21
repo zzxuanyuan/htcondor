@@ -31,7 +31,8 @@
 #include "condor_daemon_core.h"
 #include "simplelist.h"
 
-struct CCBListener: public Service, public ClassyCountedPtr {
+class CCBListener: public Service, public ClassyCountedPtr {
+ public:
 	CCBListener(char const *ccb_address);
 	~CCBListener();
 
@@ -47,7 +48,7 @@ struct CCBListener: public Service, public ClassyCountedPtr {
 
 	bool operator ==(CCBListener const &other);
 
-  private:
+ private:
 	MyString m_ccb_address;
 	MyString m_ccbid;
 	MyString m_reconnect_cookie;
@@ -68,12 +69,12 @@ struct CCBListener: public Service, public ClassyCountedPtr {
 	bool HandleCCBRegistrationReply( ClassAd &msg );
 	bool HandleCCBRequest( ClassAd &msg );
 	bool DoReversedCCBConnect( char const *address, char const *connect_id, char const *request_id);
-	int ReverseConnected(Sock *sock);
+	int ReverseConnected(Stream *stream);
 	void ReportReverseConnectResult(ClassAd *connect_msg,bool success,char const *error_msg=NULL);
 };
 
-struct CCBListeners {
-
+class CCBListeners {
+ public:
 		// format of addresses: "<ccb1> <ccb2> ..."
 	void Configure(char const *addresses);
 
@@ -86,7 +87,7 @@ struct CCBListeners {
 
 	bool RegisterWithCCBServer(bool blocking=false);
 
-  private:
+ private:
 	SimpleList< classy_counted_ptr<CCBListener> > m_ccb_listeners;
 	MyString m_ccb_contact;
 };

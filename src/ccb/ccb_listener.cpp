@@ -344,8 +344,9 @@ CCBListener::DoReversedCCBConnect( char const *address, char const *connect_id, 
 }
 
 int
-CCBListener::ReverseConnected(Sock *sock)
+CCBListener::ReverseConnected(Stream *stream)
 {
+	Sock *sock = (Sock *)stream;
 	ClassAd *msg_ad = (ClassAd *)daemonCore->GetDataPtr();
 	ASSERT( msg_ad );
 
