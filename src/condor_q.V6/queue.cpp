@@ -297,7 +297,7 @@ int main (int argc, char **argv)
 {
 	ClassAd		*ad;
 	bool		first;
-	char		*scheddName;
+	char		*scheddName=NULL;
 	char		daemonAdName[128];
 	char		scheddMachine[64];
 	char		*tmp;
@@ -622,8 +622,8 @@ int main (int argc, char **argv)
 
 		freeConnectionStrings();
 		useDB = FALSE;
-		if ( ! (ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr)  &&
-				 ad->LookupString(ATTR_NAME, scheddName)		&& 
+		if ( ! (ad->LookupString(ATTR_SCHEDD_IP_ADDR, &scheddAddr)  &&
+				 ad->LookupString(ATTR_NAME, &scheddName)		&& 
 				 ad->LookupString(ATTR_MACHINE, scheddMachine) ) ) 
 		{
 			/* something is wrong with this schedd/quill ad, try the next one */
