@@ -44,16 +44,16 @@ urlDecode(char const *str,size_t max,std::string &result)
 			int i;
 			str++;
 			consumed++;
-			for(i=0;i<2;i++,str++) {
+			for(i=0;i<2;i++,str++,consumed++) {
 				ch = ch<<4;
 				if( *str >= '0' && *str <= '9' ) {
 					ch |= *str - '0';
 				}
 				else if( *str >= 'a' && *str <= 'f' ) {
-					ch |= *str - 'a';
+					ch |= *str - 'a' + 10;
 				}
 				else if( *str >= 'A' && *str <= 'F' ) {
-					ch |= *str - 'A';
+					ch |= *str - 'A' + 10;
 				}
 				else {
 					return false;

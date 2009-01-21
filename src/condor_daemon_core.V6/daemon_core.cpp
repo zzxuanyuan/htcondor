@@ -1028,7 +1028,7 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 		if( private_name ) {
 			m_sinful.setPrivateNetworkName(private_name);
 
-			if( sinful_private ) {
+			if( sinful_private && strcmp(sinful_public,sinful_private) ) {
 				m_sinful.setPrivateAddr(sinful_private);
 			}
 		}

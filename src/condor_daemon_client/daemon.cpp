@@ -1750,17 +1750,32 @@ Daemon::getInfoFromAd( const ClassAd* ad )
 		// old method of putting it in a separate attribute).
 
 		Sinful sinful(_addr);
-		char const *priv_addr = sinful.getPrivateAddr();
 		char const *priv_net = sinful.getPrivateNetworkName();
-		if( priv_net && priv_addr ) {
+		if( priv_net ) {
 			bool using_private = false;
 			our_network_name = param( "PRIVATE_NETWORK_NAME" );
 			if( our_network_name ) {
 				if( strcmp( our_network_name, priv_net ) == 0 ) {
-					// replace address with private address
-					New_addr( strnewp( priv_addr ) );
-					using_private = true;
+					char const *priv_addr = sinful.getPrivateAddr();
 					notes = " (private network name matched)";
+					using_private = true;
+					if( priv_addr ) {
+						// replace address with private address
+						if( *priv_addr != '<' ) {
+							MyString buf;
+							buf.sprintf("<%s>",priv_addr);
+							New_addr( strnewp( buf.Value() ) );
+						}
+						else {
+							New_addr( strnewp( priv_addr ) );
+						}
+					}
+					else {
+						// no private address was specified, so use public
+						// address with CCB disabled
+						sinful.setCCBContact(NULL);
+						New_addr( strnewp( sinful.getSinful() ) );
+					}
 				}
 				free( our_network_name );
 			}
