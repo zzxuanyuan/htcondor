@@ -4064,6 +4064,34 @@
 			>
 		</File>
 		<File
+			RelativePath="..\src\condor_c++_util\condor_sinful.cpp"
+			>
+			<FileConfiguration
+				Name="Debug|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32"
+				>
+				<Tool
+					Name="VCCLCompilerTool"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions=""
+					CompileAs="2"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath="..\src\condor_c++_util\condor_sinful.h"
+			>
+		</File>
+		<File
 			RelativePath="..\src\ccb\ccb_client.cpp"
 			>
 			<FileConfiguration
