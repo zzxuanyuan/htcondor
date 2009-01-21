@@ -670,7 +670,7 @@ LeaseManager::timerHandler_Prune ( void )
 
 bool
 LeaseManager::SendLeases(
-	Stream							*stream,
+	Stream								*stream,
 	list< const LeaseManagerLease *>	&l_list )
 {
 	if ( !stream->put( l_list.size() ) ) {

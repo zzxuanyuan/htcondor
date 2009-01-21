@@ -36,34 +36,40 @@ class LeaseManagerLeaseEnt
 {
   public:
 	LeaseManagerLeaseEnt( void );
-	LeaseManagerLeaseEnt( classad::ClassAd	*lease_ad,
-						  int				 lease_number,
-						  classad::ClassAd	*leases_ad,
-						  int				 expiration,
-						  classad::ClassAd	*resource_ad,
-						  const string		&resource_name,
-						  int				 lazy_expire
+	LeaseManagerLeaseEnt( const classad::ClassAd	&lease_state_ad,
+						  int						 lease_number,
+						  classad::ClassAd			&leases_ad,
+						  int						 expiration,
+						  classad::ClassAd			&resource_ad,
+						  const string				&resource_name,
+						  list<const char *>		&clean_list,
+						  int						 lazy_expire
 						  );
 	~LeaseManagerLeaseEnt( void );
 
 	// Accessors: lease info
-	classad::ClassAd *getAd( void ) const { return m_lease_ad; };
+	classad::ClassAd &getAd( void ) const { return *m_lease_ad; };
 	int getLeaseNumber( void ) const { return m_lease_number; };
-	classad::ClassAd *getLeasesAd( void ) const { return m_leases_ad; };
+	classad::ClassAd &getLeasesAd( void ) const { return m_leases_ad; };
 	int getExpiration( void ) const { return m_expiration; };
 
+	// Get things from the lease's ad
+	bool getIsValid( bool &valid ) const;
+	bool getExpiredTime( int & ) const;
+	bool getCreationTime( int & ) const;
+
 	// Accessors: parent resource
-	classad::ClassAd *getResourceAd( void ) const { return m_resource_ad; };
+	classad::ClassAd &getResourceAd( void ) const { return m_resource_ad; };
 	const string &getResourceName( void ) const { return m_resource_name; };
 	bool getLazyExpire( void ) const { return m_lazy_expire; };
 	
   private:
 	classad::ClassAd		*m_lease_ad;
 	int						 m_lease_number;
-	classad::ClassAd		*m_leases_ad;
+	classad::ClassAd		&m_leases_ad;
 	int						 m_expiration;
 
-	classad::ClassAd		*m_resource_ad;
+	classad::ClassAd		&m_resource_ad;
 	const string			 m_resource_name;
 	bool					 m_lazy_expire;
 };

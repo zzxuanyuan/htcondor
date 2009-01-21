@@ -1,4 +1,4 @@
-/***************************************************************
+sbcde/***************************************************************
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
@@ -48,7 +48,6 @@ struct LeaseManagerStats
 class LeaseManagerResources
 {
 
-
   public:
 	LeaseManagerResources( void );
 	~LeaseManagerResources( void );
@@ -57,6 +56,8 @@ class LeaseManagerResources
 	int setCollectionLog( const char *file );
 	int shutdownFast( void );
 	int shutdownGraceful( void );
+
+	int restoreResources( void );
 	int restoreLeases( void );
 
 	// Public query operations
@@ -133,6 +134,10 @@ class LeaseManagerResources
 		bool						default_lazy_expire
 		);
 
+	// Accessors to the various ClassAd collection keys
+	const string &getViewKey( void ) const { return m_view_key; };
+
+
   private:
 
 	// Private methods
@@ -159,6 +164,9 @@ class LeaseManagerResources
 		const string				&resource,
 		classad::ClassAd			*udpates
 		);
+	bool GetLazyExpire(
+		const classad::ClassAd		&resource
+		) const;
 
 	// Leases ad manipulation
 	bool InsertLeasesAd(
@@ -255,6 +263,7 @@ class LeaseManagerResources
 	int								m_lease_id_number;
 	bool							m_default_lazy_expire;
 
+	list<const string>				m_lease_ad_clean;
 
 	// Match statistics
 	LeaseManagerStats				m_stats;

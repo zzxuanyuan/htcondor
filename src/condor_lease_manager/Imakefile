@@ -27,8 +27,10 @@ TEST_LIB =  $(STD_LIBS) $(NEW_CLASSAD_LIBDEFS) \
 
 OBJ =	lease_manager_main.o		\
 	lease_manager.o			\
-	lease_manager_resources.o		\
-	lease_manager_lease.o $(SOAP_OBJS)
+	lease_manager_resources.o	\
+	lease_manager_lease.o		\
+	lease_manager_lease_ent.o	\
+	$(SOAP_OBJS)
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 

@@ -36,35 +36,43 @@ using namespace std;
 // **************************************************
 // Lease manager lease ent class implementation
 // **************************************************
-LeaseManagerLeaseEnt::LeaseManagerLeaseEnt( void )
-{
-	m_lease_ad = NULL;
-	m_lease_number = 0;
-	m_leases_ad = NULL;
-	m_expiration = 0;
-
-	m_resource_ad = NULL;
-	m_resource_name = "";
-	m_lazy_expire = false;
-}
-LeaseManagerLeaseEnt::LeaseManagerLeaseEnt( 
-	classad::ClassAd	*lease_ad,
-	int					 lease_number,
-	classad::ClassAd	*leases_ad,
-	int					 expiration,
-	classad::ClassAd	*resource_ad,
-	const string		&resource_name,
-	int					 lazy_expire
+LeaseManagerLeaseEnt::LeaseManagerLeaseEnt(
+	const classad::ClassAd	&lease_state_ad,
+	int						 lease_number,
+	classad::ClassAd		&leases_ad,
+	int						 expiration,
+	classad::ClassAd		&resource_ad,
+	const string			&resource_name,
+	list<const string>		&clean_list,
+	int						 lazy_expire
 	)
+		: m_lease_ad( NULL ),
+		  m_lease_number( lease_number ),
+		  m_leases_ad( leases_ad ),
+		  m_expiration( expiration ),
+		  m_resource_ad( resource_ad ),
+		  m_resource_name( resource_name ),
+		  m_lazy_expire( lazy_expire )
 {
-	m_lease_ad = lease_ad;
-	m_lease_number = lease_number;
-	m_leases_ad = leases_ad;
-	m_expiration = expiration;
 
-	m_resource_ad = resource_ad;
-	m_resource_name = resource_name;
-	m_lazy_expire = lazy_expire;
+	//  Create the ad to send out
+	m_lease_ad = new classad::ClassAd( resource_ad );
+			
+	// Copy all of the lease info into it
+	m_lease_ad->Update( lease_state_ad );
+
+	// And, scrub unwanted things from the ad
+	list<const char *>::iterator	iter;
+	for( iter = clean_list.begin(); iter != clean_list.end(); iter++ ) {
+		const string &s = *iter;
+		m_lease_ad->Delete( s );
+	}
+
+	m_lease_ad->Delete( m_view_key );
+
+	// Add items that we don't need to store
+	m_lease_ad->InsertAttr( "ReleaseWhenDone", false );
+
 }
 
 LeaseManagerLeaseEnt::~LeaseManagerLeaseEnt( void )
@@ -73,7 +81,7 @@ LeaseManagerLeaseEnt::~LeaseManagerLeaseEnt( void )
 }
 
 bool
-LeaseManagerLeaseEnt::getValid( bool &valid ) const
+LeaseManagerLeaseEnt::getIsValid( bool &valid ) const
 {
 	return m_lease_ad->EvaluateAttrBool( "LeaseValid", valid );
 }
@@ -87,5 +95,5 @@ LeaseManagerLeaseEnt::getExpiredTime( int &expired_time ) const
 bool
 LeaseManagerLeaseEnt::getCreationTime( int &creation_time ) const
 {
-	return m_lease_ad->EvaluateAttrInt( creation_time );
+	return m_lease_ad->EvaluateAttrInt( "LeaseCreationTime", creation_time );
 }
