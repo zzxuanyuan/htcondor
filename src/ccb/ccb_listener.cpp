@@ -96,8 +96,19 @@ CCBListener::SendMsgToCCB(ClassAd &msg,bool blocking)
 			return false;
 		}
 
+		// Specifying USE_TMP_SEC_SESSION to force a fresh security
+		// session.  Otherwise we can end up in a catch-22 where we
+		// are trying to reconnect to the CCB server and we try to use
+		// a cached security session which is no longer valid, but our
+		// CCB server cannot send us the invalidation message because
+		// we are trying to reconnect to it.  Expring this session
+		// right away is also a good idea, because if we are just
+		// starting up, the return address associated with it will not
+		// have any CCB information attached, which again means that
+		// the CCB server has no way to invalidate it.
+
 		if( blocking ) {
-			m_sock = ccb.startCommand( cmd, Stream::reli_sock, CCB_TIMEOUT );
+			m_sock = ccb.startCommand( cmd, Stream::reli_sock, CCB_TIMEOUT, NULL, NULL, false, USE_TMP_SEC_SESSION );
 			if( m_sock ) {
 				Connected();
 			}
@@ -110,7 +121,7 @@ CCBListener::SendMsgToCCB(ClassAd &msg,bool blocking)
 			m_sock = ccb.makeConnectedSocket(Stream::reli_sock, CCB_TIMEOUT, NULL, true /*nonblocking*/ );
 			m_waiting_for_connect = true;
 			incRefCount(); // do not let ourselves be deleted until called back
-			ccb.startCommand_nonblocking( cmd, m_sock, CCB_TIMEOUT, NULL, CCBListener::CCBConnectCallback, this );
+			ccb.startCommand_nonblocking( cmd, m_sock, CCB_TIMEOUT, NULL, CCBListener::CCBConnectCallback, this, NULL, false, USE_TMP_SEC_SESSION );
 			return false;
 		}
 	}
