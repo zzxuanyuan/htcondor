@@ -649,12 +649,17 @@ void
 CCBServer::RemoveTarget( CCBTarget *target )
 {
 		// hang up on all requests for this target
-	HashTable<CCBID,CCBServerRequest *> *trequests = target->getRequests();
-	if( trequests ) {
+	HashTable<CCBID,CCBServerRequest *> *trequests;
+	while( (trequests = target->getRequests()) ) {
 		CCBServerRequest *request = NULL;
 		trequests->startIterations();
-		while( trequests->iterate(request) ) {
+		if( trequests->iterate(request) ) {
 			RemoveRequest( request );
+			// note that trequests may point to a deleted hash table
+			// at this point, so do not reference it anymore
+		}
+		else {
+			break;
 		}
 	}
 

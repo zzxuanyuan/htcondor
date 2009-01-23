@@ -756,7 +756,7 @@ ReliSock::do_reverse_connect(char const *ccb_contact,bool nonblocking)
 		new CCBClient( ccb_contact, (ReliSock *)this );
 
 	if( !m_ccb_client->ReverseConnect(NULL,nonblocking) ) {
-		dprintf(D_ALWAYS,"Failed to reverse connect to %s via CCB.",
+		dprintf(D_ALWAYS,"Failed to reverse connect to %s via CCB.\n",
 				peer_description());
 		return 0;
 	}
