@@ -1038,7 +1038,7 @@ CCBServer::SweepReconnectInfo()
 		fflush( m_reconnect_fp );
 	}
 
-	if( m_last_reconnect_info_sweep + m_reconnect_info_sweep_interval < now )
+	if( m_last_reconnect_info_sweep + m_reconnect_info_sweep_interval > now )
 	{
 		return;
 	}
