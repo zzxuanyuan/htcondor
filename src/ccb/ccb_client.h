@@ -50,7 +50,7 @@ class CCBClient: public Service, public ClassyCountedPtr {
 	ReliSock *m_target_sock; // socket to receive the reversed connection
 	MyString m_target_peer_description; // who we are trying to connect to
 	Sock *m_ccb_sock;        // socket to the CCB server
-	ReliSock m_listen_sock;  // socket to listen for reversed connect
+	ReliSock *m_listen_sock; // socket to listen for reversed connect
 	MyString m_connect_id;
 	DCMsgCallback *m_ccb_cb; // callback object for async CCB request
 

@@ -43,6 +43,7 @@ CCBClient::CCBClient( char const *ccb_contact, ReliSock *target_sock ):
 	m_target_sock(target_sock),
 	m_target_peer_description(m_target_sock->peer_description()),
 	m_ccb_sock(NULL),
+	m_listen_sock(NULL),
 	m_ccb_cb(NULL)
 {
 	// balance load across the CCB servers by randomizing order
@@ -71,6 +72,9 @@ CCBClient::~CCBClient()
 {
 	if( m_ccb_sock ) {
 		delete m_ccb_sock;
+	}
+	if( m_listen_sock ) {
+		delete m_listen_sock;
 	}
 }
 
@@ -113,8 +117,10 @@ CCBClient::myName()
 bool
 CCBClient::ReverseConnect_blocking( CondorError *error )
 {
-	m_listen_sock.bind(false,0);
-	if( !m_listen_sock.listen() ) {
+	ASSERT( !m_listen_sock );
+	m_listen_sock = new ReliSock();
+	m_listen_sock->bind(false,0);
+	if( !m_listen_sock->listen() ) {
 		MyString errmsg;
 		errmsg.sprintf("Failed to listen for reversed connection from %s.",
 					   m_target_peer_description.Value());
@@ -140,7 +146,7 @@ CCBClient::ReverseConnect_blocking( CondorError *error )
 		msg.Assign(ATTR_CLAIM_ID,m_connect_id);
 		// purely for debugging purposes: identify ourselves
 		msg.Assign(ATTR_NAME, myName());
-		msg.Assign(ATTR_MY_ADDRESS, m_listen_sock.get_sinful());
+		msg.Assign(ATTR_MY_ADDRESS, m_listen_sock->get_sinful());
 
 		dprintf(D_NETWORK|D_FULLDEBUG,
 				"CCBClient: requesting reverse connection to %s "
@@ -148,7 +154,7 @@ CCBClient::ReverseConnect_blocking( CondorError *error )
 				m_target_peer_description.Value(),
 				ccb_address.Value(),
 				ccbid.Value(),
-				m_listen_sock.get_sinful());
+				m_listen_sock->get_sinful());
 
 		Daemon ccb(DT_COLLECTOR,ccb_address.Value(),NULL);
 		if( m_ccb_sock ) {
@@ -179,7 +185,7 @@ CCBClient::ReverseConnect_blocking( CondorError *error )
 		// a reply on m_ccb_sock
 
 		Selector selector;
-		int listen_fd = m_listen_sock.get_file_desc();
+		int listen_fd = m_listen_sock->get_file_desc();
 		int ccb_fd = m_ccb_sock->get_file_desc();
 		selector.add_fd( listen_fd, Selector::IO_READ );
 		selector.add_fd( ccb_fd, Selector::IO_READ );
@@ -288,7 +294,7 @@ CCBClient::AcceptReversedConnection()
 	// (maybe) the daemon we want to talk to has connected to it.
 
 	m_target_sock->close();
-	if( !m_listen_sock.accept( m_target_sock ) ) {
+	if( !m_listen_sock->accept( m_target_sock ) ) {
 		dprintf(D_ALWAYS,
 				"CCBClient: failed to accept() reversed connection "
 				"(intended target is %s)\n",
@@ -332,7 +338,7 @@ CCBClient::AcceptReversedConnection()
 			m_target_sock->default_peer_description(),
 			m_target_peer_description.Value());
 
-	m_listen_sock.close();
+	m_listen_sock->close();
 	m_target_sock->isClient(true);
 	return true;
 }
@@ -679,6 +685,7 @@ CCBClient::ReverseConnectCallback(Sock *sock)
 		// Don't care any longer, so cancel it.
 		m_ccb_cb->cancelCallback();
 		m_ccb_cb->cancelMessage();
+		decRefCount();
 	}
 
 	// The following removes what may be the final reference to
