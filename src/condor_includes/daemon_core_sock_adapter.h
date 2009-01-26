@@ -36,6 +36,7 @@ class DaemonCoreSockAdapterClass {
 	typedef int (DaemonCore::*Register_Socket_fnptr)(Stream*,const char*,SocketHandlercpp,const char*,Service*,DCpermission);
 	typedef int (DaemonCore::*Cancel_Socket_fnptr)( Stream *sock );
 	typedef void (DaemonCore::*CallSocketHandler_fnptr)( Stream *sock, bool default_to_HandleCommand );
+	typedef int (DaemonCore::*CallCommandHandler_fnptr)( int cmd, Stream *stream, bool delete_stream);
     typedef int (DaemonCore::*Register_DataPtr_fnptr)( void *data );
     typedef void *(DaemonCore::*GetDataPtr_fnptr)();
 	typedef int (DaemonCore::*Register_Timer_fnptr)(unsigned deltawhen,Eventcpp event,const char * event_descrip,Service* s);
@@ -60,6 +61,7 @@ class DaemonCoreSockAdapterClass {
 		Register_Socket_fnptr Register_Socket_fptr,
 		Cancel_Socket_fnptr Cancel_Socket_fptr,
 		CallSocketHandler_fnptr CallSocketHandler_fptr,
+		CallCommandHandler_fnptr CallCommandHandler_fptr,
 		Register_DataPtr_fnptr Register_DataPtr_fptr,
 		GetDataPtr_fnptr GetDataPtrFun_fptr,
 		Register_Timer_fnptr Register_Timer_fptr,
@@ -73,6 +75,7 @@ class DaemonCoreSockAdapterClass {
 		m_Register_Socket_fnptr = Register_Socket_fptr;
 		m_Cancel_Socket_fnptr = Cancel_Socket_fptr;
 		m_CallSocketHandler_fnptr = CallSocketHandler_fptr;
+		m_CallCommandHandler_fnptr = CallCommandHandler_fptr;
 		m_Register_DataPtr_fnptr = Register_DataPtr_fptr;
 		m_GetDataPtr_fnptr = GetDataPtrFun_fptr;
 		m_Register_Timer_fnptr = Register_Timer_fptr;
@@ -90,6 +93,7 @@ class DaemonCoreSockAdapterClass {
 	Register_Socket_fnptr m_Register_Socket_fnptr;
 	Cancel_Socket_fnptr m_Cancel_Socket_fnptr;
 	CallSocketHandler_fnptr m_CallSocketHandler_fnptr;
+	CallCommandHandler_fnptr m_CallCommandHandler_fnptr;
 	Register_DataPtr_fnptr m_Register_DataPtr_fnptr;
 	GetDataPtr_fnptr m_GetDataPtr_fnptr;
 	Register_Timer_fnptr m_Register_Timer_fnptr;
@@ -120,6 +124,12 @@ class DaemonCoreSockAdapterClass {
 	{
 		ASSERT(m_daemonCore);
 		(m_daemonCore->*m_CallSocketHandler_fnptr)(stream,default_to_HandleCommand);
+	}
+
+	int CallCommandHandler( int cmd, Stream *stream, bool delete_stream=true )
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*m_CallCommandHandler_fnptr)(cmd,stream,delete_stream);
 	}
 
     int Register_DataPtr( void *data )

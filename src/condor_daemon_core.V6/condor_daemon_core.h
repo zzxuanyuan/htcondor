@@ -653,8 +653,13 @@ class DaemonCore : public Service
 		// sock - previously registered socket
 		// default_to_HandleCommand - true if HandleCommand() should be called
 		//                          if there is no other callback function
-		// it will index the next registered socket.
 	void CallSocketHandler( Stream *sock, bool default_to_HandleCommand=false );
+
+		// Call the registered command handler.
+		// returns the return code of the handler
+		// if delete_stream is true and the command handler does not return
+		// KEEP_STREAM, the stream is deleted
+	int CallCommandHandler(int req,Stream *stream,bool delete_stream=true);
 
 	/// Cancel and close all registed sockets.
 	int Cancel_And_Close_All_Sockets(void);
@@ -1741,6 +1746,8 @@ class DaemonCore : public Service
 	class CCBListeners *m_ccb_listeners;
 	Sinful m_sinful;     // full contact info (public, private, ccb, etc.)
 	bool m_dirty_sinful; // true if m_sinful needs to be reinitialized
+
+	bool CommandNumToTableIndex(int cmd,int *cmd_index);
 };
 
 #ifndef _NO_EXTERN_DAEMON_CORE

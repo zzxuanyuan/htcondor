@@ -253,6 +253,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		(DaemonCoreSockAdapterClass::Register_Socket_fnptr)&DaemonCore::Register_Socket,
 		&DaemonCore::Cancel_Socket,
 		&DaemonCore::CallSocketHandler,
+		&DaemonCore::CallCommandHandler,
 		&DaemonCore::Register_DataPtr,
 		&DaemonCore::GetDataPtr,
 		(DaemonCoreSockAdapterClass::Register_Timer_fnptr)&DaemonCore::Register_Timer,
@@ -3148,6 +3149,63 @@ DaemonCore::CallSocketHandler( int &i, bool default_to_HandleCommand )
 	}
 }
 
+bool
+DaemonCore::CommandNumToTableIndex(int cmd,int *cmd_index)
+{
+		// first compute the hash
+	if ( cmd < 0 )
+		*cmd_index = -cmd % maxCommand;
+	else
+		*cmd_index = cmd % maxCommand;
+
+	if (comTable[*cmd_index].num == cmd) {
+			// hash found it first try... cool
+		return true;
+	}
+
+		// hash did not find it, search for it
+	int j;
+	for (j = (*cmd_index + 1) % maxCommand; j != *cmd_index; j = (j + 1) % maxCommand) {
+		if(comTable[j].num == cmd) {
+			*cmd_index = j;
+			return true;
+		}
+	}
+	return false;
+}
+
+int
+DaemonCore::CallCommandHandler(int req,Stream *stream,bool delete_stream)
+{
+	int result = FALSE;
+	int index = 0;
+	bool reqFound = CommandNumToTableIndex(req,&index);
+
+	if ( reqFound ) {
+		// call the handler function; first curr_dataptr for GetDataPtr()
+		curr_dataptr = &(comTable[index].data_ptr);
+
+		if ( comTable[index].is_cpp ) {
+			// the handler is c++ and belongs to a 'Service' class
+			if ( comTable[index].handlercpp )
+				result = (comTable[index].service->*(comTable[index].handlercpp))(req,stream);
+		} else {
+			// the handler is in c (not c++), so pass a Service pointer
+			if ( comTable[index].handler )
+				result = (*(comTable[index].handler))(comTable[index].service,req,stream);
+		}
+
+		// clear curr_dataptr
+		curr_dataptr = NULL;
+	}
+
+	if ( delete_stream && result != KEEP_STREAM ) {
+		delete stream;
+	}
+
+	return result;
+}
+
 void
 DaemonCore::CheckPrivState( void )
 {
@@ -3365,7 +3423,7 @@ int DaemonCore::HandleReq(Stream *insock)
 
 	int					is_tcp;
 	int                 req = 0;
-	int					index, j;
+	int					index;
 	int					reqFound = FALSE;
 	int					result = FALSE;
 	int					old_timeout;
@@ -3803,29 +3861,9 @@ int DaemonCore::HandleReq(Stream *insock)
 		// get the auth level of this command
 		// locate the hash table entry
 		int cmd_index = 0;
+		reqFound = CommandNumToTableIndex(tmp_cmd,&cmd_index);
 
-		// first compute the hash
-		if ( tmp_cmd < 0 )
-			cmd_index = -tmp_cmd % maxCommand;
-		else
-			cmd_index = tmp_cmd % maxCommand;
-
-		int cmdFound = FALSE;
-		if (comTable[cmd_index].num == tmp_cmd) {
-			// hash found it first try... cool
-			cmdFound = TRUE;
-		} else {
-			// hash did not find it, search for it
-			for (j = (cmd_index + 1) % maxCommand; j != cmd_index; j = (j + 1) % maxCommand) {
-				if(comTable[j].num == tmp_cmd) {
-					cmdFound = TRUE;
-					cmd_index = j;
-					break;
-				}
-			}
-		}
-
-		if (!cmdFound) {
+		if (!reqFound) {
 			// we have no idea what command they want to send.
 			// too bad, bye bye
 			result = FALSE;
@@ -4375,29 +4413,7 @@ int DaemonCore::HandleReq(Stream *insock)
 	} else {
 
 		// get the handler function
-
-		// first compute the hash
-		if ( req < 0 ) {
-			index = -req % maxCommand;
-		} else {
-			index = req % maxCommand;
-		}
-
-		reqFound = FALSE;
-		if (comTable[index].num == req) {
-			// hash found it first try... cool
-			reqFound = TRUE;
-		} else {
-			// hash did not find it, search for it
-			for (j = (index + 1) % maxCommand; j != index; j = (j + 1) % maxCommand) {
-				if(comTable[j].num == req) {
-					reqFound = TRUE;
-					index = j;
-					break;
-				}
-			}
-		}
-
+		reqFound = CommandNumToTableIndex(req,&index);
 
 		if (reqFound) {
 			// need to check our security policy to see if this is allowed.
@@ -4519,23 +4535,12 @@ int DaemonCore::HandleReq(Stream *insock)
     }
 */
 	if ( reqFound == TRUE ) {
-		// call the handler function; first curr_dataptr for GetDataPtr()
-		curr_dataptr = &(comTable[index].data_ptr);
-
 		dprintf(D_COMMAND, "Calling HandleReq <%s> (%d)\n", comTable[index].handler_descrip, inServiceCommandSocket_flag);
 
 		UtcTime handler_start_time;
 		handler_start_time.getTime();
 
-		if ( comTable[index].is_cpp ) {
-			// the handler is c++ and belongs to a 'Service' class
-			if ( comTable[index].handlercpp )
-				result = (comTable[index].service->*(comTable[index].handlercpp))(req,stream);
-		} else {
-			// the handler is in c (not c++), so pass a Service pointer
-			if ( comTable[index].handler )
-				result = (*(comTable[index].handler))(comTable[index].service,req,stream);
-		}
+		result = CallCommandHandler(req,stream,false /*do not delete stream*/);
 
 		UtcTime handler_stop_time;
 		handler_stop_time.getTime();
@@ -4544,8 +4549,6 @@ int DaemonCore::HandleReq(Stream *insock)
 
 		dprintf(D_COMMAND, "Return from HandleReq <%s> (handler: %.3fs, sec: %.3fs)\n", comTable[index].handler_descrip, handler_time, sec_time);
 
-		// clear curr_dataptr
-		curr_dataptr = NULL;
 	}
 
 finalize:

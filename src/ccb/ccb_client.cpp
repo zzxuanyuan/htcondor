@@ -492,6 +492,36 @@ CCBClient::try_next_ccb()
 	    this );
 	msg->setCallback( m_ccb_cb );
 
+	if( ccb_server->addr() && !strcmp(ccb_server->addr(),return_address) ) {
+			// Special case: the CCB server is in the same process as
+			// the CCB client.  Example where this happens: collector
+			// sending DC_INVALIDATE messages to daemons that use this
+			// collector as a CCB server.  The trick here is that
+			// we do not want to block in authentication when talking
+			// to ourself, so we bypass all that.  The following
+			// assumes that the CCB messages exchanged between the client
+			// and server are small enough to fit in the socket buffer
+			// without blocking either side.
+		dprintf(D_NETWORK|D_FULLDEBUG,"CCBClient: sending request to self.\n");
+		ReliSock *client_sock = new ReliSock;
+		ReliSock *server_sock = new ReliSock;
+
+		if( !client_sock->connect_socketpair(*server_sock) ) {
+			dprintf(D_ALWAYS,"CCBClient: connect_socket_pair() failed.\n");
+			CCBResultsCallback(m_ccb_cb);
+			return;
+		}
+
+		classy_counted_ptr<DCMessenger> messenger=new DCMessenger(ccb_server);
+			// messenger takes care of deleting client_sock when done
+		messenger->writeMsg(msg.get(),client_sock);
+
+			// bypass startCommand() and call the command handler directly
+			// this call will take care of deleting server_sock when done
+		daemonCoreSockAdapter.CallCommandHandler(CCB_REQUEST,server_sock);
+		return;
+	}
+
 	ccb_server->sendMsg(msg.get());
 
 	// now wait for CCBResultsCallback and/or ReverseConnectCallback
@@ -515,6 +545,7 @@ CCBClient::CCBResultsCallback(DCMsgCallback *cb)
 	// waiting for the connection to show up.
 
 	ASSERT( cb );
+	m_ccb_cb = NULL;
 	if( cb->getMessage()->deliveryStatus() != DCMsg::DELIVERY_SUCCEEDED ) {
 		// We failed to communicate with the CCB server, so we should
 		// not expect to receive ReverseConnectCallback().
@@ -552,7 +583,6 @@ CCBClient::CCBResultsCallback(DCMsgCallback *cb)
 		}
 	}
 
-	m_ccb_cb = NULL;
 	decRefCount(); // we called incRefCount() when registering this callback
 }
 
