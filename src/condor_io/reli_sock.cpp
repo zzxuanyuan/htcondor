@@ -771,6 +771,9 @@ int ReliSock::SndMsg::snd_packet( int _sock, int end, int _timeout )
             return FALSE;
         }
         
+	if( end ) {
+		buf.dealloc_buf(); // save space, now that we are done sending
+	}
 	return TRUE;
 }
 
