@@ -42,8 +42,8 @@ class LeaseManagerLeaseEnt
 						  int						 expiration,
 						  classad::ClassAd			&resource_ad,
 						  const string				&resource_name,
-						  list<const char *>		&clean_list,
-						  int						 lazy_expire
+						  list<const string *>		&clean_list,
+						  bool						 lazy_expire
 						  );
 	~LeaseManagerLeaseEnt( void );
 

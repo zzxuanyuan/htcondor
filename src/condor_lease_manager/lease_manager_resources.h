@@ -1,4 +1,4 @@
-sbcde/***************************************************************
+/***************************************************************
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
@@ -37,8 +37,16 @@ sbcde/***************************************************************
 class LeaseManagerLeaseEnt;
 
 // Statistics
-struct LeaseManagerStats
+class LeaseManagerStats
 {
+  public:
+	LeaseManagerStats( void ) {
+		m_num_resources = 0;
+		m_num_lease_records = 0;
+		m_num_valid_leases = 0;
+		m_num_busy_leases = 0;
+	};
+	~LeaseManagerStats( void );
 	int			m_num_resources;
 	int			m_num_lease_records;
 	int			m_num_valid_leases;
@@ -221,6 +229,23 @@ class LeaseManagerResources
 		const classad::ClassAd		&resource_ad,
 		int							requsted_duration
 		) const;
+
+	// Get things from lease ads
+	bool getLeaseUsed(
+		const classad::ClassAd		&ad,
+		bool						&used ) const {
+		return ad.EvaluateAttrBool( "LeaseUsed", used );
+	};
+	bool getLeaseValid(
+		const classad::ClassAd		&ad,
+		bool						&valid ) const {
+		return ad.EvaluateAttrBool( "LeaseValid", valid );
+	};
+	bool getLeaseNumber(
+		const classad::ClassAd		&ad,
+		int							&number ) const {
+		return ad.EvaluateAttrInt( "LeaseNumber", number );
+	};
 	
 
 	// Internal query methods
@@ -238,6 +263,10 @@ class LeaseManagerResources
 		string							&key
 		);
 
+
+	//
+	// Private member variables
+	//
 	string							m_view_key;
 	classad::ClassAdCollection		m_collection;
 	classad::ViewName				m_root_view;
@@ -263,7 +292,7 @@ class LeaseManagerResources
 	int								m_lease_id_number;
 	bool							m_default_lazy_expire;
 
-	list<const string>				m_lease_ad_clean;
+	list<const string *>			m_lease_ad_clean_list;
 
 	// Match statistics
 	LeaseManagerStats				m_stats;

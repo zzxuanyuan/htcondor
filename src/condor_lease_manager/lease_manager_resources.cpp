@@ -43,22 +43,22 @@ using namespace std;
 // Lease manager resources main class implementation
 // **************************************************
 LeaseManagerResources::LeaseManagerResources( void )
-		: m_lease_id_number( time(NULL) ),
+		: m_view_key( "_ViewName" ),
+		  m_root_view( "root" ),
+		  m_resources_view( "Resources" ),
+		  m_leases_view( "Leases" ),
+		  m_collection_log( NULL ),
+
 		  m_default_max_lease_duration( 60 ),
 		  m_max_lease_duration( 1800 ),
 		  m_max_lease_total( 3600 ),
-		  m_collection_log( NULL ),
+		  m_lease_id_number( time(NULL) ),
+		  m_default_lazy_expire( false ),
 
-		  m_enable_ad_debug( false ),
-
-		  m_stats( 0, 0, 0, 0 ),
+		  m_enable_ad_debug( false )
 	
-		  m_view_key( "_ViewName" ),
-		  m_root_view( "root" ),
-		  m_resources_view( "Resources" ),
-		  m_leases_view( "Leases" )
 {
-	m_lease_ad_clean.push_back( m_view_key );
+	m_lease_ad_clean_list.push_back( &m_view_key );
 }
 
 LeaseManagerResources::~LeaseManagerResources( void )
@@ -150,7 +150,7 @@ LeaseManagerResources::init( void )
 		char	buf[64];
 		snprintf( buf, sizeof( buf ),
 				  "( other.%s == \"%s\" )",
-				  ViewKey.c_str(), m_resources_view.c_str() );
+				  m_view_key.c_str(), m_resources_view.c_str() );
 		string constraint = buf;
 		string rank;
 		string expr;
@@ -162,15 +162,15 @@ LeaseManagerResources::init( void )
 	}
 
 	// And, the leases view
-	if ( ! m_collection.ViewExists( m_Leases_view ) ) {
+	if ( ! m_collection.ViewExists( m_leases_view ) ) {
 		char	buf[64];
 		snprintf( buf, sizeof( buf ),
 				  "( other.%s == \"%s\" )",
-				  ViewKey.c_str(), LeasesView.c_str() );
+				  m_view_key.c_str(), m_leases_view.c_str() );
 		string constraint = buf;
 		string rank;
 		string expr;
-		if ( !m_collection.CreateSubView( m_Leases_View, m_root_view,
+		if ( !m_collection.CreateSubView( m_leases_view, m_root_view,
 										  constraint, rank, expr ) ) {
 			dprintf( D_ALWAYS, "Error creating resources view\n" );
 			return -1;
@@ -279,13 +279,13 @@ LeaseManagerResources::restoreLeases( void )
 			}
 
 			// Finally, we have the individual lease state ad
-			classad::ClassAd	*ls_ad = (classad::ClassAd *) state_expr;
+			classad::ClassAd	*lsad = (classad::ClassAd *) state_expr;
 			int		lease_number = 01;
-			ad->EvaluateAttrInt( "LeaseNumber", lease_number );
+			lsad->EvaluateAttrInt( "LeaseNumber", lease_number );
 
 			// Is it used?
 			bool	lease_used = false;
-			if ( !ls_ad->EvaluateAttrBool( "LeaseUsed", lease_used ) ) {
+			if ( !lsad->EvaluateAttrBool( "LeaseUsed", lease_used ) ) {
 				dprintf( D_ALWAYS, "restore: LeaseUsed missing for '%s'\n",
 						 key.c_str() );
 			}
@@ -296,10 +296,10 @@ LeaseManagerResources::restoreLeases( void )
 			// Get the resource name, start time & duration
 			string	resource_name, lease_id;
 			int		start_time, duration;
-			if ( !ad->EvaluateAttrString( "ResourceName",   resource_name ) ||
-				 !ad->EvaluateAttrString( "LeaseId",        lease_id )      ||
-				 !ad->EvaluateAttrInt(    "LeaseStartTime", start_time )    ||
-				 !ad->EvaluateAttrInt(    "LeaseDuration",  duration ) )    {
+			if (!lsad->EvaluateAttrString( "ResourceName",   resource_name ) ||
+				!lsad->EvaluateAttrString( "LeaseId",        lease_id )      ||
+				!lsad->EvaluateAttrInt(    "LeaseStartTime", start_time )    ||
+				!lsad->EvaluateAttrInt(    "LeaseDuration",  duration ) )    {
 				dprintf( D_ALWAYS, "restore: Attributes missing for '%s'\n",
 						 key.c_str() );
 				bad_leases++;
@@ -319,14 +319,14 @@ LeaseManagerResources::restoreLeases( void )
 			// Create a lease entry for it
 			LeaseManagerLeaseEnt	*lease_ent =
 				new LeaseManagerLeaseEnt (
-					ad,
+					*lsad,
 					lease_number,
 					*leases_ad,
-					resource_name,
-					*resource_ad,
 					expiration_time,
-					m_lease_ad_clean,
-					GetLazyExpire( resource_ad ),
+					*resource_ad,
+					resource_name,
+					m_lease_ad_clean_list,
+					GetLazyExpire( *resource_ad )
 					);
 
 			// Finally, add it to the used leases map
@@ -336,8 +336,8 @@ LeaseManagerResources::restoreLeases( void )
 			dprintf( D_FULLDEBUG,
 					 "\t%3d: %s ads=%p/%p l=%p r=%s i=%s s=%d d=%d e=%d\n",
 					 lease_number, (lease_used ? "Used  " : "Unused"),
-					 ad, leases_ad, lease_ent,
-					 resource.c_str(), lease_id.c_str(),
+					 lsad, leases_ad, lease_ent,
+					 resource_name.c_str(), lease_id.c_str(),
 					 start_time, duration, expiration_time );
 		}
     }
@@ -550,9 +550,9 @@ LeaseManagerResources::GetLeases( classad::ClassAd &resource_ad,
 		// Extract some things from the lease state ad
 		int		lease_number;
 		bool	lease_used, lease_valid;
-		if ( !ls_ad->EvaluateAttrBool( "LeaseUsed",   lease_used   ) ||
-			 !ls_ad->EvaluateAttrBool( "LeaseValid",  lease_valid  ) ||
-			 !ls_ad->EvaluateAttrInt(  "LeaseNumber", lease_number )  ) {
+		if ( (!getLeaseUsed(   *ls_ad, lease_used   ))   ||
+			 (!getLeaseValid(  *ls_ad, lease_valid  ))   ||
+			 (!getLeaseNumber( *ls_ad, lease_number )) ) {
 			dprintf( D_ALWAYS,
 					 "GetLeases: No used/valid/number in leaseAd for %s!\n",
 					 resource_name.c_str() );
@@ -601,8 +601,8 @@ LeaseManagerResources::GetLeases( classad::ClassAd &resource_ad,
 				(int) now + duration,
 				resource_ad,
 				resource_name,
-				m_clean_list,
-				GetLazyExpire( resource_ad ),
+				m_lease_ad_clean_list,
+				GetLazyExpire( resource_ad )
 				);
 
 		// Stuff it in the list to send back
