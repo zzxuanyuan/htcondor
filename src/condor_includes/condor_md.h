@@ -68,7 +68,7 @@ class Condor_MD_MAC {
 	// the file, reading it in (in chunks of 1 meg), and adding it to the
 	// md5 object
 
-    void addMDFile(const char * path);
+    bool addMDFile(const char * path);
     //------------------------------------------
     // PURPOSE: If you want to compute the MAC/MD over
     //          multiple steps, use this method
