@@ -3364,6 +3364,13 @@ SendSpoolFileIfNeeded(ClassAd& ad)
 			dprintf(D_ALWAYS,
 			        "SendSpoolFileIfNeeded: no %s attribute in ClassAd\n",
 			        ATTR_OWNER);
+			Q_SOCK->getReliSock()->put(-1);
+			Q_SOCK->getReliSock()->eom();
+			return -1;
+		}
+		if (!OwnerCheck(&ad, Q_SOCK->getOwner())) {
+			dprintf(D_ALWAYS, "SendSpoolFileIfNeeded: OwnerCheck failure\n");
+			Q_SOCK->getReliSock()->put(-1);
 			Q_SOCK->getReliSock()->eom();
 			return -1;
 		}
@@ -3758,6 +3765,9 @@ bool BuildPrioRecArray(bool no_match_found /*default false*/) {
 				"changed.\n");
 		return false;
 	}
+
+		// run without any delay the first time
+	PrioRecArrayTimeslice.setInitialInterval( 0 );
 
 	PrioRecArrayTimeslice.setMaxInterval( PrioRecRebuildMaxInterval );
 	if( no_match_found ) {
