@@ -140,7 +140,8 @@ ickpt_share_try_removal(const std::string& owner, const std::string& hash)
 	int count = link_count(hash_file.c_str());
 	if (count == -1) {
 		dprintf(D_ALWAYS,
-		        "ickpt_share: link_count error on %s; will not remove\n");
+		        "ickpt_share: link_count error on %s; will not remove\n",
+		        hash_file.c_str());
 		return;
 	}
 	if (count != 1) {
