@@ -320,8 +320,10 @@ is_valid_shared_exe( const char *name )
 	if ((strlen(name) < 4) || (strncmp(name, "exe-", 4) != 0)) {
 		return FALSE;
 	}
-	int count = link_count(name);
-	if (count != 1) {
+	MyString path;
+	path.sprintf("%s/%s", Spool, name);
+	int count = link_count(path.Value());
+	if (count == 1) {
 		return FALSE;
 	}
 	if (count == -1) {
