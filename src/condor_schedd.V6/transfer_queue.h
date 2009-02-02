@@ -35,6 +35,8 @@ class TransferQueueRequest {
 
 	char const *Description();
 
+	bool Alive();
+
 	bool SendGoAhead(XFER_QUEUE_ENUM go_ahead=XFER_QUEUE_GO_AHEAD,char const *reason=NULL);
 
 	ReliSock *m_sock;

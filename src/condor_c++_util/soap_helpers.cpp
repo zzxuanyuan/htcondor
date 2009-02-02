@@ -107,8 +107,8 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
   MyString timeString = MyString((int) time(NULL));
   ad_struct->__ptr[attr_index].value =
-	  (char *) soap_malloc(s, strlen(timeString.Value()) + 1);
-  strcpy(ad_struct->__ptr[attr_index].value, timeString.Value());
+	  (char *) soap_malloc(s, strlen(timeString.GetCStr()) + 1);
+  strcpy(ad_struct->__ptr[attr_index].value, timeString.GetCStr());
   attr_index++;
 
   curr_ad->ResetExpr();
@@ -146,7 +146,7 @@ convert_ad_to_adStruct(struct soap *s,
 			strcpy(ad_struct->__ptr[attr_index].value,
 				   ((String *) rhs)->Value());
 		} else {
-			ad_struct->__ptr[attr_index].value = (char*)((String*)rhs)->Value();
+			ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
 		}
       //dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
       ad_struct->__ptr[attr_index].type = STRING_ATTR;
@@ -283,10 +283,10 @@ convert_adStruct_to_ad(struct soap *s,
 		// XXX: This is ugly, but needed because of how MyType and TargetType
 		// are treated specially in old classads.
 	if (name == ATTR_MY_TYPE) {
-		curr_ad->SetMyTypeName(value.Value());
+		curr_ad->SetMyTypeName(value.GetCStr());
 		continue;
 	} else if (name == ATTR_TARGET_TYPE) {
-		curr_ad->SetTargetTypeName(value.Value());
+		curr_ad->SetTargetTypeName(value.GetCStr());
 		continue;
 	}
 
@@ -295,7 +295,7 @@ convert_adStruct_to_ad(struct soap *s,
     else
       attribute = name + "=" + value;
 
-    curr_ad->Insert(attribute.Value());
+    curr_ad->Insert(attribute.GetCStr());
   }
 
   return true;

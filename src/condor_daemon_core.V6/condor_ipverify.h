@@ -79,29 +79,20 @@ public:
 	///
 	~IpVerify();
 
-	/** Tell IpVerify() to reconfigure itself.
-	 *  This also happens to clear cached authorization information,
-	 *  which serves as our "DNS cache".
-	 */
-	void reconfig();
-
-	/** Tell IpVerify() to get rid of cached DNS information.
-	 *  This just exists to make it clear what the caller wants.
-	 *  It is currently just a synonymn for reconfig().
-	 */
-	void refreshDNS();
+	/** Params information out of the condor_config file and
+		sets up the initial permission hash table
+		@return Not_Yet_Ducumented
+	*/
+	int Init();
 
 	/** Verify() method returns whether connection should be allowed or
 		refused.
 		@param perm		   Not_Yet_Ducumented
 		@param sockaddr_in Not_Yet_Ducumented
-		@param user        NULL or "" or fully qualified username
-		@param allow_reasy NULL or buffer to write explanation into
-		@param deny_reason NULL or buffer to write explanation into
 		@return USER_AUTH_SUCCESS -- if success, USER_AUTH_FAILURE -- if failer
                 USER_ID_REQUIRED -- if user id is required but the caller did not pass in
 	*/
-	int Verify( DCpermission perm, const struct sockaddr_in *sin, const char * user, MyString *allow_reason, MyString *deny_reason );
+	int Verify( DCpermission perm, const struct sockaddr_in *sin, const char * user = NULL );
 
 	/** Dynamically opens a hole in the authorization settings for the
 	    given (user, IP) at the given perm level.
@@ -146,19 +137,13 @@ private:
 		~PermTypeEntry(); 
 	};
 
-	/** Params information out of the condor_config file and
-		sets up the initial permission hash table
-		@return Not_Yet_Ducumented
-	*/
-	int Init();
-
     bool has_user(UserPerm_t * , const char *, perm_mask_t &);
 	bool LookupCachedVerifyResult( DCpermission perm, const struct in_addr &sin, const char * user, perm_mask_t & mask);
 	int add_hash_entry(const struct in_addr & sin_addr, const char * user, perm_mask_t new_mask);
 	void fill_table( PermTypeEntry * pentry, char * list, bool allow);
     void split_entry(const char * entry, char ** host, char ** user);
-	perm_mask_t allow_mask(DCpermission perm);
-	perm_mask_t deny_mask(DCpermission perm);
+	inline perm_mask_t allow_mask(DCpermission perm) { return (1 << (1+2*perm)); }
+	inline perm_mask_t deny_mask(DCpermission perm) { return (1 << (2+2*perm)); }
 
 	void PermMaskToString(perm_mask_t mask, MyString &mask_str);
 	void UserHashToString(UserHash_t *user_hash, MyString &result);
@@ -176,7 +161,7 @@ private:
 	bool lookup_user(NetStringList *hosts, UserHash_t *users, char const *user, char const *ip, char const *hostname, bool is_allow_list);
 
 	char * merge(char * newPerm, char * oldPerm);
-	bool did_init;
+	int did_init;
 
 	PermTypeEntry* PermTypeArray[LAST_PERM];
 

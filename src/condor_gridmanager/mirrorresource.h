@@ -22,7 +22,7 @@
 #define MIRRORRESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "baseresource.h"
 #include "gahp-client.h"
@@ -41,7 +41,6 @@ class MirrorResource : public BaseResource
 	MirrorResource( const char *resource_name );
 	~MirrorResource();
 
-	const char *ResourceType();
 	void Reconfig();
 	void RegisterJob( MirrorJob *job, const char *submitter_id );
 

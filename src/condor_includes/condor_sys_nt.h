@@ -20,42 +20,19 @@
 #ifndef CONDOR_SYS_NT_H
 #define CONDOR_SYS_NT_H
 
-// Disable warnings about signed/unsigned mismatches.
-#pragma warning( disable : 4018 )
-
-// Disable warnings about unreferenced parameters.  We do this because
-// our source littered with unreferenced parameters, as far as Visual
-// Studio is concerned, but most are valid when compiled on one of the 
-// many other OSs we support.
-#pragma warning( disable : 4101 )
-
-// Disable warnings about possible loss of data, since "we know what
-// we are doing" and fixing them correctly would require too much 
-// time from one of us. (Maybe this should be a student exercise.)
-#pragma warning( disable : 4244 )
-
-// Disable warnings about macros that are not defined or defined 
-// differently after the pre-compiled header.  This is typically
-// for some of the *nix OSs, so we just ignore them.
-#pragma warning( disable : 4603 )
-
-// Disable warning about protected copy ctor or assignment ops
+// Disable warning about protected copy constr or assignment ops
 #pragma warning( disable : 4661 )  
 
 // Disable performance warning about casting to a bool
 #pragma warning( disable : 4800 )  
 
-// Disable warnings about deprecated ISO conforming names (for some 
-// reason defining fileno and fdopen to the right ones does not work 
-// in new versions of Visual Studio)
-#pragma warning( disable : 4996 )
+// Disable warnings about multiple template instantiations (done for gcc)
+#pragma warning( disable : 4660 )  
 
 // #define NOGDI
 #define NOSOUND
 
-// Make it official that Windows 2000 is our target
-#define _WIN32_WINNT 0x0500
-#define WINVER       0x0500
+#define _WIN32_WINNT 0x0500 // ray's stupid kludge to get jobobject stuff to build
 
 // Make sure to define this *before* we include winsock2.h
 #define FD_SETSIZE 1024
@@ -90,13 +67,7 @@ typedef unsigned __int32 uint32_t;
 #define fstat _fixed_windows_fstat
 #define MAXPATHLEN 1024
 #define MAXHOSTNAMELEN 64
-#if _MSC_VER > 1200 // i.e. not VC6
-#ifndef _POSIX_PATH_MAX
-# define _POSIX_PATH_MAX 512
-# define PATH_MAX _POSIX_PATH_MAX
-#endif
-#endif
-#define	_POSIX_ARG_MAX 4096
+#define	_POSIX_PATH_MAX 255
 #define pipe(fds) _pipe(fds,2048,_O_BINARY)
 #define popen _popen
 #define pclose _pclose
@@ -106,6 +77,8 @@ typedef unsigned __int32 uint32_t;
 #define strdup _strdup
 #define strupr _strupr
 #define strlwr _strlwr
+#define snprintf _snprintf
+#define vsnprintf _vsnprintf
 #define chdir _chdir
 #define fsync _commit
 #define access _access
@@ -137,12 +110,11 @@ typedef unsigned __int32 uint32_t;
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <limits.h>
 #include <math.h>
 #include <float.h>   // for DBL_MAX and other constants
 #include <errno.h>
-#include "file_lock.h"
+#include "condor_file_lock.h"
 #include "condor_fix_assert.h"
 
 #define getwd(path) (int)_getcwd(path, _POSIX_PATH_MAX)
@@ -226,18 +198,13 @@ char* index(const char *s, int c);
 
 END_C_DECLS
 
-
-/* Some Win32 specifics - These should all be detected by configure */
+/* Some Win32 specifics */
 #if defined(WIN32)
-/* Win32 uses _stati64() and _fstati64() */
-# define HAVE__STATI64	1
-# undef  HAVE__LSTATI64
-# define HAVE__FSTATI64	1
-
-/* Win32 has a __int64 type defined*/
-# define HAVE___INT64	1
+/* Win32 uses _stati64(); this should be detected by configure */
+# define HAVE__STATI64 1
+  /* Win32 has a __int64 type defined; this should be detected by configure */
+#  define HAVE___INT64 1
 #endif
-
 
 /* Define the PRIx64 macros */
 

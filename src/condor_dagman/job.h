@@ -28,8 +28,6 @@
 #include "list.h"
 #include "condor_id.h"
 #include "throttle_by_category.h"
-#include "read_multiple_logs.h"
-#include "CondorError.h"
 
 class ThrottleByCategory;
 
@@ -113,16 +111,10 @@ class Job {
     */
     static const char *queue_t_names[];
   
-	/** Returns how many direct parents a node has.
-		@return number of parents
-	*/
+		/** Returns how many direct parents a node has.
+			@return number of parents
+		*/
 	int NumParents() const;
-
-
-	/** Returns how many direct children a node has.
-		@return number of children
-	*/
-	int NumChildren() const;
 
     /** The Status of a Job
         If you update this enum, you *must* also update status_t_names
@@ -160,7 +152,6 @@ class Job {
   
     ~Job();
 
-	void PrefixName(const MyString &prefix);
 	inline const char* GetJobName() const { return _jobName; }
 	inline const char* GetDirectory() const { return _directory; }
 	inline const char* GetCmdFile() const { return _cmdFile; }
@@ -306,51 +297,6 @@ class Job {
 	*/
 	ThrottleByCategory::ThrottleInfo *GetThrottleInfo() {
 			return _throttleInfo; }
-	
-	/** Interpolate any vars values with $(JOB) with the name of the job
-		@return void
-	*/
-	void ResolveVarsInterpolations(void);
-
-	/** Add a prefix to the Directory setting for this job. If the prefix
-		is ".", then do nothing.
-		@param prefix: the prefix to be joined to the directory using "/"
-		@return void
-	*/
-	void PrefixDirectory(MyString &prefix);
-
-	/** Set the DAG file (if any) for this node.  (This is set for nested
-			DAGs defined with the "SUBDAG" keyword.)
-		@param dagFile: the name of the DAG file
-	*/
-	void SetDagFile( const char *dagFile );
-
-	/** Get the DAG file name (if any) for this node.  (This is set for nested
-			DAGs defined with the "SUBDAG" keyword.)
-		@return the DAG file name, or NULL if none
-	*/
-	const char *GetDagFile() const {
-		return _dagFile;
-	}
-
-#if LAZY_LOG_FILES
-	/** Monitor this node's Condor or Stork log file with the
-		multiple log reader.  (Must be called before this node's
-		job is submitted.)
-		@param logReader: the multiple log reader
-		@param recovery: whether we're in recovery mode
-		@return true if successful, false if failed
-	*/
-	bool MonitorLogFile( ReadMultipleUserLogs &logReader, bool recovery );
-
-	/** Unmonitor this node's Condor or Stork log file with the
-		multiple log reader.  (Must be called after everything is done
-		for this node.)
-		@param logReader: the multiple log reader
-		@return true if successful, false if failed
-	*/
-	bool UnmonitorLogFile( ReadMultipleUserLogs &logReader );
-#endif // LAZY_LOG_FILES
 
     /** */ CondorID _CondorID;
     /** */ status_t _Status;
@@ -440,13 +386,9 @@ private:
 
     // filename of condor submit file
     char * _cmdFile;
-
-	// Filename of DAG file (only for nested DAGs specified with "SUBDAG",
-	// otherwise NULL).
-	char *_dagFile;
   
     // name given to the job by the user
-    char* _jobName;
+    const char* _jobName;
   
     /*  Job queues
 	    NOTE: indexed by queue_t
@@ -477,6 +419,7 @@ private:
 		// This node's category; points to an object "owned" by the
 		// ThrottleByCategory object.
 	ThrottleByCategory::ThrottleInfo *_throttleInfo;
+
 };
 
 /** A wrapper function for Job::Print which allows a NULL job pointer.

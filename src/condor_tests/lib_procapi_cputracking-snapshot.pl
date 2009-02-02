@@ -20,23 +20,24 @@
 
 use CondorTest;
 
+Condor::DebugOff();
+
 #$cmd = 'lib_procapi_cputracking-snapshot.cmd';
 $cmd = $ARGV[0];
 
-$testdesc =  'proper reporting of remote cpu usage - vanilla U';
-$testname = "lib_procapi_cputracking-snapshot";
+$testname = 'proper reporting of remote cpu usage - vanilla U';
 $datafile = "lib_procapi_cputracking-snapshot.data.log";
 $worked = "yes";
 
 $execute = sub
 {
-	CondorTest::debug( "Goood, job is running so we'll start the timer....\n",1);
+	Condor::debug( "Goood, job is running so we'll start the timer....\n");
 };
 
 $timed = sub
 {
         system("date");
-        CondorTest::debug("lib_procapi_cpuutracking-snapshot HUNG !!!!!!!!!!!!!!!!!!\n",1);
+        print "lib_procapi_cpuutracking-snapshot HUNG !!!!!!!!!!!!!!!!!!\n";
         exit(1);
 };
 
@@ -54,19 +55,19 @@ $ExitSuccess = sub {
 		$line = $_;
 		if( $line =~ /^\s*done\s+<(\d+\.?\d*)>\s*$/ )
 		{
-			CoondorTest::debug( "usage $1\n",1);
+			Condor::debug( "usage $1\n");
 			$counter = $counter + 1;
 			$total = $total + $1;
 		}
-		CondorTest::debug( "$line\n",1);
+		Condor::debug( "$line\n");
 	}
 	close(PIN);
 
 	if($counter != 7) {
-		CondorTest::debug("WARNING: expecting 7 data values and got $counter\n",1);
+		print "WARNING: expecting 7 data values and got $counter\n";
 	}
 
-	CondorTest::debug("Total usage reported by children is  $total\n",1);
+	print "Total usage reported by children is  $total\n";
 
 	my @adarray;
 	my $spoolloc;
@@ -75,7 +76,7 @@ $ExitSuccess = sub {
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 
@@ -85,7 +86,7 @@ $ExitSuccess = sub {
 		$spoolloc = $line;
 	}
 
-	CondorTest::debug("Spool directory is \"$spoolloc\"\n",1);
+	print "Spool directory is \"$spoolloc\"\n";
 
 	#my $historyfile = $spoolloc . "/history";
 	my $historyfile = `condor_config_val HISTORY`;
@@ -93,20 +94,20 @@ $ExitSuccess = sub {
 	my $remcpu = 0.0;
 	my $remwallclock = 0.0;
 
-	CondorTest::debug("Spool history file is \"$historyfile\"\n",1);
+	print "Spool history file is \"$historyfile\"\n";
 
 	# look for RemoteWallClockTime and RemoteUserCpu and comparee
 	# them to our calculated results
 
 	system("cat lib_procapi_cputracking-snapshot.data.log");
 
-	CondorTest::debug("Possibly waiting on history file \"$historyfile\":",1);
+	print "Possibly waiting on history file \"$historyfile\":";
 	# make sure history file has been written yet
 	while(!(-f $historyfile)) {
-		CondorTest::debug(".",1);
+		print ".";
 		sleep 3;
 	}
-	CondorTest::debug("\n",1);
+	print "\n";
 
 	# let history file get finished before getting upset about missing values
 	my $trys = 4;
@@ -136,7 +137,7 @@ $ExitSuccess = sub {
 		open(HIST,"<$historyfile") || die "Could not open historyfile:($historyfile) : !$\n";
 		while(<HIST>) {
 			$line  = $_;
-			CondorTest::debug("ERROR: RUCpu missing: $line",1);
+			print "ERROR: RUCpu missing: $line";
 		}
 		close(HIST);
 		die "Failed to find RemoteUserCpu valaid value\n";
@@ -146,7 +147,7 @@ $ExitSuccess = sub {
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 
@@ -158,11 +159,11 @@ $ExitSuccess = sub {
 	$low = $total - (2 + (2 * $snapshot));
 	# so what range do we insist on for the test to pass???
 	if($low > $remcpu) {
-		CondorTest::debug("Failed: Tasks totaled to $total subtract snapshot interval(($snapshot * 2) + 2)\n",1);
+		print "Failed: Tasks totaled to $total subtract snapshot interval(($snapshot * 2) + 2)\n";
 		die "We wanted $remcpu in the range of  $low to $total\n";
 	} else {
-		CondorTest::debug("Good: Tasks totaled to $total subtract snapshot interval(($snapshot * 2) + 2)\n",1);
-		CondorTest::debug("This Reported $remcpu which is in range of $low to $total\n",1);
+		print "Good: Tasks totaled to $total subtract snapshot interval(($snapshot * 2) + 2)\n";
+		print "This Reported $remcpu which is in range of $low to $total\n";
 		exit(0);
 	}
 
@@ -172,7 +173,7 @@ CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 CondorTest::RegisterExecute($testname, $execute);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

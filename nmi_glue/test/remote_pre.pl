@@ -20,6 +20,7 @@
 
 
 ######################################################################
+# $Id: remote_pre.pl,v 1.24.2.2 2008-03-11 17:58:22 bt Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -125,6 +126,12 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	# we use condor configure under unix
 	my $configure = "$BaseDir/$version/condor_configure";
 
+	if( ! -d "$BaseDir/results" ) {
+		# If there's no results, and we can't even make the directory, we
+		# might as well die, since there's nothing worth saving...
+		mkdir( "$BaseDir/results", 0777 ) || die "Can't mkdir($BaseDir/results): $!\n";
+	}
+
 	mkdir( "$BaseDir/local", 0777 ) || die "Can't mkdir $BaseDir/local: $!\n";
 	mkdir( "$BaseDir/condor", 0777 ) || die "Can't mkdir $BaseDir/condor: $!\n";
 
@@ -175,14 +182,11 @@ system("rm -rf $version*");
 
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
 	# save the configure.cf command for platform refernces to defines(bt)
-	$configuresaveloc = "$SrcDir/condor_tests/configure_out";
-	mkdir(  $configuresaveloc, 0777 ) || die "Can't mkdir($configuresaveloc): $!\n";
-	
-	safe_copy("config/configure.cf","$configuresaveloc");
-	safe_copy("config/externals.cf","$configuresaveloc");
-	safe_copy("config/config.sh","$configuresaveloc");
-	safe_copy("$SrcDir/config.h","$configuresaveloc");
-	safe_copy("$SrcDir/configure.ac","$configuresaveloc");
+	safe_copy("config/configure.cf","$BaseDir/results/configure.cf");
+	safe_copy("config/externals.cf","$BaseDir/results/externals.cf");
+	safe_copy("config/config.sh","$BaseDir/results/config.sh");
+	safe_copy("$SrcDir/config.h","$BaseDir/results/config.h");
+	safe_copy("$SrcDir/configure.ac","$BaseDir/results/configure.ac");
 	print "************************* configure.cf says.. ***************************\n";
 	system("cat config/configure.cf");
 	print "************************* configure.cf DONE.. ***************************\n";
@@ -251,10 +255,6 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
     system( "make CondorPersonal.pm" );
     if( $? >> 8 ) {
         c_die("Can't build CondorPersonal.pm\n");
-    }
-    system( "make CondorPubLogdirs.pm" );
-    if( $? >> 8 ) {
-        c_die("Can't build CondorPubLogdirs.pm\n");
     }
 	print "About to run batch_test.pl -p\n";
 

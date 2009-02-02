@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_integers_std.cmd';
-$testdesc =  'Registers Test';
-$testname = "job_ckpt_integers_std";
+$testname = 'Registers Test';
 
 $foo = <<"_EOX";
 About to checkpoint
@@ -136,16 +135,15 @@ locals: -1 -1 -1 -1 -1 -1 -1 -1
 
 _EOX
 
-my @expected_output = split '\n', $foo;
+@CondorTest::expected_output = split '\n', $foo;
 # kludge because split() omits trailing blank lines
-@expected_output = (@expected_output, "\n");
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = (@CondorTest::expected_output, "\n");
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

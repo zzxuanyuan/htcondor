@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_filexfer_minus1_van.cmd';
-$testdesc =  'Base file transfer short one output file - vanilla U';
-$testname = "job_filexfer_minus1_van";
+$testname = 'Base file transfer short one input file - vanilla U';
 
 # truly const variables in perl
 sub IDLE{1};
@@ -45,7 +44,7 @@ $execute = sub {
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Running $cluster\n",1);
+	print "Running $cluster\n";
 
 };
 
@@ -55,23 +54,26 @@ $shadow = sub
        my $cluster = $args{"cluster"};
        my $error = $args{"shadowerror"};
 
-       CondorTest::debug("Shadow Error: Cluster $cluster: $error\n",1);
+       print "Shadow Error: Cluster $cluster: $error\n";
 		my @adarray;
 		my $status = 1;
 		my $cmd = "condor_rm $cluster";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
-			exit(1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
+			exit(0)
 		}
-       CondorTest::debug("$testname: SUCCESS\n",1);
+       print "$testname: SUCCESS\n";
        exit(0);
 };
 
 $success = sub
 {
-	die "Job shouldn't succeed!\n";
+	die "Base file transfer job!\n";
+	if(!-f "$oute"){ print "$oute failed to arrive\n"; exit(1)};
+	if(!-f "$outf"){ print "$outf failed to arrive\n"; exit(1)};
+	if(!-f "$outg"){ print "$outg failed to arrive\n"; exit(1)};
 };
 
 $abort = sub {
@@ -87,7 +89,7 @@ $timed = sub
 # easy cleanup
 
 my $job = $$;
-CondorTest::debug("Process Id for this script is  $job\n",1);
+print "Process Id for this script is  $job\n";
 my $basefile = "submit_filetrans_input" . "$job";
 my $in = "$basefile".".txt";
 my $ina = "$basefile"."a.txt";
@@ -112,12 +114,12 @@ open(NEWCMD,">$cmd.new") || die "Can not open command file: $!\n";
 while(<CMD>)
 {
 	CondorTest::fullchomp($_);
-	CondorTest::debug("$_\n",1);
+	print "$_\n";
 	$line = $_;
 	if( $line =~ /^\s*input\s*=\s*job_\d+_dir\/([a-zA-Z_]+)\d*\.txt\s*$/)
 	{
 		my $input = "$1"."$job".".txt";
-		CondorTest::debug("Input file was $1\n",1);
+		print "Input file was $1\n";
 		print NEWCMD "input = $inputdir/$input\n"
 	}
 	elsif( $line =~ /^\s*transfer_input_files\s*=\s*.*$/ )
@@ -150,7 +152,7 @@ CondorTest::RegisterExitedSuccess($testname, $success);
 #CondorTest::RegisterTimed($testname, $timed, 3600);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -20,27 +20,27 @@
 
 use CondorTest;
 
+Condor::DebugOff();
 
 $cmd = $ARGV[0];
 
-CondorTest::debug("Submit file for this test is $cmd\n",1);
+print "Submit file for this test is $cmd\n";
 #print "looking at env for condor config\n";
 #system("printenv | grep CONDOR_CONFIG");
 
-$testdesc =  'Basic EventLog Test';
-$testname = "lib_eventlog";
+$testname = 'Basic EventLog Test';
 
 $aborted = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event not expected!\n",1);
+	print "Abort event not expected!\n";
 };
 
 $held = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Held event not expected.....\n",1);
+	print "Held event not expected.....\n";
 };
 
 $executed = sub
@@ -49,7 +49,7 @@ $executed = sub
 	my $cluster = $args{"cluster"};
 
 	#CondorTest::RegisterTimed($testname, $timed, 600);
-	CondorTest::debug("EventLog test executed\n",1);
+	print "EventLog test executed\n";
 };
 
 $timed = sub
@@ -59,14 +59,14 @@ $timed = sub
 
 $success = sub
 {
-	CondorTest::debug("Success: EventLog Test ok\n",1);
+	print "Success: EventLog Test ok\n";
 };
 
 CondorTest::RegisterExitedSuccess( $testname, $success);
 CondorTest::RegisterExecute($testname, $executed);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

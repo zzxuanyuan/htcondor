@@ -27,8 +27,7 @@ $gzinputgz = "job_core_compressfiles_std.datain.gz";
 $gzoutput = "job_core_compressfiles_std.dataout.gz";
 $output = "job_core_compressfiles_std.dataout";
 
-$testdesc =  'condor_submit compressfiles works - standard U';
-$testname = "job_core_compressfiles_std";
+$testname = 'condor_submit compressfiles works - standard U';
 
 system("rm -f $gzinput $gzinputgz $gzoutput $output");
 system("cp $input $gzinput");
@@ -65,7 +64,7 @@ $ExitSuccess = sub {
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

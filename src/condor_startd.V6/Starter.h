@@ -49,7 +49,7 @@ public:
 	void	exited();
 	pid_t	pid() {return s_pid;};
 	bool	is_dc() {return s_is_dc;};
-	ClaimType	claimType(); 
+	bool	isCOD(); 
 	bool	active();
 	float	percentCpuUsage( void );
 	unsigned long	imageSize( void );
@@ -66,9 +66,7 @@ public:
 	bool	killSoft( void );
 	bool	suspend( void );
 	bool	resume( void );
-
-	bool    holdJob(char const *hold_reason,int hold_code,int hold_subcode);
-
+	
 		// Send SIGKILL to starter + process group (called by our kill
 		// timer if we've been hardkilling too long).
 	bool	sigkillStarter( void );
@@ -92,18 +90,16 @@ public:
 
 	void	printInfo( int debug_level );
 
-	char const*	getIpAddr( void );
+	char*	getIpAddr( void );
 
 	int receiveJobClassAdUpdate( Stream *stream );
-
-	void holdJobCallback(DCMsgCallback *cb);
 
 private:
 
 		// methods
 	bool	reallykill(int, int);
 	int		execOldStarter( void );
-	int		execJobPipeStarter( void );
+	int		execCODStarter( void );
 	int		execDCStarter( Stream* s );
 	int		execDCStarter( ArgList const &args, Env const *env, 
 						   int std_fds[], Stream* s );
@@ -154,8 +150,6 @@ private:
 	int             s_reaper_id;
 	ReliSock*       s_job_update_sock;
 	MyString        s_execute_dir;
-	DCMsgCallback*  m_hold_job_cb;
-	MyString        m_starter_addr;
 };
 
 #endif /* _CONDOR_STARTD_STARTER_H */

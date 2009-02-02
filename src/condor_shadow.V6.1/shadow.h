@@ -143,8 +143,6 @@ class UniShadow : public BaseShadow
 
 	virtual void logDisconnectedEvent( const char* reason );
 
-	virtual bool getMachineName( MyString &machineName );
-
  protected:
 
 	virtual void logReconnectedEvent( void );

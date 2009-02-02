@@ -39,21 +39,18 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
-#include "subsystem_info.h"
 #include "exit.h"
 #include "condor_uid.h"
 #include "basename.h"
-#include "file_lock.h"
-#if HAVE_BACKTRACE
-#include "execinfo.h"
-#endif
+#include "get_mysubsystem.h"
 
 FILE *debug_lock(int debug_level);
 FILE *open_debug_file( int debug_level, char flags[] );
 void debug_unlock(int debug_level);
 void preserve_log_file(int debug_level);
 void _condor_dprintf_exit( int error_code, const char* msg );
-void _condor_set_debug_flags( const char *strflags );
+void _condor_set_debug_flags( char *strflags );
+int _condor_mkargv( int* argc, char* argv[], char* line );
 static void _condor_save_dprintf_line( int flags, const char* fmt, va_list args );
 void _condor_dprintf_saved_lines( void );
 struct saved_dprintf {
@@ -113,6 +110,7 @@ static	int DprintfBroken = 0;
 static	int DebugUnlockBroken = 0;
 #ifdef WIN32
 static CRITICAL_SECTION	*_condor_dprintf_critsec = NULL;
+extern int lock_file(int fd, LOCK_TYPE type, int do_block);
 static int lock_or_mutex_file(int fd, LOCK_TYPE type, int do_block);
 extern int vprintf_length(const char *format, va_list args);
 static HANDLE debug_win32_mutex = NULL;
@@ -134,33 +132,6 @@ int InDBX = 0;
 
 #define FCLOSE_RETRY_MAX 10
 
-
-static char *formatTimeHeader(struct tm *tm) {
-	static char timebuf[80];
-	static char *timeFormat = 0;
-	static int firstTime = 1;
-
-	if (firstTime) {
-		firstTime = 0;
-		timeFormat = param( "DEBUG_TIME_FORMAT" );
-		if (!timeFormat) {
-			timeFormat = strdup("%m/%d %H:%M:%S ");
-		} else {
-			// Skip enclosing quotes
-			char *p;
-			if (*timeFormat == '"') {
-				timeFormat++;
-			}
-			p = timeFormat;
-			while (*p++) {
-				if (*p == '"') *p = '\0';
-			}
-		}
-	}
-	strftime(timebuf, 80, timeFormat, tm);
-	return timebuf;
-}
-
 /*
 ** Print a nice log message, but only if "flags" are included in the
 ** current debugging flags.
@@ -170,7 +141,7 @@ static char *formatTimeHeader(struct tm *tm) {
 void
 _condor_dprintf_va( int flags, const char* fmt, va_list args )
 {
-	struct tm *tm;
+	struct tm *tm, *localtime();
 	time_t clock_now;
 #if !defined(WIN32)
 	sigset_t	mask, omask;
@@ -296,7 +267,9 @@ _condor_dprintf_va( int flags, const char* fmt, va_list args )
 					if ( DebugUseTimestamps ) {
 						fprintf( DebugFP, "(%d) ", clock_now );
 					} else {
-						fprintf( DebugFP, formatTimeHeader(tm));
+						fprintf( DebugFP, "%d/%d %02d:%02d:%02d ", 
+								tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, 
+								tm->tm_min, tm->tm_sec );
 					}
 
 					if ( (saved_flags|flags) & D_FDS ) {
@@ -481,7 +454,7 @@ debug_lock(int debug_level)
 #ifdef WIN32
 		if( lock_or_mutex_file(LockFd,WRITE_LOCK,TRUE) < 0 ) 
 #else
-		if( lock_file_plain(LockFd,WRITE_LOCK,TRUE) < 0 ) 
+		if( flock(LockFd,LOCK_EX) < 0 ) 
 #endif
 		{
 			save_errno = errno;
@@ -562,7 +535,7 @@ debug_unlock(int debug_level)
 #if defined(WIN32)
 		if ( lock_or_mutex_file(LockFd,UN_LOCK,TRUE) < 0 )
 #else
-		if( lock_file_plain(LockFd,UN_LOCK,TRUE) < 0 ) 
+		if( flock(LockFd,LOCK_UN) < 0 ) 
 #endif
 		{
 			flock_errno = errno;
@@ -862,8 +835,7 @@ _condor_dprintf_exit( int error_code, const char* msg )
 
 	tmp = param( "LOG" );
 	if( tmp ) {
-		snprintf( buf, sizeof(buf), "%s/dprintf_failure.%s",
-				  tmp, get_mySubSystemName() );
+		snprintf( buf, sizeof(buf), "%s/dprintf_failure.%s", tmp, get_mySubSystem() );
 		fail_fp = safe_fopen_wrapper( buf, "w",0644 );
 		if( fail_fp ) {
 			fprintf( fail_fp, "%s", header );
@@ -912,7 +884,7 @@ _condor_dprintf_exit( int error_code, const char* msg )
   the code in both places. -Derek Wright 9/29/99
 */
 void
-set_debug_flags( const char *strflags )
+set_debug_flags( char *strflags )
 {
 	_condor_set_debug_flags( strflags );
 }
@@ -928,17 +900,7 @@ void
 dprintf_touch_log()
 {
 	if ( _condor_dprintf_works ) {
-		if (DebugFile[0]) {
-#ifdef WIN32
-			utime( DebugFile[0], NULL );
-#else
-		/* The following updates the ctime without touching 
-			the mtime of the file.  This way, we can differentiate
-			a "heartbeat" touch from a append touch
-		*/
-			chmod( DebugFile[0], 0644);
-#endif
-		}
+		utime( DebugFile[0], NULL );
 	}
 }
 
@@ -991,10 +953,9 @@ fclose_wrapper( FILE *stream, int maxRetries )
 int
 mkargv( int* argc, char* argv[], char* line )
 {
-	// prototype
-	int _condor_mkargv( int* argc, char* argv[], char* line );
 	return( _condor_mkargv(argc, argv, line) );
 }
+
 
 static void
 _condor_save_dprintf_line( int flags, const char* fmt, va_list args )
@@ -1082,7 +1043,7 @@ lock_or_mutex_file(int fd, LOCK_TYPE type, int do_block)
 
 	if ( use_kernel_mutex == FALSE ) {
 			// use a filesystem lock
-		return lock_file_plain(fd,type,do_block);
+		return lock_file(fd,type,do_block);
 	}
 	
 		// If we made it here, we want to use a kernel mutex.
@@ -1111,7 +1072,7 @@ lock_or_mutex_file(int fd, LOCK_TYPE type, int do_block)
 		strlwr(filename);
 			// Now, we pre-append "Global\" to the name so that it
 			// works properly on systems running Terminal Services
-		snprintf(mutex_name,MAX_PATH,"Global\\%s",filename);
+		_snprintf(mutex_name,MAX_PATH,"Global\\%s",filename);
 		free(filename);
 		filename = NULL;
 			// Call CreateMutex - this will create the mutex if it does
@@ -1184,55 +1145,5 @@ dprintf_wrapup_fork_child( ) {
 		LockFd = -1;
 	}
 }
-
-#if HAVE_BACKTRACE
-void
-dprintf_dump_stack(void) {
-	priv_state	priv;
-	int fd;
-	void *trace[50];
-	int trace_size;
-	char notice[100];
-
-		/* In case we are dumping stack in the segfault handler, we
-		   want this to be a simple as possible.  Calling malloc()
-		   could be fatal, since the heap may be trashed.  Therefore,
-		   we dispense with some of the formalities... */
-
-	if (DprintfBroken || !_condor_dprintf_works || !DebugFile[0]) {
-			// Note that although this would appear to enable
-			// backtrace printing to stderr before dprintf is
-			// configured, the backtrace sighandler is only installed
-			// when dprintf is configured, so we won't even get here
-			// in that case.  Therefore, most command-line tools need
-			// -debug to enable the backtrace.
-		fd = 2;
-	}
-	else {
-		priv = _set_priv(PRIV_CONDOR, __FILE__, __LINE__, 0);
-		fd = safe_open_wrapper(DebugFile[0],O_APPEND|O_WRONLY|O_CREAT,0644);
-		_set_priv(priv, __FILE__, __LINE__, 0);
-		if( fd==-1 ) {
-			fd=2;
-		}
-	}
-
-	trace_size = backtrace(trace,50);
-
-	sprintf(notice,"Stack dump for process %d at timestamp %ld (%d frames)\n",getpid(),(long)time(NULL),trace_size);
-	write(fd,notice,strlen(notice));
-
-	backtrace_symbols_fd(trace,trace_size,fd);
-
-	if (fd!=2) {
-		close(fd);
-	}
-}
-#else
-void
-dprintf_dump_stack(void) {
-		// this platform does not support backtrace()
-}
-#endif
 
 #endif

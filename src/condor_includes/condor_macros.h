@@ -66,11 +66,7 @@
 #  ifdef fopen
 #    undef fopen
 #  endif
-/* Condor's fopen macro does not play well with the new 
-   version of the Platform SDKs (see cstdio for details) */
-#if !defined (WIN32)
-#   define fopen (Calls_to_fopen_must_use___safe_fopen_wrapper___instead)   
-#endif
+#  define fopen (Calls_to_fopen_must_use___safe_fopen_wrapper___instead)
 #  ifdef __GNUC__
 #    pragma GCC poison Calls_to_fopen_must_use___safe_fopen_wrapper___instead
 #  endif

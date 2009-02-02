@@ -6,20 +6,20 @@
 /* Specify Stork build configuration here. */
 #define WANT_STORK_API			YES
 #define WANT_STORK_GLOBUS		YES
-
-#if HAVE_EXT_SRB
-#  define WANT_STORK_SRB		NO
+#if IS_LINUX_DEBIAN40
+/* SRB is not a free package, and so therefore not possible to release with
+	Debian. */
+#	define WANT_STORK_SRB			NO
+#else
+#	define WANT_STORK_SRB			YES
 #endif
-
 #define WANT_STORK_UNITREE		YES
 #define WANT_STORK_SRM_CASTOR	YES
 #define WANT_STORK_SRM_DCACHE	YES
-
 /* Do not release NeST support publicly until NeST migrates from GPL to CPL
  * license.
  */
 #define WANT_STORK_NEST			NO
-
 /* Note the IBP data transfer protocol still has several issues.  First,
  * a this protocol relies upon a private copy of the IBP API.  Instead a new
  * Condor IBP external should be created.  Second, this protocol builds, but
@@ -27,19 +27,12 @@
  */
 #define WANT_STORK_IBP			NO
 
-/* Do you want to enable hackery used for the SC 2005 Demo?
- */
-#define WANT_SC2005_DEMO		NO
-
-
-/* END USER CONFIGURATION ****************************************************/
+/* END USER CONFIGURATION *****************************************************/
 
 /* Core Stork functionality */
 
 /* Default build target - must be first target */
 all_target()
-
-soapobjs(stork)
 
 /* Common build flags. */
 NEW_CLASSADS_LINK =  -L$(NEW_CLASSADS_LIB) -lclassad_ns
@@ -49,23 +42,11 @@ NEW_CLASSADS_LINK =  -L$(NEW_CLASSADS_LIB) -lclassad_ns
 LARGEFILE_DEFS	= \
 	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 #endif /* IS_GLIBC23 */
-
-/* SC2005 Demo */
-#if WANT_SC2005_DEMO
-SC2005_DEFS		= -DSC2005_DEMO
-#endif
-
-STORK_DEFS			= $(LARGEFILE_DEFS) $(SC2005_DEFS)
-STORK_INCLUDES		= -I$(NEW_CLASSADS_INC) $(CLASSAD_CONV_INC)
-STORK_FLAGS			= $(STORK_DEFS) $(STORK_INCLUDES)
-C_PLUS_FLAGS		= $(STD_C_PLUS_FLAGS) $(STORK_FLAGS)
-CFLAGS				= $(STD_C_FLAGS) $(STORK_FLAGS)
-INST_C_PLUS_FLAGS	= $(STD_C_FLAGS) $(GPP_VERS_FLAGS) $(STORK_FLAGS)
-
-CLASSAD_ANALYSIS	= ../classad_analysis
-CLASSAD_CONV		= $(CLASSAD_CONV)
-CLASSAD_CONV_INC	= -I$(CLASSAD_ANALYSIS)
-CLASSAD_CONV_LIBDEFS= -L$(CLASSAD_ANALYSIS) -lconversion
+STORK_DEFS = $(LARGEFILE_DEFS)
+STORK_INCLUDES = -I$(NEW_CLASSADS_INC)
+STORK_FLAGS = $(STORK_DEFS) $(STORK_INCLUDES)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STORK_FLAGS)
+CFLAGS  = $(STD_C_FLAGS) $(STORK_FLAGS)
 
 /* internal Stork utilities library */
 UTIL_LIB_OBJS = \
@@ -77,19 +58,16 @@ library_target($(STORK_UTIL),$(UTIL_LIB_OBJS))
 
 /* server daemon */
 SERVER_OBJS  = \
-	$(SOAP_OBJS) \
 	dap_server.o \
 	dap_daemon.o \
 	dap_scheduler.o \
 	dap_logger.o \
 	dap_classad_reader.o \
-	stork-lm.o \
 	$(STORK_UTIL)
 SERVER_LIBS = \
 	$(DAEMONCORE_LIB) \
 	$(STD_LIBS) \
 	$(NEW_CLASSADS_LINK)
-
 public_c_plus_nowrap_target(stork_server,sbin,$(SERVER_OBJS),$(SERVER_LIBS))
 
 /* user tools */
@@ -147,6 +125,8 @@ GLOBUS_LIBS = \
 	$(GLOBUS_LIB)/libglobus_gssapi_gsi_$(GlobusFlavor).a \
 	$(GLOBUS_LIB)/libglobus_openssl_$(GlobusFlavor).a \
 	$(GLOBUS_LIB)/libglobus_common_$(GlobusFlavor).a \
+	$(GLOBUS_LIB)/libssl_$(GlobusFlavor).a \
+	$(GLOBUS_LIB)/libcrypto_$(GlobusFlavor).a \
 	$(GLOBUS_LIB)/libglobus_gsi_sysconfig_$(GlobusFlavor).a \
 	$(GSI_LIB) \
 	$(OPENSSL_LIB)
@@ -211,14 +191,14 @@ SRB_LIBS = \
 XCOMM SRB objects need additional C_FLAGS
 /* FIXME: dap_url.o should be moved into libstorkutil.a, without SRB dependency
  */
-dap_url.o: dap_url.cpp
+dap_url.o: dap_url.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(SRB_CFLAGS) -c $<
 dap_srb_util.o: dap_srb_util.c
 	$(CC) $(CFLAGS) $(SRB_CFLAGS) $(CPPFLAGS) -c $<
 /* Ugh, we use the Make default rule to build *.c files, so add restate this
  * rule with $(SRB_CFLAGS)
  */
-dap_transfer_srb.o: dap_transfer_srb.cpp
+dap_transfer_srb.o: dap_transfer_srb.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(SRB_CFLAGS) -c $<
 /* The SRB external is only needed for this Stork contrib module */
 ext_target(EXT_SRB_VERSION,$(EXT_TRIGGER)/$(EXT_GLOBUS_VERSION))
@@ -261,20 +241,20 @@ NEST_LIBS = \
 	$(NEST_LIB)/libnest-client.a \
 	$(STD_LIBS)
 NEST_COPY = $(MODULE)transfer.nest
-dap_transfer_nest.o: dap_transfer_nest.cpp
+dap_transfer_nest.o: dap_transfer_nest.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(NEST_CFLAGS) -c $<
 NEST_COPY_OBJS = \
 	dap_transfer_nest.o \
 	$(STORK_UTIL)
 stork_contrib_module_target($(NEST_COPY),$(NEST_COPY_OBJS),$(NEST_LIBS))
 NEST_RESERVE = reserve.nest
-dap_reserve_nest.o: dap_reserve_nest.cpp
+dap_reserve_nest.o: dap_reserve_nest.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(NEST_CFLAGS) -c $<
 NEST_RESERVE_OBJS = \
 	dap_reserve_nest.o 
 stork_contrib_module_target($(NEST_RESERVE),$(NEST_RESERVE_OBJS),$(NEST_LIBS))
 NEST_RELEASE = release.nest
-dap_release_nest.o: dap_release_nest.cpp
+dap_release_nest.o: dap_release_nest.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) $(NEST_CFLAGS) -c $<
 NEST_RELEASE_OBJS = \
 	dap_release_nest.o
@@ -318,29 +298,8 @@ strip_library($(CLIENT_LIB),lib)
 static_library($(CLIENT_LIB),lib)
 #endif /* WANT_STORK_API */
 
-gen_soapfiles(stork,condorStork)
-
-#if 1 /* Nick added this */
-TEST_LIB = $(STD_LIBS) $(NEW_CLASSADS_LINK) $(CLASSAD_CONVERSION_LIBDEFS)
-tests: stork-lm-test stork-lm-test2
-c_plus_target( stork-lm-test,stork-lm-test.o stork-lm-nodc.o,$(TEST_LIB) )
-stork-lm-nodc.o: stork-lm.cpp
-	$(CPlusPlus) $(INST_C_PLUS_FLAGS) -DTEST_VERSION -c stork-lm.cpp -o stork-lm-nodc.o
-
-c_plus_target( stork-lm-test2, stork-lm-test2.o,
-	 stork-lm.o $(DAEMONCORE_LIB) $(TEST_LIB) )
-#endif /* Nick */
-
 XCOMM Uncomment to build contrib modules as part of default build
 all:: contrib
 
+
 testbin:: all
-
--include Makelocal.i
-
-### Local Variables: ***
-### mode:Makefile ***
-### tab-width:4 ***
-### comment-column:0 ***
-### comment-start: "# "  ***
-### End: ***

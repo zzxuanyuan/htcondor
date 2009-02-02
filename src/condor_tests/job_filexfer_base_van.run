@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_filexfer_base_van.cmd';
-$testdesc =  'Base file transfer - vanilla U';
-$testname = "job_filexfer_base_van";
+$testname = 'Base file transfer - vanilla U';
 
 # truly const variables in perl
 sub IDLE{1};
@@ -35,12 +34,12 @@ $execute = sub {
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Running $cluster\n",1);
+	print "Running $cluster\n";
 
 };
 
 $abort = sub {
-	CondorTest::debug("Job is gone now, cool.\n",1);
+	print "Job is gone now, cool.\n";
 };
 
 $hold = sub
@@ -48,7 +47,7 @@ $hold = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Good. Cluster $cluster is supposed to be held.....\n",1);
+	print "Good. Cluster $cluster is supposed to be held.....\n";
 };
 
 $release = sub
@@ -60,7 +59,7 @@ $release = sub
 
 $success = sub
 {
-	CondorTest::debug("Base file transfer job!\n",1);
+	print "Base file transfer job!\n";
 };
 
 $timed = sub
@@ -80,7 +79,7 @@ CondorTest::RegisterExitedSuccess($testname, $success);
 #CondorTest::RegisterTimed($testname, $timed, 3600);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	system("rm -rf ../ftjob");
 	exit(0);
 } else {

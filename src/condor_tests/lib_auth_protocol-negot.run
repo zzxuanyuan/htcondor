@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $param_template = "x_param.protocol-negot.template";
-$testdesc =  'lib_auth_protocol-negot - Security Protocol Negotiation Test';
-$testname = "lib_auth_protocol-negot";
+$testname = 'lib_auth_protocol-negot - Security Protocol Negotiation Test';
 $corename = "lib_auth_protocol-negot";
 $mytestnegotiation = "x_secneg_clR_dmnR_secprepostsrc";
 $mytestnegotiation_result = "yes";
@@ -60,11 +61,11 @@ while(<DF>) {
 		#exit(0);
 	#}
 	$myvariation = $myvariation + 1;
-	CondorTest::debug("Condor for this run in $mypid\n",1);
+	print "Condor for this run in $mypid\n";
 	system("date");
 	$line = $_;
 	if($line =~ /^(x_secneg.*_secprepostsrc)\s(.*)$/ ) {
-		CondorTest::debug("Negotiation is $1 and Expected result $2\n",1);
+		print "Negotiation is $1 and Expected result $2\n";
 		$mytestnegotiation = $1;
 		$mytestnegotiation_result = $2;
 	}
@@ -79,8 +80,8 @@ while(<DF>) {
 	$mycorenmout = $corename . ".cmd.out";
 	$mycorenmlog = $corename . ".log";
 
-	CondorTest::debug("Master PID is $mypid\n",1);
-	CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+	print "Master PID is $mypid\n";
+	print "Master PID submit file is $mysubmitnm\n";
 
 	# Edit submit file to submit to scheduler at securitypool (side b) schedd.
 	my $line;
@@ -92,7 +93,7 @@ while(<DF>) {
 		$line = $_;
 		if( $line =~ /^\s*secprepostsrc\s*=\s*.*$/ )
 		{
-			CondorTest::debug("Setting up for $mytestnegotiation\n",1);
+			print "Setting up for $mytestnegotiation\n";
 			print CSUB "secprepostsrc = $mytestnegotiation\n";
 		}
 		else
@@ -103,23 +104,23 @@ while(<DF>) {
 	}
 	close(TPLATE);
 	close(CSUB);
-	my $configsec = CondorPersonal::StartCondor( "lib_auth_protocol-negot", $myparamname ,$label, $mypid);
+	my $configsec = CondorPersonal::StartCondor($myparamname ,$label, $mypid);
 	my @securitypool = split /\+/, $configsec;
 	my $secconfig = shift @securitypool;
 	my $secport = shift @securitypool;
 
-	CondorTest::debug("---security config is $secconfig and securitypool port is $secport---\n",1);
+	print "---security config is $secconfig and securitypool port is $secport---\n";
 	
 
 	$ENV{CONDOR_CONFIG} = $secconfig;
 	# submit into local schedd (side a)
 
 	my $result = system("./lib_auth_protocol-negot.pl $mypid $label $mytestnegotiation_result");
-	CondorTest::debug("Result of crafted lib_auth_protocol-negot job is  $result\n",1);
+	print "Result of crafted lib_auth_protocol-negot job is  $result\n";
 
 	if($result != 0) {
 		$mynumberoferrors = $mynumberoferrors + 1;
-		CondorTest::debug("ERRORS detected: $mynumberoferrors of $mynumberoftests failed\n",1);
+		print "ERRORS detected: $mynumberoferrors of $mynumberoftests failed\n";
 	}
 
 	system("cp *$corename* $mysaveme");
@@ -139,8 +140,21 @@ while(<DF>) {
 		system("cp $mysubmitnmlog $mycorenmlog");
 	}
 
-	CondorPersonal::KillDaemonPids($secconfig);
-	system("date");
+	my @adarray;
+	my $status = 1;
+	my $cmd = "condor_off -fast -master";
+	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+	if(!$status)
+	{
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(1)
+	}
+
+	if(!$status)
+	{
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(1)
+	}
 }
 
 system("date");
@@ -148,7 +162,7 @@ system("date");
 if( $mynumberoferrors != 0 )
 {
 	# actual test failed but we allowed cleanup
-	CondorTest::debug("$mynumberoferrors of $numberoftests FAILED!\n",1);
+	print "$mynumberoferrors of $numberoftests FAILED!\n";
 	exit(1);
 }
 

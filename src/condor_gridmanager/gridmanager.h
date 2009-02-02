@@ -22,12 +22,12 @@
 #define GRIDMANAGER_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "user_log.c++.h"
 #include "classad_hashtable.h"
 #include "list.h"
 #include "daemon.h"
 #include "dc_schedd.h"
-#include "dc_collector.h"
 
 #include "basejob.h"
 
@@ -41,9 +41,7 @@
 #define GM_RESOURCE_UNLIMITED	1000000000
 
 extern char *ScheddAddr;
-extern char *ScheddName;
 extern DCSchedd *ScheddObj;
-extern DCCollector *CollectorObj;
 extern char *ScheddJobConstraint;
 extern char *GridmanagerScratchDir;
 extern char *myUserName;

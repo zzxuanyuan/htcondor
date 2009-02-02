@@ -52,7 +52,7 @@ while(<ORIGMD5>)
 	$oldmd5 = $_;
 }
 close(ORIGMD5);
-CondorTest::debug("Old MD5 = $oldmd5\n",1);
+print "Old MD5 = $oldmd5\n";
 
 my $newmd5file = $newfile . "md5";
 my $datamd5 = Digest::MD5->new;
@@ -70,7 +70,7 @@ close(MD5);
 
 if($oldmd5 eq $hexmd5)
 {
-	CondorTest::debug("Check some of $oldfile and $newfile match!\n",1);
+	print "Check some of $oldfile and $newfile match!\n";
 	#verbose_system("touch WORKED");
 	unlink($oldfile);
 	unlink($newfile);
@@ -78,7 +78,7 @@ if($oldmd5 eq $hexmd5)
 }
 else
 {
-	CondorTest::debug("failed\n",1);
+	print "failed\n";
 	#verbose_system("touch FAILED");
 	exit(1);
 }
@@ -107,30 +107,30 @@ printf "system(%s) returned %#04x: ", @args, $rc;
 
 	if ($rc == 0) 
 	{
-		CondorTest::debug("ran with normal exit\n",1);
+		print "ran with normal exit\n";
 		return $rc;
 	}
 	elsif ($rc == 0xff00) 
 	{
-		CondorTest::debug("command failed: $!\n",1);
+		print "command failed: $!\n";
 		return $rc;
 	}
 	elsif (($rc & 0xff) == 0) 
 	{
 		$rc >>= 8;
-		CondorTest::debug("ran with non-zero exit status $rc\n",1);
+		print "ran with non-zero exit status $rc\n";
 		return $rc;
 	}
 	else 
 	{
-		CondorTest::debug("ran with ",1);
+		print "ran with ";
 		if ($rc &   0x80) 
 		{
 			$rc &= ~0x80;
-			CondorTest::debug("coredump from ",1);
+			print "coredump from ";
 			return $rc;
 		}
-		CondorTest::debug("signal $rc\n",1);
+		print "signal $rc\n"
 	}
 }
 

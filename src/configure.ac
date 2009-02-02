@@ -45,16 +45,6 @@ AC_PROG_PERL_VERSION([5.005_03], [],
 
 AC_MSG_NOTICE([verifying build environment ])
 
-# Find RPM, if we have it; this variable is only used for querying the
-# release of an RPM-based system
-AC_PATH_PROG(ac_rpmquery,rpm,no,[$PATH])
-
-if test "x$ac_rpmquery" == "xno" ; then
-   RPMQUERY=/bin/false
-else
-   RPMQUERY=$ac_rpmquery
-fi
-
 # first, if we notice we're being run at UW-Madison CS on a
 # CSL-supported machine, and the PATH doesn't include
 # /p/condor/workspaces/build/bin before /s/std/bin, print an error
@@ -106,17 +96,6 @@ fi
 ############################################################
 # Figure out what platform we're being run on
 ############################################################
-
-# on Darwin on intel, uname will *always* report i386 when in reality it may
-# be an x86_64 machine. Here we determine if sysctl is available, and then
-# later we'll use it to figure out the actual platform.
-AC_PATH_PROG(ac_sysctl,sysctl,no,[$PATH])
-if test "x$ac_sysctl" == "xno" ; then
-   SYSCTL=/bin/false
-else
-   STSCTL=$ac_sysctl
-fi
-
 AC_MSG_NOTICE([determining host platform])
 # these three are just used by configure to specify the settings we
 # actually care about, described below
@@ -236,74 +215,64 @@ elif test $os = "Linux" ; then
        _cv_linux_distro="GENTOO_UNKNOWN"
        ;;
     esac
-  elif test -f "/etc/fedora-release"  ; then
-    # do this BEFORE checking for redhat-release, because
-    # redhat-release is a symlink to fedora-release on F systems
-    _fedora_rel=`cat /etc/fedora-release|$PERL -ne '/.* (.*) \((.*)\)/;print $2;'`
-    case "$_fedora_rel" in
-     # Handle FC cases explicitly
-     "Yarrow" )
-        _cv_linux_distro="FC1"
-	;;
-     "Tettnang" )
-        _cv_linux_distro="FC2"
-	;;
-     "Heidelberg" )
-        _cv_linux_distro="FC3"
-	;;
-     "Stentz" )
-        _cv_linux_distro="FC4"
-	;;
-     "Bordeaux" )
-        _cv_linux_distro="FC5"
-	;;
-     "Zod" )
-        _cv_linux_distro="FC6"
-	;;
-     # Handle post-FC releases more robustly
-     * )
-        _cv_linux_distro=`$RPMQUERY -q --queryformat "F%{VERSION}" fedora-release`
-	;;
-    esac
   elif test -f "/etc/redhat-release" ; then
-    # Non-Fedora Red Hat or Red Hat derivative -- either RHEL or CentOS
-    
-    if (rpm -q centos-release 2>&1 > /dev/null) ; then
-       # CentOS
-       _cv_linux_distro=`$RPMQUERY -q --queryformat "CENTOS%{VERSION}%{RELEASE}" centos-release | tr -d .`
-    else
-       # Red Hat Linux or RHEL; handle RHL first before presuming RHEL
-
-       if (grep -q "Red Hat Linux" /etc/redhat-release) ; then
-         _rh_vers=`cat /etc/redhat-release|$PERL -ne '/.* (.*) \(.*\)/;print $1;'`
-       	  case "$_rh_vers" in
-    	   "7.2" )
-	     _cv_linux_distro="RH72"
-       	     ;;
-	   "2.1AW" )
-       	     _cv_linux_distro="RH72"
- 	     ;;
-           "8.0" )
-             _cv_linux_distro="RH80"
-             ;;
-           "9" )
-             _cv_linux_distro="RH9"
-             ;;
-	   * )
-       	     AC_MSG_WARN([Condor is not ported to Red Hat Linux version $_rh_vers])
-	     AC_MSG_WARN([You may have trouble building and/or packaging Condor])
- 	     _cv_linux_distro="RHL_UNKNOWN"
-             ;;
-          esac
-       elif (grep -q "Red Hat Enterprise Linux" /etc/redhat-release) ; then
-         # RHEL
-	 _cv_linux_distro=RHEL`$RPMQUERY -q --queryformat "%{VERSION}" redhat-release | tr -d \[[A-Za-z]] `
-       else
-          $_rh_release=`cat /etc/redhat-release`
-          AC_MSG_WARN([You may have trouble building and/or packaging Condor on $_rh_release])
-          _cv_linux_distro=`$RPMQUERY -q --queryformat "RH_UNK_%{VERSION}%{RELEASE}" redhat-release | tr -d .`
-       fi
-    fi
+    _rh_vers=`cat /etc/redhat-release|$PERL -ne '/.* (.*) \(.*\)/;print $1;'`
+    case "$_rh_vers" in
+     "7.2" )
+       _cv_linux_distro="RH72"
+       ;;
+     "2.1AW" )
+       _cv_linux_distro="RH72"
+       ;;
+     "8.0" )
+       _cv_linux_distro="RH80"
+       ;;
+     "9" )
+       _cv_linux_distro="RH9"
+       ;;
+     "3" )
+       _cv_linux_distro="RHEL3"
+       ;;
+     "5" )
+       _cv_linux_distro="RHEL5"
+	   # Hack hack hack
+	   # We should just switch on the code name in parens
+	   # I don't have time to look them all up
+	   if grep -q ^Fedora /etc/redhat-release
+	   then
+	   		_cv_linux_distro="FC5"
+	   fi
+       ;;
+     "5.1" )
+       _cv_linux_distro="RHEL5"
+      ;;
+     "5.2" )
+       _cv_linux_distro="RHEL5"
+       ;;
+     "4.2" )
+       _cv_linux_distro="CENTOS42"
+      ;;
+     "4.3" )
+       _cv_linux_distro="CENTOS43"
+       ;;
+     "4.4" )
+       _cv_linux_distro="CENTOS44"
+       ;;
+     "4.5" )
+       _cv_linux_distro="CENTOS45"
+       ;;
+     "7" )
+       _cv_linux_distro="F7"
+       ;;
+     "8" )
+       _cv_linux_distro="F8"
+       ;;
+     * )
+       AC_MSG_WARN([Condor is not yet ported to redhat version $_rh_vers])
+       AC_MSG_WARN([You may have trouble building and/or packaging Condor])
+       _cv_linux_distro="RH_UNKNOWN"
+       ;;
+    esac
   elif test -f "/etc/SuSE-release" ; then
     _suse_vers=`cat /etc/SuSE-release | grep VERSION | $AWK '{print $3}'`
     case "$_suse_vers" in
@@ -408,22 +377,8 @@ elif test $os = "Darwin" ; then
 	## Figure out the architecture
 	##
 	if test "$arch" = "i386"; then
-		# XXX This test is commented out because the externals aren't
-		# smart enough to figure out what platform they are on and Condor
-		# will fail to compile. So for now we lie and say INTEL. This
-		# could cause problems if a submit machine is x86_64 and the execute
-		# machines are x86 since both will report as INTEL.
-		# ok, test to see if the hw.optional.x86_64 key is present and 1, 
-		# if so, then this machine is actually an x86_64 machine, not an
-		# i386 machine.
-		#`$SYSCTL hw.optional.x86_64 2>&1 | $GREP '1\$' > /dev/null 2>&1`
-		#if test "x$?" = "x1"; then
-		#	_cv_arch="X86_64"
-		#	_cv_sysname="x86_64_macosx"
-		#else
-			_cv_arch="I386"
-			_cv_sysname="i386_macosx"
-		#fi	
+		_cv_arch="I386"
+		_cv_sysname="i386_macosx"
 	elif test "$arch" = "Power Macintosh"; then
 		_cv_arch="PPC"
 		_cv_sysname="ppc_macosx"
@@ -587,12 +542,6 @@ AC_ARG_WITH(buildid,
   [BUILDID=$withval],
   [BUILDID=no])
 
-AC_ARG_ENABLE(bgd-support,
-  [AS_HELP_STRING([--enable-bgd-support],
-     [Enable support for HTC mode on the BlueGene machine.])],
-  [],
-  [enable_bgd_support=no])
-
 AC_ARG_ENABLE(proper,
   [AS_HELP_STRING([--enable-proper],
      [Force this configure script to work in the proper (non-Condor) way (default: disabled)])],
@@ -737,24 +686,6 @@ AC_ARG_WITH(purecachedir,
  [ac_cv_purecachedir="$TMPDIR/$USER/.pcache"]
 )
 AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
-
-AC_ARG_ENABLE(job-hooks,
-  [AS_HELP_STRING([--enable-job-hooks],
-     [Support for invoking hooks throughout the workflow of a job])],
-  [JOB_HOOKS=$enableval],
-  [JOB_HOOKS=yes])
-if test $JOB_HOOKS != no; then
-  AC_DEFINE([HAVE_JOB_HOOKS], [1], [Define to 1 to support invoking hooks throughout the workflow of a job])
-fi
-
-AC_ARG_ENABLE(hibernation,
-  [AS_HELP_STRING([--enable-hibernation],
-     [Support for Condor-controlled hibernation])],
-  [HIBERNATION=$enableval],
-  [HIBERNATION=yes])
-if test $HIBERNATION != no; then
-  AC_DEFINE([HAVE_HIBERNATION], [1], [Define to 1 to support Condor-controlled hibernation])
-fi
 
 
 ############################################################
@@ -968,12 +899,6 @@ case "$gcc_vers" in
     CompilerKind="GCC"
     CompilerMajor="4"
     CompilerMinor="2"
-    CompilerPatch="1"
-    ;;
- "4.3.1" )
-    CompilerKind="GCC"
-    CompilerMajor="4"
-    CompilerMinor="3"
     CompilerPatch="1"
     ;;
  * )
@@ -1268,14 +1193,6 @@ else
   _cv_has_gnu_g77="YES"
 fi
 
-# And check for gfortan as well.
-AC_PATH_PROG([_cv_gnu_gfortran],[gfortran],[no],[$PATH])
-if test "$_cv_gnu_gfortran" = "no" ; then
-  _cv_has_gnu_gfortran="NO"
-else
-  _cv_has_gnu_gfortran="YES"
-fi
-
 # now, look for everything else, depending on our platform.  if it's
 # Linux or Darwin, we know the "vendor" compilers are really gcc, so
 # we can bail without doing any real work.  otherwise, we have to
@@ -1329,7 +1246,6 @@ else
   fi
 fi
 AC_SUBST([has_gnu_g77],[$_cv_has_gnu_g77])
-AC_SUBST([has_gnu_gfortran],[$_cv_has_gnu_gfortran])
 AC_SUBST([has_vendor_cc],[$_cv_has_vendor_cc])
 AC_SUBST([has_vendor_cplus],[$_cv_has_vendor_cplus])
 AC_SUBST([has_vendor_f77],[$_cv_has_vendor_f77])
@@ -1370,7 +1286,6 @@ case "$_cv_opsys-$_cv_opsys_vers-$_cv_arch-$_cv_linux_distro-$_cv_libc_major-$_c
   LINUX-*-ALPHA-* | \
   LINUX-*-*-DEBIAN40-* | \
   LINUX-*-IA64-* | \
-  SOLARIS-* | \
   LINUX-*-CONDOR_PPC-* ) _cv_clipped_default=yes ;;
   * ) _cv_clipped_default=no ;;
 esac
@@ -1435,143 +1350,6 @@ AC_MSG_RESULT([$_cv_does_compress_ckpt])
 AS_IF([test "x$CLIPPED" != "xyes" -a "x$_cv_does_compress_ckpt" = xyes],
   AC_DEFINE([DOES_COMPRESS_CKPT], [1], [Define if we can compress checkpoints]))
 
-AC_MSG_CHECKING([if DOES_SAVE_SIGSTATE])
-case "$_cv_opsys" in
-  AIX | HPUX | LINUX | SOLARIS )
-    _cv_does_save_sigstate=yes
-  ;;
-  * )
-    _cv_does_save_sigstate=unknown
-  ;;
-esac
-AC_MSG_RESULT([$_cv_does_save_sigstate])
-AS_IF([test "x$_cv_does_save_sigstate" = xyes],
-  AC_DEFINE([DOES_SAVE_SIGSTATE], [1], [Define if we save sigstate]))
-
-AC_MSG_CHECKING([if HAS_RANLIB_TOUCH])
-case "$_cv_opsys" in
-  AIX | HPUX | SOLARIS )
-    _cv_has_ranlib_touch=yes
-  ;;
-  LINUX )
-    _cv_has_ranlib_touch=no
-  ;;
-  * )
-    _cv_has_ranlib_touch=unknown
-  ;;
-esac
-AC_MSG_RESULT([$_cv_has_ranlib_touch])
-AS_IF([test "x$_cv_has_ranlib_touch" = xyes],
-  AC_DEFINE([HAS_RANLIB_TOUCH], [1], [Define if we want HAS_RANLIB_TOUCH]))
-
-AC_MSG_CHECKING([if HAS_CP_PRESERVE])
-case "$_cv_opsys" in
-  AIX | HPUX | SOLARIS )
-    _cv_has_cp_preserve=yes
-  ;;
-  LINUX )
-    _cv_has_cp_preserve=no
-  ;;
-  * )
-    _cv_has_cp_preserve=unknown
-  ;;
-esac
-AC_MSG_RESULT([$_cv_has_cp_preserve])
-AS_IF([test "x$_cv_has_cp_preserve" = xyes],
-  AC_DEFINE([HAS_CP_PRESERVE], [1], [Define if we want HAS_CP_PRESERVE]))
-
-AC_MSG_CHECKING([if HAS_PURIFY])
-case "$_cv_opsys" in
-  SOLARIS )
-    _cv_has_purify=yes
-  ;;
-  * )
-    _cv_has_purify=no
-  ;;
-esac
-AC_MSG_RESULT([$_cv_has_purify])
-AS_IF([test "x$_cv_has_purify" = xyes],
-  AC_DEFINE([HAS_PURIFY], [1], [Define if we want HAS_PURIFY]))
-
-AC_MSG_CHECKING([if HAS_AR_S_OPTION])
-case "$_cv_opsys" in
-  AIX | HPUX | LINUX | SOLARIS )
-    _cv_has_ar_s_option=yes
-  ;;
-  * )
-    _cv_has_ar_s_option=unknown
-  ;;
-esac
-AC_MSG_RESULT([$_cv_has_ar_s_option])
-AS_IF([test "x$_cv_has_ar_s_option" = xyes],
-  AC_DEFINE([HAS_AR_S_OPTION], [1], [Define if ar has the s option]))
-
-AC_MSG_CHECKING([if FORTRAN_HAS_RECURSION])
-case "$_cv_opsys" in
-  SOLARIS )
-    _cv_fortran_has_recursion=yes
-  ;;
-  * )
-    _cv_fortran_has_recursion=no
-  ;;
-esac
-AC_MSG_RESULT([$_cv_fortran_has_recursion])
-AS_IF([test "x$_cv_fortran_has_recursion" = xyes],
-  AC_DEFINE([FORTRAN_HAS_RECURSION], [1], [Define if FORTRAN_HAS_RECURSION]))
-
-AC_MSG_CHECKING([if NEEDS_64BIT_SYSCALLS])
-case "$_cv_opsys" in
-  SOLARIS )
-    _cv_needs_64bit_syscalls=yes
-  ;;
-  AIX | HPUX )
-    _cv_needs_64bit_syscalls=no
-  ;;
-  * )
-    _cv_needs_64bit_syscalls=unknown
-  ;;
-esac
-AC_MSG_RESULT([$_cv_needs_64bit_syscalls])
-AS_IF([test "x$_cv_needs_64bit_syscalls" = xyes],
-  AC_DEFINE([NEEDS_64BIT_SYSCALLS], [1], [Define if NEEDS_64BIT_SYSCALLS]))
-
-AC_MSG_CHECKING([if NEEDS_64BIT_STRUCTS])
-case "$_cv_opsys" in
-  AIX | HPUX | SOLARIS )
-    _cv_needs_64bit_structs=yes
-  ;;
-  * )
-    _cv_needs_64bit_structs=unknown
-  ;;
-esac
-AC_MSG_RESULT([$_cv_needs_64bit_structs])
-AS_IF([test "x$_cv_needs_64bit_structs" = xyes],
-  AC_DEFINE([NEEDS_64BIT_STRUCTS], [1], [Define if NEEDS_64BIT_STRUCTS]))
-
-AC_MSG_CHECKING([if HAS_FLOCK])
-case "$_cv_opsys" in
-  SOLARIS )
-    _cv_has_flock=no
-  ;;
-  * )
-    _cv_has_flock=yes
-  ;;
-esac
-AC_MSG_RESULT([$_cv_has_flock])
-AS_IF([test "x$_cv_has_flock" = xyes],
-  AC_DEFINE([HAS_FLOCK], [1], [Define if HAS_FLOCK]))
-
-AC_MSG_CHECKING([if HAS_INET_NTOA])
-# inet_nota() with gcc is broken under 64-bit compilation mode, so use ours
-if test "x$_cv_opsys_vers" = xHPUX11; then
-  _cv_has_inet_ntoa=no
-else
-  _cv_has_inet_ntoa=yes
-fi
-AC_MSG_RESULT([$_cv_has_inet_ntoa])
-AS_IF([test "x$_cv_has_inet_ntoa" = xyes],
-  AC_DEFINE([HAS_INET_NTOA], [1], [Define if HAS_INET_NTOA]))
-
 # HAS_DYNAMIC_USER_JOBS, not sure exactly what this is -matt 26 Nov 07
 if test "x$_cv_opsys" = "xSOLARIS"; then
   AC_DEFINE([HAS_DYNAMIC_USER_JOBS], [1], [Used in condor_ckpt/image.C])
@@ -1615,46 +1393,13 @@ if test "x$_cv_opsys" = xyes; then
   esac
 fi
 
-# ArchOptimizeFlag logic used to live in .cf files, mostly
-# LINUX_I386.cf, that logic now lives here.
-if test "x$_cv_opsys" = xLINUX \
-   -a "x$_cv_arch" = xI386 \
-   -a "x$CompilerKind" = xGCC; then
-  case "$CompilerMajor" in
-    4 ) _cv_arch_optimize_flag="-march=i486" ;;
-    3 ) _cv_arch_optimize_flag="-mcpu=i486" ;;
-    * ) _cv_arch_optimize_flag="-m486" ;;
-  esac
-  AC_SUBST([_cv_arch_optimize_flag], [$_cv_arch_optimize_flag])
-fi
-
-# VendorCTestFlags logic used to live in .cf files, mostly
-# HPUX11.cf, that logic now lives here.
-if test "x$_cv_opsys_vers" = xHPUX11; then
-  _cv_vendor_c_test_flags="-Aa -Ae";
-  AC_SUBST([_cv_vendor_c_test_flags], [$_cv_vendor_c_test_flags])
-fi
-
-# VendorCPPTestFlags logic used to live in .cf files, mostly
-# HPUX11.cf, that logic now lives here.
-if test "x$_cv_opsys_vers" = xHPUX11; then
-  _cv_vendor_cpp_test_flags="-Aa -ext +eh";
-  AC_SUBST([_cv_vendor_cpp_test_flags], [$_cv_vendor_cpp_test_flags])
-fi
-
-
 # PlatformLdFlags used to live in a number of .cf files, their logic
 # now exists here
 case "$_cv_opsys" in
-  # specifically ask for the C++ libraries to be statically linked
   AIX ) _cv_platform_ld_flags="-Wl,-berok -Wl,-bstatic -lstdc++ -Wl,-bdynamic -lcfg -lodm -lcrypt -lc -static-libgcc" ;;
   LINUX | DARWIN ) _cv_platform_ld_flags="-lresolv" ;;
   DUX ) _cv_platform_ld_flags="-lmld" ;;
-  HPUX ) # HPUX11 Only...
-    if test "x$_cv_opsys_vers" = "xHPUX11" ; then
-      _cv_platform_ld_flags="-Wl,+vnocompatwarnings $_cv_lib_std_cpp";
-    fi
-   ;;
+  HPUX ) _cv_platform_ld_flags="-Wl,+vnocompatwarnings $_cv_lib_std_cpp" ;;
 #NOTE: The following definition of PlatformLdFlags assumes that the
 #compiler libraries (libgcc and libstdc++) are available _only_ as
 #static libraries, so we do not need to do anything special to cause
@@ -1686,59 +1431,14 @@ case "$_cv_opsys" in
 #compiler libs.  Instead, we depend on the compiler being installed
 #with _only_ static versions of libgcc and libstdc++.
   SOLARIS ) _cv_platform_ld_flags="-lkstat -lelf -lsocket -lresolv -lnsl -lm -lc" ;;
-esac
+esac  
 AC_SUBST([_cv_platform_ld_flags], [$_cv_platform_ld_flags])
-
-
-# LINUX.cf defined GlibCFlag to be "-DGLIBC=GLIBC -DGLIBCXY=GLIBCXY"
-# where X is the _cv_libc_major and Y is _cv_libc_minor. This
-# GlibCFlag #define was one that someone would need to create each
-# time they wanted to do even a clipped port of Condor. Instead of all
-# that, we can set that symbol right here, sensibly.
-AS_IF([test "x$_cv_libc_kind" = xGLIBC],
-  [_cv_glibc_flag="-DGLIBC=GLIBC -DGLIBC$_cv_libc_major$_cv_libc_minor=GLIBC$_cv_libc_major$_cv_libc_minor"])
-AC_SUBST([_cv_glibc_flag], [$_cv_glibc_flag])
-
-# PlatformFlags logic has been moved here from .cf files, primarily
-# HPUX11.cf and LINUX.cf.
-case "$_cv_opsys" in
-  LINUX ) _cv_platform_flags="$_cv_arch_optimize_flag $_cv_glibc_flag" ;;
-  HPUX ) # HPUX11 Only...
-    if test "x$_cv_opsys_vers" = "xHPUX11" ; then
-      _cv_platform_flags="-DHPUX11=HPUX11";
-    fi
-   ;;
-  * ) _cv_platform_flags="" ;;
-esac
-AC_SUBST([_cv_platform_flags], [$_cv_platform_flags])
-
-
-# TestPlatformLdFlags logic has been moved here from .cf files,
-# primarily SOLARIS.cf and AIX.cf.
-case "$_cv_opsys" in
-  SOLARIS ) _cv_test_platform_ld_flags="-lnsl -lsocket -lresolv" ;;
-  AIX )_cv_test_platform_ld_flags="$_cv_platform_ld_flags" ;;
-  * ) _cv_test_platform_ld_flags="" ;;
-esac
-AC_SUBST([_cv_test_platform_ld_flags], [$_cv_test_platform_ld_flags])
-
-
-# PurifyPlatformLdFlags logic has been moved here from .cf files,
-# primarily SOLARIS.cf.
-case "$_cv_opsys" in
-  # When we're linking for purify, we don't want all the static junk,
-  # either, but we need more libs than just the test suite.  So, we
-  # define this here to specify the flags we want to give to the
-  # linker when we're building the Condor Daemons under purify.
-  SOLARIS ) _cv_purify_platform_ld_flags="-lkstat -lelf -lnsl -lsocket -lresolv" ;;
-  * ) _cv_purify_platform_ld_flags="" ;;
-esac
-AC_SUBST([_cv_purify_platform_ld_flags], [$_cv_purify_platform_ld_flags])
 
 
 # Check to see if the confidential test suite is present
 AC_CHECK_FILE(../config/CONDOR_TEST_CNFDTL, 
 	AC_DEFINE(HAVE_CONDOR_TEST_CNFDTL,[1],[Do we have the confidential test suite available to us?]))
+
 
 # Check to see if the large test suite is present
 AC_CHECK_FILE(../config/CONDOR_TEST_LRG, 
@@ -1924,14 +1624,6 @@ else
     fi
   fi
 fi
-# Hack: /usr/bin/strip on Mac OS 10.5 causes the condor_master to die
-# inside the plugin initialization code. A message thread in the Boost
-# mailing list suggests that running strip without -g or its equivalent
-# removes more than just debugging symbols, possibly causing RTTI lookups
-# to fail. The appropriate flags on Mac OS are '-S -x'.
-if test "$os" = "Darwin" ; then
-  STRIP="$STRIP -S -x"
-fi
 AC_MSG_RESULT([$STRIP])
 AC_SUBST([STRIP],[$STRIP])
 
@@ -1961,7 +1653,7 @@ _cv_objcopy_debuglink_flag=""
 if test ! $ac_objcopy = "no"; then
 	AC_MSG_CHECKING([if objcopy supports --add-gnu-debuglink])
 	`$ac_objcopy --help 2>&1 | $GREP add-gnu-debuglink > /dev/null 2>&1`
-	if test $? = 0 -a ! \( "x$_cv_sysname" = "xhp_ux113" -o "x$_cv_sysname" = "xsun4x_59" \)  ; then
+	if test $? = 0 -a ! \( "x$_cv_sysname" = "xhp_ux113" \)  ; then
 		# If this flag exists, then the other ones I need should exist as well.
 		_cv_objcopy_keepdebug_flag="--only-keep-debug"
 		_cv_objcopy_stripunneeded_flag="--strip-unneeded"
@@ -2109,33 +1801,11 @@ if test "$ac_purify" = "purify"; then
    fi
 fi
 
-# Allow the user to specify a directory where vmware is to be found.
-# This logic is a little scary since vm_arg can be "no", "yes", or a path.
-AC_ARG_WITH(vmware,
- AC_HELP_STRING([--with-vmware=DIR],
-  [full path to directory where the vmware program is located]),
- [vm_arg=$withval],
- [vm_arg=$PATH])
-
-# Depending what the user told us, we will modify vm_path.
-if test $vm_arg = "no"; then
- # we don't even check for VMware so assign the makefile var to nothing.
- ac_vmware=""
+AC_PATH_PROG(ac_vmware,vmware,no,[$PATH])
+if test $ac_vmware = "no"; then
+  AC_MSG_WARN( [vmware not found] )
 else
- # Here we check for it with $PATH or with what the user told us where to find
- # it.
- if test $vm_arg = "yes"; then
-  vm_path=$PATH
- else
-  vm_path=$vm_arg
- fi
- # now find the vmware program, if applicable.
- AC_PATH_PROG(ac_vmware,vmware,no,[$vm_path])
- if test $ac_vmware = "no"; then
-  ac_vmware=""
- else
   AC_DEFINE([HAVE_VMWARE],[1],[Define if vmware is available])
- fi
 fi
 AC_SUBST(VMWARE,$ac_vmware)
 
@@ -2157,9 +1827,9 @@ AC_SUBST(JAR,$ac_jar)
 
 AC_ARG_ENABLE([rpm],
   AC_HELP_STRING([--enable-rpm],
-    [determine if we try to make rpms (default: no)]),
+    [determine if we try to make rpms (default: yes)]),
   [],
-  [enable_rpm=no])
+  [enable_rpm=yes])
 # there might be two kinds of rpm on a machine, 'rpm' and 'rpmbuild'
 # use the latter if we have it.
 if test "x$_cv_linux_distro" = "xSLES9"; then
@@ -2208,11 +1878,11 @@ AS_IF([test "x$enable_netman" = xyes],
 
 AC_ARG_ENABLE([nest],
   AC_HELP_STRING([--enable-nest],
-    [enable NeST functionality (default: no)]),
+    [enable Nest functionality (default: no)]),
   [],
   [enable_nest=no])
 AS_IF([test "x$enable_nest" = xyes],
-  [AC_DEFINE([WANT_NEST], [1], [Define if enabling NeST])])
+  [AC_DEFINE([WANT_NEST], [1], [Define if enabling Nest])])
 
 AC_ARG_ENABLE([quill],
   AC_HELP_STRING([--enable-quill],
@@ -2222,34 +1892,13 @@ AC_ARG_ENABLE([quill],
 AS_IF([test "x$enable_quill" = xyes],
   [AC_DEFINE([WANT_QUILL], [1], [Define if enabling Quill])])
 
-AC_PATH_XTRA
-X_LDFLAGS="$X_LIBS"
-X11_LIBS="$X_PRE_LIBS $X_EXTRA_LIBS -lX11"
-
-AC_ARG_ENABLE([kbdd],
-  AC_HELP_STRING([--enable-kbdd],
-    [enable KBDD functionality (default: platform dependent)]),
+AC_ARG_ENABLE([tt],
+  AC_HELP_STRING([--enable-tt],
+    [enable TT functionality (default: yes)]),
   [],
-  [case "$_cv_opsys" in
-    AIX | HPUX | SOLARIS )
-      enable_kbdd=no
-    ;;
-    LINUX )
-      enable_kbdd=yes
-    ;;
-    * ) # Who had this turned on? No .cf files on 1/6/8 used it. -matt
-      enable_kbdd=no
-    ;;
-  esac])
-AS_IF([test "x$enable_kbdd" = xyes],
-  [AC_DEFINE([NEEDS_KBDD], [1], [Define if enabling KBDD])
-   AC_SUBST(X11_CFLAGS, $X_CFLAGS)
-   AC_SUBST(X11_LDFLAGS, $X_LDFLAGS)
-   AC_SUBST(X11_LIBS, $X11_LIBS)],
-  [AC_SUBST(X11_CFLAGS,"")
-   AC_SUBST(X11_LIBS,"")
-   AC_SUBST(X11_LDFLAGS, "")])
-
+  [enable_tt=yes])
+AS_IF([test "x$enable_tt" = xyes],
+  [AC_DEFINE([WANT_TT], [1], [Define if enabling TT])])
 
 # Here we figure out whether or not the circumstances are correct for us
 # to be able to separate the debugging symbols from the executables and
@@ -2271,44 +1920,34 @@ fi
 # checks for libraries
 ############################################################
 
+# The DRMAA C library needs to be compiled with pthreads in mind if
+# pthreads are available. This machinery ends up defining HAS_PTHREADS
+# In the build system which is then used to add the correct threading
+# flags to the compile line for drmaa code.
+AC_CHECK_LIB([pthread], [pthread_create],
+  [ac_pthreads=yes
+   AC_DEFINE([HAS_PTHREADS],[1],[Define if pthreads are available])],
+  [ac_pthreads=no])
+
 
 ############################################################
 # checks for header files
 ############################################################
 
-AC_CHECK_HEADERS([net/if.h],[],[],[
-#include<netinet/in.h>])
 AC_CHECK_HEADERS([sys/types.h])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([inttypes.h])
-AC_CHECK_HEADERS([os_types.h])
 AC_CHECK_HEADERS([sys/personality.h])
 AC_CHECK_HEADERS([linux/personality.h])
 AC_CHECK_HEADERS([linux/magic.h])
 AC_CHECK_HEADERS([linux/nfsd/const.h])
-AC_CHECK_HEADERS([linux/sockios.h])
-AC_CHECK_HEADERS([linux/types.h])
-AC_CHECK_HEADERS([linux/ethtool.h],[],[],[
-#if HAVE_OS_TYPES_H
-# include <os_types.h>
-#endif
-#if HAVE_LINUX_TYPES_H
-# include <linux/types.h>
-#endif])
 AC_CHECK_HEADERS([sys/statfs.h])
 AC_CHECK_HEADERS([sys/statvfs.h])
 AC_CHECK_HEADERS([sys/vfs.h])
-AC_CHECK_HEADERS([sys/mount.h],[],[],[
-#if HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
-#if HAVE_SYS_PARAM_H
-# include <sys/param.h>
-#endif])
+AC_CHECK_HEADERS([sys/mount.h])
 AC_CHECK_HEADERS([ustat.h])
 AC_CHECK_HEADERS([dlfcn.h])
-AC_CHECK_HEADERS([valgrind.h])
 AC_CHECK_HEADERS([resolv.h],[],[],[
 #include<sys/types.h>
 #include<netinet/in.h>
@@ -2333,20 +1972,7 @@ AC_CHECK_TYPES([id_t])
 ############################################################
 
 AC_CHECK_FUNCS([strsignal				\
-		strcasestr				\
-		lstat					\
-		lstat					\
-		lstat64					\
-		fstat64					\
-		_stati64				\
-		_lstati64				\
-		_fstati64				\
 		stat64					\
-		lstat64					\
-		fstat64					\
-		_stati64				\
-		_lstati64				\
-		_fstati64				\
 		fseeko					\
 		ftello					\
 		lchown					\
@@ -2360,35 +1986,11 @@ AC_CHECK_FUNCS([strsignal				\
 		setlinebuf				\
 		snprintf				\
 		setenv					\
-		unsetenv				\
-		execl					\
-		access					\
-		vasprintf				\
+		unsetenv					\
 		clearenv])
 AC_CHECK_FUNC(crypt, ,AC_CHECK_LIB(crypt,crypt))
 AC_SEARCH_LIBS([dlopen], [dl],
   AC_DEFINE([HAVE_DLOPEN], [1], [dlopen function is available]))
-
-AC_CHECK_FUNCS(backtrace)
-#########
-# determine if OS has an sched_setaffinity.  Note that Linux has
-# three different interfaces to this function over the years.  We
-# just check for the most recent.
-#########
-AC_MSG_CHECKING([if os supports newest sched_setaffinity])
-
-echo "#include <sched.h>" > affinity_test.cpp
-echo "void f() {cpu_set_t s;sched_setaffinity(0,1024, &s);}" >> affinity_test.cpp
-_test_output=`gcc -c affinity_test.cpp 2>&1`
-_test_status=$?
-if test $_test_status -eq 0 
-then
-  AC_MSG_RESULT([yes])
-  AC_DEFINE([HAVE_SCHED_SETAFFINITY], [1], [does os support the sched_setaffinity])
-else
-  AC_MSG_RESULT([no])
-fi
-rm -f affinity_test.cpp affinity_test.o
 
 # If we can't find clone() on linux (for fast forking from large
 # processes), then somebody better understand why; so produce a fatal
@@ -2508,12 +2110,6 @@ if test "$ac_cv_func_statfs" = yes ; then
       AC_MSG_ERROR([unable to determine number of arguments to statfs()])])])
 fi dnl test "$ac_cv_func_statfs" = yes
 
-# Do we have the "ethtool" and similar declarations?
-AC_CHECK_DECLS([SIOCETHTOOL,SIOCGIFCONF],,, [[#include <linux/sockios.h>]])
-
-# Does net/if.h define struct ifreq ?
-AC_CHECK_TYPES([struct ifreq,struct ifconf],[],[],[#include <net/if.h>])
-
 # we don't actually want to add -lgen to our link line, but we do want
 # HAVE_LIBGEN defined correctly for our test suite builds...
 AC_CHECK_FUNC(dirname,,AC_CHECK_LIB(gen,dirname,
@@ -2536,9 +2132,6 @@ else
     fi
 fi
 AC_SUBST([crypt_lib],$_cv_crypt_lib)
-
-# Check whether we have a well-behaved snprintf()
-AC_FUNC_SNPRINTF
 
 ##############################################################################
 
@@ -2615,18 +2208,18 @@ AC_MSG_NOTICE([determining availability of external packages])
 # or not.  for example, the test suite needs to know these things,
 # even though it's being configured using --without-externals.
 #-----------------------------------------------------------------
-# determine whether we will be using openssl and globus on this platform.
-# This logic used to be in the individual <platform>.cf files;
-AC_MSG_CHECKING([if openssl is supported])
+# determine whether we will be using globus on this platform. this
+# logic used to be in the individual <platform>.cf files;
+AC_MSG_CHECKING([if globus is supported])
 case "$os" in
-  HP-UX ) _cv_has_openssl=no ;;
-  Linux|SunOS|Darwin|FreeBSD|AIX ) _cv_has_openssl=yes ;;
+  HP-UX ) _cv_has_globus=no ;;
+  Linux|SunOS|Darwin|FreeBSD|AIX ) _cv_has_globus=yes ;;
   * )
     AC_MSG_RESULT([error])
     AC_MSG_ERROR([Unrecognized platform: $os])
   ;;
 esac
-AC_MSG_RESULT([$_cv_has_openssl])
+AC_MSG_RESULT([$_cv_has_globus])
 
 AC_MSG_CHECKING([if gsoap is supported])
 case "$os" in
@@ -2661,6 +2254,18 @@ AC_MSG_CHECKING([if classads is supported])
 _cv_has_classads=yes
 AC_MSG_RESULT([$_cv_has_classads])
 
+
+# This check is a bit of a hack. We need to checkout the OpenSSL
+# external on platforms other than Windows. OpenSSL is only checked
+# when Globus is not available, so when Globus is not available then
+# OpenSSL must be (artificially) turned off, since it is not checked
+# out as part of the externals. This breaks --with-proper on HP-UX,
+# since OpenSSL is available on the system but Globus is not
+# supported, which begs the question: Should _cv_has_EXT only apply to
+# the --without-proper case? Probably. - matt 2 oct 2007
+AC_MSG_CHECKING([if openssl is supported])
+_cv_has_openssl=$_cv_has_globus
+AC_MSG_RESULT([$_cv_has_openssl])
 
 #
 # Figure out if I need to use the linuclibcheaders package to build glibc.
@@ -2751,12 +2356,6 @@ if test "x$_cv_libc_kind" = "xGLIBC" -a \( "x$_cv_arch" = "xI386" -o "x$_cv_arch
        CHECK_EXTERNAL([glibc],[2.5-20061008T1257-x86_64-p0], [soft])
 	fi
     ;;
-  "2.6." ) # F7 uses glibc 2.6-4
-    including_glibc_ext=NO
-    ;;
-  "2.7." ) # F8 uses glibc 2.7-2
-    including_glibc_ext=NO
-    ;;
   * )
     if test "x$enable_glibc_version_check" = "xyes"; then
       AC_MSG_CHECKING(glibc)
@@ -2792,39 +2391,39 @@ fi
 
 # Build drmaa on any platform with pthreads available, except for the following
 # platforms where the build is known to fail
-if test "x$_cv_sysname" != "xppc_aix52" -a "x$_cv_linux_distro" != "xRH72" -a  "x$_cv_sysname" != "xsun4x_58" -a "x$_cv_sysname" != "xsun4x_59" -a "x$_cv_sysname" != "xalpha_dux51" -a "x$_cv_sysname" != "xhp_ux113" ; then
-  if test "x$_cv_sysname" = "xppc_macosx" -o "x$ac_pthreads" = "xyes"; then
+if test x$_cv_sysname != "xppc_aix52" -a x$_cv_linux_distro != "xRH72" -a  x$_cv_sysname != "xsun4x_58" -a x$_cv_sysname != "xsun4x_59" -a x$_cv_sysname != "xalpha_dux51" -a x$_cv_sysname != "xhp_ux113" ; then
+  if test x$_cv_sysname = "xppc_macosx" -o $ac_pthreads = "yes"; then
    CHECK_EXTERNAL([drmaa],[1.5.1], [soft])
   fi
 fi
 
+if test "x$_cv_linux_distro" = "xRHEL5" ; then
 CHECK_EXTERNAL([krb5], [1.4.3-p0], [soft],
                [use krb5 (provides Kerberos support)],
                MF_LIB_CHECK([krb5], [[krb5 krb5_free_principal]]))
-
-# CHECK_EXTERNAL([openssl],[0.9.8h],[soft])
-CHECK_EXTERNAL([openssl], [0.9.8h], [soft],
-               [use OpenSSL (provides authentication and encryption support)],
-               MF_LIB_CHECK([openssl],
-                            [[ssl SSL_connect], [crypto BF_encrypt]]))
-
-if test "x$_cv_ext_openssl_version" != x; then
-  # If we have openssl, we define HAVE_OPENSSL_SSL_H (meaning we
-  # have ssl.h) to make gsoap happy
-  AC_DEFINE(HAVE_OPENSSL_SSL_H,1,[do we have openssl])
-
-  # Globus 4.2.0 is dependent on an external version of openssl
-  CHECK_EXTERNAL([globus],[4.2.0], [soft])
+else
+CHECK_EXTERNAL([krb5], [1.4.3], [soft],
+               [use krb5 (provides Kerberos support)],
+               MF_LIB_CHECK([krb5], [[krb5 krb5_free_principal]]))
 fi
+
+CHECK_EXTERNAL([globus],[4.0.5], [soft])
 
 if test -z "$_cv_ext_globus_version"; then
-  _cv_has_globus=no
-else
-  _cv_has_globus=yes
+  _cv_has_globus=no;
 fi
+
+_cv_has_gahp=$_cv_has_globus
+CHECK_EXTERNAL([gahp],[1.0.15], [soft])
+
+_cv_has_gt4gahp=$_cv_has_globus
+CHECK_EXTERNAL([gt4gahp],[1.7.1], [soft])
 
 _cv_has_unicoregahp=$_cv_has_globus
 CHECK_EXTERNAL([unicoregahp],[1.2.0], [soft])
+
+_cv_has_nordugridgahp=$_cv_has_globus
+CHECK_EXTERNAL([nordugridgahp],[1.1.3], [soft])
 
 if test "x$CLIPPED" = xyes; then
   _cv_zlib_requirement=soft
@@ -2835,12 +2434,12 @@ CHECK_EXTERNAL([zlib], [1.2.3], [$_cv_zlib_requirement],
                [use zlib (provides compression support)],
                MF_LIB_CHECK([zlib], [[z deflate]]))
 
-CHECK_EXTERNAL([classads], [1.0.1], [soft],
+CHECK_EXTERNAL([classads], [1.0rc5], [soft],
                [use new ClassAds (provides -better-analyze and more)],
 	       # This REALLY should test for headers, like most checks...
                MF_LIB_CHECK([classads], [[classad cclassad_create]]))	       
 
-CHECK_EXTERNAL([srb], [3.2.1-p1], [soft])
+CHECK_EXTERNAL([srb], [3.2.1], [soft])
 
 CHECK_EXTERNAL([pcre], [7.6], [hard],
                [use PCRE (provides regular expression support)],
@@ -2852,7 +2451,7 @@ AS_IF([test "x$os-$_cv_arch" = xLinux-I386 -a "x$_cv_has_globus" = xyes -a -n "$
   [_cv_has_blahp=yes],
   [_cv_has_blahp=no])
 AC_MSG_RESULT([$_cv_has_blahp])
-CHECK_EXTERNAL([blahp], [1.7.0-p2], [soft])
+CHECK_EXTERNAL([blahp], [1.7.0-p1], [soft])
 
 # When --with-proper the detection of the man pages is a little
 # ugly. The value added to the end of $_dir must be what
@@ -2888,17 +2487,36 @@ fi
 
 # Figure out which postgresql we need.
 
-CHECK_EXTERNAL([postgresql], [8.2.3], [soft],
+if test "x$_cv_sysname" = "xhp_ux113" ; then
+  pgsql_ver="8.3.0";
+else
+  pgsql_ver="8.0.2";
+fi
+
+CHECK_EXTERNAL([postgresql], [$pgsql_ver], [hard],
                [use PostgreSQL (provides Quill and other support)],
                MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
-AC_MSG_CHECKING([postgresql])
-AC_MSG_RESULT([$_cv_ext_postgresql_version])
+#AC_MSG_CHECKING([postgresql])
+#AC_MSG_RESULT([$_cv_ext_postgresql_version])
 #AC_SUBST(ext_postgresql_version,$_cv_ext_postgresql_version)
 AC_SUBST(POSTGRESQL_LDFLAGS, $POSTGRESQL_LDFLAGS)
 AC_SUBST(POSTGRESQL_CFLAGS, $POSTGRESQL_CFLAGS)
 
+CHECK_EXTERNAL([globus],[4.0.5], [soft])
+
 # if globus is available on this platform and we actually have it
-if test "x$cv_ext_globus" = xyes; then
+if test "x$_cv_has_globus" = xyes -a "x$cv_ext_globus" = xyes; then
+  # currently, if we are using globus (and the openssl
+  # within), we define HAVE_OPENSSL_SSL_H (meaning we
+  # have ssl.h) to make gsoap happy
+  AC_DEFINE(HAVE_OPENSSL_SSL_H,1,[do we have openssl (via globus)])
+
+  # ALSO, since OpenSSL isn't really an external yet we need to make
+  # sure HAVE_EXT_OPENSSL is defined, basically having Globus gives us
+  # OpenSSL. -matt 082107
+  AC_DEFINE([HAVE_EXT_OPENSSL], [1], [if openssl external])
+  AC_DEFINE([USE_GLOBUS_OPENSSL], [1], [if openssl is from globus])
+
   AC_MSG_CHECKING([globus flavor])
   _cv_globus_flavor=gcc32dbg
   if test "$_cv_arch" = "ALPHA" -o "$_cv_arch" = "IA64" -o "$_cv_arch" = "X86_64"; then
@@ -2908,11 +2526,16 @@ if test "x$cv_ext_globus" = xyes; then
   fi
   AC_MSG_RESULT([$_cv_globus_flavor])
   AC_SUBST(globus_flavor,$_cv_globus_flavor)
+else # else if no globus
+  CHECK_EXTERNAL([openssl], [0.9.8], [soft],
+                 [use OpenSSL (provides authentication and encryption support)],
+                 MF_LIB_CHECK([openssl],
+                              [[ssl SSL_connect], [crypto BF_encrypt]]))
 fi
 
 # The test for gsoap needs to happen after the openssl check, so
 # openssl libs, if found, will be in LIBS. Also, if we do not have
-# openssl, then we need to link with
+# openssl or globus, which gives us openssl, then we need to link with
 # a non ssl version of the gSOAP libraries.
 
 # The gsoap shared libraries contain unresolved symbols they expect
@@ -2922,7 +2545,7 @@ fi
 # NOTE: We don't need the --unresolved-symbols flag in the non-proper
 # case because in that case Condor links with the static libraries,
 # and the linker does not complain as much.
-CHECK_EXTERNAL([gsoap], [2.7.10-p2], [soft],
+CHECK_EXTERNAL([gsoap], [2.7.6c-p2], [soft],
                [use gSOAP (enables Birdbath interface)],
                [_ldflags_save="$LDFLAGS"
                 LDFLAGS="$LDFLAGS -Wl[,]--unresolved-symbols=ignore-in-shared-libs"
@@ -3025,36 +2648,6 @@ else
 
 fi
 # END of if $ac_cv_has_externals = "YES" or $enable_proper = yes
-
-# This, unfortunately, must be way down here to make sure info about
-# externals is defined. -matt 1/6/8
-AC_ARG_ENABLE([stork],
-  AC_HELP_STRING([--enable-stork],
-    [enable Stork functionality (default: platform dependent)]),
-  [],
-  [if test "x$_cv_opsys" = xLINUX -a "x$_cv_arch" = xI386 \
-       -a "x$_cv_has_globus" = xyes -a "x$cv_ext_globus" = xyes \
-       -a "x$_cv_has_classads" = xyes -a "x$cv_ext_classads" = xyes \
-       -a "x$_cv_libc_kind-$_cv_libc_major-$_cv_libc_minor" = xGLIBC-2-3; then
-    enable_stork=yes;
-   else
-    enable_stork=no;
-   fi])
-AS_IF([test "x$enable_stork" = xyes],
-  [AC_DEFINE([WANT_STORK], [1], [Define if enabling Stork])])
-
-# NRL: Similar logic for the lease manager
-AC_ARG_ENABLE([lease-manager],
-  AC_HELP_STRING([--enable-lease-manager],
-    [enable lease manager functionality (default: platform dependent)]),
-  [],
-  [if test "$_cv_has_classads" = "yes" -a "$cv_ext_classads" = "yes" ; then
-    enable_lease_manager=yes;
-   else
-    enable_lease_manager=no;
-   fi])
-AS_IF([test "$enable_lease_manager" = "yes"],
-  [AC_DEFINE([WANT_LEASE_MANAGER], [1],[Define if enabling lease manager])])
 
 
 ############################################################

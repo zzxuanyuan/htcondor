@@ -30,11 +30,11 @@ $serversubFile = "job_dagman_maxpostscripts-srvr.cmd";
 my $pid = $$;
 system("mkdir $pid");
 my $curcwd = getcwd();
-CondorTest::debug("current directory is $curcwd\n",1);
+print "current directory is $curcwd\n";
 
 my $socketname = "maxpostsock";
 my $newsocketname = $curcwd . "/" . $pid . "/maxpostsock";
-CondorTest::debug("current directory is $newsocketname\n",1);
+print "current directory is $newsocketname\n";
 
 # start a server for this test
 
@@ -57,7 +57,7 @@ my $checkin = "job_dagman_maxpostscripts-checkin.pl";
 # now make client script know the correct socket name. Create
 # client from template script.
 {
-	CondorTest::debug("Correcting socket name in $name\n",1);
+	print "Correcting socket name in $name\n";
 	open(FF,"<$checkintemplate") || die "Failed to open $name: $!\n";
 	open(NEWFF,">$checkin") || die "Failed to open $name.new: $!\n";
 	my $line = "";
@@ -65,11 +65,11 @@ my $checkin = "job_dagman_maxpostscripts-checkin.pl";
 	{
 		CondorTest::fullchomp($_);
 		$line = $_;
-		CondorTest::debug("Looking at:<<$line>>\n",1);
+		print "Looking at:<<$line>>\n";
 		if( $line =~ /(^\s*.*)$socketname(.*$)/)
 		{
-			CondorTest::debug("Found ---$1$socketname$2---\n",1);
-			CondorTest::debug("replacing with $1$newsocketname$2\n",1);
+			print "Found ---$1$socketname$2---\n";
+			print "replacing with $1$newsocketname$2\n";
 			print NEWFF "$1$newsocketname$2\n";
 		}
 		else
@@ -86,8 +86,7 @@ foreach $name (@filestochmod)
 	system("chmod 755 $name");
 }
 
-$testdesc =  'Condor submit dag - throttle post scripts test - scheduler U';
-$testname = "job_dagman_maxpostscripts";
+$testname = 'Condor submit dag - throttle post scripts test - scheduler U';
 $maxjobs = 4;
 $dagman_args = "-v -MaxPost $maxjobs";
 
@@ -118,25 +117,25 @@ $held = sub
 
 $executed = sub
 {
-	CondorTest::debug("Good. We need the dag to run\n",1);
+	print "Good. We need the dag to run\n";
 };
 
 $submitted = sub
 {
-	CondorTest::debug("submitted: This test will see submit, executing and successful completion\n",1);
+	print "submitted: This test will see submit, executing and successful completion\n";
 	$joblog = "submitdag_maxprescripts.log";
 };
 
 $success = sub
 {
-	CondorTest::debug("executed successfully\n",1);
+	print "executed successfully\n";
 	open(FLOW,"./x_dagman_readflowlog.pl $flowlog MAXPOST $maxjobs | ") || die "Can not open flowlog: $!\n";
 	while(<FLOW>)
 	{
 		my $ret;
 		CondorTest::fullchomp($_);
 		$ret = $_;
-		CondorTest::debug("$ret\n",1);
+		print "$ret\n";
 		if( $ret ne "0" )
 		{
 			# shutdown the server we started
@@ -157,7 +156,7 @@ CondorTest::RegisterSubmit( $testname, $submitted );
 
 
 if( CondorTest::RunDagTest($testname, $cmd, 0, $dagman_args) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	# shutdown the server we started

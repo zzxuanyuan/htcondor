@@ -30,23 +30,23 @@
 	DCSchedd, but not link with daemoncore.
 
 *************************************/
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 	DaemonCore* daemonCore = NULL;
 	int DaemonCore::Kill_Thread(int) { return 0; }
 //char * DaemonCore::InfoCommandSinfulString(int) { return NULL; }
-	int DaemonCore::Register_Command(int,const char*,CommandHandler,const char*,
-		Service*,DCpermission,int) {return 0;}
-	int DaemonCore::Register_Reaper(const char*,ReaperHandler,
-		const char*,Service*) {return 0;}
+	int DaemonCore::Register_Command(int,char*,CommandHandler,char*,Service*,
+		DCpermission,int) {return 0;}
+	int DaemonCore::Register_Reaper(char*,ReaperHandler,
+		char*,Service*) {return 0;}
 	int DaemonCore::Create_Thread(ThreadStartFunc,void*,Stream*,
 		int) {return 0;}
 	int DaemonCore::Suspend_Thread(int) {return 0;}
 	int DaemonCore::Continue_Thread(int) {return 0;}
 //	int DaemonCore::Register_Reaper(int,char*,ReaperHandler,ReaperHandlercpp,
-//		const char*,Service*,int) {return 0;}
+//		char*,Service*,int) {return 0;}
 //	int DaemonCore::Register_Reaper(char*,ReaperHandlercpp,
-//		const char*,Service*) {return 0;}
-//	int DaemonCore::Register_Command(int,const char*,CommandHandlercpp,const char*,Service*,
+//		char*,Service*) {return 0;}
+//	int DaemonCore::Register_Command(int,char*,CommandHandlercpp,char*,Service*,
 //		DCpermission,int) {return 0;}
 /**************************************/
 

@@ -43,19 +43,6 @@
 #if defined(__cplusplus)
 extern StringList *_sysapi_console_devices;
 #endif
-
-#ifndef EXTERN_C_BEGIN
-#ifdef __cplusplus
-#define EXTERN_C_BEGIN extern "C" {
-#define EXTERN_C_END }
-#else
-#define EXTERN_C_BEGIN
-#define EXTERN_C_END
-#endif
-#endif
-
-EXTERN_C_BEGIN
-
 extern int _sysapi_last_x_event;
 
 /* needed by free_fs_blocks.c */
@@ -81,7 +68,5 @@ extern char* _sysapi_ckptpltfrm;
 
 /* needed by load_avg.c */
 extern int _sysapi_getload;
-
-EXTERN_C_END
 
 #endif /* SYSAPI_EXTERNS_H */

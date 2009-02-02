@@ -24,13 +24,12 @@ use Digest::MD5;
 my $stats = 0;
 
 $cmd = 'job_core_copytospool_van.cmd';
-$testdesc =  'Does copytospool work - vanilla U';
-$testname = "job_core_copytospool_van";
+$testname = 'Does copytospool work - vanilla U';
 
 $aborted = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event expected as we clear job\n",1);
+	print "Abort event expected as we clear job\n";
 };
 
 $submitted = sub {
@@ -40,21 +39,21 @@ $submitted = sub {
 	my $spool = `condor_config_val SPOOL`;
 	CondorTest::fullchomp($spool);
 
-	CondorTest::debug("Checking spool dir --$spool--\n",1);
-	CondorTest::debug("Executable is $program\n",1);
-	CondorTest::debug("Transfer job worked..... need to check spool file.\n",1);
+	print "Checking spool dir --$spool--\n";
+	print "Executable is $program\n";
+	print "Transfer job worked..... need to check spool file.\n";
 
-	CondorTest::debug("MD5 of $program is needed first\n",1);
+	print "MD5 of $program is needed first\n";
 
 	open(DATA,"<$program") || die "Can't open input file $!\n";
 	my $datamd5 = Digest::MD5->new;
 	$datamd5->addfile(DATA);
 	close(DATA);
 	my $hexexemd5 = $datamd5->hexdigest;
-	CondorTest::debug("executable md5: $hexexemd5\n",1);
+	print "executable md5: $hexexemd5\n";
 
 	my $spoolfile = $spool . "/cluster$cluster" . ".ickpt.subproc0";
-	CondorTest::debug("Spool file should be $spoolfile\n",1);
+	print "Spool file should be $spoolfile\n";
 	#system("ls $spool");
 
 	open(DATA,"<$spoolfile") || die "Can't open input file $!\n";
@@ -62,9 +61,9 @@ $submitted = sub {
 	$sdatamd5->addfile(DATA);
 	close(DATA);
 	my $shexexemd5 = $sdatamd5->hexdigest;
-	CondorTest::debug("spooled executable md5: $shexexemd5\n",1);
+	print "spooled executable md5: $shexexemd5\n";
 
-	CondorTest::debug("OK remove the job!\n",1);
+	print "OK remove the job!\n";
 
 	if( $hexexemd5 != $shexexemd5 )
 	{
@@ -76,7 +75,7 @@ $submitted = sub {
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 
@@ -86,7 +85,7 @@ CondorTest::RegisterAbort( $testname, $aborted );
 CondorTest::RegisterSubmit($testname, $submitted);
 
 if(CondorTest::RunTest($testname, $cmd, 0)) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

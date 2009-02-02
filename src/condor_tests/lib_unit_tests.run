@@ -20,8 +20,7 @@
 
 
 my @got;
-$testdesc =  'lib_unit_tests - runs prebuilt unit tests from testbin_dir';
-$testname = "lib_unit_tests";
+$testname = 'lib_unit_tests - runs prebuilt unit tests from testbin_dir';
 $test = "../testbin_dir/condor_unit_tests";
 
 system("date");

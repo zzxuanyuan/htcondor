@@ -27,7 +27,6 @@ class Distribution
 {
   public:
 	int Init( int argc, char **argv );
-	int Init( int argc, const char **argv );
 
 	// Get my distribution name..
 	const char *Get(void) { return distribution; };
@@ -44,8 +43,6 @@ class Distribution
 	char	distribution_uc[ MAX_DISTRIBUTION_NAME + 1];
 	char	distribution_cap[ MAX_DISTRIBUTION_NAME + 1];
 	int		distribution_length;
-
-	int Init( const char *argv0 );
 };
 
 extern Distribution	myDistribution, *myDistro;

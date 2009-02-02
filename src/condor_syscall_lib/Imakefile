@@ -129,19 +129,19 @@ SRC = \
 	receivers.epilogue \
 	receivers.prologue \
 	remote_startup.c \
-	remote_syscall.cpp \
+	remote_syscall.C \
 	senders.epilogue \
 	senders.prologue \
 	switches.prologue \
 	switches.epilogue \
-	switches.special.cpp \
+	switches.special.C \
 	syscall.tmpl \
-	syscall_connect.cpp \
+	syscall_connect.C \
 	syscall_numbers.c \
 	xfer_file.c \
 	file_stream.c \
-        ios_stub.cpp \
-        ios_msg.cpp
+        ios_stub.C \
+        ios_msg.C
 
 URL_OBJ = url_condor.o include_urls.o cbstp_url.o file_url.o http_url.o \
 	cfilter_url.o filter_url.o mailto_url.o ftp_url.o
@@ -174,14 +174,10 @@ SYSCALL_SUPPORT_OBJ=senders.o receivers.o syscall_mode.o syscall_connect.o remot
 
 UTIL_OBJ =  $(FLOCK_OBJ) dprintf_common.o except.o update_rusage.o \
 	internet.o $(PLATFORM_UTIL_OBJ) mkargv.o filename_tools.o \
-	strupr.o string_funcs.o
+	strupr.o
 
-CPP_UTIL_OBJ = \
-	condor_version.o condor_ver_info.o \
-	stat_wrapper.o stat_wrapper_internal.o \
-	condor_open.o selector.o \
-	MyString.o subsystem_info.o
-
+CPP_UTIL_OBJ = condor_version.o stat_wrapper.o condor_open.o selector.o \
+	MyString.o
 CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o errno_num.o
 
 IO_OBJ = stream.o sock.o safe_sock.o reli_sock.o buffers.o $(CONDOR_TYPE_OBJ) condor_rw.o SafeMsg.o
@@ -201,8 +197,7 @@ OPENSSL_OBJ = md5_dgst.o md5_one.o rand_lib.o md_rand.o sha1dgst.o cryptlib.o \
 	tasn_new.o tasn_fre.o bn_rand.o bn_gcd.o tasn_utl.o a_type.o \
 	a_bitstr.o a_int.o bn_mod.o bn_mont.o bn_div.o bn_word.o bn_shift.o \
 	bn_add.o bn_asm.o bn_sqr.o bn_exp.o rsa_none.o rsa_pk1.o rsa_oaep.o \
-	rsa_ssl.o a_dup.o bn_recp.o bn_mul.o rsa_x931.o sha512.o sha256.o \
-	eng_ctrl.o bn_print.o evp_lib.o evp_asn1.o a_bytes.o
+	rsa_ssl.o a_dup.o bn_recp.o bn_mul.o
 
 #if HAVE_EXT_OPENSSL
 CONDOR_CRYPT_OBJ = CryptKey.o condor_crypt.o condor_md.o ../condor_util_lib/get_random_num.o \
@@ -235,7 +230,7 @@ tmp_dir:
 clean::
 	/bin/rm -rf tmp_dir
 
-stubs: switches.cpp senders.cpp receivers.cpp
+stubs: switches.C senders.C receivers.C
 
 testbin:: all
 
@@ -486,20 +481,20 @@ STUB_GEN_FLAGS = $(STUB_GEN_PLATFORM) $(DL_EXTRACT) -D$(OS) -D$(ARCH) \
 	-D$(DIST_FLAG) $(SAVE_SIGSTATE) $(FILE_TABLE) $(REMOTE_SYSCALLS) $(CLIP) \
 	$(HAS_64BIT_SYSCALLS) $(HAS_64BIT_STRUCTS)
 
-switches.cpp: syscall.tmpl switches.prologue stub_gen switches.epilogue
+switches.C: syscall.tmpl switches.prologue stub_gen switches.epilogue
 	$(CPP) -DSWITCH $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
 	./stub_gen -mode switches  -p switches.prologue -e switches.epilogue \
-	> switches.cpp
+	> switches.C
 
-senders.cpp: syscall.tmpl stub_gen senders.prologue senders.epilogue
+senders.C: syscall.tmpl stub_gen senders.prologue senders.epilogue
 	$(CPP) -DSENDER $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
 	./stub_gen -mode senders -p senders.prologue -e senders.epilogue \
-	$(STUB_CLUMP_SIZE) > senders.cpp
+	$(STUB_CLUMP_SIZE) > senders.C
 
-receivers.cpp: syscall.tmpl stub_gen receivers.prologue receivers.epilogue pseudo_ops.h
+receivers.C: syscall.tmpl stub_gen receivers.prologue receivers.epilogue pseudo_ops.h
 	$(CPP) -DRECEIVER $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
 	./stub_gen -mode receivers -p receivers.prologue \
-	-e receivers.epilogue -n syscheck $(STUB_CLUMP_SIZE) > receivers.cpp
+	-e receivers.epilogue -n syscheck $(STUB_CLUMP_SIZE) > receivers.C
 
 syscall-list: syscall.tmpl stub_gen libcondorsyscall.a
 	$(CPP) -DSWITCH $(STUB_GEN_FLAGS) -I../condor_includes syscall.tmpl | \
@@ -509,21 +504,21 @@ clean::
 	rm -f syscall-list
 
 clean::
-	rm -f lex.yy.c y.tab.c y.tab.h switches.cpp senders.cpp receivers.cpp *.o
+	rm -f lex.yy.c y.tab.c y.tab.h switches.C senders.C receivers.C *.o
 
 /*depend_target($(SRC)) */
 
 IMPORT_LINKS = ../../config/import_links
-import_objs(../condor_io,$(IO_OBJ))
-import_objs(../condor_util_lib,$(UTIL_OBJ))
-import_objs(../condor_c++_util,$(CPP_UTIL_OBJ))
-import_objs(../condor_ckpt,condor_rt0.o)
-import_objs(../condor_ckpt,$(CKPT_OBJ))
-import_objs(../condor_ckpt,$(COMPRESS_OBJ))
-import_objs(../h,syscall_numbers.c)
-import_objs(../condor_util_lib,stub_gen)
-import_objs(../condor_shadow.std,pseudo_ops.h)
-import_objs(../condor_ckpt,libcondorc++support.a)
+import(../condor_io,$(IO_OBJ))
+import(../condor_util_lib,$(UTIL_OBJ))
+import(../condor_c++_util,$(CPP_UTIL_OBJ))
+import(../condor_ckpt,condor_rt0.o)
+import(../condor_ckpt,$(CKPT_OBJ))
+import(../condor_ckpt,$(COMPRESS_OBJ))
+import(../h,syscall_numbers.c)
+import(../condor_util_lib,stub_gen)
+import(../condor_shadow.V6,pseudo_ops.h)
+import(../condor_ckpt,libcondorc++support.a)
 #ifdef DOES_CHECKPOINTING
 XCOMM Always needed for the file table compressed files feature.
 XCOMM If checkpoints may be compressed, it is needed for that too.
@@ -533,29 +528,29 @@ XCOMM to link against libcondorapi.a, which lives in the same place.
 all_symlink_target($(ZLIB_LIB)/libz.a,libcondor_z.a)
 #endif
 
-authentication.o: ../condor_io/authentication.cpp
+authentication.o: ../condor_io/authentication.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/authentication.cpp
+		-DSKIP_AUTHENTICATION -c ../condor_io/authentication.C
 
-condor_md.o: ../condor_c++_util/condor_md.cpp
+condor_md.o: ../condor_c++_util/condor_md.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_c++_util \
-	        -DSKIP_AUTHENTICATION -c ../condor_c++_util/condor_md.cpp
+	        -DSKIP_AUTHENTICATION -c ../condor_c++_util/condor_md.C
 
-condor_crypt_3des.o: ../condor_io/condor_crypt_3des.cpp
+condor_crypt_3des.o: ../condor_io/condor_crypt_3des.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_3des.cpp
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_3des.C
 
-condor_crypt_blowfish.o: ../condor_io/condor_crypt_blowfish.cpp
+condor_crypt_blowfish.o: ../condor_io/condor_crypt_blowfish.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_blowfish.cpp
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_blowfish.C
 
-CryptKey.o: ../condor_io/CryptKey.cpp
+CryptKey.o: ../condor_io/CryptKey.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/CryptKey.cpp
+		-DSKIP_AUTHENTICATION -c ../condor_io/CryptKey.C
 
-condor_crypt.o: ../condor_io/condor_crypt.cpp
+condor_crypt.o: ../condor_io/condor_crypt.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt.cpp
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt.C
 
 #ifdef DOES_COMPRESS_CKPT
 $(COMPRESS_LIB) : $(SYSCALL_LIB) $(COMPRESS_OBJ)
@@ -576,7 +571,7 @@ clean::
 html:
 
 DEPEND_SRC = C_getenv.c extern_path.c file_stream.c getcwd.c remote_startup.c \
-remote_syscall.cpp switches.special.cpp syscall_connect.cpp xfer_file.c
+remote_syscall.C switches.special.C syscall_connect.C xfer_file.c
 
 depend_source_target($(DEPEND_SRC))
 

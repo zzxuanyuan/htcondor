@@ -25,9 +25,6 @@
 // #include "classad_log.h"
 
 #include "MyString.h"
-#include "HashTable.h"
-
-#include "condor_state.h"
 
 // this is the required minimum separation between two priorities for them
 // to be considered distinct values
@@ -68,11 +65,6 @@ public:
   void UpdatePriorities(); // update all the priorities
 
   void CheckMatches(ClassAdList& ResourceList);  // Remove matches that are not claimed
-
-  double GetLimit(const MyString& limit);
-  double GetLimitMax(const MyString& limit);
-  void ReportLimits(AttrList *attrList);
-
   AttrList* ReportState();
   AttrList* ReportState(const MyString& CustomerName, int * NumResources = NULL);
                                                 
@@ -85,17 +77,8 @@ private:
   // Private methods Methods
   //--------------------------------------------------------
   
+  void AddMatch(const MyString& CustomerName, const MyString& ResourceName, time_t T);
   void RemoveMatch(const MyString& ResourceName, time_t T);
-
-  void LoadLimits(ClassAdList &resourceList);
-  void ClearLimits();
-  void DumpLimits();
-
-  void IncrementLimit(const MyString& limit);
-  void DecrementLimit(const MyString& limit);
-
-  void IncrementLimits(const MyString& limits);
-  void DecrementLimits(const MyString& limits);
 
   //--------------------------------------------------------
   // Configuration variables
@@ -119,8 +102,6 @@ private:
   ClassAdLog* AcctLog;
   int LastUpdateTime;
 
-  HashTable<MyString, double> concurrencyLimits;
-
   //--------------------------------------------------------
   // Static values
   //--------------------------------------------------------
@@ -141,14 +122,12 @@ private:
 
   static MyString RemoteUserAttr;
   static MyString StartTimeAttr;
-  static MyString Cpus;
 
   //--------------------------------------------------------
   // Utility functions
   //--------------------------------------------------------
 
   static MyString GetResourceName(ClassAd* Resource);
-  bool GetResourceState(ClassAd* Resource, State& state);
   int IsClaimed(ClassAd* ResourceAd, MyString& CustomerName);
   int CheckClaimedOrMatched(ClassAd* ResourceAd, const MyString& CustomerName);
   static ClassAd* FindResourceAd(const MyString& ResourceName, ClassAdList& ResourceList);

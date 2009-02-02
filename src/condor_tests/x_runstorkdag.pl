@@ -22,10 +22,12 @@ use CondorTest;
 use CondorPersonal;
 use Cwd;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 
 my $LogFile = "sdmkdag.log";
-CondorTest::debug("Build log will be in ---$LogFile---\n",1);
+print "Build log will be in ---$LogFile---\n";
 open(OLDOUT, ">&STDOUT");
 open(OLDERR, ">&STDERR");
 open(STDOUT, ">$LogFile") or die "Could not open $LogFile: $!\n";
@@ -35,30 +37,28 @@ select(STDOUT); $| = 1;
 
 my $dir = $ARGV[0];
 my $cmd = $ARGV[1];
-#$testdesc =  'Condor submit dag - stork transfer test';
-#$testname = "x_runstorkdag";
-my $testdesc =   $ARGV[2];
-my $testname = "x_runstorkdag";
+#$testname = 'Condor submit dag - stork transfer test';
+my $testname =  $ARGV[2];
 my $timerlength = $ARGV[3];
-CondorTest::debug("Timer passed in is <<$timerlength>>\n",1);
+print "Timer passed in is <<$timerlength>>\n";
 foreach my $arg  (@ARGV)
 {
-	CondorTest::debug("$arg ",1);
+	print "$arg ";
 }
-CondorTest::debug("\n",1);
+print "\n";
 #$dagman_args = "-v -storklog `condor_config_val LOG`/Stork.user_log";
 $dagman_args = "-v ";
 
 chdir("$dir");
 
 my $loc = getcwd();
-CondorTest::debug("Currently in $loc\n",1);
+print "Currently in $loc\n";
 
 $timed = sub
 {
 	my $left = $submitcount - $donecount;
 	system("date");
-	CondorTest::debug("Expected break-out!!!!!\n",1);
+	print "Expected break-out!!!!!\n";
 	exit(1);
 };
 
@@ -69,17 +69,17 @@ $executed = sub
 			# set a timer on a dag run
 			CondorTest::RegisterTimed($testname, $timed, $timerlength);
 		}
-        CondorTest::debug("Good. We need the dag to run\n",1);
+        print "Good. We need the dag to run\n";
 };
 
 $submitted = sub
 {
-        CondorTest::debug("submitted: This test will see submit, executing and successful completion\n",1);
+        print "submitted: This test will see submit, executing and successful completion\n";
 };
 
 $success = sub
 {
-        CondorTest::debug("executed successfully\n",1);
+        print "executed successfully\n";
 };
 
 CondorTest::RegisterExitedSuccess( $testname, $success);
@@ -87,7 +87,7 @@ CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunDagTest($testname, $cmd, 0, $dagman_args) ) {
-        CondorTest::debug("$testname: SUCCESS\n",1);
+        print "$testname: SUCCESS\n";
         exit(0);
 } else {
         die "$testname: CondorTest::RunTest() failed\n";

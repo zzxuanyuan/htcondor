@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'lib_auth_protocol-negot-prt4.cmd';
-$testdesc =  'Condor submit to test security negotiations';
-$testname = "lib_auth_protocol-negot-prt4";
+$testname = 'Condor submit to test security negotiations';
 
 my $killedchosen = 0;
 
@@ -48,7 +47,7 @@ my $subdir = $ARGV[1];
 my $expectedres = "";
 $expectedres = $ARGV[2];
 
-CondorTest::debug("Handed args from main test loop.....<<<<<<<<<<<<<<<<<<<<<<$piddir/$subdir/$expectedres>>>>>>>>>>>>>>\n",1);
+print "Handed args from main test loop.....<<<<<<<<<<<<<<<<<<<<<<$piddir/$subdir/$expectedres>>>>>>>>>>>>>>\n";
 $abnormal = sub {
 	my %info = @_;
 
@@ -78,26 +77,26 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for on_exit_hold cluster $cluster must run first\n",1);
+	print "Good. for on_exit_hold cluster $cluster must run first\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_q -debug";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2,"Security");
 	if(!$status) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1);
 	} else {
 		foreach $line (@adarray) {
 			#print "Client: $line\n";
 			if( $line =~ /.*KEYPRINTF.*/ ) {
 				if( $expectedres eq "yes" ) {
-					CondorTest::debug("SWEET: client got key negotiation as expected\n",1);
+					print "SWEET: client got key negotiation as expected\n";
 				} elsif($expectedres eq "no") {
-					CondorTest::debug("Client: $line\n",1);
-					CondorTest::debug("BAD!!: client got key negotiation as NOT!!! expected\n",1);
+					print "Client: $line\n";
+					print "BAD!!: client got key negotiation as NOT!!! expected\n";
 				} elsif($expectedres eq "fail") {
-					CondorTest::debug("Client: $line\n",1);
-					CondorTest::debug("BAD!!: client got key negotiation as NOT!!! expected\n",1);
+					print "Client: $line\n";
+					print "BAD!!: client got key negotiation as NOT!!! expected\n";
 				}
 			}
 		}
@@ -109,9 +108,9 @@ $submitted = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("submitted: \n",1);
+	print "submitted: \n";
 	{
-		CondorTest::debug("good job $job expected submitted.\n",1);
+		print "good job $job expected submitted.\n";
 	}
 };
 
@@ -120,16 +119,61 @@ $success = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Good completion!!!\n",1);
-	my $found = CondorTest::PersonalPolicySearchLog( $piddir, $subdir, "Encryption", "SchedLog");
-	CondorTest::debug("PersonalPolicySearchLog found $found\n",1);
+	print "Good completion!!!\n";
+	my $found = PersonalPolicySearchLog( $piddir, $subdir, "Encryption", "SchedLog");
+	print "PersonalPolicySearchLog found $found\n";
 	if( $found eq $expectedres ) {
-		CondorTest::debug("Good completion!!! found $found\n",1);
+		print "Good completion!!! found $found\n";
 	} else {
 		die "Expected <<$expectedres>> but found <<$found>>\n";
 	}
 
 };
+
+sub PersonalSearchLog 
+{
+	my $pid = shift;
+	my $personal = shift;
+	my $searchfor = shift;
+	my $logname = shift;
+
+	my $logloc = $pid . "/" . $pid . $personal . "/log/" . $logname;
+	print "Search this log <$logloc> for <$searchfor>\n";
+	open(LOG,"<$logloc") || die "Can not open logfile<$logloc>: $!\n";
+	while(<LOG>) {
+		if( $_ =~ /$searchfor/) {
+			print "FOUND IT! $_";
+			return(0);
+		}
+	}
+	return(1);
+}
+
+sub PersonalPolicySearchLog 
+{
+	my $pid = shift;
+	my $personal = shift;
+	my $policyitem = shift;
+	my $logname = shift;
+
+	my $logloc = $pid . "/" . $pid . $personal . "/log/" . $logname;
+	print "Search this log <$logloc> for <$policyitem>\n";
+	open(LOG,"<$logloc") || die "Can not open logfile<$logloc>: $!\n";
+	while(<LOG>) {
+		if( $_ =~ /^.*Security Policy.*$/) {
+			while(<LOG>) {
+				if( $_ =~ /^\s*$policyitem\s*=\s*\"(\w+)\"\s*$/ ) {
+					#print "FOUND IT! $1\n";
+					if(!defined $securityoptions{$1}){
+						print "Returning <<$1>>\n";
+						return($1);
+					}
+				}
+			}
+		}
+	}
+	return("bad");
+}
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedAbnormal( $testname, $abnormal );
@@ -142,12 +186,12 @@ if( CondorTest::RunTest($testname, $cmd, 0) ) {
 	if( $expectedres eq "fail" ) {
 		die "$testname: Test FAILED: ran but was supposed to fail\n";
 	} else {
-		CondorTest::debug("$testname: SUCCESS\n",1);
+		print "$testname: SUCCESS\n";
 		exit(0);
 	}
 } else {
 	if( $expectedres eq "fail" ) {
-		CondorTest::debug("$testname: SUCCESS (failures were expected!)\n",1);
+		print "$testname: SUCCESS (failures were expected!)\n";
 		exit(0);
 	} else {
 		die "$testname: CondorTest::RunTest() failed\n";

@@ -28,28 +28,6 @@ class ReliSock;
 
 #define DEFAULT_SOCKET_CACHE_SIZE 16
 
-/*
-
-WARNING: The "addr" for the SocketCache is an opaque identifier.  SocketCache
-does not intepret it in any way. (Nor will it, ever.)
-
-SocketCache _does_ use it for log messages, so it should be something
-meaningful.  The Sinful string for the "main" address is ideal.  This would
-ideally be the first address in the list of sinful strings found in
-ATTR_PUBLIC_NETWORK_IP_ADDR.
-
-The addr MUST be 31 or fewer bytes.  A sinful string does the job.
-
-What you use doesn't matter, _so long as you are consistent_.  If you pass
-different addr strings for the same host, you'll get multiple connections.  So
-long as you always use the same attribute, you'll be fine.
-
-Why this warning?  When GCB is involved, a single host could have multiple IP
-addresses to contact it at.  Which one we use to contact the host may change
-over time.  If you use the address you connect with _at the moment_ as your
-addr here, you could end up with multiple sockets.
-
-*/
 class SocketCache
 {
 public:
@@ -73,7 +51,7 @@ private:
 	struct sockEntry
 	{
 		bool		valid;
-		MyString	addr;
+		char 		addr[32];
 		ReliSock	*sock;
 		int			timeStamp;
 	};

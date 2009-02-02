@@ -31,7 +31,7 @@ _all_ the calls and put them in one standard place.
 #if defined(Solaris27) || defined(Solaris28) || defined(Solaris29)
 	#define SOCKET_DATA_TYPE void*
 	#define SOCKET_LENGTH_TYPE unsigned int
-	#define SOCKET_ALTERNATE_LENGTH_TYPE socklen_t
+	#define SOCKET_ALTERNATE_LENGTH_TYPE void
 	#define SOCKET_DATA_CONST const
 	#define SOCKET_MSG_CONST const
 	#define SOCKET_ADDR_TYPE struct sockaddr*
@@ -203,7 +203,11 @@ _all_ the calls and put them in one standard place.
 	#define SOCKET_COUNT_TYPE int
 #elif defined(Darwin) 
 	#define SOCKET_DATA_TYPE void*
-	#define SOCKET_LENGTH_TYPE socklen_t
+	#if defined(CONDOR_HAD_GNUC_4)
+		#define SOCKET_LENGTH_TYPE socklen_t
+	#else
+		#define SOCKET_LENGTH_TYPE int
+	#endif
 	#define SOCKET_ALTERNATE_LENGTH_TYPE SOCKET_LENGTH_TYPE
 	#define SOCKET_DATA_CONST const
 	#define SOCKET_MSG_CONST const

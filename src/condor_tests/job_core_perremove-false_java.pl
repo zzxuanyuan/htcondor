@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perremove-false_java.cmd';
-$testdesc =  'Condor submit policy test for periodic_remove - java U';
-$testname = "job_core_perremove_java";
+$testname = 'Condor submit policy test for periodic_remove - java U';
 
 my %info;
 my $cluster;
@@ -32,7 +31,7 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for periodic_remove cluster $cluster must run first\n",1);
+	print "Good. for periodic_remove cluster $cluster must run first\n";
 };
 
 $success = sub
@@ -40,14 +39,14 @@ $success = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Good, job should complete trivially\n",1);
+	print "Good, job should complete trivially\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

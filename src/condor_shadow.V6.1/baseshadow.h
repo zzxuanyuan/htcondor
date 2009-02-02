@@ -22,10 +22,10 @@
 #define BASESHADOW_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_classad.h"
 #include "shadow_user_policy.h"
-#include "write_user_log.h"
+#include "user_log.c++.h"
 #include "exit.h"
 #include "internet.h"
 #include "qmgr_job_updater.h"
@@ -128,12 +128,6 @@ class BaseShadow : public Service
 			shadow can do the right thing.
 		 */
 	virtual void gracefulShutDown( void ) = 0;
-
-		/** Get name of resource job is running on.  This is for
-			informational purposes only.  It may be empty if there
-			is no appropriate answer (and function will return false).
-		*/
-	virtual bool getMachineName( MyString &machineName );
 
 		/** Put this job on hold, if requested, notify the user about
 			it, and exit with the appropriate status so that the

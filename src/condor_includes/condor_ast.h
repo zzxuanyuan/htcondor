@@ -92,8 +92,6 @@ class EvalResult
         };
   	LexemeType type;
 
-	bool debug;
-
 	private :
 	void deepcopy(const EvalResult & copyfrom);
 };
@@ -476,8 +474,6 @@ class Function: public FunctionBase
 	int FunctionRegexp(int number_of_args, EvalResult *evaluated_args, 
 						EvalResult *result);
 	int FunctionRegexps(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionFormatTime(int number_of_args, EvalResult *evaluated_args, 
 						EvalResult *result);
 };
 

@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_plus_van.cmd';
-$testdesc =  'Condor_submit correctly places attributes into JobAd - vanilla U';
-$testname = "job_core_plus_van";
+$testname = 'Condor_submit correctly places attributes into JobAd - vanilla U';
 
 $success = sub 
 {
@@ -58,14 +57,14 @@ $submit = sub
 	}
 
 	system("condor_config_val -config");
-	CondorTest::debug("Checking Job Ads for $cluster\n",1);
+	print "Checking Job Ads for $cluster\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_q -l $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 	foreach $name (@adarray)
@@ -74,47 +73,42 @@ $submit = sub
 
 		if( $name =~ /^foo\s*=\s*"(.*)"\s*$/)
 		{
-			CondorTest::debug("************** $1 ************\n",1);
+			print "************** $1 ************\n";
 			$foundcount += 1;
 		}
 		elsif( $name =~ /^bar\s*=\s*"(.*)"\s*$/)
 		{
-			CondorTest::debug("************** $1 ************\n",1);
+			print "************** $1 ************\n";
 			$foundcount += 1;
 		}
 		elsif( $name =~ /^last\s*=\s*"(.*)"\s*$/)
 		{
-			CondorTest::debug("************** $1 ************\n",1);
+			print "************** $1 ************\n";
 			$foundcount += 1;
 		}
 		elsif( $name =~ /^done\s*=\s*(.*)\s*$/)
 		{
-			CondorTest::debug("************** $1 ************\n",1);
+			print "************** $1 ************\n";
 			$foundcount += 1;
 		}
 	}
 	$status = CondorTest::runCondorTool("condor_rm $cluster",\@adarray,2);
-	CondorTest::debug("Expect to see 4 attributes {foo,bar,last and done}\n",1);
+	print "Expect to see 4 attributes {foo,bar,last and done}\n";
 	die "Missed some attributes" unless $foundcount == 4;
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
+	exit(0);
 };
 
-$aborted = sub {
-	CondorTest::debug("If all is good we abort our own job.......\n",1);
-};
-
-
-CondorTest::RegisterAbort($testname, $aborted);
 CondorTest::RegisterSubmit($testname, $submit);
 CondorTest::RegisterExitedFailure( $testname, $died );
 CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

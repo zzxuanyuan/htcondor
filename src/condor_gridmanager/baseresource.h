@@ -22,7 +22,7 @@
 #define BASERESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 
 class BaseJob;
@@ -36,13 +36,7 @@ class BaseResource
 
 	virtual void Reconfig();
 
-	virtual const char *ResourceType() = 0;
-
 	char *ResourceName();
-
-	virtual const char *GetHashName() = 0;
-
-	virtual void PublishResourceAd( ClassAd *resource_ad );
 
 	virtual void RegisterJob( BaseJob *job );
 	virtual void UnregisterJob( BaseJob *job );
@@ -57,7 +51,7 @@ class BaseResource
 	void CancelSubmit( BaseJob *job );
 	void AlreadySubmitted( BaseJob *job );
 
-    static void setProbeInterval( int new_interval )
+	static void setProbeInterval( int new_interval )
 		{ probeInterval = new_interval; }
 
 	static void setProbeDelay( int new_delay )
@@ -73,9 +67,6 @@ class BaseResource
 	int UpdateLeases();
 	virtual void DoUpdateLeases( time_t& update_delay, bool& update_complete,
 								 SimpleList<PROC_ID>& update_succeeded );
-	bool Invalidate ();
-    bool SendUpdate ();	
-	int UpdateCollector ();
 
 	char *resourceName;
 	int deleteMeTid;
@@ -110,12 +101,6 @@ class BaseResource
 	bool updateLeasesActive;
 	bool leaseAttrsSynched;
 	bool updateLeasesCmdActive;
-
-	int _updateCollectorTimerId;
-	time_t _lastCollectorUpdate;
-	time_t _collectorUpdateInterval;
-	bool _firstCollectorUpdate;
-
 };
 
 #endif // define BASERESOURCE_H

@@ -20,6 +20,7 @@
 
 
 ######################################################################
+# $Id: remote_declare.pl,v 1.8.6.3 2008-03-18 20:46:45 bt Exp $
 # generate list of all tests to run
 ######################################################################
 
@@ -37,7 +38,7 @@ if( -f "$TimeoutFile") {
 	while(<TIMEOUTS>) {
 		chomp($_);
 		$line = $_;
-		if($line =~ /^\s*([\-\w]*)\s+(\d*)\s*$/) {
+		if($line =~ /^\s*(\w*)\s+(\d*)\s*$/) {
 			print "Custom Timeout: $1:$2\n";
 			$CustomTimeouts{"$1"} = $2;
 		}
@@ -95,7 +96,7 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) )
 	print "****************************************************\n";
 	print "**** running CONFIGURE ...\n"; 
 	print "****************************************************\n";
-	open( TESTCONFIG, "./configure --without-externals --with-vmware=/prereq/VMware-server-1.0.7/bin $opt_configure 2>&1 |") ||
+	open( TESTCONFIG, "./configure --without-externals $opt_configure 2>&1 |") ||
     	die "Can't open configure as a pipe: $!\n";
 	while ( <TESTCONFIG> ) {
     	print $_;

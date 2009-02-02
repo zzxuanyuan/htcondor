@@ -77,7 +77,7 @@ CFLAGS = $(STD_C_FLAGS) -DIN_CKPT_LIB $(DYNAMIC_FLAGS) $(DL_EXTRACT)
 
 OS = OperatingSystem
 
-CPP_UTIL_OBJ = condor_version.o subsystem_info.o
+CPP_UTIL_OBJ = condor_version.o
 
 UTIL_OBJ =  dprintf_common.o mkargv.o
 
@@ -243,8 +243,8 @@ clean::
 #ifdef DOES_COMPRESS_CKPT
 malloc-condor.o : malloc-condor.c malloc.c
 	$(CC) -O2 -g -DMORECORE=condor_morecore -DHAVE_MMAP=0 -Dmalloc_getpagesize=8192 -c malloc-condor.c
-zimage.o : image.cpp
-	$(CPlusPlus) $(C_PLUS_FLAGS) $(COMPRESS_FLAGS) -o zimage.o -c image.cpp
+zimage.o : image.C
+	$(CPlusPlus) $(C_PLUS_FLAGS) $(COMPRESS_FLAGS) -o zimage.o -c image.C
 #if IS_SUN4X_SOLARIS
 #if IS_SOLARIS29
 /* hwmuldiv.o replaces _rem.o, _div.o, and umultiply.o in solaris 2.9 */
@@ -304,7 +304,7 @@ clean::
 html:
 
 IMPORT_LINKS = ../../config/import_links
-import_objs(../condor_c++_util,$(CPP_UTIL_OBJ))
-import_objs(../condor_util_lib,$(UTIL_OBJ))
+import(../condor_c++_util,$(CPP_UTIL_OBJ))
+import(../condor_util_lib,$(UTIL_OBJ))
 
 testbin:: all

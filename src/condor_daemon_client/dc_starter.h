@@ -61,20 +61,16 @@ public:
 			@return true if we have the info, false if not */
 	bool locate( void );
 
-		/**
-		   @param timeout -1 to leave things alone; 0 for no timeout
-		   @param sec_session_id NULL for auto-negotiation
-		 */
 	bool reconnect( ClassAd* req, ClassAd* reply, ReliSock* rsock, 
-					int timeout, char const *sec_session_id);
+					int timeout = -1 );
 
 	// Error - Failed to update, a problem
 	// Okay - Success.  Updated
 	// Declined - Success.  Other side doesn't want it.  Don't bother
 	//      to try again.
 	enum X509UpdateStatus { XUS_Error = 0, XUS_Okay = 1, XUS_Declined = 2 };
-	X509UpdateStatus updateX509Proxy(const char * filename, char const *sec_session_id);
-	X509UpdateStatus delegateX509Proxy(const char * filename, char const *sec_session_id);
+	X509UpdateStatus updateX509Proxy(const char * filename);
+	X509UpdateStatus delegateX509Proxy(const char * filename);
 
  private:
 	bool is_initialized;
@@ -83,20 +79,6 @@ public:
 	DCStarter( const DCStarter& );
 	DCStarter& operator = ( const DCStarter& );
 
-};
-
-class StarterHoldJobMsg: public DCMsg {
-public:
-	StarterHoldJobMsg( char const *hold_reason, int hold_code, int hold_subcode );
-
-	bool writeMsg( DCMessenger *messenger, Sock *sock );
-	bool readMsg( DCMessenger *messenger, Sock *sock );
-	MessageClosureEnum messageSent( DCMessenger *messenger, Sock *sock );
-
-private:
-	MyString m_hold_reason;
-	int m_hold_code;
-	int m_hold_subcode;
 };
 
 #endif /* _CONDOR_DC_STARTER_H */

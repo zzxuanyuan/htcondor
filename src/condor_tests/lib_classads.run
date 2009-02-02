@@ -20,8 +20,7 @@
 
 
 my @got;
-$testdesc =  'lib_classad - runs prebuilt classad tests from testbin_dir';
-$testname = "lib_classads";
+$testname = 'lib_classad - runs prebuilt classad tests from testbin_dir';
 $test = "../testbin_dir/test_classads";
 
 system("date");

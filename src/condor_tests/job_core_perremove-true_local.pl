@@ -26,8 +26,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perremove-true_local.cmd';
-$testdesc =  'Condor submit policy test for PERIODIC_REMOVE - local U';
-$testname = "job_core_perremove_local";
+$testname = 'Condor submit policy test for PERIODIC_REMOVE - local U';
 
 ##
 ## aborted
@@ -37,8 +36,8 @@ $aborted = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job was aborted and removed from the queue.\n",1);
-	CondorTest::debug("Policy Test Completed\n",1);
+	print "Good - Job $cluster.$job was aborted and removed from the queue.\n";
+	print "Policy Test Completed\n";
 };
 
 ##
@@ -49,14 +48,14 @@ $executed = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job began execution.\n",1);
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterAbort( $testname, $aborted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

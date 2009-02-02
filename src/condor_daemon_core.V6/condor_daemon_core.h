@@ -36,6 +36,7 @@
 #include "condor_io.h"
 #include "dc_service.h"
 #include "condor_timer_manager.h"
+#include "condor_ipverify.h"
 #include "condor_commands.h"
 #include "command_strings.h"
 #include "condor_classad.h"
@@ -56,8 +57,6 @@
 #include "daemon.h"
 #include "daemon_list.h"
 #include "limit.h"
-#include "ccb_listener.h"
-#include "condor_sinful.h"
 
 #include "../condor_procd/proc_family_io.h"
 class ProcFamilyInterface;
@@ -74,21 +73,6 @@ static const int KEEP_STREAM = 100;
 static const int CLOSE_STREAM = 101;
 static const int MAX_SOCKS_INHERITED = 4;
 static char* EMPTY_DESCRIP = "<NULL>";
-
-/**
-   Magic fd to include in the 'std' array argument to Create_Process()
-   which means you want a pipe automatically created and handled.
-   If you do this to stdin, you get a writeable pipe end (exposed as a FILE*
-   Write pipes created like this are stored as MyString objects, which
-   you can access via the Get_Pipe_Data() call.
-*/
-static const int DC_STD_FD_PIPE = -10;
-
-/**
-   Constant used to indicate no pipe (or fd at all) should be remapped.
-*/
-static const int DC_STD_FD_NOPIPE = -1;
-
 
 /** @name Typedefs for Callback Procedures
  */
@@ -172,7 +156,6 @@ struct FamilyInfo {
 #if defined(LINUX)
 	gid_t* group_ptr;
 #endif
-	const char* glexec_proxy;
 
 	FamilyInfo() {
 		max_snapshot_interval = -1;
@@ -180,7 +163,6 @@ struct FamilyInfo {
 #if defined(LINUX)
 		group_ptr = NULL;
 #endif
-		glexec_proxy = NULL;
 	}
 };
 
@@ -222,6 +204,16 @@ int BindAnyCommandPort(ReliSock *rsock, SafeSock *ssock);
 bool InitCommandSockets(int port, ReliSock *rsock, SafeSock *ssock,
 						bool fatal);
 
+/** This global should be defined in your subsystems's main.C file.
+    Here are some examples:<p>
+
+    <UL>
+      <LI><tt>char* mySubSystem = "DAGMAN";</tt>
+      <LI><tt>char* mySubSystem = "SHADOW";</tt>
+      <LI><tt>char* mySubSystem = "SCHEDD";</tt>
+    </UL>
+*/
+extern char *mySubSystem;
 
 class DCSignalMsg: public DCMsg {
  public:
@@ -285,20 +277,23 @@ class DaemonCore : public Service
     ~DaemonCore();
     void Driver();
 
+    /** Not_Yet_Documented
+        @return Not_Yet_Documented
+    */
+    int ReInit();
+
 		/**
 		   Re-read anything that the daemonCore object got from the
 		   config file that might have changed on a reconfig.
 		*/
     void reconfig();
 
-	void refreshDNS();
-
     /** Not_Yet_Documented
         @param perm Not_Yet_Documented
         @param sin  Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Verify (char const *command_descrip, DCpermission perm, const struct sockaddr_in *sin, const char * fqu);
+    int Verify (DCpermission perm, const struct sockaddr_in *sin, const char * fqu);
     int AddAllowHost( const char* host, DCpermission perm );
 
     /** clear all sessions associated with the child 
@@ -320,9 +315,9 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Register_Command (int             command,
-                          const char *    com_descrip,
+                          char *          com_descrip,
                           CommandHandler  handler, 
-                          const char *    handler_descrip,
+                          char *          handler_descrip,
                           Service *       s                = NULL,
                           DCpermission    perm             = ALLOW,
                           int             dprintf_flag     = D_COMMAND);
@@ -338,9 +333,9 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Register_Command (int                command,
-                          const char *       com_descript,
+                          char *             com_descript,
                           CommandHandlercpp  handlercpp, 
-                          const char *       handler_descrip,
+                          char *             handler_descrip,
                           Service *          s,
                           DCpermission       perm             = ALLOW,
                           int                dprintf_flag     = D_COMMAND);
@@ -363,9 +358,8 @@ class DaemonCore : public Service
         @param pid The pid to ask about.  -1 (Default) means
                    the calling process
         @return A pointer into a <b>static buffer</b>, or NULL on error */
-    char const* InfoCommandSinfulString (int pid = -1);
+    char* InfoCommandSinfulString (int pid = -1);
 
-	void daemonContactInfoChanged();
 
     /** Returns the Sinful String <host:port> of the DaemonCore
 		command socket of this process
@@ -379,7 +373,7 @@ class DaemonCore : public Service
 			   is provided only for passing to other processes on the
 			   same machine as an optimization.
         @return A pointer into a <b>static buffer</b>, or NULL on error */
-	char const * InfoCommandSinfulStringMyself(bool usePrivateAddress);
+	char * InfoCommandSinfulStringMyself(bool usePrivateAddress);
 
 		/**
 		   @return Pointer to a static buffer containing the daemon's
@@ -442,13 +436,15 @@ class DaemonCore : public Service
         @param handler          Not_Yet_Documented
         @param handler_descrip  Not_Yet_Documented
         @param s                Not_Yet_Documented
+        @param perm             Not_Yet_Documented
         @return Not_Yet_Documented
     */
     int Register_Signal (int             sig,
-                         const char *    sig_descrip,
+                         char *          sig_descrip,
                          SignalHandler   handler, 
-                         const char *    handler_descrip,
-                         Service*        s                = NULL);
+                         char *          handler_descrip,
+                         Service*        s                = NULL,
+                         DCpermission    perm             = ALLOW);
     
     /** Not_Yet_Documented
         @param sig              Not_Yet_Documented
@@ -456,13 +452,15 @@ class DaemonCore : public Service
         @param handlercpp       Not_Yet_Documented
         @param handler_descrip  Not_Yet_Documented
         @param s                Not_Yet_Documented
+        @param perm             Not_Yet_Documented
         @return Not_Yet_Documented
     */
     int Register_Signal (int                 sig,
-                         const char *        sig_descript,
+                         char *              sig_descript,
                          SignalHandlercpp    handlercpp, 
-                         const char *        handler_descrip,
-                         Service*            s);
+                         char *              handler_descrip,
+                         Service*            s,
+                         DCpermission        perm = ALLOW);
     
     /** Not_Yet_Documented
         @param sig Not_Yet_Documented
@@ -526,9 +524,9 @@ class DaemonCore : public Service
         @param s                Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Register_Reaper (const char *    reap_descrip,
+    int Register_Reaper (char *          reap_descrip,
                          ReaperHandler   handler,
-                         const char *    handler_descrip,
+                         char *          handler_descrip,
                          Service*        s = NULL);
     
     /** Not_Yet_Documented
@@ -538,9 +536,9 @@ class DaemonCore : public Service
         @param s                Not_Yet_Documented
         @return Not_Yet_Documented
     */
-     int Register_Reaper (const char *      reap_descript,
+     int Register_Reaper (char *            reap_descript,
                           ReaperHandlercpp  handlercpp, 
-                          const char *      handler_descrip,
+                          char *            handler_descrip,
                           Service*          s);
 
     /** Not_Yet_Documented
@@ -552,9 +550,9 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Reset_Reaper (int              rid,
-                      const char *     reap_descrip,
+                      char *           reap_descrip,
                       ReaperHandler    handler, 
-                      const char *     handler_descrip,
+                      char *           handler_descrip,
                       Service *        s = NULL);
     
     /** Not_Yet_Documented
@@ -566,9 +564,9 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Reset_Reaper (int                    rid,
-                      const char *           reap_descript,
+                      char *                 reap_descript,
                       ReaperHandlercpp       handlercpp, 
-                      const char *           handler_descrip,
+                      char *                 handler_descrip,
                       Service*               s);
 
     /** Not_Yet_Documented
@@ -649,18 +647,6 @@ class DaemonCore : public Service
     */
     int Cancel_Socket ( Stream * insock );
 
-		// Call the registered socket handler for this socket
-		// sock - previously registered socket
-		// default_to_HandleCommand - true if HandleCommand() should be called
-		//                          if there is no other callback function
-	void CallSocketHandler( Stream *sock, bool default_to_HandleCommand=false );
-
-		// Call the registered command handler.
-		// returns the return code of the handler
-		// if delete_stream is true and the command handler does not return
-		// KEEP_STREAM, the stream is deleted
-	int CallCommandHandler(int req,Stream *stream,bool delete_stream=true);
-
 	/// Cancel and close all registed sockets.
 	int Cancel_And_Close_All_Sockets(void);
 
@@ -711,9 +697,9 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Register_Pipe (int		           pipe_end,
-                         const char *      pipe_descrip,
+                         char *            pipe_descrip,
                          PipeHandler       handler,
-                         const char *      handler_descrip,
+                         char *            handler_descrip,
                          Service *         s                = NULL,
                          HandlerType       handler_type     = HANDLE_READ,    
                          DCpermission      perm             = ALLOW);
@@ -728,9 +714,9 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Register_Pipe (int					  pipe_end,
-                         const char *         pipe_descrip,
+                         char *               pipe_descrip,
                          PipeHandlercpp       handlercpp,
-                         const char *         handler_descrip,
+                         char *               handler_descrip,
                          Service*             s,
                          HandlerType          handler_type = HANDLE_READ,    
                          DCpermission         perm = ALLOW);
@@ -765,41 +751,6 @@ class DaemonCore : public Service
 	*/
 	int Close_Pipe(int pipe_end);
 
-#if !defined(WIN32)
-	/** Get the FD underlying the given pipe end. Returns FALSE
-	 *  if not given a valid pipe end.
-	*/
-	int Get_Pipe_FD(int pipe_end, int* fd);
-#endif
-
-	/**
-	   Gain access to data written to a given DC process's std(out|err) pipe.
-
-	   @param pid
-	     DC process id of the process to read the data for.
-	   @param std_fd
-	     The fd to identify the pipe to read: 1 for stdout, 2 for stderr.
-	   @return
-	     Pointer to a MyString object containing all the data written so far.
-	*/
-	MyString* Read_Std_Pipe(int pid, int std_fd);
-
-	/**
-	   Write data to the given DC process's stdin pipe.
-	   @see Write_Pipe()
-	*/
-	int Write_Stdin_Pipe(int pid, const void* buffer, int len);
-
-	/**
-	   Close a given DC process's stdin pipe.
-
-	   @return true if the given pid was found and had a DC-managed
-	     stdin pipe, false if not. 
-
-	   @see Close_Pipe()
-	*/
-	bool Close_Stdin_Pipe(int pid);
-
 	//@}
 
 	/** @name Timer events.
@@ -814,7 +765,7 @@ class DaemonCore : public Service
     */
     int Register_Timer (unsigned     deltawhen,
                         Event        event,
-                        const char * event_descrip, 
+                        char *       event_descrip, 
                         Service*     s = NULL);
     
     /** Not_Yet_Documented
@@ -828,7 +779,7 @@ class DaemonCore : public Service
     int Register_Timer (unsigned     deltawhen,
                         unsigned     period,
                         Event        event,
-                        const char * event_descrip,
+                        char *       event_descrip,
                         Service*     s = NULL);
 
     /** Not_Yet_Documented
@@ -838,10 +789,10 @@ class DaemonCore : public Service
         @param s               Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Register_Timer (unsigned     deltawhen,
-                        Eventcpp     event,
-                        const char * event_descrip,
-                        Service*     s);
+    int Register_Timer (unsigned   deltawhen,
+                        Eventcpp   event,
+                        char *     event_descrip,
+                        Service*   s);
 
     /** Not_Yet_Documented
         @param deltawhen       Not_Yet_Documented
@@ -851,23 +802,11 @@ class DaemonCore : public Service
         @param s               Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Register_Timer (unsigned     deltawhen,
-                        unsigned     period,
-                        Eventcpp     event,
-                        const char * event_descrip,
-                        Service *    s);
-
-    /** 
-        @param timeslice       Timeslice object specifying interval parameters
-        @param event           Function to call when timer fires.
-        @param event_descrip   String describing the function.
-        @param s               Service object of which function is a member.
-        @return                Timer id or -1 on error
-    */
-    int Register_Timer (Timeslice    timeslice,
-                        Eventcpp     event,
-                        const char * event_descrip,
-                        Service*     s);
+    int Register_Timer (unsigned  deltawhen,
+                        unsigned  period,
+                        Eventcpp  event,
+                        char *    event_descrip,
+                        Service * s);
 
     /** Not_Yet_Documented
         @param id The timer's ID
@@ -888,7 +827,7 @@ class DaemonCore : public Service
         @param flag   Not_Yet_Documented
         @param indent Not_Yet_Documented
     */
-    void Dump (int flag, const char* indent = NULL );
+    void Dump (int flag, char* indent = NULL );
 
 
     /** @name Process management.
@@ -912,15 +851,11 @@ class DaemonCore : public Service
     */
     int Is_Pid_Alive (pid_t pid);
 
-		// returns true if we have called waitpid but
-		// have still queued the call to the reaper
-	bool ProcessExitedButNotReaped(pid_t pid);
-
     /** Not_Yet_Documented
         @param pid Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Shutdown_Fast(pid_t pid, bool want_core = false );
+    int Shutdown_Fast(pid_t pid);
 
     /** Not_Yet_Documented
         @param pid Not_Yet_Documented
@@ -972,13 +907,6 @@ class DaemonCore : public Service
                to stdin, stdout, stderr respectively.  If this array
                is NULL, don't perform remapping.  If any one of these
 			   is negative, it is ignored and *not* mapped.
-			   There's a special case if you use DC_STD_FD_PIPE as the
-               value for any of these fds -- DaemonCore will create a
-               pipe and register everything for you automatically. If
-               you use this for stdin, you can use Write_Std_Pipe() to
-               write to the stdin of the child. If you use this for
-               std(out|err) then you can get a pointer to a MyString
-               with all the data written by the child using Read_Std_Pipe().
         @param nice_inc The value to be passed to nice() in the
                child.  0 < nice < 20, and greater numbers mean
                less priority.  This is an addition to the current
@@ -1007,8 +935,7 @@ class DaemonCore : public Service
         int           nice_inc             = 0,
         sigset_t      *sigmask             = NULL,
         int           job_opt_mask         = 0,
-        size_t        *core_hard_limit     = NULL,
-		int			  *affinity_mask	   = NULL
+        size_t        *core_hard_limit     = NULL
         );
 
     //@}
@@ -1018,7 +945,6 @@ class DaemonCore : public Service
 	static const int ERRNO_EXEC_AS_ROOT;
 	static const int ERRNO_PID_COLLISION;
 	static const int ERRNO_REGISTRATION_FAILED;
-	static const int ERRNO_EXIT;
 
     /** Methods for operating on a process family
     */
@@ -1080,7 +1006,7 @@ class DaemonCore : public Service
         @return Pointer to this daemon's SecMan
     */
     SecMan* getSecMan();
-	IpVerify* getIpVerify() {return getSecMan()->getIpVerify();}
+	IpVerify* getIpVerify() {return &ipverify;}
     KeyCache* getKeyCache();
 	//@}
 
@@ -1185,9 +1111,9 @@ class DaemonCore : public Service
     void invalidateSessionCache();
 
 	/* manage the secret cookie data */
-	bool set_cookie( int len, const unsigned char* data );
+	bool set_cookie( int len, unsigned char* data );
 	bool get_cookie( int &len, unsigned char* &data );
-	bool cookie_is_valid( const unsigned char* data );
+	bool cookie_is_valid( unsigned char* data );
 
 	/** The peaceful shutdown toggle controls whether graceful shutdown
 	   avoids any hard killing.
@@ -1209,6 +1135,12 @@ class DaemonCore : public Service
 	*/
 	void RegisterTimeSkipCallback(TimeSkipFunc fnc, void * data);
 	void UnregisterTimeSkipCallback(TimeSkipFunc fnc, void * data);
+
+	/** Disable all daemon core callbacks for duration seconds, except for the
+		processing of SOAP calls.
+		@param seconds The number of seconds to only permit SOAP callbacks
+	*/
+	void Only_Allow_Soap(int duration);
 	
         // A little info on the "soap_ssl_sock"... There once was a
         // bug known as the "single transaction problem" and it made
@@ -1318,25 +1250,9 @@ class DaemonCore : public Service
 		*/
 	bool wantsRestart( void );
 
-		/**
-		   Set whether this daemon should should send CHILDALIVE commands
-		   to its daemoncore parent. Must be called from
-		   main_pre_command_sock_init() to have any effect. The default
-		   is to send CHILDALIVEs.
-		*/
-	void WantSendChildAlive( bool send_alive )
-		{ m_want_send_child_alive = send_alive; }
-
-		/** Registers a socket for read and then calls HandleReq to
-			process a command on the socket once one becomes
-			available.
-		*/
-	void HandleReqAsync(Stream *stream);
-
   private:      
 
 	bool m_wants_dc_udp; // do we want a udp comment socket at all?
-	bool m_invalidate_sessions_via_tcp;
 	ReliSock* dc_rsock;	// tcp command socket
 	SafeSock* dc_ssock;	// udp command socket
 
@@ -1350,8 +1266,6 @@ class DaemonCore : public Service
 	int HandleReqSocketHandler(Stream *stream);
     int HandleSig(int command, int sig);
 
-	bool RegisterSocketForHandleReq(Stream *stream);
-
 	friend class FakeCreateThreadReaperCaller;
 	void CallReaper(int reaper_id, char const *whatexited, pid_t pid, int exit_status);
 
@@ -1360,21 +1274,22 @@ class DaemonCore : public Service
     int HandleDC_SIGCHLD(int sig);
 	int HandleDC_SERVICEWAITPIDS(int sig);
  
-    int Register_Command(int command, const char *com_descip,
+    int Register_Command(int command, char *com_descip,
                          CommandHandler handler, 
                          CommandHandlercpp handlercpp,
-                         const char *handler_descrip,
+                         char *handler_descrip,
                          Service* s, 
                          DCpermission perm,
                          int dprintf_flag,
                          int is_cpp);
 
     int Register_Signal(int sig,
-                        const char *sig_descip,
+                        char *sig_descip,
                         SignalHandler handler, 
                         SignalHandlercpp handlercpp,
-                        const char *handler_descrip,
+                        char *handler_descrip,
                         Service* s, 
+                        DCpermission perm,
                         int is_cpp);
 
     int Register_Socket(Stream* iosock,
@@ -1396,20 +1311,20 @@ class DaemonCore : public Service
 	void decrementPendingSockets() { nPendingSockets--; }
 
     int Register_Pipe(int pipefd,
-                        const char *pipefd_descrip,
+                        char *pipefd_descrip,
                         PipeHandler handler, 
                         PipeHandlercpp handlercpp,
-                        const char *handler_descrip,
+                        char *handler_descrip,
                         Service* s, 
 					    HandlerType handler_type, 
 					    DCpermission perm,
                         int is_cpp);
 
     int Register_Reaper(int rid,
-                        const char *reap_descip,
+                        char *reap_descip,
                         ReaperHandler handler, 
                         ReaperHandlercpp handlercpp,
-                        const char *handler_descrip,
+                        char *handler_descrip,
                         Service* s, 
                         int is_cpp);
 
@@ -1418,8 +1333,7 @@ class DaemonCore : public Service
 	                     int max_snapshot_interval,
 	                     PidEnvID* penvid,
 	                     const char* login,
-	                     gid_t* group,
-	                     const char* glexec_proxy);
+	                     gid_t* group);
 
 	void CheckForTimeSkip(time_t time_before, time_t okay_delta);
 
@@ -1458,6 +1372,7 @@ class DaemonCore : public Service
         SignalHandler   handler;
         SignalHandlercpp    handlercpp;
         int             is_cpp;
+        DCpermission    perm;
         Service*        service; 
         int             is_blocked;
         // Note: is_pending must be volatile because it could be set inside
@@ -1485,7 +1400,6 @@ class DaemonCore : public Service
         char*           handler_descrip;
         void*           data_ptr;
 		bool			is_connect_pending;
-		bool			is_reverse_connect_pending;
 		bool			call_handler;
     };
     void              DumpSocketTable(int, const char* = NULL);
@@ -1495,6 +1409,7 @@ class DaemonCore : public Service
     ExtArray<SockEnt> *sockTable; // socket table; grows dynamically if needed
     int               initial_command_sock;  
   	struct soap		  *soap;
+	time_t			  only_allow_soap;
 
 		// number of file descriptors in use past which we should start
 		// avoiding the creation of new persistent sockets.  Do not use
@@ -1512,10 +1427,9 @@ class DaemonCore : public Service
 	int maxPipeHandleIndex;
 	int pipeHandleTableInsert(PipeHandle);
 	void pipeHandleTableRemove(int);
-	int pipeHandleTableLookup(int, PipeHandle* = NULL);
 
 	// this table is for dispatching registered pipes
-	class PidEntry;  // forward reference
+	struct PidEntry;  // forward reference
     struct PipeEnt
     {
         int				index;		// index into the pipeHandleTable
@@ -1554,13 +1468,8 @@ class DaemonCore : public Service
     ReapEnt*            reapTable;      // reaper table
     int                 defaultReaper;
 
-    class PidEntry : public Service
+    struct PidEntry
     {
-	public:
-		PidEntry();
-		~PidEntry();
-		int pipeHandler(int pipe_fd);
-
         pid_t pid;
         int new_process_group;
 #ifdef WIN32
@@ -1580,15 +1489,11 @@ class DaemonCore : public Service
         int reaper_id;
         int hung_tid;   // Timer to detect hung processes
         int was_not_responding;
-        int std_pipes[3];  // Pipe handles for automagic DC std pipes.
-        MyString* pipe_buf[3];  // Buffers for data written to DC std pipes.
 
 		/* the environment variables which allow me the track the pidfamily
 			of this pid (where applicable) */
 		PidEnvID penvid;
     };
-
-	int m_refresh_dns_timer;
 
     typedef HashTable <pid_t, PidEntry *> PidHashTable;
     PidHashTable* pidTable;
@@ -1614,12 +1519,14 @@ class DaemonCore : public Service
 #endif
             
     static              TimerManager t;
-    void                DumpTimerList(int, const char* = NULL);
+    void                DumpTimerList(int, char* = NULL);
 
 	SecMan	    		*sec_man;
 
 	int					_cookie_len, _cookie_len_old;
 	unsigned char		*_cookie_data, *_cookie_data_old;
+
+    IpVerify            ipverify;   
 
     void free_descrip(char *p) { if(p &&  p != EMPTY_DESCRIP) free(p); }
     
@@ -1664,21 +1571,9 @@ class DaemonCore : public Service
     int SendAliveToParent();
     unsigned int max_hang_time;
     int send_child_alive_timer;
-	bool m_want_send_child_alive;
 
 	// misc helper functions
 	void CheckPrivState( void );
-
-		// Call the registered socket handler for this socket
-		// i - index of registered socket
-		// default_to_HandleCommand - true if HandleCommand() should be called
-		//                          if there is no other callback function
-		// On return, i may be modified so that when incremented,
-		// it will index the next registered socket.
-	void CallSocketHandler( int &i, bool default_to_HandleCommand );
-
-		// Returns index of registered socket or -1 if not found.
-	int GetRegisteredSocketIndex( Stream *sock );
 
     // these need to be in thread local storage someday
     void **curr_dataptr;
@@ -1736,19 +1631,12 @@ class DaemonCore : public Service
 		*/
 	void initCollectorList(void);
 
-	void send_invalidate_session ( const char* sinful, const char* sessid );
-
 	bool m_wants_restart;
 	bool m_in_daemon_shutdown;
 	bool m_in_daemon_shutdown_fast;
 
 	char* m_private_network_name;
 
-	class CCBListeners *m_ccb_listeners;
-	Sinful m_sinful;     // full contact info (public, private, ccb, etc.)
-	bool m_dirty_sinful; // true if m_sinful needs to be reinitialized
-
-	bool CommandNumToTableIndex(int cmd,int *cmd_index);
 };
 
 #ifndef _NO_EXTERN_DAEMON_CORE
@@ -1759,11 +1647,8 @@ class DaemonCore : public Service
     @param status The return status upon exit.  The value you would normally
            pass to the regular <tt>exit()</tt> function if you weren't using
            Daemon Core.
-    @param shutdown_program Optional program to exec() instead of permforming
-		   a normal "exit".  If the exec() fails, the normal exit() will
-		   occur.
 */
-extern void DC_Exit( int status, const char *shutdown_program = NULL );
+extern void DC_Exit( int status );  
 
 /** Call this function (inside your main_pre_dc_init() function) to
     bypass the authorization initialization in daemoncore.  This is for
@@ -1826,6 +1711,6 @@ int Create_Thread_With_Data(DataThreadWorkerFunc Worker, DataThreadReaperFunc Re
 #define MAX_INHERIT_FDS   32
 
 // Prototype to get sinful string.
-char const *global_dc_sinful( void );
+char *global_dc_sinful( void );
 
 #endif /* _CONDOR_DAEMON_CORE_H_ */

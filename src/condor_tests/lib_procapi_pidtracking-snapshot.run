@@ -20,23 +20,24 @@
 
 use CondorTest;
 
+Condor::DebugOff();
+
 $cmd = 'lib_procapi_pidtracking-snapshot.cmd';
-$testdesc =  'We cleanup correctly after our kids. - vanilla U';
-$testname = "lib_procapi_pidtracking-snapshot";
+$testname = 'We cleanup correctly after our kids. - vanilla U';
 $datafile = "lib_procapi_pidtracking-snapshot.data";
 $kiddatafile = "lib_procapi_pidtracking-snapshot.data.kids";
 $worked = "yes";
 
 $execute = sub
 {
-	CondorTest::debug( "Goood, job is running so we'll start the timer....\n",1);
+	Condor::debug( "Goood, job is running so we'll start the timer....\n");
 	CondorTest::RegisterTimed($testname, $timed, 300); # give it 5 minutes
 };
 
 $timed = sub
 {
         system("date");
-        CondorTest::debug("lib_procapi_pidtracking-snapshot HUNG !!!!!!!!!!!!!!!!!!\n",1);
+        print "lib_procapi_pidtracking-snapshot HUNG !!!!!!!!!!!!!!!!!!\n";
         exit(1);
 };
 
@@ -54,10 +55,10 @@ $ExitSuccess = sub {
 		$line = $_;
 		if( $line =~ /\s*Relationship:\s*(\d+)\s*created\s*(\d+).*$/ )
 		{
-			CondorTest::debug( "Process $1 created $2\n",1);
+			Condor::debug( "Process $1 created $2\n");
 			push @pids, $2;
 		}
-		CondorTest::debug( "$line\n",1);
+		Condor::debug( "$line\n");
 	}
 	close(PIN);
 	open(PIN, "<$kiddatafile") or die "Could not open data file '$kiddatafile': $?";
@@ -67,10 +68,10 @@ $ExitSuccess = sub {
 		$line = $_;
 		if( $line =~ /\s*Relationship:\s*(\d+)\s*child\s+created\s*(\d+).*$/ )
 		{
-			CondorTest::debug( "Process $1 created $2\n",1);
+			Condor::debug( "Process $1 created $2\n");
 			push @kidpids, $2;
 		}
-		CondorTest::debug( "$line\n",1);
+		Condor::debug( "$line\n");
 	}
 	close(PIN);
 
@@ -88,12 +89,12 @@ $ExitSuccess = sub {
 		$linesoftext = $outputlines;
 		if($linesoftext == 0)
 		{
-			CondorTest::debug("Wrong ps options!\n",1);
+			print "Wrong ps options!\n";
 			$pscmd = "ps -ax";
 		}
 		else
 		{
-			CondorTest::debug("Ps delivered $linesoftext too check!\n",1);
+			print "Ps delivered $linesoftext too check!\n";
 		}
 	}
 
@@ -110,12 +111,12 @@ $ExitSuccess = sub {
 			if($pidline =~ /\s*(\d+)\s*.*$/ )
 			{
 				$thispid = $1;
-				CondorTest::debug("Checking againt list of removed pids --$thispid--\n",1);
+				Condor::debug("Checking againt list of removed pids --$thispid--\n");
 				foreach my $pidcheck (@pids)
 				{
 					if($thispid eq $pidcheck)
 					{
-						CondorTest::debug("Test fails because PARENT pid $pidcheck should have been removed\n",1);
+						print "Test fails because PARENT pid $pidcheck should have been removed\n";
 						$worked = "no";
 						system("kill -9 $pidcheck");
 					}
@@ -124,7 +125,7 @@ $ExitSuccess = sub {
 				{
 					if($thispid eq $pidcheck)
 					{
-						CondorTest::debug("Test fails because CHILD pid $pidcheck should have been removed\n",1);
+						print "Test fails because CHILD pid $pidcheck should have been removed\n";
 						$worked = "no";
 						system("kill -9 $pidcheck");
 					}
@@ -136,12 +137,12 @@ $ExitSuccess = sub {
 			if($pidline =~ /\s*[A-Za-z]+\s*(\d+).*$/ )
 			{
 				$thispid = $1;
-				CondorTest::debug("Checking againt list of removed pids --$thispid--\n",1);
+				Condor::debug("Checking againt list of removed pids --$thispid--\n");
 				foreach my $pidcheck (@pids)
 				{
 					if($thispid eq $pidcheck)
 					{
-						CondorTest::debug("Test fails because PARENT pid $pidcheck should have been removed\n",1);
+						print "Test fails because PARENT pid $pidcheck should have been removed\n";
 						$worked = "no";
 						system("kill -9 $pidcheck");
 					}
@@ -150,7 +151,7 @@ $ExitSuccess = sub {
 				{
 					if($thispid eq $pidcheck)
 					{
-						CondorTest::debug("Test fails because CHILD pid $pidcheck should have been removed\n",1);
+						print "Test fails because CHILD pid $pidcheck should have been removed\n";
 						$worked = "no";
 						system("kill -9 $pidcheck");
 					}
@@ -162,9 +163,9 @@ $ExitSuccess = sub {
 	close(PULL);
 	if($worked eq "no")
 	{
-		CondorTest::debug("$testname: FAILED. We created parent processes with children and inserted this list into testname.data \n",1);
-		CondorTest::debug("and testname.data.kids. When we went through these files some processes were not cleaned up. They were\n",1);
-		CondorTest::debug("labeled in the error as either PARENT or CHILD created by x_pid_tracking.pl. We removed them during the checking.\n",1);
+		print "$testname: FAILED. We created parent processes with children and inserted this list into testname.data \n";
+		print "and testname.data.kids. When we went through these files some processes were not cleaned up. They were\n";
+		print "labeled in the error as either PARENT or CHILD created by x_pid_tracking.pl. We removed them during the checking.\n";
 		exit(1);
 	}
 };
@@ -173,7 +174,7 @@ CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 CondorTest::RegisterExecute($testname, $execute);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

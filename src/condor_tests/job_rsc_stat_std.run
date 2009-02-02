@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_rsc_stat_std.cmd';
-$testdesc =  'Stat Test';
-$testname = "job_rsc_stat_std";
+$testname = 'Stat Test';
 	
 $file = 'x_data.in';
 
@@ -31,47 +30,44 @@ $file = 'x_data.in';
 $mtime, $ctime, $blksize, $blocks) = lstat($file);
 $mode = $mode & 0777;
 $mode = sprintf("0%o", $mode);
-my @expected_output;
-push( @expected_output, "Output from lstat():" );
-push( @expected_output, "$file:" );
-push( @expected_output, "  st_mode = $mode" );
-push( @expected_output, "  st_ino = $ino" );
-push( @expected_output, "  st_dev = $dev" );
-push( @expected_output, "  st_nlink = $nlink" );
-push( @expected_output, "  st_uid = $uid" );
-push( @expected_output, "  st_gid = $gid" );
-push( @expected_output, "  st_size = $size" );
-push( @expected_output, "  st_mtime = $mtime" );
-push( @expected_output, "  st_ctime = $ctime" );
+push( @CondorTest::expected_output, "Output from lstat():" );
+push( @CondorTest::expected_output, "$file:" );
+push( @CondorTest::expected_output, "  st_mode = $mode" );
+push( @CondorTest::expected_output, "  st_ino = $ino" );
+push( @CondorTest::expected_output, "  st_dev = $dev" );
+push( @CondorTest::expected_output, "  st_nlink = $nlink" );
+push( @CondorTest::expected_output, "  st_uid = $uid" );
+push( @CondorTest::expected_output, "  st_gid = $gid" );
+push( @CondorTest::expected_output, "  st_size = $size" );
+push( @CondorTest::expected_output, "  st_mtime = $mtime" );
+push( @CondorTest::expected_output, "  st_ctime = $ctime" );
 
 ($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime,
 $mtime, $ctime, $blksize, $blocks) = stat($file);
 $mode = $mode & 0777;
 $mode = sprintf("0%o", $mode);
-push( @expected_output, "Output from stat():" );
-push( @expected_output, "$file:" );
-push( @expected_output, "  st_mode = $mode" );
-push( @expected_output, "  st_ino = $ino" );
-push( @expected_output, "  st_dev = $dev" );
-push( @expected_output, "  st_nlink = $nlink" );
-push( @expected_output, "  st_uid = $uid" );
-push( @expected_output, "  st_gid = $gid" );
-push( @expected_output, "  st_size = $size" );
-push( @expected_output, "  st_mtime = $mtime" );
-push( @expected_output, "  st_ctime = $ctime" );
-push( @expected_output, "Normal End Of Job" );
-CondorTest::SetExpected(\@expected_output);
+push( @CondorTest::expected_output, "Output from stat():" );
+push( @CondorTest::expected_output, "$file:" );
+push( @CondorTest::expected_output, "  st_mode = $mode" );
+push( @CondorTest::expected_output, "  st_ino = $ino" );
+push( @CondorTest::expected_output, "  st_dev = $dev" );
+push( @CondorTest::expected_output, "  st_nlink = $nlink" );
+push( @CondorTest::expected_output, "  st_uid = $uid" );
+push( @CondorTest::expected_output, "  st_gid = $gid" );
+push( @CondorTest::expected_output, "  st_size = $size" );
+push( @CondorTest::expected_output, "  st_mtime = $mtime" );
+push( @CondorTest::expected_output, "  st_ctime = $ctime" );
+push( @CondorTest::expected_output, "Normal End Of Job" );
 
 # Skip the lines for st_atime, since those might vary through no fault
 # of our own...
-my @skipped_output_lines = ( 10, 22 );
-CondorTest::SetSkipped(\@skipped_output_lines);
+@CondorTest::skipped_output_lines = ( 10, 22 );
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

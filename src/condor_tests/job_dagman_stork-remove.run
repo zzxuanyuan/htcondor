@@ -22,13 +22,14 @@ use CondorTest;
 use CondorPersonal;
 use Cwd;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
-$testdesc =  'job_dagman_stork-file-file - Simple dagman/stork job';
-$testname = "job_dagman_stork-remove";
+$testname = 'job_dagman_stork-file-file - Simple dagman/stork job';
 $corename = "job_dagman_stork-file-file";
 $topdir = getcwd();
 
-CondorTest::debug("Working Directory is $topdir\n",1);
+print "Working Directory is $topdir\n";
 
 # where am I running
 $currenthost = CondorTest::getFqdnHost();
@@ -51,19 +52,19 @@ $mycorenm = $corename . ".cmd";
 $mycorenmout = $corename . ".cmd.out";
 $mycorenmlog = $corename . ".log";
 
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 # generate a running personal condor based on the condor binary
 # which we are currently configured to run and return a config_location:port 
 # string after starting up that personal condor.
 
-my $configloc = CondorPersonal::StartCondor( "job_dagman_stork-remove", "x_param.storksrvr" ,"local");
+my $configloc = CondorPersonal::StartCondor("x_param.storksrvr" ,"local");
 my @local = split /\+/, $configloc;
 my $locconfig = shift @local;
 my $locport = shift @local;
 
-CondorTest::debug("---local config is $locconfig and local port is $locport---\n",1);
+print "---local config is $locconfig and local port is $locport---\n";
 
 # find out the directory and cp stork submit file there and 
 # build dag file there to submit from there and preserve all logs etc.
@@ -73,7 +74,7 @@ my $personaldir = "";
 if($locconfig =~ /(.*)\/condor_config/)
 {
 	$personaldir = $1;
-	CondorTest::debug("Personal Condor and Dag runtime directory is $personaldir\n",1);
+	print "Personal Condor and Dag runtime directory is $personaldir\n";
 }
 
 
@@ -89,29 +90,28 @@ if( ! -e "job_stork_file-file.in" )
 	system("date > job_stork_file-file.in");
 }
 
-CondorTest::debug("Callling ./x_makestorkdag.pl\n",1);
+print "Callling ./x_makestorkdag.pl\n";
 
 # copy from /dev/random is a stork job which runs forever....
 my $makeresult = system("./x_makestorkdag.pl --root=$personaldir --dag=dag1 --dagnm=dag1.dag --src_url=/dev/random --dest_url=/dev/null");
 
-CondorTest::debug("make dag result is <<$makeresult>>\n",1);
+print "make dag result is <<$makeresult>>\n";
 
 $cmd = "$dagnm";
-$testdesc =  'Condor submit dag - stork transfer test';
-$testname = "job_dagman_stork-remove";
+$testname = 'Condor submit dag - stork transfer test';
 #$dagman_args = "-v -storklog `condor_config_val LOG`/Stork.user_log";
 $dagman_args = "-v ";
 
-CondorTest::debug("Callling ./x_runstorkdag.pl\n",1);
+print "Callling ./x_runstorkdag.pl\n";
 $now = getcwd();
-CondorTest::debug("Calling from here<<$now>>\n",1);
+print "Calling from here<<$now>>\n";
 
 # pass a timeout so we can remove the dag from the queue and then see
 # if dagman correctly removed the "forever" running stork transfer.
 
 my $result = system("./x_runstorkdag.pl $personaldir/dag1 dag1.dag \"$testname\" 30");
  
-CondorTest::debug("run dag result is <<$result>>\n",1);
+print "run dag result is <<$result>>\n";
 
 # verify we have a stork job still running after timeout in dag test
 # got us control back.
@@ -123,16 +123,16 @@ my $cmd = "stork_status $cluster";
 $status = CondorTest::runCondorTool($cmd,\@adarray,2);
 if(!$status)
 {
-	CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
 	exit(1)
 }
 
 foreach my $line (@adarray)
 {
-	CondorTest::debug("STORK_STATUS:$line\n",1);
+	print "STORK_STATUS:$line\n";
 	if($line =~ /status\s*=\s*"processing_request".*$/)
 	{
-		CondorTest::debug("STORK_STATUS:$line\n",1);
+		print "STORK_STATUS:$line\n";
 		$result = 0; # good that we have an infinate stork job
 	}
 }
@@ -144,7 +144,7 @@ $cmd = "condor_rm $cluster";
 $status = CondorTest::runCondorTool($cmd,\@adarray,2);
 if(!$status)
 {
-    CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+    print "Test failure due to Condor Tool Failure<$cmd>\n";
     exit(1)
 }
 
@@ -156,16 +156,16 @@ $cmd = "stork_status $cluster";
 $status = CondorTest::runCondorTool($cmd,\@adarray,2);
 if(!$status)
 {
-	CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
 	exit(1)
 }
 
 foreach my $line (@adarray)
 {
-	CondorTest::debug("STORK_STATUS:$line\n",1);
+	print "STORK_STATUS:$line\n";
 	if($line =~ /status\s*=\s*"request_removed".*$/)
 	{
-		CondorTest::debug("STORK_STATUS:$line\n",1);
+		print "STORK_STATUS:$line\n";
 		$result = 0; # good that we have an infinate stork job
 	}
 }
@@ -187,15 +187,26 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($locconfig);
-system("date");
-
-if( $run_result != 0 )
+@adarray = ();
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
 {
-	# actual test failed but we allowed cleanup
-	CondorTest::debug("Stork - Dagman run test failed!\n",1);
-	exit(1);
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
 }
 
-CondorTest::debug("job_dagman_stork-remove SUCCESS\n",1);
-exit(0);
+system("date");
+
+if( $result != 0 )
+{
+	# actual test failed but we allowed cleanup
+	print "Stork test failed!\n";
+	exit(1);
+}
+else
+{
+	print "Stork test SUCCESS!\n";
+}
+

@@ -20,8 +20,7 @@
 
 
 my @got;
-$testdesc =  'lib_sysapi - runs prebuilt sysapi tests from testbin_dir';
-$testname = "lib_sysapi";
+$testname = 'lib_sysapi - runs prebuilt sysapi tests from testbin_dir';
 $test = "../testbin_dir/condor_sysapi";
 
 system("date");

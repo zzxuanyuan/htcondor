@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perhold-true_sched.cmd';
-$testdesc =  'Condor submit with for periodic hold test - scheduler U';
-$testname = "job_core_perhold_sched";
+$testname = 'Condor submit with for periodic hold test - scheduler U';
 
 my $killedchosen = 0;
 
@@ -40,21 +39,21 @@ $abnormal = sub {
 $aborted = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event expected from periodic remove after hold event seen\n",1);
+	print "Abort event expected from periodic remove after hold event seen\n";
 };
 
 $held = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Held event expected, removing job.....\n",1);
+	print "Held event expected, removing job.....\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_rm $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 };
@@ -64,7 +63,7 @@ $executed = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Periodic Hold should see and execute, followed by a hold and then we remove the job\n",1);
+	print "Periodic Hold should see and execute, followed by a hold and then we remove the job\n";
 };
 
 $submitted = sub
@@ -72,7 +71,7 @@ $submitted = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("submitted: ok\n",1);
+	print "submitted: ok\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
@@ -82,7 +81,7 @@ CondorTest::RegisterHold( $testname, $held );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

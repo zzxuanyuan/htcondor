@@ -21,8 +21,7 @@
 use CondorTest;
 
 #$cmd = 'lib_auth_protocol-negot.cmd';
-$testdesc =  'Condor submit to test security negotiations';
-$testname = "x_lib_auth_protocol";
+$testname = 'Condor submit to test security negotiations';
 
 my $killedchosen = 0;
 
@@ -41,9 +40,9 @@ my $expectedres = $ARGV[2];
 my $submitfile = $ARGV[3];
 $cmd = $submitfile;
 
-CondorTest::debug("Submit file is $cmd\n",1);
+print "Submit file is $cmd\n";
 
-CondorTest::debug("Handed args from main test loop.....<<<<<<<<<<<<<<<<<<<<<<$piddir/$subdir/$expectedres>>>>>>>>>>>>>>\n",1);
+print "Handed args from main test loop.....<<<<<<<<<<<<<<<<<<<<<<$piddir/$subdir/$expectedres>>>>>>>>>>>>>>\n";
 $abnormal = sub {
 	my %info = @_;
 
@@ -78,16 +77,16 @@ $executed = sub
 	my $cmd = "condor_q -debug";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2,"Security");
 	if(!$status) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1);
 	} else {
 		foreach $line (@adarray) {
 			if( $line =~ /.*Authentication was a Success.*/ ) {
-				CondorTest::debug("SWEET: client got Authentication as expected\n",1);
+				print "SWEET: client got Authentication as expected\n";
 				return(0);
 			}
 		}
-		CondorTest::debug("Bad: client did not get Authentication as expected\n",1);
+		print "Bad: client did not get Authentication as expected\n";
 		exit(1)
 	}
 };
@@ -97,23 +96,23 @@ $submitted = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("submitted: \n",1);
+	print "submitted: \n";
 	{
-		CondorTest::debug("Check authenticated user....\n",1);
+		print "Check authenticated user....\n";
 	}
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_q -l $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1);
 	} else {
 		foreach $line (@adarray) {
 			if( $line =~ /^Owner\s*=\s*(.*)\s*.*/ ) {
-				CondorTest::debug("Owner is $1\n",1);
+				print "Owner is $1\n";
 			} elsif ( $line =~ /^User\s*=\s*(.*)\s*.*/ ) {
-				CondorTest::debug("User is $1\n",1);
+				print "User is $1\n";
 			}
 		}
 	}
@@ -124,14 +123,33 @@ $success = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	my $stat = CondorTest::PersonalSearchLog( $piddir, $subdir, "Authentication was a Success", "SchedLog");
+	my $stat = PersonalSearchLog( $piddir, $subdir, "Authentication was a Success", "SchedLog");
 	if( $stat == 0 ) {
-		CondorTest::debug("Good completion!!!\n",1);
+		print "Good completion!!!\n";
 	} else {
 		die "Expected match for Authentication is a Success and could not find it in SchedLog\n";
 	}
 
 };
+
+sub PersonalSearchLog 
+{
+	my $pid = shift;
+	my $personal = shift;
+	my $searchfor = shift;
+	my $logname = shift;
+
+	my $logloc = $pid . "/" . $pid . $personal . "/log/" . $logname;
+	print "Search this log <$logloc> for <$searchfor>\n";
+	open(LOG,"<$logloc") || die "Can not open logfile<$logloc>: $!\n";
+	while(<LOG>) {
+		if( $_ =~ /$searchfor/) {
+			print "FOUND IT! $_";
+			return(0);
+		}
+	}
+	return(1);
+}
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedAbnormal( $testname, $abnormal );
@@ -141,7 +159,7 @@ CondorTest::RegisterHold( $testname, $held );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

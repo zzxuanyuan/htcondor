@@ -22,7 +22,7 @@
 #ifndef __XINTERFACE_H__
 #define __XINTERFACE_H__
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_debug.h"
 #include "condor_uid.h"
 #include <ctype.h>
@@ -47,7 +47,6 @@ class XInterface
     void TryUser(const char *user);
 
     Display     *_display;
-    char*       _display_name;
     Window      _window;
     int         _screen;
     time_t      _last_event;
@@ -78,7 +77,7 @@ class XInterface
 		static char *AltUtmpName = "/var/adm/utmp";
 #	endif
 #elif defined(LINUX)
-	static char *UtmpName = "/var/run/utmp";
+	static char *UtmpName = "/var/run/utmpx";
 	static char *AltUtmpName = "/var/adm/utmpx";
 #else
 	static char *UtmpName = "/etc/utmpx";

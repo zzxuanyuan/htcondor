@@ -22,17 +22,15 @@
 use CondorTest;
 
 $cmd = 'job_rsc_open-N-serial_std.cmd';
-$testdesc =  'Manyfiles Test';
-$testname = "job_rsc_open-N-serial_std";
+$testname = 'Manyfiles Test';
 
-my @expected_output = ( "SUCCESS" );
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = ( "SUCCESS" );
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

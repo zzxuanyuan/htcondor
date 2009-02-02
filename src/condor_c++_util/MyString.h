@@ -18,12 +18,12 @@
  ***************************************************************/
 
 
+#include <stdarg.h>
+#include <string.h>
+#include "simplelist.h"
+
 #ifndef _MyString_H_
 #define _MyString_H_
-
-#include "condor_header_features.h"
-#include <string.h>
-#include <stdarg.h>
 
 /** The MyString class is a C++ representation of a string. It was
  * written before we could reliably use the standard string class.
@@ -210,8 +210,7 @@ class MyString
 
 	/** Returns the zero-based index of the first character of a
      *  substring, if it is contained within the MyString. Begins
-     *  looking at iStartPost.  Returns -1 if pszToFind is not
-	 *  found, 0 if pszToFind is empty. */
+     *  looking at iStartPost */
 	int find(const char *pszToFind, int iStartPos = 0) const;
 
 	/** Replaces a substring with another substring. It's okay for the
@@ -340,8 +339,6 @@ class MyString
 private:
 
     void init();
-	void append_str( const char *s, int s_len );
-	void assign_str( const char *s, int s_len );
 
   char* Data;	// array containing the C string of this MyString's value
   char dummy;	// used for '\0' char in operator[] when the index

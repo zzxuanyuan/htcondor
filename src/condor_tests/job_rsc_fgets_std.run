@@ -22,25 +22,22 @@
 use CondorTest;
 
 $cmd = 'job_rsc_fgets_std.cmd';
-$testdesc =  'Fgets Test';
-$testname = "job_rsc_fgets_std";
+$testname = 'Fgets Test';
 
 $input = 'x_data.in';
-my @expected_output;
 open(INPUT, "<$input") || die "Can't open $input: $!\n";
 while(<INPUT>)
 {
     $lineno++;
-    push(@expected_output, "Read a line ($lineno)");
+    push(@CondorTest::expected_output, "Read a line ($lineno)");
 }
-push(@expected_output, "All done.");
-CondorTest::SetExpected(\@expected_output);
+push(@CondorTest::expected_output, "All done.");
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

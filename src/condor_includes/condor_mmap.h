@@ -34,12 +34,7 @@
 #	define MA_SHARED	0x0008	/* mapping is a shared or mapped object */
 #	define MMAP_T void*
 #elif defined(Solaris)
-#	if defined(REMOTE_SYSCALLS)
-		/* Stupid solaris, stupid compilers, stupid life. */
-#		define MMAP_T void*
-#	else
-#		define MMAP_T caddr_t
-#	endif
+#	define MMAP_T char*
 #elif defined(HPUX)
 #	define MMAP_T void*
 #elif defined(OSF1)

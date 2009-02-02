@@ -25,18 +25,12 @@
 #define OBJECT_MODE		0644
 #define TEXT_MODE		OBJECT_MODE
 
-.SUFFIXES: .C .cpp .f .f90
-
-.cpp.o:
-	$(CPlusPlus) $(C_PLUS_FLAGS) -c $< -o $@
+.SUFFIXES: .C
 
 .C.o:
 	$(CPlusPlus) $(C_PLUS_FLAGS) -c $< -o $@
 
 .f.o:
-	$(Fortran) $(FFLAGS) -c $< -o $@
-
-.f90.o:
 	$(Fortran) $(FFLAGS) -c $< -o $@
 
 #if HAVE_CC_PIC_FLAG
@@ -48,9 +42,6 @@
 %-pic.o: %.c
 	$(CC) $(CC_PIC_FLAGS) $(STD_C_FLAGS) $(GCC_NO_STACK_PROTECTOR) -c $< -o $@
 
-%-pic.o: %.cpp
-	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) $(GCC_NO_STACK_PROTECTOR) -c $< -o $@
-
 %-pic.o: %.C
 	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) $(GCC_NO_STACK_PROTECTOR) -c $< -o $@
 
@@ -58,6 +49,17 @@
 picobjs = $(patsubst %.o,%-pic.o,$(1))
 #endif
 
+
+/*
+ * The return value of a Unix pipeline is the last command in the pipeline
+ * If we are running ld through c++filt, we don't care about the return value
+ * of c++ filt, we only care about the return value of the command in 
+ * front of c++filt.  To simulate this, we "know" that c++filt is always
+ * run in front of ld, and we return the executability of the linker output
+ */
+#if defined(Demangler)
+DEMANGLE = 2>&1 | Demangler && test -x $@
+#endif
 
 /* Since the *_target macros use the objlist and libs variables BOTH
 	for the link line AND the dependency list, we get screwed if we
@@ -97,6 +99,9 @@ picobjs = $(patsubst %.o,%-pic.o,$(1))
 #define junkdir(daemon)Concat3(junk,_,daemon)
 #define soapname(daemon)Concat(soap_,daemon)
 #define gsoapname(daemon)Concat(gsoap_,daemon)
+#define purifyname(program)Concat(program,.pure)
+#define purecovname(program)Concat(program,.pc)
+#define quantifyname(program)Concat(program,.quantify)
 
 /*
 ** Set up to make all the objects in a particular directory.
@@ -254,7 +259,7 @@ XCOMM End translation of func(program_target_complex)
 #define c_plus_target_real(program,objlist,libs,ldflags)	@@\
 XCOMM Begin translation of func(c_plus_target_real)		@@\
 program: $(filter DEP_FILTER,objlist libs)			@@\
-	$(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs ldflags @@\
+	$(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs ldflags $(DEMANGLE) @@\
 clean::								@@\
 	rm -f program objlist					@@\
 XCOMM End translation of func(c_plus_target_real)
@@ -284,12 +289,23 @@ XCOMM End translation of func(c_plus_nowrap_target)
 #define	c_plus_target_complex(program,objlist,comflags,linkflags,libs)	@@\
 XCOMM Begin translation of func(c_plus_target_complex) @@\
 program: $(filter DEP_FILTER,objlist libs)						@@\
-	$(CC_LINK) comflags -o program objlist libs linkflags @@\
+	$(CC_LINK) comflags -o program objlist libs linkflags $(DEMANGLE)	@@\
 clean::								@@\
 	rm -f program objlist			@@\
 XCOMM End translation of func(c_plus_target_complex)
 #endif  /* c_plus_target_complex */
 
+
+/*
+** Build a template instantiation object
+*/
+#ifndef template_inst
+#define template_inst(srcfile,objfile)               @@\
+XCOMM Begin translation of func(template_inst) @@\
+objfile: srcfile                                        @@\
+	 $(CPlusPlus) $(INST_C_PLUS_FLAGS) -c srcfile -o objfile @@\
+XCOMM End translation of func(template_inst)
+#endif /* template_inst_obj */
 
 /*
 ** Build a Java class from a .java file.
@@ -335,7 +351,7 @@ XCOMM End translation of func(jar_target)
 */
 #define soapobjs(daemon) @@\
 SOAP_OBJS = Concat(soapname(daemon),C).o Concat(soapname(daemon),Server).o Concat(soapname(daemon),Stub).o @@\
-SOAP_SRC = Concat(soapname(daemon),C).cpp Concat(soapname(daemon),Server).cpp Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h
+SOAP_SRC = Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h
 
 /* given a daemon name, and a service, use the soap compiler to produce a 
 	set of interface files in a temporary directory and then copy the files
@@ -344,7 +360,16 @@ SOAP_SRC = Concat(soapname(daemon),C).cpp Concat(soapname(daemon),Server).cpp Co
 */
 #define gen_soapfiles(daemon,service) @@\
 soapfiles:: gsoapname(daemon).h @@\
-	$(SOAPCPP2) -I ../condor_daemon_core.V6 -S -L -x -p soapname(daemon) gsoapname(daemon).h @@\
+	/bin/rm -rf junkdir(daemon) @@\
+	/bin/mkdir junkdir(daemon) @@\
+	$(SOAPCPP2) -I ../condor_daemon_core.V6 -d junkdir(daemon) -p soapname(daemon) gsoapname(daemon).h @@\
+	cp junkdir(daemon)/Concat(soapname(daemon),C).cpp Concat(soapname(daemon),C).C @@\
+	cp junkdir(daemon)/Concat(soapname(daemon),Server).cpp Concat(soapname(daemon),Server).C @@\
+	cp junkdir(daemon)/service.nsmap . @@\
+	cp junkdir(daemon)/Concat(soapname(daemon),H).h . @@\
+	cp junkdir(daemon)/Concat(soapname(daemon),Stub).h . @@\
+	cp junkdir(daemon)/service.wsdl . @@\
+	/bin/rm -rf junkdir(daemon) @@\
 	touch soapfiles @@\
 	@@\
 release_copy_target(service.wsdl,lib/webservice,service.wsdl,TEXT_MODE) @@\
@@ -352,8 +377,8 @@ strip_copy_target(service.wsdl,lib/webservice,service.wsdl,TEXT_MODE) @@\
 static_copy_target(service.wsdl,lib/webservice,service.wsdl,TEXT_MODE) @@\
 	@@\
 clean:: @@\
-	/bin/rm -f service.nsmap Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h service.wsdl Concat(soapname(daemon),C).cpp Concat(soapname(daemon),Server).cpp soapfiles @@\
-XCOMM Specifically add a dependancy from the generated .cpp files to the @@\
+	/bin/rm -f service.nsmap Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h service.wsdl Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C soapfiles @@\
+XCOMM Specifically add a dependancy from the generated .C files to the @@\
 XCOMM .o files. Otherwise, the suffix rules do not get the dependencies @@\
 XCOMM right. @@\
 $(SOAP_OBJS): $(SOAP_SRC) @@\
@@ -400,7 +425,7 @@ XCOMM End translation of func(testbin_target)
 XCOMM Begin translation of func(release_target) @@\
 $(RELEASE_DIR)/dir/file: file			@@\
 	/bin/rm -f $(RELEASE_DIR)/dir/file	@@\
-	ln file $(RELEASE_DIR)/dir 2>/dev/null || cp file $(RELEASE_DIR)/dir			@@\
+	cp file $(RELEASE_DIR)/dir			@@\
 	chmod mode $(RELEASE_DIR)/dir/file	@@\
 release:: $(RELEASE_DIR)/dir/file			@@\
 XCOMM End translation of func(release_target)
@@ -413,7 +438,7 @@ XCOMM End translation of func(release_target)
 #define release_library(lib,dir) 			@@\
 XCOMM Begin translation of func(release_library) @@\
 $(RELEASE_DIR)/dir/lib: lib					@@\
-	if [ -h lib ]; then COPY_LIBRARY(lib,$(RELEASE_DIR)/dir/lib); else ln lib $(RELEASE_DIR)/dir 2>/dev/null || COPY_LIBRARY(lib,$(RELEASE_DIR)/dir/lib); fi@@\
+	COPY_LIBRARY(lib,$(RELEASE_DIR)/dir/lib)		@@\
 	RANLIB_TOUCH($(RELEASE_DIR)/dir/lib)			@@\
 release:: $(RELEASE_DIR)/dir/lib	@@\
 XCOMM End translation of func(release_library)
@@ -668,11 +693,15 @@ $(STATIC_DIR)/dir/program: program.static			@@\
 	cp program.static $(STATIC_DIR)/dir/program		@@\
 	chmod EXECUTABLE_MODE $(STATIC_DIR)/dir/program		@@\
 	strip_file($(STATIC_DIR)/dir/program)			@@\
+$(STATIC_UNSTRIP_DIR)/dir/program: program.static		@@\
+	/bin/rm -f $(STATIC_UNSTRIP_DIR)/dir/program		@@\
+	cp program.static $(STATIC_UNSTRIP_DIR)/dir/program	@@\
+	chmod EXECUTABLE_MODE $(STATIC_UNSTRIP_DIR)/dir/program	@@\
 program.static: $(filter DEP_FILTER,objlist libs) 		@@\
-	$(CC_LINK) $(STATIC)  $(C_PLUS_FLAGS) -o program.static objlist libs ldflags @@\
+	$(CC_LINK) $(STATIC)  $(C_PLUS_FLAGS) -o program.static objlist libs ldflags $(DEMANGLE) @@\
 clean:: 							@@\
 	rm -f program.static objlist				@@\
-static:: $(STATIC_DIR)/dir/program @@\
+static:: $(STATIC_DIR)/dir/program $(STATIC_UNSTRIP_DIR)/dir/program	@@\
 XCOMM End translation of func(static_target_real)
 #else  /* ! HAS_STATIC */
 #define static_target_real(program,objlist,libs,dir,ldflags)	@@\
@@ -709,7 +738,11 @@ $(STATIC_DIR)/dir/lib: lib			@@\
 	COPY_LIBRARY(lib,$(STATIC_DIR)/dir/lib) @@\
 	RANLIB_TOUCH($(STATIC_DIR)/dir/lib)	@@\
 	chmod OBJECT_MODE $(STATIC_DIR)/dir/lib	@@\
-static:: $(STATIC_DIR)/dir/lib @@\
+$(STATIC_UNSTRIP_DIR)/dir/lib: lib			@@\
+	COPY_LIBRARY(lib,$(STATIC_UNSTRIP_DIR)/dir/lib) @@\
+	RANLIB_TOUCH($(STATIC_UNSTRIP_DIR)/dir/lib)	@@\
+	chmod OBJECT_MODE $(STATIC_UNSTRIP_DIR)/dir/lib	@@\
+static:: $(STATIC_DIR)/dir/lib $(STATIC_UNSTRIP_DIR)/dir/lib	@@\
 XCOMM End translation of func(static_library)
 #else  /* ! HAS_STATIC */
 #define static_library(lib,dir)			@@\
@@ -729,7 +762,10 @@ XCOMM Begin translation of func(static_shared_library) @@\
 $(STATIC_DIR)/dir/lib: lib			@@\
 	COPY_LIBRARY(lib,$(STATIC_DIR)/dir/lib) @@\
 	chmod OBJECT_MODE $(STATIC_DIR)/dir/lib	@@\
-static:: $(STATIC_DIR)/dir/lib @@\
+$(STATIC_UNSTRIP_DIR)/dir/lib: lib			@@\
+	COPY_LIBRARY(lib,$(STATIC_UNSTRIP_DIR)/dir/lib) @@\
+	chmod OBJECT_MODE $(STATIC_UNSTRIP_DIR)/dir/lib	@@\
+static:: $(STATIC_DIR)/dir/lib $(STATIC_UNSTRIP_DIR)/dir/lib	@@\
 XCOMM End translation of func(static_shared_library)
 #else  /* ! HAS_STATIC */
 #define static_shared_library(lib,dir)			@@\
@@ -751,7 +787,11 @@ $(STATIC_DIR)/dir/file: src			@@\
 	/bin/rm -f $(STATIC_DIR)/dir/file	@@\
 	cp src $(STATIC_DIR)/dir/file		@@\
 	chmod mode $(STATIC_DIR)/dir/file	@@\
-static:: $(STATIC_DIR)/dir/file	@@\
+$(STATIC_UNSTRIP_DIR)/dir/file: src			@@\
+	/bin/rm -f $(STATIC_UNSTRIP_DIR)/dir/file	@@\
+	cp src $(STATIC_UNSTRIP_DIR)/dir/file		@@\
+	chmod mode $(STATIC_UNSTRIP_DIR)/dir/file	@@\
+static:: $(STATIC_DIR)/dir/file	$(STATIC_UNSTRIP_DIR)/dir/file	@@\
 XCOMM End translation of func(static_copy_target)
 #else  /* ! HAS_STATIC */
 #define static_copy_target(src,dir,file,mode)	@@\
@@ -769,10 +809,13 @@ XCOMM End translation of func(static_copy_target)
 #if HAS_STATIC
 #define static_recursive_copy_target(src,dest)			@@\
 XCOMM Begin translation of func(static_recursive_copy_target)	@@\
-static:: $(STATIC_DIR)/dest @@\
+static:: $(STATIC_DIR)/dest $(STATIC_UNSTRIP_DIR)/dest		@@\
 $(STATIC_DIR)/dest: src						@@\
 	/bin/rm -rf $(STATIC_DIR)/dest				@@\
 	$(CP_CMD) src $(STATIC_DIR)/dest			@@\
+$(STATIC_UNSTRIP_DIR)/dest: src					@@\
+	/bin/rm -rf $(STATIC_UNSTRIP_DIR)/dest			@@\
+	$(CP_CMD) src $(STATIC_UNSTRIP_DIR)/dest		@@\
 XCOMM End translation of func(static_recursive_copy_target)
 #else  /* ! HAS_STATIC */
 #define static_recursive_copy_target(src,dest)			@@\
@@ -790,11 +833,14 @@ XCOMM End translation of func(static_recursive_copy_target)
 #if HAS_STATIC
 #define static_link_target(dir,src,dest)	@@\
 XCOMM Begin translation of func(static_link_target) @@\
-static:: $(STATIC_DIR)/dir/dest	@@\
+static:: $(STATIC_DIR)/dir/dest	$(STATIC_UNSTRIP_DIR)/dir/dest	@@\
 						@@\
 $(STATIC_DIR)/dir/dest: $(STATIC_DIR)/dir/src	@@\
 	/bin/rm -f $(STATIC_DIR)/dir/dest	@@\
 	ln $(STATIC_DIR)/dir/src $(STATIC_DIR)/dir/dest	@@\
+$(STATIC_UNSTRIP_DIR)/dir/dest: $(STATIC_UNSTRIP_DIR)/dir/src	@@\
+	/bin/rm -f $(STATIC_UNSTRIP_DIR)/dir/dest	@@\
+	ln $(STATIC_UNSTRIP_DIR)/dir/src $(STATIC_UNSTRIP_DIR)/dir/dest	@@\
 XCOMM End translation of func(static_link_target)
 #else  /* ! HAS_STATIC */
 #define static_link_target(dir,src,dest)	@@\
@@ -811,10 +857,13 @@ XCOMM End translation of func(static_link_target)
 #if HAS_STATIC
 #define static_symlink_target(src,dir,dest)	@@\
 XCOMM Begin translation of func(static_symlink_target) @@\
-static:: $(STATIC_DIR)/dir/dest @@\
+static:: $(STATIC_DIR)/dir/dest $(STATIC_UNSTRIP_DIR)/dir/dest	@@\
 $(STATIC_DIR)/dir/dest: 			@@\
 	/bin/rm -f $(STATIC_DIR)/dir/dest	@@\
 	ln -s src $(STATIC_DIR)/dir/dest	@@\
+$(STATIC_UNSTRIP_DIR)/dir/dest: 			@@\
+	/bin/rm -f $(STATIC_UNSTRIP_DIR)/dir/dest	@@\
+	ln -s src $(STATIC_UNSTRIP_DIR)/dir/dest	@@\
 XCOMM End translation of func(static_symlink_target)
 #else  /* ! HAS_STATIC */
 #define static_symlink_target(src,dir,dest)	@@\
@@ -853,6 +902,9 @@ c_plus_target(program,objlist,libs) @@\
 release_target(program,dir,EXECUTABLE_MODE) @@\
 strip_target(program,dir,EXECUTABLE_MODE) @@\
 static_target(program,objlist,libs,dir) @@\
+pure_c_plus_target(purifyname(program),objlist,libs) @@\
+purecov_c_plus_target(purecovname(program),objlist,libs) @@\
+quantify_c_plus_target(quantifyname(program),objlist,libs) @@\
 XCOMM End translation of func(c_plus_public_target)
 #endif /* public_c_plus_target */
 
@@ -1112,6 +1164,114 @@ XCOMM End translation of func(static_both_tarball)
 #endif /* static_both_tarball */
 
 /***********************************************************************
+** PureSoftware targets
+**
+** These rules are used for creating special debugging binaries built
+** for either purify, purecoverage, or both.
+***********************************************************************/
+
+#if HAS_PURIFY
+
+#ifndef pure_c_plus_target
+#define	pure_c_plus_target(program,objlist,libs)	@@\
+XCOMM Begin translation of func(pure_c_plus_target)	@@\
+program: $(filter DEP_FILTER,objlist libs)					@@\
+	purify -g++=yes -inuse-at-exit=yes -chain-length=50 -cache-dir=$(PURE_CACHE_DIR) purecov -g++=yes $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
+clean::							@@\
+	rm -f program objlist		@@\
+XCOMM End translation of func(pure_c_plus_target)
+#endif /* pure_c_plus_target */
+
+#ifndef purify_c_plus_target
+#define	purify_c_plus_target(program,objlist,libs)	@@\
+XCOMM Begin translation of func(purify_c_plus_target)	@@\
+program: $(filter DEP_FILTER,objlist libs)					@@\
+	purify -g++=yes -inuse-at-exit=yes -chain-length=50 PureCollector $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
+clean::							@@\
+	rm -f program objlist		@@\
+XCOMM End translation of func(purify_c_plus_target)
+#endif /* purify_c_plus_target */
+
+
+#ifndef purecov_c_plus_target
+#define	purecov_c_plus_target(program,objlist,libs)	@@\
+XCOMM Begin translation of func(purecov_c_plus_target)	@@\
+program: $(filter DEP_FILTER,objlist libs)					@@\
+	purecov -g++=yes -cache-dir=$(PURE_CACHE_DIR) $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
+clean:: 						@@\
+	rm -f program objlist		@@\
+XCOMM End translation of func(purecov_c_plus_target)
+#endif /* purecov_c_plus_target */
+
+
+#ifndef quantify_c_plus_target
+#define	quantify_c_plus_target(program,objlist,libs)	@@\
+XCOMM Begin translation of func(quantify_c_plus_target)	@@\
+program: $(filter DEP_FILTER,objlist libs)						@@\
+	quantify -g++=yes -cache-dir=$(PURE_CACHE_DIR) $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)     @@\
+clean::		 						@@\
+	rm -f program objlist			@@\
+XCOMM End translation of func(quantify_c_plus_target)
+#endif /* quantify_c_plus_target */
+
+
+#ifndef pure_target
+#define	pure_target(dir,program)				@@\
+XCOMM Begin translation of func(pure_target)	@@\
+$(PURE_DIR)/program: $(PURE_DIR) dir/program		@@\
+	cp dir/program $(PURE_DIR)/program		@@\
+dir/program: dir						@@\
+	cd dir; $(MAKE) program					@@\
+pure:: $(PURE_DIR)/program				@@\
+XCOMM End translation of func(pure_target)
+#endif /* pure_target */
+
+
+#else
+
+#ifndef pure_target
+#define	pure_target(dir,program)			/* NULL MACRO */ @@\
+XCOMM Begin translation of func(pure_target) @@\
+XCOMM NULL BODY! @@\
+XCOMM End translation of func(pure_target)
+#endif /* pure_target */
+
+
+#ifndef pure_c_plus_target
+#define	pure_c_plus_target(program,objlist,libs)	/* NULL MACRO */ @@\
+XCOMM Begin translation of func(pure_c_plus_target) @@\
+XCOMM NULL BODY! @@\
+XCOMM End translation of func(pure_c_plus_target)
+#endif /* pure_c_plus_target */
+
+
+#ifndef purify_c_plus_target
+#define	purify_c_plus_target(program,objlist,libs)	/* NULL MACRO */ @@\
+XCOMM Begin translation of func(purify_c_plus_target) @@\
+XCOMM NULL BODY! @@\
+XCOMM End translation of func(purify_c_plus_target)
+#endif /* purify_c_plus_target */
+
+
+#ifndef purecov_c_plus_target
+#define	purecov_c_plus_target(program,objlist,libs)	/* NULL MACRO */ @@\
+XCOMM Begin translation of func(purecov_c_plus_target) @@\
+XCOMM NULL BODY! @@\
+XCOMM End translation of func(purecov_c_plus_target)
+#endif /* purecov_c_plus_target */
+
+
+#ifndef quantify_c_plus_target
+#define	quantify_c_plus_target(program,objlist,libs) /* NULL MACRO */ @@\
+XCOMM Begin translation of func(quantify_c_plus_target) @@\
+XCOMM NULL BODY! @@\
+XCOMM End translation of func(quantify_c_plus_target)
+#endif /* quantify_c_plus_target */
+
+#endif	/* HAS_PURIFY */
+
+
+/***********************************************************************
 ** condor_compile rules
 **
 ** Rules to link programs with the Condor libraries using
@@ -1304,36 +1464,6 @@ XCOMM End translation of func(F_COMPILER_TARGET)
 #endif /* F_COMPILER_TARGET */
 
 
-#ifndef F90_COMPILER_TARGET
-#define F90_COMPILER_TARGET(compiledir,compiler,flags_macro_name,has_recursion) @@\
-XCOMM Begin translation of func(F90_COMPILER_TARGET) @@\
-all:: compiledir compiledir/Makefile				@@\
-	cd compiledir; $(MAKE)					@@\
-								@@\
-compiledir:							@@\
-	mkdir compiledir					@@\
-								@@\
-compiledir/Imakefile: F90Imakefile				@@\
-	cd compiledir; /bin/rm -f Imakefile			@@\
-	cd compiledir; ln -s ../F90Imakefile Imakefile		@@\
-								@@\
-compiledir/Makefile: compiledir compiledir/Imakefile	@@\
-	cd compiledir; ../../condor_imake -I../../../config \	@@\
-		-I.. \	@@\
-		-DF_COMPILER=compiler	\			@@\
-		-DFLAGS_MACRO_NAME=flags_macro_name		@@\
-								@@\
-clean::								@@\
-	rm -rf compiledir compiler_list				@@\
-								@@\
-compiler_list:: Concat(compiler_list_,compiledir)		@@\
-								@@\
-Concat(compiler_list_,compiledir):: safe_append.pl		@@\
-	@perl safe_append.pl -v -f compiler_list -a compiledir	@@\
-XCOMM End translation of func(F90_COMPILER_TARGET)
-#endif /* F_COMPILER_TARGET */
-
-
 /***********************************************************************
 ** Rules for building, describing, and declaring tests
 ***********************************************************************/
@@ -1421,7 +1551,7 @@ XCOMM End translation of func(DEPS)
 #define RUN(name)				@@\
 XCOMM Begin translation of func(RUN)		@@\
 DEP_SYMLINK_EXT(name,run)			@@\
-DEPS(name,Condor.pm CondorTest.pm CondorPersonal.pm x_param.basic_personal CondorPubLogdirs.pm x_general_client.pl)		@@\
+DEPS(name,Condor.pm CondorTest.pm)		@@\
 list_all:: Concat(list_all__,name)		@@\
 Concat(list_all__,name):: safe_append.pl name.run	@@\
 	@perl safe_append.pl -v -f list_all -a name	@@\
@@ -1544,6 +1674,84 @@ XCOMM End translation of func(DESC)
 
 
 /***********************************************************************
+** DEPRECATED (OWO) rules for building and linking a given test program
+***********************************************************************/
+
+#ifndef OWO_BUILD
+#define OWO_BUILD(cmplr,name,ext)		@@\
+XCOMM Begin translation of func(OWO_BUILD)	@@\
+OWO_BUILD_FILES(name,ext)			@@\
+RLINK(cmplr,name,name.o)		@@\
+VLINK(cmplr,name,name.o)		@@\
+XCOMM End translation of func(OWO_BUILD)
+#endif /* OWO_BUILD */
+
+#ifndef OWO_BUILD_EXTRA
+#define OWO_BUILD_EXTRA(cmplr,name,ext,obj)	@@\
+XCOMM Begin translation of func(OWO_BUILD_EXTRA) @@\
+OWO_BUILD_FILES(name,ext)			@@\
+RLINK(cmplr,name,obj name.o)	@@\
+VLINK(cmplr,name,obj name.o) @@\
+XCOMM End translation of func(OWO_BUILD_EXTRA)
+#endif /* OWO_BUILD_EXTRA */
+
+#ifndef OWOW_OWO_RBUILD
+#define OWO_RBUILD(cmplr,name,ext)		@@\
+XCOMM Begin translation of func(OWO_RBUILD) @@\
+OWO_BUILD_FILES(name,ext)		@@\
+RLINK(cmplr,name,name.o)	@@\
+XCOMM End translation of func(OWO_RBUILD)
+#endif /* OWO_RBUILD */
+
+
+#ifndef OWO_BUILD_FILES
+#define OWO_BUILD_FILES(name,ext)		@@\
+XCOMM Begin translation of func(OWO_BUILD_FILES) @@\
+name:: name.ext					@@\
+       @$(TRUE)					@@\
+all:: name.ext					@@\
+name.ext:					@@\
+	ln -s ../name.ext .			@@\
+clean::						@@\
+	rm -f name.ext				@@\
+XCOMM End translation of func(OWO_BUILD_FILES)
+#endif /* OWO_BUILD_FILES */
+
+
+#ifndef OWO_RUN
+#define OWO_RUN(name)	@@\
+XCOMM Begin translation of func(OWO_RUN)	@@\
+all:: name.run name.cmd				@@\
+name:: name.run name.cmd			@@\
+       @$(TRUE)					@@\
+name.run: Condor.pm CondorTest.pm		@@\
+	rm -f name.run				@@\
+	ln -s ../name.run .			@@\
+name.cmd:					@@\
+	rm -f name.cmd				@@\
+	ln -s ../name.cmd .			@@\
+clean::						@@\
+	rm -f name.run name.cmd run_list	@@\
+run_list:: Concat(run_list_,name)		@@\
+Concat(run_list_,name):: safe_append.pl name.run	@@\
+	@perl safe_append.pl -v -f run_list -a name	@@\
+XCOMM End translation of func(OWO_RUN)
+#endif /* OWO_RUN */
+
+
+#ifndef OWO_BUILD_DEPS
+#define OWO_BUILD_DEPS(name,deps)	@@\
+XCOMM Begin translation of func(OWO_BUILD_DEPS)	@@\
+all:: deps					@@\
+name:: deps					@@\
+       @$(TRUE)					@@\
+clean::						@@\
+	rm -f deps				@@\
+XCOMM End translation of func(OWO_BUILD_DEPS)
+#endif /* OWO_BUILD_DEPS */
+
+
+/***********************************************************************
 ** Doc++ rules  
 ***********************************************************************/
 
@@ -1625,15 +1833,15 @@ XCOMM End translation of func(awk_target)
 ** Make macro "IMPORT_LINKS" which must be initialized to the
 ** "import_links" shell script in this directory.
 */
-#ifndef import_objs
-#define import_objs(dir,obj)			@@\
-XCOMM Begin translation of func(import_objs) @@\
+#ifndef import
+#define import(dir,obj)			@@\
+XCOMM Begin translation of func(import) @@\
 obj:						@@\
 	$(IMPORT_LINKS) dir obj			@@\
 clean::						@@\
 	rm -f obj	@@\
-XCOMM End translation of func(import_objs)
-#endif /* import_objs */
+XCOMM End translation of func(import)
+#endif /* import */
 
 
 /*
@@ -1791,6 +1999,7 @@ XCOMM BEGIN translation of func(man_target)		@@\
 man_full_target(name,strip)				@@\
 man_full_target(name,release)				@@\
 man_full_target(name,static)				@@\
+man_full_target(name,static_unstrip)			@@\
 XCOMM End translation of func(man_target)
 #else /* HAS_STATIC */
 #define man_target(name)				@@\

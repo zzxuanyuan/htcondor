@@ -34,7 +34,7 @@ class ClassAd;
 typedef int amask_t;
 
 const amask_t A_PUBLIC	= 1;
-// no longer used: A_PRIVATE = 2
+const amask_t A_PRIVATE	= 2;
 const amask_t A_STATIC	= 4;
 const amask_t A_TIMEOUT	= 8;
 const amask_t A_UPDATE	= 16;
@@ -58,6 +58,7 @@ const amask_t A_ALL	= (A_UPDATE | A_TIMEOUT | A_STATIC | A_SHARED | A_SUMMED);
 const amask_t A_ALL_PUB	= (A_PUBLIC | A_ALL | A_EVALUATED | A_SHARED_SLOT);
 
 #define IS_PUBLIC(mask)		((mask) & A_PUBLIC)
+#define IS_PRIVATE(mask)	((mask) & A_PRIVATE)
 #define IS_STATIC(mask)		((mask) & A_STATIC)
 #define IS_TIMEOUT(mask)	((mask) & A_TIMEOUT)
 #define IS_UPDATE(mask)		((mask) & A_UPDATE)
@@ -96,13 +97,6 @@ public:
 		// Compute kflops and mips on the given resource
 	void benchmark( Resource*, int force = 0 );	
 
-#if defined(WIN32)
-		// For testing communication with the CredD, if one is
-		// configured
-	void credd_test();
-	void reset_credd_test_throttle() { m_last_credd_test = 0; }
-#endif
-
 		// On shutdown, print one last D_IDLE debug message, so we don't
 		// lose statistics when the startd is restarted.
 	void final_idle_dprintf();
@@ -116,6 +110,7 @@ public:
 	float		condor_load()	{ return m_condor_load; };
 	time_t		keyboard_idle() { return m_idle; };
 	time_t		console_idle()	{ return m_console_idle; };
+	char*		subnet()		{ return m_subnet; };
 
 private:
 		// Dynamic info
@@ -132,10 +127,6 @@ private:
 	bool			m_seen_keypress;    // Have we seen our first keypress yet?
 	int				m_clock_day;
 	int				m_clock_min;
-#if defined(WIN32)
-	char*			m_local_credd;
-	time_t			m_last_credd_test;
-#endif
 		// Static info
 	int				m_num_cpus;
 	int				m_num_real_cpus;
@@ -144,12 +135,13 @@ private:
 	char*			m_opsys;
 	char*			m_uid_domain;
 	char*			m_filesystem_domain;
+	char*			m_subnet;
 	int				m_idle_interval; 	// for D_IDLE dprintf messages
 	char*			m_ckptpltfrm;
 
 #if defined ( WIN32 )
 	int				m_got_windows_version_info;
-	OSVERSIONINFOEX	m_window_version_info;
+	OSVERSIONINFO	m_window_version_info;
 #endif
 
 };	
@@ -189,14 +181,9 @@ public:
 	void dprintf( int, char*, ... );
 	void show_totals( int );
 
-	float get_disk() { return c_disk; }
 	float get_disk_fraction() { return c_disk_fraction; }
-	unsigned long get_total_disk() { return c_total_disk; }
 	char const *executeDir() { return c_execute_dir.Value(); }
 	char const *executePartitionID() { return c_execute_partition_id.Value(); }
-
-	CpuAttributes& operator+=( CpuAttributes& rhs);
-	CpuAttributes& operator-=( CpuAttributes& rhs);
 
 private:
 	Resource*	 	rip;

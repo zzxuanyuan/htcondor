@@ -22,8 +22,7 @@ use CondorTest;
 
 $cmd = 'job_filexfer_streamout_van.cmd';
 $out = 'job_filexfer_streamout_van.out';
-$testdesc =  'Stream output works - vanilla U';
-$testname = "job_filexfer_streamout_van";
+$testname = 'Stream output works - vanilla U';
 
 $submitted = sub
 {
@@ -36,7 +35,7 @@ $aborted = sub
 {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event expected as we clear job\n",1);
+	print "Abort event expected as we clear job\n";
 };
 
 $timed = sub
@@ -56,14 +55,14 @@ $execute = sub
 	sleep(60);
 	if( -f $name )
 	{
-		CondorTest::debug("YEAH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",1);
+		print "YEAH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 	}
 	else
 	{
 		$job = "bad";
 	}
 
-	CondorTest::debug("OK remove the job!\n",1);
+	print "OK remove the job!\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_rm $cluster";
@@ -76,7 +75,7 @@ $execute = sub
 
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(0)
 	}
 };
@@ -97,7 +96,7 @@ CondorTest::RegisterSubmit( $testname, $submitted );
 my $path = $ENV{"PATH"};
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

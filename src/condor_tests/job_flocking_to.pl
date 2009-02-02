@@ -22,14 +22,13 @@ use CondorTest;
 
 $cmd = 'job_flocking_to.cmd';
 $out = 'job_flocking_to.out';
-$testdesc =  'flocking ';
-$testname = "job_flocking_to";
+$testname = 'flocking ';
 
 $submitted = sub
 {
 	my %info = @_;
 	my $name = $info{"error"};
-	CondorTest::debug("Flocking job submitted\n",1);
+	print "Flocking job submitted\n";
 };
 
 $aborted = sub 
@@ -54,7 +53,7 @@ $execute = sub
 
 $ExitSuccess = sub {
 	my %info = @_;
-	CondorTest::debug("Flocking job completed without error\n",1);
+	print "Flocking job completed without error\n";
 };
 
 
@@ -66,7 +65,7 @@ CondorTest::RegisterSubmit( $testname, $submitted );
 
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

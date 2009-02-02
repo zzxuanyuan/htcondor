@@ -27,7 +27,7 @@ class ClassAd;
 
 extern "C" {
 	int REMOTE_CONDOR_register_job_info( ClassAd *ad );
-	int REMOTE_CONDOR_register_machine_info( char *uiddomain, char *fsdomain, char const *address, char *fullHostname, int key );
+	int REMOTE_CONDOR_register_machine_info( char *uiddomain, char *fsdomain, char *address, char *fullHostname, int key );
 	int REMOTE_CONDOR_register_mpi_master_info( ClassAd *ad );
 	int REMOTE_CONDOR_register_starter_info( ClassAd *ad );
 	int REMOTE_CONDOR_get_job_info( ClassAd *ad );
@@ -52,17 +52,6 @@ extern "C" {
 	int REMOTE_CONDOR_get_job_attr( char *name, char *&expr );
 	int REMOTE_CONDOR_set_job_attr( char *name, char *expr );
 	int REMOTE_CONDOR_constrain( char *expr );
-
-    int REMOTE_CONDOR_get_sec_session_info(
-		char const *starter_reconnect_session_info,
-		MyString &reconnect_session_id,
-		MyString &reconnect_session_info,
-		MyString &reconnect_session_key,
-		char const *starter_filetrans_session_info,
-		MyString &filetrans_session_id,
-		MyString &filetrans_session_info,
-		MyString &filetrans_session_key);
-
 }
 
 #endif

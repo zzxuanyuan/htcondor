@@ -50,15 +50,14 @@ $deferralTime = time() + 600;
 ##
 ## If this is set to true, then we know that we caused the cooresponding command
 ##
-my $HOLD = 0;
-my $REMOVE = 0;
+my $HOLD = "";
+my $REMOVE = "";
 
 ##
 ## Testing Information
 ##
-$testdesc =  "Job Deferral Testing HOLD - $universe";
-$testname = "job_core_time-deferral-hold";
-$base_name = 'job_core_time-deferral-hold';
+$testname = "Job Deferral Testing HOLD - $universe";
+$base_name = 'job_core_time-deferral-tests';
 $base_cmd = $base_name.".cmd";
 
 ##
@@ -70,7 +69,7 @@ $submitted = sub {
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
 	
-	CondorTest::debug("Good - Job $cluster.$job was submitted!\n",1);
+	print "Good - Job $cluster.$job was submitted!\n";
 };	
 
 ##
@@ -84,7 +83,7 @@ $executed = sub {
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
 	
-	CondorTest::debug("Bad - Job $cluster.$job started executing! Should be on HOLD!\n",1);
+	print "Bad - Job $cluster.$job started executing! Should be on HOLD!\n";
 	exit(1);
 };
 
@@ -102,7 +101,7 @@ $held = sub {
 	## Make sure the hold command was ours
 	##
 	if ( ! $HOLD ) {
-		CondorTest::debug("Bad - Job $cluster.$job was put on hold but not by us!\n",1);
+		print "Bad - Job $cluster.$job was put on hold but not by us!\n";
 		exit(1);
 	}
 	
@@ -110,7 +109,7 @@ $held = sub {
 	## Is there a way to check to see if the starter actually 
 	## exited??
 	##
-	CondorTest::debug("Good - Job $cluster.$job was put on hold!\n",1);
+	print "Good - Job $cluster.$job was put on hold!\n";
 	
 	##
 	## Now we need to remove it
@@ -121,7 +120,7 @@ $held = sub {
 	my $cmd = "condor_rm $cluster.$job";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if ( !$status ) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1);
 	}
 };
@@ -138,12 +137,12 @@ $aborted = sub {
 	## Make sure the remove command was ours
 	##
 	if ( ! $REMOVE ) {
-		CondorTest::debug("Bad - Job $cluster.$job was removed but not by us!\n",1);
+		print "Bad - Job $cluster.$job was removed but not by us!\n";
 		exit(1);
 	}
 	
-	CondorTest::debug("Good - Job $cluster.$job was aborted and removed from the queue.\n",1);
-	CondorTest::debug("Policy Test Completed\n",1);
+	print "Good - Job $cluster.$job was aborted and removed from the queue.\n";
+	print "Policy Test Completed\n";
 };
 
 ##
@@ -158,18 +157,11 @@ $timed = sub {
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
 
-	if ( !defined( $info{"cluster"} ) || !defined( $info{"job"} ) ) {
-		CondorTest::debug("Haven't seen submit event yet at timeout!\n,1");
-		CondorTest::debug("stat and contents of user log ".$info{"log"}.":\n",1);
-		system( "stat " . $info{"log"} );
-		system( "cat " . $info{"log"} );
-	}
-
 	##
 	## Ignore multiple call backs
 	##
 	if ( ! $HOLD ) {
-		CondorTest::debug("Putting Job $cluster.$job on hold...\n",1);
+		print "Putting Job $cluster.$job on hold...\n";
 		$HOLD = 1;
 		
 		##
@@ -180,7 +172,7 @@ $timed = sub {
 		my $cmd = "condor_hold $cluster.$job";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if ( !$status ) {
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1);
 		}	
 	}
@@ -191,14 +183,16 @@ $timed = sub {
 ## that we were told to test
 ##
 $cmd = $base_name."_".$universe.".cmd";
+open( READ_FILE, "<$base_cmd" ) || die( "Can't open '$base_cmd' for reading!\n" );
 open( WRITE_FILE, ">$cmd" ) || die( "Can't open '$cmd' for writing!\n" );
+while( <READ_FILE> ) {
+	print WRITE_FILE $_;
+} # WHILE
+close( READ_FILE );
 
 ##
 ## Add the universe information closing with the 'Queue' command
 ##
-print WRITE_FILE "Executable   = ./x_time.pl\n";
-print WRITE_FILE "Notification = NEVER\n";
-print WRITE_FILE "DeferralPrep = 20\n";
 print WRITE_FILE "Universe	   = $universe\n";
 print WRITE_FILE "Log		   = $base_name"."_$universe.log\n";
 print WRITE_FILE "Output	   = $base_name"."_$universe.out\n";
@@ -206,11 +200,6 @@ print WRITE_FILE "Error		   = $base_name"."_$universe.err\n";
 print WRITE_FILE "DeferralTime = $deferralTime\n";
 print WRITE_FILE "Queue\n";
 close( WRITE_FILE );
-
-system("cat $cmd");
-
-$logfilefortest = "$base_name"."_$universe.log";
-system("rm -f $logfilefortest");
 
 ##
 ## Setup our testing callbacks
@@ -226,7 +215,7 @@ CondorTest::RegisterAbort( $testname, $aborted );
 CondorTest::RegisterTimed($testname, $timed, 30);
 	
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

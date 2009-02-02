@@ -51,30 +51,17 @@ class ExtraParamTable
 {
  public:
 	ExtraParamTable();
-	virtual ~ExtraParamTable();
-	virtual void AddFileParam(const char *parameter, const char *filename, 
+	~ExtraParamTable();
+	void AddFileParam(const char *parameter, const char *filename, 
 					  int line_number);
-	virtual void AddInternalParam(const char *parameter);
-	virtual void AddEnvironmentParam(const char *parameter);
-	virtual bool GetParam(const char *parameter, 
+	void AddInternalParam(const char *parameter);
+	void AddEnvironmentParam(const char *parameter);
+	bool GetParam(const char *parameter, 
 				  MyString &filename, int &line_number);
  private:
 	HashTable<MyString, ExtraParamInfo *> *table;
 
 	void ClearOldParam(MyString &parameter);
-};
-
-class DummyExtraParamTable : public ExtraParamTable
-{
- public:
-	DummyExtraParamTable() {}
-	virtual ~DummyExtraParamTable() {}
-	virtual void AddFileParam(const char * /*parameter*/ , const char *  /*filename*/, 
-					  int  /*line_number*/ ) {}
-	virtual void AddInternalParam(const char *  /*parameter*/ ) {}
-	virtual void AddEnvironmentParam(const char *  /*parameter*/ ) {}
-	virtual bool GetParam(const char *  /*parameter*/ , 
-				  MyString &filename, int &line_number) {line_number=-1;filename="unknown";return true;}
 };
 
 #endif /* EXTRA_PARAM_INFO_H */

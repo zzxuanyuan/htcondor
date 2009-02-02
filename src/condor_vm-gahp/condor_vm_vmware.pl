@@ -73,7 +73,6 @@ my $dhcpd_lease = undef;
 #open STDOUT, ">&STDERR" or die "Can't dup STDERR: $!";
 #select STDERR; $| = 1;  # make unbuffered
 #select STDOUT; $| = 1;  # make unbuffered
-open OUTPUT, ">&STDOUT";
 open STDOUT, ">&STDERR";
 
 my $tmpdir = undef;
@@ -92,14 +91,14 @@ list                            List all running VMs
 check                           Check if vmware is installed
 register     [vmconfig]         Register a VM
 unregister   [vmconfig]         Unregister a VM
-start        [vmconfig]         Start a VM and print PID
+start        [vmconfig] [file]  Start a VM and save PID into file
 stop         [vmconfig]         Shutdown a VM
 killvm       [string]           Kill a VM
 suspend      [vmconfig]         Suspend a VM
-resume       [vmconfig]         Resume a suspended VM and print PID
-status       [vmconfig]         Print the status of a VM
-getpid       [vmconfig]         Print PID of VM
-getvminfo    [vmconfig]         Print info about VM
+resume       [vmconfig] [file]  Resume a suspended VM and save PID into file
+status       [vmconfig] [file]  Save the status of a VM into file
+getpid       [vmconfig] [file]  Save PID of VM into file
+getvminfo    [vmconfig] [file]  Save info about VM into file
 snapshot     [vmconfig]         Create a snapshot of a VM
 commit       [vmconfig]         Commit COW disks and delete the COW
 revert       [vmconfig]         Set VM state to a snapshot
@@ -249,14 +248,14 @@ sub getvmpid
 
 sub status
 {
-#status      [vmconfig]   Show the status of a VM
+#status      [vmconfig] [file]  Show the status of a VM
 	my $vmconfig = checkvmconfig($_[0]);
 
-	# If a second argument is passed, then we should print our results
-	# to stdout. Otherwise, just return the current status.
-	my $print_result = undef;
+	my $resultfile = undef;
 	if ( defined($_[1]) ) {
-		$print_result = $_[1];
+		$resultfile = $_[1];
+		open VMSTATUS, "> $resultfile"
+			or printerror "Cannot create the file($resultfile) : $!";
 	}
 
 	my $output_status = "Stopped";	# default status
@@ -283,21 +282,26 @@ sub status
 		( $status_field eq "off") ? "Stopped":
 		"Error";	# default value
 	#}
-	if( defined($print_result) ) {
-		print OUTPUT "STATUS=$output_status\n";
+	if( defined($resultfile) ) {
+		print VMSTATUS "STATUS=$output_status\n";
 		if( $output_status eq "Running") {
 			my $vmpid = getvmpid($vmconfig);
-			print OUTPUT "PID=$vmpid\n";
+			print VMSTATUS "PID=$vmpid\n";
 		}
+		close VMSTATUS;
 	}
 	return $output_status;
 }
 
 sub pidofvm
 {
-#getpid      [vmconfig]   Print PID of VM
+#getpid      [vmconfig] [file]  Save PID of VM to file
 	printverbose "pidofvm is called";
 	my $vmconfig = checkvmconfig($_[0]);
+	if( ! defined($_[1]) ) {
+		usage();
+	}
+	my $pidfile = $_[1];
 
 	# Get status
 	my $vmstatus = status($vmconfig);
@@ -306,22 +310,33 @@ sub pidofvm
 	}
 
 	# Get pid of main process of this VM
+	open VMPID, "> $pidfile" 
+		or printerror "Cannot create the file($pidfile) : $!";
+
 	my $vmpid = getvmpid($vmconfig);
-	print OUTPUT "PID=$vmpid\n";
+	print VMPID "$vmpid\n";
+	close VMPID;
 }
 
 sub getvminfo
 {
-#getvminfo     [vmconfig]         Print info about VM
+#getvminfo     [vmconfig] [file]  Save info about VM to file
 	printverbose "getvminfo is called";
 	my $vmconfig = checkvmconfig($_[0]);
+	if( ! defined($_[1]) ) {
+		usage();
+	}
+	my $infofile = $_[1];
 
 	# Get status
-	my $vmstatus = status($vmconfig, 1);
+	my $vmstatus = status($vmconfig, $infofile);
 
 	if( $vmstatus ne "Running" ) {
 		return;
 	}
+
+	open VMINFO, ">> $infofile" 
+		or printerror "Cannot create the file($infofile) : $!";
 
 	# Get mac address of VM
 	my $mac_address = undef;
@@ -339,7 +354,7 @@ sub getvminfo
 			printwarn "Invalid format of getconfig for mac($resultline)";
 			$mac_address = undef;
 		}else {
-			print OUTPUT "MAC=$mac_address\n";
+			print VMINFO "MAC=$mac_address\n";
 		}
 	}
 
@@ -392,14 +407,16 @@ sub getvminfo
 		}
 
 		if( defined($ip_address) ) {
-			print OUTPUT "IP=$ip_address\n";
+			print VMINFO "IP=$ip_address\n";
 		}
 	}
+
+	close VMINFO;
 }
 
 sub start
 {
-#start       [vmconfig]	Start a VM
+#start       [vmconfig] [file]	Start a VM
 	printverbose "start is called";
 
 	my $vmconfig = checkvmconfig($_[0]);
@@ -417,9 +434,16 @@ sub start
 
 	sleep(5);
 
-	# Get pid of main process of this VM
-	my $vmpid = getvmpid($vmconfig);
-	print OUTPUT "PID=$vmpid\n";
+	if ( defined($_[1]) ) {
+		# Get pid of main process of this VM
+		my $pidfile = $_[1];
+		open VMPID, "> $pidfile" 
+			or printerror "Cannot create the file($pidfile) : $!";
+
+		my $vmpid = getvmpid($vmconfig);
+		print VMPID "$vmpid\n";
+		close VMPID;
+	}
 }
 
 sub stop
@@ -537,11 +561,12 @@ sub resume
 #resume      [vmconfig]         Restore a suspended VM
 	printverbose "resume is called";
 	my $vmconfig = checkvmconfig($_[0]);
+	my $pidfile = $_[1];
 
 	# Get status
 	my $vmstatus = status($vmconfig);
 	if( $vmstatus ne "Running" ) {
-		start($vmconfig);
+		start($vmconfig, $pidfile);
 	}
 }
 
@@ -654,14 +679,14 @@ elsif ($ARGV[0] eq "list")	{ list(); }
 elsif ($ARGV[0] eq "check")	{ check(); }
 elsif ($ARGV[0] eq "register")	{ register($ARGV[1]); }
 elsif ($ARGV[0] eq "unregister"){ unregister($ARGV[1]); }
-elsif ($ARGV[0] eq "start")	{ start($ARGV[1]); }
+elsif ($ARGV[0] eq "start")	{ start($ARGV[1],$ARGV[2]); }
 elsif ($ARGV[0] eq "stop")	{ stop($ARGV[1]); }
 elsif ($ARGV[0] eq "killvm")	{ killvm($ARGV[1]); }
 elsif ($ARGV[0] eq "suspend")	{ suspend($ARGV[1]); }
-elsif ($ARGV[0] eq "resume")	{ resume($ARGV[1]); }
-elsif ($ARGV[0] eq "status")	{ status($ARGV[1], 1); }
-elsif ($ARGV[0] eq "getpid")	{ pidofvm($ARGV[1]); }
-elsif ($ARGV[0] eq "getvminfo")	{ getvminfo($ARGV[1]); }
+elsif ($ARGV[0] eq "resume")	{ resume($ARGV[1], $ARGV[2]); }
+elsif ($ARGV[0] eq "status")	{ status($ARGV[1], $ARGV[2]); }
+elsif ($ARGV[0] eq "getpid")	{ pidofvm($ARGV[1], $ARGV[2]); }
+elsif ($ARGV[0] eq "getvminfo")	{ getvminfo($ARGV[1], $ARGV[2]); }
 elsif ($ARGV[0] eq "snapshot")	{ snapshot($ARGV[1]); }
 elsif ($ARGV[0] eq "commit")	{ commit($ARGV[1]); }
 elsif ($ARGV[0] eq "revert")	{ revert($ARGV[1]); }

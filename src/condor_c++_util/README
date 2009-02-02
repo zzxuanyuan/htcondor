@@ -43,8 +43,7 @@ cat_url.c
 condor_event.C
 condor_event.h
 user_log.C
-read_user_log.h
-write_user_log.h
+user_log.c++.h
 
     Defines objects that represent condor events like job submitted,
     job executed, etc.. These events are imported from or exported to user

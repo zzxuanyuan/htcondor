@@ -29,8 +29,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perhold-true_local.cmd';
-$testdesc =  'Condor submit with for PERIODIC_HOLD test - local U';
-$testname = "job_core_perhold_local";
+$testname = 'Condor submit with for PERIODIC_HOLD test - local U';
 
 ## 
 ## Status Values
@@ -54,7 +53,7 @@ $abnormal = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
-	CondorTest::debug("Bad - Job $cluster.$job reported an abnormal event.\n",1);
+	print "Bad - Job $cluster.$job reported an abnormal event.\n";
 	exit(1);
 };
 
@@ -71,10 +70,10 @@ $aborted = sub {
 	my $job = $info{"job"};
 	
 	if ( $gotHold ) {
-		CondorTest::debug("Good - Job $cluster.$job was aborted after being put on hold.\n",1);
-		CondorTest::debug("Policy Test Completed\n",1);
+		print "Good - Job $cluster.$job was aborted after being put on hold.\n";
+		print "Policy Test Completed\n";
 	} else {
-		CondorTest::debug("Bad - Job $cluster.$job was aborted before it was put on hold.\n",1);
+		print "Bad - Job $cluster.$job was aborted before it was put on hold.\n";
 		exit(1);
 	}
 };
@@ -96,11 +95,11 @@ $held = sub {
 	## Make sure we weren't here earlier
 	##
 	if ( $gotHold ) {
-		CondorTest::debug("Bad - Job $cluster.$job was put on hold twice.\n",1);
+		print "Bad - Job $cluster.$job was put on hold twice.\n";
 		exit(1);
 	}
 
-	CondorTest::debug("Good - Job $cluster.$job was put on hold.\n",1);
+	print "Good - Job $cluster.$job was put on hold.\n";
 
 	##
 	## Remove the job from the queue
@@ -110,7 +109,7 @@ $held = sub {
 	my $cmd = "condor_rm $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if ( !$status ) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		return(1)
 	}
 
@@ -125,7 +124,7 @@ $executed = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job began execution.\n",1);
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
@@ -134,7 +133,7 @@ CondorTest::RegisterAbort( $testname, $aborted );
 CondorTest::RegisterHold( $testname, $held );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

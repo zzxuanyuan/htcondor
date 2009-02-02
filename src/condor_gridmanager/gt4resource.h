@@ -22,7 +22,7 @@
 #define GT4RESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "proxymanager.h"
 #include "baseresource.h"
@@ -41,12 +41,8 @@ class GT4Resource : public BaseResource
 
  public:
 	bool Init();
-	const char *ResourceType();
 	void Reconfig();
-	const char *GetHashName();
 	void UnregisterJob( GT4Job *job );
-
-	void PublishResourceAd( ClassAd *resource_ad );
 
 	void registerDelegationURI( const char *deleg_uri, Proxy *job_proxy );
 	const char *getDelegationURI( Proxy *job_proxy );
@@ -54,8 +50,6 @@ class GT4Resource : public BaseResource
 
 	bool RequestDestroy( GT4Job *job );
 	void DestroyComplete( GT4Job *job );
-
-	bool IsGram42() { return m_isGram42; }
 
 	static const char *CanonicalName( const char *name );
 	static const char *HashName( const char *resource_name,
@@ -74,7 +68,6 @@ class GT4Resource : public BaseResource
 	void DoPing( time_t& ping_delay, bool& ping_complete,
 				 bool& ping_succeeded );
 	int checkDelegation();
-	bool ConfigureGahp();
 
 	bool initialized;
 
@@ -93,8 +86,6 @@ class GT4Resource : public BaseResource
 
 	GahpClient *gahp;
 	GahpClient *deleg_gahp;
-
-	bool m_isGram42;
 };
 
 #endif

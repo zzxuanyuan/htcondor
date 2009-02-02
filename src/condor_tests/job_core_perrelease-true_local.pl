@@ -34,8 +34,7 @@ $corename = 'job_core_perrelease-true_local';
 $corenamewithpid = 'job_core_perrelease-true_local' . $mypid;
 $template = $corename . '.template';
 $cmd = $corenamewithpid . '.cmd';
-$testdesc =  'Condor submit policy test for PERIODIC_RELEASE - local U';
-$testname = "job_core_perrelease-true_local";
+$testname = 'Condor submit policy test for PERIODIC_RELEASE - local U';
 
 #create command file
 
@@ -87,14 +86,14 @@ $executed = sub {
 	$job = $info{"job"};
 	
 	if ( $gotHold ) {
-		CondorTest::debug("Good - Job $cluster.$job and began execution ".
-			  "after being held.\n",1);
+		print "Good - Job $cluster.$job and began execution ".
+			  "after being held.\n";
 	##
 	## We never were on hold!
 	##
 	} else {
-		CondorTest::debug("Bad - Job $cluster.$job began execution without ever ".
-			  "being put on hold.\n",1);
+		print "Bad - Job $cluster.$job began execution without ever ".
+			  "being put on hold.\n";
 		exit(1);
 	}
 };
@@ -107,8 +106,8 @@ $success = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job finished execution.\n",1);
-	CondorTest::debug("Policy Test Completed\n",1);
+	print "Good - Job $cluster.$job finished execution.\n";
+	print "Policy Test Completed\n";
 };
 
 ##
@@ -126,7 +125,7 @@ $submit = sub {
 	my $qstat = CondorTest::getJobStatus($cluster);
 	my $sleepTime = 2;
 	while ( $qstat == -1 ) {
-		CondorTest::debug("Job status unknown - checking in $sleepTime seconds...\n",1);
+		print "Job status unknown - checking in $sleepTime seconds...\n";
 		sleep($sleepTime);
 		$qstat = CondorTest::getJobStatus($cluster);
 	} # WHILE
@@ -135,14 +134,14 @@ $submit = sub {
 	## Check to make sure that it's on hold
 	## 
 	if ( $qstat == HELD) {
-		CondorTest::debug("Good - Job $cluster.$job went on hold as soon as it ".
-			  "was submitted.\n",1);
+		print "Good - Job $cluster.$job went on hold as soon as it ".
+			  "was submitted.\n";
 		$gotHold = 1;
 	##
 	## The job didn't go on hold, so we need to abort
 	##
 	} else {
-		CondorTest::debug("Bad - Job $cluster.$job failed to go on hold.\n",1);
+		print "Bad - Job $cluster.$job failed to go on hold.\n";
 		exit(1);
 	}
 
@@ -162,7 +161,7 @@ $timed = sub {
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
 	
-	CondorTest::debug("Bad - Job $cluster.$job hit our timer!.\n",1);
+	print "Bad - Job $cluster.$job hit our timer!.\n";
 
 	##
 	## Go ahead and remove the job from the queue now
@@ -172,7 +171,7 @@ $timed = sub {
 	my $cmd = "condor_rm $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if (!$status) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		return(1)
 	}
 	exit(1);
@@ -194,10 +193,10 @@ $release = sub {
 	## job was put on hold before it was released
 	##
 	if ( $gotHold ){
-		CondorTest::debug("Good - Job $cluster.$job was released after being put on hold.\n",1);
+		print "Good - Job $cluster.$job was released after being put on hold.\n";
 	} else {
-		CondorTest::debug("Bad - Job $cluster.$job received a release event without ever ".
-			  "being put on hold.\n",1);
+		print "Bad - Job $cluster.$job received a release event without ever ".
+			  "being put on hold.\n";
 		exit(1);
 	}
 	
@@ -210,11 +209,11 @@ $release = sub {
 	my $cmd = "_CONDOR_TOOL_DEBUG=D_ALL condor_reschedule -d";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2, 1, 1);
 	if (!$status) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1);
 	}
 
-	CondorTest::debug("Stderr with debug info for condor_reschedule follows\n",1);
+	print "Stderr with debug info for condor_reschedule follows\n";
 	system("cat runCTool$$");
 };
 
@@ -226,13 +225,13 @@ CondorTest::RegisterRelease( $testname, $release );
 ##
 ## This callback is to see if our job never got released
 ## The callback time should be greater than the sleep time
-## of the job and the periodic interval. 600 seconds should
+## of the job and the periodic interval. 60 seconds should
 ## suffice for now
 ##
-CondorTest::RegisterTimed($testname, $timed, 600);
+CondorTest::RegisterTimed($testname, $timed, 90);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

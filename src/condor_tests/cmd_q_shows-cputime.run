@@ -22,8 +22,7 @@ use CondorTest;
 
 $cmd = 'cmd_q_shows-cputime.cmd';
 $cmdout = $cmd . ".out";
-$testdesc =  'cmd_q_shows-cputime  ';
-$testname = "cmd_q_shows-cputime";
+$testname = 'cmd_q_shows-cputime  ';
 
 @adarray;
 
@@ -34,7 +33,7 @@ $submit = sub {
 	$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$cmdstatus)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 
@@ -47,9 +46,9 @@ $submit = sub {
 		$submitline = $_;
 		if($submitline =~ /^.*cluster\s+(\d+).*$/) {
 			$cluster = $1;
-			CondorTest::debug("Found my cluster which is $cluster!\n",1);
+			print "Found my cluster which is $cluster!\n";
 		}
-		CondorTest::debug("$_\n",1);
+		print "$_\n";
 	}
 
 	$cmd = "condor_rm $cluster";
@@ -57,11 +56,11 @@ $submit = sub {
 	foreach $line (@adarray) {
 		chomp($line);
 		if($line =~ /^\s*ID\s+OWNER\s+SUBMITTED\s+CPU_TIME\s+ST\s+PRI\s+SIZE\s+CMD\s*$/) {
-				CondorTest::debug("Bingo\n",1);
+				print "Bingo\n";
 				$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,8);
 				return(0);
 		} else {
-			CondorTest::debug("<<<$line>>>\n",1);
+			print "<<<$line>>>\n";
 			#$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,8);
 			#exit(1)
 		}
@@ -72,7 +71,8 @@ $submit = sub {
 };
 
 $aborted = sub {
-	CondorTest::debug("If all is good we abort our own job.......\n",1);
+	print "If all is good we abort our own job.......\n";
+	exit(0);
 };
 
 $ExitSuccess = sub {
@@ -84,7 +84,7 @@ CondorTest::RegisterSubmit($testname, $submit);
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

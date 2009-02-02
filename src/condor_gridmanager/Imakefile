@@ -1,9 +1,8 @@
 NAME=condor_gridmanager
 GT4GAHP_WRAPPER_NAME = gt4_gahp
-GT42GAHP_WRAPPER_NAME = gt42_gahp
 UNICOREGAHP_WRAPPER_NAME = unicore_gahp
 GRIDFTP_WRAPPER_NAME = gridftp_wrapper.sh
-all_target($(NAME) grid_monitor.sh $(GT4GAHP_WRAPPER_NAME) $(GT42GAHP_WRAPPER_NAME) $(UNICOREGAHP_WRAPPER_NAME) $(GRIDFTP_WRAPPER_NAME))
+all_target($(NAME) grid_monitor.sh $(GT4GAHP_WRAPPER_NAME) $(UNICOREGAHP_WRAPPER_NAME) $(GRIDFTP_WRAPPER_NAME))
 
 #if WANT_ORACLE_UNIVERSE
 ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE -I/p/condor/workspaces/jfrey/oracle/OraHome1/rdbms/demo -I/p/condor/workspaces/jfrey/oracle/OraHome1/rdbms/public
@@ -17,19 +16,24 @@ LIB = $(ORACLE_JOB_LIB) $(DAEMONCORE_LIB) $(STD_LIBS) $(CONFIGURE_GSOAP_LDFLAGS)
 
 soapobjs(gridmanager)
 
-OBJ = gridmanager_main.o gridmanager.o globusjob.o globusresource.o gt4job.o gt4resource.o infnbatchjob.o condorjob.o condorresource.o unicorejob.o nordugridjob.o nordugridresource.o creamjob.o creamresource.o amazonjob.o amazonresource.o proxymanager.o gahp-client.o $(ORACLE_JOB_OBJ) basejob.o baseresource.o gridftpmanager.o  $(SOAP_OBJS)
+OBJ = gridmanager_main.o gridmanager.o globusjob.o globusresource.o gt4job.o gt4resource.o infnbatchjob.o mirrorjob.o mirrorresource.o condorjob.o condorresource.o unicorejob.o nordugridjob.o nordugridresource.o creamjob.o creamresource.o proxymanager.o gahp-client.o $(ORACLE_JOB_OBJ) basejob.o baseresource.o gridftpmanager.o gridmanager_instantiate.o $(SOAP_OBJS)
+
+template_inst( gridmanager_instantiate.C, gridmanager_instantiate.o )
 
 public_c_plus_target($(NAME),sbin,$(OBJ),$(LIB))
 
 GT4GAHP_WRAPPER_OBJ = gt4_gahp_wrapper.o
-GT42GAHP_WRAPPER_OBJ = gt42_gahp_wrapper.o
 UNICOREGAHP_WRAPPER_OBJ = unicore_gahp_wrapper.o
 
 public_c_plus_target($(UNICOREGAHP_WRAPPER_NAME),sbin,$(UNICOREGAHP_WRAPPER_OBJ),$(STD_LIBS))
 
 public_c_plus_target($(GT4GAHP_WRAPPER_NAME),sbin,$(GT4GAHP_WRAPPER_OBJ),$(STD_LIBS))
 
-public_c_plus_target($(GT42GAHP_WRAPPER_NAME),sbin,$(GT42GAHP_WRAPPER_OBJ),$(STD_LIBS))
+#if HAVE_EXT_GAHP
+release_copy_target($(GAHP_DIR)/gahp_server.dynamic,sbin,gahp_server,EXECUTABLE_MODE)
+static_copy_target($(GAHP_DIR)/gahp_server.static,sbin,gahp_server,EXECUTABLE_MODE)
+strip_copy_target($(GAHP_DIR)/gahp_server.dynamic,sbin,gahp_server,EXECUTABLE_MODE)
+#endif
 
 #if HAVE_EXT_GLOBUS
 release_copy_target($(GLOBUS_DIR)/sbin/globus-gridftp-server.dynamic,libexec,globus-gridftp-server,EXECUTABLE_MODE)
@@ -44,19 +48,33 @@ grid_monitor.sh: grid_monitor_wrapper grid_manager_monitor_agent
 	cat grid_monitor_wrapper grid_manager_monitor_agent > grid_monitor.sh
 	chmod 755 grid_monitor.sh
 
+#if HAVE_EXT_GT4GAHP
+public_copy_target($(GT4GAHP_DIR)/gt4-gahp.jar,lib,gt4-gahp.jar,TEXT_MODE)
+
+release_recursive_copy_target($(GT4GAHP_DIR)/gt4,lib/gt4)
+static_recursive_copy_target($(GT4GAHP_DIR)/gt4,lib/gt4)
+strip_recursive_copy_target($(GT4GAHP_DIR)/gt4,lib/gt4)
+#endif
+
 #if HAVE_EXT_BLAHP
 release_recursive_copy_target($(BLAHP_DIR)/dynamic,lib/glite)
 static_recursive_copy_target($(BLAHP_DIR)/static,lib/glite)
 strip_recursive_copy_target($(BLAHP_DIR)/dynamic,lib/glite)
-public_copy_target(nqs_cancel.sh,lib/glite/bin,nqs_cancel.sh,EXECUTABLE_MODE)
-public_copy_target(nqs_hold.sh,lib/glite/bin,nqs_hold.sh,EXECUTABLE_MODE)
-public_copy_target(nqs_resume.sh,lib/glite/bin,nqs_resume.sh,EXECUTABLE_MODE)
-public_copy_target(nqs_status.sh,lib/glite/bin,nqs_status.sh,EXECUTABLE_MODE)
-public_copy_target(nqs_submit.sh,lib/glite/bin,nqs_submit.sh,EXECUTABLE_MODE)
 #endif
 
 #if HAVE_EXT_UNICOREGAHP
 public_copy_target($(UNICOREGAHP_DIR)/ugahp.jar,lib,ugahp.jar,TEXT_MODE)
+#endif
+
+#if HAVE_EXT_NORDUGRIDGAHP
+release_copy_target($(NORDUGRIDGAHP_DIR)/bin/nordugrid_gahp.dynamic,sbin,nordugrid_gahp,EXECUTABLE_MODE)
+static_copy_target($(NORDUGRIDGAHP_DIR)/bin/nordugrid_gahp.static,sbin,nordugrid_gahp,EXECUTABLE_MODE)
+strip_copy_target($(NORDUGRIDGAHP_DIR)/bin/nordugrid_gahp.dynamic,sbin,nordugrid_gahp,EXECUTABLE_MODE)
+#endif
+
+#if HAVE_EXT_GAHP
+$(GAHP_DIR)/gahp_server:
+	/bin/true
 #endif
 
 html:

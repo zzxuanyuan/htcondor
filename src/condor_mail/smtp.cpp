@@ -747,8 +747,7 @@ BOOL CSMTPConnection::SendMessage(CSMTPMessage& Message)
 
   //Send the RCPT command, one for each recipient
   ASSERT(Message.GetNumberOfRecipients()); //Must have at least one recipient for the message
-  int i; // Temp fix for VC6 and VC9 coexistance :)
-  for (i=0; i<Message.GetNumberOfRecipients(); i++)
+  for (int i=0; i<Message.GetNumberOfRecipients(); i++)
   {
     CSMTPAddress recipient = Message.GetRecipient(i);
 		ASSERT(recipient.m_sEmailAddress.GetLength()); //must have an email address for this recipient

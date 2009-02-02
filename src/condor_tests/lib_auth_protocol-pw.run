@@ -22,6 +22,8 @@ use CondorTest;
 use CondorPersonal;
 use Cwd;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $myparamname = "x_param.protocol-pw";
 $postsrc_template = "x_secpw_configpostsrc.template";
@@ -29,8 +31,7 @@ $map_template = "x_secpw_mapfile.template";
 $postsrc = "x_secpw_configpostsrc";
 $mapfile = "x_secpw_mapfile";
 
-$testdesc =  'lib_auth_protocol-pw - Security Protocol PASSWORD Authentication Test';
-$testname = "lib_auth_protocol-pw";
+$testname = 'lib_auth_protocol-pw - Security Protocol PASSWORD Authentication Test';
 $corename = "lib_auth_protocol-pw";
 $mytestnegotiation_result = "yes";
 $mycmdfile = "lib_auth_protocol-pw.cmd";
@@ -59,8 +60,8 @@ $mycorenm = $corename . ".cmd";
 $mycorenmout = $corename . ".cmd.out";
 $mycorenmlog = $corename . ".log";
 
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 # Edit security password file and map file
 my $line;
@@ -91,7 +92,7 @@ my $line;
 
 my $username = `whoami`;
 chomp($username);
-CondorTest::debug("Our user is <<<$username>>>\n",1);
+print "Our user is <<<$username>>>\n";
 
 open(CSUB,">$mapfile") || die "Can't open new submit file $myparamname: $!\n";
 open(TPLATE,"<$map_template") || die "Can't open param template $postsrc_template: $!\n";
@@ -111,12 +112,12 @@ while(<TPLATE>)
 close(TPLATE);
 close(CSUB);
 
-my $configsec = CondorPersonal::StartCondor( "lib_auth_protocol-pw", $myparamname ,"protocol", $mypid);
+my $configsec = CondorPersonal::StartCondor($myparamname ,"protocol", $mypid);
 my @securitypool = split /\+/, $configsec;
 my $secconfig = shift @securitypool;
 my $secport = shift @securitypool;
 
-CondorTest::debug("---security config is $secconfig and securitypool port is $secport---\n",1);
+print "---security config is $secconfig and securitypool port is $secport---\n";
 
 
 $ENV{CONDOR_CONFIG} = $secconfig;
@@ -136,7 +137,7 @@ $ENV{CONDOR_CONFIG} = $secconfig;
 # submit into local schedd (side a)
 
 my $result = system("./x_lib_auth_protocol.pl $mypid \"protocol\" $mytestnegotiation_result $mycmdfile");
-CondorTest::debug("Result of crafted lib_auth_protocol job is  $result\n",1);
+print "Result of crafted lib_auth_protocol job is  $result\n";
 
 system("cp *$corename* $mysaveme");
 
@@ -161,14 +162,19 @@ if( -e "$mysubmitnmlog" )
 
 # Turn off condor
 
-CondorPersonal::KillDaemonPids($secconfig);
-system("date");
-
-if($result != 0)
+my @adarray;
+my $status = 1;
+$status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
 {
-    # actuaal job failed but we allowed cleanup
-    exit(1);
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
 }
 
-CondorTest::debug("lib_auth_protocol-pw SUCCESS\n",1);
+if($result != 0) {
+	exit(1);
+}
+
 exit(0);

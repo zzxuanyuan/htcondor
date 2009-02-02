@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $param_template = "x_param.cputracking-snapshot";
-$testdesc =  'lib_procapi_cputracking-snapshot - CPU Remote usage reporting test ';
-$testname = "lib_procapi_cputracking-snapshot";
+$testname = 'lib_procapi_cputracking-snapshot - CPU Remote usage reporting test ';
 $corename = "lib_procapi_cputracking-snapshot";
 $mytestnegotiation = "x_secneg_clR_dmnR_secprepostsrc";
 $mytestnegotiation_result = "yes";
@@ -54,25 +55,25 @@ if($mypid == 0) {
 	$mycorenmout = $corename . ".cmd.out";
 	$mycorenmlog = $corename . ".log";
 
-	CondorTest::debug("Master PID is $mypid\n",1);
-	CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+	print "Master PID is $mypid\n";
+	print "Master PID submit file is $mysubmitnm\n";
 
 	system("cp $mycmdfile $mysubmitnm");
 	system("cp $param_template $myparamname");
 
-	my $configsec = CondorPersonal::StartCondor( "lib_procapi_cputracking-snapshot", $myparamname ,"cputracking", $mypid);
+	my $configsec = CondorPersonal::StartCondor($myparamname ,"cputracking", $mypid);
 	my @cputrackingpool = split /\+/, $configsec;
 	my $secconfig = shift @cputrackingpool;
 	my $secport = shift @cputrackingpool;
 
-	CondorTest::debug("---cputracking config is $secconfig and cputrackingpool port is $secport---\n",1);
+	print "---cputracking config is $secconfig and cputrackingpool port is $secport---\n";
 	
 
 	$ENV{CONDOR_CONFIG} = $secconfig;
 	# submit into local schedd (side a)
 
 	my $result = system("./lib_procapi_cputracking-snapshot.pl  $mycmdfile");
-	CondorTest::debug("Result of crafted cpu tracking by snapshot job is  $result\n",1);
+	print "Result of crafted cpu tracking by snapshot job is  $result\n";
 
 	system("cp *$corename* $mysaveme");
 	
@@ -91,14 +92,27 @@ if($mypid == 0) {
 		system("cp $mysubmitnmlog $mycorenmlog");
 	}
 
-CondorPersonal::KillDaemonPids($parallelconfig);
+	my @adarray;
+	my $status = 1;
+	my $cmd = "condor_off -fast -master";
+	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+	if(!$status)
+	{
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(1)
+	}
+
+	if(!$status)
+	{
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(1)
+	}
+
 system("date");
 
-if($result != 0)
+if( $result != 0 )
 {
-    # actuaal job failed but we allowed cleanup
-    exit(1);
+	# actual test failed but we allowed cleanup
+	exit(1);
 }
 
-CondorTest::debug("lib_procapi_cputracking-snapshot SUCCESS\n",1);
-exit(0);

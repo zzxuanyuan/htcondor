@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_schedd_restart-holdjobs-ok.cmd';
-$testdesc =  'Verify held jobs are preserved on schedd restarts';
-$testname = "job_schedd_restart-holdjobs-ok";
+$testname = 'Verify held jobs are preserved on schedd restarts';
 
 $beforequeue = "job_schedd_restart-holdjobs.before";
 $afterqueue = "job_schedd_restart-holdjobs.after";
@@ -44,22 +43,22 @@ $submitted = sub
 	if($submithandled eq "no") {
 		$submithandled = "yes";
 
-		CondorTest::debug("submitted\n",1);
-		CondorTest::debug("Collecting queue details on $cluster\n",1);
+		print "submitted\n";
+		print "Collecting queue details on $cluster\n";
 		my @adarray;
 		my $status = 1;
 		my $cmd = "condor_q $cluster";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1)
 		}
 
 		open(BEFORE,">$beforequeue") || die "Could not ope file for before stats $!\n";
 		foreach my $line (@adarray)
 		{
-			CondorTest::debug("$line\n",1);
+			print "$line\n";
 			print BEFORE "$line\n";
 		}
 		close(BEFORE);
@@ -67,32 +66,32 @@ $submitted = sub
 		$status = CondorTest::changeDaemonState( "schedd", "off", 9 );
 		if(!$status)
 		{
-			CondorTest::debug("Test failure: could not turn scheduler off!\n",1);
+			print "Test failure: could not turn scheduler off!\n";
 			exit(1)
 		}
 
 		$status = CondorTest::changeDaemonState( "schedd", "on", 9 );
 		if(!$status)
 		{
-			CondorTest::debug("Test failure: could not turn scheduler on!\n",1);
+			print "Test failure: could not turn scheduler on!\n";
 			exit(1)
 		}
 
-		CondorTest::debug("Collecting queue details on $cluster\n",1);
+		print "Collecting queue details on $cluster\n";
 		my @fdarray;
 		my $status = 1;
 		my $cmd = "condor_q $cluster";
 		$status = CondorTest::runCondorTool($cmd,\@fdarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1)
 		}
 
 		open(AFTER,">$afterqueue") || die "Could not ope file for before stats $!\n";
 		foreach my $line (@fdarray)
 		{
-			CondorTest::debug("$line\n",1);
+			print "$line\n";
 			print AFTER "$line\n";
 		}
 		close(AFTER);
@@ -127,8 +126,8 @@ $submitted = sub
 					die "jobs in after restart of schedd do not parse\n";
 				}
 				if(($afterstate ne $beforestate) || ($after ne $before)) {
-					CondorTest::debug("Before:$before(State:$beforestate)\n",1);
-					CondorTest::debug("After:$after(State:$afterstate)\n",1);
+					print "Before:$before(State:$beforestate)\n";
+					print "After:$after(State:$afterstate)\n";
 					die "Job queue was not maintained!\n";
 				}
 			}
@@ -146,7 +145,7 @@ $submitted = sub
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

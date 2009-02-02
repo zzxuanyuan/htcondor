@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_leaveinqueue-false_van.cmd';
-$testdesc =  'Condor submit with policy set to not trigger for leave_in_queue - vanilla U';
-$testname = "job_core_leaveinqueue_van";
+$testname = 'Condor submit with policy set to not trigger for leave_in_queue - vanilla U';
 
 my $killedchosen = 0;
 
@@ -41,7 +40,7 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for leave_in_queue cluster $cluster must run first\n",1);
+	print "Good. for leave_in_queue cluster $cluster must run first\n";
 };
 
 $success = sub
@@ -49,7 +48,7 @@ $success = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Good, job should be done but NOT left in the queue!!!\n",1);
+	print "Good, job should be done but NOT left in the queue!!!\n";
 	my $status = 1;
 	my $delay = 1;
 	my $backoffmax = 17; #(1 + 2 + 4 + 8 + 16 = 31 seconds max)
@@ -61,15 +60,15 @@ $success = sub
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1)
 		}
 		foreach my $line (@adarray)
 		{
-			CondorTest::debug("$line\n",1);
+			print "$line\n";
 			if($line =~ /^\s*$cluster\..*$/) {
-				CondorTest::debug("$line\n",1);
-				CondorTest::debug("job should be done but NOT left in the queue!!\n",1);
+				print "$line\n";
+				print "job should be done but NOT left in the queue!!\n";
 				$foundit = 1;
 			}
 		}
@@ -78,8 +77,8 @@ $success = sub
 			$delay = 2 * $delay;
 			next;
 		} else {
-			CondorTest::debug("Job not in queue as expected\n",1);
-			last;
+			print "Job not in queue as expected\n";
+			exit(0);
 		}
 	}
 	if($foundit == 1) {
@@ -93,9 +92,9 @@ $submitted = sub
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 
-	CondorTest::debug("submitted: \n",1);
+	print "submitted: \n";
 	{
-		CondorTest::debug("good job $job expected submitted.\n",1);
+		print "good job $job expected submitted.\n";
 	}
 };
 
@@ -104,7 +103,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

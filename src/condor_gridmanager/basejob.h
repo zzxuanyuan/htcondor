@@ -24,7 +24,7 @@
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "MyString.h"
-#include "write_user_log.h"
+#include "user_log.c++.h"
 #include "user_job_policy.h"
 #include "classad_hashtable.h"
 #include "baseresource.h"
@@ -71,10 +71,6 @@ class BaseJob
 	int EvalPeriodicJobExpr();
 	int EvalOnExitJobExpr();
 
-	static int CheckAllRemoteStatus( Service * );
-	static int m_checkRemoteStatusTid;
-	void CheckRemoteStatus();
-
 	void UpdateJobTime( float *old_run_time, bool *old_run_time_dirty );
 	void RestoreJobTime( float old_run_time, bool old_run_time_dirty );
 
@@ -115,9 +111,6 @@ class BaseJob
 	bool resourcePingPending;
 	bool resourcePingComplete;
 
-	int m_lastRemoteStatusUpdate;
-	bool m_currentStatusUnknown;
-
 	int evaluateStateTid;
 
  protected:
@@ -143,10 +136,6 @@ bool WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code,
 bool WriteGridResourceUpEventToUserLog( ClassAd *job_ad );
 bool WriteGridResourceDownEventToUserLog( ClassAd *job_ad );
 bool WriteGridSubmitEventToUserLog( ClassAd *job_ad );
-bool WriteJobStatusUnknownEventToUserLog( ClassAd *job_ad );
-bool WriteJobStatusKnownEventToUserLog( ClassAd *job_ad );
-bool WriteJobStatusUnknownEventToUserLog( ClassAd *job_ad );
-bool WriteJobStatusKnownEventToUserLog( ClassAd *job_ad );
 void EmailTerminateEvent( ClassAd * job_ad, bool exit_status_known );
 
 #endif // define BASEJOB_H

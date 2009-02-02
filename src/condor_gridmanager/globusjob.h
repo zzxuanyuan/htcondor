@@ -164,6 +164,7 @@ class GlobusJob : public BaseJob
 	bool stageError;
 	int globusError;
 
+	int jmVersion;
 	bool restartingJM;
 	time_t restartWhen;
 
@@ -173,8 +174,6 @@ class GlobusJob : public BaseJob
 	bool useGridShell;
 
 	int jmShouldBeStoppingTime;
-
-	bool m_lightWeightJob;
 
  protected:
 	bool callbackRegistered;

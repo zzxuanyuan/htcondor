@@ -30,7 +30,6 @@ enum proc_family_command_t {
 	PROC_FAMILY_TRACK_FAMILY_VIA_ENVIRONMENT,
 	PROC_FAMILY_TRACK_FAMILY_VIA_LOGIN,
 	PROC_FAMILY_TRACK_FAMILY_VIA_SUPPLEMENTARY_GROUP,
-	PROC_FAMILY_USE_GLEXEC_FOR_FAMILY,
 	PROC_FAMILY_SIGNAL_PROCESS,
 	PROC_FAMILY_SUSPEND_FAMILY,
 	PROC_FAMILY_CONTINUE_FAMILY,
@@ -60,15 +59,13 @@ enum proc_family_error_t {
 	PROC_FAMILY_ERROR_UNREGISTER_ROOT,
 	PROC_FAMILY_ERROR_BAD_ENVIRONMENT_INFO,
 	PROC_FAMILY_ERROR_BAD_LOGIN_INFO,
-	PROC_FAMILY_ERROR_BAD_GLEXEC_INFO,
-	PROC_FAMILY_ERROR_NO_GROUP_ID_AVAILABLE,
-	PROC_FAMILY_ERROR_NO_GLEXEC,
-	PROC_FAMILY_ERROR_MAX
+	PROC_FAMILY_ERROR_NO_GROUP_ID_AVAILABLE
 };
 
-// returns readable string representations for the above error codes
+// an array of readable string representations of the above
+// return codes
 //
-const char* proc_family_error_lookup(proc_family_error_t);
+extern const char* proc_family_error_strings[];
 
 // structure for retrieving process family usage data from
 // the ProcD

@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_hold_van.cmd';
-$testdesc =  'Condor allows submit with hold - vanilla U';
-$testname = "job_core_hold_van";
+$testname = 'Condor allows submit with hold - vanilla U';
 
 my $killedchosen = 0;
 
@@ -40,13 +39,13 @@ $abnormal = sub {
 $aborted = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event expected as we clear job\n",1);
+	print "Abort event expected as we clear job\n";
 };
 
 $held = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Held event expected\n",1);
+	print "Held event expected\n";
 	my $cluster = $info{"cluster"};
 	die "We don't hit Hold state for job started in hold!\n";
 };
@@ -68,7 +67,7 @@ $submitted = sub
 	my $qstat = CondorTest::getJobStatus($cluster);
 	while($qstat == -1)
 	{
-		CondorTest::debug("Job status unknown - wait a bit\n",1);
+		print "Job status unknown - wait a bit\n";
 		sleep 2;
 		$qstat = CondorTest::getJobStatus($cluster);
 	}
@@ -78,14 +77,14 @@ $submitted = sub
 	} 
 	else 
 	{
-		CondorTest::debug("good, cluster $cluster is on hold\n",1);
+		print "good, cluster $cluster is on hold\n";
 		my @adarray;
 		my $status = 1;
 		my $cmd = "condor_rm $cluster";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1)
 		}
 	}
@@ -100,7 +99,7 @@ CondorTest::RegisterHold( $testname, $held );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

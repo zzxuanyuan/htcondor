@@ -22,8 +22,7 @@ use CondorTest;
 
 $cmd = "job_rsc_binary-io_std.cmd";
 
-$testdesc =  "Binary io test - standard U";
-$testname = "job_rsc_binary-io_std";
+$testname = "Binary io test - standard U";
 
 
 $ExitSuccess = sub {
@@ -36,7 +35,7 @@ $ExitSuccess = sub {
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

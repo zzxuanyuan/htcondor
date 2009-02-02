@@ -35,19 +35,19 @@ use CondorTest;
 $topdir = getcwd();
 $installdir = $topdir . "/perllib";
 $ENV{PERL5LIB} = $installdir . "/lib/site_perl" . ":" . $installdir . "/lib/perl5/site_perl" . ":" . $installdir . "/lib64/perl5/site_perl" . ":" . $installdir . "/lib64/site_perl" . ":" . $installdir . "/Library/Perl";
-CondorTest::debug("Adjusted Perl Library search to $ENV{PERL5LIB}\n",1);
+print "Adjusted Perl Library search to $ENV{PERL5LIB}\n";
 
 @modules = ( "IO-Tty-1.07", "Expect-1.20" );
 
 foreach $module (@modules) {
-	CondorTest::debug("Building $module now\n",1);
+	print "Building $module now\n";
 	my $tarfile = "x_quill_" . $module . ".tar.gz";
-	CondorTest::debug("Extracting  $tarfile\n",1);
+	print "Extracting  $tarfile\n";
 	$gettar = system("tar -zxvf $tarfile");
 	if($gettar != 0) {
 		die "Could not extract $module\n";
 	}
-	CondorTest::debug("Module is <<$module>>\n",1);
+	print "Module is <<$module>>\n";
 	chdir "$module";
 	system("pwd");
 	$mkmake = system("perl Makefile.PL PREFIX=$installdir");

@@ -21,7 +21,7 @@
 #define _FILE_TRANSFER_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "MyString.h"
 #include "HashTable.h"
 #ifdef WIN32
@@ -109,11 +109,6 @@ class FileTransfer {
 		@return 1 on success, 0 on failure */
 	int InitDownloadFilenameRemaps(ClassAd *Ad);
 
-	/** @param session_id NULL (if should auto-negotiate) or
-		       security session id to use for outgoing file transfer
-		       commands */
-	void setSecuritySession(char const *session_id);
-
 	/** @return 1 on success, 0 on failure */
 	int DownloadFiles(bool blocking=true);
 
@@ -179,19 +174,6 @@ class FileTransfer {
 		*/
 	bool addOutputFile( const char* filename );
 
-		/** Add the given filename to our list of exceptions.  These
-			files to will not be transfer back, even if they meet the
-			criteria to be returned.  If we already have this file,
-			we immediately return success.  Otherwise, we append the
-			given filename to our list and return success.
-			NOTE: This list trumps any the addition of any file in it,
-			meaning dynamically added files, modified files, etc. that
-			are listed in it will be completely ignored.
-			@param filename Name of file to add to our list
-			@return always true
-			*/
-	bool addFileToExeptionList( const char* filename );
-
 		/** Allows the client side of the filetransfer object to 
 			point to a different server.
 			@param transkey Value of ATTR_TRANSFER_KEY set by server
@@ -253,7 +235,6 @@ class FileTransfer {
 	bool PeerDoesTransferAck;
 	bool PeerDoesGoAhead;
 	char* Iwd;
-	StringList* ExceptionFiles;
 	StringList* OutputFiles;
 	StringList* EncryptInputFiles;
 	StringList* EncryptOutputFiles;
@@ -300,7 +281,6 @@ class FileTransfer {
 	bool m_use_file_catalog;
 	TransferQueueContactInfo m_xfer_queue_contact_info;
 	MyString m_jobid; // what job we are working on, for informational purposes
-	char *m_sec_session_id;
 
 	// called to construct the catalog of files in a direcotry
 	bool BuildFileCatalog(time_t spool_time = 0, const char* iwd = NULL, FileCatalogHashTable **catalog = NULL);

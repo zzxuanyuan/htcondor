@@ -36,7 +36,6 @@ C_PLUS_FLAGS  = $(CFLAGS)
 all_symlink_target(../condor_scripts/Condor.pm,Condor.pm)
 all_symlink_target(../condor_scripts/CondorTest.pm,CondorTest.pm)
 all_symlink_target(../condor_scripts/CondorPersonal.pm,CondorPersonal.pm)
-all_symlink_target(../condor_scripts/CondorPubLogdirs.pm,CondorPubLogdirs.pm)
 all_symlink_target(../condor_scripts/safe_append.pl,safe_append.pl)
 all_symlink_target(../condor_scripts/batch_test.pl,batch_test.pl)
 
@@ -44,7 +43,6 @@ BUILD_DEP($(CC),x_return-n,c,x_waste_second.o)
 BUILD($(CC),x_dumpcore,c)
 BUILD($(CC),x_trapsig,c)
 BUILD($(CC),x_tightloop,c)
-BUILD($(CC),x_killppid,c)
 
 /************************************************************************
    Rules for all the single-compiler (or no compiler) tests
@@ -65,14 +63,6 @@ RUN(lib_chirpio_van)
 TESTCLASS(lib_chirpio_van,lib)
 TESTCLASS(lib_chirpio_van,quick)
 TESTCLASS(lib_chirpio_van,full)
-
-DESC(job_core_chirp_par,"Exercise the chirp I/O C library in Parallel Universe")
-BUILD_DEP_LIB($(CC),job_core_chirp_par,c,,../release_dir/lib/libchirp_client.a)
-DEPS(job_core_chirp_par,job_core_chirp_par.exe)
-RUN(job_core_chirp_par)
-TESTCLASS(job_core_chirp_par,lib)
-TESTCLASS(job_core_chirp_par,quick)
-TESTCLASS(job_core_chirp_par,full)
 #endif 
 
 /* User log and log reader used by dagman tests */
@@ -86,8 +76,6 @@ leave the 4th argument empty...
 BUILD_DEP_LIB($(CPlusPlus),x_read_joblog,C,,../release_dir/lib/libcondorapi.a)
 BUILD_DEP_LIB($(CPlusPlus),x_write_joblog,C,,../release_dir/lib/libcondorapi.a)
 BUILD_DEP_LIB($(CPlusPlus),x_write_joblog_events,C,,../release_dir/lib/libcondorapi.a)
-
-BUILD_DEP_LIB($(CPlusPlus),lib_eventlog_base,C,,../release_dir/lib/libcondorapi.a)
 
 /* BUG: We seem to consistently loose track of one pid on AIX
 	so we will turn this test off until this gets fixed.....
@@ -130,134 +118,9 @@ TESTCLASS(job_ligo_x86-64-chkpttst,quicknolink)
 TESTCLASS(job_ligo_x86-64-chkpttst,btdebug)
 #endif
 
-DESC(job_dagman_splice-A,"Simple Dagman Splice A")
-RUN(job_dagman_splice-A)
-TESTCLASS(job_dagman_splice-A,core)
-TESTCLASS(job_dagman_splice-A,quick)
-TESTCLASS(job_dagman_splice-A,full)
-TESTCLASS(job_dagman_splice-A,quicknolink)
-TESTCLASS(job_dagman_splice-A,btdebug)
+# vmuniverse smoke test in larg repository
 
-DESC(job_dagman_splice-B,"Simple Dagman Splice B")
-RUN(job_dagman_splice-B)
-TESTCLASS(job_dagman_splice-B,core)
-TESTCLASS(job_dagman_splice-B,quick)
-TESTCLASS(job_dagman_splice-B,full)
-TESTCLASS(job_dagman_splice-B,quicknolink)
-TESTCLASS(job_dagman_splice-B,btdebug)
-
-DESC(job_dagman_splice-C,"Simple Dagman Splice C")
-RUN(job_dagman_splice-C)
-TESTCLASS(job_dagman_splice-C,core)
-TESTCLASS(job_dagman_splice-C,quick)
-TESTCLASS(job_dagman_splice-C,full)
-TESTCLASS(job_dagman_splice-C,quicknolink)
-TESTCLASS(job_dagman_splice-C,btdebug)
-
-DESC(job_dagman_splice-D,"Simple Dagman Splice D")
-RUN(job_dagman_splice-D)
-TESTCLASS(job_dagman_splice-D,core)
-TESTCLASS(job_dagman_splice-D,quick)
-TESTCLASS(job_dagman_splice-D,full)
-TESTCLASS(job_dagman_splice-D,quicknolink)
-TESTCLASS(job_dagman_splice-D,btdebug)
-
-DESC(job_dagman_splice-E,"Simple Dagman Splice E")
-RUN(job_dagman_splice-E)
-TESTCLASS(job_dagman_splice-E,core)
-TESTCLASS(job_dagman_splice-E,quick)
-TESTCLASS(job_dagman_splice-E,full)
-TESTCLASS(job_dagman_splice-E,quicknolink)
-TESTCLASS(job_dagman_splice-E,btdebug)
-
-DESC(job_dagman_splice-F,"Simple Dagman Splice F")
-RUN(job_dagman_splice-F)
-TESTCLASS(job_dagman_splice-F,core)
-TESTCLASS(job_dagman_splice-F,quick)
-TESTCLASS(job_dagman_splice-F,full)
-TESTCLASS(job_dagman_splice-F,quicknolink)
-TESTCLASS(job_dagman_splice-F,btdebug)
-
-DESC(job_dagman_splice-G,"Simple Dagman Splice G")
-RUN(job_dagman_splice-G)
-TESTCLASS(job_dagman_splice-G,core)
-TESTCLASS(job_dagman_splice-G,quick)
-TESTCLASS(job_dagman_splice-G,full)
-TESTCLASS(job_dagman_splice-G,quicknolink)
-TESTCLASS(job_dagman_splice-G,btdebug)
-
-DESC(job_dagman_splice-H,"Simple Dagman Splice H")
-RUN(job_dagman_splice-H)
-TESTCLASS(job_dagman_splice-H,core)
-TESTCLASS(job_dagman_splice-H,quick)
-TESTCLASS(job_dagman_splice-H,full)
-TESTCLASS(job_dagman_splice-H,quicknolink)
-TESTCLASS(job_dagman_splice-H,btdebug)
-
-DESC(job_dagman_splice-I,"Simple Dagman Splice I")
-RUN(job_dagman_splice-I)
-TESTCLASS(job_dagman_splice-I,core)
-TESTCLASS(job_dagman_splice-I,quick)
-TESTCLASS(job_dagman_splice-I,full)
-TESTCLASS(job_dagman_splice-I,quicknolink)
-TESTCLASS(job_dagman_splice-I,btdebug)
-
-/*	This test is commented out until we fix Condor.pm to allow multiple
-	dag files to be submitted with condor_submit_dag in TestSubmitDagman
-*/
-
-/*
-DESC(job_dagman_splice-J,"Simple Dagman Splice J")
-RUN(job_dagman_splice-J)
-TESTCLASS(job_dagman_splice-J,core)
-TESTCLASS(job_dagman_splice-J,quick)
-TESTCLASS(job_dagman_splice-J,full)
-TESTCLASS(job_dagman_splice-J,quicknolink)
-TESTCLASS(job_dagman_splice-J,btdebug)
-*/
-
-DESC(job_dagman_splice-K,"Simple Dagman Splice K")
-RUN(job_dagman_splice-K)
-TESTCLASS(job_dagman_splice-K,core)
-TESTCLASS(job_dagman_splice-K,quick)
-TESTCLASS(job_dagman_splice-K,full)
-TESTCLASS(job_dagman_splice-K,quicknolink)
-TESTCLASS(job_dagman_splice-K,btdebug)
-
-DESC(job_dagman_splice-L,"Simple Dagman Splice L")
-RUN(job_dagman_splice-L)
-TESTCLASS(job_dagman_splice-L,core)
-TESTCLASS(job_dagman_splice-L,quick)
-TESTCLASS(job_dagman_splice-L,full)
-TESTCLASS(job_dagman_splice-L,quicknolink)
-TESTCLASS(job_dagman_splice-L,btdebug)
-
-DESC(job_dagman_splice-M,"Simple Dagman Splice M")
-RUN(job_dagman_splice-M)
-TESTCLASS(job_dagman_splice-M,core)
-TESTCLASS(job_dagman_splice-M,quick)
-TESTCLASS(job_dagman_splice-M,full)
-TESTCLASS(job_dagman_splice-M,quicknolink)
-TESTCLASS(job_dagman_splice-M,btdebug)
-
-DESC(job_dagman_splice-N,"Simple Dagman Splice N")
-RUN(job_dagman_splice-N)
-TESTCLASS(job_dagman_splice-N,core)
-TESTCLASS(job_dagman_splice-N,quick)
-TESTCLASS(job_dagman_splice-N,full)
-TESTCLASS(job_dagman_splice-N,quicknolink)
-TESTCLASS(job_dagman_splice-N,btdebug)
-
-DESC(job_dagman_splice-O,"Simple Dagman Splice O")
-RUN(job_dagman_splice-O)
-TESTCLASS(job_dagman_splice-O,core)
-TESTCLASS(job_dagman_splice-O,quick)
-TESTCLASS(job_dagman_splice-O,full)
-TESTCLASS(job_dagman_splice-O,quicknolink)
-TESTCLASS(job_dagman_splice-O,btdebug)
-
-/* vmuniverse tests in larg repository */
-
+/* Test is timing out currently, need to investigate
 #if defined(HAVE_VMWARE) && defined(HAVE_CONDOR_TEST_LRG)
 DESC(job_vmu_basic,"VM Universe smoke test")
 RUN(job_vmu_basic)
@@ -266,37 +129,8 @@ TESTCLASS(job_vmu_basic,quick)
 TESTCLASS(job_vmu_basic,full)
 TESTCLASS(job_vmu_basic,quicknolink)
 TESTCLASS(job_vmu_basic,btdebug)
-DESC(job_vmu_cdrom,"VM Universe CD-ROM test")
-RUN(job_vmu_cdrom)
-TESTCLASS(job_vmu_cdrom,core)
-TESTCLASS(job_vmu_cdrom,quick)
-TESTCLASS(job_vmu_cdrom,full)
-TESTCLASS(job_vmu_cdrom,quicknolink)
-TESTCLASS(job_vmu_cdrom,btdebug)
-DESC(job_vmu_network,"VM Universe networking test")
-RUN(job_vmu_network)
-TESTCLASS(job_vmu_network,core)
-TESTCLASS(job_vmu_network,quick)
-TESTCLASS(job_vmu_network,full)
-TESTCLASS(job_vmu_network,quicknolink)
-TESTCLASS(job_vmu_network,btdebug)
-DESC(job_vmu_ckpt,"VM Universe checkpoint test")
-RUN(job_vmu_ckpt)
-TESTCLASS(job_vmu_ckpt,core)
-TESTCLASS(job_vmu_ckpt,quick)
-TESTCLASS(job_vmu_ckpt,full)
-TESTCLASS(job_vmu_ckpt,quicknolink)
-TESTCLASS(job_vmu_ckpt,btdebug)
 #endif 
-
-/* We're not building OpenSSL on HPUX */
-/* The threads in amazon_gahp are causing problems on AIX */
-#if !defined( IS_HPUX11 ) && !defined( IS_AIX ) && !defined( IS_SOLARIS29 )
-DESC(job_amazon_basic,"Amazon EC2 test")
-RUN(job_amazon_basic)
-TESTCLASS(job_amazon_basic,quick)
-TESTCLASS(job_amazon_basic,full)
-#endif 
+*/
 
 DESC(job_flocking_to,"Simple flocking test")
 RUN(job_flocking_to)
@@ -305,13 +139,6 @@ TESTCLASS(job_flocking_to,quick)
 TESTCLASS(job_flocking_to,full)
 TESTCLASS(job_flocking_to,quicknolink)
 TESTCLASS(job_flocking_to,btdebug)
-
-DESC(fetch_work-basic,"work fetch smoke test")
-RUN(fetch_work-basic)
-TESTCLASS(fetch_work-basic,core)
-TESTCLASS(fetch_work-basic,quick)
-TESTCLASS(fetch_work-basic,quicknolink)
-TESTCLASS(fetch_work-basic,btdebug)
 
 /*
 **
@@ -562,12 +389,14 @@ TESTCLASS(cmd_q_shows-analyze,quick)
 TESTCLASS(cmd_q_shows-analyze,full)
 TESTCLASS(cmd_q_shows-analyze,quicknolink)
 
+#if defined(HAVE_EXT_CLASSADS)
 DESC(cmd_q_shows-better-analyze,"Condor_q shows better-analyze")
 RUN(cmd_q_shows-better-analyze)
 TESTCLASS(cmd_q_shows-better-analyze,core)
 TESTCLASS(cmd_q_shows-better-analyze,quick)
 TESTCLASS(cmd_q_shows-better-analyze,full)
 TESTCLASS(cmd_q_shows-better-analyze,quicknolink)
+#endif
 
 DESC(cmd_q_shows-xml,"Condor_q shows xml")
 RUN(cmd_q_shows-xml)
@@ -611,177 +440,6 @@ DEPS(lib_eventlog-xml,x_read_joblog.exe)
 TESTCLASS(lib_eventlog-xml,core)
 TESTCLASS(lib_eventlog-xml,quick)
 TESTCLASS(lib_eventlog-xml,full)
-
-/* Test to verify that re-initialization of the eventlog does not cause
-   seg faults */
-DESC(lib_eventlog_base,"Test re-initialization of eventlog")
-RUN(lib_eventlog_base)
-DEPS(lib_eventlog_base,lib_eventlog_base.exe)
-DEPS(lib_eventlog_base,lib_eventlog_base.exe)
-TESTCLASS(lib_eventlog_base,lib)
-TESTCLASS(lib_eventlog_base,quick)
-TESTCLASS(lib_eventlog_base,full)
-
-#if defined(IS_IA64_LINUX_RHEL3) || defined(IS_CONDOR_PPC_LINUX_SLES9) || defined(IS_PPC_OSX_10_4) || defined(IS_CONDOR_PPC_LINUX_YD50) || defined(IS_X86_64_LINUX_RHEL5)  || defined(IS_X86_64_LINUX_RHEL3) || defined(IS_I386_OSX_10_4) || defined(IS_I386_LINUX_RHEL5) || defined(IS_I386_LINUX_RHEL51)
-DESC(lib_eventlog_build,"Test building of eventlog program")
-RUN(lib_eventlog_build)
-TESTCLASS(lib_eventlog_build,lib)
-TESTCLASS(lib_eventlog_build,quick)
-TESTCLASS(lib_eventlog_build,full)
-#endif
-
-/* EventLog Rotation tests */
-DESC(lib_eventlog_rotation-defaults,"Event Log Rotation: Default settings")
-RUN(lib_eventlog_rotation-defaults)
-TESTCLASS(lib_eventlog_rotation-defaults,core)
-TESTCLASS(lib_eventlog_rotation-defaults,quick)
-TESTCLASS(lib_eventlog_rotation-defaults,full)
-
-DESC(lib_eventlog_rotation-no_rotations_1,"Event Log Rotation: no rotations/1")
-RUN(lib_eventlog_rotation-no_rotations_1)
-TESTCLASS(lib_eventlog_rotation-no_rotations_1,core)
-TESTCLASS(lib_eventlog_rotation-no_rotations_1,quick)
-TESTCLASS(lib_eventlog_rotation-no_rotations_1,full)
-
-DESC(lib_eventlog_rotation-no_rotations_2,"Event Log Rotation: no rotations/2")
-RUN(lib_eventlog_rotation-no_rotations_2)
-TESTCLASS(lib_eventlog_rotation-no_rotations_2,core)
-TESTCLASS(lib_eventlog_rotation-no_rotations_2,quick)
-TESTCLASS(lib_eventlog_rotation-no_rotations_2,full)
-
-DESC(lib_eventlog_rotation-no_rotations_3,"Event Log Rotation: no rotations/3")
-RUN(lib_eventlog_rotation-no_rotations_3)
-TESTCLASS(lib_eventlog_rotation-no_rotations_3,core)
-TESTCLASS(lib_eventlog_rotation-no_rotations_3,quick)
-TESTCLASS(lib_eventlog_rotation-no_rotations_3,full)
-
-DESC(lib_eventlog_rotation-w_old_rotations,"Event Log Rotation: old rotations")
-RUN(lib_eventlog_rotation-w_old_rotations)
-TESTCLASS(lib_eventlog_rotation-w_old_rotations,core)
-TESTCLASS(lib_eventlog_rotation-w_old_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-w_old_rotations,full)
-
-DESC(lib_eventlog_rotation-w_old_rotations_2_loops,"Event Log Rotation: old rotations / 2 loops")
-RUN(lib_eventlog_rotation-w_old_rotations_2_loops)
-TESTCLASS(lib_eventlog_rotation-w_old_rotations_2_loops,core)
-TESTCLASS(lib_eventlog_rotation-w_old_rotations_2_loops,quick)
-TESTCLASS(lib_eventlog_rotation-w_old_rotations_2_loops,full)
-
-DESC(lib_eventlog_rotation-w_2_rotations,"Event Log Rotation: 2 rotations")
-RUN(lib_eventlog_rotation-w_2_rotations)
-TESTCLASS(lib_eventlog_rotation-w_2_rotations,core)
-TESTCLASS(lib_eventlog_rotation-w_2_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-w_2_rotations,full)
-
-DESC(lib_eventlog_rotation-w_2_rotations_2_loops,"Event Log Rotation: 2 rotations / 2 loops")
-RUN(lib_eventlog_rotation-w_2_rotations_2_loops)
-TESTCLASS(lib_eventlog_rotation-w_2_rotations_2_loops,core)
-TESTCLASS(lib_eventlog_rotation-w_2_rotations_2_loops,quick)
-TESTCLASS(lib_eventlog_rotation-w_2_rotations_2_loops,full)
-
-DESC(lib_eventlog_rotation-w_5_rotations,"Event Log Rotation: 5 rotations")
-RUN(lib_eventlog_rotation-w_5_rotations)
-TESTCLASS(lib_eventlog_rotation-w_5_rotations,core)
-TESTCLASS(lib_eventlog_rotation-w_5_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-w_5_rotations,full)
-
-DESC(lib_eventlog_rotation-w_20_rotations,"Event Log Rotation: 20 rotations")
-RUN(lib_eventlog_rotation-w_20_rotations)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations,core)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations,full)
-
-DESC(lib_eventlog_rotation-w_20_rotations_2_loops,"Event Log Rotation: 20 rotations / 2 loops")
-RUN(lib_eventlog_rotation-w_20_rotations_2_loops)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations_2_loops,core)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations_2_loops,quick)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations_2_loops,full)
-
-DESC(lib_eventlog_rotation-w_20_rotations_20_loops,"Event Log Rotation: 20 rotations / 20 loops")
-RUN(lib_eventlog_rotation-w_20_rotations_20_loops)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations_20_loops,core)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations_20_loops,quick)
-TESTCLASS(lib_eventlog_rotation-w_20_rotations_20_loops,full)
-
-DESC(lib_eventlog_rotation-reader_simple,"Event Log Rotation: reader")
-RUN(lib_eventlog_rotation-reader_simple)
-TESTCLASS(lib_eventlog_rotation-reader_simple,core)
-TESTCLASS(lib_eventlog_rotation-reader_simple,quick)
-TESTCLASS(lib_eventlog_rotation-reader_simple,full)
-
-DESC(lib_eventlog_rotation-reader_old_rotations,"Event Log Rotation: reader, old rotations")
-RUN(lib_eventlog_rotation-reader_old_rotations)
-TESTCLASS(lib_eventlog_rotation-reader_old_rotations,core)
-TESTCLASS(lib_eventlog_rotation-reader_old_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-reader_old_rotations,full)
-
-DESC(lib_eventlog_rotation-reader_2_rotations,"Event Log Rotation: reader, 2 rotations")
-RUN(lib_eventlog_rotation-reader_2_rotations)
-TESTCLASS(lib_eventlog_rotation-reader_2_rotations,core)
-TESTCLASS(lib_eventlog_rotation-reader_2_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-reader_2_rotations,full)
-
-DESC(lib_eventlog_rotation-reader_2_rotations_2_loops,"Event Log Rotation: reader, 2 rotations / 2 loops")
-RUN(lib_eventlog_rotation-reader_2_rotations_2_loops)
-TESTCLASS(lib_eventlog_rotation-reader_2_rotations_2_loops,core)
-TESTCLASS(lib_eventlog_rotation-reader_2_rotations_2_loops,quick)
-TESTCLASS(lib_eventlog_rotation-reader_2_rotations_2_loops,full)
-
-DESC(lib_eventlog_rotation-reader_20_rotations,"Event Log Rotation: reader, 20 rotations")
-RUN(lib_eventlog_rotation-reader_20_rotations)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations,core)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations,quick)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations,full)
-
-DESC(lib_eventlog_rotation-reader_20_rotations_2_loops,"Event Log Rotation: reader, 20 rotations / 2 loops")
-RUN(lib_eventlog_rotation-reader_20_rotations_2_loops)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations_2_loops,core)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations_2_loops,quick)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations_2_loops,full)
-
-DESC(lib_eventlog_rotation-reader_20_rotations_20_loops,"Event Log Rotation: reader, 20 rotations / 20 loops")
-RUN(lib_eventlog_rotation-reader_20_rotations_20_loops)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations_20_loops,core)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations_20_loops,quick)
-TESTCLASS(lib_eventlog_rotation-reader_20_rotations_20_loops,full)
-
-
-/* Lease Manager tests */
-DESC(lib_lease_manager-defaults,"Lease manager: Default settings")
-RUN(lib_lease_manager-defaults)
-TESTCLASS(lib_lease_manager-defaults,core)
-TESTCLASS(lib_lease_manager-defaults,quick)
-TESTCLASS(lib_lease_manager-defaults,full)
-
-DESC(lib_lease_manager-get_rel_1,"Lease manager: get/relesae test #1")
-RUN(lib_lease_manager-get_rel_1)
-TESTCLASS(lib_lease_manager-get_rel_1,core)
-TESTCLASS(lib_lease_manager-get_rel_1,quick)
-TESTCLASS(lib_lease_manager-get_rel_1,full)
-
-DESC(lib_lease_manager-get_rel_2,"Lease manager: get/relesae test #2")
-RUN(lib_lease_manager-get_rel_2)
-TESTCLASS(lib_lease_manager-get_rel_2,core)
-TESTCLASS(lib_lease_manager-get_rel_2,quick)
-TESTCLASS(lib_lease_manager-get_rel_2,full)
-
-DESC(lib_lease_manager-get_rel_3,"Lease manager: get/relesae test #3")
-RUN(lib_lease_manager-get_rel_3)
-TESTCLASS(lib_lease_manager-get_rel_3,core)
-TESTCLASS(lib_lease_manager-get_rel_3,quick)
-TESTCLASS(lib_lease_manager-get_rel_3,full)
-
-DESC(lib_lease_manager-get_rel_4,"Lease manager: get/relesae test #4")
-RUN(lib_lease_manager-get_rel_4)
-TESTCLASS(lib_lease_manager-get_rel_4,core)
-TESTCLASS(lib_lease_manager-get_rel_4,quick)
-TESTCLASS(lib_lease_manager-get_rel_4,full)
-
-DESC(lib_lease_manager-get_rel_5,"Lease manager: get/relesae test #5")
-RUN(lib_lease_manager-get_rel_5)
-TESTCLASS(lib_lease_manager-get_rel_5,core)
-TESTCLASS(lib_lease_manager-get_rel_5,quick)
-TESTCLASS(lib_lease_manager-get_rel_5,full)
 
 #if defined(IS_IA64_LINUX_RHEL3) || defined(IS_CONDOR_PPC_LINUX_SLES9) || defined(IS_PPC_OSX_10_4) || defined(IS_CONDOR_PPC_LINUX_YD50) || defined(IS_X86_64_LINUX_RHEL5)  || defined(IS_X86_64_LINUX_RHEL3) || defined(IS_I386_CONDOR_FREEBSD) || defined(IS_I386_OSX_10_4) || defined(IS_I386_LINUX_RHEL5) || defined(IS_I386_LINUX_RHEL51)
 DESC(job_quill_basic,"Basic Quill Test")
@@ -981,7 +639,6 @@ TESTCLASS(lib_procapi_cputracking-snapshot,core)
 TESTCLASS(lib_procapi_cputracking-snapshot,quick)
 TESTCLASS(lib_procapi_cputracking-snapshot,full)
 TESTCLASS(lib_procapi_cputracking-snapshot,quicknolink)
-TESTCLASS(lib_procapi_cputracking-snapshot,btdebug)
 #endif
 **
 */
@@ -1486,8 +1143,6 @@ TESTCLASS(job_core_time-deferral_van,quicknolink)
  These work but always cause a ShadowException
  Commenting out for for now
  Andy - 02.17.06
- Seem fine now... bt 12.19.08
-*********/
 DESC(job_core_time-deferral-hold_van,"Vanilla: Verify HOLD against deferred execution")
 RUN(job_core_time-deferral-hold_van)
 TESTCLASS(job_core_time-deferral-hold_van,core)
@@ -1501,6 +1156,7 @@ TESTCLASS(job_core_time-deferral-remove_van,core)
 TESTCLASS(job_core_time-deferral-remove_van,quick)
 TESTCLASS(job_core_time-deferral-remove_van,full)
 TESTCLASS(job_core_time-deferral-remove_van,quicknolink)
+*******/
 
 DESC(job_core_crontab_van,"Vanilla: CronTab Scheduling")
 RUN(job_core_crontab_van)
@@ -1649,7 +1305,6 @@ RUN(cmd_wait_shows-timeout)
 TESTCLASS(cmd_wait_shows-timeout,quick)
 TESTCLASS(cmd_wait_shows-timeout,full)
 TESTCLASS(cmd_wait_shows-timeout,quicknolink)
-TESTCLASS(cmd_wait_shows-timeout,btdebug)
 
 /* Dagman Tests */
 
@@ -1742,27 +1397,6 @@ TESTCLASS(job_dagman_xmluncomlog,quick)
 TESTCLASS(job_dagman_xmluncomlog,full)
 TESTCLASS(job_dagman_xmluncomlog,quicknolink)
 
-DESC(job_dagman_abort-A,"Test ABORT-DAG-ON")
-RUN(job_dagman_abort-A)
-TESTCLASS(job_dagman_abort-A,dagman)
-TESTCLASS(job_dagman_abort-A,quick)
-TESTCLASS(job_dagman_abort-A,full)
-TESTCLASS(job_dagman_abort-A,quicknolink)
-
-DESC(job_dagman_parallel-A,"Test DAGMan handling nodes w/ multiple jobs")
-RUN(job_dagman_parallel-A)
-TESTCLASS(job_dagman_parallel-A,dagman)
-TESTCLASS(job_dagman_parallel-A,quick)
-TESTCLASS(job_dagman_parallel-A,full)
-TESTCLASS(job_dagman_parallel-A,quicknolink)
-
-DESC(job_dagman_subdag-A,"Test condor_submit_dag recursion on nested DAGs, SUBDAG EXTERNAL keyword")
-RUN(job_dagman_subdag-A)
-TESTCLASS(job_dagman_subdag-A,dagman)
-TESTCLASS(job_dagman_subdag-A,quick)
-TESTCLASS(job_dagman_subdag-A,full)
-TESTCLASS(job_dagman_subdag-A,quicknolink)
-
 /* Sample performance tests */
 
 /*
@@ -1843,7 +1477,6 @@ TESTCLASS(job_rsc_binary-io_std,framework)
 TESTCLASS(job_rsc_binary-io_std,quick)
 TESTCLASS(job_rsc_binary-io_std,full)
 TESTCLASS(job_rsc_binary-io_std,quicknolink)
-TESTCLASS(job_rsc_binary-io_std,btdebug)
 
 #endif /* ! IS_CLIPPED */
 /* This test fails constantly and is off for now
@@ -1853,11 +1486,6 @@ TESTCLASS(job_rsc_binary-io_std,btdebug)
 **TESTCLASS(job_core_coredump_van,framework)
 **TESTCLASS(job_core_coredump_van,quick)
 */
-
-lib_eventlog_build.exe : lib_eventlog_base.cpp
-	$(CPlusPlus) $< -DLIBAPI_ONLY \
-	-I ../release_dir/include ../release_dir/lib/libcondorapi.a \
-	-lc -ldl -o $@
 
 
 /************************************************************************
@@ -1875,10 +1503,6 @@ all:: compiler_list
 F_COMPILER_TARGET(g77,$(GNU_G77),TESTSUITE_FLAGS_G77,0)
 #endif
 
-#if HAS_GNU_GFORTRAN
-F90_COMPILER_TARGET(gfortran,$(GNU_GFORTRAN),TESTSUITE_FLAGS_GFORTRAN,0)
-#endif
-
 #if HAS_VENDOR_F77
 F_COMPILER_TARGET(f77,$(VENDOR_F77),TESTSUITE_FLAGS_F77,0)
 #endif /* HAS_VENDOR_F77 */
@@ -1892,7 +1516,7 @@ F_COMPILER_TARGET(f90,$(VENDOR_F90),TESTSUITE_FLAGS_F77,0)
 /* We always want to build the test suite with gcc and g++ */
 C_COMPILER_TARGET(gcc,gcc,TESTSUITE_FLAGS_GCC)
 
-CPP_COMPILER_TARGET(gpp,g++,TESTSUITE_FLAGS_GPP)
+CPP_COMPILER_TARGET(g++,g++,TESTSUITE_FLAGS_GPP)
 
 /* now, let's see if we've got any vendor compilers */
 #if HAS_VENDOR_CC

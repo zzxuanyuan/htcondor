@@ -23,17 +23,15 @@ use CondorTest;
 #Condor::DebugOn();
 
 $cmd = 'job_core_initialdir_van.cmd';
-$testdesc =  'condor_submit initialdir works - vanilla U';
-$testname = "job_core_initialdir_van";
+$testname = 'condor_submit initialdir works - vanilla U';
 
-my @expected_output =
+@CondorTest::expected_output =
 (
 'one',
 'two',
 'three',
 'four',
 );
-CondorTest::SetExpected(\@expected_output);
 
 system("mkdir -p initd_van");
 
@@ -42,7 +40,7 @@ CondorTest::RegisterExitedSuccess( $testname, \&CondorTest::DefaultOutputTest );
 #CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

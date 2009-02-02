@@ -21,15 +21,12 @@
 #if !defined(_CONDOR_STARTER_H)
 #define _CONDOR_STARTER_H
 
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "list.h"
 #include "user_proc.h"
 #include "job_info_communicator.h"
-#include "condor_privsep_helper.h"
 
-#if defined(LINUX)
-#include "glexec_privsep_helper.h"
-#endif
+
 
 /** The starter class.  Basically, this class does some initialization
 	stuff and manages a set of UserProc instances, each of which 
@@ -77,24 +74,23 @@ public:
 		 * without the JIC thinking it was told from the outside
 		 *************************************************************/
 
-		/** Call Suspend() on all elements in m_job_list */
+		/** Call Suspend() on all elements in JobList */
 	virtual int RemoteSuspend( int );
 	virtual bool Suspend( void );
 
-		/** Call Continue() on all elements in m_job_list */
+		/** Call Continue() on all elements in JobList */
 	virtual int RemoteContinue( int );
 	virtual bool Continue( void );
 
-		/** Call Ckpt() on all elements in m_job_list */
+		/** Call Ckpt() on all elements in JobList */
 	virtual int RemotePeriodicCkpt( int );
 	virtual bool PeriodicCkpt( void );
 
-		/** Call Remove() on all elements in m_job_list */
+		/** Call Remove() on all elements in JobList */
 	virtual int RemoteRemove( int );
 	virtual bool Remove( void );
 
-		/** Call Hold() on all elements in m_job_list */
-	int remoteHoldCommand( int cmd, Stream* s );
+		/** Call Hold() on all elements in JobList */
 	virtual int RemoteHold(int);
 	virtual bool Hold( void );
 
@@ -143,9 +139,9 @@ public:
 		 **/
 	virtual int SpawnPreScript( void );
 
-		/** Does initial cleanup once all the jobs (and post script, if
-			any) have completed.  This notifies the JIC so it can
-			initiate HOOK_JOB_EXIT, file transfer, etc.
+		/** Does final cleanup once all the jobs (and post script, if
+			any) have completed.  This deals with everything on the
+			CleanedUpJobList, notifies the JIC, etc.
 		*/
 	virtual bool allJobsDone( void );
 
@@ -155,27 +151,6 @@ public:
 			@param exit_status The exit status of the dead pid
 		*/
 	virtual int Reaper(int pid, int exit_status);
-
-		/** Called after HOOK_JOB_EXIT returns (if defined), when
-			we're ready to transfer output.  This only initiates a
-			file transfer in the case of talking to a shadow, but it
-			helps keep the job exit code path sane to have this
-			function at this level of the code.  This basically just
-			turns around to invoke JIC::transferOutput(), but if that
-			fails, we assume we're disconnected and return to
-			DaemonCore, whereas if it succeeds, we know we're done
-			with the file transfer and can call cleanupJobs().
-		*/
-	virtual bool transferOutput( void );
-
-		/** Called after allJobsDone() and friends have finished doing
-			all of their work (invoking HOOK_JOB_EXIT, file transfer,
-			etc) when we're ready for the final cleanup of the jobs.
-			This iterates over all of the UserProc objects and invokes
-			JobExit() on each of them, removes them from the list, and
-			once everything is cleaned, calls JIC::allJobsGone().
-		*/
-	virtual bool cleanupJobs( void );
 
 		/** Return the Working dir */
 	const char *GetWorkingDir() const { return WorkingDir.Value(); }
@@ -190,15 +165,6 @@ public:
 
 	bool publishPreScriptUpdateAd( ClassAd* ad );
 	bool publishPostScriptUpdateAd( ClassAd* ad );
-
-		/**
-		   Publish all attributes once the jobs have exited into the
-		   given ClassAd.  Walk through all the reaped UserProc
-		   objects and have them publish.
-		   @param ad pointer to the classad to publish into
-		   @return true if we published any info, false if not.
-		*/
-	bool publishJobExitAd( ClassAd* ad );
 
 		/** Put all the environment variables we'd want a Proc to have
 			into the given Env object.  This will figure out what Proc
@@ -236,28 +202,9 @@ public:
 	int classadCommand( int, Stream* );
 
 	int updateX509Proxy( int cmd, Stream* );
-
-		/** This will return NULL if we're not using either
-		    PrivSep or GLExec */
-	PrivSepHelper* privSepHelper()
-	{
-		return m_privsep_helper;
-	}
-		/** This will return NULL if we're not using PrivSep */
-	CondorPrivSepHelper* condorPrivSepHelper()
-	{
-		return dynamic_cast<CondorPrivSepHelper*>(m_privsep_helper);
-	}
-#if defined(LINUX)
-	GLExecPrivSepHelper* glexecPrivSepHelper()
-	{
-		return dynamic_cast<GLExecPrivSepHelper*>(m_privsep_helper);
-	}
-#endif
-
 protected:
-	List<UserProc> m_job_list;
-	List<UserProc> m_reaped_job_list;
+	List<UserProc> JobList;
+	List<UserProc> CleanedUpJobList;
 
 private:
 
@@ -272,22 +219,6 @@ private:
 		/// Special cleanup for exiting after being invoked via glexec
 	void exitAfterGlexec( int code );
 #endif
-
-		/**
-		   Iterate through a UserProc list and have each UserProc
-		   publish itself to the given ClassAd.
-
-		   @param proc_list List of UserProc objects to iterate.
-		   @param ad ClassAd to publish info into.
-
-		   @return true if we published anything, otherwise false.
-
-		   @see CStarter::publishUpdateAd()
-		   @see CStarter::publishJobExitAd()
-		   @see UserProc::PublishUpdateAd()
-		*/
-	bool publishJobInfoAd(List<UserProc>* proc_list, ClassAd* ad);
-
 
 		// // // // // // // //
 		// Private Data Members
@@ -319,17 +250,6 @@ private:
 
 	UserProc* pre_script;
 	UserProc* post_script;
-
-		//
-		// If we're using PrivSep, we'll need a helper object to
-		// manage sandbox ownership and to launch the job.
-		//
-	PrivSepHelper* m_privsep_helper;
-
-		//
-		// Flag to indicate whether Config() has been run
-		//
-	bool m_configured;
 };
 
 #endif

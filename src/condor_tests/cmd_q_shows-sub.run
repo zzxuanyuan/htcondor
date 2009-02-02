@@ -22,8 +22,7 @@ use CondorTest;
 
 $cmd = 'cmd_q_shows-sub.cmd';
 $cmdout = $cmd . ".out";
-$testdesc =  'cmd_q_shows-sub  ';
-$testname = "cmd_q_shows-sub";
+$testname = 'cmd_q_shows-sub  ';
 
 $whoami = "";
 
@@ -31,7 +30,7 @@ $whoami = "";
 
 $submit = sub {
 	my %info = @_;
-	CondorTest::debug("Looking for submitter $whoami\n",1);
+	print "Looking for submitter $whoami\n";
 	my $search = 0;
 
 	my $cmd = "condor_q -format \"%s\" Owner -format \" ClusterId = %d\n\" ClusterId";
@@ -39,7 +38,7 @@ $submit = sub {
 	$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$cmdstatus)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 
@@ -52,20 +51,20 @@ $submit = sub {
 		$submitline = $_;
 		if($submitline =~ /^.*cluster\s+(\d+).*$/) {
 			$cluster = $1;
-			CondorTest::debug("Found my cluster which is $cluster!\n",1);
+			print "Found my cluster which is $cluster!\n";
 		}
-		CondorTest::debug("$_\n",1);
+		print "$_\n";
 	}
 
 
 	foreach $line (@adarray) {
         chomp($line);
-        CondorTest::debug("$line\n",1);
+        print "$line\n";
         if($line =~ /^\s*([\w\-]+)\s+ClusterId\s+=\s+$clusters.*$/) {
-                CondorTest::debug("Bingo: found <$line> shows I am $1\n",1);
+                print "Bingo: found <$line> shows I am $1\n";
 				$whoami = $1;
         } else {
-            CondorTest::debug("<<<$line>>>\n",1);
+            print "<<<$line>>>\n";
         }
     }
 
@@ -79,18 +78,18 @@ $submit = sub {
 	$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$cmdstatus)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		system("condor_rm $cluster"); # bail but pull job which never dies...
 		exit(1)
 	}
 
 	foreach $line (@adarray) {
-	    CondorTest::debug("output: $line\n",1);
+	    print "output: $line\n";
 		chomp($line);
 
 		if($line =~ /^\s*(\d+).\d+\s+([\w\-]+).*$/) {
 			if(($cluster eq $1) && ($whoami eq $2)){
-				CondorTest::debug("condor_q -sub $whoami found my job matching $cluster\n",1);
+				print "condor_q -sub $whoami found my job matching $cluster\n";
 				$cmd = "condor_rm $cluster";
 				$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,8);
 				$search = 1;
@@ -105,7 +104,8 @@ $submit = sub {
 };
 
 $aborted = sub {
-	CondorTest::debug("Cleaning held job.......\n",1);
+	print "Cleaning held job.......\n";
+	exit(0);
 };
 
 $ExitSuccess = sub {
@@ -117,7 +117,7 @@ CondorTest::RegisterSubmit($testname, $submit);
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

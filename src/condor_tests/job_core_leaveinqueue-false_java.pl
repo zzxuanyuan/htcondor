@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_leaveinqueue-false_java.cmd';
-$testdesc =  'Condor submit with policy set to not trigger for leave_in_queue - java U';
-$testname = "job_core_leaveinqueue_java";
+$testname = 'Condor submit with policy set to not trigger for leave_in_queue - java U';
 
 my $killedchosen = 0;
 
@@ -41,7 +40,7 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for leave_in_queue cluster $cluster must run first\n",1);
+	print "Good. for leave_in_queue cluster $cluster must run first\n";
 };
 
 $success = sub
@@ -49,11 +48,11 @@ $success = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Good, job should be done but NOT left in the queue!!!\n",1);
+	print "Good, job should be done but NOT left in the queue!!!\n";
 	my $qstat = CondorTest::getJobStatus($cluster);
 	if($qstat == -1)
 	{
-		CondorTest::debug("Job status unknown - Exactly what we want\n",1);
+		print "Job status unknown - Exactly what we want\n";
 		exit(0);
 	}
 	if( $qstat == COMPLETED )
@@ -68,9 +67,9 @@ $submitted = sub
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 
-	CondorTest::debug("submitted: \n",1);
+	print "submitted: \n";
 	{
-		CondorTest::debug("good job $job expected submitted.\n",1);
+		print "good job $job expected submitted.\n";
 	}
 };
 
@@ -79,7 +78,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

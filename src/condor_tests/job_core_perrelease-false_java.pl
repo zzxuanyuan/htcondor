@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perrelease-false_java.cmd';
-$testdesc =  'Condor submit policy test for periodic_release - java U';
-$testname = "job_core_perrelease-false_java";
+$testname = 'Condor submit policy test for periodic_release - java U';
 
 my %info;
 my $cluster;
@@ -37,7 +36,7 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for periodic_release cluster $cluster must run first\n",1);
+	print "Good. for periodic_release cluster $cluster must run first\n";
 };
 
 $success = sub
@@ -45,7 +44,7 @@ $success = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Good, job should complete trivially\n",1);
+	print "Good, job should complete trivially\n";
 };
 
 $timed = sub
@@ -54,16 +53,16 @@ $timed = sub
 	# use submit cluster as timed info not assured
 	#my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Cluster $cluster alarm wakeup\n",1);
-	CondorTest::debug("wakey wakey!!!!\n",1);
-	CondorTest::debug("good\n",1);
+	print "Cluster $cluster alarm wakeup\n";
+	print "wakey wakey!!!!\n";
+	print "good\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_rm $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 	sleep 5;
@@ -76,19 +75,19 @@ $submit = sub
 	my $qstat = CondorTest::getJobStatus($cluster);
 	while($qstat == -1)
 	{
-		CondorTest::debug("Job status unknown - wait a bit\n",1);
+		print "Job status unknown - wait a bit\n";
 		sleep 2;
 		$qstat = CondorTest::getJobStatus($cluster);
 	}
 
-	CondorTest::debug("It better be on hold... status is $status(5 is correct)",1);
+	print "It better be on hold... status is $status(5 is correct)";
 	if($qstat != HELD)
 	{
 		die "Cluster $cluster failed to go on hold\n";
 	}
 
 
-	CondorTest::debug("Cluster $cluster submitted\n",1);
+	print "Cluster $cluster submitted\n";
 };
 
 $abort = sub
@@ -96,7 +95,7 @@ $abort = sub
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Cluster $cluster aborted after hold state verified\n",1);
+	print "Cluster $cluster aborted after hold state verified\n";
 };
 
 CondorTest::RegisterSubmit($testname, $submit);
@@ -106,7 +105,7 @@ CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -38,6 +38,13 @@ public:
 
 	CWnd notifyWnd;
 private:
+	CBirdWatcherDlg *pDlg;
+	void setIcon(int iCpuId, HICON hToSet);
+	void removeIcon(int iCpuId);
+	
+	void onReceivedWindowsMessage(WindowsMessageReceiver *pSource, UINT message, WPARAM wParam, LPARAM lParam);
+	void reloadStatus();
+	WindowsMessageReceiver wmr;
 
 	struct BirdIcon
 	{
@@ -47,16 +54,7 @@ private:
 		bool bIconActive;
 		bool bRunningJob;
 	};
-	typedef std::vector<BirdIcon> BirdIconVector;
-	BirdIconVector vecIconsForEachCpu;
-
-	CBirdWatcherDlg *pDlg;
-	void setIcon(BirdIconVector::size_type iCpuId, HICON hToSet);
-	void removeIcon(BirdIconVector::size_type iCpuId);
-	
-	void onReceivedWindowsMessage(WindowsMessageReceiver *pSource, UINT message, WPARAM wParam, LPARAM lParam);
-	void reloadStatus();
-	WindowsMessageReceiver wmr;
+	std::vector<BirdIcon> vecIconsForEachCpu;
 
 	int iTimerId;
 	bool bUseSingleIcon;

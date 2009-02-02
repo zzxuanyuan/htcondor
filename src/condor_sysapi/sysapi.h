@@ -32,7 +32,6 @@ typedef struct {
 	int			found_processors;
 	int			found_hthreads;
 	int			found_ncpus;
-	int			debug;
 } SysapiProcCpuinfo;
 extern SysapiProcCpuinfo	_SysapiProcCpuinfo;
 #endif

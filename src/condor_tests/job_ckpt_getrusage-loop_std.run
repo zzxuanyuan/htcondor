@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_getrusage-loop_std.cmd';
-$testdesc =  'Loop and getrusage() Test';
-$testname = "job_ckpt_getrusage-loop_std";
+$testname = 'Loop and getrusage() Test';
 
 $OutputTest = sub
 {
@@ -86,7 +85,7 @@ $OutputTest = sub
 CondorTest::RegisterExitedSuccess( $testname, $OutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 1) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

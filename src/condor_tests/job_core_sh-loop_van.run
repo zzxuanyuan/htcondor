@@ -23,8 +23,7 @@ use CondorTest;
 use File::Path;
 
 $cmd = 'job_core_sh-loop_van.cmd';
-$testdesc =  'Basic shell script loop test';
-$testname = "job_core_sh-loop_van";
+$testname = 'Basic shell script loop test';
 
 umask 0;
 `chmod 755 job_core_sh-loop_van.sh`;
@@ -35,15 +34,13 @@ $foo = <<"_EOX";
 Normal End-of-Job
 _EOX
 
-my @expected_output = split '\n', $foo;
-CondorTest::SetExpected(\@expected_output);
-
+@CondorTest::expected_output = split '\n', $foo;
 
 CondorTest::RegisterExitedSuccess( $testname, 
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

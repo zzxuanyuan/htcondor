@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $cmd_template = "job_startd_multimatch.template";
-$testdesc =  'job_startd_multimatch - Startd Multimatch job';
-$testname = "job_startd_multimatch";
+$testname = 'job_startd_multimatch - Startd Multimatch job';
 $cmd = "job_startd_multimatch.cmd";
 $corename = "job_startd_multimatch";
 $localpostsrc = "x_startd_multimatch_postsrc";
@@ -80,20 +81,20 @@ print LOCAL "NEGOTIATOR_INTERVAL = $interval\n";
 close(LOCAL);
 
 # get a remote scheduler running (side b)
-my $configrem = CondorPersonal::StartCondor( "job_startd_multimatch", "x_param.startdmultimatch" ,"startdmultimatch");
+my $configrem = CondorPersonal::StartCondor("x_param.startdmultimatch" ,"startdmultimatch");
 my @multimatch = split /\+/, $configrem;
 my $multimatchconfig = shift @multimatch;
 my $multimatchport = shift @multimatch;
 
-CondorTest::debug("---Startd Multimatch config is $multimatchconfig and remote port is $multimatchport---\n",1);
+print "---Startd Multimatch config is $multimatchconfig and remote port is $multimatchport---\n";
 
 
 $ENV{CONDOR_CONFIG} = $multimatchconfig;
 
-CondorTest::debug("Set config to $multimatchconfig\n",1);
+print "Set config to $multimatchconfig\n";
 
 my $result = system("./job_startd_multimatch.pl $mysubmitnm $jobcount $interval");
-CondorTest::debug("Result of basic startd_multimatch  job is  $result\n",1);
+print "Result of basic startd_multimatch  job is  $result\n";
 
 exit(1);
 
@@ -114,14 +115,20 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($multimatchconfig);
-system("date");
-
-if($result != 0)
+if( $result != 0 )
 {
-    # actuaal job failed but we allowed cleanup
-    exit(1);
+	exit(1);
 }
 
-CondorTest::debug("job_startd_multimatch SUCCESS\n",1);
-exit(0);
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+system("date");
+

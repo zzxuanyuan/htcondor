@@ -48,7 +48,7 @@ class Dagman {
     int maxJobs;  // Maximum number of Jobs to run at once
     int maxPreScripts;  // max. number of PRE scripts to run at once
     int maxPostScripts;  // max. number of POST scripts to run at once
-	char *rescueFileToWrite; // "old style" of rescue DAG -- null for new
+    char *rescue_file;
 	bool paused;
 
 	char* condorSubmitExe;
@@ -69,21 +69,11 @@ class Dagman {
 		// "Primary" DAG file -- if we have multiple DAG files this is
 		// the first one.  The lock file name, rescue DAG name, etc., 
 		// are based on this name.
-		// Note: if we autorun a rescue DAG, this name needs to stay
-		// what it was originally, so a subsequent rescue DAG (if any)
-		// is written to the right file.  It can't be a char * because
-		// that will get goofed up when the dagFiles list is cleared.
-		// wenger 2008-02-27
-	MyString primaryDagFile;
+	char *primaryDagFile;
 
 		// The list of all DAG files to be run by this invocation of
 		// condor_dagman.
 	StringList dagFiles;
-
-		// Whether we have more than one DAG file; we need to save this
-		// separately because dagFiles will get reset if we're automatically
-		// running a rescue DAG.
-	bool multiDags;
 
 		// whether to peform expensive cycle-detection at startup
 		// (note: we perform run-time cycle-detection regardless)
@@ -147,26 +137,10 @@ class Dagman {
 		// the Condor job id of the DAGMan job
 	CondorID DAGManJobId;
 
+    bool Config();
+
 		// The DAGMan configuration file (NULL if none is specified).
 	char *_dagmanConfigFile;
-
-		// Whether to automatically run a rescue DAG if one exists.
-	bool autoRescue;
-
-		// "New-style" rescue DAG number to run; 0 means no rescue DAG
-		// specified
-	int doRescueFrom;
-
-		// The maximum allowed rescue DAG number.
-	int maxRescueDagNum;
-
-		// The name of the rescue DAG we're running, if any.  This
-		// will remain set to "" unless we're running a rescue DAG.
-		// This is *not* the name of the rescue DAG to write, if the
-		// current run fails.
-	MyString rescueFileToRun;
-
-    bool Config();
 };
 
 #endif	// ifndef DAGMAN_MAIN_H

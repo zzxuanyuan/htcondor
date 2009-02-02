@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_dagman_unlessexit.dag';
-$testdesc =  'Condor submit dag - unless exit test - scheduler U';
-$testname = "job_dagman_unlessexit";
+$testname = 'Condor submit dag - unless exit test - scheduler U';
 $dagman_args = "-verbose";
 
 #	This test runs a single node which always fails.
@@ -31,9 +30,6 @@ $dagman_args = "-verbose";
 #	that dag we will scrap for three retries having been made.
 
 my $killedchosen = 0;
-
-$ENV{_CONDOR_DAGMAN_OLD_RESCUE} = true;
-$ENV{_CONDOR_DAGMAN_AUTO_RESCUE} = false;
 
 # truly const variables in perl
 sub IDLE{1};
@@ -62,34 +58,34 @@ $held = sub
 
 $executed = sub
 {
-	CondorTest::debug("Good. We need the dag to run\n",1);
+	print "Good. We need the dag to run\n";
 };
 
 $submitted = sub
 {
-	CondorTest::debug("submitted: This test will see submit, executing and successful completion\n",1);
+	print "submitted: This test will see submit, executing and successful completion\n";
 };
 
 $success = sub
 {
 	%subinfo = @_;
 	my $joblog = $subinfo{log};
-	CondorTest::debug("Joblog is $joblog\n",1);
+	print "Joblog is $joblog\n";
 };
 
 $failure = sub
 {
 	%subinfo = @_;
 	my $joblog = $subinfo{log};
-	CondorTest::debug("Joblog is $joblog\n",1);
+	print "Joblog is $joblog\n";
 
-	CondorTest::debug("executed with failure\n",1);
+	print "executed with failure\n";
 	if( -e $rescuedag )
 	{
 		my $line = "";
-		CondorTest::debug("Good, a rescue dag was created.......\n",1);
+		print "Good, a rescue dag was created.......\n";
 		my $result = `./x_read_joblog.exe $joblog RETURNVALUE`;
-		CondorTest::debug("Result of Dag is $result\n",1);
+		print "Result of Dag is $result\n";
 		open( RESCUE, "<$rescuedag");
 		# write out a rescue dag where node always failing has 0 inserted for return
 		# value for post script.... Then run rescue dag.
@@ -105,7 +101,7 @@ $failure = sub
 				}
 				else
 				{
-					CondorTest::debug("Great! Failed do do all requested retries... $1 of $2 done\n",1);
+					print "Great! Failed do do all requested retries... $1 of $2 done\n";
 				}
 			}
 		}
@@ -126,7 +122,7 @@ CondorTest::RegisterHold( $testname, $held );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunDagTest($testname, $cmd, 0, $dagman_args) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

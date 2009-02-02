@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_rsc_zero-calloc_std.cmd';
-$testdesc =  'calloc test';
-$testname = "job_rsc_zero-calloc_std";
+$testname = 'calloc test';
 
 sub OutputTest
 {
@@ -50,7 +49,7 @@ sub OutputTest
 CondorTest::RegisterExitedSuccess( $testname, \&OutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

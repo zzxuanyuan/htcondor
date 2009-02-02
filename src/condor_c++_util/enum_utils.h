@@ -29,10 +29,8 @@
 #include "translation_utils.h"
 
 typedef enum { 
-	CLAIM_NONE=0,
 	CLAIM_COD=1,
 	CLAIM_OPPORTUNISTIC,
-	CLAIM_FETCH,
 } ClaimType;
 
 const char* getClaimTypeString( ClaimType type );
@@ -50,22 +48,6 @@ typedef enum {
 
 const char* getClaimStateString( ClaimState state );
 ClaimState  getClaimStateNum( const char* string );
-
-
-typedef enum { 
-    HOOK_FETCH_WORK=0,
-    HOOK_REPLY_FETCH,
-    HOOK_EVICT_CLAIM,
-    HOOK_PREPARE_JOB,
-    HOOK_UPDATE_JOB_INFO,
-    HOOK_JOB_EXIT,
-    HOOK_EVICT_JOB,
-    HOOK_TRANSLATE_JOB,
-    HOOK_JOB_CLEANUP,
-} HookType;
-
-const char* getHookTypeString( HookType type );
-HookType    getHookTypeNum( const char* string );
 
 
 typedef enum { 

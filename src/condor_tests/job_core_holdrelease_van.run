@@ -23,8 +23,7 @@ use CondorTest;
 #Condor::DebugOn();
 
 $cmd      = 'job_core_holdrelease_van.cmd';
-$testdesc =  'Jobs properly hold and release - vanilla U';
-$testname = "job_core_holdrelease_van";
+$testname = 'Jobs properly hold and release - vanilla U';
 
 # truly const variables in perl
 sub IDLE{1};
@@ -40,27 +39,27 @@ $execute = sub {
 	# avoid reentrant death
 	if($alreadydone == 0) {
 		#CondorTest::RegisterTimed($testname, $timed, 180);
-		CondorTest::debug("Seeing job run and about to place on hold\n",1);
+		print "Seeing job run and about to place on hold\n";
 		$alreadydone = 1;
 	} else {
-		CondorTest::debug("Have already run once and don't expect this!\n",1);
+		print "Have already run once and don't expect this!\n";
 	}
 
-	CondorTest::debug("Putting cluster $cluster on hold\n",1);
+	print "Putting cluster $cluster on hold\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_hold $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 
 };
 
 $abort = sub {
-	CondorTest::debug("Job is gone now, cool.\n",1);
+	print "Job is gone now, cool.\n";
 };
 
 $hold = sub
@@ -68,15 +67,15 @@ $hold = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Good. Cluster $cluster is supposed to be held.....\n",1);
-	CondorTest::debug("Releasing cluster $cluster\n",1);
+	print "Good. Cluster $cluster is supposed to be held.....\n";
+	print "Releasing cluster $cluster\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_release $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 	# must reschedule to get released job out of Inactive and into Running
@@ -85,7 +84,7 @@ $hold = sub
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 };
@@ -95,14 +94,14 @@ $release = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Good hold and release both worked! removing job\n",1);
+	print "Good hold and release both worked! removing job\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_rm $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 };
@@ -124,7 +123,7 @@ CondorTest::RegisterRelease($testname, $release);
 CondorTest::RegisterExitedSuccess($testname, $success);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

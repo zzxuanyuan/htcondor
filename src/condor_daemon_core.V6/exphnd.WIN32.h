@@ -27,7 +27,6 @@ class ExceptionHandler {
 		ExceptionHandler( );      
 		~ExceptionHandler( );
 		void SetLogFileName( PTSTR pszLogFileName );  
-		void SetPID( pid_t pid );  
 		void TurnOff( );
 		void TurnOn( );
 		static LPTSTR GetExceptionString( DWORD dwCode );
@@ -54,8 +53,7 @@ class ExceptionHandler {
       // Variables used by the class
       static TCHAR m_szLogFileName[MAX_PATH];
       static LPTOP_LEVEL_EXCEPTION_FILTER m_previousFilter;
-      static HANDLE m_hReportFile;
-	  static pid_t m_pid;
+      static HANDLE m_hReportFile;     
       // Make typedefs for some IMAGEHLP.DLL functions so that we can use them
       // with GetProcAddress
       typedef BOOL (__stdcall * SYMINITIALIZEPROC)( HANDLE, LPSTR, BOOL );

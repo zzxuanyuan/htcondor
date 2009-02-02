@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = './job_dagman_throttle.dag';
-$testdesc =  'Condor submit dag - throttle test - scheduler U';
-$testname = "job_dagman_throttle";
+$testname = 'Condor submit dag - throttle test - scheduler U';
 $maxjobs = 4;
 $dagman_args = "-v -maxjobs $maxjobs";
 
@@ -51,17 +50,17 @@ $held = sub
 
 $executed = sub
 {
-	CondorTest::debug("Good. We need the dag to run\n",1);
+	print "Good. We need the dag to run\n";
 };
 
 $submitted = sub
 {
-	CondorTest::debug("submitted: This test will see submit, executing and successful completion\n",1);
+	print "submitted: This test will see submit, executing and successful completion\n";
 };
 
 $success = sub
 {
-	CondorTest::debug("executed successfully\n",1);
+	print "executed successfully\n";
 	my $result = `./x_read_joblog.exe $joblog MAXJOBS $maxjobs`;
 	if( $result != 0)
 	{
@@ -77,7 +76,7 @@ CondorTest::RegisterHold( $testname, $held );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunDagTest($testname, $cmd, 0, $dagman_args) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

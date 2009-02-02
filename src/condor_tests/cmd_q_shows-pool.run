@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $cmd_template = "cmd_q_multi.template";
-$testdesc =  'cmd_q_shows-pool ';
-$testname = "cmd_q_shows-pool";
+$testname = 'cmd_q_shows-pool ';
 $corename = "cmd_q_shows-pool";
 
 # where am I running
@@ -51,21 +52,21 @@ $mycorenm = $corename . ".cmd";
 $mycorenmout = $corename . ".cmd.out";
 $mycorenmlog = $corename . ".log";
 
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 my $version = "local";
 # get a local scheduler running (side a)
-my $configloc = CondorPersonal::StartCondor( "cmd_q_shows-pool", "x_param.cmdq-multi" ,$version);
+my $configloc = CondorPersonal::StartCondor("x_param.cmdq-multi" ,$version);
 my @local = split /\+/, $configloc;
 my $locconfig = shift @local;
 my $locport = shift @local;
 
-CondorTest::debug("---local config is $locconfig and local port is $locport---\n",1);
+print "---local config is $locconfig and local port is $locport---\n";
 
 $primarycollector = $primarycollector . ":" . $locport;
 
-CondorTest::debug("Primary collector for other nodes <<$primarycollector>>\n",1);
+print "Primary collector for other nodes <<$primarycollector>>\n";
 
 $saveconfig = $ENV{CONDOR_CONFIG};
 $ENV{CONDOR_CONFIG} = $locconfig;
@@ -74,7 +75,7 @@ $ENV{CONDOR_CONFIG} = $saveconfig;
 
 my $line;
 open(SCHEDDSRC,"<x_param.cmdq-multi.template") || die "Could not open x_param.cmdq-multi.template: $!\n";
-open(SCHEDDONE,">x_param.cmd_q_shows-pool") || die "Could not open x_param.cmd_q_shows-pool: $!\n";
+open(SCHEDDONE,">x_param.cmdq-multi-one") || die "Could not open x_param.cmdq-multi-one: $!\n";
 while(<SCHEDDSRC>) {
 	$line = $_;
 	chomp($line);
@@ -91,12 +92,12 @@ close(SCHEDDONE);
 
 $version = "scheddone";
 # get another node running
-my $configscheddone = CondorPersonal::StartCondor( "cmd_q_shows-pool", "x_param.cmd_q_shows-pool" ,$version);
+my $configscheddone = CondorPersonal::StartCondor("x_param.cmdq-multi-one" ,$version);
 my @scheddone = split /\+/, $configscheddone;
 my $scheddoneconfig = shift @scheddone;
 my $scheddoneport = shift @scheddone;
 
-CondorTest::debug("---scheddone config is $scheddoneconfig and scheddone port is $scheddoneport---\n",1);
+print "---scheddone config is $scheddoneconfig and scheddone port is $scheddoneport---\n";
 
 my $bail = 0;
 
@@ -105,7 +106,7 @@ $ENV{CONDOR_CONFIG} = $scheddoneconfig;
 
 my $forever = CondorTest::verbose_system("./x_cmdrunforever.pl");
 if($forever != 0) {
-	CondorTest::debug("Bailing because running job failed to submit\n",1);
+	print "Bailing because running job failed to submit\n";
 	$bail = 1;
 }
 
@@ -116,7 +117,7 @@ my $holdone;
 if($bail != 1) {
 	my $holdone = CondorTest::verbose_system("./x_cmdstartonhold.pl");
 	if($holdone != 0) {
-		CondorTest::debug("Bailing because running job failed to submit\n",1);
+		print "Bailing because running job failed to submit\n";
 		$bail = 1;
 	}
 }
@@ -129,11 +130,11 @@ my $sched2 = "master_scheddone_schd" . "@" . $currenthost;;
 #Place condor_q back into the original condor config
 #and aim the -global -pool command at this new collector.
 $ENV{CONDOR_CONFIG} = $saveconfig;
-CondorTest::debug("Looking for sched1($sched1) and sched2($sched2)\n",1);
+print "Looking for sched1($sched1) and sched2($sched2)\n";
 
 # allow time for all the nodes to update the collector
 # by allowing N attempts
-my $nattempts = 8;
+my $nattempts = 5;
 my $count = 0;
 my $done = 0;
 my $found1 = 0;
@@ -141,37 +142,37 @@ my $found1 = 0;
 if($bail != 1) {
 	my @schedds = ( $sched1, $sched2 );
 	foreach $schedd (@schedds) {
-		CondorTest::debug("Looking for condor_q -global -pool $primarycollector\n",1);
+		print "Looking for condor_q -global -pool $primarycollector\n";
 		while($count < $nattempts) {
 			$found1 = 0;
 			my $cmd = "condor_q -global -pool $primarycollector";
 			$cmdstatus = CondorTest::runCondorTool($cmd,\@adarray,2);
 	    	if(!$cmdstatus)
 	    	{
-	        	CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+	        	print "Test failure due to Condor Tool Failure<$cmd>\n";
 	        	exit(1)
 	    	}
 
-			CondorTest::debug("Looking for schedd($schedd)\n",1);
+			print "Looking for schedd($schedd)\n";
 
 			foreach $line (@adarray) {
 				if($line =~ /^.*($schedd).*$/) {
-					CondorTest::debug("found $schedd: $line\n",1);
+					print "found $schedd: $line\n";
 					$found1 = 1;
 				} else {
-					CondorTest::debug("skip: $line\n",1);
+					print "skip: $line\n";
 				}
 			}
 			if($found1 == 1){
-				CondorTest::debug("Happy and quitting\n",1);
+				print "Happy and quitting\n";
 				$done = 1;
 				last;
 			} else {
-				CondorTest::debug("Unhappy: <$found1> \n",1);
+				print "Unhappy: <$found1> \n";
 			}
 
 			$count = $count + 1;
-			sleep($count * 5);
+			sleep($count * 2);
 		}
 		if($found1 == 0) {
 			last;
@@ -199,8 +200,44 @@ if( -e "$mysubmitnmlog" )
 # still set to local config
 # $ENV{CONDOR_CONFIG} = $locconfig;
 
-CondorPersonal::KillDaemonPids($locconfig);
-CondorPersonal::KillDaemonPids($scheddoneconfig);
+my @adarray;
+my $status = 1;
+my $cmd = "condor_rm -all";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+$status = 1;
+$cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+$ENV{CONDOR_CONFIG} = $scheddoneconfig;
+
+$status = 1;
+$cmd = "condor_rm -all";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+$status = 1;
+$cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
 system("date");
 
 if( $done == 0 )
@@ -209,5 +246,6 @@ if( $done == 0 )
 	exit(1);
 }
 
-CondorTest::debug("cmd_q_shows-pool SUCCESS\n",1);
+print "cmd_q_shows-pool SUCCESS\n";
+system("date");
 exit(0);

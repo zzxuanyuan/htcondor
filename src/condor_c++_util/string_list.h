@@ -53,8 +53,6 @@ public:
 	void deleteCurrent();
 	int number (void) const { return strings.Number(); };
 	bool isEmpty(void) const { return strings.IsEmpty(); };
-	void qsort();
-	void shuffle();
 
 	/** Add all members of a given stringlist into the current list, 
 		avoiding any duplicates.
@@ -79,7 +77,7 @@ public:
 		are responsible to release the memory allocated by this function 
 		with free() */
 	char* print_to_string(void);
-	char* print_to_delimed_string(const char *delim = NULL);
+	char* print_to_delimed_string(void);
 
 protected:
     const char * contains_withwildcard(const char *string, bool anycase, StringList *matches=NULL);

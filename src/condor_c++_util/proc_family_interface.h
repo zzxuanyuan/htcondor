@@ -30,7 +30,7 @@ class ProcFamilyInterface {
 
 public:
 
-	static ProcFamilyInterface* create(const char* subsys);
+	static ProcFamilyInterface* create(char* subsys);
 
 	virtual ~ProcFamilyInterface() { }
 
@@ -66,7 +66,6 @@ public:
 
 	virtual bool unregister_family(pid_t) = 0;
 
-	virtual bool use_glexec_for_family(pid_t, const char* proxy) = 0;
 };
 
 #endif

@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perremove-true_sched.cmd';
-$testdesc =  'Condor submit policy test for PERIODIC_REMOVE - scheduler U';
-$testname = "job_core_perremove_sched";
+$testname = 'Condor submit policy test for PERIODIC_REMOVE - scheduler U';
 
 my $killedchosen = 0;
 
@@ -30,22 +29,22 @@ my %args;
 my $cluster;
 
 $aborted = sub {
-	CondorTest::debug("Abort event expected from periodic_remove policy evaluating to true\n",1);
-	CondorTest::debug("Policy test worked.\n",1);
+	print "Abort event expected from periodic_remove policy evaluating to true\n";
+	print "Policy test worked.\n";
 };
 
 $executed = sub
 {
 	%args = @_;
 	$cluster = $args{"cluster"};
-	CondorTest::debug("Good. for on_exit_remove cluster $cluster must run first\n",1);
+	print "Good. for on_exit_remove cluster $cluster must run first\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterAbort( $testname, $aborted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

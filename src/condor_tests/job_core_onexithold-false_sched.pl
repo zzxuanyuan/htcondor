@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_onexithold-false_sched.cmd';
-$testdesc =  'Condor submit with hold for periodic remove test - scheduler U';
-$testname = "job_core_onexithold_sched";
+$testname = 'Condor submit with hold for periodic remove test - scheduler U';
 
 my $killedchosen = 0;
 
@@ -49,11 +48,11 @@ $aborted = sub {
 
 	if( $job eq "000" )
 	{
-		CondorTest::debug("Good, job - $job - aborted after Hold state reached\n",1);
+		print "Good, job - $job - aborted after Hold state reached\n";
 	}
 	elsif( $job eq "001" )
 	{
-		CondorTest::debug("Bad, job $job should not be aborted EVER!\n",1);
+		print "Bad, job $job should not be aborted EVER!\n";
 		$testerrors{$job} = "job $job should not be aborted EVER!";
 	}
 	else
@@ -71,15 +70,15 @@ $held = sub {
 	if( $job eq 0 )
 	{
 		my $fulljob = "$cluster"."."."$job";
-		CondorTest::debug("Good, good run of job - $fulljob - should be in queue on hold now\n",1);
-		CondorTest::debug("Removing $fulljob\n",1);
+		print "Good, good run of job - $fulljob - should be in queue on hold now\n";
+		print "Removing $fulljob\n";
 		my @adarray;
 		my $status = 1;
 		my $cmd = "condor_rm $cluster";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1)
 		}
 		my @nadarray;
@@ -88,13 +87,13 @@ $held = sub {
 		$status = CondorTest::runCondorTool($cmd,\@nadarray,2);
 		if(!$status)
 		{
-			CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure<$cmd>\n";
 			exit(1)
 		}
 	}
 	elsif( $job eq 1 )
 	{
-		CondorTest::debug("Bad, job $job should NOT be on hold!!!\n",1);
+		print "Bad, job $job should NOT be on hold!!!\n";
 	}
 	else
 	{
@@ -107,7 +106,7 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for on_exit_hold cluster $cluster must run first\n",1);
+	print "Good. for on_exit_hold cluster $cluster must run first\n";
 };
 
 $success = sub
@@ -116,7 +115,7 @@ $success = sub
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 
-	CondorTest::debug("Good, good job - $job - should complete trivially\n",1);
+	print "Good, good job - $job - should complete trivially\n";
 };
 
 $submitted = sub
@@ -125,9 +124,9 @@ $submitted = sub
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 
-	CondorTest::debug("submitted: \n",1);
+	print "submitted: \n";
 	{
-		CondorTest::debug("good job $job expected submitted.\n",1);
+		print "good job $job expected submitted.\n";
 	}
 };
 
@@ -139,7 +138,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success );
 CondorTest::RegisterSubmit( $testname, $submitted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

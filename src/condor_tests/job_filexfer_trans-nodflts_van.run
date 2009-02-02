@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_filexfer_trans-nodflts_van.cmd';
-$testdesc =  ' testing of file transfer with no default values used. - vanilla U';
-$testname = "job_filexfer_trans-nodflts_van";
+$testname = ' testing of file transfer with no default values used. - vanilla U';
 
 # truly const variables in perl
 sub IDLE{1};
@@ -35,12 +34,12 @@ $execute = sub {
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Running $cluster\n",1);
+	print "Running $cluster\n";
 
 };
 
 $abort = sub {
-	CondorTest::debug("Job is gone now, cool.\n",1);
+	print "Job is gone now, cool.\n";
 };
 
 $release = sub
@@ -56,18 +55,18 @@ $shadow = sub
 	my $cluster = $args{"cluster"};
 	my $error = $args{"shadowerror"};
 
-	CondorTest::debug("Shadow Error: Cluster $cluster: $error\n",1);
+	print "Shadow Error: Cluster $cluster: $error\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_rm $cluster";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
-		exit(1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(0)
 	}
 	sleep 3;
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 };
 
 $success = sub
@@ -87,7 +86,7 @@ CondorTest::RegisterExitedSuccess($testname, $success);
 #CondorTest::RegisterTimed($testname, $timed, 3600);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

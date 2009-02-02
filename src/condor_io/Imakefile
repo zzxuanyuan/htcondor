@@ -22,7 +22,7 @@ AUTH_X509_OBJ = condor_auth_x509.o
 
 CONDOR_AUTH_OBJ = condor_auth.o condor_auth_claim.o condor_auth_fs.o \
 	          condor_auth_sspi.o condor_auth_anonymous.o         \
-		  $(AUTH_X509_OBJ) $(AUTH_KERB_OBJ) $(AUTH_PASSWD_OBJ) $(AUTH_SSL_OBJ) ../condor_daemon_core.V6/condor_ipverify.o authentication.o
+		  $(AUTH_X509_OBJ) $(AUTH_KERB_OBJ) $(AUTH_PASSWD_OBJ) $(AUTH_SSL_OBJ) authentication.o
 
 CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o errno_num.o
 
@@ -35,8 +35,8 @@ OBJ = stream.o sock.o reli_sock.o safe_sock.o buffers.o sockCache.o \
 library_target(libcedar.a,$(OBJ))
 
 c_plus_target(cedar.t,cedar.t.o,$(LIB))
-
-
+pure_c_plus_target(cedar.t.pure,$(OBJ),$(LIB))
+purecov_c_plus_target(cedar.t.pc,$(OBJ),$(LIB))
 c_plus_target(buftest,buftest.o,$(LIB))
 html_target( ../condor_includes/stream.h ../condor_includes/reli_sock.h ../condor_includes/safe_sock.h ../condor_includes/sock.h )
 
@@ -71,10 +71,10 @@ stripped:: all
 static:: all
 testbin:: all
 
-/* reli_sock_no_auth.o: reli_sock.cpp */
+/* reli_sock_no_auth.o: reli_sock.C */
 /* $(CPlusPlus) $(C_PLUS_FLAGS) -DNO_AUTHENTICATION \ */
-/* -c reli_sock.cpp -o reli_sock_no_auth.o */
+/* -c reli_sock.C -o reli_sock_no_auth.o */
 
 /* IMPORT_LINKS = ../../config/import_links */
-/* import_objs(../condor_c++_util,MyString.o) */
+/* import(../condor_c++_util,MyString.o) */
 

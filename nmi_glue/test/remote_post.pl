@@ -20,6 +20,7 @@
 
 
 ######################################################################
+# $Id: remote_post.pl,v 1.12.6.2 2008-02-08 17:21:45 bt Exp $
 # post script for Condor testsuite runs
 ######################################################################
 
@@ -46,20 +47,12 @@ if( defined $ENV{_NMI_STEP_FAILED} ) {
 ######################################################################
 
 
-print "Seeing if personal condor needs killing\n";
-
 if( -f "$SrcDir/condor_tests/TestingPersonalCondor/local/log/.scheduler_address" ) {
     #  Came up and had a scheduler running. good
 	$ENV{"CONDOR_CONFIG"} = "$SrcDir/condor_tests/TestingPersonalCondor/condor_config";
-	if( defined $ENV{_NMI_STEP_FAILED} ) { 
-		print "not calling condor_off for $SrcDir/condor_tests/TestingPersonalCondor/condor_config\n";
-	} else {
-		print "calling condor_off for $SrcDir/condor_tests/TestingPersonalCondor/condor_config\n";
-		system("$BaseDir/userdir/condor/sbin/condor_off -master");
-		# give some time for condor to shutdown
-		sleep(30);
-		print "done calling condor_off for $SrcDir/condor_tests/TestingPersonalCondor/condor_config\n";
-	}
+	system("$BaseDir/userdir/condor/sbin/condor_off -master");
+	# give some time for condor to shutdown
+	sleep(30);
 } else {
     # if there's no pid_file, there must be no personal condor running
     # which we'd have to kill.  this would be caused by an empty
@@ -88,7 +81,6 @@ if( ! -f "tasklist.nmi" || -z "tasklist.nmi" ) {
     exit $exit_status;
 }
 
-print "cding to $BaseDir \n";
 chdir("$BaseDir") || die "Can't chdir($BaseDir): $!\n";
 
 #----------------------------------------
@@ -105,6 +97,132 @@ system( "tar zcf $results --exclude *.exe src/condor_tests local" );
     #print "Can't tar zcf src/condor_tests local\n";
     #$exit_status = 1;
 #}
+
+exit $exit_status;
+
+my $etc_dir = "$BaseDir/results/etc";
+my $log_dir = "$BaseDir/results/log";
+
+if( ! -d "$BaseDir/results" ) {
+    # If there's no results, and we can't even make the directory, we
+    # might as well die, since there's nothing worth saving...
+    mkdir( "$BaseDir/results", 0777 ) || die "Can't mkdir($BaseDir/results): $!\n";
+}
+
+
+#----------------------------------------
+# debugging info from the personal condor
+#----------------------------------------
+
+if( ! -d $etc_dir ) {
+    if( ! mkdir( "$etc_dir", 0777 ) ) {
+        print "ERROR: Can't mkdir($etc_dir): $!\n";
+        $exit_status = 1;
+    }
+}
+if( -d $etc_dir ) {
+    print "Copying config files to $etc_dir\n";
+    system( "cp $SrcDir/condor_tests/TestingPersonalCondor/condor_config $etc_dir" );
+    if( $? >> 8 ) {
+        print "Can't copy $SrcDir/condor_tests/TestingPersonalCondor/condor_config to $etc_dir\n";
+        $exit_status = 1;
+    }
+    system( "cp $SrcDir/condor_tests/TestingPersonalCondor/condor_config.local $etc_dir" );
+    if( $? >> 8 ) {
+        print "Can't copy $SrcDir/condor_tests/TestingPersonalCondor/condor_config.local to $etc_dir\n";
+        $exit_status = 1;
+    }
+}
+
+if( ! -d $log_dir ) {
+    if( ! mkdir( "$log_dir", 0777 ) ) {
+        print "ERROR: Can't mkdir($log_dir): $!\n";
+        $exit_status = 1;
+    }
+}
+if( -d $log_dir ) {
+    print "Copying log files to $log_dir\n";
+    system( "cp $SrcDir/condor_tests/TestingPersonalCondor/local/log/*Log* $log_dir" );
+    if( $? >> 8 ) {
+        print "Can't copy $SrcDir/condor_tests/TestingPersonalCondor/local/log/ to $log_dir\n";
+        $exit_status = 1;
+    }
+}
+ 
+
+#----------------------------------------
+# save output from tests
+#----------------------------------------
+
+system( "cp tasklist.nmi $BaseDir/results/" );
+if( $? ) {
+    print "Can't copy tasklist.nmi to $BaseDir/results\n";
+    $exit_status = 1;
+}
+
+open (TASKFILE, "tasklist.nmi") || die "Can't tasklist.nmi: $!\n";
+while( <TASKFILE> ) {
+    chomp;
+	my $testcopy = 1;
+	my ($taskname, $timeout) = split(/ /);
+	# iterations have numbers placed at the end of the name
+	# for unique db tracking in nmi for now.
+	if($taskname =~ /([\w\-\.\+]+)-(\d+)/) {
+		$testcopy = $2;
+		$taskname = $1;
+	}
+    my ($testname, $compiler) = split(/\./, $taskname);
+    if( $compiler eq "." ) {
+        $resultdir = "$BaseDir/results/base";
+    } else {
+        $resultdir = "$BaseDir/results/$compiler";
+    }
+    if( ! -d "$resultdir" ) {
+        mkdir( "$resultdir", 0777 ) || die "Can't mkdir($resultdir): $!\n";
+    }
+    chdir( "$SrcDir/$testdir/$compiler" ) ||
+      die "Can't chdir($SrcDir/$testdir/$compiler): $!\n";
+
+    # first copy the files that MUST be there.
+    copy_file( "$testname*.run.out", $resultdir, true );
+
+    # these files are all optional.  if they exist, we'll save 'em, if
+    # they do not, we don't worry about it.
+
+	@savefiles = glob "$testname*.out* $testname*.err* $testname*.log $testname*.cmd.out";
+	foreach $target (@savefiles) {
+		copy_file( $target, $resultdir, false );
+	}
+
+    # if it exists, tarup the 'saveme' subdirectory for this test, which
+    # may contain test debug info etc. Sometimes we run endurance tests
+	# and we really only need to tar up the results once.
+	# Except 1/15/08 we are taring after the individual tests to
+	# keep disk use lower.
+	# Except, 5/15/08, if the test is timed out the saveme never
+	# gets tared up. So if it is still there, tar it up now
+	if( -d "$testname.saveme") {
+		system("tar -zcvf $testname.saveme.tar.gz $testname.saveme");
+	}
+    if( (-f "$testname.saveme.tar.gz") && ($testcopy == 1) ) {
+            print "Saving $testname.saveme.tar.gz.\n";
+            copy_file( "$testname.saveme.tar.gz", $resultdir, true );
+    }
+}
+
+
+#----------------------------------------
+# final tar and exit
+#----------------------------------------
+
+$results = "results.tar.gz";
+print "Tarring up all results\n";
+chdir("$BaseDir") || die "Can't chdir($BaseDir): $!\n";
+system( "tar zcf $BaseDir/$results results" );
+if( $? >> 8 ) {
+    print "Can't tar zcf $BaseDir/$results results\n";
+    $exit_status = 1;
+}
 
 exit $exit_status;
 

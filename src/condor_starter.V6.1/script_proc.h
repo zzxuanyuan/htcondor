@@ -20,7 +20,7 @@
 #if !defined(_CONDOR_SCRIPT_PROC_H)
 #define _CONDOR_SCRIPT_PROC_H
 
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "user_proc.h"
 
 class ClassAd;
@@ -42,6 +42,15 @@ public:
 			@return 1 on success, 0 on failure.
 		*/
 	virtual int StartJob();
+
+		/** A pid exited.  If this ScriptProc wants to do any cleanup
+			now that this pid has exited, it does so here.  If we
+			return 1, the starter will consider this ScriptProc done,
+			remove it from the active job list, and put it in a list
+			of jobs that are already cleaned up.
+		    @return 1 if our ScriptProc is no longer active, 0 if it is
+		*/
+	virtual int JobCleanup( int pid, int status );
 
 		/** Job exits.  Starter has decided it's done with everything
 			it needs to do, and we can now notify the job's controller

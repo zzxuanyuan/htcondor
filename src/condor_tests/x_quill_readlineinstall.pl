@@ -28,7 +28,7 @@ my $installlog = $ARGV[1];
 my $tarfile = $ARGV[2];
 my $rdlnversion = $ARGV[3];
 
-CondorTest::debug("Prefix=<<$prefix>> installlog=<<$installlog>> tarfile=<<$tarfile>> rdlnversion=<<$rdlnversion>>\n",1);
+print "Prefix=<<$prefix>> installlog=<<$installlog>> tarfile=<<$tarfile>> rdlnversion=<<$rdlnversion>>\n";
 
 my $startpostmasterport = 5432;
 my $postmasterinc = int(rand(100));
@@ -45,7 +45,7 @@ my $postmasterinc = int(rand(100));
  #$| = 1;
 
 # need the hostname for a name to ipaddr conversion
-CondorTest::debug("Moving to this dir <<$prefix>>\n",1);
+print "Moving to this dir <<$prefix>>\n";
 
 system("pwd");
 if( -f $tarfile  ){
@@ -57,7 +57,7 @@ if( -f $tarfile  ){
 	system("make install");
 	chdir("..");
 } else {
-	CondorTest::debug("<<$tarfile>> does not exist here :-(\n",1);
+	print "<<$tarfile>> does not exist here :-(\n";
 }
 
 exit;

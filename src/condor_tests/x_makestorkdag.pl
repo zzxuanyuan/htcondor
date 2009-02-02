@@ -60,8 +60,7 @@ if(!$src_url) { help(); die "Must call this with --src_url=somename!\n"; }
 if(!$dest_url) { help(); die "Must call this with --dest_url=somename!\n"; }
 
 $cmd = "$dagnm";
-$testdesc =  'Condor submit dag - stork transfer test';
-$testname = "x_makestorkdag";
+$testname = 'Condor submit dag - stork transfer test';
 #$dagman_args = "-v -storklog `condor_config_val LOG`/Stork.user_log";
 $dagman_args = "-v ";
 

@@ -20,6 +20,7 @@
 
 
 ######################################################################
+# $Id: remote_task.pl,v 1.10.6.1 2008-01-22 17:49:38 bt Exp $
 # run a test in the Condor testsuite
 # return val is the status of the test
 # 0 = built and passed
@@ -149,17 +150,12 @@ if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
     if( $? >> 8 ) {
         c_die("Can't build CondorPersonal.pm\n");
     }
-    system( "make CondorPubLogdirs.pm" );
-    if( $? >> 8 ) {
-        c_die("Can't build CondorPubLogdirs.pm\n");
-    }
 } else {
     my $scriptdir = $SrcDir . "/condor_scripts";
     copy_file("$scriptdir/batch_test.pl", "batch_test.pl");
     copy_file("$scriptdir/Condor.pm", "Condor.pm");
     copy_file("$scriptdir/CondorTest.pm", "CondorTest.pm");
     copy_file("$scriptdir/CondorPersonal.pm", "CondorPersonal.pm");
-    copy_file("$scriptdir/CondorPubLogdirs.pm", "CondorPubLogdirs.pm");
 }
 print "About to run batch_test.pl\n";
 
@@ -167,7 +163,7 @@ print "About to run batch_test.pl\n";
 # we have our testing personal condor configered from
 # release generic config files.
 
-system("perl ./batch_test.pl --no-error -d $compiler -t $testname -b");
+system("perl ./batch_test.pl -d $compiler -t $testname -b");
 $batchteststatus = $?;
 
 # figure out here if the test passed or failed.  
@@ -175,6 +171,17 @@ if( $batchteststatus != 0 ) {
     $teststatus = 2;
 } else {
     $teststatus = 0;
+}
+
+######################################################################
+# tar up any saveme directories pull full dir
+######################################################################
+
+$saveme = $testname . ".saveme";
+if( -d $saveme ) {
+	$tarfile = $testname . ".saveme.tar.gz";
+	system("tar -zcvf $tarfile $saveme");
+	system("rm -rf $saveme");
 }
 
 ######################################################################

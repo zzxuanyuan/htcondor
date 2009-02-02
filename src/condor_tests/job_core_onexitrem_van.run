@@ -20,8 +20,7 @@
 
 use CondorTest;
 
-$testdesc =  'Condor ON_EXIT_REMOVE policy test - vanilla U';
-$testname = "job_core_onexitrem_van";
+$testname = 'Condor ON_EXIT_REMOVE policy test - vanilla U';
 
 my $nostatus = CondorTest::verbose_system("./job_core_onexitrem-false_van.pl");
 my $willstatus = CondorTest::verbose_system("./job_core_onexitrem-true_van.pl");
@@ -34,12 +33,12 @@ CondorTest::MergeOutputFiles(\%listoftests);
 
 if($nostatus != 0)
 {
-	CondorTest::debug("ON_EXIT_REMOVE: failed no trigger test\n",1);
+	print "ON_EXIT_REMOVE: failed no trigger test\n";
 }
 
 if($willstatus != 0)
 {
-	CondorTest::debug("ON_EXIT_REMOVE: failed trigger test\n",1);
+	print "ON_EXIT_REMOVE: failed trigger test\n";
 }
 
 if(($willstatus != 0) || ($nostatus != 0))

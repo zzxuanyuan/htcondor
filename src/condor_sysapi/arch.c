@@ -38,37 +38,32 @@
 
 #if defined(WIN32)
 
-// Names of all the architectures supported for Windows (Only some of 
-// these are relevant to us; however, listing them all simplifies lookup).
-static char const *windows_architectures[] = { 
-	"INTEL",
-	"MIPS",
-	"ALPHA",
-	"PPC",
-	"SHX",
-	"ARM",
-	"IA64",
-	"ALPHA64",
-	"MSIL",
-	"X86_64", // was AMD64, but it means both
-	"IA32_ON_WIN64"
-};
-
-// On the off chance that we simply don't recognize the architecture we
-// can tell the user as much:
-static char const *unknown_architecture = "unknown";
-
 const char *
 sysapi_condor_arch()
 {
+	static char answer[1024];	
 	SYSTEM_INFO info;
 	GetSystemInfo(&info);
-	if (   info.wProcessorArchitecture >= PROCESSOR_ARCHITECTURE_INTEL 
-		&& info.wProcessorArchitecture <= PROCESSOR_ARCHITECTURE_IA32_ON_WIN64 ) {
-		return windows_architectures[info.wProcessorArchitecture];
-	} else {
-		return unknown_architecture;
+	switch(info.wProcessorArchitecture) {
+	case PROCESSOR_ARCHITECTURE_INTEL:
+		sprintf(answer, "INTEL");
+		break;
+	case PROCESSOR_ARCHITECTURE_MIPS:
+		sprintf(answer, "MIPS");
+		break;
+	case PROCESSOR_ARCHITECTURE_ALPHA:
+		sprintf(answer, "ALPHA");
+		break;
+	case PROCESSOR_ARCHITECTURE_PPC:
+		sprintf(answer, "PPC");
+		break;
+	case PROCESSOR_ARCHITECTURE_UNKNOWN:
+	default:
+		sprintf(answer, "UNKNOWN");
+		break;
 	}
+
+	return answer;
 }
 
 
@@ -198,30 +193,8 @@ sysapi_translate_arch( char *machine, char *sysname )
 		sprintf( tmp, "INTEL" );
 	} 
 	else if( !strcmp(machine, "i386") ) { //LDAP entry
-/* force INTEL only for now, until I resolve what to do about the mess
-between I386 and X86_64 detection on macosx. */
-#if 0 && defined(Darwin)
-/* According to the web, uname -a (including the uname call) will return
-	i386 ALWAYS, regardless if the OS is actually on an x86_64 machine. So here
-	we use a more platform specific method to determine it */
-#include <sys/sysctl.h>
-		{
-			int ret;
-			int val;
-			size_t len = sizeof(int);
-
-			/* assume x86 */
-			sprintf( tmp, "INTEL" );
-			ret = sysctlbyname("hw.optional.x86_64", &val, &len, NULL, 0);
-			if (ret == 0 && val == 1) {
-				/* but we could be proven wrong */
-				sprintf( tmp, "X86_64" );
-			}
-		}
-#else
 		sprintf( tmp, "INTEL" );
-#endif
-	}
+	} 
 	else if( !strcmp(machine, "ia64") ) {
 		sprintf( tmp, "IA64" );
 	}
@@ -295,23 +268,22 @@ sysapi_translate_opsys( char *sysname, char *release, char *version )
 	else if( !strcmp(sysname, "SunOS") 
 		|| !strcmp(sysname, "solaris" ) ) //LDAP entry
 	{
-		if ( !strcmp(release, "2.10") //LDAP entry
-			|| !strcmp(release, "5.10") )
-		{
-			sprintf( tmp, "SOLARIS210" );
-		}
-		else if ( !strcmp(release, "2.9") //LDAP entry
-			|| !strcmp(release, "5.9") )
+		
+		if ( !strcmp(release, "2.9") //LDAP entry
+			|| !strcmp(release, "5.9")
+		)
 		{
 			sprintf( tmp, "SOLARIS29" );
 		} 
 		else if ( !strcmp(release, "2.8") //LDAP entry
-			|| !strcmp(release, "5.8") )
+			|| !strcmp(release, "5.8")
+		)
 		{
 			sprintf( tmp, "SOLARIS28" );
 		} 
 		else if ( !strcmp(release, "2.7") //LDAP entry
-			|| !strcmp(release, "5.7") )
+			|| !strcmp(release, "5.7")
+		)
 		{
 			sprintf( tmp, "SOLARIS27" );
 		} 

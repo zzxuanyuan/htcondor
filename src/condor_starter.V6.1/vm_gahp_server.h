@@ -23,7 +23,7 @@
 
 #include "condor_common.h"
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_distribution.h"
 #include "gahp_common.h"
 #include "HashTable.h"
@@ -35,9 +35,8 @@
 class VMGahpRequest;
 class VMGahpServer : public Service {
 	public:
-		VMGahpServer(const char *vmgahpserver,
-		             const char *vmtype,
-		             ClassAd* job_ad);
+		VMGahpServer(const char *vmgahpserver, const char* vmgahpconfig, 
+				const char *vmtype, ClassAd* job_ad);
 		virtual ~VMGahpServer();
 
 		bool startUp(Env *job_env, const char* job_iwd, int nice_inc, 
@@ -86,7 +85,6 @@ class VMGahpServer : public Service {
 		int pipe_ready();
 		int err_pipe_ready();
 		int poll();
-		int poll_now();
 		void poll_real_soon();
 
 		int new_reqid(void);
@@ -123,7 +121,7 @@ class VMGahpServer : public Service {
 
 		unsigned int m_pollInterval;
 		int m_poll_tid;
-		int m_poll_real_soon_tid;
+		bool m_poll_pending;
 		int m_stderr_tid;
 
 		int m_next_reqid;

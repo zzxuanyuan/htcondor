@@ -26,8 +26,7 @@
 use CondorTest;
 
 $cmd = 'job_core_onexitrem-false_local.cmd';
-$testdesc =  'Condor submit policy test for ON_EXIT_REMOVE - local U';
-$testname = "job_core_onexitrem_local";
+$testname = 'Condor submit policy test for ON_EXIT_REMOVE - local U';
 
 ## 
 ## Status Values
@@ -45,7 +44,7 @@ $abnormal = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
-	CondorTest::debug("Bad - Job $cluster.$job reported an abnormal event.\n",1);
+	print "Bad - Job $cluster.$job reported an abnormal event.\n";
 	exit(1);
 };
 
@@ -58,8 +57,8 @@ $aborted = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job was removed from the queue\n",1);
-	CondorTest::debug("Policy Test Completed\n",1);
+	print "Good - Job $cluster.$job was removed from the queue\n";
+	print "Policy Test Completed\n";
 };
 
 ##
@@ -79,7 +78,7 @@ $executed = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job began execution.\n",1);
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
 ##
@@ -92,7 +91,7 @@ $evicted = sub {
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 
-	CondorTest::debug("Good - Job $cluster.$job was requeued after being evicted.\n",1);
+	print "Good - Job $cluster.$job was requeued after being evicted.\n";
 
 	##
 	## Make sure that we remove the job
@@ -101,7 +100,7 @@ $evicted = sub {
 	my $status = 1;
 	my $cmd = "condor_rm $cluster";
 	if ( ! CondorTest::runCondorTool($cmd,\@adarray,2) ) {
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(0)
 	}
 };
@@ -113,7 +112,7 @@ CondorTest::RegisterAbort( $testname, $aborted );
 CondorTest::RegisterHold( $testname, $held );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

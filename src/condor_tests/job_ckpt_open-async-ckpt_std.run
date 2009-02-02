@@ -22,17 +22,15 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_open-async-ckpt_std.cmd';
-$testdesc =  'Open Test';
-$testname = "job_ckpt_open-async-ckpt_std";
+$testname = 'Open Test';
 
-my @expected_output = ( 'completed successfully' );
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = ( 'completed successfully' );
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 1) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

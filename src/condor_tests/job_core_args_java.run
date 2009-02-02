@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_args_java.cmd';
-$testdesc =  'Arguments are preserved - java U';
-$testname = "job_core_args_java";
+$testname = 'Arguments are preserved - java U';
 
 
 $ExitSuccess = sub {
@@ -54,7 +53,7 @@ $ExitSuccess = sub {
 	}
 	my $i;
 	for($i = 0; $i < scalar(@args_reqd); $i++) {
-		CondorTest::debug("Checking $args_reqd[$i]...\n",1);
+		print "Checking $args_reqd[$i]...\n";
 		if($args_reqd[$i + 1] ne $args_found[$i]) {
 			die "Argument " . $args_reqd[$i + 1] . " was mangled into " .
 			    $args_found[$i] . "\n";
@@ -66,7 +65,7 @@ $ExitSuccess = sub {
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

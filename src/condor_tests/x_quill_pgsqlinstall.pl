@@ -31,7 +31,7 @@ my $condorconfigadd = $ARGV[4];
 my $morelibs = $ARGV[5];
 my $testsrc = $ARGV[6];
 
-CondorTest::debug("$prefix $installlog $tarfile $pgsqlversion $condorconfigadd $morelibs $testsrc \n",1);
+print "$prefix $installlog $tarfile $pgsqlversion $condorconfigadd $morelibs $testsrc \n";
 
 my $startpostmasterport = 5432;
 my $postmasterinc = int(rand(100) + 13);
@@ -52,7 +52,7 @@ if($currenthost =~ /^(.*)/) {
 	if($#domainparts == 0) {
 		$currenthost = $currenthost . "." . $domain;
 	}
-	CondorTest::debug("Fully qualified name already<<$currenthost>>\n",1);
+	print "Fully qualified name already<<$currenthost>>\n";
 } else {
 	# fine add our domain for madison
 	#$currenthost = $currenthost . ".cs.wisc.edu";
@@ -60,8 +60,8 @@ if($currenthost =~ /^(.*)/) {
 	die "Why Here?????<<$currenthost/$domain>>\n";
 }
 
-CondorTest::debug("Original port request is <<$startpostmasterport>>\n",1);
-CondorTest::debug("Random increment if needed will be <<$postmasterinc>>\n",1);
+print "Original port request is <<$startpostmasterport>>\n";
+print "Random increment if needed will be <<$postmasterinc>>\n";
 
 #my $dbinstalllog =  $installlog;
 #print "Trying to open logfile... $dbinstalllog\n";
@@ -88,10 +88,10 @@ my $mypgfile = $prefix . "/postgres-data/pg_hba.conf";
 my $mynewpgfile = $prefix . "/postgres-data/pg_hba.new";
 my $pgpass = $prefix . "/../pgpass";
 
-CondorTest::debug("Saving PGPASS date to <<$pgpass>>\n",1);
+print "Saving PGPASS date to <<$pgpass>>\n";
 
 system("date");
-CondorTest::debug("Extracting Postgres Source.....\n",1);
+print "Extracting Postgres Source.....\n";
 
 chdir("$prefix");
 $dotar = system("tar -zxf $tarfile");
@@ -100,7 +100,7 @@ if($dotar != 0) {
 }
 
 system("date");
-CondorTest::debug("Configuring Postgres Source.....\n",1);
+print "Configuring Postgres Source.....\n";
 
 chdir("$pgsqlversion");
 #$doconfigure = system("./configure --prefix=$prefix --without-readline --disable-shared");
@@ -110,7 +110,7 @@ if($doconfigure != 0) {
 }
 
 system("date");
-CondorTest::debug("Making Postgres Source.....\n",1);
+print "Making Postgres Source.....\n";
 
 $domake = system("make");
 if($domake != 0) {
@@ -124,9 +124,9 @@ system("mkdir $prefix/postgres-data");
 
 
 system("date");
-CondorTest::debug("Build of postgres done......\n",1);
+print "Build of postgres done......\n";
 
-CondorTest::debug("Create db\n",1);
+print "Create db\n";
 $initdb = system("$prefix/bin/initdb -D $prefix/postgres-data") ;
 if($initdb != 0) {
 	die "Initdb failed\n";
@@ -178,12 +178,12 @@ my $dbup = "no";
 my $trylimit = 1;
 # start db
 
-CondorTest::debug("Setting PGDATA to $prefix/postgres-data\n",1);
+print "Setting PGDATA to $prefix/postgres-data\n";
 $ENV{PGDATA} = "$prefix/postgres-data";
 
 while (( $dbup ne "yes") && ($trylimit <= 10) ) {
 	$pmaster_start = system("$prefix/bin/pg_ctl -D $prefix/postgres-data -l $prefix/postgres-data/logfile start");
-	CondorTest::debug("starting postmaster result<<<<<$pmaster_start>>>>>\n",1);
+	print "starting postmaster result<<<<<$pmaster_start>>>>>\n";
 	system("date");
 	sleep(10);
 	if(!(-f "$prefix/postgres-data/postmaster.pid")) {
@@ -194,7 +194,7 @@ while (( $dbup ne "yes") && ($trylimit <= 10) ) {
 			if( $_ =~ /^port\s+=\s+/ ){
 				$startpostmasterport = $startpostmasterport + $postmasterinc;
 				print NEW "port = $startpostmasterport\n";
-				CondorTest::debug("Trying port $startpostmasterport($postmasterinc)\n",1);
+				print "Trying port $startpostmasterport($postmasterinc)\n";
 			} else {
 				print NEW ;
 			}
@@ -208,28 +208,28 @@ while (( $dbup ne "yes") && ($trylimit <= 10) ) {
 		}
 	} else {
 		$dbup = "yes";
-		CondorTest::debug("Looking for listen on port....\n",1);
+		print "Looking for listen on port....\n";
 		my @statports = `netstat -a`;
 		foreach $netstatport (@statports) {
 			chomp($netstatport);
 			if( $netstatport =~ /^.*:$startpostmasterport.*LISTEN.*$/) {
-				CondorTest::debug("Yup its listening: <<<$netstatport>>>\n",1);
+				print "Yup its listening: <<<$netstatport>>>\n";
 				$dbup = "yes";
 				last;
 			} elsif( $netstatport =~ /^.*\.postgresql.*LISTEN.*$/) {
-				CondorTest::debug("Yup its listening: <<<$netstatport>>>\n",1);
+				print "Yup its listening: <<<$netstatport>>>\n";
 				$dbup = "yes";
 				last;
 			} elsif($netstatport =~ /^.*LISTEN.*$startpostmasterport.*$/) {
-				CondorTest::debug("Yup its listening: <<<$netstatport>>>\n",1);
+				print "Yup its listening: <<<$netstatport>>>\n";
 				$dbup = "yes";
 				last;
 			} else {
-				CondorTest::debug("skip: $netstatport\n",1);
+				print "skip: $netstatport\n";
 			}
 		}
 		if($dbup eq "no") {
-				CondorTest::debug("They lied.... nothing on port (($startpostmasterport))\n",1);
+				print "They lied.... nothing on port (($startpostmasterport))\n";
 		}
 	}
 }
@@ -242,7 +242,7 @@ if($trylimit > 10) {
 	while(<OLD>) {
 		if( $_ =~ /^QUILL_DB_IP_ADDR/ ){
 			print NEW "QUILL_DB_IP_ADDR = \$(CONDOR_HOST):$startpostmasterport\n";
-			CondorTest::debug("Trying port $startpostmasterport\n",1);
+			print "Trying port $startpostmasterport\n";
 		} else {
 			print NEW ;
 		}
@@ -253,10 +253,10 @@ if($trylimit > 10) {
 
 
 system("date");
-CondorTest::debug("Configuring Postgres for Quil\n",1);
+print "Configuring Postgres for Quil\n";
 
 # add quillreader and quillwriter
-CondorTest::debug("Create quillreader\n",1);
+print "Create quillreader\n";
 
 #$Expect::Log_Stdout=1;
 #$Expect::Debug=3;
@@ -281,7 +281,7 @@ print $command "condor4me#\n";
 print $command "n\n";
 $command->soft_close();
 
-CondorTest::debug("Create quillwriter\n",1);
+print "Create quillwriter\n";
 $command = Expect->spawn("$prefix/bin/createuser quillwriter --port $startpostmasterport --createdb --no-adduser --pwprompt")||
 	die "Could not start program: $!\n";
 $command->log_stdout(0);
@@ -307,7 +307,7 @@ print PG "$currenthost:$startpostmasterport:test:quillwriter:condor4me#\n";
 close(PG);
 
 system("date");
-CondorTest::debug("Create DB for Quil\n",1);
+print "Create DB for Quil\n";
 
 $docreatedb = system("$prefix/bin/createdb --port $startpostmasterport test");
 if($docreatedb != 0) {
@@ -315,14 +315,7 @@ if($docreatedb != 0) {
 }
 system("date");
 
-$docreatelang = system("$prefix/bin/createlang plpgsql");
-if($docreatedb != 0) {
-	die "Failed to create test db\n";
-}
-system("date");
-
-
-CondorTest::debug("Run psql program\n",1);
+print "Run psql program\n";
 $command = Expect->spawn("$prefix/bin/psql test quillwriter --port $startpostmasterport")||
 	die "Could not start program: $!\n";
 #$command->debug(1);
@@ -343,7 +336,7 @@ unless($command->expect(180,"test=>")) {
 print $command "\quit\n";
 $command->soft_close();
 
-CondorTest::debug("Postgress built and set up: ",1);
+print "Postgress built and set up: ";
 system("date");
 
 

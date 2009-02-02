@@ -21,11 +21,10 @@
 use CondorTest;
 
 $cmd = 'job_core_input_van.cmd';
-$testdesc =  'condor_submit input works - vanilla U';
-$testname = "job_core_input_van";
+$testname = 'condor_submit input works - vanilla U';
 
 
-my @expected_output =
+@CondorTest::expected_output =
 (
 'first',
 'second',
@@ -33,7 +32,6 @@ my @expected_output =
 'fourth',
 );
 
-CondorTest::SetExpected(\@expected_output);
 
 
 $ExitSuccess = sub {
@@ -44,7 +42,7 @@ CondorTest::RegisterExitedSuccess( $testname, \&CondorTest::DefaultOutputTest );
 #CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

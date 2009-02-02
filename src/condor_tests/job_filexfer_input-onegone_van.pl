@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_filexfer_input-onegone_van.cmd';
-$testdesc =  'Jobs casues submit error from a missing specified input file- vanilla U';
-$testname = "job_filexfer_input-onegone_van";
+$testname = 'Jobs casues submit error from a missing specified input file- vanilla U';
 
 # truly const variables in perl
 sub IDLE{1};
@@ -35,7 +34,7 @@ $execute = sub {
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Running $cluster\n",1);
+	print "Running $cluster\n";
 	die "Submit was supposed to fail for a missing input file\n";
 
 };
@@ -46,22 +45,22 @@ $wanterror = sub {
 	my $errmsg = $args{"ErrorMessage"};
 
     if($errmsg =~ /^.*died abnormally.*$/) {
-        CondorTest::debug("BAD. Submit died was to fail but with error 1\n",1);
-        CondorTest::debug("$testname: Failure\n",1);
+        print "BAD. Submit died was to fail but with error 1\n";
+        print "$testname: Failure\n";
         exit(1);
     } elsif($errmsg =~ /^.*\(\s*returned\s*(\d+)\s*\).*$/) {
         if($1 == 1) {
-            CondorTest::debug("Good. Job was not to submit with File Transfer off and input files requested\n",1);
-            CondorTest::debug("$testname: SUCCESS\n",1);
+            print "Good. Job was not to submit with File Transfer off and input files requested\n";
+            print "$testname: SUCCESS\n";
             exit(0);
         } else {
-            CondorTest::debug("BAD. Submit was to fail but with error 1 not <<$1>>\n",1);
-            CondorTest::debug("$testname: Failure\n",1);
+            print "BAD. Submit was to fail but with error 1 not <<$1>>\n";
+            print "$testname: Failure\n";
             exit(1);
         }
     } else {
-            CondorTest::debug("BAD. Submit failure mode unexpected....\n",1);
-            CondorTest::debug("$testname: Failure\n",1);
+            print "BAD. Submit failure mode unexpected....\n";
+            print "$testname: Failure\n";
             exit(1);
     }
 };
@@ -81,7 +80,7 @@ $timed = sub
 # easy cleanup
 
 my $job = $$;
-CondorTest::debug("Process Id for this script is  $job\n",1);
+print "Process Id for this script is  $job\n";
 my $basefile = "submit_filetrans_input" . "$job";
 my $in = "$basefile".".txt";
 my $ina = "$basefile"."a.txt";
@@ -105,12 +104,12 @@ open(NEWCMD,">$cmd.new") || die "Can not open command file: $!\n";
 while(<CMD>)
 {
 	CondorTest::fullchomp($_);
-	CondorTest::debug("$_\n",1);
+	print "$_\n";
 	$line = $_;
 	if( $line =~ /^\s*input\s*=\s*job_\d+_dir\/([a-zA-Z_]+)\d*\.txt\s*$/)
 	{
 		my $input = "$1"."$job".".txt";
-		CondorTest::debug("Input file was $1\n",1);
+		print "Input file was $1\n";
 		print NEWCMD "input = $inputdir/$input\n"
 	}
 	elsif( $line =~ /^\s*transfer_input_files\s*=\s*.*$/ )
@@ -137,7 +136,7 @@ CondorTest::RegisterExitedSuccess($testname, $success);
 #CondorTest::RegisterTimed($testname, $timed, 3600);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

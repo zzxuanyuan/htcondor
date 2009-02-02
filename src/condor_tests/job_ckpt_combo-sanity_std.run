@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_combo-sanity_std.cmd';
-$testdesc =  'Printer Test';
-$testname = "job_ckpt_combo-sanity_std";
+$testname = 'Printer Test';
 $results = 'job_ckpt_combo-sanity_std.results';
 
 $num_tests = 500;
@@ -52,7 +51,7 @@ $OutputTest = sub
 CondorTest::RegisterExitedSuccess( $testname, $OutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

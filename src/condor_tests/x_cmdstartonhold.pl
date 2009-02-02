@@ -20,6 +20,7 @@
 
 use CondorTest;
 
+Condor::DebugOff();
 
 $cmd = 'x_cmdstartonhold.cmd';
 
@@ -29,15 +30,14 @@ sub IDLE{1};
 sub HELD{5};
 sub RUNNING{2};
 
-CondorTest::debug("Submit file for this test is $cmd\n",1);
-CondorTest::debug("looking at env for condor config\n",1);
+print "Submit file for this test is $cmd\n";
+print "looking at env for condor config\n";
 system("printenv | grep CONDOR_CONFIG");
 
 $condor_config = $ENV{CONDOR_CONFIG};
-CondorTest::debug("CONDOR_CONFIG = $condor_config\n",1);
+print "CONDOR_CONFIG = $condor_config\n";
 
-$testdesc =  'Condor-C A & B test - vanilla U';
-$testname = "x_cmdstartonhold";
+$testname = 'Condor-C A & B test - vanilla U';
 
 $submitted = sub {
 	my %info = @_;
@@ -46,18 +46,18 @@ $submitted = sub {
     my $qstat = CondorTest::getJobStatus($cluster);
     while($qstat == -1)
     {
-        CondorTest::debug("Job status unknown - wait a bit\n",1);
+        print "Job status unknown - wait a bit\n";
         sleep 2;
         $qstat = CondorTest::getJobStatus($cluster);
     }
 
-    CondorTest::debug("It better be on hold... status is $qstat(5 is correct)\n",1);
+    print "It better be on hold... status is $qstat(5 is correct)\n";
     if($qstat != HELD)
     {
-        CondorTest::debug("Cluster $cluster failed to go on hold\n",1);
+        print "Cluster $cluster failed to go on hold\n";
         exit(1);
     }
-	CondorTest::debug("Job on hold submitted\n",1);
+	print "Job on hold submitted\n";
 	exit(0);
 };
 
@@ -71,7 +71,7 @@ $held = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 
-	CondorTest::debug("Held event not expected.....\n",1);
+	print "Held event not expected.....\n";
 	exit(1);
 };
 
@@ -80,7 +80,7 @@ $executed = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Start test timer from execution time\n",1);
+	print "Start test timer from execution time\n";
 	#CondorTest::RegisterTimed($testname, $timed, 1800);
 };
 
@@ -91,19 +91,19 @@ $timed = sub
 
 $success = sub
 {
-	CondorTest::debug("Success: ok\n",1);
+	print "Success: ok\n";
 };
 
 $release = sub
 {
-	CondorTest::debug("Release expected.........\n",1);
+	print "Release expected.........\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_reschedule";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 };
@@ -115,7 +115,7 @@ CondorTest::RegisterRelease( $testname, $release );
 CondorTest::RegisterHold( $testname, $held );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

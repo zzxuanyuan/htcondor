@@ -39,17 +39,17 @@ while(<TESTS>)
 	my $tempfile = $currentfile . ".new";
 
 	#print LOG "fixing $_ at $now\n";
-	CondorTest::debug("fixing $currentfile at $now\n",1);
+	print "fixing $currentfile at $now\n";
 	#print "New file is $tempfile\n";
 
 	if( $currentfile =~ /^(.*)(willtrigger)(.*)$/ )
 	{
-		CondorTest::debug("Change to $1true$3\n",1);
+		print "Change to $1true$3\n"; 
 		system("x_renametool.pl $currentfile $1true$3");
 	}
 	elsif($currentfile =~ /^(.*)(notrigger)(.*)$/ )
 	{
-		CondorTest::debug("Change to $1false$3\n",1);
+		print "Change to $1false$3\n"; 
 		system("x_renametool.pl $currentfile $1false$3");
 	}
 }

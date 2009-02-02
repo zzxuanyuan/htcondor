@@ -87,11 +87,7 @@ Imakefile
    various aspects of the compiler-specific subdirectories.
 
 FImakefile
-   Rules for tests that should be built with all the Fortran 77 compilers
-   on a given platform.
-
-F90Imakefile
-   Rules for tests that should be built with all the Fortran 90 compilers
+   Rules for tests that should be built with all the Fortran compilers
    on a given platform.
 
 CImakefile

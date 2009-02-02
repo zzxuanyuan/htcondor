@@ -28,7 +28,7 @@
 #include "collector_engine.h"
 #include "collector_stats.h"
 #include "dc_collector.h"
-#include "offline_plugin.h"
+
 
 //----------------------------------------------------------------
 // Simple job universe stats
@@ -70,7 +70,6 @@ public:
 	static AdTypes receive_query_public( int );
 	static int receive_invalidation(Service*, int, Stream*);
 	static int receive_update(Service*, int, Stream*);
-    static int receive_update_expect_ack(Service*, int, Stream*);
 
 	static void process_query_public(AdTypes, ClassAd*, List<ClassAd>*);
 	static ClassAd * process_global_query( const char *constraint, void *arg );
@@ -134,14 +133,6 @@ protected:
 	static SocketCache* sock_cache;
 	static int sockCacheHandler( Service*, Stream* sock );
 	static int stashSocket( Stream* sock );
-
-	static class CCBServer *m_ccb_server;
-
-private:
-
-#if defined ( HAVE_HIBERNATION )
-    static OfflineCollectorPlugin offline_plugin_;
-#endif
 
 };
 

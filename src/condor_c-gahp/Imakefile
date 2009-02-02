@@ -16,10 +16,10 @@ WORKER_THREAD_OBJ = PipeBuffer.o schedd_client.o schedd_client_main.o SchedDComm
 
 public_c_plus_target($(WORKER_THREAD),sbin,$(WORKER_THREAD_OBJ),$(LIB))
 
-c_plus_target(AvailStats.t,AvailStats.o AvailStats.t.o ,$(LIB))
+c_plus_target(AvailStats.t,AvailStats.o AvailStats.t.o startd_instantiate.o,$(LIB))
 
 
-IO_THREAD_OBJ = PipeBuffer.o io_loop.o cgahp_common.o $(SOAP_OBJS)
+IO_THREAD_OBJ = PipeBuffer.o io_loop.o cgahp_common.o
 
 public_c_plus_target($(IO_THREAD),sbin,$(IO_THREAD_OBJ),$(LIB))
 
@@ -27,7 +27,7 @@ public_c_plus_target($(IO_THREAD),sbin,$(IO_THREAD_OBJ),$(LIB))
 html:
 
 IMPORT_LINKS = ../../config/import_links
-import_objs(../condor_util_lib, setsyscalls.o )
+import(../condor_util_lib, setsyscalls.o )
 
 gen_soapfiles(cgahp,condorCgahp)
 

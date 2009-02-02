@@ -21,7 +21,7 @@
 #define __COLLECTOR_ENGINE_H__
 
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "condor_collector.h"
 #include "collector_stats.h"
@@ -39,6 +39,9 @@ class CollectorEngine : public Service
 	// interval to clean out ads
 	int scheduleHousekeeper (int = 300);
 	int invokeHousekeeper (AdTypes);
+
+	// interval to check for down masters
+	int scheduleDownMasterCheck (int = 10800);
 
 	// want collector to log messages?  Default: yes
 	void toggleLogging (void);
@@ -75,7 +78,7 @@ class CollectorEngine : public Service
 	CollectorHashTable LicenseAds;
 	CollectorHashTable MasterAds;
 	CollectorHashTable StorageAds;
-	CollectorHashTable XferServiceAds;
+
 
 	// the lesser tables
 	enum {LESSER_TABLE_SIZE = 32};
@@ -84,9 +87,7 @@ class CollectorEngine : public Service
 	CollectorHashTable CollectorAds;
 	CollectorHashTable NegotiatorAds;
 	CollectorHashTable HadAds;
-	CollectorHashTable GridAds;
-	CollectorHashTable LeaseManagerAds;
-	
+
 	// table for "generic" ad types
 	GenericAdHashTable GenericAds;
 
@@ -98,10 +99,14 @@ class CollectorEngine : public Service
 	// relevant variables from the config file
 	int	clientTimeout; 
 	int	machineUpdateInterval;
+	int	masterCheckInterval;
 
 	// should we log?
 	bool log;
 
+	void checkMasterStatus (ClassAd *);
+	int  masterCheck ();
+	int  masterCheckTimerID;
 	int  housekeeper ();
 	int  housekeeperTimerID;
 	void cleanHashTable (CollectorHashTable &, time_t,
@@ -114,11 +119,19 @@ class CollectorEngine : public Service
 	CollectorHashTable *findOrCreateTable(MyString &str);
 
 	bool ValidateClassAd(int command,ClassAd *clientAd,Sock *sock);
+	bool ValidatePvtStartdClassAd(ClassAd *publicAd,ClassAd *privateAd,Sock *sock);
 
 	// Statistics
 	CollectorStats	*collectorStats;
 
 	ClassAd *m_collector_requirements;
+  public:
+	// pointer values for representing master states
+	static ClassAd* RECENTLY_DOWN;
+	static ClassAd* DONE_REPORTING;
+	static ClassAd* LONG_GONE;
+	static ClassAd* THRESHOLD;
+
 };
 
 

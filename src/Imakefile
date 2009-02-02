@@ -1,4 +1,4 @@
-#define AllFiles etc include src lib libexec bin sbin sql man
+#define AllFiles etc include src lib libexec bin sbin sql man 
 
 #if NEEDS_KBDD
 #   define KbddProgs kbdd
@@ -10,19 +10,13 @@
 #   define standalone
 #endif
 
-#define StdUnvProgs shadow.std starter.std 
+#define StdUnvProgs shadow.V6 starter.V5 
 #define StdUnvLibs ckpt syscall_lib
 
 #if HAVE_EXT_CLASSADS && HAVE_EXT_GLOBUS
 #define CreddProgs credd
 #else
 #define CreddProgs
-#endif
-
-#if HAVE_EXT_CLASSADS && WANT_QUILL
-#define JobRouterProgs job_router
-#else
-#define JobRouterProgs
 #endif
 
 #if WANT_NETMAN
@@ -48,60 +42,52 @@
 #endif
 
 #ifdef WANT_QUILL
+#define QuillProgs quill
+#else
+#define QuillProgs
+#endif
+
+#ifdef WANT_TT
 #define TTProgs tt dbmsd
 #else
 #define TTProgs
 #endif
 
-#if WANT_LEASE_MANAGER
-# define LeaseManagerProgs lease_manager
-#else
-# define LeaseManagerProgs
-#endif
-
-#if HAVE_EXT_OPENSSL && HAVE_EXT_GSOAP && !IS_AIX
-#define EC2 amazon
-#else
-#define EC2
-#endif
-
-#if HAVE_EXT_GLOBUS
-#define GlobusGahps GT2_GAHP NORDUGRID_GAHP GT4_GAHP GT42_GAHP
-#else
-#define GlobusGahps
-#endif
-
 #define Programs \
-		procapi sysapi unit_tests ckpt_server \
+		procapi sysapi unit_tests accountant.V6 ckpt_server \
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
 		scripts startd.V6 StdUnvProgs submit.V6 status.V6 \
 		tools KbddProgs collector.V6 dagman userlog Eventd \
-		gridmanager starter.V6.1 shadow.V6.1 dcskel c-gahp had \
-		CreddProgs StorkProgs LeaseManagerProgs \
+		gridmanager globus starter.V6.1 shadow.V6.1 dcskel c-gahp had \
+		CreddProgs StorkProgs \
 		TTProgs DeploymentTools \
-		eventd.V2 transferd procd privsep vm-gahp EC2 \
-		JobRouterProgs GlobusGahps startd_factory \
-		power
+		eventd.V2 transferd procd privsep vm-gahp
 
 #define Libraries \
-		util_lib target-ccb daemon_core.V6 daemon_client target-classad.old c++_util	\
+		util_lib daemon_core.V6 daemon_client classad c++_util	\
 		condor_procapi/libprocapi.a condor_sysapi/libsysapi.a	\
 		io condor_ckpt_server/ckpt_server_api.a			\
 		condor_schedd.V6/libqmgmt.a				\
-		StdUnvLibs NetmanLibs	\
+		condor_accountant.V6/libacct.a StdUnvLibs NetmanLibs	\
 		condor_procd/procd_client.a \
-		condor_privsep/privsep_client.a \
+		condor_privsep/privsep_client.a condor_quill/libquill.a \
 		chirp AnalysisLibs
-
 
 #if HAS_STATIC
 #define StaticDirectories \
+	static_unstrip_dir static_unstrip_dir/bin static_unstrip_dir/sbin \
+	static_unstrip_dir/lib \
+	static_unstrip_dir/libexec static_unstrip_dir/libexec/glite \
+	static_unstrip_dir/etc static_unstrip_dir/etc/examples \
+	static_unstrip_dir/include static_unstrip_dir/src \
+	static_unstrip_dir/src/chirp static_unstrip_dir/src/drmaa \
+	static_unstrip_dir/man static_unstrip_dir/man/man1 \
+	static_unstrip_dir/lib/webservice \
+	static_unstrip_dir/sql \
 	static_dir static_dir/bin static_dir/sbin static_dir/lib \
 	static_dir/libexec static_dir/libexec/glite \
 	static_dir/etc static_dir/etc/examples static_dir/include \
 	static_dir/src static_dir/src/chirp static_dir/src/drmaa \
-	static_dir/src/startd_factory \
-	static_dir/src/startd_factory/BlueGeneP \
 	static_dir/man static_dir/man/man1 \
 	static_dir/lib/webservice \
 	static_dir/sql \
@@ -119,8 +105,6 @@
 	release_dir/libexec release_dir/libexec/glite \
 	release_dir/include release_dir/src release_dir/src/chirp \
 	release_dir/src/drmaa \
-	release_dir/src/startd_factory \
-	release_dir/src/startd_factory/BlueGeneP \
 	release_dir/man release_dir/man/man1 pure_bin \
 	release_dir/lib/webservice \
 	release_dir/etc release_dir/etc/examples \
@@ -129,8 +113,6 @@
 	strip_dir/libexec strip_dir/libexec/glite \
 	strip_dir/etc strip_dir/etc/examples strip_dir/include \
 	strip_dir/src strip_dir/src/chirp strip_dir/src/drmaa \
-	strip_dir/src/startd_factory \
-	strip_dir/src/startd_factory/BlueGeneP \
 	strip_dir/man strip_dir/man/man1 \
 	strip_dir/lib/webservice \
 	strip_dir/sql \
@@ -161,8 +143,6 @@ simple_dir_target(release_dir/include)
 simple_dir_target(release_dir/src)
 simple_dir_target(release_dir/src/chirp)
 simple_dir_target(release_dir/src/drmaa)
-simple_dir_target(release_dir/src/startd_factory)
-simple_dir_target(release_dir/src/startd_factory/BlueGeneP)
 simple_dir_target(release_dir/man)
 simple_dir_target(release_dir/man/man1)
 simple_dir_target(release_dir/lib/webservice)
@@ -182,8 +162,6 @@ simple_dir_target(strip_dir/include)
 simple_dir_target(strip_dir/src)
 simple_dir_target(strip_dir/src/chirp)
 simple_dir_target(strip_dir/src/drmaa)
-simple_dir_target(strip_dir/src/startd_factory)
-simple_dir_target(strip_dir/src/startd_factory/BlueGeneP)
 simple_dir_target(strip_dir/man)
 simple_dir_target(strip_dir/man/man1)
 simple_dir_target(strip_dir/lib/webservice)
@@ -200,6 +178,22 @@ simple_dir_target(strip_contrib/include)
 simple_dir_target(strip_contrib/sql)
 
 #if HAS_STATIC
+simple_dir_target(static_unstrip_dir)
+simple_dir_target(static_unstrip_dir/bin)
+simple_dir_target(static_unstrip_dir/lib)
+simple_dir_target(static_unstrip_dir/libexec)
+simple_dir_target(static_unstrip_dir/libexec/glite)
+simple_dir_target(static_unstrip_dir/sbin)
+simple_dir_target(static_unstrip_dir/etc)
+simple_dir_target(static_unstrip_dir/etc/examples)
+simple_dir_target(static_unstrip_dir/include)
+simple_dir_target(static_unstrip_dir/src)
+simple_dir_target(static_unstrip_dir/src/chirp)
+simple_dir_target(static_unstrip_dir/src/drmaa)
+simple_dir_target(static_unstrip_dir/man)
+simple_dir_target(static_unstrip_dir/man/man1)
+simple_dir_target(static_unstrip_dir/lib/webservice)
+simple_dir_target(static_unstrip_dir/sql)
 simple_dir_target(static_dir)
 simple_dir_target(static_dir/bin)
 simple_dir_target(static_dir/lib)
@@ -212,8 +206,6 @@ simple_dir_target(static_dir/include)
 simple_dir_target(static_dir/src)
 simple_dir_target(static_dir/src/chirp)
 simple_dir_target(static_dir/src/drmaa)
-simple_dir_target(static_dir/src/startd_factory)
-simple_dir_target(static_dir/src/startd_factory/BlueGeneP)
 simple_dir_target(static_dir/man)
 simple_dir_target(static_dir/man/man1)
 simple_dir_target(static_dir/lib/webservice)
@@ -236,19 +228,22 @@ condor_object_target(procapi)
 condor_object_target(sysapi)
 condor_object_target(unit_tests)
 condor_object_target(tools)
-condor_object_target(power)
 condor_object_target(examples)
 #if WANT_NETMAN
 condor_object_target(eventd)
 #endif
+condor_object_target(accountant.V6)
 condor_object_target(ckpt_server)
 
-condor_object_target(shadow.std)
+condor_object_target(shadow.V6)
 condor_object_target(transferd)
-condor_object_target(starter.std)
+condor_object_target(starter.V5)
 
 #ifdef WANT_QUILL
 condor_object_target(quill)
+#endif
+
+#ifdef WANT_TT
 condor_object_target(tt)
 condor_object_target(dbmsd)
 #endif
@@ -259,10 +254,6 @@ condor_object_target(had)
 condor_object_target(status.V6)
 condor_object_target(dagman)
 condor_object_target(userlog)
-
-#if WANT_LEASE_MANAGER
-condor_object_target(lease_manager)
-#endif
 
 #if NEEDS_KBDD
    condor_object_target(kbdd)
@@ -282,19 +273,16 @@ condor_object_target(syscall_lib)
 condor_object_target(netman)
 #endif
 condor_object_target(io)
-object_target(target-ccb,ccb)
-object_target(target-classad.old,classad.old)
+condor_object_target(classad)
 condor_object_target(daemon_core.V6)
 condor_object_target(daemon_client)
 condor_object_target(prio)
 condor_object_target(scripts)
 condor_object_target(gridmanager)
+condor_object_target(globus)
 
 #if HAVE_EXT_CLASSADS && HAVE_EXT_GLOBUS
 	condor_object_target(credd)
-#endif
-#if HAVE_EXT_CLASSADS
-	condor_object_target(job_router)
 #endif
 condor_object_target(starter.V6.1)
 condor_object_target(shadow.V6.1)
@@ -302,12 +290,7 @@ condor_object_target(c-gahp)
 condor_object_target(procd)
 condor_object_target(privsep)
 condor_object_target(dcskel)
-condor_object_target(startd_factory)
 condor_object_target(vm-gahp)
-
-#if HAVE_EXT_OPENSSL && HAVE_EXT_GSOAP
-condor_object_target(amazon)
-#endif
 
 #if HAVE_EXT_DRMAA
 condor_object_target(drmaa)
@@ -316,6 +299,7 @@ condor_object_target(drmaa)
 #if WANT_CLASSAD_ANALYSIS
 object_target(ClassAdAnalysis,classad_analysis)
 #endif
+object_dir_target(condor_schedd.V7)
 
 condor_object_target(chirp)
 
@@ -329,14 +313,6 @@ object_dir_target(condor_sdk)
 object_target(Stork,stork)
 #endif
 
-
-#if HAVE_EXT_GLOBUS
-object_target(GT2_GAHP,gt2_gahp)
-object_target(GT4_GAHP,gt4_gahp)
-object_target(GT42_GAHP,gt42_gahp)
-object_target(NORDUGRID_GAHP,nordugrid_gahp)
-#endif
-
 object_target(DeploymentTools,deployment_tools)
 
 single_target(condor_procapi,libprocapi.a)
@@ -344,7 +320,9 @@ single_target(condor_procd,procd_client.a)
 single_target(condor_privsep,privsep_client.a)
 single_target(condor_sysapi,libsysapi.a)
 single_target(condor_schedd.V6,libqmgmt.a)
+single_target(condor_accountant.V6,libacct.a)
 single_target(condor_ckpt_server,ckpt_server_api.a)
+single_target(condor_quill,libquill.a)
 
 condor_object_target(tests)
 
@@ -393,6 +371,22 @@ reallyclean: really-clean
 htmldocs: html docs
 	cd html; ./build_doc++_index
 
+pure_target(condor_startd.V6,condor_startd.pure)
+pure_target(condor_gridmanager,condor_gridmanager.pure)
+pure_target(condor_schedd.V6,condor_schedd.pure)
+pure_target(condor_master.V6,condor_master.pure)
+
+pure_target(condor_shadow.V6,condor_shadow.std.pure)
+pure_target(condor_starter.V5,condor_starter.std.pure)
+
+pure_target(condor_shadow.V6.1,condor_shadow.pure)
+pure_target(condor_starter.V6.1,condor_starter.pure)
+pure_target(condor_collector.V6,condor_collector.pure)
+pure_target(condor_negotiator.V6,condor_negotiator.pure)
+pure_target(condor_dagman,condor_dagman.pure)
+
+pure_target(condor_tt,condor_tt.pure)
+
 #if HAS_EXTERNALS
 
 #if HAVE_EXT_ZLIB
@@ -412,16 +406,28 @@ ext_target(EXT_GLIBC_VERSION,$(NULL))
 ext_target(EXT_KERBEROS_VERSION,$(NULL))
 #endif
 
-#if HAVE_EXT_OPENSSL
-ext_target(EXT_OPENSSL_VERSION,$(NULL))
+#if HAVE_EXT_GLOBUS
+ext_target(EXT_GLOBUS_VERSION,$(NULL))
 #endif
 
-#if HAVE_EXT_GLOBUS
-ext_target(EXT_GLOBUS_VERSION,$(EXT_TRIGGER)/$(EXT_OPENSSL_VERSION))
+#if HAVE_EXT_GAHP
+ext_target(EXT_GAHP_VERSION,$(EXT_TRIGGER)/$(EXT_GLOBUS_VERSION))
+#endif
+
+#if HAVE_EXT_GT3GAHP
+ext_target(EXT_GT3GAHP_VERSION,$(NULL))
+#endif
+
+#if HAVE_EXT_GT4GAHP
+ext_target(EXT_GT4GAHP_VERSION,$(NULL))
 #endif
 
 #if HAVE_EXT_UNICOREGAHP
 ext_target(EXT_UNICOREGAHP_VERSION,$(NULL))
+#endif
+
+#if HAVE_EXT_NORDUGRIDGAHP
+ext_target(EXT_NORDUGRIDGAHP_VERSION,$(EXT_TRIGGER)/$(EXT_GLOBUS_VERSION))
 #endif
 
 #if HAVE_EXT_BLAHP
@@ -437,7 +443,7 @@ ext_target(EXT_CLASSADS_VERSION, $(NULL))
 #endif
 
 #if HAVE_EXT_GSOAP
-ext_target(EXT_GSOAP_VERSION,$(EXT_TRIGGER)/$(EXT_OPENSSL_VERSION))
+ext_target(EXT_GSOAP_VERSION,$(EXT_TRIGGER)/$(EXT_GLOBUS_VERSION))
 #endif
 
 #if HAVE_EXT_PCRE
@@ -471,10 +477,13 @@ today:
 
 
 #if HAS_STATIC
-#define StaticTar static.tar 
+#define StaticTar static.tar static_unstrip.tar
 static.tar: static manpages
 	rm -f static_dir/release.tar
 	cd static_dir; $(TAR_CMD) -cvf release.tar AllFiles
+static_unstrip.tar: static manpages
+	rm -f static_unstrip_dir/release.tar
+	cd static_unstrip_dir; $(TAR_CMD) -cvf release.tar AllFiles
 #else
 #define StaticTar
 #endif 
@@ -538,18 +547,14 @@ man_target(condor_compile.1)
 man_target(condor_configure.1)
 man_target(condor_config_bind.1)
 man_target(condor_config_val.1)
-#ifdef WANT_QUILL
 man_target(condor_convert_history.1)
-#endif
 man_target(condor_dagman.1)
 man_target(condor_fetchlog.1)
 man_target(condor_findhost.1)
 man_target(condor_glidein.1)
 man_target(condor_history.1)
 man_target(condor_hold.1)
-#ifdef WANT_QUILL
 man_target(condor_load_history.1)
-#endif
 man_target(condor_master.1)
 man_target(condor_master_off.1)
 man_target(condor_off.1)

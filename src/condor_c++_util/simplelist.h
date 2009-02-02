@@ -39,7 +39,6 @@ class SimpleList
 
     /// Copy Constructor
     SimpleList (const SimpleList<ObjType> & list);
-	SimpleList<ObjType> &operator=(SimpleList<ObjType> & rhs);
 
     virtual inline ~SimpleList () { delete [] items; }
 
@@ -56,6 +55,7 @@ class SimpleList
     inline void    Rewind() { current = -1; }
     bool    Current(ObjType &) const;
     bool    Next(ObjType &);
+    bool    Next(ObjType *&);
     inline bool    AtEnd() const { return (current >= size-1); }
     virtual void    DeleteCurrent();
 	virtual bool Delete(const ObjType &, bool delete_all = false);
@@ -84,7 +84,7 @@ SimpleList (const SimpleList<ObjType> & list):
     maximum_size(list.maximum_size), size(list.size), current(list.current)
 {
 	items = new ObjType[maximum_size];
-    memcpy (items, list.items, sizeof (ObjType) * maximum_size);
+    memcpy (items, list.items, sizeof (ObjType *) * maximum_size);
 }
 
 template <class ObjType>
@@ -142,6 +142,16 @@ Next (ObjType &item)
     item = items [++current];
     return true;
 }
+
+template <class ObjType>
+bool SimpleList<ObjType>::
+Next (ObjType *&item)
+{
+    if (current >= size - 1) return false;
+    item = &items[++current];
+    return true;
+}
+
 
 template <class ObjType>
 void SimpleList<ObjType>::
@@ -236,18 +246,6 @@ IsMember( const ObjType& obj ) const
 		}
 	}
 	return false;
-}
-
-template <class ObjType>
-SimpleList<ObjType> &
-SimpleList<ObjType>::operator=(SimpleList<ObjType> &rhs) {
-	this->Clear();
-	rhs.Rewind();
-	ObjType item;
-	while (rhs.Next(item)) {
-		this->Append(item);
-	}
-	return *this;
 }
 
 //--------------------------------------------------------------------------

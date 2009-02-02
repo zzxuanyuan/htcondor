@@ -20,13 +20,13 @@
 
 use CondorTest;
 
+Condor::DebugOff();
 
 $cmd = 'x_sanitysubmit.cmd';
 
-CondorTest::debug("Submit file for this test is $cmd\n",1);
+print "Submit file for this test is $cmd\n";
 
-$testdesc =  'sanity submit test - vanilla U';
-$testname = "x_sanitysubmit";
+$testname = 'sanity submit test - vanilla U';
 
 $aborted = sub {
 	my %info = @_;
@@ -51,7 +51,7 @@ $executed = sub
 
 $success = sub
 {
-	CondorTest::debug("Success: ok\n",1);
+	print "Success: ok\n";
 };
 
 $release = sub
@@ -63,7 +63,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success);
 CondorTest::RegisterExecute($testname, $executed);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

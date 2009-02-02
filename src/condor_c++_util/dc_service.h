@@ -104,15 +104,7 @@ typedef int     (Service::*Eventcpp)();
 class ServiceData
 {
 public:
-	virtual ~ServiceData();
-
-		/** Comparison function for use with SelfDrainingQueue.
-			@return -1 if this < other, 0 if this == other, and 1 if this > other
-		*/
-	virtual int ServiceDataCompare( ServiceData const* other ) const = 0;
-
-		/** For use with SelfDrainingQueue. */
-	virtual unsigned int HashFn( ) const = 0;
+	virtual ~ServiceData() {};
 
 protected:
     ServiceData() {}
@@ -124,6 +116,8 @@ protected:
    ServiceData pointers. 
 */ 
 typedef int (*ServiceDataHandler)(ServiceData*);
+
+typedef int (*ServiceDataCompare)(ServiceData*, ServiceData*);
 
 typedef int (Service::*ServiceDataHandlercpp)(ServiceData*);
 

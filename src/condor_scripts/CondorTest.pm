@@ -28,35 +28,8 @@ package CondorTest;
 require 5.0;
 use Carp;
 use Condor;
-use CondorPersonal;
 use FileHandle;
-use POSIX "sys_wait_h";
 use Net::Domain qw(hostfqdn);
-use strict;
-use warnings;
-
-my %securityoptions =
-(
-"NEVER" => "1",
-"OPTIONAL" => "1",
-"PREFERRED" => "1",
-"REQUIRED" => "1",
-);
-
-my $MAX_CHECKPOINTS = 2;
-my $MAX_VACATES = 3;
-
-my @skipped_output_lines;
-my @expected_output;
-
-my $checkpoints;
-my $hoststring;
-my $submit_file; #RunTest and RunDagTest set.
-my $vacates;
-my %test;
-my %machine_ads;
-my $lastconfig;
-my $handle; #actually the test name.
 
 BEGIN
 {
@@ -66,12 +39,14 @@ BEGIN
 
     $MAX_CHECKPOINTS = 2;
     $MAX_VACATES = 3;
+
+    @skipped_output_lines = ( );
+    @expected_output = ( );
     $checkpoints = 0;
 	$hoststring = "notset:000";
     $vacates = 0;
-	$lastconfig = "";
-
-    Condor::DebugOn();
+    %test;
+	%machine_ads;
 }
 
 sub Reset
@@ -79,24 +54,6 @@ sub Reset
     %machine_ads = ();
 	Condor::Reset();
 	$hoststring = "notset:000";
-}
-
-sub SetExpected
-{
-	my $expected_ref = shift;
-	foreach my $line (@{$expected_ref}) {
-		debug( "$line\n", 1);
-	}
-	@expected_output = @{$expected_ref};
-}
-
-sub SetSkipped
-{
-	my $skipped_ref = shift;
-	foreach my $line (@{$skipped_ref}) {
-		debug( "$line\n", 1);
-	}
-	@skipped_output_lines = @{$skipped_ref};
 }
 
 sub ForceVacate
@@ -249,7 +206,7 @@ sub RemoveTimed
 
     $test{$handle}{"RegisterTimed"} = undef;
     $test{$handle}{"RegisterTimedWait"} = undef;
-    debug( "Remove timer.......\n",4);
+    Condor::debug( "Remove timer.......\n");
     Condor::RemoveTimed( );
 }
 
@@ -258,18 +215,18 @@ sub DefaultOutputTest
     my %info = @_;
 
     croak "default_output_test called but no \@expected_output defined"
-	unless $#expected_output >= 0;
+	unless defined @expected_output;
 
-    debug( "\$info{'output'} = $info{'output'}\n" ,4);
+    Condor::debug( "\$info{'output'} = $info{'output'}\n" );
 
 	my $output = "";
 	my $error = "";
 	my $initialdir = $info{'initialdir'};
-	if((defined $initialdir) && ($initialdir ne "")) {
-		debug( "Testing with initialdir = $initialdir\n" ,4);
+	if($initialdir ne "") {
+		Condor::debug( "Testing with initialdir = $initialdir\n" );
 		$output = $initialdir . "/" . $info{'output'};
 		$error = $initialdir . "/" . $info{'error'};
-		debug( "$output is now being tested.....\n" ,4);
+		Condor::debug( "$output is now being tested.....\n" );
 	} else {
 		$output = $info{'output'};
 		$error = $info{'error'};
@@ -285,16 +242,11 @@ sub DefaultOutputTest
 sub RunTest
 {
     $handle              = shift || croak "missing handle argument";
-    $submit_file      = shift || croak "missing submit file argument";
+    my $submit_file      = shift || croak "missing submit file argument";
     my $wants_checkpoint = shift;
 
     my $status           = -1;
-	my $monitorpid = 0;
-	my $waitpid = 0;
-	my $monitorret = 0;
-	my $retval = 0;
 
-	print "RunTest says test is<<$handle>>\n";
 	# moved the reset to preserve callback registrations which includes
 	# an error callback at submit time..... Had to change timing
 	CondorTest::Reset();
@@ -302,7 +254,10 @@ sub RunTest
     croak "too many arguments" if shift;
 
     # this is kludgey :: needed to happen sooner for an error message callback in runcommand
-    Condor::SetHandle($handle);
+    $Condor::submit_info{'handle'} = $handle;
+
+    # this is kludgey :: needed to happen sooner for an error message callback in runcommand
+    #$Condor::submit_info{'handle'} = $handle;
 
     # if we want a checkpoint, register a function to force a vacate
     # and register a function to check to make sure it happens
@@ -318,116 +273,29 @@ sub RunTest
 
 	CheckRegistrations();
 
-	print "\nCurrent date and load follow:\n";
-	system("date");
-	system("uptime");
-
-	my $wrap_test = $ENV{WRAP_TESTS};
-
-	my $config = "";
-	if(defined  $wrap_test) {
-		print "Config before PersonalCondorTest<<<<$ENV{CONDOR_CONFIG}>>>>\n";
-		$lastconfig = $ENV{CONDOR_CONFIG};
-		$config = PersonalCondorTest($submit_file, $handle);
-		if($config ne "") {
-			print "PersonalCondorTest returned this config file<$config>\n";
-			print "Saving last config file<<<$lastconfig>>>\n";
-			$ENV{CONDOR_CONFIG} = $config;
-			print "CONDOR_CONFIG now <<$ENV{CONDOR_CONFIG}>>\n";
-			system("condor_config_val -config");
-		}
-	}
-
     # submit the job and get the cluster id
-	debug( "Now submitting test job\n",4);
-    my $cluster = Condor::TestSubmit( $submit_file );
+    $cluster = Condor::TestSubmit( $submit_file );
     
     # if condor_submit failed for some reason return an error
-    if($cluster == 0){
-	} else {
+    return 0 if $cluster == 0;
 
-    	# monitor the cluster and return its exit status
-		# note 1/2/09 bt
-		# any exits cause monitor to never return allowing us
-		# to kill personal condor wrapping the test :-(
-		
-		$monitorpid = fork();
-		if($monitorpid == 0) {
-			# child does monitor
-    		$monitorret = Condor::Monitor();
+    # monitor the cluster and return its exit status
+    $retval = Condor::Monitor();
 
-			debug( "Monitor did return on its own status<<<$monitorret>>>\n",4);
-    		die "$handle: FAILURE (job never checkpointed)\n"
-			if $wants_checkpoint && $checkpoints < 1;
+    die "$handle: FAILURE (job never checkpointed)\n"
+	if $wants_checkpoint && $checkpoints < 1;
 
-			if(  $monitorret == 1 ) {
-				debug( "child happy to exit 0\n",4);
-				exit(0);
-			} else {
-				debug( "child not happy to exit 1\n",4);
-				exit(1);
-			}
-		} else {
-			# parent cleans up
-			$waitpid = waitpid($monitorpid, 0);
-			if($waitpid == -1) {
-				debug( "No such process <<$monitorpid>>\n",4);
-			} else {
-				$retval = $?;
-				debug( "Child status was <<$retval>>\n",4);
-				if( WIFEXITED( $retval ) && WEXITSTATUS( $retval ) == 0 )
-				{
-					debug( "Monitor done and status good!\n",4);
-					$retval = 1;
-				} else {
-					$status = WEXITSTATUS( $retval );
-					debug( "Monitor done and status bad<<$status>>!\n",4);
-					$retval = 0;
-				}
-			}
-		}
-	}
-
-	debug( "************** condor_monitor back ************************ \n",4);
-
-	print "\nCurrent date and load follow:\n";
-	system("date");
-	system("uptime");
-
-
-	if(defined  $wrap_test) {
-		if($config ne "") {
-			print "KillDaemonPids called on this config file<$config>\n";
-			CondorPersonal::KillDaemonPids($config);
-		} else {
-			print "No config setting to call KillDaemonPids with\n";
-		}
-		print "Restoring this config<<<$lastconfig>>>\n";
-		$ENV{CONDOR_CONFIG} = $lastconfig;
-	} else {
-		debug( "Not currently wrapping tests\n",4);
-	}
-
-
-    if($cluster == 0){
-		return(0);
-	} else {
-    	return $retval;
-	}
+    return $retval;
 }
 
 sub RunDagTest
 {
     $handle              = shift || croak "missing handle argument";
-    $submit_file      = shift || croak "missing submit file argument";
+    my $submit_file      = shift || croak "missing submit file argument";
     my $wants_checkpoint = shift;
 	my $dagman_args = 	shift || croak "missing dagman args";
 
     my $status           = -1;
-	my $monitorpid = 0;
-	my $waitpid = 0;
-	my $monitorret = 0;
-	my $retval = 0;
 
     croak "too many arguments" if shift;
 
@@ -436,7 +304,7 @@ sub RunDagTest
 	CondorTest::Reset();
 
     # this is kludgey :: needed to happen sooner for an error message callback in runcommand
-    Condor::SetHandle($handle);
+    $Condor::submit_info{'handle'} = $handle;
 
     # if we want a checkpoint, register a function to force a vacate
     # and register a function to check to make sure it happens
@@ -452,98 +320,19 @@ sub RunDagTest
 
 	CheckRegistrations();
 
-	my $wrap_test = $ENV{WRAP_TESTS};
-
-	my $config = "";
-	if(defined  $wrap_test) {
-		$lastconfig = $ENV{CONDOR_CONFIG};
-		$config = PersonalCondorTest($submit_file, $handle);
-		if($config ne "") {
-			print "PersonalCondorTest returned this config file<$config>\n";
-			print "Saving last config file<<<$lastconfig>>>\n";
-			$ENV{CONDOR_CONFIG} = $config;
-			print "CONDOR_CONFIG now <<$ENV{CONDOR_CONFIG}>>\n";
-			system("condor_config_val -config");
-		}
-	}
-
-	print "\nCurrent date and load follow:\n";
-	system("date");
-	system("uptime");
-
     # submit the job and get the cluster id
-    my $cluster = Condor::TestSubmitDagman( $submit_file, $dagman_args );
+    $cluster = Condor::TestSubmitDagman( $submit_file, $dagman_args );
     
-	if($cluster == 0){
-    	# if condor_submit failed for some reason return an error
-	} else {
-    	# monitor the cluster and return its exit status
-		# note 1/2/09 bt
-		# any exits cause monitor to never return allowing us
-		# to kill personal condor wrapping the test :-(
-		
-		$monitorpid = fork();
-		if($monitorpid == 0) {
-			# child does monitor
-    		$monitorret = Condor::Monitor();
-			debug( "Monitor did return on its own status<<<$monitorret>>>\n",4);
+    # if condor_submit failed for some reason return an error
+    return 0 if $cluster == 0;
 
-    		die "$handle: FAILURE (job never checkpointed)\n"
-			if $wants_checkpoint && $checkpoints < 1;
+    # monitor the cluster and return its exit status
+    $retval = Condor::Monitor();
 
-			if(  $monitorret == 1 ) {
-				debug( "child happy to exit 0\n",4);
-				exit(0);
-			} else {
-				debug( "child not happy to exit 1\n",4);
-				exit(1);
-			}
-		} else {
-			# parent cleans up
-			$waitpid = waitpid($monitorpid, 0);
-			if($waitpid == -1) {
-				debug( "No such process <<$monitorpid>>\n",4);
-			} else {
-				$retval = $?;
-				debug( "Child status was <<$retval>>\n",4);
-				if( WIFEXITED( $retval ) && WEXITSTATUS( $retval ) == 0 )
-				{
-					debug( "Monitor done and status good!\n",4);
-					$retval = 1;
-				} else {
-					$status = WEXITSTATUS( $retval );
-					debug( "Monitor done and status bad<<$status>>!\n",4);
-					$retval = 0;
-				}
-			}
-		}
-	}
+    die "$handle: FAILURE (job never checkpointed)\n"
+	if $wants_checkpoint && $checkpoints < 1;
 
-	debug( "************** condor_monitor back ************************ \n",4);
-
-	print "\nCurrent date and load follow:\n";
-	system("date");
-	system("uptime");
-
-	if(defined  $wrap_test) {
-		if($config ne "") {
-			print "KillDaemonPids called on this config file<$config>\n";
-			CondorPersonal::KillDaemonPids($config);
-		} else {
-			print "No config setting to call KillDaemonPids with\n";
-		}
-		print "Restoring last config file<<$lastconfig>>\n";
-		$ENV{CONDOR_CONFIG} = $lastconfig;
-	} else {
-		debug( "Not currently wrapping tests\n",4);
-	}
-
-
-	if($cluster == 0){
-		return(0);
-	} else {
-		return $retval;
-	}
+    return $retval;
 }
 
 sub CheckTimedRegistrations
@@ -557,7 +346,7 @@ sub CheckTimedRegistrations
 
     if( defined $test{$handle}{"RegisterTimed"} )
     {
-		debug( "Found a timer to regsiter.......\n",4);
+		Condor::debug( "Found a timer to regsiter.......\n");
 		Condor::RegisterTimed( $test{$handle}{"RegisterTimed"} , $test{$handle}{"RegisterTimedWait"});
     }
 }
@@ -691,10 +480,8 @@ sub CompareText
     my $aref = shift || croak "missing array reference argument";
     my @skiplines = @_;
     my $linenum = 0;
-	my $line;
-	my $expectline;
 
-	debug("opening file $file to compare to array of expected results\n",4);
+	Condor::debug("DEBUG opening file $file to compare to array of expected results\n");
     open( FILE, "<$file" ) || die "error opening $file: $!\n";
     
     while( <FILE> )
@@ -703,12 +490,12 @@ sub CompareText
 	$line = $_;
 	$linenum++;
 
-	debug("linenum $linenum\n",4);
-	debug("\$line: $line\n",4);
-	debug("\$\$aref[0] = $$aref[0]\n",4);
+	Condor::debug("DEBUG: linenum $linenum\n");
+	Condor::debug("DEBUG: \$line: $line\n");
+	Condor::debug("DEBUG: \$\$aref[0] = $$aref[0]\n");
 
-	debug("skiplines = \"@skiplines\"\n",4);
-	#print "grep returns ", grep( /^$linenum$/, @skiplines ), "\n";
+	Condor::debug("DEBUG: skiplines = \"@skiplines\"\n");
+	Condor::debug("DEBUG: grep returns ", grep( /^$linenum$/, @skiplines ), "\n");
 
 	next if grep /^$linenum$/, @skiplines;
 
@@ -719,7 +506,7 @@ sub CompareText
 	}
 	fullchomp($expectline);
 
-	debug("\$expectline: $expectline\n",4);
+	Condor::debug("DEBUG: \$expectline: $expectline\n");
 
 	# if they match, go on
 	next if $expectline eq $line;
@@ -737,7 +524,7 @@ sub CompareText
         die "$file incomplete, expecting:\n$expectline\n";
 
     # barf if there are skiplines we haven't hit yet
-    foreach my $num ( @skiplines )
+    foreach $num ( @skiplines )
     {
 	if( $num > $linenum )
 	{
@@ -747,7 +534,7 @@ sub CompareText
 	croak "invalid skipline argument ($num)" if $num < 1;
     }
     
-	debug("CompareText successful\n",4);
+	Condor::debug("DEBUG: CompareText successful\n");
     return 1;
 }
 
@@ -766,13 +553,11 @@ sub verbose_system
 	$args = $args . " 2>" . $catch;
 	my $rc = 0xffff & system $args;
 
-	if ($rc != 0) { 
-		printf "system(%s) returned %#04x: ", $args, $rc;
-	}
+	printf "system(%s) returned %#04x: ", $args, $rc;
 
 	if ($rc == 0) 
 	{
-		#print "ran with normal exit\n";
+		print "ran with normal exit\n";
 		return $rc;
 	}
 	elsif ($rc == 0xff00) 
@@ -848,8 +633,6 @@ sub ParseMachineAds
 {
     my $machine = shift || croak "missing machine argument";
     my $line = 0;
-	my $variable;
-	my $value;
 
 	if( ! open(PULL, "condor_status -l $machine 2>&1 |") )
     {
@@ -857,11 +640,11 @@ sub ParseMachineAds
 		return 0;
     }
     
-    debug( "reading machine ads from $machine...\n" ,5);
+    #Condor::debug( "reading machine ads from $machine...\n" );
     while( <PULL> )
     {
 	fullchomp($_);
-	debug("Raw AD is $_\n",5);
+#	Condor::debug("Raw AD is $_\n");
 	$line++;
 
 	# skip comments & blank lines
@@ -893,19 +676,19 @@ sub ParseMachineAds
 	    if( $value =~ /(.*)\$ENV\((.*)\)(.*)/ )
 	    {
 			my $envlookup = $ENV{$2};
-	    	debug( "Found $envlookup in environment \n",5);
+	    	#Condor::debug( "Found $envlookup in environment \n");
 			$value = $1.$envlookup.$3;
 	    }
 
-	    debug( "$variable = $value\n" ,5);
+	    #Condor::debug( "$variable = $value\n" );
 	    
 	    # save the variable/value pair
 	    $machine_ads{$variable} = $value;
 	}
 	else
 	{
-	    debug( "line $line of $submit_file not a variable assignment... " .
-		   "skipping\n" ,5);
+#	    Condor::debug( "line $line of $submit_file not a variable assignment... " .
+#		   "skipping\n" );
 	}
     }
 	close(PULL);
@@ -956,7 +739,7 @@ sub setJobAd
 		print "Test failure due to Condor Tool Failure<$cmd>\n";
 	    return(1)
 	}
-	foreach my $line (@status)
+	foreach $line (@status)
 	{
 		#print "Line: $line\n";
 	}
@@ -980,7 +763,7 @@ sub getJobStatus
 	    return(1)
 	}
 
-	foreach my $line (@status)
+	foreach $line (@status)
 	{
 		#print "jobstatus: $line\n";
 		if( $line =~ /^(\d).*/)
@@ -1020,27 +803,27 @@ sub runCondorTool
 		system("date");
 	}
 
-	my $attempts = 6;
-	$count = 0;
+	my $attempts = 4;
+	my $count = 0;
 	while( $count < $attempts) {
 		@{$arrayref} = (); #empty return array...
 		my @tmparray;
-		debug( "Try command <$cmd>\n",4);
+		Condor::debug( "Try command <$cmd>\n");
 		open(PULL, "$cmd 2>$catch |");
 		while(<PULL>)
 		{
 			fullchomp($_);
-			debug( "Process: $_\n",4);
+			Condor::debug( "Process: $_\n");
 			push @tmparray, $_; # push @{$arrayref}, $_;
 		}
 		close(PULL);
 		$status = $? >> 8;
-		debug("Status is $status after command\n",4);
+		Condor::debug("Status is $status after command\n");
 		if(( $status != 0 ) && ($attempts == ($count + 1)))
 		{
 				print "runCondorTool: $cmd timestamp $start_time failed!\n";
 				print "************* std out ***************\n";
-				foreach my $stdout (@tmparray) {
+				foreach $stdout (@tmparray) {
 					print "STDOUT: $stdout \n";
 				}
 				print "************* std err ***************\n";
@@ -1060,15 +843,15 @@ sub runCondorTool
 		}
 
 		if ($status == 0) {
-			my $line = "";
-			foreach my $value (@tmparray)
+			$line = "";
+			foreach $value (@tmparray)
 			{
 				push @{$arrayref}, $value;
 			}
 			$done = 1;
 			# There are times like the security tests when we want
 			# to see the stderr even when the command works.
-			if( (defined $force) && ($force ne "" )) {
+			if( $force ne "" ) {
 				if( !open( MACH, "<$catch" )) { 
 					warn "Can't look at command output <$catch>:$!\n";
 				} else {
@@ -1082,14 +865,13 @@ sub runCondorTool
 			}
 			my $current_time = time;
 			$delta_time = $current_time - $start_time;
-			debug("runCondorTool: its been $delta_time since call\n",4);
+			Condor::debug("runCondorTool: its been $delta_time since call\n");
 			return(1);
 		}
 		$count = $count + 1;
-		debug("runCondorTool: iteration<$count> failed sleep 10 * $count \n",1);
 		sleep((10*$count));
 	}
-	debug( "runCondorTool: $cmd worked!\n",4);
+	Condor::debug( "runCondorTool: $cmd worked!\n");
 
 	return(0);
 }
@@ -1102,8 +884,9 @@ sub Which
 {
 	my $exe = shift(@_);
 	my @paths = split /:/, $ENV{'PATH'};
+	my $path;
 
-	foreach my $path (@paths) {
+	foreach $path (@paths) {
 		chomp $path;
 		if (-x "$path/$exe") {
 			return "$path/$exe";
@@ -1120,7 +903,7 @@ sub Which
 sub GetQueue
 {
 	my @cmd = ("condor_q", "condor_q -l" );
-	foreach my $request (@cmd) {
+	foreach $request (@cmd) {
 		print "Queue command <$request>\n";
 		open(PULL, "$request 2>&1 |");
 		while(<PULL>)
@@ -1159,7 +942,7 @@ sub changeDaemonState
 	my $cmd = "";
 	my $foundTotal = "no";
 	my $status;
-	my (@cmdarray1, @cmdarray2);
+	my @cmdarray1, @cmdarray2;
 
 	print "Checking for $daemon being $state\n";
 	if($state eq "off") {
@@ -1246,15 +1029,15 @@ sub changeDaemonState
 
 sub find_pattern_in_array
 {
-    my $pattern = shift;
-    my $harray = shift;
-    my $place = 0;
+    $pattern = shift;
+    $harray = shift;
+    $place = 0;
 
-    debug( "Looking for <<$pattern>> size <<$#{$harray}>>\n",4);
-    foreach my $member (@{$harray}) {
-        debug( "consider $member\n",5);
+    Condor::debug( "Looking for <<$pattern>> size <<$#{$harray}>>\n");
+    foreach $member (@{$harray}) {
+        #Condor::debug( "consider $member\n");
         if($member =~ /.*$pattern.*/) {
-            debug( "Found <<$member>> line $place\n",4);
+            Condor::debug( "Found <<$member>> line $place\n");
             return($place);
         } else {
             $place = $place + 1;
@@ -1274,35 +1057,35 @@ sub find_pattern_in_array
 
 sub compare_arrays
 {
-    my $startrow = shift;
-    my $endrow = shift;
-    my $numargs = shift;
-    my %lookup = ();
-    my $counter = 0;
-    debug( "Check $numargs starting row $startrow end row $endrow\n",4);
+    $startrow = shift;
+    $endrow = shift;
+    $numargs = shift;
+    %lookup = ();
+    $counter = 0;
+    Condor::debug( "Check $numargs starting row $startrow end row $endrow\n");
     while($counter < $numargs) {
-        my $href = shift;
+        $href = shift;
         my $thisrow = 0;
-        for my $item (@{$href}) {
+        for $item (@{$href}) {
             if( $thisrow >= $startrow) {
                 if($counter == 0) {
                     #initialize each position
                     $lookup{$item} = 1;
                 } else {
                     $lookup{$item} = $lookup{$item} + 1;
-                    debug( "Set at:<$lookup{$item}:$item>\n",4);
+                    Condor::debug( "Set at:<$lookup{$item}:$item>\n");
                 }
-                debug( "Store: $item\n",5);
+                #Condor::debug( "Store: $item\n");
             } else {
-                debug( "Skip: $item\n",4);
+                Condor::debug( "Skip: $item\n");
             }
             $thisrow = $thisrow + 1;
         }
         $counter = $counter + 1;
     }
     #loaded up..... now look!
-    foreach my $key (keys %lookup) {
-        debug( " $key equals $lookup{$key}\n",4);
+    foreach $key (keys %lookup) {
+        Condor::debug( " $key equals $lookup{$key}\n");
 		if($lookup{$key} != $numargs) {
 			print "Arrays are not the same! key <$key> is $lookup{$key} and not $numargs\n";
 			return(1);
@@ -1327,19 +1110,15 @@ sub spawn_cmd
 	my $resultfile = shift;
 	my $result;
 	my $toppid = fork();
-	my $res;
-	my $child;
-	my $mylog;
-	my $retval;
 
 	if($toppid == 0) {
 
-		my $pid = fork();
+		$pid = fork();
 		if ($pid == 0) {
 			# child 1 code....
 			$mylog = $resultfile . ".spawn";
 			open(LOG,">$mylog") || die "Can not open log: $mylog: $!\n";
-			$res = 0;
+			my $res = 0;
 			print LOG "Starting this cmd <$cmdtowatch>\n";
 			$res = system("$cmdtowatch");
 			print LOG "Result from $cmdtowatch is <$res>\n";
@@ -1347,7 +1126,7 @@ sub spawn_cmd
 			if($res != 0) {
 				print LOG " failed\n";
 				close(LOG);
-				exit(1);
+				exit(-1);
 			} else {
 				print LOG " worked\n";
 				close(LOG);
@@ -1359,19 +1138,11 @@ sub spawn_cmd
 		$mylog = $resultfile . ".watch";
 		open(LOG,">$mylog") || die "Can not open log: $mylog: $!\n";
 		print LOG "waiting on pid <$pid>\n";
-		while(($child = waitpid($pid,0)) != -1) { 
-			$retval = $?;
-			debug( "Child status was <<$retval>>\n",4);
-			if( WIFEXITED( $retval ) && WEXITSTATUS( $retval ) == 0 ) {
-				debug( "Monitor done and status good!\n",4);
-				$retval = 0;
-			} else {
-				my $status = WEXITSTATUS( $retval );
-				debug( "Monitor done and status bad<<$status>>!\n",4);
-				$retval = 1;
-			}
-			print RES "Exit $retval \n";
-			print LOG "Pid $child res was $retval\n";
+		while(($child = waitpid($pid,WNOHANG)) != -1) { 
+			$exitval = $? >> 8;
+			$signal_num = $? & 127;
+			print RES "Exit $exitval Signal $signal_num\n";
+			print LOG "Pid $child res was $exitval\n";
 		}
 		print LOG "Done waiting on pid <$pid>\n";
 		close(RES);
@@ -1398,145 +1169,6 @@ sub getFqdnHost
 {
 	my $host = hostfqdn();
 	return($host);
-}
-
-##############################################################################
-#
-# PersonalSearchLog
-#
-# Serach a log for a pattern
-#
-##############################################################################
-
-sub PersonalSearchLog
-{
-    my $pid = shift;
-    my $personal = shift;
-    my $searchfor = shift;
-    my $logname = shift;
-
-	my $logdir = `condor_config_val log`;
-	fullchomp($logdir);
-
-    #my $logloc = $pid . "/" . $pid . $personal . "/log/" . $logname;
-    my $logloc = $logdir . "/" . $logname;
-    CondorTest::debug("Search this log <$logloc> for <$searchfor>\n",1);
-    open(LOG,"<$logloc") || die "Can not open logfile<$logloc>: $!\n";
-    while(<LOG>) {
-        if( $_ =~ /$searchfor/) {
-            CondorTest::debug("FOUND IT! $_",1);
-            return(0);
-        }
-    }
-    return(1);
-}
-
-##############################################################################
-#
-# PersonalPolicySearchLog
-#
-# Serach a log for a security policy
-#
-##############################################################################
-
-
-sub PersonalPolicySearchLog
-{
-    my $pid = shift;
-    my $personal = shift;
-    my $policyitem = shift;
-    my $logname = shift;
-
-	my $logdir = `condor_config_val log`;
-	fullchomp($logdir);
-
-    #my $logloc = $pid . "/" . $pid . $personal . "/log/" . $logname;
-    my $logloc = $logdir . "/" . $logname;
-    debug("Search this log <$logloc> for <$policyitem>\n",1);
-    open(LOG,"<$logloc") || die "Can not open logfile<$logloc>: $!\n";
-    while(<LOG>) {
-        if( $_ =~ /^.*Security Policy.*$/) {
-            while(<LOG>) {
-                if( $_ =~ /^\s*$policyitem\s*=\s*\"(\w+)\"\s*$/ ) {
-                    #print "FOUND IT! $1\n";
-                    if(!defined $securityoptions{$1}){
-                        debug("Returning <<$1>>\n",1);
-                        return($1);
-                    }
-                }
-            }
-        }
-    }
-    return("bad");
-}
-
-sub PersonalCondorTest
-{
-	my $submitfile = shift;
-	my $testname = shift;
-	my $cmd = "condor_config_val log";
-	my $locconfig = "";
-    print "Running this command: <$cmd> \n";
-    # shhhhhhhh third arg 0 makes it hush its output
-	my $logdir = `condor_config_val log`;
-	fullchomp($logdir);
-	print "log dir is<$logdir>\n";
-	if($logdir =~ /^.*condor_tests.*$/){
-		print "Running within condor_tests\n";
-		if($logdir =~ /^.*TestingPersonalCondor.*$/){
-			print "Running with outer testing personal condor\n";
-			#my $testname = findOutput($submitfile);
-			#print "findOutput saya test is $testname\n";
-			my $version = "local";
-			
-			# get a local scheduler running (side a)
-			my $configloc = CondorPersonal::StartCondor( $testname, "x_param.basic_personal" ,$version);
-			my @local = split /\+/, $configloc;
-			$locconfig = shift @local;
-			my $locport = shift @local;
-			
-			debug("---local config is $locconfig and local port is $locport---\n",1);
-
-			#$ENV{CONDOR_CONFIG} = $locconfig;
-		}
-	} else {
-		print "Running outside of condor_tests\n";
-	}
-	return($locconfig);
-}
-
-sub findOutput
-{
-	my $submitfile = shift;
-	open(SF,"<$submitfile") or die "Failed to open <$submitfile>:$!\n";
-	my $testname = "UNKNOWN";
-	my $line = "";
-	while(<SF>) {
-		chomp($_);
-		$line = $_;
-		if($line =~ /^\s*[Ll]og\s+=\s+(.*)(\..*)$/){
-			$testname = $1;
-			my $previouslog = $1 . $2;
-			system("rm -f $previouslog");
-		}
-	}
-	close(SF);
-	print "findOutput returning <$testname>\n";
-	if($testname eq "UNKNOWN") {
-		print "failed to find testname in this submit file:$submitfile\n";
-		system("cat $submitfile");
-	}
-	return($testname);
-}
-
-# Call down to Condor Perl Module for now
-
-sub debug
-{
-    my $string = shift;
-	my $level = shift;
-	my $newstring = "CT:$string";
-	Condor::debug($newstring,$level);
 }
 
 1;

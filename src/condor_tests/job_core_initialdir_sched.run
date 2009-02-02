@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_initialdir_sched.cmd';
-$testdesc =  'condor_submit initialdir works - scheduler U';
-$testname = "job_core_initialdir_sched";
+$testname = 'condor_submit initialdir works - scheduler U';
 
 
 system("mkdir -p initd_sched");
@@ -35,20 +34,20 @@ $ExitSuccess = sub
 	my %info = @_;
 
 	my $goal = "";
-	CondorTest::debug("Looking for $goal\n",1);
+	print "Looking for $goal\n";
 #	# Pull out requested environment values
 	my $logs   = $info{"log"};
-	CondorTest::debug("Log is $logs\n",1);
+	print "Log is $logs\n";
 	my $initialdir = $info{"initialdir"};
-	CondorTest::debug("initialdir is $initialdir\n",1);
+	print "initialdir is $initialdir\n";
 	$goal = "$initialdir" . "/" . "$logs";
 	if( ! -s $goal )
 	{
-		CondorTest::debug("Expected logfile not found<$goal>\n",1);
+		print "Expected logfile not found<$goal>\n";
 		die "Initialdir does not contain user log\n";
 	}
 	# clean up
-	CondorTest::debug("Expected logfile found<$goal>\n",1);
+	print "Expected logfile found<$goal>\n";
 	system("rm -rf initd_sched");
 };
 
@@ -56,7 +55,7 @@ $ExitSuccess = sub
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

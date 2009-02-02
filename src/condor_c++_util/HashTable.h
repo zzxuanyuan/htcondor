@@ -320,10 +320,6 @@ int HashTable<Index,Value>::addItem(const Index &index,const  Value &value) {
 template <class Index, class Value>
 int HashTable<Index,Value>::lookup(const Index &index, Value &value) const
 {
-  if ( numElems == 0 ) {
-	return -1;
-  }
-
   int idx = (int)(hashfcn(index) % tableSize);
 
   HashBucket<Index, Value> *bucket = ht[idx];
@@ -352,10 +348,6 @@ int HashTable<Index,Value>::lookup(const Index &index, Value &value) const
 template <class Index, class Value>
 int HashTable<Index,Value>::lookup(const Index &index, Value* &value ) const
 {
-  if ( numElems == 0 ) {
-	return -1;
-  }
-
   int idx = (int)(hashfcn(index) % tableSize);
 
   HashBucket<Index, Value> *bucket = ht[idx];

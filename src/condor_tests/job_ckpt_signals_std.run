@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_signals_std.cmd';
-$testdesc =  'Signals Test';
-$testname = "job_ckpt_signals_std";
+$testname = 'Signals Test';
 
 sub OutputTest
 {
@@ -50,7 +49,7 @@ sub OutputTest
 CondorTest::RegisterExitedSuccess( $testname, \&OutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

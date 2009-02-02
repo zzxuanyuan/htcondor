@@ -22,7 +22,7 @@
 #define CONDORRESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "baseresource.h"
 #include "gahp-client.h"
@@ -42,7 +42,6 @@ class CondorResource : public BaseResource
 					const char *proxy_subject );
 	~CondorResource();
 
-	const char *ResourceType();
 	void Reconfig();
 	void RegisterJob( CondorJob *job, const char *submitter_id );
 	void UnregisterJob( CondorJob *job );
@@ -78,10 +77,6 @@ class CondorResource : public BaseResource
 		List<CondorJob> m_submittedJobs;
 	};
 	static HashTable <HashKey, ScheddPollInfo *> PollInfoByName;
-
-	const char *GetHashName();
-
-	void PublishResourceAd( ClassAd *resource_ad );
 
  private:
 	void DoPing( time_t& ping_delay, bool& ping_complete,

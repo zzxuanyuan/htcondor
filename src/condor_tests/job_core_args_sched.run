@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_args_sched.cmd';
-$testdesc =  'Arguments are preserved - scheduler U';
-$testname = "job_core_args_sched";
+$testname = 'Arguments are preserved - scheduler U';
 
 # we can really expect some things not to match like some quotes
 sub exceptadjust
@@ -100,7 +99,7 @@ $ExitSuccess = sub {
 	}
 	my $i;
 	for($i = 0; $i < scalar(@args_reqd); $i++) {
-		CondorTest::debug("Checking $args_reqd[$i]...\n",1);
+		print "Checking $args_reqd[$i]...\n";
 		if($args_reqd[$i] ne $args_found[$i]) 
 		{
 			$adjust = exceptadjust($args_reqd[$i]); # translate escapes
@@ -117,7 +116,7 @@ $ExitSuccess = sub {
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

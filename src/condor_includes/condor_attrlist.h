@@ -33,12 +33,9 @@
 #include "MyString.h"
 
 #include "stream.h"
-//#include "list.h"
+#include "list.h"
 
 #define		ATTRLIST_MAX_EXPRESSION		10240
-
-// Ugly hack for the schedd
-void AttrList_setPublishServerTime( bool );
 
 template <class Key, class Value> class HashTable; // forward declaration
 class YourString;
@@ -138,7 +135,7 @@ class AttrList : public AttrListAbstract
         AttrList(FILE*,char*,int&,int&,int&);// Constructor, read from file.
 //		AttrList(class ProcObj*);			// create from a proc object
 //		AttrList(CONTEXT*);					// create from a CONTEXT
-        AttrList(const char *, char);		// Constructor, from string.
+        AttrList(char *, char);				// Constructor, from string.
         AttrList(AttrList&);				// copy constructor
         virtual ~AttrList();				// destructor
 
@@ -159,33 +156,12 @@ class AttrList : public AttrListAbstract
 		// AssignExpr() is equivalent to Insert("variable = value") without
 		// the value being wrapped in quotes.
 		int AssignExpr(char const *variable,char const *value);
-		int Assign(char const *variable, MyString const &value);
+		int Assign(char const *variable, MyString &value);
 		int Assign(char const *variable,char const *value);
 		int Assign(char const *variable,int value);
-		int Assign(char const *variable,unsigned int value);
-		int Assign(char const *variable,long value);
-		int Assign(char const *variable,unsigned long value);
 		int Assign(char const *variable,float value);
 		int Assign(char const *variable,double value);
 		int Assign(char const *variable,bool value);
-
-			// Copy value of source_attr in source_ad to target_attr
-			// in this ad.  If source_ad is NULL, it defaults to this ad.
-			// If source_attr is undefined, target_attr is deleted, if
-			// it exists.
-		void CopyAttribute(char const *target_attr, char const *source_attr, AttrList *source_ad=NULL );
-
-			// Copy value of source_attr in source_ad to an attribute
-			// of the same name in this ad.  Shortcut for
-			// CopyAttribute(target_attr,target_attr,source_ad).
-		void CopyAttribute(char const *target_attr, AttrList *source_ad );
-
-			// Escape double quotes in a value so that it can be
-			// safely turned into a ClassAd string by putting double
-			// quotes around it.  This function does _not_ add the
-			// surrounding double quotes.
-			// Returns the escaped string.
-		static char const * EscapeStringValue(char const *val,MyString &buf);
 
 		// Make an expression invisible when serializing the ClassAd.
 		// This (hopefully temporary hack) is to prevent the special
@@ -278,13 +254,6 @@ class AttrList : public AttrListAbstract
         int put(Stream& s);
 		int initFromStream(Stream& s);
 
-		/*
-		 * @param str The newline-delimited string of attribute assignments
-		 * @param err_msg Optional buffer for error messages.
-		 * @return true on success
-		 */
-		bool initFromString(char const *str,MyString *err_msg);
-
 		void clear( void );
 
 			// Create a list of all ClassAd attribute references made
@@ -312,7 +281,6 @@ class AttrList : public AttrListAbstract
 		friend	class	ClassAd;
 
 		static bool		IsValidAttrName(const char *);
-		static bool		IsValidAttrValue(const char *);
 
     protected :
 	    AttrListElem**	chainedAttrs;

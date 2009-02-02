@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_signal-suicide_sched.cmd';
-$testdesc =  'Does condor record signal-death properly? - scheduler U';
-$testname = "job_core_signal-suicide_sched";
+$testname = 'Does condor record signal-death properly? - scheduler U';
 
 $died = sub {
 	my %info = @_;
@@ -31,7 +30,7 @@ $died = sub {
 	if($expectedsig != $gotsig) {
 		die "Expecting program to have died by sig $expected but it was $gotsig.\n";
 	} else {
-		CondorTest::debug("Good, signal $gotsig came through fine.\n",1);
+		print "Good, signal $gotsig came through fine.\n";
 	}
 };
 
@@ -48,7 +47,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success );
 CondorTest::RegisterAbort( $testname, sub{} ); # ignore aborts
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -21,19 +21,16 @@
 use CondorTest;
 
 $cmd = 'job_core_output_java.cmd';
-$testdesc =  'condor_submit output works - java U';
-$testname = "job_core_output_java";
+$testname = 'condor_submit output works - java U';
 
 
-my @expected_output =
+@CondorTest::expected_output =
 (
 'first',
 'second',
 'third',
 'fourth',
 );
-
-CondorTest::SetExpected(\@expected_output);
 
 
 
@@ -51,7 +48,7 @@ CondorTest::RegisterExitedSuccess( $testname, \&CondorTest::DefaultOutputTest );
 #CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

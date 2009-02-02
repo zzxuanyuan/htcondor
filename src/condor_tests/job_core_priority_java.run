@@ -22,8 +22,7 @@ use CondorTest;
 
 $cmd = 'job_core_priority_java.cmd';
 my $datafile = 'job_core_priority_java.data';
-$testdesc =  'condor_submit priority works - java U';
-$testname = "job_core_priority_java";
+$testname = 'condor_submit priority works - java U';
 
 my @sdata =
 (
@@ -72,7 +71,7 @@ system("touch job_core_priority_java.data");
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -22,8 +22,7 @@ use CondorTest;
 use CondorPersonal;
 use Cwd;
 $quillpassword = "x_job_quill_basic.template";
-$testdesc =  'job_quill_basic - install postgress and test quillpp';
-$testname = "job_quill_basic";
+$testname = 'job_quill_basic - install postgress and test quillpp';
 $cmd = "job_quill_basic.cmd";
 $corename = "job_quill_basic";
 $supwfile = "x_job_quill_supw";
@@ -70,7 +69,7 @@ if($ourtarfile eq "") {
 	foreach $version (@versions) {
 		# bt if($version =~ /8.2.3/) {
 		if($version =~ /8.0.2/) {
-			CondorTest::debug("PG version is: $version\n",1);
+			print "PG version is: $version\n";
 			$keepversion = $version;
 		}
 	}
@@ -78,13 +77,13 @@ if($ourtarfile eq "") {
 		die "Can't find mandated 8.2.3 version of Postgres\n";
 	}
 
-	CondorTest::debug("keepversion is <<$keepversion>>",1);
+	print "keepversion is <<$keepversion>>";
 	
 	$mypostgresspath = $mypostgressworld . "/" . $keepversion . "/" ;
 	$mypgsqlversion = "postgresql-$keepversion";
 	$mypgsqltarfile = $mypostgresspath . $mypgsqlversion . ".tar.gz";
 	$usetarfile = $topdir . "/" . $mypgsqlversion . ".tar.gz";
-	CondorTest::debug("Postgress tar file is $mypgsqltarfile \n",1);
+	print "Postgress tar file is $mypgsqltarfile \n";
 	system("cp $mypgsqltarfile .");
 } else {
 	$usetarfile = $topdir . "/" . $ourtarfile;
@@ -99,58 +98,55 @@ my $myresult;
 $topdir = getcwd();
 $installdir = $topdir . "/perllib";
 $ENV{PERL5LIB} = $installdir . "/lib/site_perl" . ":" . $installdir . "/lib/perl5/site_perl" . ":" . $installdir . "/lib64/perl5/site_perl" . ":" . $installdir . "/lib64/site_perl" . ":" . $installdir . "/Library/Perl";
-CondorTest::debug("Adjusted Perl Library search to $ENV{PERL5LIB}\n",1);
+print "Adjusted Perl Library search to $ENV{PERL5LIB}\n";
 my $newpath = $ENV{PATH} = "$myfullpgsqlloc" . "/bin:" . $ENV{PATH};
 
-CondorTest::debug("NEW Path is now <<$newpath>>\n",1);
+print "NEW Path is now <<$newpath>>\n";
 
 chdir("$topdir");
 
-CondorTest::debug("About to install Perl Modules: <<<",1);
+print "About to install Perl Modules: <<<";
 system("date");
-CondorTest::debug(">>>\n",1);
+print ">>>\n";
 
 $perlinstall = system("./x_quill_buildperlmods.pl");
-CondorTest::debug("Perl module install result was $perlinstall\n",1);
+print "Perl module install result was $perlinstall\n";
 
-CondorTest::debug("Current SysV IPC state\n",1);
-system("ipcs -a");
-
-CondorTest::debug("About to install Postgres: <<<",1);
+print "About to install Postgres: <<<";
 system("date");
-CondorTest::debug(">>>\n",1);
+print ">>>\n";
 
 chdir("$topdir");
 system("mkdir -p $myquillname");
 if( -d $myquillname ) {
 	system("cp $supwfile $myquillname");
 	$pgresult = system("./x_quill_pgsqlinstall.pl $myfullpgsqlloc $myfullpgsqlinstalllog $usetarfile $mypgsqlversion $mycondorconfigadd $myextralibs $topdir");
-	CondorTest::debug("Result of Quill Postgresssql db install job is  <<$pgresult>>\n",1);
+	print "Result of Quill Postgresssql db install job is  <<$pgresult>>\n";
 	if($pgresult != 0) {
-		CondorTest::debug("Could not start POSTGRESS\n",1);
+		print "Could not start POSTGRESS\n";
 	}
-	CondorTest::debug("cp -r $myfullpgsqlinstalllog $mysaveme start......\n",1);
+	print "cp -r $myfullpgsqlinstalllog $mysaveme start......\n";
 	system("date");
 	system("cp -r $myfullpgsqlinstalllog $mysaveme");
-	CondorTest::debug("cp -r $myfullpgsqlinstalllog $mysaveme end......\n",1);
+	print "cp -r $myfullpgsqlinstalllog $mysaveme end......\n";
 	system("date");
 } else {
 	$pgresult = 7;
-	CondorTest::debug("Could not create Quill postgress db install location\n",1);
+	print "Could not create Quill postgress db install location\n";;
 }
 
 if($pgresult != 0) {
 	die "Failed to build and install Postgress\n";
 } else {
-	CondorTest::debug("Hmmmmmmmmmmmmmm build and install Postgress maybe worked........\n",1);
+	print "Hmmmmmmmmmmmmmm build and install Postgress maybe worked........\n";
 }
 
 
 chdir("$topdir");
 
-CondorTest::debug("About to set up Condor Personal : <<<",1);
+print "About to set up Condor Personal : <<<";
 system("date");
-CondorTest::debug(">>>\n",1);
+print ">>>\n";
 
 $mysubmitnm = $corename . $mypid . ".cmd";
 $mysubmitnmcmdout = $corename . $mypid . ".cmd.out";
@@ -163,32 +159,32 @@ $mycorenmlog = $corename . ".log";
 $mycorenmerr = $corename . ".err";
 $mycorenmout = $corename . ".out";
 
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 CondorPersonal::DebugOn();
 my $configrem;
 
 if($pgresult == 0) {
-	$configrem = CondorPersonal::StartCondor( "job_quill_basic", "x_param.quill" ,"quill");
+	$configrem = CondorPersonal::StartCondor("x_param.quill" ,"quill");
 }
 
 my @quill = split /\+/, $configrem;
 my $quillconfig = shift @quill;
 my $quillport = shift @quill;
 
-CondorTest::debug("---Quill config is $quillconfig and remote port is $quillport---\n",1);
-CondorTest::debug("About to start jobs and test : <<<",1);
+print "---Quill config is $quillconfig and remote port is $quillport---\n";
+print "About to start jobs and test : <<<";
 system("date");
-CondorTest::debug(">>>\n",1);
+print ">>>\n";
 
 $ENV{CONDOR_CONFIG} = $quillconfig;
 
 $spool = `condor_config_val spool`;
 chomp($spool);
-CondorTest::debug("Spool for quill is <$spool>>\n",1);
+print "Spool for quill is <$spool>>\n";
 $cmdforsys = "cp " . $quillpassword . " " . $spool . "/.quillwritepassword";
-CondorTest::debug("Command to create quill password file is <<<$cmdforsys>>>\n",1);
+print "Command to create quill password file is <<<$cmdforsys>>>\n";
 
 system("$cmdforsys");
 #$pgpassdata = $topdir . "/" . $mypid . "/pgpass";
@@ -198,16 +194,16 @@ system("$cmdforsys");
 
 #system("$cmdforsys");
 
-CondorTest::debug("Set config to $quillconfig\n",1);
+print "Set config to $quillconfig\n";
 
 my $pcresult = 0;
 my $result = 0;
 
-CondorTest::debug("Everything ready to test the running condor\n",1);
+print "Everything ready to test the running condor\n";
 system("date");
 if($pgresult == 0) {
 	$pcresult = system("./job_quill_basic.pl $mysubmitnm");
-	CondorTest::debug("Result of job_quill_basic job is  $pcresult\n",1);
+	print "Result of job_quill_basic job is  $pcresult\n";
 }
 
 system("cp *quill_basic* $mysaveme");
@@ -229,19 +225,27 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($quillconfig);
-system("date");
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
 
 if($pcresult == 0) {
-	CondorTest::debug("Setup allowed test which then WORKED!!!......\n",1);
+	print "Setup allowed test which then WORKED!!!......\n";
 	# now shutdown postgress when not in use....
 
 	$result = system("./x_quill_pgsqlstop.pl $myfullpgsqlloc ");
-	CondorTest::debug("Result of Quill Postgresssql db stop job is  $result\n",1);
+	print "Result of Quill Postgresssql db stop job is  $result\n";
 } else {
-	CondorTest::debug("Setup allowed test which then failed......\n",1);
+	print "Setup allowed test which then failed......\n";
 	exit(1);
 }
 
-CondorTest::debug("job_quill_basic SUCCESS\n",1);
+system("date");
+
 exit(0);

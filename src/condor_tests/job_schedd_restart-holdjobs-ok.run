@@ -22,8 +22,7 @@ use CondorTest;
 use CondorPersonal;
 
 $cmd_template = "job_schedd_restart-holdjobs-ok.template";
-$testdesc =  'job_schedd_restart-holdjobs-ok - Simple parallel job with security on';
-$testname = "job_schedd_restart-holdjobs-ok";
+$testname = 'job_schedd_restart-holdjobs-ok - Simple parallel job with security on';
 $cmd = "job_schedd_restart-holdjobs-ok.cmd";
 $corename = "job_schedd_restart-holdjobs-ok";
 
@@ -51,23 +50,23 @@ $mycorenmlog = $corename . ".log";
 $mycorenmerr = $corename . ".err";
 $mycorenmout = $corename . ".out";
 
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 # get a remote scheduler running (side b)
-my $configrem = CondorPersonal::StartCondor( "job_schedd_restart-holdjobs-ok", "x_param.scheddrestart" ,"scheddrestart");
+my $configrem = CondorPersonal::StartCondor("x_param.scheddrestart" ,"scheddrestart");
 my @parallel = split /\+/, $configrem;
 my $parallelconfig = shift @parallel;
 my $parallelport = shift @parallel;
 
-CondorTest::debug("---Parallel config is $parallelconfig and remote port is $parallelport---\n",1);
+print "---Parallel config is $parallelconfig and remote port is $parallelport---\n";
 
 $ENV{CONDOR_CONFIG} = $parallelconfig;
 
-CondorTest::debug("Set config to $parallelconfig\n",1);
+print "Set config to $parallelconfig\n";
 
 my $result = system("./job_schedd_restart-holdjobs-ok.pl $mysubmitnm");
-CondorTest::debug("Result of job_schedd_restart-holdjobs-ok job is  $result\n",1);
+print "Result of job_schedd_restart-holdjobs-ok job is  $result\n";
 
 
 system("cp *schedd_restart-holdjobs-ok* $mysaveme");
@@ -87,14 +86,20 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($parallelconfig);
-system("date");
-
-if($result != 0)
+if( $result != 0 )
 {
-    # actuaal job failed but we allowed cleanup
-    exit(1);
+	exit(1);
 }
 
-CondorTest::debug("job_schedd_restart-holdjobs-ok SUCCESS\n",1);
-exit(0);
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+system("date");
+

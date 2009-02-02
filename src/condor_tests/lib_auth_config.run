@@ -20,8 +20,7 @@
 
 
 my @got;
-$testdesc =  'lib_auth_config - runs tests of IpVerify';
-$testname = "lib_auth_config";
+$testname = 'lib_auth_config - runs tests of IpVerify';
 $test = "../testbin_dir/condor_test_auth";
 $inputdir = "lib_auth_config_tests";
 

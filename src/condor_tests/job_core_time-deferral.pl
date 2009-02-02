@@ -56,19 +56,26 @@
 use CondorTest;
 use POSIX;
 
-$testdesc =  'Job Deferral Testing - ';
-$testname = "job_core_time-deferral";
+$testname = 'Job Deferral Testing - ';
 
 ##
 ## Universe
 ## 
 my $universe = ($ARGV[0] ? $ARGV[0] : "vanilla");
-$baseCmd = "job_core_deferral" . "_" .$universe; 
 
 ##
 ## Check if we should cleanup afterwards
 ##
 my $cleanup = ($ARGV[1] ? $ARGV[1] : 0);
+
+##
+## Get the base submission file
+## Each test will append different parameters
+##
+$baseCmd = "job_core_time-deferral.cmd";
+open(FILE, $baseCmd) || die("Failed to open base command file '$baseCmd'");
+@lines = <FILE>;
+close(FILE);
 
 ##
 ## If we encounter an abort, and this flag isn't set, then
@@ -92,9 +99,9 @@ my $ABORTING = 0;
 ## This will be a better test when offsets are in place
 ##
 push(@exact,   1);
-push(@deltas,  180);
-push(@windows, 180);
-push(@preps,   120);
+push(@deltas,  60);
+push(@windows, 0);
+push(@preps,   20);
 push(@fail,    0);
 
 ##
@@ -117,8 +124,8 @@ push(@fail,    0);
 ##
 push(@exact,   1);
 push(@deltas,  -120);  # 120 sec = 2 min
-push(@windows, 720); # 180 sec = 3 min
-push(@preps,   120);
+push(@windows, 180); # 180 sec = 3 min
+push(@preps,   20);
 push(@fail,    0);
 
 ##
@@ -160,10 +167,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	my $logFile = $cmdFile.".log";
 	my $outFile = $cmdFile.".out";
 	my $errFile = $cmdFile.".err";
-	$cmdFile = $cmdFile . $$;
 	
-	system("rm -f $logfile");
-
 	##
 	## This variable is used by our callback methods 
 	## to know whether the job did what it was suppose to
@@ -195,11 +199,9 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	## Add the test parameters to a new submit file
 	##
 	open(FILE, "> $cmdFile") || die("Failed to open command file '$cmdFile' for writing");
-	print FILE "Executable = ./x_time.pl\n";
-	print FILE "Notification = NEVER\n";
+	print FILE "@lines\n";
 	print FILE "Universe = $universe\n";
 	
-
 	##
 	## We can either be given an exact time to run which will
 	## be based on the submitting machines clock
@@ -246,9 +248,6 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	print FILE "Queue\n";
 	close(FILE);
 	
-	CondorTest::debug("Command file is $cmdFile\n",1);
-	system("cat $cmdFile");
-
 	##
 	## success
 	## Dynamically create our callback function
@@ -271,10 +270,10 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my $reportTime  = "@output";
 		chomp($reportTime);
 		
-		CondorTest::debug("\n-----------------------------------------\n",1);
-		CondorTest::debug("\texecute:  $executeTime\n",1);
-		CondorTest::debug("\treport:   $reportTime\n",1);
-		CondorTest::debug("\texpected: $expectedTime\n\n",1);
+		print "\n-----------------------------------------\n";
+		print "\texecute:  $executeTime\n";
+		print "\treport:   $reportTime\n";
+		print "\texpected: $expectedTime\n\n";
 		
 		##
 		## If this job wasn't suppose to fail, make sure we ran
@@ -325,7 +324,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 				return (0);
 			}
 			
-			CondorTest::debug("Good - Job $cluster.$job executed successfully!\n",1);
+			print "Good - Job $cluster.$job executed successfully!\n";
 			
 		##
 		## The job was suppose to fail and never run
@@ -361,7 +360,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			return (0);
 		}
 		
-		CondorTest::debug("Good - Job $cluster.$job failed to run when it was suppose to!\n",1);
+		print "Good - Job $cluster.$job failed to run when it was suppose to!\n";
 		
 		##
 		## Remove the job
@@ -374,7 +373,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my $cmd = "condor_rm $cluster";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 		if ( !$status ) {
-			CondorTest::debug("ERROR: Test failure due to Condor Tool Failure<$cmd>\n",1);
+			print "ERROR: Test failure due to Condor Tool Failure<$cmd>\n";
 			return(0);
 		}
 		return (1);
@@ -394,12 +393,12 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		## Make sure this was meant to happen
 		## 
 		if ( $ABORTING ) {
-			CondorTest::debug("Good - Job $cluster.$job is being removed after being held.\n",1);
+			print "Good - Job $cluster.$job is being removed after being held.\n";
 		##
 		## Bad mojo!
 		##
 		} else {
-			CondorTest::debug("Bad - Job $cluster.$job received an unexpected abort event.\n",1);
+			print "Bad - Job $cluster.$job received an unexpected abort event.\n";
 			exit(1);
 		}
 	};
@@ -413,7 +412,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		$cluster = $info{"cluster"};
 		$job = $info{"job"};
 	
-		CondorTest::debug("Good - Job $cluster.$job was submitted!\n",1);
+		print "Good - Job $cluster.$job was submitted!\n";
 		
 		##
 		## To help improve the chances of our job running, we're going 
@@ -424,16 +423,16 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my $cmd = "condor_reschedule";
 		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
 		if ( !$status ) {
-			CondorTest::debug("Test failure due to Condor Tool Failure <$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure <$cmd>\n";
 			exit(1);
 		}
 		my $cmd = "condor_q -anal";
 		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
 		if ( !$status ) {
-			CondorTest::debug("Test failure due to Condor Tool Failure <$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure <$cmd>\n";
 			exit(1);
 		}
-		CondorTest::debug("Output from condor_q:\n".join("\n", @adarray)."\n",1);
+		print "Output from condor_q:\n".join("\n", @adarray)."\n";
 	};
 		
 	##
@@ -444,7 +443,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		$cluster = $info{"cluster"};
 		$job = $info{"job"};
 		
-		CondorTest::debug("Bad - Job $cluster.$job never began execution! Removing...\n",1);
+		print "Bad - Job $cluster.$job never began execution! Removing...\n";
 		
 		##
 		## Remove the job from the queue
@@ -454,7 +453,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		my $cmd = "condor_rm $cluster";
 		$status = CondorTest::runCondorTool($cmd, \@adarray, 2);
 		if ( !$status ) {
-			CondorTest::debug("Test failure due to Condor Tool Failure <$cmd>\n",1);
+			print "Test failure due to Condor Tool Failure <$cmd>\n";
 			exit(1);
 		}
 		return (0);
@@ -472,7 +471,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	## This callback is to make sure our job actually runs
 	## Sometimes the job fails to match and execute.
 	##
-	CondorTest::RegisterTimed( $test, $timeout, abs($delta * 8) );
+	CondorTest::RegisterTimed( $test, $timeout, abs($delta * 2) );
 	
 	##
 	## Kind of a hack
@@ -483,10 +482,10 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	$ABORTING = 0;
 	if( CondorTest::RunTest( $test, $cmdFile, 0)) {
 		if ($testFailure) {
-			CondorTest::debug("$test: CondorTest::RunTest() failed - $testFailure\n",1);
-			$success = 0;
+			print "$test: CondorTest::RunTest() failed - $testFailure\n";
+			$success = false;
 		} else {
-			CondorTest::debug("$test: SUCCESS\n",1);
+			print "$test: SUCCESS\n";
 		}
 	} else {
 		die "$testname: CondorTest::RunTest() failed\n";
@@ -526,9 +525,7 @@ sub extractExecuteTime {
     	## executed by the starter. We always want the last time 
     	## that may be in the logfile
     	##
-		print "consider line: $_";
     	if ( $_ =~ /^001\s+\(.*\)\s+(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/ ) {
-			print "Found execution line: $_";
     		$month  = $1;
     		$day    = $2;
     		$hour   = $3;
@@ -546,8 +543,8 @@ sub extractExecuteTime {
 	(undef, undef, undef, undef, undef, $year, undef, undef, $isdst) = localtime(time); 
 	$timestamp = mktime($second, $minute, $hour, $day, $month - 1, $year, 0, 0, $isdst);
     
-    print "$month/$day/".($year + 1900)." $hour:$minute:$second\n";
-    print "RUN TIME: $timestamp\n";
+    #print "$month/$day/".($year + 1900)." $hour:$minute:$second\n";
+    #print "RUN TIME: $timestamp\n";
     return ($timestamp);
 };
 

@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_err_van.cmd';
-$testdesc =  'Condor_submit correctly uses error file - vanilla U';
-$testname = "job_core_err_van";
+$testname = 'Condor_submit correctly uses error file - vanilla U';
 
 $success = sub 
 {
@@ -38,17 +37,17 @@ $died = sub
 	my $expectedsig = $info{"job"}+1;
 	my $gotsig      = $info{"signal"};
 	my $error 		= $info{"error"};
-	CondorTest::debug("Good, an error as expected.\n",1);
+	print "Good, an error as expected.\n";
 	if(! -f $error )
 	{
 		die "Specified error file -$error- fails to exist\n";
 	}
 	else
 	{
-		CondorTest::debug("Error file $error created as expected\n",1);
+		print "Error file $error created as expected\n";
 		if( -s $error )
 		{
-			CondorTest::debug("Good file not empty!\n",1);
+			print "Good file not empty!\n";
 		}
 		else
 		{
@@ -61,7 +60,7 @@ CondorTest::RegisterExitedFailure( $testname, $died );
 CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -45,7 +45,7 @@ class VMProc : public OsProc
 		// create new vmgahp server and send a VM_START command
 		virtual int StartJob();
 
-		virtual bool JobReaper(int pid, int status);
+		virtual int JobCleanup(int pid, int status);
 
 		virtual bool JobExit(void);
 
@@ -132,6 +132,7 @@ class VMProc : public OsProc
 
 		MyString m_vm_type;
 		MyString m_vmgahp_server;
+		MyString m_vmgahp_config;
 
 		bool m_vm_checkpoint;
 		bool m_is_vacate_ckpt;

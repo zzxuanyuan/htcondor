@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_killsignal_java.cmd';
-$testdesc =  'Condor allows change of kill signal - java U';
-$testname = "job_core_killsignal_java";
+$testname = 'Condor allows change of kill signal - java U';
 
 my $killedchosen = 0;
 
@@ -45,15 +44,15 @@ $aborted = sub {
 	my $gotsig   = $info{"signal"};
 	my $outfile = $info{"output"};
 	my $killsig = $info{"kill_sig"};
-	CondorTest::debug("Want to see $killsig in this file $outfile\n",1);
+	print "Want to see $killsig in this file $outfile\n";
 	open( FILE, "<$outfile" ) || die "error opening $file: $!\n";
 	while(<FILE>)
 	{
 		CondorTest::fullchomp($_);
-		CondorTest::debug("Found $_\n",1);
+		print "Found $_\n";
 		if($_ eq $killsig)
 		{
-			CondorTest::debug("Good\n",1);
+			print "Good\n";
 			return;
 		}
 		else
@@ -74,7 +73,7 @@ $executed = sub
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 };
@@ -84,7 +83,7 @@ CondorTest::RegisterExitedAbnormal( $testname, $abnormal );
 CondorTest::RegisterAbort         ( $testname, $aborted );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

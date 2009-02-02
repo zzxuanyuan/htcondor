@@ -142,11 +142,6 @@ public:
 		// for printing useful warning messages 
 	int                  getDatabaseVersion();
 
-		// BulkData
-
-	QuillErrCode		sendBulkData(const char *);
-	QuillErrCode		sendBulkDataEnd();
-
 private:
 	PGconn		         *connection;	//!< connection object
 	PGresult	         *queryRes; 	//!< result for general query

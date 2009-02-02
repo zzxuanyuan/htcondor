@@ -22,8 +22,7 @@ use CondorTest;
 
 $cmd = 'job_core_niceuser_van.cmd';
 my $datafile = 'job_core_niceuser_van.data';
-$testdesc =  'condor_submit output works - vanilla U';
-$testname = "job_core_niceuser_van";
+$testname = 'condor_submit output works - vanilla U';
 
 my @sdata =
 (
@@ -68,7 +67,7 @@ system("touch job_core_niceuser_van.data");
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

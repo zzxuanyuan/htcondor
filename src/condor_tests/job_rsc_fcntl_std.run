@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_rsc_fcntl_std.cmd';
-$testdesc =  'Fcntl Test';
-$testname = "job_rsc_fcntl_std";
+$testname = 'Fcntl Test';
 
 $foo = <<"_EOX";
 F_GETFD gives: 0
@@ -34,20 +33,16 @@ F_GETFL gives: 1	(should be 1)
 F_DUPFD returns: 5 with arg = 5
 _EOX
 
-my @expected_output = split '\n', $foo;
+@CondorTest::expected_output = split '\n', $foo;
 
-my @skipped_output_lines = (1);
+@CondorTest::skipped_output_lines = (1);
 # Line 1: 'Filedes = 32', so we don't know what fd we're going to get
-
-CondorTest::SetExpected(\@expected_output);
-CondorTest::SetSkipped(\@skipped_output_lines);
-
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

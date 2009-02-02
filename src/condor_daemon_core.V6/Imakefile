@@ -12,6 +12,12 @@ FIX_BROKEN_GCC =
 #endif
 #endif
 
+#if HAS_PURIFY
+PURIFY_FLAG = -DHAS_PURIFY
+#else
+PURIFY_FLAG =
+#endif
+
 #if HAVE_EXT_GSOAP
 GSOAP_OBJS = soap_core.o httpget.o
 #endif
@@ -21,10 +27,9 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(FIX_BROKEN_GCC) $(PURIFY_FLAG) $(GSOAP_FLAG
 LIB = $(STD_LIBS) $(CONFIGURE_GSOAP_LDFLAGS)
 
 OBJ = $(GSOAP_OBJS) timer_manager.o daemon_core.o daemon_core_main.o \
-  condor_perms.o \
+  daemon_core_instantiate.o condor_ipverify.o condor_perms.o \
   condor_lock_base.o condor_lock_implementation.o condor_lock_file.o \
-  condor_lock.o self_monitor.o datathread.o self_draining_queue.o \
-  HookClient.o HookClientMgr.o ccb_listener.o
+  condor_lock.o self_monitor.o datathread.o self_draining_queue.o
 
 library_target(daemon_core.a,$(OBJ))
 c_plus_target(testit,test_daemon_core.o daemon_core.a,$(LIB))
@@ -35,14 +40,13 @@ stripped:: all
 static:: all
 
 #if HAVE_EXT_GSOAP
-soap_core.cpp:: ../condor_includes/stdsoap2.h
+soap_core.C:: ../condor_includes/stdsoap2.h
 ../condor_includes/stdsoap2.h:
 	cp $(GSOAP_DIR)/include/stdsoap2.h ../condor_includes/
 	patch -p0 -d ../condor_includes < stdsoap2.h.patch
 #endif
 
 IMPORT_LINKS = ../../config/import_links
-import_objs(../condor_util_lib,condor_perms.o)
-import_objs(../ccb,ccb_listener.o)
+import(../condor_util_lib,condor_perms.o)
 
 testbin:: all

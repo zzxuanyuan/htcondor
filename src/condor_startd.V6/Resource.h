@@ -28,13 +28,12 @@
 #include "LoadQueue.h"
 #include "AvailStats.h"
 #include "cod_mgr.h"
-#include "IdDispenser.h"
 
 
 class Resource : public Service
 {
 public:
-	Resource( CpuAttributes*, int, Resource* _parent = NULL);
+	Resource( CpuAttributes*, int );
 	~Resource();
 
 		// Public methods that can be called from command handlers
@@ -54,9 +53,6 @@ public:
 		// Quickly kill starter but keep claim
 	int		deactivate_claim_forcibly( void );
 
-		// Tell the starter to put the job on hold
-	void hold_job();
-
 		// True if no more jobs will be accepted on the current claim.
 	bool curClaimIsClosing();
 
@@ -69,11 +65,7 @@ public:
 	int		releaseAllClaims( void );
 	int		killAllClaims( void );
 
-        // Enable/Disable claims for hibernation
-    void    disable ();
-    void    enable ();
-
-    // Resource state methods
+		// Resource state methods
 	void	set_destination_state( State s ) { r_state->set_destination(s);};
 	State	destination_state( void ) {return r_state->destination();};
 	int		change_state( State s ) {return r_state->change(s);};
@@ -96,7 +88,6 @@ public:
 		// Methods for computing and publishing resource attributes 
 	void	compute( amask_t mask);
 	void	publish( ClassAd*, amask_t );
-	void    publish_private( ClassAd *ad );
     void	publishDeathTime( ClassAd* cap );
 	void	publishSlotAttrs( ClassAd* );
 	void	refreshSlotAttrs( void );
@@ -138,13 +129,6 @@ public:
 
 	Claim*	newCODClaim( int lease_duration );
 
-
-		/**
-		   Try to finish accepting a pending claim request.
-		   @return true if we accepted and began a claim, false if not.
-		*/
-	bool	acceptClaimRequest();
-
 		// Called when the starter of one of our claims exits
 	void	starterExited( Claim* cur_claim );	
 
@@ -160,18 +144,14 @@ public:
 	int		init_classad( void );		
 	void	refresh_classad( amask_t mask );	
 	int		force_benchmark( void );
-	int		reconfig( void );
 
 	int		update( void );		// Schedule to update the central manager.
 	int		do_update( void );			// Actually update the CM
-    int     update_with_ack( void );    // Actually update the CM and wait for an ACK
-    void    publish_for_update ( ClassAd *public_ad ,ClassAd *private_ad );
 	int		eval_and_update( void );	// Evaluate state and update CM. 
 	void	final_update( void );		// Send a final update to the CM
 									    // with Requirements = False.
 
  		// Helper functions to evaluate resource expressions
-	int     wants_hold( void );         // Default's to FALSE on undefined
 	int		wants_vacate( void );		// EXCEPT's on undefined
 	int		wants_suspend( void );		// EXCEPT's on undefined
 	int		wants_pckpt( void );		// Defaults to FALSE on undefined
@@ -182,7 +162,6 @@ public:
 	int		eval_is_owner( void );		// EXCEPT's on undefined
 	int		eval_start( void );			// returns -1 on undefined
 	int		eval_cpu_busy( void );		// returns FALSE on undefined
-	bool	willingToRun( ClassAd* request_ad );
 
 #if HAVE_BACKFILL
 	int		eval_start_backfill( void ); 
@@ -191,24 +170,6 @@ public:
 	bool	softkill_backfill( void );
 	bool	hardkill_backfill( void );
 #endif /* HAVE_BACKFILL */
-
-#if HAVE_JOB_HOOKS
-	bool	tryFetchWork( void );
-	void	createOrUpdateFetchClaim( ClassAd* job_ad, float rank = 0 );
-	bool	spawnFetchedWork( void );
-	void	terminateFetchedWork( void );
-	void	startedFetch( void );
-	void	fetchCompleted( void );
-		/**
-		   Find the keyword to use for the given resource/slot.
-		   @return Hook keyword to use, or NULL if none.
-		*/
-	char* getHookKeyword();
-#endif /* HAVE_JOB_HOOKS */
-
-#if HAVE_HIBERNATION
-	bool	evaluateHibernate( MyString &state ) const;
-#endif /* HAVE_HIBERNATION */
 
 	bool    claimWorklifeExpired();
 	int		retirementExpired( void );
@@ -230,7 +191,6 @@ public:
 	LoadQueue*		r_load_queue;  // Holds 1 minute avg % cpu usage
 	char*			r_name;		// Name of this resource
 	int				r_id;		// CPU id of this resource (int form)
-	int				r_sub_id;	// Sub id of this resource (int form)
 	char*			r_id_str;	// CPU id of this resource (string form)
 	AvailStats		r_avail_stats; // computes resource availability stats
 	int             prevLHF;
@@ -239,29 +199,7 @@ public:
 
 	char const *executeDir() { return r_attr->executeDir(); }
 
-		// Types: STANDARD is the slot everyone knows and loves;
-		// PARTITIONABLE is a slot that never runs jobs itself,
-		// instead it spawns off DYNAMIC slots as claims arrive;
-		// DYNAMIC is a slot that only runs jobs, it is created by a
-		// PARTITIONABLE slot
-	enum ResourceFeature {
-		STANDARD_SLOT,
-		PARTITIONABLE_SLOT,
-		DYNAMIC_SLOT
-	};
-
-	void	set_feature( ResourceFeature feature ) { m_resource_feature = feature; }
-	ResourceFeature	get_feature( void ) { return m_resource_feature; }
-
-	void set_parent( Resource* rip );
-
 private:
-	ResourceFeature m_resource_feature;
-
-	Resource*	m_parent;
-
-	IdDispenser* m_id_dispenser;
-
 	int			update_tid;	// DaemonCore timer id for update delay
 	unsigned	update_sequence;	// Update sequence number
 
@@ -282,20 +220,6 @@ private:
 
 	MyString m_execute_dir;
 	MyString m_execute_partition_id;
-
-#if HAVE_JOB_HOOKS
-	time_t	m_last_fetch_work_spawned;
-	time_t	m_last_fetch_work_completed;
-	bool	m_currently_fetching;
-	int		m_next_fetch_work_delay;
-	int		m_next_fetch_work_tid;
-	int		evalNextFetchWorkDelay( void );
-	void	createFetchClaim( ClassAd* job_ad, float rank = 0 );
-	void	resetFetchWorkTimer( int next_fetch = 0 );
-	char*	m_hook_keyword;
-	bool	m_hook_keyword_initialized;
-#endif /* HAVE_JOB_HOOKS */
-
 };
 
 

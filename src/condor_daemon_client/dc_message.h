@@ -17,54 +17,6 @@
  *
  ***************************************************************/
 
-/*
-
-The classes here are all for communicating via message objects.  The
-basic idea is to provide some structure so that details of how the
-messages are delivered (e.g. asynchronous/synchronous) are easy to
-change without rewriting lots of code.
-
-To create a new type of message, derive a class from DCMsg.  Override
-the virtual functions for reading/writing data to the stream.  If
-necessary, override functions for handling events such as "message
-sent" or "send failed".  For example, once the message is sent, you could
-tell it to asynchronously receive a reply message.
-
-To use a message class, instantiate it, set the callback function (if
-desired), and send it, using Daemon::sendMsg().  Example:
-
-	// Create startd daemon object and RELEASE_CLAIM message
-	// using classy_counted_ptr, just to make it clear that
-	// these objects will be garbage collected automatically.
-	// In this example, we use a generic "string" message, but
-	// in other cases, a specially defined message type may be needed.
-	classy_counted_ptr<DCStartd> startd = new DCStartd( startd_addr );
-	classy_counted_ptr<DCStringMsg> msg = new DCStringMsg(
-	    RELEASE_CLAIM,
-	    claim_id );
-
-	// Log successful delivery at D_ALWAYS
-	// (Failure is D_ALWAYS by default.)
-	msg->setSuccessDebugLevel(D_ALWAYS);
-
-
-	// If we need to be called back after successful/failed delivery,
-	// register a callback function.
-	msg->setCallback( new DCMsgCallback(
-	    (DCMsgCallback::CppFunction)&MyClass::MyCallbackFunction,
-	    this ) );
-
-
-	// Send the message to the startd asynchronously, using TCP.
-	msg->setStreamType( Stream::reli_sock );
-	msg->setTimeout( STARTD_CONTACT_TIMEOUT );
-	startd->sendMsg( msg.get() );
-
-
-	// To cancel a message that is waiting on asynchronous events, use
-	// cancelMessage() on either the message or callback object.
-*/
-
 
 #ifndef DC_MESSAGE_H
 #define DC_MESSAGE_H
@@ -75,12 +27,13 @@ desired), and send it, using Daemon::sendMsg().  Example:
  */
 class DCMessenger;
 class DCMsg;
-class DCMsgCallback;
 
 #include "daemon.h"
 #include "classy_counted_ptr.h"
 #include "dc_service.h"
 
+class DCMessenger;
+class DCMsg;
 
 /*
   This is a base class for sending CEDAR commands.  By default, the
@@ -93,33 +46,6 @@ public:
 	DCMsg(int cmd);
 	virtual ~DCMsg();
 
-		// CEDAR connection parameters
-		// Use TCP by default.
-	void setStreamType(Stream::stream_type st=Stream::reli_sock) {
-		m_stream_type = st;
-	}
-		// Timeout to use on each network operation
-		// The special value 0 means no timeout.
-	void setTimeout(int timeout=DEFAULT_CEDAR_TIMEOUT) {
-		m_timeout = timeout;
-	}
-		// Set to true to use raw CEDAR protocol with no security negotiation
-	void setRawProtocol(bool raw_protocol=false) {
-		m_raw_protocol=raw_protocol;
-	}
-
-	void setSecSessionId(char const *sesid=NULL) {
-		m_sec_session_id = sesid ? sesid : "";
-	}
-
-	Stream::stream_type getStreamType() {return m_stream_type;}
-	int getTimeout() {return m_timeout;}
-	bool getRawProtocol() {return m_raw_protocol;}
-	char const *getSecSessionId() {
-		return m_sec_session_id.Value()[0] ? m_sec_session_id.Value() : NULL;
-	}
-
-
 	enum MessageClosureEnum {
 		MESSAGE_FINISHED,  // tells DCMessenger that sock may be closed
 		MESSAGE_CONTINUING // tells DCMessenger not to close sock
@@ -128,15 +54,8 @@ public:
 	enum DeliveryStatus {
 		DELIVERY_PENDING,
 		DELIVERY_SUCCEEDED,
-		DELIVERY_FAILED,
-		DELIVERY_CANCELED
+		DELIVERY_FAILED
 	};
-
-		/* sets the callback function to call when MESSAGE_FINISHED
-		   is returned by one of the message closure functions */
-	void setCallback(classy_counted_ptr<DCMsgCallback> cb);
-
-	void doCallback();
 
 		/* writeMsg() is called by DCMessenger once sock is ready to
 		   receive data.
@@ -185,15 +104,6 @@ public:
 		/* override default debug level (D_ALWAYS|D_FAILURE) */
 	void setFailureDebugLevel(int level) {m_msg_failure_debug_level = level;}
 
-		/* override default debug level (0 --> never) */
-	void setCancelDebugLevel(int level) {m_msg_cancel_debug_level = level;}
-
-	int successDebugLevel() {return m_msg_success_debug_level;}
-
-	int failureDebugLevel() {return m_msg_failure_debug_level;}
-
-	int cancelDebugLevel() {return m_msg_cancel_debug_level;}
-
 		/* add an error message to the error stack */
 	void addError( int code, char const *format, ... );
 
@@ -204,33 +114,17 @@ public:
 	DeliveryStatus deliveryStatus() {return m_delivery_status;}
 
 		/* sets msg delivery status */
-	void deliveryStatus(DeliveryStatus s);
-
-		/* Stop any pending operations related to this message.
-		   The callback (if any) will still be called.  The delivery status
-		   will be set to DELIVERY_CANCELED.
-		*/
-	virtual void cancelMessage();
+	void deliveryStatus(DeliveryStatus s)
+		{m_delivery_status = s;}
 
 	friend class DCMessenger;
 private:
 	int m_cmd;
-	char const *m_cmd_str;
-	MyString m_cmd_str_buf;
-	classy_counted_ptr<DCMsgCallback> m_cb;
 	int m_msg_success_debug_level;
 	int m_msg_failure_debug_level;
-	int m_msg_cancel_debug_level;
 	CondorError m_errstack;
+	DCMessenger *m_messenger_callback_ref;
 	DeliveryStatus m_delivery_status;
-	classy_counted_ptr<DCMessenger> m_messenger;
-
-		// CEDAR connection parameters
-	Stream::stream_type m_stream_type;
-	int m_timeout;
-	bool m_raw_protocol;
-	MyString m_sec_session_id;
-
 
 	void connectFailure( DCMessenger *messenger );
 
@@ -240,20 +134,9 @@ private:
 				DCMessenger *messenger, Sock *sock );
 	MessageClosureEnum callMessageReceived(
 				DCMessenger *messenger, Sock *sock );
-
-	void setMessenger( DCMessenger *messenger );
 };
 
-/*
- DCMessenger - a class for managing sending/receiving DCMsg objects
-               over a socket either synchronously, or asynchronously.
-               An instance of DCMessenger is used internally by
-               Daemon::sendMsg(), so the code that deals at a higher
-               layer with messages may never need to be aware of this
-               class.
- */
-
-class DCMessenger: public Service, public ClassyCountedPtr {
+class DCMessenger: public ClassyCountedPtr, public Service {
 public:
 		// This constructor is intended for use on the sending side,
 		// where the peer is represented by a Daemon object.
@@ -264,25 +147,27 @@ public:
 
 		// This constructor is intended for use on the receiving end
 		// of a connection, where the peer is represented by an
-		// existing sock, rather than a Daemon object.
-	DCMessenger( classy_counted_ptr<Sock> sock );
+		// existing sock, rather than a Daemon object.  This class
+		// assumes ownership of sock and will delete it when the class
+		// is destroyed.
+	DCMessenger( Sock *sock );
 
 	~DCMessenger();
 
 		// Start a command, doing a non-blocking connection if necessary.
 		// This operation calls inc/decRefCount() to manage garbage collection
 		// of this messenger object as well as the message object.
-	void startCommand( classy_counted_ptr<DCMsg> msg );
+	void startCommand( classy_counted_ptr<DCMsg> msg, Stream::stream_type st = Stream::reli_sock, int timeout = 0 );
 
 		// Like startCommand(), except set a timer for delay seconds
 		// before starting the command.
-	void startCommandAfterDelay( unsigned int delay, classy_counted_ptr<DCMsg> msg );
+	void startCommandAfterDelay( unsigned int delay, classy_counted_ptr<DCMsg> msg, Stream::stream_type st = Stream::reli_sock, int timeout = 0 );
 
 		// Send a message from beginning to end, right now.  By the time
 		// this command returns, the message delivery status should be
 		// set to success/failure, and the message delivery hooks will
 		// have been called.
-	void sendBlockingMsg( classy_counted_ptr<DCMsg> msg );
+	void sendBlockingMsg( classy_counted_ptr<DCMsg> msg, Stream::stream_type st = Stream::reli_sock, int timeout = 0 );
 
 		// Registers this messenger to receive notice when a message arrives
 		// on this socket and then call msg->readMsg() when one does.
@@ -305,7 +190,6 @@ public:
 		// Returns information about who we are talking to.
 	char const *peerDescription();
 
-	friend class DCMsg;
 private:
 		// This is called by DaemonClient when startCommand has finished.
 	static void connectCallback(bool success, Sock *sock, CondorError *errstack, void *misc_data);
@@ -319,67 +203,10 @@ private:
 		// Delete a sock unless it happens to be m_sock.
 	void doneWithSock(Stream *sock);
 
-		// Cancel a non-blocking operation such as startCommand()
-		// or startReceiveMsg().  The appropriate failure callback
-		// for the current operation will be called:
-		// messageSendFailed() or messageReceiveFailed().
-	void cancelMessage( classy_counted_ptr<DCMsg> msg );
-
 	classy_counted_ptr<Daemon> m_daemon; // our daemon client object (if any)
-	classy_counted_ptr<Sock> m_sock;     // otherwise, we just have a socket
+	Sock *m_sock;         // otherwise, we will just have a socket
 
-	classy_counted_ptr<DCMsg> m_callback_msg; // The current message waiting for a callback.
-	Sock *m_callback_sock; // The current sock waiting for a callback.
-	enum pending_operation_enum {
-		NOTHING_PENDING,
-		START_COMMAND_PENDING,
-		RECEIVE_MSG_PENDING
-	} m_pending_operation;
-};
-
-
-/*
-  DCMsgCallback - a class for registering a function to be called when
-  a message has been delivered.
- */
-
-class DCMsgCallback: public ClassyCountedPtr {
- public:
-	typedef void (Service::*CppFunction)(DCMsgCallback *cb);
-
-		// As needed, additional constructors should be added to handle
-		// other types of callback functions.
-	DCMsgCallback(CppFunction fn,Service *service,void *misc_data=NULL);
-
-	virtual void doCallback();
-
-	void setMiscDataPtr(void *misc_data) {m_misc_data = misc_data;}
-	void *getMiscDataPtr() {return m_misc_data;}
-
-	DCMsg *getMessage() {return m_msg.get();}
-
-		/* Call the message's cancelMessage() function.
-		   The callback (if any) will still be called.  The delivery status
-		   will be set to DELIVERY_CANCELED.
-		*/
-	void cancelMessage();
-
-		/* When message finishes (or is canceled), do not call
-		   the callback function.  If the class object to which
-		   the callback function belongs is being deleted, this
-		   method should be called.
-		*/
-	void cancelCallback();
-
-	friend class DCMsg;
- private:
-	CppFunction m_fn_cpp;
-	Service *m_service;
-	void *m_misc_data;
-	classy_counted_ptr<DCMsg> m_msg;
-
-		// This is called by DCMsg::setMessage().
-	void setMessage(classy_counted_ptr<DCMsg> msg) {m_msg = msg;}
+	classy_counted_ptr<DCMsg> m_current_msg; // The current message waiting for a callback.
 };
 
 
@@ -396,19 +223,6 @@ public:
 
 private:
 	MyString m_str;
-};
-
-class ClassAdMsg: public DCMsg {
-public:
-	ClassAdMsg(int cmd, ClassAd &msg);
-
-	bool writeMsg( DCMessenger *messenger, Sock *sock );
-	bool readMsg( DCMessenger *messenger, Sock *sock );
-
-	ClassAd &getMsgClassAd() { return m_msg; }
-
-private:
-	ClassAd m_msg;
 };
 
 

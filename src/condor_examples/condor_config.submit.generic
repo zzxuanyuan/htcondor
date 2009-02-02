@@ -607,15 +607,17 @@ GRIDMANAGER_MAX_JOBMANAGERS_PER_RESOURCE = 10
 #GRDIMANAGER_MINIMUM_PROXY_TIME  = 180
 
 ## Condor requires that each submitted job be designated to run under a
-## particular "universe". 
+## particular "universe". Condor-G is active when jobs are as marked as
+## "GLOBUS" universe jobs. The universe of a job is set in the submit file
+## with the 'universe = GLOBUS' line.
 ##
 ## If no universe is specificed in the submit file, Condor must pick one
-## for the job to use. By default, it chooses the "vanilla" universe.
+## for the job to use. By default, it chooses the "standard" universe.
 ## The default can be overridden in the config file with the DEFAULT_UNIVERSE
 ## setting, which is a string to insert into a job submit description if the
 ## job does not try and define it's own universe
 ##
-#DEFAULT_UNIVERSE = vanilla
+#DEFAULT_UNIVERSE = globus
 
 #
 # The Cred_min_time_left is the first-pass at making sure that Condor-G
@@ -648,6 +650,17 @@ C_GAHP_LOG = /tmp/CGAHPLog.$(USERNAME)
 C_GAHP_LOCK = /tmp/CGAHPLock.$(USERNAME)
 C_GAHP_WORKER_THREAD_LOG = /tmp/CGAHPWorkerLog.$(USERNAME)
 C_GAHP_WORKER_THREAD_LOCK = /tmp/CGAHPWorkerLock.$(USERNAME)
+
+##
+## The location of the wrapper for invoking
+## GT3 GAHP server
+##
+GT3_GAHP = $(SBIN)/gt3_gahp
+
+##
+## The location of GT3 files. This should normally be lib/gt3
+##
+GT3_LOCATION = $(LIB)/gt3
 
 ##
 ## The location of the wrapper for invoking

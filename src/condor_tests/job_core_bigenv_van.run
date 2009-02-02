@@ -23,8 +23,7 @@ use CondorTest;
 use File::Path;
 
 $cmd = 'job_core_bigenv_van.cmd';
-$testdesc =  'bigenv (vanilla) Test';
-$testname = "job_core_bigenv_van";
+$testname = 'bigenv (vanilla) Test';
 
 umask 0;
 
@@ -47,7 +46,7 @@ $OutputTest = sub
 CondorTest::RegisterExitedSuccess( $testname, $OutputTest);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

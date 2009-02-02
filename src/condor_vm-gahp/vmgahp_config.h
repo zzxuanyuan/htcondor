@@ -32,7 +32,10 @@ class VMGahpConfig {
 		VMGahpConfig(const VMGahpConfig& old); // copy constructor
 		VMGahpConfig& operator=(const VMGahpConfig& old);
 
-		bool init(const char* vmtype);
+		bool init(const char* vmtype, const char* configfile);
+		bool isAllowUser(const char* user);
+
+		StringList m_allow_user_list;
 
 		MyString m_vm_type;
 		MyString m_vm_version;
@@ -47,6 +50,8 @@ class VMGahpConfig {
 
 		MyString m_prog_for_script; // program to execute a below script(perl etc.)
 		MyString m_vm_script; // Script program for virtual machines
+		MyString m_configfile; // gahp configuration file
+		MyString m_controller; // This field is used for Xen
 };
 
 #endif /* VM_GAHP_CONFIG_H */

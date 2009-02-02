@@ -99,14 +99,8 @@ class ParamValue {
 	extern StringList local_config_sources;
 
 	ExtArray<ParamValue>* param_all(void);
-	char* param_or_except( const char *name );
     int param_integer( const char *name, int default_value,
 					   int min_value = INT_MIN, int max_value = INT_MAX );
-	// Alternate param_integer():
-	bool param_integer( const char *name, int &value,
-						bool use_default, int default_value,
-						bool check_ranges = true,
-						int min_value = INT_MIN, int max_value = INT_MAX );
     double param_double( const char *name, double default_value,
 					   double min_value = DBL_MIN, double max_value = DBL_MAX );
 	bool param_boolean( const char *name, const bool default_value, bool do_log = true );
@@ -114,30 +108,17 @@ class ParamValue {
 	bool param_get_location(const char *parameter, MyString &filename,
 							int &line_number);
 
-	/** Look up a value by the name 'name' from the table 'table' which is table_size big.
-	
-	Values should have been inserted with insert() (above).
-	Treats name case insensitively.  Returns NULL if the name isn't in the
-	table.  On success returns a pointer to the associated value.  The
-	value is owned by the table; do not free it.
-	*/
-	char * lookup_macro ( const char *name, BUCKET *table[], int table_size );
-
-	/*This is a faster version of lookup_macro that assumes the param name
-	  has already been converted to the canonical lowercase form.*/
-	char * lookup_macro_lower( const char *name, BUCKET **table, int table_size );
-
 /* here we provide C linkage to C++ defined functions. This seems a bit
 	odd since if a .c file includes this, these prototypes technically don't
 	exist.... */
 extern "C" {
-	void config( int wantsQuiet=0 , bool ignore_invalid_entry = false, bool wantsExtra = true );
+	void config( int wantsQuiet=0 , bool ignore_invalid_entry = false );
 	void config_host( char* host=NULL );
-	void config_fill_ad( ClassAd*, const char *prefix = NULL );
+	void config_fill_ad( ClassAd*, const char* prefix=NULL );
 	void condor_net_remap_config( bool force_param=false );
 	int param_integer_c( const char *name, int default_value,
 					   int min_value, int max_value);
-    int  param_boolean_int( const char *name, int default_value );
+    int  param_boolean_int( const char *name, int default_value );  
 	int  set_persistent_config(char *admin, char *config);
 	int  set_runtime_config(char *admin, char *config);
 	/** Expand parameter references of the form "left$(middle)right".  
@@ -251,27 +232,25 @@ BEGIN_C_DECLS
 	*/
 	void set_macro_used ( const char *name, int used, BUCKET *table[], int table_size );
 
+	/** Look up a value by the name 'name' from the table 'table' which is table_size big.
+	
+	Values should have been inserted with insert() (above).
+	Treats name case insensitively.  Returns NULL if the name isn't in the
+	table.  On success returns a pointer to the associated value.  The
+	value is owned by the table; do not free it.
+	*/
+	char * lookup_macro ( const char *name, BUCKET *table[], int table_size );
+
 	/*
 	As expand_macro() (above), but assumes the table 'ConfigTab' which is
 	of size TABLESIZE.
 	*/
 	char * macro_expand ( const char *name );
-	void init_config ( bool );
+	void init_config ( void );
 	void clear_config ( void );
-	void set_debug_flags( const char * );
+	void set_debug_flags( char * );
 	void config_insert( const char*, const char* );
 	int  param_boolean_int( const char *name, int default_value );  
-
-/* This function initialize GSI (maybe other) authentication related
-   stuff Daemons that should use the condor daemon credentials should
-   set the argument is_daemon=true.  This function is automatically
-   called at config init time with is_daemon=false, so that all
-   processes get the basic auth config.  The order of calls to this
-   function do not matter, as the results are only additive.
-   Therefore, calling with is_daemon=false and then with
-   is_daemon=true or vice versa are equivalent.
-*/
-void condor_auth_config(int is_daemon);
 
 END_C_DECLS
 

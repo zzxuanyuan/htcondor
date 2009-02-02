@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $cmd_template = "lib_eventlog.template";
-$testdesc =  'lib_eventlog - test dropping of events AND job ad attributes into event log' ;
-$testname = "lib_eventlog-xml";
+$testname = 'lib_eventlog - test dropping of events AND job ad attributes into event log' ;
 $cmd = "lib_eventlog.cmd";
 $corename = "lib_eventlog";
 
@@ -58,16 +59,16 @@ $mycorenmout = $corename . ".out";
 system("cp x_lib_eventlog-xml_config_postsrc.template x_lib_eventlog-xml_config_postsrc");
 
 # get a remote scheduler running (side b)
-my $configrem = CondorPersonal::StartCondor( "lib_eventlog-xml", "x_param.libeventlog-xml" ,"eventlog-xml");
+my $configrem = CondorPersonal::StartCondor("x_param.libeventlog-xml" ,"eventlog-xml");
 my @parallel = split /\+/, $configrem;
 my $parallelconfig = shift @parallel;
 my $parallelport = shift @parallel;
 
-CondorTest::debug("--- eventlog config is $parallelconfig and the port is $parallelport---\n",1);
+print "--- eventlog config is $parallelconfig and the port is $parallelport---\n";
 
 $ENV{CONDOR_CONFIG} = $parallelconfig;
 
-CondorTest::debug("Set config to $parallelconfig\n",1);
+print "Set config to $parallelconfig\n";
 
 
 #print "Looking for schedd for Basic Parallel Test\n";
@@ -110,14 +111,14 @@ close(CSUB);
 
 
 my $result = system("./lib_eventlog.pl $mysubmitnm");
-CondorTest::debug("Result of basic eventlog  test is  $result\n",1);
+print "Result of basic eventlog  test is  $result\n";
 
 if( $result == 0 ) {
 	# well did we get out the results into the log we wanted?
 	# determine where the log went
 	# run log reader and compare with expected values.
 
-	CondorTest::debug("Checking Results!!!\n",1);
+	print "Checking Results!!!\n";
 	my $elog = `condor_config_val EVENT_LOG`;
 	chomp($elog);
 	my $expected = "x_lib_eventlog.expected";
@@ -136,14 +137,14 @@ if( $result == 0 ) {
 	foreach $line (@got) {
 		my $desired = shift(@want);
 		if($desired ne $line) {
-			CondorTest::debug("Result Mismatch!:$desired ne $line!!!!\n",1);
+			print "Result Mismatch!:$desired ne $line!!!!\n";
 			$result = 1;
 			last;
 		} else {
 			#print "Result Match!:$desired eq $line!!!!\n";
 		}
 	}
-	CondorTest::debug("Results all Match! Test is a success.\n",1);
+	print "Results all Match! Test is a success.\n";
 }
 
 system("cp *lib_eventlog* $mysaveme");
@@ -163,14 +164,20 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($parallelconfig);
-system("date");
-
-if($result != 0)
+if( $result != 0 )
 {
-    # actuaal job failed but we allowed cleanup
-    exit(1);
+	exit(1);
 }
 
-CondorTest::debug("lib_eventlog-xml SUCCESS\n",1);
-exit(0);
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+system("date");
+

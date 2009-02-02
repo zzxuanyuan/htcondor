@@ -87,12 +87,11 @@ public:
 		// Job Actions
 		// // // // // // // // // // // //
 
-	virtual bool holdJob( const char*, int hold_reason_code, int hold_reason_subcode );
-
 		/** 
 		 * JICShadow does not need to implement these 
 		 * at this time
 		 **/ 
+	virtual bool holdJob( const char*, int /*hold_reason_code*/, int /*hold_reason_subcode*/ ) { return ( false ); }
 	virtual bool removeJob( const char* ) { return ( false ); }
 	virtual bool terminateJob( const char* ) { return ( false ); }
 	virtual bool requeueJob( const char* ) { return ( false ); }
@@ -100,6 +99,11 @@ public:
 		// // // // // // // // // // // //
 		// Job execution and state changes
 		// // // // // // // // // // // //
+
+		/** All jobs have been spawned by the starter.  Start a
+			timer to update the shadow periodically.
+		 */
+	void allJobsSpawned( void );
 
 		/** The starter has been asked to suspend.  Suspend file
 			transfer activity and notify the shadow.
@@ -111,10 +115,11 @@ public:
 		*/
 	void Continue( void );
 
-		/** Once all the jobs are done, and after the optional
-			HOOK_JOB_EXIT has returned, initiate the file transfer.
+		/** The last job this starter is controlling has exited.  Stop
+			the timer for updating the shadow, initiate the final file
+			transfer, if needed.
 		*/
-	bool transferOutput( void );
+	bool allJobsDone( void );
 
 		/** The last job this starter is controlling has been
    			completely cleaned up.  We don't care, since we just wait
@@ -160,16 +165,6 @@ public:
 	                         int hold_reason_code, int hold_reason_subcode);
 
 
-		/**
-		   Send a periodic update ClassAd to the shadow.
-
-		   @param update_ad Update ad to use if you've already got the info
-		   @param insure_update Should we insure the update gets there?
-		   @return true if success, false if failure
-		*/
-	virtual bool periodicJobUpdate(ClassAd* update_ad = NULL,
-								   bool insure_update = false);
-
 
 		// // // // // // // // // // // //
 		// Misc utilities
@@ -186,16 +181,7 @@ public:
 		*/
 	void addToOutputFiles( const char* filename );
 
-		/** Make sure the given filename will be excluded from the
-			list of files that the job sends back to the submitter.
-			If the file has already been added to the output list,
-			it is removed and added to the exception list; otherwise,
-			it is added to the exception list directly.
-			@param filename File to remove from the job's output list 
-		*/
-	void removeFromOutputFiles( const char* filename );
-
-		/** Send modified files in a job working directory 
+		/** Send modified files in a job working direcotry 
 		    to shadow by using file transfer
 		*/
 	bool uploadWorkingFiles(void);
@@ -216,6 +202,9 @@ private:
 		*/ 
 	bool publishUpdateAd( ClassAd* ad );
 
+		/// Start a timer for the periodic update to the shadow
+	void startUpdateTimer( void );
+
 		/** Send an update ClassAd to the shadow.  The "insure_update"
 			just means do we make sure the update gets there.  It has
 			nothing to do with the "insure" memory analysis tool.
@@ -229,6 +218,19 @@ private:
 			@param ad Update ad
 		 */
 	void updateStartd( ClassAd *ad, bool final_update );
+
+		/** Function to be called periodically to update the shadow.
+			We can't just register a timer to call UpdateShadow()
+			directly, since DaemonCore isn't passing any args to timer
+			handlers, and therefore, it doesn't know it's supposed to
+			honor the default argument we specified above.  So, we use
+			this seperate function to register for the periodic
+			updates, and this ensures that we use the UDP version of
+			UpdateShadow().  This returns an int just to keep
+			DaemonCore happy about the types.
+			@return TRUE on success, FALSE on failure
+		*/
+	int periodicShadowUpdate( void );
 
 		/** Read all the relevent attributes out of the job ad and
 			decide if we need to transfer files.  If so, instantiate a
@@ -359,10 +361,6 @@ private:
 		/// If the job ad says so, initialize our IO proxy
 	bool initIOProxy( void );
 
-		// If we are supposed to specially create a security session
-		// for file transfer and reconnect, do it.
-	void initMatchSecuritySession();
-
 		/** Compare our own UIDDomain vs. where the job came from.  We
 			check in the job ClassAd for ATTR_UID_DOMAIN and compare
 			it to info we have about the shadow and the local machine.
@@ -401,15 +399,13 @@ private:
 
 	FileTransfer *filetrans;
 
-		// specially made security sessions if we are doing
-		// SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION
-	char *m_filetrans_sec_session;
-	char *m_reconnect_sec_session;
-
 	/// if true, transfer files at vacate time (in addtion to job exit)
 	bool transfer_at_vacate;
 
 	bool wants_file_transfer;
+
+		/// timer id for periodically sending info on job to Shadow
+	int shadowupdate_tid;
 
 	char* uid_domain;
 	char* fs_domain;
@@ -424,16 +420,6 @@ private:
 	bool job_cleanup_disconnected;
 
 	Stream *m_job_startd_update_sock;
-
-		/** A list of output files that have been dynamically added
-		    (e.g. a core file dumped by the job)
-		*/
-	StringList m_added_output_files;
-
-		/** A list of files that should NOT be transfered back to the
-			job submitter. (e.g. the job's executable itself)
-		*/
-	StringList m_removed_output_files;
 };
 
 

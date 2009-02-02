@@ -95,10 +95,6 @@ public:
 		  Finally, you can pass in the name of the pool you want to
 		  query.  If you pass in a NULL (the default), we assume you
 		  want the local pool.
-
-		  WARNING: This code cannot implement the PRIVATE_NETWORK_NAME
-		  GCB optimization.
-
 		  @param type The type of the daemon, specified in a daemon_t
 		  @param name The name (or sinful string) of the daemon, NULL if you want local
 		  @param pool The name of the pool, NULL if you want local */
@@ -109,9 +105,6 @@ public:
 			and gets all the info out of that instead of having to
 			query a collector to locate it.  You can also optionally
 			pass in the name of the collector you got it from.
-
-		    This code automatically handles the PRIVATE_NETWORK_NAME
-		    GCB optimization.
 		*/
 	Daemon( const ClassAd* ad, daemon_t type, const char* pool );
 
@@ -290,27 +283,6 @@ public:
 	SafeSock* safeSock( int sec = 0, CondorError* errstack = 0,
 	                    bool non_blocking = false );
 
-		/**	Create a new Sock object connected to the daemon.
-		  Callers can optionally specify a timeout to use for the
-		  connect().  If there was a failure in connect(), we delete 
-		  the object and return NULL.
-		  @param sec Number of seconds for the timeout on connect().
-		  @return A new Sock object connected to the daemon.  
-		  */
-	Sock *makeConnectedSocket( Stream::stream_type st = Stream::reli_sock,
-							   int timeout = 0, CondorError* errstack = NULL,
-							   bool non_blocking = false );
-
-		/**	Connects a socket to the daemon.
-		  Callers can optionally specify a timeout to use for the
-		  connect().  If there was a failure in connect(), we delete 
-		  the object and return NULL.
-		  @param sec Number of seconds for the timeout on connect().
-		             (If 0, then uses timeout already set on socket, if any.)
-		  @return true if connection attempt successful
-		  */
-	bool connectSock(Sock *sock, int sec=0, CondorError* errstack=NULL, bool non_blocking=false, bool ignore_timeout_multiplier=false );
-
 public:
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, the type of Sock they
@@ -325,8 +297,7 @@ public:
 		  */
 	bool sendCommand( int cmd, 
 					   Stream::stream_type st = Stream::reli_sock,
-					   int sec = 0, CondorError* errstack = NULL,
-					  char const *cmd_description=NULL );
+					   int sec = 0, CondorError* errstack = NULL );
 	
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, a pointer to the Sock they
@@ -340,7 +311,7 @@ public:
 		  @param sec The timeout you want to use on your Sock.
 		  @return Success or failure.
 		  */
-	bool sendCommand( int cmd, Sock* sock, int sec = 0, CondorError* errstack = NULL, char const *cmd_description=NULL );
+	bool sendCommand( int cmd, Sock* sock, int sec = 0, CondorError* errstack = NULL );
 
 		/** Start sending the given command to the daemon.  The caller
 		  gives the command they want to send, and the type of Sock
@@ -353,16 +324,12 @@ public:
 		  @param st The type of the Sock you want to use.
 		  @param sec The timeout you want to use on your Sock.
 		  @param errstack NULL or error stack to dump errors into.
-		  @param raw_protocol to bypass all security negotiation, set to true
-		  @param sec_session_id use specified session if available
 		  @return NULL on error, or the Sock object to use for the
 		  rest of the command on success.
 		  */
 	Sock* startCommand( int cmd, 
 				Stream::stream_type st = Stream::reli_sock,
-				int sec = 0, CondorError* errstack = NULL,
-				char const *cmd_description = NULL,
-				bool raw_protocol=false, char const *sec_session_id=NULL );
+				int sec = 0, CondorError* errstack = NULL );
 	
 		/** Start sending the given command to the daemon.  The caller
 		  gives the command they want to send, and a pointer to the
@@ -374,14 +341,10 @@ public:
 		  @param sock The Sock you want to use.
 		  @param sec The timeout you want to use on your Sock.
 		  @param errstack NULL or error stack to dump errors into.
-		  @param raw_protocol to bypass all security negotiation, set to true
-		  @param sec_session_id use specified session if available
 		  @return false on error, true on success.
 		*/
 	bool startCommand( int cmd, Sock* sock,
-			int sec = 0, CondorError* errstack = NULL,
-			char const *cmd_description=NULL,
-			bool raw_protocol=false, char const *sec_session_id=NULL );
+			int sec = 0, CondorError* errstack = NULL );
 			
 		/** Start sending the given command to the daemon.  This
 			command claims to be nonblocking, but currently it only
@@ -409,11 +372,9 @@ public:
 			@param callback_fn function to call when finished
 			                   Must be non-NULL
 			@param misc_data any data caller wants passed to callback_fn
-			@param raw_protocol to bypass all security negotiation, set to true
-			@param sec_session_id use specified session if available
 			@return see definition of StartCommandResult enumeration.
 		  */
-	StartCommandResult startCommand_nonblocking( int cmd, Stream::stream_type st, int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data, char const *cmd_description=NULL, bool raw_protocol=false, char const *sec_session_id=NULL );
+	StartCommandResult startCommand_nonblocking( int cmd, Stream::stream_type st, int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data );
 
 		/** Start sending the given command to the daemon.  This
 			command claims to be nonblocking, but currently it only
@@ -440,11 +401,9 @@ public:
 							   StartCommandWouldBlock if TCP session key
 							   setup is in progress.
 			@param misc_data any data caller wants passed to callback_fn
-			@param raw_protocol to bypass all security negotiation, set to true
-			@param sec_session_id use specified session if available
 			@return see definition of StartCommandResult enumeration.
 		*/
-	StartCommandResult startCommand_nonblocking( int cmd, Sock* sock, int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data, char const *cmd_description=NULL, bool raw_protocol=false, char const *sec_session_id=NULL );
+	StartCommandResult startCommand_nonblocking( int cmd, Sock* sock, int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data );
 
 		/**
 		 * Asynchronously send a message (command + whatever) to the
@@ -455,18 +414,7 @@ public:
 		 * @param msg - the message to send
 		 * @return void - all error handling should happen in DCMsg
 		 */
-	void sendMsg( classy_counted_ptr<DCMsg> msg );
-
-		/**
-		 * Synchronously send a message (command + whatever) to the
-		 * daemon.  Both this daemon object and the msg object should
-		 * be allocated on the heap so that they are not deleted
-		 * before this operation completes.  Garbage collection is
-		 * handled via reference-counting ala ClassyCountedPtr.
-		 * @param msg - the message to send
-		 * @return void - all error handling should happen in DCMsg
-		 */
-	void sendBlockingMsg( classy_counted_ptr<DCMsg> msg );
+	void sendMsg( classy_counted_ptr<DCMsg> msg, Stream::stream_type st=Stream::reli_sock, int timeout=0, bool blocking=false );
 
 		/**
 		 * Contact another daemon and initiate the time offset range 
@@ -495,8 +443,6 @@ public:
 		 * @return true if it was able to contact the other Daemon and get range
 		 **/
 	bool getTimeOffsetRange( long &min_range, long &max_range );
-//DAN TESTING: DO NOT COMMIT!!!!!
-friend class Scheduler;
 
 protected:
 	// Data members
@@ -692,13 +638,12 @@ protected:
 		   @param reply Pointer to the reply ad (from the server)
 		   @param force_auth Should we force authentication for this cmd?
 		   @param timeout Network timeout to use (ignored if < 0 )
-		   @param sec_session_id Security session to use.
 		   @return false if there were any network errors, if
 		   ATTR_ERROR_STRING is defined, and/or if ATTR_RESULT is not
 		   CA_SUCCESS.  Otherwise, true.   
 		*/
 	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
-					int timeout = -1, char const *sec_session_id=NULL );
+					int timeout = -1 );
 
 		/** Same as above, except the socket for the command is passed
 			in as an argument.  This way, you can keep the ReliSock
@@ -707,8 +652,7 @@ protected:
 			call the above version.
 		*/
 	bool sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* sock,
-					bool force_auth, int timeout = -1,
-					char const *sec_session_id=NULL );
+					bool force_auth, int timeout = -1 );
 
 		/** 
 		   Helper method for commands to see if we've already got the
@@ -730,7 +674,7 @@ protected:
 		   It may be either blocking or nonblocking, depending on the
 		   nonblocking flag.  This version uses an existing socket.
 		 */
-	static StartCommandResult startCommand( int cmd, Sock* sock, int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data, bool nonblocking, char const *cmd_description, char *version, SecMan *sec_man, bool raw_protocol, char const *sec_session_id );
+	static StartCommandResult startCommand( int cmd, Sock* sock, int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data, bool nonblocking, char *version, SecMan *sec_man );
 
 		/**
 		   Internal function used by public versions of startCommand().
@@ -738,18 +682,17 @@ protected:
 		   nonblocking flag.  This version creates a socket of the
 		   specified type and connects it.
 		 */
-	StartCommandResult startCommand( int cmd, Stream::stream_type st,Sock **sock,int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data, bool nonblocking, char const *cmd_description=NULL, bool raw_protocol=false, char const *sec_session_id=NULL );
+	StartCommandResult startCommand( int cmd, Stream::stream_type st,Sock **sock,int timeout, CondorError *errstack, StartCommandCallbackType *callback_fn, void *misc_data, bool nonblocking );
 
 		/**
 		   Class used internally to handle non-blocking connects for
 		   startCommand().
 		*/
 	friend struct StartCommandConnectCallback;
-	friend class DCMessenger;
 };
 
 // Prototype to get sinful string.
-char const *global_dc_sinful( void );
+char *global_dc_sinful( void );
 
 /** Helper to get the *_HOST or *_IP_ADDR param for the appropriate
 	subsystem.  It just returns whatever param() would.  So, if it's

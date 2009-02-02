@@ -37,6 +37,7 @@
 #define CA_AUTH_CMD_BASE	1000
 // beware, QMGMT_CMD is 1111, so we don't want to use 1100...
 #define CA_CMD_BASE			1200
+#define ALT_STARTER_BASE 	70
 
 /*
 **	In the following definitions 'FRGN' does not
@@ -92,7 +93,10 @@
 #define	MATCH_INFO			(SCHED_VERS+40)
 #define	ALIVE				(SCHED_VERS+41)
 #define REQUEST_CLAIM 		(SCHED_VERS+42)
+#define REQUEST_SERVICE		(SCHED_VERS+42)		// Old name for REQUEST_CLAIM
 #define RELEASE_CLAIM 		(SCHED_VERS+43)
+#define RELINQUISH_SERVICE	(SCHED_VERS+43)		// Old name for RELEASE_CLAIM
+#define VACATE_SERVICE		(SCHED_VERS+43)		// Old name for RELEASE_CLAIM
 #define ACTIVATE_CLAIM	 	(SCHED_VERS+44)
 #define PRIORITY_INFO       (SCHED_VERS+45)     /* negotiator to accountant */
 #define PCKPT_ALL_JOBS		(SCHED_VERS+46)
@@ -158,9 +162,6 @@
 #define VM_UNIV_GUEST_MAC	(SCHED_VERS+106) // MAC address of VM
 
 #define TRANSFER_QUEUE_REQUEST (SCHED_VERS+107) // request to do file transfer
-
-#define SET_SHUTDOWN_PROGRAM (SCHED_VERS+108) // Master: Run program at shutdown
-
 
 // HAD-related commands
 #define HAD_ALIVE_CMD                   (HAD_COMMANDS_BASE + 0)
@@ -273,35 +274,6 @@ const int INVALIDATE_HAD_ADS = 57;
 const int UPDATE_AD_GENERIC = 58;
 const int INVALIDATE_ADS_GENERIC = 59;
 
-const int UPDATE_STARTD_AD_WITH_ACK = 60;
-
-const int UPDATE_XFER_SERVICE_AD		= 61;
-const int QUERY_XFER_SERVICE_ADS		= 62;
-const int INVALIDATE_XFER_SERVICE_ADS	= 63;
-
-const int UPDATE_LEASE_MANAGER_AD		= 64;
-const int QUERY_LEASE_MANAGER_ADS		= 65;
-const int INVALIDATE_LEASE_MANAGER_ADS  = 66;
-
-const int QUERY_GENERIC_ADS = QUERY_ANY_ADS;	// == 48
-
-const int CCB_REGISTER = 67;
-const int CCB_REQUEST = 68;
-const int CCB_REVERSE_CONNECT = 69;
-
-const int UPDATE_GRID_AD 	= 70;
-const int QUERY_GRID_ADS	= 71;
-const int INVALIDATE_GRID_ADS = 72;
-
-
-/*
-*** Commands to the starter
-*/
-
-#define STARTER_COMMANDS_BASE 1500
-#define STARTER_HOLD_JOB    (STARTER_COMMANDS_BASE+0)
-
-
 /*
 *** Daemon Core Signals
 */
@@ -321,6 +293,7 @@ const int INVALIDATE_GRID_ADS = 72;
 */
 #define DC_BASE	60000
 #define DC_RAISESIGNAL		(DC_BASE+0)
+#define DC_PROCESSEXIT		(DC_BASE+1)
 #define DC_CONFIG_PERSIST	(DC_BASE+2)
 #define DC_CONFIG_RUNTIME	(DC_BASE+3)
 #define DC_RECONFIG			(DC_BASE+4)
@@ -412,14 +385,6 @@ const int INVALIDATE_GRID_ADS = 72;
 #define TRANSFERD_WRITE_FILES	(TRANSFERD_BASE+2)
 /* files are being read from the transferd's storage */
 #define TRANSFERD_READ_FILES	(TRANSFERD_BASE+3)
-
-/*
-*** Commands used by the new lease manager daemon
-*/
-#define LEASE_MANAGER_BASE			75000
-#define LEASE_MANAGER_GET_LEASES	(LEASE_MANAGER_BASE+0)
-#define LEASE_MANAGER_RENEW_LEASE	(LEASE_MANAGER_BASE+1)
-#define LEASE_MANAGER_RELEASE_LEASE	(LEASE_MANAGER_BASE+2)
 
 
 /*

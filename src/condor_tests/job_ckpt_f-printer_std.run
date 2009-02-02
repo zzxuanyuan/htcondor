@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_f-printer_std.cmd';
-$testdesc =  'Fortran Printer Test';
-$testname = "job_ckpt_f-printer_std";
+$testname = 'Fortran Printer Test';
 
 $OutputTest = sub
 {
@@ -58,7 +57,7 @@ CondorTest::RegisterExitedSuccess( $testname, $OutputTest );
 CondorTest::RegisterExitedFailure( $testname, $OutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-        CondorTest::debug("$testname: SUCCESS\n",1);
+        print "$testname: SUCCESS\n";
         exit(0);
 } else {
         die "$testname: CondorTest::RunTest() failed\n";

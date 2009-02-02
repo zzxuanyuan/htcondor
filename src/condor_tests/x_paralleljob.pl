@@ -35,13 +35,13 @@ my $curcwd = getcwd();
 my $socketname = "basic_par_socket";
 #my $newsocketname = $curcwd . "/" . $mypid . "/job_core_basic_par";
 my $newsocketname =  "job_core_basic_par";
-CondorTest::debug("current directory is $curcwd\n",1);
-CondorTest::debug("current directory is $newsocketname\n",1);
+print "current directory is $curcwd\n";
+print "current directory is $newsocketname\n";
 
 if( $nodenum == 0 ) { 
-	CondorTest::debug("Looking for $mygoal messages in node 0 job....\n",1);
-	CondorTest::debug("socket is $newsocketname\n",1);
-	CondorTest::debug("Node <0> waiting.....\n",1);
+	print "Looking for $mygoal messages in node 0 job....\n";
+	print "socket is $newsocketname\n";
+	print "Node <0> waiting.....\n"; 
 	chdir("$mypid");
 	my $server = IO::Socket::UNIX->new(Local => $newsocketname,
 								Type  => SOCK_DGRAM)
@@ -58,31 +58,31 @@ if( $nodenum == 0 ) {
 		my $MAXLEN = 1024;
 		#$server->recv($newmsg,$MAXLEN) || die "Recv: $!";
 		$server->recv($newmsg,$MAXLEN);
-		CondorTest::debug("$newmsg\n",1);
+		print "$newmsg\n";
 		$mymesgcnt = $mymesgcnt + 1;
-		CondorTest::debug("Node 0 has seen << $mymesgcnt >> messages\n",1);
+		print "Node 0 has seen << $mymesgcnt >> messages\n";
 		if($mymesgcnt == $mygoal)
 		{
-			CondorTest::debug("Expected messages all in\n",1);
+			print "Expected messages all in\n";
 			exit(0);
 		}
 	}
 } else {
-	CondorTest::debug("Node <$nodenum>\n",1);
-	CondorTest::debug("socket is $newsocketname\n",1);
+	print "Node <$nodenum>\n"; 
+	print "socket is $newsocketname\n";
 	chdir("$mypid");
 	my $count = 0;
 	my $client;
 	while( !(-S "$newsocketname")) {
 		sleep 6;
-		CondorTest::debug("waiting for socket\n",1);
+		print "waiting for socket\n";
 	}
 	while($count < 10){
 		$client = IO::Socket::UNIX->new(Peer => "$newsocketname",
 								Type  => SOCK_DGRAM,
 								Timeout => 10);
 		if($client) {
-			CondorTest::debug("Ready to write my message<< node $nodenum>>\n",1);
+			print "Ready to write my message<< node $nodenum>>\n";
 			last;
 		}
 		sleep (2 * $count);

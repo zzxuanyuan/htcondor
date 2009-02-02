@@ -22,20 +22,16 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_memory-file_std.cmd';
-$testdesc =  'job_ckpt_memory-file_std test';
-$testname = "job_ckpt_memory-file_std";
+$testname = 'job_ckpt_memory-file_std test';
 
-my @expected_output = ( 'SUCCESS' );
-my @skipped_output_lines = ( 1, 2, 3, 4 );
-
-CondorTest::SetExpected(\@expected_output);
-CondorTest::SetSkipped(\@skipped_output_lines);
+@CondorTest::expected_output = ( 'SUCCESS' );
+@CondorTest::skipped_output_lines = ( 1, 2, 3, 4 );
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest( $testname, $cmd, 1) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

@@ -24,10 +24,6 @@
 #include "user_proc.h"
 #include "basename.h"
 
-#if defined ( WIN32 )
-#include "profile.WINDOWS.h"
-#endif
-
 /** This is a generic sort of "OS" process, the base for other types
 	of jobs.
 
@@ -54,9 +50,9 @@ public:
 			do a CONDOR_job_exit remote syscall.  
 			@param pid The pid that exited.
 			@param status Its status
-		    @return True if our OsProc is no longer active, false if it is
+		    @return 1 if our OsProc is no longer active, 0 if it is
 		*/
-	virtual bool JobReaper( int pid, int status );
+	virtual int JobCleanup( int pid, int status );
 
 		/** In this function, we determine what protocol to use to
 			send the shadow a CONDOR_job_exit remote syscall, which
@@ -99,8 +95,6 @@ public:
 	void checkCoreFile( void );
 	bool renameCoreFile( const char* old_name, const char* new_name );
 
-	int *makeCpuAffinityMask(int slotId);
-
 protected:
 
 	bool is_suspended;
@@ -114,10 +108,6 @@ protected:
 private:
 
 	bool m_using_priv_sep;
-
-#if defined ( WIN32 )
-    OwnerProfile owner_profile_;
-#endif
 
 };
 

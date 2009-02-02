@@ -24,14 +24,13 @@ use Cwd;
 
 
 my $remoteschedd = $ARGV[0];
-CondorTest::debug("Using <<$remoteschedd>> for a remote schedd\n",1);
+print "Using <<$remoteschedd>> for a remote schedd\n";
 
 Condor::DebugOn();
 
 $topdir = getcwd();
 
-$testdesc =  'Condor soap test ';
-$testname = "soap_job_tests";
+$testname = 'Condor soap test ';
 
 @adarray;
 @bdarray;
@@ -41,26 +40,26 @@ $status = CondorTest::verbose_system("tar -zxf x_soap_job_tests.tar.gz");
 
 if($status != 0)
 {
-	CondorTest::debug("SOAP_JOB_TESTS: failed to untar tests\n",1);
+	print "SOAP_JOB_TESTS: failed to untar tests\n";
 }
 
 chdir("soaptests");
 $wherenow = getcwd();
 
-CondorTest::debug("CURRENTLY in <<<$wherenow>>>\n",1);
+print "CURRENTLY in <<<$wherenow>>>\n";
 
 my $pathcmd = `echo $topdir\/soaptests\/lib\/*.jar | tr ' ' ':'`;
 CondorTest::fullchomp($pathcmd);
-CondorTest::debug("pathcmd so far: $pathcmd\n",1);
+print "pathcmd so far: $pathcmd\n";
 my $cpath = $ENV{CLASSPATH} = "$topdir/soaptests:$topdir/soaptests/condor:.:$topdir/soaptests/birdbath:$pathcmd";
-CondorTest::debug("CLASSPATH=$cpath\n",1);
+print "CLASSPATH=$cpath\n";
 
 
 my $cmd = "condor_status -schedd -l | grep MyAddress";
 $status = CondorTest::runCondorTool($cmd,\@adarray,200);
 
 foreach $name (@bdarray) {
-	CondorTest::debug("$name\n",1);
+	print "$name\n";
 	$myaddress = $name;
 }
 
@@ -69,32 +68,32 @@ system("which java");
 my $host;
 system("which java");
 if($remoteschedd eq "") {
-	CondorTest::debug("Soap test locally\n",1);
+	print "Soap test locally\n";
 	my $cmd = "condor_status -schedd -constraint \"HasSOAPInterface=?=TRUE\" -l | grep MyAddress";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,800);
 
 	if($status != 1)
 	{
-		CondorTest::debug("SOAP_JOB_TESTS: failed to find <MyAddress>, status for rrunCondorTool is <$status>\n",1);
+		print "SOAP_JOB_TESTS: failed to find <MyAddress>, status for rrunCondorTool is <$status>\n";
 		my $cmd = "condor_status -schedd -l ";
 		$status = CondorTest::runCondorTool($cmd,\@adarray,200);
 		foreach $name (@adarray) {
-			CondorTest::debug("$name\n",1);
+			print "$name\n";
 			$myaddress = $name;
 		}
 		die "$testname: failed\n";
 	}
 
 	foreach $name (@adarray) {
-		CondorTest::debug("$name\n",1);
+		print "$name\n";
 		$myaddress = $name;
 	}
 
 	$myaddress =~ /^.*\"<(.*)>\".*$/;
-	CondorTest::debug("Take this: $1\n",1);
+	print "Take this: $1\n";
 	$host = $1;
 } else {
-	CondorTest::debug("Soap test to <<$remoteschedd>>\n",1);
+	print "Soap test to <<$remoteschedd>>\n";
 	$host = $remoteschedd;
 }
 $cmd = "java -classpath $cpath -DSCHEDD_ENDPOINT=http://$host ScheddTestSuite";
@@ -103,6 +102,6 @@ $status = CondorTest::verbose_system($cmd);
 if($status != 0) {
 	die "$testname: failed\n";
 } esle {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 }

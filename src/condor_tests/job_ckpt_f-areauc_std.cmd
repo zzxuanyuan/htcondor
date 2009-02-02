@@ -1,4 +1,3 @@
-universe	= standard
 executable      = job_ckpt_f-areauc_std.cndr.exe.$$(OPSYS).$$(ARCH)
 error           = job_ckpt_f-areauc_std.err
 output          = job_ckpt_f-areauc_std.out

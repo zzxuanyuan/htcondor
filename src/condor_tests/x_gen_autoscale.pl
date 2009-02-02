@@ -46,7 +46,7 @@ my $scaletesting = "scaletesting.log";
 #select(STDERR); $| = 1;
 #select(STDOUT); $| = 1;
 
-CondorTest::debug("Scalability testing in location: $homedir\n",1);
+print "Scalability testing in location: $homedir\n";
 
 GetOptions (
 	'help' => \$help,
@@ -87,7 +87,7 @@ if( $name )
 	$name = $name . "_";
 }
 
-CondorTest::debug("Current run file now $runfile and cmdfile is $cmdfile\n",1);
+print "Current run file now $runfile and cmdfile is $cmdfile\n";
 
 if(! defined $settings )
 {
@@ -149,24 +149,24 @@ else
 	die "Only vanilla, java or scheduler allowed for universe!\n";
 }
 
-CondorTest::debug("Current run file now $runfile and cmdfile is $cmdfile\n",1);
+print "Current run file now $runfile and cmdfile is $cmdfile\n";
 
 # mandatory tests used in naming test output
 # startjobs incrementjobs maxjobs
 
 if(! exists $params{"startjobs"})
 {
-	CondorTest::debug("startjobs not defined\n",1);
+	print "startjobs not defined\n";
 	return(1);
 }
 if(! exists $params{"incrementjobs"})
 {
-	CondorTest::debug("incrementjobs not defined\n",1);
+	print "incrementjobs not defined\n";
 	return(1);
 }
 if(! exists $params{"maxjobs"})
 {
-	CondorTest::debug("maxjobs not defined\n",1);
+	print "maxjobs not defined\n";
 	return(1);
 }
 
@@ -180,7 +180,7 @@ $runfile = $runfile . $typename . $name . $incname . $uniname . ".run";
 $cmdfile = $cmdfile . $typename . $name . $incname . $uniname . ".cmd";
 $runcore = "perf_" . $typename . $name . $incname . $uniname;
 
-CondorTest::debug("Current run file now $runfile and cmdfile is $cmdfile\n",1);
+print "Current run file now $runfile and cmdfile is $cmdfile\n";
 
 if( !defined $condorhost )
 {
@@ -188,7 +188,7 @@ if( !defined $condorhost )
 	{
 		my $tmp = `/bin/hostname`;
 		CondorTest::fullchomp($tmp);
-		CondorTest::debug("Guessing pool to be run on $tmp\n",1);
+		print "Guessing pool to be run on $tmp\n";
 		$condorhost = $tmp;
 		#die "Where is the collector to be? Can not generate condor_config!\n";
 	}
@@ -204,7 +204,7 @@ if( !defined $newconfigfile )
 }
 
 $pathtoconfig = $homedir . "/" . $newconfigfile;
-CondorTest::debug("Path to config file is $pathtoconfig\n",1);
+print "Path to config file is $pathtoconfig\n";
 
 foreach $key  (sort keys %params)
 {
@@ -224,7 +224,7 @@ if($status != 0)
 }
 else
 {
-	CondorTest::debug("Done generating cmd file!\n",1);
+	print "Done generating cmd file!\n";
 }
 
 $status = gen_autoscale_run( %params );
@@ -234,7 +234,7 @@ if($status != 0)
 }
 else
 {
-	CondorTest::debug("Done generating run file!\n",1);
+	print "Done generating run file!\n";
 }
 
 my $condorstate = "";
@@ -242,7 +242,7 @@ my $condorstate = "";
 if( $start )
 {
 	# we are running in the desired environment so fire it off.
-	CondorTest::debug("Running the test now!.................................\n",1);
+	print "Running the test now!.................................\n";
 	system("$runfile");
 }
 
@@ -273,12 +273,12 @@ sub gen_autoscale_cmd
 	# mandatory tests
 	if(! exists $control{"universe"})
 	{
-		CondorTest::debug("universe not defined\n",1);
+		print "universe not defined\n";
 		return(1);
 	}
 	if(! exists $control{"type"})
 	{
-		CondorTest::debug("type not defined\n",1);
+		print "type not defined\n";
 		return(1);
 	}
 
@@ -292,7 +292,7 @@ sub gen_autoscale_cmd
 	}
 
 	$gendatafile = $runcore . ".data";
-	CondorTest::debug("gendata now --$gendatafile--\n",1);
+	print "gendata now --$gendatafile--\n";
 
 	# get a new submit file started
 	open(NEWCMDFILE,">$cmdfile") || die "Runfile not around: $!\n";
@@ -425,42 +425,42 @@ sub gen_autoscale_run
 		$line = $_;
 		if( $line =~ /startjobs\s*=/ )
 		{
-			CondorTest::debug("FOUND startjobs!!!!!\n",1);
+			print "FOUND startjobs!!!!!\n";
 			my $strtcnt = $control{"startjobs"};
 			print NEWRUNFILE "my \$startjobs = $strtcnt;\n";
 		}
 		elsif( $line =~ /incrementjobs\s*=/ )
 		{
-			CondorTest::debug("FOUND incrementjobs!!!!!\n",1);
+			print "FOUND incrementjobs!!!!!\n";
 			my $strtcnt = $control{"incrementjobs"};
 			print NEWRUNFILE "my \$incrementjobs = $strtcnt;\n";
 		}
 		elsif( $line =~ /maxjobs\s*=/ )
 		{
-			CondorTest::debug("FOUND maxjobs!!!!!\n",1);
+			print "FOUND maxjobs!!!!!\n";
 			my $strtcnt = $control{"maxjobs"};
 			print NEWRUNFILE "my \$maxjobs = $strtcnt;\n";
 		}
 		elsif( $line =~ /datafile\s*=/ )
 		{
-			CondorTest::debug("FOUND datafile!!!!!\n",1);
+			print "FOUND datafile!!!!!\n";
 			print NEWRUNFILE "my \$datafile = \"$gendatafile\";\n";
 		}
 		elsif( $line =~ /cmdfile\s*=/ )
 		{
-			CondorTest::debug("FOUND cmdfile!!!!!\n",1);
+			print "FOUND cmdfile!!!!!\n";
 			print NEWRUNFILE "my \$cmdfile = \"$cmdfile\";\n";
 		}
 		elsif( $line =~ /CondorTest::StartCondor/ )
 		{
 			if( $personal )
 			{
-				CondorTest::debug("Personal Condor Request ON !!\n",1);
+				print "Personal Condor Request ON !!\n";
 				print NEWRUNFILE "CondorTest::StartCondor($settings);\n";
 			}
 			else
 			{
-				CondorTest::debug("Personal Condor Request OFF !!\n",1);
+				print "Personal Condor Request OFF !!\n";
 				print NEWRUNFILE "#CondorTest::StartCondor($settings);\n";
 			}
 		}
@@ -486,7 +486,7 @@ sub parse_cmdfile()
 	my %cmd;
 	my $linenum = 0;
 	
-	CondorTest::debug("Reading parameters from $infile\n",1);
+	print "Reading parameters from $infile\n";
 
 	open( INFILE, "<", $infile ) || die "error opening file \"$infile\": $!\n";
 
@@ -507,7 +507,7 @@ sub parse_cmdfile()
 		if( /^\s*(\S+)\s*\=\s*(.*)\s*$/ )
 		{
 			$cmd{$1} = $2;
-			CondorTest::debug("Loading parameter $1 with value $2\n",1);
+			print "Loading parameter $1 with value $2\n";
 		}
 		else
 		{

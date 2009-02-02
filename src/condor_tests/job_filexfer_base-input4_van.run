@@ -20,25 +20,24 @@
 
 use CondorTest;
 
-$testdesc =  'Jobs run with imput when transfer_input = false - vanilla U';
-$testname = "job_filexfer_base-input4_van";
+$testname = 'Jobs run with imput when transfer_input = false - vanilla U';
 
 my $sanestatus = CondorTest::verbose_system("./x_sanitysubmit.pl");
 my $teststatus = CondorTest::verbose_system("./job_filexfer_base-input4_van.pl");
 
 if($sanestatus != 0)
 {
-        CondorTest::debug("job_filexfer_base-input4_van failed sanity submittest\n",1);
+        print "job_filexfer_base-input4_van failed sanity submittest\n";
 }
 
 if($teststatus != 0)
 {
-        CondorTest::debug("job_filexfer_base-input4_van failed actual test\n",1);
+        print "job_filexfer_base-input4_van failed actual test\n";
 }
 
 if(($teststatus == 0) && ($sanestatus == 0))
 {
-        CondorTest::debug("Passed job_filexfer_base-input4_van\n",1);
+        print "Passed job_filexfer_base-input4_van\n";
 } else {
 		die "Failed job_filexfer_base-input4_van\n";
 }

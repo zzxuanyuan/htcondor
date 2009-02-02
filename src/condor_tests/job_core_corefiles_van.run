@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_core_corefiles_van.cmd';
-$testdesc =  'Core files limited by coresize = xxxxx - vanilla U';
-$testname = "job_core_corefiles_van";
+$testname = 'Core files limited by coresize = xxxxx - vanilla U';
 
 
 $execute = sub {
@@ -32,7 +31,7 @@ $execute = sub {
 };
 
 $abort = sub {
-	CondorTest::debug("Job aborted, cool.\n",1);
+	print "Job aborted, cool.\n";
 	my $corefile = $info{'core'};
 	if( $corefile == undef )
 	{
@@ -41,8 +40,8 @@ $abort = sub {
 	}
 	else
 	{
-		CondorTest::debug("Corefile is called ---$corefile---\n",1);
-		CondorTest::debug("-now finish test for coresize = limits-\n",1);
+		print "Corefile is called ---$corefile---\n";
+		print "-now finish test for coresize = limits-\n";
 	}
 };
 
@@ -55,7 +54,7 @@ CondorTest::RegisterExecute($testname, $execute);
 CondorTest::RegisterAbort($testname, $abort);
 CondorTest::RegisterExitedAbnormal($testname, $abort);
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_core-cpp_exception_std.cmd';
-$testdesc =  'C++ Exception Test';
-$testname = "job_core-cpp_exception_std";
+$testname = 'C++ Exception Test';
 
 $OutputTest = sub
 {
@@ -44,7 +43,7 @@ $OutputTest = sub
 CondorTest::RegisterExitedSuccess( $testname, $OutputTest);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

@@ -21,10 +21,10 @@
 #if !defined(_CONDOR_LOCAL_USER_LOG_H)
 #define _CONDOR_LOCAL_USER_LOG_H
 
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_classad.h"
 #include "condor_attributes.h"
-#include "write_user_log.h"
+#include "user_log.c++.h"
 
 /** 
 	This class is used by the starter to maintain a local user log

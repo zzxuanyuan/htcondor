@@ -31,8 +31,7 @@
 use CondorTest;
 
 $cmd = 'job_core_onexitrem-true_local.cmd';
-$testdesc =  'Condor submit policy test for ON_EXIT_REMOVE - local U';
-$testname = "job_core_onexitrem_local";
+$testname = 'Condor submit policy test for ON_EXIT_REMOVE - local U';
 
 ##
 ## Status Values
@@ -49,7 +48,7 @@ $executed = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job began execution.\n",1);
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
 ##
@@ -62,15 +61,15 @@ $success = sub {
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 	
-	CondorTest::debug("Good - Job $cluster.$job finished executing and exited.\n",1);
-	CondorTest::debug("Policy Test Completed\n",1);
+	print "Good - Job $cluster.$job finished executing and exited.\n";
+	print "Policy Test Completed\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

@@ -25,8 +25,7 @@
 use CondorTest;
 
 $cmd = 'job_core_perhold-false_local.cmd';
-$testdesc =  'Condor submit policy test for PERIOIDIC_HOLD - local U';
-$testname = "job_core_perhold_local";
+$testname = 'Condor submit policy test for PERIOIDIC_HOLD - local U';
 
 my %info;
 my $cluster;
@@ -44,7 +43,7 @@ $executed = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Good - Job $cluster.$job began execution.\n",1);
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
 ##
@@ -56,7 +55,7 @@ $held = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-	CondorTest::debug("Bad - Job $cluster.$job should not be on hold.\n",1);
+	print "Bad - Job $cluster.$job should not be on hold.\n";
 	exit(1);
 };
 
@@ -77,8 +76,8 @@ $success = sub {
 		&$held( %info ) if defined $held;
 		return;
 	}
-	CondorTest::debug("Good - Job $cluster.$job finished executing and exited.\n",1);
-	CondorTest::debug("Policy Test Completed\n",1);
+	print "Good - Job $cluster.$job finished executing and exited.\n";
+	print "Policy Test Completed\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
@@ -86,7 +85,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success );
 CondorTest::RegisterHold( $testname, $held );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

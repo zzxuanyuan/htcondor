@@ -25,7 +25,7 @@
 #include "sock.h"
 #include "condor_adtypes.h"
 #include "condor_system.h"
-#include "condor_ipverify.h"
+#include "../condor_daemon_core.V6/condor_ipverify.h"
 
 
 /*
@@ -73,10 +73,6 @@ public:
 	virtual int connect(char const *s, int port=0, 
 							bool do_not_block = false);
 
-
-	virtual int do_reverse_connect(char const *ccb_contact,bool nonblocking);
-
-	virtual void cancel_reverse_connect();
 
 		/** Connect this socket to another socket (s).
 			An implementation of socketpair() that works on windows as well
@@ -167,13 +163,6 @@ public:
     ///
 	void reset_bytes_recvd() { _bytes_recvd = 0; }
 
-	/// Used by CCBClient to put this socket in a state that behaves
-	/// like a socket waiting for a non-blocking connection when it
-	/// is actually waiting for a connection _to_ us _from_ the
-	/// desired endpoint.
-	void enter_reverse_connecting_state();
-	void exit_reverse_connecting_state(ReliSock *sock);
-
 #ifndef WIN32
 	// interface no longer supported 
 	int attach_to_file_desc(int);
@@ -196,13 +185,25 @@ public:
 	virtual int get_ptr(void *&, char);
     ///
 	virtual int peek(char &);
-
     ///
-	int authenticate( const char* methods, CondorError* errstack, int auth_timeout );
+	void setOwner( const char * );
     ///
-	int authenticate( KeyInfo *& key, const char* methods, CondorError* errstack, int auth_timeout );
+	int authenticate( const char* methods, CondorError* errstack );
+    ///
+	int authenticate( KeyInfo *& key, const char* methods, CondorError* errstack );
+    ///
+    virtual const char * getFullyQualifiedUser() const;
+    ///
+	const char *getOwner();
+    ///
+	const char *getDomain();
     ///
     const char * getHostAddress();
+    ///
+	int isAuthenticated() const;
+    ///
+	void unAuthenticate();
+	///
 	
 	int encrypt(bool);
 	///
@@ -213,11 +214,6 @@ public:
 	bool is_hdr_encrypt();
 	///
 	int isClient() { return is_client; };
-
-	// Normally, the side of the connection that called connect() is
-	// the client.  The opposite is true for a reversed connection.
-	// This matters for the authentication protocol.
-	void isClient(bool flag) { is_client=flag; };
 
     const char * isIncomingDataMD5ed();
 
@@ -243,8 +239,7 @@ protected:
 
 	int prepare_for_nobuffering( stream_coding = stream_unknown);
 	int perform_authenticate( bool with_key, KeyInfo *& key, 
-							  const char* methods, CondorError* errstack,
-							  int auth_timeout );
+							  const char* methods, CondorError* errstack );
 
 	// This is used internally to recover sanity on the stream after
 	// failing to open a file in put_file().
@@ -303,7 +298,7 @@ protected:
 	Authentication * authob;
 	int is_client;
 	char *hostAddr;
-	classy_counted_ptr<class CCBClient> m_ccb_client; // for reverse connects
+    char * fqu_;
 };
 
 #endif

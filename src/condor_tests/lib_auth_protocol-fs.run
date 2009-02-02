@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $param_template = "x_param.protocol-fs.template";
-$testdesc =  'lib_auth_protocol-fs - Security Protocol FS Authentication Test';
-$testname = "lib_auth_protocol-fs";
+$testname = 'lib_auth_protocol-fs - Security Protocol FS Authentication Test';
 $corename = "lib_auth_protocol-fs";
 $mytestnegotiation = "x_secneg_clR_dmnR_secprepostsrc";
 $mytestnegotiation_result = "yes";
@@ -54,8 +55,8 @@ if($mypid == 0) {
 	$mycorenmout = $corename . ".cmd.out";
 	$mycorenmlog = $corename . ".log";
 
-	CondorTest::debug("Master PID is $mypid\n",1);
-	CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+	print "Master PID is $mypid\n";
+	print "Master PID submit file is $mysubmitnm\n";
 
 	# Edit submit file to submit to scheduler at securitypool (side b) schedd.
 	my $line;
@@ -67,12 +68,12 @@ if($mypid == 0) {
 		$line = $_;
 		if( $line =~ /^\s*secprepostsrc\s*=\s*.*$/ )
 		{
-			CondorTest::debug("Setting up for $mytestnegotiation\n",1);
+			print "Setting up for $mytestnegotiation\n";
 			print CSUB "secprepostsrc = $mytestnegotiation\n";
 		}
 		else
 		{
-			CondorTest::debug("template: $line\n",1);
+			print "template: $line\n";
 			print CSUB "$line\n";
 		}
 	}
@@ -80,21 +81,20 @@ if($mypid == 0) {
 	close(CSUB);
 	sleep 10;
 
-	my $configsec = CondorPersonal::StartCondor( "lib_auth_protocol-fs", $myparamname ,"protocol", $mypid);
+	my $configsec = CondorPersonal::StartCondor($myparamname ,"protocol", $mypid);
 	my @securitypool = split /\+/, $configsec;
 	my $secconfig = shift @securitypool;
 	my $secport = shift @securitypool;
 
-	CondorTest::debug("---security config is $secconfig and securitypool port is $secport---\n",1);
+	print "---security config is $secconfig and securitypool port is $secport---\n";
 	
 
 	$ENV{CONDOR_CONFIG} = $secconfig;
 	# submit into local schedd (side a)
 
-	my $cmd = "./x_lib_auth_protocol.pl $mypid \"protocol\" $mytestnegotiation_result $mycmdfile";
-	CondorTest::debug("Calling $cmd\n",1);
-	my $result = system($cmd);
-	CondorTest::debug("Result of crafted lib_auth_protocol job is  $result\n",1);
+	print "Calling lib_auth_protocol job is  $result\n";
+	my $result = system("./x_lib_auth_protocol.pl $mypid \"protocol\" $mytestnegotiation_result $mycmdfile");
+	print "Result of crafted lib_auth_protocol job is  $result\n";
 
 	system("cp *$corename* $mysaveme");
 	
@@ -113,14 +113,27 @@ if($mypid == 0) {
 		system("cp $mysubmitnmlog $mycorenmlog");
 	}
 
-CondorPersonal::KillDaemonPids($secconfig);
+	my @adarray;
+	my $status = 1;
+	my $cmd = "condor_off -fast -master";
+	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+	if(!$status)
+	{
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(1)
+	}
+
+	if(!$status)
+	{
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
+		exit(1)
+	}
+
 system("date");
 
-if($result != 0)
+if( $result != 0 )
 {
-    # actual job failed but we allowed cleanup
-    exit(1);
+	# actual test failed but we allowed cleanup
+	exit(1);
 }
 
-CondorTest::debug("lib_auth_protocol-fs SUCCESS\n",1);
-exit(0);

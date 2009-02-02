@@ -21,10 +21,11 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $cmd_template = "job_core_basic_par.template";
-$testdesc =  'job_core_basic_par - Simple parallel job';
-$testname = "job_core_basic_par";
+$testname = 'job_core_basic_par - Simple parallel job';
 $cmd = "job_core_basic_par.cmd";
 $corename = "job_core_basic_par";
 
@@ -56,16 +57,16 @@ $mycorenmout = $corename . ".out";
 #print "Master PID submit file is $mysubmitnm\n";
 
 # get a remote scheduler running (side b)
-my $configrem = CondorPersonal::StartCondor( "job_core_basic_par", "x_param.basicparallel" ,"parallel");
+my $configrem = CondorPersonal::StartCondor("x_param.basicparallel" ,"parallel");
 my @parallel = split /\+/, $configrem;
 my $parallelconfig = shift @parallel;
 my $parallelport = shift @parallel;
 
-CondorTest::debug("---Parallel config is $parallelconfig and remote port is $parallelport---\n",1);
+print "---Parallel config is $parallelconfig and remote port is $parallelport---\n";
 
 $ENV{CONDOR_CONFIG} = $parallelconfig;
 
-CondorTest::debug("Set config to $parallelconfig\n",1);
+print "Set config to $parallelconfig\n";
 
 #print "Looking for schedd for Basic Parallel Test\n";
 system("condor_status -pool $currenthost:$parallelport -schedd -format '%s\n' Name");
@@ -113,7 +114,7 @@ close(CSUB);
 
 
 my $result = CondorPersonal::PersonalSystem("./job_core_basic_par.pl $mysubmitnm");
-CondorTest::debug("Result of basic paarallel  job is  $result\n",1);
+print "Result of basic paarallel  job is  $result\n";
 
 
 system("cp *job_core_basic_par* $mysaveme");
@@ -133,14 +134,20 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($parallelconfig);
-system("date");
-
-if($result != 0)
+if( $result != 0 )
 {
-	# actuaal job failed but we allowed cleanup
 	exit(1);
 }
 
-CondorTest::debug("job_core_basic_par SUCCESS\n",1);
-exit(0);
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+system("date");
+

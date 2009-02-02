@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_rsc_hello_std.cmd';
-$testdesc =  'Hello Test';
-$testname = "job_rsc_hello_std";
+$testname = 'Hello Test';
 
 $foo = <<"_EOX";
 Hello World
@@ -57,7 +56,7 @@ $OutputTest = sub
 CondorTest::RegisterExitedSuccess( $testname, $OutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: FAILURE (condor_submit failed?)\n";

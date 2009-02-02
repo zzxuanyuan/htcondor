@@ -41,12 +41,12 @@
 #include "list.h"
 #include "classad_hashtable.h"	// for HashKey class
 #include "Queue.h"
-#include "write_user_log.h"
+#include "user_log.c++.h"
 #include "autocluster.h"
 #include "shadow_mgr.h"
 #include "enum_utils.h"
 //#include "self_draining_queue.h"
-#include "self_draining_queue.h"
+#include "../condor_daemon_core.V6/self_draining_queue.h"
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
 #include "env.h"
@@ -113,12 +113,11 @@ struct OwnerData {
 class match_rec: public ClaimIdParser
 {
  public:
-    match_rec(char*, char*, PROC_ID*, const ClassAd*, char*, char* pool,bool is_dedicated);
+    match_rec(char*, char*, PROC_ID*, const ClassAd*, char*, char* pool);
 	~match_rec();
 
-    char*   		peer; //sinful address of startd
-	MyString        m_description;
-
+    char*   		peer;
+	
 		// cluster of the job we used to obtain the match
 	int				origcluster; 
 
@@ -139,11 +138,10 @@ class match_rec: public ClaimIdParser
 	char*			user;
 	char*			pool;		// negotiator hostname if flocking; else NULL
 	bool			sent_alive_interval;
-	bool            is_dedicated; // true if this match belongs to ded. sched.
 	bool			allocated;	// For use by the DedicatedScheduler
 	bool			scheduled;	// For use by the DedicatedScheduler
 	bool			needs_release_claim;
-	classy_counted_ptr<DCMsgCallback> claim_requester;
+	Sock*           request_claim_sock;
 
 		// if we created a dynamic hole in the DAEMON auth level
 		// to support flocking, this will be set to the id of the
@@ -153,11 +151,6 @@ class match_rec: public ClaimIdParser
 		// Set the mrec status to the given value (also updates
 		// entered_current_status)
 	void	setStatus( int stat );
-
-	void makeDescription();
-	char const *description() {
-		return m_description.Value();
-	}
 };
 
 class UserIdentity {
@@ -197,6 +190,7 @@ struct GridJobCounts {
 
 enum MrecStatus {
     M_UNCLAIMED,
+	M_CONNECTING,
 	M_STARTD_CONTACT_LIMBO,  // after contacting startd; before recv'ing reply
 	M_CLAIMED,
     M_ACTIVE
@@ -256,18 +250,14 @@ class Scheduler : public Service
 	// negotiation
 	int				doNegotiate(int, Stream *);
 	int				negotiatorSocketHandler(Stream *);
+	int				delayedNegotiatorHandler(Stream *);
 	int				negotiate(int, Stream *);
 	int				reschedule_negotiator(int, Stream *);
 
 	int				reschedule_negotiator_timer() { return reschedule_negotiator(0, NULL); }
-	void			release_claim(int, Stream *);
+	void			vacate_service(int, Stream *);
 	AutoCluster		autocluster;
-		// send a reschedule command to the negotiatior unless we
-		// have recently sent one and not yet heard from the negotiator
-	void			sendReschedule();
-		// call this when state of job queue has changed in a way that
-		// requires a new round of negotiation
-	void            needReschedule();
+	void			sendReschedule( bool checkRecent = true );
 
 	// job managing
 	int				abort_job(int, Stream *);
@@ -295,13 +285,12 @@ class Scheduler : public Service
 
 	// match managing
 	int 			publish( ClassAd *ad );
-    match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*, match_rec **pre_existing=NULL);
+    match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*);
 	// All deletions of match records _MUST_ go through DelMrec() to ensure
 	// proper cleanup.
     int         	DelMrec(char const*);
     int         	DelMrec(match_rec*);
 	match_rec*      FindMrecByJobID(PROC_ID);
-	match_rec*      FindMrecByClaimID(char const *claim_id);
 	void            SetMrecJobID(match_rec *rec, int cluster, int proc);
 	void            SetMrecJobID(match_rec *match, PROC_ID job_id);
 	shadow_rec*		FindSrecByPid(int);
@@ -310,7 +299,6 @@ class Scheduler : public Service
 	void            sendSignalToShadow(pid_t pid,int sig,PROC_ID proc);
 	int				AlreadyMatched(PROC_ID*);
 	void			StartJobs();
-	void			StartJob(match_rec *rec);
 	void			StartLocalJobs();
 	void			sendAlives();
 	void			RecomputeAliveInterval(int cluster, int proc);
@@ -339,6 +327,9 @@ class Scheduler : public Service
 #endif
 
 		// Public startd socket management functions
+	void			addRegContact( void ) { num_reg_contacts++; };
+	void			delRegContact( void ) { num_reg_contacts--; };
+	int				numRegContacts( void ) { return num_reg_contacts; };
 	void            checkContactQueue();
 
 		/** Used to enqueue another set of information we need to use
@@ -387,6 +378,7 @@ class Scheduler : public Service
 
 		// Useful public info
 	char*			shadowSockSinful( void ) { return MyShadowSockName; };
+	char*			dcSockSinful( void ) { return MySockName; };
 	int				aliveInterval( void ) { return alive_interval; };
 	char*			uidDomain( void ) { return UidDomain; };
 	int				getJobsTotalAds() { return JobsTotalAds; };
@@ -455,6 +447,7 @@ private:
 	
 	// information about this scheduler
 	ClassAd*		m_ad;
+	char*			MySockName;		// dhaval
 	Scheduler*		myself;
 
 	// information about the command port which Shadows use
@@ -514,12 +507,14 @@ private:
 
 	int				shadowReaperId; // daemoncore reaper id for shadows
 
+	int             startJobsDelayBit;  // for delay when starting jobs.
+
+		// used so that we don't register too many Sockets at once & fd panic
+	int             num_reg_contacts;  
 		// Here we enqueue calls to 'contactStartd' when we can't just 
 		// call it any more.  See contactStartd and the call to it...
 	Queue<ContactStartdArgs*> startdContactQueue;
 	int				checkContactQueue_tid;	// DC Timer ID to check queue
-	int num_pending_startd_contacts;
-	int max_pending_startd_contacts;
 
 		// If we we need to reconnect to disconnected starters, we
 		// stash the proc IDs in here while we read through the job
@@ -549,8 +544,11 @@ private:
 	// useful names
 	char*			CondorAdministrator;
 	char*			Mail;
+	char*			filename;					// save UpDown object
 	char*			AccountantName;
     char*			UidDomain;
+
+	time_t last_reschedule_request;
 
 	// connection variables
 	struct sockaddr_in	From;
@@ -613,7 +611,6 @@ private:
 			@return false on failure and true on success
 		 */
 	void	contactStartd( ContactStartdArgs* args );
-	void claimedStartd( DCMsgCallback *cb );
 
 	shadow_rec*		StartJob(match_rec*, PROC_ID*);
 	shadow_rec*		start_std(match_rec*, PROC_ID*, int univ);
@@ -664,10 +661,6 @@ private:
 		// about a shadow not starting.
 	int sent_shadow_failure_email;
 
-	bool m_need_reschedule;
-	int m_send_reschedule_timer;
-	Timeslice m_negotiate_timeslice;
-
 	// some stuff about Quill that should go into the ad
 #ifdef WANT_QUILL
 	int quill_enabled;
@@ -685,8 +678,8 @@ private:
 // Other prototypes
 int		get_job_prio(ClassAd *ad, bool compute_autoclusters = false);
 extern void set_job_status(int cluster, int proc, int status);
-extern bool claimStartd( match_rec* mrec );
-extern bool claimStartdConnected( Sock *sock, match_rec* mrec, ClassAd *job_ad);
+extern bool claimStartd( match_rec* mrec, bool is_dedicated );
+extern bool claimStartdConnected( Sock *sock, match_rec* mrec, ClassAd *job_ad, bool is_dedicated );
 extern bool sendAlive( match_rec* mrec );
 extern void fixReasonAttrs( PROC_ID job_id, JobAction action );
 extern bool moveStrAttr( PROC_ID job_id, const char* old_attr,  

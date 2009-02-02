@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd      = 'job_filexfer_trans-excut-true_van.cmd';
-$testdesc =  'Jobs complaining cause No FT on when tansfer_executables = true - vanilla U';
-$testname = "job_filexfer_trans-excut-true_van";
+$testname = 'Jobs complaining cause No FT on when tansfer_executables = true - vanilla U';
 
 # truly const variables in perl
 sub IDLE{1};
@@ -35,7 +34,7 @@ $execute = sub {
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Running $cluster\n",1);
+	print "Running $cluster\n";
 
 };
 
@@ -48,7 +47,7 @@ $hold = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Good. Cluster $cluster is supposed to be held.....\n",1);
+	print "Good. Cluster $cluster is supposed to be held.....\n";
 };
 
 $release = sub
@@ -65,27 +64,27 @@ $success = sub
 
 $wanterror = sub
 {
-	CondorTest::debug("Base file transfer job, submit supposed to fail...error 1 ..!\n",1);
+	print "Base file transfer job, submit supposed to fail...error 1 ..!\n";
 	my %args = @_;
 	my $errmsg = $args{"ErrorMessage"};
 
     if($errmsg =~ /^.*died abnormally.*$/) {
-        CondorTest::debug("BAD. Submit died was to fail but with error 1\n",1);
-        CondorTest::debug("$testname: Failure\n",1);
+        print "BAD. Submit died was to fail but with error 1\n";
+        print "$testname: Failure\n";
         exit(1);
     } elsif($errmsg =~ /^.*\(\s*returned\s*(\d+)\s*\).*$/) {
         if($1 == 1) {
-            CondorTest::debug("Good. Job was not to submit with File Transfer off and input files requested\n",1);
-            CondorTest::debug("$testname: SUCCESS\n",1);
+            print "Good. Job was not to submit with File Transfer off and input files requested\n";
+            print "$testname: SUCCESS\n";
             exit(0);
         } else {
-            CondorTest::debug("BAD. Submit was to fail but with error 1 not <<$1>>\n",1);
-            CondorTest::debug("$testname: Failure\n",1);
+            print "BAD. Submit was to fail but with error 1 not <<$1>>\n";
+            print "$testname: Failure\n";
             exit(1);
         }
     } else {
-            CondorTest::debug("BAD. Submit failure mode unexpected....\n",1);
-            CondorTest::debug("$testname: Failure\n",1);
+            print "BAD. Submit failure mode unexpected....\n";
+            print "$testname: Failure\n";
             exit(1);
     }
 };
@@ -112,7 +111,7 @@ CondorTest::RegisterExitedSuccess($testname, $success);
 CondorTest::RegisterTimed($testname, $timed, 3600);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

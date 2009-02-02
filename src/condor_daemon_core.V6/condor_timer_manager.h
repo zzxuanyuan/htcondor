@@ -32,7 +32,6 @@
 
 #include "condor_constants.h"
 #include "dc_service.h"
-#include "condor_timeslice.h"
 
 #ifdef WIN32
 #include <time.h>
@@ -78,8 +77,6 @@ struct tagTimer {
     /** Not_Yet_Documented */ int               is_cpp;
     /** Not_Yet_Documented */ char*             event_descrip;
     /** Not_Yet_Documented */ void*             data_ptr;
-    /** Not_Yet_Documented */ Timeslice         timeslice;
-    /** Not_Yet_Documented */ bool              has_timeslice;
 };
 
 ///
@@ -107,7 +104,7 @@ class TimerManager
     int NewTimer(Service*     s,
                  unsigned     deltawhen,
                  Event        event,
-                 const char * event_descrip,
+                 char *       event_descrip,
                  unsigned     period          =  0,
                  int          id              = -1);
 
@@ -119,11 +116,11 @@ class TimerManager
         @param id             Not_Yet_Documented.
         @return The ID of the new timer, or -1 on failure
     */
-    int NewTimer(unsigned     deltawhen,
-                 Event        event,
-                 const char * event_descrip, 
-                 unsigned     period          =  0,
-                 int          id              = -1);
+    int NewTimer(unsigned    deltawhen,
+                 Event       event,
+                 char *      event_descrip, 
+                 unsigned    period          =  0,
+                 int         id              = -1);
 
     /** Not_Yet_Documented.
         @param s              Not_Yet_Documented.
@@ -132,25 +129,12 @@ class TimerManager
         @param event_descrip  Not_Yet_Documented.
         @return The ID of the new timer, or -1 on failure
     */
-    int NewTimer (Service*     s,
-                  unsigned     deltawhen,
-                  Eventcpp     event,
-                  const char * event_descrip,
-                  unsigned     period          =  0,
-                  int          id              = -1);
-
-    /** Create a timer using a timeslice object to control interval.
-        @param s              Service object of which function is a member.
-        @param timeslice      Timeslice object specifying interval parameters
-        @param event          Function to call when timer fires.
-        @param event_descrip  String describing the function.
-        @return The ID of the new timer, or -1 on failure
-    */
-    int NewTimer (Service*     s,
-                  Timeslice    timeslice,
-                  Eventcpp     event,
-                  const char * event_descrip,
-                  int          id              = -1);
+    int NewTimer (Service*   s,
+                  unsigned   deltawhen,
+                  Eventcpp   event,
+                  char *     event_descrip,
+                  unsigned   period          =  0,
+                  int        id              = -1);
 
     /** Not_Yet_Documented.
         @param id The ID of the timer
@@ -170,7 +154,7 @@ class TimerManager
     void CancelAllTimers();
 
     /// Not_Yet_Documented.
-    void DumpTimerList(int, const char* = NULL );
+    void DumpTimerList(int, char* = NULL );
 
     /** Not_Yet_Documented.
         @return Not_Yet_Documented
@@ -186,9 +170,8 @@ class TimerManager
                   unsigned  deltawhen,
                   Event     event,
                   Eventcpp  eventcpp,
-                  const char *    event_descrip,
+                  char *    event_descrip,
                   unsigned  period          =  0,
-				  Timeslice *timeslice      = NULL,
                   int       id              = -1, 
                   int       is_cpp          =  0);
 

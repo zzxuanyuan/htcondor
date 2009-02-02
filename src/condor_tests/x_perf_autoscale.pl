@@ -25,8 +25,7 @@ my $increasejobs = $ARGV[1];
 my $lastduration = $ARGV[2];
 my $datafile = $ARGV[3];
 my $cmd = $ARGV[4];
-my $testdesc =  $ARGV[5];
-my $testname = "x_perf_autoscale";
+my $testname = $ARGV[5];
 
 
 my $completedgood = 0;
@@ -39,7 +38,7 @@ my $percentmoretime = 0;
 
 #system("ls;pwd");
 
-CondorTest::debug("Doing $percentmore percent more jobs this run\n",1);
+print "Doing $percentmore percent more jobs this run\n";
 sleep 3;
 
 my $line = "";
@@ -80,10 +79,10 @@ $ExitSuccess = sub
 	my %info = @_;
 
 	$completedgood += 1;
-	CondorTest::debug("Completed count: $completedgood\n",1);
+	print "Completed count: $completedgood\n";
 	if( $completedgood == $thisrunjobs )
 	{
-		CondorTest::debug("Completed Done Count: $completedgood\n",1);
+		print "Completed Done Count: $completedgood\n";
 		$stoptime = time();
 		my $duration = ($stoptime - $starttime);
 		my $unittime = ($duration)/($thisrunjobs);
@@ -91,7 +90,7 @@ $ExitSuccess = sub
 		{
 			$percentmoretime = (($duration - $lastduration) / $lastduration) * 100;
 		}
-		CondorTest::debug("Completed time per test: $unittime\n",1);
+		print "Completed time per test: $unittime\n";
 		print NEWDATAOUT "Scaling($thisrunjobs) Duration($duration) UnitTime($unittime) JobIncrease($percentmorejobs) TimeIncrease($percentmoretime)\n";
 		close(NEWDATAOUT);
 		system("mv $datafile.new $datafile");
@@ -102,7 +101,7 @@ $ExitSuccess = sub
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

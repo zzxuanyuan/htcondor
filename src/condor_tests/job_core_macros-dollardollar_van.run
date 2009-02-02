@@ -23,8 +23,7 @@ use Cwd;
 use Sys::Hostname;
 
 $cmd = 'job_core_macros-dollardollar_van.cmd';
-$testdesc =  'condor_submit macros - vanilla U';
-$testname = "job_core_macros-dollardollar_van";
+$testname = 'condor_submit macros - vanilla U';
 
 
 $ExitSuccessBase = sub {
@@ -52,7 +51,7 @@ $success = sub
 	load_up_lines();
 	foreach my $item ( @lines )
 	{
-		CondorTest::debug("ARG -$item-\n",1);
+		print "ARG -$item-\n";
 	}
 
 	CondorTest::ParseMachineAds( $lines[1] );
@@ -60,19 +59,19 @@ $success = sub
 	my $machinemem = CondorTest::FetchMachineAdValue("memory");
 	my $wontbethere = CondorTest::FetchMachineAdValue("wontbethere");
 
-	CondorTest::debug("Alternate value is ---$wontbethere---\n",1);
+	print "Alternate value is ---$wontbethere---\n";
 	if( $machinemem ne undef)
 	{
 		if($machinemem eq $lines[0])
 		{
-			CondorTest::debug("Good macro and condor_status agree --$machinemem--!\n",1);
-			CondorTest::debug("$lines[4] should match too\n",1);
+			print "Good macro and condor_status agree --$machinemem--!\n";
+			print "$lines[4] should match too\n";
 			if( $lines[4] =~ /^\s*MEMORY\s+=\s+(\d+)$/ )
 			{
-				CondorTest::debug("Memory = $1\n",1);
+				print "Memory = $1\n";
 				if( $1 eq $machinemem)
 				{
-					CondorTest::debug("We are happy......\n",1);
+					print "We are happy......\n";
 				}
 				else
 				{
@@ -102,7 +101,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success );
 
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

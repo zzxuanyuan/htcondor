@@ -20,6 +20,7 @@
 
 
 ######################################################################
+# $Id: platform_pre,v 1.6.4.2 2008-01-24 21:28:41 bt Exp $
 # Submit-side NMI build system infrastructure to setup platform
 # specific input for test jobs.  All we have to do is trim down the
 # architecture-dependent results.tar.gz file to remove all the

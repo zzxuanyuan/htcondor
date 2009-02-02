@@ -20,6 +20,7 @@
 
 use CondorTest;
 
+Condor::DebugOff();
 
 $cmd = $ARGV[0];
 $jobcount = $ARGV[1];
@@ -27,15 +28,14 @@ $neginterval = $ARGV[2];
 
 $neginterval = ($neginterval/2);
 
-CondorTest::debug("Interval to wait is <<$neginterval>>\n",1);
+print "Interval to wait is <<$neginterval>>\n";
 $heldcount = 0;
 
-CondorTest::debug("Submit file for this test is $cmd\n",1);
+print "Submit file for this test is $cmd\n";
 #print "looking at env for condor config\n";
 #system("printenv | grep CONDOR_CONFIG");
 
-$testdesc =  'Basic Startd MultiMatch - Grid U';
-$testname = "job_startd_multimatch";
+$testname = 'Basic Startd MultiMatch - Grid U';
 
 my @adarray;
 my $status = 1;
@@ -43,21 +43,21 @@ my $runcondorcmd = "condor_advertise UPDATE_STARTD_AD job_startd_multimatch.ad";
 $status = CondorTest::runCondorTool($runcondorcmd,\@adarray,2);
 if(!$status)
 {
-	CondorTest::debug("Test failure due to Condor Tool Failure<$runcondorcmd>\n",1);
+	print "Test failure due to Condor Tool Failure<$runcondorcmd>\n";
 	exit(1)
 }
 
 $aborted = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event not expected!\n",1);
+	print "Abort event not expected!\n";
 };
 
 $held = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 	$heldcount = $heldcount + 1;
-	CondorTest::debug("Held event expected..(count = $heldcount)...\n",1);
+	print "Held event expected..(count = $heldcount)...\n";
 };
 
 $executed = sub
@@ -65,27 +65,27 @@ $executed = sub
 	my %args = @_;
 	my $cluster = $args{"cluster"};
 
-	CondorTest::debug("Grid job executed\n",1);
+	print "Grid job executed\n";
 };
 
 $timed = sub
 {
 	system("date");
-	CondorTest::debug("Held job count test.\n",1);
+	print "Held job count test.\n";
 	if( $jobcount == $heldcount) {
-		CondorTest::debug("multimatch working\n",1);
-		CondorTest::debug("$testname: SUCCESS\n",1);
+		print "multimatch working\n";
+		print "$testname: SUCCESS\n";
 		    exit(0);
 	} else {
-		CondorTest::debug("multimatch not working wanted $jobcount got $heldcount\n",1);
-		CondorTest::debug("$testname: FAILURE\n",1);
+		print "multimatch not working wanted $jobcount got $heldcount\n";
+		print "$testname: FAILURE\n";
 		exit(1);
 	}
 };
 
 $success = sub
 {
-	CondorTest::debug("Success: Grid Test ok\n",1);
+	print "Success: Grid Test ok\n";
 };
 
 CondorTest::RegisterHold($testname, $held);
@@ -94,7 +94,7 @@ CondorTest::RegisterExitedSuccess( $testname, $success);
 CondorTest::RegisterExecute($testname, $executed);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

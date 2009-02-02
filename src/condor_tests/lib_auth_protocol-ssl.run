@@ -22,14 +22,15 @@ use CondorTest;
 use CondorPersonal;
 use Cwd;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 my $topleveldir = getcwd();
 my $name4test = `whoami`;
-CondorTest::debug("Adjusting mapfile for <$name4test>\n",1);
+print "Adjusting mapfile for <$name4test>\n";
 
 $param_template = "x_param.protocol-ssl.template";
-$testdesc =  'lib_auth_protocol-ssl - Security Protocol SSL Authentication Test';
-$testname = "lib_auth_protocol-ssl";
+$testname = 'lib_auth_protocol-ssl - Security Protocol SSL Authentication Test';
 $corename = "lib_auth_protocol-ssl";
 $mycustomconfig = "x_secssl_configpostsrc";
 $mytestnegotiation = "x_secneg_clR_dmnR_secprepostsrc";
@@ -57,10 +58,10 @@ if($mypid == 0) {
 	die "Saveme setup for test failed\n";
 }
 
-$pidleveldir = $topleveldir . "/" . $mysaveme . "/" . $mypid;
-print "changing to $pidleveldir\n";
-chdir("$pidleveldir");
+$pidleveldir = $topleveldir . "/" . $mypid;
+chdir("$mypid");
 system("pwd");
+system("ls");
 system("tar -zxvf ../../$mysslcerts");
 chdir("ssl_keys");
 
@@ -74,8 +75,8 @@ while(<OLD>) {
 	chomp;
 	$line = $_;
 	if($line =~ /^SSL\s+(.*)\s+USER$/ ) {
-		print NEW "SSL $1 $name4test";
-		CondorTest::debug("SSL $1 $name4test\n",1);
+		print NEW "SSL $1 $name4test\n";
+		print "SSL $1 $name4test\n";
 	} else {
 		print NEW;
 	}
@@ -97,8 +98,8 @@ $mycorenm = $corename . ".cmd";
 $mycorenmout = $corename . ".cmd.out";
 $mycorenmlog = $corename . ".log";
 
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 # Edit submit file to submit to scheduler at securitypool (side b) schedd.
 my $line;
@@ -110,12 +111,12 @@ while(<TPLATE>)
 	$line = $_;
 	if( $line =~ /^\s*secprepostsrc\s*=\s*.*$/ )
 	{
-		CondorTest::debug("Setting up for $mytestnegotiation\n",1);
+		print "Setting up for $mytestnegotiation\n";
 		print CSUB "secprepostsrc = $mytestnegotiation\n";
 	}
 	else
 	{
-		CondorTest::debug("template: $line\n",1);
+		print "template: $line\n";
 		print CSUB "$line\n";
 	}
 }
@@ -166,19 +167,19 @@ while(<CONFIGTPLATE>)
 close(CONFIG);
 close(CONFIGTPLATE);
 
-my $configsec = CondorPersonal::StartCondor( "lib_auth_protocol-ssl", $myparamname ,"protocol", $mypid);
+my $configsec = CondorPersonal::StartCondor($myparamname ,"protocol", $mypid);
 my @securitypool = split /\+/, $configsec;
 my $secconfig = shift @securitypool;
 my $secport = shift @securitypool;
 
-CondorTest::debug("---security config is $secconfig and securitypool port is $secport---\n",1);
+print "---security config is $secconfig and securitypool port is $secport---\n";
 	
 
 $ENV{CONDOR_CONFIG} = $secconfig;
 # submit into local schedd (side a)
 
 my $result = system("./x_lib_auth_protocol.pl $mypid \"protocol\" $mytestnegotiation_result $mycmdfile");
-CondorTest::debug("Result of crafted lib_auth_protocol job is  $result\n",1);
+print "Result of crafted lib_auth_protocol job is  $result\n";
 
 system("cp *$corename* $mysaveme");
 	
@@ -197,14 +198,27 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenmlog");
 }
 
-CondorPersonal::KillDaemonPids($secconfig);
-system("date");
-
-if($result != 0)
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
 {
-    # actuaal job failed but we allowed cleanup
-    exit(1);
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
 }
 
-CondorTest::debug("lib_auth_protocol-ssl SUCCESS\n",1);
-exit(0);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+system("date");
+
+if( $result != 0 )
+{
+	# actual test failed but we allowed cleanup
+	exit(1);
+}
+

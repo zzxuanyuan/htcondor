@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'job_core_onexitrem-false_sched.cmd';
-$testdesc =  'Condor submit policy test for ONEXIT_REMOVE - scheduler U';
-$testname = "job_core_onexitrem_sched";
+$testname = 'Condor submit policy test for ONEXIT_REMOVE - scheduler U';
 
 my $killedchosen = 0;
 
@@ -40,7 +39,7 @@ $executed = sub
 	%info = @_;
 	$cluster = $info{"cluster"};
 
-	CondorTest::debug("Good. for on_exit_hold cluster $cluster must run first\n",1);
+	print "Good. for on_exit_hold cluster $cluster must run first\n";
 };
 
 $success = sub
@@ -49,14 +48,14 @@ $success = sub
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
 
-	CondorTest::debug("Good, good job - $job - should complete trivially\n",1);
+	print "Good, good job - $job - should complete trivially\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
 CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

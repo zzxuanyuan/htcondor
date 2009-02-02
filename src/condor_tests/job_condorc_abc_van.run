@@ -21,16 +21,17 @@
 use CondorTest;
 use CondorPersonal;
 
+CondorPersonal::DebugOff();
+Condor::DebugOff();
 
 $cmd_template = "job_condorc_abc_van.template";
-$testdesc =  'job_condorc_abc_van - Chained Condor-C A&B&C with Vanilla job';
-$testname = "job_condorc_abc_van";
+$testname = 'job_condorc_abc_van - Chained Condor-C A&B&C with Vanilla job';
 $corename = "job_condorc_abc_van";
 
 # where are we running
 $currenthost = CondorTest::getFqdnHost();
 CondorTest::fullchomp($currenthost);
-CondorTest::debug("Running on $currenthost\n",1);
+print "Running on $currenthost\n";
 
 system("date");
 
@@ -49,25 +50,25 @@ $mycorenamecmdout = $corename . ".cmd.out";
 $mycorenamelog = $corename . ".log";
 
 system("date");
-CondorTest::debug("Master PID is $mypid\n",1);
-CondorTest::debug("Master PID submit file is $mysubmitnm\n",1);
+print "Master PID is $mypid\n";
+print "Master PID submit file is $mysubmitnm\n";
 
 
 # get a remote scheduler running (side c)
-my $configrem = CondorPersonal::StartCondor( "job_condorc_abc_van", "x_param.condorcremote" ,"remote");
+my $configrem = CondorPersonal::StartCondor("x_param.condorcremote" ,"remote");
 my @remote = split /\+/, $configrem;
 my $remconfig = shift @remote;
 my $remport = shift @remote;
 
-CondorTest::debug("---Remote config(c) is $remconfig and remote port is $remport---\n",1);
+print "---Remote config(c) is $remconfig and remote port is $remport---\n";
 
 # get a middle scheduler running (side b)
-my $configmid = CondorPersonal::StartCondor( "job_condorc_abc_van", "x_param.condorcmiddle" ,"middle");
+my $configmid = CondorPersonal::StartCondor("x_param.condorcmiddle" ,"middle");
 my @middle = split /\+/, $configmid;
 my $midconfig = shift @middle;
 my $midport = shift @middle;
 
-CondorTest::debug("---Middle config(b) is $midconfig and remote port is $midport---\n",1);
+print "---Middle config(b) is $midconfig and remote port is $midport---\n";
 
 # Edit submit file to submit to scheduler at remote (side b) schedd.
 my $line;
@@ -79,7 +80,7 @@ while(<TPLATE>)
 	$line = $_;
 	if( $line =~ /^\s*remote_pool\s*=.*$/ )
 	{
-		CondorTest::debug("remote pool is $currenthost:$midport\n",1);
+		print "remote pool is $currenthost:$midport\n";
 		print CSUB "remote_pool = $currenthost:$midport\n";
 	}
 	elsif( $line =~ /^\s*remote_schedd\s*=.*$/ )
@@ -89,7 +90,7 @@ while(<TPLATE>)
 	}
 	elsif( $line =~ /^\s*\+Remote_RemotePool\s*=.*$/ )
 	{
-		CondorTest::debug("remote pool is $currenthost: port $remport\n",1);
+		print "remote pool is $currenthost: port $remport\n";
 		print CSUB "+Remote_RemotePool = \"$currenthost:$remport\"\n";
 	}
 	elsif( $line =~ /^\s*\+Remote_RemoteSchedd\s*=\s*.*$/ )
@@ -105,12 +106,12 @@ while(<TPLATE>)
 	elsif( $line =~ /^\s*log\s*= .*$/)
 	{
 		my $lognm = $mysubmitnmlog;
-		CondorTest::debug("New log name: $lognm\n",1);
+		print "New log name: $lognm\n"; 
 		print CSUB "log = $lognm\n";
 	}
 	else
 	{
-		CondorTest::debug("template: $line\n",1);
+		print "template: $line\n";
 		print CSUB "$line\n";
 	}
 }
@@ -119,12 +120,12 @@ close(CSUB);
 sleep 10;
 
 # get a local scheduler running (side a)
-my $configloc = CondorPersonal::StartCondor( "job_condorc_abc_van", "x_param.condorclocal" ,"local");
+my $configloc = CondorPersonal::StartCondor("x_param.condorclocal" ,"local");
 my @local = split /\+/, $configloc;
 my $locconfig = shift @local;
 my $locport = shift @local;
 
-CondorTest::debug("---local config is $locconfig and local port is $locport---\n",1);
+print "---local config is $locconfig and local port is $locport---\n";
 
 $ENV{CONDOR_CONFIG} = $locconfig;
 # submit into local schedd (side a)
@@ -134,13 +135,13 @@ if( ! -e "job_condorc_xxx_van.in" )
 	system("date > job_condorc_xxx_van.in");
 }
 
-CondorTest::debug("Looking for schedds at B middle point of ABC - Condor-C\n",1);
+print "Looking for schedds at B middle point of ABC - Condor-C\n";
 system("condor_status -pool $currenthost:$midport -schedd -format '%s\n' Name");
-CondorTest::debug("Looking for schedds at C remote point of ABC - Condor-C\n",1);
+print "Looking for schedds at C remote point of ABC - Condor-C\n";
 system("condor_status -pool $currenthost:$remport -schedd -format '%s\n' Name");
 
 my $result = system("./job_condorc_ab_van.pl $mysubmitnm");
-CondorTest::debug("Result of crafted Condor-C job is  $result\n",1);
+print "Result of crafted Condor-C job is  $result\n";
 
 system("cp *condorc* $mysaveme");
 
@@ -159,10 +160,35 @@ if( -e "$mysubmitnmlog" )
 	system("cp $mysubmitnmlog $mycorenamelog");
 }
 
+my @adarray;
+my $status = 1;
+my $cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
 
-CondorPersonal::KillDaemonPids($locconfig);
-CondorPersonal::KillDaemonPids($midconfig);
-CondorPersonal::KillDaemonPids($remconfig);
+$ENV{CONDOR_CONFIG} = $remconfig;
+$status = 1;
+$cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
+
+$ENV{CONDOR_CONFIG} = $midconfig;
+$status = 1;
+$cmd = "condor_off -fast -master";
+$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+if(!$status)
+{
+	print "Test failure due to Condor Tool Failure<$cmd>\n";
+	exit(1)
+}
 system("date");
 
 if($result != 0)
@@ -171,5 +197,3 @@ if($result != 0)
 	exit(1);
 }
 
-CondorTest::debug("job_condorc_abc_van SUCCESS\n",1);
-exit(0);

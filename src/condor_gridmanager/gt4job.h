@@ -62,8 +62,6 @@ class GT4Job : public BaseJob
 	BaseResource *GetResource();
 	void SetRemoteJobId( const char *job_id );
 
-	bool SwitchToGram42();
-
 	static int probeInterval;
 	static int submitInterval;
 	static int gahpCallTimeout;
@@ -122,8 +120,6 @@ class GT4Job : public BaseJob
 	int numGlobusSubmits;
 
 	char * delegatedCredentialURI;
-
-	bool m_isGram42;
 
  protected:
 	bool callbackRegistered;

@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_constructor_std.cmd';
-$testdesc =  'C++ Constructor Test';
-$testname = "job_ckpt_constructor_std";
+$testname = 'C++ Constructor Test';
 
 $foo = <<"_EOX";
 "Hello World"
@@ -31,14 +30,13 @@ $foo = <<"_EOX";
 Normal End Of Job
 _EOX
 
-my @expected_output = split '\n', $foo;
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = split '\n', $foo;
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

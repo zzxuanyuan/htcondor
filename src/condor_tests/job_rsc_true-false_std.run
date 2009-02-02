@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_rsc_true-false_std.cmd';
-$testdesc =  'remote io true/false Test';
-$testname = "job_rsc_true-false_std";
+$testname = 'remote io true/false Test';
 $line = "";
 $filenm = "/tmp/job_rsc_true-false_std.$$";
 	
@@ -53,7 +52,7 @@ $ExitSuccess = sub
 
 	# Pull out requested environment values
 	my $args   = $info{"arguments"};
-	CondorTest::debug("Args passed in are $args\n",1);
+	print "Args passed in are $args\n";
 	if(!defined($args)) {
 	}
 };
@@ -61,7 +60,7 @@ $ExitSuccess = sub
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

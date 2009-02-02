@@ -52,7 +52,6 @@ extern const char * ATTR_BUFFER_BLOCKS_USED;
 extern const char * ATTR_BUFFER_PREFETCH_SIZE;
 extern const char * ATTR_BYTES_SENT;
 extern const char * ATTR_BYTES_RECVD;
-extern const char * ATTR_CAN_HIBERNATE;
 extern const char * ATTR_CAPABILITY;
 extern const char * ATTR_CKPT_SERVER;
 extern const char * ATTR_COD_CLAIMS;
@@ -75,9 +74,6 @@ extern const char * ATTR_CLUSTER_ID;
 extern const char * ATTR_AUTO_CLUSTER_ID;
 extern const char * ATTR_AUTO_CLUSTER_ATTRS;
 extern const char * ATTR_COMPLETION_DATE;
-extern const char * ATTR_MATCHED_CONCURRENCY_LIMITS;
-extern const char * ATTR_CONCURRENCY_LIMITS;
-extern const char * ATTR_PREEMPTING_CONCURRENCY_LIMITS;
 #define ATTR_CONDOR_LOAD_AVG			AttrGetName( ATTRE_CONDOR_LOAD_AVG )
 #define ATTR_CONDOR_ADMIN				AttrGetName( ATTRE_CONDOR_ADMIN )
 extern const char * ATTR_CONSOLE_IDLE;
@@ -99,7 +95,6 @@ extern const char * ATTR_CPUS;
 extern const char * ATTR_CURRENT_HOSTS;
 extern const char * ATTR_CURRENT_JOBS_RUNNING;
 extern const char * ATTR_CURRENT_RANK;
-extern const char * ATTR_CURRENT_STATUS_UNKNOWN;
 extern const char * ATTR_CURRENT_TIME;
 extern const char * ATTR_DAEMON_START_TIME;
 extern const char * ATTR_DAEMON_SHUTDOWN;
@@ -125,7 +120,6 @@ extern const char * ATTR_EXCEPTION_TYPE;
 extern const char * ATTR_EXECUTABLE_SIZE;
 extern const char * ATTR_EXIT_REASON;
 extern const char * ATTR_FETCH_FILES;
-extern const char * ATTR_FETCH_WORK_DELAY;
 extern const char * ATTR_FILE_NAME;
 extern const char * ATTR_FILE_SIZE;
 extern const char * ATTR_FILE_SYSTEM_DOMAIN;
@@ -143,7 +137,6 @@ extern const char * ATTR_GLOBAL_JOB_ID;
 extern const char * ATTR_GZIP;
 extern const char * ATTR_GLOBUS_CONTACT_STRING;
 extern const char * ATTR_GLOBUS_DELEGATION_URI;
-// Deprecated (cruft) -- no longer used
 extern const char * ATTR_GLOBUS_GRAM_VERSION;
 extern const char * ATTR_GLOBUS_RESOURCE;
 extern const char * ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME;
@@ -170,7 +163,6 @@ extern const char * ATTR_MYPROXY_CRED_NAME;
 extern const char * ATTR_MYPROXY_REFRESH_THRESHOLD;
 extern const char * ATTR_MYPROXY_NEW_PROXY_LIFETIME;
 // END ckireyev myproxy
-extern const char * ATTR_HARDWARE_ADDRESS;
 extern const char * ATTR_HAS_CHECKPOINTING;
 extern const char * ATTR_HAS_FILE_TRANSFER;
 extern const char * ATTR_HAS_PER_FILE_ENCRYPTION;
@@ -191,21 +183,13 @@ extern const char * ATTR_HAS_SOAP_API;
 extern const char * ATTR_HAS_WIN_RUN_AS_OWNER;
 extern const char * ATTR_HAS_VM;
 extern const char * ATTR_HELD_JOBS;
-extern const char * ATTR_HIBERNATION_LEVEL;
-extern const char * ATTR_HIBERNATION_STATE;
 extern const char * ATTR_HOLD_KILL_SIG;
-extern const char * ATTR_HOOK_KEYWORD;
 extern const char * ATTR_IDLE_JOBS;
 extern const char * ATTR_IMAGE_SIZE;
 extern const char * ATTR_INTERACTIVE;
 extern const char * ATTR_IS_DAEMON_CORE;
 extern const char * ATTR_IS_OWNER;
 extern const char * ATTR_IS_QUEUE_SUPER_USER;
-extern const char * ATTR_IS_WAKE_SUPPORTED;
-extern const char * ATTR_WAKE_SUPPORTED_FLAGS;
-extern const char * ATTR_IS_WAKE_ENABLED;
-extern const char * ATTR_WAKE_ENABLED_FLAGS;
-extern const char * ATTR_IS_WAKEABLE;
 extern const char * ATTR_INACTIVE;
 extern const char * ATTR_JAR_FILES;
 extern const char * ATTR_JAVA_MFLOPS;
@@ -241,16 +225,13 @@ extern const char * ATTR_JOB_JAVA_VM_ARGS1;
 extern const char * ATTR_JOB_JAVA_VM_ARGS2;
 extern const char * ATTR_ORIG_JOB_IWD;
 extern const char * ATTR_JOB_REMOTE_IWD;
-extern const char * ATTR_JOB_LOAD_PROFILE;
 extern const char * ATTR_JOB_RUNAS_OWNER;
-extern const char * ATTR_JOB_LOAD_USER_PROFILE;
 extern const char * ATTR_JOB_LOCAL_CPU;
 extern const char * ATTR_JOB_LOCAL_SYS_CPU;
 extern const char * ATTR_JOB_LOCAL_USER_CPU;
 extern const char * ATTR_JOB_MANAGED;
 extern const char * ATTR_JOB_MANAGED_MANAGER;
 extern const char * ATTR_JOB_MATCHED;
-extern const char * ATTR_JOB_NONESSENTIAL;
 extern const char * ATTR_JOB_NOOP;
 extern const char * ATTR_JOB_NOOP_EXIT_SIGNAL;
 extern const char * ATTR_JOB_NOOP_EXIT_CODE;
@@ -269,7 +250,6 @@ extern const char * ATTR_JOB_REMOTE_USER_CPU;
 extern const char * ATTR_JOB_REMOTE_WALL_CLOCK;
 extern const char * ATTR_JOB_ROOT_DIR;
 extern const char * ATTR_JOB_RUN_COUNT;
-extern const char * ATTR_JOB_SANDBOX_JOBAD;
 extern const char * ATTR_JOB_START;
 extern const char * ATTR_JOB_START_DATE;
 extern const char * ATTR_JOB_STATE;
@@ -281,8 +261,6 @@ extern const char * ATTR_JOB_WALL_CLOCK_CKPT;
 extern const char * ATTR_JOB_QUEUE_BIRTHDATE;
 extern const char * ATTR_JOB_VM_TYPE;
 extern const char * ATTR_JOB_VM_MEMORY;
-extern const char * ATTR_JOB_VM_VCPUS;
-extern const char * ATTR_JOB_VM_MACADDR;
 extern const char * ATTR_JOB_VM_CHECKPOINT;
 extern const char * ATTR_JOB_VM_NETWORKING;
 extern const char * ATTR_JOB_VM_NETWORKING_TYPE;
@@ -301,8 +279,6 @@ extern const char * ATTR_LAST_CKPT_TIME;
 extern const char * ATTR_LAST_PUBLIC_CLAIM_ID;
 extern const char * ATTR_LAST_PUBLIC_CLAIM_IDS;
 extern const char * ATTR_LAST_CLAIM_STATE;
-extern const char * ATTR_LAST_FETCH_WORK_SPAWNED;
-extern const char * ATTR_LAST_FETCH_WORK_COMPLETED;
 extern const char * ATTR_LAST_VACATE_TIME;
 extern const char * ATTR_LAST_HEARD_FROM;
 extern const char * ATTR_LAST_HOLD_REASON;
@@ -318,13 +294,11 @@ extern const char * ATTR_LAST_REJ_MATCH_REASON;
 extern const char * ATTR_LAST_PERIODIC_CHECKPOINT;
 extern const char * ATTR_LAST_RELEASE_REASON;
 extern const char * ATTR_LAST_REMOTE_HOST;
-extern const char * ATTR_LAST_REMOTE_STATUS_UPDATE;
 extern const char * ATTR_LAST_UPDATE;
 extern const char * ATTR_LOCAL_CREDD;
 extern const char * ATTR_LOCAL_FILES;
 extern const char * ATTR_LOAD_AVG;
 extern const char * ATTR_MACHINE;
-extern const char * ATTR_MACHINE_COUNT;
 extern const char * ATTR_MASTER_IP_ADDR;
 extern const char * ATTR_MAX_HOSTS;
 extern const char * ATTR_MAX_JOB_RETIREMENT_TIME;
@@ -349,7 +323,6 @@ extern const char * ATTR_NAME;
 extern const char * ATTR_NICE_USER;
 extern const char * ATTR_NEGOTIATOR_REQUIREMENTS;
 extern const char * ATTR_NEXT_CLUSTER_NUM;
-extern const char * ATTR_NEXT_FETCH_WORK_DELAY;
 extern const char * ATTR_NEXT_JOB_START_DELAY;
 extern const char * ATTR_NODE;
 extern const char * ATTR_NORDUGRID_RSL;
@@ -360,9 +333,6 @@ extern const char * ATTR_WINDOWS_VERSION;
 extern const char * ATTR_WINDOWS_MAJOR_VERSION;
 extern const char * ATTR_WINDOWS_MINOR_VERSION;
 extern const char * ATTR_WINDOWS_BUILD_NUMBER;
-extern const char * ATTR_WINDOWS_SERVICE_PACK_MAJOR;
-extern const char * ATTR_WINDOWS_SERVICE_PACK_MINOR;
-extern const char * ATTR_WINDOWS_PRODUCT_TYPE;
 extern const char * ATTR_NUM_COD_CLAIMS;
 extern const char * ATTR_NUM_CKPTS;
 extern const char * ATTR_NUM_CKPTS_RAW;
@@ -379,7 +349,6 @@ extern const char * ATTR_NUM_SHADOW_EXCEPTIONS;
 extern const char * ATTR_NUM_SHADOW_STARTS;
 extern const char * ATTR_NUM_SYSTEM_HOLDS;
 extern const char * ATTR_NUM_USERS;
-extern const char * ATTR_OFFLINE;
 extern const char * ATTR_OPSYS;
 extern const char * ATTR_ORIG_MAX_HOSTS;
 extern const char * ATTR_OWNER;
@@ -435,8 +404,6 @@ extern const char * ATTR_SCHEDD_NAME;
 extern const char * ATTR_SCHEDULER;
 extern const char * ATTR_SHADOW_WAIT_FOR_DEBUG;
 extern const char * ATTR_SLOT_ID;
-extern const char * ATTR_SLOT_PARTITIONABLE;
-extern const char * ATTR_SLOT_DYNAMIC;
 extern const char * ATTR_SOURCE;
 extern const char * ATTR_STAGE_IN_START;
 extern const char * ATTR_STAGE_IN_FINISH;
@@ -521,11 +488,6 @@ extern const char * ATTR_USER;
 extern const char * ATTR_VACATE;
 extern const char * ATTR_VACATE_TYPE;
 extern const char * ATTR_VIRTUAL_MEMORY;
-extern const char * ATTR_VISA_TIMESTAMP;
-extern const char * ATTR_VISA_DAEMON_TYPE;
-extern const char * ATTR_VISA_DAEMON_PID;
-extern const char * ATTR_VISA_HOSTNAME;
-extern const char * ATTR_VISA_IP;
 extern const char * ATTR_WANT_CHECKPOINT;
 extern const char * ATTR_WANT_CLAIMING;
 extern const char * ATTR_WANT_IO_PROXY;
@@ -533,8 +495,6 @@ extern const char * ATTR_WANT_MATCH_DIAGNOSTICS;
 extern const char * ATTR_WANT_PARALLEL_SCHEDULING_GROUPS;
 extern const char * ATTR_WANT_REMOTE_SYSCALLS;
 extern const char * ATTR_WANT_REMOTE_IO;
-extern const char * ATTR_WANT_SCHEDD_COMPLETION_VISA;
-extern const char * ATTR_WANT_STARTER_EXECUTION_VISA;
 extern const char * ATTR_WANT_SUBMIT_NET_STATS;
 extern const char * ATTR_WANT_LAST_CKPT_SERVER_NET_STATS;
 extern const char * ATTR_WANT_CKPT_SERVER_NET_STATS;
@@ -575,7 +535,6 @@ extern const char * ATTR_SHADOW_BIRTHDATE;
 extern const char * ATTR_HOLD_REASON;
 extern const char * ATTR_HOLD_REASON_CODE;
 extern const char * ATTR_HOLD_REASON_SUBCODE;
-extern const char * ATTR_HOLD_COPIED_FROM_TARGET_JOB;
 extern const char * ATTR_WANT_MATCHING;
 extern const char * ATTR_WANT_RESOURCE_AD;
 extern const char * ATTR_TOTAL_SUSPENSIONS;
@@ -620,14 +579,10 @@ extern const char * ATTR_SEC_PACKET_COUNT;
 extern const char * ATTR_SEC_NEGOTIATION;
 extern const char * ATTR_SEC_VALID_COMMANDS;
 extern const char * ATTR_SEC_SESSION_DURATION;
-extern const char * ATTR_SEC_SESSION_EXPIRES;
 extern const char * ATTR_SEC_USER;
-extern const char * ATTR_SEC_MY_REMOTE_USER_NAME;
 extern const char * ATTR_SEC_NEW_SESSION;
 extern const char * ATTR_SEC_USE_SESSION;
 extern const char * ATTR_SEC_COOKIE;
-extern const char * ATTR_SEC_AUTHENTICATED_USER;
-extern const char * ATTR_SEC_TRIED_AUTHENTICATION;
 
 extern const char * ATTR_MULTIPLE_TASKS_PER_PVMD;
 
@@ -649,8 +604,6 @@ extern const char * ATTR_QUILL_SQL_LAST_BATCH;
 extern const char * ATTR_CHECKPOINT_PLATFORM;
 extern const char * ATTR_LAST_CHECKPOINT_PLATFORM;
 extern const char * ATTR_IS_VALID_CHECKPOINT_PLATFORM;
-
-extern const char * ATTR_WITHIN_RESOURCE_LIMITS;
 
 extern const char * ATTR_HAD_IS_ACTIVE;
 extern const char * ATTR_HAD_LIST;
@@ -695,24 +648,6 @@ extern const char *ATTR_VM_GUEST_MEM;
 extern const char *ATTR_VM_CKPT_MAC;
 extern const char *ATTR_VM_CKPT_IP;
 
-
-//************* Added for Amazon Jobs ***************************//
-extern const char *ATTR_AMAZON_PUBLIC_KEY;
-extern const char *ATTR_AMAZON_PRIVATE_KEY;
-extern const char *ATTR_AMAZON_AMI_ID;
-extern const char *ATTR_AMAZON_KEY_PAIR_FILE;
-extern const char *ATTR_AMAZON_SECURITY_GROUPS;
-extern const char *ATTR_AMAZON_USER_DATA;
-extern const char *ATTR_AMAZON_USER_DATA_FILE;
-extern const char *ATTR_AMAZON_REMOTE_VM_NAME;
-extern const char *ATTR_AMAZON_INSTANCE_TYPE;
-//************* End of changes for Amamzon Jobs *****************//
-
-
-extern const char *ATTR_REQUEST_CPUS;
-extern const char *ATTR_REQUEST_MEMORY;
-extern const char *ATTR_REQUEST_DISK;
-
 // This is a record of the job exit status from a standard universe job exit
 // via waitpid. It is in the job ad to implement the terminate_pending
 // feature. It has to be here because of rampant global variable usage in the
@@ -720,9 +655,6 @@ extern const char *ATTR_REQUEST_DISK;
 // put this value in the job ad.
 extern const char * ATTR_WAITPID_STATUS;
 extern const char * ATTR_TERMINATION_REASON;
-
-// Lease Manager
-extern const char *ATTR_LEASE_MANAGER_IP_ADDR;
 
 // Valid settings for ATTR_JOB_MANAGED.
 	// Managed by an external process (gridmanager)
@@ -738,8 +670,6 @@ extern const char * ATTR_PREV_LAST_HEARD_FROM;
 extern const char *ATTR_TRY_AGAIN;
 extern const char *ATTR_DOWNLOADING;
 extern const char *ATTR_TIMEOUT;
-extern const char *ATTR_CCBID;
-extern const char *ATTR_REQUEST_ID;
 
 // Enumerate the ones that can't be constant strings..
 typedef enum

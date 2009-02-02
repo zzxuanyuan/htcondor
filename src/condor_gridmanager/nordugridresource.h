@@ -22,7 +22,7 @@
 #define NORDUGRIDRESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "baseresource.h"
 #include "gahp-client.h"
@@ -37,17 +37,12 @@ class NordugridResource : public BaseResource
 	NordugridResource( const char *resource_name, const char *proxy_subject );
 	~NordugridResource();
 
-	const char *ResourceType();
 	void Reconfig();
 
 	static const char *HashName( const char *resource_name,
 								 const char *proxy_subject );
 	static NordugridResource *FindOrCreateResource( const char *resource_name,
 													const char *proxy_subject );
-
-	const char *GetHashName();
-
-	void PublishResourceAd( ClassAd *resource_ad );
 
 	char *proxySubject;
 	GahpClient *gahp;

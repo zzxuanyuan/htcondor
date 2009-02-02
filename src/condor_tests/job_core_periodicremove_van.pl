@@ -20,24 +20,24 @@
 
 use CondorTest;
 
+Condor::DebugOff();
 
 #$cmd = 'job_condorc_ab_van.cmd';
 $cmd = $ARGV[0];
 
-CondorTest::debug("Submit file for this test is $cmd\n",1);
-CondorTest::debug("looking at env for condor config\n",1);
+print "Submit file for this test is $cmd\n";
+print "looking at env for condor config\n";
 system("printenv | grep CONDOR_CONFIG");
 
 $condor_config = $ENV{CONDOR_CONFIG};
-CondorTest::debug("CONDOR_CONFIG = $condor_config\n",1);
+print "CONDOR_CONFIG = $condor_config\n";
 
-$testdesc =  'job_core_periodicremove_van';
-$testname = "job_core_periodicremove_van";
+$testname = 'job_core_periodicremove_van';
 
 $aborted = sub {
 	my %info = @_;
 	my $done;
-	CondorTest::debug("Abort event\n",1);
+	print "Abort event\n";
 	#die "Want to see only submit, release and successful completion events for periodic release test\n";
 };
 
@@ -46,7 +46,7 @@ $held = sub {
 	my $cluster = $info{"cluster"};
 	my $holdreason = $info{"holdreason"};
 
-	CondorTest::debug("Held event: $holdreason \n",1);
+	print "Held event: $holdreason \n";
 	system("condor_status -any -l");
 	system("ps auxww | grep schedd");
 	system("cat `condor_config_val LOG`/SchedLog");
@@ -77,7 +77,7 @@ $success = sub
 	@output_lines = <OUTPUT>;
 	close OUTPUT;
 	foreach $res (@output_lines) {
-		CondorTest::debug("res: $res\n",1);
+		print "res: $res\n";
 		if($res =~ /^.*Done.*$/) {
 			$founddone = 1;
 			last;
@@ -99,19 +99,19 @@ $success = sub
 	    }
 	}
 
-	CondorTest::debug("Success: ok\n",1);
+	print "Success: ok\n";
 };
 
 $release = sub
 {
-	CondorTest::debug("Release expected.........\n",1);
+	print "Release expected.........\n";
 	my @adarray;
 	my $status = 1;
 	my $cmd = "condor_reschedule";
 	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
 	if(!$status)
 	{
-		CondorTest::debug("Test failure due to Condor Tool Failure<$cmd>\n",1);
+		print "Test failure due to Condor Tool Failure<$cmd>\n";
 		exit(1)
 	}
 };
@@ -123,7 +123,7 @@ CondorTest::RegisterHold( $testname, $held );
 #CondorTest::RegisterTimed($testname, $timed, 900);
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

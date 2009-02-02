@@ -23,7 +23,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_attributes.h"
 #include "gahp_common.h"
 #include "condor_uid.h"
@@ -59,6 +59,20 @@
 #define VMGAHP_RESULT_ERROR			"E"
 #define VMGAHP_RESULT_FAILURE		"F"
 
+class VMWorker {
+	public:
+		VMWorker() { m_pid = 0;}
+
+		PBuffer m_request_buffer;
+		PBuffer m_result_buffer;
+		PBuffer m_stderr_buffer;
+
+		int m_stdin_pipefds[2];
+		int m_stdout_pipefds[2];
+		int m_stderr_pipefds[2];
+
+		int m_pid;
+};
 
 class VMGahp : public Service {
 	public:
@@ -66,6 +80,7 @@ class VMGahp : public Service {
 		virtual ~VMGahp();
 
 		void startUp();
+		void startWorker();
 		void cleanUp();
 
 		int getNewVMId(void);
@@ -81,6 +96,7 @@ class VMGahp : public Service {
 		void removePendingRequest(VMRequest *req);
 
 		void movePendingReqToResultList(VMRequest *req);
+		void movePendingReqToOutputStream(VMRequest *req);
 
 		VMRequest *findPendingRequest(int req_id);
 		void printAllReqsWithResult();
@@ -96,10 +112,16 @@ class VMGahp : public Service {
 
 	private:
 		int waitForCommand();
+		int flushPendingRequests();
 		const char* make_result_line(VMRequest *req);
 
 		int quitFast();
 		void killAllProcess();
+		int workerReaper(int pid, int exit_status);
+		void sendRequestToWorker(const char* command);
+		void sendClassAdToWorker();
+		int workerResultHandler();
+		int workerStderrHandler();
 
 		bool verifyCommand(char **argv, int argc);
 		bool verify_request_id(const char *s);
@@ -127,6 +149,10 @@ class VMGahp : public Service {
 		void executeStatus(VMRequest *req);
 		void executeGetpid(VMRequest *req);
 
+		int m_stdout_pipe;
+		int m_stderr_pipe;
+
+		int m_flush_request_tid;
 		PBuffer m_request_buffer;
 		ClassAd *m_jobAd;	// Job ClassAd received from Starter 
 		bool m_inClassAd;	// indicating that vmgahp is receiving ClassAd from Starter 
@@ -141,6 +167,8 @@ class VMGahp : public Service {
 		SimpleList<VMType*> m_vm_list;
 
 		bool m_need_output_for_quit;
+
+		VMWorker m_worker;
 };
 
 #endif /* VM_GAHP_H */

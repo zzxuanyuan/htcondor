@@ -74,12 +74,9 @@ class CondorID : public ServiceData
 			Takes pointers to two CondorID objects (though the
 			pointers are of type ServiceData* to work properly w/
 			SelfDrainingQueue and all the rest.
-			@return -1 if this < other, 0 if this == other, and 1 if this > other
+			@return -1 if a < b, 0 if a == b, and 1 if a > b
 		*/
-	virtual int ServiceDataCompare( ServiceData const* other ) const;
-
-		/** For use with SelfDrainingQueue. */
-	virtual unsigned int HashFn( ) const;
+	static int ServiceDataCompare( ServiceData* a, ServiceData* b );
 
     /// The job cluster
     int _cluster;

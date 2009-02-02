@@ -29,9 +29,6 @@
 #include "condor_debug.h"
 #include "condor_string.h"
 
-#if HAVE_BACKTRACE
-#include "sig_install.h"
-#endif
 
 int		Termlog = 0;
 
@@ -45,7 +42,7 @@ extern int		_condor_dprintf_works;
 extern time_t	DebugLastMod;
 extern int		DebugUseTimestamps;
 
-extern void		_condor_set_debug_flags( const char *strflags );
+extern void		_condor_set_debug_flags( char *strflags );
 extern void		_condor_dprintf_saved_lines( void );
 
 FILE *open_debug_file( int debug_level, char flags[] );
@@ -55,38 +52,8 @@ void	_condor_gcb_dprintf_va( int flags, char* fmt, va_list args );
 extern void Generic_set_log_va(void(*app_log_va)(int level, char *fmt, va_list args));
 #endif
 
-#if HAVE_BACKTRACE
-static void
-sig_backtrace_handler(int signum)
-{
-	dprintf_dump_stack();
-
-		// terminate for the same reason.
-	struct sigaction sa;
-	sa.sa_handler = SIG_DFL;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	sigaction(signum, &sa, NULL);
-	sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
-
-	raise(signum);
-}
-
-static void
-install_backtrace_handler(void)
-{
-	sigset_t fullset;
-	sigfillset( &fullset );
-	install_sig_handler_with_mask(SIGSEGV, &fullset, sig_backtrace_handler);
-	install_sig_handler_with_mask(SIGABRT, &fullset, sig_backtrace_handler);
-	install_sig_handler_with_mask(SIGILL, &fullset, sig_backtrace_handler);
-	install_sig_handler_with_mask(SIGFPE, &fullset, sig_backtrace_handler);
-	install_sig_handler_with_mask(SIGBUS, &fullset, sig_backtrace_handler);
-}
-#endif
-
 void
-dprintf_config( const char *subsys )
+dprintf_config( char *subsys )
 {
 	char pname[ BUFSIZ ];
 	char *pval, *param();
@@ -141,16 +108,10 @@ dprintf_config( const char *subsys )
 				(void)sprintf(pname, "%s_%s_LOG", subsys,
 							  _condor_DebugFlagNames[debug_level-1]+2);
 			}
-
-			// Hold a temporary copy of the old file pointer until
-			// *after* the param -- param can dprintf() in some cases
-			{
-				char	*tmp = DebugFile[debug_level];
-				DebugFile[debug_level] = param(pname);
-				if ( tmp ) {
-					free( tmp );
-				}
+			if( DebugFile[debug_level] ) {
+				free( DebugFile[debug_level] );
 			}
+			DebugFile[debug_level] = param(pname);
 
 			if( debug_level == 0 && DebugFile[0] == NULL ) {
 				EXCEPT("No '%s' parameter specified.", pname);
@@ -159,7 +120,7 @@ dprintf_config( const char *subsys )
 				if (debug_level == 0 && first_time) {
 					struct stat stat_buf;
 					if ( stat( DebugFile[debug_level], &stat_buf ) >= 0 ) {
-						DebugLastMod = stat_buf.st_mtime > stat_buf.st_ctime ? stat_buf.st_mtime : stat_buf.st_ctime;
+						DebugLastMod = stat_buf.st_mtime;
 					} else {
 						DebugLastMod = -errno;
 					}
@@ -243,10 +204,6 @@ dprintf_config( const char *subsys )
 		  instead of the standard date format in all the log messages
 		*/
 	DebugUseTimestamps = param_boolean_int( "LOGS_USE_TIMESTAMP", FALSE );
-
-#if HAVE_BACKTRACE
-	install_backtrace_handler();
-#endif
 
 	_condor_dprintf_saved_lines();
 }

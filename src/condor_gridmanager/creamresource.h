@@ -22,7 +22,7 @@
 #define CREAMRESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "proxymanager.h"
 #include "baseresource.h"
@@ -41,13 +41,8 @@ class CreamResource : public BaseResource
 
  public:
 	bool Init();
-	const char *ResourceType();
 	void Reconfig();
 	void UnregisterJob( CreamJob *job );
-
-	const char *GetHashName();
-
-	void PublishResourceAd( ClassAd *resource_ad );
 
 	void registerDelegationURI( const char *deleg_uri, Proxy *job_proxy );
 	const char *getDelegationURI( Proxy *job_proxy );

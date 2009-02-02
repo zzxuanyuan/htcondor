@@ -89,14 +89,14 @@ extern int (*DebugId)(FILE *);		/* set header message */
 
 void dprintf ( int flags, const char *fmt, ... ) CHECK_PRINTF_FORMAT(2,3);
 
-void dprintf_config( const char *subsys );
+void dprintf_config( char *subsys );
 void _condor_dprintf_va ( int flags, const char* fmt, va_list args );
 int _condor_open_lock_file(const char *filename,int flags, mode_t perm);
 void _EXCEPT_ ( const char *fmt, ... ) CHECK_PRINTF_FORMAT(1,2);
 void Suicide(void);
-void set_debug_flags( const char *strflags );
+void set_debug_flags( char *strflags );
 void _condor_fd_panic( int line, char *file );
-void _condor_set_debug_flags( const char *strflags );
+void _condor_set_debug_flags( char *strflags );
 
 /* must call this before clone(CLONE_VM|CLONE_VFORK) */
 void dprintf_before_shared_mem_clone( void );
@@ -113,8 +113,6 @@ void dprintf_init_fork_child( void );
  */
 void dprintf_wrapup_fork_child( void );
 
-void dprintf_dump_stack(void);
-
 time_t dprintf_last_modification(void);
 void dprintf_touch_log(void);
 
@@ -126,9 +124,9 @@ int fclose_wrapper( FILE *stream, int maxRetries );
 **	Definition of exception macro
 */
 #define EXCEPT \
-	_EXCEPT_Line = __LINE__, \
-	_EXCEPT_File = __FILE__,				\
-	_EXCEPT_Errno = errno,					\
+	_EXCEPT_Line = __LINE__; \
+	_EXCEPT_File = __FILE__; \
+	_EXCEPT_Errno = errno; \
 	_EXCEPT_
 
 /*
@@ -137,13 +135,11 @@ int fclose_wrapper( FILE *stream, int maxRetries );
 #if !( defined(LINUX) && defined(GLIBC) || defined(Darwin) || defined(CONDOR_FREEBSD) )
 extern DLL_IMPORT_MAGIC int		errno;
 extern DLL_IMPORT_MAGIC int		sys_nerr;
-#if _MSC_VER < 1400 /* VC++ 2005 version */
-extern DLL_IMPORT_MAGIC char	*sys_errlist[];
-#endif
+extern DLL_IMPORT_MAGIC char		*sys_errlist[];
 #endif
 
 extern int	_EXCEPT_Line;			/* Line number of the exception    */
-extern const char	*_EXCEPT_File;		/* File name of the exception      */
+extern char	*_EXCEPT_File;			/* File name of the exception      */
 extern int	_EXCEPT_Errno;			/* errno from most recent system call */
 extern int (*_EXCEPT_Cleanup)(int,int,char*);	/* Function to call to clean up (or NULL) */
 extern void _EXCEPT_(const char*, ...) CHECK_PRINTF_FORMAT(1,2);

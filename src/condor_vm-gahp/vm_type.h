@@ -24,7 +24,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "MyString.h"
 #include "gahp_common.h"
 #include "utc_time.h"
@@ -85,6 +85,7 @@ protected:
 	bool createConfigUsingScript(const char* configfile);
 	bool createTempFile(const char *template_string, const char *suffix, MyString &outname);
 	bool isTransferedFile(const char* file_name, MyString& fullname);
+	void chownWorkingFiles(uid_t dst_uid);
 
 	MyString m_vmtype;
 	MyString m_vm_name;
@@ -143,6 +144,8 @@ protected:
 
 		// indicate delete files in the working directory
 	bool m_delete_working_files;
+		// indicate whether files in the workingdir were chowned
+	bool m_is_chowned;
 		// use the script program to create a configuration file for VM.
 	bool m_use_script_to_create_config;
 
@@ -153,8 +156,7 @@ protected:
 
 	UtcTime m_last_status_time;
 	MyString m_last_status_result;
-	int m_vcpus;
-	MyString m_vm_job_mac;
+
 private:
 	void createInitialFileList();
 };

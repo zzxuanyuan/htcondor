@@ -21,6 +21,11 @@
 ##  various settings in here and possible ways to configure your
 ##  pool. 
 ##
+##  If you are installing Condor as root and then handing over the
+##  administration of this file to a person you do not trust with
+##  root access, please read the Installation chapter paying careful
+##  note to the condor_config.root entries.
+##
 ##  Unless otherwise specified, settings that are commented out show
 ##  the defaults that are used if you don't define a value.  Settings
 ##  that are defined here MUST BE DEFINED since they have no default
@@ -67,7 +72,7 @@ LOCAL_CONFIG_FILE	= $(LOCAL_DIR)/condor_config.local
 
 ## If the local config file is not present, is it an error?
 ## WARNING: This is a potential security issue. 
-## If not specificed, the default is True
+## If not specificed, te default is True
 #REQUIRE_LOCAL_CONFIG_FILE = TRUE
 
 ##--------------------------------------------------------------------
@@ -226,9 +231,10 @@ HOSTALLOW_NEGOTIATOR = $(CONDOR_HOST)
 HOSTALLOW_NEGOTIATOR_SCHEDD = $(CONDOR_HOST), $(FLOCK_NEGOTIATOR_HOSTS)
 
 ##  Config access.  Machines listed here can use the condor_config_val
-##  tool to modify all daemon configurations.  This level of host-wide
-##  access should only be granted with extreme caution.  By default,
-##  config access is denied from all hosts.
+##  tool to modify all daemon configurations except those specified in
+##  the condor_config.root file.  This level of host-wide access
+##  should only be granted with extreme caution.  By default, config
+##  access is denied from all hosts.
 #HOSTALLOW_CONFIG = trusted-host.your.domain
 
 ##  Flocking Configs.  These are the real things that Condor looks at,
@@ -530,18 +536,6 @@ MAX_MASTER_LOG		= 1000000
 MASTER_DEBUG		= 
 ##  When the master starts up, should it truncate it's log file?
 #TRUNC_MASTER_LOG_ON_OPEN        = False
-
-MAX_JOB_ROUTER_LOG      = 1000000
-JOB_ROUTER_DEBUG        =
-
-# High Availability Logs
-MAX_HAD_LOG		= 1000000
-HAD_DEBUG		=
-MAX_REPLICATION_LOG	= 1000000
-REPLICATION_DEBUG	=
-MAX_TRANSFERER_LOG	= 1000000
-TRANSFERER_DEBUG	=
-
 
 ## The daemons touch their log file periodically, even when they have
 ## nothing to write. When a daemon starts up, it prints the last time
@@ -884,11 +878,6 @@ SCHEDD_LOG	= $(LOG)/SchedLog
 SHADOW_LOG	= $(LOG)/ShadowLog
 STARTD_LOG	= $(LOG)/StartLog
 STARTER_LOG	= $(LOG)/StarterLog
-JOB_ROUTER_LOG  = $(LOG)/JobRouterLog
-# High Availability Logs
-HAD_LOG		= $(LOG)/HADLog
-REPLICATION_LOG	= $(LOG)/ReplicationLog
-TRANSFERER_LOG	= $(LOG)/TransfererLog
 
 ##  Lock files
 SHADOW_LOCK	= $(LOCK)/ShadowLock
@@ -988,12 +977,6 @@ RESERVED_DISK		= 5
 #HIGHPORT = 9700 
 #LOWPORT = 9600
 
-##  If a daemon doens't respond for too long, do you want go generate
-##  a core file?  This bascially controls the type of the signal
-##  sent to the child process, and mostly affects the Condor Master
-#NOT_RESPONDING_WANT_CORE	= False
-
-
 ######################################################################
 ##  Daemon-specific settings:
 ######################################################################
@@ -1009,7 +992,7 @@ DAEMON_LIST			= MASTER, STARTD, SCHEDD
 #DC_DAEMON_LIST = \
 #MASTER, STARTD, SCHEDD, KBDD, COLLECTOR, NEGOTIATOR, EVENTD, \
 #VIEW_SERVER, CONDOR_VIEW, VIEW_COLLECTOR, HAWKEYE, CREDD, HAD, \
-#DBMSD, QUILL, JOB_ROUTER, LEASEMANAGER
+#DBMSD, QUILL
 
 
 ##  Where are the binaries for these daemons?
@@ -1020,7 +1003,6 @@ KBDD				= $(SBIN)/condor_kbdd
 NEGOTIATOR			= $(SBIN)/condor_negotiator
 COLLECTOR			= $(SBIN)/condor_collector
 STARTER_LOCAL			= $(SBIN)/condor_starter
-JOB_ROUTER                      = $(LIBEXEC)/condor_job_router
 
 ##  When the master starts up, it can place it's address (IP and port)
 ##  into a file.  This way, tools running on the local machine don't
@@ -1641,7 +1623,7 @@ JAVA = /usr/bin/java
 ##  If left blank, your JVM will choose some default value,
 ##  typically 64 MB.  The default (-Xmx) works with the Sun JVM.
 
-JAVA_MAXHEAP_ARGUMENT = -Xmx1024m
+JAVA_MAXHEAP_ARGUMENT = -Xmx
 
 ## JAVA_CLASSPATH_DEFAULT gives the default set of paths in which
 ## Java classes are to be found.  Each path is separated by spaces.
@@ -1723,15 +1705,17 @@ GRIDMANAGER_MAX_JOBMANAGERS_PER_RESOURCE = 10
 #GRDIMANAGER_MINIMUM_PROXY_TIME  = 180
 
 ## Condor requires that each submitted job be designated to run under a
-## particular "universe". 
+## particular "universe". Condor-G is active when jobs are as marked as
+## "GLOBUS" universe jobs. The universe of a job is set in the submit file
+## with the 'universe = GLOBUS' line. 
 ##
 ## If no universe is specificed in the submit file, Condor must pick one
-## for the job to use. By default, it chooses the "vanilla" universe. 
+## for the job to use. By default, it chooses the "standard" universe. 
 ## The default can be overridden in the config file with the DEFAULT_UNIVERSE
 ## setting, which is a string to insert into a job submit description if the
 ## job does not try and define it's own universe
 ##
-#DEFAULT_UNIVERSE = vanilla
+#DEFAULT_UNIVERSE = grid
 
 #
 # The Cred_min_time_left is the first-pass at making sure that Condor-G
@@ -1774,6 +1758,17 @@ C_GAHP_WORKER_THREAD_LOCK = /tmp/CGAHPWorkerLock.$(USERNAME)
 
 ##
 ## The location of the wrapper for invoking
+## GT3 GAHP server
+##
+GT3_GAHP = $(SBIN)/gt3_gahp
+
+##
+## The location of GT3 files. This should normally be lib/gt3
+##
+GT3_LOCATION = $(LIB)/gt3
+
+##
+## The location of the wrapper for invoking
 ## GT4 GAHP server
 ##
 GT4_GAHP = $(SBIN)/gt4_gahp
@@ -1782,17 +1777,6 @@ GT4_GAHP = $(SBIN)/gt4_gahp
 ## The location of GT4 files. This should normally be lib/gt4
 ##
 GT4_LOCATION = $(LIB)/gt4
-
-##
-## The location of the wrapper for invoking
-## GT4 GAHP server
-##
-GT42_GAHP = $(SBIN)/gt42_gahp
-
-##
-## The location of GT4 files. This should normally be lib/gt4
-##
-GT42_LOCATION = $(LIB)/gt42
 
 ##
 ## gt4 gram requires a gridftp server to perform file transfers.
@@ -1826,31 +1810,6 @@ NORDUGRID_GAHP = $(SBIN)/nordugrid_gahp
 ## Condor-G and CredD can use MyProxy to refresh GSI proxies which are
 ## about to expire.
 #MYPROXY_GET_DELEGATION = /path/to/myproxy-get-delegation
-
-##
-## EC2: Universe = Grid, Grid_Resource = Amazon
-##
-
-## The location of the amazon_gahp program, required
-AMAZON_GAHP = $(SBIN)/amazon_gahp
-
-## Location of log files, useful for debugging, must be in
-## a directory writable by any user, such as /tmp
-#AMAZON_GAHP_DEBUG = D_FULLDEBUG
-AMAZON_GAHP_LOG = /tmp/AmazonGahpLog.$(USERNAME)
-
-## The number of seconds between status update requests to EC2. You can
-## make this short (5 seconds) if you want Condor to respond quickly to
-## instances as they terminate, or you can make it long (300 seconds = 5
-## minutes) if you know your instances will run for awhile and don't mind
-## delay between when they stop and when Condor responds to them
-## stopping.
-GRIDMANAGER_JOB_PROBE_INTERVAL = 300
-
-## As of this writing Amazon EC2 has a hard limit of 20 concurrently
-## running instances, so a limit of 20 is imposed so the GridManager
-## does not waste its time sending requests that will be rejected.
-GRIDMANAGER_MAX_SUBMITTED_JOBS_PER_RESOURCE_AMAZON = 20
 
 ##
 ##--------------------------------------------------------------------
@@ -2100,14 +2059,24 @@ DBMSD_LOG = $(LOG)/DbmsdLog
 ## Where is the Condor VM-GAHP installed? (Required)
 #VM_GAHP_SERVER = $(SBIN)/condor_vm-gahp
 
+## Where is the configuration file for the Condor VM-GAHP? (Required)
+#VM_GAHP_CONFIG = /full/path/to/condor_vmgahp_config.vmware
+
 ## If the VM-GAHP is to have its own log, define 
 ## the location of log file.
+## Like the Gridmanager and C-GAHP, the VM-GAHP is run as the User, 
+## not a Condor daemon, so all users must have write permssion 
+## to the directory used for the log file. Our suggestion is to create 
+## a directory called VMGahpLogs in $(LOG) with 
+## UNIX permissions 1777 (just like /tmp )
+## Another option is to use /tmp as the location of the VM-GAHP log.
 ##
 ## Optionally, if you do NOT define VM_GAHP_LOG, logs of VM-GAHP will 
 ## be stored in the starter's log file. 
 ## However, on Windows machine you must always define VM_GAHP_LOG. 
 #
-VM_GAHP_LOG	= $(LOG)/VMGahpLog
+#VM_GAHP_LOG	= $(LOG)/VMGahpLogs/VMGahpLog.$(USERNAME)
+VM_GAHP_LOG	= /tmp/VMGAHPLog.$(USERNAME)
 MAX_VM_GAHP_LOG	= 1000000
 #VM_GAHP_DEBUG = D_FULLDEBUG
 
@@ -2116,32 +2085,20 @@ MAX_VM_GAHP_LOG	= 1000000
 ## The two options are vmware and xen.  (Required)
 #VM_TYPE = vmware
 
-## Which version of the above virtual machine program is installed? (Required)
-## This is advertised in the machine ad.
-#VM_VERSION = server1.0
-
-## How much memory can be used for the VM universe? (Required)
-## This value is the maximum amount of memory that can be used by the 
-## virtual machine program.
+## How much memory can be used for the VM universe? (Optional)
+## If you don't define this parameter, the value will be 
+## obtained from the VM-GAHP
+##
+## If the defined value is larger than VM_MAX_MEMORY defined 
+## in the VM-GAHP configuration file, 
+## VM_MAX_MEMORY will be used instead of this value.
+## If the defined  value is smaller than VM_MAX_MEMORY defined 
+## in VM-GAHP configuration file, this value will be used.
 #VM_MEMORY = 128
 
 ## Want to support networking for VM universe?
 ## Default value is FALSE
 #VM_NETWORKING = FALSE
-
-## What kind of networking types are supported?
-##
-## If you set VM_NETWORKING to TRUE, you must define this parameter.
-## VM_NETWORKING_TYPE = nat
-## VM_NETWORKING_TYPE = bridge
-## VM_NETWORKING_TYPE = nat, bridge
-##
-## If multiple networking types are defined, you may define 
-## VM_NETWORKING_DEFAULT_TYPE for default networking type. 
-## Otherwise, nat is used for default networking type.
-## VM_NETWORKING_DEFAULT_TYPE = nat
-#VM_NETWORKING_DEFAULT_TYPE = nat
-#VM_NETWORKING_TYPE = nat
 
 ## In default, the number of possible virtual machines is same as
 ## NUM_CPUS.
@@ -2202,113 +2159,3 @@ MAX_VM_GAHP_LOG	= 1000000
 ## If Condor runs as root and "ALWAYS_VM_UNIV_USE_NOBODY" is set to TRUE, 
 ## all VM universe jobs will run as a user defined in "VM_UNIV_NOBODY_USER".
 #ALWAYS_VM_UNIV_USE_NOBODY = FALSE
-
-##--------------------------------------------------------------------
-##  VM Universe Parameters Specific to VMware
-##--------------------------------------------------------------------
-
-## Where is perl program? (Required)
-VMWARE_PERL = perl
-
-## Where is the Condor script program to control VMware? (Required)
-VMWARE_SCRIPT = $(SBIN)/condor_vm_vmware.pl
-
-## Networking parameters for VMware
-##
-## What kind of VMware networking is used?
-##
-## If multiple networking types are defined, you may specify different
-## parameters for each networking type.
-##
-## Examples
-## (e.g.) VMWARE_NAT_NETWORKING_TYPE = nat
-## (e.g.) VMWARE_BRIDGE_NETWORKING_TYPE = bridged
-## 
-##  If there is no parameter for specific networking type, VMWARE_NETWORKING_TYPE is used.
-##
-#VMWARE_NAT_NETWORKING_TYPE = nat
-#VMWARE_BRIDGE_NETWORKING_TYPE = bridged
-VMWARE_NETWORKING_TYPE = nat
-
-## The contents of this file will be inserted into the .vmx file of
-## the VMware virtual machine before Condor starts it.
-#VMWARE_LOCAL_SETTINGS_FILE = /path/to/file
-
-##--------------------------------------------------------------------
-##  VM Universe Parameters Specific to Xen
-##--------------------------------------------------------------------
-
-##  Where is the Condor script program to control Xen? (Required)
-XEN_SCRIPT = $(SBIN)/condor_vm_xen.sh
-
-##  Where is the default kernel image for Xen domainU? (Required)
-##
-##  This kernel image will be used when a job submission user doesn't
-##  define a kernel image explicitly. 
-##  If a job submission user defines its own kernel image in the submit
-##  description file, it will be used instead of this default kernel.
-##  (e.g.) XEN_DEFAULT_KERNEL = /boot/vmlinuz-2.6.16-xen
-#XEN_DEFAULT_KERNEL = /full/path/to/<kernel-image-file>
-
-##  Where is the default initrd image for Xen domainU? (Optional)
-##
-##  The complete path and image file name for the initrd image, if
-##  needed for the default kernel image. 
-##  (e.g.) XEN_DEFAULT_INITRD = /boot/initrd-2.6.16-xen0.img
-#XEN_DEFAULT_INITRD = /full/path/to/<initrd-image-file>
-
-##  Where is bootloader for Xen domainU? (Required)
-##
-##  The bootloader will be used in the case that a kernel image includes
-##  a disk image
-#XEN_BOOTLOADER = /usr/bin/pygrub
-
-## Networking parameters for Xen
-##
-## This parameter is used only for virsh.
-##
-## A string specifying a script and its arguments that will be run to
-## setup a bridging network interface for guests. The interface should
-## provide direct access to the host system's LAN, i.e. not be NAT'd on the
-## host. 
-##
-## Example 
-##  XEN_BRIDGE_SCRIPT = vif-bridge bridge=xenbr0 
-#XEN_BRIDGE_SCRIPT = vif-bridge bridge=xenbr0 
-
-## The contents of this file will be added to the Xen virtual machine
-## description that Condor writes.
-#XEN_LOCAL_SETTINGS_FILE = /path/to/file
-
-
-##
-##--------------------------------------------------------------------
-##  condor_lease_manager lease manager daemon
-##--------------------------------------------------------------------
-##  Where is the LeaseManager binary installed?
-LeaseManager			= $(SBIN)/condor_lease_manager
-
-# Turn on the lease manager
-#DAEMON_LIST			= $(DAEMON_LIST), LeaseManager
-
-# The identification and location of the lease manager for local clients.
-LeaseManger_ADDRESS_FILE	= $(LOG)/.lease_manager_address
-
-## LeaseManager startup arguments
-#LeaseManager_ARGS		= -local-name generic
-
-## LeaseManager daemon debugging log
-LeaseManager_LOG		= $(LOG)/LeaseManagerLog
-LeaseManager_DEBUG		= D_FULLDEBUG
-MAX_LeaseManager_LOG		= 1000000
-
-# Basic parameters
-LeaseManager.GETADS_INTERVAL	= 60
-LeaseManager.UPDATE_INTERVAL	= 300
-LeaseManager.PRUNE_INTERVAL	= 60
-LeaseManager.DEBUG_ADS		= False
-
-LeaseManager.CLASSAD_LOG	= $(SPOOL)/LeaseManagerState
-#LeaseManager.QUERY_ADTYPE	= Any
-#LeaseManager.QUERY_CONSTRAINTS	= target.MyType == "SomeType"
-#LeaseManager.QUERY_CONSTRAINTS	= target.TargetType == "SomeType"

@@ -22,8 +22,7 @@
 use CondorTest;
 
 $cmd = 'job_ckpt_dup_std.cmd';
-$testdesc =  'Dup Test';
-$testname = "job_ckpt_dup_std";
+$testname = 'Dup Test';
 
 $foo = <<"_EOX";
 OK
@@ -36,15 +35,13 @@ OK
 Normal End of Job
 _EOX
 
-my @expected_output = split '\n', $foo;
-
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = split '\n', $foo;
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

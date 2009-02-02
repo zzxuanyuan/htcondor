@@ -22,18 +22,16 @@
 use CondorTest;
 
 $cmd = 'job_rsc_getdirentries_std.cmd';
-$testdesc =  'getdirentries Test';
-$testname = "job_rsc_getdirentries_std";
+$testname = 'getdirentries Test';
 
 
-my @expected_output = ( 'completed successfully' );
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = ( 'completed successfully' );
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

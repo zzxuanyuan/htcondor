@@ -21,8 +21,7 @@
 use CondorTest;
 
 $cmd = 'lib_chirpio_van.cmd';
-$testdesc =  'chirp io tests - vanilla U';
-$testname = "lib_chirpio_van";
+$testname = 'chirp io tests - vanilla U';
 
 
 $ExitSuccess = sub {
@@ -40,7 +39,7 @@ system("./x_chirpio_mkdata.pl --message='Testing message'");
 CondorTest::RegisterExitedSuccess( $testname, $ExitSuccess );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-	CondorTest::debug("$testname: SUCCESS\n",1);
+	print "$testname: SUCCESS\n";
 	exit(0);
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";

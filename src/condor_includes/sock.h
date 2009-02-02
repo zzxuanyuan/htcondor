@@ -32,7 +32,6 @@
 
 // Some error codes.  These should go to condor_errno.h once it is there.
 const int CEDAR_EWOULDBLOCK = 666;
-const int CEDAR_ENOCCB = 667;
 
 #if !defined(WIN32)
 #  ifndef SOCKET
@@ -136,7 +135,6 @@ public:
 #if defined(WIN32) && defined(_WINSOCK2API_)
 	int assign(LPWSAPROTOCOL_INFO);		// to inherit sockets from other processes
 #endif
-
 	int bind(bool outbound, int port=0, bool loopback=false);
 
 	bool bind_to_loopback(bool outbound=false, int port=0);
@@ -175,17 +173,10 @@ public:
 	*/
 	int timeout_no_timeout_multiplier(int sec);
     
-	/** Returns the timeout with timeout multiplier applied. */
-	int get_timeout_raw();
-
 	/** get the number of bytes available to read without blocking.
 		@return number of bytes, or -1 on failure
 	*/
 	int bytes_available_to_read();
-
-	/**	@return true if > 0 bytes ready to read without blocking
-	*/
-	bool readReady();
 
 	/*
 	**	Stream protocol
@@ -224,15 +215,13 @@ public:
 	char * get_sinful_peer();
 
 	/// sinful address of peer, suitable for passing to dprintf() (never NULL)
-	virtual char const *default_peer_description();
+	virtual char const *peer_description();
 
 	/// local file descriptor (fd) of this socket
 	int get_file_desc() { return _sock; }
 
 	/// is a non-blocking connect outstanding?
-	bool is_connect_pending() { return _state == sock_connect_pending || _state == sock_connect_pending_retry || _state == sock_reverse_connect_pending; }
-
-	bool is_reverse_connect_pending() { return _state == sock_reverse_connect_pending; }
+	bool is_connect_pending() { return _state == sock_connect_pending || _state == sock_connect_pending_retry; }
 
 	/// is the socket connected?
 	bool is_connected() { return _state == sock_connect; }
@@ -247,26 +236,7 @@ public:
 
 	void ignoreTimeoutMultiplier() { ignore_timeout_multiplier = true; }
 
-	const char * getFullyQualifiedUser() const { return _fqu; }
-
-		/// Get user portion of fqu
-	const char *getOwner() const { return _fqu_user_part; }
-
-		/// Get domain portion of fqu
-	const char *getDomain() const { return _fqu_domain_part; }
-
-	void setFullyQualifiedUser(char const *fqu);
-
-		/// True if socket has tried to authenticate or socket is
-		/// using a security session that tried to authenticate.
-		/// Authentication may or may not have succeeded and
-		/// fqu may or may not be set.  (For example, we may
-		/// have authenticated but the method was not mutual,
-		/// so the other side knows who we are, but we do not
-		/// know who the other side is.)
-	bool triedAuthentication() const { return _tried_authentication; }
-
-	void setTriedAuthentication(bool toggle) { _tried_authentication = toggle; }
+	virtual const char * getFullyQualifiedUser() const;
 
 //	PRIVATE INTERFACE TO ALL SOCKS
 //
@@ -279,9 +249,8 @@ protected:
 	*/
 
 	enum sock_state { sock_virgin, sock_assigned, sock_bound, sock_connect,
-					  sock_writemsg, sock_readmsg, sock_special, 
-					  sock_connect_pending, sock_connect_pending_retry,
-					  sock_reverse_connect_pending };
+						sock_writemsg, sock_readmsg, sock_special, 
+						sock_connect_pending, sock_connect_pending_retry };
 
 
 	/*
@@ -310,17 +279,6 @@ protected:
     */
 	int do_connect(char const *host, int port, bool non_blocking_flag = false);
 
-	/**
-	   Called internally by do_connect() to examine the address and
-	   see if we should try a reversed connection (CCB) instead of a
-	   normal forward connection.  If so, initiates the reversed
-	   connection.  If not, returns CEDAR_ENOCCB.
-	*/
-	int reverse_connect(char const *host,int port,bool nonblocking);
-
-	virtual int do_reverse_connect(char const *ccb_contact,bool nonblocking) = 0;
-	virtual void cancel_reverse_connect() = 0;
-
 	inline SOCKET get_socket (void) { return _sock; }
 	char * serialize(char *);
 	char * serialize() const;
@@ -329,15 +287,21 @@ protected:
     char * serializeMdInfo(char * buf);
     char * serializeMdInfo() const;
         
+	virtual void setFullyQualifiedUser(char const * u);
+	///
 	virtual int encrypt(bool);
 	///
 	virtual int hdr_encrypt();
 	///
 	virtual bool is_hdr_encrypt();
     ///
-	virtual int authenticate(const char * auth_methods, CondorError* errstack, int timeout);
+	virtual int authenticate(const char * auth_methods, CondorError* errstack);
     ///
-	virtual int authenticate(KeyInfo *&ki, const char * auth_methods, CondorError* errstack, int timeout);
+	virtual int authenticate(KeyInfo *&ki, const char * auth_methods, CondorError* errstack);
+    ///
+	virtual int isAuthenticated() const;
+    ///
+	virtual void unAuthenticate();
     ///
 	virtual bool is_encrypt();
 #ifdef WIN32
@@ -362,10 +326,6 @@ protected:
 	sock_state		_state;
 	int				_timeout;
 	struct sockaddr_in _who;	// endpoint of "connection"
-	char *          _fqu;
-	char *          _fqu_user_part;
-	char *          _fqu_domain_part;
-	bool            _tried_authentication;
 
 	static int timeout_multiplier;
 

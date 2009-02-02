@@ -38,12 +38,12 @@ while(<TESTS>)
 	if( $currentfile =~ /(.*)\.(.*)/ )
 	{
 		$filebase = $1;
-		CondorTest::debug("base is $filebase extension of file is $2\n",1);
+		print "base is $filebase extension of file is $2\n";
 	}
 
 	#print LOG "fixing $_ at $now\n";
-	CondorTest::debug("fixing $currentfile at $now\n",1);
-	CondorTest::debug("New file is $tempfile\n",1);
+	print "fixing $currentfile at $now\n";
+	print "New file is $tempfile\n";
 
 	open(FIXIT,"<$currentfile") || die "Can't seem to open it.........$!\n";
 	open(NEW,">$tempfile") || die "Can not open new file!: $!\n";
@@ -52,7 +52,7 @@ while(<TESTS>)
 	{
 		CondorTest::fullchomp($_);
 		$line = $_;
-		CondorTest::debug("Current line: ----$line----\n",1);
+		print "Current line: ----$line----\n";
 		if( $line =~ /^\s*error\s*=\s*.*$/ )
 		{
 			print NEW "error = $filebase.err\n";

@@ -215,10 +215,6 @@ public:
 		}		
 	}
 
-	virtual QuillErrCode	sendBulkData(const char *){return QUILL_FAILURE;}
-	virtual QuillErrCode	sendBulkDataEnd() {return QUILL_FAILURE;}
-
-	bool isConnected() const { return connected;}
 protected:
 	bool	connected; 	//!< connection status
 };

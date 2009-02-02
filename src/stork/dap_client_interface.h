@@ -20,9 +20,6 @@
 #ifndef _DAP_CLIENT_INTERFACE_H
 #define _DAP_CLIENT_INTERFACE_H
 
-#include "condor_common.h"
-#include "sock.h"
-
 #define WANT_CLASSAD_NAMESPACE
 #include "condor_fix_iostream.h"
 #include "classad/classad_distribution.h"
@@ -43,14 +40,7 @@
 	@return - TRUE if success, FALSE if failure
 */
 
-Sock *
-start_stork_command_and_authenticate (
-					 const char * stork_host,
-					 const int command,
-					 MyString & error_reason);
-
-int stork_submit (Sock * sock,
-		const classad::ClassAd * request,
+int stork_submit (const classad::ClassAd * request,
 				const char * stork_server_sin, 
 				const char * cred, 
 				const int cred_size, 

@@ -22,17 +22,15 @@
 use CondorTest;
 
 $cmd = 'job_rsc_fread_std.cmd';
-$testdesc =  'Fread Test';
-$testname = "job_rsc_fread_std";
+$testname = 'Fread Test';
 
-my @expected_output = ( 'read 1 items from x_data.in' );
-CondorTest::SetExpected(\@expected_output);
+@CondorTest::expected_output = ( 'read 1 items from x_data.in' );
 
 CondorTest::RegisterExitedSuccess( $testname,
 				   \&CondorTest::DefaultOutputTest );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
-    CondorTest::debug("$testname: SUCCESS\n",1);
+    print "$testname: SUCCESS\n";
     exit(0);
 } else {
     die "$testname: CondorTest::RunTest() failed\n";

@@ -104,9 +104,7 @@ class lsa_mgr {
 				DataBuffer = NULL;
 			}
 			if ( Data_string ) {
-				if ( wcslen(Data_string) > 0 ) {
-					SecureZeroMemory(Data_string, sizeof(WCHAR)*wcslen(Data_string));
-				}
+				ZeroMemory(Data_string, sizeof(WCHAR)*wcslen(Data_string));
 				delete[] Data_string;
 				Data_string = NULL;
 			}

@@ -34,145 +34,75 @@
 #include "get_port_range.h"
 #include "condor_socket_types.h"
 #include "condor_netdb.h"
-#if defined ( WIN32 )
-#include <iphlpapi.h>
-#endif
 
 int bindWithin(const int fd, const int low_port, const int high_port);
 
 
-/* Split "<host:port?params>" into parts: host, port, and params. If
-   the port or params are not in the string, the result is set to
-   NULL.  Any of the result char** values may be NULL, in which case
-   they are parsed but not set.  The caller is responsible for freeing
-   all result strings.
-*/
-int
-split_sin( const char *addr, char **host, char **port, char **params )
-{
-	int len;
-
-	if( host ) *host = NULL;
-	if( port ) *port = NULL;
-	if( params ) *params = NULL;
-
-	if( !addr || *addr != '<' ) {
-		return 0;
-	}
-	addr++;
-
-	len = strcspn(addr,":?>");
-	if( host ) {
-		*host = (char *)malloc(len+1);
-		memcpy(*host,addr,len);
-		(*host)[len] = '\0';
-	}
-	addr += len;
-
-	if( *addr == ':' ) {
-		addr++;
-		len = strspn(addr,"0123456789");
-		if( port ) {
-			*port = (char *)malloc(len+1);
-			memcpy(*port,addr,len);
-			(*port)[len] = '\0';
-		}
-		addr += len;
-	}
-
-	if( *addr == '?' ) {
-		addr++;
-		len = strcspn(addr,">");
-		if( params ) {
-			*params = (char *)malloc(len+1);
-			memcpy(*params,addr,len);
-			(*params)[len] = '\0';
-		}
-		addr += len;
-	}
-
-	if( addr[0] != '>' || addr[1] != '\0' ) {
-		if( host ) {
-			free( *host );
-			*host = NULL;
-		}
-		if( port ) {
-			free( *port );
-			*port = NULL;
-		}
-		if( params ) {
-			free( *params );
-			params = NULL;
-		}
-		*host = *port = *params = NULL;
-		return 0;
-	}
-	return 1;
-}
-
-int
-address_to_sin(char const *host, char const *port, struct sockaddr_in *sa_in)
-{
-	struct  hostent *hostptr;
-	if( !host || !port ) {
-		return 0;
-	}
-	if ( !is_ipaddr(host,NULL) &&
-		((hostptr=condor_gethostbyname(host)) != NULL &&
-		 hostptr->h_addrtype==AF_INET) )
-	{
-			sa_in->sin_addr = *(struct in_addr *)(hostptr->h_addr_list[0]);
-	}
-	else if( !condor_inet_aton(host, &sa_in->sin_addr) ) {
-		return 0;
-	}
-
-	sa_in->sin_port = htons((short)atoi(port));
-	sa_in->sin_family = AF_INET;
-
-	return 1;
-}
-
-/* Convert a string of the form "<xx.xx.xx.xx:pppp?params>" to a
-  sockaddr_in TCP (Also allow strings of the form "<hostname:pppp?params>")
-  The ?params part is optional.  Use string_to_sin_params() to get the value
-  of params.
-
-  This function has a unit test.
-*/
-
+/* Convert a string of the form "<xx.xx.xx.xx:pppp>" to a sockaddr_in  TCP */
+/* (Also allow strings of the form "<hostname>:pppp>")  */
+/* This function has a unit test. */
 int
 string_to_sin( const char *addr, struct sockaddr_in *sa_in )
 {
-	char *host=NULL;
-	char *port=NULL;
-	int result;
+	char    *cur_byte;
+	char    *end_string;
+	int 	temp=0;
+	char*	addrCpy;
+	char*	string;
+	char*   colon = 0;
+	struct  hostent *hostptr;
 
-	result = split_sin(addr,&host,&port,NULL);
-
-	if( result ) {
-		result = address_to_sin(host,port,sa_in);
+	if( ! addr ) {
+		return 0;
 	}
+	addrCpy = strdup(addr);
+	string = addrCpy;
+	string++;					/* skip the leading '<' */
 
-	free( host );
-	free( port );
-
-	return result;
-}
-
-char *
-sin_to_ipstring(const struct sockaddr_in *sa_in,char *buf,size_t buflen)
-{
-	char const *ipstr = inet_ntoa(sa_in->sin_addr);
-	if( !ipstr || strlen(ipstr)>=buflen ) {
-		if( buflen > 0 ) {
-			buf[0] = '\0';
+	/* allow strings of the form "<hostname:pppp>" */
+	if( !(colon = strchr(string, ':')) ) {
+			// Not a valid sinful string, return failure
+		free(addrCpy);
+		return 0;
+	}
+	*colon = '\0';
+	if ( is_ipaddr(string,NULL) != TRUE &&	// only call gethostbyname if not numbers
+		((hostptr=condor_gethostbyname(string)) != NULL && hostptr->h_addrtype==AF_INET) )
+	{
+			sa_in->sin_addr = *(struct in_addr *)(hostptr->h_addr_list[0]);
+			string = colon + 1;
+	}
+	else
+	{	
+		/* parse the string in the traditional <xxx.yyy.zzz.aaa> form ... */	
+		*colon = ':';
+		cur_byte = (char *) &(sa_in->sin_addr);
+		for(end_string = string; end_string != 0; ) {
+			end_string = strchr(string, '.');
+			if (end_string == 0) {
+				end_string = strchr(string, ':');
+				if (end_string) colon = end_string;
+			}
+			if (end_string) {
+				*end_string = '\0';
+				*cur_byte = atoi(string);
+				cur_byte++;
+				string = end_string + 1;
+				*end_string = '.';
+			}
 		}
-		return NULL;
 	}
-	strcpy(buf,ipstr);
-	return buf;
+	
+	string[strlen(string) - 1] = '\0'; /* Chop off the trailing '>' */
+	sa_in->sin_port = htons((short)atoi(string));
+	sa_in->sin_family = AF_INET;
+	string[temp-1] = '>';
+	string[temp] = '\0';
+	*colon = ':';
+	free(addrCpy);
+	return 1;
 }
+
 
 /* This function has a unit test. */
 char *
@@ -414,7 +344,7 @@ is_ipaddr_implementation(const char *inbuf, struct in_addr *sin_addr, struct in_
 
 	// strip off any trailing wild card or '.'
 	if ( buf[len-1] == '*' || buf[len-1] == '.' ) {
-		if ( len>1 && buf[len-2] == '.' )
+		if ( buf[len-2] == '.' )
 			buf[len-2] = '\0';
 		else
 			buf[len-1] = '\0';
