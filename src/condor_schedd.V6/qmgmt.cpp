@@ -3294,6 +3294,22 @@ FreeJobAd(ClassAd *&ad)
 	ad = NULL;
 }
 
+static int
+RecvSpoolFileBytes(const MyString& path)
+{
+	filesize_t	size;
+	Q_SOCK->getReliSock()->decode();
+	if (Q_SOCK->getReliSock()->get_file(&size, path.Value()) < 0) {
+		dprintf(D_ALWAYS,
+		        "Failed to receive file from client in SendSpoolFile.\n");
+		Q_SOCK->getReliSock()->eom();
+		return -1;
+	}
+	chmod(path.Value(),00755);
+	Q_SOCK->getReliSock()->eom();
+	dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
+	return 0;
+}
 
 int
 SendSpoolFile(char const *filename)
@@ -3325,20 +3341,7 @@ SendSpoolFile(char const *filename)
 	Q_SOCK->getReliSock()->put(0);
 	Q_SOCK->getReliSock()->eom();
 
-	/* Read file size from client. */
-	filesize_t	size;
-	Q_SOCK->getReliSock()->decode();
-	if (Q_SOCK->getReliSock()->get_file(&size, path.Value()) < 0) {
-		dprintf(D_ALWAYS, "Failed to receive file from client in SendSpoolFile.\n");
-		Q_SOCK->getReliSock()->eom();
-		return -1;
-	}
-
-	chmod(path.Value(),00755);
-
-	// Q_SOCK->getReliSock()->eom();
-	dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
-	return 0;
+	return RecvSpoolFileBytes(path);
 }
 
 int
@@ -3402,24 +3405,14 @@ SendSpoolFileIfNeeded(ClassAd& ad)
 	Q_SOCK->getReliSock()->put(0);
 	Q_SOCK->getReliSock()->eom();
 
-	/* Read file size from client. */
-	filesize_t	size;
-	Q_SOCK->getReliSock()->decode();
-	if (Q_SOCK->getReliSock()->get_file(&size, path.Value()) < 0) {
-		dprintf(D_ALWAYS,
-		        "Failed to receive file in SendSpoolFileIfNeeded\n");
-		Q_SOCK->getReliSock()->eom();
+	if (RecvSpoolFileBytes(path) == -1) {
 		return -1;
 	}
-
-	chmod(path.Value(),00755);
 
 	if (!hash.empty()) {
 		ickpt_share_init_sharing(owner.Value(), hash, path.Value());
 	}
 
-	Q_SOCK->getReliSock()->eom();
-	dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
 	return 0;
 }
 
