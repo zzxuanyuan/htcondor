@@ -29,7 +29,7 @@
 
 class ClassAd;
 
-// given a ClassAd with informaton about a job's executable (like
+// given a ClassAd with information about a job's executable (like
 // its MD5 sum), return a string that can be used as a per-owner
 // handle for the executable. if an empty string is returned, sharing
 // is disabled
