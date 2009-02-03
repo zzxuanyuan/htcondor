@@ -38,8 +38,8 @@
 extern char* Spool;
 
 // escape a string to that it is acceptable for use as a filename. any
-// character not in the regex [a-zA-Z._] is replaced with %AA, where AA
-// is the character's two-hex-digit equivalent
+// character not in the regex [a-zA-Z0-9._] is replaced with %AA, where
+// AA is the character's two-hex-digit equivalent
 //
 static std::string
 escape_for_filename(const std::string& s)
