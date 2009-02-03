@@ -1609,6 +1609,11 @@ SetExecutable()
 				DoCleanup(0,0,NULL);
 				exit( 1 );
 			}
+
+			// ret will be 0 if the SchedD gave us the go-ahead to send
+			// the file. if it's not, the SchedD is using ickpt sharing
+			// and already has a copy, so no need
+			//
 			if ((ret == 0) && SendSpoolFileBytes(full_path(ename,false)) < 0) {
 				fprintf( stderr,
 						 "\nERROR: failed to transfer executable file %s\n", 
