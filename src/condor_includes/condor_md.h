@@ -66,7 +66,7 @@ class Condor_MD_MAC {
 
 	// Add the contents of a file to the MD5 checksum. It handles opening
 	// the file, reading it in (in chunks of 1 meg), and adding it to the
-	// md5 object
+	// md5 object. returns true on success, false if an error occurs
 
     bool addMDFile(const char * path);
     //------------------------------------------
