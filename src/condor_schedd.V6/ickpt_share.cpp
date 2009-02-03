@@ -58,7 +58,8 @@ escape_for_filename(const std::string& s)
 }
 
 // given an owner and an executable's hash string, construct the filename
-// used to hold the shared ickpt file
+// used to hold the shared ickpt file. note that the hash argument is
+// expected to already be escaped for use in a filename
 //
 static std::string
 make_hash_filename(const std::string& owner, const std::string& hash)
