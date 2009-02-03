@@ -3348,7 +3348,7 @@ int
 SendSpoolFileIfNeeded(ClassAd& ad)
 {
 	if ( !Q_SOCK || !Q_SOCK->getReliSock() ) {
-		EXCEPT( "SendSpoolFile called when Q_SOCK is NULL" );
+		EXCEPT( "SendSpoolFileIfNeeded called when Q_SOCK is NULL" );
 	}
 	Q_SOCK->getReliSock()->encode();
 
