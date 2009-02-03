@@ -3766,9 +3766,6 @@ bool BuildPrioRecArray(bool no_match_found /*default false*/) {
 		return false;
 	}
 
-		// run without any delay the first time
-	PrioRecArrayTimeslice.setInitialInterval( 0 );
-
 	PrioRecArrayTimeslice.setMaxInterval( PrioRecRebuildMaxInterval );
 	if( no_match_found ) {
 		PrioRecArrayTimeslice.setTimeslice( PrioRecRebuildMaxTimeSliceWhenNoMatchFound );
