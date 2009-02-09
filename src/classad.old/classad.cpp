@@ -94,7 +94,7 @@ AdType::~AdType()
 //
 // ClassAd constructors
 //
-ClassAd::ClassAd() : AttrList()
+OldClassAd::OldClassAd() : AttrList()
 {
 	myType = NULL;
 	targetType = NULL;
@@ -103,7 +103,7 @@ ClassAd::ClassAd() : AttrList()
 }
 
 #if 0 /* don't want to link with ProcObj class; we shouldn't need this */
-ClassAd::ClassAd(class ProcObj* procObj) : AttrList(procObj)
+OldClassAd::OldClassAd(class ProcObj* procObj) : AttrList(procObj)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -113,7 +113,7 @@ ClassAd::ClassAd(class ProcObj* procObj) : AttrList(procObj)
 #endif
 
 #if 0 // dont use CONTEXTs anymore
-ClassAd::ClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
+OldClassAd::OldClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -129,7 +129,7 @@ ClassAd::ClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
 }
 #endif
 
-ClassAd::
+OldClassAd::
 ClassAd(FILE* f, char* d, int& i, int &err, int &empty) 
   : AttrList(f, d, i, err, empty)
 {
@@ -139,7 +139,7 @@ ClassAd(FILE* f, char* d, int& i, int &err, int &empty)
 	updateBoundVariables();
 }
 
-ClassAd::ClassAd(char* s, char d) : AttrList(s, d)
+OldClassAd::OldClassAd(char* s, char d) : AttrList(s, d)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -148,7 +148,7 @@ ClassAd::ClassAd(char* s, char d) : AttrList(s, d)
 }
 
 void
-ClassAd::updateBoundVariables() {
+OldClassAd::updateBoundVariables() {
     ExprTree *tree;
     EvalResult *val;
 
@@ -238,12 +238,12 @@ ClassAd::updateBoundVariables() {
 		// We no longer remove MyType and TargetType from the
 		// attrlist, so they can be used in places such as
 		// COLLECTOR_REQUIREMENTS.  Just beware that these values
-		// should only be updated via the ClassAd::SetXXX() functions.
+		// should only be updated via the OldClassAd::SetXXX() functions.
 	SetInvisible("MyType");
 	SetInvisible("TargetType");
 }
 
-ClassAd::ClassAd(const ClassAd& old) : AttrList((AttrList&) old)
+OldClassAd::OldClassAd(const OldClassAd& old) : AttrList((AttrList&) old)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -266,7 +266,7 @@ ClassAd::ClassAd(const ClassAd& old) : AttrList((AttrList&) old)
 	}
 }
 
-ClassAd::~ClassAd()
+OldClassAd::~OldClassAd()
 {
     if(associatedList)
     {
@@ -282,7 +282,7 @@ ClassAd::~ClassAd()
     }
 }
 
-ClassAd& ClassAd::operator=(const ClassAd& other)
+OldClassAd& OldClassAd::operator=(const OldClassAd& other)
 {
 	if (this != &other) {
 		// First, let the base class do its magic.
@@ -317,7 +317,7 @@ ClassAd& ClassAd::operator=(const ClassAd& other)
 //
 // This member function of class AttrList sets myType name.
 //
-void ClassAd::SetMyTypeName(const char *tempName)
+void OldClassAd::SetMyTypeName(const char *tempName)
 {
 	if(!tempName)
 	{
@@ -348,7 +348,7 @@ void ClassAd::SetMyTypeName(const char *tempName)
 //
 // This member function of class AttrList returns myType name.
 //
-const char *ClassAd::GetMyTypeName()
+const char *OldClassAd::GetMyTypeName()
 {
     if(!myType)
     {
@@ -382,7 +382,7 @@ const char *ClassAd::GetMyTypeName()
 //
 // This member function of class AttrList sets targetType name.
 //
-void ClassAd::SetTargetTypeName(const char *tempName)
+void OldClassAd::SetTargetTypeName(const char *tempName)
 {
 	if(!tempName)
 	{
@@ -410,7 +410,7 @@ void ClassAd::SetTargetTypeName(const char *tempName)
 //
 // This member function of class AttrList returns targetType name.
 //
-const char *ClassAd::GetTargetTypeName()
+const char *OldClassAd::GetTargetTypeName()
 {
     if(!targetType)
     {
@@ -425,7 +425,7 @@ const char *ClassAd::GetTargetTypeName()
 //
 // This member function of class AttrList returns myType number.
 //
-int ClassAd::GetMyTypeNumber()
+int OldClassAd::GetMyTypeNumber()
 {
     if(!myType)
     {
@@ -440,7 +440,7 @@ int ClassAd::GetMyTypeNumber()
 //
 // This member function of class AttrList returns targetType number.
 //
-int ClassAd::GetTargetTypeNumber()
+int OldClassAd::GetTargetTypeNumber()
 {
     if(!targetType)
     {
@@ -455,7 +455,7 @@ int ClassAd::GetTargetTypeNumber()
 
 // Requirement expression management functions
 #if 0
-int ClassAd::
+int OldClassAd::
 SetRequirements (char *expr)
 {
 	ExprTree *tree;
@@ -469,7 +469,7 @@ SetRequirements (char *expr)
 	return 0;
 }
 
-void ClassAd::
+void OldClassAd::
 SetRequirements (ExprTree *tree)
 {
 	if (!AttrList::Insert (tree))
@@ -480,7 +480,7 @@ SetRequirements (ExprTree *tree)
 }
 #endif
 
-ExprTree *ClassAd::
+ExprTree *OldClassAd::
 GetRequirements (void)
 {
 	return Lookup (ATTR_REQUIREMENTS);
@@ -490,7 +490,7 @@ GetRequirements (void)
 // Implementation of rank expressions is same as the requirement --RR
 //
 #if 0
-int ClassAd::
+int OldClassAd::
 SetRankExpr (char *expr)
 {
     ExprTree *tree;
@@ -504,7 +504,7 @@ SetRankExpr (char *expr)
     return 0;
 }
 
-void ClassAd::
+void OldClassAd::
 SetRankExpr (ExprTree *tree)
 {
 	if (!AttrList::Insert (tree))
@@ -515,7 +515,7 @@ SetRankExpr (ExprTree *tree)
 }
 #endif
 
-ExprTree *ClassAd::
+ExprTree *OldClassAd::
 GetRankExpr (void)
 {
     return Lookup (ATTR_RANK);
@@ -525,14 +525,14 @@ GetRankExpr (void)
 //
 // Set and get sequence numbers --- stored in the attrlist
 //
-void ClassAd::
+void OldClassAd::
 SetSequenceNumber (int num)
 {
 	seq = num;
 }
 
 
-int ClassAd::
+int OldClassAd::
 GetSequenceNumber (void)
 {
 	return seq;
@@ -549,7 +549,7 @@ GetSequenceNumber (void)
 
 ExprTree *reqsTree = 0;
 
-int ClassAd::IsAMatch(ClassAd* temp)
+int OldClassAd::IsAMatch(OldClassAd* temp)
 {
     EvalResult *val;
 
@@ -612,19 +612,19 @@ int ClassAd::IsAMatch(ClassAd* temp)
     return 1;   
 }
 
-bool operator== (ClassAd &lhs, ClassAd &rhs)
+bool operator== (OldClassAd &lhs, OldClassAd &rhs)
 {
 	return (lhs >= rhs && rhs >= lhs);
 }
 
 
-bool operator<= (ClassAd &lhs, ClassAd &rhs)
+bool operator<= (OldClassAd &lhs, OldClassAd &rhs)
 {
 	return (rhs >= lhs);
 }
 
 
-bool operator>= (ClassAd &lhs, ClassAd &rhs)
+bool operator>= (OldClassAd &lhs, OldClassAd &rhs)
 {
 	EvalResult *val;	
 	
@@ -657,7 +657,7 @@ bool operator>= (ClassAd &lhs, ClassAd &rhs)
 	return true;
 }
 
-int ClassAd::fPrintAsXML(FILE* f)
+int OldClassAd::fPrintAsXML(FILE* f)
 {
 	if(!f)
 	{
@@ -675,7 +675,7 @@ int ClassAd::fPrintAsXML(FILE* f)
 // print the whole ClassAd into a file. The expressions are in infix notation.
 // Returns FALSE if the file pointer is NULL; TRUE otherwise.
 ////////////////////////////////////////////////////////////////////////////////
-int ClassAd::fPrint(FILE* f)
+int OldClassAd::fPrint(FILE* f)
 {
 	if(!f)
 	{
@@ -700,7 +700,7 @@ int ClassAd::fPrint(FILE* f)
 	return AttrList::fPrint(f);
 }
 
-int ClassAd::sPrintAsXML(MyString &output)
+int OldClassAd::sPrintAsXML(MyString &output)
 {
 	ClassAdXMLUnparser  unparser;
 	MyString            xml;
@@ -713,7 +713,7 @@ int ClassAd::sPrintAsXML(MyString &output)
 ////////////////////////////////////////////////////////////////////////////////
 // Append a ClassAd to a string.
 ////////////////////////////////////////////////////////////////////////////////
-int ClassAd::sPrint(MyString &output)
+int OldClassAd::sPrint(MyString &output)
 {
 	output += "MyType = \"";
 	if(GetMyTypeName())
@@ -735,7 +735,7 @@ int ClassAd::sPrint(MyString &output)
 // are in infix notation.  
 ////////////////////////////////////////////////////////////////////////////////
 void
-ClassAd::dPrint(int level)
+OldClassAd::dPrint(int level)
 {
 	const char* foo;
 	int flag = D_NOHEADER | level;
@@ -759,7 +759,7 @@ ClassAd::dPrint(int level)
 
 // shipping functions for ClassAd -- added by Lei Cao
 
-int ClassAd::put(Stream& s)
+int OldClassAd::put(Stream& s)
 {
 
 	// first send over all the attributes
@@ -795,7 +795,7 @@ int ClassAd::put(Stream& s)
 
 
 void
-ClassAd::clear( void )
+OldClassAd::clear( void )
 {
 		// First, clear out everything in our AttrList
 	AttrList::clear();
@@ -813,7 +813,7 @@ ClassAd::clear( void )
 }
 
 bool
-ClassAd::initFromString(char const *str,MyString *err_msg)
+OldClassAd::initFromString(char const *str,MyString *err_msg)
 {
 	if( !AttrList::initFromString(str,err_msg) ) {
 		return false;
@@ -825,7 +825,7 @@ ClassAd::initFromString(char const *str,MyString *err_msg)
 
 
 int
-ClassAd::initFromStream(Stream& s)
+OldClassAd::initFromStream(Stream& s)
 {
 	char *name  = NULL;
 
@@ -862,7 +862,7 @@ ClassAd::initFromStream(Stream& s)
 
 
 #if defined(USE_XDR)
-int ClassAd::put (XDR *xdrs)
+int OldClassAd::put (XDR *xdrs)
 {
 	char*	tmp = NULL;
 
@@ -897,7 +897,7 @@ int ClassAd::put (XDR *xdrs)
 }
 
 
-int ClassAd::get (XDR *xdrs)
+int OldClassAd::get (XDR *xdrs)
 {
 	char buf[100];
 	char *line = buf;
@@ -923,8 +923,8 @@ int ClassAd::get (XDR *xdrs)
 }
 #endif
 
-void ClassAd::
-ExchangeExpressions (ClassAd *ad)
+void OldClassAd::
+ExchangeExpressions (OldClassAd *ad)
 {
     AttrListElem *tmp1;
     AttrListList *tmp2;
@@ -950,7 +950,7 @@ ExchangeExpressions (ClassAd *ad)
     return;
 }
 
-ClassAd* ClassAdList::Lookup(const char* name)
+OldClassAd* OldClassAdList::Lookup(const char* name)
 {
 	AttrList*	list;
 
@@ -958,7 +958,7 @@ ClassAd* ClassAdList::Lookup(const char* name)
 	return (ClassAd*)list;
 }
 
-void ClassAdList::
+void OldClassAdList::
 Sort(int(*SmallerThan)(AttrList*, AttrList*, void*), void* info)
 {
 /*
@@ -981,7 +981,7 @@ Sort(int(*SmallerThan)(AttrList*, AttrList*, void*), void* info)
 
 }
 
-int ClassAdList::
+int OldClassAdList::
 SortCompare(const void* v1, const void* v2)
 {
 	AttrListAbstract** a1 = (AttrListAbstract**)v1;
@@ -1035,7 +1035,7 @@ SortCompare(const void* v1, const void* v2)
 	}
 }
 
-void ClassAdList::
+void OldClassAdList::
 Sort( SortFunctionType UserSmallerThan, void* UserInfo, 
 		AttrListAbstract*& listHead)
 {
@@ -1084,7 +1084,7 @@ Sort( SortFunctionType UserSmallerThan, void* UserInfo,
 	delete [] array;
 }
 
-ClassAd* ClassAd::FindNext()
+OldClassAd* OldClassAd::FindNext()
 {
-	return (ClassAd*)next;
+	return (OldClassAd*)next;
 }

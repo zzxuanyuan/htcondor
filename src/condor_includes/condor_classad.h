@@ -45,20 +45,21 @@ struct AdType                   // type of a ClassAd.
     ~AdType();                  // destructor.
 };
 
+class ClassAd { };
 
-class ClassAd : public AttrList
+class OldClassAd : public AttrList
 {
     public :
 
-		ClassAd();								// No associated AttrList list
+		OldClassAd();								// No associated AttrList list
 //		ClassAd(ProcObj*);						// create from a proc object
 //		ClassAd(const CONTEXT*);				// create from a CONTEXT
-        ClassAd(FILE*,char*,int&,int&,int&);	// Constructor, read from file.
-        ClassAd(char *, char);					// Constructor, from string.
-		ClassAd(const ClassAd&);				// copy constructor
-        virtual ~ClassAd();						// destructor
+        OldClassAd(FILE*,char*,int&,int&,int&);	// Constructor, read from file.
+        OldClassAd(char *, char);					// Constructor, from string.
+		OldClassAd(const OldClassAd&);				// copy constructor
+        virtual ~OldClassAd();						// destructor
 
-		ClassAd& operator=(const ClassAd& other);
+		OldClassAd& operator=(const OldClassAd& other);
 
 		// Type operations
         void		SetMyTypeName(const char *); /// my type name set.
@@ -87,10 +88,10 @@ class ClassAd : public AttrList
 		int			GetSequenceNumber(void);
 
 		// Matching operations
-        int			IsAMatch(class ClassAd*);			  // tests symmetric match
-		friend bool operator==(class ClassAd&,class ClassAd&);// same as symmetric match
-		friend bool operator>=(class ClassAd&,class ClassAd&);// lhs satisfies rhs
-		friend bool operator<=(class ClassAd&,class ClassAd&);// rhs satisifes lhs
+        int			IsAMatch(class OldClassAd*);			  // tests symmetric match
+		friend bool operator==(class OldClassAd&,class OldClassAd&);// same as symmetric match
+		friend bool operator>=(class OldClassAd&,class OldClassAd&);// lhs satisfies rhs
+		friend bool operator<=(class OldClassAd&,class OldClassAd&);// rhs satisifes lhs
 
         // shipping functions
         int put(Stream& s);
@@ -110,7 +111,7 @@ class ClassAd : public AttrList
 #endif
 
 		// misc
-		class ClassAd*	FindNext();
+		class OldClassAd*	FindNext();
 			// When printing as_XML, the XML headers and footers
 			// are NOT added.  This is so you can wrap a whole set
 			// of classads in a single header.  
@@ -131,7 +132,7 @@ class ClassAd : public AttrList
 		void		clear( void );				// clear out all attributes
 
 		// poor man's update function until ClassAd Update Protocol  --RR
-		 void ExchangeExpressions (class ClassAd *);
+		 void ExchangeExpressions (class OldClassAd *);
 
     private :
 
@@ -147,17 +148,18 @@ class ClassAd : public AttrList
 
 typedef int (*SortFunctionType)(AttrList*,AttrList*,void*);
 
-class ClassAdList : public AttrListList
+class ClassAdList { };
+class OldClassAdList : public AttrListList
 {
   public:
-	ClassAdList() : AttrListList() {}
+	OldClassAdList() : AttrListList() {}
 
-	ClassAd*	Next() { return (ClassAd*)AttrListList::Next(); }
+	OldClassAd*	Next() { return (OldClassAd*)AttrListList::Next(); }
 	void		Rewind() { AttrListList::Open(); }
 	int			Length() { return AttrListList::MyLength(); }
-	void		Insert(ClassAd* ca) { AttrListList::Insert((AttrList*)ca); }
-	int			Delete(ClassAd* ca){return AttrListList::Delete((AttrList*)ca);}
-	ClassAd*	Lookup(const char* name);
+	void		Insert(OldClassAd* ca) { AttrListList::Insert((AttrList*)ca); }
+	int			Delete(OldClassAd* ca){return AttrListList::Delete((AttrList*)ca);}
+	OldClassAd*	Lookup(const char* name);
 
 	// User supplied function should define the "<" relation and the list
 	// is sorted in ascending order.  User supplied function should
