@@ -50,13 +50,14 @@ enum							// various AttrLists
 };
 enum {AGG_INSERT, AGG_REMOVE};	// operations on aggregate classes
 
-class AttrListElem
+class AttrListElem { };
+class OldAttrListElem
 {
     public :
 
-        AttrListElem(ExprTree*);			// constructor
-        AttrListElem(AttrListElem&);		// copy constructor
-        ~AttrListElem() 
+        OldAttrListElem(OldExprTree*);			// constructor
+        OldAttrListElem(OldAttrListElem&);		// copy constructor
+        ~OldAttrListElem() 
 			{
 				if (tree != NULL) {
 				   	delete tree; 
@@ -67,88 +68,91 @@ class AttrListElem
 		bool IsDirty(void)            { return dirty;              }
 		void SetDirty(bool new_dirty) { dirty = new_dirty; return; }
 
-        friend class AttrList;
-        friend class ClassAd;
-        friend class AttrListList;
+        friend class OldAttrList;
+        friend class OldClassAd;
+        friend class OldAttrListList;
   
     private :
 
-        ExprTree*		tree;	// the tree pointed to by this element
+        OldExprTree*		tree;	// the tree pointed to by this element
 	    bool			dirty;	// has this element been changed?
 		char*			name;	// the name of the tree
-        class AttrListElem*	next;	// next element in the list
+        class OldAttrListElem*	next;	// next element in the list
 };
 
 // An abstract pair returned by unchain.
 struct ChainedPair {
-	AttrListElem **exprList;
-	HashTable<YourString, AttrListElem *> *exprHash;
+	OldAttrListElem **exprList;
+	HashTable<YourString, OldAttrListElem *> *exprHash;
 };
 
-class AttrListAbstract
+class AttrListAbstract { };
+class OldAttrListAbstract
 {
     public :
 
-		int		Type() { return type; }		// type of the AttrList
+		int		Type() { return type; }		// type of the OldAttrList
 
-		friend	class		AttrList;
-		friend	class		AttrListList;
-		friend	class		ClassAd;
-		friend	class		ClassAdList;
+		friend	class		OldAttrList;
+		friend	class		OldAttrListList;
+		friend	class		OldClassAd;
+		friend	class		OldClassAdList;
 
     protected :
 
-		AttrListAbstract(int);
-		virtual ~AttrListAbstract() {}
+		OldAttrListAbstract(int);
+		virtual ~OldAttrListAbstract() {}
 
-		int					type;		// type of this AttrList
-		class AttrListList*	inList;		// I'm in this AttrList list
-		class AttrListAbstract*	next;		// next AttrList in the list
-		class AttrListAbstract*	prev;		// previous AttrList in the list
+		int					type;		// type of this OldAttrList
+		class OldAttrListList*	inList;		// I'm in this OldAttrList list
+		class OldAttrListAbstract*	next;		// next OldAttrList in the list
+		class OldAttrListAbstract*	prev;		// previous OldAttrList in the list
 };
 
-class AttrListRep: public AttrListAbstract
+class AttrListRep: public AttrListAbstract { };
+class OldAttrListRep: public OldAttrListAbstract
 {
     public:
 
-        AttrListRep(AttrList*, AttrListList*);	// constructor
+        OldAttrListRep(OldAttrList*, OldAttrListList*);	// constructor
 
-		const AttrList* GetOrigAttrList() { return attrList; }
+		const OldAttrList* GetOrigOldAttrList() { return attrList; }
 
-		friend	class		AttrList;
-		friend	class		AttrListList;
+		friend	class		OldAttrList;
+		friend	class		OldAttrListList;
 
     private:
 
-        AttrList*		attrList;		// the original AttrList 
-        AttrListRep*	nextRep;		// next copy of original AttrList 
+        OldAttrList*		attrList;		// the original OldAttrList 
+        OldAttrListRep*	nextRep;		// next copy of original OldAttrList 
 };
 
-class AttrList : public AttrListAbstract
+class AttrList : public AttrListAbstract { };
+class OldAttrList : public OldAttrListAbstract
 {
     public :
-	    void ChainToAd( AttrList * );
+	    void ChainToAd( OldAttrList * );
 		ChainedPair unchain( void );
 		void RestoreChain(const ChainedPair &p);
 		void ChainCollapse(bool with_deep_copy = true);
 
 		// ctors/dtor
-		AttrList();							// No associated AttrList list
-        AttrList(AttrListList*);			// Associated with AttrList list
-        AttrList(FILE*,char*,int&,int&,int&);// Constructor, read from file.
-//		AttrList(class ProcObj*);			// create from a proc object
-//		AttrList(CONTEXT*);					// create from a CONTEXT
-        AttrList(const char *, char);		// Constructor, from string.
-        AttrList(AttrList&);				// copy constructor
-        virtual ~AttrList();				// destructor
+		OldAttrList();							// No associated OldAttrList list
+        OldAttrList(OldAttrListList*);			// Associated with OldAttrList list
+        OldAttrList(FILE*,char*,int&,int&,int&);// Constructor, read from file.
+//		OldAttrList(class ProcObj*);			// create from a proc object
+//		OldAttrList(CONTEXT*);					// create from a CONTEXT
+        OldAttrList(const char *, char);		// Constructor, from string.
+        OldAttrList(OldAttrList&);				// copy constructor
+        virtual ~OldAttrList();				// destructor
 
-		AttrList& operator=(const AttrList& other);
+		OldAttrList& operator=(const OldAttrList& other);
 
 		// insert expressions into the ad
         int        	Insert(const char*, 
 							bool check_for_dups=true);	// insert at the tail
 
-        int        	Insert(ExprTree*, 
+        int        	Insert(OldExprTree*, 
 							bool check_for_dups=true);	// insert at the tail
 
 		int			InsertOrUpdate(const char *expr) { return Insert(expr); }
@@ -173,12 +177,12 @@ class AttrList : public AttrListAbstract
 			// in this ad.  If source_ad is NULL, it defaults to this ad.
 			// If source_attr is undefined, target_attr is deleted, if
 			// it exists.
-		void CopyAttribute(char const *target_attr, char const *source_attr, AttrList *source_ad=NULL );
+		void CopyAttribute(char const *target_attr, char const *source_attr, OldAttrList *source_ad=NULL );
 
 			// Copy value of source_attr in source_ad to an attribute
 			// of the same name in this ad.  Shortcut for
 			// CopyAttribute(target_attr,target_attr,source_ad).
-		void CopyAttribute(char const *target_attr, AttrList *source_ad );
+		void CopyAttribute(char const *target_attr, OldAttrList *source_ad );
 
 			// Escape double quotes in a value so that it can be
 			// safely turned into a ClassAd string by putting double
@@ -223,14 +227,14 @@ class AttrList : public AttrListAbstract
 		void		ClearAllDirtyFlags();
 #if 0
 		// to update expression trees
-		int			UpdateExpr(char*, ExprTree*);	// update an expression
-		int			UpdateExpr(ExprTree*);
+		int			UpdateExpr(char*, OldExprTree*);	// update an expression
+		int			UpdateExpr(OldExprTree*);
 #endif
 
 		// for iteration through expressions
 		void		ResetExpr() { this->ptrExpr = exprList; this->ptrExprInChain = false; }
-		ExprTree*	NextExpr();					// next unvisited expression
-		ExprTree*   NextDirtyExpr();
+		OldExprTree*	NextExpr();					// next unvisited expression
+		OldExprTree*   NextDirtyExpr();
 
 		// for iteration through names (i.e., lhs of the expressions)
 		void		ResetName() { this->ptrName = exprList; this->ptrNameInChain = false; }
@@ -239,10 +243,10 @@ class AttrList : public AttrListAbstract
 		char*       NextDirtyName();
 
 		// lookup values in classads  (for simple assignments)
-		ExprTree*   Lookup(char *) const;  		// for convenience
-        ExprTree*	Lookup(const char*) const;	// look up an expression
-		ExprTree*	Lookup(const ExprTree*) const;
-		AttrListElem *LookupElem(const char *name) const;
+		OldExprTree*   Lookup(char *) const;  		// for convenience
+        OldExprTree*	Lookup(const char*) const;	// look up an expression
+		OldExprTree*	Lookup(const OldExprTree*) const;
+		OldAttrListElem *LookupElem(const char *name) const;
 		int         LookupString(const char *, char *) const; 
 		int         LookupString(const char *, char *, int) const; //uses strncpy
 		int         LookupString (const char *name, char **value) const;
@@ -255,20 +259,20 @@ class AttrList : public AttrListAbstract
         bool        LookupBool(const char *, bool &) const;
 
 		// evaluate values in classads
-		int         EvalString (const char *, const class AttrList *, char *) const;
-        int         EvalString (const char *, const class AttrList *, char **value) const;
-        int         EvalString (const char *, const class AttrList *, MyString & value) const;
-		int         EvalInteger (const char *, const class AttrList *, int &) const;
-		int         EvalFloat (const char *, const class AttrList *, float &) const;
-		int         EvalBool  (const char *, const class AttrList *, int &) const;
+		int         EvalString (const char *, const class OldAttrList *, char *) const;
+        int         EvalString (const char *, const class OldAttrList *, char **value) const;
+        int         EvalString (const char *, const class OldAttrList *, MyString & value) const;
+		int         EvalInteger (const char *, const class OldAttrList *, int &) const;
+		int         EvalFloat (const char *, const class OldAttrList *, float &) const;
+		int         EvalBool  (const char *, const class OldAttrList *, int &) const;
 
-		int			IsInList(AttrListList*);	// am I in this AttrList list?
+		int			IsInList(OldAttrListList*);	// am I in this OldAttrList list?
 
 		// output functions
 		int			fPrintExpr(FILE*, char*);	// print an expression
 		char*		sPrintExpr(char*, unsigned int, const char*); // print expression to buffer
-        virtual int	fPrint(FILE*);				// print the AttrList to a file
-		int         sPrint(MyString &output);   // put the AttrList in a string. 
+        virtual int	fPrint(FILE*);				// print the OldAttrList to a file
+		int         sPrint(MyString &output);   // put the OldAttrList in a string. 
 		void		dPrint( int );				// dprintf to given dprintf level
 
 		// conversion function
@@ -307,71 +311,72 @@ class AttrList : public AttrListAbstract
 		int get (XDR *);
 #endif
 
-		friend	class	AttrListRep;			// access "next" 
-		friend	class	AttrListList;			// access "UpdateAgg()"
-		friend	class	ClassAd;
+		friend	class	OldAttrListRep;			// access "next" 
+		friend	class	OldAttrListList;			// access "UpdateAgg()"
+		friend	class	OldClassAd;
 
 		static bool		IsValidAttrName(const char *);
 		static bool		IsValidAttrValue(const char *);
 
     protected :
-	    AttrListElem**	chainedAttrs;
+	    OldAttrListElem**	chainedAttrs;
 
-		// update an aggregate expression if the AttrList list associated with
-		// this AttrList is changed
-      	int				UpdateAgg(ExprTree*, int);
+		// update an aggregate expression if the OldAttrList list associated with
+		// this OldAttrList is changed
+      	int				UpdateAgg(OldExprTree*, int);
 		// convert a (key, value) pair to an assignment tree. used by the
-		// constructor that builds an AttrList from a proc structure.
-		ExprTree*		ProcToTree(char*, LexemeType, int, float, char*);
-        AttrListElem*	exprList;		// my collection of expressions
-		AttrListList*	associatedList;	// the AttrList list I'm associated with
-		AttrListElem*	tail;			// used by Insert
-		AttrListElem*	ptrExpr;		// used by NextExpr and NextDirtyExpr
+		// constructor that builds an OldAttrList from a proc structure.
+		OldExprTree*		ProcToTree(char*, LexemeType, int, float, char*);
+        OldAttrListElem*	exprList;		// my collection of expressions
+		OldAttrListList*	associatedList;	// the OldAttrList list I'm associated with
+		OldAttrListElem*	tail;			// used by Insert
+		OldAttrListElem*	ptrExpr;		// used by NextExpr and NextDirtyExpr
 		bool			ptrExprInChain;		// used by NextExpr and NextDirtyExpr
-		AttrListElem*	ptrName;		// used by NextName and NextDirtyName
+		OldAttrListElem*	ptrName;		// used by NextName and NextDirtyName
 		bool			ptrNameInChain;		// used by NextName and NextDirtyName
 		int				seq;			// sequence number
 
-		HashTable<YourString, AttrListElem *> *hash;
-		HashTable<YourString, AttrListElem *> *chained_hash;
+		HashTable<YourString, OldAttrListElem *> *hash;
+		HashTable<YourString, OldAttrListElem *> *chained_hash;
 
 private:
 	bool inside_insert;
 };
 
-class AttrListList
+class AttrListList { };
+class OldAttrListList
 {
     public:
     
-        AttrListList();					// constructor
-        AttrListList(AttrListList&);	// copy constructor
-        virtual ~AttrListList();		// destructor
+        OldAttrListList();					// constructor
+        OldAttrListList(OldAttrListList&);	// copy constructor
+        virtual ~OldAttrListList();		// destructor
 
         void 	  	Open();				// set pointer to the head of the queue
         void 	  	Close();			// set pointer to NULL
-        AttrList* 	Next();				// return AttrList pointed to by "ptr"
-        ExprTree* 	Lookup(const char*, AttrList*&);	// look up an expression
-      	ExprTree* 	Lookup(const char*);
+        OldAttrList* 	Next();				// return OldAttrList pointed to by "ptr"
+        OldExprTree* 	Lookup(const char*, OldAttrList*&);	// look up an expression
+      	OldExprTree* 	Lookup(const char*);
 
-      	void 	  	Insert(AttrList*);	// insert at the tail of the list
-      	int			Delete(AttrList*); 	// delete a AttrList
+      	void 	  	Insert(OldAttrList*);	// insert at the tail of the list
+      	int			Delete(OldAttrList*); 	// delete a OldAttrList
 
-      	void  	  	fPrintAttrListList(FILE *, bool use_xml = false);// print out the list
+      	void  	  	fPrintOldAttrListList(FILE *, bool use_xml = false);// print out the list
       	int 	  	MyLength() { return length; } 	// length of this list
-      	ExprTree* 	BuildAgg(char*, LexemeType);	// build aggregate expr
+      	OldExprTree* 	BuildAgg(char*, LexemeType);	// build aggregate expr
 
-      	friend	  	class		AttrList;
-      	friend	  	class		ClassAd;
+      	friend	  	class		OldAttrList;
+      	friend	  	class		OldClassAd;
   
     protected:
 
-        // update aggregate expressions in associated AttrLists
-		void				UpdateAgg(ExprTree*, int);
+        // update aggregate expressions in associated OldAttrLists
+		void				UpdateAgg(OldExprTree*, int);
 
-        AttrListAbstract*	head;			// head of the list
-        AttrListAbstract*	tail;			// tail of the list
-        AttrListAbstract*	ptr;			// used by NextAttrList
-        class AttrListList*		associatedAttrLists;	// associated AttrLists
+        OldAttrListAbstract*	head;			// head of the list
+        OldAttrListAbstract*	tail;			// tail of the list
+        OldAttrListAbstract*	ptr;			// used by NextOldAttrList
+        class OldAttrListList*		associatedOldAttrLists;	// associated OldAttrLists
         int					length;			// length of the list
 };
 

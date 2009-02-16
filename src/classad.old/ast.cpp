@@ -20,7 +20,7 @@
 //******************************************************************************
 // ast.C
 //
-// Implementation of the AST module with an interface to the AttrList module.
+// Implementation of the AST module with an interface to the OldAttrList module.
 //
 //******************************************************************************
 
@@ -35,25 +35,25 @@
 #include "Regex.h"
 
 extern char * format_time(int);
-extern void evalFromEnvironment (const char *, EvalResult *);
+extern void evalFromEnvironment (const char *, OldEvalResult *);
 static bool name_in_list(const char *name, StringList &references);
-static void printComparisonOpToStr (char *, ExprTree *, ExprTree *, char *);
-static int calculate_math_op_length(ExprTree *lArg, ExprTree *rArg, int op_length);
-static void dprintResult(ExprTree *tree, EvalResult *result);
+static void printComparisonOpToStr (char *, OldExprTree *, OldExprTree *, char *);
+static int calculate_math_op_length(OldExprTree *lArg, OldExprTree *rArg, int op_length);
+static void dprintResult(OldExprTree *tree, OldEvalResult *result);
 
 bool classad_debug_function_run = 0;
 
 #define EatSpace(ptr)  while(*ptr != '\0') ptr++;
 
 // EvalResult ctor
-EvalResult::EvalResult()
+OldEvalResult::OldEvalResult()
 {
 	type = LX_UNDEFINED;
 	debug = false;
 }
 
-// EvalResult dtor
-EvalResult::~EvalResult()
+// OldEvalResult dtor
+OldEvalResult::~OldEvalResult()
 {
 	if ((type == LX_STRING || type == LX_TIME) && (s)) {
 		delete [] s;
@@ -61,7 +61,7 @@ EvalResult::~EvalResult()
 }
 
 void
-EvalResult::deepcopy(const EvalResult & rhs)
+OldEvalResult::deepcopy(const OldEvalResult & rhs)
 {
 	type = rhs.type;
 	debug = rhs.debug;
@@ -82,21 +82,21 @@ EvalResult::deepcopy(const EvalResult & rhs)
 	}
 }
 
-// EvalResult copy ctor
-EvalResult::EvalResult(const EvalResult & rhs)
+// OldEvalResult copy ctor
+OldEvalResult::OldEvalResult(const OldEvalResult & rhs)
 {
 	deepcopy(rhs);
 }
 
-// EvalResult assignment op
-EvalResult & EvalResult::operator=(const EvalResult & rhs)
+// OldEvalResult assignment op
+OldEvalResult & OldEvalResult::operator=(const OldEvalResult & rhs)
 {
 	if ( this == &rhs )	{	// object assigned to itself
 		return *this;		// all done.
 	}
 
 		// deallocate any state in this object by invoking dtor
-	this->~EvalResult();
+	this->~OldEvalResult();
 
 		// call copy ctor to make a deep copy of data
 	deepcopy(rhs);
@@ -106,7 +106,7 @@ EvalResult & EvalResult::operator=(const EvalResult & rhs)
 }
 
 
-void EvalResult::fPrintResult(FILE *fi)
+void OldEvalResult::fPrintResult(FILE *fi)
 {
     switch(type)
     {
@@ -156,11 +156,11 @@ void EvalResult::fPrintResult(FILE *fi)
 // ">" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int Integer::operator >(ExprTree& tree)
+int Integer::operator >(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value > tmpResult.i;
@@ -172,11 +172,11 @@ int Integer::operator >(ExprTree& tree)
     return FALSE;
 }
 
-int Float::operator >(ExprTree& tree)
+int Float::operator >(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value > tmpResult.i;
@@ -192,11 +192,11 @@ int Float::operator >(ExprTree& tree)
 // ">=" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int Integer::operator >=(ExprTree& tree)
+int Integer::operator >=(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value >= tmpResult.i;
@@ -208,11 +208,11 @@ int Integer::operator >=(ExprTree& tree)
     return FALSE;
 }
 
-int Float::operator >=(ExprTree& tree)
+int Float::operator >=(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value >= tmpResult.i;
@@ -228,11 +228,11 @@ int Float::operator >=(ExprTree& tree)
 // "<" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int Integer::operator <(ExprTree& tree)
+int Integer::operator <(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value < tmpResult.i;
@@ -244,11 +244,11 @@ int Integer::operator <(ExprTree& tree)
     return FALSE;
 }
 
-int Float::operator <(ExprTree& tree)
+int Float::operator <(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value < tmpResult.i;
@@ -264,11 +264,11 @@ int Float::operator <(ExprTree& tree)
 // "<=" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int Integer::operator <=(ExprTree& tree)
+int Integer::operator <=(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value <= tmpResult.i;
@@ -280,11 +280,11 @@ int Integer::operator <=(ExprTree& tree)
     return FALSE;
 }
 
-int Float::operator <=(ExprTree& tree)
+int Float::operator <=(OldExprTree& tree)
 {
-    EvalResult	tmpResult;
+    OldEvalResult	tmpResult;
 
-    tree.EvalTree((AttrList*)NULL, &tmpResult);
+    tree.EvalTree((OldAttrList*)NULL, &tmpResult);
     if(tmpResult.type == LX_INTEGER)
     {
 	return value <= tmpResult.i;
@@ -298,22 +298,22 @@ int Float::operator <=(ExprTree& tree)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Two overloaded evaluation functions. One take a AttrList, one takes a
-// AttrList list.
+// Two overloaded evaluation functions. One take a OldAttrList, one takes a
+// OldAttrList list.
 ////////////////////////////////////////////////////////////////////////////////
 
 //------tw 11/16/95
-// add one more overloaded evaluation function, it takes two AttrLists,
-// one AttrList for "MY." variable valuation and the other AttrList for "TARGET." variable
+// add one more overloaded evaluation function, it takes two OldAttrLists,
+// one OldAttrList for "MY." variable valuation and the other OldAttrList for "TARGET." variable
 // evaluation. 
 //----------
 
-int ExprTree::EvalTree(const AttrList* l, EvalResult* r)
+int OldExprTree::EvalTree(const OldAttrList* l, OldEvalResult* r)
 {
 	return EvalTree(l, NULL, r);
 }
 
-int ExprTree::EvalTree(const AttrList* l1, const AttrList* l2, EvalResult* r)
+int OldExprTree::EvalTree(const OldAttrList* l1, const OldAttrList* l2, OldEvalResult* r)
 {
 	int rval;
 
@@ -332,9 +332,9 @@ int ExprTree::EvalTree(const AttrList* l1, const AttrList* l2, EvalResult* r)
 	return rval;
 }
 
-int Variable::_EvalTree(const AttrList* classad, EvalResult* val)
+int OldVariable::_EvalTree(const OldAttrList* classad, OldEvalResult* val)
 {
-    ExprTree* tmp = NULL;
+    OldExprTree* tmp = NULL;
     
     if(!val || !classad) 
     {
@@ -354,7 +354,7 @@ int Variable::_EvalTree(const AttrList* classad, EvalResult* val)
 	return result;
 }
 
-int Variable::_EvalTree( const AttrList* my_classad, const AttrList* target_classad, EvalResult* val)
+int OldVariable::_EvalTree( const OldAttrList* my_classad, const OldAttrList* target_classad, OldEvalResult* val)
 {
 	return _EvalTreeRecursive( name, my_classad, target_classad, val, false );
 }
@@ -365,7 +365,7 @@ If there is no scope, evaluate it simply.
 Otherwise, identify the ClassAd corresponding to the scope, and re-evaluate.
 */
 
-int Variable::_EvalTreeRecursive( const char *adName, const AttrList* my_classad, const AttrList* target_classad, EvalResult* val, bool restrict_search)
+int OldVariable::_EvalTreeRecursive( const char *adName, const OldAttrList* my_classad, const OldAttrList* target_classad, OldEvalResult* val, bool restrict_search)
 {
 	if( !val || !adName ) return FALSE;
 
@@ -403,7 +403,7 @@ int Variable::_EvalTreeRecursive( const char *adName, const AttrList* my_classad
          * causes ClassAds to need to talk to Daemons is causing linking
          * problems for libcondorapi.a, so we're just ditching it. 
 		} else {
-			ExprTree *expr;
+			OldExprTree *expr;
 			char expr_string[ATTRLIST_MAX_EXPRESSION];
 			if (target_classad) {
 				expr = target_classad->Lookup(prefix);
@@ -433,9 +433,9 @@ Once it has been reduced to a simple name, resolve the variable by
 looking it up first in MY, then TARGET, and finally, the environment.
 */
 
-int Variable::_EvalTreeSimple( const char *adName, const AttrList *my_classad, const AttrList *target_classad, EvalResult *val, bool restrict_search )
+int OldVariable::_EvalTreeSimple( const char *adName, const OldAttrList *my_classad, const OldAttrList *target_classad, OldEvalResult *val, bool restrict_search )
 {
-	ExprTree *tmp;
+	OldExprTree *tmp;
 
 	if(my_classad)
 	{
@@ -462,7 +462,7 @@ int Variable::_EvalTreeSimple( const char *adName, const AttrList *my_classad, c
 	return TRUE;
 }
 
-int Integer::_EvalTree(const AttrList*, EvalResult* val)
+int Integer::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -482,7 +482,7 @@ int Integer::_EvalTree(const AttrList*, EvalResult* val)
 }
 
 //-------tw-------------
-int Integer::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
+int Integer::_EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -502,7 +502,7 @@ int Integer::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 }
 
 //--------------------
-int Float::_EvalTree(const AttrList*, EvalResult* val)
+int Float::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -523,7 +523,7 @@ int Float::_EvalTree(const AttrList*, EvalResult* val)
 
 
 //-------tw-------------
-int Float::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
+int Float::_EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -543,7 +543,7 @@ int Float::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 }
 
 //--------------------------------
-int String::_EvalTree(const AttrList*, EvalResult* val)
+int String::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -555,7 +555,7 @@ int String::_EvalTree(const AttrList*, EvalResult* val)
     return TRUE;
 }
 
-int ISOTime::_EvalTree(const AttrList*, EvalResult* val)
+int ISOTime::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -569,7 +569,7 @@ int ISOTime::_EvalTree(const AttrList*, EvalResult* val)
 
 //-------tw-----------------------------
 
-int String::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
+int String::_EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -581,7 +581,7 @@ int String::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
     return TRUE;
 }
 
-int ISOTime::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
+int ISOTime::_EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -594,7 +594,7 @@ int ISOTime::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 }
 
 //-----------------------------------
-int ClassadBoolean::_EvalTree(const AttrList*, EvalResult* val)
+int ClassadBoolean::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -608,7 +608,7 @@ int ClassadBoolean::_EvalTree(const AttrList*, EvalResult* val)
 
 //-----------tw------------------------
 
-int ClassadBoolean::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
+int ClassadBoolean::_EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult* val)
 {
     if(!val) 
     {
@@ -622,7 +622,7 @@ int ClassadBoolean::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 //-----------------------------------
 
 
-int Undefined::_EvalTree(const AttrList*, EvalResult* val)
+int Undefined::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val)
     {
@@ -633,7 +633,7 @@ int Undefined::_EvalTree(const AttrList*, EvalResult* val)
 }
 
 //------------tw-------------------
-int Undefined::_EvalTree(const AttrList*, const AttrList*,  EvalResult* val)
+int Undefined::_EvalTree(const OldAttrList*, const OldAttrList*,  OldEvalResult* val)
 {
     if(!val)
     {
@@ -644,7 +644,7 @@ int Undefined::_EvalTree(const AttrList*, const AttrList*,  EvalResult* val)
 }
 //--------------------------------
 
-int Error::_EvalTree(const AttrList*, EvalResult* val)
+int Error::_EvalTree(const OldAttrList*, OldEvalResult* val)
 {
     if(!val)
     {
@@ -655,7 +655,7 @@ int Error::_EvalTree(const AttrList*, EvalResult* val)
 }
 
 //------------tw-------------------
-int Error::_EvalTree(const AttrList*, const AttrList*,  EvalResult* val)
+int Error::_EvalTree(const OldAttrList*, const OldAttrList*,  OldEvalResult* val)
 {
     if(!val)
     {
@@ -666,14 +666,14 @@ int Error::_EvalTree(const AttrList*, const AttrList*,  EvalResult* val)
 }
 //--------------------------------
 
-void ExprTree::GetReferences(const AttrList * /* base_attlrist */,
+void OldExprTree::GetReferences(const OldAttrList * /* base_attlrist */,
 							 StringList & /* internal_references */,
 							 StringList & /* external_references */) const
 {
 	return;
 }
 
-void BinaryOpBase::GetReferences(const AttrList *base_attrlist,
+void BinaryOpBase::GetReferences(const OldAttrList *base_attrlist,
 								 StringList &internal_references,
 								 StringList &external_references) const 
 {
@@ -686,7 +686,7 @@ void BinaryOpBase::GetReferences(const AttrList *base_attrlist,
 	return;
 }
 
-void AssignOpBase::GetReferences(const AttrList *base_attrlist,
+void AssignOpBase::GetReferences(const OldAttrList *base_attrlist,
 								 StringList &internal_references,
 								 StringList &external_references) const
 {
@@ -698,7 +698,7 @@ void AssignOpBase::GetReferences(const AttrList *base_attrlist,
 	return;
 }
 
-void VariableBase::GetReferences(const AttrList *base_attrlist,
+void OldVariableBase::GetReferences(const OldAttrList *base_attrlist,
 								 StringList &internal_references,
 								 StringList &external_references) const
 {
@@ -730,7 +730,7 @@ static bool name_in_list(const char *name, StringList &references)
 }
 
 // Calculate how many bytes an expression will print to
-int Variable::CalcPrintToStr(void)
+int OldVariable::CalcPrintToStr(void)
 {
 	return strlen(name);
 }
@@ -944,7 +944,7 @@ int AssignOp::CalcPrintToStr(void)
 // Print an Expression to a string.                                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-void Variable::PrintToStr(char* str)
+void OldVariable::PrintToStr(char* str)
 {
   strcat(str, name);
 }
@@ -1027,26 +1027,26 @@ void AddOp::PrintToStr(char* str)
 	if( !lArg ) {
 		// HACK!!  No lArg implies user-directed parenthesization
 		strcat( str, "(" );
-		((ExprTree*)rArg)->PrintToStr( str );
+		((OldExprTree*)rArg)->PrintToStr( str );
 		strcat( str, ")" );
 		return;
 	}
 
 	// lArg available --- regular addition operation
-	((ExprTree*)lArg)->PrintToStr(str);
+	((OldExprTree*)lArg)->PrintToStr(str);
     strcat(str, " + ");
-	((ExprTree*)rArg)->PrintToStr(str);
+	((OldExprTree*)rArg)->PrintToStr(str);
     if(unit == 'k') strcat(str, " k");
 }
 
 void SubOp::PrintToStr(char* str)
 {
     if(lArg) {
-		((ExprTree*)lArg)->PrintToStr(str);
+		((OldExprTree*)lArg)->PrintToStr(str);
     }
     strcat(str, " - ");
     if(rArg) {
-		((ExprTree*)rArg)->PrintToStr(str);
+		((OldExprTree*)rArg)->PrintToStr(str);
 	}
     if(unit == 'k') strcat(str, " k"); 
 }
@@ -1055,11 +1055,11 @@ void SubOp::PrintToStr(char* str)
 void MultOp::PrintToStr(char* str)
 {
     if(lArg) {
-		((ExprTree*)lArg)->PrintToStr(str);
+		((OldExprTree*)lArg)->PrintToStr(str);
     }
     strcat(str, " * ");
     if(rArg) {
-		((ExprTree*)rArg)->PrintToStr(str);
+		((OldExprTree*)rArg)->PrintToStr(str);
     }
     if(unit == 'k') strcat(str, " k");
 }
@@ -1067,11 +1067,11 @@ void MultOp::PrintToStr(char* str)
 void DivOp::PrintToStr(char* str)
 {
     if(lArg) {
-		((ExprTree*)lArg)->PrintToStr(str);
+		((OldExprTree*)lArg)->PrintToStr(str);
     }
     strcat(str, " / ");
     if(rArg) {
-		((ExprTree*)rArg)->PrintToStr(str);
+		((OldExprTree*)rArg)->PrintToStr(str);
     }
     if(unit == 'k') strcat(str, " k");
 }
@@ -1119,44 +1119,44 @@ void LeOp::PrintToStr(char* str)
 void AndOp::PrintToStr(char* str)
 {
     if(lArg) {
-		((ExprTree*)lArg)->PrintToStr(str);
+		((OldExprTree*)lArg)->PrintToStr(str);
 	}
     strcat(str, " && ");
     if(rArg) {
-		((ExprTree*)rArg)->PrintToStr(str);
+		((OldExprTree*)rArg)->PrintToStr(str);
 	}
 }
 
 void OrOp::PrintToStr(char* str)
 {
-	if( lArg )((ExprTree*)lArg)->PrintToStr(str);
+	if( lArg )((OldExprTree*)lArg)->PrintToStr(str);
     strcat(str, " || ");
-    if(rArg) ((ExprTree*)rArg)->PrintToStr(str);
+    if(rArg) ((OldExprTree*)rArg)->PrintToStr(str);
 }
 
 void AssignOp::PrintToStr(char* str)
 {
-    if(lArg) ((ExprTree*)lArg)->PrintToStr(str);
+    if(lArg) ((OldExprTree*)lArg)->PrintToStr(str);
     strcat(str, " = ");
-    if(rArg) ((ExprTree*)rArg)->PrintToStr(str);
+    if(rArg) ((OldExprTree*)rArg)->PrintToStr(str);
 }
 
 
 
 static void 
-printComparisonOpToStr (char *str, ExprTree *lArg, ExprTree *rArg, char *op)
+printComparisonOpToStr (char *str, OldExprTree *lArg, OldExprTree *rArg, char *op)
 {
     if(lArg) {
-		((ExprTree*)lArg)->PrintToStr(str);
+		((OldExprTree*)lArg)->PrintToStr(str);
     }
     strcat(str, op);
     if(rArg) {
-		((ExprTree*)rArg)->PrintToStr(str);
+		((OldExprTree*)rArg)->PrintToStr(str);
     }
 }
 
 static int
-calculate_math_op_length(ExprTree *lArg, ExprTree *rArg, int op_length)
+calculate_math_op_length(OldExprTree *lArg, OldExprTree *rArg, int op_length)
 {
 	int length;
 
@@ -1171,58 +1171,58 @@ calculate_math_op_length(ExprTree *lArg, ExprTree *rArg, int op_length)
 	return length;
 }
 
-ExprTree*  
-Variable::DeepCopy(void) const
+OldExprTree*  
+OldVariable::DeepCopy(void) const
 {
-	Variable *copy;
+	OldVariable *copy;
 
 #ifdef USE_STRING_SPACE_IN_CLASSADS
-	copy = new Variable(name);
+	copy = new OldVariable(name);
 #else
 	char     *name_copy;
 	name_copy = new char[strlen(name)+1];
 	strcpy(name_copy, name);
-	copy = new Variable(name_copy);
+	copy = new OldVariable(name_copy);
 #endif
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 Integer::DeepCopy(void) const
 {
 	Integer *copy;
 
 	copy = new Integer(value);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 Float::DeepCopy(void) const
 {
 	Float *copy;
 
 	copy = new Float(value);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 ClassadBoolean::DeepCopy(void) const
 {
 	ClassadBoolean *copy;
 
 	copy = new ClassadBoolean(value);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 String::DeepCopy(void) const
 {
 	String *copy;
@@ -1235,12 +1235,12 @@ String::DeepCopy(void) const
 	strcpy(value_copy, value);
 	copy = new String(value_copy);
 #endif
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 ISOTime::DeepCopy(void) const
 {
 	ISOTime *copy;
@@ -1253,39 +1253,39 @@ ISOTime::DeepCopy(void) const
 	strcpy(time_copy, time);
 	copy = new ISOTime(time_copy);
 #endif
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 Undefined::DeepCopy(void) const
 {
 	Undefined *copy;
 
 	copy = new Undefined();
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*  
+OldExprTree*  
 Error::DeepCopy(void) const
 {
 	Error *copy;
 
 	copy = new Error();
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 AddOp::DeepCopy(void) const
 {
 	AddOp     *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	/* We have to be careful with the AddOp, because it is overloaded to be used
 	 * as the parenthesis grouping.
@@ -1299,16 +1299,16 @@ AddOp::DeepCopy(void) const
 	}
 
 	copy = new AddOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 SubOp::DeepCopy(void) const
 {
 	SubOp  *copy;
-	ExprTree  *copy_of_larg = NULL;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg = NULL;
+	OldExprTree  *copy_of_rarg;
 
 	if(lArg) {
 		copy_of_larg = lArg->DeepCopy();
@@ -1317,202 +1317,202 @@ SubOp::DeepCopy(void) const
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new SubOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 MultOp::DeepCopy(void) const
 {
 	MultOp    *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new MultOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 DivOp::DeepCopy(void) const
 {
 	DivOp     *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new DivOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 MetaEqOp::DeepCopy(void) const
 {
 	MetaEqOp  *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new MetaEqOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 MetaNeqOp::DeepCopy(void) const
 {
 	MetaNeqOp *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new MetaNeqOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 EqOp::DeepCopy(void) const
 {
 	EqOp      *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new EqOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 NeqOp::DeepCopy(void) const
 {
 	NeqOp     *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new NeqOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 GtOp::DeepCopy(void) const
 {
 	GtOp      *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new GtOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 GeOp::DeepCopy(void) const
 {
 	GeOp      *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new GeOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 LtOp::DeepCopy(void) const
 {
 	LtOp      *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new LtOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 LeOp::DeepCopy(void) const
 {
 	LeOp      *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new LeOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 AndOp::DeepCopy(void) const
 {
 	AndOp     *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new AndOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 OrOp::DeepCopy(void) const
 {
 	OrOp      *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new OrOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 
-ExprTree*
+OldExprTree*
 AssignOp::DeepCopy(void) const
 {
 	AssignOp  *copy;
-	ExprTree  *copy_of_larg;
-	ExprTree  *copy_of_rarg;
+	OldExprTree  *copy_of_larg;
+	OldExprTree  *copy_of_rarg;
 
 	copy_of_larg = lArg->DeepCopy();
 	copy_of_rarg = rArg->DeepCopy();
 
 	copy = new AssignOp(copy_of_larg, copy_of_rarg);
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 	return copy;
 }
 #ifdef HAVE_DLFCN_H
@@ -1526,7 +1526,7 @@ int Function::CalcPrintToStr(void)
 	int      length;
 	int      i;
 	int      num_args;
-	ExprTree *arg;
+	OldExprTree *arg;
 
 	length = 0;
 	length += strlen(name);
@@ -1549,7 +1549,7 @@ int Function::CalcPrintToStr(void)
 
 void Function::PrintToStr(char *s)
 {
-	ExprTree *arg;
+	OldExprTree *arg;
 	int i, num_args;
 
 	arguments->Rewind();
@@ -1569,7 +1569,7 @@ void Function::PrintToStr(char *s)
 	return;
 }
 
-ExprTree *Function::DeepCopy(void) const
+OldExprTree *Function::DeepCopy(void) const
 {
 	Function *copy;
 
@@ -1579,10 +1579,10 @@ ExprTree *Function::DeepCopy(void) const
 	char     *name_copy;
 	name_copy = strnewp(name);
 #endif
-	CopyBaseExprTree(copy);
+	CopyBaseOldExprTree(copy);
 
-	ListIterator< ExprTree > iter(*arguments);
-	ExprTree *arg;
+	ListIterator< OldExprTree > iter(*arguments);
+	OldExprTree *arg;
 
 	iter.ToBeforeFirst();
 	while (iter.Next(arg)) {
@@ -1592,17 +1592,17 @@ ExprTree *Function::DeepCopy(void) const
 	return copy;
 }
 
-int Function::_EvalTree(const AttrList *attrlist, EvalResult *result)
+int Function::_EvalTree(const OldAttrList *attrlist, OldEvalResult *result)
 {
 	_EvalTree(attrlist, NULL, result);
 	return 0;
 }
 
-int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, EvalResult *result)
+int Function::_EvalTree(const OldAttrList *attrlist1, const OldAttrList *attrlist2, OldEvalResult *result)
 {
 	int        number_of_args, i;
 	int        successful_eval;
-	EvalResult *evaluated_args;
+	OldEvalResult *evaluated_args;
 	bool must_eval_to_strings = false;
 	bool done = false;
 
@@ -1639,10 +1639,10 @@ int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, Ev
 
 	if (!done) {
 		number_of_args = arguments->Length();
-		evaluated_args = new EvalResult[number_of_args];
+		evaluated_args = new OldEvalResult[number_of_args];
 		
-		ListIterator<ExprTree> iter(*arguments);
-		ExprTree *arg;
+		ListIterator<OldExprTree> iter(*arguments);
+		OldExprTree *arg;
 
 		i = 0;
 		while (iter.Next(arg)) {
@@ -1764,10 +1764,10 @@ int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, Ev
 }
 
 int Function::EvaluateArgumentToString(
-	ExprTree *arg,
-	const AttrList *attrlist1,
-	const AttrList *attrlist2,
-	EvalResult *result) const        // OUT: the result of calling the function
+	OldExprTree *arg,
+	const OldAttrList *attrlist1,
+	const OldAttrList *attrlist2,
+	OldEvalResult *result) const        // OUT: the result of calling the function
 {
 	result->type = LX_ERROR;
 
@@ -1782,7 +1782,7 @@ int Function::EvaluateArgumentToString(
 		arg->PrintToNewStr(&tmp);
 		if (tmp) {
 			// convert from malloc buffer to new[] buffer, since
-			// the destructor in EvalResult calls delete[].
+			// the destructor in OldEvalResult calls delete[].
 			result->s = strnewp(tmp);
 			free(tmp);
 		} else {
@@ -1815,8 +1815,8 @@ bool string_is_all_whitespace(char *s)
 #ifdef HAVE_DLOPEN
 int Function::FunctionSharedLibrary(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	char *shared_library_location;
 	int  eval_succeeded;
@@ -1834,7 +1834,7 @@ int Function::FunctionSharedLibrary(
 				ClassAdSharedValue  *function_args;
 
 				// Prepare the arguments for passing to the external library
-				// Note that we don't just use EvalResult, because we 
+				// Note that we don't just use OldEvalResult, because we 
 				// want to give the DZero folks a header file that is completely
 				// independent of anything else in Condor.
 				if (number_of_args > 0) {
@@ -1899,8 +1899,8 @@ int Function::FunctionSharedLibrary(
 
 int Function::FunctionGetTime(
 	int /* number_of_args */,          // IN:  size of evaluated args array
-	EvalResult * /* evaluated_args */, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult * /* evaluated_args */, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	time_t current_time = time(NULL);
 
@@ -1911,16 +1911,16 @@ int Function::FunctionGetTime(
 
 int Function::FunctionTime(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	return FunctionGetTime(number_of_args, evaluated_args, result);
 }
 
 int Function::FunctionInterval(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -1942,8 +1942,8 @@ extern "C" float get_random_float();
 
 int Function::FunctionRandom(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
     bool  success = false;
 	result->type = LX_ERROR;
@@ -1973,8 +1973,8 @@ int Function::FunctionRandom(
 
 int Function::FunctionIsUndefined(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -1993,8 +1993,8 @@ int Function::FunctionIsUndefined(
 
 int Function::FunctionIsError(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2013,8 +2013,8 @@ int Function::FunctionIsError(
 
 int Function::FunctionIsString(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2034,8 +2034,8 @@ int Function::FunctionIsString(
 
 int Function::FunctionIsInteger(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2055,8 +2055,8 @@ int Function::FunctionIsInteger(
 
 int Function::FunctionIsReal(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2075,8 +2075,8 @@ int Function::FunctionIsReal(
 
 int Function::FunctionIsBoolean(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2099,8 +2099,8 @@ int Function::FunctionIsBoolean(
 
 int Function::FunctionString(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2147,8 +2147,8 @@ int Function::FunctionString(
 
 int Function::FunctionReal(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2197,8 +2197,8 @@ int Function::FunctionReal(
 
 int Function::FunctionFloor(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2213,7 +2213,7 @@ int Function::FunctionFloor(
 	if ( evaluated_args[0].type == LX_INTEGER ) {
 		result->i = evaluated_args[0].i;
 	} else {
-		EvalResult real_result;
+		OldEvalResult real_result;
 		if ( FunctionReal(number_of_args,evaluated_args,&real_result) ) {
 			result->i = (int)floor(real_result.f);
 		} else {
@@ -2228,8 +2228,8 @@ int Function::FunctionFloor(
 
 int Function::FunctionRound(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2244,7 +2244,7 @@ int Function::FunctionRound(
 	if ( evaluated_args[0].type == LX_INTEGER ) {
 		result->i = evaluated_args[0].i;
 	} else {
-		EvalResult real_result;
+		OldEvalResult real_result;
 		if ( FunctionReal(number_of_args,evaluated_args,&real_result) ) {
 			result->i = (int)rint(real_result.f);
 		} else {
@@ -2258,8 +2258,8 @@ int Function::FunctionRound(
 
 int Function::FunctionCeiling(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2274,7 +2274,7 @@ int Function::FunctionCeiling(
 	if ( evaluated_args[0].type == LX_INTEGER ) {
 		result->i = evaluated_args[0].i;
 	} else {
-		EvalResult real_result;
+		OldEvalResult real_result;
 		if ( FunctionReal(number_of_args,evaluated_args,&real_result) ) {
 			result->i = (int)ceil(real_result.f);
 		} else {
@@ -2289,8 +2289,8 @@ int Function::FunctionCeiling(
 
 int Function::FunctionStrcat(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	// NOTE: ALL ARGUMENTS HAVE BEEN CONVERTED INTO STRING TYPES
 	// BEFORE THIS FUNCTION WAS INVOKED.
@@ -2313,8 +2313,8 @@ int Function::FunctionStrcat(
 
 int Function::FunctionInt(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	if ( number_of_args != 1 ) {
 		result->type = LX_ERROR;
@@ -2386,13 +2386,13 @@ int Function::FunctionInt(
 	If three arguments are not passed in, return ERROR.
 */
 int Function::FunctionIfThenElse(
-	const AttrList *attrlist1,
-	const AttrList *attrlist2,
-	EvalResult *result)         // OUT: the result of calling the function
+	const OldAttrList *attrlist1,
+	const OldAttrList *attrlist2,
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	bool condition = false;
-	EvalResult conditionclause;
-	ExprTree *arg = NULL;
+	OldEvalResult conditionclause;
+	OldExprTree *arg = NULL;
 
 	int number_of_args = arguments->Length();
 
@@ -2402,7 +2402,7 @@ int Function::FunctionIfThenElse(
 		return false;
 	}
 
-	ListIterator<ExprTree> iter(*arguments);
+	ListIterator<OldExprTree> iter(*arguments);
 
 		// pop off and evaluate the condition clause (1st argument)
 	iter.Next(arg);		// arg now has the first argument (condition clause)
@@ -2446,8 +2446,8 @@ int Function::FunctionIfThenElse(
 
 int Function::FunctionClassadDebugFunction(
 	int /* number_of_args */,         
-	EvalResult * /* evaluated_args */, 
-	EvalResult *result)         
+	OldEvalResult * /* evaluated_args */, 
+	OldEvalResult *result)         
 {
     classad_debug_function_run = true;
     result->i    = 1;
@@ -2458,8 +2458,8 @@ int Function::FunctionClassadDebugFunction(
 
 int Function::FunctionSubstr(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 
 	/* 
@@ -2536,8 +2536,8 @@ int Function::FunctionSubstr(
 	
 int Function::FunctionStrcmp(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	strcmp(any a, any b) returns int.
@@ -2564,8 +2564,8 @@ int Function::FunctionStrcmp(
 	
 int Function::FunctionStricmp(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stricmp(any a, any b) returns int.
@@ -2590,8 +2590,8 @@ int Function::FunctionStricmp(
 	
 int Function::FunctionToUpper(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	toUpper(any s) returns string.
@@ -2622,8 +2622,8 @@ int Function::FunctionToUpper(
 	
 int Function::FunctionToLower(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	toLower(any s) returns string.
@@ -2654,8 +2654,8 @@ int Function::FunctionToLower(
 	
 int Function::FunctionSize(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	size(string s) returns int.
@@ -2678,8 +2678,8 @@ int Function::FunctionSize(
 	
 int Function::FunctionStringlistSize(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistSize(string l [, string d]) returns int.
@@ -2721,8 +2721,8 @@ int Function::FunctionStringlistSize(
 	
 static int StringListNumberIterator(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result,         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result,         // OUT: the result of calling the function
 	void (*func)(double, double *),
 	double *accumulator)
 {
@@ -2788,8 +2788,8 @@ static void sum(double entry, double *accumulator) {
 
 int Function::FunctionStringlistSum(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistSum(string l [, string d]) returns number.
@@ -2822,8 +2822,8 @@ static void avg(double entry, double *pair) {
 
 int Function::FunctionStringlistAvg(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistAvg(string l [, string d]) returns number.
@@ -2865,8 +2865,8 @@ static void minner(double entry, double *best) {
 
 int Function::FunctionStringlistMin(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistMin(string l [, string d]) returns number.
@@ -2893,8 +2893,8 @@ static void maxer(double entry, double *best) {
 
 int Function::FunctionStringlistMax(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistMax(string l [, string d]) returns number.
@@ -2915,8 +2915,8 @@ int Function::FunctionStringlistMax(
 	
 static int stringlistmember(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result,         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result,         // OUT: the result of calling the function
 	bool ignore_case)
 {
 	if ((number_of_args < 2) || (number_of_args > 3)) {
@@ -2964,8 +2964,8 @@ static int stringlistmember(
 
 int Function::FunctionStringlistMember(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistMember(string x, string l [, string d]) returns boolean.
@@ -2983,8 +2983,8 @@ int Function::FunctionStringlistMember(
 	
 int Function::FunctionStringlistIMember(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistIMember(string x, string l [, string d]) returns boolean.
@@ -3031,8 +3031,8 @@ static int regexp_str_to_options(char *option_str) {
 
 int Function::FunctionStringlistRegexpMember(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	stringlistRegexpMember(string pattern, string l 
@@ -3117,8 +3117,8 @@ int Function::FunctionStringlistRegexpMember(
 	
 int Function::FunctionRegexp(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	regexp(string pattern, string target , string output[, string options ]) returns boolean.
@@ -3192,8 +3192,8 @@ int Function::FunctionRegexp(
 
 int Function::FunctionRegexps(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 	/*
 	regexps(string pattern, string target, string substitute [, string options ]) returns string.
@@ -3294,8 +3294,8 @@ int Function::FunctionRegexps(
 
 int Function::FunctionFormatTime(
 	int number_of_args,         // IN:  size of evaluated args array
-	EvalResult *evaluated_args, // IN:  the arguments to the function
-	EvalResult *result)         // OUT: the result of calling the function
+	OldEvalResult *evaluated_args, // IN:  the arguments to the function
+	OldEvalResult *result)         // OUT: the result of calling the function
 {
 
 	/* 
@@ -3371,7 +3371,7 @@ int Function::FunctionFormatTime(
 }
 
 
-void dprintResult(ExprTree *tree, EvalResult *result) {
+void dprintResult(OldExprTree *tree, OldEvalResult *result) {
 	if (result->debug) {
 		char *s = NULL;
 		tree->PrintToNewStr(&s);

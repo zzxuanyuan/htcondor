@@ -94,7 +94,7 @@ AdType::~AdType()
 //
 // ClassAd constructors
 //
-OldClassAd::OldClassAd() : AttrList()
+OldClassAd::OldClassAd() : OldAttrList()
 {
 	myType = NULL;
 	targetType = NULL;
@@ -103,7 +103,7 @@ OldClassAd::OldClassAd() : AttrList()
 }
 
 #if 0 /* don't want to link with ProcObj class; we shouldn't need this */
-OldClassAd::OldClassAd(class ProcObj* procObj) : AttrList(procObj)
+OldClassAd::OldClassAd(class ProcObj* procObj) : OldAttrList(procObj)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -113,7 +113,7 @@ OldClassAd::OldClassAd(class ProcObj* procObj) : AttrList(procObj)
 #endif
 
 #if 0 // dont use CONTEXTs anymore
-OldClassAd::OldClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
+OldClassAd::OldClassAd(const CONTEXT* context) : OldAttrList((CONTEXT *) context)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -130,8 +130,8 @@ OldClassAd::OldClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
 #endif
 
 OldClassAd::
-ClassAd(FILE* f, char* d, int& i, int &err, int &empty) 
-  : AttrList(f, d, i, err, empty)
+OldClassAd(FILE* f, char* d, int& i, int &err, int &empty) 
+  : OldAttrList(f, d, i, err, empty)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -139,7 +139,7 @@ ClassAd(FILE* f, char* d, int& i, int &err, int &empty)
 	updateBoundVariables();
 }
 
-OldClassAd::OldClassAd(char* s, char d) : AttrList(s, d)
+OldClassAd::OldClassAd(char* s, char d) : OldAttrList(s, d)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -149,10 +149,10 @@ OldClassAd::OldClassAd(char* s, char d) : AttrList(s, d)
 
 void
 OldClassAd::updateBoundVariables() {
-    ExprTree *tree;
-    EvalResult *val;
+    OldExprTree *tree;
+    OldEvalResult *val;
 
-    val = new EvalResult;
+    val = new OldEvalResult;
     if(val == NULL)
     {
         EXCEPT("Warning : you ran out of space -- quitting !");
@@ -191,11 +191,11 @@ OldClassAd::updateBoundVariables() {
     }
 	delete tree;
 	// I just added the next two lines: we were leaking memory 
-	// because EvalResult may contain a string result that isn't
+	// because OldEvalResult may contain a string result that isn't
 	// properly deleted if we don't call the destructor. Therefore,
-	// I delete and recreate the EvalResult. --alain 23-Sep-2001
+	// I delete and recreate the OldEvalResult. --alain 23-Sep-2001
 	delete val;
-	val = new EvalResult;
+	val = new OldEvalResult;
 
 	// Make a parse tree that contains the variable TargetType
     Parse("TargetType", tree);
@@ -243,7 +243,7 @@ OldClassAd::updateBoundVariables() {
 	SetInvisible("TargetType");
 }
 
-OldClassAd::OldClassAd(const OldClassAd& old) : AttrList((AttrList&) old)
+OldClassAd::OldClassAd(const OldClassAd& old) : OldAttrList((OldAttrList&) old)
 {
 	myType = NULL;
 	targetType = NULL;
@@ -270,7 +270,7 @@ OldClassAd::~OldClassAd()
 {
     if(associatedList)
     {
-		associatedList->associatedAttrLists->Delete(this);
+		associatedList->associatedOldAttrLists->Delete(this);
     }
     if(myType)
     {
@@ -286,7 +286,7 @@ OldClassAd& OldClassAd::operator=(const OldClassAd& other)
 {
 	if (this != &other) {
 		// First, let the base class do its magic.
-		AttrList::operator=(other);
+		OldAttrList::operator=(other);
 
 		// Clean up memory that we're going to be copying over.
 		if (myType != NULL) {
@@ -315,7 +315,7 @@ OldClassAd& OldClassAd::operator=(const OldClassAd& other)
 }
 
 //
-// This member function of class AttrList sets myType name.
+// This member function of class OldAttrList sets myType name.
 //
 void OldClassAd::SetMyTypeName(const char *tempName)
 {
@@ -346,7 +346,7 @@ void OldClassAd::SetMyTypeName(const char *tempName)
 }
 
 //
-// This member function of class AttrList returns myType name.
+// This member function of class OldAttrList returns myType name.
 //
 const char *OldClassAd::GetMyTypeName()
 {
@@ -380,7 +380,7 @@ const char *OldClassAd::GetMyTypeName()
 }
 
 //
-// This member function of class AttrList sets targetType name.
+// This member function of class OldAttrList sets targetType name.
 //
 void OldClassAd::SetTargetTypeName(const char *tempName)
 {
@@ -408,7 +408,7 @@ void OldClassAd::SetTargetTypeName(const char *tempName)
 }
 
 //
-// This member function of class AttrList returns targetType name.
+// This member function of class OldAttrList returns targetType name.
 //
 const char *OldClassAd::GetTargetTypeName()
 {
@@ -423,7 +423,7 @@ const char *OldClassAd::GetTargetTypeName()
 }
 
 //
-// This member function of class AttrList returns myType number.
+// This member function of class OldAttrList returns myType number.
 //
 int OldClassAd::GetMyTypeNumber()
 {
@@ -438,7 +438,7 @@ int OldClassAd::GetMyTypeNumber()
 }
 
 //
-// This member function of class AttrList returns targetType number.
+// This member function of class OldAttrList returns targetType number.
 //
 int OldClassAd::GetTargetTypeNumber()
 {
@@ -458,7 +458,7 @@ int OldClassAd::GetTargetTypeNumber()
 int OldClassAd::
 SetRequirements (char *expr)
 {
-	ExprTree *tree;
+	OldExprTree *tree;
 	int result = Parse (expr, tree);
 	if (result != 0)
 	{
@@ -470,17 +470,17 @@ SetRequirements (char *expr)
 }
 
 void OldClassAd::
-SetRequirements (ExprTree *tree)
+SetRequirements (OldExprTree *tree)
 {
-	if (!AttrList::Insert (tree))
+	if (!OldAttrList::Insert (tree))
 	{
-		AttrList::UpdateExpr (tree);
+		OldAttrList::UpdateExpr (tree);
 		delete tree;
 	}
 }
 #endif
 
-ExprTree *OldClassAd::
+OldExprTree *OldClassAd::
 GetRequirements (void)
 {
 	return Lookup (ATTR_REQUIREMENTS);
@@ -493,7 +493,7 @@ GetRequirements (void)
 int OldClassAd::
 SetRankExpr (char *expr)
 {
-    ExprTree *tree;
+    OldExprTree *tree;
     int result = Parse (expr, tree);
     if (result != 0)
     {
@@ -505,17 +505,17 @@ SetRankExpr (char *expr)
 }
 
 void OldClassAd::
-SetRankExpr (ExprTree *tree)
+SetRankExpr (OldExprTree *tree)
 {
-	if (!AttrList::Insert (tree))
+	if (!OldAttrList::Insert (tree))
 	{
-		AttrList::UpdateExpr (tree);
+		OldAttrList::UpdateExpr (tree);
 		delete tree;
 	}
 }
 #endif
 
-ExprTree *OldClassAd::
+OldExprTree *OldClassAd::
 GetRankExpr (void)
 {
     return Lookup (ATTR_RANK);
@@ -547,11 +547,11 @@ GetSequenceNumber (void)
 // ads frequently, so cache the "MY.Requirements" tree so we only
 // need to parse it once.
 
-ExprTree *reqsTree = 0;
+OldExprTree *reqsTree = 0;
 
 int OldClassAd::IsAMatch(OldClassAd* temp)
 {
-    EvalResult *val;
+    OldEvalResult *val;
 
     if(!temp)
     {
@@ -570,7 +570,7 @@ int OldClassAd::IsAMatch(OldClassAd* temp)
         return 0;
     }
 
-    val = new EvalResult;
+    val = new OldEvalResult;
     if(val == NULL)
     {
         EXCEPT("Warning : you ran out of memory -- quitting !");
@@ -626,7 +626,7 @@ bool operator<= (OldClassAd &lhs, OldClassAd &rhs)
 
 bool operator>= (OldClassAd &lhs, OldClassAd &rhs)
 {
-	EvalResult *val;	
+	OldEvalResult *val;	
 	
 	if( (lhs.GetMyTypeNumber()!=rhs.GetTargetTypeNumber()) &&
 	    stricmp(rhs.GetTargetTypeName(),ANY_ADTYPE) )
@@ -634,7 +634,7 @@ bool operator>= (OldClassAd &lhs, OldClassAd &rhs)
 		return false;
 	}
 
-	if ((val = new EvalResult) == NULL)
+	if ((val = new OldEvalResult) == NULL)
 	{
 		EXCEPT("Out of memory -- quitting");
 	}
@@ -697,7 +697,7 @@ int OldClassAd::fPrint(FILE* f)
 	}
     fprintf(f, "%c\n", '"');    
 	
-	return AttrList::fPrint(f);
+	return OldAttrList::fPrint(f);
 }
 
 int OldClassAd::sPrintAsXML(MyString &output)
@@ -727,7 +727,7 @@ int OldClassAd::sPrint(MyString &output)
 	}
 	output += "\"\n";
 	
-	return AttrList::sPrint(output);
+	return OldAttrList::sPrint(output);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -753,7 +753,7 @@ OldClassAd::dPrint(int level)
 		dprintf( flag, "TargetType = \"\"\n" );
 	}
 
-	AttrList::dPrint( level );
+	OldAttrList::dPrint( level );
 }
 
 
@@ -763,7 +763,7 @@ int OldClassAd::put(Stream& s)
 {
 
 	// first send over all the attributes
-	if ( !AttrList::put(s) ) {
+	if ( !OldAttrList::put(s) ) {
 		return 0;
 	}
 
@@ -797,11 +797,11 @@ int OldClassAd::put(Stream& s)
 void
 OldClassAd::clear( void )
 {
-		// First, clear out everything in our AttrList
-	AttrList::clear();
+		// First, clear out everything in our OldAttrList
+	OldAttrList::clear();
 
 		// Now, clear out our Type fields, since those are specific to
-		// ClassAd and aren't handled by AttrList::clear().
+		// ClassAd and aren't handled by OldAttrList::clear().
     if( myType ) {
         delete myType;
 		myType = NULL;
@@ -815,7 +815,7 @@ OldClassAd::clear( void )
 bool
 OldClassAd::initFromString(char const *str,MyString *err_msg)
 {
-	if( !AttrList::initFromString(str,err_msg) ) {
+	if( !OldAttrList::initFromString(str,err_msg) ) {
 		return false;
 	}
 
@@ -831,7 +831,7 @@ OldClassAd::initFromStream(Stream& s)
 
 		// First, initialize ourselves from the stream.  This will
 		// delete any existing attributes in the list...
-	if ( !AttrList::initFromStream(s) ) {
+	if ( !OldAttrList::initFromStream(s) ) {
 		return 0;
 	}
 
@@ -868,7 +868,7 @@ int OldClassAd::put (XDR *xdrs)
 
 	xdrs->x_op = XDR_ENCODE;
 
-	if (!AttrList::put (xdrs))
+	if (!OldAttrList::put (xdrs))
 		return 0;
 
 	if(myType)
@@ -906,7 +906,7 @@ int OldClassAd::get (XDR *xdrs)
 
 	xdrs->x_op = XDR_DECODE;
 
-	if (!AttrList::get (xdrs)) 
+	if (!OldAttrList::get (xdrs)) 
 		return 0;
 
 	if (!xdr_mywrapstring (xdrs, &line)) 
@@ -926,18 +926,18 @@ int OldClassAd::get (XDR *xdrs)
 void OldClassAd::
 ExchangeExpressions (OldClassAd *ad)
 {
-    AttrListElem *tmp1;
-    AttrListList *tmp2;
+    OldAttrListElem *tmp1;
+    OldAttrListList *tmp2;
     int           tmp3;
-	HashTable<YourString,AttrListElem *> *tmpHash;
+	HashTable<YourString,OldAttrListElem *> *tmpHash;
 
     // exchange variables which maintain the attribute list
     // see condor_attrlist.h  --RR
 
 #   define SWAP(a,b,t) {t=a; a=b; b=t;}
 
-    SWAP(associatedList, ad->associatedList, tmp2); // this is AttrListList*
-    SWAP(exprList, ad->exprList, tmp1);             // these are AttrListElem*
+    SWAP(associatedList, ad->associatedList, tmp2); // this is OldAttrListList*
+    SWAP(exprList, ad->exprList, tmp1);             // these are OldAttrListElem*
 	SWAP(hash, ad->hash, tmpHash);
     SWAP(tail, ad->tail, tmp1);
     SWAP(ptrExpr, ad->ptrExpr, tmp1);
@@ -952,19 +952,19 @@ ExchangeExpressions (OldClassAd *ad)
 
 OldClassAd* OldClassAdList::Lookup(const char* name)
 {
-	AttrList*	list;
+	OldAttrList*	list;
 
-	((AttrListList*)this)->Lookup(name, list);
-	return (ClassAd*)list;
+	((OldAttrListList*)this)->Lookup(name, list);
+	return (OldClassAd*)list;
 }
 
 void OldClassAdList::
-Sort(int(*SmallerThan)(AttrList*, AttrList*, void*), void* info)
+Sort(int(*SmallerThan)(OldAttrList*, OldAttrList*, void*), void* info)
 {
 /*
 	dprintf(D_ALWAYS,"head=%08x , tail=%08x\n",head,tail);
 	int count=1;
-	for (AttrListAbstract* xx=head; xx; xx=xx->next, count++ ) {
+	for (OldAttrListAbstract* xx=head; xx; xx=xx->next, count++ ) {
 	  dprintf(D_ALWAYS, "%02d: prev=%08x , cur=%08x , next=%08x\n",count,xx->prev,xx,xx->next);
     }
 */
@@ -974,7 +974,7 @@ Sort(int(*SmallerThan)(AttrList*, AttrList*, void*), void* info)
 /*
 	dprintf(D_ALWAYS,"head=%08x , tail=%08x\n",head,tail);
 	count=1;
-	for (AttrListAbstract* xx=head; xx; xx=xx->next, count++ ) {
+	for (OldAttrListAbstract* xx=head; xx; xx=xx->next, count++ ) {
 	  dprintf(D_ALWAYS, "%02d: prev=%08x , cur=%08x , next=%08x\n",count,xx->prev,xx,xx->next);
     }
 */
@@ -984,30 +984,30 @@ Sort(int(*SmallerThan)(AttrList*, AttrList*, void*), void* info)
 int OldClassAdList::
 SortCompare(const void* v1, const void* v2)
 {
-	AttrListAbstract** a1 = (AttrListAbstract**)v1;
-	AttrListAbstract** b1 = (AttrListAbstract**)v2;
-	AttrListAbstract *abstract_ad1 = *a1;
-	AttrListAbstract *abstract_ad2 = *b1;
-	AttrList* a;
-	AttrList* b;
+	OldAttrListAbstract** a1 = (OldAttrListAbstract**)v1;
+	OldAttrListAbstract** b1 = (OldAttrListAbstract**)v2;
+	OldAttrListAbstract *abstract_ad1 = *a1;
+	OldAttrListAbstract *abstract_ad2 = *b1;
+	OldAttrList* a;
+	OldAttrList* b;
 
-	// Convert AttrListAbstracts to AttrList
+	// Convert OldAttrListAbstracts to OldAttrList
 	if ( abstract_ad1->Type() == ATTRLISTENTITY ) {
-		// this represents an AttrList in one AttrListList
-		a = (AttrList *)abstract_ad1;
+		// this represents an OldAttrList in one OldAttrListList
+		a = (OldAttrList *)abstract_ad1;
 	} else {
-		// this represents an AttrList in multiple AttrListLists
-		// thus, it is an AttrListRep not an AttrList
-		a = (AttrList *)((AttrListRep *)abstract_ad1)->GetOrigAttrList();
+		// this represents an OldAttrList in multiple OldAttrListLists
+		// thus, it is an OldAttrListRep not an OldAttrList
+		a = (OldAttrList *)((OldAttrListRep *)abstract_ad1)->GetOrigOldAttrList();
 	}
 
 	if ( abstract_ad2->Type() == ATTRLISTENTITY ) {
-		// this represents an AttrList in one AttrListList
-		b = (AttrList *)abstract_ad2;
+		// this represents an OldAttrList in one OldAttrListList
+		b = (OldAttrList *)abstract_ad2;
 	} else {
-		// this represents an AttrList in multiple AttrListLists
-		// thus, it is an AttrListRep not an AttrList
-		b = (AttrList *)((AttrListRep *)abstract_ad2)->GetOrigAttrList();
+		// this represents an OldAttrList in multiple OldAttrListLists
+		// thus, it is an OldAttrListRep not an OldAttrList
+		b = (OldAttrList *)((OldAttrListRep *)abstract_ad2)->GetOrigOldAttrList();
 	}
 	// The user supplied SortSmallerThan() func returns a 1
 	// if a is smaller than b, and that is _all_ we know about
@@ -1037,9 +1037,9 @@ SortCompare(const void* v1, const void* v2)
 
 void OldClassAdList::
 Sort( SortFunctionType UserSmallerThan, void* UserInfo, 
-		AttrListAbstract*& listHead)
+		OldAttrListAbstract*& listHead)
 {
-	AttrListAbstract* ad;
+	OldAttrListAbstract* ad;
 	int i;
 	int len = MyLength();
 
@@ -1054,7 +1054,7 @@ Sort( SortFunctionType UserSmallerThan, void* UserInfo,
 	// then we fixup all the head/tail/next/prev pointers.
 
 	// so first create our array
-	AttrListAbstract** array = new AttrListAbstract*[len];
+	OldAttrListAbstract** array = new OldAttrListAbstract*[len];
 	ad = listHead;
 	i = 0;
 	while (ad) {
@@ -1067,7 +1067,7 @@ Sort( SortFunctionType UserSmallerThan, void* UserInfo,
 	// _NOT_ thread safe!!!
 	SortSmallerThan = UserSmallerThan;	
 	SortInfo = UserInfo;
-	qsort(array,len,sizeof(AttrListAbstract*),SortCompare);
+	qsort(array,len,sizeof(OldAttrListAbstract*),SortCompare);
 
 	// and finally fixup the order of the double linked list
 	listHead = ad = array[0];

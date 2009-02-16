@@ -134,7 +134,7 @@ class ClassAdXMLUnparser
 	 * @param buffer The string to append the ClassAd to.
 	 * @see SetUseCompactNames().
 	 * @see SetUseCompactSpacing(). */
-	void Unparse(ClassAd *classad, MyString &buffer);
+	void Unparse(OldClassAd *classad, MyString &buffer);
 
  private:
 	void Unparse(ExprTree *expression, MyString &buffer);

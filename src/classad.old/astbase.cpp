@@ -35,8 +35,8 @@
 
 #ifdef USE_STRING_SPACE_IN_CLASSADS
 #include "stringSpace.h"
-StringSpace *ExprTree::string_space = NULL;
-int ExprTree::string_space_references = 0;
+StringSpace *OldExprTree::string_space = NULL;
+int OldExprTree::string_space_references = 0;
 #endif
 
 #ifndef USE_STRING_SPACE_IN_CLASSADS
@@ -53,7 +53,7 @@ static	char*	StrCpy(const char* str)
 // Tree node constructors.                                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
-VariableBase::VariableBase(char* varName)
+OldVariableBase::OldVariableBase(char* varName)
 {
 #ifdef USE_STRING_SPACE_IN_CLASSADS
 	this->stringSpaceIndex = string_space->getCanonical(varName, SS_DUP);
@@ -123,105 +123,105 @@ ErrorBase::ErrorBase()
     this->type  = LX_ERROR;
 }
 
-AddOpBase::AddOpBase(ExprTree* l, ExprTree* r)
+AddOpBase::AddOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_ADD;
 }
 
-SubOpBase::SubOpBase(ExprTree* l, ExprTree* r)
+SubOpBase::SubOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_SUB;
 }
 
-MultOpBase::MultOpBase(ExprTree* l, ExprTree* r)
+MultOpBase::MultOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_MULT;
 }
 
-DivOpBase::DivOpBase(ExprTree* l, ExprTree* r)
+DivOpBase::DivOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_DIV;
 }
 
-MetaEqOpBase::MetaEqOpBase(ExprTree* l, ExprTree* r)
+MetaEqOpBase::MetaEqOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_META_EQ;
 }
 
-MetaNeqOpBase::MetaNeqOpBase(ExprTree* l, ExprTree* r)
+MetaNeqOpBase::MetaNeqOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_META_NEQ;
 }
 
-EqOpBase::EqOpBase(ExprTree* l, ExprTree* r)
+EqOpBase::EqOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_EQ;
 }
 
-NeqOpBase::NeqOpBase(ExprTree* l, ExprTree* r)
+NeqOpBase::NeqOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_NEQ;
 }
 
-GtOpBase::GtOpBase(ExprTree* l, ExprTree* r)
+GtOpBase::GtOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_GT;
 }
 
-GeOpBase::GeOpBase(ExprTree* l, ExprTree* r)
+GeOpBase::GeOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_GE;
 }
 
-LtOpBase::LtOpBase(ExprTree* l, ExprTree* r)
+LtOpBase::LtOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_LT;
 }
 
-LeOpBase::LeOpBase(ExprTree* l, ExprTree* r)
+LeOpBase::LeOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_LE;
 }
 
-AndOpBase::AndOpBase(ExprTree* l, ExprTree* r)
+AndOpBase::AndOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_AND;
 }
 
-OrOpBase::OrOpBase(ExprTree* l, ExprTree* r)
+OrOpBase::OrOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
     this->type  = LX_OR;
 }
 
-AssignOpBase::AssignOpBase(ExprTree* l, ExprTree* r)
+AssignOpBase::AssignOpBase(OldExprTree* l, OldExprTree* r)
 {
     this->lArg = l;
     this->rArg = r;
@@ -231,7 +231,7 @@ AssignOpBase::AssignOpBase(ExprTree* l, ExprTree* r)
 ////////////////////////////////////////////////////////////////////////////////
 // Destructors
 ////////////////////////////////////////////////////////////////////////////////
-VariableBase::~VariableBase()
+OldVariableBase::~OldVariableBase()
 {
 #ifdef USE_STRING_SPACE_IN_CLASSADS
 	string_space->disposeByIndex(stringSpaceIndex);
@@ -274,7 +274,7 @@ BinaryOpBase::~BinaryOpBase()
 // Comparison operator                                                        //
 ////////////////////////////////////////////////////////////////////////////////
 
-int ExprTree::operator ==(ExprTree& tree)
+int OldExprTree::operator ==(OldExprTree& tree)
 {
     if(tree.type != this->type)
     {
@@ -283,16 +283,16 @@ int ExprTree::operator ==(ExprTree& tree)
     return TRUE;
 }
 
-int VariableBase::operator==(ExprTree& tree)
+int OldVariableBase::operator==(OldExprTree& tree)
 {
     if(tree.MyType() == LX_VARIABLE)
     {
-        return !strcmp(this->name, ((VariableBase&)tree).name);
+        return !strcmp(this->name, ((OldVariableBase&)tree).name);
     }
     return FALSE;
 }
 
-int IntegerBase::operator ==(ExprTree& tree)
+int IntegerBase::operator ==(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -301,7 +301,7 @@ int IntegerBase::operator ==(ExprTree& tree)
     return FALSE;
 }
 
-int FloatBase::operator ==(ExprTree& tree)
+int FloatBase::operator ==(OldExprTree& tree)
 {
     if(tree.MyType() == LX_FLOAT)
     {
@@ -310,7 +310,7 @@ int FloatBase::operator ==(ExprTree& tree)
     return FALSE;
 }
 
-int StringBase::operator ==(ExprTree& tree)
+int StringBase::operator ==(OldExprTree& tree)
 {
     if(tree.MyType() == LX_STRING)
     {
@@ -319,7 +319,7 @@ int StringBase::operator ==(ExprTree& tree)
     return FALSE;
 }
 
-int ISOTimeBase::operator ==(ExprTree& tree)
+int ISOTimeBase::operator ==(OldExprTree& tree)
 {
     if(tree.MyType() == LX_TIME)
     {
@@ -328,7 +328,7 @@ int ISOTimeBase::operator ==(ExprTree& tree)
     return FALSE;
 }
 
-int BooleanBase::operator ==(ExprTree& tree)
+int BooleanBase::operator ==(OldExprTree& tree)
 {
     if(tree.MyType() == LX_BOOL)
     {
@@ -337,7 +337,7 @@ int BooleanBase::operator ==(ExprTree& tree)
     return FALSE;
 }
 
-int BinaryOpBase::operator ==(ExprTree& tree)
+int BinaryOpBase::operator ==(OldExprTree& tree)
 {
 	// HACK!!  No lArg implies user-directed parenthesization
 	if ( this->lArg == NULL || ((BinaryOpBase&)tree).LArg() == NULL ) {
@@ -354,12 +354,12 @@ int BinaryOpBase::operator ==(ExprTree& tree)
 // ">" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int ExprTree::operator >(ExprTree&)
+int OldExprTree::operator >(OldExprTree&)
 {
     return FALSE;
 }
 
-int IntegerBase::operator >(ExprTree& tree)
+int IntegerBase::operator >(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -372,7 +372,7 @@ int IntegerBase::operator >(ExprTree& tree)
     return FALSE;
 }
 
-int FloatBase::operator >(ExprTree& tree)
+int FloatBase::operator >(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -389,12 +389,12 @@ int FloatBase::operator >(ExprTree& tree)
 // ">=" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int ExprTree::operator >=(ExprTree&)
+int OldExprTree::operator >=(OldExprTree&)
 {
     return FALSE;
 }
 
-int IntegerBase::operator >=(ExprTree& tree)
+int IntegerBase::operator >=(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -407,7 +407,7 @@ int IntegerBase::operator >=(ExprTree& tree)
     return FALSE;
 }
 
-int FloatBase::operator >=(ExprTree& tree)
+int FloatBase::operator >=(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -424,12 +424,12 @@ int FloatBase::operator >=(ExprTree& tree)
 // "<" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int ExprTree::operator <(ExprTree&)
+int OldExprTree::operator <(OldExprTree&)
 {
     return FALSE;
 }
 
-int IntegerBase::operator <(ExprTree& tree)
+int IntegerBase::operator <(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -442,7 +442,7 @@ int IntegerBase::operator <(ExprTree& tree)
     return FALSE;
 }
 
-int FloatBase::operator <(ExprTree& tree)
+int FloatBase::operator <(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -459,12 +459,12 @@ int FloatBase::operator <(ExprTree& tree)
 // "<=" operator.
 ////////////////////////////////////////////////////////////////////////////////
 
-int ExprTree::operator <=(ExprTree&)
+int OldExprTree::operator <=(OldExprTree&)
 {
     return FALSE;
 }
 
-int IntegerBase::operator <=(ExprTree& tree)
+int IntegerBase::operator <=(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -477,7 +477,7 @@ int IntegerBase::operator <=(ExprTree& tree)
     return FALSE;
 }
 
-int FloatBase::operator <=(ExprTree& tree)
+int FloatBase::operator <=(OldExprTree& tree)
 {
     if(tree.MyType() == LX_INTEGER)
     {
@@ -491,8 +491,8 @@ int FloatBase::operator <=(ExprTree& tree)
 }
 
 // This is used by the various CopyDeep()s to get the variables from the base
-// ExprTree class.
-void ExprTree::CopyBaseExprTree(ExprTree * const recipient) const
+// OldExprTree class.
+void OldExprTree::CopyBaseOldExprTree(OldExprTree * const recipient) const
 {
 	recipient->unit         = unit;
 	recipient->type         = type;
@@ -501,7 +501,7 @@ void ExprTree::CopyBaseExprTree(ExprTree * const recipient) const
 	return;
 }
 
-void ExprTree::PrintToNewStr(char **str)
+void OldExprTree::PrintToNewStr(char **str)
 {
 	int   length;
 	char  *new_str;
@@ -528,7 +528,7 @@ void ExprTree::PrintToNewStr(char **str)
 	return;
 }
 
-void ExprTree::PrintToStr(MyString & str) {
+void OldExprTree::PrintToStr(MyString & str) {
 	char * tmp = 0;
 	PrintToNewStr(&tmp);
 	str = tmp;
@@ -539,12 +539,12 @@ void ExprTree::PrintToStr(MyString & str) {
 // Display an expression tree.
 ////////////////////////////////////////////////////////////////////////////////
 
-void ExprTree::Display()
+void OldExprTree::Display()
 {
     dprintf (D_NOHEADER | D_ALWAYS, "Unknown type");
 }
 
-void VariableBase::Display()
+void OldVariableBase::Display()
 {
     dprintf (D_NOHEADER | D_ALWAYS, "%s", name);
 }
@@ -1148,13 +1148,13 @@ FunctionBase::FunctionBase(char *tName)
     this->name = StrCpy(tName);
 #endif
     this->type = LX_FUNCTION;
-	arguments = new List<ExprTree>();
+	arguments = new List<OldExprTree>();
 	return;
 }
 
 FunctionBase::~FunctionBase()
 {
-	ExprTree *arg = NULL;
+	OldExprTree *arg = NULL;
 
 	arguments->Rewind();
 	while(arguments->Next(arg)) {
@@ -1175,17 +1175,17 @@ FunctionBase::~FunctionBase()
 }
 
 int
-FunctionBase::operator==(ExprTree& tree)
+FunctionBase::operator==(OldExprTree& tree)
 {
 	return 0;
 }
 
-void FunctionBase::GetReferences(const AttrList *base_attrlist,
+void FunctionBase::GetReferences(const OldAttrList *base_attrlist,
 								 StringList &internal_references,
 								 StringList &external_references) const
 {
 
-	ExprTree *arg;
+	OldExprTree *arg;
 
     // These two lines make me shudder. 
     // This function is const, but calling Rewind() and Next() 
@@ -1208,7 +1208,7 @@ void FunctionBase::GetReferences(const AttrList *base_attrlist,
 }
 
 void
-FunctionBase::AppendArgument(ExprTree *argument)
+FunctionBase::AppendArgument(OldExprTree *argument)
 {
 	arguments->Append(argument);
 	return;
@@ -1216,10 +1216,10 @@ FunctionBase::AppendArgument(ExprTree *argument)
 
 void
 FunctionBase::EvaluateArgument(
-	ExprTree *arg,
-	const AttrList *attrlist1, 
-	const AttrList *attrlist2,
-	EvalResult *result) const
+	OldExprTree *arg,
+	const OldAttrList *attrlist1, 
+	const OldAttrList *attrlist2,
+	OldEvalResult *result) const
 {
 	if ( arg ) {
 		if (attrlist2 == NULL) {
@@ -1246,7 +1246,7 @@ FunctionBase::EvaluateArgument(
 // We no longer initialze sumFlag, because it has been removed. 
 // It's not used, that's why you couldn't figure out how to initialize
 // it, Todd.-Alain 26-Sep-2001
-ExprTree::ExprTree() : unit('\0'), evalFlag(FALSE)
+OldExprTree::OldExprTree() : unit('\0'), evalFlag(FALSE)
 {
 #ifdef USE_STRING_SPACE_IN_CLASSADS
 	if (string_space_references == 0) {
@@ -1258,7 +1258,7 @@ ExprTree::ExprTree() : unit('\0'), evalFlag(FALSE)
 	return;
 }
 
-ExprTree::~ExprTree()
+OldExprTree::~OldExprTree()
 {
 #ifdef USE_STRING_SPACE_IN_CLASSADS
 	string_space_references--;

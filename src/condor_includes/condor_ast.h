@@ -30,7 +30,7 @@
 //         classad list. The result of the evaluation and the type of the result
 //         is put into "result".
 //
-//     ExprTree* MinTree(ClassAdList* list)
+//     OldExprTree* MinTree(ClassAdList* list)
 //
 //         If the result of the expression tree in a classad list is true, a new
 //         expression tree which is the "minimum" part of the original
@@ -66,21 +66,22 @@
 #include "condor_astbase.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-// Class EvalResult is passed to ExprTree::EvalTree() to buffer the result of
+// Class EvalResult is passed to OldExprTree::EvalTree() to buffer the result of
 // the evaluation. The result can be integer, floating point, string, boolean,
 // null or error type. The type field specifies the type of the result.
 ////////////////////////////////////////////////////////////////////////////////
-class EvalResult
+class EvalResult { };
+class OldEvalResult
 {
     public :
 
-    EvalResult();
-  	~EvalResult();
+    OldEvalResult();
+  	~OldEvalResult();
 
 		/// copy constructor
-	EvalResult(const EvalResult & copyfrom);
+	OldEvalResult(const OldEvalResult & copyfrom);
 		/// assignment operator
-	EvalResult & operator=(const EvalResult & rhs);
+	OldEvalResult & operator=(const OldEvalResult & rhs);
 
 	void fPrintResult(FILE *); // for debugging
 
@@ -95,24 +96,25 @@ class EvalResult
 	bool debug;
 
 	private :
-	void deepcopy(const EvalResult & copyfrom);
+	void deepcopy(const OldEvalResult & copyfrom);
 };
 
-class Variable : public VariableBase
+class Variable : public VariableBase {};
+class OldVariable : public OldVariableBase
 {
 	public :
   
-		Variable(char*a_name) : VariableBase(a_name) {}
+		OldVariable(char*a_name) : OldVariableBase(a_name) {}
 		virtual int         CalcPrintToStr(void);
 		virtual void        PrintToStr(char*);
-		virtual ExprTree*     DeepCopy(void) const;
+		virtual OldExprTree*     DeepCopy(void) const;
 
 	protected:
 
-		virtual int         _EvalTree(const class AttrList*, EvalResult*);
-		virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
-		virtual int         _EvalTreeRecursive(const char *name, const AttrList*, const AttrList*, EvalResult*, bool);
-		virtual int         _EvalTreeSimple(const char *name, const AttrList*, const AttrList*, EvalResult*, bool);
+		virtual int         _EvalTree(const class OldAttrList*, OldEvalResult*);
+		virtual int         _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
+		virtual int         _EvalTreeRecursive(const char *name, const OldAttrList*, const OldAttrList*, OldEvalResult*, bool);
+		virtual int         _EvalTreeSimple(const char *name, const OldAttrList*, const OldAttrList*, OldEvalResult*, bool);
 };
 
 class Integer : public IntegerBase
@@ -121,19 +123,19 @@ class Integer : public IntegerBase
 
   	Integer(int i) : IntegerBase(i) {}
 
-	virtual	int	    operator >(ExprTree&);
-	virtual	int	    operator >=(ExprTree&);
-	virtual	int	    operator <(ExprTree&);
-	virtual	int	    operator <=(ExprTree&);
+	virtual	int	    operator >(OldExprTree&);
+	virtual	int	    operator >=(OldExprTree&);
+	virtual	int	    operator <(OldExprTree&);
+	virtual	int	    operator <=(OldExprTree&);
  
 	virtual int     CalcPrintToStr(void);
     virtual void    PrintToStr(char*);
-	virtual ExprTree*  DeepCopy(void) const;
+	virtual OldExprTree*  DeepCopy(void) const;
 
 	protected:
 
-  	virtual int     _EvalTree(const AttrList*, EvalResult*);
-    virtual int     _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int     _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int     _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 
@@ -143,18 +145,18 @@ class Float: public FloatBase
 
   	Float(float f) : FloatBase(f) {}
 
-	virtual	int	    operator >(ExprTree&);
-	virtual	int	    operator >=(ExprTree&);
-	virtual	int	    operator <(ExprTree&);
-	virtual	int	    operator <=(ExprTree&);
+	virtual	int	    operator >(OldExprTree&);
+	virtual	int	    operator >=(OldExprTree&);
+	virtual	int	    operator <(OldExprTree&);
+	virtual	int	    operator <=(OldExprTree&);
 	virtual int     CalcPrintToStr(void);
     virtual void    PrintToStr(char*);
-	virtual ExprTree*  DeepCopy(void) const;
+	virtual OldExprTree*  DeepCopy(void) const;
 
 	protected:
 
-  	virtual int     _EvalTree(const AttrList*, EvalResult*);
-    virtual int     _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int     _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int     _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 
@@ -165,12 +167,12 @@ class String : public StringBase
   	String(char* s) : StringBase(s) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree*     DeepCopy(void) const;
+	virtual OldExprTree*     DeepCopy(void) const;
 
 	protected:
 
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int         _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int         _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 
@@ -181,12 +183,12 @@ class ISOTime : public ISOTimeBase
   	ISOTime(char* s) : ISOTimeBase(s) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree*     DeepCopy(void) const;
+	virtual OldExprTree*     DeepCopy(void) const;
 
 	protected:
 
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int         _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int         _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 class ClassadBoolean : public BooleanBase
@@ -196,12 +198,12 @@ class ClassadBoolean : public BooleanBase
   	ClassadBoolean(int b) : BooleanBase(b) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree*   DeepCopy(void) const;
+	virtual OldExprTree*   DeepCopy(void) const;
 
 	protected:
 
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int         _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int         _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 
@@ -212,12 +214,12 @@ class Undefined : public UndefinedBase
 	Undefined() : UndefinedBase() {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree*   DeepCopy(void) const;
+	virtual OldExprTree*   DeepCopy(void) const;
 
 	protected:
 
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int         _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int         _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 class Error : public ErrorBase
@@ -227,12 +229,12 @@ class Error : public ErrorBase
 	Error() : ErrorBase() {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree*   DeepCopy(void) const;
+	virtual OldExprTree*   DeepCopy(void) const;
 
 	protected:
 
-  	virtual int         _EvalTree(const AttrList*, EvalResult*);
-    virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int         _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int         _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 };
 
 class BinaryOp: public BinaryOpBase
@@ -243,148 +245,148 @@ class BinaryOp: public BinaryOpBase
 class AddOp: public AddOpBase
 {
     public :
-  	AddOp(ExprTree* l, ExprTree* r) : AddOpBase(l, r) {}
+  	AddOp(OldExprTree* l, OldExprTree* r) : AddOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class SubOp: public SubOpBase
 {
     public :
-  	SubOp(ExprTree* l, ExprTree* r) : SubOpBase(l, r) {}
+  	SubOp(OldExprTree* l, OldExprTree* r) : SubOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class MultOp: public MultOpBase
 {
     public :
-  	MultOp(ExprTree* l, ExprTree* r) : MultOpBase(l, r) {}
+  	MultOp(OldExprTree* l, OldExprTree* r) : MultOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class DivOp: public DivOpBase
 {
     public :
-  	DivOp(ExprTree* l, ExprTree* r) : DivOpBase(l, r) {}
+  	DivOp(OldExprTree* l, OldExprTree* r) : DivOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class MetaEqOp: public MetaEqOpBase
 {
     public :
-  	MetaEqOp(ExprTree* l, ExprTree* r) : MetaEqOpBase(l, r) {}
+  	MetaEqOp(OldExprTree* l, OldExprTree* r) : MetaEqOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class MetaNeqOp: public MetaNeqOpBase
 {
     public :
-  	MetaNeqOp(ExprTree* l, ExprTree* r) : MetaNeqOpBase(l, r) {}
+  	MetaNeqOp(OldExprTree* l, OldExprTree* r) : MetaNeqOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 class EqOp: public EqOpBase
 {
     public :
-  	EqOp(ExprTree* l, ExprTree* r) : EqOpBase(l, r) {}
+  	EqOp(OldExprTree* l, OldExprTree* r) : EqOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class NeqOp: public NeqOpBase
 {
     public :
-  	NeqOp(ExprTree* l, ExprTree* r) : NeqOpBase(l, r) {}
+  	NeqOp(OldExprTree* l, OldExprTree* r) : NeqOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class GtOp: public GtOpBase
 {
     public :
-  	GtOp(ExprTree* l, ExprTree* r) : GtOpBase(l, r) {}
+  	GtOp(OldExprTree* l, OldExprTree* r) : GtOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class GeOp: public GeOpBase
 {
     public :
-  	GeOp(ExprTree* l, ExprTree* r) : GeOpBase(l, r) {}
+  	GeOp(OldExprTree* l, OldExprTree* r) : GeOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class LtOp: public LtOpBase
 {
     public :
-  	LtOp(ExprTree* l, ExprTree* r) : LtOpBase(l, r) {}
+  	LtOp(OldExprTree* l, OldExprTree* r) : LtOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class LeOp: public LeOpBase
 {
     public :
-  	LeOp(ExprTree* l, ExprTree* r) : LeOpBase(l, r) {}
+  	LeOp(OldExprTree* l, OldExprTree* r) : LeOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 class AndOp: public AndOpBase
 {
     public :
-  	AndOp(ExprTree* l, ExprTree* r) : AndOpBase(l, r) {}
+  	AndOp(OldExprTree* l, OldExprTree* r) : AndOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 
 class OrOp : public OrOpBase
 {
     public :
-  	OrOp(ExprTree* l, ExprTree* r) : OrOpBase(l, r) {}
+  	OrOp(OldExprTree* l, OldExprTree* r) : OrOpBase(l, r) {}
     virtual void        PrintToStr(char*);
 	virtual int         CalcPrintToStr(void);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 };
 
 class AssignOp: public AssignOpBase
 {
     public :
-  	AssignOp(ExprTree* l, ExprTree* r) : AssignOpBase(l, r) {}
+  	AssignOp(OldExprTree* l, OldExprTree* r) : AssignOpBase(l, r) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
-	friend		    class AttrList;
+	virtual OldExprTree    *DeepCopy(void) const;
+	friend		    class OldAttrList;
 };
 
 class Function: public FunctionBase
@@ -393,92 +395,92 @@ class Function: public FunctionBase
 	Function(char*a_name) : FunctionBase(a_name) {}
 	virtual int         CalcPrintToStr(void);
     virtual void        PrintToStr(char*);
-	virtual ExprTree    *DeepCopy(void) const;
+	virtual OldExprTree    *DeepCopy(void) const;
 
-  	virtual int     _EvalTree(const AttrList*, EvalResult*);
-    virtual int     _EvalTree(const AttrList*, const AttrList*, EvalResult*);
+  	virtual int     _EvalTree(const OldAttrList*, OldEvalResult*);
+    virtual int     _EvalTree(const OldAttrList*, const OldAttrList*, OldEvalResult*);
 
-	int EvaluateArgumentToString(ExprTree *arg, const AttrList *attrlist1, 	
-						const AttrList *attrlist2, EvalResult *result) const;
+	int EvaluateArgumentToString(OldExprTree *arg, const OldAttrList *attrlist1, 	
+						const OldAttrList *attrlist2, OldEvalResult *result) const;
 
-	int FunctionScript(int number_of_arguments, EvalResult *arguments, 
-					   EvalResult *result);
+	int FunctionScript(int number_of_arguments, OldEvalResult *arguments, 
+					   OldEvalResult *result);
 #ifdef HAVE_DLOPEN
-	int FunctionSharedLibrary(int number_of_arguments, EvalResult *arguments, 
-					   EvalResult *result);
+	int FunctionSharedLibrary(int number_of_arguments, OldEvalResult *arguments, 
+					   OldEvalResult *result);
 #endif
-	int FunctionGetTime(int number_of_arguments, EvalResult *arguments, 
-						EvalResult *result);
-	int FunctionTime(int number_of_arguments, EvalResult *arguments, 
-						EvalResult *result);
-	int FunctionInterval(int number_of_arguments, EvalResult *arguments, 
-						EvalResult *result);
-    int FunctionRandom(int number_of_arguments, EvalResult *arguments, 
-						EvalResult *result);
-	int FunctionIsUndefined(int number_of_args,	EvalResult *arguments,
-						EvalResult *result);
-	int FunctionIsError(int number_of_args,	EvalResult *arguments,
-						EvalResult *result);
-	int FunctionIsString(int number_of_args,	EvalResult *arguments,
-						EvalResult *result);
-	int FunctionIsInteger(int number_of_args,	EvalResult *arguments,
-						EvalResult *result);
-	int FunctionIsReal(int number_of_args,	EvalResult *arguments,
-						EvalResult *result);
-	int FunctionIsBoolean(int number_of_args,	EvalResult *arguments,
-						EvalResult *result);
-	int FunctionIfThenElse(const AttrList *attrlist1,
-						const AttrList *attrlist2, EvalResult *result);
-    int FunctionClassadDebugFunction(int number_of_args, EvalResult *evaluated_args,
-						EvalResult *result);
-	int FunctionString(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionReal(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionInt(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionFloor(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionRound(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionCeiling(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStrcat(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionSubstr(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStrcmp(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStricmp(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionToUpper(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionToLower(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionSize(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistSize(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistSum(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistAvg(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistMin(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistMax(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistMember(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistIMember(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionStringlistRegexpMember(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionRegexp(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionRegexps(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
-	int FunctionFormatTime(int number_of_args, EvalResult *evaluated_args, 
-						EvalResult *result);
+	int FunctionGetTime(int number_of_arguments, OldEvalResult *arguments, 
+						OldEvalResult *result);
+	int FunctionTime(int number_of_arguments, OldEvalResult *arguments, 
+						OldEvalResult *result);
+	int FunctionInterval(int number_of_arguments, OldEvalResult *arguments, 
+						OldEvalResult *result);
+    int FunctionRandom(int number_of_arguments, OldEvalResult *arguments, 
+						OldEvalResult *result);
+	int FunctionIsUndefined(int number_of_args,	OldEvalResult *arguments,
+						OldEvalResult *result);
+	int FunctionIsError(int number_of_args,	OldEvalResult *arguments,
+						OldEvalResult *result);
+	int FunctionIsString(int number_of_args,	OldEvalResult *arguments,
+						OldEvalResult *result);
+	int FunctionIsInteger(int number_of_args,	OldEvalResult *arguments,
+						OldEvalResult *result);
+	int FunctionIsReal(int number_of_args,	OldEvalResult *arguments,
+						OldEvalResult *result);
+	int FunctionIsBoolean(int number_of_args,	OldEvalResult *arguments,
+						OldEvalResult *result);
+	int FunctionIfThenElse(const OldAttrList *attrlist1,
+						const OldAttrList *attrlist2, OldEvalResult *result);
+    int FunctionClassadDebugFunction(int number_of_args, OldEvalResult *evaluated_args,
+						OldEvalResult *result);
+	int FunctionString(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionReal(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionInt(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionFloor(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionRound(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionCeiling(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStrcat(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionSubstr(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStrcmp(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStricmp(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionToUpper(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionToLower(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionSize(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistSize(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistSum(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistAvg(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistMin(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistMax(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistMember(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistIMember(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionStringlistRegexpMember(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionRegexp(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionRegexps(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
+	int FunctionFormatTime(int number_of_args, OldEvalResult *evaluated_args, 
+						OldEvalResult *result);
 };
 
 #endif

@@ -47,7 +47,7 @@ struct AdType                   // type of a ClassAd.
 
 class ClassAd { };
 
-class OldClassAd : public AttrList
+class OldClassAd : public OldAttrList
 {
     public :
 
@@ -72,16 +72,16 @@ class OldClassAd : public AttrList
 		// Requirement operations
 #if 0
 		int			SetRequirements(char *);
-		void        SetRequirements(ExprTree *);
+		void        SetRequirements(OldExprTree *);
 #endif
-		ExprTree	*GetRequirements(void);
+		OldExprTree	*GetRequirements(void);
 
 		// Ranking operations
 #if 0
 		int 		SetRankExpr(char *);
-		void		SetRankExpr(ExprTree *);
+		void		SetRankExpr(OldExprTree *);
 #endif
-		ExprTree	*GetRankExpr(void);
+		OldExprTree	*GetRankExpr(void);
 
 		// Sequence numbers
 		void		SetSequenceNumber(int);
@@ -146,19 +146,19 @@ class OldClassAd : public AttrList
 		void updateBoundVariables();
 };
 
-typedef int (*SortFunctionType)(AttrList*,AttrList*,void*);
+typedef int (*SortFunctionType)(OldAttrList*,OldAttrList*,void*);
 
 class ClassAdList { };
-class OldClassAdList : public AttrListList
+class OldClassAdList : public OldAttrListList
 {
   public:
-	OldClassAdList() : AttrListList() {}
+	OldClassAdList() : OldAttrListList() {}
 
-	OldClassAd*	Next() { return (OldClassAd*)AttrListList::Next(); }
-	void		Rewind() { AttrListList::Open(); }
-	int			Length() { return AttrListList::MyLength(); }
-	void		Insert(OldClassAd* ca) { AttrListList::Insert((AttrList*)ca); }
-	int			Delete(OldClassAd* ca){return AttrListList::Delete((AttrList*)ca);}
+	OldClassAd*	Next() { return (OldClassAd*)OldAttrListList::Next(); }
+	void		Rewind() { OldAttrListList::Open(); }
+	int			Length() { return OldAttrListList::MyLength(); }
+	void		Insert(OldClassAd* ca) { OldAttrListList::Insert((OldAttrList*)ca); }
+	int			Delete(OldClassAd* ca){return OldAttrListList::Delete((OldAttrList*)ca);}
 	OldClassAd*	Lookup(const char* name);
 
 	// User supplied function should define the "<" relation and the list
@@ -168,10 +168,10 @@ class OldClassAdList : public AttrListList
 	void   Sort(SortFunctionType,void* =NULL);
 
 	// Count ads in list that meet constraint.
-	int         Count( ExprTree *constraint );
+	int         Count( OldExprTree *constraint );
 
   private:
-	void	Sort(SortFunctionType,void*,AttrListAbstract*&);
+	void	Sort(SortFunctionType,void*,OldAttrListAbstract*&);
 	static int SortCompare(const void*, const void*);
 };
 

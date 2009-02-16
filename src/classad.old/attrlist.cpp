@@ -17,9 +17,9 @@
  *
  ***************************************************************/
 
-// AttrList.C
+// OldAttrList.C
 //
-// Implementation of AttrList classes and AttrListList classes.
+// Implementation of OldAttrList classes and OldAttrListList classes.
 //
 
 #include "condor_common.h"
@@ -34,7 +34,7 @@
 #include "HashTable.h"
 #include "YourString.h"
 
-extern void evalFromEnvironment (const char *, EvalResult *);
+extern void evalFromEnvironment (const char *, OldEvalResult *);
 
 
 // Chris Torek's world famous hashing function
@@ -55,27 +55,27 @@ static const int hash_size = 79; // prime research
 
 static const char *SECRET_MARKER = "ZKM"; // "it's a Zecret Klassad, Mon!"
 static bool publish_server_time = false;
-void AttrList_setPublishServerTime( bool publish )
+void OldAttrList_setPublishServerTime( bool publish )
 {
 	publish_server_time = publish;
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// AttrListElem constructor.
+// OldAttrListElem constructor.
 ////////////////////////////////////////////////////////////////////////////////
-AttrListElem::AttrListElem(ExprTree* expr)
+OldAttrListElem::OldAttrListElem(ExprTree* expr)
 {
     tree = expr;
     dirty = false;
-    name = ((Variable*)expr->LArg())->Name();
+    name = ((OldVariable*)expr->LArg())->Name();
     next = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrListElem copy constructor. 
+// OldAttrListElem copy constructor. 
 ////////////////////////////////////////////////////////////////////////////////
-AttrListElem::AttrListElem(AttrListElem& oldNode)
+OldAttrListElem::OldAttrListElem(OldAttrListElem& oldNode)
 {
 	// This old lame Copy business doesn't really make a copy
     // oldNode.tree->Copy();
@@ -83,16 +83,16 @@ AttrListElem::AttrListElem(AttrListElem& oldNode)
 	// So we do the new DeepCopy():
 	this->tree = oldNode.tree->DeepCopy();
     this->dirty = false;
-    this->name = ((Variable*)tree->LArg())->Name();
+    this->name = ((OldVariable*)tree->LArg())->Name();
     next = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrListAbstract constructor. It is called by its derived classes.
-// AttrListAbstract is a purely virtual class, there is no need for a user to
-// declare a AttrListAbstract instance.
+// OldAttrListAbstract constructor. It is called by its derived classes.
+// OldAttrListAbstract is a purely virtual class, there is no need for a user to
+// declare a OldAttrListAbstract instance.
 ////////////////////////////////////////////////////////////////////////////////
-AttrListAbstract::AttrListAbstract(int atype)
+OldAttrListAbstract::OldAttrListAbstract(int atype)
 {
     this->type = atype;
     this->inList = NULL;
@@ -101,26 +101,26 @@ AttrListAbstract::AttrListAbstract(int atype)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrListRep constructor.
+// OldAttrListRep constructor.
 ////////////////////////////////////////////////////////////////////////////////
-AttrListRep::AttrListRep(AttrList* aList, AttrListList* attrListList)
-: AttrListAbstract(ATTRLISTREP)
+OldAttrListRep::OldAttrListRep(OldAttrList* aList, OldAttrListList* attrListList)
+: OldAttrListAbstract(ATTRLISTREP)
 {
     this->attrList = aList;
     this->inList = attrListList;
-    this->nextRep = (AttrListRep *)aList->next;
+    this->nextRep = (OldAttrListRep *)aList->next;
     attrList->inList = NULL;
     attrList->next = this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrList class constructor when there is no AttrListList associated with it.
+// OldAttrList class constructor when there is no OldAttrListList associated with it.
 ////////////////////////////////////////////////////////////////////////////////
-AttrList::AttrList() : AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::OldAttrList() : OldAttrListAbstract(ATTRLISTENTITY)
 {
 	seq = 0;
     exprList = NULL;
-	hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+	hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	chained_hash = NULL;
 	inside_insert = false;
 	chainedAttrs = NULL;
@@ -133,15 +133,15 @@ AttrList::AttrList() : AttrListAbstract(ATTRLISTENTITY)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrList class constructor. The parameter indicates that this AttrList has
-// an AttrListList associated with it.
+// OldAttrList class constructor. The parameter indicates that this OldAttrList has
+// an OldAttrListList associated with it.
 ////////////////////////////////////////////////////////////////////////////////
-AttrList::AttrList(AttrListList* assocList) :
-		  AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::OldAttrList(OldAttrListList* assocList) :
+		  OldAttrListAbstract(ATTRLISTENTITY)
 {
 	seq = 0;
     exprList = NULL;
-	hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+	hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	chained_hash = NULL;
 	inside_insert = false;
 	chainedAttrs = NULL;
@@ -153,25 +153,25 @@ AttrList::AttrList(AttrListList* assocList) :
     this->associatedList = assocList;
     if(associatedList)
     {
-        if(!associatedList->associatedAttrLists)
+        if(!associatedList->associatedOldAttrLists)
         {
-      	    assocList->associatedAttrLists = new AttrListList;
+      	    assocList->associatedOldAttrLists = new OldAttrListList;
         }
-        assocList->associatedAttrLists->Insert(this);
+        assocList->associatedOldAttrLists->Insert(this);
     }
 }
 
 //
-// Constructor of AttrList class, read from a file.
-// The string "delimitor" passed in or EOF delimits the end of a AttrList input.
+// Constructor of OldAttrList class, read from a file.
+// The string "delimitor" passed in or EOF delimits the end of a OldAttrList input.
 // The newline character delimits an expression. White spaces before a new
 // expression are ignored.
 // 1 is passed on to the calling procedure if EOF is reached. Otherwise, 0
 // is passed on.
 //
-AttrList::
-AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty) 
-	: AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::
+OldAttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty) 
+	: OldAttrListAbstract(ATTRLISTENTITY)
 {
     ExprTree 	*tree;
 	int			delimLen = strlen( delimitor );
@@ -180,7 +180,7 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
 
 	seq 			= 0;
     exprList 		= NULL;
-	hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+	hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	inside_insert = false;
 	chainedAttrs = NULL;
 	chained_hash = NULL;
@@ -244,19 +244,19 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
 }
 
 //
-// Constructor of AttrList class, read from a string.
+// Constructor of OldAttrList class, read from a string.
 // The character 'delimitor' passed in or end of string delimits an expression,
-// end of string delimits a AttrList input.
+// end of string delimits a OldAttrList input.
 // If there are only white spaces between the last delimitor and the end of 
 // string, they are to be ignored, no parse error.
 //
-AttrList::AttrList(const char *AttrLists, char delimitor) : AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::OldAttrList(const char *OldAttrLists, char delimitor) : OldAttrListAbstract(ATTRLISTENTITY)
 {
     ExprTree *tree;
 
 	seq = 0;
     exprList = NULL;
-	hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+	hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	chained_hash = NULL;
 	inside_insert = false;
 	chainedAttrs = NULL;
@@ -276,14 +276,14 @@ AttrList::AttrList(const char *AttrLists, char delimitor) : AttrListAbstract(ATT
 		EXCEPT("Warning : you ran out of memory");
     }
     int i=0;
-    while(isspace(c = AttrLists[i]))
+    while(isspace(c = OldAttrLists[i]))
     {
         i++;                                 // skip white spaces.
     }    
 
     while(1)                                 // loop character by character 
     {                                        // to the end of the stirng to
-        c = AttrLists[i];                    // construct a AttrList object.
+        c = OldAttrLists[i];                    // construct a OldAttrList object.
         if(c == delimitor || c == '\0')                 
 		{                                    // end of an expression.
 			if(current)
@@ -308,11 +308,11 @@ AttrList::AttrList(const char *AttrLists, char delimitor) : AttrListAbstract(ATT
 				break;
 			}
 			i++;                             // look at the next character.
-			while(isspace(c = AttrLists[i]))
+			while(isspace(c = OldAttrLists[i]))
 			{
 				i++;                         // skip white spaces.
 			}
-            if((c = AttrLists[i]) == '\0')
+            if((c = OldAttrLists[i]) == '\0')
 			{
 				break;                       // end of input.
 			}
@@ -360,15 +360,15 @@ ExprTree* ProcToTree(char*, LexemeType, int, float, char*);
 
 #if 0 /* don't want to link with ProcObj class; we shouldn't need this */
 ////////////////////////////////////////////////////////////////////////////////
-// Create a AttrList from a proc object.
+// Create a OldAttrList from a proc object.
 ////////////////////////////////////////////////////////////////////////////////
-AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::OldAttrList(ProcObj* procObj) : OldAttrListAbstract(ATTRLISTENTITY)
 {
 	ExprTree*	tmpTree;	// trees converted from proc structure fields
 
 	seq = 0;
 	exprList = NULL;
-	hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+	hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	inside_insert = false;
 	chainedAttrs = NULL;
 	associatedList = NULL;
@@ -384,14 +384,14 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 	tmpTree = ProcToTree("Status", LX_INTEGER, procObj->get_status(), 0, NULL);
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : Status");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : Status");
 	}
 	Insert(tmpTree);
 
 	tmpTree = ProcToTree("Prio", LX_INTEGER, procObj->get_prio(), 0, NULL);
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : Prio");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : Prio");
 	}
 	Insert(tmpTree);
 
@@ -399,14 +399,14 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 						 0, NULL);
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : ClusterId");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : ClusterId");
 	}
 	Insert(tmpTree);
 
 	tmpTree = ProcToTree("ProcId", LX_INTEGER, procObj->get_proc_id(), 0, NULL);
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : ProcId");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : ProcId");
 	}
 	Insert(tmpTree);
 
@@ -414,7 +414,7 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 						 NULL);
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : LocalCPU");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : LocalCPU");
 	}
 	Insert(tmpTree);
 
@@ -422,28 +422,28 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 						 NULL);
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : RemoteCPU");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : RemoteCPU");
 	}
 	Insert(tmpTree);
 
 	tmpTree = ProcToTree("Owner", LX_STRING, 0, 0, procObj->get_owner());
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : Owner");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : Owner");
 	}
 	Insert(tmpTree);
 
 	tmpTree = ProcToTree("Arch", LX_STRING, 0, 0, procObj->get_arch());
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : Arch");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : Arch");
 	}
 	Insert(tmpTree);
 
 	tmpTree = ProcToTree("OpSys", LX_STRING, 0, 0, procObj->get_opsys());
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : OpSys");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : OpSys");
 	}
 	Insert(tmpTree);
 
@@ -451,7 +451,7 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 						 procObj->get_requirements());
 	if(!tmpTree)
 	{
-		EXCEPT("AttrList::AttrList(ProcObj*) : Requirements");
+		EXCEPT("OldAttrList::OldAttrList(ProcObj*) : Requirements");
 	}
 	Insert(tmpTree);
 }
@@ -460,7 +460,7 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 ////////////////////////////////////////////////////////////////////////////////
 // Converts a (key word, value) pair from a proc structure to a tree.
 ////////////////////////////////////////////////////////////////////////////////
-ExprTree* AttrList::ProcToTree(char* var, LexemeType t, int i, float f, char* s)
+ExprTree* OldAttrList::ProcToTree(char* var, LexemeType t, int i, float f, char* s)
 {
 	ExprTree*	tmpVarTree;		// Variable node
 	ExprTree*	tmpTree;		// Value tree
@@ -469,7 +469,7 @@ ExprTree* AttrList::ProcToTree(char* var, LexemeType t, int i, float f, char* s)
 
 	tmpVarStr = new char[strlen(var)+1];
 	strcpy(tmpVarStr, var);
-	tmpVarTree = new Variable(tmpVarStr);
+	tmpVarTree = new OldVariable(tmpVarStr);
 	switch(t)
 	{
 		case LX_INTEGER :
@@ -509,7 +509,7 @@ ExprTree* AttrList::ProcToTree(char* var, LexemeType t, int i, float f, char* s)
 
 #if 0 // don't use CONTEXTs anymore
 ////////////////////////////////////////////////////////////////////////////////
-// Create a AttrList from a CONTEXT.
+// Create a OldAttrList from a CONTEXT.
 ////////////////////////////////////////////////////////////////////////////////
 
 int IsOperator(ELEM *elem)
@@ -603,7 +603,7 @@ char *Print_elem(ELEM *elem, char *str)
   return tmpChar;
 }
 
-AttrList::AttrList(CONTEXT* context) : AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::OldAttrList(CONTEXT* context) : OldAttrListAbstract(ATTRLISTENTITY)
 {
 	STACK		stack;
 	ELEM*		elem, *lElem, *rElem;
@@ -621,7 +621,7 @@ AttrList::AttrList(CONTEXT* context) : AttrListAbstract(ATTRLISTENTITY)
     ptrExprInChain = false;
     ptrNameInChain = false;
 	exprList = NULL;
-	hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+	hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	chained_hash = NULL;
 	inside_insert = false;
 	chainedAttrs = NULL;
@@ -703,25 +703,25 @@ AttrList::AttrList(CONTEXT* context) : AttrListAbstract(ATTRLISTENTITY)
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrList class copy constructor.
+// OldAttrList class copy constructor.
 ////////////////////////////////////////////////////////////////////////////////
-AttrList::AttrList(AttrList &old) : AttrListAbstract(ATTRLISTENTITY)
+OldAttrList::OldAttrList(OldAttrList &old) : OldAttrListAbstract(ATTRLISTENTITY)
 {
-    AttrListElem* tmpOld;	// working variable
-    AttrListElem* tmpThis;	// working variable
+    OldAttrListElem* tmpOld;	// working variable
+    OldAttrListElem* tmpThis;	// working variable
 
-	this->hash = new HashTable<YourString, AttrListElem *>(hash_size,torekHash);
+	this->hash = new HashTable<YourString, OldAttrListElem *>(hash_size,torekHash);
     if(old.exprList) {
-		// copy all the AttrList elements. 
+		// copy all the OldAttrList elements. 
 		// As of 14-Sep-2001, we now copy the trees, not just the pointers
-		// to the trees. This happens in the copy constructor for AttrListElem
-		this->exprList = new AttrListElem(*old.exprList);
-		hash->insert(((Variable *)this->exprList->tree->LArg())->Name(),
+		// to the trees. This happens in the copy constructor for OldAttrListElem
+		this->exprList = new OldAttrListElem(*old.exprList);
+		hash->insert(((OldVariable *)this->exprList->tree->LArg())->Name(),
 				this->exprList);
 		tmpThis = this->exprList;
         for(tmpOld = old.exprList->next; tmpOld; tmpOld = tmpOld->next) {
-			tmpThis->next = new AttrListElem(*tmpOld);
-			hash->insert(((Variable *)tmpThis->next->tree->LArg())->Name(),
+			tmpThis->next = new OldAttrListElem(*tmpOld);
+			hash->insert(((OldVariable *)tmpThis->next->tree->LArg())->Name(),
 				tmpThis->next);
 			tmpThis = tmpThis->next;
         }
@@ -743,15 +743,15 @@ AttrList::AttrList(AttrList &old) : AttrListAbstract(ATTRLISTENTITY)
     this->associatedList = old.associatedList;
 	this->seq = old.seq;
     if(this->associatedList) {
-		this->associatedList->associatedAttrLists->Insert(this);
+		this->associatedList->associatedOldAttrLists->Insert(this);
     }
 	return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrList class destructor.
+// OldAttrList class destructor.
 ////////////////////////////////////////////////////////////////////////////////
-AttrList::~AttrList()
+OldAttrList::~OldAttrList()
 {
 		// Delete all of the attributes in this list
 	clear();
@@ -762,15 +762,15 @@ AttrList::~AttrList()
 		hash = NULL;
 	}
 
-		// If we're part of an AttrListList (a.k.a. ClassAdList),
+		// If we're part of an OldAttrListList (a.k.a. ClassAdList),
 		// delete ourselves out of there, too.
     if(associatedList)
     {
-		associatedList->associatedAttrLists->Delete(this);
+		associatedList->associatedOldAttrLists->Delete(this);
     }
 }
 
-AttrList& AttrList::operator=(const AttrList& other)
+OldAttrList& OldAttrList::operator=(const OldAttrList& other)
 {
 	if (this != &other) {
 		// First delete our old stuff.
@@ -778,26 +778,26 @@ AttrList& AttrList::operator=(const AttrList& other)
 
 		if ( !this->hash ) {
 			// should not happen, but just in case...
-			this->hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+			this->hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 		}
 
 		if(associatedList) {
-			associatedList->associatedAttrLists->Delete(this);
+			associatedList->associatedOldAttrLists->Delete(this);
 		}
 
 		// Then copy over the new stuff 
-		AttrListElem* tmpOther;	// working variable
-		AttrListElem* tmpThis;	// working variable
+		OldAttrListElem* tmpOther;	// working variable
+		OldAttrListElem* tmpThis;	// working variable
 		
 		if(other.exprList) {
-			this->exprList = new AttrListElem(*other.exprList);
+			this->exprList = new OldAttrListElem(*other.exprList);
 			tmpThis = this->exprList;
-			hash->insert(((Variable *)tmpThis->tree->LArg())->Name(),
+			hash->insert(((OldVariable *)tmpThis->tree->LArg())->Name(),
 				tmpThis);
 			for(tmpOther = other.exprList->next; tmpOther; tmpOther = tmpOther->next) {
-				tmpThis->next = new AttrListElem(*tmpOther);
+				tmpThis->next = new OldAttrListElem(*tmpOther);
 				tmpThis = tmpThis->next;
-				hash->insert(((Variable *)tmpThis->tree->LArg())->Name(),
+				hash->insert(((OldVariable *)tmpThis->tree->LArg())->Name(),
 					tmpThis);
 			}
 			tmpThis->next = NULL;
@@ -818,7 +818,7 @@ AttrList& AttrList::operator=(const AttrList& other)
 		this->associatedList = other.associatedList;
 		this->seq = other.seq;
 		if (this->associatedList) {
-			this->associatedList->associatedAttrLists->Insert(this);
+			this->associatedList->associatedOldAttrLists->Insert(this);
 		}
 		
 	}
@@ -827,11 +827,11 @@ AttrList& AttrList::operator=(const AttrList& other)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Insert an expression tree into a AttrList. If the expression is not an
+// Insert an expression tree into a OldAttrList. If the expression is not an
 // assignment expression, FALSE is returned. Otherwise, it is inserted at the
 // end of the expression list. 
 ////////////////////////////////////////////////////////////////////////////////
-int AttrList::Insert(const char* str, bool check_for_dups)
+int OldAttrList::Insert(const char* str, bool check_for_dups)
 {
 	ExprTree*	tree = NULL;
 	int result = FALSE;
@@ -850,7 +850,7 @@ int AttrList::Insert(const char* str, bool check_for_dups)
 	return result;
 }
 
-int AttrList::Insert(ExprTree* expr, bool check_for_dups)
+int OldAttrList::Insert(ExprTree* expr, bool check_for_dups)
 {
     if(expr == NULL || expr->MyType() != LX_ASSIGN ||
 	   expr->LArg()->MyType() != LX_VARIABLE)
@@ -862,10 +862,10 @@ int AttrList::Insert(ExprTree* expr, bool check_for_dups)
 
 	if(check_for_dups && Lookup(expr->LArg()))
 	{
-		Delete(((Variable*)expr->LArg())->Name());
+		Delete(((OldVariable*)expr->LArg())->Name());
 	}
 
-    AttrListElem* newNode = new AttrListElem(expr);
+    OldAttrListElem* newNode = new OldAttrListElem(expr);
 
 	newNode->SetDirty(true);
 
@@ -881,7 +881,7 @@ int AttrList::Insert(ExprTree* expr, bool check_for_dups)
 
 	inside_insert = false;
 
-	hash->insert(((Variable *)newNode->tree->LArg())->Name(),
+	hash->insert(((OldVariable *)newNode->tree->LArg())->Name(),
 				newNode);
     return TRUE;
 }
@@ -892,7 +892,7 @@ int AttrList::Insert(ExprTree* expr, bool check_for_dups)
 ////////////////////////////////////////////////////////////////////////////////
 // No more InsertOrUpdate implementation -- we just call Insert()
 #if 0
-int AttrList::InsertOrUpdate(char* attr)
+int OldAttrList::InsertOrUpdate(char* attr)
 {
 	ExprTree	tree;
 
@@ -913,13 +913,13 @@ int AttrList::InsertOrUpdate(char* attr)
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// Delete an expression with the name "name" from this AttrList. Return TRUE if
+// Delete an expression with the name "name" from this OldAttrList. Return TRUE if
 // successful; FALSE if the expression can not be found.
 ////////////////////////////////////////////////////////////////////////////////
-int AttrList::Delete(const char* name)
+int OldAttrList::Delete(const char* name)
 {
-    AttrListElem*	previous = exprList;
-    AttrListElem*	cur = exprList;
+    OldAttrListElem*	previous = exprList;
+    OldAttrListElem*	cur = exprList;
 	int found = FALSE;
 
 	hash->remove(name);
@@ -987,9 +987,9 @@ int AttrList::Delete(const char* name)
     return found; 
 }
 
-void AttrList::SetDirtyFlag(const char *name, bool dirty)
+void OldAttrList::SetDirtyFlag(const char *name, bool dirty)
 {
-	AttrListElem *element;
+	OldAttrListElem *element;
 
 	element = LookupElem(name);
 	if (element != NULL) {
@@ -998,9 +998,9 @@ void AttrList::SetDirtyFlag(const char *name, bool dirty)
 	return;
 }
 
-void AttrList::GetDirtyFlag(const char *name, bool *exists, bool *dirty)
+void OldAttrList::GetDirtyFlag(const char *name, bool *exists, bool *dirty)
 {
-	AttrListElem *element;
+	OldAttrListElem *element;
 	bool  _exists, _dirty;
 
 	element = LookupElem(name);
@@ -1022,12 +1022,12 @@ void AttrList::GetDirtyFlag(const char *name, bool *exists, bool *dirty)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Reset the dirty flags for each expression tree in the AttrList.
+// Reset the dirty flags for each expression tree in the OldAttrList.
 ///////////////////////////////////////////////////////////////////////////////
 
-void AttrList::ClearAllDirtyFlags()
+void OldAttrList::ClearAllDirtyFlags()
 {
-    AttrListElem *current;
+    OldAttrListElem *current;
 
     current = exprList;
     while (current != NULL) {
@@ -1041,7 +1041,7 @@ void AttrList::ClearAllDirtyFlags()
 // Find an attibute and replace its value with a new value.
 ////////////////////////////////////////////////////////////////////////////////
 #if 0
-int AttrList::UpdateExpr(char* name, ExprTree* tree)
+int OldAttrList::UpdateExpr(char* name, ExprTree* tree)
 {
     ExprTree*	tmpTree;	// the expression to be updated
 
@@ -1066,18 +1066,18 @@ int AttrList::UpdateExpr(char* name, ExprTree* tree)
     return TRUE;
 }
 
-int AttrList::UpdateExpr(ExprTree* attr)
+int OldAttrList::UpdateExpr(ExprTree* attr)
 {
 	if(attr->MyType() != LX_ASSIGN)
 	{
 		return FALSE;
 	}
-	return UpdateExpr(((Variable*)attr->LArg())->Name(), attr->RArg());
+	return UpdateExpr(((OldVariable*)attr->LArg())->Name(), attr->RArg());
 }
 #endif
 
 void
-AttrList::ChainCollapse(bool with_deep_copy)
+OldAttrList::ChainCollapse(bool with_deep_copy)
 {
 	ExprTree *tmp;
 
@@ -1086,7 +1086,7 @@ AttrList::ChainCollapse(bool with_deep_copy)
 		return;
 	}
 
-	AttrListElem* chained = *chainedAttrs;
+	OldAttrListElem* chained = *chainedAttrs;
 	
 	chainedAttrs = NULL;
 	chained_hash = NULL;	// do not delete chained_hash here!
@@ -1109,7 +1109,7 @@ AttrList::ChainCollapse(bool with_deep_copy)
 }
 
 
-ExprTree* AttrList::NextExpr()
+ExprTree* OldAttrList::NextExpr()
 {
 	// After iterating through all the exprs in this ad,
 	// get all the exprs in our chained ad as well.
@@ -1129,7 +1129,7 @@ ExprTree* AttrList::NextExpr()
     }
 }
 
-ExprTree* AttrList::NextDirtyExpr()
+ExprTree* OldAttrList::NextDirtyExpr()
 {
 	ExprTree *expr;
 
@@ -1150,7 +1150,7 @@ ExprTree* AttrList::NextDirtyExpr()
 	return expr;
 }
 
-char* AttrList::NextName()
+char* OldAttrList::NextName()
 {
 	const char *name;
 
@@ -1166,7 +1166,7 @@ char* AttrList::NextName()
     }
 }
 
-const char* AttrList::NextNameOriginal()
+const char* OldAttrList::NextNameOriginal()
 {
 	char *name;
 
@@ -1186,7 +1186,7 @@ const char* AttrList::NextNameOriginal()
 	return name;
 }
 
-char *AttrList::NextDirtyName()
+char *OldAttrList::NextDirtyName()
 {
 	char *name;
 
@@ -1212,14 +1212,14 @@ char *AttrList::NextDirtyName()
 // Return the named expression without copying it. Return NULL if the named
 // expression is not found.
 ////////////////////////////////////////////////////////////////////////////////
-ExprTree* AttrList::Lookup(char* name) const
+ExprTree* OldAttrList::Lookup(char* name) const
 {
 	return Lookup ((const char *) name);
 }
 
-ExprTree* AttrList::Lookup(const char* name) const
+ExprTree* OldAttrList::Lookup(const char* name) const
 {
-    AttrListElem*	tmpNode = NULL;
+    OldAttrListElem*	tmpNode = NULL;
 
 	ASSERT(hash);
 
@@ -1238,9 +1238,9 @@ ExprTree* AttrList::Lookup(const char* name) const
     return NULL;
 }
 
-AttrListElem *AttrList::LookupElem(const char *name) const
+OldAttrListElem *OldAttrList::LookupElem(const char *name) const
 {
-	AttrListElem  *theElem = NULL;
+	OldAttrListElem  *theElem = NULL;
 
 	hash->lookup(name, theElem);
 
@@ -1255,12 +1255,12 @@ AttrListElem *AttrList::LookupElem(const char *name) const
     return theElem;
 }
 
-ExprTree* AttrList::Lookup(const ExprTree* attr) const
+ExprTree* OldAttrList::Lookup(const ExprTree* attr) const
 {
-	return Lookup (((const Variable*)attr)->Name());
+	return Lookup (((const OldVariable*)attr)->Name());
 }
 
-int AttrList::LookupString (const char *name, char *value) const
+int OldAttrList::LookupString (const char *name, char *value) const
 {
 	ExprTree *tree, *rhs;
 	const char *strVal;
@@ -1276,7 +1276,7 @@ int AttrList::LookupString (const char *name, char *value) const
 	return 0;
 }
 
-int AttrList::LookupString (const char *name, char *value, int max_len) const
+int OldAttrList::LookupString (const char *name, char *value, int max_len) const
 {
 	ExprTree *tree, *rhs;
 	const char *strVal;
@@ -1292,7 +1292,7 @@ int AttrList::LookupString (const char *name, char *value, int max_len) const
 	return 0;
 }
 
-int AttrList::LookupString (const char *name, char **value) const
+int OldAttrList::LookupString (const char *name, char **value) const
 {
 	ExprTree *tree, *rhs;
 	const char *strVal;
@@ -1323,7 +1323,7 @@ usage.  Having client code need to remember to free memory sucks.
 Indeed, it's telling that lots of client code just does LookupString on 
 a fixed length buffer, hoping that it will be big enough.
 */
-int AttrList::LookupString (const char *name, MyString & value) const
+int OldAttrList::LookupString (const char *name, MyString & value) const
 {
 	char * results = 0;
 	int success = LookupString(name, &results);
@@ -1332,7 +1332,7 @@ int AttrList::LookupString (const char *name, MyString & value) const
 	return success;
 }
 
-int AttrList::LookupTime (const char *name, char **value) const
+int OldAttrList::LookupTime (const char *name, char **value) const
 {
 	ExprTree *tree, *rhs;
 	const char *strVal;
@@ -1356,7 +1356,7 @@ int AttrList::LookupTime (const char *name, char **value) const
 	return 0;
 }
 
-int AttrList::LookupTime(const char *name, struct tm *time, bool *is_utc) const
+int OldAttrList::LookupTime(const char *name, struct tm *time, bool *is_utc) const
 {
 	ExprTree *tree, *rhs;
 	const char *strVal;
@@ -1375,7 +1375,7 @@ int AttrList::LookupTime(const char *name, struct tm *time, bool *is_utc) const
 	return succeeded;
 }
 
-int AttrList::LookupInteger (const char *name, int &value) const
+int OldAttrList::LookupInteger (const char *name, int &value) const
 {
     ExprTree *tree, *rhs;
 
@@ -1394,7 +1394,7 @@ int AttrList::LookupInteger (const char *name, int &value) const
     return 0;
 }
 
-int AttrList::LookupFloat (const char *name, float &value) const
+int OldAttrList::LookupFloat (const char *name, float &value) const
 {
     ExprTree *tree, *rhs;   
 
@@ -1412,7 +1412,7 @@ int AttrList::LookupFloat (const char *name, float &value) const
 	return 0;   
 }
 
-int AttrList::LookupBool (const char *name, int &value) const
+int OldAttrList::LookupBool (const char *name, int &value) const
 {   
     ExprTree *tree, *rhs;       
 
@@ -1427,7 +1427,7 @@ int AttrList::LookupBool (const char *name, int &value) const
 }   
 
 
-bool AttrList::LookupBool (const char *name, bool &value) const
+bool OldAttrList::LookupBool (const char *name, bool &value) const
 {   
 	int val;
 	if( LookupBool(name, val) ) {
@@ -1438,10 +1438,10 @@ bool AttrList::LookupBool (const char *name, bool &value) const
 }   
 
 
-int AttrList::EvalString (const char *name, const AttrList *target, char *value) const
+int OldAttrList::EvalString (const char *name, const OldAttrList *target, char *value) const
 {
 	ExprTree *tree;
-	EvalResult val;
+	OldEvalResult val;
 
 	tree = Lookup(name);
 	if(!tree) {
@@ -1469,10 +1469,10 @@ int AttrList::EvalString (const char *name, const AttrList *target, char *value)
 
 // Unlike the other lame version of this function call, we ensure that
 // we allocate the value, to ensure that we have sufficient space.
-int AttrList::EvalString (const char *name, const AttrList *target, char **value) const
+int OldAttrList::EvalString (const char *name, const OldAttrList *target, char **value) const
 {
 	ExprTree *tree;
-	EvalResult val;
+	OldEvalResult val;
 
 	tree = Lookup(name);
 	if(!tree) {
@@ -1508,7 +1508,7 @@ int AttrList::EvalString (const char *name, const AttrList *target, char **value
 	return 0;
 }
 
-int AttrList::EvalString (const char *name, const AttrList *target, MyString & value) const
+int OldAttrList::EvalString (const char *name, const OldAttrList *target, MyString & value) const
 {
 	char * pvalue = NULL;
 	int ret = EvalString(name, target, &pvalue);
@@ -1518,10 +1518,10 @@ int AttrList::EvalString (const char *name, const AttrList *target, MyString & v
 	return ret;
 }
 
-int AttrList::EvalInteger (const char *name, const AttrList *target, int &value) const
+int OldAttrList::EvalInteger (const char *name, const OldAttrList *target, int &value) const
 {
     ExprTree *tree;
-    EvalResult val;   
+    OldEvalResult val;   
 
 	tree = Lookup(name);
 	if(!tree) {
@@ -1547,10 +1547,10 @@ int AttrList::EvalInteger (const char *name, const AttrList *target, int &value)
     return 0;
 }
 
-int AttrList::EvalFloat (const char *name, const AttrList *target, float &value) const
+int OldAttrList::EvalFloat (const char *name, const OldAttrList *target, float &value) const
 {
     ExprTree *tree;
-    EvalResult val;   
+    OldEvalResult val;   
 
     tree = Lookup(name);   
 
@@ -1584,10 +1584,10 @@ int AttrList::EvalFloat (const char *name, const AttrList *target, float &value)
     return 0;
 }
 
-int AttrList::EvalBool (const char *name, const AttrList *target, int &value) const
+int OldAttrList::EvalBool (const char *name, const OldAttrList *target, int &value) const
 {
     ExprTree *tree;
-    EvalResult val;   
+    OldEvalResult val;   
 
     tree = Lookup(name);   
     if(!tree) {
@@ -1621,12 +1621,12 @@ int AttrList::EvalBool (const char *name, const AttrList *target, int &value) co
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Test to see if the AttrList belongs to a AttrList list. Returns TRUE if it
+// Test to see if the OldAttrList belongs to a OldAttrList list. Returns TRUE if it
 // does, FALSE if not.
 ////////////////////////////////////////////////////////////////////////////////
-int AttrList::IsInList(AttrListList* AttrListList)
+int OldAttrList::IsInList(OldAttrListList* OldAttrListList)
 {
-    AttrListRep* tmp;
+    OldAttrListRep* tmp;
 
     if(!this->inList && !this->next)
     {
@@ -1636,7 +1636,7 @@ int AttrList::IsInList(AttrListList* AttrListList)
     else if(this->inList)
     {
 	// in one list
-	if(this->inList == AttrListList)
+	if(this->inList == OldAttrListList)
 	{
 	    return TRUE;
 	}
@@ -1648,8 +1648,8 @@ int AttrList::IsInList(AttrListList* AttrListList)
     else
     {
 	// in more than one list
-	tmp = (AttrListRep *)this->next;
-	while(tmp && tmp->inList != AttrListList)
+	tmp = (OldAttrListRep *)this->next;
+	while(tmp && tmp->inList != OldAttrListList)
 	{
 	    tmp = tmp->nextRep;
 	}
@@ -1667,9 +1667,9 @@ int AttrList::IsInList(AttrListList* AttrListList)
 ////////////////////////////////////////////////////////////////////////////////
 // Print an expression with a certain name into a file. Returns FALSE if the
 // pointer to the file or the name is NULL, or the named expression can not be
-// found in this AttrList; TRUE otherwise.
+// found in this OldAttrList; TRUE otherwise.
 ////////////////////////////////////////////////////////////////////////////////
-int AttrList::fPrintExpr(FILE* f, char* name)
+int OldAttrList::fPrintExpr(FILE* f, char* name)
 {
     if(!f || !name)
     {
@@ -1692,13 +1692,13 @@ int AttrList::fPrintExpr(FILE* f, char* name)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Print an expression with a certain name into a buffer. Returns FALSE if the
-// named expression can not be found in this AttrList; TRUE if otherwise.
+// named expression can not be found in this OldAttrList; TRUE if otherwise.
 // The caller should pass the size of the buffer in buffersize.
 // If buffer is NULL, then space will be allocated with malloc(), and it needs
 // to be free-ed with free() by the user.
 ////////////////////////////////////////////////////////////////////////////////
 char *
-AttrList::sPrintExpr(char *buffer, unsigned int buffersize, const char* name)
+OldAttrList::sPrintExpr(char *buffer, unsigned int buffersize, const char* name)
 {
     if(!name)
     {
@@ -1730,12 +1730,12 @@ AttrList::sPrintExpr(char *buffer, unsigned int buffersize, const char* name)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// print the whole AttrList into a file. The expressions are in infix notation.
+// print the whole OldAttrList into a file. The expressions are in infix notation.
 // Returns FALSE if the file pointer is NULL; TRUE otherwise.
 ////////////////////////////////////////////////////////////////////////////////
-int AttrList::fPrint(FILE* f)
+int OldAttrList::fPrint(FILE* f)
 {
-    AttrListElem*	tmpElem;
+    OldAttrListElem*	tmpElem;
     char			*tmpLine;
 
     if(!f)
@@ -1777,12 +1777,12 @@ int AttrList::fPrint(FILE* f)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// print the whole AttrList into a file. The expressions are in infix notation.
+// print the whole OldAttrList into a file. The expressions are in infix notation.
 // Returns FALSE if the file pointer is NULL; TRUE otherwise.
 ////////////////////////////////////////////////////////////////////////////////
-int AttrList::sPrint(MyString &output)
+int OldAttrList::sPrint(MyString &output)
 {
-    AttrListElem*	tmpElem;
+    OldAttrListElem*	tmpElem;
     char			*tmpLine;
 
 	// if this is a chained ad, print out chained attrs first. this is so
@@ -1821,13 +1821,13 @@ int AttrList::sPrint(MyString &output)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// print the whole AttrList to the given debug level. The expressions
+// print the whole OldAttrList to the given debug level. The expressions
 // are in infix notation.  
 ////////////////////////////////////////////////////////////////////////////////
 void
-AttrList::dPrint( int level )
+OldAttrList::dPrint( int level )
 {
-    AttrListElem*	tmpElem;
+    OldAttrListElem*	tmpElem;
     char			*tmpLine;
 	int				flag = D_NOHEADER | level;
 
@@ -1875,14 +1875,14 @@ AttrList::dPrint( int level )
 
 #if 0 // don't use CONTEXTs anymore
 //////////////////////////////////////////////////////////////////////////////
-// Create a CONTEXT from an AttrList
+// Create a CONTEXT from an OldAttrList
 //////////////////////////////////////////////////////////////////////////////
 /*
 int
-AttrList::MakeContext (CONTEXT *c)
+OldAttrList::MakeContext (CONTEXT *c)
 {
 	char *line = new char [256];
-	AttrListElem *elem;
+	OldAttrListElem *elem;
 	EXPR *expr;
 
 	for (elem = exprList; elem; elem = elem -> next)
@@ -1902,36 +1902,36 @@ AttrList::MakeContext (CONTEXT *c)
 #endif
 
 
-AttrListList::AttrListList()
+OldAttrListList::OldAttrListList()
 {
     head = NULL;
     tail = NULL;
     ptr = NULL;
-    associatedAttrLists = NULL;
+    associatedOldAttrLists = NULL;
     length = 0;
 }
 
-AttrListList::AttrListList(AttrListList& oldList)
+OldAttrListList::OldAttrListList(OldAttrListList& oldList)
 {
-    AttrList*	tmpAttrList;
+    OldAttrList*	tmpOldAttrList;
 
     head = NULL;
     tail = NULL;
     ptr = NULL;
-    associatedAttrLists = NULL;
+    associatedOldAttrLists = NULL;
     length = 0;
 
     if(oldList.head)
-    // the AttrList list to be copied is not empty
+    // the OldAttrList list to be copied is not empty
     {
 	oldList.Open();
-	while((tmpAttrList = oldList.Next()))
+	while((tmpOldAttrList = oldList.Next()))
 	{
-	    switch(tmpAttrList->Type())
+	    switch(tmpOldAttrList->Type())
 	    {
 			case ATTRLISTENTITY :
 
-				Insert(new AttrList(*tmpAttrList));
+				Insert(new OldAttrList(*tmpOldAttrList));
 				break;
 	    }
 	}
@@ -1939,116 +1939,116 @@ AttrListList::AttrListList(AttrListList& oldList)
     }
 }
 
-AttrListList::~AttrListList()
+OldAttrListList::~OldAttrListList()
 {
     this->Open();
-    AttrList *tmpAttrList = Next();
+    OldAttrList *tmpOldAttrList = Next();
 
-    while(tmpAttrList)
+    while(tmpOldAttrList)
     {
-		Delete(tmpAttrList);
-		tmpAttrList = Next();
+		Delete(tmpOldAttrList);
+		tmpOldAttrList = Next();
     }
     this->Close();
 }
 
-void AttrListList::Open()
+void OldAttrListList::Open()
 {
   ptr = head;
 }
 
-void AttrListList::Close()
+void OldAttrListList::Close()
 {
   ptr = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Returns the pointer to the AttrList in the list pointed to by "ptr".
+// Returns the pointer to the OldAttrList in the list pointed to by "ptr".
 ////////////////////////////////////////////////////////////////////////////////
-AttrList *AttrListList::Next()
+OldAttrList *OldAttrListList::Next()
 {
     if(!ptr)
         return NULL;
 
-    AttrList *tmpAttrList;
+    OldAttrList *tmpOldAttrList;
 
     if(ptr->Type() == ATTRLISTENTITY)
     {
-	// current AttrList is in one AttrList list
-	tmpAttrList = (AttrList *)ptr;
+	// current OldAttrList is in one OldAttrList list
+	tmpOldAttrList = (OldAttrList *)ptr;
         ptr = ptr->next;
-	return tmpAttrList;
+	return tmpOldAttrList;
     }
     else
     {
-	// current AttrList is in more than one AttrList list
-	tmpAttrList = (AttrList *)((AttrListRep *)ptr)->attrList;
+	// current OldAttrList is in more than one OldAttrList list
+	tmpOldAttrList = (OldAttrList *)((OldAttrListRep *)ptr)->attrList;
         ptr = ptr->next;
-	return tmpAttrList;
+	return tmpOldAttrList;
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Insert a AttrList or a replication of the AttrList if the AttrList already
-// belongs to some other lists at the end of a AttrList list and update the
-// aggregate AttrList in that AttrList list.
+// Insert a OldAttrList or a replication of the OldAttrList if the OldAttrList already
+// belongs to some other lists at the end of a OldAttrList list and update the
+// aggregate OldAttrList in that OldAttrList list.
 ////////////////////////////////////////////////////////////////////////////////
-void AttrListList::Insert(AttrList* AttrList)
+void OldAttrListList::Insert(OldAttrList* OldAttrList)
 {
-    AttrListRep *rep;
+    OldAttrListRep *rep;
 
-    if(AttrList->IsInList(this))
-    // AttrList is already in this AttrList list
+    if(OldAttrList->IsInList(this))
+    // OldAttrList is already in this OldAttrList list
     {
 		return;
     }
-    if(AttrList->inList)
-    // AttrList is in one AttrList list
+    if(OldAttrList->inList)
+    // OldAttrList is in one OldAttrList list
     {
-		// AttrList to AttrListRep
-		AttrListAbstract *saveNext = AttrList->next;
-		AttrListList *tmpList = AttrList->inList;
-		AttrList->next = NULL;
-		rep = new AttrListRep(AttrList, AttrList->inList);
+		// OldAttrList to OldAttrListRep
+		OldAttrListAbstract *saveNext = OldAttrList->next;
+		OldAttrListList *tmpList = OldAttrList->inList;
+		OldAttrList->next = NULL;
+		rep = new OldAttrListRep(OldAttrList, OldAttrList->inList);
 		rep->next = saveNext;
-		if(tmpList->head == (AttrListAbstract *)AttrList)
+		if(tmpList->head == (OldAttrListAbstract *)OldAttrList)
 		{
-			// AttrList is the first element in the list
+			// OldAttrList is the first element in the list
 			tmpList->head = rep;
 		}
 		else
 		{
-			AttrList->prev->next = rep;
+			OldAttrList->prev->next = rep;
 		}
-		if(tmpList->tail == (AttrListAbstract *)AttrList)
+		if(tmpList->tail == (OldAttrListAbstract *)OldAttrList)
 		{
-			// AttrList is the last element in the list
+			// OldAttrList is the last element in the list
 			tmpList->tail = rep;
 		}
 		else
 		{
 			rep->next->prev = rep;
 		}
-		if(tmpList->ptr == AttrList)
+		if(tmpList->ptr == OldAttrList)
 		{
 			tmpList->ptr = rep;
 		}
-		AttrList->prev = NULL;
-		AttrList->inList = NULL;
+		OldAttrList->prev = NULL;
+		OldAttrList->inList = NULL;
 
-		// allocate new AttrListRep for this AttrList list
-		rep = new AttrListRep(AttrList, this);
+		// allocate new OldAttrListRep for this OldAttrList list
+		rep = new OldAttrListRep(OldAttrList, this);
     }
-    else if(AttrList->next)
+    else if(OldAttrList->next)
     {
-		// AttrList is in more than one AttrList lists
-		rep = new AttrListRep(AttrList, this);
+		// OldAttrList is in more than one OldAttrList lists
+		rep = new OldAttrListRep(OldAttrList, this);
     }
     else
     {
-		// AttrList is not in any AttrList list
-		rep = (AttrListRep *)AttrList;
-		AttrList->inList = this;
+		// OldAttrList is not in any OldAttrList list
+		rep = (OldAttrListRep *)OldAttrList;
+		OldAttrList->inList = this;
     }
     rep->prev = this->tail;
     rep->next = NULL;
@@ -2066,15 +2066,15 @@ void AttrListList::Insert(AttrList* AttrList)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Assume parameter AttrList is not NULL and it's a real AttrList, not a        //
-// AttrListRep. This function doesn't do anything if AttrList is not in the     //
-// AttrList list.                              				      //
+// Assume parameter OldAttrList is not NULL and it's a real OldAttrList, not a        //
+// OldAttrListRep. This function doesn't do anything if OldAttrList is not in the     //
+// OldAttrList list.                              				      //
 ////////////////////////////////////////////////////////////////////////////////
-int AttrListList::Delete(AttrList* attrList)
+int OldAttrListList::Delete(OldAttrList* attrList)
 {
 
 		// optimization: if attrList is in this list directly
-		// (i.e. not as an AttrListRep), then avoid searching
+		// (i.e. not as an OldAttrListRep), then avoid searching
 		// through the list
 	if( attrList->inList == this ) {
 		if( attrList == ptr ) {
@@ -2107,16 +2107,16 @@ int AttrListList::Delete(AttrList* attrList)
 	}
 
 
-    AttrListAbstract*	cur;
-    AttrListRep*		tmpRep;
+    OldAttrListAbstract*	cur;
+    OldAttrListRep*		tmpRep;
     
     for(cur = head; cur; cur = cur->next)
     {
 		if(cur->Type() == ATTRLISTREP)
 		{
-			if(((AttrListRep *)cur)->attrList == attrList)
+			if(((OldAttrListRep *)cur)->attrList == attrList)
 			{
-				// this is the AttrList to be deleted
+				// this is the OldAttrList to be deleted
 				if(cur == ptr) ptr = ptr->next;
 				
 				if ( cur != head && cur != tail ) 
@@ -2126,7 +2126,7 @@ int AttrListList::Delete(AttrList* attrList)
 				} else {
 					if(cur == head)
 					{
-						// AttrList to be deleted is at the head of the list
+						// OldAttrList to be deleted is at the head of the list
 						head = head->next;
 						if(head)
 						{
@@ -2136,7 +2136,7 @@ int AttrListList::Delete(AttrList* attrList)
 
 					if(cur == tail)
 					{
-						// AttrList to be deleted is at the tail of the list
+						// OldAttrList to be deleted is at the tail of the list
 						tail = cur->prev;
 						if(tail)
 						{
@@ -2146,16 +2146,16 @@ int AttrListList::Delete(AttrList* attrList)
 				}
 
 				// delete the rep from the rep list
-				tmpRep = (AttrListRep *)((AttrListRep *)cur)->attrList->next;
+				tmpRep = (OldAttrListRep *)((OldAttrListRep *)cur)->attrList->next;
 				if(tmpRep == cur)
 				{
-					((AttrListRep *)cur)->attrList->next = ((AttrListRep *)cur)->nextRep;
-					if ( ((AttrListRep *)cur)->nextRep == NULL ) {
+					((OldAttrListRep *)cur)->attrList->next = ((OldAttrListRep *)cur)->nextRep;
+					if ( ((OldAttrListRep *)cur)->nextRep == NULL ) {
 						// here we know this attrlist now no longer exists in any
 						// other attrlistlist.  so, since the user has now removed
 						// it from all lists, actually delete the ad itself.
 						// -Todd Tannenbaum, 9/19/2001 <tannenba@cs.wisc.edu>
-						AttrList*	adToRemove = ((AttrListRep *)cur)->attrList;
+						OldAttrList*	adToRemove = ((OldAttrListRep *)cur)->attrList;
 						if ( adToRemove ) delete adToRemove;
 					}
 
@@ -2166,7 +2166,7 @@ int AttrListList::Delete(AttrList* attrList)
 					{
 						tmpRep = tmpRep->nextRep;
 					}
-					tmpRep->nextRep = ((AttrListRep *)cur)->nextRep;
+					tmpRep->nextRep = ((OldAttrListRep *)cur)->nextRep;
 				}
 
 				delete cur;
@@ -2174,22 +2174,22 @@ int AttrListList::Delete(AttrList* attrList)
 				break;
 			}
 		} // end of if a rep is used
-    } // end of the loop through the AttrListList
+    } // end of the loop through the OldAttrListList
     return TRUE;
 }
 
-ExprTree* AttrListList::Lookup(const char* name, AttrList*& attrList)
+ExprTree* OldAttrListList::Lookup(const char* name, OldAttrList*& attrList)
 {
-    AttrList*	tmpAttrList;
+    OldAttrList*	tmpOldAttrList;
     ExprTree*	tmpExpr;
 
     Open();
-    for(tmpAttrList = Next(); tmpAttrList; tmpAttrList = Next())
+    for(tmpOldAttrList = Next(); tmpOldAttrList; tmpOldAttrList = Next())
     {
-        if((tmpExpr = tmpAttrList->Lookup(name)))
+        if((tmpExpr = tmpOldAttrList->Lookup(name)))
         {
             Close();
-            attrList = tmpAttrList;
+            attrList = tmpOldAttrList;
             return tmpExpr;
         }
     }
@@ -2197,15 +2197,15 @@ ExprTree* AttrListList::Lookup(const char* name, AttrList*& attrList)
     return NULL;
 }
 
-ExprTree* AttrListList::Lookup(const char* name)
+ExprTree* OldAttrListList::Lookup(const char* name)
 {
-    AttrList*	tmpAttrList;
+    OldAttrList*	tmpOldAttrList;
     ExprTree*	tmpExpr;
 
     Open();
-    for(tmpAttrList = Next(); tmpAttrList; tmpAttrList = Next())
+    for(tmpOldAttrList = Next(); tmpOldAttrList; tmpOldAttrList = Next())
     {
-        if((tmpExpr = tmpAttrList->Lookup(name)))
+        if((tmpExpr = tmpOldAttrList->Lookup(name)))
         {
             Close();
             return tmpExpr;
@@ -2216,9 +2216,9 @@ ExprTree* AttrListList::Lookup(const char* name)
 }
 
 
-void AttrListList::fPrintAttrListList(FILE* f, bool use_xml)
+void OldAttrListList::fPrintOldAttrListList(FILE* f, bool use_xml)
 {
-    AttrList            *tmpAttrList;
+    OldAttrList            *tmpOldAttrList;
 	ClassAdXMLUnparser  unparser;
 	MyString            xml;
 				
@@ -2230,15 +2230,15 @@ void AttrListList::fPrintAttrListList(FILE* f, bool use_xml)
 	}
 
     Open();
-    for(tmpAttrList = Next(); tmpAttrList; tmpAttrList = Next()) {
-		switch(tmpAttrList->Type()) {
+    for(tmpOldAttrList = Next(); tmpOldAttrList; tmpOldAttrList = Next()) {
+		switch(tmpOldAttrList->Type()) {
 		case ATTRLISTENTITY :
 			if (use_xml) {
-				unparser.Unparse((ClassAd *) tmpAttrList, xml);
+				unparser.Unparse((ClassAd *) tmpOldAttrList, xml);
 				printf("%s\n", xml.Value());
 				xml = "";
 			} else {
-				tmpAttrList->fPrint(f);
+				tmpOldAttrList->fPrint(f);
 			}
 			break;
 		}
@@ -2252,10 +2252,10 @@ void AttrListList::fPrintAttrListList(FILE* f, bool use_xml)
     Close();
 }
 
-// shipping functions for AttrList -- added by Lei Cao
-int AttrList::put(Stream& s)
+// shipping functions for OldAttrList -- added by Lei Cao
+int OldAttrList::put(Stream& s)
 {
-    AttrListElem*   elem;
+    OldAttrListElem*   elem;
     int             numExprs = 0;
 	bool			send_server_time = false;
 
@@ -2349,21 +2349,21 @@ int AttrList::put(Stream& s)
 
 
 void
-AttrList::clear( void )
+OldAttrList::clear( void )
 {
 		// First, unchain ourselves, if we're a chained classad
 	unchain();
 
 		// Clear out hashtable of attributes. Note we cannot
 		// delete the hash table here - we can do that safely
-		// only in ~AttrList() [the dtor] since many other
+		// only in ~OldAttrList() [the dtor] since many other
 		// methods assume it is never NULL.
 	if ( hash ) {
 		hash->clear();
 	}
 
 		// Now, delete all the attributes in our list
-    AttrListElem* tmp;
+    OldAttrListElem* tmp;
     for(tmp = exprList; tmp; tmp = exprList) {
         exprList = exprList->next;
         delete tmp;
@@ -2375,7 +2375,7 @@ AttrList::clear( void )
 }
 
 
-void AttrList::GetReferences(const char *attribute, 
+void OldAttrList::GetReferences(const char *attribute, 
 							 StringList &internal_references, 
 							 StringList &external_references) const
 {
@@ -2389,7 +2389,7 @@ void AttrList::GetReferences(const char *attribute,
 	return;
 }
 
-bool AttrList::GetExprReferences(const char *expr, 
+bool OldAttrList::GetExprReferences(const char *expr, 
 							 StringList &internal_references, 
 							 StringList &external_references) const
 {
@@ -2399,7 +2399,7 @@ bool AttrList::GetExprReferences(const char *expr,
 		// reference.  For efficiency, handle that case specially.
 	tree = Lookup(expr);
 	if (tree != NULL) {
-			// Unlike AttrList::GetReferences(), the attribute name
+			// Unlike OldAttrList::GetReferences(), the attribute name
 			// passed to this function is added to the list of
 			// internal references.
 		internal_references.append( expr );
@@ -2415,7 +2415,7 @@ bool AttrList::GetExprReferences(const char *expr,
 	return true;
 }
 
-bool AttrList::IsExternalReference(const char *name, char **simplified_name) const
+bool OldAttrList::IsExternalReference(const char *name, char **simplified_name) const
 {
 	// There are two ways to know if this is an internal or external
 	// reference.  
@@ -2471,7 +2471,7 @@ bool AttrList::IsExternalReference(const char *name, char **simplified_name) con
 }
 
 int
-AttrList::initFromStream(Stream& s)
+OldAttrList::initFromStream(Stream& s)
 {
 	char const *line;
     int numExprs;
@@ -2483,7 +2483,7 @@ AttrList::initFromStream(Stream& s)
 	clear();
 	if ( !hash ) {
 		// is hash ever NULL? don't think so, but just in case.
-		this->hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+		this->hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	}
 
 	// Now, read our new set of attributes off the given stream 
@@ -2530,7 +2530,7 @@ AttrList::initFromStream(Stream& s)
 }
 
 bool
-AttrList::initFromString(char const *str,MyString *err_msg)
+OldAttrList::initFromString(char const *str,MyString *err_msg)
 {
 	bool succeeded = true;
 
@@ -2538,7 +2538,7 @@ AttrList::initFromString(char const *str,MyString *err_msg)
 	clear();
 	if ( !hash ) {
 		// is hash ever NULL? don't think so, but just in case.
-		this->hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
+		this->hash = new HashTable<YourString, OldAttrListElem *>(hash_size, torekHash);
 	}
 
 	char *exprbuf = new char[strlen(str)+1];
@@ -2579,9 +2579,9 @@ AttrList::initFromString(char const *str,MyString *err_msg)
 
 #if defined(USE_XDR)
 // xdr shipping code
-int AttrList::put(XDR *xdrs)
+int OldAttrList::put(XDR *xdrs)
 {
-    AttrListElem*   elem;
+    OldAttrListElem*   elem;
     char*           line;
     int             numExprs = 0;
 
@@ -2610,7 +2610,7 @@ int AttrList::put(XDR *xdrs)
     return 1;
 }
 
-int AttrList::get(XDR *xdrs)
+int OldAttrList::get(XDR *xdrs)
 {
     ExprTree*       tree;
     char*           line;
@@ -2660,7 +2660,7 @@ int AttrList::get(XDR *xdrs)
 }
 #endif
 
-void AttrList::ChainToAd(AttrList *ad)
+void OldAttrList::ChainToAd(OldAttrList *ad)
 {
 	if (!ad) {
 		return;
@@ -2672,7 +2672,7 @@ void AttrList::ChainToAd(AttrList *ad)
 
 
 ChainedPair
-AttrList::unchain( void )
+OldAttrList::unchain( void )
 {
 	ChainedPair p;
 	p.exprList = chainedAttrs;
@@ -2682,14 +2682,14 @@ AttrList::unchain( void )
 	return p;
 }
 
-void AttrList::RestoreChain(const ChainedPair &p)
+void OldAttrList::RestoreChain(const ChainedPair &p)
 {
 	this->chainedAttrs = p.exprList;
 	this->chained_hash = p.exprHash;
 }
 
 /* This is used for %s = %s style constructs */
-int AttrList::
+int OldAttrList::
 AssignExpr(char const *variable,char const *value)
 {
 	ExprTree *tree = NULL;
@@ -2719,7 +2719,7 @@ AssignExpr(char const *variable,char const *value)
 }
 
 char const *
-AttrList::EscapeStringValue(char const *val,MyString &buf) {
+OldAttrList::EscapeStringValue(char const *val,MyString &buf) {
 	if( !val || !strchr(val,'"') ) {
 		return val;
 	}
@@ -2729,14 +2729,14 @@ AttrList::EscapeStringValue(char const *val,MyString &buf) {
 }
 
 /* This is used for %s = "%s" style constructs */
-int AttrList::
+int OldAttrList::
 Assign(char const *variable, MyString const &value)
 {
 	return Assign(variable,value.Value());
 }
 
 /* This is used for %s = "%s" style constructs */
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,char const *value)
 {
 	ExprTree *tree = NULL;
@@ -2764,7 +2764,7 @@ Assign(char const *variable,char const *value)
 	return TRUE;
 }
 
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,int value)
 {
 	ExprTree *tree = NULL;
@@ -2784,7 +2784,7 @@ Assign(char const *variable,int value)
 	return TRUE;
 }
 
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,unsigned int value)
 {
 	MyString buf;
@@ -2796,7 +2796,7 @@ Assign(char const *variable,unsigned int value)
 	return Insert(buf.GetCStr());
 }
 
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,long value)
 {
 	MyString buf;
@@ -2808,7 +2808,7 @@ Assign(char const *variable,long value)
 	return Insert(buf.GetCStr());
 }
 
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,unsigned long value)
 {
 	MyString buf;
@@ -2820,7 +2820,7 @@ Assign(char const *variable,unsigned long value)
 	return Insert(buf.GetCStr());
 }
 
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,float value)
 {
 	ExprTree *tree = NULL;
@@ -2839,7 +2839,7 @@ Assign(char const *variable,float value)
 	}
 	return TRUE;
 }
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,double value)
 {
 	ExprTree *tree = NULL;
@@ -2858,7 +2858,7 @@ Assign(char const *variable,double value)
 	}
 	return TRUE;
 }
-int AttrList::
+int OldAttrList::
 Assign(char const *variable,bool value)
 {
 	ExprTree *tree = NULL;
@@ -2878,7 +2878,7 @@ Assign(char const *variable,bool value)
 	return TRUE;
 }
 
-bool AttrList::SetInvisible(char const *name,bool invisible)
+bool OldAttrList::SetInvisible(char const *name,bool invisible)
 {
 	ExprTree *tree = Lookup(name);
 	if( tree ) {
@@ -2889,7 +2889,7 @@ bool AttrList::SetInvisible(char const *name,bool invisible)
 	return invisible;
 }
 
-bool AttrList::GetInvisible(char const *name)
+bool OldAttrList::GetInvisible(char const *name)
 {
 	ExprTree *tree = Lookup(name);
 	if( tree ) {
@@ -2898,7 +2898,7 @@ bool AttrList::GetInvisible(char const *name)
 	return false;
 }
 
-bool AttrList::ClassAdAttributeIsPrivate( char const *name )
+bool OldAttrList::ClassAdAttributeIsPrivate( char const *name )
 {
 		// keep this in sync with SetPrivateAttributesInvisible()
 	if( stricmp(name,ATTR_CLAIM_ID) == 0 ) {
@@ -2920,7 +2920,7 @@ bool AttrList::ClassAdAttributeIsPrivate( char const *name )
 	return false;
 }
 
-void AttrList::SetPrivateAttributesInvisible(bool make_invisible)
+void OldAttrList::SetPrivateAttributesInvisible(bool make_invisible)
 {
 		// keep this in sync with ClassAdAttributeIsPrivate()
 	SetInvisible(ATTR_CLAIM_ID,make_invisible);
@@ -2936,7 +2936,7 @@ void AttrList::SetPrivateAttributesInvisible(bool make_invisible)
 //  underscores, and may not begin with a digit
 
 /* static */ bool
-AttrList::IsValidAttrName(const char *name) {
+OldAttrList::IsValidAttrName(const char *name) {
 		// NULL pointer certainly false
 	if (!name) {
 		return false;
@@ -2964,7 +2964,7 @@ AttrList::IsValidAttrName(const char *name) {
 // is a RHS of an expression. According to LogSetAttribute::WriteBody,
 // the only invalid character is a '\n'.
 bool
-AttrList::IsValidAttrValue(const char *value) {
+OldAttrList::IsValidAttrValue(const char *value) {
 		// NULL value is not invalid, may translate to UNDEFINED.
 	if (!value) {
 		return true;
@@ -2984,13 +2984,13 @@ AttrList::IsValidAttrValue(const char *value) {
 }
 
 void
-AttrList::CopyAttribute(char const *target_attr, AttrList *source_ad )
+OldAttrList::CopyAttribute(char const *target_attr, OldAttrList *source_ad )
 {
 	CopyAttribute(target_attr,target_attr,source_ad);
 }
 
 void
-AttrList::CopyAttribute(char const *target_attr, char const *source_attr, AttrList *source_ad )
+OldAttrList::CopyAttribute(char const *target_attr, char const *source_attr, OldAttrList *source_ad )
 {
 	ASSERT( target_attr );
 	ASSERT( source_attr );
@@ -3000,7 +3000,7 @@ AttrList::CopyAttribute(char const *target_attr, char const *source_attr, AttrLi
 
 	ExprTree *e = source_ad->Lookup(source_attr);
 	if (e && e->MyType() == LX_ASSIGN && e->RArg()) {
-		ExprTree *lhs = new Variable(strnewp(target_attr));
+		ExprTree *lhs = new OldVariable(strnewp(target_attr));
 		ExprTree *rhs = e->RArg()->DeepCopy();
 		ASSERT( lhs && rhs );
 		ExprTree *assign = new AssignOp(lhs,rhs);
