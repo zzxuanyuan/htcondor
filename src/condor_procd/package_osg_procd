@@ -1,0 +1,23 @@
+#!/bin/sh
+
+DIR=$1
+if [ "$DIR" == "" ]
+then
+	DIR=../release_dir
+fi
+
+if mkdir procd &&
+   mkdir procd/bin &&
+   mkdir procd/sbin &&
+   cp $DIR/bin/procd_ctl procd/bin &&
+   cp $DIR/sbin/condor_procd procd/sbin/procd &&
+   cp $DIR/sbin/gidd_alloc procd/sbin &&
+   tar czf procd.tgz procd &&
+   rm -rf procd
+then
+   echo "created procd.tgz"
+else
+   rm -rf procd
+   echo "ERROR: failed to create procd.tgz"
+   exit 1
+fi
