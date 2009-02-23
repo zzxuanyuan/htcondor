@@ -3,7 +3,7 @@
 DIR=$1
 if [ "$DIR" == "" ]
 then
-	DIR=../release_dir
+	DIR=..
 fi
 
 if mkdir procd &&
