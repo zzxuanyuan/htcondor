@@ -126,7 +126,7 @@
 	strip_contrib/etc/examples strip_contrib/include StaticDirectories
 
 all: h h_all externals condor_includes makefiles Directories Libraries \
-	Programs examples
+	procd gidd
 release:: all
 stripped:: all
 static:: all

@@ -1,4 +1,4 @@
-all_target(procd_client.a condor_procd)
+all_target(procd_client.a condor_procd procd_ctl)
 
 CFLAGS = -I ../condor_procapi \
          $(STD_C_FLAGS)
@@ -56,12 +56,8 @@ c_plus_nowrap_target(procd_snapshot_format,\
                      $(SNAPSHOT_FORMAT_OBJ),\
                      $(PROCAPI_LIB))
 
-procd: condor_procd
-        rm -f procd
-        ln condor_procd procd
-
 PROCD_CTL_OBJ=procd_ctl.o
-c_plus_target(procd_ctl,$(PROCD_CTL_OBJ),$(STD_LIBS))
+public_c_plus_target(procd_ctl,bin,$(PROCD_CTL_OBJ),$(STD_LIBS))
 
 html:
 release:: all

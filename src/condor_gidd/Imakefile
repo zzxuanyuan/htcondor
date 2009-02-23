@@ -1,4 +1,4 @@
-all_target(gidd gidd_alloc)
+all_target(gidd_alloc)
 
 CFLAGS=--std=c99 -g -Wall -D _BSD_SOURCE
 NOWRAP_LDFLAGS=
@@ -16,7 +16,7 @@ c_plus_nowrap_target(gidd,$(GIDD_OBJ),)
 ALLOC_OBJ=alloc.o \
           err.o \
           giduse.o
-c_plus_nowrap_target(gidd_alloc,$(ALLOC_OBJ),)
+public_c_plus_nowrap_target(gidd_alloc,sbin,$(ALLOC_OBJ),)
 
 html:
 release:: all
