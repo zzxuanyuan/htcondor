@@ -294,7 +294,6 @@ print "running CONFIGURE ...\n";
 my $configexecstr = 
       "./configure " .
 	  $buildid .
-      " --enable-soft-is-hard " .
       " --with-externals=$externals";
 
 print "$configexecstr\n";
