@@ -24,6 +24,8 @@
 #include "condor_common.h"
 #include "../condor_procapi/procapi.h"
 
+#include <vector>
+
 // command identifiers for communication with the ProcD
 //
 enum proc_family_command_t {
@@ -80,16 +82,20 @@ struct ProcFamilyUsage {
 	int           num_procs;
 };
 
-// structure for retrieving a process dump from the ProcD
+// structures for retrieving a state dump from the ProcD
 //
-struct ProcFamilyDumpElement {
+struct ProcFamilyProcessDump {
 	pid_t      pid;
 	pid_t      ppid;
 	birthday_t birthday;
 	long       user_time;
 	long       sys_time;
-	pid_t      family_pid;
-	pid_t      parent_family_pid;
+};
+struct ProcFamilyDump {
+	pid_t                              parent_root;
+	pid_t                              root_pid;
+	pid_t                              watcher_pid;
+	std::vector<ProcFamilyProcessDump> procs;
 };
 
 #endif

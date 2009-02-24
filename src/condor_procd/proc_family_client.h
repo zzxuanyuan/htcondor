@@ -24,6 +24,8 @@
 #include "proc_family_io.h"
 #include "../condor_procapi/procapi.h"
 
+#include <vector>
+
 class LocalClient;
 
 class ProcFamilyClient {
@@ -98,7 +100,7 @@ public:
 
 	// tell the procd to dump out its state
 	//
-	bool dump(pid_t, int&, ProcFamilyDumpElement*&);
+	bool dump(pid_t, bool&, std::vector<ProcFamilyDump>&);
 
 private:
 

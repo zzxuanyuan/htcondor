@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-
 #include "condor_common.h"
 #include "proc_family_server.h"
 #include "proc_family_monitor.h"
@@ -237,7 +236,26 @@ ProcFamilyServer::dump()
 	pid_t pid;
 	read_from_client(&pid, sizeof(pid_t));
 
-	m_monitor.output(*m_server, pid);
+	std::vector<ProcFamilyDump> vec;
+	proc_family_error_t err = m_monitor.dump(pid, vec);
+
+	write_to_client(&err, sizeof(proc_family_error_t));
+	if (err != PROC_FAMILY_ERROR_SUCCESS) {
+		return;
+	}
+
+	int family_count = vec.size();
+	write_to_client(&family_count, sizeof(int));
+	for (int i = 0; i < family_count; ++i) {
+		write_to_client(&vec[i].parent_root, sizeof(pid_t));
+		write_to_client(&vec[i].root_pid, sizeof(pid_t));
+		write_to_client(&vec[i].watcher_pid, sizeof(pid_t));
+		int proc_count = vec[i].procs.size();
+		write_to_client(&proc_count, sizeof(int));
+		for (int j = 0; j < proc_count; j++) {
+			write_to_client(&vec[i].procs[j], sizeof(ProcFamilyProcessDump));
+		}
+	}
 }
 
 void

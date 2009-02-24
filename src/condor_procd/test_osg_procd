@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if cp ../sbin/procd . &&
+   cp ../bin/procd_ctl . &&
+   python procd_test_controller.py procd_test_input &&
+   rm -f procd procd_ctl procd_log
+then
+   echo Success
+else
+   echo Failure
+   exit 1
+fi

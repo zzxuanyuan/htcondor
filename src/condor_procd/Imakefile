@@ -60,6 +60,14 @@ PROCD_CTL_OBJ=procd_ctl.o
 public_c_plus_target(procd_ctl,bin,$(PROCD_CTL_OBJ),$(STD_LIBS))
 
 public_copy_target(package_osg_procd,libexec,package_osg_procd,EXECUTABLE_MODE)
+public_copy_target(test_osg_procd,libexec,test_osg_procd,EXECUTABLE_MODE)
+
+public_copy_target(procd_test_controller.py,libexec,procd_test_controller.py,EXECUTABLE_MODE)
+public_copy_target(procd_test_state.py,libexec,procd_test_state.py,EXECUTABLE_MODE)
+public_copy_target(procd_test_drone_tree.py,libexec,procd_test_drone_tree.py,EXECUTABLE_MODE)
+public_copy_target(procd_test_drone.py,libexec,procd_test_drone.py,EXECUTABLE_MODE)
+public_copy_target(procd_test_generate.py,libexec,procd_test_generate.py,EXECUTABLE_MODE)
+public_copy_target(procd_test_input,libexec,procd_test_input,TEXT_MODE)
 
 html:
 release:: all

@@ -9,9 +9,18 @@ fi
 if mkdir procd &&
    mkdir procd/bin &&
    mkdir procd/sbin &&
+   mkdir procd/test &&
    cp $DIR/bin/procd_ctl procd/bin &&
    cp $DIR/sbin/condor_procd procd/sbin/procd &&
    cp $DIR/sbin/gidd_alloc procd/sbin &&
+   cp $DIR/sbin/gidd_alloc procd/sbin &&
+   cp $DIR/libexec/procd_test_controller.py procd/test &&
+   cp $DIR/libexec/procd_test_state.py procd/test &&
+   cp $DIR/libexec/procd_test_drone_tree.py procd/test &&
+   cp $DIR/libexec/procd_test_drone.py procd/test &&
+   cp $DIR/libexec/procd_test_generate.py procd/test &&
+   cp $DIR/libexec/procd_test_input procd/test &&
+   cp $DIR/libexec/test_osg_procd procd/test &&
    tar czf procd.tgz procd &&
    rm -rf procd
 then

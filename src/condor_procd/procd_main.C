@@ -73,9 +73,7 @@ get_configuration()
 
 	local_client_principal = param("PROCD_CLIENT_PRINCIPAL");
 
-	max_snapshot_interval = param_integer("PROCD_MAX_SNAPSHOT_INTERVAL",
-	                                      60,
-	                                      0);
+	max_snapshot_interval = param_integer("PROCD_MAX_SNAPSHOT_INTERVAL", 60);
 
 #if defined(LINUX)
 	min_tracking_gid = max_tracking_gid = 0;

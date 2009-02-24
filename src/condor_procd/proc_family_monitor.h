@@ -28,8 +28,6 @@
 #include "proc_family_io.h"
 #include "procd_common.h"
 
-class LocalServer;
-
 class PIDTracker;
 #if defined(LINUX)
 class GroupTracker;
@@ -196,12 +194,12 @@ private:
 public:
 	// output all our families
 	//
-	void output(LocalServer&, pid_t);
+	proc_family_error_t dump(pid_t, std::vector<ProcFamilyDump>& vec);
 
 private:
-	// helper for output
+	// helper for dump
 	//
-	bool output(LocalServer&, pid_t, Tree<ProcFamily*>*);
+	void dump(Tree<ProcFamily*>* tree, std::vector<ProcFamilyDump>& vec);
 };
 
 #endif

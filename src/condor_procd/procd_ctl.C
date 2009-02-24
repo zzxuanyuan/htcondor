@@ -29,12 +29,14 @@
 static int register_family(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int get_usage(ProcFamilyClient& pfc, int argc, char* argv[]);
+static int dump(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int list(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int signal_process(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int suspend_family(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int continue_family(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int kill_family(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int unregister_family(ProcFamilyClient& pfc, int argc, char* argv[]);
+static int snapshot(ProcFamilyClient& pfc, int argc, char* argv[]);
 static int quit(ProcFamilyClient& pfc, int argc, char* argv[]);
 
 static void
@@ -46,12 +48,14 @@ list_commands()
 	            "<pid> <watcher_pid> <max_snapshot_interval>\n");
 	fprintf(stderr, "    TRACK_BY_GID <gid> [<pid>]\n");
 	fprintf(stderr, "    GET_USAGE [<pid>]\n");
+	fprintf(stderr, "    DUMP [<pid>]\n");
 	fprintf(stderr, "    LIST [<pid>]\n");
 	fprintf(stderr, "    SIGNAL_PROCESS <signal> [<pid>]\n");
 	fprintf(stderr, "    SUSPEND_FAMILY [<pid>]\n");
 	fprintf(stderr, "    CONTINUE_FAMILY [<pid>]\n");
 	fprintf(stderr, "    KILL_FAMILY [<pid>]\n");
 	fprintf(stderr, "    UNREGISTER_FAMILY <pid>\n");
+	fprintf(stderr, "    SNAPSHOT\n");
 	fprintf(stderr, "    QUIT\n");
 }
 
@@ -96,6 +100,9 @@ main(int argc, char* argv[])
 	else if (stricmp(cmd_argv[0], "GET_USAGE") == 0) {
 		return get_usage(pfc, cmd_argc, cmd_argv);
 	}
+	else if (stricmp(cmd_argv[0], "DUMP") == 0) {
+		return dump(pfc, cmd_argc, cmd_argv);
+	}
 	else if (stricmp(cmd_argv[0], "LIST") == 0) {
 		return list(pfc, cmd_argc, cmd_argv);
 	}
@@ -113,6 +120,9 @@ main(int argc, char* argv[])
 	}
 	else if (stricmp(cmd_argv[0], "UNREGISTER_FAMILY") == 0) {
 		return unregister_family(pfc, cmd_argc, cmd_argv);
+	}
+	else if (stricmp(cmd_argv[0], "SNAPSHOT") == 0) {
+		return snapshot(pfc, cmd_argc, cmd_argv);
 	}
 	else if (stricmp(cmd_argv[0], "QUIT") == 0) {
 		return quit(pfc, cmd_argc, cmd_argv);
@@ -191,6 +201,56 @@ track_by_gid(ProcFamilyClient& pfc, int argc, char* argv[])
 }
 
 static int
+dump(ProcFamilyClient& pfc, int argc, char* argv[])
+{
+	if (argc > 2) {
+		fprintf(stderr,
+		        "error: argument synopsis for %s: [<pid>]\n",
+		        argv[0]);
+		return 1;
+	}
+	pid_t pid = 0;
+	if (argc == 2) {
+		pid = atoi(argv[1]);
+		if (pid == 0) {
+			fprintf(stderr, "error: invalid pid: %s\n", argv[1]);
+			return 1;
+		}
+	}
+
+	bool response;
+	std::vector<ProcFamilyDump> vec;
+	if (!pfc.dump(pid, response, vec)) {
+		fprintf(stderr, "error: communication error with ProcD\n");
+		return 1;
+	}
+	if (!response) {
+		fprintf(stderr,
+		        "error: %s command failed with ProcD\n",
+		        argv[0]);
+		return 1;
+	}
+
+	for (size_t i = 0; i < vec.size(); ++i) {
+		printf("%u %u %u %d\n",
+		       (unsigned)vec[i].parent_root,
+		       (unsigned)vec[i].root_pid,
+		       (unsigned)vec[i].watcher_pid,
+		       (int)vec[i].procs.size());
+		for (size_t j = 0; j < vec[i].procs.size(); ++j) {
+			printf("%u %u " PROCAPI_BIRTHDAY_FORMAT " %ld %ld\n",
+			       (unsigned)vec[i].procs[j].pid,
+			       (unsigned)vec[i].procs[j].ppid,
+			       vec[i].procs[j].birthday,
+			       vec[i].procs[j].user_time,
+			       vec[i].procs[j].sys_time);
+		}
+	}
+
+	return 0;
+}
+
+static int
 list(ProcFamilyClient& pfc, int argc, char* argv[])
 {
 	if (argc > 2) {
@@ -207,29 +267,34 @@ list(ProcFamilyClient& pfc, int argc, char* argv[])
 			return 1;
 		}
 	}
-	int count;
-	ProcFamilyDumpElement* elements;
-	if (!pfc.dump(pid, count, elements)) {
+
+	bool response;
+	std::vector<ProcFamilyDump> vec;
+	if (!pfc.dump(pid, response, vec)) {
 		fprintf(stderr, "error: communication error with ProcD\n");
 		return 1;
 	}
-	if (count == -1) {
+	if (!response) {
 		fprintf(stderr,
 		        "error: %s command failed with ProcD\n",
 		        argv[0]);
 		return 1;
 	}
+
 	printf("PID PPID START_TIME USER_TIME SYS_TIME\n");
-	for (int i = 0; i < count; i++) {
-		printf("%u %u " PROCAPI_BIRTHDAY_FORMAT " %ld %ld\n",
-		       (unsigned)elements[i].pid,
-		       (unsigned)elements[i].ppid,
-		       elements[i].birthday,
-		       elements[i].user_time,
-		       elements[i].sys_time);
+	for (size_t i = 0; i < vec.size(); ++i) {
+		for (size_t j = 0; j < vec[i].procs.size(); ++j) {
+			printf("%u %u " PROCAPI_BIRTHDAY_FORMAT " %ld %ld\n",
+			       (unsigned)vec[i].procs[j].pid,
+			       (unsigned)vec[i].procs[j].ppid,
+			       vec[i].procs[j].birthday,
+			       vec[i].procs[j].user_time,
+			       vec[i].procs[j].sys_time);
+		}
 	}
 	return 0;
 }
+
 static int
 get_usage(ProcFamilyClient& pfc, int argc, char* argv[])
 {
@@ -409,6 +474,29 @@ unregister_family(ProcFamilyClient& pfc, int argc, char* argv[])
 	pid_t pid = atoi(argv[1]);
 	bool success;
 	if (!pfc.unregister_family(pid, success)) {
+		fprintf(stderr, "error: communication error with ProcD\n");
+		return 1;
+	}
+	if (!success) {
+		fprintf(stderr,
+		        "error: %s command failed with ProcD\n",
+		        argv[0]);
+		return 1;
+	}
+	return 0;
+}
+
+int
+snapshot(ProcFamilyClient& pfc, int argc, char* argv[])
+{
+	if (argc != 1) {
+		fprintf(stderr,
+		        "error: no arguments required for %s\n",
+		        argv[0]);
+		return 1;
+	}
+	bool success;
+	if (!pfc.snapshot(success)) {
 		fprintf(stderr, "error: communication error with ProcD\n");
 		return 1;
 	}
