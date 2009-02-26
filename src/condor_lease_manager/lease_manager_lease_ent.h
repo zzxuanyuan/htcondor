@@ -49,9 +49,11 @@ class LeaseManagerLeaseEnt
 
 	// Accessors: lease info
 	classad::ClassAd &getAd( void ) const { return *m_lease_ad; };
+	classad::ClassAd *getAdPtr( void ) const { return m_lease_ad; };
 	int getLeaseNumber( void ) const { return m_lease_number; };
 	classad::ClassAd &getLeasesAd( void ) const { return m_leases_ad; };
 	int getExpiration( void ) const { return m_expiration; };
+	void setExpiration( int expiration ) { m_expiration = expiration; };
 
 	// Get things from the lease's ad
 	bool getIsValid( bool &valid ) const;

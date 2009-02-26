@@ -254,7 +254,7 @@ LeaseManagerResources::restoreLeases( void )
 			continue;
 		}
 
-		// Get the lease states from it
+		// Get the lease state list from the resource
 		classad::ExprList	*lease_states;
 		if ( !leases_ad->EvaluateAttrList( "States", lease_states ) ) {
 			dprintf( D_ALWAYS, "restore: No lease states for %s\n",
@@ -595,9 +595,9 @@ LeaseManagerResources::GetLeases( classad::ClassAd &resource_ad,
 		// Finally, add the leaesid to the map
 		LeaseManagerLeaseEnt	*lease_ent =
 			new LeaseManagerLeaseEnt (
-				ls_ad,
+				*ls_ad,
 				lease_number,
-				leases_ad,
+				*leases_ad,
 				(int) now + duration,
 				resource_ad,
 				resource_name,
@@ -606,7 +606,7 @@ LeaseManagerResources::GetLeases( classad::ClassAd &resource_ad,
 				);
 
 		// Stuff it in the list to send back
-		leases.push_back( lease_ent->getAd() );
+		leases.push_back( lease_ent->getAdPtr() );
 		m_used_leases[lease_id] = lease_ent;
 
 		// Finally, update the counts
@@ -647,8 +647,8 @@ LeaseManagerResources::GetLazyExpire( const classad::ClassAd &resource ) const
 {
 	// Lazy expiration?
 	bool	tmp_bool;
-	if ( resource_ad->EvaluateAttrBoolean( "LazyExpire", tmp_bool ) ) {
-		return tmp;
+	if ( resource.EvaluateAttrBool( "LazyExpire", tmp_bool ) ) {
+		return tmp_bool;
 	}
 	return m_default_lazy_expire;
 }
@@ -674,9 +674,9 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 					 request->getLeaseId().c_str() );
 			continue;
 		}
-		classad::ClassAd	*lease_ad = lease_ent->m_lease_ad;
+		// classad::ClassAd	&lease_ad = lease_ent->getAd();
 		bool	valid = false;
-		if ( !lease_ent->getValid( valid ) ) {
+		if ( !lease_ent->getIsValid( valid ) ) {
 			dprintf( D_ALWAYS,
 					 "renew: warning: No 'valid' flag in lease ad!\n" );
 		}
@@ -685,13 +685,10 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 		int		expired_time = 0;
 		lease_ent->getExpiredTime( expired_time );
 
-		// Get the resource ad
-		classad::ClassAd	*resource_ad = lease_ent->getResourceAd( );
-
 		// Has it hit the max total lease time?
 		int		creation_time;
 		bool	release = !valid;
-		if ( !m_lease_ent->getCreationTime( creation_time ) ) {
+		if ( !lease_ent->getCreationTime( creation_time ) ) {
 			dprintf( D_ALWAYS,
 					 "renew: warning: No 'creation time' in lease ad!\n" );
 		}
@@ -703,13 +700,14 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 		else {
 			dprintf( D_FULLDEBUG,
 					 "renew: Lease %s hit max duration\n",
-					 lease_ent->m_resource_name.c_str() );
+					 lease_ent->getResourceName().c_str() );
 			release = true;
 		}
 
 		// Update the lease
 		int		request_duration = request->getDuration();
-		int		duration = GetLeaseDuration( *resource_ad, request_duration );
+		int		duration = GetLeaseDuration( lease_ent->getResourceAd( ),
+											 request_duration );
 
 		if ( duration > max_duration ) {
 			duration = max_duration;
@@ -723,14 +721,14 @@ LeaseManagerResources::RenewLeases( list<const LeaseManagerLease *> &requests,
 		updates->InsertAttr( "LeaseStartTime", (int) now );
 		updates->InsertAttr( "LeaseDuration", duration );
 		updates->InsertAttr( "ReleaseWhenDone", release );
-		if ( !UpdateLeaseAd( lease_ent->m_resource_name,
-							 lease_ent->m_lease_number,
+		if ( !UpdateLeaseAd( lease_ent->getResourceName(),
+							 lease_ent->getLeaseNumber(),
 							 updates ) ) {
 			dprintf( D_ALWAYS, "Renew: Failed to update lease\n" );
 		}
 
 		// Renew the lease
-		lease_ent->m_expiration = (int) now + duration;
+		lease_ent->setExpiration( (int) now + duration );
 		LeaseManagerLease	*new_lease =
 			new LeaseManagerLease( request->getLeaseId(), duration, release );
 		leases.push_back( new_lease );
@@ -752,18 +750,21 @@ LeaseManagerResources::GetLeaseStatus(
 	int		count = 0;
 	bool	errors = 0;
 	for ( list <LeaseManagerLease *>::iterator iter = leases.begin();
-		  iter != requests.end();
+		  iter != leases.end();
 		  iter++ )
 	{
 		const LeaseManagerLease *request = *iter;
 		LeaseManagerLeaseEnt	*lease_ent = FindLease( *request );
-		if ( ! lease_ent ) {
+		if ( NULL == lease_ent ) {
 			dprintf( D_ALWAYS,
 					 "release: Can't find matching lease ad!\n" );
+			request->setIsValid( false );
 			errors++;
-			continue;
 		}
-		count++;
+		else {
+			// TODO
+			count++;
+		}
 	}
 	dprintf( D_FULLDEBUG,
 			 "GetLeaseStatus: %d leases found, %d errors\n", count, errors );
