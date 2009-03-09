@@ -1,0 +1,12 @@
+PROGRAMS = \
+	bench_constraint_new bench_constraint_old
+
+all_target( $(PROGRAMS) )
+
+CFLAGS = $(STD_C_FLAGS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+LIB = $(STD_LIBS)
+
+# Individual targets
+c_plus_target(bench_constraint_new,bench_contraint_new.o,$(LIB))
+c_plus_target(bench_constraint_old,bench_contraint_old.o,$(LIB))
