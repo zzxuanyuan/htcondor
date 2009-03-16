@@ -2,7 +2,6 @@ SRC_DIR = $(SRC_TREE)/classad
 
 /* select required features */
 
-#define CLASSAD_DEPRECATED
 #define COLLECTIONS
 
 VENDOR_C_FLAGS = -D$(ARCH_FLAG)=$(ARCH_FLAG) -D$(OS_FLAG)=$(OS_FLAG) -I.
@@ -10,7 +9,7 @@ STD_LIBS =
 WRAP_LDFLAGS =
 
 LOCAL_FLAGS = \
-	-DCLASSAD_DEPRECATED -DWANT_CLASSAD_NAMESPACE -DDISABLE_DLOPEN_CHECK
+	-DWANT_CLASSAD_NAMESPACE -DDISABLE_DLOPEN_CHECK
 C_PLUS_FLAGS 	= -Wall $(STD_C_PLUS_FLAGS) $(LOCAL_FLAGS)
 CFLAGS 		= -Wall $(STD_C_FLAGS) $(LOCAL_FLAGS)
 
@@ -63,11 +62,7 @@ OBJ = $(CLASSAD_OBJ_2)
 
 LIB_BASE =  ./libclassad_ns.a $(STLPORT_LIB)
 
-#if defined(CLASSAD_DEPRECATED)
 LIB = $(LIB_BASE)
-#else
-LIB = $(LIB_BASE)
-#endif
 
 /* the main condor library target */
 all_target(libclassad_ns.a classad_functional_tester classad_unit_tester classad_version test_xml extra_tests)
@@ -80,7 +75,7 @@ testbin:: all
 /* template instantiations go in here */
 
 /* Standalone distribution of classads/collections */
-DIST_VERSION = 1.0.1
+DIST_VERSION = 1.0.3
 DISTRIBUTION_DIR = classads-$(DIST_VERSION)
 
 DIST_FILES = 								\
@@ -110,18 +105,15 @@ H_FILES = 								\
 	classad/util.h classad/value.h classad/view.h			\
 	classad/xmlLexer.h classad/xmlSink.h classad/xmlSource.h
 
-WIN32_FILES = win32/classad_dist.dsw				\
-win32/classad_functional_tester.dep				\
-win32/classad_functional_tester.dsp				\
-win32/classad_functional_tester.mak win32/classad_lib.dep	\
-win32/classad_lib.dsp win32/classad_lib.mak			\
-win32/classad_unit_tester.dep win32/classad_unit_tester.dsp	\
-win32/classad_unit_tester.mak win32/make.bat
+WIN32_FILES =						\
+	win32/classad_dist.sln				\
+	win32/classad_functional_tester.vcproj		\
+	win32/classad_lib.vcproj			\
+	win32/classad_unit_tester.vcproj
 
 dist: $(DIST_FILES)
 	chmod 664 $(DIST_FILES)
 	chmod 664 $(WIN32_FILES)
-	chmod 775 win32/make.bat
 	rm -rf $(DISTRIBUTION_DIR) *.gz
 	mkdir $(DISTRIBUTION_DIR)
 	mkdir $(DISTRIBUTION_DIR)/win32
