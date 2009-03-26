@@ -1,12 +1,31 @@
 PROGRAMS = \
-	bench_constraint_new bench_constraint_old
+	classad_benchmark_constraint-new \
+	classad_benchmark_constraint-old
 
 all_target( $(PROGRAMS) )
+new:	classad_benchmark_constraint-new
+old:	classad_benchmark_constraint-old
+
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 LIB = $(STD_LIBS)
 
+OBJ =	\
+	classad_benchmark_constraint_base.o	\
+	classad_benchmark_constraint_new.o
+
+
 # Individual targets
-c_plus_target(bench_constraint_new,bench_contraint_new.o,$(LIB))
-c_plus_target(bench_constraint_old,bench_contraint_old.o,$(LIB))
+c_plus_target(classad_benchmark_constraint-new,$(OBJ) classad_benchmark_constraint-new.o,$(LIB))
+c_plus_target(classad_benchmark_constraint-old,$(OBJ) classad_benchmark_constraint-old.o,$(LIB))
+
+classad_benchmark_constraint-new.o : classad_benchmark_constraint_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_CLASSADS -c $< -o $@
+classad_benchmark_constraint-old.o : classad_benchmark_constraint_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_CLASSADS -c $< -o $@
+
+
+.SUFFIXES: .ad .newad
+.ad.newad:
+	./convert_ad < $< > $@
