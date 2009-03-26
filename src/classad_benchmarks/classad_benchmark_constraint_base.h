@@ -20,24 +20,20 @@
 #ifndef CLASSAD_BENCHMARK_CONSTRAINTS_BASE_H
 #define CLASSAD_BENCHMARK_CONSTRAINTS_BASE_H
 
+#include "classad_benchmark_constraint_options.h"
 using namespace std;
 #include <vector>
 
 class ClassAdConstraintBenchmarkBase
 {
   public:
-	ClassAdConstraintBenchmarkBase( void );
+	ClassAdConstraintBenchmarkBase( const ClassAdConstraintBenchmarkOptions & );
 	virtual ~ClassAdConstraintBenchmarkBase( void );
-
-	bool setUseView( bool use_view );
-
-	bool setVerbosity( int );
-	bool incVerbosity( void );
 
 	bool readAdFile( const char *fname );
 
 	// Finish the setup
-	bool setup( int num_ads );
+	bool setup( int num_ads, const char *view_expr );
 
 	// Do real work
 	bool runQueries( int num_queries, const char *query, bool two_way );
@@ -45,15 +41,18 @@ class ClassAdConstraintBenchmarkBase
 	// Pure-Virtual member methods
 	virtual bool parseTemplateAd( FILE *fp ) = 0;
 	virtual bool generateAd( int template_num ) = 0;
-	virtual bool createView( const char *key, const char *value ) = 0;
-	virtual bool collectionInfo( void ) = 0;
-	virtual bool runQuery( const char *constraint, bool two_way, int &matches ) = 0;
+	virtual bool createView( const char *expr ) = 0;
+	virtual bool printCollectionInfo( void ) const = 0;
+	virtual bool runQuery( const char *expr, bool two_way, int &matches ) = 0;
 	virtual int numTemplates( void ) const = 0;
-	
+	virtual bool getViewMembers( int & ) const = 0;
 
+	int Verbose( void ) const { return m_options.getVerbosity(); };
+	bool isVerbose( int level ) const { return (m_options.getVerbosity() >= level); };
+	
   protected:
-	int			m_verbosity;
-	bool		m_view;
+	const ClassAdConstraintBenchmarkOptions	&m_options;
+	int										 m_num_ads;
 };
 
 #endif

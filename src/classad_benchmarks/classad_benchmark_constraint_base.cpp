@@ -27,35 +27,14 @@
 
 #include <vector>
 
-ClassAdConstraintBenchmarkBase::ClassAdConstraintBenchmarkBase( void )
+ClassAdConstraintBenchmarkBase::ClassAdConstraintBenchmarkBase( 
+	const ClassAdConstraintBenchmarkOptions &options ) 
+		: m_options( options )
 {
-	m_verbosity = 0;
-	m_view = false;
 }
 
 ClassAdConstraintBenchmarkBase::~ClassAdConstraintBenchmarkBase( void )
 {
-}
-
-bool
-ClassAdConstraintBenchmarkBase::setUseView( bool use_view )
-{
-	m_view = use_view;
-	return true;
-}
-
-bool
-ClassAdConstraintBenchmarkBase::setVerbosity( int v )
-{
-	m_verbosity = v;
-	return true;
-}
-
-bool
-ClassAdConstraintBenchmarkBase::incVerbosity( void )
-{
-	m_verbosity++;
-	return true;
 }
 
 bool
@@ -75,7 +54,7 @@ ClassAdConstraintBenchmarkBase::readAdFile( const char *fname )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::setup( int num_ads )
+ClassAdConstraintBenchmarkBase::setup( int num_ads, const char *view_expr )
 {
 	// Template ad?
 	int		num_templates = numTemplates();
@@ -84,7 +63,7 @@ ClassAdConstraintBenchmarkBase::setup( int num_ads )
 	}
 
 	// Setup the view
-	if ( m_view && (!createView( "MyType", "Machine" ) )  ) {
+	if ( view_expr && (!createView( view_expr ) )  ) {
 		return false;
 	}
 
@@ -99,10 +78,11 @@ ClassAdConstraintBenchmarkBase::setup( int num_ads )
 	}	
 	timer.Log( "setup ads", num_ads );
 
-	if ( !collectionInfo( ) ) {
+	if ( !printCollectionInfo( ) ) {
 		return false;
 	}
 
+	m_num_ads = num_ads;
 	return true;
 }
 
@@ -112,6 +92,10 @@ ClassAdConstraintBenchmarkBase::runQueries(
 {
 
 	DebugTimerPrintf	timer;
+	int					total_matches = 0;
+	int					view_members;
+
+	getViewMembers( view_members);
 	for( int i = 0;  i < num_queries;  i++ ) {
 		int					 matches = 0;
 		DebugTimerPrintf	 qtimer( false );
@@ -121,9 +105,16 @@ ClassAdConstraintBenchmarkBase::runQueries(
 			fprintf( stderr, "runQuery failed\n" );
 			return false;
 		}
+		qtimer.Stop();
+		qtimer.Log( "Ads", m_num_ads );
+		qtimer.Log( "View Members", view_members );
 		qtimer.Log( "Query matches", matches );
+		total_matches += matches;
 	}
 	timer.Log( "searchs", num_queries );
+	timer.Log( "Total Ads", m_num_ads * num_queries );
+	timer.Log( "Total View Members", view_members * num_queries );
+	timer.Log( "Total Query matches", total_matches );
 
 	return true;
 }

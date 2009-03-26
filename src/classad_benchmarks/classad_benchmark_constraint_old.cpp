@@ -1,0 +1,141 @@
+/***************************************************************
+ *
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, WI.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.  You may
+ * obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ***************************************************************/
+
+#include "condor_common.h"
+#include "condor_debug.h"
+#include "condor_attributes.h"
+#include "MyString.h"
+
+#include "classad_benchmark_constraint_old.h"
+#include "classad_collection.h"
+
+#include "debug_timer_dprintf.h"
+
+ClassAdConstraintBenchmarkOld::ClassAdConstraintBenchmarkOld(
+	const ClassAdConstraintBenchmarkOptions &options) 
+		: ClassAdConstraintBenchmarkBase( options )
+{
+}
+
+ClassAdConstraintBenchmarkOld::~ClassAdConstraintBenchmarkOld( void )
+{
+}
+
+bool
+ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream )
+{
+	int				isEOF = 0, error = 0, empty = 0;
+	ClassAd		*ad = new ClassAd( stream, ";", isEOF, error, empty );
+	if ( NULL == ad ) {
+		if ( error ) {
+			fprintf( stderr, "Error parsing template ad\n" );
+		}
+		return( false );
+	}
+	m_template_ads.push_back( ad );
+	return true;
+}
+
+int
+ClassAdConstraintBenchmarkOld::numTemplates( void ) const
+{
+	return m_template_ads.size();
+}
+
+bool
+ClassAdConstraintBenchmarkOld::createView( const char * /*expr*/ )
+{
+	return false;
+}
+
+bool
+ClassAdConstraintBenchmarkOld::printCollectionInfo( void ) const
+{
+	return true;
+}
+
+bool
+ClassAdConstraintBenchmarkOld::getViewMembers( int &members ) const
+{
+	members = m_num_ads;
+	return true;
+}
+
+bool
+ClassAdConstraintBenchmarkOld::generateAd( int template_num )
+{
+	const ClassAd	*template_ad = m_template_ads[template_num];
+	ClassAd			 ad( *template_ad );
+	MyString		 name;
+	MyString		 type;
+	static int		 n = 0;
+
+	if ( !ad.LookupString( "Name", name )   ||
+		 !ad.LookupString( "MyType", type )  ) {
+		fprintf( stderr, "name or type missing" );
+		return false;
+	}
+	char	key[256];
+	snprintf(key, sizeof(key), "%s/%s/%06d", type.Value(), name.Value(), n++);
+	key[sizeof(key)-1] = '\0';
+	ad.Assign( "key", key );
+	m_collection.NewClassAd( key, &ad );
+	return true;
+}
+
+bool
+ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
+										 bool two_way,
+										 int &matches )
+{
+	ClassAd		*query_ad;
+
+	// Is the query string a ClassAd ? (surrounded by [] like new classads)
+	int len = strlen(query_str);
+	if ( query_str[0] == '[' && query_str[len-1] == ']' ) {
+		char		*ad_str = strdup( query_str );
+		ad_str[len-2] = '\0';
+		query_ad = new ClassAd( ad_str, '\n' );
+	}
+	else {
+		MyString	req_expr = "Requirements = ";
+		req_expr += query_str;
+		query_ad = new ClassAd;
+		query_ad->Insert( req_expr.Value() );
+	}
+
+	if ( isVerbose(1) ) {
+		printf( "SearchAd=\n" );
+		query_ad->fPrint( stdout );
+	}
+
+	matches = 0;
+	m_collection.StartIterateAllClassAds();
+	do {
+		ClassAd		*ad;
+		if (!m_collection.IterateAllClassAds( ad ) ) {
+			break;
+		}
+		if ( (*ad) >= (*query_ad) ) {
+			matches++;
+		}
+	} while( true );
+
+	return true;
+}

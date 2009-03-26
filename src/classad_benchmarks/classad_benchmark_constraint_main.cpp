@@ -39,67 +39,10 @@
 
 static const char *	VERSION = "0.1";
 
-// Options
-class Options
-{
-public:
-	Options( Benchmark &bench ) :
-			m_bench( bench ),
-			m_num_ads( 0 ),
-			m_num_queries( 0 ),
-			m_query( NULL ),
-			m_two_way( false )
-		{ /* Do nothing */ };
-	~Options( void ) { };
-	bool Verify( void ) const;
-
-	// Accessors
-	Benchmark &getBench( void ) const { return m_bench; };
-	bool setNumAds( int num ) { m_num_ads = num; return true; };
-	int getNumAds( void ) const { return m_num_ads; };
-	bool setNumQueries( int num ) { m_num_queries = num; return true; };
-	int getNumQueries( void ) const { return m_num_queries; };
-	bool setAdFile( const char *f ) { m_ad_file = f; return true; };
-	const char * getAdFile( void ) const { return m_ad_file; };
-	bool setQuery( const char *q ) { m_query = q; return true; };
-	const char * getQuery( void ) const { return m_query; };
-	bool setTwoWay( bool two_way ) { m_two_way = two_way; return true; };
-	bool getTwoWay( void ) const { return m_two_way; };
-
-private:
-	Benchmark	&m_bench;
-	int			 m_num_ads;
-	int			 m_num_queries;
-	const char	*m_ad_file;
-	const char	*m_query;
-	bool		 m_two_way;
-};
-
-bool
-Options::Verify( void ) const
-{
-	if ( m_num_ads == 0 ) {
-		fprintf( stderr, "No # ads specified\n" );
-		return false;
-	}
-	if ( m_num_queries == 0 ) {
-		fprintf( stderr, "No # queries specified\n" );
-		return false;
-	}
-	if ( m_ad_file == NULL ) {
-		fprintf( stderr, "No ad file specified\n" );
-		return false;
-	}
-	if ( m_query == NULL ) {
-		fprintf( stderr, "No query specified\n" );
-		return false;
-	}
-	return true;
-}
-
 // Prototypes
 void Usage( void );
-bool CheckArgs(int argc, const char **argv, Options &opts);
+bool CheckArgs(int argc, const char **argv,
+			   ClassAdConstraintBenchmarkOptions &opts);
 
 int main( int argc, const char *argv[] )
 {
@@ -113,8 +56,8 @@ int main( int argc, const char *argv[] )
 	Termlog = true;
 	dprintf_config("CLASSAD_BENCHMARK");
 
-	Benchmark	benchmark;
-	Options		opts( benchmark );
+	ClassAdConstraintBenchmarkOptions	opts;
+	Benchmark							benchmark( opts );
 	if ( !CheckArgs(argc, argv, opts) ) {
 		exit( 1 );
 	}
@@ -125,7 +68,7 @@ int main( int argc, const char *argv[] )
 		exit( 1 );
 	}
 
-	if ( !benchmark.setup( opts.getNumAds() ) ) {
+	if ( !benchmark.setup( opts.getNumAds(), opts.getViewExpr() ) ) {
 		Usage( );
 		exit( 1 );
 	}
@@ -145,7 +88,8 @@ Usage( void )
 		"Usage: bench_constraint [options] "
 		"<template-file> <num-ads> <num-searchs> [<constraint>]\n"
 		"  --const <constraint>: constraint string\n"
-		"  --[en|dis]able-views: Enable / disable views\n"
+		"  --disable-view: Disable view\n"
+		"  --view <expr>: Use view with <expr>\n"
 		"  --[en|dis]able-2way: Enable / disable 2-way matching\n"
 		"\n"
 		"  -d <level>: debug level (e.g., D_FULLDEBUG)\n"
@@ -163,7 +107,7 @@ Usage( void )
 }
 
 bool
-CheckArgs(int argc, const char **argv, Options &opts)
+CheckArgs(int argc, const char **argv, ClassAdConstraintBenchmarkOptions &opts)
 {
 
 	int	fixed = 0;
@@ -192,7 +136,7 @@ CheckArgs(int argc, const char **argv, Options &opts)
 			return false;
 
 		} else if ( arg.Match('v') ) {
-			opts.getBench().incVerbosity();
+			opts.incVerbosity();
 
 		} else if ( arg.Match("verbosity") ) {
 			int	verb;
@@ -201,16 +145,23 @@ CheckArgs(int argc, const char **argv, Options &opts)
 				Usage();
 				return false;
 			}
-			opts.getBench().setVerbosity(verb);
+			opts.setVerbosity(verb);
 
 		} else if ( arg.Match( 'V', "version" ) ) {
 			printf("test_log_reader: %s, %s\n", VERSION, __DATE__);
 			return false;
 
-		} else if ( arg.Match( "enable-views" ) ) {
-			opts.getBench().setUseView(true);
-		} else if ( arg.Match( "disable-views" ) ) {
-			opts.getBench().setUseView(false);
+		} else if ( arg.Match( "view" ) ) {
+			const char	*expr = NULL;
+			if ( !arg.getOpt( expr, true ) ) {
+				fprintf(stderr, "No view expr specified\n" );
+				Usage();
+				return false;
+			}
+			opts.setViewExpr( expr );
+
+		} else if ( arg.Match( "disable-view" ) ) {
+			opts.setViewExpr(NULL);
 
 		} else if ( arg.Match( "enable-2way" ) ) {
 			opts.setTwoWay(true);
@@ -225,10 +176,7 @@ CheckArgs(int argc, const char **argv, Options &opts)
 					Usage();
 					return false;
 				}
-				if ( !opts.setAdFile( file ) ) {
-					fprintf(stderr, "Failed to set ad file to %s\n", file );
-					return false;
-				}
+				opts.setAdFile( file );
 			}
 			else if ( 1 == fixed ) {
 				int		num;

@@ -17,20 +17,18 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_CONSTRAINTS_NEW_H
-#define CLASSAD_BENCHMARK_CONSTRAINTS_NEW_H
+#ifndef CLASSAD_BENCHMARK_CONSTRAINTS_OLD_H
+#define CLASSAD_BENCHMARK_CONSTRAINTS_OLD_H
 
 #include "classad_benchmark_constraint_base.h"
+#include "classad_collection.h"
+#include <vector>
 
-#define WANT_CLASSAD_NAMESPACE
-#include "classad/classad_distribution.h"
-using namespace std;
-
-class ClassAdConstraintBenchmarkNew : public ClassAdConstraintBenchmarkBase
+class ClassAdConstraintBenchmarkOld : public ClassAdConstraintBenchmarkBase
 {
   public:
-	ClassAdConstraintBenchmarkNew( const ClassAdConstraintBenchmarkOptions & );
-	virtual ~ClassAdConstraintBenchmarkNew( void );
+	ClassAdConstraintBenchmarkOld( const ClassAdConstraintBenchmarkOptions & );
+	virtual ~ClassAdConstraintBenchmarkOld( void );
 
 	bool parseTemplateAd( FILE *fp );
 	bool createView( const char *expr );
@@ -41,11 +39,8 @@ class ClassAdConstraintBenchmarkNew : public ClassAdConstraintBenchmarkBase
 	bool getViewMembers( int & ) const;
 
   private:
-	mutable classad::ClassAdCollection	 m_collection;
-	vector<const classad::ClassAd *>	 m_template_ads;
-
-	// Query
-	classad::ViewName					 m_view_name;
+	ClassAdCollection		 m_collection;
+	vector<const ClassAd *>	 m_template_ads;
 };
 
 #endif

@@ -12,8 +12,10 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 LIB = $(STD_LIBS)
 
 OBJ =	\
+	classad_benchmark_constraint_options.o	\
 	classad_benchmark_constraint_base.o	\
-	classad_benchmark_constraint_new.o
+	classad_benchmark_constraint_new.o	\
+	classad_benchmark_constraint_old.o
 
 
 # Individual targets
@@ -26,6 +28,8 @@ classad_benchmark_constraint-old.o : classad_benchmark_constraint_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_CLASSADS -c $< -o $@
 
 
-.SUFFIXES: .ad .newad
+.SUFFIXES: .ad .newad .oldad
 .ad.newad:
-	./convert_ad < $< > $@
+	./convert_to_new < $< > $@
+.ad.oldad:
+	./convert_to_old < $< > $@

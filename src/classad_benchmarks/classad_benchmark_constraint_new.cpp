@@ -29,10 +29,9 @@ using namespace std;
 
 #include "debug_timer_dprintf.h"
 
-// Set to zero to disable 2-way match making (needs classads >= 0.9.8-b3)
-#define TWO_WAY_MATCHING	1
-
-ClassAdConstraintBenchmarkNew::ClassAdConstraintBenchmarkNew( void )
+ClassAdConstraintBenchmarkNew::ClassAdConstraintBenchmarkNew(
+	const ClassAdConstraintBenchmarkOptions &options) 
+		: ClassAdConstraintBenchmarkBase( options )
 {
 	m_view_name = "root";
 }
@@ -63,21 +62,17 @@ ClassAdConstraintBenchmarkNew::numTemplates( void ) const
 }
 
 bool
-ClassAdConstraintBenchmarkNew::createView( const char *key, const char *value )
+ClassAdConstraintBenchmarkNew::createView( const char *constraint_expr )
 {
-	if ( !key || !value ) {
+	if ( !constraint_expr ) {
 		return false;
 	}
 
-	printf( "setting up view '%s' == '%s'\n", key, value );
-	char	buf[128];
-	snprintf( buf, sizeof( buf ), "( other.%s == \"%s\" )", key, value );
-	string constraint = buf;
+	printf( "setting up view with expr '%s'\n", constraint_expr );
+	string constraint = constraint_expr;
 	string rank;
 	string expr;
-	m_view_name = key;
-	m_view_name += ":";
-	m_view_name += value;
+	m_view_name = "VIEW";
 	if ( !m_collection.CreateSubView( m_view_name, "root",
 									  constraint, rank, expr) ) {
 		fprintf( stderr, "Error creating resources view\n" );
@@ -88,10 +83,10 @@ ClassAdConstraintBenchmarkNew::createView( const char *key, const char *value )
 }
 
 bool
-ClassAdConstraintBenchmarkNew::collectionInfo( void )
+ClassAdConstraintBenchmarkNew::printCollectionInfo( void ) const
 {
-	if ( m_verbosity ) {
-		classad::ClassAd					*ad;
+	if ( isVerbose(1) ) {
+		classad::ClassAd	*ad;
 		if ( !m_collection.GetViewInfo( m_view_name, ad ) ) {
 			fprintf( stderr, "Error getting view information\n" );
 			return false;
@@ -105,6 +100,21 @@ ClassAdConstraintBenchmarkNew::collectionInfo( void )
 	return true;
 }
 
+bool
+ClassAdConstraintBenchmarkNew::getViewMembers( int &members ) const
+{
+	classad::ClassAd	*ad;
+	if ( !m_collection.GetViewInfo( m_view_name, ad ) ) {
+		fprintf( stderr, "Error getting view information\n" );
+		return false;
+	}
+
+	if ( !ad->EvaluateAttrInt( "NumMembers", members ) ) {
+		fprintf( stderr, "Error getting view members\n" );
+		return false;
+	}
+	return true;
+}
 
 bool
 ClassAdConstraintBenchmarkNew::generateAd( int template_num )
@@ -148,7 +158,7 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 		query_ad->Insert( "Requirements", req_expr );
 	}
 
-	if ( m_verbosity ) {
+	if ( isVerbose(1) ) {
 		classad::PrettyPrint u;
 		std::string adbuffer;
 		u.Unparse( adbuffer, query_ad );
