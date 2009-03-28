@@ -77,31 +77,6 @@ get_bits(char in)
 }
 
 /*
- * mystring2charstar
- *
- * Utility function: creates a newly allocated char * for the value of the
- * MyString; for type safety.  Caller frees!
- *
- * Returns malloced string the same size as the input or null.
- */
-char *
-mystring2charstar(const MyString &m)
-{
-	char *buf;
-	int buflen = m.Length();
-	if(m.Length() == 0 || m.GetCStr() == NULL) {
-		return NULL;
-	}
-	buflen++;
-	if(!(buf = (char *)malloc(buflen))) {
-		dprintf(D_SECURITY, "Can't malloc.\n");
-        return NULL;
-    }
-    strncpy(buf, m.Value(), buflen);
-	return buf;
-}
-
-/*
  * bin_2_hex
  *
  * Given a binary input (sequence of bytes), convert it to ascii hex.
@@ -356,8 +331,8 @@ EVP_PKEY *
 get_public_key_from_text(const MyString &text)
 {
 	BIO *mem;
-	char *buf = mystring2charstar(text);
-	if(buf == NULL) {
+	char *buf = text.StrDup();
+	if(buf == NULL || buf[0] == '\0') {
 		dprintf(D_SECURITY, "Can't get text of public key.\n");
 		return NULL;
 	}
@@ -473,40 +448,15 @@ classad2text(ClassAd &classAd)
 bool
 text2classad(const MyString &text, ClassAd &ad)
 {
-	char *buf = mystring2charstar(text);
-	if(buf == NULL) {
+	char *buf = text.StrDup();
+	if(buf == NULL || buf[0] == '\0') {
 		dprintf(D_SECURITY, "Couldn't get text of classad.\n");
 		return false;
 	}
-	//dprintf(D_SECURITY, "BUF='%s'\n", buf);
 	ad = ClassAd(buf, '\n');
-	//MyString debug = "";
-	//ad.sPrint(debug);
-	//dprintf(D_SECURITY, "AD='%s'\n", debug.Value());
 	free(buf);
 	return true;
 }
-
-/*
-EVP_PKEY *get_private_key(const MyString& filename)
-{
-	EVP_PKEY *pkey;
-	FILE *fd = safe_fopen_wrapper(filename.Value(), "r");
-	if(!fd) {
-		dprintf(D_SECURITY, "Couldn't open file '%s'.\n",
-				filename.Value());
-		perror("fopen");
-		return NULL;
-	}
-	pkey = PEM_read_PrivateKey(fd, NULL, NULL, NULL);
-	if(!pkey) {
-		ERR_print_errors_fp(stderr);
-		return NULL;
-	}
-	fclose(fd);
-	return pkey;
-}
-*/
 
 /*
  * Given a classad, prepare the "Arguments" attribute.  In existing

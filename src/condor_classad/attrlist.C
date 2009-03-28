@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -67,7 +67,7 @@ AttrListElem::AttrListElem(ExprTree* expr)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// AttrListElem copy constructor. 
+// AttrListElem copy constructor.
 ////////////////////////////////////////////////////////////////////////////////
 AttrListElem::AttrListElem(AttrListElem& oldNode)
 {
@@ -164,7 +164,7 @@ AttrList::AttrList(AttrListList* assocList) :
 // is passed on.
 //
 AttrList::
-AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty) 
+AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
 	: AttrListAbstract(ATTRLISTENTITY)
 {
     ExprTree 	*tree;
@@ -241,7 +241,7 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
 // Constructor of AttrList class, read from a string.
 // The character 'delimitor' passed in or end of string delimits an expression,
 // end of string delimits a AttrList input.
-// If there are only white spaces between the last delimitor and the end of 
+// If there are only white spaces between the last delimitor and the end of
 // string, they are to be ignored, no parse error.
 //
 AttrList::AttrList(char *AttrLists, char delimitor) : AttrListAbstract(ATTRLISTENTITY)
@@ -263,7 +263,7 @@ AttrList::AttrList(char *AttrLists, char delimitor) : AttrListAbstract(ATTRLISTE
 
     char c;
     int buffer_size = 10;                    // size of the input buffer.
-    int current = 0;                         // current position in buffer. 
+    int current = 0;                         // current position in buffer.
     char *buffer = new char[buffer_size];
     if(!buffer)
     {
@@ -273,12 +273,12 @@ AttrList::AttrList(char *AttrLists, char delimitor) : AttrListAbstract(ATTRLISTE
     while(isspace(c = AttrLists[i]))
     {
         i++;                                 // skip white spaces.
-    }    
+    }
 
-    while(1)                                 // loop character by character 
+    while(1)                                 // loop character by character
     {                                        // to the end of the stirng to
         c = AttrLists[i];                    // construct a AttrList object.
-        if(c == delimitor || c == '\0')                 
+        if(c == delimitor || c == '\0')
 		{                                    // end of an expression.
 			if(current)
 			{                                // if expression not empty.
@@ -312,23 +312,23 @@ AttrList::AttrList(char *AttrLists, char delimitor) : AttrListAbstract(ATTRLISTE
 			}
 			i--;
 			buffer_size = 10;                // process next expression.
-			current = 0;                  
+			current = 0;
 			buffer = new char[buffer_size];
 			if(!buffer)
 			{
 				EXCEPT("Warning: you ran out of memory");
-			}	    
+			}
 		}
 		else
 		{                                    // fill in the buffer.
-			if(current >= (buffer_size - 1))        
+			if(current >= (buffer_size - 1))
 			{
 				int  old_buffer_size;
 				char *new_buffer;
-				
+
 				old_buffer_size = buffer_size;
 				buffer_size *= 2;
-				// Can you believe, someone called realloc on 
+				// Can you believe, someone called realloc on
 				// a buffer that had been new-ed? Now we call
 				// new and copy it over with memcpy.--Alain, 23-Sep-2001
 				new_buffer = new char[buffer_size];
@@ -492,7 +492,7 @@ ExprTree* AttrList::ProcToTree(char* var, LexemeType t, int i, float f, char* s)
 				return NULL;
 			}
 			break;
-		
+
 		default:
 
 			break;
@@ -571,7 +571,7 @@ char *Print_elem(ELEM *elem, char *str)
 		 break;
     case NAME  : sprintf(str, "%s", elem->val.string_val);
 		 break;
-    case STRING: 
+    case STRING:
 				 if(!elem->val.string_val)
 				 {
 					 sprintf(str, "(Null)");
@@ -579,7 +579,7 @@ char *Print_elem(ELEM *elem, char *str)
 				 else
 				 {
 					 sprintf(str, "\"%s\"", elem->val.string_val);
-				 } 
+				 }
 				 break;
     case FLOAT : sprintf(str, "%f", elem->val.float_val);
 		 break;
@@ -706,7 +706,7 @@ AttrList::AttrList(AttrList &old) : AttrListAbstract(ATTRLISTENTITY)
 
 	this->hash = new HashTable<YourString, AttrListElem *>(hash_size,torekHash);
     if(old.exprList) {
-		// copy all the AttrList elements. 
+		// copy all the AttrList elements.
 		// As of 14-Sep-2001, we now copy the trees, not just the pointers
 		// to the trees. This happens in the copy constructor for AttrListElem
 		this->exprList = new AttrListElem(*old.exprList);
@@ -749,7 +749,7 @@ AttrList::~AttrList()
 {
 		// Delete all of the attributes in this list
 	clear();
-	
+
 		// Free memory associated with the hash table
 	if ( hash ) {
 		delete hash;
@@ -779,10 +779,10 @@ AttrList& AttrList::operator=(const AttrList& other)
 			associatedList->associatedAttrLists->Delete(this);
 		}
 
-		// Then copy over the new stuff 
+		// Then copy over the new stuff
 		AttrListElem* tmpOther;	// working variable
 		AttrListElem* tmpThis;	// working variable
-		
+
 		if(other.exprList) {
 			this->exprList = new AttrListElem(*other.exprList);
 			tmpThis = this->exprList;
@@ -814,7 +814,7 @@ AttrList& AttrList::operator=(const AttrList& other)
 		if (this->associatedList) {
 			this->associatedList->associatedAttrLists->Insert(this);
 		}
-		
+
 	}
 	return *this;
 }
@@ -823,7 +823,7 @@ AttrList& AttrList::operator=(const AttrList& other)
 ////////////////////////////////////////////////////////////////////////////////
 // Insert an expression tree into a AttrList. If the expression is not an
 // assignment expression, FALSE is returned. Otherwise, it is inserted at the
-// end of the expression list. 
+// end of the expression list.
 ////////////////////////////////////////////////////////////////////////////////
 int AttrList::Insert(const char* str, bool check_for_dups)
 {
@@ -978,7 +978,7 @@ int AttrList::Delete(const char* name)
 	}
 
 
-    return found; 
+    return found;
 }
 
 void AttrList::SetDirtyFlag(const char *name, bool dirty)
@@ -1081,7 +1081,7 @@ AttrList::ChainCollapse(bool with_deep_copy)
 	}
 
 	AttrListElem* chained = *chainedAttrs;
-	
+
 	chainedAttrs = NULL;
 	chained_hash = NULL;	// do not delete chained_hash here!
 
@@ -1296,7 +1296,7 @@ int AttrList::LookupString (const char *name, char **value) const
 		(strVal = ((String *) rhs)->Value()) && strVal)
 	{
 		// Unlike the other lame version of this function call, we
-		// ensure that we have sufficient space to actually do this. 
+		// ensure that we have sufficient space to actually do this.
 		*value = (char *) malloc(strlen(strVal) + 1);
 		if (*value != NULL) {
 			strcpy(*value, strVal);
@@ -1314,7 +1314,7 @@ int AttrList::LookupString (const char *name, char **value) const
 
 /* This is just a thin wrapper to the mallocing version to simplify
 usage.  Having client code need to remember to free memory sucks.
-Indeed, it's telling that lots of client code just does LookupString on 
+Indeed, it's telling that lots of client code just does LookupString on
 a fixed length buffer, hoping that it will be big enough.
 */
 int AttrList::LookupString (const char *name, MyString & value) const
@@ -1390,46 +1390,46 @@ int AttrList::LookupInteger (const char *name, int &value) const
 
 int AttrList::LookupFloat (const char *name, float &value) const
 {
-    ExprTree *tree, *rhs;   
+    ExprTree *tree, *rhs;
 
-    tree = Lookup (name);   
+    tree = Lookup (name);
     if( tree && (rhs=tree->RArg()) ) {
 		if( rhs->MyType() == LX_FLOAT ) {
 			value = ((Float *) rhs)->Value();
-			return 1;   
-		} 
+			return 1;
+		}
 		if( rhs->MyType() == LX_INTEGER ) {
 			value = (float)(((Integer *) rhs)->Value());
-			return 1;   
-		} 
-	}		
-	return 0;   
+			return 1;
+		}
+	}
+	return 0;
 }
 
 int AttrList::LookupBool (const char *name, int &value) const
-{   
-    ExprTree *tree, *rhs;       
+{
+    ExprTree *tree, *rhs;
 
-    tree = Lookup (name);       
-    if (tree && (rhs=tree->RArg()) && (rhs->MyType() == LX_BOOL))    
-    {   
-        value = ((ClassadBoolean *) rhs)->Value();   
-        return 1;       
-    }       
+    tree = Lookup (name);
+    if (tree && (rhs=tree->RArg()) && (rhs->MyType() == LX_BOOL))
+    {
+        value = ((ClassadBoolean *) rhs)->Value();
+        return 1;
+    }
 
-    return 0;       
-}   
+    return 0;
+}
 
 
 bool AttrList::LookupBool (const char *name, bool &value) const
-{   
+{
 	int val;
 	if( LookupBool(name, val) ) {
 		value = (bool)val;
 		return true;
 	}
 	return false;
-}   
+}
 
 
 int AttrList::EvalString (const char *name, const AttrList *target, char *value) const
@@ -1451,7 +1451,7 @@ int AttrList::EvalString (const char *name, const AttrList *target, char *value)
 			return 0;
 		}
 	}
-	
+
 	if(tree && tree->EvalTree(this,target,&val) && val.type==LX_STRING && val.s)
 	{
 		strcpy (value, val.s);
@@ -1487,7 +1487,7 @@ int AttrList::EvalString (const char *name, const AttrList *target, char **value
 			return 0;
 		}
 	}
-	
+
 	if(tree && tree->EvalTree(this,target,&val) && val.type==LX_STRING && val.s)
 	{
 		*value = (char *) malloc(strlen(val.s) + 1);
@@ -1515,7 +1515,7 @@ int AttrList::EvalString (const char *name, const AttrList *target, MyString & v
 int AttrList::EvalInteger (const char *name, const AttrList *target, int &value) const
 {
     ExprTree *tree;
-    EvalResult val;   
+    EvalResult val;
 
 	tree = Lookup(name);
 	if(!tree) {
@@ -1531,7 +1531,7 @@ int AttrList::EvalInteger (const char *name, const AttrList *target, int &value)
 			return 0;
 		}
 	}
-	
+
     if (tree && tree->EvalTree (this, target, &val) && val.type == LX_INTEGER)
     {
 		value = val.i;
@@ -1544,9 +1544,9 @@ int AttrList::EvalInteger (const char *name, const AttrList *target, int &value)
 int AttrList::EvalFloat (const char *name, const AttrList *target, float &value) const
 {
     ExprTree *tree;
-    EvalResult val;   
+    EvalResult val;
 
-    tree = Lookup(name);   
+    tree = Lookup(name);
 
     if(!tree) {
         if (target) {
@@ -1581,9 +1581,9 @@ int AttrList::EvalFloat (const char *name, const AttrList *target, float &value)
 int AttrList::EvalBool (const char *name, const AttrList *target, int &value) const
 {
     ExprTree *tree;
-    EvalResult val;   
+    EvalResult val;
 
-    tree = Lookup(name);   
+    tree = Lookup(name);
     if(!tree) {
         if (target) {
             tree = target->Lookup(name);
@@ -1719,7 +1719,7 @@ AttrList::sPrintExpr(char *buffer, unsigned int buffersize, const char* name)
 			EXCEPT("Out of memory");
 		}
 	}
-    
+
 	return buffer;
 }
 
@@ -1816,7 +1816,7 @@ int AttrList::sPrint(MyString &output)
 
 ////////////////////////////////////////////////////////////////////////////////
 // print the whole AttrList to the given debug level. The expressions
-// are in infix notation.  
+// are in infix notation.
 ////////////////////////////////////////////////////////////////////////////////
 void
 AttrList::dPrint( int level )
@@ -2068,7 +2068,7 @@ int AttrListList::Delete(AttrList* attrList)
 {
     AttrListAbstract*	cur;
     AttrListRep*		tmpRep;
-    
+
     for(cur = head; cur; cur = cur->next)
     {
 		if(cur->Type() == ATTRLISTENTITY) // this AttrList has no replicant
@@ -2103,7 +2103,7 @@ int AttrListList::Delete(AttrList* attrList)
 				else
 				// AttrList deleted is at neither the head nor the tail
 				{
-					// we should be able to say 
+					// we should be able to say
 					//    cur->prev->next = cur->next
 					// but sometimes cur->prev is NULL!!!!  since
 					// v6.1 will be completely replacing classads
@@ -2114,7 +2114,7 @@ int AttrListList::Delete(AttrList* attrList)
 						// this should not happen, but it did.
 						// figure out what cur->prev should be
 						// by traversing the next pointers.
-						// if we cannot figure it out by 
+						// if we cannot figure it out by
 						// traversing all the next pointers,
 						// we'll fall through and SEGV - this is
 						// better than an EXCEPT since we'll get a core
@@ -2141,8 +2141,8 @@ int AttrListList::Delete(AttrList* attrList)
 			{
 				// this is the AttrList to be deleted
 				if(cur == ptr) ptr = ptr->next;
-				
-				if ( cur != head && cur != tail ) 
+
+				if ( cur != head && cur != tail )
 				{
 					cur->prev->next = cur->next;
 					cur->next->prev = cur->prev;
@@ -2244,7 +2244,7 @@ void AttrListList::fPrintAttrListList(FILE* f, bool use_xml)
     AttrList            *tmpAttrList;
 	ClassAdXMLUnparser  unparser;
 	MyString            xml;
-				
+
 	if (use_xml) {
 		unparser.SetUseCompactSpacing(false);
 		unparser.AddXMLFileHeader(xml);
@@ -2346,7 +2346,7 @@ int AttrList::put(Stream& s)
 	if ( send_server_time ) {
 		// insert in the current time from the server's (schedd)
 		// point of view.  this is used so condor_q can compute some
-		// time values based upon other attribute values without 
+		// time values based upon other attribute values without
 		// worrying about the clocks being different on the condor_schedd
 		// machine -vs- the condor_q machine.
 		line = (char *) malloc(strlen(ATTR_SERVER_TIME)
@@ -2392,8 +2392,8 @@ AttrList::clear( void )
 }
 
 
-void AttrList::GetReferences(const char *attribute, 
-							 StringList &internal_references, 
+void AttrList::GetReferences(const char *attribute,
+							 StringList &internal_references,
 							 StringList &external_references) const
 {
 	ExprTree  *tree;
@@ -2406,8 +2406,8 @@ void AttrList::GetReferences(const char *attribute,
 	return;
 }
 
-bool AttrList::GetExprReferences(const char *expr, 
-							 StringList &internal_references, 
+bool AttrList::GetExprReferences(const char *expr,
+							 StringList &internal_references,
 							 StringList &external_references) const
 {
 	ExprTree  *tree = NULL;
@@ -2435,9 +2435,9 @@ bool AttrList::GetExprReferences(const char *expr,
 bool AttrList::IsExternalReference(const char *name, char **simplified_name) const
 {
 	// There are two ways to know if this is an internal or external
-	// reference.  
-	// 1. If it is prefixed with MY or has no prefix but refers to an 
-	//    internal variable definition, it's internal. 
+	// reference.
+	// 1. If it is prefixed with MY or has no prefix but refers to an
+	//    internal variable definition, it's internal.
 	// 2. If it is prefixed with TARGET or another non-MY prefix, or if
 	//    it has no prefix, but there is no other variable it could refer to.
 	const char  *prefix = name;
@@ -2451,7 +2451,7 @@ bool AttrList::IsExternalReference(const char *name, char **simplified_name) con
 
 	seperator = (char*)strchr(name,'.');
 
-	// We have a prefix, so we examine it. 
+	// We have a prefix, so we examine it.
 	if (seperator) {
 		*seperator = '\0';
 		rest = seperator + 1;
@@ -2478,7 +2478,7 @@ bool AttrList::IsExternalReference(const char *name, char **simplified_name) con
 		} else {
 			*simplified_name = NULL;
 		}
-	} 
+	}
 
 	if ( seperator ) {
 		*seperator = '.';
@@ -2493,7 +2493,7 @@ AttrList::initFromStream(Stream& s)
 	char const *line;
     int numExprs;
 	int succeeded;
-	
+
 	succeeded = 1;
 
 	// First, clear our ad so we start with a fresh ClassAd
@@ -2503,14 +2503,14 @@ AttrList::initFromStream(Stream& s)
 		this->hash = new HashTable<YourString, AttrListElem *>(hash_size, torekHash);
 	}
 
-	// Now, read our new set of attributes off the given stream 
+	// Now, read our new set of attributes off the given stream
     s.decode();
 
     if(!s.code(numExprs)) {
 		dprintf(D_FULLDEBUG,"Failed to read ClassAd size.\n");
         return 0;
 	}
-    
+
     for(int i = 0; i < numExprs; i++) {
 
 		line = NULL;
@@ -2623,7 +2623,7 @@ int AttrList::get(XDR *xdrs)
 
     if(!xdr_int (xdrs, &numExprs))
         return 0;
-    
+
     line = new char[ATTRLIST_MAX_EXPRESSION];
 	if (!line)
 	{
@@ -2633,23 +2633,23 @@ int AttrList::get(XDR *xdrs)
 	// if we encounter a parse error, we still read the remaining strings from
 	// the xdr stream --- we just don't parse these.  Also, we return a FALSE
 	// indicating failure
-    for(int i = 0; i < numExprs; i++) 
-	{ 
+    for(int i = 0; i < numExprs; i++)
+	{
 		strcpy(line, "");
 		if(!xdr_mywrapstring (xdrs, &line)) {
             delete [] line;
             return 0;
         }
-        
+
 		// parse iff no errorFlag
 		if (!errorFlag)
 		{
 			int result = Parse (line, tree);
-			if(result == 0 && tree->MyType() != LX_ERROR) 
+			if(result == 0 && tree->MyType() != LX_ERROR)
 			{
 				Insert (tree);
 			}
-			else 
+			else
 			{
 				errorFlag = 1;
 			}
@@ -2766,7 +2766,7 @@ int AttrList::
 Assign(char const *variable,double value)
 {
 	MyString buf;
-	/* WARNING: The internal representation may only store float sized 
+	/* WARNING: The internal representation may only store float sized
 		quantities. but if this is ever fixed, the whole source base doesn't
 		need to be updated to deal with assigning double values due to the
 		existance of this call. */

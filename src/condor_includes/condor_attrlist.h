@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -53,10 +53,10 @@ class AttrListElem
 
         AttrListElem(ExprTree*);			// constructor
         AttrListElem(AttrListElem&);		// copy constructor
-        ~AttrListElem() 
+        ~AttrListElem()
 			{
 				if (tree != NULL) {
-				   	delete tree; 
+				   	delete tree;
 					tree = NULL;
 				}
 			}
@@ -67,7 +67,7 @@ class AttrListElem
         friend class AttrList;
         friend class ClassAd;
         friend class AttrListList;
-  
+
     private :
 
         ExprTree*		tree;	// the tree pointed to by this element
@@ -117,8 +117,8 @@ class AttrListRep: public AttrListAbstract
 
     private:
 
-        AttrList*		attrList;		// the original AttrList 
-        AttrListRep*	nextRep;		// next copy of original AttrList 
+        AttrList*		attrList;		// the original AttrList
+        AttrListRep*	nextRep;		// next copy of original AttrList
 };
 
 class AttrList : public AttrListAbstract
@@ -142,10 +142,10 @@ class AttrList : public AttrListAbstract
 		AttrList& operator=(const AttrList& other);
 
 		// insert expressions into the ad
-        int        	Insert(const char*, 
+        int        	Insert(const char*,
 							bool check_for_dups=true);	// insert at the tail
 
-        int        	Insert(ExprTree*, 
+        int        	Insert(ExprTree*,
 							bool check_for_dups=true);	// insert at the tail
 
 		int			InsertOrUpdate(const char *expr) { return Insert(expr); }
@@ -190,7 +190,7 @@ class AttrList : public AttrListAbstract
 		// excluded when serializing the ClassAd.
 		void SetPrivateAttributesInvisible(bool make_invisible);
 
-		// deletion of expressions	
+		// deletion of expressions
         int			Delete(const char*); 	// delete the expr with the name
 
 		// Set or clear the dirty flag for each expression.
@@ -219,7 +219,7 @@ class AttrList : public AttrListAbstract
         ExprTree*	Lookup(const char*) const;	// look up an expression
 		ExprTree*	Lookup(const ExprTree*) const;
 		AttrListElem *LookupElem(const char *name) const;
-		int         LookupString(const char *, char *) const; 
+		int         LookupString(const char *, char *) const;
 		int         LookupString(const char *, char *, int) const; //uses strncpy
 		int         LookupString (const char *name, char **value) const;
 		int         LookupString (const char *name, MyString & value) const;
@@ -244,7 +244,7 @@ class AttrList : public AttrListAbstract
 		int			fPrintExpr(FILE*, char*);	// print an expression
 		char*		sPrintExpr(char*, unsigned int, const char*); // print expression to buffer
         virtual int	fPrint(FILE*);				// print the AttrList to a file
-		int         sPrint(MyString &output);   // put the AttrList in a string. 
+		int         sPrint(MyString &output);   // put the AttrList in a string.
 		void		dPrint( int );				// dprintf to given dprintf level
 
 		// conversion function
@@ -267,14 +267,14 @@ class AttrList : public AttrListAbstract
 			// by the value of the specified attribute.  Note that
 			// the attribute itself will not be listed as one of the
 			// references--only things that it refers to.
-		void GetReferences(const char *attribute, 
-						   StringList &internal_references, 
+		void GetReferences(const char *attribute,
+						   StringList &internal_references,
 						   StringList &external_references) const;
 			// Create a list of all ClassAd attribute references made
 			// by the given expression.  Returns false if the expression
 			// could not be parsed.
-		bool GetExprReferences(const char *expr, 
-							   StringList &internal_references, 
+		bool GetExprReferences(const char *expr,
+							   StringList &internal_references,
 							   StringList &external_references) const;
 		bool IsExternalReference(const char *name, char **simplified_name) const;
 
@@ -283,7 +283,7 @@ class AttrList : public AttrListAbstract
 		int get (XDR *);
 #endif
 
-		friend	class	AttrListRep;			// access "next" 
+		friend	class	AttrListRep;			// access "next"
 		friend	class	AttrListList;			// access "UpdateAgg()"
 		friend	class	ClassAd;
 
@@ -315,7 +315,7 @@ private:
 class AttrListList
 {
     public:
-    
+
         AttrListList();					// constructor
         AttrListList(AttrListList&);	// copy constructor
         virtual ~AttrListList();		// destructor
@@ -335,7 +335,7 @@ class AttrListList
 
       	friend	  	class		AttrList;
       	friend	  	class		ClassAd;
-  
+
     protected:
 
         // update aggregate expressions in associated AttrLists
