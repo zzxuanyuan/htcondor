@@ -40,12 +40,23 @@ ClassAdConstraintBenchmarkOld::~ClassAdConstraintBenchmarkOld( void )
 bool
 ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream )
 {
-	int				isEOF = 0, error = 0, empty = 0;
+	int			isEOF = 0, error = 0, empty = 0;
 	ClassAd		*ad = new ClassAd( stream, ";", isEOF, error, empty );
-	if ( NULL == ad ) {
-		if ( error ) {
-			fprintf( stderr, "Error parsing template ad\n" );
+	if ( isEOF ) {
+		if ( ad ) {
+			delete ad;
 		}
+		return false;
+	}
+	if ( error || empty ) {
+		fprintf( stderr, "Error parsing template ad\n" );
+		if ( ad ) {
+			delete ad;
+		}
+		return false;
+	}
+	if ( NULL == ad ) {
+		fprintf( stderr, "NULL ad\n" );
 		return( false );
 	}
 	m_template_ads.push_back( ad );
@@ -101,6 +112,7 @@ ClassAdConstraintBenchmarkOld::generateAd( int template_num )
 
 bool
 ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
+										 int query_num,
 										 bool two_way,
 										 int &matches )
 {
@@ -109,9 +121,12 @@ ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
 	// Is the query string a ClassAd ? (surrounded by [] like new classads)
 	int len = strlen(query_str);
 	if ( query_str[0] == '[' && query_str[len-1] == ']' ) {
-		char		*ad_str = strdup( query_str );
-		ad_str[len-2] = '\0';
-		query_ad = new ClassAd( ad_str, '\n' );
+		char		*ad_str = strdup( query_str+1 );
+		ad_str[len-2] = '\0'; len -= 2;
+		while( len && isspace(ad_str[len-1]) ) {
+			ad_str[--len] = '\0';
+		}
+		query_ad = new ClassAd( ad_str, ';' );
 	}
 	else {
 		MyString	req_expr = "Requirements = ";
@@ -120,19 +135,29 @@ ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
 		query_ad->Insert( req_expr.Value() );
 	}
 
-	if ( isVerbose(1) ) {
+	if ( (isVerbose(1) && (0==query_num)) || isVerbose(2) ) {
 		printf( "SearchAd=\n" );
 		query_ad->fPrint( stdout );
 	}
 
 	matches = 0;
+	int iters = 0;
 	m_collection.StartIterateAllClassAds();
 	do {
 		ClassAd		*ad;
 		if (!m_collection.IterateAllClassAds( ad ) ) {
+			printf( "Stoping after %d iterations, %d matches\n", iters, matches);
 			break;
 		}
-		if ( (*ad) >= (*query_ad) ) {
+		iters++;
+		bool	result;
+		if ( two_way ) {
+			result = ( (*ad) == (*query_ad) );
+		}
+		else {
+			result = ( (*ad) >= (*query_ad) );
+		}
+		if ( result ) {
 			matches++;
 		}
 	} while( true );

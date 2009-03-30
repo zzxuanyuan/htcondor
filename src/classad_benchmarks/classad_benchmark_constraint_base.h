@@ -43,7 +43,7 @@ class ClassAdConstraintBenchmarkBase
 	virtual bool generateAd( int template_num ) = 0;
 	virtual bool createView( const char *expr ) = 0;
 	virtual bool printCollectionInfo( void ) const = 0;
-	virtual bool runQuery( const char *expr, bool two_way, int &matches ) = 0;
+	virtual bool runQuery( const char *expr, int qnum, bool two_way, int &matches ) = 0;
 	virtual int numTemplates( void ) const = 0;
 	virtual bool getViewMembers( int & ) const = 0;
 

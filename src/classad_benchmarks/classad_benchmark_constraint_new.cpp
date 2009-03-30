@@ -139,6 +139,7 @@ ClassAdConstraintBenchmarkNew::generateAd( int template_num )
 
 bool
 ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
+										 int query_num,
 										 bool two_way,
 										 int &matches )
 {
@@ -158,7 +159,7 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 		query_ad->Insert( "Requirements", req_expr );
 	}
 
-	if ( isVerbose(1) ) {
+	if ( (isVerbose(1) && (0==query_num)) || isVerbose(2) ) {
 		classad::PrettyPrint u;
 		std::string adbuffer;
 		u.Unparse( adbuffer, query_ad );

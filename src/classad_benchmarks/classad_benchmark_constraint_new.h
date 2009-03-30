@@ -36,7 +36,7 @@ class ClassAdConstraintBenchmarkNew : public ClassAdConstraintBenchmarkBase
 	bool createView( const char *expr );
 	bool generateAd( int template_num );
 	bool printCollectionInfo( void ) const;
-	bool runQuery( const char *query, bool two_way, int &matches );
+	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
 	int numTemplates( void ) const;
 	bool getViewMembers( int & ) const;
 

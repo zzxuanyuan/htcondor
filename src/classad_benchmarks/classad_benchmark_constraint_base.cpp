@@ -101,7 +101,7 @@ ClassAdConstraintBenchmarkBase::runQueries(
 		DebugTimerPrintf	 qtimer( false );
 
 		qtimer.Start();
-		if ( !runQuery( query, two_way, matches ) ) {
+		if ( !runQuery( query, i, two_way, matches ) ) {
 			fprintf( stderr, "runQuery failed\n" );
 			return false;
 		}
