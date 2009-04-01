@@ -81,7 +81,10 @@ if ($taskname eq "win_make") {
     system("make.bat /exit");
 }
 elsif ($taskname eq "win_release") {
+    system("pwd");
+    print "mkdir($PublicDir)\n";
     mkdir("$PublicDir", 0777) || c_die ("Can't mkdir($PublicDir): $!\n");
+    print "mkdir($ReleaseDir)\n";
     mkdir("$ReleaseDir", 0777) || c_die ("Can't mkdir($ReleaseDir): $!\n");
     chdir("$msconfigDir") || c_die("Can't chdir($msconfigDir): $!\n");
     system("dorelease $ReleaseDir");
