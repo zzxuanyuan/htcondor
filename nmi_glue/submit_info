@@ -110,7 +110,7 @@ prereqs   = libtool-1.5.26
 # Platforms with no prereqs at all
 ########################################
 [
-platforms = x86_winnt_5.1, 
+platforms = x86_winnt_5.1, \
 	    x86_64_winnt_5.1, \
 	    x86_winnt_6.0, \
 	    ppc64_sles_9, \
