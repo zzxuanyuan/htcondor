@@ -40,7 +40,7 @@ if ($ENV{NMI_PLATFORM} =~ /winnt/) {
     $PublicDir = "$BaseDir\\public";
     $ReleaseDir = "$PublicDir\\release";
     $PackageDir = "$PublicDir\\package";
-    $ENV{USERPROFILE} = "$BaseDir";
+    #$ENV{USERPROFILE} = "$BaseDir";
     $ENV{TMP} = "$BaseDir";
     $ENV{PATH} .= ";$msconfigDir";
 }
