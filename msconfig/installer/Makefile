@@ -48,7 +48,7 @@ condor_set_acls: condor_set_acls.c
 # build the actual MSI package
 msi: condor_setup condor.mm
 	cmd /c if not exist MakeMSI ..\\tar xf makemsi.tar
-	cmd /c mm condor.mm
+	mm condor.mm
 
 # put together the MSI version file, which tells MAKEMSI what the
 # version number is, and what the filename of the package should be.
