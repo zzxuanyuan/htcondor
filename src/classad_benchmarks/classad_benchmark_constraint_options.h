@@ -48,6 +48,8 @@ public:
 	const char * getViewExpr( void ) const { return m_view_expr; };
 	void setTwoWay( bool two_way ) { m_two_way = two_way; };
 	bool getTwoWay( void ) const { return m_two_way; };
+	void setRandomizeCollection( bool random ) { m_random = random; };
+	bool getRandomizeCollection( void ) const { return m_random; };
 
 private:
 	int			 m_verbosity;
@@ -57,6 +59,7 @@ private:
 	const char	*m_query;
 	const char	*m_view_expr;
 	bool		 m_two_way;
+	bool		 m_random;
 };
 
 #endif

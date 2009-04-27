@@ -70,7 +70,13 @@ ClassAdConstraintBenchmarkBase::setup( int num_ads, const char *view_expr )
 	// Generate ads
 	DebugTimerPrintf	timer;
 	for( int i = 0;  i < num_ads;  i++ ) {
-		int			 ad_num  = (get_random_int() % num_templates);
+		int			 ad_num;
+		if ( m_options.getRandomizeCollection() ) {
+			ad_num = (get_random_int() % num_templates);
+		}
+		else {
+			ad_num = ( i % num_templates );
+		}
 		if ( !generateAd( ad_num ) ) {
 			fprintf( stderr, "Ad generation failed\n" );
 			return false;

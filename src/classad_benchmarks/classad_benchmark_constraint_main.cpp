@@ -89,7 +89,8 @@ Usage( void )
 		"<template-file> <num-ads> <num-searchs> <constraint>\n"
 		"  --view <expr>: Use view with <expr>\n"
 		"  --disable-view: Disable view\n"
-		"  --[en|dis]able-2way: Enable / disable 2-way matching\n"
+		"  --[en|dis]able-2way: En/Dis-able 2-way matching <disabled>\n"
+		"  --[en|dis]able-random: En/Disable randomized collection<disabled>\n"
 		"\n"
 		"  -d <level>: debug level (e.g., D_FULLDEBUG)\n"
 		"  --debug <level>: debug level (e.g., D_FULLDEBUG)\n"
@@ -166,6 +167,11 @@ CheckArgs(int argc, const char **argv, ClassAdConstraintBenchmarkOptions &opts)
 			opts.setTwoWay(true);
 		} else if ( arg.Match( "disable-2way" ) ) {
 			opts.setTwoWay(false);
+
+		} else if ( arg.Match( "enable-random" ) ) {
+			opts.setRandomizeCollection(true);
+		} else if ( arg.Match( "disable-random" ) ) {
+			opts.setRandomizeCollection(false);
 
 		} else if ( ! arg.ArgIsOpt() ) {
 			if ( 0 == fixed ) {

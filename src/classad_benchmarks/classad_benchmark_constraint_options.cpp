@@ -31,7 +31,8 @@ ClassAdConstraintBenchmarkOptions::ClassAdConstraintBenchmarkOptions( void )
 		  m_num_queries( 0 ),
 		  m_query( NULL ),
 		  m_view_expr( NULL ),
-		  m_two_way( false )
+		  m_two_way( false ),
+		  m_random( false )
 {
 	/* Do nothing */
 }
