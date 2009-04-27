@@ -40,25 +40,18 @@ ClassAdConstraintBenchmarkNew::~ClassAdConstraintBenchmarkNew( void )
 {
 }
 
-bool
+ClassAdGenericBase *
 ClassAdConstraintBenchmarkNew::parseTemplateAd( FILE *stream )
 {
-	classad::ClassAdParser	parser;
-	classad::ClassAd		*ad = parser.ParseClassAd( stream );
+	static classad::ClassAdParser	 parser;
+	classad::ClassAd				*ad = parser.ParseClassAd( stream );
 	if ( NULL == ad ) {
 		if ( numTemplates() == 0 ) {
 			fprintf( stderr, "Error parsing template ad\n" );
 		}
-		return( false );
+		return( NULL );
 	}
-	m_template_ads.push_back( ad );
-	return true;
-}
-
-int
-ClassAdConstraintBenchmarkNew::numTemplates( void ) const
-{
-	return m_template_ads.size();
+	return new ClassAdGenericNew(ad);
 }
 
 bool
@@ -113,14 +106,16 @@ ClassAdConstraintBenchmarkNew::getViewMembers( int &members ) const
 		fprintf( stderr, "Error getting view members\n" );
 		return false;
 	}
+	delete ad;
 	return true;
 }
 
 bool
-ClassAdConstraintBenchmarkNew::generateAd( int template_num )
+ClassAdConstraintBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
 {
-	const classad::ClassAd	*template_ad = m_template_ads[template_num];
-	classad::ClassAd		*ad = new classad::ClassAd( *template_ad );
+	const ClassAdGenericNew	*gad =
+		dynamic_cast<const ClassAdGenericNew*>(base_ad);
+	classad::ClassAd		*ad = gad->get();
 	string					 name;
 	string					 type;
 
@@ -144,8 +139,8 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 										 int &matches )
 {
 	// Is the query string a ClassAd ?
-	classad::ClassAdParser	 parser;
-	classad::ClassAd		*query_ad = parser.ParseClassAd( query_str, true );
+	static classad::ClassAdParser	 parser;
+	classad::ClassAd	*query_ad = parser.ParseClassAd( query_str, true );
 	if ( NULL == query_ad ) {
 		query_ad = new classad::ClassAd;
 		classad::ExprTree		*req_expr =
@@ -170,6 +165,7 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 	query.Bind( &m_collection );
 	if ( !query.Query( m_view_name, query_ad, two_way ) ) {
 		fprintf( stderr, "Query failed\n" );
+		delete query_ad;
 		return false;
 	}
 
@@ -180,8 +176,10 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 			break;
 		}
 		classad::ClassAd	*ad = m_collection.GetClassAd( key );
+		(void) ad;
 		matches++;
 	} while ( query.Next( key ) );
 
+	delete query_ad;
 	return true;
 }

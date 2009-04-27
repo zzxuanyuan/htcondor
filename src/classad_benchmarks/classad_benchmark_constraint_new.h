@@ -26,23 +26,34 @@
 #include "classad/classad_distribution.h"
 using namespace std;
 
+class ClassAdGenericNew : public ClassAdGenericBase
+{
+  public:
+	ClassAdGenericNew( classad::ClassAd *ad ) : m_ad(ad) { };
+	virtual ~ClassAdGenericNew( void ) { };
+
+	classad::ClassAd *get( void ) const { return m_ad; };
+	void freeAd( void ) { delete m_ad; };
+
+  private:
+	classad::ClassAd	*m_ad;
+};
+
 class ClassAdConstraintBenchmarkNew : public ClassAdConstraintBenchmarkBase
 {
   public:
 	ClassAdConstraintBenchmarkNew( const ClassAdConstraintBenchmarkOptions & );
 	virtual ~ClassAdConstraintBenchmarkNew( void );
 
-	bool parseTemplateAd( FILE *fp );
+	ClassAdGenericBase *parseTemplateAd( FILE *fp );
 	bool createView( const char *expr );
-	bool generateAd( int template_num );
+	virtual bool generateAd( const ClassAdGenericBase *template_ad );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
-	int numTemplates( void ) const;
 	bool getViewMembers( int & ) const;
 
   private:
 	mutable classad::ClassAdCollection	 m_collection;
-	vector<const classad::ClassAd *>	 m_template_ads;
 
 	// Query
 	classad::ViewName					 m_view_name;

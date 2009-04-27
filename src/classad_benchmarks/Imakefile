@@ -19,7 +19,9 @@ OBJ =	\
 
 
 # Individual targets
+new: classad_benchmark_constraint-new
 c_plus_target(classad_benchmark_constraint-new,$(OBJ) classad_benchmark_constraint-new.o,$(LIB))
+old: classad_benchmark_constraint-old
 c_plus_target(classad_benchmark_constraint-old,$(OBJ) classad_benchmark_constraint-old.o,$(LIB))
 
 classad_benchmark_constraint-new.o : classad_benchmark_constraint_main.cpp

@@ -37,7 +37,7 @@ ClassAdConstraintBenchmarkOld::~ClassAdConstraintBenchmarkOld( void )
 {
 }
 
-bool
+ClassAdGenericBase *
 ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream )
 {
 	int			isEOF = 0, error = 0, empty = 0;
@@ -59,14 +59,7 @@ ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream )
 		fprintf( stderr, "NULL ad\n" );
 		return( false );
 	}
-	m_template_ads.push_back( ad );
-	return true;
-}
-
-int
-ClassAdConstraintBenchmarkOld::numTemplates( void ) const
-{
-	return m_template_ads.size();
+	return new ClassAdGenericOld(ad);
 }
 
 bool
@@ -89,24 +82,25 @@ ClassAdConstraintBenchmarkOld::getViewMembers( int &members ) const
 }
 
 bool
-ClassAdConstraintBenchmarkOld::generateAd( int template_num )
+ClassAdConstraintBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
 {
-	const ClassAd	*template_ad = m_template_ads[template_num];
-	ClassAd			 ad( *template_ad );
+	const ClassAdGenericOld	*gad =
+		dynamic_cast<const ClassAdGenericOld*>(base_ad);
+	ClassAd			*ad = gad->get();
 	MyString		 name;
 	MyString		 type;
 	static int		 n = 0;
 
-	if ( !ad.LookupString( "Name", name )   ||
-		 !ad.LookupString( "MyType", type )  ) {
+	if ( !ad->LookupString( "Name", name )   ||
+		 !ad->LookupString( "MyType", type )  ) {
 		fprintf( stderr, "name or type missing" );
 		return false;
 	}
 	char	key[256];
 	snprintf(key, sizeof(key), "%s/%s/%06d", type.Value(), name.Value(), n++);
 	key[sizeof(key)-1] = '\0';
-	ad.Assign( "key", key );
-	m_collection.NewClassAd( key, &ad );
+	ad->Assign( "key", key );
+	m_collection.NewClassAd( key, ad );
 	return true;
 }
 

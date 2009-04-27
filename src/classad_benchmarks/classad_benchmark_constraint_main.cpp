@@ -64,21 +64,19 @@ int main( int argc, const char *argv[] )
 	if ( !opts.Verify( )) {
 		exit( 1 );
 	}
-	if ( !benchmark.readAdFile( opts.getAdFile() ) ) {
+	if ( !benchmark.readAdFile( ) ) {
 		exit( 1 );
 	}
 
-	if ( !benchmark.setup( opts.getNumAds(), opts.getViewExpr() ) ) {
+	if ( !benchmark.setup( ) ) {
 		Usage( );
 		exit( 1 );
 	}
 
-	if ( !benchmark.runQueries( opts.getNumQueries(),
-								opts.getQuery(),
-								opts.getTwoWay()
-								) ) {
+	if ( !benchmark.runQueries( ) ) {
 		exit( 1 );
 	}
+	return 0;
 }
 
 void

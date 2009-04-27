@@ -22,7 +22,20 @@
 
 #include "classad_benchmark_constraint_base.h"
 #include "classad_collection.h"
-#include <vector>
+
+class ClassAdGenericOld : public ClassAdGenericBase
+{
+  public:
+	ClassAdGenericOld( ClassAd *ad ) : m_ad(ad) { };
+	virtual ~ClassAdGenericOld( void ) { };
+
+	ClassAd *get( void ) const { return m_ad; };
+	void freeAd( void ) { delete m_ad; };
+
+  private:
+	ClassAd	*m_ad;
+};
+
 
 class ClassAdConstraintBenchmarkOld : public ClassAdConstraintBenchmarkBase
 {
@@ -30,17 +43,15 @@ class ClassAdConstraintBenchmarkOld : public ClassAdConstraintBenchmarkBase
 	ClassAdConstraintBenchmarkOld( const ClassAdConstraintBenchmarkOptions & );
 	virtual ~ClassAdConstraintBenchmarkOld( void );
 
-	bool parseTemplateAd( FILE *fp );
+	ClassAdGenericBase *parseTemplateAd( FILE *fp );
 	bool createView( const char *expr );
-	bool generateAd( int template_num );
+	bool generateAd( const ClassAdGenericBase *template_ad );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
-	int numTemplates( void ) const;
 	bool getViewMembers( int & ) const;
 
   private:
 	ClassAdCollection		 m_collection;
-	vector<const ClassAd *>	 m_template_ads;
 };
 
 #endif

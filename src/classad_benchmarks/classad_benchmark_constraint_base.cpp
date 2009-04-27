@@ -38,15 +38,30 @@ ClassAdConstraintBenchmarkBase::~ClassAdConstraintBenchmarkBase( void )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::readAdFile( const char *fname )
+ClassAdConstraintBenchmarkBase::readAdFile( void )
 {
-	FILE	*fp = fopen( fname, "r" );
+	const char	*fname = m_options.getAdFile();
+	FILE		*fp = fopen( fname, "r" );
 	if ( !fp ) {
 		fprintf( stderr, "Error opening %s\n", fname );
 		return false;
 	}
-	while( parseTemplateAd(fp) ) {
-		// Do nothing
+	while( true ) {
+		fpos_t			 offset;
+		if ( fgetpos( fp, &offset ) < 0 ) {
+			fprintf( stderr, "fgetpos() failed: %d %s\n",
+					 errno, strerror(errno) );
+			return false;
+		}
+		ClassAdGenericBase *ad = parseTemplateAd(fp);
+		if ( !ad ) {
+			break;		// Do nothing
+		}
+		else {
+			ad->freeAd( );
+			delete( ad );
+			m_template_offsets.push_back( offset );
+		}
 	}
 	fclose( fp );
 	printf( "Read %d template ads\n", numTemplates() );
@@ -54,8 +69,11 @@ ClassAdConstraintBenchmarkBase::readAdFile( const char *fname )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::setup( int num_ads, const char *view_expr )
+ClassAdConstraintBenchmarkBase::setup( void )
 {
+	int			 num_ads   = m_options.getNumAds();
+	const char	*view_expr = m_options.getViewExpr();
+
 	// Template ad?
 	int		num_templates = numTemplates();
 	if ( !num_templates ) {
@@ -64,6 +82,13 @@ ClassAdConstraintBenchmarkBase::setup( int num_ads, const char *view_expr )
 
 	// Setup the view
 	if ( view_expr && (!createView( view_expr ) )  ) {
+		return false;
+	}
+
+	const char	*fname = m_options.getAdFile();
+	FILE		*fp = fopen( fname, "r" );
+	if ( !fp ) {
+		fprintf( stderr, "Error opening %s\n", fname );
 		return false;
 	}
 
@@ -77,10 +102,25 @@ ClassAdConstraintBenchmarkBase::setup( int num_ads, const char *view_expr )
 		else {
 			ad_num = ( i % num_templates );
 		}
-		if ( !generateAd( ad_num ) ) {
+
+		fpos_t	offset = m_template_offsets[ad_num];
+		if ( fsetpos( fp, &offset ) < 0 ) {
+			fprintf( stderr, "fsetpos() failed: %d %s\n",
+					 errno, strerror(errno) );
+			return false;
+		}
+		ClassAdGenericBase *template_ad = parseTemplateAd( fp );
+		if ( !template_ad ) {
+			fprintf( stderr, "Failed to read template ad %d\n",
+					 ad_num );
+			return false;
+		}
+		if ( !generateAd( template_ad ) ) {
 			fprintf( stderr, "Ad generation failed\n" );
 			return false;
 		}
+		// No: template_ad->freeAd();
+		delete template_ad;
 	}	
 	timer.Log( "setup ads", num_ads );
 
@@ -93,13 +133,14 @@ ClassAdConstraintBenchmarkBase::setup( int num_ads, const char *view_expr )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::runQueries( 
-	int num_queries, const char *query, bool two_way )
+ClassAdConstraintBenchmarkBase::runQueries( void )
 {
-
-	DebugTimerPrintf	timer;
-	int					total_matches = 0;
-	int					view_members;
+	DebugTimerPrintf	 timer;
+	int					 total_matches = 0;
+	int					 view_members;
+	int					 num_queries	= m_options.getNumQueries();
+	const char			*query      	= m_options.getQuery();
+	bool				 two_way		= m_options.getTwoWay();
 
 	getViewMembers( view_members);
 	for( int i = 0;  i < num_queries;  i++ ) {
