@@ -30,6 +30,9 @@
 #include "throttle_by_category.h"
 #include "read_multiple_logs.h"
 #include "CondorError.h"
+#include <set>
+
+using namespace std;
 
 class ThrottleByCategory;
 
@@ -180,7 +183,7 @@ class Job {
     Script * _scriptPost;
 
     ///
-    inline SimpleList<JobID_t> & GetQueueRef (const queue_t queue) {
+    inline set<JobID_t> & GetQueueRef (const queue_t queue) {
         return _queues[queue];
     }
 
@@ -218,7 +221,7 @@ class Job {
         @return true: queue is empty, false: otherwise
     */
     inline bool IsEmpty (const queue_t queue) const {
-        return _queues[queue].IsEmpty();
+        return _queues[queue].empty();
     }
 
     /** Returns the node's current status
@@ -455,7 +458,7 @@ private:
         children -> dependencies going out of the Job
         waiting -> Jobs on which the current Job is waiting for output 
     */
-    SimpleList<JobID_t> _queues[3];
+    set<JobID_t> _queues[3];
   
     /*  The ID of this job.  This serves as a primary key for Jobs, where each
         Job's ID is unique from all the rest
