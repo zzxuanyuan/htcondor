@@ -86,10 +86,9 @@ Usage( void )
 {
 	const char *	usage =
 		"Usage: bench_constraint [options] "
-		"<template-file> <num-ads> <num-searchs> [<constraint>]\n"
-		"  --const <constraint>: constraint string\n"
-		"  --disable-view: Disable view\n"
+		"<template-file> <num-ads> <num-searchs> <constraint>\n"
 		"  --view <expr>: Use view with <expr>\n"
+		"  --disable-view: Disable view\n"
 		"  --[en|dis]able-2way: Enable / disable 2-way matching\n"
 		"\n"
 		"  -d <level>: debug level (e.g., D_FULLDEBUG)\n"

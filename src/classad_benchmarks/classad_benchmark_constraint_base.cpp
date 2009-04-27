@@ -111,7 +111,7 @@ ClassAdConstraintBenchmarkBase::runQueries(
 		qtimer.Log( "Query matches", matches );
 		total_matches += matches;
 	}
-	timer.Log( "searchs", num_queries );
+	timer.Log( "Searches", num_queries );
 	timer.Log( "Total Ads", m_num_ads * num_queries );
 	timer.Log( "Total View Members", view_members * num_queries );
 	timer.Log( "Total Query matches", total_matches );

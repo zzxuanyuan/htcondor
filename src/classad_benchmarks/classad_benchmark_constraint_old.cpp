@@ -146,7 +146,6 @@ ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
 	do {
 		ClassAd		*ad;
 		if (!m_collection.IterateAllClassAds( ad ) ) {
-			printf( "Stoping after %d iterations, %d matches\n", iters, matches);
 			break;
 		}
 		iters++;
