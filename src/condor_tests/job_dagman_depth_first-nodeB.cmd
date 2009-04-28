@@ -1,6 +1,5 @@
-executable   = /bin/echo
-#TEMPTEMP arguments    = "-n $(XXX)' ' >> job_dagman_depth_first.order"
-arguments    = "-n nodename' ' >> job_dagman_depth_first.order"
+executable   = ./job_dagman_depth_first-nodeB.csh
+arguments    = $(nodename)
 universe     = scheduler
 output       = $(job).out
 error        = $(job).err

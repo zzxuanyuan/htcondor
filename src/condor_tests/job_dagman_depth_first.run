@@ -38,6 +38,13 @@ sub IDLE{1};
 sub HELD{5};
 sub RUNNING{2};
 
+# Get rid of any existing log files.
+foreach $name (@logfiles) {
+	if (-e $name) {
+		system("rm -f $name");
+	}
+}
+
 $abnormal = sub 
 {
 
@@ -97,12 +104,32 @@ $success = sub
 		}
 	}
 
-
-	#TEMPTEMP -- check for correct node order
-	# look for the following strings
-	#"B3-1 B3-2 B3-3"
-	#"B2-1 B2-2 B2-3"
-	#"B1-1 B1-2 B1-3"
+	# Make sure nodes executed in correct order.
+	foreach $name (@outfiles) {
+		$line = "";
+		$passed = 0;
+		$canopen = open(OUT,"<$name");
+		if( ! (defined $canopen)) {
+			CondorTest::debug("Can not open outfile<$name>:$!\n",1);
+			$diditpass = 0;
+		}
+		while(<OUT>) {
+			chomp();
+			$line = $_;
+			if( $line =~ /B1-1 B1-2 B1-3/ && $line =~ /B2-1 B2-2 B2-3/ &&
+						$line =~ /B3-1 B3-2 B3-3/ ) {
+				$passed = 1;
+				CondorTest::debug("$name: $line\n",1);
+			}
+		}
+		close(OUT);
+		if($passed == 1 ) {
+			;
+		} else {
+			CondorTest::debug("failed (wrong node order) $name: $line\n",1);
+			$diditpass = 0;
+		}
+	}
 
 
 	if($diditpass == 0) {
@@ -121,6 +148,6 @@ if( CondorTest::RunDagTest($testname, $cmd, 0, $dagman_args) ) {
 	CondorTest::debug("$testname: SUCCESS\n",1);
 	exit(0);
 } else {
-	die "$testname: CondorTest::RunTest() failed\n";
+	die "$testname: CondorTest::RunDagTest() failed\n";
 }
 

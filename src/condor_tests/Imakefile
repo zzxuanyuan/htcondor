@@ -1782,6 +1782,14 @@ TESTCLASS(job_dagman_splice-cat,quick)
 TESTCLASS(job_dagman_splice-cat,full)
 TESTCLASS(job_dagman_splice-cat,quicknolink)
 
+DESC(job_dagman_depth_first,"Make sure DAGMan depth-first traversal works")
+RUN(job_dagman_depth_first)
+TESTCLASS(job_dagman_depth_first,dagman)
+TESTCLASS(job_dagman_depth_first,quick)
+TESTCLASS(job_dagman_depth_first,full)
+TESTCLASS(job_dagman_depth_first,quicknolink)
+
+
 /* Sample performance tests */
 
 /*
