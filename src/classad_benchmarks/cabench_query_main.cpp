@@ -26,13 +26,13 @@
 
 #include <list>
 
-#include "classad_benchmark_query_base.h"
+#include "cabench_query_base.h"
 #if BENCHMARK_NEW_CLASSADS
-#  include "classad_benchmark_query_new.h"
-   typedef ClassAdQueryBenchmarkNew Benchmark;
+#  include "cabench_query_new_collection.h"
+   typedef CaBenchQueryNewCollection CaBench;
 #else
-#  include "classad_benchmark_query_old.h"
-   typedef ClassAdQueryBenchmarkOld Benchmark;
+#  include "cabench_query_old_collection.h"
+   typedef CaBenchQueryOldCollection CaBench;
 #endif
 
 #include "debug_timer_dprintf.h"
@@ -42,7 +42,7 @@ static const char *	VERSION = "0.1";
 // Prototypes
 void Usage( void );
 bool CheckArgs(int argc, const char **argv,
-			   ClassAdQueryBenchmarkOptions &opts);
+			   CaBenchQueryOptions &opts);
 
 int main( int argc, const char *argv[] )
 {
@@ -54,10 +54,10 @@ int main( int argc, const char *argv[] )
 
 		// Set up the dprintf stuff...
 	Termlog = true;
-	dprintf_config("CLASSAD_BENCHMARK");
+	dprintf_config("CABENCH_");
 
-	ClassAdQueryBenchmarkOptions	opts;
-	Benchmark							benchmark( opts );
+	CaBenchQueryOptions	opts;
+	CaBench				benchmark( opts );
 	if ( !CheckArgs(argc, argv, opts) ) {
 		exit( 1 );
 	}
@@ -109,7 +109,7 @@ Usage( void )
 }
 
 bool
-CheckArgs(int argc, const char **argv, ClassAdQueryBenchmarkOptions &opts)
+CheckArgs(int argc, const char **argv, CaBenchQueryOptions &opts)
 {
 
 	int	fixed = 0;

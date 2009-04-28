@@ -21,7 +21,8 @@
 #include "condor_debug.h"
 #include "condor_attributes.h"
 
-#include "classad_benchmark_query_new.h"
+#include "cabench_adwrap_new.h"
+#include "cabench_query_new_collection.h"
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
@@ -31,51 +32,23 @@ using namespace std;
 
 
 // =======================================
-// ClassAdGenericNew methods
+// CaBenchQueryNew methods
 // =======================================
-static int adCount = 0;
-ClassAdGenericNew::ClassAdGenericNew( classad::ClassAd *ad, bool dtor_del_ad )
-		: ClassAdGenericBase( dtor_del_ad ),
-		  m_ad(ad)
-{
-	adCount++;
-};
-ClassAdGenericNew::~ClassAdGenericNew( void )
-{
-	if ( getDtorDelAd() ) {
-		deleteAd( );
-	}
-};
-void
-ClassAdGenericNew::deleteAd( void )
-{
-	adCount--;
-	if ( m_ad ) {
-		delete m_ad;
-		m_ad = NULL;
-	}
-};
-
-
-
-// =======================================
-// ClassAdQueryBenchmarkNew methods
-// =======================================
-ClassAdQueryBenchmarkNew::ClassAdQueryBenchmarkNew(
-	const ClassAdQueryBenchmarkOptions &options) 
-		: ClassAdQueryBenchmarkBase( options )
+CaBenchQueryNewCollection::CaBenchQueryNewCollection(
+	const CaBenchQueryOptions &options) 
+		: CaBenchQueryBase( options )
 {
 	m_collection = new classad::ClassAdCollection;
 	m_view_name = "root";
 }
 
-ClassAdQueryBenchmarkNew::~ClassAdQueryBenchmarkNew( void )
+CaBenchQueryNewCollection::~CaBenchQueryNewCollection( void )
 {
 	releaseMemory( );
 }
 
 void
-ClassAdQueryBenchmarkNew::releaseMemory( void )
+CaBenchQueryNewCollection::releaseMemory( void )
 {
 	if ( m_collection ) {
 		delete m_collection;
@@ -83,9 +56,8 @@ ClassAdQueryBenchmarkNew::releaseMemory( void )
 	}
 }
 
-ClassAdGenericBase *
-ClassAdQueryBenchmarkNew::parseTemplateAd( FILE *stream,
-										   bool dtor_del_ad )
+CaBenchAdWrapBase *
+CaBenchQueryNewCollection::parseTemplateAd( FILE *stream, bool dtor_del_ad )
 {
 	static classad::ClassAdParser	 parser;
 	classad::ClassAd				*ad = parser.ParseClassAd( stream );
@@ -95,11 +67,11 @@ ClassAdQueryBenchmarkNew::parseTemplateAd( FILE *stream,
 		}
 		return( NULL );
 	}
-	return new ClassAdGenericNew(ad, dtor_del_ad );
+	return new CaBenchAdWrapNew(ad, dtor_del_ad );
 }
 
 bool
-ClassAdQueryBenchmarkNew::createView( const char *constraint_expr )
+CaBenchQueryNewCollection::createView( const char *constraint_expr )
 {
 	if ( !constraint_expr ) {
 		return false;
@@ -120,7 +92,7 @@ ClassAdQueryBenchmarkNew::createView( const char *constraint_expr )
 }
 
 bool
-ClassAdQueryBenchmarkNew::printCollectionInfo( void ) const
+CaBenchQueryNewCollection::printCollectionInfo( void ) const
 {
 	if ( isVerbose(1) ) {
 		classad::ClassAd	*ad;
@@ -138,7 +110,7 @@ ClassAdQueryBenchmarkNew::printCollectionInfo( void ) const
 }
 
 bool
-ClassAdQueryBenchmarkNew::getViewMembers( int &members ) const
+CaBenchQueryNewCollection::getViewMembers( int &members ) const
 {
 	classad::ClassAd	*ad;
 	if ( !m_collection->GetViewInfo( m_view_name, ad ) ) {
@@ -155,10 +127,10 @@ ClassAdQueryBenchmarkNew::getViewMembers( int &members ) const
 }
 
 bool
-ClassAdQueryBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
+CaBenchQueryNewCollection::generateAd( const CaBenchAdWrapBase *base_ad )
 {
-	const ClassAdGenericNew	*gad = 
-		dynamic_cast<const ClassAdGenericNew*>(base_ad);
+	const CaBenchAdWrapNew	*gad = 
+		dynamic_cast<const CaBenchAdWrapNew*>(base_ad);
 	classad::ClassAd	*ad = gad->get();
 	string				 name;
 	string				 type;
@@ -177,10 +149,10 @@ ClassAdQueryBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
 }
 
 bool
-ClassAdQueryBenchmarkNew::runQuery( const char *query_str,
-										 int query_num,
-										 bool two_way,
-										 int &matches )
+CaBenchQueryNewCollection::runQuery( const char *query_str,
+									 int query_num,
+									 bool two_way,
+									 int &matches )
 {
 	// Is the query string a ClassAd ?
 	static classad::ClassAdParser	 parser;
@@ -229,7 +201,7 @@ ClassAdQueryBenchmarkNew::runQuery( const char *query_str,
 }
 
 int
-ClassAdQueryBenchmarkNew::getAdCount( void ) const
+CaBenchQueryNewCollection::getAdCount( void ) const
 {
-	return adCount;
+	return CaBenchAdWrapNew::getAdCount( );
 }

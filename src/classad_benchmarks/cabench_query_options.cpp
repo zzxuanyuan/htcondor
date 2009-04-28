@@ -23,9 +23,9 @@
 #include "condor_random_num.h"
 #include "debug_timer_printf.h"
 
-#include "classad_benchmark_query_options.h"
+#include "cabench_query_options.h"
 
-ClassAdQueryBenchmarkOptions::ClassAdQueryBenchmarkOptions( void ) 
+CaBenchQueryOptions::CaBenchQueryOptions( void ) 
 		: m_verbosity( 0 ),
 		  m_num_ads( 0 ),
 		  m_num_queries( 0 ),
@@ -38,7 +38,7 @@ ClassAdQueryBenchmarkOptions::ClassAdQueryBenchmarkOptions( void )
 }
 
 bool
-ClassAdQueryBenchmarkOptions::Verify( void ) const
+CaBenchQueryOptions::Verify( void ) const
 {
 	if ( m_num_ads == 0 ) {
 		fprintf( stderr, "No # ads specified\n" );

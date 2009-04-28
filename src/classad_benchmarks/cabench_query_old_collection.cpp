@@ -22,56 +22,27 @@
 #include "condor_attributes.h"
 #include "MyString.h"
 
-#include "classad_benchmark_query_old.h"
+#include "cabench_query_old_collection.h"
+#include "cabench_adwrap_old.h"
 #include "classad_collection.h"
 
 #include "debug_timer_dprintf.h"
 
 
-// =======================================
-// ClassAdGenericOld methods
-// =======================================
-static int adCount = 0;
-ClassAdGenericOld::ClassAdGenericOld( ClassAd *ad, bool dtor_del_ad )
-		: ClassAdGenericBase( dtor_del_ad ),
-		  m_ad( ad )
-{
-	adCount++;
-};
-ClassAdGenericOld::~ClassAdGenericOld( void )
-{
-	if ( getDtorDelAd() ) {
-		deleteAd( );
-	}
-};
-void
-ClassAdGenericOld::deleteAd( void )
-{
-	adCount--;
-	if ( m_ad ) {
-		delete m_ad;
-		m_ad = NULL;
-	}
-};
-
-
-// =======================================
-// ClassAdQueryBenchmarkOld methods
-// =======================================
-ClassAdQueryBenchmarkOld::ClassAdQueryBenchmarkOld(
-	const ClassAdQueryBenchmarkOptions &options) 
-		: ClassAdQueryBenchmarkBase( options )
+CaBenchQueryOldCollection::CaBenchQueryOldCollection(
+	const CaBenchQueryOptions &options) 
+		: CaBenchQueryBase( options )
 {
 	m_collection = new ClassAdCollection;
 }
 
-ClassAdQueryBenchmarkOld::~ClassAdQueryBenchmarkOld( void )
+CaBenchQueryOldCollection::~CaBenchQueryOldCollection( void )
 {
 	releaseMemory( );
 }
 
 void
-ClassAdQueryBenchmarkOld::releaseMemory( void )
+CaBenchQueryOldCollection::releaseMemory( void )
 {
 	if ( m_collection ) {
 		delete m_collection;
@@ -79,9 +50,9 @@ ClassAdQueryBenchmarkOld::releaseMemory( void )
 	}
 }
 
-ClassAdGenericBase *
-ClassAdQueryBenchmarkOld::parseTemplateAd( FILE *stream,
-												bool dtor_del_ad )
+CaBenchAdWrapBase *
+CaBenchQueryOldCollection::parseTemplateAd( FILE *stream,
+											bool dtor_del_ad )
 {
 	int			isEOF = 0, error = 0, empty = 0;
 	ClassAd		*ad = new ClassAd( stream, ";", isEOF, error, empty );
@@ -102,33 +73,33 @@ ClassAdQueryBenchmarkOld::parseTemplateAd( FILE *stream,
 		fprintf( stderr, "NULL ad\n" );
 		return( false );
 	}
-	return new ClassAdGenericOld( ad, dtor_del_ad );
+	return new CaBenchAdWrapOld( ad, dtor_del_ad );
 }
 
 bool
-ClassAdQueryBenchmarkOld::createView( const char * /*expr*/ )
+CaBenchQueryOldCollection::createView( const char * /*expr*/ )
 {
 	return false;
 }
 
 bool
-ClassAdQueryBenchmarkOld::printCollectionInfo( void ) const
+CaBenchQueryOldCollection::printCollectionInfo( void ) const
 {
 	return true;
 }
 
 bool
-ClassAdQueryBenchmarkOld::getViewMembers( int &members ) const
+CaBenchQueryOldCollection::getViewMembers( int &members ) const
 {
 	members = m_num_ads;
 	return true;
 }
 
 bool
-ClassAdQueryBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
+CaBenchQueryOldCollection::generateAd( const CaBenchAdWrapBase *base_ad )
 {
-	const ClassAdGenericOld	*gad =
-		dynamic_cast<const ClassAdGenericOld*>(base_ad);
+	const CaBenchAdWrapOld	*gad =
+		dynamic_cast<const CaBenchAdWrapOld*>(base_ad);
 	ClassAd				*ad = gad->get();
 	MyString			 name;
 	MyString			 type;
@@ -148,10 +119,10 @@ ClassAdQueryBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
 }
 
 bool
-ClassAdQueryBenchmarkOld::runQuery( const char *query_str,
-										 int query_num,
-										 bool two_way,
-										 int &matches )
+CaBenchQueryOldCollection::runQuery( const char *query_str,
+									 int query_num,
+									 bool two_way,
+									 int &matches )
 {
 	ClassAd		*query_ad;
 
@@ -203,7 +174,7 @@ ClassAdQueryBenchmarkOld::runQuery( const char *query_str,
 }
 
 int
-ClassAdQueryBenchmarkOld::getAdCount( void ) const
+CaBenchQueryOldCollection::getAdCount( void ) const
 {
-	return adCount;
+	return CaBenchAdWrapOld::getAdCount( );
 }

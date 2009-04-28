@@ -23,28 +23,14 @@
 #include "condor_random_num.h"
 #include "debug_timer_printf.h"
 
-#include "classad_benchmark_query_base.h"
+#include "cabench_adwrap_base.h"
+#include "cabench_query_base.h"
 
 #include <vector>
 
-// =======================================
-// ClassAdGenericBase methods
-// =======================================
-ClassAdGenericBase::ClassAdGenericBase( bool dtor_del_ad )
-		: m_dtor_del_ad(dtor_del_ad)
-{
-};
-ClassAdGenericBase::~ClassAdGenericBase( void )
-{
-};
 
-
-
-// =======================================
-// ClassAdQueryBenchmarkBase methods
-// =======================================
-ClassAdQueryBenchmarkBase::ClassAdQueryBenchmarkBase( 
-	const ClassAdQueryBenchmarkOptions &options ) 
+CaBenchQueryBase::CaBenchQueryBase( 
+	const CaBenchQueryOptions &options ) 
 		: m_options( options ),
 		  m_procinfo_init( NULL ),
 		  m_procinfo_initdone( NULL ),
@@ -53,12 +39,12 @@ ClassAdQueryBenchmarkBase::ClassAdQueryBenchmarkBase(
 {
 }
 
-ClassAdQueryBenchmarkBase::~ClassAdQueryBenchmarkBase( void )
+CaBenchQueryBase::~CaBenchQueryBase( void )
 {
 }
 
 bool
-ClassAdQueryBenchmarkBase::readAdFile( void )
+CaBenchQueryBase::readAdFile( void )
 {
 	const char	*fname = m_options.getAdFile();
 	FILE		*fp = fopen( fname, "r" );
@@ -74,7 +60,7 @@ ClassAdQueryBenchmarkBase::readAdFile( void )
 			return false;
 		}
 
-		ClassAdGenericBase *ad = parseTemplateAd( fp, true );
+		CaBenchAdWrapBase *ad = parseTemplateAd( fp, true );
 		if ( !ad ) {
 			break;		// Do nothing
 		}
@@ -89,7 +75,7 @@ ClassAdQueryBenchmarkBase::readAdFile( void )
 }
 
 bool
-ClassAdQueryBenchmarkBase::setup( void )
+CaBenchQueryBase::setup( void )
 {
 	int			 num_ads   = m_options.getNumAds();
 	const char	*view_expr = m_options.getViewExpr();
@@ -134,7 +120,7 @@ ClassAdQueryBenchmarkBase::setup( void )
 					 errno, strerror(errno) );
 			return false;
 		}
-		ClassAdGenericBase *template_ad =
+		CaBenchAdWrapBase *template_ad =
 			parseTemplateAd( fp, collectionCopiesAd() );
 		if ( !template_ad ) {
 			fclose( fp );
@@ -163,7 +149,7 @@ ClassAdQueryBenchmarkBase::setup( void )
 }
 
 bool
-ClassAdQueryBenchmarkBase::runQueries( void )
+CaBenchQueryBase::runQueries( void )
 {
 	DebugTimerPrintf	 timer;
 	int					 total_matches = 0;
@@ -200,7 +186,7 @@ ClassAdQueryBenchmarkBase::runQueries( void )
 }
 
 bool
-ClassAdQueryBenchmarkBase::cleanup( void )
+CaBenchQueryBase::cleanup( void )
 {
 	releaseMemory( );
 
@@ -226,7 +212,7 @@ ClassAdQueryBenchmarkBase::cleanup( void )
 }
 
 void
-ClassAdQueryBenchmarkBase::memoryDump(
+CaBenchQueryBase::memoryDump(
 	const char *label, const piPTR values, bool start ) const
 {
 	printf( "Memory @ %10s/%-8s: %lu %lu\n",
@@ -234,7 +220,7 @@ ClassAdQueryBenchmarkBase::memoryDump(
 }
 
 void
-ClassAdQueryBenchmarkBase::memoryDump(
+CaBenchQueryBase::memoryDump(
 	const char *label, const piPTR ref, const piPTR values ) const
 {
 	memoryDump( label, values, false );

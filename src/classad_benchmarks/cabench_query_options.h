@@ -17,17 +17,17 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_QUERY_OPTIONS_H
-#define CLASSAD_BENCHMARK_QUERY_OPTIONS_H
+#ifndef CABENCH_QUERY_OPTIONS_H
+#define CABENCH_QUERY_OPTIONS_H
 
 using namespace std;
 
 // Options
-class ClassAdQueryBenchmarkOptions
+class CaBenchQueryOptions
 {
 public:
-	ClassAdQueryBenchmarkOptions( void );
-	~ClassAdQueryBenchmarkOptions( void ) { };
+	CaBenchQueryOptions( void );
+	~CaBenchQueryOptions( void ) { };
 
 	bool Verify( void ) const;
 

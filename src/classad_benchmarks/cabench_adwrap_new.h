@@ -17,51 +17,27 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_QUERY_NEW_H
-#define CLASSAD_BENCHMARK_QUERY_NEW_H
+#ifndef CABENCH_ADWRAP_NEW_H
+#define CABENCH_ADWRAP_NEW_H
 
-#include "classad_benchmark_query_base.h"
+#include "cabench_adwrap_base.h"
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 using namespace std;
 
-class ClassAdGenericNew : public ClassAdGenericBase
+class CaBenchAdWrapNew : public CaBenchAdWrapBase
 {
   public:
-	ClassAdGenericNew( classad::ClassAd *ad, bool dtor_del_ad );
-	virtual ~ClassAdGenericNew( void );
+	CaBenchAdWrapNew( classad::ClassAd *ad, bool dtor_free_ad );
+	virtual ~CaBenchAdWrapNew( void );
 
 	classad::ClassAd *get( void ) const { return m_ad; };
-
 	void deleteAd( void );
+	static int getAdCount( void );
 
   private:
 	classad::ClassAd	*m_ad;
-};
-
-class ClassAdQueryBenchmarkNew : public ClassAdQueryBenchmarkBase
-{
-  public:
-	ClassAdQueryBenchmarkNew( const ClassAdQueryBenchmarkOptions & );
-	virtual ~ClassAdQueryBenchmarkNew( void );
-
-	ClassAdGenericBase *parseTemplateAd( FILE *fp, bool dtor_del_ad );
-	bool createView( const char *expr );
-	virtual bool generateAd( const ClassAdGenericBase *template_ad );
-	bool printCollectionInfo( void ) const;
-	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
-	bool getViewMembers( int & ) const;
-	bool collectionCopiesAd( void ) { return false; };
-
-	void releaseMemory( void );
-	int getAdCount( void ) const;
-
-  private:
-	mutable classad::ClassAdCollection	 *m_collection;
-
-	// Query
-	classad::ViewName					  m_view_name;
 };
 
 #endif
