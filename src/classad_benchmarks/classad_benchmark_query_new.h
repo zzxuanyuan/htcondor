@@ -17,45 +17,51 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_CONSTRAINTS_OLD_H
-#define CLASSAD_BENCHMARK_CONSTRAINTS_OLD_H
+#ifndef CLASSAD_BENCHMARK_QUERY_NEW_H
+#define CLASSAD_BENCHMARK_QUERY_NEW_H
 
-#include "classad_benchmark_constraint_base.h"
-#include "classad_collection.h"
+#include "classad_benchmark_query_base.h"
 
-class ClassAdGenericOld : public ClassAdGenericBase
+#define WANT_CLASSAD_NAMESPACE
+#include "classad/classad_distribution.h"
+using namespace std;
+
+class ClassAdGenericNew : public ClassAdGenericBase
 {
   public:
-	ClassAdGenericOld( ClassAd *ad, bool dtor_free_ad );
-	virtual ~ClassAdGenericOld( void );
+	ClassAdGenericNew( classad::ClassAd *ad, bool dtor_del_ad );
+	virtual ~ClassAdGenericNew( void );
 
-	ClassAd *get( void ) const { return m_ad; };
+	classad::ClassAd *get( void ) const { return m_ad; };
+
 	void deleteAd( void );
 
   private:
-	ClassAd	*m_ad;
+	classad::ClassAd	*m_ad;
 };
 
-
-class ClassAdConstraintBenchmarkOld : public ClassAdConstraintBenchmarkBase
+class ClassAdQueryBenchmarkNew : public ClassAdQueryBenchmarkBase
 {
   public:
-	ClassAdConstraintBenchmarkOld( const ClassAdConstraintBenchmarkOptions & );
-	virtual ~ClassAdConstraintBenchmarkOld( void );
+	ClassAdQueryBenchmarkNew( const ClassAdQueryBenchmarkOptions & );
+	virtual ~ClassAdQueryBenchmarkNew( void );
 
 	ClassAdGenericBase *parseTemplateAd( FILE *fp, bool dtor_del_ad );
 	bool createView( const char *expr );
-	bool generateAd( const ClassAdGenericBase *template_ad );
+	virtual bool generateAd( const ClassAdGenericBase *template_ad );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
 	bool getViewMembers( int & ) const;
-	bool collectionCopiesAd( void ) { return true; };
+	bool collectionCopiesAd( void ) { return false; };
 
 	void releaseMemory( void );
 	int getAdCount( void ) const;
 
   private:
-	ClassAdCollection		 *m_collection;
+	mutable classad::ClassAdCollection	 *m_collection;
+
+	// Query
+	classad::ViewName					  m_view_name;
 };
 
 #endif

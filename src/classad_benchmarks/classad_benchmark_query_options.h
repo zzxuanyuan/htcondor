@@ -17,17 +17,17 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_CONSTRAINTS_OPTIONS_H
-#define CLASSAD_BENCHMARK_CONSTRAINTS_OPTIONS_H
+#ifndef CLASSAD_BENCHMARK_QUERY_OPTIONS_H
+#define CLASSAD_BENCHMARK_QUERY_OPTIONS_H
 
 using namespace std;
 
 // Options
-class ClassAdConstraintBenchmarkOptions
+class ClassAdQueryBenchmarkOptions
 {
 public:
-	ClassAdConstraintBenchmarkOptions( void );
-	~ClassAdConstraintBenchmarkOptions( void ) { };
+	ClassAdQueryBenchmarkOptions( void );
+	~ClassAdQueryBenchmarkOptions( void ) { };
 
 	bool Verify( void ) const;
 

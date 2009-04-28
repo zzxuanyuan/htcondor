@@ -26,13 +26,13 @@
 
 #include <list>
 
-#include "classad_benchmark_constraint_base.h"
+#include "classad_benchmark_query_base.h"
 #if BENCHMARK_NEW_CLASSADS
-#  include "classad_benchmark_constraint_new.h"
-   typedef ClassAdConstraintBenchmarkNew Benchmark;
+#  include "classad_benchmark_query_new.h"
+   typedef ClassAdQueryBenchmarkNew Benchmark;
 #else
-#  include "classad_benchmark_constraint_old.h"
-   typedef ClassAdConstraintBenchmarkOld Benchmark;
+#  include "classad_benchmark_query_old.h"
+   typedef ClassAdQueryBenchmarkOld Benchmark;
 #endif
 
 #include "debug_timer_dprintf.h"
@@ -42,7 +42,7 @@ static const char *	VERSION = "0.1";
 // Prototypes
 void Usage( void );
 bool CheckArgs(int argc, const char **argv,
-			   ClassAdConstraintBenchmarkOptions &opts);
+			   ClassAdQueryBenchmarkOptions &opts);
 
 int main( int argc, const char *argv[] )
 {
@@ -56,7 +56,7 @@ int main( int argc, const char *argv[] )
 	Termlog = true;
 	dprintf_config("CLASSAD_BENCHMARK");
 
-	ClassAdConstraintBenchmarkOptions	opts;
+	ClassAdQueryBenchmarkOptions	opts;
 	Benchmark							benchmark( opts );
 	if ( !CheckArgs(argc, argv, opts) ) {
 		exit( 1 );
@@ -87,8 +87,8 @@ void
 Usage( void )
 {
 	const char *	usage =
-		"Usage: bench_constraint [options] "
-		"<template-file> <num-ads> <num-searchs> <constraint>\n"
+		"Usage: bench_query [options] "
+		"<template-file> <num-ads> <num-searchs> <query>\n"
 		"  --view <expr>: Use view with <expr>\n"
 		"  --disable-view: Disable view\n"
 		"  --[en|dis]able-2way: En/Dis-able 2-way matching <disabled>\n"
@@ -104,12 +104,12 @@ Usage( void )
 		"  <template-file>: file with template ad(s)\n"
 		"  <num-ads>: # of ads to put in the collection\n"
 		"  <num-queries>: number of queries to perform\n"
-		"  <constraint>: query constraint\n";
+		"  <query>: query constraint\n";
 	fputs( usage, stdout );
 }
 
 bool
-CheckArgs(int argc, const char **argv, ClassAdConstraintBenchmarkOptions &opts)
+CheckArgs(int argc, const char **argv, ClassAdQueryBenchmarkOptions &opts)
 {
 
 	int	fixed = 0;

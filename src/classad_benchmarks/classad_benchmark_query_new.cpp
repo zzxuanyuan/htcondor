@@ -21,7 +21,7 @@
 #include "condor_debug.h"
 #include "condor_attributes.h"
 
-#include "classad_benchmark_constraint_new.h"
+#include "classad_benchmark_query_new.h"
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
@@ -59,23 +59,23 @@ ClassAdGenericNew::deleteAd( void )
 
 
 // =======================================
-// ClassAdConstraintBenchmarkNew methods
+// ClassAdQueryBenchmarkNew methods
 // =======================================
-ClassAdConstraintBenchmarkNew::ClassAdConstraintBenchmarkNew(
-	const ClassAdConstraintBenchmarkOptions &options) 
-		: ClassAdConstraintBenchmarkBase( options )
+ClassAdQueryBenchmarkNew::ClassAdQueryBenchmarkNew(
+	const ClassAdQueryBenchmarkOptions &options) 
+		: ClassAdQueryBenchmarkBase( options )
 {
 	m_collection = new classad::ClassAdCollection;
 	m_view_name = "root";
 }
 
-ClassAdConstraintBenchmarkNew::~ClassAdConstraintBenchmarkNew( void )
+ClassAdQueryBenchmarkNew::~ClassAdQueryBenchmarkNew( void )
 {
 	releaseMemory( );
 }
 
 void
-ClassAdConstraintBenchmarkNew::releaseMemory( void )
+ClassAdQueryBenchmarkNew::releaseMemory( void )
 {
 	if ( m_collection ) {
 		delete m_collection;
@@ -84,8 +84,8 @@ ClassAdConstraintBenchmarkNew::releaseMemory( void )
 }
 
 ClassAdGenericBase *
-ClassAdConstraintBenchmarkNew::parseTemplateAd( FILE *stream,
-												bool dtor_del_ad )
+ClassAdQueryBenchmarkNew::parseTemplateAd( FILE *stream,
+										   bool dtor_del_ad )
 {
 	static classad::ClassAdParser	 parser;
 	classad::ClassAd				*ad = parser.ParseClassAd( stream );
@@ -99,7 +99,7 @@ ClassAdConstraintBenchmarkNew::parseTemplateAd( FILE *stream,
 }
 
 bool
-ClassAdConstraintBenchmarkNew::createView( const char *constraint_expr )
+ClassAdQueryBenchmarkNew::createView( const char *constraint_expr )
 {
 	if ( !constraint_expr ) {
 		return false;
@@ -120,7 +120,7 @@ ClassAdConstraintBenchmarkNew::createView( const char *constraint_expr )
 }
 
 bool
-ClassAdConstraintBenchmarkNew::printCollectionInfo( void ) const
+ClassAdQueryBenchmarkNew::printCollectionInfo( void ) const
 {
 	if ( isVerbose(1) ) {
 		classad::ClassAd	*ad;
@@ -138,7 +138,7 @@ ClassAdConstraintBenchmarkNew::printCollectionInfo( void ) const
 }
 
 bool
-ClassAdConstraintBenchmarkNew::getViewMembers( int &members ) const
+ClassAdQueryBenchmarkNew::getViewMembers( int &members ) const
 {
 	classad::ClassAd	*ad;
 	if ( !m_collection->GetViewInfo( m_view_name, ad ) ) {
@@ -155,7 +155,7 @@ ClassAdConstraintBenchmarkNew::getViewMembers( int &members ) const
 }
 
 bool
-ClassAdConstraintBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
+ClassAdQueryBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
 {
 	const ClassAdGenericNew	*gad = 
 		dynamic_cast<const ClassAdGenericNew*>(base_ad);
@@ -177,7 +177,7 @@ ClassAdConstraintBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
 }
 
 bool
-ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
+ClassAdQueryBenchmarkNew::runQuery( const char *query_str,
 										 int query_num,
 										 bool two_way,
 										 int &matches )
@@ -229,7 +229,7 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 }
 
 int
-ClassAdConstraintBenchmarkNew::getAdCount( void ) const
+ClassAdQueryBenchmarkNew::getAdCount( void ) const
 {
 	return adCount;
 }

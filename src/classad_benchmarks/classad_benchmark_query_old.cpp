@@ -22,7 +22,7 @@
 #include "condor_attributes.h"
 #include "MyString.h"
 
-#include "classad_benchmark_constraint_old.h"
+#include "classad_benchmark_query_old.h"
 #include "classad_collection.h"
 
 #include "debug_timer_dprintf.h"
@@ -56,22 +56,22 @@ ClassAdGenericOld::deleteAd( void )
 
 
 // =======================================
-// ClassAdConstraintBenchmarkOld methods
+// ClassAdQueryBenchmarkOld methods
 // =======================================
-ClassAdConstraintBenchmarkOld::ClassAdConstraintBenchmarkOld(
-	const ClassAdConstraintBenchmarkOptions &options) 
-		: ClassAdConstraintBenchmarkBase( options )
+ClassAdQueryBenchmarkOld::ClassAdQueryBenchmarkOld(
+	const ClassAdQueryBenchmarkOptions &options) 
+		: ClassAdQueryBenchmarkBase( options )
 {
 	m_collection = new ClassAdCollection;
 }
 
-ClassAdConstraintBenchmarkOld::~ClassAdConstraintBenchmarkOld( void )
+ClassAdQueryBenchmarkOld::~ClassAdQueryBenchmarkOld( void )
 {
 	releaseMemory( );
 }
 
 void
-ClassAdConstraintBenchmarkOld::releaseMemory( void )
+ClassAdQueryBenchmarkOld::releaseMemory( void )
 {
 	if ( m_collection ) {
 		delete m_collection;
@@ -80,7 +80,7 @@ ClassAdConstraintBenchmarkOld::releaseMemory( void )
 }
 
 ClassAdGenericBase *
-ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream,
+ClassAdQueryBenchmarkOld::parseTemplateAd( FILE *stream,
 												bool dtor_del_ad )
 {
 	int			isEOF = 0, error = 0, empty = 0;
@@ -106,26 +106,26 @@ ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream,
 }
 
 bool
-ClassAdConstraintBenchmarkOld::createView( const char * /*expr*/ )
+ClassAdQueryBenchmarkOld::createView( const char * /*expr*/ )
 {
 	return false;
 }
 
 bool
-ClassAdConstraintBenchmarkOld::printCollectionInfo( void ) const
+ClassAdQueryBenchmarkOld::printCollectionInfo( void ) const
 {
 	return true;
 }
 
 bool
-ClassAdConstraintBenchmarkOld::getViewMembers( int &members ) const
+ClassAdQueryBenchmarkOld::getViewMembers( int &members ) const
 {
 	members = m_num_ads;
 	return true;
 }
 
 bool
-ClassAdConstraintBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
+ClassAdQueryBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
 {
 	const ClassAdGenericOld	*gad =
 		dynamic_cast<const ClassAdGenericOld*>(base_ad);
@@ -148,7 +148,7 @@ ClassAdConstraintBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
 }
 
 bool
-ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
+ClassAdQueryBenchmarkOld::runQuery( const char *query_str,
 										 int query_num,
 										 bool two_way,
 										 int &matches )
@@ -203,7 +203,7 @@ ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
 }
 
 int
-ClassAdConstraintBenchmarkOld::getAdCount( void ) const
+ClassAdQueryBenchmarkOld::getAdCount( void ) const
 {
 	return adCount;
 }

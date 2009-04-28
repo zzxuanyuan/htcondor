@@ -23,7 +23,7 @@
 #include "condor_random_num.h"
 #include "debug_timer_printf.h"
 
-#include "classad_benchmark_constraint_base.h"
+#include "classad_benchmark_query_base.h"
 
 #include <vector>
 
@@ -41,10 +41,10 @@ ClassAdGenericBase::~ClassAdGenericBase( void )
 
 
 // =======================================
-// ClassAdConstraintBenchmarkBase methods
+// ClassAdQueryBenchmarkBase methods
 // =======================================
-ClassAdConstraintBenchmarkBase::ClassAdConstraintBenchmarkBase( 
-	const ClassAdConstraintBenchmarkOptions &options ) 
+ClassAdQueryBenchmarkBase::ClassAdQueryBenchmarkBase( 
+	const ClassAdQueryBenchmarkOptions &options ) 
 		: m_options( options ),
 		  m_procinfo_init( NULL ),
 		  m_procinfo_initdone( NULL ),
@@ -53,12 +53,12 @@ ClassAdConstraintBenchmarkBase::ClassAdConstraintBenchmarkBase(
 {
 }
 
-ClassAdConstraintBenchmarkBase::~ClassAdConstraintBenchmarkBase( void )
+ClassAdQueryBenchmarkBase::~ClassAdQueryBenchmarkBase( void )
 {
 }
 
 bool
-ClassAdConstraintBenchmarkBase::readAdFile( void )
+ClassAdQueryBenchmarkBase::readAdFile( void )
 {
 	const char	*fname = m_options.getAdFile();
 	FILE		*fp = fopen( fname, "r" );
@@ -89,7 +89,7 @@ ClassAdConstraintBenchmarkBase::readAdFile( void )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::setup( void )
+ClassAdQueryBenchmarkBase::setup( void )
 {
 	int			 num_ads   = m_options.getNumAds();
 	const char	*view_expr = m_options.getViewExpr();
@@ -163,7 +163,7 @@ ClassAdConstraintBenchmarkBase::setup( void )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::runQueries( void )
+ClassAdQueryBenchmarkBase::runQueries( void )
 {
 	DebugTimerPrintf	 timer;
 	int					 total_matches = 0;
@@ -200,7 +200,7 @@ ClassAdConstraintBenchmarkBase::runQueries( void )
 }
 
 bool
-ClassAdConstraintBenchmarkBase::cleanup( void )
+ClassAdQueryBenchmarkBase::cleanup( void )
 {
 	releaseMemory( );
 
@@ -226,7 +226,7 @@ ClassAdConstraintBenchmarkBase::cleanup( void )
 }
 
 void
-ClassAdConstraintBenchmarkBase::memoryDump(
+ClassAdQueryBenchmarkBase::memoryDump(
 	const char *label, const piPTR values, bool start ) const
 {
 	printf( "Memory @ %10s/%-8s: %lu %lu\n",
@@ -234,7 +234,7 @@ ClassAdConstraintBenchmarkBase::memoryDump(
 }
 
 void
-ClassAdConstraintBenchmarkBase::memoryDump(
+ClassAdQueryBenchmarkBase::memoryDump(
 	const char *label, const piPTR ref, const piPTR values ) const
 {
 	memoryDump( label, values, false );

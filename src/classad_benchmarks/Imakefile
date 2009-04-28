@@ -1,10 +1,10 @@
 PROGRAMS = \
-	classad_benchmark_constraint-new \
-	classad_benchmark_constraint-old
+	classad_benchmark_query-new \
+	classad_benchmark_query-old
 
 all_target( $(PROGRAMS) )
-new:	classad_benchmark_constraint-new
-old:	classad_benchmark_constraint-old
+new:	classad_benchmark_query-new
+old:	classad_benchmark_query-old
 
 
 CFLAGS = $(STD_C_FLAGS)
@@ -12,21 +12,21 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 LIB = $(STD_LIBS)
 
 OBJ =	\
-	classad_benchmark_constraint_options.o	\
-	classad_benchmark_constraint_base.o	\
-	classad_benchmark_constraint_new.o	\
-	classad_benchmark_constraint_old.o
+	classad_benchmark_query_options.o	\
+	classad_benchmark_query_base.o	\
+	classad_benchmark_query_new.o	\
+	classad_benchmark_query_old.o
 
 
 # Individual targets
-new: classad_benchmark_constraint-new
-c_plus_target(classad_benchmark_constraint-new,$(OBJ) classad_benchmark_constraint-new.o,$(LIB))
-old: classad_benchmark_constraint-old
-c_plus_target(classad_benchmark_constraint-old,$(OBJ) classad_benchmark_constraint-old.o,$(LIB))
+new: classad_benchmark_query-new
+c_plus_target(classad_benchmark_query-new,$(OBJ) classad_benchmark_query-new.o,$(LIB))
+old: classad_benchmark_query-old
+c_plus_target(classad_benchmark_query-old,$(OBJ) classad_benchmark_query-old.o,$(LIB))
 
-classad_benchmark_constraint-new.o : classad_benchmark_constraint_main.cpp
+classad_benchmark_query-new.o : classad_benchmark_query_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_CLASSADS -c $< -o $@
-classad_benchmark_constraint-old.o : classad_benchmark_constraint_main.cpp
+classad_benchmark_query-old.o : classad_benchmark_query_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_CLASSADS -c $< -o $@
 
 

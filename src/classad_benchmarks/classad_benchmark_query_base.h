@@ -17,11 +17,11 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_CONSTRAINTS_BASE_H
-#define CLASSAD_BENCHMARK_CONSTRAINTS_BASE_H
+#ifndef CLASSAD_BENCHMARK_QUERY_BASE_H
+#define CLASSAD_BENCHMARK_QUERY_BASE_H
 
 #include "../condor_procapi/procapi.h"
-#include "classad_benchmark_constraint_options.h"
+#include "classad_benchmark_query_options.h"
 using namespace std;
 #include <vector>
 #include "stdio.h"
@@ -40,11 +40,11 @@ class ClassAdGenericBase
 	bool		 m_dtor_del_ad;
 };
 
-class ClassAdConstraintBenchmarkBase
+class ClassAdQueryBenchmarkBase
 {
   public:
-	ClassAdConstraintBenchmarkBase( const ClassAdConstraintBenchmarkOptions & );
-	virtual ~ClassAdConstraintBenchmarkBase( void );
+	ClassAdQueryBenchmarkBase( const ClassAdQueryBenchmarkOptions & );
+	virtual ~ClassAdQueryBenchmarkBase( void );
 
 	bool readAdFile( void );
 
@@ -82,14 +82,14 @@ class ClassAdConstraintBenchmarkBase
 	int numTemplates( void ) const { return m_template_offsets.size(); };
 	
   protected:
-	vector <fpos_t> 						 m_template_offsets;
-	const ClassAdConstraintBenchmarkOptions	&m_options;
-	int										 m_num_ads;
+	vector <fpos_t> 					 m_template_offsets;
+	const ClassAdQueryBenchmarkOptions	&m_options;
+	int									 m_num_ads;
 
-	piPTR									 m_procinfo_init;
-	piPTR									 m_procinfo_initdone;
-	piPTR									 m_procinfo_query;
-	piPTR									 m_procinfo_querydone;
+	piPTR								 m_procinfo_init;
+	piPTR								 m_procinfo_initdone;
+	piPTR								 m_procinfo_query;
+	piPTR								 m_procinfo_querydone;
 
 };
 

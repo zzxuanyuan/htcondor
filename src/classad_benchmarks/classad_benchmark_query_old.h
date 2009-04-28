@@ -17,51 +17,45 @@
  *
  ***************************************************************/
 
-#ifndef CLASSAD_BENCHMARK_CONSTRAINTS_NEW_H
-#define CLASSAD_BENCHMARK_CONSTRAINTS_NEW_H
+#ifndef CLASSAD_BENCHMARK_QUERY_OLD_H
+#define CLASSAD_BENCHMARK_QUERY_OLD_H
 
-#include "classad_benchmark_constraint_base.h"
+#include "classad_benchmark_query_base.h"
+#include "classad_collection.h"
 
-#define WANT_CLASSAD_NAMESPACE
-#include "classad/classad_distribution.h"
-using namespace std;
-
-class ClassAdGenericNew : public ClassAdGenericBase
+class ClassAdGenericOld : public ClassAdGenericBase
 {
   public:
-	ClassAdGenericNew( classad::ClassAd *ad, bool dtor_del_ad );
-	virtual ~ClassAdGenericNew( void );
+	ClassAdGenericOld( ClassAd *ad, bool dtor_free_ad );
+	virtual ~ClassAdGenericOld( void );
 
-	classad::ClassAd *get( void ) const { return m_ad; };
-
+	ClassAd *get( void ) const { return m_ad; };
 	void deleteAd( void );
 
   private:
-	classad::ClassAd	*m_ad;
+	ClassAd	*m_ad;
 };
 
-class ClassAdConstraintBenchmarkNew : public ClassAdConstraintBenchmarkBase
+
+class ClassAdQueryBenchmarkOld : public ClassAdQueryBenchmarkBase
 {
   public:
-	ClassAdConstraintBenchmarkNew( const ClassAdConstraintBenchmarkOptions & );
-	virtual ~ClassAdConstraintBenchmarkNew( void );
+	ClassAdQueryBenchmarkOld( const ClassAdQueryBenchmarkOptions & );
+	virtual ~ClassAdQueryBenchmarkOld( void );
 
 	ClassAdGenericBase *parseTemplateAd( FILE *fp, bool dtor_del_ad );
 	bool createView( const char *expr );
-	virtual bool generateAd( const ClassAdGenericBase *template_ad );
+	bool generateAd( const ClassAdGenericBase *template_ad );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
 	bool getViewMembers( int & ) const;
-	bool collectionCopiesAd( void ) { return false; };
+	bool collectionCopiesAd( void ) { return true; };
 
 	void releaseMemory( void );
 	int getAdCount( void ) const;
 
   private:
-	mutable classad::ClassAdCollection	 *m_collection;
-
-	// Query
-	classad::ViewName					  m_view_name;
+	ClassAdCollection		 *m_collection;
 };
 
 #endif
