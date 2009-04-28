@@ -27,9 +27,29 @@
 
 #include <vector>
 
+// =======================================
+// ClassAdGenericBase methods
+// =======================================
+ClassAdGenericBase::ClassAdGenericBase( bool dtor_del_ad )
+		: m_dtor_del_ad(dtor_del_ad)
+{
+};
+ClassAdGenericBase::~ClassAdGenericBase( void )
+{
+};
+
+
+
+// =======================================
+// ClassAdConstraintBenchmarkBase methods
+// =======================================
 ClassAdConstraintBenchmarkBase::ClassAdConstraintBenchmarkBase( 
 	const ClassAdConstraintBenchmarkOptions &options ) 
-		: m_options( options )
+		: m_options( options ),
+		  m_procinfo_init( NULL ),
+		  m_procinfo_initdone( NULL ),
+		  m_procinfo_query( NULL ),
+		  m_procinfo_querydone( NULL )
 {
 }
 
@@ -53,12 +73,12 @@ ClassAdConstraintBenchmarkBase::readAdFile( void )
 					 errno, strerror(errno) );
 			return false;
 		}
-		ClassAdGenericBase *ad = parseTemplateAd(fp);
+
+		ClassAdGenericBase *ad = parseTemplateAd( fp, true );
 		if ( !ad ) {
 			break;		// Do nothing
 		}
 		else {
-			ad->freeAd( );
 			delete( ad );
 			m_template_offsets.push_back( offset );
 		}
@@ -73,6 +93,7 @@ ClassAdConstraintBenchmarkBase::setup( void )
 {
 	int			 num_ads   = m_options.getNumAds();
 	const char	*view_expr = m_options.getViewExpr();
+	int			 status;
 
 	// Template ad?
 	int		num_templates = numTemplates();
@@ -92,6 +113,9 @@ ClassAdConstraintBenchmarkBase::setup( void )
 		return false;
 	}
 
+    // Use ProcAPI to get what we can
+    ProcAPI::getProcInfo(getpid(), m_procinfo_init, status);
+
 	// Generate ads
 	DebugTimerPrintf	timer;
 	for( int i = 0;  i < num_ads;  i++ ) {
@@ -105,24 +129,30 @@ ClassAdConstraintBenchmarkBase::setup( void )
 
 		fpos_t	offset = m_template_offsets[ad_num];
 		if ( fsetpos( fp, &offset ) < 0 ) {
+			fclose( fp );
 			fprintf( stderr, "fsetpos() failed: %d %s\n",
 					 errno, strerror(errno) );
 			return false;
 		}
-		ClassAdGenericBase *template_ad = parseTemplateAd( fp );
+		ClassAdGenericBase *template_ad =
+			parseTemplateAd( fp, collectionCopiesAd() );
 		if ( !template_ad ) {
+			fclose( fp );
 			fprintf( stderr, "Failed to read template ad %d\n",
 					 ad_num );
 			return false;
 		}
 		if ( !generateAd( template_ad ) ) {
+			fclose( fp );
 			fprintf( stderr, "Ad generation failed\n" );
 			return false;
 		}
-		// No: template_ad->freeAd();
 		delete template_ad;
 	}	
 	timer.Log( "setup ads", num_ads );
+	fclose( fp );
+
+    ProcAPI::getProcInfo(getpid(), m_procinfo_initdone, status);
 
 	if ( !printCollectionInfo( ) ) {
 		return false;
@@ -141,7 +171,9 @@ ClassAdConstraintBenchmarkBase::runQueries( void )
 	int					 num_queries	= m_options.getNumQueries();
 	const char			*query      	= m_options.getQuery();
 	bool				 two_way		= m_options.getTwoWay();
+	int					 status;
 
+    ProcAPI::getProcInfo(getpid(), m_procinfo_query, status);
 	getViewMembers( view_members);
 	for( int i = 0;  i < num_queries;  i++ ) {
 		int					 matches = 0;
@@ -162,6 +194,53 @@ ClassAdConstraintBenchmarkBase::runQueries( void )
 	timer.Log( "Total Ads", m_num_ads * num_queries );
 	timer.Log( "Total View Members", view_members * num_queries );
 	timer.Log( "Total Query matches", total_matches );
+    ProcAPI::getProcInfo(getpid(), m_procinfo_querydone, status);
 
 	return true;
+}
+
+bool
+ClassAdConstraintBenchmarkBase::cleanup( void )
+{
+	releaseMemory( );
+
+	piPTR	procinfo = NULL;
+	int		status;
+    ProcAPI::getProcInfo(getpid(), procinfo, status);
+
+	memoryDump( "init", m_procinfo_init, true );
+	memoryDump( "init", m_procinfo_init, m_procinfo_initdone );
+	memoryDump( "query", m_procinfo_query, true );
+	memoryDump( "query", m_procinfo_query, m_procinfo_querydone );
+	memoryDump( "release", procinfo, true );
+	memoryDump( "release", m_procinfo_init, procinfo );
+	printf( "Final ad count: %d\n", getAdCount() );
+
+	delete m_procinfo_init;
+	delete m_procinfo_initdone;
+	delete m_procinfo_query;
+	delete m_procinfo_querydone;
+	delete procinfo;
+
+	return true;
+}
+
+void
+ClassAdConstraintBenchmarkBase::memoryDump(
+	const char *label, const piPTR values, bool start ) const
+{
+	printf( "Memory @ %10s/%-8s: %lu %lu\n",
+			label, start?"start":"end", values->imgsize, values->rssize );
+}
+
+void
+ClassAdConstraintBenchmarkBase::memoryDump(
+	const char *label, const piPTR ref, const piPTR values ) const
+{
+	memoryDump( label, values, false );
+
+	unsigned long	imgdiff = (values->imgsize - ref->imgsize);
+	unsigned long	rssdiff = (values->rssize  - ref->rssize);
+	printf( "  Diff @ %10s/%-8s: %lu %lu\n",
+			label, "end", imgdiff, rssdiff );
 }

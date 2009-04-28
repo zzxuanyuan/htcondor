@@ -76,6 +76,10 @@ int main( int argc, const char *argv[] )
 	if ( !benchmark.runQueries( ) ) {
 		exit( 1 );
 	}
+
+	if ( !benchmark.cleanup( ) ) {
+		exit( 1 );
+	}
 	return 0;
 }
 

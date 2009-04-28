@@ -29,11 +29,12 @@ using namespace std;
 class ClassAdGenericNew : public ClassAdGenericBase
 {
   public:
-	ClassAdGenericNew( classad::ClassAd *ad ) : m_ad(ad) { };
-	virtual ~ClassAdGenericNew( void ) { };
+	ClassAdGenericNew( classad::ClassAd *ad, bool dtor_del_ad );
+	virtual ~ClassAdGenericNew( void );
 
 	classad::ClassAd *get( void ) const { return m_ad; };
-	void freeAd( void ) { delete m_ad; };
+
+	void deleteAd( void );
 
   private:
 	classad::ClassAd	*m_ad;
@@ -45,18 +46,22 @@ class ClassAdConstraintBenchmarkNew : public ClassAdConstraintBenchmarkBase
 	ClassAdConstraintBenchmarkNew( const ClassAdConstraintBenchmarkOptions & );
 	virtual ~ClassAdConstraintBenchmarkNew( void );
 
-	ClassAdGenericBase *parseTemplateAd( FILE *fp );
+	ClassAdGenericBase *parseTemplateAd( FILE *fp, bool dtor_del_ad );
 	bool createView( const char *expr );
 	virtual bool generateAd( const ClassAdGenericBase *template_ad );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
 	bool getViewMembers( int & ) const;
+	bool collectionCopiesAd( void ) { return false; };
+
+	void releaseMemory( void );
+	int getAdCount( void ) const;
 
   private:
-	mutable classad::ClassAdCollection	 m_collection;
+	mutable classad::ClassAdCollection	 *m_collection;
 
 	// Query
-	classad::ViewName					 m_view_name;
+	classad::ViewName					  m_view_name;
 };
 
 #endif

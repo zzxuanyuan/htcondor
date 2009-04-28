@@ -29,19 +29,63 @@ using namespace std;
 
 #include "debug_timer_dprintf.h"
 
+
+// =======================================
+// ClassAdGenericNew methods
+// =======================================
+static int adCount = 0;
+ClassAdGenericNew::ClassAdGenericNew( classad::ClassAd *ad, bool dtor_del_ad )
+		: ClassAdGenericBase( dtor_del_ad ),
+		  m_ad(ad)
+{
+	adCount++;
+};
+ClassAdGenericNew::~ClassAdGenericNew( void )
+{
+	if ( getDtorDelAd() ) {
+		deleteAd( );
+	}
+};
+void
+ClassAdGenericNew::deleteAd( void )
+{
+	adCount--;
+	if ( m_ad ) {
+		delete m_ad;
+		m_ad = NULL;
+	}
+};
+
+
+
+// =======================================
+// ClassAdConstraintBenchmarkNew methods
+// =======================================
 ClassAdConstraintBenchmarkNew::ClassAdConstraintBenchmarkNew(
 	const ClassAdConstraintBenchmarkOptions &options) 
 		: ClassAdConstraintBenchmarkBase( options )
 {
+	m_collection = new classad::ClassAdCollection;
 	m_view_name = "root";
 }
 
 ClassAdConstraintBenchmarkNew::~ClassAdConstraintBenchmarkNew( void )
 {
+	releaseMemory( );
+}
+
+void
+ClassAdConstraintBenchmarkNew::releaseMemory( void )
+{
+	if ( m_collection ) {
+		delete m_collection;
+		m_collection = NULL;
+	}
 }
 
 ClassAdGenericBase *
-ClassAdConstraintBenchmarkNew::parseTemplateAd( FILE *stream )
+ClassAdConstraintBenchmarkNew::parseTemplateAd( FILE *stream,
+												bool dtor_del_ad )
 {
 	static classad::ClassAdParser	 parser;
 	classad::ClassAd				*ad = parser.ParseClassAd( stream );
@@ -51,7 +95,7 @@ ClassAdConstraintBenchmarkNew::parseTemplateAd( FILE *stream )
 		}
 		return( NULL );
 	}
-	return new ClassAdGenericNew(ad);
+	return new ClassAdGenericNew(ad, dtor_del_ad );
 }
 
 bool
@@ -66,8 +110,8 @@ ClassAdConstraintBenchmarkNew::createView( const char *constraint_expr )
 	string rank;
 	string expr;
 	m_view_name = "VIEW";
-	if ( !m_collection.CreateSubView( m_view_name, "root",
-									  constraint, rank, expr) ) {
+	if ( !m_collection->CreateSubView( m_view_name, "root",
+									   constraint, rank, expr) ) {
 		fprintf( stderr, "Error creating resources view\n" );
 		return false;
 	}
@@ -80,7 +124,7 @@ ClassAdConstraintBenchmarkNew::printCollectionInfo( void ) const
 {
 	if ( isVerbose(1) ) {
 		classad::ClassAd	*ad;
-		if ( !m_collection.GetViewInfo( m_view_name, ad ) ) {
+		if ( !m_collection->GetViewInfo( m_view_name, ad ) ) {
 			fprintf( stderr, "Error getting view information\n" );
 			return false;
 		}
@@ -97,7 +141,7 @@ bool
 ClassAdConstraintBenchmarkNew::getViewMembers( int &members ) const
 {
 	classad::ClassAd	*ad;
-	if ( !m_collection.GetViewInfo( m_view_name, ad ) ) {
+	if ( !m_collection->GetViewInfo( m_view_name, ad ) ) {
 		fprintf( stderr, "Error getting view information\n" );
 		return false;
 	}
@@ -113,11 +157,11 @@ ClassAdConstraintBenchmarkNew::getViewMembers( int &members ) const
 bool
 ClassAdConstraintBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
 {
-	const ClassAdGenericNew	*gad =
+	const ClassAdGenericNew	*gad = 
 		dynamic_cast<const ClassAdGenericNew*>(base_ad);
-	classad::ClassAd		*ad = gad->get();
-	string					 name;
-	string					 type;
+	classad::ClassAd	*ad = gad->get();
+	string				 name;
+	string				 type;
 
 	if ( !ad->EvaluateAttrString( "Name", name )   ||
 		 !ad->EvaluateAttrString( "MyType", type )  ) {
@@ -128,7 +172,7 @@ ClassAdConstraintBenchmarkNew::generateAd( const ClassAdGenericBase *base_ad )
 	snprintf( key, sizeof(key), "%s/%s/%p", type.c_str(), name.c_str(), ad );
 	key[sizeof(key)-1] = '\0';
 	ad->InsertAttr( "key", key );
-	m_collection.AddClassAd( key, ad );
+	m_collection->AddClassAd( key, ad );
 	return true;
 }
 
@@ -162,7 +206,7 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 	}
 
 	classad::LocalCollectionQuery	query;
-	query.Bind( &m_collection );
+	query.Bind( m_collection );
 	if ( !query.Query( m_view_name, query_ad, two_way ) ) {
 		fprintf( stderr, "Query failed\n" );
 		delete query_ad;
@@ -175,11 +219,17 @@ ClassAdConstraintBenchmarkNew::runQuery( const char *query_str,
 		if ( !query.Current( key ) ) {
 			break;
 		}
-		classad::ClassAd	*ad = m_collection.GetClassAd( key );
+		classad::ClassAd	*ad = m_collection->GetClassAd( key );
 		(void) ad;
 		matches++;
 	} while ( query.Next( key ) );
 
 	delete query_ad;
 	return true;
+}
+
+int
+ClassAdConstraintBenchmarkNew::getAdCount( void ) const
+{
+	return adCount;
 }

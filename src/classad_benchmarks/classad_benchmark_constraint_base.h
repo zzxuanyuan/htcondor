@@ -20,6 +20,7 @@
 #ifndef CLASSAD_BENCHMARK_CONSTRAINTS_BASE_H
 #define CLASSAD_BENCHMARK_CONSTRAINTS_BASE_H
 
+#include "../condor_procapi/procapi.h"
 #include "classad_benchmark_constraint_options.h"
 using namespace std;
 #include <vector>
@@ -28,13 +29,15 @@ using namespace std;
 class ClassAdGenericBase
 {
   public:
-	ClassAdGenericBase( void ) { };
-	virtual ~ClassAdGenericBase( void ) { };
+	ClassAdGenericBase( bool dtor_del_ad );
+	virtual ~ClassAdGenericBase( void );
 
-	virtual void freeAd( void ) = 0;
+	void setDtorDelAd( bool v ) { m_dtor_del_ad = v; };
+	bool getDtorDelAd( void ) const { return m_dtor_del_ad; };
+	virtual void deleteAd( void ) = 0;
 
   private:
-	// nothing
+	bool		 m_dtor_del_ad;
 };
 
 class ClassAdConstraintBenchmarkBase
@@ -51,16 +54,30 @@ class ClassAdConstraintBenchmarkBase
 	// Do real work
 	bool runQueries( void );
 
+	// Clean up
+	bool cleanup( void );
+	void memoryDump( const char *label, const piPTR, bool start ) const;
+	void memoryDump( const char *label, const piPTR ref,
+					 const piPTR values ) const;
+
 	// Pure-Virtual member methods
-	virtual ClassAdGenericBase *parseTemplateAd( FILE *fp ) = 0;
+	virtual ClassAdGenericBase *parseTemplateAd( FILE *fp, bool dtor_del_ad)=0;
 	virtual bool generateAd( const ClassAdGenericBase *template_ad ) = 0;
 	virtual bool createView( const char *expr ) = 0;
 	virtual bool printCollectionInfo( void ) const = 0;
-	virtual bool runQuery( const char *expr, int qnum, bool two_way, int &matches ) = 0;
+	virtual bool runQuery( const char *expr, int qnum,
+						   bool two_way, int &matches ) = 0;
 	virtual bool getViewMembers( int & ) const = 0;
+	virtual bool collectionCopiesAd( void ) = 0;
+	virtual void releaseMemory( void ) = 0;
+	virtual int getAdCount( void ) const = 0;
 
-	int Verbose( void ) const { return m_options.getVerbosity(); };
-	bool isVerbose( int level ) const { return (m_options.getVerbosity() >= level); };
+	int Verbose( void ) const {
+		return m_options.getVerbosity();
+	};
+	bool isVerbose( int level ) const {
+		return (m_options.getVerbosity() >= level);
+	};
 
 	int numTemplates( void ) const { return m_template_offsets.size(); };
 	
@@ -68,6 +85,12 @@ class ClassAdConstraintBenchmarkBase
 	vector <fpos_t> 						 m_template_offsets;
 	const ClassAdConstraintBenchmarkOptions	&m_options;
 	int										 m_num_ads;
+
+	piPTR									 m_procinfo_init;
+	piPTR									 m_procinfo_initdone;
+	piPTR									 m_procinfo_query;
+	piPTR									 m_procinfo_querydone;
+
 };
 
 #endif

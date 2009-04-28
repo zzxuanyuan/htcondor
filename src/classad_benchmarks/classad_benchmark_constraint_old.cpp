@@ -27,18 +27,61 @@
 
 #include "debug_timer_dprintf.h"
 
+
+// =======================================
+// ClassAdGenericOld methods
+// =======================================
+static int adCount = 0;
+ClassAdGenericOld::ClassAdGenericOld( ClassAd *ad, bool dtor_del_ad )
+		: ClassAdGenericBase( dtor_del_ad ),
+		  m_ad( ad )
+{
+	adCount++;
+};
+ClassAdGenericOld::~ClassAdGenericOld( void )
+{
+	if ( getDtorDelAd() ) {
+		deleteAd( );
+	}
+};
+void
+ClassAdGenericOld::deleteAd( void )
+{
+	adCount--;
+	if ( m_ad ) {
+		delete m_ad;
+		m_ad = NULL;
+	}
+};
+
+
+// =======================================
+// ClassAdConstraintBenchmarkOld methods
+// =======================================
 ClassAdConstraintBenchmarkOld::ClassAdConstraintBenchmarkOld(
 	const ClassAdConstraintBenchmarkOptions &options) 
 		: ClassAdConstraintBenchmarkBase( options )
 {
+	m_collection = new ClassAdCollection;
 }
 
 ClassAdConstraintBenchmarkOld::~ClassAdConstraintBenchmarkOld( void )
 {
+	releaseMemory( );
+}
+
+void
+ClassAdConstraintBenchmarkOld::releaseMemory( void )
+{
+	if ( m_collection ) {
+		delete m_collection;
+		m_collection = NULL;
+	}
 }
 
 ClassAdGenericBase *
-ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream )
+ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream,
+												bool dtor_del_ad )
 {
 	int			isEOF = 0, error = 0, empty = 0;
 	ClassAd		*ad = new ClassAd( stream, ";", isEOF, error, empty );
@@ -59,7 +102,7 @@ ClassAdConstraintBenchmarkOld::parseTemplateAd( FILE *stream )
 		fprintf( stderr, "NULL ad\n" );
 		return( false );
 	}
-	return new ClassAdGenericOld(ad);
+	return new ClassAdGenericOld( ad, dtor_del_ad );
 }
 
 bool
@@ -86,10 +129,10 @@ ClassAdConstraintBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
 {
 	const ClassAdGenericOld	*gad =
 		dynamic_cast<const ClassAdGenericOld*>(base_ad);
-	ClassAd			*ad = gad->get();
-	MyString		 name;
-	MyString		 type;
-	static int		 n = 0;
+	ClassAd				*ad = gad->get();
+	MyString			 name;
+	MyString			 type;
+	static int			 n = 0;
 
 	if ( !ad->LookupString( "Name", name )   ||
 		 !ad->LookupString( "MyType", type )  ) {
@@ -100,7 +143,7 @@ ClassAdConstraintBenchmarkOld::generateAd( const ClassAdGenericBase *base_ad )
 	snprintf(key, sizeof(key), "%s/%s/%06d", type.Value(), name.Value(), n++);
 	key[sizeof(key)-1] = '\0';
 	ad->Assign( "key", key );
-	m_collection.NewClassAd( key, ad );
+	m_collection->NewClassAd( key, ad );
 	return true;
 }
 
@@ -136,10 +179,10 @@ ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
 
 	matches = 0;
 	int iters = 0;
-	m_collection.StartIterateAllClassAds();
+	m_collection->StartIterateAllClassAds();
 	do {
 		ClassAd		*ad;
-		if (!m_collection.IterateAllClassAds( ad ) ) {
+		if (!m_collection->IterateAllClassAds( ad ) ) {
 			break;
 		}
 		iters++;
@@ -155,5 +198,12 @@ ClassAdConstraintBenchmarkOld::runQuery( const char *query_str,
 		}
 	} while( true );
 
+	delete query_ad;
 	return true;
+}
+
+int
+ClassAdConstraintBenchmarkOld::getAdCount( void ) const
+{
+	return adCount;
 }

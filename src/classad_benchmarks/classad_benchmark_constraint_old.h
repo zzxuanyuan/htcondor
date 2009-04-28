@@ -26,11 +26,11 @@
 class ClassAdGenericOld : public ClassAdGenericBase
 {
   public:
-	ClassAdGenericOld( ClassAd *ad ) : m_ad(ad) { };
-	virtual ~ClassAdGenericOld( void ) { };
+	ClassAdGenericOld( ClassAd *ad, bool dtor_free_ad );
+	virtual ~ClassAdGenericOld( void );
 
 	ClassAd *get( void ) const { return m_ad; };
-	void freeAd( void ) { delete m_ad; };
+	void deleteAd( void );
 
   private:
 	ClassAd	*m_ad;
@@ -43,15 +43,19 @@ class ClassAdConstraintBenchmarkOld : public ClassAdConstraintBenchmarkBase
 	ClassAdConstraintBenchmarkOld( const ClassAdConstraintBenchmarkOptions & );
 	virtual ~ClassAdConstraintBenchmarkOld( void );
 
-	ClassAdGenericBase *parseTemplateAd( FILE *fp );
+	ClassAdGenericBase *parseTemplateAd( FILE *fp, bool dtor_del_ad );
 	bool createView( const char *expr );
 	bool generateAd( const ClassAdGenericBase *template_ad );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
 	bool getViewMembers( int & ) const;
+	bool collectionCopiesAd( void ) { return true; };
+
+	void releaseMemory( void );
+	int getAdCount( void ) const;
 
   private:
-	ClassAdCollection		 m_collection;
+	ClassAdCollection		 *m_collection;
 };
 
 #endif
