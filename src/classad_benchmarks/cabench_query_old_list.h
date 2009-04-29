@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- *
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- *
+ * 
  *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,48 +17,33 @@
  *
  ***************************************************************/
 
-#include "condor_common.h"
-#include "condor_attributes.h"
+#ifndef CABENCH_QUERY_OLD_LIST_H
+#define CABENCH_QUERY_OLD_LIST_H
 
-#include "cabench_adwrap_old.h"
+#include <list>
 
-static int adCount = 0;
+#include "condor_classad.h"
 
-CaBenchAdWrapOld::CaBenchAdWrapOld( ClassAd *ad )
-		: CaBenchAdWrapBase( ),
-		  m_ad( ad )
+#include "cabench_adwrap_base.h"
+#include "cabench_query_base.h"
+#include "cabench_query_old.h"
+
+class CaBenchQueryOldList : public CaBenchQueryOld
 {
-	adCount++;
-}
+  public:
+	CaBenchQueryOldList( const CaBenchQueryOptions & );
+	virtual ~CaBenchQueryOldList( void );
 
-CaBenchAdWrapOld::~CaBenchAdWrapOld( void )
-{
-	if ( getDtorDelAd() ) {
-		deleteAd( );
-	}
-}
+	bool insertAd( const char *key, ClassAd *ad, bool &copied );
+	bool createView( const char *expr );
+	bool printCollectionInfo( void ) const;
+	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
+	bool getViewMembers( int & ) const;
 
-void
-CaBenchAdWrapOld::deleteAd( void )
-{
-	if ( m_ad ) {
-		adCount--;
-		delete m_ad;
-		m_ad = NULL;
-	}
-}
+	bool releaseMemory( void );
 
-void
-CaBenchAdWrapOld::releaseOwnership( void )
-{
-	if ( m_ad ) {
-		m_ad = NULL;
-		adCount--;
-	}
-}
+  private:
+	list<ClassAd *>		m_list;
+};
 
-int
-CaBenchAdWrapOld::getAdCount( void )
-{
-	return adCount;
-}
+#endif

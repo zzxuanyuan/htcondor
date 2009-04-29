@@ -27,12 +27,19 @@
 #include <list>
 
 #include "cabench_query_base.h"
-#if BENCHMARK_NEW_CLASSADS
+
+#if defined BENCHMARK_NEW_COLLECTION
 #  include "cabench_query_new_collection.h"
    typedef CaBenchQueryNewCollection CaBench;
-#else
+#elif defined BENCHMARK_OLD_COLLECTION
 #  include "cabench_query_old_collection.h"
    typedef CaBenchQueryOldCollection CaBench;
+#elif defined BENCHMARK_NEW_LIST
+#  include "cabench_query_new_list.h"
+   typedef CaBenchQueryNewList CaBench;
+#elif defined BENCHMARK_OLD_LIST
+#  include "cabench_query_old_list.h"
+   typedef CaBenchQueryOldList CaBench;
 #endif
 
 #include "debug_timer_dprintf.h"

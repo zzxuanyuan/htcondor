@@ -26,11 +26,12 @@
 class CaBenchAdWrapOld : public CaBenchAdWrapBase
 {
   public:
-	CaBenchAdWrapOld( ClassAd *ad, bool dtor_free_ad );
+	CaBenchAdWrapOld( ClassAd *ad );
 	virtual ~CaBenchAdWrapOld( void );
 
 	ClassAd *get( void ) const { return m_ad; };
 	void deleteAd( void );
+	void releaseOwnership( void );
 	static int getAdCount( void );
 
   private:

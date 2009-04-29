@@ -29,8 +29,8 @@ using namespace std;
 
 static int adCount = 0;
 
-CaBenchAdWrapNew::CaBenchAdWrapNew( classad::ClassAd *ad, bool dtor_del_ad )
-		: CaBenchAdWrapBase( dtor_del_ad ),
+CaBenchAdWrapNew::CaBenchAdWrapNew( classad::ClassAd *ad )
+		: CaBenchAdWrapBase( ),
 		  m_ad(ad)
 {
 	adCount++;
@@ -46,12 +46,21 @@ CaBenchAdWrapNew::~CaBenchAdWrapNew( void )
 void
 CaBenchAdWrapNew::deleteAd( void )
 {
-	adCount--;
 	if ( m_ad ) {
+		adCount--;
 		delete m_ad;
 		m_ad = NULL;
 	}
 };
+
+void
+CaBenchAdWrapNew::releaseOwnership( void )
+{
+	if ( m_ad ) {
+		m_ad = NULL;
+		adCount--;
+	}
+}
 
 int
 CaBenchAdWrapNew::getAdCount( void )

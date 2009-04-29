@@ -22,66 +22,66 @@
 #include "condor_attributes.h"
 #include "MyString.h"
 
-#include "cabench_query_old_collection.h"
 #include "cabench_adwrap_old.h"
+#include "cabench_query_old_list.h"
 #include "classad_collection.h"
 
 #include "debug_timer_dprintf.h"
 
 
-CaBenchQueryOldCollection::CaBenchQueryOldCollection(
+CaBenchQueryOldList::CaBenchQueryOldList(
 	const CaBenchQueryOptions &options) 
 		: CaBenchQueryOld( options )
 {
-	m_collection = new ClassAdCollection;
 }
 
-CaBenchQueryOldCollection::~CaBenchQueryOldCollection( void )
+CaBenchQueryOldList::~CaBenchQueryOldList( void )
 {
 	releaseMemory( );
 }
 
 bool
-CaBenchQueryOldCollection::releaseMemory( void )
+CaBenchQueryOldList::releaseMemory( void )
 {
-   if ( m_collection ) {
-       delete m_collection;
-       m_collection = NULL;
-   }
-   return true;
+	list <ClassAd *>::iterator iter;
+	for ( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		ClassAd *ad = *iter;
+		delete ad;
+	}
+
+	m_list.clear();
+	return true;
 }
 
 bool
-CaBenchQueryOldCollection::createView( const char * /*expr*/ )
+CaBenchQueryOldList::createView( const char * /*expr*/ )
 {
 	return false;
 }
 
 bool
-CaBenchQueryOldCollection::printCollectionInfo( void ) const
+CaBenchQueryOldList::printCollectionInfo( void ) const
 {
 	return true;
 }
 
 bool
-CaBenchQueryOldCollection::getViewMembers( int &members ) const
+CaBenchQueryOldList::getViewMembers( int &members ) const
 {
 	members = m_num_ads;
 	return true;
 }
 
 bool
-CaBenchQueryOldCollection::insertAd( const char	*key,
-									 ClassAd	*ad,
-									 bool		&copied )
+CaBenchQueryOldList::insertAd( const char * /*key*/, ClassAd *ad, bool &copied)
 {
-	m_collection->NewClassAd( key, ad );
+	m_list.push_back( ad );
 	copied = false;
 	return true;
 }
 
 bool
-CaBenchQueryOldCollection::runQuery( const char *query_str,
+CaBenchQueryOldList::runQuery( const char *query_str,
 									 int query_num,
 									 bool two_way,
 									 int &matches )
@@ -111,14 +111,10 @@ CaBenchQueryOldCollection::runQuery( const char *query_str,
 	}
 
 	matches = 0;
-	int iters = 0;
-	m_collection->StartIterateAllClassAds();
-	do {
-		ClassAd		*ad;
-		if (!m_collection->IterateAllClassAds( ad ) ) {
-			break;
-		}
-		iters++;
+	list <ClassAd *>::iterator iter;
+	for ( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		ClassAd *ad = *iter;
+
 		bool	result;
 		if ( two_way ) {
 			result = ( (*ad) == (*query_ad) );
@@ -129,7 +125,7 @@ CaBenchQueryOldCollection::runQuery( const char *query_str,
 		if ( result ) {
 			matches++;
 		}
-	} while( true );
+	}
 
 	delete query_ad;
 	return true;

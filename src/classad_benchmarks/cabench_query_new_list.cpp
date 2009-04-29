@@ -22,113 +22,79 @@
 #include "condor_attributes.h"
 
 #include "cabench_adwrap_new.h"
-#include "cabench_query_new_collection.h"
+#include "cabench_query_new_list.h"
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 using namespace std;
+#include <list>
 
 #include "debug_timer_dprintf.h"
 
 
 // =======================================
-// CaBenchQueryNewCollection methods
+// CaBenchQueryNew methods
 // =======================================
-CaBenchQueryNewCollection::CaBenchQueryNewCollection(
+CaBenchQueryNewList::CaBenchQueryNewList(
 	const CaBenchQueryOptions &options) 
 		: CaBenchQueryNew( options )
 {
-	m_collection = new classad::ClassAdCollection;
-	m_view_name = "root";
 }
 
-CaBenchQueryNewCollection::~CaBenchQueryNewCollection( void )
+CaBenchQueryNewList::~CaBenchQueryNewList( void )
 {
 	releaseMemory( );
 }
 
 bool
-CaBenchQueryNewCollection::releaseMemory( void )
+CaBenchQueryNewList::releaseMemory( void )
 {
-	if ( m_collection ) {
-		delete m_collection;
-		m_collection = NULL;
+	list <classad::ClassAd *>::iterator iter;
+	for ( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		classad::ClassAd *ad = *iter;
+		delete ad;
 	}
+
+	m_list.clear();
 	return true;
 }
 
 bool
-CaBenchQueryNewCollection::createView( const char *constraint_expr )
+CaBenchQueryNewList::createView( const char * /*constraint_expr*/ )
 {
-	if ( !constraint_expr ) {
-		return false;
-	}
+	return false;
+}
 
-	printf( "setting up view with expr '%s'\n", constraint_expr );
-	string constraint = constraint_expr;
-	string rank;
-	string expr;
-	m_view_name = "VIEW";
-	if ( !m_collection->CreateSubView( m_view_name, "root",
-									   constraint, rank, expr) ) {
-		fprintf( stderr, "Error creating resources view\n" );
-		return false;
-	}
-
+bool
+CaBenchQueryNewList::printCollectionInfo( void ) const
+{
 	return true;
 }
 
 bool
-CaBenchQueryNewCollection::printCollectionInfo( void ) const
+CaBenchQueryNewList::getViewMembers( int &members ) const
 {
-	if ( isVerbose(1) ) {
-		classad::ClassAd	*ad;
-		if ( !m_collection->GetViewInfo( m_view_name, ad ) ) {
-			fprintf( stderr, "Error getting view information\n" );
-			return false;
-		}
-
-		classad::PrettyPrint u;
-		std::string adbuffer;
-		u.Unparse( adbuffer, ad );
-		printf( "ViewInfo:%s\n", adbuffer.c_str() );
-	}
+	members = m_list.size();
 	return true;
 }
 
 bool
-CaBenchQueryNewCollection::getViewMembers( int &members ) const
+CaBenchQueryNewList::insertAd( const char * /*key*/,
+							   classad::ClassAd *ad,
+							   bool &copied)
 {
-	classad::ClassAd	*ad;
-	if ( !m_collection->GetViewInfo( m_view_name, ad ) ) {
-		fprintf( stderr, "Error getting view information\n" );
-		return false;
-	}
-
-	if ( !ad->EvaluateAttrInt( "NumMembers", members ) ) {
-		fprintf( stderr, "Error getting view members\n" );
-		return false;
-	}
-	delete ad;
-	return true;
-}
-
-bool
-CaBenchQueryNewCollection::insertAd( const char *key,
-									 classad::ClassAd *ad,
-									 bool &copied )
-{
-	m_collection->AddClassAd( key, ad );
+	m_list.push_back( ad );
 	copied = false;
 	return true;
 }
 
 bool
-CaBenchQueryNewCollection::runQuery( const char *query_str,
-									 int query_num,
-									 bool two_way,
-									 int &matches )
+CaBenchQueryNewList::runQuery( const char *query_str,
+							   int query_num,
+							   bool two_way,
+							   int &matches )
 {
+#if 0
 	// Is the query string a ClassAd ?
 	static classad::ClassAdParser	 parser;
 	classad::ClassAd	*query_ad = parser.ParseClassAd( query_str, true );
@@ -152,7 +118,13 @@ CaBenchQueryNewCollection::runQuery( const char *query_str,
 		printf( "SearchAd=%s\n", adbuffer.c_str() );
 	}
 
-	classad::LocalCollectionQuery	query;
+	matches = 0;
+	list <classad::ClassAd *>::iterator iter;
+	for ( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		classad::ClassAd *ad = *iter;
+	}
+
+	classad::LocalListQuery	query;
 	query.Bind( m_collection );
 	if ( !query.Query( m_view_name, query_ad, two_way ) ) {
 		fprintf( stderr, "Query failed\n" );
@@ -160,7 +132,6 @@ CaBenchQueryNewCollection::runQuery( const char *query_str,
 		return false;
 	}
 
-	matches = 0;
 	string	key;
 	do {
 		if ( !query.Current( key ) ) {
@@ -172,5 +143,6 @@ CaBenchQueryNewCollection::runQuery( const char *query_str,
 	} while ( query.Next( key ) );
 
 	delete query_ad;
+#endif
 	return true;
 }

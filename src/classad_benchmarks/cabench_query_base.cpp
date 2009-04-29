@@ -31,11 +31,7 @@
 
 CaBenchQueryBase::CaBenchQueryBase( 
 	const CaBenchQueryOptions &options ) 
-		: m_options( options ),
-		  m_procinfo_init( NULL ),
-		  m_procinfo_initdone( NULL ),
-		  m_procinfo_query( NULL ),
-		  m_procinfo_querydone( NULL )
+		: m_options( options )
 {
 }
 
@@ -60,12 +56,13 @@ CaBenchQueryBase::readAdFile( void )
 			return false;
 		}
 
-		CaBenchAdWrapBase *ad = parseTemplateAd( fp, true );
-		if ( !ad ) {
+		CaBenchAdWrapBase *template_ad = parseTemplateAd( fp );
+		if ( !template_ad ) {
 			break;		// Do nothing
 		}
 		else {
-			delete( ad );
+			template_ad->setDtorDelAd( true );
+			delete( template_ad );
 			m_template_offsets.push_back( offset );
 		}
 	}
@@ -80,6 +77,7 @@ CaBenchQueryBase::setup( void )
 	int			 num_ads   = m_options.getNumAds();
 	const char	*view_expr = m_options.getViewExpr();
 	int			 status;
+	piPTR		 pi;
 
 	// Template ad?
 	int		num_templates = numTemplates();
@@ -100,7 +98,8 @@ CaBenchQueryBase::setup( void )
 	}
 
     // Use ProcAPI to get what we can
-    ProcAPI::getProcInfo(getpid(), m_procinfo_init, status);
+	pi = &m_procinfo_init;
+    ProcAPI::getProcInfo(getpid(), pi, status);
 
 	// Generate ads
 	DebugTimerPrintf	timer;
@@ -120,25 +119,26 @@ CaBenchQueryBase::setup( void )
 					 errno, strerror(errno) );
 			return false;
 		}
-		CaBenchAdWrapBase *template_ad =
-			parseTemplateAd( fp, collectionCopiesAd() );
+		CaBenchAdWrapBase *template_ad = parseTemplateAd( fp );
 		if ( !template_ad ) {
 			fclose( fp );
-			fprintf( stderr, "Failed to read template ad %d\n",
-					 ad_num );
+			fprintf( stderr, "Failed to read template ad %d\n", ad_num );
 			return false;
 		}
-		if ( !generateAd( template_ad ) ) {
+		bool	copied;
+		if ( !generateInsertAd( template_ad, copied ) ) {
 			fclose( fp );
 			fprintf( stderr, "Ad generation failed\n" );
 			return false;
 		}
+		template_ad->setDtorDelAd( copied );
 		delete template_ad;
 	}	
 	timer.Log( "setup ads", num_ads );
 	fclose( fp );
 
-    ProcAPI::getProcInfo(getpid(), m_procinfo_initdone, status);
+	pi = &m_procinfo_initdone;
+    ProcAPI::getProcInfo(getpid(), pi, status);
 
 	if ( !printCollectionInfo( ) ) {
 		return false;
@@ -158,8 +158,10 @@ CaBenchQueryBase::runQueries( void )
 	const char			*query      	= m_options.getQuery();
 	bool				 two_way		= m_options.getTwoWay();
 	int					 status;
+	piPTR				 pi;
 
-    ProcAPI::getProcInfo(getpid(), m_procinfo_query, status);
+	pi = &m_procinfo_query;
+    ProcAPI::getProcInfo(getpid(), pi, status);
 	getViewMembers( view_members);
 	for( int i = 0;  i < num_queries;  i++ ) {
 		int					 matches = 0;
@@ -180,7 +182,9 @@ CaBenchQueryBase::runQueries( void )
 	timer.Log( "Total Ads", m_num_ads * num_queries );
 	timer.Log( "Total View Members", view_members * num_queries );
 	timer.Log( "Total Query matches", total_matches );
-    ProcAPI::getProcInfo(getpid(), m_procinfo_querydone, status);
+
+	pi = &m_procinfo_querydone;
+    ProcAPI::getProcInfo(getpid(), pi, status);
 
 	return true;
 }
@@ -190,24 +194,28 @@ CaBenchQueryBase::cleanup( void )
 {
 	releaseMemory( );
 
-	piPTR	procinfo = NULL;
-	int		status;
-    ProcAPI::getProcInfo(getpid(), procinfo, status);
+	struct procInfo	 procinfo;
+	piPTR			 pi;
+	int				 status;
 
-	memoryDump( "init", m_procinfo_init, true );
-	memoryDump( "init", m_procinfo_init, m_procinfo_initdone );
-	memoryDump( "query", m_procinfo_query, true );
-	memoryDump( "query", m_procinfo_query, m_procinfo_querydone );
-	memoryDump( "release", procinfo, true );
-	memoryDump( "release", m_procinfo_init, procinfo );
+	pi = &procinfo;
+    ProcAPI::getProcInfo(getpid(), pi, status);
+
+	memoryDump( "init",    &m_procinfo_init, true );
+	memoryDump( "init",    &m_procinfo_init, &m_procinfo_initdone );
+	memoryDump( "query",   &m_procinfo_query, true );
+	memoryDump( "query",   &m_procinfo_query, &m_procinfo_querydone );
+	memoryDump( "release", &procinfo, true );
+	memoryDump( "release", &m_procinfo_init, &procinfo );
 	printf( "Final ad count: %d\n", getAdCount() );
 
-	delete m_procinfo_init;
-	delete m_procinfo_initdone;
-	delete m_procinfo_query;
-	delete m_procinfo_querydone;
-	delete procinfo;
+	return true;
+}
 
+bool
+CaBenchQueryBase::releaseMemory( void )
+{
+	m_template_offsets.clear( );
 	return true;
 }
 

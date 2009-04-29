@@ -18,10 +18,19 @@
  ***************************************************************/
 #include "cabench_adwrap_base.h"
 
-CaBenchAdWrapBase::CaBenchAdWrapBase( bool dtor_del_ad )
-		: m_dtor_del_ad(dtor_del_ad)
+CaBenchAdWrapBase::CaBenchAdWrapBase( void )
+		: m_dtor_del_ad(true)
 {
 };
 CaBenchAdWrapBase::~CaBenchAdWrapBase( void )
 {
+};
+
+void
+CaBenchAdWrapBase::setDtorDelAd( bool v )
+{
+	m_dtor_del_ad = v;
+	if ( !m_dtor_del_ad ) {
+		releaseOwnership( );
+	}
 };

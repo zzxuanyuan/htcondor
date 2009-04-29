@@ -1,10 +1,12 @@
 PROGRAMS = \
 	cabench_query-newcol \
-	cabench_query-oldcol
+	cabench_query-oldcol \
+	cabench_query-newlist \
+	cabench_query-oldlist
 
 all_target( $(PROGRAMS) )
-new:	cabench_query-newcol
-old:	cabench_query-oldcol
+new:	cabench_query-newcol cabench_query-newlist
+old:	cabench_query-oldcol cabench_query-oldlist
 
 
 CFLAGS = $(STD_C_FLAGS)
@@ -17,21 +19,30 @@ OBJ =	\
 	cabench_adwrap_old.o		\
 	cabench_query_options.o		\
 	cabench_query_base.o		\
+	cabench_query_new.o		\
+	cabench_query_old.o		\
+	cabench_query_new_list.o	\
+	cabench_query_old_list.o	\
 	cabench_query_new_collection.o	\
 	cabench_query_old_collection.o
 
 
 # Individual targets
-new: cabench_query-new_col
 c_plus_target(cabench_query-newcol,$(OBJ) cabench_query-newcol.o,$(LIB))
-old: cabench_query-oldcol
 c_plus_target(cabench_query-oldcol,$(OBJ) cabench_query-oldcol.o,$(LIB))
 
-cabench_query-newcol.o : cabench_query_main.cpp
-	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_CLASSADS -c $< -o $@
-cabench_query-oldcol.o : cabench_query_main.cpp
-	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_CLASSADS -c $< -o $@
+c_plus_target(cabench_query-newlist,$(OBJ) cabench_query-newlist.o,$(LIB))
+c_plus_target(cabench_query-oldlist,$(OBJ) cabench_query-oldlist.o,$(LIB))
 
+cabench_query-newcol.o : cabench_query_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_COLLECTION -c $< -o $@
+cabench_query-oldcol.o : cabench_query_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_COLLECTION -c $< -o $@
+
+cabench_query-newlist.o : cabench_query_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_LIST -c $< -o $@
+cabench_query-oldlist.o : cabench_query_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_LIST -c $< -o $@
 
 .SUFFIXES: .ad .newad .oldad
 .ad.newad:

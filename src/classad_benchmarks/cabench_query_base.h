@@ -50,15 +50,17 @@ class CaBenchQueryBase
 					 const piPTR values ) const;
 
 	// Pure-Virtual member methods
-	virtual CaBenchAdWrapBase *parseTemplateAd(FILE *fp, bool dtor_del_ad) = 0;
-	virtual bool generateAd( const CaBenchAdWrapBase *template_ad ) = 0;
+	virtual CaBenchAdWrapBase *parseTemplateAd( FILE *fp ) = 0;
+	virtual bool generateInsertAd( const CaBenchAdWrapBase *template_ad,
+								   bool &copied ) = 0;
+
 	virtual bool createView( const char *expr ) = 0;
 	virtual bool printCollectionInfo( void ) const = 0;
 	virtual bool runQuery( const char *expr, int qnum,
 						   bool two_way, int &matches ) = 0;
 	virtual bool getViewMembers( int & ) const = 0;
-	virtual bool collectionCopiesAd( void ) = 0;
-	virtual void releaseMemory( void ) = 0;
+
+	bool releaseMemory( void );
 	virtual int getAdCount( void ) const = 0;
 
 	int Verbose( void ) const {
@@ -75,10 +77,10 @@ class CaBenchQueryBase
 	const CaBenchQueryOptions	&m_options;
 	int							 m_num_ads;
 
-	piPTR						 m_procinfo_init;
-	piPTR						 m_procinfo_initdone;
-	piPTR						 m_procinfo_query;
-	piPTR						 m_procinfo_querydone;
+	struct procInfo				 m_procinfo_init;
+	struct procInfo				 m_procinfo_initdone;
+	struct procInfo				 m_procinfo_query;
+	struct procInfo				 m_procinfo_querydone;
 
 };
 

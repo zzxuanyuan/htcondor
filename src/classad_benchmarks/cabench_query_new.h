@@ -17,34 +17,40 @@
  *
  ***************************************************************/
 
-#ifndef CABENCH_QUERY_NEW_COLLECTION_H
-#define CABENCH_QUERY_NEW_COLLECTION_H
+#ifndef CABENCH_QUERY_NEW_H
+#define CABENCH_QUERY_NEW_H
 
-#include "cabench_query_new.h"
+#include <list>
+#include "cabench_query_base.h"
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 using namespace std;
 
-class CaBenchQueryNewCollection : public CaBenchQueryNew
+class CaBenchQueryNew : public CaBenchQueryBase
 {
   public:
-	CaBenchQueryNewCollection( const CaBenchQueryOptions & );
-	virtual ~CaBenchQueryNewCollection( void );
+	CaBenchQueryNew( const CaBenchQueryOptions & );
+	virtual ~CaBenchQueryNew( void );
 
-	bool createView( const char *expr );
-	bool insertAd( const char *key, classad::ClassAd *ad, bool &copied );
-	bool printCollectionInfo( void ) const;
-	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
-	bool getViewMembers( int & ) const;
+	CaBenchAdWrapBase *parseTemplateAd( FILE *fp );
+	bool generateInsertAd( const CaBenchAdWrapBase *template_ad,
+						   bool &copied );
 
-	bool releaseMemory( void );
+	int getAdCount( void ) const;
+
+	virtual bool createView( const char *expr ) = 0;
+	virtual bool insertAd( const char *key, classad::ClassAd *ad,
+						   bool &copied ) = 0;
+	virtual bool printCollectionInfo( void ) const = 0;
+	virtual bool runQuery( const char *query, int qnum,
+						   bool two_way, int &matches ) = 0;
+	virtual bool getViewMembers( int & ) const = 0;
+
+	virtual bool releaseMemory( void ) = 0;
 
   private:
-	mutable classad::ClassAdCollection	 *m_collection;
-
-	// Query
-	classad::ViewName					  m_view_name;
+	list<classad::ClassAd>		m_list;
 };
 
 #endif

@@ -29,11 +29,12 @@ using namespace std;
 class CaBenchAdWrapNew : public CaBenchAdWrapBase
 {
   public:
-	CaBenchAdWrapNew( classad::ClassAd *ad, bool dtor_free_ad );
+	CaBenchAdWrapNew( classad::ClassAd *ad );
 	virtual ~CaBenchAdWrapNew( void );
 
 	classad::ClassAd *get( void ) const { return m_ad; };
 	void deleteAd( void );
+	void releaseOwnership( void );
 	static int getAdCount( void );
 
   private:

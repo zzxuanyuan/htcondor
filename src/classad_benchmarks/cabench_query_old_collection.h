@@ -23,24 +23,21 @@
 #include "classad_collection.h"
 
 #include "cabench_adwrap_base.h"
-#include "cabench_query_base.h"
+#include "cabench_query_old.h"
 
-class CaBenchQueryOldCollection : public CaBenchQueryBase
+class CaBenchQueryOldCollection : public CaBenchQueryOld
 {
   public:
 	CaBenchQueryOldCollection( const CaBenchQueryOptions & );
 	virtual ~CaBenchQueryOldCollection( void );
 
-	CaBenchAdWrapBase *parseTemplateAd( FILE *fp, bool dtor_del_ad );
 	bool createView( const char *expr );
-	bool generateAd( const CaBenchAdWrapBase *template_ad );
+	bool insertAd( const char *key, ClassAd *ad, bool &copied );
 	bool printCollectionInfo( void ) const;
 	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
 	bool getViewMembers( int & ) const;
-	bool collectionCopiesAd( void ) { return true; };
 
-	void releaseMemory( void );
-	int getAdCount( void ) const;
+	bool releaseMemory( void );
 
   private:
 	ClassAdCollection		 *m_collection;

@@ -23,12 +23,14 @@
 class CaBenchAdWrapBase
 {
   public:
-	CaBenchAdWrapBase( bool dtor_del_ad );
+	CaBenchAdWrapBase( void );
 	virtual ~CaBenchAdWrapBase( void );
 
-	void setDtorDelAd( bool v ) { m_dtor_del_ad = v; };
+	void setDtorDelAd( bool v );
 	bool getDtorDelAd( void ) const { return m_dtor_del_ad; };
+
 	virtual void deleteAd( void ) = 0;
+	virtual void releaseOwnership( void ) = 0;
 
   private:
 	bool		 m_dtor_del_ad;

@@ -1,0 +1,94 @@
+/***************************************************************
+ *
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, WI.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License.  You may
+ * obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ ***************************************************************/
+
+#include "condor_common.h"
+#include "condor_debug.h"
+#include "condor_attributes.h"
+#include "MyString.h"
+
+#include "cabench_adwrap_old.h"
+#include "cabench_query_old.h"
+
+#include "debug_timer_dprintf.h"
+
+
+CaBenchQueryOld::CaBenchQueryOld(
+	const CaBenchQueryOptions &options) 
+		: CaBenchQueryBase( options )
+{
+}
+
+CaBenchQueryOld::~CaBenchQueryOld( void )
+{
+}
+
+CaBenchAdWrapBase *
+CaBenchQueryOld::parseTemplateAd( FILE *stream )
+{
+	int			isEOF = 0, error = 0, empty = 0;
+	ClassAd		*ad = new ClassAd( stream, ";", isEOF, error, empty );
+	if ( isEOF ) {
+		if ( ad ) {
+			delete ad;
+		}
+		return false;
+	}
+	if ( error || empty ) {
+		fprintf( stderr, "Error parsing template ad\n" );
+		if ( ad ) {
+			delete ad;
+		}
+		return false;
+	}
+	if ( NULL == ad ) {
+		fprintf( stderr, "NULL ad\n" );
+		return( false );
+	}
+	return new CaBenchAdWrapOld( ad );
+}
+
+bool
+CaBenchQueryOld::generateInsertAd( const CaBenchAdWrapBase *base_ad,
+								   bool &copied)
+{
+	const CaBenchAdWrapOld	*gad =
+		dynamic_cast<const CaBenchAdWrapOld*>(base_ad);
+	ClassAd				*ad = gad->get();
+	MyString			 name;
+	MyString			 type;
+	static int			 n = 0;
+
+	if ( !ad->LookupString( "Name", name )   ||
+		 !ad->LookupString( "MyType", type )  ) {
+		fprintf( stderr, "name or type missing" );
+		return false;
+	}
+	char	key[256];
+	snprintf(key, sizeof(key), "%s/%s/%06d", type.Value(), name.Value(), n++);
+	key[sizeof(key)-1] = '\0';
+	ad->Assign( "key", key );
+
+	return insertAd( key, ad, copied );
+}
+
+int
+CaBenchQueryOld::getAdCount( void ) const
+{
+	return CaBenchAdWrapOld::getAdCount( );
+}

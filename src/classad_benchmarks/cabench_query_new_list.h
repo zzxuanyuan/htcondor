@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- *
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- *
+ * 
  *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,48 +17,32 @@
  *
  ***************************************************************/
 
-#include "condor_common.h"
-#include "condor_attributes.h"
+#ifndef CABENCH_QUERY_NEW_LIST_H
+#define CABENCH_QUERY_NEW_LIST_H
 
-#include "cabench_adwrap_old.h"
+#include <list>
+#include "cabench_query_new.h"
 
-static int adCount = 0;
+#define WANT_CLASSAD_NAMESPACE
+#include "classad/classad_distribution.h"
+using namespace std;
 
-CaBenchAdWrapOld::CaBenchAdWrapOld( ClassAd *ad )
-		: CaBenchAdWrapBase( ),
-		  m_ad( ad )
+class CaBenchQueryNewList : public CaBenchQueryNew
 {
-	adCount++;
-}
+  public:
+	CaBenchQueryNewList( const CaBenchQueryOptions & );
+	virtual ~CaBenchQueryNewList( void );
 
-CaBenchAdWrapOld::~CaBenchAdWrapOld( void )
-{
-	if ( getDtorDelAd() ) {
-		deleteAd( );
-	}
-}
+	bool createView( const char *expr );
+	bool insertAd( const char *key, classad::ClassAd *ad, bool &copied );
+	bool printCollectionInfo( void ) const;
+	bool runQuery( const char *query, int qnum, bool two_way, int &matches );
+	bool getViewMembers( int & ) const;
 
-void
-CaBenchAdWrapOld::deleteAd( void )
-{
-	if ( m_ad ) {
-		adCount--;
-		delete m_ad;
-		m_ad = NULL;
-	}
-}
+	bool releaseMemory( void );
 
-void
-CaBenchAdWrapOld::releaseOwnership( void )
-{
-	if ( m_ad ) {
-		m_ad = NULL;
-		adCount--;
-	}
-}
+  private:
+	list<classad::ClassAd *>	m_list;
+};
 
-int
-CaBenchAdWrapOld::getAdCount( void )
-{
-	return adCount;
-}
+#endif
