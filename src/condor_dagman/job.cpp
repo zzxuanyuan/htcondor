@@ -244,7 +244,7 @@ void Job::Dump () const {
     for (int i = 0 ; i < 3 ; i++) {
         dprintf( D_ALWAYS, "%15s: ", queue_t_names[i] );
 
-		set<JobID_t>::iterator qit;
+		set<JobID_t>::const_iterator qit;
 		for (qit = _queues[i].begin(); qit != _queues[i].end(); qit++) {
 			dprintf( D_ALWAYS | D_NOHEADER, "%d, ", *qit );
 		}

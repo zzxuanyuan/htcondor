@@ -1896,7 +1896,7 @@ void Dag::WriteRescue (const char * rescue_file, const char * datafile)
         if (!_queue.empty()) {
             fprintf (fp, "PARENT %s CHILD", job->GetJobName());
 
-			set<JobID_t>::iterator qit;
+			set<JobID_t>::const_iterator qit;
 			for (qit = _queue.begin(); qit != _queue.end(); qit++) {
                 Job * child = FindNodeByNodeID( *qit );
                 ASSERT( child != NULL );
@@ -1935,7 +1935,7 @@ Dag::TerminateJob( Job* job, bool recovery )
     //
     set<JobID_t> & qp = job->GetQueueRef(Job::Q_CHILDREN);
 
-	set<JobID_t>::iterator qit;
+	set<JobID_t>::const_iterator qit;
 	for (qit = qp.begin(); qit != qp.end(); qit++) {
         Job * child = FindNodeByNodeID( *qit );
         ASSERT( child != NULL );
@@ -2017,7 +2017,7 @@ Dag::DFSVisit (Job * job)
 	
 	//Get the children of current job	
 	set<JobID_t> & children = job->GetQueueRef(Job::Q_CHILDREN);
-	set<JobID_t>::iterator child_itr;
+	set<JobID_t>::const_iterator child_itr;
 
 	for (child_itr = children.begin(); child_itr != children.end(); child_itr++)
 	{
@@ -2056,7 +2056,7 @@ Dag::isCycle ()
 	{
 
 		set<JobID_t> &cset = job->GetQueueRef(Job::Q_CHILDREN);
-		set<JobID_t>::iterator cit;
+		set<JobID_t>::const_iterator cit;
 
 		for(cit = cset.begin(); cit != cset.end(); cit++) {
 			Job * child = FindNodeByNodeID( *cit );
@@ -2102,7 +2102,7 @@ Dag::ParentListString( Job *node, const char delim ) const
 	MyString parents_str;
 
 	set<JobID_t> &parent_list = node->GetQueueRef( Job::Q_PARENTS );
-	set<JobID_t>::iterator pit;
+	set<JobID_t>::const_iterator pit;
 
 	for (pit = parent_list.begin(); pit != parent_list.end(); pit++) {
 		parent = FindNodeByNodeID( *pit );
@@ -2456,7 +2456,7 @@ Dag::DumpDotFileArcs(FILE *temp_dot_file)
 		parent_name = parent->GetJobName();
 
 		set<JobID_t> &cset = parent->GetQueueRef(Job::Q_CHILDREN);
-		set<JobID_t>::iterator cit;
+		set<JobID_t>::const_iterator cit;
 
 		for (cit = cset.begin(); cit != cset.end(); cit++) {
 			child = FindNodeByNodeID( *cit );
