@@ -26,6 +26,7 @@
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
+#include "classad/matchClassad.h"
 using namespace std;
 #include <list>
 
@@ -94,9 +95,11 @@ CaBenchQueryNewList::runQuery( const char *query_str,
 							   bool two_way,
 							   int &matches )
 {
-#if 0
-	// Is the query string a ClassAd ?
 	static classad::ClassAdParser	 parser;
+	bool status = true;
+
+	// Is the query string a ClassAd ?
+	matches = 0;
 	classad::ClassAd	*query_ad = parser.ParseClassAd( query_str, true );
 	if ( NULL == query_ad ) {
 		query_ad = new classad::ClassAd;
@@ -118,31 +121,39 @@ CaBenchQueryNewList::runQuery( const char *query_str,
 		printf( "SearchAd=%s\n", adbuffer.c_str() );
 	}
 
-	matches = 0;
+	classad::MatchClassAd	mad;
+	if ( !mad.ReplaceLeftAd( query_ad ) ) {
+		fprintf( stderr, "Match:ReplaceLeftAd() failed\n" );
+		return false;
+	}
 	list <classad::ClassAd *>::iterator iter;
 	for ( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
 		classad::ClassAd *ad = *iter;
-	}
 
-	classad::LocalListQuery	query;
-	query.Bind( m_collection );
-	if ( !query.Query( m_view_name, query_ad, two_way ) ) {
-		fprintf( stderr, "Query failed\n" );
-		delete query_ad;
-		return false;
-	}
-
-	string	key;
-	do {
-		if ( !query.Current( key ) ) {
+		if ( !mad.ReplaceRightAd( ad ) ) {
+			fprintf( stderr, "Match:ReplaceRightAd() failed\n" );
+			status = false;
 			break;
 		}
-		classad::ClassAd	*ad = m_collection->GetClassAd( key );
-		(void) ad;
-		matches++;
-	} while ( query.Next( key ) );
+
+		bool		left;
+		if( !mad.EvaluateAttrBool( "LeftMatchesRight", left ) ) {
+			left = false;
+		}
+
+		bool right = true;
+		if ( two_way ) {
+			if ( !mad.EvaluateAttrBool( "RightMatchesLeft", right ) ) {
+				right = false;
+			}
+		}
+		if ( left && right ) {
+			matches++;
+		}
+		mad.RemoveRightAd( );
+	}
+	mad.RemoveLeftAd( );
 
 	delete query_ad;
-#endif
-	return true;
+	return status;
 }
