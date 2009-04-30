@@ -453,17 +453,28 @@ private:
   
     /*  Job queues
 	    NOTE: indexed by queue_t
-      
-        parents -> dependencies coming into the Job
-        children -> dependencies going out of the Job
-        waiting -> Jobs on which the current Job is waiting for output 
-    */
-    set<JobID_t> _queues[3];
-  
-    /*  The ID of this job.  This serves as a primary key for Jobs, where each
-        Job's ID is unique from all the rest
-    */
-    JobID_t _jobID;
+
+		WARNING: The execution order of ready nodes is, and
+		should always be, undefined. This is so noone starts
+		building dag structures that rely on some order of
+		execution. In practice, there is an ordering due to the
+		data structures that hold the information, but we should
+		never rely on that behavior cause the representational
+		structures may change. This comment was written because the
+		data structures *DID* change, and we had to consider the
+		ramifications of it.
+
+		parents -> dependencies coming into the Job 
+		children -> dependencies going out of the Job
+		waiting -> Jobs on which the current Job is waiting for output
+    */ 
+	
+	set<JobID_t> _queues[3];
+
+    /*	The ID of this job.  This serves as a primary key for Jobs, where each
+		Job's ID is unique from all the rest 
+	*/ 
+	JobID_t _jobID;
 
     /*  Ensures that all jobID's are unique.  Starts at zero and increments
         by one for every Job object that is constructed
