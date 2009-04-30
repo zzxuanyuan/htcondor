@@ -37,6 +37,9 @@ class CaBenchQueryOld : public CaBenchQueryBase
 	bool generateInsertAd( const CaBenchAdWrapBase *template_ad,
 						   bool &copied );
 
+	bool initFilter( void );
+	bool filterAd( const CaBenchAdWrapBase *base_ad ) const;
+
 	virtual bool createView( const char *expr ) = 0;
 	virtual bool insertAd( const char *key, ClassAd *ad, bool &copied ) = 0;
 	virtual bool printCollectionInfo( void ) const = 0;
@@ -48,6 +51,7 @@ class CaBenchQueryOld : public CaBenchQueryBase
 	int getAdCount( void ) const;
 
   private:
+	ClassAd		*m_filter_ad;
 
 };
 

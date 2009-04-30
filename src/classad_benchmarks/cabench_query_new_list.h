@@ -33,6 +33,9 @@ class CaBenchQueryNewList : public CaBenchQueryNew
 	CaBenchQueryNewList( const CaBenchQueryOptions & );
 	virtual ~CaBenchQueryNewList( void );
 
+	static bool supportViews( void ) { return false; };
+	static const char *Name( void ) { return "New/List"; };
+
 	bool createView( const char *expr );
 	bool insertAd( const char *key, classad::ClassAd *ad, bool &copied );
 	bool printCollectionInfo( void ) const;

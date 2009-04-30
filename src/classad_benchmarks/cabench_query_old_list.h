@@ -34,6 +34,9 @@ class CaBenchQueryOldList : public CaBenchQueryOld
 	CaBenchQueryOldList( const CaBenchQueryOptions & );
 	virtual ~CaBenchQueryOldList( void );
 
+	static bool supportViews( void ) { return false; };
+	static const char *Name( void ) { return "Old/List"; };
+
 	bool insertAd( const char *key, ClassAd *ad, bool &copied );
 	bool createView( const char *expr );
 	bool printCollectionInfo( void ) const;

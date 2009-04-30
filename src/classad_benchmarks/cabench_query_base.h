@@ -35,6 +35,7 @@ class CaBenchQueryBase
 	CaBenchQueryBase( const CaBenchQueryOptions & );
 	virtual ~CaBenchQueryBase( void );
 
+	// Read the ad file
 	bool readAdFile( void );
 
 	// Finish the setup
@@ -53,7 +54,8 @@ class CaBenchQueryBase
 	virtual CaBenchAdWrapBase *parseTemplateAd( FILE *fp ) = 0;
 	virtual bool generateInsertAd( const CaBenchAdWrapBase *template_ad,
 								   bool &copied ) = 0;
-
+	virtual bool initFilter( void ) = 0;
+	virtual bool filterAd( const CaBenchAdWrapBase *base_ad ) const = 0;
 	virtual bool createView( const char *expr ) = 0;
 	virtual bool printCollectionInfo( void ) const = 0;
 	virtual bool runQuery( const char *expr, int qnum,
@@ -76,6 +78,8 @@ class CaBenchQueryBase
 	vector <fpos_t> 			 m_template_offsets;
 	const CaBenchQueryOptions	&m_options;
 	int							 m_num_ads;
+
+	const char					*m_filter_str;
 
 	struct procInfo				 m_procinfo_init;
 	struct procInfo				 m_procinfo_initdone;

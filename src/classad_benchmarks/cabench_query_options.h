@@ -26,36 +26,36 @@ using namespace std;
 class CaBenchQueryOptions
 {
 public:
-	CaBenchQueryOptions( void );
+	CaBenchQueryOptions( const char *version, bool views, const char *name );
 	~CaBenchQueryOptions( void ) { };
+
+	// Process command line
+	bool ProcessArgs( int argc, const char *argv[] );
+	void Usage( void ) const;
 
 	bool Verify( void ) const;
 
 	// Accessors
-	void setVerbosity( int v ) { m_verbosity = v; };
-	void incVerbosity( void ) { m_verbosity++; };
 	int getVerbosity( void ) const { return m_verbosity; };
-
-	void setNumAds( int num ) { m_num_ads = num; };
 	int getNumAds( void ) const { return m_num_ads; };
-	void setNumQueries( int num ) { m_num_queries = num; };
 	int getNumQueries( void ) const { return m_num_queries; };
-	void setAdFile( const char *f ) { m_ad_file = f; };
 	const char * getAdFile( void ) const { return m_ad_file; };
-	void setQuery( const char *q ) { m_query = q; };
+	const char * getFilterExpr( void ) const { return m_filter_expr; };
 	const char * getQuery( void ) const { return m_query; };
-	void setViewExpr( const char *expr ) { m_view_expr = expr; };
 	const char * getViewExpr( void ) const { return m_view_expr; };
-	void setTwoWay( bool two_way ) { m_two_way = two_way; };
 	bool getTwoWay( void ) const { return m_two_way; };
-	void setRandomizeCollection( bool random ) { m_random = random; };
 	bool getRandomizeCollection( void ) const { return m_random; };
 
 private:
+	const char	*m_version;
+	bool		 m_support_views;
+	const char	*m_name;
+
 	int			 m_verbosity;
 	int			 m_num_ads;
 	int			 m_num_queries;
 	const char	*m_ad_file;
+	const char	*m_filter_expr;
 	const char	*m_query;
 	const char	*m_view_expr;
 	bool		 m_two_way;

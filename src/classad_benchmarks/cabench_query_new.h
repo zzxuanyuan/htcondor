@@ -36,6 +36,8 @@ class CaBenchQueryNew : public CaBenchQueryBase
 	CaBenchAdWrapBase *parseTemplateAd( FILE *fp );
 	bool generateInsertAd( const CaBenchAdWrapBase *template_ad,
 						   bool &copied );
+	bool initFilter( void );
+	bool filterAd( const CaBenchAdWrapBase *base_ad ) const;
 
 	int getAdCount( void ) const;
 
@@ -50,7 +52,10 @@ class CaBenchQueryNew : public CaBenchQueryBase
 	virtual bool releaseMemory( void ) = 0;
 
   private:
-	list<classad::ClassAd>		m_list;
+	classad::ClassAdParser		 	 m_parser;
+	classad::ClassAd				*m_filter_ad;
+	mutable classad::MatchClassAd	 m_filter_match;
+	list<classad::ClassAd>			 m_list;
 };
 
 #endif

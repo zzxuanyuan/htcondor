@@ -31,7 +31,9 @@
 
 CaBenchQueryBase::CaBenchQueryBase( 
 	const CaBenchQueryOptions &options ) 
-		: m_options( options )
+		: m_options( options ),
+		  m_num_ads( 0 ),
+		  m_filter_str( NULL )
 {
 }
 
@@ -48,6 +50,9 @@ CaBenchQueryBase::readAdFile( void )
 		fprintf( stderr, "Error opening %s\n", fname );
 		return false;
 	}
+
+	m_filter_str = m_options.getFilterExpr( );
+	initFilter( );
 	while( true ) {
 		fpos_t			 offset;
 		if ( fgetpos( fp, &offset ) < 0 ) {
@@ -60,9 +65,12 @@ CaBenchQueryBase::readAdFile( void )
 		if ( !template_ad ) {
 			break;		// Do nothing
 		}
-		else {
-			template_ad->setDtorDelAd( true );
-			delete( template_ad );
+		bool match = filterAd( template_ad );
+
+		template_ad->setDtorDelAd( true );
+		delete( template_ad );
+
+		if ( match ) {
 			m_template_offsets.push_back( offset );
 		}
 	}

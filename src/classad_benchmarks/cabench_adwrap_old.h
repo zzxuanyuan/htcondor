@@ -29,13 +29,26 @@ class CaBenchAdWrapOld : public CaBenchAdWrapBase
 	CaBenchAdWrapOld( ClassAd *ad );
 	virtual ~CaBenchAdWrapOld( void );
 
-	ClassAd *get( void ) const { return m_ad; };
+	ClassAd *getAd( void ) const { return m_ad; };
 	void deleteAd( void );
 	void releaseOwnership( void );
 	static int getAdCount( void );
 
+	static CaBenchAdWrapOld * get( CaBenchAdWrapBase *base_ad ) {
+		return dynamic_cast<CaBenchAdWrapOld*>( base_ad );
+	}
+	static const CaBenchAdWrapOld *get(const CaBenchAdWrapBase *base_ad){
+		return dynamic_cast<const CaBenchAdWrapOld*>( base_ad );
+	}
+	static ClassAd * getAd( CaBenchAdWrapBase *base_ad ) {
+		return dynamic_cast<CaBenchAdWrapOld*>( base_ad )->getAd( );
+	}
+	static ClassAd *getAd(const CaBenchAdWrapBase *base_ad){
+		return dynamic_cast<const CaBenchAdWrapOld*>( base_ad )->getAd();
+	}
+
   private:
-	ClassAd	*m_ad;
+	mutable ClassAd		*m_ad;
 };
 
 #endif

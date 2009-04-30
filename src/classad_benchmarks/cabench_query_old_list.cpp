@@ -82,9 +82,9 @@ CaBenchQueryOldList::insertAd( const char * /*key*/, ClassAd *ad, bool &copied)
 
 bool
 CaBenchQueryOldList::runQuery( const char *query_str,
-									 int query_num,
-									 bool two_way,
-									 int &matches )
+							   int query_num,
+							   bool two_way,
+							   int &matches )
 {
 	ClassAd		*query_ad;
 
@@ -120,7 +120,8 @@ CaBenchQueryOldList::runQuery( const char *query_str,
 			result = ( (*ad) == (*query_ad) );
 		}
 		else {
-			result = ( (*ad) >= (*query_ad) );
+			//result = ( (*ad) >= (*query_ad) );
+			result = ( (*query_ad) <= (*ad) );
 		}
 		if ( result ) {
 			matches++;

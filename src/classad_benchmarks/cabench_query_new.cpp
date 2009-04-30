@@ -37,19 +37,25 @@ using namespace std;
 // =======================================
 CaBenchQueryNew::CaBenchQueryNew(
 	const CaBenchQueryOptions &options) 
-		: CaBenchQueryBase( options )
+		: CaBenchQueryBase( options ),
+		  m_filter_ad( NULL )
 {
 }
 
 CaBenchQueryNew::~CaBenchQueryNew( void )
 {
+	if ( m_filter_ad ) {
+		m_filter_match.RemoveLeftAd( );
+
+		delete m_filter_ad;
+		m_filter_ad = NULL;
+	}
 }
 
 CaBenchAdWrapBase *
 CaBenchQueryNew::parseTemplateAd( FILE *stream )
 {
-	static classad::ClassAdParser	 parser;
-	classad::ClassAd				*ad = parser.ParseClassAd( stream );
+	classad::ClassAd	*ad = m_parser.ParseClassAd( stream );
 	if ( NULL == ad ) {
 		if ( numTemplates() == 0 ) {
 			fprintf( stderr, "Error parsing template ad\n" );
@@ -60,12 +66,61 @@ CaBenchQueryNew::parseTemplateAd( FILE *stream )
 }
 
 bool
+CaBenchQueryNew::initFilter( void )
+{
+	if ( NULL == m_filter_str ) {
+		return true;
+	}
+
+	m_filter_ad = m_parser.ParseClassAd( m_filter_str, true );
+	if ( NULL == m_filter_ad ) {
+		m_filter_ad = new classad::ClassAd;
+		classad::ExprTree *req_expr =
+			m_parser.ParseExpression( m_filter_str, true );
+		if ( NULL == req_expr ) {
+			fprintf( stderr,
+					 "'%s' is neither a valid query expression nor ad\n",
+					 m_filter_str );
+			return false;
+		}
+		m_filter_ad->Insert( "Requirements", req_expr );
+	}
+
+	if ( !m_filter_match.ReplaceLeftAd( m_filter_ad ) ) {
+		fprintf( stderr, "Match:ReplaceLeftAd() failed\n" );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+CaBenchQueryNew::filterAd( const CaBenchAdWrapBase *base_ad ) const
+{
+	if ( NULL == m_filter_ad ) {
+		return true;
+	}
+	classad::ClassAd	*ad = CaBenchAdWrapNew::getAd( base_ad );
+	if ( !m_filter_match.ReplaceRightAd( ad ) ) {
+		fprintf( stderr, "filter:ReplaceRightAd() failed\n" );
+		return false;
+	}
+
+	bool	match = false;
+	if( !m_filter_match.EvaluateAttrBool( "RightMatchesLeft", match ) ) {
+		// Do nothing
+	}
+
+	m_filter_match.RemoveRightAd( );
+
+	return match;
+}
+
+bool
 CaBenchQueryNew::generateInsertAd( const CaBenchAdWrapBase *base_ad,
 								   bool &copied )
 {
-	const CaBenchAdWrapNew	*gad = 
-		dynamic_cast<const CaBenchAdWrapNew*>(base_ad);
-	classad::ClassAd	*ad = gad->get();
+	classad::ClassAd	*ad = CaBenchAdWrapNew::getAd( base_ad );
 	string				 name;
 	string				 type;
 

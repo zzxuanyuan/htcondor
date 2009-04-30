@@ -30,12 +30,17 @@
 
 CaBenchQueryOld::CaBenchQueryOld(
 	const CaBenchQueryOptions &options) 
-		: CaBenchQueryBase( options )
+		: CaBenchQueryBase( options ),
+		  m_filter_ad( NULL )
 {
 }
 
 CaBenchQueryOld::~CaBenchQueryOld( void )
 {
+	if ( m_filter_ad ) {
+		delete m_filter_ad;
+		m_filter_ad = NULL;
+	}
 }
 
 CaBenchAdWrapBase *
@@ -64,15 +69,49 @@ CaBenchQueryOld::parseTemplateAd( FILE *stream )
 }
 
 bool
+CaBenchQueryOld::initFilter( void )
+{
+	if ( NULL == m_filter_str ) {
+		return true;
+	}
+
+	// Is the query string a ClassAd ? (surrounded by [] like new classads)
+	int len = strlen(m_filter_str );
+	if ( m_filter_str[0] == '[' && m_filter_str[len-1] == ']' ) {
+		char		*ad_str = strdup( m_filter_str+1 );
+		ad_str[len-2] = '\0'; len -= 2;
+		while( len && isspace(ad_str[len-1]) ) {
+			ad_str[--len] = '\0';
+		}
+		m_filter_ad = new ClassAd( ad_str, ';' );
+	}
+	else {
+		MyString	req_expr = "Requirements = ";
+		req_expr += m_filter_str;
+		m_filter_ad = new ClassAd;
+		m_filter_ad->Insert( req_expr.Value() );
+	}
+
+	return true;
+}
+
+bool
+CaBenchQueryOld::filterAd( const CaBenchAdWrapBase *base_ad ) const
+{
+	if ( NULL == m_filter_ad ) {
+		return true;
+	}
+	return ( (*m_filter_ad) <= (*CaBenchAdWrapOld::getAd(base_ad)) );
+}
+
+bool
 CaBenchQueryOld::generateInsertAd( const CaBenchAdWrapBase *base_ad,
 								   bool &copied)
 {
-	const CaBenchAdWrapOld	*gad =
-		dynamic_cast<const CaBenchAdWrapOld*>(base_ad);
-	ClassAd				*ad = gad->get();
-	MyString			 name;
-	MyString			 type;
-	static int			 n = 0;
+	ClassAd		*ad = CaBenchAdWrapOld::getAd(base_ad);
+	MyString	 name;
+	MyString	 type;
+	static int	 n = 0;
 
 	if ( !ad->LookupString( "Name", name )   ||
 		 !ad->LookupString( "MyType", type )  ) {
