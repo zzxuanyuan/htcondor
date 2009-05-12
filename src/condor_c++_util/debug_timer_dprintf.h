@@ -23,16 +23,26 @@
 #include "debug_timer.h"
 
 // Debug timer which outputs via dprintf()
-class DebugTimerDprintf : public DebugTimerBase
+class DebugTimerDprintf : public DebugTimerOut
 {
   public:
-	DebugTimerDprintf( bool start = true ) : DebugTimerBase( start ) { };
+	DebugTimerDprintf( const DebugTimerSimple &ref,
+					   const char *label,
+					   int level = D_FULLDEBUG,
+					   bool sample = false )
+		: DebugTimerOut( ref, label, sample ), m_level( level )
+		{ };
+	DebugTimerDprintf( const char *label,
+					   int level = D_FULLDEBUG,
+					   bool sample = false )
+		: DebugTimerOut( label, sample ), m_level( level )
+		{ };
 	virtual ~DebugTimerDprintf( void ) { };
-	virtual void Output( const char *buf ) {
-		dprintf( D_FULLDEBUG, buf );
+	virtual void Output( const char *buf ) const {
+		dprintf( m_level, buf );
 	}
-
   private:
+	int		m_level;
 };
 
 #endif//__DEBUG_TIMER_DPRINTF_H__

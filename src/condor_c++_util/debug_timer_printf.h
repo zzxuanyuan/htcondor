@@ -20,20 +20,27 @@
 #ifndef __DEBUG_TIMER_PRINTF_H__
 #define __DEBUG_TIMER_PRINTF_H__
 
-#include "debug_timer.h"
 #include <stdio.h>
+#include "debug_timer.h"
 
 // Debug timer which outputs via printf()
-class DebugTimerPrintf : public DebugTimerBase
+class DebugTimerPrintf : public DebugTimerOut
 {
   public:
-	DebugTimerPrintf( bool start = true ) : DebugTimerBase( start ) { };
+	DebugTimerPrintf( const DebugTimerSimple &ref,
+					  const char *label,
+					  bool sample = false )
+		: DebugTimerOut( ref, label, sample ) {
+	};
+	DebugTimerPrintf( const char *label,
+					  bool sample = false )
+		: DebugTimerOut( label, sample ) {
+	};
 	virtual ~DebugTimerPrintf( void ) { };
-	virtual void Output( const char *buf ) {
-		fputs( buf, stdout );
-	}
 
-  private:
+	virtual void Output( const char *buf ) const {
+		fputs( buf, stdout );
+	};
 };
 
 #endif//__DEBUG_TIMER_DPRINTF_H__

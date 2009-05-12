@@ -21,63 +21,138 @@
 
 #include "debug_timer.h"
 
-DebugTimerBase::DebugTimerBase( bool start )
- : on(false), t1(0), t2(0)
+// DebugTimer simple base class methods
+DebugTimerSimple::DebugTimerSimple( bool sample )
+		: m_time(0),
+		  m_ref(NULL)
 {
-	if ( start ) {
-		Start( );
+	if ( sample ) {
+		Sample( true );
 	}
 }
 
-DebugTimerBase::~DebugTimerBase( void )
+DebugTimerSimple::DebugTimerSimple( const DebugTimerSimple &ref, bool sample )
+		: m_time(0),
+		  m_ref(&ref)
+{
+	if ( sample ) {
+		Sample( true );
+	}
+}
+
+DebugTimerSimple::~DebugTimerSimple( void )
 {
 }
 
 double
-DebugTimerBase::dtime( void )
+DebugTimerSimple::dtime( void ) const
 {
 	struct timeval	tv;
 	gettimeofday( &tv, NULL );
 	return ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
 }
 
-void
-DebugTimerBase::Start( void )
+double
+DebugTimerSimple::Sample( bool store )
 {
-	t1 = dtime( );
-	on = true;
-}
-
-void
-DebugTimerBase::Stop( void )
-{
-	if ( on ) {
-		t2 = dtime( );
-		on = false;
+	double now = dtime();
+	if ( store ) {
+		m_time = now;
 	}
+	return now;
+}
+
+const DebugTimerSimple &
+DebugTimerSimple::GetRef( void ) const
+{
+	assert( m_ref != NULL );
+	return *m_ref;
+}
+
+// DebugTimer Class with logging methods
+DebugTimerOut::DebugTimerOut( const char *label, bool sample )
+		: DebugTimerSimple( sample ),
+		  m_label( label )
+{
+	return;
+}
+
+DebugTimerOut::DebugTimerOut( const DebugTimerSimple &ref,
+							  const char *label, bool sample )
+		: DebugTimerSimple( ref, sample ),
+		  m_label( label )
+{
+	return;
+}
+
+DebugTimerOut::~DebugTimerOut( void )
+{
 }
 
 void
-DebugTimerBase::Log( const char *s, int num, bool stop )
+DebugTimerOut::Log( void ) const
+{
+	Log( GetRef() );
+}
+
+void
+DebugTimerOut::Log( int count ) const
+{
+	Log( GetRef(), count );
+}
+
+void
+DebugTimerOut::Log( int count, const char *label ) const
+{
+	Log( GetRef(), count, label );
+}
+
+void
+DebugTimerOut::Log( const DebugTimerSimple &ref ) const
+{
+	Log( Diff(ref) );
+}
+
+void
+DebugTimerOut::Log( const DebugTimerSimple &ref, int num ) const
+{
+	Log( Diff(ref), num );
+}
+
+void
+DebugTimerOut::Log( const DebugTimerSimple &ref, int num, const char *l ) const
+{
+	Log( Diff(ref), num, l );
+}
+
+void
+DebugTimerOut::Log( double diff, int num ) const
+{
+	Log( diff, num, m_label );
+}
+
+void
+DebugTimerOut::Log( double diff, int num, const char *label ) const
 {
 	char	buf[256];
-	if ( stop ) {
-		Stop( );
+
+	double	per = 0.0, per_sec = 0.0;
+	if ( num > 0 ) {
+		per = diff / num;
+		per_sec = 1.0 / per;
 	}
-	double	timediff = t2 - t1;
-	if ( num >= 0 ) {
-		double	per = 0.0, per_sec = 0.0;
-		if ( num > 0 ) {
-			per = timediff / num;
-			per_sec = 1.0 / per;
-		}
-		snprintf( buf, sizeof( buf ),
-				  "DebugTimer: %-25s %4d in %8.5fs => %9.7fsp %10.2f/s\n",
-				  s, num, timediff, per, per_sec );
-		Output( buf );
-	} else {
-		snprintf( buf, sizeof( buf ),
-				  "DebugTimer: %-25s %8.5fs\n", s, timediff );
-		Output( buf );
-	}
+	snprintf( buf, sizeof( buf ),
+			  "  %-15s %4d in %8.5fs => %9.7fsp %10.2f/s\n",
+			  label, num, diff, per, per_sec );
+	Output( buf );
+}
+
+void
+DebugTimerOut::Log( double diff ) const
+{	
+	char	buf[256];
+
+	snprintf( buf, sizeof( buf ),
+			  "  %-15s %8.5fs\n", m_label, diff );
+	Output( buf );
 }

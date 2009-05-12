@@ -22,20 +22,66 @@
 
 #include "condor_common.h"
 
-class DebugTimerBase
+// Simple base timer -- the base of the hiearchy
+class DebugTimerSimple
 {
   public:
-	DebugTimerBase( bool start = true );
-	virtual ~DebugTimerBase( void );
-	void Start( void );
-	void Stop( void );
-	void Log( const char *s, int count = -1, bool stop = true );
-	virtual void Output( const char *) = 0;
+	DebugTimerSimple( bool sample = true );
+	DebugTimerSimple( const DebugTimerSimple &ref, bool sample = true );
+	virtual ~DebugTimerSimple( void );
+
+	double Sample( bool store = true );
+	double Get( void ) const { return m_time; };
+
+	// Diff methods
+	double Diff( double ref ) const { return m_time - ref; };
+	double Diff( const DebugTimerSimple &ref ) const {
+		return Get() - ref.Get();
+	};
+	double Diff( void ) const {
+		assert( NULL != m_ref );
+		return Diff(m_ref);
+	}
+
+  protected:
+	const DebugTimerSimple &GetRef( void ) const;
 
   private:
-	bool	on;
-	double	t1, t2;
-	double dtime( void );
+	double	dtime( void ) const;
+	double	m_time;
+	const DebugTimerSimple *m_ref;
+};
+
+// Debug timer with output
+class DebugTimerOut : public DebugTimerSimple
+{
+  public:
+	DebugTimerOut( const char *label,
+				   bool sample = true );
+	DebugTimerOut( const DebugTimerSimple &ref,
+				   const char *label,
+				   bool sample = true );
+	~DebugTimerOut( void );
+
+	// Basic logging methods
+	void Log(const DebugTimerSimple &ref) const;
+	void Log(const DebugTimerSimple &ref, int count) const;
+	void Log(const DebugTimerSimple &ref, int count, const char *label) const;
+
+	// These assume that a reference has been defined!
+	void Log(void ) const;
+	void Log(int count ) const;
+	void Log(int count, const char *label ) const;
+
+  protected:
+	virtual void Output( const char *) const = 0;
+
+	void Log( double diff ) const;
+	void Log( double diff, int count ) const;
+	void Log( double diff, int count, const char *label ) const;
+
+  private:
+	const char *m_label;
 };
 
 #endif//__DEBUG_TIMER_H__
