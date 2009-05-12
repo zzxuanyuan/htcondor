@@ -17,6 +17,9 @@ OBJ =	\
 	cabench_adwrap_base.o		\
 	cabench_adwrap_new.o		\
 	cabench_adwrap_old.o		\
+	cabench_options.o		\
+	cabench_sample.o		\
+	cabench_base.o			\
 	cabench_query_options.o		\
 	cabench_query_base.o		\
 	cabench_query_new.o		\

@@ -136,12 +136,12 @@ CaBenchQueryNewList::runQuery( const char *query_str,
 			break;
 		}
 
-		bool		left;
+		bool	left = false;
 		if( !mad.EvaluateAttrBool( "LeftMatchesRight", left ) ) {
 			left = false;
 		}
 
-		bool right = true;
+		bool	right = true;
 		if ( two_way ) {
 			if ( !mad.EvaluateAttrBool( "RightMatchesLeft", right ) ) {
 				right = false;

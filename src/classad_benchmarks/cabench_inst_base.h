@@ -17,25 +17,22 @@
  *
  ***************************************************************/
 
-#ifndef CABENCH_QUERY_BASE_H
-#define CABENCH_QUERY_BASE_H
+#ifndef CABENCH_INSTANTIATE_BASE_H
+#define CABENCH_INSTANTIATE_BASE_H
 
 #include "cabench_base.h"
 #include "cabench_adwrap_base.h"
-#include "cabench_query_options.h"
+#include "cabench_instantiate_options.h"
 using namespace std;
 #include <vector>
 #include "stdio.h"
 
 
-class CaBenchQueryBase : public CaBenchBase
+class CaBenchInstantiateBase : public CaBenchBase
 {
   public:
-	CaBenchQueryBase( const CaBenchQueryOptions & );
-	virtual ~CaBenchQueryBase( void );
-
-	// Read the ad file
-	bool readAdFile( void );
+	CaBenchInstantiateBase( const CaBenchInstantiateOptions & );
+	virtual ~CaBenchInstantiateBase( void );
 
 	// Finish the setup
 	bool setup( void );
@@ -68,10 +65,6 @@ class CaBenchQueryBase : public CaBenchBase
 	};
 	
   protected:
-	vector <fpos_t> 			 m_template_offsets;
-	int							 m_num_ads;
-
-	const char					*m_filter_str;
 
   private:
 };
