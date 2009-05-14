@@ -77,8 +77,8 @@ cabench_inst-new.o : cabench_inst_main.cpp
 cabench_inst-old.o : cabench_inst_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD -c $< -o $@
 
-.SUFFIXES: .ad .newad .oldad
-.ad.newad:
+.SUFFIXES: .ads .ads-new .ads-old
+.ads.ads-new:
 	./convert_to_new < $< > $@
-.ad.oldad:
+.ads.ads-old:
 	./convert_to_old < $< > $@

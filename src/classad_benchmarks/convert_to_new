@@ -6,6 +6,9 @@ class AdLines ( object ) :
         self._lines = []
     def Add( self, line ) :
         line = line.strip()
+        if line.startswith( "-- Schedd:" ) :
+            self.Reset( )
+            return False;
         if len(line) == 0 :
             return False
         else :
