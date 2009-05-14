@@ -31,7 +31,8 @@ public:
 	~CaBenchQueryOptions( void ) { };
 
 	// Process command line
-	OptStatus ProcessArgLocal( SimpleArg &arg, int &fixed, int &index );
+	OptStatus ProcessArgLocal( SimpleArg &arg, int index );
+	OptStatus ProcessArgLocal( SimpleArg &arg, int index, int fixed );
 	const char *getUsage( void ) const;
 	const char *getOpts( void ) const;
 	const char *getFixed( void ) const;

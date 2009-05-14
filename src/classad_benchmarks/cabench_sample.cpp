@@ -27,28 +27,57 @@
 
 CaBenchSample::CaBenchSample( bool is_baseline, const char *name, int count )
 		: m_name( name ),
+		  m_is_baseline( is_baseline ),
 		  m_pi( NULL ),
 		  m_timer( NULL ),
 		  m_count( count ),
 		  m_use_count( 0 )
 {
-	int		status;
-    ProcAPI::getProcInfo(getpid(), m_pi, status);
-	if ( ! is_baseline ) {
-		m_timer = new DebugTimerPrintf( name, true );
-	}
-	else {
-		m_timer = new DebugTimerSimple( );
-	}
+	start( );
 }
 
 CaBenchSample::~CaBenchSample( void )
 {
+	reset();
+}
+
+bool
+CaBenchSample::reset( void )
+{
 	m_name = NULL;
-	delete m_pi;
-	m_pi = NULL;
-	delete m_timer;
-	m_timer = NULL;
+	if ( m_pi ) {
+		delete m_pi;
+		m_pi = NULL;
+	}
+	if ( m_timer ) {
+		delete m_timer;
+		m_timer = NULL;
+	}
+	return true;
+}
+
+bool
+CaBenchSample::restart( const char *name )
+{
+	reset( );
+	if ( name != NULL ) {
+		m_name = name;
+	}
+	return start(  );
+}
+
+bool
+CaBenchSample::start( void )
+{
+	int		status;
+    ProcAPI::getProcInfo(getpid(), m_pi, status);
+	if ( m_is_baseline ) {
+		m_timer = new DebugTimerSimple( );
+	}
+	else {
+		m_timer = new DebugTimerPrintf( m_name, true );
+	}
+	return true;
 }
 
 bool
@@ -70,13 +99,13 @@ CaBenchSample::dump( const CaBenchSample &ref,
 					 const char *name,
 					 int count) const
 {
-	unsigned long	imgdiff  = (m_pi->imgsize - ref.getImageSize() );
-	unsigned long	rssdiff  = (m_pi->rssize  - ref.getRSS() );
-	double			timediff = m_timer->Diff( ref.getTimer() );
+	long	imgdiff  = (m_pi->imgsize - ref.getImageSize() );
+	long	rssdiff  = (m_pi->rssize  - ref.getRSS() );
+	double	timediff = m_timer->Diff( ref.getTimer() );
 
 	DebugTimerPrintf	*dtp = dynamic_cast<DebugTimerPrintf *>(m_timer);
 	if ( NULL == dtp ) {
-		printf( "  %-20s @ %9.5fs %8luk %8luk [diff]\n",
+		printf( "  %-20s @ %9.5fs %8ldk %8ldk [diff]\n",
 				name, timediff, imgdiff, rssdiff );
 	}
 	else {
@@ -86,10 +115,37 @@ CaBenchSample::dump( const CaBenchSample &ref,
 		else {
 			dtp->Log( ref.getTimer() );
 		}
-		printf( "  %-20s @ %9.5fs %8luk %8luk [diff]\n",
+		printf( "  %-20s @ %9.5fs %8ldk %8ldk [diff]\n",
 				name, timediff, imgdiff, rssdiff );
 	}
 	return true;
+}
+
+
+//
+// CaBenchSamplePair methods
+//
+CaBenchSamplePair::CaBenchSamplePair( const char *name ) 
+		: m_baseline( true, name )
+{
+}
+
+CaBenchSamplePair::~CaBenchSamplePair( void ) 
+{
+}
+
+bool
+CaBenchSamplePair::complete( int count )
+{
+	CaBenchSample	sample( false, "complete", count );
+	m_baseline.dump( );
+	return sample.dump( m_baseline );
+}
+
+bool
+CaBenchSamplePair::restart( const char *name )
+{
+	return m_baseline.restart( name );
 }
 
 
@@ -150,17 +206,24 @@ CaBenchSampleSet::CaBenchSampleSet( CaBenchSampleSet *ref )
 
 CaBenchSampleSet::~CaBenchSampleSet( void )
 {
+	clearSamples( );
+
+	if ( m_baseline ) {
+		delete m_baseline;
+		m_baseline = NULL;
+	}
+}
+
+bool
+CaBenchSampleSet::clearSamples( void )
+{
 	list <CaBenchSampleRef *>::iterator iter;
 	for ( iter = m_samples.begin(); iter != m_samples.end(); iter++ ) {
 		CaBenchSampleRef	*sample = *iter;
 		delete sample;
 	}
 	m_samples.clear();
-
-	if ( m_baseline ) {
-		delete m_baseline;
-		m_baseline = NULL;
-	}
+	return true;
 }
 
 bool
@@ -174,8 +237,31 @@ CaBenchSampleSet::init( const char *name )
 }
 
 bool
-CaBenchSampleSet::init( CaBenchSample *ref )
+CaBenchSampleSet::reInit( void )
 {
+	if ( m_baseline ) {
+		delete m_baseline;
+	}
+	clearSamples( );
+	return init( );
+}
+
+bool
+CaBenchSampleSet::reInit( CaBenchSample *ref )
+{
+	if ( m_baseline ) {
+		delete m_baseline;
+	}
+	clearSamples( );
+	return init( ref );
+}
+
+bool
+CaBenchSampleSet::init( CaBenchSample *ref, const char *name )
+{
+	if ( NULL == name ) {
+		name = "baseline";
+	}
 	m_baseline = new CaBenchSampleRef( ref );
 	return true;
 }
@@ -194,6 +280,15 @@ CaBenchSampleSet::addSample( CaBenchSample *sample,
 {
 	CaBenchSampleRef	*p = new CaBenchSampleRef( sample, label, count );
 	m_samples.push_back( p );
+	return true;
+}
+
+bool
+CaBenchSampleSet::final( int count )
+{
+	addSample( "final", count );
+	dumpSamples( );
+	clearSamples( );
 	return true;
 }
 

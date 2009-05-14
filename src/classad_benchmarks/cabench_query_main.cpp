@@ -60,7 +60,12 @@ int main( int argc, const char *argv[] )
 	CaBenchQueryOptions	opts( VERSION,
 							  CaBench::supportViews(),
 							  CaBench::Name() );
-	if ( !opts.ProcessArgs(argc, argv) ) {
+	CaBenchOptions::OptStatus	ostat = 
+		opts.ProcessArgs(argc, argv);
+	if ( CaBenchOptions::OPT_HELP == ostat ) {
+		exit( 0 );
+	}
+	else if ( CaBenchOptions::OPT_DONE != ostat ) {
 		exit( 1 );
 	}
 	if ( !opts.Verify( )) {
@@ -70,7 +75,7 @@ int main( int argc, const char *argv[] )
 	CaBench		benchmark( opts );
 
 	if ( !benchmark.setup( ) ) {
-		opts.Usage( );
+		fprintf( stderr, "setup failed\n" );
 		exit( 1 );
 	}
 

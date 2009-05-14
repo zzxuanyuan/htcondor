@@ -42,6 +42,10 @@ CaBenchQueryOptions::CaBenchQueryOptions( const char *v,
 bool
 CaBenchQueryOptions::Verify( void ) const
 {
+	if ( m_query == NULL ) {
+		fprintf( stderr, "No query specified\n" );
+		return false;
+	}
 	return CaBenchOptions::Verify( );
 }
 
@@ -68,15 +72,14 @@ const char *
 CaBenchQueryOptions::getFixed( void ) const
 {
 	static const char *	fixed =
-		"  <query>: query constraint\n"
+		"  <query>: query constraint (or '-' for none)\n"
 		"";
 	return fixed;
 }
 
 CaBenchQueryOptions::OptStatus
 CaBenchQueryOptions::ProcessArgLocal(SimpleArg &arg,
-									 int &fixed,
-									 int & /*index*/ )
+									 int /*index*/ )
 {
 	if ( arg.Match( "view" ) ) {
 		if ( !m_support_views ) {
@@ -110,17 +113,20 @@ CaBenchQueryOptions::ProcessArgLocal(SimpleArg &arg,
 		m_two_way = false;
 		return CaBenchOptions::OPT_HANDLED;
 	}
-	else if ( ! arg.ArgIsOpt() ) {
-		if ( 3 == fixed ) {
-			if ( !arg.getOpt( m_query, true ) ) {
-				fprintf(stderr, "Invalid query %s\n", arg.Arg() );
-				return CaBenchOptions::OPT_ERROR;
-			}
-		}
-		else {
+
+	return CaBenchOptions::OPT_OTHER;
+}
+
+CaBenchQueryOptions::OptStatus
+CaBenchQueryOptions::ProcessArgLocal( SimpleArg &arg,
+									  int /*index*/,
+									  int fixed )
+{
+	if ( 0 == fixed ) {
+		if ( !arg.getOpt( m_query ) ) {
+			fprintf(stderr, "Invalid query %s\n", arg.Arg() );
 			return CaBenchOptions::OPT_ERROR;
 		}
-		fixed++;
 		return CaBenchOptions::OPT_HANDLED;
 	}
 

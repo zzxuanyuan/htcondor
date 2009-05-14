@@ -53,7 +53,12 @@ int main( int argc, const char *argv[] )
 
 	CaBenchInstOptions	opts( VERSION,
 							  CaBench::Name() );
-	if ( !opts.ProcessArgs(argc, argv) ) {
+	CaBenchOptions::OptStatus	ostat = 
+		opts.ProcessArgs(argc, argv);
+	if ( CaBenchOptions::OPT_HELP == ostat ) {
+		exit( 0 );
+	}
+	else if ( CaBenchOptions::OPT_DONE != ostat ) {
 		exit( 1 );
 	}
 	if ( !opts.Verify( )) {

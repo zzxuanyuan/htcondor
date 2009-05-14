@@ -33,6 +33,8 @@ class CaBenchSample
 	CaBenchSample( bool is_baseline, const char *name, int count = -1 );
 	~CaBenchSample( void );
 
+	bool restart( const char *name = NULL );
+
 	bool dump( void ) const;
 	bool dump( const CaBenchSample &other ) const;
 	bool dump( const CaBenchSample &other, const char *name, int count ) const;
@@ -49,12 +51,31 @@ class CaBenchSample
 	int incUseCount( void ) { return ++m_use_count; };
 	int decUseCount( void ) { return --m_use_count; };
 
+	// private methods
+  private:
+	bool reset( void );
+	bool start( void );
+
   private:
 	const char				*m_name;
+	bool					 m_is_baseline;
 	piPTR					 m_pi;
 	DebugTimerSimple		*m_timer;
 	int						 m_count;
 	int						 m_use_count;
+};
+
+class CaBenchSamplePair
+{
+  public:
+	CaBenchSamplePair( const char *name );
+	~CaBenchSamplePair( void );
+
+	bool complete( int count = -1 );
+	bool restart( const char *name = NULL );
+
+  private:
+	CaBenchSample	m_baseline;
 };
 
 class CaBenchSampleRef
@@ -87,14 +108,19 @@ class CaBenchSampleSet
 	CaBenchSampleSet( CaBenchSample *ref );
 	CaBenchSampleSet( CaBenchSampleSet *ref );
 	virtual ~CaBenchSampleSet( void );
+	bool clearSamples( void );
 
 	// Sampling information
 	bool init( const char *name = NULL );
-	bool init( CaBenchSample *ref );
+	bool init( CaBenchSample *ref, const char *name = NULL );
+	bool reInit( void );
+	bool reInit( CaBenchSample *ref );
 	bool addSample( const char *label, int count = -1 );
 	bool addSample( CaBenchSample *sample,
 					const char *label = NULL, int count = -1 );
 	bool dumpSamples( void ) const;
+
+	bool final( int count = -1 );
 
 	// Accessors
 	CaBenchSample *getBaseline( void ) const {

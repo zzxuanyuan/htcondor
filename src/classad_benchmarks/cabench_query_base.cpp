@@ -44,7 +44,6 @@ CaBenchQueryBase::~CaBenchQueryBase( void )
 bool
 CaBenchQueryBase::setup( void )
 {
-	int			 num_ads   = Options().getNumAds();
 	const char	*view_expr = Options().getViewExpr();
 
 	// Invoke the base class's setup
@@ -62,6 +61,13 @@ CaBenchQueryBase::setup( void )
 	if ( !num_templates ) {
 		return false;
 	}
+
+	// Computer # of target ads
+	int		num_ads = Options().getNumAds();
+	if ( num_ads <= 0 ) {
+		num_ads = num_templates * Options().getAdMult( );
+	}
+	printf( "Target: %d ads\n", num_ads );
 
 	// Setup the view
 	if ( view_expr && (!createView( view_expr ) )  ) {
@@ -169,12 +175,16 @@ CaBenchQueryBase::runLoops( void )
 	const char			*query      = Options().getQuery();
 	bool				 two_way	= Options().getTwoWay();
 
+	if ( !strcmp( query, "-" ) ) {
+		return true;
+	}
+
 	CaBenchSampleSet samples( "queries" );
 	getViewMembers( view_members);
-	for( int i = 0;  i < num_loops;  i++ ) {
+	for( int loop = 0;  loop < num_loops;  loop++ ) {
 		int					 matches = 0;
 		CaBenchSampleSet qsamples( "query" );
-		if ( !runQuery( query, i, two_way, matches ) ) {
+		if ( !runQuery( query, loop, two_way, matches ) ) {
 			fprintf( stderr, "runQuery failed\n" );
 			return false;
 		}

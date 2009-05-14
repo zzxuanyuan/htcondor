@@ -70,18 +70,22 @@ CaBenchInstOptions::getFixed( void ) const
 
 CaBenchInstOptions::OptStatus
 CaBenchInstOptions::ProcessArgLocal( SimpleArg &arg,
-									 int &fixed,
-									 int & /*index*/ )
+									 int /*index*/ )
 {
-	if ( ! arg.ArgIsOpt() ) {
-		if ( 3 == fixed ) {
-			if ( !arg.getOpt( m_num_attrs, true ) ) {
-				fprintf(stderr, "Invalid # attrs %s\n", arg.Arg() );
-				return CaBenchOptions::OPT_ERROR;
-			}
-			fixed++;
-			return CaBenchOptions::OPT_HANDLED;
+	return CaBenchOptions::OPT_OTHER;
+}
+
+CaBenchInstOptions::OptStatus
+CaBenchInstOptions::ProcessArgLocal( SimpleArg &arg,
+									 int /*index*/,
+									 int fixed )
+{
+	if ( 0 == fixed ) {
+		if ( !arg.getOpt( m_num_attrs, true ) ) {
+			fprintf(stderr, "Invalid # attrs %s\n", arg.Arg() );
+			return CaBenchOptions::OPT_ERROR;
 		}
+		return CaBenchOptions::OPT_HANDLED;
 	}
-	return CaBenchOptions::OPT_ERROR;
+	return CaBenchOptions::OPT_OTHER;
 }

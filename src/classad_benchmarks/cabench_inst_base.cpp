@@ -236,19 +236,27 @@ bool
 CaBenchInstBase::runLoops( void )
 {
 	int		num_loops	= Options().getNumLoops();
+	char	buf[32];
 
 	CaBenchSampleSet samples( "loops" );
-	for( int i = 0;  i < num_loops;  i++ ) {
-		CaBenchSampleSet lsamples( "loop" );
-		
+	for( int loop = 0;  loop < num_loops;  loop++ ) {
+		snprintf( buf, sizeof(buf), "loop %d", loop+1 );
+		printf( "\n** loop %d **\n", loop+1 );
+
+		CaBenchSampleSet	lsamples( buf );
+		CaBenchSamplePair	pair( "init" );
 		if ( !initAds( Options().getNumAds() ) ){
 			return false;
 		}
+		pair.complete( Options().getNumAds() );
 		lsamples.addSample( "generation", Options().getNumAds() );
 
 		list <CaBenchInstData *>::iterator iter = m_avlist.begin();
 		int		avno = 0;
 		int		dups = 0;
+		int		num = Options().getNumAds() * Options().getNumAttrs();
+
+		pair.restart( "population" );
 		for( int adno = 0;  adno < Options().getNumAds();  adno++ ) {
 			for( int attr = 0;  attr < Options().getNumAttrs();  attr++ ) {
 				CaBenchInstData *dp = *iter;
@@ -270,13 +278,15 @@ CaBenchInstBase::runLoops( void )
 				}
 			}
 		}
-		lsamples.addSample( "Population",
-							Options().getNumAds() * Options().getNumAttrs() );
+		pair.complete( num );
+		lsamples.addSample( "Population", num );
+
+		pair.restart( "delete" );
 		if ( !deleteAds( ) ) {
 			return false;
 		}
-		lsamples.addSample( "Deletion",
-							Options().getNumAds() * Options().getNumAttrs() );
+		pair.complete( Options().getNumAds() );
+		lsamples.addSample( "Deletion", Options().getNumAds() );
 		lsamples.dumpSamples( );
 	}
 	samples.dumpSamples( );
