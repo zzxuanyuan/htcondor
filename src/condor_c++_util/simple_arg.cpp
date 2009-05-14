@@ -38,7 +38,7 @@ SimpleArg::SimpleArg( const char **argv, int argc, int index )
 	m_is_opt = false;
 
 	// Define it as an 'option' if it starts with a '-'
-	if ( m_arg[0] == '-' ) {
+	if ( (m_arg[0] == '-') && (m_arg[1] != '\0') ) {
 		m_is_opt = true;
 		m_index++;
 
