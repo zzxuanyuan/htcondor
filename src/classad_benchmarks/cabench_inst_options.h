@@ -38,7 +38,7 @@ public:
 	bool Verify( void ) const;
 
 	// Accessors
-	bool getNumAttrs( void ) const { return m_num_attrs; };
+	int getNumAttrs( void ) const { return m_num_attrs; };
 
 private:
 	int			m_num_attrs;
