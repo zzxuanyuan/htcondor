@@ -17,56 +17,103 @@
  *
  ***************************************************************/
 
-#ifndef CABENCH_INSTANTIATE_BASE_H
-#define CABENCH_INSTANTIATE_BASE_H
+#ifndef CABENCH_INST_BASE_H
+#define CABENCH_INST_BASE_H
 
 #include "cabench_base.h"
 #include "cabench_adwrap_base.h"
-#include "cabench_instantiate_options.h"
+#include "cabench_inst_options.h"
 using namespace std;
 #include <vector>
 #include "stdio.h"
 
-
-class CaBenchInstantiateBase : public CaBenchBase
+class CaBenchInstData
 {
   public:
-	CaBenchInstantiateBase( const CaBenchInstantiateOptions & );
-	virtual ~CaBenchInstantiateBase( void );
+	CaBenchInstData( int lineno, char *linebuf );
+	~CaBenchInstData( void );
+
+	enum DataType{ NONE, BOOLEAN, INTEGER, FLOAT, STRING };
+
+	bool isValid( void ) const { return m_type != NONE; };
+	const char *getAttr( void ) const { return m_attribute; };
+	DataType getType( void ) const { return m_type; };
+	double getDupPercent( void ) const { return m_dup_percent; };
+	int getDupAds( int ads ) const {
+		return (int) rint( ads * m_dup_v );
+	};
+	bool getValue( bool &v ) const {
+		if ( m_type != BOOLEAN ) {
+			return false;
+		}
+		v = m_value_boolean;
+		return true;
+	};
+	bool getValue( int &v ) const {
+		if ( m_type != INTEGER ) {
+			return false;
+		}
+		v = m_value_integer;
+		return true;
+	};
+	bool getValue( double &v ) const {
+		if ( m_type != FLOAT ) {
+			return false;
+		}
+		v = m_value_float;
+		return true;
+	};
+	bool getValue( const char *&v ) const {
+		if ( m_type != STRING ) {
+			return false;
+		}
+		v = m_value_string;
+		return true;
+	};
+
+  private:
+	DataType	 m_type;
+	const char	*m_attribute;
+	double		 m_dup_percent;
+	double		 m_dup_v;
+	bool		 m_value_boolean;
+	long		 m_value_integer;
+	double		 m_value_float;
+	const char	*m_value_string;
+};
+
+class CaBenchInstBase : public CaBenchBase
+{
+  public:
+	CaBenchInstBase( const CaBenchInstOptions & );
+	virtual ~CaBenchInstBase( void );
 
 	// Finish the setup
 	bool setup( void );
+	bool readDataFile( void );
 
 	// Do real work
-	bool runQueries( void );
+	bool runLoops( void );
+	bool addAttr( const CaBenchInstData &dp, int adno, int avno );
 
 	// Done; dump final info
 	bool finish( void );
 
 	// Pure-Virtual member methods
-	virtual CaBenchAdWrapBase *parseTemplateAd( FILE *fp ) = 0;
-	virtual bool generateInsertAd( const CaBenchAdWrapBase *template_ad,
-								   bool &copied ) = 0;
-	virtual bool initFilter( void ) = 0;
-	virtual bool filterAd( const CaBenchAdWrapBase *base_ad ) const = 0;
-	virtual bool createView( const char *expr ) = 0;
-	virtual bool printCollectionInfo( void ) const = 0;
-	virtual bool runQuery( const char *expr, int qnum,
-						   bool two_way, int &matches ) = 0;
-	virtual bool getViewMembers( int & ) const = 0;
+	virtual bool initAds( int num_ads ) = 0;
+	virtual bool addAttr( int adno, const char *attr, bool v ) = 0;
+	virtual bool addAttr( int adno, const char *attr, int v ) = 0;
+	virtual bool addAttr( int adno, const char *attr, double v ) = 0;
+	virtual bool addAttr( int adno, const char *attr, const char *v ) = 0;
+	virtual bool deleteAds( void ) = 0;
 
-	bool releaseMemory( void );
-	virtual int getAdCount( void ) const = 0;
-
-	int numTemplates( void ) const { return m_template_offsets.size(); };
-
-	const CaBenchQueryOptions & Options( void ) const {
-		return dynamic_cast<const CaBenchQueryOptions &>(m_options);
+	const CaBenchInstOptions & Options( void ) const {
+		return dynamic_cast<const CaBenchInstOptions &>(m_options);
 	};
 	
-  protected:
-
   private:
+	list<CaBenchInstData *>	m_avlist;
+
 };
 
 #endif

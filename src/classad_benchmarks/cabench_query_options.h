@@ -31,31 +31,24 @@ public:
 	~CaBenchQueryOptions( void ) { };
 
 	// Process command line
-	bool ProcessArgs( int argc, const char *argv[] );
+	OptStatus ProcessArgLocal( SimpleArg &arg, int &fixed, int &index );
+	const char *getUsage( void ) const;
 	const char *getOpts( void ) const;
-
+	const char *getFixed( void ) const;
 	bool Verify( void ) const;
 
 	// Accessors
-	int getNumAds( void ) const { return m_num_ads; };
-	int getNumQueries( void ) const { return m_num_queries; };
-	const char * getAdFile( void ) const { return m_ad_file; };
-	const char * getFilterExpr( void ) const { return m_filter_expr; };
-	const char * getQuery( void ) const { return m_query; };
-	const char * getViewExpr( void ) const { return m_view_expr; };
+	const char *getFilterExpr( void ) const { return m_filter_expr; };
+	const char *getQuery( void ) const { return m_query; };
+	const char *getViewExpr( void ) const { return m_view_expr; };
 	bool getTwoWay( void ) const { return m_two_way; };
-	bool getRandomizeCollection( void ) const { return m_random; };
 
 private:
 	bool		 m_support_views;
-	int			 m_num_ads;
-	int			 m_num_queries;
-	const char	*m_ad_file;
 	const char	*m_filter_expr;
 	const char	*m_query;
 	const char	*m_view_expr;
 	bool		 m_two_way;
-	bool		 m_random;
 };
 
 #endif

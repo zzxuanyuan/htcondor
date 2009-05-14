@@ -27,12 +27,14 @@
 #include "cabench_query_options.h"
 
 CaBenchOptions::CaBenchOptions( const char *v,
-								const char *name,
-								const char *opts ) 
+								const char *name )
 		: m_version( v ),
 		  m_name( name ),
-		  m_opts( opts ),
-		  m_verbosity( 0 )
+		  m_verbosity( 0 ),
+		  m_num_loops( 1 ),
+		  m_data_file( NULL ),
+		  m_num_ads( 0 ),
+		  m_random( false )
 {
 	/* Do nothing */
 }
@@ -41,19 +43,92 @@ void
 CaBenchOptions::Usage( void ) const
 {
 	const char *	usage =
-		"Usage: %s [options] "
-		"%s\n"
+		"Usage: %s <loops> <data-file> <num-ads> %s [options]\n"
 		"  -d <level>: debug level (e.g., D_FULLDEBUG)\n"
 		"  --debug <level>: debug level (e.g., D_FULLDEBUG)\n"
 		"  --usage|--help|-h: print this message and exit\n"
 		"  -v: Increase verbosity level by 1\n"
 		"  --verbosity <number>: set verbosity level (default is 1)\n"
-		"  --version: print the version number and compile date\n";
-	printf( usage, m_name, m_opts );
+		"  --version: print the version number and compile date\n"
+		"\n"
+		"%s"
+		"  --[en|dis]able-random: En/Disable randomization <disabled>\n"
+		"\n"
+		"  <loops>: number of loops to perform\n"
+		"  <data-file>: Data file for benchmark\n"
+		"  <num-ads>: # of ads to put in the collection/list\n"
+		"%s";
+	printf( usage, m_name, getUsage(), getOpts(), getFixed() );
+}
+
+bool
+CaBenchOptions::Verify( void ) const
+{
+	if ( m_num_loops == 0 ) {
+		fprintf( stderr, "No # loops specified\n" );
+		return false;
+	}
+	if ( m_data_file == NULL ) {
+		fprintf( stderr, "No data file specified\n" );
+		return false;
+	}
+	if ( m_num_ads == 0 ) {
+		fprintf( stderr, "No # ads specified\n" );
+		return false;
+	}
+	return true;
+}
+
+bool
+CaBenchOptions::ProcessArgs(int argc, const char *argv[] )
+{
+	int	fixed = 0;
+	for ( int index = 1; index < argc;  ) {
+		SimpleArg	arg( argv, argc, index );
+		OptStatus	status;
+
+		if ( arg.Error() ) {
+			Usage();
+			return false;
+		}
+
+		status = ProcessArg( arg, fixed, index );
+		if ( OPT_ERROR == status ) {
+			Usage( );
+			return false;
+		}
+		else if ( OPT_HANDLED == status ) {
+			goto BOTTOM;
+		}
+		else if ( OPT_DONE == status ) {
+			return true;
+		}
+
+		status = ProcessArgLocal( arg, fixed, index );
+		if ( OPT_ERROR == status ) {
+			Usage( );
+			return false;
+		}
+		else if ( OPT_HANDLED == status ) {
+			goto BOTTOM;
+		}
+		else if ( OPT_DONE == status ) {
+			return true;
+		}
+
+		fprintf(stderr, "Unrecognized argument: <%s>\n", arg.Arg() );
+		Usage();
+		return false;
+
+	  BOTTOM:
+		index = arg.Index();
+		
+	}
+	return true;
 }
 
 CaBenchOptions::OptStatus
-CaBenchOptions::ProcessArg(SimpleArg &arg, int &index )
+CaBenchOptions::ProcessArg(SimpleArg &arg, int &fixed, int &index )
 {
 	if ( arg.Error() ) {
 		return OPT_ERROR;
@@ -88,6 +163,38 @@ CaBenchOptions::ProcessArg(SimpleArg &arg, int &index )
 	} else if ( arg.Match( 'V', "version" ) ) {
 		printf("test_log_reader: %s, %s\n", m_version, __DATE__);
 		return OPT_HANDLED;
+	}
+	else if ( arg.Match( "enable-random" ) ) {
+		m_random = true;
+	}
+	else if ( arg.Match( "disable-random" ) ) {
+		m_random =  false;
+	}
+	else if (! arg.ArgIsOpt() ) {
+		if ( 0 == fixed ) {
+			if ( !arg.getOpt( m_num_loops ) ) {
+				fprintf(stderr, "Invalid loop count %s\n", arg.Arg() );
+				return OPT_ERROR;
+			}
+			fixed++;
+			return OPT_HANDLED;
+		}
+		else if ( 1 == fixed ) {
+			if ( !arg.getOpt( m_data_file, true ) ) {
+				fprintf(stderr, "Invalid file name\n" );
+				return CaBenchOptions::OPT_ERROR;
+			}
+			fixed++;
+			return OPT_HANDLED;
+		}
+		else if ( 2 == fixed ) {
+			if ( !arg.getOpt( m_num_ads ) ) {
+				fprintf(stderr, "Invalid ad count %s\n", arg.Arg() );
+				return CaBenchOptions::OPT_ERROR;
+			}
+			fixed++;
+			return OPT_HANDLED;
+		}
 	}
 
 	return OPT_OTHER;

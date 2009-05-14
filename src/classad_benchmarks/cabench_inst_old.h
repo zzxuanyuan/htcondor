@@ -17,21 +17,20 @@
  *
  ***************************************************************/
 
-#ifndef CABENCH_INST_NEW_H
-#define CABENCH_INST_NEW_H
+#ifndef CABENCH_QUERY_OLD_H
+#define CABENCH_QUERY_OLD_H
 
 #include <vector>
+
+#include "condor_classad.h"
+
 #include "cabench_inst_base.h"
 
-#define WANT_CLASSAD_NAMESPACE
-#include "classad/classad_distribution.h"
-using namespace std;
-
-class CaBenchInstNew : public CaBenchInstBase
+class CaBenchInstOld : public CaBenchInstBase
 {
   public:
-	CaBenchInstNew( const CaBenchInstOptions & );
-	virtual ~CaBenchInstNew( void );
+	CaBenchInstOld( const CaBenchInstOptions & );
+	virtual ~CaBenchInstOld( void );
 
 	static const char *Name( void ) { return "New"; };
 
@@ -43,7 +42,7 @@ class CaBenchInstNew : public CaBenchInstBase
 	bool deleteAds( void );
 
   private:
-	vector<classad::ClassAd *>	m_ads;
+	vector<ClassAd *>	m_ads;
 };
 
 #endif

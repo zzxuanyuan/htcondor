@@ -1,12 +1,30 @@
-PROGRAMS = \
-	cabench_query-newcol \
-	cabench_query-oldcol \
-	cabench_query-newlist \
+QUERY_NEW_PROGRAMS = \
+	cabench_query-newcol	\
+	cabench_query-newlist
+QUERY_OLD_PROGRAMS = \
+	cabench_query-oldcol	\
 	cabench_query-oldlist
+QUERY_PROGRAMS = \
+	$(QUERY_NEW_PROGRAMS)	\
+	$(QUERY_OLD_PROGRAMS)
+
+INST_NEW_PROGRAMS = \
+	cabench_inst-new
+INST_OLD_PROGRAMS = \
+	cabench_inst-old
+INST_PROGRAMS = \
+	$(INST_NEW_PROGRAMS) \
+	$(INST_OLD_PROGRAMS)
+
+PROGRAMS = \
+	$(QUERY_PROGRAMS) \
+	$(INST_PROGRAMS)
 
 all_target( $(PROGRAMS) )
-new:	cabench_query-newcol cabench_query-newlist
-old:	cabench_query-oldcol cabench_query-oldlist
+query:	$(QUERY_PROGRAMS)
+inst:	$(INST_PROGRAMS)
+new:	$(QUERY_NEW_PROGRAMS) $(INST_NEW_PROGRAMS)
+old:	$(QUERY_OLD_PROGRAMS) $(INST_OLD_PROGRAMS)
 
 
 CFLAGS = $(STD_C_FLAGS)
@@ -27,7 +45,11 @@ OBJ =	\
 	cabench_query_new_list.o	\
 	cabench_query_old_list.o	\
 	cabench_query_new_collection.o	\
-	cabench_query_old_collection.o
+	cabench_query_old_collection.o	\
+	cabench_inst_options.o		\
+	cabench_inst_base.o		\
+	cabench_inst_new.o		\
+	cabench_inst_old.o
 
 
 # Individual targets
@@ -36,6 +58,9 @@ c_plus_target(cabench_query-oldcol,$(OBJ) cabench_query-oldcol.o,$(LIB))
 
 c_plus_target(cabench_query-newlist,$(OBJ) cabench_query-newlist.o,$(LIB))
 c_plus_target(cabench_query-oldlist,$(OBJ) cabench_query-oldlist.o,$(LIB))
+
+c_plus_target(cabench_inst-new,$(OBJ) cabench_inst-new.o,$(LIB))
+c_plus_target(cabench_inst-old,$(OBJ) cabench_inst-old.o,$(LIB))
 
 cabench_query-newcol.o : cabench_query_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_COLLECTION -c $< -o $@
@@ -46,6 +71,11 @@ cabench_query-newlist.o : cabench_query_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW_LIST -c $< -o $@
 cabench_query-oldlist.o : cabench_query_main.cpp
 	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD_LIST -c $< -o $@
+
+cabench_inst-new.o : cabench_inst_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_NEW -c $< -o $@
+cabench_inst-old.o : cabench_inst_main.cpp
+	$(CPlusPlus) $(C_PLUS_FLAGS) -D BENCHMARK_OLD -c $< -o $@
 
 .SUFFIXES: .ad .newad .oldad
 .ad.newad:

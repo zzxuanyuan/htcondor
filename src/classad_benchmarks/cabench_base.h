@@ -35,8 +35,11 @@ class CaBenchBase
 	CaBenchBase( const CaBenchOptions & );
 	virtual ~CaBenchBase( void );
 
-	// Finish the setup
+	// Setup work
 	virtual bool setup( void );
+
+	// Loop through the tests
+	virtual bool runLoops( void ) = 0;
 
 	// Finish up
 	virtual bool finish( void );

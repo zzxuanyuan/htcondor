@@ -42,44 +42,6 @@ CaBenchQueryBase::~CaBenchQueryBase( void )
 }
 
 bool
-CaBenchQueryBase::readAdFile( void )
-{
-	const char	*fname = Options().getAdFile();
-	FILE		*fp = fopen( fname, "r" );
-	if ( !fp ) {
-		fprintf( stderr, "Error opening %s\n", fname );
-		return false;
-	}
-
-	m_filter_str = Options().getFilterExpr( );
-	initFilter( );
-	while( true ) {
-		fpos_t			 offset;
-		if ( fgetpos( fp, &offset ) < 0 ) {
-			fprintf( stderr, "fgetpos() failed: %d %s\n",
-					 errno, strerror(errno) );
-			return false;
-		}
-
-		CaBenchAdWrapBase *template_ad = parseTemplateAd( fp );
-		if ( !template_ad ) {
-			break;		// Do nothing
-		}
-		bool match = filterAd( template_ad );
-
-		template_ad->setDtorDelAd( true );
-		delete( template_ad );
-
-		if ( match ) {
-			m_template_offsets.push_back( offset );
-		}
-	}
-	fclose( fp );
-	printf( "Read %d template ads\n", numTemplates() );
-	return ( numTemplates() != 0 );
-}
-
-bool
 CaBenchQueryBase::setup( void )
 {
 	int			 num_ads   = Options().getNumAds();
@@ -87,6 +49,11 @@ CaBenchQueryBase::setup( void )
 
 	// Invoke the base class's setup
 	if ( !CaBenchBase::setup( ) ) {
+		return false;
+	}
+
+	// Scan the template file
+	if ( !scanAdFile( ) ) {
 		return false;
 	}
 
@@ -101,7 +68,7 @@ CaBenchQueryBase::setup( void )
 		return false;
 	}
 
-	const char	*fname = Options().getAdFile();
+	const char	*fname = Options().getDataFile();
 	FILE		*fp = fopen( fname, "r" );
 	if ( !fp ) {
 		fprintf( stderr, "Error opening %s\n", fname );
@@ -112,7 +79,7 @@ CaBenchQueryBase::setup( void )
 	CaBenchSampleSet samples( "setup" );
 	for( int i = 0;  i < num_ads;  i++ ) {
 		int			 ad_num;
-		if ( Options().getRandomizeCollection() ) {
+		if ( Options().getUseRandom() ) {
 			ad_num = (get_random_int() % num_templates);
 		}
 		else {
@@ -156,17 +123,55 @@ CaBenchQueryBase::setup( void )
 }
 
 bool
-CaBenchQueryBase::runQueries( void )
+CaBenchQueryBase::scanAdFile( void )
+{
+	const char	*fname = Options().getDataFile();
+	FILE		*fp = fopen( fname, "r" );
+	if ( !fp ) {
+		fprintf( stderr, "Error opening %s\n", fname );
+		return false;
+	}
+
+	m_filter_str = Options().getFilterExpr( );
+	initFilter( );
+	while( true ) {
+		fpos_t			 offset;
+		if ( fgetpos( fp, &offset ) < 0 ) {
+			fprintf( stderr, "fgetpos() failed: %d %s\n",
+					 errno, strerror(errno) );
+			return false;
+		}
+
+		CaBenchAdWrapBase *template_ad = parseTemplateAd( fp );
+		if ( !template_ad ) {
+			break;		// Do nothing
+		}
+		bool match = filterAd( template_ad );
+
+		template_ad->setDtorDelAd( true );
+		delete( template_ad );
+
+		if ( match ) {
+			m_template_offsets.push_back( offset );
+		}
+	}
+	fclose( fp );
+	printf( "Found %d template ads\n", numTemplates() );
+	return ( numTemplates() != 0 );
+}
+
+bool
+CaBenchQueryBase::runLoops( void )
 {
 	int					 total_matches = 0;
 	int					 view_members;
-	int					 num_queries	= Options().getNumQueries();
-	const char			*query      	= Options().getQuery();
-	bool				 two_way		= Options().getTwoWay();
+	int					 num_loops	= Options().getNumLoops();
+	const char			*query      = Options().getQuery();
+	bool				 two_way	= Options().getTwoWay();
 
 	CaBenchSampleSet samples( "queries" );
 	getViewMembers( view_members);
-	for( int i = 0;  i < num_queries;  i++ ) {
+	for( int i = 0;  i < num_loops;  i++ ) {
 		int					 matches = 0;
 		CaBenchSampleSet qsamples( "query" );
 		if ( !runQuery( query, i, two_way, matches ) ) {
@@ -184,9 +189,9 @@ CaBenchQueryBase::runQueries( void )
 	}
 	
 	CaBenchSample *samp = new CaBenchSample( false, "done" );
-	samples.addSample( samp, "Searches", num_queries );
-	samples.addSample( samp, "Total Ads", m_num_ads * num_queries );
-	samples.addSample( samp, "Total View Members", view_members* num_queries );
+	samples.addSample( samp, "Searches", num_loops );
+	samples.addSample( samp, "Total Ads", m_num_ads * num_loops );
+	samples.addSample( samp, "Total View Members", view_members * num_loops );
 	samples.addSample( samp, "Total Query matches", total_matches );
 
 	return true;

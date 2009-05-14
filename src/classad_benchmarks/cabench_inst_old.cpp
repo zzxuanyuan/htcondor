@@ -20,79 +20,72 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_attributes.h"
+#include "MyString.h"
 
-#include "cabench_adwrap_new.h"
-#include "cabench_inst_new.h"
-
-#define WANT_CLASSAD_NAMESPACE
-#include "classad/classad_distribution.h"
-using namespace std;
-#include <list>
+#include "cabench_adwrap_old.h"
+#include "cabench_inst_old.h"
 
 #include "debug_timer_dprintf.h"
 
 
-// =======================================
-// CaBenchInstNew methods
-// =======================================
-CaBenchInstNew::CaBenchInstNew(
+CaBenchInstOld::CaBenchInstOld(
 	const CaBenchInstOptions &options) 
 		: CaBenchInstBase( options )
 {
 }
 
-CaBenchInstNew::~CaBenchInstNew( void )
+CaBenchInstOld::~CaBenchInstOld( void )
 {
 }
 
 bool
-CaBenchInstNew::initAds( int num_ads )
+CaBenchInstOld::initAds( int num_ads )
 {
 	for( int adno = 0;  adno < num_ads;  adno++ ) {
-		classad::ClassAd *ad = new classad::ClassAd;
+		ClassAd *ad = new ClassAd;
 		m_ads.push_back( ad );
 	}
 	return true;
 }
 
 bool
-CaBenchInstNew::addAttr( int adno, const char *attr, bool v )
+CaBenchInstOld::addAttr( int adno, const char *attr, bool v )
 {
-	classad::ClassAd	*ad = m_ads[adno];
-	ad->InsertAttr( attr, v );
+	ClassAd	*ad = m_ads[adno];
+	ad->Assign( attr, v );
 	return true;
 }
 
 bool
-CaBenchInstNew::addAttr( int adno, const char *attr, int v )
+CaBenchInstOld::addAttr( int adno, const char *attr, int v )
 {
-	classad::ClassAd	*ad = m_ads[adno];
-	ad->InsertAttr( attr, v );
+	ClassAd	*ad = m_ads[adno];
+	ad->Assign( attr, v );
 	return true;
 }
 
 bool
-CaBenchInstNew::addAttr( int adno, const char *attr, double v )
+CaBenchInstOld::addAttr( int adno, const char *attr, double v )
 {
-	classad::ClassAd	*ad = m_ads[adno];
-	ad->InsertAttr( attr, v );
+	ClassAd	*ad = m_ads[adno];
+	ad->Assign( attr, v );
 	return true;
 }
 
 bool
-CaBenchInstNew::addAttr( int adno, const char *attr, const char *v )
+CaBenchInstOld::addAttr( int adno, const char *attr, const char *v )
 {
-	classad::ClassAd	*ad = m_ads[adno];
-	ad->InsertAttr( attr, v );
+	ClassAd	*ad = m_ads[adno];
+	ad->Assign( attr, v );
 	return true;
 }
 
 bool
-CaBenchInstNew::deleteAds( void )
+CaBenchInstOld::deleteAds( void )
 {
-	vector <classad::ClassAd *>::iterator iter;
+	vector <ClassAd *>::iterator iter;
 	for ( iter = m_ads.begin(); iter != m_ads.end(); iter++ ) {
-		classad::ClassAd *ad = *iter;
+		ClassAd *ad = *iter;
 		delete ad;
 	}
 	m_ads.clear( );

@@ -23,8 +23,6 @@
 #include "condor_distribution.h"
 #include "condor_config.h"
 
-#include <list>
-
 #include "cabench_query_base.h"
 
 #if defined BENCHMARK_NEW_COLLECTION
@@ -70,16 +68,13 @@ int main( int argc, const char *argv[] )
 	}
 
 	CaBench		benchmark( opts );
-	if ( !benchmark.readAdFile( ) ) {
-		exit( 1 );
-	}
 
 	if ( !benchmark.setup( ) ) {
 		opts.Usage( );
 		exit( 1 );
 	}
 
-	if ( !benchmark.runQueries( ) ) {
+	if ( !benchmark.runLoops( ) ) {
 		exit( 1 );
 	}
 

@@ -27,18 +27,28 @@ class CaBenchOptions
 {
 public:
 	enum OptStatus { OPT_ERROR = -1, OPT_DONE, OPT_HANDLED, OPT_OTHER };
-	CaBenchOptions( const char *version, const char *name, const char *opts );
+	CaBenchOptions( const char *version, const char *name );
 	virtual ~CaBenchOptions( void ) { };
 
 	// Process command line
-	OptStatus ProcessArg( SimpleArg &arg, int &index );
-	virtual bool ProcessArgs( int argc, const char *argv[] ) = 0;
+	bool ProcessArgs( int argc, const char *argv[] );
+	OptStatus ProcessArg( SimpleArg &arg, int &fixed, int &index );
+	virtual OptStatus ProcessArgLocal( SimpleArg &arg,
+									   int &fixed,
+									   int &index ) = 0;
 
-	virtual void Usage( void ) const;
-	virtual bool Verify( void ) const = 0;
+	void Usage( void ) const;
+	virtual const char *getUsage( void ) const = 0;
 	virtual const char *getOpts( void ) const = 0;
+	virtual const char *getFixed( void ) const = 0;
+	virtual bool Verify( void ) const;
 
 	const char *getName( void ) { return m_name; };
+
+	const char *getDataFile( void ) const { return m_data_file; };
+	int getNumLoops( void ) const { return m_num_loops; };
+	int getNumAds( void ) const { return m_num_ads; };
+	bool getUseRandom( void ) const { return m_random; };
 
 	// Accessors
 	int getVerbosity( void ) const { return m_verbosity; };
@@ -46,9 +56,14 @@ public:
 private:
 	const char	*m_version;
 	const char	*m_name;
-	const char	*m_opts;
 
 	int			 m_verbosity;
+
+	int			 m_num_loops;
+	const char	*m_data_file;
+	int			 m_num_ads;
+
+	bool		 m_random;
 };
 
 #endif

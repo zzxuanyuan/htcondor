@@ -1,0 +1,286 @@
+#! /usr/bin/env python
+import os
+import sys
+import random
+from types import *
+from optparse import *
+
+# Class for random string generation
+class StringGen( object ) :
+    def __init__( self, c1, special ) :
+        self._cset = []
+        self._cset1 = []
+        self.AddCharRange( self._cset, 'a', 'z' )
+        self.AddCharRange( self._cset, 'A', 'Z' )
+        self.AddCharRange( self._cset, '0', '1' )
+        self.AddCharList( self._cset, [ '_' ] )
+        # First character rule
+        if c1 :
+            self.AddCharRange( self._cset1, 'a', 'z' )
+            self.AddCharRange( self._cset1, 'A', 'Z' )
+        # Special characters
+        if special :
+            self.AddCharList( self._cset,
+                              [ ' ', '!', '#', '$', '%', '&', '(', ')',
+                                '*', '+', '-', '.', '/', ':', ';', '<',
+                                '=', '>', '?', '[', ']', '{', '}', '|',
+                                '~' ] )
+        self._len1 = len(self._cset1)
+        self._len  = len(self._cset)
+
+    def AddCharRange( self, cset, c1, c2 ) :
+        for i in range( ord(c1), ord(c2)+1 ) :
+            cset.append( chr(i) )
+
+    def AddCharList( self, cset, chars ) :
+        for c in chars :
+            cset.append( c )
+
+    def Generate( self, len ) :
+        s = ""
+        for i in xrange ( 0, len ) :
+            if i == 1  and  self._len1 :
+                n = random.randint( 0, self._len1-1 )
+                s += self._cset1[n]
+            else :
+                n = random.randint( 0, self._len-1 )
+                s += self._cset[n]
+        return s
+
+    def RandStr( self, _min, _max ) :
+        return self.Generate( random.randint( _min, _max ) )
+
+
+# Base class for all of the value types
+class TypeBase( object ) :
+    def __init__(self, _name, _prob = None, _vmin = None, _vmax = None ) :
+        self._name = _name
+        self._prob = _prob
+        self._pmin = None
+        self._pmax = None
+        self._vmin = _vmin
+        self._vmax = _vmax
+
+        self._dup_pct = None
+        self._dup_min = None
+        self._dup_max = None
+
+        self._num   = 0
+        self._dnum  = 0
+
+    def setProb( self, _prob ) :
+        if _prob is not None :
+            self._prob = _prob
+
+    def Init( self, _min ) :
+        self._pmin = _min
+        self._pmax = _min + self._prob - 1
+        return self._pmax + 1
+
+    def setDuplicate( self, percent, min_pads, max_pads ) :
+        self._dup_pct = percent / 100.0
+        self._dup_min = min_pads
+        self._dup_max = max_pads
+
+    def Return( self, _type, _value ) :
+        dup_pads = 0
+        if self._dup_pct is not None and random.random() <= self._dup_pct :
+            dup_pads = random.randint( self._dup_min, self._dup_max+1 )
+            self._dnum += 1
+        self._num += 1
+        return ( _type, _value, dup_pads )
+
+    def getName( self ) :
+        return self._name
+
+    def getNum( self ) :
+        return self._num
+
+    def getDupNum( self ) :
+        return self._dnum
+
+    def getProbMin( self ) :
+        return self._pmin
+
+    def getProbMax( self ) :
+        return self._pmax
+
+    def getDupPercent( self ) :
+        if self._dup_pct is None :
+            return 0.0
+        else :
+            return self._dup_pct * 100.0
+
+    def InRange( self, _value ) :
+        return self._prob > 0 and _value >= self._pmin and _value <= self._pmax
+
+    def setValueRange( self, _min, _max ) :
+        if _min is not None :
+            self._vmin = _min
+        if _max is not None :
+            self._vmax = _max
+
+# String value class
+class TypeString( TypeBase ) :
+    def __init__( self, name, _prob, _vmin, _vmax ) :
+        TypeBase.__init__(self, name, _prob, _vmin, _vmax )
+        self._min_len = None
+        self._max_len = None
+        self._sgen = StringGen( False, True )
+
+    def Generate( self ) :
+        return self.Return( str, self._sgen.RandStr( self._vmin, self._vmax ) )
+
+# Boolean value class
+class TypeBoolean( TypeBase ) :
+    def __init__(self, _prob ) :
+        TypeBase.__init__(self, "Boolean", _prob )
+    def Generate( self ) :
+        return self.Return( bool, random.randint( 0, 1 ) == 1 )
+
+# Integer value class
+class TypeInteger( TypeBase ) :
+    def __init__( self, name, _prob, _vmin, _vmax ) :
+        TypeBase.__init__(self, name, _prob, _vmin, _vmax )
+    def Generate( self ) :
+        return self.Return( int, random.randint( self._vmin, self._vmax ) )
+
+# Float value class
+class TypeFloat( TypeBase ) :
+    def __init__( self, name, _prob, _vmin, _vmax ) :
+        TypeBase.__init__(self, name, _prob, _vmin, _vmax )
+    def Generate( self ) :
+        v = random.randint( self._vmin, self._vmax - 1 )
+        v += random.random( )
+        return self.Return( float, v )
+
+
+# 'Main' class
+class Main( object ) :
+    def __init__( self ) :
+        self._types = [ TypeString(  "String", 40, 1, 20 ),
+                        TypeString(  "MedString", 20, 20, 80 ),
+                        TypeString(  "LongString", 10, 80, 4096 ),
+                        TypeInteger( "Integer", 80, 0, sys.maxint ),
+                        TypeBoolean( 20 ),
+                        TypeFloat(   "Float", 20, 0, sys.maxint ), ]
+        self.setTypeDup( "String", 25.0, 50, 100 )
+        self.setTypeDup( "MedString", 10.0, 50, 100 )
+        self.setTypeDup( "LongString", 5.0, 25, 75 )
+
+        usage = "%prog: [options] file count [-h|--help]"
+        parser = OptionParser( usage = usage, version = "%prog 0.1" )
+
+        parser.set_defaults( AttrMin = 5 )
+        parser.add_option( "--attr-min",
+                           action="store", type="int", dest="AttrMin",
+                           help="Min attribute length" )
+        parser.set_defaults( AttrMax = 30 )
+        parser.add_option( "--attr-max",
+                           action="store", type="int", dest="AttrMax",
+                           help="Max attribute length" )
+
+        def TypeCallback(option, opt, values, parser):
+            # Extract the values
+            name = values[0]
+            prob = None if values[1] == "-" else int(values[1])
+            _min = None if values[2] == "-" else int(values[2])
+            _max = None if values[3] == "-" else int(values[3])
+            if not self.setType( name, prob, _min, _max ) : 
+                if "String" in name :
+                    self._types.append( TypeString( name, prob, _min, _max ) )
+                elif "Int" in name :
+                    self_types.append( TypeInteger( name, prob, _min, _max ) )
+                elif "Float" in name :
+                    self_types.append( TypeFloat( name, prob, _min, _max ) )
+                else :
+                    raise OptionValueError( "Type: unknown type: "+name )
+        parser.add_option( "--type",
+                           action="callback", callback=TypeCallback,
+                           type="string", nargs=4,
+                           help="Specify type specification"+
+                           "(--type <name> <prob> <min> <max>)" )
+
+        def DupCallback(option, opt, values, parser):
+            # Extract the values
+            name = values[0]
+            perc = float(values[1])
+            _min = int(values[2])
+            _max = int(values[3])
+            if not self.setTypeDup( name, perc, _min, _max ) : 
+                raise OptionValueError( "Dup: unknown type: "+name )
+        parser.add_option( "--dup",
+                           action="callback", callback=DupCallback,
+                           type="string", nargs=3,
+                           help="Specify duplicate"+
+                           "(--dup <name> <%> <min % ads> <max % ads>)" )
+
+        (self._options, args) = parser.parse_args()
+        if len(args) != 2 :
+            parser.error( "Missing file or count argument" )
+
+        self._options.file = args.pop(0)
+        self._options.count = int(args.pop(0))
+
+        offset = 0
+        for t in self._types :
+            name = t.getName( )
+            offset = t.Init( offset )
+        self._max_prob = offset - 1
+        tp = 0
+        for t in self._types :
+            n = 1 + t.getProbMax() - t.getProbMin()
+            p = ( 100.0 * n / (self._max_prob+1) )
+            print "Type %s: %d-%d (%d %.1f%%) dup:%.1f%%" % \
+                  ( t.getName(), t.getProbMin(), t.getProbMax(), n, p,
+                    t.getDupPercent() )
+
+        self._attr_gen = StringGen( True, False )
+
+    def setType( self, name, prob, _min, _max ) :
+        for t in self._types :
+            if t.getName() == name :
+                t.setProb( prob )
+                t.setValueRange( _min, _max )
+                return True
+        return False
+
+    def setTypeDup( self, name, percent, pads_min, pads_max ) :
+        for t in self._types :
+            if t.getName() == name :
+                t.setDuplicate( percent, pads_min, pads_max )
+                return True
+        return False
+
+
+    def WriteFile( self ):
+        if 0 == self._options.count :
+            return True
+
+        fp = open( self._options.file, "w" )
+        for i in xrange( 0, self._options.count ) :
+            attr = self._attr_gen.RandStr( self._options.AttrMin,
+                                           self._options.AttrMax )
+            value = None
+            vtype = None
+            dpct  = 0
+            p = random.randint( 0, self._max_prob )
+            for t in self._types :
+                if t.InRange( p ) :
+                    ( v, value, dpct ) = t.Generate( )
+                    i1 = str(v).index( "'" ) + 1
+                    i2 = str(v).index( "'", i1 )
+                    vtype = str(v)[i1:i2]
+            print >>fp, "%s:%.1f:%s:%s" % ( vtype, dpct, attr, value )
+        fp.close( )
+        for t in self._types :
+            print "Generated %d (%.1f%%) %ss (%d duplicates)" % \
+                  ( t.getNum(),
+                    (100.0*t.getNum()/self._options.count),
+                    t.getName(), t.getDupNum() )
+
+        return True
+
+
+main = Main( )
+main.WriteFile( )

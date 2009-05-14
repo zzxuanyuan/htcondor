@@ -23,22 +23,14 @@
 #include "condor_distribution.h"
 #include "condor_config.h"
 
-#include <list>
+#include "cabench_inst_base.h"
 
-#include "cabench_query_base.h"
-
-#if defined BENCHMARK_NEW_COLLECTION
-#  include "cabench_query_new_collection.h"
-   typedef CaBenchQueryNewCollection CaBench;
-#elif defined BENCHMARK_OLD_COLLECTION
-#  include "cabench_query_old_collection.h"
-   typedef CaBenchQueryOldCollection CaBench;
-#elif defined BENCHMARK_NEW_LIST
-#  include "cabench_query_new_list.h"
-   typedef CaBenchQueryNewList CaBench;
-#elif defined BENCHMARK_OLD_LIST
-#  include "cabench_query_old_list.h"
-   typedef CaBenchQueryOldList CaBench;
+#if   defined BENCHMARK_NEW
+#  include "cabench_inst_new.h"
+   typedef CaBenchInstNew CaBench;
+#elif defined BENCHMARK_OLD
+#  include "cabench_inst_old.h"
+   typedef CaBenchInstOld CaBench;
 #endif
 
 #include "debug_timer_dprintf.h"
@@ -59,8 +51,7 @@ int main( int argc, const char *argv[] )
 	Termlog = true;
 	dprintf_config("CABENCH_");
 
-	CaBenchQueryOptions	opts( VERSION,
-							  CaBench::supportViews(),
+	CaBenchInstOptions	opts( VERSION,
 							  CaBench::Name() );
 	if ( !opts.ProcessArgs(argc, argv) ) {
 		exit( 1 );
@@ -70,16 +61,11 @@ int main( int argc, const char *argv[] )
 	}
 
 	CaBench		benchmark( opts );
-	if ( !benchmark.readAdFile( ) ) {
-		exit( 1 );
-	}
-
 	if ( !benchmark.setup( ) ) {
-		opts.Usage( );
 		exit( 1 );
 	}
 
-	if ( !benchmark.runQueries( ) ) {
+	if ( !benchmark.runLoops( ) ) {
 		exit( 1 );
 	}
 

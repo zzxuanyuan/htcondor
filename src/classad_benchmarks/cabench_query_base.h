@@ -34,14 +34,12 @@ class CaBenchQueryBase : public CaBenchBase
 	CaBenchQueryBase( const CaBenchQueryOptions & );
 	virtual ~CaBenchQueryBase( void );
 
-	// Read the ad file
-	bool readAdFile( void );
-
 	// Finish the setup
 	bool setup( void );
+	bool scanAdFile( void );
 
 	// Do real work
-	bool runQueries( void );
+	bool runLoops( void );
 
 	// Done; dump final info
 	bool finish( void );

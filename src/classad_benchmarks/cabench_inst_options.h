@@ -17,45 +17,32 @@
  *
  ***************************************************************/
 
-#ifndef CABENCH_QUERY_OPTIONS_H
-#define CABENCH_QUERY_OPTIONS_H
+#ifndef CABENCH_INST_OPTIONS_H
+#define CABENCH_INST_OPTIONS_H
 
 #include "cabench_options.h"
 using namespace std;
 
 // Options
-class CaBenchQueryOptions : public CaBenchOptions
+class CaBenchInstOptions : public CaBenchOptions
 {
 public:
-	CaBenchQueryOptions( const char *version, bool views, const char *name );
-	~CaBenchQueryOptions( void ) { };
+	CaBenchInstOptions( const char *version, const char *name );
+	~CaBenchInstOptions( void ) { };
 
 	// Process command line
-	bool ProcessArgs( int argc, const char *argv[] );
+	OptStatus ProcessArgLocal( SimpleArg &arg, int &fixed, int &index );
+	const char *getUsage( void ) const;
 	const char *getOpts( void ) const;
-
+	const char *getFixed( void ) const;
 	bool Verify( void ) const;
 
 	// Accessors
-	int getNumAds( void ) const { return m_num_ads; };
-	int getNumQueries( void ) const { return m_num_queries; };
-	const char * getAdFile( void ) const { return m_ad_file; };
-	const char * getFilterExpr( void ) const { return m_filter_expr; };
-	const char * getQuery( void ) const { return m_query; };
-	const char * getViewExpr( void ) const { return m_view_expr; };
-	bool getTwoWay( void ) const { return m_two_way; };
-	bool getRandomizeCollection( void ) const { return m_random; };
+	bool getNumAttrs( void ) const { return m_num_attrs; };
 
 private:
-	bool		 m_support_views;
-	int			 m_num_ads;
-	int			 m_num_queries;
-	const char	*m_ad_file;
-	const char	*m_filter_expr;
-	const char	*m_query;
-	const char	*m_view_expr;
-	bool		 m_two_way;
-	bool		 m_random;
+	int			m_num_attrs;
+
 };
 
 #endif
