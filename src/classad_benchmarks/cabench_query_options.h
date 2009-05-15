@@ -41,6 +41,7 @@ public:
 	// Accessors
 	const char *getFilterExpr( void ) const { return m_filter_expr; };
 	const char *getQuery( void ) const { return m_query; };
+	bool getQueryEnabled( void ) const { return m_query_enabled; };
 	const char *getViewExpr( void ) const { return m_view_expr; };
 	bool getTwoWay( void ) const { return m_two_way; };
 
@@ -48,6 +49,7 @@ private:
 	bool		 m_support_views;
 	const char	*m_filter_expr;
 	const char	*m_query;
+	bool		 m_query_enabled;
 	const char	*m_view_expr;
 	bool		 m_two_way;
 };

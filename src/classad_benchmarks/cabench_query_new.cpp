@@ -124,10 +124,12 @@ CaBenchQueryNew::generateInsertAd( const CaBenchAdWrapBase *base_ad,
 	string				 name;
 	string				 type;
 
-	if ( !ad->EvaluateAttrString( "Name", name )   ||
-		 !ad->EvaluateAttrString( "MyType", type )  ) {
-		fprintf( stderr, "name or type missing" );
-		return false;
+	if ( Options().getQueryEnabled() ) {
+		if ( !ad->EvaluateAttrString( "Name", name )   ||
+			 !ad->EvaluateAttrString( "MyType", type )  ) {
+			fprintf( stderr, "name or type missing\n" );
+			return false;
+		}
 	}
 	char	key[256];
 	snprintf( key, sizeof(key), "%s/%s/%p", type.c_str(), name.c_str(), ad );

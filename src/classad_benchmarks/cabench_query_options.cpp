@@ -33,6 +33,7 @@ CaBenchQueryOptions::CaBenchQueryOptions( const char *v,
 		  m_support_views( support_views ),
 		  m_filter_expr( NULL ),
 		  m_query( NULL ),
+		  m_query_enabled( false ),
 		  m_view_expr( NULL ),
 		  m_two_way( false )
 {
@@ -43,8 +44,7 @@ bool
 CaBenchQueryOptions::Verify( void ) const
 {
 	if ( m_query == NULL ) {
-		fprintf( stderr, "No query specified\n" );
-		return false;
+		printf( "No query specified; queries disabled\n" );
 	}
 	return CaBenchOptions::Verify( );
 }
@@ -52,7 +52,7 @@ CaBenchQueryOptions::Verify( void ) const
 const char *
 CaBenchQueryOptions::getUsage( void ) const
 {
-	static const char *	usage = "<query>";
+	static const char *	usage = "[<query>]";
 	return usage;
 }
 

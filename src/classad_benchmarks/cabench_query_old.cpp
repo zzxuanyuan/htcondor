@@ -113,10 +113,12 @@ CaBenchQueryOld::generateInsertAd( const CaBenchAdWrapBase *base_ad,
 	MyString	 type;
 	static int	 n = 0;
 
-	if ( !ad->LookupString( "Name", name )   ||
-		 !ad->LookupString( "MyType", type )  ) {
-		fprintf( stderr, "name or type missing" );
-		return false;
+	if ( Options().getQueryEnabled() ) {
+		if ( !ad->LookupString( "Name", name )   ||
+			 !ad->LookupString( "MyType", type )  ) {
+			fprintf( stderr, "name or type missing\n" );
+			return false;
+		}
 	}
 	char	key[256];
 	snprintf(key, sizeof(key), "%s/%s/%06d", type.Value(), name.Value(), n++);

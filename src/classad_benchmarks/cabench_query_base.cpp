@@ -175,10 +175,9 @@ CaBenchQueryBase::runLoops( void )
 	const char			*query      = Options().getQuery();
 	bool				 two_way	= Options().getTwoWay();
 
-	if ( !strcmp( query, "-" ) ) {
+	if ( !Options().getQueryEnabled() ) {
 		return true;
 	}
-
 	CaBenchSampleSet samples( "queries" );
 	getViewMembers( view_members);
 	for( int loop = 0;  loop < num_loops;  loop++ ) {
