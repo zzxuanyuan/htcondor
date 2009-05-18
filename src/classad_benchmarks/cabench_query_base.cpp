@@ -117,7 +117,7 @@ CaBenchQueryBase::setup( void )
 	samples.addSample( "done", num_ads );
 	fclose( fp );
 
-	samples.dumpSamples( );
+	samples.printAll( );
 
 	if ( !printCollectionInfo( ) ) {
 		return false;
@@ -193,7 +193,7 @@ CaBenchQueryBase::runLoops( void )
 		qsamples.addSample( sample, "Ads", m_num_ads );
 		qsamples.addSample( sample, "View Members", view_members );
 		qsamples.addSample( sample, "Query matches", matches );
-		qsamples.dumpSamples();
+		qsamples.printAll();
 		total_matches += matches;
 	}
 	

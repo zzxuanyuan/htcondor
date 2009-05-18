@@ -22,109 +22,157 @@
 #include "debug_timer_printf.h"
 
 #include "cabench_sample.h"
-#include <list>
+#include <vector>
 
 
-CaBenchSample::CaBenchSample( bool is_baseline, const char *name, int count )
-		: m_name( name ),
-		  m_is_baseline( is_baseline ),
-		  m_pi( NULL ),
-		  m_timer( NULL ),
+//
+// CaBenchSample base class methods
+//
+CaBenchSampleBase::CaBenchSampleBase( DebugTimerSimple *timerp,
+									  bool const_use_count,
+									  const char *name,
+									  int count )
+		: m_timerp( timerp ),
+		  m_const_use_count( const_use_count ),
 		  m_count( count ),
 		  m_use_count( 0 )
 {
+	setName( name );
 	start( );
 }
 
-CaBenchSample::~CaBenchSample( void )
+CaBenchSampleBase::~CaBenchSampleBase( void )
 {
 	reset();
 }
 
 bool
-CaBenchSample::reset( void )
+CaBenchSampleBase::setName( const char *name )
 {
-	m_name = NULL;
-	if ( m_pi ) {
-		delete m_pi;
-		m_pi = NULL;
+	if ( name != NULL ) {
+		strncpy( m_name, name, sizeof(m_name) );
 	}
-	if ( m_timer ) {
-		delete m_timer;
-		m_timer = NULL;
+	else {
+		m_name[0] = '\0';
 	}
+	return  true;
+}
+
+bool
+CaBenchSampleBase::reset( void )
+{
+	setName( NULL );
 	return true;
 }
 
 bool
-CaBenchSample::restart( const char *name )
+CaBenchSampleBase::restart( const char *name )
 {
 	reset( );
-	if ( name != NULL ) {
-		m_name = name;
-	}
+	setName( name );
 	return start(  );
 }
 
 bool
-CaBenchSample::start( void )
+CaBenchSampleBase::start( void )
 {
 	int		status;
-    ProcAPI::getProcInfo(getpid(), m_pi, status);
-	if ( m_is_baseline ) {
-		m_timer = new DebugTimerSimple( );
-	}
-	else {
-		m_timer = new DebugTimerPrintf( m_name, true );
+	piPTR	pi = &m_pi;
+    ProcAPI::getProcInfo(getpid(), pi, status);
+	m_timerp->Sample( );
+	if ( status ) {
+		return false;
 	}
 	return true;
 }
 
 bool
-CaBenchSample::dump( void ) const
+CaBenchSampleBase::print( void ) const
 {
 	printf( "%s @ %13.2fs: %luk %luk\n",
-			getName(), m_timer->Sample(false), m_pi->imgsize, m_pi->rssize );
+			getName(), m_timerp->Sample(false), m_pi.imgsize, m_pi.rssize );
 	return true;
 }
 
 bool
-CaBenchSample::dump( const CaBenchSample &ref ) const
+CaBenchSampleBase::print( const CaBenchSampleBase &ref ) const
 {
-	return dump( ref, getName(), getCount() );
+	return print( ref, getName(), getCount() );
 }
 
 bool
-CaBenchSample::dump( const CaBenchSample &ref,
-					 const char *name,
-					 int count) const
+CaBenchSampleBase::print( const CaBenchSampleBase &ref,
+						 const char *name,
+						 int count) const
 {
-	long	imgdiff  = (m_pi->imgsize - ref.getImageSize() );
-	long	rssdiff  = (m_pi->rssize  - ref.getRSS() );
-	double	timediff = m_timer->Diff( ref.getTimer() );
+	long	imgdiff 	= (m_pi.imgsize - ref.getImageSize() );
+	long	rssdiff 	= (m_pi.rssize  - ref.getRSS() );
+	double	timediff	= m_timerp->Diff( ref.getTimer() );
 
-	DebugTimerPrintf	*dtp = dynamic_cast<DebugTimerPrintf *>(m_timer);
-	if ( NULL == dtp ) {
-		printf( "  %-20s @ %9.5fs %8ldk %8ldk [diff]\n",
-				name, timediff, imgdiff, rssdiff );
-	}
-	else {
+	DebugTimerPrintf	*dtp = dynamic_cast<DebugTimerPrintf *>(m_timerp);
+	if ( NULL != dtp ) {
 		if ( count >= 0 ) {
 			dtp->Log( ref.getTimer(), count, name );
 		}
 		else {
 			dtp->Log( ref.getTimer() );
 		}
-		printf( "  %-20s @ %9.5fs %8ldk %8ldk [diff]\n",
-				name, timediff, imgdiff, rssdiff );
 	}
+	char	imgbuf[32];
+	char	rssbuf[32];
+	if ( count >= 0 ) {
+		double	imgper	= (1.0 * imgdiff) / (1.0 * count);
+		double	rssper	= (1.0 * rssdiff) / (1.0 * count);
+		snprintf( imgbuf, sizeof(imgbuf), "%ldk (%.2fk/s)", imgdiff, imgper );
+		snprintf( rssbuf, sizeof(rssbuf), "%ldk (%.2fk/s)", rssdiff, rssper );
+	}
+	else {
+		snprintf( imgbuf, sizeof(imgbuf), "%ldk", imgdiff );
+		snprintf( rssbuf, sizeof(rssbuf), "%ldk", rssdiff );
+	}
+	printf( "  %-20s @ %9.5fs img:%-20s rss:%-20s [diff]\n",
+			name, timediff, imgbuf, rssbuf );
 	return true;
+}
+
+//
+// CaBenchSampleBaseline class methods
+//
+CaBenchSampleBaseline::CaBenchSampleBaseline( bool const_use_count,
+											  const char *name )
+		: CaBenchSampleBase( &m_timer, const_use_count, name, -1 ),
+		  m_timer( name )
+{
+}
+
+CaBenchSampleBaseline::~CaBenchSampleBaseline( void )
+{
+}
+
+
+//
+// CaBenchSample class methods
+//
+CaBenchSample::CaBenchSample( bool const_use_count,
+							  const char *name, int count )
+		: CaBenchSampleBase( &m_timer, const_use_count, name, count ),
+		  m_timer( name, true )
+{
+}
+
+CaBenchSample::~CaBenchSample( void )
+{
 }
 
 
 //
 // CaBenchSamplePair methods
 //
+CaBenchSamplePair::CaBenchSamplePair( void ) 
+		: m_baseline( true, "" )
+{
+}
+
 CaBenchSamplePair::CaBenchSamplePair( const char *name ) 
 		: m_baseline( true, name )
 {
@@ -137,9 +185,10 @@ CaBenchSamplePair::~CaBenchSamplePair( void )
 bool
 CaBenchSamplePair::complete( int count )
 {
-	CaBenchSample	sample( false, "complete", count );
-	m_baseline.dump( );
-	return sample.dump( m_baseline );
+	char			buf[128];
+	snprintf( buf, sizeof(buf), "%s complete", m_baseline.getName() );
+	CaBenchSample	sample( true, buf, count );
+	return sample.print( m_baseline );
 }
 
 bool
@@ -152,19 +201,19 @@ CaBenchSamplePair::restart( const char *name )
 //
 // CaBenchSampleRef methods
 //
-CaBenchSampleRef::CaBenchSampleRef( CaBenchSample *sample )
+CaBenchSampleRef::CaBenchSampleRef( CaBenchSampleBase *sample )
 		: m_sample( sample ),
-		  m_name( NULL ),
-		  m_count( -1 )
+		  m_label( NULL ),
+		  m_count( 0 )
 {
 	sample->incUseCount();
 }
 
-CaBenchSampleRef::CaBenchSampleRef( CaBenchSample *sample,
-									const char *name,
+CaBenchSampleRef::CaBenchSampleRef( CaBenchSampleBase *sample,
+									const char *label,
 									int count )
 		: m_sample( sample ),
-		  m_name( name ),
+		  m_label( label ),
 		  m_count( count )
 {
 	sample->incUseCount();
@@ -192,7 +241,7 @@ CaBenchSampleSet::CaBenchSampleSet( const char *name )
 	init( name );
 }
 
-CaBenchSampleSet::CaBenchSampleSet( CaBenchSample *ref )
+CaBenchSampleSet::CaBenchSampleSet( CaBenchSampleBase *ref )
 		: m_baseline( NULL )
 {
 	init( ref );
@@ -217,7 +266,7 @@ CaBenchSampleSet::~CaBenchSampleSet( void )
 bool
 CaBenchSampleSet::clearSamples( void )
 {
-	list <CaBenchSampleRef *>::iterator iter;
+	vector <CaBenchSampleRef *>::iterator iter;
 	for ( iter = m_samples.begin(); iter != m_samples.end(); iter++ ) {
 		CaBenchSampleRef	*sample = *iter;
 		delete sample;
@@ -232,7 +281,7 @@ CaBenchSampleSet::init( const char *name )
 	if ( NULL == name ) {
 		name = "baseline";
 	}
-	CaBenchSample *baseline = new CaBenchSample( true, name );
+	CaBenchSampleBase *baseline = new CaBenchSampleBaseline( false, name );
 	return init( baseline );
 }
 
@@ -247,7 +296,7 @@ CaBenchSampleSet::reInit( void )
 }
 
 bool
-CaBenchSampleSet::reInit( CaBenchSample *ref )
+CaBenchSampleSet::reInit( CaBenchSampleBase *ref )
 {
 	if ( m_baseline ) {
 		delete m_baseline;
@@ -257,7 +306,7 @@ CaBenchSampleSet::reInit( CaBenchSample *ref )
 }
 
 bool
-CaBenchSampleSet::init( CaBenchSample *ref, const char *name )
+CaBenchSampleSet::init( CaBenchSampleBase *ref, const char *name )
 {
 	if ( NULL == name ) {
 		name = "baseline";
@@ -274,7 +323,7 @@ CaBenchSampleSet::addSample( const char *label, int count )
 }
 	
 bool
-CaBenchSampleSet::addSample( CaBenchSample *sample,
+CaBenchSampleSet::addSample( CaBenchSampleBase *sample,
 							 const char *label,
 							 int count )
 {
@@ -287,32 +336,32 @@ bool
 CaBenchSampleSet::final( int count )
 {
 	addSample( "final", count );
-	dumpSamples( );
+	printAll( );
 	clearSamples( );
 	return true;
 }
 
 bool
-CaBenchSampleSet::dumpSamples( void ) const
+CaBenchSampleSet::printAll( void ) const
 {
-	typedef list<CaBenchSampleRef *>		SampleList;
-	typedef list<const CaBenchSampleRef *>	ConstList;
+	typedef vector<CaBenchSampleRef *>			SampleList;
+	typedef vector<const CaBenchSampleRef *>	ConstList;
 
 	const ConstList *const_list = (const ConstList *) &m_samples;
 	ConstList &samples = *(const_cast<ConstList *>(const_list));
 
-	CaBenchSample	*baseline = m_baseline->getSample();
-	baseline->dump( );
+	CaBenchSampleBase	*baseline = m_baseline->getSample();
+	baseline->print( );
 
-	list <const CaBenchSampleRef *>::iterator iter;
+	vector <const CaBenchSampleRef *>::iterator iter;
 	for ( iter = samples.begin(); iter != samples.end(); iter++ ) {
 		const CaBenchSampleRef	*ref = *iter;
-		const CaBenchSample		*sample = ref->getConstSample();
+		const CaBenchSampleBase	*sample = ref->getConstSample();
 		if ( ref->isLocal() ) {
-			sample->dump( *baseline, ref->getName(), ref->getCount() );
+			sample->print( *baseline, ref->getLabel(), ref->getCount() );
 		}
 		else {
-			sample->dump( *baseline );
+			sample->print( *baseline );
 		}
 	}
 	return true;

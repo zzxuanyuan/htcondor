@@ -24,30 +24,45 @@
 
 using namespace std;
 
-#include <list>
+#include <vector>
 #include "debug_timer.h"
+#include "debug_timer_printf.h"
 
-class CaBenchSample
+// Abstract base class
+class CaBenchSampleBase
 {
   public:
-	CaBenchSample( bool is_baseline, const char *name, int count = -1 );
-	~CaBenchSample( void );
+	CaBenchSampleBase( DebugTimerSimple *timerp,
+					   bool const_use_count,
+					   const char *name, int count = -1 );
+	virtual ~CaBenchSampleBase( void );
+	virtual void abstract( void ) const = 0;
 
 	bool restart( const char *name = NULL );
 
-	bool dump( void ) const;
-	bool dump( const CaBenchSample &other ) const;
-	bool dump( const CaBenchSample &other, const char *name, int count ) const;
+	bool print( void ) const;
+	bool print( const CaBenchSampleBase &other ) const;
+	bool print( const CaBenchSampleBase &other,
+				const char *name, int count ) const;
 
+	// Accessors
+	bool setName( const char *name );
 	const char *getName( void ) const { return m_name; };
+	bool setCount( int count ) { m_count = count; return true; };
 	int getCount( void ) const { return m_count; };
 
-	const piPTR getPI( void ) const { return m_pi; };
-	unsigned long getImageSize( void ) const { return m_pi->imgsize; };
-	unsigned long getRSS( void ) const { return m_pi->rssize; };
-	const DebugTimerSimple &getTimer( void ) const { return *m_timer; };
+	const procInfo* getPI( void ) const { return &m_pi; };
+	unsigned long getImageSize( void ) const { return m_pi.imgsize; };
+	unsigned long getRSS( void ) const { return m_pi.rssize; };
 
-	int	getUseCount( void ) const { return m_use_count; };
+	const DebugTimerSimple &getTimer( void ) const {
+		return *m_timerp;
+	};
+	virtual bool isBaseline( void ) const = 0;
+
+	int	getUseCount( void ) const {
+		return ( m_const_use_count ? 1 : m_use_count );
+	};
 	int incUseCount( void ) { return ++m_use_count; };
 	int decUseCount( void ) { return --m_use_count; };
 
@@ -57,17 +72,48 @@ class CaBenchSample
 	bool start( void );
 
   private:
-	const char				*m_name;
-	bool					 m_is_baseline;
-	piPTR					 m_pi;
-	DebugTimerSimple		*m_timer;
-	int						 m_count;
-	int						 m_use_count;
+	DebugTimerSimple	*m_timerp;
+	bool				 m_const_use_count;
+	char				 m_name[64];
+	struct procInfo		 m_pi;
+	int					 m_count;
+	int					 m_use_count;
+};
+
+class CaBenchSampleBaseline : public CaBenchSampleBase
+{
+  public:
+	CaBenchSampleBaseline( bool const_use_count, const char *name );
+	~CaBenchSampleBaseline( void );
+	void abstract( void ) const { };
+
+	virtual bool isBaseline( void ) const { return true; };
+
+  private:
+	DebugTimerSimple	m_timer;
+};
+
+class CaBenchSample : public CaBenchSampleBase
+{
+  public:
+	CaBenchSample( bool const_use_count,
+				   const char *name, int count = -1 );
+	~CaBenchSample( void );
+	void abstract( void ) const { };
+
+	virtual const DebugTimerSimple &getTimer( void ) const {
+		return m_timer;
+	};
+	virtual bool isBaseline( void ) const { return false; };
+
+  private:
+	DebugTimerPrintf	m_timer;
 };
 
 class CaBenchSamplePair
 {
   public:
+	CaBenchSamplePair( void );
 	CaBenchSamplePair( const char *name );
 	~CaBenchSamplePair( void );
 
@@ -75,29 +121,30 @@ class CaBenchSamplePair
 	bool restart( const char *name = NULL );
 
   private:
-	CaBenchSample	m_baseline;
+	CaBenchSampleBaseline	m_baseline;
 };
 
 class CaBenchSampleRef
 {
   public:
-	CaBenchSampleRef( CaBenchSample *sample );
-	CaBenchSampleRef( CaBenchSample *sample, const char *name, int count );
+	CaBenchSampleRef( CaBenchSampleBase *sample );
+	CaBenchSampleRef( CaBenchSampleBase *sample,
+					  const char *label, int count = -1 );
 	~CaBenchSampleRef( void );
-	CaBenchSample *getSample( void ) {
+	CaBenchSampleBase *getSample( void ) {
 		return m_sample;
 	}
-	const CaBenchSample *getConstSample( void ) const {
+	const CaBenchSampleBase *getConstSample( void ) const {
 		return m_sample;
 	}
-	const char *getName( void ) const { return m_name; };
+	const char *getLabel( void ) const { return m_label; };
 	int getCount( void ) const { return m_count; };
-	bool isLocal( void ) const { return m_name != NULL; };
+	bool isLocal( void ) const { return m_label != NULL; };
 
   private:
-	CaBenchSample	*m_sample;
-	const char		*m_name;
-	int				 m_count;
+	CaBenchSampleBase	*m_sample;
+	const char			*m_label;
+	int					 m_count;
 };
 
 class CaBenchSampleSet
@@ -105,31 +152,45 @@ class CaBenchSampleSet
   public:
 	CaBenchSampleSet( void );
 	CaBenchSampleSet( const char *name );
-	CaBenchSampleSet( CaBenchSample *ref );
+	CaBenchSampleSet( CaBenchSampleBase *ref );
 	CaBenchSampleSet( CaBenchSampleSet *ref );
 	virtual ~CaBenchSampleSet( void );
 	bool clearSamples( void );
 
 	// Sampling information
 	bool init( const char *name = NULL );
-	bool init( CaBenchSample *ref, const char *name = NULL );
+	bool init( CaBenchSampleBase *ref, const char *name = NULL );
 	bool reInit( void );
-	bool reInit( CaBenchSample *ref );
+	bool reInit( CaBenchSampleBase *ref );
 	bool addSample( const char *label, int count = -1 );
-	bool addSample( CaBenchSample *sample,
+	bool addSample( CaBenchSampleBase *sample,
 					const char *label = NULL, int count = -1 );
-	bool dumpSamples( void ) const;
+	bool printAll( void ) const;
 
 	bool final( int count = -1 );
 
 	// Accessors
-	CaBenchSample *getBaseline( void ) const {
-		return m_baseline->getSample();
+	CaBenchSampleBase *getBaseline( void ) const {
+		return getSample(m_baseline);
+	};
+	CaBenchSampleBase *getSample( unsigned which ) const {
+		return getSample(m_samples[which]);
+	};
+	CaBenchSampleBase *getSample( void ) const {
+		return getSample(m_samples.back( ));
 	};
 
   private:
+	CaBenchSampleBase *getSample( CaBenchSampleRef *ref ) const {
+		if ( NULL == ref ) {
+			return NULL;
+		}
+		return ref->getSample( );
+	}
+
+  private:
 	CaBenchSampleRef			*m_baseline;
-	list<CaBenchSampleRef *>	 m_samples;
+	vector<CaBenchSampleRef *>	 m_samples;
 };
 
 #endif

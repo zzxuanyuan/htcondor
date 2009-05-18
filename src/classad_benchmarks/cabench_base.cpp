@@ -49,6 +49,6 @@ bool
 CaBenchBase::finish( void )
 {
 	m_samples.addSample( false, "done" );
-	m_samples.dumpSamples( );
+	m_samples.printAll( );
 	return true;
 }

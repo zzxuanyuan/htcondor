@@ -85,7 +85,7 @@ class TypeBase( object ) :
     def Return( self, _type, _value ) :
         dup_pads = 0
         if self._dup_pct is not None and random.random() <= self._dup_pct :
-            dup_pads = random.randint( self._dup_min, self._dup_max+1 )
+            dup_pads = random.randint( self._dup_min, self._dup_max )
             self._dnum += 1
         self._num += 1
         return ( _type, _value, dup_pads )
@@ -133,8 +133,8 @@ class TypeString( TypeBase ) :
 
 # Boolean value class
 class TypeBoolean( TypeBase ) :
-    def __init__(self, _prob ) :
-        TypeBase.__init__(self, "Boolean", _prob )
+    def __init__(self, name, _prob ) :
+        TypeBase.__init__(self, name, _prob )
     def Generate( self ) :
         return self.Return( bool, random.randint( 0, 1 ) == 1 )
 
@@ -158,15 +158,15 @@ class TypeFloat( TypeBase ) :
 # 'Main' class
 class Main( object ) :
     def __init__( self ) :
-        self._types = [ TypeString(  "String", 40, 1, 20 ),
-                        TypeString(  "MedString", 20, 20, 80 ),
-                        TypeString(  "LongString", 10, 80, 4096 ),
-                        TypeInteger( "Integer", 80, 0, sys.maxint ),
-                        TypeBoolean( 20 ),
-                        TypeFloat(   "Float", 20, 0, sys.maxint ), ]
-        self.setTypeDup( "String", 25.0, 50, 100 )
-        self.setTypeDup( "MedString", 10.0, 50, 100 )
-        self.setTypeDup( "LongString", 5.0, 25, 75 )
+        self._types = [ TypeString(  "String",     25, 1, 20 ),
+                        TypeString(  "MedString",  10, 20, 80 ),
+                        TypeString(  "LongString",  5, 80, 4096 ),
+                        TypeInteger( "Integer",    40, 0, sys.maxint ),
+                        TypeBoolean( "Boolean",    40 ),
+                        TypeFloat(   "Float",      40, 0, sys.maxint ), ]
+        self.setTypeDup( "String",     10.0,  1, 90 )
+        self.setTypeDup( "MedString",   2.0,  2, 95 )
+        self.setTypeDup( "LongString",  1.0,  2, 75 )
 
         usage = "%prog: [options] file count [-h|--help]"
         parser = OptionParser( usage = usage, version = "%prog 0.1" )

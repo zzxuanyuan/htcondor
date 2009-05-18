@@ -69,7 +69,7 @@ CaBenchInstOptions::getFixed( void ) const
 }
 
 CaBenchInstOptions::OptStatus
-CaBenchInstOptions::ProcessArgLocal( SimpleArg &arg,
+CaBenchInstOptions::ProcessArgLocal( SimpleArg & /* arg */,
 									 int /*index*/ )
 {
 	return CaBenchOptions::OPT_OTHER;

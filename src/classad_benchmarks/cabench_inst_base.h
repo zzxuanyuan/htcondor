@@ -39,9 +39,7 @@ class CaBenchInstData
 	const char *getAttr( void ) const { return m_attribute; };
 	DataType getType( void ) const { return m_type; };
 	double getDupPercent( void ) const { return m_dup_percent; };
-	int getDupAds( int ads ) const {
-		return (int) rint( ads * m_dup_v );
-	};
+	int getDupAds( int ads ) const;
 	bool getValue( bool &v ) const {
 		if ( m_type != BOOLEAN ) {
 			return false;

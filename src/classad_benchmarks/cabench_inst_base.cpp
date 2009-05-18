@@ -175,6 +175,16 @@ CaBenchInstData::~CaBenchInstData( void )
 	m_type = NONE;
 }
 
+int
+CaBenchInstData::getDupAds( int ads ) const
+{
+	int		num = (int) rint( ads * m_dup_v );
+	if ( num > ads ) {
+		num = ads;
+	}
+	return num;
+}
+
 
 // Instantiation benchmark base class methods
 CaBenchInstBase::CaBenchInstBase( 
@@ -235,36 +245,52 @@ CaBenchInstBase::readDataFile( void )
 bool
 CaBenchInstBase::runLoops( void )
 {
-	int		num_loops	= Options().getNumLoops();
-	char	buf[32];
+	int				num_loops	= Options().getNumLoops();
+	int				num_dups	= 0;
+	unsigned long	total_attrs	= 0;
 
-	CaBenchSampleSet samples( "loops" );
-	for( int loop = 0;  loop < num_loops;  loop++ ) {
-		snprintf( buf, sizeof(buf), "loop %d", loop+1 );
-		printf( "\n** loop %d **\n", loop+1 );
+	CaBenchSampleSet	loops( "All Loops" );
+	list<char *>		labels;
+	for( int loop = 1;  loop <= num_loops;  loop++ ) {
+		CaBenchSamplePair	ss_pair;
+		char				loop_buf[32];
+		char				tmp_buf[64];
+		char				*tmp;
 
-		CaBenchSampleSet	lsamples( buf );
-		CaBenchSamplePair	pair( "init" );
+		snprintf( loop_buf, sizeof(loop_buf), "loop %d", loop );
+		printf( "\n** loop %d **\n", loop );
+
+		snprintf( tmp_buf, sizeof(tmp_buf), "%s start", loop_buf );
+		tmp = strdup( tmp_buf );
+		labels.push_back( tmp );
+		loops.addSample( tmp );
+
+		if ( !ss_pair.restart( "init" ) ) {
+			fprintf( stderr, "restart(init) failed\n" );
+		}
 		if ( !initAds( Options().getNumAds() ) ){
 			return false;
 		}
-		pair.complete( Options().getNumAds() );
-		lsamples.addSample( "generation", Options().getNumAds() );
+		ss_pair.complete( Options().getNumAds() );
 
 		list <CaBenchInstData *>::iterator iter = m_avlist.begin();
 		int		avno = 0;
 		int		dups = 0;
 		int		num = Options().getNumAds() * Options().getNumAttrs();
 
-		pair.restart( "population" );
+		if ( !ss_pair.restart( "fill" ) ) {
+			fprintf( stderr, "restart(fill) failed\n" );
+		}
 		for( int adno = 0;  adno < Options().getNumAds();  adno++ ) {
 			for( int attr = 0;  attr < Options().getNumAttrs();  attr++ ) {
 				CaBenchInstData *dp = *iter;
 				if ( !addAttr( *dp, adno, avno ) ) {
 					return false;
 				}
+				total_attrs++;
 				if ( dups ) {
 					dups--;
+					num_dups++;
 				}
 				else {
 					dups = dp->getDupAds( Options().getNumAds() );
@@ -278,18 +304,34 @@ CaBenchInstBase::runLoops( void )
 				}
 			}
 		}
-		pair.complete( num );
-		lsamples.addSample( "Population", num );
+		ss_pair.complete( Options().getNumAds() );
 
-		pair.restart( "delete" );
+		if ( !ss_pair.restart( "delete" ) ) {
+			fprintf( stderr, "restart(delete) failed\n" );
+		}
 		if ( !deleteAds( ) ) {
 			return false;
 		}
-		pair.complete( Options().getNumAds() );
-		lsamples.addSample( "Deletion", Options().getNumAds() );
-		lsamples.dumpSamples( );
+		ss_pair.complete( Options().getNumAds() );
+
+		snprintf( tmp_buf, sizeof(tmp_buf), "%s end", loop_buf );
+		tmp = strdup( tmp_buf );
+		labels.push_back( tmp );
+		loops.addSample( tmp, Options().getNumAds() );
 	}
-	samples.dumpSamples( );
+
+	printf( "\n** Done **\n" );
+	loops.addSample( "final", num_loops );
+	loops.printAll( );
+	printf( "Generated %d ads with %lu attributes (%d duplicates %.02f%%)\n",
+			num_loops * Options().getNumAds(),
+			total_attrs, num_dups, ( (100.0 * num_dups) / total_attrs ) );
+
+	list <char *>::iterator iter;
+	for ( iter = labels.begin(); iter != labels.end(); iter++ ) {
+		free( *iter );
+	}
+	labels.clear( );
 
 	return true;
 }
