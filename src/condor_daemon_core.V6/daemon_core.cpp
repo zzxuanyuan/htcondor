@@ -1694,8 +1694,14 @@ int DaemonCore::Register_Pipe(int pipe_end, const char* pipe_descrip,
 	(*pipeTable)[i].pentry->deallocate = 0;
 	(*pipeTable)[i].pentry->pipeEnd = (*pipeHandleTable)[index];
 
+	dprintf(D_ALWAYS, "daemonCore::Register_Pipe: pid %d, handle 0x%x\n", 
+		(*pipeTable)[i].pentry->pid, 
+		(*pipeTable)[i].pentry->pipeEnd->get_handle());
 	WatchPid((*pipeTable)[i].pentry);
 #endif
+
+	dprintf(D_DAEMONCORE,
+		"Register_Pipe(pipe_end=%d) succeeded\n",pipe_end);
 
 	return pipe_end;
 }
@@ -2010,6 +2016,7 @@ DaemonCore::Close_Stdin_Pipe(int pid) {
 	if (rval) {
 		pidinfo->std_pipes[0] = DC_STD_FD_NOPIPE;
 	}
+
 	return (bool)rval;
 }
 
@@ -2860,6 +2867,8 @@ void DaemonCore::Driver()
 #ifdef WIN32
 							// WINDOWS
 							if (!saved_pentry->pipeEnd->io_ready()) {
+								dprintf(D_ALWAYS, "daemonCore::Driver: pid %d, handle 0x%x\n", 
+									saved_pentry->pid, saved_pentry->pipeEnd->get_handle());
 								// hand this pipe end back to the PID-watcher thread
 								WatchPid(saved_pentry);
 								continue;
@@ -2920,6 +2929,8 @@ void DaemonCore::Driver()
 						// handler above, pipeEnd will be NULL, so we stop
 						// watching
 						if ( saved_pentry->pipeEnd ) {
+							dprintf(D_ALWAYS, "daemonCore::Driver 2: pid %d, handle 0x%x\n", 
+								saved_pentry->pid, saved_pentry->pipeEnd->get_handle());
 							WatchPid(saved_pentry);
 						}
 #endif
@@ -7250,6 +7261,8 @@ int DaemonCore::Create_Process(
 		"Child Process: pid %lu at %s\n",
 		(unsigned long)newpid,pidtmp->sinful_string);
 #ifdef WIN32
+	dprintf(D_ALWAYS, "daemonCore::Create_Process: pid %d, handle 0x%x\n", 
+		pidtmp->pid, pidtmp->pipeEnd ? pidtmp->pipeEnd->get_handle() : 0);
 	WatchPid(pidtmp);
 #endif
 
@@ -7543,6 +7556,8 @@ DaemonCore::Create_Thread(ThreadStartFunc start_func, void *arg, Stream *sock,
 	int insert_result = pidTable->insert(tid,pidtmp);
 	assert( insert_result == 0 );
 #ifdef WIN32
+	dprintf(D_ALWAYS, "daemonCore::Create_Thread: pid %d, handle 0x%x\n", 
+		pidtmp->pid, pidtmp->pipeEnd ? pidtmp->pipeEnd->get_handle() : 0);
 	WatchPid(pidtmp);
 #endif
 	return tid;
@@ -7704,6 +7719,8 @@ DaemonCore::Inherit( void )
 #ifdef WIN32
 		if ( watch_ppid ) {
 			assert(pidtmp->hProcess);
+			dprintf(D_ALWAYS, "daemonCore::Inherit: pid %d, handle 0x%x\n", 
+				pidtmp->pid, pidtmp->pipeEnd ? pidtmp->pipeEnd->get_handle() : 0);
 			WatchPid(pidtmp);
 		}
 #endif
@@ -8004,13 +8021,22 @@ pidWatcherThread( void* arg )
 	DaemonCore::WaitpidEntry wait_entry;
 
 	entry = (DaemonCore::PidWatcherEntry *) arg;
-
+	
 	for (;;) {
 
 	::EnterCriticalSection(&(entry->crit_section));
 	numentries = 0;
 	for (i=0; i < entry->nEntries; i++ ) {
+
+		dprintf(D_ALWAYS,"pidWatcherThread: pid %d / %d (0x%x)\n", 
+			entry->pidentries[i]->pid, entry->nEntries,
+			entry->pidentries[i]->pipeEnd ? entry->pidentries[i]->pipeEnd->get_handle() : 0);
+
 		if ( (i != last_pidentry_exited) && (entry->pidentries[i]) ) {
+
+			dprintf(D_ALWAYS,"pidWatcherThread: hProcess 0x%x\n",
+				entry->pidentries[i]->hProcess);
+
 			if (InterlockedExchange(&(entry->pidentries[i]->deallocate),0L))
 			{
 				// deallocate flag was set.  call set_unregistered on the
@@ -8022,10 +8048,18 @@ pidWatcherThread( void* arg )
 				continue;	// on to the next i...
 			}
 			hKids[numentries] = entry->pidentries[i]->hProcess;
+
+			dprintf(D_ALWAYS,"pidWatcherThread: hProcess 0x%x\n",
+				entry->pidentries[i]->hProcess);
+
 			// if process handle is NULL, it is really a thread
 			if ( hKids[numentries] == NULL ) {
 				// this is a thread entry, not a process entry
 				hKids[numentries] = entry->pidentries[i]->hThread;
+
+				dprintf(D_ALWAYS,"pidWatcherThread: hThread 0x%x\n",
+					entry->pidentries[i]->hThread);
+
 			}
 			if ( hKids[numentries] == NULL ) {
 				
@@ -8033,6 +8067,10 @@ pidWatcherThread( void* arg )
 				// semantics of select. This is all handled by the
 				// PipeEnd classes. (see pipe.WIN32.[Ch])
 				hKids[numentries] = entry->pidentries[i]->pipeEnd->pre_wait();
+
+				dprintf(D_ALWAYS,"pidWatcherThread: pipeEnd->pre_wait() 0x%x\n",
+					entry->pidentries[i]->pipeEnd->pre_wait());
+
 			}
 			entry->pidentries[numentries] = entry->pidentries[i];
 			numentries++;
@@ -8063,7 +8101,9 @@ pidWatcherThread( void* arg )
 	// if we are no longer watching anything (but we still have a signal
 	// to send), simulate the wait function returning WAIT_TIMEOUT
 	if (numentries) {
+		dprintf(D_ALWAYS, "pidWatcherThread: --> ::WaitForMultipleObjects(%d, hKids, FALSE, 0)\n", numentries + 1);
 		result = ::WaitForMultipleObjects(numentries + 1, hKids, FALSE, 0);
+		dprintf(D_ALWAYS, "pidWatcherThread: <-- ::WaitForMultipleObjects(%d, hKids, FALSE, 0) = %d\n", numentries + 1, result);
 	}
 	if ( result == WAIT_TIMEOUT ) {
 			// our poll saw nothing.  so if need to wake up the main thread
@@ -8077,8 +8117,11 @@ pidWatcherThread( void* arg )
 			// But for now, handle it all here.
 
 			// In the post v6.4.x world, SafeSock and startCommand
-			// are no longer thread safe, so we must grab our Big_fat lock.			
+			// are no longer thread safe, so we must grab our Big_fat lock.
+			dprintf(D_ALWAYS, "pidWatcherThread: --> ::EnterCriticalSection(&Big_fat_mutex)\n");
 			::EnterCriticalSection(&Big_fat_mutex); // enter big fat mutex
+			dprintf(D_ALWAYS, "pidWatcherThread: <-- ::EnterCriticalSection(&Big_fat_mutex)\n");
+
 	        SafeSock sock;
 			Daemon d( DT_ANY, daemonCore->InfoCommandSinfulString() );
 				// send a NOP command to wake up select()
@@ -8117,7 +8160,9 @@ pidWatcherThread( void* arg )
 		}
 
 		// now just wait for something to happen instead of busy looping.
+		dprintf(D_ALWAYS, "pidWatcherThread: --> ::WaitForMultipleObjects(%d, hKids, FALSE, INFINITE)\n", numentries + 1);
 		result = ::WaitForMultipleObjects(numentries + 1, hKids, FALSE, INFINITE);
+		dprintf(D_ALWAYS, "pidWatcherThread: <-- ::WaitForMultipleObjects(%d, hKids, FALSE, INFINITE) = %d\n", numentries + 1, result);
 	}
 
 
@@ -8192,6 +8237,22 @@ pidWatcherThread( void* arg )
 int
 DaemonCore::WatchPid(PidEntry *pidentry)
 {
+
+	dprintf(D_ALWAYS,"daemonCore::WatchPid: pid %d, handle 0x%x\n", 
+		pidentry->pid, 
+		pidentry->pipeEnd ? pidentry->pipeEnd->get_handle() : 0);
+
+	/* ignore requests to watch non-existed processes */
+	if (-1 == pidentry->pid) {
+		dprintf(D_ALWAYS,"daemonCore::WatchPid: NOT a process/thread\n");
+		/*
+		if (pidentry->pipeEnd) {
+			pidentry->pipeEnd->set_unregistered();
+		}
+		return TRUE;
+		*/
+	}
+
 	struct PidWatcherEntry* entry = NULL;
 	int alldone = FALSE;
 
@@ -8430,6 +8491,8 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 	if ( pidentry->hung_tid != -1 ) {
 		Cancel_Timer(pidentry->hung_tid);
 	}
+	// invalidate the pid
+	pidentry->pid = -1;
 	// and delete the pidentry
 	delete pidentry;
 
@@ -9565,6 +9628,7 @@ DaemonCore::PidEntry::PidEntry() {
 		std_pipes[i] = DC_STD_FD_NOPIPE;
 	}
 	stdin_offset = 0;
+	pid			 = -1;
 }
 
 

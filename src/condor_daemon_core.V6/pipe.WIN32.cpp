@@ -27,25 +27,39 @@ PipeEnd::PipeEnd(HANDLE handle, bool overlapped, bool nonblocking, int pipe_size
 		m_nonblocking(nonblocking), m_pipe_size(pipe_size),
 		m_registered(false), m_watched_event(NULL)
 {
-	MyString event_name;
+	// to stop pipe names being re-used withing the same process, 
+	// we add an incremental counter to the mix 
+	static unsigned long pipe_counter = 0;
 
 	// create a manual reset Event, set initially to signaled
 	// to be used for overlapped operations
-	event_name.sprintf("pipe_event_%d_%x", GetCurrentProcessId(), m_handle);
-	m_event = CreateEvent( NULL, TRUE, TRUE, event_name.Value() );
+	snprintf(m_event_name, MAX_PATH-1, "pipe_event_%d_0x%x_%u", 
+		GetCurrentProcessId(), m_handle, pipe_counter);
+	m_event = CreateEvent(NULL, TRUE, TRUE, m_event_name);
 	ASSERT(m_event);
 	
 	// create the event for waiting until a PID-watcher
 	// is done using this object
-	event_name.sprintf("pipe_watched_event_%d_%x", 
-		GetCurrentProcessId(), m_handle);
-	m_watched_event = CreateEvent(NULL, TRUE, TRUE, event_name.Value());
+	snprintf(m_watched_event_name, MAX_PATH-1, 
+		"pipe_watched_event_%d_0x%x_%u", 
+		GetCurrentProcessId(), m_handle, pipe_counter);
+	m_watched_event = CreateEvent(NULL, TRUE, TRUE, 
+		m_watched_event_name);
 	ASSERT(m_watched_event);
+
+	dprintf(D_FULLDEBUG,"PipeEnd::PipeEnd: created %s and %s\n", 
+		m_event_name, m_watched_event_name);
+
+	// increment the pipe name counter
+	pipe_counter++;
 }
 
 // this will be called from Close_Pipe
 PipeEnd::~PipeEnd()
 {
+	dprintf(D_FULLDEBUG,"PipeEnd::~PipeEnd: closing %s and %s\n", 
+		m_event_name, m_watched_event_name);
+
 	// make sure we've been cancelled first
 	ASSERT(!m_registered);
 
@@ -57,6 +71,9 @@ PipeEnd::~PipeEnd()
 // this will be called from Register_Pipe, before WatchPid
 void PipeEnd::set_registered()
 {
+	dprintf(D_FULLDEBUG,"PipeEnd::set_registered: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+
 	ASSERT(m_overlapped && !m_registered);
 
 	// mark ourself as registered
@@ -66,8 +83,23 @@ void PipeEnd::set_registered()
 // the is called in DaemonCore from WatchPid
 void PipeEnd::set_watched()
 {
+	dprintf(D_FULLDEBUG,"PipeEnd::set_watched: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	ASSERT(m_registered && m_watched_event);
 	ResetEvent(m_watched_event);
+}
+
+// called from DaemonCore::Driver to determine if a 
+// PID-watcher thread is using this object
+bool PipeEnd::watched() const
+{
+	DWORD status = WaitForSingleObject(m_watched_event, 0);
+
+	dprintf(D_FULLDEBUG,"PipeEnd::set_unregistered(0x%x): %s and %s\n", 
+		status, m_event_name, m_watched_event_name);
+
+	return (WAIT_OBJECT_0 != status);
 }
 
 // this is either called from the PID-watcher if it detects the
@@ -75,6 +107,9 @@ void PipeEnd::set_watched()
 // PID-watcher for this object
 void PipeEnd::set_unregistered()
 {
+	dprintf(D_FULLDEBUG,"PipeEnd::set_unregistered: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	ASSERT(m_registered && m_watched_event);
 
 	// mark ourselves unregistered
@@ -91,8 +126,13 @@ void PipeEnd::set_unregistered()
 // has been unregistered
 void PipeEnd::cancel()
 {
+	dprintf(D_FULLDEBUG,"PipeEnd::cancel: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	// wait until we know a PID-watcher is no longer using this object
+	dprintf(D_ALWAYS,"PipeEnd::cancel: --> WaitForSingleObject(0x%x, INFINITE);\n", m_watched_event);
 	DWORD result = WaitForSingleObject(m_watched_event, INFINITE);
+	dprintf(D_ALWAYS,"PipeEnd::cancel: <-- WaitForSingleObject(0x%x, INFINITE);\n", m_watched_event);
 	ASSERT(result == WAIT_OBJECT_0);
 
 	// if the PID-watcher did not call set_unregistered, do it here
@@ -103,6 +143,9 @@ void PipeEnd::cancel()
 
 HANDLE ReadPipeEnd::pre_wait()
 {
+	dprintf(D_FULLDEBUG,"ReadPipeEnd::pre_wait: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	ASSERT(m_registered);
 
 	if (m_async_io_state == IO_UNSTARTED) {
@@ -148,6 +191,9 @@ HANDLE ReadPipeEnd::pre_wait()
 
 bool ReadPipeEnd::post_wait()
 {
+	dprintf(D_FULLDEBUG,"ReadPipeEnd::post_wait: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	if (m_async_io_state == IO_PENDING) {
 		DWORD bytes;
 		if (!GetOverlappedResult(m_handle, &m_overlapped_struct, &bytes, TRUE)) {
@@ -175,11 +221,17 @@ bool ReadPipeEnd::post_wait()
 // to fire the handler without fear of blocking
 bool ReadPipeEnd::io_ready()
 {
-	return m_async_io_state == IO_DONE;
+	dprintf(D_FULLDEBUG,"ReadPipeEnd::io_ready: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
+	return (m_async_io_state == IO_DONE && watched());
 }
 
 int ReadPipeEnd::read(void* buffer, int len)
 {
+	dprintf(D_FULLDEBUG,"ReadPipeEnd::read: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	int ret;
 
 	// len can be at most the size of the pipe buffer.
@@ -275,6 +327,9 @@ int ReadPipeEnd::read(void* buffer, int len)
 
 int ReadPipeEnd::read_helper(void* buffer, int len)
 {
+	dprintf(D_FULLDEBUG,"ReadPipeEnd::read_helper: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	// set errno to something other than EWOULDBLOCK
 	errno = EINVAL;
 
@@ -337,6 +392,9 @@ int ReadPipeEnd::read_helper(void* buffer, int len)
 // if one exists
 HANDLE WritePipeEnd::pre_wait()
 {
+	dprintf(D_FULLDEBUG,"WritePipeEnd::pre_wait: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	return m_event;
 }
 
@@ -345,6 +403,9 @@ HANDLE WritePipeEnd::pre_wait()
 // state based on the results
 bool WritePipeEnd::post_wait()
 {
+	dprintf(D_FULLDEBUG,"WritePipeEnd::post_wait: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	if (m_async_io_buf) {
 
 		// an asynchronous operation was pending; get
@@ -391,11 +452,17 @@ bool WritePipeEnd::post_wait()
 // the PID-watcher thread has called post_wait
 bool WritePipeEnd::io_ready()
 {
+	dprintf(D_FULLDEBUG,"WritePipeEnd::io_ready: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	return m_async_io_buf == NULL;
 }
 
 int WritePipeEnd::write(const void* buffer, int len)
 {
+	dprintf(D_FULLDEBUG,"WritePipeEnd::write: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	// set errno to something other than EWOULDBLOCK
 	errno = EINVAL;
 
@@ -462,6 +529,9 @@ int WritePipeEnd::write(const void* buffer, int len)
 //   - an error occurs
 int WritePipeEnd::async_write_helper()
 {
+	dprintf(D_FULLDEBUG,"WritePipeEnd::async_write_helper: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+
 	int ret;
 
 	m_async_io_error = 0;
@@ -511,6 +581,9 @@ int WritePipeEnd::async_write_helper()
 
 bool WritePipeEnd::complete_async_write(bool nonblocking)
 {
+	dprintf(D_FULLDEBUG,"WritePipeEnd::complete_async_write: %s and %s\n", 
+		m_event_name, m_watched_event_name);
+	
 	while (m_async_io_buf) {
 
 		// wait on the overlapped event

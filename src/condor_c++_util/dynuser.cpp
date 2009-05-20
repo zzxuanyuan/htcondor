@@ -313,7 +313,7 @@ bool dynuser::logon_user(){
 			return false;
 	}
 	
-	dprintf(D_FULLDEBUG,"dynuser::createuser(%s) successful\n",accountname);
+	dprintf(D_FULLDEBUG,"dynuser::logon_user(%s) successful\n",accountname);
 	
 	return true;
 

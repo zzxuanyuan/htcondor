@@ -33,6 +33,8 @@
 
 #include <windows.h>
 
+class MyString;
+
 class PipeEnd {
 
 public:
@@ -48,6 +50,10 @@ public:
 	// called from WatchPid to indicate that a PID-watcher
 	// thread is using this object
 	void set_watched();
+
+	// called from DaemonCore::Driver to determine if a 
+	// PID-watcher thread is using this object
+	bool watched() const;
 
 	// called from either the PID-watcher thread when it sees
 	// the deallocate flag or from cancel()
@@ -91,6 +97,10 @@ protected:
 	// objects used for overlapped I/O operations
 	HANDLE m_event;
 	OVERLAPPED m_overlapped_struct;
+	
+	// even names used in this pipe end
+	char m_event_name[MAX_PATH];
+	char m_watched_event_name[MAX_PATH];
 
 };
 
