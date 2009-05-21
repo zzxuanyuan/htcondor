@@ -127,6 +127,9 @@ CaBenchQueryOptions::ProcessArgLocal( SimpleArg &arg,
 			fprintf(stderr, "Invalid query %s\n", arg.Arg() );
 			return CaBenchOptions::OPT_ERROR;
 		}
+		if ( strcmp( m_query, "-" ) ) {
+			m_query_enabled = true;
+		}
 		return CaBenchOptions::OPT_HANDLED;
 	}
 
