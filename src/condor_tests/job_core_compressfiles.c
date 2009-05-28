@@ -20,9 +20,17 @@
 #include <stdio.h>
 #include <fcntl.h>
 
+#ifdef WIN32
+#include <stdlib.h>
+#include <io.h>
+#define open _open
+#define read _read
+#define write _write
+#else
 int read();
 int write();
 int exit();
+#endif
 
 int main(int argc, char* argv[])
 {

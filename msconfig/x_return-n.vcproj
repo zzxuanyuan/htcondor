@@ -165,7 +165,7 @@
 	</References>
 	<Files>
 		<File
-			RelativePath="..\CONDOR_SRC\src\condor_tests\x_return-n.c"
+			RelativePath="..\src\condor_tests\x_return-n.c"
 			>
 		</File>
 		<File

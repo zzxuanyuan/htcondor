@@ -30,7 +30,13 @@
 #endif
 
 #include <stdio.h>
+#ifdef WIN32
+#include <io.h>
+#define fsync _commit
+#define fileno _fileno
+#else
 #include <unistd.h>
+#endif
 #include <stdlib.h>
 
 int

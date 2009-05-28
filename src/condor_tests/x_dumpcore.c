@@ -25,11 +25,12 @@ int main( int argc, char **argv )
 	char *null = NULL;
 	char *space;
 	int dumpnow;
+	int temp = 0;
 
 	space = malloc(600000);
 
 	/* try a couple of different ways to dump core. */
-	dumpnow = 7 / 0;
+	dumpnow = 7 / temp;
 	*null = '\0';
 
 	return 0;

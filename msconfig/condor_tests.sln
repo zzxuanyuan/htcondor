@@ -23,6 +23,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "x_write_joblog", "x_write_j
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "x_write_joblog_events", "x_write_joblog_events.vcproj", "{39895CF7-F5D9-424A-8700-742299E0CB8B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "job_core_coredump", "job_core_coredump.vcproj", "{B234D6E7-040E-4E2A-8E37-2B2EA96E410D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_chirpio", "lib_chirpio.vcproj", "{3D106B77-9E07-4954-A978-B832FD5A8B6B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32

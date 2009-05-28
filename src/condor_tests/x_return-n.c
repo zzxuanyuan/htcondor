@@ -29,7 +29,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
+#ifdef WIN32
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "x_waste_second.h"
 

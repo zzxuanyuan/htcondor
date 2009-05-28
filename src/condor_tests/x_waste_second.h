@@ -21,7 +21,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifdef WIN32
 
+#include <time.h>
+#define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
+
+struct timezone 
+{
+	int  tz_minuteswest; /* minutes W of Greenwich */
+	int  tz_dsttime;     /* type of dst correction */
+};
+
+int gettimeofday(struct timeval *tv, struct timezone *tz);
+
+#endif
 void x_waste_a_second();
 
 #ifdef __cplusplus
