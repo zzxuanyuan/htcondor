@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,7 +31,7 @@
 
 /* Class      : AbstractReplicatorStateMachine
  * Description: base abstract class for replication service state machine,
- *              contains useful functions for implementation of replication, 
+ *              contains useful functions for implementation of replication,
  *              such as broadcasting version, downloading/uploading etc.
  *              Contains handlers for notifications from HAD about its
  *              transitions in its state machine:
@@ -73,12 +73,12 @@ public:
 	 *              from ELECTION to LEADER state
 	 */
     virtual void afterElectionStateHandler() = 0;
-	/* Function   : afterLeaderStateHandler 
+	/* Function   : afterLeaderStateHandler
      * Description: generic handler after the event, when HAD is in transition
-	 *              from LEADER to PASSIVE state 
+	 *              from LEADER to PASSIVE state
 	 */
     virtual void afterLeaderStateHandler() = 0;
-	/* Function   : inLeaderStateHandler 
+	/* Function   : inLeaderStateHandler
      * Description: generic handler after the event, when HAD is in inner loop
      *              of LEADER state
      */
@@ -106,17 +106,17 @@ protected:
 	 *							 'condor_transferer' process
      * Return value: int - success/failure value
 	 * Note        : returns 0 upon success, 1 - upon failure
-	 * Description : reaper of downloading 'condor_transferer' process 
+	 * Description : reaper of downloading 'condor_transferer' process
      */
 	static int
     downloadReplicaTransfererReaper(Service* service, int pid, int exitStatus);
 	/* Function    : uploadReplicaTransfererReaper
      * Arguments   : service    - the daemon, for which the transfer has ended
-     *               pid        - id of the uploading 'condor_transferer' 
+     *               pid        - id of the uploading 'condor_transferer'
      *                            process
-     *               exitStatus - return value of the uploading 
+     *               exitStatus - return value of the uploading
      *                           'condor_transferer' process
-	 * Return value: int - success/failure value 
+	 * Return value: int - success/failure value
      * Note        : returns 0 upon success, 1 - upon failure
      * Description : reaper of uploading 'condor_transferer' process
      */
@@ -129,9 +129,9 @@ protected:
 	 *				along with the local version
 	 */
     void broadcastVersion( int command );
-	/* Function   : requestVersions 
+	/* Function   : requestVersions
      * Description: sending command to other replication daemons, asking them to
-	 * 				send their replica versions to this replication daemon 
+	 * 				send their replica versions to this replication daemon
      */
     void requestVersions();
 	/* Function    : download
@@ -157,15 +157,15 @@ protected:
     /* Function   : initializeReplicationList
 	 * Arguments  : buffer - the string to initialize the replication daemons'
 	 *						 list from
-     * Description: initializes replication daemons list from the given string 
-     */ 
+     * Description: initializes replication daemons list from the given string
+     */
     void initializeReplicationList(char* buffer);
 	/* Function   : updateVersionsList
 	 * Arguments  : newVersion - the version to update the versions' list
 	 * Description: updates list of versions with new version
 	 */
     void updateVersionsList(Version& newVersion);
-	/* Function   : cancelVersionsListLeader 
+	/* Function   : cancelVersionsListLeader
      * Description: sets the state of all versions in the list to BACKUP
      */
     void cancelVersionsListLeader();
@@ -174,7 +174,7 @@ protected:
 	 *				daemonSinfulString - remote replication daemon address
 	 *				function           - function that adds specific data that
 	 *									 is to be sent
-     * Description: generic function to send any command to the remote 
+     * Description: generic function to send any command to the remote
 	 *				replication daemon; the given function adds specific
 	 *				data structures to send according to the kind of message
 	 *				needed. For example, for sending version through this
@@ -186,7 +186,7 @@ protected:
 	/* Function   : sendVersionAndStateCommand
 	 * Arguments  : command            - id
 	 *				daemonSinfulString - remote replication daemon address
-     * Description: this function demonstrates a usage of more general 
+     * Description: this function demonstrates a usage of more general
 	 *				'sendCommand'; it sends to the remote daemon the local
 	 *				version and the state of this replication daemon
      */
@@ -194,9 +194,9 @@ protected:
         sendCommand( command, daemonSinfulString,
             &AbstractReplicatorStateMachine::versionAndStateCommand );
     };
-// Command functions    
-	/* Function    : versionAndStateCommand 
-     * Arguments   : socket - socket through which the data is send to the 
+// Command functions  
+	/* Function    : versionAndStateCommand
+     * Arguments   : socket - socket through which the data is send to the
 	 *						  remote replication daemon
 	 * Return value: success/failure value
      * Description : specific command function, adding to the socket the local
@@ -204,7 +204,7 @@ protected:
      */
     bool versionAndStateCommand(ReliSock& socket);
 	/* Function    : versionCommand
-     * Arguments   : socket - socket through which the data is send to the 
+     * Arguments   : socket - socket through which the data is send to the
      *                        remote replication daemon
      * Return value: success/failure value
      * Description : specific command function, adding to the socket the local
@@ -212,7 +212,7 @@ protected:
      */
     bool versionCommand(ReliSock& );
 	/* Function    : noCommand
-     * Arguments   : socket - socket through which the data is send to the 
+     * Arguments   : socket - socket through which the data is send to the
      *                        remote replication daemon
      * Return value: success/failure value
      * Description : specific command function, adding nothing to the socket
@@ -250,7 +250,7 @@ protected:
 		{
 			m_pid             = pPid;
 			m_lastTimeCreated = pLastTimeCreated;
-		};		
+		};
 		/* Function    : isValid
          * Return value: checks whether the structure values belong to a valid
 		 *				 process, i.e that the structure was initialized
@@ -269,7 +269,7 @@ protected:
     Version                  m_myVersion;
     // list of versions sent to the daemon during JOINING state
 	List<Version>            m_versionsList;
-	// configuration variables	
+	// configuration variables
     MyString                 m_stateFilePath;
     MyString                 m_versionFilePath;
 	MyString                 m_transfererPath;
@@ -286,20 +286,8 @@ protected:
     int                      m_downloadReaperId;
     int                      m_uploadReaperId;
 
-	void printDataMembers()
-	{
-		dprintf( D_ALWAYS, "\n"	
-						   "State file path        - %s\n"
-						   "Version file path      - %s\n"
-						   "State                  - %d\n"
-						   "Transferer executeable - %s\n"
-						   "Connection timeout     - %d\n"
-						   "Downloading reaper id  - %d\n"
-						   "Uploading reaper id    - %d\n",
-				 m_stateFilePath.Value(), m_versionFilePath.Value(), 
-				 m_state, m_transfererPath.Value(), m_connectionTimeout,
-				 m_downloadReaperId, m_uploadReaperId );    
-	};
+	void printDataMembers( void ) const;
+
 	// process ids of uploading/downloading 'condor_transferer' processes for
 	// monitoring and handling the problem of stuck transferer processes and
     // starting times of uploading/downloading 'condor_transferer' processes

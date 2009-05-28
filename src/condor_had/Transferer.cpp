@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,7 +31,7 @@ extern char* myName;
 DECL_SUBSYSTEM( "TRANSFERER", SUBSYSTEM_TYPE_DAEMON );	// used by Daemon Core
 
 // single 'condor_transferer' object
-BaseReplicaTransferer* replicaTransferer = NULL; 
+BaseReplicaTransferer* replicaTransferer = NULL;
 
 #if 0
 int
@@ -80,7 +80,7 @@ downloadTerminateSignalHandler(Service* service, int signalNumber)
 }
 #endif
 
-/* Function   : cleanTemporaryFiles 
+/* Function   : cleanTemporaryFiles
  * Description: cleans all temporary files of the transferer: be it the
  * 				uploading one or the downloading one
  */
@@ -91,7 +91,7 @@ cleanTemporaryFiles()
 
 	MyString downloadingExtension( daemonCore->getpid( ) );
 	MyString uploadingExtension( daemonCore->getpid( ) );
-	char*    stateFilePath = NULL;	
+	char*    stateFilePath = NULL;
 
 	downloadingExtension += ".";
 	downloadingExtension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
@@ -107,16 +107,16 @@ cleanTemporaryFiles()
         uploadingExtension.Value( ) );
 
 	// then the possible temporary state files
-    StringList& stateFilePathsList = 
-		const_cast<StringList& >( replicaTransferer->getStateFilePathsList( ) );
+    StringList& stateFilePathsList =
+		const_cast<StringList&>( replicaTransferer->getStateFilePathsList() );
 
 	stateFilePathsList.rewind( );
 
     while( ( stateFilePath = stateFilePathsList.next( ) ) ) {
-		if( ! FilesOperations::safeUnlinkFile( stateFilePath, 
+		if( ! FilesOperations::safeUnlinkFile( stateFilePath,
 										downloadingExtension.Value( ) ) ) {
             dprintf( D_ALWAYS, "cleanTemporaryFiles unable to unlink "
-                               "state file %s with .down extension\n", 
+                               "state file %s with .down extension\n",
 					 stateFilePath );
         }
 		if( ! FilesOperations::safeUnlinkFile( stateFilePath,
@@ -124,7 +124,7 @@ cleanTemporaryFiles()
 			dprintf( D_ALWAYS, "cleanTemporaryFiles unable to unlink "
                                "state file %s with .up extension\n",
 					 stateFilePath );
-		}									   
+		}
     }
     stateFilePathsList.rewind( );
 
@@ -154,16 +154,17 @@ main_init( int argc, char *argv[] )
 		DC_Exit( 1 );
 	}
 	int stateFilesNumber = atoi(argv[4]);
-	
+
 	if( stateFilesNumber != argc - 5 ) {
-		dprintf( D_ALWAYS, "Transferer error: number of state files, specified "
-						   "as the fourth argument differs from their actual "
-						   "number: %d vs. %d\n", stateFilesNumber, argc - 4 );
+		dprintf( D_ALWAYS,
+				 "Transferer error: number of state files, specified "
+				 "as the fourth argument differs from their actual "
+				 "number: %d vs. %d\n", stateFilesNumber, argc - 4 );
 
 		DC_Exit( 1 );
 	}
 	StringList stateFilePathsList;
-	
+
 	for( int stateFileIndex = 0;
 		 stateFileIndex < stateFilesNumber;
 		 stateFileIndex ++ ) {
@@ -171,15 +172,15 @@ main_init( int argc, char *argv[] )
 	}
 
     if( ! strncmp( argv[1], "down", strlen( "down" ) ) ) {
-        replicaTransferer = new DownloadReplicaTransferer( 
-								argv[2], 
-								argv[3], 
+        replicaTransferer = new DownloadReplicaTransferer(
+								argv[2],
+								argv[3],
 								//argv[4] );
 								stateFilePathsList );
 	} else if( ! strncmp( argv[1], "up", strlen( "up" ) ) ) {
-        replicaTransferer = new UploadReplicaTransferer( 
-								argv[2], 
-								argv[3], 
+        replicaTransferer = new UploadReplicaTransferer(
+								argv[2],
+								argv[3],
 								//argv[4] );
 								stateFilePathsList );
     } else {
@@ -217,13 +218,13 @@ main_shutdown_fast( )
 
 // no reconfigurations enabled
 int
-main_config( bool is_full )
+main_config( bool /*is_full*/ )
 {
     return 1;
 }
 
 void
-main_pre_dc_init( int argc, char* argv[] )
+main_pre_dc_init( int /*argc*/, char* /*argv*/[] )
 {
 }
 

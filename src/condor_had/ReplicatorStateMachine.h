@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,15 +24,15 @@
 
 /* Class      : ReplicatorStateMachine
  * Description: concrete class for replication service state machine,
- *              Contains implementation of handlers for notifications from 
+ *              Contains implementation of handlers for notifications from
  *              HAD about its transitions in its state machine:
  *              1) beforePassiveStateHandler - for HAD_BEFORE_PASSIVE_STATE
  *              2) afterElectionStateHandler - for HAD_AFTER_ELECTION_STATE
  *              3) afterLeaderStateHandler   - for HAD_AFTER_LEADER_STATE
  *              4) inLeaderStateHandler      - for HAD_IN_LEADER_STATE
  *
- *              Besides, it contains implementation of handlers for selection 
- *              of the best version out of versions list and selection of the 
+ *              Besides, it contains implementation of handlers for selection
+ *              of the best version out of versions list and selection of the
  *              gid according to those versions:
  *              1) replicaSelectionHandler
  *              2) gidSelectionHandler
@@ -56,9 +56,9 @@ public:
 	/* Function   : afterElectionStateHandler
      * Description: concrete handler after the event, when HAD is in transition
      *              from ELECTION to LEADER state; sets the last time, when HAD
-	 *              sent a HAD_IN_STATE_STATE (which is kind of "I am alive" 
+	 *              sent a HAD_IN_STATE_STATE (which is kind of "I am alive"
 	 *              message for replication daemon) and selects the new gid for
-	 *              the pool 
+	 *              the pool
      */
     virtual void afterElectionStateHandler();
 	/* Function   : afterLeaderStateHandler
@@ -69,7 +69,7 @@ public:
     virtual void afterLeaderStateHandler();
 	/* Function   : inLeaderStateHandler
      * Description: concrete handler after the event, when HAD is in inner loop
-     *              of LEADER state; sets the last time, when HAD sent a 
+     *              of LEADER state; sets the last time, when HAD sent a
 	 * 				HAD_IN_STATE_STATE
      */
     virtual void inLeaderStateHandler();
@@ -112,7 +112,7 @@ protected:
      *                           'condor_transferer' process
      * Description: reaper of downloading 'condor_transferer' process
      */
-    static int 
+    static int
 	downloadReplicaTransfererReaper(Service* service, int pid, int exitStatus);
 private:
 // Managing stuck transferers
@@ -144,8 +144,8 @@ private:
 	/* Function   : downloadTransferersNumber
 	 * Description: returns number of running downloading 'condor_transferers'
 	 */
-    int  downloadTransferersNumber() const { 
-		return int( m_downloadTransfererMetadata.m_pid != -1 ); 
+    int  downloadTransferersNumber() const {
+		return int( m_downloadTransfererMetadata.m_pid != -1 );
 	};
 
 // Configuration parameters
@@ -163,31 +163,16 @@ private:
     time_t  m_lastHadAliveTime;
 
 // Debugging utilities
-	void printDataMembers()
-    {
-        dprintf( D_ALWAYS, "\n"
-						   "Replication interval                  - %d\n"
-                           "HAD alive tolerance                   - %d\n"
-                           "Max transferer life time              - %d\n"
-                           "Newly joined waiting version interval - %d\n"
-                           "Version requesting timer id           - %d\n"
-                           "Version downloading timer id          - %d\n"
-						   "Replication timer id                  - %d\n"
-                           "Last HAD alive time                   - %ld\n",
-                 m_replicationInterval, m_hadAliveTolerance, 
-				 m_maxTransfererLifeTime, m_newlyJoinedWaitingVersionInterval, 
-				 m_versionRequestingTimerId, m_versionDownloadingTimerId, 
-				 m_replicationTimerId, m_lastHadAliveTime );
-    };
+	void printDataMembers(void) const;
 
 	void checkVersionSynchronization()
 	{
 		int temporaryGid = -1, temporaryLogicalClock = -1;
-        
+
         m_myVersion.load( temporaryGid, temporaryLogicalClock);
         REPLICATION_ASSERT(
-            temporaryGid == m_myVersion.getGid( ) && 
-			temporaryLogicalClock == m_myVersion.getLogicalClock( ));        
+            temporaryGid == m_myVersion.getGid( ) &&
+			temporaryLogicalClock == m_myVersion.getLogicalClock( ));
 	};
 // End of debugging utilities
 };

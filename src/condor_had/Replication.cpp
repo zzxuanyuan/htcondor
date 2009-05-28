@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -35,9 +35,6 @@ int
 main_init( int , char *[] )
 {
     dprintf(D_ALWAYS, "main_init replication daemon started\n");
-//    int oldflags = fcntl(1, F_GETFL, 0);
-//    dprintf(D_ALWAYS, "Is non-blocking file behaviour set: %d\n", O_NONBLOCK 
-//            & oldflags);
 
     try {
         stateMachine = new ReplicatorStateMachine( );
@@ -74,16 +71,16 @@ main_shutdown_fast( )
 }
 
 int
-main_config( bool isFull )
+main_config( bool /*isFull*/ )
 {
     // NOTE: restart functionality instead of reconfig
 	stateMachine->reinitialize( );
-    
+
     return 0;
 }
 
 void
-main_pre_dc_init( int argc, char* argv[] )
+main_pre_dc_init( int /*argc*/, char* /*argv*/[] )
 {
 }
 
