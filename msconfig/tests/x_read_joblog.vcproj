@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\TestDebug"
+			IntermediateDirectory="..\TestDebug"
 			ConfigurationType="1"
 			CharacterSet="1"
 			>
@@ -89,8 +89,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
+			OutputDirectory="..\TestRelease"
+			IntermediateDirectory="..\TestRelease"
 			ConfigurationType="1"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
@@ -166,7 +166,7 @@
 	</References>
 	<Files>
 		<File
-			RelativePath="\\tsclient\U\CONDOR_SRC\src\condor_tests\x_read_joblog.cpp"
+			RelativePath="..\..\src\condor_tests\x_read_joblog.cpp"
 			>
 		</File>
 	</Files>
