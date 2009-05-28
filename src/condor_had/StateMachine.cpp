@@ -135,9 +135,9 @@ HADStateMachine::~HADStateMachine(void)
 bool
 HADStateMachine::isHardConfigurationNeeded(void)
 {
-	char		*tmp      = NULL;
+	char		*tmp = NULL;
 	char		 controllee[128];
-	bool    	 usePrimary  = false;
+	bool    	 usePrimary;
 	int     	 selfId;
 	StringList	 allHadIps;
 
@@ -153,13 +153,7 @@ HADStateMachine::isHardConfigurationNeeded(void)
 		return true;
 	}
 
-	tmp = param( "HAD_USE_PRIMARY" );
-	if( tmp ) {
-        if( strncasecmp( tmp, "true", strlen("true") ) == 0 ) {
-			usePrimary = true;
-        }
-        free( tmp );
-    }
+	usePrimary = param_boolean( "HAD_USE_PRIMARY", false );
 	if ( usePrimary != m_usePrimary ) {
 		return true;
 	}
@@ -257,12 +251,7 @@ HADStateMachine::softReconfigure(void)
                   (MESSAGES_PER_INTERVAL_FACTOR);
 #if IS_REPLICATION_USED
     // setting the replication usage permissions
-    buffer = param( "HAD_USE_REPLICATION" );
-
-	if ( buffer && ! strncasecmp( buffer, "true", strlen("true") ) ) {
-        m_useReplication = true;
-        free( buffer );
-    }
+    m_useReplication = param_boolean( "HAD_USE_REPLICATION", false );
     setReplicationDaemonSinfulString( );
 #endif
 
@@ -388,13 +377,7 @@ HADStateMachine::reinitialize(void)
 
 	// reconfiguring data members, on which the negotiator location inside the
 	// pool depends
-    tmp = param( "HAD_USE_PRIMARY" );
-    if( tmp ) {
-        if(strncasecmp(tmp,"true",strlen("true")) == 0) {
-          m_usePrimary = true;
-        }
-        free( tmp );
-    }
+	m_usePrimary = param_boolean( "HAD_USE_PRIMARY", false );
 
     tmp = param( "HAD_LIST" );
     if ( tmp ) {
