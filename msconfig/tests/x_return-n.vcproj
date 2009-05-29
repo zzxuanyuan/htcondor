@@ -59,6 +59,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="$(CONDOR_TESTS_LIBS)"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
