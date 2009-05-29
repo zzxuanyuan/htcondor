@@ -24,6 +24,7 @@ extern "C" {
 #ifdef WIN32
 
 #include <time.h>
+#include <WinSock2.h>
 #define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
 
 struct timezone 
