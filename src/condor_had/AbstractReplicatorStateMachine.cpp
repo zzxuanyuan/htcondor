@@ -220,7 +220,7 @@ AbstractReplicatorStateMachine::reinitialize( void )
 			ReplicatorFileVersion	*version_info =
 				new ReplicatorFileVersion( *file_info, sinful );
 			file_info->updateVersion( *version_info );
-			m_transferProcessList.Register( version_info->getProcessInfo() );
+			m_transfererList.Register( version_info->getUploader() );
 		}
 	}
 
@@ -248,7 +248,7 @@ AbstractReplicatorStateMachine::downloadReaper(
 	// NOTE: upon stalling the downloader, the transferer is being killed
 	// 		 before the reaper is called, so that the application fails in
 	//		 the assert, this is the reason for commenting it out
-	ReplicatorProcessData	*proc = stateMachine->findTransferProcess( pid );
+	ReplicatorTransferer	*proc = stateMachine->findTransferProcess( pid );
 	if ( NULL == proc ) {
 		dprintf( D_ALWAYS,
 				 "downloadReaper(): can't find PID %d\n", pid );
@@ -256,9 +256,9 @@ AbstractReplicatorStateMachine::downloadReaper(
 	}
 	proc->clear( );
 
-	ReplicatorDownloadProcessData	*download =
-		dynamic_cast<ReplicatorDownloadProcessData *>( proc );
-	if ( NULL == download ) {
+	ReplicatorDownloader	*downloader =
+		dynamic_cast<ReplicatorDownloader *>( proc );
+	if ( NULL == downloader ) {
 		dprintf( D_ALWAYS,
 				 "downloadReaper(): Process data for PID %d isn't download\n",
 				 pid );
@@ -285,7 +285,7 @@ AbstractReplicatorStateMachine::downloadReaper(
         return TRANSFERER_FALSE;
     }
 
-	ReplicatorFile	&file_info = download->getFileInfo( );
+	ReplicatorFile	&file_info = downloader->getFileInfo( );
 	if ( !file_info.rotateFile( pid ) ) {
 		dprintf( D_ALWAYS,
 				 "downloadReaper(): failed to rotate in new files\n" );
@@ -310,7 +310,7 @@ AbstractReplicatorStateMachine::uploadReaper(
     AbstractReplicatorStateMachine* stateMachine =
         static_cast<AbstractReplicatorStateMachine*>( service );
 
-	ReplicatorProcessData	*proc = stateMachine->findTransferProcess( pid );
+	ReplicatorTransferer	*proc = stateMachine->findTransferProcess( pid );
 	if ( NULL == proc ) {
 		dprintf( D_ALWAYS,
 				 "uploadReaper(): can't find PID %d\n", pid );
@@ -318,9 +318,9 @@ AbstractReplicatorStateMachine::uploadReaper(
 	}
 	proc->clear( );
 
-	ReplicatorUploadProcessData	*upload =
-		dynamic_cast<ReplicatorUploadProcessData *>( proc );
-	if ( NULL == upload ) {
+	ReplicatorUploader	*uploader =
+		dynamic_cast<ReplicatorUploader *>( proc );
+	if ( NULL == uploader ) {
 		dprintf( D_ALWAYS,
 				 "uploadReaper(): Process data for PID %d isn't upload\n",
 				 pid );
@@ -351,27 +351,30 @@ AbstractReplicatorStateMachine::uploadReaper(
  * creation time
  */
 bool
-AbstractReplicatorStateMachine::download(
-	const ReplicatorFileVersion &version )
+AbstractReplicatorStateMachine::download( ReplicatorFileVersion &version )
 {
-	const ReplicatorFile	&file = version.getFileInfo( );
-	const ReplicatorPeer	&peer = version.getPeerInfo( );
+	const ReplicatorFile	&file       = version.getFileInfo( );
+	const ReplicatorPeer	&peer       = version.getPeerInfo( );
+	ReplicatorDownloader	&downloader = file.getDownloader( );
+
 	ArgList  processArguments;
 	processArguments.AppendArg( m_transfererPath.Value() );
 	processArguments.AppendArg( "-f" );
 	processArguments.AppendArg( "down" );
 	processArguments.AppendArg( peer.getSinful() );
-	processArguments.AppendArg( file.getVersionFilePath.Value() );
+	processArguments.AppendArg( file.getVersionFilePath() );
 	processArguments.AppendArg( "1" );
-	processArguments.AppendArg( file.getFilePath.Value() );
+	processArguments.AppendArg( file.getFilePath() );
 
 	// Get arguments from this ArgList object for descriptional purposes.
 	MyString	s;
 	processArguments.GetArgsStringForDisplay( &s );
     dprintf( D_FULLDEBUG,
-			 "AbstractReplicatorStateMachine::download creating "
-			 "downloading condor_transferer process: \n \"%s\"\n",
+			 "::download(): "
+			 "creating condor_transferer process: \n \"%s\"\n",
 			 s.Value( ) );
+
+	ASSERT( proc.isValid() == false );
 
 	// PRIV_ROOT privilege is necessary here to create the process
 	// so we can read GSI certs <sigh>
@@ -389,24 +392,23 @@ AbstractReplicatorStateMachine::download(
         );
     if( transfererPid == FALSE ) {
         dprintf( D_ALWAYS,
-            "AbstractReplicatorStateMachine::download unable to create "
-            "downloading condor_transferer process\n" );
+				 "::download(): "
+				 "unable to create condor_transferer process\n" );
         return false;
-    } else {
-        dprintf( D_FULLDEBUG,
-            "AbstractReplicatorStateMachine::download downloading "
-            "condor_transferer process created with pid = %d\n",
-             transfererPid );
-		REPLICATION_ASSERT( ! m_downloadTransfererMetadata.isValid() );
-
-       /* Remembering the last time, when the downloading 'condor_transferer'
-        * was created: the monitoring might be useful in possible prevention
-        * of stuck 'condor_transferer' processes. Remembering the pid of the
-        * downloading process as well: to terminate it when the downloading
-        * process is stuck
-        */
-		m_downloadTransfererMetadata.setPid( transfererPid );
     }
+
+	dprintf( D_FULLDEBUG,
+			 "::download(): "
+			 "condor_transferer process created with pid = %d\n",
+			 transfererPid );
+
+	/* Remembering the last time, when the downloading 'condor_transferer'
+	 * was created: the monitoring might be useful in possible prevention
+	 * of stuck 'condor_transferer' processes. Remembering the pid of the
+	 * downloading process as well: to terminate it when the downloading
+	 * process is stuck
+	 */
+	downloader.registerProcess( transfererPid );
 
     return true;
 }
@@ -414,24 +416,30 @@ AbstractReplicatorStateMachine::download(
 // creating uploading transferer process and remembering its pid and
 // creation time
 bool
-AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
+AbstractReplicatorStateMachine::upload( ReplicatorFileVersion &version )
 {
+	const ReplicatorFile	&file     = version.getFileInfo( );
+	const ReplicatorPeer	&peer     = version.getPeerInfo( );
+	ReplicatorUploader		&uploader = version.getUploader( );
+
 	ArgList  processArguments;
 	processArguments.AppendArg( m_transfererPath.Value() );
 	processArguments.AppendArg( "-f" );
 	processArguments.AppendArg( "up" );
-	processArguments.AppendArg( daemonSinfulString );
-	processArguments.AppendArg( m_versionFilePath.Value() );
+	processArguments.AppendArg( peer.getSinful() );
+	processArguments.AppendArg( file.getVersionFilePath() );
 	processArguments.AppendArg( "1" );
-	processArguments.AppendArg( m_stateFilePath.Value() );
+	processArguments.AppendArg( file.getFilePath() );
 
 	// Get arguments from this ArgList object for descriptional purposes.
 	MyString	s;
 	processArguments.GetArgsStringForDisplay( &s );
     dprintf( D_FULLDEBUG,
-			 "AbstractReplicatorStateMachine::upload creating "
-			 "uploading condor_transferer process: \n \"%s\"\n",
+			 "::upload(): "
+			 "creating condor_transferer process: \n \"%s\"\n",
 			 s.Value( ) );
+
+	ASSERT( proc.isValid() == false );
 
 	// PRIV_ROOT privilege is necessary here to create the process
 	// so we can read GSI certs <sigh>
@@ -448,31 +456,24 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
         NULL                          // process family info
         );
     if ( transfererPid == FALSE ) {
-		dprintf( D_PROC,
-            "AbstractReplicatorStateMachine::upload unable to create "
-            "uploading condor_transferer process\n");
+		dprintf( D_ALWAYS,
+				 "::upload(): "
+				 "unable to create condor_transferer process\n");
         return false;
-    } else {
-        dprintf( D_FULLDEBUG,
-            "AbstractReplicatorStateMachine::upload uploading "
-            "condor_transferer process created with pid = %d\n",
-            transfererPid );
-        /* Remembering the last time, when the uploading 'condor_transferer'
-         * was created: the monitoring might be useful in possible prevention
-         * of stuck 'condor_transferer' processes. Remembering the pid of the
-         * uploading process as well: to terminate it when the uploading
-         * process is stuck
-         */
-// TODO: Atomic operation
-		// dynamically allocating the memory for the pid, since it is going to
-    	// be inserted into Condor's list which stores the pointers to the data,
-    	// rather than the data itself, that's why it is impossible to pass a
-		// local integer variable to append to this list
-		ProcessMetadata* uploadTransfererMetadata =
-				new ProcessMetadata( transfererPid, time( NULL ) );
-		m_uploadTransfererMetadataList.Append( uploadTransfererMetadata );
-// End of TODO: Atomic operation
     }
+
+	dprintf( D_FULLDEBUG,
+			 "::upload() "
+			 "condor_transferer process created with pid = %d\n",
+			 transfererPid );
+
+	/* Remembering the last time, when the uploading 'condor_transferer'
+	 * was created: the monitoring might be useful in possible prevention
+	 * of stuck 'condor_transferer' processes. Remembering the pid of the
+	 * uploading process as well: to terminate it when the uploading
+	 * process is stuck
+	 */
+	uploader.registerProcess( transfererPid );
 
     return true;
 }

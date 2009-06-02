@@ -20,8 +20,7 @@
 #ifndef REPLICATOR_FILE_VERSION_H
 #define REPLICATOR_FILE_VERSION_H
 
-// for 'ReplicatorState'
-#include "ReplicatorProcessData.h"
+#include "ReplicatorTransferer.h"
 #include "ReplicatorPeer.h"
 #include "Utils.h"
 #include "reli_sock.h"
@@ -42,13 +41,13 @@ enum ReplicatorState {
  */
 class ReplicatorFile;			// Pre-declare the file info
 class ReplicatorFileVersion;	// Pre-declare the file version info
-class ReplicatorUploadProcessData : public ReplicatorProcessData
+class ReplicatorUploader : public ReplicatorTransferer
 {
   public:
-	ReplicatorUploadProcessData( ReplicatorFileVersion &version_info )
+	ReplicatorUploader( ReplicatorFileVersion &version_info )
 		: m_versionInfo( version_info ) {
 	};
-	~ReplicatorUploadProcessData( void ) { };
+	~ReplicatorUploader( void ) { };
 	ReplicatorFile &getFileInfo( void );
 
   private:
@@ -67,9 +66,6 @@ public:
 
     /* Function: ReplicatorFileVersion constructor
      */
-#  if 0
-	ReplicatorFileVersion( void );
-#  endif
 	ReplicatorFileVersion( const ReplicatorFile &, const char *sinful );
 
 
@@ -154,12 +150,12 @@ public:
 		return m_peerInfo;
 	};
 
-	/* Function    : getProcessInfo
+	/* Function    : getUploader
 	 * Return value: Process info object
-	 * Description : returns the related process info object
+	 * Description : returns the related transferer object
 	 */
-    ReplicatorUploadProcessData &getProcessInfo(void) {
-		return m_uploadProcessData;
+    ReplicatorUploader &getUploader(void) {
+		return m_uploader;
 	};
 
     /* Function    : load
@@ -295,7 +291,7 @@ public:
 	const ReplicatorPeer	&m_peerInfo;
 
 	// My process data
-	ReplicatorUploadProcessData m_uploadProcessData;
+	ReplicatorUploader		 m_uploader;
  
 	// components of the version
     int                      m_gid;

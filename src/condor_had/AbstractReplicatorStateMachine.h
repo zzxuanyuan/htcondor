@@ -22,6 +22,7 @@
 
 // for 'ReplicatorState'
 #include "Utils.h"
+#include "ReplicatorTransferer.h"
 #include "ReplicatorFileVersion.h"
 #include "ReplicatorFile.h"
 #include "reli_sock.h"
@@ -162,7 +163,7 @@ public:
 	 * Description : starts downloading 'condor_transferer' process to download
 	 *				 the version of remote replication daemon
      */
-    bool download( const ReplicatorFileVersion &version );
+    bool download( ReplicatorFileVersion &version );
 
 	/* Function    : upload
      * Arguments   : daemonSinfulString - address of daemon to upload the
@@ -255,8 +256,8 @@ public:
 	   Arguments   : pid - PID of the process to find
      * Description : Find the transfer process info related to the PID
      */
-	ReplicatorProcessData *findTransferProcess( int pid ) {
-		return m_transferProcessList.Find( pid );
+	ReplicatorTransferer *findTransferProcess( int pid ) {
+		return m_transfererList.Find( pid );
 	};
 
 	/* Function    : killTransferers
@@ -280,7 +281,7 @@ protected:
 	StringList				*m_replicatorRawList;
     list<char *>             m_replicatorSinfulList;
 	// list of all replicator transfer processes
-	ReplicatorProcessList    m_transferProcessList;
+	ReplicatorTransfererList m_transfererList;
 	// socket connection timeout
     int                      m_connectionTimeout;
 

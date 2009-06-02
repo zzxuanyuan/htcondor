@@ -17,8 +17,8 @@
  *
  ***************************************************************/
 
-#ifndef REPLICATOR_PROCESS_DATA_H
-#define REPLICATOR_PROCESS_DATA_H
+#ifndef REPLICATOR_TRANSFERER_H
+#define REPLICATOR_TRANSFERER_H
 
 #include <list>
 
@@ -29,13 +29,13 @@ using namespace std;
  * transferer processes
  */
 class ReplicatorFile;
-class ReplicatorProcessData
+class ReplicatorTransferer
 {
   public:
-	ReplicatorProcessData( void )
+	ReplicatorTransferer( void )
 		: m_pid(-1), m_time(-1) {
 	};
-	virtual ~ReplicatorProcessData( void );
+	virtual ~ReplicatorTransferer( void );
 
 	// Setters
 	bool registerProcess( int pid ) {
@@ -64,7 +64,7 @@ class ReplicatorProcessData
 	time_t getTime( void ) const {
 		return m_time;
 	};
-	bool operator == ( ReplicatorProcessData &other ) const {
+	bool operator == ( ReplicatorTransferer &other ) const {
 		return m_pid == other.getPid( );
 	};
 
@@ -73,17 +73,17 @@ class ReplicatorProcessData
 	time_t		 m_time;
 };
 
-class ReplicatorProcessList
+class ReplicatorTransfererList
 {
   public:
-	ReplicatorProcessList( void );
-	~ReplicatorProcessList( void );
+	ReplicatorTransfererList( void );
+	~ReplicatorTransfererList( void );
 
-	bool Register( ReplicatorProcessData &process );
-	ReplicatorProcessData *Find( int pid );
+	bool Register( ReplicatorTransferer &process );
+	ReplicatorTransferer *Find( int pid );
 
   private:
-	list<ReplicatorProcessData *>	m_list;
+	list<ReplicatorTransferer *>	m_list;
 };
 
-#endif // REPLICATOR_PROCESS_DATA_H
+#endif // REPLICATOR_TRANSFERER_H

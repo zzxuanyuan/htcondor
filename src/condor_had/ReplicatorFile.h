@@ -25,19 +25,19 @@ using namespace std;
 
 #include "Utils.h"
 #include "ReplicatorFileVersion.h"
-#include "ReplicatorProcessData.h"
+#include "ReplicatorTransferer.h"
 
 
-/* Class      : ReplicatorFileProcessData
+/* Class      : ReplicatorDownloader
  * Description: class, representing a file that's versioned and replicated
  */
-class ReplicatorDownloadProcessData : public ReplicatorProcessData
+class ReplicatorDownloader : public ReplicatorTransferer
 {
   public:
-	ReplicatorDownloadProcessData( ReplicatorFile &file_info )
+	ReplicatorDownloader( ReplicatorFile &file_info )
 		: m_fileInfo( file_info ) {
 	};
-	~ReplicatorDownloadProcessData( void ) { };
+	~ReplicatorDownloader( void ) { };
 	ReplicatorFile &getFileInfo( void ) {
 		return m_fileInfo;
 	};
@@ -69,6 +69,9 @@ class ReplicatorFile
 	const ReplicatorFileVersion &getMyVersion( void ) const {
 		return m_myVersion;
 	};
+	ReplicatorDownloader &getDownloader( void ) {
+		return m_downloader;
+	};
 
 	// Version operators
 	bool findVersion( const char *hostname,
@@ -92,7 +95,7 @@ class ReplicatorFile
 	// monitoring and handling the problem of stuck transferer processes and
     // starting times of uploading/downloading 'condor_transferer' processes
 	// for handling the problem of stuck transferer processes
-	ReplicatorDownloadProcessData	 m_downloadProcessData;
+	mutable ReplicatorDownloader			 m_downloader;
 
 };
 
