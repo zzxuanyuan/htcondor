@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -17,7 +17,30 @@
  *
  ***************************************************************/
 
-#ifndef REPLICATOR_STATE_H
-#define REPLICATOR_STATE_H
+#include "condor_common.h"
+#include "internet.h"
 
-#endif // REPLICATOR_STATE_H
+#include "ReplicatorPeer.h"
+
+ReplicatorPeer::ReplicatorPeer( const char *sinful )
+		: m_sinfulString( sinful ),
+		  m_isPrimary( false )
+{
+	m_hostname = getHostFromAddr( m_sinfulString.Value( ) );
+}
+
+ReplicatorPeer::~ReplicatorPeer( void )
+{
+}
+
+bool
+ReplicatorPeer::operator == ( const char *hostname ) const
+{
+	return ( 0 == strcasecmp(hostname.Value(), m_hostname) );
+}
+
+bool
+ReplicatorPeer::operator == ( const ReplicatorPeer &other ) const
+{
+	return *this == other.getHostName( );
+}

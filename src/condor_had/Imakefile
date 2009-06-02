@@ -5,8 +5,11 @@ CFLAGS = $(STD_C_FLAGS) -D_POSIX_PTHREAD_SEMANTICS
 C_PLUS_FLAGS =  $(STD_C_PLUS_FLAGS) -D_POSIX_PTHREAD_SEMANTICS
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(CONFIGURE_GSOAP_LDFLAGS)
 
-HAD_OBJ =  StateMachine.o HAD.o Utils.o $(SOAP_OBJS)
-#HAD_OBJ =  StateMachine.o HAD.o Utils.o soap_hadC.o soap_hadServer.o soap_hadStub.o
+HAD_OBJ = \
+	HAD.o \
+	StateMachine.o \
+	Utils.o \
+	$(SOAP_OBJS)
 
 soapobjs(had)
 
@@ -17,14 +20,30 @@ gen_soapfiles(had,condorHad)
 REPLICATION_NAME = condor_replication
 all_target($(REPLICATION_NAME))
 
-REPLICATION_OBJ = AbstractReplicatorStateMachine.o ReplicatorStateMachine.o HAD_Version.o Utils.o Replication.o FilesOperations.o $(SOAP_OBJS)
+REPLICATION_OBJ = \
+	Replication.o \
+	AbstractReplicatorStateMachine.o \
+	ReplicatorStateMachine.o \
+	ReplicatorVersion.o \
+	ReplicatorFile.o \
+	ReplicatorPeer.o \
+	Utils.o \
+	FilesOperations.o \
+	$(SOAP_OBJS)
 
 public_c_plus_target($(REPLICATION_NAME),sbin,$(REPLICATION_OBJ),$(LIB))
 
 TRANSFERER_NAME = condor_transferer
 all_target($(TRANSFERER_NAME))
 
-TRANSFERER_OBJ =  BaseReplicaTransferer.o UploadReplicaTransferer.o DownloadReplicaTransferer.o Utils.o Transferer.o FilesOperations.o $(SOAP_OBJS)
+TRANSFERER_OBJ = \
+	Transferer.o \
+	BaseReplicaTransferer.o \
+	UploadReplicaTransferer.o \
+	DownloadReplicaTransferer.o \
+	Utils.o \
+	FilesOperations.o \
+	$(SOAP_OBJS)
 
 public_c_plus_target($(TRANSFERER_NAME),sbin,$(TRANSFERER_OBJ),$(LIB))
 

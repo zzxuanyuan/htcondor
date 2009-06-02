@@ -31,6 +31,7 @@ public:
      *              parameters-dependent data members
      */
 	//static void initialize();
+
 	/* Function    : safeRotateFile
 	 * Arguments   : filePath - file, on which the manipulations are to be
 	 *							performed
@@ -42,6 +43,7 @@ public:
  	 */
 	static bool safeRotateFile( const char* filePath,
 							    const char* temporaryFilesExtension );
+
     /* Function    : safeCopyFile
   	 * Arguments   : filePath - file, on which the manipulations are to be
      *                          performed

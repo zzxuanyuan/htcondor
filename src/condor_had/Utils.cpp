@@ -208,14 +208,12 @@ utilAtoi(const char* string, bool* result)
 }
 
 void
-utilClearList( StringList& list )
+utilClearList( list<char *> charlist )
 {
-    char* element = NULL;
-    list.rewind ();
-
-    while ( (element = list.next( )) ) {
-        list.deleteCurrent( );
-    }
+	list <char *>::iterator iter;
+	for( iter = charlist.begin();  iter != charlist.end();  iter++ ) {
+		free( *iter );
+	}
 }
 
 #ifdef HAVE_EXT_OPENSSL

@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -18,16 +18,17 @@
  ***************************************************************/
 
 #ifndef ABSTRACT_REPLICATOR_STATE_MACHINE_H
-
 #define ABSTRACT_REPLICATOR_STATE_MACHINE_H
 
 // for 'ReplicatorState'
-#include "ReplicatorState.h"
 #include "Utils.h"
-#include "Version.h"
+#include "ReplicatorFileVersion.h"
+#include "ReplicatorFile.h"
 #include "reli_sock.h"
 #include "dc_service.h"
 #include "list.h"
+#include <list>
+using namespace std;
 
 /* Class      : AbstractReplicatorStateMachine
  * Description: base abstract class for replication service state machine,
@@ -51,54 +52,70 @@ class AbstractReplicatorStateMachine: public Service
 public:
 	// inner true/false values
     enum { TRANSFERER_TRUE = 0, TRANSFERER_FALSE };
+
     /* Function: AbstractReplicatorStateMachine constructor
      */
-    AbstractReplicatorStateMachine();
+    AbstractReplicatorStateMachine( void );
+
 	/* Function: AbstractReplicatorStateMachine destructor
 	 */
-    virtual ~AbstractReplicatorStateMachine() = 0;
+    virtual ~AbstractReplicatorStateMachine( void ) = 0;
+
 	/* Function   : reinitialize
 	 * Description: rereads all the configuration parameters and resets all the
 	 *              data members
 	 */
-    void reinitialize();
-// Notification handlers
+    void reinitialize( void );
+
+	// ==== Notification handlers ===
+
     /* Function   : beforePassiveStateHandler
 	 * Description: generic handler before the event, when HAD entered PASSIVE
 	 *              state
 	 */
-    virtual void beforePassiveStateHandler() = 0;
+    virtual void beforePassiveStateHandler( void ) = 0;
+
 	/* Function   : afterElectionStateHandler
 	 * Description: generic handler after the event, when HAD is in transition
 	 *              from ELECTION to LEADER state
 	 */
-    virtual void afterElectionStateHandler() = 0;
+    virtual void afterElectionStateHandler( void ) = 0;
+
 	/* Function   : afterLeaderStateHandler
      * Description: generic handler after the event, when HAD is in transition
 	 *              from LEADER to PASSIVE state
 	 */
-    virtual void afterLeaderStateHandler() = 0;
+    virtual void afterLeaderStateHandler( void ) = 0;
+
 	/* Function   : inLeaderStateHandler
      * Description: generic handler after the event, when HAD is in inner loop
      *              of LEADER state
      */
-    virtual void inLeaderStateHandler() = 0;
-// End of notification handlers
-// Selection handlers
+    virtual void inLeaderStateHandler( void ) = 0;
+
+	// ==== End of notification handlers ====
+
+
+	// ==== Selection handlers ====
+
 	/* Function    : replicaSelectionHandler
 	 * Description : generic handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(Version& newVersion) = 0;
+    virtual bool replicaSelectionHandler(ReplicatorFileVersion& newVersion) = 0;
+
 	/* Function   : gidSelectionHandler
      * Description: generic handler for selection of gid for the pool
      */
-    virtual void gidSelectionHandler() = 0;
-// End of selection handlers
-protected:
+    virtual void gidSelectionHandler( void ) = 0;
+
+	// ==== End of selection handlers ====
+
+  protected:
 	// version sending commands between replication daemons
     typedef bool (AbstractReplicatorStateMachine::*CommandFunction)(ReliSock& );
-    /* Function    : downloadReplicaTransfererReaper
+
+    /* Function    : downloadReaper
 	 * Arguments   : service    - the daemon, for which the transfer has ended
 	 *				 pid        - id of the downloading 'condor_transferer'
 	 *							  process
@@ -109,8 +126,9 @@ protected:
 	 * Description : reaper of downloading 'condor_transferer' process
      */
 	static int
-    downloadReplicaTransfererReaper(Service* service, int pid, int exitStatus);
-	/* Function    : uploadReplicaTransfererReaper
+    downloadReaper(Service* service, int pid, int exitStatus);
+
+	/* Function    : uploadReaper
      * Arguments   : service    - the daemon, for which the transfer has ended
      *               pid        - id of the uploading 'condor_transferer'
      *                            process
@@ -121,7 +139,8 @@ protected:
      * Description : reaper of uploading 'condor_transferer' process
      */
     static int
-    uploadReplicaTransfererReaper(Service* service, int pid, int exitStatus);
+    uploadReaper(Service* service, int pid, int exitStatus);
+
 	/* Function   : broadcastVersion
 	 * Arguments  : command - id that is sent to other replication daemons
 	 *						  along with the local version
@@ -129,11 +148,13 @@ protected:
 	 *				along with the local version
 	 */
     void broadcastVersion( int command );
+
 	/* Function   : requestVersions
      * Description: sending command to other replication daemons, asking them to
 	 * 				send their replica versions to this replication daemon
      */
-    void requestVersions();
+    void requestVersions( void );
+
 	/* Function    : download
 	 * Arguments   : daemonSinfulString - address of daemon to download the
 	 *									 version from
@@ -141,7 +162,8 @@ protected:
 	 * Description : starts downloading 'condor_transferer' process to download
 	 *				 the version of remote replication daemon
      */
-    bool download(const char* daemonSinfulString);
+    bool download( const ReplicatorFileVersion &version );
+
 	/* Function    : upload
      * Arguments   : daemonSinfulString - address of daemon to upload the
      *                                   version to
@@ -150,25 +172,28 @@ protected:
      *               the version to remote replication daemon
      */
     bool upload(const char* daemonSinfulString);
-	/* Function   : finalize
+
+	/* Function   : shutdown
 	 * Description: clears and resets all inner structures and data members
 	 */
-    void finalize();
+    void shutdown( void );
+
     /* Function   : initializeReplicationList
-	 * Arguments  : buffer - the string to initialize the replication daemons'
-	 *						 list from
      * Description: initializes replication daemons list from the given string
      */
-    void initializeReplicationList(char* buffer);
+    void initializeReplicationList( void );
+
 	/* Function   : updateVersionsList
 	 * Arguments  : newVersion - the version to update the versions' list
 	 * Description: updates list of versions with new version
 	 */
-    void updateVersionsList(Version& newVersion);
+    void updateVersionsList(ReplicatorFileVersion &newVersion);
+
 	/* Function   : cancelVersionsListLeader
      * Description: sets the state of all versions in the list to BACKUP
      */
-    void cancelVersionsListLeader();
+    void cancelVersionsListLeader( void );
+
 	/* Function   : sendCommand
 	 * Arguments  : command            - id
 	 *				daemonSinfulString - remote replication daemon address
@@ -183,6 +208,7 @@ protected:
      */
     void sendCommand(int command, char* daemonSinfulString,
                      CommandFunction function);
+
 	/* Function   : sendVersionAndStateCommand
 	 * Arguments  : command            - id
 	 *				daemonSinfulString - remote replication daemon address
@@ -192,9 +218,11 @@ protected:
      */
     void sendVersionAndStateCommand(int command, char* daemonSinfulString) {
         sendCommand( command, daemonSinfulString,
-            &AbstractReplicatorStateMachine::versionAndStateCommand );
+					 &AbstractReplicatorStateMachine::versionAndStateCommand );
     };
-// Command functions  
+
+	// ==== Command functions ====
+
 	/* Function    : versionAndStateCommand
      * Arguments   : socket - socket through which the data is send to the
 	 *						  remote replication daemon
@@ -203,6 +231,7 @@ protected:
 	 *				 version and the state of this replication daemon
      */
     bool versionAndStateCommand(ReliSock& socket);
+
 	/* Function    : versionCommand
      * Arguments   : socket - socket through which the data is send to the
      *                        remote replication daemon
@@ -211,6 +240,7 @@ protected:
      *               version
      */
     bool versionCommand(ReliSock& );
+
 	/* Function    : noCommand
      * Arguments   : socket - socket through which the data is send to the
      *                        remote replication daemon
@@ -218,82 +248,47 @@ protected:
      * Description : specific command function, adding nothing to the socket
      */
     bool noCommand(ReliSock& ) { return true;  };
-// End of command functions
+
+	// ==== End of command functions ====
+
+	/* Function    : findTransfererProcess
+	   Arguments   : pid - PID of the process to find
+     * Description : Find the transfer process info related to the PID
+     */
+	ReplicatorProcessData *findTransferProcess( int pid ) {
+		return m_transferProcessList.Find( pid );
+	};
+
 	/* Function    : killTransferers
      * Description : kills all the uploading and downloading transferers
      */
-    void killTransferers();
+    void killTransferers( void );
 
 protected:
-	/* The structure encapsulates process id and the last timestamp of the
-     * process creation. The structure is used for downloading/uploading
-	 * transferer processes
-	 */
-	struct ProcessMetadata
-	{
-		ProcessMetadata()
-		{
-			set();
-		};
 
-		ProcessMetadata(int pPid, time_t pLastTimeCreated)
-		{
-			set(pPid, pLastTimeCreated);
-		};
-
-		/* Function   : set
-		 * Arguments  : pPid - new pid
-		 * 			    pLastTimeCreated - new last creation timestamp
-		 * Description: assigns specified arguments to the structure members
-		 */
-		void set(int pPid = -1, time_t pLastTimeCreated = -1)
-		{
-			m_pid             = pPid;
-			m_lastTimeCreated = pLastTimeCreated;
-		};
-		/* Function    : isValid
-         * Return value: checks whether the structure values belong to a valid
-		 *				 process, i.e that the structure was initialized
-		 * Description : checks the structure validity by comparing its data
-		 *				 members to the initialization value
-         */
-		bool isValid()
-		{
-			return m_pid != -1 && m_lastTimeCreated != -1;
-		};
-
-		int    m_pid;
-    	time_t m_lastTimeCreated;
-	};
 	// local version
-    Version                  m_myVersion;
-    // list of versions sent to the daemon during JOINING state
-	List<Version>            m_versionsList;
+    //ReplicatorFileVersion	*m_myVersion;
+    // list of all of the files we replicate
+	ReplicatorFileList       m_fileList;
 	// configuration variables
-    MyString                 m_stateFilePath;
-    MyString                 m_versionFilePath;
 	MyString                 m_transfererPath;
 
 	// the replication daemon state
     ReplicatorState          m_state;
 
 	// list of remote replication daemons
-    StringList               m_replicationDaemonsList;
+	StringList				*m_replicatorRawList;
+    list<char *>             m_replicatorSinfulList;
+	// list of all replicator transfer processes
+	ReplicatorProcessList    m_transferProcessList;
 	// socket connection timeout
     int                      m_connectionTimeout;
 
 	// uploading/downloading 'condor_transferer' reapers' ids
-    int                      m_downloadReaperId;
+	int                      m_downloadReaperId;
     int                      m_uploadReaperId;
 
 	void printDataMembers( void ) const;
-
-	// process ids of uploading/downloading 'condor_transferer' processes for
-	// monitoring and handling the problem of stuck transferer processes and
-    // starting times of uploading/downloading 'condor_transferer' processes
-	// for handling the problem of stuck transferer processes
-	ProcessMetadata          m_downloadTransfererMetadata;
-	List<ProcessMetadata>    m_uploadTransfererMetadataList;
 };
 
 #endif // ABSTRACT_REPLICATOR_STATE_MACHINE_H

@@ -20,8 +20,11 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <list>
 #include "condor_daemon_core.h"
 #include "MyString.h"
+
+using namespace std;
 
 #define DEFAULT_SEND_COMMAND_TIMEOUT                             (5)
 #define DEFAULT_MAX_TRANSFER_LIFETIME                           (300)
@@ -47,6 +50,7 @@
  */
 MyString
 utilNoParameterError( const char* parameter, const char* daemonName );
+
 /* Function    : utilConfigurationParameter
  * Arguments   : parameter - configuration parameter, which caused the error
  *				 daemonName - the name of daemon, the parameter of which 
@@ -59,24 +63,28 @@ utilNoParameterError( const char* parameter, const char* daemonName );
  */
 MyString
 utilConfigurationError( const char* parameter, const char* daemonName );
+
 /* Function    : utilCrucialError 
  * Arguments   : message - message to be printed before the daemon aborts 
  * Description : prints the given message to logs and aborts
  */
 void
 utilCrucialError( const char* message );
+
 /* Function    : utilCancelTimer 
  * Arguments   : timerId - reference to daemon timer to be nullified 
  * Description : cancels and nullifies the timer
  */
 void 
 utilCancelTimer(int& timerId);
+
 /* Function    : utilCancelReaper
  * Arguments   : reaperId - reference to daemon reaper to be nullified
  * Description : cancels and nullifies the reaper
  */
 void 
 utilCancelReaper(int& reaperId);
+
 /* Function    : utilToString 
  * Arguments   : command - id 
  * Return value: const char* - static string representation of the given command
@@ -84,6 +92,7 @@ utilCancelReaper(int& reaperId);
  */
 const char* 
 utilToString( int command );
+
 /* Function    : utilToSinful
  * Arguments   : address - remote daemon address in either "ip:port" or 
  *				 "hostname:port" format, optionally enclosed in '<>' brackets
@@ -93,6 +102,7 @@ utilToString( int command );
  */
 char* 
 utilToSinful( char* address );
+
 /* Function    :  utilAtoi
  * Arguments   :  string - string to convert
  *				  result - boolean indicator whether the conversion succeded
@@ -104,12 +114,14 @@ utilToSinful( char* address );
  */
 int 
 utilAtoi(const char* string, bool* result);
+
 /* Function   : utilClearList
- * Arguments  : list - string list to be cleared
+ * Arguments  : list - list of char* to be cleared
  * Description: clears list of strings
  */
 void
 utilClearList( StringList& list );
+
 /* Function    : utilSafePutFile
  * Arguments   : socket   - socket, through which the file will be transferred
  *			     filePath - OS path to file, which is to be transferred
@@ -121,8 +133,28 @@ utilClearList( StringList& list );
  *				 to compare it with the sent MAC
  *				 2) the socket has to be connected to the receiving side
  */
+/* Function   : utilClearList
+ * Arguments  : list - string list to be cleared
+ * Description: clears list of strings
+ */
+void
+utilClearList( list<char *> );
+
+/* Function    : utilSafePutFile
+ * Arguments   : socket   - socket, through which the file will be transferred
+ *			     filePath - OS path to file, which is to be transferred
+ * Description : transfers the specified file along with its locally calculated
+ *				 MAC
+ * Return value: bool - success/failure value
+ * Note        : 1) in order to verify that the file is received without errors
+ *				 the receiver of it must calculate MAC on the received file and
+ *				 to compare it with the sent MAC
+ *				 2) the socket has to be connected to the receiving side
+ */
+
 bool
 utilSafePutFile( ReliSock& socket, const MyString& filePath );
+
 /* Function    : utilSafeGetFile
  * Arguments   : socket   - socket, through which the file will be received
  * 				 filePath - OS path to file, where the received data is to be
@@ -153,6 +185,7 @@ utilClearList( List<T>& list )
         list.DeleteCurrent( );
     }
 }
+
 /* Function   : utilCopyList
  * Arguments  : lhs - the list to be assigned to
  *              rhs - the list to be copied

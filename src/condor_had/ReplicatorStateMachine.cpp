@@ -36,12 +36,15 @@
 
 // gcc compilation pecularities demand explicit declaration of template classes
 // and functions instantiation
-template void utilCopyList<Version>( List<Version>&, List<Version>& );
+template void utilCopyList<ReplicatorVersion>( List<ReplicatorVersion>&,
+											   List<ReplicatorVersion>& );
 
-// forward declaration of the function to resolve the recursion between it
-// and 'getConfigurationDefaultPositiveIntegerParameter'
+/* forward declaration of the function to resolve the recursion between it
+ * and 'getConfigurationDefaultPositiveIntegerParameter'
+ */
 static int
 getConfigurationPositiveIntegerParameter( const char* parameter );
+
 /* Function    : getConfigurationDefaultPositiveIntegerParameter
  * Arguments   : parameter - the parameter name
  * Return value: int - default value for the specified parameter
@@ -70,6 +73,7 @@ getConfigurationDefaultPositiveIntegerParameter( const char* parameter )
 	}
 	return -1;
 }
+
 /* Function    : getConfigurationPositiveIntegerParameter
  * Arguments   : parameter  - the parameter name
  * Return value: int - value of the specified parameter, either from the
@@ -112,7 +116,7 @@ getConfigurationPositiveIntegerParameter( const char* parameter )
 	return parameterValue;
 }
 
-ReplicatorStateMachine::ReplicatorStateMachine()
+ReplicatorStateMachine::ReplicatorStateMachine( void )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine ctor started\n" );
    	m_state                       = VERSION_REQUESTING;
@@ -129,7 +133,7 @@ ReplicatorStateMachine::ReplicatorStateMachine()
 
 // finalizing the delta, belonging to this class only, since the data,
 // belonging to the base class is finalized implicitly
-ReplicatorStateMachine::~ReplicatorStateMachine( )
+ReplicatorStateMachine::~ReplicatorStateMachine( void )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine dtor started\n" );
     finalizeDelta( );
@@ -139,7 +143,7 @@ ReplicatorStateMachine::~ReplicatorStateMachine( )
  * Description: clears and resets all inner structures and data members
  */
 void
-ReplicatorStateMachine::finalize()
+ReplicatorStateMachine::finalize( void )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine::finalize started\n" );
     finalizeDelta( );
@@ -151,7 +155,7 @@ ReplicatorStateMachine::finalize()
  * 				declared in this class only (excluding inherited classes)
  */
 void
-ReplicatorStateMachine::finalizeDelta( )
+ReplicatorStateMachine::finalizeDelta( void )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine::finalizeDelta started\n" );
     utilCancelTimer(m_replicationTimerId);
@@ -164,7 +168,7 @@ ReplicatorStateMachine::finalizeDelta( )
     m_lastHadAliveTime                  = -1;
 }
 void
-ReplicatorStateMachine::initialize( )
+ReplicatorStateMachine::initialize( void )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::initialize started\n" );
 
@@ -181,10 +185,12 @@ ReplicatorStateMachine::initialize( )
     registerCommand(REPLICATION_SOLICIT_VERSION);
     registerCommand(REPLICATION_SOLICIT_VERSION_REPLY);
 }
-// clears all the inner structures and loads the configuration parameters'
-// values again
+
+/* clears all the inner structures and loads the configuration parameters'
+ * values again
+ */
 void
-ReplicatorStateMachine::reinitialize()
+ReplicatorStateMachine::reinitialize( void )
 {
     // delete all configurations and start everything over from the scratch
     finalize( );
@@ -228,26 +234,30 @@ ReplicatorStateMachine::reinitialize()
     // register the download/upload reaper for the transferer process
     if( m_downloadReaperId == -1 ) {
 		m_downloadReaperId = daemonCore->Register_Reaper(
-        	"downloadReplicaTransfererReaper",
-			(ReaperHandler)&ReplicatorStateMachine::downloadReplicaTransfererReaper,
-        	"downloadReplicaTransfererReaper", this );
+        	"downloadReaper",
+			(ReaperHandler)&ReplicatorStateMachine::downloadReaper,
+        	"downloadReaper",
+			this );
 	}
     if( m_uploadReaperId == -1 ) {
 		m_uploadReaperId = daemonCore->Register_Reaper(
         	"uploadReplicaTransfererReaper",
-        (ReaperHandler) &ReplicatorStateMachine::uploadReplicaTransfererReaper,
-        	"uploadReplicaTransfererReaper", this );
+        (ReaperHandler) &ReplicatorStateMachine::uploadReaper,
+        	"uploadReplicaTransfererReaper",
+			this );
     }
 	// for debugging purposes only
 	printDataMembers( );
 
 	beforePassiveStateHandler( );
 }
-// sends the version of the last execution time to all the replication daemons,
-// then asks the pool replication daemons to send their own versions to it,
-// sets a timer to wait till the versions are received
+
+/* sends the version of the last execution time to all the replication
+ * daemons, then asks the pool replication daemons to send their own
+ * versions to it, sets a timer to wait till the versions are received
+ */
 void
-ReplicatorStateMachine::beforePassiveStateHandler()
+ReplicatorStateMachine::beforePassiveStateHandler( void )
 {
     REPLICATION_ASSERT(m_state == VERSION_REQUESTING);
 
@@ -265,7 +275,7 @@ ReplicatorStateMachine::beforePassiveStateHandler()
 }
 
 void
-ReplicatorStateMachine::afterElectionStateHandler()
+ReplicatorStateMachine::afterElectionStateHandler( void )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::afterElectionStateHandler "
 			"started\n" );
@@ -275,19 +285,19 @@ ReplicatorStateMachine::afterElectionStateHandler()
     // of newly joining node, we will go to LEADER_STATE later
     // upon receiving of IN_LEADER message from HAD
     if( m_state == VERSION_REQUESTING || m_state == VERSION_DOWNLOADING ) {
-        return ;
+        return;
     }
 
 	becomeLeader( );
 }
 
 void
-ReplicatorStateMachine::afterLeaderStateHandler( )
+ReplicatorStateMachine::afterLeaderStateHandler( void )
 {
    // REPLICATION_ASSERT(state != BACKUP)
 
     if( m_state == VERSION_REQUESTING || m_state == VERSION_DOWNLOADING ) {
-        return ;
+        return;
     }
 	// receiving this notification message in BACKUP state means, that the
     // pool version downloading took more time than it took for the HAD to
@@ -296,7 +306,7 @@ ReplicatorStateMachine::afterLeaderStateHandler( )
 	// to broadcast our newly downloaded version to others, because it is
 	// too new
 	if( m_state == BACKUP ) {
-		return ;
+		return;
 	}
     dprintf( D_ALWAYS,
 			"ReplicatorStateMachine::afterLeaderStateHandler started\n" );
@@ -305,14 +315,14 @@ ReplicatorStateMachine::afterLeaderStateHandler( )
 }
 
 void
-ReplicatorStateMachine::inLeaderStateHandler( )
+ReplicatorStateMachine::inLeaderStateHandler( void )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::inLeaderStateHandler started "
 			"with state = %d\n", int( m_state ) );
     // REPLICATION_ASSERT(m_state != BACKUP)
 
     if( m_state == VERSION_REQUESTING || m_state == VERSION_DOWNLOADING) {
-        return ;
+        return;
     }
 	// receiving this notification message in BACKUP state means, that the
     // pool version downloading took more time than it took for the HAD to
@@ -321,7 +331,7 @@ ReplicatorStateMachine::inLeaderStateHandler( )
     if( m_state == BACKUP ) {
 		becomeLeader( );
 
-		return ;
+		return;
 	}
 	m_lastHadAliveTime = time( NULL );
 
@@ -335,14 +345,15 @@ ReplicatorStateMachine::inLeaderStateHandler( )
 }
 
 bool
-ReplicatorStateMachine::replicaSelectionHandler( Version& newVersion )
+ReplicatorStateMachine::replicaSelectionHandler(
+	ReplicatorVersion	&newVersion )
 {
     REPLICATION_ASSERT( m_state == VERSION_DOWNLOADING || m_state == BACKUP );
     dprintf( D_ALWAYS, "ReplicatorStateMachine::replicaSelectionHandler "
 			"started with my version = %s, #versions = %d\n",
              m_myVersion.toString( ).Value( ), m_versionsList.Number( ) );
-    List<Version> actualVersionsList;
-    Version myVersionCopy = m_myVersion;
+    List<ReplicatorVersion> actualVersionsList;
+    ReplicatorVersion myVersionCopy = m_myVersion;
 
     utilCopyList( actualVersionsList, m_versionsList );
 
@@ -365,8 +376,8 @@ ReplicatorStateMachine::replicaSelectionHandler( Version& newVersion )
     if( actualVersionsList.IsEmpty( ) ) {
         return false;
     }
-    Version version;
-    Version bestVersion;
+    ReplicatorVersion version;
+    ReplicatorVersion bestVersion;
     // taking the first actual version as the best version in the meantime
     actualVersionsList.Next( bestVersion );
     dprintf( D_ALWAYS, "ReplicatorStateMachine::replicaSelectionHandler best "
@@ -396,18 +407,20 @@ ReplicatorStateMachine::replicaSelectionHandler( Version& newVersion )
 			"best version selected: %s\n", newVersion.toString().Value());
     return true;
 }
-// until the state files merging utility is ready, the function is not really
-// interesting, it selects 0 as the next gid each time
+
+/* until the state files merging utility is ready, the function is not really
+ * interesting, it selects 0 as the next gid each time
+ */
 void
-ReplicatorStateMachine::gidSelectionHandler( )
+ReplicatorStateMachine::gidSelectionHandler( void )
 {
     REPLICATION_ASSERT( m_state == BACKUP || m_state == REPLICATION_LEADER );
     dprintf( D_ALWAYS,
 			 "ReplicatorStateMachine::gidSelectionHandler started\n");
 
-    bool          areVersionsComparable = true;
-    List<Version> actualVersionsList;
-    Version       actualVersion;
+    bool      			    areVersionsComparable = true;
+    List<ReplicatorVersion> actualVersionsList;
+    ReplicatorVersion       actualVersion;
 
     utilCopyList( actualVersionsList, m_versionsList );
 
@@ -423,7 +436,7 @@ ReplicatorStateMachine::gidSelectionHandler( )
     if( areVersionsComparable ) {
         dprintf( D_ALWAYS, "ReplicatorStateMachine::gidSelectionHandler no "
 				"need to select new gid\n" );
-        return ;
+        return;
     }
     int temporaryGid = 0;
 
@@ -434,15 +447,16 @@ ReplicatorStateMachine::gidSelectionHandler( )
 			"new gid selected: %d\n", temporaryGid );
     //myVersion.setSinfulString( daemonCore->InfoCommandSinfulString( ) );
 }
+
 /* Function   : decodeVersionAndState
  * Arguments  : stream - socket, through which the data is received
  * Description: receives remote replication daemon version and state from the
  *				given socket
  */
-Version*
+ReplicatorVersion*
 ReplicatorStateMachine::decodeVersionAndState( Stream* stream )
 {
-	Version* newVersion = new Version;
+	ReplicatorVersion	*newVersion = new ReplicatorVersion;
 	// decode remote replication daemon version
    	if( ! newVersion->decode( stream ) ) {
     	dprintf( D_ALWAYS, "ReplicatorStateMachine::decodeVersionAndState "
@@ -467,12 +481,13 @@ ReplicatorStateMachine::decodeVersionAndState( Stream* stream )
    	return newVersion;
    	//updateVersionsList( *newVersion );
 }
+
 /* Function   : becomeLeader
  * Description: passes to leader state, sets the last time, that HAD sent its
  * 				message and chooses a new gid
  */
 void
-ReplicatorStateMachine::becomeLeader( )
+ReplicatorStateMachine::becomeLeader( void )
 {
 	// sets the last time, when HAD sent a HAD_IN_STATE_STATE
 	m_lastHadAliveTime = time( NULL );
@@ -483,6 +498,7 @@ ReplicatorStateMachine::becomeLeader( )
     gidSelectionHandler( );
     m_state = REPLICATION_LEADER;
 }
+
 /* Function   : onLeaderVersion
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_LEADER_VERSION command; comparing the
@@ -497,7 +513,7 @@ ReplicatorStateMachine::onLeaderVersion( Stream* stream )
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onLeaderVersion started\n" );
 
     if( m_state != BACKUP ) {
-        return ;
+        return;
     }
 	checkVersionSynchronization( );
 
@@ -518,6 +534,7 @@ ReplicatorStateMachine::onLeaderVersion( Stream* stream )
     //REPLICATION_ASSERT(downloadNeeded);
 	delete newVersion;
 }
+
 /* Function   : onTransferFile
  * Arguments  : daemonSinfulString - the address of remote replication daemon,
  *				which sent the REPLICATION_TRANSFER_FILE command
@@ -533,6 +550,7 @@ ReplicatorStateMachine::onTransferFile( char* daemonSinfulString )
         upload( daemonSinfulString );
     }
 }
+
 /* Function   : onSolicitVersion
  * Arguments  : daemonSinfulString - the address of remote replication daemon,
  *              which sent the REPLICATION_SOLICIT_VERSION command
@@ -549,6 +567,7 @@ ReplicatorStateMachine::onSolicitVersion( char* daemonSinfulString )
                                     daemonSinfulString );
    }
 }
+
 /* Function   : onSolicitVersionReply
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_SOLICIT_VERSION_REPLY command; updating
@@ -559,13 +578,14 @@ ReplicatorStateMachine::onSolicitVersionReply( Stream* stream )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onSolicitVersionReply "
 					   "started\n" );
-    Version* newVersion = 0;
+    ReplicatorVersion* newVersion = 0;
 
     if( m_state == VERSION_REQUESTING &&
 	  ( newVersion = decodeVersionAndState( stream ) ) ) {
         updateVersionsList( *newVersion );
     }
 }
+
 /* Function   : onNewlyJoinedVersion
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_NEWLY_JOINED_VERSION command; void by
@@ -582,6 +602,7 @@ ReplicatorStateMachine::onNewlyJoinedVersion( Stream* /*stream*/ )
         //decodeAndAddVersion( stream );
     }
 }
+
 /* Function   : onGivingUpVersion
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_GIVING_UP_VERSION command; void by now
@@ -606,7 +627,9 @@ ReplicatorStateMachine::onGivingUpVersion( Stream* /*stream*/ )
 
 int
 ReplicatorStateMachine::downloadReplicaTransfererReaper(
-	Service* service, int pid, int exitStatus)
+	Service		*service,
+	int			 pid,
+	int			 exitStatus )
 {
     ReplicatorStateMachine* replicatorStateMachine =
     	static_cast<ReplicatorStateMachine*>( service );
@@ -620,6 +643,7 @@ ReplicatorStateMachine::downloadReplicaTransfererReaper(
     }
     return returnValue;
 }
+
 /* Function   : commandHandler
  * Arguments  : command - command to handle request
  * 				stream  - socket, through which the data for the command
@@ -695,6 +719,7 @@ ReplicatorStateMachine::commandHandler( int command, Stream* stream )
                             "cannot read the end of the message\n" );
     }
 }
+
 /* Function   : registerCommand
  * Arguments  : command - id to register
  * Description: register command with given id in daemon core
@@ -707,6 +732,7 @@ ReplicatorStateMachine::registerCommand(int command)
         (CommandHandlercpp) &ReplicatorStateMachine::commandHandler,
         "commandHandler", this, DAEMON );
 }
+
 /* Function   : killStuckDownloadingTransferer
  * Description: kills downloading transferer process, if its working time
  *				exceeds MAX_TRANSFER_LIFETIME seconds, and clears all the data
@@ -752,6 +778,7 @@ ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
 		m_downloadTransfererMetadata.set( );
 	}
 }
+
 /* Function   : killStuckUploadingTransferers
  * Description: kills uploading transferer processes, the working time of which
  *              exceeds MAX_TRANSFER_LIFETIME seconds, and clears all the data,
@@ -802,54 +829,64 @@ ReplicatorStateMachine::killStuckUploadingTransferers( time_t currentTime )
     }
 	m_uploadTransfererMetadataList.Rewind( );
 }
+
 /* Function   : replicationTimer
  * Description: replication daemon life cycle handler
  * Remarks    : fired upon expiration of timer, designated by
  *              'm_replicationTimerId' each 'REPLICATION_INTERVAL' seconds
  */
 void
-ReplicatorStateMachine::replicationTimer( )
+ReplicatorStateMachine::replicationTimer( void )
 {
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::replicationTimer "
-					   "cancelling timer\n" );
+    dprintf( D_ALWAYS,
+			 "ReplicatorStateMachine::replicationTimer cancelling timer\n" );
     utilCancelTimer(m_replicationTimerId);
 
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::replicationTimer "
-                       "registering timer once again\n" );
+    dprintf( D_ALWAYS,
+			 "ReplicatorStateMachine::replicationTimer "
+			 "registering timer once again\n" );
     m_replicationTimerId = daemonCore->Register_Timer (
 		m_replicationInterval,
 		(TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
 		"Time to replicate file",
 		this );
     if( m_state == VERSION_REQUESTING ) {
-        return ;
+        return;
     }
-	int currentTime = time( NULL );
-    /* Killing stuck uploading/downloading processes: allowing downloading/
-     * uploading for about several replication intervals only
+
+    /* Killing stuck uploading/downloading processes: allowing
+	 * downloading/uploading for about several replication intervals only
      */
-// TODO: Atomic operation
+	int currentTime = time( NULL );
+
+	// TODO: Atomic operation
 	killStuckDownloadingTransferer( currentTime );
-// End of TODO: Atomic operation
+	// End of TODO: Atomic operation
+
 	if( m_state == VERSION_DOWNLOADING ) {
-        return ;
+        return;
     }
-// TODO: Atomic operation
+
+	// TODO: Atomic operation
 	killStuckUploadingTransferers( currentTime );
-// End of TODO: Atomic operation
-    dprintf( D_FULLDEBUG, "ReplicatorStateMachine::replicationTimer "
-						  "# downloading condor_transferer = %d, "
-						  "# uploading condor_transferer = %d\n",
+	// End of TODO: Atomic operation
+
+    dprintf( D_FULLDEBUG,
+			 "ReplicatorStateMachine::replicationTimer "
+			 "# downloading condor_transferer = %d, "
+			 "# uploading condor_transferer = %d\n",
              downloadTransferersNumber( ),
 			 m_uploadTransfererMetadataList.Number( ) );
     if( m_state == BACKUP ) {
 		checkVersionSynchronization( );
-
-		return ;
+		return;
     }
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::replicationTimer "
-					   "synchronizing the "
-					   "local version with actual state file\n" );
+
+    dprintf( D_ALWAYS,
+			 "ReplicatorStateMachine::replicationTimer "
+			 "synchronizing the "
+			 "local version with actual state file\n" );
+
 	// if after the version synchronization, the file update was tracked, the
 	// local version is broadcasted to the entire pool
     if( m_myVersion.synchronize( true ) ) {
@@ -866,6 +903,7 @@ ReplicatorStateMachine::replicationTimer( )
         m_state = BACKUP;
     }
 }
+
 /* Function   : versionRequestingTimer
  * Description: timer, expiration of which means stopping collecting the pool
  *				versions in VERSION_REQUESTING state, passing to
@@ -873,7 +911,7 @@ ReplicatorStateMachine::replicationTimer( )
  *				machine with the best version
  */
 void
-ReplicatorStateMachine::versionRequestingTimer( )
+ReplicatorStateMachine::versionRequestingTimer( void )
 {
     dprintf( D_ALWAYS,
 			"ReplicatorStateMachine::versionRequestingTimer started\n" );
@@ -898,13 +936,14 @@ ReplicatorStateMachine::versionRequestingTimer( )
         versionDownloadingTimer( );
     }
 }
+
 /* Function   : versionDownloadingTimer
  * Description: timer, expiration of which means stopping downloading the best
  *              pool version in VERSION_DOWNLOADING state and passing to
  *              BACKUP state
  */
 void
-ReplicatorStateMachine::versionDownloadingTimer( )
+ReplicatorStateMachine::versionDownloadingTimer( void )
 {
     dprintf( D_ALWAYS,
 			"ReplicatorStateMachine::versionDownloadingTimer started\n" );
@@ -920,7 +959,7 @@ ReplicatorStateMachine::versionDownloadingTimer( )
 }
 
 void
-ReplicatorStateMachine::printDataMembers(void) const
+ReplicatorStateMachine::printDataMembers( void ) const
 {
 	dprintf( D_ALWAYS,
 			 "\n"

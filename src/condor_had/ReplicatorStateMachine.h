@@ -86,7 +86,7 @@ public:
 	 * Description : concrete handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(Version& newVersion);
+    virtual bool replicaSelectionHandler(ReplicatorVersion& newVersion);
 	/* Function   : gidSelectionHandler
      * Description: concrete handler for selection of gid for the pool
 	 * Remarks    : void by now
@@ -138,7 +138,7 @@ private:
     void onGivingUpVersion(Stream* stream);
 // End of command handlers
 
-    static Version* decodeVersionAndState( Stream* stream );
+    static ReplicatorVersion* decodeVersionAndState( Stream* stream );
 	void            becomeLeader( );
 
 	/* Function   : downloadTransferersNumber
