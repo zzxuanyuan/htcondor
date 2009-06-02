@@ -17,7 +17,10 @@
  *
  ***************************************************************/
 
-
+#ifdef WIN32
+#include <cstdlib>
+#include <stdio.h>
+#endif
 #if defined(CLASSAD_DISTRIBUTION)
 #include "classad/classad_distribution.h"
 #else
