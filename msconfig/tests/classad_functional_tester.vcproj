@@ -52,7 +52,7 @@
 				EnableFunctionLevelLinking="true"
 				PrecompiledHeaderFile="..\..\TestRelease/classad_functional_tester.pch"
 				AssemblerListingLocation="..\..\TestRelease/"
-				ObjectFile=".\..\TestRelease/"
+				ObjectFile="..\..\TestRelease/"
 				ProgramDataBaseFileName="..\..\TestRelease/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
