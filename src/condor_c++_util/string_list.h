@@ -88,7 +88,7 @@ public:
 				in-sensitive.
 		@retval true if subset is indeed a subset, else false
 	*/
-	bool identical(const StringList & subset, bool anycase = true) const;
+	bool identical(const StringList &other, bool anycase = true) const;
 
 	/** Checks to see if the given list is similar to the current list;
 			like ::identical(), but ignores order
@@ -97,7 +97,7 @@ public:
 				in-sensitive.
 		@retval true if other is indeed similar, else false
 	*/
-	bool similar(const StringList & subset, bool anycase) const;
+	bool similar(const StringList &other, bool anycase = true) const;
 
 	/* return a comma delimited list if the internals of the class. This will
 		rewind the string in order to construct this char array, and you
