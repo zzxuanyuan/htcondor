@@ -17,8 +17,8 @@
 	<Configurations>
 		<Configuration
 			Name="Debug|Win32"
-			OutputDirectory="..\TestDebug"
-			IntermediateDirectory="..\TestDebug"
+			OutputDirectory="..\..\TestDebug"
+			IntermediateDirectory="..\..\TestDebug"
 			ConfigurationType="1"
 			CharacterSet="1"
 			>
@@ -90,8 +90,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="..\TestRelease"
-			IntermediateDirectory="..\TestRelease"
+			OutputDirectory="..\..\TestRelease"
+			IntermediateDirectory="..\..\TestRelease"
 			ConfigurationType="1"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
