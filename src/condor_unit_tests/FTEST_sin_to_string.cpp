@@ -50,7 +50,7 @@ bool FTEST_sin_to_string(void) {
 static bool test_normal_case() {
 	e.emit_test("Is normal input converted correctly?");
 	in_addr ip;
-	if(inet_aton("192.168.0.2", &ip) == 0) {
+	if(condor_inet_aton("192.168.0.2", &ip) == 0) {
 		e.emit_alert("inet_aton() returned failure.");
 		e.emit_result_abort(__LINE__);
 		return false;

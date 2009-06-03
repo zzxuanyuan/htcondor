@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="classad_unit_tester"
 	ProjectGUID="{E27113CF-00B2-4969-9A8A-AF8FC2960730}"
+	RootNamespace="classad_unit_tester"
 	TargetFrameworkVersion="0"
 	>
 	<Platforms>

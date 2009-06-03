@@ -20,7 +20,9 @@
 /*
 	This code tests the sin_to_string() function implementation.
  */
-
+#ifdef WIN32
+#include <Winsock2.h>
+#endif
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
