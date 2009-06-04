@@ -34,8 +34,8 @@ set DEFAULTS="%VC_DIR%\VCProjectDefaults"
 REM ======================================================================
 REM Copy our version of CoreWin.vsprops in to place.  We need to do this
 REM because, by default, VS9 adds some default libraries that are neither
-REM required to run Condor, nor do the libraries it references necessarily
-REM exist in every development environment.
+REM required to run Condor, nor do they necessarily exist in every 
+REM development environment.
 REM ======================================================================
 if exist %DEFAULTS%\CoreWin.vsprops.old goto :restore
 echo *** Replacing the standard Windows libraries.

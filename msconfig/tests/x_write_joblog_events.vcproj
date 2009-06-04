@@ -39,7 +39,9 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE)"
 				Optimization="0"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -59,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(CONDOR_TESTS_LIBS)"
+				AdditionalDependencies="$(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -89,8 +91,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory="..\TestRelease"
-			IntermediateDirectory="..\TestRelease"
+			OutputDirectory="..\..\TestRelease"
+			IntermediateDirectory="..\..\TestRelease"
 			ConfigurationType="1"
 			CharacterSet="1"
 			WholeProgramOptimization="1"
@@ -112,8 +114,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE)"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -132,6 +136,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="$(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"

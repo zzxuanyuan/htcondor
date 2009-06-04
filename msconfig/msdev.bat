@@ -55,7 +55,7 @@ REM run dev studio as long as the extenals build ok.
 REM ======================================================================
 
 REM Launch the Visual Studio IDE
-call :LAUCH_IDE
+call :LAUNCH_IDE %1%
 if %ERRORLEVEL% NEQ 0 goto :IDE_FAIL
 
 REM We're done, let's get out of here
@@ -100,13 +100,14 @@ exit /b 0
 REM ======================================================================
 :CREATE_BUILD_DIR
 REM ======================================================================
-REM Create the log directory
+REM Create the output and log directories
 REM ======================================================================
 if not exist ..\Release\NUL mkdir ..\Release
 if not exist ..\Release\BuildLogs\NUL (
-    echo Creating Release log directory
+    echo *** Creating Release log directory
     mkdir ..\Release\BuildLogs
 )
+if not exist ..\TestRelease\NUL mkdir ..\TestRelease
 exit /b 0
 
 REM ======================================================================
@@ -116,13 +117,13 @@ REM Build the externals and copy any .dll files created by the externals
 REM in debug and release
 REM ======================================================================
 if exist ..\Release\BuildLogs\externals.build.log (
-    echo Removing old externals build log
+    echo *** Removing old externals build log
     rm -f ..\Release\BuildLogs\externals.build.log
 )
-echo Building externals (see externals.build.log for details)
-call make_win32_externals.bat >..\Release\BuildLogs\externals.build.log 2>&1
+echo *** Building externals (see externals.build.log for details)
+call make_externals.bat >..\Release\BuildLogs\externals.build.log 2>&1
 if %ERRORLEVEL% NEQ 0 exit /b 1
-call copy_external_dlls.bat >NUL 2>NUL
+call copy_externals.bat >NUL 2>NUL
 if %ERRORLEVEL% NEQ 0 exit /b 1
 exit /b 0
 
@@ -132,26 +133,34 @@ REM ======================================================================
 REM Make gsoap stubs, etc.
 REM ======================================================================
 if exist ..\Release\BuildLogs\gsoap.build.log (
-    echo Removing old gsoap build log
+    echo *** Removing old gsoap build log
     rm -f ..\Release\BuildLogs\gsoap.build.log
 )
-echo Building gsoap stubs (see gsoap.build.log for details)
+echo *** Building gsoap stubs (see gsoap.build.log for details)
 nmake /NOLOGO /f gsoap.mak >..\Release\BuildLogs\gsoap.build.log 2>&1
 if %ERRORLEVEL% NEQ 0 exit /b 1 
 exit /b 0
 
 REM ======================================================================
-:LAUCH_IDE
+:LAUNCH_IDE
 REM ======================================================================
 REM Launch the IDE
 REM ======================================================================
-echo Launching the IDE
 if not exist "%DevEnvDir%\devenv.exe" (
     echo Is Visual Studio Installed?
     exit /b 1 
 )
+REM Determine if we are editing Condor proper or the Tests
+set SOLUTION="%cd%\condor.sln"
+set TARGET=Condor Proper
+if /i "%1"=="condor" shift
+if /i "%1"=="tests" (
+    set TARGET=the Tests
+    set SOLUTION="%cd%\tests\tests.sln"
+)
+echo *** Launching the IDE to edit %TARGET%
 REM Use start command to spawn the dev studio as a seperate process
-start /D"%DevEnvDir%" devenv.exe /useenv "%cd%\condor.sln"
+start /D"%DevEnvDir%" devenv.exe /useenv %SOLUTION%
 exit /b 0
 
 REM Future VC Express support? 

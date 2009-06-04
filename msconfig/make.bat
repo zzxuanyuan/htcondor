@@ -119,9 +119,9 @@ REM ======================================================================
 REM Build the externals and copy any .dll files created by the externals 
 REM in debug and release
 REM ======================================================================
-call make_win32_externals.bat
+call make_externals.bat
 if %ERRORLEVEL% neq 0 exit /b 1
-call copy_external_dlls.bat
+call copy_externals.bat
 if %ERRORLEVEL% neq 0 exit /b 1
 exit /b 0
 
@@ -136,7 +136,7 @@ if /i "%1"=="debug" (
     set CONFIGURATION=Debug
     shift 
 )
-echo. & echo *** Building %CONFIGURATION% Configuration & echo.
+echo *** Building %CONFIGURATION% Configuration & echo.
 exit /b 0
 
 REM ======================================================================
