@@ -62,7 +62,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/FORCE"
-				AdditionalDependencies="condor_api.lib condor_cpp_util.lib"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -137,7 +137,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/FORCE"
-				AdditionalDependencies="imagehlp.lib libpq.lib libpqdll.lib libeay32.lib ssleay32.lib comerr32.lib gssapi32.lib k5sprt32.lib krb4_32.lib krb5_32.lib xpprof32.lib libdrmaa.lib libpcre.lib psapi.lib netapi32.lib crypt32.lib ws2_32.lib mpr.lib condor_util.lib condor_analysis_lib.lib condor_api.lib condor_chirp_client.lib condor_classad.lib condor_classad_new.lib condor_conversion_lib.lib condor_cpp_util.lib condor_io.lib condor_kbdd_dll.lib condor_privsep_client.lib condor_procapi.lib condor_procd_client.lib condor_qmgmt.lib condor_quill.lib condor_sysapi.lib condor_daemon_core.lib"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"

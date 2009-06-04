@@ -38,7 +38,7 @@ call :BUILD_EXTERNALS
 if %ERRORLEVEL% neq 0 goto :EXTERNALS_FAIL
 
 REM Copy any .dll files created by the externals in debug and release
-call copy_external_dlls.bat
+call copy_externals.bat
 if %ERRORLEVEL% neq 0 goto :FAIL
 
 call :DETERMINE_CONFIGRATION %*
@@ -63,7 +63,7 @@ REM run the build as long as the extenals built ok.
 REM ======================================================================
 
 REM Launch the Visual Studio IDE
-call :RUN_BUILD
+call :RUN_BUILD %1%
 if %ERRORLEVEL% neq 0 goto :FAIL
 
 REM We're done, let's get out of here
@@ -121,6 +121,7 @@ REM in debug and release
 REM ======================================================================
 call make_externals.bat
 if %ERRORLEVEL% neq 0 exit /b 1
+echo.
 call copy_externals.bat
 if %ERRORLEVEL% neq 0 exit /b 1
 exit /b 0
@@ -153,9 +154,19 @@ REM ======================================================================
 REM ======================================================================
 REM Build condor (build order is now preserved in project)
 REM ======================================================================
-echo. & echo *** Current Environment & echo.
-set
-echo. & echo *** Building Condor & echo.
-msbuild condor.sln /nologo /m /t:condor /p:Configuration="%CONFIGURATION%";VCBuildUseEnvironment="true"
+set SOLUTION="%cd%\condor.sln"
+set TARGET=condor
+if /i "%1"=="condor" shift
+if /i "%1"=="tests" (
+    set SOLUTION="%cd%\tests\tests.sln"
+    set TARGET=tests
+    shift
+)
+echo. & echo *** Making %TARGET% & echo.
+
+REM echo *** Current Environment & echo.
+REM set
+REM echo. & echo *** Building Condor & echo.
+msbuild %SOLUTION% /nologo /m /t:%TARGET% /p:Configuration="%CONFIGURATION%";VCBuildUseEnvironment="true";ContinueOnError="false";StopOnFirstFailure="true"
 if %ERRORLEVEL% neq 0 exit /b 1
 exit /b 0

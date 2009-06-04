@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -136,7 +136,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"

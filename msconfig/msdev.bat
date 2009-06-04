@@ -157,6 +157,7 @@ if /i "%1"=="condor" shift
 if /i "%1"=="tests" (
     set TARGET=the Tests
     set SOLUTION="%cd%\tests\tests.sln"
+    shift
 )
 echo *** Launching the IDE to edit %TARGET%
 REM Use start command to spawn the dev studio as a seperate process
