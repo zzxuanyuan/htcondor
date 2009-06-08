@@ -26,7 +26,7 @@ REM ======================================================================
 
 if exist %1 goto process1
 echo Error - directory "%1" does not exist
-echo Usage: dopackaging.bat path_to_release_subdirectory [output_path]
+echo Usage: packaging.bat path_to_release_subdirectory [output_path]
 goto :EOF
 :process1
 Echo Building installer...

@@ -68,6 +68,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				OutputFile="..\..\TestRelease\classad_lib.lib"
 				SuppressStartupBanner="true"
 			/>
@@ -140,6 +141,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
 				OutputFile="..\..\TestDebug\classad_lib.lib"
 				SuppressStartupBanner="true"
 			/>

@@ -41,8 +41,11 @@ BEGIN_C_DECLS
 
 #ifdef WIN32
 int snprintf(char *str, size_t size, const char *format, ...);
+// Disable warnings about functions having inconsistent DLL linkage
+#pragma warning ( disable : 4273 4028 )
 int vsnprintf(char *str, size_t size, const char *format, va_list args);
-#endif
+#pragma warning ( default : 4273 4028 )
+#endif /* WIN32 */
 
 int printf_length(const char *format, ...);
 int vprintf_length(const char *format, va_list args);

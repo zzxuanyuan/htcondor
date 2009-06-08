@@ -36,7 +36,7 @@ if "%1" == "/exit" (
 REM Check if the output directory exists
 if exist %1 goto continue1
 echo Error - directory %1 does not exist
-echo Usage: dorelease.bat "<release_path>"
+echo Usage: release.bat "<release_path>"
 goto end
 :continue1
 REM Check if the build exists
