@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -20,39 +20,7 @@
 #ifndef REPLICATOR_FILE_VERSION_H
 #define REPLICATOR_FILE_VERSION_H
 
-#include "ReplicatorTransferer.h"
-#include "ReplicatorPeer.h"
 #include "Utils.h"
-#include "reli_sock.h"
-
-
-// the state of replicator daemon
-enum ReplicatorState {
-	VERSION_REQUESTING = 0,
-	VERSION_DOWNLOADING = 1,
-	BACKUP,
-	REPLICATION_LEADER
-};
-
-/* Class      : ReplicatorFileVersionProcessData
- * Description: class, representing a version of state file, including gid of
- *				the pool, logical clock and last modification time of the state
- *				file
- */
-class ReplicatorFile;			// Pre-declare the file info
-class ReplicatorFileVersion;	// Pre-declare the file version info
-class ReplicatorUploader : public ReplicatorTransferer
-{
-  public:
-	ReplicatorUploader( ReplicatorFileVersion &version_info )
-		: m_versionInfo( version_info ) {
-	};
-	~ReplicatorUploader( void ) { };
-	ReplicatorFile &getFileInfo( void );
-
-  private:
-	ReplicatorFileVersion	&m_versionInfo;
-};
 
 /* Class      : ReplicatorFileVersion
  * Description: class, representing a version of state file, including gid of
@@ -66,17 +34,19 @@ public:
 
     /* Function: ReplicatorFileVersion constructor
      */
-	ReplicatorFileVersion( const ReplicatorFile &, const char *sinful );
+	ReplicatorFileVersion( const ReplicatorFileBase & );
 
 
 	// ==== Operations ====
 
+# if 0
 	/* Function   : initialize
 	 * Arguments  : pStateFilePath - OS path to state file
 	 *  			pVersionFilePath - OS path to version file
 	 * Description: initializes all data members
 	 */
-    void initialize( const ReplicatorFile & );
+    bool initialize( const ReplicatorFileBase & );
+# endif
 
 	/* Function    : synchronize
      * Arguments   : isLogicalClockIncremented - whether to increment the 
@@ -87,23 +57,11 @@ public:
 	 * Description : synchronizes local state file version according to the OS
 	 *				 state file; if it has been updated and the last 
 	 *				 modification time of it is later than the recorded one, 
-	 *				 then the Version object is updated, i.e. the OS file is 
+	 *				 then the Replica object is updated, i.e. the OS file is 
 	 *				 opened, its fields are loaded into the data members and its
 	 *				 last modification time is assigned to 'm_lastModifiedTime'
      */
     bool synchronize(bool isLogicalClockIncremented = true);
-
-	/* Function   : code
-	 * Arguments  : socket - socket, through which the date is written
-     * Description: write the inner Version object representation to the socket
-     */
-    bool code(ReliSock& );
-
-	/* Function   : decode
-     * Arguments  : stream - socket, through which the date is received
-     * Description: receive remote Version object representation from the socket
-     */
-    bool decode(Stream* );
 
 	// ==== End of operations ====
 
@@ -122,18 +80,6 @@ public:
      */
 	int getLogicalClock(void) const { return m_logicalClock; };
 
-    /* Function    : getSinfulString
-     * Return value: MyString: the sinful string
-     * Description : returns the sinful string
-     */
-    MyString getMySinfulString(void) const { return m_mySinfulString; };
-
-	/* Function    : getHostName
-	 * Return value: MyString - this replication daemon host name
-	 * Description : returns this replication daemon host name
-	 */
-    MyString getHostName(void) const;
-
 	/* Function    : getFileInfo
 	 * Return value: ReplicatorFile - Information on the replicated file
 	 * Description : returns the related file info object
@@ -142,77 +88,43 @@ public:
 		return m_fileInfo;
 	};
 
-	/* Function    : getPeerInfo
-	 * Return value: ReplicatorPeer - Information on the peer host
-	 * Description : returns the related file info object
-	 */
-    const ReplicatorPeer &getPeerInfo(void) const {
-		return m_peerInfo;
-	};
-
-	/* Function    : getUploader
-	 * Return value: Process info object
-	 * Description : returns the related transferer object
-	 */
-    ReplicatorUploader &getUploader(void) {
-		return m_uploader;
-	};
-
-    /* Function    : load
+    /* Function    : readVersionFile
  	 * Arguments   : temporaryGid - the value of OS file gid field will be 
 	 *								assigned to the parameter
  	 *               temporaryLogicalClock - the value of OS file logical clock
  	 *                                       field will be assigned to the 
 	 *										 parameter
  	 * Return value: bool - success/failure value
- 	 * Description : loads Version components from the underlying OS file to
+ 	 * Description : loads Replica components from the underlying OS file to
  	 *               to the specified arguments
  	 */
-	bool load( int& temporaryGid, int& temporaryLogicalClock ) const;
+	bool readVersionFile( int& temporaryGid, int& temporaryLogicalClock ) const;
 
 	// ==== End of inspectors ====
 
 
 	// ==== Comparison operators ====
 
-	/* Function    : isSameHost
-	 * Arguments   : hostname - the hostname to compare to
-	 * Return value: bool - true/false value
-     * Description : Returns true if the hostnames are the same
-     */
-    bool isSameHost(const char *hostname) const {
-		return m_peerInfo == hostname;
-	};
-
-	/* Function    : isSameHost
-	 * Arguments   : other - Version to compare to
-	 * Return value: bool - true/false value
-     * Description : Returns true if the hostnames are the same
-     */
-    bool isSameHost(const ReplicatorFileVersion &other) const {
-		return other.getPeerInfo() == m_peerInfo;
-	};
-
 	/* Function    : isComparable
-	 * Arguments   : version - the compared version
+	 * Arguments   : replica - the compared replica
 	 * Return value: bool - true/false value
-     * Description : the versions are comparable, if their gids are identical
+     * Description : the replicas are comparable, if their gids are identical
      */
     bool isComparable(const ReplicatorFileVersion &version) const;
 
 	/* Function    : operator >
-     * Arguments   : version - the compared version
+     * Arguments   : replica - the compared replica
      * Return value: bool - true/false value
      * Description : the version is bigger than another, if its logical clock is
 	 *				 bigger or if the state of the local daemon is 
 	 *				 REPLICATION_LEADER, whilst the state of the remote daemon
 	 *				 is not
-	 * Note        : the comparison is used, while choosing the best version in
+	 * Note        : the comparison is used, while choosing the best replica in
 	 *				 VERSION_DOWNLOADING state, to simply compare the logical
-	 *				 clocks the versions' states must be set to BACKUP
+	 *				 clocks the replicas' states must be set to BACKUP
      */
+	bool operator > (const ReplicatorFileVersion &version) const;
 
-    bool operator > (const ReplicatorFileVersion &version) const;
 	/* Function    : operator >=
      * Arguments   : version - the compared version
      * Return value: bool - true/false value
@@ -221,38 +133,30 @@ public:
 	 *				 is REPLICATION_LEADER, whilst the state of the remote
 	 *				 daemon is not
      */
-
     bool operator >= (const ReplicatorFileVersion &version) const;
-	//friend bool operator == (const ReplicatorFileVersion &, const Version & );
 
 	// ==== End of comparison operators ====
 
 
 	// ==== Mutators ====
 
-	/* Function   : setState
-	 * Arguments  : newState - new state of the replication daemon to send to
-	 *				the newly joined machine
-     * Description: sets the state of the replication daemon to send to the
-	 *				newly joined machine
-     */
-    void setState(const ReplicatorState& newState) { m_state = newState; };
-
-	/* Function   : setState
-     * Arguments  : version - the version, the state of which is assigned to
-     *                        the current version's one
-     * Description: sets the state of the replication daemon to send to the
-     *              newly joined machine as the specified version's one
-     */
-    void setState(const ReplicatorFileVersion &version) {
-		m_state = version.getState();
-	};
-
 	/* Function   : setGid
      * Arguments  : newGid - new gid of the version
      * Description: sets the gid of the version
      */
-	void setGid(int newGid) { m_gid = newGid; save( ); };
+	void setGid(int newGid, bool save = true ) {
+		m_gid = newGid;
+		if (save) writeVersionFile( );
+	};
+
+	/* Function   : setLogicalClock
+     * Arguments  : newLogicalClock - new logical clock of the version
+     * Description: sets the logical clock of the version
+     */
+	void setLogicalClock(int clock, bool save = false) {
+		m_logicalClock = clock;
+		if (save) writeVersionFile( );
+	};
 
 	// ==== End of mutators ====
 
@@ -263,45 +167,30 @@ public:
      * Return value: MyString - string representation of Version object
 	 * Description : represents the Version object as string
      */
-    MyString toString( void ) const;
+    MyString & toString( MyString &str ) const;
 
 	// ==== End of convertors ====
 
 
-	// === Private methods ===
-  private:
+	// === Protected methods ===
+  protected:
 
-	/* Function    : getState
-     * Return value: ReplicatorState - this replication daemon current state
-     * Description : returns this replication daemon current state
-     */   
-    const ReplicatorState& getState( void ) const { return m_state; };
-    bool load( void );
-    void save( void );
+    bool readVersionFile( void );
+    bool writeVersionFile( void );
 
 	
-	//  === Private data ===
-  private:
+	//  === Protected data ===
+  protected:
 
 	// static data members
     static time_t            m_lastModifiedTime;
 	
 	// File info
 	const ReplicatorFile	&m_fileInfo;
-	const ReplicatorPeer	&m_peerInfo;
 
-	// My process data
-	ReplicatorUploader		 m_uploader;
- 
 	// components of the version
     int                      m_gid;
     int                      m_logicalClock;
-    MyString                 m_mySinfulString;
-	ReplicatorState          m_state;
-
-	// added support for conservative policy of accepting updates from primary
-	// HAD machines only
-	bool    				 m_isPrimary;
 };
 
 #endif // REPLICATOR_FILE_VERSION_H

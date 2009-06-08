@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -119,6 +119,7 @@ getConfigurationPositiveIntegerParameter( const char* parameter )
 ReplicatorStateMachine::ReplicatorStateMachine( void )
 {
 	dprintf( D_ALWAYS, "ReplicatorStateMachine ctor started\n" );
+	m_mySinfulString			  = daemonCore->InfoCommandSinfulString( );
    	m_state                       = VERSION_REQUESTING;
    	m_replicationTimerId          = -1;
    	m_versionRequestingTimerId    = -1;
@@ -127,8 +128,8 @@ ReplicatorStateMachine::ReplicatorStateMachine( void )
    	m_hadAliveTolerance           = -1;
    	m_maxTransfererLifeTime       = -1;
    	m_newlyJoinedWaitingVersionInterval = -1;
-   	m_lastHadAliveTime          = -1;
-   	srand( time( NULL ) );
+   	m_lastHadAliveTime            = -1;
+   	srand( time(NULL) );
 }
 
 // finalizing the delta, belonging to this class only, since the data,
@@ -174,16 +175,16 @@ ReplicatorStateMachine::initialize( void )
 
     reinitialize( );
     // register commands that the service responds to
-    registerCommand(HAD_BEFORE_PASSIVE_STATE);
-    registerCommand(HAD_AFTER_ELECTION_STATE);
-    registerCommand(HAD_AFTER_LEADER_STATE);
-    registerCommand(HAD_IN_LEADER_STATE);
-    registerCommand(REPLICATION_LEADER_VERSION);
-    registerCommand(REPLICATION_TRANSFER_FILE);
-    registerCommand(REPLICATION_NEWLY_JOINED_VERSION);
-    registerCommand(REPLICATION_GIVING_UP_VERSION);
-    registerCommand(REPLICATION_SOLICIT_VERSION);
-    registerCommand(REPLICATION_SOLICIT_VERSION_REPLY);
+    registerCommand( HAD_BEFORE_PASSIVE_STATE, CCLASS_HAD );
+    registerCommand( HAD_AFTER_ELECTION_STATE, CCLASS_HAD );
+    registerCommand( HAD_AFTER_LEADER_STATE, CCLASS_HAD );
+    registerCommand( HAD_IN_LEADER_STATE, CCLASS_HAD );
+    registerCommand( REPLICATION_LEADER_VERSION, CCLASS_PEER );
+    registerCommand( REPLICATION_TRANSFER_FILE, CCLASS_PEER );
+    registerCommand( REPLICATION_NEWLY_JOINED_VERSION, CCLASS_PEER );
+    registerCommand( REPLICATION_GIVING_UP_VERSION, CCLASS_PEER );
+    registerCommand( REPLICATION_SOLICIT_VERSION, CCLASS_PEER );
+    registerCommand( REPLICATION_SOLICIT_VERSION_REPLY, CCLASS_PEER );
 }
 
 /* clears all the inner structures and loads the configuration parameters'
@@ -194,7 +195,6 @@ ReplicatorStateMachine::reinitialize( void )
 {
     // delete all configurations and start everything over from the scratch
     finalize( );
-    AbstractReplicatorStateMachine::reinitialize( );
 
     m_myVersion.initialize( m_stateFilePath, m_versionFilePath );
 
@@ -252,33 +252,191 @@ ReplicatorStateMachine::reinitialize( void )
 	beforePassiveStateHandler( );
 }
 
+/* Function   : registerCommand
+ * Arguments  : command - id to register
+ * Description: register command with given id in daemon core
+ */
+void
+ReplicatorStateMachine::registerCommand(int command, CommandClass /*cc*/ )
+{
+	CommandHandlercpp	handler = NULL;
+	const char			*handler_name;
+
+	switch( cc ) {
+	case CCLASS_HAD:
+		(CommandHandlercpp) &ReplicatorStateMachine::commandHandlerHad;
+		handler_name = "commandHandlerHad";
+		break;
+	case CCLASS_PEER:
+		(CommandHandlercpp) &ReplicatorStateMachine::commandHandlerPeer;
+		handler_name = "commandHandlerPeer";
+		break;
+	}
+
+	ASSERT( handler );
+    daemonCore->Register_Command(
+        command, const_cast<char*>( utilToString(command) ),
+        handler, handler_name, this, DAEMON );
+}
+
+/* Function   : commandHandlerHad
+ * Arguments  : command - command to handle request
+ * 				stream  - socket, through which the data for the command
+ *						  arrived
+ * Description: handles various commands sent to this replication daemon
+ *				from the HAD
+ */
+int
+ReplicatorStateMachine::commandHandlerHad( int command, Stream* stream )
+{
+	ClassAd		ad;
+	MyString	sinful;
+	if ( !commandHanlderCommon(int, stream, "HAD", ad, sinful) ) {
+		return FALSE;
+	}
+
+    switch( command ) {
+	case HAD_BEFORE_PASSIVE_STATE:
+		ASSERT( strcmp(m_mySinfulString, sinful) == 0 );
+		beforePassiveStateHandler( ad, sinful );
+		break;
+	case HAD_AFTER_ELECTION_STATE:
+		ASSERT( strcmp(m_mySinfulString, sinful) == 0 );
+		afterElectionStateHandler( ad, sinful );
+		break;
+	case HAD_AFTER_LEADER_STATE:
+		ASSERT( strcmp(m_mySinfulString, sinful) == 0 );
+		afterLeaderStateHandler( ad, sinful );
+		break;
+	case HAD_IN_LEADER_STATE:
+		ASSERT( strcmp(m_mySinfulString, sinful) == 0 );
+		inLeaderStateHandler( ad, sinful );
+		break;
+	default:
+		dprintf( D_ALWAYS,
+				 "commandHandlerHad(): Unhandled command %d!!!\n", command );
+		return FALSE;
+    }
+	return TRUE;
+}
+
+/* Function   : commandHandlerPeer
+ * Arguments  : command - command to handle request
+ * 				stream  - socket, through which the data for the command
+ *						  arrived
+ * Description: handles various commands sent to this replication daemon
+ *				from a peer replicator
+ */
+int
+ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
+{
+	ClassAd		ad;
+	MyString	sinful;
+	if ( !commandHanlderCommon(int, stream, "HAD", ad, sinful) ) {
+		return FALSE;
+	}
+	ReplicatorFileVersion	version;
+
+    switch( command ) {
+	case REPLICATION_LEADER_VERSION:
+		onLeaderVersion( ad, sinful );
+		break;
+	case REPLICATION_TRANSFER_FILE:
+		onTransferFile( ad, sinful );
+		break;
+	case REPLICATION_SOLICIT_VERSION:
+		onSolicitVersion( ad, sinful );
+		break;
+	case REPLICATION_SOLICIT_VERSION_REPLY:
+		onSolicitVersionReply( ad, sinful );
+		break;
+	case REPLICATION_NEWLY_JOINED_VERSION:
+		onNewlyJoinedVersion( ad, sinful );
+		break;
+	case REPLICATION_GIVING_UP_VERSION:
+		onGivingUpVersion( ad, sinful );
+		break;
+	default:
+		dprintf( D_ALWAYS,
+				 "CommandHandlerPeer(): Unhandled command %d!!!\n", command );
+		return FALSE;
+    }
+	return TRUE;
+}
+
+/* Function   : commandHandlerCommon
+ * Arguments  : command - command to handle request
+ * 				stream  - socket, through which the data for the command
+ *						  arrived
+ * Description: Common command handler decoding
+ *				from a peer replicator
+ */
+int
+ReplicatorStateMachine::commandHandlerCommon(
+	int /*command*/,
+	Stream *stream,
+	const char *name,
+	ClassAd &ad,
+	MyString &sinful )
+{
+	// Read the ClassAd off the wire
+    stream->decode( );
+	if ( !ad.initFromStream(stream) ) {
+        dprintf( D_ALWAYS,
+				 "::commandHandler(%s):"
+				 " Failed to read ClassAd [%s]\n"
+                 name, utilToString(command) );
+	}
+
+	// And, read the EOM
+    if( ! stream->end_of_message( ) ) {
+        dprintf( D_ALWAYS, "::commandHandler(%s): read EOM failed\n", name );
+    }
+
+	// Pull out the sinful from the address
+	if ( !ad.LookupString( ATTR_MY_ADDRESS, sinful ) ) {
+		dprintf( D_ALWAYS,
+				 "commandHandler(%s) ERROR: %s not in ad received\n",
+				 name, ATTR_MY_ADDRESS, sinful.Value() );
+		return FALSE;
+	}
+
+    dprintf( D_FULLDEBUG,
+			 "::commandHandler(%s) received command %s from %s\n",
+			 name, utilToString(command), sinful.Value() );
+
+	return TRUE;
+}
+
+
 /* sends the version of the last execution time to all the replication
  * daemons, then asks the pool replication daemons to send their own
  * versions to it, sets a timer to wait till the versions are received
  */
-void
-ReplicatorStateMachine::beforePassiveStateHandler( void )
+bool
+ReplicatorStateMachine::beforePassiveStateHandler(
+	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
     REPLICATION_ASSERT(m_state == VERSION_REQUESTING);
 
     dprintf( D_ALWAYS,
-			"ReplicatorStateMachine::beforePassiveStateHandler started\n" );
+			"::beforePassiveStateHandler() started\n" );
     broadcastVersion( REPLICATION_NEWLY_JOINED_VERSION );
     requestVersions( );
 
-    dprintf( D_FULLDEBUG, "ReplicatorStateMachine::beforePassiveStateHandler "
-			"registering version requesting timer\n" );
+    dprintf( D_FULLDEBUG, "::beforePassiveStateHandler() "
+			 "registering version requesting timer\n" );
     m_versionRequestingTimerId = daemonCore->Register_Timer(
 		m_newlyJoinedWaitingVersionInterval,
        (TimerHandlercpp) &ReplicatorStateMachine::versionRequestingTimer,
        "Time to pass to VERSION_DOWNLOADING state", this );
 }
 
-void
-ReplicatorStateMachine::afterElectionStateHandler( void )
+bool
+ReplicatorStateMachine::afterElectionStateHandler(
+	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::afterElectionStateHandler "
-			"started\n" );
+    dprintf( D_ALWAYS, "::afterElectionStateHandler() started\n" );
     REPLICATION_ASSERT(m_state != REPLICATION_LEADER);
 
 	// we stay in VERSION_REQUESTING or VERSION_DOWNLOADING state
@@ -292,7 +450,8 @@ ReplicatorStateMachine::afterElectionStateHandler( void )
 }
 
 void
-ReplicatorStateMachine::afterLeaderStateHandler( void )
+ReplicatorStateMachine::afterLeaderStateHandler(
+	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
    // REPLICATION_ASSERT(state != BACKUP)
 
@@ -315,7 +474,8 @@ ReplicatorStateMachine::afterLeaderStateHandler( void )
 }
 
 void
-ReplicatorStateMachine::inLeaderStateHandler( void )
+ReplicatorStateMachine::inLeaderStateHandler(
+	const ClassAd & /*ad*/, const MyString &sinful )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::inLeaderStateHandler started "
 			"with state = %d\n", int( m_state ) );
@@ -434,18 +594,17 @@ ReplicatorStateMachine::gidSelectionHandler( void )
     actualVersionsList.Rewind( );
 
     if( areVersionsComparable ) {
-        dprintf( D_ALWAYS, "ReplicatorStateMachine::gidSelectionHandler no "
-				"need to select new gid\n" );
+        dprintf( D_FULLDEBUG, "No need to select new gid\n" );
         return;
     }
     int temporaryGid = 0;
 
-    while( ( temporaryGid = rand( ) ) == m_myVersion.getGid( ) );
+    while( ( temporaryGid = rand( ) ) == m_myVersion.getGid( ) ) {
+		// Do nothing
+	}
     m_myVersion.setGid( temporaryGid );
 
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::gidSelectionHandler "
-			"new gid selected: %d\n", temporaryGid );
-    //myVersion.setSinfulString( daemonCore->InfoCommandSinfulString( ) );
+    dprintf( D_FULLDEBUG, "New gid selected: %d\n", temporaryGid );
 }
 
 /* Function   : decodeVersionAndState
@@ -508,7 +667,8 @@ ReplicatorStateMachine::becomeLeader( void )
  *				'condor_transferer' running at the same time
  */
 void
-ReplicatorStateMachine::onLeaderVersion( Stream* stream )
+ReplicatorStateMachine::onLeaderVersion(
+	const ClassAd &ad, const MyString &sinful )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onLeaderVersion started\n" );
 
@@ -574,7 +734,8 @@ ReplicatorStateMachine::onSolicitVersion( char* daemonSinfulString )
  * 				versions list with newly received remote version
  */
 void
-ReplicatorStateMachine::onSolicitVersionReply( Stream* stream )
+ReplicatorStateMachine::onSolicitVersionReply(
+ 	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onSolicitVersionReply "
 					   "started\n" );
@@ -642,95 +803,6 @@ ReplicatorStateMachine::downloadReplicaTransfererReaper(
         replicatorStateMachine->versionDownloadingTimer( );
     }
     return returnValue;
-}
-
-/* Function   : commandHandler
- * Arguments  : command - command to handle request
- * 				stream  - socket, through which the data for the command
- *						  arrived
- * Description: handles various commands sent to this replication daemon
- */
-void
-ReplicatorStateMachine::commandHandler( int command, Stream* stream )
-{
-    char* daemonSinfulString = 0;
-
-    stream->decode( );
-
-    if( ! stream->code( daemonSinfulString ) /*|| ! stream->eom( )*/ ) {
-        dprintf( D_NETWORK, "ReplicatorStateMachine::commandHandler "
-                            "cannot read remote daemon sinful string for %s\n",
-                 utilToString( command ) );
-	    free( daemonSinfulString );
-
-		return;
-    }
-
-    dprintf( D_FULLDEBUG,
-			 "ReplicatorStateMachine::commandHandler received "
-			 "command %s from %s\n",
-			 utilToString(command), daemonSinfulString );
-    switch( command ) {
-        case REPLICATION_LEADER_VERSION:
-            onLeaderVersion( stream );
-
-            break;
-        case REPLICATION_TRANSFER_FILE:
-            onTransferFile( daemonSinfulString );
-
-            break;
-        case REPLICATION_SOLICIT_VERSION:
-            onSolicitVersion( daemonSinfulString );
-
-            break;
-        case REPLICATION_SOLICIT_VERSION_REPLY:
-            onSolicitVersionReply( stream );
-
-            break;
-        case REPLICATION_NEWLY_JOINED_VERSION:
-            onNewlyJoinedVersion( stream );
-
-            break;
-        case REPLICATION_GIVING_UP_VERSION:
-            onGivingUpVersion( stream );
-
-            break;
-        case HAD_BEFORE_PASSIVE_STATE:
-            beforePassiveStateHandler();
-
-            break;
-        case HAD_AFTER_ELECTION_STATE:
-            afterElectionStateHandler();
-
-            break;
-        case HAD_AFTER_LEADER_STATE:
-            afterLeaderStateHandler();
-
-            break;
-        case HAD_IN_LEADER_STATE:
-            inLeaderStateHandler();
-
-            break;
-    }
-	free( daemonSinfulString );
-
-    if( ! stream->end_of_message( ) ) {
-        dprintf( D_NETWORK, "ReplicatorStateMachine::commandHandler "
-                            "cannot read the end of the message\n" );
-    }
-}
-
-/* Function   : registerCommand
- * Arguments  : command - id to register
- * Description: register command with given id in daemon core
- */
-void
-ReplicatorStateMachine::registerCommand(int command)
-{
-    daemonCore->Register_Command(
-        command, const_cast<char*>( utilToString( command ) ),
-        (CommandHandlercpp) &ReplicatorStateMachine::commandHandler,
-        "commandHandler", this, DAEMON );
 }
 
 /* Function   : killStuckDownloadingTransferer
@@ -980,3 +1052,14 @@ ReplicatorStateMachine::printDataMembers( void ) const
 			 m_replicationTimerId,
 			 m_lastHadAliveTime );
 };
+
+void
+ReplicatorStateMachine::checkVersionSynchronization( void )
+{
+	int temporaryGid = -1, temporaryLogicalClock = -1;
+
+	m_myVersion.load( temporaryGid, temporaryLogicalClock);
+	REPLICATION_ASSERT(
+		temporaryGid == m_myVersion.getGid( ) &&
+		temporaryLogicalClock == m_myVersion.getLogicalClock( ));
+}

@@ -23,8 +23,9 @@
 // for 'ReplicatorState'
 #include "Utils.h"
 #include "ReplicatorTransferer.h"
-#include "ReplicatorFileVersion.h"
+#include "ReplicatorFileReplica.h"
 #include "ReplicatorFile.h"
+#include "ReplicatorFileList.h"
 #include "reli_sock.h"
 #include "dc_service.h"
 #include "list.h"
@@ -50,9 +51,7 @@ using namespace std;
  */
 class AbstractReplicatorStateMachine: public Service
 {
-public:
-	// inner true/false values
-    enum { TRANSFERER_TRUE = 0, TRANSFERER_FALSE };
+  public:
 
     /* Function: AbstractReplicatorStateMachine constructor
      */
@@ -66,35 +65,7 @@ public:
 	 * Description: rereads all the configuration parameters and resets all the
 	 *              data members
 	 */
-    void reinitialize( void );
-
-	// ==== Notification handlers ===
-
-    /* Function   : beforePassiveStateHandler
-	 * Description: generic handler before the event, when HAD entered PASSIVE
-	 *              state
-	 */
-    virtual void beforePassiveStateHandler( void ) = 0;
-
-	/* Function   : afterElectionStateHandler
-	 * Description: generic handler after the event, when HAD is in transition
-	 *              from ELECTION to LEADER state
-	 */
-    virtual void afterElectionStateHandler( void ) = 0;
-
-	/* Function   : afterLeaderStateHandler
-     * Description: generic handler after the event, when HAD is in transition
-	 *              from LEADER to PASSIVE state
-	 */
-    virtual void afterLeaderStateHandler( void ) = 0;
-
-	/* Function   : inLeaderStateHandler
-     * Description: generic handler after the event, when HAD is in inner loop
-     *              of LEADER state
-     */
-    virtual void inLeaderStateHandler( void ) = 0;
-
-	// ==== End of notification handlers ====
+    bool reinitialize( void );
 
 
 	// ==== Selection handlers ====
@@ -103,7 +74,7 @@ public:
 	 * Description : generic handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(ReplicatorFileVersion& newVersion) = 0;
+    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion) = 0;
 
 	/* Function   : gidSelectionHandler
      * Description: generic handler for selection of gid for the pool
@@ -148,31 +119,29 @@ public:
 	 * Description: broadcasting different commands to other replication daemons
 	 *				along with the local version
 	 */
-    void broadcastVersion( int command );
+    bool broadcastVersion( int command );
 
 	/* Function   : requestVersions
      * Description: sending command to other replication daemons, asking them to
 	 * 				send their replica versions to this replication daemon
      */
-    void requestVersions( void );
+    bool requestVersions( void );
 
 	/* Function    : download
-	 * Arguments   : daemonSinfulString - address of daemon to download the
-	 *									 version from
+	 * Arguments   : ReplicatorFileReplica - Replica to download from
 	 * Return value: bool - success/failure value
 	 * Description : starts downloading 'condor_transferer' process to download
 	 *				 the version of remote replication daemon
      */
-    bool download( ReplicatorFileVersion &version );
+    bool download( ReplicatorFileReplica &version );
 
 	/* Function    : upload
-     * Arguments   : daemonSinfulString - address of daemon to upload the
-     *                                   version to
+	 * Arguments   : ReplicatorFileReplica - Replica to upload from
 	 * Return value: bool - success/failure value
-     * Description : starts uploading 'condor_transferer' process to upload
-     *               the version to remote replication daemon
+	 * Description : starts downloading 'condor_transferer' process to upload
+	 *				 the version of remote replication daemon
      */
-    bool upload(const char* daemonSinfulString);
+    bool upload( ReplicatorFileReplica &version );
 
 	/* Function   : shutdown
 	 * Description: clears and resets all inner structures and data members
@@ -188,7 +157,7 @@ public:
 	 * Arguments  : newVersion - the version to update the versions' list
 	 * Description: updates list of versions with new version
 	 */
-    void updateVersionsList(ReplicatorFileVersion &newVersion);
+    void updateVersionsList(ReplicatorFileReplica &newVersion);
 
 	/* Function   : cancelVersionsListLeader
      * Description: sets the state of all versions in the list to BACKUP
@@ -252,12 +221,27 @@ public:
 
 	// ==== End of command functions ====
 
-	/* Function    : findTransfererProcess
+	/* Function    : findUploadTransferer
 	   Arguments   : pid - PID of the process to find
-     * Description : Find the transfer process info related to the PID
+     * Description : Find the transferer info related to the PID
      */
-	ReplicatorTransferer *findTransferProcess( int pid ) {
-		return m_transfererList.Find( pid );
+	ReplicatorTransferer *findUploader( int pid ) {
+		return m_uploaders.Find( pid );
+	};
+
+	/* Function    : findDownloadTransferer
+	   Arguments   : pid - PID of the process to find
+     * Description : Find the transferer info related to the PID
+     */
+	ReplicatorTransferer *findDownloader( int pid ) {
+		return m_downloaders.Find( pid );
+	};
+
+	/* Function   : numActiveDownloads
+	 * Description: returns number of running downloading 'condor_transferers'
+	 */
+    int numActiveDownloads( void ) const {
+		return m_downloaders.numActive( );
 	};
 
 	/* Function    : killTransferers
@@ -265,23 +249,24 @@ public:
      */
     void killTransferers( void );
 
-protected:
+  protected:
 
-	// local version
-    //ReplicatorFileVersion	*m_myVersion;
     // list of all of the files we replicate
 	ReplicatorFileList       m_fileList;
+
 	// configuration variables
 	MyString                 m_transfererPath;
 
 	// the replication daemon state
     ReplicatorState          m_state;
 
-	// list of remote replication daemons
-	StringList				*m_replicatorRawList;
-    list<char *>             m_replicatorSinfulList;
+	// All of our peers
+	ReplicatorPeerList		 m_peerList;
+
 	// list of all replicator transfer processes
-	ReplicatorTransfererList m_transfererList;
+	ReplicatorTransfererList m_uploaders;
+	ReplicatorTransfererList m_downloaders;
+
 	// socket connection timeout
     int                      m_connectionTimeout;
 

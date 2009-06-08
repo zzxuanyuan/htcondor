@@ -7,7 +7,7 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(CONFIGURE_GSOAP_LDFLAGS)
 
 HAD_OBJ = \
 	HAD.o \
-	StateMachine.o \
+	HAStateMachine.o \
 	Utils.o \
 	$(SOAP_OBJS)
 
@@ -24,8 +24,10 @@ REPLICATION_OBJ = \
 	Replication.o \
 	AbstractReplicatorStateMachine.o \
 	ReplicatorStateMachine.o \
-	ReplicatorVersion.o \
 	ReplicatorFile.o \
+	ReplicatorFileList.o \
+	ReplicatorFileVersion.o \
+	ReplicatorFileReplica.o \
 	ReplicatorPeer.o \
 	Utils.o \
 	FilesOperations.o \

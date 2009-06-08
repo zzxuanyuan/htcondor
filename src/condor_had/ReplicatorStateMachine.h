@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -20,7 +20,17 @@
 #ifndef REPLICATOR_STATE_MACHINE_H
 #define REPLICATOR_STATE_MACHINE_H
 
-#include "AbstractReplicatorStateMachine.h"
+// for 'ReplicatorState'
+#include "Utils.h"
+#include "ReplicatorTransferer.h"
+#include "ReplicatorFileReplica.h"
+#include "ReplicatorFile.h"
+#include "ReplicatorFileList.h"
+#include "reli_sock.h"
+#include "dc_service.h"
+#include "list.h"
+#include <list>
+using namespace std;
 
 /* Class      : ReplicatorStateMachine
  * Description: concrete class for replication service state machine,
@@ -39,20 +49,24 @@
  */
 class ReplicatorStateMachine: public AbstractReplicatorStateMachine
 {
-public:
+  public:
 	/* Function: ReplicatorStateMachine constructor
      */
-    ReplicatorStateMachine();
+    ReplicatorStateMachine( void );
 	/* Function: ReplicatorStateMachine destructor
      */
-    virtual ~ReplicatorStateMachine();
-// Notification handlers
+    virtual ~ReplicatorStateMachine( void );
+
+
+	// Notification handlers
+
     /* Function   : beforePassiveStateHandler
      * Description: concrete handler before the event, when HAD entered PASSIVE
      * 				state; broadcasts old local version, solicits versions from
 	 *				other replication daemons in the pool
      */
-    virtual void beforePassiveStateHandler();
+    void beforePassiveStateHandler( const ClassAd & );
+
 	/* Function   : afterElectionStateHandler
      * Description: concrete handler after the event, when HAD is in transition
      *              from ELECTION to LEADER state; sets the last time, when HAD
@@ -60,21 +74,25 @@ public:
 	 *              message for replication daemon) and selects the new gid for
 	 *              the pool
      */
-    virtual void afterElectionStateHandler();
+    void afterElectionStateHandler( const ClassAd & );
+
 	/* Function   : afterLeaderStateHandler
 	 * Description: concrete handler after the event, when HAD is in transition
      *              from ELECTION to PASSIVE state
 	 * Remarks    : void by now
 	 */
-    virtual void afterLeaderStateHandler();
+    void afterLeaderStateHandler( const ClassAd & );
+
 	/* Function   : inLeaderStateHandler
      * Description: concrete handler after the event, when HAD is in inner loop
      *              of LEADER state; sets the last time, when HAD sent a
 	 * 				HAD_IN_STATE_STATE
      */
-    virtual void inLeaderStateHandler();
-// End of notification handlers
-// Selection handlers
+    void inLeaderStateHandler( const ClassAd & );
+
+
+	// Selection handlers
+
 	/* Function    : replicaSelectionHandler
      * Arguments   : newVersion -
      *                  in JOINING state: the version selected for downloading
@@ -86,24 +104,25 @@ public:
 	 * Description : concrete handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(ReplicatorVersion& newVersion);
+    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion);
 	/* Function   : gidSelectionHandler
      * Description: concrete handler for selection of gid for the pool
 	 * Remarks    : void by now
      */
-    virtual void gidSelectionHandler();
-// End of selection handlers
+    virtual void gidSelectionHandler( void );
+
 	/* Function   : initialize
      * Description: initializes all inner structures, such as
 	 *				commands, timers, reapers and data members
      */
-    void initialize();
+    void initialize( void );
 	/* Function   : reinitialize
      * Description: reinitializes all inner structures, such as
      *              commands, timers, reapers and data members
      */
-    void reinitialize();
-protected:
+    void reinitialize( void );
+
+  protected:
 	/* Function   : downloadReplicaTransfererReaper
      * Arguments  : service    - the daemon, for which the transfer has ended
      *              pid        - id of the downloading 'condor_transferer'
@@ -113,68 +132,61 @@ protected:
      * Description: reaper of downloading 'condor_transferer' process
      */
     static int
-	downloadReplicaTransfererReaper(Service* service, int pid, int exitStatus);
-private:
-// Managing stuck transferers
+	downloadReplicaTransfererReaper(Service *service, int pid, int exitStatus);
+
+  private:
+	enum CommandClass { CCLASS_HAD, CCLASS_PEER };
+	// Managing stuck transferers
 	void killStuckDownloadingTransferer(time_t currentTime);
 	void killStuckUploadingTransferers (time_t currentTime);
-// End of managing stuck transferers
-    void commandHandler(int command, Stream* stream);
-    void registerCommand(int command);
 
-    void finalize();
-    void finalizeDelta();
-// Timers handlers
-    void replicationTimer();
-    void versionRequestingTimer();
-    void versionDownloadingTimer();
-// End of timers handlers
-// Command handlers
-    void onLeaderVersion(Stream* stream);
-    void onTransferFile(char* daemonSinfulString);
-    void onSolicitVersion( char* daemonSinfulString );
-    void onSolicitVersionReply(Stream* stream);
-    void onNewlyJoinedVersion(Stream* stream);
-    void onGivingUpVersion(Stream* stream);
-// End of command handlers
+    void registerCommand(int command, CommandClass cc );
+    int commandHandlerHad(int command, Stream *stream);
+    int commandHandlerPeer(int command, Stream *stream);
+	int commandHandlerCommon( int command, Stream *stream, const char *name,
+							  ClassAd &ad, MyString &sinful );
 
-    static ReplicatorVersion* decodeVersionAndState( Stream* stream );
-	void            becomeLeader( );
+    void finalize( void );
+    void finalizeDelta( void );
 
-	/* Function   : downloadTransferersNumber
-	 * Description: returns number of running downloading 'condor_transferers'
-	 */
-    int  downloadTransferersNumber() const {
-		return int( m_downloadTransfererMetadata.m_pid != -1 );
-	};
+	// Timers handlers
+    void replicationTimer( void );
+    void versionRequestingTimer( void );
+    void versionDownloadingTimer( void );
 
-// Configuration parameters
+	// Command handlers
+    void onLeaderVersion( const ClassAd &ad, const MyString &sinful );
+    void onTransferFile( const ClassAd &ad, const MyString &sinful );
+    void onSolicitVersion( const ClassAd &ad, const MyString &sinful );
+    void onSolicitVersionReply( const ClassAd &ad, const MyString &sinful );
+    void onNewlyJoinedVersion( const ClassAd &ad, const MyString &sinful );
+    void onGivingUpVersion( const ClassAd &ad, const MyString &sinful );
+
+    static ReplicatorFileReplica *decodeVersionAndState( Stream *stream );
+	void becomeLeader( void );
+
+	// My "sinful" string
+	const char	*m_mySinfulString;
+
+	// Configuration parameters
     int      m_replicationInterval;
     int      m_hadAliveTolerance;
     int      m_maxTransfererLifeTime;
     int      m_newlyJoinedWaitingVersionInterval;
-// End of configuration parameters
-// Timers
+
+	// Timers
     int     m_versionRequestingTimerId;
     int     m_versionDownloadingTimerId;
     int     m_replicationTimerId;
-// End of timers
+
 	// last time HAD sent HAD_IN_LEADER_STATE
     time_t  m_lastHadAliveTime;
 
-// Debugging utilities
+	// Debugging utilities
 	void printDataMembers(void) const;
 
-	void checkVersionSynchronization()
-	{
-		int temporaryGid = -1, temporaryLogicalClock = -1;
+	void checkVersionSynchronization( void );
 
-        m_myVersion.load( temporaryGid, temporaryLogicalClock);
-        REPLICATION_ASSERT(
-            temporaryGid == m_myVersion.getGid( ) &&
-			temporaryLogicalClock == m_myVersion.getLogicalClock( ));
-	};
-// End of debugging utilities
 };
 
 #endif // REPLICATOR_STATE_MACHINE_H

@@ -28,7 +28,7 @@ using namespace std;
  * process creation. The structure is used for downloading/uploading
  * transferer processes
  */
-class ReplicatorFile;
+class ReplicatorFileBase;
 class ReplicatorTransferer
 {
   public:
@@ -38,7 +38,7 @@ class ReplicatorTransferer
 	virtual ~ReplicatorTransferer( void );
 
 	// Setters
-	bool registerProcess( int pid ) {
+	bool activate( int pid ) {
 		m_pid = pid;
 		if ( pid > 0 ) {
 			m_time = time(NULL);
@@ -57,7 +57,10 @@ class ReplicatorTransferer
 	bool isValid( void ) const {
 		return (  (m_pid != -1) && (m_time != -1)  );
 	};
-	virtual ReplicatorFile &getFileInfo( void ) = 0;
+	bool isActive( void ) const {
+		return (m_pid != -1);
+	};
+	virtual ReplicatorFileBase &getFileInfo( void ) = 0;
 	int getPid( void ) const {
 		return m_pid;
 	};
@@ -78,9 +81,11 @@ class ReplicatorTransfererList
   public:
 	ReplicatorTransfererList( void );
 	~ReplicatorTransfererList( void );
+	bool clear( void );
 
 	bool Register( ReplicatorTransferer &process );
 	ReplicatorTransferer *Find( int pid );
+	int numActive( void ) const;
 
   private:
 	list<ReplicatorTransferer *>	m_list;

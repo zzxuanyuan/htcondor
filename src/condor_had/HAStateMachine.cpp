@@ -36,7 +36,7 @@
 #include "list.h"
 // for 'my_username'
 #include "my_username.h"
-#include "StateMachine.h"
+#include "HAStateMachine.h"
 #include "Utils.h"
 
 
@@ -650,7 +650,7 @@ HADStateMachine::sendReplicationCommand( int command )
 			 utilToString(cmd), cmd, m_replicationDaemonSinfulString );
 
     // startCommand - max timeout is m_connectionTimeout sec
-    if(! (m_masterDaemon->startCommand(cmd,&sock,m_connectionTimeout )) ) {
+    if(! (m_masterDaemon->startCommand(cmd, &sock, m_connectionTimeout )) ) {
         dprintf( D_ALWAYS,
 				 "cannot start command %s, addr %s\n",
 				 utilToString(cmd), m_replicationDaemonSinfulString );
@@ -659,17 +659,12 @@ HADStateMachine::sendReplicationCommand( int command )
         return false;
     }
 
-    char* subsys = const_cast<char*>( daemonCore->InfoCommandSinfulString( ) );
+	if(! m_classAd.put(sock) || !sock.eom()) {
+		dprintf( D_ALWAYS, "Failed to send classad to replicator\n");
+	} else {
+		dprintf( D_FULLDEBUG, "Sent classad to replicator\n");
+	}
 
-    if( !sock.code(subsys) || !sock.eom() ) {
-        dprintf( D_ALWAYS, "send to replication daemon, !sock.code false \n");
-        sock.close();
-
-        return false;
-    } else {
-        dprintf( D_FULLDEBUG,
-				 "send to replication daemon, !sock.code true \n");
-    }
     sock.close();
 
     return true;
@@ -961,8 +956,6 @@ HADStateMachine::clearBuffers(void)
 int
 HADStateMachine::commandHandlerHad(int cmd, Stream *strm)
 {
-	char	buf[1024];
-
     dprintf( D_FULLDEBUG, "commandHandler command %s(%d) is received\n",
 			 utilToString(cmd), cmd);
 
@@ -979,37 +972,38 @@ HADStateMachine::commandHandlerHad(int cmd, Stream *strm)
         return FALSE;
     }
 
-    int new_id;
+	MyString	buf;
+    int			new_id;
 	if ( !ad.LookupInteger( ATTR_HAD_INDEX, new_id ) ) {
 		dprintf( D_ALWAYS, "commandHandler ERROR: ID not in ad received\n" );
 		return FALSE;
     }
 
-	if ( !ad.LookupString( ATTR_HAD_CONTROLLEE_NAME, buf, sizeof(buf) ) ) {
+	if ( !ad.LookupString( ATTR_HAD_CONTROLLEE_NAME, buf ) ) {
 		dprintf( D_ALWAYS, "commandHandler ERROR:"
 				 " controllee not in ad received\n" );
 		return FALSE;
 	}
-	if ( strcasecmp(buf, m_controlleeName) ) {
+	if ( strcasecmp(buf.Value(), m_controlleeName) ) {
 		dprintf( D_ALWAYS,
 				 "ERROR: controllee different me='%s' other='%s'\n",
-				 m_controlleeName, buf);
+				 m_controlleeName, buf.Value() );
 		return FALSE;
 	}
 
-	if ( !ad.LookupString( ATTR_HAD_LIST, buf, sizeof(buf) ) ) {
+	if ( !ad.LookupString( ATTR_HAD_LIST, buf ) ) {
 		dprintf( D_ALWAYS,
 				 "commandHandler ERROR: HADLlist not in ad received\n" );
 		return FALSE;
 	}
-	StringList	had_ips( buf );
+	StringList	had_ips( buf.Value() );
 	if ( ! m_allHadIps.identical( had_ips ) ) {
 		char	*cur_str = m_allHadIps.print_to_string( );
 		dprintf( D_ALWAYS,
 				 "commandHandler: WARNING: HAD IP list different!\n"
 				 "\tme='%s'\n"
 				 "\tother='%s'\n",
-				 cur_str ? cur_str : "NULL", buf );
+				 cur_str ? cur_str : "NULL", buf.Value() );
 		if ( cur_str ) {
 			free( cur_str );
 		}

@@ -23,10 +23,15 @@
 #include <list>
 using namespace std;
 
+#include "condor_classad.h"
 #include "Utils.h"
-#include "ReplicatorFileVersion.h"
+#include "ReplicatorFileReplica.h"
 #include "ReplicatorTransferer.h"
 
+// Pre-declare the peer classes
+class ReplicatorPeer;
+class ReplicatorPeerList;
+class ReplicatorFileBase;
 
 /* Class      : ReplicatorDownloader
  * Description: class, representing a file that's versioned and replicated
@@ -34,83 +39,174 @@ using namespace std;
 class ReplicatorDownloader : public ReplicatorTransferer
 {
   public:
-	ReplicatorDownloader( ReplicatorFile &file_info )
+	ReplicatorDownloader( ReplicatorFileBase &file_info )
 		: m_fileInfo( file_info ) {
 	};
 	~ReplicatorDownloader( void ) { };
-	ReplicatorFile &getFileInfo( void ) {
+	ReplicatorFileBase &getFileInfo( void ) {
 		return m_fileInfo;
 	};
 
   private:
-	ReplicatorFile	&m_fileInfo;
+	ReplicatorFileBase	&m_fileInfo;
 };
 
-/* Class      : ReplicatorFile
- * Description: class, representing a file that's versioned and replicated
+
+/* Class      : ReplicatorFileBase
+ * Description: Base class, representing a file or set of files that are
+ *              versioned and replicated
  */
-class ReplicatorFile
+class ReplicatorFileBase
 {
   public:
-	ReplicatorFile( const char *spool, const char *path );
-	~ReplicatorFile( void );
+	ReplicatorFileBase( const char *spool, const char *path );
+	virtual ~ReplicatorFileBase( void );
 
 	// Comparison operators
-	bool operator == ( const ReplicatorFile &other ) const;
-	bool operator == ( const char *file_path ) const;
+	virtual bool operator == ( const ReplicatorFileBase &other ) const = 0;
 
 	// Accessors
-	const MyString &getFilePath( void ) const {
-		return m_filePath;
-	};
+	virtual const char *getFilePath( void ) const = 0;
 	const MyString &getVersionFilePath( void ) const {
 		return m_versionFilePath;
 	};
 	const ReplicatorFileVersion &getMyVersion( void ) const {
 		return m_myVersion;
 	};
-	ReplicatorDownloader &getDownloader( void ) {
+	ReplicatorDownloader &getDownloader( void ) const {
 		return m_downloader;
 	};
 
-	// Version operators
-	bool findVersion( const char *hostname,
-					  const ReplicatorFileVersion *& ) const;
-	bool hasVersion( const ReplicatorFileVersion & ) const;
-	bool updateVersion( ReplicatorFileVersion & );
+	int numActiveUploads( void ) const;
+	int numActiveDownloads( void ) const {
+		return m_downloader.isActive() ? 1 : 0;
+	};
+
+	// Set the peer list
+	bool setPeers( const ReplicatorPeerList &peers );
+
+	// Register all of my transferers with a transferer list
+	bool registerUploaders( ReplicatorTransfererList &transferers ) const;
+	bool registerDownloaders( ReplicatorTransfererList &transferers ) const;
+
+	// Relica operators
+	bool findReplica( const char *hostname,
+					  const ReplicatorFileReplica *& ) const;
+	bool hasReplica( const ReplicatorFileReplica & ) const;
+	bool addReplica( ReplicatorFileReplica & );
 
 	// Rotate in the downloaded file
-	bool rotateFile( int pid ) const;
 	bool synchronize( bool clock_synced ) {
 		return m_myVersion.synchronize( clock_synced );
 	};
+	virtual bool rotate( int pid ) const = 0;
 
-  private:
-	MyString						 m_filePath;
+	// Send command to a single peer
+	bool sendCommand( int command, bool send_ad,
+					  const ReplicatorPeer &, int &errors );
+
+	// Send command to all peers
+	bool sendCommand( int command, bool send_ad, int &errors );
+
+	// The a string representation of the file(s)
+	virtual const char *getFiles( void ) const = 0;
+
+  protected:
+	bool sendCommand( int command, const ClassAd *ad,
+					  ReplicatorPeer &peer, int &errors );
+	bool rotateFile( int pid, const char *file ) const;
+
+  protected:
 	MyString						 m_versionFilePath;
 	ReplicatorFileVersion			 m_myVersion;
-	list<ReplicatorFileVersion *>	 m_versionList;
+	list<ReplicatorFileReplica *>	 m_replicaList;
+	ClassAd							 m_classAd;
 
 	// process ids of uploading/downloading 'condor_transferer' processes for
 	// monitoring and handling the problem of stuck transferer processes and
     // starting times of uploading/downloading 'condor_transferer' processes
 	// for handling the problem of stuck transferer processes
-	mutable ReplicatorDownloader			 m_downloader;
+	mutable ReplicatorDownloader	 m_downloader;
 
-};
+};	/* class ReplicatorFileBase */
 
-class ReplicatorFileList
+
+/* Class      : ReplicatorFile
+ * Description: class, representing a single file that is
+ *              versioned and replicated
+ */
+class ReplicatorFile : public ReplicatorFileBase
 {
   public:
-	ReplicatorFileList( void );
-	~ReplicatorFileList( void );
+	ReplicatorFile( const char *spool, const char *file );
+	~ReplicatorFile( void );
 
-	bool registerFile( ReplicatorFile * );
-	bool hasFile( const ReplicatorFile * ) const;
-	bool findFile( const char *path, ReplicatorFile ** );
+	// Comparison operators
+	bool operator == ( const ReplicatorFileBase &other ) const;
+	bool operator == ( const ReplicatorFile &other ) const {
+		return ( *this == other.getFilePath() );
+	};
+	bool operator == ( const char *file_path ) const {
+		return ( m_filePath == file_path );
+	};
+
+	// Accessors
+	const char *getFilePath( void ) const {
+		return m_filePath.Value();
+	};
+
+	// Rotate in the downloaded file
+	bool rotate( int pid ) const;
+	bool rotateFile( int pid ) const;
+
+	const char *getFiles( void ) const {
+		return m_filePath.Value();
+	};
+
+  protected:
+	MyString	m_filePath;
+
+};	/* class ReplicatorFile */
+
+
+/* Class      : ReplicatorFileSet
+ * Description: class, representing a set of file that are
+ *              versioned and replicated as a set
+ */
+class ReplicatorFileSet : public ReplicatorFileBase
+{
+  public:
+	ReplicatorFileSet( const char *spool, StringList *files );
+	~ReplicatorFileSet( void );
+
+	bool rotate( int pid ) const;
+
+	// Comparison operators
+	bool operator == ( const ReplicatorFileBase &other ) const;
+	bool operator == ( const ReplicatorFileSet &other ) const {
+		return ( *this == other.getFileList() );
+	};
+	bool operator == ( StringList &other ) const {
+		return m_fileList->similar( other );
+	};
+
+	// Accessors
+	const char *getFilePath( void ) const {
+		return m_fileList->first();
+	};
+	StringList &getFileList( void ) const {
+		return *m_fileList;
+	};
+
+	const char *getFiles( void ) const {
+		return m_fileListStr;
+	};
 
   private:
-	list<ReplicatorFile *>		 m_fileList;
-};
+	mutable StringList	*m_fileList;
+	char				*m_fileListStr;
+
+};	/* class ReplilcatorFileSet */
+
 
 #endif // REPLICATION_FILE_H

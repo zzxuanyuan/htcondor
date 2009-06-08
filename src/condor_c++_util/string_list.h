@@ -55,14 +55,15 @@ public:
 	void append (const char* str) { strings.Append( strdup(str) ); }
 	void insert (const char* str) { strings.Insert( strdup(str) ); }
 	void remove (const char* str);
-	void clearAll();
+	void clearAll(void);
 	void remove_anycase (const char* str);
-	char *next (void) { return strings.Next(); }
-	void deleteCurrent();
+	char *next (void) { return strings.Next(); };
+	char *first (void) { rewind(); return next(); };
+	void deleteCurrent(void);
 	int number (void) const { return strings.Number(); };
 	bool isEmpty(void) const { return strings.IsEmpty(); };
-	void qsort();
-	void shuffle();
+	void qsort(void);
+	void shuffle(void);
 
 	/** Add all members of a given stringlist into the current list, 
 		avoiding any duplicates.

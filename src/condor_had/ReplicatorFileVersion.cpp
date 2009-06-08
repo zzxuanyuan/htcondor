@@ -31,7 +31,7 @@
 #include "FilesOperations.h"
 #include "condor_fix_fstream.h"
 
-time_t ReplicatorFileVersion::m_lastModifiedTime = -1;
+time_t ReplicatorFileReplica::m_lastModifiedTime = -1;
 
 static void
 createFile(const MyString& filePath)
@@ -43,39 +43,14 @@ createFile(const MyString& filePath)
     }
 }
 
-// ==== ReplicatorFileVersionProcessData methods ====
-const ReplicatorFile &
-ReplicatorFileVersionProcessData::getFileInfo( void ) const
-{
-	return m_versionInfo.getFileInfo( );
-}
-
-
-// ==== ReplicatorFileVersion methods ====
-#if 0
-ReplicatorFileVersion::ReplicatorFileVersion( void )
-		: m_fileInfo( NULL ),
-		  m_gid( 0 ),
-		  m_logicalClock( 0 ),
-		  m_state( VERSION_REQUESTING ),
-		  m_isPrimary( FALSE )
-{
-}
-#endif
-
-ReplicatorFileVersion::ReplicatorFileVersion( const ReplicatorFile &file,
-											  const ReplicatorPeer &peer )
+ReplicatorFileVersion::ReplicatorFileVersion( const ReplicatorFile &file ) 
 		: m_fileInfo( file ),
-		  m_peerInfo( peer ),
-		  m_uploadProcessData( *this ),
 		  m_gid( 0 ),
-		  m_logicalClock( 0 ),
-		  m_state( VERSION_REQUESTING ),
-		  m_isPrimary( FALSE )
+		  m_logicalClock( 0 )
 {
 }
 
-void
+bool
 ReplicatorFileVersion::initialize( const ReplicatorFile &file )
 {
 	ASSERT( (NULL == m_fileInfo) || (*m_fileInfo != file)  );
@@ -84,144 +59,77 @@ ReplicatorFileVersion::initialize( const ReplicatorFile &file )
 	m_stateFilePath    = pStateFilePath;
 	m_versionFilePath  = pVersionFilePath;
     
-    if( ! load( ) ) {
-        save( );
+    if( ! readVersionFile( ) ) {
+        writeVersionFile( );
     }
     synchronize( false );
-
-    m_mySinfulString = daemonCore->InfoCommandSinfulString( );
+	return true;
 }
 
 bool
 ReplicatorFileVersion::synchronize(bool isLogicalClockIncremented)
 {
 	REPLICATION_ASSERT(m_stateFilePath != "" && m_versionFilePath != "");
-    dprintf( D_ALWAYS, "Version::synchronize started "
-			"(is logical clock incremented = %d)\n",
-             int( isLogicalClockIncremented ) );
-    load( );        
+    dprintf( D_ALWAYS, "::synchronize() started "
+			"(is logical clock incremented = %s)\n",
+             isLogicalClockIncremented ? "True" : "False" );
+    readVersionFile( );        
     createFile( m_stateFilePath );
 
     StatWrapper statWrapper( m_stateFilePath );
     
-	const StatStructType* status      = statWrapper.GetBuf( );
-    time_t                currentTime = time( NULL );
+	const StatStructType* status = statWrapper.GetBuf( );
+    time_t                now = time( NULL );
+
     // to contain the time strings produced by 'ctime_r' function, which is
     // reentrant unlike 'ctime' one
-	//char                  timeBuffer[BUFSIZ];
 	MyString lastKnownModifiedTimeString = ctime( &m_lastModifiedTime );
-	MyString lastModifiedTimeString      = ctime( &status->st_mtime );
-	MyString currentTimeString           = ctime( &currentTime );
+	lastKnownModifiedTimeString.chomp();
+
+	MyString lastModifiedTimeString = ctime( &status->st_mtime );
+	lastModifiedTimeString.chomp();
+
+	MyString nowStr = ctime( &now );
+	nowStr.chomp();
+
     // retrieving access status information
     dprintf( D_FULLDEBUG,
-                    "ReplicatorFileVersion::synchronize %s "
-                    "before setting last mod. time:\n"
-                    "last known mod. time - %sactual mod. time - %s"
-                    "current time - %s",
-               m_stateFilePath.Value( ),
-               //ctime_r( &m_lastModifiedTime, timeBuffer ),
-               //ctime_r( &status->st_mtime, timeBuffer + BUFSIZ / 3 ),
-               //ctime_r( &currentTime, timeBuffer + 2 * BUFSIZ / 3 ) );
-			   lastKnownModifiedTimeString.Value( ),
-			   lastModifiedTimeString.Value( ),
-			   currentTimeString.Value( ) );
+			 "::synchronize(): %s before setting last mod. time:\n"
+			 "  last known mod. time - %s\n"
+			 "  actual mod. time - %s\n"
+			 "  current time - %s\n",
+			 m_stateFilePath.Value( ),
+			 lastKnownModifiedTimeString.Value( ),
+			 lastModifiedTimeString.Value( ),
+			 currentTimeString.Value( ) );
+
     // updating the version: by modification time of the underlying file
     // and incrementing the logical version number
     if( m_lastModifiedTime >= status->st_mtime ) {
         return false;
     }
-    dprintf( D_FULLDEBUG, "ReplicatorFileVersion::synchronize "
-                          "setting version last modified time\n" );
+    dprintf( D_FULLDEBUG,
+			 "::synchronize(): setting version last modified time\n" );
     m_lastModifiedTime = status->st_mtime;
     
-    if( isLogicalClockIncremented && m_logicalClock < INT_MAX ) {
+    if( isLogicalClockIncremented && (m_logicalClock < INT_MAX) ) {
 		m_logicalClock ++;
-        save( );
+        return writeVersionFile( );
+    } 
 
-        return true;
-    } else if ( isLogicalClockIncremented /*&& m_logicalClock == INT_MAX*/ ) {
+	if ( isLogicalClockIncremented ) {
 		// to be on a sure side, when the maximal logical clock value is
 		// reached, we terminate the replication daemon
-		utilCrucialError( "ReplicatorFileVersion::synchronize reached "
-						  "maximal logical clock value\n" );
+		utilCrucialError( "::synchronize(): "
+						  "reached maximal logical clock value\n" );
 	}
 
     return false;
 }
 
 bool
-ReplicatorFileVersion::code( ReliSock& socket )
-{
-    dprintf( D_ALWAYS, "ReplicatorFileVersion::code started\n" );
-    socket.encode( );
-
-    char* temporarySinfulString = const_cast<char*>( m_sinfulString.Value() );
-   	int isPrimaryAsInteger      = int( m_isPrimary );
-   
-    if( !socket.code( m_gid )          /*|| ! socket.eom( )*/ ||
-        !socket.code( m_logicalClock ) /*|| ! socket.eom( )*/ ||
-        !socket.code( temporarySinfulString ) /*|| ! socket.eom( )*/ || 
-		!socket.code( isPrimaryAsInteger ) ) {
-        dprintf( D_NETWORK, "ReplicatorFileVersion::code "
-                            "unable to code the version\n");
-        return false;
-    }
-    return true;
-}
-
-bool
-ReplicatorFileVersion::decode( Stream* stream )
-{
-    dprintf( D_ALWAYS, "ReplicatorFileVersion::decode started\n" );
-    
-    int   temporaryGid          = -1;
-    int   temporaryLogicalClock = -1;
-    char* temporarySinfulString = 0;
-	int  temporaryIsPrimary     = 0;
-
-    stream->decode( );
-
-    if( ! stream->code( temporaryGid ) ) {
-        dprintf( D_NETWORK, "ReplicatorFileVersion::decode "
-                            "unable to decode the gid\n" );
-        return false;
-    }
-    stream->decode( );
-
-    if( ! stream->code( temporaryLogicalClock ) ) {
-        dprintf( D_NETWORK, "ReplicatorFileVersion::decode "
-                            "unable to decode the logical clock\n" );
-        return false;
-    }
-    stream->decode( );
-
-    if( ! stream->code( temporarySinfulString ) ) {
-        dprintf( D_NETWORK, "ReplicatorFileVersion::decode "
-                            "unable to decode the sinful string\n" );
-        return false;
-    }
-	stream->decode( );
-
-	if( ! stream->code( temporaryIsPrimary ) ) {
-        dprintf( D_NETWORK, "ReplicatorFileVersion::decode "
-                            "unable to decode the 'isPrimary' field\n" );
-        return false;
-    }
-
-    m_gid          = temporaryGid;
-    m_logicalClock = temporaryLogicalClock;
-    m_sinfulString = temporarySinfulString;
-	m_isPrimary    = temporaryIsPrimary;
-    dprintf( D_FULLDEBUG, "ReplicatorFileVersion::decode remote version %s\n", 
-			 toString( ).Value( ) );
-    free( temporarySinfulString );
-
-    return true;
-}
-
-bool
 ReplicatorFileVersion::isComparable(
-	const ReplicatorFileVersion& version ) const
+	const ReplicatorFileReplica& version ) const
 {
     return getGid( ) == version.getGid( ) ;//&&
  // strcmp( getSinfulString( ), version.getSinfulString( ) ) == 0;
@@ -229,7 +137,7 @@ ReplicatorFileVersion::isComparable(
 
 bool
 ReplicatorFileVersion::operator > (
-	const ReplicatorFileVersion& version ) const
+	const ReplicatorFileReplica& version ) const
 {
     dprintf( D_FULLDEBUG,
 			 "ReplicatorFileVersion::operator > comparing %s vs. %s\n",
@@ -248,79 +156,45 @@ ReplicatorFileVersion::operator > (
 
 bool
 ReplicatorFileVersion::operator >= (
-	const ReplicatorFileVersion& version) const
+	const ReplicatorFileReplica& version) const
 {
     dprintf( D_FULLDEBUG, "ReplicatorFileVersion::operator >= started\n" );
     return ! ( version > *this);
 }
 
-MyString
-ReplicatorFileVersion::toString( ) const
+MyString &
+ReplicatorFileVersion::toString( MyString &str ) const
 {
-    MyString versionAsString = "logicalClock = ";
+    str = "logicalClock = ";
 
-    versionAsString += m_logicalClock;
-    versionAsString += ", gid = ";
-    versionAsString += m_gid;
-    versionAsString += ", belongs to ";
-    versionAsString += m_sinfulString;
+    str += m_logicalClock;
+    str += ", gid = ";
+    str += m_gid;
+    str += ", belongs to ";
+    str += m_sinfulString;
     
-    return versionAsString;
+    return str;
 }
 
-/* Function    : load
+/* Function    : readVersionFile
  * Return value: bool - success/failure value
- * Description : loads ReplicatorFileVersion components from the underlying OS file
+ * Description : loads ReplicatorFileReplica components from the underlying
+ *				 OS file
  *				 to the appropriate object data members
  * Note        : the function is like public 'load' with one only difference - 
  *				 it changes the state of the object itself
  */
 bool
-ReplicatorFileVersion::load( void )
+ReplicatorFileVersion::readVersionFile( void )
 {
-    dprintf( D_ALWAYS, "ReplicatorFileVersion::load of %s started\n", 
+    dprintf( D_ALWAYS,
+			 "::readVersionFile(): Reading from %s\n",
 			 m_versionFilePath.Value( ) );
-
-# if 0
-    char     buffer[BUFSIZ];
-    ifstream versionFile( m_versionFilePath.Value( ) );
-
-    if( ! versionFile.is_open( ) ) {
-        dprintf( D_FAILURE, "ReplicatorFileVersion::load unable to open %s\n",
-                 m_versionFilePath.Value( ) );
-        return false;
-    }
-  // read gid
-    if( versionFile.eof( ) ) {
-        dprintf( D_FAILURE, "ReplicatorFileVersion::load %s format is corrupted, "
-                            "nothing appears inside it\n", 
-				 m_versionFilePath.Value( ) );
-        return false;
-    }
-    versionFile.getline( buffer, BUFSIZ );
-
-    int temporaryGid = atol( buffer );
-
-    dprintf( D_FULLDEBUG, "ReplicatorFileVersion::load gid = %d\n", temporaryGid );
-  // read version
-    if( versionFile.eof( ) ) {
-        dprintf( D_FAILURE, "ReplicatorFileVersion::load %s format is corrupted, "
-                			"only gid appears inside it\n", 
-				 m_versionFilePath.Value( ) );
-        return false;
-    }
-
-    versionFile.getline( buffer, BUFSIZ );
-    int temporaryLogicalClock = atol( buffer );
-
-    dprintf( D_FULLDEBUG, "ReplicatorFileVersion::load version = %d\n", 
-			 temporaryLogicalClock );
-# endif
 
 	int temporaryGid = -1;
 	int temporaryLogicalClock = -1;
     
-	if( ! load( temporaryGid, temporaryLogicalClock ) ) {
+	if( ! readVersionFile( temporaryGid, temporaryLogicalClock ) ) {
 		return false;
 	}
 	
@@ -331,20 +205,24 @@ ReplicatorFileVersion::load( void )
 }
 
 bool
-ReplicatorFileVersion::load( int& temporaryGid, int& temporaryLogicalClock ) const
+ReplicatorFileVersion::readVersionFile(
+	int		&temporaryGid,
+	int		&temporaryLogicalClock ) const
 {
     char     buffer[BUFSIZ];
     ifstream versionFile( m_versionFilePath.Value( ) );
 
     if( ! versionFile.is_open( ) ) {
-        dprintf( D_FAILURE, "ReplicatorFileVersion::load unable to open %s\n",
-                 m_versionFilePath.Value( ) );
+        dprintf( D_FAILURE,
+				 "::readVersionFile(): unable to open %s\n",
+				 m_versionFilePath.Value( ) );
         return false;
     }
     // read gid
     if( versionFile.eof( ) ) {
-        dprintf( D_FAILURE, "ReplicatorFileVersion::load %s format is corrupted, "
-                            "nothing appears inside it\n",
+        dprintf( D_FAILURE,
+				 "::readVersionFile():"
+				 " %s format is corrupted, nothing appears inside it\n",
                  m_versionFilePath.Value( ) );
         return false;
     }
@@ -352,33 +230,37 @@ ReplicatorFileVersion::load( int& temporaryGid, int& temporaryLogicalClock ) con
 
     temporaryGid = atol( buffer );
 
-    dprintf( D_FULLDEBUG, "ReplicatorFileVersion::load gid = %d\n", temporaryGid );
+    dprintf( D_FULLDEBUG, "::readVersionFile(): gid = %d\n", temporaryGid );
     // read version
     if( versionFile.eof( ) ) {
-        dprintf( D_FAILURE, "ReplicatorFileVersion::load %s format is corrupted, "
-                            "only gid appears inside it\n",
+        dprintf( D_FAILURE,
+				 "::readVersionFile(): "
+				 "%s format is corrupted, only gid appears inside it\n",
                  m_versionFilePath.Value( ) );
         return false;
     }
     versionFile.getline( buffer, BUFSIZ );
     temporaryLogicalClock = atol( buffer );
 
-    dprintf( D_FULLDEBUG, "ReplicatorFileVersion::load version = %d\n",
+    dprintf( D_FULLDEBUG,
+			 "::readVersionFile(): version = %d\n",
              temporaryLogicalClock );
     REPLICATION_ASSERT(temporaryGid >= 0 && temporaryLogicalClock >= 0);
 
 	return true;
 }
 
-/* Function   : save
- * Description: saves the Version object components to the underlying OS file
+/* Function   : writeVersionFile
+ * Description: writes the replica object components to the underlying OS file
  */
-void
-ReplicatorFileVersion::save( )
+bool
+ReplicatorFileVersion::writeVersionFile( )
 {
-    dprintf( D_ALWAYS, "ReplicatorFileVersion::save started\n" );
+    dprintf( D_ALWAYS, "::writeVersionFile(): started\n" );
 
     ofstream versionFile( m_versionFilePath.Value( ) );
 
     versionFile << m_gid << endl << m_logicalClock;
+
+	return true;
 }

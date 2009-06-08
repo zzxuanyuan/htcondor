@@ -37,7 +37,8 @@
 #define LICENSE_ADTYPE			"License"
 #define STORAGE_ADTYPE			"Storage"
 #define NEGOTIATOR_ADTYPE		"Negotiator"
-#define HAD_ADTYPE			"HAD"
+#define HAD_ADTYPE				"HAD"
+#define REPLICATOR_ADTYPE		"HAReplicator"
 #define XFER_SERVICE_ADTYPE		"XferService"
 #define LEASE_MANAGER_ADTYPE		"LeaseManager"
 #define CREDD_ADTYPE			"CredD"
@@ -78,6 +79,7 @@ enum AdTypes
 	GRID_AD,
 	XFER_SERVICE_AD,
 	LEASE_MANAGER_AD,
+	REPLICATOR_AD,
 	// This should *ALWAYS* be at the end of this list
 	NUM_AD_TYPES,
 };
