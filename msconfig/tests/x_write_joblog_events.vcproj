@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="x_write_joblog_events"
 	ProjectGUID="{39895CF7-F5D9-424A-8700-742299E0CB8B}"
+	RootNamespace="x_write_joblog_events"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -114,6 +115,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
+				AdditionalIncludeDirectories="../../src/condor_c++_util;../../src/condor_includes"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"

@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="x_read_joblog"
 	ProjectGUID="{2A1924AB-2548-4F60-A855-FBD7CD646791}"
+	RootNamespace="x_read_joblog"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -115,6 +116,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
+				AdditionalIncludeDirectories="../../src/condor_c++_util;../../src/condor_includes"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"

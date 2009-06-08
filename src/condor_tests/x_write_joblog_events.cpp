@@ -22,9 +22,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#endif
+#include "condor_common.h"
 #include "write_user_log.h"
 #include <sys/types.h>
 

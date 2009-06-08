@@ -17,15 +17,19 @@
  *
  ***************************************************************/
 
-
+#include "condor_common.h"
+#ifdef WIN32
+#define open _open
+#else
 #include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <fcntl.h>
 #include <errno.h>
 /*
@@ -35,7 +39,7 @@
 
 struct rusage myrusage;
 
-FILE* OUT = NULL;
+//FILE* OUT = NULL;
 char *output;
 int slowexit = 0;
 

@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="x_tightloop"
 	ProjectGUID="{8B8042C8-2016-49AD-9A11-ADB9ED11DA0D}"
+	RootNamespace="x_tightloop"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
 	>
@@ -114,6 +115,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
+				AdditionalIncludeDirectories="../../src/condor_c++_util;../../src/condor_includes"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"

@@ -22,9 +22,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#endif
+#include "condor_common.h"
 #include "write_user_log.h"
 #include <sys/types.h>
 
@@ -33,7 +36,7 @@ struct hostent *NameEnt;
 **#define NUL       "\0";
 */
 
-UserLog log("owner", NULL, "local.log", 0, 0, 0, (bool)0, NULL);
+UserLog userLog("owner", NULL, "local.log", 0, 0, 0, (bool)0, NULL);
 
 int writeSubmitEvent();
 int writeRemoteErrorEvent();
@@ -90,7 +93,7 @@ int writeSubmitEvent()
 	strcpy(submit.submitHost, "<128.105.165.12:32779>");
 	submit.submitEventLogNotes = strdup("DAGMan info");
 	submit.submitEventUserNotes = strdup("User info");
-	if ( !log.writeEvent(&submit) ) {
+	if ( !userLog.writeEvent(&submit) ) {
 		printf("Complain about bad submit write\n");
 		exit(1);
 	}
@@ -101,7 +104,7 @@ int writeExecuteEvent()
 {
 	ExecuteEvent execute;
 	strcpy(execute.executeHost, "<128.105.165.12:32779>");
-	if ( !log.writeEvent(&execute) ) {
+	if ( !userLog.writeEvent(&execute) ) {
 		printf("Complain about bad execute write\n");
 		exit(1);
 	}
@@ -112,7 +115,7 @@ int writeExecutableErrorEvent()
 {
 	ExecutableErrorEvent executeerror;
 	executeerror.errType = CONDOR_EVENT_BAD_LINK;
-	if ( !log.writeEvent(&executeerror) ) {
+	if ( !userLog.writeEvent(&executeerror) ) {
 		printf("Complain about bad executeerror write\n");
 		exit(1);
 	}
@@ -122,7 +125,7 @@ int writeExecutableErrorEvent()
 int writeCheckpointedEvent()
 {
 	CheckpointedEvent checkpoint;
-	if ( !log.writeEvent(&checkpoint) ) {
+	if ( !userLog.writeEvent(&checkpoint) ) {
 		printf("Complain about bad checkpoint write\n");
 		exit(1);
 	}
@@ -136,7 +139,7 @@ int writeRemoteErrorEvent()
 	remoteerror.setDaemonName("<write job log test>");
 	remoteerror.setErrorText("this is the write test error string");
 	remoteerror.setCriticalError(true);
-	if ( !log.writeEvent(&remoteerror) ) {
+	if ( !userLog.writeEvent(&remoteerror) ) {
 	        printf("Complain about bad remoteerror write\n");
 			exit(1);
 	}
@@ -147,7 +150,7 @@ int writeJobAbortedEvent()
 {
 	JobAbortedEvent jobabort;
 	jobabort.setReason("cause I said so!");
-	if ( !log.writeEvent(&jobabort) ) {
+	if ( !userLog.writeEvent(&jobabort) ) {
 	        printf("Complain about bad jobabort write\n");
 			exit(1);
 	}
@@ -159,7 +162,7 @@ int writeJobEvictedEvent()
 	JobEvictedEvent jobevicted;
 	jobevicted.setReason("It misbehaved!");
 	jobevicted.setCoreFile("corefile");
-	if ( !log.writeEvent(&jobevicted) ) {
+	if ( !userLog.writeEvent(&jobevicted) ) {
 	        printf("Complain about bad jobevicted write\n");
 			exit(1);
 	}
@@ -181,7 +184,7 @@ int writeJobTerminatedEvent()
 	jobterminated.total_recvd_bytes = 800000;
 	jobterminated.total_sent_bytes = 900000;
 	jobterminated.setCoreFile( "badfilecore" );
-	if ( !log.writeEvent(&jobterminated) ) {
+	if ( !userLog.writeEvent(&jobterminated) ) {
 	        printf("Complain about bad jobterminated write\n");
 			exit(1);
 	}
@@ -204,7 +207,7 @@ int writeNodeTerminatedEvent()
 	nodeterminated.total_recvd_bytes = 800000;
 	nodeterminated.total_sent_bytes = 900000;
 	nodeterminated.setCoreFile( "badfilecore" );
-	if ( !log.writeEvent(&nodeterminated) ) {
+	if ( !userLog.writeEvent(&nodeterminated) ) {
 	        printf("Complain about bad nodeterminated write\n");
 			exit(1);
 	}
@@ -217,7 +220,7 @@ int writePostScriptTerminatedEvent()
 	postscriptterminated.normal = false;
 	postscriptterminated.signalNumber = 9;
 	postscriptterminated.returnValue = 4;
-	if ( !log.writeEvent(&postscriptterminated) ) {
+	if ( !userLog.writeEvent(&postscriptterminated) ) {
 	        printf("Complain about bad postscriptterminated write\n");
 			exit(1);
 	}
@@ -230,7 +233,7 @@ int writeGlobusSubmitEvent()
 	globussubmitevent.rmContact = strdup("ResourceManager");;
 	globussubmitevent.jmContact = strdup("JobManager");;
 	globussubmitevent.restartableJM = true;
-	if ( !log.writeEvent(&globussubmitevent) ) {
+	if ( !userLog.writeEvent(&globussubmitevent) ) {
 	        printf("Complain about bad globussubmitevent write\n");
 			exit(1);
 	}
@@ -241,7 +244,7 @@ int writeGlobusSubmitFailedEvent()
 {
 	GlobusSubmitFailedEvent globussubmitfailedevent;
 	globussubmitfailedevent.reason = strdup("Cause it could");;
-	if ( !log.writeEvent(&globussubmitfailedevent) ) {
+	if ( !userLog.writeEvent(&globussubmitfailedevent) ) {
 	        printf("Complain about bad globussubmitfailedevent write\n");
 			exit(1);
 	}
@@ -252,7 +255,7 @@ int writeGlobusResourceUpEvent()
 {
 	GlobusResourceUpEvent globusresourceupevent;
 	globusresourceupevent.rmContact = strdup("ResourceUp");;
-	if ( !log.writeEvent(&globusresourceupevent) ) {
+	if ( !userLog.writeEvent(&globusresourceupevent) ) {
 	        printf("Complain about bad globusresourceupevent write\n");
 			exit(1);
 	}
@@ -263,7 +266,7 @@ int writeGlobusResourceDownEvent()
 {
 	GlobusResourceDownEvent globusresourcedownevent;
 	globusresourcedownevent.rmContact = strdup("ResourceDown");;
-	if ( !log.writeEvent(&globusresourcedownevent) ) {
+	if ( !userLog.writeEvent(&globusresourcedownevent) ) {
 	        printf("Complain about bad globusresourcedownevent write\n");
 			exit(1);
 	}
@@ -274,7 +277,7 @@ int writeJobImageSizeEvent()
 {
 	JobImageSizeEvent jobimagesizeevent;
 	jobimagesizeevent.size = 128;
-	if ( !log.writeEvent(&jobimagesizeevent) ) {
+	if ( !userLog.writeEvent(&jobimagesizeevent) ) {
 		printf("Complain about bad jobimagesizeevent write\n");
 		exit(1);
 	}
@@ -289,7 +292,7 @@ int writeShadowExceptionEvent()
 	shadowexceptionevent.recvd_bytes = 4096;
 	shadowexceptionevent.message[0] = '\0';
 	strncat(shadowexceptionevent.message,"shadow message", 15);
-	if ( !log.writeEvent(&shadowexceptionevent) ) {
+	if ( !userLog.writeEvent(&shadowexceptionevent) ) {
 		printf("Complain about bad shadowexceptionevent write\n");
 		exit(1);
 	}
@@ -301,7 +304,7 @@ int writeJobSuspendedEvent()
 {
 	JobSuspendedEvent jobsuspendevent;
 	jobsuspendevent.num_pids = 99;
-	if ( !log.writeEvent(&jobsuspendevent) ) {
+	if ( !userLog.writeEvent(&jobsuspendevent) ) {
 		printf("Complain about bad jobsuspendevent write\n");
 		exit(1);
 	}
@@ -312,7 +315,7 @@ int writeJobUnsuspendedEvent()
 {
 	JobUnsuspendedEvent jobunsuspendevent;
 	//jobunsuspendevent.num_pids = 99;
-	if ( !log.writeEvent(&jobunsuspendevent) ) {
+	if ( !userLog.writeEvent(&jobunsuspendevent) ) {
 		printf("Complain about bad jobunsuspendevent write\n");
 		exit(1);
 	}
@@ -325,7 +328,7 @@ int writeJobHeldEvent()
 	jobheldevent.setReason("CauseWeCan");
 	jobheldevent.setReasonCode(404);
 	jobheldevent.setReasonSubCode(0xff);
-	if ( !log.writeEvent(&jobheldevent) ) {
+	if ( !userLog.writeEvent(&jobheldevent) ) {
 		printf("Complain about bad jobheldevent write\n");
 		exit(1);
 	}
@@ -336,7 +339,7 @@ int writeJobReleasedEvent()
 {
 	JobReleasedEvent jobreleasedevent;
 	jobreleasedevent.setReason("MessinWithYou");
-	if ( !log.writeEvent(&jobreleasedevent) ) {
+	if ( !userLog.writeEvent(&jobreleasedevent) ) {
 		printf("Complain about bad jobreleasedevent write\n");
 		exit(1);
 	}
@@ -349,7 +352,7 @@ int writeNodeExecuteEvent()
 	nodeexecuteevent.node = 49;
 	nodeexecuteevent.executeHost[0] = '\0';
 	strcat(nodeexecuteevent.executeHost,"<128.105.165.12:32779>");
-	if ( !log.writeEvent(&nodeexecuteevent) ) {
+	if ( !userLog.writeEvent(&nodeexecuteevent) ) {
 		printf("Complain about bad nodeexecuteevent write\n");
 		exit(1);
 	}
