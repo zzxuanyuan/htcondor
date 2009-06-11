@@ -22,6 +22,11 @@
 #include <string.h>
 #include "chirp_client.h"
 
+#ifdef WIN32
+#include <Windows.h>
+#define sleep Sleep
+#endif
+
 #define		REMDIR			"job_chirp_io_mkdir"
 #define 	TSTMSG			"Testing message"
 #define 	SRCFILE			"job_chirp_io.txtdata"
