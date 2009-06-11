@@ -20,20 +20,24 @@
 #include "condor_daemon_core.h"
 #include "condor_config.h"
 #include "basename.h"
+#include "stat_wrapper.h"
 
 #include "ReplicatorFile.h"
 #include "ReplicatorFileReplica.h"
+#include "FilesOperations.h"
 
 using namespace std;
 
-// === ReplicatorFileBase methods ===
+
+// ==========================================
+// === Replicator File Base class methods ===
+// ==========================================
 
 // C-Tors / D-Tors
 ReplicatorFileBase::ReplicatorFileBase( const char *spool, const char *path )
-		: m_filePath( path ),
-		  m_versionFilePath( "" ),
+		: m_versionFilePath( "" ),
 		  m_myVersion( *this ),
-		  m_downloadProcessData( *this )
+		  m_downloader( *this )
 {
 	m_versionFilePath  = spool;
 	m_versionFilePath += "/_Version.";
@@ -42,7 +46,18 @@ ReplicatorFileBase::ReplicatorFileBase( const char *spool, const char *path )
     m_classAd.SetMyTypeName( REPLICATOR_ADTYPE );
     m_classAd.SetTargetTypeName( "" );
 
-	m_classAd.Assign( );
+	//m_classAd.Assign( );
+}
+
+ReplicatorFileBase::ReplicatorFileBase( const char * /*path*/ )
+		: m_versionFilePath( "" ),
+		  m_myVersion( *this ),
+		  m_downloader( *this )
+{
+    m_classAd.SetMyTypeName( REPLICATOR_ADTYPE );
+    m_classAd.SetTargetTypeName( "" );
+
+	//m_classAd.Assign( );
 }
 
 ReplicatorFileBase::~ReplicatorFileBase( void )
@@ -52,9 +67,9 @@ ReplicatorFileBase::~ReplicatorFileBase( void )
 bool
 ReplicatorFileBase::setPeers( const ReplicatorPeerList &peers )
 {
-	list <const ReplicatorPeer *>::const_iterator iter;
-	for( iter = peers.getPeers().begin();
-		 iter != peers.getPeers().end();
+	list <ReplicatorPeer *>::const_iterator iter;
+	for( iter = peers.getPeersConst().begin();
+		 iter != peers.getPeersConst().end();
 		 iter++ ) {
 		const ReplicatorPeer	*peer = *iter;
 		ReplicatorFileReplica	*replica =
@@ -66,11 +81,11 @@ ReplicatorFileBase::setPeers( const ReplicatorPeerList &peers )
 
 bool
 ReplicatorFileBase::registerUploaders(
-	ReplicatorTransferList &transferers ) const
+	ReplicatorTransfererList &transferers ) const
 {
 	bool	status = true;
-	list <const ReplicatorFileReplica *>::const_iterator iter;
-	for( iter = m_replicaList.begin(); iter != m_replicaList.end();  iter++ ){
+	list <ReplicatorFileReplica *>::const_iterator iter;
+	for( iter = m_replicaList.begin(); iter != m_replicaList.end(); iter++ ) {
 		const ReplicatorFileReplica *replica = *iter;
 		if ( !replica->registerUploaders(transferers) ) {
 			status = false;
@@ -81,7 +96,7 @@ ReplicatorFileBase::registerUploaders(
 
 bool
 ReplicatorFileBase::registerDownloaders(
-	ReplicatorTransferList &transferers ) const
+	ReplicatorTransfererList &transferers ) const
 {
 	return transferers.Register( m_downloader );
 }
@@ -93,7 +108,7 @@ ReplicatorFileBase::numActiveUploads( void ) const
 	list <ReplicatorFileReplica *>::const_iterator iter;
 	for( iter = m_replicaList.begin(); iter != m_replicaList.end(); iter++ ) {
 		const ReplicatorFileReplica	*replica = *iter;
-		if ( replica->getDownloader.isActive() ) {
+		if ( replica->getUploader().isActive() ) {
 			num++;
 		}
 	}
@@ -102,8 +117,8 @@ ReplicatorFileBase::numActiveUploads( void ) const
 
 // Replica object operators
 bool
-ReplicatorFileBase::findVersion( const char *hostname,
-								 const ReplicatorFileVersion *&result ) const
+ReplicatorFileBase::findReplica( const char *hostname,
+								 const ReplicatorFileReplica *&result ) const
 {
 	list <ReplicatorFileReplica *>::const_iterator iter;
 	for( iter = m_replicaList.begin(); iter != m_replicaList.end(); iter++ ) {
@@ -117,12 +132,12 @@ ReplicatorFileBase::findVersion( const char *hostname,
 }
 
 bool
-ReplicatorFile::hasVersion( const ReplicatorFileVersion &version ) const
+ReplicatorFileBase::hasReplica( const ReplicatorFileReplica &replica ) const
 {
 	list <ReplicatorFileReplica *>::const_iterator iter;
 	for( iter = m_replicaList.begin(); iter != m_replicaList.end(); iter++ ) {
-		const ReplicatorFileReplica	*replica = *iter;
-		if ( replica->isSameHost( version ) ) {
+		const ReplicatorFileReplica	*tmp = *iter;
+		if ( tmp->isSameHost( replica ) ) {
 			return true;
 		}
 	}
@@ -130,13 +145,13 @@ ReplicatorFile::hasVersion( const ReplicatorFileVersion &version ) const
 }
 
 bool
-ReplicatorFile::updateVersion ( ReplicatorFileVersion &new_version )
+ReplicatorFileBase::addReplica( ReplicatorFileReplica *new_replica )
 {
 	list <ReplicatorFileReplica *>::iterator iter;
 	ReplicatorFileReplica *replace = NULL;
 	for( iter = m_replicaList.begin(); iter != m_replicaList.end(); iter++ ) {
 		ReplicatorFileReplica	*replica = *iter;
-		if ( replica->isSameHost( new_version ) ) {
+		if ( replica->isSameHost( *new_replica ) ) {
 			replace = replica;
 			break;
 		}
@@ -145,7 +160,7 @@ ReplicatorFile::updateVersion ( ReplicatorFileVersion &new_version )
 		m_replicaList.remove( replace );
 		delete replace;
 	}
-	m_replicaList.push_back( &new_version );
+	m_replicaList.push_back( new_replica );
 	return false;
 }
 
@@ -176,42 +191,54 @@ ReplicatorFile::rotateFile ( int pid ) const
 }
 
 bool
-ReplicatorFileBase::sendCommand(
-	int						 command,
-	bool					 send_ad,
-	const ReplicatorPeer	&peer,
-	int						&total_errors )
+ReplicatorFileBase::getFileMtime( const char *path, time_t &mtime )
 {
-	return sendMessage( command,
-						send_ad ? m_classAd : NULL,
-						peer,
-						total_errors );
+	StatWrapper	swrap;
+	if ( swrap.Stat(path) ) {
+		return false;
+	}
+	StatStructType	data;
+	if ( swrap.GetBuf(data) ) {
+		return false;
+	}
+	mtime = data.st_mtime;
+	return true;
 }
 
 bool
-ReplicatorFileBase::sendCommand(
+ReplicatorFileBase::sendMessage(
+	int		 command,
+	bool	 send_ad,
+	const ReplicatorPeer &peer,
+	int		&errors )
+{
+	return sendMessage( command, (send_ad ? &m_classAd : NULL), peer, errors );
+}
+
+bool
+ReplicatorFileBase::sendMessage(
 	int		 command,
 	bool	 send_ad,
 	int		&total_errors )
 {
 	total_errors = 0;
 
-	list <ReplicatordFileReplica *>::iterator iter;
+	list <ReplicatorFileReplica *>::iterator iter;
 	for( iter = m_replicaList.begin(); iter != m_replicaList.end(); iter++ ) {
 		ReplicatorFileReplica	*replica = *iter;
-		ReplicatorPeer			*peer = replica->getPeerInfo( );
+		const ReplicatorPeer	&peer = replica->getPeerInfo( );
 
 		int		errors = 0;
-		sendMessage( command, send_ad ? m_classAd : NULL, peer, errors );
+		sendMessage( command, (send_ad ? &m_classAd : NULL), peer, errors );
 		total_errors += errors;
 	}
 
-	return total_errors == 0 : true : false;
+	return total_errors == 0 ? true : false ;
 }
 
-// Internal sendCommand method
+// Internal sendMessage method
 bool
-ReplicatorFileBase::sendCommand(
+ReplicatorFileBase::sendMessage(
 	int						 command,
 	const ClassAd			*ad,
 	const ReplicatorPeer	&peer,
@@ -221,7 +248,7 @@ ReplicatorFileBase::sendCommand(
 	bool	status = true;
 
 	// Send the message
-	if ( !peer->sendMessage( command, ad, m_classAd ) ) {
+	if ( !peer.sendMessage( command, ad ) ) {
 		total_errors++;
 	}
 
@@ -229,14 +256,16 @@ ReplicatorFileBase::sendCommand(
 }
 
 
+// ===============================
 // ==== Replicator File class ====
+// ===============================
 
 // C-Tors / D-Tors
 ReplicatorFile::ReplicatorFile( const char *spool, const char *path )
 		: ReplicatorFileBase( spool, path ),
 		  m_filePath( path )
 {
-	m_classAd.Assign( );
+	// m_classAd.Assign( ); TODO
 }
 
 ReplicatorFile::~ReplicatorFile( void )
@@ -247,40 +276,109 @@ ReplicatorFile::~ReplicatorFile( void )
 bool
 ReplicatorFile::operator == ( const ReplicatorFileBase &other ) const
 {
-	ReplicatorFile	*file = dynamic_cast<ReplicatorFile*>( &other );
+	const ReplicatorFile *file =
+		dynamic_cast<const ReplicatorFile*>( &other );
 	if ( !file ) {
 		return false;
 	}
 	return *this == *file;
 }
 
+bool
+ReplicatorFile::getMtime( time_t &mtime ) const
+{
+	return getFileMtime( m_filePath.Value(), mtime );
+}
 
+
+// ===================================
 // ==== Replicator File Set class ====
+// ===================================
 
 // C-Tors / D-Tors
 ReplicatorFileSet::ReplicatorFileSet( const char *spool, StringList *files )
-		: ReplicatorFileBase( spool, files.first() ),
-		  m_fileList( files ),
-		  m_fileListStr( files.print_to_string() )
+		: ReplicatorFileBase( spool, files->first() ),
+		  m_nameList( NULL ),
+		  m_nameListStr( NULL ),
+		  m_pathList( files ),
+		  m_pathListStr( files->print_to_string() )
+{
+
+	char	*path;
+
+    files->rewind( );
+	m_nameList = new StringList;
+    while( (path = files->next()) != NULL ) {
+		m_nameList->append( condor_basename(path) );
+	}
+	m_nameListStr = m_nameList->print_to_string();
+}
+
+ReplicatorFileSet::ReplicatorFileSet( StringList *names )
+		: ReplicatorFileBase( names->first() ),
+		  m_nameList( names ),
+		  m_nameListStr( names->print_to_string() ),
+		  m_pathList( NULL ),
+		  m_pathListStr( NULL )
 {
 }
 
 ReplicatorFileSet::~ReplicatorFileSet( void )
 {
-	if ( m_fileList ) {
-		delete m_fileList;
+
+	if ( m_nameList ) {
+		delete m_nameList;
+		m_nameList = NULL;
 	}
-	if ( m_fileListStr ) {
-		free( m_fileListStr );
+	if ( m_nameListStr ) {
+		free( m_nameListStr );
+		m_nameListStr = NULL;
 	}
+
+	if ( m_pathList ) {
+		delete m_pathList;
+		m_pathList = NULL;
+	}
+	if ( m_pathListStr ) {
+		free( m_pathListStr );
+		m_pathListStr = NULL;
+	}
+
 }
 
 bool
 ReplicatorFileSet::operator == ( const ReplicatorFileBase &other ) const
 {
-	ReplicatorFileSet	*file_set = dynamic_cast<ReplicatorFileSet*>( &other );
+	const ReplicatorFileSet	*file_set =
+		dynamic_cast<const ReplicatorFileSet*>( &other );
 	if ( !file_set ) {
 		return false;
 	}
 	return *this == *file_set;
+}
+
+bool
+ReplicatorFileSet::getMtime( time_t &mtime ) const
+{
+	mtime = 0;
+
+	if ( !m_pathList ) {
+		return false;
+	}
+
+	char	*path;
+	m_pathList->rewind();
+	while(  ( path = m_pathList->next() ) != NULL ) {
+		time_t	ttime;
+		if ( getFileMtime( path, ttime ) ) {
+			if ( ttime > mtime ) {
+				mtime = ttime;
+			}
+		}
+		else {
+			dprintf( D_FULLDEBUG,
+					 "Warning: Unable to stat '%s' for replication\n", path );
+		}
+	}
+	return mtime ? true : false;
 }

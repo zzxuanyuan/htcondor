@@ -27,7 +27,7 @@
  *				the pool, logical clock and last modification time of the state
  *				file
  */
-class ReplicatorFile;
+class ReplicatorFileBase;
 class ReplicatorFileVersion
 {
 public:
@@ -84,7 +84,7 @@ public:
 	 * Return value: ReplicatorFile - Information on the replicated file
 	 * Description : returns the related file info object
 	 */
-    const ReplicatorFile &getFileInfo(void) const {
+    const ReplicatorFileBase &getFileInfo(void) const {
 		return m_fileInfo;
 	};
 
@@ -98,7 +98,7 @@ public:
  	 * Description : loads Replica components from the underlying OS file to
  	 *               to the specified arguments
  	 */
-	bool readVersionFile( int& temporaryGid, int& temporaryLogicalClock ) const;
+	bool readVersionFile( int &temporaryGid, int &temporaryLogicalClock ) const;
 
 	// ==== End of inspectors ====
 
@@ -111,29 +111,6 @@ public:
      * Description : the replicas are comparable, if their gids are identical
      */
     bool isComparable(const ReplicatorFileVersion &version) const;
-
-	/* Function    : operator >
-     * Arguments   : replica - the compared replica
-     * Return value: bool - true/false value
-     * Description : the version is bigger than another, if its logical clock is
-	 *				 bigger or if the state of the local daemon is 
-	 *				 REPLICATION_LEADER, whilst the state of the remote daemon
-	 *				 is not
-	 * Note        : the comparison is used, while choosing the best replica in
-	 *				 VERSION_DOWNLOADING state, to simply compare the logical
-	 *				 clocks the replicas' states must be set to BACKUP
-     */
-	bool operator > (const ReplicatorFileVersion &version) const;
-
-	/* Function    : operator >=
-     * Arguments   : version - the compared version
-     * Return value: bool - true/false value
-     * Description : the version is bigger/equal than another, if its logical 
-	 * 				 clock is bigger/equal or if the state of the local daemon
-	 *				 is REPLICATION_LEADER, whilst the state of the remote
-	 *				 daemon is not
-     */
-    bool operator >= (const ReplicatorFileVersion &version) const;
 
 	// ==== End of comparison operators ====
 
@@ -167,7 +144,7 @@ public:
      * Return value: MyString - string representation of Version object
 	 * Description : represents the Version object as string
      */
-    MyString & toString( MyString &str ) const;
+    const char * toString( MyString &str ) const;
 
 	// ==== End of convertors ====
 
@@ -181,16 +158,14 @@ public:
 	
 	//  === Protected data ===
   protected:
-
-	// static data members
-    static time_t            m_lastModifiedTime;
 	
 	// File info
-	const ReplicatorFile	&m_fileInfo;
+	const ReplicatorFileBase &m_fileInfo;
 
 	// components of the version
-    int                      m_gid;
-    int                      m_logicalClock;
+    time_t		 m_mtime;
+    int          m_gid;
+    int          m_logicalClock;
 };
 
 #endif // REPLICATOR_FILE_VERSION_H

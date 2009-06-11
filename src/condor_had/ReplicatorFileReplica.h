@@ -28,15 +28,17 @@
 
 
 // the state of replicator daemon
-enum ReplicatorState {
-	VERSION_REQUESTING = 0,
-	VERSION_DOWNLOADING = 1,
-	BACKUP,
-	REPLICATION_LEADER
+enum ReplicatorState
+{
+	STATE_INVALID = -1,
+	STATE_REQUESTING,
+	STATE_DOWNLOADING,
+	STATE_BACKUP,
+	STATE_LEADER
 };
 
 // Pre-declare a couple of classes
-class ReplicatorFile;			// Pre-declare the file info
+class ReplicatorFileBase;		// Pre-declare the file info
 class ReplicatorFileReplica;	// Pre-declare the file version info
 
 /* Class      : ReplicatorUploader
@@ -68,17 +70,26 @@ public:
 
     /* Function: ReplicatorFileReplica constructor
      */
-	ReplicatorFileReplica( const ReplicatorFile &, const ReplicatorPeer &peer );
+	ReplicatorFileReplica( const ReplicatorFileBase &,
+						   const ReplicatorPeer & );
 
 
 	// ==== Operations ====
 
+# if 0
 	/* Function   : initialize
 	 * Arguments  : pStateFilePath - OS path to state file
 	 *  			pVersionFilePath - OS path to version file
 	 * Description: initializes all data members
 	 */
-    bool initialize( const ReplicatorFile & );
+    bool initialize( const ReplicatorFileBase & );
+# endif
+
+	/* Function    : registerUploaders
+	 * Return value: bool - true:ok, false:failed
+	 * Description : status of the registration
+	 */
+	bool registerUploaders( ReplicatorTransfererList &transferers ) const;
 
 
 	// ==== End of operations ====
@@ -92,19 +103,30 @@ public:
      * Description : returns gid
      */
     int getGid(void) const { return m_gid; };
-
-    /* Function    : getLogicalClock
-     * Return value: int - logical clock
-     * Description : returns logical clock
-     */
-	int getLogicalClock(void) const { return m_logicalClock; };
 # endif
+
+    /* Function    : getState
+     * Return value: ReplicatorState
+     * Description : returns the state
+     */
+	ReplicatorState getState( void ) const {
+		return m_state;
+	};
+
+	/* Function    : getState
+     * Argument    : MyString - string representation of the state
+     * Return value: char * - string representation of the state
+     * Description : returns the string representing the state
+     */   
+    const char *getStateName( void ) const {
+		return lookupState( m_state );
+	};
 
 	/* Function    : getFileInfo
 	 * Return value: ReplicatorFile - Information on the replicated file
 	 * Description : returns the related file info object
 	 */
-    const ReplicatorFile &getFileInfo(void) const {
+    const ReplicatorFileBase &getFileInfo(void) const {
 		return m_fileInfo;
 	};
 
@@ -148,6 +170,29 @@ public:
 		return other.getPeerInfo() == m_peerInfo;
 	};
 
+	/* Function    : operator >
+     * Arguments   : replica - the compared replica
+     * Return value: bool - true/false value
+     * Description : the version is bigger than another, if its logical clock is
+	 *				 bigger or if the state of the local daemon is 
+	 *				 REPLICATION_LEADER, whilst the state of the remote daemon
+	 *				 is not
+	 * Note        : the comparison is used, while choosing the best replica in
+	 *				 VERSION_DOWNLOADING state, to simply compare the logical
+	 *				 clocks the replicas' states must be set to BACKUP
+     */
+	bool operator > (const ReplicatorFileReplica &other) const;
+
+	/* Function    : operator >=
+     * Arguments   : replica - the compared replica
+     * Return value: bool - true/false value
+     * Description : the version is bigger/equal than another, if its logical 
+	 * 				 clock is bigger/equal or if the state of the local daemon
+	 *				 is REPLICATION_LEADER, whilst the state of the remote
+	 *				 daemon is not
+     */
+    bool operator >= (const ReplicatorFileReplica &other) const;
+
 	// ==== End of comparison operators ====
 
 
@@ -180,7 +225,21 @@ public:
      * Return value: MyString - string representation of Version object
 	 * Description : represents the Version object as string
      */
-    MyString toString( void ) const;
+    const char *toString( MyString & ) const;
+
+	/* Function    : getState
+     * Argument    : MyString - string representation of the state
+     * Return value: char * - string representation of the state
+     * Description : returns the string representing the state
+     */   
+    static const char *lookupState( ReplicatorState state );
+
+	/* Function    : getState
+	 * Argument    : char * - string representation of the state
+	 * Return value: ReplicatorState - the state value / invalid
+	 * Description : returns the state
+	 */   
+	static ReplicatorState lookupState( const char *str );
 
 	// ==== End of convertors ====
 
@@ -188,18 +247,12 @@ public:
 	// === Private methods ===
   private:
 
-	/* Function    : getState
-     * Return value: ReplicatorState - this replication daemon current state
-     * Description : returns this replication daemon current state
-     */   
-    const ReplicatorState& getState( void ) const { return m_state; };
-
 	
 	//  === Private data ===
   private:
 
 	// File info
-	const ReplicatorFile		&m_fileInfo;
+	const ReplicatorFileBase	&m_fileInfo;
 
 	// Peer info
 	const ReplicatorPeer		&m_peerInfo;

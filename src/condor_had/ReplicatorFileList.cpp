@@ -34,16 +34,50 @@ ReplicatorFileList::ReplicatorFileList( void )
 
 ReplicatorFileList::~ReplicatorFileList( void )
 {
-	list <ReplicatorFile *>::iterator iter;
+	list <ReplicatorFileBase *>::iterator iter;
 	for( iter = m_fileList.begin(); iter != m_fileList.end(); iter++ ) {
-		ReplicatorFile	*file = *iter;
+		ReplicatorFileBase	*file = *iter;
 		delete file;
 	}
 	m_fileList.clear( );
 }
 
 bool
-ReplicatorFileList::registerFile( ReplicatorFile *file )
+ReplicatorFileList::initFromList( StringList &paths )
+{
+	char		*path;
+	paths.rewind();
+	while(  (path = paths.next()) != NULL ) {
+		registerFile( new ReplicatorFile(path) );
+	}
+	return true;
+}
+
+bool
+ReplicatorFileList::similar( const ReplicatorFileList &other ) const
+{
+	StringList	my_list, other_list;
+
+	if ( !getStringList(my_list) || !other.getStringList(other_list)  ) {
+		return false;
+	}
+	return my_list.similar(other_list);
+}
+
+bool
+ReplicatorFileList::getStringList( StringList &strings ) const
+{
+	strings.clearAll();
+	list <ReplicatorFileBase *>::const_iterator iter;
+	for( iter = m_fileList.begin(); iter != m_fileList.end(); iter++ ) {
+		ReplicatorFileBase	*f = *iter;
+		strings.append( f->getFiles() );
+	}
+	return true;
+}
+
+bool
+ReplicatorFileList::registerFile( ReplicatorFileBase *file )
 {
 	if ( hasFile(file) ) {
 		return false;
@@ -53,11 +87,11 @@ ReplicatorFileList::registerFile( ReplicatorFile *file )
 }
 
 bool
-ReplicatorFileList::hasFile( const ReplicatorFile *file ) const
+ReplicatorFileList::hasFile( const ReplicatorFileBase *file ) const
 {
-	list <ReplicatorFile *>::const_iterator iter;
+	list <ReplicatorFileBase *>::const_iterator iter;
 	for( iter = m_fileList.begin(); iter != m_fileList.end(); iter++ ) {
-		ReplicatorFile	*f = *iter;
+		ReplicatorFileBase	*f = *iter;
 		if ( f == file ) {
 			return true;
 		}
@@ -66,34 +100,73 @@ ReplicatorFileList::hasFile( const ReplicatorFile *file ) const
 }
 
 bool
-ReplicatorFileList::findFile( const char *path, ReplicatorFile **file )
+ReplicatorFileList::findFile( const char *path,
+							  ReplicatorFileBase **item )
 {
-	list <ReplicatorFile *>::iterator iter;
+	list <ReplicatorFileBase *>::iterator iter;
 	for( iter = m_fileList.begin(); iter != m_fileList.end(); iter++ ) {
-		ReplicatorFile	*f = *iter;
-		if ( *f == path ) {
-			*file = f;
+		ReplicatorFile	*file = dynamic_cast<ReplicatorFile *>(*iter);
+		if ( file && (*file == path) ) {
+			*item = file;
 			return true;
 		}
 	}
-	*file = NULL;
+	*item = NULL;
 	return false;
+
 }
 
 bool
-ReplicatorFileList::sendCommand(int command,
-								bool send_ad,
-								const ReplicatorPeer &peer,
-								int &total_errors )
+ReplicatorFileList::getFirstFileBase( const ReplicatorFileBase **item ) const
+{
+	if ( m_fileList.size() ) {
+		*item = m_fileList.front( );
+		return true;
+	}
+	else {
+		*item = NULL;
+		return false;
+	}
+}
+
+bool
+ReplicatorFileList::getFirstFile( const ReplicatorFile **item ) const
+{
+	const ReplicatorFileBase	*base;
+	if ( !getFirstFileBase(&base) ) {
+		*item = NULL;
+		return false;
+	}
+	*item = dynamic_cast<const ReplicatorFile *>(base);
+	return ( NULL != *item );
+}
+
+bool
+ReplicatorFileList::getFirstFileSet( const ReplicatorFileSet **item ) const
+{
+	const ReplicatorFileBase	*base;
+	if ( !getFirstFileBase(&base) ) {
+		*item = NULL;
+		return false;
+	}
+	*item = dynamic_cast<const ReplicatorFileSet *>(base);
+	return ( NULL != *item );
+}
+
+bool
+ReplicatorFileList::sendCommand( int command,
+								 bool send_ad,
+								 const ReplicatorPeer &peer,
+								 int &total_errors )
 {
 	total_errors = 0;
 
 	bool	status = true;
-	list <ReplicatorFile *>::iterator iter;
+	list <ReplicatorFileBase *>::iterator iter;
 	for( iter = m_fileList.begin(); iter != m_fileList.end(); iter++ ) {
-		ReplicatorFile	*f = *iter;
-		int		errors = 0;
-		if ( !f->sendCommand( command, send_ad, peer, errors ) ) {
+		ReplicatorFileBase	*f = *iter;
+		int					 errors = 0;
+		if ( !f->sendMessage( command, send_ad, peer, errors ) ) {
 			status = false;
 		}
 		total_errors += errors;
@@ -109,11 +182,11 @@ ReplicatorFileList::sendCommand( int command,
 	total_errors = 0;
 
 	bool	status = true;
-	list <ReplicatorFile *>::iterator iter;
+	list <ReplicatorFileBase *>::iterator iter;
 	for( iter = m_fileList.begin(); iter != m_fileList.end(); iter++ ) {
-		ReplicatorFile	*f = *iter;
-		int		errors = 0;
-		if ( !f->sendCommandToPeers( command, send_ad, errors ) ) {
+		ReplicatorFileBase	*f = *iter;
+		int					 errors = 0;
+		if ( !f->sendMessage( command, send_ad, errors ) ) {
 			status = false;
 		}
 		total_errors += errors;

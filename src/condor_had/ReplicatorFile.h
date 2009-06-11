@@ -60,6 +60,7 @@ class ReplicatorFileBase
 {
   public:
 	ReplicatorFileBase( const char *spool, const char *path );
+	ReplicatorFileBase( const char *path );
 	virtual ~ReplicatorFileBase( void );
 
 	// Comparison operators
@@ -77,6 +78,7 @@ class ReplicatorFileBase
 		return m_downloader;
 	};
 
+	// Get count of active up / downloads
 	int numActiveUploads( void ) const;
 	int numActiveDownloads( void ) const {
 		return m_downloader.isActive() ? 1 : 0;
@@ -93,7 +95,7 @@ class ReplicatorFileBase
 	bool findReplica( const char *hostname,
 					  const ReplicatorFileReplica *& ) const;
 	bool hasReplica( const ReplicatorFileReplica & ) const;
-	bool addReplica( ReplicatorFileReplica & );
+	bool addReplica( ReplicatorFileReplica * );
 
 	// Rotate in the downloaded file
 	bool synchronize( bool clock_synced ) {
@@ -101,20 +103,27 @@ class ReplicatorFileBase
 	};
 	virtual bool rotate( int pid ) const = 0;
 
-	// Send command to a single peer
-	bool sendCommand( int command, bool send_ad,
+	// Send message to a single peer
+	bool sendMessage( int command, bool send_ad,
 					  const ReplicatorPeer &, int &errors );
 
-	// Send command to all peers
-	bool sendCommand( int command, bool send_ad, int &errors );
+	// Send message to all peers
+	bool sendMessage( int command, bool send_ad, int &errors );
 
 	// The a string representation of the file(s)
 	virtual const char *getFiles( void ) const = 0;
 
+	// The mtime of the file / file set
+	virtual bool getMtime( time_t &mtime ) const = 0;
+
+	// Virtualized methods to compare sets (only implemented for FileSet)
+	virtual bool match( StringList & /*other*/ ) const { return false; };
+
   protected:
-	bool sendCommand( int command, const ClassAd *ad,
-					  ReplicatorPeer &peer, int &errors );
+	bool sendMessage( int command, const ClassAd *ad,
+					  const ReplicatorPeer &peer, int &errors );
 	bool rotateFile( int pid, const char *file ) const;
+	static bool getFileMtime( const char *path, time_t &mtime );
 
   protected:
 	MyString						 m_versionFilePath;
@@ -139,6 +148,7 @@ class ReplicatorFile : public ReplicatorFileBase
 {
   public:
 	ReplicatorFile( const char *spool, const char *file );
+	ReplicatorFile( const char *file );
 	~ReplicatorFile( void );
 
 	// Comparison operators
@@ -159,9 +169,14 @@ class ReplicatorFile : public ReplicatorFileBase
 	bool rotate( int pid ) const;
 	bool rotateFile( int pid ) const;
 
+	// The a string representation of the file(s)
 	const char *getFiles( void ) const {
 		return m_filePath.Value();
 	};
+
+	// The mtime of the file / file set
+	bool getMtime( time_t &mtime ) const;
+
 
   protected:
 	MyString	m_filePath;
@@ -177,6 +192,7 @@ class ReplicatorFileSet : public ReplicatorFileBase
 {
   public:
 	ReplicatorFileSet( const char *spool, StringList *files );
+	ReplicatorFileSet( StringList *files );
 	~ReplicatorFileSet( void );
 
 	bool rotate( int pid ) const;
@@ -187,26 +203,41 @@ class ReplicatorFileSet : public ReplicatorFileBase
 		return ( *this == other.getFileList() );
 	};
 	bool operator == ( StringList &other ) const {
-		return m_fileList->similar( other );
+		return getFileList().similar( other );
+	};
+	bool match( StringList &other ) const {
+		return getNameList().similar(other);
 	};
 
 	// Accessors
+	StringList &getNameList( void ) const {
+		return *m_nameList;
+	};
 	const char *getFilePath( void ) const {
-		return m_fileList->first();
+		return ( m_pathList ? m_pathList->first() : NULL );
 	};
 	StringList &getFileList( void ) const {
-		return *m_fileList;
+		return ( m_pathList ? (*m_pathList) : (*m_nameList) );
 	};
 
 	const char *getFiles( void ) const {
-		return m_fileListStr;
+		return m_pathListStr;
+	};
+	const char *getNames( void ) const {
+		return m_nameListStr;
 	};
 
+	// The mtime of the file / file set
+	bool getMtime( time_t &mtime ) const;
+
+
   private:
-	mutable StringList	*m_fileList;
-	char				*m_fileListStr;
+	mutable StringList	*m_nameList;
+	char				*m_nameListStr;
+	mutable StringList	*m_pathList;
+	char				*m_pathListStr;
 
 };	/* class ReplilcatorFileSet */
 
 
-#endif // REPLICATION_FILE_H
+#endif // REPLICATOR_FILE_H

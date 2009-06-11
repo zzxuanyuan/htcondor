@@ -35,9 +35,22 @@ class ReplicatorFileList
 	~ReplicatorFileList( void );
 
 	bool clear( void );
+	bool initFromList( StringList & );
+
 	bool registerFile( ReplicatorFileBase * );
 	bool hasFile( const ReplicatorFileBase * ) const;
 	bool findFile( const char *path, ReplicatorFileBase ** );
+
+	int getCount( void ) const { return m_fileList.size(); };
+	bool getFirstFile( const ReplicatorFile **item ) const;
+	bool getFirstFileSet( const ReplicatorFileSet **item ) const;
+	bool getFirstFileBase( const ReplicatorFileBase **item ) const;
+
+	// Get a StringList to represent the file list
+	bool getStringList( StringList & ) const;
+
+	// Comparisons
+	bool similar( const ReplicatorFileList &other ) const;
 
 	// Get the number of up/down-load transfers active
 	int numActiveDownloads( void ) const;
@@ -50,11 +63,13 @@ class ReplicatorFileList
 	bool sendCommand( int command, bool send_ad,
 					  const ReplicatorPeer &, int &errors );
 
+	// Access to the list for iterating
+	list<ReplicatorFileBase *> & getList( void ) { return m_fileList; };
 
 	// Private data
   private:
-	list<ReplicatorFile *>		 m_fileList;
+	list<ReplicatorFileBase *>	m_fileList;
 
 };	/* ReplicatorFileList */
 
-#endif // REPLICATION_FILE_H
+#endif // REPLICATOR_FILE_LIST_H

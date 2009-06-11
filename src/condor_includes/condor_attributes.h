@@ -673,6 +673,10 @@ extern const char * ATTR_HAD_CONTROLLEE_NAME;
 extern const char * ATTR_REPLICATOR_FILE_LIST;
 extern const char * ATTR_REPLICATOR_FILE_SET;
 extern const char * ATTR_REPLICATOR_FILE_SET_VERSION;
+extern const char * ATTR_REPLICATOR_GID;
+extern const char * ATTR_REPLICATOR_LOGICAL_CLOCK;
+extern const char * ATTR_REPLICATOR_IS_PRIMARY;
+extern const char * ATTR_REPLICATOR_STATE;
 
 extern const char * ATTR_TERMINATION_PENDING;
 extern const char * ATTR_TERMINATION_EXITREASON;

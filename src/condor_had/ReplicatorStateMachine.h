@@ -26,11 +26,11 @@
 #include "ReplicatorFileReplica.h"
 #include "ReplicatorFile.h"
 #include "ReplicatorFileList.h"
+#include "AbstractReplicatorStateMachine.h"
 #include "reli_sock.h"
 #include "dc_service.h"
 #include "list.h"
 #include <list>
-using namespace std;
 
 /* Class      : ReplicatorStateMachine
  * Description: concrete class for replication service state machine,
@@ -47,7 +47,7 @@ using namespace std;
  *              1) replicaSelectionHandler
  *              2) gidSelectionHandler
  */
-class ReplicatorStateMachine: public AbstractReplicatorStateMachine
+class ReplicatorStateMachine : public AbstractReplicatorStateMachine
 {
   public:
 	/* Function: ReplicatorStateMachine constructor
@@ -65,7 +65,7 @@ class ReplicatorStateMachine: public AbstractReplicatorStateMachine
      * 				state; broadcasts old local version, solicits versions from
 	 *				other replication daemons in the pool
      */
-    void beforePassiveStateHandler( const ClassAd & );
+    void beforePassiveStateHandler( const ClassAd &, const MyString &sinful );
 
 	/* Function   : afterElectionStateHandler
      * Description: concrete handler after the event, when HAD is in transition
@@ -74,21 +74,21 @@ class ReplicatorStateMachine: public AbstractReplicatorStateMachine
 	 *              message for replication daemon) and selects the new gid for
 	 *              the pool
      */
-    void afterElectionStateHandler( const ClassAd & );
+    void afterElectionStateHandler( const ClassAd &, const MyString &sinful );
 
 	/* Function   : afterLeaderStateHandler
 	 * Description: concrete handler after the event, when HAD is in transition
      *              from ELECTION to PASSIVE state
 	 * Remarks    : void by now
 	 */
-    void afterLeaderStateHandler( const ClassAd & );
+    void afterLeaderStateHandler( const ClassAd &, const MyString &sinful );
 
 	/* Function   : inLeaderStateHandler
      * Description: concrete handler after the event, when HAD is in inner loop
      *              of LEADER state; sets the last time, when HAD sent a
 	 * 				HAD_IN_STATE_STATE
      */
-    void inLeaderStateHandler( const ClassAd & );
+    void inLeaderStateHandler( const ClassAd &, const MyString &sinful );
 
 
 	// Selection handlers
@@ -146,8 +146,7 @@ class ReplicatorStateMachine: public AbstractReplicatorStateMachine
 	int commandHandlerCommon( int command, Stream *stream, const char *name,
 							  ClassAd &ad, MyString &sinful );
 
-    void finalize( void );
-    void finalizeDelta( void );
+    bool reset( bool all );
 
 	// Timers handlers
     void replicationTimer( void );
@@ -155,12 +154,12 @@ class ReplicatorStateMachine: public AbstractReplicatorStateMachine
     void versionDownloadingTimer( void );
 
 	// Command handlers
-    void onLeaderVersion( const ClassAd &ad, const MyString &sinful );
-    void onTransferFile( const ClassAd &ad, const MyString &sinful );
-    void onSolicitVersion( const ClassAd &ad, const MyString &sinful );
-    void onSolicitVersionReply( const ClassAd &ad, const MyString &sinful );
-    void onNewlyJoinedVersion( const ClassAd &ad, const MyString &sinful );
-    void onGivingUpVersion( const ClassAd &ad, const MyString &sinful );
+    bool onLeaderVersion( const ClassAd &ad, const MyString &sinful );
+    bool onTransferFile( const ClassAd &ad, const MyString &sinful );
+    bool onSolicitVersion( const ClassAd &ad, const MyString &sinful );
+    bool onSolicitVersionReply( const ClassAd &ad, const MyString &sinful );
+    bool onNewlyJoinedVersion( const ClassAd &ad, const MyString &sinful );
+    bool onGivingUpVersion( const ClassAd &ad, const MyString &sinful );
 
     static ReplicatorFileReplica *decodeVersionAndState( Stream *stream );
 	void becomeLeader( void );

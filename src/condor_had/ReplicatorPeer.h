@@ -99,7 +99,7 @@ public:
 	 * Return value: bool
 	 * Description : returns true on success, false otherise
 	 */
-    bool sendMessage( int command, ClassAd *ad ) const;
+    bool sendMessage( int command, const ClassAd *ad ) const;
 
   private:
 	char		*m_sinfulString;
@@ -120,6 +120,9 @@ class ReplicatorPeerList
 	const char *getRawString( void ) const { return m_rawString; };
 
 	list<ReplicatorPeer *> &getPeers( void ) {
+		return m_peers;
+	};
+	list<ReplicatorPeer *> const &getPeersConst( void ) const {
 		return m_peers;
 	};
 

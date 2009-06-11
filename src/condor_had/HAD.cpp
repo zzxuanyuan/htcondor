@@ -33,7 +33,7 @@
 
 #define  USE_REPLICATION    (0)
 
-#include "StateMachine.h"
+#include "HAStateMachine.h"
 
 #if USE_REPLICATION
 	#include "ReplicaStateMachine.h"

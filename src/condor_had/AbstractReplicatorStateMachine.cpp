@@ -38,7 +38,8 @@ template void utilClearList<ReplicatorVersion>( List<ReplicatorVersion>& );
 #endif
 
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine( void )
-		: m_state( VERSION_REQUESTING ),
+		: m_fileSet( NULL ),
+		  m_state( STATE_REQUESTING ),
 		  m_connectionTimeout( DEFAULT_SEND_COMMAND_TIMEOUT ),
 		  m_downloadReaperId( -1 ),
 		  m_uploadReaperId( -1 )
@@ -49,16 +50,20 @@ AbstractReplicatorStateMachine::AbstractReplicatorStateMachine( void )
 AbstractReplicatorStateMachine::~AbstractReplicatorStateMachine( void )
 {
 	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine dtor started\n" );
-    shutdown();
+    reset();
 }
 
 // releasing the dynamic memory and assigning initial values to all the data
 // members of the base class
-void
-AbstractReplicatorStateMachine::shutdown( void )
+bool
+AbstractReplicatorStateMachine::reset( void )
 {
-	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::shutdown started\n" );
-   	m_state             = VERSION_REQUESTING;
+	dprintf( D_ALWAYS, "ARSM::reset() started\n" );
+	if ( m_fileSet ) {
+		delete m_fileSet;
+		m_fileSet = NULL;
+	}
+   	m_state             = STATE_REQUESTING;
    	m_connectionTimeout = DEFAULT_SEND_COMMAND_TIMEOUT;
 
     m_transfererPath = "";
@@ -69,12 +74,14 @@ AbstractReplicatorStateMachine::shutdown( void )
 	// must be killed, otherwise we will temporarily deny creation of new
 	// downloading transferers till the older ones are over
     killTransferers( );
+
+	return true;
 }
 
 bool
 AbstractReplicatorStateMachine::reinitialize( void )
 {
-	dprintf( D_FULLDEBUG, "::reinitialize()\n" );
+	dprintf( D_FULLDEBUG, "ARSM::reinitialize()\n" );
 
     char	*tmp = NULL;
 
@@ -83,7 +90,8 @@ AbstractReplicatorStateMachine::reinitialize( void )
     if ( tmp ) {
 		if ( !m_peerList.init(tmp, list_updated) ) {
 			dprintf( D_ALWAYS,
-					 "::reinitialize(): Failed to initilize from list '%s'\n",
+					 "ARSM::reinitialize():"
+					 " Failed to initilize from list '%s'\n",
 					 tmp );
 			return false;
 		}
@@ -138,9 +146,11 @@ AbstractReplicatorStateMachine::reinitialize( void )
 	tmp = param( "REPLICATION_FILE_SET" );
 	if ( NULL != tmp ) {
 		StringList	*files = new StringList( tmp );
-		ReplicatorFileSet	*file_set = new ReplicatorFileSet( spool, files );
-		file_set->setPeers( m_peerList );
-		m_fileList.registerFile( file_set );
+		m_fileSet = new ReplicatorFileSet( spool, files );
+		m_fileSet->setPeers( m_peerList );
+		m_fileSet->registerUploaders( m_uploaders );
+		m_fileSet->registerDownloaders( m_downloaders );
+		m_fileList.registerFile( m_fileSet );
 		return true;
 	}
 
@@ -161,15 +171,15 @@ AbstractReplicatorStateMachine::reinitialize( void )
 	ASSERT( tmp != NULL );
 
 	// Build a list of the files and "versions" of each
-	StringList	 file_list( tmp );
-	char		*file_path;
-	file_list.rewind();
-	while(  (file_path = file_list.next()) != NULL ) {
-		ReplicatorFile	*file_info = new ReplicatorFile( spool, file_path );
-		file_info->setPeers( m_peerList );
-		file_info->registerUploaders( m_uploaders );
-		file_info->registerDownloaders( m_downloaders );
-		m_fileList.registerFile( file_info );
+	StringList	 path_list( tmp );
+	list<ReplicatorFileBase *>	&file_list = m_fileList.getList();
+	list<ReplicatorFileBase *>::iterator iter;
+	for( iter = file_list.begin(); iter != file_list.end(); iter++ ) {
+		ReplicatorFileBase	*file = *iter;
+
+		file->setPeers( m_peerList );
+		file->registerUploaders( m_uploaders );
+		file->registerDownloaders( m_downloaders );
 	}
 
 	printDataMembers( );
@@ -302,9 +312,9 @@ AbstractReplicatorStateMachine::uploadReaper(
 bool
 AbstractReplicatorStateMachine::download( ReplicatorFileReplica &version )
 {
-	const ReplicatorFile	&file       = version.getFileInfo( );
-	const ReplicatorPeer	&peer       = version.getPeerInfo( );
-	ReplicatorDownloader	&downloader = file.getDownloader( );
+	const ReplicatorFileBase	&file       = version.getFileInfo( );
+	const ReplicatorPeer		&peer       = version.getPeerInfo( );
+	ReplicatorDownloader		&downloader = file.getDownloader( );
 
 	ArgList  processArguments;
 	processArguments.AppendArg( m_transfererPath.Value() );
@@ -366,9 +376,9 @@ AbstractReplicatorStateMachine::download( ReplicatorFileReplica &version )
 bool
 AbstractReplicatorStateMachine::upload( ReplicatorFileReplica &replica )
 {
-	const ReplicatorFile	&file     = replica.getFileInfo( );
-	const ReplicatorPeer	&peer     = replica.getPeerInfo( );
-	ReplicatorUploader		&uploader = replica.getUploader( );
+	const ReplicatorFileBase	&file     = replica.getFileInfo( );
+	const ReplicatorPeer		&peer     = replica.getPeerInfo( );
+	ReplicatorUploader			&uploader = replica.getUploader( );
 
 	ArgList  processArguments;
 	processArguments.AppendArg( m_transfererPath.Value() );
@@ -454,6 +464,7 @@ AbstractReplicatorStateMachine::requestVersions( void )
 	return true;
 }
 
+#if 0
 // inserting/replacing version from specific remote replication daemon
 // into/in 'm_versionsList'
 void
@@ -478,6 +489,7 @@ AbstractReplicatorStateMachine::updateVersionsList(
     m_versionsList.Rewind( );
 // End of TODO: Atomic operation
 }
+#endif
 
 void
 AbstractReplicatorStateMachine::cancelVersionsListLeader( void )
@@ -487,11 +499,12 @@ AbstractReplicatorStateMachine::cancelVersionsListLeader( void )
     m_versionsList.Rewind( );
 
     while( m_versionsList.Next( version ) ) {
-        version->setState( BACKUP );
+        version->setState( STATE_BACKUP );
     }
 
     m_versionsList.Rewind( );
 }
+
 
 // sending command to remote replication daemon; specified command function
 // allows to specify which data is to be sent to the remote daemon

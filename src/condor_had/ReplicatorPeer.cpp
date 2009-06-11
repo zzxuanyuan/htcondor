@@ -69,6 +69,7 @@ bool
 ReplicatorPeer::sendMessage( int command, const ClassAd *ad ) const
 {
     Daemon		daemon( DT_ANY, m_sinfulString );
+	ReliSock	sock;
 
     // no retries after 'm_connectionTimeout' seconds of unsuccessful
     // connection
@@ -77,7 +78,6 @@ ReplicatorPeer::sendMessage( int command, const ClassAd *ad ) const
 		sock.doNotEnforceMinimalCONNECT_TIMEOUT( );
 	}
 
-	ReliSock	sock;
     if( ! sock.connect( m_sinfulString, 0, false ) ) {
         dprintf( D_ALWAYS,
 				 "::startMessage(): unable to connect to %s\n",
@@ -117,7 +117,7 @@ ReplicatorPeer::sendMessage( int command, const ClassAd *ad ) const
 bool
 ReplicatorPeer::operator == ( const char *hostname ) const
 {
-	return ( 0 == strcasecmp(hostname.Value(), m_hostname) );
+	return ( 0 == strcasecmp(hostname, m_hostName) );
 }
 
 bool
@@ -145,7 +145,7 @@ ReplicatorPeerList::~ReplicatorPeerList( void )
 bool
 ReplicatorPeerList::init( const char *replication_list, bool &updated )
 {
-	StringList	*new_list = new StringList( tmp );
+	StringList	*new_list = new StringList( replication_list );
 
 	if ( NULL == new_list ) {
 		return false;
@@ -172,7 +172,7 @@ ReplicatorPeerList::init( const char *replication_list, bool &updated )
 	m_peers.clear();
 
 	m_rawList   = new_list;
-	m_rawString = m_raw_list->print_to_string();
+	m_rawString = m_rawList->print_to_string();
 
 	char		*raw;
 	const char	*my_sinful = daemonCore->InfoCommandSinfulString( );
@@ -180,7 +180,7 @@ ReplicatorPeerList::init( const char *replication_list, bool &updated )
 
     m_rawList->rewind( );
     while( ( raw = m_rawList->next()) != NULL ) {
-        char* sinful = utilToSinful( replicationAddress );
+        char* sinful = utilToSinful( raw );
 
         if( sinful == NULL ) {
             char tmp[256];
@@ -194,14 +194,14 @@ ReplicatorPeerList::init( const char *replication_list, bool &updated )
 			free( sinful );
         }
         else {
-			ReplicationPeer	*peer = new ReplicationPeer( );
-			if ( !peer.init(sinful) ) {
-				dprintf( D_ALWAYS, "Failed to initialize peer '%s'\n",sinful );
+			ReplicatorPeer	*peer = new ReplicatorPeer( );
+			if ( !peer->init(sinful) ) {
+				dprintf( D_ALWAYS, "Failed to initialize peer '%s'\n", sinful);
 				delete peer;
 				free( sinful );
 				return false;
 			}
-            m_sinfulList.push_back( sinful );
+            m_peers.push_back( peer );
         }
         // pay attention to release memory allocated by malloc with free and by
         // new with delete here utilToSinful returns memory allocated by malloc

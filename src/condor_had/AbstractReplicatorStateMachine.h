@@ -20,7 +20,6 @@
 #ifndef ABSTRACT_REPLICATOR_STATE_MACHINE_H
 #define ABSTRACT_REPLICATOR_STATE_MACHINE_H
 
-// for 'ReplicatorState'
 #include "Utils.h"
 #include "ReplicatorTransferer.h"
 #include "ReplicatorFileReplica.h"
@@ -30,7 +29,8 @@
 #include "dc_service.h"
 #include "list.h"
 #include <list>
-using namespace std;
+
+// using namespace std;
 
 /* Class      : AbstractReplicatorStateMachine
  * Description: base abstract class for replication service state machine,
@@ -143,10 +143,10 @@ class AbstractReplicatorStateMachine: public Service
      */
     bool upload( ReplicatorFileReplica &version );
 
-	/* Function   : shutdown
+	/* Function   : reset
 	 * Description: clears and resets all inner structures and data members
 	 */
-    void shutdown( void );
+    bool reset( void );
 
     /* Function   : initializeReplicationList
      * Description: initializes replication daemons list from the given string
@@ -253,12 +253,13 @@ class AbstractReplicatorStateMachine: public Service
 
     // list of all of the files we replicate
 	ReplicatorFileList       m_fileList;
+	ReplicatorFileSet       *m_fileSet;
 
 	// configuration variables
 	MyString                 m_transfererPath;
 
 	// the replication daemon state
-    ReplicatorState          m_state;
+    ReplicatorState			 m_state;
 
 	// All of our peers
 	ReplicatorPeerList		 m_peerList;
