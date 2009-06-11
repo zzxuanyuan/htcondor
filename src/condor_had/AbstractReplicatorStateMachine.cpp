@@ -38,7 +38,8 @@ template void utilClearList<ReplicatorVersion>( List<ReplicatorVersion>& );
 #endif
 
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine( void )
-		: m_fileSet( NULL ),
+		: m_fileList( NULL ),
+		  m_fileSet( NULL ),
 		  m_state( STATE_REQUESTING ),
 		  m_connectionTimeout( DEFAULT_SEND_COMMAND_TIMEOUT ),
 		  m_downloadReaperId( -1 ),
@@ -59,6 +60,10 @@ bool
 AbstractReplicatorStateMachine::reset( void )
 {
 	dprintf( D_ALWAYS, "ARSM::reset() started\n" );
+	if ( m_fileList ) {
+		delete m_fileList;
+		m_fileList = NULL;
+	}
 	if ( m_fileSet ) {
 		delete m_fileSet;
 		m_fileSet = NULL;
@@ -139,18 +144,25 @@ AbstractReplicatorStateMachine::reinitialize( void )
                           Value( ) );
 	}
 
-	// Clear out the old file list
-	m_fileList.clear( );
+	// Clear out the old file set / list
+	if ( m_fileList ) {
+		delete m_fileList;
+		m_fileList = NULL;
+	}
+	if ( m_fileSet ) {
+		delete m_fileSet;
+		m_fileSet = NULL;
+	}
 
 	// Handle file set separately
 	tmp = param( "REPLICATION_FILE_SET" );
 	if ( NULL != tmp ) {
 		StringList	*files = new StringList( tmp );
-		m_fileSet = new ReplicatorFileSet( spool, files );
+		m_fileSet = new ReplicatorFileSet( files, spool );
 		m_fileSet->setPeers( m_peerList );
 		m_fileSet->registerUploaders( m_uploaders );
 		m_fileSet->registerDownloaders( m_downloaders );
-		m_fileList.registerFile( m_fileSet );
+
 		return true;
 	}
 
@@ -171,8 +183,15 @@ AbstractReplicatorStateMachine::reinitialize( void )
 	ASSERT( tmp != NULL );
 
 	// Build a list of the files and "versions" of each
+	m_fileList = new ReplicatorFileList( );
 	StringList	 path_list( tmp );
-	list<ReplicatorFileBase *>	&file_list = m_fileList.getList();
+	if ( !m_fileList->initFromList(path_list, spool) ) {
+		dprintf( D_ALWAYS, "Failed to initialize from path list %s\n", tmp );
+		return false;
+	}
+
+	// And initialize all of the files in the list
+	list<ReplicatorFileBase *>	&file_list = m_fileList->getList();
 	list<ReplicatorFileBase *>::iterator iter;
 	for( iter = file_list.begin(); iter != file_list.end(); iter++ ) {
 		ReplicatorFileBase	*file = *iter;
@@ -438,10 +457,15 @@ AbstractReplicatorStateMachine::upload( ReplicatorFileReplica &replica )
 
 // send command, along with the local replication daemon's version and state
 bool
-AbstractReplicatorStateMachine::broadcastVersion( int command )
+AbstractReplicatorStateMachine::broadcastMessage( int command )
 {
 	int		errors = 0;
-	m_fileList.sendCommand( command, true, errors );
+	if ( m_fileSet ) {
+		m_fileSet->sendMessage( command, true, errors );
+	}
+	else {
+		m_fileList->sendMessage( command, true, errors );
+	}
 	if ( errors ) {
 		dprintf( D_FULLDEBUG,
 				 "Failed to send command %d to %d peers\n", command, errors );
@@ -453,15 +477,7 @@ AbstractReplicatorStateMachine::broadcastVersion( int command )
 bool
 AbstractReplicatorStateMachine::requestVersions( void )
 {
-	int		errors = 0;
-	m_fileList.sendCommand( REPLICATION_SOLICIT_VERSION, true, errors );
-	if ( errors ) {
-		dprintf( D_FULLDEBUG,
-				 "Failed to send command %d to %d peers\n",
-				 REPLICATION_SOLICIT_VERSION, errors );
-		return false;
-	}
-	return true;
+	return broadcastMessage( REPLICATION_SOLICIT_VERSION );
 }
 
 #if 0

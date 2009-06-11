@@ -167,12 +167,13 @@ ReplicatorStateMachine::reset( bool all )
 	return true;
 }
 
-void
+bool
 ReplicatorStateMachine::initialize( void )
 {
     dprintf( D_ALWAYS, "RSM::initialize started\n" );
 
     reinitialize( );
+
     // register commands that the service responds to
     registerCommand( HAD_BEFORE_PASSIVE_STATE, CCLASS_HAD );
     registerCommand( HAD_AFTER_ELECTION_STATE, CCLASS_HAD );
@@ -184,18 +185,19 @@ ReplicatorStateMachine::initialize( void )
     registerCommand( REPLICATION_GIVING_UP_VERSION, CCLASS_PEER );
     registerCommand( REPLICATION_SOLICIT_VERSION, CCLASS_PEER );
     registerCommand( REPLICATION_SOLICIT_VERSION_REPLY, CCLASS_PEER );
+
+	return true;
 }
 
 /* clears all the inner structures and loads the configuration parameters'
  * values again
  */
-void
+bool
 ReplicatorStateMachine::reinitialize( void )
 {
     // delete all configurations and start everything over from the scratch
-    reset( true );
-
-    m_myVersion.initialize( m_stateFilePath, m_versionFilePath );
+    reset( false );
+	AbstractReplicatorStateMachine::reinitialize( );
 
     m_replicationInterval =
 		param_integer( "REPLICATION_INTERVAL", 5 * MINUTE, 1 );
@@ -382,7 +384,8 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
 					 sinful.Value() );
 			return FALSE;
 		}
-		if ( m_fileSet->match(names) ) {
+		StringList	files(tmp.Value());
+		if ( m_fileSet->match(files) ) {
 			dprintf( D_ALWAYS,
 					 "ERROR: File set from peer %s mismatch:"
 					 " got:'%s' expected:'%s'",
@@ -391,9 +394,16 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
 		}
 	}
 	else if ( ad.LookupString( ATTR_REPLICATOR_FILE_LIST, tmp ) ) {
+		if ( NULL == m_fileList ) {
+			dprintf( D_ALWAYS,
+					 "ERROR: Received file list from peer %s, expected set",
+					 sinful.Value() );
+			return FALSE;
+		}
+		StringList			string_list( tmp.Value() );
 		ReplicatorFileList	file_list;
-		file_list.initFromList( StringList(tmp.Value()) );
-		if ( ! m_fileList.similar(file_list) ) {
+		file_list.initFromList( string_list );
+		if ( ! m_fileList->similar(file_list) ) {
 			dprintf( D_ALWAYS,
 					 "ERROR: File set from peer %s mismatch:"
 					 " got:'%s'",
@@ -445,30 +455,27 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
  */
 int
 ReplicatorStateMachine::commandHandlerCommon(
-	int /*command*/,
-	Stream *stream,
-	const char *name,
-	ClassAd &ad,
-	MyString &sinful )
+	int command, Stream *stream, const char *name,
+	ClassAd &ad, MyString &sinful )
 {
 	// Read the ClassAd off the wire
     stream->decode( );
-	if ( !ad.initFromStream(stream) ) {
+	if ( !ad.initFromStream(*stream) ) {
         dprintf( D_ALWAYS,
-				 "::commandHandler(%s):"
-				 " Failed to read ClassAd [%s]\n"
+				 "::commandHandler(%s): Failed to read ClassAd [%s]\n",
                  name, utilToString(command) );
 	}
 
 	// And, read the EOM
     if( ! stream->end_of_message( ) ) {
-        dprintf( D_ALWAYS, "::commandHandler(%s): read EOM failed\n", name );
+        dprintf( D_ALWAYS, "::commandHandler(%s): read EOM failed from %s\n",
+				 name, sinful.Value() );
     }
 
 	// Pull out the sinful from the address
 	if ( !ad.LookupString( ATTR_MY_ADDRESS, sinful ) ) {
 		dprintf( D_ALWAYS,
-				 "commandHandler(%s) ERROR: %s not in ad received\n",
+				 "commandHandler(%s) ERROR: %s not in ad received from %s\n",
 				 name, ATTR_MY_ADDRESS, sinful.Value() );
 		return FALSE;
 	}
@@ -489,11 +496,11 @@ bool
 ReplicatorStateMachine::beforePassiveStateHandler(
 	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
-    REPLICATION_ASSERT(m_state == STATE_REQUESTING);
+    ASSERT(m_state == STATE_REQUESTING);
 
     dprintf( D_ALWAYS,
 			"::beforePassiveStateHandler() started\n" );
-    broadcastVersion( REPLICATION_NEWLY_JOINED_VERSION );
+    broadcastMessage( REPLICATION_NEWLY_JOINED_VERSION );
     requestVersions( );
 
     dprintf( D_FULLDEBUG, "::beforePassiveStateHandler() "
@@ -509,26 +516,26 @@ ReplicatorStateMachine::afterElectionStateHandler(
 	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
     dprintf( D_ALWAYS, "::afterElectionStateHandler() started\n" );
-    REPLICATION_ASSERT(m_state != REPLICATION_LEADER);
+    ASSERT(m_state != STATE_LEADER);
 
 	// we stay in STATE_REQUESTING or STATE_DOWNLOADING state
     // of newly joining node, we will go to LEADER_STATE later
     // upon receiving of IN_LEADER message from HAD
     if( m_state == STATE_REQUESTING || m_state == STATE_DOWNLOADING ) {
-        return;
+        return true;
     }
 
-	becomeLeader( );
+	return becomeLeader( );
 }
 
-void
+bool
 ReplicatorStateMachine::afterLeaderStateHandler(
 	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
    // REPLICATION_ASSERT(state != STATE_BACKUP)
 
     if( m_state == STATE_REQUESTING || m_state == STATE_DOWNLOADING ) {
-        return;
+        return true;
     }
 
 	/* receiving this notification message in STATE_BACKUP state
@@ -538,24 +545,26 @@ ReplicatorStateMachine::afterLeaderStateHandler(
 	   from HAD as well, since we do not want to broadcast our newly
 	   downloaded version to others, because it is too new */
 	if( m_state == STATE_BACKUP ) {
-		return;
+		return true;
 	}
     dprintf( D_ALWAYS,
 			"ReplicatorStateMachine::afterLeaderStateHandler started\n" );
-    broadcastVersion( REPLICATION_GIVING_UP_VERSION );
+    broadcastMessage( REPLICATION_GIVING_UP_VERSION );
     m_state = STATE_BACKUP;
+	return true;
 }
 
-void
+bool
 ReplicatorStateMachine::inLeaderStateHandler(
-	const ClassAd & /*ad*/, const MyString &sinful )
+	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
 {
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::inLeaderStateHandler started "
-			"with state = %d\n", int( m_state ) );
+    dprintf( D_ALWAYS,
+			 "::inLeaderStateHandler() started "
+			 "with state = %d\n", int( m_state ) );
     // REPLICATION_ASSERT(m_state != STATE_BACKUP)
 
     if( m_state == STATE_REQUESTING || m_state == STATE_DOWNLOADING) {
-        return;
+        return true;
     }
 
 	/* receiving this notification message in STATE_BACKUP state
@@ -563,9 +572,7 @@ ReplicatorStateMachine::inLeaderStateHandler(
 	   took for the HAD to become active, in this case we act as if we
 	   received AFTER_ELECTION message */
     if( m_state == STATE_BACKUP ) {
-		becomeLeader( );
-
-		return;
+		return becomeLeader( );
 	}
 	m_lastHadAliveTime = time( NULL );
 
@@ -576,15 +583,17 @@ ReplicatorStateMachine::inLeaderStateHandler(
 	// 	  replicaSelectionHandler( newVersion ) ) {
     //    download( newVersion.getSinfulString( ).Value( ) );
     //}
+	return true;
 }
 
 bool
 ReplicatorStateMachine::replicaSelectionHandler(
 	ReplicatorVersion	&newVersion )
 {
-    REPLICATION_ASSERT( m_state == STATE_DOWNLOADING || m_state == STATE_BACKUP );
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::replicaSelectionHandler "
-			"started with my version = %s, #versions = %d\n",
+    ASSERT( m_state == STATE_DOWNLOADING || m_state == STATE_BACKUP );
+    dprintf( D_ALWAYS,
+			 "::replicaSelectionHandler() "
+			 "started with my version = %s, #versions = %d\n",
              m_myVersion.toString( ).Value( ), m_versionsList.Number( ) );
     List<ReplicatorVersion> actualVersionsList;
     ReplicatorVersion myVersionCopy = m_myVersion;
@@ -612,6 +621,7 @@ ReplicatorStateMachine::replicaSelectionHandler(
     }
     ReplicatorVersion version;
     ReplicatorVersion bestVersion;
+
     // taking the first actual version as the best version in the meantime
     actualVersionsList.Next( bestVersion );
     dprintf( D_ALWAYS, "ReplicatorStateMachine::replicaSelectionHandler best "
@@ -648,7 +658,7 @@ ReplicatorStateMachine::replicaSelectionHandler(
 void
 ReplicatorStateMachine::gidSelectionHandler( void )
 {
-    REPLICATION_ASSERT( m_state == STATE_BACKUP || m_state == REPLICATION_LEADER );
+    REPLICATION_ASSERT( m_state == STATE_BACKUP || m_state == STATE_LEADER );
     dprintf( D_ALWAYS,
 			 "ReplicatorStateMachine::gidSelectionHandler started\n");
 
@@ -719,7 +729,7 @@ ReplicatorStateMachine::decodeVersionAndState( Stream* stream )
  * Description: passes to leader state, sets the last time, that HAD sent its
  * 				message and chooses a new gid
  */
-void
+bool
 ReplicatorStateMachine::becomeLeader( void )
 {
 	// sets the last time, when HAD sent a HAD_IN_STATE_STATE
@@ -729,7 +739,8 @@ ReplicatorStateMachine::becomeLeader( void )
 
 	// selects new gid for the pool
     gidSelectionHandler( );
-    m_state = REPLICATION_LEADER;
+    m_state = STATE_LEADER;
+	return true;
 }
 
 /* Function   : onLeaderVersion
@@ -780,7 +791,7 @@ ReplicatorStateMachine::onTransferFile( char* daemonSinfulString )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onTransferFile %s started\n",
              daemonSinfulString );
-    if( m_state == REPLICATION_LEADER ) {
+    if( m_state == STATE_LEADER ) {
         upload( daemonSinfulString );
     }
 }
@@ -796,7 +807,7 @@ ReplicatorStateMachine::onSolicitVersion( char* daemonSinfulString )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::onSolicitVersion %s started\n",
              daemonSinfulString );
-    if( m_state == STATE_BACKUP || m_state == REPLICATION_LEADER ) {
+    if( m_state == STATE_BACKUP || m_state == STATE_LEADER ) {
         sendVersionAndStateCommand( REPLICATION_SOLICIT_VERSION_REPLY,
                                     daemonSinfulString );
    }
@@ -832,7 +843,7 @@ ReplicatorStateMachine::onNewlyJoinedVersion( Stream* /*stream*/ )
     dprintf(D_ALWAYS,
 			"ReplicatorStateMachine::onNewlyJoinedVersion started\n");
 
-    if( m_state == REPLICATION_LEADER ) {
+    if( m_state == STATE_LEADER ) {
         // eventually merging files
         //decodeAndAddVersion( stream );
     }
@@ -854,7 +865,7 @@ ReplicatorStateMachine::onGivingUpVersion( Stream* /*stream*/ )
     if( m_state == STATE_BACKUP) {
         // eventually merging files
     }
-    if( m_state == REPLICATION_LEADER ){
+    if( m_state == STATE_LEADER ){
         // eventually merging files
         gidSelectionHandler( );
     }
@@ -1036,7 +1047,7 @@ ReplicatorStateMachine::replicationTimer( void )
 	// if after the version synchronization, the file update was tracked, the
 	// local version is broadcasted to the entire pool
     if( m_myVersion.synchronize( true ) ) {
-        broadcastVersion( REPLICATION_LEADER_VERSION );
+        broadcastMessage( REPLICATION_LEADER_VERSION );
     }
     dprintf( D_FULLDEBUG,
 			 "ReplicatorStateMachine::replicationTimer %d seconds "
@@ -1045,7 +1056,7 @@ ReplicatorStateMachine::replicationTimer( void )
 	// allowing to remain replication leader without HAD_IN_LEADER_STATE
 	// messages for about 'HAD_ALIVE_TOLERANCE' seconds only
     if( currentTime - m_lastHadAliveTime > m_hadAliveTolerance) {
-        broadcastVersion( REPLICATION_GIVING_UP_VERSION );
+        broadcastMessage( REPLICATION_GIVING_UP_VERSION );
         m_state = STATE_BACKUP;
     }
 }

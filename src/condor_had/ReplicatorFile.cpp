@@ -34,14 +34,12 @@ using namespace std;
 // ==========================================
 
 // C-Tors / D-Tors
-ReplicatorFileBase::ReplicatorFileBase( const char *spool, const char *path )
+ReplicatorFileBase::ReplicatorFileBase( const char *path, const char *spool )
 		: m_versionFilePath( "" ),
 		  m_myVersion( *this ),
 		  m_downloader( *this )
 {
-	m_versionFilePath  = spool;
-	m_versionFilePath += "/_Version.";
-	m_versionFilePath = condor_basename( path );
+	initVersionInfo( spool );
 
     m_classAd.SetMyTypeName( REPLICATOR_ADTYPE );
     m_classAd.SetTargetTypeName( "" );
@@ -62,6 +60,15 @@ ReplicatorFileBase::ReplicatorFileBase( const char * /*path*/ )
 
 ReplicatorFileBase::~ReplicatorFileBase( void )
 {
+}
+
+bool
+ReplicatorFileBase::initVersionInfo( const char *spool )
+{
+	m_versionFilePath  = spool;
+	m_versionFilePath += "/_Version.";
+	m_versionFilePath += condor_basename( getFilePath() );
+	return true;
 }
 
 bool
@@ -261,8 +268,8 @@ ReplicatorFileBase::sendMessage(
 // ===============================
 
 // C-Tors / D-Tors
-ReplicatorFile::ReplicatorFile( const char *spool, const char *path )
-		: ReplicatorFileBase( spool, path ),
+ReplicatorFile::ReplicatorFile( const char *path, const char *spool )
+		: ReplicatorFileBase( path, spool ),
 		  m_filePath( path )
 {
 	// m_classAd.Assign( ); TODO
@@ -288,97 +295,4 @@ bool
 ReplicatorFile::getMtime( time_t &mtime ) const
 {
 	return getFileMtime( m_filePath.Value(), mtime );
-}
-
-
-// ===================================
-// ==== Replicator File Set class ====
-// ===================================
-
-// C-Tors / D-Tors
-ReplicatorFileSet::ReplicatorFileSet( const char *spool, StringList *files )
-		: ReplicatorFileBase( spool, files->first() ),
-		  m_nameList( NULL ),
-		  m_nameListStr( NULL ),
-		  m_pathList( files ),
-		  m_pathListStr( files->print_to_string() )
-{
-
-	char	*path;
-
-    files->rewind( );
-	m_nameList = new StringList;
-    while( (path = files->next()) != NULL ) {
-		m_nameList->append( condor_basename(path) );
-	}
-	m_nameListStr = m_nameList->print_to_string();
-}
-
-ReplicatorFileSet::ReplicatorFileSet( StringList *names )
-		: ReplicatorFileBase( names->first() ),
-		  m_nameList( names ),
-		  m_nameListStr( names->print_to_string() ),
-		  m_pathList( NULL ),
-		  m_pathListStr( NULL )
-{
-}
-
-ReplicatorFileSet::~ReplicatorFileSet( void )
-{
-
-	if ( m_nameList ) {
-		delete m_nameList;
-		m_nameList = NULL;
-	}
-	if ( m_nameListStr ) {
-		free( m_nameListStr );
-		m_nameListStr = NULL;
-	}
-
-	if ( m_pathList ) {
-		delete m_pathList;
-		m_pathList = NULL;
-	}
-	if ( m_pathListStr ) {
-		free( m_pathListStr );
-		m_pathListStr = NULL;
-	}
-
-}
-
-bool
-ReplicatorFileSet::operator == ( const ReplicatorFileBase &other ) const
-{
-	const ReplicatorFileSet	*file_set =
-		dynamic_cast<const ReplicatorFileSet*>( &other );
-	if ( !file_set ) {
-		return false;
-	}
-	return *this == *file_set;
-}
-
-bool
-ReplicatorFileSet::getMtime( time_t &mtime ) const
-{
-	mtime = 0;
-
-	if ( !m_pathList ) {
-		return false;
-	}
-
-	char	*path;
-	m_pathList->rewind();
-	while(  ( path = m_pathList->next() ) != NULL ) {
-		time_t	ttime;
-		if ( getFileMtime( path, ttime ) ) {
-			if ( ttime > mtime ) {
-				mtime = ttime;
-			}
-		}
-		else {
-			dprintf( D_FULLDEBUG,
-					 "Warning: Unable to stat '%s' for replication\n", path );
-		}
-	}
-	return mtime ? true : false;
 }

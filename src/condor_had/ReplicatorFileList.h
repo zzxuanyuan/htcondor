@@ -35,16 +35,15 @@ class ReplicatorFileList
 	~ReplicatorFileList( void );
 
 	bool clear( void );
+	bool initFromList( StringList &, const char *spool );
 	bool initFromList( StringList & );
 
-	bool registerFile( ReplicatorFileBase * );
-	bool hasFile( const ReplicatorFileBase * ) const;
-	bool findFile( const char *path, ReplicatorFileBase ** );
+	bool registerFile( ReplicatorFile * );
+	bool hasFile( const ReplicatorFile * ) const;
+	bool findFile( const char *path, ReplicatorFile ** );
 
 	int getCount( void ) const { return m_fileList.size(); };
 	bool getFirstFile( const ReplicatorFile **item ) const;
-	bool getFirstFileSet( const ReplicatorFileSet **item ) const;
-	bool getFirstFileBase( const ReplicatorFileBase **item ) const;
 
 	// Get a StringList to represent the file list
 	bool getStringList( StringList & ) const;
@@ -56,19 +55,19 @@ class ReplicatorFileList
 	int numActiveDownloads( void ) const;
 	int numActiveUploads( void ) const;
 
-	// Send command to all peers
-	bool sendCommand( int command, bool send_ad, int &errors );
+	// Send message to all peers
+	bool sendMessage( int command, bool send_ad, int &errors );
 
 	// Send command to specific peer
-	bool sendCommand( int command, bool send_ad,
+	bool sendMessage( int command, bool send_ad,
 					  const ReplicatorPeer &, int &errors );
 
 	// Access to the list for iterating
-	list<ReplicatorFileBase *> & getList( void ) { return m_fileList; };
+	list<ReplicatorFile *> & getList( void ) { return m_fileList; };
 
 	// Private data
   private:
-	list<ReplicatorFileBase *>	m_fileList;
+	list<ReplicatorFile *>	m_fileList;
 
 };	/* ReplicatorFileList */
 

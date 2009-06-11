@@ -24,6 +24,7 @@
 #include "ReplicatorTransferer.h"
 #include "ReplicatorFileReplica.h"
 #include "ReplicatorFile.h"
+#include "ReplicatorFileSet.h"
 #include "ReplicatorFileList.h"
 #include "reli_sock.h"
 #include "dc_service.h"
@@ -113,13 +114,13 @@ class AbstractReplicatorStateMachine: public Service
     static int
     uploadReaper(Service* service, int pid, int exitStatus);
 
-	/* Function   : broadcastVersion
+	/* Function   : broadcastMessage
 	 * Arguments  : command - id that is sent to other replication daemons
 	 *						  along with the local version
 	 * Description: broadcasting different commands to other replication daemons
 	 *				along with the local version
 	 */
-    bool broadcastVersion( int command );
+    bool broadcastMessage( int command );
 
 	/* Function   : requestVersions
      * Description: sending command to other replication daemons, asking them to
@@ -252,7 +253,7 @@ class AbstractReplicatorStateMachine: public Service
   protected:
 
     // list of all of the files we replicate
-	ReplicatorFileList       m_fileList;
+	ReplicatorFileList		*m_fileList;
 	ReplicatorFileSet       *m_fileSet;
 
 	// configuration variables

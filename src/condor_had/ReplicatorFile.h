@@ -59,9 +59,12 @@ class ReplicatorDownloader : public ReplicatorTransferer
 class ReplicatorFileBase
 {
   public:
-	ReplicatorFileBase( const char *spool, const char *path );
+	ReplicatorFileBase( const char *path, const char *spool );
 	ReplicatorFileBase( const char *path );
 	virtual ~ReplicatorFileBase( void );
+
+	// Initializers
+	bool initVersionInfo( const char *spool );
 
 	// Comparison operators
 	virtual bool operator == ( const ReplicatorFileBase &other ) const = 0;
@@ -116,9 +119,6 @@ class ReplicatorFileBase
 	// The mtime of the file / file set
 	virtual bool getMtime( time_t &mtime ) const = 0;
 
-	// Virtualized methods to compare sets (only implemented for FileSet)
-	virtual bool match( StringList & /*other*/ ) const { return false; };
-
   protected:
 	bool sendMessage( int command, const ClassAd *ad,
 					  const ReplicatorPeer &peer, int &errors );
@@ -147,7 +147,7 @@ class ReplicatorFileBase
 class ReplicatorFile : public ReplicatorFileBase
 {
   public:
-	ReplicatorFile( const char *spool, const char *file );
+	ReplicatorFile( const char *file, const char *spool );
 	ReplicatorFile( const char *file );
 	~ReplicatorFile( void );
 
@@ -182,62 +182,6 @@ class ReplicatorFile : public ReplicatorFileBase
 	MyString	m_filePath;
 
 };	/* class ReplicatorFile */
-
-
-/* Class      : ReplicatorFileSet
- * Description: class, representing a set of file that are
- *              versioned and replicated as a set
- */
-class ReplicatorFileSet : public ReplicatorFileBase
-{
-  public:
-	ReplicatorFileSet( const char *spool, StringList *files );
-	ReplicatorFileSet( StringList *files );
-	~ReplicatorFileSet( void );
-
-	bool rotate( int pid ) const;
-
-	// Comparison operators
-	bool operator == ( const ReplicatorFileBase &other ) const;
-	bool operator == ( const ReplicatorFileSet &other ) const {
-		return ( *this == other.getFileList() );
-	};
-	bool operator == ( StringList &other ) const {
-		return getFileList().similar( other );
-	};
-	bool match( StringList &other ) const {
-		return getNameList().similar(other);
-	};
-
-	// Accessors
-	StringList &getNameList( void ) const {
-		return *m_nameList;
-	};
-	const char *getFilePath( void ) const {
-		return ( m_pathList ? m_pathList->first() : NULL );
-	};
-	StringList &getFileList( void ) const {
-		return ( m_pathList ? (*m_pathList) : (*m_nameList) );
-	};
-
-	const char *getFiles( void ) const {
-		return m_pathListStr;
-	};
-	const char *getNames( void ) const {
-		return m_nameListStr;
-	};
-
-	// The mtime of the file / file set
-	bool getMtime( time_t &mtime ) const;
-
-
-  private:
-	mutable StringList	*m_nameList;
-	char				*m_nameListStr;
-	mutable StringList	*m_pathList;
-	char				*m_pathListStr;
-
-};	/* class ReplilcatorFileSet */
 
 
 #endif // REPLICATOR_FILE_H

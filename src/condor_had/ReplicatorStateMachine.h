@@ -65,7 +65,7 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
      * 				state; broadcasts old local version, solicits versions from
 	 *				other replication daemons in the pool
      */
-    void beforePassiveStateHandler( const ClassAd &, const MyString &sinful );
+    bool beforePassiveStateHandler( const ClassAd &, const MyString &sinful );
 
 	/* Function   : afterElectionStateHandler
      * Description: concrete handler after the event, when HAD is in transition
@@ -74,21 +74,21 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
 	 *              message for replication daemon) and selects the new gid for
 	 *              the pool
      */
-    void afterElectionStateHandler( const ClassAd &, const MyString &sinful );
+    bool afterElectionStateHandler( const ClassAd &, const MyString &sinful );
 
 	/* Function   : afterLeaderStateHandler
 	 * Description: concrete handler after the event, when HAD is in transition
      *              from ELECTION to PASSIVE state
 	 * Remarks    : void by now
 	 */
-    void afterLeaderStateHandler( const ClassAd &, const MyString &sinful );
+    bool afterLeaderStateHandler( const ClassAd &, const MyString &sinful );
 
 	/* Function   : inLeaderStateHandler
      * Description: concrete handler after the event, when HAD is in inner loop
      *              of LEADER state; sets the last time, when HAD sent a
 	 * 				HAD_IN_STATE_STATE
      */
-    void inLeaderStateHandler( const ClassAd &, const MyString &sinful );
+    bool inLeaderStateHandler( const ClassAd &, const MyString &sinful );
 
 
 	// Selection handlers
@@ -105,6 +105,7 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
      *               versions list
      */
     virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion);
+
 	/* Function   : gidSelectionHandler
      * Description: concrete handler for selection of gid for the pool
 	 * Remarks    : void by now
@@ -115,12 +116,13 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
      * Description: initializes all inner structures, such as
 	 *				commands, timers, reapers and data members
      */
-    void initialize( void );
+    bool initialize( void );
+
 	/* Function   : reinitialize
      * Description: reinitializes all inner structures, such as
      *              commands, timers, reapers and data members
      */
-    void reinitialize( void );
+    bool reinitialize( void );
 
   protected:
 	/* Function   : downloadReplicaTransfererReaper
@@ -162,24 +164,24 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
     bool onGivingUpVersion( const ClassAd &ad, const MyString &sinful );
 
     static ReplicatorFileReplica *decodeVersionAndState( Stream *stream );
-	void becomeLeader( void );
+	bool becomeLeader( void );
 
 	// My "sinful" string
 	const char	*m_mySinfulString;
 
 	// Configuration parameters
-    int      m_replicationInterval;
-    int      m_hadAliveTolerance;
-    int      m_maxTransfererLifeTime;
-    int      m_newlyJoinedWaitingVersionInterval;
+    int          m_replicationInterval;
+    int          m_hadAliveTolerance;
+    int          m_maxTransfererLifeTime;
+    int          m_newlyJoinedWaitingVersionInterval;
 
 	// Timers
-    int     m_versionRequestingTimerId;
-    int     m_versionDownloadingTimerId;
-    int     m_replicationTimerId;
-
+    int         m_versionRequestingTimerId;
+    int         m_versionDownloadingTimerId;
+    int         m_replicationTimerId;
+			    
 	// last time HAD sent HAD_IN_LEADER_STATE
-    time_t  m_lastHadAliveTime;
+    time_t      m_lastHadAliveTime;
 
 	// Debugging utilities
 	void printDataMembers(void) const;
