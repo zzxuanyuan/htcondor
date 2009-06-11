@@ -40,9 +40,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions=""
+				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_TESTS_INCLUDE)  $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="1"
 				InlineFunctionExpansion="1"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;CLASSAD_DISTRIBUTION;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -68,7 +69,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
 				OutputFile="..\..\TestRelease\classad_lib.lib"
 				SuppressStartupBanner="true"
 			/>
@@ -116,8 +117,9 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions=""
+				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_TESTS_INCLUDE)  $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="0"
+				AdditionalIncludeDirectories="$(CONDOR_DEFINE) $(CONDOR_LIB_INCLUDE)  $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				PreprocessorDefinitions="_DEBUG;WIN32;_WINDOWS;CLASSAD_DISTRIBUTION;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				RuntimeLibrary="1"
@@ -141,7 +143,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
 				OutputFile="..\..\TestDebug\classad_lib.lib"
 				SuppressStartupBanner="true"
 			/>

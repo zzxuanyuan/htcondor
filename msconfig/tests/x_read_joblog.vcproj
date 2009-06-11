@@ -40,7 +40,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE)"
+				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_TESTS_INCLUDE)  $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="0"
 				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
@@ -62,7 +62,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
+				AdditionalOptions="/FORCE"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -115,10 +116,10 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE)"
+				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_TESTS_INCLUDE)  $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="../../src/condor_c++_util;../../src/condor_includes"
+				AdditionalIncludeDirectories=""
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -137,7 +138,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH)"
+				AdditionalOptions="/FORCE"
+				AdditionalDependencies="$(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				SubSystem="1"
