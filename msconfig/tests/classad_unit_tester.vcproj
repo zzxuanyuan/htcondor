@@ -223,6 +223,10 @@
 				/>
 			</FileConfiguration>
 		</File>
+		<File
+			RelativePath="..\..\src\condor_c++_util\dc_stub.cpp"
+			>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>

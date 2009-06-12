@@ -226,6 +226,10 @@
 			RelativePath="..\..\src\condor_classad.V6\classad_functional_tester.h"
 			>
 		</File>
+		<File
+			RelativePath="..\..\src\condor_c++_util\dc_stub.cpp"
+			>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>

@@ -16,7 +16,12 @@
  * limitations under the License.
  *
  ***************************************************************/
-
+#ifdef WIN32
+#include "condor_common.h"
+#define open _open
+#else
+#include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -25,7 +30,6 @@
 #include "write_user_log.h"
 #include "read_user_log.h"
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 int
@@ -34,8 +38,11 @@ WriteStateFile( const ReadUserLog::FileState &state, const char *state_file )
 	int		errors = 0;
 
 	int	fd = open( state_file,
-				   O_WRONLY|O_CREAT,
-				   S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP );
+				   O_WRONLY|O_CREAT
+#ifndef WIN32
+				   , S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP
+#endif
+				   );
 	if ( fd < 0 ) {
 		fprintf( stderr, "ERROR: Failed to open state file %s\n", state_file );
 		return 1;
