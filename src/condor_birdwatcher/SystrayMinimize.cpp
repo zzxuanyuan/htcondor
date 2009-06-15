@@ -17,7 +17,7 @@
  *
  ***************************************************************/
 
-#include <stdafx.h>
+//#include <stdafx.h>
 #include "systrayminimize.h"
 
 #define DEFAULT_RECT_WIDTH 150

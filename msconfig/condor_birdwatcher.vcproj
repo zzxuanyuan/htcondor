@@ -20,9 +20,9 @@
 			OutputDirectory=".\..\Release"
 			IntermediateDirectory=".\..\Release"
 			ConfigurationType="1"
-			UseOfMFC="1"
+			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
+			CharacterSet="1"
 			BuildLogFile="$(IntDir)\BuildLogs\$(InputName).log.htm"
 			>
 			<Tool
@@ -55,7 +55,7 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderThrough="stdafx.h"
 				PrecompiledHeaderFile=".\..\Release/condor_birdwatcher.pch"
 				AssemblerListingLocation=".\..\Release/"
@@ -129,10 +129,6 @@
 			</File>
 			<File
 				RelativePath="..\src\condor_birdwatcher\birdWatcherDlg.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\src\condor_birdwatcher\StdAfx.cpp"
 				>
 			</File>
 			<File

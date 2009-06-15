@@ -17,13 +17,12 @@
  *
  ***************************************************************/
 
-#include <stdafx.h>
-#include <winbase.h>
+#include "stdafx.h"
+#include "WindowsMessageReceiver.h"
+#include <windows.h>
 
 #pragma warning(disable:4786)
-
-#include "WindowsMessageReceiver.h"
-#include <string>
+#include "birdwatcher.h"
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -68,11 +67,11 @@ void WindowsMessageReceiver::createHwnd()
 {
 	static WNDCLASS	wc;
 	static bool bFirstTime = true;
-	static char pszClassNameBuf[256];
+	static WCHAR pszClassNameBuf[256];
 
-	srand((unsigned) (time(NULL)));
+	srand(GetTickCount());
 
-	HINSTANCE hinst = NULL;
+	HINSTANCE hinst = hInst;
 
 	if (bFirstTime)
 	{
@@ -89,17 +88,19 @@ void WindowsMessageReceiver::createHwnd()
 		wc.lpszMenuName				= NULL;
 		wc.lpszClassName			= pszClassNameBuf;
 
-		strcpy(pszClassNameBuf, "WindowsMessageReceiver");
+		WCHAR wmreceiver[] = L"WindowsMessageReceiver";
+		wcscpy_s(pszClassNameBuf, wcslen(wmreceiver), wmreceiver);
 		
 		int iTries = 0;
 		while (!RegisterClass(&wc)) 
 		{
 			int iRand = rand()%10000;
-			char sRand[32];
-			itoa(iRand, sRand, 10);
-			string strTemp = string("WindowsMessageReceiver") + sRand;
+			WCHAR sRand[32];
+			_itow_s(iRand, sRand, wcslen(sRand), 10);
+			wcscpy_s(pszClassNameBuf, wcslen(wmreceiver), wmreceiver);
+			wcscat_s(pszClassNameBuf, wcslen(sRand), sRand);
 			
-			strcpy(pszClassNameBuf, strTemp.c_str());
+			//strcpy(pszClassNameBuf, strTemp.c_str());
 			
 			iTries++;
 			if (iTries > 10)
@@ -109,7 +110,7 @@ void WindowsMessageReceiver::createHwnd()
 		}
 	}
 	
-	m_hWnd = CreateWindow(pszClassNameBuf, "", 0, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, NULL,	NULL, hinst, NULL);
+	m_hWnd = CreateWindow(pszClassNameBuf, TEXT(""), 0, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, NULL,	NULL, hinst, NULL);
 	mapWindowsMessageReceivers()[m_hWnd] = this;
 
 	return;
