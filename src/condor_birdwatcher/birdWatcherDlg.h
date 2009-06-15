@@ -30,9 +30,8 @@
 #include "birdwatcher.h"
 /////////////////////////////////////////////////////////////////////////////
 // CBirdWatcherDlg dialog
-HWND parentHwnd;
-RECT rc, rcDlg, rcOwner;
-WCHAR *zCondorDir;
+extern HWND parentHwnd;
+extern WCHAR *zCondorDir;
 INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void OnTimer(UINT nIDEvent);
 

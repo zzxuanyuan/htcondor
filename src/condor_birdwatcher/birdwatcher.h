@@ -31,8 +31,8 @@
 
 class SystrayManager;
 
-HINSTANCE hInst;								// current instance
-HWND birdwatcherDLG;
+extern HINSTANCE hInst;								// current instance
+extern HWND birdwatcherDLG;
 
 /////////////////////////////////////////////////////////////////////////////
 

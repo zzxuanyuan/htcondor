@@ -31,7 +31,7 @@
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
-
+RECT rc, rcDlg, rcOwner;
 /////////////////////////////////////////////////////////////////////////////
 // CBirdWatcherDlg dialog
 

@@ -27,7 +27,9 @@
 
 using namespace std;
 const int CONDOR_SYSTRAY_INTERNAL_EVENTS = WM_USER + 4001;
-
+HWND birdwatcherDLG;
+HWND parentHwnd;
+WCHAR *zCondorDir;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SystrayManager::SystrayManager()

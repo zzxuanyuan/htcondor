@@ -4,7 +4,7 @@
 #include "stdafx.h"
 #include "birdwatcher.h"
 #define MAX_LOADSTRING 100
-
+HINSTANCE hInst;
 // Global Variables:
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
