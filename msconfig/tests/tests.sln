@@ -52,8 +52,14 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "classad_tests", "classad_tests", "{1E4B221B-80DC-48E4-B965-CDBE7EDF68EE}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "classad_functional_tester", "classad_functional_tester.vcproj", "{12F92145-7770-453E-882E-4ABF31A87F1E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{24EB960B-D293-4CD5-9A31-C49E61242492} = {24EB960B-D293-4CD5-9A31-C49E61242492}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "classad_unit_tester", "classad_unit_tester.vcproj", "{E27113CF-00B2-4969-9A8A-AF8FC2960730}"
+	ProjectSection(ProjectDependencies) = postProject
+		{24EB960B-D293-4CD5-9A31-C49E61242492} = {24EB960B-D293-4CD5-9A31-C49E61242492}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "condor_unit_tests", "condor_unit_tests", "{0E33FDB1-0796-4638-AEB8-C67BEE01FF2C}"
 EndProject
@@ -62,6 +68,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_daemon_core", "test_daemon_core.vcproj", "{CD6A999B-915D-4B4D-BDFB-DD237CC44AEE}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lib_eventlog_base", "lib_eventlog_base.vcproj", "{5F423E11-074B-4A36-BC00-BE10B17CF175}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "classad_lib", "classad_lib.vcproj", "{24EB960B-D293-4CD5-9A31-C49E61242492}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -141,6 +149,10 @@ Global
 		{5F423E11-074B-4A36-BC00-BE10B17CF175}.Debug|Win32.Build.0 = Debug|Win32
 		{5F423E11-074B-4A36-BC00-BE10B17CF175}.Release|Win32.ActiveCfg = Release|Win32
 		{5F423E11-074B-4A36-BC00-BE10B17CF175}.Release|Win32.Build.0 = Release|Win32
+		{24EB960B-D293-4CD5-9A31-C49E61242492}.Debug|Win32.ActiveCfg = Debug|Win32
+		{24EB960B-D293-4CD5-9A31-C49E61242492}.Debug|Win32.Build.0 = Debug|Win32
+		{24EB960B-D293-4CD5-9A31-C49E61242492}.Release|Win32.ActiveCfg = Release|Win32
+		{24EB960B-D293-4CD5-9A31-C49E61242492}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -162,6 +174,7 @@ Global
 		{5F423E11-074B-4A36-BC00-BE10B17CF175} = {369F600C-C70D-4A2E-BE00-B0ED172F5DC9}
 		{12F92145-7770-453E-882E-4ABF31A87F1E} = {1E4B221B-80DC-48E4-B965-CDBE7EDF68EE}
 		{E27113CF-00B2-4969-9A8A-AF8FC2960730} = {1E4B221B-80DC-48E4-B965-CDBE7EDF68EE}
+		{24EB960B-D293-4CD5-9A31-C49E61242492} = {1E4B221B-80DC-48E4-B965-CDBE7EDF68EE}
 		{5AB4C47C-3524-4F83-A59E-4504B0BA36E3} = {0E33FDB1-0796-4638-AEB8-C67BEE01FF2C}
 		{CD6A999B-915D-4B4D-BDFB-DD237CC44AEE} = {0E33FDB1-0796-4638-AEB8-C67BEE01FF2C}
 	EndGlobalSection
