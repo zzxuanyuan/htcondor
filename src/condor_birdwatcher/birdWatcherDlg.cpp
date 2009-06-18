@@ -41,7 +41,7 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	{
 	case WM_INITDIALOG:
 		OutputDebugString(L"Message received");
-		parentHwnd = GetDesktopWindow();
+/*		parentHwnd = GetDesktopWindow();
 		GetWindowRect(parentHwnd, &rcOwner);
 		GetWindowRect(hwndDlg, &rcDlg);
 		CopyRect(&rc, &rcOwner);
@@ -49,8 +49,8 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		OffsetRect(&rcDlg, -rcDlg.left, -rcDlg.top);
 		OffsetRect(&rc, -rc.left, -rc.top);
 		OffsetRect(&rc, -rcDlg.right, -rcDlg.bottom);
-
-		SetWindowPos(hwndDlg, HWND_TOP, rcOwner.left + (rc.right/2), rcOwner.top + (rc.bottom/2), 0, 0, SWP_NOSIZE);
+*/
+		//SetWindowPos(hwndDlg, HWND_TOP, rcOwner.left + (rc.right/2), rcOwner.top + (rc.bottom/2), 0, 0, SWP_NOSIZE);
 		//ShowWindow(hwndDlg, SW_SHOW);
 		SetTimer(birdwatcherDLG, 1000, 1000, NULL);
 		
