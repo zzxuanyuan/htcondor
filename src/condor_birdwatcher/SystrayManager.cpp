@@ -62,7 +62,14 @@ SystrayManager::SystrayManager()
 	//Just directly get the handle.
 	notifyWnd = wmr.getHWnd();
 	
-	birdwatcherDLG = CreateDialog(hInst, TEXT("test"), notifyWnd, DialogProc);
+	birdwatcherDLG = CreateDialog(hInst, MAKEINTRESOURCE(IDD_BIRDWATCHER_DIALOG), notifyWnd, DialogProc);
+	if(!birdwatcherDLG)
+	{
+		DWORD temp = GetLastError();
+		WCHAR buffer[256];
+		_ltow(temp, buffer, 10);
+		OutputDebugString(buffer);
+	}
 	zCondorDir = psBuf;
 	//pDlg->Create(IDD_BIRDWATCHER_DIALOG);
 }
@@ -122,7 +129,7 @@ void SystrayManager::setIcon(BirdIconVector::size_type iCpuId, HICON hToSet)
 	
 	icon.nid.hIcon = hToSet;
 	icon.nid.hWnd = wmr.getHWnd();
-	wcscpy_s(icon.nid.szTip, wcslen(icon.strTooltip), icon.strTooltip);
+	wcscpy_s(icon.nid.szTip, _countof(icon.nid.szTip), icon.strTooltip);
 	//strcpy(icon.nid.szTip, icon.strTooltip.c_str());
 	icon.nid.uCallbackMessage = CONDOR_SYSTRAY_INTERNAL_EVENTS;
 	icon.nid.uFlags = NIF_MESSAGE | NIF_ICON;
@@ -149,15 +156,17 @@ void SystrayManager::onReceivedWindowsMessage(WindowsMessageReceiver *pSource, U
 	static int iTimerNum = 0;
 	
 	string strLogMsg;
-	
+	/*
+	WCHAR temp[256];
+	_itow_s(message, temp, 256, 10);
+	OutputDebugString(temp);
+	*/
 	switch (message)
 	{
-	case (CONDOR_SYSTRAY_NOTIFY_CHANGED) :
-		{
+	case CONDOR_SYSTRAY_NOTIFY_CHANGED:
 			strLogMsg = "Got notify changed msg";
 			reloadStatus();
 			break;
-		}
 	case (WM_COMMAND) :
 		{
 			//Debug output, uncomment and fix if you need it
@@ -319,8 +328,7 @@ void SystrayManager::reloadStatus()
 		
 		vecIconsForEachCpu.resize(1);
 		vecIconsForEachCpu[0].bRunningJob = false;
-		WCHAR coff[] = L"Birdwatcher: Condor is off";
-		wcscpy_s(vecIconsForEachCpu[0].strTooltip, wcslen(coff), coff);
+		wcscpy_s(vecIconsForEachCpu[0].strTooltip, _countof(vecIconsForEachCpu[0].strTooltip), L"Birdwatcher: Condor is off");
 		setIcon(0, hCondorOff);
 		
 #ifdef GENERATE_BIRD_LOG
@@ -353,7 +361,6 @@ void SystrayManager::reloadStatus()
 	for (int i = 0; i < iCpus; i++)
 	{
 		WCHAR psBuf[] = L"systray_cpu_%d_state";
-		//sprintf(psBuf, "systray_cpu_%d_state", i);
 		dwData = (int) kSystrayStatusIdle; // assume idle
 		RegQueryValueEx(hNotifyHandle, psBuf, 0, &dwType, (unsigned char *) &dwData, &dwDataLen);
 		
@@ -374,36 +381,31 @@ void SystrayManager::reloadStatus()
 			if (eStatus == kSystrayStatusIdle)
 			{
 				icon.bRunningJob = false;
-				WCHAR cpidle[] = L"Birdwatcher: This cpu is idle";
-				wcscpy_s(icon.strTooltip, wcslen(cpidle), cpidle);
+				wcscpy_s(icon.strTooltip, _countof(icon.strTooltip), L"Birdwatcher: This cpu is idle");
 				setIcon(i, hIdle);
 			}
 			else if (eStatus == kSystrayStatusJobRunning)
 			{
 				icon.bRunningJob = true;
-				WCHAR crun[] = L"Birdwatcher: This cpu is running a Condor job";
-				wcscpy_s(icon.strTooltip, wcslen(crun), crun);
+				wcscpy_s(icon.strTooltip, _countof(icon.strTooltip), L"Birdwatcher: This cpu is running a Condor job");
 				setIcon(i, hRunningJob1);
 			}
 			else if (eStatus == kSystrayStatusJobSuspended)
 			{
 				icon.bRunningJob = false;
-				WCHAR jsus[] = L"Birdwatcher: The job on this cpu is suspended";
-				wcscpy_s(icon.strTooltip, wcslen(jsus), jsus);
+				wcscpy_s(icon.strTooltip, _countof(icon.strTooltip), L"Birdwatcher: The job on this cpu is suspended");
 				setIcon(i, hSuspended);
 			}
 			else if (eStatus == kSystrayStatusJobPreempting)
 			{
 				icon.bRunningJob = false;
-				WCHAR jpre[] = L"Birdwatcher: The job on this cpu is preempting";
-				wcscpy_s(icon.strTooltip, wcslen(jpre), jpre);
+				wcscpy_s(icon.strTooltip, _countof(icon.strTooltip), L"Birdwatcher: The job on this cpu is preempting");
 				setIcon(i, hPreempting);
 			}
 			else
 			{
 				icon.bRunningJob = false;
-				WCHAR jcla[] = L"Birdwatcher: This cpu is claimed for a Condor job";
-				wcscpy_s(icon.strTooltip, wcslen(jcla), jcla);
+				wcscpy_s(icon.strTooltip, _countof(icon.strTooltip), L"Birdwatcher: This cpu is claimed for a Condor job");
 				setIcon(i, hClaimed);
 			}
 		}
@@ -430,22 +432,19 @@ void SystrayManager::reloadStatus()
 		if (bAllIdle)
 		{
 			vecIconsForEachCpu[0].bRunningJob = false;
-			WCHAR coidle[] = L"Birdwatcher: Condor is idle";
-			wcscpy_s(vecIconsForEachCpu[0].strTooltip, wcslen(coidle), coidle);
+			wcscpy_s(vecIconsForEachCpu[0].strTooltip, _countof(vecIconsForEachCpu[0].strTooltip), L"Birdwatcher: Condor is idle");
 			setIcon(0, hIdle);
 		}
 		else if (!bAnyRunning)
 		{
 			vecIconsForEachCpu[0].bRunningJob = false;
-			WCHAR bcla[] = L"Birdwatcher: claimed for a Condor job...";
-			wcscpy_s(vecIconsForEachCpu[0].strTooltip, wcslen(bcla), bcla);
+			wcscpy_s(vecIconsForEachCpu[0].strTooltip, _countof(vecIconsForEachCpu[0].strTooltip), L"Birdwatcher: claimed for a Condor job...");
 			setIcon(0, hClaimed);
 		}
 		else
 		{
 			vecIconsForEachCpu[0].bRunningJob = true;
-			WCHAR barun[] = L"Birdwatcher: running a Condor job";
-			wcscpy_s(vecIconsForEachCpu[0].strTooltip, wcslen(barun), barun);
+			wcscpy_s(vecIconsForEachCpu[0].strTooltip, _countof(vecIconsForEachCpu[0].strTooltip), L"Birdwatcher: running a Condor job");
 			setIcon(0, hRunningJob1);
 		}
 	}

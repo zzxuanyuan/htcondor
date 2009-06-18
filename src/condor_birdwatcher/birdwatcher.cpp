@@ -31,7 +31,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
 				hFlying2,
 				LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PREEMPTING))
 				);
-
+	
 	while(GetMessage(&msg, NULL, 0, 0))
 	{
 		if(birdwatcherDLG == 0 || !IsDialogMessage(birdwatcherDLG, &msg))

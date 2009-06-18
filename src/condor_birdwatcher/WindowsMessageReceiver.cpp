@@ -37,6 +37,8 @@ map<HWND, WindowsMessageReceiver *> &mapWindowsMessageReceivers()
 
 LRESULT CALLBACK WMR_WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	//OutputDebugString(L"WinProc\n");
+	//exit(0);
 	WindowsMessageReceiver *pCurrentWMR = mapWindowsMessageReceivers()[hwnd];
 
 	if (!pCurrentWMR)
@@ -67,7 +69,7 @@ void WindowsMessageReceiver::createHwnd()
 {
 	static WNDCLASS	wc;
 	static bool bFirstTime = true;
-	static WCHAR pszClassNameBuf[256];
+	static WCHAR pszClassNameBuf[] = L"WindowsMessageReceiver";
 
 	srand(GetTickCount());
 
@@ -81,15 +83,15 @@ void WindowsMessageReceiver::createHwnd()
 		wc.lpfnWndProc				= WMR_WindowProc;
 		wc.cbClsExtra				= 0x0;
 		wc.cbWndExtra				= sizeof(DWORD);
-		wc.hInstance				= hinst;// NULL
+		wc.hInstance				= hInst;// NULL
 		wc.hIcon					= NULL;
 		wc.hCursor					= NULL;
 		wc.hbrBackground			= (HBRUSH)GetStockObject(BLACK_BRUSH);
 		wc.lpszMenuName				= NULL;
 		wc.lpszClassName			= pszClassNameBuf;
 
-		WCHAR wmreceiver[] = L"WindowsMessageReceiver";
-		wcscpy_s(pszClassNameBuf, wcslen(wmreceiver), wmreceiver);
+		//WCHAR wmreceiver[] = ;
+		//wcscpy_s(pszClassNameBuf, wcslen(wmreceiver), wmreceiver);
 		
 		int iTries = 0;
 		while (!RegisterClass(&wc)) 
@@ -97,10 +99,8 @@ void WindowsMessageReceiver::createHwnd()
 			int iRand = rand()%10000;
 			WCHAR sRand[32];
 			_itow_s(iRand, sRand, wcslen(sRand), 10);
-			wcscpy_s(pszClassNameBuf, wcslen(wmreceiver), wmreceiver);
-			wcscat_s(pszClassNameBuf, wcslen(sRand), sRand);
-			
-			//strcpy(pszClassNameBuf, strTemp.c_str());
+			//wcscpy_s(pszClassNameBuf, wcslen(wmreceiver), wmreceiver);
+			//wcscat_s(pszClassNameBuf, wcslen(sRand), sRand);
 			
 			iTries++;
 			if (iTries > 10)
@@ -109,11 +109,15 @@ void WindowsMessageReceiver::createHwnd()
 			}
 		}
 	}
-	
 	m_hWnd = CreateWindow(pszClassNameBuf, TEXT(""), 0, CW_USEDEFAULT, CW_USEDEFAULT, 1, 1, NULL,	NULL, hinst, NULL);
+	if(!m_hWnd)
+	{
+		DWORD temp = GetLastError();
+		WCHAR buffer[256];
+		_ltow(temp, buffer, 10);
+		OutputDebugString(buffer);
+	}
 	mapWindowsMessageReceivers()[m_hWnd] = this;
-
-	return;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
