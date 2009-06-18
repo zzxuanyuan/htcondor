@@ -174,6 +174,18 @@
 	</References>
 	<Files>
 		<File
+			RelativePath="..\..\src\condor_unit_tests\soap_testC.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\condor_unit_tests\soap_testServer.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\condor_unit_tests\soap_testStub.cpp"
+			>
+		</File>
+		<File
 			RelativePath="..\..\src\condor_unit_tests\test_daemon_core.cpp"
 			>
 		</File>
