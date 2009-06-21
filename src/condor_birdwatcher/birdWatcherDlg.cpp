@@ -40,7 +40,7 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	switch(uMsg)
 	{
 	case WM_INITDIALOG:
-		OutputDebugString(L"Message received");
+		//OutputDebugString(L"Message received");
 /*		parentHwnd = GetDesktopWindow();
 		GetWindowRect(parentHwnd, &rcOwner);
 		GetWindowRect(hwndDlg, &rcDlg);
@@ -52,11 +52,18 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 */
 		//SetWindowPos(hwndDlg, HWND_TOP, rcOwner.left + (rc.right/2), rcOwner.top + (rc.bottom/2), 0, 0, SWP_NOSIZE);
 		//ShowWindow(hwndDlg, SW_SHOW);
-		SetTimer(birdwatcherDLG, 1000, 1000, NULL);
+		if(!SetTimer(hwndDlg, 1000, 1000, NULL))
+		{
+			DWORD temp = GetLastError();
+			WCHAR buffer[256];
+			_ltow(temp, buffer, 10);
+			OutputDebugString(buffer);
+		}
 		
 		return true;
 
 	case WM_TIMER:
+		//OutputDebugString(L"Timer\n");
 		OnTimer(WM_TIMER);
 
 		return true;
@@ -76,25 +83,6 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	}
 }
 
-/*
-BEGIN_MESSAGE_MAP(CBirdWatcherDlg, CDialog)
-	//{{AFX_MSG_MAP(CBirdWatcherDlg)
-	ON_WM_SIZE()
-	ON_WM_TIMER()
-	ON_WM_CLOSE()
-	//}}AFX_MSG_MAP
-END_MESSAGE_MAP()
-*/
-/////////////////////////////////////////////////////////////////////////////
-// CBirdWatcherDlg message handlers
-/*
-void CBirdWatcherDlg::OnSize(UINT nType, int cx, int cy) 
-{
-	CDialog::OnSize(nType, cx, cy);
-	
-	
-}
-*/
 void OnTimer(UINT nIDEvent) 
 {
 	if (!IsWindowVisible(birdwatcherDLG))
@@ -148,8 +136,8 @@ void OnTimer(UINT nIDEvent)
 	ZeroMemory(&pi[0], sizeof(pi[0]));
 	ZeroMemory(&pi[1], sizeof(pi[1]));
 
-	hBirdq = CreateFile(*zCondorDir + L"birdq.tmp", GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-	hBirdst = CreateFile(*zCondorDir + L"birdstatus.tmp", GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+	hBirdq = CreateFile(*zCondorDir + L"birdq.tmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	hBirdst = CreateFile(*zCondorDir + L"birdstatus.tmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	
 	
 	si[0].dwFlags = STARTF_USESTDHANDLES;

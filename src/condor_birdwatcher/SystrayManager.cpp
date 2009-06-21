@@ -99,7 +99,7 @@ void SystrayManager::init(HICON hCondorOff, HICON hIdle, HICON hClaimed, HICON h
 	this->hSuspended = hSuspended;
 	this->hPreempting = hPreempting;
 	
-	iTimerId = ::SetTimer(wmr.getHWnd(), 1000, 180, NULL);
+	iTimerId = SetTimer(wmr.getHWnd(), 1000, 180, NULL);
 	
 	reloadStatus();
 }
