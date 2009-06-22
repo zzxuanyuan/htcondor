@@ -40,18 +40,7 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	switch(uMsg)
 	{
 	case WM_INITDIALOG:
-		//OutputDebugString(L"Message received");
-/*		parentHwnd = GetDesktopWindow();
-		GetWindowRect(parentHwnd, &rcOwner);
-		GetWindowRect(hwndDlg, &rcDlg);
-		CopyRect(&rc, &rcOwner);
 
-		OffsetRect(&rcDlg, -rcDlg.left, -rcDlg.top);
-		OffsetRect(&rc, -rc.left, -rc.top);
-		OffsetRect(&rc, -rcDlg.right, -rcDlg.bottom);
-*/
-		//SetWindowPos(hwndDlg, HWND_TOP, rcOwner.left + (rc.right/2), rcOwner.top + (rc.bottom/2), 0, 0, SWP_NOSIZE);
-		//ShowWindow(hwndDlg, SW_SHOW);
 		if(!SetTimer(hwndDlg, 1000, 1000, NULL))
 		{
 			DWORD temp = GetLastError();
@@ -83,7 +72,7 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	}
 }
 
-void OnTimer(UINT nIDEvent) 
+void OnTimer(UINT nIDEvent)
 {
 	if (!IsWindowVisible(birdwatcherDLG))
 		return;
@@ -91,9 +80,10 @@ void OnTimer(UINT nIDEvent)
 	LARGE_INTEGER fileSize;
 	DWORD dwBytesRead;
 
-	
+	WCHAR qTempName[] = L"birdq.tmp";
+	WCHAR statTempName[] = L"birdstatus.tmp";
 
-	HANDLE hBirdq = CreateFile(*zCondorDir + L"birdq.tmp", GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hBirdq = CreateFile(qTempName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if(!(hBirdq == INVALID_HANDLE_VALUE))
 	{	
@@ -110,7 +100,7 @@ void OnTimer(UINT nIDEvent)
 		}
 	}
 
-	HANDLE hBirdst = CreateFile(*zCondorDir + L"birdstatus.tmp", GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hBirdst = CreateFile(statTempName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if(!(hBirdst == INVALID_HANDLE_VALUE))
 	{		
@@ -136,8 +126,8 @@ void OnTimer(UINT nIDEvent)
 	ZeroMemory(&pi[0], sizeof(pi[0]));
 	ZeroMemory(&pi[1], sizeof(pi[1]));
 
-	hBirdq = CreateFile(*zCondorDir + L"birdq.tmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	hBirdst = CreateFile(*zCondorDir + L"birdstatus.tmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	hBirdq = CreateFile(qTempName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	hBirdst = CreateFile(statTempName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	
 	
 	si[0].dwFlags = STARTF_USESTDHANDLES;
@@ -148,8 +138,8 @@ void OnTimer(UINT nIDEvent)
 	si[1].hStdOutput = hBirdst;
 	si[1].cb = sizeof(si[1]);
 	
-	WCHAR condorq[] = L"bin\\condor_q.exe";
-	WCHAR condorst[] = L"bin\\condor_status.exe";
+	WCHAR condorq[] = L"condor_q.exe";
+	WCHAR condorst[] = L"condor_status.exe";
 
 	if(!(hBirdq == INVALID_HANDLE_VALUE))
 	{
@@ -175,18 +165,3 @@ void OnTimer(UINT nIDEvent)
 		CloseHandle(hBirdst);
 	}
 }
-/*
-BOOL CBirdWatcherDlg::OnInitDialog() 
-{
-	CDialog::OnInitDialog();
-	SetIcon(LoadIcon(NULL, MAKEINTRESOURCE(IDR_MAINFRAME)), TRUE);
-	
-	char cLast = zCondorDir[zCondorDir.GetLength()-1];
-	if (cLast != '\\' && cLast != '/')
-		zCondorDir += '\\';
-		
-	SetTimer(1000, 1000, NULL);	
-	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
-}
-*/
