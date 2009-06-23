@@ -74,6 +74,7 @@ void CBirdWatcherDlg::OnSize(UINT nType, int cx, int cy)
 
 void CBirdWatcherDlg::OnTimer(UINT nIDEvent) 
 {
+	OutputDebugString("Test");
 	if (!IsWindowVisible())
 		return;
 

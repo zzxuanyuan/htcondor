@@ -38,23 +38,23 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\..\Debug/condor_procapi_test.tlb"
+				TypeLibraryName=".\..\..\TestDebug/condor_procapi_test.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src\h,..\src\condor_includes,..\src\condor_c++_util,..\src\condor_daemon_client,..\src\condor_daemon_core.V6"
+				AdditionalIncludeDirectories="..\..\src\h,..\..\src\condor_includes,..\..\src\condor_c++_util,..\..\src\condor_daemon_client,..\..\src\condor_daemon_core.V6"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				RuntimeLibrary="1"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderThrough="condor_common.h"
-				PrecompiledHeaderFile="..\Debug\condor_common.pch"
-				AssemblerListingLocation=".\..\Debug/"
+				PrecompiledHeaderFile="..\..\Debug\condor_common.pch"
+				AssemblerListingLocation=".\..\..\TestDebug/"
 				ObjectFile=".\..\Debug/"
-				ProgramDataBaseFileName=".\..\Debug/"
+				ProgramDataBaseFileName=".\..\..\TestDebug/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="4"
@@ -72,12 +72,12 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="../Debug/condor_common.obj ..\Debug\condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
-				OutputFile=".\..\Debug/condor_procapi_test.exe"
+				AdditionalDependencies="../../Debug/condor_common.obj ..\..\Debug\condor_common_c.obj $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH) $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
+				OutputFile=".\..\..\TestDebug/condor_procapi_test.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile=".\..\Debug/condor_procapi_test.pdb"
+				ProgramDatabaseFile=".\..\..\TestDebug/condor_procapi_test.pdb"
 				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
@@ -95,7 +95,7 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\..\Debug/condor_procapi_test.bsc"
+				OutputFile=".\..\..\TestDebug/condor_procapi_test.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -109,8 +109,8 @@
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
-			OutputDirectory=".\..\Release"
-			IntermediateDirectory=".\..\Release"
+			OutputDirectory=".\..\..\TestRelease"
+			IntermediateDirectory=".\..\..\TestRelease"
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
@@ -131,7 +131,7 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\..\Release/condor_procapi_test.tlb"
+				TypeLibraryName=".\..\..\TestRelease/condor_procapi_test.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
@@ -139,17 +139,17 @@
 				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
 				Optimization="1"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\src\h,..\src\condor_includes,..\src\condor_c++_util,..\src\condor_daemon_client,..\src\condor_daemon_core.V6"
+				AdditionalIncludeDirectories="..\..\src\h,..\..\src\condor_includes,..\..\src\condor_c++_util,..\..\src\condor_daemon_client,..\..\src\condor_daemon_core.V6"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderThrough="condor_common.h"
-				PrecompiledHeaderFile="..\Release\condor_common.pch"
-				AssemblerListingLocation=".\..\Release/"
+				PrecompiledHeaderFile="..\..\Release\condor_common.pch"
+				AssemblerListingLocation=".\..\..\TestRelease/"
 				ObjectFile=".\..\Release/"
-				ProgramDataBaseFileName=".\..\Release/"
+				ProgramDataBaseFileName=".\..\..\TestRelease/"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				DebugInformationFormat="1"
@@ -167,8 +167,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="../Release/condor_common.obj ../Release/condor_common_c.obj $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
-				OutputFile=".\..\Release/condor_procapi_test.exe"
+				AdditionalDependencies="../../Release/condor_common.obj ..\..\Release\condor_common_c.obj $(CONDOR_TESTS_LIB) $(CONDOR_TESTS_LIBPATH) $(CONDOR_LIB) $(CONDOR_LIBPATH) $(CONDOR_GSOAP_LIB) $(CONDOR_GSOAP_LIBPATH) $(CONDOR_KERB_LIB) $(CONDOR_KERB_LIBPATH) $(CONDOR_PCRE_LIB) $(CONDOR_PCRE_LIBPATH) $(CONDOR_OPENSSL_LIB) $(CONDOR_POSTGRESQL_LIB) $(CONDOR_OPENSSL_LIBPATH) $(CONDOR_POSTGRESQL_LIBPATH)"
+				OutputFile=".\..\..\TestRelease/condor_procapi_test.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
@@ -189,7 +189,7 @@
 			<Tool
 				Name="VCBscMakeTool"
 				SuppressStartupBanner="true"
-				OutputFile=".\..\Release/condor_procapi_test.bsc"
+				OutputFile=".\..\..\TestRelease/condor_procapi_test.bsc"
 			/>
 			<Tool
 				Name="VCFxCopTool"
@@ -225,7 +225,7 @@
 			/>
 			<Tool
 				Name="VCMIDLTool"
-				TypeLibraryName=".\..\Debug/condor_procapi_test.tlb"
+				TypeLibraryName=".\..\..\Debug/condor_procapi_test.tlb"
 				HeaderFileName=""
 			/>
 			<Tool
@@ -393,7 +393,7 @@
 	</References>
 	<Files>
 		<File
-			RelativePath="..\src\condor_c++_util\dc_stub.cpp"
+			RelativePath="..\..\src\condor_c++_util\dc_stub.cpp"
 			>
 			<FileConfiguration
 				Name="Debug|Win32"
@@ -437,7 +437,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_c++_util\ntsysinfo.cpp"
+			RelativePath="..\..\src\condor_c++_util\ntsysinfo.cpp"
 			>
 			<FileConfiguration
 				Name="Debug|Win32"
@@ -481,7 +481,7 @@
 			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_procapi\testprocapi.cpp"
+			RelativePath="..\..\src\condor_procapi\testprocapi.cpp"
 			>
 			<FileConfiguration
 				Name="Debug|Win32"
