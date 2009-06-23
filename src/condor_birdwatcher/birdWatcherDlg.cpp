@@ -77,12 +77,101 @@ void OnTimer(UINT nIDEvent)
 	if (!IsWindowVisible(birdwatcherDLG))
 		return;
 
-	LARGE_INTEGER fileSize;
-	DWORD dwBytesRead;
+	HANDLE hBirdq_Rd;
+	HANDLE hBirdq_Wr;
+	HANDLE hBirdst_Rd;
+	HANDLE hBirdst_Wr;
 
-	WCHAR qTempName[] = L"birdq.tmp";
-	WCHAR statTempName[] = L"birdstatus.tmp";
+	BOOL bSuccess;
 
+	DWORD dwRead;
+	DWORD bufSize = 1024;
+
+	SECURITY_ATTRIBUTES saAttr;
+
+	saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+	saAttr.bInheritHandle = TRUE;
+	saAttr.lpSecurityDescriptor = NULL;
+
+	if(!CreatePipe(&hBirdq_Rd, &hBirdq_Wr, &saAttr, 0))
+	{
+		return;
+	}
+
+	if(!SetHandleInformation(hBirdq_Rd, HANDLE_FLAG_INHERIT, 0))
+	{
+		return;
+	}
+
+	STARTUPINFO si[2];
+	PROCESS_INFORMATION pi[2];
+
+	ZeroMemory(&si[0], sizeof(STARTUPINFO));
+	ZeroMemory(&si[1], sizeof(STARTUPINFO));
+
+	ZeroMemory(&pi[0], sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&pi[1], sizeof(PROCESS_INFORMATION));
+
+	si[0].dwFlags |= STARTF_USESTDHANDLES;
+	si[0].hStdOutput = hBirdq_Wr;
+	si[0].cb = sizeof(si[0]);
+
+	bSuccess = CreateProcess(L"condor_q.exe", NULL, NULL, NULL, true, CREATE_NO_WINDOW, NULL, NULL, &si[0], &pi[0]);
+	if(bSuccess)
+	{
+		if(WaitForSingleObject(pi[0].hProcess, 2000) == WAIT_TIMEOUT)
+				TerminateProcess(pi[0].hProcess, 1);
+
+		if(CloseHandle(hBirdq_Wr))
+		{
+			char *psBuf = new char[bufSize];
+			ZeroMemory(psBuf, bufSize);
+			ReadFile(hBirdq_Rd, psBuf, bufSize, &dwRead, NULL);
+
+			SetDlgItemTextA(birdwatcherDLG, IDC_EDIT_TOP_PANE, psBuf);
+			delete [] psBuf;
+			CloseHandle(hBirdq_Rd);
+		}
+	}
+
+	CloseHandle(pi[0].hProcess);
+	CloseHandle(pi[0].hThread);
+
+	if(!CreatePipe(&hBirdst_Rd, &hBirdst_Wr, &saAttr, 0))
+	{
+		return;
+	}
+
+	if(!SetHandleInformation(hBirdst_Rd, HANDLE_FLAG_INHERIT, 0))
+	{
+		return;
+	}
+
+	si[1].dwFlags |= STARTF_USESTDHANDLES;
+	si[1].hStdOutput = hBirdst_Wr;
+	si[1].cb = sizeof(si[1]);
+
+	bSuccess = CreateProcess(L"condor_status.exe", NULL, NULL, NULL, true, CREATE_NO_WINDOW, NULL, NULL, &si[1], &pi[1]);
+	if(bSuccess)
+	{
+		if(WaitForSingleObject(pi[1].hProcess, 2000) == WAIT_TIMEOUT)
+				TerminateProcess(pi[1].hProcess, 1);
+
+		if(CloseHandle(hBirdst_Wr))
+		{
+			char *psBuf = new char[bufSize];
+			ZeroMemory(psBuf, bufSize);
+			ReadFile(hBirdst_Rd, psBuf, bufSize, &dwRead, NULL);
+
+			SetDlgItemTextA(birdwatcherDLG, IDC_EDIT_BOTTOM_PANE, psBuf);
+			delete [] psBuf;
+			CloseHandle(hBirdst_Rd);
+		}
+	}
+
+	CloseHandle(pi[1].hProcess);
+	CloseHandle(pi[1].hThread);
+/*
 	HANDLE hBirdq = CreateFile(qTempName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if(!(hBirdq == INVALID_HANDLE_VALUE))
@@ -143,7 +232,7 @@ void OnTimer(UINT nIDEvent)
 
 	if(!(hBirdq == INVALID_HANDLE_VALUE))
 	{
-		if(CreateProcess(condorq, NULL, NULL, NULL, true, CREATE_NO_WINDOW, NULL, zCondorDir, &si[0], &pi[0]))
+		if(CreateProcess(condorq, NULL, NULL, NULL, true, CREATE_NO_WINDOW, NULL, NULL, &si[0], &pi[0]))
 			if(WaitForSingleObject(pi[0].hProcess, 2000) == WAIT_TIMEOUT)
 				TerminateProcess(pi[0].hProcess, 1);
 			
@@ -156,12 +245,13 @@ void OnTimer(UINT nIDEvent)
 
 	if(!(hBirdst == INVALID_HANDLE_VALUE))
 	{
-		if(CreateProcess(condorst, NULL, NULL, NULL, true, CREATE_NO_WINDOW, NULL, zCondorDir, &si[1], &pi[1]))
-			if(WaitForSingleObject(pi[0].hProcess, 2000) == WAIT_TIMEOUT)
+		if(CreateProcess(condorst, NULL, NULL, NULL, true, CREATE_NO_WINDOW, NULL, NULL, &si[1], &pi[1]))
+			if(WaitForSingleObject(pi[1].hProcess, 2000) == WAIT_TIMEOUT)
 				TerminateProcess(pi[1].hProcess, 1);
 
 		CloseHandle(pi[1].hProcess);
 		CloseHandle(pi[1].hThread);
 		CloseHandle(hBirdst);
 	}
+	*/
 }
