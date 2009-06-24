@@ -253,7 +253,7 @@ class AbstractReplicatorStateMachine: public Service
   protected:
 
     // list of all of the files we replicate
-	ReplicatorFileList		*m_fileList;
+	//ReplicatorFileList	*m_fileList;
 	ReplicatorFileSet       *m_fileSet;
 
 	// configuration variables

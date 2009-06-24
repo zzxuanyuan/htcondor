@@ -45,10 +45,16 @@ public:
 	bool init( const char *sinful );
 
     /* Function    : getSinfulString
-     * Return value: MyString: the sinful string
+     * Return value: char*: the sinful string
      * Description : returns the sinful string
      */
     const char *getSinful(void) const { return m_sinfulString; };
+
+    /* Function    : getSinfulString
+     * Return value: MyString: the sinful string
+     * Description : returns the sinful string
+     */
+    bool getSinful( MyString &s) const { s = m_sinfulString; return true; };
 
 	/* Function    : getHostName
 	 * Return value: MyString - this replication daemon host name

@@ -25,13 +25,13 @@ using namespace std;
 
 #include "condor_classad.h"
 #include "Utils.h"
-#include "ReplicatorFileReplica.h"
 #include "ReplicatorTransferer.h"
 
 // Pre-declare the peer classes
 class ReplicatorPeer;
 class ReplicatorPeerList;
 class ReplicatorFileBase;
+class ReplicatorFileReplica;
 
 /* Class      : ReplicatorDownloader
  * Description: class, representing a file that's versioned and replicated
@@ -59,8 +59,8 @@ class ReplicatorDownloader : public ReplicatorTransferer
 class ReplicatorFileBase
 {
   public:
-	ReplicatorFileBase( const char *path, const char *spool );
-	ReplicatorFileBase( const char *path );
+	ReplicatorFileBase( const char *spool );
+	ReplicatorFileBase( void );
 	virtual ~ReplicatorFileBase( void );
 
 	// Initializers
@@ -94,7 +94,7 @@ class ReplicatorFileBase
 	bool registerUploaders( ReplicatorTransfererList &transferers ) const;
 	bool registerDownloaders( ReplicatorTransfererList &transferers ) const;
 
-	// Relica operators
+	// Replica operators
 	bool findReplica( const char *hostname,
 					  const ReplicatorFileReplica *& ) const;
 	bool hasReplica( const ReplicatorFileReplica & ) const;

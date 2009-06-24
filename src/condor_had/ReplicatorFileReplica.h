@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@
 
 #include "ReplicatorTransferer.h"
 #include "ReplicatorFileVersion.h"
+#include "ReplicatorFileSet.h"
 #include "ReplicatorPeer.h"
 #include "Utils.h"
 #include "reli_sock.h"
@@ -38,7 +39,6 @@ enum ReplicatorState
 };
 
 // Pre-declare a couple of classes
-class ReplicatorFileBase;		// Pre-declare the file info
 class ReplicatorFileReplica;	// Pre-declare the file version info
 
 /* Class      : ReplicatorUploader
@@ -70,9 +70,12 @@ public:
 
     /* Function: ReplicatorFileReplica constructor
      */
-	ReplicatorFileReplica( const ReplicatorFileBase &,
+	ReplicatorFileReplica( const ReplicatorFileSet &,
 						   const ReplicatorPeer & );
 
+	static ReplicatorFileReplica *generate( const ClassAd &,
+											const ReplicatorPeer &,
+											MyString &error );
 
 	// ==== Operations ====
 
@@ -82,7 +85,7 @@ public:
 	 *  			pVersionFilePath - OS path to version file
 	 * Description: initializes all data members
 	 */
-    bool initialize( const ReplicatorFileBase & );
+    bool initialize( const ReplicatorFileSet & );
 # endif
 
 	/* Function    : registerUploaders
@@ -117,7 +120,7 @@ public:
      * Argument    : MyString - string representation of the state
      * Return value: char * - string representation of the state
      * Description : returns the string representing the state
-     */   
+     */
     const char *getStateName( void ) const {
 		return lookupState( m_state );
 	};
@@ -126,8 +129,8 @@ public:
 	 * Return value: ReplicatorFile - Information on the replicated file
 	 * Description : returns the related file info object
 	 */
-    const ReplicatorFileBase &getFileInfo(void) const {
-		return m_fileInfo;
+    const ReplicatorFileSet &getFileSet(void) const {
+		return m_fileSet;
 	};
 
 	/* Function    : getPeerInfo
@@ -170,11 +173,20 @@ public:
 		return other.getPeerInfo() == m_peerInfo;
 	};
 
+	/* Function    : isSameFileSet
+	 * Arguments   : file_set - The file set to compare against
+	 * Return value: bool - true/false value
+     * Description : Returns true if the file sets are equivilent
+     */
+    bool isSameFileSet(const ReplicatorFileSet &other ) const {
+		return m_fileSet.equivilent( other );
+	};
+
 	/* Function    : operator >
      * Arguments   : replica - the compared replica
      * Return value: bool - true/false value
      * Description : the version is bigger than another, if its logical clock is
-	 *				 bigger or if the state of the local daemon is 
+	 *				 bigger or if the state of the local daemon is
 	 *				 REPLICATION_LEADER, whilst the state of the remote daemon
 	 *				 is not
 	 * Note        : the comparison is used, while choosing the best replica in
@@ -186,7 +198,7 @@ public:
 	/* Function    : operator >=
      * Arguments   : replica - the compared replica
      * Return value: bool - true/false value
-     * Description : the version is bigger/equal than another, if its logical 
+     * Description : the version is bigger/equal than another, if its logical
 	 * 				 clock is bigger/equal or if the state of the local daemon
 	 *				 is REPLICATION_LEADER, whilst the state of the remote
 	 *				 daemon is not
@@ -231,14 +243,14 @@ public:
      * Argument    : MyString - string representation of the state
      * Return value: char * - string representation of the state
      * Description : returns the string representing the state
-     */   
+     */
     static const char *lookupState( ReplicatorState state );
 
 	/* Function    : getState
 	 * Argument    : char * - string representation of the state
 	 * Return value: ReplicatorState - the state value / invalid
 	 * Description : returns the state
-	 */   
+	 */
 	static ReplicatorState lookupState( const char *str );
 
 	// ==== End of convertors ====
@@ -247,19 +259,19 @@ public:
 	// === Private methods ===
   private:
 
-	
+
 	//  === Private data ===
   private:
 
 	// File info
-	const ReplicatorFileBase	&m_fileInfo;
+	const ReplicatorFileSet		&m_fileSet;
 
 	// Peer info
 	const ReplicatorPeer		&m_peerInfo;
 
 	// My process data
 	mutable ReplicatorUploader	 m_uploader;
- 
+
 	// components of the version
 	ReplicatorState       		 m_state;
 

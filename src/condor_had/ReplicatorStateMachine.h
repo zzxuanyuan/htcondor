@@ -65,7 +65,8 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
      * 				state; broadcasts old local version, solicits versions from
 	 *				other replication daemons in the pool
      */
-    bool beforePassiveStateHandler( const ClassAd &, const MyString &sinful );
+    bool beforePassiveStateHandler( const ClassAd &,
+									const ReplicatorPeer &peer );
 
 	/* Function   : afterElectionStateHandler
      * Description: concrete handler after the event, when HAD is in transition
@@ -74,27 +75,30 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
 	 *              message for replication daemon) and selects the new gid for
 	 *              the pool
      */
-    bool afterElectionStateHandler( const ClassAd &, const MyString &sinful );
+    bool afterElectionStateHandler( const ClassAd &,
+									const ReplicatorPeer &peer );
 
 	/* Function   : afterLeaderStateHandler
 	 * Description: concrete handler after the event, when HAD is in transition
      *              from ELECTION to PASSIVE state
 	 * Remarks    : void by now
 	 */
-    bool afterLeaderStateHandler( const ClassAd &, const MyString &sinful );
+    bool afterLeaderStateHandler( const ClassAd &,
+								  const ReplicatorPeer &peer );
 
 	/* Function   : inLeaderStateHandler
      * Description: concrete handler after the event, when HAD is in inner loop
      *              of LEADER state; sets the last time, when HAD sent a
 	 * 				HAD_IN_STATE_STATE
      */
-    bool inLeaderStateHandler( const ClassAd &, const MyString &sinful );
+    bool inLeaderStateHandler( const ClassAd &,
+							   const ReplicatorPeer &peer );
 
 
 	// Selection handlers
 
 	/* Function    : replicaSelectionHandler
-     * Arguments   : newVersion -
+     * Arguments   : newReplica -
      *                  in JOINING state: the version selected for downloading
      *                  in BACKUP state : the version compared against the local
      *                                    one in order to check, whether to
@@ -104,7 +108,7 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
 	 * Description : concrete handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion);
+    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newReplica);
 
 	/* Function   : gidSelectionHandler
      * Description: concrete handler for selection of gid for the pool
@@ -145,23 +149,24 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
     void registerCommand(int command, CommandClass cc );
     int commandHandlerHad(int command, Stream *stream);
     int commandHandlerPeer(int command, Stream *stream);
-	int commandHandlerCommon( int command, Stream *stream, const char *name,
-							  ClassAd &ad, MyString &sinful );
+	int commandHandlerCommon( int command, Stream *stream,
+							  const char *name,
+							  ClassAd &ad, ReplicatorPeer &peer );
 
     bool reset( bool all );
 
 	// Timers handlers
     void replicationTimer( void );
-    void versionRequestingTimer( void );
-    void versionDownloadingTimer( void );
+    void replicaRequestTimer( void );
+    void replicaDownloadTimer( void );
 
 	// Command handlers
-    bool onLeaderVersion( const ClassAd &ad, const MyString &sinful );
-    bool onTransferFile( const ClassAd &ad, const MyString &sinful );
-    bool onSolicitVersion( const ClassAd &ad, const MyString &sinful );
-    bool onSolicitVersionReply( const ClassAd &ad, const MyString &sinful );
-    bool onNewlyJoinedVersion( const ClassAd &ad, const MyString &sinful );
-    bool onGivingUpVersion( const ClassAd &ad, const MyString &sinful );
+    bool onLeaderVersion( const ClassAd &ad, const ReplicatorPeer &peer );
+    bool onTransferFile( const ClassAd &ad, const ReplicatorPeer &peer );
+    bool onSolicitVersion( const ClassAd &ad, const ReplicatorPeer &peer );
+    bool onSolicitVersionReply( const ClassAd &ad, const ReplicatorPeer &peer );
+    bool onNewlyJoinedVersion( const ClassAd &ad, const ReplicatorPeer &peer );
+    bool onGivingUpVersion( const ClassAd &ad, const ReplicatorPeer &peer );
 
     static ReplicatorFileReplica *decodeVersionAndState( Stream *stream );
 	bool becomeLeader( void );
@@ -176,12 +181,12 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
     int          m_newlyJoinedWaitingVersionInterval;
 
 	// Timers
-    int         m_versionRequestingTimerId;
-    int         m_versionDownloadingTimerId;
-    int         m_replicationTimerId;
+    int          m_replicaRequestTimerId;
+    int          m_replicaDownloadTimerId;
+    int          m_replicationTimerId;
 			    
 	// last time HAD sent HAD_IN_LEADER_STATE
-    time_t      m_lastHadAliveTime;
+    time_t       m_lastHadAliveTime;
 
 	// Debugging utilities
 	void printDataMembers(void) const;

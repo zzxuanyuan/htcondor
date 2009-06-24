@@ -34,7 +34,7 @@ using namespace std;
 // ==========================================
 
 // C-Tors / D-Tors
-ReplicatorFileBase::ReplicatorFileBase( const char *path, const char *spool )
+ReplicatorFileBase::ReplicatorFileBase( const char *spool )
 		: m_versionFilePath( "" ),
 		  m_myVersion( *this ),
 		  m_downloader( *this )
@@ -47,7 +47,7 @@ ReplicatorFileBase::ReplicatorFileBase( const char *path, const char *spool )
 	//m_classAd.Assign( );
 }
 
-ReplicatorFileBase::ReplicatorFileBase( const char * /*path*/ )
+ReplicatorFileBase::ReplicatorFileBase( void )
 		: m_versionFilePath( "" ),
 		  m_myVersion( *this ),
 		  m_downloader( *this )
@@ -269,7 +269,7 @@ ReplicatorFileBase::sendMessage(
 
 // C-Tors / D-Tors
 ReplicatorFile::ReplicatorFile( const char *path, const char *spool )
-		: ReplicatorFileBase( path, spool ),
+		: ReplicatorFileBase( spool ),
 		  m_filePath( path )
 {
 	// m_classAd.Assign( ); TODO

@@ -49,7 +49,7 @@ class ReplicatorFileList
 	bool getStringList( StringList & ) const;
 
 	// Comparisons
-	bool similar( const ReplicatorFileList &other ) const;
+	bool equivilent( const ReplicatorFileList &other ) const;
 
 	// Get the number of up/down-load transfers active
 	int numActiveDownloads( void ) const;

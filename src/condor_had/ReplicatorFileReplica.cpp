@@ -46,6 +46,64 @@ ReplicatorFileReplica::ReplicatorFileReplica( const ReplicatorFileBase &file,
 {
 }
 
+ReplicatorFileReplica *
+ReplicatorFileReplica::generate( const ClassAd &ad,
+								 const ReplicatorPeer &peer,
+								 MyString &s )
+{
+	int					 gid = 0;
+	int					 clock;
+	bool				 is_primary;
+	ReplicatorState		 state;
+	ReplicatorFileSet	*file_set = NULL;
+	MyString			 tmp;
+
+	if ( !ad.LookupInteger( ATTR_REPLICATOR_GID, gid ) ) {
+		s.sprintf( "GID missing in peer ad\n" );
+		return NULL;
+	};
+	
+
+	if ( !ad.LookupInteger( ATTR_REPLICATOR_LOGICAL_CLOCK, clock ) ) {
+		s.sprintf( "'Logical clock' missing in peer ad\n" );
+		return NULL;
+	};
+
+	if ( !ad.LookupBool( ATTR_REPLICATOR_IS_PRIMARY, is_primary ) ) {
+		s.sprintf( "'Is Primary' missing in peer ad\n" );
+		return NULL;
+	};
+
+	if ( !ad.LookupString( ATTR_REPLICATOR_STATE, tmp ) ) {
+		s.sprintf( "'State' missing in peer ad\n" );
+		return NULL;
+	};
+
+	state = ReplicatorFileReplica::lookupState( tmp.Value() );
+	if ( STATE_INVALID == state ) {
+		s.sprintf( "Invalid state '%s' in peer ad\n", tmp.Value() );
+		return NULL;
+	}
+
+	// Extract the file set
+	if ( ad.LookupString( ATTR_REPLICATOR_FILE_SET, tmp ) ) {
+		if ( NULL == m_fileSet ) {
+			s.sprintf( "No file set in peer ad" );
+			return NULL;
+		}
+		StringList	files(tmp.Value());
+		file_set = new ReplicatorFileSet( files );
+	}
+
+	ReplicatorFileReplica *replica =
+		new ReplicatorFileReplica( file_set, peer );
+	replica->setGid( gid, false );
+	replica->setLogicalClock( clock, false );
+	replica->setState( state );
+
+	return replica;
+}
+
 #if 0
 bool
 ReplicatorFileReplica::initialize( const ReplicatorFileBase &file )
