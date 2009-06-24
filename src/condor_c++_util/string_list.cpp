@@ -447,7 +447,7 @@ StringList::identical( const StringList &other, bool anycase ) const
 }
 
 bool
-StringList::similar( const StringList &other, bool anycase ) const
+StringList::equivilent( const StringList &other, bool anycase ) const
 {
 	char *this_str, *other_str;
 	bool ret_val;

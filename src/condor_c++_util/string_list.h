@@ -91,14 +91,14 @@ public:
 	*/
 	bool identical(const StringList &other, bool anycase = true) const;
 
-	/** Checks to see if the given list is similar to the current list;
+	/** Checks to see if the given list is equivilent to the current list;
 			like ::identical(), but ignores order
 		@param other
 		@param anycase false for case sensitive comparison, true for case
 				in-sensitive.
 		@retval true if other is indeed similar, else false
 	*/
-	bool similar(const StringList &other, bool anycase = true) const;
+	bool equivilent(const StringList &other, bool anycase = true) const;
 
 	/* return a comma delimited list if the internals of the class. This will
 		rewind the string in order to construct this char array, and you
