@@ -24,7 +24,8 @@
 
 enum {
     HADOOP_NAMENODE,
-    HADOOP_DATANODE
+    HADOOP_DATANODE,
+    HADOOP_SECONDARY
 };
 
 enum {
@@ -95,6 +96,8 @@ class Hadoop : public Service {
         MyString m_nameNodeClass;
 
         MyString m_dataNodeClass;
+
+        MyString m_secondaryNodeClass;
 
         //Name of hdfs's site configuration files differs among hadoop version
         //Versions > 0.19 has hdfs-site.xml 

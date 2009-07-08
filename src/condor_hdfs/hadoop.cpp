@@ -90,6 +90,13 @@ void Hadoop::initialize() {
                 free(dclass);
         }
 
+        m_secondaryNodeClass = "org.apache.hadoop.hdfs.server.namenode.SecondaryNameNode";
+        char *snclass = param("HDFS_SECONDARYNODE_CLASS");
+        if (snclass != NULL) {
+                m_secondaryNodeClass = snclass;
+                free(snclass);
+        }
+
         m_siteFile = "hdfs-site.xml";
         char *sitef = param("HDFS_SITE_FILE");
         if (sitef != NULL) {
@@ -176,12 +183,25 @@ void Hadoop::writeConfigFile() {
                 free(dadd);
         }
 
+        char *daddw = param("HDFS_DATANODE_WEB");
+        if (daddw != NULL) {
+                writeXMLParam("dfs.datanode.http.address", daddw, &xml);
+                free(daddw);
+        }
+
+        char *nnaddw = param("HDFS_NAMENODE_WEB");
+        if (nnaddw != NULL) {
+                writeXMLParam("dfs.http.address", nnaddw, &xml);
+                free(nnaddw);
+        }
+
+        //TODO these shouldn't be hard-coded
         writeXMLParam("dfs.namenode.plugins", "edu.wisc.cs.condor.NameNodeAds", &xml);
         writeXMLParam("dfs.datanode.plugins", "edu.wisc.cs.condor.DataNodeAds", &xml);
 
         xml.append("</configuration>");
 
-        char *str = xml.print_to_delimed_string();
+        char *str = xml.print_to_delimed_string(NULL);
         ASSERT(str != NULL);
         int len = full_write(fd, str, strlen(str));
         ASSERT(len == strlen(str));
@@ -258,6 +278,8 @@ void Hadoop::startServices() {
                 
                 if (s == "HDFS_NAMENODE")
                         startService(HADOOP_NAMENODE);
+                else if (s == "HDFS_DATANODE")
+                        startService(HADOOP_SECONDARY);
                 else
                         startService(HADOOP_DATANODE);
         }
@@ -294,9 +316,12 @@ void Hadoop::startService(int type) {
         if (type == HADOOP_NAMENODE) {
                 arglist.AppendArg(m_nameNodeClass);
         }
-        else {
+        else if (type == HADOOP_DATANODE) {
                 arglist.AppendArg(m_dataNodeClass);
-       }
+        }
+        else if (type == HADOOP_SECONDARY) {
+                arglist.AppendArg(m_secondaryNodeClass);
+        }
 
         /** Mapping for stdout/stderr **/
         char *file = param("HDFS_STDOUT");
