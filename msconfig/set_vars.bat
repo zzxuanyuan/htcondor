@@ -32,19 +32,29 @@ REM in the case that it is not, change the variable bellow.
 set ROOT_DRIVE=%SystemDrive%
 
 REM Set paths to Visual C++, the Platform SDKs, and Perl
-set VS_DIR=%ROOT_DRIVE%\Program Files\Microsoft Visual Studio 9.0
+set VS_DIR=%ProgramFiles%\Microsoft Visual Studio 9.0
 set VC_DIR=%VS_DIR%\VC
 set VC_BIN=%VC_DIR%\bin
 set PERL_DIR=%ROOT_DRIVE%\Perl\bin
 set SDK_DIR=%ProgramFiles%\Microsoft Platform SDK
 set DBG_DIR=%ProgramFiles%\Debugging Tools for Windows (x86)
-set DOTNET_DIR=%ROOT_DRIVE%\Windows\Microsoft.NET\Framework\v3.5
+set DOTNET_DIR=%SystemRoot%\Microsoft.NET\Framework\v3.5
 
 REM For some reason this is not defined whilst in some environments
 if "A%VS90COMNTOOLS%"=="A" set VS90COMNTOOLS=%VS_DIR%\Common7\Tools\
 
 REM Specify symbol image path for debugging
 if "A%_NT_SYMBOL_PATH%"=="A" set _NT_SYMBOL_PATH=SRV*%ROOT_DRIVE%\Symbols*http://msdl.microsoft.com/download/symbols
+
+REM Set variables for MakeMSI to work when run under Condor, such as
+REM the case as it is in NMI (thanks to Ziliang Guo <ziliang@UW-CS>
+REM for the work on this)
+set MAKEMSI_DB_COMPARE_TEMPLATE.MSI=%ProgramFiles%\MakeMsi\UiSample.MSI
+set MAKEMSI_DIR=%ProgramFiles%\MakeMsi\
+set MAKEMSI_MSIVAL2_DIR=%ProgramFiles%\MSIVAL2
+set MAKEMSI_WILOGUTL_EXE=%ProgramFiles%\Microsoft Platform SDK\Bin\WiLogUtl.EXE
+set TMP=%SystemRoot%\TEMP
+set TEMP=%SystemRoot%\TEMP
 
 REM For externals: it just tells them we would like to have manifest 
 REM files embeded in the rem DLLs (In the future, when we do not have 
