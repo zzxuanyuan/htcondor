@@ -72,14 +72,14 @@ ReplicatorFileList::initFromList( StringList &paths, const char *spool )
 }
 
 bool
-ReplicatorFileList::similar( const ReplicatorFileList &other ) const
+ReplicatorFileList::equivilent( const ReplicatorFileList &other ) const
 {
 	StringList	my_list, other_list;
 
 	if ( !getStringList(my_list) || !other.getStringList(other_list)  ) {
 		return false;
 	}
-	return my_list.similar(other_list);
+	return my_list.equivilent(other_list);
 }
 
 bool
