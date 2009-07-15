@@ -25,7 +25,6 @@ REPLICATION_OBJ = \
 	AbstractReplicatorStateMachine.o \
 	ReplicatorStateMachine.o \
 	ReplicatorFile.o \
-	ReplicatorFileList.o \
 	ReplicatorFileSet.o \
 	ReplicatorFileVersion.o \
 	ReplicatorFileReplica.o \

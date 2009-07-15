@@ -30,9 +30,12 @@
 class ReplicatorFileSet : public ReplicatorFileBase
 {
   public:
-	ReplicatorFileSet( StringList *files, const char *spool );
-	ReplicatorFileSet( StringList *files );
+	ReplicatorFileSet( const char *spool, StringList *files );
+	ReplicatorFileSet( void );
 	~ReplicatorFileSet( void );
+
+	void setPaths( StringList *paths );
+	void setNames( StringList *names );
 
 	bool rotate( int pid ) const;
 
@@ -45,12 +48,28 @@ class ReplicatorFileSet : public ReplicatorFileBase
 		return getFileList().equivilent( other );
 	};
 
-	// Returns true if the file lists are equivilent -- ignores order
+	// Types
+	virtual bool isFile( void ) const { return false; };
+	virtual bool isSet( void ) const { return true; };
+
+	// Comparison methods
+	virtual bool identical(  const ReplicatorFileBase &other ) const {
+		return ( *this == other );
+	};
 	bool equivilent( StringList &other ) const {
 		return getNameList().equivilent(other);
 	};
 	bool equivilent( const ReplicatorFileSet &other ) const {
 		return getNameList().equivilent( other.getNameList() );
+	};
+	bool equivilent( const ReplicatorFileBase &other ) const {
+		const ReplicatorFileSet	*setptr =
+			dynamic_cast<const ReplicatorFileSet*>(&other);
+		if ( NULL == setptr ) {
+			return false;
+		} else {
+			return equivilent( *setptr );
+		}
 	};
 
 	// Accessors
@@ -76,6 +95,8 @@ class ReplicatorFileSet : public ReplicatorFileBase
 
 
   private:
+	void setNamesFromPaths( StringList *paths );
+
 	mutable StringList	*m_nameList;
 	char				*m_nameListStr;
 	mutable StringList	*m_pathList;
@@ -84,4 +105,4 @@ class ReplicatorFileSet : public ReplicatorFileBase
 };	/* class ReplilcatorFileSet */
 
 
-#endif // REPLICATOR_FILE_H
+#endif // REPLICATOR_FILE_SET_H

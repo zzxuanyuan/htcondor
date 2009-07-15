@@ -38,8 +38,7 @@ template void utilClearList<ReplicatorVersion>( List<ReplicatorVersion>& );
 #endif
 
 AbstractReplicatorStateMachine::AbstractReplicatorStateMachine( void )
-		: m_fileList( NULL ),
-		  m_fileSet( NULL ),
+		: m_fileSet( NULL ),
 		  m_state( STATE_REQUESTING ),
 		  m_connectionTimeout( DEFAULT_SEND_COMMAND_TIMEOUT ),
 		  m_downloadReaperId( -1 ),
@@ -60,10 +59,6 @@ bool
 AbstractReplicatorStateMachine::reset( void )
 {
 	dprintf( D_ALWAYS, "ARSM::reset() started\n" );
-	if ( m_fileList ) {
-		delete m_fileList;
-		m_fileList = NULL;
-	}
 	if ( m_fileSet ) {
 		delete m_fileSet;
 		m_fileSet = NULL;
@@ -91,9 +86,9 @@ AbstractReplicatorStateMachine::reinitialize( void )
     char	*tmp = NULL;
 
     tmp = param( "REPLICATION_LIST" );
-	bool	 list_updated = false;
+	bool	 peers_changed = false;
     if ( tmp ) {
-		if ( !m_peerList.init(tmp, list_updated) ) {
+		if ( !m_peerList.init(tmp, peers_changed) ) {
 			dprintf( D_ALWAYS,
 					 "ARSM::reinitialize():"
 					 " Failed to initilize from list '%s'\n",
@@ -107,9 +102,8 @@ AbstractReplicatorStateMachine::reinitialize( void )
     }
 
 	// Log what we've found
-	if ( list_updated ) {
-		dprintf( D_FULLDEBUG,
-				 "REPLICATION LIST changed: now %s\n",
+	if ( peers_changed ) {
+		dprintf( D_FULLDEBUG, "REPLICATION LIST changed: now %s\n",
 				 m_peerList.getRawString() );
 	}
 	else {
@@ -145,60 +139,51 @@ AbstractReplicatorStateMachine::reinitialize( void )
 	}
 
 	// Clear out the old file set / list
-	if ( m_fileList ) {
-		delete m_fileList;
-		m_fileList = NULL;
-	}
 	if ( m_fileSet ) {
 		delete m_fileSet;
 		m_fileSet = NULL;
 	}
 
 	// Handle file set separately
+	StringList	*files = NULL;
 	tmp = param( "REPLICATION_FILE_SET" );
 	if ( NULL != tmp ) {
-		StringList	*files = new StringList( tmp );
-		m_fileSet = new ReplicatorFileSet( files, spool );
+		files = new StringList( tmp );
+	}
+	else {
+		if ( NULL != tmp ) {
+			tmp = param( "STATE_FILE" );
+		}
+		if ( NULL == tmp ) {
+			tmp = param( "NEGOTIATOR_STATE_FILE" );
+		}
+		if ( NULL == tmp ) {
+			MyString	 state_file;
+			state_file  = spool;
+			state_file += "/";
+			state_file += "Accountantnew.log";
+			tmp = strdup( state_file.Value() );
+		}
+		ASSERT( tmp != NULL );
+		files = new StringList( tmp );
+	}
+	bool files_changed = (  ( NULL == m_fileSet ) ||
+							( false == m_fileSet->equivilent(*files) )  );
+	if ( files_changed ) {
+		if ( m_fileSet ) {
+			delete m_fileSet;
+			m_fileSet = NULL;
+		}
+		m_fileSet = new ReplicatorFileSet( spool, files );
 		m_fileSet->setPeers( m_peerList );
 		m_fileSet->registerUploaders( m_uploaders );
 		m_fileSet->registerDownloaders( m_downloaders );
-
-		return true;
 	}
-
-	tmp = param( "REPLICATION_FILE_LIST" );
-	if ( NULL != tmp ) {
-		tmp = param( "STATE_FILE" );
+	else if ( peers_changed ) {
+		m_fileSet->setPeers( m_peerList );
 	}
-	if ( NULL == tmp ) {
-		tmp = param( "NEGOTIATOR_STATE_FILE" );
-	}
-	if ( NULL == tmp ) {
-		MyString	 state_file;
-		state_file  = spool;
-		state_file += "/";
-		state_file += "Accountantnew.log";
-		tmp = strdup( state_file.Value() );
-	}
-	ASSERT( tmp != NULL );
-
-	// Build a list of the files and "versions" of each
-	m_fileList = new ReplicatorFileList( );
-	StringList	 path_list( tmp );
-	if ( !m_fileList->initFromList(path_list, spool) ) {
-		dprintf( D_ALWAYS, "Failed to initialize from path list %s\n", tmp );
-		return false;
-	}
-
-	// And initialize all of the files in the list
-	list<ReplicatorFileBase *>	&file_list = m_fileList->getList();
-	list<ReplicatorFileBase *>::iterator iter;
-	for( iter = file_list.begin(); iter != file_list.end(); iter++ ) {
-		ReplicatorFileBase	*file = *iter;
-
-		file->setPeers( m_peerList );
-		file->registerUploaders( m_uploaders );
-		file->registerDownloaders( m_downloaders );
+	else {
+		dprintf( D_FULLDEBUG, "Replicator and file list unchanged\n" );
 	}
 
 	printDataMembers( );
@@ -463,9 +448,6 @@ AbstractReplicatorStateMachine::broadcastMessage( int command )
 	if ( m_fileSet ) {
 		m_fileSet->sendMessage( command, true, errors );
 	}
-	else {
-		m_fileList->sendMessage( command, true, errors );
-	}
 	if ( errors ) {
 		dprintf( D_FULLDEBUG,
 				 "Failed to send command %d to %d peers\n", command, errors );
@@ -507,6 +489,7 @@ AbstractReplicatorStateMachine::updateVersionsList(
 }
 #endif
 
+#if 0	// Unused
 void
 AbstractReplicatorStateMachine::cancelVersionsListLeader( void )
 {
@@ -520,6 +503,7 @@ AbstractReplicatorStateMachine::cancelVersionsListLeader( void )
 
     m_versionsList.Rewind( );
 }
+#endif
 
 
 // sending command to remote replication daemon; specified command function
@@ -598,17 +582,19 @@ bool
 AbstractReplicatorStateMachine::versionCommand( ReliSock& socket )
 {
     dprintf( D_ALWAYS,
-			 "AbstractReplicatorStateMachine::versionCommand started\n" );
+			 "ARSM::versionCommand started\n" );
+
+	int		errors = 0;
+	m_fileSet->sendMessage( 
 
     if( ! m_myVersion.code( socket ) ) {
         dprintf( D_NETWORK,
-				 "AbstractReplicatorStateMachine::versionCommand "
+				 "ARSM::versionCommand "
 				 "unable to code the replica\n");
         return false;
     }
     dprintf( D_ALWAYS,
-			 "AbstractReplicatorStateMachine::versionCommand "
-			 "sent command successfully\n" );
+			 "ARSM::versionCommand sent command successfully\n" );
     return true;
 }
 

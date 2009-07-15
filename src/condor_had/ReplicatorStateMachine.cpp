@@ -355,35 +355,6 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
 				 peer.getSinful(),
 				 replica->getFileSet.getNames(),
 				 m_fileSet->getNames() );
-			return FALSE;
-		}
-
-
-	// Extract info from the classad
-# if 0
-	else if ( ad.LookupString( ATTR_REPLICATOR_FILE_LIST, tmp ) ) {
-		if ( NULL == m_fileList ) {
-			dprintf( D_ALWAYS,
-					 "ERROR: Received file list from peer %s, expected set",
-					 sinful.Value() );
-			return FALSE;
-		}
-		StringList			string_list( tmp.Value() );
-		ReplicatorFileList	file_list;
-		file_list.initFromList( string_list );
-		if ( ! m_fileList->similar(file_list) ) {
-			dprintf( D_ALWAYS,
-					 "ERROR: File set from peer %s mismatch:"
-					 " got:'%s'",
-					 sinful.Value(), tmp.Value() );
-			return FALSE;
-		}
-	}
-# endif
-	else {
-		dprintf( D_ALWAYS,
-				 "ERROR: neither FILE_LIST or FILE_SET in peer ad from %s\n",
-				 sinful.Value() );
 		return FALSE;
 	}
 

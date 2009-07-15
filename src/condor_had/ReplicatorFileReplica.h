@@ -70,7 +70,7 @@ public:
 
     /* Function: ReplicatorFileReplica constructor
      */
-	ReplicatorFileReplica( const ReplicatorFileSet &,
+	ReplicatorFileReplica( const ReplicatorFileBase &,
 						   const ReplicatorPeer & );
 
 	static ReplicatorFileReplica *generate( const ClassAd &,
@@ -129,8 +129,8 @@ public:
 	 * Return value: ReplicatorFile - Information on the replicated file
 	 * Description : returns the related file info object
 	 */
-    const ReplicatorFileSet &getFileSet(void) const {
-		return m_fileSet;
+    const ReplicatorFileBase &getFileInfo(void) const {
+		return m_fileInfo;
 	};
 
 	/* Function    : getPeerInfo
@@ -178,20 +178,21 @@ public:
 	 * Return value: bool - true/false value
      * Description : Returns true if the file sets are equivilent
      */
-    bool isSameFileSet(const ReplicatorFileSet &other ) const {
-		return m_fileSet.equivilent( other );
+    bool equivilent(const ReplicatorFileSet &other ) const {
+		return m_fileInfo.equivilent( other );
 	};
 
 	/* Function    : operator >
      * Arguments   : replica - the compared replica
      * Return value: bool - true/false value
-     * Description : the version is bigger than another, if its logical clock is
-	 *				 bigger or if the state of the local daemon is
-	 *				 REPLICATION_LEADER, whilst the state of the remote daemon
-	 *				 is not
-	 * Note        : the comparison is used, while choosing the best replica in
-	 *				 VERSION_DOWNLOADING state, to simply compare the logical
-	 *				 clocks the replicas' states must be set to BACKUP
+
+     * Description : the version is bigger than another, if its
+	 *				 logical clock is bigger or if the state of the local
+	 * 				 daemon is REPLICATION_LEADER, whilst the state of the
+	 *				 remote daemon is not
+	 * Note        : the comparison is used, while choosing the best replica
+	 *				 in VERSION_DOWNLOADING state, to simply compare the
+	 *				 logical clocks the replicas' states must be set to BACKUP
      */
 	bool operator > (const ReplicatorFileReplica &other) const;
 
@@ -264,7 +265,7 @@ public:
   private:
 
 	// File info
-	const ReplicatorFileSet		&m_fileSet;
+	const ReplicatorFileBase	&m_fileInfo;
 
 	// Peer info
 	const ReplicatorPeer		&m_peerInfo;

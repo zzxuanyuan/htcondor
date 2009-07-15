@@ -25,7 +25,6 @@
 #include "ReplicatorTransferer.h"
 #include "ReplicatorFileReplica.h"
 #include "ReplicatorFile.h"
-#include "ReplicatorFileList.h"
 #include "AbstractReplicatorStateMachine.h"
 #include "reli_sock.h"
 #include "dc_service.h"

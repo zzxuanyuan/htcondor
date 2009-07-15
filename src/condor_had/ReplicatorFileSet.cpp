@@ -32,31 +32,51 @@ using namespace std;
 // ===================================
 
 // C-Tors / D-Tors
-ReplicatorFileSet::ReplicatorFileSet( StringList *files, const char *spool )
+ReplicatorFileSet::ReplicatorFileSet( const char *spool, StringList *paths )
 		: ReplicatorFileBase( spool ),
 		  m_nameList( NULL ),
 		  m_nameListStr( NULL ),
-		  m_pathList( files ),
-		  m_pathListStr( files->print_to_string() )
+		  m_pathList( paths ),
+		  m_pathListStr( paths->print_to_string() )
 {
+	setNamesFromPaths( paths );
+}
 
+ReplicatorFileSet::ReplicatorFileSet( void )
+		: ReplicatorFileBase( ),
+		  m_nameList( NULL ),
+		  m_nameListStr( NULL ),
+		  m_pathList( NULL ),
+		  m_pathListStr( NULL )
+{
+}
+
+void
+ReplicatorFileSet::setPaths( StringList *paths )
+{
+	m_pathList = paths;
+	m_pathListStr = paths->print_to_string();
+	setNamesFromPaths( paths );
+}
+
+void
+ReplicatorFileSet::setNamesFromPaths( StringList *paths )
+{
 	char	*path;
 
-    files->rewind( );
+    paths->rewind( );
 	m_nameList = new StringList;
-    while( (path = files->next()) != NULL ) {
+    while( (path = paths->next()) != NULL ) {
 		m_nameList->append( condor_basename(path) );
 	}
 	m_nameListStr = m_nameList->print_to_string();
 }
 
-ReplicatorFileSet::ReplicatorFileSet( StringList *names )
-		: ReplicatorFileBase( ),
-		  m_nameList( names ),
-		  m_nameListStr( names->print_to_string() ),
-		  m_pathList( NULL ),
-		  m_pathListStr( NULL )
+void
+ReplicatorFileSet::setNames( StringList *names )
 {
+	m_nameList = names;
+	m_nameListStr = m_nameList->print_to_string();
 }
 
 ReplicatorFileSet::~ReplicatorFileSet( void )

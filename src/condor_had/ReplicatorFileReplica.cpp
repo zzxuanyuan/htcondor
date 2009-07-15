@@ -55,7 +55,6 @@ ReplicatorFileReplica::generate( const ClassAd &ad,
 	int					 clock;
 	bool				 is_primary;
 	ReplicatorState		 state;
-	ReplicatorFileSet	*file_set = NULL;
 	MyString			 tmp;
 
 	if ( !ad.LookupInteger( ATTR_REPLICATOR_GID, gid ) ) {
@@ -86,17 +85,16 @@ ReplicatorFileReplica::generate( const ClassAd &ad,
 	}
 
 	// Extract the file set
-	if ( ad.LookupString( ATTR_REPLICATOR_FILE_SET, tmp ) ) {
-		if ( NULL == m_fileSet ) {
-			s.sprintf( "No file set in peer ad" );
-			return NULL;
-		}
-		StringList	files(tmp.Value());
-		file_set = new ReplicatorFileSet( files );
+	if ( !ad.LookupString( ATTR_REPLICATOR_FILE_SET, tmp ) ) {
+		s.sprintf( "No file info in peer ad" );
+		return NULL;
 	}
+	StringList	*names = new StringList(tmp.Value());
+	ReplicatorFileSet *file_set = new ReplicatorFileSet( );
+	file_set->setNames( names );
 
 	ReplicatorFileReplica *replica =
-		new ReplicatorFileReplica( file_set, peer );
+		new ReplicatorFileReplica( *file_set, peer );
 	replica->setGid( gid, false );
 	replica->setLogicalClock( clock, false );
 	replica->setState( state );

@@ -153,7 +153,7 @@ ReplicatorPeerList::init( const char *replication_list, bool &updated )
 	if ( NULL == m_rawList ) {
 		updated = true;
 	}
-	else if ( m_rawList->similar(*new_list) == false ) {
+	else if ( m_rawList->equivilent(*new_list) == false ) {
 		updated = true;
 		delete m_rawList;
 		free( m_rawString );

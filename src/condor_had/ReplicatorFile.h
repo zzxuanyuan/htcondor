@@ -26,6 +26,7 @@ using namespace std;
 #include "condor_classad.h"
 #include "Utils.h"
 #include "ReplicatorTransferer.h"
+#include "ReplicatorFileVersion.h"
 
 // Pre-declare the peer classes
 class ReplicatorPeer;
@@ -59,6 +60,7 @@ class ReplicatorDownloader : public ReplicatorTransferer
 class ReplicatorFileBase
 {
   public:
+
 	ReplicatorFileBase( const char *spool );
 	ReplicatorFileBase( void );
 	virtual ~ReplicatorFileBase( void );
@@ -68,6 +70,14 @@ class ReplicatorFileBase
 
 	// Comparison operators
 	virtual bool operator == ( const ReplicatorFileBase &other ) const = 0;
+
+	// Comparison methods
+	virtual bool identical(  const ReplicatorFileBase &other ) const;
+	virtual bool equivilent( const ReplicatorFileBase &other ) const;
+
+	// Types
+	virtual bool isFile( void ) const = 0;
+	virtual bool isSet( void ) const = 0;
 
 	// Accessors
 	virtual const char *getFilePath( void ) const = 0;
@@ -79,6 +89,12 @@ class ReplicatorFileBase
 	};
 	ReplicatorDownloader &getDownloader( void ) const {
 		return m_downloader;
+	};
+
+	// Replica operations
+	ReplicatorFileReplica *getReplica( const ReplicatorPeer & );
+	list<ReplicatorFileReplica *> &getReplicaList( void ) {
+		return m_replicaList;
 	};
 
 	// Get count of active up / downloads
@@ -159,6 +175,18 @@ class ReplicatorFile : public ReplicatorFileBase
 	bool operator == ( const char *file_path ) const {
 		return ( m_filePath == file_path );
 	};
+
+	// Comparison methods
+	virtual bool identical(  const ReplicatorFileBase &other ) const {
+		return ( *this == other );
+	};
+	virtual bool equivilent( const ReplicatorFileBase &other ) const {
+		return ( *this == other );
+	};
+
+	// Types
+	virtual bool isFile( void ) const { return true; };
+	virtual bool isSet( void ) const { return false; };
 
 	// Accessors
 	const char *getFilePath( void ) const {

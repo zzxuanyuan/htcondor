@@ -25,7 +25,6 @@
 #include "ReplicatorFileReplica.h"
 #include "ReplicatorFile.h"
 #include "ReplicatorFileSet.h"
-#include "ReplicatorFileList.h"
 #include "reli_sock.h"
 #include "dc_service.h"
 #include "list.h"
@@ -44,9 +43,9 @@
  *              3) afterLeaderStateHandler   - for HAD_AFTER_LEADER_STATE
  *              4) inLeaderStateHandler      - for HAD_IN_LEADER_STATE
  *
- *              Besides, it contains handlers for selection of the best version
- *              out of versions list and selection of the gid according to those
- *              versions:
+ *              Besides, it contains handlers for selection of the
+ *              best version out of versions list and selection of the
+ *              gid according to those versions:
  *              1) replicaSelectionHandler
  *              2) gidSelectionHandler
  */
@@ -63,8 +62,8 @@ class AbstractReplicatorStateMachine: public Service
     virtual ~AbstractReplicatorStateMachine( void ) = 0;
 
 	/* Function   : reinitialize
-	 * Description: rereads all the configuration parameters and resets all the
-	 *              data members
+	 * Description: rereads all the configuration parameters and resets all
+	 *              the data members
 	 */
     bool reinitialize( void );
 
@@ -75,7 +74,8 @@ class AbstractReplicatorStateMachine: public Service
 	 * Description : generic handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion) = 0;
+    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion)
+		= 0;
 
 	/* Function   : gidSelectionHandler
      * Description: generic handler for selection of gid for the pool
@@ -86,7 +86,8 @@ class AbstractReplicatorStateMachine: public Service
 
   protected:
 	// version sending commands between replication daemons
-    typedef bool (AbstractReplicatorStateMachine::*CommandFunction)(ReliSock& );
+    typedef bool (AbstractReplicatorStateMachine::*CommandFunction)
+		(ReliSock& );
 
     /* Function    : downloadReaper
 	 * Arguments   : service    - the daemon, for which the transfer has ended
@@ -116,23 +117,23 @@ class AbstractReplicatorStateMachine: public Service
 
 	/* Function   : broadcastMessage
 	 * Arguments  : command - id that is sent to other replication daemons
-	 *						  along with the local version
-	 * Description: broadcasting different commands to other replication daemons
 	 *				along with the local version
-	 */
+	 * Description: broadcasting different commands to other
+	 *				replication daemons along with the local version
+	*/
     bool broadcastMessage( int command );
 
 	/* Function   : requestVersions
-     * Description: sending command to other replication daemons, asking them to
-	 * 				send their replica versions to this replication daemon
+     * Description: sending command to other replication daemons, asking them
+	 * 				to send their replica versions to this replication daemon
      */
     bool requestVersions( void );
 
 	/* Function    : download
 	 * Arguments   : ReplicatorFileReplica - Replica to download from
 	 * Return value: bool - success/failure value
-	 * Description : starts downloading 'condor_transferer' process to download
-	 *				 the version of remote replication daemon
+	 * Description : starts downloading 'condor_transferer' process to
+	 *				 download the version of remote replication daemon
      */
     bool download( ReplicatorFileReplica &version );
 
@@ -253,7 +254,6 @@ class AbstractReplicatorStateMachine: public Service
   protected:
 
     // list of all of the files we replicate
-	//ReplicatorFileList	*m_fileList;
 	ReplicatorFileSet       *m_fileSet;
 
 	// configuration variables
