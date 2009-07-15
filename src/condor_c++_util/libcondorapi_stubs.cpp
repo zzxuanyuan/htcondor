@@ -250,3 +250,38 @@ void Generic_set_log_va(void(*app_log_va)(int level,char*fmt,va_list args))
 	(void) app_log_va;
 };
 END_C_DECLS
+
+#ifdef WIN32
+
+Daemon::Daemon( daemon_t tType, const char* tName, const char* tPool ) 
+{
+}
+
+bool Daemon::locate()
+{
+	return false;
+}
+
+Daemon::~Daemon()
+{
+}
+
+Sock * Daemon::startCommand( int cmd, Stream::stream_type st, int timeout, CondorError* errstack, char const *cmd_description, bool raw_protocol, char const *sec_session_id )
+{
+	return NULL;
+}
+
+SecMan::SecMan(int numbuckets)
+{
+}
+
+SecMan::~SecMan()
+{
+
+}
+
+int addCredential( const char* user, const char* pw, Daemon *d )
+{
+	return 0;
+}
+#endif

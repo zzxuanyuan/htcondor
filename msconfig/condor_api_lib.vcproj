@@ -443,10 +443,12 @@
 			RelativePath="$(OutDir)\my_distribution.obj"
 			>
 		</File>
+
 		<File
 			RelativePath="$(OutDir)\my_subsystem.obj"
 			>
 		</File>
+
 		<File
 			RelativePath="$(OutDir)\MyString.obj"
 			>
@@ -533,6 +535,42 @@
 		</File>
 		<File
 			RelativePath="$(OutDir)\xml_classads.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\my_username.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\my_dynuser.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\dynuser.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\token_cache.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\win32_posix.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\lock_file.WIN32.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\lsa_mgr.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\truncate.WIN32.obj"
+			>
+		</File>
+		<File
+			RelativePath="$(OutDir)\stat.WINDOWS.obj"
 			>
 		</File>
 	</Files>

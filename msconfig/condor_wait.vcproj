@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="condor_wait"
 	ProjectGUID="{A8222C18-95D9-446B-A75C-EE21D6B5C9EA}"
+	RootNamespace="condor_wait"
 	TargetFrameworkVersion="0"
 	>
 	<Platforms>

@@ -138,7 +138,7 @@ set CONDOR_LIB=crypt32.lib mpr.lib psapi.lib mswsock.lib netapi32.lib imagehlp.l
 set CONDOR_LIBPATH=/NOLOGO
 
 set CONDOR_TESTS_INCLUDE=/I "..\..\src\h" /I "..\..\src\condor_includes" /I "..\..\src\condor_c++_util" /I "..\..\src\condor_daemon_client" /I "..\..\src\condor_daemon_core.V6" /I "..\..\src\condor_schedd.V6" /I "..\..\src\condor_classad.V6" /I "..\..\src\ccb" /I "..\..\src\condor_chirp"
-set CONDOR_TESTS_LIB=condor_cpp_util.lib condor_util.lib condor_analysis_lib.lib condor_chirp_client.lib condor_classad.lib condor_classad_new.lib condor_conversion_lib.lib condor_daemon_core.lib condor_io.lib condor_kbdd_dll.lib condor_privsep_client.lib condor_procapi.lib condor_procd_client.lib condor_qmgmt.lib condor_quill.lib condor_sysapi.lib
+set CONDOR_TESTS_LIB=condor_api.lib
 set CONDOR_TESTS_LIBPATH=/LIBPATH:"..\..\Release" /LIBPATH:"..\..\src\condor_util_lib"
 
 REM ======================================================================
