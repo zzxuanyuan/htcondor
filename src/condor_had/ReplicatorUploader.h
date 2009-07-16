@@ -54,10 +54,15 @@ class ReplicatorUploaderList : public ReplicatorTransfererList
 	~ReplicatorUploaderList( void );
 	bool clear( void );
 
-	bool getOldList( time_t maxage, list<ReplicatorFileReplica*>& );
-	bool getList( list<ReplicatorFileReplica*>& );
+	int getList( list<ReplicatorUploader*>& );
+	int getOldList( time_t maxage, list<ReplicatorUploader*>& );
+	int killList( int sig, const list<ReplicatorUploader *>& );
 
-	bool killList( int sig, list<const ReplicatorFileReplica *>& );
+  private:
+	int convert( const list<ReplicatorTransferer *>&inlist,
+				 list<ReplicatorUploader *>&outlist );
+	int convert( const list<ReplicatorUploader *>&inlist,
+				 list<ReplicatorTransferer *>&outlist );
 };
 
 #endif // REPLICATOR_UPLOADER_H

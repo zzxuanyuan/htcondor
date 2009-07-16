@@ -26,6 +26,7 @@ using namespace std;
 #include "condor_classad.h"
 #include "Utils.h"
 #include "ReplicatorTransferer.h"
+#include "ReplicatorDownloader.h"
 #include "ReplicatorFileVersion.h"
 
 // Pre-declare the peer classes
@@ -33,42 +34,6 @@ class ReplicatorPeer;
 class ReplicatorPeerList;
 class ReplicatorFileBase;
 class ReplicatorFileReplica;
-
-/* Class      : ReplicatorDownloader
- * Description: class, representing a file that's versioned and replicated
- */
-class ReplicatorDownloader : public ReplicatorTransferer
-{
-  public:
-	ReplicatorDownloader( ReplicatorFileBase &file_info )
-		: m_fileInfo( file_info ) {
-	};
-	~ReplicatorDownloader( void ) { };
-	ReplicatorFileBase &getFileInfo( void ) {
-		return m_fileInfo;
-	};
-
-  private:
-	ReplicatorFileBase	&m_fileInfo;
-};
-
-class ReplicatorDownloaderList : public ReplicatorTransfererList
-{
-  public:
-	ReplicatorDownloaderList( void );
-	~ReplicatorDownloaderList( void );
-	bool clear( void );
-
-	int getOldList( time_t maxage, list<ReplicatorFileBase *>& );
-	int getList( list<ReplicatorFileBase *>& );
-
-	bool killList( int sig, const list<const ReplicatorFileBase *>& ) const;
-
-  private:
-	int getList( const list<ReplicatorTransferer *>&,
-				 list<ReplicatorFileBase *>& );
-	
-};
 
 /* Class      : ReplicatorFileBase
  * Description: Base class, representing a file or set of files that are
@@ -128,8 +93,9 @@ class ReplicatorFileBase
 					  const ReplicatorFileReplica *& ) const;
 	bool findReplica( const ReplicatorPeer &peer,
 					  const ReplicatorFileReplica *& ) const;
-	bool getReplicaList( list<ReplicatorFileReplica *> & ) {
-		return m_replicaList;
+	bool getReplicaList( list<ReplicatorFileReplica *> &out ) {
+		out = m_replicaList;
+		return true;
 	};
 
 	// Rotate in the downloaded file

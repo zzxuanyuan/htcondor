@@ -23,7 +23,7 @@
 #include "stat_wrapper.h"
 #include <list>
 #include "ReplicatorTransferer.h"
-#include "ReplicatorUploader.h"
+#include "ReplicatorDownloader.h"
 
 using namespace std;
 
@@ -33,30 +33,30 @@ using namespace std;
 // ========================================
 static int
 convert( const list<ReplicatorTransferer *>	&inlist,
-		 list<ReplicatorUploader *>			&outlist )
+		 list<ReplicatorDownloader *>		&outlist )
 {
 	int		num = 0;
-	list <ReplicatorTransferer *>::const_iterator iter;
+	list <ReplicatorTransferer *>::iterator iter;
 	for( iter = inlist.begin(); iter != inlist.end(); iter++ ) {
 		ReplicatorTransferer	*trans = *iter;
-		ReplicatorUploader		*up =
-			dynamic_cast<ReplicatorUploader*>(trans);
-		ASSERT(up);
-		outlist.push_back( up );
+		ReplicatorDownloader		*down =
+			dynamic_cast<ReplicatorDownloader*>(trans);
+		ASSERT(down);
+		outlist.push_back( down );
 		num++;
 	}
 	return num;
 }
 
 static int
-convert( const list<ReplicatorUploader *>	&inlist,
+convert( const list<ReplicatorDownloader *>	&inlist,
 		 list<ReplicatorTransferer *>		&outlist )
 {
 	int		num = 0;
-	list <ReplicatorUploader *>::const_iterator iter;
+	list <ReplicatorDownloader *>::const_iterator iter;
 	for( iter = inlist.begin(); iter != inlist.end(); iter++ ) {
-		ReplicatorUploader		*up = *iter;
-		outlist.push_back( up );
+		ReplicatorDownloader		*down = *iter;
+		outlist.push_back( down );
 		num++;
 	}
 	return num;
@@ -64,39 +64,39 @@ convert( const list<ReplicatorUploader *>	&inlist,
 
 
 // ========================================
-// ==== Replicator Uploader List class ====
+// ==== Replicator Downloader List class ====
 // ========================================
 
 // C-Tors / D-Tors
-ReplicatorUploaderList::ReplicatorUploaderList( void )
+ReplicatorDownloaderList::ReplicatorDownloaderList( void )
 {
 }
 
 int
-ReplicatorUploaderList::getList(
-	list<ReplicatorUploader*>	&uplist )
+ReplicatorDownloaderList::getList(
+	list<ReplicatorDownloader*>	&downlist )
 {
-	return convert( m_list, uplist );
+	return convert( m_list, downlist );
 }
 
 int
-ReplicatorUploaderList::getOldList(
+ReplicatorDownloaderList::getOldList(
 	time_t						 maxage,
-	list<ReplicatorUploader*>	&uplist )
+	list<ReplicatorDownloader*>	&downlist )
 {
 	list<ReplicatorTransferer*>	trans;
 	if ( getOldList( maxage, trans ) < 0 ) {
 		return -1;
 	}
-	return convert( trans, uplist );
+	return convert( trans, downloaders );
 }
 
 int
-ReplicatorUploaderList::killList(
-	int								 signum,
-	const list<ReplicatorUploader*>	&uplist )
+ReplicatorDownloaderList::killList(
+	int								 	signum,
+	const list<ReplicatorDownloader*>	&downlist )
 {
 	list<ReplicatorTransferer*>	translist;
-	convert( uploaders, translist );
+	convert( downloaders, translist );
 	return killList( translist );
 }

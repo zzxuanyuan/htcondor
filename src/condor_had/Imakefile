@@ -28,6 +28,8 @@ REPLICATION_OBJ = \
 	ReplicatorFileSet.o \
 	ReplicatorFileVersion.o \
 	ReplicatorFileReplica.o \
+	ReplicatorDownloader.o \
+	ReplicatorUploader.o \
 	ReplicatorPeer.o \
 	Utils.o \
 	FilesOperations.o \

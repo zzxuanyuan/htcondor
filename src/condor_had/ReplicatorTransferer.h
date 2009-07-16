@@ -82,7 +82,7 @@ class ReplicatorTransfererList
 {
   public:
 	ReplicatorTransfererList( void );
-	~ReplicatorTransfererList( void );
+	virtual ~ReplicatorTransfererList( void );
 	bool clear( void );
 
 	bool Register( ReplicatorTransferer &process );
