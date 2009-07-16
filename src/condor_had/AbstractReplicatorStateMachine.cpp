@@ -577,6 +577,7 @@ AbstractReplicatorStateMachine::sendCommand(
              utilToString(command), daemonSinfulString );
 }
 
+#if 0
 // specific command function - sends local daemon's version over the socket
 bool
 AbstractReplicatorStateMachine::versionCommand( ReliSock& socket )
@@ -619,19 +620,21 @@ AbstractReplicatorStateMachine::versionAndStateCommand(ReliSock& socket)
 			 "sent command successfully\n" );
     return true;
 }
+#endif
 
 // cancels all the data, considering transferers, both uploading and
 // downloading such as pids and last times of creation, and sends
 // SIGKILL signals to the stuck processes
-
 void
-AbstractReplicatorStateMachine::killTransferers()
+AbstractReplicatorStateMachine::killTransferers(void)
 {
+	m_downloaders.killAll( SIGKILL );
+
     if( m_downloadTransfererMetadata.isValid() ) {
 
        /* Beware of sending SIGKILL with download transferer's pid =
-		* -1, because * according to POSIX it will be sent to every
-		* that the * current process is able to sent signals to
+		* -1, because according to POSIX it will be sent to every
+		* that the current process is able to sent signals to
        */
 
         dprintf( D_FULLDEBUG,

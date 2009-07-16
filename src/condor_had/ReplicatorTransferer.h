@@ -67,6 +67,8 @@ class ReplicatorTransferer
 	time_t getTime( void ) const {
 		return m_time;
 	};
+	time_t getAge( time_t now = 0 ) const;
+	bool kill( int sig ) const;
 	bool operator == ( ReplicatorTransferer &other ) const {
 		return m_pid == other.getPid( );
 	};
@@ -87,7 +89,13 @@ class ReplicatorTransfererList
 	ReplicatorTransferer *Find( int pid );
 	int numActive( void ) const;
 
-  private:
+	bool killAll( int sig ) const;
+
+  protected:
+	bool killList( int sig, list<const ReplicatorTransferer *>& );
+	bool getOldList( time_t maxage, list<ReplicatorTransferer *>& );
+
+  protected:
 	list<ReplicatorTransferer *>	m_list;
 };
 

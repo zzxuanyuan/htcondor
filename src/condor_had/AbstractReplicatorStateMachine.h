@@ -65,7 +65,7 @@ class AbstractReplicatorStateMachine: public Service
 	 * Description: rereads all the configuration parameters and resets all
 	 *              the data members
 	 */
-    bool reinitialize( void );
+	bool reinitialize( void );
 
 
 	// ==== Selection handlers ====
@@ -74,8 +74,8 @@ class AbstractReplicatorStateMachine: public Service
 	 * Description : generic handler for selection of the best version out of
      *               versions list
      */
-    virtual bool replicaSelectionHandler(ReplicatorFileReplica& newVersion)
-		= 0;
+    virtual bool
+		replicaSelectionHandler( ReplicatorFileReplica& newVersion ) = 0;
 
 	/* Function   : gidSelectionHandler
      * Description: generic handler for selection of gid for the pool
@@ -87,7 +87,7 @@ class AbstractReplicatorStateMachine: public Service
   protected:
 	// version sending commands between replication daemons
     typedef bool (AbstractReplicatorStateMachine::*CommandFunction)
-		(ReliSock& );
+		( ReliSock& );
 
     /* Function    : downloadReaper
 	 * Arguments   : service    - the daemon, for which the transfer has ended
@@ -100,7 +100,7 @@ class AbstractReplicatorStateMachine: public Service
 	 * Description : reaper of downloading 'condor_transferer' process
      */
 	static int
-    downloadReaper(Service* service, int pid, int exitStatus);
+		downloadReaper( Service* service, int pid, int exitStatus );
 
 	/* Function    : uploadReaper
      * Arguments   : service    - the daemon, for which the transfer has ended
@@ -113,7 +113,7 @@ class AbstractReplicatorStateMachine: public Service
      * Description : reaper of uploading 'condor_transferer' process
      */
     static int
-    uploadReaper(Service* service, int pid, int exitStatus);
+		uploadReaper( Service* service, int pid, int exitStatus );
 
 	/* Function   : broadcastMessage
 	 * Arguments  : command - id that is sent to other replication daemons
@@ -159,7 +159,7 @@ class AbstractReplicatorStateMachine: public Service
 	 * Arguments  : newVersion - the version to update the versions' list
 	 * Description: updates list of versions with new version
 	 */
-    void updateVersionsList(ReplicatorFileReplica &newVersion);
+    void updateVersionsList( ReplicatorFileReplica &newVersion );
 
 	/* Function   : cancelVersionsListLeader
      * Description: sets the state of all versions in the list to BACKUP

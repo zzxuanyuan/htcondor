@@ -52,6 +52,23 @@ class ReplicatorDownloader : public ReplicatorTransferer
 	ReplicatorFileBase	&m_fileInfo;
 };
 
+class ReplicatorDownloaderList : public ReplicatorTransfererList
+{
+  public:
+	ReplicatorDownloaderList( void );
+	~ReplicatorDownloaderList( void );
+	bool clear( void );
+
+	int getOldList( time_t maxage, list<ReplicatorFileBase *>& );
+	int getList( list<ReplicatorFileBase *>& );
+
+	bool killList( int sig, const list<const ReplicatorFileBase *>& ) const;
+
+  private:
+	int getList( const list<ReplicatorTransferer *>&,
+				 list<ReplicatorFileBase *>& );
+	
+};
 
 /* Class      : ReplicatorFileBase
  * Description: Base class, representing a file or set of files that are
@@ -91,12 +108,6 @@ class ReplicatorFileBase
 		return m_downloader;
 	};
 
-	// Replica operations
-	ReplicatorFileReplica *getReplica( const ReplicatorPeer & );
-	list<ReplicatorFileReplica *> &getReplicaList( void ) {
-		return m_replicaList;
-	};
-
 	// Get count of active up / downloads
 	int numActiveUploads( void ) const;
 	int numActiveDownloads( void ) const {
@@ -111,10 +122,15 @@ class ReplicatorFileBase
 	bool registerDownloaders( ReplicatorTransfererList &transferers ) const;
 
 	// Replica operators
-	bool findReplica( const char *hostname,
-					  const ReplicatorFileReplica *& ) const;
 	bool hasReplica( const ReplicatorFileReplica & ) const;
 	bool addReplica( ReplicatorFileReplica * );
+	bool findReplica( const char *hostname,
+					  const ReplicatorFileReplica *& ) const;
+	bool findReplica( const ReplicatorPeer &peer,
+					  const ReplicatorFileReplica *& ) const;
+	bool getReplicaList( list<ReplicatorFileReplica *> & ) {
+		return m_replicaList;
+	};
 
 	// Rotate in the downloaded file
 	bool synchronize( bool clock_synced ) {

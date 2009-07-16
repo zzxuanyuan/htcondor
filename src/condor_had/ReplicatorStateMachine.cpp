@@ -227,9 +227,10 @@ ReplicatorStateMachine::reinitialize( void )
 
     // set a timer to replication routine
     dprintf( D_ALWAYS, "RSM::reinitialize() setting replication timer\n" );
-    m_replicationTimerId = daemonCore->Register_Timer( m_replicationInterval,
-            (TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
-            "Time to replicate file", this );
+    m_replicationTimerId = daemonCore->Register_Timer(
+		m_replicationInterval,
+		(TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
+		"Time to replicate file", this );
 
     // register the download/upload reaper for the transferer process
     if( m_downloadReaperId == -1 ) {
@@ -242,7 +243,7 @@ ReplicatorStateMachine::reinitialize( void )
     if( m_uploadReaperId == -1 ) {
 		m_uploadReaperId = daemonCore->Register_Reaper(
         	"uploadReplicaTransfererReaper",
-        (ReaperHandler) &ReplicatorStateMachine::uploadReaper,
+			(ReaperHandler) &ReplicatorStateMachine::uploadReaper,
         	"uploadReplicaTransfererReaper",
 			this );
     }
@@ -361,22 +362,22 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
 	int	status = TRUE;
     switch( command ) {
 	case REPLICATION_LEADER_VERSION:
-		status = onLeaderVersion( ad, sinful );
+		status = LeaderVersionHandler( ad, sinful );
 		break;
 	case REPLICATION_TRANSFER_FILE:
-		status = onTransferFile( ad, sinful );
+		status = TransferFileHandler( ad, sinful );
 		break;
 	case REPLICATION_SOLICIT_VERSION:
-		status = onSolicitVersion( ad, sinful );
+		status = SolicitVersionHandler( ad, sinful );
 		break;
 	case REPLICATION_SOLICIT_VERSION_REPLY:
-		status = onSolicitVersionReply( ad, sinful );
+		status = SolicitVersionReplyHandler( ad, sinful );
 		break;
 	case REPLICATION_NEWLY_JOINED_VERSION:
-		status = onNewlyJoinedVersion( ad, sinful );
+		status = NewlyJoinedVersionHandler( ad, sinful );
 		break;
 	case REPLICATION_GIVING_UP_VERSION:
-		status = onGivingUpVersion( ad, sinful );
+		status = GivingUpVersionHandler( ad, sinful );
 		break;
 	default:
 		dprintf( D_ALWAYS,
@@ -693,7 +694,7 @@ ReplicatorStateMachine::becomeLeader( void )
 	return true;
 }
 
-/* Function   : onLeaderVersion
+/* Function   : LeaderVersionHandler
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_LEADER_VERSION command; comparing the
  *				received version to the local one and downloading the replica
@@ -702,10 +703,11 @@ ReplicatorStateMachine::becomeLeader( void )
  *				'condor_transferer' running at the same time
  */
 bool
-ReplicatorStateMachine::onLeaderVersion( const ClassAd &ad,
-										 const MyString &sinful )
+ReplicatorStateMachine::LeaderVersionHandler( const ClassAd &ad,
+											  const MyString &sinful )
 {
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::onLeaderVersion started\n" );
+    dprintf( D_ALWAYS,
+			 "ReplicatorStateMachine::LeaderVersionHandler started\n" );
 
     if( m_state != STATE_BACKUP ) {
         return;
@@ -721,8 +723,9 @@ ReplicatorStateMachine::onLeaderVersion( const ClassAd &ad,
 	// received version is better and there is no running downloading
 	// 'condor_transferers'
     if( downloadTransferersNumber( ) == 0 && newVersion && downloadNeeded ) {
-        dprintf( D_FULLDEBUG, "ReplicatorStateMachine::onLeaderVersion "
-				"downloading from %s\n",
+        dprintf( D_FULLDEBUG,
+				 "ReplicatorStateMachine::LeaderVersionHandler "
+				 "downloading from %s\n",
 				newVersion->getSinfulString( ).Value( ) );
         download( newVersion->getSinfulString( ).Value( ) );
     }
@@ -733,34 +736,36 @@ ReplicatorStateMachine::onLeaderVersion( const ClassAd &ad,
 	delete newVersion;
 }
 
-/* Function   : onTransferFile
+/* Function   : TransferFileHandler
  * Arguments  : daemonSinfulString - the address of remote replication daemon,
  *				which sent the REPLICATION_TRANSFER_FILE command
  * Description: handler of REPLICATION_TRANSFER_FILE command; starting
  * 				uploading the replica from specified replication daemon
  */
 bool
-ReplicatorStateMachine::onTransferFile( const ClassAd &ad,
-										const MyString &sinful )
+ReplicatorStateMachine::TransferFileHandler(
+	const ClassAd &ad,
+	const MyString &sinful )
 {
-    dprintf( D_ALWAYS, "::onTransferFile() %s started\n",
+    dprintf( D_ALWAYS, "::TransferFileHandler() %s started\n",
              daemonSinfulString );
     if( m_state == STATE_LEADER ) {
         upload( daemonSinfulString );
     }
 }
 
-/* Function   : onSolicitVersion
+/* Function   : SolicitVersionHandler
  * Arguments  : daemonSinfulString - the address of remote replication daemon,
  *              which sent the REPLICATION_SOLICIT_VERSION command
  * Description: handler of REPLICATION_SOLICIT_VERSION command; sending local
  *				version along with current replication daemon state
  */
 bool
-ReplicatorStateMachine::onSolicitVersion( const ClassAd &ad,
-										  const MyString &sinful )
+ReplicatorStateMachine::SolicitVersionHandler(
+	const ClassAd &ad,
+	const MyString &sinful )
 {
-    dprintf( D_ALWAYS, "::onSolicitVersion() %s started\n",
+    dprintf( D_ALWAYS, "::SolicitVersionHandler() %s started\n",
              daemonSinfulString );
     if( m_state == STATE_BACKUP || m_state == STATE_LEADER ) {
         sendVersionAndStateCommand( REPLICATION_SOLICIT_VERSION_REPLY,
@@ -768,16 +773,17 @@ ReplicatorStateMachine::onSolicitVersion( const ClassAd &ad,
    }
 }
 
-/* Function   : onSolicitVersionReply
+/* Function   : SolicitVersionReplyHandler
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_SOLICIT_VERSION_REPLY command; updating
  * 				versions list with newly received remote version
  */
 bool
-ReplicatorStateMachine::onSolicitVersionReply( const ClassAd & /*ad*/,
-											   const MyString & /*sinful*/ )
+ReplicatorStateMachine::SolicitVersionReplyHandler( 
+	const ClassAd & /*ad*/,
+	const MyString & /*sinful*/ )
 {
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::onSolicitVersionReply "
+    dprintf( D_ALWAYS, "ReplicatorStateMachine::SolicitVersionReplyHandler "
 					   "started\n" );
     ReplicatorVersion* newVersion = 0;
 
@@ -787,16 +793,18 @@ ReplicatorStateMachine::onSolicitVersionReply( const ClassAd & /*ad*/,
     }
 }
 
-/* Function   : onNewlyJoinedVersion
+/* Function   : NewlyJoinedVersionHandler
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_NEWLY_JOINED_VERSION command; void by
  *				now
  */
 void
-ReplicatorStateMachine::onNewlyJoinedVersion( Stream* /*stream*/ )
+ReplicatorStateMachine::NewlyJoinedVersionHandler(
+	const ClassAd & /*ad*/,
+	const MyString & /*sinful*/ )
 {
     dprintf(D_ALWAYS,
-			"ReplicatorStateMachine::onNewlyJoinedVersion started\n");
+			"ReplicatorStateMachine::NewlyJoinedVersionHandler started\n");
 
     if( m_state == STATE_LEADER ) {
         // eventually merging files
@@ -804,7 +812,7 @@ ReplicatorStateMachine::onNewlyJoinedVersion( Stream* /*stream*/ )
     }
 }
 
-/* Function   : onGivingUpVersion
+/* Function   : GivingUpVersionHandler
  * Arguments  : stream - socket, through which the data is received and sent
  * Description: handler of REPLICATION_GIVING_UP_VERSION command; void by now
  * 				initiating merging two reconciled replication leaders' state
@@ -812,10 +820,12 @@ ReplicatorStateMachine::onNewlyJoinedVersion( Stream* /*stream*/ )
  *				state)
  */
 void
-ReplicatorStateMachine::onGivingUpVersion( Stream* /*stream*/ )
+ReplicatorStateMachine::GivingUpVersionHandler(
+	const ClassAd & /*ad*/,
+	const MyString & /*sinful*/ )
 {
     dprintf( D_ALWAYS,
-			 "ReplicatorStateMachine::onGivingUpVersion started\n" );
+			 "ReplicatorStateMachine::GivingUpVersionHandler started\n" );
 
     if( m_state == STATE_BACKUP) {
         // eventually merging files

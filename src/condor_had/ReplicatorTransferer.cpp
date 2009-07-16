@@ -23,6 +23,28 @@
 
 #include "ReplicatorTransferer.h"
 
+// ReplicatorTransferer methods
+time_t
+ReplicatorTransferer::getAge( time_t now ) const
+{
+	if ( m_time < 0 ) {
+		return 0;
+	}
+	if ( now == 0 ) {
+		now = time(NULL);
+	}
+	return now - m_time;
+}
+
+bool
+ReplicatorTransferer::kill( int sig ) const
+{
+	if ( m_pid > 0 ) {
+        daemonCore->Send_Signal( m_pid, sig );
+	};
+}
+
+// ReplicatorTransfererList methods
 ReplicatorTransfererList::ReplicatorTransfererList( void )
 {
 }
@@ -73,5 +95,37 @@ ReplicatorTransfererList::numActive( void )
 		}
 	}
 	return num;
+}
 
+bool
+ReplicatorTransfererList::killList(
+	int									 sig,
+	list<const ReplicatorTransferer *>	&transferers )
+{
+	bool	ok = true;
+	list <ReplicatorTransferer *>::iterator iter;
+	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		ReplicatorTransferer	*trans = *iter;
+		if ( trans->kill(sig) ) {
+			ok = false;
+		}
+	}
+	return ok;
+}
+
+int
+ReplicatorTransfererList::getOldList(
+	time_t							 maxage,
+	list<ReplicatorTransferer *>	&transferers )
+{
+	int		num = 0;
+	list <ReplicatorTransferer *>::iterator iter;
+	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		ReplicatorTransferer	*trans = *iter;
+		if ( trans->isActive() && (trans->getAge() > maxage) ) {
+			transferers.push_back( trans );
+			num++;
+		}
+	}
+	return num;
 }

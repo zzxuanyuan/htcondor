@@ -24,6 +24,7 @@
 #include "ReplicatorFileVersion.h"
 #include "ReplicatorFileSet.h"
 #include "ReplicatorPeer.h"
+#include "ReplicatorUploader.h"
 #include "Utils.h"
 #include "reli_sock.h"
 
@@ -36,27 +37,6 @@ enum ReplicatorState
 	STATE_DOWNLOADING,
 	STATE_BACKUP,
 	STATE_LEADER
-};
-
-// Pre-declare a couple of classes
-class ReplicatorFileReplica;	// Pre-declare the file version info
-
-/* Class      : ReplicatorUploader
- * Description: class, representing a version of state file, including gid of
- *				the pool, logical clock and last modification time of the state
- *				file
- */
-class ReplicatorUploader : public ReplicatorTransferer
-{
-  public:
-	ReplicatorUploader( ReplicatorFileReplica &replica )
-		: m_replica( replica ) {
-	};
-	~ReplicatorUploader( void ) { };
-	ReplicatorFileBase &getFileInfo( void );
-
-  private:
-	ReplicatorFileReplica	&m_replica;
 };
 
 /* Class      : ReplicatorFileReplica
