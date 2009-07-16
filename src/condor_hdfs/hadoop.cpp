@@ -37,6 +37,7 @@ Hadoop::Hadoop() {
         m_reaper         = -1;
         m_state          = STATE_NULL;
         m_adPubInterval  = 5;
+        m_hadoopHome     = NULL;
 }
 
 void Hadoop::initialize() {
@@ -55,9 +56,18 @@ void Hadoop::initialize() {
         if (hh != NULL) {
                 m_hadoopHome = MyString(hh);
                 free(hh);
-        } else
-                m_hadoopHome = MyString("./hadoop");                
+        } else {
+                char * rd = param("RELEASE_DIR");
+                if (rd != NULL) {
+                        MyString tmp;
+                        tmp.sprintf("%s/libexec/hdfs", rd);
+                        m_hadoopHome = tmp;                
+                        free(rd);
+                }                                 
+        }
 
+        if (m_hadoopHome == NULL)
+                EXCEPT("Misconfigured HDFS! Please specify a location of hadoop lib folder\n");                 
         
         m_classpath.clearAll();
 
@@ -67,6 +77,11 @@ void Hadoop::initialize() {
         //to ensure that any stale configuration file just laying around is not
         //fed into hadoop. Hadoop's site configuration in 'conf' direcotry is 
         //managed by condor.
+        char *logdir = param("LOG");
+        if (logdir != NULL) {
+                buff.sprintf("%s/", logdir);
+                free(logdir);
+        }
         buff.sprintf("%s/conf", m_hadoopHome.Value());
         m_classpath.insert(buff.Value());
 
@@ -140,10 +155,13 @@ void Hadoop::initialize() {
 
 void Hadoop::writeConfigFile() {
         MyString confFile;
-        confFile.sprintf("%s/conf/%s", m_hadoopHome.Value(), m_siteFile.Value());
-        dprintf(D_ALWAYS, "Config file location %s\n", confFile.Value());
+        char *logdir = param("LOG");
+        if (logdir == NULL) 
+            EXCEPT("Misconfigured HDFS!: log directory is not specified\n");
 
-        //confFile.sprintf("%s/conf/hdfs-site.xml", m_hadoopHome.Value());
+        confFile.sprintf("%s/%s", logdir, m_siteFile.Value());
+        free(logdir);
+        dprintf(D_ALWAYS, "Config file location %s\n", confFile.Value());
 
         int fd = safe_create_replace_if_exists(confFile.Value(), O_CREAT|O_WRONLY);
         if (fd == -1) {
@@ -154,7 +172,7 @@ void Hadoop::writeConfigFile() {
         StringList xml("", "\n");;
         xml.append("<?xml version=\"1.0\"?>");
         xml.append("<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>");
-        xml.append("<!-- DON'T MODIFY this file manually, as it will be overwritten by CONDOR.-->");
+        xml.append("<!-- DON'T MODIFY this file manually, as it is overwritten by CONDOR.-->");
         xml.append("<configuration>");
 
         char *namenode = param("HDFS_NAMENODE");
@@ -193,6 +211,12 @@ void Hadoop::writeConfigFile() {
         if (nnaddw != NULL) {
                 writeXMLParam("dfs.http.address", nnaddw, &xml);
                 free(nnaddw);
+        }
+
+        char *rep = param("HDFS_REPLICATION");
+        if (rep != NULL) {
+                writeXMLParam("dfs.replication", rep, &xml);
+                free(rep);
         }
 
         //TODO these shouldn't be hard-coded
@@ -301,9 +325,8 @@ void Hadoop::startService(int type) {
                 //Tell hadoop's logger to place rolling log file inside condor's
                 //local directory.
                 arglist.AppendArg("-Dhadoop.root.logger=INFO,DRFA");
-
                 MyString log_dir;
-                log_dir.sprintf("-Dhadoop.log.dir=%s", ldir);
+                log_dir.sprintf("-Dhadoop.log.dir=%s/HDFS_log", ldir);
                 arglist.AppendArg(log_dir.Value());
                 arglist.AppendArg("-Dhadoop.log.file=hdfs.log");
 
@@ -369,13 +392,13 @@ void Hadoop::startService(int type) {
                 arglist.InsertArg(m_java.Value(), 0);
 
                 if (dir.Next() == NULL) {
-                arglist.AppendArg("-format");
+                        arglist.AppendArg("-format");
 
-                MyString argString;
-                arglist.GetArgsStringForDisplay(&argString);
-                dprintf(D_ALWAYS, "%s\n", argString.Value());
-              
-                FILE *fp = my_popen(arglist, "w", 0);
+                        MyString argString;
+                        arglist.GetArgsStringForDisplay(&argString);
+                        dprintf(D_ALWAYS, "%s\n", argString.Value());
+
+                        FILE *fp = my_popen(arglist, "w", 0);
                         fwrite("Y\n", 1, 2, fp);
                         int status = my_pclose(fp);
                         dprintf(D_ALWAYS, "Performed a format on HDFS with status %d\n", status);
