@@ -641,18 +641,6 @@ CCBClient::RegisterReverseConnectCallback()
 			ALLOW);
 	}
 
-	if( m_deadline_timer == -1 && m_target_sock->get_deadline() ) {
-		int timeout = m_target_sock->get_deadline() - time(NULL) + 1;
-		if( timeout < 0 ) {
-			timeout = 0;
-		}
-		m_deadline_timer = daemonCoreSockAdapter.Register_Timer (
-			timeout,
-			(TimerHandlercpp)&CCBClient::DeadlineExpired,
-			"CCBClient::DeadlineExpired",
-			this );
-	}
-
 	int rc = waiting_for_reverse_connect.insert( m_connect_id, this );
 	ASSERT( rc == 0 );
 }
