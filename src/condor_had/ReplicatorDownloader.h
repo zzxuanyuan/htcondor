@@ -53,16 +53,9 @@ class ReplicatorDownloaderList : public ReplicatorTransfererList
 	~ReplicatorDownloaderList( void );
 	bool clear( void );
 
-	int getOldList( time_t maxage, list<ReplicatorFileBase *>& );
-	int getList( list<ReplicatorFileBase *>& );
-
-	bool killList( int sig, const list<const ReplicatorFileBase *>& ) const;
-
-  private:
-	int getList( const list<ReplicatorTransferer *>&,
-				 list<ReplicatorFileBase *>& );
-	
+	int getList( list<ReplicatorDownloader *>& );
+	int getOldList( time_t maxage, list<ReplicatorDownloader *>& );
+	int killList( int sig, const list<ReplicatorDownloader *>& );
 };
 
-
-#endif // REPLICATOR_UPLOADER_H
+#endif // REPLICATOR_DOWNLOADER_H

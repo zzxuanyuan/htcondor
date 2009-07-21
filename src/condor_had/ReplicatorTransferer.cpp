@@ -40,8 +40,9 @@ bool
 ReplicatorTransferer::kill( int sig ) const
 {
 	if ( m_pid > 0 ) {
-        daemonCore->Send_Signal( m_pid, sig );
+        return daemonCore->Send_Signal( m_pid, sig );
 	};
+	return true;
 }
 
 // ReplicatorTransfererList methods
@@ -58,12 +59,13 @@ bool
 ReplicatorTransfererList::clear( void )
 {
 	m_list.clear();
+	return true;
 }
 
 bool
 ReplicatorTransfererList::Register( ReplicatorTransferer &transferer )
 {
-	if ( find(transferer) ) {
+	if ( Find(transferer.getPid()) ) {
 		return true;
 	}
 	m_list.push_back( &transferer );
@@ -71,12 +73,12 @@ ReplicatorTransfererList::Register( ReplicatorTransferer &transferer )
 }
 
 ReplicatorTransferer *
-ReplicatorTransfererList::find( int pid )
+ReplicatorTransfererList::Find( int pid )
 {
 	list <ReplicatorTransferer *>::iterator iter;
 	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
 		ReplicatorTransferer	*trans = *iter;
-		if ( *trans == pid ) {
+		if ( trans->getPid() == pid ) {
 			return trans;
 		}
 	}
@@ -84,10 +86,10 @@ ReplicatorTransfererList::find( int pid )
 }
 
 int
-ReplicatorTransfererList::numActive( void )
+ReplicatorTransfererList::numActive( void ) const
 {
 	int		num = 0;
-	list <ReplicatorTransferer *>::iterator iter;
+	list <ReplicatorTransferer *>::const_iterator iter;
 	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
 		ReplicatorTransferer	*trans = *iter;
 		if ( trans->isActive() ) {
@@ -98,13 +100,13 @@ ReplicatorTransfererList::numActive( void )
 }
 
 bool
-ReplicatorTransfererList::killList(
+ReplicatorTransfererList::killTransList(
 	int									 sig,
-	list<const ReplicatorTransferer *>	&transferers )
+	const list<ReplicatorTransferer *>	&transferers )
 {
 	bool	ok = true;
-	list <ReplicatorTransferer *>::iterator iter;
-	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+	list <ReplicatorTransferer *>::const_iterator iter;
+	for( iter = transferers.begin(); iter != transferers.end(); iter++ ) {
 		ReplicatorTransferer	*trans = *iter;
 		if ( trans->kill(sig) ) {
 			ok = false;
@@ -114,7 +116,7 @@ ReplicatorTransfererList::killList(
 }
 
 int
-ReplicatorTransfererList::getOldList(
+ReplicatorTransfererList::getOldTransList(
 	time_t							 maxage,
 	list<ReplicatorTransferer *>	&transferers )
 {

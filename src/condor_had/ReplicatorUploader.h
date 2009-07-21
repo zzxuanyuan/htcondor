@@ -57,12 +57,6 @@ class ReplicatorUploaderList : public ReplicatorTransfererList
 	int getList( list<ReplicatorUploader*>& );
 	int getOldList( time_t maxage, list<ReplicatorUploader*>& );
 	int killList( int sig, const list<ReplicatorUploader *>& );
-
-  private:
-	int convert( const list<ReplicatorTransferer *>&inlist,
-				 list<ReplicatorUploader *>&outlist );
-	int convert( const list<ReplicatorUploader *>&inlist,
-				 list<ReplicatorTransferer *>&outlist );
 };
 
 #endif // REPLICATOR_UPLOADER_H

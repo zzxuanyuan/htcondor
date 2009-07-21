@@ -42,7 +42,7 @@ convert( const list<ReplicatorTransferer *>	&inlist,
 		ReplicatorUploader		*up =
 			dynamic_cast<ReplicatorUploader*>(trans);
 		ASSERT(up);
-		outlist.push_back( up );
+		outlist.push_back(up);
 		num++;
 	}
 	return num;
@@ -56,7 +56,7 @@ convert( const list<ReplicatorUploader *>	&inlist,
 	list <ReplicatorUploader *>::const_iterator iter;
 	for( iter = inlist.begin(); iter != inlist.end(); iter++ ) {
 		ReplicatorUploader		*up = *iter;
-		outlist.push_back( up );
+		outlist.push_back(up);
 		num++;
 	}
 	return num;
@@ -74,18 +74,18 @@ ReplicatorUploaderList::ReplicatorUploaderList( void )
 
 int
 ReplicatorUploaderList::getList(
-	list<ReplicatorUploader*>	&uplist )
+	list<ReplicatorUploader*>		&uplist )
 {
 	return convert( m_list, uplist );
 }
 
 int
 ReplicatorUploaderList::getOldList(
-	time_t						 maxage,
-	list<ReplicatorUploader*>	&uplist )
+	time_t							 maxage,
+	list<ReplicatorUploader *>		&uplist )
 {
 	list<ReplicatorTransferer*>	trans;
-	if ( getOldList( maxage, trans ) < 0 ) {
+	if ( getOldTransList( maxage, trans ) < 0 ) {
 		return -1;
 	}
 	return convert( trans, uplist );
@@ -93,10 +93,10 @@ ReplicatorUploaderList::getOldList(
 
 int
 ReplicatorUploaderList::killList(
-	int								 signum,
-	const list<ReplicatorUploader*>	&uplist )
+	int									 signum,
+	const list<ReplicatorUploader *>	&uplist )
 {
 	list<ReplicatorTransferer*>	translist;
-	convert( uploaders, translist );
-	return killList( translist );
+	convert( uplist, translist );
+	return killTransList( signum, translist );
 }

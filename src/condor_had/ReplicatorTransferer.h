@@ -21,7 +21,6 @@
 #define REPLICATOR_TRANSFERER_H
 
 #include <list>
-
 using namespace std;
 
 /* The structure encapsulates process id and the last timestamp of the
@@ -69,9 +68,6 @@ class ReplicatorTransferer
 	};
 	time_t getAge( time_t now = 0 ) const;
 	bool kill( int sig ) const;
-	bool operator == ( ReplicatorTransferer &other ) const {
-		return m_pid == other.getPid( );
-	};
 
   private:
 	int			 m_pid;
@@ -86,14 +82,14 @@ class ReplicatorTransfererList
 	bool clear( void );
 
 	bool Register( ReplicatorTransferer &process );
-	ReplicatorTransferer *Find( int pid );
+	ReplicatorTransferer * Find( int pid );
 	int numActive( void ) const;
 
 	bool killAll( int sig ) const;
 
   protected:
-	bool killList( int sig, list<const ReplicatorTransferer *>& );
-	bool getOldList( time_t maxage, list<ReplicatorTransferer *>& );
+	bool killTransList( int sig, const list<ReplicatorTransferer *>& );
+	int getOldTransList( time_t maxage, list<ReplicatorTransferer *>& );
 
   protected:
 	list<ReplicatorTransferer *>	m_list;

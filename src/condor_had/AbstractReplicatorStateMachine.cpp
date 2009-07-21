@@ -628,32 +628,31 @@ AbstractReplicatorStateMachine::versionAndStateCommand(ReliSock& socket)
 void
 AbstractReplicatorStateMachine::killTransferers(void)
 {
+	list<ReplicatorDownloader *>	downloaders;
+	list<ReplicatorUploader *>		uploaders;
+
+	m_downloaders.getList( downloaders );
 	m_downloaders.killAll( SIGKILL );
 
-    if( m_downloadTransfererMetadata.isValid() ) {
+	m_uploaders.getList( uploaders );
+	m_uploaders.killAll( SIGKILL );
 
-       /* Beware of sending SIGKILL with download transferer's pid =
-		* -1, because according to POSIX it will be sent to every
-		* that the current process is able to sent signals to
-       */
+	list <ReplicatorDownloader *>::iterator iter;
+	for( iter = downloaders.begin(); iter != downloaders.end(); iter++ ) {
+		ReplicatorDownloader	*down = *iter;
+		ReplicatorFileBase		&file = down->getFileInfo();
 
-        dprintf( D_FULLDEBUG,
-            "AbstractReplicatorStateMachine::killTransferers "
-            "killing downloading condor_transferer pid = %d\n",
-                   m_downloadTransfererMetadata.m_pid );
-        //kill( m_downloadTransfererMetadata.m_pid, SIGKILL );
-        daemonCore->Send_Signal( m_downloadTransfererMetadata.m_pid, SIGKILL );
 		// when the process is killed, it could have not yet erased its
         // temporary files, this is why we ensure it by erasing it in killer
         // function
-        MyString extension( m_downloadTransfererMetadata.m_pid );
+        MyString extension( down->getPid() );
 
         // the .down ending is needed in order not to confuse between
         // upload and download processes temporary files
         extension += ".";
         extension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
 
-        FilesOperations::safeUnlinkFile( m_versionFilePath.Value( ),
+        FilesOperations::safeUnlinkFile( file.getVersionFilePath().Value(),
                                          extension.Value( ) );
         FilesOperations::safeUnlinkFile( m_stateFilePath.Value( ),
                                          extension.Value( ) );

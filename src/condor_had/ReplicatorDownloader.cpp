@@ -36,7 +36,7 @@ convert( const list<ReplicatorTransferer *>	&inlist,
 		 list<ReplicatorDownloader *>		&outlist )
 {
 	int		num = 0;
-	list <ReplicatorTransferer *>::iterator iter;
+	list <ReplicatorTransferer *>::const_iterator iter;
 	for( iter = inlist.begin(); iter != inlist.end(); iter++ ) {
 		ReplicatorTransferer	*trans = *iter;
 		ReplicatorDownloader		*down =
@@ -85,10 +85,10 @@ ReplicatorDownloaderList::getOldList(
 	list<ReplicatorDownloader*>	&downlist )
 {
 	list<ReplicatorTransferer*>	trans;
-	if ( getOldList( maxage, trans ) < 0 ) {
+	if ( getOldTransList( maxage, trans ) < 0 ) {
 		return -1;
 	}
-	return convert( trans, downloaders );
+	return convert( trans, downlist );
 }
 
 int
@@ -97,6 +97,6 @@ ReplicatorDownloaderList::killList(
 	const list<ReplicatorDownloader*>	&downlist )
 {
 	list<ReplicatorTransferer*>	translist;
-	convert( downloaders, translist );
-	return killList( translist );
+	convert( downlist, translist );
+	return killTransList( signum, translist );
 }
