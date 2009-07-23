@@ -328,7 +328,7 @@ void Hadoop::startService(int type) {
                 //local directory.
                 arglist.AppendArg("-Dhadoop.root.logger=INFO,DRFA");
                 MyString log_dir;
-                log_dir.sprintf("-Dhadoop.log.dir=%s/HDFS_log", ldir);
+                log_dir.sprintf("-Dhadoop.log.dir=%s", ldir);
                 arglist.AppendArg(log_dir.Value());
                 arglist.AppendArg("-Dhadoop.log.file=hdfs.log");
 
@@ -372,18 +372,20 @@ void Hadoop::startService(int type) {
         if (stderr_fd == -1) 
                 dprintf(D_ALWAYS, "Failed to crate stderr pipe for service type=%d\n", type);
        
-        int arrIO[1];
+        int arrIO[3];
+        arrIO[0] = -1;
+        arrIO[2] = stderr_fd;
 
         if (! daemonCore->Create_Pipe(arrIO, true, false, true) ) {
                 dprintf(D_ALWAYS, "Couldn't create a stdout pipe\n");
         } else {
-                if (! daemonCore->Register_Pipe(arrIO[0], "hadoop stdout",
+                if (! daemonCore->Register_Pipe(arrIO[1], "hadoop stdout",
                         (PipeHandlercpp) &Hadoop::stdoutHandler,
                         "stdout", this) ) {
 
                         dprintf(D_ALWAYS, "Couldn't register stdout pipe\n");                        
                 } else {
-                        m_stdOut = arrIO[0];
+                        m_stdOut = arrIO[1];
                 }
         }
 
