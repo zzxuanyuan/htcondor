@@ -376,7 +376,7 @@ void Hadoop::startService(int type) {
         arrIO[0] = -1;
         arrIO[2] = stderr_fd;
 
-        if (! daemonCore->Create_Pipe(arrIO, true, false, true) ) {
+        if (! daemonCore->Create_Pipe(&arrIO[1], true, false, true) ) {
                 dprintf(D_ALWAYS, "Couldn't create a stdout pipe\n");
         } else {
                 if (! daemonCore->Register_Pipe(arrIO[1], "hadoop stdout",
