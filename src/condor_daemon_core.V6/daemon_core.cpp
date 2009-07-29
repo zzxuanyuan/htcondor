@@ -7246,12 +7246,7 @@ int DaemonCore::Create_Process(
 		// here we want to create a process as user for PRIV_USER_FINAL
 
 			// Get the token for the user
-		OutputDebugString("Before\n");
 		HANDLE user_token = priv_state_get_handle();
-		if(user_token == NULL)
-		{
-			OutputDebugString("user token is null\n");
-		}
 		ASSERT(user_token);
 
 			// making this a NULL string tells NT to dynamically
