@@ -724,6 +724,12 @@ extern const char *ATTR_AMAZON_INSTANCE_TYPE;
 //************* End of changes for Amamzon Jobs *****************//
 
 
+//************* Added for View Server Hack *******************//
+extern const char * ATTR_nmi_platform;
+extern const char * ATTR_nmi_slot_type;
+//************* Added for View Server Hack *******************//
+
+
 extern const char *ATTR_REQUEST_CPUS;
 extern const char *ATTR_REQUEST_MEMORY;
 extern const char *ATTR_REQUEST_DISK;
