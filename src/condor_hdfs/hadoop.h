@@ -78,12 +78,14 @@ class Hadoop : public Service {
 
         int m_stdOut;
 
+        int m_stdErr;
+
         int m_adPubInterval;
 
         ClassAd m_hdfsAd;
 
-        //keeps tracks of std output of our  hadoop process
-        MyString m_line;
+        //keeps tracks of std output and error of  hadoop process
+        MyString m_line_stdout, m_line_stderr;
 
         MyString m_java;
 
@@ -118,13 +120,15 @@ class Hadoop : public Service {
 
         void startService(int /*type*/);
 
-        void writeXMLParam(char *key, char *value, StringList *buff);
+        void writeXMLParam(const char *key, const char *value, StringList *buff);
 
         void recurrBuildClasspath(const char *file);
 
         void publishClassAd();
 
         void stdoutHandler(int /*pipe*/);
+
+        void stderrHandler(int /*pipe*/);
 
         int getKeyValue(MyString line, MyString *key, MyString *value);
 };

@@ -34,6 +34,7 @@
 Hadoop::Hadoop() { 
         m_pid    = -1;
         m_stdOut         = -1;
+        m_stdErr         = -1;
         m_reaper         = -1;
         m_state          = STATE_NULL;
         m_adPubInterval  = 5;
@@ -67,7 +68,12 @@ void Hadoop::initialize() {
         }
 
         if (m_hadoopHome == NULL)
-                EXCEPT("Misconfigured HDFS! Please specify a location of hadoop lib folder\n");                 
+                EXCEPT("Misconfigured HDFS! Please specify a location of hadoop installation directory\n");                 
+        else {
+                Directory dir(m_hadoopHome.Value());
+                if (dir.Next() == NULL)
+                        EXCEPT("Misconfigure HDFS! Please specify a valid path to hadoop installation directory");
+        }
         
         m_classpath.clearAll();
 
@@ -80,6 +86,7 @@ void Hadoop::initialize() {
         char *logdir = param("LOG");
         if (logdir != NULL) {
                 buff.sprintf("%s/", logdir);
+                m_classpath.insert(buff.Value());
                 free(logdir);
         }
         buff.sprintf("%s/conf", m_hadoopHome.Value());
@@ -219,6 +226,54 @@ void Hadoop::writeConfigFile() {
                 free(rep);
         }
 
+        //Host and IP based filter settings
+        char *hdfs_allow = param("HDFS_ALLOW");
+        if (hdfs_allow != NULL) {
+                writeXMLParam("dfs.net.allow", hdfs_allow, &xml);
+                free(hdfs_allow);
+        } else {
+                MyString read_write;
+                hdfs_allow = param("HOSTALLOW_READ");
+                if (hdfs_allow != NULL) {
+                        read_write = hdfs_allow;
+                        free(hdfs_allow);
+                }
+
+                hdfs_allow = param("HOSTALLOW_WRITE");
+                if(hdfs_allow != NULL) {
+                        if (read_write.Length() > 1)
+                                read_write.sprintf("%s,%s", read_write.Value(), hdfs_allow);
+                        else 
+                                read_write.sprintf("%s", hdfs_allow);
+
+                        free(hdfs_allow);
+                }
+                writeXMLParam("dfs.net.allow", read_write.Value(), &xml);
+        }
+
+        char *hdfs_deny = param("HDFS_DENY");
+        if (hdfs_deny != NULL) {
+                writeXMLParam("dfs.net.deny", hdfs_deny, &xml);
+                free(hdfs_deny);
+        } else {
+                MyString read_write;
+                hdfs_deny = param("HOSTDENY_READ");
+                if (hdfs_deny != NULL) {
+                        read_write = hdfs_deny;
+                        free(hdfs_deny);
+                }
+                hdfs_deny = param("HOSTDENY_WRITE");
+                if(hdfs_deny != NULL) {
+                        if (read_write.Length() > 1)
+                                read_write.sprintf("%s,%s", read_write.Value(), hdfs_deny);
+                        else 
+                                read_write.sprintf("%s", hdfs_deny);
+
+                        free(hdfs_deny);
+                }
+                writeXMLParam("dfs.net.deny", read_write.Value(), &xml);
+        }
+
         //TODO these shouldn't be hard-coded
         writeXMLParam("dfs.namenode.plugins", "edu.wisc.cs.condor.NameNodeAds", &xml);
         writeXMLParam("dfs.datanode.plugins", "edu.wisc.cs.condor.DataNodeAds", &xml);
@@ -305,9 +360,9 @@ void Hadoop::startServices() {
                 if (s == "HDFS_NAMENODE")
                         startService(HADOOP_NAMENODE);
                 else if (s == "HDFS_DATANODE")
-                        startService(HADOOP_SECONDARY);
-                else
                         startService(HADOOP_DATANODE);
+                else
+                        startService(HADOOP_SECONDARY);
         }
 }
 
@@ -318,23 +373,16 @@ void Hadoop::startService(int type) {
 
         java_config(m_java, &arglist, &m_classpath);
 
-        MyString out("/tmp/hdfs.stdout");
-        MyString err("/tmp/hdfs.stderr");
-
         char *ldir = param("LOG");
         if (ldir != NULL) {
 
                 //Tell hadoop's logger to place rolling log file inside condor's
                 //local directory.
-                arglist.AppendArg("-Dhadoop.root.logger=INFO,DRFA");
+                arglist.AppendArg("-Dhadoop.root.logger=DEBUG,DRFA");
                 MyString log_dir;
                 log_dir.sprintf("-Dhadoop.log.dir=%s", ldir);
                 arglist.AppendArg(log_dir.Value());
                 arglist.AppendArg("-Dhadoop.log.file=hdfs.log");
-
-                out.sprintf("%s/hdfs.stdout", ldir);
-                err.sprintf("%s/hdfs.stderr", ldir);
-
                 free(ldir);
         }
 
@@ -348,34 +396,10 @@ void Hadoop::startService(int type) {
                 arglist.AppendArg(m_secondaryNodeClass);
         }
 
-        /** Mapping for stdout/stderr **/
-        char *file = param("HDFS_STDOUT");
-        if (file) {
-                out = file;
-                free(file);
-        }
-
-        file = param("HDFS_STDERR");
-        if (file) {
-                err = file;
-                free(file);
-        } 
-
-        /* Standard input and output for our this hadoop daemon */
-        stdout_fd = safe_open_wrapper(out.Value(), O_CREAT|O_WRONLY);
-        stderr_fd = safe_open_wrapper(err.Value(), O_CREAT|O_WRONLY);
-
-        if (stdout_fd == -1) 
-                dprintf(D_ALWAYS, "Failed to create stdout pipe for service type=%d\n", type);
-        
-
-        if (stderr_fd == -1) 
-                dprintf(D_ALWAYS, "Failed to crate stderr pipe for service type=%d\n", type);
-       
         int arrIO[3];
         arrIO[0] = -1;
-		arrIO[1] = stdout_fd;
-        arrIO[2] = stderr_fd;
+        arrIO[1] = -1;
+        arrIO[2] = -1;
 
         if (! daemonCore->Create_Pipe(&arrIO[1], true, false, true) ) {
                 dprintf(D_ALWAYS, "Couldn't create a stdout pipe\n");
@@ -387,6 +411,19 @@ void Hadoop::startService(int type) {
                         dprintf(D_ALWAYS, "Couldn't register stdout pipe\n");                        
                 } else {
                         m_stdOut = arrIO[1];
+                }
+        }
+
+        if (! daemonCore->Create_Pipe(&arrIO[2], true, false, true) ) {
+                dprintf(D_ALWAYS, "Couldn't create a stderr pipe\n");
+        } else {
+                if (! daemonCore->Register_Pipe(arrIO[2], "hadoop stderr",
+                        (PipeHandlercpp) &Hadoop::stderrHandler, 
+                        "stderr", this) ) {
+
+                        dprintf(D_ALWAYS, "Couldn't register stderr, pipe\n");
+                } else {
+                        m_stdErr = arrIO[2];
                 }
         }
 
@@ -435,7 +472,7 @@ void Hadoop::startService(int type) {
 
         m_pid = daemonCore->Create_Process( m_java.Value(),  
                         arglist,
-                        PRIV_CONDOR_FINAL, 
+                        PRIV_USER_FINAL, 
                         m_reaper,
                         FALSE,
                         NULL,
@@ -452,7 +489,7 @@ void Hadoop::startService(int type) {
         m_state = STATE_RUNNING;
 }
 
-void Hadoop::writeXMLParam(char *key, char *value, StringList *buff) {
+void Hadoop::writeXMLParam(const char *key, const char *value, StringList *buff) {
         MyString temp;
 
         buff->append("<property>");
@@ -489,7 +526,6 @@ void Hadoop::publishClassAd() {
 }
 
 void Hadoop::stdoutHandler(int /*pipe*/) {
-        dprintf(D_FULLDEBUG, "stdoutHandler()\n");
         char buff[STDOUT_READBUF_SIZE];
         int bytes = 0;
         int ad_type = AD_NULL;
@@ -497,12 +533,12 @@ void Hadoop::stdoutHandler(int /*pipe*/) {
         while ( (bytes = daemonCore->Read_Pipe(m_stdOut, buff, 
                   STDOUT_READBUF_SIZE)) > 0) {
              buff[bytes] = '\0';
-             m_line += buff;
-             int pos = m_line.FindChar('\n', 0);
+             m_line_stdout += buff;
+             int pos = m_line_stdout.FindChar('\n', 0);
              while (pos > 0) {                
                     //Here we get a newline terminated string to process.
-                    MyString line = m_line.Substr(0, pos-1);
-                    m_line = m_line.Substr(pos+1, m_line.Length());
+                    MyString line = m_line_stdout.Substr(0, pos-1);
+                    m_line_stdout = m_line_stdout.Substr(pos+1, m_line_stdout.Length());
 
                     if (line.find("START_AD") >= 0) {
                             MyString adKey, adValue;
@@ -511,7 +547,7 @@ void Hadoop::stdoutHandler(int /*pipe*/) {
                             dprintf(D_FULLDEBUG, "AD: %s type=%d\n", line.Value(), ad_type);
 
                             if (ad_type == AD_NULL) {
-                                    pos = m_line.FindChar('\n', 0);
+                                    pos = m_line_stdout.FindChar('\n', 0);
                                     continue;
                             }
                                     
@@ -525,11 +561,31 @@ void Hadoop::stdoutHandler(int /*pipe*/) {
                             else if (ad_type == AD_DOUBLE)
                                     m_hdfsAd.Assign(adKey.Value(), atof(adValue.Value()));
                     }
-
-                    pos = m_line.FindChar('\n', 0);
+                    dprintf(D_ALWAYS, "STDOUT: %s\n", line.Value());
+                    pos = m_line_stdout.FindChar('\n', 0);
              }
         }
 }
+
+void Hadoop::stderrHandler(int /*pipe*/) {
+        char buff[STDOUT_READBUF_SIZE];
+        int bytes = 0;
+
+        while ( (bytes = daemonCore->Read_Pipe(m_stdErr, buff, 
+                  STDOUT_READBUF_SIZE)) > 0) {
+             buff[bytes] = '\0';
+             m_line_stderr += buff;
+             int pos = m_line_stderr.FindChar('\n', 0);
+             while (pos > 0) {                
+                    //Here we get a newline terminated string to process.
+                    MyString line = m_line_stderr.Substr(0, pos-1);
+                    m_line_stderr = m_line_stderr.Substr(pos+1, m_line_stderr.Length());
+                    dprintf(D_ALWAYS, "STDERR: %s\n", line.Value());
+                    pos = m_line_stderr.FindChar('\n', 0);
+             }
+        }
+}
+
 
 //AD_NULL return value indicates an error in parsing the key-value from the input
 //otherwise it indicates the type field in the parsed string.
