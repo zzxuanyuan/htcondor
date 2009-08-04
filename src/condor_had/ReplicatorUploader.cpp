@@ -28,9 +28,34 @@
 using namespace std;
 
 
-// ========================================
-// ==== Static helper functions
-// ========================================
+// ==================================================
+// ==== Methods for the Replicator Uploader class
+// ==================================================
+bool
+ReplicatorDownloader::cleanupTempFiles( void ) const
+{
+
+	// when the process is killed, it could have not yet erased its
+	// temporary files, this is why we ensure it by erasing it in killer
+	// function
+	MyString extension( m_pid );
+
+	// the .down ending is needed in order not to confuse between
+	// upload and download processes temporary files
+	extension += ".";
+	extension += UPLOADING_TEMPORARY_FILES_EXTENSION;
+
+	FilesOperations::safeUnlinkFile(
+		m_replica.getFileInfo.getVersionFilePath(),
+		extension.Value() );
+	FilesOperations::safeUnlinkFile(
+		m_replicat.getFileInfo.getFilePath(),
+		extension.Value() );
+}
+
+// ================================================
+// ==== Static helper functions for the list class
+// ================================================
 static int
 convert( const list<ReplicatorTransferer *>	&inlist,
 		 list<ReplicatorUploader *>			&outlist )
@@ -99,4 +124,24 @@ ReplicatorUploaderList::killList(
 	list<ReplicatorTransferer*>	translist;
 	convert( uplist, translist );
 	return killTransList( signum, translist );
+}
+
+bool
+ReplicatorUploaderList::cleanupTempFiles( void ) const
+{
+	const list<ReplicatorUploader*>	uplist;
+	convert( m_list, uplist );
+	return cleanupTempFiles( uplist );
+}
+
+bool
+ReplicatorUploaderList::cleanupTempFiles(
+	const list<ReplicatorUploader*>	&uplist ) const
+{
+	list <const ReplicatorUploader *>::const_iterator iter;
+	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		const ReplicatorUploader	*up = *iter;
+		up->cleanupTempFiles( );
+	}
+	return true;
 }

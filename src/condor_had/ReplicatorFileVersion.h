@@ -51,15 +51,16 @@ public:
 	/* Function    : synchronize
      * Arguments   : isLogicalClockIncremented - whether to increment the 
 	 *				 logical clock or not
-	 * Return value: true - if the state file was modified since the last known
-	 *				 modification time and 'isLogicalClockIncremented' is true;
-	 *				 false - otherwise
-	 * Description : synchronizes local state file version according to the OS
-	 *				 state file; if it has been updated and the last 
+	 * Return value: true - if the state file was modified since the last
+	 *				 known modification time and 'isLogicalClockIncremented'
+	 *				 is true; false - otherwise
+	 * Description : synchronizes local state file version according to the
+	 *				 OS state file; if it has been updated and the last 
 	 *				 modification time of it is later than the recorded one, 
 	 *				 then the Replica object is updated, i.e. the OS file is 
-	 *				 opened, its fields are loaded into the data members and its
-	 *				 last modification time is assigned to 'm_lastModifiedTime'
+	 *				 opened, its fields are loaded into the data members and
+	 *				 its last modification time is assigned to
+	 *				 'm_lastModifiedTime'
      */
     bool synchronize(bool isLogicalClockIncremented = true);
 
@@ -98,7 +99,8 @@ public:
  	 * Description : loads Replica components from the underlying OS file to
  	 *               to the specified arguments
  	 */
-	bool readVersionFile( int &temporaryGid, int &temporaryLogicalClock ) const;
+	bool readVersionFile( int &temporaryGid,
+						  int &temporaryLogicalClock ) const;
 
 	// ==== End of inspectors ====
 
@@ -144,7 +146,10 @@ public:
      * Return value: MyString - string representation of Version object
 	 * Description : represents the Version object as string
      */
-    const char * toString( MyString &str ) const;
+    const char *toString( void ) const {
+		return toString( m_string );
+	};
+    const char *toString( MyString &str ) const;
 
 	// ==== End of convertors ====
 
@@ -163,9 +168,10 @@ public:
 	const ReplicatorFileBase &m_fileInfo;
 
 	// components of the version
-    time_t		 m_mtime;
-    int          m_gid;
-    int          m_logicalClock;
+    time_t				 m_mtime;
+    int					 m_gid;
+    int					 m_logicalClock;
+	mutable MyString	 m_string;
 };
 
 #endif // REPLICATOR_FILE_VERSION_H

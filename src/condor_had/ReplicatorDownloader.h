@@ -42,6 +42,8 @@ class ReplicatorDownloader : public ReplicatorTransferer
 		return m_fileInfo;
 	};
 
+	bool cleanupTempFiles( void ) const;
+
   private:
 	ReplicatorFileBase	&m_fileInfo;
 };
@@ -56,6 +58,9 @@ class ReplicatorDownloaderList : public ReplicatorTransfererList
 	int getList( list<ReplicatorDownloader *>& );
 	int getOldList( time_t maxage, list<ReplicatorDownloader *>& );
 	int killList( int sig, const list<ReplicatorDownloader *>& );
+
+	bool cleanupTempFiles( void ) const;
+	bool cleanupTempFiles( const list<ReplicatorDownloader *>& ) const;
 };
 
 #endif // REPLICATOR_DOWNLOADER_H

@@ -69,6 +69,8 @@ class ReplicatorTransferer
 	time_t getAge( time_t now = 0 ) const;
 	bool kill( int sig ) const;
 
+	virtual bool cleanupTempFiles( void ) const = 0;
+
   private:
 	int			 m_pid;
 	time_t		 m_time;

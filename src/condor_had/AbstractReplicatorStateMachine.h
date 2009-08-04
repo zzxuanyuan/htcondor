@@ -266,8 +266,8 @@ class AbstractReplicatorStateMachine: public Service
 	ReplicatorPeerList		 m_peerList;
 
 	// list of all replicator transfer processes
-	ReplicatorTransfererList m_uploaders;
-	ReplicatorTransfererList m_downloaders;
+	ReplicatorUploaderList	 m_uploaders;
+	ReplicatorDownloaderList m_downloaders;
 
 	// socket connection timeout
     int                      m_connectionTimeout;

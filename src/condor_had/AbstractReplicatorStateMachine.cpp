@@ -187,7 +187,7 @@ AbstractReplicatorStateMachine::reinitialize( void )
 	}
 
 	printDataMembers( );
-
+	return true;
 }
 
 // Canceling all the data regarding the downloading process that has just
@@ -628,73 +628,11 @@ AbstractReplicatorStateMachine::versionAndStateCommand(ReliSock& socket)
 void
 AbstractReplicatorStateMachine::killTransferers(void)
 {
-	list<ReplicatorDownloader *>	downloaders;
-	list<ReplicatorUploader *>		uploaders;
-
-	m_downloaders.getList( downloaders );
 	m_downloaders.killAll( SIGKILL );
+	m_downloaders.cleanupTempFiles( );
 
-	m_uploaders.getList( uploaders );
 	m_uploaders.killAll( SIGKILL );
-
-	list <ReplicatorDownloader *>::iterator iter;
-	for( iter = downloaders.begin(); iter != downloaders.end(); iter++ ) {
-		ReplicatorDownloader	*down = *iter;
-		ReplicatorFileBase		&file = down->getFileInfo();
-
-		// when the process is killed, it could have not yet erased its
-        // temporary files, this is why we ensure it by erasing it in killer
-        // function
-        MyString extension( down->getPid() );
-
-        // the .down ending is needed in order not to confuse between
-        // upload and download processes temporary files
-        extension += ".";
-        extension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
-
-        FilesOperations::safeUnlinkFile( file.getVersionFilePath().Value(),
-                                         extension.Value( ) );
-        FilesOperations::safeUnlinkFile( m_stateFilePath.Value( ),
-                                         extension.Value( ) );
-		m_downloadTransfererMetadata.set();
-    }
-
-	m_uploadTransfererMetadataList.Rewind( );
-
-	ProcessMetadata* uploadTransfererMetadata = NULL;
-
-    while( m_uploadTransfererMetadataList.Next( uploadTransfererMetadata ) ) {
-        if( uploadTransfererMetadata->isValid( ) ) {
-            dprintf( D_FULLDEBUG,
-                "AbstractReplicatorStateMachine::killTransferers "
-                "killing uploading condor_transferer pid = %d\n",
-                uploadTransfererMetadata->m_pid );
-            //kill( uploadTransfererMetadata->m_pid, SIGKILL );
-			daemonCore->Send_Signal( uploadTransfererMetadata->m_pid,
-									 SIGKILL );
-
-			// when the process is killed, it could have not yet
-			// erased its temporary files, this is why we ensure it
-			// by erasing it in killer function
-
-            MyString extension( uploadTransfererMetadata->m_pid );
-            // the .up ending is needed in order not to confuse between
-            // upload and download processes temporary files
-            extension += ".";
-            extension += UPLOADING_TEMPORARY_FILES_EXTENSION;
-
-            FilesOperations::safeUnlinkFile( m_versionFilePath.Value( ),
-                                             extension.Value( ) );
-            FilesOperations::safeUnlinkFile( m_stateFilePath.Value( ),
-                                             extension.Value( ) );
-			delete uploadTransfererMetadata;
-			// after deletion the iterator is moved to the previous member
-			// so advancing the iterator twice and missing one entry does not
-			// happen
-        	m_uploadTransfererMetadataList.DeleteCurrent( );
-		}
-    }
-	m_uploadTransfererMetadataList.Rewind( );
+	m_uploaders.cleanupTempFiles( );
 }
 
 void
@@ -709,8 +647,8 @@ AbstractReplicatorStateMachine::printDataMembers( void ) const
 			 "Connection timeout     - %d\n"
 			 "Downloading reaper id  - %d\n"
 			 "Uploading reaper id    - %d\n",
-			 m_stateFilePath.Value(),
-			 m_versionFilePath.Value(),
+			 m_fileSet->getFiles(),
+			 m_fileSet->getVersionFilePath(),
 			 m_state,
 			 m_transfererPath.Value(),
 			 m_connectionTimeout,

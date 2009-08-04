@@ -28,9 +28,33 @@
 using namespace std;
 
 
-// ========================================
-// ==== Static helper functions
-// ========================================
+// ==================================================
+// ==== Methods for the Replicator Downloader class
+// ==================================================
+bool
+ReplicatorDownloader::cleanupTempFiles( void ) const
+{
+
+	// when the process is killed, it could have not yet erased its
+	// temporary files, this is why we ensure it by erasing it in killer
+	// function
+	MyString extension( m_pid );
+
+	// the .down ending is needed in order not to confuse between
+	// upload and download processes temporary files
+	extension += ".";
+	extension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
+
+	FilesOperations::safeUnlinkFile( m_fileInfo.getVersionFilePath(),
+									 extension.Value( ) );
+	FilesOperations::safeUnlinkFile( m_fileInfo.getFilePath(),
+									 extension.Value( ) );
+}
+
+
+// ==================================================
+// ==== Static helper functions for the List class
+// ==================================================
 static int
 convert( const list<ReplicatorTransferer *>	&inlist,
 		 list<ReplicatorDownloader *>		&outlist )
@@ -63,9 +87,9 @@ convert( const list<ReplicatorDownloader *>	&inlist,
 }
 
 
-// ========================================
+// ==========================================
 // ==== Replicator Downloader List class ====
-// ========================================
+// ==========================================
 
 // C-Tors / D-Tors
 ReplicatorDownloaderList::ReplicatorDownloaderList( void )
@@ -99,4 +123,24 @@ ReplicatorDownloaderList::killList(
 	list<ReplicatorTransferer*>	translist;
 	convert( downlist, translist );
 	return killTransList( signum, translist );
+}
+
+bool
+ReplicatorDownloaderList::cleanupTempFiles( void ) const
+{
+	const list<ReplicatorDownloader*>	downlist;
+	convert( m_list, downlist );
+	return cleanupTempFiles( downlist );
+}
+
+bool
+ReplicatorDownloaderList::cleanupTempFiles(
+	const list<ReplicatorDownloader*>	&downlist ) const
+{
+	list <const ReplicatorDownloader *>::const_iterator iter;
+	for( iter = m_list.begin(); iter != m_list.end(); iter++ ) {
+		const ReplicatorDownloader	*down = *iter;
+		down->cleanupTempFiles( );
+	}
+	return true;
 }

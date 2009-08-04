@@ -124,6 +124,7 @@ class ReplicatorPeerList
 	bool init( const char *replication_list, bool &updated );
 	bool setConnectionTimeout( int timeout );
 	const char *getRawString( void ) const { return m_rawString; };
+	int numPeers( void ) const { return m_peers.size(); };
 
 	list<ReplicatorPeer *> &getPeers( void ) {
 		return m_peers;

@@ -74,7 +74,7 @@ ReplicatorFileVersion::synchronize(bool isLogicalClockIncremented)
 			"(is logical clock incremented = %s)\n",
              isLogicalClockIncremented ? "True" : "False" );
 
-	const char	*path = m_fileInfo.getVersionFilePath().Value();
+	const char	*path = m_fileInfo.getVersionFilePath();
 
     readVersionFile( );        
     createFile( path );
@@ -165,7 +165,7 @@ ReplicatorFileVersion::readVersionFile( void )
 {
     dprintf( D_ALWAYS,
 			 "::readVersionFile(): Reading from %s\n",
-			 m_fileInfo.getVersionFilePath().Value() );
+			 m_fileInfo.getVersionFilePath() );
 
 	int temporaryGid = -1;
 	int temporaryLogicalClock = -1;
@@ -186,7 +186,7 @@ ReplicatorFileVersion::readVersionFile(
 	int		&temporaryLogicalClock ) const
 {
     char		 buffer[BUFSIZ];
-	const char	*path = m_fileInfo.getVersionFilePath().Value();
+	const char	*path = m_fileInfo.getVersionFilePath();
 
     ifstream versionFile( path );
     if( ! versionFile.is_open( ) ) {
@@ -234,7 +234,7 @@ ReplicatorFileVersion::writeVersionFile( )
 {
     dprintf( D_ALWAYS, "::writeVersionFile(): started\n" );
 
-    ofstream versionFile( m_fileInfo.getVersionFilePath().Value() );
+    ofstream versionFile( m_fileInfo.getVersionFilePath() );
 
     versionFile << m_gid << endl << m_logicalClock;
 

@@ -63,8 +63,8 @@ class ReplicatorFileBase
 
 	// Accessors
 	virtual const char *getFilePath( void ) const = 0;
-	const MyString &getVersionFilePath( void ) const {
-		return m_versionFilePath;
+	const char * getVersionFilePath( void ) const {
+		return m_versionFilePath.Value();
 	};
 	const ReplicatorFileVersion &getMyVersion( void ) const {
 		return m_myVersion;

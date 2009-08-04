@@ -229,6 +229,7 @@ ReplicatorStateMachine::reinitialize( void )
     dprintf( D_ALWAYS, "RSM::reinitialize() setting replication timer\n" );
     m_replicationTimerId = daemonCore->Register_Timer(
 		m_replicationInterval,
+		m_replicationInterval,
 		(TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
 		"Time to replicate file", this );
 
@@ -354,7 +355,7 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
 				 "ERROR: File set from peer %s mismatch:"
 				 " got:'%s' expected:'%s'",
 				 peer.getSinful(),
-				 replica->getFileSet.getNames(),
+				 replica->getFileInfo().getFiles(),
 				 m_fileSet->getNames() );
 		return FALSE;
 	}
@@ -362,22 +363,22 @@ ReplicatorStateMachine::commandHandlerPeer( int command, Stream* stream )
 	int	status = TRUE;
     switch( command ) {
 	case REPLICATION_LEADER_VERSION:
-		status = LeaderVersionHandler( ad, sinful );
+		status = LeaderVersionHandler( ad, peer );
 		break;
 	case REPLICATION_TRANSFER_FILE:
-		status = TransferFileHandler( ad, sinful );
+		status = TransferFileHandler( ad, peer );
 		break;
 	case REPLICATION_SOLICIT_VERSION:
-		status = SolicitVersionHandler( ad, sinful );
+		status = SolicitVersionHandler( ad, peer );
 		break;
 	case REPLICATION_SOLICIT_VERSION_REPLY:
-		status = SolicitVersionReplyHandler( ad, sinful );
+		status = SolicitVersionReplyHandler( ad, peer );
 		break;
 	case REPLICATION_NEWLY_JOINED_VERSION:
-		status = NewlyJoinedVersionHandler( ad, sinful );
+		status = NewlyJoinedVersionHandler( ad, peer );
 		break;
 	case REPLICATION_GIVING_UP_VERSION:
-		status = GivingUpVersionHandler( ad, sinful );
+		status = GivingUpVersionHandler( ad, peer );
 		break;
 	default:
 		dprintf( D_ALWAYS,
@@ -410,10 +411,11 @@ ReplicatorStateMachine::commandHandlerCommon(
 	// And, read the EOM
     if( ! stream->end_of_message() ) {
         dprintf( D_ALWAYS, "::commandHandler(%s): read EOM failed from %s\n",
-				 name, sinful.Value() );
+				 name, stream->peer_description() );
     }
 
 	// Pull out the sinful from the address
+	MyString	sinful;
 	if ( !ad.LookupString( ATTR_MY_ADDRESS, sinful ) ) {
 		dprintf( D_ALWAYS,
 				 "commandHandler(%s) ERROR: %s not in ad received from %s\n",
@@ -436,7 +438,7 @@ ReplicatorStateMachine::commandHandlerCommon(
  */
 bool
 ReplicatorStateMachine::beforePassiveStateHandler(
-	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
+	const ClassAd & /*ad*/, const ReplicatorPeer & /*peer*/ )
 {
     ASSERT(m_state == STATE_REQUESTING);
 
@@ -456,7 +458,7 @@ ReplicatorStateMachine::beforePassiveStateHandler(
 
 bool
 ReplicatorStateMachine::afterElectionStateHandler(
-	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
+	const ClassAd & /*ad*/, const ReplicatorPeer & /*peer*/ )
 {
     dprintf( D_ALWAYS, "::afterElectionStateHandler() started\n" );
     ASSERT(m_state != STATE_LEADER);
@@ -473,7 +475,7 @@ ReplicatorStateMachine::afterElectionStateHandler(
 
 bool
 ReplicatorStateMachine::afterLeaderStateHandler(
-	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
+	const ClassAd & /*ad*/, const ReplicatorPeer & /*peer*/ )
 {
    // REPLICATION_ASSERT(state != STATE_BACKUP)
 
@@ -499,7 +501,7 @@ ReplicatorStateMachine::afterLeaderStateHandler(
 
 bool
 ReplicatorStateMachine::inLeaderStateHandler(
-	const ClassAd & /*ad*/, const MyString & /*sinful*/ )
+	const ClassAd & /*ad*/, const ReplicatorPeer & /*peer*/ )
 {
     dprintf( D_ALWAYS,
 			 "::inLeaderStateHandler() started "
@@ -537,11 +539,12 @@ bool
 ReplicatorStateMachine::replicaSelectionHandler(
 	ReplicatorFileReplica	&newReplica )
 {
+	const ReplicatorFileVersion	&version = m_fileSet->getMyVersion();
     ASSERT( m_state == STATE_DOWNLOADING || m_state == STATE_BACKUP );
     dprintf( D_ALWAYS,
 			 "::replicaSelectionHandler() "
-			 "started with my version = %s, #versions = %d\n",
-             m_myVersion.toString( ).Value( ), m_versionsList.Number( ) );
+			 "started with my version = %s, #peers = %d\n",
+             version.toString(), m_versionsList.Number( ) );
     List<ReplicatorVersion> actualVersionsList;
     ReplicatorVersion myVersionCopy = m_myVersion;
 
@@ -960,18 +963,7 @@ ReplicatorStateMachine::killStuckUploadingTransferers( time_t currentTime )
 void
 ReplicatorStateMachine::replicationTimer( void )
 {
-    dprintf( D_ALWAYS,
-			 "ReplicatorStateMachine::replicationTimer cancelling timer\n" );
-    utilCancelTimer(m_replicationTimerId);
-
-    dprintf( D_ALWAYS,
-			 "ReplicatorStateMachine::replicationTimer "
-			 "registering timer once again\n" );
-    m_replicationTimerId = daemonCore->Register_Timer (
-		m_replicationInterval,
-		(TimerHandlercpp) &ReplicatorStateMachine::replicationTimer,
-		"Time to replicate file",
-		this );
+    dprintf( D_ALWAYS, "RSM::replicationTimer()\n" );
     if( m_state == STATE_REQUESTING ) {
         return;
     }
@@ -997,8 +989,8 @@ ReplicatorStateMachine::replicationTimer( void )
 			 "ReplicatorStateMachine::replicationTimer "
 			 "# downloading condor_transferer = %d, "
 			 "# uploading condor_transferer = %d\n",
-             downloadTransferersNumber( ),
-			 m_uploadTransfererMetadataList.Number( ) );
+             downloadTransferersNumber(),
+			 m_uploadTransfererMetadataList.Number() );
     if( m_state == STATE_BACKUP ) {
 		checkVersionSynchronization( );
 		return;

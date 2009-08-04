@@ -99,9 +99,10 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
 	/* Function    : replicaSelectionHandler
      * Arguments   : newReplica -
      *                  in JOINING state: the version selected for downloading
-     *                  in BACKUP state : the version compared against the local
-     *                                    one in order to check, whether to
-     *                                    download the leader's version or not
+     *                  in BACKUP state : the version compared against the
+     *                                    local one in order to check,
+     *                                    whether to download the
+     *                                    leader's version or not
      * Return value: bool - whether it is worth to download the remote version
 	 *						or not
 	 * Description : concrete handler for selection of the best version out of
@@ -160,12 +161,18 @@ class ReplicatorStateMachine : public AbstractReplicatorStateMachine
     void replicaDownloadTimer( void );
 
 	// Command handlers
-    bool onLeaderVersion( const ClassAd &ad, const ReplicatorPeer &peer );
-    bool onTransferFile( const ClassAd &ad, const ReplicatorPeer &peer );
-    bool onSolicitVersion( const ClassAd &ad, const ReplicatorPeer &peer );
-    bool onSolicitVersionReply( const ClassAd &ad, const ReplicatorPeer &peer );
-    bool onNewlyJoinedVersion( const ClassAd &ad, const ReplicatorPeer &peer );
-    bool onGivingUpVersion( const ClassAd &ad, const ReplicatorPeer &peer );
+    bool LeaderVersionHandler( const ClassAd &ad,
+							   const ReplicatorPeer &peer );
+    bool TransferFileHandler( const ClassAd &ad,
+							  const ReplicatorPeer &peer );
+    bool SolicitVersionHandler( const ClassAd &ad,
+								const ReplicatorPeer &peer );
+    bool SolicitVersionReplyHandler( const ClassAd &ad,
+									 const ReplicatorPeer &peer );
+    bool NewlyJoinedVersionHandler( const ClassAd &ad,
+									const ReplicatorPeer &peer );
+    bool GivingUpVersionHandler( const ClassAd &ad,
+								 const ReplicatorPeer &peer );
 
     static ReplicatorFileReplica *decodeVersionAndState( Stream *stream );
 	bool becomeLeader( void );

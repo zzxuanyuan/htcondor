@@ -43,6 +43,8 @@ class ReplicatorUploader : public ReplicatorTransferer
 	~ReplicatorUploader( void ) { };
 	ReplicatorFileBase &getFileInfo( void );
 
+	bool cleanupTempFiles( void ) const;
+
   private:
 	ReplicatorFileReplica	&m_replica;
 };
@@ -57,6 +59,9 @@ class ReplicatorUploaderList : public ReplicatorTransfererList
 	int getList( list<ReplicatorUploader*>& );
 	int getOldList( time_t maxage, list<ReplicatorUploader*>& );
 	int killList( int sig, const list<ReplicatorUploader *>& );
+
+	bool cleanupTempFiles( void ) const;
+	bool cleanupTempFiles( const list<ReplicatorUploader *>& ) const;
 };
 
 #endif // REPLICATOR_UPLOADER_H
