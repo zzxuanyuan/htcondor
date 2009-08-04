@@ -825,3 +825,9 @@ const char *ATTR_AMAZON_INSTANCE_TYPE = "AmazonInstanceType";
 //************* Added for Lease Manager *******************//
 const char *ATTR_LEASE_MANAGER_IP_ADDR = "LeaseManagerIpAddr";
 //************* End of Lease Manager    *******************//
+
+
+//************* Added for View Server Hack *******************//
+const char *ATTR_nmi_platform                    = "nmi_platform";
+const char *ATTR_nmi_slot_type                   = "nmi_slot_type";
+//************* Added for View Server Hack *******************//
