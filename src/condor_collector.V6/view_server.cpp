@@ -936,9 +936,9 @@ int ViewServer::StartdScanFunc(ClassAd* cad)
 	// Get Group Name
 
 	char tmp[200];
-	if (cad->LookupString(ATTR_ARCH,tmp)<0) strcpy(tmp,"Unknown");
+	if (cad->LookupString(ATTR_nmi_platform,tmp)<0) strcpy(tmp,"Unknown");
 	MyString GroupName=MyString(tmp)+"/";
-	if (cad->LookupString(ATTR_OPSYS,tmp)<0) strcpy(tmp,"Unknown");
+	if (cad->LookupString(ATTR_nmi_slot_type,tmp)<0) strcpy(tmp,"Unknown");
 	GroupName+=tmp;
 
 	// Add to group Totals
