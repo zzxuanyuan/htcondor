@@ -472,7 +472,7 @@ void Hadoop::startService(int type) {
 
         m_pid = daemonCore->Create_Process( m_java.Value(),  
                         arglist,
-                        PRIV_USER_FINAL, 
+                        PRIV_CONDOR_FINAL, 
                         m_reaper,
                         FALSE,
                         NULL,
