@@ -232,23 +232,19 @@ void Hadoop::writeConfigFile() {
                 writeXMLParam("dfs.net.allow", hdfs_allow, &xml);
                 free(hdfs_allow);
         } else {
-                MyString read_write;
+                StringList allow_list;
                 hdfs_allow = param("HOSTALLOW_READ");
                 if (hdfs_allow != NULL) {
-                        read_write = hdfs_allow;
+                        allow_list.append(hdfs_allow);
                         free(hdfs_allow);
                 }
 
                 hdfs_allow = param("HOSTALLOW_WRITE");
                 if(hdfs_allow != NULL) {
-                        if (read_write.Length() > 1)
-                                read_write.sprintf("%s,%s", read_write.Value(), hdfs_allow);
-                        else 
-                                read_write.sprintf("%s", hdfs_allow);
-
+                        allow_list.append(hdfs_allow);
                         free(hdfs_allow);
                 }
-                writeXMLParam("dfs.net.allow", read_write.Value(), &xml);
+                writeXMLParam("dfs.net.allow", allow_list.print_to_delimed_string(","), &xml);
         }
 
         char *hdfs_deny = param("HDFS_DENY");
@@ -256,22 +252,18 @@ void Hadoop::writeConfigFile() {
                 writeXMLParam("dfs.net.deny", hdfs_deny, &xml);
                 free(hdfs_deny);
         } else {
-                MyString read_write;
+                StringList deny_list;
                 hdfs_deny = param("HOSTDENY_READ");
                 if (hdfs_deny != NULL) {
-                        read_write = hdfs_deny;
+                        deny_list.append(hdfs_deny);
                         free(hdfs_deny);
                 }
                 hdfs_deny = param("HOSTDENY_WRITE");
                 if(hdfs_deny != NULL) {
-                        if (read_write.Length() > 1)
-                                read_write.sprintf("%s,%s", read_write.Value(), hdfs_deny);
-                        else 
-                                read_write.sprintf("%s", hdfs_deny);
-
+                        deny_list.append(hdfs_deny); 
                         free(hdfs_deny);
                 }
-                writeXMLParam("dfs.net.deny", read_write.Value(), &xml);
+                writeXMLParam("dfs.net.deny", deny_list.print_to_delimed_string(","), &xml);
         }
 
         //TODO these shouldn't be hard-coded
@@ -316,7 +308,7 @@ void Hadoop::stop(bool fast) {
 }
 
 int Hadoop::reaperResponse(int exit_pid, int exit_status) {
-        dprintf(D_ALWAYS, "Hadoop daemon returned %d\n", exit_status);
+        dprintf(D_ALWAYS, "HDFS daemon returned %d\n", exit_status);
 
         daemonCore->Cancel_Reaper(m_reaper);
         m_pid = -1;
@@ -369,7 +361,6 @@ void Hadoop::startServices() {
 void Hadoop::startService(int type) {
         dprintf(D_ALWAYS, "Starting hadoop node service type = %d\n", type);
         ArgList arglist;
-        int stdout_fd, stderr_fd;
 
         java_config(m_java, &arglist, &m_classpath);
 
@@ -378,7 +369,11 @@ void Hadoop::startService(int type) {
 
                 //Tell hadoop's logger to place rolling log file inside condor's
                 //local directory.
-                arglist.AppendArg("-Dhadoop.root.logger=DEBUG,DRFA");
+                char *log4j = param("HDFS_LOG4J");
+                MyString log4jarg;
+                log4jarg.sprintf("-Dhadoop.root.logger=%s,DRFA", (log4j != NULL ? log4j : "INFO"));
+                arglist.AppendArg(log4jarg.Value());
+
                 MyString log_dir;
                 log_dir.sprintf("-Dhadoop.log.dir=%s", ldir);
                 arglist.AppendArg(log_dir.Value());
