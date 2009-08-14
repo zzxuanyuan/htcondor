@@ -58,6 +58,7 @@ ReplicatorFileVersion::initialize( const ReplicatorFile &file )
 	
 	m_stateFilePath    = pStateFilePath;
 	m_versionFilePath  = pVersionFilePath;
+	m_valid            = true;
     
     if( ! readVersionFile( ) ) {
         writeVersionFile( );

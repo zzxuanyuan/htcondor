@@ -544,7 +544,8 @@ ReplicatorStateMachine::replicaSelectionHandler(
     dprintf( D_ALWAYS,
 			 "::replicaSelectionHandler() "
 			 "started with my version = %s, #peers = %d\n",
-             version.toString(), m_versionsList.Number( ) );
+             version.toString(), m_peerList.numPeers() );
+	m_fileSet->selectReplica( );
     List<ReplicatorVersion> actualVersionsList;
     ReplicatorVersion myVersionCopy = m_myVersion;
 
@@ -707,10 +708,9 @@ ReplicatorStateMachine::becomeLeader( void )
  */
 bool
 ReplicatorStateMachine::LeaderVersionHandler( const ClassAd &ad,
-											  const MyString &sinful )
+											  const ReplicatorPeer &peer )
 {
-    dprintf( D_ALWAYS,
-			 "ReplicatorStateMachine::LeaderVersionHandler started\n" );
+    dprintf( D_ALWAYS, "RSM::LeaderVersionHandler started\n" );
 
     if( m_state != STATE_BACKUP ) {
         return;
@@ -727,10 +727,9 @@ ReplicatorStateMachine::LeaderVersionHandler( const ClassAd &ad,
 	// 'condor_transferers'
     if( downloadTransferersNumber( ) == 0 && newVersion && downloadNeeded ) {
         dprintf( D_FULLDEBUG,
-				 "ReplicatorStateMachine::LeaderVersionHandler "
-				 "downloading from %s\n",
-				newVersion->getSinfulString( ).Value( ) );
-        download( newVersion->getSinfulString( ).Value( ) );
+				 "RSM::LeaderVersionHandler downloading from %s\n",
+				 newVersion->getSinfulString().Value() );
+        download( newVersion->getSinfulString().Value() );
     }
 
     // replication leader must not send a version which hasn't been updated
@@ -748,7 +747,7 @@ ReplicatorStateMachine::LeaderVersionHandler( const ClassAd &ad,
 bool
 ReplicatorStateMachine::TransferFileHandler(
 	const ClassAd &ad,
-	const MyString &sinful )
+	const ReplicatorPeer &peer )
 {
     dprintf( D_ALWAYS, "::TransferFileHandler() %s started\n",
              daemonSinfulString );
@@ -766,7 +765,7 @@ ReplicatorStateMachine::TransferFileHandler(
 bool
 ReplicatorStateMachine::SolicitVersionHandler(
 	const ClassAd &ad,
-	const MyString &sinful )
+	const ReplicatorPeer &peer )
 {
     dprintf( D_ALWAYS, "::SolicitVersionHandler() %s started\n",
              daemonSinfulString );
@@ -784,7 +783,7 @@ ReplicatorStateMachine::SolicitVersionHandler(
 bool
 ReplicatorStateMachine::SolicitVersionReplyHandler( 
 	const ClassAd & /*ad*/,
-	const MyString & /*sinful*/ )
+	const ReplicatorPeer & /*peer*/ )
 {
     dprintf( D_ALWAYS, "ReplicatorStateMachine::SolicitVersionReplyHandler "
 					   "started\n" );
@@ -804,7 +803,7 @@ ReplicatorStateMachine::SolicitVersionReplyHandler(
 void
 ReplicatorStateMachine::NewlyJoinedVersionHandler(
 	const ClassAd & /*ad*/,
-	const MyString & /*sinful*/ )
+	const ReplicatorPeer & /*peer*/ )
 {
     dprintf(D_ALWAYS,
 			"ReplicatorStateMachine::NewlyJoinedVersionHandler started\n");
@@ -825,7 +824,7 @@ ReplicatorStateMachine::NewlyJoinedVersionHandler(
 void
 ReplicatorStateMachine::GivingUpVersionHandler(
 	const ClassAd & /*ad*/,
-	const MyString & /*sinful*/ )
+	const ReplicatorPeer & /*peer*/ )
 {
     dprintf( D_ALWAYS,
 			 "ReplicatorStateMachine::GivingUpVersionHandler started\n" );
