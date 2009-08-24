@@ -31,6 +31,7 @@
 #include "condor_io.h"
 #include "daemon.h"
 #include "condor_distribution.h"
+#include "my_getopt.h"
 #define NUM_ELEMENTS(_ary)   (sizeof(_ary) / sizeof((_ary)[0]))
 
 //------------------------------------------------------------------------
@@ -40,9 +41,17 @@ static int TimeLine(const MyString& Name,int FromDate, int ToDate, int Res);
 
 //------------------------------------------------------------------------
 
-static void Usage(char* name) 
+static void Old_Usage(char* name) 
 {
   fprintf(stderr, "Usage: %s [-f filename] [-orgformat] [-pool hostname] [-lastday | -lastweek | -lastmonth | -lasthours h | -from m d y [-to m d y]] {-resourcequery <name> | -resourcelist | -resgroupquery <name> | -resgrouplist | -userquery <name> | -userlist | -usergroupquery <name> | -usergrouplist | -ckptquery | -ckptlist}\n",name);
+  exit(1);
+}
+
+static void Usage(char* name) 
+{
+  if(!param_boolean("USE_GNU_ARGS", false))
+    Old_Usage(name);
+  fprintf(stderr, "Usage: %s [-f filename] [--orgformat] [--pool hostname] [--lastday | --lastweek | --lastmonth | --lasthours h | --from m d y [--to m d y]] {--resourcequery <name> | --resourcelist | -resgroupquery <name> | --resgrouplist | --userquery <name> | --userlist | --usergroupquery <name> | --usergrouplist | --ckptquery | --ckptlist}\n",name);
   exit(1);
 }
 
@@ -117,119 +126,297 @@ int main(int argc, char* argv[])
   char* pool = NULL;
 
   myDistro->Init( argc, argv );
+  config();
 
-  for(int i=1; i<argc; i++) {
+  if(!param_boolean("USE_GNU_ARGS", false)) {
+    for(int i=1; i<argc; i++) {
 
-    // Analyze date specifiers
+      // Analyze date specifiers
 
-    if (strcmp(argv[i],"-lastday")==0) {
-      ToDate=Now;
-      FromDate=ToDate-DaySec;
-    }
-    else if (strcmp(argv[i],"-lastweek")==0) {
-      ToDate=Now;
-      FromDate=ToDate-WeekSec;
-    }
-    else if (strcmp(argv[i],"-lastmonth")==0) {
-      ToDate=Now;
-      FromDate=ToDate-MonthSec;
-    }
-    else if (strcmp(argv[i],"-lasthours")==0) {
-      if (argc-i<=1) Usage(argv[0]);
-      int hours=atoi(argv[i+1]);  
-      ToDate=Now;
-      FromDate=ToDate-HourSec*hours;
-      i++;
-    }
-    else if (strcmp(argv[i],"-from")==0) {
-      if (argc-i<=3) Usage(argv[0]);
-      int month=atoi(argv[i+1]);
-      int day=atoi(argv[i+2]);
-      int year=atoi(argv[i+3]);
-      FromDate=CalcTime(month,day,year);
-      // printf("Date translation: %d/%d/%d = %d\n",month,day,year,FromDate);
-      i+=3;
-    }
-    else if (strcmp(argv[i],"-to")==0) {
-      if (argc-i<=3) Usage(argv[0]);
-      int month=atoi(argv[i+1]);
-      int day=atoi(argv[i+2]);
-      int year=atoi(argv[i+3]);
-      ToDate=CalcTime(month,day,year);
-      // printf("Date translation: %d/%d/%d = %d\n",month,day,year,ToDate);
-      i+=3;
-    }
+      if (strcmp(argv[i],"-lastday")==0) {
+        ToDate=Now;
+        FromDate=ToDate-DaySec;
+      }
+      else if (strcmp(argv[i],"-lastweek")==0) {
+        ToDate=Now;
+        FromDate=ToDate-WeekSec;
+      }
+      else if (strcmp(argv[i],"-lastmonth")==0) {
+        ToDate=Now;
+        FromDate=ToDate-MonthSec;
+      }
+      else if (strcmp(argv[i],"-lasthours")==0) {
+        if (argc-i<=1) Old_Usage(argv[0]);
+        int hours=atoi(argv[i+1]);  
+        ToDate=Now;
+        FromDate=ToDate-HourSec*hours;
+        i++;
+      }
+      else if (strcmp(argv[i],"-from")==0) {
+        if (argc-i<=3) Old_Usage(argv[0]);
+        int month=atoi(argv[i+1]);
+        int day=atoi(argv[i+2]);
+        int year=atoi(argv[i+3]);
+        FromDate=CalcTime(month,day,year);
+        // printf("Date translation: %d/%d/%d = %d\n",month,day,year,FromDate);
+        i+=3;
+      }
+      else if (strcmp(argv[i],"-to")==0) {
+        if (argc-i<=3) Old_Usage(argv[0]);
+        int month=atoi(argv[i+1]);
+        int day=atoi(argv[i+2]);
+        int year=atoi(argv[i+3]);
+        ToDate=CalcTime(month,day,year);
+        // printf("Date translation: %d/%d/%d = %d\n",month,day,year,ToDate);
+        i+=3;
+      }
+  
+      // Query type
 
-    // Query type
+      else if (strcmp(argv[i],"-resourcelist")==0) {
+        QueryType=QUERY_HIST_STARTD_LIST;
+      }
+      else if (strcmp(argv[i],"-resourcequery")==0) {
+        QueryType=QUERY_HIST_STARTD;
+        if (argc-i<=1) Old_Usage(argv[0]);
+        QueryArg=argv[i+1];
+        i++;
+      }
+      else if (strcmp(argv[i],"-resgrouplist")==0) {
+        QueryType=QUERY_HIST_GROUPS_LIST;
+      }
+      else if (strcmp(argv[i],"-resgroupquery")==0) {
+        QueryType=QUERY_HIST_GROUPS;
+        if (argc-i<=1) Old_Usage(argv[0]);
+        QueryArg=argv[i+1];
+        i++;
+      }
+      else if (strcmp(argv[i],"-userlist")==0) {
+        QueryType=QUERY_HIST_SUBMITTOR_LIST;
+      }
+      else if (strcmp(argv[i],"-userquery")==0) {
+        QueryType=QUERY_HIST_SUBMITTOR;
+        if (argc-i<=1) Old_Usage(argv[0]);
+        QueryArg=argv[i+1];
+        i++;
+      }
+      else if (strcmp(argv[i],"-usergrouplist")==0) {
+        QueryType=QUERY_HIST_SUBMITTORGROUPS_LIST;
+      }
+      else if (strcmp(argv[i],"-usergroupquery")==0) {
+        QueryType=QUERY_HIST_SUBMITTORGROUPS;
+        if (argc-i<=1) Old_Usage(argv[0]);
+        QueryArg=argv[i+1];
+        i++;
+      }
+      else if (strcmp(argv[i],"-ckptlist")==0) {
+        QueryType=QUERY_HIST_CKPTSRVR_LIST;
+      }
+      else if (strcmp(argv[i],"-ckptquery")==0) {
+        QueryType=QUERY_HIST_CKPTSRVR;
+        if (argc-i<=1) Old_Usage(argv[0]);
+        QueryArg=argv[i+1];
+        i++;
+      }
 
-    else if (strcmp(argv[i],"-resourcelist")==0) {
-      QueryType=QUERY_HIST_STARTD_LIST;
-    }
-    else if (strcmp(argv[i],"-resourcequery")==0) {
-      QueryType=QUERY_HIST_STARTD;
-      if (argc-i<=1) Usage(argv[0]);
-      QueryArg=argv[i+1];
-      i++;
-    }
-    else if (strcmp(argv[i],"-resgrouplist")==0) {
-      QueryType=QUERY_HIST_GROUPS_LIST;
-    }
-    else if (strcmp(argv[i],"-resgroupquery")==0) {
-      QueryType=QUERY_HIST_GROUPS;
-      if (argc-i<=1) Usage(argv[0]);
-      QueryArg=argv[i+1];
-      i++;
-    }
-    else if (strcmp(argv[i],"-userlist")==0) {
-      QueryType=QUERY_HIST_SUBMITTOR_LIST;
-    }
-    else if (strcmp(argv[i],"-userquery")==0) {
-      QueryType=QUERY_HIST_SUBMITTOR;
-      if (argc-i<=1) Usage(argv[0]);
-      QueryArg=argv[i+1];
-      i++;
-    }
-    else if (strcmp(argv[i],"-usergrouplist")==0) {
-      QueryType=QUERY_HIST_SUBMITTORGROUPS_LIST;
-    }
-    else if (strcmp(argv[i],"-usergroupquery")==0) {
-      QueryType=QUERY_HIST_SUBMITTORGROUPS;
-      if (argc-i<=1) Usage(argv[0]);
-      QueryArg=argv[i+1];
-      i++;
-    }
-    else if (strcmp(argv[i],"-ckptlist")==0) {
-      QueryType=QUERY_HIST_CKPTSRVR_LIST;
-    }
-    else if (strcmp(argv[i],"-ckptquery")==0) {
-      QueryType=QUERY_HIST_CKPTSRVR;
-      if (argc-i<=1) Usage(argv[0]);
-      QueryArg=argv[i+1];
-      i++;
-    }
+      // miscaleneous
 
-    // miscaleneous
+      else if (strcmp(argv[i],"-f")==0) {
+        if (argc-i<=1) Old_Usage(argv[0]);
+        FileName=argv[i+1];
+        i++;
+      }
+      else if (strcmp(argv[i],"-timedat")==0) {
+        if (argc-i<=1) Old_Usage(argv[0]);
+        TimeFileName=argv[i+1];
+        i++;
+      }
+      else if (strcmp(argv[i],"-orgformat")==0) {
+        Options=1;
+	  }
+      else if (strcmp(argv[i],"-pool")==0) {
+        if (argc-i<=1) Old_Usage(argv[0]);
+	    pool=argv[i+1];
+        i++;
+      }
+      else {
+		printf("Unrecognized option\n");
+        Old_Usage(argv[0]);
+      }
+    }
+  } else {
+     int c;
 
-    else if (strcmp(argv[i],"-f")==0) {
-      if (argc-i<=1) Usage(argv[0]);
-      FileName=argv[i+1];
-      i++;
-    }
-    else if (strcmp(argv[i],"-timedat")==0) {
-      if (argc-i<=1) Usage(argv[0]);
-      TimeFileName=argv[i+1];
-      i++;
-    }
-    else if (strcmp(argv[i],"-orgformat")==0) {
-      Options=1;
-	}
-    else if (strcmp(argv[i],"-pool")==0) {
-      if (argc-i<=1) Usage(argv[0]);
-	  pool=argv[i+1];
-      i++;
-    }
-    else {
-      Usage(argv[0]);
+     while(1)
+     {
+       static struct option long_options[] =
+       {
+         {"lastday",        no_argument,           0,    'd'},
+         {"lastweek",       no_argument,           0,    'w'},
+         {"lastmonth",      no_argument,           0,    'm'},
+         {"lasthours",      required_argument,     0,    'h'},
+         {"from",           no_argument,           0,    'F'},
+         {"to",             no_argument,           0,    't'},
+         {"resourcequery",  required_argument,     0,    'r'},
+         {"resgroupquery",  required_argument,     0,    'R'},
+         {"userquery",      required_argument,     0,    'u'},
+         {"usergroupquery", required_argument,     0,    'U'},
+         {"ckptquery",      required_argument,     0,    'c'},
+         {"resourcelist",   no_argument,           0,    'e'},
+         {"resgrouplist",   no_argument,           0,    'E'},
+         {"userlist",       no_argument,           0,    'l'},
+         {"usergrouplist",  no_argument,           0,    'L'},
+         {"ckptlist",       no_argument,           0,    'C'},
+         {"timedat",        required_argument,     0,    'T'},
+         {"orgformat",      no_argument,           0,    'o'},
+         {"pool",           required_argument,     0,    'p'},
+         {0, 0, 0, 0,}
+       };
+       /* getopt_long stores the option index here */
+       int option_index = 0;
+       //Variables for some of the switch cases
+       int hours, month, day, year;
+
+       c = my_getopt_long (argc, argv, "f:", long_options,
+                             &option_index);
+
+       if (c == -1)
+         break;
+
+       switch (c)
+       {
+
+       case 0:
+         //this option most likely set a flag
+         if (long_options[option_index].flag != 0)
+           break;
+         else
+         {
+           printf("Option failed to set flag: %s", 
+long_options[option_index].name);
+           abort();
+         }
+
+       case 'e':
+         QueryType = QUERY_HIST_STARTD_LIST;
+         break;
+
+       case 'E':
+         QueryType = QUERY_HIST_GROUPS_LIST;
+         break;
+
+       case 'l':
+         QueryType = QUERY_HIST_SUBMITTOR_LIST;
+         break;
+
+       case 'L':
+         QueryType = QUERY_HIST_SUBMITTORGROUPS_LIST;
+         break;
+
+       case 'C':
+         QueryType = QUERY_HIST_CKPTSRVR_LIST;
+         break;
+
+       case 'T':
+         TimeFileName = my_optarg;
+         break;
+
+       case 'o':
+         Options = 1;
+         break;
+
+       case 'p':
+         pool = my_optarg;
+         break;
+
+       case 'd':
+         ToDate=Now;
+         FromDate=ToDate-DaySec;
+         break;
+
+       case 'w':
+         ToDate=Now;
+         FromDate=ToDate-WeekSec;
+         break;
+
+       case 'm':
+         ToDate=Now;
+         FromDate=ToDate-MonthSec;
+         break;
+
+       case 'h':
+         hours=atoi(my_optarg);
+         ToDate=Now;
+         FromDate=ToDate-HourSec*hours;
+         break;
+
+       case 'F':
+         //this enforces that this options has 3 arguments
+         if(!argv[my_optind]||argv[my_optind][0] == '-'||
+                  !argv[my_optind+1]||argv[my_optind+1][0] == '-'||
+                  !argv[my_optind+2]||argv[my_optind+2][0] == '-'){
+           printf("-f requires 3 arguments\n");
+           Usage(argv[0]);
+         }
+         month=atoi(argv[my_optind]);
+         day=atoi(argv[my_optind+1]);
+         year=atoi(argv[my_optind+2]);
+         FromDate=CalcTime(month,day,year);
+         my_optind+=3;
+         break;
+
+       case 't':
+         //this enforces that this options has 3 arguments
+         if(!argv[my_optind]||argv[my_optind][0] == '-'||
+                  !argv[my_optind+1]||argv[my_optind+1][0] == '-'||
+                  !argv[my_optind+2]||argv[my_optind+2][0] == '-'){
+           printf("-t requires 3 arguments\n");
+           Usage(argv[0]);
+         }
+         month=atoi(argv[my_optind]);
+         day=atoi(argv[my_optind+1]);
+         year=atoi(argv[my_optind+2]);
+         ToDate=CalcTime(month,day,year);
+         my_optind+=3;
+         break;
+
+       case 'r':
+         QueryType=QUERY_HIST_STARTD;
+         QueryArg=my_optarg;
+         break;
+
+       case 'R':
+         QueryType=QUERY_HIST_GROUPS;
+         QueryArg=my_optarg;
+         break;
+
+       case 'u':
+         QueryType=QUERY_HIST_SUBMITTOR;
+         QueryArg=my_optarg;
+         break;
+
+       case 'U':
+         QueryType=QUERY_HIST_SUBMITTORGROUPS;
+         QueryArg=my_optarg;
+         break;
+
+       case 'c':
+         QueryType=QUERY_HIST_CKPTSRVR;
+         QueryArg=my_optarg;
+         break;
+
+       case 'f':
+         FileName=my_optarg;
+         break;
+
+       case '?':
+		 printf("Unrecognized Option\n");
+         Usage(argv[0]);
+         break;
+
+       default:
+         abort();
+       }
     }
   }
 

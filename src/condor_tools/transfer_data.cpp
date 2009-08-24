@@ -34,7 +34,7 @@
 #include "condor_attributes.h"
 #include "condor_classad.h"
 #include "condor_ftp.h"
-
+#include "my_getopt.h"
 
 const char	*MyName = NULL;
 MyString global_constraint;
@@ -51,6 +51,35 @@ void handleAll();
 
 void
 usage()
+{
+	fprintf( stderr, "Usage: %s [options] [constraints]\n", MyName );
+	fprintf( stderr, " where [options] is zero or more of:\n" );
+	fprintf( stderr, "  -help               Display this message and exit\n" );
+	fprintf( stderr, "  -version            Display version information and exit\n" );
+
+// i'm not sure we want -debug documented.  if we change our minds, we
+// should just uncomment the next line
+//	fprintf( stderr, "  -debug              Display debugging information while running\n" );
+
+	fprintf( stderr, "  --name schedd_name   Connect to the given schedd\n" );
+	fprintf( stderr, "  --pool hostname      Use the given central manager to find daemons\n" );
+	fprintf( stderr, "  --addr <ip:port>     Connect directly to the given \"sinful string\"\n" );
+	fprintf( stderr, "  --stm <method>\t\thow to move a sandbox out of Condor\n" );
+	fprintf( stderr, "               \t\tAvailable methods:\n\n" );
+	fprintf( stderr, "               \t\t\tstm_use_schedd_only\n" );
+	fprintf( stderr, "               \t\t\tstm_use_transferd\n\n" );
+	fprintf( stderr, " and where [constraints] is one or more of:\n" );
+	fprintf( stderr, "  cluster.proc        transfer data for the given job\n");
+	fprintf( stderr, "  cluster             transfer data for the given cluster of jobs\n");
+	fprintf( stderr, "  user                transfer data for all jobs owned by user\n" );
+	fprintf( stderr, "  --constraint expr    transfer data for all jobs matching the boolean expression\n" );
+	fprintf( stderr, "  --all                transfer data for all jobs "
+			 "(cannot be used with other constraints)\n" );
+	exit( 1 );
+}
+
+void
+old_usage()
 {
 	fprintf( stderr, "Usage: %s [options] [constraints]\n", MyName );
 	fprintf( stderr, " where [options] is zero or more of:\n" );
@@ -201,111 +230,219 @@ main(int argc, char *argv[])
 	}
 
 	// parse the arguments.
-	for( argv++; (arg = *argv); argv++ ) {
-		if( arg[0] == '-' ) {
-			if( ! arg[1] ) {
-				usage();
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for( argv++; (arg = *argv); argv++ ) {
+			if( arg[0] == '-' ) {
+				if( ! arg[1] ) {
+					old_usage();
+				}
+				switch( arg[1] ) {
+				case 'd':
+					// dprintf to console
+					Termlog = 1;
+					dprintf_config ("TOOL");
+					break;
+				case 'c':
+					args[nArgs] = arg;
+					nArgs++;
+					argv++;
+					if( ! *argv ) {
+						fprintf( stderr, 
+								"%s: -constraint requires another argument\n", 
+								MyName);
+						exit(1);
+					}				
+					args[nArgs] = *argv;
+					nArgs++;
+					break;
+				case 'a':
+					if( arg[2] && arg[2] == 'd' ) {
+						argv++;
+						if( ! *argv ) {
+							fprintf( stderr, 
+									"%s: -addr requires another argument\n", 
+									MyName);
+							exit(1);
+						}				
+						if( is_valid_sinful(*argv) ) {
+							scheddAddr = strdup(*argv);
+							if( ! scheddAddr ) {
+								fprintf( stderr, "Out of Memory!\n" );
+								exit(1);
+							}
+						} else {
+							fprintf( stderr, 
+									"%s: \"%s\" is not a valid address\n",
+									MyName, *argv );
+							fprintf( stderr, "Should be of the form "
+									"<ip.address.here:port>\n" );
+							fprintf( stderr, 
+									"For example: <123.456.789.123:6789>\n" );
+							exit( 1 );
+						}
+						break;
+					}
+					All = true;
+					break;
+				case 'n': 
+					// use the given name as the schedd name to connect to
+					argv++;
+					if( ! *argv ) {
+						fprintf( stderr, "%s: -name requires another argument\n", 
+								MyName);
+						exit(1);
+					}			
+					if ( scheddName ) free(scheddName);
+					scheddName = strdup(*argv);
+					break;
+				case 'p':
+					// use the given name as the central manager to query
+					argv++;
+					if( ! *argv ) {
+						fprintf( stderr, "%s: -pool requires another argument\n", 
+								MyName);
+						exit(1);
+					}				
+					if( pool ) {
+						free( pool );
+					}
+					pool = strdup( *argv );
+					break;
+				case 's':
+					argv++;
+					if( ! *argv ) {
+						fprintf( stderr, "%s: -stm requires another argument\n", 
+								MyName);
+						exit(1);
+					}				
+					method = *argv;
+					string_to_stm(method, st_method);
+					break;
+				case 'v':
+					version();
+					break;
+				case 'h':
+					old_usage();
+					break;
+				default:
+					fprintf( stderr, "Unrecognized option: %s\n", arg ); 
+					old_usage();
+					break;
+				}
+			} else {
+				if( All ) {
+						// If -all is set, there should be no other
+						// constraint arguments.
+					old_usage();
+				}
+				args[nArgs] = arg;
+				nArgs++;
 			}
-			switch( arg[1] ) {
+		}
+	} else {
+		int c;
+		
+		while(1)
+		{
+			static struct option long_options[] =
+			{
+				{"debug",        no_argument,         0,  'd'},
+				{"help",         no_argument,         0,  'h'},
+				{"version",      no_argument,         0,  'v'},
+				{"all",          no_argument,         0,  'l'},
+				{"name",         required_argument,   0,  'n'},
+				{"pool",         required_argument,   0,  'p'},
+				{"addr",         required_argument,   0,  'a'},
+				{"stm",          required_argument,   0,  's'},
+				{"constraint",   required_argument,  0,  'c'},
+				{0, 0, 0, 0,}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+			
+			c = my_getopt_long (argc, argv, "", long_options,
+						&option_index);
+			
+			if (c == -1)
+				break;
+			
+			switch (c)
+			{
 			case 'd':
 				// dprintf to console
 				Termlog = 1;
 				dprintf_config ("TOOL");
 				break;
-			case 'c':
-				args[nArgs] = arg;
-				nArgs++;
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, 
-							 "%s: -constraint requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				args[nArgs] = *argv;
-				nArgs++;
-				break;
-			case 'a':
-				if( arg[2] && arg[2] == 'd' ) {
-					argv++;
-					if( ! *argv ) {
-						fprintf( stderr, 
-								 "%s: -addr requires another argument\n", 
-								 MyName);
-						exit(1);
-					}				
-					if( is_valid_sinful(*argv) ) {
-						scheddAddr = strdup(*argv);
-						if( ! scheddAddr ) {
-							fprintf( stderr, "Out of Memory!\n" );
-							exit(1);
-						}
-					} else {
-						fprintf( stderr, 
-								 "%s: \"%s\" is not a valid address\n",
-								 MyName, *argv );
-						fprintf( stderr, "Should be of the form "
-								 "<ip.address.here:port>\n" );
-						fprintf( stderr, 
-								 "For example: <123.456.789.123:6789>\n" );
-						exit( 1 );
-					}
-					break;
-				}
-				All = true;
-				break;
-			case 'n': 
-				// use the given name as the schedd name to connect to
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -name requires another argument\n", 
-							 MyName);
-					exit(1);
-				}			
-				if ( scheddName ) free(scheddName);
-				scheddName = strdup(*argv);
-				break;
-			case 'p':
-				// use the given name as the central manager to query
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -pool requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				if( pool ) {
-					free( pool );
-				}
-				pool = strdup( *argv );
-				break;
-			case 's':
-				argv++;
-				if( ! *argv ) {
-					fprintf( stderr, "%s: -stm requires another argument\n", 
-							 MyName);
-					exit(1);
-				}				
-				method = *argv;
-				string_to_stm(method, st_method);
-				break;
-			case 'v':
-				version();
-				break;
+				
 			case 'h':
 				usage();
 				break;
-			default:
-				fprintf( stderr, "Unrecognized option: %s\n", arg ); 
-				usage();
+
+			case 'v':
+				version();
 				break;
+
+			case 'l':
+				All = true;
+				break;
+
+			case 'n':
+				if ( scheddName ) free(scheddName);
+				scheddName = strdup(my_optarg);
+				break;
+
+			case 'p':
+				if( pool ) free( pool );
+				pool = strdup( my_optarg );
+				break;
+
+			case 'a':
+				if( is_valid_sinful(my_optarg) ) {
+					scheddAddr = strdup(my_optarg);
+					if( ! scheddAddr ) {
+						fprintf( stderr, "Out of Memory!\n" );
+						exit(1);
+					}
+				} else {
+					fprintf( stderr, 
+							"%s: \"%s\" is not a valid address\n",
+							MyName, my_optarg );
+					fprintf( stderr, "Should be of the form "
+							"<ip.address.here:port>\n" );
+					fprintf( stderr, 
+							"For example: <123.456.789.123:6789>\n" );
+					exit( 1 );
+				}
+				break;
+
+			case 's':
+				method = my_optarg;
+				string_to_stm(method, st_method);
+				break;
+
+			case 'c':
+				args[nArgs] = strdup(long_options[option_index].name);
+				nArgs++;
+				args[nArgs] = my_optarg;
+				nArgs++;
+				break;
+
+			case '?':
+				//getopt already prints an error
+					usage();
+				break;
+
+			default:
+				abort();
 			}
-		} else {
+		}
+		for(;my_optind < argc; my_optind++) {
 			if( All ) {
-					// If -all is set, there should be no other
-					// constraint arguments.
+			// If -all is set, there should be no other
+			// constraint arguments.
 				usage();
 			}
-			args[nArgs] = arg;
+			args[nArgs] = argv[my_optind];
 			nArgs++;
 		}
 	}
@@ -359,12 +496,23 @@ main(int argc, char *argv[])
 	if( All ) {
 		handleAll();
 	} else {
-		for(i = 0; i < nArgs; i++) {
-			if( match_prefix( args[i], "-constraint" ) ) {
-				i++;
-				addConstraint( args[i] );
-			} else {
-				procArg(args[i]);
+		if (param_boolean("USE_GNU_ARGS", false)) {
+			for(i = 0; i < nArgs; i++) {
+				if( match_prefix( args[i], "-constraint" ) ) {
+					i++;
+					addConstraint( args[i] );
+				} else {
+					procArg(args[i]);
+				}
+			}
+		} else {
+			for(i = 0; i < nArgs; i++) {
+				if( match_prefix( args[i], "constraint" ) ) {
+					i++;
+					addConstraint( args[i] );
+				} else {
+					procArg(args[i]);
+				}
 			}
 		}
 	}

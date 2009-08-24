@@ -45,6 +45,7 @@
 #include "basename.h" // for condor_basename 
 #include "extArray.h"
 #include "link.h"
+#include "my_getopt.h"
 
 State get_machine_state();
 
@@ -90,6 +91,13 @@ BOOLEAN is_ccb_file( const char *name );
 void
 usage()
 {
+	fprintf( stderr, "Usage: %s [--mail(-m)] [--remove(-r)] [--verbose(-v)]\n", MyName );
+	exit( 1 );
+}
+
+void
+old_usage()
+{
 	fprintf( stderr, "Usage: %s [-mail] [-remove] [-verbose]\n", MyName );
 	exit( 1 );
 }
@@ -112,28 +120,74 @@ main( int argc, char *argv[] )
 	BadFiles = new StringList;
 
 		// Parse command line arguments
-	for( argv++; *argv; argv++ ) {
-		if( (*argv)[0] == '-' ) {
-			switch( (*argv)[1] ) {
-			
-			  case 'v':
-				VerboseFlag = TRUE;
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for( argv++; *argv; argv++ ) {
+			if( (*argv)[0] == '-' ) {
+				switch( (*argv)[1] ) {
+				
+				case 'v':
+					VerboseFlag = TRUE;
+					break;
+	
+				case 'm':
+					MailFlag = TRUE;
+					break;
+	
+				case 'r':
+					RmFlag = TRUE;
+					break;
+	
+				default:
+					old_usage();
+	
+				}
+			} else {
+				old_usage();
+			}
+		}
+	} else {
+		
+		int c;
+
+		while (1)
+		{
+			static struct option long_options[] =
+			{
+				{"mail",       no_argument, 0, 'm'},
+				{"remove",     no_argument, 0, 'r'},
+				{"verbose",    no_argument, 0, 'v'},
+				{0,0,0,0}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+
+			c = my_getopt_long (argc, argv, "mrv", long_options,
+						&option_index);
+
+			if (c == -1)
 				break;
 
-			  case 'm':
+			switch (c)
+			{
+			case 'm':
 				MailFlag = TRUE;
 				break;
 
-			  case 'r':
+			case 'r':
 				RmFlag = TRUE;
 				break;
 
-			  default:
-				usage();
+			case 'v':
+				VerboseFlag = TRUE;
+				break;
 
+			case '?':
+				usage();
+				break;
+
+			default:
+				abort();
 			}
-		} else {
-			usage();
 		}
 	}
 

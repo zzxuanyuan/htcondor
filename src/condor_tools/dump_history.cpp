@@ -33,6 +33,7 @@
 #include "directory.h"
 #include "iso_dates.h"
 #include "basename.h" // for condor_dirname
+#include "my_getopt.h"
 
 #include "history_utils.h"
 
@@ -42,9 +43,9 @@
 #define NUM_PARAMETERS 3
 
 
-static void Usage(char* name) 
+static void usage(char* name) 
 {
-  printf("Usage: %s -name quill-name\n",name);
+  printf("Usage: %s --name quill-name\n",name);
   exit(1);
 }
 
@@ -96,49 +97,112 @@ main(int argc, char* argv[])
   int i;
   parameters = (void **) malloc(NUM_PARAMETERS * sizeof(void *));
   myDistro->Init( argc, argv );
+  config();
 
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
   queryver.setQuery(HISTORY_ALL_VER, NULL);
 
-  longformat=TRUE;   
-  for(i=1; i<argc; i++) {
-    if(strcmp(argv[i], "-name")==0) {
-		i++;
-		if (argc <= i) {
-			fprintf( stderr,
-					 "Error: Argument -name requires the name of a quilld as a parameter\n" );
-			exit(1);
-		}
+  longformat=TRUE;
+
+  if(!param_boolean("USE_GNU_ARGS", false))
+  {
+	for(i=1; i<argc; i++) {
+		if(strcmp(argv[i], "-name")==0) 
+		{
+				i++;
+				if (argc <= i) {
+					fprintf( stderr,
+							"Error: Argument -name requires the name of a quilld as a parameter\n" );
+					exit(1);
+				}
+				
+				if( !(quillName = get_daemon_name(argv[i])) ) {
+					fprintf( stderr, "Error: unknown host %s\n",
+							get_host_part(argv[i]) );
+					printf("\n");
+					print_wrapped_text("Extra Info: The name given with the -name "
+									"should be the name of a condor_quilld process. "
+									"Normally it is either a hostname, or "
+									"\"name@hostname\". "
+									"In either case, the hostname should be the "
+									"Internet host name, but it appears that it "
+									"wasn't.",
+									stderr);
+					exit(1);
+				}
+				tmp.sprintf ("%s == \"%s\"", ATTR_NAME, quillName);      		
+				quillQuery.addORConstraint (tmp.Value());
 		
-		if( !(quillName = get_daemon_name(argv[i])) ) {
-			fprintf( stderr, "Error: unknown host %s\n",
-					 get_host_part(argv[i]) );
-			printf("\n");
-			print_wrapped_text("Extra Info: The name given with the -name "
-							   "should be the name of a condor_quilld process. "
-							   "Normally it is either a hostname, or "
-							   "\"name@hostname\". "
-							   "In either case, the hostname should be the "
-							   "Internet host name, but it appears that it "
-							   "wasn't.",
-							   stderr);
-			exit(1);
+				tmp.sprintf ("%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
+				quillQuery.addORConstraint (tmp.Value());
+		
+				remotequill = true;
+				readfromfile = false;
+		} else if (strcmp(argv[i],"-help")==0) 
+		{
+				usage(argv[0]);
 		}
-		tmp.sprintf ("%s == \"%s\"", ATTR_NAME, quillName);      		
-		quillQuery.addORConstraint (tmp.Value());
+	}
+	if (i<argc) usage(argv[0]);
+  } else
+  {
+	int c;
+	while (1)
+	{
+		static struct option long_options[] =
+		{
+			{"name", required_argument,  0, 'h'},
+			{"help", no_argument,        0, 'h'},
+			{0,0,0,0}
+		};
+		/* getopt_long stores the option index here */
+		int option_index = 0;
+		
+		c = my_getopt_long (argc, argv, "", long_options,
+					&option_index);
+		
+		if (c == -1)
+			break;
+		
+		switch (c)
+		{
+		case 'n':
+			if( !(quillName = get_daemon_name(argv[atoi(my_optarg)])) ) 
+			{
+				fprintf( stderr, "Error: unknown host %s\n", get_host_part(argv[atoi(my_optarg)]) );
+				printf("\n");
+				print_wrapped_text("Extra Info: The name given with the -name "
+							"should be the name of a condor_quilld process. "
+							"Normally it is either a hostname, or "
+							"\"name@hostname\". "
+							"In either case, the hostname should be the "
+							"Internet host name, but it appears that it "
+							"wasn't.",
+							stderr);
+				exit(1);
+			}
+			tmp.sprintf ("%s == \"%s\"", ATTR_NAME, quillName);      		
+			quillQuery.addORConstraint (tmp.Value());
+			tmp.sprintf ("%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
+			quillQuery.addORConstraint (tmp.Value());
+		
+			remotequill = true;
+			readfromfile = false;
+			break;
 
-                tmp.sprintf ("%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
-                quillQuery.addORConstraint (tmp.Value());
+		case 'h':
+		case '?':
+		//option not supported. print usage and exit
+		  usage(argv[0]);
+		  exit(1);
 
-		remotequill = true;
-		readfromfile = false;
+		default:
+		//bad option. We shouldnt be able to get here
+		  abort();
+		}
+	}
     }
-    else if (strcmp(argv[i],"-help")==0) {
-		Usage(argv[0]);
-    }
-  }
-  if (i<argc) Usage(argv[0]);
-  
+
   config();
   
 	/* This call must happen AFTER config() is called */

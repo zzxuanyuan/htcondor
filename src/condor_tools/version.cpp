@@ -25,9 +25,29 @@
 #include "condor_version.h"
 #include "condor_ver_info.h"
 #include "condor_distribution.h"
+#include "my_getopt.h"
 
 void
 usage( char name[], int rval )
+{
+	fprintf( stderr, "Usage: %s [options]\n", name );
+    fprintf( stderr, "   If no options are specified, print the "
+			 "version and platform strings\n   where the tool was built." );
+    fprintf( stderr, "  Valid options are:\n" );
+    fprintf( stderr, "   --help\t(this message)\n" );
+    fprintf( stderr, 
+			 "   --arch\t(print the ARCH string)\n" );
+    fprintf( stderr, 
+			 "   --opsys\t(print the OPSYS string)\n" );
+    fprintf( stderr, "   --syscall\t(get info from the libcondorsyscall.a "
+			 "this Condor pool is\n        \t configured to use, not the "
+			 "values where the tool was built)\n" );
+
+	exit( rval );
+}
+
+void
+old_usage( char name[], int rval )
 {
 	fprintf( stderr, "Usage: %s [options]\n", name );
     fprintf( stderr, "   If no options are specified, print the "
@@ -45,13 +65,13 @@ usage( char name[], int rval )
 	exit( rval );
 }
 
-
 int
 main(int argc, char *argv[])
 {
 
 	myDistro->Init( argc, argv );
 	CondorVersionInfo *version;
+	config();
 
 	bool use_syscall_lib = false;
 	bool print_arch = false;
@@ -59,29 +79,88 @@ main(int argc, char *argv[])
 	bool opsys_first = false;		// stupid flag for maintaining the
 									// order we saw the args in...
 
-	for(int i = 1; i < argc; i++ ) {
-		if( argv[i][0] != '-' ) {
-			fprintf( stderr, "ERROR: invalid argument: '%s'\n", argv[i] );
-			usage( argv[0], 1 );
-		}
-		switch( argv[i][1] ) {
-		case 's':
-			use_syscall_lib = true;
-			break;
-		case 'a':
-			print_arch = true;
-			break;
-		case 'o':
-			print_opsys = true;
-			if( ! print_arch ) {
-				opsys_first = true;
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for(int i = 1; i < argc; i++ ) {
+			if( argv[i][0] != '-' ) {
+				fprintf( stderr, "ERROR: invalid argument: '%s'\n", argv[i] );
+				old_usage( argv[0], 1 );
 			}
-			break;
-		case 'h':
-			usage( argv[0], 0 );
-			break;
-		default:
-			fprintf( stderr, "ERROR: unrecognized argument: '%s'\n", argv[i] );
+			switch( argv[i][1] ) {
+			case 's':
+				use_syscall_lib = true;
+				break;
+
+			case 'a':
+				print_arch = true;
+				break;
+
+			case 'o':
+				print_opsys = true;
+				if( ! print_arch ) {
+					opsys_first = true;
+				}
+				break;
+
+			case 'h':
+				old_usage( argv[0], 0 );
+				break;
+
+			case'?':
+				old_usage( argv[0], 0 );
+				break;
+
+			default:
+				fprintf( stderr, "ERROR: unrecognized argument: '%s'\n", argv[i] );
+				old_usage( argv[0], 1 );
+			}
+		}
+	} else {
+		int c;
+		while(1) {
+			static struct option long_options[] =
+			{
+				{"arch", no_argument,  0,    'a'},
+				{"help", no_argument,  0,    'h'},
+				{"opsys", no_argument,  0,   'o'},
+				{"syscall", no_argument,  0, 's'},
+                {0,0,0,0}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+			
+			c = my_getopt_long (argc, argv, "", long_options,
+						&option_index);
+			
+			if (c == -1)
+				break;
+			
+			switch (c)
+			{
+			case 'a':
+				print_arch = true;
+				break;
+
+			case 'h':
+				usage( argv[0], 0 );
+				break;
+
+			case 'o':
+				print_opsys = true;
+				if( ! print_arch ) {
+					opsys_first = true;
+				}
+				break;
+
+			case 's':
+				use_syscall_lib = true;
+				break;
+
+			default:
+				abort();
+			}
+		}
+		if(my_optind < argc) {
+			fprintf( stderr, "ERROR: unrecognized argument: '%s'\n", argv[my_optind] );
 			usage( argv[0], 1 );
 		}
 	}

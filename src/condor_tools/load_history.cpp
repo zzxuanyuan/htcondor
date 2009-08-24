@@ -45,6 +45,7 @@
 #include "jobqueuecollection.h"
 #include "dbms_utils.h"
 #include "subsystem_info.h"
+#include "my_getopt.h"
 
 #if HAVE_ORACLE
 #undef ATTR_VERSION
@@ -56,6 +57,12 @@
 DECL_SUBSYSTEM( "TOOL", SUBSYSTEM_TYPE_TOOL );
 
 static void Usage(char* name) 
+{
+  printf("Usage: %s -f history-filename [--name schedd-name jobqueue-birthdate]\n", name);
+  exit(1);
+}
+
+static void Old_Usage(char* name) 
 {
   printf("Usage: %s -f history-filename [-name schedd-name jobqueue-birthdate]\n", name);
   exit(1);
@@ -102,34 +109,89 @@ main(int argc, char* argv[])
   Termlog = 1;
   dprintf_config("TOOL");
 
-  for(i=1; i<argc; i++) {
+  if(!param_boolean("USE_GNU_ARGS", false)) {
+    for(i=1; i<argc; i++) {
 
-    if (strcmp(argv[i],"-f")==0) {
-		if (i+1==argc || JobHistoryFileName) break;
-		i++;
-		JobHistoryFileName=argv[i];
-    }
-    else if (strcmp(argv[i],"-help")==0) {
-		Usage(argv[0]);
-    }
-    else if (strcmp(argv[i],"-name")==0) {
-		if (i+1==argc || ScheddName) break;
-		i++;
-		ScheddName=strdup(argv[i]);
-        if ((i+1==argc) || ScheddBirthdate) break;
-        i++;
-        ScheddBirthdate = atoi(argv[i]);
-    }
+      if (strcmp(argv[i],"-f")==0) {
+		  if (i+1==argc || JobHistoryFileName) break;
+		  i++;
+		  JobHistoryFileName=argv[i];
+      }
+      else if (strcmp(argv[i],"-help")==0) {
+		  Old_Usage(argv[0]);
+      }
+      else if (strcmp(argv[i],"-name")==0) {
+		  if (i+1==argc || ScheddName) break;
+		  i++;
+		  ScheddName=strdup(argv[i]);
+          if ((i+1==argc) || ScheddBirthdate) break;
+          i++;
+          ScheddBirthdate = atoi(argv[i]);
+      }
 /*    else if (strcmp(argv[i],"-debug")==0) {
           // dprintf to console
           Termlog = 1;
     }
 */
-    else {
-		Usage(argv[0]);
+      else {
+	Old_Usage(argv[0]);
+      }
+    }
+    if (i<argc) Old_Usage(argv[0]);
+
+  } else {
+    int c;
+    while(1) {
+      static struct option long_options[] =
+       {
+         {"name", no_argument, 0, 'n'},
+         {"help", no_argument, 0, 'h'},
+         {0,0,0,0}
+       };
+
+       /* getopt_long stores the option index here */
+       int option_index = 0;
+
+       c = my_getopt_long (argc, argv, "f:", long_options,
+                             &option_index);
+
+       if (c == -1)
+         break;
+
+       switch (c)
+       {
+         case 'f':
+           if (JobHistoryFileName) break;
+           JobHistoryFileName=my_optarg;
+           break;
+
+         case 'h':
+           Usage(argv[0]);
+           break;
+
+         case 'n':
+       //this enforces that this options has 2 arguments
+           if(!argv[my_optind]||argv[my_optind][0] == '-'||
+                    !argv[my_optind+1]||argv[my_optind+1][0] == '-'){
+             printf("--name requires 2 arguments\n");
+             Usage(argv[0]);
+           }
+           if (ScheddName) break;
+           ScheddName=strdup(argv[my_optind]);
+           if (ScheddBirthdate) break;
+           ScheddBirthdate = atoi(argv[my_optind+1]);
+           my_optind+=2;
+           break;
+
+         case '?':
+           Usage(argv[0]);
+
+         default:
+           abort();
+       }
     }
   }
-  if (i<argc) Usage(argv[0]);
+
 
   if (JobHistoryFileName == NULL) 
 	  Usage(argv[0]);

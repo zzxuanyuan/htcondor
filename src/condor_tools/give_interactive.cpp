@@ -39,6 +39,7 @@
 #include "condor_distribution.h"
 #include "subsystem_info.h"
 #include "dc_collector.h"
+#include "my_getopt.h"
 
 // Globals
 
@@ -422,53 +423,94 @@ main(int argc, char *argv[])
 	config();
 
 	// parse command line args
-	for( ptr=argv+1,argc--; argc > 0; argc--,ptr++ ) {
-		if( ptr[0][0] == '-' ) {
-			switch( ptr[0][1] ) {
-			case 'm':	// want real machines, not slots
-				WantMachineNames = true;
-				break;
-			case 'n':	// want specific number of machines
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -n requires another argument\n", 
-							 condor_basename(argv[0]) );
-					exit(1);
-				}					
-				NumMachinesWanted = atoi(*ptr);
-				if ( NumMachinesWanted < 1 ) {
-					fprintf( stderr, "%s: -n requires another argument "
-							 "which is an integer greater than 0\n",
-							 condor_basename(argv[0]) );
-					exit(1);
-				}
-				break;
-			case 'p':	// pool							
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -p requires another argument\n", 
-							 condor_basename(argv[0]) );
-					exit(1);
-				}
-				pool = *ptr;
-				break;
-			case 'c':	// constraint						
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -c requires another argument\n", 
-							 condor_basename(argv[0]) );
-					exit(1);
-				}
-				constraint = *ptr;
-				break;
-			case 'r':	// rank
-				if( !(--argc) || !(*(++ptr)) ) {
-					fprintf( stderr, "%s: -r requires another argument\n", 
-							 condor_basename(argv[0]) );
-					exit(1);
-				}
-				rank = *ptr;
-				break;
-			default:
-				usage(condor_basename(argv[0]));
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for( ptr=argv+1,argc--; argc > 0; argc--,ptr++ ) {
+			if( ptr[0][0] == '-' ) {
+				switch( ptr[0][1] ) {
+				case 'm':	// want real machines, not slots
+					WantMachineNames = true;
+					break;
+				case 'n':	// want specific number of machines
+					if( !(--argc) || !(*(++ptr)) ) {
+						fprintf( stderr, "%s: -n requires another argument\n", 
+								condor_basename(argv[0]) );
+						exit(1);
+					}					
+					NumMachinesWanted = atoi(*ptr);
+					if ( NumMachinesWanted < 1 ) {
+						fprintf( stderr, "%s: -n requires another argument "
+								"which is an integer greater than 0\n",
+								condor_basename(argv[0]) );
+						exit(1);
+					}
+					break;
+				case 'p':	// pool							
+					if( !(--argc) || !(*(++ptr)) ) {
+						fprintf( stderr, "%s: -p requires another argument\n", 
+								condor_basename(argv[0]) );
+						exit(1);
+					}
+					pool = *ptr;
+					break;
+				case 'c':	// constraint						
+					if( !(--argc) || !(*(++ptr)) ) {
+						fprintf( stderr, "%s: -c requires another argument\n", 
+								condor_basename(argv[0]) );
+						exit(1);
+					}
+					constraint = *ptr;
+					break;
+				case 'r':	// rank
+					if( !(--argc) || !(*(++ptr)) ) {
+						fprintf( stderr, "%s: -r requires another argument\n", 
+								condor_basename(argv[0]) );
+						exit(1);
+					}
+					rank = *ptr;
+					break;
+				default:
+					usage(condor_basename(argv[0]));
+				}		
+			}
+
+		}
+	} else {
+		int c;
+
+		while((c = my_getopt (argc, argv, "mn:p:c:r:")) != -1)
+		{
+			switch(c) {
+				case 'm':	// want real machines, not slots
+					WantMachineNames = true;
+					break;
+				case 'n':	// want specific number of machines	
+					NumMachinesWanted = atoi(*ptr);
+					if ( NumMachinesWanted < 1 ) {
+						fprintf( stderr, "%s: -n requires anargument "
+								"which is an integer greater than 0\n",
+								condor_basename(argv[0]) );
+						exit(1);
+					}
+					break;
+				case 'p':	// pool
+					pool = *ptr;
+					break;
+				case 'c':	// constraint
+					constraint = *ptr;
+					break;
+				case 'r':	// rank
+					rank = *ptr;
+					break;
+				case '?':
+					usage(condor_basename(argv[0]));
+					break;
+				default:
+					abort();
 			}		
+		}
+		if(my_optind < argc) {
+			printf ("Extra argument %s\n", argv[my_optind]);
+			usage(condor_basename(argv[0]));
 		}
 	}
 

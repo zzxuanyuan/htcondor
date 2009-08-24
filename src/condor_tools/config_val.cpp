@@ -51,6 +51,7 @@
 #include "string_list.h"
 #include "simplelist.h"
 #include "subsystem_info.h"
+#include "my_getopt.h"
 
 char	*MyName;
 
@@ -84,9 +85,47 @@ my_exit( int status )
 	exit( status );
 }
 
-
 void
 usage()
+{
+	fprintf( stderr, "Usage: %s [options] variable [variable] ...\n", MyName );
+	fprintf( stderr,
+			 "   or: %s [options] --set string [string] ...\n",
+			 MyName );
+	fprintf( stderr,
+			 "   or: %s [options] --rset string [string] ...\n",
+			 MyName );
+	fprintf( stderr, "   or: %s [options] --unset variable [variable] ...\n",
+			 MyName );
+	fprintf( stderr, "   or: %s [options] --runset variable [variable] ...\n",
+			 MyName );
+	fprintf( stderr, "   or: %s [options] -tilde\n", MyName );
+	fprintf( stderr, "   or: %s [options] -owner\n", MyName );
+	fprintf( stderr, "\n   Valid options are:\n" );
+	fprintf( stderr, "   --name daemon_name\t(query the specified daemon for its configuration)\n" );
+	fprintf( stderr, "   --pool hostname\t(use the given central manager to find daemons)\n" );
+	fprintf( stderr, "   --address <ip:port>\t(connect to the given ip/port)\n" );
+	fprintf( stderr, "   --set\t\t\t(set a persistent config file expression)\n" );
+	fprintf( stderr, "   --rset\t\t(set a runtime config file expression\n" );
+
+	fprintf( stderr, "   --unset\t\t(unset a persistent config file expression)\n" );
+	fprintf( stderr, "   --runset\t\t(unset a runtime config file expression)\n" );
+
+	fprintf( stderr, "   --master\t\t(query the master [default])\n" );
+	fprintf( stderr, "   --schedd\t\t(query the schedd)\n" );
+	fprintf( stderr, "   --startd\t\t(query the startd)\n" );
+	fprintf( stderr, "   --collector\t\t(query the collector)\n" );
+	fprintf( stderr, "   --negotiator\t\t(query the negotiator)\n" );
+	fprintf( stderr, "   --tilde\t\t(return the path to the Condor home directory)\n" );
+	fprintf( stderr, "   --owner\t\t(return the owner of the condor_config_val process)\n" );
+	fprintf( stderr, "   --verbose\t\t(print information about where variables are defined)\n" );
+	fprintf( stderr, "   --dump\t\t(print locally defined variables)\n" );
+	fprintf( stderr, "   --config\t\t(print the locations of found config files)\n" );
+	my_exit( 1 );
+}
+
+void
+old_usage()
 {
 	fprintf( stderr, "Usage: %s [options] variable [variable] ...\n", MyName );
 	fprintf( stderr,
@@ -139,7 +178,6 @@ main( int argc, char* argv[] )
 	bool    verbose = false;
 	bool    dump_all_variables = false;
 	bool    print_config_sources = false;
-	bool	write_config = false;
 	
 	PrintType pt = CONDOR_NONE;
 	ModeType mt = CONDOR_QUERY;
@@ -147,95 +185,262 @@ main( int argc, char* argv[] )
 	MyName = argv[0];
 	myDistro->Init( argc, argv );
 
-	for( i=1; i<argc; i++ ) {
-		if( match_prefix( argv[i], "-host" ) ) {
-			if( argv[i + 1] ) {
-				host = strdup( argv[++i] );
-			} else {
-				usage();
-			}
-		} else if( match_prefix( argv[i], "-name" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				name = get_daemon_name( argv[i] );
-				if( ! name ) {
-					fprintf( stderr, "%s: unknown host %s\n", MyName, 
-							 get_host_part(argv[i]) );
-					my_exit( 1 );
-				}
-			} else {
-				usage();
-			}
-		} else if( match_prefix( argv[i], "-address" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				if( is_valid_sinful(argv[i]) ) {
-					addr = strdup( argv[i] );
+	config();
+
+
+	if(!param_boolean("USE_GNU_ARGS", false)) 
+	{
+		
+		for( i=1; i<argc; i++ ) {
+			if( match_prefix( argv[i], "-host" ) ) {
+				if( argv[i + 1] ) {
+					host = strdup( argv[++i] );
 				} else {
-					fprintf( stderr, "%s: invalid address %s\n"
-						 "Address must be of the form \"<111.222.333.444:555>\n"
-						 "   where 111.222.333.444 is the ip address and 555 is the port\n"
-						 "   you wish to connect to (the punctuation is important).\n", 
-						 MyName, argv[i] );
-					my_exit( 1 );
+					old_usage();
 				}
+			} else if( match_prefix( argv[i], "-name" ) ) {
+				if( argv[i + 1] ) {
+					i++;
+					name = get_daemon_name( argv[i] );
+					if( ! name ) {
+						fprintf( stderr, "%s: unknown host %s\n", MyName, 
+								get_host_part(argv[i]) );
+						my_exit( 1 );
+					}
+				} else {
+					old_usage();
+				}
+			} else if( match_prefix( argv[i], "-address" ) ) {
+				if( argv[i + 1] ) {
+					i++;
+					if( is_valid_sinful(argv[i]) ) {
+						addr = strdup( argv[i] );
+					} else {
+						fprintf( stderr, "%s: invalid address %s\n"
+							"Address must be of the form \"<111.222.333.444:555>\n"
+							"   where 111.222.333.444 is the ip address and 555 is the port\n"
+							"   you wish to connect to (the punctuation is important).\n", 
+							MyName, argv[i] );
+						my_exit( 1 );
+					}
+				} else {
+					old_usage();
+				}
+			} else if( match_prefix( argv[i], "-pool" ) ) {
+				if( argv[i + 1] ) {
+					i++;
+					pool = argv[i];
+				} else {
+					old_usage();
+				}
+			} else if( match_prefix( argv[i], "-owner" ) ) {
+				pt = CONDOR_OWNER;
+			} else if( match_prefix( argv[i], "-tilde" ) ) {
+				pt = CONDOR_TILDE;
+			} else if( match_prefix( argv[i], "-master" ) ) {
+				dt = DT_MASTER;
+				ask_a_daemon = true;
+			} else if( match_prefix( argv[i], "-schedd" ) ) {
+				dt = DT_SCHEDD;
+			} else if( match_prefix( argv[i], "-startd" ) ) {
+				dt = DT_STARTD;
+			} else if( match_prefix( argv[i], "-collector" ) ) {
+				dt = DT_COLLECTOR;
+			} else if( match_prefix( argv[i], "-negotiator" ) ) {
+				dt = DT_NEGOTIATOR;
+			} else if( match_prefix( argv[i], "-set" ) ) {
+				mt = CONDOR_SET;
+			} else if( match_prefix( argv[i], "-unset" ) ) {
+				mt = CONDOR_UNSET;
+			} else if( match_prefix( argv[i], "-rset" ) ) {
+				mt = CONDOR_RUNTIME_SET;
+			} else if( match_prefix( argv[i], "-runset" ) ) {
+				mt = CONDOR_RUNTIME_UNSET;
+			} else if( match_prefix( argv[i], "-mixedcase" ) ) {
+				mixedcase = true;
+			} else if( match_prefix( argv[i], "-config" ) ) {
+				print_config_sources = true;
+			} else if( match_prefix( argv[i], "-verbose" ) ) {
+				verbose = true;
+			} else if( match_prefix( argv[i], "-dump" ) ) {
+				dump_all_variables = true;
+			} else if( match_prefix( argv[i], "-debug" ) ) {
+					// dprintf to console
+				Termlog = 1;
+				dprintf_config( "TOOL" );
+			} else if( match_prefix( argv[i], "-" ) ) {
+				old_usage();
 			} else {
-				usage();
+				params.append( strdup( argv[i] ) );
 			}
-		} else if( match_prefix( argv[i], "-pool" ) ) {
-			if( argv[i + 1] ) {
-				i++;
-				pool = argv[i];
-			} else {
+		}
+	} else
+	{
+		int c;
+		
+		while(1)
+		{
+			static struct option long_options[] =
+			{
+				{"host",       required_argument,        0,                      'h'},
+				{"name",       required_argument,        0,                      'n'},
+				{"address",    required_argument,        0,                      'a'},
+				{"pool",       required_argument,        0,                      'p'},
+				{"master",     no_argument,              0,                      'm'},
+				{"debug",      no_argument,              0,                      'd'},
+				{"mixedcase",  no_argument,              0,                      'M'},
+				{"config",     no_argument,              0,                      'c'},
+				{"verbose",    no_argument,              0,                      'v'},
+				{"dump",       no_argument,              0,                      'D'},
+				{"owner",      no_argument,              0,                      'o'},
+				{"tilde",      no_argument,              0,                      't'},
+				{"schedd",     no_argument,              0,                      's'},
+				{"startd",     no_argument,              0,                      'S'},
+				{"collector",  no_argument,              0,                      'C'},
+				{"negotiator", no_argument,              0,                      'N'},
+				{"set",        no_argument,              0,                      'u'},
+				{"unset",      no_argument,              0,                      'T'},
+				{"rset",       no_argument,              0,                      'U'},
+				{"runset",     no_argument,              0,                      'V'},
+				{0, 0, 0, 0,}
+			};
+
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+
+	
+			c = my_getopt_long (argc, argv, "", long_options, &option_index);
+			
+			if (c == -1)
+				break;
+
+			switch (c)
+			{
+			
+			case 0:
+				//this option most likely set a flag
+				if (long_options[option_index].flag != 0)
+				break;
+				else
+				{
+				printf("Option failed to set flag: %s", long_options[option_index].name);
+				abort();
+				}
+			
+			case 'h':
+				host = strdup( my_optarg );
+				break;
+			
+			case 'n':
+				name = get_daemon_name( my_optarg );
+				if( ! name )
+				{
+				fprintf( stderr, "%s: unknown host %s\n", MyName,
+					get_host_part(my_optarg) );
+				my_exit( 1 );
+				}
+				break;
+			
+			case 'a':
+				if( is_valid_sinful( my_optarg ) ) {
+				addr = strdup( my_optarg );
+				} else {
+				fprintf( stderr, "%s: invalid address %s\n"
+				"Address must be of the form \"<111.222.333.444:555>\n"
+				"   where 111.222.333.444 is the ip address and 555 is the port\n"
+				"   you wish to connect to (the punctuation is important).\n", 
+				MyName, my_optarg );
+				my_exit( 1 );
+				}
+				break;
+			
+			case 'p':
+				pool = my_optarg;
+				break;
+			
+			case 'm':
+				dt = DT_MASTER;
+				ask_a_daemon = true;
+				break;
+			
+			case 'd':
+				Termlog = 1;
+				dprintf_config( "TOOL" );
+				break;
+
+			case 'M':
+				mixedcase = true;
+				break;
+
+			case 'c':
+				print_config_sources = true;
+				break;
+
+			case 'v':
+				verbose = true;
+				break;
+
+			case 'D':
+				dump_all_variables = true;
+				break;
+
+			case 'o':
+				pt = CONDOR_OWNER;
+				break;
+
+			case 't':
+				pt = CONDOR_TILDE;
+				break;
+
+			case 's':
+				dt = DT_SCHEDD;
+				break;
+
+			case 'S':
+				dt = DT_STARTD;
+				break;
+
+			case 'C':
+				dt = DT_COLLECTOR;
+				break;
+
+			case 'N':
+				dt = DT_NEGOTIATOR;
+				break;
+
+			case 'u':
+				mt = CONDOR_SET;
+				break;
+
+			case 'T':
+				mt = CONDOR_UNSET;
+				break;
+
+			case 'U':
+				mt = CONDOR_RUNTIME_SET;
+				break;
+
+			case 'V':
+				mt = CONDOR_RUNTIME_UNSET;
+				break;
+			
+			case '?':
+				/* We've had an invalid arg passed, print the usage */
 				usage();
+				exit(1);
+			
+			default:
+				abort();
 			}
-		} else if( match_prefix( argv[i], "-owner" ) ) {
-			pt = CONDOR_OWNER;
-		} else if( match_prefix( argv[i], "-tilde" ) ) {
-			pt = CONDOR_TILDE;
-		} else if( match_prefix( argv[i], "-master" ) ) {
-			dt = DT_MASTER;
-			ask_a_daemon = true;
-		} else if( match_prefix( argv[i], "-schedd" ) ) {
-			dt = DT_SCHEDD;
-		} else if( match_prefix( argv[i], "-startd" ) ) {
-			dt = DT_STARTD;
-		} else if( match_prefix( argv[i], "-collector" ) ) {
-			dt = DT_COLLECTOR;
-		} else if( match_prefix( argv[i], "-negotiator" ) ) {
-			dt = DT_NEGOTIATOR;
-		} else if( match_prefix( argv[i], "-set" ) ) {
-			mt = CONDOR_SET;
-		} else if( match_prefix( argv[i], "-unset" ) ) {
-			mt = CONDOR_UNSET;
-		} else if( match_prefix( argv[i], "-rset" ) ) {
-			mt = CONDOR_RUNTIME_SET;
-		} else if( match_prefix( argv[i], "-runset" ) ) {
-			mt = CONDOR_RUNTIME_UNSET;
-		} else if( match_prefix( argv[i], "-mixedcase" ) ) {
-			mixedcase = true;
-		} else if( match_prefix( argv[i], "-config" ) ) {
-			print_config_sources = true;
-		} else if( match_prefix( argv[i], "-verbose" ) ) {
-			verbose = true;
-		} else if( match_prefix( argv[i], "-dump" ) ) {
-			dump_all_variables = true;
-		} else if( match_prefix( argv[i], "-writeconfig" ) ) {
-			write_config = true;
-		} else if( match_prefix( argv[i], "-debug" ) ) {
-				// dprintf to console
-			Termlog = 1;
-			dprintf_config( "TOOL" );
-		} else if( match_prefix( argv[i], "-" ) ) {
-			usage();
-		} else {
-			MyString str;
-			str = argv[i];
-			// remove any case sensitivity, this is done mostly so output
-			// later can look nice. The param() subsystem inherently assumes
-			// case insensitivity, so this is perfectly fine to do here.
-			str.upper_case();
-			params.append( strdup( str.Value() ) ) ;
+		}
+
+		while (my_optind < argc)
+		{
+			if (match_prefix(argv[my_optind], "-"))
+				usage();
+			else
+				params.append( strdup( argv[my_optind] ) );
+			++my_optind;
 		}
 	}
 
@@ -330,7 +535,7 @@ main( int argc, char* argv[] )
 				fprintf(stdout, "# Line %d, File %s\n", 
 					pv.lnum, pv.filename.Value());
 			}
-			fprintf(stdout, "%s = %s\n", upname.Value(), pv.value.Value());
+			fprintf(stdout, "%s = %s\n\n", upname.Value(), pv.value.Value());
 			
 		}
 		fflush( stdout );
@@ -344,11 +549,7 @@ main( int argc, char* argv[] )
 		my_exit( 0 );
 
 	}
-	
-	if(write_config == true) {
-		write_config_file("static_condor_config");
-	}
-	
+
 	if( pool && ! name ) {
 		fprintf( stderr, "Error: you must specify -name with -pool\n" );
 		my_exit( 1 );

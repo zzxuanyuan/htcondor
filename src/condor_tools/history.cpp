@@ -35,7 +35,7 @@
 #include "match_prefix.h"
 #include "condor_xml_classads.h"
 #include "subsystem_info.h"
-#include "historyFileFinder.h"
+#include "my_getopt.h"
 
 #include "history_utils.h"
 
@@ -50,6 +50,29 @@
 DECL_SUBSYSTEM( "TOOL", SUBSYSTEM_TYPE_TOOL );
 
 static void Usage(char* name) 
+{
+	printf ("Usage: %s [options]\n\twhere [options] are\n"
+		"\t\t--help\t\t\tThis screen\n"
+		"\t\t-f <file>\t\tRead history data from specified file\n"
+		"\t\t--backwards\t\tList jobs in reverse chronological order\n"
+		"\t\t--match <number>\t\tLimit the number of jobs displayed\n"
+		"\t\t--format <fmt> <attr>\tPrint attribute attr using format fmt\n"		
+		"\t\t-l\t\t\tVerbose output (entire classads)\n"
+		"\t\t--constraint <expr>\tAdd constraint on classads\n"
+#ifdef WANT_QUILL
+		"\t\t--name <schedd-name>\tRead history data from Quill database\n"
+		"\t\t--completedsince <time>\tDisplay jobs completed on/after time\n"
+#endif
+		"\t\trestriction list\n"
+		"\twhere each restriction may be one of\n"
+		"\t\t<cluster>\t\tGet information about specific cluster\n"
+		"\t\t<cluster>.<proc>\tGet information about specific job\n"
+		"\t\t<owner>\t\t\tInformation about jobs owned by <owner>\n",
+			name);
+  exit(1);
+}
+
+static void Old_Usage(char* name) 
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"
 		"\t\t-help\t\t\tThis screen\n"
@@ -78,6 +101,9 @@ static bool checkDBconfig();
 #endif /* WANT_QUILL */
 
 static void readHistoryFromFiles(char *JobHistoryFileName, char* constraint, ExprTree *constraintExpr);
+static char **findHistoryFiles(int *numHistoryFiles);
+static bool isHistoryBackup(const char *fullFilename, time_t *backup_time);
+static int compareHistoryFilenames(const void *item1, const void *item2);
 static void readHistoryFromFile(char *JobHistoryFileName, char* constraint, ExprTree *constraintExpr);
 
 //------------------------------------------------------------------------
@@ -91,6 +117,7 @@ static  bool use_xml=false;
 static  bool customFormat=false;
 static  bool backwards=false;
 static  AttrListPrintMask mask;
+static  char *BaseJobHistoryFileName = NULL;
 static int cluster=-1, proc=-1;
 static int specifiedMatch = 0, matchCount = 0;
 
@@ -136,164 +163,301 @@ main(int argc, char* argv[])
   queryver.setQuery(HISTORY_ALL_VER, NULL);
 #endif /* WANT_QUILL */
 
-  for(i=1; i<argc; i++) {
-    if (strcmp(argv[i],"-l")==0) {
-      longformat=TRUE;   
-    }
-
-    else if (strcmp(argv[i],"-long")==0) {
-		longformat = true;
+  //parse commandline args
+  if(!param_boolean("USE_GNU_ARGS", false)) {
+	for(i=1; i<argc; i++) {
+	if (strcmp(argv[i],"-l")==0) {
+	longformat=TRUE;   
 	}
-    
-    else if (match_prefix(argv[i],"-xml")) {
-		use_xml = true;	
-		longformat = true;
+	
+	else if (strcmp(argv[i],"-long")==0) {
+			longformat = true;
+		}
+	
+	else if (match_prefix(argv[i],"-xml")) {
+			use_xml = true;	
+			longformat = true;
+		}
+	
+	else if (match_prefix(argv[i],"-backwards")) {
+		backwards=TRUE;
 	}
-    
-    else if (match_prefix(argv[i],"-backwards")) {
-        backwards=TRUE;
-    }
-
-    else if (match_prefix(argv[i],"-match")) {
-        i++;
-        if (argc <= i) {
-            fprintf(stderr,
-                    "Error: Argument -match requires a number value "
-                    " as a parameter.\n");
-            exit(1);
-        }
-        specifiedMatch = atoi(argv[i]);
-    }
-
-#ifdef WANT_QUILL
-    else if(match_prefix(argv[i], "-name")) {
+	
+	else if (match_prefix(argv[i],"-match")) {
 		i++;
 		if (argc <= i) {
-			fprintf( stderr,
-					 "Error: Argument -name requires the name of a quilld as a parameter\n" );
-			exit(1);
+		fprintf(stderr,
+			"Error: Argument -match requires a number value "
+			" as a parameter.\n");
+		exit(1);
 		}
-		
+		specifiedMatch = atoi(argv[i]);
+	}
+	
+	#ifdef WANT_QUILL
+	else if(match_prefix(argv[i], "-name")) {
+			i++;
+			if (argc <= i) {
+				fprintf( stderr,
+						"Error: Argument -name requires the name of a quilld as a parameter\n" );
+				exit(1);
+			}
+			
+	
+	/*
+			if( !(quillName = get_daemon_name(argv[i])) ) {
+				fprintf( stderr, "Error: unknown host %s\n",
+						get_host_part(argv[i]) );
+				printf("\n");
+				print_wrapped_text("Extra Info: The name given with the -name "
+								"should be the name of a condor_quilld process. "
+								"Normally it is either a hostname, or "
+								"\"name@hostname\". "
+								"In either case, the hostname should be the "
+								"Internet host name, but it appears that it "
+								"wasn't.",
+								stderr);
+				exit(1);
+			}
+			sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      		
+			quillQuery.addORConstraint (tmp);
+	
+	*/
+			quillName = argv[i];
+	
+			sprintf (tmp, "%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
+			quillQuery.addORConstraint (tmp);
+	
+			remotequill = false;
+			readfromfile = false;
+	}
+	#endif /* WANT_QUILL */
+	else if (strcmp(argv[i],"-f")==0) {
+			if (i+1==argc || JobHistoryFileName) break;
+			i++;
+			JobHistoryFileName=argv[i];
+			readfromfile = true;
+	}
+	else if (match_prefix(argv[i],"-help")) {
+			Usage(argv[0]);
+	}
+	else if (match_prefix(argv[i],"-format")) {
+			if (argc <= i + 2) {
+				fprintf(stderr,
+						"Error: Argument -format requires a spec and "
+						"classad attribute name as parameters.\n");
+				fprintf(stderr,
+						"\t\te.g. condor_history -format '%%d' ClusterId\n");
+				exit(1);
+			}
+			mask.registerFormat(argv[i + 1], argv[i + 2]);
+			customFormat = true;
+			i += 2;
+	}
+	else if (match_prefix(argv[i],"-constraint")) {
+			if (i+1==argc || constraint) break;
+			sprintf(tmp,"(%s)",argv[i+1]);
+			constraint=tmp;
+			i++;
+			//readfromfile = true;
+	}
+	#ifdef WANT_QUILL
+	else if (match_prefix(argv[i],"-completedsince")) {
+			i++;
+			if (argc <= i) {
+				fprintf(stderr,
+						"Error: Argument -completedsince requires a date and "
+						"optional timestamp as a parameter.\n");
+				fprintf(stderr,
+						"\t\te.g. condor_history -completedsince \"2004-10-19 10:23:54\"\n");
+				exit(1);
+			}
+			
+			if (constraint) break;
+			constraint = completedsince;
+			completedsince = strdup(argv[i]);
+			parameters[0] = completedsince;
+			queryhor.setQuery(HISTORY_COMPLETEDSINCE_HOR,parameters);
+			queryver.setQuery(HISTORY_COMPLETEDSINCE_VER,parameters);
+	}
+	#endif /* WANT_QUILL */
+	
+	else if (sscanf (argv[i], "%d.%d", &cluster, &proc) == 2) {
+			if (constraint) break;
+			sprintf (tmp, "((%s == %d) && (%s == %d))", 
+					ATTR_CLUSTER_ID, cluster,ATTR_PROC_ID, proc);
+			constraint=tmp;
+			parameters[0] = &cluster;
+			parameters[1] = &proc;
+	#ifdef WANT_QUILL
+			queryhor.setQuery(HISTORY_CLUSTER_PROC_HOR, parameters);
+			queryver.setQuery(HISTORY_CLUSTER_PROC_VER, parameters);
+	#endif /* WANT_QUILL */
+	}
+	else if (sscanf (argv[i], "%d", &cluster) == 1) {
+			if (constraint) break;
+			sprintf (tmp, "(%s == %d)", ATTR_CLUSTER_ID, cluster);
+			constraint=tmp;
+			parameters[0] = &cluster;
+	#ifdef WANT_QUILL
+			queryhor.setQuery(HISTORY_CLUSTER_HOR, parameters);
+			queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
+	#endif /* WANT_QUILL */
+	}
+	else if (strcmp(argv[i],"-debug")==0) {
+		// dprintf to console
+		Termlog = 1;
+		dprintf_config ("TOOL");
+	}
+	else {
+			if (constraint) break;
+			owner = (char *) malloc(512 * sizeof(char));
+			sscanf(argv[i], "%s", owner);	
+			sprintf(tmp, "(%s == \"%s\")", ATTR_OWNER, owner);
+			constraint=tmp;
+			parameters[0] = owner;
+	#ifdef WANT_QUILL
+			queryhor.setQuery(HISTORY_OWNER_HOR, parameters);
+			queryver.setQuery(HISTORY_OWNER_VER, parameters);
+	#endif /* WANT_QUILL */
+	}
+	}
+	if (i<argc) Usage(argv[0]);
+	//End commandline args
+  } else {
+	int c;
 
-/*
-		if( !(quillName = get_daemon_name(argv[i])) ) {
-			fprintf( stderr, "Error: unknown host %s\n",
-					 get_host_part(argv[i]) );
-			printf("\n");
-			print_wrapped_text("Extra Info: The name given with the -name "
-							   "should be the name of a condor_quilld process. "
-							   "Normally it is either a hostname, or "
-							   "\"name@hostname\". "
-							   "In either case, the hostname should be the "
-							   "Internet host name, but it appears that it "
-							   "wasn't.",
-							   stderr);
-			exit(1);
-		}
-		sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      		
-		quillQuery.addORConstraint (tmp);
+        while(1)
+        {
+          static struct option long_options[] =
+          {
+            {"backwards",       no_argument,         0,          'b'},
+            {"debug",           no_argument,         0,          'd'},
+            {"help",            no_argument,         0,          'h'},
+            {"long",            no_argument,         0,          'l'},
+            {"xml",             no_argument,         0,          'x'},
+            {"constraint",      required_argument,   0,          'c'},
+            {"file",            required_argument,   0,          'f'},
+            {"match",           required_argument,   0,          'm'},
+            {"format",          required_argument,   0,          'r'},
+	    #ifdef WANT_QUILL
+            {"name",            required_argument,   0,          'n'},
+            {"completedsince",  required_argument,   0,          'p'},
+	    #endif /* WANT_QUILL */
+	    {0,0,0,0}
+	  };
+	  /* getopt_long stores the option index here */
+          int option_index = 0;
 
-*/
-		quillName = argv[i];
+          c = my_getopt_long (argc, argv, "lf:", long_options,
+                             &option_index);
 
-		sprintf (tmp, "%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
-		quillQuery.addORConstraint (tmp);
+          if (c == -1)
+          break;
+ 
+          switch (c) 
+          {
+	  case 'b':
+	    backwards=TRUE;
+	    break;
 
-		remotequill = false;
-		readfromfile = false;
-    }
-#endif /* WANT_QUILL */
-    else if (strcmp(argv[i],"-f")==0) {
-		if (i+1==argc || JobHistoryFileName) break;
-		i++;
-		JobHistoryFileName=argv[i];
-		readfromfile = true;
-    }
-    else if (match_prefix(argv[i],"-help")) {
-		Usage(argv[0]);
-    }
-    else if (match_prefix(argv[i],"-format")) {
-		if (argc <= i + 2) {
-			fprintf(stderr,
-					"Error: Argument -format requires a spec and "
-					"classad attribute name as parameters.\n");
-			fprintf(stderr,
-					"\t\te.g. condor_history -format '%%d' ClusterId\n");
-			exit(1);
-		}
-		mask.registerFormat(argv[i + 1], argv[i + 2]);
-		customFormat = true;
-		i += 2;
-    }
-    else if (match_prefix(argv[i],"-constraint")) {
-		if (i+1==argc || constraint) break;
-		sprintf(tmp,"(%s)",argv[i+1]);
-		constraint=tmp;
-		i++;
-		//readfromfile = true;
-    }
-#ifdef WANT_QUILL
-    else if (match_prefix(argv[i],"-completedsince")) {
-		i++;
-		if (argc <= i) {
-			fprintf(stderr,
-					"Error: Argument -completedsince requires a date and "
-					"optional timestamp as a parameter.\n");
-			fprintf(stderr,
-					"\t\te.g. condor_history -completedsince \"2004-10-19 10:23:54\"\n");
-			exit(1);
-		}
-		
-		if (constraint) break;
-		constraint = completedsince;
-		completedsince = strdup(argv[i]);
-		parameters[0] = completedsince;
-		queryhor.setQuery(HISTORY_COMPLETEDSINCE_HOR,parameters);
-		queryver.setQuery(HISTORY_COMPLETEDSINCE_VER,parameters);
-    }
-#endif /* WANT_QUILL */
+	  case 'd':
+		// dprintf to console
+	    Termlog = 1;
+	    dprintf_config ("TOOL");
+	    break;
 
-    else if (sscanf (argv[i], "%d.%d", &cluster, &proc) == 2) {
-		if (constraint) break;
-		sprintf (tmp, "((%s == %d) && (%s == %d))", 
-				 ATTR_CLUSTER_ID, cluster,ATTR_PROC_ID, proc);
-		constraint=tmp;
-		parameters[0] = &cluster;
-		parameters[1] = &proc;
-#ifdef WANT_QUILL
-		queryhor.setQuery(HISTORY_CLUSTER_PROC_HOR, parameters);
-		queryver.setQuery(HISTORY_CLUSTER_PROC_VER, parameters);
-#endif /* WANT_QUILL */
-    }
-    else if (sscanf (argv[i], "%d", &cluster) == 1) {
-		if (constraint) break;
-		sprintf (tmp, "(%s == %d)", ATTR_CLUSTER_ID, cluster);
-		constraint=tmp;
-		parameters[0] = &cluster;
-#ifdef WANT_QUILL
-		queryhor.setQuery(HISTORY_CLUSTER_HOR, parameters);
-		queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
-#endif /* WANT_QUILL */
-    }
-    else if (strcmp(argv[i],"-debug")==0) {
-          // dprintf to console
-          Termlog = 1;
-          dprintf_config ("TOOL");
-    }
-    else {
-		if (constraint) break;
-		owner = (char *) malloc(512 * sizeof(char));
-		sscanf(argv[i], "%s", owner);	
-		sprintf(tmp, "(%s == \"%s\")", ATTR_OWNER, owner);
-		constraint=tmp;
-		parameters[0] = owner;
-#ifdef WANT_QUILL
-		queryhor.setQuery(HISTORY_OWNER_HOR, parameters);
-		queryver.setQuery(HISTORY_OWNER_VER, parameters);
-#endif /* WANT_QUILL */
-    }
+	  case 'h':
+	    Usage(argv[0]);
+	    break;
+
+	  case 'l':
+	    longformat = true;
+	    break;
+
+	  case 'x':
+	    use_xml = true;
+	    longformat = true;
+	    break;
+
+	  case 'c':
+	    if (constraint) break;
+	    sprintf(tmp,"(%s)",my_optarg);
+	    constraint=tmp;
+	    //readfromfile = true;
+	    break;
+
+	  case 'f':
+	    if (JobHistoryFileName) break;
+	    JobHistoryFileName=my_optarg;
+	    readfromfile = true;
+	    break;
+
+	  case 'm':
+	    specifiedMatch = atoi(argv[i]);
+	    break;
+
+	  case 'r':
+            //this enforces that this options has 2 arguments
+            if(!argv[my_optind]||argv[my_optind][0] == '-'){
+              printf("--format requires 2 arguments\n");
+              Usage(argv[0]);
+            }
+	    mask.registerFormat(argv[my_optind-1], argv[my_optind]);
+	    customFormat = true;
+	    break;
+
+	#ifdef WANT_QUILL
+	  case 'n':	
+	  /*
+	  if( !(quillName = get_daemon_name(my_optarg)) ) {
+		   fprintf( stderr, "Error: unknown host %s\n",
+				   get_host_part(my_optarg) );
+		  printf("\n");
+		  print_wrapped_text("Extra Info: The name given with the -name "
+						   "should be the name of a condor_quilld process. "
+						   "Normally it is either a hostname, or "
+						   "\"name@hostname\". "
+						   "In either case, the hostname should be the "
+						   "Internet host name, but it appears that it "
+						   "wasn't.",
+						   stderr);
+		   exit(1);
+	   }
+	   sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      		
+	   quillQuery.addORConstraint (tmp);
+	
+	   */
+	   quillName = my_optarg;
+	
+	   sprintf (tmp, "%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
+	   quillQuery.addORConstraint (tmp);
+
+	   remotequill = false;
+	   readfromfile = false;
+	   break;
+
+	  case 'p':
+	    if (constraint) break;
+	    constraint = completedsince;
+	    completedsince = strdup(my_optarg);
+	    parameters[0] = completedsince;
+	    queryhor.setQuery(HISTORY_COMPLETEDSINCE_HOR,parameters);
+	    queryver.setQuery(HISTORY_COMPLETEDSINCE_VER,parameters);
+	    break;
+	#endif /* WANT_QUILL*/
+
+	  case '?':
+	    Usage(argv[0]);
+	    break;
+
+	  default:
+	    abort();
+	  }
+	}
   }
-  if (i<argc) Usage(argv[0]);
+
+
   
   
   if( constraint && Parse( constraint, constraintExpr ) ) {
@@ -573,17 +737,7 @@ static void readHistoryFromFiles(char *JobHistoryFileName, char* constraint, Exp
         int numHistoryFiles;
         char **historyFiles;
 
-        historyFiles = findHistoryFiles("HISTORY", &numHistoryFiles);
-		if (!historyFiles) {
-			fprintf( stderr, "Error: No history file is defined\n");
-			fprintf(stderr, "\n");
-			print_wrapped_text("Extra Info: " 
-						   "The variable HISTORY is not defined in "
-						   "your config file. If you want Condor to "
-						   "keep a history of past jobs, you must "
-						   "define HISTORY in your config file", stderr );
-			exit(1);
-		}
+        historyFiles = findHistoryFiles(&numHistoryFiles);
         if (historyFiles && numHistoryFiles > 0) {
             int fileIndex;
             if (backwards) { // Reverse reading of history files array
@@ -602,6 +756,126 @@ static void readHistoryFromFiles(char *JobHistoryFileName, char* constraint, Exp
         }
     }
     return;
+}
+
+// Find all of the history files that the schedd created, and put them
+// in order by time that they were created. The time comes from a
+// timestamp in the file name.
+static char **findHistoryFiles(int *numHistoryFiles)
+{
+    int  fileIndex;
+    char **historyFiles = NULL;
+    char *historyDir;
+
+    BaseJobHistoryFileName = param("HISTORY");
+	if ( BaseJobHistoryFileName == NULL ) {
+		fprintf( stderr, "Error: No history file is defined\n");
+		fprintf(stderr, "\n");
+		print_wrapped_text("Extra Info: " 
+						   "The variable HISTORY is not defined in "
+						   "your config file. If you want Condor to "
+						   "keep a history of past jobs, you must "
+						   "define HISTORY in your config file", stderr );
+
+		exit( 1 );    
+	}
+    historyDir = condor_dirname(BaseJobHistoryFileName);
+
+    *numHistoryFiles = 0;
+    if (historyDir != NULL) {
+        Directory dir(historyDir);
+        const char *current_filename;
+
+        // We walk through once and count the number of history file backups
+         for (current_filename = dir.Next(); 
+             current_filename != NULL; 
+             current_filename = dir.Next()) {
+            
+            if (isHistoryBackup(current_filename, NULL)) {
+                (*numHistoryFiles)++;
+            }
+        }
+
+        // Add one for the current history file
+        (*numHistoryFiles)++;
+
+        // Make space for the filenames
+        historyFiles = (char **) malloc(sizeof(char*) * (*numHistoryFiles));
+
+        // Walk through again to fill in the names
+        // Note that we won't get the current history file
+        dir.Rewind();
+        for (fileIndex = 0, current_filename = dir.Next(); 
+             current_filename != NULL; 
+             current_filename = dir.Next()) {
+            
+            if (isHistoryBackup(current_filename, NULL)) {
+                historyFiles[fileIndex++] = strdup(dir.GetFullPath());
+            }
+        }
+        historyFiles[fileIndex] = strdup(BaseJobHistoryFileName);
+
+        if ((*numHistoryFiles) > 2) {
+            // Sort the backup files so that they are in the proper 
+            // order. The current history file is already in the right place.
+            qsort(historyFiles, (*numHistoryFiles)-1, sizeof(char*), compareHistoryFilenames);
+        }
+        
+        free(historyDir);
+    }
+    return historyFiles;
+}
+
+// Returns true if the filename is a history file, false otherwise.
+// If backup_time is not NULL, returns the time from the timestamp in
+// the file.
+static bool isHistoryBackup(const char *fullFilename, time_t *backup_time)
+{
+    bool       is_history_filename;
+    const char *filename;
+    const char *history_base;
+    int        history_base_length;
+
+    if (backup_time != NULL) {
+        *backup_time = -1;
+    }
+    
+    is_history_filename = false;
+    history_base        = condor_basename(BaseJobHistoryFileName);
+    history_base_length = strlen(history_base);
+    filename            = condor_basename(fullFilename);
+
+    if (   !strncmp(filename, history_base, history_base_length)
+        && filename[history_base_length] == '.') {
+        // The filename begins correctly, now see if it ends in an 
+        // ISO time
+        struct tm file_time;
+        bool is_utc;
+
+        iso8601_to_time(filename + history_base_length + 1, &file_time, &is_utc);
+        if (   file_time.tm_year != -1 && file_time.tm_mon != -1 
+            && file_time.tm_mday != -1 && file_time.tm_hour != -1
+            && file_time.tm_min != -1  && file_time.tm_sec != -1
+            && !is_utc) {
+            // This appears to be a proper history file backup.
+            is_history_filename = true;
+            if (backup_time != NULL) {
+                *backup_time = mktime(&file_time);
+            }
+        }
+    }
+
+    return is_history_filename;
+}
+
+// Used by qsort in findHistoryFiles() to sort history files. 
+static int compareHistoryFilenames(const void *item1, const void *item2)
+{
+    time_t time1, time2;
+
+    isHistoryBackup((const char *) item1, &time1);
+    isHistoryBackup((const char *) item2, &time2);
+    return time1 - time2;
 }
 
 // Given a history file, returns the position offset of the last delimiter

@@ -42,12 +42,31 @@
 #include "string_list.h"
 #include "simplelist.h"
 #include "subsystem_info.h"
+#include "my_getopt.h"
 
 char	*MyName;
 DECL_SUBSYSTEM( "TOOL", SUBSYSTEM_TYPE_TOOL );
 
 void
 usage()
+{
+	fprintf( stderr, "Usage: %s [options]\n", MyName );
+	fprintf( stderr, "\n" );
+	fprintf( stderr, "Test authorization policy.  Each test is entered into\n"
+	                 "this program, one per line as follows:\n");
+	fprintf( stderr, "\n" );
+	fprintf( stderr, "perm user ip [expected result]\n" );
+	fprintf( stderr, "Example: WRITE badguy@some.domain 192.168.4.3 DENIED\n");
+	fprintf( stderr, "\n" );
+	fprintf( stderr, "Use '*' for the user to represent an unauthenticated user.\n");
+	fprintf( stderr, "\n   Valid options are:\n" );
+	fprintf( stderr, "   --daemontype name\t(schedd, startd, ...)\n" );
+	fprintf( stderr, "   --debug\n" );
+	exit( 2 );
+}
+
+void
+old_usage()
 {
 	fprintf( stderr, "Usage: %s [options]\n", MyName );
 	fprintf( stderr, "\n" );
@@ -83,27 +102,69 @@ main( int argc, char* argv[] )
 	
 	MyName = argv[0];
 	myDistro->Init( argc, argv );
+	config();
 
 	FILE *input_fp = stdin;
 
-	for( i=1; i<argc; i++ ) {
-		if( match_prefix( argv[i], "-daemontype" ) ) {
-			if( argv[i + 1] ) {
-				get_mySubSystem()->setName( argv[++i] );
-				get_mySubSystem()->setTypeFromName( );
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for( i=1; i<argc; i++ ) {
+			if( match_prefix( argv[i], "-daemontype" ) ) {
+				if( argv[i + 1] ) {
+					get_mySubSystem()->setName( argv[++i] );
+					get_mySubSystem()->setTypeFromName( );
+				} else {
+					old_usage();
+				}
+			} else if( match_prefix( argv[i], "-debug" ) ) {
+					// dprintf to console
+				Termlog = 1;
+				dprintf_config( "TOOL" );
+				DebugFlags |= D_FULLDEBUG|D_SECURITY;
+			} else if( match_prefix( argv[i], "-" ) ) {
+				old_usage();
 			} else {
-				usage();
+				old_usage();
 			}
-		} else if( match_prefix( argv[i], "-debug" ) ) {
-				// dprintf to console
-			Termlog = 1;
-			dprintf_config( "TOOL" );
-			DebugFlags |= D_FULLDEBUG|D_SECURITY;
-		} else if( match_prefix( argv[i], "-" ) ) {
-			usage();
-		} else {
-			usage();
 		}
+	} else {
+		
+		while(1)
+		{
+			int c;
+			static struct option long_options[] =
+			{
+				{"daemontype",  required_argument, 0, 'd'},
+				{"debug",       no_argument,       0, 'b'},
+				{0,0,0,0}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+		
+			c = my_getopt_long (argc, argv, "", long_options,
+						&option_index);
+		
+			if (c == -1)
+			break;
+		
+			switch (c)
+			{
+			case 'd':
+				get_mySubSystem()->setName( argv[atoi(my_optarg)] );
+				get_mySubSystem()->setTypeFromName( );
+				break;
+			case 'b':
+				Termlog = 1;
+				dprintf_config( "TOOL" );
+				DebugFlags |= D_FULLDEBUG|D_SECURITY;
+				break;
+			case '?':
+				usage();
+			default:
+				abort();
+			}
+		}
+		if(my_optind < argc)
+			usage();
 	}
 
 		// If we didn't get told what subsystem we should use, set it

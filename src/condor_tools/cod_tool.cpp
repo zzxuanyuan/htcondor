@@ -41,6 +41,7 @@
 #include "sig_install.h"
 #include "basename.h"
 #include "globus_utils.h"
+#include "my_getopt.h"
 
 // Global variables
 int cmd = 0;
@@ -67,6 +68,7 @@ VacateType vacate_type = VACATE_GRACEFUL;
 
 // protoypes of interest
 void usage( char* );
+void old_usage( char* );
 void version( void );
 void invalid( char* opt );
 void ambiguous( char* opt );
@@ -401,7 +403,10 @@ getCommandFromArgv( int argc, char* argv[] )
 			if( argv[1][1] == 'v' ) {
 				version();
 			} else {
-				usage( base );
+                if(argv[1][1] == '-' && argv[1][2] == 'v')
+			        version();
+                else
+				    usage( base );
 			}
 		}
 		size = strlen(argv[1]);
@@ -605,209 +610,370 @@ parseArgv( int argc, char* argv[] )
 {
 	char** tmp = argv;
 
-	for( tmp++; *tmp; tmp++ ) {
-		if( (*tmp)[0] != '-' ) {
-				// If it doesn't start with '-', skip it
-			continue;
-		}
-		switch( (*tmp)[1] ) {
-
-				// // // // // // // // // // // // // // // //
-				// Shared options that make sense to all cmds 
-				// // // // // // // // // // // // // // // //
-
-		case 'v':
-			if( strncmp("-version", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			version();
-			break;
-
-		case 'h':
-			if( strncmp("-help", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			usage( my_name );
-			break;
-
-		case 'd':
-			if( strncmp("-debug", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			Termlog = 1;
-			dprintf_config ("TOOL");
-			break;
-
-		case 'a':
-			if( cmd != CA_REQUEST_CLAIM ) {
-				invalid( *tmp );
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for( tmp++; *tmp; tmp++ ) {
+			if( (*tmp)[0] != '-' ) {
+					// If it doesn't start with '-', skip it
+				continue;
 			}
-			if( strncmp("-address", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-address" );
-			}
-			if( ! is_valid_sinful(*tmp) ) {
-                fprintf( stderr, "%s: '%s' is not a valid address\n",
-						 my_name, *tmp );
-				exit( 1 );
-			}
-			addr = strdup( *tmp ); 
-			break;
-
-		case 'n':
-			if( cmd != CA_REQUEST_CLAIM ) {
-				invalid( *tmp );
-			}
-			if( strncmp("-name", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-name" );
-			}
-			name = get_daemon_name( *tmp );
-			if( ! name ) {
-                fprintf( stderr, "%s: unknown host %s\n", my_name, 
-                         get_host_part(*tmp) );
-				exit( 1 );
-			}
-			break;
-
-				// // // // // // // // // // // // // // // //
-				// Switches that only make sense to some cmds 
-				// // // // // // // // // // // // // // // //
-
-		case 'f':
-			if( !((cmd == CA_RELEASE_CLAIM) || 
-				  (cmd == CA_DEACTIVATE_CLAIM)) )
-			{
-				invalid( *tmp );
-			}
-			if( strncmp("-fast", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			vacate_type = VACATE_FAST;
-			break;
-
-		case 'r':
-			if( !((cmd == CA_REQUEST_CLAIM) || 
-				  (cmd == CA_ACTIVATE_CLAIM)) )
-			{
-				invalid( *tmp );
-			}
-			if( strncmp("-requirements", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-requirements" );
-			}
-			requirements = strdup( *tmp );
-			break;
-
-		case 'i':
-			if( cmd == CA_REQUEST_CLAIM ) {
-				invalid( *tmp );
-			}
-			if( strncmp("-id", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-id" );
-			}
-			claim_id = strdup( *tmp );
-			break;
-
-		case 'j':
-			if( cmd != CA_ACTIVATE_CLAIM ) {
-				invalid( *tmp );
-			}
-			if( strncmp("-jobad", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-jobad" );
-			}
-			jobad_path = strdup( *tmp );
-			break;
-
-		case 'k':
-			if( cmd != CA_ACTIVATE_CLAIM ) {
-				invalid( *tmp );
-			}
-			if( strncmp("-keyword", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-keyword" );
-			}
-			job_keyword = strdup( *tmp );
-			break;
-
-				// // // // // // // // // // // // // // // // // // 
-				// P and C are complicated, since they are ambiguous
-				// in the case of activate, but not others.  so, they
-				// have their own methods to make it easier to
-				// understand what the hell's going on. :)
-				// // // // // // // // // // // // // // // // // //
-
-		case 'l':
-			if( strncmp("-lease", *tmp, strlen(*tmp)) == 0 ) {
+			switch( (*tmp)[1] ) {
+	
+					// // // // // // // // // // // // // // // //
+					// Shared options that make sense to all cmds 
+					// // // // // // // // // // // // // // // //
+	
+			case 'v':
+				if( strncmp("-version", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				version();
+				break;
+	
+			case 'h':
+				if( strncmp("-help", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				usage( my_name );
+				break;
+	
+			case 'd':
+				if( strncmp("-debug", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				Termlog = 1;
+				dprintf_config ("TOOL");
+				break;
+	
+			case 'a':
 				if( cmd != CA_REQUEST_CLAIM ) {
 					invalid( *tmp );
 				}
+				if( strncmp("-address", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
 				tmp++;
 				if( ! (tmp && *tmp) ) {
-					another( "-lease" );
+					another( "-address" );
 				}
-				lease_time = atoi( *tmp );
-			}
-			else {
+				if( ! is_valid_sinful(*tmp) ) {
+			fprintf( stderr, "%s: '%s' is not a valid address\n",
+							my_name, *tmp );
+					exit( 1 );
+				}
+				addr = strdup( *tmp ); 
+				break;
+	
+			case 'n':
+				if( cmd != CA_REQUEST_CLAIM ) {
+					invalid( *tmp );
+				}
+				if( strncmp("-name", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-name" );
+				}
+				name = get_daemon_name( *tmp );
+				if( ! name ) {
+			fprintf( stderr, "%s: unknown host %s\n", my_name, 
+				get_host_part(*tmp) );
+					exit( 1 );
+				}
+				break;
+	
+					// // // // // // // // // // // // // // // //
+					// Switches that only make sense to some cmds 
+					// // // // // // // // // // // // // // // //
+	
+			case 'f':
+				if( !((cmd == CA_RELEASE_CLAIM) || 
+					(cmd == CA_DEACTIVATE_CLAIM)) )
+				{
+					invalid( *tmp );
+				}
+				if( strncmp("-fast", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				vacate_type = VACATE_FAST;
+				break;
+	
+			case 'r':
+				if( !((cmd == CA_REQUEST_CLAIM) || 
+					(cmd == CA_ACTIVATE_CLAIM)) )
+				{
+					invalid( *tmp );
+				}
+				if( strncmp("-requirements", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-requirements" );
+				}
+				requirements = strdup( *tmp );
+				break;
+	
+			case 'i':
+				if( cmd == CA_REQUEST_CLAIM ) {
+					invalid( *tmp );
+				}
+				if( strncmp("-id", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-id" );
+				}
+				claim_id = strdup( *tmp );
+				break;
+	
+			case 'j':
+				if( cmd != CA_ACTIVATE_CLAIM ) {
+					invalid( *tmp );
+				}
+				if( strncmp("-jobad", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-jobad" );
+				}
+				jobad_path = strdup( *tmp );
+				break;
+	
+			case 'k':
+				if( cmd != CA_ACTIVATE_CLAIM ) {
+					invalid( *tmp );
+				}
+				if( strncmp("-keyword", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-keyword" );
+				}
+				job_keyword = strdup( *tmp );
+				break;
+	
+					// // // // // // // // // // // // // // // // // // 
+					// P and C are complicated, since they are ambiguous
+					// in the case of activate, but not others.  so, they
+					// have their own methods to make it easier to
+					// understand what the hell's going on. :)
+					// // // // // // // // // // // // // // // // // //
+	
+			case 'l':
+				if( strncmp("-lease", *tmp, strlen(*tmp)) == 0 ) {
+					if( cmd != CA_REQUEST_CLAIM ) {
+						invalid( *tmp );
+					}
+					tmp++;
+					if( ! (tmp && *tmp) ) {
+						another( "-lease" );
+					}
+					lease_time = atoi( *tmp );
+				}
+				else {
+					invalid( *tmp );
+				}
+				break;
+	
+			case 't':
+				if( strncmp("-timeout", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-timeout" );
+				}
+				timeout = atoi( *tmp );
+				break;
+	
+			case 'x':
+				if( strncmp("-x509proxy", *tmp, strlen(*tmp)) ) {
+					invalid( *tmp );
+				} 
+				tmp++;
+				if( ! (tmp && *tmp) ) {
+					another( "-x509proxy" );
+				}
+				proxy_file = *tmp;
+				break;
+	
+			case 'p':
+				parsePOpt( tmp[0], tmp[1] );
+				tmp++;
+				break;
+	
+			case 'c':
+				parseCOpt( tmp[0], tmp[1] );
+				tmp++;
+				break;
+	
+			default:
 				invalid( *tmp );
+	
 			}
-			break;
+		}
+	} else {
+		int c;
+		while(1) {
+			static struct option long_options[] = {
+				{"version",        no_argument,         0,   'v'},
+				{"help",           no_argument,         0,   'h'},
+				{"debug",          no_argument,         0,   'd'},
+				{"fast",           no_argument,         0,   'f'},
+				{"address",        required_argument,   0,   'a'},
+				{"name",           required_argument,   0,   'n'},
+				{"requirements",   required_argument,   0,   'r'},
+				{"id",             required_argument,   0,   'i'},
+				{"jobad",          required_argument,   0,   'j'},
+				{"keyword",        required_argument,   0,   'k'},
+				{"lease",          required_argument,   0,   'l'},
+				{"timeout",        required_argument,   0,   't'},
+				{"x509proxy",      required_argument,   0,   'x'},
+				{"pool",           required_argument,   0,   'p'},
+				{"proc",           required_argument,   0,   'P'},
+				{"classad",        required_argument,   0,   'c'},
+				{"cluster",        required_argument,   0,   'C'},
+				{0,0,0,0}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+			
+			c = my_getopt_long (argc, argv, "", long_options,
+						&option_index);
+			
+			if (c == -1)
+				break;
+			
+			switch (c)
+			{
+			case 'v':
+				version();
+				break;
 
-		case 't':
-			if( strncmp("-timeout", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-timeout" );
+			case 'h':
+				usage( my_name );
+				break;
+
+			case 'd':
+				Termlog = 1;
+				dprintf_config ("TOOL");
+				break;
+
+			case 'f':
+				if( !((cmd == CA_RELEASE_CLAIM) || 
+					(cmd == CA_DEACTIVATE_CLAIM)) )
+				{
+					invalid( strdup(long_options[option_index].name) );
+				}
+				vacate_type = VACATE_FAST;
+				break;
+
+			case 'a':
+				if( cmd != CA_REQUEST_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				if( ! is_valid_sinful(my_optarg) ) {
+					fprintf( stderr, "%s: '%s' is not a valid address\n",
+							my_name, my_optarg );
+					exit( 1 );
+				}
+				addr = strdup( my_optarg ); 
+				break;
+
+			case 'n':
+				if( cmd != CA_REQUEST_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				name = get_daemon_name( my_optarg );
+				if( ! name ) {
+					fprintf( stderr, "%s: unknown host %s\n", my_name, 
+						get_host_part(my_optarg) );
+					exit( 1 );
+				}
+				break;
+
+			case 'r':
+				if( !((cmd == CA_REQUEST_CLAIM) || 
+					(cmd == CA_ACTIVATE_CLAIM)) )
+				{
+					invalid( strdup(long_options[option_index].name) );
+				}
+				requirements = strdup( my_optarg );
+				break;
+
+			case 'i':
+				if( cmd == CA_REQUEST_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				claim_id = strdup( my_optarg );
+				break;
+
+			case 'j':
+				if( cmd != CA_ACTIVATE_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				jobad_path = strdup( my_optarg );
+				break;
+
+			case 'k':
+				if( cmd != CA_ACTIVATE_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				job_keyword = strdup( my_optarg );
+				break;
+
+			case 'l':
+				if( cmd != CA_REQUEST_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				lease_time = atoi( my_optarg );
+				break;
+
+			case 't':
+				timeout = atoi( my_optarg );
+				break;
+
+			case 'x':
+				proxy_file = my_optarg;
+				break;
+
+			case 'p':
+				pool = new DCCollector( my_optarg );
+				if( ! pool->addr() ) {
+					fprintf( stderr, "%s: %s\n", my_name, pool->error() );
+					exit( 1 );
+				}
+				break;
+
+			case 'P':
+				if( cmd != CA_REQUEST_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				proc_id = atoi( my_optarg );
+				break;
+
+			case 'c':
+				classad_path = strdup( my_optarg );
+				break;
+
+			case 'C':
+				if( cmd != CA_REQUEST_CLAIM ) {
+					invalid( strdup(long_options[option_index].name) );
+				}
+				cluster_id = atoi( my_optarg );
+				break;
+
+			case '?':
+				invalid(argv[my_optind -1]);
+				break;
+
+			default:
+				abort();
 			}
-			timeout = atoi( *tmp );
-			break;
-
-	    case 'x':
-			if( strncmp("-x509proxy", *tmp, strlen(*tmp)) ) {
-				invalid( *tmp );
-			} 
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-x509proxy" );
-			}
-			proxy_file = *tmp;
-			break;
-
-		case 'p':
-			parsePOpt( tmp[0], tmp[1] );
-			tmp++;
-			break;
-
-		case 'c':
-			parseCOpt( tmp[0], tmp[1] );
-			tmp++;
-			break;
-
-		default:
-			invalid( *tmp );
-
 		}
 	}
 
@@ -927,6 +1093,120 @@ printFast( void )
 void
 usage( char *str )
 {
+	if(!param_boolean("USE_GNU_ARGS", false))
+		old_usage(str);
+	bool has_cmd_opt = true;
+	bool needsID = true;
+
+	if( ! str ) {
+		fprintf( stderr, "Use \"--help\" to see usage information\n" );
+		exit( 1 );
+	}
+	if( !cmd ) {
+		fprintf( stderr, "Usage: %s [command] [options]\n", str );
+		fprintf( stderr, "Where [command] is one of:\n" );
+		printCmd( CA_REQUEST_CLAIM );
+		printCmd( CA_RELEASE_CLAIM );
+		printCmd( CA_ACTIVATE_CLAIM );
+		printCmd( CA_DEACTIVATE_CLAIM );
+		printCmd( CA_SUSPEND_CLAIM );
+		printCmd( CA_RESUME_CLAIM );
+		printCmd( CA_RENEW_LEASE_FOR_CLAIM );
+		printCmd( DELEGATE_GSI_CRED_STARTD );
+		fprintf( stderr, "use %s [command] --help for more "
+				 "information on a given command\n", str ); 
+		exit( 1 );
+	}
+
+	switch( cmd ) {
+	case CA_REQUEST_CLAIM:
+		needsID = false;
+		break;
+	case CA_SUSPEND_CLAIM:
+	case CA_RESUME_CLAIM:
+		has_cmd_opt = false;
+		break;
+	}
+
+	fprintf( stderr, "Usage: %s %s[target] [general-opts]%s\n", str,
+			 needsID ? " [claimid] " : "",
+			 has_cmd_opt ? " [command-opts]" : "");
+
+	printCmd( cmd );
+	
+	if( needsID ) { 
+		fprintf( stderr, "\nWhere [claimid] must be specified as:\n");
+		fprintf( stderr, "   --id ClaimId\t\tAct on the given COD claim\n" );
+		fprintf( stderr, "   (The startd address may be inferred from this in most cases, but it is better\n"
+				         "to specify the address explicitly.\n");
+	}
+
+	fprintf( stderr, "\nWhere [target] can be zero or one of:\n" );
+	fprintf( stderr, "   --name hostname\tContact the startd on the "
+			 "given host\n" ); 
+	fprintf( stderr, "   --pool hostname\tUse the given central manager "
+			 "to find the startd\n\t\t\trequested with -name\n" );
+	fprintf( stderr, "   --addr <ip_addr:port>\tContact the startd at " 
+			 "the given \"sinful string\"\n" );
+	fprintf( stderr, "   (If no target or claimid is specified, the local "
+			 "host is used)\n" );
+
+	fprintf( stderr, "\nWhere [general-opts] can either be one of:\n" );
+	fprintf( stderr, "   --help\t\tPrint this usage information and exit\n" );
+	fprintf( stderr, "   --version\t\tPrint the version of this tool and "
+			 "exit\n" );
+	fprintf( stderr, " or it may be zero or more of:\n" );
+	fprintf( stderr, "   --debug\t\tPrint verbose debugging information\n" );
+	fprintf( stderr, "   --classad file\tPrint the reply ClassAd to "
+			 "the given file\n" );
+	fprintf( stderr, "   --timeout N\t\tTimeout all network "
+			 "operations after N seconds\n" );
+
+	if( has_cmd_opt ) {
+		fprintf( stderr,
+ 				 "\nWhere [command-opts] can be zero or more of:\n" );
+	}
+
+	switch( cmd ) {
+
+	case CA_REQUEST_CLAIM:
+		fprintf( stderr, "   --requirements expr\tFind a resource "
+				 "that matches the boolean expression\n" );
+		fprintf( stderr, "   -lease N\t\tNumber of seconds to wait for lease renewal\n");
+		break;
+
+	case CA_ACTIVATE_CLAIM:
+		fprintf( stderr, "   --keyword string\tUse the keyword to "
+				 "find the job in the config file\n" );
+		fprintf( stderr, "   --jobad filename\tUse the ClassAd in filename "
+				 "to define the job\n" );
+		fprintf( stderr, "\t\t\t(if filename is \"-\", read from STDIN)\n" );
+		fprintf( stderr, "   --cluster N\t\tStart the job with the "
+				 "given cluster ID\n" );
+		fprintf( stderr, "   --proc N\t\tStart the job with the "
+				 "given proc ID\n" );
+		fprintf( stderr, "   --requirements expr\tFind a starter "
+				 "that matches the boolean expression\n" );
+		break;
+
+	case CA_RELEASE_CLAIM:
+	case CA_DEACTIVATE_CLAIM:
+		printFast();
+		break;
+
+	case DELEGATE_GSI_CRED_STARTD:
+		fprintf( stderr, "   --x509proxy filename\tDelegate the proxy in the "
+				 "specified file\n" );
+		break;
+	}
+
+	fprintf(stderr, "\n" );
+	exit( 1 );
+}
+
+void
+old_usage( char *str )
+{
 	bool has_cmd_opt = true;
 	bool needsID = true;
 
@@ -1035,5 +1315,3 @@ usage( char *str )
 	fprintf(stderr, "\n" );
 	exit( 1 );
 }
-
-

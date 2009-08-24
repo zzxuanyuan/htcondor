@@ -26,6 +26,7 @@
 #include "condor_distribution.h"
 #include "read_user_log.h"
 #include "HashTable.h"
+#include "my_getopt.h"
 
 /*
 XXX XXX XXX WARNING WARNING WARNING
@@ -53,6 +54,32 @@ Any other exit should indicate EXIT_FAILURE.
 #define ANY_NUMBER -1
 
 static void usage( char *cmd )
+{
+	fprintf(stderr,"\nUse: %s [options] <log-file> [job-number]\n",cmd);
+	fprintf(stderr,"Where options are:\n");
+	fprintf(stderr,"    --help             Display options\n");
+	fprintf(stderr,"    --version          Display Condor version\n");
+	fprintf(stderr,"    --debug            Show extra debugging info\n");
+	fprintf(stderr,"    --num <number>     Wait for this many jobs to end\n");
+	fprintf(stderr,"                       (default is all jobs)\n");
+	fprintf(stderr,"    --wait <seconds>   Wait no more than this time\n");
+	fprintf(stderr,"                       (default is unlimited)\n\n");
+
+	fprintf(stderr,"This command watches a log file, and indicates when\n");
+	fprintf(stderr,"a specific job (or all jobs mentioned in the log)\n");
+	fprintf(stderr,"have completed or aborted.  It returns success if\n");
+	fprintf(stderr,"all such jobs have completed or aborted, and returns\n");
+	fprintf(stderr,"failure otherwise.\n\n");
+
+	fprintf(stderr,"Examples:\n");
+	fprintf(stderr,"    %s logfile\n",cmd);
+	fprintf(stderr,"    %s logfile 35\n",cmd);
+	fprintf(stderr,"    %s logfile 1406.35\n",cmd);
+	fprintf(stderr,"    %s --wait 60 logfile 13.25.3\n",cmd);
+	fprintf(stderr,"    %s --num 2 logfile\n",cmd);
+}
+
+static void old_usage( char *cmd )
 {
 	fprintf(stderr,"\nUse: %s [options] <log-file> [job-number]\n",cmd);
 	fprintf(stderr,"Where options are:\n");
@@ -102,55 +129,133 @@ int main( int argc, char *argv[] )
 	myDistro->Init( argc, argv );
 	config();
 
-	for( i=1; i<argc; i++ ) {
-		if(!strcmp(argv[i],"-help")) {
-			usage(argv[0]);
-			EXIT_FAILURE;
-		} else if(!strcmp(argv[i],"-version")) {
-			version();
-			EXIT_FAILURE;
-		} else if(!strcmp(argv[i],"-debug")) {
-			// dprintf to console
-			Termlog = 1;
-			dprintf_config ("TOOL" );
-		} else if(!strcmp(argv[i],"-wait")) {
-			i++;
-			if(i>=argc) {
-				fprintf(stderr,"-wait requires an argument\n");
-				usage(argv[0]);
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for( i=1; i<argc; i++ ) {
+			if(!strcmp(argv[i],"-help")) {
+				old_usage(argv[0]);
 				EXIT_FAILURE;
-			}
-			waittime = atoi(argv[i]);
-			stoptime = time(0) + waittime;
-			dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
-		} else if( !strcmp( argv[i], "-num" ) ) {
-			i++;
-			if( i >= argc ) {
-				fprintf( stderr, "-num requires an argument\n" );
-				usage( argv[0] );
+			} else if(!strcmp(argv[i],"-version")) {
+				version();
 				EXIT_FAILURE;
-			}
-			minjobs = atoi( argv[i] );
-			if( minjobs < 1 ) {
-				fprintf( stderr, "-num must be greater than zero\n" );
-				usage( argv[0] );
-				EXIT_FAILURE;
-			}
-			dprintf( D_FULLDEBUG, "Will wait until %d jobs end\n", minjobs );
-		} else if(argv[i][0]!='-') {
-			if(!log_file_name) {
-				log_file_name = argv[i];
-			} else if(!job_name) {
-				job_name = argv[i];
+			} else if(!strcmp(argv[i],"-debug")) {
+				// dprintf to console
+				Termlog = 1;
+				dprintf_config ("TOOL" );
+			} else if(!strcmp(argv[i],"-wait")) {
+				i++;
+				if(i>=argc) {
+					fprintf(stderr,"-wait requires an argument\n");
+					old_usage(argv[0]);
+					EXIT_FAILURE;
+				}
+				waittime = atoi(argv[i]);
+				stoptime = time(0) + waittime;
+				dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
+			} else if( !strcmp( argv[i], "-num" ) ) {
+				i++;
+				if( i >= argc ) {
+					fprintf( stderr, "-num requires an argument\n" );
+					old_usage( argv[0] );
+					EXIT_FAILURE;
+				}
+				minjobs = atoi( argv[i] );
+				if( minjobs < 1 ) {
+					fprintf( stderr, "-num must be greater than zero\n" );
+					old_usage( argv[0] );
+					EXIT_FAILURE;
+				}
+				dprintf( D_FULLDEBUG, "Will wait until %d jobs end\n", minjobs );
+			} else if(argv[i][0]!='-') {
+				if(!log_file_name) {
+					log_file_name = argv[i];
+				} else if(!job_name) {
+					job_name = argv[i];
+				} else {
+					fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
+					old_usage(argv[0]);
+					EXIT_FAILURE;
+				}
 			} else {
-				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
-				usage(argv[0]);
+				old_usage(argv[0]);
 				EXIT_FAILURE;
 			}
-		} else {
-			usage(argv[0]);
-			EXIT_FAILURE;
 		}
+	} else {
+		int c;
+		while(1)
+		{
+			static struct option long_options[] =
+			{
+				{"help",     no_argument,        0,   'h'},
+				{"version",  no_argument,        0,   'v'},
+				{"debug",    no_argument,        0,   'd'},
+				{"wait",     required_argument,  0,   'w'},
+				{"num",      required_argument,  0,   'n'},
+				{0,0,0,0}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+			
+			c = my_getopt_long (argc, argv, "", long_options,
+						&option_index);
+			
+			if (c == -1)
+				break;
+			
+			switch (c)
+			{
+			case 'h':
+				usage(argv[0]);
+				EXIT_FAILURE;
+				break;
+
+			case 'v':
+				version();
+				EXIT_FAILURE;
+				break;
+
+			case 'd':
+				// dprintf to console
+				Termlog = 1;
+				dprintf_config ("TOOL" );
+				break;
+
+			case 'w':
+				waittime = atoi(argv[atoi(my_optarg)]);
+				stoptime = time(0) + waittime;
+				dprintf(D_FULLDEBUG,"Will wait until %s\n",ctime(&stoptime));
+				break;
+
+			case 'n':
+				minjobs = atoi( argv[i] );
+				if( minjobs < 1 ) {
+					fprintf( stderr, "-num must be greater than zero\n" );
+					usage( argv[0] );
+					EXIT_FAILURE;
+				}
+				dprintf( D_FULLDEBUG, "Will wait until %d jobs end\n", minjobs );
+				break;
+
+			case '?':
+				usage(argv[0]);
+				EXIT_FAILURE;
+
+			default:
+				abort();
+			}
+		}
+		for(;my_optind < argc; ++my_optind) {
+			if(!log_file_name) {
+					log_file_name = argv[my_optind];
+				} else if(!job_name) {
+					job_name = argv[my_optind];
+				} else {
+					fprintf(stderr,"Extra argument: %s\n\n",argv[my_optind]);
+					usage(argv[0]);
+					EXIT_FAILURE;
+				}
+		}
+
 	}
 
 	if( !log_file_name ) {

@@ -89,7 +89,7 @@ main( int argc, char* argv[] )
 	sig = atoi( &argv[1][1] );
 	if( !sig ) {
 		fprintf( stderr, "%s: \"%s\" is not a valid signal number\n",
-				 argv[0], &argv[1][1] );
+				argv[0], &argv[1][1] );
 		usage( argv[0] );
 	}
 

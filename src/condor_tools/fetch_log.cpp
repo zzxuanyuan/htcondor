@@ -28,11 +28,43 @@
 #include "reli_sock.h"
 #include "command_strings.h"
 #include "condor_distribution.h"
-
-int handleHistoryDir(ReliSock *);
+#include "my_getopt.h"
 
 void
 usage( char *cmd )
+{
+	fprintf(stderr,"Usage: %s [options] <machine-name> <subsystem>[.ext]\n",cmd);
+	fprintf(stderr,"Where options are:\n");
+	fprintf(stderr,"    --help             Display options\n");
+	fprintf(stderr,"    --version          Display Condor version\n");
+	fprintf(stderr,"    --pool <hostname>  Use this central manager\n");
+	fprintf(stderr,"    --debug            Show extra debugging info\n");
+	fprintf(stderr,"To select a particular daemon to talk to (does NOT select log file), use:\n");
+	fprintf(stderr,"    --master\n");
+	fprintf(stderr,"    --schedd\n");
+	fprintf(stderr,"    --startd\n");
+	fprintf(stderr,"    --collector\n");
+	fprintf(stderr,"    --negotiator\n");
+	fprintf(stderr,"    --kbdd\n");
+	fprintf(stderr,"    --view_collector\n");
+	fprintf(stderr,"The subsystem name plus optional extension specifies the log file.\n");
+	fprintf(stderr,"Possible subsystem names (anything with an entry XXX_LOG in remote config file):\n");
+
+	fprintf(stderr,"    MASTER\n");
+	fprintf(stderr,"    COLLECTOR\n");
+	fprintf(stderr,"    NEGOTIATOR\n");
+	fprintf(stderr,"    NEGOTIATOR_MATCH\n");
+	fprintf(stderr,"    SCHEDD\n");
+	fprintf(stderr,"    SHADOW\n");
+	fprintf(stderr,"    STARTD\n");
+	fprintf(stderr,"    STARTER\n");
+	fprintf(stderr,"    KBDD\n");
+	fprintf(stderr,"\nExample 1: %s -debug coral STARTD\n",cmd);
+	fprintf(stderr,"\nExample 2: %s -debug coral STARTER.slot2\n\n",cmd);
+}
+
+void
+old_usage( char *cmd )
 {
 	fprintf(stderr,"Usage: %s [options] <machine-name> <subsystem>[.ext]\n",cmd);
 	fprintf(stderr,"Where options are:\n");
@@ -60,8 +92,6 @@ usage( char *cmd )
 	fprintf(stderr,"    STARTD\n");
 	fprintf(stderr,"    STARTER\n");
 	fprintf(stderr,"    KBDD\n");
-	fprintf(stderr,"    HISTORY\n");
-	fprintf(stderr,"    STARTD_HISTORY\n");
 	fprintf(stderr,"\nExample 1: %s -debug coral STARTD\n",cmd);
 	fprintf(stderr,"\nExample 2: %s -debug coral STARTER.slot2\n\n",cmd);
 }
@@ -84,44 +114,113 @@ int main( int argc, char *argv[] )
 	myDistro->Init( argc, argv );
 	config();
 
-	for( i=1; i<argc; i++ ) {
-		if(!strcmp(argv[i],"-help")) {
-			usage(argv[0]);
-			exit(0);
-		} else if(!strcmp(argv[i],"-pool")) {	
-			i++;
-			if(!argv[i]) {
-				fprintf(stderr,"-pool requires an argument.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			pool = argv[i];
-		} else if(!strcmp(argv[i],"-version")) {
-			version();
-			exit(0);
-		} else if(!strcmp(argv[i],"-debug")) {
-            Termlog = 1;
-            dprintf_config ("TOOL");
-		} else if(argv[i][0]=='-') {
-			type = stringToDaemonType(&argv[i][1]);
-			if( type == DT_NONE || type == DT_DAGMAN) {
-				usage(argv[0]);
-				exit(1);
-			}
-		} else if(argv[i][0]!='-') {
-			if(!machine_name) {
-				machine_name = argv[i];
-			} else if(!log_name) {
-				log_name = argv[i];
+	if(!param_boolean("USE_GNU_ARGS", false))
+	{
+
+		for( i=1; i<argc; i++ ) {
+			if(!strcmp(argv[i],"-help")) {
+				old_usage(argv[0]);
+				exit(0);
+			} else if(!strcmp(argv[i],"-pool")) {	
+				i++;
+				if(!argv[i]) {
+					fprintf(stderr,"-pool requires an argument.\n\n");
+					old_usage(argv[0]);
+					exit(1);
+				}
+				pool = argv[i];
+			} else if(!strcmp(argv[i],"-version")) {
+				version();
+				exit(0);
+			} else if(!strcmp(argv[i],"-debug")) {
+				Termlog = 1;
+				dprintf_config ("TOOL");
+			} else if(argv[i][0]=='-') {
+				type = stringToDaemonType(&argv[i][1]);
+				if( type == DT_NONE || type == DT_DAGMAN) {
+					old_usage(argv[0]);
+					exit(1);
+				}
+			} else if(argv[i][0]!='-') {
+				if(!machine_name) {
+					machine_name = argv[i];
+				} else if(!log_name) {
+					log_name = argv[i];
+				} else {
+					fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
+					old_usage(argv[0]);
+					exit(1);
+				}
 			} else {
-				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
+				old_usage(argv[0]);
+				exit(1);
+			}
+		}
+	} else {
+		int c;
+
+		while(1)
+		{
+			static struct option long_options[] =
+			{
+				{"pool",       required_argument,  0,  'p'},
+				{"help",       no_argument,        0,  'h'},
+				{"version",    no_argument,        0,  'v'},
+				{"debug",      no_argument,        0,  'd'},
+				{0, 0, 0, 0,}
+			};
+			/* getopt_long stores the option index here */
+			int option_index = 0;
+			
+			c = my_getopt_long (argc, argv, "", long_options,
+						&option_index);
+			
+			if (c == -1)
+				break;
+			
+			switch (c) {
+			case 'p':
+				pool = my_optarg;
+				break;
+	
+			case 'v':
+				version();
+				exit(0);
+	
+			case 'd':
+				Termlog = 1;
+				dprintf_config ("TOOL");
+				break;
+	
+			case 'h':
+			case '?':
+				usage(argv[0]);
+				exit(1);
+	
+			default:
+				abort();
+			
+			}
+		}
+		
+		while(my_optind < argc) {
+			if(argv[my_optind][0]!='-') {
+				if(!machine_name) {
+					machine_name = argv[my_optind];
+				} else if(!log_name) {
+					log_name = argv[my_optind];
+				} else {
+					fprintf(stderr,"Extra argument: %s\n\n",argv[my_optind]);
+					usage(argv[0]);
+					exit(1);
+				}
+			} else {
 				usage(argv[0]);
 				exit(1);
 			}
-		} else {
-			usage(argv[0]);
-			exit(1);
+			my_optind++;
 		}
+
 	}
 
 	if( !machine_name || !log_name ) {
@@ -160,22 +259,9 @@ int main( int argc, char *argv[] )
 		return 1;
 	}
 
-	int commandType = DC_FETCH_LOG_TYPE_PLAIN;
-	if ((strcmp(log_name, "HISTORY") == 0) || (strcmp(log_name, "STARTD_HISTORY") == 0)) {
-		commandType = DC_FETCH_LOG_TYPE_HISTORY;
-	}
-
-	if ((strcmp(log_name, "STARTD.PER_JOB_HISTORY_DIR") == 0) || (strcmp(log_name, "STARTD.PER_JOB_HISTORY_DIR") == 0)) {
-		commandType = DC_FETCH_LOG_TYPE_HISTORY_DIR;
-	}
-
-	sock->put( commandType );
+	sock->put( DC_FETCH_LOG_TYPE_PLAIN );
 	sock->put( log_name );
 	sock->end_of_message();
-
-	if (commandType == DC_FETCH_LOG_TYPE_HISTORY_DIR) {
-		return handleHistoryDir(sock);
-	}
 
 	int result = -1;
 	int exitcode = 1;
@@ -216,29 +302,4 @@ int main( int argc, char *argv[] )
 	}
 
 	return exitcode;
-}
-
-int handleHistoryDir(ReliSock *sock) {
-	int  result = -1;
-	filesize_t filesize;
-	char *filename = 0;
-
-	sock->decode();
-
-	sock->code(result);
-	while (result == 1) {
-			int fd = -1;
-			filename = NULL;
-			sock->code(filename);
-			fd = safe_open_wrapper(filename, O_CREAT | O_WRONLY);
-			if (fd < 0) {
-				printf("Can't open local file %s for writing\n", filename);
-				exit(1);
-			}
-			result = sock->get_file(&filesize,fd,0);
-			close(fd);
-			
-			sock->code(result);
-			free(filename);
-	}
 }

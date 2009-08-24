@@ -20,6 +20,8 @@
 #include "condor_common.h"
 #include "MyString.h"
 #include "directory.h"
+#include "condor_config.h"
+#include "my_getopt.h"
 
 #define HISTORY_DELIM	"***"
 #define CLUSTERID	"ClusterId"
@@ -33,35 +35,80 @@ static void convertHistoryFile(const char *oldHistoryFileName);
 int
 main(int argc, char* argv[])
 {
+    config();
+    if(!param_boolean("USE_GNU_ARGS", false))
+    {
 	int i;
+	if (argc < 2) {
+		usage(argv[0]);
+		exit(1);
+	}
+		for( i=1; i < argc; i++) {
+		if (strcmp(argv[i],"-help")==0) {
+				usage(argv[0]);
+		exit(1);
+			}
+		}
+	
+		for( i=1; i < argc; i++) {
+		convertHistoryFile(argv[i]);
+		}
+	
+	printf("\nThe original history file%s renamed to end in '.oldver'\n",
+		(argc < 3) ? " was" : "s were");
+	printf("We recommend not leaving these in the Condor spool directory.\n");
+	
+		return 0;
+    } else
+    {
+	int c;
+	while (1)
+	{
+		static struct option long_options[] =
+		{
+			{"help", no_argument, 0, 'h'},
+			{0,0,0,0}
+		};
+		/* getopt_long stores the option index here */
+		int option_index = 0;
+		
+		c = my_getopt_long (argc, argv, "h", long_options,
+					&option_index);
+		
+		if (c == -1)
+			break;
+		
+		switch (c)
+		{
+		case 'h':
+		//same result as unsupported option, print usage and exit
+		case '?':
+		//option not supported. print usage and exit
+		  usage(argv[0]);
+		  exit(1);
 
-    if (argc < 2) {
-        usage(argv[0]);
-        exit(1);
-    }
-	for( i=1; i < argc; i++) {
-        if (strcmp(argv[i],"-help")==0) {
-			usage(argv[0]);
-            exit(1);
+		default:
+		//bad option. We shouldnt be able to get here
+		  abort();
 		}
 	}
 
-	for( i=1; i < argc; i++) {
-        convertHistoryFile(argv[i]);
+	while ((my_optind+1) < argc)
+	{
+		convertHistoryFile(argv[my_optind]);
 	}
 
-    printf("\nThe original history file%s renamed to end in '.oldver'\n",
-           (argc < 3) ? " was" : "s were");
-    printf("We recommend not leaving these in the Condor spool directory.\n");
-    
-	return 0;
+	printf("\nThe original history file%s renamed to end in '.oldver'\n",
+		(argc < 3) ? " was" : "s were");
+	printf("We recommend not leaving these in the Condor spool directory.\n");
+    }
 }
 
 
 static void 
 usage(char* name) 
 {
-	printf("Usage: %s [-help] <list of history files>\n",name);
+	printf("Usage: %s [--help] <list of history files>\n",name);
 	exit(1);
 }
 

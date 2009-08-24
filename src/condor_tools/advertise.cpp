@@ -30,9 +30,23 @@
 #include "daemon_list.h"
 #include "dc_collector.h"
 #include "my_hostname.h"
+#include "my_getopt.h"
 
 void
 usage( char *cmd )
+{
+	fprintf(stderr,"Usage: %s [options] <update-command> [<classad-filename>]\n",cmd);
+	fprintf(stderr,"Where options are:\n");
+	fprintf(stderr,"    -h || --help             Display options\n");
+	fprintf(stderr,"    -v || --version          Display Condor version\n");
+	fprintf(stderr,"    -p || --pool <hostname>  Use this central manager\n");
+	fprintf(stderr,"    -d || --debug            Show extra debugging info\n");
+	fprintf(stderr,"    -t || --tcp              Ship classad via TCP (default is UDP)\n");
+	fprintf(stderr,"\nExample: %s -t --debug UPDATE_STORAGE_AD adfile\n\n",cmd);
+}
+
+void
+old_usage( char *cmd )
 {
 	fprintf(stderr,"Usage: %s [options] <update-command> [<classad-filename>]\n",cmd);
 	fprintf(stderr,"Where options are:\n");
@@ -57,70 +71,152 @@ int main( int argc, char *argv[] )
 	int command=-1;
 	int i;
 	bool use_tcp = false;
-	bool with_ack = false;
 
 
 	myDistro->Init( argc, argv );
 	config();
 
-	for( i=1; i<argc; i++ ) {
-		if(!strcmp(argv[i],"-help")) {
-			usage(argv[0]);
-			exit(0);
-		} else if(!strcmp(argv[i],"-pool")) {	
-			i++;
-			if(!argv[i]) {
-				fprintf(stderr,"-pool requires an argument.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			pool = argv[i];
-		} else if(!strncmp(argv[i],"-tcp",strlen(argv[i]))) {
-			use_tcp = true;
-		} else if(!strcmp(argv[i],"-version")) {
-			version();
-			exit(0);
-		} else if(!strcmp(argv[i],"-debug")) {
-				// dprintf to console
-			Termlog = 1;
-			dprintf_config ("TOOL" );
-		} else if(argv[i][0]!='-' || !strcmp(argv[i],"-")) {
+/* New Command Line Arguments Code */
+
+   if(param_boolean("USE_GNU_ARGS", false))
+   {
+     int c;
+     while(1)
+     {
+       static struct option long_options[] =
+       {
+         {"debug",   no_argument,        0, 'd'},
+         {"help",    no_argument,        0, 'h'},
+         {"pool",    required_argument,  0, 'p'},
+         {"tcp",     no_argument,        0, 't'},
+         {"version", no_argument,        0, 'v'},
+         {0, 0, 0, 0,}
+       };
+       /* getopt_long stores the option index here */
+       int option_index = 0;
+       
+       c = my_getopt_long (argc, argv, "dhp:tv", long_options,
+                             &option_index);
+                             
+       if (c == -1)
+         break;
+         
+       switch (c)
+       {
+       case 'd':
+         Termlog = 1;
+         dprintf_config("TOOL" );
+         break;
+       
+       case 'h':
+         usage(argv[0]);
+         exit(0);
+         
+       case 'p':
+         pool = my_optarg;
+         break;
+         
+       case 't':
+         use_tcp = true;
+         break;
+         
+       case 'v':
+         version();
+         exit(0);
+         
+       case '?':
+         /* mygetopt_long alread printed error message */
+	 usage(argv[0]);
+	 exit(1);
+         
+       default:
+         abort();
+       }    
+     }   
+     while((my_optind+1) < argc)
+     {
+
+	if(argv[my_optind][0]!='-' || !strcmp(argv[my_optind],"-")) {
+		if(command==-1) {
+			command = getCollectorCommandNum(argv[my_optind]);
 			if(command==-1) {
-				command = getCollectorCommandNum(argv[i]);
-				if(command==-1) {
-					fprintf(stderr,"Unknown command name %s\n\n",argv[i]);
-					usage(argv[0]);
-					exit(1);
-				}
-			} else if(!filename) {
-				filename = argv[i];
-			} else {
-				fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
+				fprintf(stderr,"Unknown command name %s\n\n",argv[my_optind]);
 				usage(argv[0]);
 				exit(1);
 			}
+		} else if(!filename) {
+			filename = argv[my_optind];
 		} else {
-			fprintf(stderr,"Unknown argument: %s\n\n",argv[i]);
+			fprintf(stderr,"Extra argument: %s\n\n",argv[my_optind]);
 			usage(argv[0]);
 			exit(1);
 		}
+	} else {
+		fprintf(stderr,"Unknown argument: %s\n\n",argv[my_optind]);
+		usage(argv[0]);
+		exit(1);
 	}
+	++my_optind;
+     }
+   }
+
+/* End New Command Line Arguments Code */
+/* Old Command Line Arguments Code */
+
+   else 
+   {
+
+	  for( i=1; i<argc; i++ ) {
+	    if(!strcmp(argv[i],"-help")) {
+			old_usage(argv[0]);
+			exit(0);
+		 } else if(!strcmp(argv[i],"-pool")) {	
+		   i++;
+			  if(!argv[i]) {
+			    fprintf(stderr,"-pool requires an argument.\n\n");
+				 old_usage(argv[0]);
+				 exit(1);
+			  }
+			 pool = argv[i];
+		 } else if(!strncmp(argv[i],"-tcp",strlen(argv[i]))) {
+			 use_tcp = true;
+		 } else if(!strcmp(argv[i],"-version")) {
+			 version();
+			 exit(0);
+		 } else if(!strcmp(argv[i],"-debug")) {
+				// dprintf to console
+			 Termlog = 1;
+			 dprintf_config ("TOOL" );
+		 } else if(argv[i][0]!='-' || !strcmp(argv[i],"-")) {
+			 if(command==-1) {
+			   command = getCollectorCommandNum(argv[i]);
+				if(command==-1) {
+					fprintf(stderr,"Unknown command name %s\n\n",argv[i]);
+					old_usage(argv[0]);
+					exit(1);
+			   }
+			 } else if(!filename) {
+				filename = argv[i];
+			 } else {
+			   fprintf(stderr,"Extra argument: %s\n\n",argv[i]);
+				old_usage(argv[0]);
+				exit(1);
+			 }
+		 } else {
+		   fprintf(stderr,"Unknown argument: %s\n\n",argv[i]);
+			old_usage(argv[0]);
+			exit(1);
+		 }
+	  }
+	}
+
+/* End of Old Command Line Argument Code */
 
 	FILE *file;
 	ClassAd *ad;
 	Daemon *collector;
 	Sock *sock;
 	int eof,error,empty;
-
-	switch( command ) {
-	case UPDATE_STARTD_AD_WITH_ACK:
-		with_ack = true;
-		break;
-	}
-
-	if( with_ack ) {
-		use_tcp =  true;
-	}
 
 	if(!filename || !strcmp(filename,"-")) {
 		file = stdin;
@@ -198,17 +294,6 @@ int main( int argc, char *argv[] )
 			had_error = true;
 			delete sock;
 			continue;
-		}
-
-		if( with_ack ) {
-			sock->decode();
-			int ok = 0;
-			if( !sock->get(ok) || !sock->end_of_message() ) {
-				fprintf(stderr,"failed to get ack from %s\n",collector->addr());
-				had_error = true;
-				delete sock;
-				continue;
-			}
 		}
 
 		delete sock;

@@ -29,6 +29,7 @@
 #include "dynuser.h"
 #include "get_daemon_name.h"
 #include "condor_string.h"
+#include "my_getopt.h"
 
 #if defined(WIN32)
 #include "lsa_mgr.h"  // for CONFIG_MODE
@@ -292,117 +293,237 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 	opts->help = false;
 
 	bool err = false;
-	for (i=1; i<argc && !err; i++) {
-		switch(argv[i][0]) {
-		case 'a':
-		case 'A':	// Add
-			if (stricmp(argv[i], ADD_CREDENTIAL) == 0) {
-				if (!opts->mode) {
-					opts->mode = ADD_MODE;
-				}
-				else if (opts->mode != ADD_MODE) {
-					fprintf(stderr,
-					        "ERROR: exactly one command must be provided\n");
-					usage();
+
+	if(!param_boolean("USE_GNU_ARGS", false)) {
+		for (i=1; i<argc && !err; i++) {
+			switch(argv[i][0]) {
+			case 'a':
+			case 'A':	// Add
+				if (stricmp(argv[i], ADD_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = ADD_MODE;
+					}
+					else if (opts->mode != ADD_MODE) {
+						fprintf(stderr,
+							"ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
 					err = true;
-				}
-			} else {
-				err = true;
-				badCommand(argv[i]);
-			}	
-			break;
-		case 'd':	
-		case 'D':	// Delete
-			if (stricmp(argv[i], DELETE_CREDENTIAL) == 0) {
-				if (!opts->mode) {
-					opts->mode = DELETE_MODE;
-				}
-				else if (opts->mode != DELETE_MODE) {
-					fprintf(stderr,
-					        "ERROR: exactly one command must be provided\n");
-					usage();
+					badCommand(argv[i]);
+				}	
+				break;
+			case 'd':	
+			case 'D':	// Delete
+				if (stricmp(argv[i], DELETE_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = DELETE_MODE;
+					}
+					else if (opts->mode != DELETE_MODE) {
+						fprintf(stderr,
+							"ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
 					err = true;
-				}
-			} else {
-				err = true;
-				badCommand(argv[i]);
-			}	
-			break;
-		case 'q':	
-		case 'Q':	// tell me if I have anything stored
-			if (stricmp(argv[i], QUERY_CREDENTIAL) == 0) {
-				if (!opts->mode) {
-					opts->mode = QUERY_MODE;
-				}
-				else if (opts->mode != QUERY_MODE) {
-					fprintf(stderr,
-					        "ERROR: exactly one command must be provided\n");
-					usage();
+					badCommand(argv[i]);
+				}	
+				break;
+			case 'q':	
+			case 'Q':	// tell me if I have anything stored
+				if (stricmp(argv[i], QUERY_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = QUERY_MODE;
+					}
+					else if (opts->mode != QUERY_MODE) {
+						fprintf(stderr,
+							"ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
 					err = true;
-				}
-			} else {
-				err = true;
-				badCommand(argv[i]);
-			}	
-			break;
-#if defined(WIN32)
-		case 'c':	
-		case 'C':	// Config
-			if (stricmp(argv[i], CONFIG_CREDENTIAL) == 0) {
-				if (!opts->mode) {
-					opts->mode = CONFIG_MODE;
-				}
-				else {
-					fprintf(stderr, "ERROR: exactly one command must be provided\n");
-					usage();
+					badCommand(argv[i]);
+				}	
+				break;
+	#if defined(WIN32)
+			case 'c':	
+			case 'C':	// Config
+				if (stricmp(argv[i], CONFIG_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = CONFIG_MODE;
+					}
+					else {
+						fprintf(stderr, "ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
 					err = true;
-				}
-			} else {
-				err = true;
-				badCommand(argv[i]);
-			}	
-			break;
-#endif
-		case '-':
-			// various switches
-			switch (argv[i][1]) {
-				case 'n':
-					if (i+1 < argc) {
-						if (opts->daemonname != NULL) {
-							fprintf(stderr, "ERROR: only one '-n' arg my be provided\n");
-							usage();
-							err = true;
-						}
-						else {
-							opts->daemonname = get_daemon_name(argv[i+1]);
-							if (opts->daemonname == NULL) {
-								fprintf(stderr, "ERROR: %s is not a valid daemon name\n",
-									argv[i+1]);
+					badCommand(argv[i]);
+				}	
+				break;
+	#endif
+			case '-':
+				// various switches
+				switch (argv[i][1]) {
+					case 'n':
+						if (i+1 < argc) {
+							if (opts->daemonname != NULL) {
+								fprintf(stderr, "ERROR: only one '-n' arg my be provided\n");
+								usage();
 								err = true;
 							}
-							i++;
+							else {
+								opts->daemonname = get_daemon_name(argv[i+1]);
+								if (opts->daemonname == NULL) {
+									fprintf(stderr, "ERROR: %s is not a valid daemon name\n",
+										argv[i+1]);
+									err = true;
+								}
+								i++;
+							}
+						} else {
+							err = true;
+							optionNeedsArg(argv[i]);
 						}
-					} else {
-						err = true;
-						optionNeedsArg(argv[i]);
-					}
-					break;
-				case 'p':
-					if (i+1 < argc) {
-						if (opts->pw[0] != '\0') {
-							fprintf(stderr, "ERROR: only one '-p' args may be provided\n");
+						break;
+					case 'p':
+						if (i+1 < argc) {
+							if (opts->pw[0] != '\0') {
+								fprintf(stderr, "ERROR: only one '-p' args may be provided\n");
+								usage();
+								err = true;
+							}
+							else {
+								strncpy(opts->pw, argv[i+1], MAX_PASSWORD_LENGTH);
+								i++;
+							}
+						} else {
+							err = true;
+							optionNeedsArg(argv[i]);
+						}
+						break;
+					case 'c':
+						if (opts->username[0] != '\0') {
+							fprintf(stderr, "ERROR: only one '-c' or '-u' arg may be provided\n");
 							usage();
 							err = true;
 						}
 						else {
-							strncpy(opts->pw, argv[i+1], MAX_PASSWORD_LENGTH);
-							i++;
+							strcpy(opts->username, POOL_PASSWORD_USERNAME);
 						}
-					} else {
+						break;
+					case 'u':
+						if (i+1 < argc) {
+							if (opts->username[0] != '\0') {
+								fprintf(stderr, "ERROR: only one of '-s' or '-u' may be provided\n");
+								usage();
+								err = true;
+							}
+							else {
+								strncpy(opts->username, argv[i+1], MAX_PASSWORD_LENGTH);
+								i++;
+								char* at_ptr = strchr(opts->username, '@');
+								// '@' must be in the string, but not the beginning
+								// or end of the string.
+								if (at_ptr == NULL || 
+									at_ptr == opts->username ||
+									at_ptr == opts->username+strlen(opts->username)-1) {
+									fprintf(stderr, "ERROR: Username '%s' is not of "
+										"the form: account@domain\n", opts->username);
+									usage();
+								}
+							}
+						} else {
+							err = true;
+							optionNeedsArg(argv[i]);
+						}
+						break;
+	#if !defined(WIN32)
+					case 'f':
+						if (i+1 >= argc) {
+							err = true;
+							optionNeedsArg(argv[i]);
+						}
+						opts->password_file = argv[i+1];
+						i++;
+						opts->mode = ADD_MODE;
+						break;
+	#endif
+					case 'd':
+						Termlog = 1;
+						dprintf_config ("TOOL");
+						break;
+					case 'h':
+						opts->help = true;
+						break;
+					default:
 						err = true;
-						optionNeedsArg(argv[i]);
+						badOption(argv[i]);
+				}
+				break;	// break for case '-'
+			default:
+				err = true;
+				badCommand(argv[i]);
+				break;
+			}
+		}
+	} else {
+		int c;
+		opterr = 0;
+
+		#if !defined(WIN32)
+		while ((c = my_getopt (argc, argv, "npcufdh")) != -1 && !err) {
+		#else
+		while ((c = my_getopt (argc, argv, "npcudh")) != -1 && !err) {
+		#endif
+			switch(c) {
+				case 'n':
+					if(!argv[my_optind]||argv[my_optind][0] == '-') {
+						err = true;
+						optionNeedsArg("-n");
+					} else if (opts->daemonname != NULL) {
+						fprintf(stderr, "ERROR: only one '-n' arg my be provided\n");
+						usage();
+						err = true;
+					}
+					else {
+						opts->daemonname = 
+get_daemon_name(argv[my_optind]);
+						if (opts->daemonname == NULL) {
+							fprintf(stderr, "ERROR: %s is not a valid daemon name\n",
+								argv[my_optind]);
+							err = true;
+						} else {
+							my_optind++;
+						}
+					}
+					//IF no arg, set error code THIS TRUE FOR ALL OPTS w/ ARGS
+					//} else {
+					//	err = true;
+					//	optionNeedsArg(argv[i]);
+					//}
+					break;
+
+				case 'p':
+					if(!argv[my_optind]||argv[my_optind][0] == '-') {
+						err = true;
+						optionNeedsArg("-p");
+					} else if (opts->pw[0] != '\0') {
+						fprintf(stderr, "ERROR: only one '-p' args may be provided\n");
+						usage();
+						err = true;
+					}
+					else {
+						strncpy(opts->pw, argv[my_optind], 
+MAX_PASSWORD_LENGTH);
+						my_optind++;
 					}
 					break;
+
 				case 'c':
 					if (opts->username[0] != '\0') {
 						fprintf(stderr, "ERROR: only one '-c' or '-u' arg may be provided\n");
@@ -413,59 +534,144 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 						strcpy(opts->username, POOL_PASSWORD_USERNAME);
 					}
 					break;
+
 				case 'u':
-					if (i+1 < argc) {
-						if (opts->username[0] != '\0') {
-							fprintf(stderr, "ERROR: only one of '-s' or '-u' may be provided\n");
+					if(!argv[my_optind]||argv[my_optind][0] == '-') {
+						err = true;
+						optionNeedsArg("-u");
+					}
+					if (opts->username[0] != '\0') {
+						fprintf(stderr, "ERROR: only one of '-s' or '-u' may be provided\n");
+						usage();
+						err = true;
+					}
+					else {
+						strncpy(opts->username, argv[my_optind], 
+MAX_PASSWORD_LENGTH);
+						char* at_ptr = strchr(opts->username, '@');
+						// '@' must be in the string, but not the beginning
+						// or end of the string.
+						if (at_ptr == NULL || 
+							at_ptr == opts->username ||
+							at_ptr == opts->username+strlen(opts->username)-1) {
+							fprintf(stderr, "ERROR: Username '%s' is not of "
+								"the form: account@domain\n", opts->username);
 							usage();
-							err = true;
 						}
-						else {
-							strncpy(opts->username, argv[i+1], MAX_PASSWORD_LENGTH);
-							i++;
-							char* at_ptr = strchr(opts->username, '@');
-							// '@' must be in the string, but not the beginning
-							// or end of the string.
-							if (at_ptr == NULL || 
-								at_ptr == opts->username ||
-						   		at_ptr == opts->username+strlen(opts->username)-1) {
-								fprintf(stderr, "ERROR: Username '%s' is not of "
-									   "the form: account@domain\n", opts->username);
-								usage();
-							}
-						}
-					} else {
-						err = true;
-						optionNeedsArg(argv[i]);
 					}
+					my_optind++;
 					break;
-#if !defined(WIN32)
+	#if !defined(WIN32)
 				case 'f':
-					if (i+1 >= argc) {
+					if(!argv[my_optind]||argv[my_optind][0] == '-') {
 						err = true;
-						optionNeedsArg(argv[i]);
+						optionNeedsArg("-f");
 					}
-					opts->password_file = argv[i+1];
-					i++;
+					opts->password_file = argv[my_optind];
 					opts->mode = ADD_MODE;
+					my_optind++;
 					break;
-#endif
+	#endif /*defined(WIN32) */
+
 				case 'd':
 					Termlog = 1;
 					dprintf_config ("TOOL");
 					break;
+
 				case 'h':
 					opts->help = true;
 					break;
-				default:
+
+				case '?':
 					err = true;
-					badOption(argv[i]);
+					badOption(argv[my_optind]);
+					break;
+				default:
+					abort();
 			}
-			break;	// break for case '-'
-		default:
-			err = true;
-			badCommand(argv[i]);
-			break;
+		#if !defined(WIN32)
+		}
+		#else
+		}
+		#endif
+
+		for (i=my_optind+1; i<argc && !err; i++) {
+			switch(argv[i][0]) {
+			case 'a':
+			case 'A':	// Add
+				if (stricmp(argv[i], ADD_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = ADD_MODE;
+					}
+					else if (opts->mode != ADD_MODE) {
+						fprintf(stderr,
+							"ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
+					err = true;
+					badCommand(argv[i]);
+				}	
+				break;
+			case 'd':	
+			case 'D':	// Delete
+				if (stricmp(argv[i], DELETE_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = DELETE_MODE;
+					}
+					else if (opts->mode != DELETE_MODE) {
+						fprintf(stderr,
+							"ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
+					err = true;
+					badCommand(argv[i]);
+				}	
+				break;
+			case 'q':	
+			case 'Q':	// tell me if I have anything stored
+				if (stricmp(argv[i], QUERY_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = QUERY_MODE;
+					}
+					else if (opts->mode != QUERY_MODE) {
+						fprintf(stderr,
+							"ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
+					err = true;
+					badCommand(argv[i]);
+				}	
+				break;
+	#if defined(WIN32)
+			case 'c':	
+			case 'C':	// Config
+				if (stricmp(argv[i], CONFIG_CREDENTIAL) == 0) {
+					if (!opts->mode) {
+						opts->mode = CONFIG_MODE;
+					}
+					else {
+						fprintf(stderr, "ERROR: exactly one command must be provided\n");
+						usage();
+						err = true;
+					}
+				} else {
+					err = true;
+					badCommand(argv[i]);
+				}	
+				break;
+	#endif
+			default:
+				err = true;
+				//printf("2nd opt loop default!!!");
+				badCommand(argv[i]);
+				break;
+			}
 		}
 	}
 

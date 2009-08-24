@@ -33,6 +33,7 @@
 #include "daemon.h"
 #include "condor_distribution.h"
 #include "condor_attributes.h"
+#include "my_getopt.h"
 
 //-----------------------------------------------------------------
 
@@ -40,7 +41,6 @@ struct LineRec {
   MyString Name;
   float Priority;
   int Res;
-  float wtRes;
   float AccUsage;
   float Factor;
   int BeginUsage;
@@ -51,6 +51,7 @@ struct LineRec {
 
 static int CalcTime(int,int,int);
 static void usage(char* name);
+static void old_usage(char* name);
 static void ProcessInfo(AttrList* ad);
 static int CountElem(AttrList* ad);
 static void CollectInfo(int numElem, AttrList* ad, LineRec* LR);
@@ -91,78 +92,218 @@ main(int argc, char* argv[])
 
   MinLastUsageTime=time(0)-60*60*24;  // Default to show only users active in the last day
 
-  for (int i=1; i<argc; i++) {
-    if (strcmp(argv[i],"-setprio")==0) {
-      if (i+2>=argc) usage(argv[0]);
-      SetPrio=i;
-      i+=2;
+  if(!param_boolean("USE_GNU_ARGS", false)) {
+    for (int i=1; i<argc; i++) {
+      if (strcmp(argv[i],"-setprio")==0) {
+        if (i+2>=argc) usage(argv[0]);
+        SetPrio=i;
+        i+=2;
+      }
+      else if (strcmp(argv[i],"-setfactor")==0) {
+        if (i+2>=argc) usage(argv[0]);
+        SetFactor=i;
+        i+=2;
+      }
+      else if (strcmp(argv[i],"-setbegin")==0) {
+        if (i+2>=argc) usage(argv[0]);
+        SetBegin=i;
+        i+=2;
+      }
+      else if (strcmp(argv[i],"-setaccum")==0) {
+        if (i+2>=argc) usage(argv[0]);
+        SetAccum=i;
+        i+=2;
+      }
+      else if (strcmp(argv[i],"-setlast")==0) {
+        if (i+2>=argc) usage(argv[0]);
+        SetLast=i;
+        i+=2;
+      }
+      else if (strcmp(argv[i],"-resetusage")==0) {
+        if (i+1>=argc) usage(argv[0]);
+        ResetUsage=i;
+        i+=1;
+      }
+      else if (strcmp(argv[i],"-delete")==0) {
+        if (i+1>=argc) usage(argv[0]);
+        DeleteUser=i;
+        i+=1;
+      }
+      else if (strcmp(argv[i],"-resetall")==0) {
+        ResetAll=true;
+      }
+      else if (strcmp(argv[i],"-l")==0) {
+        LongFlag=true;
+      }
+      else if (strcmp(argv[i],"-all")==0) {
+        DetailFlag=1;
+      }
+      else if (strcmp(argv[i],"-activefrom")==0) {
+        if (argc-i<=3) usage(argv[0]);
+        int month=atoi(argv[i+1]);
+        int day=atoi(argv[i+2]);
+        int year=atoi(argv[i+3]);
+        MinLastUsageTime=CalcTime(month,day,year);
+        // printf("Date translation: %d/%d/%d = %d\n",month,day,year,FromDate);
+        i+=3;
+      }
+      else if (strcmp(argv[i],"-allusers")==0) {
+        MinLastUsageTime=-1;
+      }
+      else if (strcmp(argv[i],"-usage")==0) {
+        DetailFlag=2;
+      }
+      else if (strcmp(argv[i],"-getreslist")==0) {
+        if (argc-i<=1) usage(argv[0]);
+        GetResList=i;
+        i+=1;
+      }
+      else if (strcmp(argv[i],"-pool")==0) {
+        if (argc-i<=1) usage(argv[0]);
+        pool = argv[i+1];
+        i++;
+      }
+      else {
+        usage(argv[0]);
+      }
     }
-    else if (strcmp(argv[i],"-setfactor")==0) {
-      if (i+2>=argc) usage(argv[0]);
-      SetFactor=i;
-      i+=2;
-    }
-    else if (strcmp(argv[i],"-setbegin")==0) {
-      if (i+2>=argc) usage(argv[0]);
-      SetBegin=i;
-      i+=2;
-    }
-    else if (strcmp(argv[i],"-setaccum")==0) {
-      if (i+2>=argc) usage(argv[0]);
-      SetAccum=i;
-      i+=2;
-    }
-    else if (strcmp(argv[i],"-setlast")==0) {
-      if (i+2>=argc) usage(argv[0]);
-      SetLast=i;
-      i+=2;
-    }
-    else if (strcmp(argv[i],"-resetusage")==0) {
-      if (i+1>=argc) usage(argv[0]);
-      ResetUsage=i;
-      i+=1;
-    }
-    else if (strcmp(argv[i],"-delete")==0) {
-      if (i+1>=argc) usage(argv[0]);
-      DeleteUser=i;
-      i+=1;
-    }
-    else if (strcmp(argv[i],"-resetall")==0) {
-      ResetAll=true;
-    }
-    else if (strcmp(argv[i],"-l")==0) {
-      LongFlag=true;
-    }
-    else if (strcmp(argv[i],"-all")==0) {
-      DetailFlag=1;
-    }
-    else if (strcmp(argv[i],"-activefrom")==0) {
-      if (argc-i<=3) usage(argv[0]);
-      int month=atoi(argv[i+1]);
-      int day=atoi(argv[i+2]);
-      int year=atoi(argv[i+3]);
-      MinLastUsageTime=CalcTime(month,day,year);
-      // printf("Date translation: %d/%d/%d = %d\n",month,day,year,FromDate);
-      i+=3;
-    }
-    else if (strcmp(argv[i],"-allusers")==0) {
-      MinLastUsageTime=-1;
-    }
-    else if (strcmp(argv[i],"-usage")==0) {
-      DetailFlag=2;
-    }
-    else if (strcmp(argv[i],"-getreslist")==0) {
-      if (argc-i<=1) usage(argv[0]);
-      GetResList=i;
-      i+=1;
-    }
-    else if (strcmp(argv[i],"-pool")==0) {
-      if (argc-i<=1) usage(argv[0]);
-      pool = argv[i+1];
-      i++;
-	}
-    else {
-      usage(argv[0]);
+  } else {
+    int c;
+    while(1)
+     {
+       static struct option long_options[] =
+       {
+         {"setprio",       required_argument,  0,        'P'},
+         {"setfactor",     required_argument,  0,        'F'},
+         {"setbegin",      required_argument,  0,        'B'},
+         {"setaccum",      required_argument,  0,        'A'},
+         {"setlast",       required_argument,  0,        'L'},
+         {"resetusage",    required_argument,  0,        'r'},
+         {"delete",        required_argument,  0,        'd'},
+         {"getreslist",    required_argument,  0,        'g'},
+         {"pool",          required_argument,  0,        'p'},
+         {"resetall",      no_argument,        0,        'R'},
+         {"all",           no_argument,        0,        'a'},
+         {"activefrom",  no_argument,        0,        't'},
+         {"allusers",      no_argument,        0,        'u'},
+         {"usage",         no_argument,        0,        'h'},
+         {0, 0, 0, 0,}
+       };
+       /* getopt_long stores the option index here */
+       int option_index = 0;
+
+       c = my_getopt_long (argc, argv, "", long_options,
+                             &option_index);
+
+       if (c == -1)
+         break;
+
+       switch (c) {
+       case 'P':
+         if(!argv[my_optind]||argv[my_optind][0] == '-') {
+           fprintf( stderr, "%s requires 2 arguments\n", "--setprio");
+           usage(argv[0]);
+         } else {
+           SetPrio=my_optind-1;
+           my_optind++;
+         }
+         break;
+
+       case 'F':
+         if(!argv[my_optind]||argv[my_optind][0] == '-') {
+           fprintf( stderr, "%s requires 2 arguments\n", "--setfactor");
+           usage(argv[0]);
+         } else {
+           SetFactor=my_optind-1;
+           my_optind++;
+         }
+         break;
+
+       case 'B':
+         if(!argv[my_optind]||argv[my_optind][0] == '-') {
+           fprintf( stderr, "%s requires 2 arguments\n", "--setbegin");
+           usage(argv[0]);
+         } else {
+           SetBegin=my_optind-1;
+           my_optind++;
+         }
+         break;
+
+       case 'A':
+         if(!argv[my_optind]||argv[my_optind][0] == '-') {
+           fprintf( stderr, "%s requires 2 arguments\n", "--setaccum");
+           usage(argv[0]);
+         } else {
+           SetAccum=my_optind-1;
+           my_optind++;
+         }
+         break;
+
+       case 'L':
+         if(!argv[my_optind]||argv[my_optind][0] == '-') {
+           fprintf( stderr, "%s requires 2 arguments\n", "--setlast");
+           usage(argv[0]);
+         } else {
+           SetLast=my_optind-1;
+           my_optind++;
+         }
+         break;
+
+       case 'r':
+         ResetUsage=my_optind-1;
+         break;
+
+       case 'd':
+         DeleteUser=my_optind-1;
+         break;
+
+       case 'R':
+         ResetAll=true;
+         break;
+
+       case 'a':
+         DetailFlag=1;
+         break;
+
+       case 't':
+         if(!argv[my_optind]||argv[my_optind][0] == '-'||
+           !argv[my_optind+1]||argv[my_optind+1][0] == '-'||
+           !argv[my_optind+2]||argv[my_optind+2][0] == '-')
+         {
+           fprintf( stderr, "%s requires 3 arguments\n", "--activefrom"); 
+           usage(argv[0]);
+         } else {
+           int month=atoi(argv[my_optind]);
+           int day=atoi(argv[my_optind+1]);
+           int year=atoi(argv[my_optind+2]);
+           MinLastUsageTime=CalcTime(month,day,year);
+           // printf("Date translation: %d/%d/%d = %d\n",month,day,year,FromDate);
+         }
+         break;
+
+       case 'u':
+         MinLastUsageTime=-1;
+         break;
+
+       case 'h':
+         DetailFlag=2;
+         break;
+
+       case 'g':
+         GetResList=my_optind-1;
+         break;
+
+       case 'p':
+         pool=my_optarg;
+         break;
+
+       case '?':
+         usage(argv[0]);
+         break;
+
+       default:
+         abort();
+       }
     }
   }
       
@@ -535,13 +676,12 @@ int CompPrio(const void * ina, const void * inb)
 
 static void CollectInfo(int numElem, AttrList* ad, LineRec* LR)
 {
-  char  attrName[32], attrPrio[32], attrResUsed[32], attrWtResUsed[32], attrFactor[32], attrBeginUsage[32], attrAccUsage[42];
+  char  attrName[32], attrPrio[32], attrResUsed[32], attrFactor[32], attrBeginUsage[32], attrAccUsage[32];
   char  attrLastUsage[32];
   char  name[128];
   float priority, Factor, AccUsage;
   int   resUsed, BeginUsage;
   int   LastUsage;
-  float wtResUsed;
 
   for( int i=1; i<=numElem; i++) {
     LR[i-1].Priority=0;
@@ -549,11 +689,10 @@ static void CollectInfo(int numElem, AttrList* ad, LineRec* LR)
     sprintf( attrName , "Name%d", i );
     sprintf( attrPrio , "Priority%d", i );
     sprintf( attrResUsed , "ResourcesUsed%d", i );
-    sprintf( attrWtResUsed , "WeightedResourcesUsed%d", i );
     sprintf( attrFactor , "PriorityFactor%d", i );
     sprintf( attrBeginUsage , "BeginUsageTime%d", i );
     sprintf( attrLastUsage , "LastUsageTime%d", i );
-    sprintf( attrAccUsage , "WeightedAccumulatedUsage%d", i );
+    sprintf( attrAccUsage , "AccumulatedUsage%d", i );
 
     if( !ad->LookupString	( attrName, name ) 		|| 
 		!ad->LookupFloat	( attrPrio, priority ) )
@@ -566,16 +705,11 @@ static void CollectInfo(int numElem, AttrList* ad, LineRec* LR)
 		!ad->LookupInteger	( attrResUsed, resUsed ) ) 
 			DetailFlag=0;
 
-	if( !ad->LookupFloat( attrWtResUsed, wtResUsed ) ) {
-		wtResUsed = resUsed;
-	}
-
 	if (LastUsage==0) LastUsage=-1;
 
     LR[i-1].Name=name;
     LR[i-1].Priority=priority;
     LR[i-1].Res=resUsed;
-    LR[i-1].wtRes=wtResUsed;
     LR[i-1].Factor=Factor;
     LR[i-1].BeginUsage=BeginUsage;
     LR[i-1].LastUsage=LastUsage;
@@ -599,7 +733,6 @@ static void PrintInfo(AttrList* ad, LineRec* LR, int NumElem)
 
   LineRec Totals;
   Totals.Res=0;
-  Totals.wtRes=0.0;
   Totals.BeginUsage=0;
   Totals.AccUsage=0;
   
@@ -608,9 +741,9 @@ static void PrintInfo(AttrList* ad, LineRec* LR, int NumElem)
   char* Fmt3="Number of users shown: %-13d %14s\n";    // Totals line format
 
   if (DetailFlag==1) {
-    Fmt1="%-30s %14.2f %8.2f %12.2f %4.0f %12.2f %14s %14s\n"; 
+    Fmt1="%-30s %14.2f %8.2f %12.2f %4d %12.2f %14s %14s\n"; 
     Fmt2="%-30s %14s %8s %12s %4s %12s %14s %14s\n"; 
-    Fmt3="Number of users: %-13d %14s %8s %12s %4.0f %12.2f %14s %14s\n"; 
+    Fmt3="Number of users: %-13d %14s %8s %12s %4d %12.2f %14s %14s\n"; 
   }
   else if (DetailFlag==2) {
     Fmt1="%-30s %12.2f %14s %14s\n"; 
@@ -619,13 +752,13 @@ static void PrintInfo(AttrList* ad, LineRec* LR, int NumElem)
   }
 
   if (DetailFlag==2) {
-    printf(Fmt2,"         ","Total Usage","     Usage    ","     Last     ");
-    printf(Fmt2,"User Name","(wghted-hrs)","  Start Time  ","  Usage Time  ");
+    printf(Fmt2,"         ","Accumulated","     Usage    ","     Last     ");
+    printf(Fmt2,"User Name","Usage (hrs)","  Start Time  ","  Usage Time  ");
     printf(Fmt2,"------------------------------","-----------","----------------","----------------");
   }
   else {
-    printf(Fmt2,"         ","Effective","  Real  ","  Priority  ","Res ","Total Usage","      Usage     ","      Last      ");
-    printf(Fmt2,"User Name","Priority ","Priority","   Factor   ","Used","(wghted-hrs)","   Start Time   ","   Usage Time   ");
+    printf(Fmt2,"         ","Effective","  Real  ","  Priority  ","Res ","Accumulated","      Usage     ","      Last      ");
+    printf(Fmt2,"User Name","Priority ","Priority","   Factor   ","Used","Usage (hrs)","   Start Time   ","   Usage Time   ");
     printf(Fmt2,"------------------------------","---------","--------","------------","----","-----------","----------------","----------------");
   }
 
@@ -638,8 +771,8 @@ static void PrintInfo(AttrList* ad, LineRec* LR, int NumElem)
     if (DetailFlag==2)
       printf(Fmt1,LR[i].Name.Value(),LR[i].AccUsage/3600.0,format_date_year(LR[i].BeginUsage),LastUsageStr);
     else 
-      printf(Fmt1,LR[i].Name.Value(),LR[i].Priority,(LR[i].Priority/LR[i].Factor),LR[i].Factor,LR[i].wtRes,LR[i].AccUsage/3600.0,format_date_year(LR[i].BeginUsage),LastUsageStr);
-    Totals.wtRes+=LR[i].wtRes;
+      printf(Fmt1,LR[i].Name.Value(),LR[i].Priority,(LR[i].Priority/LR[i].Factor),LR[i].Factor,LR[i].Res,LR[i].AccUsage/3600.0,format_date_year(LR[i].BeginUsage),LastUsageStr);
+    Totals.Res+=LR[i].Res;
     Totals.AccUsage+=LR[i].AccUsage;
     if (LR[i].BeginUsage<Totals.BeginUsage || Totals.BeginUsage==0) Totals.BeginUsage=LR[i].BeginUsage;
   }
@@ -651,7 +784,7 @@ static void PrintInfo(AttrList* ad, LineRec* LR, int NumElem)
   }
   else {
     printf(Fmt2,"------------------------------","---------","--------","------------","----","-----------","----------------","----------------");
-    printf(Fmt3,UserCount,"","","",Totals.wtRes,Totals.AccUsage/3600.0,format_date_year(Totals.BeginUsage),LastUsageStr);
+    printf(Fmt3,UserCount,"","","",Totals.Res,Totals.AccUsage/3600.0,format_date_year(Totals.BeginUsage),LastUsageStr);
   }
 
   return;
@@ -660,6 +793,15 @@ static void PrintInfo(AttrList* ad, LineRec* LR, int NumElem)
 //-----------------------------------------------------------------
 
 static void usage(char* name) {
+  if(!param_boolean("USE_GNU_ARGS", false))
+    old_usage(name);
+  fprintf( stderr, "usage: %s [ --pool hostname ] [ --all | --usage | { --setprio | --setfactor | --setaccum | --setbegin | --setlast }  user value | "
+			"--resetusage user | --resetall | --getreslist user | --delete user ] "
+			"[--allusers | --activefrom month day year] [-l]\n", name );
+  exit(1);
+}
+
+static void old_usage(char* name) {
   fprintf( stderr, "usage: %s [ -pool hostname ] [ -all | -usage | { -setprio | -setfactor | -setaccum | -setbegin | -setlast }  user value | "
 			"-resetusage user | -resetall | -getreslist user | -delete user ] "
 			"[-allusers | -activefrom month day year] [-l]\n", name );
@@ -701,7 +843,7 @@ static void PrintResList(AttrList* ad)
   printf("Number of Resources Used: %d\n",i-1);
 
   return;
-} 
+}
 
 //-----------------------------------------------------------------
 
