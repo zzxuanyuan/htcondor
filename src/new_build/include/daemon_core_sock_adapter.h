@@ -1,0 +1,1 @@
+../../condor_includes/daemon_core_sock_adapter.h

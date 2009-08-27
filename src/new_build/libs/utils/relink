@@ -1,0 +1,8 @@
+#!/bin/sh
+
+for i in `ls ../../../condor_util_lib/*.c`; 
+do 
+#echo ${i##*/}pp;
+ln -s $i `echo ${i##*/}pp`;
+done
+
