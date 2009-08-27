@@ -80,7 +80,7 @@ main(int argc, char *argv[])
 	}
 
 ///////////////////////////////////////////////////////
-	if(!param_boolean("USE_GNU_ARGS", false)) {
+	if(!param_boolean("USE_GNU_ARGS", true)) {
 ///////////////////////////////////////////////////////
 	
 		// if -debug is present, it must be first. sigh.

@@ -473,7 +473,7 @@ parseCommandLine(StoreCredOptions *opts, int argc, char *argv[]) {
 		}
 	} else {
 		int c;
-		opterr = 0;
+		my_opterr = 0;
 
 		#if !defined(WIN32)
 		while ((c = my_getopt (argc, argv, "npcufdh")) != -1 && !err) {

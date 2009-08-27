@@ -92,7 +92,7 @@ main(int argc, char* argv[])
 
   MinLastUsageTime=time(0)-60*60*24;  // Default to show only users active in the last day
 
-  if(!param_boolean("USE_GNU_ARGS", false)) {
+  if(!param_boolean("USE_GNU_ARGS", true)) {
     for (int i=1; i<argc; i++) {
       if (strcmp(argv[i],"-setprio")==0) {
         if (i+2>=argc) usage(argv[0]);
