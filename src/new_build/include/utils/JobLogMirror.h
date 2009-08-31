@@ -1,1 +1,0 @@
-../../../condor_c++_util/JobLogMirror.h

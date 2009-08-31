@@ -5,9 +5,9 @@ set(TargetName utils)
 file(GLOB HeaderFiles "*.h" )
 file(GLOB SourceFiles "*.cpp" )
 file(GLOB WinSrcs "*INDOW*")
-file(GLOB TestSrcs "test*")
 
-list(REMOVE_ITEM SourceFiles ${TestSrcs})
+#file(GLOB TestSrcs "test*")
+#list(REMOVE_ITEM SourceFiles ${TestSrcs})
 
 # need to if wrap windows
 if(MSVC)
