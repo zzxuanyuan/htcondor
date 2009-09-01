@@ -18,7 +18,8 @@
  ***************************************************************/
 
 
- 
+#include "config.h"
+#ifndef HAVE_SETEGID
 
 /*
 ** Compatibility routine for systems which utilize setresuid() for
@@ -29,4 +30,6 @@ int seteuid( int euid )
 {
 	return setresuid( -1, euid, -1 );
 }
+#endif
+
 #endif

@@ -35,7 +35,7 @@
 
 #ifndef WIN32
 
-#include "syscall_numbers.h"
+//#include "syscall_numbers.h"
 
 typedef int BOOL;
 #endif

@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  ***************************************************************/
+#ifdef WIN32
 
 #include "condor_common.h"
 #include "condor_debug.h"
@@ -1052,4 +1053,5 @@ main(int argc, char* argv[]) {
 	return(0);
 }
 
+#endif
 #endif

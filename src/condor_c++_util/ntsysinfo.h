@@ -17,6 +17,8 @@
  *
  ***************************************************************/
 
+#ifdef WIN32
+
 #ifndef NTSYSINFO_H
 #define NTSYSINFO_H
 
@@ -84,4 +86,4 @@ class CSysinfo
 };
 
 #endif
-
+#endif

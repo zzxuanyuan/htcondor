@@ -18,6 +18,7 @@
  ***************************************************************/
 
 #include "condor_common.h"
+#ifndef HAS_INET_NTOA
 
 #if defined(IRIX)
 #include <arpa/inet.h>
@@ -86,4 +87,5 @@ inet_ntoa( struct in_addr inaddr ) {
 #error Please supply an implementation of inet_ntoa() for this platform!
 #endif
 
+#endif
 

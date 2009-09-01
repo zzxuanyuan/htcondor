@@ -29,7 +29,7 @@
  * officially supported with NT 5.   - Todd Tannenbaum, 10/98
 ****************/
 
-
+#ifdef WIN32
 #include "condor_common.h"
 #include "ntsysinfo.h"
 #include <psapi.h>
@@ -575,4 +575,6 @@ CSysinfo::ComparePidAge(pid_t pid1, pid_t pid2 ) {
 
 	return CompareFileTime(&ft1, &ft2);
 }
+
+#endif
 

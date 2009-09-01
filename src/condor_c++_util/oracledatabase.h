@@ -179,3 +179,4 @@ private:
 };
 
 #endif /* _PGSQLDATABSE_H_ */
+#endif

@@ -17,6 +17,8 @@
 *
 ***************************************************************/
 
+#ifdef WINDOWS
+
 #pragma once
 
 #ifndef _USER32_API_H_
@@ -72,3 +74,4 @@ private:
 };
 
 #endif // _USER32_API_H_
+#endif

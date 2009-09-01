@@ -18,16 +18,17 @@
  ***************************************************************/
 
 
- 
+#include "config.h"
 
+#ifndef HAVE_GETWD
 #include <sys/param.h>
 
 /*
 ** Compatibility routine for systems which use getcwd() instead.
 */
-char *
-getwd( path )
-char	*path;
+char * getwd(char	*path)
 {
 	return ((char *) getcwd( path, MAXPATHLEN ));
 }
+
+#endif

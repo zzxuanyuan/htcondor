@@ -159,7 +159,7 @@ vsnprintf(char *output, size_t buffer_size, const char *format, va_list args)
 	} else {
 		char *full_output;
 
-		full_output = malloc(actual_length + 1);
+		full_output = (char *) malloc(actual_length + 1);
 		if (full_output == NULL) {
 			actual_length = -1;
 		} else {

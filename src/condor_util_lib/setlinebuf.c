@@ -17,17 +17,18 @@
  *
  ***************************************************************/
 
+#include "config.h"
 
- 
-
+#ifndef HAVE_SETLINEBUF
 #include <stdio.h>
 
 /*
 ** Compatibility routine for HP-UX which has setvbuf() instead of setlinebuf().
 */
 int
-setlinebuf( fp )
-FILE	*fp;
+setlinebuf( FILE *fp)
 {
 	return setvbuf( fp, NULL, _IOLBF, 0 );
 }
+
+#endif

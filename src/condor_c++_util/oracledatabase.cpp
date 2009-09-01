@@ -19,6 +19,8 @@
 
 
 #include "condor_common.h"
+#ifdef HAVE_ORACLE
+
 #include "condor_io.h"
 #include "oracledatabase.h"
 #include "MyString.h"
@@ -1883,3 +1885,5 @@ ORACLEDatabase::execQueryWithBind(const char* sql,
 
 	return QUILL_SUCCESS;
 }
+
+#endif

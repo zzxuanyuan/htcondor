@@ -204,10 +204,10 @@ PGSQLDatabase::execCommand(const char* sql,
 						   int &num_result)
 {
 	PGresult 	*result;
-	char*		num_result_str = NULL;
-	struct timeval tvStart, tvEnd;
+	char*		num_result_str = NULL;	
 
 #ifdef TT_TIME_SQL
+	struct timeval tvStart, tvEnd;
 	gettimeofday( &tvStart, NULL );
 #endif	
 

@@ -47,7 +47,7 @@
 #include "condor_create_id.h"
 
 #include "cedar_enums.h"
-#include "../condor_sysapi/sysapi.h"
+//#include "../condor_sysapi/sysapi.h"
 
 /**********************************************************************
 ** C++ specific stuff 

@@ -27,7 +27,7 @@
 #include "condor_xml_classads.h"
 #include "condor_config.h"
 #include "stat_wrapper.h"
-#include "../condor_privsep/condor_privsep.h"
+//#include "../condor_privsep/condor_privsep.h"
 #include "read_user_log_state.h"
 
 static const char FileStateSignature[] = "UserLogReader::FileState";

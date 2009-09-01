@@ -17,7 +17,8 @@
  *
  ***************************************************************/
 
-
+#include "config.h"
+#ifndef HAVE_GETPAGESIZE
  
 
 #if !defined(Solaris)
@@ -35,3 +36,5 @@ int getpagesize()
 {
 	return NBPG;
 }
+
+#endif

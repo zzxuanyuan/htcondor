@@ -26,7 +26,7 @@
 #include "status_string.h"
 #include "condor_config.h"
 #include "stat_wrapper.h"
-#include "perm.h"
+//#include "perm.h"
 #include "my_username.h"
 #include "my_popen.h"
 

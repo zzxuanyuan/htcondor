@@ -17,6 +17,7 @@
  *
  ***************************************************************/
 
+#ifdef WIN32
 
 #include "condor_common.h"
 #include "token_cache.h"
@@ -148,3 +149,5 @@ token_cache::cacheToString() {
 	}
 	return cache_string;
 }
+
+#endif

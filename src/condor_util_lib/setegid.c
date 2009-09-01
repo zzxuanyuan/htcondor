@@ -18,8 +18,8 @@
  ***************************************************************/
 
 
- 
-
+#include "config.h"
+#ifndef HAVE_SETEGID
 /*
 ** Compatibility routine for systems which utilize setresgid() for
 ** this purpose.
@@ -33,4 +33,6 @@ int setegid( int egid )
 	return setregid( -1, egid, -1 );;
 #endif
 }
+#endif
+
 #endif

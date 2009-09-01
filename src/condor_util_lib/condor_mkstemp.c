@@ -31,7 +31,7 @@
 
 static void RandomAscii(char *buf)
 {
-	static const char encoding[64] =
+	static const char encoding[65] =
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789_-";
@@ -58,13 +58,13 @@ static void RandomAscii(char *buf)
  * the real mkstemp does.  Use the umask to do better.
  */
 
-int mkstemp(char *template)
+int mkstemp(char * ptemplate)
 {
 	const int   countMax = 100;
 	const char  xString[] = "XXXXXX";
 	size_t      numXs = (sizeof xString / sizeof xString[0]) - 1;
 	
-	size_t      len = strlen(template);
+	size_t      len = strlen(ptemplate);
 	char        *x;
 	int         count = 0;;
 	
@@ -74,7 +74,7 @@ int mkstemp(char *template)
 	}
 	
 	/* pointer to trailing X's*/
-	x = &template[len - numXs];
+	x = &ptemplate[len - numXs];
 	
 	if (strcmp(x, xString)) {
 		errno = EINVAL;
@@ -86,7 +86,7 @@ int mkstemp(char *template)
 		
 		RandomAscii(x);
 		
-		fd = safe_open_wrapper(template, O_CREAT|O_EXCL|O_RDWR, 0666);
+		fd = safe_open_wrapper(ptemplate, O_CREAT|O_EXCL|O_RDWR, 0666);
 		if (fd >= 0 || errno != EEXIST) {
 			return fd;
 		}

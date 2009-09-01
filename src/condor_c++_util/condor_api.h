@@ -21,7 +21,7 @@
 #ifndef __CONDOR_API__
 #define __CONDOR_API__
 
-#include "condor_query.h"
+//#include "condor_query.h"
 #include "condor_q.h"
 #include "ad_printmask.h"
 
