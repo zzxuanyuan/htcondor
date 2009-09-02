@@ -3,7 +3,7 @@ set(TargetName utils)
 
 #set the local 
 file(GLOB HeaderFiles "*.h" )
-file(GLOB SourceFiles "*.cpp" )
+file(GLOB SourceFiles "*.cpp")
 file(GLOB WinSrcs "*INDOW*")
 
 #file(GLOB TestSrcs "test*")

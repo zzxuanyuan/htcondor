@@ -274,8 +274,8 @@
 /* Define to 1 if you have the `getwd' function. (USED)*/
 #cmakedefine HAVE_GETWD
 
-/* are we using the GNU linker (USED)*/
-#cmakedefine HAVE_GNU_LD
+///* are we using the GNU linker (USED)- I want to remove this comments are untrue*/
+//#cmakedefine HAVE_GNU_LD
 
 /* Define to 1 if the system has the type `id_t'. (USED)*/
 #cmakedefine HAVE_ID_T
