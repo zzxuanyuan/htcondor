@@ -475,8 +475,8 @@
 /* Number of arguments to statfs() (USED)*/
 #cmakedefine STATFS_ARGS
 
-/* Define if on TRU64 (DUX) (USED)*/
-#cmakedefine TRU64
+///* Define if on TRU64 (DUX) (USED)*/
+//#cmakedefine TRU64
 
 
 #endif
