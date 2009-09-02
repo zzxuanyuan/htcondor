@@ -20,7 +20,8 @@
 #include "condor_common.h"
 #include "string_funcs.h"
 
-#if ( !HAVE_STRCASESTR )
+#ifndef HAVE_STRCASESTR
+
 // Like strstr(), but case-insensitive
 char *
 strcasestr( const char *string, const char *pattern )

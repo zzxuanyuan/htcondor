@@ -487,7 +487,7 @@ MyString::vsprintf_cat(const char *format,va_list args)
     if( !format || *format == '\0' ) {
 		return true;
 	}
-#if HAVE_VASPRINTF
+#ifdef HAVE_VASPRINTF
 	s_len = vasprintf(&buffer, format, args);
 	if (-1 == s_len) { // if alloc not possible or other error
 		return false;
@@ -501,7 +501,7 @@ MyString::vsprintf_cat(const char *format,va_list args)
 			return false;
 		}
     }
-#if HAVE_VASPRINTF
+#ifdef HAVE_VASPRINTF
 		// Ideally this would not be necessary, instead we'd just
 		// asprintf into Data. However, we manage Data with
 		// new/delete.

@@ -1,8 +1,10 @@
 ###########################################################################
+###########################################################################
 # Set project, reqs, and includes
 project(CONDOR)
 cmake_minimum_required(VERSION 2.6)
 
+###########################################################################
 ###########################################################################
 # Setup package meta-data
 set(PACKAGE "condor")
@@ -17,9 +19,11 @@ string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 
 ###########################################################################
+###########################################################################
 # Include options used for custom macros which we wish to create
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
 
+###########################################################################
 ###########################################################################
 # The following are the configure options
 # checking X... Y.... Z...
@@ -27,6 +31,7 @@ message(STATUS "***********************************************************")
 message(STATUS "Condor is now configuring based on your env & input options")
 message(STATUS "Operating System: ${OS_NAME}(${OS_VER})")
 
+include (CondorGlob)
 include (CheckIncludeFiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
@@ -36,10 +41,7 @@ include (CheckLibraryExists)
 include (CheckTypeSize)
 include (FindThreads)
 
-##################################################
-# Beginning with environment elements which are tacked on
 add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
-
 #what to do about glibc version checking...?
 add_definitions(-DGLIBC=GLIBC)
 	#I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
@@ -83,6 +85,7 @@ option(PROPER "Use system env versus condor externals" OFF)
 # VMware Check
 
 ##################################################
+##################################################
 # find the dependent packages.
 # These should be the externals based on input options.
 
@@ -91,9 +94,14 @@ option(PROPER "Use system env versus condor externals" OFF)
 # find_package(PythonLibs REQUIRED)
 
 ##################################################
-# Now checking OS based options
+##################################################
+# Now checking OS based options - may depend on
+# user input options
 
-set(HAS_FLOCK  ON)
+set(HAS_FLOCK ON)
+
+# this should be platform specific
+set(STATFS_ARGS "2")
 
 if (${OS_NAME} STREQUAL "SOLARIS")
 	set(NEEDS_64BIT_SYSCALLS ON)
@@ -122,8 +130,11 @@ elseif(${OS_NAME} STREQUAL "AIX")
 elseif(${OS_NAME} STREQUAL "HPUX")
 	set(DOES_SAVE_SIGSTATE ON)
 	set(NEEDS_64BIT_STRUCTS ON)
+elseif(${OS_NAME} STREQUAL "WINDOWS")
+	
 endif()
 
+##################################################
 ##################################################
 # check symbols, libs, functions, headers, and types
 
@@ -194,13 +205,13 @@ check_struct_has_member("struct statfs" f_fstypename "sys/statfs.h" HAVE_STRUCT_
 check_struct_has_member("struct statfs" f_type "sys/statfs.h" HAVE_STRUCT_STATFS_F_TYPE)
 check_struct_has_member("struct statvfs" f_basetype "sys/statfs.h" HAVE_STRUCT_STATVFS_F_BASETYPE)
 
-
-##################################################
 message(STATUS "***********************************************************")
 configure_file(${CONDOR_SOURCE_DIR}/include/config.h.cmake ${CONDOR_SOURCE_DIR}/include/config.h)
 add_definitions(-DHAVE_CONFIG_H)
 
-########################################################################### Set compilation and build options
+###########################################################################
+###########################################################################
+# Set compilation and build options
 
 # Build dynamic libraries unless explicitly stated
 set(BUILD_SHARED_LIBS FLASE)
@@ -218,6 +229,7 @@ set(CMAKE_SUPPRESS_REGENERATION FALSE)
 # Set compiler flags
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX /wd4251 /wd4275 /wd4996")
+	add_definitions(-DWINDOWS)
 elseif(GNU)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
 endif()
@@ -228,3 +240,4 @@ include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
 #########################################################################
 # Add subdirectories and build targets in dependency order
 add_subdirectory(libs/utils)
+add_subdirectory(libs/cedar)

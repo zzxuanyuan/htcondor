@@ -27,7 +27,7 @@
    reliance on other Condor files to ease distribution.  -Jim B. */
 #include "condor_event.h"
 
-#if HAVE_SYS_TYPES_H
+#ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
 

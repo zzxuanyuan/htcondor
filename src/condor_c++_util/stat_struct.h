@@ -23,10 +23,10 @@
 #include "condor_common.h"
 
 	// Define a "standard" StatBuf type
-#if HAVE_STAT64
+#ifdef HAVE_STAT64
 typedef struct stat64 StatStructType;
 typedef ino_t StatStructInode;
-#elif HAVE__STATI64
+#elif defined(HAVE__STATI64)
 typedef struct _stati64 StatStructType;
 typedef _ino_t StatStructInode;
 #else

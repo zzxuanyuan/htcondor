@@ -31,7 +31,7 @@
 
 #define XML_USERLOG_DEFAULT 0
 
-#if HAVE_SYS_TYPES_H
+#ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
 
