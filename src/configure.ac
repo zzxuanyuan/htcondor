@@ -626,13 +626,13 @@ AC_ARG_ENABLE(gcc-version-check,
   [AS_HELP_STRING([--disable-gcc-version-check],
      [Disable the gcc version check])],
   [],
-  [enable_gcc_version_check=yes])
+  [enable_gcc_version_check=no])
 
 AC_ARG_ENABLE(glibc-version-check,
   [AS_HELP_STRING([--disable-glibc-version-check],
      [Disable the glibc version check])],
   [],
-  [enable_glibc_version_check=yes])
+  [enable_glibc_version_check=no])
 
 AC_ARG_ENABLE(soft-is-hard,
   [AS_HELP_STRING([--enable-soft-is-hard],
