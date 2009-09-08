@@ -545,7 +545,7 @@ sub DoTest
     		return $retval;
 		} else {
 			# oops found a problem fail test
-			print "\nTest being marked as FAILEF from discovery of core file or ERROR in logs\n";
+			print "\nTest being marked as FAILED from discovery of core file or ERROR in logs\n";
 			print "Time, Log, message are stored in condor_tests/Cores/core_error_trace\n\n";
     		return 0;
 		}
@@ -1835,7 +1835,7 @@ sub IgnoreError
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
 
 	if($errortime =~ /^(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)$/) {
-		$tsmon = $1;
+		$tsmon = $1 - 1;
 		$timeloc = timelocal($5,$4,$3,$mday,$tsmon,$year,0,0,$isdst);
 	} else {
 		die "Time string into IgnoreError: Bad Format: $errortime\n";
