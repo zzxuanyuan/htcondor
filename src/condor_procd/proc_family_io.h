@@ -22,7 +22,7 @@
 #define _PROC_FAMILY_IO_H
 
 #include "condor_common.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 
 #include <vector>
 

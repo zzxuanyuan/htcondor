@@ -22,8 +22,8 @@
 
 #include "extArray.h"
 #include "condor_uid.h"
-#include "condor_daemon_core.h"
-#include "../condor_procapi/procapi.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "procapi/procapi.h"
 #include "condor_pidenvid.h"
 
 class ProcAPI; 	// forward reference

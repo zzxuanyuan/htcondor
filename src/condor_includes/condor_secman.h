@@ -61,6 +61,7 @@ typedef enum {
 */
 
 class SecManStartCommand;
+class IpVerify;
 
 class SecMan {
 

@@ -32,6 +32,7 @@ message(STATUS "Condor is now configuring based on your env & input options")
 message(STATUS "Operating System: ${OS_NAME}(${OS_VER})")
 
 include (CondorGlob)
+include (CondorExternal)
 include (CheckIncludeFiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
@@ -51,88 +52,6 @@ add_definitions(-DGLIBC=GLIBC)
 	#add_definitions(-DC_COMP_PATCH_GCC_4__2)
 
 # Why is this a definition and not an option?
-add_definitions(-DWITH_OPENSSL)
-add_definitions(-DCOMPILE_SOAP_SSL)
-
-##################################################
-# Now checking input options --enable elements
-# will likely change all the names to ENABLE_<OPTION> for consistency
-option(ENABLE_checkSUM_SHA1 "Enable production and validation of SHA1 checksums." OFF)
-option(ENABLE_checkSUM_MD5 "Enable production and validation of MD5 checksums for released packages." OFF)
-option(HAVE_HIBERNATION "Support for condor controlled hibernation" OFF)
-option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
-option(WANT_STORK "Enable stork functionality" OFF)
-option(HAVE_JOB_HOOKS "Enable job hook functionality" OFF)
-option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
-option(WANT_NEST "Enable NeST functionality" OFF)
-option(WANT_QUILL "Enable Quill functionality" OFF)
-option(NEEDS_KBDD "Enable KBDD functionality" OFF)
-option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
-option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
-
-option(PROPER "Use system env versus condor externals" OFF)
-
-# Isn't it all clipped? for 7.5
-#option(CLIPPED "Will disable the standard universe port" OFF)
-#
-	#if(CLIPPED)
-		# disable other things...
-	#else()
-		# do version checking
-	#endif()
-
-# Oracle check
-# VMware Check
-
-##################################################
-##################################################
-# find the dependent packages.
-# These should be the externals based on input options.
-
-# Find required dependencies.
-# find_package(Boost REQUIRED thread)
-# find_package(PythonLibs REQUIRED)
-
-##################################################
-##################################################
-# Now checking OS based options - may depend on
-# user input options
-
-set(HAS_FLOCK ON)
-
-# this should be platform specific
-set(STATFS_ARGS "2")
-
-if (${OS_NAME} STREQUAL "SOLARIS")
-	set(NEEDS_64BIT_SYSCALLS ON)
-	set(NEEDS_64BIT_STRUCTS ON)
-	set(DOES_SAVE_SIGSTATE ON)
-	set(HAS_FLOCK OFF)
-elseif(${OS_NAME} STREQUAL "LINUX")
-	set(DOES_SAVE_SIGSTATE ON)
-	set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
-	set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
-	set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
-
-	# I don't know why this check is only done on linux
-	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
-	check_symbol_exists(SIOCGIFCONF "linux/sockios.h" HAVE_DECL_SIOCGIFCONF)
-
-	check_include_files("linux/ethtool.h" HAVE_LINUX_ETHTOOL_H)
-	check_include_files("linux/magic.h" HAVE_LINUX_MAGIC_H)
-	check_include_files("linux/nfsd/const.h" HAVE_LINUX_NFSD_CONST_H)
-	check_include_files("linux/personality.h" HAVE_LINUX_PERSONALITY_H)
-	check_include_files("linux/sockios.h" HAVE_LINUX_SOCKIOS_H)
-	check_include_files("linux/types.h" HAVE_LINUX_TYPES_H)
-elseif(${OS_NAME} STREQUAL "AIX")
-	set(DOES_SAVE_SIGSTATE ON)
-	set(NEEDS_64BIT_STRUCTS ON)
-elseif(${OS_NAME} STREQUAL "HPUX")
-	set(DOES_SAVE_SIGSTATE ON)
-	set(NEEDS_64BIT_STRUCTS ON)
-elseif(${OS_NAME} STREQUAL "WINDOWS")
-	
-endif()
 
 ##################################################
 ##################################################
@@ -205,6 +124,110 @@ check_struct_has_member("struct statfs" f_fstypename "sys/statfs.h" HAVE_STRUCT_
 check_struct_has_member("struct statfs" f_type "sys/statfs.h" HAVE_STRUCT_STATFS_F_TYPE)
 check_struct_has_member("struct statvfs" f_basetype "sys/statfs.h" HAVE_STRUCT_STATVFS_F_BASETYPE)
 
+##################################################
+##################################################
+# Now checking input options --enable elements
+# will likely change all the names to ENABLE_<OPTION> for consistency
+option(ENABLE_CHECKSUM_SHA1 "Enable production and validation of SHA1 checksums." OFF)
+option(ENABLE_CHECKSUM_MD5 "Enable production and validation of MD5 checksums for released packages." OFF)
+option(HAVE_HIBERNATION "Support for condor controlled hibernation" OFF)
+option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
+option(WANT_STORK "Enable stork functionality" OFF)
+option(HAVE_JOB_HOOKS "Enable job hook functionality" OFF)
+option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
+option(WANT_NEST "Enable NeST functionality" OFF)
+option(WANT_QUILL "Enable Quill functionality" OFF)
+option(NEEDS_KBDD "Enable KBDD functionality" OFF)
+option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
+option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
+
+### The following options are used for externals below
+option(PROPER "Use system env versus condor externals" ON)
+option(STRICT_EXTERNAL "Use to enable strict external checking" OFF)
+
+# this may become deprecated and be the standard case
+option(CLIPPED "Disables the standard universe" ON)
+
+##################################################
+##################################################
+# Now checking OS based options -
+
+set(HAS_FLOCK ON)
+
+# this should be platform specific
+set(STATFS_ARGS "2")
+
+if (${OS_NAME} STREQUAL "SOLARIS")
+	set(NEEDS_64BIT_SYSCALLS ON)
+	set(NEEDS_64BIT_STRUCTS ON)
+	set(DOES_SAVE_SIGSTATE ON)
+	set(HAS_FLOCK OFF)
+elseif(${OS_NAME} STREQUAL "LINUX")
+	set(DOES_SAVE_SIGSTATE ON)
+	set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
+	set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
+	set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
+
+	# I don't know why this check is only done on linux
+	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
+	check_symbol_exists(SIOCGIFCONF "linux/sockios.h" HAVE_DECL_SIOCGIFCONF)
+
+	check_include_files("linux/ethtool.h" HAVE_LINUX_ETHTOOL_H)
+	check_include_files("linux/magic.h" HAVE_LINUX_MAGIC_H)
+	check_include_files("linux/nfsd/const.h" HAVE_LINUX_NFSD_CONST_H)
+	check_include_files("linux/personality.h" HAVE_LINUX_PERSONALITY_H)
+	check_include_files("linux/sockios.h" HAVE_LINUX_SOCKIOS_H)
+	check_include_files("linux/types.h" HAVE_LINUX_TYPES_H)
+elseif(${OS_NAME} STREQUAL "AIX")
+	set(DOES_SAVE_SIGSTATE ON)
+	set(NEEDS_64BIT_STRUCTS ON)
+elseif(${OS_NAME} STREQUAL "HPUX")
+	set(DOES_SAVE_SIGSTATE ON)
+	set(NEEDS_64BIT_STRUCTS ON)
+elseif(${OS_NAME} STREQUAL "WINDOWS")
+	
+endif()
+
+##################################################
+##################################################
+# the following are the --with options
+# we will find the external package i
+# these will likely have to be altered based on platform
+# presetly they are all "checked" softly
+condor_external(BLAHP "1.12.2-p4" "blahp" ON PROPER STRICT_EXTERNAL)
+condor_external(CLASSADS "1.0.2" "classad" ON PROPER STRICT_EXTERNAL)
+condor_external(COREDUMPER "0.2" "coredumper" ON PROPER STRICT_EXTERNAL)
+condor_external(DRMAA "1.6" OFF "drmaa" PROPER STRICT_EXTERNAL)
+condor_external(KRB5 "1.4.3-p0" "krb5" ON PROPER STRICT_EXTERNAL)
+condor_external(UNICOREGAHP "1.2.0" "unicoregahp" ON PROPER STRICT_EXTERNAL)
+condor_external(PCRE "7.6" "pcre" ON PROPER STRICT_EXTERNAL)
+
+# should be linux only
+condor_external(VOMS "1.8.9" "voms" ON PROPER STRICT_EXTERNAL)
+condor_external(EXPAT "2.0.1" "expat" ON PROPER STRICT_EXTERNAL)
+
+# chat w/matt why this is all weird.
+# condor_external(MAN "" ON PROPER STRICT_EXTERNAL)
+
+condor_external(POSTGRESQL "8.2.3-p1" "pq" ON PROPER STRICT_EXTERNAL)
+condor_external(SRB "3.2.1-p2" "srb" ON PROPER STRICT_EXTERNAL)
+condor_external(GLOBUS "4.2.1-p3" "globus" ON PROPER STRICT_EXTERNAL)
+condor_external(ZLIB "1.2.3" "z" ON PROPER STRICT_EXTERNAL)
+condor_external(GCB "1.5.6" "gcb" ON PROPER STRICT_EXTERNAL)
+
+condor_external(OPENSSL "0.9.8h-p1" "ssl" ON PROPER STRICT_EXTERNAL)
+if (WITH_OPENSSL)
+	add_definitions(-DWITH_OPENSSL)
+endif()
+
+condor_external(GSOAP "2.7.10-p3" "gsoap" ON PROPER STRICT_EXTERNAL)
+if (WITH_GSOAP AND WITH_OPENSSL)
+	add_definitions(-DCOMPILE_SOAP_SSL)
+endif()
+
+condor_external(VMWARE "abc" "" OFF PROPER STRICT_EXTERNAL)
+condor_external(OCI "abc" "" OFF PROPER STRICT_EXTERNAL)
+
 message(STATUS "***********************************************************")
 configure_file(${CONDOR_SOURCE_DIR}/include/config.h.cmake ${CONDOR_SOURCE_DIR}/include/config.h)
 add_definitions(-DHAVE_CONFIG_H)
@@ -234,10 +257,19 @@ elseif(GNU)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
 endif()
 
+# the following will allow for <target>/.h includes
+# and I've elliminated relative path includes.
 include_directories(${CONDOR_SOURCE_DIR}/include)
-include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
+include_directories(${CONDOR_SOURCE_DIR}/libs)
+include_directories(${CONDOR_SOURCE_DIR}/daemons)
 
 #########################################################################
 # Add subdirectories and build targets in dependency order
 add_subdirectory(libs/utils)
-add_subdirectory(libs/cedar)
+#add_subdirectory(libs/cedar)
+#add_subdirectory(libs/classad)
+#add_subdirectory(libs/daemon_client)
+#add_subdirectory(libs/procapi)
+#add_subdirectory(libs/sysapi)
+#add_subdirectory(libs/daemon_core)
+

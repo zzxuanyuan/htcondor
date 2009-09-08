@@ -28,7 +28,7 @@
  network and the client is on a public network).
  */
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "simplelist.h"
 
 class CCBListener: public Service, public ClassyCountedPtr {

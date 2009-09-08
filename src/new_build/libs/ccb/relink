@@ -1,0 +1,22 @@
+#!/bin/sh
+
+#cleanup old code
+rm -f *.cpp
+rm -f *.h
+
+##################################################
+for i in `ls ../../../ccb/*.c`;
+do
+ln -s $i `echo ${i##*/}pp`;
+done
+
+for i in `ls ../../../ccb/*.cpp`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+for i in `ls ../../../ccb/*.h`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+

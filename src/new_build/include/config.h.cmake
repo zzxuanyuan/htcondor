@@ -206,7 +206,7 @@
 
 /* Do we have the blahp external (used Imake)*/
 #cmakedefine HAVE_EXT_BLAHP 1
-
+# 
 /* Do we have the classads external (used)*/
 #cmakedefine HAVE_EXT_CLASSADS 1
 

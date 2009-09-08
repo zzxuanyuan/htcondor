@@ -22,12 +22,12 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "proc_family_proxy.h"
-#include "condor_daemon_core.h"
-#include "../condor_procd/proc_family_client.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "procd/proc_family_client.h"
 #include "setenv.h"
 #include "directory.h"
 #include "basename.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 #include "procd_config.h"
 
 // this class is just used to forward reap events to the real

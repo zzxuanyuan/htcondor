@@ -25,8 +25,8 @@
 #include "MyString.h"
 
 #include "pgsqldatabase.h"
-#include "condor_ttdb.h"
-#include "jobqueuecollection.h"
+#include "tt/condor_ttdb.h"
+#include "tt/jobqueuecollection.h"
 
 extern "C" {
 

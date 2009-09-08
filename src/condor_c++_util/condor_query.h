@@ -29,7 +29,7 @@
 #include "query_result_type.h"
 #include "generic_query.h"
 #include "CondorError.h"
-//#include "daemon.h"
+#include "daemon_client/daemon.h"
 
 // Please read the documentation for the API before you use it (RTFM :-)  --RR
 

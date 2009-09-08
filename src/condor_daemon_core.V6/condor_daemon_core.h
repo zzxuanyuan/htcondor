@@ -53,13 +53,13 @@
 #include "condor_pidenvid.h"
 #include "condor_arglist.h"
 #include "env.h"
-#include "daemon.h"
-#include "daemon_list.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/daemon_list.h"
 #include "limit.h"
-#include "ccb_listener.h"
+#include "ccb/ccb_listener.h"
 #include "condor_sinful.h"
 
-#include "../condor_procd/proc_family_io.h"
+#include "procd/proc_family_io.h"
 class ProcFamilyInterface;
 
 #if defined(WIN32)

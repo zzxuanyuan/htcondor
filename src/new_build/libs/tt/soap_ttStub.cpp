@@ -1,0 +1,1 @@
+../../../condor_tt/soap_ttStub.cpp

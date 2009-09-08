@@ -30,7 +30,7 @@
 #include "condor_distribution.h"
 #include "file_transfer.h"
 #include "extra_param_info.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_config.h"
 #include "condor_transfer_request.h"
 #include "log_transaction.h"

@@ -28,8 +28,8 @@
 #include "condor_adtypes.h"
 #include "condor_debug.h"
 #include "internet.h"
-#include "daemon.h"
-#include "dc_collector.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/dc_collector.h"
 
 #define XDR_ASSERT(x) {if (!(x)) return Q_COMMUNICATION_ERROR;}
 

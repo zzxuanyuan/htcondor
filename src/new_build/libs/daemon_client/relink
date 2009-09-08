@@ -1,0 +1,28 @@
+#!/bin/sh
+
+#cleanup old code
+rm -f *.cpp
+rm -f *.h
+
+##################################################
+## link in the c++_util files
+for i in `ls ../../../condor_daemon_client/*.c`;
+do 
+ln -s $i `echo ${i##*/}pp`;
+done
+
+for i in `ls ../../../condor_daemon_client/*.cpp`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+for i in `ls ../../../condor_daemon_client/*.h`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+# remove test files which are built but not executed as part of a build.
+# if they want in place testing, then it should be done properly.
+rm -f *test*
+rm -f *Test*
+

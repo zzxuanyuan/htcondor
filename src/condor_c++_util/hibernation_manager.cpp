@@ -23,7 +23,7 @@
 
 #include "condor_common.h"
 #include "condor_config.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "hibernator.h"
 #include "hibernation_manager.h"
 #include "network_adapter.h"

@@ -1,0 +1,19 @@
+
+MACRO (CONDOR_OPTION _PACKAGE _ON_OFF _CHECK_EXT_VAR)
+
+	string( TOUPPER "${_PACKAGE}" UP_PACKAGE )
+	option(WITH_${UP_PACKAGE} "Enable or disable package check" ${_ON_OFF})
+
+	if (WITH_${UP_PACKAGE})
+
+		if (_CHECK_EXT_VAR)
+			find_package(${_PACKAGE} REQUIRED)
+		endif()
+
+		# There is serious non-uniformity on how we handle externals
+		set(HAVE_EXT_${UP_PACKAGE} ON)
+		set(HAVE_${UP_PACKAGE})
+
+	endif()
+
+ENDMACRO (CONDOR_OPTION)

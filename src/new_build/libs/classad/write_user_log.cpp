@@ -1,0 +1,1 @@
+../../../condor_c++_util/write_user_log.cpp

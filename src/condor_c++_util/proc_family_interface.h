@@ -21,8 +21,8 @@
 #ifndef _PROC_FAMILY_INTERFACE_H
 #define _PROC_FAMILY_INTERFACE_H
 
-#include "../condor_procapi/procapi.h"
-#include "../condor_procd/proc_family_io.h"
+#include "procapi/procapi.h"
+#include "procd/proc_family_io.h"
 
 class ProcFamilyClient;
 

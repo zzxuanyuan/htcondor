@@ -1,13 +1,22 @@
 
-MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS)
-	
+MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS CONDOR_REMOVE)
+
+	string( TOUPPER "${CMAKE_SYSTEM_NAME}" TEMP_OS )
+
 	file(GLOB ${CONDOR_HEADERS} "*.h" )
 	file(GLOB ${CONDOR_SRCS} "*.cpp")
-	file(GLOB WinSrcs "*WINDOWS*")
-	file(GLOB LinuxSrcs "*linux*")
-	file(GLOB UnixSrcs "*unix*")
+	file(GLOB WinSrcs "*WINDOWS*" "*windows*")
+	file(GLOB LinuxSrcs "*LINUX*" "*linux*")
+	file(GLOB UnixSrcs "*UNIX*" "*unix*")
+	set (RmvSrcs ${CONDOR_REMOVE})
 
-	if(${OS_NAME} STREQUAL "LINUX")
+	# 1st remove any elements that may be extra
+	if(RmvSrcs)
+		list(REMOVE_ITEM ${CONDOR_SRCS} ${RmvSrcs})
+		list(REMOVE_ITEM ${CONDOR_HEADERS} ${RmvSrcs})
+	endif()
+
+	if(${TEMP_OS} STREQUAL "LINUX")
 		if (WinSrcs)
 			list(REMOVE_ITEM ${CONDOR_SRCS} ${WinSrcs})
 			list(REMOVE_ITEM ${CONDOR_HEADERS} ${WinSrcs})
@@ -16,7 +25,7 @@ MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS)
 			list(REMOVE_ITEM ${CONDOR_SRCS} ${UnixSrcs})
 			list(REMOVE_ITEM ${CONDOR_HEADERS} ${UnixSrcs})
 		endif()
-	else (${OS_NAME} STREQUAL "WINDOWS")
+	else (${TEMP_OS} STREQUAL "WINDOWS")
 		if (LinuxSrcs)
 			list(REMOVE_ITEM ${CONDOR_SRCS} ${LinuxSrcs})
 			list(REMOVE_ITEM ${CONDOR_HEADERS} ${LinuxSrcs})

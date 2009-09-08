@@ -1,0 +1,22 @@
+#!/bin/sh
+
+#cleanup old code
+rm -f *.cpp
+rm -f *.h
+
+##################################################
+for i in `ls ../../../condor_privsep/*.c`;
+do
+ln -s $i `echo ${i##*/}pp`;
+done
+
+for i in `ls ../../../condor_privsep/*.cpp`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+for i in `ls ../../../condor_privsep/*.h`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+

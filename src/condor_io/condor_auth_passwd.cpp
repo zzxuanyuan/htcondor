@@ -29,7 +29,7 @@
 
 #include "condor_auth.h"
 #include "CryptKey.h"
-#include "store_cred.h"
+//#include "store_cred.h"
 #include "my_username.h"
 #include "MyString.h"
 

@@ -21,7 +21,7 @@
 #define _FILE_TRANSFER_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "MyString.h"
 #include "HashTable.h"
 #ifdef WIN32
@@ -30,7 +30,7 @@
 #include "condor_uid.h"
 #include "condor_ver_info.h"
 #include "condor_classad.h"
-#include "dc_transfer_queue.h"
+#include "daemon_client/dc_transfer_queue.h"
 
 class FileTransfer;	// forward declatation
 
