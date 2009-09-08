@@ -13,6 +13,16 @@ do
 ln -s $i `echo ${i##*/}pp`;
 done
 
+for i in `ls ../../../condor_util_lib/*.l`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+for i in `ls ../../../condor_util_lib/*.y`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
 ##################################################
 ## link in the c++_util files
 for i in `ls ../../../condor_c++_util/*.c`;
@@ -30,6 +40,13 @@ do
 ln -s $i `echo ${i##*/}`;
 done
 
+for i in `ls ../../../condor_c++_util/*.pl`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+
+
 # remove files which do not appear to be built.
 rm -f ckpt_server_api_stubs.cpp
 
@@ -39,56 +56,59 @@ rm -f *test*
 rm -f *Test*
 rm -f Queue.t*
 rm -f cat_url*
+rm -f killfamily.t*
 
 # remove targets for libcondorapi only.
-rm -f libcondorapi_stub*
+#rm -f libcondorapi_stub*
 
 # This should be in daemon-core
-rm -f condor_user_policy*
-rm -f *cron*
-rm -f hibernator.tools*
-rm -f condor_query*
-rm -f file_transfer*
-rm -f condor_transfer_request*
-rm -f soap_helpers*
-rm -f JobLogMirror*
-rm -f hibernation_manager*
-rm -f condor_transfer_request*
-rm -f condor_config*
-rm -f access*
-rm -f time_offset*
-rm -f dynuser*
-rm -f killfamily*
-rm -f user_error_policy*
-rm -f *transfer_request*
+#rm -f condor_user_policy*
+#rm -f *cron*
+#rm -f hibernator.tools*
+#rm -f condor_query*
+#rm -f file_transfer*
+#rm -f condor_transfer_request*
+#
+#rm -f JobLogMirror*
+#rm -f hibernation_manager*
+#rm -f condor_transfer_request*
+#rm -f condor_config*
+#rm -f access*
+#rm -f time_offset*
+#rm -f dynuser*
+#rm -f killfamily*
+#
+#rm -f *transfer_request*
 #rm -f read_user_log*
-rm -f forkwork*
-rm -f historyFileFinder*
-rm -f condor_secman*
-rm -f classad_command*
-rm -f classad_oldnew*
-rm -f syscall_number*
+#rm -f forkwork*
+#rm -f historyFileFinder*
+#rm -f condor_secman*
+#rm -f classad_command*
+#rm -f classad_oldnew*
+#rm -f syscall_number*
 
 # should be in procapi
-rm -f proc_fam*
+#rm -f proc_fam*
 
 #deps on sysapi
-rm -f java_config*
+#rm -f java_config*
 
 # ??
-rm -f dbms_utils*
+#rm -f dbms_utils*
 #rm -f store_cred*
 #rm -f param_info_init*
-rm -f param_info*.c*
-rm -f c++_util_instantiate* # WTF does this do?
-rm -f y.tab*
-rm -f lex.yy*
-rm -f uids*
-rm -f my_popen*.c*
-rm -f perm*
+#rm -f param_info*.c*
+#rm -f c++_util_instantiate* # WTF does this do?
+#rm -f y.tab*
+#rm -f lex.yy*
+#rm -f uids*
+#rm -f my_popen*.c*
+#rm -f perm*
 
 # not used... ever
 rm -f sshd_wrapper*
+rm -f soap_helpers*
+rm -f user_error_policy*
 
 
 

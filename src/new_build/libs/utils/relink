@@ -13,6 +13,16 @@ do
 ln -s $i `echo ${i##*/}pp`;
 done
 
+for i in `ls ../../../condor_util_lib/*.l`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+for i in `ls ../../../condor_util_lib/*.y`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
 ##################################################
 ## link in the c++_util files
 for i in `ls ../../../condor_c++_util/*.c`;
@@ -30,6 +40,13 @@ do
 ln -s $i `echo ${i##*/}`;
 done
 
+for i in `ls ../../../condor_c++_util/*.pl`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+
+
 # remove files which do not appear to be built.
 rm -f ckpt_server_api_stubs.cpp
 
@@ -39,6 +56,7 @@ rm -f *test*
 rm -f *Test*
 rm -f Queue.t*
 rm -f cat_url*
+rm -f *.t*
 
 # remove targets for libcondorapi only.
 #rm -f libcondorapi_stub*
@@ -50,7 +68,7 @@ rm -f cat_url*
 #rm -f condor_query*
 #rm -f file_transfer*
 #rm -f condor_transfer_request*
-#rm -f soap_helpers*
+#
 #rm -f JobLogMirror*
 #rm -f hibernation_manager*
 #rm -f condor_transfer_request*
@@ -59,7 +77,7 @@ rm -f cat_url*
 #rm -f time_offset*
 #rm -f dynuser*
 #rm -f killfamily*
-#rm -f user_error_policy*
+#
 #rm -f *transfer_request*
 #rm -f read_user_log*
 #rm -f forkwork*
@@ -89,6 +107,8 @@ rm -f cat_url*
 
 # not used... ever
 rm -f sshd_wrapper*
+rm -f soap_helpers*
+rm -f user_error_policy*
 
 
 
