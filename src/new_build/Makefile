@@ -111,6 +111,32 @@ utils/fast:
 	$(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/build
 .PHONY : utils/fast
 
+#=============================================================================
+# Target rules for targets named cedar
+
+# Build rule for target.
+cedar: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 cedar
+.PHONY : cedar
+
+# fast build rule for target.
+cedar/fast:
+	$(MAKE) -f libs/cedar/CMakeFiles/cedar.dir/build.make libs/cedar/CMakeFiles/cedar.dir/build
+.PHONY : cedar/fast
+
+#=============================================================================
+# Target rules for targets named procapi
+
+# Build rule for target.
+procapi: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 procapi
+.PHONY : procapi
+
+# fast build rule for target.
+procapi/fast:
+	$(MAKE) -f libs/procapi/CMakeFiles/procapi.dir/build.make libs/procapi/CMakeFiles/procapi.dir/build
+.PHONY : procapi/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -120,6 +146,8 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... utils"
+	@echo "... cedar"
+	@echo "... procapi"
 .PHONY : help
 
 

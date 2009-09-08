@@ -24,7 +24,7 @@
 #include "reli_sock.h"
 #include "condor_auth.h"
 #include "CryptKey.h"
-#include "condor_ipverify.h"
+#include "daemon_core/condor_ipverify.h"
 #include "CondorError.h"
 #include "MapFile.h"
 

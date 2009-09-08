@@ -27,7 +27,7 @@ using namespace std;
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
 #include "classad_oldnew.h"
-#include "conversion.h"
+#include "classad_analysis/conversion.h"
 BEGIN_NAMESPACE( classad )
 
 classad::ClassAd *

@@ -19,7 +19,7 @@
 
 
 #include "condor_common.h"
-#include "CondorError.h"
+#include "classad/CondorError.h"
 
 #if !defined(SKIP_AUTHENTICATION)
 #include <openssl/evp.h>
@@ -29,7 +29,7 @@
 
 #include "condor_auth.h"
 #include "CryptKey.h"
-//#include "store_cred.h"
+#include "store_cred.h"
 #include "my_username.h"
 #include "MyString.h"
 

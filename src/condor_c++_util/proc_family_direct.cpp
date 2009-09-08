@@ -22,7 +22,7 @@
 #include "condor_debug.h"
 #include "proc_family_direct.h"
 #include "killfamily.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 struct ProcFamilyDirectContainer {
 

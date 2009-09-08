@@ -29,7 +29,7 @@
    used in such cases.  (They will EXCEPT.)
  */
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 class DaemonCoreSockAdapterClass {
  public:

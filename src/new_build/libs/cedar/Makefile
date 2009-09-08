@@ -688,30 +688,6 @@ open_flags.cpp.s:
 	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/cedar/CMakeFiles/cedar.dir/build.make libs/cedar/CMakeFiles/cedar.dir/open_flags.cpp.s
 .PHONY : open_flags.cpp.s
 
-proc.o: proc.cpp.o
-.PHONY : proc.o
-
-# target to build an object file
-proc.cpp.o:
-	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/cedar/CMakeFiles/cedar.dir/build.make libs/cedar/CMakeFiles/cedar.dir/proc.cpp.o
-.PHONY : proc.cpp.o
-
-proc.i: proc.cpp.i
-.PHONY : proc.i
-
-# target to preprocess a source file
-proc.cpp.i:
-	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/cedar/CMakeFiles/cedar.dir/build.make libs/cedar/CMakeFiles/cedar.dir/proc.cpp.i
-.PHONY : proc.cpp.i
-
-proc.s: proc.cpp.s
-.PHONY : proc.s
-
-# target to generate assembly for a file
-proc.cpp.s:
-	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/cedar/CMakeFiles/cedar.dir/build.make libs/cedar/CMakeFiles/cedar.dir/proc.cpp.s
-.PHONY : proc.cpp.s
-
 reli_sock.o: reli_sock.cpp.o
 .PHONY : reli_sock.o
 
@@ -937,9 +913,6 @@ help:
 	@echo "... open_flags.o"
 	@echo "... open_flags.i"
 	@echo "... open_flags.s"
-	@echo "... proc.o"
-	@echo "... proc.i"
-	@echo "... proc.s"
 	@echo "... reli_sock.o"
 	@echo "... reli_sock.i"
 	@echo "... reli_sock.s"

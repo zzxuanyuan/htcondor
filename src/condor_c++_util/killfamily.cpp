@@ -20,7 +20,7 @@
 
 #include "condor_common.h"
 #include "killfamily.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 #include "dynuser.h"
 
 #ifdef WIN32

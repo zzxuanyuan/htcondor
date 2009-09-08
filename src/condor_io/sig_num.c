@@ -22,9 +22,7 @@
 
 #include <signal.h>
 
-int
-sig_num_encode( sig_num )
-int		sig_num;
+int sig_num_encode( int sig_num )
 {
 	switch( sig_num ) {
 	case SIGHUP:	return 1;
@@ -72,9 +70,7 @@ int		sig_num;
 	}
 }
 
-int
-sig_num_decode( sig_num )
-int		sig_num;
+int sig_num_decode( int sig_num )
 {
 	switch( sig_num ) {
 	case 1:		return SIGHUP;

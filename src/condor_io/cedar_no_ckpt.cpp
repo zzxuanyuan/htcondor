@@ -37,7 +37,7 @@
 #include "globus_utils.h"
 #include "condor_auth_x509.h"
 #include "condor_config.h"
-#include "ccb_client.h"
+#include "ccb/ccb_client.h"
 #include "condor_sinful.h"
 
 #ifdef WIN32

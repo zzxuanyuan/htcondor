@@ -27,7 +27,7 @@
 #include "condor_socket_types.h"
 #include "condor_md.h"
 #include "selector.h"
-#include "ccb_client.h"
+#include "ccb/ccb_client.h"
 
 #define NORMAL_HEADER_SIZE 5
 #define MAX_HEADER_SIZE MAC_SIZE + NORMAL_HEADER_SIZE

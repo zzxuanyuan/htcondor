@@ -33,7 +33,7 @@
 
 #include "classy_counted_ptr.h"
 #include "reli_sock.h"
-#include "dc_message.h"
+#include "daemon_client/dc_message.h"
 
 class CCBClient: public Service, public ClassyCountedPtr {
  public:

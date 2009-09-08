@@ -23,7 +23,7 @@
 #include "condor_uid.h"
 #include "access.h"
 #include "condor_debug.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 
 
 static int code_access_request(Stream *socket, char *&filename, int &mode, 

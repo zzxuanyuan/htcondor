@@ -62,7 +62,7 @@
 #endif
 
 #ifndef _CONDOR_ALLOW_OPEN
-#  include "condor_open.h"
+#  include "classad/condor_open.h"
 #  ifdef open
 #    undef open
 #  endif
@@ -73,7 +73,7 @@
 #  endif
 
 #ifndef _CONDOR_ALLOW_FOPEN
-#  include "condor_open.h"
+#  include "classad/condor_open.h"
 #  ifdef fopen
 #    undef fopen
 #  endif

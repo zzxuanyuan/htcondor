@@ -217,11 +217,13 @@ condor_external(GCB "1.5.6" "gcb" ON PROPER STRICT_EXTERNAL)
 
 condor_external(OPENSSL "0.9.8h-p1" "ssl" ON PROPER STRICT_EXTERNAL)
 if (WITH_OPENSSL)
+	# added the goop that the old builds did
 	add_definitions(-DWITH_OPENSSL)
 endif()
 
 condor_external(GSOAP "2.7.10-p3" "gsoap" ON PROPER STRICT_EXTERNAL)
 if (WITH_GSOAP AND WITH_OPENSSL)
+	# added the goop that the old builds did
 	add_definitions(-DCOMPILE_SOAP_SSL)
 endif()
 
@@ -257,19 +259,23 @@ elseif(GNU)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
 endif()
 
+# The following two libraries can be considered ubiquitous
+include_directories(${CONDOR_SOURCE_DIR}/include)
+include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
 # the following will allow for <target>/.h includes
 # and I've elliminated relative path includes.
-include_directories(${CONDOR_SOURCE_DIR}/include)
 include_directories(${CONDOR_SOURCE_DIR}/libs)
 include_directories(${CONDOR_SOURCE_DIR}/daemons)
 
 #########################################################################
-# Add subdirectories and build targets in dependency order
+# Add subdirectories and build targets in dependency order (I wish...)
 add_subdirectory(libs/utils)
-#add_subdirectory(libs/cedar)
+add_subdirectory(libs/cedar)
+add_subdirectory(libs/procapi)
+
 #add_subdirectory(libs/classad)
 #add_subdirectory(libs/daemon_client)
-#add_subdirectory(libs/procapi)
+#
 #add_subdirectory(libs/sysapi)
 #add_subdirectory(libs/daemon_core)
 

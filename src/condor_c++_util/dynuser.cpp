@@ -17,11 +17,12 @@
  *
  ***************************************************************/
 
+#ifdef WIN32
 
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_config.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "dynuser.h"
 #include <lmaccess.h>
 #include <lmerr.h>
@@ -957,3 +958,4 @@ bool dynuser::cleanup_condor_users(char* user_prefix) {
 	return retval;
 }
 
+#endif

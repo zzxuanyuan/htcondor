@@ -1,8 +1,6 @@
 #set the local target 
 set(TargetName utils)
 
-include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
-
 # items to be removed from the compile.
 # platform specific files will be handled by condor_glob
 file( GLOB RmvSrcs y.tab* lex.yy* param_info* syscall_numbers*)

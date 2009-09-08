@@ -21,7 +21,7 @@
 #include "condor_common.h"
 #include "string_list.h"
 #include "condor_config.h"
-#include "../condor_sysapi/sysapi.h"
+#include "sysapi/sysapi.h"
 #include "java_config.h"
 
 /*

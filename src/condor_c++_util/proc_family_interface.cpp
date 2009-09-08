@@ -24,7 +24,7 @@
 #include "proc_family_interface.h"
 #include "proc_family_proxy.h"
 #include "proc_family_direct.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 
 ProcFamilyInterface* ProcFamilyInterface::create(const char* subsys)
 {

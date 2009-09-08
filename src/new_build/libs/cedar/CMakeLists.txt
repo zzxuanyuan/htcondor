@@ -3,7 +3,9 @@ set(TargetName cedar)
 
 include_directories(${CONDOR_SOURCE_DIR}/libs/cedar)
 
-condor_glob(CedarHdrs CedarSrcs)
+file( GLOB CedarRmvSrcs proc.cpp )
+
+condor_glob(CedarHdrs CedarSrcs "${CedarRmvSrcs}")
 
 #create the library
 add_library(${TargetName} STATIC ${CedarHdrs} ${CedarSrcs})

@@ -25,8 +25,8 @@
 #include "my_popen.h"
 #include "sig_install.h"
 #include "env.h"
-#include "../condor_privsep/condor_privsep.h"
-#include "../condor_privsep/privsep_fork_exec.h"
+#include "privsep/condor_privsep.h"
+#include "privsep/privsep_fork_exec.h"
 
 extern char** environ;
 

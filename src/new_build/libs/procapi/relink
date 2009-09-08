@@ -25,4 +25,4 @@ done
 # if they want in place testing, then it should be done properly.
 rm -f *test*
 rm -f *Test*
-
+rm -f *.t*

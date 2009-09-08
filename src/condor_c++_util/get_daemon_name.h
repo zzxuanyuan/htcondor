@@ -20,7 +20,7 @@
 #ifndef CONDOR_GET_DAEMON_NAME_H
 #define CONDOR_GET_DAEMON_NAME_H
 
-#include "daemon_types.h"
+#include "daemon_client/daemon_types.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -22,7 +22,7 @@
 #include "KeyCache.h"
 #include "string_list.h"
 #include "HashTable.h"
-#include "../condor_daemon_core.V6/condor_ipverify.h"
+#include "daemon_core/condor_ipverify.h"
 
 extern bool operator==(const struct in_addr a, const struct in_addr b);
 
