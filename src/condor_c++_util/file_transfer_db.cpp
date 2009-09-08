@@ -29,6 +29,7 @@
 #include "internet.h"
 #include "file_sql.h"
 #include "subsystem_info.h"
+#include "string_list.h"
 
 extern FILESQL *FILEObj;
 
