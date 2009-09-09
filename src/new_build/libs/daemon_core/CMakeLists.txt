@@ -1,7 +1,9 @@
 #set the local target 
-set(TargetName daemoncore)
+set(TargetName daemon_core)
 
-condor_glob(HeaderFiles SourceFiles)
+file( GLOB DCRmvElements soap_daemon*)
+
+condor_glob( DCHeaderFiles DCSourceFiles "${DCRmvElements}" )
 
 #create the library
-add_library(${TargetName} STATIC ${HeaderFiles} ${SourceFiles})
+add_library(${TargetName} STATIC ${DCHeaderFiles} ${DCSourceFiles})

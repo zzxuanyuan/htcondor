@@ -21,7 +21,7 @@
 #include "condor_common.h"
 #include "self_monitor.h"
 #include "condor_daemon_core.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 
 static void self_monitor(void);
 

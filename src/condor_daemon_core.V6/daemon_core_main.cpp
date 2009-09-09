@@ -27,7 +27,7 @@
 #include "limit.h"
 #include "condor_email.h"
 #include "sig_install.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_debug.h"
 #include "condor_distribution.h"
 #include "condor_environ.h"

@@ -1,7 +1,9 @@
 #set the local target 
-set(TargetName daemonclient)
+set(TargetName daemon_client)
 
-condor_glob(HeaderFiles SourceFiles)
+file( GLOB DCRmvElements *.t.* )
+
+condor_glob(DCHeaderFiles DCSourceFiles "${DCRmvElements}")
 
 #create the library
-add_library(${TargetName} STATIC ${HeaderFiles} ${SourceFiles})
+add_library(${TargetName} STATIC ${DCHeaderFiles} ${DCSourceFiles})

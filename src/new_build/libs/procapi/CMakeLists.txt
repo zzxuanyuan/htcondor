@@ -1,8 +1,6 @@
 #set the local target 
 set(TargetName procapi)
 
-include_directories(${CONDOR_SOURCE_DIR}/libs/procapi)
-
 file( GLOB ProcAPISrcs procapi.cpp processid.cpp procapi_killfamily.cpp )
 
 # there are a series of other targets as well

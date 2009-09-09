@@ -17,6 +17,7 @@
  *
  ***************************************************************/
 
+#ifdef WINDOWS
 
 #define UNICODE
 #define _UNICODE
@@ -229,3 +230,5 @@ wWinMain(HINSTANCE, HINSTANCE, wchar_t*, int)
 		return SOFTKILL_SUCCESS;
 	}
 }
+
+#endif

@@ -62,7 +62,7 @@ static const int MIN_REGISTERED_SOCKET_SAFETY_LIMIT = 15;
 static const int DC_PIPE_BUF_SIZE = 65536;
 
 #include "authentication.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "reli_sock.h"
 #include "condor_daemon_core.h"
 #include "condor_io.h"
@@ -84,7 +84,7 @@ static const int DC_PIPE_BUF_SIZE = 65536;
 #include "condor_version.h"
 #include "setenv.h"
 #include "my_popen.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 #ifdef WIN32
 #include "exception_handling.WINDOWS.h"
 #include "process_control.WINDOWS.h"
@@ -95,7 +95,7 @@ typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #endif
 #include "directory.h"
-#include "../condor_io/condor_rw.h"
+#include "cedar/condor_rw.h"
 
 #include "daemon_core_sock_adapter.h"
 #include "HashTable.h"

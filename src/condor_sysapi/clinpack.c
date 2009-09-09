@@ -79,13 +79,26 @@ PLEASE NOTE: You can also just 'uncomment' one of the options below.
 
 static double st[8][6];
 
+// forward declarations
+void matgen( REAL a[], int lda, int n, REAL b[], REAL*norma );
+void daxpy( int n, REAL da, REAL dx[], int incx, REAL dy[], int incy);
+void dgefa( REAL a[], int lda, int n, int ipvt[], int* info );
+void dgesl( REAL a[],int lda,int n,int ipvt[],REAL b[],int job );
+void dmxpy (int n1, REAL y[], int n2, int ldm,REAL x[], REAL m[]);
+void dscal(int n,REAL da,REAL dx[],int incx);
+int idamax(int n,REAL dx[],int incx);
+REAL ddot(int n,REAL dx[],int incx,REAL dy[], int incy);
+REAL epslon (REAL x);
+
+extern void sysapi_internal_reconfig(void);
+
 int
 clinpack_kflops ( int ntimes_arg )
 {
    static REAL aa[200][200],a[200][201],b[200],x[200];
    REAL cray,ops,total,norma,normx;
    REAL resid,residn,eps;
-   REAL epslon(),kf;
+   REAL kf;
    double t1,tm,tm2,dtime();
    static int ipvt[200],n,i,ntimes,info,lda,ldaa,kflops;
 
@@ -110,13 +123,13 @@ clinpack_kflops ( int ntimes_arg )
 
 	ops = (2.0e0*(n*n*n))/3.0 + 2.0*(n*n);
 
-	matgen(a,lda,n,b,&norma);
+	matgen((double *)a,lda,n,b,&norma);
 	t1 = dtime();
-	dgefa(a,lda,n,ipvt,&info);
+	dgefa((double *)a,lda,n,ipvt,&info);
 	st[0][0] = dtime() - t1;
 	
 	t1 = dtime();
-	dgesl(a,lda,n,ipvt,b,0);
+	dgesl((double *)a,lda,n,ipvt,b,0);
 	st[1][0] = dtime() - t1;
 
 	total = st[0][0] + st[1][0];
@@ -136,12 +149,12 @@ clinpack_kflops ( int ntimes_arg )
 	   {
 	       x[i] = b[i];
 	   }
-	matgen(a,lda,n,b,&norma);
+	matgen((double *)a,lda,n,b,&norma);
 	for (i = 0; i < n; i++) 
 	   {
 	       b[i] = -b[i];
 	   }
-	dmxpy(n,b,n,lda,x,a);
+	dmxpy(n,b,n,lda,x,(double *)a);
 	resid = 0.0;
 	normx = 0.0;
 	for (i = 0; i < n; i++)
@@ -161,13 +174,13 @@ clinpack_kflops ( int ntimes_arg )
 	st[5][0] = total/cray;
 
 
-	matgen(a,lda,n,b,&norma);
+	matgen((double *)a,lda,n,b,&norma);
 	t1 = dtime();
-	dgefa(a,lda,n,ipvt,&info);
+	dgefa((double *)a,lda,n,ipvt,&info);
 	st[0][1] = dtime() - t1;
 	
 	t1 = dtime();
-	dgesl(a,lda,n,ipvt,b,0);
+	dgesl((double *)a,lda,n,ipvt,b,0);
 	st[1][1] = dtime() - t1;
 
 	total = st[0][1] + st[1][1];
@@ -186,14 +199,14 @@ clinpack_kflops ( int ntimes_arg )
 	st[4][1] = 2.0e3/st[3][1];
 	st[5][1] = total/cray;
 
-	matgen(a,lda,n,b,&norma);
+	matgen((double *)a,lda,n,b,&norma);
 	
 	t1 = dtime();
-	dgefa(a,lda,n,ipvt,&info);
+	dgefa((double *)a,lda,n,ipvt,&info);
 	st[0][2] = dtime() - t1;
 	
 	t1 = dtime();
-	dgesl(a,lda,n,ipvt,b,0);
+	dgesl((double *)a,lda,n,ipvt,b,0);
 	st[1][2] = dtime() - t1;
 
 	total = st[0][2] + st[1][2];
@@ -218,16 +231,16 @@ clinpack_kflops ( int ntimes_arg )
 
    for (i = 0; i < ntimes; i++) {
 	       tm = dtime();
-      matgen(a,lda,n,b,&norma);
+      matgen((double *)a,lda,n,b,&norma);
       tm2 = tm2 + dtime() - tm;
-      dgefa(a,lda,n,ipvt,&info);
+      dgefa((double *)a,lda,n,ipvt,&info);
       }
 
 	st[0][3] = (dtime() - t1 - tm2)/ntimes;
 	t1 = dtime();
 
    for (i = 0; i < ntimes; i++) {
-	       dgesl(a,lda,n,ipvt,b,0);
+	       dgesl((double *)a,lda,n,ipvt,b,0);
       }
 
 	st[1][3] = (dtime() - t1)/ntimes;
@@ -248,13 +261,13 @@ clinpack_kflops ( int ntimes_arg )
 	st[4][3] = 2.0e3/st[3][3];
 	st[5][3] = total/cray;
 
-	matgen(aa,ldaa,n,b,&norma);
+	matgen((double *)aa,ldaa,n,b,&norma);
 	t1 = dtime();
-	dgefa(aa,ldaa,n,ipvt,&info);
+	dgefa((double *)aa,ldaa,n,ipvt,&info);
 	st[0][4] = dtime() - t1;
 	
 	t1 = dtime();
-	dgesl(aa,ldaa,n,ipvt,b,0);
+	dgesl((double *)aa,ldaa,n,ipvt,b,0);
 	st[1][4] = dtime() - t1;
 
 	total = st[0][4] + st[1][4];
@@ -273,13 +286,13 @@ clinpack_kflops ( int ntimes_arg )
 	st[4][4] = 2.0e3/st[3][4];
 	st[5][4] = total/cray;
 
-	matgen(aa,ldaa,n,b,&norma);
+	matgen((double *)aa,ldaa,n,b,&norma);
 	t1 = dtime();
-	dgefa(aa,ldaa,n,ipvt,&info);
+	dgefa((double *)aa,ldaa,n,ipvt,&info);
 	st[0][5] = dtime() - t1;
 
 	t1 = dtime();
-	dgesl(aa,ldaa,n,ipvt,b,0);
+	dgesl((double *)aa,ldaa,n,ipvt,b,0);
 	st[1][5] = dtime() - t1;
 
 	total = st[0][5] + st[1][5];
@@ -298,13 +311,13 @@ clinpack_kflops ( int ntimes_arg )
 	st[4][5] = 2.0e3/st[3][5];
 	st[5][5] = total/cray;
 
-   matgen(aa,ldaa,n,b,&norma);
+   matgen((double *)aa,ldaa,n,b,&norma);
    t1 = dtime();
-   dgefa(aa,ldaa,n,ipvt,&info);
+   dgefa((double *)aa,ldaa,n,ipvt,&info);
    st[0][6] = dtime() - t1;
 
    t1 = dtime();
-   dgesl(aa,ldaa,n,ipvt,b,0);
+   dgesl((double *)aa,ldaa,n,ipvt,b,0);
    st[1][6] = dtime() - t1;
 
    total = st[0][6] + st[1][6];
@@ -328,16 +341,16 @@ clinpack_kflops ( int ntimes_arg )
    t1 = dtime();
    for (i = 0; i < ntimes; i++) {
       tm = dtime();
-      matgen(aa,ldaa,n,b,&norma);
+      matgen((double *)aa,ldaa,n,b,&norma);
       tm2 = tm2 + dtime() - tm;
-      dgefa(aa,ldaa,n,ipvt,&info);
+      dgefa((double *)aa,ldaa,n,ipvt,&info);
       }
 
    st[0][7] = (dtime() - t1 - tm2)/ntimes;
    
    t1 = dtime();
    for (i = 0; i < ntimes; i++) {
-      dgesl(aa,ldaa,n,ipvt,b,0);
+      dgesl((double *)aa,ldaa,n,ipvt,b,0);
       }
 
    st[1][7] = (dtime() - t1)/ntimes;
@@ -469,7 +482,7 @@ function, references to a[i][j] are written a[lda*i+j].
 /*     internal variables   */
 
 REAL t;
-int idamax(),j,k,kp1,l,nm1;
+int j,k,kp1,l,nm1;
 
 
 /*     gaussian elimination with partial pivoting   */
@@ -594,7 +607,7 @@ function, references to a[i][j] are written a[lda*i+j].  */
 {
 /*     internal variables   */
 
-   REAL ddot(),t;
+   REAL t;
    int k,kb,l,nm1;
 
    nm1 = n - 1;

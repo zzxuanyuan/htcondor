@@ -34,12 +34,15 @@
  *************************************************************************
  */
 
+#if 0 combined into a single file dhry21a.c
+
 #ifdef WIN32
 /* Get rid of warnings; we cannot change this code */
 #pragma warning( disable: 4033 4305 4013 4101 4013 4716 )
 #endif
 
 #include "dhry.h"
+#include <string.h>
 
 #ifndef REG
 #define REG
@@ -50,8 +53,10 @@
 extern  int     Int_Glob;
 extern  char    Ch_1_Glob;
 
+// forward declarations
+Boolean Func_3 (Enumeration Enum_Par_Val);
 
-Proc_6 (Enumeration Enum_Val_Par, Enumeration* Enum_Ref_Par)
+void Proc_6 (Enumeration Enum_Val_Par, Enumeration* Enum_Ref_Par)
 /*********************************/
     /* executed once */
     /* Enum_Val_Par == Ident_3, Enum_Ref_Par becomes Ident_2 */
@@ -85,7 +90,7 @@ Proc_6 (Enumeration Enum_Val_Par, Enumeration* Enum_Ref_Par)
 } /* Proc_6 */
 
 
-Proc_7 (One_Fifty Int_1_Par_Val, One_Fifty Int_2_Par_Val, One_Fifty *Int_Par_Ref)
+void Proc_7 (One_Fifty Int_1_Par_Val, One_Fifty Int_2_Par_Val, One_Fifty *Int_Par_Ref)
 /**********************************************/
     /* executed three times                                      */
     /* first call:      Int_1_Par_Val == 2, Int_2_Par_Val == 3,  */
@@ -105,15 +110,15 @@ Proc_7 (One_Fifty Int_1_Par_Val, One_Fifty Int_2_Par_Val, One_Fifty *Int_Par_Ref
 } /* Proc_7 */
 
 
-Proc_8 (Arr_1_Par_Ref, Arr_2_Par_Ref, Int_1_Par_Val, Int_2_Par_Val)
+void Proc_8 ( Arr_1_Dim Arr_1_Par_Ref, Arr_2_Dim Arr_2_Par_Ref, int Int_1_Par_Val, int Int_2_Par_Val )
 /*********************************************************************/
     /* executed once      */
     /* Int_Par_Val_1 == 3 */
     /* Int_Par_Val_2 == 7 */
-Arr_1_Dim       Arr_1_Par_Ref;
-Arr_2_Dim       Arr_2_Par_Ref;
-int             Int_1_Par_Val;
-int             Int_2_Par_Val;
+//Arr_1_Dim       Arr_1_Par_Ref;
+//Arr_2_Dim       Arr_2_Par_Ref;
+//int             Int_1_Par_Val;
+//int             Int_2_Par_Val;
 {
   REG One_Fifty Int_Index;
   REG One_Fifty Int_Loc;
@@ -156,14 +161,14 @@ Enumeration Func_1 (Capital_Letter Ch_1_Par_Val, Capital_Letter Ch_2_Par_Val)
 } /* Func_1 */
 
 
-Boolean Func_2 (Str_1_Par_Ref, Str_2_Par_Ref)
+Boolean Func_2 (Str_30 Str_1_Par_Ref, Str_30 Str_2_Par_Ref)
 /*************************************************/
     /* executed once */
     /* Str_1_Par_Ref == "DHRYSTONE PROGRAM, 1'ST STRING" */
     /* Str_2_Par_Ref == "DHRYSTONE PROGRAM, 2'ND STRING" */
 
-Str_30  Str_1_Par_Ref;
-Str_30  Str_2_Par_Ref;
+//Str_30  Str_1_Par_Ref;
+//Str_30  Str_2_Par_Ref;
 {
   REG One_Thirty        Int_Loc;
       Capital_Letter    Ch_Loc;
@@ -198,11 +203,11 @@ Str_30  Str_2_Par_Ref;
 } /* Func_2 */
 
 
-Boolean Func_3 (Enum_Par_Val)
+Boolean Func_3 (Enumeration Enum_Par_Val)
 /***************************/
     /* executed once        */
     /* Enum_Par_Val == Ident_3 */
-Enumeration Enum_Par_Val;
+//Enumeration Enum_Par_Val;
 {
   Enumeration Enum_Loc;
 
@@ -213,3 +218,5 @@ Enumeration Enum_Par_Val;
   else /* not executed */
     return (false);
 } /* Func_3 */
+
+#endif

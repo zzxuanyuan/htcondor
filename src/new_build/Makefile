@@ -150,6 +150,32 @@ sysapi/fast:
 	$(MAKE) -f libs/sysapi/CMakeFiles/sysapi.dir/build.make libs/sysapi/CMakeFiles/sysapi.dir/build
 .PHONY : sysapi/fast
 
+#=============================================================================
+# Target rules for targets named daemon_client
+
+# Build rule for target.
+daemon_client: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 daemon_client
+.PHONY : daemon_client
+
+# fast build rule for target.
+daemon_client/fast:
+	$(MAKE) -f libs/daemon_client/CMakeFiles/daemon_client.dir/build.make libs/daemon_client/CMakeFiles/daemon_client.dir/build
+.PHONY : daemon_client/fast
+
+#=============================================================================
+# Target rules for targets named daemon_core
+
+# Build rule for target.
+daemon_core: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 daemon_core
+.PHONY : daemon_core
+
+# fast build rule for target.
+daemon_core/fast:
+	$(MAKE) -f libs/daemon_core/CMakeFiles/daemon_core.dir/build.make libs/daemon_core/CMakeFiles/daemon_core.dir/build
+.PHONY : daemon_core/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -162,6 +188,8 @@ help:
 	@echo "... cedar"
 	@echo "... procapi"
 	@echo "... sysapi"
+	@echo "... daemon_client"
+	@echo "... daemon_core"
 .PHONY : help
 
 

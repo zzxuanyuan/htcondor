@@ -8,7 +8,7 @@ MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS CONDOR_REMOVE)
 	file(GLOB WinSrcs "*WINDOWS*" "*windows*")
 	file(GLOB LinuxSrcs "*LINUX*" "*linux*")
 	file(GLOB UnixSrcs "*UNIX*" "*unix*")
-	set (RmvSrcs ${CONDOR_REMOVE})
+	file(GLOB RmvSrcs ${CONDOR_REMOVE} *.dead* )
 
 	# 1st remove any elements that may be extra
 	if(RmvSrcs)

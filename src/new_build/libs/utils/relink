@@ -48,7 +48,7 @@ done
 
 
 # remove files which do not appear to be built.
-rm -f ckpt_server_api_stubs.cpp
+
 
 # remove test files which are built but not executed as part of a build.
 # if they want in place testing, then it should be done properly.
@@ -109,6 +109,7 @@ rm -f *.t*
 rm -f sshd_wrapper*
 rm -f soap_helpers*
 rm -f user_error_policy*
+rm -f ckpt_server_api_stubs.cpp*
 
 
 
