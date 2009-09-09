@@ -381,9 +381,9 @@ clinpack_kflops ( int ntimes_arg )
      
       
 /*----------------------*/ 
-matgen(a,lda,n,b,norma)
-REAL a[],b[],*norma;
-int lda, n;
+void matgen( REAL a[], int lda, int n, REAL b[], REAL*norma )
+//REAL a[],b[],*norma;
+//int lda, n;
 
 /* We would like to declare a[][lda], but c does not allow it.  In this
 function, references to a[i][j] are written a[lda*i+j].  */
@@ -411,9 +411,9 @@ function, references to a[i][j] are written a[lda*i+j].  */
 }
 
 /*----------------------*/ 
-dgefa(a,lda,n,ipvt,info)
-REAL a[];
-int lda,n,ipvt[],*info;
+void dgefa( REAL a[], int lda, int n, int ipvt[], int* info )
+//REAL a[];
+//int lda,n,ipvt[],*info;
 
 /* We would like to declare a[][lda], but c does not allow it.  In this
 function, references to a[i][j] are written a[lda*i+j].  
@@ -527,9 +527,9 @@ int idamax(),j,k,kp1,l,nm1;
 
 /*----------------------*/ 
 
-dgesl(a,lda,n,ipvt,b,job)
-int lda,n,ipvt[],job;
-REAL a[],b[];
+void dgesl( REAL a[],int lda,int n,int ipvt[],REAL b[],int job )
+//int lda,n,ipvt[],job;
+//REAL a[],b[];
 
 /* We would like to declare a[][lda], but c does not allow it.  In this
 function, references to a[i][j] are written a[lda*i+j].  */
@@ -653,13 +653,13 @@ function, references to a[i][j] are written a[lda*i+j].  */
 
 /*----------------------*/ 
 
-daxpy(n,da,dx,incx,dy,incy)
+void daxpy( int n, REAL da, REAL dx[], int incx, REAL dy[], int incy)
 /*
      constant times a vector plus a vector.
      jack dongarra, linpack, 3/11/78.
 */
-REAL dx[],dy[],da;
-int incx,incy,n;
+//REAL dx[],dy[],da;
+//int incx,incy,n;
 {
    int i,ix,iy,m,mp1;
 
@@ -709,14 +709,13 @@ int incx,incy,n;
    
 /*----------------------*/ 
 
-REAL ddot(n,dx,incx,dy,incy)
+REAL ddot(int n,REAL dx[],int incx,REAL dy[], int incy)
 /*
      forms the dot product of two vectors.
      jack dongarra, linpack, 3/11/78.
 */
-REAL dx[],dy[];
-
-int incx,incy,n;
+//REAL dx[],dy[];
+//int incx,incy,n;
 {
    REAL dtemp;
    int i,ix,iy,m,mp1;
@@ -767,13 +766,13 @@ int incx,incy,n;
 }
 
 /*----------------------*/ 
-dscal(n,da,dx,incx)
+void dscal(int n,REAL da,REAL dx[],int incx)
 
 /*     scales a vector by a constant.
       jack dongarra, linpack, 3/11/78.
 */
-REAL da,dx[];
-int n, incx;
+//REAL da,dx[];
+//int n, incx;
 {
    int i,m,mp1,nincx;
 
@@ -814,15 +813,15 @@ int n, incx;
 }
 
 /*----------------------*/ 
-int idamax(n,dx,incx)
+int idamax(int n,REAL dx[],int incx)
 
 /*
      finds the index of element having max. absolute value.
      jack dongarra, linpack, 3/11/78.
 */
 
-REAL dx[];
-int incx,n;
+//REAL dx[];
+//int incx,n;
 {
    REAL dmax;
    int i, ix, itemp;
@@ -861,8 +860,8 @@ int incx,n;
 }
 
 /*----------------------*/ 
-REAL epslon (x)
-REAL x;
+REAL epslon (REAL x)
+//REAL x;
 /*
      estimate unit roundoff in quantities of size x.
 */
@@ -908,9 +907,9 @@ REAL x;
 }
  
 /*----------------------*/ 
-dmxpy (n1, y, n2, ldm, x, m)
-REAL y[], x[], m[];
-int n1, n2, ldm;
+void dmxpy (int n1, REAL y[], int n2, int ldm,REAL x[], REAL m[])
+//REAL y[], x[], m[];
+//int n1, n2, ldm;
 
 /* We would like to declare m[][ldm], but c does not allow it.  In this
 function, references to m[i][j] are written m[ldm*i+j].  */

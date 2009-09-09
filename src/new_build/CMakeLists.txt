@@ -272,10 +272,11 @@ include_directories(${CONDOR_SOURCE_DIR}/daemons)
 add_subdirectory(libs/utils)
 add_subdirectory(libs/cedar)
 add_subdirectory(libs/procapi)
+add_subdirectory(libs/sysapi)
 
 #add_subdirectory(libs/classad)
 #add_subdirectory(libs/daemon_client)
 #
-#add_subdirectory(libs/sysapi)
+#
 #add_subdirectory(libs/daemon_core)
 

@@ -247,9 +247,7 @@ char *filename;
 #define f_bavail f_bfree
 #endif
 
-int
-sysapi_disk_space_raw(filename)
-const char *filename;
+int sysapi_disk_space_raw(const char * filename)
 {
 #if defined(Solaris)
 	struct statvfs statfsbuf;

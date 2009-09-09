@@ -1,7 +1,9 @@
 #set the local target 
-set(TargetName procapi)
+set(TargetName sysapi)
 
-condor_glob(HeaderFiles SourceFiles)
+file( GLOB SysApiRmvElements *_t* *.t.* )
+
+condor_glob(SysapiHeaderFiles SysapiSourceFiles "${SysApiRmvElements}" )
 
 #create the library
-add_library(${TargetName} STATIC ${HeaderFiles} ${SourceFiles})
+add_library(${TargetName} STATIC ${SysapiHeaderFiles} ${SysapiSourceFiles})

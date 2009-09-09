@@ -47,7 +47,7 @@ static char* find_ckpt_probe(void)
 	tmp = param("LIBEXEC");
 
 	if (tmp != NULL) {
-		tmp2 = malloc(strlen(tmp) + strlen("/condor_ckpt_probe") + 1);
+		tmp2 = (char *) malloc(strlen(tmp) + strlen("/condor_ckpt_probe") + 1);
 		if (tmp2 == NULL) {
 			EXCEPT("Out of memory!");
 		}
@@ -71,7 +71,7 @@ static char* find_ckpt_probe(void)
 	tmp = param("RELEASE_DIR");
 
 	if (tmp != NULL) {
-		tmp2 = malloc(strlen(tmp) + strlen("/libexec/condor_ckpt_probe") + 1);
+		tmp2 = (char*) malloc(strlen(tmp) + strlen("/libexec/condor_ckpt_probe") + 1);
 		if (tmp2 == NULL) {
 			EXCEPT("Out of memory!");
 		}

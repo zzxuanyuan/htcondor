@@ -137,6 +137,19 @@ procapi/fast:
 	$(MAKE) -f libs/procapi/CMakeFiles/procapi.dir/build.make libs/procapi/CMakeFiles/procapi.dir/build
 .PHONY : procapi/fast
 
+#=============================================================================
+# Target rules for targets named sysapi
+
+# Build rule for target.
+sysapi: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 sysapi
+.PHONY : sysapi
+
+# fast build rule for target.
+sysapi/fast:
+	$(MAKE) -f libs/sysapi/CMakeFiles/sysapi.dir/build.make libs/sysapi/CMakeFiles/sysapi.dir/build
+.PHONY : sysapi/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -148,6 +161,7 @@ help:
 	@echo "... utils"
 	@echo "... cedar"
 	@echo "... procapi"
+	@echo "... sysapi"
 .PHONY : help
 
 

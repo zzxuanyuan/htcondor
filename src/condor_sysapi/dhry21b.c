@@ -51,13 +51,13 @@ extern  int     Int_Glob;
 extern  char    Ch_1_Glob;
 
 
-Proc_6 (Enum_Val_Par, Enum_Ref_Par)
+Proc_6 (Enumeration Enum_Val_Par, Enumeration* Enum_Ref_Par)
 /*********************************/
     /* executed once */
     /* Enum_Val_Par == Ident_3, Enum_Ref_Par becomes Ident_2 */
 
-Enumeration  Enum_Val_Par;
-Enumeration *Enum_Ref_Par;
+//Enumeration  Enum_Val_Par;
+//Enumeration *Enum_Ref_Par;
 {
   *Enum_Ref_Par = Enum_Val_Par;
   if (! Func_3 (Enum_Val_Par))
@@ -85,7 +85,7 @@ Enumeration *Enum_Ref_Par;
 } /* Proc_6 */
 
 
-Proc_7 (Int_1_Par_Val, Int_2_Par_Val, Int_Par_Ref)
+Proc_7 (One_Fifty Int_1_Par_Val, One_Fifty Int_2_Par_Val, One_Fifty *Int_Par_Ref)
 /**********************************************/
     /* executed three times                                      */
     /* first call:      Int_1_Par_Val == 2, Int_2_Par_Val == 3,  */
@@ -94,9 +94,9 @@ Proc_7 (Int_1_Par_Val, Int_2_Par_Val, Int_Par_Ref)
     /*                  Int_Par_Ref becomes 17                   */
     /* third call:      Int_1_Par_Val == 6, Int_2_Par_Val == 10, */
     /*                  Int_Par_Ref becomes 18                   */
-One_Fifty       Int_1_Par_Val;
-One_Fifty       Int_2_Par_Val;
-One_Fifty      *Int_Par_Ref;
+//One_Fifty       Int_1_Par_Val;
+//One_Fifty       Int_2_Par_Val;
+//One_Fifty      *Int_Par_Ref;
 {
   One_Fifty Int_Loc;
 
@@ -130,15 +130,15 @@ int             Int_2_Par_Val;
 } /* Proc_8 */
 
 
-Enumeration Func_1 (Ch_1_Par_Val, Ch_2_Par_Val)
+Enumeration Func_1 (Capital_Letter Ch_1_Par_Val, Capital_Letter Ch_2_Par_Val)
 /*************************************************/
     /* executed three times                                         */
     /* first call:      Ch_1_Par_Val == 'H', Ch_2_Par_Val == 'R'    */
     /* second call:     Ch_1_Par_Val == 'A', Ch_2_Par_Val == 'C'    */
     /* third call:      Ch_1_Par_Val == 'B', Ch_2_Par_Val == 'C'    */
 
-Capital_Letter   Ch_1_Par_Val;
-Capital_Letter   Ch_2_Par_Val;
+//Capital_Letter   Ch_1_Par_Val;
+//Capital_Letter   Ch_2_Par_Val;
 {
   Capital_Letter        Ch_1_Loc;
   Capital_Letter        Ch_2_Loc;
