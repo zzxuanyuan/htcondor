@@ -1,1 +1,0 @@
-../../../condor_c++_util/set_user_priv_from_ad.cpp

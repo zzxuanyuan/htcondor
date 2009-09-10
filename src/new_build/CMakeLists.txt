@@ -275,7 +275,11 @@ add_subdirectory(libs/procapi)
 add_subdirectory(libs/sysapi)
 add_subdirectory(libs/daemon_client)
 add_subdirectory(libs/daemon_core)
+add_subdirectory(libs/classad.old)
+add_subdirectory(libs/privsep)
 
-#add_subdirectory(libs/classad)
-#add_subdirectory(libs/daemon_core)
+#add_subdirectory(daemons/procd)
+
+#add_subdirectory(libs/classad) ..?
+
 

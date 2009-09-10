@@ -1,8 +1,6 @@
 #set the local target 
 set(TargetName cedar)
 
-include_directories(${CONDOR_SOURCE_DIR}/libs/cedar)
-
 file( GLOB CedarRmvSrcs proc.cpp )
 
 condor_glob(CedarHdrs CedarSrcs "${CedarRmvSrcs}")

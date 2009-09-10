@@ -1,0 +1,1 @@
+../../../classad.old/registration.cpp

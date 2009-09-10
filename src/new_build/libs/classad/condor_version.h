@@ -1,1 +1,0 @@
-../../../condor_c++_util/condor_version.h

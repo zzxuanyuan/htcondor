@@ -1,1 +1,0 @@
-../../../condor_c++_util/stat_info.cpp

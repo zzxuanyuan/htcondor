@@ -36,7 +36,7 @@
 #include "condor_adtypes.h"
 #include "condor_debug.h"
 #include "ListCache.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 
 static ClassAdLookupFunc lookup_func = 0;
 static void *lookup_arg = 0;

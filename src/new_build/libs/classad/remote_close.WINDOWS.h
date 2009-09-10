@@ -1,1 +1,0 @@
-../../../condor_c++_util/remote_close.WINDOWS.h

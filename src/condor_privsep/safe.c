@@ -674,7 +674,7 @@ strto_id(id_t *id, const char *value, const char **endptr,
         }
 
         id_len = endp - id_begin;
-        id_name = malloc(id_len + 1);
+        id_name = (char *)malloc(id_len + 1);
         if (id_name == NULL) {
             fatal_error_exit(1, "malloc failed in strto_id");
         }
@@ -2386,7 +2386,7 @@ safe_is_path_trusted(const char *pathname, id_range_list *trusted_uids,
             /* symbolic link found */
             int link_path_len = stat_buf.st_size;
             int readlink_len;
-            char *link_path = malloc(link_path_len + 1);
+            char *link_path = (char *)malloc(link_path_len + 1);
 
             if (link_path == 0) {
                 fatal_error_exit(1, "malloc failed in link_path");
@@ -2864,7 +2864,7 @@ safe_is_path_trusted_r(const char *pathname, id_range_list *trusted_uids,
             /* symbolic link found */
             int link_path_len = stat_buf.st_size;
             int readlink_len;
-            char *link_path = malloc(link_path_len + 1);
+            char *link_path = (char *)malloc(link_path_len + 1);
 
             if (link_path == 0) {
                 fatal_error_exit(1, "malloc failed in link_path");

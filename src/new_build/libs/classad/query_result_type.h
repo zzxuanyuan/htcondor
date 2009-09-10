@@ -1,1 +1,0 @@
-../../../condor_c++_util/query_result_type.h

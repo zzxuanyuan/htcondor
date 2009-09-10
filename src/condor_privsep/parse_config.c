@@ -192,7 +192,7 @@ int next_cf_value(config_file *cf, char **key, char **value)
 
             /* malloc the buffer, read the data, check for errors */
             value_length = len;
-            read_buf = malloc(value_length + 1);
+            read_buf = (char *)malloc(value_length + 1);
             if (!read_buf) {
                 fatal_error_exit(1,
                                  "next_cf_value(): malloc failed in file: %s:%d",

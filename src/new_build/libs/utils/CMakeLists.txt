@@ -3,7 +3,7 @@ set(TargetName utils)
 
 # items to be removed from the compile.
 # platform specific files will be handled by condor_glob
-file( GLOB RmvSrcs y.tab* lex.yy* param_info* syscall_numbers*)
+file( GLOB RmvSrcs y.tab* lex.yy* param_info* syscall_numbers* libcondorapi_stubs* )
 
 # I will need to add separate targets for
 
@@ -17,3 +17,4 @@ condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 
 #create the library
 add_library(${TargetName} STATIC ${HeaderFiles} ${SourceFiles})
+target_link_libraries(${TargetName} pthread )

@@ -21,7 +21,7 @@
 #ifndef _PROC_FAMILY_MEMBER_H
 #define _PROC_FAMILY_MEMBER_H
 
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 
 class ProcFamily;
 

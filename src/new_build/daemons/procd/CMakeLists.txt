@@ -1,7 +1,10 @@
 #set the local target 
-set(TargetName ccb)
+set(TargetName procd)
 
-condor_glob(ccbHdrs ccbSrcs)
+file( GLOB ProcdRmvElements *_test* )
+
+condor_glob(procdHDRS procdSRCS "${ProcdRmvElements}")
 
 #create the library
-add_library(${TargetName} STATIC ${ccbHdrs} ${ccbSrcs})
+add_executable(${TargetName} ${procdHDRS} ${procdSRCS})
+target_link_libraries( ${TargetName} utils procapi classad.old sysapi utils )

@@ -921,7 +921,7 @@ chown_func(const char *filename, const struct stat *buf, void *data)
     int fd;
     struct stat stat_buf;
     uid_t source_uid;
-    uid_pair *ids = data;
+    uid_pair *ids = (uid_pair *) data;
     int r;
 
     (void)buf;

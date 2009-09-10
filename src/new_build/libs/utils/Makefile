@@ -3880,30 +3880,6 @@ killfamily.cpp.s:
 	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/killfamily.cpp.s
 .PHONY : killfamily.cpp.s
 
-libcondorapi_stubs.o: libcondorapi_stubs.cpp.o
-.PHONY : libcondorapi_stubs.o
-
-# target to build an object file
-libcondorapi_stubs.cpp.o:
-	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/libcondorapi_stubs.cpp.o
-.PHONY : libcondorapi_stubs.cpp.o
-
-libcondorapi_stubs.i: libcondorapi_stubs.cpp.i
-.PHONY : libcondorapi_stubs.i
-
-# target to preprocess a source file
-libcondorapi_stubs.cpp.i:
-	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/libcondorapi_stubs.cpp.i
-.PHONY : libcondorapi_stubs.cpp.i
-
-libcondorapi_stubs.s: libcondorapi_stubs.cpp.s
-.PHONY : libcondorapi_stubs.s
-
-# target to generate assembly for a file
-libcondorapi_stubs.cpp.s:
-	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/libcondorapi_stubs.cpp.s
-.PHONY : libcondorapi_stubs.cpp.s
-
 limit.o: limit.cpp.o
 .PHONY : limit.o
 
@@ -4575,6 +4551,30 @@ network_adapter.linux.s: network_adapter.linux.cpp.s
 network_adapter.linux.cpp.s:
 	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/network_adapter.linux.cpp.s
 .PHONY : network_adapter.linux.cpp.s
+
+network_adapter.unix.o: network_adapter.unix.cpp.o
+.PHONY : network_adapter.unix.o
+
+# target to build an object file
+network_adapter.unix.cpp.o:
+	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/network_adapter.unix.cpp.o
+.PHONY : network_adapter.unix.cpp.o
+
+network_adapter.unix.i: network_adapter.unix.cpp.i
+.PHONY : network_adapter.unix.i
+
+# target to preprocess a source file
+network_adapter.unix.cpp.i:
+	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/network_adapter.unix.cpp.i
+.PHONY : network_adapter.unix.cpp.i
+
+network_adapter.unix.s: network_adapter.unix.cpp.s
+.PHONY : network_adapter.unix.s
+
+# target to generate assembly for a file
+network_adapter.unix.cpp.s:
+	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && $(MAKE) -f libs/utils/CMakeFiles/utils.dir/build.make libs/utils/CMakeFiles/utils.dir/network_adapter.unix.cpp.s
+.PHONY : network_adapter.unix.cpp.s
 
 newclassad_stream.o: newclassad_stream.cpp.o
 .PHONY : newclassad_stream.o
@@ -6736,9 +6736,6 @@ help:
 	@echo "... killfamily.o"
 	@echo "... killfamily.i"
 	@echo "... killfamily.s"
-	@echo "... libcondorapi_stubs.o"
-	@echo "... libcondorapi_stubs.i"
-	@echo "... libcondorapi_stubs.s"
 	@echo "... limit.o"
 	@echo "... limit.i"
 	@echo "... limit.s"
@@ -6823,6 +6820,9 @@ help:
 	@echo "... network_adapter.linux.o"
 	@echo "... network_adapter.linux.i"
 	@echo "... network_adapter.linux.s"
+	@echo "... network_adapter.unix.o"
+	@echo "... network_adapter.unix.i"
+	@echo "... network_adapter.unix.s"
 	@echo "... newclassad_stream.o"
 	@echo "... newclassad_stream.i"
 	@echo "... newclassad_stream.s"

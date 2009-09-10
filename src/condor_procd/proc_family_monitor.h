@@ -21,7 +21,7 @@
 #define _PROC_FAMILY_MONITOR_H
 
 #include "condor_common.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 #include "condor_pidenvid.h"
 #include "tree.h"
 #include "proc_family.h"

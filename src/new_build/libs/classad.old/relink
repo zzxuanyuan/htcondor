@@ -1,0 +1,23 @@
+#!/bin/sh
+
+#cleanup old code
+rm -f *.cpp
+rm -f *.h
+
+##################################################
+## link in the c++_util files
+for i in `ls ../../../classad.old/*.c`;
+do
+ln -s $i `echo ${i##*/}pp`;
+done
+
+for i in `ls ../../../classad.old/*.cpp`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
+for i in `ls ../../../classad.old/*.h`;
+do
+ln -s $i `echo ${i##*/}`;
+done
+
