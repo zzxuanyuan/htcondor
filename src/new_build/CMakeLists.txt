@@ -17,6 +17,7 @@ set(PACKAGE_STRING "condor-")
 set(PACKAGE_BUGREPORT "a suitable mailing list =>http://...")
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
+string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 
 ###########################################################################
 ###########################################################################
@@ -29,7 +30,7 @@ list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
 # checking X... Y.... Z...
 message(STATUS "***********************************************************")
 message(STATUS "Condor is now configuring based on your env & input options")
-message(STATUS "Operating System: ${OS_NAME}(${OS_VER})")
+message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH}")
 
 include (CondorGlob)
 include (CondorExternal)
@@ -48,6 +49,7 @@ set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
 add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
+add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
 
 ##################################################
 ##################################################
@@ -237,7 +239,7 @@ set(BUILD_SHARED_LIBS FLASE)
 set(CMAKE_SUPPRESS_REGENERATION FALSE)
 
 # Set build location for targets
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
 #set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/staging/lib)
 
 #what to do about glibc version checking...?
@@ -253,12 +255,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/bin)
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX /wd4251 /wd4275 /wd4996")
 	add_definitions(-DWINDOWS)
-elseif(GNU)
+else()
 
 	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} m)
 
 	if (HAVE_DLOPEN)
 		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} dl)
+	endif()
+
+	if (HAVE_DECL_RES_INIT)
+		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} resolv)
 	endif()
 
 	if (${CMAKE_USE_PTHREADS_INIT})
@@ -289,9 +295,10 @@ add_subdirectory(libs/daemon_client)
 add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
 add_subdirectory(libs/privsep)
+#add_subdirectory(libs/classad) ..? .V6 wtf?
 
 add_subdirectory(daemons/procd)
 
-#add_subdirectory(libs/classad) ..?
+
 
 
