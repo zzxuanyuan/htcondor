@@ -8,3 +8,4 @@ condor_glob( ClassAdsOldHdrs ClassAdsOldSrcs "${ClassAdsOldRmvSrcs}" )
 
 #create the library
 add_library( ${TargetName} STATIC ${ClassAdsOldHdrs} ${ClassAdsOldSrcs} )
+target_link_libraries(${TargetName} utils )

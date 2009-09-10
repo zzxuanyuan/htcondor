@@ -9,4 +9,4 @@ file( GLOB ProcAPISrcs procapi.cpp processid.cpp procapi_killfamily.cpp )
 
 #create the library
 add_library ( ${TargetName} STATIC ${ProcAPISrcs} )
-#target_link_libraries(${TargetName} utils )
+target_link_libraries(${TargetName} utils )

@@ -7,3 +7,4 @@ condor_glob(DCHeaderFiles DCSourceFiles "${DCRmvElements}")
 
 #create the library
 add_library(${TargetName} STATIC ${DCHeaderFiles} ${DCSourceFiles})
+target_link_libraries(${TargetName} utils cedar)

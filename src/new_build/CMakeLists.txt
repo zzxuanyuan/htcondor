@@ -1,6 +1,6 @@
 ###########################################################################
 ###########################################################################
-# Set project, reqs, and includes
+# Set project
 project(CONDOR)
 cmake_minimum_required(VERSION 2.6)
 
@@ -42,21 +42,16 @@ include (CheckLibraryExists)
 include (CheckTypeSize)
 include (FindThreads)
 
-add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
-#what to do about glibc version checking...?
-add_definitions(-DGLIBC=GLIBC)
-	#I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
-	#add_definitions(-DC_COMP_KIND_GCC)
-	#add_definitions(-DC_COMP_MAJOR_GCC_4)
-	#add_definitions(-DC_COMP_MINOR_GCC_4_3)
-	#add_definitions(-DC_COMP_PATCH_GCC_4__2)
+# use vars set by FindThreads.
+set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
+set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
+set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
-# Why is this a definition and not an option?
+add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
 
 ##################################################
 ##################################################
 # check symbols, libs, functions, headers, and types
-
 # check_library_exists("gen" "" "" HAVE_LIBGEN)
 check_library_exists(dl dlopen "" HAVE_DLOPEN)
 check_symbol_exists(res_init "sys/types.h;netinet/in.h;arpa/nameser.h;resolv.h" HAVE_DECL_RES_INIT)
@@ -151,11 +146,11 @@ option(CLIPPED "Disables the standard universe" ON)
 ##################################################
 ##################################################
 # Now checking OS based options -
-
 set(HAS_FLOCK ON)
+set(DOES_SAVE_SIGSTATE OFF)
 
 # this should be platform specific
-set(STATFS_ARGS "2")
+set(STATFS_ARGS "2") 
 
 if (${OS_NAME} STREQUAL "SOLARIS")
 	set(NEEDS_64BIT_SYSCALLS ON)
@@ -164,9 +159,6 @@ if (${OS_NAME} STREQUAL "SOLARIS")
 	set(HAS_FLOCK OFF)
 elseif(${OS_NAME} STREQUAL "LINUX")
 	set(DOES_SAVE_SIGSTATE ON)
-	set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
-	set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
-	set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
 	# I don't know why this check is only done on linux
 	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
@@ -194,6 +186,7 @@ endif()
 # we will find the external package i
 # these will likely have to be altered based on platform
 # presetly they are all "checked" softly
+# *NOTE: condor_external will append to CONDOR_EXT_LINK_LIBS
 condor_external(BLAHP "1.12.2-p4" "blahp" ON PROPER STRICT_EXTERNAL)
 condor_external(CLASSADS "1.0.2" "classad" ON PROPER STRICT_EXTERNAL)
 condor_external(COREDUMPER "0.2" "coredumper" ON PROPER STRICT_EXTERNAL)
@@ -244,19 +237,37 @@ set(BUILD_SHARED_LIBS FLASE)
 set(CMAKE_SUPPRESS_REGENERATION FALSE)
 
 # Set build location for targets
-#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/bin)
 #set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/staging/lib)
 
-# Add executable's directory to its library search path I don't think condor uses .so's...
-#set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-#set(CMAKE_INSTALL_RPATH "../lib")
+#what to do about glibc version checking...?
+	add_definitions(-DGLIBC=GLIBC)
+	#I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
+	#add_definitions(-DC_COMP_KIND_GCC)
+	#add_definitions(-DC_COMP_MAJOR_GCC_4)
+	#add_definitions(-DC_COMP_MINOR_GCC_4_3)
+	#add_definitions(-DC_COMP_PATCH_GCC_4__2)
+
 
 # Set compiler flags
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX /wd4251 /wd4275 /wd4996")
 	add_definitions(-DWINDOWS)
 elseif(GNU)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
+
+	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} m)
+
+	if (HAVE_DLOPEN)
+		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} dl)
+	endif()
+
+	if (${CMAKE_USE_PTHREADS_INIT})
+		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} pthread)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+	endif()
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
+
 endif()
 
 # The following two libraries can be considered ubiquitous
@@ -270,6 +281,7 @@ include_directories(${CONDOR_SOURCE_DIR}/daemons)
 #########################################################################
 # Add subdirectories and build targets in dependency order (I wish...)
 add_subdirectory(libs/utils)
+add_subdirectory(libs/ccb)
 add_subdirectory(libs/cedar)
 add_subdirectory(libs/procapi)
 add_subdirectory(libs/sysapi)
@@ -278,7 +290,7 @@ add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
 add_subdirectory(libs/privsep)
 
-#add_subdirectory(daemons/procd)
+add_subdirectory(daemons/procd)
 
 #add_subdirectory(libs/classad) ..?
 

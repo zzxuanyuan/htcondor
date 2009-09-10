@@ -7,3 +7,4 @@ condor_glob(SysapiHeaderFiles SysapiSourceFiles "${SysApiRmvElements}" )
 
 #create the library
 add_library(${TargetName} STATIC ${SysapiHeaderFiles} ${SysapiSourceFiles})
+target_link_libraries(${TargetName}  utils )

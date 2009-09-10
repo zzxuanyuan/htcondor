@@ -7,3 +7,4 @@ condor_glob(CedarHdrs CedarSrcs "${CedarRmvSrcs}")
 
 #create the library
 add_library(${TargetName} STATIC ${CedarHdrs} ${CedarSrcs})
+target_link_libraries( ${TargetName} utils ccb)

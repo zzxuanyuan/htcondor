@@ -25,7 +25,7 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF _CHECK_ENV _STRICT)
 
 		if (${_PACKAGE}_FOUND)
 
-			# both here to handle inconsistencies in the builds
+			set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} ${_NAMES})
 			set(HAVE_EXT_${UP_PACKAGE} ON)
 			set(HAVE_${UP_PACKAGE} ON)
 			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")

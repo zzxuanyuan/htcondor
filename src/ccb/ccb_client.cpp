@@ -22,7 +22,7 @@
 #include "subsystem_info.h"
 #include "condor_classad.h"
 #include "condor_attributes.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "selector.h"
 #include "CondorError.h"
 #include "ccb_client.h"

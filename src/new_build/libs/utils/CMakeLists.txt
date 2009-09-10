@@ -17,4 +17,4 @@ condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 
 #create the library
 add_library(${TargetName} STATIC ${HeaderFiles} ${SourceFiles})
-target_link_libraries(${TargetName} pthread )
+target_link_libraries(${TargetName} daemon_core daemon_client classad.old sysapi procapi privsep ${CONDOR_EXT_LINK_LIBS})
