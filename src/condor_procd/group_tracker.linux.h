@@ -22,7 +22,7 @@
 #define _GROUP_TRACKER_H
 
 #include "proc_family_tracker.h"
-#include "gid_pool.h"
+#include "gid_pool.linux.h"
 
 class GroupTracker : public ProcFamilyTracker {
 

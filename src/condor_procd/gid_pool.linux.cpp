@@ -20,7 +20,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "gid_pool.h"
+#include "gid_pool.linux.h"
 
 GIDPool::GIDPool(gid_t min_gid, gid_t max_gid)
 {

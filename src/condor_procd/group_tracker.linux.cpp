@@ -19,7 +19,7 @@
 
 
 #include "condor_common.h"
-#include "group_tracker.h"
+#include "group_tracker.linux.h"
 #include "proc_family_monitor.h"
 
 GroupTracker::GroupTracker(ProcFamilyMonitor* pfm,
