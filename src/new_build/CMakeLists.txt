@@ -222,8 +222,8 @@ if (WITH_GSOAP AND WITH_OPENSSL)
 	add_definitions(-DCOMPILE_SOAP_SSL)
 endif()
 
-condor_external(VMWARE "abc" "" OFF PROPER STRICT_EXTERNAL)
-condor_external(OCI "abc" "" OFF PROPER STRICT_EXTERNAL)
+condor_external(VMWARE "???" "" OFF PROPER STRICT_EXTERNAL)
+condor_external(OCI "???" "" OFF PROPER STRICT_EXTERNAL)
 
 message(STATUS "***********************************************************")
 configure_file(${CONDOR_SOURCE_DIR}/include/config.h.cmake ${CONDOR_SOURCE_DIR}/include/config.h)
@@ -249,7 +249,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
 	#add_definitions(-DC_COMP_MAJOR_GCC_4)
 	#add_definitions(-DC_COMP_MINOR_GCC_4_3)
 	#add_definitions(-DC_COMP_PATCH_GCC_4__2)
-
 
 # Set compiler flags
 if(MSVC)
@@ -285,7 +284,7 @@ include_directories(${CONDOR_SOURCE_DIR}/libs)
 include_directories(${CONDOR_SOURCE_DIR}/daemons)
 
 #########################################################################
-# Add subdirectories and build targets in dependency order (I wish...)
+# Add subdirectories and build targets 
 add_subdirectory(libs/utils)
 add_subdirectory(libs/ccb)
 add_subdirectory(libs/cedar)

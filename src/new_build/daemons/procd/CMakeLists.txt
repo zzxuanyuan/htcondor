@@ -12,3 +12,5 @@ target_link_libraries( ${TargetName} procapi utils)
 
 
 # there is a client library procd_client which doesn't appear to be used... ever... it includes (proc_family_client.o proc_family_io.o local_client.UNIX.o named_pipe_reader.o named_pipe_writer.o named_pipe_watchdog.o named_pipe_util.o)
+
+message(STATUS "**TBD** Need to deal with procd tests apps")

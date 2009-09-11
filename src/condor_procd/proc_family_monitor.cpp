@@ -30,7 +30,7 @@
 #endif
 
 #if defined(LINUX)
-#include "group_tracker.h"
+#include "group_tracker.linux.h"
 #endif
 
 ProcFamilyMonitor::ProcFamilyMonitor(pid_t pid,
