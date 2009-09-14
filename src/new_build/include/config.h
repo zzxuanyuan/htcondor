@@ -205,7 +205,7 @@
 #define HAVE_EXECL 1
 
 /* Do we have the blahp external (used Imake)*/
-/* #undef HAVE_EXT_BLAHP */
+#define HAVE_EXT_BLAHP 1
 # 
 /* Do we have the classads external (used)*/
 #define HAVE_EXT_CLASSADS 1
@@ -214,10 +214,10 @@
 #define HAVE_EXT_COREDUMPER 1
 
 /* Do we have the gcb external (USED)*/
-/* #undef HAVE_EXT_GCB */
+#define HAVE_EXT_GCB 1
 
 /* Do we have the globus external (USED)*/
-/* #undef HAVE_EXT_GLOBUS */
+#define HAVE_EXT_GLOBUS 1
 
 /* Do we have the gsoap external (USED)*/
 #define HAVE_EXT_GSOAP 1
@@ -229,13 +229,13 @@
 #define HAVE_EXT_OPENSSL 1
 
 /* Do we have the srb external (USED) Imake stork*/
-/* #undef HAVE_EXT_SRB */
+#define HAVE_EXT_SRB 1
 
 /* Do we have the unicoregahp external (USED)*/
-/* #undef HAVE_EXT_UNICOREGAHP */
+#define HAVE_EXT_UNICOREGAHP 1
 
 /* Do we have the voms external (USED)*/
-/* #undef HAVE_EXT_VOMS */
+#define HAVE_EXT_VOMS 1
 
 //// The following are only internally used by imake
 //// but it doesn't appear that they do ... anything
@@ -250,7 +250,7 @@
 ///* Do we have the glibc external*/
 /* #undef HAVE_EXT_GLIBC */
 ///* Do we have the hadoop external*/
-/* #undef HAVE_EXT_HADOOP */
+//#define HAVE_EXT_HADOOP
 ///* Do we have the linuxlibcheaders external*/
 /* #undef HAVE_EXT_LINUXLIBCHEADERS */
 ///* Do we have the man external*/

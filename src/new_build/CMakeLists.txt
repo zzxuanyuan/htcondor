@@ -137,12 +137,10 @@ option(WANT_QUILL "Enable Quill functionality" OFF)
 option(NEEDS_KBDD "Enable KBDD functionality" OFF)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
-
 ### The following options are used for externals below
-option(PROPER "Use system env versus condor externals" ON)
+option(PROPER "Use system env versus condor externals" OFF)
 option(STRICT_EXTERNAL "Use to enable strict external checking" OFF)
-
-# this may become deprecated and be the standard case
+### this may become deprecated and be the standard case
 option(CLIPPED "Disables the standard universe" ON)
 
 ##################################################
@@ -162,7 +160,6 @@ if (${OS_NAME} STREQUAL "SOLARIS")
 elseif(${OS_NAME} STREQUAL "LINUX")
 	set(DOES_SAVE_SIGSTATE ON)
 
-	# I don't know why this check is only done on linux
 	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
 	check_symbol_exists(SIOCGIFCONF "linux/sockios.h" HAVE_DECL_SIOCGIFCONF)
 
@@ -179,7 +176,8 @@ elseif(${OS_NAME} STREQUAL "HPUX")
 	set(DOES_SAVE_SIGSTATE ON)
 	set(NEEDS_64BIT_STRUCTS ON)
 elseif(${OS_NAME} STREQUAL "WINDOWS")
-	
+	set(WINDOWS ON)
+	add_definitions(-DWINDOWS)
 endif()
 
 ##################################################
@@ -189,41 +187,36 @@ endif()
 # these will likely have to be altered based on platform
 # presetly they are all "checked" softly
 # *NOTE: condor_external will append to CONDOR_EXT_LINK_LIBS
-condor_external(BLAHP "1.12.2-p4" "blahp" ON PROPER STRICT_EXTERNAL)
-condor_external(CLASSADS "1.0.2" "classad" ON PROPER STRICT_EXTERNAL)
-condor_external(COREDUMPER "0.2" "coredumper" ON PROPER STRICT_EXTERNAL)
-condor_external(DRMAA "1.6" OFF "drmaa" PROPER STRICT_EXTERNAL)
-condor_external(KRB5 "1.4.3-p0" "krb5" ON PROPER STRICT_EXTERNAL)
-condor_external(UNICOREGAHP "1.2.0" "unicoregahp" ON PROPER STRICT_EXTERNAL)
-condor_external(PCRE "7.6" "pcre" ON PROPER STRICT_EXTERNAL)
 
-# should be linux only
-condor_external(VOMS "1.8.9" "voms" ON PROPER STRICT_EXTERNAL)
-condor_external(EXPAT "2.0.1" "expat" ON PROPER STRICT_EXTERNAL)
-
-# chat w/matt why this is all weird.
-# condor_external(MAN "" ON PROPER STRICT_EXTERNAL)
-
-condor_external(POSTGRESQL "8.2.3-p1" "pq" ON PROPER STRICT_EXTERNAL)
-condor_external(SRB "3.2.1-p2" "srb" ON PROPER STRICT_EXTERNAL)
-condor_external(GLOBUS "4.2.1-p3" "globus" ON PROPER STRICT_EXTERNAL)
-condor_external(ZLIB "1.2.3" "z" ON PROPER STRICT_EXTERNAL)
-condor_external(GCB "1.5.6" "gcb" ON PROPER STRICT_EXTERNAL)
-
-condor_external(OPENSSL "0.9.8h-p1" "ssl" ON PROPER STRICT_EXTERNAL)
-if (WITH_OPENSSL)
-	# added the goop that the old builds did
-	add_definitions(-DWITH_OPENSSL)
-endif()
-
+########################################################
+## The following externals are used by both *nix and windows.
+## TBD ?? - CURL? doesn't look like it has deps in the code...?
 condor_external(GSOAP "2.7.10-p3" "gsoap" ON PROPER STRICT_EXTERNAL)
-if (WITH_GSOAP AND WITH_OPENSSL)
-	# added the goop that the old builds did
-	add_definitions(-DCOMPILE_SOAP_SSL)
+condor_external(OPENSSL "0.9.8h-p1" "ssl" ON PROPER STRICT_EXTERNAL)
+condor_external(POSTGRESQL "8.2.3-p1" "pq" ON PROPER STRICT_EXTERNAL)
+condor_external(KRB5 "1.4.3-p0" "krb5" ON PROPER STRICT_EXTERNAL)
+condor_external(DRMAA "1.6" OFF "drmaa" PROPER STRICT_EXTERNAL)
+condor_external(PCRE "7.6" "pcre" ON PROPER STRICT_EXTERNAL)
+condor_external(HADOOP "0.20.0-p2" "hadoop" ON PROPER STRICT_EXTERNAL) 
+########################################################
+if (NOT WINDOWS)
+    condor_external(BLAHP "1.12.2-p4" "blahp" ON PROPER STRICT_EXTERNAL)
+    condor_external(CLASSADS "1.0.2" "classad" ON PROPER STRICT_EXTERNAL)
+    condor_external(COREDUMPER "0.2" "coredumper" ON PROPER STRICT_EXTERNAL)    
+    condor_external(UNICOREGAHP "1.2.0" "unicoregahp" ON PROPER STRICT_EXTERNAL)
+    condor_external(VOMS "1.8.9" "voms" ON PROPER STRICT_EXTERNAL)
+    condor_external(EXPAT "2.0.1" "expat" ON PROPER STRICT_EXTERNAL)
+    condor_external(SRB "3.2.1-p2" "srb" ON PROPER STRICT_EXTERNAL)
+    condor_external(GLOBUS "4.2.1-p3" "globus" ON PROPER STRICT_EXTERNAL)
+    condor_external(ZLIB "1.2.3" "z" ON PROPER STRICT_EXTERNAL)
+    condor_external(GCB "1.5.6" "gcb" ON PROPER STRICT_EXTERNAL)
+    # chat w/matt why this is all weird.
+    # condor_external(MAN "" ON PROPER STRICT_EXTERNAL)
+    # Below are TBD...
+    condor_external(VMWARE "???" "" OFF PROPER STRICT_EXTERNAL)
+    condor_external(OCI "???" "" OFF PROPER STRICT_EXTERNAL)
 endif()
-
-condor_external(VMWARE "???" "" OFF PROPER STRICT_EXTERNAL)
-condor_external(OCI "???" "" OFF PROPER STRICT_EXTERNAL)
+########################################################
 
 message(STATUS "***********************************************************")
 configure_file(${CONDOR_SOURCE_DIR}/include/config.h.cmake ${CONDOR_SOURCE_DIR}/include/config.h)
@@ -233,6 +226,8 @@ add_definitions(-DHAVE_CONFIG_H)
 ###########################################################################
 # Set compilation and build options
 
+###########################################
+## set global build properties
 # Build dynamic libraries unless explicitly stated
 set(BUILD_SHARED_LIBS FLASE)
 # Supress automatic regeneration of project files
@@ -242,21 +237,38 @@ set(CMAKE_SUPPRESS_REGENERATION FALSE)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
 #set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/staging/lib)
 
-#what to do about glibc version checking...?
-	add_definitions(-DGLIBC=GLIBC)
-	#I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
-	#add_definitions(-DC_COMP_KIND_GCC)
-	#add_definitions(-DC_COMP_MAJOR_GCC_4)
-	#add_definitions(-DC_COMP_MINOR_GCC_4_3)
-	#add_definitions(-DC_COMP_PATCH_GCC_4__2)
+# TBD: what to do about glibc version checking...? 
+add_definitions(-DGLIBC=GLIBC)
+#I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
+#add_definitions(-DC_COMP_KIND_GCC)
+#add_definitions(-DC_COMP_MAJOR_GCC_4)
+#add_definitions(-DC_COMP_MINOR_GCC_4_3)
+#add_definitions(-DC_COMP_PATCH_GCC_4__2)
+###########################################
 
+###########################################
+# set package specific build options based on deps
+if (WITH_GSOAP AND WITH_OPENSSL)
+	# added the goop that the old builds did
+	add_definitions(-DCOMPILE_SOAP_SSL)
+endif()
+
+if (WITH_OPENSSL)
+    add_definitions(-DWITH_${UP_PACKAGE})
+endif()
+###########################################
+
+###########################################
 # Set compiler flags
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX /wd4251 /wd4275 /wd4996")
-	add_definitions(-DWINDOWS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996")	
+	
+	# These were carried over from set_vars.bat
+	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} crypt32.lib mpr.lib psapi.lib mswsock.lib netapi32.lib imagehelp.lib ws2_32.lib powrprof.lib iphlpapi.lib userenv.lib)
+			
 else()
 
-	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} m)
+	#set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} m)
 
 	if (HAVE_DLOPEN)
 		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} dl)
@@ -271,10 +283,13 @@ else()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 	endif()
 
+    # common build flags 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
 
 endif()
+###########################################
 
+###########################################
 # The following two libraries can be considered ubiquitous
 include_directories(${CONDOR_SOURCE_DIR}/include)
 include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
@@ -282,8 +297,10 @@ include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
 # and I've elliminated relative path includes.
 include_directories(${CONDOR_SOURCE_DIR}/libs)
 include_directories(${CONDOR_SOURCE_DIR}/daemons)
+###########################################
 
-#########################################################################
+###########################################################################
+###########################################################################
 # Add subdirectories and build targets 
 add_subdirectory(libs/utils)
 add_subdirectory(libs/ccb)
@@ -297,7 +314,7 @@ add_subdirectory(libs/privsep)
 #add_subdirectory(libs/classad) ..? .V6 wtf?
 
 add_subdirectory(daemons/procd)
-
+###########################################################################
 
 
 

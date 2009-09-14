@@ -8,7 +8,8 @@ MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS CONDOR_REMOVE)
 	file(GLOB WinSrcs "*WINDOWS*" "*windows*")
 	file(GLOB LinuxSrcs "*LINUX*" "*linux*")
 	file(GLOB UnixSrcs "*UNIX*" "*unix*")
-	file(GLOB RmvSrcs ${CONDOR_REMOVE} *.dead* )
+	file(GLOB RmvSrcs ${CONDOR_REMOVE} *.dead* *NON_POSIX*)
+	#TBD: do we build for any non-posix platforms?
 
 	# 1st remove any elements that may be extra
 	if(RmvSrcs)
