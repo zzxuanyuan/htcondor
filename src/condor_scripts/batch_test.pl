@@ -808,7 +808,7 @@ sub CreateConfig
 		safe_copy("../condor_scripts/exe_switch.pl", "$wininstalldir/bin/exe_switch.pl") ||
         die "couldn't copy exe_swtich.pl";
 		open( WRAPPER, ">$wininstalldir/bin/exe_switch.bat" ) || die "Can't open new job wrapper: $!\n";
-    	print WRAPPER "\@c:\\perl\\bin\\perl.exe $wininstalldir/bin/exe_switch.pl %*\n";
+    	print WRAPPER "\@perl.exe $wininstalldir/bin/exe_switch.pl %*\n";
     	close(WRAPPER);
 		
 		# pre-process config file src and windowize it
