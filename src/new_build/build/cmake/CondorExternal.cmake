@@ -43,7 +43,7 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF _CHECK_ENV _STRICT)
 			
 				set(${UP_PACKAGE}_FOUND ${_CHECK_DIR})
 				
-				# adds a custom prebuild step to the base which is utils.
+				# adds a custom command or target?
 				add_custom_target(${LOW_PACKAGE} ALL
 				                   COMMAND perl -w ${CONDOR_EXTERNAL_LOC}/build_external 
 				                   --extern_src=${CONDOR_EXTERNAL_LOC} 
@@ -54,15 +54,15 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF _CHECK_ENV _STRICT)
 												
                 # setup -I & -L directories								
 				#if (EXISTS ${_CHECK_DIR}/include)
-				    #include_directories(${_CHECK_DIR}/include)
+				    #include_directories(${_CHECK_DIR}/${LOW_PACKAGE}-${_EXT_VERSION}/include)
 				#elseif (EXISTS ${_CHECK_DIR}/inc32)
-				    #include_directories(${_CHECK_DIR}/inc32)
+				    #include_directories(${_CHECK_DIR}/${LOW_PACKAGE}-${_EXT_VERSION}/inc32)
 				#endif()
 				
 				#if (EXISTS ${_CHECK_DIR}/lib)
-				    #link_directories(${_CHECK_DIR}/lib)
+				    #link_directories(${_CHECK_DIR}/${LOW_PACKAGE}-${_EXT_VERSION}/lib)
 				#elseif (EXISTS ${_CHECK_DIR}/out32dll)
-				    #link_directories(${_CHECK_DIR}/out32dll)
+				    #link_directories(${_CHECK_DIR}/${LOW_PACKAGE}-${_EXT_VERSION}/out32dll)
 				#endif()
 				 
 			endif()

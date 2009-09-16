@@ -234,8 +234,8 @@ set(BUILD_SHARED_LIBS FLASE)
 set(CMAKE_SUPPRESS_REGENERATION FALSE)
 
 # Set build location for targets
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
-#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/staging/lib)
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
+# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/staging/lib)
 
 # TBD: what to do about glibc version checking...? 
 add_definitions(-DGLIBC=GLIBC)
@@ -315,6 +315,16 @@ add_subdirectory(libs/privsep)
 
 add_subdirectory(daemons/procd)
 ###########################################################################
+
+# update the install targets
+install (TARGETS x y z 
+         RUNTIME DESTINATION bin
+         LIBRARY DESTINATION lib)
+
+install (TARGETS x y z 
+         RUNTIME DESTINATION sbin
+         LIBRARY DESTINATION lib)
+         
 
 
 
