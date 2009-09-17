@@ -137,10 +137,8 @@ option(WANT_QUILL "Enable Quill functionality" OFF)
 option(NEEDS_KBDD "Enable KBDD functionality" OFF)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
-### The following options are used for externals below
-option(PROPER "Use system env versus condor externals" OFF)
-option(STRICT_EXTERNAL "Use to enable strict external checking" OFF)
-### this may become deprecated and be the standard case
+
+### Hopefully this will *always* be true.
 option(CLIPPED "Disables the standard universe" ON)
 
 ##################################################
@@ -189,35 +187,58 @@ endif()
 # *NOTE: condor_external will append to CONDOR_EXT_LINK_LIBS
 
 ########################################################
-## The following externals are used by both *nix and windows.
-## TBD ?? - CURL? doesn't look like it has deps in the code...?
-condor_external(GSOAP "2.7.10-p3" "gsoap" ON PROPER STRICT_EXTERNAL)
-condor_external(OPENSSL "0.9.8h-p1" "ssl" ON PROPER STRICT_EXTERNAL)
-condor_external(POSTGRESQL "8.2.3-p1" "pq" ON PROPER STRICT_EXTERNAL)
-condor_external(KRB5 "1.4.3-p0" "krb5" ON PROPER STRICT_EXTERNAL)
-condor_external(DRMAA "1.6" OFF "drmaa" PROPER STRICT_EXTERNAL)
-condor_external(PCRE "7.6" "pcre" ON PROPER STRICT_EXTERNAL)
-condor_external(HADOOP "0.20.0-p2" "hadoop" ON PROPER STRICT_EXTERNAL) 
-########################################################
-if (NOT WINDOWS)
-    condor_external(BLAHP "1.12.2-p4" "blahp" ON PROPER STRICT_EXTERNAL)
-    condor_external(CLASSADS "1.0.2" "classad" ON PROPER STRICT_EXTERNAL)
-    condor_external(COREDUMPER "0.2" "coredumper" ON PROPER STRICT_EXTERNAL)    
-    condor_external(UNICOREGAHP "1.2.0" "unicoregahp" ON PROPER STRICT_EXTERNAL)
-    condor_external(VOMS "1.8.9" "voms" ON PROPER STRICT_EXTERNAL)
-    condor_external(EXPAT "2.0.1" "expat" ON PROPER STRICT_EXTERNAL)
-    condor_external(SRB "3.2.1-p2" "srb" ON PROPER STRICT_EXTERNAL)
-    condor_external(GLOBUS "4.2.1-p3" "globus" ON PROPER STRICT_EXTERNAL)
-    condor_external(ZLIB "1.2.3" "z" ON PROPER STRICT_EXTERNAL)
-    condor_external(GCB "1.5.6" "gcb" ON PROPER STRICT_EXTERNAL)
-    # chat w/matt why this is all weird.
-    # condor_external(MAN "" ON PROPER STRICT_EXTERNAL)
-    # Below are TBD...
-    condor_external(VMWARE "???" "" OFF PROPER STRICT_EXTERNAL)
-    condor_external(OCI "???" "" OFF PROPER STRICT_EXTERNAL)
-endif()
+## Begin RANT
+##
+## So I've been thinking about how condor handles externals
+## for a while now, and I must admit it's fairly odd. 
+## If it is a requirement to have a package it should be 
+## treated as a pre-requisite, e.g. it should be there 
+## and built prior to building and should not be built as 
+## part of the mainline, as it adds unnecessary complexity
+##
+## I think it "ok" to be part of the configure process to explicitly
+## grab UW externals & build, but not part of the mainline build by default.      
+## e.g. configure --enable-uw-externals
+## End RANT
 ########################################################
 
+SET(UW_EXTERNALS_DIR "Location of staged externals" CACHE STRING OFF)
+if (UW_EXTERNALS_DIR)
+    link_directories(${UW_EXTERNALS_DIR})
+    link_directories(${UW_EXTERNALS_DIR}/lib)
+    include_directories(${UW_EXTERNALS_DIR})
+    include_directories(${UW_EXTERNALS_DIR}/include)
+endif()
+
+########################################################
+## The following externals are used by both *nix and windows.
+## TBD ?? - CURL? doesn't look like it has deps in the code...?
+condor_external(GSOAP "2.7.10-p3" "gsoap" ON)
+condor_external(OPENSSL "0.9.8h-p1" "ssl" ON) 
+condor_external(POSTGRESQL "8.2.3-p1" "pq" ON) 
+condor_external(KRB5 "1.4.3-p0" "krb5" ON) 
+condor_external(DRMAA "1.6" "drmaa" OFF)
+condor_external(PCRE "7.6" "pcre" ON)
+condor_external(HADOOP "0.20.0-p2" "hadoop" OFF)
+########################################################
+if (NOT WINDOWS)
+    condor_external(BLAHP "1.12.2-p4" "blahp" OFF)
+    condor_external(CLASSADS "1.0.2" "classad" ON)
+    condor_external(COREDUMPER "0.2" "coredumper" ON)    
+    condor_external(UNICOREGAHP "1.2.0" "unicoregahp" OFF)
+    condor_external(VOMS "1.8.9" "voms" OFF)
+    condor_external(EXPAT "2.0.1" "expat" OFF)
+    condor_external(SRB "3.2.1-p2" "srb" OFF)
+    condor_external(GLOBUS "4.2.1-p3" "globus" OFF)
+    condor_external(ZLIB "1.2.3" "z" ON)
+    condor_external(GCB "1.5.6" "gcb" OFF)
+    # chat w/matt why this is all weird.
+    # condor_external(MAN "" ON)
+    # Below are TBD...
+    condor_external(VMWARE "???" "" OFF) 
+    condor_external(OCI "???" "" OFF) 
+endif()
+########################################################
 message(STATUS "***********************************************************")
 configure_file(${CONDOR_SOURCE_DIR}/include/config.h.cmake ${CONDOR_SOURCE_DIR}/include/config.h)
 add_definitions(-DHAVE_CONFIG_H)
@@ -235,7 +256,7 @@ set(CMAKE_SUPPRESS_REGENERATION FALSE)
 
 # Set build location for targets
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
-# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/staging/lib)
+# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/lib)
 
 # TBD: what to do about glibc version checking...? 
 add_definitions(-DGLIBC=GLIBC)
@@ -254,7 +275,7 @@ if (WITH_GSOAP AND WITH_OPENSSL)
 endif()
 
 if (WITH_OPENSSL)
-    add_definitions(-DWITH_${UP_PACKAGE})
+    add_definitions(-DWITH_OPENSSL)
 endif()
 ###########################################
 
@@ -317,13 +338,13 @@ add_subdirectory(daemons/procd)
 ###########################################################################
 
 # update the install targets
-install (TARGETS x y z 
-         RUNTIME DESTINATION bin
-         LIBRARY DESTINATION lib)
+#install (TARGETS x y z 
+#         RUNTIME DESTINATION bin
+#         LIBRARY DESTINATION lib)
 
-install (TARGETS x y z 
-         RUNTIME DESTINATION sbin
-         LIBRARY DESTINATION lib)
+#install (TARGETS x y z 
+#         RUNTIME DESTINATION sbin
+#         LIBRARY DESTINATION lib)
          
 
 

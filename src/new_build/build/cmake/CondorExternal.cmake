@@ -7,6 +7,8 @@
 #     _EXT_VERSION    - "version string"
 #     _NAMES          - "Names of libraries.lib/.a/.so to search for"
 #     _ON_OFF         - Indicates if we should perform the search (ON/OFF)
+#
+#     TBD: remove this && cleanup && simplify
 #     _CHECK_ENV      - Indicates if we should check the env e.g.-PROPER (ON/OFF)
 #     _STRICT         - Indicates if we should fail if *not found* (ON/OFF)
 #
@@ -18,7 +20,7 @@
 #  
 #
 
-MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF _CHECK_ENV _STRICT)
+MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF) #_CHECK_ENV _STRICT)
 
 	string( TOUPPER "${_PACKAGE}" UP_PACKAGE )
 	string( TOLOWER "${_PACKAGE}" LOW_PACKAGE )
@@ -30,27 +32,37 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF _CHECK_ENV _STRICT)
 		message(STATUS "condor_external searching for ${_PACKAGE}")
 
         ##############
-		if (${_CHECK_ENV})
-			FIND_LIBRARY(${UP_PACKAGE}_FOUND NAMES ${_NAMES})
-		else()
+		#if (${_CHECK_ENV})
+	
+			FIND_LIBRARY( ${UP_PACKAGE}_FOUND 
+			              NAMES ${_NAMES} )
+			             #PATHS )
+		
+		#else()
+		    
+		    # I'm eliminating the current idea of how externals are handled.  
+		    # in part because I believe it is a pre-req which can be easily handled.
 			
-			set (CONDOR_EXTERNAL_LOC ${CONDOR_SOURCE_DIR}/build/externals)
+			#set (CONDOR_EXTERNAL_LOC ${CONDOR_SOURCE_DIR}/build/externals)
 			
 			# condor bundles it's externals
-			set(_CHECK_DIR ${CONDOR_EXTERNAL_LOC}/bundles/${LOW_PACKAGE}/${_EXT_VERSION})
+			#set(_CHECK_DIR ${CONDOR_EXTERNAL_LOC}/bundles/${LOW_PACKAGE}/${_EXT_VERSION})
 
-			if (EXISTS ${_CHECK_DIR})
+			#if (EXISTS ${_CHECK_DIR})
 			
-				set(${UP_PACKAGE}_FOUND ${_CHECK_DIR})
+			#	set(${UP_PACKAGE}_FOUND ${_CHECK_DIR})
+				
+			# creating a list of external build dependencies
+			#	set( CONDOR_EXT_BUILD_DEPS ${CONDOR_EXT_BUILD_DEPS} ${LOW_PACKAGE} )
 				
 				# adds a custom command or target?
-				add_custom_target(${LOW_PACKAGE} ALL
-				                   COMMAND perl -w ${CONDOR_EXTERNAL_LOC}/build_external 
-				                   --extern_src=${CONDOR_EXTERNAL_LOC} 
-				                   --extern_build=${CONDOR_EXTERNAL_LOC} 
-				                   --package_name=${LOW_PACKAGE}-${_EXT_VERSION}
-				                   --extern_config=${CONDOR_SOURCE_DIR}/build/config/config.sh			                        				                   
-				                   COMMENT "Building ${LOW_PACKAGE}-${_EXT_VERSION}...")				                   
+				#add_custom_target(${LOW_PACKAGE}
+				#                   COMMAND perl -w ${CONDOR_EXTERNAL_LOC}/build_external 
+				#                   --extern_src=${CONDOR_EXTERNAL_LOC} 
+				#                   --extern_build=${CONDOR_EXTERNAL_LOC} 
+				#                   --package_name=${LOW_PACKAGE}-${_EXT_VERSION}
+				#                   --extern_config=${CONDOR_SOURCE_DIR}/build/config/config.sh			                        				                   
+				#                   COMMENT "Building ${LOW_PACKAGE}-${_EXT_VERSION}...")				                   
 												
                 # setup -I & -L directories								
 				#if (EXISTS ${_CHECK_DIR}/include)
@@ -65,29 +77,32 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF _CHECK_ENV _STRICT)
 				    #link_directories(${_CHECK_DIR}/${LOW_PACKAGE}-${_EXT_VERSION}/out32dll)
 				#endif()
 				 
-			endif()
+			#endif()
 
-		endif()
-        ##############
-        
-        # Only OPENSSL needs this
-		#add_definitions(-DWITH_${UP_PACKAGE})
+		#endif()
+        ##############       
                 
         ##############
 		if (${UP_PACKAGE}_FOUND)
-			set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} ${_NAMES})
+		    # Only OPENSSL needs this
+		    # add_definitions(-DWITH_${UP_PACKAGE})
+		
+			set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} ${UP_PACKAGE}_FOUND)
 			set(HAVE_EXT_${UP_PACKAGE} ON)
 			set(HAVE_${UP_PACKAGE} ON)
-			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")						
+			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")
+						
 		else()
-			if (${_STRICT})
-				message(FATAL_ERROR " condor_external *STRICT* (${_PACKAGE})... *not* found")
-			else()
-				message(STATUS "condor_external (${_PACKAGE})... *not* found")
-			endif()
+			#if (${UP_PACKAGE}_STRICT)
+				message(FATAL_ERROR "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
+			#else()
+			#	message(STATUS "condor_external (${_PACKAGE})... *not* found")
+			#endif()
 		endif()
 		##############
-		
+
+	else()
+		message(STATUS "condor_external skipping search WITH_${UP_PACKAGE} = OFF")
 	endif()
 
 ENDMACRO (CONDOR_EXTERNAL)

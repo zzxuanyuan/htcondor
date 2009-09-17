@@ -6,7 +6,6 @@ set(TargetName utils)
 file( GLOB RmvSrcs y.tab* lex.yy* param_info* syscall_numbers* libcondorapi_stubs* )
 
 # I will need to add separate targets for
-
 # param_info.c? Hmmm, how should we deal with this?
 
 # are the follow elements of standard universe?
@@ -17,4 +16,3 @@ condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 
 #create the library
 add_library(${TargetName} STATIC ${HeaderFiles} ${SourceFiles})
-#target_link_libraries(${TargetName} daemon_core daemon_client classad.old sysapi procapi privsep )
