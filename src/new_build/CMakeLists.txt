@@ -192,13 +192,13 @@ endif()
 ## So I've been thinking about how condor handles externals
 ## for a while now, and I must admit it's fairly odd. 
 ## If it is a requirement to have a package it should be 
-## treated as a pre-requisite, e.g. it should be there 
-## and built prior to building and should not be built as 
-## part of the mainline, as it adds unnecessary complexity
+## and treated as a pre-requisite.
 ##
-## I think it "ok" to be part of the configure process to explicitly
-## grab UW externals & build, but not part of the mainline build by default.      
-## e.g. configure --enable-uw-externals
+## Step 1: Obtain condor
+## Step 2: Obtain externals
+## Step 3: Build Externals - script builds all & stages
+## Step 4: Build Condor
+##
 ## End RANT
 ########################################################
 
