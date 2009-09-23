@@ -2326,7 +2326,6 @@ AC_CHECK_HEADERS([sys/mount.h],[],[],[
 #endif])
 AC_CHECK_HEADERS([ustat.h])
 AC_CHECK_HEADERS([dlfcn.h])
-AC_CHECK_HEADERS([valgrind.h])
 AC_CHECK_HEADERS([resolv.h],[],[],[
 #include<sys/types.h>
 #include<netinet/in.h>
@@ -2994,11 +2993,17 @@ AS_IF([test "x$enable_hdfs" = xyes],
   [CHECK_EXTERNAL([hadoop],[0.20.0-p2],[soft])])
 
 if test "x$_cv_opsys" = "xLINUX" ; then
-  CHECK_EXTERNAL([libxml2],[2.7.3],[soft])
+  CHECK_EXTERNAL([libxml2],[2.7.3],[soft],
+                 [libxml2 for libvirt],
+                 [MF_LIB_CHECK([libxml2],
+                               [[xml2 xmlInitGlobals]], [libxml2])])
 fi
 
 if test "x$_cv_opsys" = "xLINUX" ; then
-  CHECK_EXTERNAL([libvirt],[0.6.2],[soft])
+  CHECK_EXTERNAL([libvirt],[0.6.2],[soft],
+                 [libvirt for Xen/KVM/etc support on Linux],
+                 [MF_LIB_CHECK([libvirt],
+                               [[virt virGetVersion]], [libvirt])])
 fi
 
 # The test for gsoap needs to happen after the openssl check, so
