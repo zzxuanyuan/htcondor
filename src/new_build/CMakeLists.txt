@@ -42,6 +42,7 @@ include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
 include (FindThreads)
+include (CPack)
 
 # use vars set by FindThreads.
 set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
@@ -50,6 +51,31 @@ set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
 add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
 add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
+
+########################################################
+## Begin RANT
+##
+## So I've been thinking about how condor handles externals
+## for a while now, and I must admit it's fairly odd. 
+## If it is a requirement to have a package it should be 
+## and treated as a pre-requisite.
+##
+## Step 1: Obtain condor
+## Step 2: Obtain externals
+## Step 3: Build Externals - script builds all & stages
+## Step 4: Build Condor
+##
+## End RANT
+########################################################
+
+SET(UW_EXTERNALS_DIR "${CONDOR_SOURCE_DIR}/build/externals/stage" CACHE STRING "Location of UW staged externals")
+message(STATUS "env: UW_EXTERNALS_DIR = ${UW_EXTERNALS_DIR}")
+    
+link_directories(${UW_EXTERNALS_DIR}/lib)
+set(CMAKE_LIBRARY_PATH "${UW_EXTERNALS_DIR}/lib")
+    
+include_directories(${UW_EXTERNALS_DIR} ${UW_EXTERNALS_DIR}/include)
+set(CMAKE_INCLUDE_PATH "${UW_EXTERNALS_DIR}/include")
 
 ##################################################
 ##################################################
@@ -93,10 +119,15 @@ check_include_files("dlfcn.h" HAVE_DLFCN_H)
 check_include_files("inttypes.h" HAVE_INTTYPES_H)
 check_include_files("ldap.h" HAVE_LDAP_H)
 check_include_files("net/if.h" HAVE_NET_IF_H)
-check_include_files("openssl/ssl.h" HAVE_OPENSSL_SSL_H)
+
+find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h" )
+
 check_include_files("os_types.h" HAVE_OS_TYPES_H)
-check_include_files("pcre.h" HAVE_PCRE_H)
-check_include_files("pcre/pcre.h" HAVE_PCRE_PCRE_H)
+
+find_path(HAVE_PCRE_H "pcre.h")
+
+find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
+
 check_include_files("resolv.h" HAVE_RESOLV_H)
 check_include_files("sys/mount.h" HAVE_SYS_MOUNT_H)
 check_include_files("sys/param.h" HAVE_SYS_PARAM_H)
@@ -186,57 +217,35 @@ endif()
 # presetly they are all "checked" softly
 # *NOTE: condor_external will append to CONDOR_EXT_LINK_LIBS
 
-########################################################
-## Begin RANT
-##
-## So I've been thinking about how condor handles externals
-## for a while now, and I must admit it's fairly odd. 
-## If it is a requirement to have a package it should be 
-## and treated as a pre-requisite.
-##
-## Step 1: Obtain condor
-## Step 2: Obtain externals
-## Step 3: Build Externals - script builds all & stages
-## Step 4: Build Condor
-##
-## End RANT
-########################################################
-
-SET(UW_EXTERNALS_DIR "Location of staged externals" CACHE STRING OFF)
-if (UW_EXTERNALS_DIR)
-    link_directories(${UW_EXTERNALS_DIR})
-    link_directories(${UW_EXTERNALS_DIR}/lib)
-    include_directories(${UW_EXTERNALS_DIR})
-    include_directories(${UW_EXTERNALS_DIR}/include)
-endif()
 
 ########################################################
 ## The following externals are used by both *nix and windows.
 ## TBD ?? - CURL? doesn't look like it has deps in the code...?
-condor_external(GSOAP "2.7.10-p3" "gsoap" ON)
-condor_external(OPENSSL "0.9.8h-p1" "ssl" ON) 
-condor_external(POSTGRESQL "8.2.3-p1" "pq" ON) 
-condor_external(KRB5 "1.4.3-p0" "krb5" ON) 
-condor_external(DRMAA "1.6" "drmaa" OFF)
-condor_external(PCRE "7.6" "pcre" ON)
-condor_external(HADOOP "0.20.0-p2" "hadoop" OFF)
+
+condor_external(DRMAA ON "drmaa;libdrmaa")
+condor_external(HADOOP OFF "hadoop") # Figure out Java Goop
+condor_external(OPENSSL ON "ssl;ssleay32") 
+condor_external(POSTGRESQL ON "pq;libpq") 
+condor_external(KRB5 ON "krb5;krb5_32") 
+condor_external(PCRE ON "pcre;libpcre")
 ########################################################
 if (NOT WINDOWS)
-    condor_external(BLAHP "1.12.2-p4" "blahp" OFF)
-    condor_external(CLASSADS "1.0.2" "classad" ON)
-    condor_external(COREDUMPER "0.2" "coredumper" ON)    
-    condor_external(UNICOREGAHP "1.2.0" "unicoregahp" OFF)
-    condor_external(VOMS "1.8.9" "voms" OFF)
-    condor_external(EXPAT "2.0.1" "expat" OFF)
-    condor_external(SRB "3.2.1-p2" "srb" OFF)
-    condor_external(GLOBUS "4.2.1-p3" "globus" OFF)
-    condor_external(ZLIB "1.2.3" "z" ON)
-    condor_external(GCB "1.5.6" "gcb" OFF)
+    condor_external(GSOAP ON "gsoap")
+    condor_external(BLAHP OFF "blahp")
+    condor_external(CLASSADS ON "classad")
+    condor_external(COREDUMPER ON "coredumper")    
+    condor_external(UNICOREGAHP OFF "unicoregahp")
+    condor_external(VOMS OFF "voms")
+    condor_external(EXPAT OFF "expat")
+    condor_external(SRB OFF "srb")
+    condor_external(GLOBUS OFF "globus")
+    condor_external(ZLIB ON "z")
+    condor_external(GCB OFF "gcb")
     # chat w/matt why this is all weird.
     # condor_external(MAN "" ON)
     # Below are TBD...
-    condor_external(VMWARE "???" "" OFF) 
-    condor_external(OCI "???" "" OFF) 
+    condor_external(VMWARE OFF "") 
+    condor_external(OCI OFF "" ) 
 endif()
 ########################################################
 message(STATUS "***********************************************************")
