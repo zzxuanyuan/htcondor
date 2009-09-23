@@ -46,7 +46,9 @@
 #include "Queue.h"
 #include "MapFile.h"
 #ifdef WIN32
-#include "ntsysinfo.h"
+	#include "ntsysinfo.h"
+#else
+	#include "limit.unix.h"
 #endif
 #include "self_monitor.h"
 //#include "stdsoap2.h"
@@ -55,7 +57,7 @@
 #include "env.h"
 #include "daemon_client/daemon.h"
 #include "daemon_client/daemon_list.h"
-#include "limit.h"
+
 #include "ccb/ccb_listener.h"
 #include "condor_sinful.h"
 

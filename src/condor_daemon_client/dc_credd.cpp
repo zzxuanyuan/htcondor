@@ -25,7 +25,7 @@
 #include "condor_attributes.h"
 #include "daemon.h"
 #include "dc_credd.h"
-#include "X509credential.h"
+#include "X509credential.unix.h"
 #include "simplelist.h"
 #include "credential.h"
 

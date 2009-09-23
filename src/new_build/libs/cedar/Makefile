@@ -57,6 +57,26 @@ edit_cache:
 edit_cache/fast: edit_cache
 .PHONY : edit_cache/fast
 
+# Special rule for the target package
+package: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool..."
+	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && /usr/bin/cpack --config ./CPackConfig.cmake
+.PHONY : package
+
+# Special rule for the target package
+package/fast: package
+.PHONY : package/fast
+
+# Special rule for the target package_source
+package_source:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Run CPack packaging tool for source..."
+	cd /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build && /usr/bin/cpack --config ./CPackSourceConfig.cmake /opt/dev/condor_prj/workspace/CONDOR_SRC/src/new_build/CPackSourceConfig.cmake
+.PHONY : package_source
+
+# Special rule for the target package_source
+package_source/fast: package_source
+.PHONY : package_source/fast
+
 # Special rule for the target rebuild_cache
 rebuild_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
@@ -840,6 +860,8 @@ help:
 	@echo "... depend"
 	@echo "... cedar"
 	@echo "... edit_cache"
+	@echo "... package"
+	@echo "... package_source"
 	@echo "... rebuild_cache"
 	@echo "... CryptKey.o"
 	@echo "... CryptKey.i"

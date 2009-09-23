@@ -16,7 +16,7 @@
 
 #include "condor_common.h"
 
-#include "LoadPlugins.h"
+#include "LoadPlugins.unix.h"
 
 #include "condor_config.h"
 #include "directory.h"

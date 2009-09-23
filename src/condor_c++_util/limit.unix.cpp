@@ -21,7 +21,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_syscall_mode.h"
-#include "limit.h"
+#include "limit.unix.h"
 
 extern "C" {
 

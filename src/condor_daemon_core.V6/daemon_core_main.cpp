@@ -24,7 +24,7 @@
 #include "basename.h"
 #include "my_hostname.h"
 #include "condor_version.h"
-#include "limit.h"
+#include "limit.unix.h"
 #include "condor_email.h"
 #include "sig_install.h"
 #include "daemon_client/daemon.h"

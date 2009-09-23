@@ -26,7 +26,7 @@
 #include "condor_debug.h"
 #include "condor_constants.h"
 #include "name_tab.h"
-#include "event_handler.h"
+#include "event_handler.unix.h"
 
 
 

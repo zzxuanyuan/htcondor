@@ -24,7 +24,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "alarm.h"
+#include "alarm.unix.h"
 
 
 Alarm::Alarm() : saved( 0 ) { }

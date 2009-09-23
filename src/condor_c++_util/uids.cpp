@@ -661,7 +661,7 @@ delete_passwd_cache() {
 #endif
 
 #include "condor_debug.h"
-#include "passwd_cache.h"
+#include "passwd_cache.unix.h"
 
 
 #ifndef FALSE

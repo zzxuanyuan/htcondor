@@ -4,7 +4,6 @@
 #
 # IN: 
 #     _PACKAGE        - Name of external package
-#     _EXT_VERSION    - "version string"
 #     _NAMES          - "Names of libraries.lib/.a/.so to search for"
 #     _ON_OFF         - Indicates if we should perform the search (ON/OFF)
 #
@@ -15,7 +14,7 @@
 #                            deps will be appended to.
 #
 
-MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF) 
+MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES ) 
 
 	string( TOUPPER "${_PACKAGE}" UP_PACKAGE )
 	string( TOLOWER "${_PACKAGE}" LOW_PACKAGE )
@@ -24,11 +23,10 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF)
 	# if the option is enabled _ON_OFF,
 	if (WITH_${UP_PACKAGE})
 
-		message(STATUS "condor_external searching for ${_PACKAGE}")
+		message(STATUS "condor_external searching(${UW_EXTERNALS_DIR}) for ${_PACKAGE} libs (${_NAMES})")
 
-		find_library( ${UP_PACKAGE}_FOUND
-		              NAMES ${_NAMES} )
-		              #PATHS )
+		find_library( ${UP_PACKAGE}_FOUND NAMES ${_NAMES} )		            		              	    
+	    mark_as_advanced(${UP_PACKAGE}_FOUND)
 
         ##############
 		if (${UP_PACKAGE}_FOUND)
@@ -38,8 +36,10 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _EXT_VERSION _NAMES _ON_OFF)
 			set(HAVE_${UP_PACKAGE} ON)
 			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")
 
-		else()
+		elseif(${STRICT})			
 			message(FATAL_ERROR "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
+		else()
+			message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
 		endif()
 		##############
 

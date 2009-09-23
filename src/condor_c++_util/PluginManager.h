@@ -21,7 +21,7 @@
 
 #include "simplelist.h"
 
-#include "LoadPlugins.h"
+#include "LoadPlugins.unix.h"
 
 /**
  * NOTE: dlopen and dlfcn.h must be available for this code to work.

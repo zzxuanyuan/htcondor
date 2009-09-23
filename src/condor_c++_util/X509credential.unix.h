@@ -19,7 +19,7 @@
 
 #ifndef __X509CREDENTIAL_H__
 #define __X509CREDENTIAL_H__
-#include "credential.h"
+#include "credential.unix.h"
 
 #define CREDATTR_MYPROXY_HOST "MyproxyHost"
 #define CREDATTR_MYPROXY_DN "MyproxyDN"

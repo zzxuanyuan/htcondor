@@ -23,7 +23,7 @@
 #include "condor_uid.h"
 
 #if ! defined(WIN32)
-#include "passwd_cache.h"
+#include "passwd_cache.unix.h"
 #endif /* ! WIN32 */
 
 char *

@@ -35,5 +35,5 @@
 #include "condor_transfer_request.h"
 #include "log_transaction.h"
 #include "killfamily.h"
-#include "passwd_cache.h"
+#include "passwd_cache.unix.h"
 #include "proc_family_direct.h"

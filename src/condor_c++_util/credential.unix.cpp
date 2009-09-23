@@ -17,7 +17,7 @@
  *
  ***************************************************************/
 
-#include "credential.h"
+#include "credential.unix.h"
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "classad/classad_distribution.h"

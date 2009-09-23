@@ -17,7 +17,7 @@
  *
  ***************************************************************/
 
-#include "X509credential.h"
+#include "X509credential.unix.h"
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "globus_utils.h"

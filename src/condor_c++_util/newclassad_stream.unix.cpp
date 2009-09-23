@@ -20,7 +20,7 @@
 #define _CONDOR_ALLOW_OPEN
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "newclassad_stream.h"
+#include "newclassad_stream.unix.h"
 
 int
 StreamPut( Stream *stream, const classad::ClassAd &ad )
