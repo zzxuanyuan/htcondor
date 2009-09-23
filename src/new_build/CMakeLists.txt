@@ -307,7 +307,7 @@ endif()
 ###########################################
 # Set compiler flags
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996")	
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996 /wd4273")	
 	
 	# These were carried over from set_vars.bat
 	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} crypt32.lib mpr.lib psapi.lib mswsock.lib netapi32.lib imagehelp.lib ws2_32.lib powrprof.lib iphlpapi.lib userenv.lib)

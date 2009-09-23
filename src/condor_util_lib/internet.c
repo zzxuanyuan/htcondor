@@ -593,7 +593,7 @@ is_valid_sinful( const char *sinful )
 	char* copy;
 	if( !sinful ) return FALSE;
 	if( !(sinful[0] == '<') ) return FALSE;
-	if( !(tmp = strrchr(sinful, '>')) ) return FALSE;
+	if( !(tmp = (char *)strrchr(sinful, '>')) ) return FALSE;
 	copy = strdup( sinful );
 
 	if( !(tmp = strchr(copy, ':')) ) {
@@ -910,7 +910,7 @@ getPortFromAddr( const char* addr )
 		return -1;
 	}
 
-	tmp = strchr( addr, ':' );
+	tmp = (char *)strchr( addr, ':' );
 	if( !tmp || !tmp[1] ) {
 			/* address didn't specify a port section */
 		return -1;

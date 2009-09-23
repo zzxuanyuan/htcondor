@@ -361,7 +361,7 @@ convert_hostname_to_ip(const char *name,
 // 		}
 
 		memset(tmp_name, 0, MAXHOSTNAMELEN);
-		if (NULL != (idx = strstr(name, default_domain_name))) {
+		if (NULL != (idx = (char *)strstr(name, default_domain_name))) {
 			strncpy(tmp_name, name, idx - name - 1);
 		} else {
 			strncpy(tmp_name, name, MAXHOSTNAMELEN - 1);
