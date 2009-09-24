@@ -20,7 +20,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "named_pipe_util.h"
+#include "named_pipe_util.unix.h"
 
 char*
 named_pipe_make_client_addr(const char* orig_addr,

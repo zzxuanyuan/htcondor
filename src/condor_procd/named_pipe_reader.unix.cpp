@@ -20,9 +20,9 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "named_pipe_reader.h"
-#include "named_pipe_watchdog.h"
-#include "named_pipe_util.h"
+#include "named_pipe_reader.unix.h"
+#include "named_pipe_watchdog.unix.h"
+#include "named_pipe_util.unix.h"
 
 bool
 NamedPipeReader::initialize(const char* addr)

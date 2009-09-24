@@ -20,8 +20,8 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "named_pipe_writer.h"
-#include "named_pipe_watchdog.h"
+#include "named_pipe_writer.unix.h"
+#include "named_pipe_watchdog.unix.h"
 
 bool
 NamedPipeWriter::initialize(const char* addr)

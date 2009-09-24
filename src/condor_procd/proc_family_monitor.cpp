@@ -26,7 +26,7 @@
 #include "parent_tracker.h"
 
 #if !defined(WIN32)
-#include "glexec_kill.h"
+#include "glexec_kill.unix.h"
 #endif
 
 #if defined(LINUX)

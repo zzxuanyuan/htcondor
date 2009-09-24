@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "glexec_kill.h"
+#include "glexec_kill.unix.h"
 
 static char* glexec_kill_path = NULL;
 static char* glexec_path = NULL;

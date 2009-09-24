@@ -34,8 +34,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "safe.h"
-#include "parse_config.h"
+#include "safe.unix.h"
+#include "parse_config.unix.h"
 
 extern char **environ;
 

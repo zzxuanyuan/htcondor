@@ -36,8 +36,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "safe.h"
-#include "parse_config.h"
+#include "safe.unix.h"
+#include "parse_config.unix.h"
 
 #define MAX_CONFIG_LINE		(8 * 1024)
 #define MAX_CONFIG_VALUE_LENGTH	(1024 * 1024)

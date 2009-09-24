@@ -46,7 +46,7 @@
 #include <sys/syscall.h>
 #endif
 
-#include "safe.h"
+#include "safe.unix.h"
 
 /***********************************************************************
  *

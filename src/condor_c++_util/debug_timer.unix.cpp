@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 
-#include "debug_timer.h"
+#include "debug_timer.unix.h"
 
 DebugTimerBase::DebugTimerBase( bool start )
  : on(false), t1(0), t2(0)

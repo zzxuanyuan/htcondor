@@ -20,8 +20,8 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "named_pipe_watchdog_server.h"
-#include "named_pipe_util.h"
+#include "named_pipe_watchdog_server.unix.h"
+#include "named_pipe_util.unix.h"
 
 bool
 NamedPipeWatchdogServer::initialize(const char* path)
