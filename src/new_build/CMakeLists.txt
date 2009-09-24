@@ -348,17 +348,24 @@ include_directories(${CONDOR_SOURCE_DIR}/daemons)
 ###########################################################################
 ###########################################################################
 # Add subdirectories and build targets 
+
+## libs...
 add_subdirectory(libs/utils)
 add_subdirectory(libs/ccb)
 add_subdirectory(libs/cedar)
 add_subdirectory(libs/procapi)
 add_subdirectory(libs/sysapi)
-add_subdirectory(libs/daemon_client)
 add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
 add_subdirectory(libs/privsep)
 #add_subdirectory(libs/classad) ..? .V6 wtf?
 
+# the following libraries are *not* built in windows
+if(NOT WINDOWS)
+	add_subdirectory(libs/daemon_client)
+endif()
+
+## daemons... 
 add_subdirectory(daemons/procd)
 ###########################################################################
 

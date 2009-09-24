@@ -1,10 +1,7 @@
 #set the local target 
 set(TargetName cedar)
 
-file( GLOB CedarRmvSrcs proc.cpp )
-
-condor_glob(CedarHdrs CedarSrcs "${CedarRmvSrcs}")
+condor_glob(CedarHdrs CedarSrcs "")
 
 #create the library
 add_library(${TargetName} STATIC ${CedarHdrs} ${CedarSrcs})
-target_link_libraries( ${TargetName} utils ccb)

@@ -9,6 +9,9 @@ condor_glob(procdHDRS procdSRCS "${ProcdRmvElements}")
 #create the library
 add_executable(${TargetName} ${procdHDRS} ${procdSRCS})
 target_link_libraries( ${TargetName} procapi utils)
+if (WINDOWS)
+	target_link_libraries( ${TargetName} psapi )
+endif()
 
 
 # there is a client library procd_client which doesn't appear to be used... ever... it includes (proc_family_client.o proc_family_io.o local_client.UNIX.o named_pipe_reader.o named_pipe_writer.o named_pipe_watchdog.o named_pipe_util.o)
