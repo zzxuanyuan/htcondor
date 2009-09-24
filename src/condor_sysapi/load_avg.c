@@ -492,7 +492,7 @@ sample_load(void *thr_data)
 		PdhCloseQuery(hQuery);
 		return 2;
 	}
-	hCounterCpuLoad = malloc(sizeof(HCOUNTER)*ncpus);
+	hCounterCpuLoad = (HCOUNTER *) malloc(sizeof(HCOUNTER)*ncpus);
 	for (i=0; i < ncpus; i++) {
 		sprintf(counterpath, "\\Processor(%d)\\%% Processor Time", i);
 		pdhStatus = PdhAddCounter(hQuery, counterpath, 0, 
@@ -610,8 +610,8 @@ sysapi_load_avg_raw(void)
 	}
 	
 	if ( createNewThread == TRUE ) {
-		threadHandle = CreateThread(NULL, 0, sample_load, 
-			NULL, 0, &threadID);
+		threadHandle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)sample_load, 
+			NULL, 0, (LPDWORD)&threadID);
 		if (threadHandle == NULL) {
 #ifndef TESTING
 			dprintf(D_ALWAYS, "failed to create loadavg thread, errno = %d\n",

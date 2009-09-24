@@ -259,7 +259,7 @@ else()
 	set (HAVE_SCHED_SETAFFINITY 1)
 	set (WANT_CLASSAD_ANALYSIS 1)
 	# how is this set?
-	set (HAVE_EXT_CLASSADS 1)
+	# set (HAVE_EXT_CLASSADS 1)
 endif()
 ########################################################
 message(STATUS "***********************************************************")
