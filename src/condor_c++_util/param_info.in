@@ -3846,7 +3846,7 @@ id=198
 
 [CONDOR_ADMIN]
 aliases=
-default=michaelb@cs.wisc.edu
+default=
 version=0.0.0
 range=.*
 state=default
@@ -9990,4 +9990,20 @@ friendly_name=Negotiator Debug Wait
 usage=True if the negotiator should wait for a debugger to attach before doing anything
 url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
 tags=ccb,ccb
+id=555
+
+[SCHEDD_JOB_QUEUE_LOG_FLUSH_DELAY]
+aliases=
+default=5
+version=7.4.0
+range=.*
+state=default
+type=int
+is_macro=false
+reconfig=true
+customization=seldom
+friendly_name=Schedd Job Queue Log Flush Delay
+usage=
+url=http://cs.wisc.edu/condor/manual/v7.3/3_3Configuration.html#SECTION
+tags=schedd
 id=555
