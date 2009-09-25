@@ -2134,9 +2134,18 @@ jobIsSandboxed( ClassAd * ad )
 {
 	ASSERT(ad);
 	int stage_in_start = 0;
+	MyString should_xfer;
+	MyString cleanup_anyway;
+
 	ad->LookupInteger( ATTR_STAGE_IN_START, stage_in_start );
 	if( stage_in_start > 0 ) {
 		return true;
+	}
+
+	if( ad->LookupString( ATTR_SHOULD_TRANSFER_FILES, should_xfer ) &&
+	    (should_xfer.upper_case(), should_xfer == "NO" ) &&
+	    !(ad->LookupString( "CleanUpSpuriousJobSandboxes", cleanup_anyway ))) {
+	  return false;
 	}
 
 	int univ = CONDOR_UNIVERSE_VANILLA;
