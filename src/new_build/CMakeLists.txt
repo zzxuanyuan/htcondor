@@ -154,6 +154,7 @@ endif()
 
 # parseled off b/c could path searches 
 # will use updated CMAKE_INCLUDE_PATH
+# that were updated by UW_EXTERNALS_DIR
 find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h" )
 find_path(HAVE_PCRE_H "pcre.h")
 find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
@@ -240,7 +241,7 @@ if (NOT WINDOWS)
     condor_external(GSOAP ON "gsoap")
     condor_external(BLAHP OFF "blahp")
     condor_external(CLASSADS ON "classad")
-    condor_external(COREDUMPER ON "coredumper")    
+    condor_external(COREDUMPER ON "coredumper")
     condor_external(UNICOREGAHP OFF "unicoregahp")
     condor_external(VOMS OFF "voms")
     condor_external(EXPAT OFF "expat")
@@ -258,7 +259,7 @@ else()
 	set (HAVE_EXT_GSOAP 1) 
 	set (HAVE_SCHED_SETAFFINITY 1)
 	set (WANT_CLASSAD_ANALYSIS 1)
-	# how is this set?
+	# how is this set but not built on windows?
 	# set (HAVE_EXT_CLASSADS 1)
 endif()
 ########################################################
@@ -281,7 +282,8 @@ set(CMAKE_SUPPRESS_REGENERATION FALSE)
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
 # set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/lib)
 
-# TBD: what to do about glibc version checking...? 
+# TBD: what to do about glibc version checking...?
+# NIX ALL STD UNIVERSE.  
 add_definitions(-DGLIBC=GLIBC)
 #I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
 #add_definitions(-DC_COMP_KIND_GCC)
@@ -347,7 +349,7 @@ include_directories(${CONDOR_SOURCE_DIR}/daemons)
 
 ###########################################################################
 ###########################################################################
-# Add subdirectories and build targets 
+## Add subdirectories and build targets 
 
 ## libs...
 add_subdirectory(libs/utils)

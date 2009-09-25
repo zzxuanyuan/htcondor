@@ -17,7 +17,6 @@
 MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES ) 
 
 	string( TOUPPER "${_PACKAGE}" UP_PACKAGE )
-	string( TOLOWER "${_PACKAGE}" LOW_PACKAGE )
 	option(WITH_${UP_PACKAGE} "Enable or disable package" ${_ON_OFF})	
 	
 	# if the option is enabled _ON_OFF,
@@ -36,7 +35,7 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES )
 			set(HAVE_${UP_PACKAGE} ON)
 			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")
 
-		elseif(${STRICT})			
+		elseif(${STRICT})
 			message(FATAL_ERROR "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
 		else()
 			message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
