@@ -239,7 +239,7 @@ main(int argc, char* argv[])
 			readfromfile = true;
 	}
 	else if (match_prefix(argv[i],"-help")) {
-			Usage(argv[0]);
+			Old_Usage(argv[0]);
 	}
 	else if (match_prefix(argv[i],"-format")) {
 			if (argc <= i + 2) {

@@ -38,9 +38,9 @@ void usage(char *argv0)
 
 	dprintf(D_ALWAYS,
 
-" --vdso-addr        Emit the vsyscall page location if applicable\n"
-" --segments         Emit a map of all loaded segments\n"
-" --no-pers-change   [Linux Only] Don't change the personality of the process\n"
+" -vdso-addr        Emit the vsyscall page location if applicable\n"
+" -segments         Emit a map of all loaded segments\n"
+" -no-pers-change   [Linux Only] Don't change the personality of the process\n"
 
 	);
 
@@ -80,7 +80,7 @@ int main(int argc, char *argv[], char *envp[])
 	/* see if I should rexec myself: if --no-pers-change isn't there, then
 		perform the rexec process */
 	for (i = 1; i < argc; i++) {
-		if (matches(argv[i], "--no-pers-change")) {
+		if (matches(argv[i], "-no-pers-change")) {
 			pers_change = 0;
 			break;
 		}
@@ -96,7 +96,7 @@ int main(int argc, char *argv[], char *envp[])
 
 		/* rebuild a new arguments list and add --no-pers-change into it */
 		new_args[0] = strdup(argv[0]);
-		new_args[1] = strdup("--no-pers-change");
+		new_args[1] = strdup("-no-pers-change");
 		for (i = 1; i < argc; i++) {
 			new_args[1+i] = strdup(argv[i]);
 		}
@@ -116,7 +116,7 @@ int main(int argc, char *argv[], char *envp[])
 	segment_table_init(g_st, getpid());
 
 	for (i = 1; i < argc; i++) {
-		if (matches(argv[i], "--vdso-addr")) {
+		if (matches(argv[i], "-vdso-addr")) {
 			vdso_idx = segment_table_find_vdso(g_st);
 
 			if (vdso_idx == NOT_FOUND) {
@@ -125,9 +125,9 @@ int main(int argc, char *argv[], char *envp[])
 			}
 			dprintf(D_ALWAYS, "VDSO: 0x%llx\n", g_st->segs[vdso_idx].mem_start);
 
-		} else if (matches(argv[i], "--segments")) {
+		} else if (matches(argv[i], "-segments")) {
 			segment_table_stdout(g_st);
-		} else if (matches(argv[i], "--no-pers-change")) {
+		} else if (matches(argv[i], "-no-pers-change")) {
 			/* ignore */
 		} else {
 			usage(argv[0]);

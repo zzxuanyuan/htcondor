@@ -75,12 +75,17 @@ main(int argc, char *argv[])
 	install_sig_handler(SIGPIPE, SIG_IGN );
 #endif
 
+///////////////////////////////////////////////////////
+	bool gnuargs = param_boolean("USE_GNU_ARGS", false);
+
 	if (argc < 2) {
-		usage(argv[0]);
+		if(gnuargs)
+		  usage(argv[0]);
+		else
+		  old_usage(argv[0]);
 	}
 
-///////////////////////////////////////////////////////
-	if(!param_boolean("USE_GNU_ARGS", true)) {
+    if (!gnuargs) {
 ///////////////////////////////////////////////////////
 	
 		// if -debug is present, it must be first. sigh.
