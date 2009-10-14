@@ -372,7 +372,7 @@ endif()
 
 ## daemons... 
 add_subdirectory(daemons/procd)
-add_subdirectory(daemons/shadow)
+#add_subdirectory(daemons/shadow)
 
 ###########################################################################
 
