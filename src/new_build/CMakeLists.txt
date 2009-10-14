@@ -38,8 +38,8 @@ if(${OS_NAME} STREQUAL "WINDOWS")
 	add_definitions(-DWINDOWS)	
 endif()
 
-include (gSOAPSrcs)
-include (gSOAPGen)
+#include (gSOAPSrcs)
+#include (gSOAPGen)
 include (CondorGlob)
 include (CondorExternal)
 include (CheckIncludeFiles)
@@ -362,7 +362,7 @@ add_subdirectory(libs/procapi)
 add_subdirectory(libs/sysapi)
 add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
-add_subdirectory(libs/privsep)
+#add_subdirectory(libs/privsep)
 #add_subdirectory(libs/classad) ..? .V6 wtf?
 
 # the following libraries are *not* built in windows
