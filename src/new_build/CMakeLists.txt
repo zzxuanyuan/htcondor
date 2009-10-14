@@ -56,6 +56,7 @@ include (FindThreads)
 set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
+set(PERL perl)
 
 add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
 add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )

@@ -43,7 +43,7 @@ param_info_hash_insert(param_info_hash_t param_info, param_info_t* p) {
 
 	if (!param_info[key]) {
 
-		param_info[key] = malloc(sizeof(bucket_t));
+		param_info[key] = (bucket_t *)malloc(sizeof(bucket_t));
 		param_info[key]->param = p;
 		param_info[key]->next = NULL;
 
@@ -53,7 +53,7 @@ param_info_hash_insert(param_info_hash_t param_info, param_info_t* p) {
 		while(b->next) {
 			b = b->next;
 		}
-		b->next = malloc(sizeof(bucket_t));
+		b->next = (bucket_t *)malloc(sizeof(bucket_t));
 		b = b->next;
 		b->param = p;
 		b->next = NULL;
@@ -113,7 +113,7 @@ param_info_hash_iterate(param_info_hash_t* param_info, int (*callPerElement)
 	int i;
 	int stop = 0;
 	for(i = 0; i < PARAM_INFO_TABLE_SIZE && stop == 0; i++) {
-		bucket_t* this_param = param_info + i * sizeof(bucket_t*);
+		bucket_t* this_param = (bucket_t*)(param_info + i * sizeof(bucket_t*));
 		while(this_param != NULL && stop == 0) {
 			stop = callPerElement(this_param->param, user_data);
 			this_param = this_param->next;
@@ -123,7 +123,7 @@ param_info_hash_iterate(param_info_hash_t* param_info, int (*callPerElement)
 
 void 
 param_info_hash_create(param_info_hash_t* param_info) {
-	*param_info = malloc(sizeof(bucket_t*)*PARAM_INFO_TABLE_SIZE);
+	*param_info = (bucket_t **)malloc(sizeof(bucket_t*)*PARAM_INFO_TABLE_SIZE);
 	memset(*param_info,0,sizeof(bucket_t*)*PARAM_INFO_TABLE_SIZE);
 }
 

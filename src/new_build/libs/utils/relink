@@ -45,6 +45,10 @@ do
 ln -s $i `echo ${i##*/}`;
 done
 
+for i in `ls ../../../condor_c++_util/*.in`;
+do
+ln -s $i `echo ${i##*/}`;
+done
 
 
 # remove files which do not appear to be built.

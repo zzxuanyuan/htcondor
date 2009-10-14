@@ -61,7 +61,7 @@ static int validate_regex(char* pattern, char* subject);
 //allocate and copy src to dest
 #define CPY_STR(dst, src) \
 if (src) { \
-	dst = malloc(strlen(src)+1); \
+	dst = (char *) malloc(strlen(src)+1); \
 	strcpy(dst, src); \
 } else { \
 	dst = NULL;  \
@@ -128,7 +128,7 @@ param_info_insert(char* param,
 		EXCEPT("param passed to param_info_insert was NULL");
 	}
 
-	p = malloc(sizeof(param_info_t));
+	p = (param_info_t*)malloc(sizeof(param_info_t));
 
 	CPY_STR(p->name, param);
 	CPY_STR(p->aliases, aliases);
@@ -142,7 +142,7 @@ param_info_insert(char* param,
 
 	CPY_STR(p->str_val, value);
 
-	p->type = type;
+	p->type = (param_info_t_type_t)type;
 	p->range_valid = 1;
 	p->default_valid = 1;
 	switch (type) {
@@ -362,22 +362,22 @@ compute_range(const char* range, char** range_start, char** range_end) {
 
 	// if the same or they match the generalized anything operator, there is no range
 	if (c1==c2 || (strcmp(c1, ".*") == 0)) {
-		*range_start = malloc(sizeof(char));
+		*range_start = (char *)malloc(sizeof(char));
 		**range_start = '\0';
-		*range_end = malloc(sizeof(char));
+		*range_end = (char*)malloc(sizeof(char));
 		**range_end = '\0';
 	} else {
 
 		//find range_start
 		for (c3=c2-1; isspace(*c3); c3--);			//reverse over trailing whitespace
-		*range_start = calloc((c3-c1+2), sizeof(char));
+		*range_start = (char *)calloc((c3-c1+2), sizeof(char));
 		strncat(*range_start, c1, c3-c1+1);
 
 		//find range_end
 		for (c1=c2; *c1; c1++);						//find end of uppper limit, stopping at null terminator
 		for (c3=c1-1; isspace(*c3); c3--);			//reverse over trailing whitespace
 		for (c2++; c2<=c1 && isspace(*c2); c2++);	//skip leading whitespace
-		*range_end = calloc((c3-c2+2), sizeof(char));
+		*range_end = (char *)calloc((c3-c2+2), sizeof(char));
 		strncat(*range_end, c2, c3-c2+1);
 
 	}
