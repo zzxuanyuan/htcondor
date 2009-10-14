@@ -22,13 +22,13 @@
 #define BASESHADOW_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_classad.h"
 #include "shadow_user_policy.h"
 #include "write_user_log.h"
 #include "exit.h"
 #include "internet.h"
-#include "qmgr_job_updater.h"
+#include "schedd/qmgr_job_updater.h"
 #include "condor_update_style.h"
 
 /* Forward declaration to prevent loops... */

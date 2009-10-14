@@ -22,8 +22,8 @@
 #define REMOTERESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
-#include "condor_daemon_client.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_client/condor_daemon_client.h"
 #include "condor_classad.h"
 #include "reli_sock.h"
 #include "baseshadow.h"

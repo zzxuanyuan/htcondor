@@ -19,7 +19,8 @@
 
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_core/condor_ipverify.h"
 #include "subsystem_info.h"
 #include "baseshadow.h"
 #include "shadow.h"

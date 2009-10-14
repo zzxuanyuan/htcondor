@@ -25,7 +25,7 @@
 #include "condor_attributes.h"
 #include "condor_classad.h"
 #include "condor_io.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 
 // What kind of update to the job queue are we performing?

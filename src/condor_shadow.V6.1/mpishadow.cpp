@@ -21,13 +21,13 @@
 
 #include "condor_common.h"
 #include "mpishadow.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_qmgr.h"         // need to talk to schedd's qmgr
 #include "condor_attributes.h"   // for ATTR_ ClassAd stuff
 #include "condor_email.h"        // for email.
 #include "list.h"                // List class
 #include "internet.h"            // sinful->hostname stuff
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "env.h"
 #include "condor_claimid_parser.h"
 

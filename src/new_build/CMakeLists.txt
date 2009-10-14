@@ -18,6 +18,7 @@ set(PACKAGE_BUGREPORT "a suitable mailing list =>http://...")
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 ###########################################################################
 ###########################################################################
@@ -37,6 +38,8 @@ if(${OS_NAME} STREQUAL "WINDOWS")
 	add_definitions(-DWINDOWS)	
 endif()
 
+include (gSOAPSrcs)
+include (gSOAPGen)
 include (CondorGlob)
 include (CondorExternal)
 include (CheckIncludeFiles)
@@ -47,7 +50,7 @@ include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
 include (FindThreads)
-include (CPack)
+#include (CPack)
 
 # use vars set by FindThreads.
 set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
@@ -332,7 +335,7 @@ else()
 	endif()
 
     # common build flags 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
 
 endif()
 ###########################################
@@ -369,6 +372,8 @@ endif()
 
 ## daemons... 
 add_subdirectory(daemons/procd)
+add_subdirectory(daemons/shadow)
+
 ###########################################################################
 
 # update the install targets to proper location
