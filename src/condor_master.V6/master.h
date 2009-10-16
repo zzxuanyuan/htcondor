@@ -20,9 +20,9 @@
 #ifndef _CONDOR_MASTER_H
 #define _CONDOR_MASTER_H
 
-#include "condor_daemon_core.h"
-#include "condor_lock.h"
-#include "dc_collector.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_core/condor_lock.h"
+#include "daemon_client/dc_collector.h"
 #include "condor_pidenvid.h"
 #include "env.h"
 

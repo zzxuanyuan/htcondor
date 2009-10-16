@@ -38,8 +38,7 @@ if(${OS_NAME} STREQUAL "WINDOWS")
 	add_definitions(-DWINDOWS)	
 endif()
 
-#include (gSOAPSrcs)
-#include (gSOAPGen)
+include (gSOAPGen)
 include (CondorGlob)
 include (CondorExternal)
 include (CheckIncludeFiles)
@@ -56,7 +55,6 @@ include (FindThreads)
 set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
-set(PERL perl)
 
 add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
 add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
@@ -363,7 +361,7 @@ add_subdirectory(libs/procapi)
 add_subdirectory(libs/sysapi)
 add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
-#add_subdirectory(libs/privsep)
+add_subdirectory(libs/privsep)
 #add_subdirectory(libs/classad) ..? .V6 wtf?
 
 # the following libraries are *not* built in windows
@@ -373,6 +371,7 @@ endif()
 
 ## daemons... 
 add_subdirectory(daemons/procd)
+add_subdirectory(daemons/master)
 #add_subdirectory(daemons/shadow)
 
 ###########################################################################

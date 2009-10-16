@@ -12,15 +12,18 @@ condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 
 add_custom_command(
     OUTPUT param_info_init.c
-	COMMAND ${PERL}
+	COMMAND perl
 	ARGS param_info_c_generator.pl
 	COMMENT "Generating param_info_init.c"
 )
 
+# I hate having to create a target which does nothing.
+# I tried adding as a PREBUILD dep to utils but no dice
+# which doesn't make any sense given examples.  
 add_custom_target(
-	genparams
+	utils_genparams
 	ALL
 	DEPENDS param_info_init.c )
 
-add_library(utils STATIC ${HeaderFiles} ${SourceFiles})
+add_library( utils STATIC ${HeaderFiles} ${SourceFiles} )
 

@@ -1697,24 +1697,26 @@ safe_exec_as_user(uid_t uid,
             fatal_error_exit(1, "error opening stderr");
         }
     }
-#if defined(LINUX) && (defined(I386) || defined(X86_64))
+
+// tstclair TODO: remove std univ dependecies.
+//#if defined(LINUX) && (defined(I386) || defined(X86_64))
     /*
        on linux, set the personality for std univ jobs
        - PER_LINUX32 turns off exec shield
        - 0x4000 is ADDR_NO_RANDOMIZE, but the macro is
        not defined in many of our supported distros
      */
-    if (is_std_univ) {
-#if defined(I386)
-        unsigned long persona = PER_LINUX32 | 0x40000;
-#elif defined(X86_64)
-        unsigned long persona = 0x40000;
-#endif
-        if (syscall(SYS_personality, persona) == -1) {
-            fatal_error_exit(1, "error setting personality: %s");
-        }
-    }
-#endif
+//    if (is_std_univ) {
+//#if defined(I386)
+//        unsigned long persona = PER_LINUX32 | 0x40000;
+//#elif defined(X86_64)
+//        unsigned long persona = 0x40000;
+//#endif
+//        if (syscall(SYS_personality, persona) == -1) {
+//            fatal_error_exit(1, "error setting personality: %s");
+//        }
+//    }
+//#endif
 
     /* finally do the exec */
     r = execve(exec_name, (char **) args, (char **) env);

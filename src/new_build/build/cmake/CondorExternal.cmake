@@ -24,7 +24,7 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES )
 
 		message(STATUS "condor_external searching(${UW_EXTERNALS_DIR}) for ${_PACKAGE} libs (${_NAMES})")
 
-		find_library( ${UP_PACKAGE}_FOUND NAMES ${_NAMES} )		            		              	    
+		find_library( ${UP_PACKAGE}_FOUND NAMES ${_NAMES} )
 	    mark_as_advanced(${UP_PACKAGE}_FOUND)
 
         ##############
