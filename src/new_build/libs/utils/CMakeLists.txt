@@ -26,4 +26,4 @@ add_custom_target(
 	DEPENDS param_info_init.c )
 
 add_library( utils STATIC ${HeaderFiles} ${SourceFiles} )
-
+add_dependencies(utils utils_genparams)
