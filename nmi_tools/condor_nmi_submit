@@ -139,7 +139,7 @@ my $GITROOT_TSTCNF = "/space/git/CONDOR_TEST_CNFDTL.git";
 my $GITROOT_TSTLRG = "/space/git/CONDOR_TEST_LRG.git";
 
 # name of the submit_info file
-my $submit_info_basename = "submit_info";
+my $submit_info_basename = "SubmitInfo.pm";
 
 # Location of the submit_info file
 my $submit_info = "nmi_glue/$submit_info_basename";
@@ -275,9 +275,15 @@ foreach $tag (sort keys %tags ) {
         $tag = undef;
     }
 
-    getSubmitInfo( $tag, $opt_src_tag );
-    $cmdfile = createSubmitFiles( $tag, $opt_src_tag, $opt_other_tag );
-    submitRun( $cmdfile, $tag );
+	if (1) {
+		# the new way
+    	getSubmitInfoNew( $tag, $opt_src_tag );
+	} else {
+		# the old way
+    	getSubmitInfo( $tag, $opt_src_tag );
+    	$cmdfile = createSubmitFiles( $tag, $opt_src_tag, $opt_other_tag );
+    	submitRun( $cmdfile, $tag );
+	}
 }
 
 print "All steps completed successfully\n";
@@ -713,6 +719,49 @@ sub getNightlyTags
         $tags{$tag[1]} = $tag[0]; 
     }
     close(TAGS);
+}
+
+sub getSubmitInfoNew
+{
+    my( $tag, $src_tag ) = @_;
+    my $submit_info_path;
+	my $ret;
+	our $slaved_module = 1;
+
+    if( defined $opt_nmi_glue ) {
+        $submit_info_path = "$opt_nmi_glue/$submit_info_basename";
+    }
+    elsif( defined $src_workspace ) {
+        $submit_info_path = "$src_workspace/$submit_info";
+        # in this case $tag is worthless, so trying to
+        # check it out is hopeless.
+    }
+    else {
+		if(defined $src_tag) {
+			my $realtag = "origin\/" . $src_tag;
+        	checkoutSubmitInfo( $realtag ) ||
+	    		die "$tag does not contain $submit_info!\n";
+		} else {
+        	checkoutSubmitInfo( $tag ) ||
+	    		die "$tag does not contain $submit_info!\n";
+		}
+        $submit_info_path = $submit_info;
+    }
+
+    -f $submit_info_path || die "$submit_info_path doesn't exist!\n";
+
+	# Load the submit_info file.
+	# I need this to happen with runtime information, not compile time, so this
+	# is why I'm messing about with @INC here.
+	print "About to load submit information module: $submit_info_path\n";
+	push @INC, dirname($submit_info_path);
+	eval "use SubmitInfo;";
+	die $@ if $@;
+	print "Loaded SubmitInfo.pm!\n";
+	print "default_prereqs = @SubmitInfo::default_prereqs\n";
+
+	print "Done\n"; exit 1;
+
 }
 
 
