@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+package SubmitInfo;
+
 # (14:06:39) Nick Leroy: #715
 # (14:07:09) Nick Leroy: /p/condor/workspaces/nleroy/nmi-ports
 
@@ -32,7 +34,7 @@ use warnings;
 ###############################################################################
 
 # The sets of ports we know about nativly in the glue script.
-my %build_and_test_sets = (
+our %build_and_test_sets = (
 	# The ports we officially support and for which we provide native binaries
 	# on our download site.
 	'official_ports' => [
@@ -72,7 +74,7 @@ my %build_and_test_sets = (
 # For every build, test, and cross test, of condor everywhere,
 # these are the default prereqs _usually_ involved.
 ###############################################################################
-my @default_prereqs = (
+our @default_prereqs = (
 	'tar-1.14',
 	'patch-2.5.4',
 	'm4-1.4.1',
@@ -108,7 +110,7 @@ my @default_prereqs = (
 # This array is being used to initialze key/value pairs in a hash table.
 # That is why it has this creepy format.
 ###############################################################################
-my @minimal_build_configure_args =
+our @minimal_build_configure_args =
 	(
 		'--disable-proper'				=> undef,
 		'--without-globus'				=> undef,
@@ -138,7 +140,7 @@ my @minimal_build_configure_args =
 #
 # This specifies the test suite testclass which is run by default for any test.
 ###############################################################################
-my @default_testclass = ( 'quick' );
+our @default_testclass = ( 'quick' );
 
 ###############################################################################
 # Default Test Suite Configure Arguments
@@ -146,7 +148,7 @@ my @default_testclass = ( 'quick' );
 # When running a test suite, this is the list of default arguments to pass to
 # the test suite's configure.
 ###############################################################################
-my @default_test_configure_args =
+our @default_test_configure_args =
 	(
 	'--verbose' => undef,
 	'--without-externals' => undef,
@@ -162,7 +164,7 @@ my @default_test_configure_args =
 # This array is being used to initialze key/value pairs in a hash table.
 # That is why it has this creepy format.
 ###############################################################################
-my @default_build_configure_args =
+our @default_build_configure_args =
 	(
 	'--enable-soft-is-hard' => undef,
 	);
@@ -172,7 +174,7 @@ my @default_build_configure_args =
 #
 # This table encodes the build and test information for each NMI platform.
 ###############################################################################
-my %submit_info = (
+our %submit_info = (
 
 	##########################################################################
 	# Default platform chosen for an unknown nmi platform.
@@ -182,7 +184,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -200,7 +202,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -218,7 +220,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -237,7 +239,7 @@ my %submit_info = (
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
 			# when it works add x86_64_winnt_5.1 to the x_tests
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -258,7 +260,7 @@ my %submit_info = (
 				'binutils-2.16', 'coreutils-5.2.1', 'gcc-3.4.3', 
 				'gzip-1.2.4', 'wget-1.9.1',
 			],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -275,7 +277,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> [ 'ia64_rhas_4' ],
+			'xtests'	=> [ 'ia64_rhas_4' ],
 		},
 
 		'test' => {
@@ -292,7 +294,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> undef,
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -313,7 +315,7 @@ my %submit_info = (
 				'vac-6', 'vacpp-6', 'perl-5.8.5', 'gzip-1.3.3',
 				'coreutils-5.2.1',
 			],
-			'x_test_platforms'	=> [ 'ppc_aix_5.2', 'ppc_aix_5.3' ],
+			'xtests'	=> [ 'ppc_aix_5.2', 'ppc_aix_5.3' ],
 		},
 
 		'test' => {
@@ -330,7 +332,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> undef,
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -351,7 +353,7 @@ my %submit_info = (
 				'gcc-4.1.2', 'binutils-2.16', 'perl-5.8.5', 'gzip-1.3.3',
 				'wget-1.9.1', 'coreutils-5.2.1',
 			],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -371,7 +373,7 @@ my %submit_info = (
 				@default_prereqs,
 				'libtool-1.5.26', # used for the blahp
 			],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -389,7 +391,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> [ 'x86_64_fedora_8', 'x86_64_fedora_9' ],
+			'xtests'	=> [ 'x86_64_fedora_8', 'x86_64_fedora_9' ],
 		},
 
 		'test' => {
@@ -410,7 +412,7 @@ my %submit_info = (
 				@default_prereqs,
 				'VMware-server-1.0.7',
 			],
-			'x_test_platforms'	=> [ 'x86_64_rhas_4' ],
+			'xtests'	=> [ 'x86_64_rhas_4' ],
 		},
 
 		'test' => {
@@ -427,7 +429,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -447,7 +449,7 @@ my %submit_info = (
 				@default_prereqs,
 				'libtool-1.5.26',
 			],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -467,7 +469,7 @@ my %submit_info = (
 				@default_prereqs,
 				'coreutils-5.2.1',
 			],
-			'x_test_platforms'	=> [ 'x86_64_macos_10.5' ],
+			'xtests'	=> [ 'x86_64_macos_10.5' ],
 		},
 
 		'test' => {
@@ -489,7 +491,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs, ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -506,7 +508,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> [ 
+			'xtests'	=> [ 
 				'unmanaged-x86_rhap_5', 'x86_64_fc_5', 'x86_fc_5',
 				'x86_64_fedora_8', 'x86_64_fedora_9',
 			],
@@ -528,7 +530,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -551,7 +553,7 @@ my %submit_info = (
 				'VMware-server-1.0.7',
 			],
 			# I've removed x86_64_rhas_3 for now, as per git trac #482
-			'x_test_platforms'	=> [ 
+			'xtests'	=> [ 
 			 	'x86_rhas_4', 'x86_suse_10.0', 'x86_sles_9', 'x86_ubuntu_5.10',
 			 	'x86_64_rhas_4',
 			],
@@ -581,7 +583,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -612,7 +614,7 @@ my %submit_info = (
 				'--with-platform'				=> 'linux-ia64-sles8',
 			},
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -643,7 +645,7 @@ my %submit_info = (
 				'--with-platform'				=> 'linux-ia64-sles9',
 			},
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -661,7 +663,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 		
 		'test' => {
@@ -693,7 +695,7 @@ my %submit_info = (
 			},
 
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -711,7 +713,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -729,7 +731,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -747,7 +749,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -765,7 +767,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -798,7 +800,7 @@ my %submit_info = (
 			},
 
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -816,7 +818,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -834,7 +836,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 		
 		'test' => {
@@ -852,7 +854,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -870,7 +872,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -888,7 +890,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -906,7 +908,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -923,7 +925,7 @@ my %submit_info = (
 	'x86_64_fc_9'	=> {
 		'configure_args' => { @minimal_build_configure_args },
 		'prereqs'	=> [ @default_prereqs ],
-		'x_test_platforms'	=> undef,
+		'xtests'	=> undef,
 
 		'test_append_prereqs'	=> undef,
 		'testargs'	=> [ @default_testclass ],
@@ -938,7 +940,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -957,7 +959,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -976,7 +978,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -994,7 +996,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1012,7 +1014,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1030,7 +1032,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1048,7 +1050,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1081,7 +1083,7 @@ my %submit_info = (
 				'--with-platform'				=> 'linux-x86_64-sles8',
 			},
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1115,7 +1117,7 @@ my %submit_info = (
 			},
 
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1133,7 +1135,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1151,7 +1153,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1169,7 +1171,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1187,7 +1189,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1205,7 +1207,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1238,7 +1240,7 @@ my %submit_info = (
 				'--with-platform'				=> 'linux-x86-sles9',
 			},
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1276,7 +1278,7 @@ my %submit_info = (
 			},
 
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1310,7 +1312,7 @@ my %submit_info = (
 				'--with-platform'				=> 'linux-x86-sles102',
 			},
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1328,7 +1330,7 @@ my %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'x_test_platforms'	=> undef,
+			'xtests'	=> undef,
 		},
 
 		'test' => {
@@ -1370,6 +1372,8 @@ sub typecheck
 		}
 	}
 
+	# XXX Add that the prereqs must contain unique entries.
+
 	return $result;
 }
 
@@ -1392,6 +1396,109 @@ sub statistics
 	#}
 };
 
+sub dump_info
+{
+	my ($f) = @_;
+	my $p;
+	my ($bref, $tref);
+
+	if (!defined($f)) {
+		$f = *STDOUT;
+	}
+	
+	print $f "-------------------------------\n";
+	print $f "Dump of submit_info information\n";
+	print $f "-------------------------------\n";
+
+	foreach $p (sort keys %submit_info) {
+		print $f "Platform: $p\n";
+
+		print $f "Build Info:\n";
+		if (!defined($submit_info{$p}{'build'})) {
+			print $f "Undef\n";
+		} else {
+			$bref = $submit_info{$p}{'build'};
+
+			# emit the build configure arguments
+			print $f "\tConfigure Args: ";
+			if (!defined($bref->{'configure_args'})) {
+				print $f "Undef\n";
+			} else {
+				print $f join(' ', args_to_array($bref->{'configure_args'})) .
+					"\n";
+			}
+			
+			# emit the build prereqs
+			print $f "\tPrereqs: ";
+			if (!defined($bref->{'prereqs'})) {
+				print $f "Undef\n";
+			} else {
+				print $f join(' ', @{$bref->{'prereqs'}}) . "\n";
+			}
+
+			# emit the cross tests
+			print $f "\tXTests: ";
+			if (!defined($bref->{'xtests'})) {
+				print $f "Undef\n";
+			} else {
+				print $f join(' ', @{$bref->{'xtests'}}) . "\n";
+			}
+		}
+
+		print $f "Test Info:\n";
+		if (!defined($submit_info{$p}{'test'})) {
+			print $f "Undef\n";
+		} else {
+			$tref = $submit_info{$p}{'test'};
+
+			# emit the test configure arguments
+			print $f "\tConfigure Args: ";
+			if (!defined($tref->{'configure_args'})) {
+				print $f "Undef\n";
+			} else {
+				print $f join(' ', args_to_array($tref->{'configure_args'})) .
+					"\n";
+			}
+			
+			# emit the test prereqs
+			print $f "\tPrereqs: ";
+			if (!defined($tref->{'prereqs'})) {
+				print $f "Undef\n";
+			} else {
+				print $f join(' ', @{$tref->{'prereqs'}}) . "\n";
+			}
+
+			# emit the testargs
+			print $f "\tXTests: ";
+			if (!defined($tref->{'testargs'})) {
+				print $f "Undef\n";
+			} else {
+				print $f join(' ', @{$tref->{'testargs'}}) . "\n";
+			}
+		}
+
+		print "\n";
+	}
+}
+
+# This function converts (and resonably escapes) an argument hash into an array
+# usually used for hashes like 'configure_args'
+sub args_to_array
+{
+	my ($arg_ref) = (@_);
+	my $k;
+	my @result;
+
+	foreach $k (sort keys %{$arg_ref}) {
+		if (defined($arg_ref->{$k})) {
+			push @result, "$k=\"$arg_ref->{$k}\"";
+		} else {
+			push @result, "$k";
+		}
+	}
+	return @result;
+}
+
 sub main
 {
 	if (!typecheck()) {
@@ -1400,14 +1507,19 @@ sub main
 		print "\tTypecheck passed.\n";
 	}
 	statistics();
+	dump_info();
 }
 
-# The variable "$used_submit_info" should be defined in the perl script
+###############################################################################
+# Topelevel code
+###############################################################################
+
+# The variable "$slaved_module" should be defined in the perl script
 # that includes this perl file as a data initialization module. In this
 # case, the main will not be run. It is useful to run submit_info.conf by hand
 # after mucking with it and have it ensure that what you typed in made sense.
-if (!defined($main::used_submit_info)) {
-	$main::used_submit_info = undef; # silence warning
+if (!defined($main::slaved_module)) {
+	$main::slaved_module = undef; # silence warning
 	main();
 }
 
