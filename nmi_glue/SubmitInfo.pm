@@ -37,6 +37,8 @@ package SubmitInfo;
 our %build_and_test_sets = (
 	# The ports we officially support and for which we provide native binaries
 	# on our download site.
+	# If you don't specify what platforms you'd like built, then this is the
+	# list to which we default.
 	'official_ports' => [
 		'hppa_hpux_11',
 		'ia64_rhas_3',
@@ -74,7 +76,7 @@ our %build_and_test_sets = (
 # For every build, test, and cross test, of condor everywhere,
 # these are the default prereqs _usually_ involved.
 ###############################################################################
-our @default_prereqs = (
+my @default_prereqs = (
 	'tar-1.14',
 	'patch-2.5.4',
 	'm4-1.4.1',
@@ -87,7 +89,7 @@ our @default_prereqs = (
 ###############################################################################
 # Minimal build configuration
 # 
-# The build arguments to configure which wil result in the smallest and most
+# The build arguments to configure which will result in the smallest and most
 # portable build of Condor.
 #
 # Handy things to know what to pass to configure are:
@@ -110,7 +112,7 @@ our @default_prereqs = (
 # This array is being used to initialze key/value pairs in a hash table.
 # That is why it has this creepy format.
 ###############################################################################
-our @minimal_build_configure_args =
+my @minimal_build_configure_args =
 	(
 		'--disable-proper'				=> undef,
 		'--without-globus'				=> undef,
@@ -140,7 +142,7 @@ our @minimal_build_configure_args =
 #
 # This specifies the test suite testclass which is run by default for any test.
 ###############################################################################
-our @default_testclass = ( 'quick' );
+my @default_testclass = ( 'quick' );
 
 ###############################################################################
 # Default Test Suite Configure Arguments
@@ -148,7 +150,7 @@ our @default_testclass = ( 'quick' );
 # When running a test suite, this is the list of default arguments to pass to
 # the test suite's configure.
 ###############################################################################
-our @default_test_configure_args =
+my @default_test_configure_args =
 	(
 	'--verbose' => undef,
 	'--without-externals' => undef,
@@ -164,7 +166,7 @@ our @default_test_configure_args =
 # This array is being used to initialze key/value pairs in a hash table.
 # That is why it has this creepy format.
 ###############################################################################
-our @default_build_configure_args =
+my @default_build_configure_args =
 	(
 	'--enable-soft-is-hard' => undef,
 	);
@@ -190,7 +192,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -208,7 +210,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -226,7 +228,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -245,7 +247,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -266,7 +268,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_03' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 			
@@ -283,7 +285,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -300,7 +302,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ 'java-1.4.2' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -321,7 +323,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -338,7 +340,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> undef,
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -359,7 +361,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -379,7 +381,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -397,7 +399,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -418,7 +420,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -435,7 +437,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -455,7 +457,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -479,7 +481,7 @@ our %submit_info = (
 				'java-1.4.2_09', 
 				'coreutils-5.2.1'
 			],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -497,7 +499,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_13'],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -517,7 +519,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05'],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -536,7 +538,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -562,7 +564,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5'],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -589,7 +591,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -620,7 +622,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -651,7 +653,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -669,7 +671,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -701,7 +703,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -719,7 +721,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -737,7 +739,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -755,7 +757,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.9' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -773,7 +775,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.9' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -806,7 +808,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -824,7 +826,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -842,7 +844,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -860,7 +862,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -878,7 +880,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -896,7 +898,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -914,7 +916,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -928,7 +930,7 @@ our %submit_info = (
 		'xtests'	=> undef,
 
 		'test_append_prereqs'	=> undef,
-		'testargs'	=> [ @default_testclass ],
+		'testclass'	=> [ @default_testclass ],
 	},
 
 	##########################################################################
@@ -946,7 +948,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -965,7 +967,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -984,7 +986,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1002,7 +1004,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.9' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1020,7 +1022,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1038,7 +1040,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1056,7 +1058,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1089,7 +1091,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1123,7 +1125,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1141,7 +1143,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1159,7 +1161,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_08', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1177,7 +1179,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1195,7 +1197,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1213,7 +1215,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1246,7 +1248,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1284,7 +1286,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1318,7 +1320,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 
@@ -1336,7 +1338,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
-			'testargs'	=> [ @default_testclass ],
+			'testclass'	=> [ @default_testclass ],
 		},
 	},
 );
@@ -1468,12 +1470,12 @@ sub dump_info
 				print $f join(' ', @{$tref->{'prereqs'}}) . "\n";
 			}
 
-			# emit the testargs
-			print $f "\tXTests: ";
-			if (!defined($tref->{'testargs'})) {
+			# emit the testclass
+			print $f "\tTestClass: ";
+			if (!defined($tref->{'testclass'})) {
 				print $f "Undef\n";
 			} else {
-				print $f join(' ', @{$tref->{'testargs'}}) . "\n";
+				print $f join(' ', @{$tref->{'testclass'}}) . "\n";
 			}
 		}
 
@@ -1491,7 +1493,7 @@ sub args_to_array
 
 	foreach $k (sort keys %{$arg_ref}) {
 		if (defined($arg_ref->{$k})) {
-			push @result, "$k=\"$arg_ref->{$k}\"";
+			push @result, "$k='$arg_ref->{$k}'";
 		} else {
 			push @result, "$k";
 		}
