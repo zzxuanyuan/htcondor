@@ -67,7 +67,6 @@ our %build_and_test_sets = (
 		'x86_64_sles_9',
 		'ia64_sles_8',
 		'x86_sles_9',
-		#'x86_64_sles_8', # needs prereqs to be added by NMI
 		'ppc_macos_10.4',
 	],
 
