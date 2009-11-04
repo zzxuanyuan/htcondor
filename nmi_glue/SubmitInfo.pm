@@ -147,7 +147,7 @@ my @minimal_build_configure_args =
 # This specifies the test suite testclasses which are run by default for 
 # any test.
 ###############################################################################
-my @default_testclass = ( 'quick' );
+my @default_testclass = ( 'simple' );
 
 ###############################################################################
 # Default Test Suite Configure Arguments
@@ -1128,13 +1128,13 @@ our %submit_info = (
 				'--with-platform'				=> 'linux-x86_64-sles9',
 			},
 
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> [ @default_prereqs, 'wget-1.9.1' ],
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> [ @default_prereqs, 'wget-1.9.1' ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
