@@ -62,12 +62,12 @@ our %build_and_test_sets = (
 	'nmi_one_offs' => [
 		'sun4u_sol_5.8',
 		'x86_suse_10.2',
-		'x86_suse_10.0',
+		#'x86_suse_10.0', # needs prereqs to be added by NMI
 		'ia64_sles_9',
 		'x86_64_sles_9',
 		'ia64_sles_8',
 		'x86_sles_9',
-		'x86_64_sles_8',
+		#'x86_64_sles_8', # needs prereqs to be added by NMI
 		'ppc_macos_10.4',
 	],
 
