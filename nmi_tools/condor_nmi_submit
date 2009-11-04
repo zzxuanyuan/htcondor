@@ -11,63 +11,6 @@
 #    - Checkout the nmi_glue/submit_info input file and parse it
 #    - Generate the appropriate NMI submit and fetch files
 #    - run nmi_submit
-#
-###########################################################################
-# Overview and syntax of the submit_info file:
-#
-# The branch-specific input file that defines platforms, prereqs and a
-# few other settings lives in the "nmi_glue" directory (which is
-# branched and merged) in a file called "submit_info".
-#
-# Each section enclosed in []'s (which I'll call a "block") defines a
-# group of platforms with some shared settings.  Each block must
-# define the platform(s) which the settings in that block apply to.
-# There's a special case for the "global" platform, and settings in
-# there are used to define the global NMI submit file attributes
-# ("prereqs").  Otherwise, all settings in platform-specific blocks
-# are used to define the platform specific NMI submit file attributes
-# (e.g. "prereqs_x86_rh_9").  
-#
-# Within each block, global settings (e.g. "prereqs") are shared
-# across all platforms listed in the block, while platform-specific
-# settings (e.g. "prereqs_x86_rh_9") are appended to the block-wide
-# setting (if any) only for that particular platform.
-#
-# This script parses all the blocks in the input file, and comes up
-# with the complete list of all platforms mentioned in the file, which
-# it uses to construct the "platforms" NMI submit attribute.  Then,
-# when writing out the necessary prereq-related attributes, the union
-# of all prereqs defined for that platform within any blocks are used.
-#
-# The point of this (somewhat complicated) setup is so that we can
-# express the prereqs for all our platforms with the least possible
-# duplication and most sharing of common traits.  
-#
-# Valid directives in the submit_info file:
-# "platforms"           defines the platforms in a given block
-# "prereqs"             shared prereqs across entire block
-# "test_append_prereqs" prereqs to append to the other defined prereqs
-#                       for use when submitting test runs
-# "testargs"            defines the value of remote_declare_args to
-#                       use when submitting test runs
-# "x_test_platforms"    other platforms that should be tested for this
-#                       platform (cross-platform testing)
-# (other than platforms, all of the above directives also support a
-# platform-specific version where you append "_<platform>" to the
-# attribute name, e.g. "prereqs_x86_rh_9", or "testargs_x86_rh_9")
-#
-###########################################################################
-
-###########################################################################
-#
-# Update 1/24/08: We need a way to have test only platforms
-# and prereqs. This is caused first by java needs while doing
-# cross testing. So we will add as additonal directives:
-# "testplatforms"		defines platforms only being tested
-# "testprereqs" 		shared prereqs across entire block
-# "testonly_append_prereqs" prereqs to append to the other defined prereqs
-#
-###########################################################################
 
 ######################################################################
 # Modules used by this script
@@ -97,7 +40,7 @@ use vars qw/ $opt_build $opt_test
     $opt_clear_externals_cache_weekly
     $opt_externals_only $opt_release_only $opt_version_buildid
 	$opt_skip_doc $opt_sha1
-    $opt_buildid $opt_test_src $opt_test_timeout $opt_test_args
+    $opt_buildid $opt_test_src $opt_test_timeout $opt_test_class
     $opt_input_platform $opt_tests_at_once
     /;
 
@@ -279,7 +222,7 @@ foreach $tag (sort keys %tags ) {
 		# the new way with SubmitInfo.pm
     	getSubmitInfoNew( $tag, $opt_src_tag );
     	$cmdfile = createSubmitFilesNew( $tag, $opt_src_tag, $opt_other_tag );
-		print "Done.\n"; exit 1;
+    	submitRun( $cmdfile, $tag );
 	} else {
 		# the old way with submit_info
     	getSubmitInfo( $tag, $opt_src_tag );
@@ -400,6 +343,10 @@ sub parseOptions
            'desc=s'        => \$opt_desc,
            'append=s'      => \$opt_append,
            'submit-xtests!' => \$opt_submit_xtests,
+		   # This next option is poorly used and should be removed/redone.
+		   # It is used in build/platform_post to pass stuff to the test
+		   # glue. It should really be renamed to testglue-configure-append
+		   # or something like that. I need to think about it more.
 		   'configure=s' => \$opt_configure,
 		   'src-tag=s' => \$opt_src_tag,
 		   'other-tag=s' => \$opt_other_tag,
@@ -422,7 +369,7 @@ sub parseOptions
            'buildid=i'     => \$opt_buildid,
            'test-src=s'    => \$opt_test_src,
            'test-timeout=i' => \$opt_test_timeout,
-           'test-args=s'   => \$opt_test_args,
+           'test-class=s'   => \$opt_test_class,
            'input-platform=s' => \$opt_input_platform,
 		   'tests-at-once=i' => \$opt_tests_at_once,
     );
@@ -684,7 +631,7 @@ Where [build-options] can be any of:
 Where [test-options] can be any of:
 --buildid=string   <Build RunId to test>
 --test-src=string  <Custom source tarball for building tests with>
---test-args=string <Arguments to select what tests to declare>
+--test-class=string <Arguments to select what tests to declare>
 --test-timeout=int <timeout in minutes for each test task (default is 20)>
 --input-platform=string <Fetch binaries from this platform from given buildid>
 --tests-at-once=count <run count tests concurrently>
@@ -1490,13 +1437,17 @@ EOF
 	for $platform (sort @platforms) {
 		my $href = $SubmitInfo::submit_info{$platform}{'build'}{'configure_args'};
 		my $str = "";
-		if (defined($href)) {
-			$str = join(' ', SubmitInfo::args_to_array($href));
+		# Add in arguments remote_pre natively understands
+		if ($common_pre_args) {
+			$str = "$common_pre_args ";
 		}
 
-		if ($common_pre_args) {
-			$str .= " $common_pre_args";
+		# everything else will be configure arguments.
+		$str .= "-- ";
+		if (defined($href)) {
+			$str .= join(' ', SubmitInfo::args_to_array($href));
 		}
+
 		print $fh "# Remote Pre Arguments for Platform: $platform\n";
 		print $fh "${platform}_remote_pre_args = $str\n";
 		print $fh "\n";
@@ -1548,9 +1499,9 @@ sub writeTestGlue
     my $args;
 
 
-    if( defined $opt_test_args ) {
+    if( defined $opt_test_class ) {
         # command-line takes precedent
-        $args = $opt_test_args;
+        $args = $opt_test_class;
     } elsif( $#platforms == 0 && defined $platform_testargs{$platforms[0]} ) {
         # if we've only got 1 platform (the last element of @platforms
         # is at offset 0), we should use a platform-specific value for
@@ -1564,7 +1515,6 @@ sub writeTestGlue
         # if not specified at all, use a default test class
         $args = "quick";
     }
-
 
     # define the glue scripts we want for test jobs
     print $fh "pre_all = nmi_glue/test/pre_all\n";
@@ -1629,38 +1579,47 @@ EOF
 
 	print $fh <<EOF;
 ###############################################################################
-# Test Class Specification, per platform.
+# Test Class and Configure Args Specification, per platform.
 ###############################################################################
 
 EOF
-    if( defined $opt_test_args ) {
-		# command line specification overrides all platform specific cases.
-		print $fh "# Overriding platform specific testclasses due to supplied command line.\n";
-    	print $fh "remote_declare_args = $opt_test_args\n";
+	foreach $platform (sort @platforms) {
+		$args = "--test-class "; # clear out the value for each platform.
 
-	} else {
-	
-		# otherwise, dig out the testclass specific to each platform and emit
-		# it.
+		print $fh "# Testclass/Configure args for platform $platform\n";
 
-		foreach $platform (sort @platforms) {
+		# assemble the test classes from the platform or the command line.
 
-			print $fh "# Testclass for platform $platform\n";
+    	if( defined $opt_test_class ) {
+			# XXX can only specify a single test class on the command line
+			# need to fix GetOpt to handle multiple ones.
+			$args .= "$opt_test_class ";
 
+		} else {
+			# grab the test classes out of the SubmitInfo file;
 			if (defined($SubmitInfo::submit_info{$platform}{'test'}{'testclass'}))
 			{
-				# XXX For now, there should only be ONE testclass in the array.
-				# otherwise the remote_declare step gets it wrong.
-    			print $fh "${platform}_remote_declare_args = " .
-					join(', ', @{$SubmitInfo::submit_info{$platform}{'test'}{'testclass'}}) .
-					"\n";
+				$args .= join(',', @{$SubmitInfo::submit_info{$platform}{'test'}{'testclass'}}) . " ";
+
 			} else {
-				print $fh 
-					"# No test class for $platform?!? Default to quick.\n";
-    			print $fh "remote_declare_args = quick\n";
+				print $fh "# No test class for $platform. Default to quick.\n";
+   				$args .= "quick ";
 			}
-			print $fh "\n";
 		}
+
+		$args .= "-- ";
+
+		# now, add in the configure args for the test suite.
+
+		if (defined($SubmitInfo::submit_info{$platform}{'test'}{'configure_args'}))
+		{
+			$args .= join(' ', 
+				SubmitInfo::args_to_array(
+					$SubmitInfo::submit_info{$platform}{'test'}{'configure_args'}));
+		}
+
+		# finally print out the mess which is all passed to remote_declare.
+		print $fh "${platform}_remote_declare_args = $args\n";
 	}
 }
 

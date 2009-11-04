@@ -70,6 +70,10 @@ our %build_and_test_sets = (
 		'x86_64_sles_8',
 		'ppc_macos_10.4',
 	],
+
+	'psilord' => [
+		'ppc64_sles_9',
+	],
 );
 
 ###############################################################################
@@ -140,7 +144,8 @@ my @minimal_build_configure_args =
 ###############################################################################
 # Default List of Tests to Run.
 #
-# This specifies the test suite testclass which is run by default for any test.
+# This specifies the test suite testclasses which are run by default for 
+# any test.
 ###############################################################################
 my @default_testclass = ( 'quick' );
 
@@ -203,13 +208,13 @@ our %submit_info = (
 	'x86_winnt_6.0'	=> {
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> undef,
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> undef,
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -221,13 +226,13 @@ our %submit_info = (
 	'x86_64_winnt_5.1'	=> {
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> undef,
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> undef,
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -239,14 +244,14 @@ our %submit_info = (
 	'x86_winnt_5.1'	=> {
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> undef,
 			# when it works add x86_64_winnt_5.1 to the x_tests
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> undef,
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -267,7 +272,10 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_03' ],
+			'prereqs'	=> [ @default_prereqs,
+				'binutils-2.16', 'coreutils-5.2.1', 'gcc-3.4.3',
+				'gzip-1.2.4', 'wget-1.9.1',
+				'java-1.5.0_03' ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -360,7 +368,9 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
+			'prereqs'	=> [ @default_prereqs, 'gcc-4.1.2', 'binutils-2.16',
+				'gzip-1.3.3', 'wget-1.9.1', 'coreutils-5.2.1',
+				'java-1.4.2_05', 'perl-5.8.5' ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
