@@ -810,13 +810,13 @@ our %submit_info = (
 				# platform is detected correctly by configure
 			},
 
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> [ @default_prereqs, 'gcc-4.3.2', 'wget-1.9.1' ],
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> [ @default_prereqs, 'gcc-4.3.2', 'wget-1.9.1' ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
