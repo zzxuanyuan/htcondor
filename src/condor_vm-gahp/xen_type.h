@@ -40,7 +40,7 @@ class VirshType : public VMType
 {
 public:
 	static bool testXen(VMGahpConfig* config);
-	static bool killVMFast(const char* script, const char* vmname);
+	static bool killVMFast(const char* script, virConnectPtr libvirt_con);
 
 	VirshType(const char* scriptname, const char* workingpath, ClassAd* ad);
 
@@ -60,7 +60,7 @@ public:
 
 	virtual bool Status();
 
-	virtual bool CreateConfigFile();
+	virtual bool CreateConfigFile()=0;
 
 	virtual bool killVM();
 protected:
@@ -109,6 +109,9 @@ class XenType : public VirshType
  public:
   XenType(const char* scriptname, const char* workingpath, ClassAd* ad);
   static bool checkXenParams(VMGahpConfig* config);
+  virtual bool CreateConfigFile();
+  static bool killVMFast(const char* script);
+
  protected:
   virtual bool CreateVirshConfigFile(const char * filename);
 };
@@ -118,6 +121,8 @@ class KVMType : public VirshType
  public:
   KVMType(const char* scriptname, const char* workingpath, ClassAd* ad);
   static bool checkXenParams(VMGahpConfig* config);
+  virtual bool CreateConfigFile();
+  static bool killVMFast(const char* script);
  protected:
   virtual bool CreateVirshConfigFile(const char * filename);
 };

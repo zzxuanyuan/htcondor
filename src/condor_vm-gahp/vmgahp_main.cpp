@@ -382,7 +382,7 @@ int main_init(int argc, char *argv[])
 	if( (strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_XEN) == 0) || (strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_KVM) == 0)) {
 		// Xen requires root priviledge 
 		if( !canSwitchUid() ) {
-			vmprintf(D_ALWAYS, "VMGahp server for Xen requires "
+			vmprintf(D_ALWAYS, "VMGahp server for Xen or KVM requires "
 					"root privilege\n");
 			DC_Exit(1);
 		}
@@ -491,9 +491,11 @@ int main_init(int argc, char *argv[])
 		set_root_priv();
 
 #if defined(LINUX)
-		if( (strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_XEN) == 0) || (strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_KVM) == 0)) {
-			VirshType::killVMFast(gahpconfig->m_vm_script.Value(), 
-					matchstring.Value());
+		if( strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_XEN) == 0 ) {
+			XenType::killVMFast(matchstring.Value());
+		}else
+		if( strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_KVM) == 0 ) {
+			KVMType::killVMFast(matchstring.Value());
 		}else
 #endif
 		if( strcasecmp(vmtype.Value(), CONDOR_VM_UNIVERSE_VMWARE ) == 0 ) {
