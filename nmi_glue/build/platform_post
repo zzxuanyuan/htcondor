@@ -124,6 +124,10 @@ print "Attempting to submit test job for platform: '$platform' "
 my $cns = "nmi_tools/condor_nmi_submit";
 -f $cns || die "Can't submit tests: $cns does not exist\n";
 
+my $cwd = `pwd`;
+chomp $cwd;
+print "Will be using cns: $cwd/$cns\n";
+
 if( ! -x $cns ) {
 	chmod(0755, $cns) || die "Can't submit tests: $cns is not executable "
 	. "and chmod() failed: $!\n";
@@ -149,7 +153,7 @@ my $git_cmd_arg = (defined $opt_git ? "--git" : "");
 if($mode ne "workspace") {
 	if((! defined $opt_test_args) && ($wday == 6)) {
 		# run even the long tests tonight/saturday 2am bt
-        $cmd1 = "$cns --test --buildid=$runid --tag=$tag --module=$module --test-args=full $git_cmd_arg ";
+        $cmd1 = "$cns --test --buildid=$runid --tag=$tag --module=$module --test-class=full $git_cmd_arg ";
     } else {
         $cmd1 = "$cns --test --buildid=$runid --tag=$tag --module=$module $git_cmd_arg ";
     }
@@ -190,7 +194,7 @@ foreach $test (@crossplatforms) {
 		# XXX This uses --configure, which needs fixing! The main
 		# problem is --configure is stupid about is it for a build, a test,
 		# who knows.
-		$cmd4 = " --configure=--disable-full-port --test-args=quicknolink";
+		$cmd4 = " --configure=--disable-full-port --test-class=quicknolink";
 
 		$cmd = $cmd1 . $cmd2 . $cmd3 . $cmd4;
 	} else {
