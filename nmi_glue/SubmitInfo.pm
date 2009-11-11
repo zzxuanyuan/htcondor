@@ -62,7 +62,7 @@ our %build_and_test_sets = (
 	'nmi_one_offs' => [
 		'sun4u_sol_5.8',
 		'x86_suse_10.2',
-		#'x86_suse_10.0', # needs prereqs to be added by NMI
+		'x86_suse_10.0',
 		'ia64_sles_9',
 		'x86_64_sles_9',
 		'ia64_sles_8',
@@ -71,7 +71,7 @@ our %build_and_test_sets = (
 	],
 
 	'psilord' => [
-		'ppc64_sles_9',
+		'ppc_macos_10.4',
 	],
 );
 
@@ -146,7 +146,7 @@ my @minimal_build_configure_args =
 # This specifies the test suite testclasses which are run by default for 
 # any test.
 ###############################################################################
-my @default_testclass = ( 'simple' );
+my @default_testclass = ( 'quick' );
 
 ###############################################################################
 # Default Test Suite Configure Arguments
