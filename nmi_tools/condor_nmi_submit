@@ -23,6 +23,7 @@ use Getopt::Long;
 use File::Basename;
 use File::Spec;
 use IO::File;
+use FindBin;
 use lib $ENV{'NMI_LIB'} || "/nmi/lib";
 
 BEGIN { eval "use NmiConf;" }
@@ -188,6 +189,9 @@ my $condor_bin;
 # Actual work of the script
 ######################################################################
 
+FindBin::again();
+print "Location of invoked $FindBin::RealScript: " .
+	"$FindBin::RealBin/$FindBin::RealScript\n";
 
 my $tag;
 parseOptions();
@@ -733,7 +737,7 @@ sub getSubmitInfoNew
 		}
     } else {
 		# we default to the 'official_ports' key in the build and test set
-        @platforms = sort @{$SubmitInfo::build_and_test_sets{'official_ports'}};
+        @platforms = @{$SubmitInfo::build_and_test_sets{'official_ports'}};
     }
 
 	@platforms = sort(removeDuplicates(@platforms));
