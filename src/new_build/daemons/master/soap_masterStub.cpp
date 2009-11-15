@@ -1,0 +1,1 @@
+../../../condor_master.V6/soap_masterStub.cpp

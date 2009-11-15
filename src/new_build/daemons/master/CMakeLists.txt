@@ -5,9 +5,21 @@ file( GLOB MasterRmvElements Example*)
 condor_glob( masterHDRS masterSRCS "${MasterRmvElements}")
 gsoap_gen(master masterHDRS masterSRCS)
 
-#create the library
+#Add the executable target.
 add_executable(${TargetName} ${masterHDRS} ${masterSRCS})
-target_link_libraries( ${TargetName} ${GSOAP_FOUND} ${OPENSSL_FOUND} daemon_client daemon_core procapi cedar classad.old sysapi utils )
+
+# update the dependencies based on options
+if (GSOAP_FOUND)
+	add_dependencies(${TargetName} gen_master_soapfiles)
+endif()
+
+set ( masterLinkDeps procd_client daemon_core daemon_client procapi cedar privsep classad.old sysapi ccb utils ${GSOAP_FOUND} ${PCRE_FOUND} ${OPENSSL_FOUND} ${KRB5_FOUND} ${COREDUMPER_FOUND} )
+
+if ( NOT WINDOWS )
+set ( masterLinkDeps -Wl,--start-group ${masterLinkDeps} -Wl,--end-group )
+endif()
+
+target_link_libraries( ${TargetName} ${masterLinkDeps} )
 
 
 

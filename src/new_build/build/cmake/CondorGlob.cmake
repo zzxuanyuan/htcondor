@@ -10,9 +10,9 @@
 #
 MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS CONDOR_REMOVE)
 
-	string( TOUPPER "${CMAKE_SYSTEM_NAME}" TEMP_OS )
+	string(TOUPPER "${CMAKE_SYSTEM_NAME}" TEMP_OS)
 
-	file(GLOB ${CONDOR_HEADERS} "*.h" ".hpp" ".hxx" )
+	file(GLOB ${CONDOR_HEADERS} "*.h" ".hpp" ".hxx")
 	file(GLOB ${CONDOR_SRCS} "*.cpp" ".cxx")
 
 	file(GLOB WinSrcs "*WINDOWS*" "*windows*")
@@ -20,7 +20,7 @@ MACRO (CONDOR_GLOB CONDOR_HEADERS CONDOR_SRCS CONDOR_REMOVE)
 	file(GLOB UnixSrcs "*UNIX*" "*unix*")
 	file(GLOB RmvSrcs ${CONDOR_REMOVE} "*.dead*" "*NON_POSIX*")
 	#TBD: do we build for any non-posix besides windows?
-	# they appear to be ignored in the imake files. 
+	# they appear to be ignored in the imake files.
 
 	# 1st remove any elements that are extranious to the target in question.
 	if(RmvSrcs)

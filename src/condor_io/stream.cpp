@@ -24,6 +24,7 @@
 #include "condor_io.h"
 #include "condor_debug.h"
 #include "MyString.h"
+#include "utilfns.h"
 
 #ifdef HAVE_EXT_OPENSSL
 #include "condor_crypt_blowfish.h"
@@ -508,8 +509,6 @@ Stream::code(StartdRec &rec)
 	return TRUE;
 }
 
-extern "C" int open_flags_encode( int flags );
-extern "C" int open_flags_decode( int flags );
 
 int 
 Stream::code(open_flags_t &flags)
@@ -528,9 +527,6 @@ Stream::code(open_flags_t &flags)
 
 	return rval;
 }
-
-extern "C" int errno_num_encode( int errno_num );
-extern "C" int errno_num_decode( int errno_num );
 
 int 
 Stream::code(condor_errno_t &errno_num)
@@ -556,8 +552,7 @@ Stream::code(condor_errno_t &errno_num)
 **	UNIX TYPES
 */
 
-extern "C" int sig_num_encode( int sig_num );
-extern "C" int sig_num_decode( int sig_num );
+
 
 int 
 Stream::code(condor_signal_t &sig_num)
@@ -577,9 +572,6 @@ Stream::code(condor_signal_t &sig_num)
 	return rval;
 }
 
-
-extern "C" int fcntl_cmd_encode( int cmd );
-extern "C" int fcntl_cmd_decode( int cmd );
 
 int 
 Stream::code(fcntl_cmd_t &cmd)

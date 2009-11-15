@@ -5,17 +5,14 @@ if ( HAVE_EXT_GSOAP )
 
 	set ( ${_DAEMON}_SOAP_SRCS
 		soap_${_DAEMON}C.cpp
-		soap_${_DAEMON}Stub.cpp
 		soap_${_DAEMON}Server.cpp )
-		#gsoap_${_DAEMON}.cpp )
 
 	set ( ${_DAEMON}_SOAP_HDRS
-		gsoap_${_DAEMON}.h
-		soap${_DAEMON}H.h
+		soap_${_DAEMON}H.h
 		soap_${_DAEMON}Stub.h )
 
 	add_custom_command(
-		OUTPUT ${${_DAEMON}_SOAP_SRCS}
+		OUTPUT ${${_DAEMON}_SOAP_SRCS} ${${_DAEMON}_SOAP_HDRS}
 		COMMAND soapcpp2
 		ARGS -I ../../libs/daemon_core -S -L -x -p soap_${_DAEMON} gsoap_${_DAEMON}.h
 		COMMENT "Generating ${_DAEMON} soap files" )

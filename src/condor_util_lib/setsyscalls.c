@@ -21,5 +21,8 @@
 
 /* Dummy definition of SetSyscalls to be included in Condor libraries
    where needed. */
+extern "C" {
 
 int SetSyscalls( int mode ) { return mode; }
+
+}

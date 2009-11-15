@@ -30,7 +30,6 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES )
         ##############
 		if (${UP_PACKAGE}_FOUND)
 
-			set(CONDOR_EXT_LIBS ${CONDOR_EXT_LINK_LIBS} ${UP_PACKAGE}_FOUND)
 			set(HAVE_EXT_${UP_PACKAGE} ON)
 			set(HAVE_${UP_PACKAGE} ON)
 			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")

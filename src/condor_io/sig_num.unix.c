@@ -21,6 +21,7 @@
  
 
 #include <signal.h>
+#include "utilfns.h"
 
 int sig_num_encode( int sig_num )
 {

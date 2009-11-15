@@ -17,7 +17,7 @@
  *
  ***************************************************************/
 
-
+#include "strupr.h"
 
 /*
   NOTE: we do *NOT* want to include "condor_common.h" and all the
@@ -38,8 +38,7 @@
 /*
 ** Convert a string, in place, to the uppercase version of it. 
 */
-char*
-strupr(char* src)
+char* strupr(char* src)
 {
 	register char* tmp;
 	tmp = src;
@@ -69,5 +68,4 @@ strlwr(char* src)
 	}
 	return src;
 }
-
 

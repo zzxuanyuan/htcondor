@@ -1,4 +1,13 @@
 #!/usr/bin/python
+########################################################
+## Goals of this script:
+##
+## 1.) Provide a platform independent mechanism to
+## stage the externals
+##
+## 2.) Pass input options to cmake to ease the transition
+##
+
 
 import sys
 import string

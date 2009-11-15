@@ -240,7 +240,7 @@ condor_external(PCRE ON "pcre;libpcre")
 
 ########################################################
 if (NOT WINDOWS)
-    condor_external(GSOAP ON "gsoap")
+    condor_external(GSOAP ON "gsoapssl++")
     condor_external(BLAHP OFF "blahp")
     condor_external(CLASSADS ON "classad")
     condor_external(COREDUMPER ON "coredumper")
@@ -336,6 +336,8 @@ else()
     # common build flags 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
 
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--warn-once -Wl,--warn-common")
+
 endif()
 ###########################################
 
@@ -352,7 +354,6 @@ include_directories(${CONDOR_SOURCE_DIR}/daemons)
 ###########################################################################
 ###########################################################################
 ## Add subdirectories and build targets 
-
 ## libs...
 add_subdirectory(libs/utils)
 add_subdirectory(libs/ccb)
@@ -371,11 +372,12 @@ endif()
 
 ## daemons... 
 add_subdirectory(daemons/procd)
-#add_subdirectory(daemons/master)
+add_subdirectory(daemons/master)
 #add_subdirectory(daemons/shadow)
 
-###########################################################################
+## tools.
 
+##########################################################################
 # update the install targets to proper location
 # test packaging issues. 
 

@@ -21,6 +21,7 @@
  
 #include "condor_common.h"
 #include <fcntl.h>
+#include "utilfns.h"
 
 // Ugh. On Windows, this file is compiled as C++ (since that's a
 // per-project setting). We want to make sure to get the linkage

@@ -54,6 +54,10 @@ int		SetSyscalls(int);
 
 extern int		_condor_dprintf_works;
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 	/* This is configured in the config file with ABORT_ON_EXCEPTION = True */
 static int _condor_except_should_dump_core;
 void condor_except_should_dump_core( int flag ) {
@@ -91,4 +95,8 @@ _EXCEPT_(const char *fmt, ...)
 
 	exit( JOB_EXCEPTION );
 }
+
+#if defined(__cplusplus)
+}
+#endif
 #endif /* LINT */
