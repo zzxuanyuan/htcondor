@@ -33,8 +33,8 @@
 #define OPEN_FLAGS_LINKAGE
 #endif
 
-OPEN_FLAGS_LINKAGE int open_flags_encode(int old_flags);
-OPEN_FLAGS_LINKAGE int open_flags_decode(int old_flags);
+//OPEN_FLAGS_LINKAGE int open_flags_encode(int old_flags);
+//OPEN_FLAGS_LINKAGE int open_flags_decode(int old_flags);
 
 #define CONDOR_O_RDONLY 0x0000
 #define CONDOR_O_WRONLY 0x0001
