@@ -22,8 +22,8 @@
 #include "startd.h"
 #include "directory.h"
 #include "dynuser.h"	// used in cleanup_execute_dir() for WinNT
-#include "daemon.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "daemon_client/daemon.h"
+#include "privsep/condor_privsep.h"
 
 // helper method to determine whether the given execute directory
 // is root-squashed. this function assumes that the given directory

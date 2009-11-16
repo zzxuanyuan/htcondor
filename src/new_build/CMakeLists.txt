@@ -211,7 +211,7 @@ option(ENABLE_CHECKSUM_MD5 "Enable production and validation of MD5 checksums fo
 option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
 option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
 option(WANT_STORK "Enable stork functionality" OFF)
-option(HAVE_JOB_HOOKS "Enable job hook functionality" OFF)
+option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
 option(WANT_NEST "Enable NeST functionality" OFF)
 option(WANT_QUILL "Enable Quill functionality" ON)

@@ -27,8 +27,8 @@
 #ifndef _CONDOR_STARTD_STARTER_H
 #define _CONDOR_STARTD_STARTER_H
 
-#include "../condor_procapi/procapi.h"
-#include "../condor_procd/proc_family_io.h"
+#include "procapi/procapi.h"
+#include "procd/proc_family_io.h"
 class Claim;
 
 class Starter : public Service

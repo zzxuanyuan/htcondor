@@ -1,1 +1,0 @@
-../../../condor_startd.V6/CondorSystrayNotifier.cpp

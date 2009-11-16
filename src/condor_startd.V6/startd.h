@@ -22,10 +22,10 @@
 
 #include "condor_common.h"
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 // Condor includes
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "condor_classad.h"
 #include "condor_adtypes.h"
 #include "condor_debug.h"
@@ -39,7 +39,7 @@
 #include "MyString.h"
 #include "get_full_hostname.h"
 #include "condor_random_num.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 #include "misc_utils.h"
 #include "get_daemon_name.h"
 #include "enum_utils.h"

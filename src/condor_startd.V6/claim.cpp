@@ -32,7 +32,7 @@
 #include "condor_common.h"
 #include "startd.h"
 #include "condor_crypt.h"
-#include "dc_schedd.h"
+#include "daemon_client/dc_schedd.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Claim

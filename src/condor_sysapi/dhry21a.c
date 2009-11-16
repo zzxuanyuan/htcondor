@@ -86,10 +86,7 @@ double          Microseconds,
 
 /* end of variables for time measurement */
 
-
-// Forward declarations.
-extern void sysapi_internal_reconfig(void);
-
+extern "C" void sysapi_internal_reconfig(void);
 void Proc_1 (REG Rec_Pointer Ptr_Val_Par);
 void Proc_2 (One_Fifty *Int_Par_Ref);
 void Proc_3 (Rec_Pointer * Ptr_Ref_Par);
@@ -520,18 +517,22 @@ Boolean Func_3 (Enumeration Enum_Par_Val)
     return (false);
 } /* Func_3 */
 
-int
-sysapi_mips_raw(void)
+
+
+
+extern "C" {
+
+int sysapi_mips_raw(void)
 {
 	sysapi_internal_reconfig();
 	return dhry_mips();
 }
 
-int
-sysapi_mips(void)
+int sysapi_mips(void)
 {
 	sysapi_internal_reconfig();
 	return sysapi_mips_raw();
 }
 
+}
 

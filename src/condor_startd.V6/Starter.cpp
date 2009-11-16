@@ -33,7 +33,7 @@
 #include "setenv.h"
 #include "my_popen.h"
 #include "basename.h"
-#include "dc_starter.h"
+#include "daemon_client/dc_starter.h"
 #include "classadHistory.h"
 
 #if defined(LINUX)

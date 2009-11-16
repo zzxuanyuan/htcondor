@@ -19,4 +19,4 @@
 
 #include "condorStartd.nsmap"
  
-#include "soap_daemon_core.cpp"
+#include "daemon_core/soap_daemon_core.cpp"

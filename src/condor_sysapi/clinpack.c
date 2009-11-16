@@ -90,7 +90,7 @@ int idamax(int n,REAL dx[],int incx);
 REAL ddot(int n,REAL dx[],int incx,REAL dy[], int incy);
 REAL epslon (REAL x);
 
-extern void sysapi_internal_reconfig(void);
+extern "C" void sysapi_internal_reconfig(void);
 
 int
 clinpack_kflops ( int ntimes_arg )
@@ -1022,6 +1022,8 @@ function, references to m[i][j] are written m[ldm*i+j].  */
 } 
 
 /* Here are the entry points to this file */
+extern "C"
+{
 
 int sysapi_kflops_raw(void)
 {
@@ -1059,5 +1061,5 @@ int sysapi_kflops(void)
 	return sysapi_kflops_raw();
 }
 
-
+}
 

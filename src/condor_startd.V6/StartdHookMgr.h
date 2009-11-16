@@ -21,8 +21,8 @@
 
 #include "condor_common.h"
 #include "startd.h"
-#include "HookClientMgr.h"
-#include "HookClient.h"
+#include "daemon_core/HookClientMgr.h"
+#include "daemon_core/HookClient.h"
 
 class FetchClient;
 

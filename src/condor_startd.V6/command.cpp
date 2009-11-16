@@ -25,7 +25,7 @@
 #include "vm_common.h"
 
 /* XXX fix me */
-#include "../condor_sysapi/sysapi.h"
+#include "sysapi/sysapi.h"
 
 #ifndef max
 #define max(x,y) (((x) < (y)) ? (y) : (x))
