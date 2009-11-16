@@ -34,7 +34,7 @@ extern "C" void event_mgr (void);
 #include "condor_email.h"
 
 #include "condor_attributes.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "file_sql.h"
 #include "classad_merge.h"
 

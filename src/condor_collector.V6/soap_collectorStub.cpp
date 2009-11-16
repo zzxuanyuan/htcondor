@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 // Things to include for the stubs
 #include "condor_version.h"
@@ -28,7 +28,7 @@
 
 #include "condorCollector.nsmap"
 
-#include "../condor_c++_util/soap_helpers.cpp"
+#include "utils/soap_helpers.cpp"
 
 extern CollectorDaemon* Daemon;
 
@@ -286,4 +286,4 @@ int condor__getInfoAd(struct soap *soap,void *,struct condor__ClassAdStruct & ad
 // TODO : This should move into daemonCore once we figure out how we wanna link
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "soap_daemon_core.cpp"
+#include "daemon_core/soap_daemon_core.cpp"

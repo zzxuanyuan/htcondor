@@ -20,12 +20,12 @@
 #ifndef __MATCHMAKER_H__
 #define __MATCHMAKER_H__
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_accountant.h"
 #include "condor_io.h"
 #include "HashTable.h"
 #include "string_list.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "condor_ver_info.h"
 
 /* FILESQL include */

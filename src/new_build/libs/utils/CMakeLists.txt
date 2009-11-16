@@ -1,7 +1,8 @@
 #set the local target 
 set(TargetName utils)
 
-file( GLOB RmvSrcs y.tab* lex.yy* syscall_numbers* libcondorapi_stubs* )
+file( GLOB RmvSrcs y.tab* lex.yy* syscall_numbers* libcondorapi_stubs*
+soap_helpers* )
 
 # I've removed all the stubgen deps as I do not see
 # (yet) how they are included into the utils project

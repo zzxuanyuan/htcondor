@@ -1,0 +1,17 @@
+#!/bin/sh
+
+##################################################
+for i in `ls ../../../condor_negotiator.V6/*`;
+do
+
+#cleanup old softlinks
+rm -f `echo ${i##*/}`
+
+if [ ${i#*.} == "c" ]; then
+	ln -s $i `echo ${i##*/}pp`;
+elif [ ${i##*/} != "Imakefile" ] ; then
+	ln -s $i `echo ${i##*/}`;
+fi
+
+done
+

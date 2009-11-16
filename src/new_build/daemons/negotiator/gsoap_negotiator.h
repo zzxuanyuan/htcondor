@@ -1,0 +1,1 @@
+../../../condor_negotiator.V6/gsoap_negotiator.h

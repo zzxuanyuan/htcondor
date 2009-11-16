@@ -22,12 +22,12 @@
 
 #include "condor_classad.h"
 #include "condor_commands.h"
-#include "../condor_status.V6/totals.h"
+#include "utils/totals.h"
 #include "forkwork.h"
 
 #include "collector_engine.h"
 #include "collector_stats.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "offline_plugin.h"
 
 //----------------------------------------------------------------

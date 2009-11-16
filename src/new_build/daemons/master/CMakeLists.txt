@@ -1,14 +1,13 @@
 #set the local target 
 set(TargetName condor_master)
 
-file( GLOB MasterRmvElements Example*)
+file( GLOB MasterRmvElements Example* )
 condor_glob( masterHDRS masterSRCS "${MasterRmvElements}")
 gsoap_gen(master masterHDRS masterSRCS)
 
 #Add the executable target.
 add_executable(${TargetName} ${masterHDRS} ${masterSRCS})
 
-message(STATUS "masterSRCS = ${masterSRCS} ")
 # update the dependencies based on options
 if (GSOAP_FOUND)
 	add_dependencies(${TargetName} gen_master_soapfiles)

@@ -97,7 +97,8 @@ static int	did_startup = 0;
 static int	prev_time[N_ELEM];
 static int	now_time[N_ELEM];
 
-
+extern "C"
+{
 void schedule_event( int , int , int , int , int , FUNC_P );
 void event_mgr( void );
 static int event_due( int pattern[], int prev[], int now[] );
@@ -253,3 +254,4 @@ get_moment( int cur[] )
 	cur[CSECOND] = tm->tm_sec;
 }
 
+}

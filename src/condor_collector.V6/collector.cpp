@@ -32,9 +32,9 @@
 #include "condor_email.h"
 #include "condor_query.h"
 
-#include "condor_daemon_core.h"
-#include "../condor_status.V6/status_types.h"
-#include "../condor_status.V6/totals.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "utils/status_types.h"
+#include "utils/totals.h"
 
 #include "condor_collector.h"
 #include "collector_engine.h"
@@ -53,7 +53,7 @@
 #include "CollectorPlugin.h"
 #endif
 
-#include "ccb_server.h"
+#include "ccb/ccb_server.h"
 
 //----------------------------------------------------------------
 

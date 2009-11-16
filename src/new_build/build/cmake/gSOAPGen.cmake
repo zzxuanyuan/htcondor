@@ -12,7 +12,7 @@ if ( HAVE_EXT_GSOAP )
 		soap_${_DAEMON}Stub.h )
 
 	add_custom_command(
-		OUTPUT ${${_DAEMON}_SOAP_SRCS} ${${_DAEMON}_SOAP_HDRS}
+		OUTPUT ${${_DAEMON}_SOAP_SRCS} ${${_DAEMON}_SOAP_HDRS} condor.xsd
 		COMMAND soapcpp2
 		ARGS -I ../../libs/daemon_core -S -L -x -p soap_${_DAEMON} gsoap_${_DAEMON}.h
 		COMMENT "Generating ${_DAEMON} soap files" )
@@ -23,8 +23,8 @@ if ( HAVE_EXT_GSOAP )
 		DEPENDS ${${_DAEMON}_SOAP_SRCS} )
 
 	# now append the header and srcs to incoming vars
-	set (_SRCS ${_SRCS} ${${_DAEMON}_SOAP_SRCS} )
-	set (_HDRS ${_HDRS} ${${_DAEMON}_SOAP_HDRS} )
+	list(APPEND ${_SRCS} ${${_DAEMON}_SOAP_SRCS} )
+	list(APPEND ${_HDRS} ${${_DAEMON}_SOAP_HDRS} )
 
 endif()
 

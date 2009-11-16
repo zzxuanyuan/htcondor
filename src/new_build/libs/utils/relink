@@ -111,7 +111,7 @@ rm -f *.t*
 
 # not used... ever
 rm -f sshd_wrapper*
-rm -f soap_helpers*
+#rm -f soap_helpers*
 rm -f user_error_policy*
 rm -f ckpt_server_api_stubs.cpp*
 

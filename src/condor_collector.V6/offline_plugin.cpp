@@ -26,7 +26,7 @@
 #include "condor_classad.h"
 #include "condor_commands.h"
 #include "condor_attributes.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_state.h"
 #include "hashkey.h"
 

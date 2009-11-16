@@ -373,7 +373,12 @@ endif()
 ## daemons... 
 add_subdirectory(daemons/procd)
 add_subdirectory(daemons/master)
-#add_subdirectory(daemons/shadow)
+add_subdirectory(daemons/collector)
+add_subdirectory(daemons/negotiator)
+add_subdirectory(daemons/startd)
+
+#tools
+
 
 ## tools.
 
