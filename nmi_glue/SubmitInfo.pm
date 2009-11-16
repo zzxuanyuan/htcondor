@@ -73,6 +73,13 @@ our %build_and_test_sets = (
 	'psilord' => [
 		'ppc_macos_10.4',
 	],
+
+	'stduniv' => [
+		'x86_64_deb_5.0',
+		'x86_64_rhap_5',
+		'x86_64_rhas_3',
+		'x86_deb_5.0',
+	],
 );
 
 ###############################################################################
@@ -629,7 +636,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args,
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -660,7 +670,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args,
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -710,7 +723,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args,
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -815,7 +831,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args, 
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs, 'gcc-4.3.2', 'wget-1.9.1' ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -1132,7 +1151,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args,
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs, 'wget-1.9.1' ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -1255,7 +1277,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args,
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -1293,7 +1318,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args,
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -1327,7 +1355,10 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args },
+			'configure_args' => {
+				@default_test_configure_args, 
+				'--disable-full-port' => undef,
+			},
 			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
