@@ -32,7 +32,7 @@
 */
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "dedicated_scheduler.h"
 #include "shadow_mgr.h"
 #include "scheduler.h"
@@ -47,7 +47,7 @@
 #include "condor_attributes.h"
 #include "proc.h"
 #include "exit.h"
-#include "dc_startd.h"
+#include "daemon_client/dc_startd.h"
 #include "qmgmt.h"
 
 extern Scheduler scheduler;

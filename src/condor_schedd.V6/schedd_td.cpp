@@ -19,9 +19,9 @@
 
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
-#include "condor_daemon_client.h"
-#include "dc_transferd.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_client/condor_daemon_client.h"
+#include "daemon_client/dc_transferd.h"
 #include "condor_config.h"
 #include "condor_debug.h"
 #include "qmgmt.h"

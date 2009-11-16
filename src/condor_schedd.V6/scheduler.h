@@ -29,9 +29,9 @@
 #ifndef _CONDOR_SCHED_H_
 #define _CONDOR_SCHED_H_
 
-#include "dc_collector.h"
-#include "daemon.h"
-#include "daemon_list.h"
+#include "daemon_client/dc_collector.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/daemon_list.h"
 #include "condor_classad.h"
 #include "condor_io.h"
 #include "proc.h"
@@ -45,8 +45,7 @@
 #include "autocluster.h"
 #include "shadow_mgr.h"
 #include "enum_utils.h"
-//#include "self_draining_queue.h"
-#include "self_draining_queue.h"
+#include "daemon_core/self_draining_queue.h"
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
 #include "env.h"

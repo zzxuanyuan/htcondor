@@ -26,7 +26,7 @@
 #include "condor_debug.h"
 #include "condor_attributes.h"
 #include "condor_classad.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "my_hostname.h"
 #include "my_username.h"
 

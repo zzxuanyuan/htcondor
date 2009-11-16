@@ -21,10 +21,10 @@
 #include "condor_common.h"
 #include "transfer_queue.h"
 #include "condor_debug.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_commands.h"
 #include "condor_config.h"
-#include "dc_transfer_queue.h"
+#include "daemon_client/dc_transfer_queue.h"
 
 TransferQueueRequest::TransferQueueRequest(ReliSock *sock,char const *fname,char const *jobid,bool downloading,time_t max_queue_age):
 	m_sock(sock),

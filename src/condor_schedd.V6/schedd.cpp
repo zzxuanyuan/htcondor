@@ -19,7 +19,7 @@
 
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "dedicated_scheduler.h"
 #include "condor_config.h"
 #include "condor_debug.h"
@@ -43,7 +43,7 @@
 #include "access.h"
 #include "internet.h"
 #include "condor_ckpt_name.h"
-#include "../condor_ckpt_server/server_interface.h"
+//#include "../condor_ckpt_server/server_interface.h"
 #include "generic_query.h"
 #include "condor_query.h"
 #include "directory.h"
@@ -51,10 +51,10 @@
 #include "grid_universe.h"
 #include "globus_utils.h"
 #include "env.h"
-#include "dc_schedd.h"  // for JobActionResults class and enums we use  
-#include "dc_startd.h"
-#include "dc_collector.h"
-#include "dc_starter.h"
+#include "daemon_client/dc_schedd.h"  // for JobActionResults class and enums we use  
+#include "daemon_client/dc_startd.h"
+#include "daemon_client/dc_collector.h"
+#include "daemon_client/dc_starter.h"
 #include "nullfile.h"
 #include "store_cred.h"
 #include "file_transfer.h"
@@ -63,7 +63,7 @@
 #include "user_job_policy.h"
 #include "condor_holdcodes.h"
 #include "sig_name.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 #include "condor_distribution.h"
 #include "util_lib_proto.h"
 #include "status_string.h"
@@ -83,7 +83,7 @@
 #include "set_user_priv_from_ad.h"
 #include "classad_visa.h"
 #include "subsystem_info.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 #include "authentication.h"
 #include "setenv.h"
 #include "classadHistory.h"
@@ -9929,14 +9929,14 @@ cleanup_ckpt_files(int cluster, int proc, const char *owner)
 
 	// only need to contact the ckpt server for standard universe jobs
 	GetAttributeInt(cluster,proc,ATTR_JOB_UNIVERSE,&universe);
-	if (universe == CONDOR_UNIVERSE_STANDARD) {
+	/*if (universe == CONDOR_UNIVERSE_STANDARD) {
 		if (GetAttributeString(cluster, proc, ATTR_LAST_CKPT_SERVER,
 							   server) == 0) {
 			SetCkptServerHost(server.Value());
 		} else {
 			SetCkptServerHost(NULL); // no ckpt on ckpt server
 		}
-	}
+	}*/
 
 		  /* Remove any checkpoint files.  If for some reason we do 
 		 * not know the owner, don't bother sending to the ckpt
@@ -9974,14 +9974,14 @@ cleanup_ckpt_files(int cluster, int proc, const char *owner)
 				rmdir(ckpt_name);
 			}
 		} else {
-			if (universe == CONDOR_UNIVERSE_STANDARD) {
+			/*if (universe == CONDOR_UNIVERSE_STANDARD) {
 				RemoveLocalOrRemoteFile(owner,Name,ckpt_name);
 				if (JobPreCkptServerScheddNameChange(cluster, proc)) {
 					RemoveLocalOrRemoteFile(owner,NULL,ckpt_name);
 				}
-			} else {
+			} else {*/
 				unlink(ckpt_name);
-			}
+			//}
 		}
 	} else
 		unlink(ckpt_name);
@@ -10001,14 +10001,14 @@ cleanup_ckpt_files(int cluster, int proc, const char *owner)
 			}
 			rmdir(ckpt_name);
 		} else {
-			if (universe == CONDOR_UNIVERSE_STANDARD) {
+			/*if (universe == CONDOR_UNIVERSE_STANDARD) {
 				RemoveLocalOrRemoteFile(owner,Name,ckpt_name);
 				if (JobPreCkptServerScheddNameChange(cluster, proc)) {
 					RemoveLocalOrRemoteFile(owner,NULL,ckpt_name);
 				}
-			} else {
+			} else {*/
 				unlink(ckpt_name);
-			}
+			//}
 		}
 	} else
 		unlink(ckpt_name);

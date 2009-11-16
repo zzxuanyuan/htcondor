@@ -20,8 +20,8 @@
 #ifndef _CONDOR_TDMAN_H_
 #define _CONDOR_TDMAN_H_
 
-#include "condor_daemon_core.h"
-#include "../condor_transferd/condor_td.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "transferd/condor_td.h"
 #include "HashTable.h"
 
 // used for the registration and reaping of a transferd

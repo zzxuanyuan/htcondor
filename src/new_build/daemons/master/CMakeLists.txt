@@ -13,7 +13,7 @@ if (GSOAP_FOUND)
 	add_dependencies(${TargetName} gen_master_soapfiles)
 endif()
 
-set ( masterLinkDeps procd_client daemon_core daemon_client procapi cedar privsep classad.old sysapi ccb utils ${GSOAP_FOUND} ${PCRE_FOUND} ${OPENSSL_FOUND} ${KRB5_FOUND} ${COREDUMPER_FOUND} )
+set ( masterLinkDeps procd_client daemon_core daemon_client procapi cedar privsep classad.old sysapi ccb utils ${GSOAP_FOUND} ${PCRE_FOUND} ${OPENSSL_FOUND} ${COREDUMPER_FOUND} )
 
 if ( NOT WINDOWS )
 set ( masterLinkDeps -Wl,--start-group ${masterLinkDeps} -Wl,--end-group )

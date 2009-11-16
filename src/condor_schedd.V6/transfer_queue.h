@@ -23,7 +23,7 @@
 
 
 #include "dc_service.h"
-#include "dc_transfer_queue.h"
+#include "daemon_client/dc_transfer_queue.h"
 #include "simplelist.h"
 #include "reli_sock.h"
 

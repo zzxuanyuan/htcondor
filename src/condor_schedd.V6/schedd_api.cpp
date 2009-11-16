@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 // Things to include for the stubs
 #include "condor_version.h"

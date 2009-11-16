@@ -26,7 +26,7 @@
 #include "condor_secman.h"
 #include "condor_attributes.h"
 
-#include "../condor_syscall_lib/syscall_param_sizes.h"
+//#include "../condor_syscall_lib/syscall_param_sizes.h"
 
 #include "condor_qmgr.h"
 #include "qmgmt_constants.h"

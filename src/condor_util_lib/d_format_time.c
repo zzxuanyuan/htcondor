@@ -20,6 +20,8 @@
 
 #include "condor_common.h"
 
+extern "C" {
+
 char *
 d_format_time( double dsecs )
 {
@@ -45,4 +47,6 @@ d_format_time( double dsecs )
         (void)sprintf(answer, "%d %02d:%02d:%02d", days, hours, minutes, secs);
 
         return( answer );
+}
+
 }

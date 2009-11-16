@@ -210,7 +210,6 @@ option(ENABLE_CHECKSUM_SHA1 "Enable production and validation of SHA1 checksums.
 option(ENABLE_CHECKSUM_MD5 "Enable production and validation of MD5 checksums for released packages." ON)
 option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
 option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
-option(WANT_STORK "Enable stork functionality" OFF)
 option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
 option(WANT_NEST "Enable NeST functionality" OFF)
@@ -376,6 +375,7 @@ add_subdirectory(daemons/master)
 add_subdirectory(daemons/collector)
 add_subdirectory(daemons/negotiator)
 add_subdirectory(daemons/startd)
+add_subdirectory(daemons/schedd)
 
 #tools
 

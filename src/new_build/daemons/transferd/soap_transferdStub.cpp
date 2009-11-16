@@ -1,0 +1,1 @@
+../../../condor_transferd/soap_transferdStub.cpp
