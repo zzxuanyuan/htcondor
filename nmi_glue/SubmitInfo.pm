@@ -153,7 +153,8 @@ my @minimal_build_configure_args =
 # This specifies the test suite testclasses which are run by default for 
 # any test.
 ###############################################################################
-my @default_testclass = ( 'quick' );
+# Use the 'simple' test class since it is much faster.
+my @default_testclass = ( 'simple' );
 
 ###############################################################################
 # Default Test Suite Configure Arguments
