@@ -268,7 +268,7 @@ class Scheduler : public Service
 	int				negotiate(int, Stream *);
 	int				reschedule_negotiator(int, Stream *);
 
-	int				reschedule_negotiator_timer() { return reschedule_negotiator(0, NULL); }
+	void				reschedule_negotiator_timer() { reschedule_negotiator(0, NULL); }
 	void			release_claim(int, Stream *);
 	AutoCluster		autocluster;
 		// send a reschedule command to the negotiatior unless we
