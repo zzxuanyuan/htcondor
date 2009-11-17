@@ -8,7 +8,7 @@ gsoap_gen(schedd scheddHDRS scheddSRCS)
 
 #Add the executable target.
 add_executable(${TargetName} ${scheddHDRS} ${scheddSRCS})
-add_library(qmgmt ${qmgmtElements} qmgmt_common.cpp )
+add_library(qmgmt STATIC ${qmgmtElements} qmgmt_common.cpp )
 
 # update the dependencies based on options
 if (GSOAP_FOUND)

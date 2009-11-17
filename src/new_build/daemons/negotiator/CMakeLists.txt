@@ -1,0 +1,25 @@
+#set the local target 
+set(TargetName condor_negotiator)
+
+file( GLOB negotiatorRmvElements Example* )
+condor_glob( negotiatorHDRS negotiatorSRCS "${negotiatorRmvElements}")
+gsoap_gen(negotiator negotiatorHDRS negotiatorSRCS)
+
+#Add the executable target.
+add_executable(${TargetName} ${negotiatorHDRS} ${negotiatorSRCS})
+
+# update the dependencies based on options
+if (GSOAP_FOUND)
+	add_dependencies(${TargetName} gen_negotiator_soapfiles)
+endif()
+
+ set ( negotiatorLinkDeps procd_client daemon_core daemon_client procapi cedar privsep classad.old sysapi ccb utils ${GSOAP_FOUND} ${PCRE_FOUND} ${OPENSSL_FOUND} ${COREDUMPER_FOUND} )
+
+if ( NOT WINDOWS )
+set ( negotiatorLinkDeps -Wl,--start-group ${negotiatorLinkDeps} -Wl,--end-group )
+endif()
+
+target_link_libraries( ${TargetName} ${negotiatorLinkDeps} )
+
+
+

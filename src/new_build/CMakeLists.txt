@@ -18,7 +18,7 @@ set(PACKAGE_BUGREPORT "a suitable mailing list =>http://...")
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE MinSizeRel)#RelWithDebInfo)
 
 ###########################################################################
 ###########################################################################
@@ -38,6 +38,7 @@ if(${OS_NAME} STREQUAL "WINDOWS")
 	add_definitions(-DWINDOWS)	
 endif()
 
+include (CommandTarget)
 include (gSOAPGen)
 include (CondorGlob)
 include (CondorExternal)
@@ -362,6 +363,8 @@ add_subdirectory(libs/sysapi)
 add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
 add_subdirectory(libs/privsep)
+add_subdirectory(libs/h)
+
 #add_subdirectory(libs/classad) ..? .V6 wtf?
 
 # the following libraries are *not* built in windows
@@ -376,6 +379,7 @@ add_subdirectory(daemons/collector)
 add_subdirectory(daemons/negotiator)
 add_subdirectory(daemons/startd)
 add_subdirectory(daemons/schedd)
+add_subdirectory(daemons/shadow)
 
 #tools
 

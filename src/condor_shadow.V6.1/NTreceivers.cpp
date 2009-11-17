@@ -24,7 +24,7 @@
 #include "condor_io.h"
 #include "condor_constants.h"
 #include "pseudo_ops.h"
-//#include "condor_sys.h"
+#include "h/condor_sys.h"
 #include "baseshadow.h"
 #include "remoteresource.h"
 #include "MyString.h"

@@ -26,6 +26,9 @@ if ( HAVE_EXT_GSOAP )
 	list(APPEND ${_SRCS} ${${_DAEMON}_SOAP_SRCS} )
 	list(APPEND ${_HDRS} ${${_DAEMON}_SOAP_HDRS} )
 
+	list(REMOVE_DUPLICATES ${_SRCS})
+	list(REMOVE_DUPLICATES ${_SRCS})
+
 endif()
 
 ENDMACRO ( GSOAP_GEN )
