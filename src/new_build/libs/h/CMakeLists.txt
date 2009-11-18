@@ -11,7 +11,7 @@ command_target(syscall_c
                "-f;awk_prog.name_table;syscall_numbers.tmpl;>;syscall_numbers.c"
                syscall_numbers.c)
 
-add_library( ${TargetName} syscall_numbers.h syscall_numbers.c )
-add_dependencies(${TargetName}  syscall_c syscall_h )
+add_library( syscall_numbers syscall_numbers.h syscall_numbers.c )
+add_dependencies(syscall_numbers syscall_c syscall_h )
 
 

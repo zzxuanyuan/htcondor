@@ -35,7 +35,7 @@
 #include "counted_ptr.h"
 #include "reli_sock.h"
 #include "daemon_client/dc_message.h"
-#include "shared_port_endpoint.h"
+#include "cedar/shared_port_endpoint.h"
 
 class CCBClient: public Service, public ClassyCountedPtr {
  public:

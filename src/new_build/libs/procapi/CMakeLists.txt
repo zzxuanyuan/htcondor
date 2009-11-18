@@ -1,5 +1,4 @@
-#set the local target 
-set(TargetName procapi)
+
 
 file( GLOB ProcAPISrcs procapi.cpp processid.cpp procapi_killfamily.cpp )
 
@@ -8,5 +7,5 @@ file( GLOB ProcAPISrcs procapi.cpp processid.cpp procapi_killfamily.cpp )
 # procinterface being one of them.
 
 #create the library
-add_library ( ${TargetName} STATIC ${ProcAPISrcs} )
+add_library ( procapi STATIC ${ProcAPISrcs} )
 

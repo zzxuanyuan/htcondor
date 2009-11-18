@@ -1,8 +1,5 @@
-#set the local target 
-set(TargetName utils)
 
-file( GLOB RmvSrcs y.tab* lex.yy* syscall_numbers* libcondorapi_stubs*
-soap_helpers* )
+file( GLOB RmvSrcs y.tab* lex.yy* syscall_numbers* libcondorapi_stubs* soap_helpers* )
 
 # I've removed all the stubgen deps as I do not see
 # (yet) how they are included into the utils project
@@ -12,7 +9,7 @@ soap_helpers* )
 condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 
 # call perl to gen the params.  
-command_target(utils_genparams perl param_info_c_generator.pl param_info_init.c)
+command_target( utils_genparams perl param_info_c_generator.pl param_info_init.c )
 
 add_library( utils STATIC ${HeaderFiles} ${SourceFiles} )
 add_dependencies(utils utils_genparams)

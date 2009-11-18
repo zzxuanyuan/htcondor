@@ -1,4 +1,4 @@
-#set the local target 
+#set the local target
 set(TargetName analysis)
 
 #condor_glob(ccbHdrs ccbSrcs)

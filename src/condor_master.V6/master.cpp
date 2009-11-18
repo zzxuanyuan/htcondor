@@ -43,7 +43,7 @@
 #include "store_cred.h"
 #include "setenv.h"
 #include "file_lock.h"
-#include "shared_port_server.h"
+#include "cedar/shared_port_server.h"
 
 #if HAVE_DLOPEN
 #include "MasterPlugin.h"

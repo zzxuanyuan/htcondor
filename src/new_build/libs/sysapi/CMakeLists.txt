@@ -1,9 +1,7 @@
-#set the local target 
-set(TargetName sysapi)
 
 file( GLOB SysApiRmvElements *_t.cpp *.t.* dhry21b* )
 
 condor_glob(SysapiHeaderFiles SysapiSourceFiles "${SysApiRmvElements}" )
 
 #create the library
-add_library(${TargetName} STATIC ${SysapiHeaderFiles} ${SysapiSourceFiles})
+add_library(sysapi STATIC ${SysapiHeaderFiles} ${SysapiSourceFiles})

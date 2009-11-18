@@ -106,7 +106,7 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "subsystem_info.h"
 #include "basename.h"
 #include "condor_threads.h"
-#include "shared_port_endpoint.h"
+#include "cedar/shared_port_endpoint.h"
 
 #include "valgrind.h"
 

@@ -38,7 +38,7 @@
 #include "file_sql.h"
 #include "file_lock.h"
 #include "stat_info.h"
-#include "shared_port_endpoint.h"
+#include "cedar/shared_port_endpoint.h"
 
 #if HAVE_DLOPEN
 #include "MasterPlugin.h"

@@ -25,7 +25,6 @@
 #include "proc.h"
 #include "CondorError.h"
 
->>>>>>> uwmaster:src/condor_includes/condor_qmgr.h
 class ClassAd;
 class ClassAdList;
 

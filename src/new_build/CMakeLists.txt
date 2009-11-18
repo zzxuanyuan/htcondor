@@ -10,15 +10,14 @@ cmake_minimum_required(VERSION 2.6)
 set(PACKAGE "condor")
 set(VERSION "7.5.0")
 set(PACKAGE_TARNAME "")
-set(PACKAGE_BUGREPORT " ")
+set(PACKAGE_BUGREPORT "http://condor-wiki.cs.wisc.edu/index.cgi/tktnew")
 set(PACKAGE_NAME "condor")
-set(PACKAGE_VERSION "-")
-set(PACKAGE_STRING "condor-")
-set(PACKAGE_BUGREPORT "a suitable mailing list =>http://...")
+set(PACKAGE_VERSION "7.5.0")
+set(PACKAGE_STRING "condor")
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
-set(CMAKE_BUILD_TYPE MinSizeRel)#RelWithDebInfo)
+set(CMAKE_BUILD_TYPE RelWithDebInfo) #MinSizeRels
 
 ###########################################################################
 ###########################################################################
@@ -35,12 +34,14 @@ message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH}")
 
 if(${OS_NAME} STREQUAL "WINDOWS")
 	set(WINDOWS ON)
-	add_definitions(-DWINDOWS)	
+	add_definitions(-DWINDOWS)
 endif()
 
 include (CommandTarget)
 include (gSOAPGen)
 include (CondorGlob)
+include (CondorDaemonGlob)
+include (CondorSetLinkLibs)
 include (CondorExternal)
 include (CheckIncludeFiles)
 include (CheckFunctionExists)
@@ -50,7 +51,6 @@ include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
 include (FindThreads)
-#include (CPack)
 
 # use vars set by FindThreads.
 set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
@@ -261,6 +261,7 @@ else()
 	set (HAVE_EXT_GSOAP 1) 
 	set (HAVE_SCHED_SETAFFINITY 1)
 	set (WANT_CLASSAD_ANALYSIS 1)
+
 	# how is this set but not built on windows?
 	# set (HAVE_EXT_CLASSADS 1)
 endif()
@@ -272,6 +273,20 @@ add_definitions(-DHAVE_CONFIG_H)
 ###########################################################################
 ###########################################################################
 # Set compilation and build options
+
+###########################################
+# set package specific build options based on deps
+# I don't know "why this was done... but we
+# may be able to remove this.
+if (WITH_GSOAP AND WITH_OPENSSL)
+	# added the goop that the old builds did
+	add_definitions(-DCOMPILE_SOAP_SSL)
+endif()
+
+if (WITH_OPENSSL)
+    add_definitions(-DWITH_OPENSSL)
+endif()
+###########################################
 
 ###########################################
 ## set global build properties
@@ -287,26 +302,8 @@ set(CMAKE_SUPPRESS_REGENERATION FALSE)
 # TBD: what to do about glibc version checking...?
 # NIX ALL STD UNIVERSE.  
 add_definitions(-DGLIBC=GLIBC)
-#I'm ignoring this check add_definitions(-DGLIBC29=GLIBC29)
-#add_definitions(-DC_COMP_KIND_GCC)
-#add_definitions(-DC_COMP_MAJOR_GCC_4)
-#add_definitions(-DC_COMP_MINOR_GCC_4_3)
-#add_definitions(-DC_COMP_PATCH_GCC_4__2)
 ###########################################
 
-###########################################
-# set package specific build options based on deps
-# I don't know "why this was done... but we 
-# may be able to remove this.
-if (WITH_GSOAP AND WITH_OPENSSL)
-	# added the goop that the old builds did
-	add_definitions(-DCOMPILE_SOAP_SSL)
-endif()
-
-if (WITH_OPENSSL)
-    add_definitions(-DWITH_OPENSSL)
-endif()
-###########################################
 
 ###########################################
 # Set compiler flags
@@ -317,8 +314,6 @@ if(MSVC)
 	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} crypt32.lib mpr.lib psapi.lib mswsock.lib netapi32.lib imagehelp.lib ws2_32.lib powrprof.lib iphlpapi.lib userenv.lib)
 			
 else()
-
-	#set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} m)
 
 	if (HAVE_DLOPEN)
 		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} dl)
@@ -351,6 +346,15 @@ include_directories(${CONDOR_SOURCE_DIR}/libs)
 include_directories(${CONDOR_SOURCE_DIR}/daemons)
 ###########################################
 
+###########################################
+# The following are variables which are appended to
+# to update the install target 
+set(INSTALL_BIN_TARGETS "")
+set(INSTALL_SBIN_TARGETS "")
+# set(INSTALL_LIBEXEC_TARGETS "")
+# ...
+###########################################
+
 ###########################################################################
 ###########################################################################
 ## Add subdirectories and build targets 
@@ -364,8 +368,7 @@ add_subdirectory(libs/daemon_core)
 add_subdirectory(libs/classad.old)
 add_subdirectory(libs/privsep)
 add_subdirectory(libs/h)
-
-#add_subdirectory(libs/classad) ..? .V6 wtf?
+#add_subdirectory(libs/classad) new classads?
 
 # the following libraries are *not* built in windows
 if(NOT WINDOWS)
@@ -381,23 +384,38 @@ add_subdirectory(daemons/startd)
 add_subdirectory(daemons/schedd)
 add_subdirectory(daemons/shadow)
 
-#tools
-
-
 ## tools.
 
 ##########################################################################
-# update the install targets to proper location
-# test packaging issues. 
+# update the install targets to proper location test packaging issues.
 
-#install (TARGETS x y z 
-#         RUNTIME DESTINATION bin
-#         LIBRARY DESTINATION lib)
+# What should be done is:
+# configure_file( CpackOptions.cmake.in CPackOption.cmake )
+# include (CPackOptions)
 
-#install (TARGETS x y z 
-#         RUNTIME DESTINATION sbin
-#         LIBRARY DESTINATION lib)
-         
+set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
+set (CPACK_PACKAGE_VENDOR "RedHat")
+set (CPACK_PACKAGE_VERSION_MAJOR 7)
+set (CPACK_PACKAGE_VERSION_MINOR 5)
+set (CPACK_PACKAGE_VERSION_PATCH 0)
+#CPACK_PACKAGE_DESCRIPTION_FILE
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "condor blah blah blah")
+set (CPACK_PACKAGE_FILE_NAME "condor_7_5_0")
+#CPACK_RESOURCE_FILE_LICENSE
+#CPACK_RESOURCE_FILE_README
+set (CPACK_STRIP_FILES TRUE)
+set (CPACK_GENERATOR "RPM")
+
+include (CPack)
+
+
+
+
+
+
+
+
+
 
 
 

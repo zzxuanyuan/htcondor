@@ -28,7 +28,7 @@
 #include "ccb_client.h"
 #include "daemon_core_sock_adapter.h"
 #include "condor_sinful.h"
-#include "shared_port_endpoint.h"
+#include "cedar/shared_port_endpoint.h"
 
 static bool registered_reverse_connect_command = false;
 

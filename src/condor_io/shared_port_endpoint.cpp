@@ -21,7 +21,7 @@
 #include "condor_config.h"
 #include "shared_port_endpoint.h"
 #include "subsystem_info.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "daemon_core_sock_adapter.h"
 #include "counted_ptr.h"
 #include "basename.h"

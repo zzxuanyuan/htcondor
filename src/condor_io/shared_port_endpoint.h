@@ -20,7 +20,7 @@
 #ifndef __SHARED_PORT_LISTENER_H__
 #define __SHARED_PORT_LISTENER_H__
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "reli_sock.h"
 #include "selector.h"
 
