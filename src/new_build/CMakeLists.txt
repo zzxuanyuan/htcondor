@@ -17,17 +17,17 @@ set(PACKAGE_STRING "condor")
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
-set(CMAKE_BUILD_TYPE RelWithDebInfo) #MinSizeRels
 
 ###########################################################################
 ###########################################################################
-# Include options used for custom macros which we wish to create
+# Set build and include options.
+set(CMAKE_BUILD_TYPE RelWithDebInfo) #MinSizeRels
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
 
 ###########################################################################
 ###########################################################################
 # The following are the configure options
-# checking X... Y.... Z...
+# checking X... Y... Z...
 message(STATUS "***********************************************************")
 message(STATUS "Condor is now configuring based on your env & input options")
 message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH}")
@@ -65,7 +65,7 @@ add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
 ##
 ## So I've been thinking about how condor handles externals
 ## for a while now, and I must admit it's fairly odd. 
-## If it is a requirement to have a package it should be 
+## If it is a requirement to have a package it should be "present"
 ## and treated as a pre-requisite.
 ##
 ## Step 1: Obtain condor
@@ -337,7 +337,7 @@ endif()
 ###########################################
 
 ###########################################
-# The following two libraries can be considered ubiquitous
+# The following two locations can be considered ubiquitous
 include_directories(${CONDOR_SOURCE_DIR}/include)
 include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
 # the following will allow for <target>/.h includes
@@ -346,18 +346,10 @@ include_directories(${CONDOR_SOURCE_DIR}/libs)
 include_directories(${CONDOR_SOURCE_DIR}/daemons)
 ###########################################
 
-###########################################
-# The following are variables which are appended to
-# to update the install target 
-set(INSTALL_BIN_TARGETS "")
-set(INSTALL_SBIN_TARGETS "")
-# set(INSTALL_LIBEXEC_TARGETS "")
-# ...
-###########################################
+###########################################################################
+###########################################################################
+## Add subdirectories and build targets
 
-###########################################################################
-###########################################################################
-## Add subdirectories and build targets 
 ## libs...
 add_subdirectory(libs/utils)
 add_subdirectory(libs/ccb)
@@ -375,7 +367,7 @@ if(NOT WINDOWS)
 	add_subdirectory(libs/daemon_client)
 endif()
 
-## daemons... 
+## daemons...
 add_subdirectory(daemons/procd)
 add_subdirectory(daemons/master)
 add_subdirectory(daemons/collector)
@@ -384,29 +376,28 @@ add_subdirectory(daemons/startd)
 add_subdirectory(daemons/schedd)
 add_subdirectory(daemons/shadow)
 
-## tools.
+## tools...
 
 ##########################################################################
-# update the install targets to proper location test packaging issues.
-
 # What should be done is:
 # configure_file( CpackOptions.cmake.in CPackOption.cmake )
 # include (CPackOptions)
+if(NOT WINDOWS)
+	set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
+	set (CPACK_PACKAGE_VENDOR "RedHat")
+	set (CPACK_PACKAGE_VERSION_MAJOR 7)
+	set (CPACK_PACKAGE_VERSION_MINOR 5)
+	set (CPACK_PACKAGE_VERSION_PATCH 0)
+	#CPACK_PACKAGE_DESCRIPTION_FILE
+	set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "condor blah blah blah")
+	set (CPACK_PACKAGE_FILE_NAME "condor_7_5_0")
+	#CPACK_RESOURCE_FILE_LICENSE
+	#CPACK_RESOURCE_FILE_README
+	set (CPACK_STRIP_FILES TRUE)
+	set (CPACK_GENERATOR "RPM")
 
-set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
-set (CPACK_PACKAGE_VENDOR "RedHat")
-set (CPACK_PACKAGE_VERSION_MAJOR 7)
-set (CPACK_PACKAGE_VERSION_MINOR 5)
-set (CPACK_PACKAGE_VERSION_PATCH 0)
-#CPACK_PACKAGE_DESCRIPTION_FILE
-set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "condor blah blah blah")
-set (CPACK_PACKAGE_FILE_NAME "condor_7_5_0")
-#CPACK_RESOURCE_FILE_LICENSE
-#CPACK_RESOURCE_FILE_README
-set (CPACK_STRIP_FILES TRUE)
-set (CPACK_GENERATOR "RPM")
-
-include (CPack)
+	include (CPack)
+endif()
 
 
 
