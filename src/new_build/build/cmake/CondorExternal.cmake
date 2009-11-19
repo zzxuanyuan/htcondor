@@ -24,20 +24,23 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES )
 
 		message(STATUS "condor_external searching(${UW_EXTERNALS_DIR}) for ${_PACKAGE} libs (${_NAMES})")
 
-		find_library( ${UP_PACKAGE}_FOUND NAMES ${_NAMES} )
-	    mark_as_advanced(${UP_PACKAGE}_FOUND)
+		find_library( ${UP_PACKAGE}_SEARCH NAMES ${_NAMES} )
 
         ##############
-		if (${UP_PACKAGE}_FOUND)
-
+		if (${UP_PACKAGE}_SEARCH STREQUAL "${UP_PACKAGE}_SEARCH-NOTFOUND" )
+			
+			if(${STRICT})
+				message(FATAL_ERROR "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
+			else()
+				message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
+			endif()						
+			
+		else()
+		    set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH} )
 			set(HAVE_EXT_${UP_PACKAGE} ON)
 			set(HAVE_${UP_PACKAGE} ON)
 			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")
 
-		elseif(${STRICT})
-			message(FATAL_ERROR "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
-		else()
-			message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
 		endif()
 		##############
 
