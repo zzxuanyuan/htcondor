@@ -1,0 +1,1 @@
+../../../condor_shadow.V6.1/remoteresource.h

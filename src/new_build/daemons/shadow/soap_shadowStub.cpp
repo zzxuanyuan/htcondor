@@ -1,0 +1,1 @@
+../../../condor_shadow.V6.1/soap_shadowStub.cpp

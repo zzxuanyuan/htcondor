@@ -64,7 +64,7 @@ add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
 ## Begin RANT
 ##
 ## So I've been thinking about how condor handles externals
-## for a while now, and I must admit it's fairly odd. 
+## for a while now, and I must admit it's fairly odd.
 ## If it is a requirement to have a package it should be "present"
 ## and treated as a pre-requisite.
 ##
@@ -254,8 +254,7 @@ if (NOT WINDOWS)
     # chat w/matt why this is all weird.
     # condor_external(MAN "" ON)
     # Below are TBD...
-    condor_external(VMWARE OFF "") 
-    condor_external(OCI OFF "" ) 
+    condor_external(VMWARE OFF "")
 else()
     # I'm confused by this one, we don't build/link a lib in windows?
 	set (HAVE_EXT_GSOAP 1) 
@@ -325,7 +324,7 @@ else()
 
 	if (${CMAKE_USE_PTHREADS_INIT})
 		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} pthread)
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+		#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 	endif()
 
     # common build flags 
