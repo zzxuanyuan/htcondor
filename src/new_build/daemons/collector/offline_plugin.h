@@ -1,1 +1,0 @@
-../../../condor_collector.V6/offline_plugin.h
