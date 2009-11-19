@@ -78,10 +78,10 @@ add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
 
 SET(UW_EXTERNALS_DIR "${CONDOR_SOURCE_DIR}/build/externals/stage" CACHE STRING "Location of UW staged externals")
 message(STATUS "env: UW_EXTERNALS_DIR = ${UW_EXTERNALS_DIR}")
-    
+
 link_directories(${UW_EXTERNALS_DIR}/lib)
 set(CMAKE_LIBRARY_PATH "${UW_EXTERNALS_DIR}/lib")
-    
+
 include_directories(${UW_EXTERNALS_DIR} ${UW_EXTERNALS_DIR}/include)
 set(CMAKE_INCLUDE_PATH "${UW_EXTERNALS_DIR}/include")
 
@@ -376,6 +376,7 @@ add_subdirectory(daemons/schedd)
 add_subdirectory(daemons/shadow)
 
 ## tools...
+#add_subdirectory(tools/q)
 
 ##########################################################################
 # What should be done is:
@@ -393,7 +394,7 @@ if(NOT WINDOWS)
 	#CPACK_RESOURCE_FILE_LICENSE
 	#CPACK_RESOURCE_FILE_README
 	set (CPACK_STRIP_FILES TRUE)
-	set (CPACK_GENERATOR "RPM")
+	#set (CPACK_GENERATOR "RPM")
 
 	include (CPack)
 endif()
