@@ -1839,10 +1839,7 @@ sub makeFetchFileVCS
 	    	# TRUNK. it should always exist, but it is possible for
 	    	# someone to rename it. hopefully we won't do that in the
 	    	# NMI copy of the repository
-
-			# XXX This is for testing the glue on this branch purposes.
-	    	#print FILE "git_tree = origin/master\n";
-	    	print FILE "git_tree = origin/V7_4-submit_info-branch\n";
+	    	print FILE "git_tree = origin/master\n";
 		}
     } else {
 		print FILE "method = cvs\n";
