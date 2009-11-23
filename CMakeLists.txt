@@ -337,12 +337,12 @@ endif()
 
 ###########################################
 # The following two locations can be considered ubiquitous
-include_directories(${CONDOR_SOURCE_DIR}/include)
-include_directories(${CONDOR_SOURCE_DIR}/libs/utils)
+include_directories(${CONDOR_SOURCE_DIR}/src/include)
+include_directories(${CONDOR_SOURCE_DIR}/src/libs/utils)
 # the following will allow for <target>/.h includes
 # and I've elliminated relative path includes.
-include_directories(${CONDOR_SOURCE_DIR}/libs)
-include_directories(${CONDOR_SOURCE_DIR}/daemons)
+include_directories(${CONDOR_SOURCE_DIR}/src/libs)
+include_directories(${CONDOR_SOURCE_DIR}/src/daemons)
 ###########################################
 
 ###########################################################################
@@ -350,33 +350,33 @@ include_directories(${CONDOR_SOURCE_DIR}/daemons)
 ## Add subdirectories and build targets
 
 ## libs...
-add_subdirectory(libs/utils)
-add_subdirectory(libs/ccb)
-add_subdirectory(libs/cedar)
-add_subdirectory(libs/procapi)
-add_subdirectory(libs/sysapi)
-add_subdirectory(libs/daemon_core)
-add_subdirectory(libs/classad.old)
-add_subdirectory(libs/privsep)
-add_subdirectory(libs/h)
+add_subdirectory(src/libs/utils)
+add_subdirectory(src/libs/ccb)
+add_subdirectory(src/libs/cedar)
+add_subdirectory(src/libs/procapi)
+add_subdirectory(src/libs/sysapi)
+add_subdirectory(src/libs/daemon_core)
+add_subdirectory(src/libs/classad.old)
+add_subdirectory(src/libs/privsep)
+add_subdirectory(src/libs/h)
 #add_subdirectory(libs/classad) new classads?
 
 # the following libraries are *not* built in windows
 if(NOT WINDOWS)
-	add_subdirectory(libs/daemon_client)
+	add_subdirectory(src/libs/daemon_client)
 endif()
 
 ## daemons...
-add_subdirectory(daemons/procd)
-add_subdirectory(daemons/master)
-add_subdirectory(daemons/collector)
-add_subdirectory(daemons/negotiator)
-add_subdirectory(daemons/startd)
-add_subdirectory(daemons/schedd)
-add_subdirectory(daemons/shadow)
+add_subdirectory(src/daemons/procd)
+add_subdirectory(src/daemons/master)
+add_subdirectory(src/daemons/collector)
+add_subdirectory(src/daemons/negotiator)
+add_subdirectory(src/daemons/startd)
+add_subdirectory(src/daemons/schedd)
+add_subdirectory(src/daemons/shadow)
 
 ## tools...
-#add_subdirectory(tools/q)
+#add_subdirectory(src/tools/q)
 
 ##########################################################################
 # What should be done is:
