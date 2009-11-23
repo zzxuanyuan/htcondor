@@ -1,1 +1,0 @@
-../../../condor_sysapi/ncpus_t.c
