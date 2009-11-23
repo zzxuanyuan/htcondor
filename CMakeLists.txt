@@ -266,7 +266,8 @@ else()
 endif()
 ########################################################
 message(STATUS "***********************************************************")
-configure_file(${CONDOR_SOURCE_DIR}/include/config.h.cmake ${CONDOR_SOURCE_DIR}/include/config.h)
+configure_file(${CONDOR_SOURCE_DIR}/src/include/config.h.cmake
+${CONDOR_SOURCE_DIR}/src/include/config.h)
 add_definitions(-DHAVE_CONFIG_H)
 
 ###########################################################################

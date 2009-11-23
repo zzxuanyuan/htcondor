@@ -1,5 +1,5 @@
 
-file( GLOB RmvSrcs y.tab* lex.yy* syscall_numbers* libcondorapi_stubs* soap_helpers* )
+file( GLOB RmvSrcs y.tab* lex.yy* syscall_numbers* libcondorapi_stubs* soap_helpers* test_* *.t.cpp test.cpp ckpt_* cat_url.cpp)
 
 # I've removed all the stubgen deps as I do not see
 # (yet) how they are included into the utils project
