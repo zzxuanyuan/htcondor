@@ -4,10 +4,8 @@
 for i in `find -name "*.c"`;
 do
 
-#if [ ${i#*.} == "c" ]; then
-	#git mv  $i `echo ${i}pp`;
-	echo ${i}pp;
-#fi
+	git mv  $i `echo ${i}pp`;
+	#echo ${i}pp;
 
 done
 
