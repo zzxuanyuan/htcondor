@@ -24,7 +24,6 @@
 #include "condor_config.h"
 #include "reli_sock.h"
 #include "condor_io.h"
-#include "condor_debug.h"
 #include "condor_socket_types.h"
 #include "subsystem_info.h"
 #include "directory.h"

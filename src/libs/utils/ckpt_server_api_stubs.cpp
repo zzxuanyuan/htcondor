@@ -32,6 +32,10 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 
+#ifdef LINUX
+#include <unistd.h>
+#endif
+
 #ifndef TRUE
 #define TRUE 1
 #endif
