@@ -1,1 +1,0 @@
-../../../condor_status.V6/totals.cpp

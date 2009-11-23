@@ -1,1 +1,0 @@
-../../../condor_util_lib/condor_snutils.c
