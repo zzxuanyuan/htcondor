@@ -154,7 +154,7 @@ extern "C" {
 #endif
 
 #if defined(LINUX) && defined(GLIBC)
-	int profil( char*, int, int, int );
+	//int profil( char*, int, int, int );
 #endif
 
 #if defined(__cplusplus)
