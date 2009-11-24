@@ -12,7 +12,7 @@ MACRO (CONDOR_DAEMON_GLOB _CNDR_TARGET _REMOVE_ELEMENTS _GEN_GSOAP )
 	add_executable(condor_${_CNDR_TARGET} ${${_CNDR_TARGET}HDRS} ${${_CNDR_TARGET}SRCS} )
 
 	# update the dependencies based on options
-	if ( ${_CNDR_TARGET}SOAP AND ${GSOAP_FOUND})
+	if ( ${_CNDR_TARGET}SOAP AND GSOAP_FOUND )
 		add_dependencies(condor_${_CNDR_TARGET} gen_${_CNDR_TARGET}_soapfiles)
 	endif()
 
