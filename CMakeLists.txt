@@ -213,8 +213,6 @@ option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
 option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
 option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
-option(WANT_NEST "Enable NeST functionality" OFF)
-option(WANT_QUILL "Enable Quill functionality" ON)
 option(NEEDS_KBDD "Enable KBDD functionality" OFF)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
@@ -233,14 +231,14 @@ option(STRICT "If externals are not found it will error" OFF)
 ## TBD ?? - CURL? doesn't look like it has deps in the code...?
 condor_external(DRMAA ON "drmaa;libdrmaa")
 condor_external(HADOOP OFF "hadoop") # Figure out Java Goop
-condor_external(OPENSSL ON "ssl;ssleay32") 
+condor_external(OPENSSL ON "ssl;libeay32;ssleay32") 
 condor_external(POSTGRESQL ON "pq;libpq") 
-condor_external(KRB5 ON "krb5;krb5_32") 
+condor_external(KRB5 ON "krb5;comerr32.lib;gssapi32.lib;k5sprt32.lib;krb5_32.lib;xpprof32.lib") 
 condor_external(PCRE ON "pcre;libpcre")
+condor_external(GSOAP ON "gsoapssl++")
 
 ########################################################
-if (NOT WINDOWS)
-    condor_external(GSOAP ON "gsoapssl++")
+if (NOT WINDOWS)    
     condor_external(BLAHP OFF "blahp")
     condor_external(CLASSADS ON "classad")
     condor_external(COREDUMPER ON "coredumper")
@@ -255,9 +253,7 @@ if (NOT WINDOWS)
     # condor_external(MAN "" ON)
     # Below are TBD...
     condor_external(VMWARE OFF "")
-else()
-    # I'm confused by this one, we don't build/link a lib in windows?
-	set (HAVE_EXT_GSOAP 1) 
+else()    
 	set (HAVE_SCHED_SETAFFINITY 1)
 	set (WANT_CLASSAD_ANALYSIS 1)
 
@@ -310,9 +306,7 @@ add_definitions(-DGLIBC=GLIBC)
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996 /wd4273")	
 	
-	# These were carried over from set_vars.bat
-	set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} crypt32.lib mpr.lib psapi.lib mswsock.lib netapi32.lib imagehelp.lib ws2_32.lib powrprof.lib iphlpapi.lib userenv.lib)
-			
+	set (CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib")			
 else()
 
 	if (HAVE_DLOPEN)
@@ -363,9 +357,9 @@ add_subdirectory(src/libs/h)
 #add_subdirectory(libs/classad) new classads?
 
 # the following libraries are *not* built in windows
-if(NOT WINDOWS)
+#if(NOT WINDOWS)
 	add_subdirectory(src/libs/daemon_client)
-endif()
+#endif()
 
 ## daemons...
 add_subdirectory(src/daemons/procd)

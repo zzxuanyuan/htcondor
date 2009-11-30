@@ -33,7 +33,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "..\condor_daemon_core.V6\condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "master.h"
 
 #include "condor_fix_iostream.h"

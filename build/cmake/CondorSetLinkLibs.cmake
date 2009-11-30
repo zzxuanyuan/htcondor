@@ -7,6 +7,8 @@ set( ${_CNDR_TARGET}LinkDeps ${_LINK_LIBS} )
 
 if ( NOT WINDOWS )
 	set ( ${_CNDR_TARGET}LinkDeps -Wl,--start-group ${${_CNDR_TARGET}LinkDeps} -Wl,--end-group )
+else()
+	set( ${_CNDR_TARGET}LinkDeps "${${_CNDR_TARGET}LinkDeps};${CONDOR_WIN_LIBS}" )
 endif()
 
 target_link_libraries( condor_${_CNDR_TARGET} ${${_CNDR_TARGET}LinkDeps} )

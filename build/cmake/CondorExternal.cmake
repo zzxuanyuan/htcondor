@@ -23,27 +23,41 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES )
 	if (WITH_${UP_PACKAGE})
 
 		message(STATUS "condor_external searching(${UW_EXTERNALS_DIR}) for ${_PACKAGE} libs (${_NAMES})")
-
-		find_library( ${UP_PACKAGE}_SEARCH NAMES ${_NAMES} )
-
-        ##############
-		if (${UP_PACKAGE}_SEARCH STREQUAL "${UP_PACKAGE}_SEARCH-NOTFOUND" )
+		
+		## Normally find_library will exist on 1st match, for some windows libs 
+		## there is one target and multiple libs
+		foreach ( loop_var ${_NAMES} )
+		
+			# message(STATUS "DEBUG: loop_var=${loop_var}")
 			
-			if(${STRICT})
-				message(FATAL_ERROR "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
-			else()
-				message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
-			endif()						
-			
+			find_library( ${UP_PACKAGE}_SEARCH_${loop_var} NAMES ${loop_var} )
+
+			##############
+			if (NOT ${UP_PACKAGE}_SEARCH_${loop_var} STREQUAL "${UP_PACKAGE}_SEARCH_${loop_var}-NOTFOUND" )
+				
+				if (${UP_PACKAGE}_FOUND)
+					set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" )
+				else()
+					set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} )
+				endif()
+				
+				set(HAVE_EXT_${UP_PACKAGE} ON)
+				set(HAVE_${UP_PACKAGE} ON)
+				
+			endif()
+			##############
+
+		endforeach(loop_var)
+		
+		
+		if(${UP_PACKAGE}_FOUND)			
+			message(STATUS "condor_external (${_PACKAGE})... found (${${UP_PACKAGE}_FOUND})")
 		else()
-		    set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH} )
-			set(HAVE_EXT_${UP_PACKAGE} ON)
-			set(HAVE_${UP_PACKAGE} ON)
-			message(STATUS "condor_external (${_PACKAGE})... found (${${_PACKAGE}_FOUND})")
-
-		endif()
-		##############
-
+		    
+		    ## Need to add a strict clause. 
+			message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
+		endif()		
+		
 	else()
 		message(STATUS "condor_external skipping search WITH_${UP_PACKAGE} = OFF")
 	endif()

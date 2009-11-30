@@ -37,7 +37,7 @@ int		Termlog = 0;
 
 extern int		DebugFlags;
 extern FILE		*DebugFP;
-extern int		MaxLog[D_NUMLEVELS+1];
+extern uint64_t MaxLog[D_NUMLEVELS+1];
 extern char		*DebugFile[D_NUMLEVELS+1];
 extern char		*DebugLock;
 extern char		*_condor_DebugFlagNames[];
