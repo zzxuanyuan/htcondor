@@ -18,7 +18,7 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "CondorSystrayNotifier.h"
+#include "CondorSystrayNotifier.windows.h"
 #include "CondorSystrayCommon.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

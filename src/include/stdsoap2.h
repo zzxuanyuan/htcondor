@@ -1,12 +1,12 @@
 /*
-	stdsoap2.h 2.7.13
+	stdsoap2.h 2.7.10
 
 	gSOAP runtime engine
 
 gSOAP XML Web services tools
 Copyright (C) 2000-2008, Robert van Engelen, Genivia Inc., All Rights Reserved.
 This part of the software is released under ONE of the following licenses:
-GPL, or the gSOAP public license, or Genivia's license for commercial use.
+GPL, the gSOAP public license, OR Genivia's license for commercial use.
 --------------------------------------------------------------------------------
 Contributors:
 
@@ -136,9 +136,7 @@ To build on AIX5.2 with GCC3.3.2 nothing thread related can be used.
 #define STDSOAP_H
 
 #if defined(__vxworks) || defined(__VXWORKS__)
-# ifndef VXWORKS
-#  define VXWORKS
-# endif
+# define VXWORKS
 #endif
 
 #ifdef _WIN32
@@ -218,9 +216,11 @@ To build on AIX5.2 with GCC3.3.2 nothing thread related can be used.
 # endif
 #else
 # if defined(UNDER_CE)
+#  define WITH_NOEMPTYSTRUCT
 #  define WITH_LEAN
 #  define HAVE_SSCANF
 # elif defined(WIN32)
+#  define WITH_NOEMPTYSTRUCT
 #  define HAVE_STRRCHR
 #  define HAVE_STRTOD
 #  define HAVE_SSCANF
@@ -228,7 +228,6 @@ To build on AIX5.2 with GCC3.3.2 nothing thread related can be used.
 #  define HAVE_STRTOUL
 #  define HAVE_SYS_TIMEB_H
 #  define HAVE_FTIME
-#  define HAVE_GMTIME
 #  define HAVE_WCTOMB
 #  define HAVE_MBTOWC
 #  define SOAP_LONG_FORMAT "%I64d"
@@ -475,30 +474,8 @@ To build on AIX5.2 with GCC3.3.2 nothing thread related can be used.
 # endif
 #endif
 
-/* native Win and HP-UX compilers don't like empty structs */
-#if defined(WIN32) || defined(HP_UX)
-# define WITH_NOEMPTYSTRUCT
-#endif
-
-#ifdef HP_UX
-# undef HAVE_STRTOLL
-# undef HAVE_STRTOULL
-#endif
-
-/* older OpenVMS TCP/IP stacks cannot handle 65536 bytes */
-#ifdef __VMS
-# ifndef SOAP_BUFLEN
-#  define SOAP_BUFLEN (65535)
-# endif
-#endif
-
-#ifdef WITH_C_LOCALE
+#if defined(HAVE_XLOCALE_H) || defined(HAVE_STRTOD_L) || defined(HAVE_STRTOF_L) || defined(HAVE_SSCANF_L) || defined(HAVE_SPRINTF_L)
 # include <xlocale.h>
-#else
-# undef HAVE_STRTOF_L
-# undef HAVE_STRTOD_L
-# undef HAVE_SSCANF_L
-# undef HAVE_SPRINTF_L
 #endif
 
 #ifndef WITH_NOSTDLIB
@@ -511,7 +488,7 @@ To build on AIX5.2 with GCC3.3.2 nothing thread related can be used.
 # include <limits.h>
 #endif
 
-#if defined(__cplusplus) && !defined(WITH_LEAN) && !defined(WITH_COMPAT)
+#if defined(__cplusplus) && !defined(WITH_LEAN)
 # include <string>
 # include <iostream>
 #endif
@@ -604,12 +581,8 @@ To build on AIX5.2 with GCC3.3.2 nothing thread related can be used.
 #  include <wspiapi.h>
 #  define SOAP_GAI_STRERROR gai_strerrorA
 # else
-#  ifndef __BORLANDC__
-#   include <winsock.h> /* Visual Studio 2005 users: you must install the Platform SDK (R2) */
+#  include <winsock.h> /* Visual Studio 2005 users: you must install the Platform SDK (R2) */
 /* # include <winsock2.h> */ /* Alternative: use winsock2 (not available with eVC) */
-#  else
-#   include <winsock2.h> /* Borland C */
-#  endif
 # endif
 #else
 # ifdef VXWORKS
@@ -685,7 +658,7 @@ extern "C" {
 # endif
 #elif defined(SOCKLEN_T)
 # define SOAP_SOCKLEN_T SOCKLEN_T
-#elif defined(__socklen_t_defined) || defined(_SOCKLEN_T) || defined(CYGWIN) || defined(FREEBSD) || defined(__FreeBSD__) || defined(__QNX__) || defined(QNX) || defined(OS390)
+#elif defined(__socklen_t_defined) || defined(_SOCKLEN_T) || defined(CYGWIN) || defined(FREEBSD) || defined(__FreeBSD__) || defined(__QNX__) || defined(QNX)
 # define SOAP_SOCKLEN_T socklen_t
 #elif defined(IRIX) || defined(WIN32) || defined(__APPLE__) || defined(HPUX10) || defined(SUN_OS) || defined(OPENSERVER) || defined(TRU64) || defined(VXWORKS)
 # define SOAP_SOCKLEN_T int
@@ -719,11 +692,7 @@ extern "C" {
 # define ULONG64 unsigned LONG64
 #elif !defined(WIN32) || defined(CYGWIN) || defined(__GLIBC__) || defined(__GNU__)
 # ifndef LONG64
-#  if defined(HAVE_STDINT_H)
-#   include <stdint.h>
-#   define LONG64 int64_t
-#   define ULONG64 uint64_t
-#  elif defined(__GLIBC__)
+#  if defined(__GLIBC__)
 #   include <bits/wordsize.h>
 #   if (__WORDSIZE == 64)
 #    define LONG64 int64_t
@@ -819,10 +788,10 @@ extern "C" {
 #endif
 
 #ifndef SOAP_BUFLEN
-# if !defined(WITH_LEAN) || defined(WITH_UDP)
+# ifndef WITH_LEAN
 #  define SOAP_BUFLEN (65536) /* buffer length for socket packets, also used by gethostbyname_r and UDP messages, so don't make this too small */
 # else
-#  define SOAP_BUFLEN  (2048) /* lean size */
+#  define SOAP_BUFLEN  (2048)
 # endif
 #endif
 #ifndef SOAP_LABLEN
@@ -881,16 +850,12 @@ extern "C" {
 # define SOAP_INDEX_TEST  (2)
 #endif
 
-/* Max iterations in soap_serve() to keep server connection alive */
 #ifndef SOAP_MAXKEEPALIVE
-# define SOAP_MAXKEEPALIVE (100)
+# define SOAP_MAXKEEPALIVE (100) /* max iterations to keep server connection alive */
 #endif
 
-/* Trusted max size of inbound SOAP array for compound array allocation.
-   Increase if necessary to allow larger arrays.
-*/
 #ifndef SOAP_MAXARRAYSIZE
-# define SOAP_MAXARRAYSIZE (1000000)
+# define SOAP_MAXARRAYSIZE (100000) /* "trusted" max size of inbound SOAP array for compound array allocation */
 #endif
 
 #ifdef VXWORKS
@@ -1140,18 +1105,15 @@ typedef soap_int32 soap_mode;
 #define SOAP_SSL_REQUIRE_SERVER_AUTHENTICATION	0x01	/* client requires server to authenticate */
 #define SOAP_SSL_REQUIRE_CLIENT_AUTHENTICATION	0x02	/* server requires client to authenticate */
 #define SOAP_SSL_SKIP_HOST_CHECK		0x04	/* client does not check the common name of the host in certificate */
-#define SOAP_SSL_ALLOW_EXPIRED_CERTIFICATE	0x08	/* client does not check the expiration date of the host certificate */
-#define SOAP_SSL_NO_DEFAULT_CA_PATH		0x10	/* don't use default_verify_paths */
-#define SOAP_SSL_RSA				0x20	/* use RSA */
-#define SOAP_SSLv3				0x40	/* SSL v3 only */
-#define SOAP_TLSv1				0x80	/* TLS v1 only */
+#define SOAP_SSL_RSA				0x08	/* use RSA */
 #define SOAP_SSLv3_TLSv1			0x00	/* SSL v3 and TLS v1 support by default */
+#define SOAP_SSLv3				0x10	/* SSL v3 only */
+#define SOAP_TLSv1				0x20	/* TLS v1 only */
 
 #define SOAP_SSL_DEFAULT			(SOAP_SSL_REQUIRE_SERVER_AUTHENTICATION | SOAP_SSLv3_TLSv1)
 
 /* state */
 
-#define SOAP_NONE	0
 #define SOAP_INIT	1
 #define SOAP_COPY	2
 
@@ -1231,7 +1193,7 @@ typedef soap_int32 soap_mode;
   }\
 }
 # endif
-# ifndef DBGFUN
+# ifndef DGBFUN
 #  define DBGFUN(FNAME) DBGLOG(TEST, SOAP_MESSAGE(fdebug, "%s(%d): %s()\n", __FILE__, __LINE__, FNAME))
 #  define DBGFUN1(FNAME, FMT, ARG) DBGLOG(TEST, SOAP_MESSAGE(fdebug, "%s(%d): %s("FMT")\n", __FILE__, __LINE__, FNAME, (ARG)))
 #  define DBGFUN2(FNAME, FMT1, ARG1, FMT2, ARG2) DBGLOG(TEST, SOAP_MESSAGE(fdebug, "%s(%d): %s("FMT1", "FMT2")\n", __FILE__, __LINE__, FNAME, (ARG1), (ARG2)))
@@ -1277,7 +1239,7 @@ struct soap_nlist
 { struct soap_nlist *next;
   unsigned int level; /* nesting depth level */
   short index; /* corresponding entry in ns mapping table */
-  const char *ns; /* only set when parsed ns URI is not in the ns mapping table */
+  char *ns; /* only set when parsed ns URI is not in the ns mapping table */
   char id[1]; /* the actual string value flows into the allocated region below this struct */
 };
 
@@ -1365,9 +1327,9 @@ class soap_multipart_iterator
 { public:
   struct soap_multipart *content;
   bool operator==(const soap_multipart_iterator& iter) const
-    { return (bool)(content == iter.content); }
+    { return content == iter.content; }
   bool operator!=(const soap_multipart_iterator& iter) const
-    { return (bool)(content != iter.content); }
+    { return content != iter.content; }
   struct soap_multipart &operator*() const
     { return *content; }
   soap_multipart_iterator &operator++()
@@ -1535,8 +1497,8 @@ struct soap_dom_element
   wchar_t *wide;			/* element content data */
   int type;				/* optional: serialized C/C++ data type */
   void *node;				/* optional: pointer to serialized C/C++ data */
-  char *head;				/* leading content before start tag */
-  char *tail;				/* leading content before end tag */
+  char *head;				/* leading whitespace to start tag */
+  char *tail;				/* leading whitespace to end tag */
   struct soap *soap;			/* soap context that manages this node */
 #ifdef __cplusplus
   typedef soap_dom_element_iterator iterator;
@@ -1564,7 +1526,7 @@ SOAP_FMAC1 struct soap_dom_element * SOAP_FMAC2 soap_dom_next_element(struct soa
 SOAP_FMAC1 struct soap_dom_attribute * SOAP_FMAC2 soap_dom_next_attribute(struct soap_dom_attribute *att);
 #endif
 
-#if defined(__cplusplus) && !defined(WITH_LEAN) && !defined(WITH_COMPAT)
+#if defined(__cplusplus) && !defined(WITH_LEAN)
 }
 extern std::ostream &operator<<(std::ostream&, const struct soap_dom_element&);
 extern std::istream &operator>>(std::istream&, struct soap_dom_element&);
@@ -1596,7 +1558,6 @@ struct SOAP_STD_API soap
   const char *http_content;	/* optional custom response content type (with SOAP_FILE) */
   const char *encodingStyle;	/* default = NULL which means that SOAP encoding is used */
   const char *actor;		/* SOAP-ENV:actor or role attribute value */
-  const char *lang;		/* xml:lang attribute value of SOAP-ENV:Text */
   int recv_timeout;		/* when > 0, gives socket recv timeout in seconds, < 0 in usec */
   int send_timeout;		/* when > 0, gives socket send timeout in seconds, < 0 in usec */
   int connect_timeout;		/* when > 0, gives socket connect() timeout in seconds, < 0 in usec */
@@ -1605,7 +1566,6 @@ struct SOAP_STD_API soap
   int connect_flags;		/* connect() SOL_SOCKET sockopt flags, e.g. set to SO_DEBUG to debug socket */
   int bind_flags;		/* bind() SOL_SOCKET sockopt flags, e.g. set to SO_REUSEADDR to enable reuse */
   int accept_flags;		/* accept() SOL_SOCKET sockopt flags */
-  unsigned short linger_time;	/* linger time for SO_LINGER option */
   const struct Namespace *namespaces;	/* Pointer to global namespace mapping table */
   struct Namespace *local_namespaces;	/* Local namespace mapping table */
   struct soap_nlist *nlist;	/* namespace stack */
@@ -1621,8 +1581,8 @@ struct SOAP_STD_API soap
   int idnum;
   void *user;			/* to pass user-defined data */
   struct soap_plugin *plugins;	/* linked list of plug-in data */
-  const char *userid;		/* HTTP Basic authorization userid */
-  const char *passwd;		/* HTTP Basic authorization passwd */
+  char *userid;			/* HTTP Basic authorization userid */
+  char *passwd;			/* HTTP Basic authorization passwd */
   int (*fpost)(struct soap*, const char*, const char*, int, const char*, const char*, size_t);
   int (*fget)(struct soap*);
   int (*fput)(struct soap*);
@@ -1670,12 +1630,12 @@ struct SOAP_STD_API soap
 #endif
   SOAP_SOCKET master;
   SOAP_SOCKET socket;
-#if defined(__cplusplus) && !defined(WITH_LEAN) && !defined(WITH_COMPAT)
+#if defined(__cplusplus) && !defined(WITH_LEAN)
   std::ostream *os;
   std::istream *is;
 #else
-  void *os;		/* preserve struct size */
-  void *is;		/* preserve struct size */
+  void *os;		/* preserve alignment */
+  void *is;		/* preserve alignment */
 #endif
 #ifndef UNDER_CE
   int sendfd;
@@ -1696,8 +1656,8 @@ struct SOAP_STD_API soap
   size_t lablen;	/* look-aside buffer allocated length */
   size_t labidx;	/* look-aside buffer index to available part */
   char buf[SOAP_BUFLEN];/* send and receive buffer */
-  char msgbuf[1024];	/* in/out buffer for HTTP/MIME headers >=1024 bytes */
-  char tmpbuf[1024];	/* in/out buffer for HTTP/MIME headers, simpleType values, element and attribute tag names, and DIME must be >=1024 bytes */
+  char msgbuf[1024];	/* in/output buffer for messages >=1024 bytes */
+  char tmpbuf[1024];	/* in/output buffer for HTTP/MIME headers, simpleType values, attribute names, and DIME must be >=1024 bytes */
   char tag[SOAP_TAGLEN];
   char id[SOAP_TAGLEN];
   char href[SOAP_TAGLEN];
@@ -1763,9 +1723,6 @@ struct SOAP_STD_API soap
   int cookie_max;
 #endif
 #ifndef WITH_NOIO
-  int ipv6_multicast_if; /* always include this to keep the soap struct size the same in v4 and v6 */
-  char* ipv4_multicast_if; /* always include this to keep the soap struct size the same in v4 and v6 */
-  int ipv4_multicast_ttl; /* multicast scope */
 #ifdef WITH_IPV6
   struct sockaddr_storage peer;	/* IPv6: set by soap_accept and by UDP recv */
 #else
@@ -1781,7 +1738,7 @@ struct SOAP_STD_API soap
   SSL_CTX *ctx;
   SSL_SESSION *session;
 #else
-  void *fsslauth;		/* dummy members, to preserve struct size */
+  void *fsslauth;		/* dummy members, to preserve alignment */
   void *fsslverify;
   void *bio;
   void *ssl;
@@ -1798,20 +1755,13 @@ struct SOAP_STD_API soap
   const char *randfile;
   char session_host[SOAP_TAGLEN];
   int session_port;
-#ifdef WITH_C_LOCALE
-  locale_t c_locale;		/* set to C locale by default */
-#else
-  void *c_locale;
-#endif
 #ifdef WITH_ZLIB
   z_stream *d_stream;		/* decompression stream */
   uLong z_crc;			/* internal gzip crc */
 #else
-  void *d_stream;		/* dummy members, to preserve struct size */
+  void *d_stream;		/* dummy members, to preserve alignment */
   soap_int32 z_crc;
 #endif
-  const char *z_dict;		/* support for zlib static dictionaries */
-  unsigned int z_dict_len;
   short zlib_state;		/* SOAP_ZLIB_NONE, SOAP_ZLIB_DEFLATE, or SOAP_ZLIB_INFLATE */
   short zlib_in;		/* SOAP_ZLIB_NONE, SOAP_ZLIB_DEFLATE, or SOAP_ZLIB_GZIP */
   short zlib_out;		/* SOAP_ZLIB_NONE, SOAP_ZLIB_DEFLATE, or SOAP_ZLIB_GZIP */
@@ -1829,8 +1779,6 @@ struct SOAP_STD_API soap
   soap(soap_mode, soap_mode);
   soap(struct soap&);
   virtual ~soap();
-#else
-  void (*dummy)();
 #endif
 };
 
@@ -2086,7 +2034,6 @@ SOAP_FMAC1 void SOAP_FMAC2 soap_cleanup(struct soap*);
 SOAP_FMAC1 void SOAP_FMAC2 soap_begin(struct soap*);
 SOAP_FMAC1 void SOAP_FMAC2 soap_end(struct soap*);
 SOAP_FMAC1 void SOAP_FMAC2 soap_delete(struct soap*, void*);
-SOAP_FMAC1 void SOAP_FMAC2 soap_delegate_deletion(struct soap*, struct soap*);
 
 #ifdef SOAP_DEBUG
 SOAP_FMAC1 void SOAP_FMAC2 soap_set_recv_logfile(struct soap*, const char*);
@@ -2142,7 +2089,7 @@ SOAP_FMAC1 int SOAP_FMAC2 soap_set_namespaces(struct soap*, const struct Namespa
 SOAP_FMAC1 void SOAP_FMAC2 soap_set_local_namespaces(struct soap*);
 
 SOAP_FMAC1 void SOAP_FMAC2 soap_pop_namespace(struct soap*);
-SOAP_FMAC1 struct soap_nlist* SOAP_FMAC2 soap_push_namespace(struct soap*, const char *,const char *);
+SOAP_FMAC1 int SOAP_FMAC2 soap_push_namespace(struct soap*, const char *,const char *);
 SOAP_FMAC1 const char* SOAP_FMAC2 soap_current_namespace(struct soap *soap, const char *tag);
 
 SOAP_FMAC1 struct soap_nlist* SOAP_FMAC2 soap_lookup_ns(struct soap *soap, const char *tag, size_t n);
@@ -2150,15 +2097,15 @@ SOAP_FMAC1 struct soap_nlist* SOAP_FMAC2 soap_lookup_ns(struct soap *soap, const
 SOAP_FMAC1 int SOAP_FMAC2 soap_store_lab(struct soap*, const char*, size_t);
 SOAP_FMAC1 int SOAP_FMAC2 soap_append_lab(struct soap*, const char*, size_t);
 
-SOAP_FMAC1 struct soap_blist* SOAP_FMAC2 soap_new_block(struct soap*);
-SOAP_FMAC1 void* SOAP_FMAC2 soap_push_block(struct soap*, struct soap_blist*, size_t);
-SOAP_FMAC1 void SOAP_FMAC2 soap_pop_block(struct soap*, struct soap_blist*);
-SOAP_FMAC1 size_t SOAP_FMAC2 soap_size_block(struct soap*, struct soap_blist*, size_t);
-SOAP_FMAC1 char* SOAP_FMAC2 soap_first_block(struct soap*, struct soap_blist*);
-SOAP_FMAC1 char* SOAP_FMAC2 soap_next_block(struct soap*, struct soap_blist*);
-SOAP_FMAC1 size_t SOAP_FMAC2 soap_block_size(struct soap*, struct soap_blist*);
-SOAP_FMAC1 char* SOAP_FMAC2 soap_save_block(struct soap*, struct soap_blist*, char*, int);
-SOAP_FMAC1 void SOAP_FMAC2 soap_end_block(struct soap*, struct soap_blist*);
+SOAP_FMAC1 int SOAP_FMAC2 soap_new_block(struct soap*);
+SOAP_FMAC1 void* SOAP_FMAC2 soap_push_block(struct soap*, size_t);
+SOAP_FMAC1 void SOAP_FMAC2 soap_pop_block(struct soap*);
+SOAP_FMAC1 size_t SOAP_FMAC2 soap_size_block(struct soap*, size_t);
+SOAP_FMAC1 char* SOAP_FMAC2 soap_first_block(struct soap*);
+SOAP_FMAC1 char* SOAP_FMAC2 soap_next_block(struct soap*);
+SOAP_FMAC1 size_t SOAP_FMAC2 soap_block_size(struct soap*);
+SOAP_FMAC1 char* SOAP_FMAC2 soap_save_block(struct soap*, char*, int);
+SOAP_FMAC1 void SOAP_FMAC2 soap_end_block(struct soap*);
 
 SOAP_FMAC1 int SOAP_FMAC2 soap_envelope_begin_out(struct soap*);
 SOAP_FMAC1 int soap_envelope_end_out(struct soap*);

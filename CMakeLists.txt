@@ -85,6 +85,10 @@ set(CMAKE_LIBRARY_PATH "${UW_EXTERNALS_DIR}/lib")
 include_directories(${UW_EXTERNALS_DIR} ${UW_EXTERNALS_DIR}/include)
 set(CMAKE_INCLUDE_PATH "${UW_EXTERNALS_DIR}/include")
 
+find_program( SOAPCPP2 
+		      soapcpp2
+		      HINTS ${UW_EXTERNALS_DIR} /usr/bin )		   		   
+
 ##################################################
 ##################################################
 # check symbols, libs, functions, headers, and types
@@ -235,10 +239,10 @@ condor_external(OPENSSL ON "ssl;libeay32;ssleay32")
 condor_external(POSTGRESQL ON "pq;libpq") 
 condor_external(KRB5 ON "krb5;comerr32.lib;gssapi32.lib;k5sprt32.lib;krb5_32.lib;xpprof32.lib") 
 condor_external(PCRE ON "pcre;libpcre")
-condor_external(GSOAP ON "gsoapssl++")
 
 ########################################################
 if (NOT WINDOWS)    
+	condor_external(GSOAP ON "gsoapssl++")
     condor_external(BLAHP OFF "blahp")
     condor_external(CLASSADS ON "classad")
     condor_external(COREDUMPER ON "coredumper")
@@ -256,7 +260,8 @@ if (NOT WINDOWS)
 else()    
 	set (HAVE_SCHED_SETAFFINITY 1)
 	set (WANT_CLASSAD_ANALYSIS 1)
-
+	set (HAVE_EXT_GSOAP 1)	
+	
 	# how is this set but not built on windows?
 	# set (HAVE_EXT_CLASSADS 1)
 endif()
@@ -306,7 +311,7 @@ add_definitions(-DGLIBC=GLIBC)
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996 /wd4273")	
 	
-	set (CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib")			
+	set (CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib;Pdh.lib")			
 else()
 
 	if (HAVE_DLOPEN)

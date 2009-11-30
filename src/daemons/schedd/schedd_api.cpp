@@ -35,7 +35,9 @@
 
 #include "schedd_api.h"
 
-
+#ifndef HAVE_EXT_GSOAP
+#define FAIL 1
+#endif
 
 Job::Job(PROC_ID pro_id):
 	declaredFiles(64, MyStringHash, rejectDuplicateKeys)

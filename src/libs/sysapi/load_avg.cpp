@@ -443,8 +443,8 @@ sysapi_load_avg_raw(void)
 #include <pdhmsg.h>
 
 // These next 2 lines allow us to use pdh.dll with MS VC++ 6.0
-#undef PdhOpenQuery
-long __stdcall PdhOpenQuery(LPCSTR  szD, DWORD  dw, HQUERY  *phQ);
+//#undef PdhOpenQuery
+//long __stdcall PdhOpenQuery(LPCSTR  szD, DWORD  dw, HQUERY  *phQ);
 
 #define SAMPLE_INTERVAL 1000		/* take a sample every 1000 ms */
 #define NUM_SAMPLES 60000/SAMPLE_INTERVAL	/* num samples per 1 minute */

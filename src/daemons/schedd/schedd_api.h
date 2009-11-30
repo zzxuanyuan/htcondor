@@ -390,7 +390,9 @@ protected:
 
 class NullScheddTransaction: protected ScheddTransaction
 {
+#ifdef HAVE_EXT_GSOAP
 	friend bool stub_prefix(const char*, const soap*, int, int, DCpermission, bool, condor__Transaction*&, condor__Status&, ScheddTransaction*&);
+#endif
 
 public:
 	virtual int begin();
