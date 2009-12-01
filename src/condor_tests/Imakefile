@@ -52,16 +52,19 @@ BUILD($(CC),x_tightloop,c)
 BUILD($(CC),x_killppid,c)
 
 #if defined(HAVE_DMTCP_ABILITY)
-/* Setup and install dmtcp for use by the test suite */
-
 DMTCP_PWD=$(shell pwd)
+
+/* Setup and install dmtcp for use by the test suite */
 dmtcp-all: $(DMTCP)
 	tar zxf $(DMTCP)
 	cd dmtcp/trunk && ./configure --prefix=$(DMTCP_PWD)/dmtcp-local && make && make install
+	cp $(DMTCP_PWD)/dmtcp-local/lib/dmtcp/libdmtcpaware.a libcondordmtcp.a
+	$(CC) -Wall -c condor_dmtcp_api.c -o condor_dmtcp_api.o
+	ar qs libcondordmtcp.a condor_dmtcp_api.o
 	touch dmtcp-all
 
 clean::
-	rm -rf dmtcp dmtcp-local dmtcp-all
+	rm -rf dmtcp dmtcp-local dmtcp-all libcondordmtcp.a condor_dmtcp_api.o
 
 #endif
 
