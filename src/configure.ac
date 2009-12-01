@@ -2350,6 +2350,20 @@ else
 	AC_MSG_RESULT([no])
 fi
 
+# Here we check to see if it is possible that DMTCP could function on this
+# machine, not that we have one installed. This is for use by the test suite
+# or other aspects of Condor where DMTCP might be supplied by the user
+# wholesale.
+AC_MSG_CHECKING([for ability to use DMTCP])
+if test "x$_cv_opsys" = xLINUX -a \
+	\( "x$_cv_arch" = xI386 -o "x$_cv_arch" = xX86_64 \); then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE(HAVE_DMTCP_ABILITY,[1],[Define to 1 if you know DMTCP is known to work on this distro])
+else
+	AC_MSG_RESULT([no])
+fi
+
+
 ############################################################
 # checks for libraries
 ############################################################

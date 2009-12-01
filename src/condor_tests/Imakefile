@@ -3,6 +3,11 @@
 ************************************************************************/
 #include "Imakefile.common"
 
+#if defined(HAVE_DMTCP_ABILITY)
+DMTCP=dmtcp-441.tar.gz
+all:: dmtcp-all
+#endif
+
 /* 
    If we're just doing "make all", the first thing we should do is
    build all the various lists we need (dealing with test classes,
@@ -45,6 +50,20 @@ BUILD($(CC),x_dumpcore,c)
 BUILD($(CPlusPlus),x_trapsig,c)
 BUILD($(CC),x_tightloop,c)
 BUILD($(CC),x_killppid,c)
+
+#if defined(HAVE_DMTCP_ABILITY)
+/* Setup and install dmtcp for use by the test suite */
+
+DMTCP_PWD=$(shell pwd)
+dmtcp-all: $(DMTCP)
+	tar zxf $(DMTCP)
+	cd dmtcp/trunk && ./configure --prefix=$(DMTCP_PWD)/dmtcp-local && make && make install
+	touch dmtcp-all
+
+clean::
+	rm -rf dmtcp dmtcp-local dmtcp-all
+
+#endif
 
 /************************************************************************
    Rules for all the single-compiler (or no compiler) tests
