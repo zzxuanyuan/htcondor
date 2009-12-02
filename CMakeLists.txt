@@ -59,36 +59,7 @@ set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
 add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
 add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
-
-########################################################
-## Begin RANT
-##
-## So I've been thinking about how condor handles externals
-## for a while now, and I must admit it's fairly odd.
-## If it is a requirement to have a package it should be "present"
-## and treated as a pre-requisite.
-##
-## Step 1: Obtain condor
-## Step 2: Obtain externals
-## Step 3: Build Externals - script builds all & stages
-## Step 4: Build Condor
-##
-## End RANT
-########################################################
-
-SET(UW_EXTERNALS_DIR "${CONDOR_SOURCE_DIR}/build/externals/stage" CACHE STRING "Location of UW staged externals")
-message(STATUS "env: UW_EXTERNALS_DIR = ${UW_EXTERNALS_DIR}")
-
-link_directories(${UW_EXTERNALS_DIR}/lib)
-set(CMAKE_LIBRARY_PATH "${UW_EXTERNALS_DIR}/lib")
-
-include_directories(${UW_EXTERNALS_DIR} ${UW_EXTERNALS_DIR}/include)
-set(CMAKE_INCLUDE_PATH "${UW_EXTERNALS_DIR}/include")
-
-find_program( SOAPCPP2 
-		      soapcpp2
-		      HINTS ${UW_EXTERNALS_DIR} /usr/bin )		   		   
-
+	   		   
 ##################################################
 ##################################################
 # check symbols, libs, functions, headers, and types
@@ -225,46 +196,11 @@ option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
 option(CLIPPED "Disables the standard universe" ON)
 option(STRICT "If externals are not found it will error" OFF)
 
-##################################################
-##################################################
-# the following are the --with options
-# we will find the external package i
-
-########################################################
-## The following externals are used by both *nix and windows.
-## TBD ?? - CURL? doesn't look like it has deps in the code...?
-condor_external(DRMAA ON "drmaa;libdrmaa")
-condor_external(HADOOP OFF "hadoop") # Figure out Java Goop
-condor_external(OPENSSL ON "ssl;libeay32;ssleay32") 
-condor_external(POSTGRESQL ON "pq;libpq") 
-condor_external(KRB5 ON "krb5;comerr32.lib;gssapi32.lib;k5sprt32.lib;krb5_32.lib;xpprof32.lib") 
-condor_external(PCRE ON "pcre;libpcre")
-
-########################################################
-if (NOT WINDOWS)    
-	condor_external(GSOAP ON "gsoapssl++")
-    condor_external(BLAHP OFF "blahp")
-    condor_external(CLASSADS ON "classad")
-    condor_external(COREDUMPER ON "coredumper")
-    condor_external(UNICOREGAHP OFF "unicoregahp")
-    condor_external(VOMS OFF "voms")
-    condor_external(EXPAT OFF "expat")
-    condor_external(SRB OFF "srb")
-    condor_external(GLOBUS OFF "globus")
-    condor_external(ZLIB ON "z")
-    condor_external(GCB OFF "gcb")
-    # chat w/matt why this is all weird.
-    # condor_external(MAN "" ON)
-    # Below are TBD...
-    condor_external(VMWARE OFF "")
-else()    
-	set (HAVE_SCHED_SETAFFINITY 1)
-	set (WANT_CLASSAD_ANALYSIS 1)
-	set (HAVE_EXT_GSOAP 1)	
-	
-	# how is this set but not built on windows?
-	# set (HAVE_EXT_CLASSADS 1)
+if (NOT WINDOWS)
+	option(PROPER "If externals are not found it will error" ON)
 endif()
+
+add_subdirectory (build/externals)
 ########################################################
 message(STATUS "***********************************************************")
 configure_file(${CONDOR_SOURCE_DIR}/src/include/config.h.cmake

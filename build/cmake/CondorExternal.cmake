@@ -14,7 +14,7 @@
 #                            deps will be appended to.
 #
 
-MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES ) 
+MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES _VERSION) 
 
 	string( TOUPPER "${_PACKAGE}" UP_PACKAGE )
 	option(WITH_${UP_PACKAGE} "Enable or disable package" ${_ON_OFF})	
@@ -22,41 +22,63 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES )
 	# if the option is enabled _ON_OFF,
 	if (WITH_${UP_PACKAGE})
 
-		message(STATUS "condor_external searching(${UW_EXTERNALS_DIR}) for ${_PACKAGE} libs (${_NAMES})")
-		
-		## Normally find_library will exist on 1st match, for some windows libs 
-		## there is one target and multiple libs
-		foreach ( loop_var ${_NAMES} )
-		
-			# message(STATUS "DEBUG: loop_var=${loop_var}")
+		if (PROPER)
+			message(STATUS "condor_external searching(${UW_EXTERNALS_DIR}) for ${_PACKAGE} libs (${_NAMES})")
 			
-			find_library( ${UP_PACKAGE}_SEARCH_${loop_var} NAMES ${loop_var} )
-
-			##############
-			if (NOT ${UP_PACKAGE}_SEARCH_${loop_var} STREQUAL "${UP_PACKAGE}_SEARCH_${loop_var}-NOTFOUND" )
+			## Normally find_library will exist on 1st match, for some windows libs 
+			## there is one target and multiple libs
+			foreach ( loop_var ${_NAMES} )
+			
+				# message(STATUS "DEBUG: loop_var=${loop_var}")
 				
-				if (${UP_PACKAGE}_FOUND)
-					set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" )
-				else()
-					set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} )
+				find_library( ${UP_PACKAGE}_SEARCH_${loop_var} NAMES ${loop_var} )
+
+				##############
+				if (NOT ${UP_PACKAGE}_SEARCH_${loop_var} STREQUAL "${UP_PACKAGE}_SEARCH_${loop_var}-NOTFOUND" )
+					
+					if (${UP_PACKAGE}_FOUND)
+						set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" )
+					else()
+						set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} )
+					endif()
+					
+					set(HAVE_EXT_${UP_PACKAGE} ON)
+					set(HAVE_${UP_PACKAGE} ON)
+					
 				endif()
-				
-				set(HAVE_EXT_${UP_PACKAGE} ON)
-				set(HAVE_${UP_PACKAGE} ON)
-				
-			endif()
-			##############
+				##############
 
-		endforeach(loop_var)
+			endforeach(loop_var)
+			
+			
+			if(${UP_PACKAGE}_FOUND)			
+				message(STATUS "condor_external (${_PACKAGE})... found (${${UP_PACKAGE}_FOUND})")
+			else()
+			    
+				## Need to add a strict clause. 
+				message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
+			endif()
+			
+		else(PROPER)
 		
+			set(HAVE_EXT_${UP_PACKAGE} ON)
+			set(HAVE_${UP_PACKAGE} ON)
+			set(${UP_PACKAGE}_DIR "${EXTERNAL_DIR}/${_VERSION}")
 		
-		if(${UP_PACKAGE}_FOUND)			
-			message(STATUS "condor_external (${_PACKAGE})... found (${${UP_PACKAGE}_FOUND})")
-		else()
-		    
-		    ## Need to add a strict clause. 
-			message(STATUS "condor_external (${_PACKAGE})... *not* found, to disable check set WITH_${UP_PACKAGE} to OFF")
-		endif()		
+			if (EXTERNAL_TARGET_DIRS)
+				set (EXTERNAL_TARGET_DIRS "${EXTERNAL_TARGET_DIRS};${${UP_PACKAGE}_DIR}")
+			else()
+				set (EXTERNAL_TARGET_DIRS "${${UP_PACKAGE}_DIR}")
+			endif()
+			
+			add_custom_command (OUTPUT ${${UP_PACKAGE}_DIR}
+								COMMAND perl 
+								ARGS -w build_external --extern_src=${CONDOR_SOURCE_DIR}/build/externals --extern_build=${CONDOR_SOURCE_DIR}/build/externals --package_name=${_VERSION}
+								COMMENT "*** BUILDING ${_VERSION} ***")
+								
+			message(STATUS "condor_external (${_PACKAGE})... SET to (${${UP_PACKAGE}_DIR})")								
+		
+		endif(PROPER)		
 		
 	else()
 		message(STATUS "condor_external skipping search WITH_${UP_PACKAGE} = OFF")
