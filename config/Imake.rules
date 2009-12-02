@@ -976,7 +976,7 @@ XCOMM End translation of func(all_link_target)
 #define all_symlink_target(src,dest)		@@\
 XCOMM Begin translation of func(all_symlink_target) @@\
 all:: dest					@@\
-dest: src					@@\
+dest:: src					@@\
 	/bin/rm -f dest				@@\
 	ln -s src dest				@@\
 clean::						@@\

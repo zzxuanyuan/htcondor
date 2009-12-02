@@ -43,7 +43,13 @@ all_symlink_target(../condor_scripts/CondorTest.pm,CondorTest.pm)
 all_symlink_target(../condor_scripts/CondorPersonal.pm,CondorPersonal.pm)
 all_symlink_target(../condor_scripts/CondorUtils.pm,CondorUtils.pm)
 all_symlink_target(../condor_scripts/safe_append.pl,safe_append.pl)
+
+/* XXX This is a vile hack, but it avoids a glue change to build DMTCP
+	in the nightlies because the nightlies don't do "make all" and instead
+	build individual targets. This only works because all_symlink_target() was
+	changed to allow multiple targets with the same name. */
 all_symlink_target(../condor_scripts/batch_test.pl,batch_test.pl)
+DEPS(batch_test.pl,dmtcp-all)
 
 BUILD_DEP($(CC),x_return-n,c,x_waste_second.o)
 BUILD($(CC),x_dumpcore,c)
@@ -56,6 +62,7 @@ DMTCP_PWD=$(shell pwd)
 
 /* Setup and install dmtcp for use by the test suite */
 dmtcp-all: $(DMTCP)
+	rm -rf dmtcp
 	tar zxf $(DMTCP)
 	cd dmtcp/trunk && ./configure --prefix=$(DMTCP_PWD)/dmtcp-local && make && make install
 	cp $(DMTCP_PWD)/dmtcp-local/lib/dmtcp/libdmtcpaware.a libcondordmtcp.a
@@ -65,6 +72,11 @@ dmtcp-all: $(DMTCP)
 
 clean::
 	rm -rf dmtcp dmtcp-local dmtcp-all libcondordmtcp.a condor_dmtcp_api.o
+
+#else
+
+/* no DMTCP, but the dep still exists, so we'll honor it */
+dmtcp-all:
 
 #endif
 
@@ -2004,6 +2016,7 @@ TESTCLASS(job_core_coredump_std,quicknolink)
 CBUILD($(CC),job_rsc_binary-io_std,c)
 DESC(job_rsc_binary-io_std,"Do we handle binary io in standard jobs?")
 DEPS(job_rsc_binary-io_std,job_rsc_binary-io_std.cndr.exe)
+DEPS(job_rsc_binary-io_std,dmtcp-all)
 RUN(job_rsc_binary-io_std)
 TESTCLASS(job_rsc_binary-io_std,framework)
 TESTCLASS(job_rsc_binary-io_std,quick)
