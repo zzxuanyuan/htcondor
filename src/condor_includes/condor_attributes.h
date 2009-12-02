@@ -676,10 +676,25 @@ extern const char * const  ATTR_HAD_LIST;
 extern const char * const  ATTR_HAD_INDEX;
 extern const char * const  ATTR_HAD_SELF_ID;
 extern const char * const  ATTR_HAD_CONTROLLEE_NAME;
+extern const char * const  ATTR_HAD_REPLICATION_LIST;
+extern const char * const  ATTR_HAD_REPLICATION_BASE_DIRECTORY;
+extern const char * const  ATTR_HAD_REPLICATION_FILE_COUNT;
+extern const char * const  ATTR_HAD_REPLICATION_FILE_FORMAT;
+extern const char * const  ATTR_HAD_REPLICATION_FILE;
+extern const char * const  ATTR_HAD_REPLICATION_FILE_OFFSET;
+extern const char * const  ATTR_HAD_REPLICATION_FILE_SET;
+extern const char * const  ATTR_HAD_REPLICATION_LOGFILE_SET;
+extern const char * const  ATTR_HAD_REPLICATION_GID;
+extern const char * const  ATTR_HAD_REPLICATION_LOGICAL_CLOCK;
+extern const char * const  ATTR_HAD_REPLICATION_IS_PRIMARY;
+extern const char * const  ATTR_HAD_REPLICATION_MTIME;
+extern const char * const  ATTR_HAD_REPLICATION_STATE_NUM;
+extern const char * const  ATTR_HAD_REPLICATION_STATE_NAME;
+extern const char * const  ATTR_HAD_REPLICATION_VERSION;
+extern const char * const  ATTR_HAD_REPLICATION_NAK_REASON;
+
 extern const char * const  ATTR_TERMINATION_PENDING;
 extern const char * const  ATTR_TERMINATION_EXITREASON;
-
-extern const char * const  ATTR_REPLICATION_LIST;
 
 extern const char * const  ATTR_TREQ_DIRECTION;
 extern const char * const  ATTR_TREQ_INVALID_REQUEST;

@@ -21,42 +21,40 @@
 #include "condor_daemon_core.h"
 #include "subsystem_info.h"
 
-#include "ReplicatorStateMachine.h"
+#include "RsmStandard.h"
 
 /* daemon core needs this variable to associate its entries
  * inside $CONDOR_CONFIG file
  */
-DECL_SUBSYSTEM( "Replication", SUBSYSTEM_TYPE_DAEMON );// used by Daemon Core
+DECL_SUBSYSTEM( "Replicator", SUBSYSTEM_TYPE_DAEMON );
 
 // replication daemon single object
-ReplicatorStateMachine* stateMachine = NULL;
+StandardRsm* stateMachine = NULL;
 
 int
 main_init( int , char *[] )
 {
-    dprintf(D_ALWAYS, "main_init replication daemon started\n");
-//    int oldflags = fcntl(1, F_GETFL, 0);
-//    dprintf(D_ALWAYS, "Is non-blocking file behaviour set: %d\n", O_NONBLOCK 
-//            & oldflags);
+    dprintf(D_FULLDEBUG, "main_init replication daemon started\n");
 
     try {
-        stateMachine = new ReplicatorStateMachine( );
-        stateMachine->initialize( );
-
+        stateMachine = new StandardRsm( );
+        if ( !stateMachine->initializeAll( ) ) {
+			dprintf( D_ALWAYS, "State machine failed to initialize!\n" );
+			return FALSE;
+		}
         return TRUE;
     }
-    catch(char* exceptionString) {
-        dprintf( D_FAILURE, "main_init exception thrown %s\n",
-                   exceptionString );
-
+    catch( char* exceptionString ) {
+        dprintf( D_FAILURE,
+				 "main_init exception thrown %s\n", exceptionString );
         return FALSE;
     }
 }
 
 int
-main_shutdown_graceful( )
+main_shutdown_graceful( void )
 {
-    dprintf( D_ALWAYS, "main_shutdown_graceful started\n" );
+    dprintf( D_FULLDEBUG, "main_shutdown_graceful started\n" );
 
     delete stateMachine;
     DC_Exit( 0 );
@@ -65,7 +63,7 @@ main_shutdown_graceful( )
 }
 
 int
-main_shutdown_fast( )
+main_shutdown_fast( void )
 {
     delete stateMachine;
     DC_Exit( 0 );
@@ -74,21 +72,27 @@ main_shutdown_fast( )
 }
 
 int
-main_config( bool isFull )
+main_config( bool /*isFull*/ )
 {
     // NOTE: restart functionality instead of reconfig
-	stateMachine->reinitialize( );
+	stateMachine->reconfig( );
     
     return 0;
 }
 
 void
-main_pre_dc_init( int argc, char* argv[] )
+main_pre_dc_init( int /*argc*/, char* /*argv*/[] )
 {
 }
 
 void
-main_pre_command_sock_init( )
+main_pre_command_sock_init( void )
 {
 }
 
+// Local Variables: ***
+// mode:C ***
+// comment-column:0 ***
+// tab-width:4 ***
+// c-basic-offset:4 ***
+// End: ***

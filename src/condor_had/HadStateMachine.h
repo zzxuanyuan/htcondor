@@ -22,8 +22,8 @@
   StateMachine.h: interface for the HADStateMachine class.
 */
 
-#if !defined(HAD_StateMachine_H__)
-#define HAD_StateMachine_H__
+#if !defined(HAD_STATE_MACHINE_H)
+#define HAD_STATE_MACHINE_H
 
 #include "condor_daemon_core.h"
 
@@ -186,4 +186,5 @@ protected:
     int         m_updateCollectorInterval;
 };
 
-#endif // !HAD_StateMachine_H__
+#endif		// HAD_STATE_MACHINE_H
+

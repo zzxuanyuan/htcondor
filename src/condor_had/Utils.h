@@ -20,22 +20,18 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "condor_daemon_core.h"
+#include "condor_common.h"
 #include "MyString.h"
+#include "string_list.h"
+#include "reli_sock.h"
 
-#define DEFAULT_SEND_COMMAND_TIMEOUT                             (5)
-#define DEFAULT_MAX_TRANSFER_LIFETIME                           (300)
-#define IO_RETRY_TIMES                                           (3)
+const int DEFAULT_SEND_COMMAND_TIMEOUT =	5;
+const int DEFAULT_MAX_TRANSFER_LIFETIME =	300;
+const int IO_RETRY_TIMES =					3;
 
-//#define MAX_FILE_SIZE                                      (1000000)
-// the lifetime is measured in units of HAD_REPLICATION_INTERVAL
-#define VERSION_FILE_NAME                                        "Version"
-#define UPLOADING_TEMPORARY_FILES_EXTENSION                      "up"
-#define DOWNLOADING_TEMPORARY_FILES_EXTENSION                    "down"
+extern const char *VERSION_FILE_NAME;
 
-#define REPLICATION_ASSERT(expression)   if( ! ( expression ) ) {            \
-                                         	utilCrucialError(#expression );  \
-                                		}
+
 /* Function    : utilNoParameterError
  * Arguments   : parameter - configuration parameter, which caused the error
  *               daemonName - the name of daemon, the parameter of which
@@ -45,8 +41,9 @@
  * Description : returns the error string, stating that no such parameter is
  *               found in the specified daemon's configuration parameters
  */
-MyString
+MyString &
 utilNoParameterError( const char* parameter, const char* daemonName );
+
 /* Function    : utilConfigurationParameter
  * Arguments   : parameter - configuration parameter, which caused the error
  *				 daemonName - the name of daemon, the parameter of which 
@@ -57,7 +54,7 @@ utilNoParameterError( const char* parameter, const char* daemonName );
  *               configured incorrectly in the specified daemon's 
  *				 configuration parameters
  */
-MyString
+MyString &
 utilConfigurationError( const char* parameter, const char* daemonName );
 /* Function    : utilCrucialError 
  * Arguments   : message - message to be printed before the daemon aborts 
@@ -84,6 +81,7 @@ utilCancelReaper(int& reaperId);
  */
 const char* 
 utilToString( int command );
+
 /* Function    : utilToSinful
  * Arguments   : address - remote daemon address in either "ip:port" or 
  *				 "hostname:port" format, optionally enclosed in '<>' brackets
@@ -93,6 +91,7 @@ utilToString( int command );
  */
 char* 
 utilToSinful( char* address );
+
 /* Function    :  utilAtoi
  * Arguments   :  string - string to convert
  *				  result - boolean indicator whether the conversion succeded
@@ -104,12 +103,14 @@ utilToSinful( char* address );
  */
 int 
 utilAtoi(const char* string, bool* result);
+
 /* Function   : utilClearList
  * Arguments  : list - string list to be cleared
  * Description: clears list of strings
  */
 void
 utilClearList( StringList& list );
+
 /* Function    : utilSafePutFile
  * Arguments   : socket   - socket, through which the file will be transferred
  *			     filePath - OS path to file, which is to be transferred
@@ -123,6 +124,7 @@ utilClearList( StringList& list );
  */
 bool
 utilSafePutFile( ReliSock& socket, const MyString& filePath );
+
 /* Function    : utilSafeGetFile
  * Arguments   : socket   - socket, through which the file will be received
  * 				 filePath - OS path to file, where the received data is to be

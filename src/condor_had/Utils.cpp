@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -18,18 +18,14 @@
  ***************************************************************/
 
 #include "condor_common.h"
+#include "command_strings.h"
 #include "Utils.h"
-//#include "HadCommands.h"
-//#include "ReplicationCommands.h"
 #include "FilesOperations.h"
-// for 'CHILD_ON' and 'CHILD_OFF_FAST'
 #include "condor_commands.h"
-// for 'getHostFromAddr' and 'getPortFromAddr'
 #include "internet.h"
-// for MD5
 #include "condor_md.h"
 #ifdef HAVE_EXT_OPENSSL
-#include <openssl/md5.h>
+# include <openssl/md5.h>
 #endif
 #include "condor_netdb.h"
 
@@ -41,11 +37,12 @@ using namespace std;
 #define FILE_CHUNK_SIZE               (100)
 
 extern int main_shutdown_graceful();
+const char *VERSION_FILE_NAME = "Version";
 
-MyString
+MyString &
 utilNoParameterError( const char* parameter, const char* daemonName )
 {
-	MyString error;
+	static MyString error;
 
 	if( ! strcasecmp( daemonName, "HAD" ) ) {
 		error.sprintf( "HAD configuration error: no %s in config file",
@@ -61,14 +58,15 @@ utilNoParameterError( const char* parameter, const char* daemonName )
 	return error;
 }
 
-MyString
+MyString &
 utilConfigurationError( const char* parameter, const char* daemonName )
 {
-	MyString error;
+	static MyString error;
 
     if( ! strcasecmp( daemonName, "HAD" ) ) {
-		error.sprintf("HAD configuration error: %s is not valid in config file",
-					   parameter );
+		error.sprintf("HAD configuration error: "
+					  "%s is not valid in config file",
+					  parameter );
 	} else if( ! strcasecmp( daemonName, "REPLICATION" ) ) {
     	error.sprintf( "Replication configuration error: %s is not valid "
                        "in config file", parameter );
@@ -108,38 +106,7 @@ utilCancelReaper(int& reaperId)
 const char*
 utilToString( int command )
 {
-    switch( command ) {
-        case REPLICATION_LEADER_VERSION:
-            return "REPLICATION_LEADER_VERSION";
-        case REPLICATION_TRANSFER_FILE:
-            return "REPLICATION_TRANSFER_FILE";
-        case REPLICATION_NEWLY_JOINED_VERSION:
-            return "REPLICATION_NEWLY_JOINED_VERSION";
-        case REPLICATION_GIVING_UP_VERSION:
-            return "REPLICATION_GIVING_UP_VERSION";
-        case REPLICATION_SOLICIT_VERSION:
-            return "REPLICATION_SOLICIT_VERSION";
-        case REPLICATION_SOLICIT_VERSION_REPLY:
-            return "REPLICATION_SOLICIT_VERSION_REPLY";
-        case HAD_BEFORE_PASSIVE_STATE:
-            return "HAD_BEFORE_PASSIVE_STATE";
-        case HAD_AFTER_ELECTION_STATE:
-            return "HAD_AFTER_ELECTION_STATE";
-        case HAD_AFTER_LEADER_STATE:
-            return "HAD_AFTER_LEADER_STATE";
-        case HAD_IN_LEADER_STATE:
-            return "HAD_IN_LEADER_STATE";
-        case HAD_ALIVE_CMD:
-            return "HAD_ALIVE_CMD";
-        case HAD_SEND_ID_CMD:
-            return "HAD_SEND_ID_CMD";
-        case CHILD_ON:
-            return "CHILD_ON";
-        case CHILD_OFF_FAST:
-            return "CHILD_OFF_FAST";
-        default:
-            return "unknown command";
-    }
+	return getCommandString( command );
 }
 
 // returns allocated by 'malloc' string upon success or NULL upon failure
@@ -224,7 +191,7 @@ utilClearList( StringList& list )
 bool
 utilSafePutFile( ReliSock& socket, const MyString& filePath )
 {
-	REPLICATION_ASSERT( filePath != "" );
+	ASSERT( filePath != "" );
 	// bool       successValue = true;
 	filesize_t bytes        = 0;
     dprintf( D_ALWAYS, "utilSafePutFile %s started\n", filePath.Value( ) );
@@ -281,7 +248,7 @@ utilSafePutFile( ReliSock& socket, const MyString& filePath )
 bool
 utilSafeGetFile( ReliSock& socket, const MyString& filePath )
 {
-	REPLICATION_ASSERT( filePath != "" );
+	ASSERT( filePath != "" );
 	filesize_t  bytes      = 0;
 	char*       md      = ( char *) malloc( ( MAC_SIZE ) * sizeof( char ) );
 
@@ -348,7 +315,7 @@ utilSafeGetFile( ReliSock& socket, const MyString& filePath )
 bool
 utilSafePutFile( ReliSock& socket, const MyString& filePath )
 {
-    REPLICATION_ASSERT( filePath != "" );
+    ASSERT( filePath != "" );
     filesize_t bytes = 0;
     dprintf( D_ALWAYS, "utilSafePutFile %s started\n", filePath.Value( ) );
 
@@ -369,7 +336,7 @@ utilSafePutFile( ReliSock& socket, const MyString& filePath )
 bool
 utilSafeGetFile( ReliSock& socket, const MyString& filePath )
 {
-    REPLICATION_ASSERT( filePath != "" );
+    ASSERT( filePath != "" );
     filesize_t  bytes = 0;
 
 	dprintf( D_ALWAYS, "utilSafeGetFile %s started\n", filePath.Value( ) );

@@ -742,7 +742,26 @@ const char * const ATTR_HAD_CONTROLLEE_NAME    = "HadControlleeName";
 const char * const ATTR_TERMINATION_PENDING	= "TerminationPending";
 const char * const ATTR_TERMINATION_EXITREASON	= "TerminationExitReason";
 
-const char * const ATTR_REPLICATION_LIST      = "ReplicationList";
+const char * const ATTR_HAD_REPLICATION_LIST		= "ReplicationList";
+const char * const ATTR_HAD_REPLICATION_BASE_DIRECTORY = "ReplicationBaseDir";
+const char * const ATTR_HAD_REPLICATION_FILE_COUNT	= "ReplicationFileCount";
+const char * const ATTR_HAD_REPLICATION_FILE_FORMAT	= "ReplicationFile%03d";
+const char * const ATTR_HAD_REPLICATION_FILE		= "ReplicationFile";
+const char * const ATTR_HAD_REPLICATION_FILE_OFFSET	= "ReplicationFile_Offset";
+const char * const ATTR_HAD_REPLICATION_FILE_MTIME	= "ReplicationFile_Mtime";
+const char * const ATTR_HAD_REPLICATION_FILE_SIZE	= "ReplicationFile_Size";
+const char * const ATTR_HAD_REPLICATION_FILE_ISLOG	= "ReplicationFile_IsLog";
+const char * const ATTR_HAD_REPLICATION_NAK_REASON	= "ReplicationFileNakReason";
+const char * const ATTR_HAD_REPLICATION_FILE_SET	= "ReplicationFileSet";
+const char * const ATTR_HAD_REPLICATION_LOGFILE_SET	= "ReplicationLogfileSet";
+const char * const ATTR_HAD_REPLICATION_GID			= "ReplicationGid";
+const char * const ATTR_HAD_REPLICATION_LOGICAL_CLOCK = "ReplicationLogicalClock";
+const char * const ATTR_HAD_REPLICATION_IS_PRIMARY	= "ReplicationIsPrimary";
+const char * const ATTR_HAD_REPLICATION_MTIME		= "ReplicationMtime";
+const char * const ATTR_HAD_REPLICATION_STATE_NUM	= "ReplicationStateNum";
+const char * const ATTR_HAD_REPLICATION_STATE_NAME	= "ReplicationStateName";
+const char * const ATTR_HAD_REPLICATION_VERSION		= "ReplicationVersionNum";
+
 
 // Attributes used in clasads that go back and forth between a submitting
 // client, the schedd, and the transferd while negotiating for a place to
@@ -839,3 +858,10 @@ const char * const ATTR_AMAZON_INSTANCE_TYPE = "AmazonInstanceType";
 //************* Added for Lease Manager *******************//
 const char * const ATTR_LEASE_MANAGER_IP_ADDR = "LeaseManagerIpAddr";
 //************* End of Lease Manager    *******************//
+
+// Local Variables: ***
+// mode:C ***
+// comment-column:0 ***
+// tab-width:4 ***
+// c-basic-offset:4 ***
+// End: ***

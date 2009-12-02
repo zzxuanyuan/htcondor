@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -33,7 +33,7 @@
 
 #define  USE_REPLICATION    (0)
 
-#include "StateMachine.h"
+#include "HadStateMachine.h"
 
 #if USE_REPLICATION
 	#include "ReplicaStateMachine.h"

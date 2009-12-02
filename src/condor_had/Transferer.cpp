@@ -1,14 +1,14 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,196 +21,187 @@
 #include "condor_daemon_core.h"
 #include "subsystem_info.h"
 
-// replication classes
-#include "UploadReplicaTransferer.h"
-#include "DownloadReplicaTransferer.h"
 #include "FilesOperations.h"
 #include "Utils.h"
 
-extern char* myName;
-// for daemon core
-DECL_SUBSYSTEM( "TRANSFERER", SUBSYSTEM_TYPE_DAEMON );	// used by Daemon Core
-
-// single 'condor_transferer' object
-BaseReplicaTransferer* replicaTransferer = NULL; 
-
-#if 0
-int
-uploadTerminateSignalHandler(Service* service, int signalNumber)
-{
-    dprintf( D_ALWAYS, "uploadTerminateSignalHandler started\n" );
-    REPLICATION_ASSERT(signalNumber == 100);
-
-    MyString extension( daemonCore->getpid( ) );
-    // the .up ending is needed in order not to confuse between upload and
-    // download processes temporary files
-    extension += ".";
-    extension += UPLOADING_TEMPORARY_FILES_EXTENSION;
-
-	FilesOperations::safeUnlinkFile(
-        replicaTransferer->getVersionFilePath( ).Value( ),
-        extension.Value( ) );
-    FilesOperations::safeUnlinkFile(
-        replicaTransferer->getStateFilePath( ).Value( ),
-        extension.Value( ) );
-    exit(1);
-	return 0;
-}
-
-int
-downloadTerminateSignalHandler(Service* service, int signalNumber)
-{
-    dprintf( D_ALWAYS, "downloadTerminateSignalHandler started\n" );
-    REPLICATION_ASSERT(signalNumber == 100);
-
-    MyString extension( daemonCore->getpid( ) );
-    // the .up ending is needed in order not to confuse between upload and
-    // download processes temporary files
-    extension += ".";
-    extension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
-
-	FilesOperations::safeUnlinkFile(
-        replicaTransferer->getVersionFilePath( ).Value( ),
-        extension.Value( ) );
-    FilesOperations::safeUnlinkFile(
-        replicaTransferer->getStateFilePath( ).Value( ),
-        extension.Value( ) );
-    exit(1);
-
-	return 0;
-}
+#ifdef UPLOADER
+   DECL_SUBSYSTEM( "UPLOADER", SUBSYSTEM_TYPE_DAEMON );
+#  include "TransfererUpload.h"
+#else
+   DECL_SUBSYSTEM( "DOWNLOADER", SUBSYSTEM_TYPE_DAEMON );
+#  include "TransfererDownload.h"
 #endif
+static BaseTransferer	*transferer;
 
-/* Function   : cleanTemporaryFiles 
- * Description: cleans all temporary files of the transferer: be it the
- * 				uploading one or the downloading one
- */
-void
-cleanTemporaryFiles()
+static int
+terminateSignalHandler(Service * /*service*/, int signalNumber)
 {
-	dprintf( D_ALWAYS, "cleanTemporaryFiles started\n" );
+    dprintf( D_ALWAYS, "terminateSignalHandler()\n" );
+    ASSERT( signalNumber == 100 );
 
-	MyString downloadingExtension( daemonCore->getpid( ) );
-	MyString uploadingExtension( daemonCore->getpid( ) );
-	char*    stateFilePath = NULL;	
+	transferer->stopTransfer( );
+	transferer->finish( );
 
-	downloadingExtension += ".";
-	downloadingExtension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
-	uploadingExtension   += ".";
-	uploadingExtension   += UPLOADING_TEMPORARY_FILES_EXTENSION;
-
-	// we first delete the possible temporary version files
-	FilesOperations::safeUnlinkFile(
-        replicaTransferer->getVersionFilePath( ).Value( ),
-        downloadingExtension.Value( ) );
-    FilesOperations::safeUnlinkFile(
-        replicaTransferer->getVersionFilePath( ).Value( ),
-        uploadingExtension.Value( ) );
-
-	// then the possible temporary state files
-    StringList& stateFilePathsList = 
-		const_cast<StringList& >( replicaTransferer->getStateFilePathsList( ) );
-
-	stateFilePathsList.rewind( );
-
-    while( ( stateFilePath = stateFilePathsList.next( ) ) ) {
-		if( ! FilesOperations::safeUnlinkFile( stateFilePath, 
-										downloadingExtension.Value( ) ) ) {
-            dprintf( D_ALWAYS, "cleanTemporaryFiles unable to unlink "
-                               "state file %s with .down extension\n", 
-					 stateFilePath );
-        }
-		if( ! FilesOperations::safeUnlinkFile( stateFilePath,
-										uploadingExtension.Value( ) ) ) {
-			dprintf( D_ALWAYS, "cleanTemporaryFiles unable to unlink "
-                               "state file %s with .up extension\n",
-					 stateFilePath );
-		}									   
-    }
-    stateFilePathsList.rewind( );
-
-	dprintf( D_ALWAYS, "cleanTemporaryFiles finished\n" );
+    exit(1);
+	return 0;
 }
 
-/* Function: main_init
- * Arguments: argv[0] - name,
- *            argv[1] - up | down,
- *            argv[2] - another communication side daemon's sinful string,
- *            argv[3] - version file,
- *            argv[4] - number of state files
- *            argv[5], argv[6], ... argv[5 + argv[4] - 1] - state files
- * Remarks: flags (like '-f') are being stripped off before this function call
+/*
+ * Function: main_init
  */
 int
 main_init( int argc, char *argv[] )
 {
-    /*if( argc != 5 ) {
-         dprintf( D_ALWAYS, "Transferer error: arguments number differs "
-		 					"from 5\n" );
-         DC_Exit( 1 );
-    }*/
-	if( argc < 6 ) {
-		dprintf( D_ALWAYS, "Transferer error: arguments number is less "
-						   "than 6\n");
+# ifdef DOWNLOADER
+	Sinful	*replicator_sinful = NULL;
+	bool	 rotate = false;
+# else	/* Uploader */
+	Sinful	*downloader_sinful = NULL;
+	bool	 wait_for_peer = false;
+	bool	 forever = false;
+# endif
+
+	int		 skip = 0;
+	for( int argno = 1;  argno < argc;	argno++ ) {
+		if ( skip ) {
+			skip--;
+			continue;
+		}
+		const char	*arg = argv[argno];
+		const char	*arg1 = (argno <= argc-1) ? argv[argno+1] : NULL;
+		if ( 0 ) {
+			// place holder
+		}
+#     ifdef DOWNLOADER
+		else if ( !strcmp( arg, "--replicator" ) ) {
+			if ( NULL == arg1 ) {
+				dprintf( D_ALWAYS, "--replicator requires an argument\n" );
+				DC_Exit( 1 );
+			}
+			replicator_sinful = new Sinful(arg1);
+			if ( !replicator_sinful->valid() ) {
+				dprintf( D_ALWAYS,
+						 "invalid sinful parameter to --replicator '%s'\n",
+						 arg1 );
+			}
+			skip = 1;
+		}
+		else if ( !strcmp( arg, "--rotate" ) ) {
+			rotate = true;
+		}
+#     else	/* UPLOADER */
+		else if ( !strcmp( arg, "--downloader" ) ) {
+			if ( NULL == arg1 ) {
+				dprintf( D_ALWAYS, "--downloader requires an argument\n" );
+				DC_Exit( 1 );
+			}
+			downloader_sinful = new Sinful( arg );
+			if ( !downloader_sinful->valid() ) {
+				dprintf( D_ALWAYS,
+						 "invalid sinful parameter to --downloader '%s'\n",
+						 arg );
+				DC_Exit( 1 );
+			}
+			skip = 1;
+		}
+		else if ( !strcmp( arg, "--wait" ) ) {
+			wait_for_peer = true;
+		}
+		else if ( !strcmp( arg, "--forever" ) ) {
+			forever = true;
+		}
+#     endif
+		else if ( (!strcmp( arg, "-help" ))  ||
+				  (!strcmp( arg, "--help" )) ) {
+#     ifdef DOWNLOADER
+			dprintf( D_ALWAYS,
+					 "usage: %s [--replicator <sinful>] [--rotate]\n",
+					 argv[0] );
+#     else
+			dprintf( D_ALWAYS,
+					 "usage: %s [--downloader <sinful>] [--wait] [--forever]\n",
+					 argv[0] );
+#     endif
+			DC_Exit( 0 );
+		}
+		else {
+			dprintf( D_ALWAYS, "Unknown argument '%s'\n", arg );
+			DC_Exit( 1 );
+		}
+	}
+
+# ifdef DOWNLOADER
+	if ( NULL == replicator_sinful ) {
+		dprintf( D_ALWAYS,
+				 "No replicator specified (-help for help)\n" );
 		DC_Exit( 1 );
 	}
-	int stateFilesNumber = atoi(argv[4]);
-	
-	if( stateFilesNumber != argc - 5 ) {
-		dprintf( D_ALWAYS, "Transferer error: number of state files, specified "
-						   "as the fourth argument differs from their actual "
-						   "number: %d vs. %d\n", stateFilesNumber, argc - 4 );
 
+	DownloadTransferer	*downloader = new DownloadTransferer( );
+	if ( rotate ) {
+		downloader->enableRotate( );
+	}
+	transferer = downloader;
+	if ( !downloader->initializeAll( ) ) {
+		dprintf( D_ALWAYS, "Failed to initialize downloader\n" );
 		DC_Exit( 1 );
 	}
-	StringList stateFilePathsList;
-	
-	for( int stateFileIndex = 0;
-		 stateFileIndex < stateFilesNumber;
-		 stateFileIndex ++ ) {
-		stateFilePathsList.append( argv[5 + stateFileIndex] );
+	if ( !downloader->contactPeerReplicator(*replicator_sinful) ) {
+		dprintf( D_ALWAYS,
+				 "Unable to contact peer replicator %s\n",
+				 replicator_sinful->getSinful() );
+		DC_Exit( 1 );
+	}
+	delete replicator_sinful;
+# else
+	if ( (NULL == downloader_sinful) && (!wait_for_peer) ) {
+		dprintf( D_ALWAYS,
+				 "No downloader or -wait specified (-help for help)\n" );
+		DC_Exit( 1 );
 	}
 
-    if( ! strncmp( argv[1], "down", strlen( "down" ) ) ) {
-        replicaTransferer = new DownloadReplicaTransferer( 
-								argv[2], 
-								argv[3], 
-								//argv[4] );
-								stateFilePathsList );
-	} else if( ! strncmp( argv[1], "up", strlen( "up" ) ) ) {
-        replicaTransferer = new UploadReplicaTransferer( 
-								argv[2], 
-								argv[3], 
-								//argv[4] );
-								stateFilePathsList );
-    } else {
-        dprintf( D_ALWAYS, "Transfer error: first parameter must be "
-                         "either up or down\n" );
-        DC_Exit( 1 );
-    }
+	UploadTransferer *uploader = new UploadTransferer( );
+	transferer = uploader;
+	if ( !uploader->initializeAll() ) {
+		dprintf( D_ALWAYS, "Failed to initialize uploader\n" );
+		DC_Exit( 1 );
+	}
+	if ( forever ) {
+		uploader->runForever( );
+	}
+	if ( downloader_sinful ) {
+		if ( !uploader->sendFileList( *downloader_sinful ) ) {
+		}
+	}
+	else /* if (wait_for_peer) */ {
+		dprintf( D_ALWAYS,
+				 "Testing / wait mode: waiting for contact from peer\n" );
+	}
+	delete downloader_sinful;
+# endif
 
-    int result = replicaTransferer->initialize( );
-
-    DC_Exit( result );
-
-    return TRUE; // compilation reason
+    return TRUE;
 }
 
 int
-main_shutdown_graceful( )
+main_shutdown_graceful( void )
 {
-	cleanTemporaryFiles( );
-    delete replicaTransferer;
+	if ( transferer ) {
+		transferer->cleanupTempFiles( );
+		delete transferer;
+	}
     DC_Exit( 0 );
 
     return 0; // compilation reason
 }
 
 int
-main_shutdown_fast( )
+main_shutdown_fast( void )
 {
-	cleanTemporaryFiles( );
-	delete replicaTransferer;
+	if ( transferer ) {
+		transferer->cleanupTempFiles( );
+		delete transferer;
+	}
 	DC_Exit( 0 );
 
 	return 0; // compilation reason
@@ -218,17 +209,24 @@ main_shutdown_fast( )
 
 // no reconfigurations enabled
 int
-main_config( bool is_full )
+main_config( bool /*is_full*/ )
 {
     return 1;
 }
 
 void
-main_pre_dc_init( int argc, char* argv[] )
+main_pre_dc_init( int /*argc*/, char* /*argv*/[] )
 {
 }
 
 void
-main_pre_command_sock_init( )
+main_pre_command_sock_init( void )
 {
 }
+
+// Local Variables: ***
+// mode:C ***
+// comment-column:0 ***
+// tab-width:4 ***
+// c-basic-offset:4 ***
+// End: ***

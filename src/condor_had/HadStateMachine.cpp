@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison,
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -33,9 +33,8 @@
 #include "daemon_types.h"
 #include "internet.h"
 #include "list.h"
-// for 'my_username'
 #include "my_username.h"
-#include "StateMachine.h"
+#include "HadStateMachine.h"
 #include "Utils.h"
 
 

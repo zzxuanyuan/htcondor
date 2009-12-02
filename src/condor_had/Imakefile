@@ -5,22 +5,50 @@ CFLAGS = $(STD_C_FLAGS) -D_POSIX_PTHREAD_SEMANTICS
 C_PLUS_FLAGS =  $(STD_C_PLUS_FLAGS) -D_POSIX_PTHREAD_SEMANTICS
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
-HAD_OBJ =  StateMachine.o HAD.o Utils.o
-
+# HAD
+HAD_OBJ =  HadStateMachine.o Had.o Utils.o
 public_c_plus_target($(HAD_NAME),sbin,$(HAD_OBJ),$(LIB))
 
-REPLICATION_NAME = condor_replication
-all_target($(REPLICATION_NAME))
+# Shared replicator objs
+SHARED_REPLICATION_OBJ = \
+	ReplicationBase.o \
+	ReplicatorFile.o ReplicatorFileSet.o \
+	ReplicatorPeer.o ReplicatorPeerList.o \
+	ReplicatorVersion.o ReplicatorLocalVersion.o ReplicatorRemoteVersion.o \
+	Utils.o SafeFileOps.o
 
-REPLICATION_OBJ = AbstractReplicatorStateMachine.o ReplicatorStateMachine.o HAD_Version.o Utils.o Replication.o FilesOperations.o
+# Replicator
+REPLICATOR_NAME = condor_had_replicator
+REPLICATOR_OBJ = \
+	Replicator.o \
+	$(SHARED_REPLICATION_OBJ) \
+	RsmBase.o RsmStandard.o \
+	ReplicatorTransferer.o ReplicatorDownloader.o ReplicatorUploader.o
+all_target($(REPLICATOR_NAME))
+public_c_plus_target($(REPLICATOR_NAME),sbin,$(REPLICATOR_OBJ),$(LIB))
 
-public_c_plus_target($(REPLICATION_NAME),sbin,$(REPLICATION_OBJ),$(LIB))
+# Downloader
+DOWNLOADER_NAME = condor_had_downloader
+DOWNLOADER_OBJ = \
+	Downloader.o \
+	TransfererBase.o \
+	TransfererDownload.o \
+	$(SHARED_REPLICATION_OBJ)
+Downloader.o : Transferer.cpp
+    $(CPlusPlus) $(C_PLUS_FLAGS) -D DOWNLOADER -c $< -o $@
+all_target($(DOWNLOADER_NAME))
+public_c_plus_target($(DOWNLOADER_NAME),sbin,$(DOWNLOADER_OBJ),$(LIB))
 
-TRANSFERER_NAME = condor_transferer
-all_target($(TRANSFERER_NAME))
-
-TRANSFERER_OBJ =  BaseReplicaTransferer.o UploadReplicaTransferer.o DownloadReplicaTransferer.o Utils.o Transferer.o FilesOperations.o
-
-public_c_plus_target($(TRANSFERER_NAME),sbin,$(TRANSFERER_OBJ),$(LIB))
+# Uploader
+UPLOADER_NAME = condor_had_uploader
+UPLOADER_OBJ = \
+	Uploader.o \
+	TransfererBase.o \
+	TransfererUpload.o \
+	$(SHARED_REPLICATION_OBJ)
+Uploader.o : Transferer.cpp
+    $(CPlusPlus) $(C_PLUS_FLAGS) -D UPLOADER -c $< -o $@
+all_target($(UPLOADER_NAME))
+public_c_plus_target($(UPLOADER_NAME),sbin,$(UPLOADER_OBJ),$(LIB))
 
 testbin:: all
