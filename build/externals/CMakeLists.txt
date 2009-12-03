@@ -12,21 +12,21 @@ condor_external(POSTGRESQL ON "pq;libpq" "postgresql-8.0.2")
 condor_external(KRB5 ON "krb5;comerr32.lib;gssapi32.lib;k5sprt32.lib;krb5_32.lib;xpprof32.lib" "krb5-1.4.3-p0") 
 condor_external(PCRE ON "pcre;libpcre" "pcre-7.6")   
 condor_external(GSOAP ON "gsoapssl++" "gsoap-2.7.10-p4")
-condor_external(OPENSSL ON "ssl;libeay32;ssleay32" "openssl-0.9.8l") 
+condor_external(OPENSSL ON "ssl;libeay32;ssleay32" "openssl-0.9.8h-p1") 
 	
 if (WINDOWS)
 	
-	set (HAVE_SCHED_SETAFFINITY 1)
-	set (WANT_CLASSAD_ANALYSIS 1)		
+	set (HAVE_SCHED_SETAFFINITY 1 PARENT_SCOPE)
+	set (WANT_CLASSAD_ANALYSIS 1 PARENT_SCOPE)		
 	
-	set (DRMAA_FOUND "${DRMAA_DIR}/lib/libdrmaa.lib")
-	#set (HADOOP_FOUND "${HADOOP_DIR}/")			
-	set (OPENSSL_FOUND "${OPENSSL_DIR}/out32dll/libeay32.lib;${OPENSSL_FOUND}/out32dll/ssleay32.lib")
-	set (POSTGRESQL_FOUND "${POSTGRESQL_DIR}/out32dll/libpqdll.lib")
-	set (KRB5_FOUND "${KRB5_DIR}/lib/comerr32.lib;${KRB5_FOUND}/lib/gssapi32.lib;${KRB5_FOUND}/lib/k5sprt32.lib;${KRB5_FOUND}/lib/krb5_32.lib;${KRB5_FOUND}/lib/xpprof32.lib")
-	set (PCRE_FOUND "${PCRE_DIR}/lib/libpcre.lib")
+	set (DRMAA_FOUND "${DRMAA_DIR}/lib/libdrmaa.lib" PARENT_SCOPE)
+	#set (HADOOP_FOUND "${HADOOP_DIR}/" PARENT_SCOPE)			
+	set (OPENSSL_FOUND "${OPENSSL_DIR}/out32dll/libeay32.lib;${OPENSSL_FOUND}/out32dll/ssleay32.lib" PARENT_SCOPE)
+	set (POSTGRESQL_FOUND "${POSTGRESQL_DIR}/out32dll/libpqdll.lib" PARENT_SCOPE)
+	set (KRB5_FOUND "${KRB5_DIR}/lib/comerr32.lib;${KRB5_FOUND}/lib/gssapi32.lib;${KRB5_FOUND}/lib/k5sprt32.lib;${KRB5_FOUND}/lib/krb5_32.lib;${KRB5_FOUND}/lib/xpprof32.lib" PARENT_SCOPE)
+	set (PCRE_FOUND "${PCRE_DIR}/lib/libpcre.lib" PARENT_SCOPE)
 	unset (GSOAP_FOUND)
-	set (CURL_FOUND "${CURL_DIR}/lib/libcurl.lib")
+	set (CURL_FOUND "${CURL_DIR}/lib/libcurl.lib" PARENT_SCOPE)
 				
 else()
 
@@ -56,9 +56,12 @@ if (PROPER)
 	find_program( SOAPCPP2 
 				  soapcpp2
 		          HINTS /usr/bin )	
+		          
+	set ( SOAPCPP2 ${SOAPCPP2} PARENT_SCOPE )   
+		       
 else()
 			
-	set (SOAPCPP2 "${EXTERNAL_DIR}/gsoap-2.7.10-p4/soapcpp2")
+	set (SOAPCPP2 "${EXTERNAL_DIR}/gsoap-2.7.10-p4/soapcpp2" PARENT_SCOPE)
 			
 	include_directories("${OPENSSL_DIR}/inc32")
 
@@ -66,7 +69,7 @@ else()
 		# update the other defaults.  
 	#endif()
 	
-	message(STATUS "DEBUG: EXTERNAL_TARGET_DIRS=${EXTERNAL_TARGET_DIRS}")
+	#message(STATUS "DEBUG: EXTERNAL_TARGET_DIRS=${EXTERNAL_TARGET_DIRS}")
 	
 	## For non-proper builds create a single target which will 
 	## call all commands for make condor_externals 

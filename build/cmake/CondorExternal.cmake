@@ -37,13 +37,13 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES _VERSION)
 				if (NOT ${UP_PACKAGE}_SEARCH_${loop_var} STREQUAL "${UP_PACKAGE}_SEARCH_${loop_var}-NOTFOUND" )
 					
 					if (${UP_PACKAGE}_FOUND)
-						set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" )
+						set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" PARENT_SCOPE)
 					else()
-						set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} )
+						set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} PARENT_SCOPE)
 					endif()
 					
-					set(HAVE_EXT_${UP_PACKAGE} ON)
-					set(HAVE_${UP_PACKAGE} ON)
+					set(HAVE_EXT_${UP_PACKAGE} ON PARENT_SCOPE)
+					set(HAVE_${UP_PACKAGE} ON PARENT_SCOPE)
 					
 				endif()
 				##############
@@ -61,9 +61,10 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES _VERSION)
 			
 		else(PROPER)
 		
-			set(HAVE_EXT_${UP_PACKAGE} ON)
-			set(HAVE_${UP_PACKAGE} ON)
+			set(HAVE_EXT_${UP_PACKAGE} ON PARENT_SCOPE)
+			set(HAVE_${UP_PACKAGE} ON PARENT_SCOPE)
 			set(${UP_PACKAGE}_DIR "${EXTERNAL_DIR}/${_VERSION}")
+		    add_definitions(-DEXTERNAL_${UP_PACKAGE}_VERSION=${VERSION})	
 		
 			if (EXTERNAL_TARGET_DIRS)
 				set (EXTERNAL_TARGET_DIRS "${EXTERNAL_TARGET_DIRS};${${UP_PACKAGE}_DIR}")
@@ -73,10 +74,10 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES _VERSION)
 			
 			add_custom_command (OUTPUT ${${UP_PACKAGE}_DIR}
 								COMMAND perl 
-								ARGS -w build_external --extern_src=${CONDOR_SOURCE_DIR}/build/externals --extern_build=${CONDOR_SOURCE_DIR}/build/externals --package_name=${_VERSION}
+								ARGS -w build_external --extern_src="${CONDOR_SOURCE_DIR}/build/externals" --extern_build="${CONDOR_SOURCE_DIR}/build/externals" --package_name="${_VERSION}"
 								COMMENT "*** BUILDING ${_VERSION} ***")
-								
-			message(STATUS "condor_external (${_PACKAGE})... SET to (${${UP_PACKAGE}_DIR})")								
+							
+			message(STATUS "condor_external (${_PACKAGE})... SET to HAVE_EXT_${UP_PACKAGE}=${HAVE_EXT_${UP_PACKAGE}}(${${UP_PACKAGE}_DIR})")								
 		
 		endif(PROPER)		
 		

@@ -39,9 +39,7 @@ endif()
 
 include (CommandTarget)
 include (gSOAPGen)
-if (WINDOWS)
-	include (SetWinEnv)
-endif()
+include (AddFileDependencies)
 include (CondorGlob)
 include (CondorDaemonGlob)
 include (CondorSetLinkLibs)
@@ -133,13 +131,6 @@ else()
 	set (HAVE_WORKING_SNPRINTF 1)
 endif()
 
-# parseled off b/c could path searches 
-# will use updated CMAKE_INCLUDE_PATH
-# that were updated by UW_EXTERNALS_DIR
-find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h" )
-find_path(HAVE_PCRE_H "pcre.h")
-find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
-
 check_type_size("id_t" HAVE_ID_T)
 check_type_size("__int64" HAVE___INT64)
 check_type_size("int64_t" HAVE_INT64_T)
@@ -201,6 +192,16 @@ option(STRICT "If externals are not found it will error" OFF)
 
 if (NOT WINDOWS)
 	option(PROPER "If externals are not found it will error" ON)
+endif()
+
+if (PROPER)
+	find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h")
+	find_path(HAVE_PCRE_H "pcre.h")
+	find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
+else()
+	set (HAVE_OPENSSL_SSL_H ON)
+	set (HAVE_PCRE_H ON)
+	set (HAVE_PCRE_PCRE_H ON)
 endif()
 
 add_subdirectory (build/externals)

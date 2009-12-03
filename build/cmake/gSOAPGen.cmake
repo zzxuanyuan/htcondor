@@ -19,10 +19,10 @@ if ( HAVE_EXT_GSOAP )
 		ARGS -I ../../libs/daemon_core -S -L -x -p soap_${_DAEMON} gsoap_${_DAEMON}.h
 		COMMENT "Generating ${_DAEMON} soap files" )
 
-	add_custom_target(
-		gen_${_DAEMON}_soapfiles
-		ALL
-		DEPENDS ${${_DAEMON}_SOAP_SRCS} )
+	#add_custom_target(
+	#	gen_${_DAEMON}_soapfiles
+	#	ALL
+	#	DEPENDS ${${_DAEMON}_SOAP_SRCS} )
 
 	# now append the header and srcs to incoming vars
 	list(FIND ${_SRCS} "soap_${_DAEMON}C.cpp" SOAP_ALREADY_GLOBED )
