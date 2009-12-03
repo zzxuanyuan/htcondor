@@ -27,19 +27,27 @@
 #include "util_lib_proto.h" // for rotate_file
 #include "iso_dates.h"
 #include "condor_email.h"
+#include "condor_event.h"
+
+#include "write_user_log.h"
 
 #include "classadHistory.h"
+
+#include<set>
+#include<string>
 
 static FILE *HistoryFile_fp = NULL;
 static int HistoryFile_RefCount = 0;
 
-char* JobHistoryFileName = NULL;
+char*		JobHistoryFileName = NULL;
 bool        DoHistoryRotation = true;
 bool        DoDailyHistoryRotation = true;
 bool        DoMonthlyHistoryRotation = true;
-filesize_t  MaxHistoryFileSize = 20 * 1024 * 1024; // 20MB;
+filesize_t	MaxHistoryFileSize = 20 * 1024 * 1024; // 20MB;
 int         NumberBackupHistoryFiles = 2;
 char*       PerJobHistoryDir = NULL;
+long		PerJobHistorySize = 0;
+int			NumberOfFileDeletions = 20; // the number of history files that should be deleted during one cleanup
 
 static void MaybeRotateHistory(int size_to_append);
 static void RemoveExtraHistoryFiles(void);
@@ -47,6 +55,7 @@ static int MaybeDeleteOneHistoryBackup(void);
 static bool IsHistoryFilename(const char *filename, time_t *backup_time);
 static void RotateHistory(void);
 static int findHistoryOffset(FILE *LogFile);
+static void RotatePerJobHistoryDir();
 
 void
 CloseJobHistoryFile() {
@@ -100,6 +109,7 @@ void InitJobHistoryFile(const char *history_param) {
             PerJobHistoryDir = NULL;
         }
         else {
+			
             dprintf(D_ALWAYS,
                     "Logging per-job history files to: %s\n",
                     PerJobHistoryDir);
@@ -533,7 +543,90 @@ static int findHistoryOffset(FILE *LogFile)
     return offset;
 }
 
-void WritePerJobHistoryFile(ClassAd* ad, bool useGjid)
+
+// --------------------------------------------------------------------------
+// If the per-job history directory exceeds the max size, oldest job files 
+// will be deleted. 
+// Currently, the oldest job is determined by its last-modified timestamp. 
+// In case that should not work well, another implementation option would be
+// to take into account the global job ID (host#cluster#timestamp) and delete 
+// the one with lowest timestamp first. 
+// --------------------------------------------------------------------------
+void RotatePerJobHistoryDir(ClassAd *ad){
+	if (PerJobHistoryDir == NULL) 
+		return;
+	
+	
+	Directory dir(PerJobHistoryDir);
+		// a set of all files in the directory: contents are pairs of <timestamp, full filename>.
+	std::set<std::pair<long, std::string> > collect;
+		// maximum directory size (in MB) of the per-file history for Gratia; default: 20 
+	int max_size = param_integer("PER_JOB_HISTORY_MAX_SIZE", 20);
+	long max_size_bytes = (long)max_size*1024*1024;
+
+		// determining the dir size for every function call is suboptimal. But otherwise
+		// a sync with Gratia will be necessary
+	PerJobHistorySize = (long)dir.GetDirectorySize();
+	if (PerJobHistorySize < max_size_bytes) 
+		return; // nothing has to be done yet.
+	
+	dir.Rewind();
+	dprintf(D_FULLDEBUG, "### Performing a per-job history directory ( %s ) clean-up (current size: %li KB)...  \n",
+				PerJobHistoryDir, (PerJobHistorySize / 1024));
+	
+		// traverse all files and determine timestamps
+	const char *current_filename = dir.Next();
+	while ( current_filename ) {
+		std::pair<long, std::string> p;
+		p.first = (long)dir.GetModifyTime() ;
+		std::string s(dir.GetFullPath());
+		p.second = s;
+		collect.insert(p);
+		current_filename = dir.Next(); 
+	}
+
+	int counter = 0;
+	dir.Rewind();
+	for (std::set<std::pair<long, std::string> >::iterator it = collect.begin(); it != collect.end(); it++){
+		++counter;
+		bool is_deleted = dir.Remove_Full_Path(it->second.c_str());
+		if (!is_deleted)
+			dprintf(D_ALWAYS, "FILE deletion from PER_FILE_HISTORY_DIR %s failed:  %s  (name of file) \n", PerJobHistoryDir, it->second.c_str() );
+		if (counter == NumberOfFileDeletions)
+			break;
+	}
+		// create the log file
+	char *logfileName = dircat(dir.GetDirectoryPath(), "lostdata.log");
+	int cluster, proc;
+	MyString owner;
+	if (!ad->LookupInteger("ClusterId", cluster)) {
+		cluster = -1;
+	}
+	if (!ad->LookupInteger("ProcId", proc)) {
+		proc = -1;
+	}
+	if (!ad->LookupString("Owner", owner)) {
+		owner = "?";
+	}
+		
+	WriteUserLog *uLog = new WriteUserLog( owner.Value(), logfileName, cluster, proc, 0);
+	if (!uLog) {
+		dprintf(D_FULLDEBUG, "### Data loss logfile ( %s ) cannot be opened. \n", logfileName);
+	} else {
+		GenericEvent *ge = new GenericEvent();
+		char info[256]; 
+		sprintf(info, "[Clean-up info] Directory size limit exceeded. %i job files were deleted.", NumberOfFileDeletions);
+		ge->setInfoText(info);
+		if (!uLog->writeEvent(ge)) {
+			dprintf(D_ALWAYS, "### Data loss logfile ( %s ) cannot be written. \n", logfileName);
+		}
+		delete ge;
+		delete uLog;
+	}
+	delete []logfileName;								   
+}
+
+void WritePerJobHistoryFile(ClassAd* ad, bool useGjid, bool withSizeControl = true ) // as a default: use dir size control
 {
 	if (PerJobHistoryDir == NULL) {
 		return;
@@ -559,7 +652,7 @@ void WritePerJobHistoryFile(ClassAd* ad, bool useGjid)
 	} else {
 		file_name.sprintf("%s/history.%d.%d", PerJobHistoryDir, cluster, proc);
 	}
-
+		
 	// write out the file
 	int fd = safe_open_wrapper(file_name.Value(), O_WRONLY | O_CREAT | O_EXCL, 0644);
 	if (fd == -1) {
@@ -582,5 +675,9 @@ void WritePerJobHistoryFile(ClassAd* ad, bool useGjid)
 		        cluster, proc);
 	}
 	fclose(fp);
+	
+	// --- 
+	if (withSizeControl)
+		RotatePerJobHistoryDir(ad);
 }
 
