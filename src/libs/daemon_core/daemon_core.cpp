@@ -106,7 +106,12 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "subsystem_info.h"
 #include "basename.h"
 #include "condor_threads.h"
+<<<<<<< HEAD:src/libs/daemon_core/daemon_core.cpp
 #include "cedar/shared_port_endpoint.h"
+=======
+#include "shared_port_endpoint.h"
+#include "condor_open.h"
+>>>>>>> master:src/condor_daemon_core.V6/daemon_core.cpp
 
 #include "valgrind.h"
 
@@ -1021,34 +1026,22 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 	}
 
 		// If we haven't initialized our address(es), do so now.
-	if (sinful_public == NULL) {
-		char* tmp = param("TCP_FORWARDING_HOST");
-			// If TCP_FORWARDING_HOST is defined, we will advertize
-			// our local IP address for daemons that have the same
-			// PRIVATE_NETWORK_NAME as us.  For everyone else, we
-			// advertize the address of the TCP forwarder.
-		if (tmp != NULL) {
-			MyString tcp_forwarding_host = tmp;
-			free(tmp);
-			struct sockaddr_in sin;
-			if (!is_ipaddr(tcp_forwarding_host.Value(), &sin.sin_addr)) {
-				struct hostent *he = condor_gethostbyname(tcp_forwarding_host.Value());
-				if (he == NULL) {
-					EXCEPT("failed to resolve address of SSH_BROKER");
-				}
-				sin.sin_addr = *(in_addr*)(he->h_addr_list[0]);;
-			}
-			sin.sin_port = htons(((Sock*)(*sockTable)[initial_command_sock].iosock)->get_port());
-			sinful_public = strdup(sin_to_string(&sin));
+	if (sinful_public == NULL || m_dirty_sinful) {
+		free( sinful_public );
+		sinful_public = NULL;
+
+		char const *addr = ((Sock*)(*sockTable)[initial_command_sock].iosock)->get_sinful_public();
+		if( !addr ) {
+			EXCEPT("Failed to get public address of command socket!");
 		}
-		else {
-			sinful_public = strdup(
-			    sock_to_string( (*sockTable)[initial_command_sock].iosock->get_file_desc() ) );
-		}
+		sinful_public = strdup( addr );
 		m_dirty_sinful = true;
 	}
 
-	if (!initialized_sinful_private) {
+	if (!initialized_sinful_private || m_dirty_sinful) {
+		free( sinful_private);
+		sinful_private = NULL;
+
 		MyString private_sinful_string;
 		char* tmp;
 		if ((tmp = param("PRIVATE_NETWORK_INTERFACE"))) {
@@ -1057,6 +1050,13 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 			free(tmp);
 			sinful_private = strdup(private_sinful_string.Value());
 		}
+
+		free(m_private_network_name);
+		m_private_network_name = NULL;
+		if ((tmp = param("PRIVATE_NETWORK_NAME"))) {
+			m_private_network_name = tmp;
+		}
+
 #if HAVE_EXT_GCB
 		if (sinful_private == NULL
 			&& (param_boolean("NET_REMAP_ENABLE", false, false))) {
@@ -1071,15 +1071,6 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 #endif /* HAVE_EXT_GCB */
 		initialized_sinful_private = true;
 		m_dirty_sinful = true;
-	}
-
-	if( usePrivateAddress ) {
-		if( sinful_private ) {
-			return sinful_private;
-		}
-		else {
-			return sinful_public;
-		}
 	}
 
 	if( m_dirty_sinful ) { // need to rebuild full sinful string
@@ -1105,6 +1096,15 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 			if( !ccb_contact.IsEmpty() ) {
 				m_sinful.setCCBContact(ccb_contact.Value());
 			}
+		}
+	}
+
+	if( usePrivateAddress ) {
+		if( sinful_private ) {
+			return sinful_private;
+		}
+		else {
+			return sinful_public;
 		}
 	}
 
@@ -2554,6 +2554,8 @@ DaemonCore::reconfig(void) {
 	// by the time we get here, because it needs to be called early
 	// in the process.
 
+	m_dirty_sinful = true; // refresh our address in case config changes it
+
 	SecMan *secman = getSecMan();
 	secman->reconfig();
 
@@ -2578,12 +2580,6 @@ DaemonCore::reconfig(void) {
 	// Maximum number of bytes read from a stdout/stderr pipes.
 	// Default is 10k (10*1024 bytes)
 	maxPipeBuffer = param_integer("PIPE_BUFFER_MAX", 10240);
-
-		// Grab a copy of our private network name (if any).
-	if (m_private_network_name) {
-		free(m_private_network_name);
-	}
-	m_private_network_name = param("PRIVATE_NETWORK_NAME");
 
 		// Initialize the collector list for ClassAd updates
 	initCollectorList();
@@ -2751,6 +2747,9 @@ DaemonCore::reconfig(void) {
 							   CondorThreads::stop_thread_safe_block);
 	// Supply a callback to daemonCore upon thread context switch.
 	CondorThreads::set_switch_callback( thread_switch_callback );
+
+		// in case our address changed, do whatever needs to be done
+	daemonContactInfoChanged();
 }
 
 void
@@ -2761,7 +2760,9 @@ DaemonCore::InitSharedPort(bool in_init_dc_command_socket)
 
 	if( SharedPortEndpoint::UseSharedPort(&why_not,already_open) ) {
 		if( !m_shared_port_endpoint ) {
-			m_shared_port_endpoint = new SharedPortEndpoint();
+			char const *sock_name = m_daemon_sock_name.Value();
+			if( !*sock_name ) sock_name = NULL;
+			m_shared_port_endpoint = new SharedPortEndpoint(sock_name);
 		}
 		m_shared_port_endpoint->InitAndReconfig();
 		if( !m_shared_port_endpoint->StartListener() ) {
@@ -3390,6 +3391,13 @@ void DaemonCore::Driver()
 		}	// if rv > 0
 
 	}	// end of infinite for loop
+}
+
+bool
+DaemonCore::SocketIsRegistered( Stream *sock )
+{
+	int i = GetRegisteredSocketIndex( sock );
+	return i != -1;
 }
 
 int
@@ -4820,7 +4828,11 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 		// get the handler function
 		reqFound = CommandNumToTableIndex(req,&index);
 
-		if (reqFound) {
+			// There are two cases where we get here:
+			//  1. receiving unauthenticated command
+			//  2. receiving command on previously authenticated socket
+
+		if (reqFound && !((Sock *)stream)->getFullyQualifiedUser()) {
 			// need to check our security policy to see if this is allowed.
 
 			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i %s.\n", req, comTable[index].command_descrip);
@@ -6773,7 +6785,8 @@ int DaemonCore::Create_Process(
 			sigset_t      *sigmask,
 			int           job_opt_mask,
 			size_t        *core_hard_limit,
-			int			  *affinity_mask
+			int			  *affinity_mask,
+			char const    *daemon_sock
             )
 {
 	int i, j;
@@ -6796,7 +6809,7 @@ int DaemonCore::Create_Process(
 		// note that these are on the stack; they go away nicely
 		// upon return from this function.
 	ReliSock rsock;
-	SharedPortEndpoint shared_port_endpoint;
+	SharedPortEndpoint shared_port_endpoint( daemon_sock );
 	SafeSock ssock;
 	PidEntry *pidtmp;
 
@@ -8509,6 +8522,11 @@ DaemonCore::Inherit( void )
 	}	// end of if we read out CONDOR_INHERIT ok
 }
 
+void
+DaemonCore::SetDaemonSockName( char const *sock_name )
+{
+	m_daemon_sock_name = sock_name;
+}
 
 void
 DaemonCore::InitDCCommandSocket( int command_port )
@@ -10248,14 +10266,16 @@ DaemonCore::publish(ClassAd *ad) {
 		// Publish our network identification attributes:
 	tmp = privateNetworkName();
 	if (tmp) {
+			// The private network name is published in the contact
+			// string, so we don't really need to advertise it in
+			// a separate attribute.  However, it may be useful for
+			// other purposes.
 		ad->Assign(ATTR_PRIVATE_NETWORK_NAME, tmp);
-		tmp = privateNetworkIpAddr();
-		ASSERT(tmp);
-		ad->Assign(ATTR_PRIVATE_NETWORK_IP_ADDR, tmp);
 	}
+
 	tmp = publicNetworkIpAddr();
 	if( tmp ) {
-		ad->Assign(ATTR_PUBLIC_NETWORK_IP_ADDR, tmp);
+		ad->Assign(ATTR_MY_ADDRESS, tmp);
 	}
 }
 
