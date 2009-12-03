@@ -1186,6 +1186,23 @@ clean::                 @@\
 XCOMM End translation of func(CLINK_NOSTD)
 #endif /* CLINK_NOSTD */
 
+/*
+** Link a program to run normally intended for the standard universe
+** with the DMTCP bridge library instead.
+*/
+#ifndef DLINK
+#define DLINK(compiler,name,obj)    @@\
+XCOMM Begin translation of func(DLINK) @@\
+all:: name.dmtcp.exe             @@\
+name:: name.dmtcp.exe               @@\
+	@$(TRUE)          @@\
+name.dmtcp.exe: obj   @@\
+	compiler -o name.dmtcp.exe obj ./dmtcp-local/lib/dmtcp/libcondordmtcp.a $(TEST_LDFLAGS)   @@\
+clean::                 @@\
+	rm -f name.dmtcp.exe obj         @@\
+XCOMM End translation of func(DLINK)
+#endif /* DLINK */
+
 
 /*
 ** Link a program to run normally (no condor libraries at all)
@@ -1381,6 +1398,14 @@ CLINK_NOSTD(cmplr,name,name.o)		@@\
 XCOMM End translation of func(CBUILD)
 #endif /* CBUILD */
 
+#ifndef DBUILD
+#define DBUILD(cmplr,name,ext)		@@\
+XCOMM Begin translation of func(DBUILD) @@\
+DEP_SYMLINK_EXT(name,ext)		@@\
+DLINK(cmplr,name,name.o)		@@\
+XCOMM End translation of func(DBUILD)
+#endif /* DBUILD */
+
 #ifndef CBUILD_DEP
 #define CBUILD_DEP(cmplr,name,ext,dep)	@@\
 XCOMM Begin translation of func(CBUILD_DEP) @@\
@@ -1389,6 +1414,14 @@ CLINK(cmplr,name,name.o dep)		@@\
 CLINK_NOSTD(cmplr,name,name.o dep)	@@\
 XCOMM End translation of func(CBUILD_DEP)
 #endif /* CBUILD_DEP */
+
+#ifndef DBUILD_DEP
+#define DBUILD_DEP(cmplr,name,ext,dep)	@@\
+XCOMM Begin translation of func(DBUILD_DEP) @@\
+DEP_SYMLINK_EXT(name,ext)		@@\
+DLINK(cmplr,name,name.o dep)		@@\
+XCOMM End translation of func(DBUILD_DEP)
+#endif /* DBUILD_DEP */
 
 #ifndef DEP_SYMLINK
 #ifdef FLAGS_MACRO_NAME

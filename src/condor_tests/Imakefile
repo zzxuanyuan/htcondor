@@ -61,6 +61,9 @@ BUILD($(CC),x_killppid,c)
 DMTCP_PWD=$(shell pwd)
 
 /* Setup and install dmtcp for use by the test suite */
+/* I copy the condor API wrapper back into the dmtcp installation directory
+	to save my self from having to write tons of dependencies in our make
+	files. :( */
 dmtcp-all: $(DMTCP)
 	rm -rf dmtcp dmtcp-local
 	tar zxf $(DMTCP)
@@ -68,6 +71,7 @@ dmtcp-all: $(DMTCP)
 	cp $(DMTCP_PWD)/dmtcp-local/lib/dmtcp/libdmtcpaware.a libcondordmtcp.a
 	$(CC) -Wall -Idmtcp-local/lib/dmtcp/ -c condor_dmtcp_api.c -o condor_dmtcp_api.o
 	ar qs libcondordmtcp.a condor_dmtcp_api.o
+	cp libcondordmtcp.a $(DMTCP_PWD)/dmtcp-local/lib/dmtcp
 	touch dmtcp-all
 
 clean::

@@ -65,8 +65,9 @@ TESTCLASS(job_ckpt_f-reader_std,ckpt)
 */
 
 DESC(job_ckpt_fn-areauc_std,"Can Fortran compute the area under a curve?")
-CBUILD($(Fortran),job_ckpt_fn-areauc_std,f90)
 DEP_SYMLINK(job_ckpt_fn-areauc_std,dmtcp-local)
+CBUILD($(Fortran),job_ckpt_fn-areauc_std,f90)
+DBUILD($(Fortran),job_ckpt_fn-areauc_std,f90)
 DEP_SYMLINK_EXT(job_ckpt_fn-areauc_std,cmd)
 RUN(job_ckpt_fn-areauc_std)
 TESTCLASS(job_ckpt_fn-areauc_std,stduniv)
