@@ -25,14 +25,13 @@
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"
-using namespace std;
 
 #include "stream.h"
 
 int StreamPut( Stream *stream, const classad::ClassAd &ad );
-int StreamPut( Stream *stream, list<const classad::ClassAd *> &ad_list );
+int StreamPut( Stream *stream, std::list<const classad::ClassAd *> &ad_list );
 
-int StreamGet( Stream *stream, list<classad::ClassAd *> &ad_list );
+int StreamGet( Stream *stream, std::list<classad::ClassAd *> &ad_list );
 int StreamGet( Stream *stream, classad::ClassAd &ad );
 
 

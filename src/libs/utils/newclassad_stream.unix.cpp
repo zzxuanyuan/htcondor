@@ -22,6 +22,8 @@
 #include "condor_debug.h"
 #include "newclassad_stream.unix.h"
 
+using namespace std;
+
 int
 StreamPut( Stream *stream, const classad::ClassAd &ad )
 {

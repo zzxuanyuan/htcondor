@@ -22,7 +22,6 @@
 
 #include <list>
 #include <string>
-using namespace std;
 
 class LeaseManagerLease
 {
@@ -41,7 +40,7 @@ class LeaseManagerLease
 	int getReleaseWhenDone( void ) const { return m_release_when_done; };
 
   private:
-	string		m_id;
+	std::string		m_id;
 	int			m_duration;
 	bool		m_release_when_done;
 };

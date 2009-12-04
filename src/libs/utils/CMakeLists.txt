@@ -13,4 +13,4 @@ add_custom_command( OUTPUT param_info_init.c
 					ARGS param_info_c_generator.pl )					
 
 add_library( utils STATIC ${HeaderFiles} ${SourceFiles} )
-add_file_dependencies(param_info.cpp param_info_init.c)
+#add_file_dependencies(param_info.cpp param_info_init.c)

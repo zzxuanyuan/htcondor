@@ -17,6 +17,7 @@
  *
  ***************************************************************/
 
+#include "condor_common.h"
 #include "condorNegotiator.nsmap"
   
 #include "daemon_core/soap_daemon_core.cpp"

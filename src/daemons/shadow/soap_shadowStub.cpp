@@ -16,7 +16,8 @@
  * limitations under the License.
  *
  ***************************************************************/
-
+#include "condor_common.h"
+// 
 #include "condorShadow.nsmap"
    
 #include "daemon_core/soap_daemon_core.cpp"

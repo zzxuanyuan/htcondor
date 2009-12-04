@@ -28,19 +28,21 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES _VERSION)
 			## Normally find_library will exist on 1st match, for some windows libs 
 			## there is one target and multiple libs
 			foreach ( loop_var ${_NAMES} )
-			
-				# message(STATUS "DEBUG: loop_var=${loop_var}")
 				
 				find_library( ${UP_PACKAGE}_SEARCH_${loop_var} NAMES ${loop_var} )
+				
 
 				##############
-				if (NOT ${UP_PACKAGE}_SEARCH_${loop_var} STREQUAL "${UP_PACKAGE}_SEARCH_${loop_var}-NOTFOUND" )
+				if (NOT ${${UP_PACKAGE}_SEARCH_${loop_var}} STREQUAL "${UP_PACKAGE}_SEARCH_${loop_var}-NOTFOUND" )
+					
 					
 					if (${UP_PACKAGE}_FOUND)
-						set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" PARENT_SCOPE)
+						set (${UP_PACKAGE}_FOUND "${${UP_PACKAGE}_FOUND};${${UP_PACKAGE}_SEARCH_${loop_var}}" )
 					else()
-						set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} PARENT_SCOPE)
+						set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_SEARCH_${loop_var}} )
 					endif()
+
+					#message(STATUS "DEBUG: loop_var=${loop_var} FOUND=${${UP_PACKAGE}_FOUND} LOOP=${${UP_PACKAGE}_SEARCH_${loop_var}}")
 					
 					set(HAVE_EXT_${UP_PACKAGE} ON PARENT_SCOPE)
 					set(HAVE_${UP_PACKAGE} ON PARENT_SCOPE)
@@ -53,6 +55,7 @@ MACRO (CONDOR_EXTERNAL _PACKAGE _ON_OFF _NAMES _VERSION)
 			
 			if(${UP_PACKAGE}_FOUND)			
 				message(STATUS "condor_external (${_PACKAGE})... found (${${UP_PACKAGE}_FOUND})")
+				set (${UP_PACKAGE}_FOUND ${${UP_PACKAGE}_FOUND} PARENT_SCOPE)
 			else()
 			    
 				## Need to add a strict clause. 

@@ -29,7 +29,7 @@
 #define WANT_CLASSAD_NAMESPACE
 #endif
 #include "classad/classad_distribution.h"
-using namespace std;
+
 BEGIN_NAMESPACE( classad )
 
 ClassAd* getOldClassAd( Stream *sock );

@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  ***************************************************************/
+#include "condor_common.h"
 
 #include "condorStartd.nsmap"
  

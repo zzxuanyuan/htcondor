@@ -37,7 +37,7 @@
 #include "classadHistory.h"
 
 #if defined(LINUX)
-#include "glexec_starter.h"
+#include "glexec_starter.linux.h"
 #endif
 
 #ifdef WIN32

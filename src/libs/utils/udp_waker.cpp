@@ -26,7 +26,7 @@
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
 #include "my_hostname.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_sinful.h"
 
 #ifndef INADDR_NONE		/* Solaris */
