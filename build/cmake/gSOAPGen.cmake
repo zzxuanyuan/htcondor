@@ -27,12 +27,12 @@ if ( HAVE_EXT_GSOAP )
 	endif()
 
 	# now append the header and srcs to incoming vars
-	list(FIND ${_SRCS} "soap_${_DAEMON}C.cpp" SOAP_ALREADY_GLOBED )
-	
-	if ( NOT SOAP_ALREADY_GLOBED )
+	if ( NOT ${_SRCS} MATCHES "soap_${_DAEMON}C.cpp" )
 		list(APPEND ${_SRCS} ${${_DAEMON}_SOAP_SRCS} )
 		list(APPEND ${_HDRS} ${${_DAEMON}_SOAP_HDRS} )
 	endif()
+
+	 list(REMOVE_DUPLICATES ${_SRCS})
 	
 
 endif()
