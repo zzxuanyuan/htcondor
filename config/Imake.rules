@@ -1399,11 +1399,19 @@ XCOMM End translation of func(CBUILD)
 #endif /* CBUILD */
 
 #ifndef DBUILD
-#define DBUILD(cmplr,name,ext)		@@\
+#if IS_CLIPPED
+#define DBUILD(cmplr,name,ext,dir)		@@\
 XCOMM Begin translation of func(DBUILD) @@\
+XCOMM NULL BODY							@@\
+XCOMM End translation of func(DBUILD)
+#else
+#define DBUILD(cmplr,name,ext,dir)		@@\
+XCOMM Begin translation of func(DBUILD) @@\
+DEP_SYMLINK(name,dir)			@@\
 DEP_SYMLINK_EXT(name,ext)		@@\
 DLINK(cmplr,name,name.o)		@@\
 XCOMM End translation of func(DBUILD)
+#endif /* IS_CLIPPED */
 #endif /* DBUILD */
 
 #ifndef CBUILD_DEP
@@ -1416,11 +1424,19 @@ XCOMM End translation of func(CBUILD_DEP)
 #endif /* CBUILD_DEP */
 
 #ifndef DBUILD_DEP
-#define DBUILD_DEP(cmplr,name,ext,dep)	@@\
+#if IS_CLIPPED
+#define DBUILD_DEP(cmplr,name,ext,dir,dep)	@@\
 XCOMM Begin translation of func(DBUILD_DEP) @@\
+XCOMM NULL BODY							@@\
+XCOMM End translation of func(DBUILD_DEP)
+#else
+#define DBUILD_DEP(cmplr,name,ext,dir,dep)	@@\
+XCOMM Begin translation of func(DBUILD_DEP) @@\
+DEP_SYMLINK(name,dir)			@@\
 DEP_SYMLINK_EXT(name,ext)		@@\
 DLINK(cmplr,name,name.o dep)		@@\
 XCOMM End translation of func(DBUILD_DEP)
+#endif /* IS_CLIPPED */
 #endif /* DBUILD_DEP */
 
 #ifndef DEP_SYMLINK
