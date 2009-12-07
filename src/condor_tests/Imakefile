@@ -4,7 +4,7 @@
 #include "Imakefile.common"
 
 #if defined(HAVE_DMTCP_ABILITY)
-DMTCP=dmtcp-441.tar.gz
+DMTCP=dmtcp-447.tar.gz
 all:: dmtcp-all
 #endif
 
