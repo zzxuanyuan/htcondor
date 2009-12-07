@@ -1399,7 +1399,7 @@ XCOMM End translation of func(CBUILD)
 #endif /* CBUILD */
 
 #ifndef DBUILD
-#if IS_CLIPPED
+#if defined(IS_CLIPPED) || (!defined(IS_CLIPPED)&&!defined(HAVE_DMTCP_ABILITY))
 #define DBUILD(cmplr,name,ext,dir)		@@\
 XCOMM Begin translation of func(DBUILD) @@\
 XCOMM NULL BODY							@@\
@@ -1424,7 +1424,7 @@ XCOMM End translation of func(CBUILD_DEP)
 #endif /* CBUILD_DEP */
 
 #ifndef DBUILD_DEP
-#if IS_CLIPPED
+#if defined(IS_CLIPPED) || (!defined(IS_CLIPPED)&&!defined(HAVE_DMTCP_ABILITY))
 #define DBUILD_DEP(cmplr,name,ext,dir,dep)	@@\
 XCOMM Begin translation of func(DBUILD_DEP) @@\
 XCOMM NULL BODY							@@\
