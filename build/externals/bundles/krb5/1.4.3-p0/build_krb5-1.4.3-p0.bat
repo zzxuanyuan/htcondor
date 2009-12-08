@@ -46,8 +46,8 @@ echo %ERRORLEVEL%
 REM now "install" the libs and include files
 mkdir %PACKAGE_INSTALL_DIR%\include
 mkdir %PACKAGE_INSTALL_DIR%\lib
-cp krb5-1.4.3-p0\src\lib\obj\i386\rel\* %PACKAGE_INSTALL_DIR%\lib
-cp krb5-1.4.3-p0\src\include\* %PACKAGE_INSTALL_DIR%\include
+cp -r krb5-1.4.3-p0\src\lib\obj\i386\dbg\* %PACKAGE_INSTALL_DIR%\lib
+cp -r krb5-1.4.3-p0\src\include\* %PACKAGE_INSTALL_DIR%\include
 
 REM hacky as hell, but we decide we were successful if all the libs we
 REM need are there.  anything missing and we exit 1.

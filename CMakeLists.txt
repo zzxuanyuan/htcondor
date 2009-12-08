@@ -234,7 +234,11 @@ endif()
 # Build dynamic libraries unless explicitly stated
 set(BUILD_SHARED_LIBS FLASE)
 # Supress automatic regeneration of project files
-set(CMAKE_SUPPRESS_REGENERATION FALSE)
+if (WINDOWS)
+	set(CMAKE_SUPPRESS_REGENERATION TRUE)
+else()
+	set(CMAKE_SUPPRESS_REGENERATION FALSE)
+endif()
 
 # Set build location for targets
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
