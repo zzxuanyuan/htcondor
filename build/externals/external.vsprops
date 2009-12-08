@@ -44,4 +44,34 @@
 		Value="hadoop-0.20.0-p2"
 		PerformEnvironmentSet="true"
 	/>
+	<UserMacro
+		Name="NEED_MANIFESTS_IN_EXTERNALS"
+		Value="True"
+		PerformEnvironmentSet="true"
+	/>
+	<UserMacro
+		Name="BISON_SIMPLE"
+		Value="..\bin\bison.simple"
+		PerformEnvironmentSet="true"
+	/>
+	<UserMacro
+		Name="BISON_HAIRY"
+		Value="..\bin\bison.hairy"
+		PerformEnvironmentSet="true"
+	/>
+	<UserMacro
+		Name="EXT_INSTALL"
+		Value="./install"
+		PerformEnvironmentSet="true"
+	/>
+	<UserMacro
+		Name="EXT_TRIGGERS"
+		Value="./triggers"
+		PerformEnvironmentSet="true"
+	/>
+	<UserMacro
+		Name="SOAPCPP2"
+		Value="%EXT_INSTALL%\%EXT_GSOAP_VERSION%\soapcpp2.exe"
+		PerformEnvironmentSet="true"
+	/>
 </VisualStudioPropertySheet>

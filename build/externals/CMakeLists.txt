@@ -9,11 +9,11 @@ condor_external(DRMAA ON "drmaa;libdrmaa" "drmaa-1.6")
 condor_external(HADOOP ON "hadoop" "hadoop-0.20.0-p2") 
 condor_external(CURL ON "curl" "curl-7.19.6-p1")
 condor_external(POSTGRESQL ON "pq;libpq" "postgresql-8.0.2") 
+condor_external(OPENSSL ON "ssl;libeay32;ssleay32" "openssl-0.9.8l")
 condor_external(KRB5 ON "krb5;comerr32.lib;gssapi32.lib;k5sprt32.lib;krb5_32.lib;xpprof32.lib" "krb5-1.4.3-p0") 
 condor_external(PCRE ON "pcre;libpcre" "pcre-7.6")   
 condor_external(GSOAP ON "gsoapssl++" "gsoap-2.7.10-p4")
-condor_external(OPENSSL ON "ssl;libeay32;ssleay32" "openssl-0.9.8h-p1") 
-	
+ 
 if (WINDOWS)
 	
 	set (HAVE_SCHED_SETAFFINITY 1 PARENT_SCOPE)
@@ -77,7 +77,11 @@ else()
 		uw_externals
 		ALL
 		DEPENDS ${EXTERNAL_TARGET_DIRS} )
-				
+	
+	if (WINDOWS)		
+		set_property(TARGET uw_externals PROPERTY InheritedPropertySheets "./external.vsprops")		
+	endif()
+			
 endif(PROPER)
 	
 

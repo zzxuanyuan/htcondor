@@ -35,20 +35,20 @@ set PROGRAMS_DIR=%ProgramFiles%
 if not "A%ProgramFiles(x86)%"=="A" set PROGRAMS_DIR=%SystemDrive%\PROGRA~2
 
 REM Set paths to Visual C++, the Platform SDKs, and Perl
-set VS_DIR=%PROGRAMS_DIR%\Microsoft Visual Studio 9.0
-set VC_DIR=%VS_DIR%\VC
-set VC_BIN=%VC_DIR%\bin
-set PERL_DIR=%SystemDrive%\Perl\bin;%SystemDrive%\Perl64\bin;%SystemDrive%\prereq\ActivePerl-5.10.1\bin
-set SDK_DIR=%ProgramFiles%\Microsoft Platform SDK
-set DBG_DIR=%ProgramFiles%\Debugging Tools for Windows (x86);%ProgramFiles%\Debugging Tools for Windows (x64)
-set DOTNET_DIR=%SystemRoot%\Microsoft.NET\Framework\v3.5;%SystemRoot%\Microsoft.NET\Framework\v2.0.50727
-set JDK_DIR="E:\Program Files\Java\jdk1.6.0_16"
+REM set VS_DIR=%PROGRAMS_DIR%\Microsoft Visual Studio 9.0
+REM set VC_DIR=%VS_DIR%\VC
+REM set VC_BIN=%VC_DIR%\bin
+REM set PERL_DIR=%SystemDrive%\Perl\bin;%SystemDrive%\Perl64\bin;%SystemDrive%\prereq\ActivePerl-5.10.1\bin
+REM set SDK_DIR=%ProgramFiles%\Microsoft Platform SDK
+REM set DBG_DIR=%ProgramFiles%\Debugging Tools for Windows (x86);%ProgramFiles%\Debugging Tools for Windows (x64)
+REM set DOTNET_DIR=%SystemRoot%\Microsoft.NET\Framework\v3.5;%SystemRoot%\Microsoft.NET\Framework\v2.0.50727
+REM set JDK_DIR="E:\Program Files\Java\jdk1.6.0_16"
 
 REM For some reason this is not defined whilst in some environments
-if "A%VS90COMNTOOLS%"=="A" set VS90COMNTOOLS=%VS_DIR%\Common7\Tools\
+REM if "A%VS90COMNTOOLS%"=="A" set VS90COMNTOOLS=%VS_DIR%\Common7\Tools\
 
 REM Specify symbol image path for debugging
-if "A%_NT_SYMBOL_PATH%"=="A" set _NT_SYMBOL_PATH=SRV*%SystemDrive%\Symbols*http://msdl.microsoft.com/download/symbols
+REM if "A%_NT_SYMBOL_PATH%"=="A" set _NT_SYMBOL_PATH=SRV*%SystemDrive%\Symbols*http://msdl.microsoft.com/download/symbols
 
 REM For externals: it just tells them we would like to have manifest 
 REM files embeded in the rem DLLs (In the future, when we do not have 
@@ -78,7 +78,7 @@ set EXTERNALS_NEEDED=%EXT_GSOAP_VERSION% %EXT_OPENSSL_VERSION% %EXT_KERBEROS_VER
 
 REM Put msconfig in the PATH, since it's got lots of stuff we need
 REM like awk, gunzip, tar, bison, yacc...
-set PATH=%cd%;%SystemRoot%;%SystemRoot%\system32;%PERL_DIR%;%VS_DIR%;%VC_DIR%;%VC_BIN%;%SDK_DIR%;%DOTNET_DIR%;%DBG_DIR%;%PATH%
+REM set PATH=%cd%;%SystemRoot%;%SystemRoot%\system32;%PERL_DIR%;%VS_DIR%;%VC_DIR%;%VC_BIN%;%SDK_DIR%;%DOTNET_DIR%;%DBG_DIR%;%PATH%
 REM echo %PATH%
 
 REM ======================================================================
@@ -87,33 +87,33 @@ REM Since we a still stuck in the past (i.e. supporting Win2K) we must
 REM lie to the setenv script, and pretend the DevEnvDir environment
 REM is alredy configured properly (yay! jump to VC2K8, but support
 REM Win2K... *sigh*) 
-set MSVCDir=%VC_DIR%
-set DevEnvDir=%VS_DIR%\Common7\IDE
-set MSVCVer=9.0
+REM set MSVCDir=%VC_DIR%
+REM set DevEnvDir=%VS_DIR%\Common7\IDE
+REM set MSVCVer=9.0
 REM ====== THIS SHOULD BE REMOVED WHEN Win2K IS NO LONGER SUPPORTED ======
 REM ======================================================================
 
 REM Configure Visual C++
-call "%VC_DIR%\vcvarsall.bat" x86
+REM call "%VC_DIR%\vcvarsall.bat" x86
 if not defined INCLUDE ( echo. && echo *** Failed to run vcvarsall.bat! Is Microsoft Visual Studio installed? && exit /B 1 )
 
 REM ======================================================================
 REM ====== THIS SHOULD BE REMOVED WHEN Win2K IS NO LONGER SUPPORTED ======
 REM We set these here as the above script will find the wrong versions
 REM of everything... *sigh*
-set WindowsSdkDir=%SDK_DIR%
+REM set WindowsSdkDir=%SDK_DIR%
 REM ====== THIS SHOULD BE REMOVED WHEN Win2K IS NO LONGER SUPPORTED ======
 REM ======================================================================
 
 REM Configure the Platform SDK environment
-call "%SDK_DIR%\SetEnv.Cmd" /2000 /RETAIL
-if not defined MSSDK ( echo. && echo *** Failed to run setenv.cmd! Are the Microsoft Platform SDK installed? && exit /B 1 )
+REM call "%SDK_DIR%\SetEnv.Cmd" /2000 /RETAIL
+REM if not defined MSSDK ( echo. && echo *** Failed to run setenv.cmd! Are the Microsoft Platform SDK installed? && exit /B 1 )
 
 REM ======================================================================
 REM ====== THIS SHOULD BE REMOVED WHEN Win2K IS NO LONGER SUPPORTED ======
-set INCLUDE=%SDK_DIR%\Include;%VC_DIR%\ATLMFC\INCLUDE;%VC_DIR%\INCLUDE;
-set LIB=%SDK_DIR%\Lib;%VC_DIR%\ATLMFC\LIB;%VC_DIR%\LIB;
-set LIBPATH=%DOTNET_DIR%;%VC_DIR%\ATLMFC\LIB;%VC_DIR%\LIB;
+REM set INCLUDE=%SDK_DIR%\Include;%VC_DIR%\ATLMFC\INCLUDE;%VC_DIR%\INCLUDE;
+REM set LIB=%SDK_DIR%\Lib;%VC_DIR%\ATLMFC\LIB;%VC_DIR%\LIB;
+REM set LIBPATH=%DOTNET_DIR%;%VC_DIR%\ATLMFC\LIB;%VC_DIR%\LIB;
 REM ====== THIS SHOULD BE REMOVED WHEN Win2K IS NO LONGER SUPPORTED ======
 REM ======================================================================
 
@@ -121,20 +121,20 @@ REM Set up some stuff for BISON
 set BISON_SIMPLE=%cd%\bison.simple
 set BISON_HAIRY=%cd%\bison.hairy
 
-REM Tell the build system where we can find soapcpp2
-set SOAPCPP2=%EXT_INSTALL%\%EXT_GSOAP_VERSION%\soapcpp2.exe
+REM Tell the build system where we can find soapcpp
+REM set SOAPCPP2=%EXT_INSTALL%\%EXT_GSOAP_VERSION%\soapcpp2.exe
 
 REM Determine the build id, if it is defined
-pushd ..
-set BID=none
-if exist BUILD-ID. (
-    echo Found BUILD-ID in %cd%
-    for /f %%i in ('more BUILD-ID') do set BID=%%i
-) else (
-    echo No build-id defined: %cd%\BUILD-ID is missing.
-)
-echo Using build-id: %BID% & echo.
-popd
+REM pushd ..
+REM set BID=none
+REM if exist BUILD-ID. (
+REM    echo Found BUILD-ID in %cd%
+REM    for /f %%i in ('more BUILD-ID') do set BID=%%i
+REM ) else (
+REM    echo No build-id defined: %cd%\BUILD-ID is missing.
+REM )
+REM echo Using build-id: %BID% & echo.
+REM popd
 
 REM Determine the number of processor we can run concurrent jobs on.  We base
 REM this number on the count of cores or CPUs kept by the OS:
