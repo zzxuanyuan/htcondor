@@ -6,13 +6,13 @@ set (EXTERNAL_DIR ${CONDOR_SOURCE_DIR}/build/externals/install)
 ########################################################
 ## ON/OFF is used to ENABLE/DISABLE search when PROPER
 condor_external(DRMAA ON "drmaa;libdrmaa" "drmaa-1.6")
-condor_external(HADOOP ON "hadoop" "hadoop-0.20.0-p2") 
+#condor_external(HADOOP ON "hadoop" "hadoop-0.20.0-p2") 
 condor_external(CURL ON "curl" "curl-7.19.6-p1")
 condor_external(POSTGRESQL ON "pq;libpq" "postgresql-8.0.2") 
 condor_external(OPENSSL ON "ssl;libeay32;ssleay32" "openssl-0.9.8l")
 condor_external(KRB5 ON "krb5;comerr32.lib;gssapi32.lib;k5sprt32.lib;krb5_32.lib;xpprof32.lib" "krb5-1.4.3-p0") 
 condor_external(PCRE ON "pcre;libpcre" "pcre-7.6")   
-#condor_external(GSOAP ON "gsoapssl++" "gsoap-2.7.10-p4")
+condor_external(GSOAP ON "gsoapssl++" "gsoap-2.7.10-p4")
  
 if (WINDOWS)
 	
@@ -21,12 +21,14 @@ if (WINDOWS)
 	
 	set (DRMAA_FOUND "${DRMAA_DIR}/lib/libdrmaa.lib" PARENT_SCOPE)
 	#set (HADOOP_FOUND "${HADOOP_DIR}/" PARENT_SCOPE)			
-	set (OPENSSL_FOUND "${OPENSSL_DIR}/out32dll/libeay32.lib;${OPENSSL_FOUND}/out32dll/ssleay32.lib" PARENT_SCOPE)
+	set (OPENSSL_FOUND "${OPENSSL_DIR}/out32dll/libeay32.lib;${OPENSSL_DIR}/out32dll/ssleay32.lib" PARENT_SCOPE)
 	set (POSTGRESQL_FOUND "${POSTGRESQL_DIR}/out32dll/libpqdll.lib" PARENT_SCOPE)
-	set (KRB5_FOUND "${KRB5_DIR}/lib/comerr32.lib;${KRB5_FOUND}/lib/gssapi32.lib;${KRB5_FOUND}/lib/k5sprt32.lib;${KRB5_FOUND}/lib/krb5_32.lib;${KRB5_FOUND}/lib/xpprof32.lib" PARENT_SCOPE)
+	set (KRB5_FOUND "${KRB5_DIR}/lib/comerr32.lib;${KRB5_DIR}/lib/gssapi32.lib;${KRB5_DIR}/lib/k5sprt32.lib;${KRB5_DIR}/lib/krb5_32.lib;${KRB5_DIR}/lib/xpprof32.lib" PARENT_SCOPE)
 	set (PCRE_FOUND "${PCRE_DIR}/lib/libpcre.lib" PARENT_SCOPE)
 	unset (GSOAP_FOUND)
 	set (CURL_FOUND "${CURL_DIR}/lib/libcurl.lib" PARENT_SCOPE)
+	
+	set (EXTERNAL_INCLUDES "${DRMAA_DIR}/include;${OPENSSL_DIR}/inc32;${POSTGRESQL_DIR}/inc32;${KRB5_DIR}/include;${PCRE_DIR}/include;${CURL_DIR}/include;${GSOAP_DIR}/src" PARENT_SCOPE)
 				
 else()
 

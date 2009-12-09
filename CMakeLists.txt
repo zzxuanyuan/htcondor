@@ -201,7 +201,6 @@ if (PROPER)
 else()
 	set (HAVE_OPENSSL_SSL_H ON)
 	set (HAVE_PCRE_H ON)
-	set (HAVE_PCRE_PCRE_H ON)
 endif()
 
 add_subdirectory (build/externals)
@@ -281,6 +280,7 @@ endif()
 
 ###########################################
 # The following two locations can be considered ubiquitous
+include_directories(${EXTERNAL_INCLUDES})
 include_directories(${CONDOR_SOURCE_DIR}/src/include)
 include_directories(${CONDOR_SOURCE_DIR}/src/libs/utils)
 # the following will allow for <target>/.h includes
