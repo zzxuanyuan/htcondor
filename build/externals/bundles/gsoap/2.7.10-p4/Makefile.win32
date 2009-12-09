@@ -17,6 +17,7 @@ LEX=flex -l
 YACC=bison.exe -d -v
 MKDIR=mkdir.exe -p
 REN=mv.exe
+CP=cp.exe
 #	use LIBS=-lfl with flex or LIBS=-ll with lex
 #	and use -ly with yacc
 #LIBS=-lfl
@@ -41,9 +42,9 @@ lex.yy.c:	soapcpp2_yacc.h soapcpp2_yacc.c soapcpp2_lex.l
 		$(CC) $(CFLAGS) /c $<
 install: 
 	$(MKDIR) $(PACKAGE_INSTALL_DIR)\src
-	cp soapcpp2.exe $(PACKAGE_INSTALL_DIR)
-	cp ..\stdsoap2.cpp $(PACKAGE_INSTALL_DIR)\src
-	cp ..\stdsoap2.h $(PACKAGE_INSTALL_DIR)\src
+	$(CP) ..\bin\win32\soapcpp2.exe $(PACKAGE_INSTALL_DIR)
+	$(CP) ..\stdsoap2.cpp $(PACKAGE_INSTALL_DIR)\src
+	$(CP) ..\stdsoap2.h $(PACKAGE_INSTALL_DIR)\src
 	
 clean:		
 		del /f *.obj

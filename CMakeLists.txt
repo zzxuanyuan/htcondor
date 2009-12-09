@@ -35,6 +35,10 @@ message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH}")
 if(${OS_NAME} STREQUAL "WINDOWS")
 	set(WINDOWS ON)
 	add_definitions(-DWINDOWS)
+	# The following is necessary for ddk version to compile against. 
+	add_definitions(-D_WIN32_WINNT=_WIN32_WINNT_WINXP) 
+	add_definitions(-DWINVER=_WIN32_WINNT_WINXP)
+	add_definitions(-DNTDDI_VERSION=NTDDI_WINXP)
 endif()
 
 include (CommandTarget)

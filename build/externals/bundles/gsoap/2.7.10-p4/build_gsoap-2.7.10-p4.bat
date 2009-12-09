@@ -27,6 +27,7 @@ REM ======================================================================
 REM ======================================================================
 REM FYI: Here's the variables we should have available:
 REM PACKAGE_NAME
+REM PACKAGE_SRC_NAME
 REM PACKAGE_BUILD_DIR
 REM PACKAGE_INSTALL_DIR
 REM EXTERNALS_INSTALL_DIR
@@ -37,16 +38,16 @@ REM Manages the building of the gsoap external on Win32R
 REM ======================================================================
 
 REM First, build soapcpp2.exe
-copy config.WINDOWS.h %PACKAGE_NAME%\gsoap\src\config.h
-copy Makefile.win32 %PACKAGE_NAME%\gsoap\src\
-gmake -f Makefile.win32 -C %PACKAGE_NAME%\gsoap\src
-gmake -f Makefile.win32 install -C %PACKAGE_NAME%\gsoap\src
+copy config.WINDOWS.h %PACKAGE_SRC_NAME%\gsoap\src\config.h
+copy Makefile.win32 %PACKAGE_SRC_NAME%\gsoap\src\
+gmake -f Makefile.win32 -C %PACKAGE_SRC_NAME%\gsoap\src
+gmake -f Makefile.win32 install -C %PACKAGE_SRC_NAME%\gsoap\src
 if %ERRORLEVEL% NEQ 0 goto :FAIL
 
-REM Now patch the stdsoap.h and .cpp file
-cd %PACKAGE_INSTALL_DIR%\src
-call :PATCH %PACKAGE_BUILD_DIR%\stdsoap2.h-2.7.10-patch
-call :PATCH %PACKAGE_BUILD_DIR%\stdsoap2.cpp-2.7.10-patch
+REM No longer needed Now patch the stdsoap.h and .cpp file
+REM cd %PACKAGE_INSTALL_DIR%\src
+REM call :PATCH %PACKAGE_BUILD_DIR%\stdsoap2.h-2.7.10-patch
+REM call :PATCH %PACKAGE_BUILD_DIR%\stdsoap2.cpp-2.7.10-patch
 
 REM Clean up the environment.
 endlocal
@@ -72,5 +73,5 @@ REM ======================================================================
 REM ======================================================================
 REM All the failure calls
 REM ======================================================================
-echo. & echo *** Building %PACKAGE_NAME% failed (ERROR=%ERRORLEVEL%).
+echo. & echo *** Building %PACKAGE_SRC_NAME% failed (ERROR=%ERRORLEVEL%).
 exit %ERRORLEVEL%

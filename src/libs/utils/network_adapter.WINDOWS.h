@@ -28,6 +28,7 @@
 #include "condor_constants.h"
 #include "setup_api_dll.WINDOWS.h"
 #include <iptypes.h>
+#include "WinNT.h"
 
 /***************************************************************
  * WindowsNetworkAdapter class
