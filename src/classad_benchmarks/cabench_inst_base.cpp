@@ -210,7 +210,7 @@ CaBenchInstBase::setup( void )
 bool
 CaBenchInstBase::readDataFile( void )
 {
-	FILE	*fp = fopen( Options().getDataFile( ), "r" );
+	FILE	*fp = safe_fopen_wrapper( Options().getDataFile( ), "r" );
 	if ( NULL == fp ) {
 		fprintf( stderr, "Error opening %s\n", Options().getDataFile() );
 		return false;

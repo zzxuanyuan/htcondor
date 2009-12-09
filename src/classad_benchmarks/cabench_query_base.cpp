@@ -75,7 +75,7 @@ CaBenchQueryBase::setup( void )
 	}
 
 	const char	*fname = Options().getDataFile();
-	FILE		*fp = fopen( fname, "r" );
+	FILE		*fp = safe_fopen_wrapper( fname, "r" );
 	if ( !fp ) {
 		fprintf( stderr, "Error opening %s\n", fname );
 		return false;
@@ -132,7 +132,7 @@ bool
 CaBenchQueryBase::scanAdFile( void )
 {
 	const char	*fname = Options().getDataFile();
-	FILE		*fp = fopen( fname, "r" );
+	FILE		*fp = safe_fopen_wrapper( fname, "r" );
 	if ( !fp ) {
 		fprintf( stderr, "Error opening %s\n", fname );
 		return false;
