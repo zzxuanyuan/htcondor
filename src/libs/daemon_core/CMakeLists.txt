@@ -5,6 +5,7 @@ condor_glob( DCHeaderFiles DCSourceFiles "${DCRmvElements}" )
 
 #On windows we add the cpp file into the build 
 if (GSOAP_SRC)
+	set_source_files_properties(${GSOAP_SRC} PROPERTIES GENERATED TRUE)
 	list(APPEND DCSourceFiles ${GSOAP_SRC} )
 endif()
 

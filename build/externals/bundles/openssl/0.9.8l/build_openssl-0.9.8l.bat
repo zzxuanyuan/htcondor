@@ -21,7 +21,7 @@ REM condor happy. -stolley
 cd %PACKAGE_SRC_NAME%
 rem touch zerolength
 rem patch -p1 -i ..\openssl-0.9.8-patch < zerolength
-rem if not %ERRORLEVEL%A == 0A goto failure
+rem if not %ERRORLEVEL% == 0 goto failure
 
 rem Patch the Makefile builder:
 rem The current version of openssl user strcpy, etc. when it should use
@@ -30,47 +30,47 @@ rem openssl code, we simply disable the Visual Studio check by defining:
 rem _CRT_SECURE_NO_DEPRECATE at the command line. The VC-32 bla, bla, bla,
 rem part removes all the deprecated compiler options openssl passes to VC. 
 rem We do this because all warnings are treated as errors in this build. 
-if /i A%NEED_MANIFESTS_IN_EXTERNALS%==Atrue ( 
+if /i %NEED_MANIFESTS_IN_EXTERNALS%==true ( 
     pushd util
     touch zerolength
     call :patch %PACKAGE_BUILD_DIR%\mk1mf.pl-0.9.8l.patch
-    if not %ERRORLEVEL%A == 0A goto failure
+    if not %ERRORLEVEL% == 0 goto failure
     pushd pl
     touch zerolength
     call :patch %PACKAGE_BUILD_DIR%\VC-32.pl-0.9.8l.patch
-    if not %ERRORLEVEL%A == 0A goto failure
+    if not %ERRORLEVEL% == 0 goto failure
     popd && popd
 )
 
 perl Configure VC-WIN32
-if not %ERRORLEVEL%A == 0A goto failure
+if not %ERRORLEVEL% == 0 goto failure
 
 call ms\do_nt.bat
-if not %ERRORLEVEL%A == 0A goto failure
+if not %ERRORLEVEL% == 0 goto failure
 
 nmake -f ms\ntdll.mak
-if not %ERRORLEVEL%A == 0A goto failure
+if not %ERRORLEVEL% == 0 goto failure
 
 REM ** copy output into install dir
 mkdir %PACKAGE_INSTALL_DIR%\out32dll
 mkdir %PACKAGE_INSTALL_DIR%\inc32
 
 xcopy out32dll\*.lib %PACKAGE_INSTALL_DIR%\out32dll
-if not %ERRORLEVEL%A == 0A goto failure
+if not %ERRORLEVEL% == 0 goto failure
 xcopy out32dll\*.dll %PACKAGE_INSTALL_DIR%\out32dll
-if not %ERRORLEVEL%A == 0A goto failure
+if not %ERRORLEVEL% == 0 goto failure
 
 REM If we are using a modern version of VC, then we need to embed a manifest 
 REM into the DLLs we created. This allows them to locate the new CRT libs.
-if /i A%NEED_MANIFESTS_IN_EXTERNALS%==Atrue (
+if /i %NEED_MANIFESTS_IN_EXTERNALS%==true (
     pushd %PACKAGE_INSTALL_DIR%\out32dll
     for %%f in (*.dll) do mt.exe /manifest %PACKAGE_BUILD_DIR%\%%f.manifest /outputresource:%%f;#2
-    if not %ERRORLEVEL%A == 0A goto failure
+    if not %ERRORLEVEL% == 0 goto failure
     popd
 )
 
 xcopy /s inc32\*.* %PACKAGE_INSTALL_DIR%\inc32
-if not %ERRORLEVEL%A == 0A goto failure
+if not %ERRORLEVEL% == 0 goto failure
 
 :failure
 exit %ERRORLEVEL%
