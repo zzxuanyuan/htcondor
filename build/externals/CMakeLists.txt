@@ -25,7 +25,7 @@ if (WINDOWS)
 	set (POSTGRESQL_FOUND "${POSTGRESQL_DIR}/out32dll/libpqdll.lib" PARENT_SCOPE)
 	set (KRB5_FOUND "${KRB5_DIR}/lib/comerr32.lib;${KRB5_DIR}/lib/gssapi32.lib;${KRB5_DIR}/lib/k5sprt32.lib;${KRB5_DIR}/lib/krb5_32.lib;${KRB5_DIR}/lib/xpprof32.lib" PARENT_SCOPE)
 	set (PCRE_FOUND "${PCRE_DIR}/lib/libpcre.lib" PARENT_SCOPE)
-	unset (GSOAP_FOUND)
+	set (GSOAP_SRC "${GSOAP_DIR}/src/stdsoap2.cpp" PARENT_SCOPE)
 	set (CURL_FOUND "${CURL_DIR}/lib/libcurl.lib" PARENT_SCOPE)
 	
 	set (EXTERNAL_INCLUDES "${DRMAA_DIR}/include;${OPENSSL_DIR}/inc32;${POSTGRESQL_DIR}/inc32;${KRB5_DIR}/include;${PCRE_DIR}/include;${CURL_DIR}/include;${GSOAP_DIR}/src" PARENT_SCOPE)
