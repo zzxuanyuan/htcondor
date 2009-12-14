@@ -36,10 +36,11 @@ ClassAd * java_detect()
 #ifndef WIN32
 	sigset_t mask;
 #endif
-
-	if(!java_config(path,&args,0)) return 0;
+	int max_memory;
+	max_memory = java_config(path,&args,0);
+	if(!max_memory) return 0;
 	int benchmark_time = param_integer("JAVA_BENCHMARK_TIME",0);
-
+	
 	args.InsertArg(path.Value(),0);
 	args.AppendArg("CondorJavaInfo");
 	args.AppendArg("old");
@@ -61,28 +62,56 @@ ClassAd * java_detect()
 #endif
 
 	FILE *stream = my_popen(args,"r",0);
-	if(!stream) {
+	// in this case something is really wrong, i.e. java not present at all. So: really return.
+	if(!stream) { 
 		MyString arg_str;
 		args.GetArgsStringForDisplay(&arg_str);
 		dprintf(D_ALWAYS,"JavaDetect: failed to execute %s\n",arg_str.Value());
 		return 0;
 	}
-
-	int eof=0,error=0,empty=0;
+	
+	int eof=0,error=0,empty=0; 
 	ClassAd *ad = new ClassAd(stream,"***",eof,error,empty);
-
 	int rc = my_pclose(stream);
-	if( rc!=0 ) {
-		MyString arg_str;
-		args.GetArgsStringForDisplay(&arg_str);
-		dprintf(D_ALWAYS,"JavaDetect: failure status %d when executing %s\n",rc,arg_str.Value());
-		error = 1;
+	while ( rc!=0 ) {
+		if (ad){
+			delete ad;
+			ad = NULL;
+		}
+		args.Clear();
+		max_memory = java_config(path,&args,0,max_memory);
+		if (max_memory < 0) {
+			MyString arg_str;
+			args.GetArgsStringForDisplay(&arg_str);
+			dprintf(D_ALWAYS,"JavaDetect: failed to execute %s\n",arg_str.Value());
+			error = 1;
+			break;
+		} 
+			
+		args.InsertArg(path.Value(),0);
+		args.AppendArg("CondorJavaInfo");
+		args.AppendArg("old");
+		args.AppendArg(benchmark_time);
+
+		stream = my_popen(args,"r",0);
+		if (stream) {
+			ad = new ClassAd(stream,"***",eof,error,empty);
+			rc = my_pclose(stream);
+		} else { // again: something went really wrong.
+			MyString arg_str;
+			args.GetArgsStringForDisplay(&arg_str);
+			dprintf(D_ALWAYS,"JavaDetect: failed to execute %s\n",arg_str.Value());
+			return 0;
+		}
 	}
 
 	if(error || empty) {
-		delete ad;
+		if (ad) {
+			delete ad;
+		}
 		return 0;
 	} else {
+		ad->Assign("JAVA_MAX_HEAP", max_memory);	
 		return ad;
 	}
 }

@@ -25,29 +25,65 @@
 #include "java_config.h"
 
 /*
-Extract the java configuration from the local config files.
+Extract the java configuration from the local config files. 
 The name of the java executable gets put in 'cmd', and the necessary
 arguments get put in 'args'.  If you have other dirs or jarfiles
 that should be placed in the classpath, provide them in 'extra_classpath'.
 */
 
-int java_config( MyString &cmd, ArgList *args, StringList *extra_classpath )
+
+
+int java_config( MyString &cmd, ArgList *args, StringList *extra_classpath, int decrease_memory , bool is_absolute)
 {
 	char *tmp;
 	char separator;
 	MyString arg_buf;
-
+	int dec_mem = 50;
+	int max_memory = (int) ((sysapi_phys_memory()/ sysapi_ncpus()) * 0.9);
+	
+	// is_absolute indicates that the decrease_memory value should not be modified any further.
+	// It's the value that was previously determined to allow the JVM to start up
+	if (!is_absolute) {
+		if (decrease_memory > 1)
+			decrease_memory = decrease_memory - dec_mem;
+		else 
+			decrease_memory = max_memory;
+	}
+	
 	tmp = param("JAVA");
 	if(!tmp) return 0;
 	cmd = tmp;
 	free(tmp);
-
-	tmp = param("JAVA_MAXHEAP_ARGUMENT");
-	if(tmp) {
-		arg_buf.sprintf("%s%dm",tmp,sysapi_phys_memory()/ sysapi_ncpus());
-		args->AppendArg(arg_buf.Value());
-		free(tmp);
+	// this is for just determining whether the JVM is runnable at all .. so take default max heap for a -1 value.
+	if (decrease_memory > -1) {
+		tmp = param("JAVA_MAXHEAP_ARGUMENT"); 
+		if(tmp) {
+			if (strlen(tmp) <= 4) { 
+				if (decrease_memory > 0) {
+					if (decrease_memory < 0){
+						free(tmp);
+						return -1;
+					}
+					
+					arg_buf.sprintf("%s%dm",tmp, decrease_memory);
+				} else {
+					arg_buf.sprintf("%s%dm",tmp, decrease_memory);
+				}
+				args->AppendArg(arg_buf.Value());
+			} else { // MAXHEAP argument is specified in local condor_config
+				arg_buf.sprintf("%s",tmp); 
+			}
+			free(tmp);
+		} else {
+			if (decrease_memory > 0) {
+				arg_buf.sprintf("-Xmx%dm", decrease_memory);
+			} else {
+				return -1;
+			}
+			args->AppendArg(arg_buf.Value());
+		}
 	}
+	
 	
 	tmp = param("JAVA_CLASSPATH_ARGUMENT");
 	if(!tmp) tmp = strdup("-classpath");
@@ -107,7 +143,7 @@ int java_config( MyString &cmd, ArgList *args, StringList *extra_classpath )
 	}
 	free(tmp);
 
-	return 1;
+	return decrease_memory;
 }
 
 

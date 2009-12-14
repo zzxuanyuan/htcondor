@@ -24,6 +24,7 @@
 #include "starter.h"
 #include "condor_ver_info.h"
 #include "java_proc.h"
+#include "java_detect.h"
 #include "java_config.h"
 
 extern CStarter * Starter;
@@ -102,12 +103,16 @@ int JavaProc::StartJob()
 
 	startfile.sprintf("%s%cjvm.start",execute_dir,DIR_DELIM_CHAR);
 	endfile.sprintf("%s%cjvm.end",execute_dir,DIR_DELIM_CHAR);
+	
+	int max_heap_memory = 0;
+	ClassAd *ad = java_detect();
+	ad->LookupInteger("JAVA_MAX_HEAP", max_heap_memory);
 
-	if( !java_config(java_cmd,&args,jarfiles_final_list) ) {
-		dprintf(D_FAILURE|D_ALWAYS,"JavaProc: Java is not configured!\n");
+	if (!(java_config(java_cmd,&args,jarfiles_final_list, max_heap_memory, true))) {
+		dprintf(D_FAILURE|D_ALWAYS,"JavaProc: Java is not configured! \n");
 		return 0;
 	}
-
+	dprintf(D_FULLDEBUG,"JavaProc: Java will be executed with a max heap size of %i MB \n", max_heap_memory);
 	JobAd->Assign(ATTR_JOB_CMD, java_cmd.Value());
 
 	arg_buf.sprintf("-Dchirp.config=%s%cchirp.config",execute_dir,DIR_DELIM_CHAR);
