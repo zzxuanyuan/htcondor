@@ -83,7 +83,12 @@ CaBenchQueryOld::initFilter( void )
 		while( len && isspace(ad_str[len-1]) ) {
 			ad_str[--len] = '\0';
 		}
-		m_filter_ad = new ClassAd( ad_str, ';' );
+		char *p;
+		while( (p=strchr(ad_str,';')) ) {
+			*p = '\n';
+		}
+		m_filter_ad = new ClassAd;
+		m_filter_ad->initFromString( ad_str, NULL );
 	}
 	else {
 		MyString	req_expr = "Requirements = ";
@@ -101,7 +106,7 @@ CaBenchQueryOld::filterAd( const CaBenchAdWrapBase *base_ad ) const
 	if ( NULL == m_filter_ad ) {
 		return true;
 	}
-	return ( (*m_filter_ad) <= (*CaBenchAdWrapOld::getAd(base_ad)) );
+	return ( IsAHalfMatch(m_filter_ad,CaBenchAdWrapOld::getAd(base_ad)) );
 }
 
 bool

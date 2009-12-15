@@ -96,7 +96,12 @@ CaBenchQueryOldCollection::runQuery( const char *query_str,
 		while( len && isspace(ad_str[len-1]) ) {
 			ad_str[--len] = '\0';
 		}
-		query_ad = new ClassAd( ad_str, ';' );
+		char *p;
+		while( (p=strchr(ad_str,';')) ) {
+			*p = '\n';
+		}
+		query_ad = new ClassAd;
+		query_ad->initFromString( ad_str, NULL );
 	}
 	else {
 		MyString	req_expr = "Requirements = ";
@@ -121,10 +126,10 @@ CaBenchQueryOldCollection::runQuery( const char *query_str,
 		iters++;
 		bool	result;
 		if ( two_way ) {
-			result = ( (*ad) == (*query_ad) );
+			result = IsAMatch( ad, query_ad );
 		}
 		else {
-			result = ( (*ad) >= (*query_ad) );
+			result = IsAHalfMatch( query_ad, ad );
 		}
 		if ( result ) {
 			matches++;
