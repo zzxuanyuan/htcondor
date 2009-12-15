@@ -136,6 +136,30 @@ CaBenchQueryNew::generateInsertAd( const CaBenchAdWrapBase *base_ad,
 	key[sizeof(key)-1] = '\0';
 	ad->InsertAttr( "key", key );
 
+		// Simplify the requirements expression if possible.
+		// Assume that it will be inserted as the RIGHT ad.
+	std::string error_msg;
+	if( !m_filter_match.OptimizeRightAdForMatchmaking( ad, &error_msg ) &&
+		ad->Lookup(ATTR_REQUIREMENTS) )
+	{
+		fprintf(stderr,"ERROR: failed in OptimizeRightAdForMatchmaking: %s\n",
+				error_msg.c_str());
+		classad::ClassAdUnParser unp;
+		std::string ad_str;
+		unp.Unparse(ad_str,ad);
+		fprintf(stderr,"The ad:\n%s\n",ad_str.c_str());
+		return false;
+	}
+
+#if 0
+	std::string old_req;
+	std::string new_req;
+	classad::ClassAdUnParser unp;
+	unp.Unparse(old_req,ad->Lookup("UnoptimizedRequirements"));
+	unp.Unparse(new_req,ad->Lookup(ATTR_REQUIREMENTS));
+	fprintf(stderr, "Simplified requirements [%s] to [%s]\n", old_req.c_str(), new_req.c_str());
+#endif
+
 	return insertAd( key, ad, copied );
 }
 
