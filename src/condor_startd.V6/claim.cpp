@@ -84,6 +84,8 @@ Claim::Claim( Resource* res_ip, ClaimType claim_type, int lease_duration )
 	c_retire_peacefully = false;
 	c_preempt_was_true = false;
 	c_schedd_closed_claim = false;
+
+	c_last_state = CLAIM_UNCLAIMED;
 }
 
 
@@ -459,7 +461,7 @@ Claim::publishStateTimes( ClassAd* cad )
 
 
 void
-Claim::dprintf( int flags, char* fmt, ... )
+Claim::dprintf( int flags, const char* fmt, ... )
 {
 	va_list args;
 	va_start( args, fmt );
@@ -538,7 +540,7 @@ Claim::cancel_match_timer()
 }
 
 
-int
+void
 Claim::match_timed_out()
 {
 	char* my_id = id();
@@ -549,14 +551,14 @@ Claim::match_timed_out()
 			// up, too, and we don't want to seg fault.
 		::dprintf( D_FAILURE|D_ALWAYS,
 				   "ERROR: Match timed out but there's no ClaimId\n" );
-		return FALSE;
+		return;
 	}
 		
 	Resource* res_ip = resmgr->get_by_any_id( my_id );
 	if( !res_ip ) {
 		::dprintf( D_FAILURE|D_ALWAYS,
 				   "ERROR: Can't find resource of expired match\n" );
-		return FALSE;
+		return;
 	}
 
 	if( res_ip->r_cur->idMatches( id() ) ) {
@@ -579,7 +581,7 @@ Claim::match_timed_out()
 					 "backfill jobs can evict themselves.\n", 
 					 state_to_string(res_ip->state()), match_timeout );
 			res_ip->set_destination_state( owner_state );
-			return FALSE;
+			return;
 		}
 #endif /* HAVE_BACKFILL */
 		if( res_ip->state() != matched_state ) {
@@ -599,7 +601,7 @@ Claim::match_timed_out()
 			dprintf( D_FAILURE|D_FULLDEBUG, 
 					 "WARNING: Current match timed out but in %s state.\n",
 					 state_to_string(res_ip->state()) );
-			return FALSE;
+			return;
 		}
 		delete res_ip->r_cur;
 			// once we've done this delete, the this pointer is now in
@@ -626,7 +628,7 @@ Claim::match_timed_out()
 		res_ip->r_reqexp->restore();
 		res_ip->update();
 	}		
-	return TRUE;
+	return;
 }
 
 
@@ -863,7 +865,7 @@ Claim::cancelLeaseTimer()
 
 }
 
-int
+void
 Claim::sendAlive()
 {
 	const char* c_addr = NULL;
@@ -874,12 +876,12 @@ Claim::sendAlive()
 
 	if( !c_addr ) {
 			// Client not really set, nothing to do.
-		return FALSE;
+		return;
 	}
 
 	if ( c_alive_inprogress_sock ) {
 			// already did it
-		return FALSE;
+		return;
 	}
 
 	DCSchedd matched_schedd ( c_addr, NULL );
@@ -889,11 +891,11 @@ Claim::sendAlive()
 
 	int connect_timeout = MAX(20, ((c_lease_duration / 3)-3) );
 
-	if (!(sock = matched_schedd.reliSock( connect_timeout, NULL, true ))) {
+	if (!(sock = matched_schedd.reliSock( connect_timeout, 0, NULL, true ))) {
 		dprintf( D_FAILURE|D_ALWAYS, 
 				"Alive failed - couldn't initiate connection to %s\n",
 		         c_addr );
-		return FALSE;
+		return;
 	}
 
 	char to_schedd[256];
@@ -910,12 +912,10 @@ Claim::sendAlive()
 		         "Register_Socket returned %d.\n",
 		         c_addr,reg_rc);
 		delete sock;
-		return FALSE;
+		return;
 	}
 
 	c_alive_inprogress_sock = sock;
-
-	return TRUE;
 }
 
 /* ALIVE_BAILOUT def:
@@ -929,7 +929,7 @@ Claim::sendAlive()
 int
 Claim::sendAliveConnectHandler(Stream *s)
 {
-	char* c_addr = "(unknown)";
+	const char* c_addr = "(unknown)";
 	if ( c_client ) {
 		c_addr = c_client->addr();
 	}
@@ -1010,7 +1010,7 @@ int
 Claim::sendAliveResponseHandler( Stream *sock )
 {
 	int reply;
-	char* c_addr = "(unknown)";
+	const char* c_addr = "(unknown)";
 
 	if ( c_client ) {
 		c_addr = c_client->addr();
@@ -1051,7 +1051,7 @@ Claim::sendAliveResponseHandler( Stream *sock )
 }
 
 
-int
+void
 Claim::leaseExpired()
 {
 	c_lease_tid = -1;
@@ -1062,9 +1062,11 @@ Claim::leaseExpired()
 		if( removeClaim(false) ) {
 				// There is no starter, so remove immediately.
 				// Otherwise, we will be removed when starter exits.
-			getCODMgr()->removeClaim(this);
+			CODMgr* pCODMgr = getCODMgr();
+			if (pCODMgr)
+				pCODMgr->removeClaim(this);
 		}
-		return TRUE;
+		return;
 	}
 
 	dprintf( D_FAILURE|D_ALWAYS, "State change: claim lease expired "
@@ -1072,7 +1074,7 @@ Claim::leaseExpired()
 
 		// Kill the claim.
 	finishKillClaim();
-	return TRUE;
+	return;
 }
 
 int
@@ -1121,7 +1123,7 @@ Claim::alive()
 		// it is possible that c_lease_duration changed on activation
 		// of a claim, so our timer reset here will handle that case
 		// as well since alive() is called upon claim activation.
-	if ( c_sendalive_tid ) {
+	if ( c_sendalive_tid != -1 ) {
 		daemonCore->Reset_Timer(c_sendalive_tid, c_lease_duration / 3, 
 							c_lease_duration / 3);
 	}
@@ -1324,7 +1326,7 @@ Claim::setStarter( Starter* s )
 
 
 void
-Claim::starterExited( void )
+Claim::starterExited( int status )
 {
 		// Now that the starter is gone, we need to change our state
 	changeState( CLAIM_IDLE );
@@ -1332,7 +1334,7 @@ Claim::starterExited( void )
 		// Notify our starter object that its starter exited, so it
 		// can cancel timers any pending timers, cleanup the starter's
 		// execute directory, and do any other cleanup. 
-	c_starter->exited();
+	c_starter->exited(status);
 	
 		// Now, clear out this claim with all the starter-specific
 		// info, including the starter object itself.
@@ -1921,6 +1923,18 @@ Claim::writeJobAd( int pipe_end )
 	return true;
 }
 
+bool
+Claim::writeMachAd( Stream* stream )
+{
+	dprintf(D_FULLDEBUG | D_JOB, "Sending Machine Ad to Starter\n");
+	c_rip->r_classad->dPrint(D_JOB);
+	if (!c_rip->r_classad->put(*stream) || !stream->end_of_message()) {
+		dprintf(D_ALWAYS, "writeMachAd: Failed to write machine ClassAd to stream\n");
+		return false;
+	}
+	return true;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Client
 ///////////////////////////////////////////////////////////////////////////
@@ -2094,11 +2108,13 @@ newIdString( char** id_str_ptr )
 	MyString id;
 	// Keeping with tradition, we insert the startd's address in
 	// the claim id.  As of condor 7.2, nothing relies on this.
-	// Using privateNetworkIpAddr() because public sinful string
-	// may contain CCB stuff and other junk that might contain
-	// special characters such as '#'.
+	// Strip out CCB and other special info so we don't get any
+	// '#' characters in the address.
 
-	char const *my_addr = daemonCore->privateNetworkIpAddr();
+	Sinful my_sin( daemonCore->publicNetworkIpAddr() );
+	my_sin.clearParams();
+	char const *my_addr = my_sin.getSinful();
+
 	ASSERT( my_addr && !strchr(my_addr,'#') );
 
 	id += my_addr;
@@ -2111,11 +2127,8 @@ newIdString( char** id_str_ptr )
 		// keylen is 20 in order to avoid generating claim ids that
 		// overflow the 80 byte buffer in pre-7.1.3 negotiators
 	const size_t keylen = 20;
-	unsigned char *keybuf = Condor_Crypt_Base::randomKey(keylen);
-	int i;
-	for(i=0;i<keylen;i++) {
-		id.sprintf_cat("%02x",keybuf[i]);
-	}
+	char *keybuf = Condor_Crypt_Base::randomHexKey(keylen);
+	id += keybuf;
 	free( keybuf );
 
 	*id_str_ptr = strdup( id.Value() );
@@ -2259,13 +2272,11 @@ Claim::receiveJobClassAdUpdate( ClassAd &update_ad )
 	ASSERT( c_ad );
 
 	update_ad.ResetExpr();
+	const char *name;
 	ExprTree *expr;
-	while( (expr=update_ad.NextExpr()) != NULL ) {
+	while( update_ad.NextExpr(name, expr) ) {
 
-		ASSERT( expr->MyType() == LX_ASSIGN &&
-				expr->LArg()->MyType() == LX_VARIABLE );
-
-		char const *name = ((Variable *)expr->LArg())->Name();
+		ASSERT( name );
 		if( !strcmp(name,ATTR_MY_TYPE) ||
 			!strcmp(name,ATTR_TARGET_TYPE) )
 		{
@@ -2274,9 +2285,9 @@ Claim::receiveJobClassAdUpdate( ClassAd &update_ad )
 		}
 
 			// replace expression in current ad with expression from update ad
-		ExprTree *new_expr = expr->DeepCopy();
+		ExprTree *new_expr = expr->Copy();
 		ASSERT( new_expr );
-		if( !c_ad->Insert( new_expr ) ) {
+		if( !c_ad->Insert( name, new_expr ) ) {
 			delete new_expr;
 		}
 	}

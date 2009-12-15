@@ -35,6 +35,7 @@
 #include "time_offset.h"
 #include "subsystem_info.h"
 #include "file_lock.h"
+#include "directory.h"
 #include "exit.h"
 
 #if HAVE_EXT_GCB
@@ -48,7 +49,7 @@
 #include "condor_daemon_core.h"
 
 #ifdef WIN32
-#include "exphnd.WIN32.h"
+#include "exception_handling.WINDOWS.h"
 #endif
 #if HAVE_EXT_COREDUMPER
 #include "google/coredumper.h"
@@ -69,6 +70,9 @@ extern void main_pre_command_sock_init();
 // Internal protos
 void dc_reconfig( bool is_full );
 void dc_config_auth();       // Configuring GSI (and maybe other) authentication related stuff
+int handle_fetch_log_history(ReliSock *s, char *name);
+int handle_fetch_log_history_dir(ReliSock *s, char *name);
+int handle_fetch_log_history_purge(ReliSock *s);
 
 // Globals
 int		Foreground = 0;		// run in background by default
@@ -120,7 +124,7 @@ static bool doAuthInit = true;
 #ifndef WIN32
 // This function polls our parent process; if it is gone, shutdown.
 void
-check_parent()
+check_parent( )
 {
 	if ( daemonCore->Is_Pid_Alive( daemonCore->getppid() ) == FALSE ) {
 		// our parent is gone!
@@ -134,7 +138,7 @@ check_parent()
 
 // This function clears expired sessions from the cache
 void
-check_session_cache()
+check_session_cache( )
 {
 	daemonCore->getSecMan()->invalidateExpiredCache();
 }
@@ -156,7 +160,7 @@ bool global_dc_get_cookie(int &len, unsigned char* &data) {
 }
 
 void
-handle_cookie_refresh()
+handle_cookie_refresh( )
 {
 	unsigned char randomjunk[256];
 	char symbols[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
@@ -519,19 +523,17 @@ handle_log_append( char* append_str )
 }
 
 
-int
-dc_touch_log_file( Service* )
+void
+dc_touch_log_file( )
 {
 	dprintf_touch_log();
 
 	daemonCore->Register_Timer( param_integer( "TOUCH_LOG_INTERVAL", 60 ),
-				(TimerHandler)dc_touch_log_file, "dc_touch_log_file" );
-
-	return TRUE;
+				dc_touch_log_file, "dc_touch_log_file" );
 }
 
-int
-dc_touch_lock_files(Service *)
+void
+dc_touch_lock_files( )
 {
 	priv_state p;
 
@@ -551,9 +553,7 @@ dc_touch_lock_files(Service *)
 	// reset the timer for next incarnation of the update.
 	daemonCore->Register_Timer(
 		param_integer("LOCK_FILE_UPDATE_INTERVAL", 3600 * 8, 60, INT_MAX),
-		(TimerHandler)dc_touch_lock_files, "dc_touch_lock_files" );
-
-	return TRUE;
+		dc_touch_lock_files, "dc_touch_lock_files" );
 }
 
 
@@ -864,10 +864,9 @@ handle_reconfig( Service*, int cmd, Stream* stream )
 }
 
 int
-handle_fetch_log( Service *, int, Stream *s )
+handle_fetch_log( Service *, int, ReliSock *stream )
 {
 	char *name = NULL;
-	ReliSock *stream = (ReliSock*) s;
 	int  total_bytes = 0;
 	int result;
 	int type = -1;
@@ -882,13 +881,23 @@ handle_fetch_log( Service *, int, Stream *s )
 
 	stream->encode();
 
-	if(type!=DC_FETCH_LOG_TYPE_PLAIN) {
-		dprintf(D_ALWAYS,"DaemonCore: handle_fetch_log: I don't know about log type %d!\n",type);
-		result = DC_FETCH_LOG_RESULT_BAD_TYPE;
-		stream->code(result);
-		stream->end_of_message();
-        free(name);
-		return FALSE;
+	switch (type) {
+		case DC_FETCH_LOG_TYPE_PLAIN:
+			break; // handled below
+		case DC_FETCH_LOG_TYPE_HISTORY:
+			return handle_fetch_log_history(stream, name);
+		case DC_FETCH_LOG_TYPE_HISTORY_DIR:
+			return handle_fetch_log_history_dir(stream, name);
+		case DC_FETCH_LOG_TYPE_HISTORY_PURGE:
+			free(name);
+			return handle_fetch_log_history_purge(stream);
+		default:
+			dprintf(D_ALWAYS,"DaemonCore: handle_fetch_log: I don't know about log type %d!\n",type);
+			result = DC_FETCH_LOG_RESULT_BAD_TYPE;
+			stream->code(result);
+			stream->end_of_message();
+			free(name);
+			return FALSE;
 	}
 
 	char *pname = (char*)malloc (strlen(name) + 5);
@@ -955,6 +964,122 @@ handle_fetch_log( Service *, int, Stream *s )
 	free(name);
 
 	return total_bytes>=0;
+}
+
+int
+handle_fetch_log_history(ReliSock *stream, char *name) {
+	int result = DC_FETCH_LOG_RESULT_BAD_TYPE;
+
+	char *history_file_param = "HISTORY";
+	if (strcmp(name, "STARTD_HISTORY") == 0) {
+		history_file_param = "STARTD_HISTORY";
+	}
+
+	free(name);
+	char *history_file = param(history_file_param);
+
+	if (!history_file) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log_history: no parameter named %s\n", history_file_param);
+		stream->code(result);
+		stream->end_of_message();
+		return FALSE;
+	}
+	int fd = safe_open_wrapper(history_file,O_RDONLY);
+	free(history_file);
+	if(fd<0) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log_history: can't open history file\n");
+		result = DC_FETCH_LOG_RESULT_CANT_OPEN;
+		stream->code(result);
+		stream->end_of_message();
+		return FALSE;
+	}
+
+	result = DC_FETCH_LOG_RESULT_SUCCESS;
+	stream->code(result);
+
+	filesize_t size;
+	stream->put_file(&size, fd);
+
+	stream->end_of_message();
+
+	if(size<0) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log_history: couldn't send all data!\n");
+	}
+
+	close(fd);
+	return TRUE;
+}
+
+int
+handle_fetch_log_history_dir(ReliSock *stream, char *paramName) {
+	int result = DC_FETCH_LOG_RESULT_BAD_TYPE;
+
+	free(paramName);
+	char *dirName = param("STARTD.PER_JOB_HISTORY_DIR"); 
+	if (!dirName) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log_history_dir: no parameter named PER_JOB\n");
+		stream->code(result);
+		stream->end_of_message();
+		return FALSE;
+	}
+
+	Directory d(dirName);
+	const char *filename;
+	int one=1;
+	int zero=0;
+	while ((filename = d.Next())) {
+		stream->code(one); // more data
+		stream->put(filename);
+		MyString fullPath(dirName);
+		fullPath += "/";
+		fullPath += filename;
+		int fd = safe_open_wrapper(fullPath.Value(),O_RDONLY);
+		if (fd > 0) {
+			filesize_t size;
+			stream->put_file(&size, fd);
+		}
+	}
+
+	free(dirName);
+
+	stream->code(zero); // no more data
+	stream->end_of_message();
+	return 0;
+}
+
+int
+handle_fetch_log_history_purge(ReliSock *s) {
+
+	int result = 0;
+	time_t cutoff = 0;
+	s->code(cutoff);
+	s->end_of_message();
+
+	s->encode();
+
+	char *dirName = param("STARTD.PER_JOB_HISTORY_DIR"); 
+	if (!dirName) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log_history_dir: no parameter named PER_JOB\n");
+		s->code(result);
+		s->end_of_message();
+		return FALSE;
+	}
+
+	Directory d(dirName);
+
+	result = 1;
+	while (d.Next()) {
+		time_t last = d.GetModifyTime();
+		if (last < cutoff) {
+			d.Remove_Current_File();
+		}
+	}
+
+    free(dirName);
+
+    s->code(result); // no more data
+    s->end_of_message();
+    return 0;
 }
 
 
@@ -1256,6 +1381,13 @@ handle_dc_sighup( Service*, int )
 }
 
 
+void
+TimerHandler_main_shutdown_fast()
+{
+	main_shutdown_fast();
+}
+
+
 int
 handle_dc_sigterm( Service*, int )
 {
@@ -1288,7 +1420,7 @@ handle_dc_sigterm( Service*, int )
 			free( tmp );
 		}
 		daemonCore->Register_Timer( timeout, 0, 
-									(TimerHandler)main_shutdown_fast,
+									TimerHandler_main_shutdown_fast,
 									"main_shutdown_fast" );
 		dprintf( D_FULLDEBUG, 
 				 "Started timer to call main_shutdown_fast in %d seconds\n", 
@@ -1296,6 +1428,12 @@ handle_dc_sigterm( Service*, int )
 	}
 	main_shutdown_graceful();
 	return TRUE;
+}
+
+void
+TimerHandler_dc_sigterm()
+{
+	handle_dc_sigterm(NULL, SIGTERM);
 }
 
 
@@ -1316,7 +1454,7 @@ handle_dc_sigquit( Service*, int )
 }
 
 void
-handle_gcb_recovery_failed( Service * /*ignore*/ )
+handle_gcb_recovery_failed( )
 {
 	dprintf( D_ALWAYS, "GCB failed to recover from a failure with the "
 			 "Broker. Performing fast shutdown.\n" );
@@ -1330,7 +1468,7 @@ gcb_recovery_failed_callback()
 		// DaemonCore is blocked on a select() or CEDAR is blocked on a
 		// network operation. So we register a daemoncore timer to do
 		// the real work.
-	daemonCore->Register_Timer( 0, (TimerHandler)handle_gcb_recovery_failed,
+	daemonCore->Register_Timer( 0, handle_gcb_recovery_failed,
 								"handle_gcb_recovery_failed" );
 }
 
@@ -1358,6 +1496,12 @@ int main( int argc, char** argv )
 		condor_main_argv[i] = strdup(argv[i]);
 	}
 	condor_main_argv[i] = NULL;
+
+#ifdef WIN32
+	/** Enable support of the %n format in the printf family 
+		of functions. */
+	_set_printf_count_output(TRUE);
+#endif
 
 #ifndef WIN32
 		// Set a umask value so we get reasonable permissions on the
@@ -1767,7 +1911,7 @@ int main( int argc, char** argv )
 			}
 			// Close the /dev/null descriptor _IF_ it's not stdin/out/err
 			if ( fd_null > 2 ) {
-				close( fd );
+				close( fd_null );
 			}
 		}
 		// and detach from the controlling tty
@@ -1892,7 +2036,12 @@ int main( int argc, char** argv )
 		// right now: a) we are running as a service, and services are 
 		// born without a console, or b) the user did not specify "-f" 
 		// or "-t", and thus we called FreeConsole() above.
-	AllocConsole();
+
+		// for now, don't create a console for the kbdd, as that daemon
+		// is now a win32 app and not a console app.
+	BOOL is_kbdd = (0 == strcmp(get_mySubSystem()->getName(), "KBDD"));
+	if(!is_kbdd)
+		AllocConsole();
 #endif
 
 		// Avoid possibility of stale info sticking around from previous run.
@@ -1914,6 +2063,11 @@ int main( int argc, char** argv )
 		 fcntl(daemonCore->async_pipe[0],F_SETFL,O_NONBLOCK) == -1 ||
 		 fcntl(daemonCore->async_pipe[1],F_SETFL,O_NONBLOCK) == -1 ) {
 			EXCEPT("Failed to create async pipe");
+	}
+#else
+	if ( daemonCore->async_pipe[1].connect_socketpair(daemonCore->async_pipe[0])==false )
+	{
+		EXCEPT("Failed to create async pipe socket pair");
 	}
 #endif
 
@@ -1953,7 +2107,7 @@ int main( int argc, char** argv )
 	if ( runfor ) {
 		daemon_stop_time = time(NULL)+runfor*60;
 		daemonCore->Register_Timer( runfor * 60, 0, 
-				(TimerHandler)handle_dc_sigterm, "handle_dc_sigterm" );
+				TimerHandler_dc_sigterm, "handle_dc_sigterm" );
 		dprintf(D_ALWAYS,"Registered Timer for graceful shutdown in %d minutes\n",
 				runfor );
 	}
@@ -1967,18 +2121,18 @@ int main( int argc, char** argv )
 		// Also note: we do not want the master to exibit this behavior!
 	if ( ! get_mySubSystem()->isType(SUBSYSTEM_TYPE_MASTER) ) {
 		daemonCore->Register_Timer( 15, 120, 
-				(TimerHandler)check_parent, "check_parent" );
+				check_parent, "check_parent" );
 	}
 #endif
 
 	daemonCore->Register_Timer( 0,
-				(TimerHandler)dc_touch_log_file, "dc_touch_log_file" );
+				dc_touch_log_file, "dc_touch_log_file" );
 
 	daemonCore->Register_Timer( 0,
-				(TimerHandler)dc_touch_lock_files, "dc_touch_lock_files" );
+				dc_touch_lock_files, "dc_touch_lock_files" );
 
 	daemonCore->Register_Timer( 0, 5 * 60,
-				(TimerHandler)check_session_cache, "check_session_cache" );
+				check_session_cache, "check_session_cache" );
 	
 
 	// set the timer for half the session duration, 
@@ -1987,7 +2141,7 @@ int main( int argc, char** argv )
 	int cookie_refresh = (param_integer("SEC_DEFAULT_SESSION_DURATION", 3600)/2)+1;
 
 	daemonCore->Register_Timer( 0, cookie_refresh, 
-				(TimerHandler)handle_cookie_refresh, "handle_cookie_refresh");
+				handle_cookie_refresh, "handle_cookie_refresh");
  
 
 	if( get_mySubSystem()->isType( SUBSYSTEM_TYPE_MASTER ) ||
@@ -2047,6 +2201,10 @@ int main( int argc, char** argv )
 	daemonCore->Register_Command( DC_FETCH_LOG, "DC_FETCH_LOG",
 								  (CommandHandler)handle_fetch_log,
 								  "handle_fetch_log()", 0, ADMINISTRATOR );
+
+	daemonCore->Register_Command( DC_PURGE_LOG, "DC_PURGE_LOG",
+								  (CommandHandler)handle_fetch_log_history_purge,
+								  "handle_fetch_log_history_purge()", 0, ADMINISTRATOR );
 
 	daemonCore->Register_Command( DC_INVALIDATE_KEY, "DC_INVALIDATE_KEY",
 								  (CommandHandler)handle_invalidate_key,

@@ -83,6 +83,7 @@ public:
 	friend class Daemon;
 	friend class SecMan;
 	friend class SecManStartCommand;
+	friend class SharedPortListener;
 
 	/*
 	**	Methods
@@ -192,24 +193,24 @@ public:
 	*/
 
     /// peer's port and IP address in a struct sockaddr_in.
-	struct sockaddr_in *endpoint();
+	struct sockaddr_in *peer_addr();
 
 	/// peer's port number
-	int endpoint_port();
+	int peer_port();
 
 	/// peer's IP address, string verison (e.g. "128.105.101.17")
-	const char* endpoint_ip_str();
+	const char* peer_ip_str();
 
 	/// peer's IP address, integer version (e.g. 2154390801)
-	unsigned int endpoint_ip_int();
+	unsigned int peer_ip_int();
 
     /// my port and IP address in a struct sockaddr_in
     /// @args: the address is returned via 'sin'
     /// @ret: 0 if succeed, -1 if failed
-    int mypoint(struct sockaddr_in *sin);
+    int my_addr(struct sockaddr_in *sin);
 
 	/// my IP address, string version (e.g. "128.105.101.17")
-	virtual const char* sender_ip_str();
+	virtual const char* my_ip_str();
 
 	/// local port number
 	int get_port();
@@ -222,6 +223,12 @@ public:
 
 	/// sinful address of peer in form of "<a.b.c.d:pppp>"
 	char * get_sinful_peer();
+
+		// Address that was passed to connect().  This is useful in cases
+		// such as CCB or shared port where our peer address is not the
+		// address one would use to actually connect to the peer.
+		// Returns NULL if connect was never called.
+	char const *get_connect_addr();
 
 	/// sinful address of peer, suitable for passing to dprintf() (never NULL)
 	virtual char const *default_peer_description();
@@ -267,6 +274,10 @@ public:
 	bool triedAuthentication() const { return _tried_authentication; }
 
 	void setTriedAuthentication(bool toggle) { _tried_authentication = toggle; }
+	/// if we are connecting, merges together Stream::get_deadline
+	/// and connect_timeout_time()
+	virtual time_t get_deadline();
+
 
 //	PRIVATE INTERFACE TO ALL SOCKS
 //
@@ -314,12 +325,17 @@ protected:
 	   Called internally by do_connect() to examine the address and
 	   see if we should try a reversed connection (CCB) instead of a
 	   normal forward connection.  If so, initiates the reversed
-	   connection.  If not, returns CEDAR_ENOCCB.
+	   connection.  If not, returns CEDAR_ENOCCB.  Also checks to
+	   see if we are connecting to a shared port (SharedPortServer)
+       requiring further directions to route us to our final destination.
 	*/
-	int reverse_connect(char const *host,int port,bool nonblocking);
+	int special_connect(char const *host,int port,bool nonblocking);
 
 	virtual int do_reverse_connect(char const *ccb_contact,bool nonblocking) = 0;
 	virtual void cancel_reverse_connect() = 0;
+	virtual int do_shared_port_local_connect( char const *shared_port_id,bool nonblocking ) = 0;
+
+	void set_connect_addr(char const *addr);
 
 	inline SOCKET get_socket (void) { return _sock; }
 	char * serialize(char *);
@@ -353,8 +369,18 @@ protected:
 	bool test_connection();
 	///
 	time_t connect_timeout_time();
+
 	///
 	int move_descriptor_up();
+
+
+    /// called whenever the bound or connected state changes
+    void addr_changed();
+
+	virtual void setTargetSharedPortID( char const *id ) = 0;
+	virtual bool sendTargetSharedPortID() = 0;
+
+	bool enter_connected_state(char const *op="CONNECT");
 
 	/*
 	**	Data structures
@@ -364,6 +390,7 @@ protected:
 	sock_state		_state;
 	int				_timeout;
 	struct sockaddr_in _who;	// endpoint of "connection"
+	char *			m_connect_addr;
 	char *          _fqu;
 	char *          _fqu_user_part;
 	char *          _fqu_domain_part;
@@ -376,15 +403,15 @@ protected:
 	bool ignore_timeout_multiplier;
 
 	// Buffer to hold the string version of our own IP address. 
-	char _sender_ip_buf[IP_STRING_BUF_SIZE];	
+	char _my_ip_buf[IP_STRING_BUF_SIZE];	
 
 private:
 	int _condor_read(SOCKET fd, char *buf, int sz, int timeout);
 	int _condor_write(SOCKET fd, char *buf, int sz, int timeout);
 	int bindWithin(const int low, const int high, bool outbound);
 	///
-	// Buffer to hold the string version of our endpoint's IP address. 
-	char _endpoint_ip_buf[IP_STRING_BUF_SIZE];	
+	// Buffer to hold the string version of our peer's IP address. 
+	char _peer_ip_buf[IP_STRING_BUF_SIZE];	
 
 	// Buffer to hold the sinful address of our peer
 	char _sinful_peer_buf[SINFUL_STRING_BUF_SIZE];
@@ -462,7 +489,6 @@ private:
 	*/
 	int _bind_helper(int fd, SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE addr,
 		SOCKET_LENGTH_TYPE len, bool outbound, bool loopback);
-
 };
 
 #endif /* SOCK_H */

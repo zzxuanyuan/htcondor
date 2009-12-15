@@ -156,6 +156,7 @@ FunctionCall( )
 			// for compatibility with old classads:
 		functionTable["ifThenElse"  ] = (void*)ifThenElse;
 		functionTable["interval" ] = (void*)interval;
+		functionTable["eval"] = (void*)eval;
 
 		initialized = true;
 	}
@@ -1161,18 +1162,7 @@ timeZoneOffset (const char *, const ArgumentList &argList, EvalState &,
 		return( true );
 	}
 	
-	struct tm *tms;
-	time_t clock;
-	time(&clock);
-	tms  = localtime( &clock);
-		// POSIX says that timezone is positive west of GMT;  we reverse it
-		// here to make it more intuitive
-	if(tms->tm_isdst > 0) { //check for daylight saving
-	  val.SetRelativeTimeValue( (time_t) (-timezone_offset()+3600) );
-	}
-	else {
-	  val.SetRelativeTimeValue( (time_t) (-timezone_offset()));
-	}
+	val.SetRelativeTimeValue( (time_t) timezone_offset( time(NULL), false ) );
 	return( true );
 }
 
@@ -1206,7 +1196,7 @@ makeDate( const char*, const ArgumentList &argList, EvalState &state,
 	Value 	arg0, arg1, arg2;
 	int		dd, mm, yy;
 	time_t	clock;
-	struct	tm	*tms;
+	struct	tm	tms;
 	char	buffer[64];
 	string	month;
 	abstime_t abst;
@@ -1229,7 +1219,7 @@ makeDate( const char*, const ArgumentList &argList, EvalState &state,
 		val.SetErrorValue( );
 		return( false );
 	}
-	tms  = localtime( &clock);
+	getLocalTime( &clock, &tms );
 
 		// evaluate optional third argument
 	if( argList.size( ) == 3 ) {
@@ -1239,7 +1229,7 @@ makeDate( const char*, const ArgumentList &argList, EvalState &state,
 		}
 	} else {
 			// use the current year (tm_year is years since 1900)
-		arg2.SetIntegerValue( tms->tm_year + 1900 );
+		arg2.SetIntegerValue( tms.tm_year + 1900 );
 	}
 		
 		// check if any of the arguments are undefined
@@ -1265,7 +1255,7 @@ makeDate( const char*, const ArgumentList &argList, EvalState &state,
 		}
 	} else if( arg1.IsStringValue( month ) ) {
 		if( sprintf( buffer, "%d %s %d", dd, month.c_str( ), yy ) > 63 ||
-				strptime( buffer, "%d %b %Y", tms ) == NULL ) {
+				strptime( buffer, "%d %b %Y", &tms ) == NULL ) {
 			val.SetErrorValue( );
 			return( true );
 		}
@@ -1275,13 +1265,13 @@ makeDate( const char*, const ArgumentList &argList, EvalState &state,
 	}
 
 		// convert the struct tm -> time_t -> absolute time
-	clock = mktime( tms );
+	clock = mktime( &tms );
 	if(clock == -1) {
 		val.SetErrorValue( );
 		return( true );
 	}
 	abst.secs = clock;	
-	abst.offset = -timezone_offset();
+	abst.offset = timezone_offset();
 	// alter absolute time parameters based on current day-light saving status
 	if(tms->tm_isdst > 0) { 
 		abst.offset += 3600;
@@ -1490,6 +1480,8 @@ formatTime(const char*, const ArgumentList &argList, EvalState &state,
     return did_eval;
 }
 
+#if 0
+
 bool FunctionCall::
 inTimeUnits(const char*name,const ArgumentList &argList,EvalState &state, 
 	Value &val )
@@ -1540,6 +1532,8 @@ inTimeUnits(const char*name,const ArgumentList &argList,EvalState &state,
 	val.SetErrorValue( );
 	return( true );
 }
+
+#endif
 
 	// concatenate all arguments (expected to be strings)
 bool FunctionCall::
@@ -2209,6 +2203,46 @@ ifThenElse( const char* name,const ArgumentList &argList,EvalState &state,
 }
 
 bool FunctionCall::
+eval( const char* name,const ArgumentList &argList,EvalState &state,
+	  Value &result )
+{
+	Value arg,strarg;
+
+		// takes exactly one argument
+	if( argList.size() != 1 ) {
+		result.SetErrorValue( );
+		return true;
+	}
+	if( !argList[0]->Evaluate( state, arg ) ) {
+		result.SetErrorValue( );
+		return false;
+	}
+
+	string s;
+    if( !convertValueToStringValue(arg, strarg) ||
+		!strarg.IsStringValue( s ) )
+	{
+		result.SetErrorValue();
+		return true;
+	}
+
+	ClassAdParser parser;
+	ExprTree *expr = NULL;
+	if( !parser.ParseExpression( s.c_str(), expr, true ) || !expr ) {
+		result.SetErrorValue();
+		return true;
+	}
+
+	expr->SetParentScope( state.curAd );
+
+	if( !expr->Evaluate( result ) ) {
+		result.SetErrorValue();
+		return false;
+	}
+	return true;
+}
+
+bool FunctionCall::
 interval( const char* name,const ArgumentList &argList,EvalState &state,
 	Value &result )
 {
@@ -2697,11 +2731,11 @@ doSplitTime(const Value &time, ClassAd * &splitClassAd)
     did_conversion = true;
     if (time.IsIntegerValue(integer)) {
         asecs.secs = integer;
-        asecs.offset = timezone_offset();
+        asecs.offset = timezone_offset( asecs.secs, false );
         absTimeToClassAd(asecs, splitClassAd);
     } else if (time.IsRealValue(real)) {
         asecs.secs = (int) real;
-        asecs.offset = timezone_offset();
+        asecs.offset = timezone_offset( asecs.secs, false );
         absTimeToClassAd(asecs, splitClassAd);
     } else if (time.IsAbsoluteTimeValue(asecs)) {
         absTimeToClassAd(asecs, splitClassAd);
@@ -2724,7 +2758,7 @@ absTimeToClassAd(const abstime_t &asecs, ClassAd * &splitClassAd)
 
     splitClassAd = new ClassAd;
 
-    clock = asecs.secs;
+    clock = asecs.secs + asecs.offset;
     getGMTime( &clock, &tms );
 
     splitClassAd->InsertAttr("Type", "AbsoluteTime");

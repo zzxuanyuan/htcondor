@@ -102,9 +102,8 @@ split_sin( const char *addr, char **host, char **port, char **params )
 		}
 		if( params ) {
 			free( *params );
-			params = NULL;
+			*params = NULL;
 		}
-		*host = *port = *params = NULL;
 		return 0;
 	}
 	return 1;
@@ -203,7 +202,7 @@ sock_to_string(SOCKET sockd)
 
 	addr_len = sizeof(addr);
 
-	if (getsockname(sockd, (struct sockaddr *)&addr, &addr_len) < 0) 
+	if (getsockname(sockd, (struct sockaddr *)&addr, &addr_len) < 0 || addr_len==0) 
 		return mynull;
 
 	return ( sin_to_string( &addr ) );
@@ -271,8 +270,7 @@ sin_to_hostname( const struct sockaddr_in *from, char ***aliases)
 
 
 void
-display_from( from )
-struct sockaddr_in  *from;
+display_from( struct sockaddr_in *from )
 {
     struct hostent  *hp;
     struct sockaddr_in caddr;
@@ -838,8 +836,8 @@ in_same_net(uint32_t ipA, uint32_t ipB)
     unsigned char *byteA, *fA, *byteB;
     int i, index_to;
 
-    fA = byteA = (char *)&ipA;
-    byteB = (char *)&ipB;
+    fA = byteA = (unsigned char *)&ipA;
+    byteB = (unsigned char *)&ipB;
 
     if (*fA < 128) { // A class
         index_to = 1;

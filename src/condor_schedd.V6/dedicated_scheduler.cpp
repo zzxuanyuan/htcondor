@@ -692,6 +692,8 @@ DedicatedScheduler::initialize( void )
 	dummy_job.Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_MPI );
 	dummy_job.Assign( ATTR_JOB_STATUS, IDLE );
 	dummy_job.Assign( ATTR_IMAGE_SIZE, 10 ); // WANT_SUSPEND often needs this
+	dummy_job.Assign( ATTR_REQUEST_MEMORY, 10 ); // Dynamic slots needs this
+	dummy_job.Assign( ATTR_REQUEST_DISK, 10 ); //     and this
 	config_fill_ad( &dummy_job );
 
 		// Next, register our special MPI shadow reaper
@@ -1100,7 +1102,7 @@ DedicatedScheduler::negotiateRequest( ClassAd* req, Stream* s,
 							 ATTR_LAST_MATCH_TIME, (int)time(0) );
 #endif
 
-			if( !s->get(claim_id) ) {
+			if( !s->get_secret(claim_id) ) {
 				dprintf( D_ALWAYS, "Can't receive ClaimId from mgr\n" ); 
 				return NR_ERROR;
 			}
@@ -1259,7 +1261,7 @@ DedicatedScheduler::handleDedicatedJobTimer( int seconds )
 	}
 	hdjt_tid = daemonCore->
 		Register_Timer( seconds, 0,
-				(Eventcpp)&DedicatedScheduler::callHandleDedicatedJobs,
+				(TimerHandlercpp)&DedicatedScheduler::callHandleDedicatedJobs,
 						"callHandleDedicatedJobs", this );
 	if( hdjt_tid == -1 ) {
 		EXCEPT( "Can't register DC timer!" );
@@ -1901,7 +1903,7 @@ void
 DedicatedScheduler::listDedicatedJobs( int debug_level )
 {
 	int cluster, proc;
-	char owner_str[100];
+	MyString owner_str;
 
 	if( ! idle_clusters ) {
 		dprintf( debug_level, "DedicatedScheduler: No dedicated jobs\n" );
@@ -1913,10 +1915,10 @@ DedicatedScheduler::listDedicatedJobs( int debug_level )
 	for( i=0; i<=last; i++ ) {
 		cluster = (*idle_clusters)[i];
 		proc = 0;
-		owner_str[0] = '\0';
+		owner_str = "";
 		GetAttributeString( cluster, proc, ATTR_OWNER, owner_str ); 
 		dprintf( debug_level, "Dedicated job: %d.%d %s\n", cluster,
-				 proc, owner_str );
+				 proc, owner_str.Value() );
 	}
 }
 
@@ -2619,8 +2621,8 @@ DedicatedScheduler::computeSchedule( void )
 			// running jobs
 
 		if( (param1 != NULL) && (param2 != NULL)) {
-			Parse(param1, preemption_req);
-			Parse(param2, preemption_rank);
+			ParseClassAdRvalExpr(param1, preemption_req);
+			ParseClassAdRvalExpr(param2, preemption_rank);
 		}
 		if( param1 ) {
 			free(param1);
@@ -2669,8 +2671,8 @@ DedicatedScheduler::computeSchedule( void )
 
 						// See if this machine has a true
 						// SCHEDD_PREEMPTION_REQUIREMENT
-					requirement = preemption_req->EvalTree( machine, job,
-															&result );
+					requirement = EvalExprTree( preemption_req, machine, job,
+												&result );
 					if (requirement) {
 						if (result.type == LX_INTEGER) {
 							requirement = result.i;
@@ -2684,18 +2686,16 @@ DedicatedScheduler::computeSchedule( void )
 							// Evaluate its SCHEDD_PREEMPTION_RANK in
 							// the context of this job
 						int rval;
-						rval = preemption_rank->EvalTree( machine, job,
-														  &result );
+						rval = EvalExprTree( preemption_rank, machine, job,
+											 &result );
 						if( !rval || result.type != LX_FLOAT) {
 								// The result better be a float
-							char *s = NULL;
+							const char *s = ExprTreeToString( preemption_rank );
 							char *m = NULL;
-							preemption_rank->PrintToNewStr( &s );
 							machine->LookupString( ATTR_NAME, &m );
 							dprintf( D_ALWAYS, "SCHEDD_PREEMPTION_RANK (%s) "
 									 "did not evaluate to float on job %d "
 									 "for machine %s\n", s, cluster, m );
-							free(s);
 							free(m);
 							continue;
 						}
@@ -3450,19 +3450,17 @@ DedicatedScheduler::makeGenericAdFromJobAd(ClassAd *job)
 
 	req->Assign( ATTR_CURRENT_HOSTS, 0 );
 
-    ExprTree* expr = job->Lookup( ATTR_REQUIREMENTS );
+    ExprTree* expr = job->LookupExpr( ATTR_REQUIREMENTS );
 
-		// ATTR_REQUIREMENTS better be there, better be an assignment,
-		// and better have a right argument! 
+		// ATTR_REQUIREMENTS better be there!
 	ASSERT( expr );
-	ASSERT( expr->MyType() == LX_ASSIGN );
-	ASSERT( expr->RArg() );
 
 		// We just want the right side of the assignment, which is
 		// just the value (without the "Requirements = " part)
-	char *rhs;
+	const char *rhs = ExprTreeToString( expr );
 
-	expr->RArg()->PrintToNewStr( &rhs );
+		// We had better have a string for the expression!
+	ASSERT( rhs );
 
 		// Construct the new requirements expression by adding a
 		// clause that says we need to run on a machine that's going
@@ -3479,7 +3477,6 @@ DedicatedScheduler::makeGenericAdFromJobAd(ClassAd *job)
 				 ATTR_REQUIREMENTS, name(), name(), rhs );
 	req->InsertOrUpdate( buf.Value() );
 
-	free(rhs);
 	return req;
 }
 
@@ -3674,7 +3671,7 @@ DedicatedScheduler::checkSanity( void )
 				// checkSanity(), so we actually have to register a
 				// timer, instead of just resetting it.
 			sanity_tid = daemonCore->Register_Timer( tmp, 0,
-  				         (Eventcpp)&DedicatedScheduler::checkSanity,
+  				         (TimerHandlercpp)&DedicatedScheduler::checkSanity,
 						 "checkSanity", this );
 			if( sanity_tid == -1 ) {
 				EXCEPT( "Can't register DC timer!" );
@@ -3950,6 +3947,7 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 		GetAttributeStringNew(id.cluster, id.proc, ATTR_REMOTE_HOSTS, &remote_hosts);
 
 		StringList hosts(remote_hosts);
+		free(remote_hosts);
 
 			// Foreach host in the stringlist, build up a query to find the machine
 			// ad from the collector
@@ -4143,6 +4141,8 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 			free(sinful);
 			sinful = NULL;
 		}
+		free(remote_hosts);
+		free(claims);
 	}
 
 		// Last time through, create the last bit of allocations, if there are any
@@ -4384,11 +4384,9 @@ void
 displayRequest( ClassAd* ad, char* str, int debug_level )
 {
 	ExprTree* expr;
-	expr = ad->Lookup( ATTR_REQUIREMENTS );
-	char req[1024];
-	req[0] = '\0';
-	expr->PrintToStr( req );
-	dprintf( debug_level, "%s%s\n", str, req );
+	expr = ad->LookupExpr( ATTR_REQUIREMENTS );
+	dprintf( debug_level, "%s%s = %s\n", str, ATTR_REQUIREMENTS,
+			 ExprTreeToString( expr ) );
 }
 
 

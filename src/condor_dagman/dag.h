@@ -38,8 +38,8 @@
 
 // NOTE: must be kept in sync with Job::job_type_t
 enum Log_source{
-  CONDORLOG,
-  DAPLOG
+  CONDORLOG = Job::TYPE_CONDOR,
+  DAPLOG = Job::TYPE_STORK
 };
 
 // Which layer of splices do we want to lift?
@@ -110,10 +110,13 @@ class Dag {
 			   job procs are prohibited
 		@param submitDepthFirst whether ready nodes should be submitted
 			   in depth-first (as opposed to breadth-first) order
-		@param fundUserLogs whether or not log files for the submit files
-				should be recursively dug out of the dag file and any
-				splices it contains. Usually this is true for the root
-				dag, and false for any splices brought in by the root dag.
+		@param The user log file to be used for nodes whose submit files do
+				not specify a log file.
+		@param isSplice is a boolean which lets the dag object know whether
+				of not it is a splicing dag, or the toplevel dag. We don't
+				wan't to allocate some regulated resources we won't need
+				if we are a splice. It is true for a top level dag, and false
+				for a splice.
     */
 
     Dag( /* const */ StringList &dagFiles,
@@ -124,7 +127,7 @@ class Dag {
 		 bool retryNodeFirst, const char *condorRmExe,
 		 const char *storkRmExe, const CondorID *DAGManJobId,
 		 bool prohibitMultiJobs, bool submitDepthFirst,
-		 bool findUserLogs = true );
+		 const char *defaultNodeLog, bool isSplice = false );
 
     ///
     ~Dag();
@@ -136,10 +139,6 @@ class Dag {
 	void SetAbortOnScarySubmit( bool abortOnScarySubmit ) {
 		_abortOnScarySubmit = abortOnScarySubmit;
 	}
-
-	/** Initialize log files, lock files, etc.
-	*/
-	void InitializeDagFiles( bool deleteOldLogs );
 
     /** Prepare DAG for initial run.  Call this function ONLY ONCE.
         @param recovery specifies if this is a recovery
@@ -163,8 +162,7 @@ class Dag {
     */
 
     
-    //    bool DetectLogGrowth();
-    bool DetectCondorLogGrowth();         //<--DAP 
+    bool DetectCondorLogGrowth();
     bool DetectDaPLogGrowth();            //<--DAP
 
     /** Force the Dag to process all new events in the condor log file.
@@ -284,7 +282,7 @@ class Dag {
 		@param allowEvents what "bad" events to treat as non-fatal (as
 			   opposed to fatal) errors; see check_events.h for values.
     */
-	void SetAllowEvents( int allowEvents);
+	void SetAllowEvents( int allowEvents );
 
     /// Print the list of jobs to stdout (for debugging).
     void PrintJobList() const;
@@ -313,17 +311,32 @@ class Dag {
     /** @return the number of PRE scripts currently running
      */
     inline int NumPreScriptsRunning() const
-		{ return _preScriptQ->NumScriptsRunning(); }
+	{
+		// Do not call this function when the dag is being used to parse
+		// a splice.
+		ASSERT( _isSplice == false ); 
+		return _preScriptQ->NumScriptsRunning();
+	}
 
     /** @return the number of POST scripts currently running
      */
     inline int NumPostScriptsRunning() const
-		{ return _postScriptQ->NumScriptsRunning(); }
+	{
+		// Do not call this function when the dag is being used to parse
+		// a splice.
+		ASSERT( _isSplice == false ); 
+		return _postScriptQ->NumScriptsRunning(); 
+	}
 
     /** @return the total number of PRE/POST scripts currently running
      */
     inline int NumScriptsRunning() const
-		{ return NumPreScriptsRunning() + NumPostScriptsRunning(); }
+	{
+		// Do not call this function when the dag is being used to parse
+		// a splice.
+		ASSERT( _isSplice == false ); 
+		return NumPreScriptsRunning() + NumPostScriptsRunning();
+	}
 
 	/** @return the number of nodes currently in the status
 	 *          Job::STATUS_PRERUN.
@@ -400,7 +413,7 @@ class Dag {
     /* Detects cycle within dag submitted by user
 	   @return true if there is cycle
 	*/
-	bool isCycle ();
+	bool isCycle();
 
 	// max number of PRE & POST scripts to run at once (0 means no limit)
     const int _maxPreScripts;
@@ -423,11 +436,6 @@ class Dag {
 
 	int NumIdleJobProcs() const { return _numIdleJobProcs; }
 
-		/** Get the number of Stork (nee DaP) log files.
-			@return The number of Stork log files (can be 0).
-		*/
-	int GetStorkLogCount() const { return _storkLogFiles.number(); }
-
 		/** Print the number of deferrals during the run (caused
 		    by MaxJobs, MaxIdle, MaxPre, or MaxPost).
 			@param level: debug level for output.
@@ -447,8 +455,9 @@ class Dag {
 		// are normal exe return codes, -1 to -64 represent catching
 		// exe signals 1 to 64, and -1000 and below represent DAGMan,
 		// batch-system, or other external errors
-	const int DAG_ERROR_CONDOR_SUBMIT_FAILED;
-	const int DAG_ERROR_CONDOR_JOB_ABORTED;
+	static const int DAG_ERROR_CONDOR_SUBMIT_FAILED;
+	static const int DAG_ERROR_CONDOR_JOB_ABORTED;
+	static const int DAG_ERROR_LOG_MONITOR_ERROR;
 
 		// The maximum signal we can deal with in the error-reporting
 		// code.
@@ -494,11 +503,9 @@ class Dag {
 
 	bool SubmitDepthFirst(void) { return _submitDepthFirst; }
 
-	StringList& DagFiles(void) { return _dagFiles; }
+	const char *DefaultNodeLog(void) { return _defaultNodeLog; }
 
-		// The absolute maximum allowed rescue DAG number (the real maximum
-		// is normally configured lower).
-	static const int ABS_MAX_RESCUE_DAG_NUM;
+	StringList& DagFiles(void) { return _dagFiles; }
 
 	// return same thing as HashTable.insert()
 	int InsertSplice(MyString spliceName, Dag *splice_dag);
@@ -581,13 +588,6 @@ class Dag {
 	*/
 	void PrintDagFiles( /* const */ StringList &dagFiles );
 
-	/** Find all Condor (not DaP) log files associated with this DAG.
-	    @param The list of DAG files being run.
-		@param useDagDir run DAGs in directories from DAG file paths
-		       if true
-	*/
-	void FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir );
-
     /* Prepares to submit job by running its PRE Script if one exists,
        otherwise adds job to _readyQ and calls SubmitReadyJobs()
 	   @param The job to start
@@ -640,13 +640,21 @@ class Dag {
 	*/
 	void UpdateJobCounts( Job *node, int change );
 
-    // add job to termination queue and report termination to all
-    // child jobs by removing job ID from each child's waiting queue
-    void TerminateJob( Job* job, bool bootstrap = false );
+	/** Add job to termination queue and report termination to all
+		child jobs by removing job ID from each child's waiting queue.
+		Note that this method should be called only in the case of
+		*successful* termination.
+		@param The job (node) just terminated
+		@param Whether we're in recovery mode (re-reading log events)
+		@param Whether we're in bootstrap mode (dealing with jobs marked
+			DONE in a rescue DAG)
+	*/
+    void TerminateJob( Job* job, bool recovery, bool bootstrap = false );
   
 	void PrintEvent( debug_level_t level, const ULogEvent* event,
 					 Job* node );
 
+	// Retry a node that we ran, but which failed.
 	void RestartNode( Job *node, bool recovery );
 
 	/* DFS number the jobs in the DAG in order to detect cycle*/
@@ -696,34 +704,22 @@ class Dag {
 	// run DAGs in directories from DAG file paths if true
 	bool _useDagDir;
 
-    // name of consolidated condor log
-	StringList _condorLogFiles;
-
     // Documentation on ReadUserLog is present in condor_c++_util
 	ReadMultipleUserLogs _condorLogRdr;
 
-    //
-    bool          _condorLogInitialized;
-
-    //-->DAP
-		// The list of all Stork log files (generated from the relevant
-		// submit files).
-	StringList	_storkLogFiles;
-
 		// Object to read events from Stork logs.
 	ReadMultipleUserLogs	_storkLogRdr;
-
-		// Whether the Stork (nee DaP) log(s) have been successfully
-		// initialized.
-    bool          _dapLogInitialized;
-    //<--DAP
 
 		/** Get the total number of node job user log files we'll be
 			accessing.
 			@return The total number of log files.
 		*/
-	int TotalLogFileCount() { return _condorLogFiles.number() +
-				_storkLogFiles.number(); }
+	int TotalLogFileCount() { return CondorLogFileCount() +
+				StorkLogFileCount(); }
+
+	int CondorLogFileCount() { return _condorLogRdr.totalLogFileCount(); }
+
+	int StorkLogFileCount() { return _storkLogRdr.totalLogFileCount(); }
 
     /// List of Job objects
     List<Job>     _jobs;
@@ -879,6 +875,22 @@ class Dag {
 		// Default Condor ID to use in reseting a node's Condor ID on
 		// retry.
 	static const CondorID	_defaultCondorId;
+
+		// Whether having node job log files on NFS is an error (vs.
+		// just a warning).
+	bool	_nfsLogIsError;
+
+		// The user log file to be used for nodes whose submit files do
+		// not specify a log file.
+	const char *_defaultNodeLog;
+
+		// Dag objects are used to parse splice files, which are like include
+		// files that ultimately result in a larger in memory dag. To toplevel
+		// dag will have this be false, and any included splices will be true.
+		// We use this knowledge to not allocate precious daemoncore resources
+		// because we know we aren't going to have an "executing" dag object
+		// which is also a splice.
+	bool _isSplice;
 
 };
 

@@ -237,8 +237,8 @@ bool
 DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int * numdone /*=0*/)
 {
 	if(numdone) { *numdone = 0; }
-	ExprTree *tree = NULL, *lhs = NULL, *rhs = NULL;
-	char *lhstr, *rhstr;
+	ExprTree *tree = NULL;
+	const char *lhstr, *rhstr;
 	int reply;
 	int i;
 	ReliSock rsock;
@@ -382,34 +382,15 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack, int 
 			// translate the job ad by replacing the 
 			// saved SUBMIT_ attributes
 		job.ResetExpr();
-		while( (tree = job.NextExpr()) ) {
-			lhstr = NULL;
-			if( (lhs = tree->LArg()) ) { 
-				lhs->PrintToNewStr (&lhstr); 
-			}
+		while( job.NextExpr(lhstr, tree) ) {
 			if ( lhstr && strncasecmp("SUBMIT_",lhstr,7)==0 ) {
 					// this attr name starts with SUBMIT_
 					// compute new lhs (strip off the SUBMIT_)
-				char *new_attr_name = strchr(lhstr,'_');
+				const char *new_attr_name = strchr(lhstr,'_');
 				ASSERT(new_attr_name);
 				new_attr_name++;
-					// compute new rhs (just use the same)
-				rhstr = NULL;
-				if( (rhs = tree->RArg()) ) { 
-					rhs->PrintToNewStr (&rhstr); 
-				}
 					// insert attribute
-				if(rhstr) {
-					MyString newattr;
-					newattr += new_attr_name;
-					newattr += "=";
-					newattr += rhstr;
-					job.Insert(newattr.Value());
-					free(rhstr);
-				}
-			}
-			if ( lhstr ) {
-				free(lhstr);
+				job.Insert(new_attr_name, tree->Copy());
 			}
 		}	// while next expr
 
@@ -1579,3 +1560,85 @@ JobActionResults::getResultString( PROC_ID job_id, char** str )
 	return rval;
 }
 
+bool DCSchedd::getJobConnectInfo(
+	PROC_ID jobid,
+	int subproc,
+	char const *session_info,
+	int timeout,
+	CondorError *errstack,
+	MyString &starter_addr,
+	MyString &starter_claim_id,
+	MyString &starter_version,
+	MyString &slot_name,
+	MyString &error_msg,
+	bool &retry_is_sensible)
+{
+	ClassAd input;
+	ClassAd output;
+
+	input.Assign(ATTR_CLUSTER_ID,jobid.cluster);
+	input.Assign(ATTR_PROC_ID,jobid.proc);
+	if( subproc != -1 ) {
+		input.Assign(ATTR_SUB_PROC_ID,subproc);
+	}
+	input.Assign(ATTR_SESSION_INFO,session_info);
+
+	ReliSock sock;
+	if( !connectSock(&sock,timeout,errstack) ) {
+		error_msg = "Failed to connect to schedd";
+		dprintf( D_ALWAYS, "%s\n",error_msg.Value());
+		return false;
+	}
+
+	if( !startCommand(GET_JOB_CONNECT_INFO, &sock, timeout, errstack) ) {
+		error_msg = "Failed to send GET_JOB_CONNECT_INFO to schedd";
+		dprintf( D_ALWAYS, "%s\n",error_msg.Value());
+		return false;
+	}
+
+	if( !forceAuthentication(&sock, errstack) ) {
+		error_msg = "Failed to authenticate";
+		dprintf( D_ALWAYS, "%s\n",error_msg.Value());
+		return false;
+	}
+
+	sock.encode();
+	if( !input.put(sock) || !sock.eom() ) {
+		error_msg = "Failed to send GET_JOB_CONNECT_INFO to schedd";
+		dprintf( D_ALWAYS, "%s\n",error_msg.Value());
+		return false;
+	}
+
+	sock.decode();
+	if( !output.initFromStream(sock) || !sock.eom() ) {
+		error_msg = "Failed to get response from schedd";
+		dprintf( D_ALWAYS, "%s\n",error_msg.Value());
+		return false;
+	}
+
+	if( DebugFlags & D_FULLDEBUG ) {
+		MyString adstr;
+		output.SetPrivateAttributesInvisible(true);
+		output.sPrint(adstr);
+		output.SetPrivateAttributesInvisible(false);
+		dprintf(D_FULLDEBUG,"Response for GET_JOB_CONNECT_INFO:\n%s\n",
+				adstr.Value());
+	}
+
+	bool result=false;
+	output.LookupBool(ATTR_RESULT,result);
+
+	if( !result ) {
+		output.LookupString(ATTR_ERROR_STRING,error_msg);
+		retry_is_sensible = false;
+		output.LookupBool(ATTR_RETRY,retry_is_sensible);
+	}
+	else {
+		output.LookupString(ATTR_STARTER_IP_ADDR,starter_addr);
+		output.LookupString(ATTR_CLAIM_ID,starter_claim_id);
+		output.LookupString(ATTR_VERSION,starter_version);
+		output.LookupString(ATTR_REMOTE_HOST,slot_name);
+	}
+
+	return result;
+}

@@ -901,12 +901,12 @@ sub Monitor
 
 	# 001: job executing
 	elsif( $line =~ 
-	       /^001\s+\(0*(\d+)\.0*(\d+).*<(\d+\.\d+\.\d+\.\d+):(\d+)>/ )
+	       /^001\s+\(0*(\d+)\.0*(\d+).*<([^>]+)>/ )
 	{
 	    $info{'cluster'} = $1;
 	    $info{'job'} = $2;
 	    $info{'host'} = $3;
-	    $info{'sinful'} = "<$3:$4>";
+	    $info{'sinful'} = "<$3>";
 	    
 	    debug( "Saw job executing\n" ,5);
 
@@ -919,12 +919,12 @@ sub Monitor
 
 	# 000: job submitted
 	elsif( $line =~ 
-	       /^000\s+\(0*(\d+)\.0*(\d+).*<(\d+\.\d+\.\d+\.\d+):(\d+)>/ )
+	       /^000\s+\(0*(\d+)\.0*(\d+).*<([^>]+)>/ )
 	{
 	    $info{'cluster'} = $1;
 	    $info{'job'} = $2;
 	    $info{'host'} = $3;
-	    $info{'sinful'} = "<$3:$4>";
+	    $info{'sinful'} = "<$3>";
 
 	    debug( "Saw job submitted\n" ,5);
 	    $submit_info{'cluster'} = $1; # squirrel it away for TimedWait
@@ -962,8 +962,8 @@ sub Monitor
 	{
 	    $info{'cluster'} = $1;
 	    $info{'job'} = $2;
-	    $info{'host'} = $3;
-	    $info{'sinful'} = "<$3:$4>";
+	    #$info{'host'} = $3;
+	    #$info{'sinful'} = "<$3:$4>";
 	    
 	    # read next line to see how job was held
 	    $line = <SUBMIT_LOG>;
@@ -994,8 +994,8 @@ sub Monitor
 	{
 	    $info{'cluster'} = $1;
 	    $info{'job'} = $2;
-	    $info{'host'} = $3;
-	    $info{'sinful'} = "<$3:$4>";
+	    #$info{'host'} = $3;
+	    #$info{'sinful'} = "<$3:$4>";
 	    
 	    debug( "Saw job released\n" ,5);
 

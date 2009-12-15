@@ -27,6 +27,7 @@
 #include "condor_api.h"
 #include "my_username.h"
 #include "condor_classad.h"
+#include "condor_classad_util.h"
 #include "condor_adtypes.h"
 #include "condor_string.h"
 #include "condor_uid.h"
@@ -118,7 +119,7 @@ giveBestMachine(ClassAd &request,ClassAdList &startdAds,
 	while ((candidate = startdAds.Next ())) {
 
 		// the candidate offer and request must match
-		if( !( *candidate == request ) ) {
+		if( !IsAMatch( &request, candidate ) ) {
 				// they don't match; continue
 			//printf("DEBUG: MATCH FAILED\n\nCANDIDATE:\n");
 			//candidate->fPrint(stdout);
@@ -133,7 +134,7 @@ giveBestMachine(ClassAd &request,ClassAdList &startdAds,
 			candidate->LookupString (ATTR_REMOTE_USER, remoteUser)) 
 		{
 				// check if we are preempting for rank or priority
-			if( rankCondStd->EvalTree( candidate, &request, &result ) && 
+			if( EvalExprTree( rankCondStd, candidate, &request, &result ) &&
 					result.type == LX_INTEGER && result.i == TRUE ) {
 					// offer strictly prefers this request to the one
 					// currently being serviced; preempt for rank
@@ -146,14 +147,14 @@ giveBestMachine(ClassAd &request,ClassAdList &startdAds,
 					// (1) we need to make sure that PreemptionReq's hold (i.e.,
 					// if the PreemptionReq expression isn't true, dont preempt)
 				if (PreemptionReq && 
-						!(PreemptionReq->EvalTree(candidate,&request,&result) &&
+					!(EvalExprTree(PreemptionReq,candidate,&request,&result) &&
 						result.type == LX_INTEGER && result.i == TRUE) ) {
 					continue;
 				}
 					// (2) we need to make sure that the machine ranks the job
 					// at least as well as the one it is currently running 
 					// (i.e., rankCondPrioPreempt holds)
-				if(!(rankCondPrioPreempt->EvalTree(candidate,&request,&result)&&
+				if(!(EvalExprTree(rankCondPrioPreempt,candidate,&request,&result)&&
 						result.type == LX_INTEGER && result.i == TRUE ) ) {
 						// machine doesn't like this job as much -- find another
 					continue;
@@ -187,7 +188,7 @@ giveBestMachine(ClassAd &request,ClassAdList &startdAds,
 		if( candidatePreemptState != NO_PREEMPTION ) {
 			// calculate the preemption rank
 			if( PreemptionRank &&
-			   		PreemptionRank->EvalTree(candidate,&request,&result) &&
+				EvalExprTree(PreemptionRank,candidate,&request,&result) &&
 					result.type == LX_FLOAT) {
 				candidatePreemptRankValue = result.f;
 			} else if( PreemptionRank ) {
@@ -340,7 +341,7 @@ fetchSubmittorPrios()
 
 	sock->eom();
 	sock->decode();
-	if( !al.initFromStream(*sock) || !sock->end_of_message() ) {
+	if( !al.initAttrListFromStream(*sock) || !sock->end_of_message() ) {
 		fprintf( stderr, 
 				 "Error:  Could not get priorities from negotiator (%s)\n",
 				 negotiator.fullHostname() );
@@ -474,15 +475,15 @@ main(int argc, char *argv[])
 
 	// initialize some global expressions
 	sprintf (buffer, "MY.%s > MY.%s", ATTR_RANK, ATTR_CURRENT_RANK);
-	Parse (buffer, rankCondStd);
+	ParseClassAdRvalExpr (buffer, rankCondStd);
 	sprintf (buffer, "MY.%s >= MY.%s", ATTR_RANK, ATTR_CURRENT_RANK);
-	Parse (buffer, rankCondPrioPreempt);
+	ParseClassAdRvalExpr (buffer, rankCondPrioPreempt);
 
 	// get PreemptionReq expression from config file
 	PreemptionReq = NULL;
 	tmp = param("PREEMPTION_REQUIREMENTS");
 	if( tmp ) {
-		if( Parse(tmp, PreemptionReq) ) {
+		if( ParseClassAdRvalExpr(tmp, PreemptionReq) ) {
 			fprintf(stderr, 
 				"\nERROR: Failed to parse PREEMPTION_REQUIREMENTS.\n");
 			exit(1);
@@ -493,7 +494,7 @@ main(int argc, char *argv[])
 	PreemptionRank = NULL;
 	tmp = param("PREEMPTION_RANK");
 	if( tmp ) {
-		if( Parse(tmp, PreemptionRank) ) {
+		if( ParseClassAdRvalExpr(tmp, PreemptionRank) ) {
 			fprintf(stderr, 
 				"\nERROR: Failed to parse PREEMPTION_RANK.\n");
 			exit(1);

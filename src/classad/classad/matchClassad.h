@@ -26,29 +26,37 @@
 BEGIN_NAMESPACE( classad )
 
 /** Special case of a ClassAd which make it easy to do matching.  
-    The top-level ClassAd is defined as follows:
+    The top-level ClassAd equivalent to the following, with some
+    minor implementation differences for efficiency.  Because of
+	the use of global-scope references to .LEFT and .RIGHT, this
+    ad is not suitable for nesting inside of other ads.  The use
+    of global-scope references is done purely for efficiency,
+    since attribute lookups tends to be a big part of the time
+	spent in matchmaking.
 	<pre>
     [
        symmetricMatch   = leftMatchesRight && rightMatchesLeft;
-       leftMatchesRight = adcr.ad.requirements;
-       rightMatchesLeft = adcl.ad.requirements;
-       leftRankValue    = adcl.ad.rank;
-       rightRankValue   = adcr.ad.rank;
-       adcl             =
+       leftMatchesRight = LEFT.requirements;
+       rightMatchesLeft = RIGHT.requirements;
+       leftRankValue    = LEFT.rank;
+       rightRankValue   = RIGHT.rank;
+       RIGHT            = rCtx.ad;
+       LEFT             = lCtx.ad;
+       lCtx             =
            [
-               other    = adcr.ad;
-               my       = ad;       // for condor backwards compatibility
-               target   = other;    // for condor backwards compatibility
+               other    = .RIGHT;
+               target   = .RIGHT;   // for condor backwards compatibility
+               my       = .LEFT;    // for condor backwards compatibility
                ad       = 
                   [
                       // the ``left'' match candidate goes here
                   ]
     	   ];
-       adcr             =
+       rCtx             =
            [
-               other    = adcl.ad;
-               my       = ad;       // for condor backwards compatibility
-               target   = other;    // for condor backwards compatibility
+               other    = .LEFT;
+               target   = .LEFT;    // for condor backwards compatibility
+               my       = .RIGHT;   // for condor backwards compatibility
                ad       = 
                   [
                       // the ``right'' match candidate goes here
@@ -138,6 +146,36 @@ class MatchClassAd : public ClassAd
 		*/
 		ClassAd *RemoveRightAd( );
 
+		/** Modifies the requirements expression in the given ad to
+			make matchmaking more efficient.  This will only improve
+			efficiency if it is called once and then the resulting
+			requirements are used multiple times.  Saves the old
+			requirements expression so it can be restored via
+			UnoptimizeAdForMatchmaking.
+			@param ad The ad to be optimized.
+			@param error_msg non-NULL if an error description is desired.
+			@return True on success.
+		*/
+		bool OptimizeRightAdForMatchmaking( ClassAd *ad, std::string *error_msg );
+
+		/** Modifies the requirements expression in the given ad to
+			make matchmaking more efficient.  This will only improve
+			efficiency if it is called once and then the resulting
+			requirements are used multiple times.  Saves the old
+			requirements expression so it can be restored via
+			UnoptimizeAdForMatchmaking.
+			@param ad The ad to be optimized.
+			@param error_msg non-NULL if an error description is desired.
+			@return True on success.
+		*/
+		bool OptimizeLeftAdForMatchmaking( ClassAd *ad, std::string *error_msg );
+
+		/** Restores ad previously optimized with OptimizeAdForMatchmaking.
+			@param ad The ad to be unoptimized.
+			@return True on success.
+		*/
+		bool UnoptimizeAdForMatchmaking( ClassAd *ad );
+
 	protected:
 		const ClassAd *ladParent, *radParent;
 		ClassAd *lCtx, *rCtx, *lad, *rad;
@@ -149,6 +187,19 @@ class MatchClassAd : public ClassAd
         // write them. 
         MatchClassAd(const MatchClassAd &) : ClassAd(){ return;       }
         MatchClassAd &operator=(const MatchClassAd &) { return *this; }
+
+		/** Modifies the requirements expression in the given ad to
+			make matchmaking more efficient.  This will only improve
+			efficiency if it is called once and then the resulting
+			requirements are used multiple times.  Saves the old
+			requirements expression so it can be restored via
+			UnoptimizeAdForMatchmaking.
+			@param ad The ad to be optimized.
+			@param is_right True if this ad will be the right ad.
+			@param error_msg non-NULL if an error description is desired.
+			@return True on success.
+		*/
+		bool OptimizeAdForMatchmaking( ClassAd *ad, bool is_right, std::string *error_msg );
 
 };
 

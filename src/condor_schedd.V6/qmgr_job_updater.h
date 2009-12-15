@@ -106,7 +106,7 @@ private:
 			@param The ExprTree you want to update in the job queue 
 			@return success or failure to set the attribute
 		 */
-	bool updateExprTree( ExprTree* tree );
+	bool updateExprTree( const char *name, ExprTree* tree );
 
 		/// Pointers to lists of attribute names we care about
 
@@ -120,6 +120,10 @@ private:
 	StringList* requeue_job_queue_attrs;
 	StringList* terminate_job_queue_attrs;
 	StringList* checkpoint_job_queue_attrs;
+
+		// List of attributes we should pull from the schedd when we
+		// do an update.
+	StringList* m_pull_attrs;
 
 	ClassAd* job_ad;
 	char* schedd_addr;

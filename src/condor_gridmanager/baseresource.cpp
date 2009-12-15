@@ -26,8 +26,7 @@
 #include "basejob.h"
 #include "gridmanager.h"
 
-#define DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE	5
-#define DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE		100
+#define DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE		1000
 
 int BaseResource::probeInterval = 300;	// default value
 int BaseResource::probeDelay = 15;		// default value
@@ -46,7 +45,6 @@ BaseResource::BaseResource( const char *resource_name )
 	lastPing = 0;
 	lastStatusChange = 0;
 
-	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
 
 	hasLeases = false;
@@ -95,36 +93,6 @@ void BaseResource::Reconfig()
 	tmp_int = param_integer( "GRIDMANAGER_RESOURCE_PROBE_INTERVAL", 5 * 60 );
 	setProbeInterval( tmp_int );
 
-	submitLimit = -1;
-	param_name.sprintf( "GRIDMANAGER_MAX_PENDING_SUBMITS_PER_RESOURCE_%s",
-						ResourceType() );
-	param_value = param( param_name.Value() );
-	if ( param_value == NULL ) {
-		param_value = param( "GRIDMANAGER_MAX_PENDING_SUBMITS_PER_RESOURCE" );
-	}
-	if ( param_value == NULL ) {
-		// Check old parameter name
-		param_value = param( "GRIDMANAGER_MAX_PENDING_SUBMITS" );
-	}
-	if ( param_value != NULL ) {
-		char *tmp1;
-		char *tmp2;
-		StringList limits( param_value );
-		limits.rewind();
-		if ( limits.number() > 0 ) {
-			submitLimit = atoi( limits.next() );
-			while ( (tmp1 = limits.next()) && (tmp2 = limits.next()) ) {
-				if ( strcmp( tmp1, resourceName ) == 0 ) {
-					submitLimit = atoi( tmp2 );
-				}
-			}
-		}
-		free( param_value );
-	}
-	if ( submitLimit <= 0 ) {
-		submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
-	}
-
 	jobLimit = -1;
 	param_name.sprintf( "GRIDMANAGER_MAX_SUBMITTED_JOBS_PER_RESOURCE_%s",
 						ResourceType() );
@@ -161,15 +129,6 @@ void BaseResource::Reconfig()
 		wanted_job->SetEvaluateState();
 	}
 
-	// If the submitLimit was widened, move jobs from Queued to In-Progress
-	while ( submitsInProgress.Length() < submitLimit &&
-			submitsQueued.Length() > 0 ) {
-		BaseJob *queued_job = submitsQueued.Head();
-		submitsQueued.Delete( queued_job );
-		submitsInProgress.Append( queued_job );
-		queued_job->SetEvaluateState();
-	}
-
 	_collectorUpdateInterval = param_integer ( 
 		"GRIDMANAGER_COLLECTOR_UPDATE_INTERVAL", 5*60 );
 
@@ -180,7 +139,7 @@ char *BaseResource::ResourceName()
 	return resourceName;
 }
 
-int BaseResource::DeleteMe()
+void BaseResource::DeleteMe()
 {
 	deleteMeTid = TIMER_UNSET;
 
@@ -191,10 +150,7 @@ int BaseResource::DeleteMe()
 
 		delete this;
 		// DO NOT REFERENCE ANY MEMBER VARIABLES BELOW HERE!!!!!!!
-
 	}
-
-	return TRUE;
 }
 
 bool BaseResource::Invalidate () {
@@ -221,19 +177,7 @@ bool BaseResource::Invalidate () {
         "BaseResource::InvalidateResource: \n%s\n",
         line.Value() );
     
-    bool ok = false;
-	
-	/* invalidate the resource ad */
-	if ( CollectorObj ) {
-		ok = CollectorObj->sendUpdate ( 
-			INVALIDATE_GRID_ADS, 
-			&ad, 
-			NULL, 
-			true );
-	}
-
-	return ok;
-
+	return daemonCore->sendUpdates( INVALIDATE_GRID_ADS, &ad, NULL, true ) > 0;
 }
 
 bool BaseResource::SendUpdate () {
@@ -246,6 +190,8 @@ bool BaseResource::SendUpdate () {
     /* populate class ad with the relevant resource information */
     PublishResourceAd ( &ad );
 
+	daemonCore->publish( &ad );
+
     MyString tmp;
     ad.sPrint ( tmp );
     dprintf (
@@ -253,21 +199,10 @@ bool BaseResource::SendUpdate () {
         "BaseResource::UpdateResource: \n%s\n",
         tmp.Value() );
 
-    bool ok = false;
-	
-	/* Update the the Collector as to this resource's state */
-    if ( CollectorObj ) {
-		ok = CollectorObj->sendUpdate ( 
-			UPDATE_GRID_AD, 
-			&ad, 
-			NULL, 
-			true );
-	}
-	
-	return ok;
+	return daemonCore->sendUpdates( UPDATE_GRID_AD, &ad, NULL, true ) > 0;
 }
 
-int BaseResource::UpdateCollector () {
+void BaseResource::UpdateCollector () {
 
 	/* avoid updating the collector too often, except on the 
 	first update */
@@ -276,14 +211,14 @@ int BaseResource::UpdateCollector () {
 			_collectorUpdateInterval ) - time ( NULL );
 		if ( delay > 0 ) {
 			daemonCore->Reset_Timer ( _updateCollectorTimerId, delay );
-			return TRUE;
+			return;
 		}
 	} else {
 		_firstCollectorUpdate = false;
 	}
 
 	/* Update the the Collector as to this resource's state */
-    if ( !SendUpdate () && CollectorObj ) {
+    if ( !SendUpdate () && !daemonCore->getCollectorList()->IsEmpty() ) {
 		dprintf (
 			D_FULLDEBUG,
 			"BaseResource::UpdateCollector: Updating Collector(s) "
@@ -295,9 +230,6 @@ int BaseResource::UpdateCollector () {
 		_updateCollectorTimerId, 
 		_collectorUpdateInterval );
 	_lastCollectorUpdate = time ( NULL );
-
-	return TRUE;
-
 }
 
 void BaseResource::PublishResourceAd( ClassAd *resource_ad )
@@ -312,9 +244,6 @@ void BaseResource::PublishResourceAd( ClassAd *resource_ad )
 	resource_ad->Assign( ATTR_OWNER, myUserName );
 	resource_ad->Assign( "NumJobs", registeredJobs.Number() );
 	resource_ad->Assign( "JobLimit", jobLimit );
-	resource_ad->Assign( "SubmitLimit", submitLimit );
-	resource_ad->Assign( "SubmitsInProgress", submitsInProgress.Number() );
-	resource_ad->Assign( "SubmitsQueued", submitsQueued.Number() );
 	resource_ad->Assign( "SubmitsAllowed", submitsAllowed.Number() );
 	resource_ad->Assign( "SubmitsWanted", submitsWanted.Number() );
 	if ( resourceDown ) {
@@ -399,22 +328,7 @@ void BaseResource::RequestPing( BaseJob *job )
 
 bool BaseResource::RequestSubmit( BaseJob *job )
 {
-	bool already_allowed = false;
 	BaseJob *jobptr;
-
-	submitsQueued.Rewind();
-	while ( submitsQueued.Next( jobptr ) ) {
-		if ( jobptr == job ) {
-			return false;
-		}
-	}
-
-	submitsInProgress.Rewind();
-	while ( submitsInProgress.Next( jobptr ) ) {
-		if ( jobptr == job ) {
-			return true;
-		}
-	}
 
 	submitsWanted.Rewind();
 	while ( submitsWanted.Next( jobptr ) ) {
@@ -426,55 +340,21 @@ bool BaseResource::RequestSubmit( BaseJob *job )
 	submitsAllowed.Rewind();
 	while ( submitsAllowed.Next( jobptr ) ) {
 		if ( jobptr == job ) {
-			already_allowed = true;
-			break;
+			return true;
 		}
 	}
 
-	if ( already_allowed == false ) {
-		if ( submitsAllowed.Length() < jobLimit &&
-			 submitsWanted.Length() > 0 ) {
-			EXCEPT("In BaseResource for %s, SubmitsWanted is not empty and SubmitsAllowed is not full\n",resourceName);
-		}
-		if ( submitsAllowed.Length() < jobLimit ) {
-			submitsAllowed.Append( job );
-			// proceed to see if submitLimit applies
-		} else {
-			submitsWanted.Append( job );
-			return false;
-		}
+	if ( submitsAllowed.Length() < jobLimit &&
+		 submitsWanted.Length() > 0 ) {
+		EXCEPT("In BaseResource for %s, SubmitsWanted is not empty and SubmitsAllowed is not full\n",resourceName);
 	}
-
-	if ( submitsInProgress.Length() < submitLimit &&
-		 submitsQueued.Length() > 0 ) {
-		EXCEPT("In BaseResource for %s, SubmitsQueued is not empty and SubmitsToProgress is not full\n",resourceName);
-	}
-	if ( submitsInProgress.Length() < submitLimit ) {
-		submitsInProgress.Append( job );
+	if ( submitsAllowed.Length() < jobLimit ) {
+		submitsAllowed.Append( job );
 		return true;
 	} else {
-		submitsQueued.Append( job );
+		submitsWanted.Append( job );
 		return false;
 	}
-}
-
-void BaseResource::SubmitComplete( BaseJob *job )
-{
-	if ( submitsInProgress.Delete( job ) ) {
-		if ( submitsInProgress.Length() < submitLimit &&
-			 submitsQueued.Length() > 0 ) {
-			BaseJob *queued_job = submitsQueued.Head();
-			submitsQueued.Delete( queued_job );
-			submitsInProgress.Append( queued_job );
-			queued_job->SetEvaluateState();
-		}
-	} else {
-		// We only have to check submitsQueued if the job wasn't in
-		// submitsInProgress.
-		submitsQueued.Delete( job );
-	}
-
-	return;
 }
 
 void BaseResource::CancelSubmit( BaseJob *job )
@@ -493,8 +373,6 @@ void BaseResource::CancelSubmit( BaseJob *job )
 		submitsWanted.Delete( job );
 	}
 
-	SubmitComplete( job );
-
 	leaseUpdates.Delete( job );
 
 	return;
@@ -505,7 +383,7 @@ void BaseResource::AlreadySubmitted( BaseJob *job )
 	submitsAllowed.Append( job );
 }
 
-int BaseResource::Ping()
+void BaseResource::Ping()
 {
 	BaseJob *job;
 
@@ -520,7 +398,7 @@ int BaseResource::Ping()
 	}
 	if ( delay > 0 ) {
 		daemonCore->Reset_Timer( pingTimerId, delay );
-		return TRUE;
+		return;
 	}
 
 	daemonCore->Reset_Timer( pingTimerId, TIMER_NEVER );
@@ -532,12 +410,12 @@ int BaseResource::Ping()
 
 	if ( ping_delay ) {
 		daemonCore->Reset_Timer( pingTimerId, ping_delay );
-		return TRUE;
+		return;
 	}
 
 	if ( !ping_complete ) {
 		pingActive = true;
-		return TRUE;
+		return;
 	}
 
 	pingActive = false;
@@ -585,8 +463,6 @@ int BaseResource::Ping()
 	if ( resourceDown ) {
 		daemonCore->Reset_Timer( pingTimerId, probeInterval );
 	}
-
-	return 0;
 }
 
 void BaseResource::DoPing( time_t& ping_delay, bool& ping_complete,
@@ -597,14 +473,14 @@ void BaseResource::DoPing( time_t& ping_delay, bool& ping_complete,
 	ping_succeeded = true;
 }
 
-int BaseResource::UpdateLeases()
+void BaseResource::UpdateLeases()
 {
 dprintf(D_FULLDEBUG,"*** UpdateLeases called\n");
 	if ( hasLeases == false ) {
 dprintf(D_FULLDEBUG,"    Leases not supported, cancelling timer\n" );
 		daemonCore->Cancel_Timer( updateLeasesTimerId );
 		updateLeasesTimerId = TIMER_UNSET;
-		return 0;
+		return;
 	}
 
 	// Don't start a new lease update too soon after the previous one.
@@ -613,7 +489,7 @@ dprintf(D_FULLDEBUG,"    Leases not supported, cancelling timer\n" );
 	if ( delay > 0 ) {
 		daemonCore->Reset_Timer( updateLeasesTimerId, delay );
 dprintf(D_FULLDEBUG,"    UpdateLeases: last update too recent, delaying\n");
-		return TRUE;
+		return;
 	}
 
 	daemonCore->Reset_Timer( updateLeasesTimerId, TIMER_NEVER );
@@ -643,7 +519,7 @@ dprintf(D_FULLDEBUG,"    UpdateLeases: calc'ing new leases\n");
 			updateLeasesActive = true;
 			leaseAttrsSynched = false;
 		}
-		return TRUE;
+		return;
 	}
 
 	if ( leaseAttrsSynched == false ) {
@@ -663,13 +539,13 @@ dprintf(D_FULLDEBUG,"    UpdateLeases: calc'ing new leases\n");
 			}
 			if ( dirty ) {
 				still_dirty = true;
-				requestScheddUpdate( curr_job );
+				requestScheddUpdate( curr_job, false );
 			}
 		}
 		if ( still_dirty ) {
 			requestScheddUpdateNotification( updateLeasesTimerId );
 dprintf(D_FULLDEBUG,"    UpdateLeases: waiting for schedd synch\n");
-			return TRUE;
+			return;
 		}
 else dprintf(D_FULLDEBUG,"    UpdateLeases: leases synched\n");
 	}
@@ -685,13 +561,13 @@ dprintf(D_FULLDEBUG,"    UpdateLeases: calling DoUpdateLeases\n");
 	if ( update_delay ) {
 		daemonCore->Reset_Timer( updateLeasesTimerId, update_delay );
 dprintf(D_FULLDEBUG,"    UpdateLeases: DoUpdateLeases wants delay\n");
-		return TRUE;
+		return;
 	}
 
 	if ( !update_complete ) {
 		updateLeasesCmdActive = true;
 dprintf(D_FULLDEBUG,"    UpdateLeases: DoUpdateLeases in progress\n");
-		return TRUE;
+		return;
 	}
 
 dprintf(D_FULLDEBUG,"    UpdateLeases: DoUpdateLeases complete, processing results\n");
@@ -720,7 +596,7 @@ dprintf(D_FULLDEBUG,"    %d.%d is not in succeeded list\n",curr_job->procID.clus
 		if ( curr_renewal_failed != last_renewal_failed ) {
 			curr_job->jobAd->Assign( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
 									 curr_renewal_failed );
-			requestScheddUpdate( curr_job );
+			requestScheddUpdate( curr_job, false );
 		}
 		leaseUpdates.DeleteCurrent();
 	}
@@ -728,8 +604,6 @@ dprintf(D_FULLDEBUG,"    %d.%d is not in succeeded list\n",curr_job->procID.clus
 	updateLeasesActive = false;
 
 	daemonCore->Reset_Timer( updateLeasesTimerId, 30 );
-
-	return 0;
 }
 
 void BaseResource::DoUpdateLeases( time_t& update_delay,

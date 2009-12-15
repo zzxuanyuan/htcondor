@@ -93,9 +93,9 @@ do_REMOTE_syscall()
 	if (!rval) {
 		MyString err_msg;
 		err_msg = "Can no longer talk to condor_starter <";
-		err_msg += syscall_sock->endpoint_ip_str();
+		err_msg += syscall_sock->peer_ip_str();
 		err_msg += ':';
-		err_msg += syscall_sock->endpoint_port();
+		err_msg += syscall_sock->peer_port();
 		err_msg += '>';
 		if( Shadow->supportsReconnect() ) {
 				// instead of having to EXCEPT, we can now try to
@@ -110,6 +110,9 @@ do_REMOTE_syscall()
 				"closed unexpectedly";
 			Shadow->logDisconnectedEvent( txt ); 
 
+			if (!Shadow->shouldAttemptReconnect(thisRemoteResource)) {
+					return 0;
+			}
 				// tell the shadow to start trying to reconnect
 			Shadow->reconnect();
 				// we need to return 0 so that our caller doesn't

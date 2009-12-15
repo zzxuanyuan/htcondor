@@ -92,7 +92,7 @@ typedef int module_stdio_t[3];
 #define MODULE_STDERR_INDEX		2
 
 // Prototypes
-void clean_job_queue(void);
+void clean_job_queue();
 void remove_job(const char *dap_id);
 
 
@@ -178,7 +178,7 @@ read_config_file(void)
 			daemonCore->Register_Timer(
 					job_q_clean_interval,	// deltawhen
 					job_q_clean_interval,	// period
-					(Event)clean_job_queue,	// event
+					clean_job_queue,	// event
 					"clean_job_queue"		// description
 			);
 
@@ -503,7 +503,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 						"reschedule source URL %s: "
 						"no dynamic destinations for protocol %s\n",
 						src_url, dest_protocol);
-				return DAP_ERROR;	// no transfer
+				return false;	// no transfer
 			} else {
 				dest_transfer_url = tmp;
 
@@ -609,17 +609,20 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 		 			 					// job_opt_mask = 0
 			);
 
+	// Close module file descriptors in parent process.
+	close_module_stdio( module_stdio);
+
 	if (pid > 0) {
 		dap_queue.insert(dap_id, pid);
 		dprintf(D_ALWAYS,"GUC STARTED dapid=%s pid=%d src=%s dest=%s \n",
 			dap_id,pid,src_url,dest_url.c_str());
-		return DAP_SUCCESS;
+		return true;
 	}
 	else{
 		transfer_dap_reaper(NULL, 0 ,111); //executable not found!
 		dprintf(D_ALWAYS,"ERROR: GUC fork failed dapid=%s src=%s dest=%s\n",
 			dap_id,src_url,dest_url.c_str());
-		return DAP_ERROR;                  //--> Find a better soln!
+		return false;                  //--> Find a better soln!
 	}
 
 }
@@ -1218,7 +1221,7 @@ total_job_count(void)
 }
 
 void
-low_water_timer(void)
+low_water_timer(Service *)
 {
 	int low_water = param_integer("STORK_LOW_WATER_VALUE", 0, 0);
 
@@ -1291,7 +1294,7 @@ low_water_timer(void)
  * not completed yet
  * ==========================================================================*/
 void
-regular_check_for_requests_in_process(void)
+regular_check_for_requests_in_process()
 {
 	classad::LocalCollectionQuery query;
 	classad::ClassAd       *job_ad;
@@ -1508,7 +1511,7 @@ regular_check_for_requests_in_process(void)
 		daemonCore->Register_Timer(
 			HungJobMonitorInterval,		// deltawhen
 			HungJobMonitorInterval,		// period
-			(TimerHandler)regular_check_for_requests_in_process,
+			regular_check_for_requests_in_process,
 			"check_for_requests_in_process");
 
 	return;
@@ -1561,7 +1564,7 @@ startup_check_for_requests_in_process(void)
  * check for requests which are rescheduled for execution
  * ==========================================================================*/
 void
-regular_check_for_rescheduled_requests(void)
+regular_check_for_rescheduled_requests()
 {
 	classad::LocalCollectionQuery query;
 	classad::ClassAd       *job_ad;
@@ -1621,7 +1624,7 @@ regular_check_for_rescheduled_requests(void)
 		daemonCore->Register_Timer(
 			RescheduledJobMonitorInterval,		// deltawhen
 			RescheduledJobMonitorInterval,		// period
-			(TimerHandler)regular_check_for_rescheduled_requests,
+			regular_check_for_rescheduled_requests,
 			"regular_check_for_rescheduled_requests");
 
 	return;
@@ -1727,7 +1730,7 @@ initializations(void)
  * Clean (compress) the job queue.
  * ==========================================================================*/
 void
-clean_job_queue(void)
+clean_job_queue()
 {
 	dprintf(D_ALWAYS, "Compressing job log %s\n", logfilename);
 	dapcollection->TruncateLog();
@@ -1834,8 +1837,8 @@ terminate(terminate_t terminate_type)
 /* ============================================================================
  * main body of the condor_srb_reqex
  * ==========================================================================*/
-int
-call_main(void)
+void
+call_main()
 {
 
 	classad::ClassAd       *job_ad;
@@ -1891,7 +1894,7 @@ call_main(void)
 	if ( period == IdleJobMonitorInterval && IdleJobMonitorTid != -1 ) {
         // we are already done, since we already
         // have a timer set with the desired interval
-        return TRUE;
+        return;
     }
 
 	if (IdleJobMonitorTid != -1) {
@@ -1903,10 +1906,10 @@ call_main(void)
 		daemonCore->Register_Timer(
 			IdleJobMonitorInterval,		// deltawhen
 			IdleJobMonitorInterval,		// period
-			(TimerHandler)call_main,	// event
+			call_main,	// event
 			"call_main");				// description
 
-	return TRUE;
+	return;
 }
 
 
@@ -2008,12 +2011,12 @@ write_requests_to_file(ReliSock * sock)
 	requestAd->InsertAttr("remote_user", sock->getFullyQualifiedUser() );
 
 	// Get remote submit host.
-	std::string submit_host = sin_to_string(sock->endpoint() );
+	std::string submit_host = sin_to_string(sock->peer_addr() );
 	requestAd->InsertAttr("submit_host", submit_host);
 
 	// Get this execute host.
 	struct sockaddr_in sin;
-	sock->mypoint(&sin);
+	sock->my_addr(&sin);
 	std::string execute_host = sin_to_string( &sin );
 	requestAd->InsertAttr("execute_host", execute_host);
 

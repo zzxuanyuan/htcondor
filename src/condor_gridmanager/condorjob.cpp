@@ -195,7 +195,8 @@ CondorJob::CondorJob( ClassAd *classad )
 		jobAd->AssignExpr( ATTR_HOLD_REASON, "Undefined" );
 	}
 
-	jobProxy = AcquireProxy( jobAd, error_string, evaluateStateTid );
+	jobProxy = AcquireProxy( jobAd, error_string,
+							 (TimerHandlercpp)&BaseJob::SetEvaluateState, this );
 	if ( jobProxy == NULL && error_string != "" ) {
 		goto error_exit;
 	}
@@ -309,7 +310,7 @@ CondorJob::CondorJob( ClassAd *classad )
 CondorJob::~CondorJob()
 {
 	if ( jobProxy != NULL ) {
-		ReleaseProxy( jobProxy, evaluateStateTid );
+		ReleaseProxy( jobProxy, (TimerHandlercpp)&BaseJob::SetEvaluateState, this );
 	}
 	if ( submitterId != NULL ) {
 		free( submitterId );
@@ -340,7 +341,7 @@ void CondorJob::Reconfig()
 	gahp->setTimeout( gahpCallTimeout );
 }
 
-int CondorJob::JobLeaseSentExpired()
+void CondorJob::JobLeaseSentExpired()
 {
 dprintf(D_FULLDEBUG,"(%d.%d) CondorJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
 	BaseJob::JobLeaseSentExpired();
@@ -350,10 +351,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) CondorJob::JobLeaseSentExpired()\n",procID.cluster,
 	if ( gmState != GM_INIT ) {
 		gmState = GM_CLEAR_REQUEST;
 	}
-	return 0;
 }
 
-int CondorJob::doEvaluateState()
+void CondorJob::doEvaluateState()
 {
 	bool connect_failure = false;
 	int old_gm_state;
@@ -361,7 +361,8 @@ int CondorJob::doEvaluateState()
 	bool reevaluate_state = true;
 	time_t now = time(NULL);
 
-	bool done;
+	bool attr_exists;
+	bool attr_dirty;
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
@@ -541,8 +542,8 @@ int CondorJob::doEvaluateState()
 			// another one.
 			if ( now >= lastSubmitAttempt + submitInterval ) {
 				// Once RequestSubmit() is called at least once, you must
-				// CancelSubmit() or SubmitComplete() once you're done with
-				// the request call
+				// call CancelSubmit() when there's no job left on the
+				// remote host and you don't plan to submit one.
 				if ( myResource->RequestSubmit(this) == false ) {
 					break;
 				}
@@ -568,7 +569,6 @@ int CondorJob::doEvaluateState()
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
 				}
-				myResource->SubmitComplete(this);
 				lastSubmitAttempt = time(NULL);
 				numSubmitAttempts++;
 				if ( rc == GLOBUS_SUCCESS ) {
@@ -642,8 +642,9 @@ int CondorJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = requestScheddUpdate( this );
-				if ( !done ) {
+				jobAd->GetDirtyFlag( ATTR_GRID_JOB_ID, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 				gmState = GM_STAGE_IN;
@@ -935,8 +936,9 @@ int CondorJob::doEvaluateState()
 			// Report job completion to the schedd.
 			JobTerminated();
 			if ( condorState == COMPLETED ) {
-				done = requestScheddUpdate( this );
-				if ( !done ) {
+				jobAd->GetDirtyFlag( ATTR_JOB_STATUS, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 			}
@@ -975,7 +977,7 @@ int CondorJob::doEvaluateState()
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
 				SetRemoteJobId( NULL );
 				myResource->CancelSubmit( this );
-				requestScheddUpdate( this );
+				requestScheddUpdate( this, false );
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
@@ -1073,8 +1075,11 @@ int CondorJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
-			done = requestScheddUpdate( this );
-			if ( !done ) {
+			const char *name;
+			ExprTree *expr;
+			jobAd->ResetExpr();
+			if ( jobAd->NextDirtyExpr(name, expr) ) {
+				requestScheddUpdate( this, true );
 				break;
 			}
 			remoteProxyExpireTime = 0;
@@ -1170,8 +1175,6 @@ int CondorJob::doEvaluateState()
 			RequestPing();
 		}
 	}
-
-	return TRUE;
 }
 
 void CondorJob::SetRemoteJobId( const char *job_id )
@@ -1333,11 +1336,11 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 
 	index = -1;
 	while ( attrs_to_copy[++index] != NULL ) {
-		old_expr = jobAd->Lookup( attrs_to_copy[index] );
-		new_expr = remote_ad->Lookup( attrs_to_copy[index] );
+		old_expr = jobAd->LookupExpr( attrs_to_copy[index] );
+		new_expr = remote_ad->LookupExpr( attrs_to_copy[index] );
 
 		if ( new_expr != NULL && ( old_expr == NULL || !(*old_expr == *new_expr) ) ) {
-			jobAd->Insert( new_expr->DeepCopy() );
+			jobAd->Insert( attrs_to_copy[index], new_expr->Copy() );
 		}
 	}
 
@@ -1350,7 +1353,7 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 		delete [] attrs_to_copy;
 	}
 
-	requestScheddUpdate( this );
+	requestScheddUpdate( this, false );
 
 	return;
 }
@@ -1381,12 +1384,6 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_GRID_RESOURCE );
 	submit_ad->Delete( ATTR_JOB_MATCHED );
 	submit_ad->Delete( ATTR_JOB_MANAGED );
-	submit_ad->Delete( ATTR_MIRROR_ACTIVE );
-	submit_ad->Delete( ATTR_MIRROR_JOB_ID );
-	submit_ad->Delete( ATTR_MIRROR_LEASE_TIME );
-	submit_ad->Delete( ATTR_MIRROR_RELEASED );
-	submit_ad->Delete( ATTR_MIRROR_REMOTE_LEASE_TIME );
-	submit_ad->Delete( ATTR_MIRROR_SCHEDD );
 	submit_ad->Delete( ATTR_STAGE_IN_FINISH );
 	submit_ad->Delete( ATTR_STAGE_IN_START );
 	submit_ad->Delete( ATTR_SCHEDD_BIRTHDATE );
@@ -1514,15 +1511,25 @@ ClassAd *CondorJob::buildSubmitAd()
 	bool cleared_environment = false;
 	bool cleared_arguments = false;
 
-	jobAd->ResetExpr();
-	while ( (next_expr = jobAd->NextExpr()) != NULL ) {
-		if ( strncasecmp( ((Variable*)next_expr->LArg())->Name(),
-						  "REMOTE_", 7 ) == 0 &&
-			 strlen( ((Variable*)next_expr->LArg())->Name() ) > 7 ) {
+		// Remove all remote_* attributes from the new ad before
+		// translating remote_* attributes from the original ad.
+		// See gittrac #376 for why we have two loops here.
+	const char *next_name;
+	submit_ad->ResetName();
+	while ( (next_name = submit_ad->NextNameOriginal()) != NULL ) {
+		if ( strncasecmp( next_name, "REMOTE_", 7 ) == 0 &&
+			 strlen( next_name ) > 7 ) {
 
-			char *attr_value;
-			char const *attr_name = &((Variable*)next_expr->LArg())->Name()[7];
-			MyString buf;
+			submit_ad->Delete( next_name );
+		}
+	}
+
+	jobAd->ResetExpr();
+	while ( jobAd->NextExpr(next_name, next_expr) ) {
+		if ( strncasecmp( next_name, "REMOTE_", 7 ) == 0 &&
+			 strlen( next_name ) > 7 ) {
+
+			char const *attr_name = &(next_name[7]);
 
 			if(strcasecmp(attr_name,ATTR_JOB_ENVIRONMENT1) == 0 ||
 			   strcasecmp(attr_name,ATTR_JOB_ENVIRONMENT1_DELIM) == 0 ||
@@ -1554,12 +1561,7 @@ ClassAd *CondorJob::buildSubmitAd()
 				}
 			}
 
-			submit_ad->Delete( ((Variable*)next_expr->LArg())->Name() );
-			next_expr->RArg()->PrintToNewStr(&attr_value);
-			buf.sprintf( "%s = %s", attr_name,
-						 attr_value );
-			submit_ad->Insert( buf.Value() );
-			free(attr_value);
+			submit_ad->Insert( attr_name, next_expr->Copy() );
 		}
 	}
 

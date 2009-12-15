@@ -49,7 +49,7 @@ extern "C" void process_config_source( char* file, char* name,
 extern "C" bool is_piped_command(const char* filename);
 
 //---------------------------------------------------------------------------
-DECL_SUBSYSTEM( "DAGMAN", SUBSYSTEM_TYPE_DAEMON );
+DECL_SUBSYSTEM( "DAGMAN", SUBSYSTEM_TYPE_DAGMAN );
 
 static char* lockFileName = NULL;
 
@@ -98,6 +98,7 @@ Dagman::Dagman() :
 	submit_delay (0),
 	max_submit_attempts (0),
 	max_submits_per_interval (1000), // so Coverity is happy
+	m_user_log_scan_interval (5),
 	primaryDagFile (""),
 	multiDags (false),
 	startup_cycle_detect (false), // so Coverity is happy
@@ -107,7 +108,6 @@ Dagman::Dagman() :
 	retrySubmitFirst (true), // so Coverity is happy
 	retryNodeFirst (false), // so Coverity is happy
 	mungeNodeNames (true), // so Coverity is happy
-	deleteOldLogs (true),
 	prohibitMultiJobs (false), // so Coverity is happy
 	abortDuplicates (true), // so Coverity is happy
 	submitDepthFirst (false), // so Coverity is happy
@@ -118,7 +118,8 @@ Dagman::Dagman() :
 	doRescueFrom(0),
 	maxRescueDagNum(ABS_MAX_RESCUE_DAG_NUM),
 	rescueFileToRun(""),
-	dumpRescueDag(false)
+	dumpRescueDag(false),
+	_defaultNodeLog(NULL)
 {
 }
 
@@ -194,6 +195,10 @@ Dagman::Config()
 		param_integer( "DAGMAN_MAX_SUBMITS_PER_INTERVAL", 5, 1, 1000 );
 	debug_printf( DEBUG_NORMAL, "DAGMAN_MAX_SUBMITS_PER_INTERVAL setting: %d\n",
 				max_submits_per_interval );
+	m_user_log_scan_interval =
+		param_integer( "DAGMAN_USER_LOG_SCAN_INTERVAL", 5, 1, INT_MAX);
+	debug_printf( DEBUG_NORMAL, "DAGMAN_USER_LOG_SCAN_INTERVAL setting: %d\n",
+				m_user_log_scan_interval );
 
 
 		// Event checking setup...
@@ -259,10 +264,6 @@ Dagman::Config()
 	debug_printf( DEBUG_NORMAL, "DAGMAN_MUNGE_NODE_NAMES setting: %d\n",
 				mungeNodeNames );
 
-	deleteOldLogs = param_boolean( "DAGMAN_DELETE_OLD_LOGS", deleteOldLogs );
-	debug_printf( DEBUG_NORMAL, "DAGMAN_DELETE_OLD_LOGS setting: %d\n",
-				  deleteOldLogs );
-
 	prohibitMultiJobs = param_boolean( "DAGMAN_PROHIBIT_MULTI_JOBS", false );
 	debug_printf( DEBUG_NORMAL, "DAGMAN_PROHIBIT_MULTI_JOBS setting: %d\n",
 				prohibitMultiJobs );
@@ -322,6 +323,25 @@ Dagman::Config()
 	debug_printf( DEBUG_NORMAL, "DAGMAN_MAX_RESCUE_NUM setting: %d\n",
 				maxRescueDagNum );
 
+	free( _defaultNodeLog );
+	_defaultNodeLog = param( "DAGMAN_DEFAULT_NODE_LOG" );
+	debug_printf( DEBUG_NORMAL, "DAGMAN_DEFAULT_NODE_LOG setting: %s\n",
+				_defaultNodeLog ? _defaultNodeLog : "null" );
+
+	char *debugSetting = param( "ALL_DEBUG" );
+	debug_printf( DEBUG_NORMAL, "ALL_DEBUG setting: %s\n",
+				debugSetting ? debugSetting : "" );
+	if ( debugSetting ) {
+		free( debugSetting );
+	}
+
+	debugSetting = param( "DAGMAN_DEBUG" );
+	debug_printf( DEBUG_NORMAL, "DAGMAN_DEBUG setting: %s\n",
+				debugSetting ? debugSetting : "" );
+	if ( debugSetting ) {
+		free( debugSetting );
+	}
+
 	// enable up the debug cache if needed
 	if (debug_cache_enabled) {
 		debug_cache_set_size(debug_cache_size);
@@ -367,18 +387,20 @@ int main_shutdown_rescue( int exitVal ) {
 			// otherwise if we crashed, failed, or were killed while
 			// removing them, we would leave the DAG in an
 			// unrecoverable state...
-		if( dagman.rescueFileToWrite ) {
-			debug_printf( DEBUG_NORMAL, "Rescue DAG file %s was specified; "
-						"overriding automatic rescue DAG naming\n",
-						dagman.rescueFileToWrite );
-			dagman.dag->WriteRescue( dagman.rescueFileToWrite,
-						dagman.primaryDagFile.Value() );
-		} else if ( dagman.maxRescueDagNum > 0 ) {
-			dagman.dag->Rescue( dagman.primaryDagFile.Value(),
-						dagman.multiDags, dagman.maxRescueDagNum );
-		} else {
-			debug_printf( DEBUG_QUIET, "No rescue DAG written because "
-						"DAGMAN_MAX_RESCUE_NUM is 0\n" );
+		if( exitVal != 0 ) {
+			if( dagman.rescueFileToWrite ) {
+				debug_printf( DEBUG_NORMAL, "Rescue DAG file %s was specified; "
+							"overriding automatic rescue DAG naming\n",
+							dagman.rescueFileToWrite );
+				dagman.dag->WriteRescue( dagman.rescueFileToWrite,
+							dagman.primaryDagFile.Value() );
+			} else if ( dagman.maxRescueDagNum > 0 ) {
+				dagman.dag->Rescue( dagman.primaryDagFile.Value(),
+							dagman.multiDags, dagman.maxRescueDagNum );
+			} else {
+				debug_printf( DEBUG_QUIET, "No rescue DAG written because "
+							"DAGMAN_MAX_RESCUE_NUM is 0\n" );
+			}
 		}
 
 		debug_printf( DEBUG_DEBUG_1, "We have %d running jobs to remove\n",
@@ -415,7 +437,6 @@ void ExitSuccess() {
 }
 
 void condor_event_timer();
-void print_status();
 
 /****** FOR TESTING *******
 int main_testing_stub( Service *, int ) {
@@ -469,6 +490,30 @@ int main_init (int argc, char ** const argv) {
 		// get dagman job id from environment, if it's there
 		// (otherwise it will be set to "-1.-1.-1")
 	dagman.DAGManJobId.SetFromString( getenv( EnvGetName( ENV_ID ) ) );
+
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		// Minimum legal version for a .condor.sub file to be compatible
+		// with this condor_dagman binary.
+
+		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		// Be sure to change this if the arguments or environment
+		// passed to condor_dagman change in an incompatible way!!
+		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+	typedef struct DagVersionData {
+		int majorVer;
+		int minorVer;
+		int subMinorVer;
+	};
+	const DagVersionData MIN_SUBMIT_FILE_VERSION = { 7, 1, 2 };
+
+		// Construct a string of the minimum submit file version.
+	MyString minSubmitVersionStr;
+	minSubmitVersionStr.sprintf( "%d.%d.%d",
+				MIN_SUBMIT_FILE_VERSION.majorVer,
+				MIN_SUBMIT_FILE_VERSION.minorVer,
+				MIN_SUBMIT_FILE_VERSION.subMinorVer );
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     //
     // Process command-line arguments
@@ -595,22 +640,86 @@ int main_init (int argc, char ** const argv) {
 	dagman.primaryDagFile = dagman.dagFiles.next();
 	dagman.multiDags = (dagman.dagFiles.number() > 1);
 
+	MyString tmpDefaultLog;
+	if ( dagman._defaultNodeLog != NULL ) {
+		tmpDefaultLog = dagman._defaultNodeLog;
+		free( dagman._defaultNodeLog );
+	} else {
+		tmpDefaultLog = dagman.primaryDagFile + ".nodes.log";
+	}
+
+		// Force default log file path to be absolute so it works
+		// with -usedagdir and DIR nodes.
+	CondorError errstack;
+	if ( !MultiLogFiles::makePathAbsolute( tmpDefaultLog, errstack) ) {
+       	debug_printf( DEBUG_SILENT, "Unable to convert default log "
+					"file name to absolute path: %s\n",
+					errstack.getFullText() );
+		DC_Exit( EXIT_ERROR );
+	}
+	dagman._defaultNodeLog = strdup( tmpDefaultLog.Value() );
+	debug_printf( DEBUG_NORMAL, "Default node log file is: <%s>\n",
+				dagman._defaultNodeLog);
+
     //
     // Check the arguments
     //
-	if( strcmp( CondorVersion(), csdVersion ) != 0 ) {
-		if ( allowVerMismatch ) {
-        	debug_printf( DEBUG_NORMAL, "Warning: version mismatch: "
-						"condor_submit_dag (%s) vs. condor_dagman (%s); "
-						"continuing because of -AllowVersionMismatch flag\n",
-						csdVersion, CondorVersion() );
-		} else {
-        	debug_printf( DEBUG_SILENT, "Version mismatch: condor_submit_dag "
-						"(%s) vs. condor_dagman (%s)\n", csdVersion,
-						CondorVersion() );
+
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	// Checking for version compatibility between the .condor.sub
+	// file and this condor_dagman binary...
+
+	// Note: if we're in recovery mode and the submit file version
+	// causes us to quit, we leave any existing node jobs still
+	// running -- may want to change that eventually.  wenger 2009-10-13.
+
+		// Version of the condor_submit_dag that created our submit file.
+	CondorVersionInfo submitFileVersion( csdVersion );
+
+		// Version of this condor_dagman binary.
+	CondorVersionInfo dagmanVersion;
+
+		// Just generate this message fragment in one place.
+	MyString versionMsg;
+	versionMsg.sprintf("the version (%s) of this DAG's Condor submit "
+				"file (created by condor_submit_dag)", csdVersion );
+
+		// Make sure version in submit file is valid.
+	if( !submitFileVersion.is_valid() ) {
+		if ( !allowVerMismatch ) {
+        	debug_printf( DEBUG_SILENT, "Error: %s is invalid!\n",
+						versionMsg.Value() );
 			DC_Exit( EXIT_ERROR );
+		} else {
+        	debug_printf( DEBUG_NORMAL, "Warning: %s is invalid; "
+						"continuing because of -AllowVersionMismatch flag\n",
+						versionMsg.Value() );
 		}
+
+		// Make sure .condor.sub file is recent enough.
+	} else if( !submitFileVersion.built_since_version(
+				MIN_SUBMIT_FILE_VERSION.majorVer,
+				MIN_SUBMIT_FILE_VERSION.minorVer,
+				MIN_SUBMIT_FILE_VERSION.subMinorVer ) ) {
+		if ( !allowVerMismatch ) {
+        	debug_printf( DEBUG_SILENT, "Error: %s is older than "
+						"oldest permissible version (%s)\n",
+						versionMsg.Value(), minSubmitVersionStr.Value() );
+			DC_Exit( EXIT_ERROR );
+		} else {
+        	debug_printf( DEBUG_NORMAL, "Warning: %s is older than "
+						"oldest permissible version (%s); continuing "
+						"because of -AllowVersionMismatch flag\n",
+						versionMsg.Value(), minSubmitVersionStr.Value() );
+		}
+
+		// Warn if .condor.sub file is a newer version than this binary.
+	} else if (dagmanVersion.compare_versions( csdVersion ) > 0 ) {
+        debug_printf( DEBUG_NORMAL, "Warning: %s is newer than "
+					"condor_dagman version (%s)\n", versionMsg.Value(),
+					CondorVersion() );
 	}
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     if( dagman.primaryDagFile == "" ) {
         debug_printf( DEBUG_SILENT, "No DAG file was specified\n" );
@@ -744,7 +853,8 @@ int main_init (int argc, char ** const argv) {
 						  dagman.maxIdle, dagman.retrySubmitFirst,
 						  dagman.retryNodeFirst, dagman.condorRmExe,
 						  dagman.storkRmExe, &dagman.DAGManJobId,
-						  dagman.prohibitMultiJobs, dagman.submitDepthFirst );
+						  dagman.prohibitMultiJobs, dagman.submitDepthFirst,
+						  dagman._defaultNodeLog, false ); /* toplevel dag! */
 
     if( dagman.dag == NULL ) {
         EXCEPT( "ERROR: out of memory!\n");
@@ -839,8 +949,6 @@ int main_init (int argc, char ** const argv) {
 					// We should never get to here!
 				}
 			}
-        } else {
-			dagman.dag->InitializeDagFiles( dagman.deleteOldLogs );
         }
 
 			//
@@ -857,8 +965,8 @@ int main_init (int argc, char ** const argv) {
     }
 
     dprintf( D_ALWAYS, "Registering condor_event_timer...\n" );
-    daemonCore->Register_Timer( 1, 5, (TimerHandler)condor_event_timer,
-				"condor_event_timer" );
+    daemonCore->Register_Timer( 1, dagman.m_user_log_scan_interval, 
+				condor_event_timer, "condor_event_timer" );
 
 	dagman.dag->SetPendingNodeReportInterval(
 				dagman.pendingReportInterval );

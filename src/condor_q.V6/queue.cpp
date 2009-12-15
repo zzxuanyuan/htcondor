@@ -22,6 +22,7 @@
 #include "condor_config.h"
 #include "condor_accountant.h"
 #include "condor_classad.h"
+#include "condor_classad_util.h"
 #include "condor_debug.h"
 #include "condor_query.h"
 #include "condor_q.h"
@@ -49,6 +50,8 @@
 #include "string_list.h"
 #include "condor_version.h"
 #include "subsystem_info.h"
+#include "condor_xml_classads.h"
+
 
 #include "../classad_analysis/analysis.h"
 
@@ -89,14 +92,14 @@ static 	char * buffer_io_display (ClassAd *);
 static 	void displayJobShort (ClassAd *);
 static 	char * bufferJobShort (ClassAd *);
 
-/* if useDB is false, then v1 =scheddAddress, v2=scheddName, v3=scheddMachine, v4 ignored;
+/* if useDB is false, then v1 =scheddAddress, v2=scheddName, v3=scheddMachine, v4=scheddVersion;
    if useDB is true,  then v1 =quill_name,  v2=db_ipAddr,   v3=db_name, v4=db_password
 */
-static	bool show_queue (char* v1, char* v2, char* v3, char* v4, bool useDB);
-static	bool show_queue_buffered (char* v1, char* v2, char* v3, char* v4, bool useDB);
+static	bool show_queue (const char* v1, const char* v2, const char* v3, const char* v4, bool useDB);
+static	bool show_queue_buffered (const char* v1, const char* v2, const char* v3, const char* v4, bool useDB);
 
 /* a type used to point to one of the above two functions */
-typedef bool (*show_queue_fp)(char* v1, char* v2, char* v3, char* v4, bool useDB);
+typedef bool (*show_queue_fp)(const char* v1, const char* v2, const char* v3, const char* v4, bool useDB);
 
 static bool read_classad_file(const char *filename, ClassAdList &classads);
 
@@ -105,10 +108,10 @@ unsigned int process_direct_argument(char *arg);
 
 #ifdef WANT_QUILL
 /* execute a database query directly */ 
-static void exec_db_query(char *quill_name, char *db_ipAddr, char *db_name,char *query_password);
+static void exec_db_query(const char *quill_name, const char *db_ipAddr, const char *db_name,const char *query_password);
 
 /* build database connection string */
-static char * getDBConnStr(char *&, char *&, char *&, char *&);
+static char * getDBConnStr(char const *&, char const *&, char const *&, char const *&);
 
 /* get the quill address for the quill_name specified */
 static QueryResult getQuillAddrFromCollector(char *quill_name, char *&quill_addr);
@@ -116,6 +119,9 @@ static QueryResult getQuillAddrFromCollector(char *quill_name, char *&quill_addr
 /* avgqueuetime is used to indicate a request to query average wait time for uncompleted jobs in queue */
 static  bool avgqueuetime = false;
 #endif
+
+/* Warn about schedd-wide limits that may confuse analysis code */
+void warnScheddLimits(Daemon *schedd,ClassAd *job,MyString &result_buf);
 
 /* directDBquery means we will just run a database query and return results directly to user */
 static  bool directDBquery = false;
@@ -146,6 +152,8 @@ static	CondorQuery	scheddQuery(SCHEDD_AD);
 static	CondorQuery submittorQuery(SUBMITTOR_AD);
 
 static	ClassAdList	scheddList;
+
+static  Daemon *g_cur_schedd_for_process_buffer_line = NULL;
 
 static  ClassAdAnalyzer analyzer;
 
@@ -194,8 +202,8 @@ static CollectorList * Collectors = NULL;
 static  int			findSubmittor( char * );
 static	void 		setupAnalysis();
 static 	void		fetchSubmittorPrios();
-static	void		doRunAnalysis( ClassAd* );
-static	char *		doRunAnalysisToBuffer( ClassAd* );
+static	void		doRunAnalysis( ClassAd*, Daemon* );
+static	char *		doRunAnalysisToBuffer( ClassAd*, Daemon* );
 struct 	PrioEntry { MyString name; float prio; };
 static 	bool		analyze	= false;
 static  bool        better_analyze = false;
@@ -296,6 +304,7 @@ int main (int argc, char **argv)
 	char		*scheddName=NULL;
 	char		daemonAdName[128];
 	char		scheddMachine[64];
+	MyString    scheddVersion;
 	char		*tmp;
 	bool        useDB; /* Is there a database to query for a schedd */
 	int         retval = 0;
@@ -356,6 +365,12 @@ int main (int argc, char **argv)
 				sprintf( scheddMachine, "%s", tmp );
 			} else {
 				sprintf( scheddMachine, "Unknown" );
+			}
+			if( (tmp = schedd.version()) ) {
+				scheddVersion = tmp;
+			}
+			else {
+				scheddVersion = "";
 			}
 			
 			if ( directDBquery ) {				
@@ -500,7 +515,7 @@ int main (int argc, char **argv)
 #endif /* WANT_QUILL */
 				case DIRECT_SCHEDD:
 					retval = sqfp(scheddAddr, scheddName, scheddMachine, 
-									NULL, FALSE);
+								  scheddVersion.Value(), FALSE);
 			
 					/* Hopefully I got the queue from the schedd... */
 					freeConnectionStrings();
@@ -620,7 +635,8 @@ int main (int argc, char **argv)
 		useDB = FALSE;
 		if ( ! (ad->LookupString(ATTR_SCHEDD_IP_ADDR, &scheddAddr)  &&
 				 ad->LookupString(ATTR_NAME, &scheddName)		&& 
-				 ad->LookupString(ATTR_MACHINE, scheddMachine) ) ) 
+				 ad->LookupString(ATTR_MACHINE, scheddMachine) &&
+				 ad->LookupString(ATTR_VERSION, scheddVersion) ) ) 
 		{
 			/* something is wrong with this schedd/quill ad, try the next one */
 			continue;
@@ -791,7 +807,7 @@ int main (int argc, char **argv)
 			case DIRECT_SCHEDD:
 				/* database not configured or could not be reached,
 					query the schedd daemon directly */
-				retval = sqfp(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
+				retval = sqfp(scheddAddr, scheddName, scheddMachine, scheddVersion.Value(), FALSE);
 
 				break;
 
@@ -826,12 +842,21 @@ int main (int argc, char **argv)
 	exit(retval?EXIT_SUCCESS:EXIT_FAILURE);
 }
 
+// append all variable references made by expression to references list
+static void
+GetAllReferencesFromClassAdExpr(char const *expression,StringList &references)
+{
+	ClassAd ad;
+	ad.GetExprReferences(expression,references,references);
+}
+
 static void 
 processCommandLineArguments (int argc, char *argv[])
 {
 	int i, cluster, proc;
 	char *arg, *at, *daemonname;
-	
+
+	bool custom_attributes = false;
 	attrs.initializeFromString("ClusterId\nProcID\nQDate\nRemoteUserCPU\nJobStatus\nServerTime\nShadowBday\nRemoteWallClockTime\nJobPrio\nImageSize\nOwner\nCmd\nArgs");
 
 	for (i = 1; i < argc; i++)
@@ -868,14 +893,19 @@ processCommandLineArguments (int argc, char *argv[])
 		if (match_prefix (arg, "long")) {
 			verbose = 1;
 			summarize = 0;
-			attrs.clearAll();
+			if( !custom_attributes ) {
+				attrs.clearAll();
+			}
 		} 
 		else
 		if (match_prefix (arg, "xml")) {
 			use_xml = 1;
 			verbose = 1;
 			summarize = 0;
-			attrs.clearAll();
+			customFormat = true;
+			if( !custom_attributes ) {
+				attrs.clearAll();
+			}
 		}
 		else
 		if (match_prefix (arg, "pool")) {
@@ -1112,6 +1142,25 @@ processCommandLineArguments (int argc, char *argv[])
 			querySchedds = true;
 		} 
 		else
+		if( match_prefix( arg, "attributes" ) ) {
+			if( argc <= i+1 ) {
+				fprintf( stderr, "Error: Argument -attributes requires "
+						 "a list of attributes to show\n" );
+				exit( 1 );
+			}
+			if( !custom_attributes ) {
+				custom_attributes = true;
+				attrs.clearAll();
+			}
+			StringList more_attrs(argv[i+1],",");
+			char const *s;
+			more_attrs.rewind();
+			while( (s=more_attrs.next()) ) {
+				attrs.append(s);
+			}
+			i++;
+		}
+		else
 		if( match_prefix( arg, "format" ) ) {
 				// make sure we have at least two more arguments
 			if( argc <= i+2 ) {
@@ -1120,11 +1169,11 @@ processCommandLineArguments (int argc, char *argv[])
 				exit( 1 );
 			}
 			verbose = 0;
-			if (customFormat == false) {
-				// first time here
+			if( !custom_attributes ) {
+				custom_attributes = true;
 				attrs.clearAll();
 			}
-			attrs.append(argv[i+2]);
+			GetAllReferencesFromClassAdExpr(argv[i+2],attrs);
 				
 			customFormat = true;
 			mask.registerFormat( argv[i+1], argv[i+2] );
@@ -1631,7 +1680,7 @@ format_owner (char *owner, AttrList *ad)
 	// pre-v6.3 schedd)
 
 	if ( dag ) {
-		if ( ad->Lookup( ATTR_DAGMAN_JOB_ID ) ) {
+		if ( ad->LookupExpr( ATTR_DAGMAN_JOB_ID ) ) {
 
 				// We have a DAGMan job ID, this means we have a DAG node
 				// -- don't worry about what type the DAGMan job ID is.
@@ -1800,6 +1849,7 @@ usage (char *myName)
 		"\t\t-pool <host>\t\tUse host as the central manager to query\n"
 		"\t\t-long\t\t\tVerbose output (entire classads)\n"
 		"\t\t-xml\t\t\tDisplay entire classads, but in XML\n"
+		"\t\t-attributes X,Y,...\tAttributes to show in -xml and -long\n"
 		"\t\t-format <fmt> <attr>\tPrint attribute attr using format fmt\n"
 		"\t\t-analyze\t\tPerform schedulability analysis on jobs\n"
         "\t\t-better-analyze\t\tImproved version of -analyze\n"
@@ -1863,25 +1913,25 @@ output_sorter( const void * va, const void * vb ) {
    refer to the prototype of this function on the top of this file 
 */
 static bool
-show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
+show_queue_buffered( const char* v1, const char* v2, const char* v3, const char* v4, bool useDB )
 {
 	static bool	setup_mask = false;
 	clusterProcString **the_output;
 
-	char *scheddAddress;
-	char *scheddName;
-	char *scheddMachine;
+	const char *scheddAddress;
+	const char *scheddName;
+	const char *scheddMachine;
 
-	char *quill_name;
-	char *db_ipAddr;
-	char *db_name;
-	char *query_password;
+	const char *quill_name;
+	const char *db_ipAddr;
+	const char *db_name;
+	const char *query_password;
 	char *dbconn=NULL;
 	int i;
 
 	output_buffer = new ExtArray<clusterProcString*>;
 
-	char *lastUpdate;
+	char *lastUpdate=NULL;
 
 		/* intepret the parameters accordingly based on whether we are querying database */
 	if (useDB) {
@@ -1893,7 +1943,7 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 	else {
 		scheddAddress = v1;
 		scheddName = v2;
-		scheddMachine = v3;		
+		scheddMachine = v3;
 	}
 
 	output_buffer->setFiller( (clusterProcString *) NULL );
@@ -1974,6 +2024,11 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 		summarize = false;
 	}
 
+	if( g_cur_schedd_for_process_buffer_line ) {
+		delete g_cur_schedd_for_process_buffer_line;
+		g_cur_schedd_for_process_buffer_line = NULL;
+	}
+
 	CondorError errstack;
 
 		/* get the job ads from database if database can be queried */
@@ -1996,6 +2051,9 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 			if(dbconn) {
 				free(dbconn);
 			}
+			if(lastUpdate) {
+				free(lastUpdate);
+			}
 			return false;
 		}
 #endif /* WANT_QUILL */
@@ -2009,6 +2067,9 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 			useFastPath = v.built_since_version(6,9,3);
 		}
 
+			// stash the schedd daemon object for use by process_buffer_line
+		g_cur_schedd_for_process_buffer_line = new Daemon( schedd );
+
 		if( Q.fetchQueueFromHostAndProcess( scheddAddress, attrs,
 											process_buffer_line,
 											useFastPath,
@@ -2018,10 +2079,6 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 				scheddAddress, scheddMachine, errstack.getFullText(true) );
 
 			delete output_buffer;
-
-			if(dbconn) {
-				free(dbconn);
-			}
 			return false;
 		}
 	}
@@ -2048,6 +2105,14 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 		
 			short_header();
 		}
+		if( use_xml ) {
+				// keep this consistent with AttrListList::fPrintAttrListList()
+			ClassAdXMLUnparser  unparser;
+			MyString xml;
+			unparser.SetUseCompactSpacing(false);
+			unparser.AddXMLFileHeader(xml);
+			printf("%s\n", xml.Value());
+		}
 
 		if (!output_buffer_empty) {
 			for (i=0;i<=output_buffer->getlast(); i++) {
@@ -2066,6 +2131,14 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 			if (malformed>0) printf( ", %d malformed",malformed);
            	printf("\n");
 		}
+		if( use_xml ) {
+				// keep this consistent with AttrListList::fPrintAttrListList()
+			ClassAdXMLUnparser  unparser;
+			MyString xml;
+			unparser.SetUseCompactSpacing(false);
+			unparser.AddXMLFileFooter(xml);
+			printf("%s\n", xml.Value());
+		}
 	}
 
 	if (!output_buffer_empty) {
@@ -2080,6 +2153,9 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 
 	if(dbconn) {
 		free(dbconn);
+	}
+	if(lastUpdate) {
+		free(lastUpdate);
 	}
 	return true;
 }
@@ -2157,10 +2233,11 @@ process_buffer_line( ClassAd *job )
 
 	if (use_xml) {
 		MyString s;
-		job->sPrintAsXML(s);
+		StringList *attr_white_list = attrs.isEmpty() ? NULL : &attrs;
+		job->sPrintAsXML(s,attr_white_list);
 		tempCPS->string = strnewp( s.Value() );
 	} else if( analyze ) {
-		tempCPS->string = strnewp( doRunAnalysisToBuffer( job ) );
+		tempCPS->string = strnewp( doRunAnalysisToBuffer( job, g_cur_schedd_for_process_buffer_line ) );
 	} else if ( show_io ) {
 		tempCPS->string = strnewp( buffer_io_display( job ) );
 	} else if ( usingPrintMask ) {
@@ -2182,16 +2259,17 @@ process_buffer_line( ClassAd *job )
    refer to the prototype of this function on the top of this file 
 */
 static bool
-show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
+show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool useDB )
 {
-	char *scheddAddress;
-	char *scheddName;
-	char *scheddMachine;
+	const char *scheddAddress;
+	const char *scheddName;
+	const char *scheddMachine;
+	const char *scheddVersion;
 
-	char *quill_name;
-	char *db_ipAddr;
-	char *db_name;
-	char *query_password;
+	const char *quill_name;
+	const char *db_ipAddr;
+	const char *db_name;
+	const char *query_password;
 
 	char *dbconn=NULL;
 
@@ -2203,8 +2281,9 @@ show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
 	scheddAddress = v1;
 	scheddName = v2;
 	scheddMachine = v3;		
+	scheddVersion = v4;
 
-	char *lastUpdate;
+	char *lastUpdate=NULL;
 
     if (jobads_file != NULL) {
 		/* get the "q" from the job ads file */
@@ -2240,13 +2319,19 @@ show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
 				fprintf( stderr,
 						"\n-- Failed to fetch ads from: %s : %s\n%s\n",
 						db_ipAddr, db_name, errstack.getFullText(true) );
+				if(dbconn) {
+					free(dbconn);
+				}
+				if(lastUpdate) {
+					free(lastUpdate);
+				}
 				return false;
 			}
 
 #endif /* WANT_QUILL */
 		} else {
 				// fetch queue from schedd	
-			if( Q.fetchQueueFromHost(jobs, attrs,scheddAddress, &errstack) != Q_OK ) {
+			if( Q.fetchQueueFromHost(jobs, attrs,scheddAddress, scheddVersion, &errstack) != Q_OK ) {
 				fprintf( stderr,
 					"\n-- Failed to fetch ads from: %s : %s\n%s\n",
 					scheddAddress, scheddMachine, errstack.getFullText(true) );
@@ -2273,12 +2358,21 @@ show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
 					scheddAddress, scheddMachine);	
 		}
 
+		Daemon schedd_daemon(DT_SCHEDD,scheddName,pool ? pool->addr() : NULL);
+		schedd_daemon.locate();
+
 		jobs.Open();
 		while( ( job = jobs.Next() ) ) {
-			doRunAnalysis( job );
+			doRunAnalysis( job, &schedd_daemon );
 		}
 		jobs.Close();
 
+		if(dbconn) {
+			free(dbconn);
+		}
+		if(lastUpdate) {
+			free(lastUpdate);
+		}
 		return true;
 	}
 
@@ -2301,7 +2395,8 @@ show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
 		malformed = 0; idle = 0; running = 0; unexpanded = 0, held = 0;
 		
 		if( verbose || use_xml ) {
-			jobs.fPrintAttrListList( stdout, use_xml ? true : false);
+			StringList *attr_white_list = attrs.isEmpty() ? NULL : &attrs;
+			jobs.fPrintAttrListList( stdout, use_xml ? true : false, attr_white_list);
 		} else if( customFormat ) {
 			summarize = false;
 			mask.display( stdout, &jobs );
@@ -2414,6 +2509,9 @@ show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
 	if(dbconn) {
 		free(dbconn);
 	}
+	if(lastUpdate) {
+		free(lastUpdate);
+	}
 	return true;
 }
 
@@ -2461,22 +2559,22 @@ setupAnalysis()
 
 	// setup condition expressions
     sprintf( buffer, "MY.%s > MY.%s", ATTR_RANK, ATTR_CURRENT_RANK );
-    Parse( buffer, stdRankCondition );
+    ParseClassAdRvalExpr( buffer, stdRankCondition );
 
     sprintf( buffer, "MY.%s >= MY.%s", ATTR_RANK, ATTR_CURRENT_RANK );
-    Parse( buffer, preemptRankCondition );
+    ParseClassAdRvalExpr( buffer, preemptRankCondition );
 
 	sprintf( buffer, "MY.%s > TARGET.%s + %f", ATTR_REMOTE_USER_PRIO, 
 			ATTR_SUBMITTOR_PRIO, PriorityDelta );
-	Parse( buffer, preemptPrioCondition ) ;
+	ParseClassAdRvalExpr( buffer, preemptPrioCondition ) ;
 
 	// setup preemption requirements expression
 	if( !( preq = param( "PREEMPTION_REQUIREMENTS" ) ) ) {
 		fprintf( stderr, "\nWarning:  No PREEMPTION_REQUIREMENTS expression in"
 					" config file --- assuming FALSE\n\n" );
-		Parse( "FALSE", preemptionReq );
+		ParseClassAdRvalExpr( "FALSE", preemptionReq );
 	} else {
-		if( Parse( preq , preemptionReq ) ) {
+		if( ParseClassAdRvalExpr( preq , preemptionReq ) ) {
 			fprintf( stderr, "\nError:  Failed parse of "
 				"PREEMPTION_REQUIREMENTS expression: \n\t%s\n", preq );
 			exit( 1 );
@@ -2509,7 +2607,7 @@ fetchSubmittorPrios()
 
 	sock->eom();
 	sock->decode();
-	if( !al.initFromStream(*sock) || !sock->end_of_message() ) {
+	if( !al.initAttrListFromStream(*sock) || !sock->end_of_message() ) {
 		fprintf( stderr, 
 				 "Error:  Could not get priorities from negotiator (%s)\n",
 				 negotiator.fullHostname() );
@@ -2540,13 +2638,13 @@ fetchSubmittorPrios()
 
 
 static void
-doRunAnalysis( ClassAd *request )
+doRunAnalysis( ClassAd *request, Daemon *schedd )
 {
-	printf("%s", doRunAnalysisToBuffer( request) );
+	printf("%s", doRunAnalysisToBuffer( request, schedd ) );
 }
 
 static char *
-doRunAnalysisToBuffer( ClassAd *request )
+doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 {
 	char	owner[128];
 	char	remoteUser[128];
@@ -2565,10 +2663,17 @@ doRunAnalysisToBuffer( ClassAd *request )
 	int		fRankCond		= 0;
 	int		fPreemptPrioCond= 0;
 	int		fPreemptReqTest	= 0;
+	int     fOffline        = 0;
 	int		available		= 0;
 	int		totalMachines	= 0;
 
 	return_buff[0]='\0';
+
+	if( schedd ) {
+		MyString buf;
+		warnScheddLimits(schedd,request,buf);
+		snprintf( return_buff, sizeof(return_buff), "%s", buf.Value() );
+	}
 
 	if( !request->LookupString( ATTR_OWNER , owner ) ) return "Nothing here.\n";
 	if( !request->LookupInteger( ATTR_NICE_USER , niceUser ) ) niceUser = 0;
@@ -2629,7 +2734,7 @@ doRunAnalysisToBuffer( ClassAd *request )
 		if( verbose ) sprintf( return_buff, "%-15.15s ", buffer );
 
 		// 1. Request satisfied? 
-		if( !( (*offer) >= (*request) ) ) {
+		if( !IsAHalfMatch( request, offer ) ) {
 			if( verbose ) sprintf( return_buff,
 				"%sFailed request constraint\n", return_buff );
 			fReqConstraint++;
@@ -2637,16 +2742,21 @@ doRunAnalysisToBuffer( ClassAd *request )
 		} 
 
 		// 2. Offer satisfied? 
-		if( !( (*offer) <= (*request) ) ) {
+		if ( !IsAHalfMatch( offer, request ) ) {
 			if( verbose ) strcat( return_buff, "Failed offer constraint\n");
 			fOffConstraint++;
 			continue;
 		}	
 
-			
+		int offline = 0;
+		if( offer->EvalBool( ATTR_OFFLINE, NULL, offline ) && offline ) {
+			fOffline++;
+			continue;
+		}
+
 		// 3. Is there a remote user?
 		if( !offer->LookupString( ATTR_REMOTE_USER, remoteUser ) ) {
-			if( stdRankCondition->EvalTree( offer, request, &eval_result ) &&
+			if( EvalExprTree( stdRankCondition, offer, request, &eval_result ) &&
 					eval_result.type == LX_INTEGER && eval_result.i == TRUE ) {
 				// both sides satisfied and no remote user
 				if( verbose ) sprintf( return_buff, "%sAvailable\n",
@@ -2666,11 +2776,11 @@ doRunAnalysisToBuffer( ClassAd *request )
 		}
 
 		// 4. Satisfies preemption priority condition?
-		if( preemptPrioCondition->EvalTree( offer, request, &eval_result ) &&
+		if( EvalExprTree( preemptPrioCondition, offer, request, &eval_result ) &&
 			eval_result.type == LX_INTEGER && eval_result.i == TRUE ) {
 
 			// 5. Satisfies standard rank condition?
-			if( stdRankCondition->EvalTree( offer , request , &eval_result ) &&
+			if( EvalExprTree( stdRankCondition, offer , request , &eval_result ) &&
 				eval_result.type == LX_INTEGER && eval_result.i == TRUE )  
 			{
 				if( verbose )
@@ -2679,11 +2789,11 @@ doRunAnalysisToBuffer( ClassAd *request )
 				continue;
 			} else {
 				// 6.  Satisfies preemption rank condition?
-				if( preemptRankCondition->EvalTree( offer, request, &eval_result ) &&
+				if( EvalExprTree( preemptRankCondition, offer, request, &eval_result ) &&
 					eval_result.type == LX_INTEGER && eval_result.i == TRUE )
 				{
 					// 7.  Tripped on PREEMPTION_REQUIREMENTS?
-					if( preemptionReq->EvalTree( offer , request , &eval_result ) &&
+					if( EvalExprTree( preemptionReq, offer , request , &eval_result ) &&
 						eval_result.type == LX_INTEGER && eval_result.i == FALSE ) 
 					{
 						fPreemptReqTest++;
@@ -2733,6 +2843,7 @@ doRunAnalysisToBuffer( ClassAd *request )
 		 "  %5d match but are serving users with a better priority in the pool%s\n"
 		 "  %5d match but reject the job for unknown reasons\n"
 		 "  %5d match but will not currently preempt their existing job\n"
+         "  %5d match but are currently offline\n"
 		 "  %5d are available to run your job\n",
 		return_buff, cluster, proc, totalMachines,
 		fReqConstraint,
@@ -2740,6 +2851,7 @@ doRunAnalysisToBuffer( ClassAd *request )
 		fPreemptPrioCond, niceUser ? "(*)" : "",
 		fRankCond,
 		fPreemptReqTest,
+		fOffline,
 		available );
 
 	int last_match_time=0, last_rej_match_time=0;
@@ -2776,17 +2888,15 @@ doRunAnalysisToBuffer( ClassAd *request )
 		strcat( return_buff, "\nWARNING:  Be advised:\n");
 		strcat( return_buff, "   No resources matched request's constraints\n");
         if (!better_analyze) {
-            char reqs[2048];
             ExprTree *reqExp;
             sprintf( return_buff, "%s   Check the %s expression below:\n\n" , 
                      return_buff, ATTR_REQUIREMENTS );
-            if( !(reqExp = request->Lookup( ATTR_REQUIREMENTS) ) ) {
+            if( !(reqExp = request->LookupExpr( ATTR_REQUIREMENTS) ) ) {
                 sprintf( return_buff, "%s   ERROR:  No %s expression found" ,
                          return_buff, ATTR_REQUIREMENTS );
             } else {
-                reqs[0] = '\0';
-                reqExp->PrintToStr( reqs );
-                sprintf( return_buff, "%s%s\n\n", return_buff, reqs );
+				sprintf( return_buff, "%s%s = %s\n\n", return_buff,
+						 ATTR_REQUIREMENTS, ExprTreeToString( reqExp ) );
             }
         }
 	}
@@ -2999,11 +3109,12 @@ static QueryResult getQuillAddrFromCollector(char *quill_name, char *&quill_addr
 }
 
 
-static char * getDBConnStr(char *&quill_name,
-                           char *&databaseIp,
-                           char *&databaseName,
-                           char *&query_password) {
-	char            *host, *port, *dbconn, *ptr_colon;
+static char * getDBConnStr(char const *&quill_name,
+                           char const *&databaseIp,
+                           char const *&databaseName,
+                           char const *&query_password) {
+	char            *host, *port, *dbconn;
+	const char *ptr_colon;
 	char            *tmpquillname, *tmpdatabaseip, *tmpdatabasename, *tmpquerypassword;
 	int             len, tmp1, tmp2, tmp3;
 
@@ -3030,9 +3141,10 @@ static char * getDBConnStr(char *&quill_name,
 	if(!databaseIp) {
 		if(tmpdatabaseip[0] != '<') {
 				//2 for the two brackets and 1 for the null terminator
-			databaseIp = (char *) malloc(strlen(tmpdatabaseip)+3);
-			sprintf(databaseIp, "<%s>", tmpdatabaseip);
+			char *tstr = (char *) malloc(strlen(tmpdatabaseip)+3);
+			sprintf(tstr, "<%s>", tmpdatabaseip);
 			free(tmpdatabaseip);
+			databaseIp = tstr;
 		}
 		else {
 			databaseIp = tmpdatabaseip;
@@ -3058,7 +3170,7 @@ static char * getDBConnStr(char *&quill_name,
 
 		//here we break up the ipaddress:port string and assign the
 		//individual parts to separate string variables host and port
-	ptr_colon = strchr(databaseIp, ':');
+	ptr_colon = strchr((char *)databaseIp, ':');
 	strcpy(host, "host=");
 	strncat(host,
 			databaseIp+1,
@@ -3081,7 +3193,7 @@ static char * getDBConnStr(char *&quill_name,
 	return dbconn;
 }
 
-static void exec_db_query(char *quill_name, char *db_ipAddr, char *db_name, char *query_password) {
+static void exec_db_query(const char *quill_name, const char *db_ipAddr, const char *db_name, const char *query_password) {
 	char *dbconn=NULL;
 	
 	dbconn = getDBConnStr(quill_name, db_ipAddr, db_name, query_password);
@@ -3099,3 +3211,73 @@ static void exec_db_query(char *quill_name, char *db_ipAddr, char *db_name, char
 }
 
 #endif /* WANT_QUILL */
+
+void warnScheddLimits(Daemon *schedd,ClassAd *job,MyString &result_buf) {
+	if( !schedd ) {
+		return;
+	}
+	ASSERT( job );
+
+	ClassAd *ad = schedd->daemonAd();
+	if (ad) {
+		bool exhausted = false;
+		ad->LookupBool("SwapSpaceExhausted", exhausted);
+		if (exhausted) {
+			result_buf.sprintf_cat("WARNING -- this schedd is not running jobs because it believes that doing so\n");
+			result_buf.sprintf_cat("           would exhaust swap space and cause thrashing.\n");
+			result_buf.sprintf_cat("           Set RESERVED_SWAP to 0 to tell the scheduler to skip this check\n");
+			result_buf.sprintf_cat("           Or add more swap space.\n");
+			result_buf.sprintf_cat("           The analysis code does not take this into consideration\n");
+		}
+
+		int maxJobsRunning 	= -1;
+		int totalRunningJobs= -1;
+
+		ad->LookupInteger( ATTR_MAX_JOBS_RUNNING, maxJobsRunning);
+		ad->LookupInteger( ATTR_TOTAL_RUNNING_JOBS, totalRunningJobs);
+
+		if ((maxJobsRunning > -1) && (totalRunningJobs > -1) && 
+			(maxJobsRunning == totalRunningJobs)) { 
+			result_buf.sprintf_cat("WARNING -- this schedd has hit the MAX_JOBS_RUNNING limit of %d\n", maxJobsRunning);
+			result_buf.sprintf_cat("       to run more concurrent jobs, raise this limit in the config file\n");
+			result_buf.sprintf_cat("       NOTE: the matchmaking analysis does not take the limit into consideration\n");
+		}
+
+		int status = -1;
+		job->LookupInteger(ATTR_JOB_STATUS,status);
+		if( status != RUNNING ) {
+
+			int universe = -1;
+			job->LookupInteger(ATTR_JOB_UNIVERSE,universe);
+
+			char const *schedd_requirements_attr = NULL;
+			switch( universe ) {
+			case CONDOR_UNIVERSE_SCHEDULER:
+				schedd_requirements_attr = ATTR_START_SCHEDULER_UNIVERSE;
+				break;
+			case CONDOR_UNIVERSE_LOCAL:
+				schedd_requirements_attr = ATTR_START_LOCAL_UNIVERSE;
+				break;
+			}
+
+			if( schedd_requirements_attr ) {
+				MyString schedd_requirements_expr;
+				ExprTree *expr = ad->LookupExpr(schedd_requirements_attr);
+				if( expr ) {
+					schedd_requirements_expr = ExprTreeToString(expr);
+				}
+				else {
+					schedd_requirements_expr = "UNDEFINED";
+				}
+
+				int req = 0;
+				if( !ad->EvalBool(schedd_requirements_attr,job,req) ) {
+					result_buf.sprintf_cat("WARNING -- this schedd's policy %s failed to evalute for this job.\n",schedd_requirements_expr.Value());
+				}
+				else if( !req ) {
+					result_buf.sprintf_cat("WARNING -- this schedd's policy %s evalutes to false for this job.\n",schedd_requirements_expr.Value());
+				}
+			}
+		}
+	}
+}

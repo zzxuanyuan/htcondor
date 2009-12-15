@@ -56,14 +56,14 @@ void BaseJob::BaseJobReconfig()
 	tmp_int = param_integer( "PERIODIC_EXPR_INTERVAL", 300 );
 	if ( tmp_int != 0 ) {
 		periodicPolicyEvalTid = daemonCore->Register_Timer( tmp_int, tmp_int,
-							(TimerHandler)&BaseJob::EvalAllPeriodicJobExprs,
-							"EvalAllPeriodicJobExprs", (Service*)NULL );
+							BaseJob::EvalAllPeriodicJobExprs,
+							"EvalAllPeriodicJobExprs" );
 	}
 
 	if ( m_checkRemoteStatusTid == TIMER_UNSET ) {
 		m_checkRemoteStatusTid = daemonCore->Register_Timer( 5, 60,
-							(TimerHandler)&BaseJob::CheckAllRemoteStatus,
-							"BaseJob::CheckAllRemoteStatus", (Service*)NULL );
+							BaseJob::CheckAllRemoteStatus,
+							"BaseJob::CheckAllRemoteStatus" );
 	}
 }
 
@@ -162,11 +162,10 @@ void BaseJob::SetEvaluateState()
 	daemonCore->Reset_Timer( evaluateStateTid, 0 );
 }
 
-int BaseJob::doEvaluateState()
+void BaseJob::doEvaluateState()
 {
 	JobHeld( "the gridmanager can't handle this job type" );
 	DoneWithJob();
-	return TRUE;
 }
 
 BaseResource *BaseJob::GetResource()
@@ -194,7 +193,7 @@ void BaseJob::JobRunning()
 			executeLogged = true;
 		}
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 }
 
@@ -216,7 +215,7 @@ void BaseJob::JobIdle()
 			executeLogged = false;
 		}
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 }
 
@@ -255,7 +254,7 @@ void BaseJob::JobCompleted()
 
 		UpdateRuntimeStats();
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 }
 
@@ -312,7 +311,7 @@ void BaseJob::DoneWithJob()
 		break;
 	}
 
-	requestScheddUpdate( this );
+	requestScheddUpdate( this, false );
 }
 
 void BaseJob::JobHeld( const char *hold_reason, int hold_code,
@@ -360,7 +359,7 @@ void BaseJob::JobHeld( const char *hold_reason, int hold_code,
 			holdLogged = true;
 		}
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 }
 
@@ -375,7 +374,7 @@ void BaseJob::JobRemoved( const char *remove_reason )
 
 		UpdateRuntimeStats();
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 }
 
@@ -399,7 +398,7 @@ void BaseJob::UpdateRuntimeStats()
 		num_job_starts++;
 		jobAd->Assign( ATTR_NUM_JOB_STARTS, num_job_starts );
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 
 	} else if ( condorState != RUNNING && shadowBirthdate != 0 ) {
 
@@ -412,7 +411,7 @@ void BaseJob::UpdateRuntimeStats()
 		jobAd->Assign( ATTR_JOB_WALL_CLOCK_CKPT,(char *)NULL );
 		jobAd->Assign( ATTR_SHADOW_BIRTHDATE, 0 );
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 
 	}
 }
@@ -446,10 +445,10 @@ void BaseJob::SetRemoteJobId( const char *job_id )
 		m_currentStatusUnknown = false;
 		jobAd->Assign( ATTR_CURRENT_STATUS_UNKNOWN, false );
 	}
-	requestScheddUpdate( this );
+	requestScheddUpdate( this, false );
 }
 
-void BaseJob::SetRemoteJobStatus( const char *job_status )
+bool BaseJob::SetRemoteJobStatus( const char *job_status )
 {
 	MyString old_job_status;
 	MyString new_job_status;
@@ -457,7 +456,7 @@ void BaseJob::SetRemoteJobStatus( const char *job_status )
 	if ( job_status ) {
 		m_lastRemoteStatusUpdate = time(NULL);
 		jobAd->Assign( ATTR_LAST_REMOTE_STATUS_UPDATE, m_lastRemoteStatusUpdate );
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 		if ( m_currentStatusUnknown == true ) {
 			m_currentStatusUnknown = false;
 			jobAd->Assign( ATTR_CURRENT_STATUS_UNKNOWN, false );
@@ -470,7 +469,7 @@ void BaseJob::SetRemoteJobStatus( const char *job_status )
 		new_job_status = job_status;
 	}
 	if ( old_job_status == new_job_status ) {
-		return;
+		return false;
 	}
 	if ( !old_job_status.IsEmpty() ) {
 		jobAd->AssignExpr( ATTR_GRID_JOB_STATUS, "Undefined" );
@@ -478,7 +477,8 @@ void BaseJob::SetRemoteJobStatus( const char *job_status )
 	if ( !new_job_status.IsEmpty() ) {
 		jobAd->Assign( ATTR_GRID_JOB_STATUS, new_job_status.Value() );
 	}
-	requestScheddUpdate( this );
+	requestScheddUpdate( this, false );
+	return true;
 }
 
 void BaseJob::SetJobLeaseTimers()
@@ -556,7 +556,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.pro
 						   new_expiration_time );
 		}
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 
 		SetJobLeaseTimers();
 	}
@@ -595,7 +595,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID
 	}
 }
 
-int BaseJob::JobLeaseSentExpired()
+void BaseJob::JobLeaseSentExpired()
 {
 dprintf(D_FULLDEBUG,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
 	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
@@ -603,10 +603,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,pr
 		jobLeaseSentExpiredTid = TIMER_UNSET;
 	}
 	SetEvaluateState();
-	return 0;
 }
 
-int BaseJob::JobLeaseReceivedExpired()
+void BaseJob::JobLeaseReceivedExpired()
 {
 dprintf(D_FULLDEBUG,"(%d.%d) BaseJob::JobLeaseReceivedExpired()\n",procID.cluster,procID.proc);
 	if ( jobLeaseReceivedExpiredTid != TIMER_UNSET ) {
@@ -622,10 +621,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) BaseJob::JobLeaseReceivedExpired()\n",procID.cluste
 
 	UpdateRuntimeStats();
 
-	requestScheddUpdate( this );
+	requestScheddUpdate( this, false );
 
 	SetEvaluateState();
-	return 0;
 }
 
 void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
@@ -668,13 +666,11 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 	if ( new_condor_state == REMOVED || new_condor_state == HELD ) {
 
 		for ( int i = 0; held_removed_update_attrs[i] != NULL; i++ ) {
-			char attr_value[1024];
 			ExprTree *expr;
 
-			if ( (expr = new_ad->Lookup( held_removed_update_attrs[i] )) != NULL ) {
-				attr_value[0] = '\0';
-				expr->RArg()->PrintToStr(attr_value);
-				jobAd->AssignExpr( held_removed_update_attrs[i], attr_value );
+			if ( (expr = new_ad->LookupExpr( held_removed_update_attrs[i] )) != NULL ) {
+				jobAd->Insert( held_removed_update_attrs[i],
+							   expr->Copy() );
 			} else {
 				jobAd->Delete( held_removed_update_attrs[i] );
 			}
@@ -715,7 +711,7 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 
 }
 
-int BaseJob::EvalAllPeriodicJobExprs(Service *)
+void BaseJob::EvalAllPeriodicJobExprs()
 {
 	BaseJob *curr_job;
 
@@ -725,8 +721,6 @@ int BaseJob::EvalAllPeriodicJobExprs(Service *)
 	while ( JobsByProcId.iterate( curr_job ) != 0  ) {
 		curr_job->EvalPeriodicJobExpr();
 	}
-
-	return 0;
 }
 
 int BaseJob::EvalPeriodicJobExpr()
@@ -840,7 +834,7 @@ int BaseJob::EvalOnExitJobExpr()
 	return 0;
 }
 
-int BaseJob::CheckAllRemoteStatus( Service * )
+void BaseJob::CheckAllRemoteStatus()
 {
 	BaseJob *curr_job;
 
@@ -852,8 +846,6 @@ int BaseJob::CheckAllRemoteStatus( Service * )
 	while ( JobsByProcId.iterate( curr_job ) != 0  ) {
 		curr_job->CheckRemoteStatus();
 	}
-
-	return 0;
 }
 
 void BaseJob::CheckRemoteStatus()
@@ -870,8 +862,9 @@ void BaseJob::CheckRemoteStatus()
 	if ( time(NULL) > m_lastRemoteStatusUpdate + stale_limit ) {
 		m_currentStatusUnknown = true;
 		jobAd->Assign( ATTR_CURRENT_STATUS_UNKNOWN, true );
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 		WriteJobStatusUnknownEventToUserLog( jobAd );
+		SetEvaluateState();
 	}
 }
 
@@ -932,7 +925,7 @@ void BaseJob::NotifyResourceDown()
 		WriteGlobusResourceDownEventToUserLog( jobAd );
 		WriteGridResourceDownEventToUserLog( jobAd );
 		jobAd->Assign( ATTR_GRID_RESOURCE_UNAVAILABLE_TIME, (int)time(NULL) );
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 	resourceDown = true;
 	if ( resourcePingPending ) {
@@ -950,7 +943,7 @@ void BaseJob::NotifyResourceUp()
 		WriteGlobusResourceUpEventToUserLog( jobAd );
 		WriteGridResourceUpEventToUserLog( jobAd );
 		jobAd->AssignExpr( ATTR_GRID_RESOURCE_UNAVAILABLE_TIME, "Undefined" );
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 	}
 	resourceDown = false;
 	if ( resourcePingPending ) {

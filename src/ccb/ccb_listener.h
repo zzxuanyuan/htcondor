@@ -61,14 +61,14 @@ class CCBListener: public Service, public ClassyCountedPtr {
 	bool SendMsgToCCB(ClassAd &msg,bool blocking);
 	bool WriteMsgToCCB(ClassAd &msg);
 	static void CCBConnectCallback(bool success,Sock *sock,CondorError *errstack,void *misc_data);
-	int ReconnectTime();
+	void ReconnectTime();
 	void Connected();
 	void Disconnected();
 	int HandleCCBMsg(Stream *sock);
 	bool ReadMsgFromCCB();
 	bool HandleCCBRegistrationReply( ClassAd &msg );
 	bool HandleCCBRequest( ClassAd &msg );
-	bool DoReversedCCBConnect( char const *address, char const *connect_id, char const *request_id);
+	bool DoReversedCCBConnect( char const *address, char const *connect_id, char const *request_id,char const *peer_description);
 	int ReverseConnected(Stream *stream);
 	void ReportReverseConnectResult(ClassAd *connect_msg,bool success,char const *error_msg=NULL);
 };

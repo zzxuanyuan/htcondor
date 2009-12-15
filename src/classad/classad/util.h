@@ -40,7 +40,12 @@ int get_random_integer(void);
 // Get a random number between 0 and 1
 double get_random_real(void);
 
-long timezone_offset(void);
+/* This calculates the timezone offset of the given time for the current
+ * locality. The returned value is the offset in seconds east of UTC.
+ * If the optional no_dst parameter is set to true, the calculation is
+ * made assuming no daylight saving time.
+ */
+long timezone_offset( time_t clock, bool no_dst = false );
 
 /* This converts a string so that sequences like \t
  * (two-characters, slash and t) are converted into the 

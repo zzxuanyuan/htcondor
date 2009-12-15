@@ -99,13 +99,20 @@ pseudo_get_job_info(ClassAd *&ad)
 	the_ad = thisRemoteResource->getJobAd();
 	ASSERT( the_ad );
 
+	// Only initialize the file transfer object if
+	// NeverCreateJobSandbox is not set
+	 int never_create_sandbox_expr;
+	 int has_nc_sandbox_expr = the_ad->EvalBool( ATTR_NEVER_CREATE_JOB_SANDBOX, NULL, never_create_sandbox_expr );
+	 if( !(has_nc_sandbox_expr && never_create_sandbox_expr) ) {
+
 		// FileTransfer now makes sure we only do Init() once.
 		//
 		// New for WIN32: want_check_perms = false.
 		// Since the shadow runs as the submitting user, we
 		// let the OS enforce permissions instead of relying on
 		// the pesky perm object to get it right.
-	thisRemoteResource->filetrans.Init( the_ad, false, PRIV_USER, false );
+	  thisRemoteResource->filetrans.Init( the_ad, false, PRIV_USER, false );
+	}
 
 	Shadow->publishShadowAttrs( the_ad );
 
@@ -662,10 +669,14 @@ pseudo_get_job_attr( const char *name, char *expr )
 		remote = parallelMasterResource;
 	}
 	ClassAd *ad = remote->getJobAd();
-	ExprTree *e = ad->Lookup(name);
+	ExprTree *e = ad->LookupExpr(name);
 	if(e) {
-		expr[0] = 0;
-		e->RArg()->PrintToStr(expr);
+		const char *value = ExprTreeToString(e);
+		if ( value ) {
+			strcpy( expr, value );
+		} else {
+			expr[0] = 0;
+		}
 		dprintf(D_SYSCALLS,"pseudo_get_job_attr(%s) = %s\n",name,expr);
 		return 0;
 	} else {
@@ -685,9 +696,9 @@ pseudo_get_job_attr( const char *name, MyString &expr )
 	}
 	ClassAd *ad = remote->getJobAd();
 
-	ExprTree *e = ad->Lookup(name);
+	ExprTree *e = ad->LookupExpr(name);
 	if(e) {
-		e->RArg()->PrintToStr(expr);
+		expr = ExprTreeToString(e);
 		dprintf(D_SYSCALLS,"pseudo_get_job_attr(%s) = %s\n",name,expr.Value());
 		return 0;
 	} else {

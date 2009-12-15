@@ -193,7 +193,7 @@ int SafeSock::end_of_message()
 }
 
 const char *
-SafeSock::sender_ip_str()
+SafeSock::my_ip_str()
 {
 	//In order to call getSockAddr(_sock), we would need to call
 	//::connect() on _sock, which changes semantics on what other
@@ -206,9 +206,9 @@ SafeSock::sender_ip_str()
 		return NULL;
 	}
 
-	if(_sender_ip_buf[0]) {
+	if(_my_ip_buf[0]) {
 		// return cached result
-		return &(_sender_ip_buf[0]);
+		return _my_ip_buf;
 	}
 
 	SafeSock s;
@@ -216,7 +216,7 @@ SafeSock::sender_ip_str()
 
 	if (s._state != sock_bound) {
 		dprintf(D_ALWAYS,
-		        "SafeSock::sender_ip_str() failed to bind: _state = %d\n",
+		        "SafeSock::my_ip_str() failed to bind: _state = %d\n",
 			  s._state); 
 		return NULL;
 	}
@@ -224,22 +224,22 @@ SafeSock::sender_ip_str()
 	if(::connect(s._sock, (sockaddr *)&_who, sizeof(sockaddr_in)) != 0) {
 #if defined(WIN32)
 		int lasterr = WSAGetLastError();
-		dprintf( D_ALWAYS, "SafeSock::sender_ip_str() failed to connect, errno = %d\n",
+		dprintf( D_ALWAYS, "SafeSock::my_ip_str() failed to connect, errno = %d\n",
 				 lasterr );
 #else
-		dprintf( D_ALWAYS, "SafeSock::sender_ip_str() failed to connect, errno = %d\n",
+		dprintf( D_ALWAYS, "SafeSock::my_ip_str() failed to connect, errno = %d\n",
 				 errno );
 #endif
 		return NULL;
 	}
 
 	struct sockaddr_in sin;
-	if(s.mypoint(&sin) == -1) {
+	if(s.my_addr(&sin) == -1) {
 		return NULL;
 	}
-	memset(&_sender_ip_buf, 0, IP_STRING_BUF_SIZE );
-	strcpy( _sender_ip_buf, inet_ntoa(sin.sin_addr) );
-	return &(_sender_ip_buf[0]);
+	strncpy( _my_ip_buf, inet_ntoa(sin.sin_addr), IP_STRING_BUF_SIZE );
+    _my_ip_buf[IP_STRING_BUF_SIZE-1] = '\0';
+	return _my_ip_buf;
 }
 
 int SafeSock::connect(
@@ -251,10 +251,6 @@ int SafeSock::connect(
 	struct hostent	*hostp = NULL;
 	unsigned long	inaddr = 0;
 
-	// Remove any cached sender IP info, since the new target may route us
-	// through a different network interface.
-	_sender_ip_buf[0] = '\0';
-
 	if (!host || port < 0) return FALSE;
 
 	memset(&_who, 0, sizeof(sockaddr_in));
@@ -264,10 +260,12 @@ int SafeSock::connect(
 	/* might be in <x.x.x.x:x> notation, i.e. sinfull string */
 	if (host[0] == '<') {
 		string_to_sin(host, &_who);
+		set_connect_addr(host);
 	}
 	/* try to get a decimal notation first 			*/
 	else if( (inaddr=inet_addr(host)) != (unsigned long)(-1L) ) {
 		memcpy((char *)&_who.sin_addr, &inaddr, sizeof(inaddr));
+		set_connect_addr(sin_to_string(&_who));
 	} else {
 		/* if dotted notation fails, try host database	*/
 		hostp = condor_gethostbyname(host);
@@ -276,12 +274,15 @@ int SafeSock::connect(
 		} else {
 			memcpy(&_who.sin_addr, hostp->h_addr, sizeof(hostp->h_addr));
 		}
+		set_connect_addr(sin_to_string(&_who));
 	}
+
+    addr_changed();
 
 	// now that we have set _who (useful for getting informative
 	// peer_description), see if we should do a reverse connect
 	// instead of a forward connect
-	int retval=reverse_connect(host,port,true);
+	int retval=special_connect(host,port,true);
 	if( retval != CEDAR_ENOCCB ) {
 		return retval;
 	}
@@ -888,4 +889,22 @@ void SafeSock::dumpSock()
 
 void
 SafeSock::cancel_reverse_connect() {
+}
+
+void
+SafeSock::setTargetSharedPortID( char const *id)
+{
+	if( id ) {
+		dprintf(D_ALWAYS,
+			"WARNING: UDP does not support connecting to a shared port! "
+			"(requested address is %s with SharedPortID=%s)\n",
+			peer_description(), id);
+	}
+}
+
+bool
+SafeSock::sendTargetSharedPortID()
+{
+		// do nothing; shared ports are not currently supported by UDP
+	return true;
 }

@@ -157,8 +157,6 @@ _Evaluate (EvalState &state, Value &val) const
 	ExprTree	*dummy;
 	ClassAd		*curAd;
 	bool		rval;
-	Value		cv;
-	EvalCache::iterator	itr;
 
 	// find the expression and the evalstate
 	curAd = state.curAd;
@@ -178,32 +176,23 @@ _Evaluate (EvalState &state, Value &val) const
 			state.curAd = curAd;
 			return true;
 
-		case EVAL_OK:
-			// lookup in cache
-			itr = state.cache.find( tree );
+		case EVAL_OK: 
+		{
+			if( state.depth_remaining <= 0 ) {
+				val.SetErrorValue();
+				state.curAd = curAd;
+				return false;
+			}
+			state.depth_remaining--;
 
-			// if found, return cached value
-			if( itr != state.cache.end( ) ) {
-				val.CopyFrom( itr->second );	
-				state.curAd = curAd;		// NAC (fixed a bug)
-				return true;
-			} 
+			rval = tree->Evaluate( state, val );
 
-			// temporarily cache value as undef, so any circular refs
-			// in Evaluate() will eval to undef rather than loop
-
-			cv.SetUndefinedValue( );
-			state.cache[ tree ] = cv;
-
-			rval = tree->Evaluate( state , val );
-
-			// replace cached undef with actual evaluation
-			state.cache[ tree ] = val;
+			state.depth_remaining++;
 
 			state.curAd = curAd;
 
 			return rval;
-
+		}
 		default:  CLASSAD_EXCEPT( "ClassAd:  Should not reach here" );
 	}
 	return false;
@@ -217,8 +206,6 @@ _Evaluate (EvalState &state, Value &val, ExprTree *&sig ) const
 	ExprTree	*exprSig;
 	ClassAd		*curAd;
 	bool		rval;
-	Value 		cv;
-	EvalCache::iterator	itr;
 
 	curAd = state.curAd;
 	exprSig = NULL;
@@ -240,30 +227,20 @@ _Evaluate (EvalState &state, Value &val, ExprTree *&sig ) const
 			break;
 
 		case EVAL_OK:
-
-			// lookup in cache
-			itr = state.cache.find( tree );
-
-			// if found in cache, return cached value
-			if( itr != state.cache.end( ) ) {
-				val.CopyFrom( itr->second );
-				state.curAd = curAd;		// NAC (fixed a bug)
-				return true;
-			} 
-
-			// temporarily cache value as undef, so any circular refs
-			// in Evaluate() will eval to undef rather than loop
-
-			cv.SetUndefinedValue( );
-			state.cache[ tree ] = cv;
+		{
+			if( state.depth_remaining <= 0 ) {
+				val.SetErrorValue();
+				state.curAd = curAd;
+				return false;
+			}
+			state.depth_remaining--;
 
 			rval = tree->Evaluate( state, val );
 
-			// replace undef in cache with actual evaluation
-			state.cache[ tree ] = val;
+			state.depth_remaining++;
 
 			break;
-
+		}
 		default:  CLASSAD_EXCEPT( "ClassAd:  Should not reach here" );
 	}
 	if(!rval || !(sig=new AttributeReference(exprSig,attributeStr,absolute))){
@@ -287,8 +264,6 @@ _Flatten( EvalState &state, Value &val, ExprTree*&ntree, int*) const
 	ExprTree	*dummy;
 	ClassAd		*curAd;
 	bool		rval;
-	Value		cv;
-	EvalCache::iterator	itr;
 
 	ntree = NULL; // Just to be safe...  wenger 2003-12-11.
 
@@ -306,44 +281,50 @@ _Flatten( EvalState &state, Value &val, ExprTree*&ntree, int*) const
 
 		case EVAL_UNDEF:
 		case PROP_UNDEF:
+			if( expr && state.flattenAndInline ) {
+				ExprTree *expr_ntree = NULL;
+				Value expr_val;
+				if( state.depth_remaining <= 0 ) {
+					val.SetErrorValue();
+					state.curAd = curAd;
+					return false;
+				}
+				state.depth_remaining--;
+
+				rval = expr->Flatten(state,expr_val,expr_ntree);
+
+				state.depth_remaining++;
+
+				if( rval && expr_ntree ) {
+					ntree = MakeAttributeReference(expr_ntree,attributeStr);
+					if( ntree ) {
+						state.curAd = curAd;
+						return true;
+					}
+				}
+				delete expr_ntree;
+			}
 			if( !(ntree = Copy( ) ) ) {
 				CondorErrno = ERR_MEM_ALLOC_FAILED;
 				CondorErrMsg = "";
+				state.curAd = curAd;
 				return( false );
 			}
 			state.curAd = curAd;
 			return true;
 
 		case EVAL_OK:
-
-			// lookup in cache
-			itr = state.cache.find( tree );
-
-			// if found in cache, return cached value
-			if( itr != state.cache.end( ) ) {
-				val.CopyFrom( itr->second );
-				if( val.IsUndefinedValue( ) ) {
-					if( !(ntree = Copy( ) ) ) {
-						CondorErrno = ERR_MEM_ALLOC_FAILED;
-						CondorErrMsg = "";
-						return( false );
-					}
-				} else {
-						// Fixes the bug I (wenger) ran into with Flatten()
-						// returning an expression with a bad pointer.
-					ntree = NULL;
-				}
+		{
+			if( state.depth_remaining <= 0 ) {
+				val.SetErrorValue();
 				state.curAd = curAd;
-				return true;
-			} 
-
-			// temporarily cache value as undef, so any circular refs
-			// in Flatten() will eval to undef rather than loop
-
-			cv.SetUndefinedValue( );
-			state.cache[ tree ] = cv;
+				return false;
+			}
+			state.depth_remaining--;
 
 			rval = tree->Flatten( state, val, ntree );
+
+			state.depth_remaining++;
 
 			// don't inline if it didn't flatten to a value, and clear cache
 			// do inline if FlattenAndInline was called
@@ -354,14 +335,11 @@ _Flatten( EvalState &state, Value &val, ExprTree*&ntree, int*) const
 				delete ntree;
 				ntree = Copy( );
 				val.SetUndefinedValue( );
-				state.cache.erase( tree );
-			} else {
-				state.cache[ tree ] = val;
 			}
 
 			state.curAd = curAd;
 			return rval;
-
+		}
 		default:  CLASSAD_EXCEPT( "ClassAd:  Should not reach here" );
 	}
 	return false;

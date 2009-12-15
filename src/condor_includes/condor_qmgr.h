@@ -24,6 +24,7 @@
 #include "condor_io.h"
 #include "proc.h"
 #include "../condor_c++_util/CondorError.h"
+
 class ClassAd;
 class ClassAdList;
 
@@ -138,14 +139,14 @@ int SetAttributeInt(int cluster, int proc, const char *attr, int value, SetAttri
 	quotes)
 	@return -1 on failure; 0 on success
 */
-int SetAttributeFloat(int cluster, int proc, const char *attr, float value);
+int SetAttributeFloat(int cluster, int proc, const char *attr, float value, SetAttributeFlags_t flags = 0);
 /** Set attr = value for job with specified cluster and proc.  The value
 	should be a valid ClassAd value (strings should be surrounded by
 	quotes)
 	@return -1 on failure; 0 on success
 */
 int SetAttributeString(int cluster, int proc, const char *attr,
-					   const char *value);
+					   const char *value, SetAttributeFlags_t flags = 0);
 
 /** Set LastJobLeaseRenewalReceived = <xact start time> and
     JobLeaseDurationReceived = dur for the specified cluster/proc.
@@ -195,10 +196,6 @@ int GetAttributeInt(int cluster, int proc, const char *attr, int *value);
 	@return -1 on failure; 0 on success
 */
 int GetAttributeBool(int cluster, int proc, const char *attr, int *value);
-/** Get value of attr for job with specified cluster and proc.
-	@return -1 on failure; 0 on success
-*/
-int GetAttributeString(int cluster, int proc, const char *attr, char *value);
 /** Get value of string attr for job with specified cluster and proc.
 	@return -1 on failure; 0 on success. Allocates new copy of the string.
 */
@@ -210,9 +207,10 @@ int GetAttributeStringNew( int cluster_id, int proc_id, const char *attr_name,
 int GetAttributeString( int cluster_id, int proc_id, char const *attr_name,
 						MyString &val );
 /** Get value of attr for job with specified cluster and proc.
+	Allocates new copy of the unparsed expression string.
 	@return -1 on failure; 0 on success
 */
-int GetAttributeExpr(int cluster, int proc, const char *attr, char *value);
+int GetAttributeExprNew(int cluster, int proc, const char *attr, char **value);
 /** Delete specified attribute for job with specified cluster and proc.
 	@return -1 on failure; 0 on success
 */
@@ -271,7 +269,10 @@ int SendSpoolFileBytes(char const *filename);
 */
 int SendSpoolFileIfNeeded(ClassAd& ad);
 
+/* This function is not reentrant!  Do not call it recursively. */
 void WalkJobQueue(scan_func);
+
+bool InWalkJobQueue();
 
 void InitQmgmt();
 void InitJobQueue(const char *job_queue_name,int max_historical_logs);
@@ -282,12 +283,6 @@ void unsetQSock();
 
 int rusage_to_float(struct rusage, float *, float *);
 int float_to_rusage(float, float, struct rusage *);
-
-/* These are here for compatibility with old code which uses the PROC
-   structure to ease porting.  Use of these functions is discouraged! */
-#if defined(NEW_PROC)
-int GetProc(int, int, PROC *);
-#endif
 
 bool Reschedule();
 

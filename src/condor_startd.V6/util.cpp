@@ -180,6 +180,60 @@ check_execute_dir_perms( StringList &list )
 }
 
 void
+check_recovery_file( const char *execute_dir )
+{
+	MyString recovery_file;
+	FILE *recovery_fp = NULL;
+	ClassAd *recovery_ad = NULL;
+	if ( execute_dir == NULL ) {
+		return;
+	}
+
+	recovery_file.sprintf( "%s.recover", execute_dir );
+
+	StatInfo si( recovery_file.Value() );
+
+	if ( si.Error() ) {
+		if ( si.Error() != SINoFile ) {
+			unlink( recovery_file.Value() );
+		}
+		return;
+	}
+
+		// TODO: check file ownership?
+
+	recovery_fp = safe_fopen_wrapper( recovery_file.Value(), "r" );
+	if ( recovery_fp == NULL ) {
+		unlink( recovery_file.Value() );
+		return;
+	}
+
+	int eof = 0;
+	int error = 0;
+	int empty = 0;
+	recovery_ad = new ClassAd( recovery_fp, "***", eof, error, empty );
+	if ( error || empty ) {
+		fclose( recovery_fp );
+		unlink( recovery_file.Value() );
+		return;
+	}
+
+	int universe = 0;
+	recovery_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe );
+	if ( universe == CONDOR_UNIVERSE_VM ) {
+		MyString vm_id;
+		recovery_ad->LookupString( "JobVMId", vm_id );
+		if ( !vm_id.IsEmpty() ) {
+			resmgr->m_vmuniverse_mgr.killVM( vm_id.Value() );
+		}
+	}
+
+	delete recovery_ad;
+	fclose( recovery_fp );
+	unlink( recovery_file.Value() );
+}
+
+void
 cleanup_execute_dirs( StringList &list )
 {
 	char const *exec_path;
@@ -194,6 +248,12 @@ cleanup_execute_dirs( StringList &list )
 
 		// get rid of everything in the execute directory
 		Directory execute_dir(exec_path);
+
+		execute_dir.Rewind();
+		while ( execute_dir.Next() ) {
+			check_recovery_file( execute_dir.GetFullPath() );
+		}
+
 		execute_dir.Remove_Entire_Directory();
 #else
 		// if we're using PrivSep, the Switchboard will only allow
@@ -201,6 +261,12 @@ cleanup_execute_dirs( StringList &list )
 		// list them and ask the Switchboard to delete each one
 		//
 		Directory execute_dir( exec_path, PRIV_ROOT );
+
+		execute_dir.Rewind();
+		while ( execute_dir.Next() ) {
+			check_recovery_file( execute_dir.GetFullPath() );
+		}
+
 		if (privsep_enabled()) {
 			execute_dir.Rewind();
 			while (execute_dir.Next()) {
@@ -224,7 +290,7 @@ cleanup_execute_dir(int pid, char const *exec_path)
 	dynuser nobody_login;
 
 	if ( nobody_login.reuse_accounts() == false ) {
-	// before removing subdir, remove any nobody-user account associtated
+	// before removing subdir, remove any nobody-user account associated
 	// with this starter pid.  this account might have been left around
 	// if the starter did not clean up completely.
 	//sprintf(buf,"condor-run-dir_%d",pid);
@@ -241,6 +307,8 @@ cleanup_execute_dir(int pid, char const *exec_path)
 
 	buf.sprintf( "%s\\dir_%d", exec_path, pid );
  
+	check_recovery_file( buf.Value() );
+
 	Directory dir( buf.Value() );
 	dir.Remove_Full_Path(buf.Value());
 
@@ -249,19 +317,21 @@ cleanup_execute_dir(int pid, char const *exec_path)
 #else /* UNIX */
 
 	MyString	pid_dir;
+	MyString pid_dir_path;
 
 		// We're trying to delete a specific subdirectory, either
 		// b/c a starter just exited and we might need to clean up
 		// after it, or because we're in a recursive call.
 	pid_dir.sprintf( "dir_%d", pid );
+	pid_dir_path.sprintf( "%s/%s", exec_path, pid_dir.Value() );
+
+	check_recovery_file( pid_dir_path.Value() );
 
 		// if we're using PrivSep, we won't have the permissions
 		// needed to clean up - ask the Switchboard to do it; but
 		// before we do that, use stat to see if there's anything
 		// to clean up and save the Switchboard invocation if not
 	if (privsep_enabled()) {
-		MyString pid_dir_path;
-		pid_dir_path.sprintf("%s/%s", exec_path, pid_dir.Value());
 		struct stat stat_buf;
 		if (stat(pid_dir_path.Value(), &stat_buf) == -1) {
 			return;
@@ -342,7 +412,6 @@ caInsert( ClassAd* target, ClassAd* source, const char* attr,
 		  const char* prefix )
 {
 	ExprTree* tree;
-	bool rval = true;
 
 	if( !attr ) {
 		EXCEPT( "caInsert called with NULL attribute" );
@@ -351,44 +420,23 @@ caInsert( ClassAd* target, ClassAd* source, const char* attr,
 		EXCEPT( "caInsert called with NULL classad" );
 	}
 
-	tree = source->Lookup( attr );
+	MyString new_attr;
+	if( prefix ) {
+		new_attr = prefix;
+	}
+	new_attr += attr;
+
+	tree = source->LookupExpr( attr );
 	if( !tree ) {
-		MyString attrname;
-		if( prefix ) {
-			attrname = prefix;
-		}
-		attrname += attr;
-		target->Delete(attrname.Value());
+		target->Delete(new_attr.Value());
 		return false;
 	}
-	if( prefix ) {
-			// since there's no way to rename the attribute name in an
-			// existing ExprTree, we have to print it out to a string
-			// to append the prefix...
-		char* str = NULL;
-		tree->PrintToNewStr( &str );
-		MyString modified_str = prefix;
-		modified_str += str;
-		free( str );
-		str = NULL;
-		if( ! target->Insert(modified_str.Value()) ) {
-			rval = false;
-		}
-	} else {
-			// there's no prefix, we can just Insert a copy directly
-			// (like we always do on the V6_6-branch version, which
-			// doesn't support a prefix).
-		ExprTree* new_tree = tree->DeepCopy();
-		if( ! target->Insert(new_tree) ) {
-			rval = false;
-		}			
-	}
-
-	if( ! rval ) {
+	if ( !target->Insert(new_attr.Value(), tree->Copy()) ) {
 		dprintf( D_ALWAYS, "caInsert: Can't insert %s into target classad.\n",
 				 attr );
-	}		
-	return rval;
+		return false;
+	}
+	return true;
 }
 
 

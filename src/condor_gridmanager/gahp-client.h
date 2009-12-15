@@ -101,7 +101,8 @@ class GahpServer : public Service {
 	void AddGahpClient();
 	void RemoveGahpClient();
 
-	int doProxyCheck();
+	int ProxyCallback();
+	void doProxyCheck();
 	GahpProxyInfo *RegisterProxy( Proxy *proxy );
 	void UnregisterProxy( Proxy *proxy );
 
@@ -130,11 +131,9 @@ class GahpServer : public Service {
 		this method is invoked automatically either by a timer set
 		via setPollInterval or by a Gahp Server async result
 		notification.
-		@return The number of pending commands which have completed
-		since the last poll (note: could easily be zero).	
 		@see setPollInterval
 	*/
-	int poll();
+	void poll();
 
 	void poll_real_soon();
 
@@ -323,6 +322,9 @@ class GahpClient : public Service {
 		const char *
 			getGlobusGassServerUrl() { return server->globus_gass_server_url; }
 
+		const char *getGt2CallbackContact()
+			{ return server->globus_gt2_gram_callback_contact; }
+
 		/// cache it from the gahp
 		const char *
 		globus_gram_client_error_string(int error_code);
@@ -338,7 +340,7 @@ class GahpClient : public Service {
 		int 
 		globus_gram_client_job_request(const char * resource_manager_contact,
 			const char * description,
-			const int job_state_mask,
+			const int limited_deleg,
 			const char * callback_contact,
 			char ** job_contact);
 
@@ -380,7 +382,8 @@ class GahpClient : public Service {
 
 		///
 		int
-		globus_gram_client_job_refresh_credentials(const char *job_contact);
+		globus_gram_client_job_refresh_credentials(const char *job_contact,
+												   int limited_deleg);
 
 		///
 		int
@@ -517,6 +520,11 @@ class GahpClient : public Service {
 		int
 		nordugrid_status(const char *hostname, const char *job_id,
 						 char *&status);
+
+		int
+		nordugrid_ldap_query(const char *hostname, const char *ldap_base,
+							 const char *ldap_filter, const char *ldap_attrs,
+							 StringList &results);
 
 		int
 		nordugrid_cancel(const char *hostname, const char *job_id);
@@ -1033,7 +1041,7 @@ class GahpClient : public Service {
 		Gahp_Args* get_pending_result(const char *,const char *);
 		bool check_pending_timeout(const char *,const char *);
 		int reset_user_timer(int tid);
-		int reset_user_timer_alarm();
+		void reset_user_timer_alarm();
 
 			// Private Data Members
 		unsigned int m_timeout;

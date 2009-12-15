@@ -551,13 +551,11 @@ do_Q_request(ReliSock *syscall_sock,bool &may_fork)
 		assert( syscall_sock->code(attr_name) );
 		assert( syscall_sock->end_of_message() );;
 
-		// XXX: shouldn't need a fixed size here -- at least keep
-		// it off the stack to avoid overflow attacks
-		char *value = (char *)malloc(ATTRLIST_MAX_EXPRESSION*sizeof(char));
+		char *value = NULL;
 
 		errno = 0;
 		if( QmgmtMayAccessAttribute( attr_name ) ) {
-			rval = GetAttributeExpr( cluster_id, proc_id, attr_name, value );
+			rval = GetAttributeExprNew( cluster_id, proc_id, attr_name, &value );
 		}
 		else {
 			rval = -1;
@@ -827,7 +825,7 @@ do_Q_request(ReliSock *syscall_sock,bool &may_fork)
 			return -1;
 		}
 		dprintf( D_SYSCALLS, "	constraint = %s\n", constraint );
-		dprintf( D_SYSCALLS, "	projection = %s\n", projection );
+		dprintf( D_SYSCALLS, "	projection = %s\n", projection ? projection : "");
 
 		assert( syscall_sock->end_of_message() );;
 
@@ -870,8 +868,8 @@ do_Q_request(ReliSock *syscall_sock,bool &may_fork)
 						internals.rewind();
 
 						while (char *indirect_attr = internals.next()) {
-							ExprTree *tree = ad->Lookup(indirect_attr);
-							if (tree) shortAd.Insert(tree->DeepCopy());
+							ExprTree *tree = ad->LookupExpr(indirect_attr);
+							if (tree) shortAd.Insert(indirect_attr, tree->Copy());
 						}
 					}
 

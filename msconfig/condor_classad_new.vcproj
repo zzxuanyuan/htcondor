@@ -16,81 +16,6 @@
 	</ToolFiles>
 	<Configurations>
 		<Configuration
-			Name="Debug|Win32"
-			OutputDirectory=".\..\Debug"
-			IntermediateDirectory=".\..\Debug"
-			ConfigurationType="4"
-			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			BuildLogFile="$(IntDir)\BuildLogs\$(InputName).log.htm"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
-				Optimization="0"
-				AdditionalIncludeDirectories="..\src\condor_tt"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;CLASSAD_DISTRIBUTION;WANT_CLASSAD_NAMESPACE;USE_STRING_SPACE_IN_CLASSADS"
-				MinimalRebuild="true"
-				RuntimeLibrary="1"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="condor_common.h"
-				PrecompiledHeaderFile="..\Debug\condor_common.pch"
-				AssemblerListingLocation=".\..\Debug/"
-				ObjectFile=".\..\Debug/"
-				ProgramDataBaseFileName=".\..\Debug/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="4"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\..\Debug\condor_classad_new.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-				SuppressStartupBanner="true"
-				OutputFile=".\..\Debug/condor_classad_new.bsc"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
 			Name="Release|Win32"
 			OutputDirectory=".\..\Release"
 			IntermediateDirectory=".\..\Release"
@@ -124,7 +49,7 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderThrough="condor_common.h"
 				PrecompiledHeaderFile="..\Release\condor_common.pch"
 				AssemblerListingLocation=".\..\Release/"
@@ -146,159 +71,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile=".\..\Release\condor_classad_new.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-				SuppressStartupBanner="true"
-				OutputFile=".\..\Release/condor_classad_new.bsc"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="Debug (Express)|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			BuildLogFile="$(IntDir)\BuildLogs\$(InputName).log.htm"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
-				Optimization="0"
-				AdditionalIncludeDirectories="..\src\condor_tt"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;CLASSAD_DISTRIBUTION;WANT_CLASSAD_NAMESPACE;USE_STRING_SPACE_IN_CLASSADS"
-				MinimalRebuild="true"
-				RuntimeLibrary="1"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="condor_common.h"
-				PrecompiledHeaderFile="..\Debug\condor_common.pch"
-				AssemblerListingLocation=".\..\Debug/"
-				ObjectFile=".\..\Debug/"
-				ProgramDataBaseFileName=".\..\Debug/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="4"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\..\Debug\condor_classad_new.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-				SuppressStartupBanner="true"
-				OutputFile=".\..\Debug/condor_classad_new.bsc"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="Release (Express)|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			BuildLogFile="$(IntDir)\BuildLogs\$(InputName).log.htm"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				AdditionalOptions="$(CONDOR_DEFINE) $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE)"
-				Optimization="1"
-				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\src\condor_tt"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;CLASSAD_DISTRIBUTION;WANT_CLASSAD_NAMESPACE;USE_STRING_SPACE_IN_CLASSADS"
-				StringPooling="true"
-				RuntimeLibrary="0"
-				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="condor_common.h"
-				PrecompiledHeaderFile="..\Release\condor_common.pch"
-				AssemblerListingLocation=".\..\Release/"
-				ObjectFile=".\..\Release/"
-				ProgramDataBaseFileName=".\..\Release/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="1"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\..\Release\condor_classad_new.lib"
+				OutputFile="$(OutDir)\$(ProjectName).lib"
 				SuppressStartupBanner="true"
 			/>
 			<Tool
@@ -324,1175 +97,215 @@
 	</References>
 	<Files>
 		<File
-			RelativePath="..\src\condor_classad.V6\attrrefs.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\attrrefs.h"
+			RelativePath="..\src\classad\attrrefs.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\classad.h"
+			RelativePath="..\src\classad\classad\attrrefs.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\classad_distribution.h"
+			RelativePath="..\src\classad\classad\classad.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\classad_stl.h"
+			RelativePath="..\src\classad\classad\classad_distribution.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\classadErrno.h"
+			RelativePath="..\src\classad\classad\classad_stl.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\classadItor.h"
+			RelativePath="..\src\classad\classad\classadErrno.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\collection.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\collection.h"
+			RelativePath="..\src\classad\classad\classadItor.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\collectionBase.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\collectionBase.h"
+			RelativePath="..\src\classad\collection.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\common.h"
+			RelativePath="..\src\classad\classad\collection.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\debug.h"
+			RelativePath="..\src\classad\collectionBase.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\exprList.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\exprList.h"
+			RelativePath="..\src\classad\classad\collectionBase.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\exprTree.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\exprTree.h"
+			RelativePath="..\src\classad\classad\common.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\fnCall.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\fnCall.h"
+			RelativePath="..\src\classad\classad\debug.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\indexfile.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\indexfile.h"
+			RelativePath="..\src\classad\exprList.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\lexer.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\lexer.h"
+			RelativePath="..\src\classad\classad\exprList.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\lexerSource.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\lexerSource.h"
+			RelativePath="..\src\classad\exprTree.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\literals.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\literals.h"
+			RelativePath="..\src\classad\classad\exprTree.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\matchClassad.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\matchClassad.h"
+			RelativePath="..\src\classad\fnCall.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\new_classad.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\new_classad_debug.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\new_classad_operators.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\new_classad_util.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\new_classad_value.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\operators.h"
+			RelativePath="..\src\classad\classad\fnCall.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\query.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\query.h"
+			RelativePath="..\src\classad\indexfile.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\sink.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\sink.h"
+			RelativePath="..\src\classad\classad\indexfile.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\source.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\source.h"
+			RelativePath="..\src\classad\lexer.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\transaction.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\transaction.h"
+			RelativePath="..\src\classad\classad\lexer.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\util.h"
+			RelativePath="..\src\classad\lexerSource.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\value.h"
+			RelativePath="..\src\classad\classad\lexerSource.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\view.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\view.h"
+			RelativePath="..\src\classad\literals.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\xmlLexer.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\xmlLexer.h"
+			RelativePath="..\src\classad\classad\literals.h"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\xmlSink.cpp"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-		</File>
-		<File
-			RelativePath="..\src\condor_classad.V6\classad\xmlSink.h"
+			RelativePath="..\src\classad\matchClassad.cpp"
 			>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\xmlSource.cpp"
+			RelativePath="..\src\classad\classad\matchClassad.h"
 			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Debug (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release (Express)|Win32"
-				>
-				<Tool
-					Name="VCCLCompilerTool"
-					UsePrecompiledHeader="0"
-					PrecompiledHeaderThrough=""
-					PrecompiledHeaderFile=""
-				/>
-			</FileConfiguration>
 		</File>
 		<File
-			RelativePath="..\src\condor_classad.V6\classad\xmlSource.h"
+			RelativePath="..\src\classad\new_classad.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\new_classad_debug.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\new_classad_operators.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\new_classad_util.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\new_classad_value.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\operators.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\query.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\query.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\sink.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\sink.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\source.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\source.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\transaction.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\transaction.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\util.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\value.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\view.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\view.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\xmlLexer.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\xmlLexer.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\xmlSink.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\xmlSink.h"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\xmlSource.cpp"
+			>
+		</File>
+		<File
+			RelativePath="..\src\classad\classad\xmlSource.h"
 			>
 		</File>
 	</Files>

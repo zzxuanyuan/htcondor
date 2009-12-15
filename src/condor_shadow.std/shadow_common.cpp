@@ -903,14 +903,14 @@ part_send_job(
 	  // communication.
   char sinfulstring[SINFUL_STRING_BUF_SIZE];
 
-  snprintf(sinfulstring, SINFUL_STRING_BUF_SIZE, "<%s:%d>", sock->endpoint_ip_str(), ports.port1);
+  snprintf(sinfulstring, SINFUL_STRING_BUF_SIZE, "<%s:%d>", sock->peer_ip_str(), ports.port1);
 
   if( (sd1 = do_connect(sinfulstring, (char *)0, (u_short)ports.port1)) < 0 ) {
     dprintf( D_ALWAYS, "failed to connect to scheduler on %s\n", sinfulstring );
 	goto returnfailure;
   }
  
-  snprintf(sinfulstring, SINFUL_STRING_BUF_SIZE, "<%s:%d>", sock->endpoint_ip_str(), ports.port2);
+  snprintf(sinfulstring, SINFUL_STRING_BUF_SIZE, "<%s:%d>", sock->peer_ip_str(), ports.port2);
   if( (sd2 = do_connect(sinfulstring, (char *)0, (u_short)ports.port2)) < 0 ) {
     dprintf( D_ALWAYS, "failed to connect to scheduler on %s\n", sinfulstring );
 	close(sd1);
@@ -1055,33 +1055,15 @@ MakeProc(ClassAd *ad, PROC *p)
 	ad->LookupString(ATTR_JOB_IWD, buf);
 	p->iwd = strdup(buf);
 
-	e = ad->Lookup(ATTR_REQUIREMENTS);
+	e = ad->LookupExpr(ATTR_REQUIREMENTS);
 	if (e) {
-		buf[0] = '\0';
-		e->PrintToStr(buf);
-		s = strchr(buf, '=');
-		if (s) {
-			s++;
-			p->requirements = strdup(s);
-		} 
-		else {
-			p->requirements = strdup(buf);
-		}
+		p->requirements = strdup(ExprTreeToString(e));
 	} else {
 	   p->requirements = NULL;
 	}
-	e = ad->Lookup(ATTR_RANK);
+	e = ad->LookupExpr(ATTR_RANK);
 	if (e) {
-		buf[0] = '\0';
-		e->PrintToStr(buf);
-		s = strchr(buf, '=');
-		if (s) {
-			s++;
-			p->preferences = strdup(s);
-		} 
-		else {
-			p->preferences = strdup(buf);
-		}
+		p->preferences = strdup(ExprTreeToString(e));
 	} else {
 		p->preferences = NULL;
 	}

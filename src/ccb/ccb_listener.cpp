@@ -118,7 +118,7 @@ CCBListener::SendMsgToCCB(ClassAd &msg,bool blocking)
 			}
 		}
 		else if( !m_waiting_for_connect ) {
-			m_sock = ccb.makeConnectedSocket(Stream::reli_sock, CCB_TIMEOUT, NULL, true /*nonblocking*/ );
+			m_sock = ccb.makeConnectedSocket(Stream::reli_sock, CCB_TIMEOUT, 0, NULL, true /*nonblocking*/ );
 			m_waiting_for_connect = true;
 			incRefCount(); // do not let ourselves be deleted until called back
 			ccb.startCommand_nonblocking( cmd, m_sock, CCB_TIMEOUT, NULL, CCBListener::CCBConnectCallback, this, NULL, false, USE_TMP_SEC_SESSION );
@@ -160,20 +160,20 @@ CCBListener::CCBConnectCallback(bool success,Sock *sock,CondorError * /*errstack
 		self->RegisterWithCCBServer();
 	}
 	else {
+		delete self->m_sock;
+		self->m_sock = NULL;
 		self->Disconnected();
 	}
 
 	self->decRefCount(); // remove ref count from when we started the connect
 }
 
-int
+void
 CCBListener::ReconnectTime()
 {
 	m_reconnect_timer = -1;
 
 	RegisterWithCCBServer();
-
-	return 0;
 }
 
 void
@@ -311,16 +311,16 @@ CCBListener::HandleCCBRequest( ClassAd &msg )
 			"CCBListener: received request to connect to %s, request id %s.\n",
 			name.Value(), request_id.Value());
 
-	return DoReversedCCBConnect( address.Value(), connect_id.Value(), request_id.Value() );
+	return DoReversedCCBConnect( address.Value(), connect_id.Value(), request_id.Value(), name.Value() );
 }
 
 bool
-CCBListener::DoReversedCCBConnect( char const *address, char const *connect_id, char const *request_id)
+CCBListener::DoReversedCCBConnect( char const *address, char const *connect_id, char const *request_id, char const *peer_description )
 {
 	Daemon daemon( DT_ANY, address );
 	CondorError errstack;
 	Sock *sock = daemon.makeConnectedSocket(
-		Stream::reli_sock,CCB_TIMEOUT,&errstack,true /*nonblocking*/);
+		Stream::reli_sock,CCB_TIMEOUT,0,&errstack,true /*nonblocking*/);
 
 	ClassAd *msg_ad = new ClassAd;
 	ASSERT( msg_ad );
@@ -337,6 +337,18 @@ CCBListener::DoReversedCCBConnect( char const *address, char const *connect_id, 
 		return false;
 	}
 
+	if( peer_description ) {
+		char const *peer_ip = sock->peer_ip_str();
+		if( peer_ip && !strstr(peer_description,peer_ip)) {
+			MyString desc;
+			desc.sprintf("%s at %s",peer_description,sock->get_sinful_peer());
+			sock->set_peer_description(desc.Value());
+		}
+		else {
+			sock->set_peer_description(peer_description);
+		}
+	}
+
 	incRefCount();      // do not delete self until called back
 
 	MyString sock_desc;
@@ -347,7 +359,14 @@ CCBListener::DoReversedCCBConnect( char const *address, char const *connect_id, 
 		"CCBListener::ReverseConnected",
 		this);
 
-	ASSERT( rc >= 0 );
+	if( rc < 0 ) {
+		ReportReverseConnectResult(msg_ad,false,"failed to register socket for non-blocking reversed connection");
+		delete msg_ad;
+		delete sock;
+		decRefCount();
+		return false;
+	}
+
 	rc = daemonCore->Register_DataPtr(msg_ad);
 	ASSERT( rc );
 
@@ -514,13 +533,18 @@ CCBListeners::Configure(char const *addresses)
 
 			Daemon daemon(DT_COLLECTOR,address);
 			char const *addr = daemon.addr();
+			char const *public_addr = daemonCore->publicNetworkIpAddr();
+			char const *private_addr = daemonCore->privateNetworkIpAddr();
+			if( !public_addr ) public_addr = "null";
+			if( !private_addr ) private_addr = "null";
 
-			if( addr && ( !strcmp(addr,daemonCore->privateNetworkIpAddr()) ||
-						  !strcmp(addr,daemonCore->publicNetworkIpAddr()) ) )
+			if( addr && ( !strcmp(addr,private_addr) ||
+						  !strcmp(addr,public_addr) ) )
 			{
 				dprintf(D_ALWAYS,"CCBListener: skipping CCB Server %s because it points to myself.\n",address);
 				continue;
 			}
+			dprintf(D_FULLDEBUG,"CCBListener: good: CCB address %s is not equal to my address (%s, %s)\n",addr?addr:"null",public_addr,private_addr);
 
 			listener = new CCBListener(address);
 		}

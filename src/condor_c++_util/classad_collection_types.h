@@ -119,11 +119,11 @@ public:
     ExprTree* tree;
     EvalResult result;
 
-    if (Parse(Constraint.Value(), tree) != 0) {
+    if (ParseClassAdRvalExpr(Constraint.Value(), tree) != 0) {
         return false;
     }
 
-    if (!tree->EvalTree(NULL, Ad, &result)) {
+    if (!EvalExprTree(tree, Ad, NULL, &result)) {
         delete tree;
         return false;
     }

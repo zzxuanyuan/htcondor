@@ -111,12 +111,12 @@ request_pipe_handler(Service*, int) {
 }
 
 
-int
+void
 doContactSchedd()
 {
 	if (command_queue.IsEmpty()) {
 		daemonCore->Reset_Timer( contactScheddTid, contact_schedd_interval ); // Come back in a min
-		return TRUE;
+		return;
 	}
 
 	dprintf(D_FULLDEBUG,"in doContactSchedd\n");
@@ -592,13 +592,11 @@ doContactSchedd()
 
 		current_command->classad->ResetExpr();
 		ExprTree *tree;
-		while( (tree = current_command->classad->NextExpr()) ) {
-			ExprTree *lhs = NULL, *rhs = NULL;
-			char *lhstr = NULL, *rhstr = NULL;
+		const char *lhstr, *rhstr;
+		while( current_command->classad->NextExpr(lhstr, tree) ) {
 
-			if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-			if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-			if( !lhs || !rhs || !lhstr || !rhstr) {
+			rhstr = ExprTreeToString( tree );
+			if( !lhstr || !rhstr) {
 				error_msg.sprintf( "ERROR: ClassAd problem in Updating by constraint %s",
 												 current_command->constraint );
 				dprintf( D_ALWAYS, "%s\n", error_msg.Value() );
@@ -635,9 +633,6 @@ doContactSchedd()
 					}
 				}
 			}
-
-			free(lhstr);
-			free(rhstr);
 
 			if (error)
 				break;
@@ -902,17 +897,11 @@ update_report_result:
 			// Set all the classad attribute on the remote classad
 			current_command->classad->ResetExpr();
 			ExprTree *tree;
-			while( (tree = current_command->classad->NextExpr()) ) {
-				ExprTree *lhs;
-				ExprTree *rhs;
-				char *lhstr, *rhstr;
+			const char *lhstr, *rhstr;
+			while( current_command->classad->NextExpr(lhstr, tree) ) {
 
-				lhs = NULL, rhs = NULL;
-				rhs = NULL, rhstr = NULL;
-
-				if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-				if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-				if( !lhs || !rhs || !lhstr || !rhstr) {
+				rhstr = ExprTreeToString( tree );
+				if( !lhstr || !rhstr) {
 					error_msg.sprintf( "ERROR: ClassAd problem in Updating by constraint %s",
 												 current_command->constraint );
 					dprintf( D_ALWAYS, "%s\n", error_msg.Value() );
@@ -930,9 +919,6 @@ update_report_result:
 					dprintf( D_ALWAYS, "%s\n", error_msg.Value() );
 					error = TRUE;
 				}
-
-				if (lhstr) free(lhstr);
-				if (rhstr) free(rhstr);
 
 				if (error) break;
 			} // elihw classad
@@ -1161,8 +1147,6 @@ submit_report_result:
 	// Come back soon..
 	// QUESTION: Should this always be a fixed time period?
 	daemonCore->Reset_Timer( contactScheddTid, contact_schedd_interval );
-	return TRUE;
-
 }
 
 
@@ -1418,7 +1402,7 @@ handle_gahp_command(char ** argv, int argc) {
 			SetEnv( "X509_USER_PROXY", argv[1] );
 			UnsetEnv( "X509_USER_CERT" );
 			UnsetEnv( "X509_USER_KEY" );
-			proxySubjectName = x509_proxy_identity_name( argv[1] );
+			proxySubjectName = x509_proxy_identity_name( argv[1], 1 );
 			if ( !proxySubjectName ) {
 				dprintf( D_ALWAYS, "Failed to query certificate identity "
 						 "from %s\n",  argv[1] );

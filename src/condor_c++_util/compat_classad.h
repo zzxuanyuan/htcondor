@@ -28,26 +28,112 @@
 #include "classad/classad_distribution.h"
 #include "condor_io.h"
 
-class CompatClassAd : public classad::ClassAd
+namespace compat_classad {
+
+// This enum is lifted directly from old ClassAds.
+typedef enum
+{
+  // Literals
+  LX_VARIABLE,
+  LX_INTEGER,
+  LX_FLOAT,
+  LX_STRING,
+  LX_BOOL,
+  LX_NULL,
+  LX_UNDEFINED,
+  LX_ERROR,
+
+  // Operators
+  LX_ASSIGN,
+  LX_AGGADD,
+  LX_AGGEQ,
+  LX_AND,
+  LX_OR,
+  LX_LPAREN,
+  LX_RPAREN,
+  LX_MACRO,
+  LX_META_EQ,
+  LX_META_NEQ,
+  LX_EQ,
+  LX_NEQ,
+  LX_LT,
+  LX_LE,
+  LX_GT,
+  LX_GE,
+  LX_ADD,
+  LX_SUB,
+  LX_MULT,
+  LX_DIV,
+  LX_EOF,
+
+  LX_EXPR,
+
+  LX_TIME,
+
+  LX_FUNCTION,
+  LX_SEMICOLON,
+  LX_COMMA,
+
+  NOT_KEYWORD
+} LexemeType;
+
+// This class is lifted directly from old ClassAds for EvalExprTree()
+class EvalResult
+{
+    public :
+
+    EvalResult();
+  	~EvalResult();
+
+		/// copy constructor
+	EvalResult(const EvalResult & copyfrom);
+		/// assignment operator
+	EvalResult & operator=(const EvalResult & rhs);
+
+	void fPrintResult(FILE *); // for debugging
+
+		/// convert to LX_STRING
+		/// if value is ERROR or UNDEFINED, do not convert unless force=true
+	void toString(bool force=false);
+
+   	union
+    	{
+   	    int i;
+   	    float f;
+   	    char* s;
+        };
+  	LexemeType type;
+
+	bool debug;
+
+	private :
+	void deepcopy(const EvalResult & copyfrom);
+};
+
+class ClassAd : public classad::ClassAd
 {
  public:
-	CompatClassAd();
+	ClassAd();
 
-	CompatClassAd( const CompatClassAd &ad );
+	ClassAd( const ClassAd &ad );
 
-	virtual ~CompatClassAd();
+	ClassAd( const classad::ClassAd &ad );
+
+	virtual ~ClassAd();
 
 		/**@name Deprecated functions (only for use within Condor) */
 		//@{
 
 		/** A constructor that reads old ClassAds from a FILE */
-	CompatClassAd(FILE*,char*,int&,int&,int&);	// Constructor, read from file.
+	ClassAd(FILE*,char*,int&,int&,int&);	// Constructor, read from file.
 
 		/* This is a pass-through to ClassAd::Insert(). Because we define
 		 * our own Insert() below, our parent's Insert() won't be found
 		 * by users of this class.
 		 */
 	bool Insert( const std::string &attrName, classad::ExprTree *expr );
+
+	int Insert(const char *name, classad::ExprTree *expr );
 
 		/** Insert an attribute/value into the ClassAd 
 		 *  @param str A string of the form "Attribute = Value"
@@ -59,17 +145,47 @@ class CompatClassAd : public classad::ClassAd
 		 */
 	int InsertOrUpdate(const char *expr) { return Insert(expr); }
 
+		/* Insert an attribute/value into the Classad
+		 */
+	int AssignExpr(char const *name,char const *value);
+
+		/* Insert an attribute/value into the Classad with the
+		 * appropriate type.
+		 */
+	int Assign(char const *name, MyString const &value)
+	{ return InsertAttr( name, value.Value()) ? TRUE : FALSE; }
+
+	int Assign(char const *name,char const *value)
+	{ return InsertAttr( name, value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,int value)
+	{ return InsertAttr( name, value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,unsigned int value)
+	{ return InsertAttr( name, (int)value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,long value)
+	{ return InsertAttr( name, (int)value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,unsigned long value)
+	{ return InsertAttr( name, (int)value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,float value)
+	{ return InsertAttr( name, (double)value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,double value)
+	{ return InsertAttr( name, value) ? TRUE : FALSE; }
+
+	int Assign(char const *name,bool value)
+	{ return InsertAttr( name, value) ? TRUE : FALSE; }
+
 		// for iteration through expressions
 //		void		ResetExpr();
 //		classad::ExprTree*	NextExpr();
 
-		// for iteration through names (i.e., lhs of the expressions)
-//		void		ResetName() { this->ptrName = exprList; }
-//		const char* NextNameOriginal();
-
 		// lookup values in classads  (for simple assignments)
-//		classad::ExprTree*   Lookup(char *) const;  		// for convenience
-//      classad::ExprTree*	Lookup(const char*) const;	// look up an expression
+      classad::ExprTree* LookupExpr(const char* name) const
+	  { return Lookup( name ); }
 
 		/** Lookup (don't evaluate) an attribute that is a string.
 		 *  @param name The attribute
@@ -92,6 +208,13 @@ class CompatClassAd : public classad::ClassAd
 		 *  @return true if the attribute exists and is a string, false otherwise
 		 */
 	int LookupString (const char *name, char **value) const;
+
+		/** Lookup (don't evaluate) an attribute that is a string.
+		 *  @param name The attribute
+		 *  @param value The string
+		 *  @return true if the attribute exists and is a string, false otherwise
+		 */
+	int LookupString(const char *name, MyString &value) const; 
 
 		/** Lookup (don't evaluate) an attribute that is an integer.
 		 *  @param name The attribute
@@ -133,6 +256,23 @@ class CompatClassAd : public classad::ClassAd
 		 */
 	int EvalString (const char *name, classad::ClassAd *target, char *value);
 
+        /** Same as EvalString, but ensures we have enough space for value first.
+		 *  @param name The name of the attribute
+		 *  @param target A ClassAd to resolve MY or other references
+		 *  @param value Where we the copy the string. We ensure there is enough space. 
+		 *  @return 1 on success, 0 if the attribute doesn't exist, or if it does exist 
+		 *  but is not a string.
+         */
+    int EvalString (const char *name, classad::ClassAd *target, char **value);
+        /** MyString version of EvalString()
+		 *  @param name The name of the attribute
+		 *  @param target A ClassAd to resolve MY or other references
+		 *  @param value A MyString where we the copy the string. We ensure there is enough space. 
+		 *  @return 1 on success, 0 if the attribute doesn't exist, or if it does exist 
+		 *  but is not a string.
+         */
+    int EvalString (const char *name, classad::ClassAd *target, MyString & value);
+
 		/** Lookup and evaluate an attribute in the ClassAd that is an integer
 		 *  @param name The name of the attribute
 		 *  @param target A ClassAd to resolve MY or other references
@@ -164,11 +304,11 @@ class CompatClassAd : public classad::ClassAd
 		/** Set the MyType attribute */
 	void		SetMyTypeName(const char *);
 		/** Get the value of the MyType attribute */
-	const char*	GetMyTypeName();
+	const char*	GetMyTypeName() const ;
 		/** Set the value of the TargetType attribute */
 	void 		SetTargetTypeName(const char *);
 		/** Get the value of the TargetType attribtute */
-	const char*	GetTargetTypeName();
+	const char*	GetTargetTypeName() const;
 
 		/** Print the ClassAd as an old ClassAd to the stream
 		 * @param s the stream
@@ -179,6 +319,17 @@ class CompatClassAd : public classad::ClassAd
 		 * @param s the stream
 		 */
 	int initFromStream(Stream& s);
+
+		/** Print the ClassAd as an old AttrList to the stream
+		 * @param s the stream
+		 */
+	int putAttrList(Stream& s);
+
+		/** Read the old ClassAd as an old AttrList from the stream,
+		 * and fill in this ClassAd.
+		 * @param s the stream
+		 */
+	int initAttrListFromStream(Stream& s);
 
 		/** Print the ClassAd as an old ClassAd to the FILE
 			@param file The file handle to print to.
@@ -196,6 +347,31 @@ class CompatClassAd : public classad::ClassAd
 			@return TRUE
 		*/
 	int sPrint( MyString &output );
+        /** Prints an expression with a certain name into a buffer. 
+         *
+         *  @param buffer The buffer to place the named expression into. NOTE: if this is NULL, then the function returns some malloc'd memory. Free it.
+         *  @param buffersize The size of the buffer.
+         *  @param name The attr whose expr is to be printed into the buffer.
+         *  @return Returns the now-filled buffer.
+         */
+    char* sPrintExpr(char* buffer, unsigned int buffersize, const char* name);
+
+    /* Prints out the classad as xml to a file.
+     * @param fp The file to be printed to.
+     * @return TRUE as long as the file existed.
+     */
+    int fPrintAsXML(FILE *fp);
+
+    /* Prints the current classad as XML to a string. fPrintAsXML calls this.
+     * @param output The MyString to have filled with the XML-ified classad.
+     * @return TRUE
+     */
+    int sPrintAsXML(MyString &output);
+
+    void ResetExpr();
+
+	void ResetName();
+	const char *NextNameOriginal();
 
 	bool AddExplicitConditionals( classad::ExprTree *expr, classad::ExprTree *&newExpr );
 	classad::ClassAd *AddExplicitTargetRefs( );
@@ -203,11 +379,77 @@ class CompatClassAd : public classad::ClassAd
 
 	static bool ClassAdAttributeIsPrivate( char const *name );
 
+    /** Is this value valid for being written to the log? The value is a RHS of an expression. Only '\n' or '\r' are invalid.
+     *
+     * @param value The thing we check to see if valid.
+     * @return True, unless value had '\n' or '\r'.
+     */
+    bool IsValidAttrValue(const char *value);
+
+	bool NextExpr( const char *&name, ExprTree *&value );
+
+    /** Gets the next dirty expression tree
+     * @return The ExprTree associated with the next dirty attribute, or null if one does not exist.
+     */
+    bool NextDirtyExpr(const char *&name, classad::ExprTree *&expr);
+
+	// Set or clear the dirty flag for each expression.
+	void SetDirtyFlag(const char *name, bool dirty);
+	void GetDirtyFlag(const char *name, bool *exists, bool *dirty);
+
+	// Copy value of source_attr in source_ad to target_attr
+	// in this ad.  If source_ad is NULL, it defaults to this ad.
+	// If source_attr is undefined, target_attr is deleted, if
+	// it exists.
+	void CopyAttribute(char const *target_attr, char const *source_attr, classad::ClassAd *source_ad=NULL );
+
+	// Copy value of source_attr in source_ad to an attribute
+	// of the same name in this ad.  Shortcut for
+	// CopyAttribute(target_attr,target_attr,source_ad).
+	void CopyAttribute(char const *target_attr, classad::ClassAd *source_ad );
+
+    /** Basically just calls an Unparser so we can escape strings
+     *  @param val The string we're escaping stuff in. 
+     *  @return The escaped string.
+     */
+    char const *EscapeStringValue(char const *val);
+
+    /** Takes the ad this is chained to, copies over all the 
+     *  attributes from the parent ad that aren't in this classad
+     *  (so attributes in both the parent ad and this ad retain the 
+     *  values from this ad), and then makes this ad not chained to
+     *  the parent.
+     */
+    void ChainCollapse();
+
+
+    /*
+    bool GetInternalReferences( const ExprTree *tree, classad::References &refs, bool fullNames);
+
+
+    bool _GetInternalReferences( const ExprTree *expr, ClassAd *ad,
+            classad::EvalState &state, classad::References& refs, bool fullNames);
+
+    */
+
  private:
 	void evalFromEnvironment( const char *name, classad::Value val );
 	classad::ExprTree *AddExplicitConditionals( classad::ExprTree * );
 	classad::ExprTree *AddExplicitTargetRefs( classad::ExprTree *,
 						std::set < std::string, classad::CaseIgnLTStr > & );
+
+	classad::ClassAd::iterator m_nameItr;
+	bool m_nameItrInChain;
+
+	classad::ClassAd::iterator m_exprItr;
+	bool m_exprItrInChain;
+
+    classad::DirtyAttrList::iterator m_dirtyItr;
+    bool m_dirtyItrInit;
 };
+
+typedef ClassAd AttrList;
+
+} // namespace compat_classad
 
 #endif

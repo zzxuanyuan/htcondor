@@ -192,6 +192,7 @@ CreamJob::CreamJob( ClassAd *classad )
 	bool job_already_submitted = false;
 	MyString error_string = "";
 	char *gahp_path = NULL;
+	char *tmp = NULL;
 
 	creamAd = NULL;
 	remoteJobId = NULL;
@@ -229,7 +230,8 @@ CreamJob::CreamJob( ClassAd *classad )
 		jobAd->AssignExpr( ATTR_HOLD_REASON, "Undefined" );
 	}
 	
-	jobProxy = AcquireProxy( jobAd, error_string, evaluateStateTid );
+	jobProxy = AcquireProxy( jobAd, error_string,
+							 (TimerHandlercpp)&BaseJob::SetEvaluateState, this );
 	if ( jobProxy == NULL ) {
 		if ( error_string == "" ) {
 			error_string.sprintf( "%s is not set in the job ad",
@@ -336,6 +338,13 @@ CreamJob::CreamJob( ClassAd *classad )
 	if ( job_already_submitted ) {
 		jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
 	}
+
+	tmp = param( "GRIDFTP_URL_BASE" );
+	if ( !tmp ) {
+		error_string = "GRIDFTP_URL_BASE is not set in the configuration file";
+		goto error_exit;
+	}
+	free( tmp );
 
 	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy );
 
@@ -451,7 +460,7 @@ CreamJob::~CreamJob()
 		free( localError );
 	}
 	if ( jobProxy ) {
-		ReleaseProxy( jobProxy, evaluateStateTid );
+		ReleaseProxy( jobProxy, (TimerHandlercpp)&BaseJob::SetEvaluateState, this );
 	}
 	if ( gahp != NULL ) {
 		delete gahp;
@@ -471,14 +480,15 @@ void CreamJob::Reconfig()
 	gahp->setTimeout( gahpCallTimeout );
 }
 
-int CreamJob::doEvaluateState()
+void CreamJob::doEvaluateState()
 {
 	int old_gm_state;
 	MyString old_remote_state;
 	bool reevaluate_state = true;
 	time_t now = time(NULL);
 
-	bool done;
+	bool attr_exists;
+	bool attr_dirty;
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
@@ -719,7 +729,6 @@ int CreamJob::doEvaluateState()
 					break;
 				}
 				
-				myResource->SubmitComplete(this);
 				lastSubmitAttempt = time(NULL);
 				numSubmitAttempts++;
 				jmProxyExpireTime = jobProxy->expiration_time;
@@ -757,8 +766,9 @@ int CreamJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = requestScheddUpdate( this );
-				if ( !done ) {
+				jobAd->GetDirtyFlag( ATTR_GRID_JOB_ID, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 				gmState = GM_SUBMIT_COMMIT;
@@ -928,8 +938,9 @@ int CreamJob::doEvaluateState()
 			// Report job completion to the schedd.
 			JobTerminated();
 			if ( condorState == COMPLETED ) {
-				done = requestScheddUpdate( this );
-				if ( !done ) {
+				jobAd->GetDirtyFlag( ATTR_JOB_STATUS, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 			}
@@ -962,7 +973,7 @@ int CreamJob::doEvaluateState()
 					SetRemoteJobId( NULL );
 					remoteState = CREAM_JOB_STATE_UNSET;
 					SetRemoteJobStatus( NULL );
-					requestScheddUpdate( this );
+					requestScheddUpdate( this, false );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -1018,7 +1029,7 @@ int CreamJob::doEvaluateState()
 			myResource->CancelSubmit( this );
 			remoteState = CREAM_JOB_STATE_UNSET;
 			SetRemoteJobStatus( NULL );
-			requestScheddUpdate( this );
+			requestScheddUpdate( this, false );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -1048,7 +1059,7 @@ int CreamJob::doEvaluateState()
 			myResource->CancelSubmit( this );
 			remoteState = CREAM_JOB_STATE_UNSET;
 			SetRemoteJobStatus( NULL );
-			requestScheddUpdate( this );
+			requestScheddUpdate( this, false );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -1155,8 +1166,11 @@ int CreamJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
-			done = requestScheddUpdate( this );
-			if ( !done ) {
+			const char *name;
+			ExprTree *expr;
+			jobAd->ResetExpr();
+			if ( jobAd->NextDirtyExpr(name, expr) ) {
+				requestScheddUpdate( this, true );
 				break;
 			}
 			submitLogged = false;
@@ -1254,8 +1268,6 @@ int CreamJob::doEvaluateState()
 	} while ( reevaluate_state );
 
 		//end of evaluateState loop
-		
-	return TRUE;
 }
 
 BaseResource *CreamJob::GetResource()
@@ -1329,7 +1341,7 @@ void CreamJob::NewCreamState( const char *new_state, int exit_code,
 			jobAd->Assign( ATTR_ON_EXIT_CODE, exit_code );
 		}
 
-		requestScheddUpdate( this );
+		requestScheddUpdate( this, false );
 
 		SetEvaluateState();
 	}

@@ -60,7 +60,8 @@ Sock::Sock() : Stream() {
 	connect_state.host = NULL;
 	connect_state.connect_failure_reason = NULL;
 	memset(&_who, 0, sizeof(struct sockaddr_in));
-	memset(&_endpoint_ip_buf, 0, IP_STRING_BUF_SIZE);
+	m_connect_addr = NULL;
+    addr_changed();
 }
 
 Sock::Sock(const Sock & orig) : Stream() {
@@ -77,7 +78,8 @@ Sock::Sock(const Sock & orig) : Stream() {
 	connect_state.host = NULL;
 	connect_state.connect_failure_reason = NULL;
 	memset( &_who, 0, sizeof( struct sockaddr_in ) );
-	memset(	&_endpoint_ip_buf, 0, IP_STRING_BUF_SIZE );
+	m_connect_addr = NULL;
+    addr_changed();
 
 	// now duplicate the underlying network socket
 #ifdef WIN32
@@ -131,6 +133,8 @@ Sock::~Sock()
 		free(_fqu_domain_part);
 		_fqu_domain_part = NULL;
 	}
+	free( m_connect_addr );
+	m_connect_addr = NULL;
 }
 
 #if defined(WIN32)
@@ -350,6 +354,10 @@ int Sock::assign(SOCKET sockd)
 		_sock = sockd;		/* Could we check for correct protocol ? */
 		_state = sock_assigned;
 
+		memset(&_who, 0, sizeof(struct sockaddr_in));
+		SOCKET_LENGTH_TYPE addrlen = sizeof(_who);
+		getpeername(_sock,(struct sockaddr *)&_who,&addrlen);
+
 		if ( _timeout > 0 ) {
 			timeout_no_timeout_multiplier( _timeout );
 		}
@@ -407,6 +415,7 @@ int Sock::assign(SOCKET sockd)
 	if ( _timeout > 0 )
 		timeout_no_timeout_multiplier( _timeout );
 
+    addr_changed();
 	return TRUE;
 }
 
@@ -456,6 +465,8 @@ Sock::bindWithin(const int low_port, const int high_port, bool outbound)
 		bind_return_val = _bind_helper(_sock, 
 			(SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE)&sin, 
 			sizeof(sockaddr_in), outbound, false);
+
+        addr_changed();
 
 #ifndef WIN32
 		if (this_trial <= 1024) {
@@ -567,6 +578,8 @@ int Sock::bind(bool outbound, int port, bool loopback)
 #endif
 
 		bind_return_value = _bind_helper(_sock, (sockaddr *)&sin, sizeof(sockaddr_in), outbound, loopback);
+
+        addr_changed();
 
 #ifndef WIN32
         int bind_errno = errno;
@@ -695,21 +708,29 @@ int Sock::do_connect(
 	/* might be in <x.x.x.x:x> notation				*/
 	if (host[0] == '<') {
 		string_to_sin(host, &_who);
+		set_connect_addr(host);
 	}
 	/* try to get a decimal notation 	 			*/
 	else if ((inaddr = inet_addr(host)) != (unsigned int)-1){
 		memcpy((char *)&_who.sin_addr, &inaddr, sizeof(inaddr));
+		set_connect_addr(sin_to_string(&_who));
 	}
 	/* if dotted notation fails, try host database	*/
 	else{
 		if ((hostp = condor_gethostbyname(host)) == (hostent *)0) return FALSE;
 		memcpy(&_who.sin_addr, hostp->h_addr, hostp->h_length);
+		set_connect_addr(sin_to_string(&_who));
 	}
+
+    addr_changed();
 
 	// now that we have set _who (useful for getting informative
 	// peer_description), see if we should do a reverse connect
-	// instead of a forward connect
-	int retval=reverse_connect(host,port,non_blocking_flag);
+	// instead of a forward connect.  Also see if we are connecting
+	// to a shared port (SharedPortServer) that needs further information
+	// to route us to the final destination.
+
+	int retval=special_connect(host,port,non_blocking_flag);
 	if( retval != CEDAR_ENOCCB ) {
 		return retval;
 	}
@@ -784,7 +805,6 @@ Sock::do_connect_finish()
 
 		if( _state == sock_bound ) {
 			if ( do_connect_tryit() ) {
-				_state = sock_connect;
 				return TRUE;
 			}
 
@@ -876,16 +896,11 @@ Sock::do_connect_finish()
 				break; // done with select() loop
 			}
 			else {
-				_state = sock_connect;
-				if( DebugFlags & D_NETWORK ) {
-					dprintf( D_NETWORK, "CONNECT src=%s fd=%d dst=%s\n",
-							 get_sinful(), _sock, get_sinful_peer() );
-				}
 				if ( connect_state.old_timeout_value != _timeout ) {
 						// Restore old timeout
 					timeout_no_timeout_multiplier(connect_state.old_timeout_value);			
 				}
-				return true;
+				return enter_connected_state();
 			}
 		}
 
@@ -948,6 +963,23 @@ Sock::do_connect_finish()
 	return FALSE;
 }
 
+bool
+Sock::enter_connected_state(char const *op)
+{
+	_state = sock_connect;
+	if( DebugFlags & D_NETWORK ) {
+		dprintf( D_NETWORK, "%s bound to %s fd=%d peer=%s\n",
+				 op, get_sinful(), _sock, get_sinful_peer() );
+	}
+		// if we are connecting to a shared port, send the id of
+		// the daemon we want to be routed to
+	if( !sendTargetSharedPortID() ) {
+		connect_state.connect_refused = true;
+		setConnectFailureReason("Failed to send shared port id.");
+		return false;
+	}
+	return true;
+}
 
 void
 Sock::setConnectFailureReason(char const *reason)
@@ -1073,12 +1105,7 @@ bool Sock::do_connect_tryit()
 			return false;
 		}
 
-		_state = sock_connect;
-		if( DebugFlags & D_NETWORK ) {
-			dprintf( D_NETWORK, "CONNECT src=%s fd=%d dst=%s\n",
-					 get_sinful(), _sock, get_sinful_peer() );
-		}
-		return true;
+		return enter_connected_state();
 	}
 
 #if defined(WIN32)
@@ -1188,6 +1215,22 @@ time_t Sock::connect_timeout_time()
 	return connect_state.this_try_timeout_time;
 }
 
+time_t
+Sock::get_deadline()
+{
+	time_t deadline = Stream::get_deadline();
+	if( is_connect_pending() ) {
+		time_t connect_deadline = connect_timeout_time();
+		if( connect_deadline && !is_reverse_connect_pending() ) {
+			if( deadline && deadline < connect_deadline ) {
+				return deadline;
+			}
+			return connect_deadline;
+		}
+	}
+	return deadline;
+}
+
 // Added for the HA Daemon
 void Sock::doNotEnforceMinimalCONNECT_TIMEOUT()
 {
@@ -1230,7 +1273,7 @@ int Sock::close()
 
 	if (_state == sock_virgin) return FALSE;
 
-	if (type() == Stream::reli_sock) {
+	if (type() == Stream::reli_sock && (DebugFlags & D_NETWORK)) {
 		dprintf( D_NETWORK, "CLOSE %s fd=%d\n", 
 						sock_to_string(_sock), _sock );
 	}
@@ -1246,7 +1289,7 @@ int Sock::close()
     }
 	connect_state.host = NULL;
 	memset(&_who, 0, sizeof( struct sockaddr_in ) );
-	memset(&_endpoint_ip_buf, 0, IP_STRING_BUF_SIZE );
+    addr_changed();
 	
 	return TRUE;
 }
@@ -1717,36 +1760,47 @@ char * Sock::serialize(char *buf)
 	return buf;
 }
 
+void
+Sock::addr_changed()
+{
+    // these are all regenerated whenever they are needed, so when
+    // either the peer's address or our address change, zap them all
+    _my_ip_buf[0] = '\0';
+    _peer_ip_buf[0] = '\0';
+    _sinful_self_buf[0] = '\0';
+    _sinful_peer_buf[0] = '\0';
+}
 
 struct sockaddr_in *
-Sock::endpoint()
+Sock::peer_addr()
 {
 	return &_who;
 }
 
 
 int
-Sock::endpoint_port()
+Sock::peer_port()
 {
 	return (int) ntohs( _who.sin_port );
 }
 
 
 unsigned int
-Sock::endpoint_ip_int()
+Sock::peer_ip_int()
 {
 	return (unsigned int) ntohl( _who.sin_addr.s_addr );
 }
 
 
 const char *
-Sock::endpoint_ip_str()
+Sock::peer_ip_str()
 {
-		// We need to recompute this each time because _who might have changed.
-	memset(&_endpoint_ip_buf, 0, IP_STRING_BUF_SIZE );
-	snprintf( _endpoint_ip_buf, IP_STRING_BUF_SIZE, "%s",
-			  inet_ntoa(_who.sin_addr) );
-	return &(_endpoint_ip_buf[0]);
+    if( _peer_ip_buf[0] ) {
+        return _peer_ip_buf;
+    }
+    strncpy( _peer_ip_buf, inet_ntoa(_who.sin_addr), IP_STRING_BUF_SIZE );
+    _peer_ip_buf[IP_STRING_BUF_SIZE-1] = '\0';
+	return _peer_ip_buf;
 }
 
 
@@ -1754,7 +1808,7 @@ Sock::endpoint_ip_str()
 // @args: the address is returned via 'sin'
 // @ret: 0 if succeed, -1 if failed
 int
-Sock::mypoint( struct sockaddr_in *sin )
+Sock::my_addr( struct sockaddr_in *sin )
 {
     struct sockaddr_in *tmp = getSockAddr(_sock);
     if (tmp == NULL) return -1;
@@ -1764,36 +1818,44 @@ Sock::mypoint( struct sockaddr_in *sin )
 }
 
 const char *
-Sock::sender_ip_str()
+Sock::my_ip_str()
 {
-		// We need to recompute this each in case we have reconnected via a different interface
+    if( _my_ip_buf[0] ) {
+        return _my_ip_buf;
+    }
 	struct sockaddr_in sin;
-	if(mypoint(&sin) == -1) {
+	if(my_addr(&sin) == -1) {
 		return NULL;
 	}
-	memset(&_sender_ip_buf, 0, IP_STRING_BUF_SIZE );
-	strcpy( _sender_ip_buf, inet_ntoa(sin.sin_addr) );
-	return &(_sender_ip_buf[0]);
+    strncpy( _my_ip_buf, inet_ntoa(sin.sin_addr), IP_STRING_BUF_SIZE );
+    _my_ip_buf[IP_STRING_BUF_SIZE-1] = '\0';
+	return _my_ip_buf;
 }
 
 char *
 Sock::get_sinful()
 {       
+    if( _sinful_self_buf[0] ) {
+        return _sinful_self_buf;
+    }
     struct sockaddr_in *tmp = getSockAddr(_sock);
     if (tmp == NULL) return NULL;
     char const *s = sin_to_string(tmp);
 	if(!s) {
 		return NULL;
 	}
-	ASSERT(strlen(s) < sizeof(_sinful_self_buf));
-	strcpy(_sinful_self_buf,s);
+	strncpy(_sinful_self_buf,s,SINFUL_STRING_BUF_SIZE);
+    _sinful_self_buf[SINFUL_STRING_BUF_SIZE-1] = '\0';
 	return _sinful_self_buf;
 }
 
 char *
 Sock::get_sinful_peer()
 {       
-    char const *s = sin_to_string(&_who);
+    if( _sinful_peer_buf[0] ) {
+        return _sinful_peer_buf;
+    }
+	char const *s = sin_to_string(&_who);
 	if(!s) {
 		return NULL;
 	}
@@ -1807,7 +1869,7 @@ Sock::default_peer_description()
 {
 	char const *retval = get_sinful_peer();
 	if( !retval ) {
-		return "(unconnected)";
+		return "(unconnected socket)";
 	}
 	return retval;
 }
@@ -2092,4 +2154,20 @@ Sock::_bind_helper(int fd, SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE addr,
 	rval = ::bind(fd, (SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE)addr, len);
 #endif /* HAVE_EXT_GCB */
 	return rval;
+}
+
+void
+Sock::set_connect_addr(char const *addr)
+{
+	free( m_connect_addr );
+	m_connect_addr = NULL;
+	if( addr ) {
+		m_connect_addr = strdup(addr);
+	}
+}
+
+char const *
+Sock::get_connect_addr()
+{
+	return m_connect_addr;
 }

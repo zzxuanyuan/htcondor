@@ -148,7 +148,7 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 	MyString error_string = "";
 	char *gahp_path = NULL;
 	char *gahp_log = NULL;
-	int gahp_worker_cnt = NULL;
+	int gahp_worker_cnt = 0;
 	char *gahp_debug = NULL;
 	ArgList args;
 	
@@ -316,7 +316,7 @@ dprintf( D_ALWAYS, "================================>  AmazonJob::AmazonJob 1 \n
 
 	// JEF: Increment a GMSession attribute for use in letting the job
 	// ad crash the gridmanager on request
-	if ( jobAd->Lookup( "CrashGM" ) != NULL ) {
+	if ( jobAd->LookupExpr( "CrashGM" ) != NULL ) {
 		int session = 0;
 		jobAd->LookupInteger( "GMSession", session );
 		session++;
@@ -355,13 +355,14 @@ void AmazonJob::Reconfig()
 }
 
 
-int AmazonJob::doEvaluateState()
+void AmazonJob::doEvaluateState()
 {
 	int old_gm_state;
 	bool reevaluate_state = true;
 	time_t now = time(NULL);
 
-	bool done;
+	bool attr_exists;
+	bool attr_dirty;
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
@@ -385,6 +386,7 @@ int AmazonJob::doEvaluateState()
 		int should_crash = 0;
 		jobAd->Assign( "GMState", gmState );
 		jobAd->SetDirtyFlag( "GMState", false );
+
 		if ( jobAd->EvalBool( "CrashGM", NULL, should_crash ) && should_crash ) {
 			EXCEPT( "Crashing gridmanager at the request of job %d.%d",
 					procID.cluster, procID.proc );
@@ -402,7 +404,9 @@ int AmazonJob::doEvaluateState()
 				// constructor is called while we're connected to the schedd).
 
 				// JEF: Save GMSession to the schedd if needed
-				if ( requestScheddUpdate( this ) == false ) {
+				jobAd->GetDirtyFlag( "GMSession", &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 
@@ -466,9 +470,11 @@ int AmazonJob::doEvaluateState()
 				if ( m_key_pair == "" ) {
 					SetKeypairId( build_keypair().Value() );
 				}
-				if ( requestScheddUpdate( this ) == false ) {
+				jobAd->GetDirtyFlag( ATTR_GRID_JOB_ID, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
 						// The keypair name still needs to be saved to
 						//the schedd
+					requestScheddUpdate( this, true );
 					break;
 				}
 				gmState = GM_CREATE_KEYPAIR;
@@ -534,8 +540,6 @@ int AmazonJob::doEvaluateState()
 						}
 						break;
 					}
-
-					myResource->SubmitComplete( this );
 
 					if ( rc == 0 ) {
 						
@@ -615,7 +619,6 @@ int AmazonJob::doEvaluateState()
 					if ( is_running ) {
 
 						// there is a running VM instance corresponding to the given SSH keypair
-						myResource->SubmitComplete( this );
 						gmState = GM_SAVE_INSTANCE_ID;
 						// save the instance ID which will be used when delete VM instance
 						SetInstanceId( instance_id );
@@ -643,9 +646,10 @@ int AmazonJob::doEvaluateState()
 			
 			case GM_SAVE_INSTANCE_ID:
 
-				done = requestScheddUpdate( this );
-				if ( !done ) {
+				jobAd->GetDirtyFlag( ATTR_GRID_JOB_ID, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
 					// Wait for the instance id to be saved to the schedd
+					requestScheddUpdate( this, true );
 					break;
 				}					
 				gmState = GM_SUBMITTED;
@@ -695,8 +699,9 @@ int AmazonJob::doEvaluateState()
 				if ( condorState != HELD && condorState != REMOVED ) {
 					JobTerminated();
 					if ( condorState == COMPLETED ) {
-						done = requestScheddUpdate( this );
-						if ( !done ) {
+						jobAd->GetDirtyFlag( ATTR_JOB_STATUS, &attr_exists, &attr_dirty );
+						if ( attr_exists && attr_dirty ) {
+							requestScheddUpdate( this, true );
 							break;
 						}
 					}
@@ -801,9 +806,11 @@ int AmazonJob::doEvaluateState()
 				// through. However, since we registered update events the
 				// first time, requestScheddUpdate won't return done until
 				// they've been committed to the schedd.
-				done = requestScheddUpdate( this );
-				if ( !done ) {
-
+				const char *name;
+				ExprTree *expr;
+				jobAd->ResetExpr();
+				if ( jobAd->NextDirtyExpr(name, expr) ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 
@@ -1121,8 +1128,6 @@ int AmazonJob::doEvaluateState()
 		
 	} // end of do_while
 	while ( reevaluate_state );	
-
-	return TRUE;
 }
 
 
@@ -1141,7 +1146,7 @@ void AmazonJob::SetRemoteVMName(const char * name)
 		jobAd->AssignExpr( ATTR_AMAZON_REMOTE_VM_NAME, "Undefined" );
 	}
 	
-	requestScheddUpdate( this );
+	requestScheddUpdate( this, false );
 }
 
 

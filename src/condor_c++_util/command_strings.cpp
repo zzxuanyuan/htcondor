@@ -168,6 +168,11 @@ const struct Translation DCTranslation[] = {
 	{ "CCB_REGISTER", CCB_REGISTER },
 	{ "CCB_REQUEST", CCB_REQUEST },
 	{ "CCB_REVERSE_CONNECT", CCB_REVERSE_CONNECT },
+	{ "GET_JOB_CONNECT_INFO", GET_JOB_CONNECT_INFO },
+	{ "CREATE_JOB_OWNER_SEC_SESSION", CREATE_JOB_OWNER_SEC_SESSION },
+	{ "START_SSHD", START_SSHD },
+	{ "SHARED_PORT_CONNECT", SHARED_PORT_CONNECT },
+	{ "SHARED_PORT_PASS_SOCK", SHARED_PORT_PASS_SOCK },
 	{ NULL, 0 }
 };
 
@@ -230,6 +235,7 @@ const struct Translation CollectorTranslation[] = {
 	{ "UPDATE_GRID_AD", UPDATE_GRID_AD },
 	{ "QUERY_GRID_ADS", QUERY_GRID_ADS },
 	{ "INVALIDATE_GRID_ADS", INVALIDATE_GRID_ADS },
+	{ "MERGE_STARTD_AD", MERGE_STARTD_AD },
 	{ NULL, 0 }
 };
 
@@ -264,7 +270,7 @@ int
 getCommandNum( const char* command )
 {
 	int result = getNumFromName( command, DCTranslation );
-	if( !result ) {
+	if( -1 == result ) {
 		return getCollectorCommandNum(command);
 	}
 	return result;

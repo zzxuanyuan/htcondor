@@ -48,7 +48,7 @@ AttrListPrintMask::
 
 
 void AttrListPrintMask::
-registerFormat (char *fmt, const char *attr, char *alternate)
+registerFormat (const char *fmt, const char *attr, const char *alternate)
 {
 	Formatter *newFmt = new Formatter;
 
@@ -57,11 +57,11 @@ registerFormat (char *fmt, const char *attr, char *alternate)
 	formats.Append (newFmt);
 
 	attributes.Append(new_strdup (attr));
-	alternates.Append(new_strdup(collapse_escapes(alternate)));
+	alternates.Append(collapse_escapes(new_strdup(alternate)));
 }
 
 void AttrListPrintMask::
-registerFormat (IntCustomFmt fmt, const char *attr, char *alternate)
+registerFormat (IntCustomFmt fmt, const char *attr, const char *alternate)
 {
 	Formatter *newFmt = new Formatter;
 
@@ -71,11 +71,11 @@ registerFormat (IntCustomFmt fmt, const char *attr, char *alternate)
 	formats.Append (newFmt);
 
 	attributes.Append(new_strdup (attr));
-	alternates.Append(new_strdup(collapse_escapes(alternate)));
+	alternates.Append(collapse_escapes(new_strdup(alternate)));
 }
 
 void AttrListPrintMask::
-registerFormat (FloatCustomFmt fmt, const char *attr, char *alternate)
+registerFormat (FloatCustomFmt fmt, const char *attr, const char *alternate)
 {
 	Formatter *newFmt = new Formatter;
 
@@ -85,11 +85,11 @@ registerFormat (FloatCustomFmt fmt, const char *attr, char *alternate)
 	formats.Append (newFmt);
 
 	attributes.Append(new_strdup (attr));
-	alternates.Append(new_strdup(collapse_escapes(alternate)));
+	alternates.Append(collapse_escapes(new_strdup(alternate)));
 }
 
 void AttrListPrintMask::
-registerFormat (StringCustomFmt fmt, const char *attr, char *alternate)
+registerFormat (StringCustomFmt fmt, const char *attr, const char *alternate)
 {
 	Formatter *newFmt = new Formatter;
 
@@ -99,7 +99,7 @@ registerFormat (StringCustomFmt fmt, const char *attr, char *alternate)
 	formats.Append (newFmt);
 
 	attributes.Append(new_strdup (attr));
-	alternates.Append(new_strdup(collapse_escapes(alternate)));
+	alternates.Append(collapse_escapes(new_strdup(alternate)));
 }
 
 void AttrListPrintMask::
@@ -137,7 +137,7 @@ display (AttrList *al, AttrList *target /* = NULL */)
 	int		intValue;
 	float 	floatValue;
 	MyString stringValue;
-	char*	bool_str = NULL;
+	const char*	bool_str = NULL;
 	char *value_from_classad = NULL;
 
 	struct printf_fmt_info fmt_info;
@@ -190,11 +190,11 @@ display (AttrList *al, AttrList *target /* = NULL */)
 					// if we got here, there's some % conversion
 					// string, so we'll need to get the expression
 					// tree of the attribute they asked for...
-				if( !(tree = al->Lookup (attr)) ) {
+				if( !(tree = al->LookupExpr (attr)) ) {
 						// drat, we couldn't find it. Maybe it's an
 						// expression?
 					tree = NULL;
-					if( Parse(attr, tree) != 0 ) {
+					if( ParseClassAdRvalExpr(attr, tree) != 0 ) {
 						delete tree;
 
 							// drat, still no luck.  if there's an
@@ -215,10 +215,9 @@ display (AttrList *al, AttrList *target /* = NULL */)
 				switch( fmt_type ) {
 				case PFT_STRING:
 					if( attr_is_expr ) {
-						if( tree->EvalTree (al, target, &result) ) {
-							if( result.type == LX_STRING && result.s ) {
-								retval.sprintf_cat(fmt->printfFmt, result.s);
-							}
+						if( EvalExprTree(tree, al, target, &result) &&
+							result.type == LX_STRING && result.s ) {
+							retval.sprintf_cat(fmt->printfFmt, result.s);
 						} else {
 							// couldn't eval
 							if( alt ) {
@@ -232,15 +231,10 @@ display (AttrList *al, AttrList *target /* = NULL */)
 						free( value_from_classad );
 						value_from_classad = NULL;
 					} else {
-						rhs = tree->RArg();
-						if( rhs ) {
-							rhs->PrintToNewStr( &bool_str );
-							if( bool_str ) {
-								stringValue.sprintf(fmt->printfFmt, bool_str);
-								retval += stringValue;
-								free( bool_str );
-								bool_str = NULL;
-							}
+						bool_str = ExprTreeToString( tree );
+						if( bool_str ) {
+							stringValue.sprintf(fmt->printfFmt, bool_str);
+							retval += stringValue;
 						} else {
 							if ( alt ) {
 								retval += alt;
@@ -251,7 +245,7 @@ display (AttrList *al, AttrList *target /* = NULL */)
 
 				case PFT_INT:
 				case PFT_FLOAT:
-					if( tree->EvalTree (al, target, &result) ) {
+					if( EvalExprTree(tree, al, target, &result) ) {
 						switch( result.type ) {
 						case LX_FLOAT:
 							if( fmt_type == PFT_INT ) {

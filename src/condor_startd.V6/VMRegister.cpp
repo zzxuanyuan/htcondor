@@ -77,8 +77,23 @@ _requestVMRegister(char *addr)
 
 	// Send <IP address:port> of virtual machine
 	buffer = strdup(daemonCore->InfoCommandSinfulString());
-	ssock.code(buffer);
-	ssock.eom();
+	ASSERT(buffer);
+
+	if ( !ssock.code(buffer) ) {
+		dprintf( D_FULLDEBUG,
+				 "Failed to send VM_REGISTER command's arguments to "
+				 "host startd %s: %s\n",
+				 addr, buffer );
+		free(buffer);
+		return FALSE;
+	}
+
+	if( !ssock.eom() ) {
+		dprintf( D_FULLDEBUG, "Failed to send EOM to host startd %s\n", addr );
+		free(buffer);
+		return FALSE;
+	}
+
 	free(buffer);
 
 	//Now, read permission information
@@ -230,23 +245,17 @@ VMRegister::requestHostClassAds(void)
 
 	// Get each Attribute from the classAd
 	// added "HOST_" in front of each Attribute name
-	char *attr_val = NULL;
-	char *attr_name = NULL;
+	const char *name;
 	ExprTree *expr;
 
 	ad->ResetExpr();
-	while( ( expr = ad->NextExpr() ) != NULL ) {
-		attr_name = ((Variable*)expr->LArg())->Name();
-		attr_val = NULL;
-		expr->RArg()->PrintToNewStr(&attr_val);
-
+	while( ad->NextExpr(name, expr) ) {
 		MyString attr;
 		attr += "HOST_";
-		attr += attr_name;
+		attr += name;
 
 		// Insert or Update an attribute to host_classAd in a VMRegister object
-		host_classad->AssignExpr(attr.Value(), attr_val);
-		delete(attr_val);
+		host_classad->Insert(attr.Value(), expr->Copy());
 	}
 }
 

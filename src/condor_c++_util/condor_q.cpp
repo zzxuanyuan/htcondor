@@ -257,7 +257,7 @@ fetchQueue (ClassAdList &list, StringList &attrs, ClassAd *ad, CondorError* errs
 }
 
 int CondorQ::
-fetchQueueFromHost (ClassAdList &list, StringList &attrs, char *host, CondorError* errstack)
+fetchQueueFromHost (ClassAdList &list, StringList &attrs, const char *host, char const *schedd_version, CondorError* errstack)
 {
 	Qmgr_connection *qmgr;
 	ClassAd 		filterAd;
@@ -282,8 +282,14 @@ fetchQueueFromHost (ClassAdList &list, StringList &attrs, char *host, CondorErro
 	if( !(qmgr = ConnectQ( host, connect_timeout, true, errstack)) )
 		return Q_SCHEDD_COMMUNICATION_ERROR;
 
+	bool useFastPath = false;
+	if( schedd_version && *schedd_version ) {
+		CondorVersionInfo v(schedd_version);
+		useFastPath = v.built_since_version(6,9,3);
+	}
+
 	// get the ads and filter them
-	result = getAndFilterAds (filterAd, attrs, list, false);
+	result = getAndFilterAds (filterAd, attrs, list, useFastPath);
 
 	DisconnectQ (qmgr);
 	return result;
@@ -296,7 +302,7 @@ fetchQueueFromDB (ClassAdList &list, char *&lastUpdate, char *dbconn, CondorErro
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
-	char 		*constraint;
+	const char 		*constraint;
 	ClassAd        *ad;
 	QuillErrCode   rv;
 
@@ -330,30 +336,29 @@ fetchQueueFromDB (ClassAdList &list, char *&lastUpdate, char *dbconn, CondorErro
 	filterAd.SetTargetTypeName ("Job");
 
 	ExprTree *tree;
-	tree = filterAd.Lookup(ATTR_REQUIREMENTS);
+	tree = filterAd.LookupExpr(ATTR_REQUIREMENTS);
 	if (!tree) {
 		delete jqSnapshot;
 	  return Q_INVALID_QUERY;
 	}
 
-	tree->RArg()->PrintToNewStr(&constraint);
+	constraint = ExprTreeToString(tree);
 
 	ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 
 	while (ad != (ClassAd *) 0) {
-		ad->ChainCollapse(true);
+		ad->ChainCollapse();
 		list.Insert(ad);
 		ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 	}	
 
 	delete jqSnapshot;
-	free(constraint);
 #endif /* WANT_QUILL */
 	return Q_OK;
 }
 
 int CondorQ::
-fetchQueueFromHostAndProcess ( char *host, StringList &attrs, process_function process_func, bool useFastPath, CondorError* errstack)
+fetchQueueFromHostAndProcess ( const char *host, StringList &attrs, process_function process_func, bool useFastPath, CondorError* errstack)
 {
 	Qmgr_connection *qmgr;
 	ClassAd 		filterAd;
@@ -392,7 +397,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, char *&lastUpdate, process_function p
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
-	char           *constraint;
+	const char           *constraint;
 	ClassAd        *ad;
 	QuillErrCode             rv;
 
@@ -429,20 +434,20 @@ fetchQueueFromDBAndProcess ( char *dbconn, char *&lastUpdate, process_function p
 	filterAd.SetTargetTypeName ("Job");
 
 	ExprTree *tree;
-	tree = filterAd.Lookup(ATTR_REQUIREMENTS);
+	tree = filterAd.LookupExpr(ATTR_REQUIREMENTS);
 	if (!tree) {
 		delete jqSnapshot;
 	  return Q_INVALID_QUERY;
 	}
 
-	tree->RArg()->PrintToNewStr(&constraint);
+	constraint = ExprTreeToString(tree);
 
 	ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 	
 	while (ad != (ClassAd *) 0) {
 			// Process the data and insert it into the list
 		if ((*process_func) (ad) ) {
-			ad->clear();
+			ad->Clear();
 			delete ad;
 		}
 		
@@ -450,7 +455,6 @@ fetchQueueFromDBAndProcess ( char *dbconn, char *&lastUpdate, process_function p
 	}	
 
 	delete jqSnapshot;
-	free(constraint);
 #endif /* WANT_QUILL */
 
 	return Q_OK;
@@ -542,16 +546,16 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 int CondorQ::
 getFilterAndProcessAds( ClassAd &queryad, StringList &attrs, process_function process_func, bool useAll )
 {
-	char		*constraint;
+	const char		*constraint;
 	ExprTree	*tree;
 	ClassAd		*ad;
 
-	tree = queryad.Lookup(ATTR_REQUIREMENTS);
+	tree = queryad.LookupExpr(ATTR_REQUIREMENTS);
 	if (!tree) {
 		return Q_INVALID_QUERY;
 	}
 
-	tree->RArg()->PrintToNewStr(&constraint);
+	constraint = ExprTreeToString(tree);
 
 	if (useAll) {
 	// The fast case with the new protocol
@@ -584,8 +588,6 @@ getFilterAndProcessAds( ClassAd &queryad, StringList &attrs, process_function pr
 
 	}
 
-	free(constraint);
-
 	// here GetNextJobByConstraint returned NULL.  check if it was
 	// because of the network or not.  if qmgmt had a problem with
 	// the net, then errno is set to ETIMEDOUT, and we should fail.
@@ -600,17 +602,17 @@ getFilterAndProcessAds( ClassAd &queryad, StringList &attrs, process_function pr
 int CondorQ::
 getAndFilterAds (ClassAd &queryad, StringList &attrs, ClassAdList &list, bool useAllJobs)
 {
-	char		*constraint;
+	const char	*constraint;
 	ExprTree	*tree;
 
-	tree = queryad.Lookup(ATTR_REQUIREMENTS);
+	tree = queryad.LookupExpr(ATTR_REQUIREMENTS);
 	if (!tree) {
 		return Q_INVALID_QUERY;
 	}
-	tree->RArg()->PrintToNewStr(&constraint);
+	constraint = ExprTreeToString(tree);
 
 	if (useAllJobs) {
-	char *attrs_str = attrs.print_to_string();
+	char *attrs_str = attrs.print_to_delimed_string();
 	GetAllJobsByConstraint(constraint, attrs_str, list);
 	free(attrs_str);
 
@@ -624,7 +626,6 @@ getAndFilterAds (ClassAd &queryad, StringList &attrs, ClassAdList &list, bool us
 	}
 	}
 
-	free(constraint);
 	// here GetNextJobByConstraint returned NULL.  check if it was
 	// because of the network or not.  if qmgmt had a problem with
 	// the net, then errno is set to ETIMEDOUT, and we should fail.
@@ -720,7 +721,7 @@ ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot	*jqSn
 		}
 		
 		if (ad != (ClassAd *) 0) {
-			ad->clear();
+			ad->Clear();
 			delete ad;
 			ad = (ClassAd *) 0;
 		}

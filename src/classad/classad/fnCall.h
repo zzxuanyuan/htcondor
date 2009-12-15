@@ -154,14 +154,18 @@ class FunctionCall : public ExprTree
 							   Value&);
 	static bool dayTime(const char*,const ArgumentList&,EvalState&,Value&);
 	static bool makeTime(const char*,const ArgumentList&,EvalState&,Value&);
+	/* Unused
 	static bool makeDate(const char*,const ArgumentList&,EvalState&,Value&);
+	*/
 	// time management (selectors)
 	static bool getField(const char*,const ArgumentList&,EvalState&,Value&);
 	static bool splitTime(const char*,const ArgumentList&,EvalState&,Value&);
     static bool formatTime(const char*,const ArgumentList&,EvalState&,Value&);
 	// time management (conversions)
+	/* Unused
 	static bool inTimeUnits(const char*,const ArgumentList&,EvalState&,
 							Value&);
+	*/
 
 	// string management
 	static bool strCat(const char*,const ArgumentList&,EvalState&,Value&);
@@ -196,6 +200,8 @@ class FunctionCall : public ExprTree
 	static bool ifThenElse( const char* name,const ArgumentList &argList,EvalState &state,Value &result );
 	
 	static bool interval( const char* name,const ArgumentList &argList,EvalState &state,Value &result );
+
+	static bool eval( const char* name,const ArgumentList &argList,EvalState &state,Value &result );
 
  	//static bool doReal(const char*,const ArgumentList&,EvalState&,Value&);
 };

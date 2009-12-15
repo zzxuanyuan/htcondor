@@ -77,14 +77,23 @@ static const char *GMStateNames[] = {
 	"GM_START"
 };
 
+#define REMOTE_STATE_ACCEPTING		"ACCEPTING"
 #define REMOTE_STATE_ACCEPTED		"ACCEPTED"
 #define REMOTE_STATE_PREPARING		"PREPARING"
+#define REMOTE_STATE_PREPARED		"PREPARED"
 #define REMOTE_STATE_SUBMITTING		"SUBMITTING"
-#define REMOTE_STATE_INLRMS			"INLRMS"
-#define REMOTE_STATE_CANCELLING		"CANCELLING"
+#define REMOTE_STATE_INLRMS_R		"INLRMS: R"
+#define REMOTE_STATE_INLRMS_Q		"INLRMS: Q"
+#define REMOTE_STATE_INLRMS_S		"INLRMS: S"
+#define REMOTE_STATE_INLRMS_E		"INLRMS: E"
+#define REMOTE_STATE_INLRMS_O		"INLRMS: O"
+#define REMOTE_STATE_KILLING		"KILLING"
+#define REMOTE_STATE_EXECUTED		"EXECUTED"
 #define REMOTE_STATE_FINISHING		"FINISHING"
 #define REMOTE_STATE_FINISHED		"FINISHED"
-#define REMOTE_STATE_PENDING		"PENDING:PREPARING"
+#define REMOTE_STATE_FAILED			"FAILED"
+#define REMOTE_STATE_KILLED			"KILLED"
+#define REMOTE_STATE_DELETED		"DELETED"
 
 #define REMOTE_STDOUT_NAME	"_condor_stdout"
 #define REMOTE_STDERR_NAME	"_condor_stderr"
@@ -182,7 +191,8 @@ NordugridJob::NordugridJob( ClassAd *classad )
 		jobAd->AssignExpr( ATTR_HOLD_REASON, "Undefined" );
 	}
 
-	jobProxy = AcquireProxy( jobAd, error_string, evaluateStateTid );
+	jobProxy = AcquireProxy( jobAd, error_string,
+							 (TimerHandlercpp)&BaseJob::SetEvaluateState, this );
 	if ( jobProxy == NULL ) {
 		if ( error_string == "" ) {
 			error_string.sprintf( "%s is not set in the job ad",
@@ -264,7 +274,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 NordugridJob::~NordugridJob()
 {
 	if ( jobProxy != NULL ) {
-		ReleaseProxy( jobProxy, evaluateStateTid );
+		ReleaseProxy( jobProxy, (TimerHandlercpp)&BaseJob::SetEvaluateState, this );
 	}
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
@@ -292,13 +302,14 @@ void NordugridJob::Reconfig()
 	gahp->setTimeout( gahpCallTimeout );
 }
 
-int NordugridJob::doEvaluateState()
+void NordugridJob::doEvaluateState()
 {
 	int old_gm_state;
 	bool reevaluate_state = true;
 	time_t now = time(NULL);
 
-	bool done;
+	bool attr_exists;
+	bool attr_dirty;
 	int rc;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
@@ -358,40 +369,30 @@ int NordugridJob::doEvaluateState()
 					executeLogged = true;
 				}
 
-				gmState = GM_RECOVER_QUERY;
+				if ( remoteJobState == "" ||
+					 remoteJobState == REMOTE_STATE_ACCEPTING ||
+					 remoteJobState == REMOTE_STATE_ACCEPTED ||
+					 remoteJobState == REMOTE_STATE_PREPARING ) {
+					gmState = GM_RECOVER_QUERY;
+				} else {
+					gmState = GM_SUBMITTED;
+				}
 			}
 			} break;
 		case GM_RECOVER_QUERY: {
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				char *new_status = NULL;
-				rc = gahp->nordugrid_status( resourceManagerString,
-											 remoteJobId, new_status );
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
-					 rc == GAHPCLIENT_COMMAND_PENDING ) {
-					break;
-				} else if ( rc != 0 ) {
-					// What to do about failure?
-					errorString = gahp->getErrorString();
-					dprintf( D_ALWAYS, "(%d.%d) job probe failed: %s\n",
-							 procID.cluster, procID.proc,
-							 errorString.Value() );
+				if ( m_lastRemoteStatusUpdate > enteredCurrentGmState ) {
+					if ( remoteJobState == REMOTE_STATE_ACCEPTING ||
+						 remoteJobState == REMOTE_STATE_ACCEPTED ||
+						 remoteJobState == REMOTE_STATE_PREPARING ) {
+						gmState = GM_STAGE_IN;
+					} else {
+						gmState = GM_SUBMITTED;
+					}
+				} else if ( m_currentStatusUnknown ) {
 					gmState = GM_CANCEL;
-					break;
-				} else {
-					remoteJobState = new_status;
-					SetRemoteJobStatus( new_status );
-				}
-				if ( new_status ) {
-					free( new_status );
-				}
-				lastProbeTime = now;
-				if ( remoteJobState == REMOTE_STATE_ACCEPTED ||
-					 remoteJobState == REMOTE_STATE_PREPARING ) {
-					gmState = GM_STAGE_IN;
-				} else {
-					gmState = GM_SUBMITTED;
 				}
 			}
 			} break;
@@ -452,7 +453,7 @@ int NordugridJob::doEvaluateState()
 					ASSERT( job_id != NULL );
 					SetRemoteJobId( job_id );
 					free( job_id );
-					myResource->SubmitComplete( this );
+					WriteGridSubmitEventToUserLog( jobAd );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					errorString = gahp->getErrorString();
@@ -475,8 +476,9 @@ int NordugridJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = requestScheddUpdate( this );
-				if ( !done ) {
+				jobAd->GetDirtyFlag( ATTR_GRID_JOB_ID, &attr_exists, &attr_dirty );
+				if ( attr_exists && attr_dirty ) {
+					requestScheddUpdate( this, true );
 					break;
 				}
 				gmState = GM_STAGE_IN;
@@ -508,7 +510,10 @@ int NordugridJob::doEvaluateState()
 			}
 			} break;
 		case GM_SUBMITTED: {
-			if ( remoteJobState == REMOTE_STATE_FINISHED ) {
+			if ( remoteJobState == REMOTE_STATE_FINISHED ||
+				 remoteJobState == REMOTE_STATE_FAILED ||
+				 remoteJobState == REMOTE_STATE_KILLED ||
+				 remoteJobState == REMOTE_STATE_DELETED ) {
 					gmState = GM_EXIT_INFO;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
@@ -520,6 +525,7 @@ int NordugridJob::doEvaluateState()
 					lastProbeTime = 0;
 					probeNow = false;
 				}
+/*
 				if ( now >= lastProbeTime + probeInterval ) {
 					gmState = GM_PROBE_JOB;
 					break;
@@ -529,6 +535,7 @@ int NordugridJob::doEvaluateState()
 					delay = (lastProbeTime + probeInterval) - now;
 				}				
 				daemonCore->Reset_Timer( evaluateStateTid, delay );
+*/
 			}
 			} break;
 		case GM_PROBE_JOB: {
@@ -559,14 +566,12 @@ int NordugridJob::doEvaluateState()
 			}
 			} break;
 		case GM_EXIT_INFO: {
-			bool normal_exit;
-			int exit_code;
-			float wallclock = 0;
-			float sys_cpu = 0;
-			float user_cpu = 0;
-			rc = gahp->nordugrid_exit_info( resourceManagerString, remoteJobId,
-											normal_exit, exit_code, wallclock,
-											sys_cpu, user_cpu );
+			MyString filter;
+			StringList reply;
+			filter.sprintf( "nordugrid-job-globalid=gsiftp://%s:2811/jobs/%s",
+							resourceManagerString, remoteJobId );
+
+			rc = gahp->nordugrid_ldap_query( resourceManagerString, "mds-vo-name=local,o=grid", filter.Value(), "nordugrid-job-usedcputime,nordugrid-job-usedwalltime,nordugrid-job-exitcode", reply );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -576,18 +581,38 @@ int NordugridJob::doEvaluateState()
 						 procID.cluster, procID.proc, errorString.Value() );
 				gmState = GM_CANCEL;
 			} else {
-				normalExit = normal_exit;
-				exitCode = exit_code;
-				if ( normalExit ) {
-					jobAd->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
-					jobAd->Assign( ATTR_ON_EXIT_CODE, exitCode );
-				} else {
-					jobAd->Assign( ATTR_ON_EXIT_BY_SIGNAL, true );
-					jobAd->Assign( ATTR_ON_EXIT_SIGNAL, exitCode );
+				int exit_code = -1;
+				int wallclock = -1;
+				int cpu = -1;
+				const char *entry;
+				reply.rewind();
+				while ( (entry = reply.next()) ) {
+					if ( !strncmp( entry, "nordugrid-job-usedcputime: ", 27 ) ) {
+						entry = strchr( entry, ' ' ) + 1;
+						cpu = atoi( entry );
+					} else if ( !strncmp( entry, "nordugrid-job-usedwalltime: ", 28 ) ) {
+						entry = strchr( entry, ' ' ) + 1;
+						wallclock = atoi( entry );
+					} else if ( !strncmp( entry, "nordugrid-job-exitcode: ", 24 ) ) {
+						entry = strchr( entry, ' ' ) + 1;
+						exit_code = atoi( entry );
+					}
 				}
-				jobAd->Assign( ATTR_JOB_REMOTE_WALL_CLOCK, wallclock );
-				jobAd->Assign( ATTR_JOB_REMOTE_SYS_CPU, sys_cpu );
-				jobAd->Assign( ATTR_JOB_REMOTE_USER_CPU, user_cpu );
+				if ( exit_code < 0 || wallclock < 0 || cpu < 0 ) {
+					dprintf( D_ALWAYS, "(%d.%d) exit info missing\n",
+							 procID.cluster, procID.proc );
+					gmState = GM_CANCEL;
+					break;
+				}
+				if ( exit_code > 128 ) {
+					jobAd->Assign( ATTR_ON_EXIT_BY_SIGNAL, true );
+					jobAd->Assign( ATTR_ON_EXIT_SIGNAL, exit_code - 128 );
+				} else {
+					jobAd->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
+					jobAd->Assign( ATTR_ON_EXIT_CODE, exit_code );
+				}
+				jobAd->Assign( ATTR_JOB_REMOTE_WALL_CLOCK, wallclock * 60 );
+				jobAd->Assign( ATTR_JOB_REMOTE_USER_CPU, cpu * 60 );
 				gmState = GM_STAGE_OUT;
 			}
 			} break;
@@ -627,8 +652,9 @@ int NordugridJob::doEvaluateState()
 			if ( condorState != HELD && condorState != REMOVED ) {
 				JobTerminated();
 				if ( condorState == COMPLETED ) {
-					done = requestScheddUpdate( this );
-					if ( !done ) {
+					jobAd->GetDirtyFlag( ATTR_JOB_STATUS, &attr_exists, &attr_dirty );
+					if ( attr_exists && attr_dirty ) {
+						requestScheddUpdate( this, true );
 						break;
 					}
 				}
@@ -770,8 +796,11 @@ int NordugridJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
-			done = requestScheddUpdate( this );
-			if ( !done ) {
+			const char *name;
+			ExprTree *expr;
+			jobAd->ResetExpr();
+			if ( jobAd->NextDirtyExpr(name, expr) ) {
+				requestScheddUpdate( this, true );
 				break;
 			}
 			if ( remoteJobState != "" ) {
@@ -842,8 +871,6 @@ int NordugridJob::doEvaluateState()
 		}
 
 	} while ( reevaluate_state );
-
-	return TRUE;
 }
 
 BaseResource *NordugridJob::GetResource()
@@ -1191,4 +1218,29 @@ StringList *NordugridJob::buildStageOutLocalList( StringList *stage_list )
 	}
 
 	return stage_local_list;
+}
+
+void NordugridJob::NotifyNewRemoteStatus( const char *status )
+{
+	if ( SetRemoteJobStatus( status ) ) {
+		remoteJobState = status;
+		SetEvaluateState();
+
+		if ( condorState == IDLE &&
+			 ( remoteJobState == REMOTE_STATE_INLRMS_R ||
+			   remoteJobState == REMOTE_STATE_INLRMS_E ||
+			   remoteJobState == REMOTE_STATE_EXECUTED ||
+			   remoteJobState == REMOTE_STATE_FINISHING ||
+			   remoteJobState == REMOTE_STATE_FINISHED ||
+			   remoteJobState == REMOTE_STATE_FAILED ) ) {
+			JobRunning();
+		} else if ( condorState == RUNNING &&
+					( remoteJobState == REMOTE_STATE_INLRMS_Q ||
+					  remoteJobState == REMOTE_STATE_INLRMS_S ) ) {
+			JobIdle();
+		}
+	}
+	if ( gmState == GM_RECOVER_QUERY ) {
+		SetEvaluateState();
+	}
 }

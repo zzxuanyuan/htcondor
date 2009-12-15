@@ -27,6 +27,7 @@
 #include "condor_parser.h"
 #include "condor_adtypes.h"
 #include "condor_debug.h"
+#include "condor_classad_util.h"
 #include "internet.h"
 #include "daemon.h"
 #include "dc_collector.h"
@@ -390,7 +391,7 @@ fetchAds (ClassAdList &adList, const char *poolName, CondorError* errstack)
 	Sock*    sock; 
 	int                     more;
 	QueryResult result;
-	ClassAd     queryAd, *ad;
+	ClassAd     queryAd(extraAttrs), *ad;
 
 	if ( !poolName ) {
 		return Q_NO_COLLECTOR_HOST;
@@ -424,6 +425,11 @@ fetchAds (ClassAdList &adList, const char *poolName, CondorError* errstack)
 
 	  case SCHEDD_AD:
 	  case SUBMITTOR_AD:
+		// CRUFT: Before 7.3.2, submitter ads had a MyType of
+		//   "Scheduler". The only way to tell the difference
+		//   was that submitter ads didn't have ATTR_NUM_USERS.
+		//   Newer collectors will coerce the TargetType to
+		//   "Submitter" for queries of submitter ads.
 		queryAd.SetTargetTypeName (SCHEDD_ADTYPE);
 		break;
 
@@ -458,7 +464,7 @@ fetchAds (ClassAdList &adList, const char *poolName, CondorError* errstack)
 	  case GENERIC_AD:
 		  // For now, at least, there is no separate QUERY_GENERIC_ADS
 		  // command, so send the ANY_ADTYPE
-		queryAd.SetTargetTypeName (ANY_ADTYPE);
+		queryAd.SetTargetTypeName (GENERIC_ADTYPE);
 		break;
 
 	  case XFER_SERVICE_AD:
@@ -488,6 +494,10 @@ fetchAds (ClassAdList &adList, const char *poolName, CondorError* errstack)
       case GRID_AD:
         queryAd.SetTargetTypeName (GRID_ADTYPE);
         break;
+
+	  case HAD_AD:
+		queryAd.SetTargetTypeName (HAD_ADTYPE);
+		break;
 
 	  default:
 		return Q_INVALID_QUERY;
@@ -622,11 +632,16 @@ filterAds (ClassAdList &in, ClassAdList &out)
 	while( (candidate = (ClassAd *) in.Next()) )
     {
         // if a match occurs
-		if ((*candidate) >= (queryAd)) out.Insert (candidate);
+		if (IsAHalfMatch(&queryAd, candidate)) out.Insert (candidate);
     }
     in.Close ();
     
 	return Q_OK;
+}
+
+int 
+CondorQuery::addExtraAttribute(const char *attr) {
+	return extraAttrs.Insert(attr);
 }
 
 

@@ -57,6 +57,7 @@ int main( int argc, char *argv[] )
 	int command=-1;
 	int i;
 	bool use_tcp = false;
+	bool with_ack = false;
 
 
 	myDistro->Init( argc, argv );
@@ -111,6 +112,16 @@ int main( int argc, char *argv[] )
 	Sock *sock;
 	int eof,error,empty;
 
+	switch( command ) {
+	case UPDATE_STARTD_AD_WITH_ACK:
+		with_ack = true;
+		break;
+	}
+
+	if( with_ack ) {
+		use_tcp =  true;
+	}
+
 	if(!filename || !strcmp(filename,"-")) {
 		file = stdin;
 		filename = "(stdin)";
@@ -136,14 +147,11 @@ int main( int argc, char *argv[] )
 	}
 
 	// If there's no "MyAddress", generate one..
-	ExprTree *tree = ad->Lookup( ATTR_MY_ADDRESS );
 	MyString tmp = "";
-	if ( tree ) {
-		tmp = ((MyString *)tree->RArg())->Value();
-	}
+	ad->LookupString( ATTR_MY_ADDRESS, tmp );
 	if ( tmp.Length() == 0 ) {
-		tmp.sprintf( "%s = \"<%s:0>\"", ATTR_MY_ADDRESS, my_ip_string() );
-		ad->Insert( tmp.Value() );
+		tmp.sprintf( "<%s:0>", my_ip_string() );
+		ad->Assign( ATTR_MY_ADDRESS, tmp.Value() );
 	}
 
 	CollectorList * collectors;
@@ -187,6 +195,17 @@ int main( int argc, char *argv[] )
 			had_error = true;
 			delete sock;
 			continue;
+		}
+
+		if( with_ack ) {
+			sock->decode();
+			int ok = 0;
+			if( !sock->get(ok) || !sock->end_of_message() ) {
+				fprintf(stderr,"failed to get ack from %s\n",collector->addr());
+				had_error = true;
+				delete sock;
+				continue;
+			}
 		}
 
 		delete sock;

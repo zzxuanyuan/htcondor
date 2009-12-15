@@ -27,7 +27,7 @@
 
 class BaseJob;
 
-class BaseResource
+class BaseResource : public Service
 {
  public:
 
@@ -53,7 +53,6 @@ class BaseResource
 	time_t getLastStatusChangeTime() { return lastStatusChange; }
 
 	bool RequestSubmit( BaseJob *job );
-	void SubmitComplete( BaseJob *job );
 	void CancelSubmit( BaseJob *job );
 	void AlreadySubmitted( BaseJob *job );
 
@@ -64,18 +63,18 @@ class BaseResource
 		{ probeDelay = new_delay; }
 
  protected:
-	int DeleteMe();
+	void DeleteMe();
 
-	int Ping();
+	void Ping();
 	virtual void DoPing( time_t& ping_delay, bool& ping_complete,
 						 bool& ping_succeeded );
 
-	int UpdateLeases();
+	void UpdateLeases();
 	virtual void DoUpdateLeases( time_t& update_delay, bool& update_complete,
 								 SimpleList<PROC_ID>& update_succeeded );
 	bool Invalidate ();
     bool SendUpdate ();	
-	int UpdateCollector ();
+	void UpdateCollector ();
 
 	char *resourceName;
 	int deleteMeTid;
@@ -92,15 +91,10 @@ class BaseResource
 	static int probeInterval;
 	static int probeDelay;
 
-	// jobs that are currently executing a submit
-	List<BaseJob> submitsInProgress;
-	// jobs that want to submit but can't due to submitLimit
-	List<BaseJob> submitsQueued;
 	// jobs allowed to submit under jobLimit
 	List<BaseJob> submitsAllowed;
 	// jobs that want to submit but can't due to jobLimit
 	List<BaseJob> submitsWanted;
-	int submitLimit;		// max number of submit actions
 	int jobLimit;			// max number of submitted jobs
 
 	bool hasLeases;

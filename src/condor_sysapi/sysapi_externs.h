@@ -55,8 +55,7 @@ extern StringList *_sysapi_console_devices;
 #endif
 
 EXTERN_C_BEGIN
-
-extern int _sysapi_last_x_event;
+extern time_t _sysapi_last_x_event;
 
 /* needed by free_fs_blocks.c */
 extern int _sysapi_reserve_afs_cache;
@@ -81,6 +80,11 @@ extern char* _sysapi_ckptpltfrm;
 
 /* needed by load_avg.c */
 extern int _sysapi_getload;
+
+#ifdef LINUX
+extern int _sysapi_count_hyperthread_cpus;
+#endif
+
 
 EXTERN_C_END
 

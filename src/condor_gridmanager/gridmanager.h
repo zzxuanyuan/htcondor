@@ -43,7 +43,6 @@
 extern char *ScheddAddr;
 extern char *ScheddName;
 extern DCSchedd *ScheddObj;
-extern DCCollector *CollectorObj;
 extern char *ScheddJobConstraint;
 extern char *GridmanagerScratchDir;
 extern char *myUserName;
@@ -55,7 +54,7 @@ void Register();
 // maintainence
 void Reconfig();
 
-bool requestScheddUpdate( BaseJob *job );
+void requestScheddUpdate( BaseJob *job, bool notify );
 bool requestScheddVacate( BaseJob *job, action_result_t &result );
 bool requestJobStatus( BaseJob *job, int &job_status );
 bool requestJobStatus( PROC_ID job_id, int tid, int &job_status );

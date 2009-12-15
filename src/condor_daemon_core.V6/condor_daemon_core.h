@@ -63,7 +63,7 @@
 class ProcFamilyInterface;
 
 #if defined(WIN32)
-#include "pipe.WIN32.h"
+#include "pipe.WINDOWS.h"
 #endif
 
 #define DEBUG_SETTABLE_ATTR_LISTS 0
@@ -158,10 +158,12 @@ typedef enum {
 
 const int DCJOBOPT_SUSPEND_ON_EXEC  = (1<<1);
 const int DCJOBOPT_NO_ENV_INHERIT   = (1<<2);
+const int DCJOBOPT_NEVER_USE_SHARED_PORT   = (1<<3);
 
 #define HAS_DCJOBOPT_SUSPEND_ON_EXEC(mask)  ((mask)&DCJOBOPT_SUSPEND_ON_EXEC)
 #define HAS_DCJOBOPT_NO_ENV_INHERIT(mask)  ((mask)&DCJOBOPT_NO_ENV_INHERIT)
 #define HAS_DCJOBOPT_ENV_INHERIT(mask)  (!(HAS_DCJOBOPT_NO_ENV_INHERIT(mask)))
+#define HAS_DCJOBOPT_NEVER_USE_SHARED_PORT(mask) ((mask)&DCJOBOPT_NEVER_USE_SHARED_PORT)
 
 // structure to be used as an argument to Create_Process for tracking process
 // families
@@ -221,7 +223,6 @@ int BindAnyCommandPort(ReliSock *rsock, SafeSock *ssock);
  */
 bool InitCommandSockets(int port, ReliSock *rsock, SafeSock *ssock,
 						bool fatal);
-
 
 class DCSignalMsg: public DCMsg {
  public:
@@ -765,12 +766,21 @@ class DaemonCore : public Service
 	*/
 	int Close_Pipe(int pipe_end);
 
+	int Get_Max_Pipe_Buffer() { return maxPipeBuffer; };
+
 #if !defined(WIN32)
 	/** Get the FD underlying the given pipe end. Returns FALSE
 	 *  if not given a valid pipe end.
 	*/
 	int Get_Pipe_FD(int pipe_end, int* fd);
 #endif
+
+	/** Close an anonymous pipe or file depending on its value
+		relative to PIPE_INDEX_OFFSET.  If the fd's value is 
+		>= PIPE_INDEX_OFFSET then it is a pipe; otherwise, it
+		is an file.
+		*/
+	int Close_FD(int fd);
 
 	/**
 	   Gain access to data written to a given DC process's std(out|err) pipe.
@@ -786,7 +796,7 @@ class DaemonCore : public Service
 
 	/**
 	   Write data to the given DC process's stdin pipe.
-	   @see Write_Pipe()
+	   @see pipeFullWrite()
 	*/
 	int Write_Stdin_Pipe(int pid, const void* buffer, int len);
 
@@ -809,27 +819,34 @@ class DaemonCore : public Service
         @param deltawhen       Not_Yet_Documented
         @param event           Not_Yet_Documented
         @param event_descrip   Not_Yet_Documented
-        @param s               Not_Yet_Documented
         @return Not_Yet_Documented
     */
     int Register_Timer (unsigned     deltawhen,
-                        Event        event,
-                        const char * event_descrip, 
-                        Service*     s = NULL);
+                        TimerHandler handler,
+                        const char * event_descrip);
+
+	/** Not_Yet_Documented
+        @param deltawhen       Not_Yet_Documented
+        @param event           Not_Yet_Documented
+        @param event_descrip   Not_Yet_Documented
+        @return Not_Yet_Documented
+    */
+    int Register_Timer (unsigned     deltawhen,
+                        TimerHandler handler,
+						Release      release,
+                        const char * event_descrip);
     
     /** Not_Yet_Documented
         @param deltawhen       Not_Yet_Documented
         @param period          Not_Yet_Documented
         @param event           Not_Yet_Documented
         @param event_descrip   Not_Yet_Documented
-        @param s               Not_Yet_Documented
         @return Not_Yet_Documented
     */
     int Register_Timer (unsigned     deltawhen,
                         unsigned     period,
-                        Event        event,
-                        const char * event_descrip,
-                        Service*     s = NULL);
+                        TimerHandler handler,
+                        const char * event_descrip);
 
     /** Not_Yet_Documented
         @param deltawhen       Not_Yet_Documented
@@ -839,7 +856,7 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Register_Timer (unsigned     deltawhen,
-                        Eventcpp     event,
+                        TimerHandlercpp handler,
                         const char * event_descrip,
                         Service*     s);
 
@@ -853,7 +870,7 @@ class DaemonCore : public Service
     */
     int Register_Timer (unsigned     deltawhen,
                         unsigned     period,
-                        Eventcpp     event,
+                        TimerHandlercpp handler,
                         const char * event_descrip,
                         Service *    s);
 
@@ -864,8 +881,8 @@ class DaemonCore : public Service
         @param s               Service object of which function is a member.
         @return                Timer id or -1 on error
     */
-    int Register_Timer (Timeslice    timeslice,
-                        Eventcpp     event,
+    int Register_Timer (const Timeslice &timeslice,
+                        TimerHandlercpp handler,
                         const char * event_descrip,
                         Service*     s);
 
@@ -879,7 +896,7 @@ class DaemonCore : public Service
         @param id The timer's ID
         @param when   Not_Yet_Documented
         @param period Not_Yet_Documented
-        @return Not_Yet_Documented
+        @return 0 if successful, -1 on failure (timer not found)
     */
     int Reset_Timer ( int id, unsigned when, unsigned period = 0 );
 	//@}
@@ -954,7 +971,8 @@ class DaemonCore : public Service
                used as argv[0].
         @param priv The priv state to change into right before
                the exec.  Default = no action.
-        @param reaper_id The reaper number to use.  Default = 1.
+        @param reaper_id The reaper number to use.  Default = 1. If a
+			   reaper_id of 0 is used, no reaper callback will be invoked.
         @param want_command_port Well, do you?  Default = TRUE.  If
 			   want_command_port it TRUE, the child process will be
 			   born with a daemonCore command socket on a dynamic port.
@@ -1276,7 +1294,7 @@ class DaemonCore : public Service
     SelfMonitorData monitor_data;
 
 	char 	*localAdFile;
-	void	UpdateLocalAd(ClassAd *daemonAd); 
+	void	UpdateLocalAd(ClassAd *daemonAd,char const *fname=NULL); 
 
 		/**
 		   Publish all DC-specific attributes into the given ClassAd.
@@ -1326,12 +1344,20 @@ class DaemonCore : public Service
 		*/
 	void WantSendChildAlive( bool send_alive )
 		{ m_want_send_child_alive = send_alive; }
+	
+	void Wake_up_select();
 
 		/** Registers a socket for read and then calls HandleReq to
 			process a command on the socket once one becomes
 			available.
 		*/
 	void HandleReqAsync(Stream *stream);
+
+		/** Force a reload of the shared port server address.
+			Called, for example, after the master has started up the
+			shared port server.
+		*/
+	void ReloadSharedPortServerAddr();
 
   private:      
 
@@ -1347,8 +1373,8 @@ class DaemonCore : public Service
 	void InitDCCommandSocket( int command_port );  // called in main()
 
     int HandleSigCommand(int command, Stream* stream);
-    int HandleReq(int socki);
-	int HandleReq(Stream *insock);
+    int HandleReq(int socki, Stream* accepted_sock=NULL);
+	int HandleReq(Stream *insock, Stream* accepted_sock=NULL);
 	int HandleReqSocketTimerHandler();
 	int HandleReqSocketHandler(Stream *stream);
     int HandleSig(int command, int sig);
@@ -1490,10 +1516,13 @@ class DaemonCore : public Service
 		bool			is_connect_pending;
 		bool			is_reverse_connect_pending;
 		bool			call_handler;
+		int				servicing_tid;	// tid servicing this socket
+		bool			remove_asap;	// remove when being_serviced==false
     };
     void              DumpSocketTable(int, const char* = NULL);
     int               maxSocket;  // number of socket handlers to start with
-    int               nSock;      // number of socket handlers used
+    int               nSock;      // number of socket handler slots in use use
+	int				  nRegisteredSocks; // number of sockets registered, always < nSock
 	int               nPendingSockets; // number of sockets waiting on timers or any other callbacks
     ExtArray<SockEnt> *sockTable; // socket table; grows dynamically if needed
     int               initial_command_sock;  
@@ -1516,6 +1545,7 @@ class DaemonCore : public Service
 	int pipeHandleTableInsert(PipeHandle);
 	void pipeHandleTableRemove(int);
 	int pipeHandleTableLookup(int, PipeHandle* = NULL);
+	int maxPipeBuffer;
 
 	// this table is for dispatching registered pipes
 	class PidEntry;  // forward reference
@@ -1563,6 +1593,7 @@ class DaemonCore : public Service
 		PidEntry();
 		~PidEntry();
 		int pipeHandler(int pipe_fd);
+		void pipeFullWrite(int pipe_fd);
 
         pid_t pid;
         int new_process_group;
@@ -1576,8 +1607,8 @@ class DaemonCore : public Service
 		LONG deallocate;
 		HANDLE watcherEvent;
 #endif
-        char sinful_string[28];
-        char parent_sinful_string[28];
+        MyString sinful_string;
+        MyString parent_sinful_string;
         int is_local;
         int parent_is_local;
         int reaper_id;
@@ -1585,10 +1616,12 @@ class DaemonCore : public Service
         int was_not_responding;
         int std_pipes[3];  // Pipe handles for automagic DC std pipes.
         MyString* pipe_buf[3];  // Buffers for data written to DC std pipes.
+        int stdin_offset;
 
 		/* the environment variables which allow me the track the pidfamily
 			of this pid (where applicable) */
 		PidEnvID penvid;
+		MyString shared_port_fname;
     };
 
 	int m_refresh_dns_timer;
@@ -1637,9 +1670,13 @@ class DaemonCore : public Service
     int SetFDInheritFlag(int fd, int flag);
 #endif
 
+	// Setup an async_pipe, used to wake up select from another thread.
+	// Implemented on Unix via a pipe, on Win32 via a pair of connected tcp sockets.
 #ifndef WIN32
     int async_pipe[2];  // 0 for reading, 1 for writing
     volatile int async_sigs_unblocked;
+#else
+	ReliSock async_pipe[2];  // 0 for reading, 1 for writing
 #endif
 	volatile bool async_pipe_empty;
 
@@ -1672,6 +1709,9 @@ class DaemonCore : public Service
 	// misc helper functions
 	void CheckPrivState( void );
 
+		// invoked by CondorThreads upon thread context switch
+	static void thread_switch_callback(void* & ptr);
+
 		// Call the registered socket handler for this socket
 		// i - index of registered socket
 		// default_to_HandleCommand - true if HandleCommand() should be called
@@ -1679,15 +1719,14 @@ class DaemonCore : public Service
 		// On return, i may be modified so that when incremented,
 		// it will index the next registered socket.
 	void CallSocketHandler( int &i, bool default_to_HandleCommand );
+	static void CallSocketHandler_worker_demarshall(void *args);
+	void CallSocketHandler_worker( int i, bool default_to_HandleCommand, Stream* asock );
+	
 
 		// Returns index of registered socket or -1 if not found.
 	int GetRegisteredSocketIndex( Stream *sock );
 
-    // these need to be in thread local storage someday
-    void **curr_dataptr;
-    void **curr_regdataptr;
     int inServiceCommandSocket_flag;
-    // end of thread local storage
         
 #ifndef WIN32
     static char **ParseArgsString(const char *env);
@@ -1748,10 +1787,13 @@ class DaemonCore : public Service
 	char* m_private_network_name;
 
 	class CCBListeners *m_ccb_listeners;
+	class SharedPortEndpoint *m_shared_port_endpoint;
 	Sinful m_sinful;     // full contact info (public, private, ccb, etc.)
 	bool m_dirty_sinful; // true if m_sinful needs to be reinitialized
 
 	bool CommandNumToTableIndex(int cmd,int *cmd_index);
+
+	void InitSharedPort(bool in_init_dc_command_socket=false);
 };
 
 #ifndef _NO_EXTERN_DAEMON_CORE

@@ -132,7 +132,7 @@ public:
 	void publishCOD( ClassAd* );
 	void publishStateTimes( ClassAd* );
 
-	void dprintf( int, char* ... );
+	void dprintf( int, const char* ... );
 
 	void refuseClaimRequest();
 
@@ -166,12 +166,12 @@ public:
 		// Timer functions
 	void start_match_timer();
 	void cancel_match_timer();
-	int  match_timed_out();		// We were matched, but not claimed in time
+	void  match_timed_out();		// We were matched, but not claimed in time
 	void startLeaseTimer();
 	void cancelLeaseTimer();
-	int  leaseExpired();		// We were claimed, but didn't get a
+	void  leaseExpired();		// We were claimed, but didn't get a
 								// keep alive in time from the schedd
-	int sendAlive();
+	void sendAlive();
 	int sendAliveConnectHandler(Stream *sock);
 	int sendAliveResponseHandler( Stream *sock );
 
@@ -222,7 +222,7 @@ public:
 		// starter-related functions
 	int	 spawnStarter( Stream* = NULL );
 	void setStarter( Starter* s );
-	void starterExited( void );
+	void starterExited( int status );
 	bool starterPidMatches( pid_t starter_pid );
 	bool isDeactivating( void );
 	bool isActive( void );
@@ -263,6 +263,10 @@ public:
 			for other things, too.
 		*/
 	bool writeJobAd( int fd );
+
+		/** Write out the machine ClassAd to the provided stream
+ 		*/
+	bool writeMachAd( Stream *stream );
 
 	void receiveJobClassAdUpdate( ClassAd &update_ad );
 

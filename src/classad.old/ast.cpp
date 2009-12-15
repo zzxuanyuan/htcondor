@@ -29,7 +29,6 @@
 #include "condor_ast.h"
 #include "condor_classad.h"
 #include "condor_buildtable.h"
-#include "condor_classad_lookup.h"
 #include "condor_string.h"
 
 #include "Regex.h"
@@ -44,6 +43,21 @@ static void dprintResult(ExprTree *tree, EvalResult *result);
 bool classad_debug_function_run = 0;
 
 #define EatSpace(ptr)  while(*ptr != '\0') ptr++;
+
+int EvalExprTree( ExprTree *expr, const AttrList *source, const AttrList *target,
+				  EvalResult *result )
+{
+	return expr->EvalTree( source, target, result );
+}
+
+const char *ExprTreeToString( ExprTree *expr ) {
+	static MyString value;
+	if ( expr == NULL ) {
+		return NULL;
+	}
+	expr->PrintToStr( value );
+	return value.Value();
+}
 
 // EvalResult ctor
 EvalResult::EvalResult()
@@ -341,7 +355,7 @@ int Variable::_EvalTree(const AttrList* classad, EvalResult* val)
 	return FALSE;
     }
     
-    if(!(tmp = classad->Lookup(name)))
+    if(!(tmp = classad->LookupExpr(name)))
     {
 		val->type = LX_UNDEFINED;
 		dprintResult(this, val);
@@ -395,31 +409,6 @@ int Variable::_EvalTreeRecursive( const char *adName, const AttrList* my_classad
 		} else if(!strcasecmp(prefix.Value(),"TARGET")) {
 			return _EvalTreeRecursive(rest.Value(),target_classad,my_classad,val, true);
         }
-        /*
-         * This code has been deprecated. 
-         * It was written by Doug Thain for research relating to his
-         * paper titled "Gathering at the Well: Creating Communities for 
-         * Grid I/O". It hasn't been used since, and the fact that this 
-         * causes ClassAds to need to talk to Daemons is causing linking
-         * problems for libcondorapi.a, so we're just ditching it. 
-		} else {
-			ExprTree *expr;
-			char expr_string[ATTRLIST_MAX_EXPRESSION];
-			if (target_classad) {
-				expr = target_classad->Lookup(prefix);
-				if(expr) {
-					expr_string[0] = 0;
-					expr->RArg()->PrintToStr(expr_string);
-					other_classad = ClassAdLookupGlobal(expr_string);
-					if(other_classad) {
-						result = _EvalTreeRecursive(rest,other_classad,other_classad,val);
-						delete other_classad;
-						return result;
-					}
-				}
-			}
-		}
-        */
 	} else {
 		return this->_EvalTreeSimple(rest.Value(),my_classad,target_classad,val, restrict_search);
 	}
@@ -439,7 +428,7 @@ int Variable::_EvalTreeSimple( const char *adName, const AttrList *my_classad, c
 
 	if(my_classad)
 	{
-		tmp = my_classad->Lookup(adName);
+		tmp = my_classad->LookupExpr(adName);
 		if(tmp) {
 			int result = tmp->EvalTree(my_classad, target_classad, val);
 			dprintResult(this, val);
@@ -449,7 +438,7 @@ int Variable::_EvalTreeSimple( const char *adName, const AttrList *my_classad, c
 
 	if(!restrict_search && target_classad)
 	{
-		tmp = target_classad->Lookup(adName);
+		tmp = target_classad->LookupExpr(adName);
 		if(tmp) {
 			int result = tmp->EvalTree(target_classad, my_classad, val);
 			dprintResult(this, val);
@@ -1176,14 +1165,7 @@ Variable::DeepCopy(void) const
 {
 	Variable *copy;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
 	copy = new Variable(name);
-#else
-	char     *name_copy;
-	name_copy = new char[strlen(name)+1];
-	strcpy(name_copy, name);
-	copy = new Variable(name_copy);
-#endif
 	CopyBaseExprTree(copy);
 	
 	return copy;
@@ -1227,14 +1209,7 @@ String::DeepCopy(void) const
 {
 	String *copy;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
 	copy = new String(value);
-#else
-	char   *value_copy;
-	value_copy = new char[strlen(value)+1];
-	strcpy(value_copy, value);
-	copy = new String(value_copy);
-#endif
 	CopyBaseExprTree(copy);
 	
 	return copy;
@@ -1245,14 +1220,7 @@ ISOTime::DeepCopy(void) const
 {
 	ISOTime *copy;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
 	copy = new ISOTime(time);
-#else
-	char   *time_copy;
-	time_copy = new char[strlen(time)+1];
-	strcpy(time_copy, time);
-	copy = new ISOTime(time_copy);
-#endif
 	CopyBaseExprTree(copy);
 	
 	return copy;
@@ -1573,12 +1541,7 @@ ExprTree *Function::DeepCopy(void) const
 {
 	Function *copy;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
 	copy = new Function(name);
-#else
-	char     *name_copy;
-	name_copy = strnewp(name);
-#endif
 	CopyBaseExprTree(copy);
 
 	ListIterator< ExprTree > iter(*arguments);
@@ -1632,7 +1595,8 @@ int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, Ev
 		 !strcasecmp(name,"stricmp") ||
 		 !strcasecmp(name,"toUpper") ||
 		 !strcasecmp(name,"toLower") ||
-		 !strcasecmp(name,"size") ) 
+		 !strcasecmp(name,"size") ||
+		 !strcasecmp(name,"eval") ) 
 	{
 		must_eval_to_strings = true;
 	}
@@ -1736,6 +1700,8 @@ int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, Ev
 		} else if (!strcasecmp(name, "debug")) {
 			*result = evaluated_args[0];
 			successful_eval = true;
+		} else if (!strcasecmp(name, "eval")) {
+			successful_eval = FunctionEval(attrlist1, attrlist2, number_of_args, evaluated_args, result);
 		}
 #ifdef HAVE_DLOPEN
         else {
@@ -1763,6 +1729,50 @@ int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, Ev
 	return successful_eval;
 }
 
+void EvalResult::toString(bool force)
+{
+	switch(type) {
+		case LX_STRING:
+			break;
+		case LX_FLOAT: {
+			MyString buf;
+			buf.sprintf("%lf",f);
+			s = strnewp(buf.Value());
+			type = LX_STRING;
+			break;
+		}
+		case LX_BOOL:	
+			type = LX_STRING;
+			if (i) {
+				s = strnewp("TRUE");
+			} else {
+				s = strnewp("FALSE");
+			}	
+			break;
+		case LX_INTEGER: {
+			MyString buf;
+			buf.sprintf("%d",i);
+			s = strnewp(buf.Value());
+			type = LX_STRING;
+			break;
+		}
+		case LX_UNDEFINED:
+			if( force ) {
+				s = strnewp("UNDEFINED");
+				type = LX_STRING;
+			}
+			break;
+		case LX_ERROR:
+			if( force ) {
+				s = strnewp("ERROR");
+				type = LX_STRING;
+			}
+			break;
+		default:
+			ASSERT("Unknown classad result type");
+	}
+}
+
 int Function::EvaluateArgumentToString(
 	ExprTree *arg,
 	const AttrList *attrlist1,
@@ -1773,22 +1783,7 @@ int Function::EvaluateArgumentToString(
 
 	EvaluateArgument( arg, attrlist1, attrlist2, result );
 
-	if ( result->type != LX_STRING ) {
-		// if type is anything but string, return unparsed canonical form.
-		// note we cannot just call PrintToNewStr() here, since that function 
-		// allocates memory with malloc(), and result->s needs to be 
-		// allocated with new[].
-		char *tmp = NULL;
-		arg->PrintToNewStr(&tmp);
-		if (tmp) {
-			// convert from malloc buffer to new[] buffer, since
-			// the destructor in EvalResult calls delete[].
-			result->s = strnewp(tmp);
-			free(tmp);
-		} else {
-			result->type = LX_ERROR;
-		}
-	}
+	result->toString();
 
 	if ( result->type == LX_STRING ) {
 		return TRUE;
@@ -2107,39 +2102,10 @@ int Function::FunctionString(
 		return FALSE;
 	}
 
-	switch(evaluated_args[0].type) {
-		case LX_FLOAT:
-			result->s = new char[20];
-			sprintf(result->s,"%lf", evaluated_args[0].f);
-			result->type = LX_STRING;
-			break;
-		case LX_BOOL:	
-			result->s = new char[6];
-			result->type = LX_STRING;
-			if (evaluated_args[0].i) {
-				sprintf(result->s,"%s", "TRUE");
-			} else {
-				sprintf(result->s,"%s", "FALSE");
-			}	
-			break;
-		case LX_INTEGER:
-			result->s = new char[20];
-			sprintf(result->s,"%d", evaluated_args[0].i);
-			result->type = LX_STRING;
-			break;
-		case LX_STRING:
-			result->type = LX_STRING;
-			result->s = strnewp(evaluated_args[0].s);
-			break;
-		case LX_UNDEFINED:
-			result->type = LX_UNDEFINED;
-			break;
-		case LX_ERROR:
-			result->type = LX_ERROR;
-			return FALSE;
-			break;
-		default:
-			ASSERT("Unknown classad result type");
+	*result = evaluated_args[0];
+	result->toString();
+	if( result->type == LX_ERROR ) {
+		return FALSE;
 	}
 
 	return TRUE;
@@ -3368,6 +3334,45 @@ int Function::FunctionFormatTime(
 	}
 
 	return TRUE;
+}
+
+
+int Function::FunctionEval(
+	AttrList const *attrlist1,
+	AttrList const *attrlist2,
+	int number_of_args,         // IN:  size of evaluated args array
+	EvalResult *evaluated_args, // IN:  the arguments to the function
+	EvalResult *result)         // OUT: the result of calling the function
+{
+	/*
+	  eval(string s) returns the result of the string s evaluated
+	  as a ClassAd expression.
+	*/
+
+	if ( number_of_args != 1 ) {
+		result->type = LX_ERROR;
+		return FALSE;
+	}
+
+	if( (evaluated_args[0].type != LX_STRING) ||
+		(evaluated_args[0].i < 0) ) 
+	{
+		result->type = LX_ERROR;
+		return FALSE;
+	}
+
+	char const *expr_str = evaluated_args[0].s;
+	ExprTree *expr_tree;
+	ParseClassAdRvalExpr(expr_str,expr_tree);
+	if( !expr_tree ) {
+		result->type = LX_ERROR;
+		return FALSE;
+	}
+
+	int rc = expr_tree->EvalTree(attrlist1,attrlist2,result);
+
+	delete expr_tree;
+	return rc;
 }
 
 

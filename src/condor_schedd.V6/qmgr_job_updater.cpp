@@ -60,6 +60,7 @@ QmgrJobUpdater::QmgrJobUpdater( ClassAd* job, const char* schedd_address )
 	requeue_job_queue_attrs = NULL;
 	terminate_job_queue_attrs = NULL;
 	checkpoint_job_queue_attrs = NULL;
+	m_pull_attrs = NULL;
 	initJobQueueAttrLists();
 
 		// finally, clear all the dirty bits on this jobAd, so we only
@@ -83,6 +84,7 @@ QmgrJobUpdater::~QmgrJobUpdater()
 	if( requeue_job_queue_attrs ) { delete requeue_job_queue_attrs; }
 	if( terminate_job_queue_attrs ) { delete terminate_job_queue_attrs; }
 	if( checkpoint_job_queue_attrs ) { delete checkpoint_job_queue_attrs; }
+	delete m_pull_attrs;
 }
 
 
@@ -96,6 +98,7 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	if( terminate_job_queue_attrs ) { delete terminate_job_queue_attrs; }
 	if( common_job_queue_attrs ) { delete common_job_queue_attrs; }
 	if( checkpoint_job_queue_attrs ) { delete checkpoint_job_queue_attrs; }
+	delete m_pull_attrs;
 
 	common_job_queue_attrs = new StringList();
 	common_job_queue_attrs->insert( ATTR_IMAGE_SIZE );
@@ -144,6 +147,11 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	checkpoint_job_queue_attrs->insert( ATTR_CKPT_OPSYS );
 	checkpoint_job_queue_attrs->insert( ATTR_VM_CKPT_MAC );
 	checkpoint_job_queue_attrs->insert( ATTR_VM_CKPT_IP );
+
+	m_pull_attrs = new StringList();
+	if ( job_ad->LookupExpr( ATTR_TIMER_REMOVE_CHECK ) ) {
+		m_pull_attrs->insert( ATTR_TIMER_REMOVE_CHECK );
+	}
 }
 
 
@@ -234,20 +242,9 @@ QmgrJobUpdater::updateJob( update_t type )
 	ExprTree* tree = NULL;
 	bool is_connected = false;
 	bool had_error = false;
-	bool final_update = false;
-	static bool checked_for_history = false;
-	static bool has_history = false;
-	char* name;
+	const char* name;
+	char *value = NULL;
 	
-	if( ! checked_for_history ) {
-		char* history = param( "HISTORY" );
-		if( history ) {
-			has_history = true;
-			free( history );
-		}
-		checked_for_history = true;
-	}
-
 	StringList* job_queue_attrs = NULL;
 	switch( type ) {
 	case U_HOLD:
@@ -255,14 +252,12 @@ QmgrJobUpdater::updateJob( update_t type )
 		break;
 	case U_REMOVE:
 		job_queue_attrs = remove_job_queue_attrs;
-		final_update = true;
 		break;
 	case U_REQUEUE:
 		job_queue_attrs = requeue_job_queue_attrs;
 		break;
 	case U_TERMINATE:
 		job_queue_attrs = terminate_job_queue_attrs;
-		final_update = true;
 		break;
 	case U_EVICT:
 		job_queue_attrs = evict_job_queue_attrs;
@@ -276,22 +271,12 @@ QmgrJobUpdater::updateJob( update_t type )
 	default:
 		EXCEPT( "QmgrJobUpdater::updateJob: Unknown update type (%d)!", type );
 	}
-	if( final_update && ! has_history ) {
-			// there's no history file on this machine, and this job
-			// is about to leave the queue.  there's no reason to send
-			// this stuff to the schedd, since it's all about to be
-			// flushed, anyway.
-		dprintf( D_FULLDEBUG, "QmgrJobUpdater::updateJob: job leaving "
-				 "queue and schedd has no history file, aborting update\n" );
-		return true;
-	}
 
 	job_ad->ResetExpr();
-	while( (tree = job_ad->NextDirtyExpr()) ) {
+	while( job_ad->NextDirtyExpr(name, tree) ) {
 		if( tree->invisible ) {
 			continue;
 		}
-		name = ((Variable*)tree->LArg())->Name();
 
 			// If we have the lists of attributes we care about and
 			// this attribute is in one of the lists, actually do the
@@ -309,10 +294,25 @@ QmgrJobUpdater::updateJob( update_t type )
 				}
 				is_connected = true;
 			}
-			if( ! updateExprTree(tree) ) {
+			if( ! updateExprTree(name, tree) ) {
 				had_error = true;
 			}
 		}
+	}
+	m_pull_attrs->rewind();
+	while ( (name = m_pull_attrs->next()) ) {
+		if ( !is_connected ) {
+			if ( !ConnectQ( schedd_addr, SHADOW_QMGMT_TIMEOUT, true ) ) {
+				return false;
+			}
+			is_connected = true;
+		}
+		if ( GetAttributeExprNew( cluster, proc, name, &value ) < 0 ) {
+			had_error = true;
+		} else {
+			job_ad->AssignExpr( name, value );
+		}
+		free( value );
 	}
 	if( is_connected ) {
 		DisconnectQ(NULL);
@@ -333,22 +333,21 @@ QmgrJobUpdater::periodicUpdateQ( void )
 
 
 bool
-QmgrJobUpdater::updateExprTree( ExprTree* tree )
+QmgrJobUpdater::updateExprTree( const char *name, ExprTree* tree )
 {
 	if( ! tree ) {
 		dprintf( D_ALWAYS, "QmgrJobUpdater::updateExprTree: tree is NULL!\n" );
 		return false;
 	}
-	ExprTree *rhs = tree->RArg(), *lhs = tree->LArg();
-	if( ! rhs || ! lhs ) {
-		dprintf( D_ALWAYS,
-				 "QmgrJobUpdater::updateExprTree: tree is invalid!\n" );
-		return false;
-	}
-	char* name = ((Variable*)lhs)->Name();
 	if( ! name ) {
 		dprintf( D_ALWAYS,
 				 "QmgrJobUpdater::updateExprTree: can't find name!\n" );
+		return false;
+	}		
+	const char* value = ExprTreeToString( tree );
+	if( ! value ) {
+		dprintf( D_ALWAYS,
+				 "QmgrJobUpdater::updateExprTree: can't find value!\n" );
 		return false;
 	}		
 		// This code used to be smart about figuring out what type of
@@ -359,19 +358,15 @@ QmgrJobUpdater::updateExprTree( ExprTree* tree )
 		// and call SetAttribute(), so it was both a waste of effort
 		// here, and made this code needlessly more complex.  
 		// Derek Wright, 3/25/02
-	char* tmp = NULL;
-	rhs->PrintToNewStr( &tmp );
-	if( SetAttribute(cluster, proc, name, tmp) < 0 ) {
+	if( SetAttribute(cluster, proc, name, value) < 0 ) {
 		dprintf( D_ALWAYS, 
 				 "updateExprTree: Failed SetAttribute(%s, %s)\n",
-				 name, tmp );
-		free( tmp );
+				 name, value );
 		return false;
 	}
 	dprintf( D_FULLDEBUG, 
 			 "Updating Job Queue: SetAttribute(%s = %s)\n",
-			 name, tmp );
-	free( tmp );
+			 name, value );
 	return true;
 }
 

@@ -47,7 +47,7 @@ class NordugridJob : public BaseJob
 	~NordugridJob();
 
 	void Reconfig();
-	int doEvaluateState();
+	void doEvaluateState();
 	BaseResource *GetResource();
 	void SetRemoteJobId( const char *job_id );
 
@@ -64,6 +64,8 @@ class NordugridJob : public BaseJob
 		{ gahpCallTimeout = new_timeout; }
 	static void setConnectFailureRetry( int count )
 		{ maxConnectFailures = count; }
+
+	void NotifyNewRemoteStatus( const char *status );
 
 	int gmState;
 	time_t lastProbeTime;
@@ -90,11 +92,6 @@ class NordugridJob : public BaseJob
 		// Same as for RSL, but used by the file staging calls.
 	StringList *stageList;
 	StringList *stageLocalList;
-
-		// These get set before file stage out, but don't get handed
-		// to JobTerminated() until after file stage out succeeds.
-	int exitCode;
-	bool normalExit;
 
 	MyString *buildSubmitRSL();
 	StringList *buildStageInList();

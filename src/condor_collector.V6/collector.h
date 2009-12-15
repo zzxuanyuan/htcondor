@@ -90,7 +90,7 @@ public:
 	static void unixsigint_handler();
 	
 	static void init_classad(int interval);
-	static int sendCollectorAd();
+	static void sendCollectorAd();
 
 	static void send_classad_to_sock( int cmd, Daemon * d, ClassAd* theAd);	
 
@@ -126,7 +126,8 @@ protected:
 	static CollectorUniverseStats ustatsMonthly;
 
 	static ClassAd *ad;
-	static DCCollector* updateCollector;
+	static CollectorList* updateCollectors;
+	static DCCollector* updateRemoteCollector;
 	static int UpdateTimerId;
 
 	static ForkWork forkQuery;

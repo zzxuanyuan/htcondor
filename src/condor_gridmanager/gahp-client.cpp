@@ -190,7 +190,8 @@ GahpServer::~GahpServer()
 		daemonCore->Cancel_Timer( poll_tid );
 	}
 	if ( master_proxy != NULL ) {
-		ReleaseProxy( master_proxy->proxy );
+		ReleaseProxy( master_proxy->proxy, (TimerHandlercpp)&GahpServer::ProxyCallback,
+					  this );
 		delete master_proxy;
 	}
 	if ( proxy_check_tid != TIMER_UNSET ) {
@@ -201,7 +202,8 @@ GahpServer::~GahpServer()
 
 		ProxiesByFilename->startIterations();
 		while ( ProxiesByFilename->iterate( gahp_proxy ) != 0 ) {
-			ReleaseProxy( gahp_proxy->proxy );
+			ReleaseProxy( gahp_proxy->proxy,
+						  (TimerHandlercpp)&GahpServer::ProxyCallback, this );
 			delete gahp_proxy;
 		}
 
@@ -839,14 +841,10 @@ GahpServer::Initialize( Proxy *proxy )
 		}
 	}
 
-	proxy_check_tid = daemonCore->Register_Timer( TIMER_NEVER,
-								(TimerHandlercpp)&GahpServer::doProxyCheck,
-								"GahpServer::doProxyCheck", (Service*) this );
-
-
 	master_proxy = new GahpProxyInfo;
 	master_proxy->proxy = proxy->subject->master_proxy;
-	AcquireProxy( master_proxy->proxy, proxy_check_tid );
+	AcquireProxy( master_proxy->proxy, (TimerHandlercpp)&GahpServer::ProxyCallback,
+				  this );
 	master_proxy->cached_expiration = 0;
 
 		// Give the server our x509 proxy.
@@ -1035,12 +1033,23 @@ GahpServer::command_use_cached_proxy( GahpProxyInfo *new_proxy )
 }
 
 int
+GahpServer::ProxyCallback()
+{
+	if ( m_gahp_pid > 0 ) {
+		proxy_check_tid = daemonCore->Register_Timer( 0,
+								(TimerHandlercpp)&GahpServer::doProxyCheck,
+								"GahpServer::doProxyCheck", (Service*)this );
+	}
+	return 0;
+}
+
+void
 GahpServer::doProxyCheck()
 {
-	daemonCore->Reset_Timer( proxy_check_tid, TIMER_NEVER );
+	proxy_check_tid = TIMER_UNSET;
 
 	if ( m_gahp_pid == -1 ) {
-		return 0;
+		return;
 	}
 
 	GahpProxyInfo *next_proxy;
@@ -1084,8 +1093,6 @@ GahpServer::doProxyCheck()
 
 		master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
 	}
-
-	return 0;
 }
 
 GahpProxyInfo *
@@ -1111,10 +1118,11 @@ GahpServer::RegisterProxy( Proxy *proxy )
 	if ( rc != 0 ) {
 		gahp_proxy = new GahpProxyInfo;
 		ASSERT(gahp_proxy);
-		gahp_proxy->proxy = AcquireProxy( proxy, proxy_check_tid );
+		gahp_proxy->proxy = AcquireProxy( proxy,
+										  (TimerHandlercpp)&GahpServer::ProxyCallback,
+										  this );
 		gahp_proxy->cached_expiration = 0;
 		gahp_proxy->num_references = 1;
-//		daemonCore->Reset_Timer( proxy_check_tid, 0 );
 		if ( cacheProxyFromFile( gahp_proxy ) == false ) {
 			EXCEPT( "Failed to cache proxy!" );
 		}
@@ -1159,7 +1167,8 @@ GahpServer::UnregisterProxy( Proxy *proxy )
 	if ( gahp_proxy->num_references == 0 ) {
 		ProxiesByFilename->remove( HashKey( gahp_proxy->proxy->proxy_filename ) );
 		uncacheProxy( gahp_proxy );
-		ReleaseProxy( gahp_proxy->proxy );
+		ReleaseProxy( gahp_proxy->proxy, (TimerHandlercpp)&GahpServer::ProxyCallback,
+					  this );
 		delete gahp_proxy;
 	}
 }
@@ -1584,7 +1593,7 @@ int
 GahpClient::globus_gram_client_job_request(
 	const char * resource_manager_contact,
 	const char * description,
-	const int /* job_state_mask */,
+	const int limited_deleg,
 	const char * callback_contact,
 	char ** job_contact)
 {
@@ -1604,7 +1613,7 @@ GahpClient::globus_gram_client_job_request(
 	char *esc1 = strdup( escapeGahpString(resource_manager_contact) );
 	char *esc2 = strdup( escapeGahpString(callback_contact) );
 	char *esc3 = strdup( escapeGahpString(description) );
-	bool x = reqline.sprintf("%s %s 1 %s", esc1, esc2, esc3 );
+	bool x = reqline.sprintf("%s %s %d %s", esc1, esc2, limited_deleg, esc3 );
 	free( esc1 );
 	free( esc2 );
 	free( esc3 );
@@ -1953,7 +1962,8 @@ GahpClient::globus_gram_client_ping(const char * resource_contact)
 }
 
 int
-GahpClient::globus_gram_client_job_refresh_credentials(const char *job_contact)
+GahpClient::globus_gram_client_job_refresh_credentials(const char *job_contact,
+													   int limited_deleg)
 {
 	static const char* command = "GRAM_JOB_REFRESH_PROXY";
 
@@ -1965,7 +1975,7 @@ GahpClient::globus_gram_client_job_refresh_credentials(const char *job_contact)
 		// Generate request line
 	if (!job_contact) job_contact=NULLSTRING;
 	MyString reqline;
-	bool x = reqline.sprintf("%s",escapeGahpString(job_contact));
+	bool x = reqline.sprintf("%s %d",escapeGahpString(job_contact),limited_deleg);
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
 
@@ -2010,7 +2020,7 @@ bool
 GahpClient::is_pending(const char *command, const char * /* buf */) 
 {
 		// note: do _NOT_ check pending reqid here.
-// MirrorResource doesn't exactly recreate all the arguments when checking
+// Some callers don't exactly recreate all the arguments when checking
 // the status of a pending command, so relax our check here. Current users
 // of GahpClient are careful to purge potential outstanding commands before
 // issuing new ones, so this shouldn't be a problem. 
@@ -2056,10 +2066,10 @@ GahpClient::clear_pending()
 	}
 }
 
-int
+void
 GahpClient::reset_user_timer_alarm()
 {
-	return reset_user_timer(pending_timeout_tid);
+	reset_user_timer(pending_timeout_tid);
 }
 
 int
@@ -2179,7 +2189,7 @@ GahpClient::get_pending_result(const char *,const char *)
 	return r;
 }
 
-int
+void
 GahpServer::poll()
 {
 	Gahp_Args* result = NULL;
@@ -2207,7 +2217,7 @@ GahpServer::poll()
 		dprintf(D_ALWAYS,"GAHP command 'RESULTS' failed\n");
 		delete result;
 		m_in_results = false;
-		return 0;
+		return;
 	}
 	num_results = atoi(result->argv[1]);
 
@@ -2348,9 +2358,6 @@ GahpServer::poll()
 			requestTable->remove(result_reqid);
 		}
 	}
-
-
-	return num_results;
 }
 
 bool
@@ -4413,6 +4420,80 @@ GahpClient::nordugrid_status(const char *hostname, const char *job_id,
 			error_string = result->argv[3];
 		} else {
 			error_string = "";
+		}
+		delete result;
+		return rc;
+	}
+
+		// Now check if pending command timed out.
+	if ( check_pending_timeout(command,buf) ) {
+		// pending command timed out.
+		error_string.sprintf( "%s timed out", command );
+		return GAHPCLIENT_COMMAND_TIMED_OUT;
+	}
+
+		// If we made it here, command is still pending...
+	return GAHPCLIENT_COMMAND_PENDING;
+}
+
+int
+GahpClient::nordugrid_ldap_query(const char *hostname, const char *ldap_base,
+								 const char *ldap_filter,
+								 const char *ldap_attrs, StringList &results)
+{
+	static const char* command = "NORDUGRID_LDAP_QUERY";
+
+		// Check if this command is supported
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
+		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
+	}
+
+		// Generate request line
+	if (!hostname) hostname=NULLSTRING;
+	if (!ldap_base) ldap_base=NULLSTRING;
+	if (!ldap_filter) ldap_filter=NULLSTRING;
+	if (!ldap_attrs) ldap_attrs=NULLSTRING;
+	MyString reqline;
+	char *esc1 = strdup( escapeGahpString(hostname) );
+	char *esc2 = strdup( escapeGahpString(ldap_base) );
+	char *esc3 = strdup( escapeGahpString(ldap_filter) );
+	char *esc4 = strdup( escapeGahpString(ldap_attrs) );
+	bool x = reqline.sprintf("%s %s %s %s", esc1, esc2, esc3, esc4 );
+	free( esc1 );
+	free( esc2 );
+	free( esc3 );
+	free( esc4 );
+	ASSERT( x == true );
+	const char *buf = reqline.Value();
+
+		// Check if this request is currently pending.  If not, make
+		// it the pending request.
+	if ( !is_pending(command,buf) ) {
+		// Command is not pending, so go ahead and submit a new one
+		// if our command mode permits.
+		if ( m_mode == results_only ) {
+			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
+		}
+		now_pending(command,buf,deleg_proxy);
+	}
+
+		// If we made it here, command is pending.
+		
+		// Check first if command completed.
+	Gahp_Args* result = get_pending_result(command,buf);
+	if ( result ) {
+		// command completed.
+		if (result->argc < 3) {
+			EXCEPT("Bad %s Result",command);
+		}
+		int rc = atoi(result->argv[1]);
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
+		for ( int i = 3; i < result->argc; i++ ) {
+			results.append( result->argv[i] );
 		}
 		delete result;
 		return rc;

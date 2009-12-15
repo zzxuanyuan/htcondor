@@ -102,13 +102,22 @@ class CollectorEngine : public Service
 	// should we log?
 	bool log;
 
-	int  housekeeper ();
+	void  housekeeper ();
 	int  housekeeperTimerID;
 	void cleanHashTable (CollectorHashTable &, time_t,
 				bool (*) (AdNameHashKey &, ClassAd *,sockaddr_in *));
 	ClassAd* updateClassAd(CollectorHashTable&,const char*, const char *,
 						   ClassAd*,AdNameHashKey&, const MyString &, int &, 
 						   const sockaddr_in * );
+
+	ClassAd * mergeClassAd (CollectorHashTable &hashTable,
+							const char *adType,
+							const char *label,
+							ClassAd *new_ad,
+							AdNameHashKey &hk,
+							const MyString &hashString,
+							int  &insert,
+							const sockaddr_in * /*from*/ );
 
 	// support for dynamically created tables
 	CollectorHashTable *findOrCreateTable(MyString &str);

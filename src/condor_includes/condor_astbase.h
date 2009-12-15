@@ -71,11 +71,7 @@
 class StringList;
 template <class Item> class List; // forward declaration
 
-#define USE_STRING_SPACE_IN_CLASSADS
-
-#ifdef USE_STRING_SPACE_IN_CLASSADS
 class StringSpace;
-#endif
 
 class AttrList;
 class EvalResult;
@@ -97,6 +93,7 @@ class ExprTree
 		virtual ExprTree*   LArg()   { return NULL; }
 		virtual ExprTree*   RArg()   { return NULL; }
 		virtual ExprTree*   DeepCopy(void) const = 0;
+		ExprTree*           Copy() const { return DeepCopy(); }
         virtual void        Display();    // display the expression
 		virtual int         CalcPrintToStr(void) {return 0;}
 		virtual void        PrintToNewStr(char **str);
@@ -121,10 +118,8 @@ class ExprTree
 		LexemeType	    	type;         // lexeme type of the node
 		bool				evalFlag;	  // to check for circular evaluation
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
 		static StringSpace  *string_space;
 		static int          string_space_references;
-#endif
 
 };
 
@@ -149,9 +144,7 @@ class VariableBase : public ExprTree
 		virtual int         _EvalTree(const class AttrList*, EvalResult*) = 0;
 		virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*) = 0;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
         int                 stringSpaceIndex;
-#endif 
   		char*               name;
 };
 
@@ -217,9 +210,7 @@ class StringBase : public ExprTree
 		virtual int         _EvalTree(const class AttrList*, EvalResult*) = 0;
 		virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*) = 0;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
         int                 stringSpaceIndex;
-#endif 
 		char*           value;
 };
 
@@ -241,9 +232,7 @@ class ISOTimeBase : public ExprTree
 		virtual int         _EvalTree(const class AttrList*, EvalResult*) = 0;
 		virtual int         _EvalTree(const AttrList*, const AttrList*, EvalResult*) = 0;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
         int                 stringSpaceIndex;
-#endif 
 		char                *time;
 };
 
@@ -446,9 +435,7 @@ class FunctionBase : public ExprTree
 
 		List<ExprTree>     *arguments;
 
-#ifdef USE_STRING_SPACE_IN_CLASSADS
         int                 stringSpaceIndex;
-#endif 
   		char*               name;
 };
 

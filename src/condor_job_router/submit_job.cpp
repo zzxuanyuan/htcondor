@@ -130,7 +130,7 @@ ClaimJobResult claim_job(int cluster, int proc, MyString * error_details, const 
 
 	// Check that the job is still managed by the schedd
 	char * managed;
-	if( GetAttributeStringNew(cluster, proc, ATTR_JOB_MANAGED, &managed) == 0) {
+	if( GetAttributeStringNew(cluster, proc, ATTR_JOB_MANAGED, &managed) >= 0) {
 		bool ok = strcmp(managed, MANAGED_SCHEDD) == 0;
 		free(managed);
 		if( ! ok ) {
@@ -239,7 +239,7 @@ bool yield_job(bool done, int cluster, int proc, MyString * error_details, const
 	// Check that the job is still managed by us
 	bool is_managed = false;
 	char * managed;
-	if( GetAttributeStringNew(cluster, proc, ATTR_JOB_MANAGED, &managed) == 0) {
+	if( GetAttributeStringNew(cluster, proc, ATTR_JOB_MANAGED, &managed) >= 0) {
 		is_managed = strcmp(managed, MANAGED_EXTERNAL) == 0;
 		free(managed);
 	}
@@ -253,7 +253,7 @@ bool yield_job(bool done, int cluster, int proc, MyString * error_details, const
 
 	if(my_identity) {
 		char * manager;
-		if( GetAttributeStringNew(cluster, proc, ATTR_JOB_MANAGED_MANAGER, &manager) == 0) {
+		if( GetAttributeStringNew(cluster, proc, ATTR_JOB_MANAGED_MANAGER, &manager) >= 0) {
 			if(strcmp(manager, my_identity) != 0) {
 				if(error_details) {
 					error_details->sprintf("Job %d.%d is managed by '%s' instead of expected '%s'", cluster, proc, manager, my_identity);
@@ -428,6 +428,7 @@ static bool submit_job_with_current_priv( ClassAd & src, const char * schedd_nam
 	src.Assign(ATTR_PROC_ID, proc);
 	src.Assign(ATTR_CLUSTER_ID, cluster);
 	src.Assign(ATTR_Q_DATE, (int)time(0));
+	src.Assign(ATTR_ENTERED_CURRENT_STATUS, (int)time(0));
 
 	// Things to set because we want to spool/sandbox input files
 	if( is_sandboxed ) {
@@ -443,15 +444,12 @@ static bool submit_job_with_current_priv( ClassAd & src, const char * schedd_nam
 	src.AssignExpr(ATTR_JOB_LEAVE_IN_QUEUE, leaveinqueue.Value());
 
 	ExprTree * tree;
+	const char *lhstr = 0;
+	const char *rhstr = 0;
 	src.ResetExpr();
-	while( (tree = src.NextExpr()) ) {
-		char *lhstr = 0;
-		char *rhstr = 0;
-		ExprTree * lhs = 0;
-		ExprTree * rhs = 0;
-		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-		if( !lhs || !rhs || !lhstr || !rhstr) { 
+	while( src.NextExpr(lhstr, tree) ) {
+		rhstr = ExprTreeToString( tree );
+		if( !lhstr || !rhstr) { 
 			failobj.fail("Problem processing classad\n");
 			return false;
 		}
@@ -459,8 +457,6 @@ static bool submit_job_with_current_priv( ClassAd & src, const char * schedd_nam
 			failobj.fail("Failed to set %s = %s\n", lhstr, rhstr);
 			return false;
 		}
-		free(lhstr);
-		free(rhstr);
 	}
 
 	if( ! DisconnectQ(qmgr, true /* commit */)) {
@@ -515,15 +511,12 @@ bool submit_job( classad::ClassAd & src, const char * schedd_name, const char * 
 bool push_dirty_attributes(int cluster, int proc, ClassAd & src)
 {
 	src.ResetExpr();
+	const char *lhstr = 0;
+	const char *rhstr = 0;
 	ExprTree * tree;
-	while( (tree = src.NextDirtyExpr()) ) {
-		char *lhstr = 0;
-		char *rhstr = 0;
-		ExprTree * lhs = 0;
-		ExprTree * rhs = 0;
-		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-		if( !lhs || !rhs || !lhstr || !rhstr) { 
+	while( src.NextDirtyExpr(lhstr, tree) ) {
+		rhstr = ExprTreeToString( tree );
+		if( !lhstr || !rhstr) { 
 			dprintf(D_ALWAYS,"(%d.%d) push_dirty_attributes: Problem processing classad\n", cluster, proc);
 			return false;
 		}
@@ -532,8 +525,6 @@ bool push_dirty_attributes(int cluster, int proc, ClassAd & src)
 			dprintf(D_ALWAYS,"(%d.%d) push_dirty_attributes: Failed to set %s = %s\n", cluster, proc, lhstr, rhstr);
 			return false;
 		}
-		free(lhstr);
-		free(rhstr);
 	}
 	return true;
 }

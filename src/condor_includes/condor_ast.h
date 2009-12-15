@@ -65,6 +65,23 @@
 #include "condor_exprtype.h"
 #include "condor_astbase.h"
 
+class ClassAd;
+
+/* This helper function calls expr->EvalTree( source, target, result )
+ * This function is meant to ease the transition to new ClassAds,
+ * whose ExprTree doesn't have EvalTree().
+ */
+int EvalExprTree( ExprTree *expr, const AttrList *source, const AttrList *target,
+				  EvalResult *result );
+
+/* This helper function unparses the given ExprTree and returns a
+ * pointer to the resulting string. The string is valid until the next
+ * call of this function.
+ * This function is meant to ease the transition to new ClassAds,
+ * whose ExprTree doesn't have PrintToStr() or PrintToNewStr().
+ */
+const char *ExprTreeToString( ExprTree *expr );
+
 ////////////////////////////////////////////////////////////////////////////////
 // Class EvalResult is passed to ExprTree::EvalTree() to buffer the result of
 // the evaluation. The result can be integer, floating point, string, boolean,
@@ -83,6 +100,10 @@ class EvalResult
 	EvalResult & operator=(const EvalResult & rhs);
 
 	void fPrintResult(FILE *); // for debugging
+
+		/// convert to LX_STRING
+		/// if value is ERROR or UNDEFINED, do not convert unless force=true
+	void toString(bool force=false);
 
    	union
     	{
@@ -479,6 +500,10 @@ class Function: public FunctionBase
 						EvalResult *result);
 	int FunctionFormatTime(int number_of_args, EvalResult *evaluated_args, 
 						EvalResult *result);
+
+	int FunctionEval(AttrList const *attrlist1, AttrList const *attrlist2,
+					 int number_of_args, EvalResult *evaluated_args,
+					 EvalResult *result);
 };
 
 #endif

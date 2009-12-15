@@ -59,6 +59,7 @@ bool            javaMode = false;
 bool			vmMode = false;
 char 		*target = NULL;
 ClassAd		*targetAd = NULL;
+ArgList projList;		// Attributes that we want the server to send us
 
 // instantiate templates
 
@@ -176,11 +177,19 @@ main (int argc, char *argv[])
 	  case MODE_GENERIC_NORMAL:
 	  case MODE_ANY_NORMAL:
 	  case MODE_GRID_NORMAL:
+	  case MODE_HAD_NORMAL:
 		break;
 
 	  case MODE_OTHER:
 			// tell the query object what the type we're querying is
 		query->setGenericQueryType(genericType);
+		if(genericType) {
+			sprintf( buffer, "TARGET.%s == \"%s\"", ATTR_TARGET_TYPE, genericType);
+			if (diagnose) {
+				printf ("Adding constraint [%s]\n", buffer);
+			}
+			query->addANDConstraint (buffer);
+		}
 		free(genericType);
 		genericType = NULL;
 		break;
@@ -223,6 +232,12 @@ main (int argc, char *argv[])
 			printf ("Adding constraint [%s]\n", buffer);
 		}
 		query->addANDConstraint (buffer);
+		
+		projList.AppendArg(ATTR_HAS_JAVA);
+		projList.AppendArg(ATTR_JAVA_MFLOPS);
+		projList.AppendArg(ATTR_JAVA_VENDOR);
+		projList.AppendArg(ATTR_JAVA_VERSION);
+
 	}
 
 	if(vmMode) {
@@ -231,8 +246,20 @@ main (int argc, char *argv[])
 			printf ("Adding constraint [%s]\n", buffer);
 		}
 		query->addANDConstraint (buffer);
+
+		projList.AppendArg(ATTR_VM_TYPE);
+		projList.AppendArg(ATTR_VM_MEMORY);
+		projList.AppendArg(ATTR_VM_NETWORKING);
+		projList.AppendArg(ATTR_VM_NETWORKING_TYPES);
+		projList.AppendArg(ATTR_VM_HARDWARE_VT);
+		projList.AppendArg(ATTR_VM_AVAIL_NUM);
+		projList.AppendArg(ATTR_VM_ALL_GUEST_MACS);
+		projList.AppendArg(ATTR_VM_ALL_GUEST_IPS);
+		projList.AppendArg(ATTR_VM_GUEST_MAC);
+		projList.AppendArg(ATTR_VM_GUEST_IP);
+
 	}
-									
+
 	// second pass:  add regular parameters and constraints
 	if (diagnose) {
 		printf ("----------\n");
@@ -245,6 +272,37 @@ main (int argc, char *argv[])
 
 	// fetch the query
 	QueryResult q;
+
+	if ((mode == MODE_STARTD_NORMAL) && (ppStyle == PP_STARTD_NORMAL)) {
+		projList.AppendArg("Name");
+		projList.AppendArg("Opsys");
+		projList.AppendArg("Arch");
+		projList.AppendArg("State");
+		projList.AppendArg("Activity");
+		projList.AppendArg("LoadAvg");
+		projList.AppendArg("Memory");
+		projList.AppendArg("ActvtyTime");
+		projList.AppendArg("MyCurrentTime");
+		projList.AppendArg("EnteredCurrentActivity");
+	}
+
+	
+	
+	// Calculate the projected arguments, and insert into
+	// the projection query attribute
+
+	
+	MyString quotedProjStr;
+	MyString projStrError;
+
+	projList.GetArgsStringV2Quoted(&quotedProjStr, &projStrError);
+
+	MyString projStr("projection = ");
+	projStr += quotedProjStr;
+		// If it is empty, it's just quotes
+	if (quotedProjStr.Length() > 2) {
+		query->addExtraAttribute(projStr.Value());
+	}
 
 	// if diagnose was requested, just print the query ad
 	if (diagnose) {
@@ -263,6 +321,7 @@ main (int argc, char *argv[])
 		fprintf (stderr, "Result of making query ad was:  %d\n", q);
 		exit (1);
 	}
+
 
 	char* addr = pool ? pool->addr() : NULL;
 	if( direct ) {
@@ -298,7 +357,8 @@ main (int argc, char *argv[])
 		case MODE_GENERIC_NORMAL:
 		case MODE_ANY_NORMAL:
 		case MODE_OTHER:
-        case MODE_GRID_NORMAL:
+		case MODE_GRID_NORMAL:
+		case MODE_HAD_NORMAL:
 				// These have to go to the collector, anyway.
 			break;
 		default:
@@ -348,9 +408,11 @@ main (int argc, char *argv[])
 		result.Sort ((SortFunctionType)lessThanFunc);
 	}
 
+	
 	// output result
 	prettyPrint (result, &totals);
 	
+
 	// be nice ...
 	{
 		int last = sortLessThanExprs.getlast();
@@ -408,6 +470,7 @@ usage ()
 		"\t-total\t\t\tDisplay totals only\n"
 		"\t-verbose\t\tSame as -long\n"
 		"\t-xml\t\t\tDisplay entire classads, but in XML\n"
+		"\t-attributes X,Y,...\tAttributes to show in -xml or -long \n"
 		"\t-expert\t\t\tDisplay shorter error messages\n"
 		"    and [custom-opts ...] are one or more of\n"
 		"\t-constraint <const>\tAdd constraint on classads\n"
@@ -530,6 +593,9 @@ firstPass (int argc, char *argv[])
 		if (matchPrefix (argv[i],"-xml", 2)){
 			setPPstyle (PP_XML, i, argv[i]);
 		} else
+		if (matchPrefix (argv[i],"-attributes", 3)){
+			// we don't do anything right here ... see prefix check in secondPass
+		} else	
 		if (matchPrefix (argv[i], "-run", 2) || matchPrefix(argv[i], "-claimed", 3)) {
 			setMode (MODE_STARTD_RUN, i, argv[i]);
 		} else
@@ -586,6 +652,9 @@ firstPass (int argc, char *argv[])
 			if (matchPrefix (argv[i], "generic", 7)) {
 				setMode (MODE_GENERIC_NORMAL, i, argv[i]);
 			} else
+			if (matchPrefix (argv[i], "had", 3)) {
+				setMode (MODE_HAD_NORMAL, i, argv[i]);
+			} else
 			if (*argv[i] == '-') {
 				fprintf(stderr, "%s: -subsystem requires another argument\n",
 						myName);
@@ -628,13 +697,13 @@ firstPass (int argc, char *argv[])
 			ExprTree	*sortExpr;
 			exprString[0] = '\0';
 			sprintf( exprString, "MY.%s < TARGET.%s", argv[i], argv[i] );
-			if( Parse( exprString, sortExpr ) ) {
+			if( ParseClassAdRvalExpr( exprString, sortExpr ) ) {
 				fprintf( stderr, "Error:  Parse error of: %s\n", exprString );
 				exit( 1 );
 			}
 			sortLessThanExprs[sortLessThanExprs.getlast()+1] = sortExpr;
 			sprintf( exprString, "MY.%s == TARGET.%s", argv[i], argv[i] );
-			if( Parse( exprString, sortExpr ) ) {
+			if( ParseClassAdRvalExpr( exprString, sortExpr ) ) {
 				fprintf( stderr, "Error:  Parse error of: %s\n", exprString );
 				exit( 1 );
 			}
@@ -703,6 +772,7 @@ secondPass (int argc, char *argv[])
 		}
 		if (matchPrefix (argv[i], "-format", 2)) {
 			pm.registerFormat (argv[i+1], argv[i+2]);
+			projList.AppendArg(argv[i+2]);
 			if (diagnose) {
 				printf ("Arg %d --- register format [%s] for [%s]\n",
 						i, argv[i+1], argv[i+2]);
@@ -720,6 +790,19 @@ secondPass (int argc, char *argv[])
 			query->addANDConstraint( buffer );
 			continue;
 		}
+		
+		if (matchPrefix (argv[i], "-attributes", 3) ) {
+			// parse attributes to be selected and split them along ","
+			StringList more_attrs(argv[i+1],",");
+			char const *s;
+			more_attrs.rewind();
+			while( (s=more_attrs.next()) ) {
+				projList.AppendArg(s);
+			}
+			i += 2;
+			continue;
+		}
+		
 
 
 		// figure out what the other parameters should do
@@ -763,6 +846,7 @@ secondPass (int argc, char *argv[])
 			  case MODE_STARTD_AVAIL:
 			  case MODE_OTHER:
 			  case MODE_GRID_NORMAL:
+			  case MODE_HAD_NORMAL:
 			  	sprintf(buffer,"(TARGET.%s==\"%s\") || (TARGET.%s==\"%s\")",
 						ATTR_NAME, daemonname, ATTR_MACHINE, daemonname );
 				if (diagnose) {
@@ -860,12 +944,12 @@ customLessThanFunc( AttrList *ad1, AttrList *ad2, void *)
 	int			last = sortLessThanExprs.getlast();
 
 	for( int i = 0 ; i <= last ; i++ ) {
-		sortLessThanExprs[i]->EvalTree( ad1, ad2, &lt_result );
+		EvalExprTree( sortLessThanExprs[i], ad1, ad2, &lt_result );
 		if( lt_result.type == LX_INTEGER ) {
 			if( lt_result.i ) {
 				return 1;
 			} else {
-				sortEqualExprs[i]->EvalTree( ad1, ad2, &lt_result );
+				EvalExprTree( sortEqualExprs[i], ad1, ad2, &lt_result );
 				if( lt_result.type != LX_INTEGER || !lt_result.i )
 					return 0;
 			}
