@@ -20,7 +20,7 @@
 #ifndef __DEBUG_TIMER_DPRINTF_H__
 #define __DEBUG_TIMER_DPRINTF_H__
 
-#include "debug_timer.h"
+#include "debug_timer.unix.h"
 
 // Debug timer which outputs via dprintf()
 class DebugTimerDprintf : public DebugTimerBase

@@ -1,10 +1,10 @@
 #!/bin/sh
 
 ##################################################
-for i in `find -name "*.c"`;
+for i in `find -name "$1"`;
 do
 
-	git mv  $i `echo ${i}pp`;
+	git mv  $i `echo ${i}$2`;
 	#echo ${i}pp;
 
 done

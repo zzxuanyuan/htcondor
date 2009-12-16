@@ -50,7 +50,7 @@
 #include "condor_qmgr.h"
 #include "sig_install.h"
 #include "access.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "match_prefix.h"
 
 #include "extArray.h"
@@ -60,8 +60,8 @@
 #include "which.h"
 #include "sig_name.h"
 #include "print_wrapped_text.h"
-#include "dc_schedd.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_schedd.h"
+#include "daemon_client/dc_collector.h"
 #include "my_username.h"
 #include "globus_utils.h"
 #include "enum_utils.h"
@@ -70,10 +70,10 @@
 #include "directory.h"
 #include "filename_tools.h"
 #include "fs_util.h"
-#include "dc_transferd.h"
+#include "daemon_client/dc_transferd.h"
 #include "condor_ftp.h"
 #include "condor_crontab.h"
-#include "../condor_schedd.V6/scheduler.h"
+#include "schedd/scheduler.h"
 #include "condor_holdcodes.h"
 #include "condor_url.h"
 #include "condor_version.h"
@@ -8152,4 +8152,4 @@ SetVMParams()
 }
 
 
-#include "daemon_core_stubs.h"
+#include "daemon_core/daemon_core_stubs.h"

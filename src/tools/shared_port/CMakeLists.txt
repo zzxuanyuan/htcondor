@@ -1,0 +1,1 @@
+condor_exe( shared_port "shared_port_main.cpp" libexec "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}")

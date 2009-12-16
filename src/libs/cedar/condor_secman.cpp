@@ -34,7 +34,7 @@
 #include "HashTable.h"
 #include "KeyCache.h"
 #include "daemon_core/condor_daemon_core.h"
-#include "daemon_core/condor_ipverify.h"
+#include "condor_ipverify.h"
 #include "condor_secman.h"
 #include "classad_merge.h"
 #include "daemon_client/daemon.h"

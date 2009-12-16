@@ -1,0 +1,1 @@
+condor_exe(q "queue.cpp" bin "qmgmt;${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${POSTGRESQL_FOUND}")

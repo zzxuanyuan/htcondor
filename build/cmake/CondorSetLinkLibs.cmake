@@ -11,6 +11,10 @@ else()
 	set( ${_CNDR_TARGET}LinkDeps "${${_CNDR_TARGET}LinkDeps};${CONDOR_WIN_LIBS}" )
 endif()
 
-target_link_libraries( condor_${_CNDR_TARGET} ${${_CNDR_TARGET}LinkDeps} )
+if ( NOT ${_CNDR_TARGET} MATCHES "condor" )
+	target_link_libraries( condor_${_CNDR_TARGET} ${${_CNDR_TARGET}LinkDeps} )
+else()
+	target_link_libraries( ${_CNDR_TARGET} ${${_CNDR_TARGET}LinkDeps} )
+endif()
 
 ENDMACRO (CONDOR_SET_LINK_LIBS)

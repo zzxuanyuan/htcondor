@@ -32,7 +32,7 @@
 #include "condor_auth_passwd.h"
 #include "condor_secman.h"
 #include "condor_environ.h"
-#include "daemon_core/condor_ipverify.h"
+#include "condor_ipverify.h"
 #include "CondorError.h"
 
 

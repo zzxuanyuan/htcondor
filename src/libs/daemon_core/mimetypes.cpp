@@ -18,7 +18,6 @@
 ***************************************************************/
 
 #include "condor_common.h"
-#include "mimetypes.h"
 
 /* ANSI-C code produced by gperf version 3.0.3 */
 /* Command-line: gperf  */
@@ -55,10 +54,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-struct mimetype { char *ext; const char * pmimetype; };
+struct mimetype { 
+	char *ext; 
+	const char * pmimetype; 
+};
 
 struct mimetype *mime_lookup (const char *, unsigned int);
 
+extern "C" {
 const char *type_for_ext(const char *ext) {
       struct mimetype *tuple;
       if ((tuple = mime_lookup(ext, strlen(ext))) != NULL) {
@@ -66,6 +69,7 @@ const char *type_for_ext(const char *ext) {
       } 
       
       return NULL;
+}
 }
 
 #define TOTAL_KEYWORDS 84

@@ -51,7 +51,6 @@
 	#include "limit.unix.h"
 #endif
 #include "self_monitor.h"
-//#include "stdsoap2.h"
 #include "condor_pidenvid.h"
 #include "condor_arglist.h"
 #include "env.h"

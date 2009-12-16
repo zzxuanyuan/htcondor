@@ -13,6 +13,11 @@ MACRO (CONDOR_DAEMON_GLOB _CNDR_TARGET _REMOVE_ELEMENTS _GEN_GSOAP )
 
     if ( ${_CNDR_TARGET}SOAP AND HAVE_EXT_GSOAP )		
 		gsoap_gen( ${_CNDR_TARGET} ${_CNDR_TARGET}HDRS ${_CNDR_TARGET}SRCS )
+		list(APPEND ${_CNDR_TARGET}SRCS ${CONDOR_SOURCE_DIR}/src/libs/daemon_core/soap_core.cpp
+ ${CONDOR_SOURCE_DIR}/src/libs/daemon_core/mimetypes.cpp)
+		list(APPEND ${_CNDR_TARGET}HDRS ${CONDOR_SOURCE_DIR}/src/libs/daemon_core/soap_core.h ${CONDOR_SOURCE_DIR}/src/libs/daemon_core/mimetypes.h)
+	#else()
+	#	list(APPEND ${_CNDR_TARGET}SRCS ${CONDOR_SOURCE_DIR}/src/libs/daemon_core/no_soap_core.cpp)
 	endif()
 
 	#Add the executable target.

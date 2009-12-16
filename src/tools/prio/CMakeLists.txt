@@ -1,0 +1,1 @@
+condor_exe( prio "prio.cpp" bin "qmgmt;${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}")

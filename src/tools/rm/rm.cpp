@@ -31,9 +31,9 @@
 #include "condor_version.h"
 #include "condor_ver_info.h"
 #include "string_list.h"
-#include "daemon.h"
-#include "dc_schedd.h"
-#include "dc_collector.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/dc_schedd.h"
+#include "daemon_client/dc_collector.h"
 #include "condor_distribution.h"
 #include "CondorError.h"
 
@@ -42,6 +42,8 @@ char	*MyName;
 char 	*actionReason = NULL;
 JobAction mode;
 bool All = false;
+bool ConstraintArg = false;
+bool UserJobIdArg = false;
 bool had_error = false;
 
 DCSchedd* schedd = NULL;
@@ -235,6 +237,7 @@ main( int argc, char *argv[] )
 				}				
 				args[nArgs] = *argv;
 				nArgs++;
+				ConstraintArg = true;
             } else if (match_prefix(arg, "-all")) {
                 All = true;
             } else if (match_prefix(arg, "-addr")) {
@@ -335,12 +338,18 @@ main( int argc, char *argv[] )
 			}
 			args[nArgs] = arg;
 			nArgs++;
+			UserJobIdArg = true;
 		}
 	}
 
 	if( ! (All || nArgs) ) {
 			// We got no indication of what to act on
 		fprintf( stderr, "You did not specify any jobs\n" ); 
+		usage();
+	}
+
+	if ( ConstraintArg && UserJobIdArg ) {
+		fprintf( stderr, "You can't use both -constraint and usernames or job ids\n" );
 		usage();
 	}
 
@@ -738,4 +747,4 @@ printNewMessages( ClassAd* result_ad, StringList* ids )
 }
 
 
-#include "daemon_core_stubs.h"
+#include "daemon_core/daemon_core_stubs.h"

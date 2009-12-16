@@ -33,7 +33,7 @@ if (WINDOWS)
 else()
 
 	condor_external(BLAHP OFF "blahp" "blahp-1.12.2-p6")
-	condor_external(CLASSADS ON "classad" "classads-1.0.4")
+	condor_external(CLASSADS ON "classad;classad_ns" "classads-1.0.4")
 	condor_external(COREDUMPER ON "coredumper" "coredumper-0.2")
 	condor_external(UNICOREGAHP OFF "unicoregahp" "unicoregahp-1.2.0")
 	condor_external(VOMS OFF "voms" "voms-1.8.9-p2")

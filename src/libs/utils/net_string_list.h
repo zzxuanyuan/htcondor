@@ -33,7 +33,7 @@
   in dependencies on all our network-related utilities.  This is sort
   of a hack, but seems like a lesser evil, especially since we only
   use this string_withnetwork() method in a single place in the code
-  (condor_daemon_core.V6/condor_ipverify.C). 
+  (cedar/condor_ipverify.cpp).
 */
 class NetStringList : public StringList {
 public:

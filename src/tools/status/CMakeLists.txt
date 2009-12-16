@@ -1,0 +1,3 @@
+condor_glob(statusHdrs statusSrcs "")
+
+condor_exe( status "${statusHdrs};${statusSrcs}" bin "${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}" )

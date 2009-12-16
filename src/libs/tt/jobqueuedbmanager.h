@@ -21,11 +21,11 @@
 #define _CONDOR_JOBQUEUEDBMANAGER_H_
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
-#include "daemon.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_client/daemon.h"
 
 //for the collectorlist::create call
-#include "dc_collector.h" 
+#include "daemon_client/dc_collector.h"
 
 #include "classadlogentry.h"
 #include "jobqueuecollection.h"

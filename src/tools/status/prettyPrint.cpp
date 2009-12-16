@@ -23,6 +23,8 @@
 #include "totals.h"
 #include "format_time.h"
 #include "condor_xml_classads.h"
+#include "condor_adtypes.h"
+#include "string_list.h"
 
 extern ppOption				ppStyle;
 extern AttrListPrintMask 	pm;

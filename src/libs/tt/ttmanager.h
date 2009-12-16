@@ -21,8 +21,8 @@
 #define _TTMANAGER_H_
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
-#include "daemon.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_client/daemon.h"
 #include "jobqueuedbmanager.h"
 #include "quill_enums.h"
 #include "counted_ptr.h"

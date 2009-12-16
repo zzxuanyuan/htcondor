@@ -5,7 +5,7 @@ if ( HAVE_EXT_GSOAP )
 
 	set ( ${_DAEMON}_SOAP_SRCS
 		soap_${_DAEMON}C.cpp
-		soap_${_DAEMON}Server.cpp )
+		soap_${_DAEMON}Server.cpp)
 
 	set ( ${_DAEMON}_SOAP_HDRS
 		soap_${_DAEMON}H.h

@@ -20,27 +20,12 @@ string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 
 ###########################################################################
 ###########################################################################
-# Set build and include options.
-set(CMAKE_BUILD_TYPE RelWithDebInfo) #MinSizeRels
+# Set build type
+set(CMAKE_BUILD_TYPE RelWithDebInfo) # = -O2 -g 
+
+###########################################
+# start cmake module inclusion
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
-
-###########################################################################
-###########################################################################
-# The following are the configure options
-# checking X... Y... Z...
-message(STATUS "***********************************************************")
-message(STATUS "Condor is now configuring based on your env & input options")
-message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH}")
-
-if(${OS_NAME} STREQUAL "WINDOWS")
-	set(WINDOWS ON)
-	add_definitions(-DWINDOWS)
-	# The following is necessary for ddk version to compile against. 
-	add_definitions(-D_WIN32_WINNT=_WIN32_WINNT_WINXP) 
-	add_definitions(-DWINVER=_WIN32_WINNT_WINXP)
-	add_definitions(-DNTDDI_VERSION=NTDDI_WINXP)
-endif()
-
 include (CommandTarget)
 include (gSOAPGen)
 include (AddFileDependencies)
@@ -48,6 +33,7 @@ include (CondorGlob)
 include (CondorDaemonGlob)
 include (CondorSetLinkLibs)
 include (CondorExternal)
+include (CondorExe)
 include (CheckIncludeFiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
@@ -55,248 +41,27 @@ include (CheckStructHasMember)
 include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
-include (FindThreads)
-
-# use vars set by FindThreads.
-set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
-set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
-set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
-
-add_definitions(-D${OS_NAME}=${OS_NAME}_${OS_VER})
-add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
-	   		   
-##################################################
-##################################################
-# check symbols, libs, functions, headers, and types
-# check_library_exists("gen" "" "" HAVE_LIBGEN)
-if (NOT WINDOWS)
-	check_library_exists(dl dlopen "" HAVE_DLOPEN)
-	check_symbol_exists(res_init "sys/types.h;netinet/in.h;arpa/nameser.h;resolv.h" HAVE_DECL_RES_INIT)
-
-	check_function_exists("access" HAVE_ACCESS)
-	check_function_exists("clone" HAVE_CLONE)
-	check_function_exists("dirfd" HAVE_DIRFD)
-	check_function_exists("execl" HAVE_EXECL)
-	check_function_exists("fstat64" HAVE_FSTAT64)
-	check_function_exists("_fstati64" HAVE__FSTATI64)
-	check_function_exists("getdtablesize" HAVE_GETDTABLESIZE)
-	check_function_exists("getpagesize" HAVE_GETPAGESIZE)
-	check_function_exists("getwd" HAVE_GETWD)
-	check_function_exists("inet_ntoa" HAS_INET_NTOA)
-	check_function_exists("lchown" HAVE_LCHOWN)
-	check_function_exists("lstat" HAVE_LSTAT)
-	check_function_exists("lstat64" HAVE_LSTAT64)
-	check_function_exists("_lstati64" HAVE__LSTATI64)
-	check_function_exists("mkstemp" HAVE_MKSTEMP)
-	check_function_exists("setegid" HAVE_SETEGID)
-	check_function_exists("setenv" HAVE_SETENV)
-	check_function_exists("seteuid" HAVE_SETEUID)
-	check_function_exists("setlinebuf" HAVE_SETLINEBUF)
-	check_function_exists("snprintf" HAVE_SNPRINTF)
-	check_function_exists("snprintf" HAVE_WORKING_SNPRINTF)	
-
-	check_function_exists("stat64" HAVE_STAT64)
-	check_function_exists("_stati64" HAVE__STATI64)
-	check_function_exists("statfs" HAVE_STATFS)
-	check_function_exists("statvfs" HAVE_STATVFS)
-	check_function_exists("res_init" HAVE_DECL_RES_INIT)
-	check_function_exists("strcasestr" HAVE_STRCASESTR)
-	check_function_exists("strsignal" HAVE_STRSIGNAL)
-	check_function_exists("unsetenv" HAVE_UNSETENV)
-	check_function_exists("vasprintf" HAVE_VASPRINTF)
-	
-	# we can likely put many of the checks below in here.
-	check_include_files("dlfcn.h" HAVE_DLFCN_H)
-	check_include_files("inttypes.h" HAVE_INTTYPES_H)
-	check_include_files("ldap.h" HAVE_LDAP_H)
-	check_include_files("net/if.h" HAVE_NET_IF_H)
-	check_include_files("os_types.h" HAVE_OS_TYPES_H)
-	check_include_files("resolv.h" HAVE_RESOLV_H)
-	check_include_files("sys/mount.h" HAVE_SYS_MOUNT_H)
-	check_include_files("sys/param.h" HAVE_SYS_PARAM_H)
-	check_include_files("sys/personality.h" HAVE_SYS_PERSONALITY_H)
-	check_include_files("sys/statfs.h" HAVE_SYS_STATFS_H)
-	check_include_files("sys/types.h" HAVE_SYS_TYPES_H)
-	check_include_files("sys/vfs.h" HAVE_SYS_VFS_H)
-	check_include_files("stdint.h" HAVE_STDINT_H)
-	check_include_files("ustat.h" HAVE_USTAT_H)
-	check_include_files("valgrind.h" HAVE_VALGRIND_H)
-
-	check_type_exists("struct ifconf" "net/if.h" HAVE_STRUCT_IFCONF)
-	check_type_exists("struct ifreq" "net/if.h" HAVE_STRUCT_IFREQ)
-
-	check_struct_has_member("struct statfs" f_fstyp "sys/statfs.h" HAVE_STRUCT_STATFS_F_FSTYP)
-	check_struct_has_member("struct statfs" f_fstypename "sys/statfs.h" HAVE_STRUCT_STATFS_F_FSTYPENAME)
-	check_struct_has_member("struct statfs" f_type "sys/statfs.h" HAVE_STRUCT_STATFS_F_TYPE)
-	check_struct_has_member("struct statvfs" f_basetype "sys/statfs.h" HAVE_STRUCT_STATVFS_F_BASETYPE)
-	
-else()
-	set (HAVE_SNPRINTF 1)
-	set (HAVE_WORKING_SNPRINTF 1)
-endif()
-
-check_type_size("id_t" HAVE_ID_T)
-check_type_size("__int64" HAVE___INT64)
-check_type_size("int64_t" HAVE_INT64_T)
-check_type_size("long long" HAVE_LONG_LONG)
-
-##################################################
-##################################################
-# Now checking OS based options -
-set(HAS_FLOCK ON)
-set(DOES_SAVE_SIGSTATE OFF)
-
-# this should be platform specific
-set(STATFS_ARGS "2") 
-
-if (${OS_NAME} STREQUAL "SOLARIS")
-	set(NEEDS_64BIT_SYSCALLS ON)
-	set(NEEDS_64BIT_STRUCTS ON)
-	set(DOES_SAVE_SIGSTATE ON)
-	set(HAS_FLOCK OFF)
-elseif(${OS_NAME} STREQUAL "LINUX")
-	set(DOES_SAVE_SIGSTATE ON)
-
-	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
-	check_symbol_exists(SIOCGIFCONF "linux/sockios.h" HAVE_DECL_SIOCGIFCONF)
-
-	check_include_files("linux/ethtool.h" HAVE_LINUX_ETHTOOL_H)
-	check_include_files("linux/magic.h" HAVE_LINUX_MAGIC_H)
-	check_include_files("linux/nfsd/const.h" HAVE_LINUX_NFSD_CONST_H)
-	check_include_files("linux/personality.h" HAVE_LINUX_PERSONALITY_H)
-	check_include_files("linux/sockios.h" HAVE_LINUX_SOCKIOS_H)
-	check_include_files("linux/types.h" HAVE_LINUX_TYPES_H)
-elseif(${OS_NAME} STREQUAL "AIX")
-	set(DOES_SAVE_SIGSTATE ON)
-	set(NEEDS_64BIT_STRUCTS ON)
-elseif(${OS_NAME} STREQUAL "HPUX")
-	set(DOES_SAVE_SIGSTATE ON)
-	set(NEEDS_64BIT_STRUCTS ON)
-elseif(${OS_NAME} STREQUAL "WINDOWS")	
-	#TBD
-endif()
-
-##################################################
-##################################################
-# Now checking input options --enable elements
-# will likely change all the names to ENABLE_<OPTION> for consistency
-option(ENABLE_CHECKSUM_SHA1 "Enable production and validation of SHA1 checksums." OFF)
-option(ENABLE_CHECKSUM_MD5 "Enable production and validation of MD5 checksums for released packages." ON)
-option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
-option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
-option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
-option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
-option(NEEDS_KBDD "Enable KBDD functionality" OFF)
-option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
-option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
-
-### Hopefully this will *always* be true.
-option(CLIPPED "Disables the standard universe" ON)
-option(STRICT "If externals are not found it will error" OFF)
-
-if (NOT WINDOWS)
-	option(PROPER "If externals are not found it will error" ON)
-endif()
-
-if (PROPER)
-	find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h")
-	find_path(HAVE_PCRE_H "pcre.h")
-	find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
-else()
-	set (HAVE_OPENSSL_SSL_H ON)
-	set (HAVE_PCRE_H ON)
-endif()
-
-add_subdirectory (build/externals)
-########################################################
-message(STATUS "***********************************************************")
-configure_file(${CONDOR_SOURCE_DIR}/src/include/config.h.cmake
-${CONDOR_SOURCE_DIR}/src/include/config.h)
-add_definitions(-DHAVE_CONFIG_H)
-
-###########################################################################
-###########################################################################
-# Set compilation and build options
-
-###########################################
-# set package specific build options based on deps
-# I don't know "why this was done... but we
-# may be able to remove this.
-if (WITH_GSOAP AND WITH_OPENSSL)
-	# added the goop that the old builds did
-	add_definitions(-DCOMPILE_SOAP_SSL)
-endif()
-
-if (WITH_OPENSSL)
-    add_definitions(-DWITH_OPENSSL)
-endif()
-###########################################
-
-###########################################
-## set global build properties
-# Build dynamic libraries unless explicitly stated
-set(BUILD_SHARED_LIBS FLASE)
-# Supress automatic regeneration of project files
-if (WINDOWS)
-	set(CMAKE_SUPPRESS_REGENERATION TRUE)
-else()
-	set(CMAKE_SUPPRESS_REGENERATION FALSE)
-endif()
-
-# Set build location for targets
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
-# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/lib)
-
-# TBD: what to do about glibc version checking...?
-# NIX ALL STD UNIVERSE.  
-add_definitions(-DGLIBC=GLIBC)
-###########################################
-
-
-###########################################
-# Set compiler flags
-if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996 /wd4273")	
-	
-	set (CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib;Pdh.lib")			
-else()
-
-	if (HAVE_DLOPEN)
-		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} dl)
-	endif()
-
-	if (HAVE_DECL_RES_INIT)
-		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} resolv)
-	endif()
-
-	if (${CMAKE_USE_PTHREADS_INIT})
-		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} pthread)
-		#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-	endif()
-
-    # common build flags 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")
-
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--warn-once -Wl,--warn-common")
-
-endif()
-###########################################
+include (CondorConfigure) # will initiate the configure
 
 ###########################################
 # The following two locations can be considered ubiquitous
 include_directories(${EXTERNAL_INCLUDES})
+if ($ENV{JAVA_HOME})
+	include_directories($ENV{JAVA_HOME}/include)
+endif()
 include_directories(${CONDOR_SOURCE_DIR}/src/include)
 include_directories(${CONDOR_SOURCE_DIR}/src/libs/utils)
 # the following will allow for <target>/.h includes
 # and I've elliminated relative path includes.
 include_directories(${CONDOR_SOURCE_DIR}/src/libs)
 include_directories(${CONDOR_SOURCE_DIR}/src/daemons)
+include_directories(${CONDOR_SOURCE_DIR}/src/libs/classad)
 ###########################################
 
 ###########################################################################
 ###########################################################################
 ## Add subdirectories and build targets
-
+###########################################
 ## libs...
 add_subdirectory(src/libs/utils)
 add_subdirectory(src/libs/ccb)
@@ -307,13 +72,12 @@ add_subdirectory(src/libs/daemon_core)
 add_subdirectory(src/libs/classad.old)
 add_subdirectory(src/libs/privsep)
 add_subdirectory(src/libs/h)
-#add_subdirectory(libs/classad) new classads?
-
-# the following libraries are *not* built in windows
-#if(NOT WINDOWS)
-	add_subdirectory(src/libs/daemon_client)
-#endif()
-
+add_subdirectory(src/libs/daemon_client)
+add_subdirectory(src/libs/classad_analysis)
+add_subdirectory(src/libs/tt)
+#add_subdirectory(src/libs/chirp)
+#add_subdirectory(libs/classad) new classads? - external
+###########################################
 ## daemons...
 add_subdirectory(src/daemons/procd)
 add_subdirectory(src/daemons/master)
@@ -322,30 +86,70 @@ add_subdirectory(src/daemons/negotiator)
 add_subdirectory(src/daemons/startd)
 add_subdirectory(src/daemons/schedd)
 add_subdirectory(src/daemons/shadow)
-
+#add_subdirectory(src/daemons/credd)
+#add_subdirectory(src/tools/dbmsd)
+#add_subdirectory(src/daemons/eventd)
+#add_subdirectory(src/daemons/eventd.V2)
+#add_subdirectory(src/daemons/had)
+#add_subdirectory(src/daemons/kbdd)
+#add_subdirectory(src/daemons/transferd)
+###########################################
+## gahps...
+#add_subdirectory(src/gahps/amazon)
+#add_subdirectory(src/gahps/c)
+#add_subdirectory(src/gahps/cream)
+#add_subdirectory(src/gahps/gridmanager)
+#add_subdirectory(src/gahps/gt2)
+#add_subdirectory(src/gahps/gt4)
+#add_subdirectory(src/gahps/gt42)
+#add_subdirectory(src/gahps/nordugrid)
+#add_subdirectory(src/gahps/vm)
+###########################################
 ## tools...
-#add_subdirectory(src/tools/q)
+add_subdirectory(src/tools/condor_tools)
+add_subdirectory(src/tools/q)
+add_subdirectory(src/tools/dagman)
+add_subdirectory(src/tools/hdfs)
+add_subdirectory(src/tools/power)
+add_subdirectory(src/tools/prio)
+add_subdirectory(src/tools/rm)
+add_subdirectory(src/tools/shared_port)
+add_subdirectory(src/tools/startd_factory)
+add_subdirectory(src/tools/status)
+add_subdirectory(src/tools/submit)
+add_subdirectory(src/tools/userlog)
+add_subdirectory(src/tools/ft_hooks)
+if (NOT WINDOWS)
+	# reevaluate when a choice is made on new class ads.  
+	add_subdirectory(src/tools/job_router)
+	add_subdirectory(src/tools/lease_manager)
+endif()
+
+#add_subdirectory(src/tools/hawkeye_modules) #??
+###########################################
+## build release elements...
 
 ##########################################################################
 # What should be done is:
 # configure_file( CpackOptions.cmake.in CPackOption.cmake )
 # include (CPackOptions)
-if(NOT WINDOWS)
-	set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
-	set (CPACK_PACKAGE_VENDOR "RedHat")
-	set (CPACK_PACKAGE_VERSION_MAJOR 7)
-	set (CPACK_PACKAGE_VERSION_MINOR 5)
-	set (CPACK_PACKAGE_VERSION_PATCH 0)
+#if(NOT WINDOWS)
+	#set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
+	#set (CPACK_PACKAGE_VENDOR "RedHat")
+	#set (CPACK_PACKAGE_VERSION_MAJOR 7)
+	#set (CPACK_PACKAGE_VERSION_MINOR 5)
+	#set (CPACK_PACKAGE_VERSION_PATCH 0)
 	#CPACK_PACKAGE_DESCRIPTION_FILE
-	set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "condor blah blah blah")
-	set (CPACK_PACKAGE_FILE_NAME "condor_7_5_0")
+	#set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "condor blah blah blah")
+	#set (CPACK_PACKAGE_FILE_NAME "condor_7_5_0")
 	#CPACK_RESOURCE_FILE_LICENSE
 	#CPACK_RESOURCE_FILE_README
-	set (CPACK_STRIP_FILES TRUE)
+	#set (CPACK_STRIP_FILES TRUE)
 	#set (CPACK_GENERATOR "RPM")
 
-	include (CPack)
-endif()
+	#include (CPack)
+#endif()
+
 
 
 

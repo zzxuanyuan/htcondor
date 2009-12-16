@@ -27,6 +27,8 @@
 #if !defined(WIN32) 
 #include <sys/time.h>
 #include <sys/resource.h>       /* for struct rusage */
+#else
+#include "condor_sys_nt.h"
 #endif
 
 /* 
