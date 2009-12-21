@@ -23,12 +23,12 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item A flaw was found that could allow a user, who already is authorized to
+\item \Security A flaw was found that could allow a user who already is authorized to
 submit jobs into Condor, to queue a job under the guise of  a different
 user.  In this way, someone who has access to a Condor submission
 service and is allowed to submit jobs into Condor could gain access to
-another ordinary (aka not root or administrator) account on the system.
- This flaw was discovered during the development process; no incidents
+another non-root or non-administrator account on the system.
+This flaw was discovered during the development process; no incidents
 have been reported.
 
 \end{itemize}
