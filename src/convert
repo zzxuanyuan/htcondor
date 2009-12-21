@@ -4,8 +4,10 @@
 for i in `find -name "$1"`;
 do
 
-	git mv  $i `echo ${i}$2`;
+	#git mv  $i `echo ${i}$2`;
 	#echo ${i}pp;
-
+        #sed -i "s/\"condor_daemon_core.h\"/\"daemon_core\/condor_daemon_core.h\"/g" $i
+	#sed -i "s/\"dc_schedd.h\"/\"daemon_client\/dc_schedd.h\"/g" $i
+	sed -i "s/\"$2\"/\"daemon_client\/$2\"/g" $i
 done
 

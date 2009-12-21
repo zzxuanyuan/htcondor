@@ -22,7 +22,7 @@
 #include "condor_debug.h"
 #include "MyString.h"
 #include "pbuffer.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "vmgahp_common.h"
  
 PBuffer::PBuffer (int _pipe_end) {

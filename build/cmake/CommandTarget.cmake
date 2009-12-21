@@ -6,9 +6,11 @@ add_custom_command(
 	ARGS ${_INARGS}
 )
 
-add_custom_target(
-	${_TARGET}
-	ALL
-	DEPENDS ${_OUTPUT} )
+if (NOT WINDOWS)
+	add_custom_target(
+		${_TARGET}
+		ALL
+		DEPENDS ${_OUTPUT} )
+endif()
 
 ENDMACRO ( COMMAND_TARGET )

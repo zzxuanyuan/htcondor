@@ -22,7 +22,7 @@
 #define NORDUGRIDRESOURCE_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 #include "baseresource.h"
 #include "gahp-client.h"

@@ -29,7 +29,7 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "condor_debug.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "internet.h"
 #include "my_hostname.h"
 

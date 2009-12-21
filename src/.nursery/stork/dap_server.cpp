@@ -28,7 +28,7 @@
 #define _CONDOR_ALLOW_OPEN
 #include "condor_common.h"
 #include "env.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_config.h"
 #include "internet.h"
 #include "dap_server.h"

@@ -21,7 +21,7 @@
 #ifndef _CONDOR_DAEMON_CLIENT_H
 #define _CONDOR_DAEMON_CLIENT_H
 
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "daemon_types.h"
 #include "dc_shadow.h"
 #include "dc_startd.h"

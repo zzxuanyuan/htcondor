@@ -21,7 +21,7 @@
 #if !defined(_CONDOR_LOCAL_USER_LOG_H)
 #define _CONDOR_LOCAL_USER_LOG_H
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_classad.h"
 #include "condor_attributes.h"
 #include "write_user_log.h"

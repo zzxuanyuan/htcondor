@@ -23,7 +23,7 @@
 #include "condor_classad.h"
 #include "condor_commands.h"
 #include "condor_attributes.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_transferd.h"
 #include "proc.h"
 #include "file_transfer.h"

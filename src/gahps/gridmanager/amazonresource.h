@@ -22,7 +22,7 @@
 #define AMAZONRESOURCE_H
     
 #include "condor_common.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 #include "amazonjob.h"
 #include "baseresource.h"

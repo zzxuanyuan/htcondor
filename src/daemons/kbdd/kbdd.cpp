@@ -20,16 +20,16 @@
 #include "condor_common.h"
 #define KBDD
 #ifdef WIN32
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_debug.h"
 #include "condor_uid.h"
 #else
-#include "XInterface.h"
+#include "XInterface.unix.h"
 #endif
 
 #include "my_hostname.h"
 #include "condor_query.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "subsystem_info.h"
 
 #ifdef WIN32

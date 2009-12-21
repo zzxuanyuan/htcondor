@@ -30,7 +30,7 @@
 #include "vmgahp_error_codes.h"
 #include "condor_vm_universe_types.h"
 #include "vmware_type.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 
 #define VMWARE_TMP_FILE "vmware_status.condor"
 #define VMWARE_TMP_TEMPLATE		"vmXXXXXX"

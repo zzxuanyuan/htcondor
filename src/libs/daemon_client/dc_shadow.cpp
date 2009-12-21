@@ -25,7 +25,7 @@
 #include "condor_ver_info.h"
 #include "condor_attributes.h"
 
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_shadow.h"
 #include "internet.h"
 

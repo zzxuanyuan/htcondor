@@ -21,7 +21,7 @@
 #include "condor_common.h"
 #include "DBMSManager.h"
 #include "condor_config.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "get_daemon_name.h"
 #include "ManagedDatabase.h"
 

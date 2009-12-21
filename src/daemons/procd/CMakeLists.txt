@@ -1,7 +1,6 @@
 
 file( GLOB ProcdRmvElements *_test* proc_family_client* proc_family_io* local_client.UNIX* procd_ctl*)
-#elements in here require .linux extension after looking at Imake
-condor_daemon_glob(procd "${ProcdRmvElements}" OFF)
+
 
 if (WINDOWS)
 	set (PROCD_WIN_LINK_LIBS psapi) 
@@ -24,9 +23,8 @@ else()
                                   named_pipe_util*
                                   named_pipe_watchdog*)
 
-	
 endif()
 
-condor_set_link_libs( procd "procapi;utils;${PROCD_WIN_LINK_LIBS}")
+condor_daemon(procd "${ProcdRmvElements}" "procapi;utils;${PROCD_WIN_LINK_LIBS}" sbin OFF)
 
-add_library(procd_client STATIC ${ProcClientElements} )
+add_library(procd_client STATIC ${ProcClientElements})

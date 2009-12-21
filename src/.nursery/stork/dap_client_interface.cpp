@@ -25,7 +25,7 @@
 #include "internet.h"
 #include "../condor_c++_util/my_hostname.h"
 #include "daemon_types.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dap_server_interface.h"
 #include "condor_version.h"
 #include "condor_debug.h"

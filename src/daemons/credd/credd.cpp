@@ -20,7 +20,7 @@
 #include "condor_common.h"
 #include "credd.h"
 #include "condor_debug.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "credential.h"
 #include "X509credential.h"
 #include "X509credentialWrapper.h"

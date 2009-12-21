@@ -21,7 +21,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "daemon_core/condor_daemon_core.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_message.h"
 #include "daemon_core_sock_adapter.h"
 

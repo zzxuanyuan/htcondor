@@ -39,7 +39,7 @@
 #include "condor_classad.h"
 #include "condor_io.h"
 #include "get_full_hostname.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_attributes.h"
 #include "subsystem_info.h"
 

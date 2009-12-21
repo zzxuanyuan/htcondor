@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_string.h"
 #include "condor_attributes.h"
 #include "condor_uid.h"
@@ -27,10 +27,10 @@
 #include "vmgahp.h"
 #include "vmware_type.h"
 #if defined(LINUX)
-#  include "xen_type.h"
+#  include "xen_type.linux.h"
 #endif
 #include "subsystem_info.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 
 const char *vmgahp_version = "$VMGahpVersion " CONDOR_VMGAHP_VERSION " May 1 2007 Condor\\ VMGAHP $";
 

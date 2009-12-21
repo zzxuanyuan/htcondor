@@ -24,7 +24,7 @@
 #include "condor_string.h"
 #include "condor_debug.h"
 #include "condor_event.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 #ifndef WANT_CLASSAD_NAMESPACE
 #define WANT_CLASSAD_NAMESPACE

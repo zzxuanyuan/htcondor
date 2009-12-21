@@ -24,7 +24,7 @@
 #include "condor_attributes.h"
 #include "condor_commands.h"
 #include "command_strings.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_startd.h"
 #include "condor_claimid_parser.h"
 

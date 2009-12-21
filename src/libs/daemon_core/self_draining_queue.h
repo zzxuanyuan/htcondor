@@ -19,7 +19,7 @@
 
 
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "Queue.h"
 
 /**

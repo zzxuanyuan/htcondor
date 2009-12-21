@@ -22,7 +22,7 @@
 #define _CONDOR_DAEMON_LIST_H
 
 #include "condor_common.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "simplelist.h"
 #include "condor_classad.h"
 #include "condor_query.h"

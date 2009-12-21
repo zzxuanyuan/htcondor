@@ -28,7 +28,7 @@
 #include "util_lib_proto.h"
 #include "vmgahp_common.h"
 #include "vm_type.h"
-#include "xen_type.h"
+#include "xen_type.linux.h"
 #include "vmgahp_error_codes.h"
 #include "condor_vm_universe_types.h"
 #include "my_popen.h"

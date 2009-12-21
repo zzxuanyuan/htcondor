@@ -10,7 +10,7 @@ include (FindThreads)
 if(${OS_NAME} MATCHES "WIN")
 	set(WINDOWS ON)
 	add_definitions(-DWINDOWS)
-	# The following is necessary for ddk version to compile against. 
+	# The following is necessary for ddk version to compile against.
 	add_definitions(-D_WIN32_WINNT=_WIN32_WINNT_WINXP) 
 	add_definitions(-DWINVER=_WIN32_WINNT_WINXP)
 	add_definitions(-DNTDDI_VERSION=NTDDI_WINXP)
@@ -29,6 +29,7 @@ add_definitions(-D${SYS_ARCH}=${SYS_ARCH} )
 # check symbols, libs, functions, headers, and types
 # check_library_exists("gen" "" "" HAVE_LIBGEN)
 if (NOT WINDOWS)
+	find_library(HAVE_X11 X11)
 	check_library_exists(dl dlopen "" HAVE_DLOPEN)
 	check_symbol_exists(res_init "sys/types.h;netinet/in.h;arpa/nameser.h;resolv.h" HAVE_DECL_RES_INIT)
 
@@ -142,7 +143,7 @@ endif()
 option(ENABLE_CHECKSUM_SHA1 "Enable production and validation of SHA1 checksums." OFF)
 option(ENABLE_CHECKSUM_MD5 "Enable production and validation of MD5 checksums for released packages." ON)
 option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
-option(WANT_LEASE_MANAGER "Enable lease manager functionality" OFF)
+option(WANT_LEASE_MANAGER "Enable lease manager functionality" ON)
 option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
 option(NEEDS_KBDD "Enable KBDD functionality" OFF)
@@ -158,12 +159,12 @@ if (NOT WINDOWS)
 endif()
 
 if (PROPER)
-	message(STATUS "********* Configuring externals using [local env] *********")
+	message(STATUS "********* Configuring externals using [local env] a.k.a. PROPER *********")
 	find_path(HAVE_OPENSSL_SSL_H "openssl/ssl.h")
 	find_path(HAVE_PCRE_H "pcre.h")
 	find_path(HAVE_PCRE_PCRE_H "pcre/pcre.h" )
 else()
-	message(STATUS "********* Configuring externals using [uw-externals] *********")
+	message(STATUS "********* Configuring externals using [uw-externals] a.k.a NONPROPER *********")
 	set (HAVE_OPENSSL_SSL_H ON)
 	set (HAVE_PCRE_H ON)
 endif()
@@ -199,10 +200,6 @@ if (WINDOWS)
 else()
 	set(CMAKE_SUPPRESS_REGENERATION FALSE)
 endif()
-
-# Set build location for targets
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/sbin)
-# set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CONDOR_SOURCE_DIR}/release_dir/lib)
 
 # TBD: what to do about glibc version checking...?
 # NIX ALL STD UNIVERSE.  

@@ -29,8 +29,8 @@
 #include "condor_attributes.h"
 #include "condor_api.h"
 #include "condor_query.h"
-#include "daemon.h"
-#include "daemon_types.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/daemon_types.h"
 #include "internet.h"
 #include "list.h"
 // for 'my_username'

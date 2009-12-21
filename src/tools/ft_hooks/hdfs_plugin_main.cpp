@@ -21,7 +21,7 @@
 #include "condor_config.h"
 #include "condor_debug.h"
 #include "get_daemon_name.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "subsystem_info.h"
 #include "CondorError.h"
 #include "string_list.h"

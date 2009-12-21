@@ -20,7 +20,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "PipeBuffer.h"
 
 PipeBuffer::PipeBuffer (int _pipe_end) {

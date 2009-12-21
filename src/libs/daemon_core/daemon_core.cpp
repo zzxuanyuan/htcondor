@@ -63,7 +63,7 @@ static const int DC_PIPE_BUF_SIZE = 65536;
 #include "authentication.h"
 #include "daemon_client/daemon.h"
 #include "reli_sock.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_io.h"
 #include "internet.h"
 #include "KeyCache.h"

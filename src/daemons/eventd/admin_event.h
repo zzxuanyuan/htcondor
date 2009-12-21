@@ -20,9 +20,9 @@
 #ifndef __ADMINEVENT_H__
 #define __ADMINEVENT_H__
 
-#include "condor_daemon_core.h"
-#include "daemon.h"
-#include "dc_master.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/dc_master.h"
 #include "classad_hashtable.h"
 #include "MyString.h"
 

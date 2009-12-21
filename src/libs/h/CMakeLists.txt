@@ -5,11 +5,11 @@ add_custom_command( OUTPUT syscall_numbers.h
 					COMMAND awk
 					ARGS -f awk_prog.include_file syscall_numbers.tmpl > syscall_numbers.h )
 					
-add_custom_command( OUTPUT syscall_numbers.c 
+add_custom_command( OUTPUT syscall_numbers.cpp 
 					COMMAND awk
-					ARGS -f awk_prog.name_table syscall_numbers.tmpl > syscall_numbers.c )
+					ARGS -f awk_prog.name_table syscall_numbers.tmpl > syscall_numbers.cpp )
 					
-add_library( syscall_numbers syscall_numbers.c syscall_numbers.h )
+add_library( syscall_numbers syscall_numbers.cpp syscall_numbers.h )
 
 
 

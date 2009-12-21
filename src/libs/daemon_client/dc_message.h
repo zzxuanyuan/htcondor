@@ -77,7 +77,7 @@ class DCMessenger;
 class DCMsg;
 class DCMsgCallback;
 
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "classy_counted_ptr.h"
 #include "dc_service.h"
 

@@ -26,7 +26,7 @@
 // #include "condor_config.h"
 // #include "condor_ver_info.h"
 
-// #include "daemon.h"
+// #include "daemon_client/daemon.h"
 // #include "condor_string.h"
 // #include "condor_attributes.h"
 // #include "condor_adtypes.h"
@@ -35,7 +35,7 @@
 // #include "internet.h"
 // #include "HashTable.h"
 #include "KeyCache.h"
-// #include "condor_daemon_core.h"
+// #include "daemon_core/condor_daemon_core.h"
 #include "classy_counted_ptr.h"
 
 

@@ -47,7 +47,7 @@
 #include "file_xml.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 #ifdef WIN32
 #include "exception_handling.WINDOWS.h"

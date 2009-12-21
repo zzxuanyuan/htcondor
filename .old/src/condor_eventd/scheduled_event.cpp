@@ -19,12 +19,12 @@
 
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_debug.h"
 #include "condor_query.h"
 #include "condor_config.h"
-#include "dc_collector.h"
-#include "daemon.h"
+#include "daemon_client/dc_collector.h"
+#include "daemon_client/daemon.h"
 #include "daemon_list.h"
 #include "condor_netdb.h"
 

@@ -18,13 +18,13 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_debug.h"
 #include "condor_td.h"
 #include "list.h"
 #include "condor_classad.h"
-#include "daemon.h"
-#include "dc_schedd.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/dc_schedd.h"
 #include "MyString.h"
 #include "condor_ftp.h"
 #include "condor_attributes.h"

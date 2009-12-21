@@ -18,11 +18,11 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 // for 'Daemon' class
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 // for 'DT_ANY'
-#include "daemon_types.h"
+#include "daemon_client/daemon_types.h"
 // for 'getHostFromAddr' function
 #include "internet.h"
 // for unlink

@@ -22,12 +22,12 @@
 #define SCHEDD_CLIENT_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "classad_hashtable.h"
 #include "list.h"
 #include "SchedDCommands.h"
-#include "daemon.h"
-#include "dc_schedd.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/dc_schedd.h"
 #include "gahp_common.h"
 
 //#include "basejob.h"

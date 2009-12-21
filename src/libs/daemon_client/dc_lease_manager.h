@@ -24,7 +24,7 @@
 #include <string>
 #include "condor_common.h"
 #include "stream.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 
 #define WANT_CLASSAD_NAMESPACE
 #include "classad/classad_distribution.h"

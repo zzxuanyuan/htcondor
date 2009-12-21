@@ -20,7 +20,7 @@
 
 #include "condor_common.h"
 #include "self_monitor.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "procapi/procapi.h"
 
 static void self_monitor()

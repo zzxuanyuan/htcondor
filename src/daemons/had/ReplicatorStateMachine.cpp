@@ -19,7 +19,7 @@
 
 #include "condor_common.h"
 // for 'daemonCore'
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 // for 'param' function
 #include "condor_config.h"
 #include "my_username.h"

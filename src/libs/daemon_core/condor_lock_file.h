@@ -21,7 +21,7 @@
 #define __CONDOR_LOCK_FILE__
 
 #include "condor_timer_manager.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_lock_implementation.h"
 
 // Define a basic "lock file" class

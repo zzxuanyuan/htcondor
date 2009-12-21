@@ -26,7 +26,7 @@
 #include "condor_attributes.h"
 #include "condor_open.h"
 
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_starter.h"
 #include "internet.h"
 #include "condor_claimid_parser.h"

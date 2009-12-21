@@ -24,7 +24,7 @@
 */
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "eventd.h"
 
 DECL_SUBSYSTEM( "EVENTD", SUBSYSTEM_TYPE_DAEMON );	// used by Daemon Core

@@ -22,7 +22,7 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_arglist.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_blkng_full_disk_io.h"
 #include "fdpass.h"
 #include "my_popen.h"

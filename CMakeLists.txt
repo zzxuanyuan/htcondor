@@ -1,12 +1,10 @@
-###########################################################################
-###########################################################################
+##########################################################################
 # Set project
 project(CONDOR)
 cmake_minimum_required(VERSION 2.6)
 
 ###########################################################################
-###########################################################################
-# Setup package meta-data
+#Setup package meta-data
 set(PACKAGE "condor")
 set(VERSION "7.5.0")
 set(PACKAGE_TARNAME "")
@@ -19,8 +17,7 @@ string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 
 ###########################################################################
-###########################################################################
-# Set build type
+#Set build type
 set(CMAKE_BUILD_TYPE RelWithDebInfo) # = -O2 -g 
 
 ###########################################
@@ -30,8 +27,8 @@ include (CommandTarget)
 include (gSOAPGen)
 include (AddFileDependencies)
 include (CondorGlob)
-include (CondorDaemonGlob)
 include (CondorSetLinkLibs)
+include (CondorDaemon)
 include (CondorExternal)
 include (CondorExe)
 include (CheckIncludeFiles)
@@ -58,8 +55,7 @@ include_directories(${CONDOR_SOURCE_DIR}/src/daemons)
 include_directories(${CONDOR_SOURCE_DIR}/src/libs/classad)
 ###########################################
 
-###########################################################################
-###########################################################################
+##########################################################################
 ## Add subdirectories and build targets
 ###########################################
 ## libs...
@@ -75,7 +71,7 @@ add_subdirectory(src/libs/h)
 add_subdirectory(src/libs/daemon_client)
 add_subdirectory(src/libs/classad_analysis)
 add_subdirectory(src/libs/tt)
-#add_subdirectory(src/libs/chirp)
+add_subdirectory(src/libs/chirp)
 #add_subdirectory(libs/classad) new classads? - external
 ###########################################
 ## daemons...
@@ -86,24 +82,24 @@ add_subdirectory(src/daemons/negotiator)
 add_subdirectory(src/daemons/startd)
 add_subdirectory(src/daemons/schedd)
 add_subdirectory(src/daemons/shadow)
-#add_subdirectory(src/daemons/credd)
-#add_subdirectory(src/tools/dbmsd)
-#add_subdirectory(src/daemons/eventd)
-#add_subdirectory(src/daemons/eventd.V2)
-#add_subdirectory(src/daemons/had)
-#add_subdirectory(src/daemons/kbdd)
-#add_subdirectory(src/daemons/transferd)
+add_subdirectory(src/daemons/credd)
+add_subdirectory(src/daemons/dbmsd)
+add_subdirectory(src/daemons/eventd)
+add_subdirectory(src/daemons/had)
+add_subdirectory(src/daemons/kbdd)
+add_subdirectory(src/daemons/transferd)
+add_subdirectory(src/daemons/birdwatcher)
 ###########################################
 ## gahps...
-#add_subdirectory(src/gahps/amazon)
-#add_subdirectory(src/gahps/c)
-#add_subdirectory(src/gahps/cream)
-#add_subdirectory(src/gahps/gridmanager)
-#add_subdirectory(src/gahps/gt2)
-#add_subdirectory(src/gahps/gt4)
-#add_subdirectory(src/gahps/gt42)
-#add_subdirectory(src/gahps/nordugrid)
-#add_subdirectory(src/gahps/vm)
+add_subdirectory(src/gahps/amazon)
+add_subdirectory(src/gahps/c)
+add_subdirectory(src/gahps/gridmanager)
+add_subdirectory(src/gahps/vm)
+add_subdirectory(src/gahps/cream)
+add_subdirectory(src/gahps/gt2)
+add_subdirectory(src/gahps/gt4)
+add_subdirectory(src/gahps/gt42)
+add_subdirectory(src/gahps/nordugrid)
 ###########################################
 ## tools...
 add_subdirectory(src/tools/condor_tools)
@@ -119,17 +115,13 @@ add_subdirectory(src/tools/status)
 add_subdirectory(src/tools/submit)
 add_subdirectory(src/tools/userlog)
 add_subdirectory(src/tools/ft_hooks)
-if (NOT WINDOWS)
-	# reevaluate when a choice is made on new class ads.  
-	add_subdirectory(src/tools/job_router)
-	add_subdirectory(src/tools/lease_manager)
-endif()
-
+add_subdirectory(src/tools/job_router)
+add_subdirectory(src/tools/lease_manager)
 #add_subdirectory(src/tools/hawkeye_modules) #??
-###########################################
-## build release elements...
-
 ##########################################################################
+
+
+
 # What should be done is:
 # configure_file( CpackOptions.cmake.in CPackOption.cmake )
 # include (CPackOptions)

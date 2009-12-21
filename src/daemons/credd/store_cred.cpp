@@ -18,8 +18,8 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
-#include "daemon.h"
+#include "daemon_core/condor_daemon_core.h"
+#include "daemon_client/daemon.h"
 #include "X509credential.h"
 #include "my_username.h"
 #include "condor_config.h"

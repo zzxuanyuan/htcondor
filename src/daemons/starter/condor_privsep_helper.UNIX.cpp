@@ -23,7 +23,7 @@
 #include "condor_debug.h"
 #include "condor_uid.h"
 #include "condor_arglist.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 bool CondorPrivSepHelper::s_instantiated = false;
 

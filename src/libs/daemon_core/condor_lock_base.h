@@ -22,7 +22,7 @@
 
 
 #include "condor_timer_manager.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 
 // Lock events
 typedef enum { LOCK_SRC_APP, LOCK_SRC_POLL } LockEventSrc;

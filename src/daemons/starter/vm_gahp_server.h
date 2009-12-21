@@ -23,7 +23,7 @@
 
 #include "condor_common.h"
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_distribution.h"
 #include "gahp_common.h"
 #include "HashTable.h"

@@ -21,7 +21,7 @@
 #include "condor_config.h"
 #include "condor_attributes.h"
 #include "condor_commands.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_starter.h"
 
 int sendCmd( const char* starter_addr );

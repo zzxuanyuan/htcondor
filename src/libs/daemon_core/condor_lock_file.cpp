@@ -20,7 +20,7 @@
 
 #include "condor_common.h"
 #include "directory.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_timer_manager.h"
 #include "condor_lock_file.h"
 #include "condor_netdb.h"

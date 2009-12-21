@@ -24,7 +24,7 @@
 #include "condor_config.h"
 #include "env.h"
 #include "condor_environ.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_string.h"
 #include "MyString.h"
 #include "condor_attributes.h"
@@ -34,7 +34,7 @@
 #include "vm_type.h"
 #include "vmware_type.h"
 #if defined(LINUX)
-#  include "xen_type.h"
+#  include "xen_type.linux.h"
 #endif
 #include "vmgahp_error_codes.h"
 

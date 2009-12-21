@@ -28,7 +28,7 @@
 
 #define _POSIX_SOURCE
 
-#include "XInterface.h"
+#include "XInterface.unix.h"
 #include "condor_config.h"
 #include "condor_string.h"
 #include <paths.h>

@@ -25,7 +25,7 @@
 #include "condor_ver_info.h"
 #include "condor_attributes.h"
 
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_lease_manager.h"
 #include "dc_lease_manager_lease.h"
 

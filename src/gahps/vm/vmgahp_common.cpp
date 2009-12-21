@@ -24,7 +24,7 @@
 #include "string_list.h"
 #include "condor_attributes.h"
 #include "condor_classad.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "MyString.h"
 #include "gahp_common.h"
 #include "my_popen.h"
@@ -33,9 +33,9 @@
 #include "vmgahp.h"
 #include "vmgahp_error_codes.h"
 #include "condor_vm_universe_types.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 #include "sig_install.h"
-#include "../condor_privsep/privsep_fork_exec.h"
+#include "privsep/privsep_fork_exec.h"
 
 // FreeBSD 6, OS X 10.4, Solaris 5.9 don't automatically give you environ to work with
 extern DLL_IMPORT_MAGIC char **environ;

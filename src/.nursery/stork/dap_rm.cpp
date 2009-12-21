@@ -21,8 +21,8 @@
 #include "dap_constants.h"
 #include "dap_server_interface.h"
 #include "dap_client_interface.h"
-#include "daemon.h"
-#include "condor_daemon_core.h"
+#include "daemon_client/daemon.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_config.h"
 
 #define USAGE \

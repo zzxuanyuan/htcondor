@@ -19,14 +19,14 @@
 
 #include "condor_common.h"
 #include "condor_api.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "condor_debug.h"
 #include "condor_config.h"
-#include "daemon.h"
-#include "daemon_types.h"
-#include "dc_collector.h"
-#include "dc_master.h"
-#include "dc_startd.h"
+#include "daemon_client/daemon.h"
+#include "daemon_client/daemon_types.h"
+#include "daemon_client/dc_collector.h"
+#include "daemon_client/dc_master.h"
+#include "daemon_client/dc_startd.h"
 #include "admin_event.h"
 #include "classad_hashtable.h"
 #include "directory.h"
@@ -1006,6 +1006,10 @@ AdminEvent::process_ShutdownTime( char *req_time )
 	// secs, day and hour from the next scan of the req_time`
 	tmnow = localtime(&m_timeNow);
 
+#ifdef WIN32
+
+#else
+
 	// find secs, hour and minutes
 	res = strptime(req_time,"%H:%M:%S",&tm);
 	if(res != NULL) {
@@ -1013,6 +1017,7 @@ AdminEvent::process_ShutdownTime( char *req_time )
 			"Processing Shutdown Time String<<LEFTOVERS--%s-->>\n",res);
 		//return(-1);
 	}
+#endif
 
 	// Get today into request structure
 	tm.tm_mday = tmnow->tm_mday;

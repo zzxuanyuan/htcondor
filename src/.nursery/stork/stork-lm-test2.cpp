@@ -21,7 +21,7 @@
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_debug.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "get_daemon_name.h"
 #include "condor_config.h"
 #include "subsystem_info.h"

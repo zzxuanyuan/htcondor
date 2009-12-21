@@ -18,7 +18,7 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 // for copy_file
 #include "util_lib_proto.h"
 

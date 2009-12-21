@@ -23,7 +23,7 @@
 #include "condor_config.h"
 #include "condor_string.h"
 #include "daemon_list.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "internet.h"
 
 

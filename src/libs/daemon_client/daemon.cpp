@@ -24,7 +24,7 @@
 #include "condor_ver_info.h"
 #include "condor_open.h"
 
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_string.h"
 #include "condor_attributes.h"
 #include "condor_parameters.h"
@@ -36,7 +36,7 @@
 #include "internet.h"
 #include "HashTable.h"
 #include "daemon_core/condor_daemon_core.h"
-#include "dc_collector.h"
+#include "daemon_client/dc_collector.h"
 #include "time_offset.h"
 #include "condor_netdb.h"
 #include "daemon_core_sock_adapter.h"

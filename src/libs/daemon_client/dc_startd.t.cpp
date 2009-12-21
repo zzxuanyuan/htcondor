@@ -21,7 +21,7 @@
 #include "condor_config.h"
 #include "condor_attributes.h"
 #include "condor_commands.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "dc_startd.h"
 
 int sendCmd( const char* job_id, const char* name, const char* pool );

@@ -23,7 +23,7 @@
 #define PROXYMANAGER_H
 
 #include "condor_common.h"
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "simplelist.h"
 
 struct Callback {

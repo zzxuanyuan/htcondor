@@ -23,7 +23,7 @@
 #include <string>
 #include "condor_common.h"
 #include "stream.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include <stdio.h>
 
 

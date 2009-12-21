@@ -22,7 +22,7 @@
 #define _CONDOR_DC_COLLECTOR_H
 
 #include "condor_common.h"
-#include "daemon.h"
+#include "daemon_client/daemon.h"
 #include "condor_classad.h"
 #include "condor_io.h"
 #include "extArray.h"

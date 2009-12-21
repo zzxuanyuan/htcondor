@@ -27,6 +27,11 @@
 #include "creamjob.h"
 #include "gridmanager.h"
 
+#ifdef WIN32
+	#include <sys/types.h> 
+	#include <sys/timeb.h>
+#endif
+
 #define DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE		100
 
 
@@ -413,9 +418,15 @@ dprintf(D_FULLDEBUG,"    new delegation\n");
 		
 				/* TODO generate better id */
 			if ( delegation_uri == "" ) {
+#ifdef WIN32
+				struct _timeb timebuffer;
+				_ftime( &timebuffer );
+				delegation_uri.sprintf( "%d.%d", timebuffer.time, timebuffer.millitm );
+#else
 				struct timeval tv;
 				gettimeofday( &tv, NULL );
 				delegation_uri.sprintf( "%d.%d", tv.tv_sec, tv.tv_usec );
+#endif
 			}
 
 			deleg_gahp->setDelegProxy( next_deleg->proxy );

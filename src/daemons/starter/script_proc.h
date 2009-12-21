@@ -20,7 +20,7 @@
 #if !defined(_CONDOR_SCRIPT_PROC_H)
 #define _CONDOR_SCRIPT_PROC_H
 
-#include "condor_daemon_core.h"
+#include "daemon_core/condor_daemon_core.h"
 #include "user_proc.h"
 
 class ClassAd;
