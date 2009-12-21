@@ -23,7 +23,13 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item None.
+\item A flaw was found that could allow a user, who already is authorized to
+submit jobs into Condor, to queue a job under the guise of  a different
+user.  In this way, someone who has access to a Condor submission
+service and is allowed to submit jobs into Condor could gain access to
+another ordinary (aka not root or administrator) account on the system.
+ This flaw was discovered during the development process; no incidents
+have been reported.
 
 \end{itemize}
 
@@ -73,6 +79,19 @@ See section~\ref{param:CkptServerStaleCkptAgeCutoff} for more information.
 \noindent Bugs Fixed:
 
 \begin{itemize}
+%gitrac #601
+\item Fixed a bug in the event log code which could cause the event log
+ to never be rotated on Windows. 
+
+%gitrac #708
+\item Fixed a bug that can cause \Condor{credd} to crash on Win32. 
+The \Condor{credd} on Win32 will likely crash with an ACCESS\_VIOLATION
+during logging if a credential is requested that is not in the password 
+store.
+
+% gitrac #535
+\item Fixed a bug that was causing the event log rotation lock to be 
+created with incorrect permissions 
 
 % gitrac #552
 \item Fixed a bug where the \Condor{schedd} would block for very long
