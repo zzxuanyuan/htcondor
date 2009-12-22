@@ -37,6 +37,7 @@
 class Sinful {
  public:
 	Sinful(char const *sinful=NULL);
+	Sinful( const Sinful &other );		// Copy constructor
 	bool valid() const { return m_valid; }
 
 	// returns the full sinful string
@@ -47,6 +48,9 @@ class Sinful {
 
 	// returns the port portion of the sinful string
 	char const *getPort() const { if( m_port.empty() ) return NULL; else return m_port.c_str(); }
+
+	// Comparison operator
+	bool operator == ( const Sinful &other ) const;
 
 		// returns -1 if port not set; o.w. port number
 	int getPortNum();
@@ -92,6 +96,7 @@ class Sinful {
 	bool m_valid;
 
 	void regenerateSinful();
+	void init( const char *sinful );
 };
 
 #endif

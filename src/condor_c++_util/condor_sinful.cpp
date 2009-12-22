@@ -173,7 +173,18 @@ static std::string urlEncodeParams(map_type const &params)
 	return result;
 }
 
-Sinful::Sinful(char const *sinful)
+Sinful::Sinful( char const *sinful )
+{
+	init( sinful );
+}
+
+Sinful::Sinful( const Sinful &other )
+{
+	init( other.getSinful() );
+}
+
+void
+Sinful::init(char const *sinful)
 {
 	if( !sinful ) { // default constructor
 		m_valid = true;
@@ -365,4 +376,10 @@ Sinful::getPortNum()
 		return -1;
 	}
 	return atoi( getPort() );
+}
+
+bool
+Sinful::operator == ( const Sinful &other ) const
+{
+	return other.getSinful() == m_sinful;
 }
