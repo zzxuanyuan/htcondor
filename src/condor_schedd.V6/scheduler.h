@@ -173,7 +173,7 @@ class UserIdentity {
 			m_domain = src.m_domain;
 			m_auxid = src.m_auxid;			
 		}
-		UserIdentity(const char * user, const char * domainname, const ClassAd * ad);
+		UserIdentity(const char * user, const char * domainname, ClassAd * ad);
 		const UserIdentity & operator=(const UserIdentity & src) {
 			m_username = src.m_username;
 			m_domain = src.m_domain;
@@ -292,7 +292,7 @@ class Scheduler : public Service
 	void            enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool notify );
 	int             actOnJobMyselfHandler( ServiceData* data );
 	int				updateGSICred(int, Stream* s);
-	void            setNextJobDelay( ClassAd const *job_ad, ClassAd const *machine_ad );
+	void            setNextJobDelay( ClassAd *job_ad, ClassAd *machine_ad );
 	int				spoolJobFiles(int, Stream *);
 	static int		spoolJobFilesWorkerThread(void *, Stream *);
 	static int		transferJobFilesWorkerThread(void *, Stream *);
@@ -700,7 +700,7 @@ private:
 	Timeslice m_negotiate_timeslice;
 
 	// some stuff about Quill that should go into the ad
-#ifdef WANT_QUILL
+#ifdef HAVE_EXT_POSTGRESQL
 	int quill_enabled;
 	int quill_is_remotely_queryable;
 	char *quill_name;

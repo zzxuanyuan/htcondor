@@ -23,7 +23,7 @@
 #include "classad_oldnew.h"
 #include "condor_attributes.h"
 #include "classad/classad/xmlSink.h"
-//#include "condor_xml_classads.h"
+#include "condor_xml_classads.h"
 
 using namespace std;
 
@@ -178,6 +178,8 @@ void EvalResult::toString(bool force)
 
 ClassAd::ClassAd()
 {
+	m_privateAttrsAreInvisible = false;
+
 		// Compatibility ads are born with this to emulate the special
 		// CurrentTime in old ClassAds. We don't protect it afterwards,
 		// but that shouldn't be problem unless someone is deliberately
@@ -194,6 +196,14 @@ ClassAd::ClassAd( const ClassAd &ad )
 {
 	CopyFrom( ad );
 
+		// Compatibility ads are born with this to emulate the special
+		// CurrentTime in old ClassAds. We don't protect it afterwards,
+		// but that shouldn't be problem unless someone is deliberately
+		// trying to shoot themselves in the foot.
+	AssignExpr( ATTR_CURRENT_TIME, "time()" );
+
+	m_privateAttrsAreInvisible = false;
+
 	ResetName();
     ResetExpr();
 
@@ -203,6 +213,14 @@ ClassAd::ClassAd( const ClassAd &ad )
 ClassAd::ClassAd( const classad::ClassAd &ad )
 {
 	CopyFrom( ad );
+
+		// Compatibility ads are born with this to emulate the special
+		// CurrentTime in old ClassAds. We don't protect it afterwards,
+		// but that shouldn't be problem unless someone is deliberately
+		// trying to shoot themselves in the foot.
+	AssignExpr( ATTR_CURRENT_TIME, "time()" );
+
+	m_privateAttrsAreInvisible = false;
 
 	ResetName();
     ResetExpr();
@@ -217,6 +235,8 @@ ClassAd::~ClassAd()
 ClassAd::
 ClassAd( FILE *file, char *delimitor, int &isEOF, int&error, int &empty )
 {
+	m_privateAttrsAreInvisible = false;
+
 	nodeKind = CLASSAD_NODE;
 
 	char		buffer[ATTRLIST_MAX_EXPRESSION];
@@ -267,6 +287,12 @@ ClassAd( FILE *file, char *delimitor, int &isEOF, int&error, int &empty )
 			empty = FALSE;
 		}
 	}
+
+		// Compatibility ads are born with this to emulate the special
+		// CurrentTime in old ClassAds. We don't protect it afterwards,
+		// but that shouldn't be problem unless someone is deliberately
+		// trying to shoot themselves in the foot.
+	AssignExpr( ATTR_CURRENT_TIME, "time()" );
 
 	ResetName();
     ResetExpr();
@@ -754,11 +780,57 @@ EvalBool  (const char *name, classad::ClassAd *target, int &value)
 	return rc;
 }
 
+bool ClassAd::
+initFromString( char const *str,MyString *err_msg )
+{
+	bool succeeded = true;
+
+	// First, clear our ad so we start with a fresh ClassAd
+	Clear();
+
+		// Reinsert CurrentTime, emulating the special version in old
+		// ClassAds
+	AssignExpr( ATTR_CURRENT_TIME, "time()" );
+
+	char *exprbuf = new char[strlen(str)+1];
+	ASSERT( exprbuf );
+
+	while( *str ) {
+		while( isspace(*str) ) {
+			str++;
+		}
+
+		size_t len = strcspn(str,"\n");
+		strncpy(exprbuf,str,len);
+		exprbuf[len] = '\0';
+
+		if( str[len] == '\n' ) {
+			len++;
+		}
+		str += len;
+
+		if (!Insert(exprbuf)) {
+			if( err_msg ) {
+				err_msg->sprintf("Failed to parse ClassAd expression: %s",
+					exprbuf);
+			} else {
+				dprintf(D_ALWAYS,"Failed to parse ClassAd expression: %s\n",
+					exprbuf);
+			}
+			succeeded = false;
+			break;
+		}
+	}
+
+	delete [] exprbuf;
+	return succeeded;
+}
+
         // shipping functions
 int ClassAd::
 put( Stream &s )
 {
-	if( !putOldClassAd( &s, *this ) ) {
+	if( !putOldClassAd( &s, *this, m_privateAttrsAreInvisible ) ) {
 		return FALSE;
 	}
 	return TRUE;
@@ -770,13 +842,18 @@ initFromStream(Stream& s)
 	if( !getOldClassAd( &s, *this ) ) {
 		return FALSE;
 	}
+
+		// Reinsert CurrentTime, emulating the special version in old
+		// ClassAds
+	AssignExpr( ATTR_CURRENT_TIME, "time()" );
+
 	return TRUE;
 }
 
 int ClassAd::
 putAttrList( Stream &s )
 {
-	if( !putOldClassAdNoTypes( &s, *this ) ) {
+	if( !putOldClassAdNoTypes( &s, *this, m_privateAttrsAreInvisible ) ) {
 		return FALSE;
 	}
 	return TRUE;
@@ -788,30 +865,22 @@ initAttrListFromStream(Stream& s)
 	if( !getOldClassAdNoTypes( &s, *this ) ) {
 		return FALSE;
 	}
+
+		// Reinsert CurrentTime, emulating the special version in old
+		// ClassAds
+	AssignExpr( ATTR_CURRENT_TIME, "time()" );
+
 	return TRUE;
 }
 
 		// output functions
 int	ClassAd::
-fPrint( FILE *file )
+fPrint( FILE *file, StringList *attr_white_list )
 {
-	classad::ClassAdUnParser unp;
-	unp.SetOldClassAd( true );
-	string buffer = "";
+	MyString buffer;
 
-	if( !file ) {
-		return FALSE;
-	}
-
-	if ( GetChainedParentAd() ) {
-		unp.Unparse( buffer, GetChainedParentAd() );
-		fprintf( file, "%s", buffer.c_str() );
-
-		buffer = "";
-	}
-
-	unp.Unparse( buffer, this );
-	fprintf( file, "%s", buffer.c_str( ) );
+	sPrint( buffer, attr_white_list );
+	fprintf( file, "%s", buffer.Value() );
 
 	return TRUE;
 }
@@ -819,55 +888,55 @@ fPrint( FILE *file )
 void ClassAd::
 dPrint( int level )
 {
+	MyString buffer;
+
+	SetPrivateAttributesInvisible( true );
+	sPrint( buffer );
+	SetPrivateAttributesInvisible( false );
+
+	dprintf( level|D_NOHEADER, "%s", buffer.Value() );
+}
+
+int ClassAd::
+sPrint( MyString &output, StringList *attr_white_list )
+{
 	classad::ClassAd::iterator itr;
 
 	classad::ClassAdUnParser unp;
 	unp.SetOldClassAd( true );
 	string value;
-	MyString buffer;
+
+	output = "";
 
 	classad::ClassAd *parent = GetChainedParentAd();
 
 	if ( parent ) {
 		for ( itr = parent->begin(); itr != parent->end(); itr++ ) {
-			if ( !ClassAdAttributeIsPrivate( itr->first.c_str() ) ) {
+			if ( attr_white_list && !attr_white_list->contains_anycase(itr->first.c_str()) ) {
+				continue; // not in white-list
+			}
+			if ( !m_privateAttrsAreInvisible ||
+				 !ClassAdAttributeIsPrivate( itr->first.c_str() ) ) {
 				value = "";
 				unp.Unparse( value, itr->second );
-				buffer.sprintf_cat( "%s = %s\n", itr->first.c_str(),
+				output.sprintf_cat( "%s = %s\n", itr->first.c_str(),
 									value.c_str() );
 			}
 		}
 	}
 
 	for ( itr = this->begin(); itr != this->end(); itr++ ) {
-		if ( !ClassAdAttributeIsPrivate( itr->first.c_str() ) ) {
+		if ( attr_white_list && !attr_white_list->contains_anycase(itr->first.c_str()) ) {
+			continue; // not in white-list
+		}
+		if ( !m_privateAttrsAreInvisible ||
+			 !ClassAdAttributeIsPrivate( itr->first.c_str() ) ) {
 			value = "";
 			unp.Unparse( value, itr->second );
-			buffer.sprintf_cat( "%s = %s\n", itr->first.c_str(),
+			output.sprintf_cat( "%s = %s\n", itr->first.c_str(),
 								value.c_str() );
 		}
 	}
-
-	dprintf( level|D_NOHEADER, "%s", buffer.Value() );
-}
-
-int ClassAd::
-sPrint( MyString &output )
-{
-	classad::ClassAdUnParser unp;
-	unp.SetOldClassAd( true );
-	string buffer;
-
-	if ( GetChainedParentAd() ) {
-		unp.Unparse( buffer, GetChainedParentAd() );
-		output = buffer.c_str();
-	} else {
-		output = "";
-	}
-
-	buffer = "";
-	unp.Unparse( buffer, this );
-	output += buffer.c_str();
 
 	return TRUE;
 }
@@ -1266,6 +1335,37 @@ IsValidAttrValue(const char *value)
     return true;
 }
 
+//	Decides if a string is a valid attribute name, the LHS
+//  of an expression.  As per the manual, valid names:
+//
+//  Attribute names are sequences of alphabetic characters, digits and 
+//  underscores, and may not begin with a digit
+
+/* static */ bool
+ClassAd::IsValidAttrName(const char *name) {
+		// NULL pointer certainly false
+	if (!name) {
+		return false;
+	}
+
+		// Must start with alpha or _
+	if (!isalpha(*name) && *name != '_') {
+		return false;
+	}
+
+	name++;
+
+		// subsequent letters must be alphanum or _
+	while (*name) {
+		if (!isalnum(*name) && *name != '_') {
+			return false;
+		}
+		name++;
+	}
+
+	return true;
+}
+
 bool ClassAd::NextExpr( const char *&name, ExprTree *&value )
 {
 	classad::ClassAd *chained_ad = GetChainedParentAd();
@@ -1378,19 +1478,19 @@ fPrintAsXML(FILE *fp)
 }
 
 int ClassAd::
-sPrintAsXML(MyString &output)
+sPrintAsXML(MyString &output, StringList *attr_white_list)
 {
-    classad::ClassAdXMLUnParser     unparser;
-    std::string             xml;
-    unparser.SetCompactSpacing(false);
-    unparser.Unparse(xml,this);
-    output += xml.c_str();
-    return TRUE;
+	ClassAdXMLUnparser  unparser;
+	MyString            xml;
+	unparser.SetUseCompactSpacing(false);
+	unparser.Unparse(this, xml, attr_white_list);
+	output += xml;
+	return TRUE;
 }
 ///////////// end XML functions /////////
 
 char const *
-ClassAd::EscapeStringValue(char const *val)
+ClassAd::EscapeStringValue(char const *val, MyString &buf)
 {
     if(val == NULL)
         return NULL;
@@ -1402,7 +1502,8 @@ ClassAd::EscapeStringValue(char const *val)
     tmpValue.SetStringValue(val);
     unparse.Unparse(stringToAppeaseUnparse, tmpValue);
 
-    return stringToAppeaseUnparse.c_str();
+    buf = stringToAppeaseUnparse.c_str();
+    return buf.Value();
 }
 
 void ClassAd::ChainCollapse()

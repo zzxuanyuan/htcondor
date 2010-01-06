@@ -18,6 +18,7 @@
  ***************************************************************/
 
 #include "compat_classad_list.h"
+#include "condor_xml_classads.h"
 
 namespace compat_classad {
 
@@ -111,5 +112,55 @@ void ClassAdList::Sort(SortFunctionType smallerThan, void* userInfo)
 	std::sort(list.begin(), list.end(), isSmallerThan);
 }
 
+void ClassAdList::fPrintAttrListList(FILE* f, bool use_xml, StringList *attr_white_list)
+{
+	ClassAd            *tmpAttrList;
+	ClassAdXMLUnparser  unparser;
+	MyString            xml;
+
+	if (use_xml) {
+		unparser.SetUseCompactSpacing(false);
+		unparser.AddXMLFileHeader(xml);
+		printf("%s\n", xml.Value());
+		xml = "";
+	}
+
+    Open();
+    for(tmpAttrList = Next(); tmpAttrList; tmpAttrList = Next()) {
+		if (use_xml) {
+			unparser.Unparse((ClassAd *) tmpAttrList, xml, attr_white_list);
+			printf("%s\n", xml.Value());
+			xml = "";
+		} else {
+			tmpAttrList->fPrint(f,attr_white_list);
+		}
+        fprintf(f, "\n");
+    }
+	if (use_xml) {
+		unparser.AddXMLFileFooter(xml);
+		printf("%s\n", xml.Value());
+		xml = "";
+	}
+    Close();
+}
+
+int ClassAdList::Count( classad::ExprTree *constraint )
+{
+	ClassAd *ad = NULL;
+	int matchCount  = 0;
+
+	// Check for null constraint.
+	if ( constraint == NULL ) {
+		return 0;
+	}
+
+	Rewind();
+	while( (ad = Next()) ) {
+		if ( EvalBool(ad, constraint) ) {
+			matchCount++;
+		}
+	}
+	return matchCount;
+}
 
 } // namespace compat_classad

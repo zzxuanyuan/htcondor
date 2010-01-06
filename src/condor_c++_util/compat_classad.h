@@ -28,6 +28,10 @@
 #include "classad/classad_distribution.h"
 #include "condor_io.h"
 
+#ifndef ATTRLIST_MAX_EXPRESSION
+#define	ATTRLIST_MAX_EXPRESSION 10240
+#endif
+
 namespace compat_classad {
 
 // This enum is lifted directly from old ClassAds.
@@ -310,6 +314,8 @@ class ClassAd : public classad::ClassAd
 		/** Get the value of the TargetType attribtute */
 	const char*	GetTargetTypeName() const;
 
+	bool initFromString(char const *str,MyString *err_msg);
+
 		/** Print the ClassAd as an old ClassAd to the stream
 		 * @param s the stream
 		 */
@@ -335,7 +341,7 @@ class ClassAd : public classad::ClassAd
 			@param file The file handle to print to.
 			@return TRUE
 		*/
-	int	fPrint(FILE *file);
+	int	fPrint(FILE *file, StringList *attr_white_list = NULL);
 
 		/** Print the ClassAd as an old ClasAd with dprintf
 			@param level The dprintf level.
@@ -346,7 +352,7 @@ class ClassAd : public classad::ClassAd
 			@param output The MyString to write into
 			@return TRUE
 		*/
-	int sPrint( MyString &output );
+	int sPrint( MyString &output, StringList *attr_white_list = NULL );
         /** Prints an expression with a certain name into a buffer. 
          *
          *  @param buffer The buffer to place the named expression into. NOTE: if this is NULL, then the function returns some malloc'd memory. Free it.
@@ -366,25 +372,44 @@ class ClassAd : public classad::ClassAd
      * @param output The MyString to have filled with the XML-ified classad.
      * @return TRUE
      */
-    int sPrintAsXML(MyString &output);
+    int sPrintAsXML(MyString &output, StringList *attr_white_list = NULL);
 
     void ResetExpr();
 
 	void ResetName();
 	const char *NextNameOriginal();
 
+	/* Create a new ExprTree based on the given one. The new tree will
+	 * be modified suched that any boolean value is converted to a
+	 * literal '0' or '1'.
+	 */
 	bool AddExplicitConditionals( classad::ExprTree *expr, classad::ExprTree *&newExpr );
+
+	// AddExplicitTargets creates a new ClassAd (the caller owns it)
+	// that is similar to the original ClassAd, except that if it refers
+	// to attributes that are not in the current classad and they are not
+	// scoped, then they are renamed "target.attribute"
 	classad::ClassAd *AddExplicitTargetRefs( );
 		//@}
 
 	static bool ClassAdAttributeIsPrivate( char const *name );
+
+	void SetPrivateAttributesInvisible( bool invisible )
+	{ m_privateAttrsAreInvisible = invisible; }
 
     /** Is this value valid for being written to the log? The value is a RHS of an expression. Only '\n' or '\r' are invalid.
      *
      * @param value The thing we check to see if valid.
      * @return True, unless value had '\n' or '\r'.
      */
-    bool IsValidAttrValue(const char *value);
+    static bool IsValidAttrValue(const char *value);
+
+	//	Decides if a string is a valid attribute name, the LHS
+	//  of an expression.  As per the manual, valid names:
+	//
+	//  Attribute names are sequences of alphabetic characters, digits and 
+	//  underscores, and may not begin with a digit
+	static bool IsValidAttrName(const char *name);
 
 	bool NextExpr( const char *&name, ExprTree *&value );
 
@@ -412,7 +437,7 @@ class ClassAd : public classad::ClassAd
      *  @param val The string we're escaping stuff in. 
      *  @return The escaped string.
      */
-    char const *EscapeStringValue(char const *val);
+    static char const *EscapeStringValue(char const *val, MyString &buf);
 
     /** Takes the ad this is chained to, copies over all the 
      *  attributes from the parent ad that aren't in this classad
@@ -446,9 +471,12 @@ class ClassAd : public classad::ClassAd
 
     classad::DirtyAttrList::iterator m_dirtyItr;
     bool m_dirtyItrInit;
+
+	bool m_privateAttrsAreInvisible;
 };
 
 typedef ClassAd AttrList;
+typedef classad::ExprTree ExprTree;
 
 } // namespace compat_classad
 

@@ -17,12 +17,14 @@
  *
  ***************************************************************/
 
-
+#define _CONDOR_ALLOW_OPEN /* for sstream */
 #include "condor_common.h"
 #include "condor_sinful.h"
 #include "condor_debug.h"
 #include "internet.h"
 #include "condor_attributes.h"
+
+#include <sstream>
 
 static bool
 urlDecode(char const *str,size_t max,std::string &result)
@@ -171,8 +173,7 @@ static std::string urlEncodeParams(map_type const &params)
 	return result;
 }
 
-Sinful::Sinful(char const *sinful):
-	m_sinful(sinful ? sinful : "")
+Sinful::Sinful(char const *sinful)
 {
 	if( !sinful ) { // default constructor
 		m_valid = true;
@@ -182,7 +183,16 @@ Sinful::Sinful(char const *sinful):
 		char *port=NULL;
 		char *params=NULL;
 
-		m_valid = split_sin(sinful,&host,&port,&params);
+		if( *sinful != '<' ) {
+			m_sinful = "<";
+			m_sinful += sinful;
+			m_sinful += ">";
+		}
+		else {
+			m_sinful = sinful;
+		}
+
+		m_valid = split_sin(m_sinful.c_str(),&host,&port,&params);
 
 		if( m_valid ) {
 			if( host ) {
@@ -289,19 +299,23 @@ Sinful::getPrivateNetworkName() const
 void
 Sinful::setHost(char const *host)
 {
+	ASSERT(host);
 	m_host = host;
 	regenerateSinful();
 }
 void
 Sinful::setPort(char const *port)
 {
+	ASSERT(port);
 	m_port = port;
 	regenerateSinful();
 }
 void
 Sinful::setPort(int port)
 {
-	m_port = port;
+	std::ostringstream tmp;
+	tmp << port;
+	m_port = tmp.str();
 	regenerateSinful();
 }
 
@@ -312,13 +326,43 @@ Sinful::regenerateSinful()
 
 	m_sinful = "<";
 	m_sinful += m_host;
-	if( m_port.size() ) {
+	if( !m_port.empty() ) {
 		m_sinful += ":";
 		m_sinful += m_port;
 	}
-	if( m_params.size() ) {
+	if( !m_params.empty() ) {
 		m_sinful += "?";
 		m_sinful += urlEncodeParams(m_params);
 	}
 	m_sinful += ">";
+}
+
+bool
+Sinful::addressPointsToMe( Sinful const &addr ) const
+{
+	if( getHost() && addr.getHost() && !strcmp(getHost(),addr.getHost()) &&
+		getPort() && addr.getPort() && !strcmp(getPort(),addr.getPort()) )
+	{
+		char const *spid = getSharedPortID();
+		char const *addr_spid = addr.getSharedPortID();
+		if( spid == NULL && addr_spid == NULL ||
+			spid && addr_spid && !strcmp(spid,addr_spid) )
+		{
+			return true;
+		}
+	}
+	if( getPrivateAddr() ) {
+		Sinful private_addr( getPrivateAddr() );
+		return private_addr.addressPointsToMe( addr );
+	}
+	return false;
+}
+
+int
+Sinful::getPortNum()
+{
+	if( !getPort() ) {
+		return -1;
+	}
+	return atoi( getPort() );
 }

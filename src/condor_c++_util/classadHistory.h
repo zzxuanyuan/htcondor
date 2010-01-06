@@ -20,6 +20,8 @@
 #if !defined(_CLASSAD_HISTORY_H)
 #define _CLASSAD_HISTORY_H
 
+#include "condor_classad.h"
+
 extern bool        DoHistoryRotation;
 extern bool        DoDailyHistoryRotation;
 extern bool        DoMonthlyHistoryRotation;
@@ -28,10 +30,8 @@ extern int         NumberBackupHistoryFiles;
 extern char*       PerJobHistoryDir;
 extern char* JobHistoryFileName;
 
-class ClassAd;
-
 void WritePerJobHistoryFile(ClassAd*, bool);
 void AppendHistory(ClassAd*);
-void InitJobHistoryFile(const char *);
+void InitJobHistoryFile(const char *, const char *);
 
 #endif

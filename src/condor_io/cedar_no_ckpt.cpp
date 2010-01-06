@@ -41,6 +41,8 @@
 #include "condor_sinful.h"
 #include "shared_port_client.h"
 #include "daemon_core_sock_adapter.h"
+#include "condor_netdb.h"
+#include "internet.h"
 
 #ifdef WIN32
 #include <mswsock.h>	// For TransmitFile()
@@ -757,7 +759,7 @@ int Sock::special_connect(char const *host,int /*port*/,bool nonblocking)
 
 		bool same_host = false;
 		char const *my_ip = my_ip_string();
-		if( my_ip && strcmp(my_ip,sinful.getHost())==0 ) {
+		if( my_ip && sinful.getHost() && strcmp(my_ip,sinful.getHost())==0 ) {
 			same_host = true;
 		}
 
@@ -898,4 +900,35 @@ ReliSock::sendTargetSharedPortID()
 	}
 	SharedPortClient shared_port;
 	return shared_port.sendSharedPortID(shared_port_id,this);
+}
+
+char const *
+Sock::get_sinful_public()
+{
+		// In case TCP_FORWARDING_HOST changes, do not cache it.
+	MyString tcp_forwarding_host;
+	param(tcp_forwarding_host,"TCP_FORWARDING_HOST");
+	if (!tcp_forwarding_host.IsEmpty()) {
+		struct sockaddr_in sin;
+		if (!is_ipaddr(tcp_forwarding_host.Value(), &sin.sin_addr)) {
+			struct hostent *he = condor_gethostbyname(tcp_forwarding_host.Value());
+			if (he == NULL) {
+				dprintf(D_ALWAYS,
+					"failed to resolve address of TCP_FORWARDING_HOST=%s\n",
+					tcp_forwarding_host.Value());
+				return NULL;
+			}
+			sin.sin_addr = *(in_addr*)(he->h_addr_list[0]);;
+		}
+		sin.sin_port = htons(get_port());
+		char const *addr = sin_to_string(&sin);
+		if( !addr ) {
+			return NULL;
+		}
+		strncpy(_sinful_public_buf,addr,SINFUL_STRING_BUF_SIZE);
+		_sinful_public_buf[SINFUL_STRING_BUF_SIZE-1] = '\0';
+		return _sinful_public_buf;
+	}
+
+	return get_sinful();
 }
