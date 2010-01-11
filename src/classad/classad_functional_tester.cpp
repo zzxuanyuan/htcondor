@@ -51,6 +51,8 @@ enum Command
     cmd_Sameq,
     cmd_Diff,
     cmd_Diffq,
+	cmd_Flat,
+	cmd_FlatInline,
     cmd_Set,
     cmd_Show,
     cmd_Writexml,
@@ -113,6 +115,8 @@ void get_two_exprs(string &line, ExprTree *&tree1, ExprTree *&tree2,
                    State &state, Parameters &parameters);
 void print_expr(ExprTree *tree, State &state, Parameters &parameters);
 bool evaluate_expr(ExprTree *tree, Value &value, Parameters &parameters);
+bool flatten_expr(ExprTree * tree, Value & value, Parameters & parameters);
+bool flatten_inline_expr(ExprTree * tree, Value & value, Parameters & parameters);
 void shorten_line(string &line, int offset);
 bool handle_command(Command command, string &line, State &state, 
                     Parameters &parameters);
@@ -122,6 +126,8 @@ void handle_same(string &line, State &state, Parameters &parameters);
 void handle_sameq(string &line, State &state, Parameters &parameters);
 void handle_diff(string &line, State &state, Parameters &parameters);
 void handle_diffq(string &line, State &state, Parameters &parameters);
+void handle_flat(string &line, State &state, Parameters & parameters);
+void handle_flatInline(string &line, State &state, Parameters & parameters);
 void handle_set(string &line, State &state, Parameters &parameters);
 void handle_show(string &line, State &state, Parameters &parameters);
 void handle_writexml(string &line, State &state, Parameters &parameters);
@@ -571,7 +577,11 @@ Command get_command(
         command = cmd_Diff;
     } else if (command_name == "diffq") {
         command = cmd_Diffq;
-    } else if (command_name == "set") {
+    } else if (command_name == "flat") {
+		command = cmd_Flat;
+	} else if (command_name == "flatInline") {
+		command = cmd_FlatInline;
+	}else if (command_name == "set") {
         command = cmd_Set;
     } else if (command_name == "show") {
         command = cmd_Show;
@@ -634,6 +644,12 @@ bool handle_command(
     case cmd_Diffq:
         handle_diffq(line, state, parameters);
         break;
+	case cmd_Flat:
+		handle_flat(line, state, parameters);
+		break;
+	case cmd_FlatInline:
+		handle_flatInline(line, state, parameters);
+		break;
     case cmd_Set:
         handle_set(line, state, parameters);
         break;
@@ -875,6 +891,47 @@ void handle_diffq(
         delete tree2;
     }
     return;
+}
+
+/*********************************************************************
+ *
+ * Function: handle_flatSame
+ * Purpose: Flattens the expression
+ *
+ *********************************************************************/
+void handle_flat(string &line, State &state, Parameters & parameters)
+{
+    string    variable_name;
+    ExprTree  *tree;
+    Variable  *variable;
+
+    if (get_variable_name(line, true, variable_name, state, parameters)) {
+        tree = get_expr(line, state, parameters);
+        if (tree != NULL) {
+            Value value;
+            if (!evaluate_expr(tree, value, parameters)) {
+                print_error_message("Couldn't evaluate rvalue", state);
+            } else {
+                variable = new Variable(variable_name, value);
+                variables[variable_name] = variable;
+                if (parameters.interactive) {
+                    cout << value << endl;
+                }
+            }
+        }
+    }
+    return;
+}
+
+/*********************************************************************
+ *
+ * Function: handle_flatSame
+ * Purpose: Flattens and inlines the expression
+ *
+ *********************************************************************/
+void handle_flatInline(string &line, State &state, Parameters & parameters)
+{
+
 }
 
 /*********************************************************************
@@ -1364,6 +1421,38 @@ bool evaluate_expr(
     success = classad.EvaluateAttr("internal___", value);
     classad.Remove("internal___");
     return success;
+}
+
+/*********************************************************************
+ *
+ * Function: evaluate_expr
+ * Purpose:  
+ *
+ *********************************************************************/
+bool flatten_expr(ExprTree * tree, Value & value, Parameters & parameters)
+{
+	ClassAd classad;
+	bool success;
+	ExprTree * ftree;
+	
+	classad.Insert("internal___", tree);
+	success = classad.Flatten(tree, value, ftree);
+
+	// if it gives us a tree back, then evaluate the tree into a value
+	if(ftree)
+
+
+}
+
+/*********************************************************************
+ *
+ * Function: evaluate_expr
+ * Purpose:  
+ *
+ *********************************************************************/
+bool flatten_inline_expr(ExprTree * tree, Value & value, Parameters & parameters)
+{
+
 }
 
 /*********************************************************************
