@@ -116,6 +116,12 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 		Register_Command( SHADOW_UPDATEINFO, "SHADOW_UPDATEINFO",
 						  (CommandHandlercpp)&UniShadow::updateFromStarter, 
 						  "UniShadow::updateFromStarter", this, DAEMON );
+
+	/**	<BENCH_CODE>
+		register the timer so that we can send commands to the starter
+	*/
+	daemonCore->Register_Timer(0, (TimerHandlercpp)&UniShadow::classadBenchTimerHandler, 
+									"classadBenchTimerHandler", this);
 }
 
 
@@ -443,3 +449,19 @@ UniShadow::getMachineName( MyString &machineName )
 	}
 	return false;
 }
+
+/** <BENCH_CODE>
+*/
+void 
+UniShadow::classadBenchTimerHandler()
+{
+	dprintf(D_ALWAYS, "Sending classad benchmark command to starter\n");
+	//remRes->getDCStartd()->sendCommand(654321);
+	char * buffer;
+	remRes->getStarterAddress(buffer);
+	dprintf(D_ALWAYS, "Sinful string: [%s]\n", buffer);
+	//delete [] buffer;
+	dprintf(D_ALWAYS, "command started\n"); 
+
+}
+

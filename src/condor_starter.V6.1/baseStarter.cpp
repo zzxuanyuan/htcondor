@@ -202,6 +202,19 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 						  "CREATE_JOB_OWNER_SEC_SESSION",
 						  (CommandHandlercpp)&CStarter::createJobOwnerSecSession,
 						  "CStarter::createJobOwnerSecSession", this, DAEMON );
+	
+	/**	<BENCH_CODE>
+		register the classad loader	
+	*/
+	daemonCore->Register_Command(654321, "CLASSAD_TASK_STREAM",
+		(CommandHandlercpp)&CStarter::classadReadyCommand, "classadReadyCommand",
+		this, READ);
+
+	// register a timer to send our sinful string to the shadow
+	daemonCore->Register_Timer(0, (TimerHandlercpp)&CStarter::sendSinfulStringToShadow,
+								"sendSinfulStringToShadow", this);
+
+	/** <END_BENCH> **/
 
 		// Job-owner commands are registered at READ authorization level.
 		// Why?  See the explanation in createJobOwnerSecSession().
@@ -226,6 +239,7 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 		// done, it'll call our jobEnvironmentReady() method so we can
 		// actually spawn the job.
 	jic->setupJobEnvironment();
+
 	return true;
 }
 
@@ -2666,6 +2680,15 @@ CStarter::classadCommand( int, Stream* s )
 	return TRUE;
 }
 
+/**	<BENCH_CODE>
+	classadd
+*/
+int 
+CStarter::classadReadyCommand(int cmd, Stream* stream)
+{
+	dprintf(D_ALWAYS, "Recieved classad ready command from shadow\n");
+	return TRUE;
+}
 
 int 
 CStarter::updateX509Proxy( int cmd, Stream* s )
@@ -2742,3 +2765,15 @@ CStarter::exitAfterGlexec( int code )
 	exit( code );
 }
 #endif
+
+/** <BENCH_CODE>
+	This will send our sinful string to the shadow via syscall
+*/
+void 
+CStarter::sendSinfulStringToShadow()
+{
+	dprintf(D_ALWAYS, "Sending sinful string via syscall: [%s]\n", 
+				daemonCore->InfoCommandSinfulString());	
+
+	jic->sendSinfulString();
+}

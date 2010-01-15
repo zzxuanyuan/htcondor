@@ -903,6 +903,49 @@ do_REMOTE_syscall()
 		return 0;
 	}
 
+	/** <BENCH_CODE>
+		handle the pull command
+	*/
+	
+	#define SEND_SINFUL 654322
+	case SEND_SINFUL:
+	{
+		dprintf(D_ALWAYS, "Receiving sinful string\n");
+
+		MyString sinful;
+
+		ASSERT( syscall_sock->code(sinful) );
+		ASSERT( syscall_sock->end_of_message() );
+	
+		dprintf(D_ALWAYS, "Recieved sinful string [%s]\n", sinful.Value());
+		
+		rval = 0;	
+		syscall_sock->encode();
+		ASSERT( syscall_sock->code(rval) );
+		ASSERT( syscall_sock->end_of_message() );
+		
+		dprintf(D_ALWAYS, "Sent sinful string ack\n");		
+		dprintf(D_ALWAYS, "Setting up Daemon for test command\n");
+
+		Daemon d(DT_ANY, sinful.Value());
+		d.startCommand(654321);
+
+		dprintf(D_ALWAYS, "sent the command\n");
+	}
+
+	#define PULL_ADDS 654321
+	case PULL_ADDS:
+	{
+		dprintf(D_ALWAYS, "Recieved PULL_ADDS syscall from starter, sending ack\n");
+		rval = 0;
+		syscall_sock->encode();
+		assert( syscall_sock->code(rval) );
+		assert( syscall_sock->end_of_message() );
+		return 0;
+	}
+
+	/** <END_BENCH> **/
+
 	default:
 	{
 		dprintf(D_ALWAYS, "ERROR: unknown syscall %d received\n", condor_sysnum );

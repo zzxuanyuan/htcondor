@@ -62,6 +62,11 @@ extern "C" {
 		MyString &filetrans_session_info,
 		MyString &filetrans_session_key);
 
+	/** <BENCH_CODE>
+	*/
+	int REMOTE_CONDOR_send_sinful_string();
+	int REMOTE_CONDOR_init_classad_pull();
+
 }
 
 #endif
