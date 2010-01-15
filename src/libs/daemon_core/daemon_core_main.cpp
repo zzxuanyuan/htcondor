@@ -1084,15 +1084,17 @@ handle_fetch_log_history_purge(ReliSock *s) {
 }
 
 
+#ifdef WIN32
 int
 handle_nop( Service*, int, Stream* stream)
 {
 	if( !stream->end_of_message() ) {
-		dprintf( D_ALWAYS, "handle_nop: failed to read end of message\n");
+		dprintf( D_FULLDEBUG, "handle_nop: failed to read end of message\n");
 		return FALSE;
 	}
 	return TRUE;
 }
+#endif
 
 
 int
@@ -2067,17 +2069,6 @@ int main( int argc, char** argv )
 		AllocConsole();
 #endif
 
-		// Avoid possibility of stale info sticking around from previous run.
-		// For example, we had problems in 7.0.4 and earlier with reconnect
-		// shadows in parallel universe reading the old schedd ad file.
-	kill_daemon_ad_file();
-
-		// Now that we have our pid, we could dump our pidfile, if we
-		// want it. 
-	if( pidFile ) {
-		drop_pid_file();
-	}
-
 #ifndef WIN32
 		// Now that logging is setup, create a pipe to deal with unix 
 		// async signals.  We do this after logging is setup so that
@@ -2100,6 +2091,37 @@ int main( int argc, char** argv )
 #endif
 
 	main_pre_command_sock_init();
+
+		/* NOTE re main_pre_command_sock_init:
+		  *
+		  * The Master uses main_pre_command_sock_init to check for
+		  * the InstanceLock. Any operation that is distructive before
+		  * this point will possibly change the state/environment for
+		  * an already running master.
+		  *
+		  *  In the pidfile case, a second Master will start, drop its
+		  *  pid in the file and then exit, see GT343.
+		  *
+		  *  In the DAEMON_AD_FILE case, which isn't actually a
+		  *  problem as of this comment because the Master does not
+		  *  drop one, there would be a period of time when the file
+		  *  would be missing.
+		  *
+		  * PROBLEM: TRUNC_*_LOG_ON_OPEN=TRUE will get to delete the
+		  * log file before getting here.
+		  */
+
+		// Now that we have our pid, we could dump our pidfile, if we
+		// want it. 
+	if( pidFile ) {
+		drop_pid_file();
+	}
+
+		// Avoid possibility of stale info sticking around from previous run.
+		// For example, we had problems in 7.0.4 and earlier with reconnect
+		// shadows in parallel universe reading the old schedd ad file.
+	kill_daemon_ad_file();
+
 
 		// SETUP COMMAND SOCKET
 	daemonCore->SetDaemonSockName( daemon_sock_name );
@@ -2218,9 +2240,13 @@ int main( int argc, char** argv )
 								  (CommandHandler)handle_set_peaceful_shutdown,
 								  "handle_set_peaceful_shutdown()", 0, ADMINISTRATOR );
 
+#ifdef WIN32
+		// DC_NOP is for waking up select.  There is no need for
+		// security here, because anyone can wake up select anyway.
 	daemonCore->Register_Command( DC_NOP, "DC_NOP",
 								  (CommandHandler)handle_nop,
-								  "handle_nop()", 0, READ );
+								  "handle_nop()", 0, ALLOW );
+#endif
 
 	daemonCore->Register_Command( DC_FETCH_LOG, "DC_FETCH_LOG",
 								  (CommandHandler)handle_fetch_log,

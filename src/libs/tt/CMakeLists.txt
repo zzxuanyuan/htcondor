@@ -5,7 +5,7 @@ if (HAVE_EXT_POSTGRESQL)
 
 	condor_glob( ttHdrs ttSrcs "${ttLibSrcs}" )
 
-	add_library( tt STATIC ${ttLibSrcs} )
+	condor_static_lib( tt "${ttLibSrcs}" )
 
 	condor_exe(condor_quill "${ttHdrs};${ttSrcs}" sbin "tt;${PCRE_FOUND};${CONDOR_LIBS};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${POSTGRESQL_FOUND}")
 else()

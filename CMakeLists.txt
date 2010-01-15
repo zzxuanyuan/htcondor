@@ -1,10 +1,10 @@
 ##########################################################################
 # Set project
 project(CONDOR)
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 
-###########################################################################
-#Setup package meta-data
+##########################################################################
+#Setup package meta-data (used in packaging)
 set(PACKAGE "condor")
 set(VERSION "7.5.0")
 set(PACKAGE_TARNAME "")
@@ -16,21 +16,22 @@ string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 
-###########################################################################
+##########################################################################
 #Set build type
-set(CMAKE_BUILD_TYPE RelWithDebInfo) # = -O2 -g 
+set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g 
 
 ###########################################
 # start cmake module inclusion
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
 include (CommandTarget)
 include (gSOAPGen)
-include (AddFileDependencies)
+include (FindMultiple)
+include (ExternalProjectPatched)
 include (CondorGlob)
 include (CondorSetLinkLibs)
-include (CondorDaemon)
-include (CondorExternal)
 include (CondorExe)
+include (CondorDaemon)
+include (CondorStaticLib)
 include (CheckIncludeFiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
@@ -42,7 +43,7 @@ include (CondorConfigure) # will initiate the configure
 
 ###########################################
 # The following two locations can be considered ubiquitous
-include_directories(${EXTERNAL_INCLUDES})
+include_directories(${EXTERNAL_STAGE}/include)
 if ($ENV{JAVA_HOME})
 	include_directories($ENV{JAVA_HOME}/include)
 endif()
@@ -52,7 +53,6 @@ include_directories(${CONDOR_SOURCE_DIR}/src/libs/utils)
 # and I've elliminated relative path includes.
 include_directories(${CONDOR_SOURCE_DIR}/src/libs)
 include_directories(${CONDOR_SOURCE_DIR}/src/daemons)
-include_directories(${CONDOR_SOURCE_DIR}/src/libs/classad)
 ###########################################
 
 ##########################################################################
@@ -120,7 +120,7 @@ add_subdirectory(src/tools/lease_manager)
 #add_subdirectory(src/tools/hawkeye_modules) #??
 ##########################################################################
 
-
+# insert any spurious install targets which have not yet been added.  
 
 # What should be done is:
 # configure_file( CpackOptions.cmake.in CPackOption.cmake )

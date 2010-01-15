@@ -7,5 +7,5 @@ file( GLOB ProcAPISrcs procapi.cpp processid.cpp procapi_killfamily.cpp )
 # procinterface being one of them.
 
 #create the library
-add_library ( procapi STATIC ${ProcAPISrcs} )
+condor_static_lib ( procapi "${ProcAPISrcs}" )
 

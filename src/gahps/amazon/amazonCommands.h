@@ -24,7 +24,7 @@
 #include "condor_string.h"
 #include "MyString.h"
 #include "string_list.h"
-
+#include "openssl/ssl.h"
 #include <smdevp.h>
 
 // EC2 Commands

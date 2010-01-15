@@ -10,4 +10,4 @@ if (GSOAP_SRC)
 endif()
 
 #create the library
-add_library(daemon_core STATIC ${DCHeaderFiles} ${DCSourceFiles})
+condor_static_lib(daemon_core "${DCHeaderFiles};${DCSourceFiles}")

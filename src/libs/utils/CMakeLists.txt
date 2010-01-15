@@ -11,9 +11,8 @@ condor_glob( HeaderFiles SourceFiles "${RmvSrcs}" )
 # call perl to gen the params.  
 command_target( utils_genparams perl param_info_c_generator.pl param_info_init.c )
 
-add_library( utils STATIC ${HeaderFiles} ${SourceFiles} )
+condor_static_lib( utils "${HeaderFiles};${SourceFiles}" )
 
-if (NOT WINDOWS)
-	add_dependencies(utils utils_genparams)
-endif()
+add_dependencies(utils utils_genparams)
+
 

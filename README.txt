@@ -1,6 +1,10 @@
 
+Getting started:
 
-#todo:
-- remove stdsoap2.h from includes directory, this is pending on a massive fix relating to standard includes
+Requirements: CMAKE 2.8 or > 
 
+$ cmake . 
+make 
+
+you can also run cmake-gui for more graphical happiness. 
 

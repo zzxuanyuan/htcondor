@@ -69,7 +69,8 @@ Daemon::common_init() {
 	m_daemon_ad_ptr = NULL;
 	char buf[200];
 	sprintf(buf,"%s_TIMEOUT_MULTIPLIER",get_mySubSystem()->getName() );
-	Sock::set_timeout_multiplier( param_integer(buf,0) );
+	Sock::set_timeout_multiplier( param_integer(buf, param_integer("TIMEOUT_MULTIPLIER", 0)) );
+	dprintf(D_DAEMONCORE, "*** TIMEOUT_MULTIPLIER :: %d\n", Sock::get_timeout_multiplier());
 	m_has_udp_command_port = true;
 }
 
@@ -381,7 +382,8 @@ Daemon::idStr( void )
 		ASSERT( dt_str );
 		Sinful sinful(_addr);
 		sinful.clearParams(); // too much info is ugly
-		buf.sprintf( "%s at %s", dt_str, sinful.getSinful() );
+		buf.sprintf( "%s at %s", dt_str,
+					 sinful.getSinful() ? sinful.getSinful() : _addr );
 		if( _full_hostname ) {
 			buf.sprintf_cat( " (%s)", _full_hostname );
 		}
@@ -1460,7 +1462,8 @@ Daemon::getCmInfo( const char* subsys )
 			return false;
 		}
 		sinful.setHost( inet_ntoa(sin_addr) );
-		dprintf( D_HOSTNAME, "Found IP address and port %s\n", sinful.getSinful() );
+		dprintf( D_HOSTNAME, "Found IP address and port %s\n",
+				 sinful.getSinful() ? sinful.getSinful() : "NULL" );
 		New_addr( strnewp( sinful.getSinful() ) );
 		New_full_hostname( tmp );
 	}

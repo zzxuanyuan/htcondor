@@ -4,4 +4,4 @@
 condor_glob(PrivsepHdrs PrivsepSrcs "")
 
 #create the library
-add_library( privsep STATIC ${PrivsepHdrs} ${PrivsepSrcs} )
+condor_static_lib( privsep "${PrivsepHdrs};${PrivsepSrcs}" )

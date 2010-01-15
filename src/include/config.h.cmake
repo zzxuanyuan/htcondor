@@ -107,7 +107,7 @@
 ///* Define if enabling HDFS */
 //#cmakedefine WANT_HDFS
 ///* Define to 1 if the X Window System is missing or not being used. */
-   //#cmakedefine X_DISPLAY_MISSING
+//#cmakedefine X_DISPLAY_MISSING
 ///* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a `char[]'. */
 //#cmakedefine YYTEXT_POINTER
 //////////////////////////////////////////////////
@@ -237,28 +237,36 @@
 /* Do we have the voms external (USED)*/
 #cmakedefine HAVE_EXT_VOMS 1
 
-//// The following are only internally used by imake
-//// but it doesn't appear that they do ... anything
 ///* Do we have the cream external (Imake?)*/
 #cmakedefine HAVE_EXT_CREAM
+
 ///* Do we have the curl external (Imake)*/
 #cmakedefine HAVE_EXT_CURL
+
 ///* Do we have the drmaa external (Imake)*/
 #cmakedefine HAVE_EXT_DRMAA
+
 ///* Do we have the expat external (Imake)*/
 #cmakedefine HAVE_EXT_EXPAT
+
 ///* Do we have the glibc external*/
 #cmakedefine HAVE_EXT_GLIBC
+
 ///* Do we have the hadoop external*/
 #cmakedefine HAVE_EXT_HADOOP
+
 ///* Do we have the linuxlibcheaders external*/
 #cmakedefine HAVE_EXT_LINUXLIBCHEADERS
+
 ///* Do we have the man external*/
 #cmakedefine HAVE_EXT_MAN
+
 ///* Do we have the pcre external*/
 #cmakedefine HAVE_EXT_PCRE
+
 ///* Do we have the postgresql external*/
 #cmakedefine HAVE_EXT_POSTGRESQL
+
 ///* Do we have the zlib external */
 #cmakedefine HAVE_EXT_ZLIB
 

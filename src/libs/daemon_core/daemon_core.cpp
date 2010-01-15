@@ -422,7 +422,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	peaceful_shutdown = false;
 
 #ifdef HAVE_EXT_GSOAP
-#ifdef COMPILE_SOAP_SSL
+#ifdef HAVE_EXT_OPENSSL
 	mapfile =  NULL;
 #endif
 #endif
@@ -628,19 +628,21 @@ void DaemonCore::Set_Default_Reaper( int reaper_id )
  ********************************************************/
 int	DaemonCore::Register_Command(int command, const char* com_descrip,
 				CommandHandler handler, const char* handler_descrip, Service* s,
-				DCpermission perm, int dprintf_flag)
+				DCpermission perm, int dprintf_flag, bool force_authentication)
 {
 	return( Register_Command(command, com_descrip, handler,
 							(CommandHandlercpp)NULL, handler_descrip, s,
-							perm, dprintf_flag, FALSE) );
+							 perm, dprintf_flag, FALSE, force_authentication) );
 }
 
 int	DaemonCore::Register_Command(int command, const char *com_descrip,
 				CommandHandlercpp handlercpp, const char* handler_descrip,
-				Service* s, DCpermission perm, int dprintf_flag)
+				Service* s, DCpermission perm, int dprintf_flag,
+				bool force_authentication)
 {
 	return( Register_Command(command, com_descrip, NULL, handlercpp,
-							handler_descrip, s, perm, dprintf_flag, TRUE) );
+							 handler_descrip, s, perm, dprintf_flag, TRUE,
+							 force_authentication) );
 }
 
 int	DaemonCore::Register_Signal(int sig, const char* sig_descrip,
@@ -870,7 +872,7 @@ int DaemonCore::Reset_Timer( int id, unsigned when, unsigned period )
 int DaemonCore::Register_Command(int command, const char* command_descrip,
 				CommandHandler handler, CommandHandlercpp handlercpp,
 				const char *handler_descrip, Service* s, DCpermission perm,
-				int dprintf_flag, int is_cpp)
+				int dprintf_flag, int is_cpp, bool force_authentication)
 {
     int     i;		// hash value
     int     j;		// for linear probing
@@ -916,6 +918,7 @@ int DaemonCore::Register_Command(int command, const char* command_descrip,
 	comTable[i].handlercpp = handlercpp;
 	comTable[i].is_cpp = is_cpp;
 	comTable[i].perm = perm;
+	comTable[i].force_authentication = force_authentication;
 	comTable[i].service = s;
 	comTable[i].data_ptr = NULL;
 	comTable[i].dprintf_flag = dprintf_flag;
@@ -1072,12 +1075,15 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 
 		m_sinful = Sinful(sinful_public);
 
+			// Only publish the private name if there is a private or CCB
+			// address, because otherwise, the private name doesn't matter.
+		bool publish_private_name = false;
+
 		char const *private_name = privateNetworkName();
 		if( private_name ) {
-			m_sinful.setPrivateNetworkName(private_name);
-
 			if( sinful_private && strcmp(sinful_public,sinful_private) ) {
 				m_sinful.setPrivateAddr(sinful_private);
+				publish_private_name = true;
 			}
 		}
 
@@ -1086,7 +1092,12 @@ DaemonCore::InfoCommandSinfulStringMyself(bool usePrivateAddress)
 			m_ccb_listeners->GetCCBContactString(ccb_contact);
 			if( !ccb_contact.IsEmpty() ) {
 				m_sinful.setCCBContact(ccb_contact.Value());
+				publish_private_name = true;
 			}
+		}
+
+		if( private_name && publish_private_name ) {
+			m_sinful.setPrivateNetworkName(private_name);
 		}
 	}
 
@@ -2334,7 +2345,7 @@ void DaemonCore::DumpCommandTable(int flag, const char* indent)
 	dprintf(flag, "\n");
 }
 
-MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm) {
+MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm,bool is_authenticated) {
 	MyString res;
 	int		i;
 	DCpermissionHierarchy hierarchy( perm );
@@ -2344,7 +2355,8 @@ MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm) {
 	for (perm = *(perms++); perm != LAST_PERM; perm = *(perms++)) {
 		for (i = 0; i < maxCommand; i++) {
 			if( (comTable[i].handler || comTable[i].handlercpp) &&
-				(comTable[i].perm == perm) )
+				(comTable[i].perm == perm) &&
+				(!comTable[i].force_authentication || is_authenticated))
 			{
 				char const *comma = res.Length() ? "," : "";
 				res.sprintf_cat( "%s%i", comma, comTable[i].num );
@@ -2617,7 +2629,7 @@ DaemonCore::reconfig(void) {
 	}
 #endif
 #ifdef HAVE_EXT_GSOAP
-#ifdef COMPILE_SOAP_SSL
+#ifdef HAVE_EXT_OPENSSL
 	MyString subsys = MyString(get_mySubSystem()->getName());
 	bool enable_soap_ssl = param_boolean("ENABLE_SOAP_SSL", false);
 
@@ -2645,7 +2657,7 @@ DaemonCore::reconfig(void) {
 			EXCEPT("DaemonCore: Error parsing USER_MAPFILE at line %d", line);
 		}
 	}
-#endif // COMPILE_SOAP_SSL
+#endif // HAVE_EXT_OPENSSL
 #endif // HAVE_EXT_GSOAP
 
 
@@ -3091,6 +3103,13 @@ void DaemonCore::Driver()
 		time_t time_before = time(NULL);
 		time_t okay_delta = timeout;
 
+			// Performance around select is of high importance for all
+			// daemons that are single threaded (all of them). If you
+			// have questions ask matt.
+		if (DebugFlags & D_PERF_TRACE) {
+			dprintf(D_ALWAYS, "PERF: entering select\n");
+		}
+
 		selector.execute();
 
 		tmpErrno = errno;
@@ -3124,6 +3143,14 @@ void DaemonCore::Driver()
 			EXCEPT("select, error # = %d",WSAGetLastError());
 		}
 #endif
+
+			// Performance around select is of high importance for all
+			// daemons that are single threaded (all of them). If you
+			// have questions ask matt.
+		if (DebugFlags & D_PERF_TRACE) {
+			dprintf(D_ALWAYS, "PERF: leaving select\n");
+			selector.display();
+		}
 
 		// For now, do not let other threads run while we are processing
 		// in the main loop.
@@ -4383,7 +4410,13 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 					// want to start one.  look at our security policy.
 				ClassAd our_policy;
 				if( ! sec_man->FillInSecurityPolicyAd(
-					  comTable[cmd_index].perm, &our_policy) ) {
+					comTable[cmd_index].perm,
+					&our_policy,
+					true,
+					false,
+					false,
+					comTable[cmd_index].force_authentication ) )
+				{
 						// our policy is invalid even without the other
 						// side getting involved.
 					dprintf( D_ALWAYS, "DC_AUTHENTICATE: "
@@ -4705,7 +4738,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 					pa_ad.Assign(ATTR_SEC_SID, the_sid);
 
 					// other commands this session is good for
-					pa_ad.Assign(ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
+					pa_ad.Assign(ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm,fully_qualified_user != NULL).Value());
 
 					// also put some attributes in the policy classad we are caching.
 					sec_man->sec_copy_attribute( *the_policy, auth_info, ATTR_SEC_SUBSYSTEM );
@@ -4812,7 +4845,12 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 
 				ClassAd our_policy;
 				if( ! sec_man->FillInSecurityPolicyAd(
-					comTable[index].perm, &our_policy) )
+					comTable[index].perm,
+					&our_policy,
+					true,
+					false,
+					false,
+					comTable[index].force_authentication ) )
 				{
 					dprintf( D_ALWAYS, "DC_AUTHENTICATE: "
 							 "Our security policy is invalid!\n" );
@@ -8828,12 +8866,17 @@ pidWatcherThread( void* arg )
 			// In the post v6.4.x world, SafeSock and startCommand
 			// are no longer thread safe, so we must grab our Big_fat lock.			
 			::EnterCriticalSection(&Big_fat_mutex); // enter big fat mutex
-	        SafeSock sock;
-			Daemon d( DT_ANY, daemonCore->InfoCommandSinfulString() );
 				// send a NOP command to wake up select()
-			notify_failed =
-					!sock.connect(daemonCore->InfoCommandSinfulString()) ||
-					!d.sendCommand(DC_NOP, &sock, 1);
+			Daemon d( DT_ANY, daemonCore->privateNetworkIpAddr() );
+	        SafeSock ssock;
+			ReliSock rsock;
+			Sock &sock = (d.hasUDPCommandPort() && daemonCore->dc_ssock) ?
+				*(Sock *)&ssock : *(Sock *)&rsock;
+				// Use raw command protocol to avoid blocking on ourself.
+			notify_failed = 
+				!d.connectSock(&sock,1) ||
+				!d.startCommand(DC_NOP, &sock, 1, NULL, "DC_NOP", true) ||
+				!sock.end_of_message();
 				// while we have the Big_fat_mutex, copy any exited pids
 				// out of our thread local MyExitedQueue and into our main
 				// thread's WaitpidQueue (of course, we must have the mutex

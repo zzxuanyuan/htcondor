@@ -17,16 +17,16 @@ MACRO (CONDOR_DAEMON _CNDR_TARGET _REMOVE_ELEMENTS _LINK_LIBS _INSTALL_LOC _GEN_
 	endif()
 
 	#Add the executable target.
-	add_executable(condor_${_CNDR_TARGET} ${${_CNDR_TARGET}HDRS} ${${_CNDR_TARGET}SRCS} )
+	condor_exe( condor_${_CNDR_TARGET} "${${_CNDR_TARGET}HDRS};${${_CNDR_TARGET}SRCS}" ${_INSTALL_LOC} "${_LINK_LIBS}")
+	
+	#add_executable(condor_${_CNDR_TARGET} ${${_CNDR_TARGET}HDRS} ${${_CNDR_TARGET}SRCS} )
+	#install (TARGETS condor_${_CNDR_TARGET}
+	#		 RUNTIME DESTINATION ${_INSTALL_LOC} )
+	#condor_set_link_libs (condor_${_CNDR_TARGET} "${_LINK_LIBS}")
 
 	# update the dependencies based on options
-	if ( ${_CNDR_TARGET}SOAP AND HAVE_EXT_GSOAP AND NOT WINDOWS)
+	if ( ${_CNDR_TARGET}SOAP AND HAVE_EXT_GSOAP)
 		add_dependencies(condor_${_CNDR_TARGET} gen_${_CNDR_TARGET}_soapfiles)
 	endif()
-
-	install (TARGETS condor_${_CNDR_TARGET}
-			 RUNTIME DESTINATION ${_INSTALL_LOC} )
-
-	condor_set_link_libs (condor_${_CNDR_TARGET} "${_LINK_LIBS}")
-
+	
 ENDMACRO (CONDOR_DAEMON)

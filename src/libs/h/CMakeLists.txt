@@ -9,7 +9,7 @@ add_custom_command( OUTPUT syscall_numbers.cpp
 					COMMAND awk
 					ARGS -f awk_prog.name_table syscall_numbers.tmpl > syscall_numbers.cpp )
 					
-add_library( syscall_numbers syscall_numbers.cpp syscall_numbers.h )
+condor_static_lib( syscall_numbers "syscall_numbers.cpp;syscall_numbers.h" )
 
 
 

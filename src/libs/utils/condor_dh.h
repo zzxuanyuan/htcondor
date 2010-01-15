@@ -21,8 +21,8 @@
 #define CONDOR_DH
 
 #include "condor_common.h"
-#include <openssl/dh.h>
-#include <openssl/rand.h>
+#include <openssl/ssl.h>
+//#include <openssl/rand.h>
 
 //----------------------------------------------------------------------
 //  Diffie-Hellman key exchange, based on API provided by OpenSSL

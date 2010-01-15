@@ -106,8 +106,7 @@ check_type_size("long long" HAVE_LONG_LONG)
 set(HAS_FLOCK ON)
 set(DOES_SAVE_SIGSTATE OFF)
 
-# this should be platform specific
-set(STATFS_ARGS "2") 
+set(STATFS_ARGS "2") # this should be platform specific
 
 if (${OS_NAME} STREQUAL "SOLARIS")
 	set(NEEDS_64BIT_SYSCALLS ON)
@@ -116,10 +115,8 @@ if (${OS_NAME} STREQUAL "SOLARIS")
 	set(HAS_FLOCK OFF)
 elseif(${OS_NAME} STREQUAL "LINUX")
 	set(DOES_SAVE_SIGSTATE ON)
-
 	check_symbol_exists(SIOCETHTOOL "linux/sockios.h" HAVE_DECL_SIOCETHTOOL)
 	check_symbol_exists(SIOCGIFCONF "linux/sockios.h" HAVE_DECL_SIOCGIFCONF)
-
 	check_include_files("linux/ethtool.h" HAVE_LINUX_ETHTOOL_H)
 	check_include_files("linux/magic.h" HAVE_LINUX_MAGIC_H)
 	check_include_files("linux/nfsd/const.h" HAVE_LINUX_NFSD_CONST_H)
@@ -132,8 +129,6 @@ elseif(${OS_NAME} STREQUAL "AIX")
 elseif(${OS_NAME} STREQUAL "HPUX")
 	set(DOES_SAVE_SIGSTATE ON)
 	set(NEEDS_64BIT_STRUCTS ON)
-elseif(${OS_NAME} STREQUAL "WINDOWS")	
-	#TBD
 endif()
 
 ##################################################
@@ -146,11 +141,10 @@ option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
 option(WANT_LEASE_MANAGER "Enable lease manager functionality" ON)
 option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" OFF)
-option(NEEDS_KBDD "Enable KBDD functionality" OFF)
+option(NEEDS_KBDD "Enable KBDD functionality" ON)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
 
-### Hopefully this will *always* be true.
 option(CLIPPED "Disables the standard universe" ON)
 option(STRICT "If externals are not found it will error" OFF)
 
@@ -167,9 +161,53 @@ else()
 	message(STATUS "********* Configuring externals using [uw-externals] a.k.a NONPROPER *********")
 	set (HAVE_OPENSSL_SSL_H ON)
 	set (HAVE_PCRE_H ON)
+
+	set (EXTERNAL_STAGE ${CONDOR_SOURCE_DIR}/build/externals/stage/root)
+	set (EXTERNAL_DL ${CONDOR_SOURCE_DIR}/build/externals/stage/download)
+	include_directories( ${EXTERNAL_STAGE}/include )
+	
+	if (WINDOWS)
+		include_directories( ${CONDOR_SOURCE_DIR}/src/libs/classad )
+	endif()
+	
+	link_directories( ${EXTERNAL_STAGE}/lib ${EXTERNAL_STAGE}/lib64 )
 endif()
 
-add_subdirectory (${CONDOR_SOURCE_DIR}/build/externals)
+###########################################
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/drmaa/1.6)
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/hadoop/0.20.0-p2)
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/postgresql/8.0.2)
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/openssl/0.9.8h-p2)
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/krb5/1.4.3-p0)
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/pcre/7.6)
+add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/gsoap/2.7.10-p5)
+
+set ( CONDOR_EXTERNALS drmaa hadoop postgresql openssl krb5 pcre gsoap )
+
+if (NOT WINDOWS)
+
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/zlib/1.2.3)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/classads/1.0.4 )
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/curl/7.19.6-p1 )	
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/coredumper/0.2)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/unicoregahp/1.2.0)	
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/expat/2.0.1)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/gcb/1.5.6)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/libxml2/2.7.3)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/libvirt/0.6.2)
+
+	# the following need verification on csl machines.. arg..
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/globus/4.2.1-p5)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/blahp/1.12.2-p7)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/voms/1.8.8_2-p1)
+	add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/srb/3.2.1-p2)
+	#add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/cream/1.10.1-p2)
+	#add_subdirectory( ${CONDOR_SOURCE_DIR}/build/externals/bundles/man/current)
+	
+	set (CONDOR_EXTERNALS ${CONDOR_EXTERNALS} zlib blahp classads curl coredumper unicoregahp voms expat srb globus gcb libvirt libxml2 cream )
+
+endif(NOT WINDOWS)
+
 ########################################################
 message(STATUS "********* ENDING CONFIGURATION *********")
 configure_file(${CONDOR_SOURCE_DIR}/src/include/config.h.cmake
@@ -177,23 +215,10 @@ ${CONDOR_SOURCE_DIR}/src/include/config.h)
 add_definitions(-DHAVE_CONFIG_H)
 
 ###########################################
-# set package specific build options based on deps
-# I don't know "why this was done... but we
-# may be able to remove this.
-if (WITH_GSOAP AND WITH_OPENSSL)
-	# added the goop that the old builds did
-	add_definitions(-DCOMPILE_SOAP_SSL)
-endif()
-
-if (WITH_OPENSSL)
-    add_definitions(-DWITH_OPENSSL)
-endif()
-###########################################
-
-###########################################
 ## set global build properties
-# Build dynamic libraries unless explicitly stated
+# Build dynamic libraries unless explicitly stated (it would be nice to change this
 set(BUILD_SHARED_LIBS FLASE)
+
 # Supress automatic regeneration of project files
 if (WINDOWS)
 	set(CMAKE_SUPPRESS_REGENERATION TRUE)
@@ -201,34 +226,21 @@ else()
 	set(CMAKE_SUPPRESS_REGENERATION FALSE)
 endif()
 
-# TBD: what to do about glibc version checking...?
-# NIX ALL STD UNIVERSE.  
-add_definitions(-DGLIBC=GLIBC)
-###########################################
-
 set (CONDOR_LIBS "procd_client;daemon_core;daemon_client;procapi;cedar;privsep;classad.old;sysapi;ccb;utils")
 set (CONDOR_TOOL_LIBS "procd_client;daemon_client;procapi;cedar;privsep;classad.old;sysapi;ccb;utils")
-
 ###########################################
-# Set compiler flags
+# Build flags
+if (HAVE_EXT_OPENSSL)
+	# this should be removed in preference to HAVE_EXT_OPENSSL
+	add_definitions(-DWITH_OPENSSL)
+endif()
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4996 /wd4273")	
 	
-	set (CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib;Pdh.lib")			
+	set (CONDOR_WIN_LIBS "crypt32.lib;mpr.lib;psapi.lib;mswsock.lib;netapi32.lib;imagehlp.lib;ws2_32.lib;powrprof.lib;iphlpapi.lib;userenv.lib;Pdh.lib")
 else()
-
-	if (HAVE_DLOPEN)
-		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} dl)
-	endif()
-
-	if (HAVE_DECL_RES_INIT)
-		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} resolv)
-	endif()
-
-	if (${CMAKE_USE_PTHREADS_INIT})
-		set(CONDOR_EXT_LINK_LIBS ${CONDOR_EXT_LINK_LIBS} pthread)
-		#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-	endif()
+	add_definitions(-DGLIBC=GLIBC)
 
     # common build flags 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -W -Wextra -Wfloat-equal -Wshadow -Wendif-labels -Wpointer-arith -Wcast-qual -Wcast-align -Wvolatile-register-var -fstack-protector")

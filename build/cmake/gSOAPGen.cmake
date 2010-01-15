@@ -18,13 +18,11 @@ if ( HAVE_EXT_GSOAP )
 		COMMAND ${SOAPCPP2}
 		ARGS -I ../../libs/daemon_core -S -L -x -p soap_${_DAEMON} gsoap_${_DAEMON}.h
 		COMMENT "Generating ${_DAEMON} soap files" )
-
-	if (NOT WINDOWS)
-		add_custom_target(
+	
+	add_custom_target(
 			gen_${_DAEMON}_soapfiles
 			ALL
 			DEPENDS ${${_DAEMON}_SOAP_SRCS} )
-	endif()
 
 	# now append the header and srcs to incoming vars
 	if ( NOT ${_SRCS} MATCHES "soap_${_DAEMON}C.cpp" )
@@ -34,7 +32,6 @@ if ( HAVE_EXT_GSOAP )
 
 	 list(REMOVE_DUPLICATES ${_SRCS})
 	
-
 endif()
 
 ENDMACRO ( GSOAP_GEN )

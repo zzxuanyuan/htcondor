@@ -18,12 +18,11 @@
  ***************************************************************/
 
 
-#include "condor_common.h"
 #include "condor_dh.h"
 #include "condor_debug.h"
 #include "condor_config.h"
-#include <openssl/pem.h>
-#include <openssl/bn.h>
+//#include <openssl/pem.h>
+//#include <openssl/bn.h>
 
 const char DH_CONFIG_FILE[] = "CONDOR_DH_CONFIG";
 

@@ -31,6 +31,9 @@
 #include "condor_open.h"
 
 #include "mimetypes.h"
+#ifdef HAVE_EXT_OPENSSL
+	#include "openssl/ssl.h"
+#endif
 
 #ifdef WIN32
 #define realpath(P,B) _fullpath((B),(P),_MAX_PATH)
@@ -108,7 +111,7 @@ dc_soap_init(struct soap *&soap)
 
 	soap->fget = get_handler;
 
-#ifdef COMPILE_SOAP_SSL
+#ifdef HAVE_EXT_OPENSSL
 	bool enable_soap_ssl = param_boolean("ENABLE_SOAP_SSL", false);
 	if (enable_soap_ssl) {
 		int ssl_port = param_integer("SOAP_SSL_PORT", 0);
@@ -213,7 +216,7 @@ dc_soap_init(struct soap *&soap)
 			}
 
 				// NOTE: If clients use cached sessions gSOAP seems to fail
-			SSL_CTX_set_session_cache_mode(ssl_soap->ctx, SSL_SESS_CACHE_OFF);
+			SSL_CTX_set_session_cache_mode((SSL_CTX*)ssl_soap->ctx, SSL_SESS_CACHE_OFF);
 
 			int sock_fd;
 			if (0 > (sock_fd = soap_bind(ssl_soap, my_ip_string(),
@@ -290,7 +293,7 @@ dc_soap_init(struct soap *&soap)
 
 		}
 	}
-#endif // COMPILE_SOAP_SSL
+#endif // HAVE_EXT_OPENSSL
 }
 
 
@@ -310,7 +313,7 @@ dc_soap_init(struct soap *&soap)
 int
 handle_soap_ssl_socket(Service *, Stream *stream)
 {
-#ifdef COMPILE_SOAP_SSL
+#ifdef HAVE_EXT_OPENSSL
     struct soap *current_soap;
 
 	ASSERT( ssl_soap );
@@ -357,7 +360,7 @@ handle_soap_ssl_socket(Service *, Stream *stream)
 			"SOAP SSL connection attempt from %s succeeded\n",
 			sin_to_string(&sockaddr));
 
-	if (X509_V_OK != SSL_get_verify_result(current_soap->ssl)) {
+	if (X509_V_OK != SSL_get_verify_result((const SSL*)current_soap->ssl)) {
 		dprintf(D_ALWAYS,
 				"SOAP SSL connection attempt from %s failed "
 				"because the client's certificate was not "
@@ -372,7 +375,7 @@ handle_soap_ssl_socket(Service *, Stream *stream)
 
 	X509 *peer_cert;
 	X509_NAME *peer_subject;
-	peer_cert = SSL_get_peer_certificate(current_soap->ssl);
+	peer_cert = SSL_get_peer_certificate((const SSL*)current_soap->ssl);
 	if (NULL == peer_cert) {
 		dprintf(D_ALWAYS,
 				"SOAP SSL connection attempt from %s failed "
@@ -469,7 +472,7 @@ handle_soap_ssl_socket(Service *, Stream *stream)
 	dprintf(D_FULLDEBUG, "SOAP SSL connection completed\n");
 
 	return KEEP_STREAM;
-#else // No COMPILE_SOAP_SSL
+#else // No HAVE_EXT_OPENSSL
 	ASSERT("SOAP SSL SUPPORT NOT AVAILABLE");
 
 	return -1;

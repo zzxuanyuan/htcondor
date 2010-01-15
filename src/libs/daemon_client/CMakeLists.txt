@@ -8,4 +8,4 @@ endif()
 condor_glob(DCHeaderFiles DCSourceFiles "${DCRmvElements}")
 
 #create the library
-add_library(daemon_client STATIC ${DCHeaderFiles} ${DCSourceFiles})
+condor_static_lib(daemon_client "${DCHeaderFiles};${DCSourceFiles}" )
