@@ -23,6 +23,10 @@ if ( HAVE_EXT_GSOAP )
 			gen_${_DAEMON}_soapfiles
 			ALL
 			DEPENDS ${${_DAEMON}_SOAP_SRCS} )
+			
+	if (NOT PROPER)
+		add_dependencies( gen_${_DAEMON}_soapfiles gsoap )
+	endif()
 
 	# now append the header and srcs to incoming vars
 	if ( NOT ${_SRCS} MATCHES "soap_${_DAEMON}C.cpp" )
