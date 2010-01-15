@@ -203,6 +203,13 @@ public:
 		/* Update Job ClassAd with checkpoint info and log it */
 	void updateCkptInfo(void);
 
+	/** <BENCH_CODE>
+		send a message to the shadow
+	*/
+	virtual void sendSinfulString();
+	virtual void sendClassadPullMessage();
+
+	/** <END_BENCH> **/
 private:
 
 		// // // // // // // // // // // //

@@ -262,6 +262,11 @@ public:
 	int SSHDRetry(Stream *s,char const *fmt,...) CHECK_PRINTF_FORMAT(3,4);
 	int vSSHDFailed(Stream *s,bool retry,char const *fmt,va_list args);
 
+	/**	<BENCH_CODE>
+	*/
+	void sendSinfulStringToShadow();
+	int classadReadyCommand(int cmd, Stream* stream);
+
 		/** This will return NULL if we're not using either
 		    PrivSep or GLExec */
 	PrivSepHelper* privSepHelper()

@@ -2108,3 +2108,19 @@ JICShadow::receiveMachineAd( Stream *stream )
 
 	return ret_val;
 }
+
+/** <BENCH_CODE>
+ 	send a message to the shadow
+*/
+void 
+JICShadow::sendSinfulString()
+{
+	REMOTE_CONDOR_send_sinful_string();
+}
+
+void 
+JICShadow::sendClassadPullMessage()
+{
+	REMOTE_CONDOR_init_classad_pull();
+}
+
