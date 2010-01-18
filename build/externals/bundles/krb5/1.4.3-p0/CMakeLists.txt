@@ -32,7 +32,7 @@ if (WITH_KRB5)
 		ExternalProject_Add(krb5
 				    PREFIX krb5-1.4.3-p0
 				    #-- Download Step ----------
-				    DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/krb5-1.4.3-p0.tar.gz
+				    DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/krb5-1.4.3-p0.tar.gz \r\n
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/krb5-1.4.3-p0.tar.gz
 					#--Patch step ----------

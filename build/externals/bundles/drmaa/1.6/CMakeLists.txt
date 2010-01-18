@@ -24,7 +24,7 @@ if ( NOT PROPER )
 		ExternalProject_Add(drmaa
 							PREFIX drmaa-1.6
 							#-- Download Step ----------
-							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/drmaa-1.6.tar.gz
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/drmaa-1.6.tar.gz \r\n
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/drmaa-1.6.tar.gz
 							#--Configure step ----------

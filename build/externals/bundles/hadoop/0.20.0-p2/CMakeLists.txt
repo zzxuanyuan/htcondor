@@ -1,9 +1,7 @@
 
 if ( NOT PROPER )
 
-	option( WITH_HADOOP "Compiling with support for HADOOP" OFF )
-
-	message (STATUS "TODO: Identify what is wrong with HADOOP")
+	option( WITH_HADOOP "Compiling with support for HADOOP" ON )
 
 	if (WITH_HADOOP)
 
@@ -16,6 +14,7 @@ if ( NOT PROPER )
 		ExternalProject_Add(hadoop
 							PREFIX hadoop-0.20.0-p2
 							#-- Download Step ----------
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz \r\n
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz
 							# PATCH_COMMAND patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/hadoop-0.20.0-patch

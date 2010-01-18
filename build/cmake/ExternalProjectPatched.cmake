@@ -620,7 +620,24 @@ function(_ep_add_download_command name)
   set(work_dir)
 
   if(cmd_set)
+	
     set(work_dir ${download_dir})
+    
+    string(REGEX MATCH "[^/]*$" fname "${url}")
+    if(NOT "${fname}" MATCHES "\\.(tar|tgz|tar\\.gz)$")
+		message(FATAL_ERROR "Could not extract tarball filename from url:\n  ${url}")
+    endif()
+    
+    set(file ${download_dir}/${fname})
+    
+    message(STATUS "command set to extract ${file}")
+    
+    # TODO: Support other archive formats.
+    _ep_write_extractfile_script("${stamp_dir}/extract-${name}.cmake" "${file}" "${tmp_dir}" "${source_dir}")
+    list(APPEND cmd ${CMAKE_COMMAND} -P ${stamp_dir}/extract-${name}.cmake)
+    
+    message(STATUS "cmd = ${cmd}")
+      
   elseif(cvs_repository)
     find_package(CVS)
     if(NOT CVS_EXECUTABLE)

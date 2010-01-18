@@ -182,7 +182,7 @@ add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/krb5/1.4.3-p0)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/pcre/7.6)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/gsoap/2.7.10-p5)
 
-set ( CONDOR_EXTERNALS drmaa postgresql openssl krb5 pcre gsoap )
+set ( CONDOR_EXTERNALS drmaa postgresql openssl krb5 pcre gsoap hadoop)
 
 if (NOT WINDOWS)
 
