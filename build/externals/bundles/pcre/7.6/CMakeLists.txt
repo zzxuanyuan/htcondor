@@ -24,6 +24,7 @@ if (WITH_PCRE)
 		ExternalProject_Add(pcre
 				    PREFIX pcre-7.6
 				    #-- Download Step ----------
+				    DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/pcre-7.6.tar.gz
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/pcre-7.6.tar.gz
 					#--Patch step ----------

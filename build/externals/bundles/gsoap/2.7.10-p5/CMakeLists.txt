@@ -23,6 +23,7 @@ if (WITH_GSOAP)
 					DEPENDS openssl
 				    PREFIX gsoap-2.7.10
 				    #-- Download Step ----------
+				    DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/gsoap-2.7.10.tar.gz
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/gsoap-2.7.10.tar.gz
 					#--Patch step ----------
