@@ -47,6 +47,8 @@ TESTCLASS_DECL(env)
 it goes into is determined by primarily what it tests. */
 TESTCLASS_DECL(rsc)
 TESTCLASS_DECL(ckpt)
+/* The stduniv tests can also be tested with dmtcp */
+TESTCLASS_DECL(dmtcp)
 
 /* every standard universe job must be in the stduniv class */
 TESTCLASS_DECL(stduniv)

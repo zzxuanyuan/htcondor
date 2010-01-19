@@ -4,8 +4,8 @@
 #include "Imakefile.common"
 
 #if defined(HAVE_DMTCP_ABILITY)
-DMTCP=dmtcp-447.tar.gz
-all:: dmtcp-all
+DMTCP=dmtcp-464.tar.gz
+all:: dmtcp_bridge_api
 #endif
 
 /* 
@@ -49,7 +49,7 @@ all_symlink_target(../condor_scripts/safe_append.pl,safe_append.pl)
 	build individual targets. This only works because all_symlink_target() was
 	changed to allow multiple targets with the same name. */
 all_symlink_target(../condor_scripts/batch_test.pl,batch_test.pl)
-DEPS(batch_test.pl,dmtcp-all)
+DEPS(batch_test.pl,dmtcp_bridge_api)
 
 BUILD_DEP($(CC),x_return-n,c,x_waste_second.o)
 BUILD($(CC),x_dumpcore,c)
@@ -64,23 +64,26 @@ DMTCP_PWD=$(shell pwd)
 /* I copy the condor API wrapper back into the dmtcp installation directory
 	to save my self from having to write tons of dependencies in our make
 	files. :( */
-dmtcp-all: $(DMTCP)
+dmtcp_build: $(DMTCP)
 	rm -rf dmtcp dmtcp-local
 	tar zxf $(DMTCP)
 	cd dmtcp/trunk && ./configure --prefix=$(DMTCP_PWD)/dmtcp-local && make && make install
+	touch dmtcp_build
+
+dmtcp_bridge_api: dmtcp_build condor_dmtcp_api.c
 	cp $(DMTCP_PWD)/dmtcp-local/lib/dmtcp/libdmtcpaware.a libcondordmtcp.a
-	$(CC) -Wall -Idmtcp-local/lib/dmtcp/ -c condor_dmtcp_api.c -o condor_dmtcp_api.o
+	$(CC) -Wall -Idmtcp-local/lib/dmtcp/ -pthread -c condor_dmtcp_api.c -o condor_dmtcp_api.o
 	ar qs libcondordmtcp.a condor_dmtcp_api.o
 	cp libcondordmtcp.a $(DMTCP_PWD)/dmtcp-local/lib/dmtcp
-	touch dmtcp-all
+	touch dmtcp_bridge_api
 
 clean::
-	rm -rf dmtcp dmtcp-local dmtcp-all libcondordmtcp.a condor_dmtcp_api.o
+	rm -rf dmtcp dmtcp-local dmtcp_bridge_api dmtcp_build libcondordmtcp.a condor_dmtcp_api.o
 
 #else
 
 /* no DMTCP, but the dep still exists, so we'll honor it */
-dmtcp-all:
+dmtcp_bridge_api:
 
 #endif
 
@@ -2020,7 +2023,7 @@ TESTCLASS(job_core_coredump_std,quicknolink)
 CBUILD($(CC),job_rsc_binary-io_std,c)
 DESC(job_rsc_binary-io_std,"Do we handle binary io in standard jobs?")
 DEPS(job_rsc_binary-io_std,job_rsc_binary-io_std.cndr.exe)
-DEPS(job_rsc_binary-io_std,dmtcp-all)
+DEPS(job_rsc_binary-io_std,dmtcp_bridge_api)
 RUN(job_rsc_binary-io_std)
 TESTCLASS(job_rsc_binary-io_std,framework)
 TESTCLASS(job_rsc_binary-io_std,quick)
