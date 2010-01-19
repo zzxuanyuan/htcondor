@@ -1160,7 +1160,7 @@ all:: name.cndr.exe           @@\
 name:: name.cndr.exe          @@\
 	@$(TRUE)          @@\
 name.cndr.exe: $(CONDOR_COMPILE) $(PRE_BUILT_RELEASE)/lib obj  @@\
-	$(CONDOR_COMPILE) $(CONDOR_COMPILE_FLAGS) compiler -o name.cndr.exe obj $(TEST_LDFLAGS) @@\
+	$(CONDOR_COMPILE) $(CONDOR_COMPILE_FLAGS) compiler -g -o name.cndr.exe obj $(TEST_LDFLAGS) @@\
 	$(CONDOR_ARCH_LINK) name.cndr.exe      @@\
 clean::                 @@\
 	rm -f name.cndr.exe obj       @@\
@@ -1180,7 +1180,7 @@ all:: name.exe             @@\
 name:: name.exe               @@\
 	@$(TRUE)          @@\
 name.exe: obj x_fake_ckpt.o         @@\
-	compiler -o name.exe obj x_fake_ckpt.o $(TEST_LDFLAGS)   @@\
+	compiler -g -o name.exe obj x_fake_ckpt.o $(TEST_LDFLAGS)   @@\
 clean::                 @@\
 	rm -f name.exe obj         @@\
 XCOMM End translation of func(CLINK_NOSTD)
@@ -1189,6 +1189,9 @@ XCOMM End translation of func(CLINK_NOSTD)
 /*
 ** Link a program to run normally intended for the standard universe
 ** with the DMTCP bridge library instead.
+** We filter-out the -rdynamic flag, which at this time causes grief with DMTCP
+** and we don't really need that functionality for our non-stripped test
+** programs.
 */
 #ifndef DLINK
 #define DLINK(compiler,name,obj)    @@\
@@ -1197,7 +1200,7 @@ all:: name.dmtcp.exe             @@\
 name:: name.dmtcp.exe               @@\
 	@$(TRUE)          @@\
 name.dmtcp.exe: obj   @@\
-	compiler -o name.dmtcp.exe obj ./dmtcp-local/lib/dmtcp/libcondordmtcp.a $(TEST_LDFLAGS)   @@\
+	compiler -g -o name.dmtcp.exe obj -pthread ./dmtcp-local/lib/dmtcp/libcondordmtcp.a $(filter-out -rdynamic,$(TEST_LDFLAGS))  @@\
 clean::                 @@\
 	rm -f name.dmtcp.exe obj         @@\
 XCOMM End translation of func(DLINK)
