@@ -52,6 +52,26 @@ StringList::StringList(const char *s, const char *delim )
 	}
 }
 
+StringList::StringList( const StringList &other )
+{
+	char				*str;
+	ListIterator<char>	 iter;
+
+	const char *delim = other.getDelimiters();
+	if ( delim ) {
+		m_delimiters = strnewp( delim );
+	}
+
+	// Walk through the other list, verify that everything is in my list
+	iter.Initialize( other.getList() );
+	iter.ToBeforeFirst( );
+	while ( iter.Next(str) ) {
+		char	*dup = strdup( str );
+		ASSERT( dup );
+		strings.Append( dup );
+	}
+}
+
 void
 StringList::initializeFromString (const char *s)
 {
@@ -450,9 +470,7 @@ bool
 StringList::similar( const StringList &other, bool anycase ) const
 {
 	char *this_str, *other_str;
-	bool ret_val;
 	ListIterator<char> this_iter;
-	ListIterator<char> other_iter;
 
 	// First, if they're different sizes, quit
 	if ( other.number() != this->number() ) {
@@ -462,18 +480,23 @@ StringList::similar( const StringList &other, bool anycase ) const
 	// Walk through the other list, verify that everything is in my list
 	this_iter.Initialize ( strings );
 	this_iter.ToBeforeFirst ();
-	other_iter.Initialize ( other.getList() );
-	other_iter.ToBeforeFirst ();
 	while ( this_iter.Next(this_str) ) {
-		if ( !other_iter.Next(other_str) ) {
-			return false;
+		bool	found = false;
+		ListIterator<char> other_iter;
+		other_iter.Initialize ( other.getList() );
+		other_iter.ToBeforeFirst ();
+		while ( !found && other_iter.Next(other_str) ) {
+			if ( anycase ) {
+				if ( strcasecmp( this_str, other_str ) != 0 ) {
+					found = true;
+				}
+			} else {
+				if ( strcmp( this_str, other_str ) != 0 ) {
+					found = true;
+				}
+			}
 		}
-		if ( anycase ) {
-			ret_val = ( strcasecmp( this_str, other_str ) != 0 );
-		} else {
-			ret_val = ( strcmp( this_str, other_str ) != 0 );
-		}
-		if( ret_val == false ) {
+		if( ! found ) {
 			return false;
 		}
 	}
