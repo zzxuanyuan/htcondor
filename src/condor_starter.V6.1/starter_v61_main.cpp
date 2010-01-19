@@ -278,15 +278,6 @@ main_init(int argc, char *argv[])
 		DC_Exit(1);
 	}
 
-	/** <BENCH_CODE>
-		Attempt to send a signal to the shadow to let it know that we are up and running
-	*/
-	dprintf(D_ALWAYS, "Starter has started the job, shadow can start sending the classad benchmarks\n");	
-
-	// use the jic to send a message to the shadow daemon to let it know it can send 
-	// stuff
-	jic->sendClassadPullMessage();
-	dprintf(D_ALWAYS, "Starter has sent the shadow message\n");
 	return 0;
 }
 

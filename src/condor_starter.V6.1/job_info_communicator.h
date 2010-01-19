@@ -353,8 +353,7 @@ public:
 	/** <BENCH_CODE>
 		virtual function for sending a message to the shadow
 	*/
-	virtual void sendSinfulString() { };
-	virtual void sendClassadPullMessage() {};
+	virtual void pullHFCTask() {};
 
 	/** <END_BENCH> **/
 protected:

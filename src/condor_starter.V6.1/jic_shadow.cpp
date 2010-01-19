@@ -2113,14 +2113,8 @@ JICShadow::receiveMachineAd( Stream *stream )
  	send a message to the shadow
 */
 void 
-JICShadow::sendSinfulString()
+JICShadow::pullHFCTask()
 {
-	REMOTE_CONDOR_send_sinful_string();
-}
-
-void 
-JICShadow::sendClassadPullMessage()
-{
-	REMOTE_CONDOR_init_classad_pull();
+	REMOTE_CONDOR_hfc_task_request();
 }
 

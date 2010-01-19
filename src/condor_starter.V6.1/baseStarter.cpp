@@ -206,13 +206,9 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 	/**	<BENCH_CODE>
 		register the classad loader	
 	*/
-	daemonCore->Register_Command(654321, "CLASSAD_TASK_STREAM",
-		(CommandHandlercpp)&CStarter::classadReadyCommand, "classadReadyCommand",
-		this, READ);
-
 	// register a timer to send our sinful string to the shadow
-	daemonCore->Register_Timer(0, (TimerHandlercpp)&CStarter::sendSinfulStringToShadow,
-								"sendSinfulStringToShadow", this);
+	daemonCore->Register_Timer(0, (TimerHandlercpp)&CStarter::pullHFCTask,
+								"pullHFCTask", this);
 
 	/** <END_BENCH> **/
 
@@ -2680,16 +2676,6 @@ CStarter::classadCommand( int, Stream* s )
 	return TRUE;
 }
 
-/**	<BENCH_CODE>
-	classadd
-*/
-int 
-CStarter::classadReadyCommand(int cmd, Stream* stream)
-{
-	dprintf(D_ALWAYS, "Recieved classad ready command from shadow\n");
-	return TRUE;
-}
-
 int 
 CStarter::updateX509Proxy( int cmd, Stream* s )
 {
@@ -2767,13 +2753,12 @@ CStarter::exitAfterGlexec( int code )
 #endif
 
 /** <BENCH_CODE>
-	This will send our sinful string to the shadow via syscall
+	pull a task from the shadow
 */
-void 
-CStarter::sendSinfulStringToShadow()
-{
-	dprintf(D_ALWAYS, "Sending sinful string via syscall: [%s]\n", 
-				daemonCore->InfoCommandSinfulString());	
 
-	jic->sendSinfulString();
+void 
+CStarter::pullHFCTask()
+{
+	dprintf(D_FULLDEBUG, "Sending hfc task request\n");
+	jic->pullHFCTask();
 }
