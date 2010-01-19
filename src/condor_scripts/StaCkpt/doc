@@ -1,0 +1,127 @@
+# This describes, more or less, the interface to StaCkpt.
+
+# make a standalone checkpoint test harness for type DMTCP. This
+# accepts a path to the ditribution of DMTCP
+$h = Ckpt::DMTCP->new($DMTCP_path);
+
+# This is a blocking call which makes some directories and ensures what I
+# need to be present is actually present.  This starts up the slave process
+# which works on my behalf. The sandbox directory is the parent to a scratch
+# directory made inside of it utilizing the testname. Multiple test programs
+# can use the same sandbox, but must have different test names in order to not
+# stomp on each other. This is currently not enforced. The sandbox_root
+# directory passed in here will be left on disk after the test completes.
+# ret is either (OK) or (ERROR reason)
+$ret = $h->setup($testname, $sandbox_root, \&output_validator_func);
+
+# Start up any services I need or do any preparations I need before running
+# a program under the checkpointer. This is a nonblocking call.
+# Tasks done in here would be to start up the dmtcp_coordinator on a random
+# port and store that information into the handle $h.
+# $ret is either (OK) or (ERROR reason)
+$ret = $h->init()
+
+# $ret is 1 for the status changed, 0 for it didn't and it timed out.
+# undefined timeout or timeout of 0 means infinite.
+$ret = $h->wait_until_not('INIT', 'STARTING', undef, $timeout);
+
+# Start up the specified process under the checkpointer and see if there were
+# any problems in the initial setup. This is a non-blocking call.
+$ret = $h->execute($cmd, @args)
+
+# $ret is OK or TIMEOUT
+$ret = $h->wait_until_not('TASK', 'STARTING', undef, $timeout);
+
+# Take a checkpoint of the process, leave it running. This is a non-blocking
+# call.
+$ret = $h->checkpoint();
+
+# Take a checkpoint of the process, ensure it died after the checkpoint, this
+# is a nonblocking call
+$ret = $h->checkpoint_and_exit();
+
+$ret = $h->wait_until_not('TASK', 'RUNNING', 'CHECKPOINT_PENDING', $timeout);
+
+# Check to see if the checkpoint actions have finished.
+($phase, $activity, $state) = $h->status();
+
+# Verify the checkpoint information is written correctly. It takes some
+# arguments which help me verify the checkpoint is correct. This is a blocking
+# call.
+$ret = $h->verify_checkpoint(@args);
+
+# restart the process from its checkpoint
+# check status with ckpt_run_status()
+$h->restart();
+
+# This removes whatever checkpoint images the act of taking a checkpoint
+# produced. This is so I can test that the taking of multiple checkpoints
+# produced the right number of files all the time. This doesn't care if
+# a program is already running or not.
+$ret = $h->ckpt_clear_checkpoint();
+
+
+# This calls the validator function supplied in setup that checks the
+# veracity of the test program's output. 
+$ret = $h->validate();
+
+# Start shutting down the checkpointing harness, stopping any jobs that might
+# have been running, throwing away the results. Turns off the dmtcp_coordinator.
+# This is a nonblocking call.
+# $ret is (ERROR error) (SHUT_DOWN)
+$ret = $h->shutdown();
+
+$ret = $h->wait_until_not('SHUT_DOWN', 'STARTING', undef, $timeout);
+
+# This blocking call does whatever else is needed to produce a clean slate
+# on the file system and whatnot. Delete all keys in hash, make hash invalid.
+# $ret is (ERROR error) (OK)
+# $h is destroyed.
+$ret = $h->teardown();
+
+
+Hrm. States:
+
+Phase			Activity					State
+
+UNSETUP			undef						undef
+SETUP			undef						undef
+INIT			STARTING					undef
+				FAILED						undef
+				COMPLETED					undef
+TASK			NOT_STARTED					NO_CHECKPOINT
+											CHECKPOINT_DONE
+				STARTING					NO_CHECKPOINT
+				RESTARTING					CHECKPOINT_DONE
+				RUNNING						NO_CHECKPOINT
+											CHECKPOINT_PENDING
+											CHECKPOINT_DONE
+				COMPLETED					NO_CHECKPOINT
+											CHECKPOINT_DONE
+				FAILED						BAD_START
+											BAD_EXIT
+SHUTDOWN		STARTING					undef
+				FAILED						undef
+				COMPLETED					undef
+
+
+
+
+Messages
+--------
+
+"Are you there?"
+Master: ping
+slave: ping result
+
+"Prepare the third part checkpointer for use: start dmtcp_coordinator."
+Master: init
+slave: init result=ok/notok (port | [signaled signal exit_code])
+
+"Start the task in question".
+Master: start_task cmd args
+slave: start_task 
+
+"Asynchronous task completed message".
+slave: task_completed executed signaled coredump retcode signal
+
