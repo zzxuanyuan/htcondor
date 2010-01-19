@@ -145,11 +145,6 @@ class UniShadow : public BaseShadow
 
 	virtual bool getMachineName( MyString &machineName );
 
-	/** <BENCH_CODE>
-		Timer handler		
-	*/
-	virtual void classadBenchTimerHandler();
-
  protected:
 
 	virtual void logReconnectedEvent( void );

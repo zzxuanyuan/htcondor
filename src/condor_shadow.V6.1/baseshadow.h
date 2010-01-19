@@ -354,6 +354,24 @@ class BaseShadow : public Service
 
 	char const *getTransferQueueContactInfo() {return m_xfer_queue_contact_info.Value();}
 
+	/** <BENCH_CODE> **/	
+	bool handShake() { return useHandShake; };
+	void setHandShake(bool h) { useHandShake = h; };
+
+	bool loadBenchClassAd();	// load class add, return false if failed
+	bool benchClassAdLoaded() { return classAdLoaded; };
+	ClassAd * getBenchAd() { return benchAd; };
+	int getTasksLeft() { return tasksLeft; };
+	void decTasks() { tasksLeft--; };
+
+	// stat functions
+	void startTime();
+	void endTime();
+	void startTaskTime();
+	void endTaskTime();
+	void printStats();
+	/** <END_BENCH> **/
+
  protected:
 	
 		/** Note that this is the base, "unexpanded" ClassAd for the job.
@@ -444,6 +462,24 @@ class BaseShadow : public Service
 		// This makes this class un-copy-able:
 	BaseShadow( const BaseShadow& );
 	BaseShadow& operator = ( const BaseShadow& );
+
+	/** <BENCH_CODE> **/
+	ClassAd * benchAd;
+	bool useHandShake;
+	bool classAdLoaded;
+	int tasksLeft;
+
+	// stats
+	clock_t sTime;
+	clock_t eTime;
+	clock_t sTask;
+	clock_t eTask;
+	clock_t taskTotal;
+	clock_t taskMax;
+	clock_t taskMin;
+	int taskCount;
+	tms timeBuffer;
+	/** <END_BENCH> **/
 
 };
 

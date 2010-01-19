@@ -64,8 +64,7 @@ extern "C" {
 
 	/** <BENCH_CODE>
 	*/
-	int REMOTE_CONDOR_send_sinful_string();
-	int REMOTE_CONDOR_init_classad_pull();
+	int REMOTE_CONDOR_hfc_task_request();
 
 }
 

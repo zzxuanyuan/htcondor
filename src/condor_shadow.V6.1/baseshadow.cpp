@@ -62,6 +62,15 @@ BaseShadow::BaseShadow() {
 	myshadow_ptr = this;
 	exception_already_logged = false;
 	began_execution = FALSE;
+
+	/** <BENCH_CODE> **/
+	classAdLoaded = false;
+	taskCount = 10000;
+	tasksLeft = taskCount;
+	taskMin = 0xffffff;
+	taskMax = 0;
+	taskTotal = 0;
+	/** <END_BENCH> **/
 }
 
 BaseShadow::~BaseShadow() {
@@ -1252,3 +1261,82 @@ BaseShadow::getMachineName( MyString & /*machineName*/ )
 {
 	return false;
 }
+
+/** <BENCH_CODE> **/
+bool 
+BaseShadow::loadBenchClassAd()
+{
+	// load the class add
+	dprintf(D_ALWAYS, "Loading class ad file now\n");
+	FILE * classadFile;
+	classadFile = safe_fopen_wrapper("/scratch/jshill4/HFCBenchmarking/test_ad", "r"); // hard coded for now, assumes *** delimiter at end
+
+	int iseof = 0, error = 0, empty = 0;	
+	//benchAd = new ClassAd(classadFile, "***", iseof, error, empty);
+	benchAd = new ClassAd("A=1,B=2,received=FALSE", ',');
+	fclose(classadFile);
+	
+	if(error != 0 || !benchAd)
+	{
+		dprintf(D_ALWAYS, "Something went wrong while parsing classads [%d]\n", error);
+		return false;		
+	}
+
+	classAdLoaded = true;
+	return true;
+}
+
+void 
+BaseShadow::startTime()
+{
+	sTime = times(&timeBuffer);
+	dprintf(D_FULLDEBUG, "Logging start time [%d]\n", sTime);
+}
+
+void 
+BaseShadow::endTime()
+{
+	eTime = times(&timeBuffer);
+	dprintf(D_FULLDEBUG, "Logging end time [%d]\n", eTime);
+}
+
+void 
+BaseShadow::startTaskTime()
+{
+	sTask = times(&timeBuffer);
+	dprintf(D_FULLDEBUG, "Logging task start time [%d]\n", sTask);
+}
+
+void 
+BaseShadow::endTaskTime()
+{
+	eTask = times(&timeBuffer);
+	dprintf(D_FULLDEBUG, "Logging task end time [%d]\n", eTask);
+
+	// calculate dif
+	clock_t dif = eTask - sTask;
+
+	if(dif > taskMax) taskMax = dif;
+	if(dif < taskMin) taskMin = dif;
+	taskTotal += dif;
+}
+
+void 
+BaseShadow::printStats()
+{
+	double secPerTick = static_cast<double>(sysconf(_SC_CLK_TCK));
+	double totalTime = static_cast<double>(eTime - sTime) / secPerTick;
+	double average = totalTime / static_cast<double>(taskCount);
+	double max = static_cast<double>(taskMax) / secPerTick;
+	double min = static_cast<double>(taskMin) / secPerTick;
+
+	dprintf(D_ALWAYS, "------------ Stats -----------\n");
+	dprintf(D_ALWAYS, "Tasks sent:   %d\n", taskCount);
+	dprintf(D_ALWAYS, "Total time:   %fs\n", totalTime);
+	dprintf(D_ALWAYS, "Task average: %fs\n", average);
+	dprintf(D_ALWAYS, "Max task:     %fs\n", max);
+	dprintf(D_ALWAYS, "Min task:     %fs\n", min);
+	dprintf(D_ALWAYS, "------------------------------\n");
+}
+
+/** <END_BENCH> **/

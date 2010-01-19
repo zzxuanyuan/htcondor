@@ -1013,50 +1013,50 @@ int REMOTE_CONDOR_get_sec_session_info(
 	pull the classads from the shadow
 */
 
-int REMOTE_CONDOR_send_sinful_string()
+int REMOTE_CONDOR_hfc_task_request()
 {
-	#define SEND_SINFUL 654322;
-	dprintf(D_ALWAYS, "Sending sinful string to shadow\n");
-
-	MyString sinful = daemonCore->InfoCommandSinfulString();
-
-	CurrentSysCall = SEND_SINFUL;
+	// send the request value
+	CurrentSysCall = CONDOR_starter_hfc_task_request;
 	syscall_sock->encode();
 	ASSERT( syscall_sock->code(CurrentSysCall) );
-	ASSERT( syscall_sock->code( sinful ) );
 	ASSERT( syscall_sock->end_of_message() );
+	dprintf(D_FULLDEBUG, "Sent hfc task request\n");
 
-	// recieve an ack
+	// pull the task back
 	int rval;
+	int add;
+	ClassAd ad;
 	syscall_sock->decode();
-	ASSERT( syscall_sock->code(&rval) );
-	ASSERT( syscall_sock->end_of_message() );
+	ASSERT( syscall_sock->code(rval) );
 
-	dprintf(D_ALWAYS, "Recieved sinful string ack\n");
-
-	return 0;
-}
-
-int REMOTE_CONDOR_init_classad_pull()
-{
-	/*#define PULL_ADDS 654321
-	// send a syscall signal to the shadow telling it to send the classadds
-	dprintf(D_ALWAYS, "Sending init classad pull command\n");
-	int command = PULL_ADDS;
-	syscall_sock->encode();
-	ASSERT( syscall_sock->code(command) );
-	ASSERT( syscall_sock->end_of_message() );
-
-	// recieve an ack
-	int rval;
-	syscall_sock->decode();
-	ASSERT( syscall_sock->code(&rval) );
-	ASSERT( syscall_sock->end_of_message() );
-	
-	if(rval != 0)
-		dprintf(D_ALWAYS, "ERROR: classad pull failed to recieve good ack [%d]\n", rval);
+	// if rval is 0
+	if(rval == 0 && rval != 1)
+	{
+		// don't forget to end the message
+		ASSERT( syscall_sock->end_of_message() );
+		dprintf(D_ALWAYS, "No more tasks(0) or error(Not 1) [%d]\n", rval);
+	}
 	else
-		dprintf(D_ALWAYS, "Recieved ack from shadow\n");*/
+	{
+		// grab the task
+		ASSERT( ad.initFromStream(*syscall_sock) );
+		ASSERT( syscall_sock->end_of_message() );
+		// send the task back
+		ad.Assign("received", true);
+
+		CurrentSysCall = CONDOR_starter_hfc_task_return;
+		syscall_sock->encode();
+		ASSERT( syscall_sock->code(CurrentSysCall) );
+		ASSERT( ad.put(*syscall_sock) );
+		ASSERT( syscall_sock->end_of_message() );
+		
+		// set up the timer to get another task
+		dprintf(D_FULLDEBUG, "Recieved task\n");
+		daemonCore->Register_Timer(0, (TimerHandlercpp)&CStarter::pullHFCTask,
+								"pullHFCTask", Starter);
+
+	}
+	dprintf(D_FULLDEBUG, "Sent task pull\n");
 
 	return 0;
 }
