@@ -941,6 +941,8 @@ do_REMOTE_syscall()
 			// production, we'll send a class ad task
 			ASSERT(Shadow->getBenchAd()->put(*syscall_sock));
 			ASSERT(syscall_sock->end_of_message());
+			if(Shadow->getTaskSize() == 0.0f)
+				Shadow->setTaskSize(syscall_sock->get_bytes_sent());
 			Shadow->decTasks();
 		}
 		else

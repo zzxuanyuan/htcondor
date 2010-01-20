@@ -69,6 +69,7 @@ BaseShadow::BaseShadow() {
 	taskMin = 0xffffff;
 	taskMax = 0;
 	taskTotal = 0;
+	taskSize = 0.0f;
 	/** <END_BENCH> **/
 }
 
@@ -1271,8 +1272,8 @@ BaseShadow::loadBenchClassAd()
 	classadFile = safe_fopen_wrapper("/scratch/jshill4/HFCBenchmarking/test_ad", "r"); // hard coded for now, assumes *** delimiter at end
 
 	int iseof = 0, error = 0, empty = 0;	
-	//benchAd = new ClassAd(classadFile, "***", iseof, error, empty);
-	benchAd = new ClassAd("A=1,B=2,received=FALSE", ',');
+	benchAd = new ClassAd(classadFile, "---", iseof, error, empty);
+	//benchAd = new ClassAd("A=1,B=2,received=FALSE", ',');
 	fclose(classadFile);
 	
 	if(error != 0 || !benchAd)
@@ -1331,6 +1332,7 @@ BaseShadow::printStats()
 
 	dprintf(D_ALWAYS, "------------ Stats -----------\n");
 	dprintf(D_ALWAYS, "Tasks sent:   %d\n", taskCount);
+	dprintf(D_ALWAYS, "Task size:    %f\n", taskSize);
 	dprintf(D_ALWAYS, "Total time:   %fs\n", totalTime);
 	dprintf(D_ALWAYS, "Task average: %fs\n", average);
 	dprintf(D_ALWAYS, "Max task:     %fs\n", max);

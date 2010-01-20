@@ -363,6 +363,8 @@ class BaseShadow : public Service
 	ClassAd * getBenchAd() { return benchAd; };
 	int getTasksLeft() { return tasksLeft; };
 	void decTasks() { tasksLeft--; };
+	void setTaskSize(float size) { taskSize = size; };
+	float getTaskSize() { return taskSize; };
 
 	// stat functions
 	void startTime();
@@ -479,6 +481,7 @@ class BaseShadow : public Service
 	clock_t taskMin;
 	int taskCount;
 	tms timeBuffer;
+	float taskSize;
 	/** <END_BENCH> **/
 
 };
