@@ -7,6 +7,7 @@ if (WITH_ZLIB)
 		ExternalProject_Add(zlib
 				    PREFIX zlib-1.2.3
 				    #-- Download Step ----------
+					DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/zlib-1.2.3.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/zlib-1.2.3.tar.gz
 				    #--Configure step ----------

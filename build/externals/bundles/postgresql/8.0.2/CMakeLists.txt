@@ -24,7 +24,7 @@ if (WITH_POSTGRESQL)
 		ExternalProject_Add(postgresql
 							PREFIX postgresql-8.0.2
 							#-- Download Step ----------
-							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/postgresql-8.0.2.tar.gz \r\n
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/postgresql-8.0.2.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/postgresql-8.0.2.tar.gz
 							#--Configure step ----------

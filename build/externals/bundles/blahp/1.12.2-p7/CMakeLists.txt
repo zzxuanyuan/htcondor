@@ -7,6 +7,7 @@ if ( NOT PROPER AND WITH_BLAHP )
 	ExternalProject_Add(popt
 						PREFIX popt-1.14
 						#-- Download Step ----------
+						DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/popt-1.14.tar.gz ${CMD_TERM}
 						DOWNLOAD_DIR ${EXTERNAL_DL}
 						URL http://parrot.cs.wisc.edu/externals/popt-1.14.tar.gz
 						#--Configure step ----------
@@ -22,6 +23,7 @@ if ( NOT PROPER AND WITH_BLAHP )
 						DEPENDS classads openssl globus popt
 					    PREFIX blahp-1.12.2
 					    #-- Download Step ----------
+						DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/blahp-1.12.2.tar.gz ${CMD_TERM}
 					    DOWNLOAD_DIR ${EXTERNAL_DL}
 						URL http://parrot.cs.wisc.edu/externals/blahp-1.12.2.tar.gz
 						#--Patch step ----------

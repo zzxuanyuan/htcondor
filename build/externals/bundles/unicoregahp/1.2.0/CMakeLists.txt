@@ -4,6 +4,7 @@ if ( WITH_UNICOREGAHP AND NOT PROPER )
 	ExternalProject_Add(unicoregahp
 			    PREFIX unicoregahp-1.2.0
 			    #-- Download Step ----------
+				DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/unicoregahp-1.2.0.tar.gz ${CMD_TERM}
 			    DOWNLOAD_DIR ${EXTERNAL_DL}
 			    URL http://parrot.cs.wisc.edu/externals/unicoregahp-1.2.0.tar.gz
 				#--Configure step ----------

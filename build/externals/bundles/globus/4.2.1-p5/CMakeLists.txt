@@ -7,9 +7,10 @@ if (NOT PROPER)
 		
 		message(STATUS "TODO:TSTCLAIR GLOBUS Builds require review... Need to test the Darwin scenario as well.")
 
-		ExternalProject_Add(gt4-java
+		ExternalProject_Add(gt4
 							PREFIX gt4
 							#-- Download Step ----------
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/globus-4.0.8-java.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/globus-4.0.8-java.tar.gz
 							#--Configure step ----------
@@ -21,9 +22,10 @@ if (NOT PROPER)
 							INSTALL_DIR ${EXTERNAL_STAGE}
 							INSTALL_COMMAND cp -r . ${EXTERNAL_STAGE} )
 
-		ExternalProject_Add(gt42-java
+		ExternalProject_Add(gt42
 							PREFIX gt42
 							#-- Download Step ----------
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/globus-4.2.1-java.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/globus-4.2.1-java.tar.gz
 							#--Configure step ----------
@@ -46,9 +48,10 @@ if (NOT PROPER)
 		set( GLOBUS_FLAVOR gcc32dbg )
 
 		ExternalProject_Add(globus
-							DEPENDS openssl gt4-java gt42-java
+							DEPENDS openssl gt4 gt42
 							PREFIX globus-4.2.1
 							#-- Download Step ----------
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/globus-4.2.1.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/globus-4.2.1.tar.gz
 							#--Patch step ----------

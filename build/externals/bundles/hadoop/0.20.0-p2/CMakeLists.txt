@@ -5,16 +5,16 @@ if ( NOT PROPER )
 
 	if (WITH_HADOOP)
 
-		set ( HADOOP_INSTALL mkdir -p ${EXTERNAL_STAGE}/hdfs/conf \r\n
-							 cp -r lib ${EXTERNAL_STAGE}/hdfs \r\n
-							 cp hadoop-0.20.0-p1-core.jar ${EXTERNAL_STAGE}/hdfs/lib \r\n
+		set ( HADOOP_INSTALL mkdir -p ${EXTERNAL_STAGE}/hdfs/conf ${CMD_TERM}
+							 cp -r lib ${EXTERNAL_STAGE}/hdfs ${CMD_TERM}
+							 cp hadoop-0.20.0-p1-core.jar ${EXTERNAL_STAGE}/hdfs/lib ${CMD_TERM}
 							 cp src/hdfs/hdfs-default.xml ${EXTERNAL_STAGE}/hdfs/conf )
 
 		# a couple of odd things, this macro requires a configure and build command.  
 		ExternalProject_Add(hadoop
 							PREFIX hadoop-0.20.0-p2
 							#-- Download Step ----------
-							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz \r\n
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz
 							# PATCH_COMMAND patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/hadoop-0.20.0-patch

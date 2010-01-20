@@ -7,6 +7,7 @@ if (WITH_LIBXML2)
 		ExternalProject_Add(libxml2
 				    PREFIX libxml2-2.7.3
 				    #-- Download Step ----------
+					DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/libxml2-2.7.3.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/libxml2-2.7.3.tar.gz
 				    #--Configure step ----------

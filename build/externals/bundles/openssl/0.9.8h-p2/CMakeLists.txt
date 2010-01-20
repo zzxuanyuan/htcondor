@@ -29,7 +29,7 @@ if (WITH_OPENSSL)
 		ExternalProject_Add(openssl
 				    PREFIX openssl-0.9.8h
 				    #-- Download Step ----------
-				    DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/openssl-0.9.8h.tar.gz \r\n
+				    DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/openssl-0.9.8h.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/openssl-0.9.8h.tar.gz
 					#--Patch step ----------

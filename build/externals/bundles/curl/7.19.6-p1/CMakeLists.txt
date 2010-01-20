@@ -6,7 +6,7 @@ if (WITH_CURL)
 	if ( NOT PROPER )
 
 		if (WINDOWS)
-			set (CURL_CONFIGURE cd .)
+			set (CURL_CONFIGURE echo "Nothing to configure" )
 			set (CURL_MAKE nmake -f Makefile.vc9 CFG=release-ssl )
 			set (CURL_INSTALL cp -f lib\lib*.lib ${EXTERNAL_STAGE}\lib && cp -rf include\curl ${EXTERNAL_STAGE}\include )
 		else()
@@ -19,6 +19,7 @@ if (WITH_CURL)
 							DEPENDS openssl zlib
 							PREFIX curl-7.19.6-p1
 							#-- Download Step ----------
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/curl-7.19.6.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/curl-7.19.6.tar.gz
 							#--Configure step ----------

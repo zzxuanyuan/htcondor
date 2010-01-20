@@ -14,6 +14,9 @@ if(${OS_NAME} MATCHES "WIN")
 	add_definitions(-D_WIN32_WINNT=_WIN32_WINNT_WINXP) 
 	add_definitions(-DWINVER=_WIN32_WINNT_WINXP)
 	add_definitions(-DNTDDI_VERSION=NTDDI_WINXP)
+	set(CMD_TERM \r\n)
+else()
+	set(CMD_TERM &&)
 endif()
 
 # use vars set by FindThreads.

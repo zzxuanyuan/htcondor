@@ -5,6 +5,7 @@ if (NOT PROPER AND WITH_GCB)
 	ExternalProject_Add(gcb
 				    	PREFIX gcb-1.5.6
 				    	#-- Download Step ----------
+						DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/gcb-1.5.6.tar.gz ${CMD_TERM}
 				    	DOWNLOAD_DIR ${EXTERNAL_DL}
 				    	URL http://parrot.cs.wisc.edu/externals/gcb-1.5.6.tar.gz
 			    		#--Configure step ----------

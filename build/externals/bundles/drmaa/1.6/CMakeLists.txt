@@ -5,10 +5,13 @@ if ( NOT PROPER )
 
 	if (WITH_DRMAA)
 
+		set ( DRMAA_URL http://parrot.cs.wisc.edu/externals/drmaa-1.6.tar.gz )
+		set ( DRMAA_DL wget ${DRMAA_URL} ${CMD_TERM} ) 
+
 		if (NOT WINDOWS)
 			set (DRMAA_CONFIGURE ./configure --prefix=${EXTERNAL_STAGE})
 			set (DRMAA_MAKE make)
-			set (DRMAA_INSTALL cp libdrmaa.so ${EXTERNAL_STAGE}/lib/ \r\n 
+			set (DRMAA_INSTALL cp libdrmaa.so ${EXTERNAL_STAGE}/lib/ &&
 							   cp drmaa.h ${EXTERNAL_STAGE}/include/ )
 
 			set( DRMAA_FOUND "${EXTERNAL_STAGE}/lib/libdrmaa.so" )
@@ -24,9 +27,9 @@ if ( NOT PROPER )
 		ExternalProject_Add(drmaa
 							PREFIX drmaa-1.6
 							#-- Download Step ----------
-							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/drmaa-1.6.tar.gz \r\n
+							DOWNLOAD_COMMAND ${DRMAA_DL}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
-							URL http://parrot.cs.wisc.edu/externals/drmaa-1.6.tar.gz
+							URL ${DRMAA_URL}
 							#--Configure step ----------
 							CONFIGURE_COMMAND ${DRMAA_CONFIGURE}
 							#--Build Step ----------

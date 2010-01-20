@@ -8,6 +8,7 @@ if (WITH_LIBVIRT)
 					DEPENDS libxml2
 				    PREFIX libvirt-0.6.2
 				    #-- Download Step ----------
+					DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/libvirt-0.6.2.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/libvirt-0.6.2.tar.gz
 					PATCH_COMMAND patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/no_gnutls.patch

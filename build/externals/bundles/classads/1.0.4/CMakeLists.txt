@@ -8,8 +8,9 @@ if (WITH_CLASSADS)
 		ExternalProject_Add(classads
 							PREFIX classads-1.0.4
 							#-- Download Step ----------
+							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/classads-1.0.4.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
-							URL http://parrot.cs.wisc.edu/externals/${CLASSADS_TARGET}.tar.gz
+							URL http://parrot.cs.wisc.edu/externals/classads-1.0.4.tar.gz
 							#--Configure step ----------
 							CONFIGURE_COMMAND ./configure --without-pcre --disable-shared --enable-static --enable-namespace --prefix=${EXTERNAL_STAGE} CC=g++
 							#--Build Step ----------

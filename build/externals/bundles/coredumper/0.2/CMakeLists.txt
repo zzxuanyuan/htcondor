@@ -7,6 +7,7 @@ if (WITH_COREDUMPER)
 		ExternalProject_Add(coredumper
 				    PREFIX coredumper-1.2.3
 				    #-- Download Step ----------
+					DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/coredumper-0.2.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/coredumper-0.2.tar.gz
 				    #--Configure step ----------

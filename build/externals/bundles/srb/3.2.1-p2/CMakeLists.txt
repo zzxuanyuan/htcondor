@@ -6,6 +6,7 @@ if ( NOT PROPER AND WITH_SRB )
 						DEPENDS openssl globus
 			    		PREFIX srb-3.2.1
 			   			 #-- Download Step ----------
+						DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/srb-3.2.1.tar.gz ${CMD_TERM}
 			    		DOWNLOAD_DIR ${EXTERNAL_DL}
 			    		URL http://parrot.cs.wisc.edu/externals/srb-3.2.1.tar.gz
 						#--Patch step ----------
