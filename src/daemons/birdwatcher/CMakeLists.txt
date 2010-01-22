@@ -4,7 +4,7 @@ if (WINDOWS)
 	
 	file( GLOB BWSrcs *.cpp *.h  res/*)
 	
-	condor_exe( condor_birdwatcher "${BWSrcs}" sbin "")
+	condor_exe( condor_birdwatcher "${BWSrcs}" ${C_SBIN} "")
 
 
 endif()

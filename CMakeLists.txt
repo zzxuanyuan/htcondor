@@ -6,19 +6,18 @@ cmake_minimum_required(VERSION 2.8)
 ##########################################################################
 #Setup package meta-data (used in packaging)
 set(PACKAGE "condor")
-set(VERSION "7.5.0")
-set(PACKAGE_TARNAME "")
+set(VERSION "7.5.2")
 set(PACKAGE_BUGREPORT "http://condor-wiki.cs.wisc.edu/index.cgi/tktnew")
-set(PACKAGE_NAME "condor")
-set(PACKAGE_VERSION "7.5.0")
-set(PACKAGE_STRING "condor")
+set(PACKAGE_NAME ${PACKAGE} )
+set(PACKAGE_VERSION ${VERSION} )
+set(PACKAGE_STRING ${PACKAGE} )
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 
 ##########################################################################
 #Set build type
-set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g 
+set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
 
 ###########################################
 # start cmake module inclusion
@@ -27,11 +26,6 @@ include (CommandTarget)
 include (gSOAPGen)
 include (FindMultiple)
 include (ExternalProjectPatched)
-include (CondorGlob)
-include (CondorSetLinkLibs)
-include (CondorExe)
-include (CondorDaemon)
-include (CondorStaticLib)
 include (CheckIncludeFiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
@@ -39,7 +33,13 @@ include (CheckStructHasMember)
 include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
-include (CondorConfigure) # will initiate the configure
+include (CondorPackageConfig) # setup packaging variables needed prior to install targets
+include (CondorGlob)
+include (CondorSetLinkLibs)
+include (CondorExe)
+include (CondorDaemon)
+include (CondorStaticLib)
+include (CondorConfigure)     # will initiate the configure
 
 ###########################################
 # The following two locations can be considered ubiquitous
@@ -120,27 +120,13 @@ add_subdirectory(src/tools/lease_manager)
 #add_subdirectory(src/tools/hawkeye_modules) #??
 ##########################################################################
 
+##########################################################################
+# Now comes the packaging... all variables should have been defined above
 # insert any spurious install targets which have not yet been added.  
 
-# What should be done is:
-# configure_file( CpackOptions.cmake.in CPackOption.cmake )
-# include (CPackOptions)
-#if(NOT WINDOWS)
-	#set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
-	#set (CPACK_PACKAGE_VENDOR "RedHat")
-	#set (CPACK_PACKAGE_VERSION_MAJOR 7)
-	#set (CPACK_PACKAGE_VERSION_MINOR 5)
-	#set (CPACK_PACKAGE_VERSION_PATCH 0)
-	#CPACK_PACKAGE_DESCRIPTION_FILE
-	#set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "condor blah blah blah")
-	#set (CPACK_PACKAGE_FILE_NAME "condor_7_5_0")
-	#CPACK_RESOURCE_FILE_LICENSE
-	#CPACK_RESOURCE_FILE_README
-	#set (CPACK_STRIP_FILES TRUE)
-	#set (CPACK_GENERATOR "RPM")
+include ( CPack )
 
-	#include (CPack)
-#endif()
+
 
 
 

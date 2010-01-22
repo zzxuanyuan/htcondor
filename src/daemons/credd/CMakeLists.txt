@@ -3,7 +3,7 @@ if ( HAVE_EXT_CLASSADS AND HAVE_EXT_GLOBUS )
 	file( GLOB CREDDSRCS credd_main.* credd.* classadUtil.* X509credentialWrapper.* )
 	condor_exe( condor_credd
 				"${CREDDSRCS}"
-				sbin
+				${C_SBIN}
 				"${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND}" )
 
 	message(STATUS "TODO: TSTCLAIR credd->stork targets?")

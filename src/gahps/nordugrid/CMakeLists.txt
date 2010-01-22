@@ -4,7 +4,7 @@ condor_glob( HeaderFiles SourceFiles "" )
 
 condor_exe( nordugrid_gahp
 			"${HeaderFiles};${SourceFiles}"
-			sbin
+			${C_SBIN}
 			"${NRDG_LINK_LIBS}" )
 
 else()

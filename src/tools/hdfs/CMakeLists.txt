@@ -1,4 +1,4 @@
 
 condor_glob(HDFSHdrs HDFSSrcs "")
 
-condor_exe( condor_hdfs "${HDFSHdrs};${HDFSSrcs}" sbin "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}")
+condor_exe( condor_hdfs "${HDFSHdrs};${HDFSSrcs}" ${C_SBIN} "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}")

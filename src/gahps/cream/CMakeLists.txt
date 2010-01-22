@@ -3,7 +3,7 @@ if ( HAVE_EXT_CREAM )
 	message(STATUS "TODO: cream non-proper")
 	condor_exe( cream_gahp
 				"cream_gahp_server.cpp"
-				sbin
+				${C_SBIN}
 				"" )
 else()
 

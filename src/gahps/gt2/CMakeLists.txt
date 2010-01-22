@@ -3,7 +3,7 @@ if (HAVE_EXT_GLOBUS)
 
 	condor_exe( gahp_server
 				"gahp_server.cpp;my_ez.cpp"
-				sbin
+				${C_SBIN}
 				"${GS_LINK_LIBS}" )
 
 else()

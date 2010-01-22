@@ -20,7 +20,7 @@ if (HAVE_EXT_GSOAP AND HAVE_EXT_OPENSSL AND NOT WINDOWS)
 
 	list(APPEND AMAZON_SOAP_FILES wsseapi.cpp smdevp.cpp )
 
-	condor_exe( amazon_gahp "${HeaderFiles};${SourceFiles};${AMAZON_SOAP_FILES}" sbin "${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${GSOAP_FOUND}")
+	condor_exe( amazon_gahp "${HeaderFiles};${SourceFiles};${AMAZON_SOAP_FILES}" ${C_SBIN} "${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${GSOAP_FOUND}")
 
 	if (NOT WINDOWS AND HAVE_EXT_GSOAP)
 		add_dependencies(patch_wsseapi cp_wsseapi)

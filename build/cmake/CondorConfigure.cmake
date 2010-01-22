@@ -7,6 +7,7 @@ message(STATUS "********* BEGINNING CONFIGURATION *********")
 
 include (FindThreads)
 
+# Windows is so different perform the check 1st and start setting the vars.
 if(${OS_NAME} MATCHES "WIN")
 	set(WINDOWS ON)
 	add_definitions(-DWINDOWS)
