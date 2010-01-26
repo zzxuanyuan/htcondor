@@ -45,7 +45,15 @@ if (NOT PROPER)
 						cd ../../../gsi/gssapi/source &&
 						patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/gsi-leak.patch )
 
-		set( GLOBUS_FLAVOR gcc32dbg )
+		set (GLOBUS_FLAGS export CFLAGS=-I${EXTERNAL_STAGE}/include &&
+						  export LDFLAGS=-L${EXTERNAL_STAGE}/lib &&
+						  export
+						  OPENSSL_CFLAGS=-I${EXTERNAL_STAGE}/include && 
+						  export
+						  OPENSSL_LDFLAGS=-L${EXTERNAL_STAGE}/lib &&
+						  export OPENSSL_LIB="-lssl -lcrypto" )
+		# honestly the build of globus is one of the strangest builds I have ever seen and
+		# it makes no sense to me.  
 
 		ExternalProject_Add(globus
 							DEPENDS openssl gt4 gt42
@@ -57,9 +65,17 @@ if (NOT PROPER)
 							#--Patch step ----------
 							PATCH_COMMAND ${GLOBUS_PATCH}
 							#--Configure step ----------
-							CONFIGURE_COMMAND ./configure --prefix=${EXTERNAL_STAGE} --with-flavor=${GLOBUS_FLAVOR}
+							CONFIGURE_COMMAND
+							${GLOBUS_FLAGS} &&
+							   ./configure --prefix=${EXTERNAL_STAGE} --with-flavor=gcc32dbgpthr &&
+								make gpt gssapi_error globus-resource-management-sdk
 							#--Build Step ----------
-							BUILD_COMMAND GLOBUS_LOCATION=${EXTERNAL_STAGE} make gpt gssapi_error globus-resource-management-sdk globus_gridftp_server
+							BUILD_COMMAND
+							${GLOBUS_FLAGS} &&
+								./configure --prefix=$PACKAGE_INSTALL_DIR --with-flavor=gcc32dbg &&
+								make gpt gssapi_error globus-resource-management-sdk &&
+							 	export GLOBUS_LOCATION=${EXTERNAL_STAGE} make globus_gridftp_server &&
+								${EXTERNAL_STAGE}/sbin/gpt-build -force -static -srcdir=source-trees/gridftp/server/src gcc32dbg
 							BUILD_IN_SOURCE 1
 							#--install Step ----------
 							INSTALL_DIR ${EXTERNAL_STAGE}

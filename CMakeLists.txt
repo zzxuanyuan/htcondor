@@ -18,6 +18,8 @@ string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 ##########################################################################
 #Set build type
 set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
+set( CMAKE_VERBOSE_MAKEFILE TRUE )
+# set ( BUILD_SHARED_LIBS ON ) 
 
 ###########################################
 # start cmake module inclusion
@@ -121,9 +123,7 @@ add_subdirectory(src/tools/lease_manager)
 ##########################################################################
 
 ##########################################################################
-# Now comes the packaging... all variables should have been defined above
-# insert any spurious install targets which have not yet been added.  
-
+# now include packaging post install target creation
 include ( CPack )
 
 

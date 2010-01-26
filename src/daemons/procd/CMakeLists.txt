@@ -25,6 +25,6 @@ else()
 
 endif()
 
-condor_daemon(procd "${ProcdRmvElements}" "procapi;utils;${PROCD_WIN_LINK_LIBS}" sbin OFF)
+condor_daemon(procd "${ProcdRmvElements}" "procapi;utils;${PROCD_WIN_LINK_LIBS}" "${C_SBIN}" OFF)
 
 add_library(procd_client STATIC ${ProcClientElements})
