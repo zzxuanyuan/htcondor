@@ -1269,7 +1269,7 @@ BaseShadow::loadBenchClassAd()
 	// load the class add
 	dprintf(D_ALWAYS, "Loading class ad file now\n");
 	FILE * classadFile;
-	classadFile = safe_fopen_wrapper("/scratch/jshill4/HFCBenchmarking/test_ad", "r"); // hard coded for now, assumes *** delimiter at end
+	classadFile = safe_fopen_wrapper("test_ad", "r"); // hard coded for now, assumes *** delimiter at end
 
 	int iseof = 0, error = 0, empty = 0;	
 	benchAd = new ClassAd(classadFile, "---", iseof, error, empty);
