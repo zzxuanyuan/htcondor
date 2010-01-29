@@ -472,13 +472,20 @@ class BaseShadow : public Service
 	int tasksLeft;
 
 	// stats
-	clock_t sTime;
-	clock_t eTime;
-	clock_t sTask;
-	clock_t eTask;
-	clock_t taskTotal;
-	clock_t taskMax;
-	clock_t taskMin;
+	//clock_t sTime;
+	//clock_t eTime;
+	//clock_t sTask;
+	//clock_t eTask;
+	//clock_t taskTotal;
+	//clock_t taskMax;
+	//clock_t taskMin;
+	double sTime;
+	double eTime;
+	double sTask;
+	double eTask;
+	double taskTotal;
+	double taskMax;
+	double taskMin;
 	int taskCount;
 	tms timeBuffer;
 	float taskSize;

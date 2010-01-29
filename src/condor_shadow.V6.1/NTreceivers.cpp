@@ -935,6 +935,7 @@ do_REMOTE_syscall()
 		if(Shadow->getTasksLeft() > 0)
 		{
 			rval = 1;
+			float initSize = syscall_sock->get_bytes_sent();
 			Shadow->startTaskTime();
 			ASSERT(syscall_sock->code(rval));
 			
@@ -942,7 +943,7 @@ do_REMOTE_syscall()
 			ASSERT(Shadow->getBenchAd()->put(*syscall_sock));
 			ASSERT(syscall_sock->end_of_message());
 			if(Shadow->getTaskSize() == 0.0f)
-				Shadow->setTaskSize(syscall_sock->get_bytes_sent());
+				Shadow->setTaskSize(syscall_sock->get_bytes_sent() - initSize);
 			Shadow->decTasks();
 		}
 		else
