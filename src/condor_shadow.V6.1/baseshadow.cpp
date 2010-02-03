@@ -70,6 +70,9 @@ BaseShadow::BaseShadow() {
 	taskMax = 0;
 	taskTotal = 0;
 	taskSize = 0.0f;
+	taskStarts.reserve(taskCount);
+	taskEnds.reserve(taskCount);
+	taskDiffs.reserve(taskCount);
 	/** <END_BENCH> **/
 }
 
@@ -1342,11 +1345,35 @@ BaseShadow::endTaskTime()
 	if(dif > taskMax) taskMax = dif;
 	if(dif < taskMin) taskMin = dif;
 	taskTotal += dif;
+
+	taskStarts.push_back(sTask);
+	taskEnds.push_back(eTask);
+	taskDiffs.push_back(dif);
 }
 
 void 
 BaseShadow::printStats()
 {
+	// lets sleep for a few seconds to let other tasks finish
+	sleep(30);
+
+	// write the task info to a pid file
+	pid_t pid = getpid();
+	char buffer[100];
+	sprintf(buffer, "/scratch/jshill4/CondorProjects/HFCBenchmarking/TimingDebug/timing_%d", pid);
+	FILE * oFile = safe_fopen_wrapper(buffer, "w");
+	if(oFile)
+	{
+		for(unsigned int i = 0; i < taskStarts.size(); i++)
+			fprintf(oFile, "Start [%20.6f] End [%20.6f] - [%10.6f]\n", taskStarts[i], taskEnds[i], taskDiffs[i]);
+
+		fclose(oFile);
+	}
+	else
+	{
+			dprintf(D_ALWAYS, "Failed to open pid timing debug log file\n");
+	}
+
 	/*double secPerTick = static_cast<double>(sysconf(_SC_CLK_TCK));
 	double totalTime = static_cast<double>(eTime - sTime) / secPerTick;
 	double average = totalTime / static_cast<double>(taskCount);
@@ -1360,6 +1387,7 @@ BaseShadow::printStats()
 	double min = taskMin;
 
 	dprintf(D_ALWAYS, "------------ Stats -----------\n");
+	dprintf(D_ALWAYS, "PID              %d\n", pid);
 	dprintf(D_ALWAYS, "Tasks sent:      %d\n", taskCount);
 	dprintf(D_ALWAYS, "Task size:       %f\n", taskSize);
 	dprintf(D_ALWAYS, "Total time:      %fs\n", totalTime);
