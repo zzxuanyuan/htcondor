@@ -31,6 +31,9 @@
 #include "qmgr_job_updater.h"
 #include "condor_update_style.h"
 
+#include <vector>
+using namespace std;
+
 /* Forward declaration to prevent loops... */
 class RemoteResource;
 
@@ -489,6 +492,9 @@ class BaseShadow : public Service
 	int taskCount;
 	tms timeBuffer;
 	float taskSize;
+	vector<double> taskStarts;
+	vector<double> taskEnds;
+	vector<double> taskDiffs;
 	/** <END_BENCH> **/
 
 };
