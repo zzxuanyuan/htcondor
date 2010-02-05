@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  ***************************************************************/
+#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include <string.h>
@@ -660,3 +661,4 @@ QuillErrCode insertHistoryJobCommon(AttrList *ad, JobQueueDatabase* DBObj, dbtyp
 } // insertHistoryJobCommon
 
 } // extern "C"
+#endif

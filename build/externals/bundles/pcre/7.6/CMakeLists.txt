@@ -41,6 +41,13 @@ if (WITH_PCRE)
 		# Set the target dependencies which the rest of condor depends on.
 		if (WINDOWS)
 			set(PCRE_FOUND "${EXTERNAL_STAGE}/lib/libpcre.lib")
+
+			#this may become the common case.
+			install ( FILES ${EXTERNAL_STAGE}/lib/libpcre.dll
+					  DESTINATION ${C_LIB}
+		  			  #PERMISSIONS 
+					)
+
 		else()
 			set(PCRE_FOUND "${EXTERNAL_STAGE}/lib/libpcre.a")
 		endif()

@@ -26,7 +26,7 @@
 #include "file_transfer.h"
 #include "io_proxy.h"
 
-#include "condor_daemon_client.h"
+#include "daemon_client/condor_daemon_client.h"
 
 /** The base class of JobInfoCommunicator that knows how to talk to a
 	remote condor_shadow.  this is where we deal with sending any

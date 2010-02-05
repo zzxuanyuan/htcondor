@@ -17,6 +17,8 @@
  *
  ***************************************************************/
 
+#ifdef HAVE_EXT_POSTGRESQL
+
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "sqlquery.h"
@@ -417,3 +419,4 @@ Print()
   printf("CloseCursorStmt = %s\n", close_cursor_str);
 }
 
+#endif

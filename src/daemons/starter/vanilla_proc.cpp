@@ -27,7 +27,7 @@
 #include "exit.h"
 #include "vanilla_proc.h"
 #include "starter.h"
-#include "syscall_numbers.h"
+#include "h/syscall_numbers.h"
 #include "dynuser.h"
 #include "condor_config.h"
 #include "domain_tools.h"

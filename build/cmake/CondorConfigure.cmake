@@ -5,6 +5,16 @@ message(STATUS "***********************************************************")
 message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH}")
 message(STATUS "********* BEGINNING CONFIGURATION *********")
 
+##################################################
+##################################################
+#Set build type 
+set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
+set( CMAKE_VERBOSE_MAKEFILE TRUE )
+# set (BUILD_SHARED_LIBS ON )
+# set (CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+# set (CMAKE_INSTALL_RPATH YOUR_LOC)
+# set (CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 include (FindThreads)
 
 # Windows is so different perform the check 1st and start setting the vars.
@@ -16,6 +26,8 @@ if(${OS_NAME} MATCHES "WIN")
 	add_definitions(-DWINVER=_WIN32_WINNT_WINXP)
 	add_definitions(-DNTDDI_VERSION=NTDDI_WINXP)
 	set(CMD_TERM \r\n)
+	set(C_WIN_BIN ${CONDOR_SOURCE_DIR}/build/backstage/win)
+	set(BISON_SIMPLE ${C_WIN_BIN}/bison.simple)
 else()
 	set(CMD_TERM &&)
 endif()
@@ -178,15 +190,18 @@ else()
 endif()
 
 ###########################################
-add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/drmaa/1.6)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/hadoop/0.20.0-p2)
-add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/postgresql/8.0.2)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/openssl/0.9.8h-p2)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/krb5/1.4.3-p0)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/pcre/7.6)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/gsoap/2.7.10-p5)
+if ( NOT WIN_EXEC_NODE_ONLY )
+	add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/postgresql/8.0.2)
+	add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/drmaa/1.6)
+	set ( CONDOR_EXTERNALS drmaa postgresql )
+endif()
 
-set ( CONDOR_EXTERNALS drmaa postgresql openssl krb5 pcre gsoap hadoop)
+set ( CONDOR_EXTERNALS ${CONDOR_EXTERNALS} openssl krb5 pcre gsoap hadoop )
 
 if (NOT WINDOWS)
 
@@ -221,6 +236,22 @@ add_definitions(-DHAVE_CONFIG_H)
 ###########################################
 ## set global build properties
 # Build dynamic libraries unless explicitly stated (it would be nice to change this
+
+###########################################
+# The following two locations can be considered ubiquitous
+include_directories(${EXTERNAL_STAGE}/include)
+if ($ENV{JAVA_HOME})
+	include_directories($ENV{JAVA_HOME}/include)
+endif()
+include_directories(${CONDOR_SOURCE_DIR}/src/include)
+include_directories(${CONDOR_SOURCE_DIR}/src/libs/utils)
+# the following will allow for <target>/.h includes
+# and I've elliminated relative path includes.
+include_directories(${CONDOR_SOURCE_DIR}/src/libs)
+include_directories(${CONDOR_SOURCE_DIR}/src/daemons)
+include_directories(${CONDOR_SOURCE_DIR}/src/gahps)
+###########################################
+
 set(BUILD_SHARED_LIBS FLASE)
 
 # Supress automatic regeneration of project files

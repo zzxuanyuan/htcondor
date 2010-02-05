@@ -49,6 +49,15 @@ if (WITH_KRB5)
 		# Set the target dependencies which the rest of condor depends on.
 		if (WINDOWS)
 			set(KRB5_FOUND "${EXTERNAL_STAGE}/lib/comerr32.lib;${EXTERNAL_STAGE}/lib/gssapi32.lib;${EXTERNAL_STAGE}/lib/k5sprt32.lib;${EXTERNAL_STAGE}/lib/krb5_32.lib;${EXTERNAL_STAGE}/lib/xpprof32.lib")
+
+			#this may become the common case.
+			install ( FILES ${EXTERNAL_STAGE}/lib/comerr32.dll
+							${EXTERNAL_STAGE}/lib/gssapi32.dll
+							${EXTERNAL_STAGE}/lib/k5sprt32.dll
+							${EXTERNAL_STAGE}/lib/krb5_32.dll
+							${EXTERNAL_STAGE}/lib/xpprof32.dll
+					  DESTINATION ${C_LIB} )
+
 		else()
 			set(KRB5_FOUND "${EXTERNAL_STAGE}/lib/libkrb5.a")
 		endif()

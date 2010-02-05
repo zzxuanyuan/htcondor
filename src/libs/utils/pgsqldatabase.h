@@ -18,7 +18,7 @@
  ***************************************************************/
 
 
-#ifndef _PGSQLDATABASE_H_
+#ifndef _PGSQLDATABASE_H_ 
 #define _PGSQLDATABASE_H_
 
 #include "condor_common.h"

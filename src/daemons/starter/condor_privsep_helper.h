@@ -22,7 +22,7 @@
 #define _CONDOR_PRIVSEP_HELPER_H
 
 #include "privsep_helper.h"
-#include "../condor_privsep/condor_privsep.h"
+#include "privsep/condor_privsep.h"
 
 // helper class for allowing the Starter to run in PrivSep mode. mainly,
 // this takes care of two things:

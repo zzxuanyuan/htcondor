@@ -1,5 +1,5 @@
 
-file( GLOB DCRmvElements soap_daemon_core* )
+file( GLOB DCRmvElements soap_daemon_core* condor_softkill*)
 
 condor_glob( DCHeaderFiles DCSourceFiles "${DCRmvElements};soap_core.cpp;mimetypes.cpp" )
 
@@ -11,3 +11,8 @@ endif()
 
 #create the library
 condor_static_lib(daemon_core "${DCHeaderFiles};${DCSourceFiles}")
+
+if (WINDOWS)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
+	condor_exe( condor_softkill "condor_softkill.cpp;condor_softkill.h" ${C_SBIN} "${CONDOR_TOOL_LIBS};psapi")
+endif(WINDOWS)

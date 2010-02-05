@@ -17,6 +17,7 @@
  *
  ***************************************************************/
 
+#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include "file_transfer_db.h"
@@ -204,3 +205,5 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	FILEObj->file_newEvent("Transfers", tmpClP1);
 
 }
+
+#endif

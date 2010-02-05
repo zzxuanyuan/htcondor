@@ -1,9 +1,12 @@
+if(NOT WIN_EXEC_NODE_ONLY)
 
-file( GLOB bgpScripts bgp_*)
-file( GLOB OtherSrc htc_*)
+	file( GLOB bgpScripts bgp_*)
+	file( GLOB OtherSrc htc_*)
 
-condor_glob(startdFHdrs startdFSrcs "${bgpScripts};${OtherSrc}")
+	condor_glob(startdFHdrs startdFSrcs "${bgpScripts};${OtherSrc}")
 
-condor_exe( condor_startd_factory "${startdFHdrs};${startdFSrcs}" ${C_SBIN} "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}")
+	condor_exe( condor_startd_factory "${startdFHdrs};${startdFSrcs}" ${C_SBIN} "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${CLASSADS_FOUND};${COREDUMPER_FOUND}")
 
-message(STATUS "TODO: TSTCLAIR add scripts to install targets")
+	message(STATUS "TODO: TSTCLAIR add scripts to install targets")
+
+endif(NOT WIN_EXEC_NODE_ONLY)

@@ -22,7 +22,7 @@
 #include "io_proxy_handler.h"
 
 #include "NTsenders.h"
-#include "../condor_chirp/chirp_protocol.h"
+#include "chirp/chirp_protocol.h"
 
 #include "condor_event.h"
 #include <errno.h>

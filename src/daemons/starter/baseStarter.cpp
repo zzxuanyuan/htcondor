@@ -36,7 +36,7 @@
 #include "condor_attributes.h"
 #include "classad_command_util.h"
 #include "condor_random_num.h"
-#include "../condor_sysapi/sysapi.h"
+#include "sysapi/sysapi.h"
 #include "build_job_env.h"
 #include "get_port_range.h"
 #include "perm.h"
@@ -50,6 +50,7 @@
 #include "sshd_proc.h"
 #include "condor_base64.h"
 #include "my_username.h"
+#include "cedar/condor_ipverify.h"
 
 extern "C" int get_random_int();
 extern int main_shutdown_fast();

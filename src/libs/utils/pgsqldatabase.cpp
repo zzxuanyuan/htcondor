@@ -17,6 +17,7 @@
  *
  ***************************************************************/
 
+#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include "condor_io.h"
@@ -898,3 +899,5 @@ PGSQLDatabase::sendBulkDataEnd() {
 
 	return QUILL_SUCCESS;
 }
+
+#endif

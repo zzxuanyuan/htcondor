@@ -39,6 +39,12 @@ if (WITH_POSTGRESQL)
 		# Set the target dependencies which the rest of condor depends on.
 		if (WINDOWS)
 			set(POSTGRESQL_FOUND "${EXTERNAL_STAGE}/lib/libpqdll.lib")
+
+			#this may become the common case.
+			install ( FILES ${EXTERNAL_STAGE}/lib/libpq.dll
+					  DESTINATION ${C_LIB}
+		  			  #PERMISSIONS 
+					)
 		else()
 			set(POSTGRESQL_FOUND "${EXTERNAL_STAGE}/lib/libpq.a")
 		endif()

@@ -46,9 +46,17 @@ if (WITH_OPENSSL)
 		# Set the target dependencies which the rest of condor depends on.
 		if (WINDOWS)
 			set(OPENSSL_FOUND "${EXTERNAL_STAGE}/lib/libeay32.lib;${EXTERNAL_STAGE}/lib/ssleay32.lib")
-		else()
+
+			#this may become the common case.
+			install ( FILES ${EXTERNAL_STAGE}/lib/libeay32.dll
+							${EXTERNAL_STAGE}/lib/ssleay32.dll
+					  DESTINATION ${C_LIB}
+		  			  #PERMISSIONS 
+					)
+
+		else(WINDOWS)
 			set(OPENSSL_FOUND "${EXTERNAL_STAGE}/lib/libssl.a")
-		endif()
+		endif(WINDOWS)
 
 	else( NOT PROPER )
 

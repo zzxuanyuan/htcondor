@@ -24,7 +24,7 @@
 #include "condor_io.h"
 #include "condor_constants.h"
 #include "condor_classad.h"
-#include "condor_sys.h"
+#include "h/condor_sys.h"
 #include "starter.h"
 #include "condor_event.h"
 

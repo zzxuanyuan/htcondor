@@ -31,7 +31,7 @@
 
 #include "vm_gahp_server.h"
 #include "vm_gahp_request.h"
-#include "../condor_vm-gahp/vmgahp_error_codes.h"
+#include "vm/vmgahp_error_codes.h"
 
 #define NULLSTRING "NULL"
 

@@ -17,6 +17,7 @@
  *
  ***************************************************************/
 
+#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include "condor_attributes.h"
@@ -397,3 +398,4 @@ HistorySnapshot::release()
 	}
 }
 
+#endif

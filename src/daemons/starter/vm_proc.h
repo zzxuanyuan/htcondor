@@ -25,7 +25,7 @@
 #include "vm_gahp_request.h"
 #include "vm_gahp_server.h"
 #include "condor_vm_universe_types.h"
-#include "../condor_procapi/procapi.h"
+#include "procapi/procapi.h"
 
 /** The VM-type job process class.  Uses VMGahpServer to do its
 	dirty work.

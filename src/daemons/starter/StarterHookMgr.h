@@ -21,8 +21,8 @@
 #define _CONDOR_STARTER_HOOK_MGR_H
 
 #include "condor_common.h"
-#include "HookClientMgr.h"
-#include "HookClient.h"
+#include "daemon_core/HookClientMgr.h"
+#include "daemon_core/HookClient.h"
 #include "enum_utils.h"
 
 class HookPrepareJobClient;

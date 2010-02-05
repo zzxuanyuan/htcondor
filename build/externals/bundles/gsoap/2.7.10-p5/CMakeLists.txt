@@ -7,7 +7,7 @@ if (WITH_GSOAP)
 		if (WINDOWS)
 			set (GSOAP_PATCH cp ${CMAKE_CURRENT_SOURCE_DIR}/config.WINDOWS.h gsoap/src/config.h)
 			set (GSOAP_CONFIGURE cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.win32 gsoap/src/Makefile.win32 )
-			set (GSOAP_MAKE set BISON_SIMPLE=${CONDOR_SOURCE_DIR}/build/bin/bison.simple \r\n
+			set (GSOAP_MAKE set BISON_SIMPLE=${BISON_SIMPLE} \r\n
 			                gmake -f Makefile.win32 -C gsoap/src )
 			set (GSOAP_INSTALL set PACKAGE_INSTALL_DIR=${EXTERNAL_STAGE} \r\n 
 			                   gmake -f Makefile.win32 install -C gsoap/src )

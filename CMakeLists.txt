@@ -15,12 +15,6 @@ string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 
-##########################################################################
-#Set build type
-set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
-set( CMAKE_VERBOSE_MAKEFILE TRUE )
-# set ( BUILD_SHARED_LIBS ON ) 
-
 ###########################################
 # start cmake module inclusion
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
@@ -42,20 +36,6 @@ include (CondorExe)
 include (CondorDaemon)
 include (CondorStaticLib)
 include (CondorConfigure)     # will initiate the configure
-
-###########################################
-# The following two locations can be considered ubiquitous
-include_directories(${EXTERNAL_STAGE}/include)
-if ($ENV{JAVA_HOME})
-	include_directories($ENV{JAVA_HOME}/include)
-endif()
-include_directories(${CONDOR_SOURCE_DIR}/src/include)
-include_directories(${CONDOR_SOURCE_DIR}/src/libs/utils)
-# the following will allow for <target>/.h includes
-# and I've elliminated relative path includes.
-include_directories(${CONDOR_SOURCE_DIR}/src/libs)
-include_directories(${CONDOR_SOURCE_DIR}/src/daemons)
-###########################################
 
 ##########################################################################
 ## Add subdirectories and build targets
@@ -79,34 +59,35 @@ add_subdirectory(src/libs/chirp)
 ## daemons...
 add_subdirectory(src/daemons/procd)
 add_subdirectory(src/daemons/master)
-add_subdirectory(src/daemons/collector)
-add_subdirectory(src/daemons/negotiator)
 add_subdirectory(src/daemons/startd)
-add_subdirectory(src/daemons/schedd)
+add_subdirectory(src/daemons/starter)
 add_subdirectory(src/daemons/shadow)
 add_subdirectory(src/daemons/credd)
-add_subdirectory(src/daemons/dbmsd)
 add_subdirectory(src/daemons/eventd)
-add_subdirectory(src/daemons/had)
 add_subdirectory(src/daemons/kbdd)
+add_subdirectory(src/daemons/collector)
+add_subdirectory(src/daemons/negotiator)
+add_subdirectory(src/daemons/schedd)
+add_subdirectory(src/daemons/dbmsd)
+add_subdirectory(src/daemons/had)
 add_subdirectory(src/daemons/transferd)
-add_subdirectory(src/daemons/birdwatcher)
 ###########################################
 ## gahps...
 add_subdirectory(src/gahps/amazon)
 add_subdirectory(src/gahps/c)
-add_subdirectory(src/gahps/gridmanager)
-add_subdirectory(src/gahps/vm)
 add_subdirectory(src/gahps/cream)
+add_subdirectory(src/gahps/gridmanager)
 add_subdirectory(src/gahps/gt2)
 add_subdirectory(src/gahps/gt4)
 add_subdirectory(src/gahps/gt42)
 add_subdirectory(src/gahps/nordugrid)
 ###########################################
 ## tools...
+add_subdirectory(src/tools/birdwatcher)
 add_subdirectory(src/tools/condor_tools)
 add_subdirectory(src/tools/q)
 add_subdirectory(src/tools/dagman)
+add_subdirectory(src/tools/mail)
 add_subdirectory(src/tools/hdfs)
 add_subdirectory(src/tools/power)
 add_subdirectory(src/tools/prio)
@@ -120,11 +101,16 @@ add_subdirectory(src/tools/ft_hooks)
 add_subdirectory(src/tools/job_router)
 add_subdirectory(src/tools/lease_manager)
 #add_subdirectory(src/tools/hawkeye_modules) #??
+###########################################
+## other targets mostly specific to installation then anything else.
+add_subdirectory(build/backstage)
 ##########################################################################
 
 ##########################################################################
-# now include packaging post install target creation
+# Must in included post *install targets
 include ( CPack )
+
+
 
 
 

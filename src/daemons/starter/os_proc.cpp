@@ -29,7 +29,7 @@
 #include "daemon_core/condor_daemon_core.h"
 #include "condor_attributes.h"
 #include "condor_syscall_mode.h"
-#include "syscall_numbers.h"
+#include "h/syscall_numbers.h"
 #include "classad_helpers.h"
 #include "sig_name.h"
 #include "exit.h"

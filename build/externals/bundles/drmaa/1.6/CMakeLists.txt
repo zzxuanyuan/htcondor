@@ -44,6 +44,18 @@ if ( NOT PROPER )
 		set( DRMAA_FOUND ${DRMAA_FOUND} PARENT_SCOPE )
 		set( HAVE_EXT_DRMAA ON )
 
+		if ( WINDOWS )
+
+			string(REPLACE .lib .dll DRMAA_INSTALL ${DRMAA_FOUND} )
+
+			#this may become the common case.
+			install ( FILES ${DRMAA_INSTALL}
+					  DESTINATION ${C_LIB}
+		  			  #PERMISSIONS 
+					)
+
+		endif ( WINDOWS )
+
 		message (STATUS "external configured (drmaa)")
 
 	endif (WITH_DRMAA)
