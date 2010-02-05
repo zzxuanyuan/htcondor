@@ -52,16 +52,16 @@ public:
 	bool find( const char *str, bool anycase = false ) const;
 
 	void print (void);
-	void rewind (void) { strings.Rewind(); }
-	void append (const char* str) { strings.Append( strdup(str) ); }
-	void insert (const char* str) { strings.Insert( strdup(str) ); }
+	void rewind (void) { m_strings.Rewind(); }
+	void append (const char* str) { m_strings.Append( strdup(str) ); }
+	void insert (const char* str) { m_strings.Insert( strdup(str) ); }
 	void remove (const char* str);
 	void clearAll();
 	void remove_anycase (const char* str);
-	char *next (void) { return strings.Next(); }
+	char *next (void) { return m_strings.Next(); }
 	void deleteCurrent();
-	int number (void) const { return strings.Number(); };
-	bool isEmpty(void) const { return strings.IsEmpty(); };
+	int number (void) const { return m_strings.Number(); };
+	bool isEmpty(void) const { return m_strings.IsEmpty(); };
 	void qsort();
 	void shuffle();
 
@@ -110,16 +110,18 @@ public:
 	/** Return the actual list -- used for ::identical() and ::similar()
 		@retval the list
 	*/
-	const List<char> &getList( void ) const { return strings; };
+	const List<char> &getList( void ) const { return m_strings; };
+	const char *getDelimiters(void) const { return m_delimiters; };
 
 protected:
     const char * contains_withwildcard( const char *string,
 										bool anycase,
 										StringList *matches=NULL) ;
-	List<char> strings;
-	char *delimiters;
+	List<char>	 m_strings;
+	char		*m_delimiters;
 
 	int isSeparator( char x );
 };
 
 #endif
+
