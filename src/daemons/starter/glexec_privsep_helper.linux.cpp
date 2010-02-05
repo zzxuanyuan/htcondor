@@ -18,7 +18,7 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "glexec_privsep_helper.h"
+#include "glexec_privsep_helper.linux.h"
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_arglist.h"

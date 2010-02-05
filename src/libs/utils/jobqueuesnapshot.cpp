@@ -17,8 +17,6 @@
  *
  ***************************************************************/
 
-#ifdef HAVE_EXT_POSTGRESQL
-
 #include "condor_common.h"
 #include "condor_attributes.h"
 #include "classad_merge.h"
@@ -28,6 +26,7 @@
 #include "condor_config.h"
 #include "quill_enums.h"
 
+#ifdef HAVE_EXT_POSTGRESQL
 //! constructor
 JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 {

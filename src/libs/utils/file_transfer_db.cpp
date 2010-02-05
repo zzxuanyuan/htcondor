@@ -17,8 +17,6 @@
  *
  ***************************************************************/
 
-#ifdef HAVE_EXT_POSTGRESQL
-
 #include "condor_common.h"
 #include "file_transfer_db.h"
 #include "condor_attributes.h"
@@ -32,6 +30,7 @@
 #include "subsystem_info.h"
 #include "string_list.h"
 
+#ifdef HAVE_EXT_POSTGRESQL
 extern FILESQL *FILEObj;
 
 #define MAXSQLLEN 500

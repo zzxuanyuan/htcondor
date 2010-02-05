@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include "condor_attributes.h"
@@ -26,6 +25,8 @@
 #include "historysnapshot.h"
 #include "quill_enums.h"
 #include "condor_classad_util.h"
+
+#ifdef HAVE_EXT_POSTGRESQL
 
 //! constructor
 HistorySnapshot::HistorySnapshot(const char* dbcon_str)

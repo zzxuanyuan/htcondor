@@ -71,7 +71,7 @@ if ( ${OS_NAME} MATCHES "WIN" )
 	configure_file(${CONDOR_SOURCE_DIR}/build/backstage/win/win.xsl.in ${CONDOR_SOURCE_DIR}/build/backstage/win/win.xsl @ONLY)
 	set (CPACK_WIX_XSL ${CONDOR_SOURCE_DIR}/build/backstage/win/win.xsl)
 
-	option(WIN_EXEC_NODE_ONLY "Minimal Package Win exec node only" ON)
+	option(WIN_EXEC_NODE_ONLY "Minimal Package Win exec node only" OFF)
 
     #######################################################################
     ## The following variables are used with an NSIS generator.  

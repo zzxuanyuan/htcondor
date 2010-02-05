@@ -17,7 +17,6 @@
  *
  ***************************************************************/
 
-#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include "condor_debug.h"
@@ -25,6 +24,7 @@
 #include "quill_enums.h"
 #include "condor_config.h"
 
+#ifdef HAVE_EXT_POSTGRESQL
 /* Some Oracle code preserved for posterity */
 
 /*

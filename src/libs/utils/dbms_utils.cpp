@@ -16,7 +16,6 @@
  * limitations under the License.
  *
  ***************************************************************/
-#ifdef HAVE_EXT_POSTGRESQL
 
 #include "condor_common.h"
 #include <string.h>
@@ -28,6 +27,8 @@
 #include "pgsqldatabase.h"
 #include "tt/condor_ttdb.h"
 #include "tt/jobqueuecollection.h"
+
+#ifdef HAVE_EXT_POSTGRESQL
 
 extern "C" {
 
