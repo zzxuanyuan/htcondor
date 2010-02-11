@@ -111,9 +111,12 @@ if ( ${OS_NAME} MATCHES "WIN" )
 
 elseif( ${OS_NAME} STREQUAL "LINUX" )
 
+
 	# it's a smaller subset easier to differentiate.
 	# check the operating system name
-	if ( ${PLATFORM} STREQUAL  "Debian" )
+
+	# Debian is not currently support so it is X out
+	if ( ${PLATFORM} STREQUAL  "XDebian" )
 
 		##############################################################
 		# For details on DEB package generation see:
@@ -147,7 +150,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/preinst"
 			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/prerm")		
 		
-		PackageDate( DEB RPM_DATE)
+		PackageDate( DEB CPACK_DEB_DATE)
 
 		set( CPACK_SET_DESTDIR "ON")
 		set( CMAKE_INSTALL_PREFIX "/")
