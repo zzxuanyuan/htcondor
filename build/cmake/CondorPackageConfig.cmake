@@ -4,20 +4,22 @@
 ##
 ## Start with the common section.
 ##################################################################
+set (PACKAGE_REVISION "1")
 set (CPACK_PACKAGE_NAME ${PACKAGE_NAME})
 set (CPACK_PACKAGE_VENDOR "Condor Team - University of Wisconsin Madison")
 set (CPACK_PACKAGE_VERSION ${PACKAGE_VERSION})
 set (CPACK_PACKAGE_CONTACT "condor-users@cs.wisc.edu") 
+set (URL "http://www.cs.wisc.edu/condor/")
 set (CONDOR_VER "${PACKAGE_NAME}-${PACKAGE_VERSION}")
 
 set (CPACK_PACKAGE_DESCRIPTION "Condor is a specialized workload management system for
-            				    compute-intensive jobs. Like other full-featured batch systems,
-           					    Condor provides a job queueing mechanism, scheduling policy,
-           					    priority scheme, resource monitoring, and resource management.
-           					    Users submit their serial or parallel jobs to Condor, Condor places
-           					    them into a queue, chooses when and where to run the jobs based
-           					    upon a policy, carefully monitors their progress, and ultimately
-           					    informs the user upon completion.")
+compute-intensive jobs. Like other full-featured batch systems,
+Condor provides a job queueing mechanism, scheduling policy,
+priority scheme, resource monitoring, and resource management.
+Users submit their serial or parallel jobs to Condor, Condor places
+them into a queue, chooses when and where to run the jobs based
+upon a policy, carefully monitors their progress, and ultimately
+informs the user upon completion.")
 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Condor: High Throughput Computing")
 
@@ -40,11 +42,26 @@ set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${OS_NAME}-${SYS_ARCH}" )
 ##################################################################
 
 # 1st set the location of the install targets.
-set( C_BIN usr/bin )
-set( C_LIB usr/lib/condor )
-set( C_LIBEXEC usr/libexec/condor )
-set( C_SBIN usr/sbin )
-set( C_ETC etc/condor/examples ) #<- I think this should be etc/condor/examples.
+set( C_BIN		usr/bin )
+set( C_LIB		usr/lib/condor )
+set( C_LIBEXEC		usr/libexec/condor )
+set( C_SBIN		usr/sbin )
+
+set( C_INCLUDE		usr/include/condor )
+set( C_MAN		usr/share/man )
+set( C_SRC		usr/src)
+set( C_SQL		usr/share/condor/sql)
+
+set( C_INIT		etc/init.d )
+set( C_ETC		etc/condor )
+
+set( C_ETC_EXAMPLES	usr/share/doc/${CONDOR_VER}/etc/examples )
+set( C_DOC		usr/share/doc/${CONDOR_VER} )
+
+set( C_LOCAL_DIR	var/lib/condor )
+set( C_LOG_DIR		var/log/condor )
+set( C_LOCK_DIR		var/lock/condor )
+set( C_RUN_DIR		var/run/condor )
 
 # NOTE: any RPATH should use these variables + PREFIX for location
 
@@ -96,61 +113,92 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 
 	# it's a smaller subset easier to differentiate.
 	# check the operating system name
-	#if (debian || ubuntu)
+	if ( ${PLATFORM} STREQUAL  "Debian" )
 
 		##############################################################
 		# For details on DEB package generation see:
 		# http://www.itk.org/Wiki/CMake:CPackPackageGenerators#DEB_.28UNIX_only.29
 		##############################################################
-		#set ( CPACK_GENERATOR "DEB" )
+		set ( CPACK_GENERATOR "DEB" )
+
+		if(NOT CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
+			if(${BIT_MODE} STREQUAL "32")
+				set (DEB_ARCH i386)
+			else ()
+				set (DEB_ARCH amd64)
+			endif()
+		else ()
+			set (DEB_ARCH ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE})
+		endif()
+
+		set (CPACK_PACKAGE_FILE_NAME "${PACKAGE_NAME}_${PACKAGE_VERSION}-${PACKAGE_REVISION}_${DEB_ARCH}" )
+		string( TOLOWER "${CPACK_PACKAGE_FILE_NAME}" CPACK_PACKAGE_FILE_NAME )
+
+		set ( CPACK_DEBIAN_PACKAGE_SECTION "contrib/misc")
+		set ( CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
+
+		set ( CPACK_DEBIAN_PACKAGE_DESCRIPTION "workload management system")
+		set ( CPACK_PACKAGE_DESCRIPTION_SUMMARY ${CPACK_PACKAGE_DESCRIPTION})
+
+		#Control files
+		set( CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/postinst"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/postrm"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/preinst"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/prerm")		
+		
+		PackageDate( DEB RPM_DATE)
+
+		set( CPACK_SET_DESTDIR "ON")
+		set( CMAKE_INSTALL_PREFIX "/")
+
 
 		#set (CPACK_DEBIAN_PACKAGE_DEPENDS)
-		#set (CPACK_DEBIAN_PACKAGE_SECTION ) # defaults to devel
-		#set (CPACK_DEBIAN_PACKAGE_PRIORITY ) #defaults to optional
 		#if (PROPER)
 		#	set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#endif()
 
 		# set you deb specific variables
 
-	#else()
-
-		set ( CPACK_GENERATOR "STGZ" ) #RPM
-		#set ( CPACK_SOURCE_GENERATOR "RPM" )
-
+	elseif ( ${PLATFORM} STREQUAL  "Redhat" )
+						
 		##############################################################
 		# For details on RPM package generation see:
 		# http://www.itk.org/Wiki/CMake:CPackPackageGenerators#RPM_.28Unix_Only.29
 		##############################################################
+		
+		set ( CPACK_GENERATOR "RPM" )
+		#set ( CPACK_SOURCE_GENERATOR "RPM" )
 
-		#set ( CPACK_RPM_PACKAGE_RELEASE ) #defaults to 1 this is the version of the RPM file
-		#set ( CPACK_RPM_PACKAGE_GROUP ) #defaults to none
-		#set ( CPACK_RPM_PACKAGE_LICENSE )
-		#set (CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION})
+		#Enable trace during packaging
+		set(CPACK_RPM_PACKAGE_DEBUG 1)			
 
-		#set(CPACK_RPM_PACKAGE_DEBUG ) # this can be used to debug the package generation process
+		set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PACKAGE_REVISION}-${DIST_NAME}${DIST_VER}-${SYS_ARCH}" )
+		string( TOLOWER "${CPACK_PACKAGE_FILE_NAME}" CPACK_PACKAGE_FILE_NAME )
 
-		##############################################################
-		## Use the following if you have your own spec file
-		##############################################################
+		set ( CPACK_RPM_PACKAGE_RELEASE ${PACKAGE_REVISION})
+		set ( CPACK_RPM_PACKAGE_GROUP "Applications/System")		
+		set ( CPACK_RPM_PACKAGE_LICENSE "Apache License, Version 2.0")
+		set ( CPACK_RPM_PACKAGE_VENDOR ${CPACK_PACKAGE_VENDOR})
+		set ( CPACK_RPM_PACKAGE_URL ${URL})
+		set ( CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION})
 
-		#set(CPACK_RPM_USER_BINARY_SPECFILE)
-		#set(CPACK_RPM_GENERATE_USER_BINARY_SPECFILE_TEMPLATE)
+		PackageDate( RPM CPACK_RPM_DATE)		
 
-		##############################################################
-		## Use the following if you wish to generate a spec file.
-		##############################################################
+		#Specify SPEC file template
+		set(CPACK_RPM_USER_BINARY_SPECFILE "${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/rpm/condor.spec.in")
 
-		# The following can be used in place of spec file for auto gen'd spec
-		#set (CPACK_RPM_PACKAGE_REQUIRES)
-		#if (PROPER)
-		#	set (CPACK_RPM_PACKAGE_REQUIRES)
-		#endif()
-		#set(CPACK_RPM_SPEC_INSTALL_POST)
-		#set(CPACK_RPM_SPEC_MORE_DEFINE)
-		#set(CPACK_RPM_<POST/PRE>_<UN>INSTALL_SCRIPT_FILE)
+		set( CPACK_SET_DESTDIR "ON")
+		set( CMAKE_INSTALL_PREFIX "/")
+		
+		#Set lib dir according to architecture
+		if (${BIT_MODE} STREQUAL "32")
+			set( C_LIB		usr/lib/condor )
+		elseif (${BIT_MODE} STREQUAL "64")
+			set( C_LIB		usr/lib64/condor )
+		endif()
 
-	#endif()
+	endif()
 
 # this needs to be evaluated for correctness
 elseif(${OS_NAME} STREQUAL "OSX") 

@@ -29,6 +29,8 @@ include (CheckStructHasMember)
 include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
+include (PackageDate)
+include (FindLinuxPlatform)
 include (CondorPackageConfig) # setup packaging variables needed prior to install targets
 include (CondorGlob)
 include (CondorSetLinkLibs)
@@ -104,6 +106,7 @@ add_subdirectory(src/tools/lease_manager)
 ###########################################
 ## other targets mostly specific to installation then anything else.
 add_subdirectory(build/backstage)
+
 ##########################################################################
 
 ##########################################################################
