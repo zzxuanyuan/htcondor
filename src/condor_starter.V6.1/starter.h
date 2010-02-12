@@ -262,6 +262,7 @@ public:
 	int SSHDRetry(Stream *s,char const *fmt,...) CHECK_PRINTF_FORMAT(3,4);
 	int vSSHDFailed(Stream *s,bool retry,char const *fmt,va_list args);
 
+
 		/** This will return NULL if we're not using either
 		    PrivSep or GLExec */
 	PrivSepHelper* privSepHelper()
@@ -279,6 +280,12 @@ public:
 		return dynamic_cast<GLExecPrivSepHelper*>(m_privsep_helper);
 	}
 #endif
+
+	/** <BENCH_CODE> **/
+	void pullHFCTask();
+	bool handShake() { return useHandShake; };
+	void setHandShake(bool h) { useHandShake = h; };
+	/** <END_CODE> **/
 
 protected:
 	List<UserProc> m_job_list;
@@ -368,6 +375,11 @@ private:
 		// Flag to indicate whether Config() has been run
 		//
 	bool m_configured;
+	
+	/**	<BENCH_CODE>
+	*/
+	bool useHandShake;	
+	/** <END_BENCH> **/
 };
 
 #endif

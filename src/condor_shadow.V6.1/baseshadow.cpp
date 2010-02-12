@@ -62,6 +62,19 @@ BaseShadow::BaseShadow() {
 	myshadow_ptr = this;
 	exception_already_logged = false;
 	began_execution = FALSE;
+
+	/** <BENCH_CODE> **/
+	classAdLoaded = false;
+	taskCount = 10000;
+	tasksLeft = taskCount;
+	taskMin = 1000000.0;
+	taskMax = 0;
+	taskTotal = 0;
+	taskSize = 0.0f;
+	taskStarts.reserve(taskCount);
+	taskEnds.reserve(taskCount);
+	taskDiffs.reserve(taskCount);
+	/** <END_BENCH> **/
 }
 
 BaseShadow::~BaseShadow() {
@@ -1252,3 +1265,139 @@ BaseShadow::getMachineName( MyString & /*machineName*/ )
 {
 	return false;
 }
+
+/** <BENCH_CODE> **/
+bool 
+BaseShadow::loadBenchClassAd()
+{
+	// load the class add
+	dprintf(D_ALWAYS, "Loading class ad file now\n");
+	FILE * classadFile;
+	classadFile = safe_fopen_wrapper("test_ad", "r"); // hard coded for now, assumes *** delimiter at end
+
+	int iseof = 0, error = 0, empty = 0;	
+	benchAd = new ClassAd(classadFile, "---", iseof, error, empty);
+	//benchAd = new ClassAd("A=1,B=2,received=FALSE", ',');
+	fclose(classadFile);
+	
+	if(error != 0 || !benchAd)
+	{
+		dprintf(D_ALWAYS, "Something went wrong while parsing classads [%d]\n", error);
+		return false;		
+	}
+
+	classAdLoaded = true;
+	return true;
+}
+
+#define BENCH_DEBUG D_FULLDEBUG
+
+void 
+BaseShadow::startTime()
+{
+	//sTime = times(&timeBuffer);
+	timeval t;
+	gettimeofday(&t,NULL);
+	double dt = static_cast<double>(t.tv_sec) + static_cast<double>(t.tv_usec) / 1000000.0;
+	sTime = dt;
+	//dprintf(D_FULLDEBUG, "Logging start time [%d]\n", sTime);
+	dprintf(BENCH_DEBUG, "Logging start time [%f]\n", sTime);
+}
+
+void 
+BaseShadow::endTime()
+{
+	//eTime = times(&timeBuffer);
+	timeval t;
+	gettimeofday(&t,NULL);
+	double dt = static_cast<double>(t.tv_sec) + static_cast<double>(t.tv_usec) / 1000000.0;
+	eTime = dt;
+	//dprintf(D_FULLDEBUG, "Logging end time [%d]\n", eTime);
+	dprintf(BENCH_DEBUG, "Logging end time [%f]\n", eTime);
+}
+
+void 
+BaseShadow::startTaskTime()
+{
+	//sTask = times(&timeBuffer);
+	timeval t;
+	gettimeofday(&t,NULL);
+	double dt = static_cast<double>(t.tv_sec) + static_cast<double>(t.tv_usec) / 1000000.0;
+	sTask = dt;
+	//dprintf(D_FULLDEBUG, "Logging task start time [%d]\n", sTask);
+	dprintf(BENCH_DEBUG, "Logging task start time [%f]\n", sTask);
+}
+
+void 
+BaseShadow::endTaskTime()
+{
+	//eTask = times(&timeBuffer);
+	timeval t;
+	gettimeofday(&t,NULL);
+	double dt = static_cast<double>(t.tv_sec) + static_cast<double>(t.tv_usec) / 1000000.0;
+	eTask = dt;
+	//dprintf(D_FULLDEBUG, "Logging task end time [%d]\n", eTask);
+	dprintf(BENCH_DEBUG, "Logging task end time [%f]\n", eTask);
+
+	// calculate dif
+	//clock_t dif = eTask - sTask;
+	double dif = eTask - sTask;
+
+	if(dif > taskMax) taskMax = dif;
+	if(dif < taskMin) taskMin = dif;
+	taskTotal += dif;
+
+	taskStarts.push_back(sTask);
+	taskEnds.push_back(eTask);
+	taskDiffs.push_back(dif);
+}
+
+void 
+BaseShadow::printStats()
+{
+	// lets sleep for a few seconds to let other tasks finish
+	sleep(30);
+
+	// write the task info to a pid file
+	pid_t pid = getpid();
+	char buffer[100];
+	sprintf(buffer, "/scratch/jshill4/CondorProjects/HFCBenchmarking/TimingDebug/timing_%d", pid);
+	FILE * oFile = safe_fopen_wrapper(buffer, "w");
+	if(oFile)
+	{
+		for(unsigned int i = 0; i < taskStarts.size(); i++)
+			fprintf(oFile, "Start [%20.6f] End [%20.6f] - [%10.6f]\n", taskStarts[i], taskEnds[i], taskDiffs[i]);
+
+		fclose(oFile);
+	}
+	else
+	{
+			dprintf(D_ALWAYS, "Failed to open pid timing debug log file\n");
+	}
+
+	/*double secPerTick = static_cast<double>(sysconf(_SC_CLK_TCK));
+	double totalTime = static_cast<double>(eTime - sTime) / secPerTick;
+	double average = totalTime / static_cast<double>(taskCount);
+	double max = static_cast<double>(taskMax) / secPerTick;
+	double min = static_cast<double>(taskMin) / secPerTick;*/
+
+	//double secPerTick = 1000000.0f;
+	double totalTime = eTime - sTime;
+	double average = totalTime / static_cast<double>(taskCount);
+	double max = taskMax;
+	double min = taskMin;
+
+	dprintf(D_ALWAYS, "------------ Stats -----------\n");
+	dprintf(D_ALWAYS, "PID              %d\n", pid);
+	dprintf(D_ALWAYS, "Tasks sent:      %d\n", taskCount);
+	dprintf(D_ALWAYS, "Task size:       %f\n", taskSize);
+	dprintf(D_ALWAYS, "Total time:      %fs\n", totalTime);
+	dprintf(D_ALWAYS, "Total average:   %fs\n", average);
+	dprintf(D_ALWAYS, "Task  time:      %fs\n", taskTotal);
+	dprintf(D_ALWAYS, "Avg task time:   %fs\n", taskTotal / static_cast<double>(taskCount));
+	dprintf(D_ALWAYS, "Max task:        %fs\n", max);
+	dprintf(D_ALWAYS, "Min task:        %fs\n", min);
+	dprintf(D_ALWAYS, "------------------------------\n");
+}
+
+/** <END_BENCH> **/

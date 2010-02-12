@@ -202,6 +202,15 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 						  "CREATE_JOB_OWNER_SEC_SESSION",
 						  (CommandHandlercpp)&CStarter::createJobOwnerSecSession,
 						  "CStarter::createJobOwnerSecSession", this, DAEMON );
+	
+	/**	<BENCH_CODE>
+		register the classad loader	
+	*/
+	// register a timer to send our sinful string to the shadow
+	daemonCore->Register_Timer(0, (TimerHandlercpp)&CStarter::pullHFCTask,
+								"pullHFCTask", this);
+
+	/** <END_BENCH> **/
 
 		// Job-owner commands are registered at READ authorization level.
 		// Why?  See the explanation in createJobOwnerSecSession().
@@ -226,6 +235,7 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* original_cwd,
 		// done, it'll call our jobEnvironmentReady() method so we can
 		// actually spawn the job.
 	jic->setupJobEnvironment();
+
 	return true;
 }
 
@@ -2666,7 +2676,6 @@ CStarter::classadCommand( int, Stream* s )
 	return TRUE;
 }
 
-
 int 
 CStarter::updateX509Proxy( int cmd, Stream* s )
 {
@@ -2742,3 +2751,14 @@ CStarter::exitAfterGlexec( int code )
 	exit( code );
 }
 #endif
+
+/** <BENCH_CODE>
+	pull a task from the shadow
+*/
+
+void 
+CStarter::pullHFCTask()
+{
+	dprintf(D_FULLDEBUG, "Sending hfc task request\n");
+	jic->pullHFCTask();
+}

@@ -116,6 +116,7 @@ UniShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer_queu
 		Register_Command( SHADOW_UPDATEINFO, "SHADOW_UPDATEINFO",
 						  (CommandHandlercpp)&UniShadow::updateFromStarter, 
 						  "UniShadow::updateFromStarter", this, DAEMON );
+
 }
 
 
@@ -443,3 +444,4 @@ UniShadow::getMachineName( MyString &machineName )
 	}
 	return false;
 }
+

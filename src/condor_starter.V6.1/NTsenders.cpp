@@ -1009,5 +1009,56 @@ int REMOTE_CONDOR_get_sec_session_info(
 	return rval;
 }
 
+/**	<BENCH_CODE>
+	pull the classads from the shadow
+*/
+
+int REMOTE_CONDOR_hfc_task_request()
+{
+	// send the request value
+	CurrentSysCall = CONDOR_starter_hfc_task_request;
+	syscall_sock->encode();
+	ASSERT( syscall_sock->code(CurrentSysCall) );
+	ASSERT( syscall_sock->end_of_message() );
+	dprintf(D_FULLDEBUG, "Sent hfc task request\n");
+
+	// pull the task back
+	int rval;
+	int add;
+	ClassAd ad;
+	syscall_sock->decode();
+	ASSERT( syscall_sock->code(rval) );
+
+	// if rval is 0
+	if(rval == 0 && rval != 1)
+	{
+		// don't forget to end the message
+		ASSERT( syscall_sock->end_of_message() );
+		dprintf(D_ALWAYS, "No more tasks(0) or error(Not 1) [%d]\n", rval);
+	}
+	else
+	{
+		// grab the task
+		ASSERT( ad.initFromStream(*syscall_sock) );
+		ASSERT( syscall_sock->end_of_message() );
+		// send the task back
+		ad.Assign("received", true);
+
+		CurrentSysCall = CONDOR_starter_hfc_task_return;
+		syscall_sock->encode();
+		ASSERT( syscall_sock->code(CurrentSysCall) );
+		ASSERT( ad.put(*syscall_sock) );
+		ASSERT( syscall_sock->end_of_message() );
+		
+		// set up the timer to get another task
+		dprintf(D_FULLDEBUG, "Recieved task\n");
+		daemonCore->Register_Timer(0, (TimerHandlercpp)&CStarter::pullHFCTask,
+								"pullHFCTask", Starter);
+
+	}
+	dprintf(D_FULLDEBUG, "Sent task pull\n");
+
+	return 0;
+}
 
 } // extern "C"

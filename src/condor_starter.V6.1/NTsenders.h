@@ -62,6 +62,10 @@ extern "C" {
 		MyString &filetrans_session_info,
 		MyString &filetrans_session_key);
 
+	/** <BENCH_CODE>
+	*/
+	int REMOTE_CONDOR_hfc_task_request();
+
 }
 
 #endif

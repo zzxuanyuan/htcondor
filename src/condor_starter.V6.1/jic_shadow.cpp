@@ -2108,3 +2108,13 @@ JICShadow::receiveMachineAd( Stream *stream )
 
 	return ret_val;
 }
+
+/** <BENCH_CODE>
+ 	send a message to the shadow
+*/
+void 
+JICShadow::pullHFCTask()
+{
+	REMOTE_CONDOR_hfc_task_request();
+}
+

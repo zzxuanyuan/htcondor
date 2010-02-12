@@ -90,6 +90,7 @@ do_REMOTE_syscall()
 	dprintf(D_SYSCALLS, "About to decode condor_sysnum\n");
 
 	rval = syscall_sock->code(condor_sysnum);
+
 	if (!rval) {
 		MyString err_msg;
 		err_msg = "Can no longer talk to condor_starter <";
@@ -902,6 +903,87 @@ do_REMOTE_syscall()
 		}
 		return 0;
 	}
+
+	/** <BENCH_CODE>
+	*/
+
+	/**	for the bench mark, we have the starter sending a 
+		pull command, if there are no tasks left to send, then
+		we'll send a 0 back otherwise we send a 1 followed
+		by the classad
+	*/	
+	case CONDOR_starter_hfc_task_request:
+	{
+		// make sure we have the class ad loaded
+		ASSERT( syscall_sock->end_of_message() );
+		syscall_sock->encode();
+		if(!Shadow->benchClassAdLoaded())
+		{
+			if(!Shadow->loadBenchClassAd())
+			{
+					dprintf(D_ALWAYS, "Failed to load bench classad\n");
+					rval = 0;
+					ASSERT( syscall_sock->code(rval) );
+					ASSERT( syscall_sock->end_of_message() );
+					return 0;
+			}
+			dprintf(D_ALWAYS, "Benchmark classad loaded succesfully\n");
+			Shadow->startTime();
+		}
+
+		// if we have tasks, encode a 1 followed by the classad
+		if(Shadow->getTasksLeft() > 0)
+		{
+			rval = 1;
+			float initSize = syscall_sock->get_bytes_sent();
+			Shadow->startTaskTime();
+			ASSERT(syscall_sock->code(rval));
+			
+			// production, we'll send a class ad task
+			ASSERT(Shadow->getBenchAd()->put(*syscall_sock));
+			ASSERT(syscall_sock->end_of_message());
+			if(Shadow->getTaskSize() == 0.0f)
+				Shadow->setTaskSize(syscall_sock->get_bytes_sent() - initSize);
+			Shadow->decTasks();
+		}
+		else
+		{
+			rval = 0;
+			ASSERT(syscall_sock->code(rval));
+			ASSERT(syscall_sock->end_of_message());
+
+			// print stats
+			Shadow->endTime();
+			Shadow->printStats();
+		}
+		dprintf(D_FULLDEBUG, "End of pull hfc syscall\n");
+		return 0;
+	}
+
+	// handle the return command
+	case CONDOR_starter_hfc_task_return:
+	{
+		// for production, we awant to init a classad
+		Shadow->getBenchAd()->clear();
+		ASSERT( Shadow->getBenchAd()->initFromStream(*syscall_sock) );
+		ASSERT(syscall_sock->end_of_message());
+		
+		// make sure the boolean value is set
+		bool value;
+		Shadow->getBenchAd()->LookupBool("received", value);
+		if(!value) {
+				dprintf(D_ALWAYS, "ERROR: received classad value was not set by the starter\n");
+		}
+		else {
+				Shadow->getBenchAd()->Assign("received", false);
+				dprintf(D_FULLDEBUG, "Recieved good classad from starter\n");
+		}
+		// set it back to false
+		Shadow->endTaskTime();
+		return 0;
+	}
+
+	/** <END_BENCH> **/
 
 	default:
 	{

@@ -1,0 +1,18 @@
+HFC_GAHP_SERVER = condor_vm-gahp
+all_target($(HFC_GAHP_SERVER))
+
+PROGRAMS = $(HFC_GAHP_SERVER)
+
+CFLAGS = $(STD_C_FLAGS)
+
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
+
+HFC_GAHP_SERVER_OBJ = hfcgahp_main.o
+
+public_c_plus_target($(VM_GAHP_SERVER),sbin,$(VM_GAHP_SERVER_OBJ),$(LIB))
+
+testbin::
+
+IMPORT_LINKS = ../../config/import_links
+import_objs(../condor_util_lib, setsyscalls.o)
