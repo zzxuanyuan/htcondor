@@ -9,4 +9,11 @@ if(NOT WIN_EXEC_NODE_ONLY)
 
 	message(STATUS "TODO: TSTCLAIR add scripts to install targets")
 
+	#Install source file	
+	file( GLOB htcSrc htc_tool.cpp htc_list_partitions.cpp)
+	install(FILES		${htcSrc}
+		DESTINATION	"${C_SRC}/startd_factory/BlueGeneP/")
+
+
 endif(NOT WIN_EXEC_NODE_ONLY)
+

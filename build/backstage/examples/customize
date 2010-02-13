@@ -28,17 +28,22 @@
 # Written by Derek Wright <wright@cs.wisc.edu> on 2/27/98
 #
 
-$target = $ARGV[0];
--d $target || die "$target is not a directory.\n";
+# Modified to customize in-place for cmake integration 
+# Thawan <kooburat@cs.wisc.edu>
+
+
+#$target = $ARGV[0];
+#-d $target || die "$target is not a directory.\n";
 
 &get_platform_defaults();
 &customize_config_file( "condor_config.generic",
-		       "$target/etc/examples/condor_config.generic" );
+		        "condor_config.generic.new" );
 &customize_config_file( "condor_config.submit.generic",
-		       "$target/etc/examples/condor_config.submit.generic" );
+		        "condor_config.submit.generic.new" );
 &customize_config_file( "condor_config.local.central.manager",
-	       "$target/etc/examples/condor_config.local.central.manager" );
-&customize_boot_script();
+			"condor_config.local.central.manager.new" );
+&customize_boot_script( "condor.boot.generic",
+			"condor.boot.new");
 
 
 sub get_platform_defaults {
@@ -143,12 +148,14 @@ sub customize_config_file {
 
 
 sub customize_boot_script {
-    open( GENERIC, "<condor.boot.generic" ) || 
-	die "Can't open condor.boot.generic: $!\n";
-    open( TARGET, ">$target/etc/examples/condor.boot" ) ||
-	die "Can't open target condor.boot: $!\n";
+    local( $generic, $target ) = @_;
 
-    print "Configuring condor.boot.generic ... ";
+    open( GENERIC, "<$generic" ) || 
+	die "Can't open $generic: $!\n";
+    open( TARGET, ">$target" ) ||
+	die "Can't open $target: $!\n";
+
+    print "Configuring $generic ... ";
     while( <GENERIC> ) {
 	if( /^PS.*/ ) {
 	    $_ = "PS=\"$ps_path\"\n";
@@ -158,5 +165,5 @@ sub customize_boot_script {
     print "done.\n";
     close TARGET;
     close GENERIC;
-    chmod( 0755, "$target/etc/examples/condor.boot" );
+    chmod( 0755, "$target" );
 }    
