@@ -88,7 +88,7 @@ add_subdirectory(src/gahps/nordugrid)
 add_subdirectory(src/tools/birdwatcher)
 add_subdirectory(src/tools/condor_tools)
 add_subdirectory(src/tools/q)
-add_subdirectory(src/tools/dagman)
+#add_subdirectory(src/tools/dagman)
 add_subdirectory(src/tools/mail)
 add_subdirectory(src/tools/hdfs)
 add_subdirectory(src/tools/power)
@@ -98,7 +98,7 @@ add_subdirectory(src/tools/shared_port)
 add_subdirectory(src/tools/startd_factory)
 add_subdirectory(src/tools/status)
 add_subdirectory(src/tools/submit)
-add_subdirectory(src/tools/userlog)
+#add_subdirectory(src/tools/userlog)
 add_subdirectory(src/tools/ft_hooks)
 add_subdirectory(src/tools/job_router)
 add_subdirectory(src/tools/lease_manager)
@@ -112,7 +112,7 @@ add_subdirectory(build/backstage)
 ##########################################################################
 # Must in included post *install targets
 include ( CPack )
-
+#include ( CondorDebGenerator )
 
 
 
