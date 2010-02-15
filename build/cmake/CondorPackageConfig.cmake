@@ -125,7 +125,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 	# it's a smaller subset easier to differentiate.
 	# check the operating system name
 
-	if ( ${PLATFORM} STREQUAL  "Debian" )
+	if ( ${LINUX_NAME} STREQUAL  "Debian" )
 
 		##############################################################
 		# For details on DEB package generation see:
@@ -133,17 +133,12 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		##############################################################
 		set ( CPACK_GENERATOR "DEB" )
 
-		if(NOT CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-			if(${BIT_MODE} STREQUAL "32")
-				set (DEB_ARCH i386)
-			else ()
-				set (DEB_ARCH amd64)
-			endif()
-		else ()
-			set (DEB_ARCH ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE})
-		endif()
+		# Use dkpg-shlibdeps to generate dependency list
+		set ( CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON )
+		# Enable debug message
+		set ( CPACK_DEBIAN_PACKAGE_DEBUG 1 )
 
-		set (CPACK_PACKAGE_FILE_NAME "${PACKAGE_NAME}_${PACKAGE_VERSION}-${PACKAGE_REVISION}_${DEB_ARCH}" )
+		set (CPACK_PACKAGE_FILE_NAME "${PACKAGE_NAME}_${PACKAGE_VERSION}-${PACKAGE_REVISION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}" )
 		string( TOLOWER "${CPACK_PACKAGE_FILE_NAME}" CPACK_PACKAGE_FILE_NAME )
 
 		set ( CPACK_DEBIAN_PACKAGE_SECTION "contrib/misc")
@@ -153,7 +148,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		set ( CPACK_DEBIAN_PACKAGE_VERSION "${PACKAGE_VERSION}-${PACKAGE_REVISION}")
 		set ( CPACK_DEBIAN_PACKAGE_HOMEPAGE "${URL}")
 		set ( CPACK_DEBIAN_PACKAGE_DEPENDS "python, adduser")
-
+		
 		#Control files
 		set( CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
 			"${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/debian/postinst"
@@ -173,14 +168,14 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 
 		add_subdirectory(build/backstage/debian)
 
-		#set (CPACK_DEB_PACKAGE_DEBUG 1)
+		
 
 		#set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#if (PROPER)
 		#	set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#endif()
 
-	elseif ( ${PLATFORM} STREQUAL  "Redhat" )
+	elseif ( ${LINUX_NAME} STREQUAL  "Redhat" )
 						
 		##############################################################
 		# For details on RPM package generation see:
@@ -193,7 +188,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		#Enable trace during packaging
 		set(CPACK_RPM_PACKAGE_DEBUG 1)			
 
-		set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PACKAGE_REVISION}-${DIST_NAME}${DIST_VER}-${SYS_ARCH}" )
+		set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PACKAGE_REVISION}-${RPM_SYSTEM_NAME}-${SYS_ARCH}" )
 		string( TOLOWER "${CPACK_PACKAGE_FILE_NAME}" CPACK_PACKAGE_FILE_NAME )
 
 		set ( CPACK_RPM_PACKAGE_RELEASE ${PACKAGE_REVISION})
