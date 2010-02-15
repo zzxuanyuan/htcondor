@@ -7,10 +7,10 @@ set(SPECIFIC_COMPILER_NAME "")
 set(SPECIFIC_SYSTEM_VERSION_NAME "")
 
 #For Linux, the foloing varaible will be set
-#LINUX_NAME									= Fedora, CentOS, Redhat, Ubuntu, openSUSE
-#LINUX_VER									= 12 (Fedora), 5.0 (Debian, CentOS)
-#RPM_SYSTEM_NAME							= fc12, rhel5, ..
-#BIT_MODE									= 32 | 64
+#LINUX_NAME		= Fedora, CentOS, Redhat, Ubuntu, openSUSE
+#LINUX_VER		= 12 (Fedora), 5.0 (Debian, CentOS)
+#RPM_SYSTEM_NAME	= fc12, rhel5, ..
+#BIT_MODE		= 32 | 64
 #CPACK_DEBIAN_PACKAGE_ARCHITECTURE	= i386, amd64, ...  (value from dpkg utility) 
 
 if(WIN32)
@@ -94,14 +94,14 @@ if(UNIX)
 	set(LINUX_VER "${CMAKE_MATCH_1}")
 	set(RPM_SYSTEM_NAME "fd{CMAKE_MATCH_1}")
       endif(LINUX_ISSUE MATCHES "Fedora")
-		# CentOS case
+      # CentOS case
       if(LINUX_ISSUE MATCHES "CentOS")
         string(REGEX MATCH "release ([0-9]+\\.[0-9]+)" CENTOS "${LINUX_ISSUE}")
         set(LINUX_NAME "CentOS")        
 	set(LINUX_VER "${CMAKE_MATCH_1}")
 	set(RPM_SYSTEM_NAME "rhel{CMAKE_MATCH_1}")
       endif(LINUX_ISSUE MATCHES "CentOS")
-		# CentOS case
+      # CentOS case
       if(LINUX_ISSUE MATCHES "Red Hat")
         string(REGEX MATCH "release ([0-9]+\\.[0-9]+)" REDHAT "${LINUX_ISSUE}")
         set(LINUX_NAME "Redhat")        

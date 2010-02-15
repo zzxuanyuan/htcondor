@@ -119,13 +119,14 @@ if ( ${OS_NAME} MATCHES "WIN" )
 	#set (CPACK_NSIS_DELETE_ICONS_EXTRA ) # additional commands to uninstall start menu shortcuts.
 	#set (CPACK_NSIS_MENU_LINKS )
 
-elseif( ${OS_NAME} STREQUAL "LINUX" )
-
+elseif( ${OS_NAME} STREQUAL "LINUX" )	
 
 	# it's a smaller subset easier to differentiate.
 	# check the operating system name
 
 	if ( ${LINUX_NAME} STREQUAL  "Debian" )
+
+		message (STATUS "Configuring for Debian package on ${LINUX_NAME}-${LINUX_VER}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 
 		##############################################################
 		# For details on DEB package generation see:
@@ -174,6 +175,8 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		#endif()
 
 	elseif ( ${LINUX_NAME} STREQUAL  "Redhat" )
+
+		message (STATUS "Configuring RPM package on ${LINUX_NAME}-${LINUX_VER}-${SYS_ARCH}")
 						
 		##############################################################
 		# For details on RPM package generation see:
