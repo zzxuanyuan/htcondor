@@ -133,7 +133,6 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		##############################################################
 		set ( CPACK_GENERATOR "DEB" )
 
-<<<<<<< HEAD
 		# Use dkpg-shlibdeps to generate dependency list
 		set ( CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON )
 		# Enable debug message
