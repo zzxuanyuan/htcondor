@@ -174,8 +174,8 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		#	set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#endif()
 
-	elseif ( ${LINUX_NAME} STREQUAL  "Redhat" )
-
+	elseif ( RPM_SYSTEM_NAME )
+		# This variable will be defined if the platfrom support RPM
 		message (STATUS "Configuring RPM package on ${LINUX_NAME}-${LINUX_VER}-${SYS_ARCH}")
 						
 		##############################################################
