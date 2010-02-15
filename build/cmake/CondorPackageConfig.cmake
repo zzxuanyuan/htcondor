@@ -133,6 +133,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		##############################################################
 		set ( CPACK_GENERATOR "DEB" )
 
+<<<<<<< HEAD
 		# Use dkpg-shlibdeps to generate dependency list
 		set ( CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON )
 		# Enable debug message
@@ -165,10 +166,8 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		set( CPACK_SET_DESTDIR "ON")
 		set( CMAKE_INSTALL_PREFIX "/")
 
-
+		# Processing control files
 		add_subdirectory(build/backstage/debian)
-
-		
 
 		#set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#if (PROPER)
