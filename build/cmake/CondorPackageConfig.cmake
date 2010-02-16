@@ -198,6 +198,10 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		set ( CPACK_RPM_PACKAGE_VENDOR ${CPACK_PACKAGE_VENDOR})
 		set ( CPACK_RPM_PACKAGE_URL ${URL})
 		set ( CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION})
+		set ( CPACK_RPM_SPEC_IGNORE_FILES 
+			"/etc/condor/condor_config"
+			"/etc/condor/condor_config.local"
+			"/etc/init.d/condor")
 
 		PackageDate( RPM CPACK_RPM_DATE)		
 

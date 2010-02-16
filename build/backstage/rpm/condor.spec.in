@@ -51,13 +51,13 @@ Buildroot:      @CPACK_RPM_DIRECTORY@/@CPACK_PACKAGE_FILE_NAME@
 %defattr(-,root,root,-)
 
 #/usr/include/condor (_includedir/ = /usr/include)
-%_includedir/condor
+%dir %_includedir/condor
 
 #/usr/lib/condor (_libdir/ = /usr/lib | /usr/lib64)
-%_libdir/condor
+%dir %_libdir/condor
 
 #/usr/libexec/condor (_libexecdir/ = /usr/libexec)
-%_libexecdir/condor
+%dir %_libexecdir/condor
 
 #/usr/man/man1 (_mandir/ = /usr/man)
 #%_mandir
@@ -66,7 +66,7 @@ Buildroot:      @CPACK_RPM_DIRECTORY@/@CPACK_PACKAGE_FILE_NAME@
 #%_datadir/condor
 
 #Documentation (/usr/share/doc/%{name}-%{version})
-%_datadir/doc/%{name}-%{version}
+%dir %_datadir/doc/%{name}-%{version}
 
 #/usr/src/ (_usrsrc/ = /usr/src)
 #%_usrsrc/chirp/*
