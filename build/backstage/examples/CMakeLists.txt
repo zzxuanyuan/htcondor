@@ -41,7 +41,7 @@ install(FILES		condor.boot.new
 
 #Prepare OS specific config file
 
-if ( ${PLATFORM} STREQUAL "Redhat" )
+if ( ${LINUX_NAME} STREQUAL "Redhat" )
 	#Redhat
 	#message(STATUS "On Redhat")
 
@@ -58,7 +58,7 @@ if ( ${PLATFORM} STREQUAL "Redhat" )
 		DESTINATION	"${C_ETC}"
 		RENAME		condor_config)
 
-elseif ( ${PLATFORM} STREQUAL "Debian" )
+elseif ( ${LINUX_NAME} STREQUAL "Debian" )
 	#Debian
 	#message(STATUS "On Debian")
 

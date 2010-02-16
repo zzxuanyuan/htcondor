@@ -23,6 +23,16 @@ informs the user upon completion.")
 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Condor: High Throughput Computing")
 
+set(CPACK_DEBIAN_DESCRIPTION_SUMMARY "workload management system
+ Condor is a specialized workload management system for
+ compute-intensive jobs. Condor provides a job queueing mechanism, 
+ scheduling policy, priority scheme, resource monitoring, 
+ and resource management. Users submit their serial or parallel jobs
+ to Condor, Condor places them into a queue, chooses when and where 
+ to run the jobs based upon a policy, carefully monitors their progress,
+ and ultimately informs the user upon completion.")
+
+
 set(CPACK_RESOURCE_FILE_LICENSE "${CONDOR_SOURCE_DIR}/LICENSE-2.0.txt")
 set(CPACK_RESOURCE_FILE_README "${CONDOR_SOURCE_DIR}/build/backstage/release_notes/README")
 #set(CPACK_RESOURCE_FILE_WELCOME "${CONDOR_SOURCE_DIR}/build/backstage/release_notes/DOC") # this should be more of a Hiya welcome.
@@ -109,14 +119,14 @@ if ( ${OS_NAME} MATCHES "WIN" )
 	#set (CPACK_NSIS_DELETE_ICONS_EXTRA ) # additional commands to uninstall start menu shortcuts.
 	#set (CPACK_NSIS_MENU_LINKS )
 
-elseif( ${OS_NAME} STREQUAL "LINUX" )
-
+elseif( ${OS_NAME} STREQUAL "LINUX" )	
 
 	# it's a smaller subset easier to differentiate.
 	# check the operating system name
 
-	# Debian is not currently support so it is X out
-	if ( ${PLATFORM} STREQUAL  "XDebian" )
+	if ( ${LINUX_NAME} STREQUAL  "Debian" )
+
+		message (STATUS "Configuring for Debian package on ${LINUX_NAME}-${LINUX_VER}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 
 		##############################################################
 		# For details on DEB package generation see:
@@ -124,45 +134,49 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		##############################################################
 		set ( CPACK_GENERATOR "DEB" )
 
-		if(NOT CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-			if(${BIT_MODE} STREQUAL "32")
-				set (DEB_ARCH i386)
-			else ()
-				set (DEB_ARCH amd64)
-			endif()
-		else ()
-			set (DEB_ARCH ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE})
-		endif()
+		# Use dkpg-shlibdeps to generate dependency list
+		set ( CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON )
+		# Enable debug message
+		set ( CPACK_DEBIAN_PACKAGE_DEBUG 1 )
 
-		set (CPACK_PACKAGE_FILE_NAME "${PACKAGE_NAME}_${PACKAGE_VERSION}-${PACKAGE_REVISION}_${DEB_ARCH}" )
+		set (CPACK_PACKAGE_FILE_NAME "${PACKAGE_NAME}_${PACKAGE_VERSION}-${PACKAGE_REVISION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}" )
 		string( TOLOWER "${CPACK_PACKAGE_FILE_NAME}" CPACK_PACKAGE_FILE_NAME )
 
 		set ( CPACK_DEBIAN_PACKAGE_SECTION "contrib/misc")
 		set ( CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
-
-		set ( CPACK_DEBIAN_PACKAGE_DESCRIPTION "workload management system")
-		set ( CPACK_PACKAGE_DESCRIPTION_SUMMARY ${CPACK_PACKAGE_DESCRIPTION})
-
+		set ( CPACK_DEBIAN_PACKAGE_DESCRIPTION "${CPACK_DEBIAN_DESCRIPTION_SUMMARY}")
+		set ( CPACK_DEBIAN_PACKAGE_MAINTAINER "Condor Team <${CPACK_PACKAGE_CONTACT}>" )
+		set ( CPACK_DEBIAN_PACKAGE_VERSION "${PACKAGE_VERSION}-${PACKAGE_REVISION}")
+		set ( CPACK_DEBIAN_PACKAGE_HOMEPAGE "${URL}")
+		set ( CPACK_DEBIAN_PACKAGE_DEPENDS "python, adduser")
+		
 		#Control files
 		set( CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA 
-			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/postinst"
-			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/postrm"
-			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/preinst"
-			"${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/debian/prerm")		
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/debian/postinst"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/debian/postrm"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/debian/preinst"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/debian/prerm"
+			"${CMAKE_CURRENT_SOURCE_DIR}/build/backstage/debian/conffiles"
+			)				
 		
-		PackageDate( DEB CPACK_DEB_DATE)
+		set( C_ETC_EXAMPLES	usr/share/doc/condor/etc/examples )
+		set( C_DOC		usr/share/doc/condor )
+		set( C_LIBEXEC		usr/lib/condor/libexec )
 
 		set( CPACK_SET_DESTDIR "ON")
 		set( CMAKE_INSTALL_PREFIX "/")
+
+		# Processing control files
+		add_subdirectory(build/backstage/debian)
 
 		#set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#if (PROPER)
 		#	set (CPACK_DEBIAN_PACKAGE_DEPENDS)
 		#endif()
 
-		# set you deb specific variables
-
-	elseif ( ${PLATFORM} STREQUAL  "Redhat" )
+	elseif ( RPM_SYSTEM_NAME )
+		# This variable will be defined if the platfrom support RPM
+		message (STATUS "Configuring RPM package on ${LINUX_NAME}-${LINUX_VER}-${SYS_ARCH}")
 						
 		##############################################################
 		# For details on RPM package generation see:
@@ -175,7 +189,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		#Enable trace during packaging
 		set(CPACK_RPM_PACKAGE_DEBUG 1)			
 
-		set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PACKAGE_REVISION}-${DIST_NAME}${DIST_VER}-${SYS_ARCH}" )
+		set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PACKAGE_REVISION}-${RPM_SYSTEM_NAME}-${SYS_ARCH}" )
 		string( TOLOWER "${CPACK_PACKAGE_FILE_NAME}" CPACK_PACKAGE_FILE_NAME )
 
 		set ( CPACK_RPM_PACKAGE_RELEASE ${PACKAGE_REVISION})
@@ -184,6 +198,10 @@ elseif( ${OS_NAME} STREQUAL "LINUX" )
 		set ( CPACK_RPM_PACKAGE_VENDOR ${CPACK_PACKAGE_VENDOR})
 		set ( CPACK_RPM_PACKAGE_URL ${URL})
 		set ( CPACK_RPM_PACKAGE_DESCRIPTION ${CPACK_PACKAGE_DESCRIPTION})
+		set ( CPACK_RPM_SPEC_IGNORE_FILES 
+			"/etc/condor/condor_config"
+			"/etc/condor/condor_config.local"
+			"/etc/init.d/condor")
 
 		PackageDate( RPM CPACK_RPM_DATE)		
 

@@ -30,7 +30,7 @@ include (CheckTypeExists)
 include (CheckLibraryExists)
 include (CheckTypeSize)
 include (PackageDate)
-include (FindLinuxPlatform)
+include (SystemSpecificInformations)
 include (CondorPackageConfig) # setup packaging variables needed prior to install targets
 include (CondorGlob)
 include (CondorSetLinkLibs)
