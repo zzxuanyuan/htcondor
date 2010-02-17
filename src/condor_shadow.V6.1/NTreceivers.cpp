@@ -964,7 +964,7 @@ do_REMOTE_syscall()
 	case CONDOR_starter_hfc_task_return:
 	{
 		// for production, we awant to init a classad
-		Shadow->getBenchAd()->clear();
+		Shadow->getBenchAd()->Clear();
 		ASSERT( Shadow->getBenchAd()->initFromStream(*syscall_sock) );
 		ASSERT(syscall_sock->end_of_message());
 		
