@@ -7,11 +7,12 @@
 Flocking is Condor's way of allowing jobs that cannot immediately
 run (within the pool of machines where the job was
 submitted) to instead run on a different Condor pool. 
-If a machine within Condor pool A can send jobs to be run on Condor pool B,
+If a submit machine within Condor pool A can send jobs to be run on Condor pool B,
 then we say that jobs from machine A flock to pool B.
 Flocking can occur in a one way manner,
-such as jobs from machine A flocking to pool B,
-or it can be set up to flock in both directions. 
+such as jobs from submit machines in pool A flocking to pool B,
+or it can be set up to flock in both directions so submit machines
+in pool B also flock to pool A. 
 Configuration variables allow the
 \Condor{schedd} daemon (which runs on each machine
 that may submit jobs) to implement flocking.
@@ -28,13 +29,32 @@ of the Condor manual for a discussion of these problems.
 
 \index{configuration!for flocking}
 The simplest flocking configuration sets
-a few configuration variables.
-If jobs from machine A are to flock to pool B, 
+two configuration variables.
+If jobs from submit machine A are to flock to pool B, 
 then in machine A's configuration,
-set the following configuration variables:
+set the following configuration variable:
+
+\begin{verbatim}
+FLOCK_TO = <pool B collector hostname>
+\end{verbatim}
+
+On all machines in pool B (or at least the central manager and execute nodes),
+add the following configuration:
+
+\begin{verbatim}
+FLOCK_FROM = <machine A hostname>
+\end{verbatim}
+
+The generic configuration example that comes with Condor should
+typically take care of all other details.  However, if you are not
+using host-based security or if the negotiator and collector in pool B
+are on separate machines, then you will need to do some additional
+configuration.  The flocking-related configuration settings are
+described below.
+
 \begin{description}
   \item[\Macro{FLOCK\_TO}] is a comma separated list of the central
-  manager machines of the pools that jobs from machine A may flock to.
+  manager machines of the pools that jobs from submit machine A may flock to.
   \item[\Macro{FLOCK\_COLLECTOR\_HOSTS}]
   is the list of \Condor{collector} daemons within the pools
   that jobs from machine A may flock to.
@@ -66,10 +86,6 @@ set the following configuration variables:
   HOSTALLOW_NEGOTIATOR_SCHEDD = $(COLLECTOR_HOST), $(FLOCK_NEGOTIATOR_HOSTS)
   \end{verbatim}
   \normalsize
-  % NEGOTIATOR_HOST is no longer used since ports are dynamically
-  % allocated, so suggest COLLECTOR_HOST instead
-  This example configuration presumes that the \Condor{collector}
-  and \Condor{negotiator} daemons are running on the same machine.
   See 
   section~\ref{sec:Security-Authorization} on
   page~\pageref{sec:Security-Authorization} for a discussion
@@ -122,8 +138,9 @@ separately, following the guidelines given.
 \subsection{\label{sec:Jobs-Flocking}Job Considerations}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-A particular job will only flock to another pool
-when it cannot currently run in the current pool.
+When flocking to pool B is configured, \Condor{schedd} will only try
+to get resources in pool B once jobs have failed to find available resources
+in the default pool or any flocked pools listed before B in the flocking list.
 
 At one point, all jobs that utilized flocking were standard
 universe jobs.
@@ -136,3 +153,14 @@ Therefore, when submitting jobs, the user will need to consider
 file transfer mechanisms.
 These mechanisms are discussed in
 section~\ref{sec:file-transfer} on page~\pageref{sec:file-transfer}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Flocking-Network}Network Considerations}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The network requirements between the submit machine and the Condor
+daemons in a flocked pool are identical to the requirements within the
+default pool.  The submit machine requires bi-directional connectivity
+to the central manager of the flocked pool and to the execute nodes
+within the pool.  If only one-way connectivity exists, CCB may be used
+as described in section~\ref{sec:CCB}.
