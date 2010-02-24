@@ -1,4 +1,4 @@
-HFC_GAHP_SERVER = condor_vm-gahp
+HFC_GAHP_SERVER = condor_hfc-gahp
 all_target($(HFC_GAHP_SERVER))
 
 PROGRAMS = $(HFC_GAHP_SERVER)
@@ -8,9 +8,9 @@ CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
-HFC_GAHP_SERVER_OBJ = hfcgahp_main.o
+HFC_GAHP_SERVER_OBJ = hfcgahp_main.o hfcgahp_io.o hfcgahp_command.o hfcgahp_user_commands.o
 
-public_c_plus_target($(VM_GAHP_SERVER),sbin,$(VM_GAHP_SERVER_OBJ),$(LIB))
+public_c_plus_target($(HFC_GAHP_SERVER),sbin,$(HFC_GAHP_SERVER_OBJ),$(LIB))
 
 testbin::
 

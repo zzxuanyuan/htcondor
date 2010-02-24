@@ -94,7 +94,7 @@
 	TTProgs DeploymentTools \
 	eventd.V2 transferd procd privsep vm-gahp EC2 \
 	JobRouterProgs GlobusGahps NordugridGahp startd_factory \
-	CreamGahp power soapshell SHARED_PORT_PROGS
+	CreamGahp power soapshell SHARED_PORT_PROGS hfc-gahp
 
 #define Libraries \
 	target-classad 						\
@@ -350,6 +350,8 @@ condor_object_target(drmaa)
 object_target(ClassAdAnalysis,classad_analysis)
 
 condor_object_target(chirp)
+
+condor_object_target(hfc-gahp)
 
 object_dir_target(h)
 object_dir_target(condor_includes)

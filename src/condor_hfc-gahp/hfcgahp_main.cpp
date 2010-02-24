@@ -25,15 +25,46 @@
 #include "condor_uid.h"
 #include "subsystem_info.h"
 
-DECL_SUBSYSTEM( "VM_GAHP", SUBSYSTEM_TYPE_GAHP );
+#include "hfcgahp_io.h"
+#include "hfcgahp_command.h"
+#include "hfcgahp_user_commands.h"
 
-int main_init(int argc, char ** argv)
+DECL_SUBSYSTEM( "HFC_GAHP", SUBSYSTEM_TYPE_GAHP );
+
+int main_init(int , char ** )
 {
-	dprintf(D_ALWAYS, "The HFC gahp server is starting!!!\n");	
-	DC_Exit(0);
+	dprintf(D_ALWAYS, "The HFC gahp server is starting!!!\n");
+	
+	int returnValue;
+
+	if(!initCommandSystem())
+	{
+		dprintf(D_ALWAYS, "Command system init failed\n");
+		DC_Exit(-1);		
+	}
+	
+	if((returnValue = registerPipes()) != 0)
+	{
+		dprintf(D_ALWAYS, "Failed to register pipes [%d]\n", returnValue);
+		DC_Exit(-1);
+	}
+
+	// call the user init function for user stuff
+	if(!userInit())
+	{
+		dprintf(D_ALWAYS, "User init function failed\n");
+		DC_Exit(-1);
+	}
+
+	// write the banner
+	std::string version;
+	getVersionString(version);
+	so_printf("%s\n", version.c_str());
+
+	return TRUE;
 }
 
-int main_config(bool is_full)
+int main_config(bool)
 {
 	return 0;
 }
@@ -48,12 +79,14 @@ int main_shutdown_graceful()
 	return 0;
 }
 
-void main_pre_dc_init(int argc, char ** argv)
+void main_pre_dc_init(int, char **)
 {
 
+	
 }
 
 void main_pre_command_sock_init()
 {
-
+	// taken from the VM gahp
+	daemonCore->WantSendChildAlive(false);
 }
