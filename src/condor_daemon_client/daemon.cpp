@@ -68,7 +68,8 @@ Daemon::common_init() {
 	m_daemon_ad_ptr = NULL;
 	char buf[200];
 	sprintf(buf,"%s_TIMEOUT_MULTIPLIER",get_mySubSystem()->getName() );
-	Sock::set_timeout_multiplier( param_integer(buf,0) );
+	Sock::set_timeout_multiplier( param_integer(buf, param_integer("TIMEOUT_MULTIPLIER", 0)) );
+	dprintf(D_DAEMONCORE, "*** TIMEOUT_MULTIPLIER :: %d\n", Sock::get_timeout_multiplier());
 	m_has_udp_command_port = true;
 }
 
@@ -380,7 +381,8 @@ Daemon::idStr( void )
 		ASSERT( dt_str );
 		Sinful sinful(_addr);
 		sinful.clearParams(); // too much info is ugly
-		buf.sprintf( "%s at %s", dt_str, sinful.getSinful() );
+		buf.sprintf( "%s at %s", dt_str,
+					 sinful.getSinful() ? sinful.getSinful() : _addr );
 		if( _full_hostname ) {
 			buf.sprintf_cat( " (%s)", _full_hostname );
 		}
@@ -1322,6 +1324,13 @@ Daemon::getCmInfo( const char* subsys )
 
 			// this is just a fancy wrapper for param()...
 		char *hostnames = getCmHostFromConfig( subsys );
+		if(!hostnames) {
+			buf.sprintf("%s address or hostname not specified in config file",
+					 subsys ); 
+			newError( CA_LOCATE_FAILED, buf.Value() );
+			_is_configured = false;
+			return false;
+		}
 		char *itr, *full_name, *host_name, *local_name;
 		StringList host_list;
 
@@ -1332,6 +1341,7 @@ Daemon::getCmInfo( const char* subsys )
 		itr = NULL;
 		while ((itr = host_list.next()) != NULL) {
 			host_name = getHostFromAddr( itr );
+			if(!host_name) { continue; }
 			if ((strlen(full_name) == strlen(host_name) ||
 				(strlen(local_name) == strlen(host_name))) &&
 				((strcmp(full_name, host_name) == 0) ||

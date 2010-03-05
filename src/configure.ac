@@ -32,6 +32,7 @@ AC_MSG_NOTICE([checking for critical tools used by configure])
 AC_PROG_AWK
 REQUIRE_PATH_PROG([GREP],[grep])
 REQUIRE_PATH_PROG([CUT],[cut])
+REQUIRE_PATH_PROG([FLEX],[flex])
 AC_PATH_PROG([WHICH],[which],[no],[$PATH])
 
 # Condor only requires 5.002, but GPT apparently relies on 5.005_03 or
@@ -1426,22 +1427,21 @@ AC_SUBST([has_vendor_f90],[$_cv_has_vendor_f90])
 #  2. C++ exception handling in stdc++ assumes that the glibc is compiled
 #     with TLS, but ours isn't and doesn't compile out of the box with
 #     TLS.
-	
-AC_MSG_CHECKING([for clipped port default])
-case "$_cv_opsys-$_cv_opsys_vers-$_cv_arch-$_cv_linux_distro-$_cv_libc_major-$_cv_libc_minor" in
-  *-AIX5-* | \
-  *-DUX5-* | \
-  DARWIN-* | \
-  CONDOR_FREEBSD-* | \
-  *-HPUX11-* | \
-  LINUX-*-ALPHA-* | \
-  LINUX-*-*-DEBIAN40-* | \
-  LINUX-*-IA64-* | \
-  SOLARIS-* | \
-  LINUX-*-CONDOR_PPC-* ) _cv_clipped_default=yes ;;
-  * ) _cv_clipped_default=no ;;
-esac
-AC_MSG_RESULT([$_cv_clipped_default])
+
+_cv_clipped_default=yes
+if test "x$CLIPPED" = "xdefault"; then
+  AC_MSG_CHECKING([for clipped port default])
+  case "$_cv_opsys-$_cv_opsys_vers-$_cv_arch-$_cv_linux_distro-$_cv_libc_major-$_cv_libc_minor" in
+	LINUX-*-I386-RHEL3-* | \
+	LINUX-*-X86_64-RHEL3-* | \
+	LINUX-*-I386-RHEL5-* | \
+	LINUX-*-X86_64-RHEL5-* | \
+	LINUX-*-I386-DEBIAN50-* | \
+	LINUX-*-X86_64-DEBIAN50-* ) _cv_clipped_default=no ;;
+    * ) _cv_clipped_default=yes ;;
+  esac
+  AC_MSG_RESULT([$_cv_clipped_default])
+fi
 
 AC_MSG_CHECKING([for clipped port])
 if test "x$CLIPPED" = "xdefault"; then
@@ -2327,8 +2327,10 @@ AC_ARG_ENABLE([kbdd],
       enable_kbdd=no
     ;;
   esac])
+AC_HEADER_CHECK([X11/Xlib.h],[HAS_XLIB_H=yes])
 AS_IF([test "x$enable_kbdd" = xyes],
-  [AC_DEFINE([NEEDS_KBDD], [1], [Define if enabling KBDD])
+  [AS_IF([test "x$HAS_XLIB_H" != xyes], AC_MSG_ERROR([KBDD requested but no Xlib.h]))
+   AC_DEFINE([NEEDS_KBDD], [1], [Define if enabling KBDD])
    AC_SUBST(X11_CFLAGS, $X_CFLAGS)
    AC_SUBST(X11_LDFLAGS, $X_LDFLAGS)
    AC_SUBST(X11_LIBS, $X11_LIBS)],
@@ -2504,6 +2506,7 @@ AC_CHECK_FUNCS([strsignal				\
 		_stati64				\
 		_lstati64				\
 		_fstati64				\
+		readdir64				\
 		fseeko					\
 		ftello					\
 		lchown					\
@@ -3017,7 +3020,9 @@ CHECK_EXTERNAL([zlib], [1.2.3], [$_cv_zlib_requirement],
 CHECK_EXTERNAL([classads], [1.0.4], [soft],
                [use new ClassAds (provides -better-analyze and more)],
 	       # This REALLY should test for headers, like most checks...
-               MF_LIB_CHECK([classads], [[classad cclassad_create]]))	       
+               MF_LIB_CHECK([classads], [[classad cclassad_create]], [classads]))
+AC_SUBST(CLASSADS_LDFLAGS, $CLASSADS_LDFLAGS)
+AC_SUBST(CLASSADS_CFLAGS, $CLASSADS_CFLAGS)
 
 CHECK_EXTERNAL([srb], [3.2.1-p2], [soft])
 

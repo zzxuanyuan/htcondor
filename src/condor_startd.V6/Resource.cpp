@@ -49,7 +49,7 @@ Resource::Resource( CpuAttributes* cap, int rid, Resource* _parent )
 	}
 	if( _parent ) {
 		r_sub_id = _parent->m_id_dispenser->next();
-		tmp.sprintf_cat( "%d.%d", r_id, r_sub_id );
+		tmp.sprintf_cat( "%d_%d", r_id, r_sub_id );
 	} else {
 		tmp.sprintf_cat( "%d", r_id );
 	}
@@ -1255,10 +1255,8 @@ Resource::wants_suspend( void )
 		if( r_classad->EvalBool( "WANT_SUSPEND",
 								   r_cur->ad(),
 								   want_suspend ) == 0) {
-				// This should never happen, since we already check
-				// when we're constructing the internal config classad
-				// if we've got this defined. -Derek Wright 4/12/00
-			EXCEPT( "Can't find WANT_SUSPEND in internal ClassAd" );
+				// UNDEFINED means FALSE for WANT_SUSPEND
+			want_suspend = false;
 		}
 	}
 	return want_suspend;

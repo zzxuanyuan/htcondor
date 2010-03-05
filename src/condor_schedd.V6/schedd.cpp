@@ -4826,7 +4826,7 @@ Scheduler::negotiate(int command, Stream* s)
 	// figure out the number of active shadows. we do this by
 	// adding the number of existing shadows + the number of shadows
 	// queued up to run in the future.
-	CurNumActiveShadows = numShadows + RunnableJobQueue.Length();
+	CurNumActiveShadows = numShadows + RunnableJobQueue.Length() + num_pending_startd_contacts + startdContactQueue.Length();
 
 	SwapSpaceExhausted = FALSE;
 	if( ShadowSizeEstimate ) {
@@ -10823,11 +10823,19 @@ Scheduler::RegisterTimers()
     oldQueueCleanInterval = QueueCleanInterval;
 
 	if (WallClockCkptInterval) {
-		wallclocktid = daemonCore->Register_Timer(WallClockCkptInterval,
+		if( wallclocktid != -1 ) {
+			daemonCore->Reset_Timer_Period(wallclocktid,WallClockCkptInterval);
+		}
+		else {
+			wallclocktid = daemonCore->Register_Timer(WallClockCkptInterval,
 												  WallClockCkptInterval,
 												  (Event)&CkptWallClock,
 												  "CkptWallClock");
+		}
 	} else {
+		if( wallclocktid != -1 ) {
+			daemonCore->Cancel_Timer( wallclocktid );
+		}
 		wallclocktid = -1;
 	}
 

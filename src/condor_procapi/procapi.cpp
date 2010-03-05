@@ -23,6 +23,15 @@
 #include "procapi.h"
 #include "procapi_internal.h"
 
+// Ugly hack: stat64 prototyps are wacked on HPUX
+// These are cut & pasted from the HPUX man pages...                            
+#if defined( HPUX )
+extern "C" {
+    extern int fstat64(int fildes, struct stat64 *buf);
+}
+#endif
+
+
 unsigned int pidHashFunc( const pid_t& pid );
 
 HashTable <pid_t, procHashNode *> * ProcAPI::procHash = 
@@ -2347,8 +2356,7 @@ ProcAPI::getAndRemNextPid () {
 int
 ProcAPI::buildPidList() {
 
-	DIR *dirp;
-	struct dirent *direntp;
+	condor_DIR *dirp;
 	pidlistPTR current;
 	pidlistPTR temp;
 
@@ -2358,8 +2366,13 @@ ProcAPI::buildPidList() {
 
 	current = pidList;
 
-	if( (dirp = opendir("/proc")) != NULL ) {
-		while( (direntp = readdir(dirp)) != NULL ) {
+	dirp = condor_opendir("/proc");
+	if( dirp != NULL ) {
+			// NOTE: this will use readdir64() when available to avoid
+			// skipping over directories with an inode value that
+			// doesn't happen to fit in the 32-bit ino_t
+		condor_dirent *direntp;
+		while( (direntp = condor_readdir(dirp)) != NULL ) {
 			if( isdigit(direntp->d_name[0]) ) {   // check for first char digit
 				temp = new pidlist;
 				temp->pid = (pid_t) atol ( direntp->d_name );
@@ -2368,7 +2381,7 @@ ProcAPI::buildPidList() {
 				current = temp;
 			}
 		}
-		closedir( dirp );
+		condor_closedir( dirp );
     
 		temp = pidList;
 		pidList = pidList->next;
@@ -2741,9 +2754,15 @@ ProcAPI::printProcInfo(FILE* fp, piPTR pi){
 uid_t 
 ProcAPI::getFileOwner(int fd) {
 	
+#if HAVE_FSTAT64
+	// If we do not use fstat64(), fstat() fails if the inode number
+	// is too big and possibly for a few other reasons as well.
+	struct stat64 si;
+	if ( fstat64(fd, &si) != 0 ) {
+#else
 	struct stat si;
-
 	if ( fstat(fd, &si) != 0 ) {
+#endif
 		dprintf(D_ALWAYS, 
 			"ProcAPI: fstat failed in /proc! (errno=%d)\n", errno);
 		return 0; 	// 0 is probably wrong, but this should never

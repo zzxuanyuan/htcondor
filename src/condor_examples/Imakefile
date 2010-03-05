@@ -11,6 +11,7 @@ FILES = README condor_config.local.central.manager \
 	condor_config.generic.rpm.patch\
 	condor.boot.vdt\
 	condor_config.local.generic\
+	mp2script \
 	condor.init
 
 all::

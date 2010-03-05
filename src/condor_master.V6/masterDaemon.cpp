@@ -91,6 +91,7 @@ extern int			Lines;
 extern int			PublishObituaries;
 extern int			StartDaemons;
 extern int			GotDaemonsOff;
+extern int			MasterShuttingDown;
 extern char*		MasterName;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -511,17 +512,10 @@ int daemon::RealStart( )
 			// Already running
 		return TRUE;
 	}
-		// Check for a controller. If one exists, e.g. HAD, it is
-		// likely this daemon has stop_state = FAST, but we want to
-		// let it start anyway. The stop_state != NONE check is to
-		// avoid letting the master start HA daemons it is
-		// maintaining. A controller indicates something else is
-		// maintaining the daemon.
-	if( !controller && stop_state != NONE ) {
-			// Currently trying to shutdown, this might happen for an
-			// HA daemon who acquires a lock just before shutdown.
-		dprintf( D_FULLDEBUG, "::RealStart; %s stop_state=%d, ignoring\n",
-				 name_in_config_file, stop_state );
+	if( MasterShuttingDown ) {
+		dprintf( D_ALWAYS,
+				 "Master is shutting down, so skipping startup of %s\n",
+				 name_in_config_file );
 		return FALSE;
 	}
 
@@ -768,10 +762,6 @@ int daemon::RealStart( )
 		// Since we just started it, we know it's not a new executable. 
 	newExec = FALSE;
 
-		// Be sure to reset the stop_state, if the daemon is HAD
-		// managed it will have been set to FAST on startup
-	stop_state = NONE;
-
 		// If starting the collector, give it a few seconds to get
 		// going before starting other daemons or talking to ti
 		// ourselves
@@ -816,17 +806,15 @@ daemon::Stop( bool never_forward )
 		daemonCore->Cancel_Timer( start_tid );
 		start_tid = -1;
 	}
+	if( !pid ) {
+			// We're not running, just return.
+		return;
+	}
 	if( stop_state == GRACEFUL ) {
 			// We've already been here, just return.
 		return;
 	}
 	stop_state = GRACEFUL;
-		// Test for pid after setting state so HA daemons that aren't
-		// running get notified that they are shutting down
-	if( !pid ) {
-			// We're not running, just return.
-		return;
-	}
 
 	Kill( SIGTERM );
 
@@ -854,17 +842,15 @@ daemon::StopPeaceful()
 		daemonCore->Cancel_Timer( start_tid );
 		start_tid = -1;
 	}
+	if( !pid ) {
+			// We're not running, just return.
+		return;
+	}
 	if( stop_state == PEACEFUL ) {
 			// We've already been here, just return.
 		return;
 	}
 	stop_state = PEACEFUL;
-		// Test for pid after setting state so HA daemons that aren't
-		// running get notified that they are shutting down
-	if( !pid ) {
-			// We're not running, just return.
-		return;
-	}
 
 	// Ideally, we would somehow tell the daemon to die peacefully
 	// (only currently applies to startd).  However, we only have
@@ -909,17 +895,15 @@ daemon::StopFast( bool never_forward )
 		daemonCore->Cancel_Timer( start_tid );
 		start_tid = -1;
 	}
+	if( !pid ) {
+			// We're not running, just return.
+		return;
+	}
 	if( stop_state == FAST ) {
 			// We've already been here, just return.
 		return;
 	}
 	stop_state = FAST;
-		// Test for pid after setting state so HA daemons that aren't
-		// running get notified that they are shutting down
-	if( !pid ) {
-			// We're not running, just return.
-		return;
-	}
 
 	if( stop_fast_tid != -1 ) {
 		dprintf( D_ALWAYS, 
@@ -943,17 +927,15 @@ daemon::HardKill()
 			// Never want to stop master.
 		return;
 	}
+	if( !pid ) {
+			// We're not running, just return.
+		return;
+	}
 	if( stop_state == KILL ) {
 			// We've already been here, just return.
 		return;
 	}
 	stop_state = KILL;
-		// Test for pid after setting state so HA daemons that aren't
-		// running get notified that they are shutting down
-	if( !pid ) {
-			// We're not running, just return.
-		return;
-	}
 
 	if( hard_kill_tid != -1 ) {
 		dprintf( D_ALWAYS, 
@@ -1692,10 +1674,7 @@ Daemons::StopAllDaemons()
 	daemons.SetAllReaper();
 	int running = 0;
 	for( int i=0; i < no_daemons; i++ ) {
-			// Need to stop HA daemons from trying to start during
-			// shutdown
-		if( ( daemon_ptr[i]->pid || daemon_ptr[i]->IsHA() ) &&
-			daemon_ptr[i]->runs_here ) {
+		if( daemon_ptr[i]->pid && daemon_ptr[i]->runs_here ) {
 			daemon_ptr[i]->Stop();
 			running++;
 		}
@@ -1712,10 +1691,7 @@ Daemons::StopFastAllDaemons()
 	daemons.SetAllReaper();
 	int running = 0;
 	for( int i=0; i < no_daemons; i++ ) {
-			// Need to stop HA daemons from trying to start during
-			// shutdown
-		if( ( daemon_ptr[i]->pid || daemon_ptr[i]->IsHA() ) &&
-			daemon_ptr[i]->runs_here ) {
+		if( daemon_ptr[i]->pid && daemon_ptr[i]->runs_here ) {
 			daemon_ptr[i]->StopFast();
 			running++;
 		}
@@ -1731,10 +1707,7 @@ Daemons::StopPeacefulAllDaemons()
 	daemons.SetAllReaper();
 	int running = 0;
 	for( int i=0; i < no_daemons; i++ ) {
-			// Need to stop HA daemons from trying to start during
-			// shutdown
-		if( ( daemon_ptr[i]->pid || daemon_ptr[i]->IsHA() ) &&
-			daemon_ptr[i]->runs_here ) {
+		if( daemon_ptr[i]->pid && daemon_ptr[i]->runs_here ) {
 			daemon_ptr[i]->StopPeaceful();
 			running++;
 		}
@@ -1751,10 +1724,7 @@ Daemons::HardKillAllDaemons()
 	daemons.SetAllReaper();
 	int running = 0;
 	for( int i=0; i < no_daemons; i++ ) {
-			// Need to stop HA daemons from trying to start during
-			// shutdown
-		if( ( daemon_ptr[i]->pid || daemon_ptr[i]->IsHA() ) &&
-			daemon_ptr[i]->runs_here ) {
+		if( daemon_ptr[i]->pid && daemon_ptr[i]->runs_here ) {
 			daemon_ptr[i]->HardKill();
 			running++;
 		}
@@ -1794,6 +1764,7 @@ Daemons::InitMaster()
 void
 Daemons::RestartMaster()
 {
+	MasterShuttingDown = TRUE;
 	immediate_restart_master = immediate_restart;
 	if( NumberOfChildren() == 0 ) {
 		FinishRestartMaster();
@@ -1806,6 +1777,7 @@ Daemons::RestartMaster()
 void
 Daemons::RestartMasterPeaceful()
 {
+	MasterShuttingDown = TRUE;
 	immediate_restart_master = immediate_restart;
 	if( NumberOfChildren() == 0 ) {
 		FinishRestartMaster();
