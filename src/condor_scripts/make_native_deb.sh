@@ -19,6 +19,8 @@ REVISION=${2:-"1"}
 
 ARCH=`dpkg-architecture -qDEB_HOST_ARCH`
 #ARCH=i386
+CODENAME=`lsb_release -cs`
+#CODENAME=lenny
 
 ###############################################################################
 # Script variables
@@ -58,7 +60,7 @@ VERSION=${VERSION%%-*}
 SOURCE0=$SOURCE_DIR/$SOURCE0
 
 #Result file name
-DEB_FILE_NAME="condor_"$VERSION-$REVISION"_$ARCH.deb"
+DEB_FILE_NAME="condor_"$VERSION-$REVISION$CODENAME"_$ARCH.deb"
 
 echo "Building Debian package for Condor $VERSION-$REVISION on $ARCH"
 
@@ -302,6 +304,13 @@ mv $CONTROL.new $CONTROL
 echo "Building package"
 cd $BUILD_ROOT
 fakeroot dpkg-deb --build $DEB_ROOT $DEB_FILE_NAME
+
+#This might return error if package is not properly created
+#Indirect way of verifing the package
+echo "Package Summary"
+echo 
+dpkg-deb -I $DEB_FILE_NAME
+echo 
 
 #Clean up
 rm -rf $DEB_ROOT
