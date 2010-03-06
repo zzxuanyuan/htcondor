@@ -75,21 +75,29 @@ chmod 755 $META_DIR/pre*
 chmod 755 $META_DIR/post*
 
 ############################################################################################
-#Updating changelog 
+#Updating timestamp in changelog and copy right file
 ############################################################################################
-echo "Generating changelog file"
+echo "Generating changelog and copyright file"
 echo
 
 DEB_DATE=`date -R`
+DEB_YEAR=`date +%Y`
+
+#Changelog
 sed < $META_DIR/changelog \
      "s|_VERSION_|$VERSION-$REVISION|g; \
-     s|_DATE_|$DEB_DATE|g; \
-     s|_CONDORVERSION_|$VERSION|g" > $META_DIR/changelog.new
-
-#Debian distribution list in changelog is not valid for some platform. 
-#but it does not affect package usability.
+      s|_DATE_|$DEB_DATE|g; \
+      s|_DIST_|$CODENAME|g; \
+      s|_CONDORVERSION_|$VERSION|g" > $META_DIR/changelog.new
 
 mv $META_DIR/changelog.new $META_DIR/changelog
+
+#Copyright
+sed < $META_DIR/copyright \
+     "s|_DATE_|$DEB_DATE|g; \
+      s|_YEAR_|$DEB_YEAR|g" > $META_DIR/copyright.new
+
+mv $META_DIR/copyright.new $META_DIR/copyright
 
 ############################################################################################
 
@@ -279,7 +287,6 @@ sed < $CONTROL \
      "s|^Depends:.*|Depends: $DEPENDS|" > $CONTROL.new
 
 mv $CONTROL.new $CONTROL
-
 
 ############################################################################################
 #Modify version, architecture and installed-size
