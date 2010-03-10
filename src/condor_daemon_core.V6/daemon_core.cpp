@@ -270,7 +270,11 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::decrementPendingSockets,
 		&DaemonCore::publicNetworkIpAddr,
 		&DaemonCore::Register_Command,
-		&DaemonCore::daemonContactInfoChanged);
+		&DaemonCore::daemonContactInfoChanged,
+		&DaemonCore::Create_Named_Pipe,
+		&DaemonCore::Register_Pipe,
+		&DaemonCore::Write_Pipe,
+		&DaemonCore::Close_Pipe);
 
 	if ( PidSize == 0 )
 		PidSize = DEFAULT_PIDBUCKETS;
@@ -1664,6 +1668,27 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 			     unsigned int psize)
 {
 	dprintf(D_DAEMONCORE,"Entering Create_Pipe()\n");
+	static unsigned pipe_counter = 0;
+	MyString pipe_name;
+	pipe_name.sprintf("\\\\.\\pipe\\condor_pipe_%u_%u", GetCurrentProcessId(), pipe_counter++);
+	Create_Named_Pipe(pipe_ends,
+		can_register_read,
+		can_register_write,
+		nonblocking_read,
+		non_blocking_write,
+		psize,
+		pipe_name.Value());
+}
+
+int DaemonCore::Create_Named_Pipe( int *pipe_ends,
+			     bool can_register_read,
+			     bool can_register_write,
+			     bool nonblocking_read,
+			     bool nonblocking_write,
+			     unsigned int psize,
+				 char* pipe_name)
+{
+	dprintf(D_DAEMONCORE,"Entering Create_Pipe()\n");
 
 	PipeHandle read_handle, write_handle;
 
@@ -1676,11 +1701,8 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 		overlapped_write_flag = FILE_FLAG_OVERLAPPED;
 	}
 
-	static unsigned pipe_counter = 0;
-	MyString pipe_name;
-	pipe_name.sprintf("\\\\.\\pipe\\condor_pipe_%u_%u", GetCurrentProcessId(), pipe_counter++);
 	HANDLE w =
-		CreateNamedPipe(pipe_name.Value(),  // the name
+		CreateNamedPipe(pipe_name,  // the name
 				PIPE_ACCESS_OUTBOUND |      // "server" to "client" only
 				overlapped_write_flag,      // overlapped mode
 				0,                          // byte-mode, blocking
@@ -1691,7 +1713,7 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 				NULL);                      // we mark handles inheritable in Create_Process
 	if (w == INVALID_HANDLE_VALUE) {
 		dprintf(D_ALWAYS, "CreateNamedPipe(%s) error: %d\n", 
-			pipe_name.Value (), GetLastError());
+			pipe_name, GetLastError());
 		return FALSE;
 	}
 	HANDLE r =
@@ -1705,7 +1727,7 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 	if (r == INVALID_HANDLE_VALUE) {
 		CloseHandle(w);
 		dprintf(D_ALWAYS, "CreateFile(%s) error on named pipe: %d\n", 
-			pipe_name.Value(), GetLastError());
+			pipe_name, GetLastError());
 		return FALSE;
 	}
 	read_handle = new ReadPipeEnd(r, overlapped_read_flag, nonblocking_read, psize);
@@ -2124,6 +2146,47 @@ DaemonCore::Write_Pipe(int pipe_end, const void* buffer, int len)
 	return write((*pipeHandleTable)[index], buffer, len);
 #endif
 }
+
+#ifdef WIN32
+HANDLE
+DaemonCore::Get_Inherit_Pipe_Handle(int pipe_end)
+{
+	PipeHandle pipe_handle;
+	int index = fd - PIPE_INDEX_OFFSET;
+	pipeHandleTableLookup(index, &pipe_handle);
+	HANDLE m_handle = (*pipe_handle)->get_handle();
+	HANDLE current_process = GetCurrentProcess();
+	HANDLE m_duplicate_out;
+	DuplicateHandle(
+		current_process,
+		m_handle,
+		current_process,
+		&m_duplicate_out,
+		0,
+		TRUE,
+		DUPLICATE_SAME_ACCESS);
+
+	return m_duplicate_out;
+}
+
+int
+DaemonCore::Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize)
+{
+	DWORD overlapped_flag = 0;
+	if(nonblocking)
+		overlapped_flag = FILE_FLAG_OVERLAPPED;
+	if(write)
+	{
+		PipeHandle write_end = new WritePipeEnd(pipe_handle, overlapped_flag, nonblocking, psize);
+		return pipeHandleTableInsert(write_end) + PIPE_INDEX_OFFSET;
+	}
+	else
+	{
+		PipeHandle read_end = new ReadPipeEnd(pipe_handle, overlapped_flag, nonblocking, psize);
+		return pipeHandleTableInsert(read_end) + PIPE_INDEX_OFFSET;
+	}
+}
+#endif
 
 #if !defined(WIN32)
 int

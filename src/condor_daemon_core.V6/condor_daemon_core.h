@@ -757,6 +757,12 @@ class DaemonCore : public Service
 			 bool nonblocking_read = false, bool nonblocking_write = false,
 			 unsigned int psize = 4096);
 
+	/** Create a named pipe
+	*/
+	int Create_Named_Pipe( int *pipe_ends,
+			 bool can_register_read = false, bool can_register_write = false,
+			 bool nonblocking_read = false, bool nonblocking_write = false,
+			 unsigned int psize = 4096, char* pipe_name);
 	/** Make DaemonCore aware of an inherited pipe.
 	*/
 	int Inherit_Pipe( int p, bool write, bool can_register, bool nonblocking, int psize = 4096);
@@ -772,6 +778,11 @@ class DaemonCore : public Service
 	int Close_Pipe(int pipe_end);
 
 	int Get_Max_Pipe_Buffer() { return maxPipeBuffer; };
+
+#ifdef WIN32
+	HANDLE Get_Inherit_Pipe_Handle(int pipe_end);
+	int Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize);
+#endif
 
 #if !defined(WIN32)
 	/** Get the FD underlying the given pipe end. Returns FALSE

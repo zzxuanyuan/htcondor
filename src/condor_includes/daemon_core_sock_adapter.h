@@ -57,6 +57,26 @@ class DaemonCoreSockAdapterClass {
 		int             dprintf_flag,
 		bool            force_authentication);
 	typedef void (DaemonCore::*daemonContactInfoChanged_fnptr)();
+	typedef int (DaemonCore::*Create_Named_Pipe_fnptr) (
+		int *pipe_ends,
+		bool can_register_read,
+		bool can_register_write,
+		bool nonblocking_read,
+		bool nonblocking_write,
+		unsigned int psize,
+		char* pipe_name);
+	typedef int (DaemonCore::*Register_Pipe_fnptr) (
+		int pipe_end,
+		const char* pipe_descrip,
+		PipeHandler handler,
+		PipeHandlercpp handlercpp,
+		const char *handler_descrip,
+		Service* s,
+		HandlerType handler_type,
+		DCpermission perm,
+		int is_cpp);
+	typedef int (DaemonCore::*Write_Pipe_fnptr) (int pipe_end, const void* buffer, int len);
+	typedef int (DaemonCore::*Close_Pipe_fnptr) (int pipe_end);
 
 
 	DaemonCoreSockAdapterClass(): m_daemonCore(0) {}
@@ -78,7 +98,11 @@ class DaemonCoreSockAdapterClass {
 		decrementPendingSockets_fnptr decrementPendingSockets_fptr,
 		publicNetworkIpAddr_fnptr publicNetworkIpAddr_fptr,
 		Register_Command_fnptr Register_Command_fptr,
-		daemonContactInfoChanged_fnptr daemonContactInfoChanged_fptr)
+		daemonContactInfoChanged_fnptr daemonContactInfoChanged_fptr
+		Create_Named_Pipe_fnptr Create_Named_Pipe_fnptr,
+		Register_Pipe_fnptr Register_Pipe_fnptr,
+		Write_Pipe_fnptr Write_Pipe_fnptr,
+		Close_Pipe_fnptr Close_Pipe_fnptr)
 	{
 		m_daemonCore = dC;
 		m_Register_Socket_fnptr = Register_Socket_fptr;
@@ -97,6 +121,10 @@ class DaemonCoreSockAdapterClass {
 		m_publicNetworkIpAddr_fnptr = publicNetworkIpAddr_fptr;
 		m_Register_Command_fnptr = Register_Command_fptr;
 		m_daemonContactInfoChanged_fnptr = daemonContactInfoChanged_fptr;
+		m_Create_Named_Pipe_fnptr = Create_Named_Pipe_fnptr;
+		m_Register_Pipe_fnptr = Register_Pipe_fnptr;
+		m_Write_Pipe_fnptr = Write_Pipe_fnptr;
+		m_Close_Pipe_fnptr = Close_Pipe_fnptr;
 	}
 
 		// These functions all have the same interface as the corresponding
@@ -119,6 +147,10 @@ class DaemonCoreSockAdapterClass {
 	publicNetworkIpAddr_fnptr m_publicNetworkIpAddr_fnptr;
 	Register_Command_fnptr m_Register_Command_fnptr;
 	daemonContactInfoChanged_fnptr m_daemonContactInfoChanged_fnptr;
+	Create_Named_Pipe_fnptr m_Create_Named_Pipe_fnptr;
+	Register_Pipe_fnptr m_Register_Pipe_fnptr;
+	Write_Pipe_fnptr m_Write_Pipe_fnptr;
+	Close_Pipe_fnptr m_Close_Pipe_fnptr;
 
     int Register_Socket (Stream*              iosock,
                          const char *         iosock_descrip,
@@ -240,6 +272,47 @@ class DaemonCoreSockAdapterClass {
 		ASSERT(m_daemonCore);
 		return (m_daemonCore->*m_daemonContactInfoChanged_fnptr)();
 	}
+
+	int Create_Named_Pipe(
+		int *pipe_ends,
+		bool can_register_read,
+		bool can_register_write,
+		bool nonblocking_read,
+		bool nonblocking_write,
+		unsigned int psize,
+		char* pipe_name)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*Create_Named_Pipe_fnptr)(pipe_ends, can_register_read, can_register_write, nonblocking_read, nonblocking_write, psize, pipe_name);
+	}
+
+	int Register_Pipe(
+		int pipe_end,
+		const char* pipe_descrip,
+		PipeHandler handler,
+		PipeHandlercpp handlercpp,
+		const char *handler_descrip,
+		Service* s,
+		HandlerType handler_type,
+		DCpermission perm,
+		int is_cpp)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*Register_Pipe_fnptr)(pipe_end, pipe_descrip, handler, handlercpp, handler_descrip, s, handler_type, perm, is_cpp);
+	}
+
+	int Write_Pipe(int pipe_end, const void* buffer, int len)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*Write_Pipe_fnptr)(pipe_end, buffer, len);
+	}
+
+	int Close_Pipe(int pipe_end)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*Close_Pipe)(pipe_end);
+	}
+
 };
 
 extern DaemonCoreSockAdapterClass daemonCoreSockAdapter;
