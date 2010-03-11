@@ -277,6 +277,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::Get_Inherit_Pipe_Handle,
 		&DaemonCore::Inherit_Pipe_Handle,
 #endif
+		&DaemonCore::Read_Pipe,
 		&DaemonCore::Write_Pipe,
 		&DaemonCore::Close_Pipe);
 

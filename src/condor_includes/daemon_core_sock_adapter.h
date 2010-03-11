@@ -84,6 +84,7 @@ class DaemonCoreSockAdapterClass {
 		bool nonblocking,
 		int psize);
 #endif
+	typedef int (DaemonCore::*Read_Pipe_fnptr) (int pipe_end, void* buffer, int len);
 	typedef int (DaemonCore::*Write_Pipe_fnptr) (int pipe_end, const void* buffer, int len);
 	typedef int (DaemonCore::*Close_Pipe_fnptr) (int pipe_end);
 
@@ -114,6 +115,7 @@ class DaemonCoreSockAdapterClass {
 		Get_Inherit_Pipe_Handle_fnptr Get_Inherit_Pipe_Handle_fnptr,
 		Inherit_Pipe_Handle_fnptr Inherit_Pipe_Handle_fnptr,
 #endif
+		Read_Pipe_fnptr Read_Pipe_fnptr,
 		Write_Pipe_fnptr Write_Pipe_fnptr,
 		Close_Pipe_fnptr Close_Pipe_fnptr)
 	{
@@ -138,6 +140,7 @@ class DaemonCoreSockAdapterClass {
 		m_Register_Pipe_fnptr = Register_Pipe_fnptr;
 		m_Get_Inherit_Pipe_Handle_fnptr = Get_Inherit_Pipe_Handle_fnptr;
 		m_Inherit_Pipe_Handle_fnptr = Inherit_Pipe_Handle_fnptr;
+		m_Read_Pipe_fnptr = Read_Pipe_fnptr;
 		m_Write_Pipe_fnptr = Write_Pipe_fnptr;
 		m_Close_Pipe_fnptr = Close_Pipe_fnptr;
 	}
@@ -164,8 +167,10 @@ class DaemonCoreSockAdapterClass {
 	daemonContactInfoChanged_fnptr m_daemonContactInfoChanged_fnptr;
 	Create_Named_Pipe_fnptr m_Create_Named_Pipe_fnptr;
 	Register_Pipe_fnptr m_Register_Pipe_fnptr;
+#ifdef WIN32
 	Get_Inherit_Pipe_Handle_fnptr m_Get_Inherit_Pipe_Handle_fnptr;
 	Inherit_Pipe_Handle_fnptr m_Inherit_Pipe_Handle_fnptr;
+#endif
 	Write_Pipe_fnptr m_Write_Pipe_fnptr;
 	Close_Pipe_fnptr m_Close_Pipe_fnptr;
 
@@ -318,6 +323,12 @@ class DaemonCoreSockAdapterClass {
 		return (m_daemonCore->*Register_Pipe_fnptr)(pipe_end, pipe_descrip, handler, handlercpp, handler_descrip, s, handler_type, perm, is_cpp);
 	}
 
+	int Read_Pipe(int pipe_end, void* buffer, int len)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->Read_Pipe_fnptr)(pipe_end, buffer, len);
+	}
+
 	int Write_Pipe(int pipe_end, const void* buffer, int len)
 	{
 		ASSERT(m_daemonCore);
@@ -327,20 +338,20 @@ class DaemonCoreSockAdapterClass {
 	int Close_Pipe(int pipe_end)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Close_Pipe)(pipe_end);
+		return (m_daemonCore->*Close_Pipe_fnptr)(pipe_end);
 	}
 
 #ifdef WIN32
 	HANDLE Get_Inherit_Pipe_Handle(int pipe_end)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Get_Inherit_Pipe_Handle)(pipe_end);
+		return (m_daemonCore->*Get_Inherit_Pipe_Handle_fnptr)(pipe_end);
 	}
 
 	int Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Inherit_Pipe_Handle)(pipe_handle, write, overlapping, nonblocking, psize);
+		return (m_daemonCore->*Inherit_Pipe_Handle_fnptr)(pipe_handle, write, overlapping, nonblocking, psize);
 	}
 #endif
 };
