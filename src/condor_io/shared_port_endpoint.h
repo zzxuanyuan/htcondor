@@ -65,9 +65,6 @@ class SharedPortEndpoint: Service {
 		// parent to clean this file up in case the child does not.
 	char const *GetSocketFileName();
 
-		// seconds between touching the named socket
-	static int TouchSocketInterval();
-
 		// Appends string to buffer and sets file descriptor that needs
 		// to be inherited so that this object can be reconstructed
 		// in a child process.
@@ -84,12 +81,20 @@ class SharedPortEndpoint: Service {
 		// Make the named socket owned such that it can be removed
 		// by a process with the specified priv state.
 	bool ChownSocket(priv_state priv);
-
+#ifndef WIN32
 		// Remove named socket
 	static bool RemoveSocket( char const *fname );
 
+		// seconds between touching the named socket
+	static int TouchSocketInterval();
+#endif
 		// Used by CCB client to manage asynchronous events from the
 		// shared port listener and the CCB server.
+
+	/*
+	Cannot be used under Windows right now because selector does not
+	track named pipes.
+	*/
 	void AddListenerToSelector(Selector &selector);
 	void RemoveListenerFromSelector(Selector &selector);
 	bool CheckListenerReady(Selector &selector);
@@ -108,18 +113,25 @@ class SharedPortEndpoint: Service {
 	MyString m_remote_addr;  // SharedPortServer addr with our local_id inserted
 	MyString m_local_addr;
 	int m_retry_remote_addr_timer;
+#ifdef WIN32
+	int m_pipe_out;
+	int m_pipe_pid;
+	MyString m_full_name_pid;
+#else
 	ReliSock m_listener_sock; // named socket to receive forwarded connections
+#endif
 	int m_socket_check_timer;
 
 	int HandleListenerAccept( Stream * stream );
-
+#ifndef WIN32
 	void ReceiveSocket( ReliSock *local_sock, ReliSock *return_remote_sock );
-
+#endif
 	bool InitRemoteAddress();
 	void RetryInitRemoteAddress();
+#ifndef WIN32
 	void SocketCheck();
-
 	bool MakeDaemonSocketDir();
+#endif
 };
 
 #endif
