@@ -113,6 +113,69 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 #ifndef HAVE_SHARED_PORT
 	dprintf(D_ALWAYS,"SharedPortClient::PassSocket() not supported on this platform\n");
 	return false;
+#elif WIN32
+	if( !SharedPortIdIsValid(shared_port_id) ) {
+		dprintf(D_ALWAYS,
+				"ERROR: SharedPortClient: refusing to connect to shared port"
+				"%s, because specified id is illegal! (%s)\n",
+				requested_by, shared_port_id );
+		return false;
+	}
+
+	MyString pipe_name;
+	MyString pid_pipe_name;
+	MyString socket_dir;
+
+	if( !param(pipe_name,"DAEMON_SOCKET_DIR") ) {
+		EXCEPT("SharedPortClient requires DAEMON_SOCKET_DIR to be defined");
+	}
+	pipe_name.sprintf_cat("%c%s",DIR_DELIM_CHAR,shared_port_id);
+
+	pid_pipe_name.sprintf("%s%s",pipe_name.Value(), "_pid");
+	MyString requested_by_buf;
+	if( !requested_by ) {
+		requested_by_buf.sprintf(
+			" as requested by %s", sock_to_pass->peer_description());
+		requested_by = requested_by_buf.Value();
+	}
+
+	HANDLE pid_pipe;
+	HANDLE child_pipe;
+
+	pid_pipe = CreateFile(
+		pid_pipe_name.Value(),
+		GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		0,
+		NULL);
+
+	DWORD child_pid;
+	DWORD read_bytes = 0;
+
+	PeekNamedPipe(pid_pipe, &child_pid, sizeof(DWORD), &read_bytes, NULL, NULL);
+
+	CloseHandle(pid_pipe);
+	WSAPROTOCOL_INFO protocol_info;
+	WSADuplicateSocket(sock_to_pass->get_file_desc(), child_pid, &protocol_info);
+
+	child_pipe = CreateFile(
+		pipe_name.Value(),
+		GENERIC_WRITE,
+		0,
+		NULL,
+		OPEN_EXISTING,
+		0,
+		NULL);
+
+	char buffer[sizeof(WSAPROTOCOL_INFO) + 1];
+	buffer[0] = (char)SHARED_PORT_PASS_SOCK;
+	memcpy_s(buffer+1, sizeof(WSAPROTOCOL_INFO), &protocol_info, sizeof(WSAPROTOCOL_INFO));
+	WriteFile(child_pipe, &protocol_info, sizeof(WSAPROTOCOL_INFO), &read_bytes, 0);
+
+	CloseHandle(child_pipe);
+	
 #elif HAVE_SCM_RIGHTS_PASSFD
 	if( !SharedPortIdIsValid(shared_port_id) ) {
 		dprintf(D_ALWAYS,
