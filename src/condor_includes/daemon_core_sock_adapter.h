@@ -75,6 +75,15 @@ class DaemonCoreSockAdapterClass {
 		HandlerType handler_type,
 		DCpermission perm,
 		int is_cpp);
+#ifdef WIN32
+	typedef HANDLE (DaemonCore::*Get_Inherit_Pipe_Handle_fnptr) (int pipe_end);
+	typedef int (DaemonCore::*Inherit_Pipe_Handle_fnptr) (
+		HANDLE pipe_handle,
+		bool write,
+		bool overlapping,
+		bool nonblocking,
+		int psize);
+#endif
 	typedef int (DaemonCore::*Write_Pipe_fnptr) (int pipe_end, const void* buffer, int len);
 	typedef int (DaemonCore::*Close_Pipe_fnptr) (int pipe_end);
 
@@ -101,6 +110,10 @@ class DaemonCoreSockAdapterClass {
 		daemonContactInfoChanged_fnptr daemonContactInfoChanged_fptr
 		Create_Named_Pipe_fnptr Create_Named_Pipe_fnptr,
 		Register_Pipe_fnptr Register_Pipe_fnptr,
+#ifdef WIN32
+		Get_Inherit_Pipe_Handle_fnptr Get_Inherit_Pipe_Handle_fnptr,
+		Inherit_Pipe_Handle_fnptr Inherit_Pipe_Handle_fnptr,
+#endif
 		Write_Pipe_fnptr Write_Pipe_fnptr,
 		Close_Pipe_fnptr Close_Pipe_fnptr)
 	{
@@ -123,6 +136,8 @@ class DaemonCoreSockAdapterClass {
 		m_daemonContactInfoChanged_fnptr = daemonContactInfoChanged_fptr;
 		m_Create_Named_Pipe_fnptr = Create_Named_Pipe_fnptr;
 		m_Register_Pipe_fnptr = Register_Pipe_fnptr;
+		m_Get_Inherit_Pipe_Handle_fnptr = Get_Inherit_Pipe_Handle_fnptr;
+		m_Inherit_Pipe_Handle_fnptr = Inherit_Pipe_Handle_fnptr;
 		m_Write_Pipe_fnptr = Write_Pipe_fnptr;
 		m_Close_Pipe_fnptr = Close_Pipe_fnptr;
 	}
@@ -149,6 +164,8 @@ class DaemonCoreSockAdapterClass {
 	daemonContactInfoChanged_fnptr m_daemonContactInfoChanged_fnptr;
 	Create_Named_Pipe_fnptr m_Create_Named_Pipe_fnptr;
 	Register_Pipe_fnptr m_Register_Pipe_fnptr;
+	Get_Inherit_Pipe_Handle_fnptr m_Get_Inherit_Pipe_Handle_fnptr;
+	Inherit_Pipe_Handle_fnptr m_Inherit_Pipe_Handle_fnptr;
 	Write_Pipe_fnptr m_Write_Pipe_fnptr;
 	Close_Pipe_fnptr m_Close_Pipe_fnptr;
 
@@ -313,6 +330,19 @@ class DaemonCoreSockAdapterClass {
 		return (m_daemonCore->*Close_Pipe)(pipe_end);
 	}
 
+#ifdef WIN32
+	HANDLE Get_Inherit_Pipe_Handle(int pipe_end)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*Get_Inherit_Pipe_Handle)(pipe_end);
+	}
+
+	int Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize)
+	{
+		ASSERT(m_daemonCore);
+		return (m_daemonCore->*Inherit_Pipe_Handle)(pipe_handle, write, overlapping, nonblocking, psize);
+	}
+#endif
 };
 
 extern DaemonCoreSockAdapterClass daemonCoreSockAdapter;

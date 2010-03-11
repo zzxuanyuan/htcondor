@@ -273,6 +273,10 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::daemonContactInfoChanged,
 		&DaemonCore::Create_Named_Pipe,
 		&DaemonCore::Register_Pipe,
+#ifdef WIN32
+		&DaemonCore::Get_Inherit_Pipe_Handle,
+		&DaemonCore::Inherit_Pipe_Handle,
+#endif
 		&DaemonCore::Write_Pipe,
 		&DaemonCore::Close_Pipe);
 
