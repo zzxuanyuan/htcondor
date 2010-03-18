@@ -163,13 +163,13 @@ SharedPortEndpoint::CreateListener()
 	*/
 	m_full_name.sprintf(
 		"%s%c%s",m_socket_dir.Value(),DIR_DELIM_CHAR,m_local_id.Value());
-	m_full_name_pid
+	//m_full_name_pid
 	int pipes[] = {-1, -1, -1};
-	daemonCoreSockAdapter.Create_Named_Pipe(pipes, true, true, true, true, 4096, m_full_name);
-	m_pipe_out = arrPipe[0];
+	daemonCoreSockAdapter.Create_Named_Pipe(pipes, true, true, true, true, 4096, m_full_name.Value());
+	m_pipe_out = pipes[0];
 	m_full_name_pid.sprintf("%s%s",m_full_name.Value(), "_pid");
 	int pidPipe[3] = {-1, -1, -1};
-	daemonCoreSockAdapter.Create_Named_Pipe(pidPipe, true, true, false, false, 4096, m_full_name_pid);
+	daemonCoreSockAdapter.Create_Named_Pipe(pidPipe, true, true, false, false, 4096, m_full_name_pid.Value());
 	m_pipe_pid = pidPipe[1];
 #elif HAVE_SCM_RIGHTS_PASSFD
 	if( m_listening ) {
@@ -880,7 +880,7 @@ SharedPortEndpoint::UseSharedPort(MyString *why_not,bool already_open)
 	static time_t cached_time = 0;
 
 	time_t now = time(NULL);
-	if( abs(now-cached_time) > 10 || cached_time==0 || why_not ) {
+	if( abs((int)now-(int)cached_time) > 10 || cached_time==0 || why_not ) {
 		MyString socket_dir;
 		ASSERT( param(socket_dir,"DAEMON_SOCKET_DIR") );
 

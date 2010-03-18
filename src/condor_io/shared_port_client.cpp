@@ -151,7 +151,7 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		0,
 		NULL);
 
-	if(pid_pipe == ERROR_FILE_NOT_FOUND)
+	if(!pid_pipe)
 	{
 		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for reading PID.\n");
 		return false;
@@ -186,7 +186,7 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		0,
 		NULL);
 
-	if(child_pipe == ERROR_FILE_NOT_FOUND)
+	if(!child_pipe)
 	{
 		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for sending socket.\n");
 		return false;
