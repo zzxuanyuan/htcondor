@@ -554,11 +554,26 @@ SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 	we will need to modify the placement of the command code into the buffer so
 	that it is only a single byte.
 	*/
-	char readBuff[1024];
+	int expected = sizeof(WSAPROTOCOL_INFO) + 1;
+	int buffSize = expected;
+	char *readBuff = new char[buffSize];
+	char storeBuff[1024];
 	int bytes = 0;
-	while((bytes = daemonCoreSockAdapter.Read_Pipe(m_pipe_out, readBuff, 1024)) > 0)
+	int total_received = 0;
+	while((bytes = daemonCoreSockAdapter.Read_Pipe(m_pipe_out, readBuff, buffSize)) > 0)
 	{
-		int cmd = readBuff[0];
+		if(bytes < buffSize)
+		{
+			memcpy_s(storeBuff + (expected - buffSize), 1024, readBuff, bytes);
+			buffSize -= bytes;
+			delete readBuff;
+			readBuff = new char[buffSize];
+			continue;
+		}
+
+		memcpy_s(storeBuff + (expected - buffSize), 1024, readBuff, bytes);
+		delete readBuff;
+		int cmd = storeBuff[0];
 		if( cmd != SHARED_PORT_PASS_SOCK ) {
 			dprintf(D_ALWAYS,
 				"SharedPortEndpoint: received unexpected command %d (%s) on named socket %s\n",
@@ -569,10 +584,7 @@ SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 		}
 
 		WSAPROTOCOL_INFO protocol_info;
-		if(bytes < sizeof(WSAPROTOCOL_INFO) + 1)
-		{
-			memcpy_s(&protocol_info, sizeof(WSAPROTOCOL_INFO), readBuff+1, sizeof(WSAPROTOCOL_INFO));
-		}
+		memcpy_s(&protocol_info, sizeof(WSAPROTOCOL_INFO), storeBuff+1, sizeof(WSAPROTOCOL_INFO));
 
 		ReliSock *remote_sock = return_remote_sock;
 		if(!remote_sock)
@@ -582,6 +594,8 @@ SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 		remote_sock->assign(&protocol_info);
 		remote_sock->enter_connected_state();
 		remote_sock->isClient(false);
+
+		return;
 	}
 #else
 	ReliSock *accepted_sock = m_listener_sock.accept();
