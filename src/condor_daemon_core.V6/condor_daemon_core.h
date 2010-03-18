@@ -762,7 +762,7 @@ class DaemonCore : public Service
 	int Create_Named_Pipe( int *pipe_ends,
 			 bool can_register_read = false, bool can_register_write = false,
 			 bool nonblocking_read = false, bool nonblocking_write = false,
-			 unsigned int psize = 4096, char* pipe_name);
+			 unsigned int psize = 4096, const char* pipe_name = NULL);
 	/** Make DaemonCore aware of an inherited pipe.
 	*/
 	int Inherit_Pipe( int p, bool write, bool can_register, bool nonblocking, int psize = 4096);

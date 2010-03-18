@@ -272,7 +272,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::Register_Command,
 		&DaemonCore::daemonContactInfoChanged,
 		&DaemonCore::Create_Named_Pipe,
-		&DaemonCore::Register_Pipe,
+		(DaemonCoreSockAdapterClass::Register_Pipe_fnptr)&DaemonCore::Register_Pipe,
 #ifdef WIN32
 		&DaemonCore::Get_Inherit_Pipe_Handle,
 		&DaemonCore::Inherit_Pipe_Handle,
@@ -1676,11 +1676,11 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 	static unsigned pipe_counter = 0;
 	MyString pipe_name;
 	pipe_name.sprintf("\\\\.\\pipe\\condor_pipe_%u_%u", GetCurrentProcessId(), pipe_counter++);
-	Create_Named_Pipe(pipe_ends,
+	return Create_Named_Pipe(pipe_ends,
 		can_register_read,
 		can_register_write,
 		nonblocking_read,
-		non_blocking_write,
+		nonblocking_write,
 		psize,
 		pipe_name.Value());
 }
@@ -1691,7 +1691,7 @@ int DaemonCore::Create_Named_Pipe( int *pipe_ends,
 			     bool nonblocking_read,
 			     bool nonblocking_write,
 			     unsigned int psize,
-				 char* pipe_name)
+				 const char* pipe_name)
 {
 	dprintf(D_DAEMONCORE,"Entering Create_Pipe()\n");
 
@@ -1722,7 +1722,7 @@ int DaemonCore::Create_Named_Pipe( int *pipe_ends,
 		return FALSE;
 	}
 	HANDLE r =
-		CreateFile(pipe_name.Value(),   // the named pipe
+		CreateFile(pipe_name,   // the named pipe
 			   GENERIC_READ,            // desired access
 			   0,                       // no sharing
 			   NULL,                    // we mark handles inheritable in Create_Process
@@ -2157,9 +2157,9 @@ HANDLE
 DaemonCore::Get_Inherit_Pipe_Handle(int pipe_end)
 {
 	PipeHandle pipe_handle;
-	int index = fd - PIPE_INDEX_OFFSET;
+	int index = pipe_end - PIPE_INDEX_OFFSET;
 	pipeHandleTableLookup(index, &pipe_handle);
-	HANDLE m_handle = (*pipe_handle)->get_handle();
+	HANDLE m_handle = (*pipe_handle).get_handle();
 	HANDLE current_process = GetCurrentProcess();
 	HANDLE m_duplicate_out;
 	DuplicateHandle(
@@ -10492,7 +10492,9 @@ DaemonCore::PidEntry::~PidEntry() {
 	if( !shared_port_fname.IsEmpty() ) {
 			// Clean up the named socket for this process if the child
 			// didn't already do so.
+#ifndef WIN32
 		SharedPortEndpoint::RemoveSocket( shared_port_fname.Value() );
+#endif
 	}
 }
 

@@ -151,14 +151,31 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		0,
 		NULL);
 
+	if(pid_pipe == ERROR_FILE_NOT_FOUND)
+	{
+		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for reading PID.\n");
+		return false;
+	}
 	DWORD child_pid;
 	DWORD read_bytes = 0;
 
-	PeekNamedPipe(pid_pipe, &child_pid, sizeof(DWORD), &read_bytes, NULL, NULL);
+	BOOL read_result = PeekNamedPipe(pid_pipe, &child_pid, sizeof(DWORD), &read_bytes, NULL, NULL);
+
+	if(!read_result)
+	{
+		dprintf(D_ALWAYS, "ERROR: SahredPortClient: Failed to read PID from named pipe.\n");
+		CloseHandle(pid_pipe);
+		return false;
+	}
 
 	CloseHandle(pid_pipe);
 	WSAPROTOCOL_INFO protocol_info;
-	WSADuplicateSocket(sock_to_pass->get_file_desc(), child_pid, &protocol_info);
+	int dup_result = WSADuplicateSocket(sock_to_pass->get_file_desc(), child_pid, &protocol_info);
+	if(dup_result == SOCKET_ERROR)
+	{
+		dprintf(D_ALWAYS, "ERROR: SahredPortClient: Failed to duplicate socket.\n");
+		return false;
+	}
 
 	child_pipe = CreateFile(
 		pipe_name.Value(),
@@ -169,13 +186,26 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		0,
 		NULL);
 
+	if(child_pipe == ERROR_FILE_NOT_FOUND)
+	{
+		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for sending socket.\n");
+		return false;
+	}
+
 	char buffer[sizeof(WSAPROTOCOL_INFO) + 1];
 	buffer[0] = (char)SHARED_PORT_PASS_SOCK;
 	memcpy_s(buffer+1, sizeof(WSAPROTOCOL_INFO), &protocol_info, sizeof(WSAPROTOCOL_INFO));
-	WriteFile(child_pipe, &protocol_info, sizeof(WSAPROTOCOL_INFO), &read_bytes, 0);
+	BOOL write_result = WriteFile(child_pipe, &protocol_info, sizeof(WSAPROTOCOL_INFO), &read_bytes, 0);
 
 	CloseHandle(child_pipe);
-	
+
+	if(!write_result)
+	{
+		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed tosend WSAPROTOCOL_INFO struct.\n");
+		return false;
+	}
+
+	return true;
 #elif HAVE_SCM_RIGHTS_PASSFD
 	if( !SharedPortIdIsValid(shared_port_id) ) {
 		dprintf(D_ALWAYS,

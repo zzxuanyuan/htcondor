@@ -84,10 +84,9 @@ class SharedPortEndpoint: Service {
 #ifndef WIN32
 		// Remove named socket
 	static bool RemoveSocket( char const *fname );
-
+#endif
 		// seconds between touching the named socket
 	static int TouchSocketInterval();
-#endif
 		// Used by CCB client to manage asynchronous events from the
 		// shared port listener and the CCB server.
 

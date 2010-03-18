@@ -33,10 +33,12 @@
 // Check once that a method for passing fds has been enabled if we
 // are supposed to support shared ports.
 #ifdef HAVE_SHARED_PORT
-#elif WIN32
+#else
+#ifndef WIN32
 #ifdef HAVE_SCM_RIGHTS_PASSFD
 #else
 #error HAVE_SHARED_PORT is defined, but no method for passing fds is enabled.
+#endif
 #endif
 #endif
 
@@ -163,11 +165,11 @@ SharedPortEndpoint::CreateListener()
 		"%s%c%s",m_socket_dir.Value(),DIR_DELIM_CHAR,m_local_id.Value());
 	m_full_name_pid
 	int pipes[] = {-1, -1, -1};
-	daemonCoreSockAdapter->Create_Named_Pipe(pipes, true, true, true, true, 4096, m_full_name);
+	daemonCoreSockAdapter.Create_Named_Pipe(pipes, true, true, true, true, 4096, m_full_name);
 	m_pipe_out = arrPipe[0];
 	m_full_name_pid.sprintf("%s%s",m_full_name.Value(), "_pid");
 	int pidPipe[3] = {-1, -1, -1};
-	daemonCoreSockAdapter->Create_Named_Pipe(pidPipe, true, true, false, false, 4096, m_full_name_pid);
+	daemonCoreSockAdapter.Create_Named_Pipe(pidPipe, true, true, false, false, 4096, m_full_name_pid);
 	m_pipe_pid = pidPipe[1];
 #elif HAVE_SCM_RIGHTS_PASSFD
 	if( m_listening ) {
@@ -285,7 +287,7 @@ SharedPortEndpoint::StartListener()
 	/*
 	Registering the named pipe.
 	*/
-	daemonCoreSockAdapter->Register_Pipe(m_pipe_out,
+	daemonCoreSockAdapter.Register_Pipe(m_pipe_out,
 		"named pipe listener",
 		(PipeHandlercpp)&SharedPortEndpoint::HandleListenerAccept,
 		"handle listener accept",
@@ -323,13 +325,12 @@ SharedPortEndpoint::StartListener()
 	return true;
 }
 
-#ifndef WIN32
 int
 SharedPortEndpoint::TouchSocketInterval()
 {
 	return 900;
 }
-
+#ifndef WIN32
 void
 SharedPortEndpoint::SocketCheck()
 {
@@ -535,8 +536,9 @@ SharedPortEndpoint::GetMyLocalAddress()
 int
 SharedPortEndpoint::HandleListenerAccept( Stream * stream )
 {
+#ifndef WIN32
 	ASSERT( stream == &m_listener_sock );
-
+#endif
 	DoListenerAccept(NULL);
 	return KEEP_STREAM;
 }
@@ -554,7 +556,7 @@ SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 	*/
 	char readBuff[1024];
 	int bytes = 0;
-	while((bytes = daemonCoreSockAdapter->Read_Pipe(m_pipe_out, readBuff, 1024) > 0)
+	while((bytes = daemonCoreSockAdapter.Read_Pipe(m_pipe_out, readBuff, 1024)) > 0)
 	{
 		int cmd = readBuff[0];
 		if( cmd != SHARED_PORT_PASS_SOCK ) {
@@ -566,13 +568,13 @@ SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 			return;
 		}
 
+		WSAPROTOCOL_INFO protocol_info;
 		if(bytes < sizeof(WSAPROTOCOL_INFO) + 1)
 		{
-			WSAPROTOCOL_INFO protocol_info;
 			memcpy_s(&protocol_info, sizeof(WSAPROTOCOL_INFO), readBuff+1, sizeof(WSAPROTOCOL_INFO));
 		}
 
-		ReliSock remote_sock = return_remote_sock;
+		ReliSock *remote_sock = return_remote_sock;
 		if(!remote_sock)
 		{
 			remote_sock = new ReliSock();
@@ -754,9 +756,9 @@ SharedPortEndpoint::serialize(MyString &inherit_buf,int &inherit_fd)
 	the buffer.
 	*/
 	HANDLE current_process = GetCurrentProcess();
-	HANDLE m_duplicate_out = daemonCoreSockAdapter->Get_Inherit_Pipe_Handle(m_pipe_out);
+	HANDLE m_duplicate_out = daemonCoreSockAdapter.Get_Inherit_Pipe_Handle(m_pipe_out);
 
-	HANDLE m_duplicate_pid = daemonCoreSockAdapter->Get_Inherit_Pipe_Handle(m_pipe_pid);
+	HANDLE m_duplicate_pid = daemonCoreSockAdapter.Get_Inherit_Pipe_Handle(m_pipe_pid);
 
 	char *named_pipe_handle = new char[MAX_PATH];
 	memset(named_pipe_handle, 0, MAX_PATH);
@@ -797,11 +799,11 @@ SharedPortEndpoint::deserialize(char *inherit_buf)
 	HANDLE named_pipe_pid;
 	sscanf_s(inherit_buf, "%d*%d", (int*)&named_pipe_out, (int*)&named_pipe_pid);
 
-	m_pipe_out = daemonCoreSockAdapter->Inherit_Pipe_Handle(named_pipe_out, false, true, true, 1024);
-	m_pipe_pid = daemonCoreSockAdapter->Inherit_Pipe_Handle(named_pipe_pid, true, true, true, 1024);
+	m_pipe_out = daemonCoreSockAdapter.Inherit_Pipe_Handle(named_pipe_out, false, true, true, 1024);
+	m_pipe_pid = daemonCoreSockAdapter.Inherit_Pipe_Handle(named_pipe_pid, true, true, true, 1024);
 
 	DWORD pID = GetProcessId(GetCurrentProcess());
-	daemonCoreSockAdapter->Write_Pipe(m_pipe_pid, &pID, sizeof(DWORD));
+	daemonCoreSockAdapter.Write_Pipe(m_pipe_pid, &pID, sizeof(DWORD));
 #else
 	inherit_buf = m_listener_sock.serialize(inherit_buf);
 #endif
@@ -929,6 +931,7 @@ SharedPortEndpoint::CheckListenerReady(Selector &selector)
 {
 #ifdef WIN32
 	EXCEPT("Selector does not support checking pipes on Windows.");
+	return false;
 #else
 	return selector.fd_ready(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif

@@ -64,17 +64,15 @@ class DaemonCoreSockAdapterClass {
 		bool nonblocking_read,
 		bool nonblocking_write,
 		unsigned int psize,
-		char* pipe_name);
+		const char* pipe_name);
 	typedef int (DaemonCore::*Register_Pipe_fnptr) (
 		int pipe_end,
 		const char* pipe_descrip,
-		PipeHandler handler,
 		PipeHandlercpp handlercpp,
 		const char *handler_descrip,
 		Service* s,
 		HandlerType handler_type,
-		DCpermission perm,
-		int is_cpp);
+		DCpermission perm);
 #ifdef WIN32
 	typedef HANDLE (DaemonCore::*Get_Inherit_Pipe_Handle_fnptr) (int pipe_end);
 	typedef int (DaemonCore::*Inherit_Pipe_Handle_fnptr) (
@@ -93,56 +91,58 @@ class DaemonCoreSockAdapterClass {
 
 	void EnableDaemonCore(
 		DaemonCore *dC,
-		Register_Socket_fnptr Register_Socket_fptr,
-		Cancel_Socket_fnptr Cancel_Socket_fptr,
-		CallSocketHandler_fnptr CallSocketHandler_fptr,
-		CallCommandHandler_fnptr CallCommandHandler_fptr,
-		HandleReqAsync_fnptr HandleReqAsync_fptr,
-		Register_DataPtr_fnptr Register_DataPtr_fptr,
-		GetDataPtr_fnptr GetDataPtrFun_fptr,
-		Register_Timer_fnptr Register_Timer_fptr,
-		Register_PeriodicTimer_fnptr Register_PeriodicTimer_fptr,
-		Cancel_Timer_fnptr Cancel_Timer_fptr,
-		TooManyRegisteredSockets_fnptr TooManyRegisteredSockets_fptr,
-		incrementPendingSockets_fnptr incrementPendingSockets_fptr,
-		decrementPendingSockets_fnptr decrementPendingSockets_fptr,
-		publicNetworkIpAddr_fnptr publicNetworkIpAddr_fptr,
-		Register_Command_fnptr Register_Command_fptr,
-		daemonContactInfoChanged_fnptr daemonContactInfoChanged_fptr
-		Create_Named_Pipe_fnptr Create_Named_Pipe_fnptr,
-		Register_Pipe_fnptr Register_Pipe_fnptr,
+		Register_Socket_fnptr in_Register_Socket_fnptr,
+		Cancel_Socket_fnptr in_Cancel_Socket_fnptr,
+		CallSocketHandler_fnptr in_CallSocketHandler_fnptr,
+		CallCommandHandler_fnptr in_CallCommandHandler_fnptr,
+		HandleReqAsync_fnptr in_HandleReqAsync_fnptr,
+		Register_DataPtr_fnptr in_Register_DataPtr_fnptr,
+		GetDataPtr_fnptr in_GetDataPtrFun_fnptr,
+		Register_Timer_fnptr in_Register_Timer_fnptr,
+		Register_PeriodicTimer_fnptr in_Register_PeriodicTimer_fnptr,
+		Cancel_Timer_fnptr in_Cancel_Timer_fnptr,
+		TooManyRegisteredSockets_fnptr in_TooManyRegisteredSockets_fnptr,
+		incrementPendingSockets_fnptr in_incrementPendingSockets_fnptr,
+		decrementPendingSockets_fnptr in_decrementPendingSockets_fnptr,
+		publicNetworkIpAddr_fnptr in_publicNetworkIpAddr_fnptr,
+		Register_Command_fnptr in_Register_Command_fnptr,
+		daemonContactInfoChanged_fnptr in_daemonContactInfoChanged_fnptr,
+		Create_Named_Pipe_fnptr in_Create_Named_Pipe_fnptr,
+		Register_Pipe_fnptr in_Register_Pipe_fnptr,
 #ifdef WIN32
-		Get_Inherit_Pipe_Handle_fnptr Get_Inherit_Pipe_Handle_fnptr,
-		Inherit_Pipe_Handle_fnptr Inherit_Pipe_Handle_fnptr,
+		Get_Inherit_Pipe_Handle_fnptr in_Get_Inherit_Pipe_Handle_fnptr,
+		Inherit_Pipe_Handle_fnptr in_Inherit_Pipe_Handle_fnptr,
 #endif
-		Read_Pipe_fnptr Read_Pipe_fnptr,
-		Write_Pipe_fnptr Write_Pipe_fnptr,
-		Close_Pipe_fnptr Close_Pipe_fnptr)
+		Read_Pipe_fnptr in_Read_Pipe_fnptr,
+		Write_Pipe_fnptr in_Write_Pipe_fnptr,
+		Close_Pipe_fnptr in_Close_Pipe_fnptr)
 	{
 		m_daemonCore = dC;
-		m_Register_Socket_fnptr = Register_Socket_fptr;
-		m_Cancel_Socket_fnptr = Cancel_Socket_fptr;
-		m_CallSocketHandler_fnptr = CallSocketHandler_fptr;
-		m_CallCommandHandler_fnptr = CallCommandHandler_fptr;
-		m_HandleReqAsync_fnptr = HandleReqAsync_fptr;
-		m_Register_DataPtr_fnptr = Register_DataPtr_fptr;
-		m_GetDataPtr_fnptr = GetDataPtrFun_fptr;
-		m_Register_Timer_fnptr = Register_Timer_fptr;
-		m_Register_PeriodicTimer_fnptr = Register_PeriodicTimer_fptr;
-		m_Cancel_Timer_fnptr = Cancel_Timer_fptr;
-		m_TooManyRegisteredSockets_fnptr = TooManyRegisteredSockets_fptr;
-		m_incrementPendingSockets_fnptr = incrementPendingSockets_fptr;
-		m_decrementPendingSockets_fnptr = decrementPendingSockets_fptr;
-		m_publicNetworkIpAddr_fnptr = publicNetworkIpAddr_fptr;
-		m_Register_Command_fnptr = Register_Command_fptr;
-		m_daemonContactInfoChanged_fnptr = daemonContactInfoChanged_fptr;
-		m_Create_Named_Pipe_fnptr = Create_Named_Pipe_fnptr;
-		m_Register_Pipe_fnptr = Register_Pipe_fnptr;
-		m_Get_Inherit_Pipe_Handle_fnptr = Get_Inherit_Pipe_Handle_fnptr;
-		m_Inherit_Pipe_Handle_fnptr = Inherit_Pipe_Handle_fnptr;
-		m_Read_Pipe_fnptr = Read_Pipe_fnptr;
-		m_Write_Pipe_fnptr = Write_Pipe_fnptr;
-		m_Close_Pipe_fnptr = Close_Pipe_fnptr;
+		m_Register_Socket_fnptr = in_Register_Socket_fnptr;
+		m_Cancel_Socket_fnptr = in_Cancel_Socket_fnptr;
+		m_CallSocketHandler_fnptr = in_CallSocketHandler_fnptr;
+		m_CallCommandHandler_fnptr = in_CallCommandHandler_fnptr;
+		m_HandleReqAsync_fnptr = in_HandleReqAsync_fnptr;
+		m_Register_DataPtr_fnptr = in_Register_DataPtr_fnptr;
+		m_GetDataPtr_fnptr = in_GetDataPtrFun_fnptr;
+		m_Register_Timer_fnptr = in_Register_Timer_fnptr;
+		m_Register_PeriodicTimer_fnptr = in_Register_PeriodicTimer_fnptr;
+		m_Cancel_Timer_fnptr = in_Cancel_Timer_fnptr;
+		m_TooManyRegisteredSockets_fnptr = in_TooManyRegisteredSockets_fnptr;
+		m_incrementPendingSockets_fnptr = in_incrementPendingSockets_fnptr;
+		m_decrementPendingSockets_fnptr = in_decrementPendingSockets_fnptr;
+		m_publicNetworkIpAddr_fnptr = in_publicNetworkIpAddr_fnptr;
+		m_Register_Command_fnptr = in_Register_Command_fnptr;
+		m_daemonContactInfoChanged_fnptr = in_daemonContactInfoChanged_fnptr;
+		m_Create_Named_Pipe_fnptr = in_Create_Named_Pipe_fnptr;
+		m_Register_Pipe_fnptr = in_Register_Pipe_fnptr;
+#ifdef WIN32
+		m_Get_Inherit_Pipe_Handle_fnptr = in_Get_Inherit_Pipe_Handle_fnptr;
+		m_Inherit_Pipe_Handle_fnptr = in_Inherit_Pipe_Handle_fnptr;
+#endif
+		m_Read_Pipe_fnptr = in_Read_Pipe_fnptr;
+		m_Write_Pipe_fnptr = in_Write_Pipe_fnptr;
+		m_Close_Pipe_fnptr = in_Close_Pipe_fnptr;
 	}
 
 		// These functions all have the same interface as the corresponding
@@ -171,6 +171,7 @@ class DaemonCoreSockAdapterClass {
 	Get_Inherit_Pipe_Handle_fnptr m_Get_Inherit_Pipe_Handle_fnptr;
 	Inherit_Pipe_Handle_fnptr m_Inherit_Pipe_Handle_fnptr;
 #endif
+	Read_Pipe_fnptr m_Read_Pipe_fnptr;
 	Write_Pipe_fnptr m_Write_Pipe_fnptr;
 	Close_Pipe_fnptr m_Close_Pipe_fnptr;
 
@@ -302,56 +303,52 @@ class DaemonCoreSockAdapterClass {
 		bool nonblocking_read,
 		bool nonblocking_write,
 		unsigned int psize,
-		char* pipe_name)
+		const char* pipe_name)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Create_Named_Pipe_fnptr)(pipe_ends, can_register_read, can_register_write, nonblocking_read, nonblocking_write, psize, pipe_name);
+		return (m_daemonCore->*m_Create_Named_Pipe_fnptr)(pipe_ends, can_register_read, can_register_write, nonblocking_read, nonblocking_write, psize, pipe_name);
 	}
 
 	int Register_Pipe(
 		int pipe_end,
 		const char* pipe_descrip,
-		PipeHandler handler,
 		PipeHandlercpp handlercpp,
 		const char *handler_descrip,
-		Service* s,
-		HandlerType handler_type,
-		DCpermission perm,
-		int is_cpp)
+		Service* s)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Register_Pipe_fnptr)(pipe_end, pipe_descrip, handler, handlercpp, handler_descrip, s, handler_type, perm, is_cpp);
+		return (m_daemonCore->*m_Register_Pipe_fnptr)(pipe_end, pipe_descrip, handlercpp, handler_descrip, s, HANDLE_READ, ALLOW);
 	}
 
 	int Read_Pipe(int pipe_end, void* buffer, int len)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->Read_Pipe_fnptr)(pipe_end, buffer, len);
+		return (m_daemonCore->*m_Read_Pipe_fnptr)(pipe_end, buffer, len);
 	}
 
 	int Write_Pipe(int pipe_end, const void* buffer, int len)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Write_Pipe_fnptr)(pipe_end, buffer, len);
+		return (m_daemonCore->*m_Write_Pipe_fnptr)(pipe_end, buffer, len);
 	}
 
 	int Close_Pipe(int pipe_end)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Close_Pipe_fnptr)(pipe_end);
+		return (m_daemonCore->*m_Close_Pipe_fnptr)(pipe_end);
 	}
 
 #ifdef WIN32
 	HANDLE Get_Inherit_Pipe_Handle(int pipe_end)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Get_Inherit_Pipe_Handle_fnptr)(pipe_end);
+		return (m_daemonCore->*m_Get_Inherit_Pipe_Handle_fnptr)(pipe_end);
 	}
 
 	int Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*Inherit_Pipe_Handle_fnptr)(pipe_handle, write, overlapping, nonblocking, psize);
+		return (m_daemonCore->*m_Inherit_Pipe_Handle_fnptr)(pipe_handle, write, overlapping, nonblocking, psize);
 	}
 #endif
 };
