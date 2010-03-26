@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="condor_shared_port_server"
+	Name="condor_shared_port"
 	ProjectGUID="{E6EA24BB-11B0-4A7B-9557-D59DAB5B6AED}"
-	RootNamespace="condor_shared_port_server"
+	RootNamespace="condor_shared_port"
 	TargetFrameworkVersion="0"
 	>
 	<Platforms>
