@@ -371,21 +371,6 @@ SharedPortEndpoint::StartListener()
 	dprintf(D_ALWAYS,"SharedPortEndpoint: waiting for connections to named pipe %s\n",
 			m_local_id.Value());
 
-	DWORD pID = GetProcessId(GetCurrentProcess());
-
-	DWORD bytes_written;
-	BOOL written = WriteFile(pid_pipe,
-		&pID,
-		sizeof(DWORD),
-		&bytes_written,
-		0);
-	if(!written || bytes_written != sizeof(DWORD))
-	{
-		DWORD error = GetLastError();
-		EXCEPT("SharedPortEndpoint: Failed to write PID, error value: %d", error);
-	}
-	FlushFileBuffers(pid_pipe);
-	DWORD nothing;
 	thread_handle = CreateThread(NULL,
 		0,
 		InstanceThread,
@@ -442,7 +427,25 @@ InstanceThread(void* instance)
 	{
 		if(!ConnectNamedPipe(pipe_end, NULL))
 		{
+			dprintf(D_ALWAYS, "Client failed to connect: %d\n", GetLastError());
+			continue;
 		}
+
+		DWORD pID = GetProcessId(GetCurrentProcess());
+
+		DWORD bytes_written;
+		BOOL written = WriteFile(pid_pipe,
+			&pID,
+			sizeof(DWORD),
+			&bytes_written,
+			0);
+		
+		if(!written || bytes_written != sizeof(DWORD))
+		{
+			DWORD error = GetLastError();
+			EXCEPT("SharedPortEndpoint: Failed to write PID, error value: %d", error);
+		}
+		FlushFileBuffers(pid_pipe);
 		DisconnectNamedPipe(pipe_end);
 	}
 
