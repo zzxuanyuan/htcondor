@@ -1711,7 +1711,7 @@ int DaemonCore::Create_Named_Pipe( int *pipe_ends,
 				PIPE_ACCESS_OUTBOUND |      // "server" to "client" only
 				overlapped_write_flag,      // overlapped mode
 				0,                          // byte-mode, blocking
-				1,                          // only one instance
+				PIPE_UNLIMITED_INSTANCES,                          // only one instance
 				psize,                      // outgoing buffer size
 				0,                          // incoming buffer size (not used)
 				0,                          // default wait timeout (not used)
@@ -7031,7 +7031,7 @@ int DaemonCore::Create_Process(
 		if( !shared_port_endpoint.CreateListener() ) {
 			goto wrapup;
 		}
-
+dprintf(D_ALWAYS, "Created shared port for child.\n");
 		if( !shared_port_endpoint.ChownSocket(priv) ) {
 				// The child process will probably not be able to remove the
 				// named socket.  That's ok.  We'll try to clean up for
@@ -7043,6 +7043,7 @@ int DaemonCore::Create_Process(
 		int fd = -1;
 		shared_port_endpoint.serialize(inheritbuf,fd);
         inheritFds[numInheritFds++] = fd;
+		inherit_handles = true;
 	}
 	else if ( want_command_port != FALSE ) {
 		inherit_handles = TRUE;
@@ -8594,6 +8595,7 @@ DaemonCore::Inherit( void )
 			ptmp += 11;
 			delete m_shared_port_endpoint;
 			m_shared_port_endpoint = new SharedPortEndpoint();
+			dprintf(D_ALWAYS, "Inheriting a shared port pipe.\n");
 			m_shared_port_endpoint->deserialize(ptmp);
 			ptmp=inherit_list.next();
 		}

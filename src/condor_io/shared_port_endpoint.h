@@ -114,8 +114,16 @@ class SharedPortEndpoint: Service {
 	int m_retry_remote_addr_timer;
 #ifdef WIN32
 	int m_pipe_out;
-	int m_pipe_pid;
+	int m_pipe_in;
 	MyString m_full_name_pid;
+	HANDLE pid_pipe;
+	HANDLE second_instance;
+	HANDLE pid_mailslot_writer;
+	HANDLE pid_mailslot_reader;
+	MyString mailslot_dir;
+
+	DWORD threadID;
+	HANDLE thread_handle;
 #else
 	ReliSock m_listener_sock; // named socket to receive forwarded connections
 #endif
@@ -132,5 +140,7 @@ class SharedPortEndpoint: Service {
 	bool MakeDaemonSocketDir();
 #endif
 };
-
+#ifdef WIN32
+DWORD WINAPI InstanceThread(void*);
+#endif
 #endif
