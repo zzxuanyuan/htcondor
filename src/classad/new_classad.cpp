@@ -1259,17 +1259,6 @@ _GetInternalReferences( const ExprTree *expr, ClassAd *ad,
                     return false;
                 }
 
-                /*
-                 *
-                 * [
-                 * A = 3;
-                 * B = { 1, 3, 5};
-                 * C = D.A + 1;
-                 * D = [ A = E; B = 4; ];
-                 * E = 4;
-                 * ];
-                 */
-
                 if( val.IsUndefinedValue() ) {
                     return true;
                 }
@@ -1323,13 +1312,8 @@ _GetInternalReferences( const ExprTree *expr, ClassAd *ad,
                     return false;
                 break;
 
-                //attr is external, so let's find the internals in that
-                //result
-                //JUST KIDDING
                 case EVAL_UNDEF:{
                     
-                    //bool rval = _GetInternalReferences(result, ad, state, refs, fullNames);
-                    //state.curAd = curAd;
                     return true;
                 break;
                                 }
@@ -1338,7 +1322,6 @@ _GetInternalReferences( const ExprTree *expr, ClassAd *ad,
                     //whoo, it's internal.
                     refs.insert(attr);
                     bool rval =_GetInternalReferences(result, ad, state, refs, fullNames);
-                    //TODO: Does this actually matter?
                     state.curAd = curAd;
                     return rval;
                 break;

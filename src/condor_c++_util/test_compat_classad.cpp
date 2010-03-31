@@ -1032,10 +1032,9 @@ bool test_GIR(int verbose)
 
     string input_ref5 = "[ A = G.B; B = [X = A; Y = D.A;]; C = A + D.B.G; D = [A = 2; B = [A = 3; G = E;]]; E = [C = A;]; ]";
 
-    //these are non-sensical for now.
     expected.push_back(make_pair("A", ""));
     expected.push_back(make_pair("B", "A D.A"));
-    expected.push_back(make_pair("C", "A D.B.G E ")); // A D.B.G C ?
+    expected.push_back(make_pair("C", "A D.B.G E")); // A D.B.G C ?
     expected.push_back(make_pair("D", "E A")); //B.G A ?
     expected.push_back(make_pair("E", "A"));
 
