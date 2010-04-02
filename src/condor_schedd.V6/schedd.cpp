@@ -339,12 +339,19 @@ match_rec::setStatus( int stat )
 {
 	status = stat;
 	entered_current_status = (int)time(0);
-	if( status == M_CLAIMED ||
-		status == M_STARTD_CONTACT_LIMBO ) {
-			// We may have successfully claimed this startd, so we need to
+	if( status == M_CLAIMED ) {
+			// We have successfully claimed this startd, so we need to
 			// release it later.
 		needs_release_claim = true;
 	}
+		// We do NOT send RELEASE_CLAIM while in M_STARTD_CONTACT_LIMBO,
+		// because then we could destroy a claim that some other schedd
+		// has a prior claim to (e.g. if the negotiator has a stale view
+		// of the world and hands out the same claim id to different schedds
+		// in different negotiation cycles).  When we are in limbo and the
+		// claim object is deleted, cleanup should happen automatically
+		// on the startd side anyway, because it will see our REQUEST_CLAIM
+		// socket disconnect.
 }
 
 
@@ -4437,6 +4444,12 @@ Scheduler::actOnJobs(int, Stream* s)
 	for( i=0; i<num_matches; i++ ) {
 		enqueueActOnJobMyself( jobs[i], action, notify );
 	}
+
+		// In case we have removed jobs that were queued to run, scan
+		// our matches and either remove them or pick a different job
+		// to run on them.
+	ExpediteStartJobs();
+
 	return TRUE;
 }
 
@@ -5618,9 +5631,8 @@ Scheduler::claimedStartd( DCMsgCallback *cb ) {
 
 	match->setStatus( M_CLAIMED );
 
-	// now that we've completed authentication (if enabled), punch a hole
-	// in our DAEMON authorization level for the execute machine user/IP
-	// (if we're flocking, which is why we check match->pool)
+	// now that we've completed authentication (if enabled),
+	// authorize this startd for READ operations
 	//
 	if ((match->auth_hole_id == NULL)) {
 		match->auth_hole_id = new MyString;
@@ -5634,7 +5646,7 @@ Scheduler::claimedStartd( DCMsgCallback *cb ) {
 			*match->auth_hole_id = msg->startd_ip_addr();
 		}
 		IpVerify* ipv = daemonCore->getSecMan()->getIpVerify();
-		if (!ipv->PunchHole(DAEMON, *match->auth_hole_id)) {
+		if (!ipv->PunchHole(READ, *match->auth_hole_id)) {
 			dprintf(D_ALWAYS,
 			        "WARNING: IpVerify::PunchHole error for %s: "
 			            "job %d.%d may fail to execute\n",
@@ -5869,14 +5881,13 @@ Scheduler::makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad )
 	match_rec *mrec = AddMrec( claim_id, startd_addr, job, match_ad, 
 							   owner, pool );
 
-		// if we need to punch an authorization hole in our DAEMON
-		// level for this StartD (to support flocking), do it now
+		// authorize this startd for READ access
 	if (startd_principal != NULL) {
 		mrec->auth_hole_id = new MyString(startd_principal);
 		ASSERT(mrec->auth_hole_id != NULL);
 		free(startd_principal);
 		IpVerify* ipv = daemonCore->getIpVerify();
-		if (!ipv->PunchHole(DAEMON, *mrec->auth_hole_id)) {
+		if (!ipv->PunchHole(READ, *mrec->auth_hole_id)) {
 			dprintf(D_ALWAYS,
 			        "WARNING: IpVerify::PunchHole error for %s: "
 			            "job %d.%d may fail to execute\n",
@@ -6139,6 +6150,23 @@ find_idle_local_jobs( ClassAd *job )
 	return 0;
 }
 
+void
+Scheduler::ExpediteStartJobs()
+{
+	if( startjobsid == -1 ) {
+		return;
+	}
+
+	Timeslice timeslice;
+	ASSERT( daemonCore->GetTimerTimeslice( startjobsid, timeslice ) );
+
+	if( !timeslice.isNextRunExpedited() ) {
+		timeslice.expediteNextRun();
+		ASSERT( daemonCore->ResetTimerTimeslice( startjobsid, timeslice ) );
+		dprintf(D_FULLDEBUG,"Expedited call to StartJobs()\n");
+	}
+}
+
 /*
  * Weiru
  * This function iterate through all the match records, for every match do the
@@ -6179,9 +6207,6 @@ Scheduler::StartJobs()
 	if( LocalUniverseJobsIdle > 0 || SchedUniverseJobsIdle > 0 ) {
 		StartLocalJobs();
 	}
-
-	/* Reset our Timer */
-	daemonCore->Reset_Timer(startjobsid,(int)SchedDInterval.getDefaultInterval());
 
 	dprintf(D_FULLDEBUG, "-------- Done starting jobs --------\n");
 }
@@ -6287,6 +6312,9 @@ Scheduler::StartJob(match_rec *rec)
 void
 Scheduler::StartLocalJobs()
 {
+	if ( ExitWhenDone ) {
+		return;
+	}
 	WalkJobQueue( (int(*)(ClassAd *))find_idle_local_jobs );
 }
 
@@ -6936,7 +6964,7 @@ Scheduler::tryNextJob()
 							(TimerHandlercpp)&Scheduler::StartJobHandler,
 							"start_job", this ); 
 	} else {
-		StartJobs();
+		ExpediteStartJobs();
 	}
 }
 
@@ -7520,9 +7548,7 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	if( ! rval ) {
 		dprintf( D_ALWAYS|D_FAILURE, "Can't spawn local starter for "
 				 "job %d.%d\n", job_id->cluster, job_id->proc );
-		BeginTransaction();
 		mark_job_stopped( job_id );
-		CommitTransaction();
 			// TODO: we're definitely leaking shadow recs in this case
 			// (and have been for a while).  must fix ASAP.
 		return;
@@ -8549,6 +8575,8 @@ _mark_job_stopped(PROC_ID* job_id)
 	int		orig_max;
 	int		had_orig;
 
+		// NOTE: This function is wrapped in a NONDURABLE transaction.
+
 	had_orig = GetAttributeInt(job_id->cluster, job_id->proc, 
 								ATTR_ORIG_MAX_HOSTS, &orig_max);
 
@@ -8627,6 +8655,11 @@ mark_job_running(PROC_ID* job_id)
 void
 mark_job_stopped(PROC_ID* job_id)
 {
+	bool already_in_transaction = InTransaction();
+	if( !already_in_transaction ) {
+		BeginTransaction();
+	}
+
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(job_id->cluster, job_id->proc, ATTR_JOB_UNIVERSE,
 					&universe);
@@ -8646,6 +8679,14 @@ mark_job_stopped(PROC_ID* job_id)
 		}
 	} else {
 		_mark_job_stopped(job_id);
+	}
+
+	if( !already_in_transaction ) {
+			// It is ok to use a NONDURABLE transaction here.
+			// The worst that can happen if this transaction is
+			// lost is that we will try to reconnect to the job
+			// and find that it is no longer running.
+		CommitTransaction( NONDURABLE );
 	}
 }
 
@@ -9317,9 +9358,18 @@ Scheduler::child_exit(int pid, int status)
 
 		// If we're not trying to shutdown, now that either an agent
 		// or a shadow (or both) have exited, we should try to
-		// activate all our claims and start jobs on them.
+		// start another job.
 	if( ! ExitWhenDone && StartJobsFlag ) {
-		this->StartJobs();
+		if( !claim_id.IsEmpty() ) {
+				// Try finding a new job for this claim.
+			match_rec *mrec = scheduler.FindMrecByClaimID( claim_id.Value() );
+			if( mrec ) {
+				this->StartJob( mrec );
+			}
+		}
+		else {
+			this->ExpediteStartJobs();
+		}
 	}
 	else if( !keep_claim ) {
 		if( !claim_id.IsEmpty() ) {
@@ -9562,7 +9612,7 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 						ATTR_NUM_SHADOW_EXCEPTIONS, &num_excepts);
 		num_excepts++;
 		SetAttributeInt(job_id.cluster, job_id.proc,
-						ATTR_NUM_SHADOW_EXCEPTIONS, num_excepts);
+						ATTR_NUM_SHADOW_EXCEPTIONS, num_excepts, NONDURABLE);
 
 		if (!srec->removed && srec->match) {
 				// Record that we had an exception.  This function will
@@ -10626,9 +10676,6 @@ Scheduler::Register()
 			"reschedule_negotiator", this, WRITE);
 	 daemonCore->Register_Command( RECONFIG, "RECONFIG", 
 			(CommandHandler)&dc_reconfig, "reconfig", 0, OWNER );
-	 daemonCore->Register_Command(RELEASE_CLAIM, "RELEASE_CLAIM", 
-			(CommandHandlercpp)&Scheduler::release_claim, 
-			"release_claim", this, WRITE);
 	 daemonCore->Register_Command(KILL_FRGN_JOB, "KILL_FRGN_JOB", 
 			(CommandHandlercpp)&Scheduler::abort_job, 
 			"abort_job", this, WRITE);
@@ -10668,9 +10715,20 @@ Scheduler::Register()
 			(CommandHandlercpp)&Scheduler::requestSandboxLocation,
 			"requestSandboxLocation", this, WRITE, D_COMMAND,
 			true /*force authentication*/);
+
+		 // Commands used by the startd are registered at READ
+		 // level rather than something like DAEMON or WRITE in order
+		 // to reduce the level of authority that the schedd must
+		 // grant the startd.  In order for these commands to
+		 // succeed, the startd must present the secret claim id,
+		 // so it is deemed safe to open these commands up to READ
+		 // access.
+	daemonCore->Register_Command(RELEASE_CLAIM, "RELEASE_CLAIM", 
+			(CommandHandlercpp)&Scheduler::release_claim, 
+			"release_claim", this, READ);
 	daemonCore->Register_Command( ALIVE, "ALIVE", 
 			(CommandHandlercpp)&Scheduler::receive_startd_alive,
-			"receive_startd_alive", this, DAEMON,
+			"receive_startd_alive", this, READ,
 			D_PROTOCOL ); 
 
 	// Command handler for testing file access.  I set this as WRITE as we
@@ -10744,13 +10802,29 @@ Scheduler::RegisterTimers()
 	// Note: aliveid is a data member of the Scheduler class
 	static int oldQueueCleanInterval = -1;
 
+	Timeslice start_jobs_timeslice;
+
 	// clear previous timers
 	if (timeoutid >= 0) {
 		daemonCore->Cancel_Timer(timeoutid);
 	}
+
 	if (startjobsid >= 0) {
+		daemonCore->GetTimerTimeslice(startjobsid,start_jobs_timeslice);
 		daemonCore->Cancel_Timer(startjobsid);
 	}
+	else {
+		start_jobs_timeslice.setInitialInterval(10);
+	}
+		// Copy settings for start jobs timeslice from schedDInterval,
+		// since we currently don't have any reason to want them to
+		// be configured independently.  We do _not_ currently copy
+		// the minimum interval, so frequent calls are allowed as long
+		// as the timeslice is within the limit.
+	start_jobs_timeslice.setDefaultInterval( SchedDInterval.getDefaultInterval() );
+	start_jobs_timeslice.setMaxInterval( SchedDInterval.getMaxInterval() );
+	start_jobs_timeslice.setTimeslice( SchedDInterval.getTimeslice() );
+
 	if (aliveid >= 0) {
 		daemonCore->Cancel_Timer(aliveid);
 	}
@@ -10761,7 +10835,7 @@ Scheduler::RegisterTimers()
 	 // timer handlers
 	timeoutid = daemonCore->Register_Timer(10,
 		(TimerHandlercpp)&Scheduler::timeout,"timeout",this);
-	startjobsid = daemonCore->Register_Timer(10,
+	startjobsid = daemonCore->Register_Timer( start_jobs_timeslice,
 		(TimerHandlercpp)&Scheduler::StartJobs,"StartJobs",this);
 	aliveid = daemonCore->Register_Timer(10, alive_interval,
 		(TimerHandlercpp)&Scheduler::sendAlives,"sendAlives", this);
@@ -11300,7 +11374,7 @@ Scheduler::DelMrec(match_rec* match)
 		// fill any authorization hole we made for this match
 	if (match->auth_hole_id != NULL) {
 		IpVerify* ipv = daemonCore->getSecMan()->getIpVerify();
-		if (!ipv->FillHole(DAEMON, *match->auth_hole_id)) {
+		if (!ipv->FillHole(READ, *match->auth_hole_id)) {
 			dprintf(D_ALWAYS,
 			        "WARNING: IpVerify::FillHole error for %s\n",
 			        match->auth_hole_id->Value());

@@ -166,7 +166,7 @@ if ($type eq "RPM") {
 	
 	if ( !defined ($rpm_file)) {
 		die "RPM package not found";
-    } else {
+        } else {
 		!system ("mv", "$rpm_file", "$binaries_dir") or die "Cannot move package to public folder";
 
 		print "************************************************************\n";
@@ -194,7 +194,11 @@ if ($type eq "RPM") {
 
 	if ( !defined ($deb_file)) {
 		die "Debian package not found";
+<<<<<<< HEAD
     } else {
+=======
+        } else {
+>>>>>>> origin/master
 		!system ("mv", "$deb_file", "$binaries_dir") or die "Cannot move package to public folder";
 
 		print "************************************************************\n";

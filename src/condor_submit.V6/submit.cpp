@@ -380,6 +380,7 @@ const char * REMOTE_PREFIX="Remote_";
 const char	*KillSig			= "kill_sig";
 const char	*RmKillSig			= "remove_kill_sig";
 const char	*HoldKillSig		= "hold_kill_sig";
+const char	*KillSigTimeout		= "kill_sig_timeout";
 #endif
 
 void    SetSimpleJobExprs();
@@ -5233,6 +5234,7 @@ void
 SetKillSig()
 {
 	char* sig_name;
+	char* timeout;
 	MyString buffer;
 
 	sig_name = findKillSigName( KillSig, ATTR_KILL_SIG );
@@ -5241,14 +5243,21 @@ SetKillSig()
 		case CONDOR_UNIVERSE_STANDARD:
 			sig_name = strdup( "SIGTSTP" );
 			break;
+		case CONDOR_UNIVERSE_VANILLA:
+			// Don't define sig_name for Vanilla Universe
+			sig_name = NULL;
+			break;
 		default:
 			sig_name = strdup( "SIGTERM" );
 			break;
 		}
 	}
-	buffer.sprintf( "%s=\"%s\"", ATTR_KILL_SIG, sig_name );
-	InsertJobExpr( buffer );
-	free( sig_name );
+
+	if ( sig_name ) {
+		buffer.sprintf( "%s=\"%s\"", ATTR_KILL_SIG, sig_name );
+		InsertJobExpr( buffer );
+		free( sig_name );
+	}
 
 	sig_name = findKillSigName( RmKillSig, ATTR_REMOVE_KILL_SIG );
 	if( sig_name ) {
@@ -5263,6 +5272,14 @@ SetKillSig()
 		buffer.sprintf( "%s=\"%s\"", ATTR_HOLD_KILL_SIG, sig_name );
 		InsertJobExpr( buffer );
 		free( sig_name );
+		sig_name = NULL;
+	}
+
+	timeout = condor_param( KillSigTimeout, ATTR_KILL_SIG_TIMEOUT );
+	if( timeout ) {
+		buffer.sprintf( "%s=%d", ATTR_KILL_SIG_TIMEOUT, atoi(timeout) );
+		InsertJobExpr( buffer );
+		free( timeout );
 		sig_name = NULL;
 	}
 }

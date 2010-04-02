@@ -45,11 +45,12 @@ bool FTEST_basename(void);
 bool FTEST_dirname(void);
 bool FTEST_fullpath(void);
 bool OTEST_HashTable(void);
+bool OTEST_MyString(void);
 
 int main() {
 	e.init();
 		// set up the function driver
-	FunctionDriver driver(17);
+	FunctionDriver driver(18);
 	driver.register_function(FTEST_host_in_domain);
 	driver.register_function(FTEST_getHostFromAddr);
 	driver.register_function(FTEST_getPortFromAddr);
@@ -67,12 +68,24 @@ int main() {
 	driver.register_function(FTEST_dirname);
 	driver.register_function(FTEST_fullpath);
 	driver.register_function(OTEST_HashTable);
+	driver.register_function(OTEST_MyString);
 
 		// run all the functions and return the result
 	bool result = driver.do_all_functions();
 	e.emit_summary();
+	e.emit_function_break();
+
 	if(result) {
+		e.emit_comment("The actual return values of all tests have passed. "
+			"Good.\n");
 		return EXIT_SUCCESS;
 	}
+
+	e.emit_comment("The actual return values of some tests have failed. "
+		"Bad.\n");
 	return EXIT_FAILURE;
 }
+
+
+
+

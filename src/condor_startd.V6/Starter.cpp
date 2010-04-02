@@ -35,6 +35,7 @@
 #include "basename.h"
 #include "dc_starter.h"
 #include "classadHistory.h"
+#include "classad_helpers.h"
 
 #if defined(LINUX)
 #include "glexec_starter.h"
@@ -1196,11 +1197,14 @@ Starter::killHard( void )
 	if( ! active() ) {
 		return true;
 	}
+	
 	if( ! kill(DC_SIGHARDKILL) ) {
 		killpg( SIGKILL );
 		return false;
 	}
-	startKillTimer();
+	dprintf(D_FULLDEBUG, "in starter:killHard starting kill timer\n");
+	startKillTimer();	
+
 	return true;
 }
 
@@ -1254,7 +1258,7 @@ Starter::startKillTimer( void )
 			// Timer already started.
 		return TRUE;
 	}
-
+ 
 	int tmp_killing_timeout = killing_timeout;
 	if( s_claim && (s_claim->universe() == CONDOR_UNIVERSE_VM) ) {
 		// For vm universe, we need longer killing_timeout

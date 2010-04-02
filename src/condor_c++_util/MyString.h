@@ -238,10 +238,27 @@ class MyString
 	/** Like vsprintf, but this appends to existing data. */
 	bool vsprintf_cat(const char *format, va_list args);
 
-	/** Append str.  If we are non-empty, append delim before str. */
-	void append_to_list(char const *str,char const *delim=",");
+	/** Append str.  If we are non-empty, append delim before str.
+	if str is empty, do nothing.
 
-	/** Append str.  If we are non-empty, append delim before str. */
+	Warning: This functionality is ambiguous, it cannot
+	distinguish between an empty list and a list with one item,
+	which is empty.  It always assumes that an empty string is
+	an empty list. This appending x.append_to_list("") doesn't do
+	anything, while MyString("").append_to_list("x") is "x", not
+	",x".  You can work around this with the operator+= or
+	printf_cat functions, but it's all messy.  You could use
+	StringList, but it's pretty rusty and covered with sharp
+	spikes.
+
+	As such consider instead using a
+	std::vector<MyString>::push_back(), then joining the list
+	into a single string at the end.  If you do, consider making
+	the code to join the list into a shared function in
+	condor_c++_utils for others to use.
+
+	*/
+	void append_to_list(char const *str,char const *delim=",");
 	void append_to_list(MyString const &str,char const *delim=",");
 
 	void lower_case(void);
@@ -366,6 +383,8 @@ public:
 		m_str = str;
 	}
 	bool operator ==(const YourSensitiveString &rhs) {
+		if (m_str == rhs.m_str) return true;
+		if ((!m_str) || (!rhs.m_str)) return false;
 		return strcmp(m_str,rhs.m_str) == 0;
 	}
 	void operator =(char const *str) {
@@ -375,6 +394,7 @@ public:
 		// hash function for strings
 		// Chris Torek's world famous hashing function
 		unsigned int hash = 0;
+		if (!s.m_str) return 7; // Least random number
 
 		const char *p = s.m_str;
 		while (*p) {

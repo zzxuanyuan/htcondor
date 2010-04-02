@@ -107,6 +107,7 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "condor_threads.h"
 #include "shared_port_endpoint.h"
 #include "condor_open.h"
+#include "filename_tools.h"
 
 #include "valgrind.h"
 
@@ -868,6 +869,16 @@ int DaemonCore::Reset_Timer( int id, unsigned when, unsigned period )
 int DaemonCore::Reset_Timer_Period ( int id, unsigned period )
 {
 	return( t.ResetTimerPeriod(id,period) );
+}
+
+int DaemonCore::ResetTimerTimeslice ( int id, Timeslice const &new_timeslice )
+{
+	return t.ResetTimerTimeslice(id,new_timeslice);
+}
+
+bool DaemonCore::GetTimerTimeslice( int id, Timeslice &timeslice )
+{
+	return t.GetTimerTimeslice( id, timeslice );
 }
 
 /************************************************************************/
@@ -4156,7 +4167,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 
         if (who != NULL) {
             ((SafeSock*)stream)->setFullyQualifiedUser(who);
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticated UDP message is from %s.\n", who);
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: UDP message is from %s.\n", who);
         }
 	}
 
@@ -4640,24 +4651,45 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 
 					int auth_timeout = getSecMan()->getSecTimeout( comTable[cmd_index].perm );
 					char *method_used = NULL;
+					bool auth_success = sock->authenticate(the_key, auth_methods, &errstack, auth_timeout, &method_used);
 
-					if (!sock->authenticate(the_key, auth_methods, &errstack, auth_timeout, &method_used)) {
-						free( auth_methods );
-						free( method_used );
-						dprintf( D_ALWAYS,
-								 "DC_AUTHENTICATE: authenticate failed: %s\n",
-								 errstack.getFullText() );
-						result = FALSE;
-						goto finalize;
+					free( auth_methods );
+					free( method_used );
+
+					if( comTable[cmd_index].force_authentication &&
+						!sock->isMappedFQU() )
+					{
+						dprintf(D_ALWAYS, "DC_AUTHENTICATE: authentication of %s did not result in a valid mapped user name, which is required for this command (%d %s), so aborting.\n",
+								sock->peer_description(),
+								tmp_cmd,
+								comTable[cmd_index].command_descrip );
+					}
+
+					if( auth_success ) {
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: authentication of %s complete.\n", sock->peer_ip_str());
+					}
+					else {
+						bool auth_required = true;
+						the_policy->LookupBool(ATTR_SEC_AUTH_REQUIRED,auth_required);
+
+						if( !auth_required ) {
+							dprintf( D_SECURITY|D_FULLDEBUG,
+									 "DC_SECURITY: authentication of %s failed but was not required, so continuing.\n",
+									 sock->peer_ip_str());
+						}
+						else {
+							dprintf( D_ALWAYS,
+									 "DC_AUTHENTICATE: required authentication of %s failed: %s\n",
+									 sock->peer_ip_str(),
+									 errstack.getFullText() );
+							result = FALSE;
+							goto finalize;
+						}
 					}
 
 					if ( method_used ) {
 						the_policy->Assign(ATTR_SEC_AUTHENTICATION_METHODS, method_used);
 					}
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: mutual authentication to %s complete.\n", sock->peer_ip_str());
-
-					free( auth_methods );
-					free( method_used );
 
 				} else {
 					if (DebugFlags & D_FULLDEBUG) {
@@ -4751,7 +4783,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 					pa_ad.Assign(ATTR_SEC_SID, the_sid);
 
 					// other commands this session is good for
-					pa_ad.Assign(ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm,fully_qualified_user != NULL).Value());
+					pa_ad.Assign(ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm,sock->isMappedFQU()).Value());
 
 					// also put some attributes in the policy classad we are caching.
 					sec_man->sec_copy_attribute( *the_policy, auth_info, ATTR_SEC_SUBSYSTEM );
@@ -4859,7 +4891,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 			//  1. receiving unauthenticated command
 			//  2. receiving command on previously authenticated socket
 
-		if (reqFound && !((Sock *)stream)->getFullyQualifiedUser()) {
+		if (reqFound && !((Sock *)stream)->isAuthenticated()) {
 			// need to check our security policy to see if this is allowed.
 
 			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i %s.\n", req, comTable[index].command_descrip);
@@ -4922,7 +4954,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 		// When re-using security sessions, need to set the socket's
 		// authenticated user name from the value stored in the cached
 		// session.
-		if( user.Length() && !((Sock*)stream)->getFullyQualifiedUser() ) {
+		if( user.Length() && !((Sock*)stream)->isAuthenticated() ) {
 			((Sock*)stream)->setFullyQualifiedUser(user.Value());
 		}
 
@@ -4937,7 +4969,25 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 		MyString command_desc;
 		command_desc.sprintf("command %d (%s)",req,comTable[index].command_descrip);
 
-		if ( (perm = Verify(command_desc.Value(),comTable[index].perm, ((Sock*)stream)->peer_addr(), user.Value())) != USER_AUTH_SUCCESS )
+		if( comTable[index].force_authentication &&
+			!((Sock*)stream)->isMappedFQU() )
+		{
+			dprintf(D_ALWAYS, "DC_AUTHENTICATE: authentication of %s did not result in a valid mapped user name, which is required for this command (%d %s), so aborting.\n",
+					((Sock*)stream)->peer_description(),
+					req,
+					comTable[index].command_descrip );
+
+			perm = USER_AUTH_FAILURE;
+		}
+		else {
+			perm = Verify(
+						  command_desc.Value(),
+						  comTable[index].perm,
+						  ((Sock*)stream)->peer_addr(),
+						  user.Value() );
+		}
+
+		if( perm != USER_AUTH_SUCCESS )
 		{
 			// Permission check FAILED
 			reqFound = FALSE;	// so we do not call the handler function below
@@ -5024,12 +5074,13 @@ finalize:
         free(who);
     }
 	if ( result != KEEP_STREAM ) {
-		stream->encode();	// we wanna "flush" below in the encode direction
 		if ( is_tcp ) {
+			stream->encode();	// we wanna "flush" below in the encode direction
 			stream->end_of_message();  // make certain data flushed to the wire
 			if ( insock != stream )	   // delete the stream only if we did an accept; if we
 				delete stream;		   //     did not do an accept, Driver() will delete the stream.
 		} else {
+			stream->decode();
 			stream->end_of_message();
 
 			// we need to reset the crypto keys
@@ -5044,6 +5095,7 @@ finalize:
 		}
 	} else {
 		if (!is_tcp) {
+			stream->decode();
 			stream->end_of_message();
 			stream->set_MD_mode(MD_OFF);
 			stream->set_crypto_key(false, NULL);
@@ -6870,6 +6922,7 @@ int DaemonCore::Create_Process(
 	CHAR interpreter[MAX_PATH+1];
 	MyString description;
 	BOOL ok;
+	MyString executable_with_exe;	// buffer for executable w/ .exe appended
 
 #else
 	int inherit_handles;
@@ -7244,7 +7297,7 @@ int DaemonCore::Create_Process(
 
 	// Define a some short-hand variables for use bellow
 	namelen				= strlen(executable);
-	extension			= namelen > 0 ? &(executable[namelen-4]) : NULL;
+	extension			= namelen > 3 ? &(executable[namelen-4]) : NULL;
 	batch_file			= ( extension && 
 							( MATCH == strcasecmp ( ".bat", extension ) || 
 							  MATCH == strcasecmp ( ".cmd", extension ) ) ),
@@ -7337,7 +7390,7 @@ int DaemonCore::Create_Process(
 			dprintf ( 
 				D_ALWAYS, 
 				"Create_Process(): Failed to extract "
-				"the file's extension.\n" );
+				"the extension from file %s.\n", executable );
 
 			/** don't fail here, since we want executables to run
 				as usual.  That is, some condor jobs submit 
@@ -7430,6 +7483,22 @@ int DaemonCore::Create_Process(
 	BOOL cp_result, gbt_result;
 	DWORD binType;
 	gbt_result = GetBinaryType(executable, &binType);
+
+	// if GetBinaryType() failed,
+	// try an alternate exec pathname (aka perhaps append .exe etc) and 
+	// try again. if there is an alternate exec pathname, stash the name
+	// in a C++ MyString buffer (so it is deallocated automagically) and
+	// change executable to point into that buffer.
+	if ( !gbt_result ) {
+		char *alt_name = alternate_exec_pathname( executable );
+		if ( alt_name ) {
+			executable_with_exe = alt_name;
+			executable = executable_with_exe.Value();
+			free(alt_name);
+				// try GetBinaryType again...
+			gbt_result = GetBinaryType(executable, &binType);
+		}
+	}
 
 	// test if the executable is either unexecutable, or if GetBinaryType()
 	// thinks its a DOS 16-bit app, but in reality the actual binary
@@ -8364,6 +8433,14 @@ DaemonCore::Kill_Family(pid_t pid)
 {
 	ASSERT(m_proc_family != NULL);
 	return m_proc_family->kill_family(pid);
+}
+
+int
+DaemonCore::Signal_Process(pid_t pid, int sig)
+{
+	ASSERT(m_proc_family != NULL);
+	dprintf(D_ALWAYS, "sending signal %d to process with pid %u\n",sig,pid);
+	return m_proc_family->signal_process(pid,sig);
 }
 
 void
