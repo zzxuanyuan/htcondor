@@ -171,11 +171,29 @@ SharedPortEndpoint::CreateListener()
 	m_full_name.sprintf(
 		"%s%c%s",m_socket_dir.Value(),DIR_DELIM_CHAR,m_local_id.Value());
 	//m_full_name_pid
-	int pipes[] = {-1, -1, -1};
-	daemonCoreSockAdapter.Create_Named_Pipe(pipes, true, true, true, true, 4096, m_full_name.Value());
-	m_pipe_out = pipes[0];
-	m_pipe_in = pipes[1];
+	//int pipes[] = {-1, -1, -1};
+	//daemonCoreSockAdapter.Create_Named_Pipe(pipes, true, false, true, true, 4096, m_full_name.Value());
+	//m_pipe_out = pipes[0];
+	//m_pipe_in = pipes[1];
+	//daemonCoreSockAdapter.Close_Pipe(m_pipe_in);
 	//m_full_name_pid.sprintf("%s%s%s",mailslot_dir.Value(), m_local_id.Value(), "_pid");
+	second_instance = CreateNamedPipe(
+		m_full_name.Value(),
+		PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+		PIPE_READMODE_BYTE,
+		PIPE_UNLIMITED_INSTANCES,
+		0,
+		1024,
+		0,
+		NULL);
+
+	if(second_instance == INVALID_HANDLE_VALUE)
+	{
+		EXCEPT("SharedPortEndpoint: Failed to create named pipe: %d\n", GetLastError());
+	}
+
+	m_pipe_out = daemonCoreSockAdapter.Inherit_Pipe_Handle(second_instance, false, true, true, 1024);
+
 	m_full_name_pid.sprintf("%s%s", m_full_name.Value(), "_pid");
 
 	pid_pipe = CreateNamedPipe(
@@ -187,6 +205,10 @@ SharedPortEndpoint::CreateListener()
 		256,
 		0,
 		NULL);
+	if(pid_pipe == INVALID_HANDLE_VALUE)
+	{
+		dprintf(D_ALWAYS, "SharedPortEndpoint: Failed to create pid pipe: %d\n", GetLastError());
+	}
 /*
 	SECURITY_ATTRIBUTES sa;
 	ZeroMemory(&sa, sizeof(SECURITY_ATTRIBUTES));
@@ -434,7 +456,7 @@ InstanceThread(void* instance)
 		DWORD pID = GetProcessId(GetCurrentProcess());
 
 		DWORD bytes_written;
-		BOOL written = WriteFile(pid_pipe,
+		BOOL written = WriteFile(pipe_end,
 			&pID,
 			sizeof(DWORD),
 			&bytes_written,
@@ -445,7 +467,7 @@ InstanceThread(void* instance)
 			DWORD error = GetLastError();
 			EXCEPT("SharedPortEndpoint: Failed to write PID, error value: %d", error);
 		}
-		FlushFileBuffers(pid_pipe);
+		FlushFileBuffers(pipe_end);
 		DisconnectNamedPipe(pipe_end);
 	}
 
@@ -674,18 +696,6 @@ void
 SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 {
 #ifdef WIN32
-	DWORD pID = GetProcessId(GetCurrentProcess());
-
-	DWORD bytes_written;
-	BOOL written = WriteFile(pid_mailslot_writer,
-		&pID,
-		sizeof(DWORD),
-		&bytes_written,
-		0);
-	if(!written)
-	{
-		EXCEPT("SharedPortEndpoint: Failed to write PID, return value: %d", bytes_written);
-	}
 	/*
 	Passing a socket in Windows requires passing a WSAPROTOCOL_INFO struct
 	that represents the socket in question, so in addition to the command

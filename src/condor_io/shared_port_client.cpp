@@ -179,35 +179,12 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		CloseHandle(pid_mailslot);
 		return false;
 	}
-	CloseHandle(pid_mailslot);
-/*
-	pid_mailslot = CreateMailslot(
-		pid_pipe_name.Value(),
-		0,
-		MAILSLOT_WAIT_FOREVER,
-		NULL);
-
-	if(pid_mailslot == INVALID_HANDLE_VALUE)
+	else
 	{
-		DWORD last_error = GetLastError();
-		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open mailslot for reading PID: %d.\n", last_error);
-		return false;
+		dprintf(D_ALWAYS, "SharedPortEndpoint: Read PID: %d\n", child_pid);
 	}
-	DWORD child_pid;
-	DWORD read_bytes = 0;
-
-	BOOL read_result = ReadFile(pid_mailslot, &child_pid, sizeof(DWORD), &read_bytes, NULL);
-
-	if(!read_result)
-	{
-		DWORD last_error = GetLastError();
-		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to read PID from mailslot: %d.\n", last_error);
-		CloseHandle(pid_mailslot);
-		return false;
-	}
-
 	CloseHandle(pid_mailslot);
-	*/
+
 	WSAPROTOCOL_INFO protocol_info;
 	int dup_result = WSADuplicateSocket(sock_to_pass->get_file_desc(), child_pid, &protocol_info);
 	if(dup_result == SOCKET_ERROR)
@@ -225,7 +202,7 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		0,
 		NULL);
 
-	if(!child_pipe)
+	if(child_pipe == INVALID_HANDLE_VALUE)
 	{
 		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for sending socket: %d\n", GetLastError());
 		return false;
