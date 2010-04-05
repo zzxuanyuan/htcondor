@@ -70,7 +70,7 @@ PIDFILE=
 # SHUTDOWN_FAST_TIMEOUT as set in your CONDOR_CONFIG to give
 # Condor as much chance as possible to shut itself and its children
 # down before we give up.  SHUTDOWN_FAST_TIMEOUT timeout defaults
-# to 300 (5 minutes), as of 2008.
+# to 300 (5 minutes), as of 2010.
 MAX_STOP_WAIT=30
 
 
@@ -288,7 +288,7 @@ wait_for_exit() {
 
 	if [ "`condor_pid`" = "" ]; then
 		return 0
-	else
+	else		
 		return 1
 	fi
 }
@@ -325,15 +325,19 @@ xstop() {
 	master_pid=`condor_pid`
 	if [ "$master_pid" != "" ]; then
 		echon "using kill..."
-        kill -QUIT "$master_pid"
-	else
-		init_condor_off
-		echon "using condor_off..."
-		"$CONDOR_OFF" -fast -master | grep -v 'Sent "Kill-Daemon-Fast" command'
-		if [ $? -gt 0 ]; then
-			echo "Failed to stop Condor (non-0 exit)."
-			return 1
-		fi
+	        kill -QUIT "$master_pid"
+	
+	# We assume that user will use init script to startup/shutdown condor only,
+	# so we will rely on pid file. condor_off cannot diferentiate between fail to stop condor
+	# or condor is not running, so we don't use it for now.
+#	else
+#		init_condor_off
+#		echon "using condor_off..."
+#		"$CONDOR_OFF" -fast -master | grep -v 'Sent "Kill-Daemon-Fast" command'
+#		if [ $? -gt 0 ]; then
+#			echo "Failed to stop Condor (non-0 exit)."
+#			return 1
+#		fi
 	fi
 
 	wait_for_exit 1 $MAX_STOP_WAIT
