@@ -302,6 +302,11 @@ exit 0
 if [ $1 = 0 ]; then
   #This should fail if it is unable to stop condor in timelimit
   /sbin/service condor stop
+  if [ $? = 1 ]; then
+     echo "Abort uninstallation"
+     exit 1;
+  fi
+
   /sbin/chkconfig --del condor
   
   #Remove init.d if relocated
