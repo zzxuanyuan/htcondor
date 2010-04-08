@@ -8,7 +8,7 @@ if (NOT WIN_EXEC_NODE_ONLY)
 	condor_daemon( schedd "${scheddRmvElements}" "${CONDOR_LIBS};${GSOAP_FOUND};${PCRE_FOUND};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND}" "${C_SBIN}" ON)
 endif(NOT WIN_EXEC_NODE_ONLY)
 
-	add_library( qmgmt STATIC ${qmgmtElements} qmgmt_common.cpp )
+condor_static_lib( qmgmt "${qmgmtElements};qmgmt_common.cpp" )
 
 
 

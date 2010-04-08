@@ -38,6 +38,7 @@ include (CondorExe)
 include (CondorDaemon)
 include (CondorStaticLib)
 include (CondorConfigure)     # will initiate the configure
+#include (InstallRequiredSystemLibraries)
 
 ##########################################################################
 ## Add subdirectories and build targets

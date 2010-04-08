@@ -5,18 +5,27 @@ if (WITH_GSOAP)
 	if ( NOT PROPER )
 
 		if (WINDOWS)
-			set (GSOAP_PATCH cp ${CMAKE_CURRENT_SOURCE_DIR}/config.WINDOWS.h gsoap/src/config.h)
-			set (GSOAP_CONFIGURE cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.win32 gsoap/src/Makefile.win32 )
-			set (GSOAP_MAKE set BISON_SIMPLE=${BISON_SIMPLE} \r\n
+			set (GSOAP_PATCH cd gsoap-2.7.10 \r\n
+							 gsoap-2.7.10cp ${CMAKE_CURRENT_SOURCE_DIR}/config.WINDOWS.h gsoap/src/config.h)
+			
+			set (GSOAP_CONFIGURE cd gsoap-2.7.10 \r\n
+								 cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.win32 gsoap/src/Makefile.win32 )
+			
+			set (GSOAP_MAKE cd gsoap-2.7.10 \r\n
+							set BISON_SIMPLE=${BISON_SIMPLE} \r\n
 			                gmake -f Makefile.win32 -C gsoap/src )
-			set (GSOAP_INSTALL set PACKAGE_INSTALL_DIR=${EXTERNAL_STAGE} \r\n 
+			
+			set (GSOAP_INSTALL cd gsoap-2.7.10 \r\n
+							   set PACKAGE_INSTALL_DIR=${EXTERNAL_STAGE} \r\n 
 			                   gmake -f Makefile.win32 install -C gsoap/src )
 		else()
-			set (GSOAP_PATCH  patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/install_soapcpp2_wsdl2h_aux-2.7.10.patch &&
-							  patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/fix_xlocale_insanity.patch )
-			set (GSOAP_CONFIGURE  ./configure --prefix=${EXTERNAL_STAGE} --disable-dependency-tracking CPPFLAGS=-I${EXTERNAL_STAGE}/include/)
-			set (GSOAP_MAKE make )
-			set (GSOAP_INSTALL make install )
+			set (GSOAP_PATCH  cd gsoap-2.7.10 && 
+							  patch --binary -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/install_soapcpp2_wsdl2h_aux-2.7.10.patch &&
+							  patch --binary -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/fix_xlocale_insanity.patch )
+			set (GSOAP_CONFIGURE  cd gsoap-2.7.10 && 
+								  ./configure --prefix=${EXTERNAL_STAGE} --disable-dependency-tracking CPPFLAGS=-I${EXTERNAL_STAGE}/include/)
+			set (GSOAP_MAKE cd gsoap-2.7.10 && make )
+			set (GSOAP_INSTALL cd gsoap-2.7.10 && make install )
 		endif()
 
 		ExternalProject_Add( gsoap

@@ -11,7 +11,7 @@ if (WITH_LIBVIRT)
 					DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/libvirt-0.6.2.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/libvirt-0.6.2.tar.gz
-					PATCH_COMMAND patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/no_gnutls.patch
+					PATCH_COMMAND patch --binary -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/no_gnutls.patch
 					#--Configure step ----------
 				    CONFIGURE_COMMAND ./configure --prefix=${EXTERNAL_STAGE} --disable-shared --without-python --without-xen --without-libvirtd --without-remote --without-test --without-uml --without-openvz --without-avahi --without-selinux --without-sasl --with-libxml=${EXTERNAL_STAGE}
 				    #--Build Step ----------

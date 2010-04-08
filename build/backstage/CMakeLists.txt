@@ -31,15 +31,21 @@ if ( WINDOWS )
 
 	# I don't particularly like this, but it gets the job done.
 	# check if we want to change this...
-	file (MAKE_DIRECTORY log spool execute)
+	#file (MAKE_DIRECTORY log spool execute)
 
-	# windows install targets
-	install ( DIRECTORY ./win/examples log spool execute
-			  DESTINATION . ) # will add the windows install directory
+	# windows install targets <- could have installer script create these...
+	#install ( DIRECTORY log spool execute
+	#		  DESTINATION . ) # will add the windows install directory
 
 	install ( FILES ./win/cdmake.exe
 				./win/mkisofs.bat
 			  DESTINATION ${C_BIN} )
+
+	# the following will create a config file for windows installer.
+    configure_file(${CONDOR_SOURCE_DIR}/build/backstage/win/condor_config_win.rht ${CONDOR_SOURCE_DIR}/build/backstage/win/condor_config_win @ONLY)
+	install ( FILES win/condor_config_win
+			  DESTINATION .
+			  RENAME condor_config )
 
 endif( WINDOWS )
 # windows install targets

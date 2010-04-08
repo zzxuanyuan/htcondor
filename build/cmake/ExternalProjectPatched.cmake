@@ -281,33 +281,33 @@ file(MAKE_DIRECTORY \"\${ut_dir}\")
 #
 message(STATUS \"extracting... [tar ${args}]\")
 execute_process(COMMAND \${CMAKE_COMMAND} -E tar ${args} \${filename}
-  WORKING_DIRECTORY \${ut_dir}
+  WORKING_DIRECTORY \${directory}
   RESULT_VARIABLE rv)
 
 if(NOT rv EQUAL 0)
   message(STATUS \"extracting... [error clean up]\")
-  file(REMOVE_RECURSE \"\${ut_dir}\")
+  file(REMOVE_RECURSE \"\${directory}\")
   message(FATAL_ERROR \"error: extract of '\${filename}' failed\")
 endif()
 
 # Analyze what came out of the tar file:
 #
 message(STATUS \"extracting... [analysis]\")
-file(GLOB contents \"\${ut_dir}/*\")
+file(GLOB contents \"\${directory}/*\")
 list(LENGTH contents n)
 if(NOT n EQUAL 1 OR NOT IS_DIRECTORY \"\${contents}\")
-  set(contents \"\${ut_dir}\")
+  set(contents \"\${directory}\")
 endif()
 
 # Copy \"the one\" directory to the final directory:
 #
-message(STATUS \"extracting... [copy]\")
-file(COPY \"\${contents}/\" DESTINATION \${directory})
+#message(STATUS \"extracting... [copy]\")
+#file(COPY \"\${contents}/\" DESTINATION \${directory})
 
 # Clean up:
 #
-message(STATUS \"extracting... [clean up]\")
-file(REMOVE_RECURSE \"\${ut_dir}\")
+#message(STATUS \"extracting... [clean up]\")
+#file(REMOVE_RECURSE \"\${ut_dir}\")
 
 message(STATUS \"extracting... done\")
 "

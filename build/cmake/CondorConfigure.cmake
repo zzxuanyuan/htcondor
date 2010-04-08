@@ -196,12 +196,13 @@ add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/krb5/1.4.3-p0)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/pcre/7.6)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/gsoap/2.7.10-p5)
 if ( NOT WIN_EXEC_NODE_ONLY )
+	add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/hadoop/0.20.0-p2)
 	add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/postgresql/8.0.2)
 	add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/drmaa/1.6)
-	set ( CONDOR_EXTERNALS drmaa postgresql )
+	set ( CONDOR_EXTERNALS hadoop drmaa postgresql )
 endif()
 
-set ( CONDOR_EXTERNALS ${CONDOR_EXTERNALS} openssl krb5 pcre gsoap hadoop )
+set ( CONDOR_EXTERNALS ${CONDOR_EXTERNALS} openssl krb5 pcre gsoap )
 
 if (NOT WINDOWS)
 
@@ -240,6 +241,8 @@ add_definitions(-DHAVE_CONFIG_H)
 ###########################################
 # The following two locations can be considered ubiquitous
 include_directories(${EXTERNAL_STAGE}/include)
+link_directories(${EXTERNAL_STAGE}/lib)
+
 if ($ENV{JAVA_HOME})
 	include_directories($ENV{JAVA_HOME}/include)
 endif()

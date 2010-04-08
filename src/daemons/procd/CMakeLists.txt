@@ -31,4 +31,4 @@ if (WINDOWS)
 	condor_exe( procd_ctl "procd_ctl.cpp" ${C_SBIN} "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${COREDUMPER_FOUND}")
 endif(WINDOWS)
 
-add_library(procd_client STATIC ${ProcClientElements})
+condor_static_lib(procd_client "${ProcClientElements}")

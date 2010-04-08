@@ -27,16 +27,16 @@ if ( NOT PROPER AND WITH_BLAHP )
 					    DOWNLOAD_DIR ${EXTERNAL_DL}
 						URL http://parrot.cs.wisc.edu/externals/blahp-1.12.2.tar.gz
 						#--Patch step ----------
-						PATCH_COMMAND patch -i ${CMAKE_CURRENT_SOURCE_DIR}/classad.patch -p0 &&
-							patch -i ${CMAKE_CURRENT_SOURCE_DIR}/mtrace.patch -p0 &&
-							patch -i ${CMAKE_CURRENT_SOURCE_DIR}/env_free.patch -p0 &&
-							patch -i ${CMAKE_CURRENT_SOURCE_DIR}/regbuf.patch -p0 && 
-							patch -i ${CMAKE_CURRENT_SOURCE_DIR}/registry.patch -p0 && 
-							patch -i ${CMAKE_CURRENT_SOURCE_DIR}/dl.patch -p0 &&
+						PATCH_COMMAND patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/classad.patch -p0 &&
+							patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/mtrace.patch -p0 &&
+							patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/env_free.patch -p0 &&
+							patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/regbuf.patch -p0 && 
+							patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/registry.patch -p0 && 
+							patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/dl.patch -p0 &&
 							cp ${CMAKE_CURRENT_SOURCE_DIR}/classads.m4 org.glite.ce.blahp/project &&
 							cp ${CMAKE_CURRENT_SOURCE_DIR}/globus.m4 org.glite.ce.blahp/project &&
 							cp ${CMAKE_CURRENT_SOURCE_DIR}/glite.m4 org.glite.ce.blahp/project.&&
-							patch -i ${CMAKE_CURRENT_SOURCE_DIR}/name-change.patch -p0 &&
+							patch --binary -i ${CMAKE_CURRENT_SOURCE_DIR}/name-change.patch -p0 &&
 							mv org.glite.ce.blahp/config/blah.config.template org.glite.ce.blahp/config/batch_gahp.config.template &&
 							cd org.glite.ce.blahp && ./bootstrap
 						#--Configure step ----------

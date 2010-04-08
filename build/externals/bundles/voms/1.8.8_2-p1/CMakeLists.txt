@@ -13,9 +13,9 @@ if ( NOT PROPER )
 						    DOWNLOAD_DIR ${EXTERNAL_DL}
 						    URL http://parrot.cs.wisc.edu/externals/voms-1.8.8_2.tar.gz
 							#--Patch step ----------
-							PATCH_COMMAND patch -p0 < configure.patch &&
-							 patch -p0 < includes.patch &&
-							 patch -p0 < makefile.patch
+							PATCH_COMMAND patch --binary -p0 < configure.patch &&
+							 patch --binary -p0 < includes.patch &&
+							 patch --binary -p0 < makefile.patch
 					    	#--Configure step ----------
 						    CONFIGURE_COMMAND ./configure --prefix=${EXTERNAL_STAGE} --with-api-only
 							 --with-openssl-prefix=${EXTERNAL_STAGE}

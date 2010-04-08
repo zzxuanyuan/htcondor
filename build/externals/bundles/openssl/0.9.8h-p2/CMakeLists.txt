@@ -7,23 +7,31 @@ if (WITH_OPENSSL)
 		message (STATUS "TODO: TSTCLAIR check again if we support AIX , also I think shoving in specific manifests is a bad idea!")
 
 		if (WINDOWS)
-			set (OPENSSL_PATCH patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/renegotiate.patch \r\n
-							   patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/mk1mf.pl-0.9.8h-patch \r\n
-							   patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/VC-32.pl-0.9.8h-patch )
+			set (OPENSSL_PATCH cd openssl-0.9.8h \r\n
+							   patch --binary -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/renegotiate.patch \r\n
+							   patch --binary -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/mk1mf.pl-0.9.8h-patch \r\n
+							   patch --binary -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/VC-32.pl-0.9.8h-patch )
 
-			set (OPENSSL_CONFIGURE perl Configure VC-WIN32 )
-			set (OPENSSL_MAKE  call ms/do_nt.bat && nmake -f ms/ntdll.mak)
-			set (OPENSSL_INSTALL cp out32dll/*.lib ${EXTERNAL_STAGE}/lib \r\n
+			set (OPENSSL_CONFIGURE cd openssl-0.9.8h \r\n
+								   perl Configure VC-WIN32 )
+			set (OPENSSL_MAKE  cd openssl-0.9.8h \r\n
+							   call ms/do_nt.bat \r\n 
+							   nmake -f ms/ntdll.mak )
+			set (OPENSSL_INSTALL cd openssl-0.9.8h \r\n
+								 cp out32dll/*.lib ${EXTERNAL_STAGE}/lib \r\n
 								 cp out32dll/*.dll ${EXTERNAL_STAGE}/lib \r\n
 								 cp -r inc32/* ${EXTERNAL_STAGE}/include \r\n
 								 cp ${CMAKE_CURRENT_SOURCE_DIR}/ossl_typ-post.h ${EXTERNAL_STAGE}/include/openssl/ossl_typ.h )
 		else()
-			set (OPENSSL_PATCH patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/renegotiate.patch &&
+			set (OPENSSL_PATCH cd openssl-0.9.8h && 
+							   patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/renegotiate.patch &&
 							   sed -i "s/-fomit-frame-pointer//" Configure )
 
-			set (OPENSSL_CONFIGURE ./config --prefix=${EXTERNAL_STAGE} no-asm -fPIC )
-			set (OPENSSL_MAKE make && make test )
-			set (OPENSSL_INSTALL make install )
+			set (OPENSSL_CONFIGURE cd openssl-0.9.8h &&
+								   ./config --prefix=${EXTERNAL_STAGE} no-asm -fPIC )
+			set (OPENSSL_MAKE cd openssl-0.9.8h &&
+						      make && make test )
+			set (OPENSSL_INSTALL cd openssl-0.9.8h && make install )
 		endif()
 
 		ExternalProject_Add(openssl

@@ -17,7 +17,7 @@ if ( NOT PROPER )
 							DOWNLOAD_COMMAND wget http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz ${CMD_TERM}
 							DOWNLOAD_DIR ${EXTERNAL_DL}
 							URL http://parrot.cs.wisc.edu/externals/hadoop-0.20.0.tar.gz
-							# PATCH_COMMAND patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/hadoop-0.20.0-patch
+							# PATCH_COMMAND patch --binary -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/hadoop-0.20.0-patch
 							CONFIGURE_COMMAND cd .
 							BUILD_COMMAND cd .
 							BUILD_IN_SOURCE 1

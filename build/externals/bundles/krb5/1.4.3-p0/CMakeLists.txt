@@ -9,24 +9,23 @@ if (WITH_KRB5)
 			# version of krb5, this is such a terrible practice it gives me chills.  b4 we 
 			# used to error out and go about our marry way.  OMG.
 
-			set (KRB5_PATCH cp ${CMAKE_CURRENT_SOURCE_DIR}/win-mac.pre.h src/include/win-mac.h )
-			set (KRB5_CONFIGURE cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.in src/appl/gssftp/ftp/Makefile.in )
-			set (KRB5_MAKE cd src \r\n
+			set (KRB5_PATCH cp ${CMAKE_CURRENT_SOURCE_DIR}/win-mac.pre.h krb5-1.4.3-p0/src/include/win-mac.h )
+			set (KRB5_CONFIGURE cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.in krb5-1.4.3-p0/src/appl/gssftp/ftp/Makefile.in )
+			set (KRB5_MAKE cd krb5-1.4.3-p0/src \r\n
 						   nmake -f Makefile.in prep-windows \r\n 
-			               nmake ) 
-			
-			# Something is wrong with the default install
-			#set (KRB5_INSTALL cd src \r\n
-			#				  nmake install KRB_INSTALL_DIR=${EXTERNAL_STAGE})
-			
+			               nmake NODEBUG=1) 
+		
 			set (KRB5_INSTALL cp ${CMAKE_CURRENT_SOURCE_DIR}/win-mac.post.h  ${EXTERNAL_STAGE}/include/win-mac.h \r\n
-							  cp -r src/lib/obj/i386/dbg/* ${EXTERNAL_STAGE}/lib \r\n
-							  cp -r src/include/* ${EXTERNAL_STAGE}/include)
+							  cp -r krb5-1.4.3-p0/src/lib/obj/i386/rel/* ${EXTERNAL_STAGE}/lib \r\n
+							  cp -r krb5-1.4.3-p0/src/include/* ${EXTERNAL_STAGE}/include \r\n 
+							  cd ${EXTERNAL_STAGE}/lib \r\n 
+							  ${CMAKE_CURRENT_SOURCE_DIR}/manifest.bat ) 							  							  							 
+							  
 		else()
-			set (KRB5_PATCH  cp ${CMAKE_CURRENT_SOURCE_DIR}/src.appl.telnet.configure src/appl/telnet/configure )
-			set (KRB5_CONFIGURE src/configure --prefix=${EXTERNAL_STAGE} --without-tcl --enable-static --sysconfdir=/etc --disable-thread-support )
-			set (KRB5_MAKE make )
-			set (KRB5_INSTALL make install )
+			set (KRB5_PATCH  cp ${CMAKE_CURRENT_SOURCE_DIR}/src.appl.telnet.configure krb5-1.4.3-p0/src/appl/telnet/configure )
+			set (KRB5_CONFIGURE krb5-1.4.3-p0/src/configure --prefix=${EXTERNAL_STAGE} --without-tcl --enable-static --sysconfdir=/etc --disable-thread-support )
+			set (KRB5_MAKE cd krb5-1.4.3-p0 && make )
+			set (KRB5_INSTALL  cd krb5-1.4.3-p0 && make install )
 		endif()
 
 		ExternalProject_Add(krb5

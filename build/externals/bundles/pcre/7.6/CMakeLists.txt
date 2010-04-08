@@ -5,20 +5,26 @@ if (WITH_PCRE)
 	if ( NOT PROPER )
 
 		if (WINDOWS)
-			set (PCRE_PATCH cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.win32 . \r\n
+			set (PCRE_PATCH cd pcre-7.6 \r\n
+							cp ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.win32 . \r\n
 							cp ${CMAKE_CURRENT_SOURCE_DIR}/pcre.h.win32 pcre.h \r\n
 							cp ${CMAKE_CURRENT_SOURCE_DIR}/libpcre.def.win32 libpcre.def )
-			set (PCRE_CONFIGURE cp ${CMAKE_CURRENT_SOURCE_DIR}/config.h.win32 config.h)
-			set (PCRE_MAKE gmake -f Makefile.win32 )
-			set (PCRE_INSTALL cp libpcre.lib ${EXTERNAL_STAGE}/lib \r\n
+			set (PCRE_CONFIGURE cd pcre-7.6 \r\n
+								cp ${CMAKE_CURRENT_SOURCE_DIR}/config.h.win32 config.h)
+			set (PCRE_MAKE cd pcre-7.6 \r\n
+						   gmake -f Makefile.win32 )
+			set (PCRE_INSTALL cd pcre-7.6 \r\n
+							  cp libpcre.lib ${EXTERNAL_STAGE}/lib \r\n
 							  cp libpcre.dll ${EXTERNAL_STAGE}/lib \r\n
 							  cp pcre.h ${EXTERNAL_STAGE}/include )
 		else()
-			set (PCRE_PATCH  patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/longlong.patch &&
-							 patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/unittests.patch )
-			set (PCRE_CONFIGURE ./configure --prefix=${EXTERNAL_STAGE} --disable-cpp )
-			set (PCRE_MAKE make && make test )
-			set (PCRE_INSTALL make install )
+			set (PCRE_PATCH  cd pcre-7.6 &&
+							 patch --binary -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/longlong.patch &&
+							 patch --binary -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/unittests.patch )
+			set (PCRE_CONFIGURE cd pcre-7.6 &&
+								./configure --prefix=${EXTERNAL_STAGE} --disable-cpp )
+			set (PCRE_MAKE cd pcre-7.6 && make && make test )
+			set (PCRE_INSTALL cd pcre-7.6 && make install )
 		endif()
 
 		ExternalProject_Add(pcre
