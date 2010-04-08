@@ -276,7 +276,7 @@ if [ $ETC != "/etc" ] ; then
   perl -p -i -e "s:^LOCAL_CONFIG_FILE(\s*)=\s*/etc(.*):LOCAL_CONFIG_FILE\$1= $ETC\$2:" $ETC/condor/condor_config 
   
   #Install init.d script only if this is the first instance
-  if [ $1 = 0 ]; then
+  if [ $1 = 1 ]; then
      cp -f $ETC/init.d/condor /etc/init.d/condor  
   fi
 fi
