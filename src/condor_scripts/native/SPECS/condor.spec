@@ -307,7 +307,9 @@ if [ $1 = 0 ]; then
      exit 1;
   fi
 
-  /sbin/chkconfig --del condor
+  if [ -e /etc/init.d/condor ]; then
+     /sbin/chkconfig --del condor
+  fi
   
   #Remove init.d if relocated
   ETC=$RPM_INSTALL_PREFIX0
