@@ -123,7 +123,6 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 	}
 
 	MyString pipe_name;
-	MyString pid_pipe_name;
 	MyString socket_dir;
 
 	if( !param(pipe_name,"DAEMON_SOCKET_DIR") ) {
@@ -131,8 +130,6 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 	}
 	pipe_name.sprintf_cat("%c%s",DIR_DELIM_CHAR,shared_port_id);
 
-//	pid_pipe_name.sprintf("\\\\.\\mailslot\\condor\\%s%s",shared_port_id, "_pid");
-	pid_pipe_name.sprintf("%s%s",pipe_name.Value(), "_pid");
 	MyString requested_by_buf;
 	if( !requested_by ) {
 		requested_by_buf.sprintf(
@@ -140,62 +137,9 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		requested_by = requested_by_buf.Value();
 	}
 
-	HANDLE pid_mailslot;
-	HANDLE child_pipe;
-	pid_mailslot = CreateFile(
-		pid_pipe_name.Value(),
-		GENERIC_READ,
-		FILE_SHARE_READ,
-		NULL,
-		OPEN_EXISTING,
-		0,
-		NULL);
-	if(pid_mailslot == INVALID_HANDLE_VALUE)
-	{
-		dprintf(D_ALWAYS, "SharedPortClient: Failed to open named pipe for reading PID: %d\n", GetLastError());
-		return false;
-	}
-
-	if(GetLastError() == ERROR_PIPE_BUSY)
-	{
-		dprintf(D_ALWAYS, "SharedPortClient: Failed to connect, pipe busy.\n");
-		return false;
-	}
-
-	DWORD child_pid;
-	DWORD read_bytes = 0;
-
-	DWORD dwMode = PIPE_READMODE_BYTE;
-	if(!SetNamedPipeHandleState(pid_mailslot, &dwMode, NULL, NULL))
-	{
-		dprintf(D_ALWAYS, "SharedPortClient: Failed to set pipe mode to read byte.\n");
-	}
-	BOOL read_result = ReadFile(pid_mailslot, &child_pid, sizeof(DWORD), &read_bytes, NULL);
-
-	if(!read_result)
-	{
-		DWORD last_error = GetLastError();
-		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to read PID from pipe: %d.\n", last_error);
-		CloseHandle(pid_mailslot);
-		return false;
-	}
-	else
-	{
-		dprintf(D_ALWAYS, "SharedPortEndpoint: Read PID: %d\n", child_pid);
-	}
-	CloseHandle(pid_mailslot);
-
-	WSAPROTOCOL_INFO protocol_info;
-	int dup_result = WSADuplicateSocket(sock_to_pass->get_file_desc(), child_pid, &protocol_info);
-	if(dup_result == SOCKET_ERROR)
-	{
-		dprintf(D_ALWAYS, "ERROR: SahredPortClient: Failed to duplicate socket.\n");
-		return false;
-	}
-
-	child_pipe = CreateFile(
+	HANDLE child_pipe = CreateFile(
 		pipe_name.Value(),
-		GENERIC_WRITE,
+		GENERIC_READ | GENERIC_WRITE,
 		0,
 		NULL,
 		OPEN_EXISTING,
@@ -204,22 +148,64 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 
 	if(child_pipe == INVALID_HANDLE_VALUE)
 	{
-		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for sending socket: %d\n", GetLastError());
+		if(GetLastError() == ERROR_PIPE_BUSY)
+		{
+		}
+		else
+		{
+			dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to open named pipe for sending socket: %d\n", GetLastError());
+			return false;
+		}
+	}
+
+	DWORD child_pid;
+	DWORD read_bytes = 0;
+/*
+	DWORD dwMode = PIPE_READMODE_BYTE;
+	if(!SetNamedPipeHandleState(pid_pipe, &dwMode, NULL, NULL))
+	{
+		dprintf(D_ALWAYS, "SharedPortClient: Failed to set pipe mode to read byte.\n");
+	}
+	*/
+	BOOL read_result = ReadFile(child_pipe, &child_pid, sizeof(DWORD), &read_bytes, NULL);
+
+	if(!read_result)
+	{
+		DWORD last_error = GetLastError();
+		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to read PID from pipe: %d.\n", last_error);
+		CloseHandle(child_pipe);
+		return false;
+	}
+	else
+	{
+		dprintf(D_ALWAYS, "SharedPortClient: Read PID: %d\n", child_pid);
+	}
+
+	WSAPROTOCOL_INFO protocol_info;
+	int dup_result = WSADuplicateSocket(sock_to_pass->get_file_desc(), child_pid, &protocol_info);
+	if(dup_result == SOCKET_ERROR)
+	{
+		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to duplicate socket.\n");
 		return false;
 	}
 
-	char buffer[sizeof(WSAPROTOCOL_INFO) + 1];
-	buffer[0] = (char)SHARED_PORT_PASS_SOCK;
-	memcpy_s(buffer+1, sizeof(WSAPROTOCOL_INFO), &protocol_info, sizeof(WSAPROTOCOL_INFO));
-	BOOL write_result = WriteFile(child_pipe, &protocol_info, sizeof(WSAPROTOCOL_INFO), &read_bytes, 0);
-
-	CloseHandle(child_pipe);
+	int bufferSize = sizeof(WSAPROTOCOL_INFO) + sizeof(int);
+	char *buffer = new char[bufferSize];
+	int cmd = SHARED_PORT_PASS_SOCK;
+	memcpy_s(buffer, sizeof(int), &cmd, sizeof(int));
+	memcpy_s(buffer+sizeof(int), sizeof(WSAPROTOCOL_INFO), &protocol_info, sizeof(WSAPROTOCOL_INFO));
+	BOOL write_result = WriteFile(child_pipe, buffer, bufferSize, &read_bytes, 0);
 
 	if(!write_result)
 	{
 		dprintf(D_ALWAYS, "ERROR: SharedPortClient: Failed to send WSAPROTOCOL_INFO struct: %d\n", GetLastError());
 		return false;
 	}
+	delete buffer;
+	dprintf(D_ALWAYS, "SharedPortClient: Wrote %d bytes to named pipe.\n", read_bytes);
+	FlushFileBuffers(child_pipe);
+
+	CloseHandle(child_pipe);
 
 	return true;
 #elif HAVE_SCM_RIGHTS_PASSFD

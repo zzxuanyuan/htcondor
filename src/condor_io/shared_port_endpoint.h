@@ -23,6 +23,7 @@
 #include "condor_daemon_core.h"
 #include "reli_sock.h"
 #include "selector.h"
+#include <queue>
 
 // SharedPortEndpoint receives connections forwarded from SharedPortServer.
 // This enables Condor daemons to share a single network port.
@@ -81,6 +82,10 @@ class SharedPortEndpoint: Service {
 		// Make the named socket owned such that it can be removed
 		// by a process with the specified priv state.
 	bool ChownSocket(priv_state priv);
+#ifdef WIN32
+	void PipeListenerThread();
+	void PipeListenerHelper();
+#endif
 #ifndef WIN32
 		// Remove named socket
 	static bool RemoveSocket( char const *fname );
@@ -113,17 +118,16 @@ class SharedPortEndpoint: Service {
 	MyString m_local_addr;
 	int m_retry_remote_addr_timer;
 #ifdef WIN32
-	int m_pipe_out;
-	int m_pipe_in;
+	CRITICAL_SECTION received_lock;
+	std::queue<WSAPROTOCOL_INFO*> received_sockets;
 	MyString m_full_name_pid;
 	HANDLE pid_pipe;
-	HANDLE second_instance;
-	HANDLE pid_mailslot_writer;
-	HANDLE pid_mailslot_reader;
-	MyString mailslot_dir;
+	HANDLE pipe_end;
 
 	DWORD threadID;
 	HANDLE thread_handle;
+
+	ReliSock *last_sock;
 #else
 	ReliSock m_listener_sock; // named socket to receive forwarded connections
 #endif

@@ -33,7 +33,6 @@
 // Check once that a method for passing fds has been enabled if we
 // are supposed to support shared ports.
 #ifdef HAVE_SHARED_PORT
-#else
 #ifndef WIN32
 #ifdef HAVE_SCM_RIGHTS_PASSFD
 #else
@@ -58,7 +57,6 @@ SharedPortEndpoint::SharedPortEndpoint(char const *sock_name):
 		// somebody.  Since our pid is in the name, this is a reasonable
 		// thing to do.
 
-	mailslot_dir.sprintf("\\\\.\\mailslot\\condor\\");
 	if( sock_name ) {
 			// we were given a name, so just use that
 		m_local_id = sock_name;
@@ -83,6 +81,10 @@ SharedPortEndpoint::SharedPortEndpoint(char const *sock_name):
 
 		sequence++;
 	}
+
+	last_sock = NULL;
+
+	InitializeCriticalSection(&received_lock);
 }
 
 SharedPortEndpoint::~SharedPortEndpoint()
@@ -164,111 +166,25 @@ SharedPortEndpoint::CreateListener()
 	}
 
 	dprintf(D_ALWAYS, "Inside CreateListener.\n");
-	/*
-	Creating the listener here entails creating two pipes, one for receiving commands
-	and one for broadcasting the process' pid.
-	*/
+
 	m_full_name.sprintf(
 		"%s%c%s",m_socket_dir.Value(),DIR_DELIM_CHAR,m_local_id.Value());
-	//m_full_name_pid
-	//int pipes[] = {-1, -1, -1};
-	//daemonCoreSockAdapter.Create_Named_Pipe(pipes, true, false, true, true, 4096, m_full_name.Value());
-	//m_pipe_out = pipes[0];
-	//m_pipe_in = pipes[1];
-	//daemonCoreSockAdapter.Close_Pipe(m_pipe_in);
-	//m_full_name_pid.sprintf("%s%s%s",mailslot_dir.Value(), m_local_id.Value(), "_pid");
-	second_instance = CreateNamedPipe(
+
+	pipe_end = CreateNamedPipe(
 		m_full_name.Value(),
-		PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-		PIPE_READMODE_BYTE,
-		PIPE_UNLIMITED_INSTANCES,
-		0,
+		PIPE_ACCESS_DUPLEX,
+		PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+		1,
+		1024,
 		1024,
 		0,
 		NULL);
 
-	if(second_instance == INVALID_HANDLE_VALUE)
+	if(pipe_end == INVALID_HANDLE_VALUE)
 	{
 		EXCEPT("SharedPortEndpoint: Failed to create named pipe: %d\n", GetLastError());
 	}
 
-	m_pipe_out = daemonCoreSockAdapter.Inherit_Pipe_Handle(second_instance, false, true, true, 1024);
-
-	m_full_name_pid.sprintf("%s%s", m_full_name.Value(), "_pid");
-
-	pid_pipe = CreateNamedPipe(
-		m_full_name_pid.Value(),
-		PIPE_ACCESS_OUTBOUND,
-		PIPE_READMODE_BYTE | PIPE_WAIT,
-		PIPE_UNLIMITED_INSTANCES,
-		256,
-		256,
-		0,
-		NULL);
-	if(pid_pipe == INVALID_HANDLE_VALUE)
-	{
-		dprintf(D_ALWAYS, "SharedPortEndpoint: Failed to create pid pipe: %d\n", GetLastError());
-	}
-/*
-	SECURITY_ATTRIBUTES sa;
-	ZeroMemory(&sa, sizeof(SECURITY_ATTRIBUTES));
-	sa.bInheritHandle = true;
-	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-
-	pid_mailslot_reader = CreateMailslot(
-		m_full_name_pid.Value(),
-		0,
-		MAILSLOT_WAIT_FOREVER,
-		NULL);
-	if(pid_mailslot_reader == INVALID_HANDLE_VALUE)
-	{
-		dprintf(D_ALWAYS, "SharedPortEndpoint::CreateListener: Failed to create mailslot reader: %d\n", GetLastError());
-	}
-	pid_mailslot_writer = CreateFile(m_full_name_pid.Value(),
-		GENERIC_WRITE,
-		FILE_SHARE_READ,
-		NULL,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		NULL);
-	if(pid_mailslot_writer == INVALID_HANDLE_VALUE)
-	{
-		dprintf(D_ALWAYS, "SharedPortEndpoint::CreateListener: Failed to create mailslot writer: %d\n", GetLastError());
-	}
-	
-	int pidPipe[3] = {-1, -1, -1};
-	daemonCoreSockAdapter.Create_Named_Pipe(pidPipe, false, false, false, false, 1024, m_full_name_pid.Value());
-	m_pipe_pid = pidPipe[1];
-	
-	pid_pipe = CreateNamedPipe(
-		m_full_name_pid.Value(),
-		PIPE_ACCESS_OUTBOUND,
-		PIPE_READMODE_BYTE | PIPE_WAIT,
-		PIPE_UNLIMITED_INSTANCES,
-		256,
-		256,
-		0,
-		NULL);
-	if(pid_pipe = INVALID_HANDLE_VALUE)
-	{
-		dprintf(D_ALWAYS, "Failed to create pid named pipe.\n");
-	}
-	second_instance = CreateNamedPipe(
-		m_full_name_pid.Value(),
-		PIPE_ACCESS_OUTBOUND,
-		PIPE_READMODE_BYTE | PIPE_WAIT,
-		PIPE_UNLIMITED_INSTANCES,
-		256,
-		256,
-		0,
-		NULL);
-	if(second_instance == INVALID_HANDLE_VALUE)
-	{
-		dprintf(D_ALWAYS, "Failed to create pid named pipe second instance.\n");
-	}
-	
-	m_pipe_pid = daemonCoreSockAdapter.Inherit_Pipe_Handle(pid_pipe, true, false, false, 256);
-	*/
 #elif HAVE_SCM_RIGHTS_PASSFD
 	if( m_listening ) {
 		return true;
@@ -385,31 +301,25 @@ SharedPortEndpoint::StartListener()
 	/*
 	Registering the named pipe.
 	*/
-	daemonCoreSockAdapter.Register_Pipe(m_pipe_out,
-		"named pipe listener",
-		(PipeHandlercpp)&SharedPortEndpoint::HandleListenerAccept,
-		"handle listener accept",
-		this);
-	dprintf(D_ALWAYS,"SharedPortEndpoint: waiting for connections to named pipe %s\n",
-			m_local_id.Value());
 
 	thread_handle = CreateThread(NULL,
 		0,
 		InstanceThread,
-		(LPVOID)pid_pipe,
+		(LPVOID)this,
 		0,
 		&threadID);
 	if(thread_handle == INVALID_HANDLE_VALUE)
 	{
 		EXCEPT("SharedPortEndpoint: Failed to create thread: %d", GetLastError());
 	}
-	/*
-	int bytes_written = daemonCoreSockAdapter.Write_Pipe(m_pipe_pid, &pID, sizeof(DWORD));
-	if(bytes_written != sizeof(DWORD))
-	{
-		EXCEPT("SharedPortEndpoint: Failed to write PID, return value: %d", bytes_written);
-	}
-	*/
+	dprintf(D_DAEMONCORE, "SharedPortEndpoint: Thread spun off, listening on pipes.\n");
+
+	daemonCoreSockAdapter.Register_Signal(
+		DC_SHARE_SOCK,
+		"Socket received",
+		(SignalHandlercpp)&SharedPortEndpoint::PipeListenerHelper,
+		"Socket received handler",
+		this);
 #else
 	int rc;
 	rc = daemonCoreSockAdapter.Register_Socket(
@@ -444,7 +354,16 @@ SharedPortEndpoint::StartListener()
 DWORD WINAPI
 InstanceThread(void* instance)
 {
-	HANDLE pipe_end = (HANDLE)instance;
+	SharedPortEndpoint *endpoint = (SharedPortEndpoint*)instance;
+	//HANDLE pipe_end = (HANDLE)instance;
+
+	endpoint->PipeListenerThread();
+	return 0;
+}
+
+void
+SharedPortEndpoint::PipeListenerThread()
+{
 	while(true)
 	{
 		if(!ConnectNamedPipe(pipe_end, NULL))
@@ -453,6 +372,7 @@ InstanceThread(void* instance)
 			continue;
 		}
 
+		dprintf(D_ALWAYS, "SharedPortEndpoint: Pipe connected\n");
 		DWORD pID = GetProcessId(GetCurrentProcess());
 
 		DWORD bytes_written;
@@ -467,11 +387,78 @@ InstanceThread(void* instance)
 			DWORD error = GetLastError();
 			EXCEPT("SharedPortEndpoint: Failed to write PID, error value: %d", error);
 		}
-		FlushFileBuffers(pipe_end);
+		//FlushFileBuffers(pipe_end);
+
+		int expected = sizeof(WSAPROTOCOL_INFO) + sizeof(int);
+		int buffSize = expected;
+		char *readBuff = new char[buffSize];
+		char *storeBuff = new char[buffSize];
+		ZeroMemory(storeBuff, buffSize);
+		DWORD bytes = 0;
+		int total_received = 0;
+		while(total_received < expected)
+		{
+			dprintf(D_ALWAYS, "SharedPortEndpoint: Inside while loop trying to read data.\n");
+			if(!ReadFile(pipe_end, readBuff, buffSize, &bytes, NULL))
+			{
+				dprintf(D_ALWAYS, "SharedPortEndpoint: Failed to read data from named pipe: %d\n", GetLastError());
+				break;
+			}
+			if(bytes < buffSize)
+			{
+				dprintf(D_ALWAYS, "SharedPortEndpoint: Partial read: %d\n", bytes);
+				memcpy_s(storeBuff + (expected - buffSize), 1024, readBuff, bytes);
+				total_received += bytes;
+				buffSize -= bytes;
+				delete [] readBuff;
+				readBuff = new char[buffSize];
+				continue;
+			}
+
+			dprintf(D_ALWAYS, "SharedPortEndpoint: Read entirety of WSAPROTOCOL_INFO\n");
+
+			//total_received += bytes;
+			int destOffset = expected - buffSize;
+			int destLeft = expected - total_received;
+			dprintf(D_ALWAYS, "SharedPortEndpoint: Read: %d Offset: %d Left: %d\n", bytes, destOffset, destLeft);
+			memcpy_s(storeBuff + destOffset, destLeft, readBuff, bytes);
+			delete [] readBuff;
+			readBuff = NULL;
+			int cmd;
+			memcpy_s(&cmd, sizeof(int), storeBuff, sizeof(int));
+			if( cmd != SHARED_PORT_PASS_SOCK ) {
+				dprintf(D_ALWAYS,
+					"SharedPortEndpoint: received unexpected command %d (%s) on named socket %s\n",
+					cmd,
+					getCommandString(cmd),
+					m_full_name.Value());
+				break;
+			}
+
+			//WSAPROTOCOL_INFO protocol_info;
+			WSAPROTOCOL_INFO *last_rec = HeapAlloc(GetProccessHeap(), 0, sizeof(WSAPROTOCOL_INFO));
+			memcpy_s(last_rec, sizeof(WSAPROTOCOL_INFO), storeBuff+sizeof(int), sizeof(WSAPROTOCOL_INFO));
+			dprintf(D_ALWAYS, "SharedPortEndpoint: Copied WSAPROTOCOL_INFO\n");
+			
+			EnterCriticalSection(&received_lock);
+			received_sockets.push(last_rec);
+			LeaveCriticalSection(&received_lock);
+			if(daemonCoreSockAdapter.isEnabled())
+				daemonCoreSockAdapter.Send_Signal(GetProcessId(), DC_SHARE_SOCK);
+
+			break;
+		}
+		delete [] storeBuff;
+
 		DisconnectNamedPipe(pipe_end);
 	}
+}
 
-	return 0;
+void
+SharedPortEndpoint::PipeListenerHelper()
+{
+	dprintf(D_ALWAYS, "SharedPortEndpoint: Inside PipeListenerHelper\n");
+	DoListenerAccept(NULL);
 }
 #endif
 int
@@ -696,55 +683,33 @@ void
 SharedPortEndpoint::DoListenerAccept(ReliSock *return_remote_sock)
 {
 #ifdef WIN32
-	/*
-	Passing a socket in Windows requires passing a WSAPROTOCOL_INFO struct
-	that represents the socket in question, so in addition to the command
-	code we need to pass the struct.  On the shared port server/client side
-	we will need to modify the placement of the command code into the buffer so
-	that it is only a single byte.
-	*/
-	int expected = sizeof(WSAPROTOCOL_INFO) + 1;
-	int buffSize = expected;
-	char *readBuff = new char[buffSize];
-	char storeBuff[1024];
-	int bytes = 0;
-	int total_received = 0;
-	while((bytes = daemonCoreSockAdapter.Read_Pipe(m_pipe_out, readBuff, buffSize)) > 0)
+	if(!return_remote_sock)
 	{
-		if(bytes < buffSize)
+		while(true)
 		{
-			memcpy_s(storeBuff + (expected - buffSize), 1024, readBuff, bytes);
-			buffSize -= bytes;
-			delete readBuff;
-			readBuff = new char[buffSize];
-			continue;
+			EnterCriticalSection(&received_lock);
+			WSAPROTOCOL_INFO *received_socket = received_sockets.pop();
+			LeaveCriticalSection(&received_lock);
+			if(!received_socket)
+			{
+				break;
+			}
+			return_remote_sock = new ReliSock();
+			return_remote_sock->assign(last_rec);
+			return_remote_sock->enter_connected_state();
+			return_remote_sock->isClient(false);
+			daemonCoreSockAdapter.HandleReqAsync(return_remote_sock);
+			HeapFree(GetProcessHeap(), NULL, received_socket);
 		}
-
-		memcpy_s(storeBuff + (expected - buffSize), 1024, readBuff, bytes);
-		delete readBuff;
-		int cmd = storeBuff[0];
-		if( cmd != SHARED_PORT_PASS_SOCK ) {
-			dprintf(D_ALWAYS,
-				"SharedPortEndpoint: received unexpected command %d (%s) on named socket %s\n",
-				cmd,
-				getCommandString(cmd),
-				m_full_name.Value());
-			return;
-		}
-
-		WSAPROTOCOL_INFO protocol_info;
-		memcpy_s(&protocol_info, sizeof(WSAPROTOCOL_INFO), storeBuff+1, sizeof(WSAPROTOCOL_INFO));
-
-		ReliSock *remote_sock = return_remote_sock;
-		if(!remote_sock)
-		{
-			remote_sock = new ReliSock();
-		}
-		remote_sock->assign(&protocol_info);
-		remote_sock->enter_connected_state();
-		remote_sock->isClient(false);
-
-		return;
+	}
+	else
+	{
+		EnterCriticalSection(&received_lock);
+		WSAPROTOCOL_INFO *received_socket = received_sockets.pop();
+		LeaveCriticalSection(&received_lock);
+		return_remote_sock->assign(last_rec);
+		return_remote_sock->enter_connected_state();
+		return_remote_sock->isClient(false);
 	}
 #else
 	ReliSock *accepted_sock = m_listener_sock.accept();
@@ -920,13 +885,13 @@ SharedPortEndpoint::serialize(MyString &inherit_buf,int &inherit_fd)
 	*/
 	dprintf(D_ALWAYS, "SharedPortEndpoint: Serializing.\n");
 	HANDLE current_process = GetCurrentProcess();
-	HANDLE m_duplicate_out = daemonCoreSockAdapter.Get_Inherit_Pipe_Handle(m_pipe_out);
+	//HANDLE m_duplicate_out = daemonCoreSockAdapter.Get_Inherit_Pipe_Handle(m_pipe_out);
 
 	//HANDLE m_duplicate_pid = daemonCoreSockAdapter.Get_Inherit_Pipe_Handle(m_pipe_pid);
 
 	char *named_pipe_handle = new char[MAX_PATH];
 	memset(named_pipe_handle, 0, MAX_PATH);
-	sprintf_s(named_pipe_handle, MAX_PATH, "%d*%d*%d", m_duplicate_out, pid_mailslot_writer, pid_mailslot_reader);
+	sprintf_s(named_pipe_handle, MAX_PATH, "%d*%d", pipe_end);
 
 	inherit_buf += named_pipe_handle;
 	delete [] named_pipe_handle;
@@ -952,7 +917,6 @@ SharedPortEndpoint::deserialize(char *inherit_buf)
 	inherit_buf = ptr+1;
 
 	m_local_id = condor_basename( m_full_name.Value() );
-	m_full_name_pid.sprintf("%s%s%s", mailslot_dir.Value(), m_local_id.Value(), "_pid");
 	char *socket_dir = condor_dirname( m_full_name.Value() );
 	m_socket_dir = socket_dir;
 	free( socket_dir );
@@ -961,10 +925,10 @@ SharedPortEndpoint::deserialize(char *inherit_buf)
 	Deserializing requires getting the handles out of the buffer and getting the pid pipe name
 	stored.  Registering the pipe is handled by StartListener().
 	*/
-	HANDLE named_pipe_out;
-	sscanf_s(inherit_buf, "%d*%d*%d", (int*)&named_pipe_out, (int*)&pid_mailslot_writer, (int*)pid_mailslot_reader);
+	m_full_name_pid.sprintf("%s%s", m_full_name.Value(), "_pid");
+	sscanf_s(inherit_buf, "%d*", (int*)&pipe_end);
 
-	m_pipe_out = daemonCoreSockAdapter.Inherit_Pipe_Handle(named_pipe_out, false, true, true, 4096);
+	//m_pipe_out = daemonCoreSockAdapter.Inherit_Pipe_Handle(out_pipe, false, true, true, 4096);
 #else
 	inherit_buf = m_listener_sock.serialize(inherit_buf);
 #endif
@@ -1077,7 +1041,8 @@ void
 SharedPortEndpoint::AddListenerToSelector(Selector &selector)
 {
 #ifdef WIN32
-	EXCEPT("Selector does not support checking pipes on Windows.");
+	//EXCEPT("Selector does not support checking pipes on Windows.");
+	return;
 #else
 	selector.add_fd(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif
@@ -1086,7 +1051,8 @@ void
 SharedPortEndpoint::RemoveListenerFromSelector(Selector &selector)
 {
 #ifdef WIN32
-	EXCEPT("Selector does not support checking pipes on Windows.");
+	//EXCEPT("Selector does not support checking pipes on Windows.");
+	return;
 #else
 	selector.delete_fd(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif
@@ -1095,8 +1061,15 @@ bool
 SharedPortEndpoint::CheckListenerReady(Selector &selector)
 {
 #ifdef WIN32
-	EXCEPT("Selector does not support checking pipes on Windows.");
-	return false;
+	//EXCEPT("Selector does not support checking pipes on Windows.");
+	//return false;
+	bool ready = false;
+	EnterCriticalSection(&received_lock);
+	if(received_sockets.size() > 0)
+		ready = true;
+	LeaveCriticalSection(&received_lock);
+
+	return ready;
 #else
 	return selector.fd_ready(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif
