@@ -41,6 +41,7 @@ class DaemonCoreSockAdapterClass {
     typedef int (DaemonCore::*Register_DataPtr_fnptr)( void *data );
     typedef void *(DaemonCore::*GetDataPtr_fnptr)();
 	typedef int (DaemonCore::*Register_Timer_fnptr)(unsigned deltawhen,TimerHandlercpp handler,const char * event_descrip,Service* s);
+	typedef int (DaemonCore::*Register_Timer_TS_fnptr)(unsigned deltawhen,TimerHandlercpp handler,const char * event_descrip,Service* s);
 	typedef int (DaemonCore::*Register_PeriodicTimer_fnptr)(unsigned deltawhen,unsigned period,TimerHandlercpp handler,const char * event_descrip,Service* s);
 	typedef int (DaemonCore::*Cancel_Timer_fnptr)(int id);
 	typedef bool (DaemonCore::*TooManyRegisteredSockets_fnptr)(int fd,MyString *msg,int num_fds);
@@ -57,34 +58,13 @@ class DaemonCoreSockAdapterClass {
 		int             dprintf_flag,
 		bool            force_authentication);
 	typedef void (DaemonCore::*daemonContactInfoChanged_fnptr)();
-	typedef int (DaemonCore::*Create_Named_Pipe_fnptr) (
-		int *pipe_ends,
-		bool can_register_read,
-		bool can_register_write,
-		bool nonblocking_read,
-		bool nonblocking_write,
-		unsigned int psize,
-		const char* pipe_name);
-	typedef int (DaemonCore::*Register_Pipe_fnptr) (
-		int pipe_end,
-		const char* pipe_descrip,
-		PipeHandlercpp handlercpp,
-		const char *handler_descrip,
-		Service* s,
-		HandlerType handler_type,
-		DCpermission perm);
-#ifdef WIN32
-	typedef HANDLE (DaemonCore::*Get_Inherit_Pipe_Handle_fnptr) (int pipe_end);
-	typedef int (DaemonCore::*Inherit_Pipe_Handle_fnptr) (
-		HANDLE pipe_handle,
-		bool write,
-		bool overlapping,
-		bool nonblocking,
-		int psize);
-#endif
-	typedef int (DaemonCore::*Read_Pipe_fnptr) (int pipe_end, void* buffer, int len);
-	typedef int (DaemonCore::*Write_Pipe_fnptr) (int pipe_end, const void* buffer, int len);
-	typedef int (DaemonCore::*Close_Pipe_fnptr) (int pipe_end);
+	typedef int (DaemonCore::*Register_Signal_fnptr) (
+		int                 sig,
+		const char *        sig_descript,
+		SignalHandlercpp    handlercpp, 
+		const char *        handler_descrip,
+		Service*            s);
+	typedef bool (DaemonCore::*Send_Signal_fnptr) (pid_t pid, int sig);
 
 
 	DaemonCoreSockAdapterClass(): m_daemonCore(0) {}
@@ -107,15 +87,8 @@ class DaemonCoreSockAdapterClass {
 		publicNetworkIpAddr_fnptr in_publicNetworkIpAddr_fnptr,
 		Register_Command_fnptr in_Register_Command_fnptr,
 		daemonContactInfoChanged_fnptr in_daemonContactInfoChanged_fnptr,
-		Create_Named_Pipe_fnptr in_Create_Named_Pipe_fnptr,
-		Register_Pipe_fnptr in_Register_Pipe_fnptr,
-#ifdef WIN32
-		Get_Inherit_Pipe_Handle_fnptr in_Get_Inherit_Pipe_Handle_fnptr,
-		Inherit_Pipe_Handle_fnptr in_Inherit_Pipe_Handle_fnptr,
-#endif
-		Read_Pipe_fnptr in_Read_Pipe_fnptr,
-		Write_Pipe_fnptr in_Write_Pipe_fnptr,
-		Close_Pipe_fnptr in_Close_Pipe_fnptr)
+		Register_Signal_fnptr in_Register_Signal_fnptr,
+		Send_Signal_fnptr in_Send_Signal_fnptr)
 	{
 		m_daemonCore = dC;
 		m_Register_Socket_fnptr = in_Register_Socket_fnptr;
@@ -134,15 +107,8 @@ class DaemonCoreSockAdapterClass {
 		m_publicNetworkIpAddr_fnptr = in_publicNetworkIpAddr_fnptr;
 		m_Register_Command_fnptr = in_Register_Command_fnptr;
 		m_daemonContactInfoChanged_fnptr = in_daemonContactInfoChanged_fnptr;
-		m_Create_Named_Pipe_fnptr = in_Create_Named_Pipe_fnptr;
-		m_Register_Pipe_fnptr = in_Register_Pipe_fnptr;
-#ifdef WIN32
-		m_Get_Inherit_Pipe_Handle_fnptr = in_Get_Inherit_Pipe_Handle_fnptr;
-		m_Inherit_Pipe_Handle_fnptr = in_Inherit_Pipe_Handle_fnptr;
-#endif
-		m_Read_Pipe_fnptr = in_Read_Pipe_fnptr;
-		m_Write_Pipe_fnptr = in_Write_Pipe_fnptr;
-		m_Close_Pipe_fnptr = in_Close_Pipe_fnptr;
+		m_Register_Signal_fnptr= in_Register_Signal_fnptr
+		m_Send_Signal_fnptr = in_Send_Signal_fnptr;
 	}
 
 		// These functions all have the same interface as the corresponding
@@ -165,15 +131,8 @@ class DaemonCoreSockAdapterClass {
 	publicNetworkIpAddr_fnptr m_publicNetworkIpAddr_fnptr;
 	Register_Command_fnptr m_Register_Command_fnptr;
 	daemonContactInfoChanged_fnptr m_daemonContactInfoChanged_fnptr;
-	Create_Named_Pipe_fnptr m_Create_Named_Pipe_fnptr;
-	Register_Pipe_fnptr m_Register_Pipe_fnptr;
-#ifdef WIN32
-	Get_Inherit_Pipe_Handle_fnptr m_Get_Inherit_Pipe_Handle_fnptr;
-	Inherit_Pipe_Handle_fnptr m_Inherit_Pipe_Handle_fnptr;
-#endif
-	Read_Pipe_fnptr m_Read_Pipe_fnptr;
-	Write_Pipe_fnptr m_Write_Pipe_fnptr;
-	Close_Pipe_fnptr m_Close_Pipe_fnptr;
+	Register_Signal_fnptr m_Register_Signal_fnptr;
+	Send_Signal_fnptr m_Send_Signal_fnptr;
 
     int Register_Socket (Stream*              iosock,
                          const char *         iosock_descrip,
@@ -296,61 +255,21 @@ class DaemonCoreSockAdapterClass {
 		return (m_daemonCore->*m_daemonContactInfoChanged_fnptr)();
 	}
 
-	int Create_Named_Pipe(
-		int *pipe_ends,
-		bool can_register_read,
-		bool can_register_write,
-		bool nonblocking_read,
-		bool nonblocking_write,
-		unsigned int psize,
-		const char* pipe_name)
+	int Register_Signal (int                 sig,
+                         const char *        sig_descript,
+                         SignalHandlercpp    handlercpp, 
+                         const char *        handler_descrip,
+                         Service*            s)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Create_Named_Pipe_fnptr)(pipe_ends, can_register_read, can_register_write, nonblocking_read, nonblocking_write, psize, pipe_name);
+		return (m_daemonCore->*m_Register_Signal_fnptr)(sig, sig_descript, handlercpp, handler_descrip, s);
 	}
 
-	int Register_Pipe(
-		int pipe_end,
-		const char* pipe_descrip,
-		PipeHandlercpp handlercpp,
-		const char *handler_descrip,
-		Service* s)
+	bool Send_Signal (pid_t pid, int sig)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Register_Pipe_fnptr)(pipe_end, pipe_descrip, handlercpp, handler_descrip, s, HANDLE_READ, ALLOW);
+		return (m_daemonCore->*m_Send_Signal)(pid, sig);
 	}
-
-	int Read_Pipe(int pipe_end, void* buffer, int len)
-	{
-		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Read_Pipe_fnptr)(pipe_end, buffer, len);
-	}
-
-	int Write_Pipe(int pipe_end, const void* buffer, int len)
-	{
-		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Write_Pipe_fnptr)(pipe_end, buffer, len);
-	}
-
-	int Close_Pipe(int pipe_end)
-	{
-		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Close_Pipe_fnptr)(pipe_end);
-	}
-
-#ifdef WIN32
-	HANDLE Get_Inherit_Pipe_Handle(int pipe_end)
-	{
-		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Get_Inherit_Pipe_Handle_fnptr)(pipe_end);
-	}
-
-	int Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize)
-	{
-		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Inherit_Pipe_Handle_fnptr)(pipe_handle, write, overlapping, nonblocking, psize);
-	}
-#endif
 };
 
 extern DaemonCoreSockAdapterClass daemonCoreSockAdapter;

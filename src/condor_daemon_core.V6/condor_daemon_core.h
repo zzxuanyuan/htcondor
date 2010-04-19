@@ -779,11 +779,6 @@ class DaemonCore : public Service
 
 	int Get_Max_Pipe_Buffer() { return maxPipeBuffer; };
 
-#ifdef WIN32
-	HANDLE Get_Inherit_Pipe_Handle(int pipe_end);
-	int Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize);
-#endif
-
 #if !defined(WIN32)
 	/** Get the FD underlying the given pipe end. Returns FALSE
 	 *  if not given a valid pipe end.
@@ -876,6 +871,10 @@ class DaemonCore : public Service
                         const char * event_descrip,
                         Service*     s);
 
+	int Register_Timer_TS (unsigned deltawhen,
+		TimerHandlercpp handler,
+		const char * event_descrip,
+		Service* s);
     /** Not_Yet_Documented
         @param deltawhen       Not_Yet_Documented
         @param period          Not_Yet_Documented

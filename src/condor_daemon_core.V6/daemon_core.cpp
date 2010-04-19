@@ -271,15 +271,8 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::publicNetworkIpAddr,
 		&DaemonCore::Register_Command,
 		&DaemonCore::daemonContactInfoChanged,
-		&DaemonCore::Create_Named_Pipe,
-		(DaemonCoreSockAdapterClass::Register_Pipe_fnptr)&DaemonCore::Register_Pipe,
-#ifdef WIN32
-		&DaemonCore::Get_Inherit_Pipe_Handle,
-		&DaemonCore::Inherit_Pipe_Handle,
-#endif
-		&DaemonCore::Read_Pipe,
-		&DaemonCore::Write_Pipe,
-		&DaemonCore::Close_Pipe);
+		&DaemonCore::Register_Signal,
+		&DaemonCore::Send_Signal);
 
 	if ( PidSize == 0 )
 		PidSize = DEFAULT_PIDBUCKETS;
@@ -833,6 +826,17 @@ int	DaemonCore::Register_Timer(unsigned deltawhen, TimerHandler handler,
 				const char *event_descrip)
 {
 	return( t.NewTimer(deltawhen, handler, event_descrip, 0) );
+}
+
+int DaemonCore::Register_Timer_TS(unsigned deltawhen, TimerHandlercpp handler,
+				const char *event_descrip, Service* s)
+{
+#ifdef WIN32
+	EnterCriticalSection(&Big_fat_mutex);
+	Register_Timer(deltawhen, handler, event_descrip, s);
+	LeaveCriticalSection(&Big_fat_mutex);
+#else
+#endif
 }
 
 int	DaemonCore::Register_Timer(unsigned deltawhen, TimerHandler handler,
@@ -2151,47 +2155,6 @@ DaemonCore::Write_Pipe(int pipe_end, const void* buffer, int len)
 	return write((*pipeHandleTable)[index], buffer, len);
 #endif
 }
-
-#ifdef WIN32
-HANDLE
-DaemonCore::Get_Inherit_Pipe_Handle(int pipe_end)
-{
-	PipeHandle pipe_handle;
-	int index = pipe_end - PIPE_INDEX_OFFSET;
-	pipeHandleTableLookup(index, &pipe_handle);
-	HANDLE m_handle = (*pipe_handle).get_handle();
-	HANDLE current_process = GetCurrentProcess();
-	HANDLE m_duplicate_out;
-	DuplicateHandle(
-		current_process,
-		m_handle,
-		current_process,
-		&m_duplicate_out,
-		0,
-		TRUE,
-		DUPLICATE_SAME_ACCESS);
-
-	return m_duplicate_out;
-}
-
-int
-DaemonCore::Inherit_Pipe_Handle(HANDLE pipe_handle, bool write, bool overlapping, bool nonblocking, int psize)
-{
-	DWORD overlapped_flag = 0;
-	if(nonblocking)
-		overlapped_flag = FILE_FLAG_OVERLAPPED;
-	if(write)
-	{
-		PipeHandle write_end = new WritePipeEnd(pipe_handle, overlapped_flag, nonblocking, psize);
-		return pipeHandleTableInsert(write_end) + PIPE_INDEX_OFFSET;
-	}
-	else
-	{
-		PipeHandle read_end = new ReadPipeEnd(pipe_handle, overlapped_flag, nonblocking, psize);
-		return pipeHandleTableInsert(read_end) + PIPE_INDEX_OFFSET;
-	}
-}
-#endif
 
 #if !defined(WIN32)
 int
@@ -5803,7 +5766,7 @@ int DaemonCore::Continue_Process(pid_t pid)
 int DaemonCore::SetDataPtr(void *dptr)
 {
 	// note: curr_dataptr is updated by daemon core
-	// whenever a register_* or a hanlder invocation takes place
+	// whenever a register_* or a handler invocation takes place
 
 	if ( curr_dataptr == NULL ) {
 		return FALSE;
