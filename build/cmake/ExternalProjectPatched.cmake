@@ -251,9 +251,9 @@ function(_ep_write_extractfile_script script_filename filename tmp directory)
   if(filename MATCHES ".tar.gz$")
     set(args xfz)
   endif()
-
-  if(args STREQUAL "")
-    message(SEND_ERROR "error: do not know how to extract '${filename}' -- known types are .tar, .tgz and .tar.gz")
+  
+  if(args STREQUAL "" AND NOT filename MATCHES ".zip$")
+    message(SEND_ERROR "error: do not know how to extract '${filename}' -- known types are .tar, .zip, .tgz and .tar.gz")
     return()
   endif()
 
@@ -279,10 +279,18 @@ file(MAKE_DIRECTORY \"\${ut_dir}\")
 
 # Extract it:
 #
-message(STATUS \"extracting... [tar ${args}]\")
-execute_process(COMMAND \${CMAKE_COMMAND} -E tar ${args} \${filename}
-  WORKING_DIRECTORY \${directory}
-  RESULT_VARIABLE rv)
+message(STATUS \"extracting... [tar|zip] args=${args}\")
+if(\${filename} MATCHES \".zip$\")
+    execute_process(COMMAND 7z x -y \${filename}
+		WORKING_DIRECTORY \${directory}
+		RESULT_VARIABLE rv)
+else()
+	execute_process(COMMAND \${CMAKE_COMMAND} -E tar ${args} \${filename}
+		WORKING_DIRECTORY \${directory}
+		RESULT_VARIABLE rv)
+endif()
+
+
 
 if(NOT rv EQUAL 0)
   message(STATUS \"extracting... [error clean up]\")
@@ -624,7 +632,7 @@ function(_ep_add_download_command name)
     set(work_dir ${download_dir})
     
     string(REGEX MATCH "[^/]*$" fname "${url}")
-    if(NOT "${fname}" MATCHES "\\.(tar|tgz|tar\\.gz)$")
+    if(NOT "${fname}" MATCHES "\\.(tar|tgz|zip|tar\\.gz)$")
 		message(FATAL_ERROR "Could not extract tarball filename from url:\n  ${url}")
     endif()
     
