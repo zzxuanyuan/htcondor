@@ -271,8 +271,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::publicNetworkIpAddr,
 		&DaemonCore::Register_Command,
 		&DaemonCore::daemonContactInfoChanged,
-		&DaemonCore::Register_Signal,
-		&DaemonCore::Send_Signal);
+		&DaemonCore::Register_Timer_TS);
 
 	if ( PidSize == 0 )
 		PidSize = DEFAULT_PIDBUCKETS;
@@ -833,9 +832,13 @@ int DaemonCore::Register_Timer_TS(unsigned deltawhen, TimerHandlercpp handler,
 {
 #ifdef WIN32
 	EnterCriticalSection(&Big_fat_mutex);
-	Register_Timer(deltawhen, handler, event_descrip, s);
+	int status = Register_Timer(deltawhen, handler, event_descrip, s);
 	LeaveCriticalSection(&Big_fat_mutex);
+
+	Do_Wake_up_select();
+	return status;
 #else
+	return 0;
 #endif
 }
 
@@ -2889,8 +2892,13 @@ DaemonCore::Wake_up_select()
 	if ( CondorThreads::get_handle()->get_tid() == 1 ) {
 		return;
 	}
+	Do_Wake_up_select();
+}
 
-	if ( async_pipe_empty ) {
+void
+DaemonCore::Do_Wake_up_select()
+{
+		if ( async_pipe_empty ) {
 #ifdef WIN32
 		async_pipe[1].put( '!' );
 		async_pipe[1].end_of_message();
@@ -5480,7 +5488,7 @@ void DaemonCore::Send_Signal(classy_counted_ptr<DCSignalMsg> msg, bool nonblocki
 	classy_counted_ptr<Daemon> d = new Daemon( DT_ANY, destination );
 
 	// now destination process is local, send via UDP; if remote, send via TCP
-	if ( is_local == TRUE ) {
+	if ( is_local == TRUE && d->hasUDPCommandPort()) {
 		msg->setStreamType(Stream::safe_sock);
 		if( !nonblocking ) msg->setTimeout(3);
 	}

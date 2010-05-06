@@ -58,13 +58,11 @@ class DaemonCoreSockAdapterClass {
 		int             dprintf_flag,
 		bool            force_authentication);
 	typedef void (DaemonCore::*daemonContactInfoChanged_fnptr)();
-	typedef int (DaemonCore::*Register_Signal_fnptr) (
-		int                 sig,
-		const char *        sig_descript,
-		SignalHandlercpp    handlercpp, 
-		const char *        handler_descrip,
-		Service*            s);
-	typedef bool (DaemonCore::*Send_Signal_fnptr) (pid_t pid, int sig);
+	typedef int (DaemonCore::*Register_Timer_TS_fnptr)(
+		unsigned deltawhen,
+		TimerHandlercpp handler,
+		const char *event_descrip,
+		Service* s);
 
 
 	DaemonCoreSockAdapterClass(): m_daemonCore(0) {}
@@ -87,8 +85,7 @@ class DaemonCoreSockAdapterClass {
 		publicNetworkIpAddr_fnptr in_publicNetworkIpAddr_fnptr,
 		Register_Command_fnptr in_Register_Command_fnptr,
 		daemonContactInfoChanged_fnptr in_daemonContactInfoChanged_fnptr,
-		Register_Signal_fnptr in_Register_Signal_fnptr,
-		Send_Signal_fnptr in_Send_Signal_fnptr)
+		Register_Timer_TS_fnptr in_Register_Timer_TS_fnptr)
 	{
 		m_daemonCore = dC;
 		m_Register_Socket_fnptr = in_Register_Socket_fnptr;
@@ -107,8 +104,7 @@ class DaemonCoreSockAdapterClass {
 		m_publicNetworkIpAddr_fnptr = in_publicNetworkIpAddr_fnptr;
 		m_Register_Command_fnptr = in_Register_Command_fnptr;
 		m_daemonContactInfoChanged_fnptr = in_daemonContactInfoChanged_fnptr;
-		m_Register_Signal_fnptr= in_Register_Signal_fnptr
-		m_Send_Signal_fnptr = in_Send_Signal_fnptr;
+		m_Register_Timer_TS_fnptr = in_Register_Timer_TS_fnptr;
 	}
 
 		// These functions all have the same interface as the corresponding
@@ -131,8 +127,7 @@ class DaemonCoreSockAdapterClass {
 	publicNetworkIpAddr_fnptr m_publicNetworkIpAddr_fnptr;
 	Register_Command_fnptr m_Register_Command_fnptr;
 	daemonContactInfoChanged_fnptr m_daemonContactInfoChanged_fnptr;
-	Register_Signal_fnptr m_Register_Signal_fnptr;
-	Send_Signal_fnptr m_Send_Signal_fnptr;
+	Register_Timer_TS_fnptr m_Register_Timer_TS_fnptr;
 
     int Register_Socket (Stream*              iosock,
                          const char *         iosock_descrip,
@@ -255,20 +250,11 @@ class DaemonCoreSockAdapterClass {
 		return (m_daemonCore->*m_daemonContactInfoChanged_fnptr)();
 	}
 
-	int Register_Signal (int                 sig,
-                         const char *        sig_descript,
-                         SignalHandlercpp    handlercpp, 
-                         const char *        handler_descrip,
-                         Service*            s)
+	int Register_Timer_TS(unsigned deltawhen, TimerHandlercpp handler,
+				const char *event_descrip, Service* s)
 	{
 		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Register_Signal_fnptr)(sig, sig_descript, handlercpp, handler_descrip, s);
-	}
-
-	bool Send_Signal (pid_t pid, int sig)
-	{
-		ASSERT(m_daemonCore);
-		return (m_daemonCore->*m_Send_Signal)(pid, sig);
+		return (m_daemonCore->*m_Register_Timer_TS_fnptr)(deltawhen, handler, event_descrip, s);
 	}
 };
 

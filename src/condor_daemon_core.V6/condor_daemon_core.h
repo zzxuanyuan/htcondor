@@ -1371,6 +1371,8 @@ class DaemonCore : public Service
 	
 	void Wake_up_select();
 
+	void Do_Wake_up_select();
+
 		/** Registers a socket for read and then calls HandleReq to
 			process a command on the socket once one becomes
 			available.
