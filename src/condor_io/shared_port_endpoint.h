@@ -69,7 +69,7 @@ class SharedPortEndpoint: Service {
 		// Appends string to buffer and sets file descriptor that needs
 		// to be inherited so that this object can be reconstructed
 		// in a child process.
-	void serialize(MyString &inherit_buf,int &inherit_fd);
+	bool serialize(MyString &inherit_buf,int &inherit_fd);
 
 		// Restore state of object stored with serialize().
 		// Returns pointer to anything trailing in inherit_buf.
@@ -119,15 +119,19 @@ class SharedPortEndpoint: Service {
 	int m_retry_remote_addr_timer;
 #ifdef WIN32
 	CRITICAL_SECTION received_lock;
+	CRITICAL_SECTION kill_lock;
 	std::queue<WSAPROTOCOL_INFO*> received_sockets;
 	MyString m_full_name_pid;
-	HANDLE pid_pipe;
+	bool kill_thread;
 	HANDLE pipe_end;
 
 	DWORD threadID;
 	HANDLE thread_handle;
 
-	ReliSock *last_sock;
+//	ReliSock *pair_source;
+//	ReliSock *pair_dest;
+
+	bool StartListenerWin32();
 #else
 	ReliSock m_listener_sock; // named socket to receive forwarded connections
 #endif

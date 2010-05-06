@@ -137,19 +137,29 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 		requested_by = requested_by_buf.Value();
 	}
 
-	HANDLE child_pipe = CreateFile(
-		pipe_name.Value(),
-		GENERIC_READ | GENERIC_WRITE,
-		0,
-		NULL,
-		OPEN_EXISTING,
-		0,
-		NULL);
-
-	if(child_pipe == INVALID_HANDLE_VALUE)
+	HANDLE child_pipe;
+	
+	while(true)
 	{
+		child_pipe = CreateFile(
+			pipe_name.Value(),
+			GENERIC_READ | GENERIC_WRITE,
+			0,
+			NULL,
+			OPEN_EXISTING,
+			0,
+			NULL);
+
+		if(child_pipe != INVALID_HANDLE_VALUE)
+			break;
+
 		if(GetLastError() == ERROR_PIPE_BUSY)
 		{
+			if (!WaitNamedPipe(pipe_name.Value(), 20000)) 
+			{
+				dprintf(D_ALWAYS, "ERROR: SharedPortClient: Wait for named pipe for sending socket timed out: %d\n", GetLastError());
+				return false;
+			}
 		}
 		else
 		{
@@ -160,13 +170,7 @@ SharedPortClient::PassSocket(Sock *sock_to_pass,char const *shared_port_id,char 
 
 	DWORD child_pid;
 	DWORD read_bytes = 0;
-/*
-	DWORD dwMode = PIPE_READMODE_BYTE;
-	if(!SetNamedPipeHandleState(pid_pipe, &dwMode, NULL, NULL))
-	{
-		dprintf(D_ALWAYS, "SharedPortClient: Failed to set pipe mode to read byte.\n");
-	}
-	*/
+
 	BOOL read_result = ReadFile(child_pipe, &child_pid, sizeof(DWORD), &read_bytes, NULL);
 
 	if(!read_result)
