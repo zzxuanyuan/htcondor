@@ -82,10 +82,11 @@ SharedPortEndpoint::SharedPortEndpoint(char const *sock_name):
 		sequence++;
 	}
 #ifdef WIN32
-//	pair_source = NULL;
-//	pair_dest = NULL;
+	wake_select_source = NULL;
+	wake_select_dest = NULL;
 
 	kill_thread = false;
+	thread_killed = INVALID_HANDLE_VALUE;
 
 	InitializeCriticalSection(&received_lock);
 	InitializeCriticalSection(&kill_lock);
@@ -98,13 +99,17 @@ SharedPortEndpoint::~SharedPortEndpoint()
 	StopListener();
 
 #ifdef WIN32
-	/*
-	if(pair_source)
+	
+	if(wake_select_source)
 	{
-		delete pair_source;
-		delete pair_dest;
+		delete wake_select_source;
+		delete wake_select_dest;
 	}
-	*/
+
+	DWORD wait_result = WaitForSingleObject(thread_killed, 100);
+	if(wait_result != WAIT_OBJECT_0)
+		dprintf(D_ALWAYS, "SharedPortEndpoint: Destructor: Problem in thread shutdown notification: %d\n", GetLastError());
+	CloseHandle(thread_killed);
 #endif
 }
 
@@ -418,6 +423,11 @@ SharedPortEndpoint::StartListenerWin32()
 
 	kill_thread = false;
 
+	thread_killed = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+	if(thread_killed == INVALID_HANDLE_VALUE)
+		EXCEPT("SharedPortEndpoint: Failed to create cleanup event: %d\n", GetLastError());
+
 	m_registered_listener = true;
 
 	return m_registered_listener;
@@ -429,9 +439,17 @@ InstanceThread(void* instance)
 	SharedPortEndpoint *endpoint = (SharedPortEndpoint*)instance;
 
 	endpoint->PipeListenerThread();
-	return 0;
+/*
+	if(!SetEvent(endpoint->thread_killed))
+		dprintf(D_ALWAYS, "SharedPortEndpoint: Error: Failed to signal thread termination.\n");
+*/	return 0;
 }
 
+/*
+DPRINTF IS COMMENTED OUT FOR A REASON!!!!!!
+IT ISN'T THREADSAFE!!!!!
+UNCOMMENT IF DPRINTF BECOMES THREADSAFE!!!!!!
+*/
 void
 SharedPortEndpoint::PipeListenerThread()
 {
@@ -439,7 +457,7 @@ SharedPortEndpoint::PipeListenerThread()
 	{
 		if(!ConnectNamedPipe(pipe_end, NULL))
 		{
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Client failed to connect: %d\n", GetLastError());
+//			dprintf(D_ALWAYS, "SharedPortEndpoint: Client failed to connect: %d\n", GetLastError());
 			continue;
 		}
 
@@ -447,7 +465,7 @@ SharedPortEndpoint::PipeListenerThread()
 		if(kill_thread)
 		{
 			LeaveCriticalSection(&kill_lock);
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Listener thread received kill request.\n");
+//			dprintf(D_ALWAYS, "SharedPortEndpoint: Listener thread received kill request.\n");
 			DisconnectNamedPipe(pipe_end);
 			CloseHandle(pipe_end);
 			DeleteCriticalSection(&kill_lock);
@@ -456,7 +474,7 @@ SharedPortEndpoint::PipeListenerThread()
 
 		LeaveCriticalSection(&kill_lock);
 
-		dprintf(D_ALWAYS, "SharedPortEndpoint: Pipe connected\n");
+//		dprintf(D_ALWAYS, "SharedPortEndpoint: Pipe connected\n");
 		DWORD pID = GetProcessId(GetCurrentProcess());
 
 		DWORD bytes_written;
@@ -469,6 +487,7 @@ SharedPortEndpoint::PipeListenerThread()
 		if(!written || bytes_written != sizeof(DWORD))
 		{
 			DWORD error = GetLastError();
+			//TODO: DO SOMETHING THREADSAFE HERE IN PLACE OF EXCEPT!!!!!!!!!!!!!!!!
 			EXCEPT("SharedPortEndpoint: Failed to write PID, error value: %d", error);
 		}
 		//FlushFileBuffers(pipe_end);
@@ -482,15 +501,15 @@ SharedPortEndpoint::PipeListenerThread()
 		int total_received = 0;
 		while(total_received < expected)
 		{
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Inside while loop trying to read data.\n");
+//			dprintf(D_ALWAYS, "SharedPortEndpoint: Inside while loop trying to read data.\n");
 			if(!ReadFile(pipe_end, readBuff, buffSize, &bytes, NULL))
 			{
-				dprintf(D_ALWAYS, "SharedPortEndpoint: Failed to read data from named pipe: %d\n", GetLastError());
+//				dprintf(D_ALWAYS, "SharedPortEndpoint: Failed to read data from named pipe: %d\n", GetLastError());
 				break;
 			}
 			if(bytes < buffSize)
 			{
-				dprintf(D_ALWAYS, "SharedPortEndpoint: Partial read: %d\n", bytes);
+//				dprintf(D_ALWAYS, "SharedPortEndpoint: Partial read: %d\n", bytes);
 				memcpy_s(storeBuff + (expected - buffSize), 1024, readBuff, bytes);
 				total_received += bytes;
 				buffSize -= bytes;
@@ -499,51 +518,57 @@ SharedPortEndpoint::PipeListenerThread()
 				continue;
 			}
 
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Read entirety of WSAPROTOCOL_INFO\n");
+			//dprintf(D_ALWAYS, "SharedPortEndpoint: Read entirety of WSAPROTOCOL_INFO\n");
 
 			//total_received += bytes;
 			int destOffset = expected - buffSize;
 			int destLeft = expected - total_received;
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Read: %d Offset: %d Left: %d\n", bytes, destOffset, destLeft);
+//			dprintf(D_ALWAYS, "SharedPortEndpoint: Read: %d Offset: %d Left: %d\n", bytes, destOffset, destLeft);
 			memcpy_s(storeBuff + destOffset, destLeft, readBuff, bytes);
 			delete [] readBuff;
 			readBuff = NULL;
 			int cmd;
 			memcpy_s(&cmd, sizeof(int), storeBuff, sizeof(int));
 			if( cmd != SHARED_PORT_PASS_SOCK ) {
-				dprintf(D_ALWAYS,
+/*				dprintf(D_ALWAYS,
 					"SharedPortEndpoint: received unexpected command %d (%s) on named socket %s\n",
 					cmd,
 					getCommandString(cmd),
 					m_full_name.Value());
-				break;
+*/				break;
 			}
 
 			//WSAPROTOCOL_INFO protocol_info;
 			WSAPROTOCOL_INFO *last_rec = (WSAPROTOCOL_INFO *)HeapAlloc(GetProcessHeap(), 0, sizeof(WSAPROTOCOL_INFO));
 			memcpy_s(last_rec, sizeof(WSAPROTOCOL_INFO), storeBuff+sizeof(int), sizeof(WSAPROTOCOL_INFO));
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Copied WSAPROTOCOL_INFO\n");
+//			dprintf(D_ALWAYS, "SharedPortEndpoint: Copied WSAPROTOCOL_INFO\n");
 			
 			EnterCriticalSection(&received_lock);
 			received_sockets.push(last_rec);
 			LeaveCriticalSection(&received_lock);
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Registering timer.\n");
-			int status = daemonCoreSockAdapter.Register_Timer_TS(0, (TimerHandlercpp)&SharedPortEndpoint::PipeListenerHelper, "Received socket handler", this);
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Timer registration status: %d\n", status);
-			/*
-			if(!pair_dest)
+			
+			if(!wake_select_dest)
 			{
-				
+//				dprintf(D_ALWAYS, "SharedPortEndpoint: Registering timer.\n");
+				int status = daemonCoreSockAdapter.Register_Timer_TS(0, (TimerHandlercpp)&SharedPortEndpoint::PipeListenerHelper, "Received socket handler", this);
+//				dprintf(D_ALWAYS, "SharedPortEndpoint: Timer registration status: %d\n", status);
 			}
 			else
 			{
-				dprintf(D_ALWAYS, "SharedPortEndpoint:CCB client, writing to sockets to wake select.\n");
-				int wake = 1;
-				pair_source->put_bytes(&wake, sizeof(int));
-				pair_source->end_of_message();
+//				dprintf(D_ALWAYS, "SharedPortEndpoint:CCB client, writing to sockets to wake select.\n");
+				char wake[1];
+				wake[0] = 'A';
+				//wake_select_source->put_bytes(&wake, sizeof(int));
+				//wake_select_source->end_of_message();
+				int sock_fd = wake_select_source->get_file_desc();
+//				dprintf(D_ALWAYS, "SharedPortEndpoint: Sock FD: %d\n", sock_fd);
+				int write_success = send(sock_fd, wake, sizeof(char), 0);
+				//TODO: DO SOMETHING THREADSAFE HERE IN PLACE OF EXCEPT!!!!!!!!!!!!!!!!
+				if(write_success == SOCKET_ERROR)
+					EXCEPT("SharedPortEndpoint: Failed to write to select wakeup: %d\n", WSAGetLastError());
 			}
-			*/
-			dprintf(D_ALWAYS, "SharedPortEndpoint: Finished reading from pipe.\n");
+			
+//			dprintf(D_ALWAYS, "SharedPortEndpoint: Finished reading from pipe.\n");
 
 			break;
 		}
@@ -1137,19 +1162,17 @@ void
 SharedPortEndpoint::AddListenerToSelector(Selector &selector)
 {
 #ifdef WIN32
-	/*
-	if(pair_dest)
+	
+	if(wake_select_dest)
 		EXCEPT("SharedPortEndpoint: AddListenerToSelector: Already registered.\n");
 
-	pair_source = new ReliSock;
-	pair_dest = new ReliSock;
-	pair_source->connect_socketpair(*pair_dest);
-	selector.add_fd(pair_dest->get_file_desc(), Selector::IO_READ);
+	wake_select_source = new ReliSock;
+	wake_select_dest = new ReliSock;
+	wake_select_source->connect_socketpair(*wake_select_dest);
+	selector.add_fd(wake_select_dest->get_file_desc(), Selector::IO_READ);
 
 	if(!StartListenerWin32())
 		dprintf(D_ALWAYS, "SharedPortEndpoint: AddListenerToSelector: Failed to start listener.\n");
-		*/
-	EXCEPT("SharedPortEndpoint: AddListenerToSelector: Not supported.\n");
 #else
 	selector.add_fd(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif
@@ -1158,12 +1181,9 @@ void
 SharedPortEndpoint::RemoveListenerFromSelector(Selector &selector)
 {
 #ifdef WIN32
-	/*
-	if(!pair_dest)
+	if(!wake_select_dest)
 		EXCEPT("SharedPortEndpoint: RemoveListenerFromSelector: Nothing registered.\n");
-	selector.delete_fd(pair_dest->get_file_desc(), Selector::IO_READ);
-	*/
-	EXCEPT("SharedPortEndpoint: RemoveListenerFromSelector: Not supported.\n");
+	selector.delete_fd(wake_select_dest->get_file_desc(), Selector::IO_READ);
 #else
 	selector.delete_fd(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif
@@ -1172,14 +1192,9 @@ bool
 SharedPortEndpoint::CheckListenerReady(Selector &selector)
 {
 #ifdef WIN32
-	/*
-	if(!pair_dest)
+	if(!wake_select_dest)
 		EXCEPT("SharedPortEndpoint: CheckListenerReady: Nothing registered.\n");
-	return selector.fd_ready(pair_dest->get_file_desc(),Selector::IO_READ);
-	*/
-	EXCEPT("SharedPortEndpoint: CheckListenerReady: Not supported.\n");
-
-	return false;
+	return selector.fd_ready(wake_select_dest->get_file_desc(),Selector::IO_READ);
 #else
 	return selector.fd_ready(m_listener_sock.get_file_desc(),Selector::IO_READ);
 #endif

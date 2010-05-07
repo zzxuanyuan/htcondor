@@ -83,8 +83,16 @@ class SharedPortEndpoint: Service {
 		// by a process with the specified priv state.
 	bool ChownSocket(priv_state priv);
 #ifdef WIN32
+	/*
+	DO NOT USE ANYTHING CONDOR INSIDE THIS FUNCTION!!!!!!!!!!!!
+	CONDOR IS NOT THREADSAFE!!!!!!!!!!!!!!!!!!!!!
+	*/
 	void PipeListenerThread();
+
 	void PipeListenerHelper();
+
+	//Event used to notify the class that the thread is dead.
+	HANDLE thread_killed;
 #endif
 #ifndef WIN32
 		// Remove named socket
@@ -118,18 +126,24 @@ class SharedPortEndpoint: Service {
 	MyString m_local_addr;
 	int m_retry_remote_addr_timer;
 #ifdef WIN32
+	//Lock for accessing the queue that holds onto the received data structures.
 	CRITICAL_SECTION received_lock;
+	//Lock that synchronizes access to the kill thread signal.
 	CRITICAL_SECTION kill_lock;
+
+	//Queue that holds the received data structures.
 	std::queue<WSAPROTOCOL_INFO*> received_sockets;
-	MyString m_full_name_pid;
+	//Kill thread signal.  Best to use an event but previous tests with events proved problematic.
 	bool kill_thread;
+	//Handle to the pipe that listens for connections.
 	HANDLE pipe_end;
 
+	//Bookkeeping information for the listener thread.
 	DWORD threadID;
 	HANDLE thread_handle;
 
-//	ReliSock *pair_source;
-//	ReliSock *pair_dest;
+	ReliSock *wake_select_source;
+	ReliSock *wake_select_dest;
 
 	bool StartListenerWin32();
 #else
