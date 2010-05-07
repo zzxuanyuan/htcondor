@@ -1132,8 +1132,11 @@ SharedPortEndpoint::UseSharedPort(MyString *why_not,bool already_open)
 	time_t now = time(NULL);
 	if( abs((int)now-(int)cached_time) > 10 || cached_time==0 || why_not ) {
 		MyString socket_dir;
+#ifdef WIN32
+		socket_dir.sprintf("\\\\.\\pipe\\condor");
+#else
 		ASSERT( param(socket_dir,"DAEMON_SOCKET_DIR") );
-
+#endif
 		cached_time = now;
 		cached_result = access(socket_dir.Value(),W_OK)==0;
 
