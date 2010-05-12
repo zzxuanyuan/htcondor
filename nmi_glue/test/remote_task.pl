@@ -167,7 +167,7 @@ print "About to run batch_test.pl\n";
 # we have our testing personal condor configered from
 # release generic config files.
 
-system("perl ./batch_test.pl --no-error -d $compiler -t $testname -b");
+system("perl ./batch_test.pl --no-timestamp-dir -d $compiler -t $testname -b");
 $batchteststatus = $?;
 
 # figure out here if the test passed or failed.  
@@ -185,7 +185,11 @@ chdir( "$SrcDir/$testdir/$compiler" ) ||
   c_die("Can't chdir($SrcDir/$testdir/$compiler): $!\n");
 $local_out = "$SrcDir/$testdir/TestingPersonalCondor/condor_config.local";
 $run_out = "$testname.run.out";
-$run_out_full = "$SrcDir/$testdir/$compiler/$run_out";
+$run_out_full = "$SrcDir/$testdir/$compiler/results/$run_out";
+if( not -f $run_out_full) {
+	# Check the old location; not all tests are updated.
+	$run_out_full = "$SrcDir/$testdir/$compiler/$run_out";
+}
 $test_out = "$testname.out";
 $test_out_full = "$SrcDir/$testdir/$compiler/$test_out";
 $test_err = "$testname.err";

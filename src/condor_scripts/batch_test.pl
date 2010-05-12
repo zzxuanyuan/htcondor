@@ -304,13 +304,6 @@ sub main {
 	my $testpersonalcondorlocation = "$BaseDir/TestingPersonalCondor";
 	my $wintestpersonalcondorlocation = get_win_path($testpersonalcondorlocation);
 
-	my $results_dir;
-	{
-		my($sec,$min,$hour,$mday,$mon,$year) = localtime(time);
-		$results_dir = sprintf "$BaseDir/results/%04d-%02d-%02d-%02d-%02d-%02d-%d",
-			$year+1900, $mon+1, $mday, $hour, $min, $sec, $$;
-	}
-	
 	my $targetconfig = "$testpersonalcondorlocation/condor_config";
 	my $targetconfiglocal = "$testpersonalcondorlocation/condor_config.local";
 	my $condorpidfile = "/tmp/condor.pid.$$";
@@ -323,6 +316,7 @@ sub main {
 	
 	my $wantcurrentdaemons = 1; # dont set up a new testing pool in condor_tests/TestingPersonalCondor
 	my $pretestsetuponly = 0; # only get the personal condor in place
+	my $want_timestamp_dir = 1; # Create a subdirectory named for the current time for the results. Helps isolate multiple runs.  
 	
 	# set up to recover from tests which hang
 	$SIG{ALRM} = sub { die "timeout" };
@@ -351,6 +345,7 @@ sub main {
 	my @testlist;
 	
 	GetOptions('help|h' => \&usage_and_exit,
+		'timestamp-dir!' => \$want_timestamp_dir,
 		'core!' => \$want_core_dumps,
 		'wrap|w' => sub {$ENV{WRAP_TESTS} = "yes";},
 		'directory|d=s' => \@compilers,
@@ -469,6 +464,14 @@ sub main {
 	foreach my $name (@compilers) {
 		quiet_debug("Compiler: $name\n", 2);
 	}
+
+	my $results_dir = "$BaseDir/results";
+	if($want_timestamp_dir) {
+		my($sec,$min,$hour,$mday,$mon,$year) = localtime(time);
+		$results_dir .= sprintf "/%04d-%02d-%02d-%02d-%02d-%02d-%d",
+			$year+1900, $mon+1, $mday, $hour, $min, $sec, $$;
+	}
+	
 
 	mkpath($results_dir) or die "Unable to mkpath($results_dir): $!";
 	
