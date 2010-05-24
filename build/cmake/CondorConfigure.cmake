@@ -190,7 +190,6 @@ else()
 endif()
 
 ###########################################
-add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/hadoop/0.20.0-p2)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/openssl/0.9.8h-p2)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/krb5/1.4.3-p0)
 add_subdirectory(${CONDOR_SOURCE_DIR}/build/externals/bundles/pcre/7.6)
