@@ -68,6 +68,7 @@ my %ISOLATION_BLACKLIST = map({($_,1)} qw(
 	cmd_wait_shows-base
 	cmd_wait_shows-notimeout
 	cmd_wait_shows-partial
+	cmd_wait_shows-timeout
 	fetch_work-basic
 	job_amazon_basic
 	job_ckpt_combo-sanity_std
@@ -163,6 +164,8 @@ my %ISOLATION_BLACKLIST = map({($_,1)} qw(
 	job_dagman_splice-O
 	job_dagman_splice-scaling
 	job_dagman_subdag-A
+	job_dagman_subdag-AE
+	job_dagman_subdag_in_splice-A
 	job_dagman_submit_fails_post
 	job_dagman_uncomlog
 	job_dagman_unlessexit
@@ -209,12 +212,16 @@ my %ISOLATION_BLACKLIST = map({($_,1)} qw(
 	lib_auth_protocol-negot-prt4
 	lib_auth_protocol-negot
 	lib_auth_protocol-ssl
+	lib_ccb_schedd
+	lib_ccb_schedd_privnet
+	lib_ccb_startd
 	lib_chirpio_van
 	lib_classads
 	lib_eventlog_base
 	lib_eventlog_build
 	lib_eventlog
 	lib_eventlog-xml
+	lib_job_router_local
 	lib_lease_manager-get_rel_1
 	lib_lease_manager-get_rel_2
 	lib_lease_manager-get_rel_3
@@ -226,6 +233,11 @@ my %ISOLATION_BLACKLIST = map({($_,1)} qw(
 	lib_userlog
 	soap_job_tests
 	));
+# The following need to teach SimpleJob.pm to use RunTest2 and autocreate the executable.
+#   lib_job_router_local
+# lib_ccb_schedd
+# lib_ccb_schedd_privnet
+# lib_ccb_startd
 
 ################################################################################
 # Globals
@@ -472,8 +484,13 @@ sub main {
 			$year+1900, $mon+1, $mday, $hour, $min, $sec, $$;
 	}
 	
-
-	mkpath($results_dir) or die "Unable to mkpath($results_dir): $!";
+	if(not -d $results_dir) {
+		if(not mkpath($results_dir)) {
+			if("$!" ne "File exists") {
+				die "Unable to mkpath($results_dir): $!";
+			}
+		}
+	}
 	
 	# now we find the tests we care about.
 	if( @testlist ) {
@@ -643,7 +660,11 @@ sub main {
 
 				my $testname = $test_program;
 				$testname =~ s/\.run$//;
-				my $workdir = "$results_dir/$testname/$repeatcounter";
+				my $workdir = "$results_dir/$testname";
+				if(defined $compiler and $compiler ne '.') {
+					$workdir .= ".$compiler";
+				}
+				$workdir .= "/$repeatcounter";
 	
 				# two modes
 				#		kindwait = resolve each test after the fork

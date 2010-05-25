@@ -185,15 +185,11 @@ chdir( "$SrcDir/$testdir/$compiler" ) ||
   c_die("Can't chdir($SrcDir/$testdir/$compiler): $!\n");
 $local_out = "$SrcDir/$testdir/TestingPersonalCondor/condor_config.local";
 $run_out = "$testname.run.out";
-$run_out_full = "$SrcDir/$testdir/$compiler/results/$run_out";
-if( not -f $run_out_full) {
-	# Check the old location; not all tests are updated.
-	$run_out_full = "$SrcDir/$testdir/$compiler/$run_out";
-}
+$run_out_full = find_output_file($SrcDir, $testdir, $testname, $compiler, $run_out);
 $test_out = "$testname.out";
-$test_out_full = "$SrcDir/$testdir/$compiler/$test_out";
+$test_out_full = find_output_file($SrcDir, $testdir, $testname, $compiler, $test_out);
 $test_err = "$testname.err";
-$test_err_full = "$SrcDir/$testdir/$compiler/$test_err";
+$test_err_full = find_output_file($SrcDir, $testdir, $testname, $compiler, $test_err);
 
 if( ! -f $run_out_full ) {
     if( $teststatus == 0 ) {
@@ -277,4 +273,22 @@ sub c_die {
     my( $msg ) = @_;
     print $msg;
     exit 3;
+}
+
+sub find_output_file {
+	my($SrcDir, $testdir, $testname, $compiler, $filename) = @_;
+	$path = "$SrcDir/$testdir/results/$testname";
+	if(defined $compiler and $compiler ne '.' and $compiler ne '') {
+		$path .= ".$compiler";
+	}
+	$path .= "/0/$filename";
+	if( not -f $path) {
+		print STDERR "Warning: failed to find $filename at $path... trying fallback\n";
+		# Check the old location; not all tests are updated.
+		$path = "$SrcDir/$testdir/$compiler/$filename";
+	}
+	if( not -f $path) {
+		print STDERR "Warning: failed to find $filename at $path... Errors may follow.\n";
+	}
+	return $path;
 }
