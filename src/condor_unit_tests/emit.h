@@ -28,12 +28,6 @@
 	e.emit_result_success(__LINE__); \
 	return true
 
-#define deftest(func) \
-	static bool func(void) {\
-	e.emit_name(#func " in " __FILE__);
-
-#define enddef }
-	
 #include "condor_common.h"
 
 // Global emitter declaration
