@@ -687,7 +687,7 @@ bool OTEST_Env(void) {
 	return driver.do_all_functions();
 }
 
-deftest(test_count_0)
+static bool test_count_0() {
 	emit_test("Test that Count() returns 0 for an Env object with 0 "
 		"environment variables.");
 	Env env;
@@ -701,9 +701,9 @@ deftest(test_count_0)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_count_1)
+static bool test_count_1() {
 	emit_test("Test that Count() returns 1 for an Env object with 1 "
 		"environment variable after adding one with SetEnv().");
 	Env env;
@@ -718,9 +718,9 @@ deftest(test_count_1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_count_many)
+static bool test_count_many() {
 	emit_test("Test that Count() returns the correct number of environment "
 		"varaibles after adding many variables with MergeFromV2Raw().");
 	Env env;
@@ -735,9 +735,9 @@ deftest(test_count_many)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_clear_empty)
+static bool test_clear_empty() {
 	emit_test("Test Clear() on an empty Env object.");
 	Env env;
 	env.Clear();
@@ -751,9 +751,9 @@ deftest(test_clear_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_clear_non_empty)
+static bool test_clear_non_empty() {
 	emit_test("Test Clear() on a non-empty Env object.");
 	Env env;
 	env.MergeFromV2Raw(V2R, NULL);
@@ -768,9 +768,9 @@ deftest(test_clear_non_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_or_v2q_ret_null)
+static bool test_mf_v1r_or_v2q_ret_null() {
 	emit_test("Test that MergeFromV1RawOrV2Quoted() returns true when passed "
 		"a NULL string.");
 	Env env;
@@ -787,9 +787,9 @@ deftest(test_mf_v1r_or_v2q_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_or_v2q_detect_v1r)
+static bool test_mf_v1r_or_v2q_detect_v1r() {
 	emit_test("Test that MergeFromV1RawOrV2Quoted() correctly handles a V1Raw"
 		"string by checking that InputWasV1() returns true.");
 	emit_comment("MergeFromV1RaworV2Quoted() just calls MergeFromV1Raw(), "
@@ -809,9 +809,9 @@ deftest(test_mf_v1r_or_v2q_detect_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_or_v2q_detect_v2q)
+static bool test_mf_v1r_or_v2q_detect_v2q() {
 	emit_test("Test that MergeFromV1RawOrV2Quoted() correctly handles a "
 		"V2Quoted string by checking that InputWasV1() returns false.");
 	emit_comment("MergeFromV1RaworV2Quoted() just calls MergeFromVqQuoted(), "
@@ -831,9 +831,9 @@ deftest(test_mf_v1r_or_v2q_detect_v2q)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_or_v2q_add_null)
+static bool test_mf_v1r_or_v2q_add_null() {
 	emit_test("Test that MergeFromV1RawOrV2Quoted() doesn't add any "
 		"environment variables for a NULL string.");
 	Env env;
@@ -851,9 +851,9 @@ deftest(test_mf_v1r_or_v2q_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_null)
+static bool test_mf_v2q_ret_null() {
 	emit_test("Test that MergeFromV2Quoted() returns true when passed a NULL "
 		"string.");
 	Env env;
@@ -870,9 +870,9 @@ deftest(test_mf_v2q_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_valid)
+static bool test_mf_v2q_ret_valid() {
 	emit_test("Test that MergeFromV2Quoted() returns true when passed a valid"
 		" V2Quoted string.");
 	Env env;
@@ -889,9 +889,9 @@ deftest(test_mf_v2q_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_invalid_quotes)
+static bool test_mf_v2q_ret_invalid_quotes() {
 	emit_test("Test that MergeFromV2Quoted() returns false when passed an "
 		"invalid V2Quoted string due to no quotes.");
 	Env env;
@@ -908,9 +908,9 @@ deftest(test_mf_v2q_ret_invalid_quotes)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_invalid_quotes_end)
+static bool test_mf_v2q_ret_invalid_quotes_end() {
 	emit_test("Test that MergeFromV2Quoted() returns false when passed an "
 		"invalid V2Quoted string due missing quotes at the end.");
 	Env env;
@@ -927,9 +927,9 @@ deftest(test_mf_v2q_ret_invalid_quotes_end)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_invalid_trail)
+static bool test_mf_v2q_ret_invalid_trail() {
 	emit_test("Test that MergeFromV2Quoted() returns false when passed an "
 		"invalid V2Quoted string due to trailing characters after the quotes.");
 	Env env;
@@ -946,9 +946,9 @@ deftest(test_mf_v2q_ret_invalid_trail)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_invalid_name)
+static bool test_mf_v2q_ret_invalid_name() {
 	emit_test("Test that MergeFromV2Quoted() returns false when passed an "
 		"invalid V2Quoted string due to a missing variable name.");
 	Env env;
@@ -965,9 +965,9 @@ deftest(test_mf_v2q_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_ret_invalid_delim)
+static bool test_mf_v2q_ret_invalid_delim() {
 	emit_test("Test that MergeFromV2Quoted() returns false when passed an "
 		"invalid V2Quoted string due to a missing delimiter.");
 	Env env;
@@ -984,9 +984,9 @@ deftest(test_mf_v2q_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_error_invalid_quotes)
+static bool test_mf_v2q_error_invalid_quotes() {
 	emit_test("Test that MergeFromV2Quoted() generates an error message for "
 		"an invalid V2Quoted string due to no quotes.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1002,9 +1002,9 @@ deftest(test_mf_v2q_error_invalid_quotes)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_error_invalid_quotes_end)
+static bool test_mf_v2q_error_invalid_quotes_end() {
 	emit_test("Test that MergeFromV2Quoted() generates an error message for "
 		"an invalid V2Quoted string due to missing quotes at the end.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1020,9 +1020,9 @@ deftest(test_mf_v2q_error_invalid_quotes_end)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_error_invalid_trail)
+static bool test_mf_v2q_error_invalid_trail() {
 	emit_test("Test that MergeFromV2Quoted() generates an error message for "
 		"an invalid V2Quoted string due to trailing characters after the "
 		"quotes.");
@@ -1039,9 +1039,9 @@ deftest(test_mf_v2q_error_invalid_trail)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_error_invalid_name)
+static bool test_mf_v2q_error_invalid_name() {
 	emit_test("Test that MergeFromV2Quoted() generates an error message for "
 		"an invalid V2Quoted string due to a missing variable name.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1057,9 +1057,9 @@ deftest(test_mf_v2q_error_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_error_invalid_delim)
+static bool test_mf_v2q_error_invalid_delim() {
 	emit_test("Test that MergeFromV2Quoted() generates an error message for "
 		"an invalid V2Quoted string due to a missing delimiter.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1075,9 +1075,9 @@ deftest(test_mf_v2q_error_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_add_null)
+static bool test_mf_v2q_add_null() {
 	emit_test("Test that MergeFromV2Quoted() doesn't add the environment "
 		"variables for a NULL string.");
 	Env env;
@@ -1095,9 +1095,9 @@ deftest(test_mf_v2q_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_add_invalid_delim_var)
+static bool test_mf_v2q_add_invalid_delim_var() {
 	emit_test("Test that MergeFromV2Quoted() doesn't add the environment "
 		"variables for an invalid V2Quoted string with a missing delimiter and "
 		"a missing variable name.");
@@ -1116,9 +1116,9 @@ deftest(test_mf_v2q_add_invalid_delim_var)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_add_invalid_quotes)
+static bool test_mf_v2q_add_invalid_quotes() {
 	emit_test("Test that MergeFromV2Quoted() doesn't add the environment "
 		"variables for an invalid V2Quoted string due to missing quotes.");
 	Env env;
@@ -1136,9 +1136,9 @@ deftest(test_mf_v2q_add_invalid_quotes)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_add_invalid_quotes_end)
+static bool test_mf_v2q_add_invalid_quotes_end() {
 	emit_test("Test that MergeFromV2Quoted() doesn't add the environment "
 		"variables for an invalid V2Quoted string due to missing quotes at the "
 		"end.");
@@ -1157,9 +1157,9 @@ deftest(test_mf_v2q_add_invalid_quotes_end)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_add_invalid_trail)
+static bool test_mf_v2q_add_invalid_trail() {
 	emit_test("Test that MergeFromV2Quoted() doesn't add the environment "
 		"variables for an invalid V2Quoted string due to trailing characters "
 		"after the quotes at the end.");
@@ -1178,9 +1178,9 @@ deftest(test_mf_v2q_add_invalid_trail)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_add)
+static bool test_mf_v2q_add() {
 	emit_test("Test that MergeFromV2Quoted() adds the environment variables "
 		"for a valid V2Quoted string.");
 	Env env;
@@ -1198,9 +1198,9 @@ deftest(test_mf_v2q_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_replace)
+static bool test_mf_v2q_replace() {
 	emit_test("Test that MergeFromV2Quoted() replaces the environment "
 		"variables for a valid V2Quoted string.");
 	Env env;
@@ -1220,9 +1220,9 @@ deftest(test_mf_v2q_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_replace_v1r)
+static bool test_mf_v2q_replace_v1r() {
 	emit_test("Test that MergeFromV2Quoted() replaces the environment "
 		"variables for a valid V2Quoted string on an Env object originally "
 		"constructed from a V1Raw string.");
@@ -1243,9 +1243,9 @@ deftest(test_mf_v2q_replace_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_replace_add)
+static bool test_mf_v2q_replace_add() {
 	emit_test("Test that MergeFromV2Quoted() replaces some environment "
 		"variables and also adds new ones for a valid V2Quoted string.");
 	Env env;
@@ -1265,9 +1265,9 @@ deftest(test_mf_v2q_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2q_replace_add_v1r)
+static bool test_mf_v2q_replace_add_v1r() {
 	emit_test("Test that MergeFromV2Quoted() replaces some environment "
 		"variables and also adds new ones for a valid V2Quoted string on an Env"
 		" object originally constructed from a V1Raw string.");
@@ -1288,9 +1288,9 @@ deftest(test_mf_v2q_replace_add_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_ret_null)
+static bool test_mf_v2r_ret_null() {
 	emit_test("Test that MergeFromV2Raw() returns true when passed a NULL "
 		"string.");
 	Env env;
@@ -1307,9 +1307,9 @@ deftest(test_mf_v2r_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_ret_valid)
+static bool test_mf_v2r_ret_valid() {
 	emit_test("Test that MergeFromV2Raw() returns true when passed a valid "
 		"V2Raw string.");
 	Env env;
@@ -1326,9 +1326,9 @@ deftest(test_mf_v2r_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_ret_invalid_name)
+static bool test_mf_v2r_ret_invalid_name() {
 	emit_test("Test that MergeFromV2Raw() returns false when passed an "
 		"invalid V2Raw string due to a missing variable name.");
 	Env env;
@@ -1345,9 +1345,9 @@ deftest(test_mf_v2r_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_ret_invalid_delim)
+static bool test_mf_v2r_ret_invalid_delim() {
 	emit_test("Test that MergeFromV2Raw() returns false when passed an "
 		"invalid V2Raw string due to a missing delimiter.");
 	Env env;
@@ -1364,9 +1364,9 @@ deftest(test_mf_v2r_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_error_invalid_name)
+static bool test_mf_v2r_error_invalid_name() {
 	emit_test("Test that MergeFromV2Raw() generates an error message for "
 		"an invalid V2Raw string due to a missing variable name.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1382,9 +1382,9 @@ deftest(test_mf_v2r_error_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_error_invalid_delim)
+static bool test_mf_v2r_error_invalid_delim() {
 	emit_test("Test that MergeFromV2Raw() generates an error message for "
 		"an invalid V2Raw string due to a missing delimiter.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1400,9 +1400,9 @@ deftest(test_mf_v2r_error_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_add_null)
+static bool test_mf_v2r_add_null() {
 	emit_test("Test that MergeFromV2Raw() doesn't add the environment "
 		"variable for a NULL string.");
 	Env env;
@@ -1420,9 +1420,9 @@ deftest(test_mf_v2r_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_add_invalid)
+static bool test_mf_v2r_add_invalid() {
 	emit_test("Test that MergeFromV2Raw() doesn't add the environment "
 		"variables for an invalid V2Raw string.");
 	Env env;
@@ -1440,9 +1440,9 @@ deftest(test_mf_v2r_add_invalid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_add)
+static bool test_mf_v2r_add() {
 	emit_test("Test that MergeFromV2Raw() adds the environment variables "
 		"for a valid V2Raw string.");
 	Env env;
@@ -1460,9 +1460,9 @@ deftest(test_mf_v2r_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_replace)
+static bool test_mf_v2r_replace() {
 	emit_test("Test that MergeFromV2Raw() replaces the environment "
 		"variables for a valid V2Raw string.");
 	Env env;
@@ -1482,9 +1482,9 @@ deftest(test_mf_v2r_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_replace_v1r)
+static bool test_mf_v2r_replace_v1r() {
 	emit_test("Test that MergeFromV2Raw() replaces the environment "
 		"variables for a valid V2Raw string on an Env object originally "
 		"constructed from a V1Raw string.");
@@ -1505,9 +1505,9 @@ deftest(test_mf_v2r_replace_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_replace_add)
+static bool test_mf_v2r_replace_add() {
 	emit_test("Test that MergeFromV2Raw() replaces some environment "
 		"variables and also adds new ones for a valid V2Raw string.");
 	Env env;
@@ -1527,9 +1527,9 @@ deftest(test_mf_v2r_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v2r_replace_add_v1r)
+static bool test_mf_v2r_replace_add_v1r() {
 	emit_test("Test that MergeFromV2Raw() replaces some environment "
 		"variables and also adds new ones for a valid V2Raw string on an Env "
 		"object originally constructed from a V1Raw string.");
@@ -1550,9 +1550,9 @@ deftest(test_mf_v2r_replace_add_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_ret_null)
+static bool test_mf_v1r_ret_null() {
 	emit_test("Test that MergeFromV1Raw() returns true when passed a NULL "
 		"string.");
 	Env env;
@@ -1569,9 +1569,9 @@ deftest(test_mf_v1r_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_ret_valid)
+static bool test_mf_v1r_ret_valid() {
 	emit_test("Test that MergeFromV1Raw() returns true when passed a valid "
 		"V1Raw string.");
 	Env env;
@@ -1588,9 +1588,9 @@ deftest(test_mf_v1r_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_ret_invalid_name)
+static bool test_mf_v1r_ret_invalid_name() {
 	emit_test("Test that MergeFromV1Raw() returns false when passed an "
 		"invalid V1Raw string due to a missing variable name.");
 	Env env;
@@ -1607,9 +1607,9 @@ deftest(test_mf_v1r_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_ret_invalid_delim)
+static bool test_mf_v1r_ret_invalid_delim() {
 	emit_test("Test that MergeFromV1Raw() returns false when passed an "
 		"invalid V1Raw string due to a missing delimiter.");
 	Env env;
@@ -1626,9 +1626,9 @@ deftest(test_mf_v1r_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_error_invalid_name)
+static bool test_mf_v1r_error_invalid_name() {
 	emit_test("Test that MergeFromV1Raw() generates an error message for "
 		"an invalid V1Raw string due to a missing variable name.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1644,9 +1644,9 @@ deftest(test_mf_v1r_error_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_error_invalid_delim)
+static bool test_mf_v1r_error_invalid_delim() {
 	emit_test("Test that MergeFromV1Raw() generates an error message for "
 		"an invalid V1Raw string due to a missing delimiter.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -1662,9 +1662,9 @@ deftest(test_mf_v1r_error_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_add_null)
+static bool test_mf_v1r_add_null() {
 	emit_test("Test that MergeFromV1Raw() doesn't add the environment "
 		"variable for a NULL string.");
 	Env env;
@@ -1682,9 +1682,9 @@ deftest(test_mf_v1r_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_add_invalid)
+static bool test_mf_v1r_add_invalid() {
 	emit_test("Test that MergeFromV1Raw() doesn't add the environment "
 		"variables for an invalid V1Raw string.");
 	Env env;
@@ -1702,9 +1702,9 @@ deftest(test_mf_v1r_add_invalid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_add)
+static bool test_mf_v1r_add() {
 	emit_test("Test that MergeFromV1Raw() adds the environment variables "
 		"for a valid V1Raw string.");
 	Env env;
@@ -1722,9 +1722,9 @@ deftest(test_mf_v1r_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_replace)
+static bool test_mf_v1r_replace() {
 	emit_test("Test that MergeFromV1Raw() replaces the environment "
 		"variables for a valid V1Raw string.");
 	Env env;
@@ -1744,9 +1744,9 @@ deftest(test_mf_v1r_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_replace_v2r)
+static bool test_mf_v1r_replace_v2r() {
 	emit_test("Test that MergeFromV1Raw() replaces the environment "
 		"variables for a valid V1Raw string on an Env object originally "
 		"constructed from a V2Raw string.");
@@ -1767,9 +1767,9 @@ deftest(test_mf_v1r_replace_v2r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_replace_v2q)
+static bool test_mf_v1r_replace_v2q() {
 	emit_test("Test that MergeFromV1Raw() replaces the environment "
 		"variables for a valid V1Raw string on an Env object originally "
 		"constructed from a V2Quoted string.");
@@ -1790,9 +1790,9 @@ deftest(test_mf_v1r_replace_v2q)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_replace_add)
+static bool test_mf_v1r_replace_add() {
 	emit_test("Test that MergeFromV1Raw() replaces some environment "
 		"variables and also adds new ones for a valid V1Raw string.");
 	Env env;
@@ -1812,9 +1812,9 @@ deftest(test_mf_v1r_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_replace_add_v2r)
+static bool test_mf_v1r_replace_add_v2r() {
 	emit_test("Test that MergeFromV1Raw() replaces some environment "
 		"variables and also adds new ones for a valid V1Raw string on an Env "
 		"object originally constructed from a V2Raw string.");
@@ -1835,9 +1835,9 @@ deftest(test_mf_v1r_replace_add_v2r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1r_replace_add_v2q)
+static bool test_mf_v1r_replace_add_v2q() {
 	emit_test("Test that MergeFromV1Raw() replaces some environment "
 		"variables and also adds new ones for a valid V1Raw string on an Env "
 		"object originally constructed from a V2Quoted string.");
@@ -1858,9 +1858,9 @@ deftest(test_mf_v1r_replace_add_v2q)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1or2_r_ret_null)
+static bool test_mf_v1or2_r_ret_null() {
 	emit_test("Test that MergeFromV1or2Raw() returns true when passed "
 		"a NULL string.");
 	Env env;
@@ -1877,9 +1877,9 @@ deftest(test_mf_v1or2_r_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1or2_r_detect_v1r)
+static bool test_mf_v1or2_r_detect_v1r() {
 	emit_test("Test that MergeFromV1or2Raw() correctly handles a V1Raw "
 		"string by checking that InputWasV1() returns true.");
 	emit_comment("MergeFromV1or2Raw() just calls MergeFromV1Raw(), which was "
@@ -1899,9 +1899,9 @@ deftest(test_mf_v1or2_r_detect_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1or2_r_detect_v2r)
+static bool test_mf_v1or2_r_detect_v2r() {
 	emit_test("Test that MergeFromV1or2Raw() correctly handles a V1Raw "
 		"string by checking that InputWasV1() returns true.");
 	emit_comment("MergeFromV1or2Raw() just calls MergeFromV2Raw(), which was "
@@ -1921,9 +1921,9 @@ deftest(test_mf_v1or2_r_detect_v2r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1or2_r_add_null)
+static bool test_mf_v1or2_r_add_null() {
 	emit_test("Test that MergeFromV1or2Raw() doesn't add any environment "
 		"variables for a NULL string.");
 	Env env;
@@ -1941,9 +1941,9 @@ deftest(test_mf_v1or2_r_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_v1or2_r_add_v2r)
+static bool test_mf_v1or2_r_add_v2r() {
 	emit_test("Test that MergeFromV1or2Raw() adds the environment variables "
 		"for a valid V2Raw with the V2Raw environment marker.");
 	emit_comment("We need to make sure MergeFromV2Raw() correctly handles the"
@@ -1963,9 +1963,9 @@ deftest(test_mf_v1or2_r_add_v2r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_ret_null)
+static bool test_mf_str_array_ret_null() {
 	emit_test("Test that MergeFrom() returns false when passed a NULL string "
 		"array.");
 	Env env;
@@ -1982,9 +1982,9 @@ deftest(test_mf_str_array_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_ret_valid)
+static bool test_mf_str_array_ret_valid() {
 	emit_test("Test that MergeFrom() returns true when passed a valid string "
 		"array.");
 	Env env;
@@ -2003,9 +2003,9 @@ deftest(test_mf_str_array_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_ret_invalid_name)
+static bool test_mf_str_array_ret_invalid_name() {
 	emit_test("Test that MergeFrom() returns false when passed a invalid "
 		"string array due to a missing variable name.");
 	Env env;
@@ -2021,9 +2021,9 @@ deftest(test_mf_str_array_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_ret_invalid_delim)
+static bool test_mf_str_array_ret_invalid_delim() {
 	emit_test("Test that MergeFrom() returns false when passed a invalid "
 		"string array due to a missing delimiter.");
 	Env env;
@@ -2039,9 +2039,9 @@ deftest(test_mf_str_array_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_add_null)
+static bool test_mf_str_array_add_null() {
 	emit_test("Test that MergeFrom() doesn't add the environment variables "
 		"for a NULL string array.");
 	Env env;
@@ -2060,9 +2060,9 @@ deftest(test_mf_str_array_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_add_invalid)
+static bool test_mf_str_array_add_invalid() {
 	emit_test("Test that MergeFrom() doesn't add the environment variables "
 		"for an invalid string array.");
 	Env env;
@@ -2080,9 +2080,9 @@ deftest(test_mf_str_array_add_invalid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_add)
+static bool test_mf_str_array_add() {
 	emit_test("Test that MergeFrom() adds the environment variables for a "
 		"valid string array.");
 	Env env;
@@ -2100,9 +2100,9 @@ deftest(test_mf_str_array_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_replace)
+static bool test_mf_str_array_replace() {
 	emit_test("Test that MergeFrom() replaces the environment variables for "
 		"a valid string array.");
 	Env env;
@@ -2121,9 +2121,9 @@ deftest(test_mf_str_array_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_array_replace_add)
+static bool test_mf_str_array_replace_add() {
 	emit_test("Test that MergeFrom() replaces the values of some of the "
 		"environment variables and also adds new ones for a valid string "
 		"array.");
@@ -2143,9 +2143,9 @@ deftest(test_mf_str_array_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_ret_null)
+static bool test_mf_str_ret_null() {
 	emit_test("Test that MergeFrom() returns false when passed a NULL "
 		"string.");
 	Env env;
@@ -2162,9 +2162,9 @@ deftest(test_mf_str_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_ret_valid)
+static bool test_mf_str_ret_valid() {
 	emit_test("Test that MergeFrom() returns true when passed a valid NULL-"
 		"delimited string.");
 	Env env;
@@ -2180,9 +2180,9 @@ deftest(test_mf_str_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_ret_invalid_name)
+static bool test_mf_str_ret_invalid_name() {
 	emit_test("Test that MergeFrom() returns true when passed an invalid "
 		"NULL-delimited string due to a missing variable name.");
 	emit_comment("MergeFrom() will ignore errors from SetEnv() and insert "
@@ -2200,9 +2200,9 @@ deftest(test_mf_str_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_ret_invalid_delim)
+static bool test_mf_str_ret_invalid_delim() {
 	emit_test("Test that MergeFrom() true when passed an invalid "
 		"NULL-delimited string due to a missing delimiter.");
 	emit_comment("MergeFrom() will ignore errors from SetEnv() and insert "
@@ -2220,9 +2220,9 @@ deftest(test_mf_str_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_add_null)
+static bool test_mf_str_add_null() {
 	emit_test("Test that MergeFrom() doesn't add any environment variables "
 		"for a NULL string.");
 	Env env;
@@ -2240,9 +2240,9 @@ deftest(test_mf_str_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_add_invalid_name)
+static bool test_mf_str_add_invalid_name() {
 	emit_test("Test that MergeFrom() doesn't add the environment variable "
 		"with a missing variable name, but still adds the valid variables.");
 	emit_comment("MergeFrom() will ignore errors from SetEnv() and insert "
@@ -2261,9 +2261,9 @@ deftest(test_mf_str_add_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_add_invalid_delim)
+static bool test_mf_str_add_invalid_delim() {
 	emit_test("Test that MergeFrom() doesn't add the environment variable "
 		"with a missing delimiter, but still adds the valid variables.");
 	emit_comment("MergeFrom() will ignore errors from SetEnv() and insert "
@@ -2282,9 +2282,9 @@ deftest(test_mf_str_add_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_add)
+static bool test_mf_str_add() {
 	emit_test("Test that MergeFrom() adds the environment variables for a "
 		"valid NULL-delimited string.");
 	Env env;
@@ -2301,9 +2301,9 @@ deftest(test_mf_str_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_replace)
+static bool test_mf_str_replace() {
 	emit_test("Test that MergeFrom() replaces the environment variables for a"
 		" valid NULL-delimited string.");
 	Env env;
@@ -2322,9 +2322,9 @@ deftest(test_mf_str_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_str_replace_add)
+static bool test_mf_str_replace_add() {
 	emit_test("Test that MergeFrom() replaces and adds environment variables "
 		"for a valid NULL-delimited string.");
 	Env env;
@@ -2343,9 +2343,9 @@ deftest(test_mf_str_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_add_empty)
+static bool test_mf_env_add_empty() {
 	emit_test("Test that MergeFrom() doesn't add the environment variables "
 		"when passed an empty Env.");
 	Env env1, env2;
@@ -2363,9 +2363,9 @@ deftest(test_mf_env_add_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_add_one)
+static bool test_mf_env_add_one() {
 	emit_test("Test that MergeFrom() adds the environment variables when "
 		"passed an Env with one variable.");
 	Env env1, env2;
@@ -2384,9 +2384,9 @@ deftest(test_mf_env_add_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_add_many)
+static bool test_mf_env_add_many() {
 	emit_test("Test that MergeFrom() adds the environment variables when "
 		"passed an Env with many variables.");
 	Env env1, env2;
@@ -2405,9 +2405,9 @@ deftest(test_mf_env_add_many)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_replace)
+static bool test_mf_env_replace() {
 	emit_test("Test that MergeFrom() replaces the environment variables when "
 		"passed an Env with many variables.");
 	Env env1, env2;
@@ -2427,9 +2427,9 @@ deftest(test_mf_env_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_replace_v1_v2)
+static bool test_mf_env_replace_v1_v2() {
 	emit_test("Test that MergeFrom() replaces the environment variables on an"
 		" Env object originally constructed from a V1Raw string when passed an "
 		"Env constructed from a V2Raw string.");
@@ -2450,9 +2450,9 @@ deftest(test_mf_env_replace_v1_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_replace_v2_v1)
+static bool test_mf_env_replace_v2_v1() {
 	emit_test("Test that MergeFrom() replaces the environment variables on an"
 		" Env object originally constructed from a V2Raw string when passed an "
 		"Env constructed from a V1Raw string.");
@@ -2473,9 +2473,9 @@ deftest(test_mf_env_replace_v2_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_replace_add)
+static bool test_mf_env_replace_add() {
 	emit_test("Test that MergeFrom() replaces some of the environment "
 		"variables and adds new ones when passed an Env with many variables.");
 	Env env1, env2;
@@ -2496,9 +2496,9 @@ deftest(test_mf_env_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_replace_add_v1_v2)
+static bool test_mf_env_replace_add_v1_v2() {
 	emit_test("Test that MergeFrom() replaces some of the environment "
 		"variables and adds new ones on an Env object originally constructed "
 		"from a V1Raw string when passed an Env constructed from a V2Raw "
@@ -2520,9 +2520,9 @@ deftest(test_mf_env_replace_add_v1_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_env_replace_add_v2_v1)
+static bool test_mf_env_replace_add_v2_v1() {
 	emit_test("Test that MergeFrom() replaces some of the environment "
 		"variables and adds new ones on an Env object originally constructed "
 		"from a V2Raw string when passed an Env constructed from a V1Raw "
@@ -2544,10 +2544,10 @@ deftest(test_mf_env_replace_add_v2_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
 
-deftest(test_mf_env_itself)
+static bool test_mf_env_itself() {
 	emit_test("Test that MergeFrom() doesn't add the environment variables "
 		"when passed itself.");
 	Env env;
@@ -2566,9 +2566,9 @@ deftest(test_mf_env_itself)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_null)
+static bool test_mf_ad_ret_null() {
 	emit_test("Test that MergeFrom() returns true when passed a NULL "
 		"ClassAd.");
 	Env env;
@@ -2586,9 +2586,9 @@ deftest(test_mf_ad_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_v1r_valid)
+static bool test_mf_ad_ret_v1r_valid() {
 	emit_test("Test that MergeFrom() returns true when passed a valid "
 		"ClassAd that uses V1Raw.");
 	Env env;
@@ -2607,9 +2607,9 @@ deftest(test_mf_ad_ret_v1r_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_v2r_valid)
+static bool test_mf_ad_ret_v2r_valid() {
 	emit_test("Test that MergeFrom() returns true when passed a valid "
 		"ClassAd that uses V2Raw.");
 	Env env;
@@ -2628,9 +2628,9 @@ deftest(test_mf_ad_ret_v2r_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_valid_define)
+static bool test_mf_ad_ret_valid_define() {
 	emit_test("Test that MergeFrom() returns true when passed a valid "
 		"ClassAd that doesn't define an Environment");
 	Env env;
@@ -2649,9 +2649,9 @@ deftest(test_mf_ad_ret_valid_define)
 		FAIL;	
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_v1r_invalid_name)
+static bool test_mf_ad_ret_v1r_invalid_name() {
 	emit_test("Test that MergeFrom() returns false when passed an invalid "
 		"ClassAd that uses V1Raw due to a missing variable name.");
 	Env env;
@@ -2670,9 +2670,9 @@ deftest(test_mf_ad_ret_v1r_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_v1r_invalid_delim)
+static bool test_mf_ad_ret_v1r_invalid_delim() {
 	emit_test("Test that MergeFrom() returns false when passed an invalid "
 		"ClassAd that uses V1Raw due to a missing delimiter.");
 	Env env;
@@ -2691,9 +2691,9 @@ deftest(test_mf_ad_ret_v1r_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_v2r_invalid_name)
+static bool test_mf_ad_ret_v2r_invalid_name() {
 	emit_test("Test that MergeFrom() returns false when passed a invalid "
 		"ClassAd that uses V2Raw due to a missing variable name.");
 	Env env;
@@ -2712,9 +2712,9 @@ deftest(test_mf_ad_ret_v2r_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_ret_v2r_invalid_delim)
+static bool test_mf_ad_ret_v2r_invalid_delim() {
 	emit_test("Test that MergeFrom() returns false when passed a invalid "
 		"ClassAd that uses V2Raw due to a missing delimiter.");
 	Env env;
@@ -2733,9 +2733,9 @@ deftest(test_mf_ad_ret_v2r_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_error_v1r_invalid_name)
+static bool test_mf_ad_error_v1r_invalid_name() {
 	emit_test("Test that MergeFrom() generates an error message for an "
 		"invalid ClassAd that uses V1Raw due to a missing variable name.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -2753,9 +2753,9 @@ deftest(test_mf_ad_error_v1r_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_error_v1r_invalid_delim)
+static bool test_mf_ad_error_v1r_invalid_delim() {
 	emit_test("Test that MergeFrom() generates an error message for an "
 		"invalid ClassAd that uses V1Raw due to a missing delimiter.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -2773,9 +2773,9 @@ deftest(test_mf_ad_error_v1r_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_error_v2r_invalid_name)
+static bool test_mf_ad_error_v2r_invalid_name() {
 	emit_test("Test that MergeFrom() generates an error message for an "
 		"invalid ClassAd that uses V2Raw due to a missing variable name.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -2793,9 +2793,9 @@ deftest(test_mf_ad_error_v2r_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_error_v2r_invalid_delim)
+static bool test_mf_ad_error_v2r_invalid_delim() {
 	emit_test("Test that MergeFrom() generates an error message for an "
 		"invalid ClassAd that uses V2Raw due to a missing delimiter.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -2813,9 +2813,9 @@ deftest(test_mf_ad_error_v2r_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_add_null)
+static bool test_mf_ad_add_null() {
 	emit_test("Test that MergeFrom() doesn't add the environment variables "
 		"when passed a NULL ClassAd pointer.");
 	Env env;
@@ -2833,9 +2833,9 @@ deftest(test_mf_ad_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_add_define)
+static bool test_mf_ad_add_define() {
 	emit_test("Test that MergeFrom() doesn't any environment variables "
 		"when passed a ClassAd that doesn't define an environment variable.");
 	Env env;
@@ -2855,9 +2855,9 @@ deftest(test_mf_ad_add_define)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_add_v1r_one)
+static bool test_mf_ad_add_v1r_one() {
 	emit_test("Test that MergeFrom() adds the environment variables when "
 		"passed a valid ClassAd that uses V1Raw with one variable.");
 	Env env;
@@ -2878,9 +2878,9 @@ deftest(test_mf_ad_add_v1r_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_add_v1r_many)
+static bool test_mf_ad_add_v1r_many() {
 	emit_test("Test that MergeFrom() adds the environment variables when "
 		"passed a valid ClassAd that uses V1Raw with many variables.");
 	Env env;
@@ -2900,9 +2900,9 @@ deftest(test_mf_ad_add_v1r_many)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_add_v2r_one)
+static bool test_mf_ad_add_v2r_one() {
 	emit_test("Test that MergeFrom() adds the environment variables when "
 		"passed a valid ClassAd that uses V2Raw with one variable.");
 	Env env;
@@ -2923,9 +2923,9 @@ deftest(test_mf_ad_add_v2r_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_add_v2r_many)
+static bool test_mf_ad_add_v2r_many() {
 	emit_test("Test that MergeFrom() adds the environment variables when "
 		"passed a valid ClassAd that uses V2Raw with many variables.");
 	Env env;
@@ -2945,9 +2945,9 @@ deftest(test_mf_ad_add_v2r_many)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_v1r_replace)
+static bool test_mf_ad_v1r_replace() {
 	emit_test("Test that MergeFrom() replaces the environment variables when "
 		"passed a valid ClassAd that uses V1Raw with many variables.");
 	Env env;
@@ -2969,9 +2969,9 @@ deftest(test_mf_ad_v1r_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_v2r_replace)
+static bool test_mf_ad_v2r_replace() {
 	emit_test("Test that MergeFrom() replaces the environment variables when "
 		"passed a valid ClassAd that uses V2Raw with many variables.");
 	Env env;
@@ -2993,9 +2993,9 @@ deftest(test_mf_ad_v2r_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_v1r_replace_add)
+static bool test_mf_ad_v1r_replace_add() {
 	emit_test("Test that MergeFrom() replaces some of the environment "
 		"variables and adds new ones when passed a valid ClassAd that uses"
 		" V1Raw with many variables.");
@@ -3018,9 +3018,9 @@ deftest(test_mf_ad_v1r_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_mf_ad_v2r_replace_add)
+static bool test_mf_ad_v2r_replace_add() {
 	emit_test("Test that MergeFrom() replaces some of the environment "
 		"variables when and adds new ones when passed a valid ClassAd that uses"
 		" V2Raw with many variables.");
@@ -3043,9 +3043,9 @@ deftest(test_mf_ad_v2r_replace_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_ret_null)
+static bool test_set_env_with_error_message_ret_null() {
 	emit_test("Test that SetEnvWithErrorMessage() returns false when passed a"
 		" NULL string.");
 	Env env;
@@ -3062,9 +3062,9 @@ deftest(test_set_env_with_error_message_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_ret_valid)
+static bool test_set_env_with_error_message_ret_valid() {
 	emit_test("Test that SetEnvWithErrorMessage() returns true when passed a"
 		" valid string.");
 	Env env;
@@ -3081,9 +3081,9 @@ deftest(test_set_env_with_error_message_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_ret_invalid_name)
+static bool test_set_env_with_error_message_ret_invalid_name() {
 	emit_test("Test that SetEnvWithErrorMessage() returns false when passed "
 		"an invalid string due to a missing variable name.");
 	Env env;
@@ -3100,9 +3100,9 @@ deftest(test_set_env_with_error_message_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_ret_invalid_delim)
+static bool test_set_env_with_error_message_ret_invalid_delim() {
 	emit_test("Test that SetEnvWithErrorMessage() returns false when passed "
 		"an invalid string due to a missing delimiter.");
 	Env env;
@@ -3119,9 +3119,9 @@ deftest(test_set_env_with_error_message_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_err_invalid_name)
+static bool test_set_env_with_error_message_err_invalid_name() {
 	emit_test("Test that SetEnvWithErrorMessage() generates an error message "
 		"for an invalid string due to a missing variable name.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -3137,9 +3137,9 @@ deftest(test_set_env_with_error_message_err_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_err_invalid_delim)
+static bool test_set_env_with_error_message_err_invalid_delim() {
 	emit_test("Test that SetEnvWithErrorMessage() generates an error message "
 		"for an invalid string due to a missing delimiter.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -3155,9 +3155,9 @@ deftest(test_set_env_with_error_message_err_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_add_null)
+static bool test_set_env_with_error_message_add_null() {
 	emit_test("Test that SetEnvWithErrorMessage() doesn't add the environment"
 		" variable when passed a NULL string.");
 	Env env;
@@ -3176,9 +3176,9 @@ deftest(test_set_env_with_error_message_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_add_invalid_delim)
+static bool test_set_env_with_error_message_add_invalid_delim() {
 	emit_test("Test that SetEnvWithErrorMessage() doesn't adds any "
 		"environment variables when passed a invalid string due to a missing "
 		"delimiter.");
@@ -3198,9 +3198,9 @@ deftest(test_set_env_with_error_message_add_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_add_invalid_var)
+static bool test_set_env_with_error_message_add_invalid_var() {
 	emit_test("Test that SetEnvWithErrorMessage() doesn't adds any "
 		"environment variables when passed an invalid string due to a missing "
 		"variable name.");
@@ -3220,9 +3220,9 @@ deftest(test_set_env_with_error_message_add_invalid_var)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_add)
+static bool test_set_env_with_error_message_add() {
 	emit_test("Test that SetEnvWithErrorMessage() adds the environment "
 		"variable when passed a valid string.");
 	Env env;
@@ -3241,9 +3241,9 @@ deftest(test_set_env_with_error_message_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_with_error_message_replace)
+static bool test_set_env_with_error_message_replace() {
 	emit_test("Test that SetEnvWithErrorMessage() replaces the environment "
 		"variable when passed a valid string.");
 	Env env;
@@ -3263,9 +3263,9 @@ deftest(test_set_env_with_error_message_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_ret_null)
+static bool test_set_env_str_ret_null() {
 	emit_test("Test that SetEnv() returns false when passed a NULL string.");
 	Env env;
 	bool expect = false;
@@ -3280,9 +3280,9 @@ deftest(test_set_env_str_ret_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_ret_valid)
+static bool test_set_env_str_ret_valid() {
 	emit_test("Test that SetEnv() returns true when passed a valid string.");
 	Env env;
 	bool expect = true;
@@ -3297,9 +3297,9 @@ deftest(test_set_env_str_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_ret_invalid_name)
+static bool test_set_env_str_ret_invalid_name() {
 	emit_test("Test that SetEnv() returns false when passed an invalid string"
 		" due to a missing variable name.");
 	Env env;
@@ -3316,9 +3316,9 @@ deftest(test_set_env_str_ret_invalid_name)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_ret_invalid_delim)
+static bool test_set_env_str_ret_invalid_delim() {
 	emit_test("Test that SetEnv() returns false when passed an invalid string"
 		" due to a missing delimiter.");
 	Env env;
@@ -3335,9 +3335,9 @@ deftest(test_set_env_str_ret_invalid_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_add_null)
+static bool test_set_env_str_add_null() {
 	emit_test("Test that SetEnv() doesn't add any environment variables when "
 		"passed a NULL string.");
 	Env env;
@@ -3355,9 +3355,9 @@ deftest(test_set_env_str_add_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_add_invalid)
+static bool test_set_env_str_add_invalid() {
 	emit_test("Test that SetEnv() doesn't add the environment variables when "
 		"passed invalid strings.");
 	Env env;
@@ -3377,9 +3377,9 @@ deftest(test_set_env_str_add_invalid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_add)
+static bool test_set_env_str_add() {
 	emit_test("Test that SetEnv() adds the environment variables when passed "
 		"a valid string.");
 	Env env;
@@ -3397,9 +3397,9 @@ deftest(test_set_env_str_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_replace)
+static bool test_set_env_str_replace() {
 	emit_test("Test that SetEnv() replaces the environment variables when "
 		"passed a valid string.");
 	Env env;
@@ -3418,9 +3418,9 @@ deftest(test_set_env_str_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_ret_null_var)
+static bool test_set_env_str_str_ret_null_var() {
 	emit_test("Test that SetEnv() returns false when passed a NULL string for"
 		" the variable name.");
 	Env env;
@@ -3437,9 +3437,9 @@ deftest(test_set_env_str_str_ret_null_var)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_ret_null_val)
+static bool test_set_env_str_str_ret_null_val() {
 	emit_test("Test that SetEnv() returns true when passed a NULL string for"
 		" the variable value.");
 	Env env;
@@ -3456,9 +3456,9 @@ deftest(test_set_env_str_str_ret_null_val)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_ret_valid)
+static bool test_set_env_str_str_ret_valid() {
 	emit_test("Test that SetEnv() returns true when passed a valid string for"
 		" both the variable name and value.");
 	Env env;
@@ -3475,9 +3475,9 @@ deftest(test_set_env_str_str_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_add_null_var)
+static bool test_set_env_str_str_add_null_var() {
 	emit_test("Test that SetEnv() doesn't add any environment variables when "
 		"passed a NULL string for the variable name.");
 	Env env;
@@ -3496,9 +3496,9 @@ deftest(test_set_env_str_str_add_null_var)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_add_null_val)
+static bool test_set_env_str_str_add_null_val() {
 	emit_test("Test that SetEnv() adds the environment variables when passed "
 		"a NULL string for the variable value.");
 	Env env;
@@ -3517,9 +3517,9 @@ deftest(test_set_env_str_str_add_null_val)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_add)
+static bool test_set_env_str_str_add() {
 	emit_test("Test that SetEnv() adds the environment variables when passed "
 		"a valid string for both the variable name and value.");
 	Env env;
@@ -3538,9 +3538,9 @@ deftest(test_set_env_str_str_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_str_str_replace)
+static bool test_set_env_str_str_replace() {
 	emit_test("Test that SetEnv() replaces the environment variables when "
 		"passed a valid string for both the variable name and value.");
 	Env env;
@@ -3560,9 +3560,9 @@ deftest(test_set_env_str_str_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_ret_empty_var)
+static bool test_set_env_mystr_ret_empty_var() {
 	emit_test("Test that SetEnv() returns false when passed an empty MyString"
 		" for the variable name.");
 	Env env;
@@ -3580,9 +3580,9 @@ deftest(test_set_env_mystr_ret_empty_var)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_ret_empty_val)
+static bool test_set_env_mystr_ret_empty_val() {
 	emit_test("Test that SetEnv() returns false when passed an empty MyString"
 		" for the variable value.");
 	Env env;
@@ -3600,9 +3600,9 @@ deftest(test_set_env_mystr_ret_empty_val)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_ret_valid)
+static bool test_set_env_mystr_ret_valid() {
 	emit_test("Test that SetEnv() returns true when passed a valid MyString"
 		" for both the variable name and value.");
 	Env env;
@@ -3620,9 +3620,9 @@ deftest(test_set_env_mystr_ret_valid)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_add_empty_var)
+static bool test_set_env_mystr_add_empty_var() {
 	emit_test("Test that SetEnv() doesn't add any environment variables when "
 		"passed an empty MyString for the variable name.");
 	Env env;
@@ -3641,9 +3641,9 @@ deftest(test_set_env_mystr_add_empty_var)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_add_empty_val)
+static bool test_set_env_mystr_add_empty_val() {
 	emit_test("Test that SetEnv() adds the environment variables when passed "
 		"an empty MyString for the variable name.");
 	Env env;
@@ -3662,9 +3662,9 @@ deftest(test_set_env_mystr_add_empty_val)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_add)
+static bool test_set_env_mystr_add() {
 	emit_test("Test that SetEnv() adds the environment variables when passed "
 		"a valid MyString for both the variable name and value.");
 	Env env;
@@ -3683,9 +3683,9 @@ deftest(test_set_env_mystr_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_set_env_mystr_replace)
+static bool test_set_env_mystr_replace() {
 	emit_test("Test that SetEnv() replaces the environment variables when "
 		"passed a valid MyString for both the variable name and value.");
 	Env env;
@@ -3705,9 +3705,9 @@ deftest(test_set_env_mystr_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_v1_empty)
+static bool test_insert_env_into_classad_v1_empty() {
 	emit_test("Test that InsertEnvIntoClassAd() inserts the environment "
 		"variables from an Env object in V1 format into the empty classad.");
 	Env env;
@@ -3730,9 +3730,9 @@ deftest(test_insert_env_into_classad_v1_empty)
 	}
 	free(actual);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_v2_empty)
+static bool test_insert_env_into_classad_v2_empty() {
 	emit_test("Test that InsertEnvIntoClassAd() inserts the environment "
 		"variables from an Env object in V2 format into the empty classad.");
 	Env env;
@@ -3755,9 +3755,9 @@ deftest(test_insert_env_into_classad_v2_empty)
 	}
 	free(actual);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_v1_v1_replace)
+static bool test_insert_env_into_classad_v1_v1_replace() {
 	emit_test("Test that InsertEnvIntoClassAd() replaces the environment "
 		"variables from an Env object in V1 format into the ClassAd with a V1 "
 		"Environment.");
@@ -3782,9 +3782,9 @@ deftest(test_insert_env_into_classad_v1_v1_replace)
 	}
 	free(actual);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_v1_v2_replace)
+static bool test_insert_env_into_classad_v1_v2_replace() {
 	emit_test("Test that InsertEnvIntoClassAd() replaces the environment "
 		"variables from an Env object in V1 format into the ClassAd with a V2 "
 		"Environment.");
@@ -3809,9 +3809,9 @@ deftest(test_insert_env_into_classad_v1_v2_replace)
 	}
 	free(actual);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_v2_v1_replace)
+static bool test_insert_env_into_classad_v2_v1_replace() {
 	emit_test("Test that InsertEnvIntoClassAd() replaces the environment "
 		"variables from an Env object in V2 format into the ClassAd with a V1 "
 		"Environment.");
@@ -3836,9 +3836,9 @@ deftest(test_insert_env_into_classad_v2_v1_replace)
 	}
 	free(actual);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_v2_v2_replace)
+static bool test_insert_env_into_classad_v2_v2_replace() {
 	emit_test("Test that InsertEnvIntoClassAd() replaces the environment "
 		"variables from an Env object in V2 format into the ClassAd with a V2 "
 		"Environment.");
@@ -3863,8 +3863,8 @@ deftest(test_insert_env_into_classad_v2_v2_replace)
 	}
 	free(actual);
 	PASS;
-enddef
-deftest(test_insert_env_into_classad_version_v1)
+}
+static bool test_insert_env_into_classad_version_v1() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format.");
@@ -3891,9 +3891,9 @@ deftest(test_insert_env_into_classad_version_v1)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_os_winnt)
+static bool test_insert_env_into_classad_version_v1_os_winnt() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format and the target OS is WINNT.");
@@ -3920,9 +3920,9 @@ deftest(test_insert_env_into_classad_version_v1_os_winnt)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_os_win32)
+static bool test_insert_env_into_classad_version_v1_os_win32() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format and the target OS is WIN32.");
@@ -3949,9 +3949,9 @@ deftest(test_insert_env_into_classad_version_v1_os_win32)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_os_unix)
+static bool test_insert_env_into_classad_version_v1_os_unix() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format and the target OS is UNIX.");
@@ -3978,9 +3978,9 @@ deftest(test_insert_env_into_classad_version_v1_os_unix)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_semi)
+static bool test_insert_env_into_classad_version_v1_semi() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format and the ClassAd previously used "
@@ -4009,9 +4009,9 @@ deftest(test_insert_env_into_classad_version_v1_semi)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_line)
+static bool test_insert_env_into_classad_version_v1_line() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format and the ClassAd previously used "
@@ -4040,9 +4040,9 @@ deftest(test_insert_env_into_classad_version_v1_line)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_current)
+static bool test_insert_env_into_classad_version_v1_current() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V2 format into the ClassAd when the "
 		"CondorVersionInfo requires V1 format and we use the delimiter for the "
@@ -4070,9 +4070,9 @@ deftest(test_insert_env_into_classad_version_v1_current)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_error_v2)
+static bool test_insert_env_into_classad_version_v1_error_v2() {
 	emit_test("Test that InsertEnvIntoClassAd() sets the error MyString for "
 		"an Env object in V2 format that cannot be converted into V1 format "
 		"when the CondorVersionInfo requires V1 format, but the ClassAd started"
@@ -4101,9 +4101,9 @@ deftest(test_insert_env_into_classad_version_v1_error_v2)
 	}
 	niceFree(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v1_error)
+static bool test_insert_env_into_classad_version_v1_error() {
 	emit_test("Test that InsertEnvIntoClassAd() sets the error MyString for "
 		"an Env object in V2 format that cannot be converted into V1 format "
 		"when the CondorVersionInfo requires V1 format.");
@@ -4130,9 +4130,9 @@ deftest(test_insert_env_into_classad_version_v1_error)
 	}
 	free(version);	//don't need to free 'actual'
 	PASS;
-enddef
+}
 
-deftest(test_insert_env_into_classad_version_v2)
+static bool test_insert_env_into_classad_version_v2() {
 	emit_test("Test that InsertEnvIntoClassAd() adds the environment "
 		"variables from an Env object in V1 format into the ClassAd when the "
 		"CondorVersionInfo doesn't require V1 format.");
@@ -4159,9 +4159,9 @@ deftest(test_insert_env_into_classad_version_v2)
 	}
 	free(actual); free(version);
 	PASS;
-enddef
+}
 
-deftest(test_condor_version_requires_v1_false)
+static bool test_condor_version_requires_v1_false() {
 	emit_test("Test that CondorVersionRequiresV1() returns false for condor "
 		"version 7.0.0.");
 	CondorVersionInfo info("$CondorVersion: 7.0.0 " __DATE__ " PRE-RELEASE $");
@@ -4180,9 +4180,9 @@ deftest(test_condor_version_requires_v1_false)
 	}
 	free(version);
 	PASS;
-enddef
+}
 
-deftest(test_condor_version_requires_v1_true)
+static bool test_condor_version_requires_v1_true() {
 	emit_test("Test that CondorVersionRequiresV1() returns true for condor "
 		"version 6.0.0.");
 	CondorVersionInfo info("$CondorVersion: 6.0.0 " __DATE__ " PRE-RELEASE $");
@@ -4201,9 +4201,9 @@ deftest(test_condor_version_requires_v1_true)
 	}
 	free(version);
 	PASS;
-enddef
+}
 
-deftest(test_condor_version_requires_v1_this)
+static bool test_condor_version_requires_v1_this() {
 	emit_test("Test that CondorVersionRequiresV1() returns false for this "
 		"version of condor.");
 	CondorVersionInfo info;
@@ -4222,9 +4222,9 @@ deftest(test_condor_version_requires_v1_this)
 	}
 	free(version);
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_return_empty)
+static bool test_get_delim_str_v2_raw_return_empty() {
 	emit_test("Test that getDelimitedStringV2Raw() returns true for an empty "
 		"Env object.");
 	Env env;
@@ -4242,9 +4242,9 @@ deftest(test_get_delim_str_v2_raw_return_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_return_v1)
+static bool test_get_delim_str_v2_raw_return_v1() {
 	emit_test("Test that getDelimitedStringV2Raw() returns true for an Env "
 		"object using V1 format.");
 	Env env;
@@ -4264,9 +4264,9 @@ deftest(test_get_delim_str_v2_raw_return_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_return_v2)
+static bool test_get_delim_str_v2_raw_return_v2() {
 	emit_test("Test that getDelimitedStringV2Raw() returns true for an Env "
 		"object using V2 format.");
 	Env env;
@@ -4286,9 +4286,9 @@ deftest(test_get_delim_str_v2_raw_return_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_result_empty)
+static bool test_get_delim_str_v2_raw_result_empty() {
 	emit_test("Test that getDelimitedStringV2Raw() sets the result MyString "
 		"to the expected value for an empty Env object.");
 	Env env;
@@ -4306,9 +4306,9 @@ deftest(test_get_delim_str_v2_raw_result_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_result_v1)
+static bool test_get_delim_str_v2_raw_result_v1() {
 	emit_test("Test that getDelimitedStringV2Raw() sets the result MyString "
 		"to the expected value for an Env object using V1 format.");
 	Env env;
@@ -4327,9 +4327,9 @@ deftest(test_get_delim_str_v2_raw_result_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_result_v2)
+static bool test_get_delim_str_v2_raw_result_v2() {
 	emit_test("Test that getDelimitedStringV2Raw() sets the result MyString "
 		"to the expected value for an Env object using V2 format.");
 	Env env;
@@ -4348,9 +4348,9 @@ deftest(test_get_delim_str_v2_raw_result_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_result_add)
+static bool test_get_delim_str_v2_raw_result_add() {
 	emit_test("Test that getDelimitedStringV2Raw() sets the result MyString "
 		"to the expected value after adding environment variables with "
 		"MergeFromV2Raw().");
@@ -4371,14 +4371,14 @@ deftest(test_get_delim_str_v2_raw_result_add)
 	emit_param("Result MyString Before", "%s", actual1.Value());
 	emit_param("Result MyString After", "%s", actual2.Value());
 	if(!strings_similar(actual1.Value(), V2R_REP) || 
-		!strings_similar(actual2.Value(), V2R_REP_ADD))
+		!strings_similar(actual2.Value(), V2R_REP_ADD)() {
 	{
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_result_replace)
+static bool test_get_delim_str_v2_raw_result_replace() {
 	emit_test("Test that getDelimitedStringV2Raw() sets the result MyString "
 		"to the expected value after replacing environment variables with"
 		"MergeFromV2Raw().");
@@ -4399,14 +4399,14 @@ deftest(test_get_delim_str_v2_raw_result_replace)
 	emit_param("Result MyString Before", "%s", actual1.Value());
 	emit_param("Result MyString After", "%s", actual2.Value());
 	if(!strings_similar(actual1.Value(), V2R) ||
-		!strings_similar(actual2.Value(), V2R_REP))
+		!strings_similar(actual2.Value(), V2R_REP)() {
 	{
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_result_add_replace)
+static bool test_get_delim_str_v2_raw_result_add_replace() {
 	emit_test("Test that getDelimitedStringV2Raw() sets the result MyString "
 		"to the expected value after adding and replacing environment variables"
 		" with MergeFromV2Raw().");
@@ -4427,14 +4427,14 @@ deftest(test_get_delim_str_v2_raw_result_add_replace)
 	emit_param("Result MyString Before", "%s", actual1.Value());
 	emit_param("Result MyString After", "%s", actual2.Value());
 	if(!strings_similar(actual1.Value(), V2R) || 
-		!strings_similar(actual2.Value(), V2R_REP_ADD))
+		!strings_similar(actual2.Value(), V2R_REP_ADD)() {
 	{
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_mark_empty)
+static bool test_get_delim_str_v2_raw_mark_empty() {
 	emit_test("Test that getDelimitedStringV2Raw() adds the RAW_ENV_V2_MARKER"
 		" to the result MyString for an empty Env object.");
 	Env env;
@@ -4452,9 +4452,9 @@ deftest(test_get_delim_str_v2_raw_mark_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_mark_v1)
+static bool test_get_delim_str_v2_raw_mark_v1() {
 	emit_test("Test that getDelimitedStringV2Raw() adds the RAW_ENV_V2_MARKER"
 		" to the result MyString for an Env object using V1 format.");
 	Env env;
@@ -4474,9 +4474,9 @@ deftest(test_get_delim_str_v2_raw_mark_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_raw_mark_v2)
+static bool test_get_delim_str_v2_raw_mark_v2() {
 	emit_test("Test that getDelimitedStringV2Raw() adds the RAW_ENV_V2_MARKER"
 		" to the result MyString for an Env object using V2 format.");
 	Env env;
@@ -4498,9 +4498,9 @@ deftest(test_get_delim_str_v2_raw_mark_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_return_empty)
+static bool test_get_delim_str_v1_raw_return_empty() {
 	emit_test("Test that getDelimitedStringV1Raw() returns true for an empty "
 		"Env object.");
 	Env env;
@@ -4519,9 +4519,9 @@ deftest(test_get_delim_str_v1_raw_return_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_return_v1)
+static bool test_get_delim_str_v1_raw_return_v1() {
 	emit_test("Test that getDelimitedStringV1Raw() returns true for an Env "
 		"object using V1 format.");
 	Env env;
@@ -4541,9 +4541,9 @@ deftest(test_get_delim_str_v1_raw_return_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_return_v2)
+static bool test_get_delim_str_v1_raw_return_v2() {
 	emit_test("Test that getDelimitedStringV1Raw() returns true for an Env "
 		"object using V2 format.");
 	Env env;
@@ -4563,9 +4563,9 @@ deftest(test_get_delim_str_v1_raw_return_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_return_delim)
+static bool test_get_delim_str_v1_raw_return_delim() {
 	emit_test("Test that getDelimitedStringV1Raw() returns false for an Env "
 		"object using V2 format with a ';'.");
 	Env env;
@@ -4585,9 +4585,9 @@ deftest(test_get_delim_str_v1_raw_return_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_error_delim)
+static bool test_get_delim_str_v1_raw_error_delim() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the error MyString "
 		"for an Env object using V2 format with a ';'.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -4607,9 +4607,9 @@ deftest(test_get_delim_str_v1_raw_error_delim)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_result_empty)
+static bool test_get_delim_str_v1_raw_result_empty() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the result MyString "
 		"to the expected value for an empty Env object.");
 	Env env;
@@ -4627,9 +4627,9 @@ deftest(test_get_delim_str_v1_raw_result_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_result_v1)
+static bool test_get_delim_str_v1_raw_result_v1() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the result MyString "
 		"to the expected value for an Env object in V1 format.");
 	Env env;
@@ -4648,9 +4648,9 @@ deftest(test_get_delim_str_v1_raw_result_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_result_v2)
+static bool test_get_delim_str_v1_raw_result_v2() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the result MyString "
 		"to the expected value for an Env object in V2 format.");
 	Env env;
@@ -4669,9 +4669,9 @@ deftest(test_get_delim_str_v1_raw_result_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_result_add)
+static bool test_get_delim_str_v1_raw_result_add() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the result MyString "
 		"to the expected value after adding environment variables with "
 		"MergeFromV1Raw().");
@@ -4692,14 +4692,14 @@ deftest(test_get_delim_str_v1_raw_result_add)
 	emit_param("Result MyString Before", "%s", actual1.Value());
 	emit_param("Result MyString After", "%s", actual2.Value());
 	if(!strings_similar(actual1.Value(), V1R_REP, ";") || 
-		!strings_similar(actual2.Value(), V1R_REP_ADD, ";"))
+		!strings_similar(actual2.Value(), V1R_REP_ADD, ";")() {
 	{
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_result_replace)
+static bool test_get_delim_str_v1_raw_result_replace() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the result MyString "
 		"to the expected value after replacing environment variables with "
 		"MergeFromV1Raw().");
@@ -4720,14 +4720,14 @@ deftest(test_get_delim_str_v1_raw_result_replace)
 	emit_param("Result MyString Before", "%s", actual1.Value());
 	emit_param("Result MyString After", "%s", actual2.Value());
 	if(!strings_similar(actual1.Value(), V1R, ";") || 
-		!strings_similar(actual2.Value(), V1R_REP, ";"))
+		!strings_similar(actual2.Value(), V1R_REP, ";")() {
 	{
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1_raw_result_add_replace)
+static bool test_get_delim_str_v1_raw_result_add_replace() {
 	emit_test("Test that getDelimitedStringV1Raw() sets the result MyString "
 		"to the expected value after adding and replacing environment variables"
 		" with MergeFromV1Raw().");
@@ -4748,14 +4748,14 @@ deftest(test_get_delim_str_v1_raw_result_add_replace)
 	emit_param("Result MyString Before", "%s", actual1.Value());
 	emit_param("Result MyString After", "%s", actual2.Value());
 	if(!strings_similar(actual1.Value(), V1R, ";") || 
-		!strings_similar(actual2.Value(), V1R_REP_ADD, ";"))
+		!strings_similar(actual2.Value(), V1R_REP_ADD, ";")() {
 	{
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_return_empty)
+static bool test_get_delim_str_v1or2_raw_ad_return_empty() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns true for an "
 		"empty ClassAd.");
 	Env env;
@@ -4776,9 +4776,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_return_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_return_v1)
+static bool test_get_delim_str_v1or2_raw_ad_return_v1() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns true for a "
 		"ClassAd using V1 format.");
 	Env env;
@@ -4800,9 +4800,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_return_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_return_v2)
+static bool test_get_delim_str_v1or2_raw_ad_return_v2() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns true for a "
 		"ClassAd using V2 format.");
 	Env env;
@@ -4824,9 +4824,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_return_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_return_invalid_v1)
+static bool test_get_delim_str_v1or2_raw_ad_return_invalid_v1() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns false when "
 		"passed an invalid ClassAd using V1 format.");
 	Env env;
@@ -4848,9 +4848,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_return_invalid_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_return_invalid_v2)
+static bool test_get_delim_str_v1or2_raw_ad_return_invalid_v2() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns false when "
 		"passed an invalid ClassAd using V2 format.");
 	Env env;
@@ -4872,9 +4872,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_return_invalid_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_error_v1)
+static bool test_get_delim_str_v1or2_raw_ad_error_v1() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the error MyString"
 		" when passed an invalid ClassAd using V1 format.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -4894,9 +4894,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_error_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_error_v2)
+static bool test_get_delim_str_v1or2_raw_ad_error_v2() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the error MyString"
 		" when passed an invalid ClassAd using V2 format.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -4916,9 +4916,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_error_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_result_empty)
+static bool test_get_delim_str_v1or2_raw_ad_result_empty() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value for an empty Env object.");
 	Env env;
@@ -4938,9 +4938,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_result_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_result_v1)
+static bool test_get_delim_str_v1or2_raw_ad_result_v1() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value for an Env object in V1 format.");
 	Env env;
@@ -4961,9 +4961,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_result_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_result_v2)
+static bool test_get_delim_str_v1or2_raw_ad_result_v2() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value for an Env object in V2 format.");
 	Env env;
@@ -4984,9 +4984,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_result_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_ad_result_replace)
+static bool test_get_delim_str_v1or2_raw_ad_result_replace() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value after replacing environment variables "
 		"from the ClassAd.");
@@ -5014,9 +5014,9 @@ deftest(test_get_delim_str_v1or2_raw_ad_result_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_return_empty)
+static bool test_get_delim_str_v1or2_raw_return_empty() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns true for an "
 		"empty Env object.");
 	Env env;
@@ -5035,9 +5035,9 @@ deftest(test_get_delim_str_v1or2_raw_return_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_return_v1)
+static bool test_get_delim_str_v1or2_raw_return_v1() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns true for an "
 		"Env object using V1 format.");
 	Env env;
@@ -5057,9 +5057,9 @@ deftest(test_get_delim_str_v1or2_raw_return_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_return_v2)
+static bool test_get_delim_str_v1or2_raw_return_v2() {
 	emit_test("Test that getDelimitedStringV1or2Raw() returns true for an "
 		"Env object using V2 format.");
 	Env env;
@@ -5079,9 +5079,9 @@ deftest(test_get_delim_str_v1or2_raw_return_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_result_empty)
+static bool test_get_delim_str_v1or2_raw_result_empty() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value for an empty Env object.");
 	Env env;
@@ -5099,9 +5099,9 @@ deftest(test_get_delim_str_v1or2_raw_result_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_result_v1)
+static bool test_get_delim_str_v1or2_raw_result_v1() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value for an Env object using V1 format.");
 	Env env;
@@ -5120,9 +5120,9 @@ deftest(test_get_delim_str_v1or2_raw_result_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_result_v2)
+static bool test_get_delim_str_v1or2_raw_result_v2() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value for an Env object using V2 format.");
 	Env env;
@@ -5141,9 +5141,9 @@ deftest(test_get_delim_str_v1or2_raw_result_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_result_add)
+static bool test_get_delim_str_v1or2_raw_result_add() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value after adding environment variables with"
 		" MergeFromV1Raw().");
@@ -5169,9 +5169,9 @@ deftest(test_get_delim_str_v1or2_raw_result_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_result_replace)
+static bool test_get_delim_str_v1or2_raw_result_replace() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value after replacing environment variables "
 		"with MergeFromV1Raw().");
@@ -5197,9 +5197,9 @@ deftest(test_get_delim_str_v1or2_raw_result_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1or2_raw_result_add_replace)
+static bool test_get_delim_str_v1or2_raw_result_add_replace() {
 	emit_test("Test that getDelimitedStringV1or2Raw() sets the result "
 		"MyString to the expected value after adding and replacing environment "
 		"variables with MergeFromV1Raw().");
@@ -5225,9 +5225,9 @@ deftest(test_get_delim_str_v1or2_raw_result_add_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_return_empty)
+static bool test_get_delim_str_v2_quoted_return_empty() {
 	emit_test("Test that getDelimitedStringV2Quoted() returns true for an "
 		"empty Env object.");
 	Env env;
@@ -5246,9 +5246,9 @@ deftest(test_get_delim_str_v2_quoted_return_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_return_v1)
+static bool test_get_delim_str_v2_quoted_return_v1() {
 	emit_test("Test that getDelimitedStringV2Quoted() returns true for an "
 		"Env object using V1 format.");
 	Env env;
@@ -5268,9 +5268,9 @@ deftest(test_get_delim_str_v2_quoted_return_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_return_v2)
+static bool test_get_delim_str_v2_quoted_return_v2() {
 	emit_test("Test that getDelimitedStringV2Quoted() returns true for an "
 		"Env object using V2 format.");
 	Env env;
@@ -5290,9 +5290,9 @@ deftest(test_get_delim_str_v2_quoted_return_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_result_empty)
+static bool test_get_delim_str_v2_quoted_result_empty() {
 	emit_test("Test that getDelimitedStringV2Quoted() sets the result "
 		"MyString to the expected value for an empty Env object.");
 	Env env;
@@ -5310,9 +5310,9 @@ deftest(test_get_delim_str_v2_quoted_result_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_result_v1)
+static bool test_get_delim_str_v2_quoted_result_v1() {
 	emit_test("Test that getDelimitedStringV2Quoted() sets the result "
 		"MyString to the expected value for an Env object using V1 format.");
 	Env env;
@@ -5331,9 +5331,9 @@ deftest(test_get_delim_str_v2_quoted_result_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_result_v2)
+static bool test_get_delim_str_v2_quoted_result_v2() {
 	emit_test("Test that getDelimitedStringV2Quoted() sets the result "
 		"MyString to the expected value for an Env object using V2 format.");
 	Env env;
@@ -5352,9 +5352,9 @@ deftest(test_get_delim_str_v2_quoted_result_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_result_add)
+static bool test_get_delim_str_v2_quoted_result_add() {
 	emit_test("Test that getDelimitedStringV2Quoted() sets the result "
 		"MyString to the expected value after adding environment variables with"
 		" MergeFromV2Raw().");
@@ -5380,9 +5380,9 @@ deftest(test_get_delim_str_v2_quoted_result_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_result_replace)
+static bool test_get_delim_str_v2_quoted_result_replace() {
 	emit_test("Test that getDelimitedStringV2Quoted() sets the result "
 		"MyString to the expected value after replacing environment variables "
 		"with MergeFromV2Raw().");
@@ -5408,9 +5408,9 @@ deftest(test_get_delim_str_v2_quoted_result_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v2_quoted_result_add_replace)
+static bool test_get_delim_str_v2_quoted_result_add_replace() {
 	emit_test("Test that getDelimitedStringV2Quoted() sets the result "
 		"MyString to the expected value after adding and replacing environment "
 		"variables with MergeFromV2Raw().");
@@ -5436,9 +5436,9 @@ deftest(test_get_delim_str_v2_quoted_result_add_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_return_empty)
+static bool test_get_delim_str_v1r_or_v2q_return_empty() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() returns true for"
 		" an empty Env object.");
 	Env env;
@@ -5457,9 +5457,9 @@ deftest(test_get_delim_str_v1r_or_v2q_return_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_return_v1)
+static bool test_get_delim_str_v1r_or_v2q_return_v1() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() returns true for"
 		" an Env object using V1 format.");
 	Env env;
@@ -5479,9 +5479,9 @@ deftest(test_get_delim_str_v1r_or_v2q_return_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_return_v2)
+static bool test_get_delim_str_v1r_or_v2q_return_v2() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() returns true for"
 		" an Env object using V2 format.");
 	Env env;
@@ -5501,9 +5501,9 @@ deftest(test_get_delim_str_v1r_or_v2q_return_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_result_empty)
+static bool test_get_delim_str_v1r_or_v2q_result_empty() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() sets the result "
 		"MyString to the expected value for an empty Env object.");
 	Env env;
@@ -5521,9 +5521,9 @@ deftest(test_get_delim_str_v1r_or_v2q_result_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_result_v1)
+static bool test_get_delim_str_v1r_or_v2q_result_v1() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() sets the result "
 		"MyString to the expected value for an Env object using V1 format.");
 	Env env;
@@ -5542,9 +5542,9 @@ deftest(test_get_delim_str_v1r_or_v2q_result_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_result_v2)
+static bool test_get_delim_str_v1r_or_v2q_result_v2() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() sets the result "
 		"MyString to the expected value for an Env object using V2Raw format.");
 	Env env;
@@ -5565,9 +5565,9 @@ deftest(test_get_delim_str_v1r_or_v2q_result_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_result_add)
+static bool test_get_delim_str_v1r_or_v2q_result_add() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() sets the result "
 		"MyString to the expected value after adding environment variables with"
 		" MergeFromV1Raw().");
@@ -5593,9 +5593,9 @@ deftest(test_get_delim_str_v1r_or_v2q_result_add)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_result_replace)
+static bool test_get_delim_str_v1r_or_v2q_result_replace() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() sets the result "
 		"MyString to the expected value after replacing environment variables "
 		"with MergeFromV1Raw().");
@@ -5621,9 +5621,9 @@ deftest(test_get_delim_str_v1r_or_v2q_result_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_delim_str_v1r_or_v2q_result_add_replace)
+static bool test_get_delim_str_v1r_or_v2q_result_add_replace() {
 	emit_test("Test that getDelimitedStringV1RawOrV2Quoted() sets the result "
 		"MyString to the expected value after adding and replacing environment "
 		"variables with MergeFromV1Raw().");
@@ -5649,9 +5649,9 @@ deftest(test_get_delim_str_v1r_or_v2q_result_add_replace)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_string_array_empty)
+static bool test_get_string_array_empty() {
 	emit_test("Test that getStringArray() returns the expected string array "
 		"for an empty Env object.");
 	Env env;
@@ -5669,9 +5669,9 @@ deftest(test_get_string_array_empty)
 	}
 	deleteStringArray(result); 
 	PASS;
-enddef
+}
 
-deftest(test_get_string_array_v1)
+static bool test_get_string_array_v1() {
 	emit_test("Test that getStringArray() returns the expected string array "
 		"for an Env object using V1 format.");
 	Env env;
@@ -5690,9 +5690,9 @@ deftest(test_get_string_array_v1)
 	}
 	deleteStringArray(result); delete actual;
 	PASS;
-enddef
+}
 
-deftest(test_get_string_array_v2)
+static bool test_get_string_array_v2() {
 	emit_test("Test that getStringArray() returns the expected string array "
 		"for an Env object using V2 format.");
 	Env env;
@@ -5711,9 +5711,9 @@ deftest(test_get_string_array_v2)
 	}
 	deleteStringArray(result); delete actual;
 	PASS;
-enddef
+}
 
-deftest(test_get_string_array_add)
+static bool test_get_string_array_add() {
 	emit_test("Test that getStringArray() returns the expected string array "
 		"after adding environment variables with MergeFromV2Raw().");
 	Env env;
@@ -5741,9 +5741,9 @@ deftest(test_get_string_array_add)
 	deleteStringArray(result1); deleteStringArray(result2);
 	delete actual1; delete actual2;
 	PASS;
-enddef
+}
 
-deftest(test_get_string_array_replace)
+static bool test_get_string_array_replace() {
 	emit_test("Test that getStringArray() returns the expected string array "
 		"after replacing environment variables with MergeFromV2Raw().");
 	Env env;
@@ -5771,9 +5771,9 @@ deftest(test_get_string_array_replace)
 	deleteStringArray(result1); deleteStringArray(result2);
 	delete actual1; delete actual2;
 	PASS;
-enddef
+}
 
-deftest(test_get_string_array_add_replace)
+static bool test_get_string_array_add_replace() {
 	emit_test("Test that getStringArray() returns the expected string array "
 		"after adding and replacing environment variables with "
 		"MergeFromV2Raw().");
@@ -5802,9 +5802,9 @@ deftest(test_get_string_array_add_replace)
 	deleteStringArray(result1); deleteStringArray(result2);
 	delete actual1; delete actual2;
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_return_empty_empty)
+static bool test_get_env_bool_return_empty_empty() {
 	emit_test("Test that getEnv() returns false for an empty Env object when "
 		"passed an empty variable and value.");
 	Env env;
@@ -5823,9 +5823,9 @@ deftest(test_get_env_bool_return_empty_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_return_empty_not)
+static bool test_get_env_bool_return_empty_not() {
 	emit_test("Test that getEnv() returns false for an empty Env object when "
 		"passed a non-existent variable.");
 	Env env;
@@ -5844,9 +5844,9 @@ deftest(test_get_env_bool_return_empty_not)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_return_hit_one)
+static bool test_get_env_bool_return_hit_one() {
 	emit_test("Test that getEnv() returns true for an Env object when "
 		"passed a correct variable.");
 	Env env;
@@ -5866,9 +5866,9 @@ deftest(test_get_env_bool_return_hit_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_return_hit_all)
+static bool test_get_env_bool_return_hit_all() {
 	emit_test("Test that getEnv() returns true for an Env object when "
 		"passed a correct variable name for each variable within the "
 		"Env.");
@@ -5895,9 +5895,9 @@ deftest(test_get_env_bool_return_hit_all)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_value_miss)
+static bool test_get_env_bool_value_miss() {
 	emit_test("Test that getEnv() doesn't change the value MyString when the "
 		"variable does not exist.");
 	Env env;
@@ -5916,9 +5916,9 @@ deftest(test_get_env_bool_value_miss)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_value_hit_one)
+static bool test_get_env_bool_value_hit_one() {
 	emit_test("Test that getEnv() sets the value MyString to the expected "
 		"value for a variable that exists.");
 	Env env;
@@ -5937,9 +5937,9 @@ deftest(test_get_env_bool_value_hit_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_bool_value_hit_all)
+static bool test_get_env_bool_value_hit_all() {
 	emit_test("Test that getEnv() sets the value MyString to the expected "
 		"value for each variable within the Env.");
 	Env env;
@@ -5969,9 +5969,9 @@ deftest(test_get_env_bool_value_hit_all)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v1_value_false_null)
+static bool test_is_safe_env_v1_value_false_null() {
 	emit_test("Test that IsSafeEnvV1Value() returns false for a NULL "
 		"string.");
 	Env env;
@@ -5987,9 +5987,9 @@ deftest(test_is_safe_env_v1_value_false_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v1_value_false_semi)
+static bool test_is_safe_env_v1_value_false_semi() {
 	emit_test("Test that IsSafeEnvV1Value() returns false for a string "
 		"with a semicolon.");
 	Env env;
@@ -6005,9 +6005,9 @@ deftest(test_is_safe_env_v1_value_false_semi)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v1_value_false_newline)
+static bool test_is_safe_env_v1_value_false_newline() {
 	emit_test("Test that IsSafeEnvV1Value() returns false for a string "
 		"with a newline character.");
 	Env env;
@@ -6023,9 +6023,9 @@ deftest(test_is_safe_env_v1_value_false_newline)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v1_value_false_param)
+static bool test_is_safe_env_v1_value_false_param() {
 	emit_test("Test that IsSafeEnvV1Value() returns false for a string "
 		"with the passed delimiter.");
 	Env env;
@@ -6042,9 +6042,9 @@ deftest(test_is_safe_env_v1_value_false_param)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v1_value_true_one)
+static bool test_is_safe_env_v1_value_true_one() {
 	emit_test("Test that IsSafeEnvV1Value() returns true for a valid V1 "
 		"format string.");
 	Env env;
@@ -6061,9 +6061,9 @@ deftest(test_is_safe_env_v1_value_true_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v1_value_true_quotes)
+static bool test_is_safe_env_v1_value_true_quotes() {
 	emit_test("Test that IsSafeEnvV1Value() returns true for a string "
 		"surrounded in quotes.");
 	Env env;
@@ -6079,9 +6079,9 @@ deftest(test_is_safe_env_v1_value_true_quotes)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v2_value_false_null)
+static bool test_is_safe_env_v2_value_false_null() {
 	emit_test("Test that IsSafeEnvV2Value() returns false for a NULL "
 		"string.");
 	Env env;
@@ -6097,9 +6097,9 @@ deftest(test_is_safe_env_v2_value_false_null)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v2_value_false_newline)
+static bool test_is_safe_env_v2_value_false_newline() {
 	emit_test("Test that IsSafeEnvV2Value() returns false for a string with "
 		"a newline character.");
 	Env env;
@@ -6115,9 +6115,9 @@ deftest(test_is_safe_env_v2_value_false_newline)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v2_value_true_one)
+static bool test_is_safe_env_v2_value_true_one() {
 	emit_test("Test that IsSafeEnvV2Value() returns true for a valid V2 "
 		"format string with only one environment variable.");
 	Env env;
@@ -6133,9 +6133,9 @@ deftest(test_is_safe_env_v2_value_true_one)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_safe_env_v2_value_true_many)
+static bool test_is_safe_env_v2_value_true_many() {
 	emit_test("Test that IsSafeEnvV2Value() returns true for a valid V2 "
 		"format string with many environment variables.");
 	Env env;
@@ -6151,9 +6151,9 @@ deftest(test_is_safe_env_v2_value_true_many)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_v1_delim_param_winnt)
+static bool test_get_env_v1_delim_param_winnt() {
 	emit_test("Test that GetEnvV1Delimiter() returns a '|' for an Env "
 		"when passed a string beginning with \"WINNT\".");
 	Env env;
@@ -6170,9 +6170,9 @@ deftest(test_get_env_v1_delim_param_winnt)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_v1_delim_param_win32)
+static bool test_get_env_v1_delim_param_win32() {
 	emit_test("Test that GetEnvV1Delimiter() returns a '|' for an Env "
 		"when passed a string beginning with \"WIN32\".");
 	Env env;
@@ -6189,9 +6189,9 @@ deftest(test_get_env_v1_delim_param_win32)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_get_env_v1_delim_param_unix)
+static bool test_get_env_v1_delim_param_unix() {
 	emit_test("Test that GetEnvV1Delimiter() returns a semicolon for an Env "
 		"when passed a string beginning with \"UNIX\".");
 	Env env;
@@ -6208,9 +6208,9 @@ deftest(test_get_env_v1_delim_param_unix)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_v2_quoted_string_false_v1)
+static bool test_is_v2_quoted_string_false_v1() {
 	emit_test("Test that IsV2QuotedString() returns false for a V1 format "
 		"string that doesn't begin or end with quotes.");
 	bool expect = false;
@@ -6225,9 +6225,9 @@ deftest(test_is_v2_quoted_string_false_v1)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_v2_quoted_string_false_v2)
+static bool test_is_v2_quoted_string_false_v2() {
 	emit_test("Test that IsV2QuotedString() returns false for a V2 format "
 		"string that doesn't begin or end with quotes.");
 	bool expect = false;
@@ -6242,9 +6242,9 @@ deftest(test_is_v2_quoted_string_false_v2)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_is_v2_quoted_string_true)
+static bool test_is_v2_quoted_string_true() {
 	emit_test("Test that IsV2QuotedString() returns true for a V2 format "
 		"string that begins and ends with quotes.");
 	bool expect = true;
@@ -6259,9 +6259,9 @@ deftest(test_is_v2_quoted_string_true)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_return_false_miss_end)
+static bool test_v2_quoted_to_v2_raw_return_false_miss_end() {
 	emit_test("Test that V2QuotedToV2Raw() returns false for an invalid V2 "
 		"quoted string due to missing quotes at the end.");
 	MyString result, error;
@@ -6279,9 +6279,9 @@ deftest(test_v2_quoted_to_v2_raw_return_false_miss_end)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_return_false_trail)
+static bool test_v2_quoted_to_v2_raw_return_false_trail() {
 	emit_test("Test that V2QuotedToV2Raw() returns false for an invalid V2 "
 		"quoted string due to trailing characters after the quotes.");
 	MyString result, error;
@@ -6299,9 +6299,9 @@ deftest(test_v2_quoted_to_v2_raw_return_false_trail)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_return_true)
+static bool test_v2_quoted_to_v2_raw_return_true() {
 	emit_test("Test that V2QuotedToV2Raw() returns true for an valid V2 "
 		"quoted string.");
 	MyString result, error;
@@ -6319,9 +6319,9 @@ deftest(test_v2_quoted_to_v2_raw_return_true)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_return_true_semi)
+static bool test_v2_quoted_to_v2_raw_return_true_semi() {
 	emit_test("Test that V2QuotedToV2Raw() returns true for a V2 "
 		"quoted string that uses a semicolon as a delimiter.");
 	MyString result, error;
@@ -6339,9 +6339,9 @@ deftest(test_v2_quoted_to_v2_raw_return_true_semi)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_error_miss_end)
+static bool test_v2_quoted_to_v2_raw_error_miss_end() {
 	emit_test("Test that V2QuotedToV2Raw() sets an error message for an "
 		"invalid V2 quoted string due to missing quotes at the end.");
 	emit_comment("This test just checks if the error message is not empty.");
@@ -6357,9 +6357,9 @@ deftest(test_v2_quoted_to_v2_raw_error_miss_end)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_error_trail)
+static bool test_v2_quoted_to_v2_raw_error_trail() {
 	emit_test("Test that V2QuotedToV2Raw() sets an error message for an "
 		"invalid V2 quoted string due to trailing characters after the "
 		"quotes.");
@@ -6376,9 +6376,9 @@ deftest(test_v2_quoted_to_v2_raw_error_trail)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_result)
+static bool test_v2_quoted_to_v2_raw_result() {
 	emit_test("Test that V2QuotedToV2Raw() sets the result MyString to the "
 		"expected value for a valid V2 quoted string.");
 	MyString result, error;
@@ -6395,9 +6395,9 @@ deftest(test_v2_quoted_to_v2_raw_result)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_v2_quoted_to_v2_raw_result_semi)
+static bool test_v2_quoted_to_v2_raw_result_semi() {
 	emit_test("Test that V2QuotedToV2Raw() sets the result MyString to the "
 		"expected value for a  V2 quoted string that uses a semicolon as a "
 		"delimiter.");
@@ -6415,9 +6415,9 @@ deftest(test_v2_quoted_to_v2_raw_result_semi)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_empty)
+static bool test_input_was_v1_false_empty() {
 	emit_test("Test that InputWasV1() returns false for an empty Env "
 		"object.");
 	Env env;
@@ -6433,9 +6433,9 @@ deftest(test_input_was_v1_false_empty)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_v2q_or)
+static bool test_input_was_v1_false_v2q_or() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a V2Quoted string with MergeFromV1RawOrV2Quoted().");
 	Env env;
@@ -6452,9 +6452,9 @@ deftest(test_input_was_v1_false_v2q_or)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_v2q)
+static bool test_input_was_v1_false_v2q() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a V2Quoted string with MergeFromV2Quoted().");
 	Env env;
@@ -6471,9 +6471,9 @@ deftest(test_input_was_v1_false_v2q)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_v2r_or)
+static bool test_input_was_v1_false_v2r_or() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a V2Raw string with MergeFromV1or2Raw().");
 	Env env;
@@ -6490,9 +6490,9 @@ deftest(test_input_was_v1_false_v2r_or)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_v2r)
+static bool test_input_was_v1_false_v2r() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a V2Raw string with MergeFromV2Raw().");
 	Env env;
@@ -6509,9 +6509,9 @@ deftest(test_input_was_v1_false_v2r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_array)
+static bool test_input_was_v1_false_array() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a string array with MergeFrom().");
 	Env env;
@@ -6528,9 +6528,9 @@ deftest(test_input_was_v1_false_array)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_str)
+static bool test_input_was_v1_false_str() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a string with MergeFrom().");
 	Env env;
@@ -6547,9 +6547,9 @@ deftest(test_input_was_v1_false_str)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_env)
+static bool test_input_was_v1_false_env() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from another Env object with MergeFrom().");
 	Env env1, env2;
@@ -6567,9 +6567,9 @@ deftest(test_input_was_v1_false_env)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_false_ad)
+static bool test_input_was_v1_false_ad() {
 	emit_test("Test that InputWasV1() returns false for an Env object "
 		"created from a ClassAd that uses a V2 environment with MergeFrom().");
 	ClassAd classad;
@@ -6588,9 +6588,9 @@ deftest(test_input_was_v1_false_ad)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_true_v1r_or)
+static bool test_input_was_v1_true_v1r_or() {
 	emit_test("Test that InputWasV1() returns true for an Env object "
 		"created from V1Raw string that with MergeFromV1RawOrV2Quoted().");
 	Env env;
@@ -6607,9 +6607,9 @@ deftest(test_input_was_v1_true_v1r_or)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_true_v1r)
+static bool test_input_was_v1_true_v1r() {
 	emit_test("Test that InputWasV1() returns true for an Env object "
 		"created from V1Raw string that with MergeFromV1Raw().");
 	Env env;
@@ -6626,9 +6626,9 @@ deftest(test_input_was_v1_true_v1r)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
-deftest(test_input_was_v1_true_ad)
+static bool test_input_was_v1_true_ad() {
 	emit_test("Test that InputWasV1() returns true for an Env object "
 		"created from a ClassAd that uses a V1 environment with MergeFrom().");
 	ClassAd classad;
@@ -6647,5 +6647,5 @@ deftest(test_input_was_v1_true_ad)
 		FAIL;
 	}
 	PASS;
-enddef
+}
 
