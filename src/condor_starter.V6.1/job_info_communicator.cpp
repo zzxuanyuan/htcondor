@@ -258,6 +258,7 @@ JobInfoCommunicator::jobSubproc( void )
 void
 JobInfoCommunicator::allJobsSpawned( void )
 {
+	dprintf(D_FULLDEBUG, "Inside JobInfoCommunicator::allJobsSpawned()\n");
 		// Now that everything is running, start a timer to handle
 		// periodic job updates.
 	startUpdateTimer();

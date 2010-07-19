@@ -103,6 +103,8 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	syscall_sock->timeout(param_integer( "STARTER_UPLOAD_TIMEOUT", 300));
 
 	ASSERT( socks[0] == NULL );
+
+	m_dataflow_tid = -1;
 }
 
 
@@ -827,6 +829,16 @@ JICShadow::addToOutputFiles( const char* filename )
 	if (!m_removed_output_files.file_contains(filename)) {
 		m_added_output_files.append(filename);
 	}
+}
+
+/* This is a timer which find file suitable for dataflow transfer and moves
+	them back to the spool directory. */
+void
+JICShadow::transferDataflowFiles( void )
+{
+	dprintf(D_ALWAYS, "ENTER JICShadow::transferDataflowFiles()\n");
+
+	dprintf(D_ALWAYS, "LEAVE JICShadow::transferDataflowFiles()\n");
 }
 
 void
@@ -2042,3 +2054,63 @@ JICShadow::receiveMachineAd( Stream *stream )
 
 	return ret_val;
 }
+
+void
+JICShadow::allJobsSpawned( void )
+{
+	dprintf(D_ALWAYS, 
+		"JICShadow::allJobsSpawned(): registering dataflow timer\n");
+
+	// XXX This should only happen if the job ad dictates it.
+	startDataflowTimer();
+
+	dprintf(D_ALWAYS, 
+		"JICShadow::allJobsSpawned(): Calling parent's allJobsSpawned()\n");
+
+	JobInfoCommunicator::allJobsSpawned();
+}
+
+void
+JICShadow::cancelDataflowTimer( void )
+{
+	if (m_dataflow_tid >= 0) {
+		daemonCore->Cancel_Timer(m_dataflow_tid);
+		m_dataflow_tid = -1;
+	}
+}
+
+void
+JICShadow::startDataflowTimer( void )
+{
+	if( m_dataflow_tid >= 0 ) {
+		// already registered the timer...
+	return;
+	}
+
+	Timeslice interval;
+
+	// default interval is 1 minutes, with 20 seconds as the initial value.
+	// XXX Get this out of the job ad instead of hard coding it.
+
+	interval.setDefaultInterval( 60 );
+	interval.setTimeslice( 0.1 );
+	interval.setInitialInterval( 20 );
+
+	if( interval.getDefaultInterval() < interval.getInitialInterval() ) {
+		interval.setInitialInterval( interval.getDefaultInterval() );
+	}
+	m_dataflow_tid = daemonCore->
+		Register_Timer(interval,
+		(TimerHandlercpp)&JICShadow::transferDataflowTimerHandler,
+			"JICShadow::transferDataflowTimerHandler", this);
+	if( m_dataflow_tid < 0 ) {
+		EXCEPT( "Can't register JICShadow Dataflow Timer!" );
+	}
+}
+
+int
+JICShadow::transferDataflowTimerHandler( void )
+{
+	dprintf(D_FULLDEBUG, "Dataflow Timer fired!\n");
+}
+
