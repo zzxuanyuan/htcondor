@@ -201,7 +201,9 @@ typedef long birthday_t;
     values.  The exception to this is 'age', which is the wall clock age of
     the oldest process.
 */
-struct procInfo {
+class procInfo {
+
+  public: 
 
   /// the image size (aka virtual memory), in k.
   unsigned long imgsize;
@@ -272,6 +274,7 @@ struct procInfo {
   // This is always initialzed to something, but might not be filled
   // in due to complexities with the OS.
   PidEnvID penvid;
+
 };
 
 /// piPTR is typedef'ed as a pointer to a procInfo structure.
@@ -283,7 +286,9 @@ typedef struct procInfo * piPTR;
   The range, units and in some cases even the type of each field 
   are determined by the OS.
 */
-typedef struct procInfoRaw{
+class procInfoRaw {
+
+   public:
 
 		// Virtual size and working set size
 		// are reported as 64-bit quantities
@@ -331,7 +336,8 @@ typedef struct procInfoRaw{
 #ifdef LINUX
 	  unsigned long proc_flags;
 #endif //LINUX
-}procInfoRaw;
+
+};
 
 /* The pidlist struct is used for getting all the pids on a machine
    at once.  It is used by getpidlist() */
