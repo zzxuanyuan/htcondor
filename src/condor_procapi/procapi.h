@@ -30,6 +30,7 @@
 #include "processid.h"
 #include "HashTable.h"
 #include "extArray.h"
+#include "open_files_in_pid.h"
 
 #ifndef WIN32 // all the below is for UNIX
 
@@ -204,6 +205,33 @@ typedef long birthday_t;
 class procInfo {
 
   public: 
+  	procInfo() {
+		this->Clear();
+	};
+	~procInfo() { };
+
+  	void Clear(void) 
+	{
+		imgsize			= 0;
+		rssize			= 0;
+		minfault		= 0;
+		majfault		= 0;
+		cpuusage		= 0.0;
+		user_time		= 0;
+		sys_time		= 0;
+		age				= 0;
+		pid				= -1;
+		ppid			= -1;
+		creation_time	= 0;
+		birthday		= 0;
+		next			= NULL;
+#if !defined(WIN32)
+		owner			= 0;
+#endif
+		pidenvid_init(&penvid);
+
+		open_files.clear();
+	};
 
   /// the image size (aka virtual memory), in k.
   unsigned long imgsize;
@@ -275,10 +303,13 @@ class procInfo {
   // in due to complexities with the OS.
   PidEnvID penvid;
 
+  // what opens files, if any, does this pid have?
+  std::set<std::string> open_files;
+
 };
 
 /// piPTR is typedef'ed as a pointer to a procInfo structure.
-typedef struct procInfo * piPTR;
+typedef class procInfo * piPTR;
 
 /*
   Special structure for holding the raw, unchecked, unconverted,
@@ -287,56 +318,88 @@ typedef struct procInfo * piPTR;
   are determined by the OS.
 */
 class procInfoRaw {
+	public:
+		procInfoRaw() {
+			this->Clear();
+		};
+		~procInfoRaw() {};
 
-   public:
+		void Clear(void)
+		{
+			imgsize = 0;
+			rssize = 0;
+#ifndef WIN32
+			owner = 0;
+			user_time_1 = 0;
+			user_time_2 = 0;
+			sys_time_1 = 0;
+			sys_time_2 = 0;
+			creation_time = 0;
+			sample_time = 0;
+#else // Windows
+			user_time = 0;
+			sys_time = 0;
+			creation_time = 0;
+			sample_time = 0;
+			object_frequency = 0;
+			cpu_time = 0;
+#endif
+#ifdef LINUX
+			proc_flags = 0;
+#endif
+			minfault = 0;
+			majfault = 0;
+			pid = 0;
+			ppid = 0;
+
+			open_files.clear();
+		};
 
 		// Virtual size and working set size
 		// are reported as 64-bit quantities
 		// on Windows
 #ifndef WIN32
-	unsigned long imgsize;
-	unsigned long rssize;
+		unsigned long imgsize;
+		unsigned long rssize;
 #else
-	__int64 imgsize;
-	__int64 rssize;
+		__int64 imgsize;
+		__int64 rssize;
 #endif
 
-	long minfault;
-	long majfault;
-	pid_t pid;
-	pid_t ppid;
-#if !defined(WIN32)
-	uid_t owner;
-#endif
+#ifndef WIN32
+		uid_t owner;
 	
 		// Times are different on Windows
-#ifndef WIN32
-		  // some systems return these times
-		  // in a combination of 2 units
-		  // *_1 is always the larger units
-	long user_time_1;
-	long user_time_2;
-	long sys_time_1;
-	long sys_time_2;
-	birthday_t creation_time;
-	long sample_time;
-#endif // not defined WIN32
+		// some systems return these times
+		// in a combination of 2 units
+		// *_1 is always the larger units
+		long user_time_1;
+		long user_time_2;
+		long sys_time_1;
+		long sys_time_2;
+		birthday_t creation_time;
+		long sample_time;
+#else // Windows does it different
+		__int64 user_time;
+		__int64 sys_time;
+		__int64 creation_time;
+		__int64 sample_time;
+		__int64 object_frequency;
+		__int64 cpu_time;
+#endif // WIN32
 
-// Windows does it different
-#ifdef WIN32 
-	__int64 user_time;
-	__int64 sys_time;
-	__int64 creation_time;
-	__int64 sample_time;
-	__int64 object_frequency;
-	__int64 cpu_time;
-#endif //WIN32
-
-// special process flags for Linux
+		// special process flags for Linux
 #ifdef LINUX
-	  unsigned long proc_flags;
+		unsigned long proc_flags;
 #endif //LINUX
 
+		long minfault;
+		long majfault;
+		pid_t pid;
+		pid_t ppid;
+
+		// what opens files, if any, does this pid have?
+		std::set<std::string> open_files;
 };
 
 /* The pidlist struct is used for getting all the pids on a machine
@@ -568,14 +631,6 @@ class ProcAPI {
   */
   static int getProcInfoRaw(pid_t pid, procInfoRaw& procRaw, int &status);
 
-	  /**
-		 Clears the memory of a procInfoRaw struct.
-		 @param procRaw A reference to a procInfoRaw structure.
-	  
-	  */
-  static void initProcInfoRaw(procInfoRaw& procRaw);
-
-  
 	  /**
 		 Generates a control time by which a process birthday can be
 		 shifted in case of time shifting due to ntpd or the admin.
