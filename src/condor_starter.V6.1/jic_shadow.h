@@ -131,7 +131,7 @@ public:
 			periodic timer for the dataflow movement of files back to the
 			submit side as the job is running. After we're done, we call
 			our parent's version. */
-	void allJobsSpawned( void );
+	void allJobsSpawned( pid_t jobs_pid );
 
 		/** The starter has been asked to shutdown fast.  Disable file
 			transfer, since we don't want that on fast shutdowns.

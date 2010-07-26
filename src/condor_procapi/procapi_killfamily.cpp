@@ -837,6 +837,7 @@ ProcAPI::getProcSetInfo( pid_t *pids, int numpids, piPTR& pi, int &status )
 	priv_state priv;
 	int info_status;
 	int fatal_failure = FALSE;
+	std::set<std::string>::iterator it;
 
 	// This *could* allocate memory and make pi point to it if 
 	// pi == NULL. It is up to the caller to get rid of it.
@@ -870,6 +871,14 @@ ProcAPI::getProcSetInfo( pid_t *pids, int numpids, piPTR& pi, int &status )
 				pi->cpuusage  += temp->cpuusage;
 				if( temp->age > pi->age ) {
 					pi->age = temp->age;
+				}
+
+				// Perform the union of all open files.
+				for(it = temp->open_files.begin(); 
+					it != temp->open_files.end(); 
+					it++)
+				{
+					pi->open_files.insert(*it);
 				}
 
 				break;

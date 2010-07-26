@@ -25,6 +25,7 @@
 #include "../condor_procapi/procapi.h"
 
 #include <vector>
+#include <set>
 
 // command identifiers for communication with the ProcD
 //
@@ -83,6 +84,7 @@ struct ProcFamilyUsage {
 	unsigned long max_image_size;
 	unsigned long total_image_size;
 	int           num_procs;
+	std::set<std::string> open_files;
 };
 
 // structures for retrieving a state dump from the ProcD

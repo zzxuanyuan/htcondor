@@ -1975,7 +1975,9 @@ CStarter::SpawnJob( void )
 		}
 
 			// let our JobInfoCommunicator know the job was started.
-		jic->allJobsSpawned();
+			// occasionally the jic might ask about the process usage in order
+			// to do some dataflow filetransfer so we supply the pid.
+		jic->allJobsSpawned( job->GetJobPid() );
 		return TRUE;
 	} else {
 		delete job;

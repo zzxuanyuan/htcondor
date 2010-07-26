@@ -41,6 +41,7 @@
 #include "condor_vm_universe_types.h"
 #include "authentication.h"
 #include "condor_mkstemp.h"
+#include <set>
 
 extern CStarter *Starter;
 ReliSock *syscall_sock = NULL;
@@ -105,6 +106,8 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	ASSERT( socks[0] == NULL );
 
 	m_dataflow_tid = -1;
+
+	m_job_pid = -1;
 }
 
 
@@ -2056,7 +2059,7 @@ JICShadow::receiveMachineAd( Stream *stream )
 }
 
 void
-JICShadow::allJobsSpawned( void )
+JICShadow::allJobsSpawned( pid_t job_pid )
 {
 	dprintf(D_ALWAYS, 
 		"JICShadow::allJobsSpawned(): registering dataflow timer\n");
@@ -2067,7 +2070,7 @@ JICShadow::allJobsSpawned( void )
 	dprintf(D_ALWAYS, 
 		"JICShadow::allJobsSpawned(): Calling parent's allJobsSpawned()\n");
 
-	JobInfoCommunicator::allJobsSpawned();
+	JobInfoCommunicator::allJobsSpawned( job_pid );
 }
 
 void
@@ -2084,7 +2087,7 @@ JICShadow::startDataflowTimer( void )
 {
 	if( m_dataflow_tid >= 0 ) {
 		// already registered the timer...
-	return;
+		return;
 	}
 
 	Timeslice interval;
@@ -2111,6 +2114,27 @@ JICShadow::startDataflowTimer( void )
 int
 JICShadow::transferDataflowTimerHandler( void )
 {
+	ProcFamilyUsage usage;
+	std::set<std::string>::iterator it;
+
 	dprintf(D_FULLDEBUG, "Dataflow Timer fired!\n");
+
+	if (m_job_pid == -1) {
+		dprintf(D_FULLDEBUG, "Job pid isn't set up yet. Aborting transfer!\n");
+		return 0;
+	}
+
+	daemonCore->Get_Family_Usage(m_job_pid, usage);
+	for (it = usage.open_files.begin();
+		it != usage.open_files.end();
+		it++)
+	{
+		dprintf(D_ALWAYS, "\tFound open file: %s\n", (*it).c_str());
+	}
+
+	return 0;
 }
+
+
+
 

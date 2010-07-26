@@ -112,6 +112,7 @@ void
 ProcFamily::aggregate_usage(ProcFamilyUsage* usage)
 {
 	ASSERT(usage != NULL);
+	std::set<std::string>::iterator it;
 
 	// factor in usage from processes that are still alive
 	//
@@ -131,6 +132,14 @@ ProcFamily::aggregate_usage(ProcFamilyUsage* usage)
 		// number of alive processes
 		//
 		usage->num_procs++;
+
+		// A union of all the open files for all members of the family
+		for(it = member->m_proc_info->open_files.begin();
+			it != member->m_proc_info->open_files.end();
+			it++)
+		{
+			usage->open_files.insert(*it);
+		}
 
 		member = member->m_next;
 	}
