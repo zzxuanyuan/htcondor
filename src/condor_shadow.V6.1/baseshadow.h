@@ -217,6 +217,8 @@ class BaseShadow : public Service
 
 	virtual bool claimIsClosing( void ) = 0;
 
+	static void CommitSuspensionTime(ClassAd *jobAd);
+
 		/** Initializes the user log.  'Nuff said. 
 		 */
 	void initUserLog();
@@ -333,7 +335,7 @@ class BaseShadow : public Service
 	virtual int exitCode( void ) = 0;
 
 		// make UserLog static so it can be accessed by EXCEPTION handler
-	static UserLog uLog;
+	static WriteUserLog uLog;
 
 	void evalPeriodicUserPolicy( void );
 

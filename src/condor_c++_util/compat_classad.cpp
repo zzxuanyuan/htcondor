@@ -761,19 +761,19 @@ ClassAd( FILE *file, char *delimitor, int &isEOF, int&error, int &empty )
 bool ClassAd::
 ClassAdAttributeIsPrivate( char const *name )
 {
-	if( stricmp(name,ATTR_CLAIM_ID) == 0 ) {
+	if( strcasecmp(name,ATTR_CLAIM_ID) == 0 ) {
 			// This attribute contains the secret capability cookie
 		return true;
 	}
-	if( stricmp(name,ATTR_CAPABILITY) == 0 ) {
+	if( strcasecmp(name,ATTR_CAPABILITY) == 0 ) {
 			// This attribute contains the secret capability cookie
 		return true;
 	}
-	if( stricmp(name,ATTR_CLAIM_IDS) == 0 ) {
+	if( strcasecmp(name,ATTR_CLAIM_IDS) == 0 ) {
 			// This attribute contains secret capability cookies
 		return true;
 	}
-	if( stricmp(name,ATTR_TRANSFER_KEY) == 0 ) {
+	if( strcasecmp(name,ATTR_TRANSFER_KEY) == 0 ) {
 			// This attribute contains the secret file transfer cookie
 		return true;
 	}
@@ -936,6 +936,15 @@ LookupString( const char *name, MyString &value ) const
 		return 0;
 	}
 	value = strVal.c_str();
+	return 1;
+} 
+
+int ClassAd::
+LookupString( const char *name, std::string &value ) const 
+{
+	if( !EvaluateAttrString( string( name ), value ) ) {
+		return 0;
+	}
 	return 1;
 } 
 
@@ -1111,6 +1120,18 @@ EvalString (const char *name, classad::ClassAd *target, char **value)
 
 int ClassAd::
 EvalString(const char *name, classad::ClassAd *target, MyString & value)
+{
+    char * pvalue = NULL;
+    //this one makes sure length is good
+    int ret = EvalString(name, target, &pvalue); 
+    if(ret == 0) { return ret; }
+    value = pvalue;
+    free(pvalue);
+    return ret;
+}
+
+int ClassAd::
+EvalString(const char *name, classad::ClassAd *target, std::string & value)
 {
     char * pvalue = NULL;
     //this one makes sure length is good
@@ -1434,6 +1455,15 @@ sPrint( MyString &output, StringList *attr_white_list )
 	}
 
 	return TRUE;
+}
+
+int ClassAd::
+sPrint( std::string &output, StringList *attr_white_list )
+{
+	MyString myout = output;
+	int rc = sPrint( myout, attr_white_list );
+	output = myout;
+	return rc;
 }
 // Taken from the old classad's function. Got rid of incorrect documentation. 
 ////////////////////////////////////////////////////////////////////////////////// Print an expression with a certain name into a buffer. 
@@ -1968,6 +1998,17 @@ sPrintAsXML(MyString &output, StringList *attr_white_list)
 	output += xml;
 	return TRUE;
 }
+
+int ClassAd::
+sPrintAsXML(std::string &output, StringList *attr_white_list)
+{
+	ClassAdXMLUnparser  unparser;
+	MyString            xml;
+	unparser.SetUseCompactSpacing(false);
+	unparser.Unparse(this, xml, attr_white_list);
+	output += xml.Value();
+	return TRUE;
+}
 ///////////// end XML functions /////////
 
 char const *
@@ -2418,9 +2459,12 @@ static const char *job_attrs_list[]  = {
 	ATTR_NUM_RESTARTS,
 	ATTR_NUM_SYSTEM_HOLDS,
 	ATTR_JOB_COMMITTED_TIME,
+	ATTR_COMMITTED_SLOT_TIME,
+	ATTR_CUMULATIVE_SLOT_TIME,
 	ATTR_TOTAL_SUSPENSIONS,
 	ATTR_LAST_SUSPENSION_TIME,
 	ATTR_CUMULATIVE_SUSPENSION_TIME,
+	ATTR_COMMITTED_SUSPENSION_TIME,
 	ATTR_JOB_UNIVERSE,
 	ATTR_JOB_CMD,
 	ATTR_TRANSFER_EXECUTABLE,

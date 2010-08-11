@@ -206,7 +206,7 @@ readJobAd( void )
         }
     }
 	if( ! read_something ) {
-		EXCEPT( "ERROR reading ClassAd from (%s): file is empty",
+		EXCEPT( "reading ClassAd from (%s): file is empty",
 				is_stdin ? "STDIN" : job_ad_file );
 	}
 	if( (DebugFlags & D_JOB) && (DebugFlags & D_FULLDEBUG) ) {
@@ -339,7 +339,7 @@ main_init(int argc, char *argv[])
 	daemonCore->Register_Signal( SIGUSR1, "SIGUSR1", 
 		(SignalHandler)&handleJobRemoval,"handleJobRemoval");
 
-	int shadow_worklife = param_integer( "SHADOW_WORKLIFE", 0 );
+	int shadow_worklife = param_integer( "SHADOW_WORKLIFE", 3600 );
 	if( shadow_worklife > 0 ) {
 		shadow_worklife_expires = time(NULL) + shadow_worklife;
 	}
@@ -419,7 +419,7 @@ printClassAd( void )
 void
 main_pre_dc_init( int argc, char* argv[] )
 {
-	if( argc == 2 && strincmp(argv[1],"-cl",3) == MATCH ) {
+	if( argc == 2 && strncasecmp(argv[1],"-cl",3) == MATCH ) {
 		printClassAd();
 		exit(0);
 	}

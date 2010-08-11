@@ -639,7 +639,7 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		// Try to find the global config source
 
 	char* env = getenv( EnvGetName(ENV_CONFIG) );
-	if( env && stricmp(env, "ONLY_ENV") == MATCH ) {
+	if( env && strcasecmp(env, "ONLY_ENV") == MATCH ) {
 			// special case, no config source desired
 		have_config_source = false;
 	}
@@ -824,6 +824,8 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		// call with is_daemon=false, since that is fine for both daemons
 		// and non-daemons to do.
 	condor_auth_config( false );
+
+	ConfigConvertDefaultIPToSocketIP();
 
 	(void)SetSyscalls( scm );
 }

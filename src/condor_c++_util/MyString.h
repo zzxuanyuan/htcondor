@@ -26,6 +26,9 @@
 #include <stdarg.h>
 #include <string>
 
+class MyString;
+#include "stl_string_utils.h"
+
 /** The MyString class is a C++ representation of a string. It was
  * written before we could reliably use the standard string class.
  * For an example of how to use it, see test_mystring.C.
@@ -66,6 +69,9 @@ class MyString
 	/** Destructor */
 	~MyString();
     //@}
+
+    /** Casting operator to std::string */
+    operator std::string();
 
 	// ----------------------------------------
 	//               Accessors
@@ -157,6 +163,9 @@ class MyString
 	
 	/** Appends a MyString */
 	MyString& operator+=(const MyString& S);
+
+	/** Appends a std::string */
+	MyString& operator+=(const std::string& S);
 
 	/** Appends a null-termianted string */
 	MyString& operator+=(const char *s);
@@ -273,6 +282,7 @@ class MyString
 
 	/** If the last character in the string is a newline, remove
 		it (by setting it to '\0' and decrementing Len).
+		If the newline is preceeded by a '\r', remove that as well.
 		@return True if we removed a newline, false if not
 	*/  
 	bool chomp( void );
@@ -294,6 +304,7 @@ class MyString
 	/** Compare a MyString with a null-terminated C string to see if
         they are the same.  */
 	friend int operator==(const MyString& S1, const char     *S2);
+	friend int operator==(const char     *S1, const MyString& S2);
 
 	/** Compare two MyStrings to see if they are different. */
 	friend int operator!=(const MyString& S1, const MyString& S2);
@@ -301,6 +312,7 @@ class MyString
 	/** Compare a MyString with a null-terminated C string to see if
         they are different.  */
 	friend int operator!=(const MyString& S1, const char     *S2);
+	friend int operator!=(const char     *S1, const MyString& S2);
 
 	/** Compare two MyStrings to see if the first is less than the
         second.  */

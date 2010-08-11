@@ -91,6 +91,7 @@ SSHToJob::SSHToJob():
 	m_auto_retry(false),
 	m_retry_delay(30)
 {
+	m_jobid.cluster = m_jobid.proc = -1;
 }
 
 SSHToJob::~SSHToJob()
@@ -553,6 +554,14 @@ bool SSHToJob::execute_ssh()
 
 	dprintf(D_FULLDEBUG,"Executing ssh with command: %s\n",
 			ssh_command.Value());
+
+		// Some versions of ssh use whatever shell is specified in SHELL
+		// to execute the proxy command.  If the shell is csh, it
+		// closes all file descriptors except for stdio ones, so the
+		// socket we are passing to the proxy command gets closed
+		// prematurely.  Therefore, clear the SHELL environment variable!
+
+	unsetenv("SHELL");
 
 	m_ssh_exit_status = system(ssh_command.Value());
 

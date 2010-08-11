@@ -63,14 +63,15 @@ class OwnedMaterials
 	public:
 		// this structure owns the containers passed to it, but not the memory 
 		// contained in the containers...
-		OwnedMaterials(ExtArray<Job*> *a) :
-				nodes (a) {};
+		OwnedMaterials(ExtArray<Job*> *a, ThrottleByCategory *tr) :
+				nodes (a), throttles (tr) {};
 		~OwnedMaterials() 
 		{
 			delete nodes;
 		};
 
 	ExtArray<Job*> *nodes;
+	ThrottleByCategory *throttles;
 };
 
 //------------------------------------------------------------------------
@@ -98,7 +99,7 @@ class Dag {
 			   have an error determining the job log files
 		@param useDagDir run DAGs in directories from DAG file paths
 		       if true
-		@param maxIdleJobProcs the maximum number of idle job procss to
+		@param maxIdleJobProcs the maximum number of idle job procs to
 			   allow at one time (0 means unlimited)
 		@param retrySubmitFirst whether, when a submit fails for a node's
 		       job, to put the node at the head of the ready queue
@@ -118,6 +119,9 @@ class Dag {
 				wan't to allocate some regulated resources we won't need
 				if we are a splice. It is true for a top level dag, and false
 				for a splice.
+		@param spliceScope a string containing the names of all splices
+				on the "path" to the top-level DAG (e.g., "A+B+"), or
+				"root" for the top-level DAG.
     */
 
     Dag( /* const */ StringList &dagFiles,
@@ -130,7 +134,7 @@ class Dag {
 		 bool prohibitMultiJobs, bool submitDepthFirst,
 		 const char *defaultNodeLog, bool generateSubdagSubmits,
 		 const SubmitDagDeepOptions *submitDagDeepOpts,
-		 bool isSplice = false );
+		 bool isSplice = false, const MyString &spliceScope = "root" );
 
     ///
     ~Dag();
@@ -251,6 +255,16 @@ class Dag {
 	*/
 	void ProcessNotIdleEvent(Job *job);
 
+	/** Process a held event for a job.
+		@param The job corresponding to this event.
+	*/
+	void ProcessHeldEvent(Job *job);
+
+	/** Process a released event for a job.
+		@param The job corresponding to this event.
+	*/
+	void ProcessReleasedEvent(Job *job);
+
     /** Get pointer to job with id jobID
         @param the handle of the job in the DAG
         @return address of Job object, or NULL if not found
@@ -359,7 +373,35 @@ class Dag {
 	inline int ScriptRunNodeCount() const
 		{ return _preRunNodeCount + _postRunNodeCount; }
 
-	inline bool Done() const { return NumNodesDone() == NumNodes(); }
+		/** Determine whether the DAG has finished running (whether
+			successfully or unsuccessfully).
+	    	(If no jobs are submitted and no scripts are running, but the
+		    dag is not complete, then at least one job failed, or a cycle
+			exists.)
+			@return true iff the DAG is finished
+		*/
+	inline bool FinishedRunning() const { return NumJobsSubmitted() == 0 &&
+				NumNodesReady() == 0 && ScriptRunNodeCount() == 0; }
+
+		/** Determine whether the DAG is successfully completed.
+			@return true iff the DAG is successfully completed
+		*/
+	inline bool DoneSuccess() const { return NumNodesDone() == NumNodes(); }
+
+		/** Determine whether the DAG is finished, but failed (because
+			of a node job failure, etc.).
+			@return true iff the DAG is finished but failed
+		*/
+	inline bool DoneFailed() const { return FinishedRunning() &&
+				NumNodesFailed() > 0; }
+
+		/** Determine whether the DAG is finished because of a cycle in
+			the DAG.  (Note that this method sometimes incorrectly returns
+			true for errors other than cycles in the DAG.  wenger 2010-07-30.)
+			@return true iff the DAG is finished but there is a cycle
+		*/
+	inline bool DoneCycle() { return FinishedRunning() &&
+				NumNodesFailed() == 0; }
 
 		/** Submit all ready jobs, provided they are not waiting on a
 			parent job or being throttled.
@@ -429,6 +471,10 @@ class Dag {
 	bool GetDotFileUpdate(void)                       { return _update_dot_file; }
 	void DumpDotFile(void);
 
+	void SetNodeStatusFileName( const char *statusFileName,
+				int minUpdateTime );
+	void DumpNodeStatus( bool held, bool removed );
+
 	void CheckAllJobs();
 
 		/** Returns a delimited string listing the node names of all
@@ -438,6 +484,8 @@ class Dag {
 	const MyString ParentListString( Job *node, const char delim = ',' ) const;
 
 	int NumIdleJobProcs() const { return _numIdleJobProcs; }
+
+	int NumHeldJobProcs() const { return _numHeldJobProcs; }
 
 		/** Print the number of deferrals during the run (caused
 		    by MaxJobs, MaxIdle, MaxPre, or MaxPost).
@@ -564,7 +612,8 @@ class Dag {
 	OwnedMaterials* RelinquishNodeOwnership(void);
 
 	// Take an array from RelinquishNodeOwnership) and store it in my self.
-	void AssumeOwnershipofNodes(OwnedMaterials *om);
+	void AssumeOwnershipofNodes(const MyString &spliceName,
+				OwnedMaterials *om);
 
 	// This must be called after the toplevel dag has been parsed and
 	// the splices lifted. It will resolve the use of $(JOB) in the value
@@ -582,7 +631,7 @@ class Dag {
 	// node, unless it is an absolute path, in which case we ignore it.
 	void PropogateDirectoryToAllNodes(void);
 
-  protected:
+  private:
 
 	// If this DAG is a splice, then this is what the DIR was set to, it 
 	// defaults to ".".
@@ -786,6 +835,9 @@ class Dag {
 		// means unlimited.
     const int _maxIdleJobProcs;
 
+		// The number of DAG job procs currently held.
+	int _numHeldJobProcs;
+
 		// Whether to allow the DAG to run even if we have an error
 		// determining the job log files.
 	bool		_allowLogError;
@@ -841,6 +893,20 @@ class Dag {
 	void DumpDotFileNodes(FILE *temp_dot_file);
 	void DumpDotFileArcs(FILE *temp_dot_file);
 	void ChooseDotFileName(MyString &dot_file_name);
+
+		// Name of node status file.
+	char *_statusFileName;
+		
+		// Whether things have changed since the last time the file
+		// was written.
+	bool _statusFileOutdated;
+		
+		// Minimum time between updates (so we can avoid trying to
+		// write the file too often, e.g., for large DAGs).
+	int _minStatusUpdateTime;
+
+		// Last time the status file was written.
+	time_t _lastStatusUpdateTimestamp;
 
 		// Separate event checkers for Condor and Stork here because
 		// IDs could collide.
@@ -926,6 +992,11 @@ class Dag {
 		// because we know we aren't going to have an "executing" dag object
 		// which is also a splice.
 	bool _isSplice;
+
+		// The splice "scope" for this DAG (e.g., "A+B+", or "root").
+		// This is currently just used for diagnostic messages
+		// (wenger 2010-06-07)
+	MyString _spliceScope;
 
 		// The maximum fake subprocID we see in recovery mode (needed to
 		// initialize the ID for subsequent fake events so IDs don't

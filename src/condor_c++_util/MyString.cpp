@@ -71,6 +71,13 @@ MyString::~MyString()
 	init(); // for safety -- errors if you try to re-use this object
 }
 
+
+MyString::operator std::string()
+{
+    std::string r = this->Value();
+    return r;
+}
+
 /*--------------------------------------------------------------------
  *
  * Accessors. (More accessors in MyString.h)
@@ -228,6 +235,14 @@ MyString::operator+=(const MyString& S)
 {
 	
     append_str( S.Value(), S.Len );
+    return *this;
+}
+
+MyString& 
+MyString::operator+=(const std::string& S) 
+{
+	
+    append_str( S.c_str(), S.length() );
     return *this;
 }
 
@@ -629,14 +644,11 @@ MyString::chomp( void )
 		Data[Len-1] = '\0';
 		Len--;
 		chomped = true;
+		if( ( Len > 0 ) && ( Data[Len-1] == '\r' ) ) {
+			Data[Len-1] = '\0';
+			Len--;
+		}
 	}
-#if defined(WIN32)
-	if( ( Len > 1 ) && ( Data[Len-2] == '\r' ) ) {
-		Data[Len-2] = '\0';
-		Len--;
-		chomped = true;
-	}
-#endif
 	return chomped;
 }
 
@@ -709,6 +721,7 @@ MyString::init()
     capacity = 0;
 	tokenBuf = NULL;
 	nextToken = NULL;
+	dummy = '\0';
 }
 
 /*--------------------------------------------------------------------
@@ -749,12 +762,31 @@ int operator==(const MyString& S1, const char *S2)
     return 0;
   }
 
+int operator==(const char *S1, const MyString& S2) 
+{
+    if ((!S2.Data || !S2.Length()) && (!S1 || !strlen(S1))) {
+		return 1;
+	}
+    if (!S2.Data || !S1) {
+		return 0;
+	}
+    if (strcmp(S2.Data,S1)==0) {
+		return 1;
+	}
+    return 0;
+  }
+
 int operator!=(const MyString& S1, const MyString& S2) 
 { 
 	return ((S1==S2) ? 0 : 1); 
 }
 
 int operator!=(const MyString& S1, const char *S2) 
+{ 
+	return ((S1==S2) ? 0 : 1); 
+}
+
+int operator!=(const char *S1, const MyString& S2) 
 { 
 	return ((S1==S2) ? 0 : 1); 
 }

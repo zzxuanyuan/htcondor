@@ -72,7 +72,9 @@ Stream :: Stream(stream_code c) :
 	decrypt_buf_len(0),
 	m_peer_description_str(NULL),
 	m_peer_version(NULL),
-	m_deadline_time(0)
+	m_deadline_time(0),
+	m_crypto_state_before_secret(false),
+	encrypt_(false)
 {
 }
 
@@ -218,7 +220,7 @@ Stream::code( unsigned long	&l)
 }
 
 
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 int 
 Stream::code( int64_t	&l)
 {
@@ -1123,7 +1125,7 @@ Stream::put( unsigned long	l)
 }
 
 
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 int 
 Stream::put( int64_t	l)
 {
@@ -1638,7 +1640,7 @@ Stream::get( unsigned long	&l)
 }
 
 
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 int 
 Stream::get( int64_t	&l)
 {

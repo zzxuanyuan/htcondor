@@ -79,7 +79,8 @@ Dag::Dag( /* const */ StringList &dagFiles,
 		  const char *storkRmExe, const CondorID *DAGManJobID,
 		  bool prohibitMultiJobs, bool submitDepthFirst,
 		  const char *defaultNodeLog, bool generateSubdagSubmits,
-		  const SubmitDagDeepOptions *submitDagDeepOpts, bool isSplice ) :
+		  const SubmitDagDeepOptions *submitDagDeepOpts, bool isSplice,
+		  const MyString &spliceScope ) :
     _maxPreScripts        (maxPreScripts),
     _maxPostScripts       (maxPostScripts),
 	MAX_SIGNAL			  (64),
@@ -97,6 +98,7 @@ Dag::Dag( /* const */ StringList &dagFiles,
     _maxJobsSubmitted     (maxJobsSubmitted),
 	_numIdleJobProcs		  (0),
 	_maxIdleJobProcs		  (maxIdleJobProcs),
+	_numHeldJobProcs	  (0),
 	_allowLogError		  (allowLogError),
 	m_retrySubmitFirst	  (retrySubmitFirst),
 	m_retryNodeFirst	  (retryNodeFirst),
@@ -116,6 +118,7 @@ Dag::Dag( /* const */ StringList &dagFiles,
 	_generateSubdagSubmits (generateSubdagSubmits),
 	_submitDagDeepOpts	  (submitDagDeepOpts),
 	_isSplice			  (isSplice),
+	_spliceScope		  (spliceScope),
 	_recoveryMaxfakeID	  (0)
 {
 
@@ -165,6 +168,12 @@ Dag::Dag( /* const */ StringList &dagFiles,
 	_update_dot_file       = false;
 	_overwrite_dot_file    = true;
 	_dot_file_name_suffix  = 0;
+
+	_statusFileName = NULL;
+	_statusFileOutdated = true;
+	_minStatusUpdateTime = 0;
+	_lastStatusUpdateTimestamp = 0;
+
 	_nextSubmitTime = 0;
 	_nextSubmitDelay = 1;
 	_recovery = false;
@@ -174,6 +183,8 @@ Dag::Dag( /* const */ StringList &dagFiles,
 		// Don't print any waiting node reports until we're done with
 		// recovery mode.
 	_pendingReportInterval = -1;
+	_lastPendingNodePrintTime = 0;
+	_lastEventTime = 0;
 
 	_nfsLogIsError = param_boolean( "DAGMAN_LOG_ON_NFS_IS_ERROR", true );
 
@@ -200,6 +211,8 @@ Dag::~Dag() {
 
 	delete[] _dot_file_name;
 	delete[] _dot_include_file_name;
+
+	delete[] _statusFileName;
     
     return;
 }
@@ -524,6 +537,12 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 				break;
 			} 
 
+				// Note: this is a bit conservative -- some events (e.g.,
+				// ImageSizeUpdate) don't actually outdate the status file.
+				// If we need to, we could move this down to the cases
+				// where it's strictly necessary.
+			_statusFileOutdated = true;
+
 			switch(event->eventNumber) {
 
 			case ULOG_EXECUTABLE_ERROR:
@@ -556,8 +575,12 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 
 			case ULOG_JOB_EVICTED:
 			case ULOG_JOB_SUSPENDED:
-			case ULOG_JOB_HELD:
 			case ULOG_SHADOW_EXCEPTION:
+				ProcessIsIdleEvent(job);
+				break;
+
+			case ULOG_JOB_HELD:
+				ProcessHeldEvent(job);
 				ProcessIsIdleEvent(job);
 				break;
 
@@ -565,8 +588,11 @@ bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
 				ProcessNotIdleEvent(job);
 				break;
 
-			case ULOG_JOB_UNSUSPENDED:
 			case ULOG_JOB_RELEASED:
+				ProcessReleasedEvent(job);
+				break;
+
+			case ULOG_JOB_UNSUSPENDED:
 			case ULOG_CHECKPOINTED:
 			case ULOG_IMAGE_SIZE:
 			case ULOG_NODE_EXECUTE:
@@ -1110,6 +1136,28 @@ Dag::ProcessNotIdleEvent(Job *job) {
 }
 
 //---------------------------------------------------------------------------
+void
+Dag::ProcessHeldEvent(Job *job) {
+
+	if ( !job ) {
+		return;
+	}
+
+	_numHeldJobProcs++;
+}
+
+//---------------------------------------------------------------------------
+void
+Dag::ProcessReleasedEvent(Job *job) {
+
+	if ( !job ) {
+		return;
+	}
+
+	_numHeldJobProcs--;
+}
+
+//---------------------------------------------------------------------------
 Job * Dag::FindNodeByName (const char * jobName) const {
 	if( !jobName ) {
 		return NULL;
@@ -1322,8 +1370,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 			// Check for throttling by node category.
 		ThrottleByCategory::ThrottleInfo *catThrottle = job->GetThrottleInfo();
 		if ( catThrottle &&
-					catThrottle->_maxJobs !=
-					ThrottleByCategory::noThrottleSetting &&
+					catThrottle->isSet() &&
 					catThrottle->_currentJobs >= catThrottle->_maxJobs ) {
 			debug_printf( DEBUG_DEBUG_1,
 						"Node %s deferred by category throttle (%s, %d)\n",
@@ -2253,6 +2300,192 @@ Dag::DumpDotFile(void)
 	}
 	return;
 }
+
+//===========================================================================
+// Methods for node status files.
+//===========================================================================
+
+/** Set the filename of the node status file.
+	@param the filename to which to dump node status information
+	@param the minimum interval, in seconds, at which to update the
+		status file (0 means no limit)
+*/
+void 
+Dag::SetNodeStatusFileName( const char *statusFileName,
+			int minUpdateTime )
+{
+	if ( _statusFileName != NULL ) {
+		debug_printf( DEBUG_NORMAL, "Attempt to set NODE_STATUS_FILE "
+					"to %s does not override existing value of %s\n",
+					statusFileName, _statusFileName );
+		return;
+	}
+	_statusFileName = strnewp( statusFileName );
+	_minStatusUpdateTime = minUpdateTime;
+}
+
+/** Dump the node status.
+	@param whether the DAG has just been held
+	@param whether the DAG has just been removed
+*/
+void
+Dag::DumpNodeStatus( bool held, bool removed )
+{
+		//
+		// Decide whether to update the file.
+		//
+	if ( _statusFileName == NULL ) {
+		return;
+	}
+	
+	if ( !_statusFileOutdated && !held && !removed ) {
+		debug_printf( DEBUG_DEBUG_1, "Node status file not updated "
+					"because it is not yet outdated\n" );
+		return;
+	}
+	
+	time_t startTime = time( NULL );
+	bool tooSoon = (_minStatusUpdateTime > 0) &&
+				((startTime - _lastStatusUpdateTimestamp) <
+				_minStatusUpdateTime);
+	if ( tooSoon && !held && !removed && !FinishedRunning() ) {
+		debug_printf( DEBUG_DEBUG_1, "Node status file not updated "
+					"because min. status update time has not yet passed\n" );
+		return;
+	}
+
+		//
+		// If we made it to here, we want to actually update the
+		// file.  We do that by actually writing to a temporary file,
+		// and then renaming that to the "real" file, so that the
+		// "real" file is always complete.
+		//
+	debug_printf( DEBUG_DEBUG_1, "Updating node status file\n" );
+
+	MyString tmpStatusFile( _statusFileName );
+	tmpStatusFile += ".tmp";
+		// Note: it's not an error if this fails (file may not
+		// exist).
+	unlink( tmpStatusFile.Value() );
+
+	FILE *outfile = safe_fopen_wrapper( tmpStatusFile.Value(), "w" );
+	if ( outfile == NULL ) {
+		debug_printf( DEBUG_NORMAL,
+					  "Warning: can't create node status file '%s': %s\n", 
+					  tmpStatusFile.Value(), strerror( errno ) );
+		return;
+	}
+
+		//
+		// Print header.
+		//
+	char *timeStr = ctime( &startTime );
+	char *newline = strchr(timeStr, '\n');
+	if (newline != NULL) {
+		*newline = 0;
+	}
+	fprintf( outfile, "BEGIN %lu (%s)\n",
+				(unsigned long)startTime, timeStr );
+	fprintf( outfile, "Status of nodes of DAG(s): " );
+	char *dagFile;
+	_dagFiles.rewind();
+	while ( (dagFile = _dagFiles.next()) ) {
+		fprintf( outfile, "%s ", dagFile );
+	}
+	fprintf( outfile, "\n\n" );
+
+		//
+		// Print status of all nodes.
+		//
+	ListIterator<Job> it ( _jobs );
+	Job *node;
+	while ( it.Next( node ) ) {
+		const char *statusStr = Job::status_t_names[node->GetStatus()];
+		const char *nodeNote = "";
+		if ( node->GetStatus() == Job::STATUS_READY ) {
+			if ( !node->CanSubmit() ) {
+				// See Job::_job_type_names for other strings.
+				statusStr = "STATUS_UNREADY  ";
+			}
+		} else if ( node->GetStatus() == Job::STATUS_SUBMITTED ) {
+			nodeNote = node->GetIsIdle() ? "idle" : "not_idle";
+			// Note: add info here about whether the job(s) are
+			// held, once that code is integrated.
+		} else if ( node->GetStatus() == Job::STATUS_ERROR ) {
+			nodeNote = node->error_text;
+		}
+		fprintf( outfile, "JOB %s %s (%s)\n", node->GetJobName(),
+					statusStr, nodeNote );
+	}
+
+		//
+		// Print overall DAG status.
+		//
+	Job::status_t dagStatus = Job::STATUS_SUBMITTED;
+	const char *statusNote = "";
+	if ( DoneSuccess() ) {
+		dagStatus = Job::STATUS_DONE;
+		statusNote = "success";
+	} else if ( DoneFailed() ) {
+		dagStatus = Job::STATUS_ERROR;
+		statusNote = "failed";
+	} else if ( DoneCycle() ) {
+		dagStatus = Job::STATUS_ERROR;
+		statusNote = "cycle";
+	} else if ( held ) {
+		statusNote = "held";
+	} else if ( removed ) {
+		dagStatus = Job::STATUS_ERROR;
+		statusNote = "removed";
+	}
+	fprintf( outfile, "\nDAG status: %s (%s)\n",
+				Job::status_t_names[dagStatus], statusNote );
+
+		//
+		// Print footer.
+		//
+	time_t endTime = time( NULL );
+
+	fprintf( outfile, "Next scheduled update: " );
+	if ( FinishedRunning() || removed ) {
+		fprintf( outfile, "none\n" );
+	} else {
+		time_t nextTime = endTime + _minStatusUpdateTime;
+		timeStr = ctime( &nextTime );
+		newline = strchr(timeStr, '\n');
+		if (newline != NULL) {
+			*newline = 0;
+		}
+		fprintf( outfile, "%lu (%s)\n", (unsigned long)nextTime, timeStr );
+	}
+
+	timeStr = ctime( &endTime );
+	newline = strchr(timeStr, '\n');
+	if (newline != NULL) {
+		*newline = 0;
+	}
+	fprintf( outfile, "END %lu (%s)\n",
+				(unsigned long)endTime, timeStr );
+
+	fclose( outfile );
+
+		//
+		// Now rename the temporary file to the "real" file.
+		//
+	if ( rename( tmpStatusFile.Value(), _statusFileName ) != 0 ) {
+		debug_printf( DEBUG_NORMAL,
+					  "Warning: can't rename temporary node status "
+					  "file (%s) to permanent file (%s): %s\n",
+					  tmpStatusFile.Value(), _statusFileName,
+					  strerror( errno ) );
+		return;
+	}
+
+	_statusFileOutdated = false;
+	_lastStatusUpdateTimestamp = startTime;
+}
+
+//===========================================================================
 
 //-------------------------------------------------------------------------
 // 
@@ -3376,7 +3609,7 @@ Dag::RelinquishNodeOwnership(void)
 	}
 
 	// shove it into a packet and give it back
-	return new OwnedMaterials(nodes);
+	return new OwnedMaterials(nodes, &_catThrottles);
 }
 
 
@@ -3400,7 +3633,7 @@ Dag::LiftSplices(SpliceLayer layer)
 		debug_printf(DEBUG_DEBUG_1, "Lifting splice %s\n", key.Value());
 		om = splice->LiftSplices(DESCENDENTS);
 		// this function moves what it needs out of the returned object
-		AssumeOwnershipofNodes(om);
+		AssumeOwnershipofNodes(key, om);
 		delete om;
 	}
 
@@ -3425,13 +3658,15 @@ Dag::LiftChildSplices(void)
 	MyString key;
 	Dag *splice = NULL;
 
-	debug_printf(DEBUG_DEBUG_1, "Lifting child splices...\n");
+	debug_printf(DEBUG_DEBUG_1, "Lifting child splices of %s...\n",
+				_spliceScope.Value());
 	_splices.startIterations();
 	while( _splices.iterate(key, splice) ) {
 		debug_printf(DEBUG_DEBUG_1, "Lifting child splice: %s\n", key.Value());
 		splice->LiftSplices(SELF);
 	}
-	debug_printf(DEBUG_DEBUG_1, "Done lifting child splices.\n");
+	debug_printf(DEBUG_DEBUG_1, "Done lifting child splices of %s.\n",
+				_spliceScope.Value());
 }
 
 
@@ -3441,7 +3676,7 @@ Dag::LiftChildSplices(void)
 // have true initial or final nodes, then those must move over the the
 // recorded inital and final nodes for 'here'.
 void
-Dag::AssumeOwnershipofNodes(OwnedMaterials *om)
+Dag::AssumeOwnershipofNodes(const MyString &spliceName, OwnedMaterials *om)
 {
 	Job *job = NULL;
 	int i;
@@ -3449,6 +3684,34 @@ Dag::AssumeOwnershipofNodes(OwnedMaterials *om)
 	JobID_t key_id;
 
 	ExtArray<Job*> *nodes = om->nodes;
+
+	// 0. Take ownership of the categories
+
+	// Merge categories from the splice into this DAG object.  If the
+	// same category exists in both (whether global or non-global) the
+	// higher-level value overrides the lower-level value.
+
+	// Note: by the time we get to here, all category names have already
+	// been prefixed with the proper scope.
+	om->throttles->StartIterations();
+	ThrottleByCategory::ThrottleInfo *spliceThrottle;
+	while ( om->throttles->Iterate( spliceThrottle ) ) {
+		ThrottleByCategory::ThrottleInfo *mainThrottle =
+					_catThrottles.GetThrottleInfo(
+					spliceThrottle->_category );
+		if ( mainThrottle && mainThrottle->isSet() &&
+					mainThrottle->_maxJobs != spliceThrottle->_maxJobs ) {
+			debug_printf( DEBUG_NORMAL, "Warning: higher-level (%s) "
+						"maxjobs value of %d for category %s overrides "
+						"splice %s value of %d\n", _spliceScope.Value(),
+						mainThrottle->_maxJobs,
+						mainThrottle->_category->Value(),
+						spliceName.Value(), spliceThrottle->_maxJobs );
+		} else {
+			_catThrottles.SetThrottle( spliceThrottle->_category,
+						spliceThrottle->_maxJobs );
+		}
+	}
 
 	// 1. Take ownership of the nodes
 
@@ -3469,20 +3732,12 @@ Dag::AssumeOwnershipofNodes(OwnedMaterials *om)
 	// DAG (which will be deleted soon).
 	for ( i = 0; i < nodes->length(); i++ ) {
 		Job *tmpNode = (*nodes)[i];
-		ThrottleByCategory::ThrottleInfo *catThrottle =
-					tmpNode->GetThrottleInfo();
-		if ( catThrottle != NULL ) {
-
-				// Copy the category throttle setting from the splice
-				// DAG to the upper DAG (creates the category if we don't
-				// already have it).
-			_catThrottles.SetThrottle( catThrottle->_category,
-						catThrottle->_maxJobs );
-
+		spliceThrottle = tmpNode->GetThrottleInfo();
+		if ( spliceThrottle != NULL ) {
 				// Now re-set the category in the node, so that the
 				// category info points to the upper DAG rather than the
 				// splice DAG.
-			tmpNode->SetCategory( catThrottle->_category->Value(),
+			tmpNode->SetCategory( spliceThrottle->_category->Value(),
 						_catThrottles );
 		}
 	}

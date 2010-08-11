@@ -351,13 +351,6 @@ TESTCLASS(lib_auth_config,quick)
 TESTCLASS(lib_auth_config,full)
 TESTCLASS(lib_auth_config,quicknolink)
 
-DESC(lib_classads,"Run ClassAd Tests")
-RUN(lib_classads)
-TESTCLASS(lib_classads,core)
-TESTCLASS(lib_classads,quick)
-TESTCLASS(lib_classads,full)
-TESTCLASS(lib_classads,quicknolink)
-
 DESC(lib_auth_protocol-fs,"FS authentication test")
 RUN(lib_auth_protocol-fs)
 TESTCLASS(lib_auth_protocol-fs,core)
@@ -1939,6 +1932,13 @@ TESTCLASS(job_dagman_noop_node,dagman)
 TESTCLASS(job_dagman_noop_node,quick)
 TESTCLASS(job_dagman_noop_node,full)
 TESTCLASS(job_dagman_noop_node,quicknolink)
+
+DESC(job_dagman_node_status,"Test noop nodes")
+RUN(job_dagman_node_status)
+TESTCLASS(job_dagman_node_status,dagman)
+TESTCLASS(job_dagman_node_status,quick)
+TESTCLASS(job_dagman_node_status,full)
+TESTCLASS(job_dagman_node_status,quicknolink)
 
 /* Sample performance tests */
 

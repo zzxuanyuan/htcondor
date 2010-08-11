@@ -91,6 +91,7 @@ static int in_walk_job_queue = 0;
 static time_t xact_start_time = 0;	// time at which the current transaction was started
 static int cluster_initial_val = 1;		// first cluster number to use
 static int cluster_increment_val = 1;	// increment for cluster numbers of successive submissions 
+static int cluster_maximum_val = 0;     // maximum cluster id (default is 0, or 'no max')
 
 static void AddOwnerHistory(const MyString &user);
 
@@ -177,6 +178,7 @@ ClusterCleanup(int cluster_id)
 	// blow away the initial checkpoint file from the spool dir
 	char *ckpt_file_name = gen_ckpt_name( Spool, cluster_id, ICKPT, 0 );
 	(void)unlink( ckpt_file_name );
+	free(ckpt_file_name); ckpt_file_name = NULL;
 
 	// garbage collect the shared ickpt file if necessary
 	if (!hash.IsEmpty()) {
@@ -290,6 +292,35 @@ ConvertOldJobAdAttrs( ClassAd *job_ad, bool startup )
 				 "Job %d.%d has no %s attribute. Skipping conversion.\n",
 				 cluster, proc, ATTR_JOB_UNIVERSE );
 		return;
+	}
+
+		// CRUFT
+		// Starting in 7.5.4, the GridResource attribute for the amazon
+		// grid-type contains the URL of the service to be submitted
+		// to. Prior to that, only one service could be submitted to,
+		// which was controlled by the config param AMAZON_EC2_URL.
+	if ( universe == CONDOR_UNIVERSE_GRID ) {
+		std::string attr_value;
+		job_ad->LookupString( ATTR_GRID_RESOURCE, attr_value );
+		if ( attr_value == "amazon" ) {
+			char *url = param( "AMAZON_EC2_URL" );
+			if ( url == NULL ) {
+				url = strdup( "https://ec2.amazonaws.com/" );
+			}
+
+			attr_value = "amazon ";
+			attr_value += url;
+			job_ad->Assign( ATTR_GRID_RESOURCE, attr_value );
+
+			if ( job_ad->LookupString( ATTR_GRID_JOB_ID, attr_value ) ) {
+				std::string insert = " ";
+				insert += url;
+				attr_value.insert( 6, insert );
+				job_ad->Assign( ATTR_GRID_JOB_ID, attr_value );
+			}
+
+			free( url );
+		}
 	}
 
 		// CRUST
@@ -544,6 +575,7 @@ InitQmgmt()
 
 	cluster_initial_val = param_integer("SCHEDD_CLUSTER_INITIAL_VALUE",1,1);
 	cluster_increment_val = param_integer("SCHEDD_CLUSTER_INCREMENT_VALUE",1,1);
+    cluster_maximum_val = param_integer("SCHEDD_CLUSTER_MAXIMUM_VALUE",0,0);
 
 	flush_job_queue_log_delay = param_integer("SCHEDD_JOB_QUEUE_LOG_FLUSH_DELAY",5,0);
 }
@@ -602,6 +634,12 @@ InitJobQueue(const char *job_queue_name,int max_historical_logs)
 		// computed value 
 		stored_cluster_num = 0;
 	}
+
+    // If a stored cluster id exceeds a configured maximum, tag it for re-computation
+    if ((cluster_maximum_val > 0) && (stored_cluster_num > cluster_maximum_val)) {
+        dprintf(D_ALWAYS, "Stored cluster id %d exceeds configured max %d.  Flagging for reset.\n", stored_cluster_num, cluster_maximum_val);
+        stored_cluster_num = 0;
+    }
 
 		// Figure out what the correct ATTR_SCHEDULER is for any
 		// dedicated jobs in this queue.  Since it'll be the same for
@@ -756,6 +794,14 @@ InitJobQueue(const char *job_queue_name,int max_historical_logs)
 
 		}
 	} // WHILE
+
+    // We defined a candidate next_cluster_num above, as (current-max-clust) + (increment).
+    // If the candidate exceeds the configured max, then wrap it.  Default maximum is zero,
+    // which signals 'no maximum'
+    if ((cluster_maximum_val > 0) && (next_cluster_num > cluster_maximum_val)) {
+        dprintf(D_ALWAYS, "Next cluster id exceeded configured max %d: wrapping to %d\n", cluster_maximum_val, cluster_initial_val);
+        next_cluster_num = cluster_initial_val;
+    }
 
 	if ( stored_cluster_num == 0 ) {
 		snprintf(cluster_str, PROC_ID_STR_BUFLEN, "%d", next_cluster_num);
@@ -1274,7 +1320,7 @@ int get_myproxy_password_handler(Service * /*service*/, int /*i*/, Stream *socke
 	}
 
 
-	socket->eom();
+	socket->end_of_message();
 	socket->encode();
 	if( ! socket->code(password) ) {
 		dprintf( D_ALWAYS,
@@ -1282,7 +1328,7 @@ int get_myproxy_password_handler(Service * /*service*/, int /*i*/, Stream *socke
 		return -1;
 	}
 
-	if( ! socket->eom() ) {
+	if( ! socket->end_of_message() ) {
 		dprintf( D_ALWAYS,
 			"get_myproxy_password_handler: Failed to send end of message.\n");
 		return -1;
@@ -1338,6 +1384,22 @@ NewCluster()
 	next_proc_num = 0;
 	active_cluster_num = next_cluster_num;
 	next_cluster_num += cluster_increment_val;
+
+    // check for wrapping if a maximum cluster id is set
+    if ((cluster_maximum_val > 0) && (next_cluster_num > cluster_maximum_val)) {
+        dprintf(D_ALWAYS, "NewCluster(): Next cluster id %d exceeded configured max %d.  Wrapping to %d.\n", next_cluster_num, cluster_maximum_val, cluster_initial_val);
+        next_cluster_num = cluster_initial_val;
+    }
+
+    // check for collision with an existing cluster id
+    char test_cluster_key[PROC_ID_STR_BUFLEN];
+    ClassAd* test_cluster_ad;
+	IdToStr(active_cluster_num,-1,test_cluster_key);
+    if (JobQueue->LookupClassAd(test_cluster_key, test_cluster_ad)) {
+        dprintf(D_ALWAYS, "NewCluster(): collision with existing cluster id %d\n", active_cluster_num);
+        return -3;
+    }
+
 	snprintf(cluster_str, PROC_ID_STR_BUFLEN, "%d", next_cluster_num);
 //	log = new LogSetAttribute(HeaderKey, ATTR_NEXT_CLUSTER_NUM, cluster_str);
 //	JobQueue->AppendLog(log);
@@ -1742,14 +1804,14 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 
 	// check for security violations.
 	// first, make certain ATTR_OWNER can only be set to who they really are.
-	if (stricmp(attr_name, ATTR_OWNER) == 0) 
+	if (strcasecmp(attr_name, ATTR_OWNER) == 0) 
 	{
 		const char* sock_owner = Q_SOCK ? Q_SOCK->getOwner() : "";
 		if( !sock_owner ) {
 			sock_owner = "";
 		}
 
-		if ( stricmp(attr_value,"UNDEFINED")==0 ) {
+		if ( strcasecmp(attr_value,"UNDEFINED")==0 ) {
 				// If the user set the owner to be undefined, then
 				// just fill in the value of Owner with the owner name
 				// of the authenticated socket.
@@ -1811,7 +1873,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 
 		if (!qmgmt_all_users_trusted
 #if defined(WIN32)
-			&& (stricmp(owner,sock_owner) != 0)
+			&& (strcasecmp(owner,sock_owner) != 0)
 #else
 			&& (strcmp(owner,sock_owner) != 0)
 #endif
@@ -1842,7 +1904,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 			// Also update the owner history hash table
 		AddOwnerHistory(owner);
 	}
-	else if (stricmp(attr_name, ATTR_CLUSTER_ID) == 0) {
+	else if (strcasecmp(attr_name, ATTR_CLUSTER_ID) == 0) {
 		if (atoi(attr_value) != cluster_id) {
 #if !defined(WIN32)
 			errno = EACCES;
@@ -1852,7 +1914,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 			return -1;
 		}
 	}
-	else if (stricmp(attr_name, ATTR_NICE_USER) == 0) {
+	else if (strcasecmp(attr_name, ATTR_NICE_USER) == 0) {
 			// Because we're setting a new value for nice user, we
 			// should create a new value for ATTR_USER while we're at
 			// it, since that might need to change now that
@@ -1860,7 +1922,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 		MyString owner;
 		MyString user;
 		bool nice_user = false;
-		if( ! stricmp(attr_value, "TRUE") ) {
+		if( ! strcasecmp(attr_value, "TRUE") ) {
 			nice_user = true;
 		}
 		if( GetAttributeString(cluster_id, proc_id, ATTR_OWNER, owner)
@@ -1870,7 +1932,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 			SetAttribute( cluster_id, proc_id, ATTR_USER, user.Value() );
 		}
 	}
-	else if (stricmp(attr_name, ATTR_PROC_ID) == 0) {
+	else if (strcasecmp(attr_name, ATTR_PROC_ID) == 0) {
 		if (atoi(attr_value) != proc_id) {
 #if !defined(WIN32)
 			errno = EACCES;
@@ -1890,14 +1952,14 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 		// take this cluster_id and look at all of its procs to see if 
 		// need to be added to the main CronTab list of jobs.
 		//
-	} else if ( stricmp( attr_name, ATTR_CRON_MINUTES ) == 0 ||
-				stricmp( attr_name, ATTR_CRON_HOURS ) == 0 ||
-				stricmp( attr_name, ATTR_CRON_DAYS_OF_MONTH ) == 0 ||
-				stricmp( attr_name, ATTR_CRON_MONTHS ) == 0 ||
-				stricmp( attr_name, ATTR_CRON_DAYS_OF_WEEK ) == 0 ) {
+	} else if ( strcasecmp( attr_name, ATTR_CRON_MINUTES ) == 0 ||
+				strcasecmp( attr_name, ATTR_CRON_HOURS ) == 0 ||
+				strcasecmp( attr_name, ATTR_CRON_DAYS_OF_MONTH ) == 0 ||
+				strcasecmp( attr_name, ATTR_CRON_MONTHS ) == 0 ||
+				strcasecmp( attr_name, ATTR_CRON_DAYS_OF_WEEK ) == 0 ) {
 		scheduler.addCronTabClusterId( cluster_id );				
 	}
-	else if ( stricmp( attr_name, ATTR_JOB_STATUS ) == 0 ) {
+	else if ( strcasecmp( attr_name, ATTR_JOB_STATUS ) == 0 ) {
 			// If the status is being set, let's record the previous
 			// status. If there is no status we'll default to
 			// UNEXPANDED.
@@ -1907,8 +1969,8 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 	}
 #if !defined(WANT_OLD_CLASSADS)
 /* Disable AddTargetRefs() for now
-	else if ( stricmp( attr_name, ATTR_REQUIREMENTS ) == 0 ||
-			  stricmp( attr_name, ATTR_RANK ) ) {
+	else if ( strcasecmp( attr_name, ATTR_REQUIREMENTS ) == 0 ||
+			  strcasecmp( attr_name, ATTR_RANK ) ) {
 		// Check Requirements and Rank for proper TARGET scoping of
 		// machine attributes.
 		ExprTree *tree = NULL;
@@ -2064,10 +2126,10 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 	free( round_param );
 
 	if( !PrioRecArrayIsDirty ) {
-		if( stricmp(attr_name, ATTR_JOB_PRIO) == 0 ) {
+		if( strcasecmp(attr_name, ATTR_JOB_PRIO) == 0 ) {
 			PrioRecArrayIsDirty = true;
 		}
-		if( stricmp(attr_name, ATTR_JOB_STATUS) == 0 ) {
+		if( strcasecmp(attr_name, ATTR_JOB_STATUS) == 0 ) {
 			if( atoi(attr_value) == IDLE ) {
 				PrioRecArrayIsDirty = true;
 			}
@@ -2360,32 +2422,39 @@ CommitTransaction(SetAttributeFlags_t flags /* = 0 */)
 	// submit events into the EVENT_LOG here.
 	if ( !new_ad_keys.empty() ) {
 		int cluster_id;
+		int old_cluster_id = -10;
 		int proc_id;
 		ClassAd *procad;
 		ClassAd *clusterad;
-		bool write_submit_events = false;
+		bool has_event_log = false;
+		char *evt_log = param("EVENT_LOG");
+		if (evt_log != NULL){
+			has_event_log = true;
+			free(evt_log);
+		}
 			// keep usr_log in outer scope so we don't open/close the 
 			// event log over and over.
-		WriteUserLog usr_log;
-		usr_log.setCreatorName( Name );
-
-		char *eventlog = param("EVENT_LOG");
-		if ( eventlog ) {
-			write_submit_events = true;
-				// don't write to the user log here, since
-				// hopefully condor_submit already did.
-			usr_log.setEnableUserLog(false);
-			usr_log.initialize(0,0,0,NULL);
-			free(eventlog);
-		}
-
+		WriteUserLog usr_log; 
+	
 		std::list<std::string>::iterator it;
+		int counter = 0;
+		int ad_keys_size = new_ad_keys.size();
 		for( it = new_ad_keys.begin(); it != new_ad_keys.end(); it++ ) {
+			++counter;
 			char const *key = it->c_str();
 			StrToId(key,cluster_id,proc_id);
-
+			// do we want to fsync the userLog?
+			bool doFsync = false; 
 			if( proc_id == -1 ) {
 				continue; // skip over cluster ads
+			}
+			//we want to fsync per cluster
+			if (old_cluster_id == -10)
+				old_cluster_id = cluster_id;
+				
+			if ( (old_cluster_id != cluster_id) || (counter == ad_keys_size) ) {
+				doFsync = true;
+				old_cluster_id = cluster_id;
 			}
 
 			char cluster_key[PROC_ID_STR_BUFLEN];
@@ -2394,7 +2463,7 @@ CommitTransaction(SetAttributeFlags_t flags /* = 0 */)
 			if ( JobQueue->LookupClassAd(cluster_key, clusterad) &&
 				 JobQueue->LookupClassAd(key,procad))
 			{
-				dprintf(D_FULLDEBUG,"New job: %s",key);
+			 
 
 					// chain proc ads to cluster ad
 				procad->ChainToAd(clusterad);
@@ -2403,13 +2472,40 @@ CommitTransaction(SetAttributeFlags_t flags /* = 0 */)
 				ConvertOldJobAdAttrs(procad, false);
 
 					// write submit event to global event log
-				if ( write_submit_events ) {
-					SubmitEvent jobSubmit;
-					jobSubmit.initFromClassAd(procad);
+
+				std::string owner, ntdomain, simple_name, gjid, submitUserNotes, submitEventNotes;
+				bool use_xml = false;	
+				SubmitEvent jobSubmit;
+				jobSubmit.initFromClassAd(procad);
+				usr_log.Configure(true);
+				clusterad->LookupString(ATTR_ULOG_FILE, simple_name);
+				
+					// userLog is defined in the job ad
+				if (simple_name.size() > 0)	 {
+					
+					strcpy (jobSubmit.submitHost, daemonCore->privateNetworkIpAddr());
+					clusterad->LookupString(ATTR_OWNER, owner);
+					clusterad->LookupString(ATTR_NT_DOMAIN, ntdomain);
+					clusterad->LookupString(ATTR_GLOBAL_JOB_ID, gjid);
+					clusterad->LookupBool(ATTR_ULOG_USE_XML, use_xml);
+					
+					usr_log.setEnableUserLog(true);	
+					usr_log.setUseXML(use_xml);	
+					usr_log.setEnableFsync(doFsync);
+					usr_log.initialize(owner.c_str(), ntdomain.c_str(), simple_name.c_str(),
+						0, 0, 0, gjid.c_str());
+					
+				} else if (has_event_log) {  // EventLog is defined but not UserLog
+					usr_log.setEnableUserLog(false);
+-					usr_log.initialize(0,0,0,NULL);
+				}
+				// we only want to write if there is something to write to - either UserLog or 
+				if (has_event_log || (simple_name.size() > 0) ) {
 					usr_log.setGlobalCluster(cluster_id);
 					usr_log.setGlobalProc(proc_id);
 					usr_log.writeEvent(&jobSubmit,procad);
 				}
+				
 			}	
 		}	// end of loop thru clusters
 	}	// end of if a new cluster(s) submitted
@@ -2467,6 +2563,7 @@ AbortTransactionAndRecomputeClusters()
 		}
 	}	// end of if JobQueue->AbortTransaction == True
 }
+
 
 int
 GetAttributeFloat(int cluster_id, int proc_id, const char *attr_name, float *val)
@@ -2736,7 +2833,7 @@ dollarDollarExpand(int cluster_id, int proc_id, ClassAd *ad, ClassAd *startd_ad,
 					// contain literal $$(...) in the replacement text.
 				continue;
 			}
-			if ( stricmp(attr_name,ATTR_JOB_CMD) ) { 
+			if ( strcasecmp(attr_name,ATTR_JOB_CMD) ) { 
 				AttrsToExpand.append(attr_name);
 			}
 		}
@@ -2807,7 +2904,7 @@ dollarDollarExpand(int cluster_id, int proc_id, ClassAd *ad, ClassAd *startd_ad,
 			if ( (index == 0) && (attribute_value != NULL)
 				 && ((tvalue=strstr(attribute_value,"$$")) != NULL) ) 
 			{
-				if ( stricmp("$$OPSYS.$$ARCH",tvalue) == MATCH ) 
+				if ( strcasecmp("$$OPSYS.$$ARCH",tvalue) == MATCH ) 
 				{
 						// convert to the new format
 						// First, we need to re-allocate attribute_value to a bigger
@@ -2840,6 +2937,29 @@ dollarDollarExpand(int cluster_id, int proc_id, ClassAd *ad, ClassAd *startd_ad,
 					MyString expr_to_add;
 					expr_to_add.sprintf("string(%s", name + 1);
 					expr_to_add.setChar(expr_to_add.Length()-1, ')');
+
+						// Any backwacked double quotes or backwacks
+						// within the []'s should be unbackwacked.
+					int read_pos;
+					int write_pos;
+					for( read_pos = 0, write_pos = 0;
+						 read_pos < expr_to_add.Length();
+						 read_pos++, write_pos++ )
+					{
+						if( expr_to_add[read_pos] == '\\'  &&
+							read_pos+1 < expr_to_add.Length() &&
+							( expr_to_add[read_pos+1] == '\"' ||
+							  expr_to_add[read_pos+1] == '\\' ) )
+						{
+							read_pos++; // skip over backwack
+						}
+						if( read_pos != write_pos ) {
+							expr_to_add.setChar(write_pos,expr_to_add[read_pos]);
+						}
+					}
+					if( read_pos != write_pos ) { // terminate the string
+						expr_to_add.setChar(write_pos,'\0');
+					}
 
 					ClassAd tmpJobAd(*ad);
 					const char * INTERNAL_DD_EXPR = "InternalDDExpr";
@@ -2891,7 +3011,7 @@ dollarDollarExpand(int cluster_id, int proc_id, ClassAd *ad, ClassAd *startd_ad,
 					// If it is not there, use the fallback.
 					// If no fallback value, then fail.
 
-					if( stricmp(name,"DOLLARDOLLAR") == 0 ) {
+					if( strcasecmp(name,"DOLLARDOLLAR") == 0 ) {
 							// replace $$(DOLLARDOLLAR) with literal $$
 						value = strdup("DOLLARDOLLAR = \"$$\"");
 						value_came_from_jobad = true;
@@ -3326,18 +3446,18 @@ FreeJobAd(ClassAd *&ad)
 }
 
 static int
-RecvSpoolFileBytes(const MyString& path)
+RecvSpoolFileBytes(const char *path)
 {
 	filesize_t	size;
 	Q_SOCK->getReliSock()->decode();
-	if (Q_SOCK->getReliSock()->get_file(&size, path.Value()) < 0) {
+	if (Q_SOCK->getReliSock()->get_file(&size, path) < 0) {
 		dprintf(D_ALWAYS,
 		        "Failed to receive file from client in SendSpoolFile.\n");
-		Q_SOCK->getReliSock()->eom();
+		Q_SOCK->getReliSock()->end_of_message();
 		return -1;
 	}
-	chmod(path.Value(),00755);
-	Q_SOCK->getReliSock()->eom();
+	chmod(path,00755);
+	Q_SOCK->getReliSock()->end_of_message();
 	dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
 	return 0;
 }
@@ -3345,7 +3465,7 @@ RecvSpoolFileBytes(const MyString& path)
 int
 SendSpoolFile(char const *filename)
 {
-	MyString path;
+	char * path;
 
 		/* We are passed in a filename to use to save the ICKPT file.
 		   However, we should NOT trust this filename since it comes from 
@@ -3357,7 +3477,7 @@ SendSpoolFile(char const *filename)
 		   filename parameter completely. -Todd Tannenbaum, 2/2005
 		*/
 	path = gen_ckpt_name(Spool,active_cluster_num,ICKPT,0);
-	if ( filename && strcmp(filename, condor_basename(path.Value())) ) {
+	if ( filename && strcmp(filename, condor_basename(path)) ) {
 		dprintf(D_ALWAYS, 
 				"ERROR SendSpoolFile aborted due to suspicious path (%s)!\n",
 				filename);
@@ -3370,9 +3490,11 @@ SendSpoolFile(char const *filename)
 	/* Tell client to go ahead with file transfer. */
 	Q_SOCK->getReliSock()->encode();
 	Q_SOCK->getReliSock()->put(0);
-	Q_SOCK->getReliSock()->eom();
+	Q_SOCK->getReliSock()->end_of_message();
 
-	return RecvSpoolFileBytes(path);
+	int rv = RecvSpoolFileBytes(path);
+	free(path); path = NULL;
+	return rv;
 }
 
 int
@@ -3383,7 +3505,7 @@ SendSpoolFileIfNeeded(ClassAd& ad)
 	}
 	Q_SOCK->getReliSock()->encode();
 
-	MyString path = gen_ckpt_name(Spool, active_cluster_num, ICKPT, 0);
+	char *path = gen_ckpt_name(Spool, active_cluster_num, ICKPT, 0);
 
 	// here we take advantage of ickpt sharing if possible. if a copy
 	// of the executable already exists we make a link to it and send
@@ -3399,13 +3521,13 @@ SendSpoolFileIfNeeded(ClassAd& ad)
 			        "SendSpoolFileIfNeeded: no %s attribute in ClassAd\n",
 			        ATTR_OWNER);
 			Q_SOCK->getReliSock()->put(-1);
-			Q_SOCK->getReliSock()->eom();
+			Q_SOCK->getReliSock()->end_of_message();
 			return -1;
 		}
 		if (!OwnerCheck(&ad, Q_SOCK->getOwner())) {
 			dprintf(D_ALWAYS, "SendSpoolFileIfNeeded: OwnerCheck failure\n");
 			Q_SOCK->getReliSock()->put(-1);
-			Q_SOCK->getReliSock()->eom();
+			Q_SOCK->getReliSock()->end_of_message();
 			return -1;
 		}
 		hash = ickpt_share_get_hash(ad);
@@ -3423,10 +3545,10 @@ SendSpoolFileIfNeeded(ClassAd& ad)
 					hash = "";
 			}
 			if (!hash.empty() &&
-			    ickpt_share_try_sharing(owner.Value(), hash, path.Value()))
+			    ickpt_share_try_sharing(owner.Value(), hash, path))
 			{
 				Q_SOCK->getReliSock()->put(1);
-				Q_SOCK->getReliSock()->eom();
+				Q_SOCK->getReliSock()->end_of_message();
 				return 0;
 			}
 		}
@@ -3434,16 +3556,18 @@ SendSpoolFileIfNeeded(ClassAd& ad)
 
 	/* Tell client to go ahead with file transfer. */
 	Q_SOCK->getReliSock()->put(0);
-	Q_SOCK->getReliSock()->eom();
+	Q_SOCK->getReliSock()->end_of_message();
 
 	if (RecvSpoolFileBytes(path) == -1) {
+		free(path); path = NULL;
 		return -1;
 	}
 
 	if (!hash.empty()) {
-		ickpt_share_init_sharing(owner.Value(), hash, path.Value());
+		ickpt_share_init_sharing(owner.Value(), hash, path);
 	}
 
+	free(path); path = NULL;
 	return 0;
 }
 
@@ -3684,6 +3808,17 @@ int mark_idle(ClassAd *job)
 			// runs before a new shadow starts, it won't
 			// potentially double-count
 		DeleteAttribute(cluster,proc,ATTR_SHADOW_BIRTHDATE);
+
+		float slot_weight = 1;
+		GetAttributeFloat(cluster, proc,
+						  ATTR_JOB_MACHINE_ATTR_SLOT_WEIGHT0,&slot_weight);
+		float slot_time = 0;
+		GetAttributeFloat(cluster, proc,
+						  ATTR_CUMULATIVE_SLOT_TIME,&slot_time);
+		slot_time += wall_clock_ckpt*slot_weight;
+		SetAttributeFloat(cluster, proc,
+						  ATTR_CUMULATIVE_SLOT_TIME,slot_time);
+
 		CommitTransaction();
 	}
 

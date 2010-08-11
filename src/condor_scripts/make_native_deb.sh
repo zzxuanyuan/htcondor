@@ -126,8 +126,11 @@ mkdir -p -m0755 local/log
 mkdir -p -m0755 local/spool
 
 #Patching files
-#Use VDT init script
-chmod 755 etc/examples/condor.boot.vdt
+#Use rpm init script
+chmod 755 etc/examples/condor.boot.rpm
+#Debian use /etc/default instead of /etc/sysconfig
+perl -p -i -e "s|/etc/sysconfig/condor|/etc/default/condor|g;" etc/examples/condor.boot.rpm
+
 
 #Fix permission
 chmod 644 etc/examples/condor.boot
@@ -193,7 +196,8 @@ rm -f $PREFIX/condor_configure $PREFIX/condor_install
 # Relocate main path layout
 move $PREFIX/bin				/usr/bin			
 move $PREFIX/etc/condor				/etc/condor
-move $PREFIX/etc/examples/condor.boot.vdt	/etc/init.d/condor
+move $PREFIX/etc/examples/condor.sysconfig	/etc/default/condor
+move $PREFIX/etc/examples/condor.boot.rpm	/etc/init.d/condor
 move $PREFIX/include				/usr/include/condor	
 move $PREFIX/lib				/usr/lib/condor		
 move $PREFIX/libexec				/usr/lib/condor/libexec
@@ -204,10 +208,11 @@ move $PREFIX/sql				/usr/share/condor/sql
 move $PREFIX/src				/usr/src
 
 
-#Create RUN LOG LOCK 
+#Create RUN LOG LOCK CONFIG.D
 mkdir -p -m0755 $DEB_ROOT/var/run/condor
 mkdir -p -m0755 $DEB_ROOT/var/log/condor
 mkdir -p -m0755 $DEB_ROOT/var/lock/condor
+mkdir -p -m0755 $DEB_ROOT/etc/condor/config.d
 
 #Put the rest into documentation
 move $PREFIX				/usr/share/doc/condor

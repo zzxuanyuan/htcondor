@@ -79,12 +79,16 @@ class GahpServer : public Service {
 	bool Startup();
 	bool Initialize(Proxy * proxy);
 
+	void DeleteMe();
+
 	static const int m_buffer_size;
 	char *m_buffer;
 	int m_buffer_pos;
 	int m_buffer_end;
 	int buffered_read( int fd, void *buf, int count );
 	int buffered_peek();
+
+	int m_deleteMeTid;
 
 	bool m_in_results;
 
@@ -555,6 +559,9 @@ class GahpClient : public Service {
 		int
 		nordugrid_ping(const char *hostname);
 
+		int
+		gridftp_transfer(const char *src_url, const char *dst_url);
+
 		///
 		int 
 		unicore_job_create(const char * description,
@@ -632,7 +639,8 @@ class GahpClient : public Service {
 		//		seq_id 0 <instance_id>
 		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1 
-		int amazon_vm_start( const char * publickeyfile,
+		int amazon_vm_start( const char * service_url,
+							 const char * publickeyfile,
 							 const char * privatekeyfile,
 							 const char * ami_id,
 							 const char * keypair,
@@ -650,11 +658,13 @@ class GahpClient : public Service {
 		//		seq_id 0
 		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
-		int amazon_vm_stop( const char * publickeyfile,
+		int amazon_vm_stop( const char * service_url,
+							const char * publickeyfile,
 							const char * privatekeyfile,
 							const char * instance_id,
 							char* & error_code );
 							
+#if 0
 		// 3. Reboot VM:
 		// AMAZON_COMMAND_VM_REBOOT <req_id> <publickeyfile> <privatekeyfile> <instance-id>
 		// return: success/failed
@@ -666,6 +676,7 @@ class GahpClient : public Service {
 							  const char * privatekeyfile,
 							  const char * instance_id,
 							  char* & error_code );		
+#endif 
 		
 		// 4. Status VM:
 		// AMAZON_COMMAND_VM_STATUS <req_id> <publickeyfile> <privatekeyfile> <instance-id>
@@ -685,12 +696,14 @@ class GahpClient : public Service {
 		** with "Null", so it means public_dns will always in position 4 and groupname will always 
 		** start from position 7 
 		*/
-		int amazon_vm_status( const char * publickeyfile,
+		int amazon_vm_status( const char * service_url,
+							  const char * publickeyfile,
 							  const char * privatekeyfile,
 							  const char * instance_id,
 							  StringList & returnStatus,
 							  char* & error_code );
 				
+#if 0
 		// 5. Status ALL VM:
 		// AMAZON_COMMAND_VM_STATUS_ALL <req_id> <publickeyfile> <privatekeyfile>
 		// return: success/failed + <instance_id> <status> <ami_id> <instance_id> <status> <ami_id>     NULL
@@ -788,10 +801,12 @@ class GahpClient : public Service {
 								   	  const char * end_port,
 								   	  const char * ip_range,
 								   	  char* & error_code );		
+#endif
 		
 		// 12. Ping
 		// we also need to define a ping function, which will be used by amazon_resource
-		int amazon_ping( const char * publickeyfile,
+		int amazon_ping( const char * service_url,
+						 const char * publickeyfile,
 						 const char * privatekeyfile );
 		
 		//**************************************************************//
@@ -845,7 +860,8 @@ class GahpClient : public Service {
 		//		seq_id 0
 		//		seq_id 1
 		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_create_keypair( const char * publickeyfile,
+		int amazon_vm_create_keypair( const char * service_url,
+									  const char * publickeyfile,
 								   	  const char * privatekeyfile,
 								   	  const char * keyname,
 								   	  const char * outputfile,
@@ -859,11 +875,13 @@ class GahpClient : public Service {
 		//		seq_id 0
 		//		seq_id 1
 		//		seq_id 1 <error_code> <error_string>
-		int amazon_vm_destroy_keypair( const char * publickeyfile,
+		int amazon_vm_destroy_keypair( const char * service_url,
+									   const char * publickeyfile,
 								   	   const char * privatekeyfile,
 								   	   const char * keyname,
 								   	   char* & error_code );
 								   	   
+#if 0
 		// 15. List all existing SSH Keypair name
 		// AMAZON_COMMAND_VM_KEYPAIR_NAMES <req_id> <publickeyfile> <privatekeyfile>
 		// return: success/failed
@@ -1016,6 +1034,7 @@ class GahpClient : public Service {
 										  const char* bucketname,
 										  const char* localdirname,
 										  char* & error_code );
+#endif
 		
 		// 27. check all the running VM instances and their corresponding keypair name								  
 		// AMAZON_COMMAND_VM_KEYPAIR_ALL <req_id> <publickeyfile> <privatekeyfile>
@@ -1024,7 +1043,8 @@ class GahpClient : public Service {
 		//		seq_id 0 <instance_id> <keypair> <instance_id> <keypair> ... 
 		//		seq_id 1 <error_code> <error_string>
 		//		seq_id 1
-		int amazon_vm_vm_keypair_all( const char* publickeyfile,
+		int amazon_vm_vm_keypair_all( const char * service_url,
+									  const char* publickeyfile,
 									  const char* privatekeyfile,
 									  StringList & returnStatus,
 								  	  char* & error_code );

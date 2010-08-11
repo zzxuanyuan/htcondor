@@ -79,6 +79,8 @@ static bool parse_priority(Dag *dag,
 static bool parse_category(Dag *dag, const char *filename, int lineNumber);
 static bool parse_maxjobs(Dag *dag, const char *filename, int lineNumber);
 static bool parse_splice(Dag *dag, const char *filename, int lineNumber);
+static bool parse_node_status_file(Dag  *dag, const char *filename,
+		int  lineNumber);
 static MyString munge_job_name(const char *jobName);
 
 static MyString current_splice_scope(void);
@@ -242,7 +244,7 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			
 		// Handle a Retry spec
 		// Example Syntax is:  Retry JobName 3 UNLESS-EXIT 42
-		else if( strcasecmp( token, "Retry" ) == 0 ) {
+		else if( strcasecmp( token, "RETRY" ) == 0 ) {
 			parsed_line_successfully = parse_retry(dag, filename, lineNumber);
 		} 
 
@@ -299,13 +301,19 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			parsed_line_successfully = parse_splice(dag, filename,
 						lineNumber);
 		}
+
+		// Handle a NODE_STATUS_FILE spec
+		else if(strcasecmp(token, "NODE_STATUS_FILE") == 0) {
+			parsed_line_successfully = parse_node_status_file(dag,
+						filename, lineNumber);
+		}
 		
 		// None of the above means that there was bad input.
 		else {
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
-				"Expected JOB, DATA, SCRIPT, PARENT, RETRY, "
-				"ABORT-DAG-ON, DOT, VARS, PRIORITY, CATEGORY, MAXJOBS "
-				"or CONFIG token\n",
+				"Expected JOB, DATA, SUBDAG, SCRIPT, PARENT, RETRY, "
+				"ABORT-DAG-ON, DOT, VARS, PRIORITY, CATEGORY, MAXJOBS, "
+				"CONFIG, SPLICE or NODE_STATUS_FILE token\n",
 				filename, lineNumber );
 			parsed_line_successfully = false;
 		}
@@ -1176,8 +1184,11 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 			return false;
 		}
 		debug_printf(DEBUG_DEBUG_1, "Argument added, Name=\"%s\"\tValue=\"%s\"\n", varName.Value(), varValue.Value());
-		job->varNamesFromDag->Append(new MyString(varName));
-		job->varValsFromDag->Append(new MyString(varValue));
+		bool appendResult;
+		appendResult = job->varNamesFromDag->Append(new MyString(varName));
+		ASSERT( appendResult );
+		appendResult = job->varValsFromDag->Append(new MyString(varValue));
+		ASSERT( appendResult );
 	}
 
 	if(numPairs == 0) {
@@ -1474,7 +1485,8 @@ parse_splice(
 							dag->DefaultNodeLog(),
 							dag->GenerateSubdagSubmits(),
 							NULL, // this Dag will never submit a job
-							true); /* we are a splice! */
+							true, /* we are a splice! */
+							current_splice_scope() );
 	
 	// initialize whatever the DIR line was, or defaults to, here.
 	splice_dag->SetDirectory(directory);
@@ -1617,6 +1629,49 @@ parse_maxjobs(
 	MyString	tmpName( categoryName );
 	dag->_catThrottles.SetThrottle( &tmpName, maxJobsVal );
 
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// 
+// Function: parse_node_status_file
+// Purpose:  Parses a line specifying the a node_status_file for the DAG.
+//           The format of this line must be
+//           NODE_STATUS_FILE <filename>
+//			 No whitespace is allowed in the file name
+//-----------------------------------------------------------------------------
+static bool 
+parse_node_status_file(
+	Dag  *dag, 
+	const char *filename, 
+	int  lineNumber)
+{
+	const char * example = "NODE_STATUS_FILE StatusFile [min update time]";
+
+	char *statusFileName = strtok(NULL, DELIMITERS);
+	if (statusFileName == NULL) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): Missing node status file name,\n",
+					  filename, lineNumber );
+		exampleSyntax( example );
+		return false;
+	}
+
+	int minUpdateTime = 0;
+	char *minUpdateStr = strtok(NULL, DELIMITERS);
+	if ( minUpdateStr != NULL ) {
+		char *tmp;
+		minUpdateTime = (int)strtol( minUpdateStr, &tmp, 10 );
+		if ( tmp == minUpdateStr ) {
+			debug_printf( DEBUG_QUIET,
+					  	"%s (line %d): Invalid min update time value \"%s\"\n",
+					  	filename, lineNumber, minUpdateStr );
+			exampleSyntax( example );
+			return false;
+		}
+	}
+
+	dag->SetNodeStatusFileName( statusFileName, minUpdateTime );
 	return true;
 }
 

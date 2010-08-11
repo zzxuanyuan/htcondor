@@ -830,7 +830,8 @@ get_special_var( const char *prefix, bool only_id_chars, register char *value,
 	tvalue = value;
 	left = value;
 
-	for(;;) {
+		// Loop until we're done, helped with the magic of goto's
+	while (1) {
 tryagain:
 		if (tvalue) {
 			value = (char *)strstr( (const char *)tvalue, prefix );
@@ -974,7 +975,7 @@ tryagain:
 					// between these two pointers gives us the length of the
 					// identifier.
 					int namelen = value-name;
-					if( !self || ( strincmp( name, self, namelen ) == MATCH && self[namelen] == '\0' ) ) {
+					if( !self || ( strncasecmp( name, self, namelen ) == MATCH && self[namelen] == '\0' ) ) {
 							// $(DOLLAR) has special meaning; it is
 							// set to "$" and is _not_ recursively
 							// expanded.  To implement this, we have
@@ -985,7 +986,7 @@ tryagain:
 							// we treat it like anything else, and it is up
 							// to the caller to advance search_pos, so we
 							// don't run into the literal $$ again.
-						if ( !self && strincmp(name,DOLLAR_ID,namelen) == MATCH ) {
+						if ( !self && strncasecmp(name,DOLLAR_ID,namelen) == MATCH ) {
 							tvalue = name;
 							goto tryagain;
 						}

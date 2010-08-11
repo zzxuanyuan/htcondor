@@ -273,7 +273,8 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 		&DaemonCore::decrementPendingSockets,
 		&DaemonCore::publicNetworkIpAddr,
 		&DaemonCore::Register_Command,
-		&DaemonCore::daemonContactInfoChanged);
+		&DaemonCore::daemonContactInfoChanged,
+		&DaemonCore::Register_Timer_TS);
 
 	if ( PidSize == 0 )
 		PidSize = DEFAULT_PIDBUCKETS;
@@ -405,7 +406,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	m_invalidate_sessions_via_tcp = true;
 	dc_rsock = NULL;
 	dc_ssock = NULL;
-    m_iMaxAcceptsPerCycle = param_integer("MAX_ACCEPTS_PER_CYCLE", 1);
+    m_iMaxAcceptsPerCycle = param_integer("MAX_ACCEPTS_PER_CYCLE", 4);
     if( m_iMaxAcceptsPerCycle != 1 ) {
         dprintf(D_ALWAYS,"Setting maximum accepts per cycle %d.\n", m_iMaxAcceptsPerCycle);
     }
@@ -833,6 +834,21 @@ int	DaemonCore::Register_Timer(unsigned deltawhen, TimerHandler handler,
 	return( t.NewTimer(deltawhen, handler, event_descrip, 0) );
 }
 
+int DaemonCore::Register_Timer_TS(unsigned deltawhen, TimerHandlercpp handler,
+				const char *event_descrip, Service* s)
+{
+#ifdef WIN32
+	EnterCriticalSection(&Big_fat_mutex);
+	int status = Register_Timer(deltawhen, handler, event_descrip, s);
+	LeaveCriticalSection(&Big_fat_mutex);
+
+	Do_Wake_up_select();
+	return status;
+#else
+	return 0;
+#endif
+}
+
 int	DaemonCore::Register_Timer(unsigned deltawhen, TimerHandler handler,
 							   Release release, const char *event_descrip)
 {
@@ -981,6 +997,7 @@ int DaemonCore::Cancel_Command( int command )
 			comTable[i].command_descrip = NULL;
 			free(comTable[i].handler_descrip);
 			comTable[i].handler_descrip = NULL;
+			nCommand--;
 			return TRUE;
 		}
 	}
@@ -1695,6 +1712,38 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 			     unsigned int psize)
 {
 	dprintf(D_DAEMONCORE,"Entering Create_Pipe()\n");
+#ifdef WIN32
+	static unsigned pipe_counter = 0;
+	MyString pipe_name;
+	pipe_name.sprintf("\\\\.\\pipe\\condor_pipe_%u_%u", GetCurrentProcessId(), pipe_counter++);
+	return Create_Named_Pipe(pipe_ends,
+		can_register_read,
+		can_register_write,
+		nonblocking_read,
+		nonblocking_write,
+		psize,
+		pipe_name.Value());
+#else // unix
+	return Create_Named_Pipe(
+		pipe_ends,
+		can_register_read,
+		can_register_write,
+		nonblocking_read,
+		nonblocking_write,
+		psize,
+		NULL);
+#endif
+}
+
+int DaemonCore::Create_Named_Pipe( int *pipe_ends,
+			     bool can_register_read,
+			     bool can_register_write,
+			     bool nonblocking_read,
+			     bool nonblocking_write,
+			     unsigned int psize,
+				 const char* pipe_name)
+{
+	dprintf(D_DAEMONCORE,"Entering Create_Named_Pipe()\n");
 
 	PipeHandle read_handle, write_handle;
 
@@ -1707,26 +1756,23 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 		overlapped_write_flag = FILE_FLAG_OVERLAPPED;
 	}
 
-	static unsigned pipe_counter = 0;
-	MyString pipe_name;
-	pipe_name.sprintf("\\\\.\\pipe\\condor_pipe_%u_%u", GetCurrentProcessId(), pipe_counter++);
 	HANDLE w =
-		CreateNamedPipe(pipe_name.Value(),  // the name
+		CreateNamedPipe(pipe_name,  // the name
 				PIPE_ACCESS_OUTBOUND |      // "server" to "client" only
 				overlapped_write_flag,      // overlapped mode
 				0,                          // byte-mode, blocking
-				1,                          // only one instance
+				PIPE_UNLIMITED_INSTANCES,                          // only one instance
 				psize,                      // outgoing buffer size
 				0,                          // incoming buffer size (not used)
 				0,                          // default wait timeout (not used)
 				NULL);                      // we mark handles inheritable in Create_Process
 	if (w == INVALID_HANDLE_VALUE) {
 		dprintf(D_ALWAYS, "CreateNamedPipe(%s) error: %d\n", 
-			pipe_name.Value (), GetLastError());
+			pipe_name, GetLastError());
 		return FALSE;
 	}
 	HANDLE r =
-		CreateFile(pipe_name.Value(),   // the named pipe
+		CreateFile(pipe_name,   // the named pipe
 			   GENERIC_READ,            // desired access
 			   0,                       // no sharing
 			   NULL,                    // we mark handles inheritable in Create_Process
@@ -1736,13 +1782,18 @@ int DaemonCore::Create_Pipe( int *pipe_ends,
 	if (r == INVALID_HANDLE_VALUE) {
 		CloseHandle(w);
 		dprintf(D_ALWAYS, "CreateFile(%s) error on named pipe: %d\n", 
-			pipe_name.Value(), GetLastError());
+			pipe_name, GetLastError());
 		return FALSE;
 	}
 	read_handle = new ReadPipeEnd(r, overlapped_read_flag, nonblocking_read, psize);
 	write_handle = new WritePipeEnd(w, overlapped_write_flag, nonblocking_write, psize);
 #else
 	// Unix
+	if( pipe_name ) {
+		EXCEPT("Create_NamedPipe() not implemented yet under unix!");
+	}
+		// what follows is the unix implementation of an unnamed pipe,
+		// which is what we do when pipe_name == NULL
 
 	// Shut the compiler up
 	// These parameters are needed on Windows
@@ -2623,7 +2674,7 @@ DaemonCore::reconfig(void) {
 	// Default is 10k (10*1024 bytes)
 	maxPipeBuffer = param_integer("PIPE_BUFFER_MAX", 10240);
 
-    m_iMaxAcceptsPerCycle = param_integer("MAX_ACCEPTS_PER_CYCLE", 1);
+    m_iMaxAcceptsPerCycle = param_integer("MAX_ACCEPTS_PER_CYCLE", 4);
     if( m_iMaxAcceptsPerCycle != 1 ) {
         dprintf(D_ALWAYS,"Setting maximum accepts per cycle %d.\n", m_iMaxAcceptsPerCycle);
     }
@@ -2894,8 +2945,13 @@ DaemonCore::Wake_up_select()
 	if ( CondorThreads::get_handle()->get_tid() == 1 ) {
 		return;
 	}
+	Do_Wake_up_select();
+}
 
-	if ( async_pipe_empty ) {
+void
+DaemonCore::Do_Wake_up_select()
+{
+		if ( async_pipe_empty ) {
 #ifdef WIN32
 		async_pipe[1].put( '!' );
 		async_pipe[1].end_of_message();
@@ -4600,7 +4656,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 					}
 					sock->encode();
 					if (!the_policy->put(*sock) ||
-						!sock->eom()) {
+						!sock->end_of_message()) {
 						dprintf (D_ALWAYS, "SECMAN: Error sending response classad to %s!\n", sock->peer_description());
 						auth_info.dPrint (D_ALWAYS);
 						result = FALSE;
@@ -4796,7 +4852,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 				if (new_session) {
 					// clear the buffer
 					sock->decode();
-					sock->eom();
+					sock->end_of_message();
 
 					// ready a classad to send
 					ClassAd pa_ad;
@@ -4856,7 +4912,7 @@ int DaemonCore::HandleReq(Stream *insock, Stream* asock)
 
 					sock->encode();
 					if (! pa_ad.put(*sock) ||
-						! sock->eom() ) {
+						! sock->end_of_message() ) {
 						dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send session %s info to %s!\n", the_sid, sock->peer_description());
 						result = FALSE;
 						goto finalize;
@@ -5563,7 +5619,7 @@ void DaemonCore::Send_Signal(classy_counted_ptr<DCSignalMsg> msg, bool nonblocki
 	classy_counted_ptr<Daemon> d = new Daemon( DT_ANY, destination );
 
 	// now destination process is local, send via UDP; if remote, send via TCP
-	if ( is_local == TRUE ) {
+	if ( is_local == TRUE && d->hasUDPCommandPort()) {
 		msg->setStreamType(Stream::safe_sock);
 		if( !nonblocking ) msg->setTimeout(3);
 	}
@@ -5849,7 +5905,7 @@ int DaemonCore::Continue_Process(pid_t pid)
 int DaemonCore::SetDataPtr(void *dptr)
 {
 	// note: curr_dataptr is updated by daemon core
-	// whenever a register_* or a hanlder invocation takes place
+	// whenever a register_* or a handler invocation takes place
 
 	if ( curr_dataptr == NULL ) {
 		return FALSE;
@@ -7090,6 +7146,7 @@ int DaemonCore::Create_Process(
 		int fd = -1;
 		shared_port_endpoint.serialize(inheritbuf,fd);
         inheritFds[numInheritFds++] = fd;
+		inherit_handles = true;
 	}
 	else if ( want_command_port != FALSE ) {
 		inherit_handles = TRUE;
@@ -7445,7 +7502,7 @@ int DaemonCore::Create_Process(
 		/** since we do not actually know how long the extension of
 			the file is, we'll need to hunt down the '.' in the path
 			*/
-		extension = strrchr ( executable, '.' );
+		extension = strrchr ( condor_basename(executable), '.' );
 
 		if ( !extension ) {
 
@@ -7591,11 +7648,19 @@ int DaemonCore::Create_Process(
 	//
 	if ( priv == PRIV_USER_FINAL ) {
 		create_process_flags |= CREATE_NEW_CONSOLE;
-	}	
+	}
+
+	const char *cwdBackup;
+	if (cwd && (cwd[0] == '\0')) {
+		cwdBackup = NULL;
+	} else {
+		cwdBackup = cwd;
+	}
+		
 
    	if ( priv != PRIV_USER_FINAL || !can_switch_ids() ) {
 		cp_result = ::CreateProcess(bIs16Bit ? NULL : executable,(char*)strArgs.Value(),NULL,
-			NULL,inherit_handles, create_process_flags,newenv,cwd,&si,&piProcess);
+			NULL,inherit_handles, create_process_flags,newenv,cwdBackup,&si,&piProcess);
 	} else {
 		// here we want to create a process as user for PRIV_USER_FINAL
 
@@ -7645,7 +7710,7 @@ int DaemonCore::Create_Process(
 
 		cp_result = ::CreateProcessAsUser(user_token,bIs16Bit ? NULL : executable,
 			(char *)strArgs.Value(),NULL,NULL, inherit_handles,
-			create_process_flags, newenv,cwd,&si,&piProcess);
+			create_process_flags, newenv,cwdBackup,&si,&piProcess);
 
 		set_priv(s);
 	}
@@ -8272,8 +8337,7 @@ DaemonCore::Create_Thread(ThreadStartFunc start_func, void *arg, Stream *sock,
 
 		priv_state new_priv = get_priv();
 		if( saved_priv != new_priv ) {
-			char const *reaper =
-				reaper_id > 0 ? reapTable[reaper_id-1].handler_descrip : NULL;
+			char const *reaper = reapTable[reaper_id-1].handler_descrip;
 			dprintf(D_ALWAYS,
 					"Create_Thread: UNEXPECTED: priv state changed "
 					"during worker function: %d %d (%s)\n",
@@ -8665,6 +8729,7 @@ DaemonCore::Inherit( void )
 			ptmp += 11;
 			delete m_shared_port_endpoint;
 			m_shared_port_endpoint = new SharedPortEndpoint();
+			dprintf(D_DAEMONCORE, "Inheriting a shared port pipe.\n");
 			m_shared_port_endpoint->deserialize(ptmp);
 			ptmp=inherit_list.next();
 		}
@@ -10563,7 +10628,9 @@ DaemonCore::PidEntry::~PidEntry() {
 	if( !shared_port_fname.IsEmpty() ) {
 			// Clean up the named socket for this process if the child
 			// didn't already do so.
+#ifndef WIN32
 		SharedPortEndpoint::RemoveSocket( shared_port_fname.Value() );
+#endif
 	}
 }
 

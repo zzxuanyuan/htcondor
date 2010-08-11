@@ -3014,7 +3014,9 @@ fi
 
 CHECK_EXTERNAL([krb5], [1.4.3-p0], [soft],
                [use krb5 (provides Kerberos support)],
-               MF_LIB_CHECK([krb5], [[krb5 krb5_free_principal]]))
+               MF_LIB_CHECK([krb5], [[krb5 krb5_free_principal],
+	       			     [k5crypto krb5_c_encrypt],
+				     [com_err error_message]]))
 
 CHECK_EXTERNAL([openssl], [0.9.8h-p2], [soft],
                [use OpenSSL (provides authentication and encryption support)],
@@ -3048,7 +3050,7 @@ CHECK_EXTERNAL([zlib], [1.2.3], [$_cv_zlib_requirement],
                [use zlib (provides compression support)],
                MF_LIB_CHECK([zlib], [[z deflate]]))
 
-CHECK_EXTERNAL([classads], [1.0.6], [soft],
+CHECK_EXTERNAL([classads], [1.0.7], [soft],
                [use new ClassAds (provides -better-analyze and more)],
 	       # This REALLY should test for headers, like most checks...
                MF_LIB_CHECK([classads], [[classad cclassad_create]], [classads]))
@@ -3069,7 +3071,7 @@ else
 fi
 
 if test "x$_cv_linux_distro" = "xRHEL5" -o "x$_cv_linux_distro" = "xRHEL3" -a "x$_cv_arch" = "xI386" ; then
-  CHECK_EXTERNAL([cream],[1.10.1-p5], [soft])
+  CHECK_EXTERNAL([cream],[1.10.1-p6], [soft])
 fi
 
 CHECK_EXTERNAL([pcre], [7.6], [hard],
@@ -3091,7 +3093,7 @@ AS_IF([test "x$_cv_opsys" != xDARWIN -a "x$_cv_opsys" != xAIX -a "x$_cv_opsys" !
   [_cv_has_blahp=yes],
   [_cv_has_blahp=no])
 AC_MSG_RESULT([$_cv_has_blahp])
-CHECK_EXTERNAL([blahp], [1.12.2-p11], [soft])
+CHECK_EXTERNAL([blahp], [1.16.0], [soft])
 
 # When --with-proper the detection of the man pages is a little
 # ugly. The value added to the end of $_dir must be what
@@ -3123,15 +3125,9 @@ fi
 # Figure out which postgresql we need.
 
 if test "x$enable_quill" = xyes; then
-if test "$_cv_opsys" = "AIX" ; then
-  CHECK_EXTERNAL([postgresql], [8.2.3], [soft],
-                 [use PostgreSQL (provides Quill and other support)],
-                 MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
-else
-  CHECK_EXTERNAL([postgresql], [8.2.3-p1], [soft],
-                 [use PostgreSQL (provides Quill and other support)],
-                 MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
-fi
+CHECK_EXTERNAL([postgresql], [8.2.3-p1], [soft],
+               [use PostgreSQL (provides Quill and other support)],
+               MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
 fi
 AC_MSG_CHECKING([postgresql])
 AC_MSG_RESULT([$_cv_ext_postgresql_version])
@@ -3203,7 +3199,7 @@ CHECK_EXTERNAL([curl],[7.19.6-p1],[soft])
 #Look for hadoop jars, required by HDFS daemon as well by hdfs file plugin
 # Only build hadoop external if hdfs is enabled
 AS_IF([test "x$enable_hdfs" = xyes], 
-  [CHECK_EXTERNAL([hadoop],[0.20.0-p2],[soft])])
+  [CHECK_EXTERNAL([hadoop],[0.20.2],[soft])])
 
 if test "x$_cv_opsys" = "xLINUX" ; then
   CHECK_EXTERNAL([libxml2],[2.7.3],[soft],

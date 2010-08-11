@@ -71,8 +71,21 @@ Job::~Job() {
     // http://support.microsoft.com/support/kb/articles/Q131/3/22.asp
 	delete [] _jobName;
 	delete [] _logFile;
+
+	varNamesFromDag->Rewind();
+	MyString *name;
+	while ( (name = varNamesFromDag->Next()) ) {
+		delete name;
+	}
 	delete varNamesFromDag;
+
+	varValsFromDag->Rewind();
+	MyString *val;
+	while ( (val = varValsFromDag->Next()) ) {
+		delete val;
+	}
 	delete varValsFromDag;
+
 	delete _scriptPre;
 	delete _scriptPost;
 }
@@ -101,7 +114,6 @@ void Job::Init( const char* jobName, const char* directory,
     _Status = STATUS_READY;
 	_isIdle = false;
 	countedAsDone = false;
-	_waitingCount = 0;
 
     _jobName = strnewp (jobName);
 	_directory = strnewp (directory);
@@ -295,12 +307,6 @@ Job::SanityCheck() const
 {
 	bool result = true;
 
-	if( _waitingCount < 0 ) {
-		dprintf( D_ALWAYS, "BADNESS 10000: _waitingCount = %d\n",
-				 _waitingCount );
-		result = false;
-	}
-
 	if( countedAsDone == true && _Status != STATUS_DONE ) {
 		dprintf( D_ALWAYS, "BADNESS 10000: countedAsDone == true but "
 				 "_Status != STATUS_DONE\n" );
@@ -377,7 +383,6 @@ Job::AddParent( Job* parent, MyString &whynot )
 						parent->GetJobName(), GetJobName() );
 			return false;
 		}
-		_waitingCount++;
 	}
 	whynot = "n/a";
     return true;

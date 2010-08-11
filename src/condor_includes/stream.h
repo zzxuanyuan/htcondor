@@ -28,9 +28,6 @@
 #include "CryptKey.h"                 // KeyInfo
 #include "condor_ver_info.h"
 #include "classy_counted_ptr.h"
-// This #define is a desperate move. GNU g++ seems to choke at runtime on our
-// inline function for eom.  Someday not needed ?
-#define eom end_of_message
 
 enum CONDOR_MD_MODE {
     MD_OFF        = 0,         // off
@@ -222,7 +219,7 @@ public:
 	int code(long &);
     ///
 	int code(unsigned long &);
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
     ///
 	int code(int64_t &);
     ///
@@ -386,7 +383,7 @@ public:
 	int put(unsigned int);
 	int put(long);
 	int put(unsigned long);
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 	int put(int64_t);
 	int put(uint64_t);
 #endif
@@ -409,7 +406,7 @@ public:
 	int get(unsigned int &);
 	int get(long &);
 	int get(unsigned long &);
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 	int get(int64_t &);
 	int get(uint64_t &);
 #endif
@@ -512,7 +509,6 @@ public:
         @return TRUE or FALSE
     */
 	virtual int end_of_message() = 0;
-//	int eom() { return end_of_message(); }
 
 	///
 	virtual void allow_one_empty_message();

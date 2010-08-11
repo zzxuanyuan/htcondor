@@ -223,6 +223,8 @@ ULogEvent::ULogEvent(void)
 	(void) time ((time_t *)&eventclock);
 	tm = localtime ((time_t *)&eventclock);
 	eventTime = *tm;
+	scheddname = NULL;
+	m_gjid = NULL;
 }
 
 
@@ -524,7 +526,7 @@ SubmitEvent::~SubmitEvent(void)
 int
 SubmitEvent::writeEvent (FILE *file)
 {
-	int retval = fprintf (file, "Job submitted from host: %s\n", submitHost);
+	int retval = fprintf (file, "Job submitted to host: %s\n", submitHost);
 	if (retval < 0)
 	{
 		return 0;
@@ -551,7 +553,7 @@ SubmitEvent::readEvent (FILE *file)
 	s[0] = '\0';
 	delete[] submitEventLogNotes;
 	submitEventLogNotes = NULL;
-	if( fscanf( file, "Job submitted from host: %s\n", submitHost ) != 1 ) {
+	if( fscanf( file, "Job submitted to host: %s\n", submitHost ) != 1 ) {
 		return 0;
 	}
 
@@ -2943,6 +2945,7 @@ ShadowExceptionEvent::initFromClassAd(ClassAd* ad)
 JobSuspendedEvent::JobSuspendedEvent (void)
 {
 	eventNumber = ULOG_JOB_SUSPENDED;
+	num_pids = -1;
 }
 
 JobSuspendedEvent::~JobSuspendedEvent (void)
@@ -3537,6 +3540,7 @@ NodeExecuteEvent::NodeExecuteEvent(void)
 {
 	executeHost [0] = '\0';
 	eventNumber = ULOG_NODE_EXECUTE;
+	node = -1;
 }
 
 
