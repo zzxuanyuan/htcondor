@@ -2085,27 +2085,54 @@ JICShadow::cancelDataflowTimer( void )
 void
 JICShadow::startDataflowTimer( void )
 {
+	int initial_interval = 20;
+	Timeslice interval;
 	if( m_dataflow_tid >= 0 ) {
 		// already registered the timer...
 		return;
 	}
+	int default_interval = 60;
+	MyString transfer_str;
+	MyString yes = getShouldTransferFilesString(STF_YES);
 
-	Timeslice interval;
+	if (!usingFileTransfer()) {
+		dprintf(D_FULLDEBUG, "No file transfer attribute, so no dataflow!\n");
+		return;
+	}
 
-	// default interval is 1 minutes, with 20 seconds as the initial value.
-	// XXX Get this out of the job ad instead of hard coding it.
+	// Now we see if the job itself wants to perform dataflow
+	// transfer. 
+	job_ad->LookupString("ShouldTransferDataflowFiles", transfer_str);
+	transfer_str.lower_case();
+	yes.lower_case();
+	if( transfer_str != "yes") {
+		// Job doesn't want dataflow transfer, so we don't register the timer.
+		dprintf(D_FULLDEBUG, "No dataflow requested by job.\n");
+		return;
+	}
 
-	interval.setDefaultInterval( 60 );
+	job_ad->LookupInteger( "TransferDataflowOutputInterval", 
+							default_interval );
+
+	// Set up the interval object...
+	interval.setDefaultInterval( default_interval );
 	interval.setTimeslice( 0.1 );
-	interval.setInitialInterval( 20 );
+	interval.setInitialInterval( initial_interval );
 
 	if( interval.getDefaultInterval() < interval.getInitialInterval() ) {
 		interval.setInitialInterval( interval.getDefaultInterval() );
 	}
-	m_dataflow_tid = daemonCore->
-		Register_Timer(interval,
-		(TimerHandlercpp)&JICShadow::transferDataflowTimerHandler,
-			"JICShadow::transferDataflowTimerHandler", this);
+
+	dprintf(D_FULLDEBUG, "Dataflow Timer: initial=%d, "
+			"default=%d.\n", initial_interval, default_interval);
+
+	m_dataflow_tid = 
+		daemonCore->Register_Timer(
+			interval,
+			(TimerHandlercpp)&JICShadow::transferDataflowTimerHandler,
+			"JICShadow::transferDataflowTimerHandler", 
+			this);
+
 	if( m_dataflow_tid < 0 ) {
 		EXCEPT( "Can't register JICShadow Dataflow Timer!" );
 	}
@@ -2124,7 +2151,9 @@ JICShadow::transferDataflowTimerHandler( void )
 		return 0;
 	}
 
+	// Get the open files set for the job under the starter.
 	daemonCore->Get_Family_Usage(m_job_pid, usage);
+
 	for (it = usage.open_files.begin();
 		it != usage.open_files.end();
 		it++)
