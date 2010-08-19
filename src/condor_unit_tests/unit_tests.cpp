@@ -46,6 +46,7 @@ bool FTEST_string_to_hostname(void);
 bool FTEST_string_to_ip(void);
 bool FTEST_string_to_sin(void);
 bool FTEST_string_to_port(void);
+bool FTEST_ipv6(void);
 bool FTEST_strupr(void);
 bool FTEST_strlwr(void);
 bool FTEST_basename(void);
