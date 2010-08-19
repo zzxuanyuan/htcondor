@@ -38,6 +38,7 @@
 #include "classad_newold.h"
 #include "user_job_policy.h"
 #include "get_daemon_name.h"
+#include "filename_tools.h"
 
 
 
@@ -134,43 +135,11 @@ void
 JobRouter::GetInstanceLock() {
 	std::string lock_fullname;
 	std::string lock_basename;
-	char *lock_dir;
-
-	// Since JobRouterName() may contain characters that are not allowed
-	// (or not portable) in a filename, use an MD5 hash of it for the
-	// lock file name.
-	Condor_MD_MAC MD5;
-	std::string router_name = JobRouterName();
-	unsigned char *md5_str;
-	MD5.addMD((const unsigned char *)router_name.c_str(),router_name.size());
-	md5_str = MD5.computeMD();
-	if(md5_str) {
-		int i;
-		for(i=0;i<MAC_SIZE;i++) {
-			char buf[10];
-			sprintf(buf,"%x",md5_str[i]);
-			lock_basename += buf;
-		}
-		free(md5_str);
-	}
-	else {
-		// MD5 may not be supported in all ports of Condor.  Fake it.
-		unsigned long n = 0;
-		char const *s = router_name.c_str();
-		while(*s) {
-			n += (unsigned char)*s;
-		}
-		char n_buf[100];
-		sprintf(n_buf,"%lu",n);
-		lock_basename = n_buf;
-	}
-	lock_basename += ".JobRouter.lock";
 
 	// We may be an ordinary user, so cannot lock in $(LOCK)
-	lock_dir = "/tmp";
-	lock_fullname = lock_dir;
-	lock_fullname += DIR_DELIM_CHAR;
-	lock_fullname += lock_basename;
+	param(lock_fullname,"JOB_ROUTER_LOCK");
+	ASSERT( !lock_fullname.empty() );
+	canonicalize_dir_delimiters((char *)lock_fullname.c_str());
 
 	m_router_lock_fd = safe_open_wrapper(lock_fullname.c_str(),O_CREAT|O_APPEND|O_WRONLY,0600);
 	if(m_router_lock_fd == -1) {
@@ -240,7 +209,10 @@ JobRouter::config() {
 		}
 		free(router_defaults_str);
 	}
-	if(!m_enable_job_routing) return;
+	if(!m_enable_job_routing) {
+		delete new_routes;
+		return;
+	}
 
 	char *routing_str_s = param(PARAM_JOB_ROUTER_ENTRIES);
 	char *routing_file_s = param(PARAM_JOB_ROUTER_ENTRIES_FILE);
@@ -372,16 +344,12 @@ JobRouter::config() {
 		// JobRouter's ability to adopt jobs ("orphans") left behind
 		// by the previous version of JobRouter.  At least a warning
 		// in the release notes is warranted.
-	char *name = param("JOB_ROUTER_NAME");
-	if(name) {
-		m_job_router_name = name;
-		free(name);
-	}
+	param(m_job_router_name,"JOB_ROUTER_NAME");
 		// In order not to get confused by jobs belonging to
 		// gridmanager in AdoptOphans(), the job router name must not
 		// be empty.
-	if( m_job_router_name.size() == 0 ) {
-		m_job_router_name = "jobrouter";
+	if( m_job_router_name.empty() ) {
+		EXCEPT("JOB_ROUTER_NAME must not be empty");
 	}
 
 	InitPublicAd();
@@ -417,8 +385,8 @@ JobRouter::InitPublicAd()
 
 	m_public_ad = ClassAd();
 
-	m_public_ad.SetMyTypeName(GENERIC_ADTYPE);
-	m_public_ad.SetTargetTypeName("Job_Router");
+	m_public_ad.SetMyTypeName("Job_Router");
+	m_public_ad.SetTargetTypeName("");
 
 	m_public_ad.Assign(ATTR_NAME,daemonName.c_str());
 
@@ -444,12 +412,20 @@ JobRouter::EvalAllSrcJobPeriodicExprs()
 			dprintf(D_ALWAYS, "JobRouter failure (%s): Unable to "
 					"evaluate job's periodic policy "
 					"expressions.\n", job->JobDesc().c_str());
+			if( !orig_ad ) {
+				dprintf(D_ALWAYS, "JobRouter failure (%s): "
+					"failed to reset src job "
+					"attributes, because ad not found"
+					"in collection.\n",job->JobDesc().c_str());
+				continue;
+			}
+
 			job->SetSrcJobAd(job->src_key.c_str(), orig_ad, ad_collection);
 			if (false == push_dirty_attributes(job->src_ad,NULL,NULL))
 			{
 				dprintf(D_ALWAYS, "JobRouter failure (%s): "
 						"failed to reset src job "
-						"attributesin the schedd.\n",
+						"attributes in the schedd.\n",
 						job->JobDesc().c_str());
 			}
 			else
@@ -1834,7 +1810,7 @@ JobRouter::TestJobSuccess(RoutedJob *job)
 	classad::ClassAd *upd;
 	classad::ClassAdParser parser;
 	std::string upd_str;
-	upd_str = "[leftJobFailureTest = adcl.ad.";
+	upd_str = "[leftJobFailureTest = LEFT.";
 	upd_str += JR_ATTR_JOB_FAILURE_TEST;
 	upd_str += " ;]";
 	upd = parser.ParseClassAd(upd_str);
@@ -1873,7 +1849,7 @@ JobRouter::TestJobSandboxed(RoutedJob *job)
 	classad::ClassAd *upd;
 	classad::ClassAdParser parser;
 	std::string upd_str;
-	upd_str = "[leftJobSandboxedTest = adcl.ad.";
+	upd_str = "[leftJobSandboxedTest = LEFT.";
 	upd_str += JR_ATTR_JOB_SANDBOXED_TEST;
 	upd_str += " ;]";
 	upd = parser.ParseClassAd(upd_str);
@@ -1906,7 +1882,7 @@ JobRoute::EvalUseSharedX509UserProxy(RoutedJob *job)
 	classad::ClassAd *upd;
 	classad::ClassAdParser parser;
 	std::string upd_str;
-	upd_str = "[leftTest = adcl.ad.";
+	upd_str = "[leftTest = LEFT.";
 	upd_str += JR_ATTR_USE_SHARED_X509_USER_PROXY;
 	upd_str += " ;]";
 	upd = parser.ParseClassAd(upd_str);
@@ -1938,7 +1914,7 @@ JobRoute::EvalSharedX509UserProxy(RoutedJob *job,std::string &proxy_file)
 	classad::ClassAd *upd;
 	classad::ClassAdParser parser;
 	std::string upd_str;
-	upd_str = "[leftValue = adcl.ad.";
+	upd_str = "[leftValue = LEFT.";
 	upd_str += JR_ATTR_SHARED_X509_USER_PROXY;
 	upd_str += " ;]";
 	upd = parser.ParseClassAd(upd_str);
@@ -2136,7 +2112,7 @@ JobRouter::InvalidatePublicAd() {
 	MyString line;
 
 	invalidate_ad.SetMyTypeName(QUERY_ADTYPE);
-	invalidate_ad.SetTargetTypeName(GENERIC_ADTYPE);
+	invalidate_ad.SetTargetTypeName("Job_Router");
 
 	line.sprintf("%s == \"%s\"", ATTR_NAME, daemonName.c_str());
 	invalidate_ad.AssignExpr(ATTR_REQUIREMENTS, line.Value());

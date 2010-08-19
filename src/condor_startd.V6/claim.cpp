@@ -210,6 +210,15 @@ Claim::publish( ClassAd* cad, amask_t how_much )
 		if (tmp) {
 			cad->Assign(ATTR_CONCURRENCY_LIMITS, tmp);
 		}
+
+		int numJobPids = c_client->numPids();
+		
+		//In standard universe, numJobPids should be 1
+		if(c_universe == CONDOR_UNIVERSE_STANDARD) {
+			numJobPids = 1;
+		}
+		line.sprintf("%s=%d", ATTR_NUM_PIDS, numJobPids);
+		cad->Insert( line.Value() );
 	}
 
 	if( (c_cluster > 0) && (c_proc >= 0) ) {
@@ -253,7 +262,7 @@ Claim::publish( ClassAd* cad, amask_t how_much )
 }
 
 void
-Claim::publishPreemptingClaim( ClassAd* cad, amask_t how_much )
+Claim::publishPreemptingClaim( ClassAd* cad, amask_t /*how_much*/ /*UNUSED*/ )
 {
 	MyString line;
 	char* tmp;
@@ -697,6 +706,16 @@ Claim::loadRequestInfo()
 }
 
 void
+Claim::loadStatistics()
+{
+		// Stash the ATTR_NUM_PIDS, necessary to advertise
+		// them if they exist
+	int numJobPids = 0;
+	c_ad->LookupInteger(ATTR_NUM_PIDS, numJobPids);
+	c_client->setNumPids(numJobPids);
+}
+
+void
 Claim::beginActivation( time_t now )
 {
 	loadAccountingInfo();
@@ -820,7 +839,25 @@ Claim::startLeaseTimer()
 		EXCEPT( "Couldn't register timer (out of memory)." );
 	}
 	
-	if ( param_boolean("STARTD_SENDS_ALIVES",false) &&
+	bool startd_sends_alives;
+	std::string value;
+	param( value, "STARTD_SENDS_ALIVES", "peer" );
+	if ( strcasecmp( value.c_str(), "false" ) == 0 ) {
+		startd_sends_alives = false;
+	} else if ( strcasecmp( value.c_str(), "true" ) == 0 ) {
+		startd_sends_alives = true;
+	} else if ( c_ad && c_ad->LookupString( ATTR_VERSION, value ) ) {
+		CondorVersionInfo ver( value.c_str() );
+		if ( ver.built_since_version( 7, 5, 4 ) ) {
+			startd_sends_alives = true;
+		} else {
+			startd_sends_alives = false;
+		}
+	} else {
+		// Don't know the version of the schedd, assume true
+		startd_sends_alives = true;
+	}
+	if ( startd_sends_alives &&
 		 c_type != CLAIM_COD &&
 		 c_lease_duration > 0 )	// prevent divide by zero
 	{
@@ -1039,6 +1076,7 @@ Claim::sendAliveResponseHandler( Stream *sock )
 		dprintf(D_FAILURE|D_ALWAYS,"State change: claim no longer recognized "
 			 "by the schedd - removing claim\n" );
 		finishKillClaim();	// get rid of the claim
+		c_alive_inprogress_sock = NULL;
 		return FALSE;
 	}
 
@@ -1098,10 +1136,11 @@ Claim::finishKillClaim()
 }
 
 void
-Claim::alive()
+Claim::alive( bool alive_from_schedd )
 {
-	dprintf( D_PROTOCOL, "Keep alive for ClaimId %s job %d.%d\n", 
-		publicClaimId(), c_cluster, c_proc );
+	dprintf( D_PROTOCOL, "Keep alive for ClaimId %s job %d.%d%s\n", 
+			 publicClaimId(), c_cluster, c_proc,
+			 alive_from_schedd ? ", received from schedd" : "" );
 
 		// Process an alive command.  This is called whenever we
 		// "heard" from the schedd since a claim was created, 
@@ -1123,9 +1162,17 @@ Claim::alive()
 		// it is possible that c_lease_duration changed on activation
 		// of a claim, so our timer reset here will handle that case
 		// as well since alive() is called upon claim activation.
+		// If we got an alive message from the schedd, send our own
+		// alive message soon, since that should cause the schedd to
+		// stop sending them (since we're supposed to be sending them).
 	if ( c_sendalive_tid != -1 ) {
-		daemonCore->Reset_Timer(c_sendalive_tid, c_lease_duration / 3, 
-							c_lease_duration / 3);
+		if ( alive_from_schedd ) {
+			daemonCore->Reset_Timer(c_sendalive_tid, 10, 
+									c_lease_duration / 3);
+		} else {
+			daemonCore->Reset_Timer(c_sendalive_tid, c_lease_duration / 3, 
+									c_lease_duration / 3);
+		}
 	}
 }
 
@@ -1948,6 +1995,7 @@ Client::Client()
 	c_host = NULL;
 	c_proxyfile = NULL;
 	c_concurrencyLimits = NULL;
+	c_numPids = 0;
 }
 
 
@@ -2057,6 +2105,12 @@ Client::setConcurrencyLimits( const char* limits )
 }
 
 void
+Client::setNumPids( int numJobPids )
+{
+	c_numPids = numJobPids;
+}
+
+void
 Client::vacate(char* id)
 {
 	ReliSock* sock;
@@ -2081,7 +2135,7 @@ Client::vacate(char* id)
 	}
 	if( !sock->put_secret( id ) ) {
 		dprintf(D_ALWAYS, "Can't send ClaimId to client\n");
-	} else if( !sock->eom() ) {
+	} else if( !sock->end_of_message() ) {
 		dprintf(D_ALWAYS, "Can't send EOM to client\n");
 	}
 
@@ -2136,7 +2190,7 @@ newIdString( char** id_str_ptr )
 }
 
 
-ClaimId::ClaimId( ClaimType claim_type, char const *slotname )
+ClaimId::ClaimId( ClaimType claim_type, char const * /*slotname*/ /*UNUSED*/ )
 {
 	int num = newIdString( &c_id );
 	claimid_parser.setClaimId(c_id);
@@ -2272,13 +2326,11 @@ Claim::receiveJobClassAdUpdate( ClassAd &update_ad )
 	ASSERT( c_ad );
 
 	update_ad.ResetExpr();
+	const char *name;
 	ExprTree *expr;
-	while( (expr=update_ad.NextExpr()) != NULL ) {
+	while( update_ad.NextExpr(name, expr) ) {
 
-		ASSERT( expr->MyType() == LX_ASSIGN &&
-				expr->LArg()->MyType() == LX_VARIABLE );
-
-		char const *name = ((Variable *)expr->LArg())->Name();
+		ASSERT( name );
 		if( !strcmp(name,ATTR_MY_TYPE) ||
 			!strcmp(name,ATTR_TARGET_TYPE) )
 		{
@@ -2287,12 +2339,13 @@ Claim::receiveJobClassAdUpdate( ClassAd &update_ad )
 		}
 
 			// replace expression in current ad with expression from update ad
-		ExprTree *new_expr = expr->DeepCopy();
+		ExprTree *new_expr = expr->Copy();
 		ASSERT( new_expr );
-		if( !c_ad->Insert( new_expr ) ) {
+		if( !c_ad->Insert( name, new_expr ) ) {
 			delete new_expr;
 		}
 	}
+	loadStatistics();
 	if( DebugFlags & D_JOB ) {
 		dprintf(D_JOB,"Updated job ClassAd:\n");
 		c_ad->dPrint(D_JOB);

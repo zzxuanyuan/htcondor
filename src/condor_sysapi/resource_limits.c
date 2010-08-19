@@ -26,7 +26,7 @@
 #define SLOP 50
 
 
-#if defined( OSF1 ) || defined( LINUX )
+#if defined( LINUX )
 
 void
 sysapi_set_resource_limits()
@@ -109,7 +109,7 @@ sysapi_set_resource_limits()
 	dprintf( D_ALWAYS, "Setting resource limits not supported!\n" );
 }
 
-#elif defined( IRIX )  || defined( WIN32 ) || defined( AIX ) || defined( Darwin ) || defined( CONDOR_FREEBSD )
+#elif defined( WIN32 ) || defined( AIX ) || defined( Darwin ) || defined( CONDOR_FREEBSD )
 
 void
 sysapi_set_resource_limits()

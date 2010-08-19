@@ -112,11 +112,11 @@ ClassAd* user_job_policy(ClassAd *jad)
 								"with respect to user_policy. Detail "
 								"follows:\n");
 			{
-				ExprTree *ph_expr = jad->Lookup(ATTR_PERIODIC_HOLD_CHECK);
-				ExprTree *pr_expr = jad->Lookup(ATTR_PERIODIC_REMOVE_CHECK);
-				ExprTree *pl_expr = jad->Lookup(ATTR_PERIODIC_RELEASE_CHECK);
-				ExprTree *oeh_expr = jad->Lookup(ATTR_ON_EXIT_HOLD_CHECK);
-				ExprTree *oer_expr = jad->Lookup(ATTR_ON_EXIT_REMOVE_CHECK);
+				ExprTree *ph_expr = jad->LookupExpr(ATTR_PERIODIC_HOLD_CHECK);
+				ExprTree *pr_expr = jad->LookupExpr(ATTR_PERIODIC_REMOVE_CHECK);
+				ExprTree *pl_expr = jad->LookupExpr(ATTR_PERIODIC_RELEASE_CHECK);
+				ExprTree *oeh_expr = jad->LookupExpr(ATTR_ON_EXIT_HOLD_CHECK);
+				ExprTree *oer_expr = jad->LookupExpr(ATTR_ON_EXIT_REMOVE_CHECK);
 
 				EmitExpression(D_ALWAYS, ATTR_PERIODIC_HOLD_CHECK, ph_expr);
 				EmitExpression(D_ALWAYS, ATTR_PERIODIC_REMOVE_CHECK, pr_expr);
@@ -219,8 +219,8 @@ ClassAd* user_job_policy(ClassAd *jad)
 				the caller to insert those attributes
 				correctly but allows checking of the
 				job ad in a periodic context. */
-			if (jad->Lookup(ATTR_ON_EXIT_CODE) == 0 && 
-				jad->Lookup(ATTR_ON_EXIT_SIGNAL) == 0)
+			if (jad->LookupExpr(ATTR_ON_EXIT_CODE) == 0 && 
+				jad->LookupExpr(ATTR_ON_EXIT_SIGNAL) == 0)
 			{
 				return result;
 			}
@@ -281,16 +281,13 @@ ClassAd* user_job_policy(ClassAd *jad)
 
 void EmitExpression(unsigned int mode, const char *attr, ExprTree* attr_expr)
 {
-	char buf[8192]; /* PrintToStr is dumb, hope this is big enough */
-
 	if (attr_expr == NULL)
 	{
 		dprintf(mode, "%s = UNDEFINED\n", attr);
 	}
 	else
 	{
-		attr_expr->PrintToStr(buf);
-		dprintf(mode, "%s = %s\n", attr, buf);
+		dprintf(mode, "%s = %s\n", attr, ExprTreeToString(attr_expr));
 	}
 }
 
@@ -313,11 +310,11 @@ int JadKind(ClassAd *suspect)
 
 	/* determine if I have a user job ad with the new user policy expressions
 		enabled. */
-	ExprTree *ph_expr = suspect->Lookup(ATTR_PERIODIC_HOLD_CHECK);
-	ExprTree *pr_expr = suspect->Lookup(ATTR_PERIODIC_REMOVE_CHECK);
-	ExprTree *pl_expr = suspect->Lookup(ATTR_PERIODIC_REMOVE_CHECK);
-	ExprTree *oeh_expr = suspect->Lookup(ATTR_ON_EXIT_HOLD_CHECK);
-	ExprTree *oer_expr = suspect->Lookup(ATTR_ON_EXIT_REMOVE_CHECK);
+	ExprTree *ph_expr = suspect->LookupExpr(ATTR_PERIODIC_HOLD_CHECK);
+	ExprTree *pr_expr = suspect->LookupExpr(ATTR_PERIODIC_REMOVE_CHECK);
+	ExprTree *pl_expr = suspect->LookupExpr(ATTR_PERIODIC_REMOVE_CHECK);
+	ExprTree *oeh_expr = suspect->LookupExpr(ATTR_ON_EXIT_HOLD_CHECK);
+	ExprTree *oer_expr = suspect->LookupExpr(ATTR_ON_EXIT_REMOVE_CHECK);
 
 	/* check to see if it is oldstyle */
 	if (ph_expr == NULL && pr_expr == NULL && pl_expr == NULL && oeh_expr == NULL && 
@@ -364,6 +361,8 @@ UserPolicy::~UserPolicy()
 
 void UserPolicy::Init(ClassAd *ad)
 {
+	ASSERT(ad);
+	
 	m_ad = ad;
 	m_fire_expr = NULL;
 	m_fire_expr_val = -1;
@@ -375,11 +374,11 @@ void UserPolicy::SetDefaults()
 {
 	MyString buf;
 
-	ExprTree *ph_expr = m_ad->Lookup(ATTR_PERIODIC_HOLD_CHECK);
-	ExprTree *pr_expr = m_ad->Lookup(ATTR_PERIODIC_REMOVE_CHECK);
-	ExprTree *pl_expr = m_ad->Lookup(ATTR_PERIODIC_RELEASE_CHECK);
-	ExprTree *oeh_expr = m_ad->Lookup(ATTR_ON_EXIT_HOLD_CHECK);
-	ExprTree *oer_expr = m_ad->Lookup(ATTR_ON_EXIT_REMOVE_CHECK);
+	ExprTree *ph_expr = m_ad->LookupExpr(ATTR_PERIODIC_HOLD_CHECK);
+	ExprTree *pr_expr = m_ad->LookupExpr(ATTR_PERIODIC_REMOVE_CHECK);
+	ExprTree *pl_expr = m_ad->LookupExpr(ATTR_PERIODIC_RELEASE_CHECK);
+	ExprTree *oeh_expr = m_ad->LookupExpr(ATTR_ON_EXIT_HOLD_CHECK);
+	ExprTree *oer_expr = m_ad->LookupExpr(ATTR_ON_EXIT_REMOVE_CHECK);
 
 	/* if the default user policy expressions do not exist, then add them
 		here and now with the usual defaults */
@@ -439,6 +438,7 @@ UserPolicy::AnalyzePolicy( int mode )
 	
 			ATTR_TIMER_REMOVE_CHECK
 			ATTR_PERIODIC_HOLD_CHECK
+			ATTR_PERIODIC_RELEASE_CHECK
 			ATTR_PERIODIC_REMOVE_CHECK
 			ATTR_ON_EXIT_HOLD_CHECK
 			ATTR_ON_EXIT_REMOVE_CHECK
@@ -447,10 +447,18 @@ UserPolicy::AnalyzePolicy( int mode )
 	/* Should I perform a remove based on the epoch time? */
 	m_fire_expr = ATTR_TIMER_REMOVE_CHECK;
 	if(!m_ad->LookupInteger(ATTR_TIMER_REMOVE_CHECK, timer_remove)) {
+		//check if attribute exists, but is undefined
+		if(m_ad->Lookup(ATTR_TIMER_REMOVE_CHECK) != NULL)
+		{
+			m_fire_expr_val = -1;
+			m_fire_source = FS_JobAttribute;
+			return UNDEFINED_EVAL;
+		}
 		timer_remove = -1;
 	}
 	if( timer_remove >= 0 && timer_remove < time(NULL) ) {
 		m_fire_expr_val = 1;
+		m_fire_source = FS_JobAttribute;
 		return REMOVE_FROM_QUEUE;
 	}
 
@@ -485,7 +493,7 @@ UserPolicy::AnalyzePolicy( int mode )
 
 	/* This better be in the classad because it determines how the process
 		exited, either by signal, or by exit() */
-	if( ! m_ad->Lookup(ATTR_ON_EXIT_BY_SIGNAL) ) {
+	if( ! m_ad->LookupExpr(ATTR_ON_EXIT_BY_SIGNAL) ) {
 		EXCEPT( "UserPolicy Error: %s is not present in the classad",
 				ATTR_ON_EXIT_BY_SIGNAL );
 	}
@@ -494,8 +502,8 @@ UserPolicy::AnalyzePolicy( int mode )
 		are defined, if not, then except because
 		caller should have filled this in if calling
 		this function saying to check the exit policies. */
-	if( m_ad->Lookup(ATTR_ON_EXIT_CODE) == 0 && 
-		m_ad->Lookup(ATTR_ON_EXIT_SIGNAL) == 0 )
+	if( m_ad->LookupExpr(ATTR_ON_EXIT_CODE) == 0 && 
+		m_ad->LookupExpr(ATTR_ON_EXIT_SIGNAL) == 0 )
 	{
 		EXCEPT( "UserPolicy Error: No signal/exit codes in job ad!" );
 	}
@@ -539,7 +547,22 @@ bool UserPolicy::AnalyzeSinglePeriodicPolicy(const char * attrname, const char *
 	int result;
 	m_fire_expr = attrname;
 	if(!m_ad->EvalBool(attrname, m_ad, result)) {
-		retval = UNDEFINED_EVAL;
+        //check to see if the attribute actually exists, or if it's really
+        //  undefined.
+        //originally this if-statement wasn't here, so when the expression
+        //  tied to this attribute had an undefined value in it, e.g.
+        //      PeriodicRemove = DoesNotExist > 0
+        //  the function would set retval = UNDEFINED_EVAL and return
+        //
+        //now it can differentiate between the something in the 
+        //expression being undefined, and the attribute itself 
+        //being undefined.
+        if(m_ad->Lookup(attrname) != NULL)
+        {
+            m_fire_expr_val = -1;
+            m_fire_source = FS_JobAttribute;
+        }
+        retval = UNDEFINED_EVAL;
 		return true;
 	}
 	if( result ) {
@@ -599,15 +622,12 @@ const char* UserPolicy::FiringReason()
 		case FS_JobAttribute:
 		{
 			expr_src = "job attribute";
-			ExprTree *tree, *rhs = NULL;
-			tree = m_ad->Lookup( m_fire_expr );
+			ExprTree *tree;
+			tree = m_ad->LookupExpr( m_fire_expr );
 
 			// Get a formatted expression string
-			if( tree && (rhs=tree->RArg()) ) {
-				char* exprStringTmp = NULL;
-				rhs->PrintToNewStr( &exprStringTmp );
-				exprString = exprStringTmp;
-				free(exprStringTmp);
+			if( tree ) {
+				exprString = ExprTreeToString( tree );
 			}
 			break;
 		}

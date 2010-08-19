@@ -31,16 +31,19 @@
 #include "enum_utils.h"
 #include "condor_holdcodes.h"
 #include "classad_helpers.h"
+#include "classad_merge.h"
+#include "dc_startd.h"
 
 #include <math.h>
 
 // these are declared static in baseshadow.h; allocate space here
-UserLog BaseShadow::uLog;
+WriteUserLog BaseShadow::uLog;
 BaseShadow* BaseShadow::myshadow_ptr = NULL;
 
 
 // this appears at the bottom of this file:
 extern "C" int display_dprintf_header(FILE *fp);
+extern bool sendUpdatesToSchedd;
 
 // some helper functions
 int getJobAdExitCode(ClassAd *jad, int &exit_code);
@@ -82,10 +85,10 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 	}
 	jobAd = job_ad;
 
-	if( ! is_valid_sinful(schedd_addr) ) {
+	if (sendUpdatesToSchedd && ! is_valid_sinful(schedd_addr)) {
 		EXCEPT("schedd_addr not specified with valid address");
 	}
-	scheddAddr = strdup( schedd_addr );
+	scheddAddr = sendUpdatesToSchedd ? strdup( schedd_addr ) : strdup("noschedd");
 
 	m_xfer_queue_contact_info = xfer_queue_contact_info;
 
@@ -148,11 +151,6 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 		// Make sure we've got enough swap space to run
 	checkSwap();
 
-		// register SIGUSR1 (condor_rm) for shutdown...
-	daemonCore->Register_Signal( SIGUSR1, "SIGUSR1", 
-		(SignalHandlercpp)&BaseShadow::handleJobRemoval, "HandleJobRemoval", 
-		this);
-
 	// handle system calls with Owner's privilege
 // XXX this belong here?  We'll see...
 	if ( !init_user_ids(owner.Value(), domain.Value())) {
@@ -172,18 +170,19 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 		// permanent job queue.  this clears all the dirty bits on our
 		// copy of the classad, so anything we touch after this will
 		// be updated to the schedd when appropriate.
-	job_updater = new QmgrJobUpdater( jobAd, scheddAddr, CondorVersion() );
+
+		// Unless we got a command line arg asking us not to
+	if (sendUpdatesToSchedd) {
+		// the usual case
+		job_updater = new QmgrJobUpdater( jobAd, scheddAddr, CondorVersion() );
+	} else {
+		job_updater = new NullQmgrJobUpdater( jobAd, scheddAddr, CondorVersion() );
+	}
 
 		// change directory; hold on failure
 	if ( cdToIwd() == -1 ) {
 		EXCEPT("Could not cd to initial working directory");
 	}
-
-		// CRUFT
-		// we want this *after* we clear the dirty flags so that if we
-		// change anything, we consider that change dirty so it'll get
-		// updated the next time we connect to the job queue...
-	checkFileTransferCruft();
 
 		// check to see if this invocation of the shadow is just to write
 		// a terminate event and exit since this job had been recorded as
@@ -197,89 +196,49 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr, const char *xfer
 			this->terminateJob(US_TERMINATE_PENDING);
 		}
 	}
+
+		// If we need to claim the startd before activating the claim
+	int wantClaiming = 0;
+	jobAd->LookupBool(ATTR_CLAIM_STARTD, wantClaiming);
+	if (wantClaiming) {
+		MyString startdSinful;
+		MyString claimid;
+
+			// Pull startd addr and claimid out of the jobad
+		jobAd->LookupString(ATTR_STARTD_IP_ADDR, startdSinful);
+		jobAd->LookupString(ATTR_CLAIM_ID, claimid);
+
+		dprintf(D_ALWAYS, "%s is true, trying to claim startd %s\n", ATTR_CLAIM_STARTD, startdSinful.Value());
+
+		classy_counted_ptr<DCStartd> startd = new DCStartd("description", NULL, startdSinful.Value(), claimid.Value());
+	
+		classy_counted_ptr<DCMsgCallback> cb = 
+			new DCMsgCallback((DCMsgCallback::CppFunction)&BaseShadow::startdClaimedCB,
+			this, jobAd);
+																 
+			// this can't fail, will always call the callback
+		startd->asyncRequestOpportunisticClaim(jobAd, 
+											   "description", 
+											   daemonCore->InfoCommandSinfulString(), 
+											   1200 /*alive interval*/, 
+											   20 /* net timeout*/, 
+											   100 /*total timeout*/, 
+											   cb);
+	}
 }
 
+	// We land in this callback when we need to claim the startd
+	// when we get here, the claiming is finished, successful
+	// or not
+void BaseShadow::startdClaimedCB(DCMsgCallback *) {
 
-void
-BaseShadow::checkFileTransferCruft()
-{
-		/*
-		  If this job was a) submitted by a pre-6.3.3 condor_submit,
-		  b) unix and c) vanilla, it was submitted with an incorrect
-		  default value of "ON_EXIT" for ATTR_TRANSFER_FILES.  So, if
-		  all of those conditions are met, we want to change the value
-		  to be "NEVER" instead, so that we treat this like the old
-		  shadow would treat it and rely on a shared file system.
-		*/
-#ifndef WIN32
-	int universe; 
-	char* version = NULL;
-	bool is_old = false;
-	if( ! jobAd->LookupInteger(ATTR_JOB_UNIVERSE, universe) ) {
-		universe = CONDOR_UNIVERSE_VANILLA;
-	}
-	if( universe != CONDOR_UNIVERSE_VANILLA ) {
-			// nothing to do
-		return;
-	}
-	jobAd->LookupString( ATTR_VERSION, &version );
-	if( version ) {
-		CondorVersionInfo ver( version, "JOB" );
-		if( ! ver.built_since_version(6,3,3) ) {
-			is_old = true;
-		}
-		free( version );
-		version = NULL;
-	} else {
-		dprintf( D_FULLDEBUG, "Job has no %s, assuming pre version 6.3.3\n",
-				 ATTR_VERSION ); 
-		is_old = true;
-	}	
-	if( ! is_old ) {
-			// if we're new enough, nothing else to do
-		return;
-	}
-
-		// see if ATTR_TRANSFER_FILES is already set to "NEVER"... 
-	bool already_never;
-	char* tmp = NULL;
-	jobAd->LookupString( ATTR_TRANSFER_FILES, &tmp );
-	if( tmp ) {
-		already_never = ( stricmp(tmp, "NEVER") == 0 );
-		free( tmp );
-		if( already_never ) {
-				// already have the right value, don't bother changing
-				// it and updating the job queue, etc.
-			return;
-		}
-	}
-
-		// if we're still here, we've hit the nasty case, so change
-		// the value...
-	MyString new_attr;
-	new_attr += ATTR_TRANSFER_FILES;
-	new_attr += " = \"NEVER\"";
-
-	dprintf( D_FULLDEBUG, "Unix Vanilla job is pre version 6.3.3, "
-			 "setting '%s'\n", new_attr.Value() );
-
-	if( ! jobAd->Insert(new_attr.Value()) ) {
-		EXCEPT( "Insert of '%s' into job ad failed!", new_attr.Value() );
-	}
-
-		// also, add it to the list of attributes we want to update,
-		// so we change it in the job queue, too.
-	job_updater->watchAttribute( ATTR_TRANSFER_FILES );
-
-#endif /* ! WIN32 */
-
+	// We've claimed the startd, the following kicks off the
+	// activation of the claim, and runs the job
+	this->spawn();
 }
-
 
 void BaseShadow::config()
 {
-	char *tmp;
-
 	if (spool) free(spool);
 	spool = param("SPOOL");
 	if (!spool) {
@@ -584,10 +543,19 @@ BaseShadow::terminateJob( update_style_t kind ) // has a default argument of US_
     if( int_value > 0 ) {
         int job_committed_time = 0;
         jobAd->LookupInteger(ATTR_JOB_COMMITTED_TIME, job_committed_time);
-        job_committed_time += (int)time(NULL) - int_value;
+		int delta = (int)time(NULL) - int_value;
+        job_committed_time += delta;
         jobAd->Assign(ATTR_JOB_COMMITTED_TIME, job_committed_time);
+
+		float slot_weight = 1;
+		jobAd->LookupFloat(ATTR_JOB_MACHINE_ATTR_SLOT_WEIGHT0, slot_weight);
+		float slot_time = 0;
+		jobAd->LookupFloat(ATTR_COMMITTED_SLOT_TIME, slot_time);
+		slot_time += slot_weight * delta;
+		jobAd->Assign(ATTR_COMMITTED_SLOT_TIME, slot_time);
     }
 
+	CommitSuspensionTime(jobAd);
 
 	// update the job ad in the queue with some important final
 	// attributes so we know what happened to the job when using
@@ -624,6 +592,12 @@ BaseShadow::terminateJob( update_style_t kind ) // has a default argument of US_
 			// this point.
 		dprintf(D_FULLDEBUG,"Startd is closing claim, so no more jobs can be run on it.\n");
 		reason = JOB_EXITED_AND_CLAIM_CLOSING;
+	}
+
+	// try to get a new job for this shadow
+	if( recycleShadow(reason) ) {
+		// recycleShadow delete's this, so we must return immediately
+		return;
 	}
 
 	// does not return.
@@ -1048,7 +1022,7 @@ BaseShadow::log_except(const char *msg)
 		event.sent_bytes = 0.0;
 	}
 
-	if (!exception_already_logged && !uLog.writeEvent (&event,NULL))
+	if (!exception_already_logged && !uLog.writeEventNoFsync (&event,NULL))
 	{
 		::dprintf (D_ALWAYS, "Unable to log ULOG_SHADOW_EXCEPTION event\n");
 	}
@@ -1225,14 +1199,14 @@ int
 display_dprintf_header(FILE *fp)
 {
 	static pid_t mypid = 0;
-	static int mycluster = -1;
-	static int myproc = -1;
+	int mycluster = -1;
+	int myproc = -1;
 
 	if (!mypid) {
 		mypid = daemonCore->getpid();
 	}
 
-	if (mycluster == -1) {
+	if (Shadow) {
 		mycluster = Shadow->getCluster();
 		myproc = Shadow->getProc();
 	}
@@ -1250,4 +1224,19 @@ bool
 BaseShadow::getMachineName( MyString & /*machineName*/ )
 {
 	return false;
+}
+
+void
+BaseShadow::CommitSuspensionTime(ClassAd *jobAd)
+{
+	int uncommitted_suspension_time = 0;
+	jobAd->LookupInteger(ATTR_UNCOMMITTED_SUSPENSION_TIME,uncommitted_suspension_time);
+	if( uncommitted_suspension_time > 0 ) {
+		int committed_suspension_time = 0;
+		jobAd->LookupInteger( ATTR_COMMITTED_SUSPENSION_TIME,
+							  committed_suspension_time );
+		committed_suspension_time += uncommitted_suspension_time;
+		jobAd->Assign( ATTR_COMMITTED_SUSPENSION_TIME, committed_suspension_time );
+		jobAd->Assign( ATTR_UNCOMMITTED_SUSPENSION_TIME, 0 );
+	}
 }

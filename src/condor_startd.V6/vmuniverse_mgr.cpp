@@ -105,8 +105,10 @@ VMStarterInfo::getUsageOfVM(ProcFamilyUsage &usage)
 
 	if( updated ) {
 		usage.total_image_size = m_vm_alive_pinfo.imgsize;
+		usage.total_resident_set_size = m_vm_alive_pinfo.rssize;
 	}else {
 		usage.total_image_size = 0;
+        usage.total_resident_set_size = 0;
 	}
 
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
@@ -310,21 +312,17 @@ VMUniverseMgr::publish( ClassAd* ad, amask_t mask )
 	// we will publish all information provided by vmgahp server
 	m_vmgahp_info.ResetExpr();
 
-	MyString line;
 	ExprTree* expr = NULL;
-	char *attr_name = NULL;
-	while((expr = m_vmgahp_info.NextExpr()) != NULL) {
-		attr_name = ((Variable*)expr->LArg())->Name();
-
+	const char *attr_name = NULL;
+	while(m_vmgahp_info.NextExpr(attr_name, expr)) {
 		// we need to adjust available vm memory
-		if( stricmp(attr_name, ATTR_VM_MEMORY) == MATCH ) {
+		if( strcasecmp(attr_name, ATTR_VM_MEMORY) == MATCH ) {
 			int freemem = getFreeVMMemSize();
 			ad->Assign(ATTR_VM_MEMORY, freemem);
-		}else if( stricmp(attr_name, ATTR_VM_NETWORKING) == MATCH ) {
+		}else if( strcasecmp(attr_name, ATTR_VM_NETWORKING) == MATCH ) {
 			ad->Assign(ATTR_VM_NETWORKING, m_vm_networking); 
 		}else {
-			expr->PrintToStr(line);
-			ad->Insert(line.Value());
+			ad->Insert(attr_name, expr->Copy());
 		}
 	}
 
@@ -438,7 +436,7 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 	bool read_something = false;
 	char buf[2048];
 
-	m_vmgahp_info.clear();
+	m_vmgahp_info.Clear();
 	while( fgets(buf, 2048, fp) ) {
 		if( !m_vmgahp_info.Insert(buf) ) {
 			dprintf( D_ALWAYS, "Failed to insert \"%s\" into VMInfo, "
@@ -517,36 +515,15 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 	dprintf( D_ALWAYS, "VMType('%s') is supported\n", vmtype);
 
 	// Read vm_memory
-	int tmp_mem = 0;
-	if( m_vmgahp_info.LookupInteger(ATTR_VM_MEMORY, tmp_mem) != 1 ) {
+	if( m_vmgahp_info.LookupInteger(ATTR_VM_MEMORY, m_vm_max_memory) != 1 ) {
 		dprintf( D_ALWAYS, "There is no %s in the output of vmgahp\n",ATTR_VM_MEMORY);
 		return false;
 	}
-	if( tmp_mem == 0 ) {
+	if( m_vm_max_memory == 0 ) {
 		dprintf( D_ALWAYS, "There is no sufficient memory for virtual machines\n");
 		return false;
 	}
 
-	// VM_MEMORY in condor config should be less than 
-	// VM_MEMORY provided by vmgahp */
-	char *vmtmp = NULL;
-	vmtmp = param( "VM_MEMORY" );
-	if(vmtmp) {
-		int vmem = (int)strtol(vmtmp, (char **)NULL, 10);
-		if( (vmem <= 0) || (vmem > tmp_mem)) {
-			m_vm_max_memory = tmp_mem;
-			dprintf( D_ALWAYS, "Warning: Even though '%s = %d' is defined "
-					"in condor config file, the amount of memory for "
-					"vm universe is set to %d MB, because vmgahp says "
-					"(%d MB) as the maximum memory for vm universe\n", 
-					"VM_MEMORY", vmem, tmp_mem, tmp_mem);
-		}else {
-			m_vm_max_memory = vmem;
-		}
-		free(vmtmp);
-	} else {
-		m_vm_max_memory = tmp_mem;
-	}
 	dprintf( D_ALWAYS, "The maximum available memory for vm universe is "
 			"set to %d MB\n", m_vm_max_memory);
 
@@ -986,6 +963,7 @@ VMUniverseMgr::getUsageForVM(pid_t s_pid, ProcFamilyUsage &usage)
 		usage.max_image_size = vm_usage.max_image_size;
 	}
 	usage.total_image_size += vm_usage.total_image_size;
+	usage.total_resident_set_size += vm_usage.total_resident_set_size;
 	return true;
 }
 

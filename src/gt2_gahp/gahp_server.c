@@ -27,22 +27,18 @@
 
 #include "config.h"
 
+#include "globus_gram_protocol.h"
 #include "globus_gram_client.h"
 #include "globus_gass_server_ez.h"
 #include "globus_gss_assist.h"
+#include "condor_unsetenv.h"
 
 	/* Define this if the gahp server should fork before dropping core */
 #undef FORK_FOR_CORE
 
 // WIN32 doesn't have strcasecmp
 #ifdef WIN32
-#define strcasecmp(s1, s2) stricmp(s1, s2)
-#endif
-
-/* Solaris doesn't have unsetenv */
-#ifndef HAVE_UNSETENV
-void unsetenv(const char* name);
-char * __findenv(const char *name, int *offset);
+#define strcasecmp(s1, s2) _stricmp(s1, s2)
 #endif
 
 #ifndef true
@@ -89,7 +85,8 @@ static char *commands_list =
 "CACHE_PROXY_FROM_FILE "
 "USE_CACHED_PROXY "
 "UNCACHE_PROXY "
-"GRAM_JOB_REFRESH_PROXY";
+"GRAM_JOB_REFRESH_PROXY "
+"GRAM_GET_JOBMANAGER_VERSION";
 /* The last command in the list should NOT have a space after it */
 
 typedef struct gahp_semaphore {
@@ -127,7 +124,7 @@ ptr_ref_count * current_cred = NULL;
    to be escaped or the gahp server gets confused. :(
    !!! BEWARE !!!
 */ 
-static char *VersionString ="$GahpVersion: 1.1.1 " __DATE__ " UW\\ Gahp $";
+static char *VersionString ="$GahpVersion: 1.1.3 " __DATE__ " UW\\ Gahp $";
 
 volatile int ResultsPending;
 volatile int AsyncResults;
@@ -144,6 +141,7 @@ int handle_gram_job_callback_register(void *);
 int handle_gram_job_refresh_proxy(void *);
 int handle_gass_server_init(void *);
 int handle_gram_ping(void *);
+int handle_gram_get_jobmanager_version(void*);
 
 /* These are all of the callbacks for non-blocking async commands */
 void
@@ -188,6 +186,10 @@ callback_gram_job_refresh_proxy(void *arg,
 								const char *job_contact,
 								globus_gram_protocol_job_state_t job_state,
 								globus_gram_protocol_error_t job_fc);
+void
+callback_gram_get_jobmanager_version(void *arg,
+									 const char *job_contact,
+									 globus_gram_client_job_info_t *job_info);
 
 /* These are all of the sync. command handlers */
 int handle_gram_callback_allow(void *);
@@ -1015,6 +1017,84 @@ callback_gram_job_refresh_proxy(void *arg,
 	return;
 }
 
+int
+handle_gram_get_jobmanager_version(void * user_arg)
+{
+	char **input_line = (char **) user_arg;
+	int result;
+	char *req_id, *resource_contact;
+	char *esc_str;
+	user_arg_t *gram_arg;
+
+	if( !process_string_arg(input_line[1], &req_id) ) {
+		HANDLE_SYNTAX_ERROR();
+		return 0;
+	}
+
+	if( !process_string_arg(input_line[2], &resource_contact ) ){
+		HANDLE_SYNTAX_ERROR();
+		return 0;
+	}
+
+	gram_arg = new_gram_arg( req_id, current_cred );
+
+	globus_gram_client_attr_set_delegation_mode( gram_arg->gram_attr,
+												 GLOBUS_IO_SECURE_DELEGATION_MODE_LIMITED_PROXY );
+
+	gahp_printf("S\n");
+	gahp_sem_up(&print_control);
+
+	result = globus_gram_client_register_get_jobmanager_version( resource_contact,
+																 gram_arg->gram_attr,
+																 callback_gram_get_jobmanager_version,
+																 (void *)gram_arg );
+
+	if (result != GLOBUS_SUCCESS) {
+		globus_gram_client_job_info_t client_info;
+		client_info.protocol_error_code = result;
+		callback_gram_get_jobmanager_version( (void *)gram_arg, NULL,
+											  &client_info );
+	}
+
+	all_args_free(user_arg);
+	return 0;
+}
+
+void
+callback_gram_get_jobmanager_version(void *arg,
+									 const char *job_contact,
+									 globus_gram_client_job_info_t *job_info)
+{
+	char *esc_str;
+	char *output;
+	user_arg_t * gram_arg;
+
+	gram_arg = (user_arg_t *)arg;
+
+	output = (char *)globus_libc_malloc(10240);
+
+	globus_libc_sprintf(output, "%s %d", gram_arg->req_id,
+						job_info->protocol_error_code);
+
+	if ( job_info->protocol_error_code == GLOBUS_SUCCESS ) {
+		globus_gram_protocol_extension_t *entry = globus_hashtable_first( &job_info->extensions );
+		while ( entry ) {
+			strcat( output, " " );
+			strcat( output, entry->attribute );
+			strcat( output, "=" );
+			esc_str = escape_spaces( entry->value );
+			strcat( output, esc_str );
+			free( esc_str );
+			entry = globus_hashtable_next( &job_info->extensions );
+		}
+	}
+
+	enqueue_results(output);	
+
+	delete_gram_arg( gram_arg );
+	return;
+}
+
 int 
 handle_gram_callback_allow(void * user_arg)
 {
@@ -1690,6 +1770,7 @@ service_commands(void *arg,globus_io_handle_t* gio_handle,globus_result_t rest)
 		HANDLE_SYNC( gass_server_init ) else 
 		HANDLE_SYNC( gram_job_signal ) else
 		HANDLE_SYNC( gram_job_refresh_proxy ) else
+		HANDLE_SYNC( gram_get_jobmanager_version ) else
 		{
 			handle_bad_request(input_line);
 			result = 0;
@@ -1899,45 +1980,3 @@ main(int argc, char **argv)
 	main_deactivate_globus();
 	_exit(0);
 }
-
-#ifndef HAVE_UNSETENV
-
-/* swiped right out of the bsd libc */
-char *
-__findenv(name, offset)
-        const char *name;
-        int *offset;
-{
-        extern char **environ;
-        register int len;
-        register const char *np;
-        register char **p, *c;
-
-        if (name == NULL || environ == NULL)
-                return (NULL);
-        for (np = name; *np && *np != '='; ++np)
-                continue;
-        len = np - name;
-        for (p = environ; (c = *p) != NULL; ++p)
-                if (strncmp(c, name, len) == 0 && c[len] == '=') {
-                        *offset = p - environ;
-                        return (c + len + 1);
-                }
-        return (NULL);
-}
-
-void
-unsetenv(name)
-        const char *name;
-{
-        extern char **environ;
-        register char **p;
-        int offset;
-
-        while (__findenv(name, &offset))        /* if set multiple times */
-                for (p = &environ[offset];; ++p)
-                        if (!(*p = *(p + 1)))
-                                break;
-}
-#endif
-

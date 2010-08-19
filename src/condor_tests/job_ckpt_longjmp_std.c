@@ -147,28 +147,10 @@ func()
 #undef FALSE
 #define FALSE 0
 
-/* IRIX can use 64 bit numbers for the elements if the jump buf, while 
-	long is defined to be 32 bits. */
-#if defined(IRIX)
-#define JMP_BUF_SP(env) (((env))[JMP_BUF_SP_INDEX])
-#else
 #define JMP_BUF_SP(env) (((long *)(env))[JMP_BUF_SP_INDEX])
-#endif
 
 
-#if defined(ULTRIX43)
-#	define SETJMP _setjmp
-#	define LONGJMP _longjmp
-#	define StackGrowsDown TRUE
-#	define JMP_BUF_SP_INDEX 32
-
-#elif defined(SUNOS41)
-#   define SETJMP _setjmp
-#   define LONGJMP _longjmp
-#	define StackGrowsDown TRUE
-#	define JMP_BUF_SP_INDEX 2
-
-#elif defined(SOLARIS2) || defined(Solaris)
+#if defined(SOLARIS2) || defined(Solaris)
 #   define SETJMP setjmp
 #   define LONGJMP longjmp
 #	define StackGrowsDown TRUE
@@ -177,12 +159,6 @@ func()
 #else
 #	define JMP_BUF_SP_INDEX 1
 #endif
-
-#elif defined(OSF1)
-#   define SETJMP _setjmp
-#   define LONGJMP _longjmp
-#	define StackGrowsDown TRUE
-#	define JMP_BUF_SP_INDEX 34
 
 #elif defined(HPUX)
 #   define SETJMP setjmp
@@ -207,18 +183,6 @@ func()
 #   define JMP_BUF_SP_INDEX 4
 #   define SETJMP setjmp
 #   define LONGJMP longjmp
-
-#elif defined(IRIX62)
-#	define SETJMP setjmp
-#	define LONGJMP longjmp
-#	define StackGrowsDown TRUE
-#	define JMP_BUF_SP_INDEX 39
-
-#elif defined(IRIX65)
-#	define SETJMP setjmp
-#	define LONGJMP longjmp
-#	define StackGrowsDown TRUE
-#	define JMP_BUF_SP_INDEX 34
 
 #else
 #   error UNKNOWN PLATFORM

@@ -568,7 +568,7 @@ bool GridftpServer::SubmitServerJob()
 
 	job_ad->Assign( ATTR_TIMER_REMOVE_CHECK,
 					(int)time(NULL) + SERVER_JOB_LEASE );
-	buff.sprintf( "%s == %d && %s > CurrentTime", ATTR_JOB_STATUS, COMPLETED,
+	buff.sprintf( "%s == %d && %s > time()", ATTR_JOB_STATUS, COMPLETED,
 				  ATTR_TIMER_REMOVE_CHECK );
 	job_ad->AssignExpr( ATTR_JOB_LEAVE_IN_QUEUE, buff.Value() );
 
@@ -699,18 +699,12 @@ bool GridftpServer::SubmitServerJob()
 	job_ad->Assign( ATTR_PROC_ID, proc_id );
 
 	// Set all the classad attribute on the remote classad
+	const char *lhstr, *rhstr;
 	job_ad->ResetExpr();
-	while( (tree = job_ad->NextExpr()) ) {
-		ExprTree *lhs;
-		ExprTree *rhs;
-		char *lhstr, *rhstr;
+	while( job_ad->NextExpr(lhstr, tree) ) {
+		rhstr = ExprTreeToString( tree );
 
-		lhs = NULL, rhs = NULL;
-		rhs = NULL, rhstr = NULL;
-
-		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-		if( !lhs || !rhs || !lhstr || !rhstr) {
+		if( !lhstr || !rhstr) {
 			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
 					 "unparse job attribute\n" );
 			goto error_exit;
@@ -718,16 +712,11 @@ bool GridftpServer::SubmitServerJob()
 			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
 					 "SetAttribute %s=%s for job %d.%d\n",
 					 lhstr, rhstr, cluster_id, proc_id );
-			free( lhstr );
-			free( rhstr );
 			goto error_exit;
 		}
-
-		free( lhstr );
-		free( rhstr );
 	}
 
-	if ( CloseConnection() < 0 ) {
+	if ( RemoteCommitTransaction() < 0 ) {
 		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
 				 "commit job submission\n" );
 		goto error_exit;

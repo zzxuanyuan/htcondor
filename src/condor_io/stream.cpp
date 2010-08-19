@@ -72,7 +72,9 @@ Stream :: Stream(stream_code c) :
 	decrypt_buf_len(0),
 	m_peer_description_str(NULL),
 	m_peer_version(NULL),
-	m_deadline_time(0)
+	m_deadline_time(0),
+	m_crypto_state_before_secret(false),
+	encrypt_(false)
 {
 }
 
@@ -218,7 +220,7 @@ Stream::code( unsigned long	&l)
 }
 
 
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 int 
 Stream::code( int64_t	&l)
 {
@@ -376,6 +378,26 @@ Stream::code( MyString	&s)
 			break;
 		default:
 			EXCEPT("ERROR: Stream::code(MyString &s)'s _coding is illegal!");
+			break;
+	}
+
+	return FALSE;	/* will never get here	*/
+}
+
+
+int 
+Stream::code( std::string	&s)
+{
+	switch(_coding){
+		case stream_encode:
+			return put(s);
+		case stream_decode:
+			return get(s);
+		case stream_unknown:
+			EXCEPT("ERROR: Stream::code(std::string &s) has unknown direction!");
+			break;
+		default:
+			EXCEPT("ERROR: Stream::code(std::string &s)'s _coding is illegal!");
 			break;
 	}
 
@@ -689,7 +711,7 @@ Stream::code(struct statfs &s)
 	STREAM_ASSERT(code(s.f_files));
 	STREAM_ASSERT(code(s.f_ffree));
 
-#if defined(Solaris) || defined(IRIX)
+#if defined(Solaris)
 	STREAM_ASSERT(code(s.f_bfree));
 #else
 	STREAM_ASSERT(code(s.f_bavail));
@@ -820,28 +842,6 @@ Stream::code(struct utsname &n)
 	
 	#if defined(LINUX)
 		n.domainname[0] = 0;
-	#elif defined(IRIX)
-		#if defined(IRIX62)
-			#if defined(m_type)
-				n.__m_type[0] = 0;
-			#else
-				n.m_type[0] = 0;
-			#endif
-			#if defined(base_rel)
-				n.__base_rel[0] = 0;
-			#else
-				n.base_rel[0] = 0;
-			#endif
-		#endif
-		#if defined(IRIX65)
-			#if defined(_ABIAPI)
-				n.__m_type[0] = 0;
-				n.__base_rel[0] = 0;
-			#else
-				n.m_type[0] = 0;
-				n.base_rel[0] = 0;
-			#endif
-		#endif
 	#elif defined(HPUX)
 		n.__idnumber[0] = 0;
 	#endif
@@ -1125,7 +1125,7 @@ Stream::put( unsigned long	l)
 }
 
 
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 int 
 Stream::put( int64_t	l)
 {
@@ -1332,6 +1332,12 @@ int
 Stream::put( const MyString &s)
 {
 	return put( s.Value() );
+}
+
+int 
+Stream::put( const std::string &s)
+{
+	return put( s.c_str() );
 }
 
 int
@@ -1634,7 +1640,7 @@ Stream::get( unsigned long	&l)
 }
 
 
-#if !defined(__LP64__)
+#if !defined(__LP64__) || defined(Darwin)
 int 
 Stream::get( int64_t	&l)
 {
@@ -1987,6 +1993,25 @@ Stream::get( MyString	&s)
 	}
 	else {
 		s = NULL;
+	}
+	return result;
+}
+
+int 
+Stream::get( std::string	&s)
+{
+	char const *ptr = NULL;
+	int result = get_string_ptr(ptr);
+	if( result == TRUE ) {
+		if( ptr ) {
+			s = ptr;
+		}
+		else {
+			s = "";
+		}
+	}
+	else {
+		s = "";
 	}
 	return result;
 }

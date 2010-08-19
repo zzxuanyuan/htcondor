@@ -440,6 +440,12 @@ VMwareType::~VMwareType()
 }
 
 void
+VMwareType::Config()
+{
+	// Nothing to do
+}
+
+void
 VMwareType::adjustConfigDiskPath()
 {
 	if( m_configfile.IsEmpty() || 
@@ -769,8 +775,10 @@ VMwareType::readVMXfile(const char *filename, const char *dirpath)
 			// find cdrom device
 #define CDROM_TYPE1		"atapi-cdrom"
 #define CDROM_TYPE2		"cdrom-raw"
+#define CDROM_TYPE3		"cdrom-image"
 			if( (strcasecmp(value.Value(), CDROM_TYPE1) == 0 ) ||
-					(strcasecmp(value.Value(), CDROM_TYPE2) == 0 )) {
+				(strcasecmp(value.Value(), CDROM_TYPE2) == 0 ) ||
+				(strcasecmp(value.Value(), CDROM_TYPE3) == 0 )) {
 				pos = name.FindChar('.', 0);
 				if( pos > 0 ) {
 					name.setChar(pos, '\0');
@@ -857,7 +865,7 @@ VMwareType::readVMXfile(const char *filename, const char *dirpath)
 						tmp_line.sprintf("%s = \"%s\"", name.Value(), 
 								tmp_fullname.Value());
 
-						if( check_vm_read_access_file(tmp_fullname.Value()) 
+						if( !(*dirpath) || check_vm_read_access_file(tmp_fullname.Value()) 
 								== false ) {
 							vmprintf(D_ALWAYS, "file(%s) in a vmx file cannot "
 									"be read\n", tmp_fullname.Value());
@@ -1723,12 +1731,8 @@ VMwareType::CreateConfigFile()
 	m_classAd.LookupBool(VMPARAM_VMWARE_SNAPSHOTDISK, m_vmware_snapshot_disk);
 
 	// Read the directory where vmware files are on a submit machine
-	if( m_classAd.LookupString(VMPARAM_VMWARE_DIR, m_vmware_dir) != 1 ) {
-		vmprintf(D_ALWAYS, "%s cannot be found in job classAd\n", 
-							VMPARAM_VMWARE_DIR);
-		m_result_msg = VMGAHP_ERR_JOBCLASSAD_NO_VMWARE_DIR_PARAM;
-		return false;
-	}
+	m_vmware_dir = "";
+	m_classAd.LookupString(VMPARAM_VMWARE_DIR, m_vmware_dir);
 	m_vmware_dir.trim();
 
 	// Read the parameter of vmware vmx file
@@ -1862,7 +1866,20 @@ VMwareType::CreateConfigFile()
 		tmp_line.sprintf("ethernet0.connectionType = \"%s\"", 
 				networking_type.Value());
 		m_configVars.append(tmp_line.Value());
-		m_configVars.append("ethernet0.addressType = \"generated\"");
+        if (!m_vm_job_mac.IsEmpty())
+        {
+            vmprintf(D_FULLDEBUG, "mac address is %s\n", m_vm_job_mac.Value());
+            m_configVars.append("ethernet0.addressType = \"static\"");
+            tmp_line.sprintf("ethernet0.address = \"%s\"", m_vm_job_mac.Value());
+            m_configVars.append(tmp_line.Value());
+            //**********************************************************************
+            // LIMITATION: the mac address has to be in the range
+            // 00:50:56:00:00:00 - 00:50:56:3F:FF:FF
+            // This is a vmware limitation and I can't find a way to circumvent it.
+            //**********************************************************************
+        } else {
+    		m_configVars.append("ethernet0.addressType = \"generated\"");
+        }
 	}
 
 	// Add uuid option

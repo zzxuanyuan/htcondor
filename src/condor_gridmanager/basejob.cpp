@@ -666,13 +666,11 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 	if ( new_condor_state == REMOVED || new_condor_state == HELD ) {
 
 		for ( int i = 0; held_removed_update_attrs[i] != NULL; i++ ) {
-			char attr_value[1024];
 			ExprTree *expr;
 
-			if ( (expr = new_ad->Lookup( held_removed_update_attrs[i] )) != NULL ) {
-				attr_value[0] = '\0';
-				expr->RArg()->PrintToStr(attr_value);
-				jobAd->AssignExpr( held_removed_update_attrs[i], attr_value );
+			if ( (expr = new_ad->LookupExpr( held_removed_update_attrs[i] )) != NULL ) {
+				jobAd->Insert( held_removed_update_attrs[i],
+							   expr->Copy() );
 			} else {
 				jobAd->Delete( held_removed_update_attrs[i] );
 			}
@@ -960,7 +958,7 @@ void BaseJob::NotifyResourceUp()
 // events and must be deleted when you're done.  This returns NULL if
 // the user didn't want a UserLog, so you must check for NULL before
 // using the pointer you get back.
-UserLog*
+WriteUserLog*
 InitializeUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
@@ -978,7 +976,7 @@ InitializeUserLog( ClassAd *job_ad )
 	job_ad->LookupString( ATTR_GLOBAL_JOB_ID, gjid );
 	job_ad->LookupBool( ATTR_ULOG_USE_XML, use_xml );
 
-	UserLog *ULog = new UserLog();
+	WriteUserLog *ULog = new WriteUserLog();
 	ULog->initialize(userLogFile.Value(), cluster, proc, 0, gjid.Value());
 	ULog->setUseXML( use_xml );
 	return ULog;
@@ -990,7 +988,7 @@ WriteExecuteEventToUserLog( ClassAd *job_ad )
 	int cluster, proc;
 	char hostname[128];
 
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1027,7 +1025,7 @@ WriteAbortEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	char removeReason[256];
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1072,7 +1070,7 @@ WriteTerminateEventToUserLog( ClassAd *job_ad )
 	}
 
 	int cluster, proc;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1160,7 +1158,7 @@ bool
 WriteEvictEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1204,7 +1202,7 @@ WriteHoldEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1241,7 +1239,7 @@ WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1286,7 +1284,7 @@ WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1331,7 +1329,7 @@ WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1380,7 +1378,7 @@ WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code,
 	int cluster, proc;
 	char buf[1024];
 
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1417,7 +1415,7 @@ WriteGridResourceUpEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1458,7 +1456,7 @@ WriteGridResourceDownEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1499,7 +1497,7 @@ WriteGridSubmitEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1537,7 +1535,7 @@ bool
 WriteJobStatusUnknownEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
@@ -1569,7 +1567,7 @@ bool
 WriteJobStatusKnownEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
-	UserLog *ulog = InitializeUserLog( job_ad );
+	WriteUserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;

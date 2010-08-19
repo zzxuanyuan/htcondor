@@ -617,8 +617,8 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 
 		// Insert an entry for "tilde", (~condor)
 	if( tilde ) {
-		insert( "tilde", tilde, ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("tilde");
+		insert( "TILDE", tilde, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("TILDE");
 
 	} else {
 			// What about tilde if there's no ~condor?
@@ -639,7 +639,7 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		// Try to find the global config source
 
 	char* env = getenv( EnvGetName(ENV_CONFIG) );
-	if( env && stricmp(env, "ONLY_ENV") == MATCH ) {
+	if( env && strcasecmp(env, "ONLY_ENV") == MATCH ) {
 			// special case, no config source desired
 		have_config_source = false;
 	}
@@ -692,19 +692,19 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 		// DEFAULT_DOMAIN_NAME parameter somewhere if they need it.
 		// -Derek Wright <wright@cs.wisc.edu> 5/11/98
 	if( host ) {
-		insert( "hostname", host, ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("hostname");
+		insert( "HOSTNAME", host, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("HOSTNAME");
 	} else {
-		insert( "hostname", my_hostname(), ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("hostname");
+		insert( "HOSTNAME", my_hostname(), ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("HOSTNAME");
 	}
-	insert( "full_hostname", my_full_hostname(), ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("full_hostname");
+	insert( "FULL_HOSTNAME", my_full_hostname(), ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("FULL_HOSTNAME");
 
 		// Also insert tilde since we don't want that over-written.
 	if( tilde ) {
-		insert( "tilde", tilde, ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("tilde");
+		insert( "TILDE", tilde, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("TILDE");
 	}
 
 		// Read in the LOCAL_CONFIG_FILE as a string list and process
@@ -716,20 +716,19 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 	process_locals( "LOCAL_CONFIG_FILE", host );
 
 	char* newdirlist = param("LOCAL_CONFIG_DIR");
-	if(newdirlist && dirlist) {
-		if(strcmp(dirlist, newdirlist) ) {
+	if(newdirlist) {
+		if (dirlist) {
+			if(strcmp(dirlist, newdirlist) ) {
+				process_directory(newdirlist, host);
+			}
+		}
+		else {
 			process_directory(newdirlist, host);
 		}
 	}
 
 	if(dirlist) { free(dirlist); dirlist = NULL; }
 	if(newdirlist) { free(newdirlist); newdirlist = NULL; }
-
-		// Daemons should additionally call condor_auth_config()
-		// explicitly with the argument is_daemon=true.  Here, we just
-		// call with is_daemon=false, since that is fine for both daemons
-		// and non-daemons to do.
-	condor_auth_config( false );
 
 	// The following lines should be placed very carefully. Must be after
 	// global and local config sources being processed but before any
@@ -819,6 +818,14 @@ real_config(char* host, int wantsQuiet, bool wantExtraInfo)
 	check_params();
 
 	condor_except_should_dump_core( param_boolean("ABORT_ON_EXCEPTION", false) );
+
+		// Daemons should additionally call condor_auth_config()
+		// explicitly with the argument is_daemon=true.  Here, we just
+		// call with is_daemon=false, since that is fine for both daemons
+		// and non-daemons to do.
+	condor_auth_config( false );
+
+	ConfigConvertDefaultIPToSocketIP();
 
 	(void)SetSyscalls( scm );
 }
@@ -1256,13 +1263,13 @@ fill_attributes()
 		extra_info->AddInternalParam("UNAME_OPSYS");
 	}
 
-	insert( "subsystem", get_mySubSystem()->getName(), ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("subsystem");
+	insert( "SUBSYSTEM", get_mySubSystem()->getName(), ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("SUBSYSTEM");
 
 	MyString val;
 	val.sprintf("%d",sysapi_phys_memory_raw_no_param());
-	insert( "detected_memory", val.Value(), ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("detected_memory");
+	insert( "DETECTED_MEMORY", val.Value(), ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("DETECTED_MEMORY");
 
 		// Currently, num_hyperthread_cores is defined as everything
 		// in num_cores plus other junk, which on some systems may
@@ -1276,8 +1283,8 @@ fill_attributes()
 	sysapi_ncpus_raw_no_param(&num_cpus,&num_hyperthread_cpus);
 
 	val.sprintf("%d",num_hyperthread_cpus);
-	insert( "detected_cores", val.Value(), ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("detected_cores");
+	insert( "DETECTED_CORES", val.Value(), ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("DETECTED_CORES");
 }
 
 
@@ -1443,16 +1450,8 @@ param_without_default( const char *name )
 char*
 param(const char* name) 
 {
-	CondorVersionInfo cvi;
-
-	if (cvi.built_since_version(7,5,0) == true) {
-		/* This uses the new default table for the 7.5 series and beyond. */
 		/* The zero means return NULL on not found instead of EXCEPT */
-		return param_with_default_abort(name, 0);
-	}
-
-	/* This is the original behavior of param, for the 7.4 series. */
-	return param_without_default(name);
+	return param_with_default_abort(name, 0);
 }
 
 char *
@@ -1550,7 +1549,7 @@ param_with_default_abort(const char *name, int abort) {
 	}
 
 	// Ok, now expand it out...
-	val = expand_macro( val, ConfigTab, TABLESIZE );
+	val = expand_macro( val, ConfigTab, TABLESIZE, NULL, true );
 
 	// If it returned an empty string, free it before returning NULL
 	if( val == NULL ) {
@@ -1580,9 +1579,7 @@ param_integer( const char *name, int &value,
 			   ClassAd *me, ClassAd *target,
 			   bool use_param_table )
 {
-	CondorVersionInfo cvi;
-
-	if(use_param_table && cvi.built_since_version(7,5,0)) {
+	if(use_param_table) {
 		int tbl_default_valid;
 		int tbl_default_value = 
 			param_default_integer( name, &tbl_default_valid );
@@ -1732,9 +1729,7 @@ param_double( const char *name, double default_value,
 			  ClassAd *me, ClassAd *target,
 			  bool use_param_table )
 {
-	CondorVersionInfo cvi;
-
-	if(use_param_table && cvi.built_since_version(7,5,0)) {
+	if(use_param_table) {
 		int tbl_default_valid;
 		double tbl_default_value = 
 			param_default_double( name, &tbl_default_valid );
@@ -1828,9 +1823,7 @@ param_boolean( const char *name, bool default_value, bool do_log,
 			   ClassAd *me, ClassAd *target,
 			   bool use_param_table )
 {
-	CondorVersionInfo cvi;
-
-	if(use_param_table && cvi.built_since_version(7,5,0)) {
+	if(use_param_table) {
 		int tbl_default_valid;
 		bool tbl_default_value = 
 			param_default_boolean( name, &tbl_default_valid );
@@ -1962,29 +1955,29 @@ reinsert_specials( char* host )
 	char buf[40];
 
 	if( tilde ) {
-		insert( "tilde", tilde, ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("tilde");
+		insert( "TILDE", tilde, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("TILDE");
 	}
 	if( host ) {
-		insert( "hostname", host, ConfigTab, TABLESIZE );
+		insert( "HOSTNAME", host, ConfigTab, TABLESIZE );
 	} else {
-		insert( "hostname", my_hostname(), ConfigTab, TABLESIZE );
+		insert( "HOSTNAME", my_hostname(), ConfigTab, TABLESIZE );
 	}
-	insert( "full_hostname", my_full_hostname(), ConfigTab, TABLESIZE );
-	insert( "subsystem", get_mySubSystem()->getName(), ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("hostname");
-	extra_info->AddInternalParam("full_hostname");
-	extra_info->AddInternalParam("subsystem");
+	insert( "FULL_HOSTNAME", my_full_hostname(), ConfigTab, TABLESIZE );
+	insert( "SUBSYSTEM", get_mySubSystem()->getName(), ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("HOSTNAME");
+	extra_info->AddInternalParam("FULL_HOSTNAME");
+	extra_info->AddInternalParam("SUBSYSTEM");
 
 	// Insert login-name for our real uid as "username".  At the time
 	// we're reading in the config source, the priv state code is not
 	// initialized, so our euid will always be the same as our ruid.
 	char *myusernm = my_username();
 	if( myusernm ) {
-		insert( "username", myusernm, ConfigTab, TABLESIZE );
+		insert( "USERNAME", myusernm, ConfigTab, TABLESIZE );
 		free(myusernm);
 		myusernm = NULL;
-		extra_info->AddInternalParam("username");
+		extra_info->AddInternalParam("USERNAME");
 	} else {
 		if( ! warned_no_user ) {
 			dprintf( D_ALWAYS, "ERROR: can't find username of current user! "
@@ -2010,11 +2003,11 @@ reinsert_specials( char* host )
 		myrgid = getgid();
 #endif
 		snprintf(buf,40,"%u",myruid);
-		insert( "real_uid", buf, ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("real_uid");
+		insert( "REAL_UID", buf, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("REAL_UID");
 		snprintf(buf,40,"%u",myrgid);
-		insert( "real_gid", buf, ConfigTab, TABLESIZE );
-		extra_info->AddInternalParam("real_gid");
+		insert( "REAL_GID", buf, ConfigTab, TABLESIZE );
+		extra_info->AddInternalParam("REAL_GID");
 	}
 		
 	// Insert values for "pid" and "ppid".  Use static values since
@@ -2030,8 +2023,8 @@ reinsert_specials( char* host )
 #endif
 	}
 	snprintf(buf,40,"%u",reinsert_pid);
-	insert( "pid", buf, ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("pid");
+	insert( "PID", buf, ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("PID");
 	if ( !reinsert_ppid ) {
 #ifdef WIN32
 		CSysinfo system_hackery;
@@ -2041,10 +2034,10 @@ reinsert_specials( char* host )
 #endif
 	}
 	snprintf(buf,40,"%u",reinsert_ppid);
-	insert( "ppid", buf, ConfigTab, TABLESIZE );
-	insert( "ip_address", my_ip_string(), ConfigTab, TABLESIZE );
-	extra_info->AddInternalParam("ppid");
-	extra_info->AddInternalParam("ip_address");
+	insert( "PPID", buf, ConfigTab, TABLESIZE );
+	insert( "IP_ADDRESS", my_ip_string(), ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("PPID");
+	extra_info->AddInternalParam("IP_ADDRESS");
 }
 
 
@@ -2555,6 +2548,21 @@ write_config_variable(param_info_t* value, void* file_desc) {
 /* End code for runtime support for modifying a daemon's config source. */
 
 bool param(MyString &buf,char const *param_name,char const *default_value)
+{
+	bool found = false;
+	char *param_value = param(param_name);
+	if( param_value ) {
+		buf = param_value;
+		found = true;
+	}
+	else if( default_value ) {
+		buf = default_value;
+	}
+	free( param_value );
+	return found;
+}
+
+bool param(std::string &buf,char const *param_name,char const *default_value)
 {
 	bool found = false;
 	char *param_value = param(param_name);

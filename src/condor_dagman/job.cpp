@@ -30,6 +30,7 @@
 
 //---------------------------------------------------------------------------
 JobID_t Job::_jobID_counter = 0;  // Initialize the static data memeber
+int Job::NOOP_NODE_PROCID = INT_MAX;
 
 //---------------------------------------------------------------------------
 // NOTE: this must be kept in sync with the queue_t enum
@@ -70,8 +71,21 @@ Job::~Job() {
     // http://support.microsoft.com/support/kb/articles/Q131/3/22.asp
 	delete [] _jobName;
 	delete [] _logFile;
+
+	varNamesFromDag->Rewind();
+	MyString *name;
+	while ( (name = varNamesFromDag->Next()) ) {
+		delete name;
+	}
 	delete varNamesFromDag;
+
+	varValsFromDag->Rewind();
+	MyString *val;
+	while ( (val = varValsFromDag->Next()) ) {
+		delete val;
+	}
 	delete varValsFromDag;
+
 	delete _scriptPre;
 	delete _scriptPost;
 }
@@ -100,7 +114,6 @@ void Job::Init( const char* jobName, const char* directory,
     _Status = STATUS_READY;
 	_isIdle = false;
 	countedAsDone = false;
-	_waitingCount = 0;
 
     _jobName = strnewp (jobName);
 	_directory = strnewp (directory);
@@ -152,6 +165,9 @@ void Job::Init( const char* jobName, const char* directory,
 	_nodePriority = 0;
 
     _logFile = NULL;
+	_logFileIsXml = false;
+
+	_noop = false;
 
 	varNamesFromDag = new List<MyString>;
 	varValsFromDag = new List<MyString>;
@@ -201,8 +217,9 @@ bool Job::Remove (const queue_t queue, const JobID_t jobID)
 bool
 Job::CheckForLogFile() const
 {
-    MyString logFile = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
-				_directory );
+	bool tmpLogFileIsXml;
+	MyString logFile = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
+				_directory, tmpLogFileIsXml );
 	bool result = (logFile != "");
 	return result;
 }
@@ -211,6 +228,7 @@ Job::CheckForLogFile() const
 void Job::Dump ( const Dag *dag ) const {
     dprintf( D_ALWAYS, "---------------------- Job ----------------------\n");
     dprintf( D_ALWAYS, "      Node Name: %s\n", _jobName );
+    dprintf( D_ALWAYS, "           Noop: %s\n", _noop ? "true" : "false" );
     dprintf( D_ALWAYS, "         NodeID: %d\n", _jobID );
     dprintf( D_ALWAYS, "    Node Status: %s\n", GetStatusName() );
     dprintf( D_ALWAYS, "Node return val: %d\n", retval );
@@ -232,8 +250,8 @@ void Job::Dump ( const Dag *dag ) const {
 				 JobTypeString() );
 	}
 	else {
-		dprintf( D_ALWAYS, " %7s Job ID: (%d)\n", JobTypeString(),
-				 _CondorID._cluster );
+		dprintf( D_ALWAYS, " %7s Job ID: (%d.%d.%d)\n", JobTypeString(),
+				 _CondorID._cluster, _CondorID._proc, _CondorID._subproc );
 	}
   
     for (int i = 0 ; i < 3 ; i++) {
@@ -288,12 +306,6 @@ bool
 Job::SanityCheck() const
 {
 	bool result = true;
-
-	if( _waitingCount < 0 ) {
-		dprintf( D_ALWAYS, "BADNESS 10000: _waitingCount = %d\n",
-				 _waitingCount );
-		result = false;
-	}
 
 	if( countedAsDone == true && _Status != STATUS_DONE ) {
 		dprintf( D_ALWAYS, "BADNESS 10000: countedAsDone == true but "
@@ -371,7 +383,6 @@ Job::AddParent( Job* parent, MyString &whynot )
 						parent->GetJobName(), GetJobName() );
 			return false;
 		}
-		_waitingCount++;
 	}
 	whynot = "n/a";
     return true;
@@ -741,6 +752,10 @@ Job::MonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 			ReadMultipleUserLogs &storkLogReader, bool nfsIsError,
 			bool recovery, const char *defaultNodeLog )
 {
+	debug_printf( DEBUG_DEBUG_2,
+				"Attempting to monitor log file for node %s\n",
+				GetJobName() );
+
 	if ( _logIsMonitored ) {
 		debug_printf( DEBUG_DEBUG_1, "Warning: log file for node "
 					"%s is already monitored\n", GetJobName() );
@@ -753,9 +768,8 @@ Job::MonitorLogFile( ReadMultipleUserLogs &condorLogReader,
     MyString logFileStr;
 	if ( _jobType == TYPE_CONDOR ) {
     	logFileStr = MultiLogFiles::loadLogFileNameFromSubFile( _cmdFile,
-					_directory );
+					_directory, _logFileIsXml );
 	} else {
-#ifdef HAVE_EXT_CLASSADS
 		StringList logFiles;
 		MyString tmpResult = MultiLogFiles::loadLogFileNamesFromStorkSubFile(
 					_cmdFile, _directory, logFiles );
@@ -774,18 +788,12 @@ Job::MonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 			logFiles.rewind();
 			logFileStr = logFiles.next();
 		}
-#else
-			// XXX
-		debug_printf( DEBUG_NORMAL,
-					  "Error: Stork log files not supported. "
-					  "Condor was built without new classad support\n" );
-		return false;
-#endif
 	}
 
 	if ( logFileStr == "" ) {
 		logFileStr = defaultNodeLog;
 		_useDefaultLog = true;
+		_logFileIsXml = false;
 		debug_printf( DEBUG_NORMAL, "Unable to get log file from "
 					"submit file %s (node %s); using default (%s)\n",
 					_cmdFile, GetJobName(), logFileStr.Value() );
@@ -805,10 +813,10 @@ Job::MonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 	delete [] _logFile;
 		// Saving log file here in case submit file gets changed.
 	_logFile = strnewp( logFileStr.Value() );
-	debug_printf( DEBUG_DEBUG_1, "Monitoring log file <%s> for node %s\n",
-				_logFile, GetJobName() );
+	debug_printf( DEBUG_DEBUG_2, "Monitoring log file <%s> for node %s\n",
+				GetLogFile(), GetJobName() );
 	CondorError errstack;
-	if ( !logReader.monitorLogFile( _logFile, !recovery, errstack ) ) {
+	if ( !logReader.monitorLogFile( GetLogFile(), !recovery, errstack ) ) {
 		errstack.pushf( "DAGMan::Job", DAGMAN_ERR_LOG_FILE,
 					"ERROR: Unable to monitor log file for node %s",
 					GetJobName() );
@@ -827,8 +835,8 @@ bool
 Job::UnmonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 			ReadMultipleUserLogs &storkLogReader )
 {
-	debug_printf( DEBUG_DEBUG_1, "Unmonitoring log file <%s> for node %s\n",
-				_logFile, GetJobName() );
+	debug_printf( DEBUG_DEBUG_2, "Unmonitoring log file <%s> for node %s\n",
+				GetLogFile(), GetJobName() );
 
 	if ( !_logIsMonitored ) {
 		debug_printf( DEBUG_DEBUG_1, "Warning: log file for node "
@@ -840,10 +848,10 @@ Job::UnmonitorLogFile( ReadMultipleUserLogs &condorLogReader,
 				condorLogReader : storkLogReader;
 
 	debug_printf( DEBUG_DEBUG_1, "Unmonitoring log file <%s> for node %s\n",
-				_logFile, GetJobName() );
+				GetLogFile(), GetJobName() );
 
 	CondorError errstack;
-	bool result = logReader.unmonitorLogFile( _logFile, errstack );
+	bool result = logReader.unmonitorLogFile( GetLogFile(), errstack );
 	if ( !result ) {
 		errstack.pushf( "DAGMan::Job", DAGMAN_ERR_LOG_FILE,
 					"ERROR: Unable to unmonitor log " "file for node %s",

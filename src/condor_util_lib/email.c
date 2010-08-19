@@ -44,11 +44,7 @@ static FILE *email_open_implementation(char *Mailer,char *const final_args[]);
 static FILE *email_open_implementation(char *const final_args[]);
 #endif
 
-#if defined(IRIX)
-extern char **_environ;
-#else
 extern DLL_IMPORT_MAGIC char **environ;
-#endif
 
 extern int Termlog;
 
@@ -400,7 +396,7 @@ email_developers_open(const char *subject)
 		/* we strdup here since we always call free below */
         tmp = strdup("condor-admin@cs.wisc.edu");
     } else
-    if (stricmp (tmp, "NONE") == 0) {
+    if (strcasecmp (tmp, "NONE") == 0) {
         free (tmp);
         return NULL;
     }

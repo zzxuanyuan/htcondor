@@ -24,13 +24,14 @@
 #include "condor_string.h" // for strnewp()
 #include "tmp_dir.h"
 #include "stat_wrapper.h"
-#ifdef HAVE_EXT_CLASSADS
+#include "condor_getcwd.h"
+
 #ifndef WANT_CLASSAD_NAMESPACE
 #define WANT_CLASSAD_NAMESPACE
 #endif
 #include <iostream>
 #include "classad/classad_distribution.h"
-#endif
+
 #include "fs_util.h"
 
 #ifdef WIN32
@@ -194,7 +195,11 @@ MultiLogFiles::InitializeFile(const char *filename, bool truncate,
 				filename, (int)truncate );
 
 	int flags = O_WRONLY;
-	if ( truncate ) flags |= O_TRUNC;
+	if ( truncate ) {
+		flags |= O_TRUNC;
+		dprintf(D_ALWAYS, "MultiLogFiles: truncating log file %s\n",
+					filename);
+	}
 	int fd = safe_create_keep_if_exists( filename, flags );
 	if ( fd < 0 ) {
 		errstack.pushf("MultiLogFiles", UTIL_ERR_OPEN_FILE,
@@ -355,7 +360,7 @@ MultiLogFiles::readFileToString(const MyString &strFilename)
 
 MyString
 MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
-		const MyString &directory)
+		const MyString &directory, bool &isXml)
 {
 	dprintf( D_FULLDEBUG, "MultiLogFiles::loadLogFileNameFromSubFile(%s, %s)\n",
 				strSubFilename.Value(), directory.Value() );
@@ -376,11 +381,12 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 
 	MyString	logFileName("");
 	MyString	initialDir("");
+	MyString	isXmlLogStr("");
 
 		// Now look through the submit file logical lines to find the
 		// log file and initial directory (if specified) and combine
 		// them into a path to the log file that's either absolute or
-		// relative to the DAG submit directory.
+		// relative to the DAG submit directory.  Also look for log_xml.
 	const char *logicalLine;
 	while( (logicalLine = logicalLines.next()) != NULL ) {
 		MyString	submitLine(logicalLine);
@@ -393,6 +399,11 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 				"initialdir");
 		if ( tmpInitialDir != "" ) {
 			initialDir = tmpInitialDir;
+		}
+
+		MyString tmpLogXml = getParamFromSubmitLine(submitLine, "log_xml");
+		if ( tmpLogXml != "" ) {
+			isXmlLogStr = tmpLogXml;
 		}
 	}
 
@@ -426,6 +437,13 @@ MultiLogFiles::loadLogFileNameFromSubFile(const MyString &strSubFilename,
 		}
 	}
 
+	isXmlLogStr.lower_case();
+	if ( isXmlLogStr == "true" ) {
+		isXml = true;
+	} else {
+		isXml = false;
+	}
+
 	if ( directory != "" ) {
 		MyString	errMsg;
 		if ( !td.Cd2MainDir(errMsg) ) {
@@ -446,12 +464,9 @@ MultiLogFiles::makePathAbsolute(MyString &filename, CondorError &errstack)
 			// I'd like to use realpath() here, but I'm not sure
 			// if that's portable across all platforms.  wenger 2009-01-09.
 		MyString	currentDir;
-		char	tmpCwd[PATH_MAX];
-		if ( getcwd(tmpCwd, PATH_MAX) ) {
-			currentDir = tmpCwd;
-		} else {
+		if ( !condor_getcwd(currentDir) ) {
 			errstack.pushf( "MultiLogFiles", UTIL_ERR_GET_CWD,
-						"ERROR: getcwd() failed with errno %d (%s) at %s:%d\n",
+						"ERROR: condor_getcwd() failed with errno %d (%s) at %s:%d\n",
 						errno, strerror(errno), __FILE__, __LINE__);
 			return false;
 		}
@@ -463,8 +478,6 @@ MultiLogFiles::makePathAbsolute(MyString &filename, CondorError &errstack)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-#ifdef HAVE_EXT_CLASSADS
 
 // Skip whitespace in a std::string buffer.
 void
@@ -576,15 +589,15 @@ MultiLogFiles::loadLogFileNamesFromStorkSubFile(
 		// All logfile must be fully qualified paths.  Prepend the current
 		// working directory if logfile not a fully qualified path.
 		if ( ! fullpath(logfile.c_str() ) ) {
-			char	tmpCwd[PATH_MAX];
-			if ( ! getcwd(tmpCwd, sizeof(tmpCwd) ) ) {
-				rtnVal.sprintf("getcwd() failed with errno %d (%s)",
+			MyString	currentDir;
+			if ( ! condor_getcwd(currentDir) ) {
+				rtnVal.sprintf("condor_getcwd() failed with errno %d (%s)",
 						errno, strerror(errno));
 				dprintf(D_ALWAYS, "ERROR: %s at %s:%d\n", rtnVal.Value(),
 						__FILE__, __LINE__);
 				return rtnVal;
 			}
-			std::string tmp  = tmpCwd;
+			std::string tmp  = currentDir.Value();
 			tmp += DIR_DELIM_STRING;
 			tmp += logfile;
 			logfile = tmp;
@@ -612,7 +625,6 @@ MultiLogFiles::loadLogFileNamesFromStorkSubFile(
 
 	return rtnVal;
 }
-#endif /* HAVE_EXT_CLASSADS */
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -691,7 +703,7 @@ MultiLogFiles::getValuesFromFile(const MyString &fileName,
 			StringList	tokens(logicalLine, " \t");
 			tokens.rewind();
 
-			if ( !stricmp(tokens.next(), keyword.Value()) ) {
+			if ( !strcasecmp(tokens.next(), keyword.Value()) ) {
 					// Skip over unwanted tokens.
 				for ( int skipped = 0; skipped < skipTokens; skipped++ ) {
 					if ( !tokens.next() ) {

@@ -24,9 +24,7 @@
 #include "condor_io.h"
 #include "proc.h"
 #include "../condor_c++_util/CondorError.h"
-
-class ClassAd;
-class ClassAdList;
+#include "condor_classad.h"
 
 
 typedef struct {
@@ -36,7 +34,12 @@ typedef struct {
 typedef int (*scan_func)(ClassAd *ad);
 
 typedef unsigned char SetAttributeFlags_t;
-const SetAttributeFlags_t NONDURABLE = 1;
+const SetAttributeFlags_t NONDURABLE = (1<<0); // do not fsync
+	// NoAck tells the remote version of SetAttribute to not send back a
+	// return code.  If the operation fails, the connection will be closed,
+	// so failure will be detected in CommitTransaction().  This is useful
+	// for improving performance when setting lots of attributes.
+const SetAttributeFlags_t SetAttribute_NoAck = (1<<1);
 
 #define SHADOW_QMGMT_TIMEOUT 300
 
@@ -75,9 +78,11 @@ bool DisconnectQ(Qmgr_connection *qmgr, bool commit_transactions=true);
 
 /** Start a new job cluster.  This cluster becomes the
 	active cluster, and jobs may only be submitted to this cluster.
-	@return -1 on failure; the new cluster id on success
+	@return the new cluster id on success, < 0 on failure: -1 == "owner check failed"
+    -2 == "MAX_JOBS_SUBMITTED exceeded", -3 == "cluster id collision"
 */
 int NewCluster(void);
+
 /** Signal the start of a new job description (a new job process).
 	@param cluster_id cluster id of the active job cluster (from NewCluster())
 	@return -1 on failure; the new proc id on success
@@ -171,17 +176,26 @@ int SetMyProxyPassword (int cluster, int proc, const char * pwd);
 	@return -1 on failure; 0 on success
 */
 int CloseSocket();
-/** Commit the current transaction, but keep the network connection open.
-	@return -1 on failure; 0 on success
-*/
-int CloseConnection();
+
 bool InTransaction();
 /** Begin a new transaction over an existing network connection to the
 	schedd.
 	@return -1 on failurer; 0 on success
 */
 void BeginTransaction();
+
+/** This didn't exist as a remote qmgmt call until 7.5.2.  Prior to that,
+    the poorly named CloseConnection() call was used.
+	@return -1 on failure: 0 on success
+*/
+int RemoteCommitTransaction(SetAttributeFlags_t flags=0);
+
+/** The difference between this and RemoteCommitTransaction is that
+	this function never returns if there is a failure.  This function
+	should only be called from the schedd.
+*/
 void CommitTransaction(SetAttributeFlags_t flags=0);
+
 void AbortTransaction();
 void AbortTransactionAndRecomputeClusters();
 

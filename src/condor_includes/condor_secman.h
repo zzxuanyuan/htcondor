@@ -106,7 +106,7 @@ public:
 		// spawn off a non-blocking attempt to create a security
 		// session so that in the future, a UDP command could succeed
 		// without StartCommandWouldBlock.
-	StartCommandResult startCommand( int cmd, Sock* sock, bool peer_can_negotiate, bool raw_protocol, CondorError* errstack, int subcmd, StartCommandCallbackType *callback_fn, void *misc_data, bool nonblocking,char const *cmd_description,char const *sec_session_id);
+	StartCommandResult startCommand( int cmd, Sock* sock, bool raw_protocol, CondorError* errstack, int subcmd, StartCommandCallbackType *callback_fn, void *misc_data, bool nonblocking,char const *cmd_description,char const *sec_session_id);
 
 		// Authenticate a socket using whatever authentication methods
 		// have been configured for the specified perm level.
@@ -125,13 +125,13 @@ public:
 
 
 	bool	FillInSecurityPolicyAd( DCpermission auth_level,
-									ClassAd* ad, bool peer_can_neg=true,
+									ClassAd* ad,
 									bool raw_protocol=false,
 									bool use_tmp_sec_session=false,
 									bool force_authentication=false);
 	ClassAd * 				ReconcileSecurityPolicyAds(ClassAd &cli_ad, ClassAd &srv_ad);
 	bool 					ReconcileSecurityDependency (sec_req &a, sec_req &b);
-	SecMan::sec_feat_act	ReconcileSecurityAttribute(const char* attr, ClassAd &cli_ad, ClassAd &srv_ad);
+	SecMan::sec_feat_act	ReconcileSecurityAttribute(const char* attr, ClassAd &cli_ad, ClassAd &srv_ad, bool *required = NULL);
 	MyString			ReconcileMethodLists( char * cli_methods, char * srv_methods );
 
 
@@ -154,6 +154,10 @@ public:
 		// subsystem.
 		// Caller should free the returned string.
 	static char*            getSecSetting( const char* fmt, DCpermissionHierarchy const &auth_level, MyString *param_name=NULL, char const *check_subsystem=NULL );
+
+	static bool getIntSecSetting( int &result, const char* fmt, DCpermissionHierarchy const &auth_level, MyString *param_name = NULL, char const *check_subsystem = NULL );
+
+	static bool getSecSetting_implementation( int *int_result,char **str_result, const char* fmt, DCpermissionHierarchy const &auth_level, MyString *param_name, char const *check_subsystem );
 
 		// for each auth level in the hierarchy, look up config value,
 		// and parse it as REQUIRED, OPTIONAL, etc.

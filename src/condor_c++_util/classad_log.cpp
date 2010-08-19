@@ -316,12 +316,12 @@ ClassAdLog::TruncLog()
 		// Beat a hasty retreat into the past.
 		historical_sequence_number--;
 
-		int log_fd = safe_open_wrapper(logFilename(), O_RDWR | O_LARGEFILE, 0600);
+		int log_fd = safe_open_wrapper(logFilename(), O_RDWR | O_APPEND | O_LARGEFILE, 0600);
 		if (log_fd < 0) {
 			EXCEPT("failed to reopen log %s, errno = %d after failing to rotate log.",logFilename(),errno);
 		}
 
-		log_fp = fdopen(log_fd, "r+");
+		log_fp = fdopen(log_fd, "a+");
 		if (log_fp == NULL) {
 			EXCEPT("failed to refdopen log %s, errno = %d after failing to rotate log.",logFilename(),errno);
 		}
@@ -507,7 +507,7 @@ ClassAdLog::ExamineTransaction(const char *key, const char *name, char *&val, Cl
 		}
 		case CondorLogOp_SetAttribute: {
 			char const *lname = ((LogSetAttribute *)log)->get_name();
-			if (name && stricmp(lname, name) == 0) {
+			if (name && strcasecmp(lname, name) == 0) {
 				if (ValFound) {
 					free(val);
 				}
@@ -532,7 +532,7 @@ ClassAdLog::ExamineTransaction(const char *key, const char *name, char *&val, Cl
 		}
 		case CondorLogOp_DeleteAttribute: {
 			char const *lname = ((LogDeleteAttribute *)log)->get_name();
-			if (name && stricmp(lname, name) == 0) {
+			if (name && strcasecmp(lname, name) == 0) {
 				if (ValFound) {
 					free(val);
 				}
@@ -595,8 +595,7 @@ ClassAdLog::LogState(FILE *fp)
 	ExprTree	*expr=NULL;
 	HashKey		hashval;
 	MyString	key;
-	char		*attr_name = NULL;
-	char		*attr_val;
+	const char	*attr_name = NULL;
 
 	// This must always be the first entry in the log.
 	log = new LogHistoricalSequenceNumber( historical_sequence_number, m_original_log_birthdate );
@@ -616,27 +615,28 @@ ClassAdLog::LogState(FILE *fp)
 		delete log;
 			// Unchain the ad -- we just want to write out this ads exprs,
 			// not all the exprs in the chained ad as well.
-		ChainedPair chain = ad->unchain();
+		AttrList *chain = dynamic_cast<AttrList*>(ad->GetChainedParentAd());
+		ad->Unchain();
 		ad->ResetName();
-		attr_name = ad->NextName();
+		attr_name = ad->NextNameOriginal();
 		while (attr_name) {
-			attr_val = NULL;
-			expr = ad->Lookup(attr_name);
-			if (expr && !expr->invisible) {
-				expr->RArg()->PrintToNewStr(&attr_val);
-				log = new LogSetAttribute(key.Value(), attr_name, attr_val);
+			expr = ad->LookupExpr(attr_name);
+				// This conditional used to check whether the ExprTree is
+				// invisible, but no codepath sets any attributes
+				// invisible for this call.
+			if (expr) {
+				log = new LogSetAttribute(key.Value(), attr_name,
+										  ExprTreeToString(expr));
 				if (log->Write(fp) < 0) {
 					EXCEPT("write to %s failed, errno = %d", logFilename(),
 						   errno);
 				}
-				free(attr_val);
 				delete log;
 			}
-			delete [] attr_name;
-			attr_name = ad->NextName();
+			attr_name = ad->NextNameOriginal();
 		}
 			// ok, now that we're done writing out this ad, restore the chain
-		ad->RestoreChain(chain);
+		ad->ChainToAd(chain);
 	}
 	if (fflush(fp) !=0){
 	  EXCEPT("fflush of %s failed, errno = %d", logFilename(), errno);
@@ -1073,4 +1073,13 @@ InstantiateLogEntry(FILE *fp, int type)
 
 		// record was good
 	return log_rec;
+}
+
+void ClassAdLog::ListNewAdsInTransaction( std::list<std::string> &new_keys )
+{
+	if( !active_transaction ) {
+		return;
+	}
+
+	active_transaction->InTransactionListKeysWithOpType( CondorLogOp_NewClassAd, new_keys );
 }

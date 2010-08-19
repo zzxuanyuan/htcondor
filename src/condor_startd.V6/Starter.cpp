@@ -35,6 +35,7 @@
 #include "basename.h"
 #include "dc_starter.h"
 #include "classadHistory.h"
+#include "classad_helpers.h"
 
 #if defined(LINUX)
 #include "glexec_starter.h"
@@ -228,44 +229,31 @@ Starter::publish( ClassAd* ad, amask_t mask, StringList* list )
 		ignored_attr_list->append(ATTR_STARTER_IGNORED_ATTRS);
 	}
 
-	ExprTree *tree, *lhs;
-	char *expr_str = NULL, *lhstr = NULL;
+	ExprTree *tree;
+	const char *lhstr = NULL;
 	s_ad->ResetExpr();
-	while( (tree = s_ad->NextExpr()) ) {
-		if( (lhs = tree->LArg()) ) {
-			lhs->PrintToNewStr( &lhstr );
-		} else {
-			dprintf( D_ALWAYS, 
-					 "ERROR parsing Starter classad attribute!\n" );
-			continue;
-		}
-		tree->PrintToNewStr( &expr_str );
+	while( s_ad->NextExpr(lhstr, tree) ) {
 
 		if (ignored_attr_list) {
 				// insert every attr that's not in the ignored_attr_list
 			if (!ignored_attr_list->contains(lhstr)) {
-				ad->Insert(expr_str);
-				if (strincmp(lhstr, "Has", 3) == MATCH) {
+				ad->Insert(lhstr, tree->Copy());
+				if (strncasecmp(lhstr, "Has", 3) == MATCH) {
 					list->append(lhstr);
 				}
 			}
 		}
 		else {
 				// no list of attrs to ignore - fallback on old behavior
-			if( strincmp(lhstr, "Has", 3) == MATCH ) {
-				ad->Insert( expr_str );
+			if( strncasecmp(lhstr, "Has", 3) == MATCH ) {
+				ad->Insert( lhstr, tree->Copy() );
 				if( list ) {
 					list->append( lhstr );
 				}
-			} else if( strincmp(lhstr, "Java", 4) == MATCH ) {
-				ad->Insert( expr_str );
+			} else if( strncasecmp(lhstr, "Java", 4) == MATCH ) {
+				ad->Insert( lhstr, tree->Copy() );
 			}
 		}
-
-		free( expr_str );
-		expr_str = NULL;
-		free( lhstr );
-		lhstr = NULL;
 	}
 
 	if (ignored_attr_list) {
@@ -418,7 +406,7 @@ Starter::reallykill( int signo, int type )
 		case EACCES:
 			needs_stat = FALSE;
 			break;
-#if defined(OSF1) || defined(Darwin) || defined(CONDOR_FREEBSD)
+#if defined(Darwin) || defined(CONDOR_FREEBSD)
 				// dux 4.0 doesn't have ENOLINK for stat().  It does
 				// have ESTALE, which means our binaries live on a
 				// stale NFS mount.  So, we can at least EXCEPT with a
@@ -465,6 +453,7 @@ Starter::reallykill( int signo, int type )
 		dprintf( D_FULLDEBUG, 
 				 "In Starter::killpg() with pid %d, sig %d (%s)\n", 
 				 s_pid, signo, signame );
+		break;
 	case 2:
 		dprintf( D_FULLDEBUG, 
 				 "In Starter::kill_kids() with pid %d, sig %d (%s)\n", 
@@ -1209,11 +1198,14 @@ Starter::killHard( void )
 	if( ! active() ) {
 		return true;
 	}
+	
 	if( ! kill(DC_SIGHARDKILL) ) {
 		killpg( SIGKILL );
 		return false;
 	}
-	startKillTimer();
+	dprintf(D_FULLDEBUG, "in starter:killHard starting kill timer\n");
+	startKillTimer();	
+
 	return true;
 }
 
@@ -1267,7 +1259,7 @@ Starter::startKillTimer( void )
 			// Timer already started.
 		return TRUE;
 	}
-
+ 
 	int tmp_killing_timeout = killing_timeout;
 	if( s_claim && (s_claim->universe() == CONDOR_UNIVERSE_VM) ) {
 		// For vm universe, we need longer killing_timeout

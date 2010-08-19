@@ -58,9 +58,15 @@ public:
 	    /** Gets the log file from a Condor submit file.
 		    on success, the return value will be the log file name
 		    on failure, it will be ""
+			@param strSubFilename: the submit file name
+			@param directory: the directory of the submit file (can be blank)
+			@param isXml: reference to a binary variable that will be
+				set to true if log_xml is "true" in the submit file
+			@return the log file name from the submit file if successful,
+				or "" if unsuccessful
 		 */
     static MyString loadLogFileNameFromSubFile(const MyString &strSubFilename,
-			const MyString &directory);
+			const MyString &directory, bool &isXml);
 
 		/** Makes the given filename an absolute path
 			@param the name of the file (input/output)
@@ -69,7 +75,6 @@ public:
 		 */
 	static bool makePathAbsolute(MyString &filename, CondorError &errstack);
 
-#ifdef HAVE_EXT_CLASSADS
 	    /** Gets the log files from a Stork submit file.
 		 * @param The submit file name.
 		 * @param The directory containing the submit file.
@@ -80,7 +85,6 @@ public:
 		const MyString &strSubFilename,
 		const MyString &directory,
 		StringList &listLogFilenames);
-#endif
 
 		/** Gets the number of job procs queued by a submit file
 			@param The submit file name
@@ -154,7 +158,6 @@ private:
 	static MyString CombineLines(StringList &listIn, char continuation,
 			const MyString &filename, StringList &listOut);
 
-#ifdef HAVE_EXT_CLASSADS
 		/**
 		 * Skip whitespace in a std::string buffer.  This is a helper function
 		 * for loadLogFileNamesFromStorkSubFile().  When the new ClassAds
@@ -174,7 +177,6 @@ private:
 		 * @return "" if okay, or else an error message.
 		 */
 	static MyString readFile(char const *filename,std::string& buf);
-#endif
 
 };
 

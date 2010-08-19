@@ -197,6 +197,12 @@ class Matchmaker : public Service
 		                            /* result parameters: */
 		                       double &pieLeft);
 
+			// rewrite the requirements expression to make matchmaking faster
+		void OptimizeMachineAdForMatchmaking(ClassAd *ad);
+
+			// rewrite the requirements expression to make matchmaking faster
+		void OptimizeJobAdForMatchmaking(ClassAd *ad);
+
 		void MakeClaimIdHash(ClassAdList &startdPvtAdList, ClaimIdHash &claimIds);
 		char const *getClaimId (const char *, const char *, ClaimIdHash &, MyString &);
 		void addRemoteUserPrios( ClassAd* ad );
@@ -404,9 +410,14 @@ class Matchmaker : public Service
 		};
 		static int groupSortCompare(const void*, const void*);
 		
-		char RejectsTable[40];
-		char MatchesTable[40];
 		int prevLHF;
+
+		#define MAX_NEGOTIATION_CYCLE_STATS 100
+		class NegotiationCycleStats *negotiation_cycle_stats[MAX_NEGOTIATION_CYCLE_STATS];
+		int num_negotiation_cycle_stats;
+
+		void StartNewNegotiationCycleStat();
+		void publishNegotiationCycleStats( ClassAd *ad );
 };
 
 

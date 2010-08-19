@@ -53,9 +53,7 @@
 #include "condor_xml_classads.h"
 #include "condor_open.h"
 
-#ifdef WANT_CLASSAD_ANALYSIS
 #include "../classad_analysis/analysis.h"
-#endif
 
 #ifdef HAVE_EXT_POSTGRESQL
 #include "sqlquery.h"
@@ -157,9 +155,7 @@ static	ClassAdList	scheddList;
 
 static  Daemon *g_cur_schedd_for_process_buffer_line = NULL;
 
-#ifdef WANT_CLASSAD_ANALYSIS
 static  ClassAdAnalyzer analyzer;
-#endif
 
 static char* format_owner( char*, AttrList* );
 
@@ -182,6 +178,7 @@ clusterProcString::
 clusterProcString() {
 	dagman_cluster_id = -1;
 	dagman_proc_id    = -1;
+	string = 0;
 	return;
 }
 
@@ -209,7 +206,6 @@ static 	void		fetchSubmittorPrios();
 static	void		doRunAnalysis( ClassAd*, Daemon* );
 static	char *		doRunAnalysisToBuffer( ClassAd*, Daemon* );
 struct 	PrioEntry { MyString name; float prio; };
-static 	bool		analyze	= false;
 static  bool        better_analyze = false;
 static	bool		run = false;
 static	bool		goodput = false;
@@ -225,7 +221,7 @@ static  ExtArray<PrioEntry> prioTable;
 	
 const int SHORT_BUFFER_SIZE = 8192;
 const int LONG_BUFFER_SIZE = 16384;	
-char return_buff[LONG_BUFFER_SIZE];
+char return_buff[LONG_BUFFER_SIZE * 100];
 
 char *quillName = NULL;
 char *quillAddr = NULL;
@@ -346,7 +342,7 @@ int main (int argc, char **argv)
 	}
 
 	// check if analysis is required
-	if( analyze ) {
+	if( better_analyze ) {
 		setupAnalysis();
 	}
 
@@ -897,9 +893,6 @@ processCommandLineArguments (int argc, char *argv[])
 		if (match_prefix (arg, "long")) {
 			verbose = 1;
 			summarize = 0;
-			if( !custom_attributes ) {
-				attrs.clearAll();
-			}
 		} 
 		else
 		if (match_prefix (arg, "xml")) {
@@ -907,9 +900,6 @@ processCommandLineArguments (int argc, char *argv[])
 			verbose = 1;
 			summarize = 0;
 			customFormat = true;
-			if( !custom_attributes ) {
-				attrs.clearAll();
-			}
 		}
 		else
 		if (match_prefix (arg, "pool")) {
@@ -1193,36 +1183,27 @@ processCommandLineArguments (int argc, char *argv[])
 			usage(argv[0]);
 			exit(0);
 		}
-		else
-		if (match_prefix( arg , "analyze")
-			|| match_prefix( arg , "analyse")) {
-			analyze = true;
-			attrs.clearAll();
-		}
         else
         if (match_prefix( arg, "better-analyze")
-			|| match_prefix( arg , "better-analyse")) {
-#ifdef WANT_CLASSAD_ANALYSIS
-            analyze = true;
+			|| match_prefix( arg , "better-analyse")
+			|| match_prefix( arg , "analyze")
+			|| match_prefix( arg , "analyse")
+			) {
             better_analyze = true;
 			attrs.clearAll();
-#else
-            fprintf(stderr, "Sorry, the -better-analyze option is not available "
-                            "on this platform.\n");
-            exit(1);
-#endif
         }
 		else
 		if (match_prefix( arg, "run")) {
 			Q.add (CQ_STATUS, RUNNING);
 			run = true;
-			attrs.clearAll();
+			attrs.append( ATTR_REMOTE_HOST );
 		}
 		else
 		if (match_prefix( arg, "hold") || match_prefix( arg, "held")) {
 			Q.add (CQ_STATUS, HELD);		
 			show_held = true;
-			attrs.clearAll();
+			attrs.append( ATTR_ENTERED_CURRENT_STATUS );
+			attrs.append( ATTR_HOLD_REASON );
 		}
 		else
 		if (match_prefix( arg, "goodput")) {
@@ -1230,24 +1211,27 @@ processCommandLineArguments (int argc, char *argv[])
 			// real-estate, so they're mutually exclusive
 			goodput = true;
 			show_io = false;
-			attrs.clearAll();
+			attrs.append( ATTR_JOB_COMMITTED_TIME );
+			attrs.append( ATTR_SHADOW_BIRTHDATE );
+			attrs.append( ATTR_LAST_CKPT_TIME );
+			attrs.append( ATTR_JOB_REMOTE_WALL_CLOCK );
 		}
 		else
 		if (match_prefix( arg, "cputime")) {
 			cputime = true;
 			JOB_TIME = "CPU_TIME";
-			attrs.clearAll();
+		 	attrs.append( ATTR_JOB_REMOTE_USER_CPU );
 		}
 		else
 		if (match_prefix( arg, "currentrun")) {
 			current_run = true;
-			attrs.clearAll();
 		}
 		else
 		if( match_prefix( arg, "globus" ) ) {
 			Q.addAND( "GlobusStatus =!= UNDEFINED" );
 			globus = true;
-			attrs.clearAll();
+			attrs.append( ATTR_GLOBUS_STATUS );
+			attrs.append( ATTR_GRID_RESOURCE );
 		}
 		else
 		if( match_prefix( arg, "debug" ) ) {
@@ -1261,12 +1245,17 @@ processCommandLineArguments (int argc, char *argv[])
 			// real-estate, so they're mutually exclusive
 			show_io = true;
 			goodput = false;
-			attrs.clearAll();
-		}   
+			attrs.append(ATTR_FILE_READ_BYTES);
+			attrs.append(ATTR_FILE_WRITE_BYTES);
+			attrs.append(ATTR_FILE_SEEK_COUNT);
+			attrs.append(ATTR_JOB_REMOTE_WALL_CLOCK);
+			attrs.append(ATTR_BUFFER_SIZE);
+			attrs.append(ATTR_BUFFER_BLOCK_SIZE);
+		}
 		else if( match_prefix( arg, "dag" ) ) {
 			dag = true;
 			attrs.clearAll();
-		}   
+		}
 		else if (match_prefix(arg, "expert")) {
 			expert = true;
 			attrs.clearAll();
@@ -1305,6 +1294,11 @@ processCommandLineArguments (int argc, char *argv[])
 			usage(argv[0]);
 			exit( 1 );
 		}
+	}
+
+		//Added so -long or -xml can be listed before other options
+	if(verbose && !custom_attributes) {
+		attrs.clearAll();
 	}
 }
 
@@ -1579,16 +1573,6 @@ format_remote_host (char *, AttrList *ad)
 		} else {
 			return unknownHost;
 		}
-	} else if (universe == CONDOR_UNIVERSE_PVM) {
-		int current_hosts;
-		if (ad->LookupInteger( ATTR_CURRENT_HOSTS, current_hosts ) == 1) {
-			if (current_hosts == 1) {
-				sprintf(host_result, "1 host");
-			} else {
-				sprintf(host_result, "%d hosts", current_hosts);
-			}
-			return host_result;
-		}
 	} else if (universe == CONDOR_UNIVERSE_GRID) {
 		if (ad->LookupString(ATTR_GRID_RESOURCE,host_result) == 1 )
 			return host_result;
@@ -1664,7 +1648,7 @@ format_cpu_util (float utime, AttrList *ad)
 	int ckpt_time = 0;
 	ad->LookupInteger( ATTR_JOB_COMMITTED_TIME, ckpt_time);
 	if (ckpt_time == 0) return " [??????]";
-	float util = (ckpt_time) ? utime/ckpt_time*100.0 : 0.0;
+	float util = utime/ckpt_time*100.0;
 	if (util > 100.0) util = 100.0;
 	else if (util < 0.0) return " [??????]";
 	sprintf(result_format, "  %6.1f%%", util);
@@ -1690,7 +1674,7 @@ format_owner (char *owner, AttrList *ad)
 	// pre-v6.3 schedd)
 
 	if ( dag ) {
-		if ( ad->Lookup( ATTR_DAGMAN_JOB_ID ) ) {
+		if ( ad->LookupExpr( ATTR_DAGMAN_JOB_ID ) ) {
 
 				// We have a DAGMan job ID, this means we have a DAG node
 				// -- don't worry about what type the DAGMan job ID is.
@@ -1745,7 +1729,6 @@ format_globusHostAndJM( char *, AttrList *ad )
 	int	p;
 	char *attr_value = NULL;
 	char *resource_name = NULL;
-	bool new_syntax;
 	char *grid_type = NULL;
 
 	if ( ad->LookupString( ATTR_GRID_RESOURCE, &attr_value ) ) {
@@ -1757,24 +1740,16 @@ format_globusHostAndJM( char *, AttrList *ad )
 			grid_type = strdup( attr_value );
 			resource_name++;
 		}
-		new_syntax = true;
-	} else {
-			// ATTR_GRID_RESOURCE doesn't exist, try ATTR_GLOBUS_RESOURCE
-		ad->LookupString( ATTR_GLOBUS_RESOURCE, &attr_value );
-		resource_name = attr_value;
-		new_syntax = false;
-
-		ad->LookupString( ATTR_JOB_GRID_TYPE, &grid_type );
 	}
 
 	if ( resource_name != NULL ) {
 
-		if ( grid_type == NULL || !stricmp( grid_type, "gt2" ) ||
-			 !stricmp( grid_type, "globus" ) ) {
+		if ( grid_type == NULL || !strcasecmp( grid_type, "gt2" ) ||
+			 !strcasecmp( grid_type, "globus" ) ) {
 
 			// copy the hostname
 			p = strcspn( resource_name, ":/" );
-			if ( p > (int) sizeof(host) )
+			if ( p >= (int) sizeof(host) )
 				p = sizeof(host) - 1;
 			strncpy( host, resource_name, p );
 			host[p] = '\0';
@@ -1790,27 +1765,19 @@ format_globusHostAndJM( char *, AttrList *ad )
 				jm[p] = '\0';
 			}
 
-		} else if ( !stricmp( grid_type, "gt4" ) ) {
+		} else if ( !strcasecmp( grid_type, "gt4" ) ) {
 
 			strcpy( jm, "Fork" );
 
-			if ( new_syntax ) {
-					// GridResource is of the form '<service url> <jm type>'
-					// Find the space, zero it out, and grab the jm type from
-					// the end (if it's non-empty).
-				tmp = strchr( resource_name, ' ' );
-				if ( tmp ) {
-					*tmp = '\0';
-					if ( tmp[1] != '\0' ) {
-						strcpy( jm, &tmp[1] );
-					}
+				// GridResource is of the form '<service url> <jm type>'
+				// Find the space, zero it out, and grab the jm type from
+				// the end (if it's non-empty).
+			tmp = strchr( resource_name, ' ' );
+			if ( tmp ) {
+				*tmp = '\0';
+				if ( tmp[1] != '\0' ) {
+					strcpy( jm, &tmp[1] );
 				}
-			} else {
-					// No ATTR_GRID_RESOURCE, so the jm type is stored as
-					// a separate attribute.
-				ad->LookupString( ATTR_GLOBUS_JOBMANAGER_TYPE, jm,
-								  sizeof(jm) );
-				jm[sizeof(jm)-1] = '\0';
 			}
 
 				// Pick the hostname out of the URL
@@ -1853,6 +1820,7 @@ usage (char *myName)
 {
 	printf ("Usage: %s [options]\n\twhere [options] are\n"
 		"\t\t-global\t\t\tGet global queue\n"
+		"\t\t-debug\t\t\tDisplay debugging info to console\n"
 		"\t\t-submitter <submitter>\tGet queue of specific submitter\n"
 		"\t\t-help\t\t\tThis screen\n"
 		"\t\t-name <name>\t\tName of schedd\n"
@@ -1862,11 +1830,9 @@ usage (char *myName)
 		"\t\t-attributes X,Y,...\tAttributes to show in -xml and -long\n"
 		"\t\t-format <fmt> <attr>\tPrint attribute attr using format fmt\n"
 		"\t\t-analyze\t\tPerform schedulability analysis on jobs\n"
-#ifdef WANT_CLASSAD_ANALYSIS
-        "\t\t-better-analyze\t\tImproved version of -analyze\n"
-#endif
 		"\t\t-run\t\t\tGet information about running jobs\n"
 		"\t\t-hold\t\t\tGet information about jobs on hold\n"
+		"\t\t-globus\t\t\tGet information about Condor-G jobs\n"
 		"\t\t-goodput\t\tDisplay job goodput statistics\n"	
 		"\t\t-cputime\t\tDisplay CPU_TIME instead of RUN_TIME\n"
 		"\t\t-currentrun\t\tDisplay times only for current run\n"
@@ -1885,7 +1851,7 @@ usage (char *myName)
 		"\t\t-direct <schedd>\tPerform a direct query to the schedd\n"
 #endif
 		"\t\t-avgqueuetime\t\tAverage queue time for uncompleted jobs\n"
-		"\t\t-version\t\t\tPrint the Condor Version and exit\n"
+		"\t\t-version\t\tPrint the Condor Version and exit\n"
 		"\t\trestriction list\n"
 		"\twhere each restriction may be one of\n"
 		"\t\t<cluster>\t\tGet information about specific cluster\n"
@@ -1938,7 +1904,6 @@ show_queue_buffered( const char* v1, const char* v2, const char* v3, const char*
 	const char *db_ipAddr;
 	const char *db_name;
 	const char *query_password;
-	char *dbconn=NULL;
 	int i;
 
 	output_buffer = new ExtArray<clusterProcString*>;
@@ -2047,6 +2012,7 @@ show_queue_buffered( const char* v1, const char* v2, const char* v3, const char*
 	if (useDB) {
 #ifdef HAVE_EXT_POSTGRESQL
 
+		char *dbconn=NULL;
 		dbconn = getDBConnStr(quill_name, db_ipAddr, db_name, query_password);
 
 		if( Q.fetchQueueFromDBAndProcess( dbconn,
@@ -2067,6 +2033,9 @@ show_queue_buffered( const char* v1, const char* v2, const char* v3, const char*
 				free(lastUpdate);
 			}
 			return false;
+		}
+		if(dbconn) {
+			free(dbconn);
 		}
 #endif /* HAVE_EXT_POSTGRESQL */
 	} else {
@@ -2163,9 +2132,6 @@ show_queue_buffered( const char* v1, const char* v2, const char* v3, const char*
 	}
 	delete output_buffer;
 
-	if(dbconn) {
-		free(dbconn);
-	}
 	if(lastUpdate) {
 		free(lastUpdate);
 	}
@@ -2248,7 +2214,7 @@ process_buffer_line( ClassAd *job )
 		StringList *attr_white_list = attrs.isEmpty() ? NULL : &attrs;
 		job->sPrintAsXML(s,attr_white_list);
 		tempCPS->string = strnewp( s.Value() );
-	} else if( analyze ) {
+	} else if( better_analyze ) {
 		tempCPS->string = strnewp( doRunAnalysisToBuffer( job, g_cur_schedd_for_process_buffer_line ) );
 	} else if ( show_io ) {
 		tempCPS->string = strnewp( buffer_io_display( job ) );
@@ -2278,12 +2244,10 @@ show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool
 	const char *scheddMachine;
 	const char *scheddVersion;
 
-	const char *quill_name;
-	const char *db_ipAddr;
-	const char *db_name;
-	const char *query_password;
-
-	char *dbconn=NULL;
+	const char *quill_name = 0;
+	const char *db_ipAddr = 0;
+	const char *db_name = 0;
+	const char *query_password = 0;
 
 	ClassAdList jobs; 
 	ClassAd		*job;
@@ -2324,6 +2288,7 @@ show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool
 		if (useDB) {
 #ifdef HAVE_EXT_POSTGRESQL
 
+			char *dbconn=NULL;
 			dbconn = getDBConnStr(quill_name, db_ipAddr, db_name, query_password);
 
 				// fetch queue from database
@@ -2340,6 +2305,9 @@ show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool
 				return false;
 			}
 
+			if(dbconn) {
+				free(dbconn);
+			}
 #endif /* HAVE_EXT_POSTGRESQL */
 		} else {
 				// fetch queue from schedd	
@@ -2358,7 +2326,7 @@ show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool
 	}
 
 		// check if job is being analyzed
-	if( analyze ) {
+	if( better_analyze ) {
 			// print header
 		if (useDB) {
 			printf ("\n\n-- Quill: %s : %s : %s\n", quill_name, 
@@ -2379,9 +2347,6 @@ show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool
 		}
 		jobs.Close();
 
-		if(dbconn) {
-			free(dbconn);
-		}
 		if(lastUpdate) {
 			free(lastUpdate);
 		}
@@ -2518,9 +2483,6 @@ show_queue( const char* v1, const char* v2, const char* v3, const char* v4, bool
 		}
 	}
 
-	if(dbconn) {
-		free(dbconn);
-	}
 	if(lastUpdate) {
 		free(lastUpdate);
 	}
@@ -2565,6 +2527,9 @@ setupAnalysis()
 				ad->Insert( buffer );
 			}
 		}
+#if !defined(WANT_OLD_CLASSADS)
+		ad->AddTargetRefs( TargetJobAttrs );
+#endif
 	}
 	startdAds.Close();
 	
@@ -2591,6 +2556,11 @@ setupAnalysis()
 				"PREEMPTION_REQUIREMENTS expression: \n\t%s\n", preq );
 			exit( 1 );
 		}
+#if !defined(WANT_OLD_CLASSADS)
+		ExprTree *tmp_expr = AddTargetRefs( preemptionReq, TargetJobAttrs );
+		delete preemptionReq;
+		preemptionReq = tmp_expr;
+#endif
 		free( preq );
 	}
 
@@ -2617,9 +2587,9 @@ fetchSubmittorPrios()
 		exit( 1 );
 	}
 
-	sock->eom();
+	sock->end_of_message();
 	sock->decode();
-	if( !al.initFromStream(*sock) || !sock->end_of_message() ) {
+	if( !al.initAttrListFromStream(*sock) || !sock->end_of_message() ) {
 		fprintf( stderr, 
 				 "Error:  Could not get priorities from negotiator (%s)\n",
 				 negotiator.fullHostname() );
@@ -2681,6 +2651,10 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 
 	return_buff[0]='\0';
 
+#if !defined(WANT_OLD_CLASSADS)
+	request->AddTargetRefs( TargetMachineAttrs );
+#endif
+
 	if( schedd ) {
 		MyString buf;
 		warnScheddLimits(schedd,request,buf);
@@ -2738,6 +2712,14 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 	}
 
 	startdAds.Open();
+
+	std::string fReqConstraintStr("[");
+	std::string fOffConstraintStr("[");
+	std::string fOfflineStr("[");
+	std::string fPreemptPrioStr("[");
+	std::string fPreemptReqTestStr("[");
+	std::string fRankCondStr("[");
+
 	while( ( offer = startdAds.Next() ) ) {
 		// 0.  info from machine
 		remoteUser[0] = '\0';
@@ -2750,6 +2732,10 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 			if( verbose ) sprintf( return_buff,
 				"%sFailed request constraint\n", return_buff );
 			fReqConstraint++;
+			if (fReqConstraint != 1) {
+				fReqConstraintStr += ", ";
+			} 
+			fReqConstraintStr += buffer;
 			continue;
 		} 
 
@@ -2757,18 +2743,26 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 		if ( !IsAHalfMatch( offer, request ) ) {
 			if( verbose ) strcat( return_buff, "Failed offer constraint\n");
 			fOffConstraint++;
+			if (fOffConstraint != 1) {
+				fOffConstraintStr += ", ";
+			}
+			fOffConstraintStr += buffer;
 			continue;
 		}	
 
 		int offline = 0;
 		if( offer->EvalBool( ATTR_OFFLINE, NULL, offline ) && offline ) {
 			fOffline++;
+			if (fOffline != 1) {
+				fOfflineStr += ", ";
+			}
+			fOfflineStr += buffer;
 			continue;
 		}
 
 		// 3. Is there a remote user?
 		if( !offer->LookupString( ATTR_REMOTE_USER, remoteUser ) ) {
-			if( stdRankCondition->EvalTree( offer, request, &eval_result ) &&
+			if( EvalExprTree( stdRankCondition, offer, request, &eval_result ) &&
 					eval_result.type == LX_INTEGER && eval_result.i == TRUE ) {
 				// both sides satisfied and no remote user
 				if( verbose ) sprintf( return_buff, "%sAvailable\n",
@@ -2778,6 +2772,10 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 			} else {
 				// no remote user, but std rank condition failed
 				fRankCond++;
+				if (fRankCond != 1) {
+					fRankCondStr += ", ";
+				}
+				fRankCondStr += buffer;
 				if( verbose ) {
 					sprintf( return_buff,
 						"%sFailed rank condition: MY.Rank > MY.CurrentRank\n",
@@ -2788,11 +2786,11 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 		}
 
 		// 4. Satisfies preemption priority condition?
-		if( preemptPrioCondition->EvalTree( offer, request, &eval_result ) &&
+		if( EvalExprTree( preemptPrioCondition, offer, request, &eval_result ) &&
 			eval_result.type == LX_INTEGER && eval_result.i == TRUE ) {
 
 			// 5. Satisfies standard rank condition?
-			if( stdRankCondition->EvalTree( offer , request , &eval_result ) &&
+			if( EvalExprTree( stdRankCondition, offer , request , &eval_result ) &&
 				eval_result.type == LX_INTEGER && eval_result.i == TRUE )  
 			{
 				if( verbose )
@@ -2801,14 +2799,18 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 				continue;
 			} else {
 				// 6.  Satisfies preemption rank condition?
-				if( preemptRankCondition->EvalTree( offer, request, &eval_result ) &&
+				if( EvalExprTree( preemptRankCondition, offer, request, &eval_result ) &&
 					eval_result.type == LX_INTEGER && eval_result.i == TRUE )
 				{
 					// 7.  Tripped on PREEMPTION_REQUIREMENTS?
-					if( preemptionReq->EvalTree( offer , request , &eval_result ) &&
+					if( EvalExprTree( preemptionReq, offer , request , &eval_result ) &&
 						eval_result.type == LX_INTEGER && eval_result.i == FALSE ) 
 					{
 						fPreemptReqTest++;
+						if (fPreemptReqTest != 1) {
+							fPreemptReqTestStr += ", ";
+						}
+						fPreemptReqTestStr += buffer;
 						if( verbose ) {
 							sprintf( return_buff,
 									"%sCan preempt %s, but failed "
@@ -2838,6 +2840,10 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 		} else {
 			// failed 4
 			fPreemptPrioCond++;
+			if (fPreemptPrioCond != 1) {
+				fPreemptPrioStr += ", ";
+			}
+			fPreemptPrioStr += buffer;
 			if( verbose ) {
 				sprintf( return_buff,
 					"%sInsufficient priority to preempt %s\n" , 
@@ -2848,22 +2854,29 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 	}
 	startdAds.Close();
 
+	fReqConstraintStr += "]";
+	fOffConstraintStr += "]";
+	fOfflineStr += "]";
+	fPreemptPrioStr += "]";
+	fPreemptReqTestStr += "]";
+	fRankCondStr += "]";
+
 	sprintf( return_buff, 
 		 "%s---\n%03d.%03d:  Run analysis summary.  Of %d machines,\n"
-		 "  %5d are rejected by your job's requirements\n"
-		 "  %5d reject your job because of their own requirements\n"
-		 "  %5d match but are serving users with a better priority in the pool%s\n"
-		 "  %5d match but reject the job for unknown reasons\n"
-		 "  %5d match but will not currently preempt their existing job\n"
-         "  %5d match but are currently offline\n"
+		 "  %5d are rejected by your job's requirements %s\n"
+		 "  %5d reject your job because of their own requirements %s\n"
+		 "  %5d match but are serving users with a better priority in the pool%s %s\n"
+		 "  %5d match but reject the job for unknown reasons %s\n"
+		 "  %5d match but will not currently preempt their existing job %s\n"
+         "  %5d match but are currently offline %s\n"
 		 "  %5d are available to run your job\n",
 		return_buff, cluster, proc, totalMachines,
-		fReqConstraint,
-		fOffConstraint,
-		fPreemptPrioCond, niceUser ? "(*)" : "",
-		fRankCond,
-		fPreemptReqTest,
-		fOffline,
+		fReqConstraint, verbose ? fReqConstraintStr.c_str() : "",
+		fOffConstraint, verbose ? fOffConstraintStr.c_str() : "",
+		fPreemptPrioCond, niceUser ? "(*)" : "", verbose ? fPreemptPrioStr.c_str() : "",
+		fRankCond, verbose ? fRankCondStr.c_str() : "",
+		fPreemptReqTest,  verbose ? fPreemptReqTestStr.c_str() : "",
+		fOffline, verbose ? fOfflineStr.c_str() : "",
 		available );
 
 	int last_match_time=0, last_rej_match_time=0;
@@ -2899,27 +2912,20 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 	if( fReqConstraint == totalMachines ) {
 		strcat( return_buff, "\nWARNING:  Be advised:\n");
 		strcat( return_buff, "   No resources matched request's constraints\n");
-#ifdef WANT_CLASSAD_ANALYSIS
         if (!better_analyze) {
-#endif
-            char reqs[2048];
             ExprTree *reqExp;
             sprintf( return_buff, "%s   Check the %s expression below:\n\n" , 
                      return_buff, ATTR_REQUIREMENTS );
-            if( !(reqExp = request->Lookup( ATTR_REQUIREMENTS) ) ) {
+            if( !(reqExp = request->LookupExpr( ATTR_REQUIREMENTS) ) ) {
                 sprintf( return_buff, "%s   ERROR:  No %s expression found" ,
                          return_buff, ATTR_REQUIREMENTS );
             } else {
-                reqs[0] = '\0';
-                reqExp->PrintToStr( reqs );
-                sprintf( return_buff, "%s%s\n\n", return_buff, reqs );
+				sprintf( return_buff, "%s%s = %s\n\n", return_buff,
+						 ATTR_REQUIREMENTS, ExprTreeToString( reqExp ) );
             }
-#ifdef WANT_CLASSAD_ANALYSIS
         }
-#endif
 	}
 
-#if defined( WANT_CLASSAD_ANALYSIS )
     if (better_analyze) {
         std::string buffer_string = "";
         char ana_buffer[SHORT_BUFFER_SIZE];
@@ -2931,7 +2937,6 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
             strcat( return_buff, ana_buffer );
         }
     }
-#endif
 
 	if( fOffConstraint == totalMachines ) {
 		sprintf( return_buff, "%s\nWARNING:  Be advised:", return_buff );
@@ -2939,7 +2944,6 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 			"resource's constraints\n\n", return_buff, cluster, proc);
 	}
 
-#if defined( WANT_CLASSAD_ANALYSIS )
     if (better_analyze) {
         std::string buffer_string = "";
         char ana_buffer[SHORT_BUFFER_SIZE];
@@ -2951,16 +2955,11 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
             strcat( return_buff, ana_buffer );
         }
     }
-#endif
-
-	/* Attributes to check for grid universe matchmaking */ 
-	const char * ads_to_check[] = { ATTR_GLOBUS_RESOURCE,
-									ATTR_REMOTE_SCHEDD,
-									ATTR_GRID_RESOURCE };
 
 	request->LookupInteger( ATTR_JOB_UNIVERSE, universe );
 	bool uses_matchmaking = false;
 	unsigned int i;
+	MyString resource;
 	switch(universe) {
 			// Known valid
 		case CONDOR_UNIVERSE_STANDARD:
@@ -2969,8 +2968,6 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 			break;
 
 			// Unknown
-		case CONDOR_UNIVERSE_PVM:
-		case CONDOR_UNIVERSE_PVMD:
 		case CONDOR_UNIVERSE_PARALLEL:
 		case CONDOR_UNIVERSE_VM:
 			break;
@@ -2979,17 +2976,11 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 		case CONDOR_UNIVERSE_GRID:
 			/* We may be able to detect when it's valid.  Check for existance
 			 * of "$$(FOO)" style variables in the classad. */
-			for (i = 0;   
-				     i < sizeof(ads_to_check)/sizeof(ads_to_check[0]);
-					 i++) {
-				char resource[500];
-				resource[0] = '\0';
-				request->LookupString(ads_to_check[i], resource);
-				if ( strstr(resource,"$$") ) {
-					uses_matchmaking = true;
-					break;
-				}  
-			}
+			request->LookupString(ATTR_GRID_RESOURCE, resource);
+			if ( strstr(resource.Value(),"$$") ) {
+				uses_matchmaking = true;
+				break;
+			}  
 			if (!uses_matchmaking) {
 				sprintf( return_buff, "%s\nWARNING: Analysis is only meaningful for Grid universe jobs using matchmaking.\n", return_buff);
 			}
@@ -3014,6 +3005,8 @@ doRunAnalysisToBuffer( ClassAd *request, Daemon *schedd )
 		//case CONDOR_UNIVERSE_LINDA:
 		//case CONDOR_UNIVERSE_MAX:
 		//case CONDOR_UNIVERSE_MIN:
+		//case CONDOR_UNIVERSE_PVM:
+		//case CONDOR_UNIVERSE_PVMD:
 		default:
 			sprintf( return_buff, "%s\nWARNING: Job universe unknown.  Analysis may not be meaningful.\n", return_buff );
 			break;
@@ -3284,9 +3277,9 @@ void warnScheddLimits(Daemon *schedd,ClassAd *job,MyString &result_buf) {
 
 			if( schedd_requirements_attr ) {
 				MyString schedd_requirements_expr;
-				ExprTree *expr = ad->Lookup(schedd_requirements_attr);
+				ExprTree *expr = ad->LookupExpr(schedd_requirements_attr);
 				if( expr ) {
-					expr->PrintToStr(schedd_requirements_expr);
+					schedd_requirements_expr = ExprTreeToString(expr);
 				}
 				else {
 					schedd_requirements_expr = "UNDEFINED";

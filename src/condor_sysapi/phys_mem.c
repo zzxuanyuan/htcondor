@@ -49,41 +49,6 @@ sysapi_phys_memory_raw_no_param(void)
 	}
 }
 
-#elif defined(IRIX62) || defined(IRIX65)
-
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/sysmp.h>
-
-int
-sysapi_phys_memory_raw_no_param(void)
-{
-	struct rminfo rmstruct;
-	long pages, pagesz;
-	double size;
-
-	pagesz = (sysconf(_SC_PAGESIZE) >> 10);		// We want kbytes.
-	
-	if( (sysmp(MP_SAGET,MPSA_RMINFO,&rmstruct,sizeof(rmstruct)) < 0) ||
-		(pagesz == -1) ) { 
-		return -1;
-	}
-		/* Correct what appears to be some kind of rounding error */
-	if( rmstruct.physmem % 2 ) {
-		pages = rmstruct.physmem + 1;
-	} else {
-		pages = rmstruct.physmem;
-	}
-
-	/* Return the answer in megs */
-	size = (double)pages * (double)pagesz;
-	size /= 1024.0;
-	if (size > INT_MAX){
-		return INT_MAX;
-	}
-	return (int)size;
-}
-
 #elif defined(Solaris) 
 
 /*
@@ -176,28 +141,6 @@ sysapi_phys_memory_raw_no_param(void)
 	GlobalMemoryStatusEx(&statex);
 	
 	return (int)(statex.ullTotalPhys/(1024*1024));
-}
-
-#elif defined(OSF1)
-
-
-/* Need these two to avoid compiler warning since <sys/table.h>
-   includes a stupid version of <net/if.h> that does forward decls of
-   struct mbuf and struct rtentry for C++, but not C. -Derek 6/3/98 */
-#include <sys/mbuf.h>
-#include <net/route.h>
-
-#include <sys/table.h>
-
-int
-sysapi_phys_memory_raw_no_param(void)
-{
-	struct tbl_pmemstats s;
-
-	if (table(TBL_PMEMSTATS,0,(void *)&s,1,sizeof(s)) < 0) {
-		return -1;
-	}
-	return (int)(s.physmem/(1024*1024));
 }
 
 // See GNATS 529. This code should now detect >= 2Gigs properly.

@@ -210,7 +210,7 @@ CondorJob::CondorJob( ClassAd *classad )
 		str.Tokenize();
 
 		token = str.GetNextToken( " ", false );
-		if ( !token || stricmp( token, "condor" ) ) {
+		if ( !token || strcasecmp( token, "condor" ) ) {
 			error_string.sprintf( "%s not of type condor",
 								  ATTR_GRID_RESOURCE );
 			goto error_exit;
@@ -1075,8 +1075,10 @@ void CondorJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
+			const char *name;
+			ExprTree *expr;
 			jobAd->ResetExpr();
-			if ( jobAd->NextDirtyExpr() ) {
+			if ( jobAd->NextDirtyExpr(name, expr) ) {
 				requestScheddUpdate( this, true );
 				break;
 			}
@@ -1208,7 +1210,6 @@ void CondorJob::NotifyNewRemoteStatus( ClassAd *update_ad )
 		dprintf( D_FULLDEBUG, "(%d.%d) Got NULL classad from CondorResource\n",
 				 procID.cluster, procID.proc );
 		doActivePoll = true;
-		delete update_ad;
 		SetEvaluateState();
 		return;
 	}
@@ -1268,6 +1269,7 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 		ATTR_JOB_CORE_DUMPED,
 		ATTR_EXECUTABLE_SIZE,
 		ATTR_IMAGE_SIZE,
+		ATTR_SPOOLED_OUTPUT_FILES,
 		NULL };		// list must end with a NULL
 
 	if ( remote_ad == NULL ) {
@@ -1334,11 +1336,11 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 
 	index = -1;
 	while ( attrs_to_copy[++index] != NULL ) {
-		old_expr = jobAd->Lookup( attrs_to_copy[index] );
-		new_expr = remote_ad->Lookup( attrs_to_copy[index] );
+		old_expr = jobAd->LookupExpr( attrs_to_copy[index] );
+		new_expr = remote_ad->LookupExpr( attrs_to_copy[index] );
 
 		if ( new_expr != NULL && ( old_expr == NULL || !(*old_expr == *new_expr) ) ) {
-			jobAd->Insert( new_expr->DeepCopy() );
+			jobAd->Insert( attrs_to_copy[index], new_expr->Copy() );
 		}
 	}
 
@@ -1377,8 +1379,6 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_PROC_ID );
 	submit_ad->Delete( ATTR_USER );
 	submit_ad->Delete( ATTR_OWNER );
-	submit_ad->Delete( ATTR_REMOTE_SCHEDD );
-	submit_ad->Delete( ATTR_REMOTE_POOL );
 	submit_ad->Delete( ATTR_GRID_RESOURCE );
 	submit_ad->Delete( ATTR_JOB_MATCHED );
 	submit_ad->Delete( ATTR_JOB_MANAGED );
@@ -1399,7 +1399,6 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_GLOBAL_JOB_ID );
 	submit_ad->Delete( "CondorPlatform" );
 	submit_ad->Delete( "CondorVersion" );
-	submit_ad->Delete( ATTR_JOB_GRID_TYPE );
 	submit_ad->Delete( ATTR_WANT_CLAIMING );
 	submit_ad->Delete( ATTR_WANT_MATCHING );
 	submit_ad->Delete( ATTR_HOLD_REASON );
@@ -1436,9 +1435,12 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Assign( ATTR_NUM_RESTARTS, 0 );
 	submit_ad->Assign( ATTR_NUM_SYSTEM_HOLDS, 0 );
 	submit_ad->Assign( ATTR_JOB_COMMITTED_TIME, 0 );
+	submit_ad->Assign( ATTR_COMMITTED_SLOT_TIME, 0 );
+	submit_ad->Assign( ATTR_CUMULATIVE_SLOT_TIME, 0 );
 	submit_ad->Assign( ATTR_TOTAL_SUSPENSIONS, 0 );
 	submit_ad->Assign( ATTR_LAST_SUSPENSION_TIME, 0 );
 	submit_ad->Assign( ATTR_CUMULATIVE_SUSPENSION_TIME, 0 );
+	submit_ad->Assign( ATTR_COMMITTED_SUSPENSION_TIME, 0 );
 	submit_ad->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
 	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now  );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
@@ -1480,8 +1482,7 @@ ClassAd *CondorJob::buildSubmitAd()
 
 	if ( jobAd->LookupInteger( ATTR_JOB_LEASE_EXPIRATION, tmp_int ) ) {
 		submit_ad->Assign( ATTR_TIMER_REMOVE_CHECK, tmp_int );
-		expr.sprintf_cat( " && ( %s < %s )", ATTR_CURRENT_TIME,
-						  ATTR_TIMER_REMOVE_CHECK );
+		expr.sprintf_cat( " && ( time() < %s )", ATTR_TIMER_REMOVE_CHECK );
 	}
 
 	submit_ad->Insert( expr.Value() );
@@ -1490,7 +1491,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Insert( expr.Value() );
 
 	const int STAGE_IN_TIME_LIMIT  = 60 * 60 * 8; // 8 hours in seconds.
-	expr.sprintf( "%s = (%s > 0) =!= True && CurrentTime > %s + %d",
+	expr.sprintf( "%s = (%s > 0) =!= True && time() > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
 				  ATTR_Q_DATE, STAGE_IN_TIME_LIMIT );
 	submit_ad->Insert( expr.Value() );
@@ -1527,14 +1528,11 @@ ClassAd *CondorJob::buildSubmitAd()
 	}
 
 	jobAd->ResetExpr();
-	while ( (next_expr = jobAd->NextExpr()) != NULL ) {
-		if ( strncasecmp( ((Variable*)next_expr->LArg())->Name(),
-						  "REMOTE_", 7 ) == 0 &&
-			 strlen( ((Variable*)next_expr->LArg())->Name() ) > 7 ) {
+	while ( jobAd->NextExpr(next_name, next_expr) ) {
+		if ( strncasecmp( next_name, "REMOTE_", 7 ) == 0 &&
+			 strlen( next_name ) > 7 ) {
 
-			char *attr_value;
-			char const *attr_name = &((Variable*)next_expr->LArg())->Name()[7];
-			MyString buf;
+			char const *attr_name = &(next_name[7]);
 
 			if(strcasecmp(attr_name,ATTR_JOB_ENVIRONMENT1) == 0 ||
 			   strcasecmp(attr_name,ATTR_JOB_ENVIRONMENT1_DELIM) == 0 ||
@@ -1566,11 +1564,7 @@ ClassAd *CondorJob::buildSubmitAd()
 				}
 			}
 
-			next_expr->RArg()->PrintToNewStr(&attr_value);
-			buf.sprintf( "%s = %s", attr_name,
-						 attr_value );
-			submit_ad->Insert( buf.Value() );
-			free(attr_value);
+			submit_ad->Insert( attr_name, next_expr->Copy() );
 		}
 	}
 

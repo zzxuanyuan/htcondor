@@ -525,7 +525,7 @@ char * Condor_Auth_X509::get_server_info()
     OM_uint32	major_status = 0;
     OM_uint32	minor_status = 0;            
     OM_uint32   lifetime, flags;
-    gss_name_t  src = NULL, target = NULL;
+    gss_name_t  target = NULL;
     gss_OID     mech, name_type;
     gss_buffer_desc name_buf;
     char *      server = NULL;
@@ -533,7 +533,7 @@ char * Condor_Auth_X509::get_server_info()
     // Now, we do some authorization work 
     major_status = gss_inquire_context(&minor_status,
                                        context_handle,
-                                       &src,    
+                                       NULL,    
                                        &target,
                                        &lifetime,
                                        &mech, 
@@ -545,10 +545,12 @@ char * Condor_Auth_X509::get_server_info()
         return NULL;
     }
     else {
-        if ((major_status = gss_display_name(&minor_status,
+        major_status = gss_display_name(&minor_status,
                                              target,
                                              &name_buf,
-                                             &name_type)) != GSS_S_COMPLETE) {
+                                             &name_type);
+		gss_release_name( &minor_status, &target );
+		if( major_status != GSS_S_COMPLETE) {
             dprintf(D_SECURITY, "Unable to convert target principal name\n");
             return NULL;
         }
@@ -556,6 +558,7 @@ char * Condor_Auth_X509::get_server_info()
             server = new char[name_buf.length+1];
             memset(server, 0, name_buf.length+1);
             memcpy(server, name_buf.value, name_buf.length);
+			gss_release_buffer( &minor_status, &name_buf );
         }
     }
     return server;
@@ -887,13 +890,13 @@ int Condor_Auth_X509::authenticate_server_gss(CondorError* errstack)
     return (status == 0) ? FALSE : TRUE;
 }
 
-void Condor_Auth_X509::setFQAN(MyString fqan) {
-	dprintf (D_FULLDEBUG, "ZKM: setting FQAN: %s\n", fqan.Value());
+void Condor_Auth_X509::setFQAN(const char *fqan) {
+	dprintf (D_FULLDEBUG, "ZKM: setting FQAN: %s\n", fqan ? fqan : "");
 	m_fqan = fqan;
 }
 
-MyString Condor_Auth_X509::getFQAN() {
-	return m_fqan;
+const char *Condor_Auth_X509::getFQAN() {
+	return m_fqan.Value();
 }
 
 #endif

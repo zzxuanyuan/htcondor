@@ -113,8 +113,8 @@ bool
 Env::InsertEnvIntoClassAd( ClassAd *ad, MyString *error_msg, char const *opsys, CondorVersionInfo *condor_version) const
 {
 
-	bool has_env1 = ad->Lookup(ATTR_JOB_ENVIRONMENT1) != NULL;
-	bool has_env2 = ad->Lookup(ATTR_JOB_ENVIRONMENT2) != NULL;
+	bool has_env1 = ad->LookupExpr(ATTR_JOB_ENVIRONMENT1) != NULL;
+	bool has_env2 = ad->LookupExpr(ATTR_JOB_ENVIRONMENT2) != NULL;
 
 	bool requires_env1 = false;
 	if(condor_version) {
@@ -611,6 +611,7 @@ Env::getDelimitedStringV1RawOrV2Quoted(MyString *result,MyString *error_msg) con
 		return true;
 	}
 	else {
+		result->setChar(0, '\0');
 		return getDelimitedStringV2Quoted(result,error_msg);
 	}
 }
@@ -763,18 +764,6 @@ Env::GetEnv(MyString const &var,MyString &val) const
 {
 	// lookup returns 0 on success
 	return _envTable->lookup(var,val) == 0;
-}
-
-const char *
-Env::GetEnv(MyString const &var) const
-{
-	MyString val;
-	// lookup returns 0 on success
-	if ( _envTable->lookup(var,val) == 0 ) {
-		return val.Value();
-	} else {
-		return NULL;
-	}
 }
 
 bool

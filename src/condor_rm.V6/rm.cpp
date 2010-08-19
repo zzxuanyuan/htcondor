@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -36,6 +36,7 @@
 #include "dc_collector.h"
 #include "condor_distribution.h"
 #include "CondorError.h"
+#include "str_isxxx.h"
 
 
 char	*MyName;
@@ -133,7 +134,7 @@ usage()
 		fprintf( stderr,
 				     "  -fast               Use a fast vacate (hardkill)\n" );
 	}
-	fprintf( stderr, " and where [constraints] is one or more of:\n" );
+	fprintf( stderr, " and where [constraints] is one of:\n" );
 	fprintf( stderr, "  cluster.proc        %s the given job\n", word );
 	fprintf( stderr, "  cluster             %s the given cluster of jobs\n", word );
 	fprintf( stderr, "  user                %s all jobs owned by user\n", word );
@@ -387,20 +388,6 @@ main( int argc, char *argv[] )
 		exit( 1 );
 	}
 
-		// If this schedd doesn't support the new protocol, give a
-		// useful error message.
-	CondorVersionInfo ver_info( schedd->version(), "SCHEDD" );
-	if( ! ver_info.built_since_version(6, 3, 3) ) {
-		fprintf( stderr, "The version of the condor_schedd you want to "
-				 "communicate with is:\n%s\n", schedd->version() );
-		fprintf( stderr, "It is too old to support this version of "
-				 "%s:\n%s\n", MyName, CondorVersion() );
-		fprintf( stderr, "To use this version of %s you must upgrade "
-				 "the\n%s to at least version 6.3.3.\nAborting.\n",
-				 MyName, schedd->idStr() ); 
-		exit( 1 );
-	}
-
 		// Special case for condor_rm -forcex: a configuration
 		// setting can disable this functionality.  The real
 		// validation is done in the schedd, but we can catch
@@ -549,7 +536,7 @@ procArg(const char* arg)
 
 	MyString constraint;
 
-	if(isdigit(*arg))
+	if( str_isint(arg) || str_isreal(arg,true) )
 	// process by cluster/proc #
 	{
 		c = strtol(arg, &tmp, 10);
@@ -602,9 +589,8 @@ procArg(const char* arg)
 		fprintf( stderr, "Warning: unrecognized \"%s\" skipped.\n", arg );
 		return;
 	}
-	else if(isalpha(*arg))
 	// process by user name
-	{
+	else {
 		CondorError errstack;
 		constraint.sprintf("%s == \"%s\"", ATTR_OWNER, arg );
 		if( doWorkByConstraint(constraint.Value(), &errstack) ) {
@@ -620,8 +606,6 @@ procArg(const char* arg)
 					 "Couldn't find/%s all of user %s's job(s).\n",
 					 actionWord(mode,false), arg );
 		}
-	} else {
-		fprintf( stderr, "Warning: unrecognized \"%s\" skipped\n", arg );
 	}
 }
 

@@ -94,6 +94,13 @@ struct shadow_rec
 		// This ensures that the job can reconnect when we come back up
 		//
 	bool			keepClaimAttributes;
+
+	PROC_ID			prev_job_id;
+	Stream*			recycle_shadow_stream;
+	bool			exit_already_handled;
+
+	shadow_rec();
+	~shadow_rec();
 }; 
 
 struct OwnerData {
@@ -107,13 +114,13 @@ struct OwnerData {
   int OldFlockLevel;
   time_t NegotiationTimestamp;
   OwnerData() { Name=NULL; Domain=NULL;
-  JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=0; }
+  NegotiationTimestamp=JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=0; }
 };
 
 class match_rec: public ClaimIdParser
 {
  public:
-    match_rec(char*, char*, PROC_ID*, const ClassAd*, char*, char* pool,bool is_dedicated);
+    match_rec(char*, char*, PROC_ID*, const ClassAd*, char const*, char const* pool,bool is_dedicated);
 	~match_rec();
 
     char*   		peer; //sinful address of startd
@@ -150,6 +157,8 @@ class match_rec: public ClaimIdParser
 		// punched hole
 	MyString*		auth_hole_id;
 
+	bool m_startd_sends_alives;
+
 		// Set the mrec status to the given value (also updates
 		// entered_current_status)
 	void	setStatus( int stat );
@@ -173,7 +182,7 @@ class UserIdentity {
 			m_domain = src.m_domain;
 			m_auxid = src.m_auxid;			
 		}
-		UserIdentity(const char * user, const char * domainname, const ClassAd * ad);
+		UserIdentity(const char * user, const char * domainname, ClassAd * ad);
 		const UserIdentity & operator=(const UserIdentity & src) {
 			m_username = src.m_username;
 			m_domain = src.m_domain;
@@ -221,7 +230,6 @@ typedef enum {
 	NO_SHADOW_OLD_VANILLA,
 	NO_SHADOW_RECONNECT,
 	NO_SHADOW_MPI,
-	NO_SHADOW_PRE_6_8_5_STD,
 	NO_SHADOW_VM,
 } NoShadowFailure_t;
 
@@ -292,7 +300,7 @@ class Scheduler : public Service
 	void            enqueueActOnJobMyself( PROC_ID job_id, JobAction action, bool notify );
 	int             actOnJobMyselfHandler( ServiceData* data );
 	int				updateGSICred(int, Stream* s);
-	void            setNextJobDelay( ClassAd const *job_ad, ClassAd const *machine_ad );
+	void            setNextJobDelay( ClassAd *job_ad, ClassAd *machine_ad );
 	int				spoolJobFiles(int, Stream *);
 	static int		spoolJobFilesWorkerThread(void *, Stream *);
 	static int		transferJobFilesWorkerThread(void *, Stream *);
@@ -302,12 +310,15 @@ class Scheduler : public Service
 	void			PeriodicExprHandler( void );
 	void			addCronTabClassAd( ClassAd* );
 	void			addCronTabClusterId( int );
+	int				RecycleShadow(int cmd, Stream *stream);
+	void			finishRecycleShadow(shadow_rec *srec);
 
 	int				requestSandboxLocation(int mode, Stream* s);
 
 	// match managing
 	int 			publish( ClassAd *ad );
-    match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*, match_rec **pre_existing=NULL);
+	void			OptimizeMachineAdForMatchmaking(ClassAd *ad);
+    match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char const*, char const*, match_rec **pre_existing=NULL);
 	// All deletions of match records _MUST_ go through DelMrec() to ensure
 	// proper cleanup.
     int         	DelMrec(char const*);
@@ -321,6 +332,7 @@ class Scheduler : public Service
 	void			RemoveShadowRecFromMrec(shadow_rec*);
 	void            sendSignalToShadow(pid_t pid,int sig,PROC_ID proc);
 	int				AlreadyMatched(PROC_ID*);
+	void			ExpediteStartJobs();
 	void			StartJobs();
 	void			StartJob(match_rec *rec);
 	void			StartLocalJobs();
@@ -346,7 +358,7 @@ class Scheduler : public Service
 	bool			WriteTerminateToUserLog( PROC_ID job_id, int status );
 	bool			WriteRequeueToUserLog( PROC_ID job_id, int status, const char * reason );
 	int				receive_startd_alive(int cmd, Stream *s);
-
+	void			InsertMachineAttrs( int cluster, int proc, ClassAd *machine );
 		// Public startd socket management functions
 	void            checkContactQueue();
 
@@ -645,7 +657,6 @@ private:
 
 	shadow_rec*		StartJob(match_rec*, PROC_ID*);
 	shadow_rec*		start_std(match_rec*, PROC_ID*, int univ);
-	shadow_rec*		start_pvm(match_rec*, PROC_ID*);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	shadow_rec*		start_local_universe_job(PROC_ID*);
 	bool			spawnJobHandlerRaw( shadow_rec* srec, const char* path,
@@ -657,7 +668,7 @@ private:
 	void			kill_zombie(int, PROC_ID*);
 	int				is_alive(shadow_rec* srec);
 	shadow_rec*     find_shadow_rec(PROC_ID*);
-	void			NotifyUser(shadow_rec*, char*, int, int);
+	void			NotifyUser(shadow_rec*, const char*, int, int);
 	
 #ifdef CARMI_OPS
 	shadow_rec*		find_shadow_by_cluster( PROC_ID * );
@@ -675,7 +686,6 @@ private:
 	DaemonList		*FlockCollectors, *FlockNegotiators;
 	int				MaxFlockLevel;
 	int				FlockLevel;
-	bool			startd_sends_alives;	
     int         	alive_interval;  // how often to broadcast alive
 		// leaseAliveInterval is the minimum interval we need to send
 		// keepalives based upon ATTR_JOB_LEASE_DURATION...
@@ -710,6 +720,8 @@ private:
 	int prevLHF;
 #endif
 
+	StringList m_job_machine_attrs;
+	int m_job_machine_attrs_history_length;
 };
 
 

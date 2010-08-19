@@ -306,8 +306,11 @@ extract_VOMS_info( globus_gsi_cred_handle_t cred_handle, int verify_type, char *
 
 	char* x509_fqan_delimiter = NULL;
 
+	// calling this function on something that doesn't have VOMS attributes
+	// should return error 1.  when the config knob disables VOMS, behave the
+	// same way.
 	if (!param_boolean_int("USE_VOMS_ATTRIBUTES", 1)) {
-		return 0;
+		return 1;
 	}
 
 	ret = globus_gsi_cred_get_cert_chain(cred_handle, &chain);
@@ -438,7 +441,7 @@ end:
 	if (cert)
 		X509_free(cert);
 	if(chain)
-		sk_X509_free(chain);
+		sk_X509_pop_free(chain, X509_free);
 
 	return ret;
 #endif
@@ -955,6 +958,7 @@ x509_send_delegation( const char *source_file,
 	STACK_OF(X509) *cert_chain = NULL;
 	int idx = 0;
 	globus_gsi_cert_utils_cert_type_t cert_type;
+	int is_limited;
 
 	if ( activate_globus_gsi() != 0 ) {
 		return -1;
@@ -1043,6 +1047,17 @@ x509_send_delegation( const char *source_file,
 		rc = -1;
 		error_line = __LINE__;
 		goto cleanup;
+	}
+
+	// see if this should be made a limited proxy
+	is_limited = !(param_boolean_int("DELEGATE_FULL_JOB_GSI_CREDENTIALS", 0));
+	if (is_limited) {
+		result = globus_gsi_proxy_handle_set_is_limited( new_proxy, GLOBUS_TRUE);
+		if ( result != GLOBUS_SUCCESS ) {
+			rc = -1;
+			error_line = __LINE__;
+			goto cleanup;
+		}
 	}
 
 	/* TODO Do we have to destroy and re-create bio, or can we reuse it? */

@@ -464,10 +464,8 @@ JobQueueCollection::loadAd(char* cid,
 						   ClassAd* ad)
 {
 	MyString sql_str;
-	AssignOpBase*	expr;		// For Each Attribute in ClassAd
-	VariableBase* 	nameExpr;	// For Attribute Name
-	StringBase* 	valExpr;	// For Value
-	char name[1000];
+	ExprTree*	expr;		// For Each Attribute in ClassAd
+	const char *name = NULL;
 	MyString value;
 	int len;
 	MyString attNameList; 
@@ -475,7 +473,6 @@ JobQueueCollection::loadAd(char* cid,
 	MyString tmpVal;
 	MyString newvalue;
 	MyString ts_expr;
-	char *tmp;
 	int hor_bndcnt = 0;
 	const char* longstr_arr[2];
 	QuillAttrDataType typ_arr[2];
@@ -493,19 +490,8 @@ JobQueueCollection::loadAd(char* cid,
 
 	ad->ResetExpr(); // for iteration initialization
 
-	while((expr = (AssignOpBase*)(ad->NextExpr())) != NULL) {
-		nameExpr = (VariableBase*)expr->LArg(); // Name Express Tree
-		valExpr = (StringBase*)expr->RArg();	// Value Express Tree
-
-		valExpr->PrintToNewStr(&tmp);
-
-		if (tmp == NULL) break;
-
-		value = tmp;
-		free(tmp);
-
-		strcpy(name, "");
-		nameExpr->PrintToStr(name);		
+	while(ad->NextExpr(name, expr)) {
+		value = ExprTreeToString(expr);
 		
 			// procad
 		if (pid != NULL) {
@@ -523,18 +509,8 @@ JobQueueCollection::loadAd(char* cid,
 					}
 
 					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
-					{
-							/* we need to use binded update for this col */
-						hor_bndcnt ++;
-						tmpVal.sprintf(":%d", hor_bndcnt);
-						
-							// since newvalue is a temp valuable, copy and 
-							// save the string value.
-						longmystr_arr[hor_bndcnt-1] = newvalue;
-						longstr_arr[hor_bndcnt-1] = longmystr_arr[hor_bndcnt-1].Value();
-						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_STRING;
-					}
-						
+					tmpVal.sprintf("'%s'", newvalue.Value());
+
 					break;
 				case CONDOR_TT_TYPE_STRING:	
 						// strip double quotes
@@ -603,17 +579,7 @@ JobQueueCollection::loadAd(char* cid,
 					}
 					
 					newvalue = condor_ttdb_fillEscapeCharacters(value.Value(), dt);
-					{
-							/* we need to use binded update for this col */
-						hor_bndcnt ++;
-						tmpVal.sprintf(":%d", hor_bndcnt);
-						
-							// since newvalue is a temp valuable, copy and 
-							// save the string value.
-						longmystr_arr[hor_bndcnt-1] = newvalue;
-						longstr_arr[hor_bndcnt-1] = longmystr_arr[hor_bndcnt-1].Value();
-						typ_arr[hor_bndcnt-1] = CONDOR_TT_TYPE_STRING;
-					}
+					tmpVal.sprintf("'%s'", newvalue.Value());
 						
 					break;					
 				case CONDOR_TT_TYPE_STRING:					

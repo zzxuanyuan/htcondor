@@ -49,7 +49,7 @@ Resource::Resource( CpuAttributes* cap, int rid, Resource* _parent )
 	}
 	if( _parent ) {
 		r_sub_id = _parent->m_id_dispenser->next();
-		tmp.sprintf_cat( "%d.%d", r_id, r_sub_id );
+		tmp.sprintf_cat( "%d_%d", r_id, r_sub_id );
 	} else {
 		tmp.sprintf_cat( "%d", r_id );
 	}
@@ -324,7 +324,7 @@ Resource::got_alive( void )
 		dprintf( D_ALWAYS, "Got keep alive with no current client object.\n" );
 		return FALSE;
 	}
-	r_cur->alive();
+	r_cur->alive( true );
 	return TRUE;
 }
 
@@ -997,15 +997,22 @@ Resource::final_update( void )
 {
 	ClassAd invalidate_ad;
 	MyString line;
+	MyString escaped_name;
 
 		// Set the correct types
 	invalidate_ad.SetMyTypeName( QUERY_ADTYPE );
 	invalidate_ad.SetTargetTypeName( STARTD_ADTYPE );
 
-		// We only want to invalidate this slot.
-	line.sprintf( "%s = %s == \"%s\"", ATTR_REQUIREMENTS, ATTR_NAME,
-			 r_name );
-	invalidate_ad.Insert( line.Value() );
+	/*
+	 * NOTE: the collector depends on the data below for performance reasons
+	 * if you change here you will need to CollectorEngine::remove (AdTypes t_AddType, const ClassAd & c_query)
+	 * the IP was added to allow the collector to create a hash key to delete in O(1).
+     */
+	 ClassAd::EscapeStringValue( r_name, escaped_name );
+     line.sprintf( "( %s == \"%s\" )", ATTR_NAME, escaped_name.Value() );
+     invalidate_ad.AssignExpr( ATTR_REQUIREMENTS, line.Value() );
+     invalidate_ad.Assign( ATTR_NAME, r_name );
+     invalidate_ad.Assign( ATTR_MY_ADDRESS, daemonCore->publicNetworkIpAddr());
 
 #if HAVE_DLOPEN
 	StartdPluginManager::Invalidate(&invalidate_ad);
@@ -1081,7 +1088,7 @@ Resource::update_with_ack( void )
 
     }
 
-    if ( !socket->eom () ) {
+    if ( !socket->end_of_message() ) {
 
         dprintf (
             D_FULLDEBUG,
@@ -1116,7 +1123,7 @@ Resource::update_with_ack( void )
 
     }
 
-    socket->eom ();
+    socket->end_of_message();
 
     return success;
 
@@ -1133,9 +1140,10 @@ Resource::hold_job( )
 		ExprTree *want_hold_expr;
 		MyString want_hold_str;
 
-		want_hold_expr = r_classad->Lookup("WANT_HOLD");
+		want_hold_expr = r_classad->LookupExpr("WANT_HOLD");
 		if( want_hold_expr ) {
-			want_hold_expr->PrintToStr(want_hold_str);
+			want_hold_str.sprintf( "%s = %s", "WANT_HOLD",
+								   ExprTreeToString( want_hold_expr ) );
 		}
 
 		hold_reason = "The startd put this job on hold.  (At preemption time, WANT_HOLD evaluated to true: ";
@@ -1338,7 +1346,7 @@ Resource::claimWorklifeExpired()
 		int ClaimWorklife = 0;
 
 		//look up the maximum retirement time specified by the startd
-		if(!r_classad->LookupElem("CLAIM_WORKLIFE") ||
+		if(!r_classad->LookupExpr("CLAIM_WORKLIFE") ||
 		   !r_classad->EvalInteger(
 				  "CLAIM_WORKLIFE",
 		          NULL,
@@ -1368,7 +1376,7 @@ Resource::retirementExpired()
 
 	if (r_cur && r_cur->isActive() && r_cur->ad()) {
 		//look up the maximum retirement time specified by the startd
-		if(!r_classad->LookupElem(ATTR_MAX_JOB_RETIREMENT_TIME) ||
+		if(!r_classad->LookupExpr(ATTR_MAX_JOB_RETIREMENT_TIME) ||
 		   !r_classad->EvalInteger(
 		          ATTR_MAX_JOB_RETIREMENT_TIME,
 		          r_cur->ad(),
@@ -1381,7 +1389,7 @@ Resource::retirementExpired()
 			MaxJobRetirementTime = INT_MAX;
 		}
 		//look up the maximum retirement time specified by the job
-		if(r_cur->ad()->LookupElem(ATTR_MAX_JOB_RETIREMENT_TIME) &&
+		if(r_cur->ad()->LookupExpr(ATTR_MAX_JOB_RETIREMENT_TIME) &&
 		   r_cur->ad()->EvalInteger(
 		          ATTR_MAX_JOB_RETIREMENT_TIME,
 		          r_classad,
@@ -1436,7 +1444,11 @@ Resource::eval_expr( const char* expr_name, bool fatal, bool check_vanilla )
 			dprintf(D_ALWAYS, "Can't evaluate %s in the context of following ads\n", expr_name );
 			r_classad->dPrint(D_ALWAYS);
 			dprintf(D_ALWAYS, "=============================\n");
-			r_cur->ad()->dPrint(D_ALWAYS);
+			if ( r_cur->ad() ) {
+				r_cur->ad()->dPrint(D_ALWAYS);
+			} else {
+				dprintf( D_ALWAYS, "<no job ad>\n" );
+			}
 			EXCEPT( "Can't evaluate %s", expr_name );
 		} else {
 				// anything else for here?
@@ -1658,7 +1670,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 			// Also, include a slot ID attribute, since it's handy for
 			// defining expressions, and other things.
 		cap->Assign(ATTR_SLOT_ID, r_id);
-		if (param_boolean("ALLOW_VM_CRUFT", true)) {
+		if (param_boolean("ALLOW_VM_CRUFT", false)) {
 			cap->Assign(ATTR_VIRTUAL_MACHINE_ID, r_id);
 		}
 
@@ -1758,6 +1770,10 @@ Resource::publish( ClassAd* cap, amask_t mask )
 	if( IS_PUBLIC(mask) && IS_SHARED_SLOT(mask) ) {
 		resmgr->publishSlotAttrs( cap );
 	}
+
+#if !defined(WANT_OLD_CLASSADS)
+	cap->AddTargetRefs( TargetJobAttrs, false );
+#endif
 }
 
 void

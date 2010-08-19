@@ -240,8 +240,6 @@ elif test $os = "Linux" ; then
     _cv_arch="CONDOR_PPC"
   elif test $arch = "x86_64" ; then
     _cv_arch="X86_64"
-  elif test $arch = "mips64" ; then
-    _cv_arch="MIPS64"
   fi
 
   # next, figure out what linux distribution this is
@@ -355,9 +353,6 @@ elif test $os = "Linux" ; then
   elif test -f "/etc/SuSE-release" ; then
     _suse_vers=`cat /etc/SuSE-release | grep VERSION | $AWK '{print $3}'`
     case "$_suse_vers" in
-     "8.1" )
-       _cv_linux_distro="SLES81"
-       ;;
      "9" )
        _cv_linux_distro="SLES9"
        ;;
@@ -401,8 +396,10 @@ elif test $os = "SunOS" ; then
   _cv_opsys="SOLARIS"
   if test $arch = "sun4m" -o $arch = "sun4u" ; then
     _cv_arch="SUN4X"
+  elif test $arch = "i86pc" ; then
+    _cv_arch="X86_64"
   else
-    AC_MSG_ERROR([Condor only supports Sparc Solaris (not $arch)])
+    AC_MSG_ERROR([Condor only supports SPARC and X86/64 Solaris (not $arch)])
   fi
   if test "$osrelease" = "5.6" ; then
     _cv_opsys_vers="SOLARIS26"
@@ -416,6 +413,16 @@ elif test $os = "SunOS" ; then
   elif test "$osrelease" = "5.9" ; then
     _cv_opsys_vers="SOLARIS29"
     _cv_sysname="sun4x_59"
+  elif test "$osrelease" = "5.10" ; then
+    _cv_opsys_vers="SOLARIS10"
+    _cv_sysname="sun4x_solaris10"
+  elif test "$osrelease" = "5.11" ; then
+    _cv_opsys_vers="SOLARIS11"
+    if test "$arch" = "i86pc" ; then
+      _cv_sysname="x86_64_solaris11"
+    else
+      _cv_sysname="sun4x_solaris11"
+    fi
   fi
 
   # now figure out the kernel revision. Under solaris this will have
@@ -576,6 +583,9 @@ if test "$KERNEL"  != "" ; then
   _cv_kernel_rev="$KERNEL"
 fi
 
+echo "opsys_ver:${_cv_opsys_vers}"
+echo "sysname:${_cv_sysname}"
+
 if test "$LIBC" != "" ; then
   AC_MSG_NOTICE([Using libc \"$LIBC\" from command line])
   _cv_libc_kind=`echo $LIBC | $CUT -f1 -d-`
@@ -615,7 +625,11 @@ AC_SUBST(_cv_platform,$_cv_platform)
 # check out the libc
 if test "$_cv_opsys" = "LINUX" ; then
   AC_MSG_CHECKING([exact libc version])
-  for _libc in "/lib/libc.so.6" "/lib/libc.so.6.1" "/lib64/libc.so.6" ; do
+  glibc_prefix=
+  if test "x$with_glibc" != "xno" -a -d "$with_glibc"; then
+      glibc_prefix="$with_glibc"
+  fi
+  for _libc in "$glibc_prefix/lib/libc.so.6" "$glibc_prefix/lib/libc.so.6.1" "$glibc_prefix/lib64/libc.so.6" ; do
     if test -f "$_libc" && test -L "$_libc" ; then
       _libc_ver=`echo $_libc|$PERL -nle '$f=readlink;$f=~/libc-(.*)\.so/;print $1;'`
       break;
@@ -662,7 +676,7 @@ AC_SUBST(_cv_libc_is_kind,$_cv_libc_is_kind)
 # AS_DIRNAME to strip off the "src" part of `/bin/pwd`.  This should
 # get things right, even if there are weird symlinks going on.
 #########
-_src_dir=`/bin/pwd`
+_src_dir=`pwd`
 _root_dir=`AS_DIRNAME(["$_src_dir"])`
 
 CONDOR_VERIFY_CONFIG_DIR([$_root_dir/config],
@@ -729,6 +743,15 @@ AC_ARG_ENABLE(soft-is-hard,
      [Force all SOFT requirements into HARD requirements (default: disabled)])],
   [],
   [enable_soft_is_hard=no])
+
+AC_ARG_ENABLE(old-classads,
+  [AS_HELP_STRING([--disable-old-classads],
+     [Replace old ClassAds with compatiblity layer])],
+  [],
+  [enable_old_classads=no])
+if test $enable_old_classads = "yes"; then
+  AC_DEFINE([WANT_OLD_CLASSADS],[1],[Define if using old ClassAds])
+fi
 
 # if we want a buildid, jam it into CPPFLAGS
 AC_MSG_CHECKING(for a build id to use)
@@ -1159,7 +1182,7 @@ else
   rm -f static_test.c static_test.o static_test > /dev/null 2>&1
   if test "x$gcc_static_ld_flag" = "x" ; then
     msg="can not find appropriate flags for $gcc_ld_prog!"
-    if test $os = "SunOS" ; then
+    if test $os = "SunOS" && test "$arch" != "i86pc" ; then
       # on Solaris, this is fatal, since we depend on this info
       AC_MSG_ERROR([$msg])
     else
@@ -1427,22 +1450,21 @@ AC_SUBST([has_vendor_f90],[$_cv_has_vendor_f90])
 #  2. C++ exception handling in stdc++ assumes that the glibc is compiled
 #     with TLS, but ours isn't and doesn't compile out of the box with
 #     TLS.
-	
-AC_MSG_CHECKING([for clipped port default])
-case "$_cv_opsys-$_cv_opsys_vers-$_cv_arch-$_cv_linux_distro-$_cv_libc_major-$_cv_libc_minor" in
-  *-AIX5-* | \
-  *-DUX5-* | \
-  DARWIN-* | \
-  CONDOR_FREEBSD-* | \
-  *-HPUX11-* | \
-  LINUX-*-ALPHA-* | \
-  LINUX-*-*-DEBIAN40-* | \
-  LINUX-*-IA64-* | \
-  SOLARIS-* | \
-  LINUX-*-CONDOR_PPC-* ) _cv_clipped_default=yes ;;
-  * ) _cv_clipped_default=no ;;
-esac
-AC_MSG_RESULT([$_cv_clipped_default])
+
+_cv_clipped_default=yes
+if test "x$CLIPPED" = "xdefault"; then
+  AC_MSG_CHECKING([for clipped port default])
+  case "$_cv_opsys-$_cv_opsys_vers-$_cv_arch-$_cv_linux_distro-$_cv_libc_major-$_cv_libc_minor" in
+	LINUX-*-I386-RHEL3-* | \
+	LINUX-*-X86_64-RHEL3-* | \
+	LINUX-*-I386-RHEL5-* | \
+	LINUX-*-X86_64-RHEL5-* | \
+	LINUX-*-I386-DEBIAN50-* | \
+	LINUX-*-X86_64-DEBIAN50-* ) _cv_clipped_default=no ;;
+    * ) _cv_clipped_default=yes ;;
+  esac
+  AC_MSG_RESULT([$_cv_clipped_default])
+fi
 
 AC_MSG_CHECKING([for clipped port])
 if test "x$CLIPPED" = "xdefault"; then
@@ -1650,6 +1672,8 @@ fi
 case "$_cv_opsys_vers" in
   SOLARIS28 ) AC_DEFINE([Solaris28], [Solaris28], [Define if on Solaris28]) ;;
   SOLARIS29 ) AC_DEFINE([Solaris29], [Solaris29], [Define if on Solaris29]) ;;
+  SOLARIS10 ) AC_DEFINE([Solaris10], [Solaris10], [Define if on Solaris10]) ;;
+  SOLARIS11 ) AC_DEFINE([Solaris11], [Solaris11], [Define if on Solaris11]) ;;
 esac
 
 # Old FREEBSD*.cf files contained -DCONDOR_FREEBSD*=CONDOR_FREEBSD*,
@@ -1671,17 +1695,6 @@ case "$_cv_opsys_vers" in
   OSX_10_3 ) AC_DEFINE([Darwin_10_3], [Darwin_10_3], [Define if on OS X 10.3]) ;;
   OSX_10_4 ) AC_DEFINE([Darwin_10_4], [Darwin_10_4], [Define if on OS X 10.4]) ;;
 esac
-
-# Old ALPHA_OSF1_V*.cf files contained -DDUX=DUX -DDUX*=DUX* -DTRU64,
-# so instead we AC_DEFINE them here, TRU64 is just for gsoap
-if test "x$_cv_opsys" = xyes; then
-  AC_DEFINE([DUX], [DUX], [Define if on DUX])
-  AC_DEFINE([TRU64], [DUX], [Define if on TRU64 (DUX)])
-
-  case "$_cv_opsys_vers" in
-    DUX5 ) AC_DEFINE([DUX5], [DUX5], [Define if on DUX5]) ;;
-  esac
-fi
 
 # ArchOptimizeFlag logic used to live in .cf files, mostly
 # LINUX_I386.cf, that logic now lives here.
@@ -1717,7 +1730,6 @@ case "$_cv_opsys" in
   # specifically ask for the C++ libraries to be statically linked
   AIX ) _cv_platform_ld_flags="-Wl,-berok -Wl,-bstatic -lstdc++ -Wl,-bdynamic -lcfg -lodm -lcrypt -lc -static-libgcc" ;;
   LINUX | DARWIN ) _cv_platform_ld_flags="-lresolv" ;;
-  DUX ) _cv_platform_ld_flags="-lmld" ;;
   HPUX ) # HPUX11 Only...
     if test "x$_cv_opsys_vers" = "xHPUX11" ; then
       _cv_platform_ld_flags="-Wl,+vnocompatwarnings $_cv_lib_std_cpp";
@@ -1769,6 +1781,8 @@ AC_SUBST([_cv_glibc_flag], [$_cv_glibc_flag])
 
 # PlatformFlags logic has been moved here from .cf files, primarily
 # HPUX11.cf and LINUX.cf.
+# On AIX, the TOC overflows when linking the schedd. These options reduce
+# the number of entries in the TOC.
 case "$_cv_opsys" in
   LINUX ) _cv_platform_flags="$_cv_arch_optimize_flag $_cv_glibc_flag" ;;
   HPUX ) # HPUX11 Only...
@@ -1776,6 +1790,7 @@ case "$_cv_opsys" in
       _cv_platform_flags="-DHPUX11=HPUX11";
     fi
    ;;
+  AIX ) _cv_platform_flags="-mno-fp-in-toc -mno-sum-in-toc -mminimal-toc" ;;
   * ) _cv_platform_flags="" ;;
 esac
 AC_SUBST([_cv_platform_flags], [$_cv_platform_flags])
@@ -2389,6 +2404,8 @@ AC_CHECK_HEADERS([net/if.h],[],[],[
 AC_CHECK_HEADERS([sys/types.h])
 AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([stdint.h])
+AC_CHECK_HEADERS([procfs.h])
+AC_CHECK_HEADERS([sys/procfs.h])
 AC_CHECK_HEADERS([inttypes.h])
 AC_CHECK_HEADERS([os_types.h])
 AC_CHECK_HEADERS([sys/syscall.h])
@@ -2505,6 +2522,7 @@ AC_CHECK_FUNCS([strsignal				\
 		_stati64				\
 		_lstati64				\
 		_fstati64				\
+		readdir64				\
 		fseeko					\
 		ftello					\
 		lchown					\
@@ -2522,10 +2540,28 @@ AC_CHECK_FUNCS([strsignal				\
 		execl					\
 		access					\
 		vasprintf				\
+		localtime_r				\
 		clearenv])
 AC_CHECK_FUNC(crypt, ,AC_CHECK_LIB(crypt,crypt))
 AC_SEARCH_LIBS([dlopen], [dl],
   AC_DEFINE([HAVE_DLOPEN], [1], [dlopen function is available]))
+
+# On HPUX11, localtime_r() and gmtime_r() are not defined unless
+# _REENTRANT is defined.  Test for that case here.
+
+AC_MSG_CHECKING([if localtime_r() needs _REENTRANT])
+AC_LANG_PUSH([C++])
+AC_COMPILE_IFELSE([#include <time.h>
+		   void testfunc() {localtime_r(NULL,NULL);}],[
+		   AC_MSG_RESULT([no])],[
+		   AC_COMPILE_IFELSE([
+		     #define _REENTRANT
+		     #include <time.h>
+		     void testfunc() {localtime_r(NULL,NULL);}],[
+		     AC_MSG_RESULT([yes])
+		     AC_DEFINE([_REENTRANT],[1],[needed for localtime_r() and gmtime_r()])],[
+		   AC_MSG_RESULT([test failed])])])
+AC_LANG_POP([C++])
 
 AC_CHECK_FUNCS(backtrace)
 #########
@@ -2666,6 +2702,11 @@ if test "$ac_cv_func_statfs" = yes ; then
       AC_MSG_ERROR([unable to determine number of arguments to statfs()])])])
 fi dnl test "$ac_cv_func_statfs" = yes
 
+# Do we have member tm_gmtoff in struct tm?
+AC_CHECK_MEMBER([struct tm.tm_gmtoff],
+                [AC_DEFINE([HAVE_TM_GMTOFF], [1], [tm.tm_gmtoff available])],
+                [],
+                [[#include <time.h>]])
 
 # Do we have the "ethtool" and similar declarations?
 AC_CHECK_DECLS([SIOCETHTOOL,SIOCGIFCONF],,, [[#include <linux/sockios.h>]])
@@ -2973,7 +3014,7 @@ fi
 
 # Build drmaa on any platform with pthreads available, except for the following
 # platforms where the build is known to fail
-if test "x$_cv_sysname" != "xppc_aix52" -a "x$_cv_linux_distro" != "xRH72" -a  "x$_cv_sysname" != "xsun4x_58" -a "x$_cv_sysname" != "xsun4x_59" -a "x$_cv_sysname" != "xalpha_dux51" -a "x$_cv_sysname" != "xhp_ux113" ; then
+if test "x$_cv_sysname" != "xppc_aix52" -a "x$_cv_linux_distro" != "xRH72" -a  "x$_cv_sysname" != "xsun4x_58" -a "x$_cv_sysname" != "xsun4x_59" -a "x$_cv_sysname" != "xhp_ux113" ; then
   if test "x$_cv_sysname" = "xppc_macosx" -o "x$ac_pthreads" = "xyes"; then
    CHECK_EXTERNAL([drmaa],[1.6], [soft])
   fi
@@ -2981,7 +3022,9 @@ fi
 
 CHECK_EXTERNAL([krb5], [1.4.3-p0], [soft],
                [use krb5 (provides Kerberos support)],
-               MF_LIB_CHECK([krb5], [[krb5 krb5_free_principal]]))
+               MF_LIB_CHECK([krb5], [[krb5 krb5_free_principal],
+	       			     [k5crypto krb5_c_encrypt],
+				     [com_err error_message]]))
 
 CHECK_EXTERNAL([openssl], [0.9.8h-p2], [soft],
                [use OpenSSL (provides authentication and encryption support)],
@@ -2994,7 +3037,7 @@ if test "x$_cv_ext_openssl_version" != x; then
   AC_DEFINE(HAVE_OPENSSL_SSL_H,1,[do we have openssl])
 
   # Globus 4.2.1 is dependent on an external version of openssl
-  CHECK_EXTERNAL([globus],[4.2.1-p5], [soft])
+  CHECK_EXTERNAL([globus],[5.0.1], [soft])
 fi
 
 if test -z "$_cv_ext_globus_version"; then
@@ -3015,7 +3058,7 @@ CHECK_EXTERNAL([zlib], [1.2.3], [$_cv_zlib_requirement],
                [use zlib (provides compression support)],
                MF_LIB_CHECK([zlib], [[z deflate]]))
 
-CHECK_EXTERNAL([classads], [1.0.4], [soft],
+CHECK_EXTERNAL([classads], [1.0.7], [soft],
                [use new ClassAds (provides -better-analyze and more)],
 	       # This REALLY should test for headers, like most checks...
                MF_LIB_CHECK([classads], [[classad cclassad_create]], [classads]))
@@ -3029,14 +3072,14 @@ if test "$_cv_opsys" = "LINUX" ; then
 	_cv_including_voms=yes
 	AC_MSG_RESULT([$_cv_including_voms])
 	CHECK_EXTERNAL([expat], [2.0.1], [soft])
-	CHECK_EXTERNAL([voms], [1.8.8_2-p1], [soft])
+	CHECK_EXTERNAL([voms], [1.8.8_2-p2], [soft])
 else
 	_cv_including_voms=no
 	AC_MSG_RESULT([$_cv_including_voms])
 fi
 
 if test "x$_cv_linux_distro" = "xRHEL5" -o "x$_cv_linux_distro" = "xRHEL3" -a "x$_cv_arch" = "xI386" ; then
-  CHECK_EXTERNAL([cream],[1.10.1-p2], [soft])
+  CHECK_EXTERNAL([cream],[1.10.1-p6], [soft])
 fi
 
 CHECK_EXTERNAL([pcre], [7.6], [hard],
@@ -3058,7 +3101,7 @@ AS_IF([test "x$_cv_opsys" != xDARWIN -a "x$_cv_opsys" != xAIX -a "x$_cv_opsys" !
   [_cv_has_blahp=yes],
   [_cv_has_blahp=no])
 AC_MSG_RESULT([$_cv_has_blahp])
-CHECK_EXTERNAL([blahp], [1.12.2-p7], [soft])
+CHECK_EXTERNAL([blahp], [1.16.0], [soft])
 
 # When --with-proper the detection of the man pages is a little
 # ugly. The value added to the end of $_dir must be what
@@ -3090,15 +3133,9 @@ fi
 # Figure out which postgresql we need.
 
 if test "x$enable_quill" = xyes; then
-if test "$_cv_opsys" = "AIX" ; then
-  CHECK_EXTERNAL([postgresql], [8.2.3], [soft],
-                 [use PostgreSQL (provides Quill and other support)],
-                 MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
-else
-  CHECK_EXTERNAL([postgresql], [8.2.3-p1], [soft],
-                 [use PostgreSQL (provides Quill and other support)],
-                 MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
-fi
+CHECK_EXTERNAL([postgresql], [8.2.3-p1], [soft],
+               [use PostgreSQL (provides Quill and other support)],
+               MF_LIB_CHECK([postgresql], [[pq PQconnectdb]], [postgresql]))
 fi
 AC_MSG_CHECKING([postgresql])
 AC_MSG_RESULT([$_cv_ext_postgresql_version])
@@ -3170,7 +3207,7 @@ CHECK_EXTERNAL([curl],[7.19.6-p1],[soft])
 #Look for hadoop jars, required by HDFS daemon as well by hdfs file plugin
 # Only build hadoop external if hdfs is enabled
 AS_IF([test "x$enable_hdfs" = xyes], 
-  [CHECK_EXTERNAL([hadoop],[0.20.0-p2],[soft])])
+  [CHECK_EXTERNAL([hadoop],[0.20.2],[soft])])
 
 if test "x$_cv_opsys" = "xLINUX" ; then
   CHECK_EXTERNAL([libxml2],[2.7.3],[soft],
@@ -3277,7 +3314,6 @@ _cv_libc_a=none
 GLIBC_DIR="$ac_cv_externals_build/install/$_cv_ext_glibc_version/lib"
 case "$_cv_opsys" in
 # Ignore on clipped ports
-#  ?ALPHA_OSF1? ) /lib/libc.a ;;
 #  ?HPUX? ) /lib/libc.a ;;
 #  ?HPUX11? ) /usr/lib/pa20_64/libc.a ;;
   LINUX )

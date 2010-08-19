@@ -25,7 +25,7 @@
 #define __EXTENSIONS__
 #endif
 
-#if defined(Solaris26) || defined(Solaris27) || defined(Solaris28) || defined(Solaris29)
+#if defined(Solaris26) || defined(Solaris27) || defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 #ifndef _LARGEFILE64_SOURCE
 #	define _LARGEFILE64_SOURCE
 #endif
@@ -37,7 +37,7 @@
 #include <sys/types.h>
 
 /* used for calculating console and mouse idle times */
-#if defined(Solaris28) || defined(Solaris29)
+#if defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 #include <kstat.h>
 #endif
 
@@ -96,17 +96,15 @@ END_C_DECLS
 #define SIGSET_CONST			const
 #define SYNC_RETURNS_VOID		1
 
-#if defined(Solaris26) || defined(Solaris27) || defined(Solaris28) || defined(Solaris29)
+#if defined(Solaris26) || defined(Solaris27) || defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 	#define HAS_64BIT_SYSCALLS	1
 	#define HAS_64BIT_STRUCTS	1
 	#define HAS_F_DUP2FD		1
-#elif defined(Solaris251)
-	typedef long long off64_t;
 #endif
 
 typedef void* MMAP_T;
 
-#if defined(Solaris251) || defined(Solaris26)
+#if defined(Solaris26)
 	typedef int socklen_t;
 #endif
 

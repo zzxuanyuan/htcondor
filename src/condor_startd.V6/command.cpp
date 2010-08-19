@@ -41,6 +41,7 @@ command_handler( Service*, int cmd, Stream* stream )
 	int rval = FALSE;
 	Resource* rip;
 	if( ! (rip = stream_to_rip(stream)) ) {
+		dprintf(D_ALWAYS, "Error: problem finding resource for %d (%s)\n", cmd, getCommandString(cmd));
 		return FALSE;
 	}
 	State s = rip->state();
@@ -87,7 +88,7 @@ deactivate_claim(Stream *stream, Resource *rip, bool graceful)
 
 	ClassAd response_ad;
 	response_ad.Assign(ATTR_START,!claim_is_closing);
-	if( !response_ad.put(*stream) || !stream->eom() ) {
+	if( !response_ad.put(*stream) || !stream->end_of_message() ) {
 		dprintf(D_FULLDEBUG,"Failed to send response ClassAd in deactivate_claim.\n");
 			// Prior to 7.0.5, no response ClassAd was expected.
 			// Anyway, failure to send it is not (currently) critical
@@ -129,7 +130,7 @@ command_activate_claim( Service*, int cmd, Stream* stream )
 	if( !rip ) {
 		ClaimIdParser idp( id );
 		dprintf( D_ALWAYS, 
-				 "Error: can't find resource with ClaimId (%s)\n", idp.publicClaimId() );
+				 "Error: can't find resource with ClaimId (%s) for %d (%s)\n", idp.publicClaimId(), cmd, getCommandString(cmd) );
 		free( id );
 		stream->end_of_message();
 		reply( stream, NOT_OK );
@@ -221,7 +222,18 @@ command_x_event( Service*, int, Stream* s )
 {
 	dprintf( D_FULLDEBUG, "command_x_event() called.\n" );
 
-	sysapi_last_xevent();
+		// Only trust events over the network if the network message
+		// originated from our local machine.
+	if ( !s ||							// trust calls from within the startd
+		 (s && s->peer_is_local())		// trust only sockets from local machine
+	   ) 
+	{
+		sysapi_last_xevent();
+	} else {
+		dprintf( D_ALWAYS, 
+			"ERROR command_x_event received from %s is not local - discarded\n",
+			s->peer_ip_str() );
+	}
 
 	if( s ) {
 		s->end_of_message();
@@ -282,7 +294,7 @@ command_request_claim( Service*, int cmd, Stream* stream )
 	if( !rip ) {
 		ClaimIdParser idp( id );
 		dprintf( D_ALWAYS, 
-				 "Error: can't find resource with ClaimId (%s)\n", idp.publicClaimId() );
+				 "Error: can't find resource with ClaimId (%s) for %d (%s)\n", idp.publicClaimId(), cmd, getCommandString(cmd) );
 		free( id );
 		refuse( stream );
 		return FALSE;
@@ -349,8 +361,8 @@ command_release_claim( Service*, int cmd, Stream* stream )
 	rip = resmgr->get_by_any_id( id );
 	if( !rip ) {
 		ClaimIdParser idp( id );
-		dprintf( D_FULLDEBUG, 
-				 "Can't find resource with ClaimId (%s); perhaps this claim was removed already.\n", idp.publicClaimId() );
+		dprintf( D_ALWAYS, 
+				 "Error: can't find resource with ClaimId (%s) for %d (%s); perhaps this claim was removed already.\n", idp.publicClaimId(), cmd, getCommandString(cmd) );
 		free( id );
 		refuse( stream );
 		return FALSE;
@@ -590,6 +602,10 @@ command_query_ads( Service*, int, Stream* stream)
         dprintf( D_ALWAYS, "Failed to receive query on TCP: aborting\n" );
 		return FALSE;
 	}
+
+#if !defined(WANT_OLD_CLASSADS)
+	queryAd.AddExplicitTargetRefs();
+#endif
 
 		// Construct a list of all our ClassAds:
 	resmgr->makeAdList( &ads );
@@ -1018,6 +1034,10 @@ request_claim( Resource* rip, Claim *claim, char* id, Stream* stream )
 		ABORT;
 	}
 
+#if !defined(WANT_OLD_CLASSADS)
+	req_classad->AddTargetRefs( TargetMachineAttrs );
+#endif
+
 		// Try now to read the schedd addr and aline interval.
 		// Do _not_ abort if we fail, since older (pre v6.1.11) schedds do 
 		// not send this information until after we accept the request, and we
@@ -1378,7 +1398,7 @@ accept_request_claim( Resource* rip )
 		abort_accept_claim( rip, stream );
 		return false;
 	}
-	if( !stream->eom() ) {
+	if( !stream->end_of_message() ) {
 		rip->dprintf( D_ALWAYS, "Can't to send eom to schedd.\n" );
 		abort_accept_claim( rip, stream );
 		return false;
@@ -1532,9 +1552,13 @@ activate_claim( Resource* rip, Stream* stream )
 		ABORT;
 	}
 	if (!stream->end_of_message()) {
-		rip->dprintf( D_ALWAYS, "Can't receive eom() from shadow.\n" );
+		rip->dprintf( D_ALWAYS, "Can't receive end_of_message() from shadow.\n" );
 		ABORT;
 	}
+
+#if !defined(WANT_OLD_CLASSADS)
+	req_classad->AddTargetRefs( TargetMachineAttrs );
+#endif
 
 	rip->dprintf( D_FULLDEBUG, "Read request ad and starter from shadow.\n" );
 
@@ -1639,7 +1663,7 @@ activate_claim( Resource* rip, Stream* stream )
 			ABORT;
 		}
 
-		if (!stream->eom()) {
+		if (!stream->end_of_message()) {
 			ABORT;
 		}
 
@@ -1834,11 +1858,11 @@ match_info( Resource* rip, char* id )
 int
 caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 {
-	char* requirements_str = NULL;
+	const char* requirements_str = NULL;
 	Resource* rip;
 	Claim* claim;
 	MyString err_msg;
-	ExprTree *tree, *rhs;
+	ExprTree *tree;
 	ReliSock* rsock = (ReliSock*)s;
 	int lease_duration = 0;
 	const char* owner = rsock->getOwner();
@@ -1855,18 +1879,15 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 			 owner );
 
 		// Make sure the ad's got a requirements expression at all.
-	tree = req_ad->Lookup( ATTR_REQUIREMENTS );
+	tree = req_ad->LookupExpr( ATTR_REQUIREMENTS );
 	if( ! tree ) {
 		dprintf( D_FULLDEBUG, 
 				 "Request did not contain %s, assuming TRUE\n",
 				 ATTR_REQUIREMENTS );
-		requirements_str = strdup( "TRUE" );
+		requirements_str = "TRUE";
 		req_ad->Insert( "Requirements = TRUE" );
 	} else {
-		rhs = tree->RArg();
-		if( rhs ) {
-			rhs->PrintToNewStr( &requirements_str );
-		}
+		requirements_str = ExprTreeToString( tree );
 	}
 
 		// Find the right resource for this claim
@@ -1878,12 +1899,8 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		err_msg += " (";
 		err_msg += requirements_str;
 		err_msg += ')';
-		free( requirements_str );
 		return sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
 	}
-
-		// done with this now, so don't leak it
-	free( requirements_str );
 
 	if( !req_ad->LookupInteger(ATTR_JOB_LEASE_DURATION, lease_duration) ) {
 		lease_duration = -1;
@@ -1985,6 +2002,7 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 	Claim* claim = NULL;
 	int rval = TRUE;
 	ClassAd reply;
+	std::string startd_sends_alives;
 
 	req_ad->LookupString(ATTR_CLAIM_ID, &claimid);
 	req_ad->LookupString(ATTR_GLOBAL_JOB_ID, &global_job_id);
@@ -2008,8 +2026,9 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 		// if startd is sending keepalives to the schedd,
 		// then we _must_ be passed the address of the schedd
 		// since it likely changed.
+	param( startd_sends_alives, "STARTD_SENDS_ALIVES", "peer" );
 	if ( (!schedd_addr) && 
-		 (param_boolean("STARTD_SENDS_ALIVES",false)) )
+		 strcasecmp( startd_sends_alives.c_str(), "false" ) )
 	{
 		MyString err_msg;
 		err_msg.sprintf("Required %s, not found in request",
@@ -2065,12 +2084,16 @@ command_classad_handler( Service*, int dc_cmd, Stream* s )
 	int cmd = 0;
 	char* cmd_str = NULL;
 
-
 	if( dc_cmd == CA_AUTH_CMD ) {
 		cmd = getCmdFromReliSock( rsock, &ad, true );
 	} else {
 		cmd = getCmdFromReliSock( rsock, &ad, false );
 	}
+
+#if !defined(WANT_OLD_CLASSADS)
+	ad.AddTargetRefs( TargetMachineAttrs );
+#endif
+
 		// since we really care about the command string for a lot of
 		// things, let's just grab it out of the classad once right
 		// here.

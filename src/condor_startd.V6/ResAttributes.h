@@ -28,8 +28,10 @@
 #ifndef _RES_ATTRIBUTES_H
 #define _RES_ATTRIBUTES_H
 
+#include "condor_common.h"
+#include "condor_classad.h"
+
 class Resource;
-class ClassAd;
 
 typedef int amask_t;
 
@@ -222,9 +224,9 @@ private:
 
 		// These hold the fractions of shared, dynamic resources
 		// that are allocated to this CPU.
-	float			c_virt_mem_fraction;
+	double			c_virt_mem_fraction;
 
-	float			c_disk_fraction; // share of execute dir partition
+	double			c_disk_fraction; // share of execute dir partition
 	MyString        c_execute_dir;
 	MyString        c_execute_partition_id;  // unique id for partition
 

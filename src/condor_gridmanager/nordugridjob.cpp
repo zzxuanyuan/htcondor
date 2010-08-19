@@ -100,10 +100,8 @@ static const char *GMStateNames[] = {
 
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
-#	define file_strcmp _stricmp
 #	define file_contains contains_anycase
 #else
-#	define file_strcmp strcmp
 #	define file_contains contains
 #endif
 
@@ -225,7 +223,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 		str.Tokenize();
 
 		token = str.GetNextToken( " ", false );
-		if ( !token || stricmp( token, "nordugrid" ) ) {
+		if ( !token || strcasecmp( token, "nordugrid" ) ) {
 			error_string.sprintf( "%s not of type nordugrid",
 								  ATTR_GRID_RESOURCE );
 			goto error_exit;
@@ -796,8 +794,10 @@ void NordugridJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
+			const char *name;
+			ExprTree *expr;
 			jobAd->ResetExpr();
-			if ( jobAd->NextDirtyExpr() ) {
+			if ( jobAd->NextDirtyExpr(name, expr) ) {
 				requestScheddUpdate( this, true );
 				break;
 			}

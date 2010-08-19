@@ -91,7 +91,7 @@ BOINC_BackfillSlot::hardkill()
 
 
 void
-BOINC_BackfillSlot::publish( ClassAd* ad )
+BOINC_BackfillSlot::publish( ClassAd* /*ad*/ )
 {
 		// TODO
 }
@@ -186,7 +186,7 @@ BOINC_BackfillMgr::destroy()
 
 
 bool
-BOINC_BackfillMgr::addSlot( BOINC_BackfillSlot* boinc_slot )
+BOINC_BackfillMgr::addSlot( BOINC_BackfillSlot* /*boinc_slot*/ )
 {
 		// TODO
 	return true;
@@ -317,7 +317,7 @@ BOINC_BackfillMgr::spawnClient( Resource *rip )
 		Starter* tmp_starter;
 		ClassAd fake_ad;
 		MyString fake_req;
-		fake_req.sprintf( "%s = %s", ATTR_REQUIREMENTS,
+		fake_req.sprintf( "%s = TARGET.%s", ATTR_REQUIREMENTS,
 						  ATTR_HAS_JIC_LOCAL_CONFIG );
 		fake_ad.Insert( fake_req.Value() );
 		tmp_starter = resmgr->starter_mgr.findStarter( &fake_ad, NULL );
@@ -401,7 +401,7 @@ BOINC_BackfillMgr::reaper( int pid, int status )
 
 
 bool
-BOINC_BackfillMgr::suspend( int slot_id )
+BOINC_BackfillMgr::suspend( int /*slot_id*/ )
 {
 		// TODO
 	return true;
@@ -409,7 +409,7 @@ BOINC_BackfillMgr::suspend( int slot_id )
 
 
 bool
-BOINC_BackfillMgr::resume( int slot_id )
+BOINC_BackfillMgr::resume( int /*slot_id*/ )
 {
 		// TODO
 	return true;
@@ -417,7 +417,7 @@ BOINC_BackfillMgr::resume( int slot_id )
 
 
 bool
-BOINC_BackfillMgr::softkill( int slot_id )
+BOINC_BackfillMgr::softkill( int /*slot_id*/ )
 {
 		// TODO
 	return true;

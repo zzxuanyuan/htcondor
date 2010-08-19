@@ -88,7 +88,7 @@ _requestVMRegister(char *addr)
 		return FALSE;
 	}
 
-	if( !ssock.eom() ) {
+	if( !ssock.end_of_message() ) {
 		dprintf( D_FULLDEBUG, "Failed to send EOM to host startd %s\n", addr );
 		free(buffer);
 		return FALSE;
@@ -103,7 +103,7 @@ _requestVMRegister(char *addr)
 	int permission = 0;
 	ssock.code(permission);
 
-	if( !ssock.eom() ) {
+	if( !ssock.end_of_message() ) {
 		dprintf( D_FULLDEBUG, "Failed to receive EOM from host startd(%s)\n", addr );
 		return FALSE;
 	}
@@ -204,7 +204,7 @@ VMRegister::requestHostClassAds(void)
 		dprintf(D_FULLDEBUG, "Failed to send query Ad to host startd(%s)\n", addr);
 	}
 
-	if( !ssock.eom() ) {
+	if( !ssock.end_of_message() ) {
 		dprintf(D_FULLDEBUG, "Failed to send query EOM to host startd(%s)\n", addr);
 	}
 
@@ -217,14 +217,14 @@ VMRegister::requestHostClassAds(void)
 
 	while (more) {
 		if( !ssock.code(more) ) {
-			ssock.eom();
+			ssock.end_of_message();
 			return;
 		}
 
 		if(more) {
 			ad = new ClassAd;
 			if( !ad->initFromStream(ssock) ) {
-				ssock.eom();
+				ssock.end_of_message();
 				delete ad;
 				return;
 			}
@@ -234,7 +234,7 @@ VMRegister::requestHostClassAds(void)
 		}
 	}
 
-	ssock.eom();
+	ssock.end_of_message();
 
 	dprintf(D_FULLDEBUG, "Got %d classAds from host\n", num_ads);
 
@@ -243,25 +243,23 @@ VMRegister::requestHostClassAds(void)
 	adList.Rewind();
 	ad = adList.Next();
 
+#if !defined(WANT_OLD_CLASSADS)
+	ad->AddTargetRefs( TargetJobAttrs );
+#endif
+
 	// Get each Attribute from the classAd
 	// added "HOST_" in front of each Attribute name
-	char *attr_val = NULL;
-	char *attr_name = NULL;
+	const char *name;
 	ExprTree *expr;
 
 	ad->ResetExpr();
-	while( ( expr = ad->NextExpr() ) != NULL ) {
-		attr_name = ((Variable*)expr->LArg())->Name();
-		attr_val = NULL;
-		expr->RArg()->PrintToNewStr(&attr_val);
-
+	while( ad->NextExpr(name, expr) ) {
 		MyString attr;
 		attr += "HOST_";
-		attr += attr_name;
+		attr += name;
 
 		// Insert or Update an attribute to host_classAd in a VMRegister object
-		host_classad->AssignExpr(attr.Value(), attr_val);
-		delete(attr_val);
+		host_classad->Insert(attr.Value(), expr->Copy());
 	}
 }
 

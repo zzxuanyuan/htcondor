@@ -172,7 +172,7 @@ DCTransferD::upload_job_files(int JobAdsArrayLen, ClassAd* JobAdsArray[],
 	//	ATTR_TREQ_CAPABILITY
 	//	ATTR_TREQ_FTP
 	reqad.put(*rsock);
-	rsock->eom();
+	rsock->end_of_message();
 
 	rsock->decode();
 
@@ -184,7 +184,7 @@ DCTransferD::upload_job_files(int JobAdsArrayLen, ClassAd* JobAdsArray[],
 	//
 	//	ATTR_TREQ_INVALID_REQUEST (set to false)
 	respad.initFromStream(*rsock);
-	rsock->eom();
+	rsock->end_of_message();
 
 	respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
 	
@@ -239,7 +239,7 @@ DCTransferD::upload_job_files(int JobAdsArrayLen, ClassAd* JobAdsArray[],
 
 				dprintf(D_ALWAYS | D_NOHEADER, ".");
 			}	
-			rsock->eom();
+			rsock->end_of_message();
 			dprintf(D_ALWAYS | D_NOHEADER, "\n");
 			break;
 
@@ -261,7 +261,7 @@ DCTransferD::upload_job_files(int JobAdsArrayLen, ClassAd* JobAdsArray[],
 
 	rsock->decode();
 	respad.initFromStream(*rsock);
-	rsock->eom();
+	rsock->end_of_message();
 
 	// close up shop
 	delete rsock;
@@ -298,9 +298,9 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 	MyString reason;
 	int num_transfers;
 	ClassAd jad;
-	char *lhstr = NULL;
-	char *rhstr = NULL;
-	ExprTree *tree = NULL, *lhs = NULL, *rhs = NULL;
+	const char *lhstr = NULL;
+	const char *rhstr = NULL;
+	ExprTree *tree = NULL;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Connect to the transferd and authenticate
@@ -345,7 +345,7 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 	//	ATTR_TREQ_CAPABILITY
 	//	ATTR_TREQ_FTP
 	reqad.put(*rsock);
-	rsock->eom();
+	rsock->end_of_message();
 
 	rsock->decode();
 
@@ -359,7 +359,7 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 	//	ATTR_TREQ_NUM_TRANSFERS
 	//
 	respad.initFromStream(*rsock);
-	rsock->eom();
+	rsock->end_of_message();
 
 	respad.LookupInteger(ATTR_TREQ_INVALID_REQUEST, invalid);
 	
@@ -389,40 +389,21 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 				// Grab a job ad the server is sending us so we know what
 				// to receive.
 				jad.initFromStream(*rsock);
-				rsock->eom();
+				rsock->end_of_message();
 
 				// translate the job ad by replacing the 
 				// saved SUBMIT_ attributes so the download goes into the
 				// correct place.
 				jad.ResetExpr();
-				while( (tree = jad.NextExpr()) ) {
-					lhstr = NULL;
-					if( (lhs = tree->LArg()) ) { 
-						lhs->PrintToNewStr (&lhstr); 
-					}
+				while( jad.NextExpr(lhstr, tree) ) {
 					if ( lhstr && strncasecmp("SUBMIT_",lhstr,7)==0 ) {
 							// this attr name starts with SUBMIT_
 							// compute new lhs (strip off the SUBMIT_)
-						char *new_attr_name = strchr(lhstr,'_');
+						const char *new_attr_name = strchr(lhstr,'_');
 						ASSERT(new_attr_name);
 						new_attr_name++;
-							// compute new rhs (just use the same)
-						rhstr = NULL;
-						if( (rhs = tree->RArg()) ) { 
-							rhs->PrintToNewStr (&rhstr); 
-						}
 							// insert attribute
-						if(rhstr) {
-							MyString newattr;
-							newattr += new_attr_name;
-							newattr += "=";
-							newattr += rhstr;
-							jad.Insert(newattr.Value());
-							free(rhstr);
-						}
-					}
-					if ( lhstr ) {
-						free(lhstr);
+						jad.Insert(new_attr_name, tree->Copy());
 					}
 				}	// while next expr
 		
@@ -454,7 +435,7 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 
 				dprintf(D_ALWAYS | D_NOHEADER, ".");
 			}	
-			rsock->eom();
+			rsock->end_of_message();
 
 			dprintf(D_ALWAYS | D_NOHEADER, "\n");
 
@@ -478,7 +459,7 @@ DCTransferD::download_job_files(ClassAd *work_ad, CondorError * errstack)
 
 	rsock->decode();
 	respad.initFromStream(*rsock);
-	rsock->eom();
+	rsock->end_of_message();
 
 	// close up shop
 	delete rsock;

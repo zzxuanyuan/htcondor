@@ -48,32 +48,16 @@ findSignal( ClassAd* ad, const char* attr_name )
 	if( ! ad ) {
 		return -1;
 	}
-	const char* name = NULL;
+	MyString name;
+	int signal;
 
-	ExprTree *tree, *rhs;
-	tree = ad->Lookup( attr_name );
-	if(  tree ) {
-		rhs = tree->RArg();
-		if( ! rhs ) {
-				// invalid!
-			return -1;
-		}
-		switch( rhs->MyType() ) {
-		case LX_STRING:
-				// translate the string version to the local number
-				// we'll need to use
-			name = ((String *)rhs)->Value();
-			return signalNumber( name );
-			break;
-		case LX_INTEGER:
-			return ((Integer *)rhs)->Value();
-			break;
-		default:
-			return -1;
-			break;
-		}
+	if ( ad->LookupInteger( attr_name, signal ) ) {
+		return signal;
+	} else if ( ad->LookupString( attr_name, name ) ) {
+		return signalNumber( name.Value() );
+	} else {
+		return -1;
 	}
-	return -1;
 }
 
 
@@ -254,9 +238,12 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 	job_ad->Assign( ATTR_NUM_RESTARTS, 0 );
 	job_ad->Assign( ATTR_NUM_SYSTEM_HOLDS, 0 );
 	job_ad->Assign( ATTR_JOB_COMMITTED_TIME, 0 );
+	job_ad->Assign( ATTR_CUMULATIVE_SLOT_TIME, 0 );
+	job_ad->Assign( ATTR_COMMITTED_SLOT_TIME, 0 );
 	job_ad->Assign( ATTR_TOTAL_SUSPENSIONS, 0 );
 	job_ad->Assign( ATTR_LAST_SUSPENSION_TIME, 0 );
 	job_ad->Assign( ATTR_CUMULATIVE_SUSPENSION_TIME, 0 );
+	job_ad->Assign( ATTR_COMMITTED_SUSPENSION_TIME, 0 );
 
 	job_ad->Assign( ATTR_JOB_ROOT_DIR, "/" );
 
@@ -274,11 +261,9 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 	job_ad->Assign( ATTR_JOB_PRIO, 0 );
 	job_ad->Assign( ATTR_NICE_USER, false );
 
-	job_ad->Assign( ATTR_JOB_ENVIRONMENT1, "" );
-
 	job_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
 
-	job_ad->Assign( ATTR_KILL_SIG, "SIGTERM" );
+	
 
 	job_ad->Assign( ATTR_IMAGE_SIZE, 0 );
 

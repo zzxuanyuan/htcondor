@@ -46,6 +46,8 @@ public:
 
 	virtual ~VirshType();
 
+	virtual void Config();
+
 	virtual bool Start();
 
 	virtual bool Shutdown();
@@ -67,6 +69,7 @@ protected:
 	MyString makeVirshDiskString(void);
 	bool createISO();
 
+	void Connect();
 	bool parseXenDiskParam(const char *format);
 	bool writableXenDisk(const char* file);
 	void updateLocalWriteDiskTimestamp(time_t timestamp);
@@ -94,6 +97,7 @@ protected:
 	MyString m_xen_root;
 	MyString m_xen_kernel_params;
 	MyString m_xen_bootloader;
+	std::string m_vm_bridge_interface;
 
 	bool m_xen_hw_vt;
 	bool m_allow_hw_vt_suspend;
@@ -101,6 +105,7 @@ protected:
 	bool m_has_transferred_disk_file;
 
 	MyString m_xml;
+	std::string m_sessionID; ///< required for connect filled on constructor
 	virConnectPtr m_libvirt_connection;
 };
 

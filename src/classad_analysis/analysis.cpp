@@ -60,6 +60,11 @@ ClassAdAnalyzer( bool ras ) :
       // Failed to parse PREEMPTION_REQUIREMENTS; defaulting to FALSE
       ParseClassAdRvalExpr( "FALSE", preemption_req );
     }
+#if !defined(WANT_OLD_CLASSADS)
+	ExprTree *tmp_expr = AddTargetRefs( preemption_req, TargetJobAttrs );
+	delete preemption_req;
+	preemption_req = tmp_expr;
+#endif
     free( preq );
   }
 }
@@ -67,6 +72,10 @@ ClassAdAnalyzer( bool ras ) :
 ClassAdAnalyzer::
 ~ClassAdAnalyzer( )
 {
+	delete std_rank_condition;
+	delete preempt_rank_condition;
+	delete preempt_prio_condition;
+	delete preemption_req;
 	if( jobReq ) {
 		delete jobReq;
 	}
@@ -119,10 +128,10 @@ BasicAnalyze( ClassAd *request, ClassAd *offer ) {
   char remote_user[128];
   EvalResult eval_result;
 
-  bool satisfied_std_rank = std_rank_condition->EvalTree (offer, request, &eval_result) && eval_result.type == LX_INTEGER && eval_result.i == TRUE;
-  bool satisfied_preempt_prio = preempt_prio_condition->EvalTree( offer, request, &eval_result ) && eval_result.type == LX_INTEGER && eval_result.i == TRUE; 
-  bool satisfied_preempt_rank = preempt_rank_condition->EvalTree( offer, request, &eval_result ) && eval_result.type == LX_INTEGER && eval_result.i == TRUE;
-  bool satisfied_preempt_req = preemption_req->EvalTree( offer, request, &eval_result ) && eval_result.type == LX_INTEGER && eval_result.i == TRUE;
+  bool satisfied_std_rank = EvalExprTree(std_rank_condition, offer, request, &eval_result) && eval_result.type == LX_INTEGER && eval_result.i == TRUE;
+  bool satisfied_preempt_prio = EvalExprTree( preempt_prio_condition, offer, request, &eval_result ) && eval_result.type == LX_INTEGER && eval_result.i == TRUE; 
+  bool satisfied_preempt_rank = EvalExprTree( preempt_rank_condition, offer, request, &eval_result ) && eval_result.type == LX_INTEGER && eval_result.i == TRUE;
+  bool satisfied_preempt_req = EvalExprTree( preemption_req, offer, request, &eval_result ) && eval_result.type == LX_INTEGER && eval_result.i == TRUE;
 
   if (!IsAHalfMatch(request, offer)) {
     result_add_explanation(classad_analysis::MACHINES_REJECTED_BY_JOB_REQS, offer);

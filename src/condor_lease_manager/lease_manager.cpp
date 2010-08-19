@@ -434,7 +434,7 @@ LeaseManager::commandHandler_RenewLease(int command, Stream *stream)
 		return FALSE;
 	}
 
-	stream->eom();
+	stream->end_of_message();
 	dprintf (D_FULLDEBUG, "renew: %d leases renewed\n", renewed_list.size() );
 	LeaseManagerLease_FreeList( renewed_list );
 	return TRUE;
@@ -473,7 +473,7 @@ LeaseManager::commandHandler_ReleaseLease(int command, Stream *stream)
 	LeaseManagerLease_FreeList( release_list );
 
 	stream->put( OK );
-	stream->eom();
+	stream->end_of_message();
 	return TRUE;
 }
 
@@ -534,7 +534,7 @@ LeaseManager::timerHandler_GetAds ( void )
 int
 LeaseManager::initPublicAd( void )
 {
-	m_publicAd.clear();
+	m_publicAd.Clear();
 
 	m_publicAd.SetMyTypeName( LEASE_MANAGER_ADTYPE );
 	m_publicAd.SetTargetTypeName( "" );

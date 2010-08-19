@@ -37,6 +37,10 @@ GenericQuery ()
 	integerConstraints = 0;
 	floatConstraints = 0;
 	stringConstraints = 0;
+
+	floatKeywordList = NULL;
+	integerKeywordList = NULL;
+	stringKeywordList = NULL;
 }
 
 
@@ -242,18 +246,17 @@ setFloatKwList (char **value)
 
 // make query
 int GenericQuery::
-makeQuery (ClassAd &ad)
+makeQuery (ExprTree *&tree)
 {
 	int		i, value;
 	char	*item;
 	float   fvalue;
-	MyString req;
-	ExprTree *tree;
+	MyString req = "";
+
+	tree = NULL;
 
 	// construct query requirement expression
 	bool firstCategory = true;
-	req = ATTR_REQUIREMENTS;
-	req += " = ";
 
 	// add string constraints
 	for (i = 0; i < stringThreshold; i++)
@@ -265,7 +268,7 @@ makeQuery (ClassAd &ad)
 			req += firstCategory ? "(" : " && (";
 			while ((item = stringConstraints [i].Next ()))
 			{
-				req.sprintf_cat ("%s(TARGET.%s == \"%s\")", 
+				req.sprintf_cat ("%s(%s == \"%s\")", 
 						 firstTime ? " " : " || ", 
 						 stringKeywordList [i], item);
 				firstTime = false;
@@ -285,7 +288,7 @@ makeQuery (ClassAd &ad)
 			req += firstCategory ? "(" : " && (";
 			while (integerConstraints [i].Next (value))
 			{
-				req.sprintf_cat ("%s(TARGET.%s == %d)", 
+				req.sprintf_cat ("%s(%s == %d)", 
 						 firstTime ? " " : " || ",
 						 integerKeywordList [i], value);
 				firstTime = false;
@@ -305,7 +308,7 @@ makeQuery (ClassAd &ad)
 			req += firstCategory ? "(" : " && (";
 			while (floatConstraints [i].Next (fvalue))
 			{
-				req.sprintf_cat ("%s(TARGET.%s == %f)", 
+				req.sprintf_cat ("%s(%s == %f)", 
 						 firstTime ? " " : " || ",
 						 floatKeywordList [i], fvalue);
 				firstTime = false;
@@ -349,8 +352,7 @@ makeQuery (ClassAd &ad)
 	if (firstCategory) { req += "TRUE"; }
 
 	// parse constraints and insert into query ad
-	if (Parse (req.Value(), tree) > 0) return Q_PARSE_ERROR;
-	ad.Insert (tree);
+	if (ParseClassAdRvalExpr (req.Value(), tree) > 0) return Q_PARSE_ERROR;
 
 	return Q_OK;
 }
@@ -433,6 +435,10 @@ copyQueryObject (GenericQuery &from)
 	integerKeywordList = from.integerKeywordList;
 	stringKeywordList = from.stringKeywordList;
 	floatKeywordList = from.floatKeywordList;
+
+	floatConstraints = from.floatConstraints;
+	integerConstraints = from.integerConstraints;
+	stringConstraints = from.stringConstraints;
 }
 
 void GenericQuery::

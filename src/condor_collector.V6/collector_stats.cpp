@@ -76,6 +76,8 @@ CollectorBaseStats::CollectorBaseStats ( int history_size )
 	} else {
 		historyBuffer = NULL;
 		historyWords = 0;
+		historyMaxbit = 0;
+		historyBitnum = 0;
 	}
 
 	// Reset vars..
@@ -649,7 +651,7 @@ CollectorDaemonStatsList::hashKey (StatsHashKey &key,
 		if (ad->LookupInteger( ATTR_SLOT_ID, slot)) {
 			slot_buf.sprintf(":%d", slot);
 		}
-		else if (param_boolean("ALLOW_VM_CRUFT", true) &&
+		else if (param_boolean("ALLOW_VM_CRUFT", false) &&
 				 ad->LookupInteger(ATTR_VIRTUAL_MACHINE_ID, slot)) {
 			slot_buf.sprintf(":%d", slot);
 		}

@@ -9,11 +9,17 @@
 use Getopt::Long;
 
 # Variables for Getopt::Long::GetOptions
-use vars qw/ $opt_git /;
+use vars qw/ $opt_git $opt_platforms $opt_desc /;
 
-# Parse command-line arguments, currently only one, --git, which turns
-# on Git support.
-GetOptions('git' => \$opt_git);
+# Parse command-line arguments:
+GetOptions(
+			# turns on Git support.
+			'git' => \$opt_git,
+			# specifies a set of platforms to pass on to condor_nmi_submit
+			'platforms=s' => \$opt_platforms,
+			# specifies a description for the builds to be passed 
+			# to condor_nmi_submit
+			'desc=s' => \$opt_desc);
 
 # Configuration
 $home = '/home/cndrauto/condor';
@@ -21,10 +27,10 @@ $log_file = $home .'/nightly.log' . (defined $opt_git ? ".git" : "");
 $CVS="/usr/bin/cvs -d /space/cvs/CONDOR_SRC";
 $GIT="/prereq/git-1.5.4/bin/git";
 $GIT_SRC_ROOT="/space/git/CONDOR_SRC.git";
-$GIT_EXT_ROOT="/space/git/CONDOR_EXT.git";
+#$GIT_EXT_ROOT="/space/git/CONDOR_EXT.git";
 $GIT_DOC_ROOT="/space/git/CONDOR_DOC.git";
-$GIT_TSTCNF_ROOT="/space/git/CONDOR_TEST_CNFDTL.git";
-$GIT_TSTLRG_ROOT="/space/git/CONDOR_TEST_LRG.git";
+#$GIT_TSTCNF_ROOT="/space/git/CONDOR_TEST_CNFDTL.git";
+#$GIT_TSTLRG_ROOT="/space/git/CONDOR_TEST_LRG.git";
 
 
 # Open log file and setup autoflushing
@@ -53,7 +59,8 @@ chdir $home || die "Can't chdir($home): $!\n";
 # We need to make sure the clones are current, since they aren't
 # rsync'd constantly anymore
 if (defined $opt_git) {
-    @roots = ($GIT_SRC_ROOT, $GIT_DOC_ROOT, $GIT_EXT_ROOT, $GIT_TSTCNF_ROOT, $GIT_TSTLRG_ROOT);
+#    @roots = ($GIT_SRC_ROOT, $GIT_DOC_ROOT, $GIT_EXT_ROOT, $GIT_TSTCNF_ROOT, $GIT_TSTLRG_ROOT);
+    @roots = ($GIT_SRC_ROOT, $GIT_DOC_ROOT);
     foreach $root (@roots) {
 	open(OUT, "$GIT --git-dir=$root fetch 2>&1|")
 	    || die "Can't fetch $root: $!\n";
@@ -78,7 +85,13 @@ while (<CVS>) {
 
 # don't edit this file on the build machine... it's in cvs
 
-$cns_cmd = "./$CNS --build --nightly --use_externals_cache --clear-externals-cache-weekly --submit-xtests --notify=condor-fw\@cs.wisc.edu --notify-fail-only" . (defined $opt_git ? " --git" : "");
+$cns_cmd =
+	"./$CNS --build --nightly --use-externals-cache " .
+	"--clear-externals-cache-weekly --submit-xtests " .
+	"--notify=condor-builds\@cs.wisc.edu --notify-fail-only" . 
+	(defined $opt_git ? " --git" : "") . 
+	(defined $opt_platforms ? " --platforms=$opt_platforms" : "") .
+	(defined $opt_desc ? " --desc=\"$opt_desc\"" : "");
 
 print LOG "Cwd is " . `pwd`;
 print LOG "Running $cns_cmd\n";

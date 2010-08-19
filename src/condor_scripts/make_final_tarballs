@@ -236,8 +236,6 @@ my $realskel="condor_release";
 
 # Convert from AFS @sys names to our names for the tarballs.
 my %opsysname = (
-  "alpha_dux40"   => "dux40",
-  "alpha_dux51"   => "dux51",
   "alpha_rh72"    => "linux",
   "condor_ppc_rhel3" => "linux",
   "condor_ppc_sles9" => "linux",
@@ -280,16 +278,17 @@ my %opsysname = (
   "ia64_rh72"     => "linux",
   "ia64_rhel3"    => "linux",
   "ia64_sles81"   => "linux",
-  "mips64_gentoo1.12.11.1" => "linux",
   "ppc_aix51"	  => "aix5.1",
   "ppc_aix52"	  => "aix5.2",
   "ppc_macosx103"    => "MacOSX10.3",
   "ppc_macosx104"    => "MacOSX10.4",
-  "sgi_65"        => "irix65",
   "sun4x_56"      => "solaris26",
   "sun4x_57"      => "solaris27",
   "sun4x_58"      => "solaris28",
   "sun4x_59"      => "solaris29",
+  "sun4x_10"      => "solaris10",
+  "sun4x_11"      => "solaris11",
+  "x86_64_solaris11" => "solaris11",
   "x86_64_debian40" => "linux",
   "x86_64_debian50" => "linux",
   "x86_64_f10"       => "linux",
@@ -310,8 +309,6 @@ my %opsysname = (
 );
 
 my %archname = (
-  "alpha_dux40"   => "Alpha",
-  "alpha_dux51"   => "Alpha",
   "alpha_rh72"    => "Alpha",
   "condor_ppc_rhel3" => "PPC",
   "condor_ppc_sles9" => "PPC",
@@ -354,16 +351,17 @@ my %archname = (
   "ia64_rh72"     => "ia64",
   "ia64_rhel3"    => "ia64",
   "ia64_sles81"   => "ia64",
-  "mips64_gentoo1.12.11.1" => "mips64",
   "ppc_aix51"	  => "aix",
   "ppc_aix52"	  => "aix",
   "ppc_macosx103"    => "PPC",
   "ppc_macosx104"    => "PPC",
-  "sgi_65"        => "SGI",
   "sun4x_56"      => "Sparc",
   "sun4x_57"      => "Sparc",
   "sun4x_58"      => "Sparc",
   "sun4x_59"      => "Sparc",
+  "sun4x_10"      => "Sparc",
+  "sun4x_11"      => "Sparc",
+  "x86_64_solaris11" => "x86_64",
   "x86_64_debian40" => "x86_64",
   "x86_64_debian50" => "x86_64",
   "x86_64_f10"       => "x86_64",
@@ -419,7 +417,6 @@ my %libcname = (
   "ia64_rh72"   => "glibc22",
   "ia64_rhel3"  => "rhel3",
   "ia64_sles81" => "sles81",
-  "mips64_gentoo1.12.11.1" => "gentoo112",
   "x86_64_debian40"  => "debian40",
   "x86_64_debian50"  => "debian50",
   "x86_64_f7"     => "fedora7",
@@ -628,7 +625,7 @@ foreach my $name ( sort keys %modules ) {
 
 		# Pre cleanup
 		print "Making sure that $skel/$release is clean\n";
-		my $clean_cmd = "/bin/rm -fr ";
+		my $clean_cmd = "rm -fr ";
 		foreach my $dir ( @clean_dirs ) {
 			$clean_cmd .= "$skel/$release/$dir ";
 		}

@@ -34,13 +34,7 @@
  simulation.
 */
 
-#if defined(ULTRIX42) || defined(ULTRIX43) 
-
-	/* Nothing needed on ULTRIX systems - getmnt() is native*/
-
-#elif defined(OSF1) || defined(Darwin) || defined(CONDOR_FREEBSD)
-
-	/* BEGIN OSF1 version - use getmntinfo() */
+#if defined(Darwin) || defined(CONDOR_FREEBSD)
 
 #include <sys/stat.h>
 #include <sys/mount.h>
@@ -75,8 +69,6 @@ char			*path;
 	}
 	return n_entries;
 }
-
-	/* END OSF1 version */
 
 #elif defined(AIX32)
 FILE			*setmntent();
@@ -210,7 +202,7 @@ char			*path;
 
 #else
 
-	/* BEGIN !OSF1, !ULTRIX, !AIX  version - use setmntent() and getmntent()  */
+	/* BEGIN !ULTRIX, !AIX  version - use setmntent() and getmntent()  */
 
 FILE			*setmntent();
 struct mntent	*getmntent();
@@ -243,6 +235,6 @@ getmnt( int* start, struct fs_data buf[], unsigned int bufsize,
 	return i;
 }
 
-	/* END !OSF1 and !ULTRIX version */
+	/* END !ULTRIX version */
 
 #endif

@@ -58,14 +58,10 @@
 
 #if defined(LINUX)
 #	include "condor_sys_linux.h"
-#elif defined(IRIX)
-#	include "condor_sys_irix.h"
 #elif defined(HPUX)
 #	include "condor_sys_hpux.h"
 #elif defined(Solaris)
 #	include "condor_sys_solaris.h"
-#elif defined(OSF1)
-#	include "condor_sys_dux.h"
 #elif defined(Darwin)
 #	include "condor_sys_bsd.h"
 #elif defined(AIX)
@@ -126,10 +122,6 @@
 #	define WCOREFLG WCOREFLAG
 #endif
 
-#ifndef WORD_BIT
-#	define WORD_BIT 32
-#endif 
-
 #ifndef _POSIX_PATH_MAX
 #	define _POSIX_PATH_MAX 255
 #endif
@@ -185,14 +177,13 @@
 #include <sys/poll.h>
 #endif
 
-#define stricmp strcasecmp		/* stricmp no longer exits in egcs, but strcasecmp does */
-#define strincmp strncasecmp	/* strincmp no longer exits in egcs, but strncasecmp does */
-
 /* select() on all our platforms takes an fd_set pointer, so we can
    just define this here for everyone.  We don't really need it
    anymore, but we might hit a platform that has a different select,
    so the level of indirection is worth keeping around. */
 typedef fd_set *SELECT_FDSET_PTR;
+
+#include "condor_unsetenv.h"
 
 #endif /* UNIX */
 
@@ -223,5 +214,43 @@ typedef fd_set *SELECT_FDSET_PTR;
 #endif
 
 #include "condor_sys_formats.h"
+
+#ifndef WIN32
+#	include <dirent.h>
+
+/* Some convenient definitions to make it easier to use readdir64()
+ * when available.  This is important so that 32-bit builds of condor
+ * can see directory entries that have 64-bit inode values.  Using the
+ * 32-bit readdir() has caused procapi to not be able to see entries
+ * in /proc, which can lead to improper cleanup, procd exiting because
+ * it thinks its parent is gone, and general badness.
+ */
+
+  #if defined(AIX) && HAVE_READDIR64
+
+    typedef DIR64 condor_DIR;
+    #define condor_opendir opendir64
+    #define condor_closedir closedir64
+    #define condor_rewinddir rewinddir64
+
+  #else
+
+    typedef DIR condor_DIR;
+    #define condor_opendir opendir
+    #define condor_closedir closedir
+    #define condor_rewinddir rewinddir
+
+  #endif
+
+  #if HAVE_READDIR64
+    typedef struct dirent64 condor_dirent;
+    #define condor_readdir readdir64
+  #else
+    typedef struct dirent condor_dirent;
+    #define condor_readdir readdir
+  #endif
+
+#endif // !WIN32
+
 
 #endif /* CONDOR_SYSTEM_H */

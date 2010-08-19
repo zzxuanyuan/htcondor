@@ -7,7 +7,15 @@ FILES = README condor_config.local.central.manager \
 	condor_config.local.view_server \
 	lamscript \
 	mp1script \
-	condor.init
+	mp2script \
+	condor_config.generic.debian.patch\
+	condor_config.generic.rpm.patch\
+	condor.boot.rpm\
+	condor.sysconfig\
+	condor_config.local.generic\
+	openmpiscript \
+	condor.init \
+	condor.plist
 
 all::
 
@@ -17,20 +25,20 @@ clean::
 release:: $(RELEASE_DIR)/etc/examples/README
 
 $(RELEASE_DIR)/etc/examples/README: 
-	/bin/cp -f $(FILES) $(RELEASE_DIR)/etc/examples
+	cp -f $(FILES) $(RELEASE_DIR)/etc/examples
 	perl ./customize $(RELEASE_DIR)
 
 stripped:: $(STRIP_DIR)/etc/examples/README
 
 $(STRIP_DIR)/etc/examples/README: 
-	/bin/cp -f $(FILES) $(STRIP_DIR)/etc/examples
+	cp -f $(FILES) $(STRIP_DIR)/etc/examples
 	perl ./customize $(STRIP_DIR)
 
 #if HAS_STATIC
 static:: $(STATIC_DIR)/etc/examples/README
 
 $(STATIC_DIR)/etc/examples/README:
-	/bin/cp -f $(FILES) $(STATIC_DIR)/etc/examples
+	cp -f $(FILES) $(STATIC_DIR)/etc/examples
 	perl ./customize $(STATIC_DIR)
 
 #else  /* ! HAS_STATIC */

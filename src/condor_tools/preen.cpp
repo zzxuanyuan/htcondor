@@ -46,6 +46,8 @@
 #include "extArray.h"
 #include "link.h"
 #include "shared_port_endpoint.h"
+#include "file_lock.h"
+#include "../condor_privsep/condor_privsep.h"
 
 State get_machine_state();
 
@@ -74,6 +76,7 @@ void init_params();
 void check_spool_dir();
 void check_execute_dir();
 void check_log_dir();
+void check_tmp_dir();
 void check_daemon_sock_dir();
 void bad_file( const char *, const char *, Directory & );
 void good_file( const char *, const char * );
@@ -146,7 +149,7 @@ main( int argc, char *argv[] )
 	check_execute_dir();
 	check_log_dir();
 	check_daemon_sock_dir();
-
+	check_tmp_dir();
 
 		// Produce output, either on stdout or by mail
 	if( !BadFiles->isEmpty() ) {
@@ -224,9 +227,9 @@ produce_output()
 void
 check_spool_dir()
 {
-    unsigned int	history_length;
+    unsigned int	history_length, startd_history_length;
 	const char  	*f;
-    const char      *history;
+    const char      *history, *startd_history;
 	Directory  		dir(Spool, PRIV_ROOT);
 	StringList 		well_known_list, bad_spool_files;
 	Qmgr_connection *qmgr;
@@ -237,8 +240,12 @@ check_spool_dir()
 	}
 
     history = param("HISTORY");
-    history = condor_basename(history);
+    history = condor_basename(history); // condor_basename never returns NULL
     history_length = strlen(history);
+
+    startd_history = param("STARTD_HISTORY");
+   	startd_history = condor_basename(startd_history);
+   	startd_history_length = strlen(startd_history);
 
 	well_known_list.initializeFromString (ValidSpoolFiles);
 		// add some reasonable defaults that we never want to remove
@@ -286,6 +293,15 @@ check_spool_dir()
             good_file( Spool, f );
             continue;
         }
+
+			// if startd_history is defined, so if it's one of those
+		if ( startd_history_length > 0 &&
+			strlen(f) >= startd_history_length &&
+			strncmp(f, startd_history, startd_history_length) == 0) {
+
+            good_file( Spool, f );
+            continue;
+		}
 
 			// see it it's an in-use shared executable
 		if( is_valid_shared_exe(f) ) {
@@ -603,6 +619,44 @@ check_daemon_sock_dir()
 	}
 }	
 
+void check_tmp_dir(){
+#if !defined(WIN32)
+	const char *file;
+	char *tmpDir = NULL;
+	bool newLock = param_boolean("NEW_LOCKING", false);
+	if (newLock) {
+				// create a dummy FileLock for TmpPath access
+		FileLock *lock = new FileLock(-1, NULL, NULL);
+		tmpDir = lock->GetTempPath();	
+		delete lock;
+		Directory *files = new Directory(tmpDir);
+		if(files == NULL) {
+			fprintf(stderr, "Cannot open %s\n", tmpDir);
+		} else {
+			int i = 0;
+			while( (file = files->Next()) && i < 65536) {
+				if(! files->IsDirectory() ) {
+					const char *path = files->GetFullPath();
+					int fd = safe_open_wrapper( path, O_WRONLY, 0664 );
+					lock = new FileLock(path, true, true);
+					bool result = lock->obtain(WRITE_LOCK);
+					if (!result) {
+							fprintf(stderr, "Cannot lock %s\n", path);
+					}
+					delete lock;
+				}
+			}
+			delete files;
+		}
+		if (tmpDir != NULL)
+			delete []tmpDir;
+		
+	}
+  
+#endif	
+}
+
+
 extern "C" int
 SetSyscalls( int foo ) { return foo; }
 
@@ -697,7 +751,16 @@ bad_file( const char *dirpath, const char *name, Directory & dir )
 	}
 
 	if( RmFlag ) {
-		if( dir.Remove_Full_Path( pathname.Value() ) ) {
+		bool removed = dir.Remove_Full_Path( pathname.Value() );
+		if( !removed && privsep_enabled() ) {
+			removed = privsep_remove_dir( pathname.Value() );
+			if( VerboseFlag ) {
+				if( removed ) {
+					printf( "%s - failed to remove directly, but succeeded via privsep switchboard\n", pathname.Value() );
+				}
+			}
+		}
+		if( removed ) {
 			buf.sprintf( "%s - Removed", pathname.Value() );
 		} else {
 			buf.sprintf( "%s - Can't Remove", pathname.Value() );
@@ -730,7 +793,7 @@ get_machine_state()
 		return _error_state_;
 	}
 
-	sock->eom();
+	sock->end_of_message();
 	sock->decode();
 	if( !sock->code( state_str ) || !sock->end_of_message() ) {
 		dprintf( D_ALWAYS, "Can't read state/eom from startd.\n" );

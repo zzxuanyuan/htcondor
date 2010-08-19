@@ -89,6 +89,8 @@ GlobusResource::GlobusResource( const char *resource_name,
 	submitJMLimit = DEFAULT_MAX_JOBMANAGERS_PER_RESOURCE / 2;
 	restartJMLimit = DEFAULT_MAX_JOBMANAGERS_PER_RESOURCE - submitJMLimit;
 
+	m_versionKnown = false;
+
 	checkMonitorTid = daemonCore->Register_Timer( TIMER_NEVER,
 							(TimerHandlercpp)&GlobusResource::CheckMonitor,
 							"GlobusResource::CheckMonitor", (Service*)this );
@@ -389,7 +391,11 @@ void GlobusResource::DoPing( time_t& ping_delay, bool& ping_complete,
 
 	ping_delay = 0;
 
-	rc = gahp->globus_gram_client_ping( resourceName );
+	if ( m_versionKnown ) {
+		rc = gahp->globus_gram_client_ping( resourceName );
+	} else {
+		rc = gahp->globus_gram_client_get_jobmanager_version( resourceName );
+	}
 
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		ping_complete = false;
@@ -399,6 +405,13 @@ void GlobusResource::DoPing( time_t& ping_delay, bool& ping_complete,
 		ping_complete = true;
 		ping_succeeded = false;
 	} else {
+		if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_HTTP_UNPACK_FAILED ) {
+			m_isGt5 = false;
+		} else {
+			m_isGt5 = true;
+		}
+		m_versionKnown = true;
+
 		ping_complete = true;
 		ping_succeeded = true;
 	}
@@ -417,7 +430,7 @@ GlobusResource::CheckMonitor()
 	dprintf(D_FULLDEBUG, "grid_monitor for %s entering CheckMonitor\n",
 		resourceName);
 
-	if ( m_isGt5 ) {
+	if ( m_versionKnown && m_isGt5 ) {
 		dprintf( D_FULLDEBUG, "Disabling grid_monitor for GRAM5 server %s\n",
 				 resourceName );
 		return;
@@ -780,7 +793,7 @@ GlobusResource::SubmitMonitorJob()
 	contact.sprintf( "%s/jobmanager-fork", resourceName );
 
 	rc = monitorGahp->globus_gram_client_job_request( contact.Value(),
-													  RSL.Value(), 0, 
+													  RSL.Value(), 1,
 													  monitorGahp->getGt2CallbackContact(),
 													  NULL );
 

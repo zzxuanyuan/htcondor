@@ -85,11 +85,11 @@ foreach my $arg ( @ARGV ) {
 }
 
 my $dir = "test-eventlog_" . $settings{name};
-my $exe = "./lib_eventlog_".$settings{name}.".exe";
+my $exe = "../testbin_dir/lib_eventlog_".$settings{name}.".exe";
 my $fulldir = getcwd() . "/$dir";
 if ( -d $dir  and  $settings{force} )
 {
-    system( "/bin/rm", "-fr", $dir );
+    system( "rm", "-fr", $dir );
 }
 if ( -d $dir )
 {

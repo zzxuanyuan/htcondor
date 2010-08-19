@@ -78,7 +78,7 @@ static int is_number(const char *str);
 
 /* we must now use the kstat interface to get this information under later
 	releases of Solaris */
-#if defined(Solaris28) || defined(Solaris29)
+#if defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 static time_t solaris_kbd_idle(void);
 static time_t solaris_mouse_idle(void);
 #endif
@@ -164,10 +164,13 @@ calc_idle_time_cpp( time_t & m_idle, time_t & m_console_idle )
 	m_idle = MIN( now - _sysapi_last_x_event, m_idle );
 
 		// If last_x_event != 0, then condor_kbdd told us someone did
-		// something on the console, but always believe a /dev device
-		// over the kbdd, so if console_idle is set, leave it alone.
-	if( (m_console_idle == -1) && (_sysapi_last_x_event != 0) ) {
-		m_console_idle = now - _sysapi_last_x_event;
+		// something on the console.
+	if ( _sysapi_last_x_event ) {
+		if( m_console_idle != -1 ) {
+			m_console_idle = MIN( now - _sysapi_last_x_event, m_console_idle );
+		}else {
+			m_console_idle = now - _sysapi_last_x_event;
+		}
 	}
 
 #if defined(LINUX)
@@ -202,16 +205,13 @@ calc_idle_time_cpp( time_t & m_idle, time_t & m_console_idle )
 #include <utmp.h>
 #define UTMP_KIND utmp
 
-#if defined(OSF1)
-static char *UtmpName = "/var/adm/utmp";
-static char *AltUtmpName = "/etc/utmp";
-#elif defined(LINUX)
+#if defined(LINUX)
 static char *UtmpName = "/var/run/utmp";
 static char *AltUtmpName = "/var/adm/utmp";
 #elif defined(CONDOR_FREEBSD)
 static char *UtmpName = "/var/run/utmp";
 static char *AltUtmpName = "";
-#elif defined(Solaris28) || defined(Solaris29)
+#elif defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 #include <utmpx.h>
 static char *UtmpName = "/etc/utmpx";
 static char *AltUtmpName = "/var/adm/utmpx";
@@ -263,7 +263,7 @@ utmp_pty_idle_time( time_t now )
 	}
 
 	while (fread((char *)&utmp_info, sizeof(struct UTMP_KIND), 1, fp)) {
-#if defined(AIX) || defined(LINUX) || defined(OSF1) || defined(IRIX65)
+#if defined(AIX) || defined(LINUX)
 		if (utmp_info.ut_type != USER_PROCESS)
 #else
 			if (utmp_info.ut_name[0] == '\0')
@@ -401,7 +401,7 @@ all_pty_idle_time( time_t now )
 
 #ifdef LINUX
 #include <sys/sysmacros.h>  /* needed for major() below */
-#elif defined( OSF1 ) || defined(Darwin) || defined(CONDOR_FREEBSD)
+#elif defined(Darwin) || defined(CONDOR_FREEBSD)
 #include <sys/types.h>
 #elif defined( HPUX )
 #include <sys/sysmacros.h>
@@ -417,9 +417,9 @@ dev_idle_time( const char *path, time_t now )
 {
 	struct stat	buf;
 	time_t answer;
-	#if defined(Solaris28) || defined(Solaris29)
+#  if defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 	time_t kstat_answer;
-	#endif
+#  endif
 	static char pathname[100] = "/dev/";
 	static int null_major_device = -1;
 
@@ -481,7 +481,7 @@ dev_idle_time( const char *path, time_t now )
 		solaris 8 update 6+ or solaris 9. stat() will return 0
 		for the access time no matter what. */
 
-	#if defined(Solaris28) || defined(Solaris29)
+#  if defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 	
 		/* if I happen not to be dealing with a console device, we better 
 			choose what the stat() answer would have been, so initialize this
@@ -503,7 +503,7 @@ dev_idle_time( const char *path, time_t now )
 		then, well, someone is using it */
 	answer = MAX(answer, kstat_answer);
 
-	#endif
+#  endif
 
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_IDLE) ) {
         dprintf( D_IDLE, "%s: %d secs\n", pathname, (int)answer );
@@ -894,7 +894,7 @@ extract_idle_time(
 	actual kbd or mouse device no longer returns(by design according to 
 	solaris) the access time. These are localized functions static to this
 	object file. */
-#if defined(Solaris28) || defined(Solaris29)
+#if defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 static time_t solaris_kbd_idle(void)
 {
 	kstat_ctl_t     *kc = NULL;  /* libkstat cookie */ 

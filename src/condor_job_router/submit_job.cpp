@@ -37,6 +37,7 @@
 #undef open
 #include "classad/classad_distribution.h"
 #include "set_user_from_ad.h"
+#include "file_transfer.h"
 
 	// Simplify my error handling and reporting code
 class FailObj {
@@ -440,6 +441,13 @@ static bool submit_job_with_current_priv( ClassAd & src, const char * schedd_nam
 		src.Assign(ATTR_JOB_STATUS, 5); // 5==HELD
 		src.Assign(ATTR_HOLD_REASON, "Spooling input data files");
 
+			// See the comment in the function body of ExpandInputFileList
+			// for an explanation of what is going on here.
+		MyString transfer_input_error_msg;
+		if( !FileTransfer::ExpandInputFileList( &src, transfer_input_error_msg ) ) {
+			failobj.fail("%s\n",transfer_input_error_msg.Value());
+			return false;
+		}
 	}
 
 		// we want the job to hang around (taken from condor_submit.V6/submit.C)
@@ -448,15 +456,12 @@ static bool submit_job_with_current_priv( ClassAd & src, const char * schedd_nam
 	src.AssignExpr(ATTR_JOB_LEAVE_IN_QUEUE, leaveinqueue.Value());
 
 	ExprTree * tree;
+	const char *lhstr = 0;
+	const char *rhstr = 0;
 	src.ResetExpr();
-	while( (tree = src.NextExpr()) ) {
-		char *lhstr = 0;
-		char *rhstr = 0;
-		ExprTree * lhs = 0;
-		ExprTree * rhs = 0;
-		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-		if( !lhs || !rhs || !lhstr || !rhstr) { 
+	while( src.NextExpr(lhstr, tree) ) {
+		rhstr = ExprTreeToString( tree );
+		if( !lhstr || !rhstr) { 
 			failobj.fail("Problem processing classad\n");
 			return false;
 		}
@@ -464,8 +469,6 @@ static bool submit_job_with_current_priv( ClassAd & src, const char * schedd_nam
 			failobj.fail("Failed to set %s = %s\n", lhstr, rhstr);
 			return false;
 		}
-		free(lhstr);
-		free(rhstr);
 	}
 
 	failobj.SetQmgr(0);
@@ -520,15 +523,12 @@ bool submit_job( classad::ClassAd & src, const char * schedd_name, const char * 
 bool push_dirty_attributes(int cluster, int proc, ClassAd & src)
 {
 	src.ResetExpr();
+	const char *lhstr = 0;
+	const char *rhstr = 0;
 	ExprTree * tree;
-	while( (tree = src.NextDirtyExpr()) ) {
-		char *lhstr = 0;
-		char *rhstr = 0;
-		ExprTree * lhs = 0;
-		ExprTree * rhs = 0;
-		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
-		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
-		if( !lhs || !rhs || !lhstr || !rhstr) { 
+	while( src.NextDirtyExpr(lhstr, tree) ) {
+		rhstr = ExprTreeToString( tree );
+		if( !lhstr || !rhstr) { 
 			dprintf(D_ALWAYS,"(%d.%d) push_dirty_attributes: Problem processing classad\n", cluster, proc);
 			return false;
 		}
@@ -537,8 +537,6 @@ bool push_dirty_attributes(int cluster, int proc, ClassAd & src)
 			dprintf(D_ALWAYS,"(%d.%d) push_dirty_attributes: Failed to set %s = %s\n", cluster, proc, lhstr, rhstr);
 			return false;
 		}
-		free(lhstr);
-		free(rhstr);
 	}
 	return true;
 }
@@ -722,7 +720,7 @@ bool remove_job(classad::ClassAd const &ad, int cluster, int proc, char const *r
 	return success;
 }
 
-bool InitializeUserLog( classad::ClassAd const &job_ad, UserLog *ulog, bool *no_ulog )
+bool InitializeUserLog( classad::ClassAd const &job_ad, WriteUserLog *ulog, bool *no_ulog )
 {
 	int cluster, proc;
 	std::string owner;
@@ -883,7 +881,7 @@ bool InitializeHoldEvent( JobHeldEvent *event, classad::ClassAd const &job_ad )
 
 bool WriteEventToUserLog( ULogEvent const &event, classad::ClassAd const &ad )
 {
-	UserLog ulog;
+	WriteUserLog ulog;
 	bool no_ulog = false;
 
 	if(!InitializeUserLog(ad,&ulog,&no_ulog)) {

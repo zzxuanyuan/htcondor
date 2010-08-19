@@ -121,7 +121,7 @@ int
 main( int argc, char *argv[] )
 {
 	myDistro->Init( argc, argv );
-	if( argc == 2 && strincmp(argv[1], "-cl", 3) == MATCH ) {
+	if( argc == 2 && strncasecmp(argv[1], "-cl", 3) == MATCH ) {
 		printClassAd();
 		exit( 0 );
 	}
@@ -1115,7 +1115,7 @@ exception_cleanup(int,int,char*)
 int	AvoidNFS = 0;
 
 
-#if defined(OSF1) || defined(HPUX)
+#if defined(HPUX)
 /*
   None of this stuff is ever used, but it must be here so that we
   can link with the remote system call library without getting

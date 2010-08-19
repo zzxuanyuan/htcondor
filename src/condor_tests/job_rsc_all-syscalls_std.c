@@ -25,10 +25,8 @@
 	Whenever you add a system call please place a test for it in here.
 
 	Make sure to compile it with the correct define flags: e.g.,
-	-DIRIX
 	-DSolaris
 	-DLINUX
-	-DOSF1
 
 	-pete
 
@@ -63,12 +61,7 @@
 #include <sys/vfs.h>
 #endif
 
-#if defined(OSF1)
-#include <sys/mount.h>
-#include <sys/uio.h>
-#endif
-
-#if defined(IRIX) || defined(Solaris)
+#if defined(Solaris)
 #include <sys/statfs.h>
 #endif
 
@@ -77,41 +70,12 @@
 #include <nfs/nfs.h>
 #endif
 
-/* These are here because compilers are stupid... */
-#if defined (Solaris251)
-#ifdef __cplusplus
-extern "C" int getrusage(int who, struct rusage *rusage);
-extern "C" int gethostname(char *name, size_t len);
-extern "C" int utimes(char *filename, struct timeval *tvp);
-extern "C" int setregid(gid_t rgid, gid_t egid);
-extern "C" int setreuid(uid_t ruid, uid_t euid);
-#else
-int getrusage(int who, struct rusage *rusage);
-int gethostname(char *name, size_t len);
-int utimes(char *filename, struct timeval *tvp);
-int setregid(gid_t rgid, gid_t egid);
-int setreuid(uid_t ruid, uid_t euid);
-#endif
-#endif
-
 #if defined(Solaris26)
 #ifdef __cplusplus
 extern "C" int utimes(char *filename, struct timeval *tvp);
 #else
 int utimes(char *filename, struct timeval *tvp);
 #endif
-#endif
-
-/* for some reason, g++ needs this extern definition */
-#if defined(OSF1) && defined(__cplusplus) && defined(__GNUC__)
-extern "C" int fchdir(int);
-extern "C" int getdomainname(char *name, size_t len);
-#endif
-#if defined(DUX4) && defined(__cplusplus) && defined(__GNUC__)
-/* these are only a problem on dux4, it appears */
-extern "C" int statfs(char *, struct statfs *);
-extern "C" int fstatfs(int, struct statfs *);
-extern "C" int mknod(const char *, mode_t, dev_t );
 #endif
 
 #if defined(LINUX) && defined(GLIBC)
@@ -1477,7 +1441,7 @@ int statfs_test(char *path, struct statfs *buf)
 	printf("statfs(): path=%s\n", STR(path)); 
 	fflush(NULL);
 
-#if defined(IRIX) || defined(Solaris)
+#if defined(Solaris)
 	passed = handle_zng(ret = statfs(path, buf, sizeof(struct statfs), 0));
 #else
 	passed = handle_zng(ret = statfs(path, buf));
@@ -1504,7 +1468,7 @@ int statfs_test(char *path, struct statfs *buf)
 				"\t\tFree Inodes: %ld\n"
 				"\t\tTotal Inodes: %ld\n",
 				STR(path),
-				#if defined(Solaris) || defined(IRIX)
+				#if defined(Solaris)
 					buf->f_bfree,
 				#else
 					buf->f_bavail,
@@ -1541,7 +1505,7 @@ int fstatfs_test(int fd, struct statfs *buf)
 	printf("fstatfs(): fd=%d\n", fd); 
 	fflush(NULL);
 
-#if defined(IRIX) || defined(Solaris)
+#if defined(Solaris)
 	passed = handle_zng(ret = fstatfs(fd, buf, sizeof(struct statfs), 0));
 #else
 	passed = handle_zng(ret = fstatfs(fd, buf));
@@ -1567,7 +1531,7 @@ int fstatfs_test(int fd, struct statfs *buf)
 					"\t\tFree Inodes: %ld\n"
 					"\t\tTotal Inodes: %ld\n",
 					fd,
-					#if defined(Solaris) || defined(IRIX)
+					#if defined(Solaris)
 						buf->f_bfree,
 					#else
 						buf->f_bavail,
@@ -1610,9 +1574,6 @@ int getdomainname_test(char *name, int namelen)
 
 	switch(passed) {
 		case FAILURE:
-			#if defined(IRIX65)
-				is_errno_valid(save_errno, EFAULT, EPERM, ENDLIST);
-			#endif
 			/* FALL THROUGH */
 		case SUCCESS:
 			/* good return value */
@@ -4184,7 +4145,7 @@ int BasicTruncation(void)
 	return block;
 }
 
-#if defined(Solaris) || defined(IRIX65)
+#if defined(Solaris)
 int BasicFcntlTruncation(void)
 {
 	char tf[NAMEBUF] = {0};
@@ -4612,7 +4573,7 @@ int main(int argc, char **argv)
 		{BasicRename, "BasicRename: Does rename() work?"},
 		{BasicTruncation, "BasicTruncation: Does f?truncate() work?"},
 
-#if defined(Solaris) || defined(IRIX65)
+#if defined(Solaris)
 		{BasicFcntlTruncation, "BasicFcntlTruncation: Does F_FREESP work?"},
 #endif
 		{BasicUmask, "BasicUmask: Does umask() work?"},

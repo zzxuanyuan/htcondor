@@ -481,15 +481,11 @@ Convert a time value from the POSIX style "clock_t" to a BSD style
 void
 clock_t_to_timeval( clock_t ticks, struct timeval *tv )
 {
-#if defined(OSF1)
-        static long clock_tick = CLK_TCK;
-#else
         static long clock_tick = 0;
 
         if( !clock_tick ) {
                 clock_tick = sysconf( _SC_CLK_TCK );
         }
-#endif
 
         tv->tv_sec = ticks / clock_tick;
         tv->tv_usec = ticks % clock_tick;
@@ -1055,33 +1051,15 @@ MakeProc(ClassAd *ad, PROC *p)
 	ad->LookupString(ATTR_JOB_IWD, buf);
 	p->iwd = strdup(buf);
 
-	e = ad->Lookup(ATTR_REQUIREMENTS);
+	e = ad->LookupExpr(ATTR_REQUIREMENTS);
 	if (e) {
-		buf[0] = '\0';
-		e->PrintToStr(buf);
-		s = strchr(buf, '=');
-		if (s) {
-			s++;
-			p->requirements = strdup(s);
-		} 
-		else {
-			p->requirements = strdup(buf);
-		}
+		p->requirements = strdup(ExprTreeToString(e));
 	} else {
 	   p->requirements = NULL;
 	}
-	e = ad->Lookup(ATTR_RANK);
+	e = ad->LookupExpr(ATTR_RANK);
 	if (e) {
-		buf[0] = '\0';
-		e->PrintToStr(buf);
-		s = strchr(buf, '=');
-		if (s) {
-			s++;
-			p->preferences = strdup(s);
-		} 
-		else {
-			p->preferences = strdup(buf);
-		}
+		p->preferences = strdup(ExprTreeToString(e));
 	} else {
 		p->preferences = NULL;
 	}

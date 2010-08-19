@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2009, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -313,6 +313,22 @@ StatWrapper::GetBuf( const StatWrapperIntBase *stat,
 	return stat->GetBuf( buf );
 }
 
+const StatAccess &
+StatWrapper::GetAccess( const StatWrapperIntBase *stat ) const
+{
+	return stat->GetAccess( );
+}
+
+bool
+StatWrapper::GetAccess( const StatWrapperIntBase *stat,
+						StatAccess &abuf ) const
+{
+	if ( !stat ) {
+		return false;
+	}
+	return stat->GetAccess( abuf );
+}
+
 
 // stat() that'll run all of the stats
 int
@@ -322,7 +338,7 @@ StatWrapper::Stat( StatOpType which, bool force )
 
 	m_last_op = op;
 	m_last_which = which;
-	m_last_stat = op->getPrimary( );
+	//m_last_stat = op->getPrimary( );
 
 	// Invoke the relevant stat functions
 	return op->StatAll( force );

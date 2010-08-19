@@ -67,11 +67,14 @@ int CollectorDaemon::QueryTimeout;
 char* CollectorDaemon::CollectorName;
 Daemon* CollectorDaemon::View_Collector;
 Sock* CollectorDaemon::view_sock;
+Timeslice CollectorDaemon::view_sock_timeslice;
 
 ClassAd* CollectorDaemon::__query__;
 int CollectorDaemon::__numAds__;
 int CollectorDaemon::__failed__;
 List<ClassAd>* CollectorDaemon::__ClassAdResultList__;
+std::string CollectorDaemon::__adType__;
+ExprTree *CollectorDaemon::__filter__;
 
 TrackTotals* CollectorDaemon::normalTotals;
 int CollectorDaemon::submittorRunningJobs;
@@ -110,7 +113,7 @@ extern "C"
 	void install_sig_handler( int, SIGNAL_HANDLER );
 	void schedule_event ( int month, int day, int hour, int minute, int second, SIGNAL_HANDLER );
 }
-
+ 
 //----------------------------------------------------------------
 
 void computeProjection(ClassAd *shortAd, ClassAd *curr_ad, SimpleList<MyString> *projectionList);
@@ -128,6 +131,12 @@ void CollectorDaemon::Init()
 	updateCollectors = NULL;
 	updateRemoteCollector = NULL;
 	Config();
+
+	/* TODO: Eval notes and refactor when time permits.
+	 * 
+	 * per-review <tstclair> this is a really unintuive and I would consider unclean.
+	 * Maybe if we care about cron like events we should develop a clean mechanism
+	 * which doesn't indirectly hook into daemon-core timers. */
 
     // setup routine to report to condor developers
     // schedule reports to developers
@@ -308,7 +317,7 @@ int CollectorDaemon::receive_query_cedar(Service* /*s*/,
 	sock->decode();
 	sock->timeout(ClientTimeout);
 	bool ep = CondorThreads::enable_parallel(true);
-	bool res = !cad.initFromStream(*sock) || !sock->eom();
+	bool res = !cad.initFromStream(*sock) || !sock->end_of_message();
 	CondorThreads::enable_parallel(ep);
     if( res )
     {
@@ -516,13 +525,16 @@ int CollectorDaemon::receive_invalidation(Service* /*s*/,
 
 	sock->decode();
 	sock->timeout(ClientTimeout);
-    if( !cad.initFromStream(*sock) || !sock->eom() )
+    if( !cad.initFromStream(*sock) || !sock->end_of_message() )
     {
         dprintf( D_ALWAYS,
 				 "Failed to receive invalidation on %s: aborting\n",
 				 sock->type() == Stream::reli_sock ? "TCP" : "UDP" );
         return FALSE;
     }
+#if !defined(WANT_OLD_CLASSADS)
+	cad.RemoveExplicitTargetRefs();
+#endif
 
     // cancel timeout --- collector engine sets up its own timeout for
     // collecting further information
@@ -796,7 +808,7 @@ int CollectorDaemon::receive_update_expect_ack( Service* /*s*/,
 
         }
 
-        if ( !socket->eom () ) {
+        if ( !socket->end_of_message () ) {
         
             dprintf ( 
                 D_FULLDEBUG, 
@@ -862,8 +874,17 @@ CollectorDaemon::stashSocket( ReliSock* sock )
 
 int CollectorDaemon::query_scanFunc (ClassAd *cad)
 {
-	if (IsAHalfMatch( __query__, cad ))
-    {
+	if ( !__adType__.empty() ) {
+		std::string type = "";
+		cad->LookupString( ATTR_MY_TYPE, type );
+		if ( strcasecmp( type.c_str(), __adType__.c_str() ) != 0 ) {
+			return 1;
+		}
+	}
+
+	EvalResult result;
+	if ( EvalExprTree( __filter__, cad, NULL, &result ) &&
+		 result.type == LX_INTEGER && result.i != 0 ) {
 		// Found a match 
         __numAds__++;
 		__ClassAdResultList__->Append(cad);
@@ -872,29 +893,33 @@ int CollectorDaemon::query_scanFunc (ClassAd *cad)
     return 1;
 }
 
-/*
-Examine the given ad, and see if it satisfies the query.
-If so, return zero, causing the scan to stop.
-Otherwise, return 1.
-*/
-
-int CollectorDaemon::select_by_match( ClassAd *cad )
-{
-	if ( IsAHalfMatch( query_any_result, cad ) ) {
-		query_any_result = cad;
-		return 0;
-	}
-	return 1;
-}
-
 void CollectorDaemon::process_query_public (AdTypes whichAds,
 											ClassAd *query,
 											List<ClassAd>* results)
 {
+#if !defined(WANT_OLD_CLASSADS)
+	query->RemoveExplicitTargetRefs();
+#endif
 	// set up for hashtable scan
 	__query__ = query;
 	__numAds__ = 0;
 	__ClassAdResultList__ = results;
+	__filter__ = query->LookupExpr( ATTR_REQUIREMENTS );
+	// An empty adType means don't check the MyType of the ads.
+	// This means either the command indicates we're only checking one
+	// type of ad, or the query's TargetType is "Any" (match all ad types).
+	__adType__ = "";
+	if ( whichAds == GENERIC_AD || whichAds == ANY_AD ) {
+		query->LookupString( ATTR_TARGET_TYPE, __adType__ );
+		if ( strcasecmp( __adType__.c_str(), "any" ) == 0 ) {
+			__adType__ = "";
+		}
+	}
+
+	if ( __filter__ == NULL ) {
+		dprintf (D_ALWAYS, "Query missing %s\n", ATTR_REQUIREMENTS );
+		return;
+	}
 
 	if (!collector.walkHashTable (whichAds, query_scanFunc))
 	{
@@ -907,13 +932,19 @@ void CollectorDaemon::process_query_public (AdTypes whichAds,
 
 int CollectorDaemon::invalidation_scanFunc (ClassAd *cad)
 {
-	static char buffer[64];
-	
-	sprintf( buffer, "%s = 0", ATTR_LAST_HEARD_FROM );
+	if ( !__adType__.empty() ) {
+		std::string type = "";
+		cad->LookupString( ATTR_MY_TYPE, type );
+		if ( strcasecmp( type.c_str(), __adType__.c_str() ) != 0 ) {
+			return 1;
+		}
+	}
 
-	if (IsAHalfMatch( __query__, cad ))
-    {
-		cad->Insert( buffer );			
+	EvalResult result;
+	if ( EvalExprTree( __filter__, cad, NULL, &result ) &&
+		 result.type == LX_INTEGER && result.i != 0 ) {
+
+		cad->Assign( ATTR_LAST_HEARD_FROM, 0 );
         __numAds__++;
     }
 
@@ -922,20 +953,52 @@ int CollectorDaemon::invalidation_scanFunc (ClassAd *cad)
 
 void CollectorDaemon::process_invalidation (AdTypes whichAds, ClassAd &query, Stream *sock)
 {
+	if (param_boolean("IGNORE_INVALIDATE", false)) {
+		dprintf(D_ALWAYS, "Ignoring invalidate (IGNORE_INVALIDATE=TRUE)\n");
+		return;
+	}
+
 	// here we set up a network timeout of a longer duration
 	sock->timeout(QueryTimeout);
 
-	// set up for hashtable scan
-	__query__ = &query;
-	__numAds__ = 0;
+    if ( 0 == ( __numAds__ = collector.remove( whichAds, query ) ) )
+	{
+		dprintf ( D_ALWAYS, "Walking tables to invalidate... O(n)\n" );
 
-	// first set all the "LastHeardFrom" attributes to low values ...
-	collector.walkHashTable (whichAds, invalidation_scanFunc);
+		// set up for hashtable scan
+		__query__ = &query;
+		__filter__ = query.LookupExpr( ATTR_REQUIREMENTS );
+		// An empty adType means don't check the MyType of the ads.
+		// This means either the command indicates we're only checking
+		// one type of ad, or the query's TargetType is "Any" (match
+		// all ad types).
+		__adType__ = "";
+		if ( whichAds == GENERIC_AD || whichAds == ANY_AD ) {
+			query.LookupString( ATTR_TARGET_TYPE, __adType__ );
+			if ( strcasecmp( __adType__.c_str(), "any" ) == 0 ) {
+				__adType__ = "";
+			}
+		}
 
-	// ... then invoke the housekeeper
-	collector.invokeHousekeeper (whichAds);
+		if ( __filter__ == NULL ) {
+			dprintf (D_ALWAYS, "Invalidation missing %s\n", ATTR_REQUIREMENTS );
+			return;
+		}
 
-	dprintf (D_ALWAYS, "(Invalidated %d ads)\n", __numAds__);
+		if (param_boolean("HOUSEKEEPING_ON_INVALIDATE", true)) 
+		{
+			// first set all the "LastHeardFrom" attributes to low values ...
+			collector.walkHashTable (whichAds, invalidation_scanFunc);
+
+			// ... then invoke the housekeeper
+			collector.invokeHousekeeper (whichAds);
+		} else 
+		{
+			__numAds__ = collector.invalidateAds(whichAds, query);
+		}
+	}
+
+	dprintf (D_ALWAYS, "(Invalidated %d ads)\n", __numAds__ );
 }	
 
 
@@ -960,30 +1023,34 @@ int CollectorDaemon::reportSubmittorScanFunc( ClassAd *cad )
 int CollectorDaemon::reportMiniStartdScanFunc( ClassAd *cad )
 {
     char buf[80];
+	int iRet = 0;
 
-    if ( !cad->LookupString( ATTR_STATE, buf ) )
-        return 0;
-    machinesTotal++;
-    switch ( buf[0] ) {
-        case 'C':
-            machinesClaimed++;
-            break;
-        case 'U':
-            machinesUnclaimed++;
-            break;
-        case 'O':
-            machinesOwner++;
-            break;
-    }
+	if ( cad && cad->LookupString( ATTR_STATE, buf ) )
+	{
+		machinesTotal++;
+		switch ( buf[0] )
+		{
+			case 'C':
+				machinesClaimed++;
+				break;
+			case 'U':
+				machinesUnclaimed++;
+				break;
+			case 'O':
+				machinesOwner++;
+				break;
+		}
 
-	// Count the number of jobs in each universe
-	int		universe;
-	if ( cad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) ) {
-		ustatsAccum.accumulate( universe );
+		// Count the number of jobs in each universe
+		int universe;
+		if ( cad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) )
+		{
+			ustatsAccum.accumulate( universe );
+		}
+		iRet = 1;
 	}
 
-	// Done
-    return 1;
+    return iRet;
 }
 
 void CollectorDaemon::reportToDevelopers (void)
@@ -1004,7 +1071,7 @@ void CollectorDaemon::reportToDevelopers (void)
     }
 
     // If we don't have any machines reporting to us, bail out early
-    if(machinesTotal == 0) 	
+    if(machinesTotal == 0)
         return;
 
 	if( ( normalTotals = new TrackTotals( PP_STARTD_NORMAL ) ) == NULL ) {
@@ -1093,7 +1160,7 @@ void CollectorDaemon::Config()
 	if (tmp == NULL) {
 		tmp = strdup("condor.cs.wisc.edu");
 	}
-	if (stricmp(tmp,"NONE") == 0 ) {
+	if (strcasecmp(tmp,"NONE") == 0 ) {
 		free(tmp);
 		tmp = NULL;
 	}
@@ -1169,7 +1236,15 @@ void CollectorDaemon::Config()
        }
        free(tmp);
        if(View_Collector) {
-           view_sock = View_Collector->safeSock();
+		   if( View_Collector->hasUDPCommandPort() ) {
+			   view_sock = new SafeSock();
+		   }
+		   else {
+			   view_sock = new ReliSock();
+		   }
+			   // protect against frequent time-consuming reconnect attempts
+		   view_sock_timeslice.setTimeslice(0.05);
+		   view_sock_timeslice.setMaxInterval(1200);
        }
     }
 
@@ -1260,11 +1335,6 @@ void CollectorDaemon::sendCollectorAd()
             dprintf (D_ALWAYS, "Error making collector ad (startd scan) \n");
     }
 
-    // If we don't have any machines, then bail out. You oftentimes
-    // see people run a collector on each macnine in their pool. Duh.
-    if(machinesTotal == 0) {
-		return;
-	}
     // insert values into the ad
     char line[100];
     sprintf(line,"%s = %d",ATTR_RUNNING_JOBS,submittorRunningJobs);
@@ -1296,6 +1366,11 @@ void CollectorDaemon::sendCollectorAd()
 		dprintf( D_ALWAYS, "Unable to send UPDATE_COLLECTOR_AD to all configured collectors\n");
 	}
 
+       // If we don't have any machines, then bail out. You oftentimes
+       // see people run a collector on each macnine in their pool. Duh.
+	if(machinesTotal == 0) {
+		return ;
+	}
 	if ( updateRemoteCollector ) {
 		char *update_addr = updateRemoteCollector->addr();
 		if (!update_addr) update_addr = "(null)";
@@ -1359,9 +1434,46 @@ CollectorDaemon::send_classad_to_sock(int cmd, Daemon * d, ClassAd* theAd)
 	dprintf(D_ALWAYS, "Trying to forward ad on, but ad is NULL!!!\n");
         return;
     }
-    if (! d->startCommand(cmd, view_sock)) {
+	bool raw_command = false;
+	if( !view_sock->is_connected() ) {
+			// We must have gotten disconnected.  (Or this is the 1st time.)
+
+			// In case we keep getting disconnected or fail to connect,
+			// and each connection attempt takes a long time, restrict
+			// what fraction of our time we spend trying to reconnect.
+
+		char const *desc = d->idStr() ? d->idStr() : "(null)";
+		if( view_sock_timeslice.isTimeToRun() ) {
+			dprintf(D_ALWAYS,"Connecting to CONDOR_VIEW_HOST %s\n", desc );
+
+			view_sock_timeslice.setStartTimeNow();
+			d->connectSock(view_sock,20);
+			view_sock_timeslice.setFinishTimeNow();
+
+			if( !view_sock->is_connected() ) {
+				dprintf(D_ALWAYS,"Failed to connect to CONDOR_VIEW_HOST %s "
+						" so not forwarding ad.\n",
+						desc );
+				return;
+			}
+		}
+		else {
+			dprintf(D_FULLDEBUG,"Skipping forwarding of ad to CONDOR_VIEW_HOST %s, because reconnect is delayed for %us.\n", desc, view_sock_timeslice.getTimeToNextRun());
+			return;
+		}
+
+	}
+	else if( view_sock->type() == Stream::reli_sock ) {
+			// we already did the security handshake the last time
+			// we sent a command on this socket, so just send a
+			// raw command this time to avoid reauthenticating
+		raw_command = true;
+	}
+
+    if (! d->startCommand(cmd, view_sock, 20, NULL, NULL, raw_command)) {
         dprintf( D_ALWAYS, "Can't send command %d to View Collector\n", cmd);
         view_sock->end_of_message();
+		view_sock->close();
         return;
     }
 
@@ -1369,6 +1481,7 @@ CollectorDaemon::send_classad_to_sock(int cmd, Daemon * d, ClassAd* theAd)
         if( ! theAd->put( *view_sock ) ) {
             dprintf( D_ALWAYS, "Can't forward classad to View Collector\n");
             view_sock->end_of_message();
+			view_sock->close();
             return;
         }
     }
@@ -1388,6 +1501,7 @@ CollectorDaemon::send_classad_to_sock(int cmd, Daemon * d, ClassAd* theAd)
 			if( ! pvt_ad->put( *view_sock ) ) {
 				dprintf( D_ALWAYS, "Can't forward startd private classad to View Collector\n");
 				view_sock->end_of_message();
+				view_sock->close();
 				return;
 			}
 		}
@@ -1395,6 +1509,7 @@ CollectorDaemon::send_classad_to_sock(int cmd, Daemon * d, ClassAd* theAd)
 
     if( ! view_sock->end_of_message() ) {
         dprintf( D_ALWAYS, "Can't send end_of_message to View Collector\n");
+		view_sock->close();
         return;
     }
     return;
@@ -1535,8 +1650,8 @@ computeProjection(ClassAd *shortAd, ClassAd *full_ad, SimpleList<MyString> *proj
 		internals.rewind();
 
 		while (char *indirect_attr = internals.next()) {
-			ExprTree *tree = full_ad->Lookup(indirect_attr);
-			if (tree) shortAd->Insert(tree->DeepCopy());
+			ExprTree *tree = full_ad->LookupExpr(indirect_attr);
+			if (tree) shortAd->Insert(indirect_attr, tree->Copy());
 		}
 	}
 	shortAd->SetMyTypeName(full_ad->GetMyTypeName());

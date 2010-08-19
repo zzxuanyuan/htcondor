@@ -217,7 +217,7 @@ NewConnection( int id )
 	}
 
 		// Turn the stream around
-	SyscallStream->eom();
+	SyscallStream->end_of_message();
 	SyscallStream->decode();
 
 		// Read the port number
@@ -228,7 +228,7 @@ NewConnection( int id )
 		SyscallStream->code( errno );
 		EXCEPT( "Can't get port for new connection" );
 	}
-	SyscallStream->eom();
+	SyscallStream->end_of_message();
 
 		// Create the sinful string we want to connect back to.
 	sprintf( addr, "<%s:%d>", SyscallStream->peer_ip_str(), portno );
@@ -341,15 +341,6 @@ determine_user_ids( uid_t &requested_uid, gid_t &requested_gid )
 		requested_gid = 59999;
 #endif
 
-#ifdef IRIX
-		// Same weirdness on IRIX.  60001 is the default uid for
-		// nobody, lets hope that works.
-	if ( (requested_uid >= UID_MAX ) || (requested_uid < 0) )
-		requested_uid = 60001;
-	if ( (requested_gid >= UID_MAX) || (requested_gid < 0) )
-		requested_gid = 60001;
-#endif
-
 }
 
 void
@@ -358,7 +349,7 @@ setSlotEnv( Env* env_obj ) {
 	MyString slot_env;
 	slot_env.sprintf("_CONDOR_SLOT=%s", SlotName.Value());
 	env_obj->SetEnv(slot_env.Value());
-	if (param_boolean("ALLOW_VM_CRUFT", true)) {
+	if (param_boolean("ALLOW_VM_CRUFT", false)) {
 		slot_env.sprintf("CONDOR_VM=%s", SlotName.Value());
 		env_obj->SetEnv(slot_env.Value());
 	}

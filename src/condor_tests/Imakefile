@@ -295,9 +295,8 @@ TESTCLASS(job_vmu_ckpt,full)
 TESTCLASS(job_vmu_ckpt,quicknolink)
 #endif 
 
-/* We're not building OpenSSL on HPUX */
-/* The threads in amazon_gahp are causing problems on AIX */
-#if !defined( IS_HPUX11 ) && !defined( IS_AIX ) && !defined( IS_SOLARIS29 )
+/* The amazon_gahp uses threads, so we only build it on linux at the moment. */
+#if defined( IS_LINUX )
 DESC(job_amazon_basic,"Amazon EC2 test")
 RUN(job_amazon_basic)
 TESTCLASS(job_amazon_basic,quick)
@@ -352,13 +351,6 @@ TESTCLASS(lib_auth_config,quick)
 TESTCLASS(lib_auth_config,full)
 TESTCLASS(lib_auth_config,quicknolink)
 
-DESC(lib_classads,"Run ClassAd Tests")
-RUN(lib_classads)
-TESTCLASS(lib_classads,core)
-TESTCLASS(lib_classads,quick)
-TESTCLASS(lib_classads,full)
-TESTCLASS(lib_classads,quicknolink)
-
 DESC(lib_auth_protocol-fs,"FS authentication test")
 RUN(lib_auth_protocol-fs)
 TESTCLASS(lib_auth_protocol-fs,core)
@@ -373,8 +365,8 @@ TESTCLASS(lib_auth_protocol-ctb,quick)
 TESTCLASS(lib_auth_protocol-ctb,full)
 TESTCLASS(lib_auth_protocol-ctb,quicknolink)
 
-/* GNATS 764 - SSL missing on Dux 5.1 and HPUX 11 machines */
-#if !defined( IS_ALPHA_DUX5) && !defined( IS_HPUX11 )
+/* GNATS 764 - SSL missing on HPUX 11 machines */
+#if !defined( IS_HPUX11 )
 
 DESC(lib_auth_protocol-ssl,"SSL authentication test")
 RUN(lib_auth_protocol-ssl)
@@ -557,13 +549,6 @@ TESTCLASS(cmd_q_shows-sub,quick)
 TESTCLASS(cmd_q_shows-sub,full)
 TESTCLASS(cmd_q_shows-sub,quicknolink)
 
-DESC(cmd_q_shows-analyze,"Condor_q shows analyze")
-RUN(cmd_q_shows-analyze)
-TESTCLASS(cmd_q_shows-analyze,core)
-TESTCLASS(cmd_q_shows-analyze,quick)
-TESTCLASS(cmd_q_shows-analyze,full)
-TESTCLASS(cmd_q_shows-analyze,quicknolink)
-
 DESC(cmd_q_shows-better-analyze,"Condor_q shows better-analyze")
 RUN(cmd_q_shows-better-analyze)
 TESTCLASS(cmd_q_shows-better-analyze,core)
@@ -594,22 +579,18 @@ TESTCLASS(cmd_q_shows-format,quicknolink)
 
 DESC(lib_userlog,"Exercise the userlog interface write and read all events");
 RUN(lib_userlog)
-DEPS(lib_userlog,x_read_joblog.exe)
-DEPS(lib_userlog,x_write_joblog.exe)
 TESTCLASS(lib_userlog,lib)
 TESTCLASS(lib_userlog,quick)
 TESTCLASS(lib_userlog,full)
 
 DESC(lib_eventlog,"Basic Event Log Test")
 RUN(lib_eventlog)
-DEPS(lib_eventlog,x_read_joblog.exe)
 TESTCLASS(lib_eventlog,core)
 TESTCLASS(lib_eventlog,quick)
 TESTCLASS(lib_eventlog,full)
 
 DESC(lib_eventlog-xml,"Basic XML Event Log Test")
 RUN(lib_eventlog-xml)
-DEPS(lib_eventlog-xml,x_read_joblog.exe)
 TESTCLASS(lib_eventlog-xml,core)
 TESTCLASS(lib_eventlog-xml,quick)
 TESTCLASS(lib_eventlog-xml,full)
@@ -618,8 +599,6 @@ TESTCLASS(lib_eventlog-xml,full)
    cause seg faults */
 DESC(lib_eventlog_base,"Test re-initialization of eventlog reader")
 RUN(lib_eventlog_base)
-DEPS(lib_eventlog_base,lib_eventlog_base.exe)
-DEPS(lib_eventlog_base,lib_eventlog_base.exe)
 TESTCLASS(lib_eventlog_base,lib)
 TESTCLASS(lib_eventlog_base,quick)
 TESTCLASS(lib_eventlog_base,full)
@@ -849,10 +828,10 @@ TESTCLASS(job_dagman_stork-remove,quicknolink)
 ****************** Tests being readied for prime time **********************
 */
 
-#if !defined( IS_DARWIN ) && !defined(IS_DUX5) && !defined(IS_HPUX10) && !defined(IS_PPC_AIX) && !defined(IS_SOLARIS28) && !defined(IS_SOLARIS29) && !defined(IS_IRIX) && !defined(IS_HPUX11) && !defined(IS_CONDOR_FREEBSD)
+#if !defined( IS_DARWIN ) && !defined(IS_HPUX10) && !defined(IS_PPC_AIX) && !defined(IS_SOLARIS28) && !defined(IS_SOLARIS29) && !defined(IS_HPUX11) && !defined(IS_CONDOR_FREEBSD)
 /* 
    Gnats 545 this procapi test of pid tracking not working MacOsX
-   Gnats 547 this procapi test of pid tracking not working IS_ALPHA_OSF1_V5 IS_HPUX10 IS_PPC_AIX SOLARIS28 SOLARIS29 
+   Gnats 547 this procapi test of pid tracking not working IS_HPUX10 IS_PPC_AIX SOLARIS28 SOLARIS29 
 */
 DESC(lib_procapi_pidtracking-byenv,"Slow Termination Child Cleanup Test")
 RUN(lib_procapi_pidtracking-byenv)
@@ -941,7 +920,7 @@ TESTCLASS(job_core_plus_java,quicknolink)
 Gnats bugs 723 and 724
 Gnats bug 790 for john memory failings
 */
-#if !defined( IS_CONDOR_PPC_LINUX_SLES9 ) && !defined(IS_IA64_LINUX_SLES81) && !defined( IS_CONDOR_PPC_LINUX_YD30 ) && !defined( IS_I386_LINUX_RHEL3 ) && !defined( IS_ALPHA_DUX5 ) && !defined( IS_CONDOR_PPC_LINUX_YD50 )
+#if !defined( IS_CONDOR_PPC_LINUX_SLES9 ) && !defined( IS_CONDOR_PPC_LINUX_YD30 ) && !defined( IS_I386_LINUX_RHEL3 ) && !defined( IS_CONDOR_PPC_LINUX_YD50 ) && !defined( IS_SUN4X_SOLARIS28 )
 DESC(soap_job_tests,"Soap: currently 10 different interface tests")
 RUN(soap_job_tests)
 TESTCLASS(soap_job_tests,core)
@@ -965,7 +944,7 @@ TESTCLASS(job_filexfer_streamerr_van,quick)
 TESTCLASS(job_filexfer_streamerr_van,full)
 TESTCLASS(job_filexfer_streamerr_van,quicknolink)
 
-#if !defined( IS_ALPHA_LINUX) && !defined(IS_HPUX10) && !defined(IS_HPUX11) && !defined(IS_IA64_LINUX_SLES81) && !defined(IS_IA64_LINUX_RHEL3) 
+#if !defined( IS_ALPHA_LINUX) && !defined(IS_HPUX10) && !defined(IS_HPUX11) && !defined(IS_IA64_LINUX_RHEL3) 
 /* 
    NOTE: this is an unfortunate way to do this selection.  we should
    have reliable HAVE_GLOBUS, HAVE_CONDOR_C, and HAVE_CONDOR_G macros
@@ -1651,40 +1630,33 @@ TESTCLASS(job_filexfer_md5-remote_van,quicknolink)
 /* new condor_wait tests */
 
 DESC(cmd_wait_shows-all,"")
-DEPS(cmd_wait_shows-all,x_write_joblog_events.exe)
 RUN(cmd_wait_shows-all)
 TESTCLASS(cmd_wait_shows-all,quick)
 TESTCLASS(cmd_wait_shows-all,full)
 
 DESC(cmd_wait_shows-base,"")
-DEPS(cmd_wait_shows-base,x_write_joblog_events.exe)
 RUN(cmd_wait_shows-base)
 TESTCLASS(cmd_wait_shows-base,quick)
 TESTCLASS(cmd_wait_shows-base,full)
 
 DESC(cmd_wait_shows-notimeout,"")
-DEPS(cmd_wait_shows-notimeout,x_write_joblog_events.exe)
 RUN(cmd_wait_shows-notimeout)
 TESTCLASS(cmd_wait_shows-notimeout,quick)
 TESTCLASS(cmd_wait_shows-notimeout,full)
 
 DESC(cmd_wait_shows-partial,"")
-DEPS(cmd_wait_shows-partial,x_write_joblog_events.exe)
 RUN(cmd_wait_shows-partial)
 TESTCLASS(cmd_wait_shows-partial,quick)
 TESTCLASS(cmd_wait_shows-partial,full)
 
 DESC(cmd_wait_shows-timeout,"")
-DEPS(cmd_wait_shows-timeout,x_write_joblog_events.exe)
 RUN(cmd_wait_shows-timeout)
 TESTCLASS(cmd_wait_shows-timeout,quick)
 TESTCLASS(cmd_wait_shows-timeout,full)
-TESTCLASS(cmd_wait_shows-timeout,quicknolink)
 
 /* Dagman Tests */
 
 DESC(job_dagman_comlog,"Run a dag with multiple nodes sharing a common log")
-DEPS(job_dagman_comlog,x_read_joblog.exe)
 RUN(job_dagman_comlog)
 TESTCLASS(job_dagman_comlog,dagman)
 TESTCLASS(job_dagman_comlog,quick)
@@ -1692,7 +1664,6 @@ TESTCLASS(job_dagman_comlog,full)
 TESTCLASS(job_dagman_comlog,quicknolink)
 
 DESC(job_dagman_fullremove,"Ensure a removed dag is completely removed")
-DEPS(job_dagman_fullremove,x_read_joblog.exe)
 RUN(job_dagman_fullremove)
 TESTCLASS(job_dagman_fullremove,dagman)
 TESTCLASS(job_dagman_fullremove,quick)
@@ -1728,7 +1699,6 @@ TESTCLASS(job_dagman_prepost,full)
 TESTCLASS(job_dagman_prepost,quicknolink)
 
 DESC(job_dagman_retry,"Make sure a retry dag runs correctly.")
-DEPS(job_dagman_retry,x_read_joblog.exe)
 RUN(job_dagman_retry)
 TESTCLASS(job_dagman_retry,dagman)
 TESTCLASS(job_dagman_retry,quick)
@@ -1736,14 +1706,12 @@ TESTCLASS(job_dagman_retry,full)
 TESTCLASS(job_dagman_retry,quicknolink)
 
 DESC(job_dagman_throttle,"Test Dagman throttling ability")
-DEPS(job_dagman_throttle,x_read_joblog.exe)
 RUN(job_dagman_throttle)
 TESTCLASS(job_dagman_throttle,dagman)
 TESTCLASS(job_dagman_throttle,long)
 TESTCLASS(job_dagman_throttle,full)
 
 DESC(job_dagman_uncomlog,"Test Dagmans ability to have sepaarate job log files")
-DEPS(job_dagman_uncomlog,x_read_joblog.exe)
 RUN(job_dagman_uncomlog)
 TESTCLASS(job_dagman_uncomlog,dagman)
 TESTCLASS(job_dagman_uncomlog,quick)
@@ -1751,7 +1719,6 @@ TESTCLASS(job_dagman_uncomlog,full)
 TESTCLASS(job_dagman_uncomlog,quicknolink)
 
 DESC(job_dagman_unlessexit,"Test that the retries can be stopped with particular exit values from node.")
-DEPS(job_dagman_unlessexit,x_read_joblog.exe)
 RUN(job_dagman_unlessexit)
 TESTCLASS(job_dagman_unlessexit,dagman)
 TESTCLASS(job_dagman_unlessexit,quick)
@@ -1792,6 +1759,27 @@ TESTCLASS(job_dagman_subdag-A,dagman)
 TESTCLASS(job_dagman_subdag-A,quick)
 TESTCLASS(job_dagman_subdag-A,full)
 TESTCLASS(job_dagman_subdag-A,quicknolink)
+
+DESC(job_dagman_subdag-AE,"Test condor_submit_dag recursion on nested DAGs, SUBDAG EXTERNAL keyword, eager .condor.sub generation")
+RUN(job_dagman_subdag-AE)
+TESTCLASS(job_dagman_subdag-AE,dagman)
+TESTCLASS(job_dagman_subdag-AE,quick)
+TESTCLASS(job_dagman_subdag-AE,full)
+TESTCLASS(job_dagman_subdag-AE,quicknolink)
+
+DESC(job_dagman_subdag_in_splice-A,"Test a sub-DAG inside a splice -- only works with lazy submit file generation")
+RUN(job_dagman_subdag_in_splice-A)
+TESTCLASS(job_dagman_subdag_in_splice-A,dagman)
+TESTCLASS(job_dagman_subdag_in_splice-A,quick)
+TESTCLASS(job_dagman_subdag_in_splice-A,full)
+TESTCLASS(job_dagman_subdag_in_splice-A,quicknolink)
+
+DESC(job_dagman_pre_subdag-A,"Test sub-DAG generated by PRE script")
+RUN(job_dagman_pre_subdag-A)
+TESTCLASS(job_dagman_pre_subdag-A,dagman)
+TESTCLASS(job_dagman_pre_subdag-A,quick)
+TESTCLASS(job_dagman_pre_subdag-A,full)
+TESTCLASS(job_dagman_pre_subdag-A,quicknolink)
 
 DESC(job_dagman_splice-cat,"Test DAG splice/node category")
 RUN(job_dagman_splice-cat)
@@ -1921,6 +1909,20 @@ TESTCLASS(job_dagman_script_args,quick)
 TESTCLASS(job_dagman_script_args,full)
 TESTCLASS(job_dagman_script_args,quicknolink)
 
+DESC(job_dagman_noop_node,"Test noop nodes")
+RUN(job_dagman_noop_node)
+TESTCLASS(job_dagman_noop_node,dagman)
+TESTCLASS(job_dagman_noop_node,quick)
+TESTCLASS(job_dagman_noop_node,full)
+TESTCLASS(job_dagman_noop_node,quicknolink)
+
+DESC(job_dagman_node_status,"Test noop nodes")
+RUN(job_dagman_node_status)
+TESTCLASS(job_dagman_node_status,dagman)
+TESTCLASS(job_dagman_node_status,quick)
+TESTCLASS(job_dagman_node_status,full)
+TESTCLASS(job_dagman_node_status,quicknolink)
+
 /* Sample performance tests */
 
 /*
@@ -2024,11 +2026,59 @@ TESTCLASS(lib_shared_port_van,full)
 TESTCLASS(lib_shared_port_van,quicknolink)
 #endif
 
-lib_eventlog_build.exe : lib_eventlog_base.cpp
-	$(CPlusPlus) $< -ggdb -DLIBAPI_ONLY \
-	-I ../release_dir/include ../release_dir/lib/libcondorapi.a \
-	-lc -ldl -o $@
+DESC(lib_ccb_startd,"Test of execute daemons using CCB.")
+DEPS(lib_ccb_startd,x_sleep.pl)
+RUN(lib_ccb_startd)
+TESTCLASS(lib_ccb_startd,core)
+TESTCLASS(lib_ccb_startd,quick)
+TESTCLASS(lib_ccb_startd,full)
+TESTCLASS(lib_ccb_startd,quicknolink)
 
+DESC(lib_ccb_schedd,"Test of submit daemons using CCB.")
+DEPS(lib_ccb_schedd,x_sleep.pl)
+RUN(lib_ccb_schedd)
+TESTCLASS(lib_ccb_schedd,core)
+TESTCLASS(lib_ccb_schedd,quick)
+TESTCLASS(lib_ccb_schedd,full)
+TESTCLASS(lib_ccb_schedd,quicknolink)
+
+DESC(lib_ccb_schedd_privnet,"Test of submit daemons using CCB in private net.")
+DEPS(lib_ccb_schedd_privnet,x_sleep.pl)
+RUN(lib_ccb_schedd_privnet)
+TESTCLASS(lib_ccb_schedd_privnet,core)
+TESTCLASS(lib_ccb_schedd_privnet,quick)
+TESTCLASS(lib_ccb_schedd_privnet,full)
+TESTCLASS(lib_ccb_schedd_privnet,quicknolink)
+
+DESC(lib_job_router_local,"Test of JobRouter routing to local universe.")
+DEPS(lib_job_router_local,x_sleep.pl)
+RUN(lib_job_router_local)
+TESTCLASS(lib_job_router_local,core)
+TESTCLASS(lib_job_router_local,quick)
+TESTCLASS(lib_job_router_local,full)
+TESTCLASS(lib_job_router_local,quicknolink)
+
+/** 
+	Shadow bloat test, only run on linux systems
+*/
+#if defined(IS_IA64_LINUX_RHEL3) || defined(IS_CONDOR_PPC_LINUX_YD50) || defined(IS_X86_64_LINUX_DEBIAN50) || \
+	defined(IS_X86_64_LINUX_RHEL5) || defined(IS_X86_64_LINUX_RHEL3) || defined(IS_I386_LINUX_DEBIAN40) || \
+	defined(IS_I386_LINUX_DEBIAN50) || defined(IS_I386_LINUX_RHEL5) || defined(IS_I386_LINUX_RHEL3)
+DESC(job_core_shadow-lessthan-memlimit_van, "Make sure the shadow stays below memory limit")
+RUN(job_core_shadow-lessthan-memlimit_van)
+TESTCLASS(job_core_shadow-lessthan-memlimit_van,quick)
+TESTCLASS(job_core_shadow-lessthan-memlimit_van,core)
+TESTCLASS(job_core_shadow-lessthan-memlimit_van,full)
+TESTCLASS(job_core_shadow-lessthan-memlimit_van,btdebug)
+#endif
+
+lib_eventlog_build.exe : lib_eventlog_base.o
+	$(CPlusPlus) -o $@ $< ../release_dir/lib/libcondorapi.a $(TEST_LDFLAGS)
+
+testbin_target(x_write_joblog.exe,755)
+testbin_target(x_write_joblog_events.exe,755)
+testbin_target(x_read_joblog.exe,755)
+testbin_target(lib_eventlog_base.exe,755)
 
 /************************************************************************
    Settings specific to compiler-specific subdirectories
@@ -2088,6 +2138,11 @@ check:: resubmit
 
 check-serialized:: resubmit
 	./x_runtests.pl -c quick -t 1200
+
+test: all
+	cd .. && make testbin
+	/bin/env "PATH=`pwd`/../release_dir/bin:`pwd`/../release_dir/sbin:${PATH}" ./batch_test.pl -b -c
+	
 
 /***********************************************************************
    Empty rules to make our top-level Imakefile happy

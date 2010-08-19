@@ -86,6 +86,7 @@ ResMgr::ResMgr()
 	num_updates = 0;
 	startTime = 0;
 	type_strings = NULL;
+	m_startd_hook_shutdown_pending = false;
 }
 
 
@@ -111,6 +112,10 @@ ResMgr::~ResMgr()
 
 #if HAVE_HIBERNATION
 	cancelHibernateTimer();
+	if (m_hibernation_manager) {
+		delete m_hibernation_manager;
+	}
+
 #endif /* HAVE_HIBERNATION */
 
 	if( resources ) {
@@ -204,6 +209,10 @@ ResMgr::init_config_classad( void )
 	// Publish all DaemonCore-specific attributes, which also handles
 	// STARTD_ATTRS for us.
 	daemonCore->publish(config_classad);
+
+#if !defined(WANT_OLD_CLASSADS)
+	config_classad->AddTargetRefs( TargetJobAttrs, false );
+#endif
 }
 
 
@@ -229,7 +238,7 @@ verifyBackfillSystem( const char* sys )
 {
 
 #if HAVE_BOINC
-	if( ! stricmp(sys, "BOINC") ) {
+	if( ! strcasecmp(sys, "BOINC") ) {
 		return true;
 	}
 #endif /* HAVE_BOINC */
@@ -296,7 +305,7 @@ ResMgr::backfillConfig()
 	}
 
 	if( m_backfill_mgr ) {
-		if( ! stricmp(new_system, m_backfill_mgr->backfillSystemName()) ) {
+		if( ! strcasecmp(new_system, m_backfill_mgr->backfillSystemName()) ) {
 				// same as before
 			free( new_system );
 				// since it's already here and we're keeping it, tell
@@ -331,7 +340,7 @@ ResMgr::backfillConfig()
 		// no manager object.  so, depending on the system,
 		// instantiate the right thing.
 #if HAVE_BOINC
-	if( ! stricmp(new_system, "BOINC") ) {
+	if( ! strcasecmp(new_system, "BOINC") ) {
 		m_backfill_mgr = new BOINC_BackfillMgr();
 		if( ! m_backfill_mgr->init() ) {
 			dprintf( D_ALWAYS, "ERROR initializing BOINC_BackfillMgr\n" );
@@ -370,7 +379,7 @@ ResMgr::init_resources( void )
 
 		// These things can only be set once, at startup, so they
 		// don't need to be in build_cpu_attrs() at all.
-	if (param_boolean("ALLOW_VM_CRUFT", true)) {
+	if (param_boolean("ALLOW_VM_CRUFT", false)) {
 		max_types = param_integer("MAX_SLOT_TYPES",
 								  param_integer("MAX_VIRTUAL_MACHINE_TYPES",
 												10));
@@ -694,7 +703,7 @@ ResMgr::initTypes( bool except )
 		buf.sprintf("SLOT_TYPE_%d", i);
 		tmp = param(buf.Value());
 		if (!tmp) {
-			if (param_boolean("ALLOW_VM_CRUFT", true)) {
+			if (param_boolean("ALLOW_VM_CRUFT", false)) {
 				buf.sprintf("VIRTUAL_MACHINE_TYPE_%d", i);
 				if (!(tmp = param(buf.Value()))) {
 					continue;
@@ -729,7 +738,7 @@ ResMgr::countTypes( int** array_ptr, bool except )
 
 	for( i=1; i<max_types; i++ ) {
 		param_name.sprintf("NUM_SLOTS_TYPE_%d", i);
-		if (param_boolean("ALLOW_VM_CRUFT", true)) {
+		if (param_boolean("ALLOW_VM_CRUFT", false)) {
 			cruft_name.sprintf("NUM_VIRTUAL_MACHINES_TYPE_%d", i);
 			my_type_nums[i] = param_integer(param_name.Value(),
 											 param_integer(cruft_name.Value(),
@@ -750,7 +759,7 @@ ResMgr::countTypes( int** array_ptr, bool except )
 			// We haven't found any special types yet.  Therefore,
 			// we're evenly dividing things, so we only have to figure
 			// out how many nodes to advertise.
-		if (param_boolean("ALLOW_VM_CRUFT", true)) {
+		if (param_boolean("ALLOW_VM_CRUFT", false)) {
 			my_type_nums[0] = param_integer("NUM_SLOTS",
 										  param_integer("NUM_VIRTUAL_MACHINES",
 														num_cpus()));
@@ -976,7 +985,7 @@ ResMgr::parse_value( const char* str, int type, bool except )
 {
 	char *tmp, *foo = strdup( str );
 	float val;
-	if( stricmp(foo,"auto") == 0 || stricmp(foo,"automatic") == 0 ) {
+	if( strcasecmp(foo,"auto") == 0 || strcasecmp(foo,"automatic") == 0 ) {
 		free( foo );
 		return AUTO_SHARE;
 	}
@@ -1616,7 +1625,7 @@ ResMgr::publish( ClassAd* cp, amask_t how_much )
 {
 	if( IS_UPDATE(how_much) && IS_PUBLIC(how_much) ) {
 		cp->Assign(ATTR_TOTAL_SLOTS, numSlots());
-		if (param_boolean("ALLOW_VM_CRUFT", true)) {
+		if (param_boolean("ALLOW_VM_CRUFT", false)) {
 			cp->Assign(ATTR_TOTAL_VIRTUAL_MACHINES, numSlots());
 		}
 	}

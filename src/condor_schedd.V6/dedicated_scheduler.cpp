@@ -786,7 +786,7 @@ DedicatedScheduler::shutdown_graceful( void )
    negotiation.
 */
 int
-DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
+DedicatedScheduler::negotiate( Stream* s, char const* remote_pool )
 {
 		// At this point, we've already read the command int, the
 		// owner to negotiate for, and an eom off the wire.  
@@ -830,7 +830,7 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 
 		req = makeGenericAdFromJobAd(job);
 
-		result = negotiateRequest(req, s, negotiator_name,
+		result = negotiateRequest(req, s, remote_pool,
 								  reqs_matched, max_reqs);
 
 		delete req;
@@ -971,7 +971,7 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 */
 NegotiationResult
 DedicatedScheduler::negotiateRequest( ClassAd* req, Stream* s, 
-									  char* negotiator_name, 
+									  char const* remote_pool, 
 									  int reqs_matched, int /*max_reqs*/ )
 {
 	char	*claim_id = NULL;	// ClaimId for each match made
@@ -1152,7 +1152,7 @@ DedicatedScheduler::negotiateRequest( ClassAd* req, Stream* s,
 				// "DedicatedScheduler" owner, which is why we call
 				// owner() here...
 			mrec = new match_rec( claim_id, sinful, &id,
-			                       my_match_ad, owner(), negotiator_name, true );
+			                       my_match_ad, owner(), remote_pool, true );
 
 			machine_name = NULL;
 			if( ! mrec->my_match_ad->LookupString(ATTR_NAME, &machine_name) ) {
@@ -1377,7 +1377,8 @@ DedicatedScheduler::sendAlives( void )
 
 	all_matches->startIterations();
 	while( all_matches->iterate(mrec) == 1 ) {
-		if( mrec->status == M_ACTIVE || mrec->status == M_CLAIMED ) {
+		if( mrec->m_startd_sends_alives == false &&
+			( mrec->status == M_ACTIVE || mrec->status == M_CLAIMED ) ) {
 			if( sendAlive( mrec ) ) {
 				numsent++;
 			}
@@ -2082,10 +2083,9 @@ DedicatedScheduler::addToSchedulingGroup(ClassAd *r) {
 	if (group) {
 		if (!scheduling_groups.contains(group)) {
 			// add it to our list of groups, if it isn't already there
-			scheduling_groups.append(group); // transfers ownership
-		} else {
-			free(group);
+			scheduling_groups.append(group); // doesn't transfer ownership
 		}
+		free(group);
 	}
 }
 
@@ -2478,6 +2478,13 @@ DedicatedScheduler::computeSchedule( void )
 
 		if (want_groups) {
 			satisfyJobWithGroups(jobs, cluster, nprocs);
+			
+ 				// we're done with these, safe to delete
+			delete idle_candidates;
+			idle_candidates = NULL;
+
+			delete idle_candidates_jobs;
+			idle_candidates_jobs = NULL;
 			continue; // on to the next job
 		}
 
@@ -2640,6 +2647,17 @@ DedicatedScheduler::computeSchedule( void )
 			int nodes;
 			int proc;
 
+#if !defined(WANT_OLD_CLASSADS)
+			ExprTree *tmp_expr;
+			tmp_expr = AddTargetRefs( preemption_req, TargetJobAttrs );
+			delete preemption_req;
+			preemption_req = tmp_expr;
+
+			tmp_expr = AddTargetRefs( preemption_rank, TargetJobAttrs );
+			delete preemption_rank;
+			preemption_rank = tmp_expr;
+#endif
+
 			nodes_per_proc = new int[nprocs];
 			for (int ni = 0; ni < nprocs; ni++) {
 				nodes_per_proc[ni] = 0;
@@ -2671,8 +2689,8 @@ DedicatedScheduler::computeSchedule( void )
 
 						// See if this machine has a true
 						// SCHEDD_PREEMPTION_REQUIREMENT
-					requirement = preemption_req->EvalTree( machine, job,
-															&result );
+					requirement = EvalExprTree( preemption_req, machine, job,
+												&result );
 					if (requirement) {
 						if (result.type == LX_INTEGER) {
 							requirement = result.i;
@@ -2686,18 +2704,16 @@ DedicatedScheduler::computeSchedule( void )
 							// Evaluate its SCHEDD_PREEMPTION_RANK in
 							// the context of this job
 						int rval;
-						rval = preemption_rank->EvalTree( machine, job,
-														  &result );
+						rval = EvalExprTree( preemption_rank, machine, job,
+											 &result );
 						if( !rval || result.type != LX_FLOAT) {
 								// The result better be a float
-							char *s = NULL;
+							const char *s = ExprTreeToString( preemption_rank );
 							char *m = NULL;
-							preemption_rank->PrintToNewStr( &s );
 							machine->LookupString( ATTR_NAME, &m );
 							dprintf( D_ALWAYS, "SCHEDD_PREEMPTION_RANK (%s) "
 									 "did not evaluate to float on job %d "
 									 "for machine %s\n", s, cluster, m );
-							free(s);
 							free(m);
 							continue;
 						}
@@ -3452,19 +3468,17 @@ DedicatedScheduler::makeGenericAdFromJobAd(ClassAd *job)
 
 	req->Assign( ATTR_CURRENT_HOSTS, 0 );
 
-    ExprTree* expr = job->Lookup( ATTR_REQUIREMENTS );
+    ExprTree* expr = job->LookupExpr( ATTR_REQUIREMENTS );
 
-		// ATTR_REQUIREMENTS better be there, better be an assignment,
-		// and better have a right argument! 
+		// ATTR_REQUIREMENTS better be there!
 	ASSERT( expr );
-	ASSERT( expr->MyType() == LX_ASSIGN );
-	ASSERT( expr->RArg() );
 
 		// We just want the right side of the assignment, which is
 		// just the value (without the "Requirements = " part)
-	char *rhs;
+	const char *rhs = ExprTreeToString( expr );
 
-	expr->RArg()->PrintToNewStr( &rhs );
+		// We had better have a string for the expression!
+	ASSERT( rhs );
 
 		// Construct the new requirements expression by adding a
 		// clause that says we need to run on a machine that's going
@@ -3476,12 +3490,11 @@ DedicatedScheduler::makeGenericAdFromJobAd(ClassAd *job)
 		// >= the duration of the job...
 
 	MyString buf;
-	buf.sprintf( "%s = (DedicatedScheduler == \"%s\") && "
-				 "(RemoteOwner =!= \"%s\") && (%s)", 
+	buf.sprintf( "%s = (Target.DedicatedScheduler == \"%s\") && "
+				 "(Target.RemoteOwner =!= \"%s\") && (%s)", 
 				 ATTR_REQUIREMENTS, name(), name(), rhs );
 	req->InsertOrUpdate( buf.Value() );
 
-	free(rhs);
 	return req;
 }
 
@@ -4389,11 +4402,9 @@ void
 displayRequest( ClassAd* ad, char* str, int debug_level )
 {
 	ExprTree* expr;
-	expr = ad->Lookup( ATTR_REQUIREMENTS );
-	char req[1024];
-	req[0] = '\0';
-	expr->PrintToStr( req );
-	dprintf( debug_level, "%s%s\n", str, req );
+	expr = ad->LookupExpr( ATTR_REQUIREMENTS );
+	dprintf( debug_level, "%s%s = %s\n", str, ATTR_REQUIREMENTS,
+			 ExprTreeToString( expr ) );
 }
 
 

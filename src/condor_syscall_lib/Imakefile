@@ -21,11 +21,7 @@ HAS_64BIT_STRUCTS = -DHAS_64BIT_STRUCTS
 
 #if DOES_SAVE_SIGSTATE
 	SAVE_SIGSTATE = -DSAVE_SIGSTATE
-#       if IS_DUX
-		SIG_CKPT_OBJS = signals_support.o signals_control.o SIGPROCMASK.o SIGSUSPEND.o SIGACTION.o SIGNAL.o _SIGSUSPEND.o
-#       else
 		SIG_CKPT_OBJS = signals_support.o signals_control.o
-#       endif
 #endif
 
 FILE_TABLE = -DFILE_TABLE -I$(ZLIB_INC)
@@ -55,9 +51,6 @@ EXTRACT = FORK.o GETEUID.o GETPPID.o GETEGID.o SYSCALL.o __SYSCALL.o \
 EXTRACT = GETCWD.o MMAP.o SYSCALL.o GETEUID.o GETEGID.o GETPPID.o \
 		$(FORK_OBJ) PIPE.o GETLOGIN.o SYSDEP.o SIGSUSPEND.o \
 		TRUNCATE.o SIGACTION.o GETDIRENTRIES.o 
-#	elif IS_DUX
-EXTRACT = FORK.o GETEUID.o GETPPID.o GETEGID.o GETCWD.o \
-		  MMAP.o PIPE.o SYSCALL.o
 #	elif IS_SUN4X_SOLARIS26
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o \
@@ -144,8 +137,8 @@ URL_OBJ = url_condor.o include_urls.o cbstp_url.o file_url.o http_url.o \
 #ifdef DOES_CHECKPOINTING
 CKPT_OBJ = $(FILE_TABLE_OBJ)\
 	image.o tmp_stack.o machdep.$(DEP_OS).o malloc-user.o \
-	syscall_mode.o fake_hooks.o $(LONGJMP) $(HP_CKPT) \
-	$(SGI_CKPT) $(SIG_CKPT_OBJS) eprintf.o shared_utils.o condor_error.o \
+	syscall_mode.o $(LONGJMP) $(HP_CKPT) \
+	$(SIG_CKPT_OBJS) eprintf.o shared_utils.o condor_error.o \
 	gtodc.o
 #else
 CKPT_OBJ = $(FILE_TABLE_OBJ) syscall_mode.o eprintf.o shared_utils.o condor_error.o
@@ -169,14 +162,15 @@ SYSCALL_SUPPORT_OBJ=senders.o receivers.o syscall_mode.o syscall_connect.o remot
 
 UTIL_OBJ =  $(FLOCK_OBJ) dprintf_common.o except.o update_rusage.o \
 	internet.o $(PLATFORM_UTIL_OBJ) mkargv.o filename_tools.o \
-	strupr.o string_funcs.o \
+	strupr.o strcasestr.o \
 	mark_thread.o
 
 CPP_UTIL_OBJ = \
 	condor_version.o condor_ver_info.o \
 	stat_wrapper.o stat_wrapper_internal.o \
 	condor_open.o selector.o \
-	MyString.o subsystem_info.o
+	MyString.o subsystem_info.o \
+	HashTable.o
 
 CONDOR_TYPE_OBJ = sig_num.o open_flags.o fcntl_cmd.o errno_num.o
 
@@ -229,7 +223,7 @@ TMP_DIR = tmp_dir
 tmp_dir:
 	mkdir tmp_dir; chmod 755 tmp_dir
 clean::
-	/bin/rm -rf tmp_dir
+	rm -rf tmp_dir
 
 stubs: switches.cpp senders.cpp receivers.cpp
 
@@ -247,9 +241,7 @@ uppercase_target($(SIMPLE_LIBC),getegid.o,GETEGID.o,getegid,GETEGID)
 uppercase_target($(SIMPLE_LIBC),getlogin.o,GETLOGIN.o,getlogin,GETLOGIN)
 uppercase_target($(SIMPLE_LIBC),fsync.o,FSYNC.o,fsync,FSYNC)
 
-#if !IS_ALPHA_DUX
 uppercase_target($(SIMPLE_LIBC),sigaction.o,SIGACTION.o,sigaction,SIGACTION)
-#endif
 uppercase_target($(SIMPLE_LIBC),_sigaction.o,_SIGACTION.o,sigaction,SIGACTION)
 
 #if IS_SOLARIS
@@ -265,11 +257,7 @@ clean::
 uppercase_target($(SIMPLE_LIBC),truncate.o,TRUNCATE.o,truncate,TRUNCATE)
 #endif
 
-#if  IS_DUX
-/* do nothing */
-#else
 uppercase_target($(SIMPLE_LIBC),sigsuspend.o,SIGSUSPEND.o,sigsuspend,SIGSUSPEND)
-#endif
 uppercase_target($(SIMPLE_LIBC),mmap.o,MMAP.o,mmap,MMAP)
 uppercase_target($(SIMPLE_LIBC),pipe.o,PIPE.o,pipe,PIPE)
 uppercase_target($(SIMPLE_LIBC),getdirentries.o,GETDIRENTRIES.o,getdirentries,GETDIRENTRIES)
@@ -472,10 +460,6 @@ STUB_GEN_PLATFORM = -DSolaris27
 STUB_GEN_PLATFORM = -DSolaris28
 #elif IS_SOLARIS29
 STUB_GEN_PLATFORM = -DSolaris29
-#elif IS_DUX4
-STUB_GEN_PLATFORM = -DDUX4
-#elif IS_DUX5
-STUB_GEN_PLATFORM = -DDUX5
 #endif
 
 STUB_GEN_FLAGS = $(STUB_GEN_PLATFORM) $(DL_EXTRACT) -D$(OS) -D$(ARCH) \

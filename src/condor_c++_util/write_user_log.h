@@ -179,6 +179,22 @@ class WriteUserLog
     bool writeEvent (ULogEvent *event, ClassAd *jobad = NULL,
 					 bool *written = NULL );
 
+	/** This function is just like writeEvent(), but it ensures
+		that no call to fsync is made on the user log.
+	*/
+	bool writeEventNoFsync (ULogEvent *event, ClassAd *jobad = NULL,
+							bool *written = NULL );
+
+	/**Control whether writeEvent() calls fsync.  This overrides the
+	   configured default ENABLE_USERLOG_FSYNC.  This only applies to
+	   the user log, not the global event log.
+	   @param enabled If true, enable fsync in writeEvent()
+	 */
+	void setEnableFsync(bool enabled);
+
+	/**@return false if disabled, true if enabled*/
+	bool getEnableFsync();
+
 	/** APIs for testing */
 	int getGlobalSequence( void ) const { return m_global_sequence; };
 
@@ -271,6 +287,8 @@ class WriteUserLog
 					   bool is_header_event,
 					   ClassAd *ad);
 
+	void writeJobAdInfoEvent(char const *attrsToWrite, ULogEvent *event, ClassAd *param_jobad, bool is_global_event );
+
 	bool doWriteEvent( FILE *fp, ULogEvent *event, bool do_use_xml );
 	void GenerateGlobalId( MyString &id );
 
@@ -331,9 +349,6 @@ class WriteUserLog
 	/** Initialized?                 */  bool       m_initialized;
 	/** Creator Name (schedd name)   */  char     * m_creator_name;
 };
-
-// For backward compatibility, define UserLog
-typedef WriteUserLog UserLog;
 
 #endif /* __cplusplus */
 

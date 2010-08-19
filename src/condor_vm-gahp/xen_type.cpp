@@ -44,6 +44,8 @@
 #define XEN_LOCAL_SETTINGS_PARAM "XEN_LOCAL_SETTINGS_FILE"
 #define XEN_LOCAL_VT_SETTINGS_PARAM "XEN_LOCAL_VT_SETTINGS_FILE"
 
+extern VMGahp *vmgahp;
+
 static MyString
 getScriptErrorString(const char* fname)
 {
@@ -94,6 +96,35 @@ VirshType::~VirshType()
 	while( m_disk_list.Next(disk) ) {
 		m_disk_list.DeleteCurrent();
 		delete disk;
+	}
+}
+
+void
+VirshType::Config()
+{
+	char *config_value = NULL;
+
+	config_value = param("VM_NETWORKING_BRIDGE_INTERFACE");
+	if( config_value ) {
+		m_vm_bridge_interface = delete_quotation_marks(config_value).Value();
+		free(config_value);
+	} else if( vmgahp->m_gahp_config->m_vm_networking_types.contains("bridge") == true) {
+		vmprintf( D_ALWAYS, "ERROR: 'VM_NETWORKING_TYPE' contains "
+				"'bridge' but VM_NETWORKING_BRIDGE_INTERFACE "
+				"isn't defined, so 'bridge' "
+				"networking is disabled\n");
+		vmgahp->m_gahp_config->m_vm_networking_types.remove("bridge");
+		if( vmgahp->m_gahp_config->m_vm_networking_types.isEmpty() ) {
+			vmprintf( D_ALWAYS, "ERROR: 'VM_NETWORKING' is true "
+					"but 'VM_NETWORKING_TYPE' contains "
+					"no valid entries, so 'VM_NETWORKING' "
+					"is disabled\n");
+			vmgahp->m_gahp_config->m_vm_networking = false;
+		} else {
+			vmprintf( D_ALWAYS,
+					"Setting default networking type to 'nat'\n");
+			vmgahp->m_gahp_config->m_vm_default_networking_type = "nat";
+		}
 	}
 }
 
@@ -347,6 +378,20 @@ bool VirshType::CreateVirshConfigFile(const char* filename)
       classad_string += VMPARAM_XEN_INITRD;
       classad_string += " = \"";
       classad_string += m_xen_initrd_file;
+      classad_string += "\"\n";
+    }
+  if(!m_vm_bridge_interface.empty())
+    {
+      classad_string += VMPARAM_BRIDGE_INTERFACE;
+      classad_string += " = \"";
+      classad_string += m_vm_bridge_interface.c_str();
+      classad_string += "\"\n";
+    }
+  if(classad_string.find(ATTR_JOB_VM_NETWORKING_TYPE) < 1)
+    {
+      classad_string += ATTR_JOB_VM_NETWORKING_TYPE;
+      classad_string += " = \"";
+      classad_string += m_vm_networking_type.Value();
       classad_string += "\"\n";
     }
   input_strings.append(classad_string.Value());
@@ -684,22 +729,48 @@ VirshType::Status()
 	virDomainPtr dom = virDomainLookupByName(m_libvirt_connection, m_vm_name.Value());
 	set_priv(priv);
 	if(dom == NULL)
-	  {
-	    virErrorPtr err = virConnGetLastError(m_libvirt_connection);
-	    if (err && err->code == VIR_ERR_NO_DOMAIN)
-	      {
-		// The VM isn't there anymore, so signal shutdown
-		vmprintf(D_FULLDEBUG, "Couldn't find domain %s, assuming it was shutdown\n", m_vm_name.Value());
-		m_self_shutdown = true;
-		m_result_msg += "Stopped";
-		return true;
-	      }
-	    else
-	      {
-		vmprintf(D_ALWAYS, "Error finding domain %s: %s\n", m_vm_name.Value(), (err ? err->message : "No reason found"));
-		return false;
-	      }
-	  }
+	{
+		virErrorPtr err = virConnGetLastError(m_libvirt_connection);
+
+	    if ( err )
+		{
+			switch (err->code)
+			{
+				case (VIR_ERR_NO_DOMAIN):
+					// The VM isn't there anymore, so signal shutdown
+					vmprintf(D_FULLDEBUG, "Couldn't find domain %s, assuming it was shutdown\n", m_vm_name.Value());
+					m_self_shutdown = true;
+					m_result_msg += "Stopped";
+					return true;
+				break;
+				case (VIR_ERR_SYSTEM_ERROR): //
+					vmprintf(D_ALWAYS, "libvirt communication error detected, attempting to reconnect...\n");
+					this->Connect();
+					if ( NULL == ( dom = virDomainLookupByName(m_libvirt_connection, m_vm_name.Value() ) ) )
+					{
+						vmprintf(D_ALWAYS, "could not reconnect to libvirt... marking vm as stopped (should exit)\n");
+						m_self_shutdown = true;
+						m_result_msg += "Stopped";
+						return true;
+					}
+					else
+					{
+						vmprintf(D_ALWAYS, "libvirt has successfully reconnected!\n");
+					}
+				break;
+			default:
+				vmprintf(D_ALWAYS, "Error finding domain %s(%d): %s\n", m_vm_name.Value(), err->code, err->message );
+				return false;
+			}	
+		}
+		else
+		{
+			vmprintf(D_ALWAYS, "Error finding domain, no error returned from libvirt\n" );
+			return false;
+		}
+
+	}
+
 	virDomainInfo _info;
 	virDomainInfoPtr info = &_info;
 	if(virDomainGetInfo(dom, info) < 0)
@@ -760,7 +831,6 @@ bool KVMType::CreateVirshConfigFile(const char * filename)
 {
 	MyString disk_string;
 	char* config_value = NULL;
-	MyString bridge_script;
 
 	if(!filename) return false;
   
@@ -783,29 +853,19 @@ bool KVMType::CreateVirshConfigFile(const char * filename)
 		m_xml += "</vcpu>";
 		m_xml += "<os><type>hvm</type></os>";
 		m_xml += "<devices>";
+		m_xml += "<console type='pty'><source path='/dev/ptmx'/></console>";
 		if( m_vm_networking )
 			{
 			vmprintf(D_FULLDEBUG, "mac address is %s\n", m_vm_job_mac.Value());
 			if( m_vm_networking_type.find("nat") >= 0 ) {
 			m_xml += "<interface type='network'><source network='default'/></interface>";
 			}
-			else
+			else if( m_vm_networking_type.find("bridge") >= 0 )
 			{
-			m_xml += "<interface type='bridge'><source bridge='virbr0'/>";
-			config_value = param( "VM_BRIDGE_SCRIPT" );
-			if( !config_value ) {
-				vmprintf(D_ALWAYS, "VM_BRIDGE_SCRIPT is not defined in the "
-					"vmgahp config file\n");
-			}
-			else
-				{
-				bridge_script = config_value;
-				free(config_value);
-				config_value = NULL;
-				}
-			if (!bridge_script.IsEmpty()) {
-				m_xml += "<script path='";
-				m_xml += bridge_script;
+			m_xml += "<interface type='bridge'>";
+			if (!m_vm_bridge_interface.empty()) {
+				m_xml += "<source bridge='";
+				m_xml += m_vm_bridge_interface.c_str();
 				m_xml += "'/>";
 			}
 			if(!m_vm_job_mac.IsEmpty())
@@ -834,35 +894,12 @@ XenType::CreateVirshConfigFile(const char* filename)
 {
 	MyString disk_string;
 	char* config_value = NULL;
-	MyString bridge_script;
 
 	if( !filename ) return false;
 
 	if (!VirshType::CreateVirshConfigFile(filename))
 	{
 		vmprintf(D_ALWAYS, "XenType::CreateVirshConfigFile no XML found, generating defaults\n");
-
-		if (!(config_value = param( "XEN_BRIDGE_SCRIPT" )))
-			config_value = param( "VM_BRIDGE_SCRIPT" );
-
-		if( !config_value ) {
-			vmprintf(D_ALWAYS, "XEN_BRIDGE_SCRIPT is not defined in the "
-					"vmgahp config file\n");
-
-				// I'm not so sure this should be required. The problem
-				// with it being missing/wrong is that a job expecting to
-				// have un-nat'd network access might not get it. There's
-				// no way for us to tell if the script given is correct
-				// though, so this error might just be better as a warning
-				// in the log. If this is turned into a warning an EXCEPT
-				// must be removed when 'bridge_script' is used below.
-				//  - matt 17 oct 2007
-				//return false;
-		} else {
-			bridge_script = config_value;
-			free(config_value);
-			config_value = NULL;
-		}
 
 		m_xml += "<domain type='xen'>";
 		m_xml += "<name>";
@@ -905,14 +942,15 @@ XenType::CreateVirshConfigFile(const char* filename)
 			m_xml += "</bootloader>";
 		}
 		m_xml += "<devices>";
+		m_xml += "<console type='pty'><source path='/dev/ptmx'/></console>";
 		if( m_vm_networking ) {
 			if( m_vm_networking_type.find("nat") >= 0 ) {
 				m_xml += "<interface type='network'><source network='default'/></interface>";
-			} else {
-					m_xml += "<interface type='bridge'>";
-				if (!bridge_script.IsEmpty()) {
-					m_xml += "<script path='";
-					m_xml += bridge_script;
+			} else if( m_vm_networking_type.find("bridge") >= 0 ){
+				m_xml += "<interface type='bridge'>";
+				if (!m_vm_bridge_interface.empty()) {
+					m_xml += "<source bridge='";
+					m_xml += m_vm_bridge_interface.c_str();
 					m_xml += "'/>";
 				}
 				vmprintf(D_FULLDEBUG, "mac address is %s", m_vm_job_mac.Value());
@@ -945,6 +983,24 @@ VirshType::CreateXenVMConfigFile(const char* filename)
        	return CreateVirshConfigFile(filename);
 }
 
+void VirshType::Connect()
+{
+	priv_state priv = set_root_priv();
+
+	if ( m_libvirt_connection )
+	{
+		virConnectClose( m_libvirt_connection );
+	}
+
+    m_libvirt_connection = virConnectOpen( m_sessionID.c_str() );
+    set_priv(priv);
+
+  	if( m_libvirt_connection == NULL )
+    {
+		virErrorPtr err = virGetLastError();
+		EXCEPT("Failed to create libvirt connection: %s", (err ? err->message : "No reason found"));
+    }
+}
 
 bool 
 VirshType::parseXenDiskParam(const char *format)
@@ -1605,15 +1661,8 @@ XenType::XenType(const char * scriptname, const char * workingpath, ClassAd * ad
   : VirshType(scriptname, workingpath, ad)
 {
 
-    priv_state priv = set_root_priv();
-    m_libvirt_connection = virConnectOpen("xen:///");
-    set_priv(priv);
-  if(m_libvirt_connection == NULL)
-    {
-      virErrorPtr err = virGetLastError();
-      EXCEPT("Failed to create libvirt connection: %s", (err ? err->message : "No reason found"));
-    }
-
+  m_sessionID="xen:///";
+  this->Connect();
   m_vmtype = CONDOR_VM_UNIVERSE_XEN;
 
 }
@@ -1834,17 +1883,9 @@ KVMType::KVMType(const char * scriptname, const char * workingpath, ClassAd * ad
   : VirshType(scriptname, workingpath, ad)
 {
 
-    priv_state priv = set_root_priv();
-    m_libvirt_connection = virConnectOpen("qemu:///session");
-    set_priv(priv);
-
-	if(m_libvirt_connection == NULL)
-    {
-		virErrorPtr err = virGetLastError();
-		EXCEPT("Failed to create libvirt connection: %s", (err ? err->message : "No reason found"));
-    }
-
-  m_vmtype = CONDOR_VM_UNIVERSE_KVM;
+	m_sessionID="qemu:///session";
+	this->Connect();
+	m_vmtype = CONDOR_VM_UNIVERSE_KVM;
 
 }
 

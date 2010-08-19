@@ -38,7 +38,7 @@ extern ReliSock *qmgmt_sock;
 int terrno;
 
 int
-InitializeConnection( const char *owner, const char * /* domain */ )
+InitializeConnection( const char * /*owner*/, const char * /* domain */ )
 {
 	CurrentSysCall = CONDOR_InitializeConnection;
 
@@ -49,7 +49,7 @@ InitializeConnection( const char *owner, const char * /* domain */ )
 }
 
 int
-InitializeReadOnlyConnection( const char *owner )
+InitializeReadOnlyConnection( const char * /*owner*/ )
 {
 	CurrentSysCall = CONDOR_InitializeReadOnlyConnection;
 
@@ -271,15 +271,20 @@ SetAttribute( int cluster_id, int proc_id, char const *attr_name, char const *at
 		}
 		assert( qmgmt_sock->end_of_message() );
 
-		qmgmt_sock->decode();
-		assert( qmgmt_sock->code(rval) );
-		if( rval < 0 ) {
-			assert( qmgmt_sock->code(terrno) );
-			assert( qmgmt_sock->end_of_message() );
-			errno = terrno;
-			return rval;
+		if( flags & SetAttribute_NoAck ) {
+			rval = 0;
 		}
-		assert( qmgmt_sock->end_of_message() );
+		else {
+			qmgmt_sock->decode();
+			assert( qmgmt_sock->code(rval) );
+			if( rval < 0 ) {
+				assert( qmgmt_sock->code(terrno) );
+				assert( qmgmt_sock->end_of_message() );
+				errno = terrno;
+				return rval;
+			}
+			assert( qmgmt_sock->end_of_message() );
+		}
 
 	return rval;
 }
@@ -375,29 +380,37 @@ AbortTransaction()
 }
 
 int
-CloseConnection()
+RemoteCommitTransaction(SetAttributeFlags_t flags)
 {
 	int	rval = -1;
 
-		CurrentSysCall = CONDOR_CloseConnection;
+	if( flags == 0 ) {
+			// for compatibility with schedd's from before 7.5.0
+		CurrentSysCall = CONDOR_CommitTransactionNoFlags;
+	}
+	else {
+		CurrentSysCall = CONDOR_CommitTransaction;
+	}
 
-		qmgmt_sock->encode();
-		assert( qmgmt_sock->code(CurrentSysCall) );
-		assert( qmgmt_sock->end_of_message() );
+	qmgmt_sock->encode();
+	assert( qmgmt_sock->code(CurrentSysCall) );
+	if( CurrentSysCall == CONDOR_CommitTransaction ) {
+		assert( qmgmt_sock->put((int)flags) );
+	}
+	assert( qmgmt_sock->end_of_message() );
 
-		qmgmt_sock->decode();
-		assert( qmgmt_sock->code(rval) );
-		if( rval < 0 ) {
-			assert( qmgmt_sock->code(terrno) );
-			assert( qmgmt_sock->end_of_message() );
-			errno = terrno;
-			return rval;
-		}
+	qmgmt_sock->decode();
+	assert( qmgmt_sock->code(rval) );
+	if( rval < 0 ) {
+		assert( qmgmt_sock->code(terrno) );
 		assert( qmgmt_sock->end_of_message() );
+		errno = terrno;
+		return rval;
+	}
+	assert( qmgmt_sock->end_of_message() );
 
 	return rval;
 }
-
 
 int
 GetAttributeFloat( int cluster_id, int proc_id, char *attr_name, float *value )

@@ -429,6 +429,37 @@ Daemon::display( FILE* fp )
 			 _error ? _error : "(null)" );
 }
 
+bool
+Daemon::nextValidCm()
+{
+	char *dname;
+	bool rval = false;
+
+	do {
+ 		dname = daemon_list.next();
+		if( dname != NULL )
+		{
+			rval = findCmDaemon( dname );
+			if( rval == true ) {
+				locate();
+			}
+		}
+	} while( rval == false && dname != NULL );
+	return rval;
+}
+
+
+void
+Daemon::rewindCmList()
+{
+	char *dname;
+
+	daemon_list.rewind();
+ 	dname = daemon_list.next();
+	findCmDaemon( dname );
+	locate();
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // Communication methods
@@ -513,7 +544,6 @@ Daemon::startCommand( int cmd, Sock* sock, int timeout, CondorError *errstack, S
 	// eventually called in all code paths.
 
 	StartCommandResult start_command_result = StartCommandFailed;
-	bool other_side_can_negotiate = true; //default assumption
 
 	ASSERT(sock);
 
@@ -526,19 +556,7 @@ Daemon::startCommand( int cmd, Sock* sock, int timeout, CondorError *errstack, S
 		sock->timeout( timeout );
 	}
 
-	// look at the version if it is available.  we must disable
-	// negotiation when talking to pre-6.3.3.
-	if (version) {
-		dprintf(D_SECURITY, "DAEMON: talking to a %s daemon.\n", version);
-		CondorVersionInfo vi(version);
-		if ( !vi.built_since_version(6,3,3) ) {
-			dprintf( D_SECURITY, "DAEMON: "
-					 "security negotiation not possible, disabling.\n" );
-			other_side_can_negotiate = false;
-		}
-	}
-
-	start_command_result = sec_man->startCommand(cmd, sock, other_side_can_negotiate, raw_protocol, errstack, 0, callback_fn, misc_data, nonblocking, cmd_description, sec_session_id);
+	start_command_result = sec_man->startCommand(cmd, sock, raw_protocol, errstack, 0, callback_fn, misc_data, nonblocking, cmd_description, sec_session_id);
 
 	if(callback_fn) {
 		// SecMan::startCommand() called the callback function, so we just return here
@@ -674,7 +692,7 @@ Daemon::sendCommand( int cmd, Sock* sock, int sec, CondorError* errstack, char c
 	if( ! startCommand( cmd, sock, sec, errstack, cmd_description )) {
 		return false;
 	}
-	if( ! sock->eom() ) {
+	if( ! sock->end_of_message() ) {
 		MyString err_buf;
 		err_buf.sprintf( "Can't send eom for %d to %s", cmd,  
 				 idStr() );
@@ -692,7 +710,7 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec, CondorError* errs
 	if( ! tmp ) {
 		return false;
 	}
-	if( ! tmp->eom() ) {
+	if( ! tmp->end_of_message() ) {
 		MyString err_buf;
 		err_buf.sprintf( "Can't send eom for %d to %s", cmd,  
 				 idStr() );
@@ -918,7 +936,9 @@ Daemon::locate( void )
 		rval = getDaemonInfo( MASTER_AD );
 		break;
 	case DT_COLLECTOR:
-		rval = getCmInfo( "COLLECTOR" );
+		do {
+			rval = getCmInfo( "COLLECTOR" );
+		} while (rval == false && nextValidCm() == true);
 		break;
 	case DT_NEGOTIATOR:
 		if( !_pool && (tmp = getCmHostFromConfig( "NEGOTIATOR" )) ) {
@@ -950,7 +970,9 @@ Daemon::locate( void )
 		} 
 			// If there's nothing CONDOR_VIEW-specific, try just using
 			// "COLLECTOR".
-		rval = getCmInfo( "COLLECTOR" ); 
+		do {
+			rval = getCmInfo( "COLLECTOR" );
+		} while (rval == false && nextValidCm() == true);
 		break;
 	case DT_QUILL:
 		setSubsystem( "QUILL" );
@@ -968,8 +990,12 @@ Daemon::locate( void )
 		setSubsystem( "HAD" );
 		rval = getDaemonInfo( HAD_AD );
 		break;
+	case DT_KBDD:
+		setSubsystem( "KBDD" );
+		rval = getDaemonInfo( NO_AD );
+		break;
 	default:
-		EXCEPT( "Unknown daemon type (%d) in Daemon::init", (int)_type );
+		EXCEPT( "Unknown daemon type (%d) in Daemon::locate", (int)_type );
 	}
 
 	if( ! rval) {
@@ -1209,8 +1235,6 @@ Daemon::getDaemonInfo( AdTypes adtype, bool query_collector )
 			query.addANDConstraint( buf.Value() );
 		} else if ( _type == DT_GENERIC ) {
 			query.setGenericQueryType(_subsys);
-			buf.sprintf("TARGET.%s == \"%s\"", ATTR_TARGET_TYPE, _subsys);
-			query.addANDConstraint( buf.Value() );
 		} else if ( _name ) {
 			buf.sprintf( "%s == \"%s\"", ATTR_NAME, _name ); 
 			query.addANDConstraint( buf.Value() );
@@ -1275,8 +1299,6 @@ Daemon::getCmInfo( const char* subsys )
 {
 	MyString buf;
 	char* host = NULL;
-	char* tmp;
-	struct in_addr sin_addr;
 
 	setSubsystem( subsys );
 
@@ -1325,28 +1347,18 @@ Daemon::getCmInfo( const char* subsys )
 
 			// this is just a fancy wrapper for param()...
 		char *hostnames = getCmHostFromConfig( subsys );
-		char *itr, *full_name, *host_name, *local_name;
-		StringList host_list;
-
-		full_name = my_full_hostname();
-		local_name = localName();
-		host_list.initializeFromString(hostnames);
-		host_list.rewind();
-		itr = NULL;
-		while ((itr = host_list.next()) != NULL) {
-			host_name = getHostFromAddr( itr );
-			if ((strlen(full_name) == strlen(host_name) ||
-				(strlen(local_name) == strlen(host_name))) &&
-				((strcmp(full_name, host_name) == 0) ||
-				(strcmp(local_name, host_name) == 0))) {
-				host = strnewp(itr);
-				free( host_name );
-				break;
-			}
-			free( host_name );
+		if(!hostnames) {
+			buf.sprintf("%s address or hostname not specified in config file",
+					 subsys ); 
+			newError( CA_LOCATE_FAILED, buf.Value() );
+			_is_configured = false;
+			return false;
 		}
+
+		daemon_list.initializeFromString(hostnames);
+		daemon_list.rewind();
+		host = strnewp(daemon_list.next());
 		free( hostnames );
-		delete [] local_name;
 	}
 
 	if( ! host || !host[0]) {
@@ -1374,17 +1386,30 @@ Daemon::getCmInfo( const char* subsys )
 		return false;
 	} 
 
-	dprintf( D_HOSTNAME, "Using name \"%s\" to find daemon\n", host ); 
+	bool ret = findCmDaemon( host );
+	free( host );
+	return ret;
+}
 
-	Sinful sinful( host );
+
+bool
+Daemon::findCmDaemon( const char* cm_name )
+{
+	char* host = NULL;
+	MyString buf;
+	struct in_addr sin_addr;
+	char* tmp;
+
+	dprintf( D_HOSTNAME, "Using name \"%s\" to find daemon\n", cm_name ); 
+
+	Sinful sinful( cm_name );
 
 	if( !sinful.valid() || !sinful.getHost() ) {
-		dprintf( D_ALWAYS, "Invalid address: %s\n", host );
+		dprintf( D_ALWAYS, "Invalid address: %s\n", cm_name );
 		buf.sprintf( "%s address or hostname not specified in config file",
-				 subsys ); 
+				 _subsys ); 
 		newError( CA_LOCATE_FAILED, buf.Value() );
 		_is_configured = false;
-		free( host );
 		return false;
 	}
 
@@ -1399,14 +1424,11 @@ Daemon::getCmInfo( const char* subsys )
 	} else {
 		dprintf( D_HOSTNAME, "Port %d specified in name\n", _port );
 	}
-	if( _port == 0 && readAddressFile(subsys) ) {
+	if( _port == 0 && readAddressFile(_subsys) ) {
 		dprintf( D_HOSTNAME, "Port 0 specified in name, "
 				 "IP/port found in address file\n" );
 		New_name( strnewp(my_full_hostname()) );
 		New_full_hostname( strnewp(my_full_hostname()) );
-		if( host ) {
-			free( host );
-		}
 		return true;
 	}
 
@@ -1414,7 +1436,7 @@ Daemon::getCmInfo( const char* subsys )
 		// file, so we should store the string we used (as is) in
 		// _name, so that we can get to it later if we need it.
 	if( ! _name ) {
-		New_name( strnewp(host) );
+		New_name( strnewp(cm_name) );
 	}
 
 		// Now that we've got the port, grab the hostname for the rest
@@ -1423,17 +1445,14 @@ Daemon::getCmInfo( const char* subsys )
 		// (which we've already got stashed in _name if we need it),
 		// and finally reset host to point to the host for the rest of
 		// this function.
-	free( host );
-	host = NULL;
 	if( sinful.getHost() ) {
 		host = strdup( sinful.getHost() );
 	}
 
 
-
 	if ( !host ) {
 		buf.sprintf( "%s address or hostname not specified in config file",
-				 subsys ); 
+				 _subsys ); 
 		newError( CA_LOCATE_FAILED, buf.Value() );
 		_is_configured = false;
 		return false;
@@ -1922,7 +1941,7 @@ Daemon::New_hostname( char* str )
 }
 
 
-char*
+void
 Daemon::New_addr( char* str )
 {
 	if( _addr ) {
@@ -1984,7 +2003,7 @@ Daemon::New_addr( char* str )
 		}
 	}
 
-	return str;
+	return;
 }
 
 char*

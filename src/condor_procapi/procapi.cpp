@@ -23,6 +23,22 @@
 #include "procapi.h"
 #include "procapi_internal.h"
 
+#if HAVE_PROCFS_H
+# include <procfs.h>
+#endif
+#if HAVE_SYS_PROCFS_H
+# include <sys/procfs.h>
+#endif
+
+// Ugly hack: stat64 prototyps are wacked on HPUX
+// These are cut & pasted from the HPUX man pages...                            
+#if defined( HPUX )
+extern "C" {
+    extern int fstat64(int fildes, struct stat64 *buf);
+}
+#endif
+
+
 unsigned int pidHashFunc( const pid_t& pid );
 
 HashTable <pid_t, procHashNode *> * ProcAPI::procHash = 
@@ -102,228 +118,8 @@ ProcAPI::~ProcAPI() {
 // Each platform gets its own function unless two are so similar that you can
 // ifdef between them.
 
-// this version works for Solaris 2.5.1, IRIX, OSF/1 
-#if ( defined(Solaris251) || defined(IRIX) || defined(OSF1) )
-int
-ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status ) 
-{
-
-		// This *could* allocate memory and make pi point to it if pi == NULL.
-		// It is up to the caller to get rid of it.
-	initpi( pi );
-
-		// get the raw system process data
-	procInfoRaw procRaw;
-	int retVal = ProcAPI::getProcInfoRaw(pid, procRaw, status);
-	
-		// if a failure occurred
-	if( retVal != 0 ){
-			// return failure
-			// status is set by getProcInfoRaw(...)
-		return PROCAPI_FAILURE;
-	}
-
-		/* clean up and convert the raw data */
-
-		// if the page size has not yet been found, get it.
-	if( pagesize == 0 ) {
-		pagesize = getpagesize() / 1024;  // pagesize is in k now
-	} 
-
-		// convert the memory from pages to k
-	pi->imgsize = procRaw.imgsize * pagesize;
-	pi->rssize  = procRaw.rssize * pagesize;
-
-		// compute the age
-	pi->age = procRaw.sample_time - procRaw.creation_time;
-
-		// sanity check user and system times
-		// and compute cpu time
-	pi->user_time = procRaw.user_time_1;
-	pi->sys_time = procRaw.sys_time_1;
-	
-		// converts _2 times into seconds and
-		// adds to _1 (already in seconds) times
-	double cpu_time = 	
-		( procRaw.user_time_1 + 
-		  ( procRaw.user_time_2 * 1.0e-9 ) ) +
-		( procRaw.sys_time_1 + 
-		  ( procRaw.sys_time_2 * 1.0e-9 ) );
-	
-		/* The bastard os lies to us and can return a negative number for stime.
-		   ps returns the wrong number in its listing, so this is an IRIX bug
-		   that we cannot work around except this way */
-#if defined(IRIX)
-	if (pi->user_time < 0)
-		pi->user_time = 0;
-	
-	if (pi->sys_time < 0)
-		pi->sys_time = 0;
-
-	if(cpu_time < 0)
-		cpu_time = 0.0;	
-#endif	
-
-		// copy the remainder of the fields
-	pi->pid     = procRaw.pid;
-	pi->ppid    = procRaw.ppid;
-	pi->creation_time = procRaw.creation_time;
-	pi->birthday = procRaw.creation_time;
-	pi->owner = procRaw.owner;
-
-
-    /* here we've got to do some sampling ourself.  If the pid is not in
-       the hashtable, put it there using cpu_time / age as %cpu.
-       If it is there, use (cpu_time - old time) / timediff.
-    */
-	do_usage_sampling( pi, cpu_time, procRaw.majfault, procRaw.minfault);
-
-		// success
-	return PROCAPI_SUCCESS;
-}
-
-/* Fills the struct with the following units:
-   imgsize		: pages
-   rssize		: pages
-   minfault		: minor faults since born
-   majfault		: minor faults since born 
-   user_time_1	: seconds
-   user_time_2	: nanoseconds
-   sys_time_1	: seconds
-   sys_time_2	: nanoseconds
-   creation_time: seconds since epoch
-   sample_time	: seconds since epoch
-*/
-
-int
-ProcAPI::getProcInfoRaw(pid_t pid, procInfoRaw& procRaw, int& status){
-	char path[64];
-	struct prpsinfo pri;
-	struct prstatus prs;
-#ifndef DUX4
-	struct prusage pru;   // prusage doesn't exist in OSF/1
-#endif
-
-	int fd;
-
-		// assume success
-	status = PROCAPI_OK;
-
-		// clear the memory for procRaw
-	initProcInfoRaw(procRaw);
-
-		// set the sample time
-	procRaw.sample_time = secsSinceEpoch();
-
-		// open /proc/<pid>
-	sprintf( path, "/proc/%d", pid );
-	if( (fd = safe_open_wrapper(path, O_RDONLY)) < 0 ) {
-		switch(errno) {
-
-			case ENOENT:
-				// pid doesn't exist
-				status = PROCAPI_NOPID;
-				dprintf( D_FULLDEBUG, "ProcAPI: pid %d does not exist.\n",
-						pid );
-				break;
-
-			case EACCES:
-				status = PROCAPI_PERM;
-				dprintf( D_FULLDEBUG, "ProcAPI: No permission to open %s.\n", 
-					 	path );
-				break;
-
-			default:
-				status = PROCAPI_UNSPECIFIED;
-				dprintf( D_ALWAYS, "ProcAPI: Error opening %s, errno: %d.\n", 
-					 path, errno );
-				break;
-		}
-
-		return PROCAPI_FAILURE;
-	}
-
-
-	// PIOCPSINFO gets memory sizes, pids, and age.
-	if ( ioctl( fd, PIOCPSINFO, &pri ) < 0 ) {
-		dprintf( D_ALWAYS, "ProcAPI: PIOCPSINFO Error occurred for pid %d\n",
-				 pid );
-
-		close( fd );
-
-		status = PROCAPI_UNSPECIFIED;
-		return PROCAPI_FAILURE;
-	}
-
-	// grab out the information 
-	procRaw.imgsize = pri.pr_size;
-	procRaw.rssize  = pri.pr_rssize;
-	procRaw.pid     = pri.pr_pid;
-	procRaw.ppid    = pri.pr_ppid;
-	procRaw.creation_time = pri.pr_start.tv_sec;
-
-	// get the owner of the file in /proc, which 
-	// should be the process owner uid.
-	procRaw.owner = getFileOwner(fd);			
-
-    // PIOCUSAGE is used for page fault info
-    // solaris 2.5.1 and Irix only - unsupported by osf/1 dux-4
-    // Now in DUX5, though...
-#ifndef DUX4
-	if ( ioctl( fd, PIOCUSAGE, &pru ) < 0 ) {
-		dprintf( D_ALWAYS, 
-				 "ProcAPI: PIOCUSAGE Error occurred for pid %d\n", 
-				 pid );
-
-		close( fd );
-		
-		status = PROCAPI_UNSPECIFIED;
-		return PROCAPI_FAILURE;
-	}
-
-#ifdef Solaris251   
-	procRaw.minfault = pru.pr_minf;  
-	procRaw.majfault = pru.pr_majf;  
-#endif // Solaris251
-
-#ifdef IRIX   // dang things named differently in irix.
-	procRaw.minfault = pru.pu_minf;  // Irix:  pu_minf, pu_majf.
-	procRaw.majfault = pru.pu_majf;
-#endif // IRIX
-	
-#else  // here we are in osf/1, which doesn't give this info.
-
-	procRaw.minfault = 0;   // let's default to zero in osf1
-	procRaw.majfault = 0;
-
-#endif // DUX4
-
-   // PIOCSTATUS gets process user & sys times
-   // this following bit works for Sol 2.5.1, Irix, Osf/1
-	if ( ioctl( fd, PIOCSTATUS, &prs ) < 0 ) {
-		dprintf( D_ALWAYS, 
-				 "ProcAPI: PIOCSTATUS Error occurred for pid %d\n", 
-				 pid );
-
-		close ( fd );
-
-		status = PROCAPI_UNSPECIFIED;
-		return PROCAPI_FAILURE;
-	}
-
-	procRaw.user_time_1 = prs.pr_utime.tv_sec;
-	procRaw.user_time_2 = prs.pr_utime.tv_nsec;
-	procRaw.sys_time_1 = prs.pr_stime.tv_sec;
-	procRaw.sys_time_2 = prs.pr_stime.tv_nsec;
-
-	// close the /proc/pid file
-	close ( fd );
-
-	return PROCAPI_SUCCESS;
-}
-
-#elif defined(Solaris26) || defined(Solaris27) || defined(Solaris28) || defined(Solaris29)
-// This is the version of getProcInfo for Solaris 2.6 and 2.7 and 2.8 and 2.9
+#if defined(Solaris)
+// This is the version of getProcInfo for Solaris 2.6 - 2.11
 
 int
 ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status ) 
@@ -2347,8 +2143,7 @@ ProcAPI::getAndRemNextPid () {
 int
 ProcAPI::buildPidList() {
 
-	DIR *dirp;
-	struct dirent *direntp;
+	condor_DIR *dirp;
 	pidlistPTR current;
 	pidlistPTR temp;
 
@@ -2358,8 +2153,13 @@ ProcAPI::buildPidList() {
 
 	current = pidList;
 
-	if( (dirp = opendir("/proc")) != NULL ) {
-		while( (direntp = readdir(dirp)) != NULL ) {
+	dirp = condor_opendir("/proc");
+	if( dirp != NULL ) {
+			// NOTE: this will use readdir64() when available to avoid
+			// skipping over directories with an inode value that
+			// doesn't happen to fit in the 32-bit ino_t
+		condor_dirent *direntp;
+		while( (direntp = condor_readdir(dirp)) != NULL ) {
 			if( isdigit(direntp->d_name[0]) ) {   // check for first char digit
 				temp = new pidlist;
 				temp->pid = (pid_t) atol ( direntp->d_name );
@@ -2368,7 +2168,7 @@ ProcAPI::buildPidList() {
 				current = temp;
 			}
 		}
-		closedir( dirp );
+		condor_closedir( dirp );
     
 		temp = pidList;
 		pidList = pidList->next;
@@ -2741,9 +2541,15 @@ ProcAPI::printProcInfo(FILE* fp, piPTR pi){
 uid_t 
 ProcAPI::getFileOwner(int fd) {
 	
+#if HAVE_FSTAT64
+	// If we do not use fstat64(), fstat() fails if the inode number
+	// is too big and possibly for a few other reasons as well.
+	struct stat64 si;
+	if ( fstat64(fd, &si) != 0 ) {
+#else
 	struct stat si;
-
 	if ( fstat(fd, &si) != 0 ) {
+#endif
 		dprintf(D_ALWAYS, 
 			"ProcAPI: fstat failed in /proc! (errno=%d)\n", errno);
 		return 0; 	// 0 is probably wrong, but this should never

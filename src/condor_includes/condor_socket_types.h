@@ -28,7 +28,7 @@ details.  Ideally, we would collect all these little details about
 _all_ the calls and put them in one standard place.
 */
 
-#if defined(Solaris27) || defined(Solaris28) || defined(Solaris29)
+#if defined(Solaris27) || defined(Solaris28) || defined(Solaris29) || defined(Solaris10) || defined(Solaris11)
 	#define SOCKET_DATA_TYPE void*
 	#define SOCKET_LENGTH_TYPE unsigned int
 	#define SOCKET_ALTERNATE_LENGTH_TYPE socklen_t
@@ -43,7 +43,7 @@ _all_ the calls and put them in one standard place.
 	#define SOCKET_SENDRECV_LENGTH_TYPE unsigned int
 	#define SOCKET_FLAGS_TYPE int
 	#define SOCKET_COUNT_TYPE int
-#elif defined(Solaris26) || defined(Solaris251)
+#elif defined(Solaris26)
 	#define SOCKET_DATA_TYPE char*
 	#define SOCKET_LENGTH_TYPE int
 	#define SOCKET_ALTERNATE_LENGTH_TYPE SOCKET_LENGTH_TYPE
@@ -51,21 +51,6 @@ _all_ the calls and put them in one standard place.
 	#define SOCKET_MSG_CONST const
 	#define SOCKET_ADDR_TYPE struct sockaddr*
 	#define SOCKET_ADDR_CONST_CONNECT
-	#define SOCKET_ADDR_CONST_BIND const
-	#define SOCKET_ADDR_CONST_ACCEPT
-	#define SOCKET_SENDRECV_TYPE int
-	#define SOCKET_RECVFROM_TYPE int
-	#define SOCKET_SENDRECV_LENGTH_TYPE SOCKET_LENGTH_TYPE
-	#define SOCKET_FLAGS_TYPE int
-	#define SOCKET_COUNT_TYPE int
-#elif defined(OSF1)
-	#define SOCKET_DATA_TYPE void*
-	#define SOCKET_LENGTH_TYPE int
-	#define SOCKET_ALTERNATE_LENGTH_TYPE SOCKET_LENGTH_TYPE
-	#define SOCKET_DATA_CONST const
-	#define SOCKET_MSG_CONST
-	#define SOCKET_ADDR_TYPE struct sockaddr*
-	#define SOCKET_ADDR_CONST_CONNECT const
 	#define SOCKET_ADDR_CONST_BIND const
 	#define SOCKET_ADDR_CONST_ACCEPT
 	#define SOCKET_SENDRECV_TYPE int
@@ -155,21 +140,6 @@ _all_ the calls and put them in one standard place.
 	#define SOCKET_RECVFROM_TYPE int
 	#define SOCKET_SENDRECV_LENGTH_TYPE const unsigned int
 	#define SOCKET_FLAGS_TYPE unsigned int
-	#define SOCKET_COUNT_TYPE int
-#elif defined(IRIX)
-	#define SOCKET_DATA_TYPE void*
-	#define SOCKET_LENGTH_TYPE int
-	#define SOCKET_ALTERNATE_LENGTH_TYPE SOCKET_LENGTH_TYPE
-	#define SOCKET_DATA_CONST const
-	#define SOCKET_MSG_CONST const
-	#define SOCKET_ADDR_TYPE void*
-	#define SOCKET_ADDR_CONST_CONNECT const
-	#define SOCKET_ADDR_CONST_BIND const
-	#define SOCKET_ADDR_CONST_ACCEPT
-	#define SOCKET_SENDRECV_TYPE int
-	#define SOCKET_RECVFROM_TYPE int
-	#define SOCKET_SENDRECV_LENGTH_TYPE SOCKET_LENGTH_TYPE
-	#define SOCKET_FLAGS_TYPE int
 	#define SOCKET_COUNT_TYPE int
 #elif defined(AIX)
 	#define SOCKET_DATA_TYPE void*

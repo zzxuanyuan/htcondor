@@ -171,80 +171,14 @@ int sysapi_disk_space_raw( const char *filename);
 int sysapi_disk_space_raw();
 #endif
 
-#if defined(ULTRIX42) || defined(ULTRIX43)
-int
-sysapi_disk_space_raw(filename)
-const char *filename;
-{
-	struct fs_data statfsbuf;
-	struct fs_data_req *fs;
-	int free_kbytes;
-
-	sysapi_internal_reconfig();
-
-	if(statfs(filename, &statfsbuf) < 0) {
-		dprintf(D_ALWAYS, "sysapi_disk_space_raw: statfs(%s,0x%x) failed\n",
-													filename, &statfsbuf );
-		return(0);
-	}
-
-	fs = &statfsbuf.fd_req;
-
-	/* bfreen is in kbytes */
-	free_kbytes = fs->bfreen;
-
-	dprintf(D_FULLDEBUG, "number of kbytes available for (%s): %d\n", 
-			filename, free_kbytes);
-
-	return(free_kbytes);
-}
-#endif /* MIPS && ULTRIX */
-
-#if defined(VAX) && defined(ULTRIX)
-/* statfs() did not work on our VAX_ULTRIX machine.  use getmnt() instead. */
-int
-sysapi_disk_space_raw(filename)
-char *filename;
-{
-	struct fs_data mntdata;
-	int start;
-	struct fs_data_req *fs_req;
-	int free_kbytes;
-
-	sysapi_internal_reconfig();
-
-	if( getmnt(&start, &mntdata, sizeof(mntdata), NOSTAT_ONE, filename) < 0) {
-		dprintf(D_ALWAYS, "sysapi_disk_space_raw(): getmnt failed");
-		return(0);
-	}
-	
-	fs_req = &mntdata.fd_req;
-
-	/* bfreen is in kbytes. */
-	free_kbytes = fs_req->bfreen;
-
-	dprintf(D_FULLDEBUG, "number of kbytes available for filename: %d\n", 
-			free_kbytes);
-
-	return(free_kbytes);
-}
-#endif /* VAX && ULTRIX */
-
-#if defined(LINUX) || defined(AIX) || defined(HPUX) || defined(OSF1) || defined(Solaris) || defined(IRIX) || defined(Darwin) || defined(CONDOR_FREEBSD)
+#if defined(LINUX) || defined(AIX) || defined(HPUX) || defined(Solaris) || defined(Darwin) || defined(CONDOR_FREEBSD)
 
 #include <limits.h>
 
-#if defined(AIX) || defined(IRIX65)
+#if defined(AIX)
 #include <sys/statfs.h>
 #elif defined(Solaris)
 #include <sys/statvfs.h>
-#elif defined(OSF1)
-#include <sys/mount.h>
-#endif
-
-#if defined(IRIX)
-/* There is no f_bavail on IRIX */
-#define f_bavail f_bfree
 #endif
 
 int
@@ -261,11 +195,7 @@ const char *filename;
 
 	sysapi_internal_reconfig();
 
-#if defined(IRIX331) || defined(IRIX53) || defined(IRIX65) || defined(IRIX62)
-	if(statfs(filename, &statfsbuf, sizeof statfsbuf, 0) < 0) {
-#elif defined(OSF1)
-	if(statfs(filename, &statfsbuf, sizeof statfsbuf) < 0) {
-#elif defined(Solaris)
+#if defined(Solaris)
 	if(statvfs(filename, &statfsbuf) < 0) {
 #else
 	if(statfs(filename, &statfsbuf) < 0) {
@@ -273,7 +203,18 @@ const char *filename;
 		dprintf(D_ALWAYS, "sysapi_disk_space_raw: statfs(%s,%p) failed\n",
 													filename, &statfsbuf );
 		dprintf(D_ALWAYS, "errno = %d\n", errno );
-		return(0);
+
+		if (errno != EOVERFLOW) {
+			return(0);
+		}
+
+		// if we get here, it means that statfs failed because
+		// there are more free blocks than can be represented
+		// in a long.  Let's lie and make it INT_MAX - 1.
+
+		dprintf(D_ALWAYS, "sysapi_disk_space_raw: statfs overflowed, setting to %d\n", (INT_MAX - 1));
+		statfsbuf.f_bavail = (INT_MAX - 1);	
+		statfsbuf.f_bsize = 1024; // this isn't set if result < 0, guess
 	}
 
 	/* Convert to kbyte blocks: available blks * blksize / 1k bytes. */
@@ -285,14 +226,13 @@ const char *filename;
 		   filesystem block size", not f_bsize, the "preferred file
 		   system block size".  3/25/98  Derek Wright */
 	kbytes_per_block = ( (unsigned long)statfsbuf.f_frsize / 1024.0 );
-#elif defined(OSF1)
-	kbytes_per_block = ( (unsigned long)statfsbuf.f_fsize / 1024.0 );
 #else
 	kbytes_per_block = ( (unsigned long)statfsbuf.f_bsize / 1024.0 );
 #endif
 
 	free_kbytes = (double)statfsbuf.f_bavail * (double)kbytes_per_block; 
 	if(free_kbytes > INT_MAX) {
+		dprintf( D_ALWAYS, "sysapi_disk_space_raw: Free disk space kbytes overflow, capping to INT_MAX\n");
 		return(INT_MAX);
 	}
 

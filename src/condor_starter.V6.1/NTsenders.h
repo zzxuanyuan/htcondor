@@ -22,12 +22,10 @@
 #define NT_SENDERS_H
 
 #include "condor_common.h"
-
-class ClassAd;
+#include "condor_classad.h"
 
 extern "C" {
 	int REMOTE_CONDOR_register_job_info( ClassAd *ad );
-	int REMOTE_CONDOR_register_machine_info( char *uiddomain, char *fsdomain, char const *address, char *fullHostname, int key );
 	int REMOTE_CONDOR_register_mpi_master_info( ClassAd *ad );
 	int REMOTE_CONDOR_register_starter_info( ClassAd *ad );
 	int REMOTE_CONDOR_get_job_info( ClassAd *ad );

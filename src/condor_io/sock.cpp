@@ -255,14 +255,10 @@ int Sock::assign(
 			ASSERT(0);
 	}
 
-	_sock = WSASocket(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, 
+	int socket_fd = WSASocket(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, 
 					  FROM_PROTOCOL_INFO, pProtoInfo, 0, 0);
 
-	if ( _sock == INVALID_SOCKET )
-		return FALSE;
-
-	_state = sock_assigned;
-	return TRUE;
+	return assign( socket_fd );
 }
 #endif
 
@@ -1150,9 +1146,6 @@ Sock::cancel_connect()
 		// strange behavior on Solaris as well when we re-use a 
 		// socket after a failed connect.  -Todd 8/00
 		
-		// stash away the descriptor so we can compare later..
-	SOCKET old_sock = _sock;
-
 		// now close the underlying socket.  do not call Sock::close()
 		// here, because we do not want all the CEDAR socket state
 		// (like the _who data member) cleared.
@@ -1167,28 +1160,6 @@ Sock::cancel_connect()
 		connect_state.connect_refused = true; // better give up
 		return;
 	}
-
-#ifndef WIN32
-		// make certain our descriptor number has not changed,
-		// because parts of Condor may have stashed the old
-		// socket descriptor into data structures.  So if it has
-		// changed, use dup2() to set it the same as before.
-		// NOTE from Dan 2007-12-13: we have no good way to do this
-		// under windows, and it is not necessary anyway, now that
-		// daemonCore avoids stashing fds.  Get rid of this in the
-		// next development branch.
-	if ( _sock != old_sock ) {
-		if ( dup2(_sock,old_sock) < 0 ) {
-			dprintf(D_ALWAYS,
-				"dup2 failed after a failed connect! errno=%d\n", 
-				errno);
-			connect_state.connect_refused = true; // better give up
-			return;
-		}
-		::closesocket(_sock);
-		_sock = old_sock;
-	}
-#endif
 
 	// finally, bind the socket
 	/* TRUE means this is an outgoing connection */
@@ -1804,6 +1775,87 @@ Sock::peer_ip_str()
 	return _peer_ip_buf;
 }
 
+// is peer a local interface, aka did this connection originate from a local process?
+// return true if peer address corresponds to an interface local to this machine,
+// or false if not or if an error.
+bool 
+Sock::peer_is_local()
+{
+	// Keep a static cache of results, since determining if the peer is local
+	// is somewhat expensive. Flush the cache every 20 min to deal w/
+	// interfaces on the machine being activated/deactivated during runtime.
+	static HashTable<int,bool>* isLocalTable = NULL;
+	static time_t cache_ttl = 0;
+	
+	bool result;
+	int peer_int = peer_ip_int();
+
+	// if there is no peer, bail out now.
+	if ( peer_int == 0 ) {
+		return false;
+	}
+
+	// allocate hashtable dynamically first time we are called, so
+	// we don't bloat private address space for daemons that never
+	// invoke this method.
+	if ( !isLocalTable ) {
+		isLocalTable = new HashTable<int,bool>(hashFuncInt);
+	}
+
+	// check the time to live (ttl) on our cached data
+	time_t now = time(NULL);
+	if ( now >= cache_ttl ) {
+		// ttl has expired; flush the cache and reset ttl
+		isLocalTable->clear();
+		cache_ttl = now + (20 * 60);	// push ttl 20 min into the future
+	}
+
+	// see if our cache already has the answer
+	if (isLocalTable->lookup(peer_int,result) == 0) {
+		// found the answer is in our cache table, just return what we found.
+		return result;
+	} 
+
+	// if we made it here, we don't have a cached answer, so 
+	// we run an experiment to see if the peer address relates
+	// to one of our interfaces.  the experiment is simply try 
+	// and bind a socket to the peer address on an ephemeral port - 
+	// if it works, we must have a local interface w/ that address,
+	// if it fails, assume we don't. 
+	// note: this algorithm may be imperfect if the host is serving
+	// as a NAT gateway.
+
+	int sock = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if ( sock < 0 ) {
+		dprintf(D_ALWAYS,"Sock::peer_is_local(): ERROR failed to create socket\n");
+        return false;
+    }
+		// Bind to the *same address* as our peer ....
+	struct sockaddr_in mySockAddr = *( peer_addr() );
+		// ... but use any old ephemeral port.
+    mySockAddr.sin_port = htons( 0 );
+		// invoke OS bind, not cedar bind - cedar bind does not allow us
+		// to specify the local address.
+	if ( ::bind(sock, (SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE) &mySockAddr, 
+		        sizeof(mySockAddr)) < 0 ) 
+	{
+		// failed to bind.  assume we failed  because the peer address is
+		// not local.
+		result = false;        
+	} else {
+		// bind worked, assume address has a local interface.
+		result = true;
+	}
+	// must not forget to close the socket we just created!
+	::closesocket(sock);
+	
+	// Stash our result in the cache.
+	isLocalTable->insert(peer_int,result);
+
+	// return the result to the caller
+	return result;
+}
+
 
 // my port and IP address in a struct sockaddr_in
 // @args: the address is returned via 'sin'
@@ -2171,4 +2223,39 @@ char const *
 Sock::get_connect_addr()
 {
 	return m_connect_addr;
+}
+
+const char *
+Sock::getFullyQualifiedUser() const {
+	return _fqu ? _fqu : UNAUTHENTICATED_FQU;
+}
+
+const char *
+Sock::getOwner() const {
+	return _fqu_user_part ? _fqu_user_part : UNAUTHENTICATED_USER;
+}
+
+		/// Get domain portion of fqu
+const char *
+Sock::getDomain() const {
+	return _fqu_domain_part ? _fqu_domain_part : UNMAPPED_DOMAIN;
+}
+
+
+bool
+Sock::isMappedFQU() const
+{
+	if( !_fqu_domain_part ) {
+		return false;
+	}
+	return strcmp(_fqu_domain_part,UNMAPPED_DOMAIN) != 0;
+}
+
+bool
+Sock::isAuthenticated() const
+{
+	if( !_fqu ) {
+		return false;
+	}
+	return strcmp(_fqu,UNAUTHENTICATED_FQU) != 0;
 }

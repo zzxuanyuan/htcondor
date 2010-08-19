@@ -44,6 +44,9 @@ StartdHibernator::StartdHibernator( void ) throw ()
 
 StartdHibernator::~StartdHibernator( void ) throw ()
 {
+	if (m_plugin_args) {
+		delete m_plugin_args;
+	}	
 }
 
 bool
@@ -91,7 +94,7 @@ StartdHibernator::initialize( void )
 
 		// Run the plugin with the "ad" option,
 		// and grab the output as a ClassAd
-	m_ad.clear();
+	m_ad.Clear();
 	FILE *fp = my_popenv( args, "r", FALSE );
 
 	if( ! fp ) {
@@ -163,7 +166,9 @@ StartdHibernator::enterState( SLEEP_STATE state, bool /*force*/ ) const
 	MyString	cmd;
 	args.GetArgsStringForDisplay( &cmd );
 
+	priv_state	priv = set_root_priv();
 	int status = my_system( args );
+	set_priv( priv );
 	if( status ) {
 		dprintf( D_ALWAYS,
 				 "Failed to run hibernation plugin '%s': status = %d\n",

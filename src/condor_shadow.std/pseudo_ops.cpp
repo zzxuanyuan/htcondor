@@ -62,11 +62,6 @@ extern "C" {
 	void HoldJob( const char* long_reason, const char* short_reason,
 				  int reason_code, int reason_subcode );
 	void reaper();
-	#if defined(DUX4)
-		int statfs(const char *, struct statfs*);
-	#elif defined(DUX5)
-		int _F64_statfs(char *, struct statfs*, ...);
-	#endif
 }
 
 extern int JobStatus;
@@ -560,9 +555,17 @@ is_ckpt_file(const char path[])
 	char *test_path;
 
 	test_path = gen_ckpt_name( Spool, Proc->id.cluster, Proc->id.proc, 0 );
-	if (strcmp(path, test_path) == 0) return true;
+	if (strcmp(path, test_path) == 0) {
+		free(test_path); test_path = NULL;
+		return true;
+	}
 	strcat(test_path, ".tmp");
-	if (strcmp(path, test_path) == 0) return true;
+	if (strcmp(path, test_path) == 0) {
+		free(test_path); test_path = NULL;
+		return true;
+	}
+
+	free(test_path); test_path = NULL;
 	return false;
 }
 
@@ -577,7 +580,12 @@ is_ickpt_file(const char path[])
 	char *test_path;
 
 	test_path = gen_ckpt_name( Spool, Proc->id.cluster, ICKPT, 0 );
-	if (strcmp(path, test_path) == 0) return true;
+	if (strcmp(path, test_path) == 0) {
+		free(test_path); test_path = NULL;
+		return true;
+	}
+
+	free(test_path); test_path = NULL;
 	return false;
 }
 
@@ -2140,10 +2148,8 @@ pseudo_statfs( const char *path, struct statfs *buf )
 		 me. */
 	str = strdup(path);
 
-#if defined(Solaris) || defined(IRIX)
+#if defined(Solaris)
 	ret = statfs( str, buf, 0, 0);
-#elif defined DUX5
-	ret = _F64_statfs( str, buf );
 #else
 	ret = statfs( str, buf );
 #endif

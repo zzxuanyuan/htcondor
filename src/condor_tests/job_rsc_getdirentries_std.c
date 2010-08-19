@@ -61,15 +61,9 @@ typedef struct kernel_dirent
 	typedef struct dirent DENT;
 #endif
 
-/* for some reason, g++ needs this extern definition */
-#if defined(DUX4) && defined(__cplusplus) && defined(__GNUC__)
-extern "C" ssize_t getdirentries(int fd, char *buf, size_t  nbytes ,
-				 off_t *basep);
-#endif
-
 int main() {
 /* HPUX should work, but it doesn't currently with the given code */
-#if !defined(Solaris) && !defined( IRIX ) && !defined( HPUX )
+#if !defined(Solaris) && !defined( HPUX )
 	int results;
 	off_t basep;
 	int fd;

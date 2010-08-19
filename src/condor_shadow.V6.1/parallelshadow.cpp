@@ -52,6 +52,7 @@ ParallelShadow::~ParallelShadow() {
     for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
         delete ResourceList[i];
     }
+	daemonCore->Cancel_Command( SHADOW_UPDATEINFO );
 }
 
 void 
@@ -82,12 +83,14 @@ ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer
 	parallelMasterResource = rr;
 
 	char buffer[1024];
-	sprintf (buffer, "%s = \"%s%c%s\"", ATTR_REMOTE_SPOOL_DIR, 
+	char *dir = gen_ckpt_name(0, getCluster(), 0, 0);
+	snprintf (buffer, 1024, "%s = \"%s%c%s\"", ATTR_REMOTE_SPOOL_DIR, 
 		param("SPOOL"), DIR_DELIM_CHAR, 
-		gen_ckpt_name(0, getCluster(), 0, 0));
+		dir);
+	free(dir); dir = NULL;
 	job_ad->Insert(buffer);
 
-    sprintf( buf, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
+    snprintf( buf, 256, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
     if( !job_ad->Insert(buf) ) {
         dprintf( D_ALWAYS, "Failed to insert %s into jobAd.\n", buf );
         shutDown( JOB_NOT_STARTED );
@@ -95,7 +98,7 @@ ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr, const char *xfer
 
 	replaceNode( job_ad, 0 );
 	rr->setNode( 0 );
-	sprintf( buf, "%s = 0", ATTR_NODE );
+	snprintf( buf, 256, "%s = 0", ATTR_NODE );
 	job_ad->InsertOrUpdate( buf );
     rr->setJobAd( job_ad );
 
@@ -292,16 +295,18 @@ ParallelShadow::getResources( void )
 
 			replaceNode ( job_ad, nodenum );
 			rr->setNode( nodenum );
-			sprintf( buf, "%s = %d", ATTR_NODE, nodenum );
+			snprintf( buf, 128, "%s = %d", ATTR_NODE, nodenum );
 			job_ad->InsertOrUpdate( buf );
-			sprintf( buf, "%s = \"%s\"", ATTR_MY_ADDRESS,
+			snprintf( buf, 128, "%s = \"%s\"", ATTR_MY_ADDRESS,
 					 daemonCore->InfoCommandSinfulString() );
 			job_ad->InsertOrUpdate( buf );
 
 			char buffer[1024];
-			sprintf (buffer, "%s = \"%s%c%s\"", ATTR_REMOTE_SPOOL_DIR, 
+			char *dir = gen_ckpt_name(0, job_cluster, 0, 0);
+			snprintf (buffer, 1024, "%s = \"%s%c%s\"", ATTR_REMOTE_SPOOL_DIR, 
 				param("SPOOL"), DIR_DELIM_CHAR, 
-				gen_ckpt_name(0, job_cluster, 0, 0));
+				dir);
+			free(dir); dir = NULL;
 			job_ad->Insert(buffer);
 
 				// Put the correct claim id into this ad's ClaimId attribute.
@@ -383,6 +388,7 @@ ParallelShadow::spawnNode( MpiResource* rr )
 			// First, contact the startd to spawn the job
 		if( rr->activateClaim() != OK ) {
 			shutDown( JOB_NOT_STARTED );
+			
 		}
 	}
 
@@ -499,6 +505,25 @@ ParallelShadow::emailTerminateEvent( int exitReason, update_style_t kind )
 void 
 ParallelShadow::shutDown( int exitReason )
 {
+	if (exitReason != JOB_NOT_STARTED) {
+		if (shutdownPolicy == WAIT_FOR_ALL) {
+			for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
+				RemoteResource *r = ResourceList[i];
+				// If the policy is wait for all nodes to exit
+				// see if any are still running.  If so,
+				// just return, and wait for them all to go
+				if (r->getResourceState() != RR_FINISHED) {
+					return;
+				}
+			}
+			
+		}
+			// If node0 is still running, don't really shut down
+		RemoteResource *r =  ResourceList[0];
+		if (r->getResourceState() != RR_FINISHED) {
+			return;
+		}
+	}
 		/* With many resources, we have to figure out if all of
 		   them are done, and we have to figure out if we need
 		   to kill others.... */
@@ -512,23 +537,6 @@ ParallelShadow::shutDown( int exitReason )
 	}
 */
 
-	if (shutdownPolicy == WAIT_FOR_ALL) {
-    	for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
-			RemoteResource *r = ResourceList[i];
-			// If the policy is wait for all nodes to exit
-			// see if any are still running.  If so,
-			// just return, and wait for them all to go
-			if (r->getResourceState() != RR_FINISHED) {
-				return;
-			}
-		}
-		
-	}
-		// If node0 is still running, don't really shut down
-	RemoteResource *r =  ResourceList[0];
-	if (r->getResourceState() != RR_FINISHED) {
-		return;
-	}
 	handleJobRemoval(0);
 
 		/* if we're still here, we can call BaseShadow::shutDown() to
@@ -662,22 +670,16 @@ ParallelShadow::handleJobRemoval( int sig ) {
 void
 ParallelShadow::replaceNode ( ClassAd *ad, int nodenum ) {
 
-	ExprTree *tree = NULL, *rhs = NULL, *lhs = NULL;
+	ExprTree *tree = NULL;
 	char node[9];
+	const char *lhstr, *rhstr;
 
-	sprintf( node, "%d", nodenum );
+	snprintf( node, 9, "%d", nodenum );
 
 	ad->ResetExpr();
-	while( (tree = ad->NextExpr()) ) {
-		MyString rhstr;
-		MyString lhstr;
-		if( (lhs = tree->LArg()) ) {
-			lhs->PrintToStr (lhstr);
-		}
-		if( (rhs = tree->RArg()) ) {
-			rhs->PrintToStr (rhstr);
-		}
-		if( !lhs || !rhs ) {
+	while( ad->NextExpr(lhstr, tree) ) {
+		rhstr = ExprTreeToString(tree);
+		if( !lhstr || !rhstr ) {
 			dprintf( D_ALWAYS, "Could not replace $(NODE) in ad!\n" );
 			return;
 		}
@@ -685,9 +687,9 @@ ParallelShadow::replaceNode ( ClassAd *ad, int nodenum ) {
 		MyString strRh(rhstr);
 		if (strRh.replaceString("#pArAlLeLnOdE#", node))
 		{
-			ad->AssignExpr( lhstr.Value(), strRh.Value() );
+			ad->AssignExpr( lhstr, strRh.Value() );
 			dprintf( D_FULLDEBUG, "Replaced $(NODE), now using: %s = %s\n", 
-					 lhstr.Value(), strRh.Value() );
+					 lhstr, strRh.Value() );
 		}
 	}	
 }

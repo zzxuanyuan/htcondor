@@ -40,6 +40,7 @@
 #include "basename.h"
 #include "extArray.h"
 #include "condor_string.h"  /* for strnewp() */
+#include "dagman_recursive_submit.h"
 
 static const char   COMMENT    = '#';
 static const char * DELIMITERS = " \t";
@@ -78,6 +79,8 @@ static bool parse_priority(Dag *dag,
 static bool parse_category(Dag *dag, const char *filename, int lineNumber);
 static bool parse_maxjobs(Dag *dag, const char *filename, int lineNumber);
 static bool parse_splice(Dag *dag, const char *filename, int lineNumber);
+static bool parse_node_status_file(Dag  *dag, const char *filename,
+		int  lineNumber);
 static MyString munge_job_name(const char *jobName);
 
 static MyString current_splice_scope(void);
@@ -193,7 +196,8 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// Example Syntax is:  JOB j1 j1.condor [DONE]
 		//
 		if(strcasecmp(token, "JOB") == 0) {
-			parsed_line_successfully = parse_node( dag, Job::TYPE_CONDOR, token,
+			parsed_line_successfully = parse_node( dag, 
+					   Job::TYPE_CONDOR, token,
 					   filename, lineNumber, tmpDirectory.Value(), "",
 					   "submitfile" );
 		}
@@ -202,7 +206,8 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		// Example Syntax is:  DATA j1 j1.dapsubmit [DONE]
 		//
 		else if	(strcasecmp(token, "DAP") == 0) {	// DEPRECATED!
-			parsed_line_successfully = parse_node( dag, Job::TYPE_STORK, token,
+			parsed_line_successfully = parse_node( dag,
+					   Job::TYPE_STORK, token,
 					   filename, lineNumber, tmpDirectory.Value(), "",
 					   "submitfile" );
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
@@ -212,13 +217,15 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 		}
 
 		else if	(strcasecmp(token, "DATA") == 0) {
-			parsed_line_successfully = parse_node( dag, Job::TYPE_STORK, token,
+			parsed_line_successfully = parse_node( dag,
+					   Job::TYPE_STORK, token,
 					   filename, lineNumber, tmpDirectory.Value(), "",
 					   "submitfile");
 		}
 
 		else if	(strcasecmp(token, "SUBDAG") == 0) {
-			parsed_line_successfully = parse_subdag( dag, Job::TYPE_CONDOR,
+			parsed_line_successfully = parse_subdag( dag, 
+						Job::TYPE_CONDOR,
 						token, filename, lineNumber, tmpDirectory.Value() );
 		}
 
@@ -237,7 +244,7 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			
 		// Handle a Retry spec
 		// Example Syntax is:  Retry JobName 3 UNLESS-EXIT 42
-		else if( strcasecmp( token, "Retry" ) == 0 ) {
+		else if( strcasecmp( token, "RETRY" ) == 0 ) {
 			parsed_line_successfully = parse_retry(dag, filename, lineNumber);
 		} 
 
@@ -294,12 +301,19 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			parsed_line_successfully = parse_splice(dag, filename,
 						lineNumber);
 		}
+
+		// Handle a NODE_STATUS_FILE spec
+		else if(strcasecmp(token, "NODE_STATUS_FILE") == 0) {
+			parsed_line_successfully = parse_node_status_file(dag,
+						filename, lineNumber);
+		}
 		
 		// None of the above means that there was bad input.
 		else {
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
-				"Expected JOB, DATA, SCRIPT, PARENT, RETRY, ABORT-DAG-ON, "
-				"DOT, VARS, PRIORITY, CATEGORY, MAXJOBS or CONFIG token\n",
+				"Expected JOB, DATA, SUBDAG, SCRIPT, PARENT, RETRY, "
+				"ABORT-DAG-ON, DOT, VARS, PRIORITY, CATEGORY, MAXJOBS, "
+				"CONFIG, SPLICE or NODE_STATUS_FILE token\n",
 				filename, lineNumber );
 			parsed_line_successfully = false;
 		}
@@ -332,22 +346,24 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 }
 
 static bool 
-parse_subdag( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
+parse_subdag( Dag *dag, Job::job_type_t nodeType,
+			const char* nodeTypeKeyword,
 			const char* dagFile, int lineNum, const char *directory )
 {
 	const char *inlineOrExt = strtok( NULL, DELIMITERS );
 	if ( !strcasecmp( inlineOrExt, "EXTERNAL" ) ) {
-		return parse_node( dag, nodeType, nodeTypeKeyword, dagFile, lineNum,
-					directory, " EXTERNAL", "dagfile" );
-	} else {
-		debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): only SUBDAG "
-					"EXTERNAL is supported at this time\n", dagFile, lineNum);
-		return false;
+		return parse_node( dag, nodeType, nodeTypeKeyword, dagFile,
+					lineNum, directory, " EXTERNAL", "dagfile" );
 	}
+
+	debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): only SUBDAG "
+				"EXTERNAL is supported at this time\n", dagFile, lineNum);
+	return false;
 }
 
 static bool 
-parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
+parse_node( Dag *dag, Job::job_type_t nodeType,
+			const char* nodeTypeKeyword,
 			const char* dagFile, int lineNum, const char *directory,
 			const char *inlineOrExt, const char *submitOrDagFile)
 {
@@ -358,7 +374,7 @@ parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
 
 	MyString expectedSyntax;
 	expectedSyntax.sprintf( "Expected syntax: %s%s nodename %s "
-				"[DIR directory] [DONE]", nodeTypeKeyword, inlineOrExt,
+				"[DIR directory] [NOOP] [DONE]", nodeTypeKeyword, inlineOrExt,
 				submitOrDagFile );
 
 		// NOTE: fear not -- any missing tokens resulting in NULL
@@ -372,52 +388,66 @@ parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
 		// next token is the submit file name
 	const char *submitFile = strtok( NULL, DELIMITERS );
 
-		// next token (if any) is "DIR" or "DONE"
-	const char *doneKey = NULL;
+		// next token (if any) is "DIR" "NOOP", or "DONE" (in that order)
 	const char* nextTok = strtok( NULL, DELIMITERS );
 	TmpDir nodeDir;
-	if ( nextTok && (strcasecmp(nextTok, "DIR") == 0) ) {
-		if ( strcmp(directory, "") ) {
-			debug_printf( DEBUG_QUIET, "ERROR: DIR specification in node "
-						"lines not allowed with -UseDagDir command-line "
-						"argument\n");
-			return false;
-		}
+	if ( nextTok ) {
+		if (strcasecmp(nextTok, "DIR") == 0) {
+			if ( strcmp(directory, "") ) {
+				debug_printf( DEBUG_QUIET, "ERROR: DIR specification in node "
+							"lines not allowed with -UseDagDir command-line "
+							"argument\n");
+				return false;
+			}
 
-		directory = strtok( NULL, DELIMITERS );
-		if ( !directory ) {
-			debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): no directory "
-						"specified after DIR keyword\n", dagFile, lineNum );
+			directory = strtok( NULL, DELIMITERS );
+			if ( !directory ) {
+				debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): no directory "
+							"specified after DIR keyword\n", dagFile, lineNum );
+				debug_printf( DEBUG_QUIET, "%s\n", expectedSyntax.Value() );
+				return false;
+			}
+
+			MyString errMsg;
+			if ( !nodeDir.Cd2TmpDir(directory, errMsg) ) {
+				debug_printf( DEBUG_QUIET,
+							"ERROR: can't change to directory %s: %s\n",
+							directory, errMsg.Value() );
+				return false;
+			}
+			nextTok = strtok( NULL, DELIMITERS );
+		} else {
+			// Fall through to check for NOOP.
+		}
+	}
+
+	bool noop = false;
+
+	if ( nextTok ) {
+		if ( strcasecmp( nextTok, "NOOP" ) == 0 ) {
+			noop = true;
+			nextTok = strtok( NULL, DELIMITERS );
+		} else {
+			// Fall through to check for DONE.
+		}
+	}
+
+	if( nextTok ) {
+		if( strcasecmp( nextTok, "DONE" ) == 0 ) {
+			done = true;
+		} else {
+			debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): invalid "
+						  "parameter \"%s\"\n", dagFile, lineNum, nextTok );
 			debug_printf( DEBUG_QUIET, "%s\n", expectedSyntax.Value() );
 			return false;
 		}
-
-		MyString errMsg;
-		if ( !nodeDir.Cd2TmpDir(directory, errMsg) ) {
-			debug_printf( DEBUG_QUIET,
-						"ERROR: can't change to directory %s: %s\n",
-						directory, errMsg.Value() );
-			return false;
-		}
-		doneKey = strtok( NULL, DELIMITERS );
-	} else {
-		doneKey = nextTok;
+		nextTok = strtok( NULL, DELIMITERS );
 	}
 
 		// anything else is garbage
-	char *garbage = strtok( 0, DELIMITERS );
-	if( doneKey ) {
-		if( strcasecmp( doneKey, "DONE" ) != 0 ) {
+	if( nextTok ) {
 			debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): invalid "
-						  "parameter \"%s\"\n", dagFile, lineNum, doneKey );
-			debug_printf( DEBUG_QUIET, "%s\n", expectedSyntax.Value() );
-			return false;
-		}
-		done = true;
-	}
-	if( garbage ) {
-			debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): invalid "
-						  "parameter \"%s\"\n", dagFile, lineNum, garbage );
+						  "parameter \"%s\"\n", dagFile, lineNum, nextTok );
 			debug_printf( DEBUG_QUIET, "%s\n", expectedSyntax.Value() );
 			return false;
 	}
@@ -434,20 +464,29 @@ parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
 	// If this is a "SUBDAG" line, generate the real submit file name.
 	MyString nestedDagFile("");
 	MyString dagSubmitFile(""); // must be outside if so it stays in scope
-	if ( !strcasecmp( nodeTypeKeyword, "SUBDAG" ) ) {
+	if ( strcasecmp( nodeTypeKeyword, "SUBDAG" ) == MATCH ) {
 			// Save original DAG file name (needed for rescue DAG).
 		nestedDagFile = submitFile;
 
 			// Generate the "real" submit file name (append ".condor.sub"
 			// to the DAG file name).
 		dagSubmitFile = submitFile;
-		dagSubmitFile += ".condor.sub";
+		dagSubmitFile += DAG_SUBMIT_FILE_SUFFIX;
 		submitFile = dagSubmitFile.Value();
+	} else if ( strstr( submitFile, DAG_SUBMIT_FILE_SUFFIX) ) {
+			// If the submit file name ends in ".condor.sub", we assume
+			// that this node is a nested DAG, and set the DAG filename
+			// accordingly.
+		nestedDagFile = submitFile;
+		nestedDagFile.replaceString( DAG_SUBMIT_FILE_SUFFIX, "" );
+		debug_printf( DEBUG_NORMAL, "Warning: the use of the JOB "
+					"keyword for nested DAGs is deprecated; please "
+					"use SUBDAG EXTERNAL instead" );
 	}
 
 	// looks ok, so add it
 	if( !AddNode( dag, nodeType, nodeName, directory,
-				submitFile, NULL, NULL, done, whynot ) )
+				submitFile, NULL, NULL, noop, done, whynot ) )
 	{
 		debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): %s\n",
 					  dagFile, lineNum, whynot.Value() );
@@ -1145,8 +1184,11 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 			return false;
 		}
 		debug_printf(DEBUG_DEBUG_1, "Argument added, Name=\"%s\"\tValue=\"%s\"\n", varName.Value(), varValue.Value());
-		job->varNamesFromDag->Append(new MyString(varName));
-		job->varValsFromDag->Append(new MyString(varValue));
+		bool appendResult;
+		appendResult = job->varNamesFromDag->Append(new MyString(varName));
+		ASSERT( appendResult );
+		appendResult = job->varValsFromDag->Append(new MyString(varValue));
+		ASSERT( appendResult );
 	}
 
 	if(numPairs == 0) {
@@ -1424,6 +1466,8 @@ parse_splice(
 	--_thisDagNum;
 
 	// This "copy" is tailored to be correct according to Dag::~Dag()
+	// We can pass in NULL for submitDagOpts because the splice DAG
+	// object will never actually do a submit.  wenger 2010-03-25
 	splice_dag = new Dag(	dag->DagFiles(),
 							dag->MaxJobsSubmitted(),
 							dag->MaxPreScripts(),
@@ -1439,7 +1483,10 @@ parse_splice(
 							dag->ProhibitMultiJobs(),
 							dag->SubmitDepthFirst(),
 							dag->DefaultNodeLog(),
-							true); /* we are a splice! */
+							dag->GenerateSubdagSubmits(),
+							NULL, // this Dag will never submit a job
+							true, /* we are a splice! */
+							current_splice_scope() );
 	
 	// initialize whatever the DIR line was, or defaults to, here.
 	splice_dag->SetDirectory(directory);
@@ -1582,6 +1629,49 @@ parse_maxjobs(
 	MyString	tmpName( categoryName );
 	dag->_catThrottles.SetThrottle( &tmpName, maxJobsVal );
 
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// 
+// Function: parse_node_status_file
+// Purpose:  Parses a line specifying the a node_status_file for the DAG.
+//           The format of this line must be
+//           NODE_STATUS_FILE <filename>
+//			 No whitespace is allowed in the file name
+//-----------------------------------------------------------------------------
+static bool 
+parse_node_status_file(
+	Dag  *dag, 
+	const char *filename, 
+	int  lineNumber)
+{
+	const char * example = "NODE_STATUS_FILE StatusFile [min update time]";
+
+	char *statusFileName = strtok(NULL, DELIMITERS);
+	if (statusFileName == NULL) {
+		debug_printf( DEBUG_QUIET,
+					  "%s (line %d): Missing node status file name,\n",
+					  filename, lineNumber );
+		exampleSyntax( example );
+		return false;
+	}
+
+	int minUpdateTime = 0;
+	char *minUpdateStr = strtok(NULL, DELIMITERS);
+	if ( minUpdateStr != NULL ) {
+		char *tmp;
+		minUpdateTime = (int)strtol( minUpdateStr, &tmp, 10 );
+		if ( tmp == minUpdateStr ) {
+			debug_printf( DEBUG_QUIET,
+					  	"%s (line %d): Invalid min update time value \"%s\"\n",
+					  	filename, lineNumber, minUpdateStr );
+			exampleSyntax( example );
+			return false;
+		}
+	}
+
+	dag->SetNodeStatusFileName( statusFileName, minUpdateTime );
 	return true;
 }
 
