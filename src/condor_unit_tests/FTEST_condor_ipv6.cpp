@@ -36,9 +36,9 @@ static bool test_condor_inet_pton_ipv4(void);
 
 bool FTEST_ipv6(void) {
 		// beginning junk for getPortFromAddr()
-	e.emit_function("various ipv6 functions");
-	e.emit_comment("Testing ipv6 functions");
-	e.emit_problem("None");
+	emit_function("various ipv6 functions");
+	emit_comment("Testing ipv6 functions");
+	emit_problem("None");
 	
 		// driver to run the tests and all required setup
 	FunctionDriver driver;
@@ -47,25 +47,24 @@ bool FTEST_ipv6(void) {
 	
 		// run the tests
 	bool test_result = driver.do_all_functions();
-	e.emit_function_break();
 	return test_result;
 }
 
 static bool test_condor_inet_pton() {
-	e.emit_test("converting ipv6 address");
+	emit_test("converting ipv6 address");
 	char* input = "fe80::21e:4fff:fef0:90c7";
 	ipaddr addr;
 	int ret = condor_inet_pton(input, &addr);
 
-	e.emit_input_header();
-	e.emit_param("IP", input);
-	e.emit_output_expected_header();
-	e.emit_param("IP", input);
-	e.emit_retval("%s", tfstr(1));
-	e.emit_output_actual_header();
-	e.emit_retval("%s", tfstr(ret));
+	emit_input_header();
+	emit_param("IP", input);
+	emit_output_expected_header();
+	emit_param("IP", input);
+	emit_retval("%s", tfstr(1));
+	emit_output_actual_header();
+	emit_retval("%s", tfstr(ret));
 	if (!ret) {
-		e.emit_result_failure(__LINE__);
+		emit_result_failure(__LINE__);
 		return false;
 	}
 	
@@ -76,26 +75,26 @@ static bool test_condor_inet_pton() {
 	printf("org ip: %s\n", input);
 	printf("converted again: %s\n", ptr);
 	
-	e.emit_result_success(__LINE__);
+	emit_result_success(__LINE__);
 	return true;
 }
 
 
 static bool test_condor_inet_pton_ipv4(void) {
-	e.emit_test("converting ipv4 address");
+	emit_test("converting ipv4 address");
 	char* input = "136.0.3.2";
 	ipaddr addr;
 	int ret = condor_inet_pton(input, &addr);
 	
-	e.emit_input_header();
-	e.emit_param("IP", input);
-	e.emit_output_expected_header();
-	e.emit_param("IP", input);
-	e.emit_retval("%s", tfstr(1));
-	e.emit_output_actual_header();
-	e.emit_retval("%s", tfstr(ret));
+	emit_input_header();
+	emit_param("IP", input);
+	emit_output_expected_header();
+	emit_param("IP", input);
+	emit_retval("%s", tfstr(1));
+	emit_output_actual_header();
+	emit_retval("%s", tfstr(ret));
 	if (!ret) {
-		e.emit_result_failure(__LINE__);
+		emit_result_failure(__LINE__);
 		return false;
 	}
 	
@@ -112,6 +111,6 @@ static bool test_condor_inet_pton_ipv4(void) {
 	printf("org ip: %s\n", input);
 	printf("converted again: %s\n", ptr);
 	
-	e.emit_result_success(__LINE__);
+	emit_result_success(__LINE__);
 	return true;
 }

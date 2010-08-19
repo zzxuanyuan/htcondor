@@ -58,24 +58,24 @@ bool FTEST_is_ipaddr(void) {
 }
 
 static bool test_ipv6_normal() {
-	e.emit_test("Is simple IPv6 input identified correctly?");
+	emit_test("Is simple IPv6 input identified correctly?");
 	char* input = strdup( "fe80::21e:4fff:fef0:90c7" );
-	e.emit_input_header();
-	e.emit_param("IP", input);
+	emit_input_header();
+	emit_param("IP", input);
 	struct in_addr ipv6;
 	unsigned char* byte = (unsigned char*) &ipv6;
 	int result = is_ipaddr( input, &ipv6);
 	//free(input);
-	e.emit_output_expected_header();
-	e.emit_param("IP: %s", input);
-	e.emit_retval("%s", tfstr(TRUE));
-	e.emit_output_actual_header();
-	e.emit_retval("%s", tfstr(result));
+	emit_output_expected_header();
+	emit_param("IP: %s", input);
+	emit_retval("%s", tfstr(TRUE));
+	emit_output_actual_header();
+	emit_retval("%s", tfstr(result));
 	if (result!=TRUE) {
-		e.emit_result_failure(__LINE__);
+		emit_result_failure(__LINE__);
 		return false;
 	}
-	e.emit_result_success(__LINE__);
+	emit_result_success(__LINE__);
 	free(input);
 	return true;
 }
