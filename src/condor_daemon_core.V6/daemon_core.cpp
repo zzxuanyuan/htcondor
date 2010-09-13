@@ -108,6 +108,8 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #include "shared_port_endpoint.h"
 #include "condor_open.h"
 #include "filename_tools.h"
+#include "authentication.h"
+#include "condor_claimid_parser.h"
 
 #include "valgrind.h"
 
@@ -5627,6 +5629,12 @@ void DaemonCore::Send_Signal(classy_counted_ptr<DCSignalMsg> msg, bool nonblocki
 		msg->setStreamType(Stream::reli_sock);
 	}
 
+	if(pidinfo->child_session_id)
+	{
+		dprintf(D_ALWAYS, "Sending message with a session ID.\n");
+		msg->setSecSessionId(pidinfo->child_session_id);
+	}
+
 	msg->messengerDelivery( true ); // we really are sending this message
 	if( nonblocking ) {
 		d->sendMsg( msg.get() );
@@ -7019,6 +7027,9 @@ int DaemonCore::Create_Process(
 	unsigned int mii;
 	pid_t forker_pid;
 
+	//Security session ID and key for daemon core processes.
+	char *session_id;
+
 
 #ifdef WIN32
 
@@ -7182,7 +7193,43 @@ int DaemonCore::Create_Process(
 			inheritFds[numInheritFds++] = ssock.get_file_desc();
 		}
 	}
-	inheritbuf += " 0";
+
+	//Inherit a key.
+	if(want_command_port != FALSE)
+	{
+		dprintf(D_ALWAYS, "Exporting session key.\n");
+		session_id = Condor_Crypt_Base::randomHexKey();
+		char* session_key = Condor_Crypt_Base::randomHexKey();
+		bool rc = getSecMan()->CreateNonNegotiatedSecuritySession(
+			DAEMON,
+			session_id,
+			session_key,
+			NULL,
+			CONDOR_PARENT_FQU,
+			NULL,
+			0);
+
+		if(!rc)
+		{
+			dprintf(D_ALWAYS, "ERROR: Create_Process failed to create security session for child daemon.\n");
+			goto wrapup;
+		}
+		inheritbuf += " SessionKey:";
+
+		MyString session_info;
+		rc = getSecMan()->ExportSecSessionInfo(session_id, session_info);
+		if(!rc)
+		{
+			dprintf(D_ALWAYS, "ERROR: Create_Process failed to export security session for child daemon.\n");
+			goto wrapup;
+		}
+		ClaimIdParser claimId(session_id, session_info.Value(), session_key);
+		inheritbuf += claimId.claimId();
+
+		inheritbuf += " 0";
+
+		free(session_key);
+	}
 
 	// now process fd_inherit_list, which allows the caller the specify
 	// arbitrary file descriptors to be passed through to the child process
@@ -8122,6 +8169,7 @@ int DaemonCore::Create_Process(
 	pidtmp->reaper_id = reaper_id;
 	pidtmp->hung_tid = -1;
 	pidtmp->was_not_responding = FALSE;
+	pidtmp->child_session_id = session_id;
 #ifdef WIN32
 	pidtmp->hProcess = piProcess.hProcess;
 	pidtmp->hThread = piProcess.hThread;
@@ -8738,8 +8786,8 @@ DaemonCore::Inherit( void )
 			dc_rsock = new ReliSock();
 			((ReliSock *)dc_rsock)->serialize(ptmp);
 			dc_rsock->set_inheritable(FALSE);
+			ptmp=inherit_list.next();
 		}
-		ptmp=inherit_list.next();
 		if ( ptmp && (strcmp(ptmp,"0") != 0) ) {
 			if( !m_wants_dc_udp_self ) {
 					// we don't want a UDP command socket, but our parent
@@ -8752,6 +8800,29 @@ DaemonCore::Inherit( void )
 				dc_ssock->serialize(ptmp);
 				dc_ssock->set_inheritable(FALSE);
 			}
+
+			ptmp=inherit_list.next();
+		}
+		
+		if( ptmp && strncmp(ptmp,"SessionKey:",11)==0 ) {
+			dprintf(D_ALWAYS, "Removing session key.\n");
+			ClaimIdParser claimid(ptmp+11);
+			bool rc = getSecMan()->CreateNonNegotiatedSecuritySession(
+				DAEMON,
+				claimid.secSessionId(),
+				claimid.secSessionKey(),
+				claimid.secSessionInfo(),
+				CONDOR_PARENT_FQU,
+				NULL,
+				0);
+			if(!rc)
+			{
+				dprintf(D_ALWAYS, "Error: Failed to recreate security session in child daemon.\n");
+			}
+			IpVerify* ipv = getSecMan()->getIpVerify();
+			MyString id;
+			id.sprintf("%s", CONDOR_PARENT_FQU);
+			ipv->PunchHole(DAEMON, id);
 		}
 
 	}	// end of if we read out CONDOR_INHERIT ok
@@ -9434,6 +9505,9 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 			        pid);
 		}
 	}
+
+	//Delete the session information.
+	getSecMan()->session_cache->remove(pidentry->child_session_id);
 
 	// Now remove this pid from our tables ----
 		// remove from hash table
@@ -10608,6 +10682,8 @@ DaemonCore::PidEntry::PidEntry() {
 		std_pipes[i] = DC_STD_FD_NOPIPE;
 	}
 	stdin_offset = 0;
+
+	child_session_id = NULL;
 }
 
 
@@ -10632,6 +10708,9 @@ DaemonCore::PidEntry::~PidEntry() {
 		SharedPortEndpoint::RemoveSocket( shared_port_fname.Value() );
 #endif
 	}
+
+	if(child_session_id)
+		free(child_session_id);
 }
 
 
