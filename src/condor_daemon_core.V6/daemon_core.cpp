@@ -7015,6 +7015,7 @@ int DaemonCore::Create_Process(
 	pid_t newpid = FALSE; //return FALSE to caller, by default
 
 	MyString inheritbuf;
+	MyString privateinheritbuf;
 		// note that these are on the stack; they go away nicely
 		// upon return from this function.
 	ReliSock rsock;
@@ -7193,6 +7194,7 @@ int DaemonCore::Create_Process(
 			inheritFds[numInheritFds++] = ssock.get_file_desc();
 		}
 	}
+	inheritbuf += " 0";
 
 	//Inherit a key.
 	if(want_command_port != FALSE)
@@ -7214,7 +7216,7 @@ int DaemonCore::Create_Process(
 			dprintf(D_ALWAYS, "ERROR: Create_Process failed to create security session for child daemon.\n");
 			goto wrapup;
 		}
-		inheritbuf += " SessionKey:";
+		privateinheritbuf += " SessionKey:";
 
 		MyString session_info;
 		rc = getSecMan()->ExportSecSessionInfo(session_id, session_info);
@@ -7224,9 +7226,7 @@ int DaemonCore::Create_Process(
 			goto wrapup;
 		}
 		ClaimIdParser claimId(session_id, session_info.Value(), session_key);
-		inheritbuf += claimId.claimId();
-
-		inheritbuf += " 0";
+		privateinheritbuf += claimId.claimId();
 
 		free(session_key);
 	}
@@ -7439,6 +7439,7 @@ int DaemonCore::Create_Process(
 
 			// now, add in the inherit buf
 		job_environ.SetEnv( EnvGetName( ENV_INHERIT ), inheritbuf.Value() );
+		job_environ.SetEnv( EnvGetName( ENV_PRIVATE ), privateinheritbuf.Value() );
 
 			// and finally, get it all back as a NULL delimited string.
 			// remember to deallocate this with delete [] since it will
@@ -8803,9 +8804,24 @@ DaemonCore::Inherit( void )
 
 			ptmp=inherit_list.next();
 		}
-		
+	}	// end of if we read out CONDOR_INHERIT ok
+
+	const char *privEnvName = EnvGetName( ENV_PRIVATE );
+	const char *privTmp = GetEnv( privEnvName );
+	if(!privTmp)
+	{
+		//inheritbuf = strdup( privTmp );
+		return;
+	}
+
+	UnsetEnv( envName );
+	StringList private_list(privTmp, " ");
+
+	private_list.rewind();
+	while((ptmp = private_list.next()) != NULL)
+	{
 		if( ptmp && strncmp(ptmp,"SessionKey:",11)==0 ) {
-			dprintf(D_ALWAYS, "Removing session key.\n");
+			dprintf(D_DAEMONCORE, "Removing session key.\n");
 			ClaimIdParser claimid(ptmp+11);
 			bool rc = getSecMan()->CreateNonNegotiatedSecuritySession(
 				DAEMON,
@@ -8824,8 +8840,7 @@ DaemonCore::Inherit( void )
 			id.sprintf("%s", CONDOR_PARENT_FQU);
 			ipv->PunchHole(DAEMON, id);
 		}
-
-	}	// end of if we read out CONDOR_INHERIT ok
+	}
 }
 
 void
