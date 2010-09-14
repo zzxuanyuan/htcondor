@@ -5628,13 +5628,13 @@ void DaemonCore::Send_Signal(classy_counted_ptr<DCSignalMsg> msg, bool nonblocki
 	else {
 		msg->setStreamType(Stream::reli_sock);
 	}
-
+#ifndef Solaris
 	if(pidinfo->child_session_id)
 	{
 		dprintf(D_ALWAYS, "Sending message with a session ID.\n");
 		msg->setSecSessionId(pidinfo->child_session_id);
 	}
-
+#endif
 	msg->messengerDelivery( true ); // we really are sending this message
 	if( nonblocking ) {
 		d->sendMsg( msg.get() );
@@ -8172,7 +8172,9 @@ int DaemonCore::Create_Process(
 	pidtmp->reaper_id = reaper_id;
 	pidtmp->hung_tid = -1;
 	pidtmp->was_not_responding = FALSE;
+#ifndef Solaris
 	pidtmp->child_session_id = session_id;
+#endif
 #ifdef WIN32
 	pidtmp->hProcess = piProcess.hProcess;
 	pidtmp->hThread = piProcess.hThread;
@@ -9522,10 +9524,10 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 			        pid);
 		}
 	}
-
+#ifndef Solaris
 	//Delete the session information.
 	getSecMan()->session_cache->remove(pidentry->child_session_id);
-
+#endif
 	// Now remove this pid from our tables ----
 		// remove from hash table
 	pidTable->remove(pid);
@@ -10699,8 +10701,9 @@ DaemonCore::PidEntry::PidEntry() {
 		std_pipes[i] = DC_STD_FD_NOPIPE;
 	}
 	stdin_offset = 0;
-
+#ifndef Solaris
 	child_session_id = NULL;
+#endif
 }
 
 
@@ -10725,9 +10728,10 @@ DaemonCore::PidEntry::~PidEntry() {
 		SharedPortEndpoint::RemoveSocket( shared_port_fname.Value() );
 #endif
 	}
-
+#ifndef Solaris
 	if(child_session_id)
 		free(child_session_id);
+#endif
 }
 
 
