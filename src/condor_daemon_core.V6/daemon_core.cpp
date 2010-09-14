@@ -5631,7 +5631,6 @@ void DaemonCore::Send_Signal(classy_counted_ptr<DCSignalMsg> msg, bool nonblocki
 #ifndef Solaris
 	if(pidinfo->child_session_id)
 	{
-		dprintf(D_ALWAYS, "Sending message with a session ID.\n");
 		msg->setSecSessionId(pidinfo->child_session_id);
 	}
 #endif
@@ -7199,7 +7198,6 @@ int DaemonCore::Create_Process(
 	//Inherit a key.
 	if(want_command_port != FALSE)
 	{
-		dprintf(D_ALWAYS, "Exporting session key.\n");
 		session_id = Condor_Crypt_Base::randomHexKey();
 		char* session_key = Condor_Crypt_Base::randomHexKey();
 		bool rc = getSecMan()->CreateNonNegotiatedSecuritySession(
@@ -7440,7 +7438,8 @@ int DaemonCore::Create_Process(
 			// now, add in the inherit buf
 		job_environ.SetEnv( EnvGetName( ENV_INHERIT ), inheritbuf.Value() );
 #ifndef Solaris
-		job_environ.SetEnv( EnvGetName( ENV_PRIVATE ), privateinheritbuf.Value() );
+		if( want_command_port != FALSE )
+			job_environ.SetEnv( EnvGetName( ENV_PRIVATE ), privateinheritbuf.Value() );
 #endif
 
 			// and finally, get it all back as a NULL delimited string.
@@ -9526,7 +9525,8 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 	}
 #ifndef Solaris
 	//Delete the session information.
-	getSecMan()->session_cache->remove(pidentry->child_session_id);
+	if(pidentry->child_session_id)
+		getSecMan()->session_cache->remove(pidentry->child_session_id);
 #endif
 	// Now remove this pid from our tables ----
 		// remove from hash table
