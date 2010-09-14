@@ -1673,7 +1673,9 @@ class DaemonCore : public Service
 		PidEnvID penvid;
 		MyString shared_port_fname;
 		//Session ID and key for child process.
+#ifndef Solaris
 		char* child_session_id;
+#endif
     };
 
 	int m_refresh_dns_timer;

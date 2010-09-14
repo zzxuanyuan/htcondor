@@ -7015,7 +7015,6 @@ int DaemonCore::Create_Process(
 	pid_t newpid = FALSE; //return FALSE to caller, by default
 
 	MyString inheritbuf;
-	MyString privateinheritbuf;
 		// note that these are on the stack; they go away nicely
 		// upon return from this function.
 	ReliSock rsock;
@@ -7027,10 +7026,11 @@ int DaemonCore::Create_Process(
 	time_t time_of_fork;
 	unsigned int mii;
 	pid_t forker_pid;
-
+#ifndef Solaris
 	//Security session ID and key for daemon core processes.
 	char *session_id;
-
+	MyString privateinheritbuf;
+#endif
 
 #ifdef WIN32
 
@@ -7195,7 +7195,7 @@ int DaemonCore::Create_Process(
 		}
 	}
 	inheritbuf += " 0";
-
+#ifndef Solaris
 	//Inherit a key.
 	if(want_command_port != FALSE)
 	{
@@ -7230,7 +7230,7 @@ int DaemonCore::Create_Process(
 
 		free(session_key);
 	}
-
+#endif
 	// now process fd_inherit_list, which allows the caller the specify
 	// arbitrary file descriptors to be passed through to the child process
 	// (currently only implemented on UNIX)
@@ -7439,7 +7439,9 @@ int DaemonCore::Create_Process(
 
 			// now, add in the inherit buf
 		job_environ.SetEnv( EnvGetName( ENV_INHERIT ), inheritbuf.Value() );
+#ifndef Solaris
 		job_environ.SetEnv( EnvGetName( ENV_PRIVATE ), privateinheritbuf.Value() );
+#endif
 
 			// and finally, get it all back as a NULL delimited string.
 			// remember to deallocate this with delete [] since it will
@@ -8805,12 +8807,11 @@ DaemonCore::Inherit( void )
 			ptmp=inherit_list.next();
 		}
 	}	// end of if we read out CONDOR_INHERIT ok
-
+#ifndef Solaris
 	const char *privEnvName = EnvGetName( ENV_PRIVATE );
 	const char *privTmp = GetEnv( privEnvName );
 	if(!privTmp)
 	{
-		//inheritbuf = strdup( privTmp );
 		return;
 	}
 
@@ -8841,6 +8842,7 @@ DaemonCore::Inherit( void )
 			ipv->PunchHole(DAEMON, id);
 		}
 	}
+#endif
 }
 
 void
