@@ -7027,7 +7027,7 @@ int DaemonCore::Create_Process(
 	pid_t forker_pid;
 #ifndef Solaris
 	//Security session ID and key for daemon core processes.
-	char *session_id;
+	char *session_id = NULL;
 	MyString privateinheritbuf;
 #endif
 
