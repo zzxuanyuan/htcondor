@@ -46,6 +46,12 @@
 # Path to condor_config_val
 #CONDOR_CONFIG=/etc/condor/condor_config
 
+# Disable the use of a 'PID file?
+#DISABLE_PIDFILE="no"
+
+# Only kill Condor PIDs from the PID file
+#FORCE_PIDFILE="no"
+
 ## There are no settings beyond this point.
 ######################################################################
 
@@ -459,14 +465,20 @@ find_masters() {
 # echos the result, or an empty string if none was found.
 # You can call this repeatedly to check for updates.
 condor_master_pids() {
-  pids=`find_masters`
+  if [ "$FORCE_PIDFILE" != "yes" ] ; then
+    pids=`find_masters`
+  fi
   if [ -f "$PIDFILE" -a -r "$PIDFILE" ] ; then
     masterpid=`cat "$PIDFILE"` 2>/dev/null
   fi
   if [ "$masterpid" = "" ] ; then
     echo "$pids"
     if [ "$pids" = "" ] ; then return 1; else return 0; fi
+  elif [ "$FORCE_PIDFILE" = "yes" ] ; then
+    echo "$masterpid"
+    return 0
   fi
+
   echo "$pids" | grep -w "$masterpid" > /dev/null
   if [ $? -eq 0 ] ; then
     echo "$masterpid"
@@ -659,7 +671,10 @@ if [ "$CONDOR_USERS" = "" ] ; then
   fi
 fi
 
-if [ "$PIDFILE" = "" ]; then
+# PID file overides / fallbacks
+if [ "$DISABLE_PIDFILE" = "yes" ] ; then
+  PIDFILE=""
+elif [ "$PIDFILE" = "" ] ; then
   init_condor_run
   PIDFILE="$CONDOR_RUN/condor.pid"
 fi
