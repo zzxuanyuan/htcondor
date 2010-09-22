@@ -106,13 +106,13 @@ struct hostent*
 condor_gethostbyname_ipv6(const char* name) {
     #define MAXADDR 16
     static struct hostent hostent;
-	static char *h_aliases[1] = {NULL};
 	static struct in_addr addr_list[MAXADDR];
 	static char *h_addr_list[MAXADDR+1];
-	static char h_name[NI_MAXHOST];        // maximum length of entire host name is 255
+	static char h_name[NI_MAXHOST];
 	struct addrinfo hints;
 	struct addrinfo* res = NULL;
 	struct addrinfo* iter;
+	struct hostent* hostent_alias = NULL;
 	int e;
 	int addrcount = 0;
 	int first = 1;
@@ -133,7 +133,15 @@ condor_gethostbyname_ipv6(const char* name) {
     memset(h_name, 0, sizeof(h_name));
     memset(&hostent, 0, sizeof(hostent));
     hostent.h_name = h_name;
-    hostent.h_aliases = h_aliases;
+
+	// fill up h_aliases field by calling gethostbyname().
+	// it seems there is no way to get DNS aliases from IPv6 functions.
+	// **YOU SHOULD NOT CALL gethostbyname() inside this fn after this point**
+	hostent_alias = gethostbyname(name);
+	if (hostent_alias) {
+		hostent.h_aliases = hostent_alias->h_aliases;
+	}
+
     hostent.h_addrtype = AF_INET;
     hostent.h_length = sizeof(struct in_addr);
     hostent.h_addr_list = &h_addr_list[0];
