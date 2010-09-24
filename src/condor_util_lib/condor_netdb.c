@@ -123,7 +123,12 @@ condor_gethostbyname_ipv6(const char* name) {
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_socktype = SOCK_STREAM;
+#ifdef WIN32
+	// AI_ADDRCONFIG is supported since Windows Server 2008 SDK.
+    hints.ai_flags = AI_CANONNAME;
+#else
     hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME;
+#endif 
 
     e = getaddrinfo(name, NULL, &hints, &res);
     if (e != 0)
