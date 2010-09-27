@@ -20,23 +20,24 @@
 #ifndef CONDOR_WIN_IPV6_H
 #define CONDOR_WIN_IPV6_H
 
+#include "winsock2.h"
 #include "ws2tcpip.h"
 
 __inline int win32_inet_pton(int af, const char *src, void *dst) {
 	int ret;
 	if (af == AF_INET) {
-		sockaddr_in sin;
+		struct sockaddr_in sin;
 		int sinlen = sizeof(sin);
-		ret = WSAStringToAddress(const_cast<char*>(src), af, NULL,
+		ret = WSAStringToAddress((char*)src, af, NULL,
 			(LPSOCKADDR)&sin, &sinlen);
 		if (ret == 0) {
 			memcpy(dst, &sin.sin_addr, sizeof(sin.sin_addr));
 			return 1;
 		}
 	} else if (af == AF_INET6) {
-		sockaddr_in6 sin6;
+		struct sockaddr_in6 sin6;
 		int sin6len = sizeof(sin6);
-		ret = WSAStringToAddress(const_cast<char*>(src), af, NULL,
+		ret = WSAStringToAddress((char*)src, af, NULL,
 			(LPSOCKADDR)&sin6, &sin6len);
 		if (ret == 0) {
 			memcpy(dst, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
