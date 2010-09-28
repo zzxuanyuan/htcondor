@@ -2,7 +2,7 @@
 #define _OPEN_FILES_IN_PID_H_
 
 #include "condor_common.h"
-#include "MyString.h"
+#include <string>
 #include <set>
 
 /* Given a pid, find out what files are currently open by that pid.
@@ -13,6 +13,6 @@
 	put into the set. See the realpath(3) man page.
 */
 
-std::set<MyString> open_files_in_pid(pid_t pid);
+std::set<std::string> open_files_in_pid(pid_t pid);
 
 #endif

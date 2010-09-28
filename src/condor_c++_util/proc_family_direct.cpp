@@ -116,6 +116,8 @@ ProcFamilyDirect::track_family_via_login(pid_t pid, const char* login)
 bool
 ProcFamilyDirect::get_usage(pid_t pid, ProcFamilyUsage& usage, bool full)
 {
+	std::set<std::string>::iterator it;
+
 	KillFamily* family = lookup(pid);
 	if (family == NULL) {
 		return false;
@@ -143,6 +145,14 @@ ProcFamilyDirect::get_usage(pid_t pid, ProcFamilyUsage& usage, bool full)
 			usage.percent_cpu = proc_info.cpuusage;
 			usage.total_image_size = proc_info.imgsize;
             usage.total_resident_set_size = proc_info.rssize;
+	
+			// perform a union of the open file set of the family.
+			for(it = proc_info.open_files.begin();
+				it != proc_info.open_files.end();
+				it++)
+			{
+				usage.open_files.insert(*it);
+			}
 		}
 		else {
 			dprintf(D_ALWAYS,

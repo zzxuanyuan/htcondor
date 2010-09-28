@@ -4,7 +4,7 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CONFIGURE_PCRE_CFLAGS)
 CFLAGS = $(STD_C_FLAGS) $(CONFIGURE_PCRE_CFLAGS)
 LIB = $(STD_LIBS) $(CONFIGURE_PCRE_LDFLAGS)
 
-OBJ = procapi.o  processid.o procapi_killfamily.o
+OBJ = procapi.o processid.o procapi_killfamily.o open_files_in_pid.o
 
 TEST_OBJS = procapi_t.o procapi_getproc_t.o \
 	procapi_fork_t.o procapi_perm_t.o \
@@ -13,7 +13,7 @@ TEST_OBJS = procapi_t.o procapi_getproc_t.o \
 library_target(libprocapi.a,$(OBJ))
 
 c_plus_target(condor_procapi,$(TEST_OBJS),$(LIB))
-
+c_plus_target(test_open_files,test_open_files.o,$(LIB))
 
 c_plus_target(testprocapi,testprocapi.o,$(LIB))
 html_target( procapi.h procinterface.h )

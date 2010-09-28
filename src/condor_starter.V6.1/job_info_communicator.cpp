@@ -256,11 +256,14 @@ JobInfoCommunicator::jobSubproc( void )
 
 
 void
-JobInfoCommunicator::allJobsSpawned( void )
+JobInfoCommunicator::allJobsSpawned( pid_t job_pid )
 {
+	dprintf(D_FULLDEBUG, "Inside JobInfoCommunicator::allJobsSpawned()\n");
 		// Now that everything is running, start a timer to handle
 		// periodic job updates.
 	startUpdateTimer();
+
+	m_job_pid = job_pid;
 }
 
 
