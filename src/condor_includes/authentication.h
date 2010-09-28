@@ -192,7 +192,7 @@ extern char const *EXECUTE_SIDE_MATCHSESSION_FQU;
 extern char const *SUBMIT_SIDE_MATCHSESSION_FQU;
 
 
-extern char const *CONDOR_PARENT_FQU;
+extern char const *CONDOR_CHILD_FQU;
 
 #endif /* AUTHENTICATION_H */
 

@@ -5628,12 +5628,10 @@ void DaemonCore::Send_Signal(classy_counted_ptr<DCSignalMsg> msg, bool nonblocki
 	else {
 		msg->setStreamType(Stream::reli_sock);
 	}
-#ifndef Solaris
 	if(pidinfo->child_session_id)
 	{
 		msg->setSecSessionId(pidinfo->child_session_id);
 	}
-#endif
 	msg->messengerDelivery( true ); // we really are sending this message
 	if( nonblocking ) {
 		d->sendMsg( msg.get() );
@@ -7025,11 +7023,9 @@ int DaemonCore::Create_Process(
 	time_t time_of_fork;
 	unsigned int mii;
 	pid_t forker_pid;
-#ifndef Solaris
-	//Security session ID and key for daemon core processes.
-	char *session_id = NULL;
+	//Security session ID and key for daemon core processes.  Not used on Solaris.
+	std::string session_id;
 	MyString privateinheritbuf;
-#endif
 
 #ifdef WIN32
 
@@ -7194,18 +7190,36 @@ int DaemonCore::Create_Process(
 		}
 	}
 	inheritbuf += " 0";
+	/*
+	Due to the belief that on Solaris there are no private environments, the passing of
+	security keys through the environment is a bad idea.  Thus we do not attempt this on
+	Solaris.
+	*/
 #ifndef Solaris
-	//Inherit a key.
+	/*
+	Currently there is no way to detect if we are starting a daemon core process
+	or not.  The closest thing is so far all daemons the master starts will receive
+	a command port, whereas non-daemon core processes would not know what to do with
+	one.  Since these security sessions are for communication between daemons, this
+	is the best that can currently be done to make sure non-daemon core processes
+	don't get a session key.
+	*/
 	if(want_command_port != FALSE)
 	{
-		session_id = Condor_Crypt_Base::randomHexKey();
-		char* session_key = Condor_Crypt_Base::randomHexKey();
+		char* c_session_id = Condor_Crypt_Base::randomHexKey();
+		char* c_session_key = Condor_Crypt_Base::randomHexKey();
+
+		session_id.assign(c_session_id);
+		std::string session_key(c_session_key);
+
+		free(c_session_id);
+		free(c_session_key);
 		bool rc = getSecMan()->CreateNonNegotiatedSecuritySession(
 			DAEMON,
-			session_id,
-			session_key,
+			session_id.c_str(),
+			session_key.c_str(),
 			NULL,
-			CONDOR_PARENT_FQU,
+			CONDOR_CHILD_FQU,
 			NULL,
 			0);
 
@@ -7217,16 +7231,14 @@ int DaemonCore::Create_Process(
 		privateinheritbuf += " SessionKey:";
 
 		MyString session_info;
-		rc = getSecMan()->ExportSecSessionInfo(session_id, session_info);
+		rc = getSecMan()->ExportSecSessionInfo(session_id.c_str(), session_info);
 		if(!rc)
 		{
 			dprintf(D_ALWAYS, "ERROR: Create_Process failed to export security session for child daemon.\n");
 			goto wrapup;
 		}
-		ClaimIdParser claimId(session_id, session_info.Value(), session_key);
+		ClaimIdParser claimId(session_id.c_str(), session_info.Value(), session_key.c_str());
 		privateinheritbuf += claimId.claimId();
-
-		free(session_key);
 	}
 #endif
 	// now process fd_inherit_list, which allows the caller the specify
@@ -7437,10 +7449,9 @@ int DaemonCore::Create_Process(
 
 			// now, add in the inherit buf
 		job_environ.SetEnv( EnvGetName( ENV_INHERIT ), inheritbuf.Value() );
-#ifndef Solaris
-		if( want_command_port != FALSE )
+
+		if( !privateinheritbuf.IsEmpty() )
 			job_environ.SetEnv( EnvGetName( ENV_PRIVATE ), privateinheritbuf.Value() );
-#endif
 
 			// and finally, get it all back as a NULL delimited string.
 			// remember to deallocate this with delete [] since it will
@@ -8171,9 +8182,10 @@ int DaemonCore::Create_Process(
 	pidtmp->reaper_id = reaper_id;
 	pidtmp->hung_tid = -1;
 	pidtmp->was_not_responding = FALSE;
-#ifndef Solaris
-	pidtmp->child_session_id = session_id;
-#endif
+	if(!session_id.empty())
+	{
+		pidtmp->child_session_id = strdup(session_id.c_str());
+	}
 #ifdef WIN32
 	pidtmp->hProcess = piProcess.hProcess;
 	pidtmp->hThread = piProcess.hThread;
@@ -8830,7 +8842,7 @@ DaemonCore::Inherit( void )
 				claimid.secSessionId(),
 				claimid.secSessionKey(),
 				claimid.secSessionInfo(),
-				CONDOR_PARENT_FQU,
+				CONDOR_CHILD_FQU,
 				NULL,
 				0);
 			if(!rc)
@@ -8839,7 +8851,7 @@ DaemonCore::Inherit( void )
 			}
 			IpVerify* ipv = getSecMan()->getIpVerify();
 			MyString id;
-			id.sprintf("%s", CONDOR_PARENT_FQU);
+			id.sprintf("%s", CONDOR_CHILD_FQU);
 			ipv->PunchHole(DAEMON, id);
 		}
 	}
@@ -9523,11 +9535,9 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 			        pid);
 		}
 	}
-#ifndef Solaris
 	//Delete the session information.
 	if(pidentry->child_session_id)
 		getSecMan()->session_cache->remove(pidentry->child_session_id);
-#endif
 	// Now remove this pid from our tables ----
 		// remove from hash table
 	pidTable->remove(pid);
@@ -10701,9 +10711,7 @@ DaemonCore::PidEntry::PidEntry() {
 		std_pipes[i] = DC_STD_FD_NOPIPE;
 	}
 	stdin_offset = 0;
-#ifndef Solaris
 	child_session_id = NULL;
-#endif
 }
 
 
@@ -10728,10 +10736,8 @@ DaemonCore::PidEntry::~PidEntry() {
 		SharedPortEndpoint::RemoveSocket( shared_port_fname.Value() );
 #endif
 	}
-#ifndef Solaris
 	if(child_session_id)
 		free(child_session_id);
-#endif
 }
 
 
