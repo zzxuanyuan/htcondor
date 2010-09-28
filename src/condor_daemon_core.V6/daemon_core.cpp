@@ -8820,6 +8820,12 @@ DaemonCore::Inherit( void )
 			ptmp=inherit_list.next();
 		}
 	}	// end of if we read out CONDOR_INHERIT ok
+	/*
+	This environment variable is never set on Solaris so
+	don't check for it.  Since environments are apparently
+	public on Solaris, we can't use it to securely pass
+	information around.
+	*/
 #ifndef Solaris
 	const char *privEnvName = EnvGetName( ENV_PRIVATE );
 	const char *privTmp = GetEnv( privEnvName );
@@ -8842,7 +8848,7 @@ DaemonCore::Inherit( void )
 				claimid.secSessionId(),
 				claimid.secSessionKey(),
 				claimid.secSessionInfo(),
-				CONDOR_CHILD_FQU,
+				CONDOR_PARENT_FQU,
 				NULL,
 				0);
 			if(!rc)
@@ -8851,7 +8857,7 @@ DaemonCore::Inherit( void )
 			}
 			IpVerify* ipv = getSecMan()->getIpVerify();
 			MyString id;
-			id.sprintf("%s", CONDOR_CHILD_FQU);
+			id.sprintf("%s", CONDOR_PARENT_FQU);
 			ipv->PunchHole(DAEMON, id);
 		}
 	}
