@@ -44,7 +44,10 @@
 #CONDOR_CONFIG=/etc/condor/condor_config
 
 # Path to condor_config_val
-#CONDOR_CONFIG=/etc/condor/condor_config
+#CONDOR_CONFIG_VAL=/usr/bin/condor_config_val
+
+# How long to give Condor to shut down cleanly?
+#MAX_STOP_WAIT=300
 
 # Disable the use of a 'PID file?
 #DISABLE_PIDFILE="no"
@@ -106,6 +109,11 @@ fi
 # Default path condor_config_val if none specified
 if [ "$CONDOR_CONFIG_VAL" = "" ] ; then
   CONDOR_CONFIG_VAL=/usr/bin/condor_config_val
+fi
+
+# Default value to max shutdown wait
+if [ "$MAX_STOP_WAIT" = "" ] ; then
+  MAX_STOP_WAIT=300
 fi
 
 # A key goal of this script is portability.  As a result,
