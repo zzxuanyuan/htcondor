@@ -8834,8 +8834,8 @@ DaemonCore::Inherit( void )
 		return;
 	}
 
-	UnsetEnv( envName );
 	StringList private_list(privTmp, " ");
+	UnsetEnv( privEnvName );
 
 	private_list.rewind();
 	while((ptmp = private_list.next()) != NULL)
