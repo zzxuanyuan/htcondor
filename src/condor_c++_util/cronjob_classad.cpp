@@ -73,11 +73,11 @@ ClassAdCronJob::~ClassAdCronJob( )
 int
 ClassAdCronJob::Initialize( )
 {
-	if ( configValProg.Length() && mgrNameUc.Length() ) {
+	if ( m_configValProg.Length() && mgrNameUc.Length() ) {
 		MyString	env_name;
 		env_name = mgrNameUc;
 		env_name += "_CONFIG_VAL";
-		classad_env.SetEnv( env_name.Value(), configValProg );
+		classad_env.SetEnv( env_name.Value(), m_configValProg );
 	}
 
 	char **env_array = classad_env.getStringArray();

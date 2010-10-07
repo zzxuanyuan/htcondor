@@ -67,7 +67,8 @@ typedef enum
 { 
 	CRON_WAIT_FOR_EXIT,		// Timing from job's exit
 	CRON_PERIODIC, 			// Run it periodically
-	CRON_KILL,				// Job has been killed & don't restart it
+	CRON_ONESHOT,			// "One-shot" timer
+	CRON_KILLED,			// Job has been killed & don't restart it
 	CRON_ILLEGAL			// Illegal mode
 } CronJobMode;
 
@@ -95,23 +96,23 @@ class CronJobBase : public Service
 	virtual int Initialize( void );
 
 	// Manipulate the job
-	const char *GetName( void ) { return name.Value(); };
-	const char *GetPrefix( void ) { return prefix.Value(); };
-	const char *GetPath( void ) { return path.Value(); };
+	const char *GetName( void ) { return m_name.Value(); };
+	const char *GetPrefix( void ) { return m_prefix.Value(); };
+	const char *GetPath( void ) { return m_path.Value(); };
 	//const char *GetArgs( void ) { return args.Value(); };
-	const char *GetCwd( void ) { return cwd.Value(); };
-	unsigned GetPeriod( void ) { return period; };
+	const char *GetCwd( void ) { return m_cwd.Value(); };
+	unsigned GetPeriod( void ) { return m_period; };
 
 	// State information
-	CronJobState GetState( void ) { return state; };
+	CronJobState GetState( void ) { return m_state; };
 	bool IsRunning( void ) 
-		{ return ( CRON_RUNNING == state ? true : false ); };
+		{ return ( CRON_RUNNING == m_state ? true : false ); };
 	bool IsIdle( void )
-		{ return ( CRON_IDLE == state ? true : false ); };
+		{ return ( CRON_IDLE == m_state ? true : false ); };
 	bool IsDead( void ) 
-		{ return ( CRON_DEAD == state ? true : false ); };
+		{ return ( CRON_DEAD == m_state ? true : false ); };
 	bool IsAlive( void ) 
-		{ return ( (CRON_IDLE == state)||(CRON_DEAD == state)
+		{ return ( (CRON_IDLE == m_state)||(CRON_DEAD == m_state)
 				   ? false : true ); };
 
 	int Reconfig( void );
@@ -132,9 +133,10 @@ class CronJobBase : public Service
 
 	virtual int KillJob( bool );
 
-	void Mark( void ) { marked = true; };
-	void ClearMark( void ) { marked = false; };
-	bool IsMarked( void ) { return marked; };
+	// Marking operations
+	void Mark( void ) { m_marked = true; };
+	void ClearMark( void ) { m_marked = false; };
+	bool IsMarked( void ) { return m_marked; };
 
 	int ProcessOutputQueue( void );
 	virtual int ProcessOutput( const char *line ) = 0;
@@ -142,37 +144,38 @@ class CronJobBase : public Service
 	int SetEventHandler( CronEventHandler handler, Service *s );
 
   protected:
-	MyString		configValProg;	// Path to _config_val
+	MyString		 m_configValProg;	// Path to _config_val
 
   private:
-	MyString		name;			// Logical name of the job
-	MyString		prefix;			// Publishing prefix
-	MyString		path;			// Path to the executable
-	ArgList         args;           // Arguments to pass it
-	Env             env;			// Environment variables
-	MyString		cwd;			// Process's initial CWD
-	unsigned		period;			// The configured period
-	int				runTimer;		// It's DaemonCore "run" timerID
-	CronJobMode		mode;			// Is is a periodic
-	CronJobState	state;			// Is is currently running?
-	int				pid;			// The process's PID
-	int				stdOut;			// Process's stdout file descriptor
-	int				stdErr;			// Process's stderr file descriptor
-	int				childFds[3];	// Child process FDs
-	int				reaperId;		// ID Of the child reaper
-	CronJobOut		*stdOutBuf;		// Buffer for stdout
-	CronJobErr		*stdErrBuf;		// Buffer for stderr
-	bool			marked;			// Is this one marked?
-	int				killTimer;		// Make sure it dies
-	int				numOutputs;		// How many output blocks have we processed?
+	MyString		 m_name;			// Logical name of the job
+	MyString		 m_prefix;			// Publishing prefix
+	MyString		 m_path;			// Path to the executable
+	ArgList          m_args;			// Arguments to pass it
+	Env              m_env;				// Environment variables
+	MyString		 m_cwd;				// Process's initial CWD
+	unsigned		 m_period;			// The configured period
+	int				 m_runTimer;		// It's DaemonCore "run" timerID
+	CronJobMode		 m_mode;			// Is is a periodic
+	CronJobState	 m_state;			// Is is currently running?
+	int				 m_pid;				// The process's PID
+	int				 m_stdOut;			// Process's stdout file descriptor
+	int				 m_stdErr;			// Process's stderr file descriptor
+	int				 m_childFds[3];		// Child process FDs
+	int				 m_reaperId;		// ID Of the child reaper
+	CronJobOut		*m_stdOutBuf;		// Buffer for stdout
+	CronJobErr		*m_stdErrBuf;		// Buffer for stderr
+	bool			 m_marked;			// Is this one marked?
+	int				 m_killTimer;		// Make sure it dies
+	int				 m_numOutputs;		// # output blocks have we processed?
 
 	// Event handler stuff
-	CronEventHandler	eventHandler;	// Handle cron events
-	Service				*eventService;	// Associated service
+	CronEventHandler m_eventHandler;	// Handle cron events
+	Service			*m_eventService;	// Associated service
 
 	// Options
-	bool			optKill;		// Kill the job if before next run?
-	bool			optReconfig;	// Send the job a HUP for reconfig
+	bool			 m_optKill;			// Kill the job if before next run?
+	bool			 m_optReconfig;		// Send the job a HUP for reconfig
+	bool			 m_optIdle;			// Only run when idle
 
 	// Private methods; these can be replaced
 	virtual int Schedule( void );
@@ -200,12 +203,12 @@ class CronJobBase : public Service
 	// Debugging
 # if CRONJOB_PIPEIO_DEBUG
 	char	*TodoBuffer;
-	int		TodoBufSize;
-	int		TodoBufWrap;
-	int		TodoBufOffset;
-	int		TodoWriteNum;
+	int		 TodoBufSize;
+	int		 TodoBufWrap;
+	int		 TodoBufOffset;
+	int		 TodoWriteNum;
 	public:
-	void	TodoWrite( void );
+	void	 TodoWrite( void );
 # endif
 };
 

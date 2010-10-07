@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -135,23 +135,33 @@ CronJobErr::Output( const char *buf, int   /*len*/ )
 
 // CronJob constructor
 CronJobBase::CronJobBase( const char *   /*mgrName*/, const char *jobName )
+		: m_period( UINT_MAX ),
+		  m_runTimer( -1 ),
+		  m_mode( CRON_ILLEGAL ),
+		  m_state( CRON_NOINIT ),
+		  m_pid( -1 ),
+		  m_stdOut( -1 ),
+		  m_stdErr( -1 ),
+		  //m_childFds( [-1,-1,-1] ),
+		  m_reaperId( -1 ),
+		  m_stdOutBuf( NULL ),
+		  m_stdErrBuf( NULL ),
+		  m_marked( false ),
+		  m_killTimer( -1 ),
+		  m_numOutputs( 0 ),			// No data produced yet
+		  m_eventHandler( NULL ),
+		  m_eventService( NULL ),
+		  m_optKill( false ),
+		  m_optReconfig( false ),
+		  m_optIdle( false )
 {
-	// Reset *everything*
-	period = UINT_MAX;
-	state = CRON_NOINIT;
-	mode = CRON_ILLEGAL;
-	optKill = false;
-	runTimer = -1;
-	killTimer = -1;
-	childFds[0] = childFds[1] = childFds[2] = -1;
-	stdOut = stdErr = -1;
-	numOutputs = 0;							// No data produced yet
-	eventHandler = NULL;
-	eventService = NULL;
+	for( int i = 0; i < 3;  i++ ) {
+		m_childFds[i] = -1;
+	}
 
 	// Build my output buffers
-	stdOutBuf = new CronJobOut( this );
-	stdErrBuf = new CronJobErr( this );
+	m_stdOutBuf = new CronJobOut( this );
+	m_stdErrBuf = new CronJobErr( this );
 
 # if CRONJOB_PIPEIO_DEBUG
 	TodoBufSize = 20 * 1024;
@@ -163,7 +173,7 @@ CronJobBase::CronJobBase( const char *   /*mgrName*/, const char *jobName )
 	SetName( jobName );
 
 	// Register my reaper
-	reaperId = daemonCore->Register_Reaper( 
+	m_reaperId = daemonCore->Register_Reaper( 
 		"Cron_Reaper",
 		(ReaperHandlercpp) &CronJobBase::Reaper,
 		"Cron Reaper",
@@ -173,14 +183,14 @@ CronJobBase::CronJobBase( const char *   /*mgrName*/, const char *jobName )
 // CronJob destructor
 CronJobBase::~CronJobBase( )
 {
-	dprintf( D_ALWAYS, "Cron: Deleting job '%s' (%s)\n", GetName(),
-			 GetPath() );
+	dprintf( D_ALWAYS, "Cron: Deleting job '%s' (%s)\n",
+			 GetName(), GetPath() );
 	dprintf( D_FULLDEBUG, "Cron: Deleting timer for '%s'; ID = %d\n",
-			 GetName(), runTimer );
+			 GetName(), m_runTimer );
 
 	// Delete the timer FIRST
-	if ( runTimer >= 0 ) {
-		daemonCore->Cancel_Timer( runTimer );
+	if ( m_runTimer >= 0 ) {
+		daemonCore->Cancel_Timer( m_runTimer );
 	}
 
 	// Kill job if it's still running
@@ -190,8 +200,8 @@ CronJobBase::~CronJobBase( )
 	CleanAll( );
 
 	// Delete the buffers
-	delete stdOutBuf;
-	delete stdErrBuf;
+	delete m_stdOutBuf;
+	delete m_stdErrBuf;
 }
 
 // Initialize
@@ -199,12 +209,12 @@ int
 CronJobBase::Initialize( )
 {
 	// If we're already initialized, do nothing...
-	if ( state != CRON_NOINIT )	{
+	if ( m_state != CRON_NOINIT )	{
 		return 0;
 	}
 
 	// Update our state to idle..
-	state = CRON_IDLE;
+	m_state = CRON_IDLE;
 
 	dprintf( D_ALWAYS, "Cron: Initializing job '%s' (%s)\n", 
 			 GetName(), GetPath() );
@@ -220,7 +230,7 @@ CronJobBase::SetName( const char *newName )
 	if ( NULL == newName ) {
 		return -1;
 	}
-	name = newName;
+	m_name = newName;
 	return 0;
 }
 
@@ -231,7 +241,7 @@ CronJobBase::SetPrefix( const char *newPrefix )
 	if ( NULL == newPrefix ) {
 		return -1;
 	}
-	prefix = newPrefix;
+	m_prefix = newPrefix;
 	return 0;
 }
 
@@ -242,7 +252,7 @@ CronJobBase::SetPath( const char *newPath )
 	if ( NULL == newPath ) {
 		return -1;
 	}
-	path = newPath;
+	m_path = newPath;
 	return 0;
 }
 
@@ -250,7 +260,7 @@ CronJobBase::SetPath( const char *newPath )
 int
 CronJobBase::SetArgs( ArgList const &new_args )
 {
-	args.Clear();
+	m_args.Clear();
 	return AddArgs(new_args);
 }
 
@@ -259,9 +269,9 @@ int
 CronJobBase::SetConfigVal( const char *newPath )
 {
 	if ( NULL == newPath ) {
-		configValProg = "";
+		m_configValProg = "";
 	} else {
-		configValProg = newPath;
+		m_configValProg = newPath;
 	}
 	return 0;
 }
@@ -270,21 +280,21 @@ CronJobBase::SetConfigVal( const char *newPath )
 int
 CronJobBase::SetEnv( char const * const *env_array )
 {
-	env.Clear();
-	return !env.MergeFrom(env_array);
+	m_env.Clear();
+	return !m_env.MergeFrom(env_array);
 }
 
 int
 CronJobBase::AddEnv( char const * const *env_array )
 {
-	return !env.MergeFrom(env_array);
+	return !m_env.MergeFrom(env_array);
 }
 
 // Set job characteristics: CWD
 int
 CronJobBase::SetCwd( const char *newCwd )
 {
-	cwd = newCwd;
+	m_cwd = newCwd;
 	return 0;
 }
 
@@ -292,7 +302,7 @@ CronJobBase::SetCwd( const char *newCwd )
 int
 CronJobBase::SetKill( bool kill )
 {
-	optKill = kill;
+	m_optKill = kill;
 	return 0;
 }
 
@@ -300,7 +310,7 @@ CronJobBase::SetKill( bool kill )
 int
 CronJobBase::SetReconfig( bool reconfig )
 {
-	optReconfig = reconfig;
+	m_optReconfig = reconfig;
 	return 0;
 }
 
@@ -308,10 +318,10 @@ CronJobBase::SetReconfig( bool reconfig )
 int
 CronJobBase::AddPath( const char *newPath )
 {
-	if ( path.Length() ) {
-		path += ":";
+	if ( m_path.Length() ) {
+		m_path += ":";
 	}
-	path += newPath;
+	m_path += newPath;
 	return 0;
 }
 
@@ -319,7 +329,7 @@ CronJobBase::AddPath( const char *newPath )
 int
 CronJobBase::AddArgs( ArgList const &new_args )
 {
-	args.AppendArgsFromArgList(new_args);
+	m_args.AppendArgsFromArgList(new_args);
 	return 1;
 }
 
@@ -330,13 +340,13 @@ CronJobBase::SetEventHandler(
 	Service				*s )
 {
 	// No nests, etc.
-	if( eventHandler ) {
+	if( m_eventHandler ) {
 		return -1;
 	}
 
 	// Just store 'em & go
-	eventHandler = NewHandler;
-	eventService = s;
+	m_eventHandler = NewHandler;
+	m_eventService = s;
 	return 0;
 }
 
@@ -357,19 +367,19 @@ CronJobBase::SetPeriod( CronJobMode newMode, unsigned newPeriod )
 	}
 
 	// Any work to do?
-	if (  ( mode == newMode ) && ( period == newPeriod )  ) {
+	if (  ( m_mode == newMode ) && ( m_period == newPeriod )  ) {
 		return 0;
 	}
 
 	// Mode change; cancel the existing timer
-	if (  ( mode != newMode ) && ( runTimer >= 0 )  ) {
-		daemonCore->Cancel_Timer( runTimer );
-		runTimer = -1;
+	if (  ( m_mode != newMode ) && ( m_runTimer >= 0 )  ) {
+		daemonCore->Cancel_Timer( m_runTimer );
+		m_runTimer = -1;
 	}
 
 	// Store the period; is it a periodic?
-	mode = newMode;
-	period = newPeriod;
+	m_mode = newMode;
+	m_period = newPeriod;
 
 	// Schedule a run..
 	return Schedule( );
@@ -380,27 +390,27 @@ int
 CronJobBase::Reconfig( void )
 {
 	// Only do this to running jobs with the reconfig option set
-	if (  ( ! optReconfig ) || ( CRON_RUNNING != state )  ) {
+	if (  ( ! m_optReconfig ) || ( CRON_RUNNING != m_state )  ) {
 		return 0;
 	}
 
 	// Don't send the HUP before it's first output block
-	if ( ! numOutputs ) {
+	if ( ! m_numOutputs ) {
 		dprintf( D_ALWAYS,
 				 "Not HUPing '%s' pid %d before it's first output\n",
-				 GetName(), pid );
+				 GetName(), m_pid );
 		return 0;
 	}
 
 	// HUP it; if it dies it'll get the new config when it restarts
-	if ( pid >= 0 )
+	if ( m_pid >= 0 )
 	{
 			// we want this D_ALWAYS, since it's pretty rare anyone
 			// actually wants a SIGHUP, and to aid in debugging, it's
 			// best to always log it when we do so everyone sees it.
 		dprintf( D_ALWAYS, "Cron: Sending HUP to '%s' pid %d\n",
-				 GetName(), pid );
-		return daemonCore->Send_Signal( pid, SIGHUP );
+				 GetName(), m_pid );
+		return daemonCore->Send_Signal( m_pid, SIGHUP );
 	}
 
 	// Otherwise, all ok
@@ -412,7 +422,7 @@ int
 CronJobBase::Schedule( void )
 {
 	// If we're not initialized yet, do nothing...
-	if ( CRON_NOINIT == state ) {
+	if ( CRON_NOINIT == m_state ) {
 		return 0;
 	}
 
@@ -420,15 +430,15 @@ CronJobBase::Schedule( void )
 	int	status = 0;
 
 	// It's not a periodic -- just start it
-	if ( CRON_WAIT_FOR_EXIT == mode ) {
+	if ( CRON_WAIT_FOR_EXIT == m_mode ) {
 		status = StartJob( );
 
 	} else {				// Periodic
 		// Set the job's timer
-		status = SetTimer( period, period );
+		status = SetTimer( m_period, m_period );
 
 		// Start the first run..
-		if (  ( 0 == status ) && ( CRON_IDLE == state )  ) {
+		if (  ( 0 == status ) && ( CRON_IDLE == m_state )  ) {
 			status = RunJob( );
 		}
 	}
@@ -443,11 +453,11 @@ CronJobBase::RunJob( void )
 {
 
 	// Make sure that the job is idle!
-	if ( ( state != CRON_IDLE ) && ( state != CRON_DEAD ) ) {
+	if ( ( m_state != CRON_IDLE ) && ( m_state != CRON_DEAD ) ) {
 		dprintf( D_ALWAYS, "Cron: Job '%s' is still running!\n", GetName() );
 
 		// If we're not supposed to kill the process, just skip this timer
-		if ( optKill ) {
+		if ( m_optKill ) {
 			return KillJob( false );
 		} else {
 			return -1;
@@ -455,7 +465,7 @@ CronJobBase::RunJob( void )
 	}
 
 	// Check output queue!
-	if ( stdOutBuf->FlushQueue( ) ) {
+	if ( m_stdOutBuf->FlushQueue( ) ) {
 		dprintf( D_ALWAYS, "Cron: Job '%s': Queue not empty!\n", GetName() );
 	}
 
@@ -476,7 +486,7 @@ CronJobBase::KillHandler( void )
 	dprintf( D_FULLDEBUG, "Cron: KillHandler for job '%s'\n", GetName() );
 
 	// If we're idle, we shouldn't be here.
-	if ( CRON_IDLE == state ) {
+	if ( CRON_IDLE == m_state ) {
 		dprintf( D_ALWAYS, "Cron: Job '%s' already idle (%s)!\n", 
 			GetName(), GetPath() );
 		return;
@@ -490,7 +500,7 @@ CronJobBase::KillHandler( void )
 int
 CronJobBase::StartJob( void )
 {
-	if ( CRON_IDLE != state ) {
+	if ( CRON_IDLE != m_state ) {
 		dprintf( D_ALWAYS, "Cron: Job '%s' not idle!\n", GetName() );
 		return 0;
 	}
@@ -498,7 +508,7 @@ CronJobBase::StartJob( void )
 			 GetName(), GetPath() );
 
 	// Check output queue!
-	if ( stdOutBuf->FlushQueue( ) ) {
+	if ( m_stdOutBuf->FlushQueue( ) ) {
 		dprintf( D_ALWAYS, "Cron: Job '%s': Queue not empty!\n", GetName() );
 	}
 
@@ -519,34 +529,34 @@ CronJobBase::Reaper( int exitPid, int exitStatus )
 	}
 
 	// What if the PIDs don't match?!
-	if ( exitPid != pid ) {
+	if ( exitPid != m_pid ) {
 		dprintf( D_ALWAYS, "Cron: WARNING: Child PID %d != Exit PID %d\n",
-				 pid, exitPid );
+				 m_pid, exitPid );
 	}
-	pid = 0;
+	m_pid = 0;
 
 	// Read the stderr & output
-	if ( stdOut >= 0 ) {
-		StdoutHandler( stdOut );
+	if ( m_stdOut >= 0 ) {
+		StdoutHandler( m_stdOut );
 	}
-	if ( stdErr >= 0 ) {
-		StderrHandler( stdErr );
+	if ( m_stdErr >= 0 ) {
+		StderrHandler( m_stdErr );
 	}
 
 	// Clean up it's file descriptors
 	CleanAll( );
 
 	// We *should* be in CRON_RUNNING state now; check this...
-	switch ( state )
+	switch ( m_state )
 	{
 		// Normal death
 	case CRON_RUNNING:
-		state = CRON_IDLE;				// Note it's death
-		if ( CRON_WAIT_FOR_EXIT == mode ) {
-			if ( 0 == period ) {			// ExitTime mode, no delay
+		m_state = CRON_IDLE;				// Note it's death
+		if ( CRON_WAIT_FOR_EXIT == m_mode ) {
+			if ( 0 == m_period ) {			// ExitTime mode, no delay
 				StartJob( );
 			} else {						// ExitTime mode with delay
-				SetTimer( period, TIMER_NEVER );
+				SetTimer( m_period, TIMER_NEVER );
 			}
 		}
 		break;
@@ -561,38 +571,38 @@ CronJobBase::Reaper( int exitPid, int exitStatus )
 		// Waiting for it to die...
 	case CRON_TERMSENT:
 	case CRON_KILLSENT:
-		break;		// Do nothing at all
+		break;							// Do nothing at all
 
 		// We've sent the process a signal, waiting for it to die
 	default:
-		state = CRON_IDLE;				// Note that it's dead
+		m_state = CRON_IDLE;			// Note that it's dead
 
 		// Cancel the kill timer if required
 		KillTimer( TIMER_NEVER );
 
 		// Re-start the job
-		if ( CRON_PERIODIC == mode ) {		// Periodic
+		if ( CRON_PERIODIC == m_mode ) {	// Periodic
 			RunJob( );
-		} else if ( 0 == period ) {			// ExitTime mode, no delay
+		} else if ( 0 == m_period ) {		// ExitTime mode, no delay
 			StartJob( );
 		} else {							// ExitTime mode with delay
-			SetTimer( period, TIMER_NEVER );
+			SetTimer( m_period, TIMER_NEVER );
 		}
 		break;
 
 	}
 
 	// Note that we're dead
-	if ( CRON_KILL == mode ) {
-		state = CRON_DEAD;
+	if ( CRON_KILLED == m_mode ) {
+		m_state = CRON_DEAD;
 	}
 
 	// Process the output
 	ProcessOutputQueue( );
 
 	// Finally, notify my manager
-	if( eventHandler ) {
-		(eventService->*eventHandler)( this, CONDOR_CRON_JOB_DIED );
+	if( m_eventHandler ) {
+		(m_eventService->*m_eventHandler)( this, CONDOR_CRON_JOB_DIED );
 	}
 
 	return 0;
@@ -603,7 +613,7 @@ int
 CronJobBase::ProcessOutputQueue( void )
 {
 	int		status = 0;
-	int		linecount = stdOutBuf->GetQueueSize( );
+	int		linecount = m_stdOutBuf->GetQueueSize( );
 
 	// If there's data, process it...
 	if ( linecount != 0 ) {
@@ -612,7 +622,7 @@ CronJobBase::ProcessOutputQueue( void )
 
 		// Read all of the data from the queue
 		char	*linebuf;
-		while( ( linebuf = stdOutBuf->GetLineFromQueue( ) ) != NULL ) {
+		while( ( linebuf = m_stdOutBuf->GetLineFromQueue( ) ) != NULL ) {
 			int		tmpstatus = ProcessOutput( linebuf );
 			if ( tmpstatus ) {
 				status = tmpstatus;
@@ -622,7 +632,7 @@ CronJobBase::ProcessOutputQueue( void )
 		}
 
 		// Sanity checks
-		int		tmp = stdOutBuf->GetQueueSize( );
+		int		tmp = m_stdOutBuf->GetQueueSize( );
 		if ( 0 != linecount ) {
 			dprintf( D_ALWAYS, "%s: %d lines remain!!\n",
 					 GetName(), linecount );
@@ -632,7 +642,7 @@ CronJobBase::ProcessOutputQueue( void )
 		} else {
 			// The NULL output means "end of block", so go publish
 			ProcessOutput( NULL );
-			numOutputs++;				// Increment # of valid output blocks
+			m_numOutputs++;				// Increment # of valid output blocks
 		}
 	}
 	return 0;
@@ -652,9 +662,9 @@ CronJobBase::RunProcess( void )
 	}
 
 	// Add the name to the argument list, then any specified in the config
-	final_args.AppendArg( name.Value() );
-	if(args.Count()) {
-		final_args.AppendArgsFromArgList(args);
+	final_args.AppendArg( m_name.Value() );
+	if( m_args.Count() ) {
+		final_args.AppendArgsFromArgList( m_args );
 	}
 
 	// Create the priv state for the process
@@ -681,40 +691,40 @@ CronJobBase::RunProcess( void )
 # endif
 
 	// Create the process, finally..
-	pid = daemonCore->Create_Process(
-		path.Value(),		// Path to executable
+	m_pid = daemonCore->Create_Process(
+		m_path.Value(),		// Path to executable
 		final_args,			// argv
 		priv,				// Priviledge level
-		reaperId,			// ID Of reaper
+		m_reaperId,			// ID Of reaper
 		FALSE,				// Command port?  No
-		&env, 		 		// Env to give to child
-		cwd.Value(),		// Starting CWD
+		&m_env, 			// Env to give to child
+		m_cwd.Value(),		// Starting CWD
 		NULL,				// Process family info
 		NULL,				// Socket list
-		childFds,			// Stdin/stdout/stderr
+		m_childFds,			// Stdin/stdout/stderr
 		0 );				// Nice increment
 
 	// Restore my priv state.
 	uninit_user_ids( );
 
 	// Close the child FDs
-	CleanFd( &childFds[0] );
-	CleanFd( &childFds[1] );
-	CleanFd( &childFds[2] );
+	CleanFd( &m_childFds[0] );
+	CleanFd( &m_childFds[1] );
+	CleanFd( &m_childFds[2] );
 
 	// Did it work?
-	if ( pid <= 0 ) {
+	if ( m_pid <= 0 ) {
 		dprintf( D_ALWAYS, "Cron: Error running job '%s'\n", GetName() );
 		CleanAll( );
 		return -1;
 	}
 
 	// All ok here
-	state = CRON_RUNNING;
+	m_state = CRON_RUNNING;
 
 	// Finally, notify my manager
-	if( eventHandler ) {
-		(eventService->*eventHandler)( this, CONDOR_CRON_JOB_START );
+	if( m_eventHandler ) {
+		(m_eventService->*m_eventHandler)( this, CONDOR_CRON_JOB_START );
 	}
 
 	// All ok!
@@ -756,16 +766,16 @@ CronJobBase::StdoutHandler ( int   /*pipe*/ )
 	int				reads = 0;
 
 	// Read 'til we suck up all the data (or loop too many times..)
-	while ( ( ++reads < 10 ) && ( stdOut >= 0 ) ) {
+	while ( ( ++reads < 10 ) && ( m_stdOut >= 0 ) ) {
 
 		// Read a block from it
-		bytes = daemonCore->Read_Pipe( stdOut, buf, STDOUT_READBUF_SIZE );
+		bytes = daemonCore->Read_Pipe( m_stdOut, buf, STDOUT_READBUF_SIZE );
 
 		// Zero means it closed
 		if ( bytes == 0 ) {
 			dprintf(D_FULLDEBUG, "Cron: STDOUT closed for '%s'\n", GetName());
-			daemonCore->Close_Pipe( stdOut );
-			stdOut = -1;
+			daemonCore->Close_Pipe( m_stdOut );
+			m_stdOut = -1;
 		}
 
 		// Positve value is byte count
@@ -792,7 +802,7 @@ CronJobBase::StdoutHandler ( int   /*pipe*/ )
 
 			// stdOutBuf->Output() returns 1 if it finds '-', otherwise 0,
 			// so that's what Buffer returns, too...
-			while ( stdOutBuf->Buffer( &bptr, &bytes ) > 0 ) {
+			while ( m_stdOutBuf->Buffer( &bptr, &bytes ) > 0 ) {
 				ProcessOutputQueue( );
 			}
 		}
@@ -822,14 +832,14 @@ CronJobBase::StderrHandler ( int   /*pipe*/ )
 	int				bytes;
 
 	// Read a block from it
-	bytes = daemonCore->Read_Pipe( stdErr, buf, STDERR_READBUF_SIZE );
+	bytes = daemonCore->Read_Pipe( m_stdErr, buf, STDERR_READBUF_SIZE );
 
 	// Zero means it closed
 	if ( bytes == 0 )
 	{
 		dprintf( D_FULLDEBUG, "Cron: STDERR closed for '%s'\n", GetName() );
-		daemonCore->Close_Pipe( stdErr );
-		stdErr = -1;
+		daemonCore->Close_Pipe( m_stdErr );
+		m_stdErr = -1;
 	}
 
 	// Positve value is byte count
@@ -837,7 +847,7 @@ CronJobBase::StderrHandler ( int   /*pipe*/ )
 	{
 		const char	*bptr = buf;
 
-		while( stdErrBuf->Buffer( &bptr, &bytes ) > 0 ) {
+		while( m_stdErrBuf->Buffer( &bptr, &bytes ) > 0 ) {
 			// Do nothing for now
 		}
 	}
@@ -853,7 +863,7 @@ CronJobBase::StderrHandler ( int   /*pipe*/ )
 
 
 	// Flush the buffers
-	stdErrBuf->Flush();
+	m_stdErrBuf->Flush();
 	return 0;
 }
 
@@ -864,23 +874,22 @@ CronJobBase::OpenFds ( void )
 	int	tmpfds[2];
 
 	// stdin goes to the bit bucket
-	childFds[0] = -1;
+	m_childFds[0] = -1;
 
 	// Pipe to stdout
 	if ( !daemonCore->Create_Pipe( tmpfds,	// pipe ends
-				       true,	// read end registerable
-				       false,	// write end not registerable
-				       true	// read end nonblocking
-				     ) )
-	{
+								   true,	// read end registerable
+								   false,	// write end not registerable
+								   true		// read end nonblocking
+								   ) ) {
 		dprintf( D_ALWAYS, "Cron: Can't create pipe, errno %d : %s\n",
 				 errno, strerror( errno ) );
 		CleanAll( );
 		return -1;
 	}
-	stdOut = tmpfds[0];
-	childFds[1] = tmpfds[1];
-	daemonCore->Register_Pipe( stdOut,
+	m_stdOut = tmpfds[0];
+	m_childFds[1] = tmpfds[1];
+	daemonCore->Register_Pipe( m_stdOut,
 							   "Standard Out",
 							   (PipeHandlercpp) & CronJobBase::StdoutHandler,
 							   "Standard Out Handler",
@@ -888,19 +897,18 @@ CronJobBase::OpenFds ( void )
 
 	// Pipe to stderr
 	if ( !daemonCore->Create_Pipe( tmpfds,	// pipe ends	
-				       true,	// read end registerable
-				       false,	// write end not registerable
-				       true	// read end nonblocking
-				    ) )
-	{
+								   true,	// read end registerable
+								   false,	// write end not registerable
+								   true		// read end nonblocking
+				    ) ) {
 		dprintf( D_ALWAYS, "Cron: Can't create STDERR pipe, errno %d : %s\n",
 				 errno, strerror( errno ) );
 		CleanAll( );
 		return -1;
 	}
-	stdErr = tmpfds[0];
-	childFds[2] = tmpfds[1];
-	daemonCore->Register_Pipe( stdErr,
+	m_stdErr = tmpfds[0];
+	m_childFds[2] = tmpfds[1];
+	daemonCore->Register_Pipe( m_stdErr,
 							   "Standard Error",
 							   (PipeHandlercpp) & CronJobBase::StderrHandler,
 							   "Standard Error Handler",
@@ -914,11 +922,11 @@ CronJobBase::OpenFds ( void )
 void
 CronJobBase::CleanAll ( void )
 {
-	CleanFd( &stdOut );
-	CleanFd( &stdErr );
-	CleanFd( &childFds[0] );
-	CleanFd( &childFds[1] );
-	CleanFd( &childFds[2] );
+	CleanFd( &m_stdOut );
+	CleanFd( &m_stdErr );
+	CleanFd( &m_childFds[0] );
+	CleanFd( &m_childFds[1] );
+	CleanFd( &m_childFds[2] );
 }
 
 // Clean up a FILE *
@@ -946,41 +954,41 @@ int
 CronJobBase::KillJob( bool force )
 {
 	// Change our mode
-	mode = CRON_KILL;
+	m_mode = CRON_KILLED;
 
 	// Idle?
-	if ( ( CRON_IDLE == state ) || ( CRON_DEAD == state ) ) {
+	if ( ( CRON_IDLE == m_state ) || ( CRON_DEAD == m_state ) ) {
 		return 0;
 	}
 
 	// Not running?
-	if ( pid <= 0 ) {
+	if ( m_pid <= 0 ) {
 		dprintf( D_ALWAYS, "Cron: '%s': Trying to kill illegal PID %d\n",
-				 GetName(), pid );
+				 GetName(), m_pid );
 		return -1;
 	}
 
 	// Kill the process *hard*?
-	if ( ( force ) || ( CRON_TERMSENT == state )  ) {
+	if ( ( force ) || ( CRON_TERMSENT == m_state )  ) {
 		dprintf( D_JOB, "Cron: Killing job '%s' with SIGKILL, pid = %d\n", 
-				 GetName(), pid );
-		if ( daemonCore->Send_Signal( pid, SIGKILL ) == 0 ) {
+				 GetName(), m_pid );
+		if ( daemonCore->Send_Signal( m_pid, SIGKILL ) == 0 ) {
 			dprintf( D_ALWAYS,
 					 "Cron: job '%s': Failed to send SIGKILL to %d\n",
-					 GetName(), pid );
+					 GetName(), m_pid );
 		}
-		state = CRON_KILLSENT;
+		m_state = CRON_KILLSENT;
 		KillTimer( TIMER_NEVER );	// Cancel the timer
 		return 0;
-	} else if ( CRON_RUNNING == state ) {
+	} else if ( CRON_RUNNING == m_state ) {
 		dprintf( D_JOB, "Cron: Killing job '%s' with SIGTERM, pid = %d\n", 
-				 GetName(), pid );
-		if ( daemonCore->Send_Signal( pid, SIGTERM ) == 0 ) {
+				 GetName(), m_pid );
+		if ( daemonCore->Send_Signal( m_pid, SIGTERM ) == 0 ) {
 			dprintf( D_ALWAYS,
 					 "Cron: job '%s': Failed to send SIGTERM to %d\n",
-					 GetName(), pid );
+					 GetName(), m_pid );
 		}
-		state = CRON_TERMSENT;
+		m_state = CRON_TERMSENT;
 		KillTimer( 1 );				// Schedule hard kill in 1 sec
 		return 1;
 	} else {
@@ -993,15 +1001,17 @@ int
 CronJobBase::SetTimer( unsigned first, unsigned period_arg )
 {
 	// Reset the timer
-	if ( runTimer >= 0 )
+	if ( m_runTimer >= 0 )
 	{
-		daemonCore->Reset_Timer( runTimer, first, period_arg );
+		daemonCore->Reset_Timer( m_runTimer, first, period_arg );
 		if( period_arg == TIMER_NEVER ) {
-			dprintf( D_FULLDEBUG, "Cron: timer ID %d reset to first: %u, "
-					 "period: NEVER\n", runTimer, first );
+			dprintf( D_FULLDEBUG,
+					 "Cron: timer ID %d reset to first: %u, period: NEVER\n",
+					 m_runTimer, first );
 		} else {
-			dprintf( D_FULLDEBUG, "Cron: timer ID %d reset to first: %u, "
-					 "period: %u\n", runTimer, first, period );
+			dprintf( D_FULLDEBUG,
+					 "Cron: timer ID %d reset to first: %u, period: %u\n",
+					 m_runTimer, first, m_period );
 		}
 	}
 
@@ -1012,25 +1022,25 @@ CronJobBase::SetTimer( unsigned first, unsigned period_arg )
 		dprintf( D_FULLDEBUG, 
 				 "Cron: Creating timer for job '%s'\n", GetName() );
 		TimerHandlercpp handler =
-			(  ( CRON_WAIT_FOR_EXIT == mode ) ? 
+			(  ( CRON_WAIT_FOR_EXIT == m_mode ) ? 
 			   (TimerHandlercpp)& CronJobBase::StartJob :
 			   (TimerHandlercpp)& CronJobBase::RunJob );
-		runTimer = daemonCore->Register_Timer(
+		m_runTimer = daemonCore->Register_Timer(
 			first,
 			period_arg,
 			handler,
 			"RunJob",
 			this );
-		if ( runTimer < 0 ) {
+		if ( m_runTimer < 0 ) {
 			dprintf( D_ALWAYS, "Cron: Failed to create timer\n" );
 			return -1;
 		}
 		if( period_arg == TIMER_NEVER ) {
 			dprintf( D_FULLDEBUG, "Cron: new timer ID %d set to first: %u, "
-					 "period: NEVER\n", runTimer, first );
+					 "period: NEVER\n", m_runTimer, first );
 		} else {
 			dprintf( D_FULLDEBUG, "Cron: new timer ID %d set to first: %u, "
-					 "period: %u\n", runTimer, first, period );
+					 "period: %u\n", m_runTimer, first, m_period );
 		}
 	} 
 
@@ -1045,19 +1055,19 @@ CronJobBase::KillTimer( unsigned seconds )
 	if ( TIMER_NEVER == seconds ) {
 		dprintf( D_FULLDEBUG, "Cron: Canceling kill timer for '%s'\n",
 				 GetName() );
-		if ( killTimer >= 0 ) {
+		if ( m_killTimer >= 0 ) {
 			return daemonCore->Reset_Timer( 
-				killTimer, TIMER_NEVER, TIMER_NEVER );
+				m_killTimer, TIMER_NEVER, TIMER_NEVER );
 		}
 		return 0;
 	}
 
 	// Reset the timer
-	if ( killTimer >= 0 )
+	if ( m_killTimer >= 0 )
 	{
-		daemonCore->Reset_Timer( killTimer, seconds, 0 );
+		daemonCore->Reset_Timer( m_killTimer, seconds, 0 );
 		dprintf( D_FULLDEBUG, "Cron: Kill timer ID %d reset to %us\n", 
-				 killTimer, seconds );
+				 m_killTimer, seconds );
 	}
 
 	// Create the Kill timer
@@ -1066,18 +1076,18 @@ CronJobBase::KillTimer( unsigned seconds )
 		// Debug
 		dprintf( D_FULLDEBUG, "Cron: Creating kill timer for '%s'\n", 
 				 GetName() );
-		killTimer = daemonCore->Register_Timer(
+		m_killTimer = daemonCore->Register_Timer(
 			seconds,
 			0,
 			(TimerHandlercpp)& CronJobBase::KillHandler,
 			"KillJob",
 			this );
-		if ( killTimer < 0 ) {
+		if ( m_killTimer < 0 ) {
 			dprintf( D_ALWAYS, "Cron: Failed to create kill timer\n" );
 			return -1;
 		}
 		dprintf( D_FULLDEBUG, "Cron: new kill timer ID = %d set to %us\n",
-				 killTimer, seconds );
+				 m_killTimer, seconds );
 	}
 
 	return 0;
@@ -1108,5 +1118,5 @@ CronJobBase::StateString( CronJobState state_arg )
 const char *
 CronJobBase::StateString( void )
 {
-	return StateString( state );
+	return StateString( m_state );
 }
