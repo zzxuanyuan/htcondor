@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -17,26 +17,21 @@
  *
  ***************************************************************/
 
-#ifndef __DEBUG_TIMER_H__
-#define __DEBUG_TIMER_H__
+#ifndef _SCHEDD_CRON_JOB_H
+#define _SCHEDD_CRON_JOB_H
 
-class DebugTimerBase
+#include "classad_cron_job.h"
+
+class CronJobMgrBase;
+class ScheddCronJob: public ClassAdCronJob
 {
   public:
-	DebugTimerBase( bool start = true );
-	virtual ~DebugTimerBase( void );
-	void Start( void );
-	double Stop( void );		// stop + return diff
-	double Elapsed( void );		// Seconds since started
-	double Diff( void );		// stop time - start time
-	void Log( const char *s, int count = -1, bool stop = true );
-	virtual void Output( const char *) { };
+	ScheddCronJob( ClassAdCronJobParams *job_params,
+				   CronJobMgr &mgr );
+	virtual ~ScheddCronJob( );
 
   private:
-	bool	m_on;
-	double	m_t1;
-	double	m_t2;
-	double	dtime( void );
+	int Publish( const char *name, ClassAd *ad );
 };
 
-#endif//__DEBUG_TIMER_H__
+#endif /* _SCHEDD_CRON_JOB_H */

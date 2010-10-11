@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -17,26 +17,14 @@
  *
  ***************************************************************/
 
-#ifndef __DEBUG_TIMER_H__
-#define __DEBUG_TIMER_H__
-
-class DebugTimerBase
+#include "condor_common.h"
+#include "sysapi.h"
+#include <math.h>
+int
+main( int /*argc*/, const char * /*argv*/[] )
 {
-  public:
-	DebugTimerBase( bool start = true );
-	virtual ~DebugTimerBase( void );
-	void Start( void );
-	double Stop( void );		// stop + return diff
-	double Elapsed( void );		// Seconds since started
-	double Diff( void );		// stop time - start time
-	void Log( const char *s, int count = -1, bool stop = true );
-	virtual void Output( const char *) { };
-
-  private:
-	bool	m_on;
-	double	m_t1;
-	double	m_t2;
-	double	dtime( void );
-};
-
-#endif//__DEBUG_TIMER_H__
+	printf( "KFlops = %d\n", sysapi_kflops() );
+	printf( "--\n" );
+	exit( 0 );
+	return 0;
+}

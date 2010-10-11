@@ -18,11 +18,12 @@
  ***************************************************************/
 
 #include "condor_common.h"
-
 #include "debug_timer.h"
 
 DebugTimerBase::DebugTimerBase( bool start )
- : on(false), t1(0), t2(0)
+		: m_on(false),
+		  m_t1(0),
+		  m_t2(0)
 {
 	if ( start ) {
 		Start( );
@@ -44,17 +45,34 @@ DebugTimerBase::dtime( void )
 void
 DebugTimerBase::Start( void )
 {
-	t1 = dtime( );
-	on = true;
+	m_t1 = dtime( );
+	m_on = true;
 }
 
-void
+double
 DebugTimerBase::Stop( void )
 {
-	if ( on ) {
-		t2 = dtime( );
-		on = false;
+	if ( m_on ) {
+		m_t2 = dtime( );
+		m_on = false;
 	}
+	return Diff();
+}
+
+double
+DebugTimerBase::Elapsed( void )
+{
+	if ( m_on ) {
+		double	t2 = dtime( );
+		return t2 - m_t1;
+	}
+	return 0.0;
+}
+
+double
+DebugTimerBase::Diff( void )
+{
+	return m_t2 - m_t1;
 }
 
 void
@@ -64,7 +82,8 @@ DebugTimerBase::Log( const char *s, int num, bool stop )
 	if ( stop ) {
 		Stop( );
 	}
-	double	timediff = t2 - t1;
+
+	double	timediff = m_t2 - m_t1;
 	if ( num >= 0 ) {
 		double	per = 0.0, per_sec = 0.0;
 		if ( num > 0 ) {

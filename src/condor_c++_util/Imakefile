@@ -241,9 +241,19 @@ OBJ = state_machine_driver.o event_handler.o name_tab.o selector.o \
 	$(API_OBJ) $(DAEMON_CLIENT_OBJ) ccb_client.o \
 	classad_hashtable.o classad_log.o log_transaction.o log.o \
 	classad_collection.o usagemon.o print_wrapped_text.o \
-	classad_helpers.o classad_merge.o classad_namedlist.o classadHistory.o \
+	classad_helpers.o classad_merge.o classadHistory.o \
 	ClassAdReevaluator.o \
-	linebuffer.o cron.o cronmgr.o cronjob.o cronjob_classad.o \
+	linebuffer.o \
+	cron_param.o \
+	cron_job.o \
+	cron_job_io.o \
+	cron_job_mgr.o \
+	cron_job_list.o \
+	cron_job_mode.o \
+	cron_job_params.o \
+	classad_cron_job.o \
+	named_classad.o \
+	named_classad_list.o \
 	distribution.o \
 	debug_timer.o \
 	condor_attributes.o condor_environ.o \

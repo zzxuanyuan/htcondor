@@ -44,7 +44,11 @@ LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 OBJ = IdDispenser.o \
 	LoadQueue.o claim.o Reqexp.o ResAttributes.o ResMgr.o ResState.o \
 	Resource.o Starter.o command.o startd_main.o util.o \
-	startd_cronmgr.o startd_cronjob.o starter_mgr.o \
+	startd_cron_job_mgr.o startd_cron_job.o startd_cron_job_params.o \
+	startd_bench_job_mgr.o startd_bench_job.o startd_bench_job_params.o \
+	startd_named_classad.o \
+	startd_named_classad_list.o \
+	starter_mgr.o \
 	setsyscalls.o  AvailStats.o cod_mgr.o \
 	vm_common.o VMManager.o VMRegister.o VMMachine.o vmuniverse_mgr.o \
 	$(PLUGIN_OBJ) \

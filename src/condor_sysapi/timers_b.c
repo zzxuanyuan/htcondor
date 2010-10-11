@@ -62,33 +62,12 @@
 #include <sys/times.h>
 #include <unistd.h>
 
-#ifdef hpux
-#include <sys/syscall.h>
-#define getrusage(a,b) syscall(SYS_getrusage,a,b)
-#endif
-
-double dtime(void);
-
-double dtime()
+double
+dtime( void )
 {
-	double q;
-	static long clock_tick = -1;
-	struct tms	my_times;
-
-	if ( clock_tick < 1 || clock_tick > 1000) {
-		clock_tick = sysconf( _SC_CLK_TCK );
-	}
-
-/*	clock_tick = sysconf( _SC_CLK_TCK ); */
-
-	times(&my_times);
-
-	q = ((double) (my_times.tms_utime)) / ((double) clock_tick);
-
-/*	q = (double)(rusage.ru_utime.tv_sec);
-	q = q + (double)(rusage.ru_utime.tv_usec) * 1.0e-06; */
-	
-	return q;
+	struct timeval	tv;
+	gettimeofday( &tv, NULL );
+	return ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
 }
 #endif
 

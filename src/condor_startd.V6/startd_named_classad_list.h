@@ -17,26 +17,22 @@
  *
  ***************************************************************/
 
-#ifndef __DEBUG_TIMER_H__
-#define __DEBUG_TIMER_H__
+#ifndef STARTD_NAMED_CLASSAD_LIST_H
+#define STARTD_NAMED_CLASSAD_LIST_H
 
-class DebugTimerBase
+#include "condor_common.h"
+#include "named_classad.h"
+#include "named_classad_list.h"
+#include "startd_named_classad.h"
+
+class StartdNamedClassAdList : public NamedClassAdList
 {
   public:
-	DebugTimerBase( bool start = true );
-	virtual ~DebugTimerBase( void );
-	void Start( void );
-	double Stop( void );		// stop + return diff
-	double Elapsed( void );		// Seconds since started
-	double Diff( void );		// stop time - start time
-	void Log( const char *s, int count = -1, bool stop = true );
-	virtual void Output( const char *) { };
+	StartdNamedClassAdList( void );
+	~StartdNamedClassAdList( void ) { };
 
-  private:
-	bool	m_on;
-	double	m_t1;
-	double	m_t2;
-	double	dtime( void );
+	bool Register( StartdNamedClassAd *ad );
+	int	Publish( ClassAd *ad, unsigned r_id );
 };
 
-#endif//__DEBUG_TIMER_H__
+#endif

@@ -28,7 +28,7 @@
 #define _CONDOR_RESMGR_H
 
 #include "simplelist.h"
-#include "condor_classad_namedlist.h"
+#include "startd_named_classad_list.h"
 
 #include "IdDispenser.h"
 
@@ -114,11 +114,11 @@ public:
 	void resource_sort( ComparisonFunc );
 
 	// Manipulate the supplemental Class Ad list
-	int		adlist_register( const char *name );
+	int		adlist_register( StartdNamedClassAd *ad );
 	int		adlist_replace( const char *name, ClassAd *ad, 
 							bool report_diff = false );
 	int		adlist_delete( const char *name );
-	int		adlist_publish( ClassAd *resAd, amask_t mask );
+	int		adlist_publish( unsigned r_id, ClassAd *resAd, amask_t mask );
 
 	// Methods to control various timers
 	void	check_polling( void );	// See if we need to poll frequently
@@ -146,7 +146,7 @@ public:
 	State		state( void );			// Return the machine state
 
 
-	int	force_benchmark( void ); 	// Force a resource to benchmark
+	int	start_initial_benchmark( int &count ); // Start resource benchmark
 	
 	void report_updates( void );	// Log updates w/ dprintf()
 
@@ -224,7 +224,7 @@ private:
 	SimpleList<Resource*>			destroy_list;
 
 	// List of Supplemental ClassAds to publish
-	NamedClassAdList				extra_ads;
+	StartdNamedClassAdList			extra_ads;
 
 		// Look up the configured value for the execute directory
 		// for a given slot.  Also get a unique identifier for the

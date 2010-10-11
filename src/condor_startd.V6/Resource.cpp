@@ -1,6 +1,6 @@
 /***************************************************************
  *
- * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+ * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -26,6 +26,7 @@
 #include "VMRegister.h"
 #include "file_sql.h"
 #include "condor_holdcodes.h"
+#include "startd_bench_job.h"
 
 #if HAVE_DLOPEN
 #include "StartdPlugin.h"
@@ -891,13 +892,28 @@ Resource::refresh_classad( amask_t mask )
 
 
 int
-Resource::force_benchmark( void )
+Resource::start_initial_benchmark( int &count )
 {
 		// Force this resource to run benchmarking.
-	resmgr->m_attr->benchmark( this, 1 );
+	resmgr->m_attr->start_initial_benchmarks( this, count );
 	return TRUE;
 }
 
+int
+Resource::benchmarks_started( void )
+{
+	// TODO
+	return 0;
+}
+
+int
+Resource::benchmarks_finished( void )
+{
+	resmgr->m_attr->benchmarks_finished( this );
+	time_t last_benchmark = time(NULL);
+	r_classad->Assign( ATTR_LAST_BENCHMARK, last_benchmark );
+	return 0;
+}
 
 void
 Resource::reconfig( void )
@@ -1762,7 +1778,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 	r_cod_mgr->publish( cap, mask );
 
 	// Publish the supplemental Class Ads
-	resmgr->adlist_publish( cap, mask );
+	resmgr->adlist_publish( r_id, cap, mask );
 
     // Publish the monitoring information
     daemonCore->monitor_data.ExportData( cap );

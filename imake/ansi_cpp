@@ -1,7 +1,7 @@
 #!/bin/sh
 ##**************************************************************
 ##
-## Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
+## Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
 ## University of Wisconsin-Madison, WI.
 ## 
 ## Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -21,6 +21,10 @@
 
 # pick an appropriate vendor supplied cpp and invoke it, possibly with 
 # arguments in addition to the ones supplied to this program.
+
+if [ "$IMAKE_ANSI_CPP" != "" ] ; then
+	exec $IMAKE_ANSI_CPP $*
+fi
 
 os=`uname -s | sed 's/IRIX.*/IRIX/'`
 

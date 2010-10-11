@@ -17,30 +17,14 @@
  *
  ***************************************************************/
 
-#ifndef CONDOR_CLASSAD_NAMEDLIST_H
-#define CONDOR_CLASSAD_NAMEDLIST_H
+#ifndef NAMED_CLASSAD_LIST_H
+#define NAMED_CLASSAD_LIST_H
 
 #include "condor_common.h"
 #include "condor_classad.h"
-#include "simplelist.h"
-
-// A name / ClassAd pair to manage together
-class NamedClassAd
-{
-  public:
-	NamedClassAd( const char *name, ClassAd *ad = NULL );
-	virtual ~NamedClassAd( void );
-	const char *GetName( void ) const { return m_name; };
-	ClassAd *GetAd( void ) { return m_classad; };
-	void ReplaceAd( ClassAd *newAd );
-
-	bool operator == ( const NamedClassAd &other ) const;
-	bool operator == ( const char *other ) const;
-
-  private:
-	const char	*m_name;
-	ClassAd		*m_classad;
-};
+#include "named_classad.h"
+#include <list>
+using namespace std;
 
 class NamedClassAdList
 {
@@ -52,6 +36,7 @@ class NamedClassAdList
 	NamedClassAd *Find( NamedClassAd &ad ) {
 		return Find( ad.GetName() );
 	};
+
 	bool Register( const char *name );
 	bool Register( NamedClassAd *ad );
 
@@ -61,7 +46,7 @@ class NamedClassAdList
 	int	Publish( ClassAd *ad );
 
   protected:
-	SimpleList<NamedClassAd*>	m_ads;
+	list<NamedClassAd*>		m_ads;
 
 };
 

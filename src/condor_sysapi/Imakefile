@@ -1,4 +1,4 @@
-all_target(libsysapi.a condor_sysapi)
+all_target(libsysapi.a condor_sysapi condor_mips condor_kflops)
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CONFIGURE_PCRE_CFLAGS)
 # use -O2 for the benchmark code, i.e clinpack & dhry*.c
@@ -22,6 +22,10 @@ TEST_OBJS = sysapi.t.o test.o arch_t.o free_fs_blocks_t.o idle_time_t.o \
 library_target(libsysapi.a,$(OBJ))
 
 c_plus_target(condor_sysapi,$(TEST_OBJS),$(LIB))
+
+public_c_plus_target(condor_mips,libexec,mips_main.o,$(LIB))
+public_c_plus_target(condor_kflops,libexec,kflops_main.o,$(LIB))
+
 
 testbin_target(condor_sysapi,755)
 

@@ -40,7 +40,11 @@
 #endif
 
 #include <stdio.h>
+#include <math.h>
+#include <time.h>
+#include <sys/time.h>
 #include "dhry.h"
+
 /* DO NOT include sysapi.h here */
 
 
@@ -91,7 +95,7 @@ double          Microseconds,
 
 
 int
-dhry_mips ()
+dhry_mips ( REG int Number_Of_Runs )
 /*****/
 
   /* main program, corresponds to procedures        */
@@ -107,7 +111,6 @@ dhry_mips ()
         Str_30          Str_1_Loc;
         Str_30          Str_2_Loc;
   REG   int             Run_Index;
-  REG   int             Number_Of_Runs;
 
         FILE            *Ap;
 
@@ -158,9 +161,9 @@ dhry_mips ()
     Number_Of_Runs = n;
   }
   printf ("\n");
-#endif
-  Number_Of_Runs = 1000000;
 
+  Number_Of_Runs = 1000000;
+#endif
 
   /***************/
   /* Start timer */
@@ -356,15 +359,57 @@ register int    l;
 }
 #endif
 
-
 /* here is the entry point into this file for the sysapi library */
+#define QUICK_RUNS	1000000
 
 
+/** NRL 22 Oct 2010: There appears to be a real bug in the
+ ** dhry_mips call that causes it to return a negative number.
+ ** NEVER accept this and rerun in that case. */
 int
 sysapi_mips_raw(void)
 {
+	static int	mips = -1;
+	double		quick_mips = -1.0;
+	int			loops;
+
+	static double ldiff = 0.0;
+	static int    lloops = 0;
+
 	sysapi_internal_reconfig();
-	return dhry_mips();
+
+	// If we haven't run before, get a quick measurement
+	// For slow machines, we'll use that quick measurement
+	while (quick_mips < 0 ) {
+		if ( mips < 0 ) {
+			quick_mips = dhry_mips( QUICK_RUNS );
+		} else {
+			quick_mips = mips;
+		}
+	}
+
+	// For faster machines, run with more loops.
+	loops = trunc( 0.9 + (1.0 * QUICK_RUNS * quick_mips * 0.01) );
+	while( true ) {
+		struct timeval	tv;
+		gettimeofday( &tv, NULL );
+		double t1 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+
+		mips = dhry_mips(loops);
+
+		gettimeofday( &tv, NULL );
+		double t2 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+
+		if ( mips > 0 ) {
+			lloops = loops;
+			ldiff = t2-t1;
+			return mips;
+		}
+		else {
+			printf( "loops=%d, diff=%0.3f; lloops=%d, ldiff=%0.3f\n",
+					loops, t2-t1, lloops, ldiff );
+		}
+	}
 }
 
 int
@@ -373,5 +418,3 @@ sysapi_mips(void)
 	sysapi_internal_reconfig();
 	return sysapi_mips_raw();
 }
-
-
