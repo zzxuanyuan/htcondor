@@ -906,15 +906,6 @@ JICShadow::addToOutputFiles( const char* filename )
 	}
 }
 
-/* This is a timer which find file suitable for dataflow transfer and moves
-	them back to the spool directory. */
-void
-JICShadow::transferDataflowFiles( void )
-{
-	dprintf(D_ALWAYS, "ENTER JICShadow::transferDataflowFiles()\n");
-
-	dprintf(D_ALWAYS, "LEAVE JICShadow::transferDataflowFiles()\n");
-}
 
 void
 JICShadow::removeFromOutputFiles( const char* filename )
@@ -2269,15 +2260,33 @@ JICShadow::startDataflowTimer( void )
 int
 JICShadow::transferDataflowTimerHandler( void )
 {
-	ProcFamilyUsage usage;
-	std::set<std::string>::iterator it;
-
 	dprintf(D_FULLDEBUG, "Dataflow Timer fired!\n");
 
 	if (m_job_pid == -1) {
-		dprintf(D_FULLDEBUG, "Job pid isn't set up yet. Aborting transfer!\n");
+		dprintf(D_FULLDEBUG,
+			"Job pid isn't set up yet. Aborting dataflow transfer!\n");
 		return 0;
 	}
+
+	transferDataflowFiles();
+
+	return 0;
+}
+
+/* determine if any of the dataflow files need to be transferred and do it. */
+void
+JICShadow::transferDataflowFiles( void )
+{
+	dprintf(D_ALWAYS, "ENTER JICShadow::transferDataflowFiles()\n");
+
+	if( ! filetrans ) {
+		dprintf(D_ALWAYS, "No file transfer possible, "
+			"leaving JICShadow::transferDataflowFiles()\n");
+		return;
+	}
+
+	ProcFamilyUsage usage;
+	std::set<std::string>::iterator it;
 
 	// Get the open files set for the job under the starter.
 	daemonCore->Get_Family_Usage(m_job_pid, usage);
@@ -2289,9 +2298,37 @@ JICShadow::transferDataflowTimerHandler( void )
 		dprintf(D_ALWAYS, "\tFound open file: %s\n", (*it).c_str());
 	}
 
-	return 0;
-}
+	////////////////////////////////////////////////////////////////////////
+	// 
 
+	// The shadow may block on disk I/O for long periods of
+	// time, so set a big timeout on the starter's side of the
+	// file transfer socket.
+
+	int timeout = param_integer( "STARTER_UPLOAD_TIMEOUT", 200 );
+	filetrans->setClientSocketTimeout(timeout);
+
+	// The user job may have created files only readable
+	// by the user, so set_user_priv here.
+	priv_state saved_priv = set_user_priv();
+
+	// TODO
+	// XXX Fix this to ONLY transfer the requested dataflow files, and only
+	// those which are not open, and not already transferred.
+
+	// XXX Maybe for each open file, I can add it to an exception list?
+	// XXX How do I remove it from the exception list? :)
+
+	bool rval = filetrans->UploadFiles( true, false ); // this will block
+
+	set_priv(saved_priv);
+
+	if( !rval ) {
+		// Failed to transfer.
+		dprintf(D_ALWAYS,"JICShadow::transferDataflowFiles() failed.\n");
+	}
+	dprintf(D_FULLDEBUG,"JICShadow::transferDataflowFiles() succeeds.\n");
+}
 
 
 
