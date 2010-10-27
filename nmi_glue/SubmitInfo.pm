@@ -851,7 +851,7 @@ our %submit_info = (
 	'sun4u_sol_5.10'	=> {
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> [ @default_prereqs, 'gcc-4.3.2' ],
 			'xtests'	=> undef,
 		},
 
