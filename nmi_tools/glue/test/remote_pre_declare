@@ -47,11 +47,11 @@ print ENVSETUP "BASE_DIR=$BaseDir\n";
 print ENVSETUP "export BASE_DIR\n";
 
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
-    print ENVSETUP "PATH=$BaseDir/nmi_glue/test:$BaseDir/condor/bin:$BaseDir/condor/sbin:\$PATH\n";
+    print ENVSETUP "PATH=$BaseDir/nmi_tools/glue/test:$BaseDir/condor/bin:$BaseDir/condor/sbin:\$PATH\n";
     print ENVSETUP "CONDOR_CONFIG=$BaseDir/condor_tests/TestingPersonalCondor/condor_config\n";
 } else {
     # we want UNIX-style paths for PATH (since we're using cygwin)
-    print ENVSETUP "PATH=$BaseDir/nmi_glue/test:$BaseDir/condor/bin:/bin:/usr/bin\n";
+    print ENVSETUP "PATH=$BaseDir/nmi_tools/glue/test:$BaseDir/condor/bin:/bin:/usr/bin\n";
 
     # Condor will want Win32-style paths for CONDOR_CONFIG
     my $Win32BaseDir = getcwd();

@@ -30,6 +30,7 @@ parseOptions();
 my $BaseDir = $ENV{BASE_DIR} || die "BASE_DIR not in environment!\n";
 my $TaskFile = "$BaseDir/tasklist.nmi";
 my $UserdirTaskFile = "$BaseDir/../tasklist.nmi";
+my $testdir = "condor_tests";
 
 my %CustomTimeouts;
 my $TimeoutFile = "$BaseDir/condor_tests/TimeoutChanges";

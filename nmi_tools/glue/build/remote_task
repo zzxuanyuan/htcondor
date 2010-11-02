@@ -57,7 +57,7 @@ $| = 1;
 #}
 #if ($taskname eq "make") {
 # 
-my $execstr= "make externals && make -j4 package && make tests";
+my $execstr= "make externals && make -j4 all && make tests && make package";
 
 print "------------------------- ENV DUMP ------------------------\n";
 if ($ENV{NMI_PLATFORM} =~ /winnt/) {
