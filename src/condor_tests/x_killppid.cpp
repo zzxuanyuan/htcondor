@@ -19,20 +19,30 @@
 
 
 #include <sys/types.h>
+#ifdef WIN32
+#include "condor_header_features.h"
+#include "condor_sys_nt.h"
+#include "ntsysinfo.WINDOWS.h"
+#else
 #include <unistd.h>
+#include <strings.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 
-main(int argc, char ** argv)
+int main(int argc, char ** argv)
 {
 	char * killsig;
-	int mykillsig;
+	int mykillsig = 0;
+#ifdef WIN32
+	CSysinfo cSysInfo;
+	DWORD parentpid;
+	HANDLE parentprocess;
+	BOOL killparent;
+#else
 	pid_t parentpid;
-
-	printf("args in for x_killppid is %d\n",argc);
-	printf("Kill signal is %s\n",argv[1]);
+#endif
 
 	if(argc < 2) {
 		printf("Usage: %s signal\n",argv[0]);
@@ -40,6 +50,10 @@ main(int argc, char ** argv)
 	} 
 
 	killsig = argv[1];
+
+	printf("args in for x_killppid is %d\n",argc);
+	printf("Kill signal is %s\n",argv[1]);
+
 	if(!strcasecmp(killsig,"KILL")) {
 		mykillsig = SIGKILL;
 	} else if(!strcasecmp(killsig,"TERM")) {
@@ -49,10 +63,24 @@ main(int argc, char ** argv)
 	} else if(!strcasecmp(killsig,"ABRT")) {
 		mykillsig = SIGABRT;
 	}
-
+#ifdef WIN32
+	parentpid = cSysInfo.GetParentPID(GetCurrentProcessId());
+#else
 	parentpid = getppid();
+#endif
 
 	printf("Parent pid is %d\n",parentpid);
+#ifdef WIN32
+
+	parentprocess = OpenProcess(PROCESS_TERMINATE, FALSE, parentpid);
+	if(!parentprocess)
+	{
+		return -1;
+	}
+
+	killparent = TerminateProcess(parentprocess, mykillsig);
+#else
 	kill(parentpid, mykillsig);
+#endif
 	return(0);
 }
