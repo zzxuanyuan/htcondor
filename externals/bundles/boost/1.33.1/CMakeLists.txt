@@ -1,6 +1,7 @@
 option( WITH_BOOST "Compiling with support for BOOST" ON )
 
-if (WITH_BOOST)
+# could be modified. 
+if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
 
   if (NOT PROPER)
 
@@ -47,7 +48,7 @@ if (WITH_BOOST)
 
   endif(NOT PROPER) 
 
-endif(WITH_BOOST)
+endif()
 
 # update configure information
 if (BOOST_VER)

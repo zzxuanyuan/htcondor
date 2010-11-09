@@ -1,5 +1,5 @@
 #option is defaultly disabled.
-option( WITH_CREAM "Compiling with support for CREAM" OFF )
+option( WITH_CREAM "Compiling with support for CREAM" ON )
 
 if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
 
@@ -87,36 +87,10 @@ if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
 				    INSTALL_DIR ${CREAM_STAGE}
 				    INSTALL_COMMAND cd org.gridsite.core/src && cp libgridsite.a ${CREAM_STAGE}/lib && cp ../interface/*.h ${CREAM_STAGE}/include )
 
-		# build gsoap plugin.
-		set (CSP_CC_FLAGS -g -O0 -W -Wall -Wno-unused-parameter -I. -I../interface -DWITH_NONAMESPACES -I${CREAM_STAGE}/include -D_GNU_SOURCE)
-		ExternalProject_Add(cream_soap_plugin
-					DEPENDS cream_soap
-				    PREFIX ${EXTERNAL_BUILD_PREFIX}/cream_soap_plugin
-				    #-- Download Step ----------
-					DOWNLOAD_COMMAND wget -N http://parrot.cs.wisc.edu/externals/org.glite.security.gsoap-plugin-2.0.1-3.tar.gz ${CMD_TERM}
-				    DOWNLOAD_DIR ${EXTERNAL_DL}
-				    URL http://parrot.cs.wisc.edu/externals/org.glite.security.gsoap-plugin-2.0.1-3.tar.gz
-				    #--Configure step ----------
-				    CONFIGURE_COMMAND cd org.glite.security.gsoap-plugin/src &&
-				    	${CMAKE_CURRENT_SOURCE_DIR}/cream_soap_plugin_patch.sh
-				    #--Build Step ----------
-				    BUILD_COMMAND cd org.glite.security.gsoap-plugin/src &&
-						gcc ${CSP_CC_FLAGS} -o glite_gsplugin.thr.o -c glite_gsplugin.c &&
-						gcc ${CSP_CC_FLAGS} -o stdsoap2.thr.o -c stdsoap2.c &&
-						ar crv libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a glite_gsplugin.thr.o stdsoap2.thr.o &&
-						ranlib libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a
-				    BUILD_IN_SOURCE 1
-				    #--install Step ----------
-				    INSTALL_DIR ${CREAM_STAGE}/lib
-				    INSTALL_COMMAND  cd org.glite.security.gsoap-plugin/src &&
-						cp libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a ${CREAM_STAGE}/lib &&
-						cp ../interface/*.h ${CREAM_STAGE}/include/glite/security
-				)
-
-
+		
 		set (GLITE_SECURITY_VER org.glite.security.gss-2.0.1-1)
 		ExternalProject_Add(glite_gss
-				    DEPENDS globus gridsite c-ares cream_soap_plugin
+				    DEPENDS globus gridsite c-ares
 				    PREFIX ${EXTERNAL_BUILD_PREFIX}/${GLITE_SECURITY_VER}
 				    #-- Download Step ----------
 				    DOWNLOAD_COMMAND wget -N http://parrot.cs.wisc.edu/externals/${GLITE_SECURITY_VER}.tar.gz ${CMD_TERM}
@@ -135,6 +109,33 @@ if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
 				    INSTALL_COMMAND cd org.glite.security.gss/src &&
 					  cp ../interface/* ${CREAM_STAGE}/include/glite/security &&
 					  cp libglite_security_gss_${GLOBUS_FLAVOR}pthr.a ${CREAM_STAGE}/lib)
+
+		# build gsoap plugin.
+		set (CSP_CC_FLAGS -g -O0 -W -Wall -Wno-unused-parameter -I. -I../interface -DWITH_NONAMESPACES -I${CREAM_STAGE}/include -D_GNU_SOURCE)
+		ExternalProject_Add(cream_soap_plugin
+					DEPENDS cream_soap glite_gss
+				    PREFIX ${EXTERNAL_BUILD_PREFIX}/cream_soap_plugin
+				    #-- Download Step ----------
+					DOWNLOAD_COMMAND wget -N http://parrot.cs.wisc.edu/externals/org.glite.security.gsoap-plugin-2.0.1-3.tar.gz ${CMD_TERM}
+				    DOWNLOAD_DIR ${EXTERNAL_DL}
+				    URL http://parrot.cs.wisc.edu/externals/org.glite.security.gsoap-plugin-2.0.1-3.tar.gz
+				    #--Configure step ----------
+				    CONFIGURE_COMMAND cd org.glite.security.gsoap-plugin/src &&
+				    	${CMAKE_CURRENT_SOURCE_DIR}/cream_soap_plugin_patch.sh
+				    #--Build Step ----------
+				    BUILD_COMMAND cd org.glite.security.gsoap-plugin/src &&
+						gcc ${CSP_CC_FLAGS} -o glite_gsplugin.thr.o -c glite_gsplugin.c &&
+						gcc ${CSP_CC_FLAGS} -o stdsoap2.thr.o -c stdsoap2.c &&
+						ar crv libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a glite_gsplugin.thr.o stdsoap2.thr.o &&
+						ranlib libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a
+				    BUILD_IN_SOURCE 1
+				    #--install Step ----------
+				    INSTALL_DIR ${CREAM_STAGE}/lib
+				    INSTALL_COMMAND  cd org.glite.security.gsoap-plugin/src &&
+						cp libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a ${CREAM_STAGE}/lib && 
+						cp ../interface/*.h ${CREAM_STAGE}/include/glite/security
+				)
+
 
 		ExternalProject_Add(cream_wsdl
 				    PREFIX ${EXTERNAL_BUILD_PREFIX}/cream_wsdl
@@ -181,8 +182,14 @@ if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
 				)
 
 	# Set the target dependencies which the rest of condor depends on.
+	if(DARWIN)
+		set (BOOST_LIB ${EXTERNAL_STAGE}/lib/libboost_thread-gcc-d.a)
+	else()
+		set (BOOST_LIB ${EXTERNAL_STAGE}/lib/libboost_thread-gcc-mt-d.a)
+	endif()
 
-	set(CREAM_FOUND "${CREAM_STAGE}/lib/libglite_ce_cream_client_soap.a;${CREAM_STAGE}/lib/libglite_ce_cream_client_util.a;${CREAM_STAGE}/lib/libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/libglite_security_gss_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/liblog4cpp.a;${CREAM_STAGE}/lib/libgridsite.a;${EXTERNAL_STAGE}/lib/libboost_thread-gcc-mt-d.a;${CREAM_STAGE}/lib/libcares.a;${EXTERNAL_STAGE}/lib/libboost_regex-gcc-mt-d.a")
+	set(CREAM_FOUND
+	"${CREAM_STAGE}/lib/libglite_ce_cream_client_soap.a;${CREAM_STAGE}/lib/libglite_ce_cream_client_util.a;${CREAM_STAGE}/lib/libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/libglite_security_gss_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/liblog4cpp.a;${CREAM_STAGE}/lib/libgridsite.a;${BOOST_LIB};${CREAM_STAGE}/lib/libcares.a")
 
 	append_var(CONDOR_EXTERNALS cream)
 
