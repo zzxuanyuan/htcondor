@@ -188,8 +188,7 @@ if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
 		set (BOOST_LIB ${EXTERNAL_STAGE}/lib/libboost_thread-gcc-mt-d.a)
 	endif()
 
-	set(CREAM_FOUND
-	"${CREAM_STAGE}/lib/libglite_ce_cream_client_soap.a;${CREAM_STAGE}/lib/libglite_ce_cream_client_util.a;${CREAM_STAGE}/lib/libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/libglite_security_gss_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/liblog4cpp.a;${CREAM_STAGE}/lib/libgridsite.a;${BOOST_LIB};${CREAM_STAGE}/lib/libcares.a")
+	set(CREAM_FOUND "${CREAM_STAGE}/lib/libglite_ce_cream_client_soap.a;${CREAM_STAGE}/lib/libglite_ce_cream_client_util.a;${CREAM_STAGE}/lib/libglite_security_gsoap_plugin_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/libglite_security_gss_${GLOBUS_FLAVOR}pthr.a;${CREAM_STAGE}/lib/liblog4cpp.a;${CREAM_STAGE}/lib/libgridsite.a;${BOOST_LIB};${CREAM_STAGE}/lib/libcares.a")
 
 	append_var(CONDOR_EXTERNALS cream)
 

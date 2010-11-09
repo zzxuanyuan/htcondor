@@ -13,6 +13,12 @@ if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
 		  set(TOOLSET gcc)
 		  set(JAM_EXT sh)
 		endif()
+
+		if (DARWIN)
+		  set(BOOST_PATCH patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/macos.patch)
+		else()
+		  set(BOOST_PATCH echo "nothing")
+		endif()
   
 		# so the idea of privately staging boost is silly.  
 		set (BOOST_VER 1_33_1)
@@ -22,6 +28,8 @@ if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
 					DOWNLOAD_COMMAND wget -N http://parrot.cs.wisc.edu/externals/boost_${BOOST_VER}.tar.gz ${CMD_TERM}
 				    DOWNLOAD_DIR ${EXTERNAL_DL}
 				    URL http://parrot.cs.wisc.edu/externals/boost_${BOOST_VER}.tar.gz
+					#--Patch step ----------
+					PATCH_COMMAND ${BOOST_PATCH}
 				    #--Configure step ----------
 				    CONFIGURE_COMMAND cd boost_${BOOST_VER}/tools/build/jam_src ${CMD_TERM}
 				    	./build.${JAM_EXT} ${CMD_TERM}
