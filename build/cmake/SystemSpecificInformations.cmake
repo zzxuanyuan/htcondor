@@ -169,6 +169,8 @@ if(UNIX)
 
       if(LINUX_NAME) 
          set(SPECIFIC_SYSTEM_VERSION_NAME "${CMAKE_SYSTEM_NAME}-${LINUX_NAME}-${LINUX_VER}")
+      else
+		set(LINUX_NAME "NOT-FOUND")
       endif(LINUX_NAME)
 
     endif(EXISTS "/etc/issue")      
