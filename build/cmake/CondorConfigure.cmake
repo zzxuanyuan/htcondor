@@ -26,6 +26,7 @@ set( BUILD_SHARED_LIBS FALSE )
 # Windows is so different perform the check 1st and start setting the vars.
 if(${OS_NAME} MATCHES "WIN" AND NOT ${OS_NAME} MATCHES "DARWIN")
 
+	cmake_minimum_required(VERSION 2.8.3)
 	set(WINDOWS ON)
 	add_definitions(-DWINDOWS)
 	# The following is necessary for sdk/ddk version to compile against.

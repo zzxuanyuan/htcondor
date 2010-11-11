@@ -1,7 +1,7 @@
 ##########################################################################
 # Set project
 project(CONDOR)
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 2.8)
 
 ##########################################################################
 #Setup package meta-data (used in packaging)
@@ -15,6 +15,7 @@ string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 option(_DEBUG "Enables spewing of interal dprint statements" OFF)
+
 
 ###########################################
 # start cmake module inclusion
