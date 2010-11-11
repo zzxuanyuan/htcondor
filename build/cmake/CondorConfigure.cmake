@@ -221,7 +221,7 @@ option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(NEEDS_KBDD "Enable KBDD functionality" ON)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
-option(SOFT_IS_HARD "Enable strict checking for WITH_<LIB>" OFF)
+option(SOFT_IS_HARD "Enable strict checking for WITH_<LIB>" ON)
 option(CLIPPED "enable/disable the standard universe" ON)
 option(BUILD_TESTS "Will build internal test applications" ON)
 

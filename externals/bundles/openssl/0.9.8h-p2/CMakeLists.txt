@@ -26,7 +26,7 @@ if (WITH_OPENSSL)
 			set (OPENSSL_CONFIGURE ./config --prefix=${EXTERNAL_STAGE} no-asm )
 			
 			if (DARWIN)
-			  string(SUBSTRING ${${OS_VER}} 0 2 DARWIN_MAJOR)
+			  string(SUBSTRING ${OS_VER} 0 2 DARWIN_MAJOR)
 			  if(${DARWIN_MAJOR} STREQUAL "10")
 				dprint("OPENSSL_CONVERT")
 				set (OPENSSL_CONFIGURE ./Configure darwin64-x86_64-cc --prefix=${EXTERNAL_STAGE} no-asm -fPIC )
