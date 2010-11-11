@@ -1,7 +1,7 @@
 
 option( WITH_VOMS "Compiling with support for VOMS" ON )
 
-if ( LINUX AND WITH_VOMS )
+if ( WITH_VOMS AND (LINUX OR DARWIN)  )
 
 	if (NOT PROPER)
 
