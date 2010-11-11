@@ -1,12 +1,12 @@
 ##########################################################################
 # Set project
 project(CONDOR)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.3)
 
 ##########################################################################
 #Setup package meta-data (used in packaging)
 set(PACKAGE "condor")
-set(VERSION "7.5.4")
+set(VERSION "7.5.5")
 set(PACKAGE_BUGREPORT "http://condor-wiki.cs.wisc.edu/index.cgi/tktnew")
 set(PACKAGE_NAME ${PACKAGE} )
 set(PACKAGE_VERSION ${VERSION} )

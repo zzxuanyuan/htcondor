@@ -155,7 +155,7 @@ if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
 
 		set (CREAM_PATCH patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/cream.patch)
 		if (DARWIN)
-		  set (CREAM_PATCH ${CREAM_PATCH} && patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/bsd.patch && patch -p0 -i macos.patch )
+		  set (CREAM_PATCH ${CREAM_PATCH} && patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/bsd.patch && patch -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/macos.patch )
 		endif(DARWIN)
 
 		ExternalProject_Add(cream

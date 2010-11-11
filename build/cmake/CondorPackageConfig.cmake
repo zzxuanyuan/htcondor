@@ -275,3 +275,18 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 
 endif()
 
+# the following is a development option which folks can use if they desire.
+option(CONDOR_DEV_MODE "Append version + other info" OFF)
+if (CONDOR_DEV_MODE)
+  if (WINDOWS)
+	## create install targets to point registry
+	set( CMAKE_INSTALL_PREFIX "C:/condor_test/${VERSION}")
+	dprint("TODO FEATURE-> Z:TANNENBA:TSTCLAIR Update registry + paths to use this particular install.")
+  else()
+	# may want a check for
+	if (NOT CONDOR_PACKAGE_BUILD)
+	  set( CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/${VERSION}")
+	endif()
+  endif()  
+endif(CONDOR_DEV_MODE)
+
