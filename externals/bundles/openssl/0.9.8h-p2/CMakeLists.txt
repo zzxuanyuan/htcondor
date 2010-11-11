@@ -20,9 +20,20 @@ if (WITH_OPENSSL)
 		else(WINDOWS)
 			set (OPENSSL_PATCH patch --binary -p0 -i ${CMAKE_CURRENT_SOURCE_DIR}/renegotiate.patch &&
 							   sed 's/-fomit-frame-pointer//' Configure > Configure.new &&
-							   mv Configure.new Configure )
+							   mv Configure.new Configure &&
+							   chmod a+rx Configure )
+
 			set (OPENSSL_CONFIGURE ./config --prefix=${EXTERNAL_STAGE} no-asm )
-			if ( NOT ${OS_NAME} MATCHES "AIX")
+			
+			if (DARWIN)
+			  string(SUBSTRING ${${OS_VER}} 0 2 DARWIN_MAJOR)
+			  if(${DARWIN_MAJOR} STREQUAL "10")
+				dprint("OPENSSL_CONVERT")
+				set (OPENSSL_CONFIGURE ./Configure darwin64-x86_64-cc --prefix=${EXTERNAL_STAGE} no-asm -fPIC )
+			  endif()
+			endif()
+			 
+			if ( NOT AIX )
 				set (OPENSSL_CONFIGURE ${OPENSSL_CONFIGURE} -fPIC)
 			endif()
 			set (OPENSSL_MAKE make && make test )

@@ -1,4 +1,12 @@
 
+#processor modification if necessary
+if(${OS_NAME} STREQUAL "DARWIN")
+  exec_program (uname ARGS -m OUTPUT_VARIABLE TEST_ARCH)
+  if(${TEST_ARCH} MATCHES "x86_64")
+	set (SYS_ARCH "X86_64")
+  endif()
+endif()
+
 message(STATUS "***********************************************************")
 message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH} BitMode=${BIT_MODE} BUILDID:${BUILDID}")
 message(STATUS "********* BEGINNING CONFIGURATION *********")
@@ -255,7 +263,7 @@ else(PROPER)
 	message(STATUS "********* Configuring externals using [uw-externals] a.k.a NONPROPER *********")
 	# temporarily disable cacheing externals on windows, primarily b/c of nmi.  
 	if (NOT WINDOWS)
-		option(SCRATCH_EXTERNALS "Will put the externals into scratch location" ON)
+		option(SCRATCH_EXTERNALS "Will put the externals into scratch location" OFF)
 	endif(NOT WINDOWS)
 endif(PROPER)
 
@@ -569,6 +577,9 @@ dprint ( "LIBRARY_OUTPUT_PATH: ${LIBRARY_OUTPUT_PATH}" )
 # tell CMake to search first in directories listed in CMAKE_MODULE_PATH
 # when you use FIND_PACKAGE() or INCLUDE()
 dprint ( "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}" )
+
+# print out where we are installing to.
+dprint ( "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}" )
 
 # this is the complete path of the cmake which runs currently (e.g. /usr/local/bin/cmake) 
 dprint ( "CMAKE_COMMAND: ${CMAKE_COMMAND}" )

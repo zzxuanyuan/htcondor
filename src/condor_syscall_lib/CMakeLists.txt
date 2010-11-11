@@ -27,7 +27,7 @@ if( STD_UNIVERSE )
 	# which can call the originals.
 	###########################################################################
 	exec_program ( gcc ARGS -print-file-name=crt1.o OUTPUT_VARIABLE CRT1 )
-	exec_program ( objcopy ARGS --redefine-sym main=MAIN ${CRT1} ${CMAKE_CURRENT_SOURCE_DIR}/condor_rt0 )
+	exec_program ( objcopy ARGS --redefine-sym main=MAIN ${CRT1} ${CMAKE_CURRENT_SOURCE_DIR}/condor_rt0.o )
 
 	##################################################
 	# rip from custom built glibc and uppercase the defined symbols, yeah you read that correctly :-/
@@ -98,6 +98,6 @@ if( STD_UNIVERSE )
 
 	#################################################
 	# here we begin the install target section 
-	install ( FILES condor_rt0 DESTINATION ${C_LIB} )
+	install ( FILES condor_rt0.o DESTINATION ${C_LIB} )
 	
 endif( STD_UNIVERSE )

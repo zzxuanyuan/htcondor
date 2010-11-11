@@ -94,7 +94,7 @@ our %build_and_test_sets = (
 my @default_prereqs = (
 	'tar-1.14',
 	'patch-2.5.4',
-	'cmake-2.8.0',
+	'cmake-2.8.3',
 	'flex-2.5.4a',
 	'make-3.80',
 	'byacc-1.9',
@@ -208,13 +208,13 @@ our %submit_info = (
 	'x86_winnt_6.0'	=> {
 		'build' => {
 			'configure_args' => { '-G \"Visual Studio 9 2008\"' },
-			'prereqs'	=> [ 'cmake-2.8.0' ],
+			'prereqs'	=> [ 'cmake-2.8.3' ],
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ 'cmake-2.8.0' ],
+			'prereqs'	=> undef,
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -226,13 +226,13 @@ our %submit_info = (
 	'x86_64_winnt_5.1'	=> {
 		'build' => {
 			'configure_args' => { '-G \"Visual Studio 9 2008\"' },
-			'prereqs'	=> [ 'cmake-2.8.0' ],
+			'prereqs'	=> [ 'cmake-2.8.3' ],
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ 'cmake-2.8.0' ],
+			'prereqs'	=> undef,
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -308,7 +308,7 @@ our %submit_info = (
 				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
 				'-DWITH_KRB5:BOOL=OFF' => undef,
 			},
-			'prereqs'	=> [ 'cmake-2.8.0' ],
+			'prereqs'	=> [ 'cmake-2.8.3' ],
 			'xtests'	=> [ 'ps3_fedora_9' ],
 		},
 
@@ -355,7 +355,7 @@ our %submit_info = (
 	'ps3_ydl_5.0'	=> {
 		'build' => {
 			'configure_args' => { @default_build_configure_args },
-			'prereqs'	=> [ 'cmake-2.8.0' ],
+			'prereqs'	=> [ 'cmake-2.8.3' ],
 			'xtests'	=> undef,
 		},
 
@@ -407,7 +407,7 @@ our %submit_info = (
 			'configure_args' => { @default_build_configure_args,
 				'-DCLIPPED:BOOL=OFF' => undef,
 			 },
-			'prereqs'	=> [ 'libtool-1.5.26', 'cmake-2.8.0' ],
+			'prereqs'	=> [ 'libtool-1.5.26', 'cmake-2.8.3' ],
 			'xtests'	=>  [ 'x86_64_ubuntu_10.04', 'x86_64_ubuntu_8.04.3' ],
 		},
 
@@ -494,7 +494,7 @@ our %submit_info = (
 			'configure_args' => { @default_build_configure_args,
 				'-DCLIPPED:BOOL=OFF' => undef
 			 },
-			'prereqs'	=> [ 'libtool-1.5.26', 'cmake-2.8.0' ],
+			'prereqs'	=> [ 'libtool-1.5.26', 'cmake-2.8.3' ],
 			'xtests'	=> [ 'x86_ubuntu_10.04' ],
 		},
 
@@ -519,7 +519,7 @@ our %submit_info = (
 			},
 			'prereqs'	=> [ 'tar-1.14',
 							 'patch-2.5.4',
-							 'cmake-2.8.2',
+							 'cmake-2.8.3',
 							 'flex-2.5.4a',
 							 'make-3.80',
 							 'byacc-1.9',
