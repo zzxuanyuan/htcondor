@@ -1,8 +1,8 @@
 
 #processor modification if necessary
 if(${OS_NAME} STREQUAL "DARWIN")
-  exec_program (uname ARGS -m OUTPUT_VARIABLE TEST_ARCH)
-  if(${TEST_ARCH} MATCHES "x86_64")
+  exec_program (sw_vers ARGS -productVersion OUTPUT_VARIABLE TEST_VER)
+  if(${TEST_VER} MATCHES "10.6" AND ${SYS_ARCH} MATCHES "I386")
 	set (SYS_ARCH "X86_64")
   endif()
 endif()
