@@ -516,6 +516,7 @@ our %submit_info = (
 				'-DWITH_DRMAA:BOOL=OFF' => undef,
 				'-DWITH_GCB:BOOL=OFF' => undef,
 				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
 			},
 			'prereqs'	=> [ @default_prereqs,
 				'coreutils-5.2.1',
@@ -544,7 +545,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.5'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => { @default_build_configure_args,
+				'-DWITH_BLAHP:BOOL=OFF' => undef,
+				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
+				'-DWITH_DRMAA:BOOL=OFF' => undef,
+				'-DWITH_GCB:BOOL=OFF' => undef,
+				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
+				},
 			'prereqs'	=> [
 				@default_prereqs,
 				'libtool-1.5.26',
@@ -565,7 +573,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.5-updated'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => {  @default_build_configure_args,
+				'-DWITH_BLAHP:BOOL=OFF' => undef,
+				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
+				'-DWITH_DRMAA:BOOL=OFF' => undef,
+				'-DWITH_GCB:BOOL=OFF' => undef,
+				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
+				},
 			'prereqs'	=> [ @default_prereqs, 'libtool-1.5.26' ],
 			'xtests'	=> undef,
 		},
@@ -582,7 +597,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.6'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => {  @default_build_configure_args,
+				'-DWITH_BLAHP:BOOL=OFF' => undef,
+				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
+				'-DWITH_DRMAA:BOOL=OFF' => undef,
+				'-DWITH_GCB:BOOL=OFF' => undef,
+				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
+			 },
 			'prereqs'	=> [
 				@default_prereqs,
 				'libtool-1.5.26',
