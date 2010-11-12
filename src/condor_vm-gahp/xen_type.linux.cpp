@@ -18,6 +18,8 @@
  ***************************************************************/
 
 #include "condor_common.h"
+#if defined (HAVE_EXT_LIBVIRT)
+
 #include "condor_config.h"
 #include "condor_string.h"
 #include "string_list.h"
@@ -2013,3 +2015,4 @@ KVMType::CreateConfigFile()
 	return true;
 }
 
+#endif
