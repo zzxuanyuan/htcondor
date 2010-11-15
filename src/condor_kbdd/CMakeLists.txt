@@ -1,5 +1,5 @@
 
-if ( NOT ${HAVE_X11} STREQUAL "HAVE_X11-NOTFOUND" OR WINDOWS )
+if ( (LINUX AND NOT ${HAVE_X11} STREQUAL "HAVE_X11-NOTFOUND") OR WINDOWS )
 
 	condor_glob(kbdHdrs kbdSrcs "")
 

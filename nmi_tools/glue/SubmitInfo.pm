@@ -516,17 +516,11 @@ our %submit_info = (
 				'-DWITH_DRMAA:BOOL=OFF' => undef,
 				'-DWITH_GCB:BOOL=OFF' => undef,
 				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
 			},
-			'prereqs'	=> [ 'tar-1.14',
-							 'patch-2.5.4',
-							 'cmake-2.8.3',
-							 'flex-2.5.4a',
-							 'make-3.80',
-							 'byacc-1.9',
-							 'bison-1.25',
-							 'wget-1.9.1',
-							 'm4-1.4.1',
-							 'coreutils-5.2.1' ],
+			'prereqs'	=> [ @default_prereqs,
+				'coreutils-5.2.1',
+				'libtool-1.5.26',],
 			'xtests'	=> [
 				'x86_64_macos_10.5-updated',
 				'x86_64_macos_10.6',
@@ -551,7 +545,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.5'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => { @default_build_configure_args,
+				'-DWITH_BLAHP:BOOL=OFF' => undef,
+				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
+				'-DWITH_DRMAA:BOOL=OFF' => undef,
+				'-DWITH_GCB:BOOL=OFF' => undef,
+				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
+				},
 			'prereqs'	=> [
 				@default_prereqs,
 				'libtool-1.5.26',
@@ -572,7 +573,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.5-updated'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => {  @default_build_configure_args,
+				'-DWITH_BLAHP:BOOL=OFF' => undef,
+				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
+				'-DWITH_DRMAA:BOOL=OFF' => undef,
+				'-DWITH_GCB:BOOL=OFF' => undef,
+				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
+				},
 			'prereqs'	=> [ @default_prereqs, 'libtool-1.5.26' ],
 			'xtests'	=> undef,
 		},
@@ -589,7 +597,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.6'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => {  @default_build_configure_args,
+				'-DWITH_BLAHP:BOOL=OFF' => undef,
+				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
+				'-DWITH_DRMAA:BOOL=OFF' => undef,
+				'-DWITH_GCB:BOOL=OFF' => undef,
+				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
+				'-DWITH_CREAM:BOOL=OFF' => undef
+			 },
 			'prereqs'	=> [
 				@default_prereqs,
 				'libtool-1.5.26',

@@ -15,3 +15,7 @@ install(FILES		copyright
 install(FILES		changelog.Debian.gz
         DESTINATION	"${C_DOC}" )
 
+add_custom_target( set_config_execute_permission
+		   ALL
+		   WORKING_DIRECTORY	${CMAKE_CURRENT_SOURCE_DIR}
+		   COMMAND chmod a+x postinst postrm preinst prerm)

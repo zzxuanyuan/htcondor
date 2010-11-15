@@ -1,14 +1,14 @@
 
 #processor modification if necessary
 if(${OS_NAME} STREQUAL "DARWIN")
-  exec_program (uname ARGS -m OUTPUT_VARIABLE TEST_ARCH)
-  if(${TEST_ARCH} MATCHES "x86_64")
+  exec_program (sw_vers ARGS -productVersion OUTPUT_VARIABLE TEST_VER)
+  if(${TEST_VER} MATCHES "10.6" AND ${SYS_ARCH} MATCHES "I386")
 	set (SYS_ARCH "X86_64")
   endif()
 endif()
 
 message(STATUS "***********************************************************")
-message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH} BitMode=${BIT_MODE} BUILDID:${BUILDID}")
+message(STATUS "System(${HOSTNAME}): ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH} BitMode=${BIT_MODE} BUILDID:${BUILDID}")
 message(STATUS "********* BEGINNING CONFIGURATION *********")
 
 ##################################################
@@ -26,6 +26,7 @@ set( BUILD_SHARED_LIBS FALSE )
 # Windows is so different perform the check 1st and start setting the vars.
 if(${OS_NAME} MATCHES "WIN" AND NOT ${OS_NAME} MATCHES "DARWIN")
 
+	cmake_minimum_required(VERSION 2.8.3)
 	set(WINDOWS ON)
 	add_definitions(-DWINDOWS)
 	# The following is necessary for sdk/ddk version to compile against.
@@ -56,7 +57,6 @@ else()
 
 	set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
-	find_library(HAVE_X11 X11)
 	find_library(HAVE_DMTCP dmtcpaware HINTS /usr/local/lib/dmtcp )
 	check_library_exists(dl dlopen "" HAVE_DLOPEN)
 	check_symbol_exists(res_init "sys/types.h;netinet/in.h;arpa/nameser.h;resolv.h" HAVE_DECL_RES_INIT)
@@ -188,6 +188,7 @@ elseif(${OS_NAME} STREQUAL "LINUX")
 	check_include_files("linux/sockios.h" HAVE_LINUX_SOCKIOS_H)
 	check_include_files("linux/types.h" HAVE_LINUX_TYPES_H)
 
+	find_library(HAVE_X11 X11)
 	dprint("Threaded functionality only enable in Linux and Windows")
 	set(HAS_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
 	set(HAVE_PTHREADS ${CMAKE_USE_PTHREADS_INIT})
@@ -209,6 +210,8 @@ elseif(${OS_NAME} STREQUAL "HPUX")
 	set(NEEDS_64BIT_STRUCTS ON)
 endif()
 
+
+
 ##################################################
 ##################################################
 # compilation/build options.
@@ -221,7 +224,7 @@ option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
 option(NEEDS_KBDD "Enable KBDD functionality" ON)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
-option(SOFT_IS_HARD "Enable strict checking for WITH_<LIB>" ON)
+option(SOFT_IS_HARD "Enable strict checking for WITH_<LIB>" OFF)
 option(CLIPPED "enable/disable the standard universe" ON)
 option(BUILD_TESTS "Will build internal test applications" ON)
 
@@ -330,18 +333,8 @@ if (NOT WINDOWS)
 
 	# globus is an odd *beast* which requires a bit more config.
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.0.1-p1)
-	if (PROPER AND GLOBUS_FOUND)
-		# locs for current rpm.
-		include_directories(/usr/include/globus /usr/lib64/globus/include/)
-	else(PROPER AND GLOBUS_FOUND)
-		include_directories(${EXTERNAL_STAGE}/include/${GLOBUS_FLAVOR})
-	endif(PROPER AND GLOBUS_FOUND)
-
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/blahp/1.16.0-p2)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/voms/1.9.10_4)
-
-	dprint("stork is the only thing to use SRB, I'm commenting out")
-	# add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/srb/3.2.1-p2)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.12.1_14)
 
 	# the following logic if for standard universe *only*
