@@ -246,8 +246,12 @@ option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
 option(SOFT_IS_HARD "Enable strict checking for WITH_<LIB>" OFF)
 option(CLIPPED "enable/disable the standard universe" ON)
 option(BUILD_TESTS "Will build internal test applications" ON)
-option(PROPER "Try to build using native env" OFF)
 option(WANT_CONTRIB "Enable quill functionality" OFF)
+if (UW_CSL_ENV OR WINDOWS)
+  option(PROPER "Try to build using native env" OFF)
+else()
+  option(PROPER "Try to build using native env" ON)
+endif()
 
 if (NOT CLIPPED AND NOT LINUX)
 	message (FATAL_ERROR "standard universe is *only* supported on Linux")
@@ -262,11 +266,6 @@ endif(NOT HPUX)
 
 if (NOT WINDOWS) # if *nix
 	option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" ON)
-
-	# for *nix outside of UW use native env
-	if (NOT UW_CSL_ENV)
-		option(PROPER "Try to build using native env" ON)
-	endif()
 endif()
 
 if (BUILD_TESTS)
