@@ -23,7 +23,9 @@ informs the user upon completion.")
 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Condor: High Throughput Computing")
 
-set(CPACK_DEBIAN_DESCRIPTION_SUMMARY "workload management system
+# Debian need this indentation to look nicely
+# Short describtion (1st line) copied from Ubuntu's package description
+set(CPACK_DEBIAN_DESCRIPTION_SUMMARY "a workload management system for compute-intensive jobs
  Condor is a specialized workload management system for
  compute-intensive jobs. Condor provides a job queueing mechanism, 
  scheduling policy, priority scheme, resource monitoring, 
@@ -177,6 +179,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 
 		#Debian specific
 		set( C_ETC_EXAMPLES	usr/share/doc/condor/etc/examples )
+		set( C_SHARE_EXAMPLES usr/share/doc/condor/examples)
 		set( C_DOC			usr/share/doc/condor )
 		set( C_LIBEXEC		usr/lib/condor/libexec )
 		set( C_SYSCONFIG	etc/default )
@@ -235,9 +238,11 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 		set( C_INIT			etc/init.d )
 		set( C_ETC			etc/condor )
 		set( C_CONFIGD		etc/condor/config.d )
+		set( C_SYSCONFIG	etc/sysconfig )
 		set( C_ETC_EXAMPLES	usr/share/doc/${CONDOR_VER}/etc/examples )
+		set( C_SHARE_EXAMPLES usr/share/doc/${CONDOR_VER})
 		set( C_DOC			usr/share/doc/${CONDOR_VER} )
-
+	
 		#Because CPACK_PACKAGE_DEFAULT_LOCATION is set to "/" somewhere, so we have to set prefix like this
 		#This might break as we move to newer version of CMake
 		set(CMAKE_INSTALL_PREFIX "")
@@ -246,8 +251,8 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 	endif()
 
 	# Generate empty folder to ship with package
-	#Local dir
-	file (MAKE_DIRECTORY execute temp )
+	# Local dir
+	file (MAKE_DIRECTORY execute )
 	add_custom_target(	change_execute_folder_permission
 						ALL
 						WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -256,21 +261,23 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 	install(DIRECTORY	execute
 			DESTINATION	"${C_LOCAL_DIR}"
 			DIRECTORY_PERMISSIONS	USE_SOURCE_PERMISSIONS)
-	install(DIRECTORY	temp
+	# Blank directory means we are creating an emtpy directoy
+	# CPackDeb does not package empyty directoy, so we will recreate them during posinst
+	install(DIRECTORY	
 			DESTINATION	"${C_LOCAL_DIR}/spool")
-	install(DIRECTORY	temp
+	install(DIRECTORY	
 			DESTINATION	"${C_CONFIGD}")
-	install(DIRECTORY	temp
+	install(DIRECTORY	
 			DESTINATION	"${C_LOCK_DIR}")
-	install(DIRECTORY	temp
+	install(DIRECTORY	
 			DESTINATION	"${C_LOG_DIR}")
-	install(DIRECTORY	temp
+	install(DIRECTORY	
 			DESTINATION	"${C_RUN_DIR}")
-	#install(DIRECTORY	temp
+	#install(DIRECTORY	
 	#	DESTINATION	"${C_MAN}")
-	install(DIRECTORY	temp
+	install(DIRECTORY	
 			DESTINATION	"${C_INCLUDE}")
-	install(DIRECTORY	temp
+	install(DIRECTORY	
 			DESTINATION	"${C_LIB}")
 
 endif()

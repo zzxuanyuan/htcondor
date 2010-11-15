@@ -1289,6 +1289,7 @@ EOF
     # print $fh " --externals-only" if defined($opt_externals_only);
     # print $fh " --release-only" if defined($opt_release_only);
     # print $fh "\n";
+    print $fh "remote_declare = nmi_tools/glue/build/remote_declare\n";
     print $fh "remote_pre = nmi_tools/glue/build/remote_pre\n";
     print $fh "remote_task = nmi_tools/glue/build/remote_task\n";
     print $fh "remote_post = nmi_tools/glue/build/remote_post\n";

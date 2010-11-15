@@ -37,6 +37,13 @@ my $SrcDir = "$BaseDir/src";
 my $msconfigDir = "$BaseDir/msconfig";
 my $PublicDir = "$BaseDir/public";
 
+my $TAR_TASK 	= "remote_task.create_tar";
+my $CONFIG_TASK = "remote_task.reconfig_package";
+my $RPM_TASK	= "remote_task.create_rpm";
+my $DEB_TASK	= "remote_task.create_deb";
+
+my $taskname = "";
+my $execstr = "";
 # autoflush our STDOUT
 $| = 1;
 
@@ -46,18 +53,42 @@ $| = 1;
 ## cmake will need to be called again with the same args, which you may want
 ## to store in a file during the remote pre phase.
 
-#if( ! defined $ENV{_NMI_TASKNAME} ) {
-#    c_die("_NMI_TASKNAME not in environment, can't build anything!\n");
-#}
-#my $taskname = $ENV{_NMI_TASKNAME};
-#if( ! $taskname ) {
-#    # if we have no task, just return success immediately
-#    print "No tasks specified, returning SUCCESS\n";
-#    exit 0;
-#}
-#if ($taskname eq "make") {
-# 
-my $execstr= "make externals && make -j4 package && make tests";
+if( ! defined $ENV{_NMI_TASKNAME} ) {
+    print "NMI_TASKNAME not defined, building tar.gz package as default";
+    $taskname = $TAR_TASK;
+
+}else {
+	$taskname = $ENV{_NMI_TASKNAME};
+}
+
+# Checking task type
+if ($taskname eq $TAR_TASK) { 
+	#Normal build -> create tar.gz package
+	$execstr= "make externals && make -j4 package && make tests";
+
+} elsif  ($taskname eq $CONFIG_TASK){
+	#Reconfigure cmake variables for native package build
+	
+	#Read back configuration from remote_pre stage
+	open (CMAKECONFIG, "<cmake_args.txt") || die "Cannot open cmake_args.txt: $!";
+	while(<CMAKECONFIG>){
+		my($line) = $_;
+		$execstr = $line;
+		last;
+	}
+	close (CMAKECONFIG);
+	
+	#Append extra argument
+	$execstr = $execstr . " -DCONDOR_PACKAGE_BUILD:BOOL=ON";
+
+} elsif  ($taskname eq $RPM_TASK){
+	#Building RPM
+	$execstr= "make -j4 package";
+
+} elsif  ($taskname eq $DEB_TASK){
+	#Building Debian package
+	$execstr= "fakeroot make -j4 package";
+}
 
 print "------------------------- ENV DUMP ------------------------\n";
 if ($ENV{NMI_PLATFORM} =~ /winnt/) {
