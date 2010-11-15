@@ -1,4 +1,6 @@
-option(WITH_LIBXML2 "Compiling with support for LIBXML2" ON)
+if (LINUX OR DARWIN)
+  option(WITH_LIBXML2 "Compiling with support for LIBXML2" ON)
+endif()
 
 if (WITH_LIBXML2)
 

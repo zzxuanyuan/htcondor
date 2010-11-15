@@ -1,6 +1,8 @@
-option(WITH_BLAHP "Compiling with support for BLAHP" ON)
+if (NOT PROPER AND LINUX)
+  option(WITH_BLAHP "Compiling with support for BLAHP" ON)
+endif(NOT PROPER AND LINUX)
 
-if ( NOT PROPER AND WITH_BLAHP )
+if ( WITH_BLAHP )
 
 	message(STATUS "TODO:TSTCLAIR BLAHP eval if linking correct popt w/o mundging Makefile.am")
 	
@@ -22,7 +24,7 @@ if ( NOT PROPER AND WITH_BLAHP )
 						INSTALL_DIR ${EXTERNAL_STAGE}
 						INSTALL_COMMAND cd ${POPT_VER} && make install )
 
-	dprint("we ingore the return param from bootstrap.. there are errors!")
+	#dprint("we ingore the return param from bootstrap.. there are errors!")
 
 	ExternalProject_Add(blahp
 						DEPENDS classads openssl globus popt
@@ -62,8 +64,8 @@ if ( NOT PROPER AND WITH_BLAHP )
 	### set the install
 	install ( DIRECTORY ${EXTERNAL_STAGE}/opt/glite DESTINATION ${C_LIB} )
 
-else( NOT PROPER AND WITH_BLAHP )
+else( WITH_BLAHP )
 
 	message ( STATUS "external skiped (blahp)" )
 
-endif( NOT PROPER AND WITH_BLAHP )
+endif( WITH_BLAHP )

@@ -1,6 +1,8 @@
-option(WITH_GCB "Compiling with support for GCB" ON)
+if (NOT PROPER AND LINUX)
+  option(WITH_GCB "Compiling with support for GCB" ON)
+endif()
 
-if (NOT PROPER AND WITH_GCB)
+if (WITH_GCB)
 
 	set (GCB_VER gcb-1.5.6)
 

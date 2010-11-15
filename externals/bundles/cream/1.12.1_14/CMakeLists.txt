@@ -1,7 +1,8 @@
-#option is defaultly disabled.
-option( WITH_CREAM "Compiling with support for CREAM" ON )
-
-if ( NOT PROPER AND WITH_CREAM AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX )
+if (NOT PROPER AND LINUX) #AND DARWIN
+  option( WITH_CREAM "Compiling with support for CREAM" ON )
+endif()
+  
+if ( WITH_CREAM )
 
 		# cream is sandboxed as not to pollute the local staging directory
 		# this is primarily for gsoap collision and to keep other elements

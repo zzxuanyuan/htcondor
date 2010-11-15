@@ -1,4 +1,7 @@
-option(WITH_COREDUMPER "Compiling with support for COREDUMPER" ON)
+
+if (LINUX AND ${SYS_ARCH} MATCHES "I386|X86_64")
+  option(WITH_COREDUMPER "Compiling with support for COREDUMPER" ON)
+endif()
 
 if (WITH_COREDUMPER)
 

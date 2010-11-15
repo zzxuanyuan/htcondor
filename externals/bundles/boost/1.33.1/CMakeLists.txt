@@ -1,7 +1,12 @@
-option( WITH_BOOST "Compiling with support for BOOST" ON )
+
+# so in condor only cream cares about this
+# re-anable DARWIN when bug is fixed.
+if (LINUX)
+  option( WITH_BOOST "Compiling with support for BOOST" ON )
+endif()
 
 # could be modified. 
-if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
+if (WITH_BOOST )
 
   if (NOT PROPER)
 

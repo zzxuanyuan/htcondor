@@ -1,4 +1,6 @@
-option(WITH_LIBVIRT "Compiling with support for LIBVIRT" ON)
+if (LINUX)
+  option(WITH_LIBVIRT "Compiling with support for LIBVIRT" ON)
+endif(LINUX)
 
 if (WITH_LIBVIRT)
 

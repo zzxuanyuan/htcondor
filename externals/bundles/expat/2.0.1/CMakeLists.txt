@@ -1,4 +1,6 @@
-option(WITH_EXPAT "Compiling with support for EXPAT" ON)
+if (LINUX OR DARWIN)
+  option(WITH_EXPAT "Compiling with support for EXPAT" ON)
+endif(LINUX OR DARWIN)
 
 if ( WITH_EXPAT )
 

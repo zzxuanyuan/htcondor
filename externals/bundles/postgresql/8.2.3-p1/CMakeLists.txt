@@ -1,6 +1,10 @@
-option(WITH_POSTGRESQL "Compiling with support for POSTGRESQL" ON)
 
-if (WITH_POSTGRESQL AND WANT_QUILL)
+#postgres is now a contrib only module
+if (WANT_CONTRIB AND (LINUX OR WINDOWS))
+  option(WITH_POSTGRESQL "Compiling with support for POSTGRESQL" ON)
+endif()
+
+if (WITH_POSTGRESQL)
 
 	if ( NOT PROPER )
 

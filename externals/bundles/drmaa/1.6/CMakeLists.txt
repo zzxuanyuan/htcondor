@@ -1,6 +1,8 @@
-option(WITH_DRMAA "Compiling with support for drmaa" ON)
+if (NOT PROPER AND (LINUX OR WINDOWS))
+  option(WITH_DRMAA "Compiling with support for drmaa" ON)
+endif()
 
-if ( NOT PROPER AND WITH_DRMAA )
+if ( WITH_DRMAA )
 
 	set (DRMAA_VER drmaa-1.6)
 

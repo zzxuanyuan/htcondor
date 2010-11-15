@@ -1,5 +1,8 @@
-option(WITH_KRB5 "Compiling with support for KRB5" ON)
 
+if (NOT HPUX)
+  option(WITH_KRB5 "Compiling with support for KRB5" ON)
+endif()
+  
 if (WITH_KRB5)
 
 	if ( NOT PROPER )

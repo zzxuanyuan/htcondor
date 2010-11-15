@@ -1,5 +1,7 @@
 
-option(WITH_CURL "Compiling with support for CURL" ON)
+if (NOT WINDOWS)
+  option(WITH_CURL "Compiling with support for CURL" ON)
+endif(NOT WINDOWS)
 
 if (WITH_CURL)
 
