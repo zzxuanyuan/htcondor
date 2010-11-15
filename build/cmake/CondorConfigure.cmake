@@ -156,8 +156,6 @@ else()
     		ARGS ${CMAKE_C_COMPILER_ARG1} -dumpversion
     		OUTPUT_VARIABLE CMAKE_C_COMPILER_VERSION )
 
-	option(PROPER "Try to build using native env" ON)
-
 endif()
 
 find_program(HAVE_VMWARE vmware)
@@ -229,11 +227,12 @@ elseif(${OS_NAME} STREQUAL "HPUX")
 endif()
 
 # the following is meant to auto-set for CSL 
-if(NOT WINDOWS AND ${HOSTNAME} MATCHES "cs.wisc.edu")
-  if(EXISTS "/s/std/bin")
-	message(STATUS "*** TO UW STAFF: IF YOU WANT AFS CACHING UPDATE HERE ***")
-	set(UW_CSL_ENV ON)
-  endif()
+string(REPLACE  ".cs.wisc.edu" "@@UW" UW_CHECK ${HOSTNAME})
+if(${UW_CHECK} MATCHES "@@UW") #cmakes regex does not handle on [.] [.] [.] well
+	if(EXISTS "/s/std/bin")
+		message(STATUS "*** UW ENV DETECTED: IF YOU WANT AFS CACHING UPDATE HERE ***")
+		set(UW_CSL_ENV ON)
+	endif()
 endif()
 
 ##################################################
@@ -266,8 +265,8 @@ if (NOT WINDOWS) # if *nix
 
 	# for *nix outside of UW use native env
 	if (NOT UW_CSL_ENV)
-	  set (PROPER ON)
-	endif(NOT UW_CSL_ENV)
+		option(PROPER "Try to build using native env" ON)
+	endif()
 endif()
 
 if (BUILD_TESTS)
