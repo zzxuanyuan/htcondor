@@ -1,6 +1,28 @@
-option(WITH_POSTGRESQL "Compiling with support for POSTGRESQL" ON)
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
 
-if (WITH_POSTGRESQL AND WANT_QUILL)
+
+#postgres is now a contrib only module
+if (WANT_CONTRIB AND (LINUX OR WINDOWS))
+  option(WITH_POSTGRESQL "Compiling with support for POSTGRESQL" ON)
+endif()
+
+if (WITH_POSTGRESQL)
 
 	if ( NOT PROPER )
 

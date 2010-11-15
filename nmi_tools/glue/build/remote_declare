@@ -44,27 +44,27 @@ print "Generating tasklist\n";
 
 open (TASKLIST, ">tasklist.nmi" ) || die "Can't open tasklist.nmi for writing: $!\n";
 
-if ($ENV{NMI_PLATFORM} =~ /winnt/) {
-	#Windows
+#if ($ENV{NMI_PLATFORM} =~ /winnt/) {
+#	#Windows
+#	print TASKLIST $TAR_TASK;
+#	
+#
+#} elsif ($ENV{NMI_PLATFORM} =~ /deb/) {
+#	#Debian
+#	print TASKLIST $TAR_TASK;
+#	print TASKLIST $CONFIG_TASK;
+#	print TASKLIST $DEB_TASK;
+#	
+#} elsif ($ENV{NMI_PLATFORM} =~ /rha/) {
+#	#Redhat (3,4,5)
+#	print TASKLIST $TAR_TASK;
+#	print TASKLIST $CONFIG_TASK;
+#	print TASKLIST $RPM_TASK;
+#
+#} else {
+#	#Everything else
 	print TASKLIST $TAR_TASK;
-	
-
-} elsif ($ENV{NMI_PLATFORM} =~ /deb/) {
-	#Debian
-	print TASKLIST $TAR_TASK;
-	print TASKLIST $CONFIG_TASK;
-	print TASKLIST $DEB_TASK;
-	
-} elsif ($ENV{NMI_PLATFORM} =~ /rha/) {
-	#Redhat (3,4,5)
-	print TASKLIST $TAR_TASK;
-	print TASKLIST $CONFIG_TASK;
-	print TASKLIST $RPM_TASK;
-
-} else {
-	#Everything else
-	print TASKLIST $TAR_TASK;
-}
+#}
 
 close (TASKLIST);
 
