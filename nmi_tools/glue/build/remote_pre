@@ -108,6 +108,12 @@ my $configexecstr =
 			join(' ', @ARGV);
 
 print "$configexecstr\n";
+
+#Store config string to file for later use (building native packages)
+open (CMAKE_CONFIG, ">cmake_args.txt") || die "Cannot open cmake_args.txt: $!";
+print CMAKE_CONFIG $configexecstr;
+close (CMAKE_CONFIG);
+
 $exit_status = system($configexecstr);
 
 if( $exit_status ) {
