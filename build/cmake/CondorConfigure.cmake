@@ -8,7 +8,7 @@ if(${OS_NAME} STREQUAL "DARWIN")
 endif()
 
 message(STATUS "***********************************************************")
-message(STATUS "System: ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH} BitMode=${BIT_MODE} BUILDID:${BUILDID}")
+message(STATUS "System(${HOSTNAME}): ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH} BitMode=${BIT_MODE} BUILDID:${BUILDID}")
 message(STATUS "********* BEGINNING CONFIGURATION *********")
 
 ##################################################
@@ -210,6 +210,8 @@ elseif(${OS_NAME} STREQUAL "HPUX")
 	set(NEEDS_64BIT_STRUCTS ON)
 endif()
 
+
+
 ##################################################
 ##################################################
 # compilation/build options.
@@ -331,18 +333,8 @@ if (NOT WINDOWS)
 
 	# globus is an odd *beast* which requires a bit more config.
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/globus/5.0.1-p1)
-	if (PROPER AND GLOBUS_FOUND)
-		# locs for current rpm.
-		include_directories(/usr/include/globus /usr/lib64/globus/include/)
-	else(PROPER AND GLOBUS_FOUND)
-		include_directories(${EXTERNAL_STAGE}/include/${GLOBUS_FLAVOR})
-	endif(PROPER AND GLOBUS_FOUND)
-
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/blahp/1.16.0-p2)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/voms/1.9.10_4)
-
-	dprint("stork is the only thing to use SRB, I'm commenting out")
-	# add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/srb/3.2.1-p2)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/cream/1.12.1_14)
 
 	# the following logic if for standard universe *only*

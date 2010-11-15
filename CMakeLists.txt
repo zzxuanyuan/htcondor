@@ -14,6 +14,7 @@ set(PACKAGE_STRING ${PACKAGE} )
 string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
+site_name(HOSTNAME)
 option(_DEBUG "Enables spewing of interal dprint statements" OFF)
 
 

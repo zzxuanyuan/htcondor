@@ -93,6 +93,7 @@ if ( defined($opt_clear_externals_cache)||defined($opt_clear_externals_cache_wee
 			die "failed with status $exit_status\n";
 		}
 
+		system("mkdir -p $externals_loc");
 		system("chmod -f -R a+rwX $externals_loc");
 	}
 

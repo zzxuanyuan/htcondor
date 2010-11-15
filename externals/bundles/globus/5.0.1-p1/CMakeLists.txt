@@ -143,6 +143,7 @@ if (WITH_GLOBUS)
 			set (GLOBUS_GRID_UNIVERSE_NORUID
 			"${EXTERNAL_STAGE}/lib/libglobus_ftp_client_${GLOBUS_FLAVOR}.a;${EXTERNAL_STAGE}/lib/libglobus_ftp_control_${GLOBUS_FLAVOR}.a")
 			append_var (CONDOR_EXTERNALS globus)
+			append_var (EXTERNAL_INCLUDES ${EXTERNAL_STAGE}/include/${GLOBUS_FLAVOR})
 
 			install ( DIRECTORY ${EXTERNAL_STAGE}/lib/gt4 DESTINATION ${C_LIB} )
 			install ( DIRECTORY ${EXTERNAL_STAGE}/lib/gt42 DESTINATION ${C_LIB} )
@@ -153,6 +154,9 @@ if (WITH_GLOBUS)
 		find_multiple( "globus_gssapi_error;globus_xio;globus_io;globus_rsl" GLOBUS_GRID_UNIVERSE_COMMON )
 		find_multiple( "globus_gass_transfer;globus_gram_client;globus_gram_protocol" GLOBUS_GRID_UNIVERSE_GT2 )
 		find_multiple( "globus_ftp_client;globus_ftp_control" GLOBUS_GRID_UNIVERSE_NORUID)
+		if (GLOBUS_FOUND)
+		  append_var (EXTERNAL_INCLUDES "/usr/include/globus;/usr/lib64/globus/include")
+		endif(GLOBUS_FOUND)
 
 	endif(NOT PROPER)
 
