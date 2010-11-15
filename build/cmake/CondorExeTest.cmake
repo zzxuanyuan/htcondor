@@ -29,6 +29,10 @@ MACRO (CONDOR_EXE_TEST _CNDR_TARGET _SRCS _LINK_LIBS )
 		add_executable( ${LOCAL_${_CNDR_TARGET}} EXCLUDE_FROM_ALL ${_SRCS})
 
 		set_target_properties( ${LOCAL_${_CNDR_TARGET}} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_TARGET_DIR} )
+		
+		if ( WINDOWS )
+			set_property( TARGET ${LOCAL_${_CNDR_TARGET}} PROPERTY FOLDER "tests" )
+		endif ( WINDOWS )
 
 		condor_set_link_libs( ${LOCAL_${_CNDR_TARGET}} "${_LINK_LIBS}" )
 

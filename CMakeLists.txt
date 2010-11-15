@@ -71,6 +71,9 @@ include (CondorExeTest)
 include (SrcTargetRef)
 include (DumpLocalFlags)
 
+if ( WINDOWS )
+	set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif ( WINDOWS )
 ##########################################################################
 # we only include the single sub to allow make at two levels.
 # root - includes externals
