@@ -130,7 +130,7 @@ static int flush_job_queue_log_delay = 0;
 static void HandleFlushJobQueueLogTimer();
 static void ScheduleJobQueueLogFlush();
 
-static bool qmgmt_all_users_trusted = false;
+bool qmgmt_all_users_trusted = false;
 static char	**super_users = NULL;
 static int	num_super_users = 0;
 static char *default_super_user =
