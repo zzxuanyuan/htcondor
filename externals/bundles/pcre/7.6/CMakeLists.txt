@@ -16,9 +16,9 @@
  # 
  ############################################################### 
 
-option(WITH_PCRE "Compiling with support for PCRE" ON)
-
-if (WITH_PCRE)
+# currently hard dependency
+#option(WITH_PCRE "Compiling with support for PCRE" ON)
+#if (WITH_PCRE)
 
 	if ( NOT PROPER )
 
@@ -82,10 +82,10 @@ if (WITH_PCRE)
 		set( PCRE_FOUND ${PCRE_FOUND} PARENT_SCOPE )
 		set( HAVE_EXT_PCRE ON PARENT_SCOPE )
 		set( HAVE_PCRE_H ON PARENT_SCOPE )
+	else()
+	  message (FATAL_ERROR "pcre not found and is required to build")
 	endif(PCRE_FOUND)
 
-else(WITH_PCRE)
-
-	message (STATUS "external skiped (pcre)")
-
-endif(WITH_PCRE)
+#else(WITH_PCRE)
+#	message (STATUS "external skiped (pcre)")
+#endif(WITH_PCRE)
