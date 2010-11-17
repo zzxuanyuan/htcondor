@@ -43,6 +43,8 @@ if (WITH_ZLIB)
 		set(ZLIB_FOUND "${EXTERNAL_STAGE}/lib/libz.a")
 		append_var(CONDOR_EXTERNALS zlib)
 
+		install ( FILES ${EXTERNAL_STAGE}/lib/libz.a DESTINATION ${C_LIB} RENAME libcondor_z.a)
+
 	else( NOT PROPER )
 
 		find_multiple( "z" ZLIB_FOUND )

@@ -45,6 +45,9 @@ if( STD_UNIVERSE )
 	# which can call the originals.
 	###########################################################################
 	exec_program ( gcc ARGS -print-file-name=crt1.o OUTPUT_VARIABLE CRT1 )
+	exec_program ( gcc ARGS -print-file-name=libgcc.a OUTPUT_VARIABLE LIBGCC )
+	exec_program ( gcc ARGS -print-file-name=libgcc_eh.a OUTPUT_VARIABLE LIBGCC_EH )
+	exec_program ( gcc ARGS -print-file-name=libstdc++.a OUTPUT_VARIABLE STDCPLUS )
 	exec_program ( objcopy ARGS --redefine-sym main=MAIN ${CRT1} ${CMAKE_CURRENT_SOURCE_DIR}/condor_rt0.o )
 
 	##################################################
@@ -115,7 +118,11 @@ if( STD_UNIVERSE )
 	add_dependencies( sys-list syscall_numbers stub_gen )
 
 	#################################################
-	# here we begin the install target section 
+	# here we begin the install target section
+	install ( TARGETS condorsyscall DESTINATION ${C_LIB} )
 	install ( FILES condor_rt0.o DESTINATION ${C_LIB} )
+	install ( FILES ${LIBGCC} DESTINATION ${C_LIB} RENAME libcomp_libgcc.a )
+	install ( FILES ${LIBGCC_EH} DESTINATION ${C_LIB} RENAME libcomp_libgcc_eh.a )
+	install ( FILES ${STDCPLUS} DESTINATION ${C_LIB} RENAME libcomp_libstdc++.a )
 	
 endif( STD_UNIVERSE )

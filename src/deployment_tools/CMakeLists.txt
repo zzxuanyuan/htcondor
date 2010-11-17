@@ -30,9 +30,10 @@ if (NOT WINDOWS)
 				condor_local_start
 				condor_local_stop
 				install_release
-			DESTINATION ${C_SBIN} )
+			DESTINATION ${C_SBIN}
+			PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
 
-	install ( FILES Execute.pm FileLock.pm DESTINATION ${C_LIB} )
+	install ( FILES Execute.pm FileLock.pm DESTINATION ${C_LIB} PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
 
 	condor_exe( uniq_pid_command "uniq_pid_tool_main.cpp" ${C_SBIN}
 	"${CONDOR_TOOL_LIBS};${KRB5_FOUND};${OPENSSL_FOUND};${PCRE_FOUND}" )

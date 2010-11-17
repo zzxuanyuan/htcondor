@@ -51,6 +51,8 @@ else()
 	
 	set( CLASSADS_FOUND classads )
 	
+	set_property( TARGET classads PROPERTY FOLDER "libraries" )
+	
 endif()
 
 message (STATUS "external configured (CLASSADS_FOUND=${CLASSADS_FOUND})")

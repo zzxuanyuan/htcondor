@@ -118,7 +118,11 @@ if (NOT CLIPPED)
 	set( EXT_GLIBC_FOUND "${GLIBC_PREFIX}/lib/libc.a" )
 	message ( STATUS "external configured (EXT_GLIBC_FOUND=${EXT_GLIBC_FOUND})" )
 	set( EXT_GLIBC_FOUND ${EXT_GLIBC_FOUND} PARENT_SCOPE )
-
 	append_var(CONDOR_EXTERNALS glibc)
+
+	install ( FILES ${GLIBC_PREFIX}/lib/libc.a DESTINATION ${C_LIB} RENAME libcondor_c.a)
+	install ( FILES ${GLIBC_PREFIX}/lib/libnss_files.a DESTINATION ${C_LIB} RENAME libcondor_nss_files.a)
+	install ( FILES ${GLIBC_PREFIX}/lib/libnss_dns.a DESTINATION ${C_LIB} RENAME libcondor_nss_dns.a)
+	install ( FILES ${GLIBC_PREFIX}/lib/libresolv.a DESTINATION ${C_LIB} RENAME libcondor_resolv.a)
 
 endif(NOT CLIPPED)

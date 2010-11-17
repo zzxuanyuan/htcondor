@@ -29,5 +29,14 @@ if(NOT WIN_EXEC_NODE_ONLY)
 
 	file( GLOB htcSrc htc_tool.cpp htc_list_partitions.cpp)
 	install(FILES ${htcSrc} DESTINATION "${C_SRC}/startd_factory/BlueGeneP/")
+	install(FILES	bgp_available_partitions
+			bgp_back_partition
+			bgp_boot_partition
+			bgp_destroy_partition
+			bgp_generate_partition
+			bgp_query_work_loads
+			bgp_shutdown_partition
+			DESTINATION	"${C_LIBEXEC}"
+			PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
 
 endif(NOT WIN_EXEC_NODE_ONLY)

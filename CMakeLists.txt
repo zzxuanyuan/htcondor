@@ -35,7 +35,6 @@ string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 site_name(HOSTNAME)
 option(_DEBUG "Enables spewing of interal dprint statements" OFF)
 
-
 ###########################################
 # start cmake module inclusion
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)
@@ -71,6 +70,9 @@ include (CondorExeTest)
 include (SrcTargetRef)
 include (DumpLocalFlags)
 
+if ( WINDOWS )
+	set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif ( WINDOWS )
 ##########################################################################
 # we only include the single sub to allow make at two levels.
 # root - includes externals

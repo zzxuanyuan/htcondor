@@ -24,6 +24,7 @@ condor_exe( condor_chirp "condor_chirp.cpp" ${C_LIBEXEC}
 "chirp_client;${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${GCB_FOUND};${GLOBUS_FOUND}" )
 
 install ( FILES Chirp.jar DESTINATION ${C_LIB} )
+install ( FILES chirp_client.h DESTINATION ${C_INCLUDE})
 
 if (NOT WINDOWS)
 	install (TARGETS chirp_client DESTINATION ${C_LIB})
