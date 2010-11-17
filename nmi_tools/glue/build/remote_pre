@@ -38,7 +38,7 @@ my $SrcDir = "$BaseDir/src";
 my $buildid_file = "BUILD-ID";
 my $buildid;
 my $externals_loc="/scratch/externals/cmake";
-my $platform = "$ENV{NMI_PLATFORM}"
+my $platform = "$ENV{NMI_PLATFORM}";
 
 # autoflush our STDOUT
 $| = 1;

@@ -29,7 +29,7 @@ my $buildid_file = "BUILD-ID";
 my $buildid;
 
 my $TAR_TASK 		= "remote_task.create_tar\n";
-my $UNSTRIPPED_TASK = "remote_task.create_unstripped_tar\n"
+my $UNSTRIPPED_TASK = "remote_task.create_unstripped_tar\n";
 my $CONFIG_TASK 	= "remote_task.reconfig_package\n";
 my $RPM_TASK		= "remote_task.create_rpm\n";
 my $DEB_TASK		= "remote_task.create_deb\n";
