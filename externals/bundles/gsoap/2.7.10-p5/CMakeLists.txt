@@ -96,8 +96,8 @@ if (WITH_GSOAP)
 			append_var (CONDOR_EXTERNALS cp_smdevp)
 			add_dependencies(cp_smdevp gsoap)
 
-			find_file(WSSEAPI wsseapi.cpp HINTS ${GSOAP_SHARE}/plugin/ )
-			if (${WSSEAPI} STREQUAL "WSSEAPI-NOTFOUND" )
+			#find_file(WSSEAPI wsseapi.cpp HINTS ${GSOAP_SHARE}/plugin/ )
+			#if (${WSSEAPI} STREQUAL "WSSEAPI-NOTFOUND" )
 
 			  command_target(cp_wsseapi cp "${GSOAP_SHARE}/plugin/wsseapi.c;${EXTERNAL_STAGE}/src/wsseapi.cpp;&&;patch;-p3;${EXTERNAL_STAGE}/src/wsseapi.cpp;${CMAKE_CURRENT_SOURCE_DIR}/wsseapi.patch" "wsseapi.cpp")
 
@@ -106,7 +106,7 @@ if (WITH_GSOAP)
 			  add_dependencies(cp_wsseapi gsoap)
 			  append_var (CONDOR_EXTERNALS cp_wsseapi)
 
-			endif()
+			#endif()
 
 			set( WSSEAPI ${WSSEAPI} PARENT_SCOPE )
 			set( SMDEVP  ${EXTERNAL_STAGE}/src/smdevp.cpp PARENT_SCOPE )
