@@ -28,10 +28,11 @@ my $BaseDir = getcwd();
 my $buildid_file = "BUILD-ID";
 my $buildid;
 
-my $TAR_TASK 	= "remote_task.create_tar\n";
-my $CONFIG_TASK = "remote_task.reconfig_package\n";
-my $RPM_TASK	= "remote_task.create_rpm\n";
-my $DEB_TASK	= "remote_task.create_deb\n";
+my $TAR_TASK 		= "remote_task.create_tar\n";
+my $UNSTRIPPED_TASK = "remote_task.create_unstripped_tar\n"
+my $CONFIG_TASK 	= "remote_task.reconfig_package\n";
+my $RPM_TASK		= "remote_task.create_rpm\n";
+my $DEB_TASK		= "remote_task.create_deb\n";
 
 
 # autoflush our STDOUT
@@ -44,27 +45,30 @@ print "Generating tasklist\n";
 
 open (TASKLIST, ">tasklist.nmi" ) || die "Can't open tasklist.nmi for writing: $!\n";
 
-#if ($ENV{NMI_PLATFORM} =~ /winnt/) {
-#	#Windows
-#	print TASKLIST $TAR_TASK;
-#	
-#
+if ($ENV{NMI_PLATFORM} =~ /winnt/) {
+	#Windows
+	print TASKLIST $TAR_TASK;
+} else {
+	#Everything else
+	print TASKLIST $TAR_TASK;
+	print TASKLIST $UNSTRIPPED_TASK;
+}
+
 #} elsif ($ENV{NMI_PLATFORM} =~ /deb/) {
 #	#Debian
 #	print TASKLIST $TAR_TASK;
+#	print TASKLIST $UNSTRIPPED_TASK;
 #	print TASKLIST $CONFIG_TASK;
 #	print TASKLIST $DEB_TASK;
 #	
 #} elsif ($ENV{NMI_PLATFORM} =~ /rha/) {
 #	#Redhat (3,4,5)
 #	print TASKLIST $TAR_TASK;
+#	print TASKLIST $UNSTRIPPED_TASK;
 #	print TASKLIST $CONFIG_TASK;
 #	print TASKLIST $RPM_TASK;
 #
-#} else {
-#	#Everything else
-	print TASKLIST $TAR_TASK;
-#}
+
 
 close (TASKLIST);
 
