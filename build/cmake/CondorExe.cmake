@@ -26,7 +26,7 @@ MACRO (CONDOR_EXE _CNDR_TARGET _SRCS _INSTALL_LOC _LINK_LIBS )
 
 	if (${_CNDR_TARGET}_loc)
 		install (TARGETS ${_CNDR_TARGET} DESTINATION ${_INSTALL_LOC} )
-		dprint ("${_CNDR_TARGET} install destination (${CMAKE_INSTALL_PREFIX}/${_INSTALL_LOC})")
+		#dprint ("${_CNDR_TARGET} install destination (${CMAKE_INSTALL_PREFIX}/${_INSTALL_LOC})")
 	endif()
 	
 	# the following will install the .pdb files, some hackery needs to occur because of build configuration is not known till runtime.

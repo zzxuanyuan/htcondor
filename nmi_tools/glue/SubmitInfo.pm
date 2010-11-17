@@ -130,7 +130,6 @@ my @minimal_build_configure_args =
 		'-DWITH_LIBVIRT:BOOL=OFF'		=> undef,
 		'-DWITH_LIBXML2:BOOL=OFF'		=> undef,
 		'-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
-		#'-DWITH_PCRE:BOOL=ON'		=> undef,
 	);
 
 ###############################################################################
@@ -328,7 +327,9 @@ our %submit_info = (
 	##########################################################################
 	'ppc_aix_5.2-pl5'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args },
+			'configure_args' => { @default_build_configure_args,
+			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
+			},
 			'prereqs'	=> [ 
 				@default_prereqs, 
 				'vac-6', 'vacpp-6', 'perl-5.8.5', 'gzip-1.3.3',

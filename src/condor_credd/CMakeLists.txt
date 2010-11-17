@@ -33,8 +33,6 @@ else(WINDOWS)
 			"${CREDDHDRS};${CREDDSRCS}"
 			${C_SBIN}
 			"${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND}" )
-
-		message(STATUS "TODO: TSTCLAIR credd->stork targets?")
 		
 	else ()
 
