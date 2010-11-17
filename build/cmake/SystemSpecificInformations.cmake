@@ -23,6 +23,7 @@
 # not as a standalone CMake script
 set(SPECIFIC_COMPILER_NAME "")
 set(SPECIFIC_SYSTEM_VERSION_NAME "")
+set(LINUX_NAME "Unknown")
 
 #For Linux, the foloing varaible will be set
 #LINUX_NAME		= Fedora, CentOS, Redhat, Ubuntu, openSUSE
