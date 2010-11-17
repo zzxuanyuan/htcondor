@@ -31,7 +31,7 @@ if(WINDOWS)
 condor_selective_glob("directory.WINDOWS.*;directory_util.*;dynuser.WINDOWS.*;filename_tools.*;lock_file.WINDOWS.*;lsa_mgr.*;my_dynuser.*;ntsysinfo.WINDOWS.*;posix.WINDOWS.*;stat.WINDOWS.*;store_cred.*;token_cache.WINDOWS.*;truncate.WINDOWS.*" ApiSrcs)
 endif(WINDOWS)
 
-condor_static_lib(condorapi "${ApiSrcs}")
+condor_static_lib( condorapi "${ApiSrcs}" )
 add_dependencies( condorapi utils )
 
 ##################################################
@@ -40,6 +40,16 @@ if (NOT WINDOWS)
 endif()
 
 target_link_libraries(condorapi ${CLASSADS_FOUND};${APILIBDEP})
+install (FILES MyString.h
+		 condor_event.h
+		 condor_holdcodes.h
+		 read_user_log.h
+		 user_log.c++.h
+		 user_log.README
+		 write_user_log.h
+		DESTINATION ${C_INCLUDE})
+
+install ( TARGETS condorapi DESTINATION ${C_LIB} )
 
 add_definitions(-DENABLE_STATE_DUMP)
 condor_exe_test(test_log_reader "test_log_reader.cpp" "condorapi")
@@ -53,3 +63,4 @@ if (STD_UNIVERSE)
 	command_target(lex.yy lex "stub_gen_lex.l" lex.yy.c)
 	condor_exe(stub_gen "lex.yy.c;y.tab.c;lex.yy.c" OFF "")
 endif(STD_UNIVERSE)
+

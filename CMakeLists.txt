@@ -35,7 +35,6 @@ string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 site_name(HOSTNAME)
 option(_DEBUG "Enables spewing of interal dprint statements" OFF)
 
-
 ###########################################
 # start cmake module inclusion
 list(APPEND CMAKE_MODULE_PATH ${CONDOR_SOURCE_DIR}/build/cmake)

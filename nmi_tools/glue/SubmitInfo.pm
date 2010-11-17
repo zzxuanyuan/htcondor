@@ -54,7 +54,7 @@ our %build_and_test_sets = (
 		'x86_macos_10.4',
 		'x86_rhap_5',
 		'x86_rhas_3',
-		#'ppc_aix_5.2-pl5', # cmake install does not work
+		'ppc_aix_5.2-pl5',
 		'x86_winnt_5.1-tst', 
 		#the below are commented out for speed.
 	],
@@ -67,12 +67,13 @@ our %build_and_test_sets = (
 		'x86_suse_10.0',
 		'ia64_sles_9',
 		'x86_64_macos_10.6',
-		# 'x86_64_fedora_12-updated',  <-- no longer supported in 11/2010, and nmi fails why are we doing this?
-		# 'ps3_ydl_5.0',   <- no longer supported, and sony has eliminated the ability to install & are even prosecuting jailbreakers, why are we doing this?
 		'ppc_macos_10.4',
 		'sun4u_sol_5.10',
 		'x86_64_sol_5.11',
 		'x86_64_macos_10.5-updated',
+		# 'x86_64_fedora_12-updated',  <-- no longer supported in 11/2010, and nmi fails why are we doing this?
+		# 'ps3_ydl_5.0',   <- no longer supported, and sony has eliminated the ability to install & are even prosecuting jailbreakers, why are we doing this?
+
 	],
 
 	'psilord' => [
@@ -366,6 +367,7 @@ our %submit_info = (
 	'sun4u_sol_5.9'	=> {
 		'build' => {
 			'configure_args' => { @default_build_configure_args,
+				'-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
 				'-DCONDOR_CXX_FLAGS:STRING=-B$PATH' => undef,
 			},
 			'prereqs'	=> [ 
@@ -410,10 +412,8 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_rhap_5'	=> {
 		'build' => {
-			'configure_args' => { '-DPROPER:BOOL=OFF' => undef,
+			'configure_args' => { @default_build_configure_args,
 				'-DCLIPPED:BOOL=OFF' => undef,
-				'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
-				'-D_DEBUG:BOOL=ON'		=> undef,
 			 },
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 
@@ -599,10 +599,7 @@ our %submit_info = (
 	##########################################################################
 	'x86_rhap_5'	=> {
 		'build' => {
-			'configure_args' => { '-DPROPER:BOOL=OFF' => undef,
-				'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
-				'-D_DEBUG:BOOL=ON'		=> undef,
-			},
+			'configure_args' => {  @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 
 				'x86_ubuntu_10.04',
@@ -647,10 +644,7 @@ our %submit_info = (
 	##########################################################################
 	'x86_rhas_3'	=> {
 		'build' => {
-			'configure_args' => { '-DPROPER:BOOL=OFF' => undef,
-				'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
-				'-D_DEBUG:BOOL=ON'		=> undef,
-			},
+			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ 
 				@default_prereqs,
 				'perl-5.8.5', 'gzip-1.3.3', 'autoconf-2.59'

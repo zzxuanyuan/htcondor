@@ -31,6 +31,6 @@ if(NOT WIN_EXEC_NODE_ONLY)
 		condor_exe( unicore_gahp "unicore_gahp_wrapper.cpp" ${C_SBIN} "${GM_LINK_LIBS}" )
 	endif()
 
-	message(STATUS "TODO: add scripts to release")
+	install (FILES gridftp_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS} )
 
 endif(NOT WIN_EXEC_NODE_ONLY)
