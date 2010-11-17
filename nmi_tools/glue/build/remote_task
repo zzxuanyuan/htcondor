@@ -38,6 +38,7 @@ my $msconfigDir = "$BaseDir/msconfig";
 my $PublicDir = "$BaseDir/public";
 
 my $TAR_TASK 	= "remote_task.create_tar";
+my $UNSTRIPPED_TASK = "remote_task.create_unstripped_tar"
 my $CONFIG_TASK = "remote_task.reconfig_package";
 my $RPM_TASK	= "remote_task.create_rpm";
 my $DEB_TASK	= "remote_task.create_deb";
@@ -80,7 +81,20 @@ if ($taskname eq $TAR_TASK) {
 	
 	#Append extra argument
 	$execstr = $execstr . " -DCONDOR_PACKAGE_BUILD:BOOL=ON";
+elsif  ($taskname eq $UNSTRIPPED_TASK){
+	#Reconfigure cmake variables for native package build
 
+	#Read back configuration from remote_pre stage
+	open (CMAKECONFIG, "<cmake_args.txt") || die "Cannot open cmake_args.txt: $!";
+	while(<CMAKECONFIG>){
+		my($line) = $_;
+		$execstr = $line;
+		last;
+	}
+	close (CMAKECONFIG);
+
+	#Append extra argument
+	$execstr = $execstr . " -DCONDOR_STRIP_PACKAGES:BOOL=OFF && make -j4 package";
 } elsif  ($taskname eq $RPM_TASK){
 	#Building RPM
 	$execstr= "make -j4 package";

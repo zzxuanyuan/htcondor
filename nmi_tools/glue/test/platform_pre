@@ -80,10 +80,9 @@ if(!(-f $extractdone)) {
 	while( <LTAR> ) {
     	chomp;
     	print "Considering: $_\n";
-		if( /.*condor-.*\.tar\.(gz|Z)$/ ) {
+		if( /.*condor-.*-stripped.*\.tar\.(gz|Z)$/ ) {
     		$saved_tarball = $_;
     		print "Found tarball!\n";
-    		# last;
 		}
 	} 
 	close( LTAR );

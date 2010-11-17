@@ -63,12 +63,21 @@ set(CPACK_PACKAGE_ARCHITECTURE ${SYS_ARCH} )
 # always strip the source files.
 set(CPACK_SOURCE_STRIP_FILES TRUE)
 
+# here is where we can
+if (PLATFORM AND BUILDID)
+  set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PLATFORM}-${BUILDID}" )
+else()
+  set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${OS_NAME}-${SYS_ARCH}" )
+endif()
+
 # you can enable/disable file stripping.
 option(CONDOR_STRIP_PACKAGES "Enables a package build" ON)
 set(CPACK_STRIP_FILES ${CONDOR_STRIP_PACKAGES})
-
-# here is where we can
-set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${OS_NAME}-${SYS_ARCH}" )
+if (NOT CONDOR_STRIP_PACKAGES)
+  set (CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-unstripped" )
+else()
+  set (CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-stripped" )
+endif()
 
 ##################################################################
 ## Now onto platform specific package generation
