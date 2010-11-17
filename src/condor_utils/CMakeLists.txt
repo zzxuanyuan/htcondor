@@ -1,3 +1,21 @@
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
 
 ##################################################
 file( GLOB RmvSrcs y.tab* lex.yy* ckpt_server_api_stubs* libcondorapi_stubs*
@@ -13,7 +31,7 @@ if(WINDOWS)
 condor_selective_glob("directory.WINDOWS.*;directory_util.*;dynuser.WINDOWS.*;filename_tools.*;lock_file.WINDOWS.*;lsa_mgr.*;my_dynuser.*;ntsysinfo.WINDOWS.*;posix.WINDOWS.*;stat.WINDOWS.*;store_cred.*;token_cache.WINDOWS.*;truncate.WINDOWS.*" ApiSrcs)
 endif(WINDOWS)
 
-condor_static_lib(condorapi "${ApiSrcs}")
+condor_static_lib( condorapi "${ApiSrcs}" )
 add_dependencies( condorapi utils )
 
 ##################################################
@@ -22,6 +40,16 @@ if (NOT WINDOWS)
 endif()
 
 target_link_libraries(condorapi ${CLASSADS_FOUND};${APILIBDEP})
+install (FILES MyString.h
+		 condor_event.h
+		 condor_holdcodes.h
+		 read_user_log.h
+		 user_log.c++.h
+		 user_log.README
+		 write_user_log.h
+		DESTINATION ${C_INCLUDE})
+
+install ( TARGETS condorapi DESTINATION ${C_LIB} )
 
 add_definitions(-DENABLE_STATE_DUMP)
 condor_exe_test(test_log_reader "test_log_reader.cpp" "condorapi")
@@ -35,5 +63,4 @@ if (STD_UNIVERSE)
 	command_target(lex.yy lex "stub_gen_lex.l" lex.yy.c)
 	condor_exe(stub_gen "lex.yy.c;y.tab.c;lex.yy.c" OFF "")
 endif(STD_UNIVERSE)
-
 

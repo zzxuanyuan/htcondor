@@ -54,7 +54,7 @@ our %build_and_test_sets = (
 		'x86_macos_10.4',
 		'x86_rhap_5',
 		'x86_rhas_3',
-		#'ppc_aix_5.2-pl5', # cmake install does not work
+		'ppc_aix_5.2-pl5',
 		'x86_winnt_5.1-tst', 
 		#the below are commented out for speed.
 	],
@@ -67,12 +67,13 @@ our %build_and_test_sets = (
 		'x86_suse_10.0',
 		'ia64_sles_9',
 		'x86_64_macos_10.6',
-		# 'x86_64_fedora_12-updated',  <-- no longer supported in 11/2010, and nmi fails why are we doing this?
-		# 'ps3_ydl_5.0',   <- no longer supported, and sony has eliminated the ability to install & are even prosecuting jailbreakers, why are we doing this?
 		'ppc_macos_10.4',
 		'sun4u_sol_5.10',
 		'x86_64_sol_5.11',
 		'x86_64_macos_10.5-updated',
+		# 'x86_64_fedora_12-updated',  <-- no longer supported in 11/2010, and nmi fails why are we doing this?
+		# 'ps3_ydl_5.0',   <- no longer supported, and sony has eliminated the ability to install & are even prosecuting jailbreakers, why are we doing this?
+
 	],
 
 	'psilord' => [
@@ -115,16 +116,20 @@ my @default_prereqs = (
 my @minimal_build_configure_args =
 	(
 		'-DPROPER:BOOL=OFF'			=> undef,
+		'-DCLIPPED:BOOL=OFF'		=> undef,
+		'-D_DEBUG:BOOL=ON'			=> undef,
 		'-DWITH_GLOBUS:BOOL=OFF' 	=> undef,
 		'-DWITH_KRB5:BOOL=OFF'		=> undef,
 		'-DWITH_VOMS:BOOL=OFF'		=> undef,
+		'-DWITH_EXPAT:BOOL=OFF'		=> undef,
 		'-DWITH_HADOOP:BOOL=OFF'	=> undef,
-		'-DWITH_POSTGRESQL:BOOL=OFF'=> undef,
 		'-DWITH_CURL:BOOL=OFF'		=> undef,
-		'-DWITH_PCRE:BOOL=ON'		=> undef,
+		'-DWITH_DRMAA:BOOL=OFF'		=> undef,
 		'-DWITH_GSOAP:BOOL=OFF'		=> undef,
 		'-DWITH_CREAM:BOOL=OFF'		=> undef,
-		'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
+		'-DWITH_LIBVIRT:BOOL=OFF'		=> undef,
+		'-DWITH_LIBXML2:BOOL=OFF'		=> undef,
+		'-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
 	);
 
 ###############################################################################
@@ -144,7 +149,7 @@ my @default_testclass = ( 'quick' );
 ###############################################################################
 my @default_test_configure_args =
 	(
-	'-DTODO:BOOL=ON' => undef,
+	'-DNOTHING_SPECIAL:BOOL=ON' => undef,
 	);
 
 ###############################################################################
@@ -286,7 +291,6 @@ our %submit_info = (
 	'ia64_rhas_3'	=> {
 		'build' => {
 			'configure_args' => { @default_build_configure_args,
-					'-DWITH_COREDUMPER:BOOL=OFF' => undef,
 			},
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 'ia64_sles_9' ],
@@ -305,7 +309,6 @@ our %submit_info = (
 	'ppc64_sles_9'	=> {
 		'build' => {
 			'configure_args' => { @default_build_configure_args,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
 				'-DWITH_KRB5:BOOL=OFF' => undef,
 			},
 			'prereqs'	=> [ 'cmake-2.8.3' ],
@@ -313,7 +316,7 @@ our %submit_info = (
 		},
 
 		'test' => {
-			'configure_args' => { @default_test_configure_args, '-DWITH_COREDUMPER:BOOL=OFF' },
+			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ 'java-1.4.2' ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -325,14 +328,7 @@ our %submit_info = (
 	'ppc_aix_5.2-pl5'	=> {
 		'build' => {
 			'configure_args' => { @default_build_configure_args,
-				'-DWITH_BLAHP:BOOL=OFF' => undef,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
-				'-DWITH_DRMAA:BOOL=OFF' => undef,
-				'-DWITH_EXPAT:BOOL=OFF' => undef,
-				'-DWITH_GCB:BOOL=OFF' => undef,
-				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
-				'-DWITH_LIBXML2:BOOL=OFF' => undef,
-				'-DWITH_VOMS:BOOL=OFF' => undef,
+			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
 			},
 			'prereqs'	=> [ 
 				@default_prereqs, 
@@ -372,14 +368,7 @@ our %submit_info = (
 	'sun4u_sol_5.9'	=> {
 		'build' => {
 			'configure_args' => { @default_build_configure_args,
-				'-DWITH_BLAHP:BOOL=OFF' => undef,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
-				'-DWITH_DRMAA:BOOL=OFF' => undef,
-				'-DWITH_EXPAT:BOOL=OFF' => undef,
-				'-DWITH_GCB:BOOL=OFF' => undef,
-				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
-				'-DWITH_LIBXML2:BOOL=OFF' => undef,
-				'-DWITH_VOMS:BOOL=OFF' => undef,
+				'-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
 				'-DCONDOR_CXX_FLAGS:STRING=-B$PATH' => undef,
 			},
 			'prereqs'	=> [ 
@@ -424,15 +413,12 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_rhap_5'	=> {
 		'build' => {
-			'configure_args' => { '-DPROPER:BOOL=OFF' => undef,
+			'configure_args' => { @default_build_configure_args,
 				'-DCLIPPED:BOOL=OFF' => undef,
-				'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
-				'-D_DEBUG:BOOL=ON'		=> undef,
 			 },
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 
 				'x86_64_ubuntu_10.04',
-				'x86_64_sl_5.5', 
 				'x86_64_fedora_13', 'x86_64_rhap_5.2',
 				'x86_64_fedora_12', 'x86_64_fedora_12-updated', 
 				'x86_64_fedora_11' ],
@@ -457,7 +443,6 @@ our %submit_info = (
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [
 				'x86_64_sles_9',
-				'x86_64_sl_5.5',
 				'x86_64_rhas_4' ],
 		},
 
@@ -510,14 +495,7 @@ our %submit_info = (
 	##########################################################################
 	'x86_macos_10.4'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args,
-				'-DWITH_BLAHP:BOOL=OFF' => undef,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
-				'-DWITH_DRMAA:BOOL=OFF' => undef,
-				'-DWITH_GCB:BOOL=OFF' => undef,
-				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
-				'-DWITH_CREAM:BOOL=OFF' => undef
-			},
+			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs,
 				'coreutils-5.2.1',
 				'libtool-1.5.26',],
@@ -545,14 +523,7 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.5'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args,
-				'-DWITH_BLAHP:BOOL=OFF' => undef,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
-				'-DWITH_DRMAA:BOOL=OFF' => undef,
-				'-DWITH_GCB:BOOL=OFF' => undef,
-				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
-				'-DWITH_CREAM:BOOL=OFF' => undef
-				},
+			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [
 				@default_prereqs,
 				'libtool-1.5.26',
@@ -562,7 +533,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_13'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -573,21 +544,14 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.5-updated'	=> {
 		'build' => {
-			'configure_args' => {  @default_build_configure_args,
-				'-DWITH_BLAHP:BOOL=OFF' => undef,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
-				'-DWITH_DRMAA:BOOL=OFF' => undef,
-				'-DWITH_GCB:BOOL=OFF' => undef,
-				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
-				'-DWITH_CREAM:BOOL=OFF' => undef
-				},
+			'configure_args' => {  @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'libtool-1.5.26' ],
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_13'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -597,14 +561,7 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_macos_10.6'	=> {
 		'build' => {
-			'configure_args' => {  @default_build_configure_args,
-				'-DWITH_BLAHP:BOOL=OFF' => undef,
-				'-DWITH_COREDUMPER:BOOL=OFF' => undef,
-				'-DWITH_DRMAA:BOOL=OFF' => undef,
-				'-DWITH_GCB:BOOL=OFF' => undef,
-				'-DWITH_LIBVIRT:BOOL=OFF' => undef,
-				'-DWITH_CREAM:BOOL=OFF' => undef
-			 },
+			'configure_args' => {  @default_build_configure_args },
 			'prereqs'	=> [
 				@default_prereqs,
 				'libtool-1.5.26',
@@ -614,7 +571,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -631,7 +588,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -641,19 +598,11 @@ our %submit_info = (
 	##########################################################################
 	'x86_rhap_5'	=> {
 		'build' => {
-			'configure_args' => { '-DPROPER:BOOL=OFF' => undef,
-				'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
-				'-D_DEBUG:BOOL=ON'		=> undef,
-				'-DWANT_CREAM:BOOL=ON'	=> undef,
-			},
+			'configure_args' => {  @default_build_configure_args },
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 
 				'x86_ubuntu_10.04',
-				'x86_64_ubuntu_10.04',
-				'x86_64_sl_5.5', 
 				'x86_64_rhap_5.2',
-				'x86_64_fedora_12-updated', 'x86_64_fedora_13', 
-				'x86_64_fedora_11', 'x86_64_fedora_12',
 				'unmanaged-x86_rhap_5'
 			],
 		},
@@ -690,18 +639,13 @@ our %submit_info = (
 	##########################################################################
 	'x86_rhas_3'	=> {
 		'build' => {
-			'configure_args' => { '-DPROPER:BOOL=OFF' => undef,
-				'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
-				'-D_DEBUG:BOOL=ON'		=> undef,
-				'-DWANT_CREAM:BOOL=ON'	=> undef,
-			},
+			'configure_args' => { @default_build_configure_args },
 			'prereqs'	=> [ 
 				@default_prereqs,
 				'perl-5.8.5', 'gzip-1.3.3', 'autoconf-2.59'
 			],
 			'xtests'	=> [ 
 				'x86_64_sles_9',
-				'x86_64_sl_5.5',
 				'x86_64_rhap_5.2', 
 				'unmanaged-x86_rhap_5',
 			 	'x86_rhas_4', 
@@ -966,10 +910,7 @@ our %submit_info = (
 	##########################################################################
 	'x86_64_sol_5.11'	=> {
 		'build' => {
-			'configure_args' => { @minimal_build_configure_args,
-								  '--disable-static' => undef,
-								  '--without-openssl' => undef,
-			},
+			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'perl-5.8.9', 'binutils-2.15',
 							 'gzip-1.3.3', 'wget-1.9.1', 'coreutils-6.9' ],
 			'xtests'	=> undef,

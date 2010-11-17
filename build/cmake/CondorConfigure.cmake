@@ -1,3 +1,21 @@
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
 
 #processor modification if necessary
 if(${OS_NAME} STREQUAL "DARWIN")
@@ -9,6 +27,7 @@ endif()
 
 message(STATUS "***********************************************************")
 message(STATUS "System(${HOSTNAME}): ${OS_NAME}(${OS_VER}) Arch=${SYS_ARCH} BitMode=${BIT_MODE} BUILDID:${BUILDID}")
+message(STATUS "install prefix:${CMAKE_INSTALL_PREFIX}")
 message(STATUS "********* BEGINNING CONFIGURATION *********")
 
 ##################################################
@@ -138,8 +157,6 @@ else()
     		ARGS ${CMAKE_C_COMPILER_ARG1} -dumpversion
     		OUTPUT_VARIABLE CMAKE_C_COMPILER_VERSION )
 
-	option(PROPER "Try to build using native env" ON)
-
 endif()
 
 find_program(HAVE_VMWARE vmware)
@@ -210,23 +227,44 @@ elseif(${OS_NAME} STREQUAL "HPUX")
 	set(NEEDS_64BIT_STRUCTS ON)
 endif()
 
-
+# NOTE: instead
+# the following is meant to auto-set for CSL 
+#string(REPLACE  ".cs.wisc.edu" "@@UW" UW_CHECK ${HOSTNAME})
+#if(${UW_CHECK} MATCHES "@@UW") #cmakes regex does not handle on [.] [.] [.] well
+#	if(EXISTS "/s/std/bin")
+#		message(STATUS "*** UW ENV DETECTED: IF YOU WANT AFS CACHING UPDATE HERE ***")
+#		set(UW_CSL_ENV ON)
+#	endif()
+#endif()
 
 ##################################################
 ##################################################
 # compilation/build options.
-option(ENABLE_CHECKSUM_SHA1 "Enable production and validation of SHA1 checksums." OFF)
-option(ENABLE_CHECKSUM_MD5 "Enable production and validation of MD5 checksums for released packages." ON)
+option(UW_BUILD "Variable to allow UW-esk builds." OFF)
 option(HAVE_HIBERNATION "Support for condor controlled hibernation" ON)
 option(WANT_LEASE_MANAGER "Enable lease manager functionality" ON)
-option(WANT_QUILL "Enable quill functionality" OFF)
 option(HAVE_JOB_HOOKS "Enable job hook functionality" ON)
-option(NEEDS_KBDD "Enable KBDD functionality" ON)
 option(HAVE_BACKFILL "Compiling support for any backfill system" ON)
 option(HAVE_BOINC "Compiling support for backfill with BOINC" ON)
 option(SOFT_IS_HARD "Enable strict checking for WITH_<LIB>" OFF)
-option(CLIPPED "enable/disable the standard universe" ON)
 option(BUILD_TESTS "Will build internal test applications" ON)
+option(WANT_CONTRIB "Enable quill functionality" OFF)
+if (UW_BUILD OR WINDOWS)
+  option(PROPER "Try to build using native env" OFF)
+
+  # so the clipped detection will try to match glibc vers and if it fails will disable
+  if (LINUX)
+	option(CLIPPED "enable/disable the standard universe" OFF)
+  else()
+	option(CLIPPED "enable/disable the standard universe" ON)
+  endif()
+
+  dprint("**TO UW: IF YOU WANT CUSTOM SETTINGS ADD THEM HERE**")
+  
+else()
+  option(PROPER "Try to build using native env" ON)
+  option(CLIPPED "enable/disable the standard universe" ON)
+endif()
 
 if (NOT CLIPPED AND NOT LINUX)
 	message (FATAL_ERROR "standard universe is *only* supported on Linux")
@@ -239,11 +277,8 @@ if (NOT HPUX)
 	endif()
 endif(NOT HPUX)
 
-if (NOT WINDOWS)
+if (NOT WINDOWS) # if *nix
 	option(HAVE_SSH_TO_JOB "Support for condor_ssh_to_job" ON)
-	option(PROPER "Try to build using native env" ON)
-else()
-	option(PROPER "Try to build using native env" OFF)
 endif()
 
 if (BUILD_TESTS)
@@ -270,7 +305,8 @@ else(PROPER)
 	endif(NOT WINDOWS)
 endif(PROPER)
 
-if (SCRATCH_EXTERNALS)
+## this primarily exists for nmi cached building.. yuk! 
+if (SCRATCH_EXTERNALS AND EXISTS "/scratch/externals/cmake")
 	#if (WINDOWS)
 	#	set (EXTERNAL_STAGE C:/temp/scratch/externals/cmake/${PACKAGE_NAME}_${PACKAGE_VERSION}/root)
 	#	set (EXTERNAL_DL C:/temp/scratch/externals/cmake/${PACKAGE_NAME}_${PACKAGE_VERSION}/download)
@@ -285,10 +321,10 @@ if (SCRATCH_EXTERNALS)
 		ARGS -f -R a+rwX /scratch/externals/cmake && touch ${EXTERNAL_MOD_DEP}
 		COMMENT "changing ownership on externals cache because so on multiple user machines they can take advantage" )
 	#endif(WINDOWS)
-else(SCRATCH_EXTERNALS)
-	set (EXTERNAL_STAGE ${CONDOR_EXTERNAL_DIR}/stage/root)
-	set (EXTERNAL_DL ${CONDOR_EXTERNAL_DIR}/stage/download)
-endif(SCRATCH_EXTERNALS)
+else()
+	set (EXTERNAL_STAGE ${CONDOR_EXTERNAL_DIR}/stage/root/${PACKAGE_NAME}_${PACKAGE_VERSION})
+	set (EXTERNAL_DL ${CONDOR_EXTERNAL_DIR}/stage/download/${PACKAGE_NAME}_${PACKAGE_VERSION})
+endif()
 
 dprint("EXTERNAL_STAGE=${EXTERNAL_STAGE}")
 set (EXTERNAL_BUILD_PREFIX ${EXTERNAL_STAGE}/opt)
@@ -306,9 +342,6 @@ link_directories( ${EXTERNAL_STAGE}/lib ${EXTERNAL_STAGE}/lib64 )
 
 ###########################################
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/boost/1.33.1)
-if (PROPER AND WITH_BOOST)
-  include_directories(${BOOST_FOUND})
-endif(PROPER AND WITH_BOOST)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/krb5/1.4.3-p0)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/openssl/0.9.8h-p2)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/pcre/7.6)
@@ -341,20 +374,25 @@ if (NOT WINDOWS)
 	if (LINUX AND NOT CLIPPED AND GLIBC_VERSION AND NOT PROPER)
 
 		add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/glibc)
-
-		if (${BIT_MODE} STREQUAL "32")
-			set (DOES_COMPRESS_CKPT ON) # this is total crap
-		endif(${BIT_MODE} STREQUAL "32")
-
-		if (DOES_SAVE_SIGSTATE)
-			set(STD_U_C_FLAGS -DSAVE_SIGSTATE)
-		endif(DOES_SAVE_SIGSTATE)
-
-		set (STD_UNIVERSE ON)
 		
-		include_directories( ${CONDOR_SOURCE_DIR}/src/condor_io.std )
+		if (EXT_GLIBC_FOUND)
+		  if (${BIT_MODE} STREQUAL "32")
+			  set (DOES_COMPRESS_CKPT ON) # this is total crap
+		  endif(${BIT_MODE} STREQUAL "32")
 
-		message( STATUS "** Standard Universe Enabled **")
+		  if (DOES_SAVE_SIGSTATE)
+			  set(STD_U_C_FLAGS -DSAVE_SIGSTATE)
+		  endif(DOES_SAVE_SIGSTATE)
+
+		  set (STD_UNIVERSE ON)
+
+		  include_directories( ${CONDOR_SOURCE_DIR}/src/condor_io.std )
+
+		  message( STATUS "** Standard Universe Enabled **")
+		  
+		else()
+			message( STATUS "** Standard Universe Disabled **")
+		endif()
 	else()
 		message( STATUS "** Standard Universe Disabled **")
 	endif()
@@ -405,6 +443,7 @@ endif(HAVE_EXT_OPENSSL)
 # otherwise you will break due to stub collisions.
 set (CONDOR_LIBS "procd_client;daemon_core;daemon_client;procapi;cedar;privsep;${CLASSADS_FOUND};sysapi;ccb;utils;${VOMS_FOUND};${GLOBUS_FOUND};${GCB_FOUND};${EXPAT_FOUND}")
 set (CONDOR_TOOL_LIBS "procd_client;daemon_client;procapi;cedar;privsep;${CLASSADS_FOUND};sysapi;ccb;utils;${VOMS_FOUND};${GLOBUS_FOUND};${GCB_FOUND};${EXPAT_FOUND}")
+set (CONDOR_SCRIPT_PERMS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 message(STATUS "----- Begin compiler options/flags check -----")
 

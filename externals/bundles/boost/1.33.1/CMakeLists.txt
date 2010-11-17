@@ -1,7 +1,30 @@
-option( WITH_BOOST "Compiling with support for BOOST" ON )
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
+
+# so in condor only cream cares about this
+# re-anable DARWIN when bug is fixed.
+if (LINUX)
+  option( WITH_BOOST "Compiling with support for BOOST" ON )
+endif()
 
 # could be modified. 
-if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
+if (WITH_BOOST )
 
   if (NOT PROPER)
 
@@ -41,7 +64,6 @@ if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
 				    INSTALL_DIR ${EXTERNAL_STAGE}
 				    INSTALL_COMMAND cd ${EXTERNAL_STAGE}/include && mv -f boost-1_33_1/boost . )
 
-	set (BOOST_INCLUDE_FOUND ${EXTERNAL_STAGE}/include)
 	append_var(CONDOR_EXTERNALS boost)
 	
   else(NOT PROPER)
@@ -50,7 +72,7 @@ if (WITH_BOOST AND NOT WINDOWS AND NOT SOLARIS AND NOT AIX)
 	set(Boost_USE_MULTITHREADED ON)
 	find_package( Boost 1.33.1 )
 	if(Boost_FOUND)
-		set (BOOST_INCLUDE_FOUND ${Boost_INCLUDE_DIRS})
+		append_var (EXTERNAL_INCLUDES ${Boost_INCLUDE_DIRS})
 		set (BOOST_VER ${Boost_VERSION})
 	endif(Boost_FOUND)
 
@@ -62,7 +84,6 @@ endif()
 if (BOOST_VER)
 	message (STATUS "external configured (BOOST_INCLUDE_FOUND=${BOOST_INCLUDE_FOUND}) version:(${BOOST_VER})")
 	set( HAVE_EXT_BOOST ON PARENT_SCOPE )
-	set (BOOST_INCLUDE_FOUND ${BOOST_INCLUDE_FOUND} PARENT_SCOPE)
 else(BOOST_VER)
 	message (STATUS "external skiped (boost)")
 endif(BOOST_VER)

@@ -1,3 +1,21 @@
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
 
 ##################################################################
 ## Begin the CPACK variable on-slaught.
@@ -45,12 +63,21 @@ set(CPACK_PACKAGE_ARCHITECTURE ${SYS_ARCH} )
 # always strip the source files.
 set(CPACK_SOURCE_STRIP_FILES TRUE)
 
+# here is where we can
+if (PLATFORM AND BUILDID)
+  set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${PLATFORM}-${BUILDID}" )
+else()
+  set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${OS_NAME}-${SYS_ARCH}" )
+endif()
+
 # you can enable/disable file stripping.
 option(CONDOR_STRIP_PACKAGES "Enables a package build" ON)
 set(CPACK_STRIP_FILES ${CONDOR_STRIP_PACKAGES})
-
-# here is where we can
-set (CPACK_PACKAGE_FILE_NAME "${CONDOR_VER}-${OS_NAME}-${SYS_ARCH}" )
+if (NOT CONDOR_STRIP_PACKAGES)
+  set (CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-unstripped" )
+else()
+  set (CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}-stripped" )
+endif()
 
 ##################################################################
 ## Now onto platform specific package generation
@@ -296,4 +323,3 @@ if (CONDOR_DEV_MODE)
 	endif()
   endif()  
 endif(CONDOR_DEV_MODE)
-

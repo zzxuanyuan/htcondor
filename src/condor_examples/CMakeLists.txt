@@ -1,8 +1,26 @@
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
 if (NOT WINDOWS)
 
 install(FILES		condor.sysconfig
 		DESTINATION	"${C_SYSCONFIG}"
-		PERMISSIONS	OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+		PERMISSIONS ${CONDOR_SCRIPT_PERMS}
 		RENAME		condor)
 
 install(FILES		condor_config.local.generic
@@ -33,7 +51,7 @@ install (FILES
 		openmpiscript
 		DESTINATION ${C_ETC_EXAMPLES})
 
-install (FILES condor_limits_wrapper.sh DESTINATION ${C_LIBEXEC})
+install (FILES condor_limits_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS})
 
 
 #Prepare OS specific config file
@@ -55,7 +73,7 @@ if (( ${LINUX_NAME} STREQUAL "Redhat" ) OR ( ${LINUX_NAME} STREQUAL "Fedora" ) )
 
 	install(FILES		condor.boot.rpm
 			DESTINATION	"${C_INIT}"
-			PERMISSIONS	OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
 			RENAME		condor)
 
 elseif ( ${LINUX_NAME} STREQUAL "Debian" )
@@ -85,7 +103,7 @@ elseif ( ${LINUX_NAME} STREQUAL "Debian" )
 
 	install(FILES		condor.boot.debian
 			DESTINATION	"${C_INIT}"
-			PERMISSIONS	OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
 			RENAME	condor)
 else()
 	#Other Platform
@@ -95,7 +113,7 @@ else()
 
 	install(FILES		condor.boot.rpm
 			DESTINATION	"${C_INIT}"
-			PERMISSIONS	OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
 			RENAME		condor)
 
 endif()

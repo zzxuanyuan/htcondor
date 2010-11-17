@@ -21,12 +21,12 @@
 use CondorTest;
 use CondorUtils;
 
-$cmd = 'job_dagman_job_held.dag';
-$testdesc =  'Condor submit dag - job held test - scheduler U';
-$testname = "job_dagman_job_held";
+$cmd = 'job_dagman_reject-0.dag';
+$testdesc =  'Condor submit dag - test REJECT keyword - scheduler U';
+$testname = "job_dagman_reject";
 $dagman_args = "-verbose";
 
-@logfiles = ("job_dagman_job_held.dag.dagman.out");
+@outfiles = ("job_dagman_reject-0.dag.dagman.out");
 
 my $killedchosen = 0;
 
@@ -35,8 +35,8 @@ sub IDLE{1};
 sub HELD{5};
 sub RUNNING{2};
 
-# Get rid of any existing log files.
-foreach $name (@logfiles) {
+# Get rid of any existing output files.
+foreach $name (@outfiles) {
 	if (-e $name) {
 		runcmd("rm -f $name");
 	}
@@ -45,6 +45,44 @@ foreach $name (@logfiles) {
 $abnormal = sub 
 {
 	die "Want to see only submit, execute and unsuccessful completion\n";
+};
+
+$failure = sub 
+{
+	CondorTest::debug("DAG failed as it should\n");
+	CondorTest::debug("Verifying output\n");
+	$diditpass = 1;
+
+	foreach $name (@outfiles) {
+		$line = "";
+		$passed = 0;
+		$canopen = open(OUT,"<$name");
+		if( ! (defined $canopen)) {
+			CondorTest::debug("Can not open output file<$name>:$!\n",1);
+			$diditpass = 0;
+		}
+		while(<OUT>) {
+			chomp();
+			$line = $_;
+
+			if( $line =~ /Exiting because of REJECT specification/ ) {
+				CondorTest::debug("$name: $line\n",1);
+				$passed = 1;
+			}
+		}
+
+		close(OUT);
+		if($passed == 1 ) {
+			;
+		} else {
+			CondorTest::debug("failed $name: $line\n",1);
+			$diditpass = 0;
+		}
+	}
+
+    if($diditpass == 0) {
+		die "All expected files and correct output failed\n";
+	}
 };
 
 $aborted = sub 
@@ -72,55 +110,6 @@ $submitted = sub
 $success = sub
 {
 	die "Error: DAG should fail!\n";
-};
-
-$failure = sub
-{
-	CondorTest::debug("failed as expected\n",1);
-	CondorTest::debug("Verifying output\n",1);
-
-	$diditpass = 1;
-
-	# Check for correct number of holds for each node job.
-	foreach $name (@logfiles) {
-		$line = "";
-		$passed = 0;
-		$nodeAHeld = 0;
-		$nodeBHeld = 0;
-		$canopen = open(OUT,"<$name");
-		if( ! (defined $canopen)) {
-			CondorTest::debug("Can not open logfile<$name>:$!\n",1);
-			$diditpass = 0;
-		}
-		while(<OUT>) {
-			chomp();
-			$line = $_;
-
-			if( $line =~ /ULOG_JOB_HELD.*Node A/ ) {
-				CondorTest::debug("$name: $line\n",1);
-				$passed = 1;
-				$nodeAHeld++;
-			} elsif ( $line =~ /ULOG_JOB_HELD.*Node B/ ) {
-				CondorTest::debug("$name: $line\n",1);
-				$passed = 1;
-				$nodeBHeld++;
-			}
-		}
-		close(OUT);
-		if ( $nodeAHeld != 2 ) {
-			CondorTest::debug("failed incorrect Node A hold count $nodeAHeld\n",1);
-			$diditpass = 0;
-		} elsif ( $nodeBHeld < 2 && $nodeBHeld > 3 ) {
-			CondorTest::debug("failed incorrect Node B hold count $nodeBHeld\n",1);
-			$diditpass = 0;
-		} else {
-			;
-		}
-	}
-
-	if($diditpass == 0) {
-		die "All expected files and correct output failed\n";
-	}
 };
 
 CondorTest::RegisterExitedSuccess( $testname, $success);

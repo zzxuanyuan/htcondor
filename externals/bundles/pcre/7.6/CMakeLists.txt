@@ -1,6 +1,24 @@
-option(WITH_PCRE "Compiling with support for PCRE" ON)
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
 
-if (WITH_PCRE)
+# currently hard dependency
+#option(WITH_PCRE "Compiling with support for PCRE" ON)
+#if (WITH_PCRE)
 
 	if ( NOT PROPER )
 
@@ -64,10 +82,10 @@ if (WITH_PCRE)
 		set( PCRE_FOUND ${PCRE_FOUND} PARENT_SCOPE )
 		set( HAVE_EXT_PCRE ON PARENT_SCOPE )
 		set( HAVE_PCRE_H ON PARENT_SCOPE )
+	else()
+	  message (FATAL_ERROR "pcre not found and is required to build")
 	endif(PCRE_FOUND)
 
-else(WITH_PCRE)
-
-	message (STATUS "external skiped (pcre)")
-
-endif(WITH_PCRE)
+#else(WITH_PCRE)
+#	message (STATUS "external skiped (pcre)")
+#endif(WITH_PCRE)

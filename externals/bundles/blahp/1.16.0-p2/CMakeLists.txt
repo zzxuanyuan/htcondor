@@ -1,6 +1,26 @@
-option(WITH_BLAHP "Compiling with support for BLAHP" ON)
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
 
-if ( NOT PROPER AND WITH_BLAHP )
+if (NOT PROPER AND LINUX)
+  option(WITH_BLAHP "Compiling with support for BLAHP" ON)
+endif(NOT PROPER AND LINUX)
+
+if ( WITH_BLAHP )
 
 	message(STATUS "TODO:TSTCLAIR BLAHP eval if linking correct popt w/o mundging Makefile.am")
 	
@@ -22,7 +42,7 @@ if ( NOT PROPER AND WITH_BLAHP )
 						INSTALL_DIR ${EXTERNAL_STAGE}
 						INSTALL_COMMAND cd ${POPT_VER} && make install )
 
-	dprint("we ingore the return param from bootstrap.. there are errors!")
+	#dprint("we ingore the return param from bootstrap.. there are errors!")
 
 	ExternalProject_Add(blahp
 						DEPENDS classads openssl globus popt
@@ -62,8 +82,8 @@ if ( NOT PROPER AND WITH_BLAHP )
 	### set the install
 	install ( DIRECTORY ${EXTERNAL_STAGE}/opt/glite DESTINATION ${C_LIB} )
 
-else( NOT PROPER AND WITH_BLAHP )
+else( WITH_BLAHP )
 
 	message ( STATUS "external skiped (blahp)" )
 
-endif( NOT PROPER AND WITH_BLAHP )
+endif( WITH_BLAHP )

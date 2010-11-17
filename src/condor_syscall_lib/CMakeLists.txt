@@ -1,3 +1,21 @@
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
 ##############################################################
 ## Abandon all hope ye who enter here:
 ## this be the mystical workings of the infamous
@@ -27,6 +45,9 @@ if( STD_UNIVERSE )
 	# which can call the originals.
 	###########################################################################
 	exec_program ( gcc ARGS -print-file-name=crt1.o OUTPUT_VARIABLE CRT1 )
+	exec_program ( gcc ARGS -print-file-name=libgcc.a OUTPUT_VARIABLE LIBGCC )
+	exec_program ( gcc ARGS -print-file-name=libgcc_eh.a OUTPUT_VARIABLE LIBGCC_EH )
+	exec_program ( gcc ARGS -print-file-name=libstdc++.a OUTPUT_VARIABLE STDCPLUS )
 	exec_program ( objcopy ARGS --redefine-sym main=MAIN ${CRT1} ${CMAKE_CURRENT_SOURCE_DIR}/condor_rt0.o )
 
 	##################################################
@@ -97,7 +118,11 @@ if( STD_UNIVERSE )
 	add_dependencies( sys-list syscall_numbers stub_gen )
 
 	#################################################
-	# here we begin the install target section 
+	# here we begin the install target section
+	install ( TARGETS condorsyscall DESTINATION ${C_LIB} )
 	install ( FILES condor_rt0.o DESTINATION ${C_LIB} )
+	install ( FILES ${LIBGCC} DESTINATION ${C_LIB} RENAME libcomp_libgcc.a )
+	install ( FILES ${LIBGCC_EH} DESTINATION ${C_LIB} RENAME libcomp_libgcc_eh.a )
+	install ( FILES ${STDCPLUS} DESTINATION ${C_LIB} RENAME libcomp_libstdc++.a )
 	
 endif( STD_UNIVERSE )

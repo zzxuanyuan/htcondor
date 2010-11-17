@@ -1,3 +1,21 @@
+ ###############################################################
+ # 
+ # Copyright (C) 1990-2010, Redhat. 
+ # 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you 
+ # may not use this file except in compliance with the License.  You may 
+ # obtain a copy of the License at 
+ # 
+ #    http://www.apache.org/licenses/LICENSE-2.0 
+ # 
+ # Unless required by applicable law or agreed to in writing, software 
+ # distributed under the License is distributed on an "AS IS" BASIS, 
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and 
+ # limitations under the License. 
+ # 
+ ############################################################### 
+
 
 set(TOOL_LINK_LIBS "${CONDOR_TOOL_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND}")
 
@@ -35,6 +53,7 @@ if (NOT WINDOWS)
 	clone_install(condor "condor_reconfig_schedd;condor_master_off" "${C_SBIN}")
 	if (STD_UNIVERSE)
 		clone_install(condor "condor_checkpoint" "${C_BIN}")
+		#condor_exe(condor_ckpt_probe "probe_process.cpp" "${C_LIBEXEC}" "${TOOL_LINK_LIBS}")
 	endif(STD_UNIVERSE)
 else(NOT WINDOWS)
 	clone_install(condor_cod "condor_cod_request" "${C_BIN}")
@@ -44,5 +63,3 @@ endif(NOT WINDOWS)
 condor_exe(condor_stats "stats.cpp" ${C_BIN} "${TOOL_LINK_LIBS}")
 
 condor_exe_test(condor_test_auth "test_auth.cpp" "${TOOL_LINK_LIBS}")
-
-
