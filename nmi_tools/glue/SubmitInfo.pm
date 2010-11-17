@@ -419,7 +419,6 @@ our %submit_info = (
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 
 				'x86_64_ubuntu_10.04',
-				'x86_64_sl_5.5', 
 				'x86_64_fedora_13', 'x86_64_rhap_5.2',
 				'x86_64_fedora_12', 'x86_64_fedora_12-updated', 
 				'x86_64_fedora_11' ],
@@ -444,7 +443,6 @@ our %submit_info = (
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [
 				'x86_64_sles_9',
-				'x86_64_sl_5.5',
 				'x86_64_rhas_4' ],
 		},
 
@@ -535,7 +533,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_13'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -553,7 +551,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.5.0_13'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -573,7 +571,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -590,7 +588,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05'],
+			'prereqs'	=> [ @default_prereqs ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -604,11 +602,7 @@ our %submit_info = (
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 
 				'x86_ubuntu_10.04',
-				'x86_64_ubuntu_10.04',
-				'x86_64_sl_5.5', 
 				'x86_64_rhap_5.2',
-				'x86_64_fedora_12-updated', 'x86_64_fedora_13', 
-				'x86_64_fedora_11', 'x86_64_fedora_12',
 				'unmanaged-x86_rhap_5'
 			],
 		},
@@ -652,7 +646,6 @@ our %submit_info = (
 			],
 			'xtests'	=> [ 
 				'x86_64_sles_9',
-				'x86_64_sl_5.5',
 				'x86_64_rhap_5.2', 
 				'unmanaged-x86_rhap_5',
 			 	'x86_rhas_4', 
