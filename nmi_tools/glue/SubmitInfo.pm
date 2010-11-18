@@ -54,7 +54,7 @@ our %build_and_test_sets = (
 		'x86_macos_10.4',
 		'x86_rhap_5',
 		'x86_rhas_3',
-		'ppc_aix_5.2-pl5',
+		#'ppc_aix_5.2-pl5', # this is a total fail for cmake builds. 
 		'x86_winnt_5.1-tst', 
 		#the below are commented out for speed.
 	],
@@ -327,8 +327,9 @@ our %submit_info = (
 	##########################################################################
 	'ppc_aix_5.2-pl5'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args,
-			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
+			'configure_args' => { '-D_DEBUG:BOOL=ON' => undef,
+			  '-DPROPER:BOOL=OFF' 			 => undef,
+			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	 => undef,
 			},
 			'prereqs'	=> [ 
 				@default_prereqs, 
@@ -367,9 +368,10 @@ our %submit_info = (
 	##########################################################################
 	'sun4u_sol_5.9'	=> {
 		'build' => {
-			'configure_args' => { @default_build_configure_args,
-				'-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
-				'-DCONDOR_CXX_FLAGS:STRING=-B$PATH' => undef,
+			'configure_args' => { '-D_DEBUG:BOOL=ON'	=> undef,
+				'-DPROPER:BOOL=OFF' 			=> undef,
+				'-DSCRATCH_EXTERNALS:BOOL=OFF'		=> undef,
+				'-DCONDOR_CXX_FLAGS:STRING=-B$PATH' 	=> undef,
 			},
 			'prereqs'	=> [ 
 				@default_prereqs, 
