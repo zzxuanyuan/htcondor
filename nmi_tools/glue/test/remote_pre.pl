@@ -31,7 +31,6 @@ use File::Copy;
 $|=1;
 
 my $BaseDir = $ENV{BASE_DIR} || die "BASE_DIR not in environment!\n";
-
 my $logsize = "50000000"; # size for logs of personal Condor
 
 # Hard-coded filename, defined in test_platform_pre
@@ -77,9 +76,8 @@ print "Untarred $release_tarball ...\n";
 ######################################################################
 
 if( !($ENV{NMI_PLATFORM} =~ /winnt/) ) {
-	# New improved way to find the version for unix releases
-	$release_tarball =~ /condor-(\d+)\.(\d+)\.(\d+)-(\w+)-(\w+).*/;
-	$version = "condor-$1.$2.$3-$4-$5";
+	($basename,$ext_gz) = $release_tarball =~ /^(.*)(\.[^.]*)$/;
+	($version,$ext_tar) = $basename =~ /^(.*)(\.[^.]*)$/;
 	print "VERSION string is $version\n";
 } else {
 	die "Your tarball does not match condor-X-Y-Z!\n";
