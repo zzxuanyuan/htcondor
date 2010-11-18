@@ -73,6 +73,7 @@ if (WITH_GSOAP)
 
 		set ( GSOAP_SHARE "${EXTERNAL_BUILD_PREFIX}/${GSOAP_VER}/src/gsoap/${GSOAP_VER}/gsoap" )
 		append_var (CONDOR_EXTERNALS gsoap)
+		set(WSSEAPI "WSSEAPI-NOTFOUND")
 
 	else( NOT PROPER )
 
@@ -83,6 +84,25 @@ if (WITH_GSOAP)
 		set ( SOAPCPP2 ${SOAPCPP2} )
 		set ( GSOAP_SHARE "/usr/share/gsoap" )
 
+		# so here is the crazy problem.  There is a version issue with newer 
+ 		# builds of gsoap which requires us to support both old and new.
+ 		# so 1st we check to see if there is a cpp native and see if our patch 
+		# can be applied.  
+		
+		# if it fails the try to use the native wsseapi and updates further down will handle 
+		# condor_amazon should deal with the issue.   
+		find_file(WSSEAPI wsseapi.cpp HINTS ${GSOAP_SHARE}/plugin/ )
+
+		exec_program ( cp
+					   ARGS ${GSOAP_SHARE}/plugin/wsseapi.c ${EXTERNAL_STAGE}/src/wsseapi.cpp && patch -p3 ${EXTERNAL_STAGE}/src/wsseapi.cpp ${CMAKE_CURRENT_SOURCE_DIR}/wsseapi.patch
+					   RETURN_VALUE WSSEAPI_PATCH )
+		
+		dprint("WSSEAPI_PATCH = ${WSSEAPI_PATCH}")
+		if (WSSEAPI_PATCH EQUAL 0)
+		  set(WSSEAPI ${EXTERNAL_STAGE}/src/wsseapi.cpp)
+		  set(PRE_WSEAPPI_CPP ON PARENT_SCOPE)
+		endif()
+
 	endif( NOT PROPER )
 
 	if (GSOAP_FOUND)
@@ -92,14 +112,13 @@ if (WITH_GSOAP)
 			set( GSOAP_FOUND ${GSOAP_FOUND} PARENT_SCOPE )
 
 			# removing dependencies from condor-proper.
-			command_target( cp_smdevp cp "${GSOAP_SHARE}/plugin/smdevp.c;${EXTERNAL_STAGE}/src/smdevp.cpp" "smdevp.cpp" )
+			command_target( cp_smdevp cp "${GSOAP_SHARE}/plugin/smdevp.c;${EXTERNAL_STAGE}/src/smdevp.cpp" "${EXTERNAL_STAGE}/src/smdevp.cpp" )
 			append_var (CONDOR_EXTERNALS cp_smdevp)
 			add_dependencies(cp_smdevp gsoap)
 
-			find_file(WSSEAPI wsseapi.cpp HINTS ${GSOAP_SHARE}/plugin/ )
 			if (${WSSEAPI} STREQUAL "WSSEAPI-NOTFOUND" )
 
-			  command_target(cp_wsseapi cp "${GSOAP_SHARE}/plugin/wsseapi.c;${EXTERNAL_STAGE}/src/wsseapi.cpp;&&;patch;-p3;${EXTERNAL_STAGE}/src/wsseapi.cpp;${CMAKE_CURRENT_SOURCE_DIR}/wsseapi.patch" "wsseapi.cpp")
+			  command_target(cp_wsseapi cp "${GSOAP_SHARE}/plugin/wsseapi.c;${EXTERNAL_STAGE}/src/wsseapi.cpp;&&;patch;-p3;${EXTERNAL_STAGE}/src/wsseapi.cpp;${CMAKE_CURRENT_SOURCE_DIR}/wsseapi.patch" "${EXTERNAL_STAGE}/src/wsseapi.cpp")
 
 			  set(WSSEAPI ${EXTERNAL_STAGE}/src/wsseapi.cpp)
 			  set(PRE_WSEAPPI_CPP ON PARENT_SCOPE)
