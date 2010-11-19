@@ -30,6 +30,7 @@ if( STD_UNIVERSE )
 	# NOTE: all glibc ripping which existed here has moved to syscall_lib
 	# where it is actually bound in.
 	###########################################################################
+	set( CMAKE_BUILD_TYPE Debug )
 	
 	###########################################################################
 	# define the actual targets, and copiler options

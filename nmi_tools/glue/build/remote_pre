@@ -39,7 +39,7 @@ my $buildid_file = "BUILD-ID";
 my $buildid;
 my $externals_loc="/scratch/externals/cmake";
 my $platform = "$ENV{NMI_PLATFORM}";
-my $prefix = "-DCMAKE_INSTALL_PREFIX:PATH=$BaseDir/release_dir";
+my $prefix = "-DCMAKE_INSTALL_PREFIX:PATH=$BaseDir/release_dir ";
 
 # autoflush our STDOUT
 $| = 1;
