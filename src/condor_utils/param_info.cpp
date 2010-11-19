@@ -74,7 +74,7 @@ if (src) { \
    is "safe". */
 #define CPY_STR(dst, src) \
 if (src) { \
-	dst = src;			\
+	dst = (char *) src;			\
 } else { \
 	dst = NULL;  \
 }
@@ -142,7 +142,7 @@ param_info_insert(const char* param,
 
 	p = (param_info_t*)malloc(sizeof(param_info_t));
 
-	CPY_STR(p->name, param);
+	CPY_STR(p->name,  param);
 	CPY_STR(p->aliases, aliases);
 
 	if (!value) {
