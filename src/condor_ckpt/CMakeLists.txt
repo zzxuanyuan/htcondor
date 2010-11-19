@@ -35,7 +35,8 @@ if( STD_UNIVERSE )
 	# define the actual targets, and copiler options
 	###########################################################################
 	add_definitions( ${STD_U_C_FLAGS} -DFILE_TABLE -DIN_CKPT_LIB)
-	condor_selective_glob( "*file*;signals*;image*;machdep.LINUX.cpp;tmp_*;syscall_*;fake_*;condor_error*;eprintf*;shared_*;malloc-user*;gto*;maps*" CommonCkptSrcs )
+	include_directories(${CONDOR_SOURCE_DIR}/src/condor_ckpt)
+	condor_selective_glob("*file*;signals*;image*;machdep.LINUX.cpp;tmp_*;syscall_*;fake_*;condor_error*;eprintf*;shared_*;malloc-user*;gto*;maps*" CommonCkptSrcs )
 
 	# from what I can tell this doesn't even work.
 	#if (DOES_COMPRESS_CKPT)
