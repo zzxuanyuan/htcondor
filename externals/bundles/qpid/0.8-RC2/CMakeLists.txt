@@ -23,18 +23,40 @@ if (WITH_QPID)
 				    INSTALL_COMMAND cd qpidc-${QPID_MAJOR_VER} && make install )
 
 		# Set the target dependencies which the rest of condor depends on.
-		set (QPID_INCLUDE_FOUND ${EXTERNAL_STAGE}/include)
+		# all of the below locations need to be verified.
+		if (WINDOWS)
+			set( QPID_FOUND "${EXTERNAL_STAGE}/lib/qpidcommon.lib;${EXTERNAL_STAGE}/lib/qpidclient.lib;${EXTERNAL_STAGE}/lib/qmf.lib;${EXTERNAL_STAGE}/lib/qpidtypes.lib" )
+			install ( FILES ${EXTERNAL_STAGE}/bin/qpidcommon.dll
+					  ${EXTERNAL_STAGE}/bin/qpidcommon.pdb
+					  ${EXTERNAL_STAGE}/bin/qpidclient.dll
+					  ${EXTERNAL_STAGE}/bin/qpidclient.pdb
+					  ${EXTERNAL_STAGE}/bin/qmf.dll
+					  ${EXTERNAL_STAGE}/bin/qmf.pdb
+					  ${EXTERNAL_STAGE}/bin/qpidtypes.dll
+					  DESTINATION ${C_LIB} )
+			set( QMF_GEN ${EXTERNAL_STAGE}/managementgen/qmf-gen )
+		else()
+			set( QPID_FOUND "${EXTERNAL_STAGE}/lib/libqpidcommon.so;${EXTERNAL_STAGE}/lib/libqpidclient.so;${EXTERNAL_STAGE}/lib/libqmf.so;${EXTERNAL_STAGE}/lib/libqpidtypes.so" )
+			# TODO: so are we going to need to install qpid.so's along with condor..? or should we -static the plugins.
+			# add linux install target
+			#set( QMF_GEN ${EXTERNAL_STAGE}/managementgen/qmf-gen ) ?
+		endif()
+
 		append_var(CONDOR_EXTERNALS qpid)
 
 	else( NOT PROPER )
 
-		find_multiple( "qpidclient;qpidtypes" QPID_FOUND )
+		# I don't know how we check versions for native search of qpid-qmf? header check? program_exec?
+		find_multiple( "qpidcommon;qpidclient;qmf;qmfengine;qpidtypes" QPID_FOUND)
+		find_program ( QMF_GEN qmf-gen )
 
 	endif( NOT PROPER )
 
-	message (STATUS "external configured (QPID_FOUND=${QPID_FOUND})")
-	set( QPID_FOUND ${QPID_FOUND} PARENT_SCOPE )
+	# you will need to update config.h.cmake with your var.
+	message (STATUS "external configured QPID_FOUND=(${QPID_FOUND}) QMF_GEN=(${QMF_GEN})")
 	set( HAVE_EXT_QPID ON PARENT_SCOPE )
+	set (QPID_FOUND ${QPID_FOUND} PARENT_SCOPE)
+	set (QMF_GEN ${QMF_GEN} PARENT_SCOPE)
 
 else(WITH_QPID)
 
