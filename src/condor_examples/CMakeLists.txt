@@ -117,6 +117,10 @@ else()
 			RENAME		condor)
 
 endif()
+else()
+	install(FILES		condor_config.generic
+			DESTINATION	"."
+			RENAME		condor_config)
 
 
 endif(NOT WINDOWS)
