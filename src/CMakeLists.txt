@@ -26,10 +26,7 @@ add_subdirectories("${CONDOR_SOURCE_DIR}/src" "${CONDOR_SOURCE_DIR}/src/condor_u
 
 if (BUILD_TESTS)
 	add_custom_target(tests)
-	add_dependencies(tests ${CONDOR_TESTS} all)
-	if (STD_UNIVERSE)
-	  add_dependencies(tests install)
-	endif(STD_UNIVERSE)
+	add_dependencies(tests ${CONDOR_TESTS})
 	dprint("CONDOR_TESTS=${CONDOR_TESTS}")
 endif(BUILD_TESTS)
 
