@@ -386,6 +386,11 @@ if (NOT WINDOWS)
 
 		  set (STD_UNIVERSE ON)
 
+		  # seriously I've sold my soul doing this dirty work
+		  set (CONDOR_COMPILE ${CONDOR_SOURCE_DIR}/src/condor_scripts/condor_compile)
+		  set (CONDOR_ARCH_LINK ${CONDOR_SOURCE_DIR}/src/condor_scripts/condor_arch_link)
+		  set (STDU_LIB_LOC ${CMAKE_INSTALL_PREFIX}/${C_LIB})
+		  
 		  include_directories( ${CONDOR_SOURCE_DIR}/src/condor_io.std )
 
 		  message( STATUS "** Standard Universe Enabled **")
@@ -692,6 +697,9 @@ dprint ( "CMAKE_SUPPRESS_REGENERATION: ${CMAKE_SUPPRESS_REGENERATION}" )
 
 # A simple way to get switches to the compiler is to use ADD_DEFINITIONS(). 
 # But there are also two variables exactly for this purpose: 
+
+# output what the linker flags are
+dprint ( "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}" )
 
 # the compiler flags for compiling C sources 
 dprint ( "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}" )

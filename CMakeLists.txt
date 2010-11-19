@@ -67,6 +67,7 @@ include (CondorConfigure)     # will initiate the configure
 include (AddSubdirectories)
 include (CondorPLTest)
 include (CondorExeTest)
+include (CondorStdExeTest)
 include (SrcTargetRef)
 include (DumpLocalFlags)
 
