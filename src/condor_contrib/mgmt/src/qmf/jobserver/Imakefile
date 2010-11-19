@@ -1,0 +1,57 @@
+NAME = condor_job_server
+
+CFLAGS = -I$(NEW_CLASSADS_INC) $(STD_C_FLAGS)
+C_PLUS_FLAGS = -I$(NEW_CLASSADS_INC) $(STD_C_PLUS_FLAGS) -I../management
+LIB = -L$(NEW_CLASSADS_LIB) -lclassad_ns $(DAEMONCORE_LIB) $(STD_LIBS) $(CONFIGURE_QMF_LIBS)
+
+all_target( $(NAME) )
+
+GEN = Package.h Package.cpp \
+	ArgsJobServerGetJobAd.h \
+	ArgsJobServerFetchJobData.h \
+	ArgsSubmissionGetJobSummaries.h \
+	ArgsGridMethodsEcho.h \
+	Submission.h Submission.cpp \
+	JobServer.h JobServer.cpp
+
+OBJ = JobServer.o \
+	Submission.o \
+	job_server_main.o \
+	Globals.o \
+	Job.o \
+	SubmissionObject.o \
+	JobServerJobLogConsumer.o \
+	JobLogMirror.o \
+	JobServerObject.o \
+	HistoryFile.o \
+	HistoryProcessingUtils.o \
+	Utils.o \
+	PoolUtils.o
+
+$(GEN): job_server.xml
+#	PYTHONPATH=`python -c 'from distutils.sysconfig import get_python_lib; from sys import stdin; print get_python_lib()'` "$(QMF_GEN)" job_server.xml
+	"$(QMF_GEN)" job_server.xml
+	cd com/redhat/grid/ && mv * ../../..
+	rm -r com
+
+c_plus_target($(NAME),$(OBJ),$(LIB))
+
+c_plus_target(test_history,test_history.o Submission.o Globals.o Job.o SubmissionObject.o HistoryFile.o HistoryProcessingUtils.o JobServerJobLogConsumer.o Utils.o,$(STD_LIBS) -lpcre $(CONFIGURE_QMF_LIBS))
+
+c_plus_target(test_search,test_search.o Globals.o SubmissionObject.o Submission.o Job.o,$(STD_LIBS) -lpcre $(CONFIGURE_QMF_LIBS))
+
+html:
+release:: all
+stripped:: all
+static:: all
+clean::
+	rm -f $(GEN)
+
+public_copy_target($(NAME),sbin,$(NAME),EXECUTABLE_MODE)
+
+testbin:: all
+
+IMPORT_LINKS = ../../config/import_links
+import_objs(../condor_c++_util,JobLogMirror.o)
+import_objs(../management,Utils.o)
+import_objs(../management,PoolUtils.o)

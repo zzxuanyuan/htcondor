@@ -1,0 +1,9 @@
+ClusterId = 3
+QDate = 1249014813
+Cmd = "/bin/sleep"
+Args = "1"
+GlobalJobId = "tigger.local#3.9999#1249014830"
+ProcId = 9999
+JobStatus = 4
+EnteredCurrentStatus
+*** Offset = 0 ClusterId = 3 ProcId = 9999 Owner = "matt" CompletionDate = 1249021202

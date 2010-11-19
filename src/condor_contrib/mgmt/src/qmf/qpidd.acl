@@ -1,0 +1,3 @@
+acl allow cumin@QPID all all
+acl allow guest@QPID all all
+acl deny all all

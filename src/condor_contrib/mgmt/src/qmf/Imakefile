@@ -1,0 +1,147 @@
+SCHEDD_PLUGIN = MgmtScheddPlugin-plugin.so
+COLLECTOR_PLUGIN = MgmtCollectorPlugin-plugin.so
+STARTD_PLUGIN = MgmtStartdPlugin-plugin.so
+NEGOTIATOR_PLUGIN = MgmtNegotiatorPlugin-plugin.so
+MASTER_PLUGIN = MgmtMasterPlugin-plugin.so
+UTILS = Utils.o PoolUtils.o
+
+all_target($(SCHEDD_PLUGIN) $(COLLECTOR_PLUGIN) $(STARTD_PLUGIN) $(NEGOTIATOR_PLUGIN) $(MASTER_PLUGIN) $(UTILS))
+
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+
+GEN = \
+	Slot.h \
+	Scheduler.h \
+	Submitter.h \
+	Negotiator.h \
+	Collector.h \
+	Master.h \
+	Grid.h \
+	Submission.h \
+	Slot.cpp \
+	Scheduler.cpp \
+	Submitter.cpp \
+	Negotiator.cpp \
+	Collector.cpp \
+	Master.cpp \
+	Grid.cpp \
+	Submission.cpp \
+	JobServer.cpp \
+	ArgsSchedulerSubmitJob.h \
+	ArgsSchedulerGetJobAd.h \
+	ArgsSchedulerSetJobAttribute.h \
+	ArgsSchedulerHoldJob.h \
+	ArgsSchedulerReleaseJob.h \
+	ArgsSchedulerRemoveJob.h \
+	ArgsSchedulerFetchJobData.h \
+	ArgsSchedulerGetJobSummaries.h \
+	ArgsSchedulerEcho.h \
+	ArgsNegotiatorGetLimits.h \
+	ArgsNegotiatorSetLimit.h \
+	ArgsNegotiatorGetStats.h \
+	ArgsNegotiatorSetPriority.h \
+	ArgsNegotiatorSetPriorityFactor.h \
+	ArgsNegotiatorSetUsage.h \
+	ArgsNegotiatorGetRawConfig.h \
+	ArgsNegotiatorSetRawConfig.h \
+	ArgsMasterStart.h \
+	ArgsMasterStop.h \
+	Package.h \
+	Package.cpp
+
+SCHEDD_PLUGIN_OBJS = \
+	hashkey-pic.o \
+	set_user_priv_from_ad-pic.o \
+	JobUtils-pic.o \
+	Utils-pic.o \
+	PoolUtils-pic.o \
+	Scheduler-pic.o \
+	SchedulerObject-pic.o \
+	Submitter-pic.o \
+	SubmitterObject-pic.o \
+	SubmitterUtils-pic.o \
+	PROC_ID_comparator-pic.o \
+	Submission-pic.o \
+	SubmissionObject-pic.o \
+	JobServer-pic.o \
+	JobServerObject-pic.o \
+	MgmtScheddPlugin-pic.o \
+	MgmtScheddPluginInstantiation-pic.o
+
+COLLECTOR_PLUGIN_OBJS = \
+	Slot-pic.o \
+	Collector-pic.o \
+	Grid-pic.o \
+	SlotObject-pic.o \
+	CollectorObject-pic.o \
+	GridObject-pic.o \
+	PoolUtils-pic.o \
+	MgmtCollectorPlugin-pic.o
+
+STARTD_PLUGIN_OBJS = \
+	hashkey-pic.o \
+	Slot-pic.o \
+        SlotObject-pic.o \
+	PoolUtils-pic.o \
+	MgmtStartdPlugin-pic.o
+
+NEGOTIATOR_PLUGIN_OBJS = \
+	Negotiator-pic.o \
+	NegotiatorObject-pic.o \
+	PoolUtils-pic.o \
+	Utils-pic.o \
+	MgmtNegotiatorPlugin-pic.o
+
+MASTER_PLUGIN_OBJS = \
+	Master-pic.o \
+	MasterObject-pic.o \
+	PoolUtils-pic.o \
+	MgmtMasterPlugin-pic.o
+
+$(GEN): condor-management-schema.xml
+#	PYTHONPATH="$(QPID)/lib/python2.5/site-packages" "$(QPID)/bin/qmf-gen" condor-management-schema.xml
+#	PYTHONPATH=`echo -n "$(QPID)" | python -c 'from distutils.sysconfig import get_python_lib; from sys import stdin; print get_python_lib(prefix=stdin.readline())'` "$(QPID)/bin/qmf-gen" condor-management-schema.xml
+#	PYTHONPATH=`python -c 'from distutils.sysconfig import get_python_lib; from sys import stdin; print get_python_lib()'` "$(QMF_GEN)" condor-management-schema.xml
+	"$(QMF_GEN)" condor-management-schema.xml
+	cd com/redhat/grid/ && mv * ../../..
+	rm -r com
+
+$(SCHEDD_PLUGIN): $(SCHEDD_PLUGIN_OBJS)
+	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) -shared $(CONFIGURE_QMF_LIBS) $+ -o $@
+
+$(COLLECTOR_PLUGIN): $(COLLECTOR_PLUGIN_OBJS)
+	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) -shared $(CONFIGURE_QMF_LIBS) $+ -o $@
+
+$(STARTD_PLUGIN): $(STARTD_PLUGIN_OBJS)
+	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) -shared $(CONFIGURE_QMF_LIBS) $+ -o $@
+
+$(NEGOTIATOR_PLUGIN): $(NEGOTIATOR_PLUGIN_OBJS)
+	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) -shared $(CONFIGURE_QMF_LIBS) $+ -o $@
+
+
+$(MASTER_PLUGIN): $(MASTER_PLUGIN_OBJS)
+	$(CPlusPlus) $(CC_PIC_FLAGS) $(C_PLUS_FLAGS) -shared $(CONFIGURE_QMF_LIBS) $+ -o $@
+
+
+html:
+testbin:
+stipped:
+
+public_copy_target($(SCHEDD_PLUGIN),libexec,$(SCHEDD_PLUGIN),EXECUTABLE_MODE)
+public_copy_target($(COLLECTOR_PLUGIN),libexec,$(COLLECTOR_PLUGIN),EXECUTABLE_MODE)
+public_copy_target($(STARTD_PLUGIN),libexec,$(STARTD_PLUGIN),EXECUTABLE_MODE)
+public_copy_target($(NEGOTIATOR_PLUGIN),libexec,$(NEGOTIATOR_PLUGIN),EXECUTABLE_MODE)
+public_copy_target($(MASTER_PLUGIN),libexec,$(MASTER_PLUGIN),EXECUTABLE_MODE)
+
+clean::
+	rm -f $(GEN)
+	rm -f $(SCHEDD_PLUGIN) $(SCHEDD_PLUGIN_OBJS)
+	rm -f $(COLLECTOR_PLUGIN) $(COLLECTOR_PLUGIN_OBJS)
+	rm -f $(STARTD_PLUGIN) $(STARTD_PLUGIN_OBJS)
+	rm -f $(NEGOTIATOR_PLUGIN) $(NEGOTIATOR_PLUGIN_OBJS)
+	rm -f $(MASTER_PLUGIN) $(MASTER_PLUGIN_OBJS)
+	rm -f $(UTILS)
+
+IMPORT_LINKS = ../../config/import_links
+import_objs(../condor_collector.V6,hashkey-pic.o)
+import_objs(../condor_c++_util,set_user_priv_from_ad-pic.o)
