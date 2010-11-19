@@ -30,16 +30,18 @@ MACRO (CONDOR_STD_EXE_TEST _CNDR_TARGET _COMPILER _SRCS _LINK_FLAGS )
 		endforeach()
 
 		#dprint("SRCS=${_SRCS}  objs_${_CNDR_TARGET}=${objs_${_CNDR_TARGET}}")
-		# putput from condor_compile
+		# you *should* be able to pass a library to std:u
 		add_library( ${_CNDR_TARGET} STATIC EXCLUDE_FROM_ALL ${_SRCS})
 
+		#here is where cmake is not so good you can not easily access the object files :-( so rip them out
 		command_target( arx_${_CNDR_TARGET} ar "-x;lib${_CNDR_TARGET}.a" "${objs_${_CNDR_TARGET}}")
 		add_dependencies( arx_${_CNDR_TARGET} ${_CNDR_TARGET})
 
+		# call condor compile, you will need to verify that make install has passed.
 		command_target( cc_${_CNDR_TARGET} ${CONDOR_COMPILE} "-condor_lib;${STDU_LIB_LOC};-condor_ld_dir;${STDU_LIB_LOC};${_COMPILER};-o;${_CNDR_TARGET}.cndr.exe;${objs_${_CNDR_TARGET}};${_LINK_FLAGS}" "${_CNDR_TARGET}.cndr.exe" )
 		add_dependencies( cc_${_CNDR_TARGET} arx_${_CNDR_TARGET})
 
-		command_target( ca_${_CNDR_TARGET} ${CONDOR_ARCH_LINK} "${_CNDR_TARGET}.cndr.exe" "${_CNDR_TARGET}.cndr.exe.Linux.${SYS_ARCH}")
+		command_target( ca_${_CNDR_TARGET} ${CONDOR_ARCH_LINK} "${_CNDR_TARGET}.cndr.exe" "${_CNDR_TARGET}.cndr.exe.LINUX.INTEL")
 		add_dependencies( ca_${_CNDR_TARGET} cc_${_CNDR_TARGET})
 
 		append_var(CONDOR_TESTS ca_${_CNDR_TARGET})

@@ -64,8 +64,8 @@ if( ! defined $ENV{_NMI_TASKNAME} ) {
 
 # Checking task type
 if ($taskname eq $TAR_TASK) { 
-	#Normal build -> create tar.gz package
-	$execstr= "make externals && make -j4 package && make tests";
+	#Normal build -> create tar.gz package (The only reason install is done is for the std:u:tests) 
+	$execstr= "make externals && make -j4 package && make install && make tests";
 
 } elsif  ($taskname eq $CONFIG_TASK){
 	#Reconfigure cmake variables for native package build
