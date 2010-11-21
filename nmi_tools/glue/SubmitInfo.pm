@@ -168,7 +168,7 @@ my @default_test_configure_args =
 my @default_build_configure_args =
 	(
 	'-DPROPER:BOOL=OFF' 	=> undef,
-	'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
+	#'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
 	);
 
 ###############################################################################

@@ -22,13 +22,6 @@
 ## vs. a target. As a result I no longer use safe_append.
 if (BUILD_TESTS)
 
-	if (STD_UNIVERSE)
-	  # disable any optimizations + compile with specific fla
-	  set( CMAKE_BUILD_TYPE Debug )
-	  #set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions" )
-	  set( STDU_LDD_FLAGS -lm;-ldl;-lcrypt )
-	endif(STD_UNIVERSE)
-
 	##########################################################
 	# vars and settings
 	set(CONDOR_SCRIPTS_DIR ${CONDOR_SOURCE_DIR}/src/condor_scripts)
@@ -52,7 +45,7 @@ if (BUILD_TESTS)
 
 	##########################################################
 	# exe test targets
-	condor_exe_test(x_return-n.exe "x_return-n.cpp;x_waste_second.cpp" "")
+	condor_exe_test(x_return-n.exe "x_return-n.cpp;x_waste_second.c" "")
 	condor_exe_test(x_dumpcore.exe "x_dumpcore.cpp" "")
 	condor_exe_test(x_tightloop.exe "x_tightloop.cpp" "")
 	condor_exe_test(x_killppid.exe "x_killppid.cpp" "condorapi")
@@ -69,6 +62,12 @@ if (BUILD_TESTS)
 	endif(NOT WINDOWS)
 	
 	if (STD_UNIVERSE)
+		
+		# disable any optimizations + compile with specific fla
+		set( CMAKE_BUILD_TYPE Debug )
+		add_library( stdulib STATIC EXCLUDE_FROM_ALL "x_waste_second.c" )
+		set( STDU_LDD_FLAGS -lm;-ldl;-lcrypt;libstdulib.a )
+
 		# C-Tests
 		condor_std_exe_test(job_core_compressfiles "${CMAKE_C_COMPILER}" "job_core_compressfiles.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_core_coredump "${CMAKE_C_COMPILER}" "job_core_coredump.c" "${STDU_LDD_FLAGS}")
@@ -87,7 +86,7 @@ if (BUILD_TESTS)
 		# these tests, "test" a function and it is irrelovant whether
 		# they were bound via c vs. c++
 		condor_std_exe_test(job_core_bigenv "${CMAKE_C_COMPILER}" "job_core_bigenv.c" "${STDU_LDD_FLAGS}")
-		#condor_std_exe_test(job_rsc_all-syscalls_std "${CMAKE_C_COMPILER}" "job_rsc_all-syscalls_std.c" "${STDU_LDD_FLAGS}")
+		condor_std_exe_test(job_rsc_all-syscalls_std "${CMAKE_C_COMPILER}" "job_rsc_all-syscalls_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_hello_std "${CMAKE_C_COMPILER}" "job_rsc_hello_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_fcntl_std "${CMAKE_C_COMPILER}" "job_rsc_fcntl_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_truncate_std "${CMAKE_C_COMPILER}" "job_rsc_truncate_std.c" "${STDU_LDD_FLAGS}")
@@ -95,19 +94,21 @@ if (BUILD_TESTS)
 		condor_std_exe_test(job_rsc_fgets_std "${CMAKE_C_COMPILER}" "job_rsc_fgets_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_fread_std "${CMAKE_C_COMPILER}" "job_rsc_fread_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_ftell_std "${CMAKE_C_COMPILER}" "job_rsc_ftell_std.c" "${STDU_LDD_FLAGS}")
+		condor_std_exe_test(job_rsc_stat_std "${CMAKE_C_COMPILER}" "job_rsc_stat_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_open-N-serial_std "${CMAKE_C_COMPILER}" "job_rsc_open-N-serial_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_atexit_std "${CMAKE_C_COMPILER}" "job_rsc_atexit_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_rsc_zero-calloc_std "${CMAKE_C_COMPILER}" "job_rsc_zero-calloc_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_combo-sanity_std "${CMAKE_C_COMPILER}" "job_ckpt_combo-sanity_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_io-async_std "${CMAKE_C_COMPILER}" "job_ckpt_io-async_std.c" "${STDU_LDD_FLAGS}")
+		condor_std_exe_test(job_ckpt_io-buffer-async_std "${CMAKE_C_COMPILER}" "job_ckpt_io-buffer-async_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_stack_std "${CMAKE_C_COMPILER}" "job_ckpt_stack_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_floats_std "${CMAKE_C_COMPILER}" "job_ckpt_floats_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_floats-async_std "${CMAKE_C_COMPILER}" "job_ckpt_floats-async_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_integers_std "${CMAKE_C_COMPILER}" "job_ckpt_integers_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_signals_std "${CMAKE_C_COMPILER}" "job_ckpt_signals_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_dup_std "${CMAKE_C_COMPILER}" "job_ckpt_dup_std.c" "${STDU_LDD_FLAGS}")
-		#condor_std_exe_test(job_ckpt_longjmp_std "${CMAKE_C_COMPILER}" "job_ckpt_longjmp_std.c" "${STDU_LDD_FLAGS}")
-		#condor_std_exe_test(job_ckpt_gettimeofday_std "${CMAKE_C_COMPILER}" "job_ckpt_gettimeofday_std.c" "${STDU_LDD_FLAGS}")
+		condor_std_exe_test(job_ckpt_longjmp_std "${CMAKE_C_COMPILER}" "job_ckpt_longjmp_std.c" "${STDU_LDD_FLAGS}")
+		condor_std_exe_test(job_ckpt_gettimeofday_std "${CMAKE_C_COMPILER}" "job_ckpt_gettimeofday_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_open-async-ckpt_std "${CMAKE_C_COMPILER}" "job_ckpt_open-async-ckpt_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_open-N-parallel_std "${CMAKE_C_COMPILER}" "job_ckpt_open-N-parallel_std.c" "${STDU_LDD_FLAGS}")
 		condor_std_exe_test(job_ckpt_socket-support_std "${CMAKE_C_COMPILER}" "job_ckpt_socket-support_std.c" "${STDU_LDD_FLAGS}")

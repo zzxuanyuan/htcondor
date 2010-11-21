@@ -91,7 +91,7 @@ if( STD_UNIVERSE )
 	dump_local_flags(COMP_DEFS)
 	command_target (switches ${CMAKE_C_COMPILER} "-E;-x;c-header;-DSWITCH;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;switches;-p;switches.prologue;-e;switches.epilogue;>;switches.cpp" switches.cpp)
 	command_target (senders ${CMAKE_C_COMPILER} "-E;-x;c-header;-DSENDER;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;senders;-p;senders.prologue;-e;senders.epilogue;>;senders.cpp" senders.cpp)
-	command_target (receivers ${CMAKE_C_COMPILER} "-E;-x;c-header;-DRECEIVER;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;receivers;-p;receivers.prologue;-e;receivers.epilogue;-n; syscheck;>;receivers.cpp" receivers.cpp)
+	command_target (receivers ${CMAKE_C_COMPILER} "-E;-x;c-header;-DRECEIVER;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;receivers;-p;receivers.prologue;-e;receivers.epilogue;-n;syscheck;>;receivers.cpp" receivers.cpp)
 	command_target (sys-list ${CMAKE_C_COMPILER} "-E;-x;c-header;-DSWITCH;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;listcalls;>;syscall-list" syscall-list)
 
 	##################################################
@@ -103,7 +103,7 @@ if( STD_UNIVERSE )
 	##################################################
 	# now create the glorious syscall lib from various refs.
 	# behold the birth of frankenstein.
-	condor_static_lib( condorsyscall "senders.cpp;receivers.cpp;switches.cpp;../condor_shadow.std/pseudo_ops.cpp;${SyscallHdrs};${SyscallSrcs};${STDU_OBJS};${CKPT_REFS};${UTIL_REFS};${IO_REFS};${STDIO_REF}")
+	condor_static_lib( condorsyscall "senders.cpp;switches.cpp;${SyscallHdrs};${SyscallSrcs};${STDU_OBJS};${CKPT_REFS};${UTIL_REFS};${IO_REFS};${STDIO_REF}")
 	# local library which the daemons can link without glibc tainting.
 	condor_static_lib( std_local_ref "senders.cpp;receivers.cpp;${CKPT_LOCAL_REFS};${SYSCALL_LOCAL_REFS}" )
 

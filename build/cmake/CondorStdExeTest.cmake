@@ -23,15 +23,16 @@ MACRO (CONDOR_STD_EXE_TEST _CNDR_TARGET _COMPILER _SRCS _LINK_FLAGS )
 		# so normally you should be able to pass the archive directly to 
 		foreach(_file ${_SRCS})
 			if(objs_${_CNDR_TARGET})
-				set(objs_${_CNDR_TARGET} ${_file}.o)
+				set(objs_${_CNDR_TARGET} ${objs_${_CNDR_TARGET}};${_file}.o)
 			else()
-				 set(objs_${_CNDR_TARGET} ${objs_${_CNDR_TARGET}};${_file}.o)
+				set(objs_${_CNDR_TARGET} ${_file}.o)
 			endif()
 		endforeach()
 
 		#dprint("SRCS=${_SRCS}  objs_${_CNDR_TARGET}=${objs_${_CNDR_TARGET}}")
 		# you *should* be able to pass a library to std:u
 		add_library( ${_CNDR_TARGET} STATIC EXCLUDE_FROM_ALL ${_SRCS})
+		add_dependencies( ${_CNDR_TARGET} stdulib )
 
 		#here is where cmake is not so good you can not easily access the object files :-( so rip them out
 		command_target( arx_${_CNDR_TARGET} ar "-x;lib${_CNDR_TARGET}.a" "${objs_${_CNDR_TARGET}}")
