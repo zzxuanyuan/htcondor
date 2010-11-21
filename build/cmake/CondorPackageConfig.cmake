@@ -310,8 +310,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 endif()
 
 # the following is a development option which folks can use if they desire.
-option(CONDOR_DEV_MODE "Append version + other info" OFF)
-if (CONDOR_DEV_MODE)
+if (_DEBUG)
   if (WINDOWS)
 	## create install targets to point registry
 	set( CMAKE_INSTALL_PREFIX "C:/condor_test/${VERSION}")
@@ -322,4 +321,4 @@ if (CONDOR_DEV_MODE)
 	  set( CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/${VERSION}")
 	endif()
   endif()  
-endif(CONDOR_DEV_MODE)
+endif()

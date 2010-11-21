@@ -40,7 +40,7 @@ use vars qw/ $opt_build $opt_test
     $opt_clear_externals_cache $opt_use_externals_cache
     $opt_clear_externals_cache_weekly
     $opt_externals_only $opt_release_only $opt_version_buildid
-	$opt_with_doc $opt_sha1
+	$opt_skip_doc $opt_sha1
     $opt_buildid $opt_test_src $opt_test_timeout $opt_test_class
     $opt_input_platform $opt_tests_at_once
     /;
@@ -348,7 +348,7 @@ sub parseOptions
            'externals-only' => \$opt_externals_only,
 			'release-only' => \$opt_release_only,
            'version-buildid=s' => \$opt_version_buildid,
-		   'with-doc' => \$opt_with_doc,
+		   'skip-doc' => \$opt_skip_doc,
 		   'sha1=s' => \$opt_sha1,
 # test-specific options
            'buildid=i'     => \$opt_buildid,
@@ -518,7 +518,7 @@ sub parseOptions
 
         my(@condor_req_dirs) = qw( src );
 
-		if (defined $opt_with_doc )
+		if (!defined($opt_skip_doc ))
 		{ push @condor_req_dirs, 'doc'; }
 
 		if( ! defined($opt_externals) )
@@ -1274,7 +1274,7 @@ EOF
 #     # define the glue scripts we want
     print $fh "pre_all = nmi_tools/glue/build/pre_all\n";
 	my $pre_all_args = "";
-	if (!defined($opt_with_doc)) {
+	if (defined($opt_skip_doc)) {
 		$pre_all_args = $pre_all_args . " --skip-doc";
 	}
 

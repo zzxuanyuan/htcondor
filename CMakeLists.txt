@@ -33,7 +33,7 @@ string( TOUPPER "${CMAKE_SYSTEM_NAME}" OS_NAME )
 string( TOUPPER "${CMAKE_SYSTEM_VERSION}" OS_VER )
 string( TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" SYS_ARCH )
 site_name(HOSTNAME)
-option(_DEBUG "Enables spewing of interal dprint statements" OFF)
+option(_DEBUG "Debug statements and set default build config" OFF)
 
 ###########################################
 # start cmake module inclusion
@@ -80,6 +80,11 @@ endif ( WINDOWS )
 # src - src -> only
 # this way clean @ root cleans externals while clean @src cleans just the src.
 add_subdirectory (src)
+
+# if the man pages exist then install them
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/doc/man")
+  install( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/doc/man DESTINATION . )
+endif()
 
 ##########################################################################
 # Must in included post *install targets

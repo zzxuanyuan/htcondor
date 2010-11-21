@@ -65,7 +65,13 @@ if(${OS_NAME} MATCHES "WIN" AND NOT ${OS_NAME} MATCHES "DARWIN")
 else()
 
 	set( CMD_TERM && )
-	set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
+	
+	if (_DEBUG)
+	  set( CMAKE_BUILD_TYPE Debug )
+	else()
+	  set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
+	endif()
+	
 	set( CMAKE_SUPPRESS_REGENERATION FALSE )
 
 	# when we want to distro dynamic libraries only with localized rpaths.
