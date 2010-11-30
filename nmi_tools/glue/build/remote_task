@@ -41,7 +41,9 @@ my $TAR_TASK 	= "remote_task.create_tar";
 my $UNSTRIPPED_TASK = "remote_task.create_unstripped_tar";
 my $CONFIG_TASK = "remote_task.reconfig_package";
 my $RPM_TASK	= "remote_task.create_rpm";
+my $RPM_CHECK_TASK	= "remote_task.check_rpm";
 my $DEB_TASK	= "remote_task.create_deb";
+my $DEB_CHECK_TASK	= "remote_task.check_deb";
 
 my $taskname = "";
 my $execstr = "";
@@ -64,8 +66,8 @@ if( ! defined $ENV{_NMI_TASKNAME} ) {
 
 # Checking task type
 if ($taskname eq $TAR_TASK) { 
-	#Normal build -> create tar.gz package
-	$execstr= "make externals && make -j4 package && make tests";
+	#Normal build -> create tar.gz package (The only reason install is done is for the std:u:tests) 
+	$execstr= "make externals && make -j4 package && make install && make tests";
 
 } elsif  ($taskname eq $CONFIG_TASK){
 	#Reconfigure cmake variables for native package build
@@ -81,6 +83,7 @@ if ($taskname eq $TAR_TASK) {
 	
 	#Append extra argument
 	$execstr = $execstr . " -DCONDOR_PACKAGE_BUILD:BOOL=ON";
+	
 } elsif  ($taskname eq $UNSTRIPPED_TASK){
 	#Reconfigure cmake variables for native package build
 
@@ -99,9 +102,20 @@ if ($taskname eq $TAR_TASK) {
 	#Building RPM
 	$execstr= "make -j4 package";
 
+} elsif  ($taskname eq $RPM_CHECK_TASK){
+	#Print packaging log to stdout
+	$execstr= "find . -name '*rpmbuild*' -print -exec cat {} \\;";
+
 } elsif  ($taskname eq $DEB_TASK){
 	#Building Debian package
 	$execstr= "fakeroot make -j4 package";
+
+} elsif  ($taskname eq $DEB_CHECK_TASK){
+	#Print package summary
+	#Would like to run lintian, but it is not avialable on 
+	#all NMI machine
+	$execstr= "dpkg-deb -I *.deb";
+	
 }
 
 print "------------------------- ENV DUMP ------------------------\n";

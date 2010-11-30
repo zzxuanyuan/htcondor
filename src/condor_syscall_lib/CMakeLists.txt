@@ -58,13 +58,13 @@ if( STD_UNIVERSE )
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} geteuid.o "geteuid;__geteuid")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} getegid.o "getegid;__getegid")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} getppid.o "getppid;__getppid")
-	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} fork.o "fork;__fork")
+	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} fork.o "fork;__fork;__libc_fork")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} pipe.o "pipe;__pipe")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} getlogin.o "getlogin")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} sysdep.o "__syscall_error;__syscall_error_1")
-	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} sigsuspend.o "sigsuspend;__sigsuspend")
+	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} sigsuspend.o "sigsuspend;__sigsuspend;__libc_sigsuspend")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} truncate.o "truncate;__truncate")
-	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} sigaction.o "sigaction;__sigaction")
+	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} sigaction.o "sigaction;__sigaction;__libc_sigaction")
 	stdu_extract_and_toupper(${EXT_GLIBC_FOUND} getdirentries.o "getdirentries")
 
 	##################################################
@@ -77,7 +77,7 @@ if( STD_UNIVERSE )
 	# is concentrated evil.
 	##################################################
 	src_target_ref( ckpt "^.*$" CKPT_REFS)
-	src_target_ref( utils "flock;dprintf_common;except;update_rusage;internet;mkargv;filename_tools;strupr;mark_thread;condor_version;condor_ver_info;stat_wrapper;stat_wrapper_internal;condor_open;selector;MyString;subsystem_info;HashTable" UTIL_REFS)
+	src_target_ref( utils "flock;dprintf_common;except;update_rusage;internet;mkargv;filename_tools;strupr;mark_thread;condor_version;condor_ver_info;stat_wrapper;stat_wrapper_internal;condor_open;selector;MyString;subsystem_info;HashTable;get_random_num" UTIL_REFS)
 	src_target_ref( cedar "stream;sig_num;open_flags;fcntl_cmd;errno_num;condor_rw" IO_REFS)
 	src_target_ref( stdunivio "std_univ_sock;std_univ_buffers" STDIO_REF )
 
@@ -91,7 +91,7 @@ if( STD_UNIVERSE )
 	dump_local_flags(COMP_DEFS)
 	command_target (switches ${CMAKE_C_COMPILER} "-E;-x;c-header;-DSWITCH;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;switches;-p;switches.prologue;-e;switches.epilogue;>;switches.cpp" switches.cpp)
 	command_target (senders ${CMAKE_C_COMPILER} "-E;-x;c-header;-DSENDER;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;senders;-p;senders.prologue;-e;senders.epilogue;>;senders.cpp" senders.cpp)
-	command_target (receivers ${CMAKE_C_COMPILER} "-E;-x;c-header;-DRECEIVER;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;receivers;-p;receivers.prologue;-e;receivers.epilogue;-n; syscheck;>;receivers.cpp" receivers.cpp)
+	command_target (receivers ${CMAKE_C_COMPILER} "-E;-x;c-header;-DRECEIVER;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;receivers;-p;receivers.prologue;-e;receivers.epilogue;-n;syscheck;>;receivers.cpp" receivers.cpp)
 	command_target (sys-list ${CMAKE_C_COMPILER} "-E;-x;c-header;-DSWITCH;${COMP_DEFS};syscall.tmpl;|;${STUB_GEN};-mode;listcalls;>;syscall-list" syscall-list)
 
 	##################################################
@@ -103,7 +103,7 @@ if( STD_UNIVERSE )
 	##################################################
 	# now create the glorious syscall lib from various refs.
 	# behold the birth of frankenstein.
-	condor_static_lib( condorsyscall "senders.cpp;receivers.cpp;switches.cpp;${SyscallHdrs};${SyscallSrcs};${STDU_OBJS};${CKPT_REFS};${UTIL_REFS};${IO_REFS};${STDIO_REF}")
+	condor_static_lib( condorsyscall "senders.cpp;switches.cpp;${SyscallHdrs};${SyscallSrcs};${STDU_OBJS};${CKPT_REFS};${UTIL_REFS};${IO_REFS};${STDIO_REF}")
 	# local library which the daemons can link without glibc tainting.
 	condor_static_lib( std_local_ref "senders.cpp;receivers.cpp;${CKPT_LOCAL_REFS};${SYSCALL_LOCAL_REFS}" )
 

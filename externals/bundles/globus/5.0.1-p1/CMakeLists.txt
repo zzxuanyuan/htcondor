@@ -165,6 +165,7 @@ if (WITH_GLOBUS)
 
 			install ( DIRECTORY ${EXTERNAL_STAGE}/lib/gt4 DESTINATION ${C_LIB} )
 			install ( DIRECTORY ${EXTERNAL_STAGE}/lib/gt42 DESTINATION ${C_LIB} )
+			install ( PROGRAMS ${EXTERNAL_STAGE}/sbin/globus-gridftp-server.dynamic DESTINATION ${C_LIBEXEC} RENAME globus-gridftp-server )
 
 	else( NOT PROPER )
 

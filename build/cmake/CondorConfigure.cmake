@@ -65,7 +65,13 @@ if(${OS_NAME} MATCHES "WIN" AND NOT ${OS_NAME} MATCHES "DARWIN")
 else()
 
 	set( CMD_TERM && )
-	set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
+	
+	if (_DEBUG)
+	  set( CMAKE_BUILD_TYPE Debug )
+	else()
+	  set( CMAKE_BUILD_TYPE RelWithDebInfo ) # = -O2 -g (package will strip the info)
+	endif()
+	
 	set( CMAKE_SUPPRESS_REGENERATION FALSE )
 
 	# when we want to distro dynamic libraries only with localized rpaths.
@@ -182,6 +188,8 @@ if (${OS_NAME} STREQUAL "SUNOS")
 		add_definitions(-DSolaris29)
 	elseif(${OS_VER} STREQUAL "5.10")
 		add_definitions(-DSolaris210)
+	elseif(${OS_VER} STREQUAL "5.11")
+		add_definitions(-DSolaris211)
 	else()
 		message(FATAL_ERROR "unknown version of Solaris")
 	endif()
@@ -387,6 +395,11 @@ if (NOT WINDOWS)
 
 		  set (STD_UNIVERSE ON)
 
+		  # seriously I've sold my soul doing this dirty work
+		  set (CONDOR_COMPILE ${CONDOR_SOURCE_DIR}/src/condor_scripts/condor_compile)
+		  set (CONDOR_ARCH_LINK ${CONDOR_SOURCE_DIR}/src/condor_scripts/condor_arch_link)
+		  set (STDU_LIB_LOC ${CMAKE_INSTALL_PREFIX}/${C_LIB})
+		  
 		  include_directories( ${CONDOR_SOURCE_DIR}/src/condor_io.std )
 
 		  message( STATUS "** Standard Universe Enabled **")
@@ -693,6 +706,9 @@ dprint ( "CMAKE_SUPPRESS_REGENERATION: ${CMAKE_SUPPRESS_REGENERATION}" )
 
 # A simple way to get switches to the compiler is to use ADD_DEFINITIONS(). 
 # But there are also two variables exactly for this purpose: 
+
+# output what the linker flags are
+dprint ( "CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS}" )
 
 # the compiler flags for compiling C sources 
 dprint ( "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}" )

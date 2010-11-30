@@ -254,8 +254,14 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 		set(CPACK_RPM_USER_BINARY_SPECFILE "${CMAKE_CURRENT_SOURCE_DIR}/build/packaging/rpm/condor.spec.in")
 
 		#Directory overrides
+
+		if (${BIT_MODE} MATCHES "64")
+			set( C_LIB			usr/lib64/condor )
+		else()
+			set( C_LIB			usr/lib/condor )
+		endif ()
+		
 		set( C_BIN			usr/bin )
-		set( C_LIB			usr/lib/condor )
 		set( C_LIBEXEC		usr/libexec/condor )
 		set( C_SBIN			usr/sbin )
 		set( C_INCLUDE		usr/include/condor )
@@ -310,8 +316,7 @@ elseif( ${OS_NAME} STREQUAL "LINUX" AND CONDOR_PACKAGE_BUILD )
 endif()
 
 # the following is a development option which folks can use if they desire.
-option(CONDOR_DEV_MODE "Append version + other info" OFF)
-if (CONDOR_DEV_MODE)
+if (_DEBUG)
   if (WINDOWS)
 	## create install targets to point registry
 	set( CMAKE_INSTALL_PREFIX "C:/condor_test/${VERSION}")
@@ -322,4 +327,4 @@ if (CONDOR_DEV_MODE)
 	  set( CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/${VERSION}")
 	endif()
   endif()  
-endif(CONDOR_DEV_MODE)
+endif()

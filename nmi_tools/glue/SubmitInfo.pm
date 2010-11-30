@@ -116,20 +116,24 @@ my @default_prereqs = (
 my @minimal_build_configure_args =
 	(
 		'-DPROPER:BOOL=OFF'			=> undef,
-		'-DCLIPPED:BOOL=OFF'		=> undef,
-		'-D_DEBUG:BOOL=ON'			=> undef,
-		'-DWITH_GLOBUS:BOOL=OFF' 	=> undef,
-		'-DWITH_KRB5:BOOL=OFF'		=> undef,
-		'-DWITH_VOMS:BOOL=OFF'		=> undef,
-		'-DWITH_EXPAT:BOOL=OFF'		=> undef,
-		'-DWITH_HADOOP:BOOL=OFF'	=> undef,
+		'-DCLIPPED:BOOL=ON'			=> undef,
+		'-DWITH_BLAHP:BOOL=OFF'		=> undef,
+		'-DWITH_BOOST:BOOL=OFF'		=> undef,
+		'-DWITH_COREDUMPER:BOOL=OFF'	=> undef,
+		'-DWITH_CREAM:BOOL=OFF'		=> undef,
 		'-DWITH_CURL:BOOL=OFF'		=> undef,
 		'-DWITH_DRMAA:BOOL=OFF'		=> undef,
+		'-DWITH_EXPAT:BOOL=OFF'		=> undef,
+		'-DWITH_GCB:BOOL=OFF'		=> undef,
+		'-DWITH_GLOBUS:BOOL=OFF' 	=> undef,
 		'-DWITH_GSOAP:BOOL=OFF'		=> undef,
-		'-DWITH_CREAM:BOOL=OFF'		=> undef,
+		'-DWITH_HADOOP:BOOL=OFF'	=> undef,
+		'-DWITH_KRB5:BOOL=OFF'		=> undef,
 		'-DWITH_LIBVIRT:BOOL=OFF'		=> undef,
 		'-DWITH_LIBXML2:BOOL=OFF'		=> undef,
-		'-DSCRATCH_EXTERNALS:BOOL=OFF'	=> undef,
+		'-DWITH_OPENSSL:BOOL=OFF'		=> undef,
+		'-DWITH_UNICOREGAHP:BOOL=OFF'	=> undef,
+		'-DWITH_VOMS:BOOL=OFF'		=> undef,
 	);
 
 ###############################################################################
@@ -163,9 +167,8 @@ my @default_test_configure_args =
 ###############################################################################
 my @default_build_configure_args =
 	(
-	'-D_DEBUG:BOOL=ON'		=> undef,
 	'-DPROPER:BOOL=OFF' 	=> undef,
-	'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
+	#'-DSCRATCH_EXTERNALS:BOOL=ON'	=> undef,
 	);
 
 ###############################################################################
@@ -327,8 +330,7 @@ our %submit_info = (
 	##########################################################################
 	'ppc_aix_5.2-pl5'	=> {
 		'build' => {
-			'configure_args' => { '-D_DEBUG:BOOL=ON' => undef,
-			  '-DPROPER:BOOL=OFF' 			 => undef,
+			'configure_args' => { '-DPROPER:BOOL=OFF' 			 => undef,
 			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	 => undef,
 			},
 			'prereqs'	=> [ 
@@ -368,13 +370,13 @@ our %submit_info = (
 	##########################################################################
 	'sun4u_sol_5.9'	=> {
 		'build' => {
-			'configure_args' => { '-D_DEBUG:BOOL=ON'	=> undef,
-				'-DPROPER:BOOL=OFF' 			=> undef,
+			'configure_args' => { '-DPROPER:BOOL=OFF' 			=> undef,
 				'-DSCRATCH_EXTERNALS:BOOL=OFF'		=> undef,
 				'-DCONDOR_CXX_FLAGS:STRING=-B$PATH' 	=> undef,
 			},
 			'prereqs'	=> [ 
-				@default_prereqs, 
+				'tar-1.14', 'patch-2.5.4', 'cmake-2.8.2', 'flex-2.5.4a',
+				'make-3.80', 'byacc-1.9', 'bison-1.25', 'm4-1.4.1',
 				'gcc-4.1.2', 'binutils-2.16', 'perl-5.8.5', 'gzip-1.3.3',
 				'wget-1.9.1', 'coreutils-5.2.1',
 			],
@@ -648,8 +650,6 @@ our %submit_info = (
 			],
 			'xtests'	=> [ 
 				'x86_64_sles_9',
-				'x86_64_rhap_5.2', 
-				'unmanaged-x86_rhap_5',
 			 	'x86_rhas_4', 
 				'x86_suse_10.0', 
 				'x86_suse_10.2', 

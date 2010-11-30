@@ -58,11 +58,23 @@ static int validate_regex(const char* pattern, const char* subject);
 #define STATE_USER				2
 #define STATE_RUNTIME			3
 
+#if 0
 //allocate and copy src to dest
 #define CPY_STR(dst, src) \
 if (src) { \
 	dst = (char *) malloc(strlen(src)+1); \
 	strcpy(dst, src); \
+} else { \
+	dst = NULL;  \
+}
+#endif
+
+/* To save memory, assume src is a static buffer that will not go away,
+   so we can just point dst at it.  Currently, we never free dst, so this
+   is "safe". */
+#define CPY_STR(dst, src) \
+if (src) { \
+	dst = (char *) src;			\
 } else { \
 	dst = NULL;  \
 }
@@ -130,7 +142,7 @@ param_info_insert(const char* param,
 
 	p = (param_info_t*)malloc(sizeof(param_info_t));
 
-	CPY_STR(p->name, param);
+	CPY_STR(p->name,  param);
 	CPY_STR(p->aliases, aliases);
 
 	if (!value) {
