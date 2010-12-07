@@ -37,7 +37,7 @@
 #include "daemon.h"
 #include "daemon_types.h"
 #include "vm_gahp_request.h"
-#include "../condor_vm-gahp/vmgahp_error_codes.h"
+#include "vm_gahp/vmgahp_error_codes.h"
 #include "vm_univ_utils.h"
 
 extern CStarter *Starter;

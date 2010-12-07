@@ -447,6 +447,7 @@ if ( $ENV{JAVA_HOME} )
 endif()
 
 include_directories(${CONDOR_SOURCE_DIR}/src/condor_includes)
+include_directories(${CONDOR_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/condor_includes)
 include_directories(${CONDOR_SOURCE_DIR}/src/condor_utils)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/condor_utils)
