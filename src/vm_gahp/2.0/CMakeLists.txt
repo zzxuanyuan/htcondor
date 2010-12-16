@@ -19,7 +19,7 @@
 if(LINUX AND HAVE_EXT_BOOST)
 
 	condor_glob( HeaderFiles SourceFiles "" )
-	condor_exe( condor_vm-gahp2 "${HeaderFiles};${SourceFiles}" ${C_SBIN} "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${LIBVIRT_FOUND};${LIBXML2_FOUND};${COREDUMPER_FOUND};${ZLIB_FOUND};-lboost_program_options")
+	condor_exe( condor_vm-gahp2 "${HeaderFiles};${SourceFiles}" ${C_SBIN} "${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${LIBVIRT_FOUND};${LIBXML2_FOUND};${COREDUMPER_FOUND};${ZLIB_FOUND};-lboost_program_options" OFF)
 
 else()
 
