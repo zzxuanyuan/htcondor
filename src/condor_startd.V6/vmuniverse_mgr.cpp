@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -68,13 +68,13 @@ VMStarterInfo::updateUsageOfVM(void)
 	int proc_status = PROCAPI_OK;
 
 	piPTR pi = NULL;
-	if( ProcAPI::getProcInfo(m_vm_pid, pi, proc_status) == 
+	if( ProcAPI::getProcInfo(m_vm_pid, pi, proc_status) ==
 			PROCAPI_SUCCESS ) {
 		memcpy(&m_vm_alive_pinfo, pi, sizeof(struct procInfo));
 		if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-			dprintf(D_FULLDEBUG,"Usage of process[%d] for a VM is updated\n", 
+			dprintf(D_FULLDEBUG,"Usage of process[%d] for a VM is updated\n",
 					m_vm_pid);
-			dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n", 
+			dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n",
 					pi->sys_time, pi->user_time, get_image_size(*pi));
 		}
 		delete pi;
@@ -100,7 +100,7 @@ VMStarterInfo::getUsageOfVM(ProcFamilyUsage &usage)
 	unsigned long exited_max_image = get_image_size(m_vm_exited_pinfo);
 	unsigned long alive_max_image = get_image_size(m_vm_alive_pinfo);
 
-	usage.max_image_size = (exited_max_image > alive_max_image ) ? 
+	usage.max_image_size = (exited_max_image > alive_max_image ) ?
 				exited_max_image : alive_max_image;
 
 	if( updated ) {
@@ -177,7 +177,7 @@ VMStarterInfo::getIPForVM(void)
 	return m_vm_ip.Value();
 }
 
-void 
+void
 VMStarterInfo::publishVMInfo(ClassAd* ad, amask_t mask )
 {
 	if( !ad ) {
@@ -190,7 +190,7 @@ VMStarterInfo::publishVMInfo(ClassAd* ad, amask_t mask )
 		ad->Assign(ATTR_VM_GUEST_IP, m_vm_ip);
 	}
 	if( m_memory > 0 ) {
-		ad->Assign(ATTR_VM_GUEST_MEM, m_memory); 
+		ad->Assign(ATTR_VM_GUEST_MEM, m_memory);
 	}
 	ad->Assign(ATTR_JOB_VM_VCPUS, m_vcpus);
 }
@@ -239,16 +239,27 @@ VMUniverseMgr::init( void )
 	vmtype = tmp;
 	free(tmp);
 
+    // require the VM_GAHP_LOG be present.
+    tmp = param("VM_GAHP_LOG");
+    if( !tmp)
+    {
+        dprintf( D_ALWAYS, "To support vm universe, '%s' must be defined "
+                           "in condor config file, which is a log file for vmgahp.\n",
+                           "VM_GAHP_LOG");
+        return false;
+    }
+    free(tmp);
+
 	tmp = param( "VM_GAHP_SERVER" );
 	if( !tmp ) {
 		dprintf( D_ALWAYS, "To support vm universe, '%s' must be defined "
-				"in condor config file\n", "VM_GAHP_SERVER"); 
+				"in condor config file\n", "VM_GAHP_SERVER");
 		return false;
 	}
 
 	if( access(tmp,X_OK) < 0) {
 		// make sure that vmgahp is executable
-		dprintf( D_ALWAYS, "To support vm universe, '%s' must be executable\n", tmp); 
+		dprintf( D_ALWAYS, "To support vm universe, '%s' must be executable\n", tmp);
 		free(tmp);
 		return false;
 	}
@@ -265,9 +276,9 @@ VMUniverseMgr::init( void )
 		free(tmp);
 	}
 
-	// now, we've got a path to a vmgahp server.  
-	// try to test it with given vmtype 
-	// and grab the output (whose format should be a classad type), 
+	// now, we've got a path to a vmgahp server.
+	// try to test it with given vmtype
+	// and grab the output (whose format should be a classad type),
 	// and set the appropriate values for vm universe
 	if( testVMGahp(vmgahppath.Value(), vmtype.Value()) == false ) {
 		dprintf( D_ALWAYS, "Test of vmgahp for VM_TYPE('%s') failed. "
@@ -320,7 +331,7 @@ VMUniverseMgr::publish( ClassAd* ad, amask_t mask )
 			int freemem = getFreeVMMemSize();
 			ad->Assign(ATTR_VM_MEMORY, freemem);
 		}else if( strcasecmp(attr_name, ATTR_VM_NETWORKING) == MATCH ) {
-			ad->Assign(ATTR_VM_NETWORKING, m_vm_networking); 
+			ad->Assign(ATTR_VM_NETWORKING, m_vm_networking);
 		}else {
 			ad->Insert(attr_name, expr->Copy());
 		}
@@ -372,40 +383,16 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 		return false;
 	}
 
-#if defined(WIN32)
-		// On Windows machine, the option that Starter log file includes 
-		// logs from vmgahp causes deadlock even if the option works well 
-		// on Linux machine. I guess that is due to Windows Pipes but 
-		// I don't know the exact reason.
-		// Until the problem is solved, 
-		// this option will be disabled on Windows machine.
-	char *need_log_file = param("VM_GAHP_LOG");
-	if( need_log_file ) {
-		free(need_log_file);
-	}else {
-		dprintf( D_ALWAYS, "To support vm universe, '%s' must be defined "
-				"in condor config file, which is a log file for vmgahp.\n", 
-				"VM_GAHP_LOG"); 
-		return false;
-	}
-#endif
-
-	// vmgahp is daemonCore, so we need to add -f -t options of daemonCore.
-	// Then, try to execute vmgahp with 
+	// vmgahp is daemonCore, so we need to add -f option of daemonCore.
+	// Then, try to execute vmgahp with
 	// vmtype <vmtype>"
 	// and grab the output as a ClassAd
 	ArgList systemcmd;
 	systemcmd.AppendArg(gahppath);
 	systemcmd.AppendArg("-f");
-	char *gahp_log_file = param("VM_GAHP_LOG");
-	if( gahp_log_file ) {
-		free(gahp_log_file);
-	}else {
-		systemcmd.AppendArg("-t");
-	}
 	systemcmd.AppendArg("-M");
 	systemcmd.AppendArg(VMGAHP_TEST_MODE);
-	systemcmd.AppendArg("vmtype");
+	systemcmd.AppendArg("-vmtype");
 	systemcmd.AppendArg(vmtype);
 
 #if !defined(WIN32)
@@ -449,8 +436,8 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 	if( !read_something ) {
 		MyString args_string;
 		systemcmd.GetArgsStringForDisplay(&args_string,0);
-		dprintf( D_ALWAYS, 
-				 "Warning: '%s' did not produce any valid output.\n", 
+		dprintf( D_ALWAYS,
+				 "Warning: '%s' did not produce any valid output.\n",
 				 args_string.Value());
 		if( (strcasecmp(vmtype, CONDOR_VM_UNIVERSE_XEN) == 0) ) {
 			MyString err_msg;
@@ -533,7 +520,7 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 
 	m_vmgahp_info.LookupBool(ATTR_VM_NETWORKING, tmp_networking);
 	if( tmp_networking ) {
-		if( m_vmgahp_info.LookupString( ATTR_VM_NETWORKING_TYPES, 
+		if( m_vmgahp_info.LookupString( ATTR_VM_NETWORKING_TYPES,
 					tmp_networking_types) != 1 ) {
 			tmp_networking = false;
 			m_vmgahp_info.Assign(ATTR_VM_NETWORKING, false);
@@ -553,10 +540,10 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 		dprintf( D_ALWAYS, "VM networking is disabled\n");
 	}else {
 		dprintf( D_ALWAYS, "VM networking is enabled\n");
-		dprintf( D_ALWAYS, "Supported networking types are %s\n", 
+		dprintf( D_ALWAYS, "Supported networking types are %s\n",
 				tmp_networking_types.Value());
 	}
-			
+
 	// Now, we received correct information from vmgahp
 	m_vm_type = tmp_vmtype;
 	m_vmgahp_server = gahppath;
@@ -577,7 +564,7 @@ VMUniverseMgr::canCreateVM(ClassAd *jobAd)
 		return false;
 	}
 
-	if( ( m_vm_max_num > 0 ) && 
+	if( ( m_vm_max_num > 0 ) &&
 		( numOfRunningVM() >= m_vm_max_num) ) {
 		dprintf(D_ALWAYS, "Current number(%d) of running VM reaches to "
 				"maximum number(%d)\n", numOfRunningVM(), m_vm_max_num);
@@ -596,7 +583,7 @@ VMUniverseMgr::canCreateVM(ClassAd *jobAd)
 	}
 	if( !int_value || ( int_value > getFreeVMMemSize() )) {
 		dprintf(D_ALWAYS, "Not enough memory for VM: Requested mem=%d(MB),"
-			   " Freemem=%d(MB)\n", int_value, getFreeVMMemSize()); 
+			   " Freemem=%d(MB)\n", int_value, getFreeVMMemSize());
 		return false;
 	}
 
@@ -639,10 +626,10 @@ VMUniverseMgr::allocVM(pid_t s_pid, ClassAd &ad, char const *execute_dir)
 	VMStarterInfo *oldinfo = findVMStarterInfoWithStarterPid(s_pid);
 	if( oldinfo ) {
 		freeVM(s_pid);
-		// oldinfo is freed 
+		// oldinfo is freed
 		oldinfo = NULL;
 	}
-	
+
 	VMStarterInfo *newinfo = new VMStarterInfo;
 	ASSERT(newinfo);
 
@@ -650,7 +637,7 @@ VMUniverseMgr::allocVM(pid_t s_pid, ClassAd &ad, char const *execute_dir)
 
 	newinfo->m_pid = s_pid;
 	newinfo->m_memory = vm_mem;
-	newinfo->m_job_ad = ad; 
+	newinfo->m_job_ad = ad;
 	newinfo->m_execute_dir = execute_dir;
 	newinfo->m_vcpus = vcpus;
 
@@ -686,7 +673,7 @@ VMUniverseMgr::freeVM(pid_t s_pid)
 	if( execute_dir.Find_Named_Entry( pid_dir.Value() ) ) {
 		// starter didn't exit cleanly,
 		// maybe it seems to be killed by startd.
-		// So we need to make sure that VM is really destroyed. 
+		// So we need to make sure that VM is really destroyed.
 		killVM(info);
 	}
 
@@ -694,7 +681,7 @@ VMUniverseMgr::freeVM(pid_t s_pid)
 	m_vm_starter_list.Delete(info);
 	delete info;
 
-	if( !m_vm_starter_list.Number() && m_needCheck ) { 
+	if( !m_vm_starter_list.Number() && m_needCheck ) {
 		// the last vm job is just finished
 		// if m_needCheck is true, we need to call docheckVMUniverse
 		docheckVMUniverse();
@@ -773,10 +760,11 @@ VMUniverseMgr::findVMStarterInfoWithIP(const char* ip)
 	return NULL;
 }
 
-void 
+void
 VMUniverseMgr::checkVMUniverse(void)
 {
-	dprintf( D_ALWAYS, "VM-gahp server reported an internal error\n");
+    // tstclair: I have no idea why this is here?
+    // dprintf( D_ALWAYS, "VM-gahp server reported an internal error\n");
 
 	if( numOfRunningVM() == 0 ) {
 		// There is no running VM job.
@@ -784,14 +772,14 @@ VMUniverseMgr::checkVMUniverse(void)
 		docheckVMUniverse();
 		return;
 	}
-	
+
 	// There are running VM jobs.
 	// We need to wait for all jobs to be finished
 	// When all jobs are finished, we will call docheckVMUniverse function
 	m_needCheck = true;
 }
 
-void 
+void
 VMUniverseMgr::docheckVMUniverse(void)
 {
 	char *vm_type = param( "VM_TYPE" );
@@ -801,8 +789,8 @@ VMUniverseMgr::docheckVMUniverse(void)
 		// VM universe is desired, but not available
 
 		// In VMware, some errors may be transient.
-		// For example, when VMware fails to start a new VM 
-		// due to an incorrect config file, we are unable to 
+		// For example, when VMware fails to start a new VM
+		// due to an incorrect config file, we are unable to
 		// run 'vmrun' command for a while.
 		// But after some time, we are able to run it again.
 		// So we register a timer to call this function later.
@@ -822,16 +810,16 @@ VMUniverseMgr::docheckVMUniverse(void)
 			m_check_tid = -1;
 
 			// in the case where we had to use the timer,
-			// make certain we publish our changes.  
+			// make certain we publish our changes.
 			if( resmgr ) {
 				resmgr->eval_and_update_all();
-			}	
+			}
 		}
 	}
 	free( vm_type );
 }
 
-void 
+void
 VMUniverseMgr::setStarterAbility(bool has_vmcode)
 {
 	m_starter_has_vmcode = has_vmcode;
@@ -853,23 +841,17 @@ VMUniverseMgr::killVM(const char *matchstring)
 		return;
 	}
 
-	// vmgahp is daemonCore, so we need to add -f -t options of daemonCore.
-	// Then, try to execute vmgahp with 
+	// vmgahp is daemonCore, so we need to add -f options of daemonCore.
+	// Then, try to execute vmgahp with
 	// vmtype <vmtype> match <string>"
 	ArgList systemcmd;
 	systemcmd.AppendArg(m_vmgahp_server);
 	systemcmd.AppendArg("-f");
-	char *gahp_log_file = param("VM_GAHP_LOG");
-	if( gahp_log_file ) {
-		free(gahp_log_file);
-	}else {
-		systemcmd.AppendArg("-t");
-	}
 	systemcmd.AppendArg("-M");
 	systemcmd.AppendArg(VMGAHP_KILL_MODE);
-	systemcmd.AppendArg("vmtype");
+	systemcmd.AppendArg("-vmtype");
 	systemcmd.AppendArg(m_vm_type);
-	systemcmd.AppendArg("match");
+	systemcmd.AppendArg("-match");
 	systemcmd.AppendArg(matchstring);
 
 #if !defined(WIN32)
@@ -933,7 +915,7 @@ VMUniverseMgr::killVM(VMStarterInfo *info)
 	killVM( matchstring.Value() );
 }
 
-bool 
+bool
 VMUniverseMgr::isStarterForVM(pid_t s_pid)
 {
 	VMStarterInfo *info = findVMStarterInfoWithStarterPid(s_pid);

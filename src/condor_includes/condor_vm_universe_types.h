@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,12 +32,14 @@
 #define VM_UNIV_ARGUMENT_FILE	"condor.arg"
 
 /* Running modes for VM GAHP Server */
-#define VMGAHP_TEST_MODE 0
-#define VMGAHP_IO_MODE 1		/* Deprecated */
-#define VMGAHP_WORKER_MODE 2	/* Deprecated */
-#define VMGAHP_STANDALONE_MODE 3
-#define VMGAHP_KILL_MODE 4
-#define VMGAHP_MODE_MAX 5
+
+enum
+{
+    VMGAHP_TEST_MODE=0,
+    VMGAHP_STANDALONE_MODE,
+    VMGAHP_KILL_MODE,
+    VMGAHP_MODE_MAX // should always be last, if needed insert before.
+};
 
 /* Parameters in a result of VM GAHP STATUS command  */
 #define VMGAHP_STATUS_COMMAND_STATUS	"STATUS"
@@ -76,7 +78,7 @@
 #define VMPARAM_NO_OUTPUT_VM			"VMPARAM_No_Output_VM"
 #define VMPARAM_CDROM_FILES				"VMPARAM_CDROM_Files"
 #define VMPARAM_TRANSFER_CDROM_FILES	"VMPARAM_Transfer_CDROM_Files"
-#define VMPARAM_BRIDGE_INTERFACE	"VMPARAM_Bridge_Interface"
+#define VMPARAM_BRIDGE_INTERFACE	    "VMPARAM_Bridge_Interface"
 
 #endif
 

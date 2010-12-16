@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -80,8 +80,8 @@ static child_handle_t remove_child(FILE* fp)
   This is a popen(3)-like function that intentionally avoids
   calling out to the shell in order to limit what can be done for
   security reasons. Please note that this does not intend to behave
-  in the same way as a normal popen, it exists as a convenience. 
-  
+  in the same way as a normal popen, it exists as a convenience.
+
   This function is careful in how it waits for its children's
   status so that it doesn't reap status information for other
   processes which the calling code may want to reap.
@@ -101,7 +101,7 @@ static child_handle_t remove_child(FILE* fp)
 #ifdef WIN32
 
 //////////////////////////////////////////////////////////////////////////
-// Windows versions of my_popen / my_pclose 
+// Windows versions of my_popen / my_pclose
 //////////////////////////////////////////////////////////////////////////
 
 extern "C" FILE *
@@ -168,7 +168,7 @@ my_popen(const char *const_cmd, const char *mode, int want_stderr)
 	                       cmd,                    // command line
 	                       NULL,                   // process SA
 	                       NULL,                   // primary thread SA
-	                       TRUE,                   // inherit handles 
+	                       TRUE,                   // inherit handles
 	                       CREATE_NEW_CONSOLE,     // creation flags
 	                       NULL,                   // use our environment
 	                       NULL,                   // use our CWD
@@ -217,6 +217,8 @@ my_popen(ArgList &args, const char *mode, int want_stderr)
 		dprintf(D_ALWAYS, "my_popen: error making command line: %s\n", err.Value());
 		return NULL;
 	}
+
+	dprintf(D_FULLDEBUG, "my_popen: executing command line: %s\n", cmdline.Value());
 
 	return my_popen(cmdline.Value(), mode, want_stderr);
 }
@@ -267,7 +269,7 @@ my_system(const char *cmd)
 #else
 
 //////////////////////////////////////////////////////////////////////////
-// UNIX versions of my_popen(v) & my_pclose 
+// UNIX versions of my_popen(v) & my_pclose
 //////////////////////////////////////////////////////////////////////////
 
 #include <grp.h> // for setgroups
@@ -381,7 +383,7 @@ my_popenv_impl( char *const args[],
 		if ( privsep_uid != (uid_t)-1 ) {
 			ArgList al;
 			psforkexec.in_child(cmd, al);
-			args = al.GetStringArray();			
+			args = al.GetStringArray();
 		}
 
 		execvp(cmd.Value(), args);
@@ -597,7 +599,7 @@ my_spawnv( const char* cmd, char *const argv[] )
 			   it safely.  all of these calls will fail if we don't
 			   have a ruid of 0 (root), but that's harmless.  also,
 			   note that we have to stash our effective uid, then
-			   switch our euid to 0 to be able to set our real uid/gid 
+			   switch our euid to 0 to be able to set our real uid/gid
 			*/
 		euid = geteuid();
 		egid = getegid();

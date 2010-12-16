@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -67,24 +67,6 @@ VMGahpServer::VMGahpServer(const char *vmgahpserver,
 	m_vm_type = vmtype;
 	m_vmgahp_server = vmgahpserver;
 	m_job_ad = job_ad;
-
-	char *gahp_log_file = param("VM_GAHP_LOG");
-	if( gahp_log_file ) {
-		// logs from vmgahp will be stored in the file defined as "VM_GAHP_LOG".
-		// So we don't need to gather logs from vmgahp server.
-		m_include_gahp_log = false;
-		free(gahp_log_file);
-	}else {
-		// The log file of Stater will also include logs from vmgahp.
-		m_include_gahp_log = true;
-	}
-#if defined(WIN32)
-	// On Windows machine, this option causes deadlock.. Hum..
-	// even if this option works well on Linux machine.
-	// I guess that is due to Windows Pipes but I don't know the exact reason.
-	// Until the problem is solved, this option will be disabled on Windows machine.
-	m_include_gahp_log = false;
-#endif
 
 	m_send_all_classad = param_boolean("VM_GAHP_SEND_ALL_CLASSAD", true);
 
@@ -224,7 +206,7 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 	int stdout_pipefds[2];
 	int stderr_pipefds[2];
 
-	if(!daemonCore->Create_Pipe(stdin_pipefds, 
+	if(!daemonCore->Create_Pipe(stdin_pipefds,
 				true, // read end registerable
 				false, // write end not registerable
 				false, // read end blocking
@@ -245,35 +227,19 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 		dprintf(D_ALWAYS,"%s\n", start_err_msg.Value());
 		return false;
 	}
-	if( m_include_gahp_log ) {
-		if(!daemonCore->Create_Pipe(stderr_pipefds,
-					true,  // read end registerable
-					false, // write end not registerable
-					true,  // read end non-blocking
-					true  // write end non-blocking
-					)) {
-			// nonblocking read
-			start_err_msg = "unable to create pipe to stderr of VM gahp";
-			dprintf(D_ALWAYS,"%s\n", start_err_msg.Value());
-			return false;
-		}
-	}
 
 	int io_redirect[3];
 	io_redirect[0] = stdin_pipefds[0];	//stdin gets read side of in pipe
 	io_redirect[1] = stdout_pipefds[1];	//stdout gets write side of out pipe
-	if( m_include_gahp_log ) {
-		io_redirect[2] = stderr_pipefds[1];	//stderr gets write side of err pipe
-	}else {
-		int null_fd = safe_open_wrapper(NULL_FILE, O_WRONLY | O_APPEND, 0666);
-		if( null_fd < 0 ) {
-			start_err_msg = "unable to open null file for stderr of VM gahp";
-			dprintf(D_ALWAYS,"Failed to open '%s':%s (errno %d)\n", 
-					NULL_FILE, strerror(errno), errno);
-			return false;
-		}
-		io_redirect[2] = null_fd;
+
+	int null_fd = safe_open_wrapper(NULL_FILE, O_WRONLY | O_APPEND, 0666);
+	if( null_fd < 0 ) {
+		start_err_msg = "unable to open null file for stderr of VM gahp";
+		dprintf(D_ALWAYS,"Failed to open '%s':%s (errno %d)\n",
+				NULL_FILE, strerror(errno), errno);
+		return false;
 	}
+	io_redirect[2] = null_fd;
 
 	// Set Arguments
 	ArgList vmgahp_args;
@@ -283,9 +249,6 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 
 	// Add daemonCore options
 	vmgahp_args.AppendArg("-f");
-	if( m_include_gahp_log ) {
-		vmgahp_args.AppendArg("-t");
-	}
 	vmgahp_args.AppendArg("-M");
 	vmgahp_args.AppendArg(VMGAHP_STANDALONE_MODE);
 
@@ -349,9 +312,9 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 
 	priv_state vmgahp_priv = PRIV_ROOT;
 #if defined(WIN32)
-	// TODO.. 
+	// TODO..
 	// Currently vmgahp for VMware VM universe can't run as user on Windows.
-	// It seems like a bug of VMware. VMware command line tool such as "vmrun" 
+	// It seems like a bug of VMware. VMware command line tool such as "vmrun"
 	// requires Administrator privilege.
 	// -jaeyoung 06/15/07
 	if( strcasecmp(m_vm_type.Value(), CONDOR_VM_UNIVERSE_VMWARE ) == MATCH ) {
@@ -384,16 +347,12 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 	// we want to keep in an object data member.
 	daemonCore->Close_Pipe(io_redirect[0]);
 	daemonCore->Close_Pipe(io_redirect[1]);
-	if( m_include_gahp_log ) {
-		daemonCore->Close_Pipe(io_redirect[2]);
-	}else {
-		close(io_redirect[2]);
-	}
+	close(io_redirect[2]);
 
 	if ( m_vmgahp_pid == FALSE ) {
 		m_vmgahp_pid = -1;
 		start_err_msg = "Failed to start vm-gahp server";
-		dprintf(D_ALWAYS, "%s (%s)\n", start_err_msg.Value(), 
+		dprintf(D_ALWAYS, "%s (%s)\n", start_err_msg.Value(),
 				m_vmgahp_server.Value());
 		if(create_process_error) {
 			MyString err_msg = "Failed to execute '";
@@ -405,7 +364,7 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 			}
 			err_msg += ": ";
 			err_msg += create_process_error;
-			dprintf(D_ALWAYS, "Failed to start vmgahp server (%s)\n", 
+			dprintf(D_ALWAYS, "Failed to start vmgahp server (%s)\n",
 					err_msg.Value());
 		}
 		return false;
@@ -415,9 +374,6 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 
 	m_vmgahp_writefd = stdin_pipefds[1];
 	m_vmgahp_readfd = stdout_pipefds[0];
-	if( m_include_gahp_log ) {
-		m_vmgahp_errorfd = stderr_pipefds[0];
-	}
 
 	// Now initialization is done
 	m_is_initialized = true;
@@ -433,7 +389,7 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 		cleanup();
 		return false;
 	}
-	
+
 	dprintf(D_FULLDEBUG,"VMGAHP server version: %s\n", m_vmgahp_version.Value());
 
 	// Now see what commands this server supports.
@@ -455,30 +411,6 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 	}
 
 	int result = -1;
-	if( m_include_gahp_log ) {
-		result = daemonCore->Register_Pipe(m_vmgahp_errorfd,
-				"m_vmgahp_errorfd",
-				(PipeHandlercpp)&VMGahpServer::err_pipe_ready,
-				"VMGahpServer::err_pipe_ready",this);
-
-		if( result == -1 ) { 
-			dprintf(D_ALWAYS,"Failed to register vmgahp stderr pipe\n"); 
-			if(m_stderr_tid != -1) {
-				daemonCore->Cancel_Timer(m_stderr_tid);
-				m_stderr_tid = -1;
-			}
-			m_stderr_tid = daemonCore->Register_Timer(2, 
-					2, (TimerHandlercpp)&VMGahpServer::err_pipe_ready, 
-					"VMGahpServer::err_pipe_ready",this);
-			if( m_stderr_tid == -1 ) {
-				start_err_msg = "Internal vmgahp server error";
-				dprintf(D_ALWAYS,"Failed to register stderr timer\n");
-				printSystemErrorMsg();
-				cleanup();
-				return false;
-			}
-		}
-	}
 
 	// try to turn on vmgahp async notification mode
 	if  ( !command_async_mode_on() ) {
@@ -492,7 +424,7 @@ VMGahpServer::startUp(Env *job_env, const char *workingdir, int nice_inc, Family
 				(PipeHandlercpp)&VMGahpServer::pipe_ready,
 				"VMGahpServer::pipe_ready",this);
 		if( result == -1 ) {
-			// failed to register the pipe for some reason; fall 
+			// failed to register the pipe for some reason; fall
 			// back on polling (yuck).
 			dprintf(D_ALWAYS,"Failed to register vmgahp Read pipe\n");
 			m_is_async_mode = false;
@@ -595,7 +527,7 @@ VMGahpServer::command_commands(void)
 	}
 
 	return true;
-} 
+}
 
 bool
 VMGahpServer::command_support_vms(void)
@@ -634,7 +566,7 @@ VMGahpServer::command_support_vms(void)
 	}
 
 	return true;
-} 
+}
 
 bool
 VMGahpServer::command_async_mode_on(void)
@@ -707,10 +639,10 @@ VMGahpServer::setPollInterval(unsigned int interval)
 	}
 	m_pollInterval = interval;
 	if( m_pollInterval > 0 ) {
-		m_poll_tid = daemonCore->Register_Timer(m_pollInterval, 
-				m_pollInterval, 
-				(TimerHandlercpp)&VMGahpServer::poll, 
-				"VMGahpServer::poll",this); 
+		m_poll_tid = daemonCore->Register_Timer(m_pollInterval,
+				m_pollInterval,
+				(TimerHandlercpp)&VMGahpServer::poll,
+				"VMGahpServer::poll",this);
 	}
 }
 
@@ -741,7 +673,7 @@ VMGahpServer::err_pipe_ready()
 {
 	int count = 0;
 
-	if( ( m_is_initialized == false) || 
+	if( ( m_is_initialized == false) ||
 			( m_vmgahp_errorfd == -1 ) || !daemonCore ) {
 		return false;
 	}
@@ -756,7 +688,7 @@ VMGahpServer::err_pipe_ready()
 		buff[count]='\0';
 
 			// Search for each newline in the string we just read and
-			// print out the text between it and the previous newline 
+			// print out the text between it and the previous newline
 			// (which may include text stored in m_vmgahp_error_buffer).
 			// Any text left at the end of the string is added to
 			// m_vmgahp_error_buffer to be printed when the next newline
@@ -764,9 +696,9 @@ VMGahpServer::err_pipe_ready()
 		while ( (newline = strchr( newline + 1, '\n' ) ) != NULL ) {
 
 			*newline = '\0';
-			dprintf( D_ALWAYS, "VMGAHP[%d] (stderr) -> %s%s\n", 
-					m_vmgahp_pid, 
-					m_vmgahp_error_buffer.Value(), 
+			dprintf( D_ALWAYS, "VMGAHP[%d] (stderr) -> %s%s\n",
+					m_vmgahp_pid,
+					m_vmgahp_error_buffer.Value(),
 					prev_line );
 			prev_line = newline + 1;
 			m_vmgahp_error_buffer = "";
@@ -788,7 +720,7 @@ VMGahpServer::write_line(const char *command)
 	if( !command || m_vmgahp_writefd == -1 ) {
 		return false;
 	}
-	
+
 	if( daemonCore->Write_Pipe(m_vmgahp_writefd,command,strlen(command)) <= 0 ) {
 		dprintf( D_ALWAYS, "VMGAHP write line(%s) Error\n", command);
 		return false;
@@ -923,7 +855,7 @@ VMGahpServer::read_argv(Gahp_Args &g_args)
 		}
 
 		/* If character was a newline, copy into argv and return */
-		if( buf[ibuf]=='\n' ) { 
+		if( buf[ibuf]=='\n' ) {
 			buf[ibuf] = 0;
 			g_args.add_arg( strdup( buf ) );
 
@@ -953,7 +885,7 @@ VMGahpServer::read_argv(Gahp_Args &g_args)
 					debug.Value() );
 
 			// check for a single "R".  This means we should check
-			// for results in vmgahp async mode.  
+			// for results in vmgahp async mode.
 			if( trash_this_line==false && g_args.argc == 1 &&
 					g_args.argv[0][0] == 'R' ) {
 				poll_real_soon();
@@ -998,7 +930,7 @@ VMGahpServer::new_reqid(void)
 		// Make certain this reqid is not already in use.
 		// Optimization: only need to do the lookup if we have
 		// rotated request ids...
-		if( (!m_rotated_reqids) || 
+		if( (!m_rotated_reqids) ||
 				(m_request_table.lookup(m_next_reqid,unused) == -1) ) {
 			// not in use, we are done
 			return m_next_reqid;
@@ -1055,7 +987,7 @@ VMGahpServer::poll()
 
 	// give some time to gahp server
 	sleep(1);
-	
+
 	// First line of RESULTS command contains how many subsequent
 	// result lines should be read.
 	result = new Gahp_Args;
@@ -1073,7 +1005,7 @@ VMGahpServer::poll()
 	}
 	num_results = strtol(result->argv[1], (char **)NULL, 10);
 	if( num_results < 0 ) {
-		dprintf(D_ALWAYS,"Invalid number of results('%s') from vmgahp Server\n", 
+		dprintf(D_ALWAYS,"Invalid number of results('%s') from vmgahp Server\n",
 				result->argv[1]);
 		delete result;
 		return -1;
@@ -1098,13 +1030,13 @@ VMGahpServer::poll()
 	// to store all the results in an array before operating on them,
 	// because we need the Results command to complete before we
 	// operate on the results.  Why?  Because some of the results
-	// require us to make a callback, and the callback may want to 
+	// require us to make a callback, and the callback may want to
 	// initiate a new Gahp request...
 
 	// Now for each stored request line,
 	// lookup the request id in our hash table and stash the result.
 	for (i=0; i < num_results; i++) {
-		if( result ) { 
+		if( result ) {
 			delete result;
 			result = NULL;
 		}
@@ -1140,7 +1072,7 @@ VMGahpServer::poll()
 
 	}	// end of looping through each result line
 
-	if( result ) { 
+	if( result ) {
 		delete result;
 		result = NULL;
 	}
@@ -1153,7 +1085,7 @@ VMGahpServer::numOfPendingRequests(void)
 	return m_request_table.getNumElements();
 }
 
-void 
+void
 VMGahpServer::cancelPendingRequest(int req_id)
 {
 	if( m_is_initialized == false ) {
@@ -1191,7 +1123,7 @@ VMGahpServer::isPendingRequest(int req_id)
 {
 	VMGahpRequest *req = NULL;
 	req = findRequestbyReqId(req_id);
-	
+
 	if(req) {
 		return TRUE;
 	}
@@ -1244,7 +1176,7 @@ VMGahpServer::nowPending(const char *command, const char *args, VMGahpRequest *r
 	return true;
 }
 
-// Result will be stored in poll 
+// Result will be stored in poll
 void
 VMGahpServer::getPendingResult(int req_id, bool is_blocking)
 {
@@ -1281,7 +1213,7 @@ VMGahpServer::getPendingResult(int req_id, bool is_blocking)
 			}
 			if( req->isPendingTimeout()) {
 				// We timed out, stop blocking
-				dprintf(D_ALWAYS,"VM GAHP command('%s') exceeds timeout(%d seconds)\n", 
+				dprintf(D_ALWAYS,"VM GAHP command('%s') exceeds timeout(%d seconds)\n",
 						req->getCommand(), req->getTimeout());
 				return;
 			}
@@ -1304,25 +1236,25 @@ VMGahpServer::getPendingResult(int req_id, bool is_blocking)
 	return;
 }
 
-bool 
-VMGahpServer::isSupportedCommand(const char *command) 
+bool
+VMGahpServer::isSupportedCommand(const char *command)
 {
 	if( m_commands_supported.contains_anycase(command)==FALSE) {
-		dprintf(D_ALWAYS, "'%s' command is not supported by the gahp-server\n", 
+		dprintf(D_ALWAYS, "'%s' command is not supported by the gahp-server\n",
 				command);
 		return false;
 	}
 	return true;
 }
 
-bool 
+bool
 VMGahpServer::isSupportedVMType(const char *vmtype)
 {
 	return m_vms_supported.contains_anycase(vmtype);
 }
 
-void 
-VMGahpServer::printSystemErrorMsg(void) 
+void
+VMGahpServer::printSystemErrorMsg(void)
 {
 	err_pipe_ready();
 }
@@ -1383,22 +1315,22 @@ VMGahpServer::publishVMClassAd(const char *workingdir)
 		can_send_it = false;
 
 		if( !m_send_all_classad ) {
-			// Instead of sending entire job ClassAd to vmgahp, 
-			// we will send some part of job ClassAd necessary to vmgahp. 
+			// Instead of sending entire job ClassAd to vmgahp,
+			// we will send some part of job ClassAd necessary to vmgahp.
 			if( !strncasecmp( name, "JobVM", strlen("JobVM") ) ||
 				!strncasecmp( name, "VMPARAM", strlen("VMPARAM") ) ||
 				!strncasecmp( name, ATTR_CLUSTER_ID, strlen(ATTR_CLUSTER_ID)) ||
 				!strncasecmp( name, ATTR_PROC_ID, strlen(ATTR_PROC_ID)) ||
 				!strncasecmp( name, ATTR_USER, strlen(ATTR_USER)) ||
-				!strncasecmp( name, ATTR_ORIG_JOB_IWD, 
+				!strncasecmp( name, ATTR_ORIG_JOB_IWD,
 					strlen(ATTR_ORIG_JOB_IWD)) ||
-				!strncasecmp( name, ATTR_JOB_ARGUMENTS1, 
+				!strncasecmp( name, ATTR_JOB_ARGUMENTS1,
 					strlen(ATTR_JOB_ARGUMENTS1)) ||
-				!strncasecmp( name, ATTR_JOB_ARGUMENTS2, 
+				!strncasecmp( name, ATTR_JOB_ARGUMENTS2,
 					strlen(ATTR_JOB_ARGUMENTS2)) ||
-				!strncasecmp( name, ATTR_TRANSFER_INTERMEDIATE_FILES, 
+				!strncasecmp( name, ATTR_TRANSFER_INTERMEDIATE_FILES,
 					strlen(ATTR_TRANSFER_INTERMEDIATE_FILES)) ||
-				!strncasecmp( name, ATTR_TRANSFER_INPUT_FILES, 
+				!strncasecmp( name, ATTR_TRANSFER_INPUT_FILES,
 					strlen(ATTR_TRANSFER_INPUT_FILES)) ) {
 				can_send_it = true;
 			}
@@ -1467,7 +1399,7 @@ VMGahpServer::killVM(void)
 			return;
 		}
 	}else {
-		// Except Xen, we need the path of working directory of Starter 
+		// Except Xen, we need the path of working directory of Starter
 		// in order to destroy a VM.
 		matchstring = m_workingdir;
 	}
@@ -1477,20 +1409,17 @@ VMGahpServer::killVM(void)
 		return;
 	}
 
-	// vmgahp is daemonCore, so we need to add -f -t options of daemonCore.
-	// Then, try to execute vmgahp with 
+	// vmgahp is daemonCore, so we need to add -f options of daemonCore.
+	// Then, try to execute vmgahp with
 	// vmtype <vmtype> match <string>"
 	ArgList systemcmd;
 	systemcmd.AppendArg(m_vmgahp_server);
 	systemcmd.AppendArg("-f");
-	if( m_include_gahp_log ) {
-		systemcmd.AppendArg("-t");
-	}
 	systemcmd.AppendArg("-M");
 	systemcmd.AppendArg(VMGAHP_KILL_MODE);
-	systemcmd.AppendArg("vmtype");
+	systemcmd.AppendArg("-vmtype");
 	systemcmd.AppendArg(m_vm_type);
-	systemcmd.AppendArg("match");
+	systemcmd.AppendArg("-match");
 	systemcmd.AppendArg(matchstring);
 
 #if !defined(WIN32)
@@ -1506,7 +1435,7 @@ VMGahpServer::killVM(void)
 	}
 #endif
 
-	priv_state oldpriv; 
+	priv_state oldpriv;
 	if( (strcasecmp(m_vm_type.Value(), CONDOR_VM_UNIVERSE_XEN ) == MATCH) || (strcasecmp(m_vm_type.Value(), CONDOR_VM_UNIVERSE_KVM ) == MATCH) ) {
 		oldpriv = set_root_priv();
 	}else {
@@ -1525,7 +1454,7 @@ VMGahpServer::killVM(void)
 	return;
 }
 
-void 
+void
 VMGahpServer::setVMid(int vm_id)
 {
 	m_vm_id = vm_id;

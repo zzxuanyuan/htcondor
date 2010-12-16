@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -40,7 +40,7 @@ class VMGahpServer : public Service {
 		             ClassAd* job_ad);
 		virtual ~VMGahpServer();
 
-		bool startUp(Env *job_env, const char* job_iwd, int nice_inc, 
+		bool startUp(Env *job_env, const char* job_iwd, int nice_inc,
 				FamilyInfo *family_info);
 		bool cleanup(void);
 
@@ -51,7 +51,7 @@ class VMGahpServer : public Service {
 		bool isPendingRequest(int req_id);
 		VMGahpRequest *findRequestbyReqId(int req_id);
 
-		bool nowPending(const char *command, const char *args, 
+		bool nowPending(const char *command, const char *args,
 				VMGahpRequest *req);
 
 		int numOfPendingRequests(void);
@@ -62,7 +62,7 @@ class VMGahpServer : public Service {
 		// Return the pid of vmgahp
 		int getVMGahpServerPid(void) {return m_vmgahp_pid;}
 
-		// Return VM type 
+		// Return VM type
 		const char* getVMType(void) {return m_vm_type.Value();}
 
 		bool isSupportedCommand(const char *command);
@@ -103,9 +103,6 @@ class VMGahpServer : public Service {
 		bool m_is_cleanuped;
 		bool m_is_async_mode;
 		bool m_send_all_classad;
-
-		// Does Starter log include log from vmgahp?
-		bool m_include_gahp_log;
 
 		MyString m_vm_type;
 		MyString m_vmgahp_server;

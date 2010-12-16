@@ -20,6 +20,9 @@
 #define VMGAHP_CONTROLLER
 
 #include "hypervisor.h"
+#include "boost/noncopyable.hpp"
+#include <vector>
+#include <string>
 
 namespace condor
 {
@@ -33,23 +36,42 @@ namespace condor
          */
         class vmgahp_controller : public boost::noncopyable
         {
+        public:
             vmgahp_controller();
             virtual ~vmgahp_controller();
 
+            /**
+             * init() - initialize the controller, which basically means
+             * test privsep && initialize daemoncore info.
+             */
+            virtual int init();
 
-            virtual void init(/* Some structure */);
-            virtual bool config(/* Some structure */);
+            /**
+             */
+            virtual int discover( const std::vector< std::string >& vTypes  );
 
-            // binding functions for other goo.
 
-        private:
-            /// ptr to the hypervisior, starter : virt, so no need for a list 1:1
+            /**
+             * used to
+             */
+            virtual int config( );
+
+        protected:
+
+            /**
+             */
+            int init_uids();
+
+            /**
+             *
+             */
+
+            ///< ptr to the hypervisior, starter : virt, so no need for a list 1:1
             boost::shared_ptr<hypervisor> m_hypervisor;
-            //boost::shread_ptr<>
-            //
+            ///< stdout pipe to daemoncore parent process (startd or starter)
+            int m_stdout_pipe;
 
         };
     }
-
 }
 #endif

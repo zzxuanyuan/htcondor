@@ -16,45 +16,18 @@
  *
  ***************************************************************/
 
-#ifndef VMGAHP_STATS
-#define VMGAHP_STATS
+#ifndef VMGAHP_COMMON
+#define VMGAHP_COMMON
+
+#include "condor_debug.h"
 
 namespace condor
 {
-
     namespace vmu
     {
+        void vmprintf( int flags, const char *fmt, ... ) CHECK_PRINTF_FORMAT(2,3);
+    }
 
-    /**
-     *  The following are common
-     */
-
-    /// The state of the current running vm
-    typedef enum
-    {
-        VM_INACTIVE=0,
-        VM_RUNNING,
-        VM_STOPPED,
-        VM_SUSPENDED
-        // may be more...
-    }vm_state;
-
-    /// vm_stats are all the current known information about a vm for
-    typedef struct stats
-    {
-        //enum type eVmType;
-        vm_state        m_eState; ///<
-        unsigned int    m_iPid;   ///< pid of currently running vm 0
-
-        // insert all the vm stats here.
-        //// running stats
-        //// static config.
-        //// list of checkpoints, or just last checkpoint?
-    }vm_stats;
-
-
-    } // namespace vmu
-
-}// namespace condor
+}
 
 #endif

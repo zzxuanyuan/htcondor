@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2010, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,12 +24,13 @@
 #include "condor_header_features.h"
 #include "MyString.h"
 
-// sprintf() will try to write to a fixed buffer first, for reasons of 
+// sprintf() will try to write to a fixed buffer first, for reasons of
 // efficiency.  This is the size of that buffer.
 #define STL_STRING_UTILS_FIXBUF 500
 
 // Analogous to standard sprintf(), but writes to std::string 's', and is
 // memory/buffer safe.
+int sprintf(std::string& s, const char* format, va_list pargs);
 int sprintf(std::string& s, const char* format, ...) CHECK_PRINTF_FORMAT(2,3);
 int sprintf(MyString& s, const char* format, ...) CHECK_PRINTF_FORMAT(2,3);
 
@@ -54,7 +55,7 @@ bool operator>=(const std::string& L, const MyString& R);
 
 // MyString now provides casting ops that make these unnecessary.
 // Can now use '=' between MyString <--> std::string
-// The below assignment std::string <-- MyString will be more 
+// The below assignment std::string <-- MyString will be more
 // efficient, due to some copying in the casting op, if that matters.
 void assign(std::string& dst, const MyString& src);
 void assign(MyString& dst, const std::string& src);
