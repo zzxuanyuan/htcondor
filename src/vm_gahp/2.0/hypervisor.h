@@ -19,12 +19,8 @@
 #ifndef VMGAHP_HYPERVISOR
 #define VMGAHP_HYPERVISOR
 
-#include <boost/shared_ptr.hpp>
-#include <boost/variant.hpp>
-#include <string>
-#include <map>
-
 #include "vm_stats.h"
+#include <boost/shared_ptr.hpp>
 
 namespace condor
 {
@@ -32,42 +28,27 @@ namespace condor
     namespace vmu
     {
 
-    typedef std::map< std::string, boost::variant<int, std::string> > nvps;
-    //typedef std::map< std::string, nvps > vm_caps;
-
     /**
      * The following is an abstract base class for a hypervisor
      * It's meant to abstract away as much of condor and direct knowledge
-     * of a hypervisor as possible such that
+     * of a hypervisor as possible, such that the controller knows nothing about
+     * the specifics of a hypervisor and the interface is clear of condor
+     * deps.
      *
-     * The idea is you could take this piece out of condor and
-     * verify it independently
+     * If folks wanted to add another hypervisor say vmware, or virtbox, or
+     * whatever, they could derive from *this class.  It's also important to
+     * keep hypv_config generic enough for
      *
      * @author Timothy St. Clair
      */
     class hypervisor
     {
+        friend class hypervisor_factory;
+
     public:
 
-         hypervisor();
-         virtual ~hypervisor();
-
-         ///////////////////////////////////////////////////////////////
-         // static functions to enable factory-esk approach
-         ///////////////////////////////////////////////////////////////
-
-         /**
-          * discover() -
-          *
-          * @param check - a map containing the vms to check with nvps partially
-          * filled, based on config options
-          */
-         //static bool discover( vm_caps & check );
-
-         /**
-          * manufacture() - will manufacture an instance based on std::string
-          */
-         //static boost::shared_ptr<hypervisor> manufacture (const std::string & vm_type);
+         hypervisor(){;};
+         virtual ~hypervisor(){;};
 
          ///////////////////////////////////////////////////////////////
          // virtual interface functions
@@ -75,6 +56,10 @@ namespace condor
          // can you reconfig a vm once it is running?
          // what is the difference is a soft suspend?
          ///////////////////////////////////////////////////////////////
+
+         /**
+         */
+        virtual bool init(const hypv_config & local_config)=0;
 
          /**
           * start() - will start a vm using the mundged input file.
@@ -101,13 +86,13 @@ namespace condor
           */
          virtual bool getStats( vm_stats & stats )=0;
 
-    private:
-
-        /**
+         /**
          */
-        virtual bool check_caps(nvps & caps)=0;
+        virtual bool check_caps(hypv_config & local_config)=0;
 
-        vm_stats m_state; ///< Current state of the vm;
+    protected:
+
+        vm_stats m_state;   ///< Current state of the vm;
 
     };
 

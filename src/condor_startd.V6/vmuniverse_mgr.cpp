@@ -392,7 +392,7 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 	systemcmd.AppendArg("-f");
 	systemcmd.AppendArg("-M");
 	systemcmd.AppendArg(VMGAHP_TEST_MODE);
-	systemcmd.AppendArg("-vmtype");
+	systemcmd.AppendArg("--vmtypes");
 	systemcmd.AppendArg(vmtype);
 
 #if !defined(WIN32)
@@ -849,9 +849,9 @@ VMUniverseMgr::killVM(const char *matchstring)
 	systemcmd.AppendArg("-f");
 	systemcmd.AppendArg("-M");
 	systemcmd.AppendArg(VMGAHP_KILL_MODE);
-	systemcmd.AppendArg("-vmtype");
+	systemcmd.AppendArg("--vmtypes");
 	systemcmd.AppendArg(m_vm_type);
-	systemcmd.AppendArg("-match");
+	systemcmd.AppendArg("--matches");
 	systemcmd.AppendArg(matchstring);
 
 #if !defined(WIN32)

@@ -17,76 +17,100 @@
  ***************************************************************/
 
 #include "condor_common.h"
-#include "vmgahp_controller.h"
+#include "condor_config.h"
+#include "vm_univ_utils.h"
 #include "condor_daemon_core.h"
+#include "stl_string_utils.h"
+#include "condor_uid.h"
+#include "condor_privsep/condor_privsep.h"
+
+#include "hypervisor_factory.h"
+#include "vmgahp_controller.h"
 #include "vmgahp_common.h"
+#include <boost/foreach.hpp>
+#include <iostream>
+
+#define ROOT_UID    0
 
 using namespace std;
 using namespace condor::vmu;
 
 const char *vmgahp_version = "$VMGahpVersion 2.0 Jan 2011 Condor\\ VMGAHP $";
 
+/////////////////////////////////////////
 vmgahp_controller::vmgahp_controller()
 {
     m_stdout_pipe=0;
 }
 
+/////////////////////////////////////////
 vmgahp_controller::~vmgahp_controller()
 {
     // nothing to do auto-cleanup
 }
 
+/////////////////////////////////////////
 int vmgahp_controller::discover( const std::vector< std::string >& vTypes  )
 {
-    int iRet;
+    int iRet=0;
+    string szCaps;
+    string szTypesFound;
 
-    if ( !( iRet = this->init() ) )
+    sprintf(szCaps, "VM_GAHP_VERSION = \"2.0\"\n");
+
+    vmprintf(D_ALWAYS, "Num types declared: %d", vTypes.size() );
+    BOOST_FOREACH( std::string szType, vTypes )
     {
-        //iRet = hypervisor::discover
+        vmprintf(D_ALWAYS, "discover called for type: %s", szType.c_str());
 
-        /*
-         * write_to_daemoncore_pipe("VM_GAHP_VERSION = \"%s\"\n", CONDOR_VMGAHP_VERSION);
-        write_to_daemoncore_pipe("%s = \"%s\"\n", ATTR_VM_TYPE,
-                gahpconfig->m_vm_type.Value());
-        write_to_daemoncore_pipe("%s = %d\n", ATTR_VM_MEMORY,
-                gahpconfig->m_vm_max_memory);
-        write_to_daemoncore_pipe("%s = %s\n", ATTR_VM_NETWORKING,
-                gahpconfig->m_vm_networking? "TRUE":"FALSE");
-        if( gahpconfig->m_vm_networking ) {
-            write_to_daemoncore_pipe("%s = \"%s\"\n", ATTR_VM_NETWORKING_TYPES,
-                gahpconfig->m_vm_networking_types.print_to_string());
+        if ( hypervisor_factory::discover(szType, m_hyp_config_params) )
+        {
+            vmprintf(D_ALWAYS, "discovered?" );
         }
-        if( gahpconfig->m_vm_hardware_vt ) {
-            write_to_daemoncore_pipe("%s = TRUE\n", ATTR_VM_HARDWARE_VT);
+        else
+        {
+            vmprintf(D_ALWAYS, "Nothing to discover yet" );
         }
-         */
-
-        //daemonCore->Write_Pipe( m_stdout_pipe, str, len);
     }
-    else
-        vmprintf(D_ALWAYS, "Failed to initialize" );
+
+
+    //sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_TYPE, gahpconfig->m_vm_type.Value());
+    sprintf_cat(szCaps,"%s = %d\n", ATTR_VM_MEMORY, m_hyp_config_params.m_VM_MEMROY);
+    sprintf_cat(szCaps, "%s = %s\n", ATTR_VM_NETWORKING, (m_hyp_config_params.m_VM_NETWORKING)?"TRUE":"FALSE");
+    if (m_hyp_config_params.m_VM_NETWORKING)
+    {
+        sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_NETWORKING_TYPES, m_hyp_config_params.m_VM_NETWORKING_TYPE.print_to_string());
+    }
+
+    //if( gahpconfig->m_vm_hardware_vt ) {
+    //        sprintf_cat(szCaps, "%s = TRUE\n", ATTR_VM_HARDWARE_VT);
+    //    }
+
+    daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length());
 
     return iRet;
 }
 
+/////////////////////////////////////////
 int vmgahp_controller::init( )
 {
     int iRet = 1;
 
-    if (0 == init_uids() )
+    if ( 0 == this->init_uids() ) // check for valid
     {
         m_stdout_pipe = daemonCore->Inherit_Pipe(fileno(stdout),
                         true,       /*write pipe*/
                         false,      //nonregisterable
                         false);     //blocking
 
-        if (!m_stdout_pipe)
+        if (0 == m_stdout_pipe)
         {
             vmprintf(D_ALWAYS, "Failed to daemonCore->Inherit_Pipe(stdout)" );
         }
         else
         {
-            iRet = 0; // successful path
+            // now check all the input params
+            iRet = this->config();
         }
     }
     else
@@ -97,41 +121,98 @@ int vmgahp_controller::init( )
     return iRet;
 }
 
+/////////////////////////////////////////
 int vmgahp_controller::config( )
 {
     int iRet=0;
+    char * config_value=0;
 
-    // grabs the input options.
+    // Read VM_MEMORY
+    m_hyp_config_params.m_VM_MEMROY =  param_integer("VM_MEMORY", 0);
+    if( m_hyp_config_params.m_VM_MEMROY <= 0 )
+    {
+        vmprintf( D_ALWAYS,"ERROR: 'VM_MEMORY' is not defined in configuration ");
+        iRet=1;
+    }
+
+    // Read VM_NETWORKING
+    m_hyp_config_params.m_VM_NETWORKING = param_boolean("VM_NETWORKING", false);
+
+    // Read VM_NETWORKING_TYPE
+    if( m_hyp_config_params.m_VM_NETWORKING )
+    {
+        config_value = param("VM_NETWORKING_TYPE");
+        if( !config_value )
+        {
+            vmprintf( D_ALWAYS,"WARNING: 'VM_NETWORKING' is true but 'VM_NETWORKING_TYPE' is not defined, so 'VM_NETWORKING' is disabled");
+            m_hyp_config_params.m_VM_NETWORKING = false;
+        }
+        else
+        {
+            MyString networking_type = delete_quotation_marks(config_value);
+
+            networking_type.trim();
+            networking_type.lower_case();
+
+            free(config_value);
+
+            StringList networking_types(networking_type.Value(), ", ");
+            m_hyp_config_params.m_VM_NETWORKING_TYPE.create_union(networking_types, false);
+
+            if( m_hyp_config_params.m_VM_NETWORKING_TYPE.isEmpty() )
+            {
+                vmprintf( D_ALWAYS,"WARNING: 'VM_NETWORKING' is true but 'VM_NETWORKING_TYPE' is empty So 'VM_NETWORKING' is disabled\n");
+                m_hyp_config_params.m_VM_NETWORKING = false;
+            }
+            else
+            {
+                config_value = param("VM_NETWORKING_DEFAULT_TYPE");
+                if( config_value ) {
+                    m_hyp_config_params.m_VM_NETWORKING_DEFAULT_TYPE = (delete_quotation_marks(config_value)).Value();
+                    free(config_value);
+                }
+            }
+        }
+     }
+
+    /* Need to read in * config params */
+
 
     return iRet;
 }
 
+/////////////////////////////////////////
 int vmgahp_controller::init_uids()
 {
     int iRet =0;
 
-    #if 0 //!defined(WIN32)
+    #if !defined(WIN32)
+
+        uid_t caller_uid = ROOT_UID;
+        gid_t caller_gid = ROOT_UID;
+        uid_t job_user_uid = ROOT_UID;
+        uid_t job_user_gid = ROOT_UID;
+        string caller_name;
+        string job_user_name;
+
         bool SwitchUid = can_switch_ids() || privsep_enabled();
 
         caller_uid = getuid();
         caller_gid = getgid();
 
-        // Set user uid/gid
-        string user_uid;
-        string user_gid;
-        user_uid = getenv("VMGAHP_USER_UID");
-        if( user_uid.IsEmpty() == false )
+        // check env options
+        char *user_uid, *user_gid;
+        if( ( user_uid = getenv("VMGAHP_USER_UID") ) )
         {
-            int env_uid = (int)strtol(user_uid.Value(), (char **)NULL, 10);
+            int env_uid = (int)strtol(user_uid, (char **)NULL, 10);
             if( env_uid > 0 )
             {
                 job_user_uid = env_uid;
 
                 // Try to read user_gid
-                user_gid = getenv("VMGAHP_USER_GID");
-                if( user_gid.IsEmpty() == false )
+                if( (user_gid = getenv("VMGAHP_USER_GID")) )
                 {
-                    int env_gid = (int)strtol(user_gid.Value(), (char **)NULL, 10);
+                    int env_gid = (int)strtol(user_gid, (char **)NULL, 10);
                     if( env_gid > 0 )
                     {
                         job_user_gid = env_gid;
@@ -144,14 +225,7 @@ int vmgahp_controller::init_uids()
             }
         }
 
-        if( !SwitchUid )
-        {
-            // We cannot switch uids
-            // a job user uid is set to caller uid
-            job_user_uid = caller_uid;
-            job_user_gid = caller_gid;
-        }
-        else
+        if( SwitchUid )
         {
             // We can switch uids
             if( job_user_uid == ROOT_UID )
@@ -171,40 +245,47 @@ int vmgahp_controller::init_uids()
                 }
                 else
                 {
-                    fprintf(stderr, "\nERROR: Please set environment variable "
-                                    "'VMGAHP_USER_UID=<uid>'\n");
-                                    exit(1);
+                    vmprintf( D_ALWAYS, "ERROR: Please set environment variable 'VMGAHP_USER_UID=<uid>'");
+                    iRet=1;
                 }
             }
         }
-
-        // find the user name calling this program
-        char *user_name = NULL;
-        passwd_cache* p_cache = pcache();
-        if( p_cache->get_user_name(caller_uid, user_name) == true )
+        else
         {
-            caller_name = user_name;
-            free(user_name);
+            vmprintf( D_ALWAYS, "ERROR: Can not can_switch_ids");
+            iRet = 1;
         }
 
-        if( job_user_uid == caller_uid )
+        if (!iRet)
         {
-            job_user_name = caller_name;
-        }
-
-        if( SwitchUid )
-        {
-            set_user_ids(job_user_uid, job_user_gid);
-            set_user_priv();
-
-            // Try to get the name of a job user
-            // If failed, it is harmless.
-            if( job_user_uid != caller_uid )
+            // find the user name calling this program
+            char *user_name = NULL;
+            passwd_cache* p_cache = pcache();
+            if( p_cache->get_user_name(caller_uid, user_name) == true )
             {
-                if( p_cache->get_user_name(job_user_uid, user_name) == true )
+                caller_name = user_name;
+                free(user_name);
+            }
+
+            if( job_user_uid == caller_uid )
+            {
+                job_user_name = caller_name;
+            }
+
+            if( SwitchUid )
+            {
+                set_user_ids(job_user_uid, job_user_gid);
+                set_user_priv();
+
+                // Try to get the name of a job user
+                // If failed, it is harmless.
+                if( job_user_uid != caller_uid )
                 {
-                    job_user_name = user_name;
-                    free(user_name);
+                    if( p_cache->get_user_name(job_user_uid, user_name) == true )
+                    {
+                        job_user_name = user_name;
+                        free(user_name);
+                    }
                 }
             }
         }
@@ -212,4 +293,14 @@ int vmgahp_controller::init_uids()
     #endif
 
     return iRet;
+}
+
+int vmgahp_controller::fini()
+{
+    int iRet =0;
+
+    if (m_hypervisor)
+        iRet = m_hypervisor->shutdown(false, true);
+
+    return (iRet);
 }

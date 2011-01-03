@@ -16,38 +16,59 @@
  *
  ***************************************************************/
 
-#ifndef VMGAHP_CONTROLLER
-#define VMGAHP_CONTROLLER
+#include "libvirt.h"
+#include <libvirt/libvirt.h>
 
-#include "hypervisor"
+using namespace condor::vmu;
 
-namespace condor
+libvirt::libvirt() :hypervisor()
+{ }
+
+libvirt::~libvirt()
 {
-
-    /**
-     *
-     *
-     * @author Timothy St. Clair
-     */
-    class libvirt_vm :public hypervisor
-        {
-            hypervisor();
-            virtual ~hypervisor();
-
-            ///////// begin static functions
-            static bool discover( std::list<some_type> & found_hypervisors );
-            static boost::shared_ptr<hypervisor> manufacture (some_type & );
-
-            /**
-             *
-             */
-            virtual void init(/*Some params*/)=0;
-
-        private:
-
-
-        };
 
 }
 
-#endif
+bool libvirt::init(const hypv_config & local_config)
+{
+    bool bRet;
+    return bRet;
+}
+
+bool libvirt::start(std::string & szConfigFile)
+{
+    bool bRet;
+    return bRet;
+}
+
+bool libvirt::suspend( bool bSoft )
+{
+    bool bRet;
+    return bRet;
+}
+
+bool libvirt::resume()
+{
+    bool bRet;
+    return bRet;
+}
+
+bool libvirt::checkpoint(/*name?*/)
+{
+
+}
+
+bool libvirt::shutdown(bool reboot=false, bool bforce=false)
+{
+
+}
+
+bool libvirt::getStats( vm_stats & stats )
+{
+
+}
+
+bool libvirt::check_caps(hypv_config & local_config)
+{
+
+}

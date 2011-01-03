@@ -19,15 +19,30 @@
 #ifndef VMGAHP_STATS
 #define VMGAHP_STATS
 
+// I need to rid myself of this dumb data structure.
+#include "string_list.h"
+
+#include <string>
+
 namespace condor
 {
 
     namespace vmu
     {
 
-    /**
-     *  The following are common
+     /**
+     * The following ...
      */
+    typedef struct config
+    {
+        unsigned int    m_VM_MEMROY;
+        bool            m_VM_NETWORKING;
+        std::string     m_VM_NETWORKING_DEFAULT_TYPE;
+        StringList      m_VM_NETWORKING_TYPE;
+
+        // The following are the other params
+
+    }hypv_config;
 
     /// The state of the current running vm
     typedef enum
@@ -46,9 +61,10 @@ namespace condor
         vm_state        m_eState; ///<
         unsigned int    m_iPid;   ///< pid of currently running vm 0
 
+        hypv_config     m_config; ///<
+
         // insert all the vm stats here.
         //// running stats
-        //// static config.
         //// list of checkpoints, or just last checkpoint?
     }vm_stats;
 

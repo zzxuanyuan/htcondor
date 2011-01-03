@@ -298,8 +298,8 @@ void main_init(int argc, char *argv[])
 
 	if( (vmgahp_mode == VMGAHP_TEST_MODE) || (vmgahp_mode == VMGAHP_KILL_MODE )) {
 
-		char _vmtype[] = "-vmtype";
-		char _match[] = "-match";
+		char _vmtype[] = "--vmtypes";
+		char _match[] = "--matches";
 
 		// This program is called in test mode
 		char *opt = NULL, *arg = NULL;

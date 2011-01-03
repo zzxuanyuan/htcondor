@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,7 +49,7 @@ uid_t job_user_uid = ROOT_UID;
 uid_t job_user_gid = ROOT_UID;
 
 const char *support_vms_list[] = {
-#if defined(LINUX)
+#if 0
 CONDOR_VM_UNIVERSE_XEN,
 CONDOR_VM_UNIVERSE_KVM,
 #endif
@@ -60,7 +60,7 @@ NULL
 };
 
 // parse raw string into args
-bool parse_vmgahp_command(const char* raw, Gahp_Args& args) 
+bool parse_vmgahp_command(const char* raw, Gahp_Args& args)
 {
 	if (!raw) {
 		vmprintf(D_ALWAYS,"ERROR parse_vmgahp_command: empty command\n");
@@ -112,7 +112,7 @@ bool parse_vmgahp_command(const char* raw, Gahp_Args& args)
 }
 
 // Check whether the given vmtype is in supported vmtype list
-bool 
+bool
 verify_vm_type(const char *vmtype)
 {
 	int i=0;
@@ -290,7 +290,7 @@ bool verify_digit_arg(const char *s)
 	return true;
 }
 
-bool verify_number_args(const int is, const int should_be) 
+bool verify_number_args(const int is, const int should_be)
 {
 	if( is != should_be) {
 		vmprintf(D_ALWAYS, "Wrong # of args %d, should be %d\n", is, should_be);
@@ -356,7 +356,7 @@ write_to_daemoncore_pipe(const char* fmt, ... )
 	va_list args;
 	va_start(args, fmt);
 	output.vsprintf(fmt, args);
-	write_to_daemoncore_pipe(vmgahp_stdout_pipe, 
+	write_to_daemoncore_pipe(vmgahp_stdout_pipe,
 			output.Value(), output.Length());
 	va_end(args);
 }
@@ -370,7 +370,7 @@ write_stderr_to_pipe()
 
 	vmgahp_stderr_buffer.Write();
 
-	if( vmgahp_stderr_buffer.IsError() ) { 
+	if( vmgahp_stderr_buffer.IsError() ) {
 		if( vmgahp_stderr_tid != -1 ) {
 			daemonCore->Cancel_Timer(vmgahp_stderr_tid);
 			vmgahp_stderr_tid = -1;
@@ -379,7 +379,7 @@ write_stderr_to_pipe()
 	}
 }
 
-void vmprintf( int flags, const char *fmt, ... ) 
+void vmprintf( int flags, const char *fmt, ... )
 {
 	int saved_flags = 0;
 	static pid_t mypid = 0;
@@ -429,7 +429,7 @@ void vmprintf( int flags, const char *fmt, ... )
 }
 
 
-void 
+void
 initialize_uids(void)
 {
 #if defined(WIN32)
@@ -449,7 +449,7 @@ initialize_uids(void)
 		vmprintf(D_ALWAYS, "Could not initialize user_priv with our own token!\n");
 	}
 
-	vmprintf(D_ALWAYS, "Initialize Uids: caller=%s@%s, job user=%s@%s\n", 
+	vmprintf(D_ALWAYS, "Initialize Uids: caller=%s@%s, job user=%s@%s\n",
 			caller_name.Value(), domain, job_user_name.Value(), domain);
 
 	if( name ) {
@@ -462,48 +462,48 @@ initialize_uids(void)
 #else
 	// init_user_ids was called in main_pre_dc_init()
 	vmprintf(D_ALWAYS, "Initial UID/GUID=%d/%d, EUID/EGUID=%d/%d, "
-			"Condor UID/GID=%d,%d\n", (int)getuid(), (int)getuid(), 
-			(int)geteuid(), (int)getegid(), 
+			"Condor UID/GID=%d,%d\n", (int)getuid(), (int)getuid(),
+			(int)geteuid(), (int)getegid(),
 			(int)get_condor_uid(), (int)get_condor_gid());
 
-	vmprintf(D_ALWAYS, "Initialize Uids: caller=%s, job user=%s\n", 
+	vmprintf(D_ALWAYS, "Initialize Uids: caller=%s, job user=%s\n",
 			caller_name.Value(), job_user_name.Value());
-	
+
 	return;
 #endif
 }
 
-uid_t 
+uid_t
 get_caller_uid(void)
 {
 	return caller_uid;
 }
 
-gid_t 
+gid_t
 get_caller_gid(void)
 {
 	return caller_gid;
 }
 
-uid_t 
+uid_t
 get_job_user_uid(void)
 {
 	return job_user_uid;
 }
 
-gid_t 
+gid_t
 get_job_user_gid(void)
 {
 	return job_user_gid;
 }
 
-const char* 
+const char*
 get_caller_name(void)
 {
 	return caller_name.Value();
 }
 
-const char* 
+const char*
 get_job_user_name(void)
 {
 	return job_user_name.Value();
@@ -639,7 +639,7 @@ int systemCommand( ArgList &args, priv_state priv, StringList *cmd_out, StringLi
 	    dup2(stdin_pipes[0], STDIN_FILENO);
 
 	    if(merge_stderr_with_stdout) dup2(stdout_pipes[1], STDERR_FILENO);
-	    else if(cmd_err != NULL) 
+	    else if(cmd_err != NULL)
 	      {
 		close(error_pipe[0]);
 		dup2(error_pipe[1], STDERR_FILENO);
@@ -652,7 +652,7 @@ int systemCommand( ArgList &args, priv_state priv, StringList *cmd_out, StringLi
 	    setgroups( 1, &egid );
 	    setgid( egid );
 	    setuid( euid );
-	    
+
 	    install_sig_handler(SIGPIPE, SIG_DFL);
 	    sigset_t sigs;
 	    sigfillset(&sigs);
@@ -662,7 +662,7 @@ int systemCommand( ArgList &args, priv_state priv, StringList *cmd_out, StringLi
 	    MyString cmd = args_array[0];
 
 	    if ( use_privsep ) {
-	    
+
 	      ArgList al;
 	      psforkexec.in_child(cmd, al);
 	      args_array = al.GetStringArray();
@@ -705,7 +705,7 @@ int systemCommand( ArgList &args, priv_state priv, StringList *cmd_out, StringLi
 	  privsep_exec_set_inherit_fd(_fp, 1);
 	  privsep_exec_set_inherit_fd(_fp, 2);
 	  privsep_exec_set_inherit_fd(_fp, 0);
-	
+
 	  if (!psforkexec.parent_end()) {
 	    vmprintf(D_ALWAYS,
 		     "my_popenv failure on %s\n",
@@ -778,7 +778,7 @@ int systemCommand( ArgList &args, priv_state priv, StringList *cmd_out, StringLi
 		if ( cmd_out == NULL ) {
 			delete my_cmd_out;
 		}
-	   
+
 	    return -1;
 	  }
 #endif

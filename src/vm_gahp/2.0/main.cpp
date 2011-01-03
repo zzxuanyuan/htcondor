@@ -68,7 +68,10 @@ void main_shutdown_fast()
 
 /// graceful shutdown from daemon core
 void main_shutdown_graceful()
-{ vm_exit( "Received Signal for shutdown gracefully", 0); }
+{
+    // shutdown and cleanup everything gracefully.
+    vm_exit( "Received Signal for shutdown gracefully", _p_vmcontroller->fini() );
+}
 
 /// pre dc init from daemon core
 void main_pre_dc_init(int, char*[])
@@ -82,11 +85,11 @@ void main_init(int argc, char *argv[])
 
     // default input options.
     opts.add_options()
-    ("foreground,f", "Causes the daemon to start up in the foreground, instead of forking" )
+    //("foreground,f", "Causes the daemon to start up in the foreground, instead of forking" )
     //("termlog,t", "Causes the daemon to print out its error message to stderr instead of its specified log file" ) // disabled VM_GAHP_LOG required!
     ("mode,M",  po::value< int >()->default_value(VMGAHP_TEST_MODE), "vmgahp mode: VMGAHP_TEST_MODE(0), VMGAHP_STANDALONE_MODE(1), VMGAHP_KILL_MODE(2)")
-    ("vmtypes,vmtype", po::value< vector< string > >()->multitoken(), "Different types, VMGAHP_TEST_MODE can scan for multiple types")
-    ("matches,match", po::value< string >(), "KILL_MODE match string")
+    ("vmtypes,y", po::value< vector< string > >()->multitoken(), "Different types, VMGAHP_TEST_MODE can scan for multiple types")
+    ("matches,m", po::value< string >(), "KILL_MODE match string")
     ("help,h", "output help message");
 
     // parse the command line.

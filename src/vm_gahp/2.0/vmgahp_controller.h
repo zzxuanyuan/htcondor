@@ -28,6 +28,7 @@ namespace condor
 {
     namespace vmu
     {
+
         /**
          * The following is meant to encapsulate the external dependencies used
          * by daemons in condor, and operate on the interface to hypervisor.
@@ -56,6 +57,10 @@ namespace condor
              */
             virtual int config( );
 
+            /**
+             */
+            virtual int fini();
+
         protected:
 
             /**
@@ -70,6 +75,8 @@ namespace condor
             boost::shared_ptr<hypervisor> m_hypervisor;
             ///< stdout pipe to daemoncore parent process (startd or starter)
             int m_stdout_pipe;
+            ///< config knobs for hypervisors.
+            hypv_config m_hyp_config_params;
 
         };
     }

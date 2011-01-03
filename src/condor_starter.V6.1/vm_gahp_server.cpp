@@ -1417,9 +1417,9 @@ VMGahpServer::killVM(void)
 	systemcmd.AppendArg("-f");
 	systemcmd.AppendArg("-M");
 	systemcmd.AppendArg(VMGAHP_KILL_MODE);
-	systemcmd.AppendArg("-vmtype");
+	systemcmd.AppendArg("--vmtypes");
 	systemcmd.AppendArg(m_vm_type);
-	systemcmd.AppendArg("-match");
+	systemcmd.AppendArg("--matches");
 	systemcmd.AppendArg(matchstring);
 
 #if !defined(WIN32)
