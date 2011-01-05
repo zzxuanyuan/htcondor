@@ -173,6 +173,7 @@ class Authentication {
 
 	static MapFile* global_map_file;
 	static bool global_map_file_load_attempted;
+	static bool globus_activated; // Only attempt activation once; NOT THREAD SAFE
 
 };
 
@@ -190,6 +191,10 @@ extern char const *EXECUTE_SIDE_MATCHSESSION_FQU;
    when using non-negotiated security sessions based on the claim
    id. */
 extern char const *SUBMIT_SIDE_MATCHSESSION_FQU;
+
+
+extern char const *CONDOR_CHILD_FQU;
+extern char const *CONDOR_PARENT_FQU;
 
 #endif /* AUTHENTICATION_H */
 

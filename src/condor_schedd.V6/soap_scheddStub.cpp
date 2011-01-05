@@ -33,7 +33,7 @@
 #include "classad_helpers.h"
 #include "log_transaction.h"
 
-#include "condor_ckpt_name.h"
+#include "spooled_job_files.h"
 #include "condor_config.h"
 
 #include "loose_file_transfer.h"
@@ -43,8 +43,8 @@
 
 #include "schedd_api.h"
 
-#include "../condor_c++_util/soap_helpers.cpp"
-#include "../condor_c++_util/dc_service.cpp"
+#include "../condor_utils/soap_helpers.cpp"
+#include "../condor_utils/dc_service.cpp"
 
 #include "qmgmt.h"
 
@@ -524,10 +524,7 @@ condor__commitTransaction(struct soap *soap,
 	entry = NULL;	
 
 	current_trans_id = 0;
-	if ( trans_timer_id != -1 ) {
-		daemonCore->Cancel_Timer(trans_timer_id);
-		trans_timer_id = -1;
-	}
+	trans_timer_id = -1;
 
 	result.response.code = SUCCESS;
 	result.response.message = "Success";
@@ -576,10 +573,7 @@ condor__abortTransaction(struct soap *soap,
 	entry = NULL;	
 
 	current_trans_id = 0;
-	if (trans_timer_id != -1) {
-		daemonCore->Cancel_Timer(trans_timer_id);
-		trans_timer_id = -1;
-	}
+	trans_timer_id = -1;
 
 	result.response.code = SUCCESS;
 	result.response.message = "Success";
