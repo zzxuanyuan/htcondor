@@ -16,6 +16,76 @@
  # 
  ############################################################### 
 
+
+
+############################################################### 
+# Default condor_config value for all platform
+#
+# Note: Varaible name is the same as in condor_config file
+###############################################################
+
+
+set( CONDOR_HOST            central-manager-hostname.your.domain )
+set( RELEASE_DIR            /usr/local/condor )
+set( LOCAL_DIR              $(TILDE) )
+set( LOCAL_CONFIG_FILE      $(LOCAL_DIR)/condor_config.local )
+set( LOCAL_CONFIG_DIR       $(LOCAL_DIR)/config )
+
+set( COLLECTOR_NAME         "My Pool" )
+
+set( CONDOR_ADMIN           condor-admin@your.domain )
+set( MAIL                   /usr/bin/mail )
+set( UID_DOMAIN             your.domain )
+set( FILESYSTEM_DOMAIN      your.domain )
+set( ALLOW_READ             *  )
+set( ALLOW_WRITE            YOU_MUST_CHANGE_THIS_INVALID_CONDOR_CONFIGURATION_VALUE )
+set( ALLOW_ADMINISTRATOR    $(CONDOR_HOST) )
+
+set( JAVA                   /usr/bin/java )
+
+set( WANT_SUSPEND           $(UWCS_WANT_SUSPEND) )
+set( WANT_VACATE            $(UWCS_WANT_VACATE) )
+set( START                  $(UWCS_START) )
+set( SUSPEND                $(UWCS_SUSPEND) )
+set( CONTINUE               $(UWCS_CONTINUE) )
+set( PREEMPT                $(UWCS_PREEMPT) )
+
+
+set( LOCK                   $(LOG) )
+set( LOG                    $(LOCAL_DIR)/log )
+set( SPOOL                  $(LOCAL_DIR)/spool )
+set( EXECUTE                $(LOCAL_DIR)/execute )
+set( LIB                    $(RELEASE_DIR)/lib )
+set( INCLUDE                $(RELEASE_DIR)/include )
+set( SBIN                   $(RELEASE_DIR)/sbin )
+set( LIBEXEC                $(RELEASE_DIR)/libexec )
+
+set( DAEMON_LIST            MASTER, STARTD, SCHEDD )
+
+set( QUEUE_SUPER_USERS      root, condor )
+
+set( JAVA_MAXHEAP_ARGUMENT       -Xmx )
+set( JAVA_CLASSPATH_SEPARATOR    : )
+
+set( C_GAHP_LOG                  /tmp/CGAHPLog.$(USERNAME) )
+set( C_GAHP_LOCK                 /tmp/CGAHPLock.$(USERNAME) )
+set( C_GAHP_WORKER_THREAD_LOG    /tmp/CGAHPWorkerLog.$(USERNAME) )
+set( C_GAHP_WORKER_THREAD_LOCK   /tmp/CGAHPWorkerLock.$(USERNAME) )
+
+set( VM_GAHP_LOG            $(LOG)/VMGahpLog )
+
+set( PROCD_ADDRESS          $(LOCK)/procd_pipe )
+
+set( HDFS_HOME              $(RELEASE_DIR)/libexec/hdfs )
+set( HDFS_NODETYPE          HDFS_DATANODE )
+set( HDFS_NAMENODE          hdfs://example.com:9000 )
+set( HDFS_NAMENODE_WEB      example.com:8000 )
+set( HDFS_NAMENODE_DIR      /tmp/hadoop_name )
+set( HDFS_DATANODE_DIR      /scratch/tmp/hadoop_data )
+
+###############################################################
+
+
 if (NOT WINDOWS)
 
 install(FILES		condor.sysconfig
@@ -53,46 +123,18 @@ install (FILES
 
 install (FILES condor_limits_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS})
 
-
-#Prepare OS specific config file
+#Platfrom specific overrides for packaging
 
 if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
 
 
 	if (${BIT_MODE} MATCHES "32" OR ${SYS_ARCH} MATCHES "IA64" )	
-		add_custom_command( OUTPUT condor_config.patched
-						WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-						COMMAND patch 
-						ARGS condor_config.generic condor_config.generic.rpm.patch -o condor_config.patched )
-
-		add_custom_target(	patch_configurations
-						ALL
-						DEPENDS condor_config.patched)
-		install(FILES		condor_config.patched
-				DESTINATION	"${C_ETC}"
-				RENAME	condor_config)
+		#Patch for 32-bit
 	else()
-		#x86_64 use /usr/lib64 instead of /usr/lib
-		#we will apply 2 patches on condor_config file
-		add_custom_command( OUTPUT condor_config.patched
-						WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-						COMMAND patch 
-						ARGS condor_config.generic condor_config.generic.rpm.patch -o condor_config.patched )
-
-		add_custom_command( OUTPUT condor_config.patched.x86_64
-						WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-						DEPENDS condor_config.patched
-						COMMAND patch 
-						ARGS condor_config.patched condor_config.generic.rpm64.patch -o condor_config.patched.x86_64 )
-	
-		add_custom_target(	patch_configurations_x86_64
-						ALL
-						DEPENDS condor_config.patched.x86_64)
-		
-		install(FILES	condor_config.patched.x86_64
-						DESTINATION	"${C_ETC}"
-						RENAME	condor_config)					
+		#Patch for 64-bit			
 	endif ()					
+	
+
 
 	install(FILES		condor.boot.rpm
 			DESTINATION	"${C_INIT}"
@@ -101,18 +143,9 @@ if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
 
 elseif ( ${LINUX_NAME} STREQUAL "Debian" AND CONDOR_PACKAGE_BUILD)
 
-	add_custom_command( OUTPUT condor_config.patched
-						WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-						COMMAND patch 
-						ARGS condor_config.generic condor_config.generic.debian.patch -o condor_config.patched )
+	#Patch for debian
 
-	add_custom_target(	patch_configurations
-						ALL
-						DEPENDS condor_config.patched)
 
-	install(FILES		condor_config.patched
-						DESTINATION	"${C_ETC}"
-						RENAME	condor_config)
 
 	#Debian init script need to be patched because /etc/sysconfig/condor -> /etc/default/condor
 	add_custom_command( OUTPUT condor.boot.debian
@@ -130,32 +163,35 @@ elseif ( ${LINUX_NAME} STREQUAL "Debian" AND CONDOR_PACKAGE_BUILD)
 			RENAME	condor)
 else()
 	#Other Platform
-	install(FILES		condor_config.generic
-			DESTINATION	"${C_ETC}"
-			RENAME	condor_config)
+	
 
 	install(FILES		condor.boot.rpm
 			DESTINATION	"${C_INIT}"
 			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
 			RENAME		condor)
 
-endif()
+endif(RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD )
+
+configure_file(condor_config.generic condor_config.patched @ONLY)
+
+install(FILES	condor_config.patched
+				DESTINATION	"${C_ETC}"
+				RENAME	condor_config)
+
+
+
+#NOT WINDOWS
 else()
-						 
-    add_custom_command ( OUTPUT condor_config.win
-						 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-						 COMMAND awk
-						 ARGS -f convert_config_to_win32.awk condor_config.generic > "${CMAKE_CURRENT_BINARY_DIR}/condor_config.win"
-					   )
-						 
-	add_custom_target(	patch_configurations
-						ALL
-						DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/condor_config.win)
-						
-	install(FILES		${CMAKE_CURRENT_BINARY_DIR}/condor_config.win
-			DESTINATION	"."
-			RENAME		condor_config
-	        )
+	
+
+	#Add variable overrides for windows here
+   
+
+	configure_file(condor_config.generic condor_config.patched @ONLY)
+
+	install(FILES	condor_config.patched
+					DESTINATION	"."
+					RENAME	condor_config)
 			
 	install(FILES
 	        condor_config.generic 
@@ -169,3 +205,5 @@ else()
 
 
 endif(NOT WINDOWS)
+
+
