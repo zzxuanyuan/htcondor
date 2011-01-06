@@ -65,7 +65,7 @@ StartdCronJobParams::Initialize( void )
 	// Print out the slots for D_FULLDEBUG
 	if ( DebugFlags & D_FULLDEBUG ) {
 		MyString	s;
-		s.sprintf( "Job '%s' slots: ", GetName() );
+		s.sprintf( "CronJob '%s' slots: ", GetName() );
 		if ( m_slots.empty() ) {
 			s += "ALL";
 		}

@@ -36,7 +36,7 @@ CronJob::CronJob( CronJobParams *params, CronJobMgr &mgr )
 		  m_mgr( mgr ),
 		  m_state( CRON_INITIALIZING ),
 		  m_in_shutdown( false ),
-		  m_runTimer( -1 ),
+		  m_run_timer( -1 ),
 		  m_pid( -1 ),
 		  m_stdOut( -1 ),
 		  m_stdErr( -1 ),
@@ -46,7 +46,10 @@ CronJob::CronJob( CronJobParams *params, CronJobMgr &mgr )
 		  m_killTimer( -1 ),
 		  m_num_outputs( 0 ),				// No data produced yet
 		  m_num_runs( 0 ),					// Hasn't run yet
-		  m_marked( false )
+		  m_last_start_time( 0 ),
+		  m_last_exit_time( 0 ),
+		  m_marked( false ),
+		  m_old_period( 0 )
 {
 	for( int i = 0; i < 3;  i++ ) {
 		m_childFds[i] = -1;
@@ -73,15 +76,11 @@ CronJob::CronJob( CronJobParams *params, CronJobMgr &mgr )
 // CronJob destructor
 CronJob::~CronJob( )
 {
-	dprintf( D_ALWAYS, "CronJob: Deleting job '%s' (%s)\n",
-			 GetName(), GetExecutable() );
-	dprintf( D_FULLDEBUG, "CronJob: Deleting timer for '%s'; ID = %d\n",
-			 GetName(), m_runTimer );
+	dprintf( D_ALWAYS, "CronJob: Deleting job '%s' (%s), timer %d\n",
+			 GetName(), GetExecutable(), m_run_timer );
 
 	// Delete the timer & reaper FIRST
-	if ( m_runTimer >= 0 ) {
-		daemonCore->Cancel_Timer( m_runTimer );
-	}
+	CancelRunTimer( );
 	if ( m_reaperId >= 0 ) {
 		daemonCore->Cancel_Reaper( m_reaperId );
 	}
@@ -116,6 +115,16 @@ CronJob::Initialize( void )
 	return 0;
 }
 
+// Set job parameters
+bool
+CronJob::SetParams( CronJobParams *params )
+{
+	m_old_period = m_params->GetPeriod( );
+	delete m_params;
+	m_params = params;
+	return true;
+}
+
 // Reconfigure a running job
 int
 CronJob::HandleReconfig( void )
@@ -131,16 +140,109 @@ CronJob::HandleReconfig( void )
 		return SendHup( );
 	}
 
+	// For idle periodic jobs, adjust the timer if required
+	if (  IsIdle() && ( IsPeriodic() || IsWaitForExit() )  ) {
+		if ( Period() == m_old_period ) {
+			return 0;
+		}
+		unsigned now = time(NULL);
+		unsigned last_time;
+		unsigned period;
+		if ( IsPeriodic() ) {
+			last_time = m_last_start_time;
+			period = Period();
+		}
+		else {
+			last_time = m_last_exit_time;
+			period = TIMER_NEVER;
+		}
+
+		// If the timer should have expired, reset it & set
+		if ( last_time + Period() < now ) {
+			CancelRunTimer( );
+			SetState( CRON_READY );
+			if ( IsPeriodic() )  {
+				return SetTimer( Period(), period );
+			}
+			return 0;
+		}
+		else {
+			return SetTimer( last_time + Period() - now, period );
+		}
+	}
+
 	return 0;
 }
 
-// Set job parameters
-bool
-CronJob::SetParams( CronJobParams *params )
+// Schedule a run?
+int
+CronJob::Schedule( void )
 {
-	delete m_params;
-	m_params = params;
-	return true;
+	dprintf( D_FULLDEBUG,
+			 "CronJob::Schedule '%s' "
+			 "IR=%c IP=%c IWE=%c IOS=%c IOD=%c nr=%d\n",
+			 GetName(),
+			 IsReady() ? 'T' : 'F',
+			 IsPeriodic() ? 'T' : 'F',
+			 IsWaitForExit() ? 'T' : 'F',
+			 IsOneShot() ? 'T' : 'F',
+			 IsOnDemand() ? 'T' : 'F',
+			 m_num_runs );
+
+	// If we're not initialized yet, do nothing...
+	if ( ! IsInitialized() ) {
+		return 0;
+	}
+
+	// Now, schedule the job to run..
+	int	status = 0;
+
+	// Are we in the ready state?  Just start it if so
+	if ( IsReady() ) {
+		status = StartJob( );
+	}
+
+	// Period job?  Schedule it to run
+	else if ( IsPeriodic() ) {
+
+		// Start the first run..
+		if ( 0 == m_num_runs ) {
+			status = RunJob( );
+		}
+	}
+
+	// "Wait for exit" job?  Start at init time
+	else if ( IsWaitForExit() ) {
+		if ( 0 == m_num_runs ) {
+			status = StartJob( );
+		}
+	}
+
+	// One shot?  Only start it if it hasn't been already run
+	else if ( IsOneShot() ) {
+		if ( 0 == m_num_runs ) {
+			status = StartJob( );
+		}
+	}
+
+	// On demand jobs
+	else if ( IsOnDemand() ) {
+		// Do nothing
+	}
+
+	// Nothing to do for now
+	return status;
+}
+
+// Start an on-demand job
+int
+CronJob::StartOnDemand( void )
+{
+	if ( IsOnDemand() && IsIdle() ) {
+		SetState( CRON_READY );
+		return StartJob( );
+	}
+	return 0;
 }
 
 // Send HUP to job
@@ -168,81 +270,6 @@ CronJob::SendHup( void )
 			 GetName(), m_pid );
 	return daemonCore->Send_Signal( m_pid, SIGHUP );
 }
-
-// Schedule a run?
-int
-CronJob::Schedule( void )
-{
-	dprintf( D_FULLDEBUG,
-			 "CronJob::Schedule '%s' "
-			 "IR=%c IP=%c IWE=%c IOS=%c IOD=%c nr=%d\n",
-			 GetName(),
-			 IsReady() ? 'T' : 'F',
-			 Params().IsPeriodic() ? 'T' : 'F',
-			 Params().IsWaitForExit() ? 'T' : 'F',
-			 Params().IsOneShot() ? 'T' : 'F',
-			 Params().IsOnDemand() ? 'T' : 'F',
-			 m_num_runs );
-
-	// If we're not initialized yet, do nothing...
-	if ( ! IsInitialized() ) {
-		return 0;
-	}
-
-	// Now, schedule the job to run..
-	int	status = 0;
-
-	// Are we in the ready state?  Just start it if so
-	if ( IsReady() ) {
-		status = StartJob( );
-	}
-
-	// Period job?  Schedule it to run
-	else if ( Params().IsPeriodic() ) {
-		// Set the job's timer
-		status = SetTimer( Period(), Period() );
-
-		// Start the first run..
-		if ( 0 == m_num_runs ) {
-			dprintf( D_ALWAYS, "Calling RunJob()\n" );
-			status = RunJob( );
-		}
-	}
-
-	// "Wait for exit" job?  Start at init time
-	else if ( Params().IsWaitForExit() ) {
-		if ( 0 == m_num_runs ) {
-			status = StartJob( );
-		}
-	}
-
-	// One shot?  Only start it if it hasn't been already run
-	else if ( Params().IsOneShot() ) {
-		if ( 0 == m_num_runs ) {
-			status = StartJob( );
-		}
-	}
-
-	// On demand jobs
-	else if ( Params().IsOnDemand() ) {
-		// Do nothing
-	}
-
-	// Nothing to do for now
-	return status;
-}
-
-// Start an on-demand job
-int
-CronJob::StartOnDemand( void )
-{
-	if ( Params().IsOnDemand() && IsIdle() ) {
-		SetState( CRON_READY );
-		return StartJob( );
-	}
-	return 0;
-}
-
 
 // Schdedule the job to run
 int
@@ -333,6 +360,7 @@ CronJob::Reaper( int exitPid, int exitStatus )
 				 m_pid, exitPid );
 	}
 	m_pid = 0;
+	m_last_exit_time = time(NULL);
 
 	// Read the stderr & output
 	if ( m_stdOut >= 0 ) {
@@ -351,7 +379,7 @@ CronJob::Reaper( int exitPid, int exitStatus )
 		// Normal death
 	case CRON_RUNNING:
 		SetState( CRON_IDLE );				// Note it's death
-		if ( Params().IsWaitForExit() ) {
+		if ( IsWaitForExit() ) {
 			if ( 0 == Period() ) {			// ExitTime mode, no delay
 				StartJob( );
 			} else {						// ExitTime mode with delay
@@ -380,14 +408,14 @@ CronJob::Reaper( int exitPid, int exitStatus )
 		KillTimer( TIMER_NEVER );
 
 		// Re-start the job
-		if ( Params().IsWaitForExit() ) {
+		if ( IsWaitForExit() ) {
 			if ( 0 == Period() ) {		// WaitForExit mode, no delay
 				StartJob( );
 			} else {					// WaitForExit mode with delay
 				SetTimer( Period(), TIMER_NEVER );
 			}
 		}
-		else if ( Params().IsPeriodic() ) {		// Periodic
+		else if ( IsPeriodic() ) {		// Periodic
 			RunJob( );
 		}
 		break;
@@ -521,9 +549,10 @@ CronJob::StartJobProcess( void )
 
 	// All ok here
 	SetState( CRON_RUNNING );
+	m_last_start_time = time(NULL);
+	m_num_runs++;
 
 	// Finally, notify my manager
-	m_num_runs++;
 	m_mgr.JobStarted( *this );
 
 	// All ok!
@@ -801,22 +830,34 @@ CronJob::KillJob( bool force )
 	}
 }
 
+// Cancel the run timer
+void
+CronJob::CancelRunTimer( void )
+{
+	if ( m_run_timer >= 0 ) {
+		daemonCore->Cancel_Timer( m_run_timer );
+	}
+	m_run_timer = -1;
+}
+
 // Set the job timer
 int
 CronJob::SetTimer( unsigned first, unsigned period_arg )
 {
+	ASSERT( IsPeriodic() || IsWaitForExit() );
+
 	// Reset the timer
-	if ( m_runTimer >= 0 )
+	if ( m_run_timer >= 0 )
 	{
-		daemonCore->Reset_Timer( m_runTimer, first, period_arg );
+		daemonCore->Reset_Timer( m_run_timer, first, period_arg );
 		if( period_arg == TIMER_NEVER ) {
 			dprintf( D_FULLDEBUG,
 					 "CronJob: timer ID %d reset first=%u, period=NEVER\n",
-					 m_runTimer, first );
+					 m_run_timer, first );
 		} else {
 			dprintf( D_FULLDEBUG,
 					 "CronJob: timer ID %d reset first=%u, period=%u\n",
-					 m_runTimer, first, Period() );
+					 m_run_timer, first, Period() );
 		}
 	}
 
@@ -827,26 +868,26 @@ CronJob::SetTimer( unsigned first, unsigned period_arg )
 		dprintf( D_FULLDEBUG, 
 				 "CronJob: Creating timer for job '%s'\n", GetName() );
 		TimerHandlercpp handler =
-			(  ( Params().IsWaitForExit() ) ? 
+			(  ( IsWaitForExit() ) ? 
 			   (TimerHandlercpp)& CronJob::StartJob :
 			   (TimerHandlercpp)& CronJob::RunJob );
-		m_runTimer = daemonCore->Register_Timer(
+		m_run_timer = daemonCore->Register_Timer(
 			first,
 			period_arg,
 			handler,
 			"RunJob",
 			this );
-		if ( m_runTimer < 0 ) {
+		if ( m_run_timer < 0 ) {
 			dprintf( D_ALWAYS, "CronJob: Failed to create timer\n" );
 			return -1;
 		}
 		if( period_arg == TIMER_NEVER ) {
 			dprintf( D_FULLDEBUG, "CronJob: new timer ID %d set first=%u, "
-					 "period: NEVER\n", m_runTimer, first );
+					 "period: NEVER\n", m_run_timer, first );
 		} else {
 			dprintf( D_FULLDEBUG,
 					 "CronJob: new timer ID %d set first=%u, period: %u\n",
-					 m_runTimer, first, Period() );
+					 m_run_timer, first, Period() );
 		}
 	} 
 

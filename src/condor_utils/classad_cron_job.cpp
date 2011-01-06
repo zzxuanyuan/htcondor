@@ -31,8 +31,8 @@
 
 // ClassAd Cron Job parameters methods
 ClassAdCronJobParams::ClassAdCronJobParams( const char *job_name,
-											const CronJobMgr &mgr ) : 
-		CronJobParams( job_name, mgr )
+											const CronJobMgr &mgr )
+		: CronJobParams( job_name, mgr )
 {
 }
 

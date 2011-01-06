@@ -57,7 +57,9 @@ class CronJobMgr : public Service
 		return CRON_PERIODIC;
 	};
 
-	int StartOnDemandJobs( void );
+	bool StartOnDemandJobs( void );
+	bool ScheduleAllJobs( void );
+
 	double GetCurJobLoad( void ) const { return m_cur_job_load; };
 	double GetMaxJobLoad( void ) const { return m_max_job_load; };
 	void SetMaxJobLoad( double v ) { m_max_job_load = v; };
@@ -85,7 +87,7 @@ class CronJobMgr : public Service
 	int					 m_schedule_timer;	// DaemonCore timerID
 
 	// Private member functions
-	int ScheduleJobs( void );
+	int ScheduleJobsTimer( void );
 	int DoConfig( bool initial = false );
 	int ParseJobList( const char *JobListString );
 	int ParseOldJobList( const char *JobListString );

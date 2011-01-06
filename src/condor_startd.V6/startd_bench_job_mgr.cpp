@@ -46,6 +46,15 @@ StartdBenchJobMgrParams::GetDefault( const char *item ) const
 	return NULL;
 }
 
+void
+StartdBenchJobMgrParams::GetDefault( const char *item,
+									 double &dv ) const
+{
+	if ( strcasecmp( item, "MAX_JOB_LOAD" ) ) {
+		dv = 1.0;
+	}
+}
+
 
 /*
  * StartdBenchJobMgr class methods
@@ -58,7 +67,6 @@ StartdBenchJobMgr::StartdBenchJobMgr( void )
 		  m_is_running( false ),
 		  m_rip( NULL )
 {
-	SetMaxJobLoad( 1.05 );
 }
 
 // Basic destructor
@@ -191,6 +199,9 @@ StartdBenchJobMgr::BenchmarksFinished( void )
 	resmgr->update_all();
 	if ( m_shutting_down ) {
 		startd_check_free();
+	}
+	else if ( NULL != cron_job_mgr ) {
+		cron_job_mgr->ScheduleAllJobs();
 	}
 	return true;
 }

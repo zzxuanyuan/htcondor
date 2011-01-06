@@ -165,5 +165,8 @@ StartdCronJobMgr::JobExited( const CronJob &job )
 	if ( m_shutting_down &&  IsAllIdle() ) {
 		startd_check_free();
 	}
+	if ( bench_job_mgr ) {
+		bench_job_mgr->ScheduleAllJobs();
+	}
 	return CronJobMgr::JobExited( job );
 }

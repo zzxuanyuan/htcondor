@@ -107,6 +107,11 @@ class CronJob : public Service
 	const char *GetCwd( void ) const { return m_params->GetCwd(); };
 	unsigned GetPeriod( void ) const { return m_params->GetPeriod(); };
 	double GetJobLoad( void ) const { return m_params->GetJobLoad(); };
+
+	bool IsPeriodic( void ) const { return Params().IsPeriodic(); };
+	bool IsWaitForExit( void ) const { return Params().IsWaitForExit(); };
+	bool IsOneShot( void ) const { return Params().IsOneShot(); };
+	bool IsOnDemand( void ) const { return Params().IsOnDemand(); };
 	CronJobMode GetJobMode( void ) const { return m_params->GetJobMode(); };
 
 	// Marking operations
@@ -119,6 +124,7 @@ class CronJob : public Service
 		m_state = state;
 	};
 	int SendHup( void );
+	void CancelRunTimer( void );
 	unsigned Period( void ) const { return m_params->GetPeriod(); };
 
 	// Private methods; these can be overloaded
@@ -150,35 +156,38 @@ class CronJob : public Service
 
 	// Protected data
   protected:
-	CronJobParams		*m_params;		// Job parameters
-	CronJobMgr			&m_mgr;			// Job manager
+	CronJobParams	*m_params;			// Job parameters
+	CronJobMgr		&m_mgr;				// Job manager
 
 	// Private data
-	CronJobState		 m_state;		// Is is currently running?
-	bool				 m_in_shutdown;	// Shutting down
-	int					 m_runTimer;	// It's DaemonCore "run" timerID
-	int					 m_pid;			// The process's PID
-	int					 m_stdOut;		// Process's stdout file descriptor
-	int					 m_stdErr;		// Process's stderr file descriptor
-	int					 m_childFds[3];	// Child process FDs
-	int					 m_reaperId;	// ID Of the child reaper
-	CronJobOut			*m_stdOutBuf;	// Buffer for stdout
-	CronJobErr			*m_stdErrBuf;	// Buffer for stderr
-	int					 m_killTimer;	// Make sure it dies
-	int					 m_num_outputs;	// # output blocks have we processed?
-	int					 m_num_runs;	// # of times the job has run
-	bool				 m_marked;		// Is this one marked?
+	CronJobState	 m_state;			// Is is currently running?
+	bool			 m_in_shutdown;		// Shutting down
+	int				 m_run_timer;		// It's DaemonCore "run" timerID
+	int				 m_pid;				// The process's PID
+	int				 m_stdOut;			// Process's stdout file descriptor
+	int				 m_stdErr;			// Process's stderr file descriptor
+	int				 m_childFds[3];		// Child process FDs
+	int				 m_reaperId;		// ID Of the child reaper
+	CronJobOut		*m_stdOutBuf;		// Buffer for stdout
+	CronJobErr		*m_stdErrBuf;		// Buffer for stderr
+	int				 m_killTimer;		// Make sure it dies
+	int				 m_num_outputs;		// # output blocks have we processed?
+	int				 m_num_runs;		// # of times the job has run
+	unsigned		 m_last_start_time;	// Last run time
+	unsigned		 m_last_exit_time;	// Last run time
+	bool			 m_marked;			// Is this one marked?
+	unsigned		 m_old_period;		// Period before reconfig
 
 	// Debugging
 # if CRONJOB_PIPEIO_DEBUG
   private:
-	char				*TodoBuffer;
-	int					 TodoBufSize;
-	int					 TodoBufWrap;
-	int					 TodoBufOffset;
-	int					 TodoWriteNum;
+	char			*TodoBuffer;
+	int				 TodoBufSize;
+	int				 TodoBufWrap;
+	int				 TodoBufOffset;
+	int				 TodoWriteNum;
   public:
-	void				 TodoWrite( void );
+	void			 TodoWrite( void );
 # endif
 };
 

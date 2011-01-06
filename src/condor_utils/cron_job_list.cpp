@@ -123,7 +123,7 @@ CondorCronJobList::HandleReconfig( void )
 
 	// Walk through the list
 	m_job_list.Rewind( );
-	while ( m_job_list.Next( cur_job ) ) {
+	while ( m_job_list.Next(cur_job) ) {
 		cur_job->HandleReconfig( );
 	}
 	return 0;
@@ -213,12 +213,13 @@ CondorCronJobList::AddJob( const char *name, CronJob *job )
 {
 	// Do we already have a job by this name?
 	if ( NULL != FindJob( name ) ) {
-		dprintf( D_ALWAYS, "Cron: Not creating duplicate job '%s'\n", name );
+		dprintf( D_ALWAYS,
+				 "CronJobList: Not creating duplicate job '%s'\n", name );
 		return false;
 	}
 
 	// It doesn't exit; put it on the list
-	dprintf( D_ALWAYS, "Cron: Adding job '%s'\n", name );
+	dprintf( D_ALWAYS, "CronJobList: Adding job '%s'\n", name );
 	m_job_list.Append( job );
 
 	// Done
@@ -232,13 +233,14 @@ CondorCronJobList::DeleteJob( const char *job_name )
 	// Does the job exist?
 	const CronJob *job = FindJob( job_name );
 	if ( NULL == job ) {
-		dprintf( D_ALWAYS, "Cron: Not deleting non-existent job '%s'\n",
+		dprintf( D_ALWAYS,
+				 "CronJobList: Not deleting non-existent job '%s'\n",
 				 job_name );
 		return 1;
 	}
 
 	// Remove it from the list
-	dprintf( D_ALWAYS, "Cron: Deleting job '%s'\n", job_name );
+	dprintf( D_ALWAYS, "CronJobList: Deleting job '%s'\n", job_name );
 	m_job_list.DeleteCurrent( );
 
 	// After that, free up it's resources..

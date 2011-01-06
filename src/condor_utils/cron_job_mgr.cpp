@@ -56,6 +56,12 @@ CronJobMgr::~CronJobMgr( void )
 	if ( NULL != m_param_base ) {
 		free( const_cast<char *>(m_param_base) );
 	}
+	if( m_config_val_prog ) {
+		free( const_cast<char *>(m_config_val_prog) );
+	}
+	if ( m_params ) {
+		delete m_params;
+	}
 
 	// Log our death
 	dprintf( D_FULLDEBUG, "CronJobMgr: bye\n" );
@@ -69,7 +75,7 @@ CronJobMgr::Initialize( const char *name )
 	if ( DoConfig( true ) ) {
 		return false;
 	}
-	return m_job_list.ScheduleAll( );
+	return ScheduleAllJobs( ) ? 0 : -1;
 }
 
 // Set new name..
@@ -217,7 +223,7 @@ CronJobMgr::JobExited( const CronJob &job )
 	if (  (m_cur_job_load < m_max_job_load) && (m_schedule_timer < 0)  ) {
 		m_schedule_timer = daemonCore->Register_Timer(
 			0,
-			(TimerHandlercpp)& CronJobMgr::ScheduleJobs,
+			(TimerHandlercpp)& CronJobMgr::ScheduleJobsTimer,
 			"ScheduleJobs",
 			this );
 		if ( m_schedule_timer < 0 ) {
@@ -230,17 +236,30 @@ CronJobMgr::JobExited( const CronJob &job )
 
 // Schedule all jobs
 int
-CronJobMgr::ScheduleJobs( void )
+CronJobMgr::ScheduleJobsTimer( void )
 {
 	m_schedule_timer = -1;		// I've fired; reset for next time I'm needed
-	return m_job_list.ScheduleAll( );
+	return ScheduleAllJobs( ) ? 0 : -1;
+}
+
+// Schedule all jobs
+bool
+CronJobMgr::ScheduleAllJobs( void )
+{
+	if ( m_job_list.ScheduleAll( ) < 0 ) {
+		return false;
+	}
+	return true;
 }
 
 // Start "on demand" jobs
-int
+bool
 CronJobMgr::StartOnDemandJobs( void )
 {
-	return m_job_list.StartOnDemandJobs( );
+	if ( m_job_list.StartOnDemandJobs( ) < 0 ) {
+		return false;
+	}
+	return ScheduleAllJobs( );
 }
 
 // Handle Reconfig
@@ -286,13 +305,10 @@ CronJobMgr::DoConfig( bool initial )
 			 initial ? "initial" : "reconfig" );
 
 	// Reconfigure all running jobs
-	if ( ! initial ) {
-		m_job_list.HandleReconfig( );
-	}
-	m_job_list.ScheduleAll( );
+	m_job_list.HandleReconfig( );
 
 	// Done
-	return 0;
+	return ScheduleAllJobs( ) ? 0 : -1;
 }
 
 // Parse the "Job List"
