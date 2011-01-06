@@ -72,7 +72,7 @@ StartdBenchJobMgr::Initialize( const char *name )
 {
 	m_should_run = ParamRunBenchmarks( );
 
-	SetName( name, name, "_cron" );
+	SetName( name, name );
 	return CronJobMgr::Initialize( name );
 }
 
@@ -188,6 +188,7 @@ bool
 StartdBenchJobMgr::BenchmarksFinished( void )
 {
 	m_rip->benchmarks_finished( );
+	resmgr->update_all();
 	if ( m_shutting_down ) {
 		startd_check_free();
 	}

@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <sys/time.h>
 #include "dhry.h"
 /* DO NOT include sysapi.h here */
@@ -120,11 +121,8 @@ dhry_mips ( REG int Number_Of_Runs )
         Str_30          Str_2_Loc;
   REG   int             Run_Index;
 
-        FILE            *Ap;
-
-  /* Initializations */
-
-#if 0
+  #if 0
+  FILE            *Ap;
   if ((Ap = fopen("dhry.res","a+")) == NULL)
     {
        printf("Can not open dhry.res\n\n");
@@ -132,6 +130,7 @@ dhry_mips ( REG int Number_Of_Runs )
     }
 #endif
 
+  /* Initializations */
   Next_Ptr_Glob = (Rec_Pointer) malloc (sizeof (Rec_Type));
   Ptr_Glob = (Rec_Pointer) malloc (sizeof (Rec_Type));
 
@@ -518,17 +517,21 @@ Boolean Func_3 (Enumeration Enum_Par_Val)
 } /* Func_3 */
 
 
-/* here is the entry point into this file for the sysapi library */
-#define QUICK_RUNS	1000000
+// NRL 5 Jan 2010: These were generated imperically
+#define QUICK_RUNS		2500000
+#define	LOOP_CONST		0.0080
+
+// Enable timing output
+#define ENABLE_TIMING	0
 
 /** NRL 22 Oct 2010: There appears to be a real bug in the
  ** dhry_mips call that causes it to return a negative number.
  ** NEVER accept this and rerun in that case. */
-int
+static int
 mips_raw( void )
 {
 	static int	mips = -1;
-	double		quick_mips = -1.0;
+	int			quick_mips = -1.0;
 	int			loops;
 
 	static double ldiff = 0.0;
@@ -547,7 +550,7 @@ mips_raw( void )
 	}
 
 	// For faster machines, run with more loops.
-	loops = trunc( 0.9 + (1.0 * QUICK_RUNS * quick_mips * 0.01) );
+	loops = trunc( 0.9 + (1.0 * QUICK_RUNS * quick_mips * LOOP_CONST ) );
 	while( true ) {
 		struct timeval	tv;
 		gettimeofday( &tv, NULL );
@@ -561,20 +564,25 @@ mips_raw( void )
 		if ( mips > 0 ) {
 			lloops = loops;
 			ldiff = t2-t1;
+#		  if(ENABLE_TIMING)
+			printf( "quick=%d, loops=%d, time=%0.3fs\n",
+					quick_mips, loops, t2-t1 );
+#		  endif(ENABLE_TIMING)
 			return mips;
 		}
 		else {
-			printf( "loops=%d, diff=%0.3f; lloops=%d, ldiff=%0.3f\n",
+			fprintf( stderr, "MIPS<0: loops=%d, time=%0.3fs; lloops=%d, ltime=%0.3fs\n",
 					loops, t2-t1, lloops, ldiff );
 		}
 	}
 }
 
+/* here is the entry point into this file for the sysapi library */
 extern "C" {
 int
 sysapi_mips_raw(void)
 {
-	return mips_raw;
+	return mips_raw( );
 }
 
 int

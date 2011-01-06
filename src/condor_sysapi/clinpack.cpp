@@ -48,6 +48,7 @@ PLEASE NOTE: You can also just 'uncomment' one of the options below.
 #define UNROLL
 
 #include <stdio.h>
+#include <sys/time.h>
 #include <math.h>
 #if !defined(WIN32)
 #include <unistd.h>
@@ -66,8 +67,6 @@ PLEASE NOTE: You can also just 'uncomment' one of the options below.
 #define ONE  1.0e0
 #define PREC "Double "
 #endif
-
-#define NTIMES 100
 
 #ifdef ROLL
 #define ROLLING "Rolled "
@@ -93,14 +92,14 @@ REAL epslon (REAL x);
 extern "C" void sysapi_internal_reconfig(void);
 
 int
-clinpack_kflops ( int ntimes_arg )
+clinpack_kflops ( int ntimes )
 {
    static REAL aa[200][200],a[200][201],b[200],x[200];
    REAL cray,ops,total,norma,normx;
    REAL resid,residn,eps;
    REAL kf;
    double t1,tm,tm2,dtime();
-   static int ipvt[200],n,i,ntimes,info,lda,ldaa,kflops;
+   static int ipvt[200],n,i,info,lda,ldaa,kflops;
 
 #if defined(WIN32)
    static float one_tick = .0001;
@@ -225,7 +224,6 @@ clinpack_kflops ( int ntimes_arg )
 	st[4][2] = 2.0e3/st[3][2];
 	st[5][2] = total/cray;
 
-	ntimes = ( ntimes_arg > 0 ) ? ntimes_arg : NTIMES;
 	tm2 = 0.0;
 	t1 = dtime();
 
@@ -336,7 +334,6 @@ clinpack_kflops ( int ntimes_arg )
    st[4][6] = 2.0e3/st[3][6];
    st[5][6] = total/cray;
 
-   ntimes = ( ntimes_arg > 0 ) ? ntimes_arg : NTIMES;
    tm2 = 0;
    t1 = dtime();
    for (i = 0; i < ntimes; i++) {
@@ -1021,37 +1018,57 @@ function, references to m[i][j] are written m[ldm*i+j].  */
    }
 } 
 
-/* Here are the entry points to this file */
-extern "C"
-{
+// NRL 5 Jan 2010: These were generated imperically
+#define QUICK_RUNS		250
+#define	LOOP_CONST		0.000022
 
-int sysapi_kflops_raw(void)
-{
+// Enable timing output
+#define ENABLE_TIMING	0
+
+static int
+kflops_raw( void )
+{	
 	static int		kflops = -1;
 	int				quick_kflops = 0;
+	int				loops;
 
 	sysapi_internal_reconfig();
 
 	// If we haven't run before, get a quick measurement
 	// For slow machines, we'll use that quick measurement
 	if ( kflops < 0 ) {
-		quick_kflops = clinpack_kflops( 0 );
-	} else if ( kflops < 100000 ) {
-		return ( kflops = clinpack_kflops( 0 ) );
-	} else {
+		quick_kflops = clinpack_kflops( QUICK_RUNS );
+	}
+	else {
 		quick_kflops = kflops;
 	}
 
 	// For faster machines, run with more loops.
-	if        ( quick_kflops >= 1000000 ) {
-		return ( kflops = clinpack_kflops( 5000 ) );
-	} else if ( quick_kflops >=  500000 ) {
-		return ( kflops = clinpack_kflops( 2000 ) );
-	} else if ( quick_kflops >=  100000 ) {
-		return ( kflops = clinpack_kflops( 1000 ) );	
-	} else {
-		return ( kflops = quick_kflops );
-	} 
+	loops = trunc( 0.9 + (1.0 * QUICK_RUNS * quick_kflops * LOOP_CONST ) );
+# if(ENABLE_TIMING)
+	struct timeval	tv;
+	gettimeofday( &tv, NULL );
+	double t1 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+# endif
+
+	kflops = clinpack_kflops( loops );
+
+# if(ENABLE_TIMING)
+	gettimeofday( &tv, NULL );
+	double t2 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+	printf( "quick=%d, loops=%d, time=%0.3fs\n",
+			quick_kflops, loops, t2-t1 );
+# endif
+	return kflops;
+}
+
+/* Here are the entry points to this file */
+extern "C"
+{
+
+int sysapi_kflops_raw(void)
+{
+	return kflops_raw( );
 }
 
 /* if you need to modify kflops, do it here. */

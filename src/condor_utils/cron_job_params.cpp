@@ -125,7 +125,7 @@ CronJobParams::Initialize( void )
 	// Initialize the period
 	if ( !InitPeriod( param_period ) ) {
 		dprintf( D_ALWAYS,
-				 "CronJobParams: Failed to initialize period for job %s",
+				 "CronJobParams: Failed to initialize period for job %s\n",
 				 GetName() );
 		return false;
 	}
@@ -133,7 +133,7 @@ CronJobParams::Initialize( void )
 	// Are there arguments for it?
 	if ( !InitArgs( param_args ) ) {
 		dprintf( D_ALWAYS,
-				 "CronJobParams: Failed to initialize arguments for job %s",
+				 "CronJobParams: Failed to initialize arguments for job %s\n",
 				 GetName() );
 		return false;
 	}
@@ -142,7 +142,7 @@ CronJobParams::Initialize( void )
 	// Parse the environment.
 	if ( !InitEnv( param_args ) ) {
 		dprintf( D_ALWAYS,
-				 "CronJobParams: Failed to initialize arguments for job %s",
+				 "CronJobParams: Failed to initialize arguments for job %s\n",
 				 GetName() );
 		return false;
 	}

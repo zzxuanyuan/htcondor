@@ -105,9 +105,6 @@ CronJobMgr::SetName( const char *name,
 int CronJobMgr::SetParamBase( const char *param_base,
 							  const char *param_ext )
 {
-	dprintf( D_FULLDEBUG,
-			 "CronJobMgr: Setting parameter base to '%s'\n", param_base );
-
 	// Free the old one..
 	if ( NULL != m_param_base ) {
 		free( const_cast<char *>(m_param_base) );
@@ -138,6 +135,8 @@ int CronJobMgr::SetParamBase( const char *param_base,
 	strcat( tmp, param_ext );
 	m_param_base = tmp;
 
+	dprintf( D_FULLDEBUG,
+			 "CronJobMgr: Setting parameter base to '%s'\n", m_param_base );
 	m_params = CreateMgrParams( *m_param_base );
 
 	return 0;
@@ -194,7 +193,7 @@ bool
 CronJobMgr::ShouldStartJob( const CronJob &job ) const
 {
 	dprintf( D_FULLDEBUG,
-			 "ShouldStartJob: load=%.2f job=%.2f max=%.2f\n",
+			 "ShouldStartJob: job=%.2f cur=%.2f max=%.2f\n",
 			 job.GetJobLoad( ), m_cur_job_load, m_max_job_load );
 	return ( (job.GetJobLoad( ) + m_cur_job_load) <= m_max_job_load );
 }
@@ -262,6 +261,8 @@ CronJobMgr::DoConfig( bool initial )
 		free( const_cast<char *>(m_config_val_prog) );
 	}
 	m_config_val_prog = m_params->Lookup( "CONFIG_VAL" );
+
+	m_params->Lookup( "MAX_JOB_LOAD", m_max_job_load, 0.1, 0.01, 1000.0 );
 
 	// Clear all marks
 	m_job_list.ClearAllMarks( );
