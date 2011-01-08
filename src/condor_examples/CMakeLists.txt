@@ -83,102 +83,129 @@ set( HDFS_NAMENODE_WEB      example.com:8000 )
 set( HDFS_NAMENODE_DIR      /tmp/hadoop_name )
 set( HDFS_DATANODE_DIR      /scratch/tmp/hadoop_data )
 
+#Binary extension (blank for UNIX platfrom
+set( EXE                    "" )
+
 ###############################################################
 
 
 if (NOT WINDOWS)
 
-install(FILES		condor.sysconfig
-		DESTINATION	"${C_SYSCONFIG}"
-		PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-		RENAME		condor)
+	install(FILES		condor.sysconfig
+			DESTINATION	"${C_SYSCONFIG}"
+			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+			RENAME		condor)
 
-install(FILES		condor_config.local.generic
-		DESTINATION	"${C_ETC}"
-		RENAME		condor_config.local)
+	install(FILES		condor_config.local.generic
+			DESTINATION	"${C_ETC}"
+			RENAME		condor_config.local)
 
-install (FILES
-		condor.boot.generic
-		condor_config.local.central.manager
-		condor_config.local.ha_condor_client
-		#condor.sysconfig
-		README
-		#condor.boot.rpm
-		condor_config.local.ckpt.server
-		condor_config.local.ha_condor_had
-		lamscript
-		condor_config.generic
-		condor_config.local.dedicated.resource
-		condor_config.local.view_server
-		mp1script
-		#condor_config.generic.debian.patch
-		condor_config.local.dedicated.submit
-		condor_config.submit.generic
-		mp2script
-		#condor_config.generic.rpm.patch
-		#condor_config.local.generic
-		condor.init
-		openmpiscript
-		DESTINATION ${C_ETC_EXAMPLES})
+	install (FILES
+			condor.boot.generic
+			condor_config.local.central.manager
+			condor_config.local.ha_condor_client
+			#condor.sysconfig
+			README
+			#condor.boot.rpm
+			condor_config.local.ckpt.server
+			condor_config.local.ha_condor_had
+			lamscript
+			condor_config.generic
+			condor_config.local.dedicated.resource
+			condor_config.local.view_server
+			mp1script
+			#condor_config.generic.debian.patch
+			condor_config.local.dedicated.submit
+			condor_config.submit.generic
+			mp2script
+			#condor_config.generic.rpm.patch
+			#condor_config.local.generic
+			condor.init
+			openmpiscript
+			DESTINATION ${C_ETC_EXAMPLES})
 
-install (FILES condor_limits_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS})
+	install (FILES condor_limits_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS})
 
-#Platfrom specific overrides for packaging
+	#Generic overrides for UNIX packages
+	set( CONDOR_HOST            $(FULL_HOSTNAME) )
+	set( RELEASE_DIR            /usr )
+	set( LOCAL_DIR              /var )
+	set( LOCAL_CONFIG_FILE      /etc/condor/condor_config.local )
+	set( LOCAL_CONFIG_DIR       /etc/condor/config.d )
 
-if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
+	set( CONDOR_ADMIN           root@$(FULL_HOSTNAME) )
+	set( MAIL                   /bin/mail )
+	set( UID_DOMAIN             $(FULL_HOSTNAME) )
+	set( FILESYSTEM_DOMAIN      $(FULL_HOSTNAME) )
+	set( ALLOW_WRITE            $(FULL_HOSTNAME) )
 
+	set( LOCK                   $(LOCAL_DIR)/lock/condor )
 
-	if (${BIT_MODE} MATCHES "32" OR ${SYS_ARCH} MATCHES "IA64" )	
-		#Patch for 32-bit
+	set( RUN                    $(LOCAL_DIR)/run/condor )
+	set( LOG                    $(LOCAL_DIR)/log/condor )
+	set( SPOOL                  $(LOCAL_DIR)/lib/condor/spool )
+	set( EXECUTE                $(LOCAL_DIR)/lib/condor/execute )
+	set( LIB                    $(RELEASE_DIR)/lib/condor )
+	set( INCLUDE                $(RELEASE_DIR)/include/condor )
+	set( LIBEXEC                $(RELEASE_DIR)/libexec/condor )
+
+	set( JAVA_MAXHEAP_ARGUMENT  "" )
+	set( PROCD_ADDRESS          $(RUN)/procd_pipe )
+
+	#Platfrom specific overrides for packaging
+
+	if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
+
+		if (${BIT_MODE} MATCHES "32" OR ${SYS_ARCH} MATCHES "IA64" )	
+			#Overrides for 32-bit
+
+		else()
+			#Overrides for 64-bit		
+			set( LIB                    $(RELEASE_DIR)/lib64/condor )
+		endif ()					
+		
+
+		install(FILES		condor.boot.rpm
+				DESTINATION	"${C_INIT}"
+				PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+				RENAME		condor)
+
+	elseif ( ${LINUX_NAME} STREQUAL "Debian" AND CONDOR_PACKAGE_BUILD)
+
+		#Overrides for debian
+		set( LIBEXEC                $(RELEASE_DIR)/lib/condor/libexec )
+		set( SHARE                  $(RELEASE_DIR)/share/condor )
+
+		#Debian init script need to be patched because /etc/sysconfig/condor -> /etc/default/condor
+		add_custom_command( OUTPUT condor.boot.debian
+							WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+							COMMAND patch 
+							ARGS condor.boot.rpm condor.boot.debian.patch -o condor.boot.debian )
+
+		add_custom_target(	patch_init_script
+							ALL
+							DEPENDS condor.boot.debian)
+
+		install(FILES		condor.boot.debian
+				DESTINATION	"${C_INIT}"
+				PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+				RENAME	condor)
 	else()
-		#Patch for 64-bit			
-	endif ()					
-	
+		#Other Platform
+		
 
+		install(FILES		condor.boot.rpm
+				DESTINATION	"${C_INIT}"
+				PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+				RENAME		condor)
 
-	install(FILES		condor.boot.rpm
-			DESTINATION	"${C_INIT}"
-			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-			RENAME		condor)
+	endif(RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD )
 
-elseif ( ${LINUX_NAME} STREQUAL "Debian" AND CONDOR_PACKAGE_BUILD)
+	configure_file(condor_config.generic condor_config.patched @ONLY)
 
-	#Patch for debian
-
-
-
-	#Debian init script need to be patched because /etc/sysconfig/condor -> /etc/default/condor
-	add_custom_command( OUTPUT condor.boot.debian
-						WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-						COMMAND patch 
-						ARGS condor.boot.rpm condor.boot.debian.patch -o condor.boot.debian )
-
-	add_custom_target(	patch_init_script
-						ALL
-						DEPENDS condor.boot.debian)
-
-	install(FILES		condor.boot.debian
-			DESTINATION	"${C_INIT}"
-			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-			RENAME	condor)
-else()
-	#Other Platform
-	
-
-	install(FILES		condor.boot.rpm
-			DESTINATION	"${C_INIT}"
-			PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-			RENAME		condor)
-
-endif(RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD )
-
-configure_file(condor_config.generic condor_config.patched @ONLY)
-
-install(FILES	condor_config.patched
-				DESTINATION	"${C_ETC}"
-				RENAME	condor_config)
-
-
+	install(FILES	condor_config.patched
+					DESTINATION	"${C_ETC}"
+					RENAME	condor_config)
 
 #NOT WINDOWS
 else()
