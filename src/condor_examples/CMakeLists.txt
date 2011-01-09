@@ -60,9 +60,9 @@ set( INCLUDE                $(RELEASE_DIR)/include )
 set( SBIN                   $(RELEASE_DIR)/sbin )
 set( LIBEXEC                $(RELEASE_DIR)/libexec )
 
-set( DAEMON_LIST            MASTER, STARTD, SCHEDD )
+set( DAEMON_LIST            "MASTER, STARTD, SCHEDD" )
 
-set( QUEUE_SUPER_USERS      root, condor )
+set( QUEUE_SUPER_USERS      "root, condor" )
 
 set( JAVA_MAXHEAP_ARGUMENT       -Xmx )
 set( JAVA_CLASSPATH_SEPARATOR    : )
@@ -125,83 +125,82 @@ if (NOT WINDOWS)
 			DESTINATION ${C_ETC_EXAMPLES})
 
 	install (FILES condor_limits_wrapper.sh DESTINATION ${C_LIBEXEC} PERMISSIONS ${CONDOR_SCRIPT_PERMS})
-
-	#Generic overrides for UNIX packages
-	set( CONDOR_HOST            $(FULL_HOSTNAME) )
-	set( RELEASE_DIR            /usr )
-	set( LOCAL_DIR              /var )
-	set( LOCAL_CONFIG_FILE      /etc/condor/condor_config.local )
-	set( LOCAL_CONFIG_DIR       /etc/condor/config.d )
-
-	set( CONDOR_ADMIN           root@$(FULL_HOSTNAME) )
-	set( MAIL                   /bin/mail )
-	set( UID_DOMAIN             $(FULL_HOSTNAME) )
-	set( FILESYSTEM_DOMAIN      $(FULL_HOSTNAME) )
-	set( ALLOW_WRITE            $(FULL_HOSTNAME) )
-
-	set( LOCK                   $(LOCAL_DIR)/lock/condor )
-
-	set( RUN                    $(LOCAL_DIR)/run/condor )
-	set( LOG                    $(LOCAL_DIR)/log/condor )
-	set( SPOOL                  $(LOCAL_DIR)/lib/condor/spool )
-	set( EXECUTE                $(LOCAL_DIR)/lib/condor/execute )
-	set( LIB                    $(RELEASE_DIR)/lib/condor )
-	set( INCLUDE                $(RELEASE_DIR)/include/condor )
-	set( LIBEXEC                $(RELEASE_DIR)/libexec/condor )
-
-	set( JAVA_MAXHEAP_ARGUMENT  "" )
-	set( PROCD_ADDRESS          $(RUN)/procd_pipe )
-
+	
 	#Platfrom specific overrides for packaging
+	if ( CONDOR_PACKAGE_BUILD )
 
-	if ( RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD)
+		set( CONDOR_HOST            $(FULL_HOSTNAME) )
+		set( RELEASE_DIR            /usr )
+		set( LOCAL_DIR              /var )
+		set( LOCAL_CONFIG_FILE      /etc/condor/condor_config.local )
+		set( LOCAL_CONFIG_DIR       /etc/condor/config.d )
 
-		if (${BIT_MODE} MATCHES "32" OR ${SYS_ARCH} MATCHES "IA64" )	
-			#Overrides for 32-bit
+		set( CONDOR_ADMIN           root@$(FULL_HOSTNAME) )
+		set( MAIL                   /bin/mail )
+		set( UID_DOMAIN             $(FULL_HOSTNAME) )
+		set( FILESYSTEM_DOMAIN      $(FULL_HOSTNAME) )
+		set( ALLOW_WRITE            $(FULL_HOSTNAME) )
 
+		set( LOCK                   $(LOCAL_DIR)/lock/condor )
+
+		#set( RUN                    $(LOCAL_DIR)/run/condor )
+		set( LOG                    $(LOCAL_DIR)/log/condor )
+		set( SPOOL                  $(LOCAL_DIR)/lib/condor/spool )
+		set( EXECUTE                $(LOCAL_DIR)/lib/condor/execute )
+		set( LIB                    $(RELEASE_DIR)/lib/condor )
+		set( INCLUDE                $(RELEASE_DIR)/include/condor )
+		set( LIBEXEC                $(RELEASE_DIR)/libexec/condor )
+
+		set( JAVA_MAXHEAP_ARGUMENT  "" )
+		set( PROCD_ADDRESS          $(LOCAL_DIR)/run/condor/procd_pipe )
+
+		if ( RPM_SYSTEM_NAME )
+		
+			if (${BIT_MODE} MATCHES "32" OR ${SYS_ARCH} MATCHES "IA64" )	
+				#Overrides for 32-bit
+
+			else()
+				#Overrides for 64-bit		
+				set( LIB                    $(RELEASE_DIR)/lib64/condor )
+			endif ()					
+			
+			install(FILES		condor.boot.rpm
+					DESTINATION	"${C_INIT}"
+					PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+					RENAME		condor)
+
+		elseif ( ${LINUX_NAME} STREQUAL "Debian" )
+
+			#Overrides for debian
+			set( LIBEXEC                $(RELEASE_DIR)/lib/condor/libexec )		
+
+			#Debian init script need to be patched because /etc/sysconfig/condor -> /etc/default/condor
+			add_custom_command( OUTPUT condor.boot.debian
+								WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+								COMMAND patch 
+								ARGS condor.boot.rpm condor.boot.debian.patch -o condor.boot.debian )
+
+			add_custom_target(	patch_init_script
+								ALL
+								DEPENDS condor.boot.debian)
+
+			install(FILES		condor.boot.debian
+					DESTINATION	"${C_INIT}"
+					PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+					RENAME	condor)
 		else()
-			#Overrides for 64-bit		
-			set( LIB                    $(RELEASE_DIR)/lib64/condor )
-		endif ()					
-		
+			#Other Platform
+			
 
-		install(FILES		condor.boot.rpm
-				DESTINATION	"${C_INIT}"
-				PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-				RENAME		condor)
+			install(FILES		condor.boot.rpm
+					DESTINATION	"${C_INIT}"
+					PERMISSIONS ${CONDOR_SCRIPT_PERMS}
+					RENAME		condor)
+		endif()
 
-	elseif ( ${LINUX_NAME} STREQUAL "Debian" AND CONDOR_PACKAGE_BUILD)
+	endif( CONDOR_PACKAGE_BUILD )
 
-		#Overrides for debian
-		set( LIBEXEC                $(RELEASE_DIR)/lib/condor/libexec )
-		set( SHARE                  $(RELEASE_DIR)/share/condor )
-
-		#Debian init script need to be patched because /etc/sysconfig/condor -> /etc/default/condor
-		add_custom_command( OUTPUT condor.boot.debian
-							WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-							COMMAND patch 
-							ARGS condor.boot.rpm condor.boot.debian.patch -o condor.boot.debian )
-
-		add_custom_target(	patch_init_script
-							ALL
-							DEPENDS condor.boot.debian)
-
-		install(FILES		condor.boot.debian
-				DESTINATION	"${C_INIT}"
-				PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-				RENAME	condor)
-	else()
-		#Other Platform
-		
-
-		install(FILES		condor.boot.rpm
-				DESTINATION	"${C_INIT}"
-				PERMISSIONS ${CONDOR_SCRIPT_PERMS}
-				RENAME		condor)
-
-	endif(RPM_SYSTEM_NAME AND CONDOR_PACKAGE_BUILD )
-
-	configure_file(condor_config.generic condor_config.patched @ONLY)
+	configure_file(condor_config.generic.in condor_config.patched @ONLY)
 
 	install(FILES	condor_config.patched
 					DESTINATION	"${C_ETC}"
@@ -214,7 +213,7 @@ else()
 	#Add variable overrides for windows here
    
 
-	configure_file(condor_config.generic condor_config.patched @ONLY)
+	configure_file(condor_config.generic.in condor_config.patched @ONLY)
 
 	install(FILES	condor_config.patched
 					DESTINATION	"."
