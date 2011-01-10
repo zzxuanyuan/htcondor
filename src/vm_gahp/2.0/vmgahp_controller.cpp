@@ -50,43 +50,52 @@ vmgahp_controller::~vmgahp_controller()
 }
 
 /////////////////////////////////////////
-int vmgahp_controller::discover( const std::vector< std::string >& vTypes  )
+int vmgahp_controller::discover( const vector< string >& vTypes  )
 {
-    int iRet=0;
+    int iRet=1;
     string szCaps;
     string szTypesFound;
 
-    sprintf(szCaps, "VM_GAHP_VERSION = \"2.0\"\n");
-
-    vmprintf(D_ALWAYS, "Num types declared: %d", vTypes.size() );
-    BOOST_FOREACH( std::string szType, vTypes )
+    priv_state priv = set_root_priv();
+    BOOST_FOREACH( string szType, vTypes )
     {
         vmprintf(D_ALWAYS, "discover called for type: %s", szType.c_str());
 
+
         if ( hypervisor_factory::discover(szType, m_hyp_config_params) )
         {
-            vmprintf(D_ALWAYS, "discovered?" );
+            vmprintf(D_ALWAYS, "Discovered %s", szType.c_str() );
+
+            /// TODO: this may just go into a serialization f(n) of m_hyp_config_params
+            if ( szTypesFound.length() )
+                sprintf_cat(szTypesFound, "%s,%s", szTypesFound.c_str(), szType.c_str());
+            else
+                szTypesFound = szType;
+
+            iRet = 0;
         }
         else
         {
-            vmprintf(D_ALWAYS, "Nothing to discover yet" );
+            vmprintf(D_ALWAYS, "ERROR: Discovery failed for type: %s", szType.c_str() );
         }
     }
+    set_priv(priv);
 
-
-    //sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_TYPE, gahpconfig->m_vm_type.Value());
-    sprintf_cat(szCaps,"%s = %d\n", ATTR_VM_MEMORY, m_hyp_config_params.m_VM_MEMROY);
-    sprintf_cat(szCaps, "%s = %s\n", ATTR_VM_NETWORKING, (m_hyp_config_params.m_VM_NETWORKING)?"TRUE":"FALSE");
-    if (m_hyp_config_params.m_VM_NETWORKING)
+    // only if discovery
+    if (0 == iRet)
     {
-        sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_NETWORKING_TYPES, m_hyp_config_params.m_VM_NETWORKING_TYPE.print_to_string());
+        ///sprintf_cat(szCaps, "%s = TRUE\n", ATTR_VM_HARDWARE_VT); ?? Cap check?
+        sprintf(szCaps, "VM_GAHP_VERSION = \"2.0\"\n");
+        sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_TYPE, szTypesFound.c_str());
+        sprintf_cat(szCaps,"%s = %d\n", ATTR_VM_MEMORY, m_hyp_config_params.m_VM_MEMROY);
+        sprintf_cat(szCaps, "%s = %s\n", ATTR_VM_NETWORKING, (m_hyp_config_params.m_VM_NETWORKING)?"TRUE":"FALSE");
+        if (m_hyp_config_params.m_VM_NETWORKING)
+        {
+            sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_NETWORKING_TYPES, m_hyp_config_params.m_VM_NETWORKING_TYPE.print_to_string());
+        }
+
+        daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length());
     }
-
-    //if( gahpconfig->m_vm_hardware_vt ) {
-    //        sprintf_cat(szCaps, "%s = TRUE\n", ATTR_VM_HARDWARE_VT);
-    //    }
-
-    daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length());
 
     return iRet;
 }
@@ -96,7 +105,8 @@ int vmgahp_controller::init( )
 {
     int iRet = 1;
 
-    if ( 0 == this->init_uids() ) // check for valid
+    // validate that you can switch privs.
+    if ( 0 == this->init_uids() )
     {
         m_stdout_pipe = daemonCore->Inherit_Pipe(fileno(stdout),
                         true,       /*write pipe*/
@@ -167,16 +177,14 @@ int vmgahp_controller::config( )
             else
             {
                 config_value = param("VM_NETWORKING_DEFAULT_TYPE");
-                if( config_value ) {
+                if( config_value )
+                {
                     m_hyp_config_params.m_VM_NETWORKING_DEFAULT_TYPE = (delete_quotation_marks(config_value)).Value();
                     free(config_value);
                 }
             }
         }
      }
-
-    /* Need to read in * config params */
-
 
     return iRet;
 }
@@ -300,7 +308,33 @@ int vmgahp_controller::fini()
     int iRet =0;
 
     if (m_hypervisor)
+    {
+        vmprintf( D_ALWAYS, "Gracefully shutting down hypervisor");
         iRet = m_hypervisor->shutdown(false, true);
+    }
+
+    return (iRet);
+}
+
+int vmgahp_controller::spawn( const std::string & szVMType, const std::string & szWorkingDir )
+{
+    int iRet = 1;
+    m_hypervisor = hypervisor_factory::manufacture(szVMType);
+
+    if (m_hypervisor)
+    {
+        if ( m_hypervisor->init( m_hyp_config_params ) )
+        {
+            /// TODO: call start?  with what?
+            iRet = 0;
+        }
+        else
+            vmprintf( D_ALWAYS, "ERROR: Failed to init %s (^^ CHECK LOG ^^)", szVMType.c_str() );
+    }
+    else
+    {
+        vmprintf( D_ALWAYS, "ERROR: Failed to manufacture %s (NOT REGISTERED)", szVMType.c_str() );
+    }
 
     return (iRet);
 }

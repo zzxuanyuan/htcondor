@@ -128,13 +128,13 @@ void main_init(int argc, char *argv[])
                     break;
                 // start up a vm
                 case VMGAHP_STANDALONE_MODE:
-                    //string szVmtype = getenv("VMGAHP_VMTYPE");
-                    //string workingdir = getenv("VMGAHP_WORKING_DIR");
-                    //iRet = _p_vmcontroller->exec(szVmtype, workingdir)
+                    //iRet = _p_vmcontroller->spawn( getenv("VMGAHP_VMTYPE"), getenv("VMGAHP_WORKING_DIR") );
                     break;
                 // kill the current running vm which matches
                 case VMGAHP_KILL_MODE:
-                    //iRet = _p_vmcontroller->kill(vmTypes[0], szMatch);
+                    // how does it know what PID?
+                    // type alone doesn't mean anything
+                    //iRet = _p_vmcontroller->fini();
                     vm_exit( "end of VMGAHP_KILL_MODE", iRet );
                     break;
                 default:

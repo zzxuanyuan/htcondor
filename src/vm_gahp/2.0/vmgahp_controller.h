@@ -48,28 +48,30 @@ namespace condor
             virtual int init();
 
             /**
+             * discover
              */
             virtual int discover( const std::vector< std::string >& vTypes  );
 
-
             /**
-             * used to
+             * used to pull in config params, depending on the nature
+             * of some params they may or may not be able to reconfig
              */
-            virtual int config( );
+           virtual int config( );
 
-            /**
-             */
-            virtual int fini();
+           /**
+            * Will spawn the vm given the input params
+            */
+           virtual int spawn( const std::string & szVMType, const std::string & szWorkingDir );
+
+           /**
+           */
+           virtual int fini();
 
         protected:
 
             /**
              */
             int init_uids();
-
-            /**
-             *
-             */
 
             ///< ptr to the hypervisior, starter : virt, so no need for a list 1:1
             boost::shared_ptr<hypervisor> m_hypervisor;
@@ -79,6 +81,7 @@ namespace condor
             hypv_config m_hyp_config_params;
 
         };
+
     }
 }
 #endif

@@ -19,7 +19,8 @@
 #ifndef VMGAHP_LIBVIRT_HYPERVISOR
 #define VMGAHP_LIBVIRT_HYPERVISOR
 
-#include "hypervisor"
+#include "hypervisor.h"
+#include <libvirt/libvirt.h>
 
 namespace condor
 {
@@ -27,15 +28,17 @@ namespace condor
     {
 
     /**
-     * libvirt is the
+     * libvirt is the base for all hypervisors
+     * which reside below it.  It performs some common
+     * functions which children do not have to do.
      *
      * @author Timothy St. Clair
      */
     class libvirt: public hypervisor
     {
     public:
-        libvirt(){;};
-        virtual ~libvirt(){;};
+        libvirt();
+        virtual ~libvirt();
 
          /**
          */
@@ -69,6 +72,21 @@ namespace condor
          /**
          */
         virtual bool check_caps(hypv_config & local_config);
+
+    protected:
+
+        /**
+         */
+        virtual const char * getLastError();
+
+        ///<
+        std::string m_szSessionID;
+
+        ///<
+        virConnectPtr m_libvirt_connection;
+
+        ///<
+        static std::string m_szLastError;
 
     };
 

@@ -19,7 +19,9 @@
 #include "hypervisor_factory.h"
 
 //////Begin non-plugin temporary goo
-
+#include "xen.h"
+#include "kvm.h"
+#include <boost/bind.hpp>
 //////End non-plugin temporary goo
 
 using namespace std;
@@ -64,9 +66,11 @@ shared_ptr< hypervisor > hypervisor_factory::manufacture(const string& szVMType)
 ////////////////////////////////////////////////
 bool hypervisor_factory::init()
 {
-    bool bRet = false;
+    bool bRet;
+    pfnManufacture pfn = boost::bind( &kvm::manufacture );
 
-    //TODO
+    bRet = registerMfgFn("kvm", pfn);
+    //registerMfgFn("xen",
 
     return (bRet);
 }
