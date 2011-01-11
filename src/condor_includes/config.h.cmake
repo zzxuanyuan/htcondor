@@ -310,6 +310,9 @@
 /* Define to 1 if you have the `getwd' function. (USED)*/
 #cmakedefine HAVE_GETWD 1
 
+/* Define to 1 if you have the `gettimeofday' function. (USED)*/
+#cmakedefine HAVE_GETTIMEOFDAY 1
+
 ///* are we using the GNU linker (USED)- I want to remove this comments are untrue*/
 //#cmakedefine HAVE_GNU_LD 1
 

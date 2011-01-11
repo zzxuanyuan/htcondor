@@ -48,6 +48,9 @@
 #include "dhry.h"
 /* DO NOT include sysapi.h here */
 
+#include "utc_time.h"
+#define dtime()	UtcTime::getTimeDouble()
+
 
 /* Global Variables: */
 
@@ -110,8 +113,6 @@ dhry_mips ( REG int Number_Of_Runs )
   /* main program, corresponds to procedures        */
   /* Main and Proc_0 in the Ada version             */
 {
-  double   dtime();
-
         One_Fifty       Int_1_Loc;
   REG   One_Fifty       Int_2_Loc;
         One_Fifty       Int_3_Loc;
@@ -550,16 +551,12 @@ mips_raw( void )
 	}
 
 	// For faster machines, run with more loops.
-	loops = trunc( 0.9 + (1.0 * QUICK_RUNS * quick_mips * LOOP_CONST ) );
+	loops = floor( 0.99 + (1.0 * QUICK_RUNS * quick_mips * LOOP_CONST ) );
 	while( true ) {
-		struct timeval	tv;
-		gettimeofday( &tv, NULL );
-		double t1 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
-
+		double t1 = UtcTime::getTimeDouble( );
 		mips = dhry_mips(loops);
 
-		gettimeofday( &tv, NULL );
-		double t2 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+		double t2 = UtcTime::getTimeDouble( );
 
 		if ( mips > 0 ) {
 			lloops = loops;
@@ -571,8 +568,9 @@ mips_raw( void )
 			return mips;
 		}
 		else {
-			fprintf( stderr, "MIPS<0: loops=%d, time=%0.3fs; lloops=%d, ltime=%0.3fs\n",
-					loops, t2-t1, lloops, ldiff );
+			fprintf( stderr,
+					 "MIPS<0: loops=%d time=%0.3fs; lloops=%d ltime=%0.3fs\n",
+					 loops, t2-t1, lloops, ldiff );
 		}
 	}
 }

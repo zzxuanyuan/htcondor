@@ -39,7 +39,7 @@ PLEASE NOTE: You can also just 'uncomment' one of the options below.
 
 #ifdef WIN32
 /* Get rid of warnings; we cannot change this code */
-#pragma warning( disable: 4033 4305 4013 4101 4013 4716 )
+# pragma warning( disable: 4033 4305 4013 4101 4013 4716 )
 #endif
 
 /* #define SP     */
@@ -48,11 +48,13 @@ PLEASE NOTE: You can also just 'uncomment' one of the options below.
 #define UNROLL
 
 #include <stdio.h>
-#include <sys/time.h>
 #include <math.h>
 #if !defined(WIN32)
-#include <unistd.h>
+# include <unistd.h>
 #endif
+
+#include "utc_time.h"
+#define dtime()	UtcTime::getTimeDouble()
 
 #ifdef SP
 #define REAL float
@@ -98,7 +100,7 @@ clinpack_kflops ( int ntimes )
    REAL cray,ops,total,norma,normx;
    REAL resid,residn,eps;
    REAL kf;
-   double t1,tm,tm2,dtime();
+   double t1,tm,tm2;
    static int ipvt[200],n,i,info,lda,ldaa,kflops;
 
 #if defined(WIN32)
@@ -1044,18 +1046,15 @@ kflops_raw( void )
 	}
 
 	// For faster machines, run with more loops.
-	loops = trunc( 0.9 + (1.0 * QUICK_RUNS * quick_kflops * LOOP_CONST ) );
+	loops = floor( 0.9999 + (QUICK_RUNS * quick_kflops * LOOP_CONST) );
 # if(ENABLE_TIMING)
-	struct timeval	tv;
-	gettimeofday( &tv, NULL );
-	double t1 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+	double t1 = UtcTime::getTimeDouble( );
 # endif
 
 	kflops = clinpack_kflops( loops );
 
 # if(ENABLE_TIMING)
-	gettimeofday( &tv, NULL );
-	double t2 = ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+	double t2 = UtcTime::getTimeDouble( );
 	printf( "quick=%d, loops=%d, time=%0.3fs\n",
 			quick_kflops, loops, t2-t1 );
 # endif
@@ -1079,4 +1078,3 @@ int sysapi_kflops(void)
 }
 
 }
-
