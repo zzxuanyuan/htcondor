@@ -44,7 +44,6 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include <sys/time.h>
 #include "dhry.h"
 /* DO NOT include sysapi.h here */
 
@@ -564,7 +563,7 @@ mips_raw( void )
 #		  if(ENABLE_TIMING)
 			printf( "quick=%d, loops=%d, time=%0.3fs\n",
 					quick_mips, loops, t2-t1 );
-#		  endif(ENABLE_TIMING)
+#		  endif
 			return mips;
 		}
 		else {
