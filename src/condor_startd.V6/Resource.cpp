@@ -1697,6 +1697,8 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		case DYNAMIC_SLOT:
 			cap->AssignExpr(ATTR_SLOT_DYNAMIC, "TRUE");
 			break;
+		default:
+			break; // Do nothing
 		}
 	}		
 
