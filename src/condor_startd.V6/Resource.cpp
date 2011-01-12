@@ -911,7 +911,7 @@ Resource::benchmarks_finished( void )
 {
 	resmgr->m_attr->benchmarks_finished( this );
 	time_t last_benchmark = time(NULL);
-	r_classad->Assign( ATTR_LAST_BENCHMARK, last_benchmark );
+	r_classad->Assign( ATTR_LAST_BENCHMARK, (unsigned)last_benchmark );
 	return 0;
 }
 
