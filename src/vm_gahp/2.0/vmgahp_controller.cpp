@@ -16,11 +16,7 @@
  *
  ***************************************************************/
 
-#include "condor_common.h"
-#include "condor_config.h"
-#include "vm_univ_utils.h"
 #include "condor_daemon_core.h"
-#include "stl_string_utils.h"
 #include "condor_uid.h"
 #include "condor_privsep/condor_privsep.h"
 
@@ -28,7 +24,6 @@
 #include "vmgahp_controller.h"
 #include "vmgahp_common.h"
 #include <boost/foreach.hpp>
-#include <iostream>
 
 #define ROOT_UID    0
 
@@ -52,27 +47,20 @@ vmgahp_controller::~vmgahp_controller()
 /////////////////////////////////////////
 int vmgahp_controller::discover( const vector< string >& vTypes  )
 {
-    int iRet=1;
-    string szCaps;
-    string szTypesFound;
+    int iRet=0;
+    ClassAd ad;
+    boost::shared_ptr<hypv_config> pTempConfig;
+
+    ad.Clear();
 
     priv_state priv = set_root_priv();
     BOOST_FOREACH( string szType, vTypes )
     {
         vmprintf(D_ALWAYS, "discover called for type: %s", szType.c_str());
-
-
-        if ( hypervisor_factory::discover(szType, m_hyp_config_params) )
+        if ( hypervisor_factory::discover(szType, pTempConfig) )
         {
+            pTempConfig->InsertAddAttr( ad );
             vmprintf(D_ALWAYS, "Discovered %s", szType.c_str() );
-
-            /// TODO: this may just go into a serialization f(n) of m_hyp_config_params
-            if ( szTypesFound.length() )
-                sprintf_cat(szTypesFound, "%s,%s", szTypesFound.c_str(), szType.c_str());
-            else
-                szTypesFound = szType;
-
-            iRet = 0;
         }
         else
         {
@@ -81,20 +69,20 @@ int vmgahp_controller::discover( const vector< string >& vTypes  )
     }
     set_priv(priv);
 
-    // only if discovery
-    if (0 == iRet)
+    if ( ad.size() )
     {
-        ///sprintf_cat(szCaps, "%s = TRUE\n", ATTR_VM_HARDWARE_VT); ?? Cap check?
-        sprintf(szCaps, "VM_GAHP_VERSION = \"2.0\"\n");
-        sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_TYPE, szTypesFound.c_str());
-        sprintf_cat(szCaps,"%s = %d\n", ATTR_VM_MEMORY, m_hyp_config_params.m_VM_MEMROY);
-        sprintf_cat(szCaps, "%s = %s\n", ATTR_VM_NETWORKING, (m_hyp_config_params.m_VM_NETWORKING)?"TRUE":"FALSE");
-        if (m_hyp_config_params.m_VM_NETWORKING)
-        {
-            sprintf_cat(szCaps, "%s = \"%s\"\n", ATTR_VM_NETWORKING_TYPES, m_hyp_config_params.m_VM_NETWORKING_TYPE.print_to_string());
-        }
+        classad::ClassAdUnParser unp;
+        string szCaps;
 
-        daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length());
+        unp.Unparse(szCaps, &ad);
+
+        vmprintf( D_ALWAYS, "Discovered:\n%s", szCaps.c_str() );
+        daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length() );
+    }
+    else
+    {
+        vmprintf( D_ALWAYS, "ERROR: Empty Discovery classad" );
+        iRet = 1;
     }
 
     return iRet;
@@ -134,59 +122,24 @@ int vmgahp_controller::init( )
 /////////////////////////////////////////
 int vmgahp_controller::config( )
 {
-    int iRet=0;
-    char * config_value=0;
+    bool bRet = true;
 
-    // Read VM_MEMORY
-    m_hyp_config_params.m_VM_MEMROY =  param_integer("VM_MEMORY", 0);
-    if( m_hyp_config_params.m_VM_MEMROY <= 0 )
+    if (m_hyp_config_params)
+        bRet = m_hyp_config_params->read_config();
+
+    if (m_hypervisor)
     {
-        vmprintf( D_ALWAYS,"ERROR: 'VM_MEMORY' is not defined in configuration ");
-        iRet=1;
+        priv_state priv = set_root_priv();
+
+        bRet = m_hypervisor->check_caps(m_hyp_config_params);
+
+        if (bRet)
+            bRet = m_hypervisor->config(m_hyp_config_params);
+
+        set_priv(priv);
     }
 
-    // Read VM_NETWORKING
-    m_hyp_config_params.m_VM_NETWORKING = param_boolean("VM_NETWORKING", false);
-
-    // Read VM_NETWORKING_TYPE
-    if( m_hyp_config_params.m_VM_NETWORKING )
-    {
-        config_value = param("VM_NETWORKING_TYPE");
-        if( !config_value )
-        {
-            vmprintf( D_ALWAYS,"WARNING: 'VM_NETWORKING' is true but 'VM_NETWORKING_TYPE' is not defined, so 'VM_NETWORKING' is disabled");
-            m_hyp_config_params.m_VM_NETWORKING = false;
-        }
-        else
-        {
-            MyString networking_type = delete_quotation_marks(config_value);
-
-            networking_type.trim();
-            networking_type.lower_case();
-
-            free(config_value);
-
-            StringList networking_types(networking_type.Value(), ", ");
-            m_hyp_config_params.m_VM_NETWORKING_TYPE.create_union(networking_types, false);
-
-            if( m_hyp_config_params.m_VM_NETWORKING_TYPE.isEmpty() )
-            {
-                vmprintf( D_ALWAYS,"WARNING: 'VM_NETWORKING' is true but 'VM_NETWORKING_TYPE' is empty So 'VM_NETWORKING' is disabled\n");
-                m_hyp_config_params.m_VM_NETWORKING = false;
-            }
-            else
-            {
-                config_value = param("VM_NETWORKING_DEFAULT_TYPE");
-                if( config_value )
-                {
-                    m_hyp_config_params.m_VM_NETWORKING_DEFAULT_TYPE = (delete_quotation_marks(config_value)).Value();
-                    free(config_value);
-                }
-            }
-        }
-     }
-
-    return iRet;
+    return ( (int) !bRet );
 }
 
 /////////////////////////////////////////
@@ -319,17 +272,20 @@ int vmgahp_controller::fini()
 int vmgahp_controller::spawn( const std::string & szVMType, const std::string & szWorkingDir )
 {
     int iRet = 1;
-    m_hypervisor = hypervisor_factory::manufacture(szVMType);
+    m_hypervisor = hypervisor_factory::manufacture(szVMType, m_hyp_config_params);
 
     if (m_hypervisor)
     {
-        if ( m_hypervisor->init( m_hyp_config_params ) )
+        if ( 0 == this->config() )
         {
-            /// TODO: call start?  with what?
+            priv_state priv = set_root_priv();
+            /// TODO: m_hypervisor->start()
+            set_priv(priv);
+
             iRet = 0;
         }
         else
-            vmprintf( D_ALWAYS, "ERROR: Failed to init %s (^^ CHECK LOG ^^)", szVMType.c_str() );
+            vmprintf( D_ALWAYS, "ERROR: Failed to config %s (^^ CHECK LOG ^^)", szVMType.c_str() );
     }
     else
     {

@@ -22,9 +22,12 @@ using namespace std;
 using namespace boost;
 using namespace condor::vmu;
 
+#define KVM_TYPE_NAME "kvm"
+
 kvm::kvm()
 {
     m_szSessionID = "qemu:///session";
+    m_szVMType = KVM_TYPE_NAME;
 }
 
 kvm::~kvm()
@@ -32,8 +35,11 @@ kvm::~kvm()
 
 }
 
-shared_ptr<hypervisor> kvm::manufacture()
+shared_ptr<hypervisor> kvm::manufacture(boost::shared_ptr<hypv_config> & local_config)
 {
     shared_ptr<hypervisor> pRet(new kvm());
+    local_config.reset(new libvirt_config());
+    local_config->m_VM_TYPE = KVM_TYPE_NAME;
+
     return (pRet);
 }

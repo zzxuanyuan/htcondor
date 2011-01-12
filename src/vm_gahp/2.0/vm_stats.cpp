@@ -16,34 +16,7 @@
  *
  ***************************************************************/
 
-#ifndef __VMGAHP_LIBVIRT_KVM__
-#define __VMGAHP_LIBVIRT_KVM__
+#include "vm_stats.h"
 
-#include "libvirt.h"
-
-namespace condor
-{
-    namespace vmu
-    {
-        /**
-         *
-         * @author Timothy St. Clair
-         */
-        class kvm : public libvirt
-        {
-        public:
-
-            kvm();
-            virtual ~kvm();
-
-            static boost::shared_ptr<hypervisor> manufacture(boost::shared_ptr<hypv_config> & );
-
-            //virtual bool check_caps(hypv_config & local_config);
-        };
-
-    } /// end namespace vmu
-
-} /// end namespace condor
-
-
-#endif
+using namespace std;
+using namespace condor::vmu;

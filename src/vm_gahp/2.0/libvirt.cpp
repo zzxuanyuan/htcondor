@@ -17,13 +17,24 @@
  ***************************************************************/
 
 #include "libvirt.h"
-#include <libvirt/virterror.h>
 #include "vmgahp_common.h"
+#include "stl_string_utils.h"
+#include <libvirt/virterror.h>
 
 using namespace std;
 using namespace condor::vmu;
 
 string libvirt::m_szLastError;
+
+//////////////////////////////////////////////////////////////
+bool libvirt_config::InsertAddAttr( ClassAd & ad )
+{
+
+    bool bRet=false;//= ad.InsertAttr( , m_VM_TYPE.c_str()
+    //hypv_config::InsertAddAttr(ad);
+    return bRet;
+}
+//////////////////////////////////////////////////////////////
 
 libvirt::libvirt()
 :hypervisor()
@@ -34,7 +45,7 @@ libvirt::~libvirt()
 
 }
 
-bool libvirt::init(const hypv_config & local_config)
+bool libvirt::config(const boost::shared_ptr<hypv_config> & local_config)
 {
     bool bRet=true;
     return bRet;
@@ -76,18 +87,20 @@ bool libvirt::getStats( vm_stats & stats )
     return bRet;
 }
 
-bool libvirt::check_caps(hypv_config & local_config)
+bool libvirt::check_caps(boost::shared_ptr<hypv_config> & local_config)
 {
     bool bRet = false;
-    virConnectPtr plibvirt = 0;//virConnectOpen( m_szSessionID.c_str() );
+    boost::shared_ptr<libvirt_config> pConfig = boost::dynamic_pointer_cast<libvirt_config> (local_config);
+    virConnectPtr plibvirt = virConnectOpen( m_szSessionID.c_str() );
 
-    //if (plibvirt)
+    if (plibvirt)
     {
+        // in order to get a hypervisor's capabilities you need to connect to it.
         char * pszCaps = virConnectGetCapabilities (plibvirt);
 
-        if (pszCaps)
+        if ( pszCaps )
         {
-            vmprintf(D_ALWAYS, "dump of caps:\n%s", pszCaps );
+            pConfig->m_szCaps = pszCaps;
             bRet=true;
         }
         else
@@ -95,16 +108,13 @@ bool libvirt::check_caps(hypv_config & local_config)
             vmprintf(D_ALWAYS, "Error on virConnectGetCapabilities() to %s: %s", m_szSessionID.c_str(), this->getLastError() );
         }
 
-        // Lists the networks available
-        // virConnectListNetworks()
-
         virConnectClose(plibvirt);
 
     }
-    //else
-    //{
-    //    vmprintf(D_ALWAYS, "Error on virConnectOpen() to %s: %s", m_szSessionID.c_str(), this->getLastError() );
-    //}
+    else
+    {
+        vmprintf(D_ALWAYS, "Error on virConnectOpen() to %s: %s", m_szSessionID.c_str(), this->getLastError() );
+    }
 
     return (bRet);
 

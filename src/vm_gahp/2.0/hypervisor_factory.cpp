@@ -35,29 +35,33 @@ map<string, hypervisor_factory::pfnManufacture> hypervisor_factory::m_SupportedH
 bool m_bInitialized = hypervisor_factory::init();
 
 ////////////////////////////////////////////////
-bool hypervisor_factory::discover(const string& szVMType, hypv_config& local_config)
+bool hypervisor_factory::discover(const string& szVMType, boost::shared_ptr<hypv_config> & local_config )
 {
     bool bRet = 0;
-    shared_ptr< hypervisor > pHypervisor = hypervisor_factory::manufacture( szVMType );
+    shared_ptr< hypervisor > pHypervisor = hypervisor_factory::manufacture( szVMType, local_config );
 
     if (pHypervisor)
     {
-        // check/fill the capabilities
-        bRet = pHypervisor->check_caps(local_config);
+        // read in the configuration settings
+        bRet = local_config->read_config();
+
+        // if all is well then check the capabilities.
+        if (bRet)
+            bRet = pHypervisor->check_caps(local_config);
     }
 
     return (bRet);
 }
 
 ////////////////////////////////////////////////
-shared_ptr< hypervisor > hypervisor_factory::manufacture(const string& szVMType)
+shared_ptr< hypervisor > hypervisor_factory::manufacture(const string& szVMType, boost::shared_ptr<hypv_config> & local_config)
 {
     shared_ptr< hypervisor > pHypervisor;
     pfnManufacture pfnMF = m_SupportedHypervisors[szVMType];
 
     if (pfnMF)
     {
-        pHypervisor = pfnMF();
+        pHypervisor = pfnMF(local_config);
     }
 
     return (pHypervisor);
@@ -67,7 +71,7 @@ shared_ptr< hypervisor > hypervisor_factory::manufacture(const string& szVMType)
 bool hypervisor_factory::init()
 {
     bool bRet;
-    pfnManufacture pfn = boost::bind( &kvm::manufacture );
+    pfnManufacture pfn = boost::bind( &kvm::manufacture, _1 );
 
     bRet = registerMfgFn("kvm", pfn);
     //registerMfgFn("xen",

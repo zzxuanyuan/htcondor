@@ -19,14 +19,33 @@
 #ifndef VMGAHP_HYPERVISOR
 #define VMGAHP_HYPERVISOR
 
+#include "string_list.h" // I need to kill this
 #include "vm_stats.h"
-#include <boost/shared_ptr.hpp>
 
 namespace condor
 {
 
     namespace vmu
     {
+
+     /**
+     * The following ...
+     */
+    class hypv_config
+    {
+    public:
+        hypv_config();
+        virtual ~hypv_config();
+
+        virtual bool InsertAddAttr(ClassAd & ad);
+        virtual bool read_config();
+
+        std::string     m_VM_TYPE;
+        int             m_VM_MEMROY;     // this should be unsigned but there is a classad failure
+        bool            m_VM_NETWORKING;
+        std::string     m_VM_NETWORKING_DEFAULT_TYPE;
+        StringList      m_VM_NETWORKING_TYPE;
+    };
 
     /**
      * The following is an abstract base class for a hypervisor
@@ -50,16 +69,10 @@ namespace condor
          hypervisor(){;};
          virtual ~hypervisor(){;};
 
-         ///////////////////////////////////////////////////////////////
-         // virtual interface functions
-         // ?'s
-         // can you reconfig a vm once it is running?
-         // what is the difference is a soft suspend?
-         ///////////////////////////////////////////////////////////////
-
-         /**
+        /**
+         *
          */
-        virtual bool init(const hypv_config & local_config)=0;
+        virtual bool config(const boost::shared_ptr<hypv_config> & local_config)=0;
 
          /**
           * start() - will start a vm using the mundged input file.
@@ -88,7 +101,7 @@ namespace condor
 
          /**
          */
-        virtual bool check_caps(hypv_config & local_config)=0;
+        virtual bool check_caps( boost::shared_ptr<hypv_config> & local_config )=0;
 
     protected:
 

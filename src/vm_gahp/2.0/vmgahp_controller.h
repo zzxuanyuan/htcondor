@@ -75,10 +75,13 @@ namespace condor
 
             ///< ptr to the hypervisior, starter : virt, so no need for a list 1:1
             boost::shared_ptr<hypervisor> m_hypervisor;
+
+            ///< config knobs for hypervisors.
+            boost::shared_ptr<hypv_config> m_hyp_config_params;
+
             ///< stdout pipe to daemoncore parent process (startd or starter)
             int m_stdout_pipe;
-            ///< config knobs for hypervisors.
-            hypv_config m_hyp_config_params;
+
 
         };
 

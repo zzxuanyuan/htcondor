@@ -40,19 +40,19 @@ namespace condor
     public:
 
         ///< pointer to a manufacture call which
-        typedef boost::function<boost::shared_ptr<hypervisor> ( )> pfnManufacture;
+        typedef boost::function<boost::shared_ptr<hypervisor> ( boost::shared_ptr<hypv_config>& )> pfnManufacture;
 
          /**
           * discover() -
           *
           * @param
           */
-         static bool discover( const std::string & szVMType, hypv_config & local_config );
+         static bool discover( const std::string & szVMType, boost::shared_ptr<hypv_config> & local_config );
 
          /**
           * manufacture() - will manufacture an instance based on string
           */
-         static boost::shared_ptr<hypervisor> manufacture (const std::string & szVMType);
+         static boost::shared_ptr<hypervisor> manufacture (const std::string & szVMType, boost::shared_ptr<hypv_config> & local_config );
 
         /**
          * initFactory() - initialize the factory

@@ -19,9 +19,9 @@
 #ifndef VMGAHP_STATS
 #define VMGAHP_STATS
 
-// I need to rid myself of this dumb data structure.
-#include "string_list.h"
-
+#include "classad/classad.h"
+#include <boost/shared_ptr.hpp>
+#include <vector>
 #include <string>
 
 namespace condor
@@ -30,19 +30,7 @@ namespace condor
     namespace vmu
     {
 
-     /**
-     * The following ...
-     */
-    typedef struct config
-    {
-        unsigned int    m_VM_MEMROY;
-        bool            m_VM_NETWORKING;
-        std::string     m_VM_NETWORKING_DEFAULT_TYPE;
-        StringList      m_VM_NETWORKING_TYPE;
-
-        // The following are the other params
-
-    }hypv_config;
+    class hypv_config;
 
     /// The state of the current running vm
     typedef enum
@@ -55,18 +43,20 @@ namespace condor
     }vm_state;
 
     /// vm_stats are all the current known information about a vm for
-    typedef struct stats
+    class vm_stats
     {
+    public:
         //enum type eVmType;
         vm_state        m_eState; ///<
         unsigned int    m_iPid;   ///< pid of currently running vm 0
+        boost::shared_ptr<hypv_config>     m_pconfig; ///<
 
-        hypv_config     m_config; ///<
+        //virtual bool InsertAddAttr(ClassAd & ad);
 
         // insert all the vm stats here.
         //// running stats
         //// list of checkpoints, or just last checkpoint?
-    }vm_stats;
+    };
 
 
     } // namespace vmu

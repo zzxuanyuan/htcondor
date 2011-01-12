@@ -27,6 +27,19 @@ namespace condor
     namespace vmu
     {
 
+    class libvirt_config : public hypv_config
+    {
+    public:
+        libvirt_config(){;};
+        virtual ~libvirt_config(){;}
+
+        virtual bool InsertAddAttr( ClassAd & ad );
+        //virtual bool read_config();
+
+        std::string m_szCaps;
+        // additional elements?  also sub derivations could inherit
+    };
+
     /**
      * libvirt is the base for all hypervisors
      * which reside below it.  It performs some common
@@ -42,7 +55,7 @@ namespace condor
 
          /**
          */
-        virtual bool init(const hypv_config & local_config);
+        virtual bool config(const boost::shared_ptr<hypv_config> & local_config);
 
          /**
           * start() - will start a vm using the mundged input file.
@@ -71,8 +84,11 @@ namespace condor
 
          /**
          */
-        virtual bool check_caps(hypv_config & local_config);
+        virtual bool check_caps(boost::shared_ptr<hypv_config> & local_config);
 
+        // other potential functions could be:
+        // support for migration -> move down a layer
+        // I have no idea how this would work with matchmaking.
     protected:
 
         /**
@@ -81,6 +97,8 @@ namespace condor
 
         ///<
         std::string m_szSessionID;
+
+        std::string m_szVMType;
 
         ///<
         virConnectPtr m_libvirt_connection;
