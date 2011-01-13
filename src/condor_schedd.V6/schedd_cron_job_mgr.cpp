@@ -40,12 +40,15 @@ int
 ScheddCronJobMgr::Initialize( const char *name )
 {
 	int status;
+
+	SetName( name, name, "_cron" );
 	
 	char *cron_name = param( "SCHEDD_CRON_NAME" );
 	if ( NULL != cron_name ) {
 		name = cron_name;
 		SetName( name, name );
 	}
+
 	status = CronJobMgr::Initialize( name );
 	if ( NULL != cron_name ) {
 		free( cron_name );
