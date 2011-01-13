@@ -96,8 +96,7 @@ public:
 	void compute( amask_t );			  // Actually recompute desired stats
 
 		// Initiate benchmark computations benchmarks on the given resource
-	void start_initial_benchmarks( Resource*, int &count );	
-	void start_idle_benchmarks( Resource*, int &count );	
+	void start_benchmarks( Resource*, int &count );	
 	void benchmarks_finished( Resource* );	
 
 #if defined(WIN32)
@@ -122,7 +121,6 @@ public:
 	time_t		console_idle()	{ return m_console_idle; };
 
 private:
-	void start_benchmarks( Resource*, int &count, bool initial );	
 
 		// Dynamic info
 	float			m_load;
@@ -152,7 +150,6 @@ private:
 	char*			m_filesystem_domain;
 	int				m_idle_interval; 	// for D_IDLE dprintf messages
 	char*			m_ckptpltfrm;
-	bool			m_benchmark_is_initial;
 
 #if defined ( WIN32 )
 	int				m_got_windows_version_info;

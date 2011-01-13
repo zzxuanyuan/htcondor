@@ -99,6 +99,10 @@ StartdBenchJobMgr::ParamRunBenchmarks( void )
 bool
 StartdBenchJobMgr::StartBenchmarks( Resource *rip, int &count )
 {
+	if ( GetNumActiveJobs() ) {
+		count = 0;
+		return true;
+	}
 	m_rip = rip;
 	count = GetNumJobs( );
 	dprintf( D_ALWAYS, "BenchMgr:StartBenchmarks()\n" );
@@ -162,12 +166,15 @@ StartdBenchJobMgr::ShouldStartJob( const CronJob &job ) const
 		dprintf( D_ALWAYS, "ShouldStartJob: shutting down\n" );
 		return false;
 	}
+
 	// If we're busy running cron jobs, wait
 	if (  ( NULL != cron_job_mgr ) &&
-		  ( cron_job_mgr->GetCurJobLoad() > cron_job_mgr->GetMaxJobLoad() )  ) {
+		  ( !cron_job_mgr->ShouldStartBenchmarks() )  ) {
 		dprintf( D_ALWAYS, "ShouldStartJob: running normal cron jobs\n" );
 		return false;
 	}
+
+	// Finally, ask my parent for permission
 	return CronJobMgr::ShouldStartJob( job );
 }
 
@@ -186,10 +193,11 @@ StartdBenchJobMgr::JobStarted( const CronJob &job )
 bool
 StartdBenchJobMgr::JobExited( const CronJob &job )
 {
+	bool status = CronJobMgr::JobExited( job );
 	if ( 0 == GetNumActiveJobs() ) {
 		BenchmarksFinished( );
 	}
-	return CronJobMgr::JobExited( job );
+	return status;
 }
 
 bool

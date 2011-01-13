@@ -383,7 +383,11 @@ ResState::eval( void )
 			// Check to see if we should run benchmarks
 		if ( ! r_act_was_benchmark ) {
 			int num_started;
-			resmgr->m_attr->start_idle_benchmarks( rip, num_started );
+			resmgr->m_attr->start_benchmarks( rip, num_started );
+			if ( 0 == num_started ) {
+				change( idle_act );
+				return TRUE;
+			}
 		}
 
 #if HAVE_JOB_HOOKS

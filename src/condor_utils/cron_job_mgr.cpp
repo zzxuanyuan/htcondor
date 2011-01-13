@@ -206,20 +206,17 @@ CronJobMgr::ShouldStartJob( const CronJob &job ) const
 
 // Job is started
 bool
-CronJobMgr::JobStarted( const CronJob &job )
+CronJobMgr::JobStarted( const CronJob & /*job*/ )
 {
-	m_cur_job_load += job.GetJobLoad( );
+	m_cur_job_load = m_job_list.RunningJobLoad();
 	return true;
 }
 
 // Job exitted
 bool
-CronJobMgr::JobExited( const CronJob &job )
+CronJobMgr::JobExited( const CronJob & /*job*/ )
 {
-	m_cur_job_load -= job.GetJobLoad( );
-	if ( m_cur_job_load <= 0.001 ) {
-		m_cur_job_load = 0.0;
-	}
+	m_cur_job_load = m_job_list.RunningJobLoad();
 	if (  (m_cur_job_load < m_max_job_load) && (m_schedule_timer < 0)  ) {
 		m_schedule_timer = daemonCore->Register_Timer(
 			0,

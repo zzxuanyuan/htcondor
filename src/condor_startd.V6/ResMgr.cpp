@@ -1447,16 +1447,6 @@ ResMgr::final_update( void )
 
 
 int
-ResMgr::start_initial_benchmark( int &count )
-{
-	if( ! resources ) {
-		return 0;
-	}
-	return resources[0]->start_initial_benchmark( count );
-}
-
-
-int
 ResMgr::send_update( int cmd, ClassAd* public_ad, ClassAd* private_ad,
 					 bool nonblock )
 {

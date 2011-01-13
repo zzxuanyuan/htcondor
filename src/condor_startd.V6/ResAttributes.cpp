@@ -812,7 +812,8 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 
 		cp->Assign( ATTR_TOTAL_LOAD_AVG, rint(m_load * 100) / 100.0);
 		
-		cp->Assign( ATTR_TOTAL_CONDOR_LOAD_AVG, rint(m_condor_load * 100) / 100.0);
+		cp->Assign( ATTR_TOTAL_CONDOR_LOAD_AVG,
+					rint(m_condor_load * 100) / 100.0);
 		
 		cp->Assign( ATTR_CLOCK_MIN, m_clock_min );
 
@@ -822,13 +823,7 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 }
 
 void
-MachAttributes::start_initial_benchmarks( Resource* rip, int &count )
-{
-	start_benchmarks( rip, count, true );
-}
-
-void
-MachAttributes::start_idle_benchmarks( Resource* rip, int &count )
+MachAttributes::start_benchmarks( Resource* rip, int &count )
 {
 	count = 0;
 	ClassAd* cp = rip->r_classad;
@@ -851,24 +846,18 @@ MachAttributes::start_idle_benchmarks( Resource* rip, int &count )
 	dprintf( D_ALWAYS,
 			 "State change: %s is TRUE\n", ATTR_RUN_BENCHMARKS );
 
-	m_benchmark_is_initial = false;
-	if( rip->state() != unclaimed_state  &&  rip->activity() != idle_act ) {
+	if(  (rip->state() != unclaimed_state)  &&
+		 (rip->activity() != idle_act)      ) {
 		dprintf( D_ALWAYS,
 				 "Tried to run benchmarks when not idle, aborting.\n" );
 		return;
 	}
 
+	ASSERT( bench_job_mgr != NULL );
+
 	// Enter benchmarking activity
 	rip->change_state( benchmarking_act );
-	start_benchmarks( rip, count, false );
-}
 
-	// Internal code that does that actual starting of the benchmarks
-void
-MachAttributes::start_benchmarks( Resource* rip, int &count, bool initial )
-{
-	m_benchmark_is_initial = initial;
-	ASSERT( bench_job_mgr != NULL );
 	bench_job_mgr->StartBenchmarks( rip, count );
 }
 

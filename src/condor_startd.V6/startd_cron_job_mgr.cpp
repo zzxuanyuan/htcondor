@@ -148,7 +148,7 @@ StartdCronJobMgr::ShouldStartBenchmarks( void ) const
 	dprintf( D_FULLDEBUG,
 			 "ShouldStartBenchmarks: load=%.2f max=%.2f\n",
 			 GetCurJobLoad(), GetMaxJobLoad() );
-	return ( GetCurJobLoad() <= GetMaxJobLoad() );
+	return ( GetCurJobLoad() < GetMaxJobLoad() );
 }
 
 // Job is started
@@ -162,11 +162,12 @@ StartdCronJobMgr::JobStarted( const CronJob &job )
 bool
 StartdCronJobMgr::JobExited( const CronJob &job )
 {
+	bool status = CronJobMgr::JobExited( job );
 	if ( m_shutting_down &&  IsAllIdle() ) {
 		startd_check_free();
 	}
 	if ( bench_job_mgr ) {
 		bench_job_mgr->ScheduleAllJobs();
 	}
-	return CronJobMgr::JobExited( job );
+	return status;
 }

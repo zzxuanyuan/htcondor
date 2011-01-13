@@ -48,6 +48,7 @@ CronJob::CronJob( CronJobParams *params, CronJobMgr &mgr )
 		  m_num_runs( 0 ),					// Hasn't run yet
 		  m_last_start_time( 0 ),
 		  m_last_exit_time( 0 ),
+		  m_run_load( 0.0 ),
 		  m_marked( false ),
 		  m_old_period( 0 )
 {
@@ -361,6 +362,7 @@ CronJob::Reaper( int exitPid, int exitStatus )
 	}
 	m_pid = 0;
 	m_last_exit_time = time(NULL);
+	m_run_load = 0.0;
 
 	// Read the stderr & output
 	if ( m_stdOut >= 0 ) {
@@ -550,6 +552,7 @@ CronJob::StartJobProcess( void )
 	// All ok here
 	SetState( CRON_RUNNING );
 	m_last_start_time = time(NULL);
+	m_run_load = GetJobLoad();
 	m_num_runs++;
 
 	// Finally, notify my manager

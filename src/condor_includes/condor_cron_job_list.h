@@ -41,6 +41,7 @@ class CondorCronJobList
 	int NumJobs( void ) const { return m_job_list.Number(); };
 	int NumAliveJobs( void ) const;
 	int NumActiveJobs( void ) const;
+	double RunningJobLoad( void ) const;
 	bool AddJob( 
 		const char		*jobName,
 		CronJob			*job

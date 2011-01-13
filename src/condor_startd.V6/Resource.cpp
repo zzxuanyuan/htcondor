@@ -892,14 +892,6 @@ Resource::refresh_classad( amask_t mask )
 
 
 int
-Resource::start_initial_benchmark( int &count )
-{
-		// Force this resource to run benchmarking.
-	resmgr->m_attr->start_initial_benchmarks( this, count );
-	return TRUE;
-}
-
-int
 Resource::benchmarks_started( void )
 {
 	// TODO

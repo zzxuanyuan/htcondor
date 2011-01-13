@@ -149,8 +149,6 @@ public:
 	State		state( void );			// Return the machine state
 
 
-	int	start_initial_benchmark( int &count ); // Start resource benchmark
-	
 	void report_updates( void );	// Log updates w/ dprintf()
 
 	MachAttributes*	m_attr;		// Machine-wide attribute object

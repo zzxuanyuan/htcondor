@@ -107,6 +107,7 @@ class CronJob : public Service
 	const char *GetCwd( void ) const { return m_params->GetCwd(); };
 	unsigned GetPeriod( void ) const { return m_params->GetPeriod(); };
 	double GetJobLoad( void ) const { return m_params->GetJobLoad(); };
+	double GetRunLoad( void ) const { return m_run_load; };
 
 	bool IsPeriodic( void ) const { return Params().IsPeriodic(); };
 	bool IsWaitForExit( void ) const { return Params().IsWaitForExit(); };
@@ -175,6 +176,7 @@ class CronJob : public Service
 	int				 m_num_runs;		// # of times the job has run
 	unsigned		 m_last_start_time;	// Last run time
 	unsigned		 m_last_exit_time;	// Last run time
+	double			 m_run_load;		// Run load of the job
 	bool			 m_marked;			// Is this one marked?
 	unsigned		 m_old_period;		// Period before reconfig
 

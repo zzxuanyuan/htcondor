@@ -96,6 +96,23 @@ CondorCronJobList::NumAliveJobs( void ) const
 	return num_alive;
 }
 
+// Get the "load" of all currently running jobs
+double
+CondorCronJobList::RunningJobLoad( void ) const
+{
+	double		 load = 0.0;
+	CronJob		*cur_job;
+
+	// Walk through the list
+	SimpleList<CronJob *>	*jl = 
+		const_cast<SimpleList<CronJob*> *>(&m_job_list);
+	jl->Rewind( );
+	while ( jl->Next( cur_job ) ) {
+		load += cur_job->GetRunLoad();
+	}
+	return load;
+}
+
 // Get the number of jobs that are active
 int
 CondorCronJobList::NumActiveJobs( void ) const

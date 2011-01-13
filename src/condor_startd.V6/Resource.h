@@ -163,7 +163,6 @@ public:
 		// Methods to initialize and refresh the resource classads.
 	void	init_classad( void );		
 	void	refresh_classad( amask_t mask );	
-	int		start_initial_benchmark( int &count );
 	void	reconfig( void );
 
 	void	update( void );		// Schedule to update the central manager.
