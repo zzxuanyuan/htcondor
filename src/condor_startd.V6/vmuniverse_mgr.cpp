@@ -37,6 +37,8 @@
 #include "vm_univ_utils.h"
 #include "setenv.h"
 
+#include "classad/source.h"
+
 extern ResMgr* resmgr;
 
 static unsigned long get_image_size(procInfo& pi)
@@ -420,19 +422,13 @@ VMUniverseMgr::testVMGahp(const char* gahppath, const char* vmtype)
 		return false;
 	}
 
-	bool read_something = false;
-	char buf[2048];
+	bool read_something;
+    classad::ClassAdParser parser;
 
 	m_vmgahp_info.Clear();
-	while( fgets(buf, 2048, fp) ) {
-		if( !m_vmgahp_info.Insert(buf) ) {
-			dprintf( D_ALWAYS, "Failed to insert \"%s\" into VMInfo, "
-					 "ignoring invalid parameter\n", buf );
-			continue;
-		}
-		read_something = true;
-	}
+    read_something = parser.ParseClassAd(fp, m_vmgahp_info);
 	my_pclose( fp );
+
 	if( !read_something ) {
 		MyString args_string;
 		systemcmd.GetArgsStringForDisplay(&args_string,0);

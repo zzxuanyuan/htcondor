@@ -16,6 +16,10 @@
  *
  ***************************************************************/
 
+#include "condor_common.h"
+#include "condor_attributes.h"
+#include "condor_config.h"
+
 #include "libvirt.h"
 #include "vmgahp_common.h"
 #include "stl_string_utils.h"
@@ -29,9 +33,12 @@ string libvirt::m_szLastError;
 //////////////////////////////////////////////////////////////
 bool libvirt_config::InsertAddAttr( ClassAd & ad )
 {
+    string szAttribute;
 
-    bool bRet=false;//= ad.InsertAttr( , m_VM_TYPE.c_str()
-    //hypv_config::InsertAddAttr(ad);
+    sprintf(szAttribute, "VM_libvirt_%s_capabilities", m_VM_TYPE.c_str());
+    bool bRet = ad.InsertAttr( szAttribute, m_szCaps );
+    hypv_config::InsertAddAttr(ad);
+
     return bRet;
 }
 //////////////////////////////////////////////////////////////

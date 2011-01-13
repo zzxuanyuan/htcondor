@@ -71,10 +71,10 @@ int vmgahp_controller::discover( const vector< string >& vTypes  )
 
     if ( ad.size() )
     {
-        classad::ClassAdUnParser unp;
+        classad::PrettyPrint pp;
         string szCaps;
 
-        unp.Unparse(szCaps, &ad);
+        pp.Unparse(szCaps, &ad);
 
         vmprintf( D_ALWAYS, "Discovered:\n%s", szCaps.c_str() );
         daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length() );

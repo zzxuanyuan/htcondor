@@ -19,6 +19,7 @@
 #include "condor_common.h"
 #include "condor_attributes.h"
 #include "condor_config.h"
+
 #include "hypervisor.h"
 #include "vmgahp_common.h"
 #include "vm_univ_utils.h"

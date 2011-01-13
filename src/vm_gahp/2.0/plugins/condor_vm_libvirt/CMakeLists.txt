@@ -16,19 +16,10 @@
  #
  ###############################################################
 
-if(LINUX AND HAVE_EXT_BOOST)
+condor_glob( HeaderFiles SourceFiles "" )
 
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+# the following should be
+condor_static_lib( condor_vm_libvirt "${HeaderFiles};${SourceFiles}" )
 
-    # the following will tack on directly in the future it will be loaded dynamically.
-    add_subdirectory(plugins/condor_vm_libvirt)
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/plugins/condor_vm_libvirt)
 
-	condor_glob( HeaderFiles SourceFiles "" )
-	condor_exe( condor_vm-gahp2 "${HeaderFiles};${SourceFiles}" ${C_SBIN} "condor_vm_libvirt;${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${KRB5_FOUND};${LIBVIRT_FOUND};${LIBXML2_FOUND};${COREDUMPER_FOUND};${ZLIB_FOUND};-lboost_program_options" OFF)
 
-else()
-
-    message(STATUS "NOTE: *vmgahp2* targets will not be built LINUX=${LINUX} & BOOST_FOUND=${BOOST_FOUND}")
-
-endif()

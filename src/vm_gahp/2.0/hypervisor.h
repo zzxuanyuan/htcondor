@@ -21,6 +21,7 @@
 
 #include "string_list.h" // I need to kill this
 #include "vm_stats.h"
+#include "classad/classad.h"
 
 namespace condor
 {
