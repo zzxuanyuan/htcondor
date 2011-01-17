@@ -19,8 +19,8 @@
 #ifndef VMGAHP_CONTROLLER
 #define VMGAHP_CONTROLLER
 
+#include "compat_classad.h"
 #include "hypervisor.h"
-#include "boost/noncopyable.hpp"
 #include <vector>
 #include <string>
 
@@ -35,7 +35,7 @@ namespace condor
          *
          * @author Timothy St. Clair
          */
-        class vmgahp_controller : public boost::noncopyable
+        class vmgahp_controller : public Service
         {
         public:
             vmgahp_controller();
@@ -61,7 +61,7 @@ namespace condor
            /**
             * Will spawn the vm given the input params
             */
-           virtual int spawn( const std::string & szVMType, const std::string & szWorkingDir );
+           virtual int start( const char * pszVMType, const char * pszWorkingDir );
 
            /**
            */
@@ -78,6 +78,8 @@ namespace condor
 
             ///< config knobs for hypervisors.
             boost::shared_ptr<hypv_config> m_hyp_config_params;
+
+            boost::shared_ptr<ClassAd> m_jobAd;
 
             ///< stdout pipe to daemoncore parent process (startd or starter)
             int m_stdout_pipe;

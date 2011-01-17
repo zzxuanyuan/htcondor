@@ -128,7 +128,8 @@ void main_init(int argc, char *argv[])
                     break;
                 // start up a vm
                 case VMGAHP_STANDALONE_MODE:
-                    //iRet = _p_vmcontroller->spawn( getenv("VMGAHP_VMTYPE"), getenv("VMGAHP_WORKING_DIR") );
+                    if ((iRet = _p_vmcontroller->start( getenv("VMGAHP_VMTYPE"), getenv("VMGAHP_WORKING_DIR") )))
+                        vm_exit( "failed to start VM_GAHP", iRet );
                     break;
                 // kill the current running vm which matches
                 case VMGAHP_KILL_MODE:
@@ -144,7 +145,7 @@ void main_init(int argc, char *argv[])
         }
         else
         {
-            vm_exit( "Failed initialization", iRet );
+            vm_exit( "Failed controller initialization", iRet );
         }
     }
 

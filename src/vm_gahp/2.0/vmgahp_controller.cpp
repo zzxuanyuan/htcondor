@@ -76,6 +76,7 @@ int vmgahp_controller::discover( const vector< string >& vTypes  )
 
         pp.Unparse(szCaps, &ad);
 
+        // now send the classad to the parent process which spawned this.
         vmprintf( D_ALWAYS, "Discovered:\n%s", szCaps.c_str() );
         daemonCore->Write_Pipe( m_stdout_pipe, szCaps.c_str(), szCaps.length() );
     }
@@ -269,27 +270,31 @@ int vmgahp_controller::fini()
     return (iRet);
 }
 
-int vmgahp_controller::spawn( const std::string & szVMType, const std::string & szWorkingDir )
+int vmgahp_controller::start(  const char * pszVMType, const char * pszWorkingDir )
 {
     int iRet = 1;
-    m_hypervisor = hypervisor_factory::manufacture(szVMType, m_hyp_config_params);
 
-    if (m_hypervisor)
+    if (pszVMType && pszWorkingDir)
     {
-        if ( 0 == this->config() )
-        {
-            priv_state priv = set_root_priv();
-            /// TODO: m_hypervisor->start()
-            set_priv(priv);
+        m_hypervisor = hypervisor_factory::manufacture(string(pszVMType), m_hyp_config_params);
 
-            iRet = 0;
+        if (m_hypervisor)
+        {
+            if ( 0 == this->config() )
+            {
+                //iRet = setup_gahp_comm();
+            }
+            else
+                vmprintf( D_ALWAYS, "ERROR: Failed to config %s (^^ CHECK LOG ^^)", pszVMType );
         }
         else
-            vmprintf( D_ALWAYS, "ERROR: Failed to config %s (^^ CHECK LOG ^^)", szVMType.c_str() );
+        {
+            vmprintf( D_ALWAYS, "ERROR: Failed to manufacture %s (NOT REGISTERED)", pszVMType );
+        }
     }
     else
     {
-        vmprintf( D_ALWAYS, "ERROR: Failed to manufacture %s (NOT REGISTERED)", szVMType.c_str() );
+        vmprintf( D_ALWAYS, "ERROR: Type or Working Directory not defined" );
     }
 
     return (iRet);
