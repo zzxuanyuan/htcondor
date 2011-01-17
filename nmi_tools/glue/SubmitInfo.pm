@@ -313,7 +313,7 @@ our %submit_info = (
 		'build' => {
 			'configure_args' => { @default_build_configure_args,
 				'-DWITH_KRB5:BOOL=OFF' => undef,
-				'-DWITHOUT_SOAP_TEST:BOOL=ON' => undef,
+				'-DWITHOUT_SOAP_TEST:BOOL=ON' => undef
 			},
 			'prereqs'	=> [ 'cmake-2.8.3' ],
 			'xtests'	=> [ 'ps3_fedora_9' ],
@@ -378,7 +378,7 @@ our %submit_info = (
 			'prereqs'	=> [ 
 				@default_prereqs, 
 				'gcc-4.1.2', 'binutils-2.16', 'perl-5.8.5', 'gzip-1.3.3',
-				'coreutils-5.2.1',
+				'coreutils-6.9',
 			],
 			'xtests'	=> [ 'sun4u_sol_5.10' ],
 		},
@@ -386,7 +386,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'gcc-4.1.2', 'binutils-2.16',
-				'gzip-1.3.3', 'wget-1.9.1', 'coreutils-5.2.1',
+				'gzip-1.3.3', 'wget-1.9.1', 'coreutils-6.9',
 				'java-1.4.2_05', 'perl-5.8.5' ],
 			'testclass'	=> [ @default_testclass ],
 		},
@@ -763,7 +763,9 @@ our %submit_info = (
 	##########################################################################
 	'ppc_macos_10.4'	=> {
 		'build' => {
-			'configure_args' =>{ @minimal_build_configure_args },
+			'configure_args' =>{ @minimal_build_configure_args ,
+				'-DWITHOUT_SOAP_TEST:BOOL=ON' => undef,
+			},
 
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> undef,
@@ -917,7 +919,7 @@ our %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'gcc-4.1.2', 'perl-5.8.5',
-							 'gzip-1.3.3', 'wget-1.9.1', 'coreutils-5.2.1', 'binutils-2.16' ],
+							 'gzip-1.3.3', 'wget-1.9.1', 'coreutils-6.9', 'binutils-2.16' ],
 			'xtests'	=> undef,
 		},
 
@@ -925,7 +927,7 @@ our %submit_info = (
 			'configure_args' => { @default_test_configure_args },
 			'prereqs'	=> [ @default_prereqs, 'gcc-4.1.2', 'java-1.4.2_05',
 							 'perl-5.8.5', 'gzip-1.3.3', 'wget-1.9.1',
-							 'coreutils-5.2.1' ],
+							 'coreutils-6.9' ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
@@ -1349,7 +1351,10 @@ our %submit_info = (
 	'x86_suse_10.0'		=> {
 		'build' => {
 			'configure_args' =>{ @minimal_build_configure_args,
-					     '-DHAVE_KBDD:BOOL=OFF' => undef },
+					     '-DHAVE_KBDD:BOOL=OFF' => undef,
+						'-DWITHOUT_SOAP_TEST:BOOL=ON' => undef,
+						'-DWITHOUT_AMAZON_TEST:BOOL=ON' => undef
+			},
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> [ 'x86_suse_10.2' ],
 		},
@@ -1357,7 +1362,7 @@ our %submit_info = (
 		'test' => {
 			'configure_args' => {
 				@default_test_configure_args,
-				
+
 			},
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.5' ],
 			'testclass'	=> [ @default_testclass ],
@@ -1369,14 +1374,17 @@ our %submit_info = (
 	##########################################################################
 	'x86_suse_10.2'		=> {
 		'build' => {
-			'configure_args' => { @minimal_build_configure_args },
+			'configure_args' => { @minimal_build_configure_args,
+				'-DWITHOUT_SOAP_TEST:BOOL=ON' => undef,
+				'-DWITHOUT_AMAZON_TEST:BOOL=ON' => undef
+			},
 			'prereqs'	=> [ @default_prereqs ],
 			'xtests'	=> undef,
 		},
 
 		'test' => {
 			'configure_args' => {
-				@default_test_configure_args, 
+				@default_test_configure_args
 				
 			},
 			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05' ],
