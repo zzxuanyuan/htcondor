@@ -25,26 +25,28 @@
 #include "MyString.h"
 #include "string_list.h"
 
+#include <map>
+
 #include <smdevp.h>
 
 // EC2 Commands
-#define AMAZON_COMMAND_VM_START				"AMAZON_VM_START"
-#define AMAZON_COMMAND_VM_STOP				"AMAZON_VM_STOP"
-#define AMAZON_COMMAND_VM_REBOOT			"AMAZON_VM_REBOOT"
-#define AMAZON_COMMAND_VM_STATUS			"AMAZON_VM_STATUS"
-#define AMAZON_COMMAND_VM_STATUS_ALL		"AMAZON_VM_STATUS_ALL"
-#define AMAZON_COMMAND_VM_RUNNING_KEYPAIR	"AMAZON_VM_RUNNING_KEYPAIR"
-#define AMAZON_COMMAND_VM_CREATE_GROUP		"AMAZON_VM_CREATE_GROUP"
-#define AMAZON_COMMAND_VM_DELETE_GROUP		"AMAZON_VM_DELETE_GROUP"
-#define AMAZON_COMMAND_VM_GROUP_NAMES		"AMAZON_VM_GROUP_NAMES"
-#define AMAZON_COMMAND_VM_GROUP_RULES		"AMAZON_VM_GROUP_RULES"
-#define AMAZON_COMMAND_VM_ADD_GROUP_RULE	"AMAZON_VM_ADD_GROUP_RULE"
-#define AMAZON_COMMAND_VM_DEL_GROUP_RULE	"AMAZON_VM_DEL_GROUP_RULE"
-#define AMAZON_COMMAND_VM_CREATE_KEYPAIR	"AMAZON_VM_CREATE_KEYPAIR"
-#define AMAZON_COMMAND_VM_DESTROY_KEYPAIR	"AMAZON_VM_DESTROY_KEYPAIR"
-#define AMAZON_COMMAND_VM_KEYPAIR_NAMES		"AMAZON_VM_KEYPAIR_NAMES"
-#define AMAZON_COMMAND_VM_REGISTER_IMAGE 	"AMAZON_VM_REGISTER_IMAGE"
-#define AMAZON_COMMAND_VM_DEREGISTER_IMAGE 	"AMAZON_VM_DEREGISTER_IMAGE"
+#define AMAZON_COMMAND_VM_START             "AMAZON_VM_START"
+#define AMAZON_COMMAND_VM_STOP              "AMAZON_VM_STOP"
+#define AMAZON_COMMAND_VM_REBOOT            "AMAZON_VM_REBOOT"
+#define AMAZON_COMMAND_VM_STATUS            "AMAZON_VM_STATUS"
+#define AMAZON_COMMAND_VM_STATUS_ALL        "AMAZON_VM_STATUS_ALL"
+#define AMAZON_COMMAND_VM_RUNNING_KEYPAIR   "AMAZON_VM_RUNNING_KEYPAIR"
+#define AMAZON_COMMAND_VM_CREATE_GROUP      "AMAZON_VM_CREATE_GROUP"
+#define AMAZON_COMMAND_VM_DELETE_GROUP      "AMAZON_VM_DELETE_GROUP"
+#define AMAZON_COMMAND_VM_GROUP_NAMES       "AMAZON_VM_GROUP_NAMES"
+#define AMAZON_COMMAND_VM_GROUP_RULES       "AMAZON_VM_GROUP_RULES"
+#define AMAZON_COMMAND_VM_ADD_GROUP_RULE    "AMAZON_VM_ADD_GROUP_RULE"
+#define AMAZON_COMMAND_VM_DEL_GROUP_RULE    "AMAZON_VM_DEL_GROUP_RULE"
+#define AMAZON_COMMAND_VM_CREATE_KEYPAIR    "AMAZON_VM_CREATE_KEYPAIR"
+#define AMAZON_COMMAND_VM_DESTROY_KEYPAIR   "AMAZON_VM_DESTROY_KEYPAIR"
+#define AMAZON_COMMAND_VM_KEYPAIR_NAMES     "AMAZON_VM_KEYPAIR_NAMES"
+#define AMAZON_COMMAND_VM_REGISTER_IMAGE    "AMAZON_VM_REGISTER_IMAGE"
+#define AMAZON_COMMAND_VM_DEREGISTER_IMAGE  "AMAZON_VM_DEREGISTER_IMAGE"
 
 // S3 Commands
 #define AMAZON_COMMAND_S3_ALL_BUCKETS		"AMAZON_S3_ALL_BUCKETS"
@@ -65,38 +67,20 @@ class AmazonRequest {
 		AmazonRequest();
 		virtual ~AmazonRequest();
 
-		// Service URL
-		std::string m_service_url;
+        virtual bool SendRequest();
 
-		// Access key or User certificate
-		std::string accesskeyfile;
-		// Secret key or User private Key
-		std::string secretkeyfile;
-
-		bool SendRequest();
-		virtual bool gsoapRequest() = 0;
-		virtual bool HandleError();
-		virtual void cleanupRequest() {};
-
-		const char* getErrorCode(void) { return m_error_code.c_str(); }
-		const char* getErrorStr(void) { return m_error_msg.c_str(); }
-
-	protected:
-		// Request Name
-		std::string m_request_name;
-
-		// Error msg
-		std::string m_error_msg;
-		std::string m_error_code;
-
-		// for gsoap
-		struct soap *m_soap;
-		EVP_PKEY *m_rsa_privk;
-		X509 *m_cert;
-
-		void ParseSoapError(const char* callerstring = NULL);
-		bool SetupSoap(void);
-		void CleanupSoap(void);
+    protected:
+        typedef std::map< std::string, std::string > AttributeValueMap;
+        AttributeValueMap query_parameters;
+        
+        std::string serviceURL;
+        std::string accessKeyFile;
+        std::string secretKeyFile;
+        
+        std::string errorMessage;
+        std::string errorCode;
+        
+        std::string resultString;
 };
 
 // EC2 Commands
@@ -106,32 +90,13 @@ class AmazonVMStart : public AmazonRequest {
 		AmazonVMStart();
 		virtual ~AmazonVMStart();
 
+        virtual bool SendRequest();
+
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
 
-		virtual bool gsoapRequest();
-
-		virtual void cleanupRequest() {
-			if( base64_userdata ) {
-				free(base64_userdata);
-				base64_userdata = NULL;
-			}
-		}
-
-		// Request Args
-		std::string ami_id;
-		std::string keypair;
-		std::string user_data;
-		std::string user_data_file;
-		std::string instance_type; //m1.small, m1.large, and m1.xlarge
-		char *base64_userdata;
-
-		// we support multiple group names
-		StringList groupnames;
-
-		// Result 
-		std::string instance_id;
-
+    protected:
+        std::string instanceID;
 };
 
 class AmazonVMStop : public AmazonRequest {
@@ -141,16 +106,6 @@ class AmazonVMStop : public AmazonRequest {
 
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
-
-		virtual bool HandleError();
-
-		virtual bool gsoapRequest();
-
-		// Request Args
-		std::string instance_id;
-
-		// Result 
-
 };
 
 #define AMAZON_STATUS_RUNNING "running"
@@ -160,39 +115,15 @@ class AmazonVMStop : public AmazonRequest {
 
 class AmazonStatusResult {
 	public:
-		void clearAll();
 		std::string instance_id;
 		std::string status;
 		std::string ami_id;
 		std::string public_dns;
 		std::string private_dns;
 		std::string keyname;
-		StringList groupnames;
 		std::string instancetype;
-};
 
-class AmazonVMStatus : public AmazonRequest {
-	public:
-		AmazonVMStatus();
-		virtual ~AmazonVMStatus();
-
-		static bool ioCheck(char **argv, int argc);
-		static bool workerFunction(char **argv, int argc, std::string &result_string);
-
-		virtual bool HandleError();
-
-		virtual bool gsoapRequest();
-
-		virtual void cleanupRequest() {
-			status_result.clearAll();
-		}
-
-		// Request Args
-		std::string instance_id;
-
-		// Result 
-		AmazonStatusResult status_result;
-
+        std::vector< std::string > securityGroups;
 };
 
 class AmazonVMStatusAll : public AmazonRequest {
@@ -200,26 +131,22 @@ class AmazonVMStatusAll : public AmazonRequest {
 		AmazonVMStatusAll();
 		virtual ~AmazonVMStatusAll();
 
+        virtual bool SendRequest();
+
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
 
-		virtual bool gsoapRequest();
+    protected:
+        std::vector< AmazonStatusResult > results;
+};
 
-		virtual void cleanupRequest() {
-			if( status_results ) {
-				delete[] status_results;
-				status_results = NULL;
-				status_num = 0;
-			}
-		}
+class AmazonVMStatus : public AmazonVMStatusAll {
+	public:
+		AmazonVMStatus();
+		virtual ~AmazonVMStatus();
 
-		// Request Args
-		std::string vm_status;
-
-		// Result 
-		AmazonStatusResult *status_results;
-		int status_num;
-
+		static bool ioCheck(char **argv, int argc);
+		static bool workerFunction(char **argv, int argc, std::string &result_string);
 };
 
 class AmazonVMRunningKeypair : public AmazonVMStatusAll {
@@ -229,8 +156,6 @@ class AmazonVMRunningKeypair : public AmazonVMStatusAll {
 
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
-
-		virtual bool gsoapRequest();
 };
 
 class AmazonVMCreateKeypair : public AmazonRequest {
@@ -238,19 +163,13 @@ class AmazonVMCreateKeypair : public AmazonRequest {
 		AmazonVMCreateKeypair();
 		virtual ~AmazonVMCreateKeypair();
 
+        virtual bool SendRequest();
+
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
 
-		virtual bool gsoapRequest();
-
-		bool has_outputfile;
-
-		// Request Args
-		std::string keyname;
-		std::string outputfile;
-
-		// Result 
-
+    protected:
+    	std::string privateKeyFileName;
 };
 
 class AmazonVMDestroyKeypair : public AmazonRequest {
@@ -260,16 +179,6 @@ class AmazonVMDestroyKeypair : public AmazonRequest {
 
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
-
-		virtual bool HandleError();
-
-		virtual bool gsoapRequest();
-
-		// Request Args
-		std::string keyname;
-
-		// Result 
-
 };
 
 class AmazonVMKeypairNames : public AmazonRequest {
@@ -277,16 +186,13 @@ class AmazonVMKeypairNames : public AmazonRequest {
 		AmazonVMKeypairNames();
 		virtual ~AmazonVMKeypairNames();
 
+        virtual bool SendRequest();
+
 		static bool ioCheck(char **argv, int argc);
 		static bool workerFunction(char **argv, int argc, std::string &result_string);
 
-		virtual bool gsoapRequest();
-
-		// Request Args
-
-		// Result 
-		StringList keynames;
-
+    protected:
+        StringList keyNames;
 };
 
 
