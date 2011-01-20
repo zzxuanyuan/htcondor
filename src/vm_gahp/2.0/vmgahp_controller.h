@@ -70,8 +70,31 @@ namespace condor
         protected:
 
             /**
+             * init_uids() - Will validate that the process can switch
+             * uids during the course of normal operation.
              */
             int init_uids();
+
+            /**
+             * waitForCommand() - is a registered function with daemoncore which
+             * will get called when there is GAHP command passed via stdin
+             * to the vm-gahp
+             *
+             * @return 0
+             */
+            int waitForCommand();
+
+            /**
+             * unmarshall() - will parse an input buffer and execute registered
+             * gahp commands.
+             *
+             * @return the number of commands parsed.
+             */
+            int unmarshall(char * pszBuffer);
+
+            /**
+             */
+            bool dispatch(pReq);
 
             ///< ptr to the hypervisior, starter : virt, so no need for a list 1:1
             boost::shared_ptr<hypervisor> m_hypervisor;
@@ -84,6 +107,14 @@ namespace condor
             ///< stdout pipe to daemoncore parent process (startd or starter)
             int m_stdout_pipe;
 
+             ///< stdin pipe to daemoncore parent process (starter)
+            int m_stdin_pipe;
+
+            ///< used for GAHP communications mode.
+            bool m_bAsync_mode;
+
+            ///< used to determine
+            std::vector< shared_ptr<GahpRequest> > m_vAsyncResults;
 
         };
 

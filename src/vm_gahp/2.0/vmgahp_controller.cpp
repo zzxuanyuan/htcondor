@@ -32,19 +32,27 @@ using namespace condor::vmu;
 
 const char *vmgahp_version = "$VMGahpVersion 2.0 Jan 2011 Condor\\ VMGAHP $";
 
-/////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 vmgahp_controller::vmgahp_controller()
 {
     m_stdout_pipe=0;
+    m_stdin_pipe=0;
+    m_bAsync_mode=false;
 }
 
-/////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 vmgahp_controller::~vmgahp_controller()
 {
     // nothing to do auto-cleanup
 }
 
-/////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 int vmgahp_controller::discover( const vector< string >& vTypes  )
 {
     int iRet=0;
@@ -89,7 +97,9 @@ int vmgahp_controller::discover( const vector< string >& vTypes  )
     return iRet;
 }
 
-/////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 int vmgahp_controller::init( )
 {
     int iRet = 1;
@@ -120,7 +130,9 @@ int vmgahp_controller::init( )
     return iRet;
 }
 
-/////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 int vmgahp_controller::config( )
 {
     bool bRet = true;
@@ -143,7 +155,9 @@ int vmgahp_controller::config( )
     return ( (int) !bRet );
 }
 
-/////////////////////////////////////////
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 int vmgahp_controller::init_uids()
 {
     int iRet =0;
@@ -257,6 +271,9 @@ int vmgahp_controller::init_uids()
     return iRet;
 }
 
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 int vmgahp_controller::fini()
 {
     int iRet =0;
@@ -264,25 +281,48 @@ int vmgahp_controller::fini()
     if (m_hypervisor)
     {
         vmprintf( D_ALWAYS, "Gracefully shutting down hypervisor");
+
+        priv_state priv = set_root_priv();
         iRet = m_hypervisor->shutdown(false, true);
+        set_priv(priv);
     }
 
     return (iRet);
 }
 
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
 int vmgahp_controller::start(  const char * pszVMType, const char * pszWorkingDir )
 {
     int iRet = 1;
 
+    // check for valid input params
     if (pszVMType && pszWorkingDir)
     {
+        // attempt to manufacture based on input
         m_hypervisor = hypervisor_factory::manufacture(string(pszVMType), m_hyp_config_params);
 
         if (m_hypervisor)
         {
+            // load the config
             if ( 0 == this->config() )
             {
-                //iRet = setup_gahp_comm();
+                // bind command handlers
+
+
+                // setup the daemon core GAHP communications via stdin
+                m_stdin_pipe = daemonCore->Inherit_Pipe(fileno(stdin), false, true, false);
+
+                if (-1 == m_stdin_pipe)
+                {
+                    daemonCore->Register_Pipe(m_stdin_pipe,
+                                              "stdin_pipe",
+                                              (PipeHandlercpp)&VMGahp::waitForCommand,
+                                              "vmgahp_controller::waitForCommand",
+                                              this)
+                    iRet = 0;
+                }
             }
             else
                 vmprintf( D_ALWAYS, "ERROR: Failed to config %s (^^ CHECK LOG ^^)", pszVMType );
@@ -298,4 +338,112 @@ int vmgahp_controller::start(  const char * pszVMType, const char * pszWorkingDi
     }
 
     return (iRet);
+}
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+int vmgahp_controller::waitForCommand()
+{
+    int iRead_Bytes=0;
+    int iBuffBlockSize=4096;
+    int iTotalBytes=0;
+    int iLoopCnt=0;
+    int iCommands=0;
+    vector<char> vBuff;
+
+    do
+    {
+        iTotalBytes+=iRead_Bytes;
+        iLoopCnt++;
+
+        // resize the buffer accordingly
+        vBuff.resize(iBuffBlockSize*iLoopCnt);
+
+        // read in from daemoncore pipe
+        iRead_Bytes = daemonCore->Read_Pipe(m_stdin_pipe, (void *) &vBuff[iTotalBytes], iBuffBlockSize);
+
+    // drain the daemoncore pipe every time this is called.
+    }while (iRead_Bytes > 0);
+
+    if (iRead_Bytes < 0)
+        vmprintf(D_ALWAYS, "error reading from DaemonCore pipe %d", iRead_Bytes);
+
+    // now our buffer is full we can parse the commands
+    if (iTotalBytes)
+    {
+        vBuff[iTotalBytes] = '\0';
+
+        iCommands = unmarshall( (char *) &vBuff[0] );
+        vmprintf(D_FULLDEBUG, "Parsed (%d) commands", iRead_Bytes);
+    }
+
+    return 0; // default return to daemon core.
+}
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+int vmgahp_controller::unmarshall(char * pszBuffer)
+{
+    int iCommmands=0;
+    shared_ptr<GahpRequest> pReq;
+    string szMessage;
+
+    // each command is \r\n terminated so look for that
+    char * pch = strtok (pszBuffer,"\r\n");
+    while (pch != NULL)
+    {
+        // see if it is a valid command
+        if ( ( pReq = GahpFactory::manufacure(pch) ) )
+        {
+            // execute the command
+            if ( dispatch(pReq) )
+                iCommands++;
+        }
+        else
+        {
+            // unrecognized command
+            // daemonCore->Write_Pipe( m_stdout_pipe, szMessage.c_str(), szMessage.length() );
+        }
+
+        // grab the next command
+        pch = strtok (NULL, "\r\n");
+    }
+
+    return (iCommmands);
+
+}
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+bool vmgahp_controller::dispatch( shared_ptr<GahpRequest> & pReq )
+{
+    string szMessage;
+
+    // elevate privs for execution.
+    priv_state priv = set_root_priv();
+    if ( pReq->execute() )
+    {
+        if ( m_bAsync_mode )
+        {
+            m_vAsyncResults.push_back(pReq);
+            //szMessage = ;
+        }
+        else
+        {
+            //szMessage = ;
+        }
+    }
+    else
+    {
+        // send error in execution.
+        //szMessage = ;
+        vmprintf( D_ALWAYS, "Failed to execute %s", pch );
+    }
+    set_priv(priv);
+
+    // send the response message
+    daemonCore->Write_Pipe( m_stdout_pipe, szMessage.c_str(), szMessage.length() );
 }
