@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -36,30 +36,6 @@
 #include "vm_request.h"
 #include "vm_type.h"
 
-#define VMGAHP_COMMAND_ASYNC_MODE_ON	"ASYNC_MODE_ON"
-#define VMGAHP_COMMAND_ASYNC_MODE_OFF	"ASYNC_MODE_OFF"
-#define VMGAHP_COMMAND_VERSION			"VERSION"
-#define VMGAHP_COMMAND_COMMANDS			"COMMANDS"
-#define VMGAHP_COMMAND_SUPPORT_VMS		"SUPPORT_VMS"
-#define VMGAHP_COMMAND_QUIT				"QUIT"
-#define VMGAHP_COMMAND_RESULTS			"RESULTS"
-#define VMGAHP_COMMAND_CLASSAD			"CLASSAD"
-#define VMGAHP_COMMAND_CLASSAD_END		"CLASSAD_END"
-
-#define VMGAHP_COMMAND_VM_START			"CONDOR_VM_START"
-#define VMGAHP_COMMAND_VM_STOP			"CONDOR_VM_STOP"
-#define VMGAHP_COMMAND_VM_SUSPEND		"CONDOR_VM_SUSPEND"
-#define VMGAHP_COMMAND_VM_SOFT_SUSPEND	"CONDOR_VM_SOFT_SUSPEND"
-#define VMGAHP_COMMAND_VM_RESUME		"CONDOR_VM_RESUME"
-#define VMGAHP_COMMAND_VM_CHECKPOINT	"CONDOR_VM_CHECKPOINT"
-#define VMGAHP_COMMAND_VM_STATUS		"CONDOR_VM_STATUS"
-#define VMGAHP_COMMAND_VM_GETPID		"CONDOR_VM_GETPID"
-
-#define VMGAHP_RESULT_SUCCESS		"S"
-#define VMGAHP_RESULT_ERROR			"E"
-#define VMGAHP_RESULT_FAILURE		"F"
-
-
 class VMGahp : public Service {
 	public:
 		VMGahp(VMGahpConfig* config, const char *iwd);
@@ -70,7 +46,7 @@ class VMGahp : public Service {
 
 		int getNewVMId(void);
 		int numOfVM(void); // the number of current VM
-		int numOfReq(void); // the total request number 
+		int numOfReq(void); // the total request number
 							// Equal to numOfPendingReq + numOfReqWithResult
 		int numOfPendingReq(void); // the number of request without result
 		int numOfReqWithResult(void); // the number of request with result
@@ -107,7 +83,7 @@ class VMGahp : public Service {
 
 		void returnOutput(const char **results, const int count);
 		void returnOutputSuccess(void);
-		void returnOutputError(void); 
+		void returnOutputError(void);
 
 		VMRequest* preExecuteCommand(const char* cmd, Gahp_Args *args);
 		void executeCommand(VMRequest *req);
@@ -116,7 +92,7 @@ class VMGahp : public Service {
 		void executeVersion(void);
 		void executeCommands(void);
 		void executeSupportVMS(void);
-		void executeResults(void); 
+		void executeResults(void);
 		void executeStart(VMRequest *req);
 		void executeStop(VMRequest *req);
 		void executeCkptstop(VMRequest *req);
@@ -128,8 +104,8 @@ class VMGahp : public Service {
 		void executeGetpid(VMRequest *req);
 
 		PBuffer m_request_buffer;
-		ClassAd *m_jobAd;	// Job ClassAd received from Starter 
-		bool m_inClassAd;	// indicating that vmgahp is receiving ClassAd from Starter 
+		ClassAd *m_jobAd;	// Job ClassAd received from Starter
+		bool m_inClassAd;	// indicating that vmgahp is receiving ClassAd from Starter
 
 		int m_async_mode;
 		int m_new_results_signaled;

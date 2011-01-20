@@ -493,7 +493,7 @@ VMGahpServer::command_version(void)
 bool
 VMGahpServer::command_commands(void)
 {
-	static const char* command = "COMMANDS";
+	static const char* command = VMGAHP_COMMAND_COMMANDS;
 
 	if( m_is_initialized == false ) {
 		return false;
@@ -532,7 +532,7 @@ VMGahpServer::command_commands(void)
 bool
 VMGahpServer::command_support_vms(void)
 {
-	static const char* command = "SUPPORT_VMS";
+	static const char* command = VMGAHP_COMMAND_SUPPORT_VMS;
 
 	if( m_is_initialized == false ) {
 		return false;
@@ -571,7 +571,7 @@ VMGahpServer::command_support_vms(void)
 bool
 VMGahpServer::command_async_mode_on(void)
 {
-	static const char* command = "ASYNC_MODE_ON";
+	static const char* command = VMGAHP_COMMAND_ASYNC_MODE_ON;
 
 	if( m_is_initialized == false ) {
 		return false;
@@ -604,7 +604,7 @@ VMGahpServer::command_async_mode_on(void)
 bool
 VMGahpServer::command_quit(void)
 {
-	static const char* command = "QUIT";
+	static const char* command = VMGAHP_COMMAND_QUIT;
 
 	if( m_is_initialized == false ) {
 		return false;
@@ -981,7 +981,7 @@ VMGahpServer::poll()
 	}
 
 	// First, send the RESULTS comand to the vmgahp server
-	if( write_line("RESULTS") == false) {
+	if( write_line(VMGAHP_COMMAND_RESULTS) == false) {
 		return -1;
 	}
 
@@ -1262,7 +1262,7 @@ VMGahpServer::printSystemErrorMsg(void)
 bool
 VMGahpServer::publishVMClassAd(const char *workingdir)
 {
-	static const char* command = "CLASSAD";
+	static const char* command = VMGAHP_COMMAND_CLASSAD;
 
 	if( !m_job_ad || !workingdir ) {
 		return false;
@@ -1357,7 +1357,7 @@ VMGahpServer::publishVMClassAd(const char *workingdir)
 		}
 	}
 
-	static const char *endcommand = "CLASSAD_END";
+	static const char *endcommand = VMGAHP_COMMAND_CLASSAD_END;
 
 	if(write_line(endcommand) == false) {
 		return false;

@@ -52,33 +52,36 @@ enum
 #define XEN_KERNEL_INCLUDED		"included"
 #define XEN_KERNEL_HW_VT		"vmx"
 
+/* variables for vm-gahp2 */
+
+
 /* ClassAd Attributes for Xen */
-#define VMPARAM_XEN_KERNEL			"VMPARAM_Xen_Kernel"
-#define VMPARAM_XEN_INITRD			"VMPARAM_Xen_Initrd"
-#define VMPARAM_XEN_ROOT			"VMPARAM_Xen_Root"
-#define VMPARAM_XEN_DISK			"VMPARAM_Xen_Disk"
-#define VMPARAM_XEN_KERNEL_PARAMS	"VMPARAM_Xen_Kernel_Params"
-#define VMPARAM_XEN_CDROM_DEVICE	"VMPARAM_Xen_CDROM_Device"
-#define VMPARAM_XEN_TRANSFER_FILES	"VMPARAM_Xen_Transfer_Files"
-#define VMPARAM_XEN_BOOTLOADER		"VMPARAM_Xen_Bootloader"
+#define VMPARAM_XEN_KERNEL			"vm_xen_kernel"
+#define VMPARAM_XEN_INITRD			"vm_xen_initrd"
+#define VMPARAM_XEN_ROOT			"vm_xen_root"
+#define VMPARAM_XEN_DISK			"vm_xen_disk"
+#define VMPARAM_XEN_KERNEL_PARAMS	"vm_xen_kernel_params"
+#define VMPARAM_XEN_CDROM_DEVICE	"vm_xen_cdrom"
+#define VMPARAM_XEN_TRANSFER_FILES	"vm_xen_transfer_files"
+#define VMPARAM_XEN_BOOTLOADER		"vm_xen_bootloader"
 
 /* ClassAd Attributes for KVM */
-#define VMPARAM_KVM_DISK			"VMPARAM_Kvm_Disk"
-#define VMPARAM_KVM_CDROM_DEVICE	"VMPARAM_Kvm_CDROM_Device"
-#define VMPARAM_KVM_TRANSFER_FILES	"VMPARAM_Kvm_Transfer_Files"
+#define VMPARAM_KVM_DISK			"vm_kvm_disk"
+#define VMPARAM_KVM_CDROM_DEVICE	"vm_kvm_cdrom"
+#define VMPARAM_KVM_TRANSFER_FILES	"vm_kvm_transfer_files"
 
 /* ClassAd Attributes for VMware */
-#define VMPARAM_VMWARE_TRANSFER		"VMPARAM_VMware_Transfer"
-#define VMPARAM_VMWARE_SNAPSHOTDISK "VMPARAM_VMware_SnapshotDisk"
-#define VMPARAM_VMWARE_DIR			"VMPARAM_VMware_Dir"
-#define VMPARAM_VMWARE_VMX_FILE		"VMPARAM_VMware_VMX_File"
-#define VMPARAM_VMWARE_VMDK_FILES	"VMPARAM_VMware_VMDK_Files"
+#define VMPARAM_VMWARE_TRANSFER		"vm_vmware_transfer"
+#define VMPARAM_VMWARE_SNAPSHOTDISK "vm_vmware_snapshot_disk"
+#define VMPARAM_VMWARE_DIR			"vm_vmware_dir"
+#define VMPARAM_VMWARE_VMX_FILE		"vm_vmware_vmx_file"
+#define VMPARAM_VMWARE_VMDK_FILES	"vm_vmware_vmdk_files"
 
 /* Extra ClassAd Attributes for VM */
-#define VMPARAM_NO_OUTPUT_VM			"VMPARAM_No_Output_VM"
-#define VMPARAM_CDROM_FILES				"VMPARAM_CDROM_Files"
-#define VMPARAM_TRANSFER_CDROM_FILES	"VMPARAM_Transfer_CDROM_Files"
-#define VMPARAM_BRIDGE_INTERFACE	    "VMPARAM_Bridge_Interface"
+#define VMPARAM_NO_OUTPUT_VM			"vm_no_output_wm"
+#define VMPARAM_CDROM_FILES				"vm_cdrom"
+#define VMPARAM_TRANSFER_CDROM_FILES	"vm_transfer_cdrom_files"
+#define VMPARAM_BRIDGE_INTERFACE	    "vm_bridge_interface"
 
 #endif
 

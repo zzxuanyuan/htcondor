@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -44,7 +44,7 @@ VMGahpRequest::VMGahpRequest(VMGahpServer *server)
 	m_pending_reqid = 0;
 	m_pending_args = "";
 	m_pending_result = NULL;
-	
+
 	m_timeout = 0;
 	m_expire_time = 0;
 	m_user_timer_id = -1;
@@ -92,7 +92,7 @@ VMGahpRequest::pending_timer_fn()
 {
 	int retval = TRUE;
 
-	//this function will be called by 
+	//this function will be called by
 	//either real pending timeout or detachVMGahpServer
 	if( m_user_timer_id != -1 ) {
 		retval = daemonCore->Reset_Timer(m_user_timer_id, 0);
@@ -113,7 +113,7 @@ VMGahpRequest::startPendingTimer()
 	m_expire_time = 0;
 
 	if( m_timeout ) {
-		m_pending_timeout_tid = daemonCore->Register_Timer(m_timeout, 
+		m_pending_timeout_tid = daemonCore->Register_Timer(m_timeout,
 				(TimerHandlercpp)&VMGahpRequest::pending_timer_fn,
 				"VMGahpRequest::pending_timer_fn", this);
 		m_expire_time = time(NULL) + m_timeout;
@@ -165,7 +165,7 @@ VMGahpRequest::resetUserTimer()
 	return retval;
 }
 
-void 
+void
 VMGahpRequest::detachVMGahpServer()
 {
 	m_server = NULL;
@@ -180,7 +180,7 @@ VMGahpRequest::detachVMGahpServer()
 int
 VMGahpRequest::vmStart(const char *vm_type, const char *workingdir)
 {
-	static const char *command = "CONDOR_VM_START";
+	static const char *command = VMGAHP_COMMAND_VM_START;
 
 	if( !vm_type || (getPendingStatus() != REQ_INITIALIZED)) {
 		return VMGAHP_REQ_COMMAND_ERROR;
@@ -241,57 +241,43 @@ VMGahpRequest::vmStart(const char *vm_type, const char *workingdir)
 int
 VMGahpRequest::vmStop(int vm_id)
 {
-	static const char *command = "CONDOR_VM_STOP";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_STOP, vm_id);
 }
 
 int
 VMGahpRequest::vmSuspend(int vm_id)
 {
-	static const char *command = "CONDOR_VM_SUSPEND";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_SUSPEND, vm_id);
 }
 
 int
 VMGahpRequest::vmSoftSuspend(int vm_id)
 {
-	static const char *command = "CONDOR_VM_SOFT_SUSPEND";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP__VM_SOFT_SUSPEND, vm_id);
 }
 
 int
 VMGahpRequest::vmResume(int vm_id)
 {
-	static const char *command = "CONDOR_VM_RESUME";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_RESUME, vm_id);
 }
 
 int
 VMGahpRequest::vmCheckpoint(int vm_id)
 {
-	static const char *command = "CONDOR_VM_CHECKPOINT";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_CHECKPOINT, vm_id);
 }
 
 int
 VMGahpRequest::vmStatus(int vm_id)
 {
-	static const char *command = "CONDOR_VM_STATUS";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_STATUS, vm_id);
 }
 
 int
 VMGahpRequest::vmGetPid(int vm_id)
 {
-	static const char *command = "CONDOR_VM_GETPID";
-
-	return executeBasicCmd(command, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_GETPID, vm_id);
 }
 
 int
@@ -317,11 +303,11 @@ VMGahpRequest::executeBasicCmd(const char *command, int vm_id)
 	//If we make it here, command is pending
 	m_command = command;
 	startPendingTimer();
-	
+
 	// Check whether command is completed
 	if( m_mode == BLOCKING ) {
 		m_server->getPendingResult(m_pending_reqid, true);
-	} else { 
+	} else {
 		m_server->getPendingResult(m_pending_reqid, false);
 	}
 
@@ -345,68 +331,68 @@ VMGahpRequest::executeBasicCmd(const char *command, int vm_id)
 }
 
 void
-VMGahpRequest::setMode(reqmode m) 
-{ 
-	m_mode = m; 
+VMGahpRequest::setMode(reqmode m)
+{
+	m_mode = m;
 }
 
-void 
-VMGahpRequest::setTimeout(int t) 
+void
+VMGahpRequest::setTimeout(int t)
 {
 	m_timeout = t;
 }
 
-int 
-VMGahpRequest::getTimeout() 
+int
+VMGahpRequest::getTimeout()
 {
 	return m_timeout;
 }
 
-void 
-VMGahpRequest::setNotificationTimerId(int tid) 
+void
+VMGahpRequest::setNotificationTimerId(int tid)
 {
 	m_user_timer_id = tid;
 }
 
-int 
-VMGahpRequest::getNotificationTimerId() 
+int
+VMGahpRequest::getNotificationTimerId()
 {
 	return m_user_timer_id;
 }
 
-VMGahpServer* 
-VMGahpRequest::getVMGahpServer() 
+VMGahpServer*
+VMGahpRequest::getVMGahpServer()
 {
 	return m_server;
 }
 
-void 
-VMGahpRequest::setReqId(int id) 
+void
+VMGahpRequest::setReqId(int id)
 {
 	m_pending_reqid = id;
-} 
+}
 
-int 
-VMGahpRequest::getReqId() 
+int
+VMGahpRequest::getReqId()
 {
 	return m_pending_reqid;
-} 
+}
 
-void 
-VMGahpRequest::setResult(Gahp_Args *result) 
+void
+VMGahpRequest::setResult(Gahp_Args *result)
 {
 	m_pending_result = result;
 }
 
-Gahp_Args* 
+Gahp_Args*
 VMGahpRequest::getResult() {
 	return m_pending_result;
 }
 
-bool 
+bool
 VMGahpRequest::checkResult(MyString& errmsg) {
 	if( !m_pending_result || m_pending_result->argc != 3) {
-		dprintf(D_ALWAYS, "Bad Result of VM Request('%s')\n", 
+		dprintf(D_ALWAYS, "Bad Result of VM Request('%s')\n",
 				m_command.Value());
 		errmsg = VMGAHP_ERR_INTERNAL;
 		return false;
@@ -415,7 +401,7 @@ VMGahpRequest::checkResult(MyString& errmsg) {
 	int resultno = (int)strtol(m_pending_result->argv[1], (char **)NULL, 10);
 	if( resultno != 0 ) {
 		dprintf(D_ALWAYS, "Failed to execute command('%s'), "
-				"vmgahp error string('%s')\n", 
+				"vmgahp error string('%s')\n",
 				m_command.Value(), m_pending_result->argv[2]);
 
 		if( !strcmp(m_pending_result->argv[2], "NULL") ) {
@@ -429,11 +415,11 @@ VMGahpRequest::checkResult(MyString& errmsg) {
 	return true;
 }
 
-void 
+void
 VMGahpRequest::setPendingStatus(reqstatus status) {
 	m_pending_status = status;
-} 
+}
 
 reqstatus VMGahpRequest::getPendingStatus() {
 	return m_pending_status;
-} 
+}
