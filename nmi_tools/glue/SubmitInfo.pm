@@ -128,6 +128,7 @@ my @minimal_build_configure_args =
 		'-DWITH_GSOAP:BOOL=OFF'		=> undef,
 		'-DWITH_HADOOP:BOOL=OFF'	=> undef,
 		'-DWITH_KRB5:BOOL=OFF'		=> undef,
+		'-DWITH_LIBDELTACLOUD:BOOL=OFF'	=> undef,
 		'-DWITH_LIBVIRT:BOOL=OFF'		=> undef,
 		'-DWITH_LIBXML2:BOOL=OFF'		=> undef,
 		'-DWITH_UNICOREGAHP:BOOL=OFF'	=> undef,
@@ -288,7 +289,8 @@ our %submit_info = (
 		'build' => {
 			'configure_args' => { '-G \"Visual Studio 9 2008\"' => undef },
 			'prereqs'	=> [
-				'cmake-2.8.3', '7-Zip-9.20', 'ActivePerl-5.10.1', 
+				'cmake-2.8.3', '7-Zip-9.20', 'ActivePerl-5.10.1',
+				'VisualStudio-9.0', 'WindowsSDK-6.1',
 			],
 			'xtests'	=> undef,
 		},
@@ -368,6 +370,28 @@ our %submit_info = (
 	# Platform AIX 5L (patch level 5) on PPC
 	##########################################################################
 	'ppc_aix_5.2-pl5'	=> {
+		'build' => {
+			'configure_args' => { '-DPROPER:BOOL=OFF' 			 => undef,
+			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	 => undef,
+			},
+			'prereqs'	=> [ 
+				@default_prereqs, 
+				'vac-6', 'vacpp-6', 'perl-5.8.9', 'gzip-1.3.3',
+				'coreutils-5.2.1',
+			],
+		},
+
+		'test' => {
+			'configure_args' => { @default_test_configure_args },
+			'prereqs'	=> [ @default_prereqs, 'java-1.4.2_05', 'perl-5.8.9' ],
+			'testclass'	=> [ @default_testclass ],
+		},
+	},
+
+	##########################################################################
+	# Platform AIX 5.3 on PPC -- clone of AIX 5L
+	##########################################################################
+	'ppc_aix_5.3'	=> {
 		'build' => {
 			'configure_args' => { '-DPROPER:BOOL=OFF' 			 => undef,
 			  '-DSCRATCH_EXTERNALS:BOOL=OFF'	 => undef,
@@ -983,6 +1007,7 @@ our %submit_info = (
 		'build' => {
 			'configure_args' => { @minimal_build_configure_args,
 				'-DWITH_OPENSSL:BOOL=OFF' => undef,
+				'-DWITHOUT_SOAP_TEST:BOOL=ON' => undef,
 				'-DHAVE_SSH_TO_JOB:BOOL=OFF' => undef
 },
 			'prereqs'	=> [ @default_prereqs, 'perl-5.8.9', 'binutils-2.15',
@@ -1268,7 +1293,7 @@ our %submit_info = (
 
 		'test' => {
 			'configure_args' => { @default_test_configure_args },
-			'prereqs'	=> [ @default_prereqs ],
+			'prereqs'	=> [ @default_prereqs , 'java-1.4.2_05' ],
 			'testclass'	=> [ @default_testclass ],
 		},
 	},
