@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,7 @@
 #include "pbuffer.h"
 #include "condor_daemon_core.h"
 #include "vmgahp_common.h"
- 
+
 PBuffer::PBuffer (int _pipe_end) {
 	pipe_end = _pipe_end;
  	buffer.reserve(5000);
@@ -57,7 +57,7 @@ PBuffer::GetNextLine () {
 	//	vmprintf(D_ALWAYS, "Reading next line from pipe\n");
 	if (readahead_length == 0) {
 		// our readahead buffer is spent; read a new one in
-		readahead_length = daemonCore->Read_Pipe(pipe_end, readahead_buffer, 
+		readahead_length = daemonCore->Read_Pipe(pipe_end, readahead_buffer,
 				P_BUFFER_READAHEAD_SIZE);
 		if (readahead_length < 0) {
 			if( (errno != EAGAIN) && (errno != EWOULDBLOCK) ) {
@@ -69,12 +69,12 @@ PBuffer::GetNextLine () {
 		}
 		if (readahead_length == 0) {
 			eof = true;
-			vmprintf(D_ALWAYS, "EOF reached on DaemonCore pipe %d\n", 
+			vmprintf(D_ALWAYS, "EOF reached on DaemonCore pipe %d\n",
 					pipe_end);
 			return NULL;
 		}
 
-		// buffer has new data 
+		// buffer has new data
 		// reset the readahead index back to the beginning
 		readahead_index = 0;
 	}
@@ -102,7 +102,7 @@ PBuffer::GetNextLine () {
 		}
 	}
 
-	// we have used up our readahead buffer and 
+	// we have used up our readahead buffer and
 	// have a partially completed line.
 	readahead_length = 0;
 	return NULL;
@@ -114,7 +114,7 @@ PBuffer::Write (const char * towrite) {
 	if( pipe_end == -1 ) {
 		return 0;
 	}
-	
+
 	if (towrite) {
 		buffer += towrite;
 	}
@@ -140,7 +140,7 @@ PBuffer::Write (const char * towrite) {
 			return 0;
 		}
 
-		vmprintf(D_ALWAYS, "Error %d writing to DaemonCore pipe %d\n", 
+		vmprintf(D_ALWAYS, "Error %d writing to DaemonCore pipe %d\n",
 				errno, pipe_end);
 		error = true;
 		return -1;

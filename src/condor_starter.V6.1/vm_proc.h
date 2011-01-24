@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,7 @@
 #include "os_proc.h"
 #include "vm_gahp_request.h"
 #include "vm_gahp_server.h"
-#include "condor_vm_universe_types.h"
+#include "IVmGahp/types.h"
 #include "../condor_procapi/procapi.h"
 
 /** The VM-type job process class.  Uses VMGahpServer to do its
@@ -53,13 +53,13 @@ class VMProc : public OsProc
 
 		virtual void Continue();
 
-		// The following functions will generate no checkpoint file 
+		// The following functions will generate no checkpoint file
 		// before destroying a VM
 		virtual bool Remove();
 		virtual bool Hold();
 		virtual bool ShutdownFast();
 
-		// This function will generate a checkpoint file 
+		// This function will generate a checkpoint file
 		// before destroying a VM
 		virtual bool ShutdownGraceful();
 
@@ -88,10 +88,10 @@ class VMProc : public OsProc
 		/*
 		 *  This function will return the PID of actual process for VM.
 		 *  For example, VMware creates one process for each VM.
-		 *  When we need to calculate CPU usage, we should use the process. 
-		 *  Unfortunately, Procfamily can't deal with the process 
+		 *  When we need to calculate CPU usage, we should use the process.
+		 *  Unfortunately, Procfamily can't deal with the process
 		 *   because the parent PID of the process will be 1.
-		 *  In Xen, this function will always return 0 
+		 *  In Xen, this function will always return 0
 		 *  because Xen doesn't use actual process for a VM.
 		*/
 		int PIDofVM();
@@ -103,7 +103,7 @@ class VMProc : public OsProc
 		void getUsageOfVM(long &sys_time, long& user_time, unsigned long &max_image, unsigned long& rss);
 		void killProcessForVM();
 
-		// If interal vmgahp error occurs, call this function 
+		// If interal vmgahp error occurs, call this function
 		void internalVMGahpError();
 
 		// Report vmgahp error to local startd
@@ -144,23 +144,23 @@ class VMProc : public OsProc
 		UtcTime m_vm_last_ckpt_time;
 
 
-		/* 
-		 Usually, when we suspend a VM, the memory being used by the VM 
+		/*
+		 Usually, when we suspend a VM, the memory being used by the VM
 		 will be freed and the memory will be saved into a file.
-		 However, when we use soft suspend, the memory being used by the VM 
+		 However, when we use soft suspend, the memory being used by the VM
 		 will not be freed and no file for the memory will be created.
 
 		 Here is how we implement soft suspension.
-		 In VMware, we send SIGSTOP to a process for VM in order to 
+		 In VMware, we send SIGSTOP to a process for VM in order to
 		 stop the VM temporarily and send SIGCONT to resume the VM.
-		 In Xen, we pause CPU. 
+		 In Xen, we pause CPU.
 		 Pausing CPU doesn't save the memory of VM into a file.
 		 It just stops the execution of a VM temporarily.
 		*/
 		bool m_use_soft_suspend;
 		bool m_is_soft_suspended;
 
-		// timer id of sending VM status command periodically 
+		// timer id of sending VM status command periodically
 		int m_vmstatus_tid;
 
 		// timer id of function to be called when the result of vm status is received
@@ -179,7 +179,7 @@ class VMProc : public OsProc
 #define VM_STATUS_MAX_ERROR_COUNT	5
 		int m_vmstatus_max_error_cnt;
 
-		// How much CPU time (in seconds) the domain has used so far. 
+		// How much CPU time (in seconds) the domain has used so far.
 		// Only used for Xen.
 		float m_vm_cputime;
 };

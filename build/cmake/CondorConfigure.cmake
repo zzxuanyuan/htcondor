@@ -101,7 +101,8 @@ if( NOT WINDOWS)
 
 	set(HAVE_PTHREAD_H ${CMAKE_HAVE_PTHREAD_H})
 
-	find_library(HAVE_DMTCP dmtcpaware HINTS /usr/local/lib/dmtcp )
+	#find_library(HAVE_DMTCP dmtcpaware HINTS /usr/local/lib/dmtcp )
+
 	check_library_exists(dl dlopen "" HAVE_DLOPEN)
 	check_symbol_exists(res_init "sys/types.h;netinet/in.h;arpa/nameser.h;resolv.h" HAVE_DECL_RES_INIT)
 
@@ -282,15 +283,6 @@ elseif(${OS_NAME} STREQUAL "HPUX")
 	set(NEEDS_64BIT_STRUCTS ON)
 endif()
 
-# NOTE: instead
-# the following is meant to auto-set for CSL
-#string(REPLACE  ".cs.wisc.edu" "@@UW" UW_CHECK ${HOSTNAME})
-#if(${UW_CHECK} MATCHES "@@UW") #cmakes regex does not handle on [.] [.] [.] well
-#	if(EXISTS "/s/std/bin")
-#		message(STATUS "*** UW ENV DETECTED: IF YOU WANT AFS CACHING UPDATE HERE ***")
-#		set(UW_CSL_ENV ON)
-#	endif()
-#endif()
 
 ##################################################
 ##################################################
@@ -402,15 +394,12 @@ include_directories( ${EXTERNAL_STAGE}/include )
 link_directories( ${EXTERNAL_STAGE}/lib64 ${EXTERNAL_STAGE}/lib )
 
 ###########################################
+add_subdirectory(${CONDOR_SOURCE_DIR}/src/classad)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/boost/1.39.0)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/krb5/1.4.3-p0)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/openssl/0.9.8h-p2)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/pcre/7.6)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/gsoap/2.7.10-p5)
-add_subdirectory(${CONDOR_SOURCE_DIR}/src/classad)
-if (NOT WINDOWS)
-	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/zlib/1.2.3)
-endif(NOT WINDOWS)
 add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/curl/7.19.6-p1 )
 
 if (NOT WIN_EXEC_NODE_ONLY)
@@ -420,6 +409,7 @@ if (NOT WIN_EXEC_NODE_ONLY)
 endif(NOT WIN_EXEC_NODE_ONLY)
 
 if (NOT WINDOWS)
+    add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/zlib/1.2.3)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/coredumper/0.2)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/unicoregahp/1.2.0)
 	add_subdirectory(${CONDOR_EXTERNAL_DIR}/bundles/expat/2.0.1)
@@ -502,6 +492,7 @@ include_directories(${CONDOR_SOURCE_DIR}/src/condor_daemon_client)
 include_directories(${CONDOR_SOURCE_DIR}/src/ccb)
 include_directories(${CONDOR_SOURCE_DIR}/src/condor_io)
 include_directories(${CONDOR_SOURCE_DIR}/src/h)
+include_directories(${CONDOR_SOURCE_DIR}/src/vm_gahp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/h)
 include_directories(${CONDOR_SOURCE_DIR}/src/classad)
 ###########################################

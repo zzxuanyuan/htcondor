@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,7 +29,7 @@
 #include "gahp_common.h"
 #include "utc_time.h"
 #include "directory.h"
-#include "condor_vm_universe_types.h"
+#include "IVmGahp/IGahp.h"
 #include "enum_utils.h"
 #include "vm_univ_utils.h"
 
@@ -42,7 +42,7 @@ class VMType
 public:
 	static bool createVMName(ClassAd *ad, MyString& vmname);
 
-	VMType(const char* prog_for_script, const char* scriptname, 
+	VMType(const char* prog_for_script, const char* scriptname,
 			const char* workingpath, ClassAd *ad);
 
 	virtual ~VMType();
@@ -124,22 +124,22 @@ protected:
 	MyString m_classad_arg;
 	MyString m_arg_file;
 
-	// Usually, when we suspend a VM, the memory being used by the VM 
+	// Usually, when we suspend a VM, the memory being used by the VM
 	// will be freed and the memory will be saved into a file.
-	// However, when we use soft suspend, the memory being used by the VM 
+	// However, when we use soft suspend, the memory being used by the VM
 	// will not be freed and no file for the memory will be created.
 	//
 	// Here is how we implement soft suspension.
-	// In VMware, we send SIGSTOP to a process for VM in order to 
+	// In VMware, we send SIGSTOP to a process for VM in order to
 	// stop the VM temporarily and send SIGCONT to resume the VM.
-	// In Xen, we pause CPU. 
+	// In Xen, we pause CPU.
 	// Pausing CPU doesn't save the memory of VM into a file.
 	// It just stops the execution of a VM temporarily.
-	
+
 		// indicate whether VM is soft suspended.
-	bool m_is_soft_suspended; 
+	bool m_is_soft_suspended;
 		// indicate whether VM is poweroff by itself
-	bool m_self_shutdown; 
+	bool m_self_shutdown;
 		// indicate whether VM is checkpointed
 	bool m_is_checkpointed;
 

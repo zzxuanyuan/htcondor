@@ -33,7 +33,7 @@
 #include "condor_environ.h"
 #include "../condor_privsep/condor_privsep.h"
 #include "vmuniverse_mgr.h"
-#include "condor_vm_universe_types.h"
+#include "IVmGahp/types.h"
 #include "vm_univ_utils.h"
 #include "setenv.h"
 

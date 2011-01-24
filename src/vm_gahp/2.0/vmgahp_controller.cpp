@@ -23,6 +23,7 @@
 #include "hypervisor_factory.h"
 #include "vmgahp_controller.h"
 #include "vmgahp_common.h"
+#include "IVmGahp/IGahp.h"
 #include <boost/foreach.hpp>
 
 #define ROOT_UID    0
@@ -293,7 +294,7 @@ int vmgahp_controller::fini()
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-int vmgahp_controller::start(  const char * pszVMType, const char * pszWorkingDir )
+int vmgahp_controller::open_gahp(  const char * pszVMType, const char * pszWorkingDir )
 {
     int iRet = 1;
 
@@ -318,9 +319,9 @@ int vmgahp_controller::start(  const char * pszVMType, const char * pszWorkingDi
                 {
                     daemonCore->Register_Pipe(m_stdin_pipe,
                                               "stdin_pipe",
-                                              (PipeHandlercpp)&VMGahp::waitForCommand,
-                                              "vmgahp_controller::waitForCommand",
-                                              this)
+                                              (PipeHandlercpp)&vmgahp_controller::gahp_handler,
+                                              "vmgahp_controller::gahp_handler",
+                                              this);
                     iRet = 0;
                 }
             }
@@ -343,7 +344,7 @@ int vmgahp_controller::start(  const char * pszVMType, const char * pszWorkingDi
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-int vmgahp_controller::waitForCommand()
+int vmgahp_controller::gahp_handler()
 {
     int iRead_Bytes=0;
     int iBuffBlockSize=4096;
@@ -387,28 +388,27 @@ int vmgahp_controller::waitForCommand()
 int vmgahp_controller::unmarshall(char * pszBuffer)
 {
     int iCommmands=0;
-    shared_ptr<GahpRequest> pReq;
+    boost::shared_ptr<GahpRequest> pReq;
     string szMessage;
 
     // each command is \r\n terminated so look for that
-    char * pch = strtok (pszBuffer,"\r\n");
+    char * pch = strtok (pszBuffer,VMGAHP_TERMINATOR);
     while (pch != NULL)
     {
         // see if it is a valid command
-        if ( ( pReq = GahpFactory::manufacure(pch) ) )
+        if (1)//( ( pReq = GahpFactory::manufacure(pch) ) )
         {
             // execute the command
             if ( dispatch(pReq) )
-                iCommands++;
+                iCommmands++;
         }
         else
         {
-            // unrecognized command
-            // daemonCore->Write_Pipe( m_stdout_pipe, szMessage.c_str(), szMessage.length() );
+            write_gahp(VMGAHP_RESULT_FAILURE);
         }
 
         // grab the next command
-        pch = strtok (NULL, "\r\n");
+        pch = strtok (NULL, VMGAHP_TERMINATOR);
     }
 
     return (iCommmands);
@@ -418,9 +418,9 @@ int vmgahp_controller::unmarshall(char * pszBuffer)
 ///////////////////////////////////////////////////
 ///////////////////////////////////////////////////
 
-bool vmgahp_controller::dispatch( shared_ptr<GahpRequest> & pReq )
+bool vmgahp_controller::dispatch( boost::shared_ptr<GahpRequest> & pReq )
 {
-    string szMessage;
+    string szMessage = VMGAHP_RESULT_SUCCESS;
 
     // elevate privs for execution.
     priv_state priv = set_root_priv();
@@ -429,21 +429,39 @@ bool vmgahp_controller::dispatch( shared_ptr<GahpRequest> & pReq )
         if ( m_bAsync_mode )
         {
             m_vAsyncResults.push_back(pReq);
-            //szMessage = ;
         }
         else
         {
-            //szMessage = ;
+            //szMessage+=pReq->;
         }
     }
     else
     {
-        // send error in execution.
-        //szMessage = ;
-        vmprintf( D_ALWAYS, "Failed to execute %s", pch );
+        szMessage = VMGAHP_RESULT_ERROR; // should append an error message?
+        //vmprintf( D_ALWAYS, "Failed to execute %s",  );
     }
     set_priv(priv);
 
-    // send the response message
-    daemonCore->Write_Pipe( m_stdout_pipe, szMessage.c_str(), szMessage.length() );
+    // write back the result.
+    write_gahp(szMessage.c_str());
+
+}
+
+///////////////////////////////////////////////////
+///////////////////////////////////////////////////
+
+bool vmgahp_controller:: write_gahp( const char * pszMsg)
+{
+    int iRet;
+    string szMessage=pszMsg;
+
+    if (!strstr(pszMsg, VMGAHP_TERMINATOR))
+        szMessage += VMGAHP_TERMINATOR;
+
+    if ( (iRet = daemonCore->Write_Pipe( m_stdout_pipe, szMessage.c_str(), szMessage.length() ) ) <=0 )
+    {
+        vmprintf(D_ALWAYS, "Error writing to pipe (%d)", iRet);
+    }
+
+    return ((iRet>0)?true:false);
 }

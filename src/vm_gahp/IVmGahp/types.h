@@ -25,7 +25,6 @@
 #define CONDOR_VM_UNIVERSE_VMWARE "vmware"
 #define CONDOR_VM_UNIVERSE_KVM "kvm"
 
-
 #define VM_CKPT_FILE_EXTENSION	".cckpt"
 #define VM_AVAIL_UNLIMITED_NUM	10000
 

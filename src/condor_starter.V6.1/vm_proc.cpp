@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,7 +37,7 @@
 #include "daemon.h"
 #include "daemon_types.h"
 #include "vm_gahp_request.h"
-#include "vm_gahp/vmgahp_error_codes.h"
+#include "IVmGahp/errors.h"
 #include "vm_univ_utils.h"
 
 extern CStarter *Starter;
@@ -70,25 +70,25 @@ VMProc::VMProc(ClassAd *jobAd) : OsProc(jobAd)
 	m_vm_cputime = 0;
 
 	//Find the interval of sending vm status command to vmgahp server
-	m_vmstatus_interval = param_integer( "VM_STATUS_INTERVAL", 
+	m_vmstatus_interval = param_integer( "VM_STATUS_INTERVAL",
 			VM_DEFAULT_STATUS_INTERVAL);
 	if( m_vmstatus_interval < VM_MIN_STATUS_INTERVAL ) {
-		// vm_status interval must be at least more than 
+		// vm_status interval must be at least more than
 		// VM_MIN_STATUS_INTERVAL for performance issue
 		dprintf(D_ALWAYS,"Even if Condor config file defines %d secs "
 				"for vm status interval, vm status interval is set to "
-				"%d seconds for performance.\n", 
+				"%d seconds for performance.\n",
 			   m_vmstatus_interval, VM_MIN_STATUS_INTERVAL);
-		m_vmstatus_interval = VM_MIN_STATUS_INTERVAL;	
+		m_vmstatus_interval = VM_MIN_STATUS_INTERVAL;
 	}
 
-	m_vmstatus_max_error_cnt = param_integer( "VM_STATUS_MAX_ERROR", 
+	m_vmstatus_max_error_cnt = param_integer( "VM_STATUS_MAX_ERROR",
 			VM_STATUS_MAX_ERROR_COUNT);
 
-	m_vmoperation_timeout = param_integer( "VM_GAHP_REQ_TIMEOUT", 
+	m_vmoperation_timeout = param_integer( "VM_GAHP_REQ_TIMEOUT",
 			VM_GAHP_REQ_TIMEOUT );
 
-	m_use_soft_suspend = param_boolean("VM_SOFT_SUSPEND", false); 
+	m_use_soft_suspend = param_boolean("VM_SOFT_SUSPEND", false);
 }
 
 VMProc::~VMProc()
@@ -137,7 +137,7 @@ VMProc::cleanup()
 	m_vm_type = "";
 	m_vmgahp_server = "";
 
-	// set is_suspended to false in os_proc.h 
+	// set is_suspended to false in os_proc.h
 	is_suspended = false;
 	m_is_soft_suspended = false;
 	is_checkpointed = false;
@@ -152,7 +152,7 @@ VMProc::StartJob()
 
 	// set up a FamilyInfo structure to register a family
 	// with the ProcD in its call to DaemonCore::Create_Process
-	
+
 	FamilyInfo fi;
 
 	// take snapshots at no more than 15 seconds in between, by default
@@ -188,15 +188,15 @@ VMProc::StartJob()
 		return false;
 	}
 
-	// // // // // // 
-	// Get IWD 
-	// // // // // // 
+	// // // // // //
+	// Get IWD
+	// // // // // //
 	//const char* job_iwd = Starter->jic->jobRemoteIWD();
 	//dprintf( D_ALWAYS, "IWD: %s\n", job_iwd );
 
-	// // // // // // 
-	// Environment 
-	// // // // // // 
+	// // // // // //
+	// Environment
+	// // // // // //
 	// Now, instantiate an Env object so we can manipulate the
 	// environment as needed.
 	Env job_env;
@@ -221,9 +221,9 @@ VMProc::StartJob()
 	// the mainjob's env...
 	Starter->PublishToEnv( &job_env );
 
-	// // // // // // 
+	// // // // // //
 	// Misc + Exec
-	// // // // // // 
+	// // // // // //
 
 	// compute job's renice value by evaluating the machine's
 	// JOB_RENICE_INCREMENT in the context of the job ad...
@@ -274,7 +274,7 @@ VMProc::StartJob()
 	if( JobAd->LookupString( ATTR_JOB_CMD, vm_job_name) != 1 ) {
 		err_msg.sprintf("%s cannot be found in job classAd.", ATTR_JOB_CMD);
 		dprintf(D_ALWAYS, "%s\n", err_msg.Value());
-		Starter->jic->notifyStarterError( err_msg.Value(), true, 
+		Starter->jic->notifyStarterError( err_msg.Value(), true,
 				CONDOR_HOLD_CODE_FailedToCreateProcess, 0);
 		return false;
 	}
@@ -285,7 +285,7 @@ VMProc::StartJob()
 	if( JobAd->LookupString( ATTR_JOB_VM_TYPE, vm_type_name) != 1 ) {
 		err_msg.sprintf("%s cannot be found in job classAd.", ATTR_JOB_VM_TYPE);
 		dprintf(D_ALWAYS, "%s\n", err_msg.Value());
-		Starter->jic->notifyStarterError( err_msg.Value(), true, 
+		Starter->jic->notifyStarterError( err_msg.Value(), true,
 				CONDOR_HOLD_CODE_FailedToCreateProcess, 0);
 		return false;
 	}
@@ -321,7 +321,7 @@ VMProc::StartJob()
 	Starter->WriteRecoveryFile( &recovery_ad );
 
 	// //
-	// Now everything is ready to start a vmgahp server 
+	// Now everything is ready to start a vmgahp server
 	// //
 	dprintf( D_ALWAYS, "About to start new VM\n");
 	Starter->jic->notifyJobPreSpawn();
@@ -333,7 +333,7 @@ VMProc::StartJob()
 	ASSERT(m_vmgahp);
 
 	m_vmgahp->start_err_msg = "";
-	if( m_vmgahp->startUp(&job_env, Starter->GetWorkingDir(), nice_inc, 
+	if( m_vmgahp->startUp(&job_env, Starter->GetWorkingDir(), nice_inc,
 				&fi) == false ) {
 		JobPid = -1;
 		err_msg = "Failed to start vm-gahp server";
@@ -346,7 +346,7 @@ VMProc::StartJob()
 		Starter->jic->notifyStarterError( err_msg.Value(), true, 0, 0);
 
 		delete m_vmgahp;
-		m_vmgahp = NULL; 
+		m_vmgahp = NULL;
 		return false;
 	}
 
@@ -392,7 +392,7 @@ VMProc::StartJob()
 			reportErrorToStartd();
 		}
 
-		Starter->jic->notifyStarterError( err_msg.Value(), true, 
+		Starter->jic->notifyStarterError( err_msg.Value(), true,
 				CONDOR_HOLD_CODE_FailedToCreateProcess, 0);
 
 		delete new_req;
@@ -430,7 +430,7 @@ VMProc::StartJob()
 
 	m_vmgahp->setVMid(m_vm_id);
 
-	// We give considerable time(30 secs) to bring 
+	// We give considerable time(30 secs) to bring
 	// the just created VM into a fully compliant state
 	sleep(30);
 
@@ -440,22 +440,22 @@ VMProc::StartJob()
 	memset(&m_vm_alive_pinfo, 0, sizeof(m_vm_alive_pinfo));
 
 	// Find the actual process dealing with VM
-	// Most virtual machine programs except Xen creates a process 
-	// that actually deals with a created VM. The process may be 
-	// directly created by a virtual machine program and 
+	// Most virtual machine programs except Xen creates a process
+	// that actually deals with a created VM. The process may be
+	// directly created by a virtual machine program and
 	// the parent pid of the process may be 1.
 	// So our default Procd daemon is unable to include this process.
 	// Here, we don't need to create a new Procd daemon for this process.
-	// In VMware, this process is a single process that has no childs. 
+	// In VMware, this process is a single process that has no childs.
 	// So we will just use simple ProcAPI to get usage of this process.
-	// PIDofVM will return the pid of such process. 
+	// PIDofVM will return the pid of such process.
 	// If there is no such process like in Xen, PIDofVM will return 0.
 	int vm_pid = PIDofVM();
 	setVMPID(vm_pid);
 
-	m_vmstatus_tid = daemonCore->Register_Timer(m_vmstatus_interval, 
-			m_vmstatus_interval, 
-			(TimerHandlercpp)&VMProc::CheckStatus, 
+	m_vmstatus_tid = daemonCore->Register_Timer(m_vmstatus_interval,
+			m_vmstatus_interval,
+			(TimerHandlercpp)&VMProc::CheckStatus,
 			"VMProc::CheckStatus", this);
 
 	// Set job_start_time in user_proc.h
@@ -464,13 +464,13 @@ VMProc::StartJob()
 	return true;
 }
 
-bool 
+bool
 VMProc::process_vm_status_result(Gahp_Args *result_args)
 {
 	// status result
 	// argv[1] : should be 0, it means success.
 	// From argv[2] : representing some info about VM
-	
+
 	if( !result_args || ( result_args->argc < 3) ) {
 		dprintf(D_ALWAYS, "Bad Result for VM status\n");
 		vm_status_error();
@@ -478,9 +478,9 @@ VMProc::process_vm_status_result(Gahp_Args *result_args)
 	}
 
 	int tmp_argv = (int)strtol(result_args->argv[1], (char **)NULL, 10);
-	if( tmp_argv != 0 || 
+	if( tmp_argv != 0 ||
 			!strcasecmp(result_args->argv[2], NULLSTRING)) {
-		dprintf(D_ALWAYS, "Received VM status, result(%s,%s)\n", 
+		dprintf(D_ALWAYS, "Received VM status, result(%s,%s)\n",
 				result_args->argv[1], result_args->argv[2]);
 		vm_status_error();
 		return true;
@@ -561,7 +561,7 @@ VMProc::process_vm_status_result(Gahp_Args *result_args)
 		cleanup();
 		return false;
 	}else {
-		dprintf(D_FULLDEBUG, "Virtual machine status is %s\n", 
+		dprintf(D_FULLDEBUG, "Virtual machine status is %s\n",
 				vm_status.Value());
 		if( !strcasecmp(vm_status.Value(), "Running") ) {
 			is_suspended = false;
@@ -593,7 +593,7 @@ VMProc::process_vm_status_result(Gahp_Args *result_args)
 		}else {
 			dprintf(D_ALWAYS, "Unknown VM status: %s\n", vm_status.Value());
 
-			// Restore status error count 
+			// Restore status error count
 			m_status_error_count = old_status_error_count;
 			vm_status_error();
 		}
@@ -611,8 +611,8 @@ VMProc::notify_status_fn()
 		return;
 	}
 
-	dprintf( D_FULLDEBUG, "VM status notify function is called\n"); 
-	
+	dprintf( D_FULLDEBUG, "VM status notify function is called\n");
+
 	//reset timer id for this function
 	m_status_req->setNotificationTimerId(-1);
 	m_vmstatus_notify_tid = -1;
@@ -624,7 +624,7 @@ VMProc::notify_status_fn()
 		Gahp_Args *result_args;
 		result_args = m_status_req->getResult();
 
-		// If vm_status is 'stopped', cleanup function will be called 
+		// If vm_status is 'stopped', cleanup function will be called
 		//  inside this function
 		process_vm_status_result(result_args);
 		if(m_status_req) {
@@ -696,7 +696,7 @@ VMProc::CheckStatus()
 		Gahp_Args *result_args;
 		result_args = m_status_req->getResult();
 
-		// If vm_status is 'stopped', cleanup function will be called 
+		// If vm_status is 'stopped', cleanup function will be called
 		//  inside this function
 		process_vm_status_result(result_args);
 		if(m_status_req) {
@@ -792,7 +792,7 @@ VMProc::Suspend()
 
 		if( strcmp(gahpmsg.Value(), VMGAHP_ERR_VM_NO_SUPPORT_SUSPEND) ) {
 			// It is possible that a VM job is just finished.
-			// So we reset the timer for status 
+			// So we reset the timer for status
 			if( m_vmstatus_tid != -1 ) {
 				daemonCore->Reset_Timer(m_vmstatus_tid, 0, m_vmstatus_interval);
 			}
@@ -812,7 +812,7 @@ VMProc::Suspend()
 		setVMPID(0);
 	}
 
-	// set is_suspended to true in os_proc.h 
+	// set is_suspended to true in os_proc.h
 	is_suspended = true;
 	m_is_soft_suspended = m_use_soft_suspend;
 	is_checkpointed = false;
@@ -857,13 +857,13 @@ VMProc::Continue()
 	delete new_req;
 	new_req = NULL;
 
-	// When we resume a suspended VM, 
+	// When we resume a suspended VM,
 	// PID of process for the VM may change
 	// So, we may have a new PID of the process.
 	int vm_pid = PIDofVM();
 	setVMPID(vm_pid);
 
-	// set is_suspended to false in os_proc.h 
+	// set is_suspended to false in os_proc.h
 	is_suspended = false;
 	m_is_soft_suspended = false;
 	is_checkpointed = false;
@@ -891,7 +891,7 @@ VMProc::ShutdownGraceful()
 		// We need to do checkpoint before vacating.
 		// The reason we call checkpoint explicitly here
 		// is to make sure the file uploading for checkpoint.
-		// If file uploading failed, we will not update job classAd 
+		// If file uploading failed, we will not update job classAd
 		// such as the total count of checkpoint and last checkpoint time.
 		m_is_vacate_ckpt = true;
 		is_checkpointed = false;
@@ -926,10 +926,10 @@ VMProc::ShutdownGraceful()
 		killProcessForVM();
 	}
 
-	// final cleanup.. 
+	// final cleanup..
 	cleanup();
 
-	// Because we already performed checkpoint, 
+	// Because we already performed checkpoint,
 	// we don't need to keep files in the working directory.
 	// So file transfer will not be called again.
 	if( delete_working_files ) {
@@ -937,7 +937,7 @@ VMProc::ShutdownGraceful()
 		working_dir.Remove_Entire_Directory();
 	}
 
-	return false;	// return false says shutdown is pending	
+	return false;	// return false says shutdown is pending
 }
 
 bool
@@ -972,7 +972,7 @@ VMProc::ShutdownFast()
 		killProcessForVM();
 	}
 
-	// final cleanup.. 
+	// final cleanup..
 	cleanup();
 
 	return false;	// shutdown is pending, so return false
@@ -1037,7 +1037,7 @@ VMProc::StopVM()
 	return true;
 }
 
-bool 
+bool
 VMProc::Ckpt()
 {
 	dprintf(D_FULLDEBUG,"Inside VMProc::Ckpt()\n");
@@ -1083,7 +1083,7 @@ VMProc::Ckpt()
 
 		if( strcmp(gahpmsg.Value(), VMGAHP_ERR_VM_NO_SUPPORT_CHECKPOINT) ) {
 			// It is possible that a VM job is just finished.
-			// So we reset the timer for status 
+			// So we reset the timer for status
 			if( m_vmstatus_tid != -1 ) {
 				daemonCore->Reset_Timer(m_vmstatus_tid, 0, m_vmstatus_interval);
 			}
@@ -1107,7 +1107,7 @@ VMProc::Ckpt()
 	return true;
 }
 
-void 
+void
 VMProc::CkptDone(bool success)
 {
 	if( !is_checkpointed ) {
@@ -1211,7 +1211,7 @@ VMProc::PublishUpdateAd( ClassAd* ad )
         unsigned long rss = 0;
 
 		getUsageOfVM(sys_time, user_time, max_image, rss);
-		
+
 		// Added to update CPU Usage of VM in ESX
 		if ( (long)m_vm_cputime > user_time ) {
 			user_time = m_vm_cputime;
@@ -1237,12 +1237,12 @@ VMProc::PublishUpdateAd( ClassAd* ad )
 			ad->Assign(ATTR_VM_CKPT_IP, m_vm_ip);
 		}
 	}
-			
+
 	// Now, call our parent class's version
 	return OsProc::PublishUpdateAd(ad);
 }
 
-void 
+void
 VMProc::internalVMGahpError()
 {
 	// Reports vmgahp error to local startd
@@ -1254,7 +1254,7 @@ VMProc::internalVMGahpError()
 	daemonCore->Send_Signal(daemonCore->getpid(), DC_SIGHARDKILL);
 }
 
-bool 
+bool
 VMProc::reportErrorToStartd()
 {
 	Daemon startd(DT_STARTD, NULL);
@@ -1308,7 +1308,7 @@ VMProc::reportErrorToStartd()
 	return true;
 }
 
-bool 
+bool
 VMProc::reportVMInfoToStartd(int cmd, const char *value)
 {
 	Daemon startd(DT_STARTD, NULL);
@@ -1349,7 +1349,7 @@ VMProc::reportVMInfoToStartd(int cmd, const char *value)
 	ASSERT(starter_pid);
 	ssock.code(starter_pid);
 
-	// Send vm info 
+	// Send vm info
 	char *vm_value = strdup(value);
 	ASSERT(vm_value);
 	ssock.code(vm_value);
@@ -1367,10 +1367,10 @@ VMProc::reportVMInfoToStartd(int cmd, const char *value)
 	return true;
 }
 
-bool 
+bool
 VMProc::vm_univ_detect()
 {
-	return true; 
+	return true;
 }
 
 void
@@ -1381,12 +1381,12 @@ VMProc::setVMPID(int vm_pid)
 		return;
 	}
 
-	dprintf(D_FULLDEBUG,"PID for VM is changed from [%d] to [%d]\n", 
+	dprintf(D_FULLDEBUG,"PID for VM is changed from [%d] to [%d]\n",
 			m_vm_pid, vm_pid);
 
 	//PID changes
 	m_vm_pid = vm_pid;
-	
+
 	// Add the old usage to m_vm_exited_pinfo
 	m_vm_exited_pinfo.sys_time += m_vm_alive_pinfo.sys_time;
 	m_vm_exited_pinfo.user_time += m_vm_alive_pinfo.user_time;
@@ -1400,7 +1400,7 @@ VMProc::setVMPID(int vm_pid)
 	// Reset usage of the current process for VM
 	memset(&m_vm_alive_pinfo, 0, sizeof(m_vm_alive_pinfo));
 
-	// Get initial usage of the process	
+	// Get initial usage of the process
 	updateUsageOfVM();
 
 	MyString pid_string;
@@ -1418,7 +1418,7 @@ VMProc::setVMMAC(const char* mac)
 		return;
 	}
 
-	dprintf(D_FULLDEBUG,"MAC for VM is changed from [%s] to [%s]\n", 
+	dprintf(D_FULLDEBUG,"MAC for VM is changed from [%s] to [%s]\n",
 			m_vm_mac.Value(), mac);
 
 	m_vm_mac = mac;
@@ -1435,7 +1435,7 @@ VMProc::setVMIP(const char* ip)
 		return;
 	}
 
-	dprintf(D_FULLDEBUG,"IP for VM is changed from [%s] to [%s]\n", 
+	dprintf(D_FULLDEBUG,"IP for VM is changed from [%s] to [%s]\n",
 			m_vm_ip.Value(), ip);
 
 	m_vm_ip = ip;
@@ -1456,15 +1456,15 @@ VMProc::updateUsageOfVM()
 	memset(&pinfo, 0, sizeof(pinfo));
 
 	piPTR pi = &pinfo;
-	if( ProcAPI::getProcInfo(m_vm_pid, pi, proc_status) == 
+	if( ProcAPI::getProcInfo(m_vm_pid, pi, proc_status) ==
 			PROCAPI_SUCCESS ) {
 		memcpy(&m_vm_alive_pinfo, &pinfo, sizeof(m_vm_alive_pinfo));
 		dprintf(D_FULLDEBUG,"Usage of process[%d] for a VM is updated\n", m_vm_pid);
 #if defined(WIN32)
-		dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n", 
+		dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n",
 				pinfo.sys_time, pinfo.user_time, pinfo.rssize);
 #else
-		dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n", 
+		dprintf(D_FULLDEBUG,"sys_time=%lu, user_time=%lu, image_size=%lu\n",
 				pinfo.sys_time, pinfo.user_time, pinfo.imgsize);
 #endif
 	}
@@ -1477,14 +1477,14 @@ VMProc::getUsageOfVM(long &sys_time, long& user_time, unsigned long &max_image, 
 	sys_time = m_vm_exited_pinfo.sys_time + m_vm_alive_pinfo.sys_time;
 	user_time = m_vm_exited_pinfo.user_time + m_vm_alive_pinfo.user_time;
 
-	rss = (m_vm_exited_pinfo.rssize > m_vm_alive_pinfo.rssize) ? 
+	rss = (m_vm_exited_pinfo.rssize > m_vm_alive_pinfo.rssize) ?
 		   m_vm_exited_pinfo.rssize : m_vm_alive_pinfo.rssize;
 
 #if defined(WIN32)
-	max_image = (m_vm_exited_pinfo.rssize > m_vm_alive_pinfo.rssize) ? 
+	max_image = (m_vm_exited_pinfo.rssize > m_vm_alive_pinfo.rssize) ?
 		m_vm_exited_pinfo.rssize : m_vm_alive_pinfo.rssize;
 #else
-	max_image = (m_vm_exited_pinfo.imgsize > m_vm_alive_pinfo.imgsize) ? 
+	max_image = (m_vm_exited_pinfo.imgsize > m_vm_alive_pinfo.imgsize) ?
 		m_vm_exited_pinfo.imgsize : m_vm_alive_pinfo.imgsize;
 #endif
 }

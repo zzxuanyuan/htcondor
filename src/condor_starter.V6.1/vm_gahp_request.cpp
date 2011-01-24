@@ -31,7 +31,7 @@
 
 #include "vm_gahp_server.h"
 #include "vm_gahp_request.h"
-#include "vm_gahp/vmgahp_error_codes.h"
+#include "IVmGahp/IGahp.h"
 
 #define NULLSTRING "NULL"
 
@@ -253,7 +253,7 @@ VMGahpRequest::vmSuspend(int vm_id)
 int
 VMGahpRequest::vmSoftSuspend(int vm_id)
 {
-	return executeBasicCmd(VMGAHP__VM_SOFT_SUSPEND, vm_id);
+	return executeBasicCmd(VMGAHP_COMMAND_VM_SOFT_SUSPEND, vm_id);
 }
 
 int

@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,7 +27,7 @@
 #include "domain_tools.h"
 #include "basename.h"
 #include "../condor_privsep/condor_privsep.h"
-#include "condor_vm_universe_types.h"
+#include "IVmGahp/types.h"
 #include "hook_utils.h"
 #include "classad_visa.h"
 #include "subsystem_info.h"
@@ -384,11 +384,11 @@ JobInfoCommunicator::writeOutputAdFile( ClassAd* ad )
 		fp = safe_fopen_wrapper( job_output_ad_file, "a" );
 		if( ! fp ) {
 			dprintf( D_ALWAYS, "Failed to open job output ClassAd "
-					 "\"%s\": %s (errno %d)\n", job_output_ad_file, 
-					 strerror(errno), errno ); 
+					 "\"%s\": %s (errno %d)\n", job_output_ad_file,
+					 strerror(errno), errno );
 			return false;
 		} else {
-			dprintf( D_ALWAYS, "Writing job output ClassAd to \"%s\"\n", 
+			dprintf( D_ALWAYS, "Writing job output ClassAd to \"%s\"\n",
 					 job_output_ad_file );
 
 		}
@@ -448,7 +448,7 @@ JobInfoCommunicator::updateX509Proxy( int /*cmd*/, ReliSock *  )
 
 
 bool
-JobInfoCommunicator::initUserPrivNoOwner( void ) 
+JobInfoCommunicator::initUserPrivNoOwner( void )
 {
 		// first, bale out if we really need ATTR_OWNER...
 #ifdef WIN32
@@ -466,8 +466,8 @@ JobInfoCommunicator::initUserPrivNoOwner( void )
 	}
 
 		// otherwise, we can't switch privs anyway, so consider
-		// ourselves done. :) 
-	dprintf( D_FULLDEBUG, 
+		// ourselves done. :)
+	dprintf( D_FULLDEBUG,
 			 "Starter running as '%s', no uid switching possible\n",
 			 get_real_username() );
 	user_priv_is_initialized = true;
@@ -587,20 +587,20 @@ JobInfoCommunicator::initUserPrivWindows( void )
 	bool init_priv_succeeded = true;
 	bool run_as_owner = allowRunAsOwner( false, false );
 
-	// TODO.. 
+	// TODO..
 	// Currently vmgahp for VMware VM universe can't run as user on Windows.
-	// It seems like a bug of VMware. VMware command line tool such as "vmrun" 
+	// It seems like a bug of VMware. VMware command line tool such as "vmrun"
 	// requires Administrator privilege.
 	// So here we set name and domain with my_username and my_domainname
 	// -jaeyoung 06/15/07
 	if( job_universe == CONDOR_UNIVERSE_VM ) {
 #if 0
-		// If "VM_UNIV_NOBODY_USER" is defined in Condor configuration file, 
+		// If "VM_UNIV_NOBODY_USER" is defined in Condor configuration file,
 		// wee will use it.
 		char *vm_jobs_as = param("VM_UNIV_NOBODY_USER");
-		if (vm_jobs_as) {		
+		if (vm_jobs_as) {
 			getDomainAndName(vm_jobs_as, domain, name);
-			/* 
+			/*
 			 * name and domain are now just pointers into vm_jobs_as
 			 * buffer.  copy these values into their own buffer so we
 			 * deallocate below.
@@ -623,7 +623,7 @@ JobInfoCommunicator::initUserPrivWindows( void )
 		}
 	}
 
-	if( !name ) {	
+	if( !name ) {
 		if ( run_as_owner ) {
 			job_ad->LookupString(ATTR_OWNER,&name);
 			job_ad->LookupString(ATTR_NT_DOMAIN,&domain);
@@ -639,9 +639,9 @@ JobInfoCommunicator::initUserPrivWindows( void )
 		}
 		sprintf(slot_user, "SLOT%d_USER", slot_num);
 		char *run_jobs_as = param(slot_user);
-		if (run_jobs_as) {		
+		if (run_jobs_as) {
 			getDomainAndName(run_jobs_as, domain, name);
-				/* 
+				/*
 				 * name and domain are now just pointers into run_jobs_as
 				 * buffer.  copy these values into their own buffer so we
 				 * deallocate below.
@@ -657,14 +657,14 @@ JobInfoCommunicator::initUserPrivWindows( void )
 	}
 
 	if ( name ) {
-		
+
 		if (!init_user_ids(name, domain)) {
 
 			dprintf(D_ALWAYS, "Could not initialize user_priv as \"%s\\%s\".\n"
 				"\tMake sure this account's password is securely stored "
 				"with condor_store_cred.\n", domain, name );
-			init_priv_succeeded = false;			
-		} 
+			init_priv_succeeded = false;
+		}
 		else {
 			MyString login_name;
 			joinDomainAndName(name, domain, login_name);
@@ -691,11 +691,11 @@ JobInfoCommunicator::initUserPrivWindows( void )
 		setExecuteAccountIsDedicated( get_user_loginname() );
 	}
 	else {
-		
+
 		dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
 				 "as \"nobody\"\n" );
 		init_priv_succeeded = false;
-	
+
 	}
 
 	if ( name ) free(name);
@@ -745,7 +745,7 @@ JobInfoCommunicator::checkForStarterDebugging( void )
 		// Also, if the starter has D_JOB turned on, we want to dump
 		// out the job ad to the log file...
 	if( DebugFlags & D_JOB ) {
-		dprintf( D_JOB, "*** Job ClassAd ***\n" );  
+		dprintf( D_JOB, "*** Job ClassAd ***\n" );
 		job_ad->dPrint( D_JOB );
         dprintf( D_JOB, "--- End of ClassAd ---\n" );
 	}
@@ -851,7 +851,7 @@ JobInfoCommunicator::startUpdateTimer( void )
 }
 
 
-/* 
+/*
    We can't just have our periodic timer call periodicJobUpdate()
    directly, since it passes in arguments that screw up the default
    bool that determines if we want to ensure the update works.  So,

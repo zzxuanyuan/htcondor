@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -30,7 +30,6 @@
 #include "vmgahp_common.h"
 #include "vmgahp.h"
 #include "vmgahp_error_codes.h"
-#include "condor_vm_universe_types.h"
 #include "vm_type.h"
 #include "condor_mkstemp.h"
 #include "../condor_privsep/condor_privsep.h"
@@ -48,8 +47,8 @@ VMType::VMType(const char* prog_for_script, const char* scriptname, const char* 
 	m_vm_mem = 0;
 	m_vm_networking = false;
 	m_vm_checkpoint = false;
-	m_vm_no_output_vm = false; 
-	m_vm_hardware_vt = false; 
+	m_vm_no_output_vm = false;
+	m_vm_hardware_vt = false;
 	m_vm_transfer_cdrom_files = false;
 	m_local_iso = false;
 	m_has_iso = false;
@@ -70,7 +69,7 @@ VMType::VMType(const char* prog_for_script, const char* scriptname, const char* 
 	vmprintf(D_FULLDEBUG, "Constructed VM_Type.\n");
 
 	// Use the script program to create a configuration file for VM ?
-	m_use_script_to_create_config = 
+	m_use_script_to_create_config =
 		param_boolean("USE_SCRIPT_TO_CREATE_CONFIG", false);
 
 	// Create initially transfered file list
@@ -97,21 +96,21 @@ VMType::~VMType()
 	}
 }
 
-bool 
+bool
 VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 {
 	// Read common parameters for vm
-	
+
 	m_result_msg = "";
 	// Read the amount of memory for VM
 	if( m_classAd.LookupInteger( ATTR_JOB_VM_MEMORY, m_vm_mem) != 1 ) {
-		vmprintf(D_ALWAYS, "%s cannot be found in job classAd\n", 
+		vmprintf(D_ALWAYS, "%s cannot be found in job classAd\n",
 				ATTR_JOB_VM_MEMORY);
 		m_result_msg = VMGAHP_ERR_JOBCLASSAD_NO_VM_MEMORY_PARAM;
 		return false;
 	}else {
 		// Requested memory should not be larger than the maximum allowed memory
-		if( ( m_vm_mem <= 0 ) || 
+		if( ( m_vm_mem <= 0 ) ||
 				(m_vm_mem > vmgahp->m_gahp_config->m_vm_max_memory) ) {
 			m_result_msg = VMGAHP_ERR_JOBCLASSAD_TOO_MUCH_MEMORY_REQUEST;
 			return false;
@@ -131,9 +130,9 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 	m_vm_networking = false;
 	m_classAd.LookupBool( ATTR_JOB_VM_NETWORKING, m_vm_networking);
 
-	if( m_vm_networking && 
+	if( m_vm_networking &&
 			(vmgahp->m_gahp_config->m_vm_networking == false ) ) {
-		vmprintf(D_ALWAYS, "A job requests networking but " 
+		vmprintf(D_ALWAYS, "A job requests networking but "
 				"the gahp server doesn't support networking\n");
 		m_result_msg = VMGAHP_ERR_JOBCLASSAD_MISMATCHED_NETWORKING;
 		return false;
@@ -141,7 +140,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 
 	if( m_vm_networking ) {
 		// Read parameter for networking types
-		if( m_classAd.LookupString( ATTR_JOB_VM_NETWORKING_TYPE, 
+		if( m_classAd.LookupString( ATTR_JOB_VM_NETWORKING_TYPE,
 					m_vm_networking_type) == 1 ) {
 			// vm_networking_type is defined
 
@@ -178,14 +177,14 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 	}
 
 	// Insert vm_name to classAd for future use
-	m_classAd.Assign("VMPARAM_VM_NAME", m_vm_name); 
+	m_classAd.Assign("VMPARAM_VM_NAME", m_vm_name);
 
 	// Read the parameter of hardware VT
-	m_vm_hardware_vt = false; 
+	m_vm_hardware_vt = false;
 	m_classAd.LookupBool(ATTR_JOB_VM_HARDWARE_VT, m_vm_hardware_vt);
-	if( m_vm_hardware_vt && 
+	if( m_vm_hardware_vt &&
 			(vmgahp->m_gahp_config->m_vm_hardware_vt == false ) ) {
-		vmprintf(D_ALWAYS, "A job requests hardware virtualization but " 
+		vmprintf(D_ALWAYS, "A job requests hardware virtualization but "
 				"the vmgahp server doesn't support hardware VT\n");
 		m_result_msg = VMGAHP_ERR_JOBCLASSAD_MISMATCHED_HARDWARE_VT;
 		return false;
@@ -193,15 +192,15 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 
 	// Read the parameter of vm_no_output_vm
 	// This parameter is an experiment parameter
-	// When this parameter is TRUE, Condor will not transfer 
+	// When this parameter is TRUE, Condor will not transfer
 	// all files for VM back to a job user.
-	// This parameter would be used if a job user uses explict method 
-	// to get output files from VM. 
-	// For example, if a job user uses a ftp program 
-	// to send output files inside VM to his/her dedicated machine for ouput, 
-	// the job user doesn't want to get modified VM disk files back. 
+	// This parameter would be used if a job user uses explict method
+	// to get output files from VM.
+	// For example, if a job user uses a ftp program
+	// to send output files inside VM to his/her dedicated machine for ouput,
+	// the job user doesn't want to get modified VM disk files back.
 	// So the job user can use this parameter
-	m_vm_no_output_vm = false; 
+	m_vm_no_output_vm = false;
 	m_classAd.LookupBool(VMPARAM_NO_OUTPUT_VM, m_vm_no_output_vm);
 
 	// Read CDROM files from Job classAd
@@ -221,7 +220,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 	if( cdrom_files.IsEmpty() == false ) {
 		StringList cd_file_list(NULL, ",");
 		cd_file_list.initializeFromString(cdrom_files.Value());
-	
+
 		if( cd_file_list.isEmpty() == false ) {
 			// check if cdrom files are readable by user
 			const char *fname = NULL;
@@ -231,7 +230,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 				isTransferedFile(fname, tmp_fullname);
 
 				// check if this file is readable
-				if( check_vm_read_access_file(tmp_fullname.Value(), 
+				if( check_vm_read_access_file(tmp_fullname.Value(),
 							false) == false ) {
 					vmprintf(D_ALWAYS, "file(%s) for CDROM cannot "
 							"be read\n", tmp_fullname.Value());
@@ -242,7 +241,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 
 			m_vm_cdrom_files.create_union(cd_file_list, false);
 
-			// If cd_file_list has an iso file, 
+			// If cd_file_list has an iso file,
 			// we don't need to create a ISO file.
 			// We will just use the iso file directly.
 			if( cd_file_list.number() == 1 ) {
@@ -285,7 +284,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 
 		if( cdrom_files.find(VM_UNIV_ARGUMENT_FILE, 0) >= 0 ) {
 			vmprintf(D_ALWAYS, "A file with the same filename '%s' "
-					"is already in '%s'\n", VM_UNIV_ARGUMENT_FILE, 
+					"is already in '%s'\n", VM_UNIV_ARGUMENT_FILE,
 					VMPARAM_CDROM_FILES);
 			m_result_msg = VMGAHP_ERR_CANNOT_CREATE_ARG_FILE;
 			return false;
@@ -295,7 +294,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 		FILE *argfile_fp = safe_fopen_wrapper(VM_UNIV_ARGUMENT_FILE, "w");
 		if( !argfile_fp ) {
 			vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper the file "
-					"for arguments: safe_fopen_wrapper(%s) returns %s\n", 
+					"for arguments: safe_fopen_wrapper(%s) returns %s\n",
 					VM_UNIV_ARGUMENT_FILE, strerror(errno));
 			m_result_msg = VMGAHP_ERR_CANNOT_CREATE_ARG_FILE;
 			return false;
@@ -310,7 +309,7 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 		}
 		fclose(argfile_fp);
 
-		m_arg_file.sprintf("%s%c%s", m_workingpath.Value(), 
+		m_arg_file.sprintf("%s%c%s", m_workingpath.Value(),
 				DIR_DELIM_CHAR, VM_UNIV_ARGUMENT_FILE);
 		// Add arg file to cdrom list
 		m_vm_cdrom_files.append(m_arg_file.Value());
@@ -318,19 +317,19 @@ VMType::parseCommonParamFromClassAd(bool is_root /*false*/)
 	return true;
 }
 
-vm_status 
+vm_status
 VMType::getVMStatus(void)
 {
 	return m_status;
 }
 
-void 
+void
 VMType::setVMStatus(vm_status status)
 {
 	m_status = status;
 }
 
-void 
+void
 VMType::setLastStatus(const char *result_msg)
 {
 	m_last_status_time.getTime();
@@ -370,12 +369,12 @@ VMType::createInitialFileList()
 	m_initial_working_files.rewind();
 	while( (tmp_file = m_initial_working_files.next()) != NULL ) {
 		// Create m_transfer_intermediate_files
-		if( filelist_contains_file(tmp_file, 
+		if( filelist_contains_file(tmp_file,
 					&intermediate_file_list, true) ) {
 			m_transfer_intermediate_files.append(tmp_file);
 		}
 		// Create m_transfer_input_files
-		if( filelist_contains_file(tmp_file, 
+		if( filelist_contains_file(tmp_file,
 							&input_file_list, true) ) {
 			m_transfer_input_files.append(tmp_file);
 		}
@@ -405,7 +404,7 @@ VMType::deleteNonTransferredFiles()
 
 // Create a name representing a virtual machine
 // Usually this name is used in vm config file
-bool 
+bool
 VMType::createVMName(ClassAd *ad, MyString& vmname)
 {
 	if( !ad ) {
@@ -427,7 +426,7 @@ bool
 VMType::createTempFile(const char *template_string, const char *suffix, MyString &outname)
 {
 	MyString tmp_config_name;
-	tmp_config_name.sprintf("%s%c%s",m_workingpath.Value(), 
+	tmp_config_name.sprintf("%s%c%s",m_workingpath.Value(),
 			DIR_DELIM_CHAR, template_string);
 
 	char *config_name = strdup(tmp_config_name.Value() );
@@ -451,7 +450,7 @@ VMType::createTempFile(const char *template_string, const char *suffix, MyString
 
 		if( rename(config_name, tmp_config_name.Value()) < 0 ) {
 			vmprintf(D_ALWAYS, "Cannot rename the temporary config file(%s), '%s' (errno %d) in "
-					"VMType::createTempFile()\n", tmp_config_name.Value(), 
+					"VMType::createTempFile()\n", tmp_config_name.Value(),
 					strerror(errno), errno );
 			free(config_name);
 			return false;
@@ -481,7 +480,7 @@ VMType::createISOConfigAndName(StringList *cd_files, MyString &isoconf, MyString
 	FILE *config_fp = safe_fopen_wrapper(tmp_config.Value(), "w");
 	if( !config_fp ) {
 		vmprintf(D_ALWAYS, "failed to safe_fopen_wrapper ISO config file "
-				": safe_fopen_wrapper(%s) returns %s\n", 
+				": safe_fopen_wrapper(%s) returns %s\n",
 				tmp_config.Value(), strerror(errno));
 		return false;
 	}
@@ -496,7 +495,7 @@ VMType::createISOConfigAndName(StringList *cd_files, MyString &isoconf, MyString
 
 		// check if this file is readable
 		if( check_vm_read_access_file(tmp_fullname.Value()) == false ) {
-			vmprintf(D_ALWAYS, "file(%s) for CDROM cannot be read\n", 
+			vmprintf(D_ALWAYS, "file(%s) for CDROM cannot be read\n",
 					tmp_fullname.Value());
 			fclose(config_fp);
 			unlink(tmp_config.Value());
@@ -534,7 +533,7 @@ VMType::createISO()
 
 	MyString tmp_config;
 	MyString tmp_file;
-	if( createISOConfigAndName(&m_vm_cdrom_files, tmp_config, 
+	if( createISOConfigAndName(&m_vm_cdrom_files, tmp_config,
 				tmp_file) == false ) {
 		return false;
 	}
@@ -553,7 +552,7 @@ VMType::createISO()
 		return false;
 	}
 
-#if defined(LINUX)	
+#if defined(LINUX)
 	// To avoid lazy-write behavior to disk
 	sync();
 #endif
@@ -570,8 +569,8 @@ VMType::createISO()
 // check if a file was transferred.
 // if so, fullname will have full path in working directory.
 // Otherwise, fullname will be same to file_name
-bool 
-VMType::isTransferedFile(const char* file_name, MyString& fullname) 
+bool
+VMType::isTransferedFile(const char* file_name, MyString& fullname)
 {
 	if( !file_name || m_initial_working_files.isEmpty() ) {
 		return false;
@@ -583,7 +582,7 @@ VMType::isTransferedFile(const char* file_name, MyString& fullname)
 				&m_initial_working_files, true) ) {
 		// this file was transferred.
 		// make full path with workingdir
-		tmp_fullname.sprintf("%s%c%s", m_workingpath.Value(), 
+		tmp_fullname.sprintf("%s%c%s", m_workingpath.Value(),
 				DIR_DELIM_CHAR, condor_basename(file_name));
 		fullname = tmp_fullname;
 		return true;
@@ -644,7 +643,7 @@ VMType::createConfigUsingScript(const char* configfile)
 
 	if( result != 0 ) {
 		vmprintf(D_ALWAYS, "Failed to create Configuration file('%s') using "
-				"script program('%s')\n", configfile, 
+				"script program('%s')\n", configfile,
 				m_scriptname.Value());
 		return false;
 	}

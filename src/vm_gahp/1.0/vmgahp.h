@@ -30,7 +30,7 @@
 #include "HashTable.h"
 #include "simplelist.h"
 #include "pbuffer.h"
-#include "condor_vm_universe_types.h"
+#include "IVmGahp/types.h"
 #include "vmgahp_common.h"
 #include "vmgahp_config.h"
 #include "vm_request.h"

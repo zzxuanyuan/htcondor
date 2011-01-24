@@ -2,13 +2,13 @@
  *
  * Copyright (C) 1990-2007, Condor Team, Computer Sciences Department,
  * University of Wisconsin-Madison, WI.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License.  You may
  * obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -38,7 +38,7 @@
 #include "directory.h"
 #include "nullfile.h"
 #include "stream_handler.h"
-#include "condor_vm_universe_types.h"
+#include "IVmGahp/types.h"
 #include "authentication.h"
 #include "condor_mkstemp.h"
 
@@ -69,7 +69,7 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	m_did_transfer = false;
 	m_filetrans_sec_session = NULL;
 	m_reconnect_sec_session = NULL;
-	
+
 	trust_uid_domain = false;
 	uid_domain = NULL;
 	fs_domain = NULL;
@@ -81,7 +81,7 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 		// now we need to try to inherit the syscall sock from the startd
 	Stream **socks = daemonCore->GetInheritedSocks();
 	if (socks[0] == NULL ||
-		socks[0]->type() != Stream::reli_sock) 
+		socks[0]->type() != Stream::reli_sock)
 	{
 		dprintf(D_ALWAYS, "Failed to inherit job ClassAd startd update socket.\n");
 		Starter->StarterExit( 1 );
@@ -89,8 +89,8 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	m_job_startd_update_sock = socks[0];
 	socks++;
 
-	if (socks[0] == NULL || 
-		socks[0]->type() != Stream::reli_sock) 
+	if (socks[0] == NULL ||
+		socks[0]->type() != Stream::reli_sock)
 	{
 		dprintf(D_ALWAYS, "Failed to inherit remote system call socket.\n");
 		Starter->StarterExit( 1 );
@@ -133,11 +133,11 @@ JICShadow::~JICShadow()
 
 
 bool
-JICShadow::init( void ) 
-{ 
+JICShadow::init( void )
+{
 		// First, get a copy of the job classad by doing an RSC to the
 		// shadow.  This is totally independent of the shadow version,
-		// etc, and is the first step to everything else. 
+		// etc, and is the first step to everything else.
 	if( ! getJobAdFromShadow() ) {
 		dprintf( D_ALWAYS|D_FAILURE,
 				 "Failed to get job ad from shadow!\n" );
@@ -151,7 +151,7 @@ JICShadow::init( void )
 
 		// stash a copy of the unmodified job ad in case we decide
 		// below that we want to write out an execution visa
-	ClassAd orig_ad = *job_ad;	
+	ClassAd orig_ad = *job_ad;
 
 		// now that we have the job ad, see if we should go into an
 		// infinite loop, waiting for someone to attach w/ the
@@ -185,12 +185,12 @@ JICShadow::init( void )
 		// Grab all the interesting stuff out of the ClassAd we need
 		// to know about the job itself, like are we doing file
 		// transfer, what should the std files be called, etc.
-	if( ! initJobInfo() ) { 
+	if( ! initJobInfo() ) {
 		dprintf( D_ALWAYS|D_FAILURE,
 				 "Failed to initialize job info from ClassAd!\n" );
 		return false;
 	}
-	
+
 		// Now that we have the job ad, figure out what the owner
 		// should be and initialize our priv_state code:
 	if( ! initUserPriv() ) {
@@ -201,12 +201,12 @@ JICShadow::init( void )
 
 		// Now that we have the user_priv, we can make the temp
 		// execute dir
-	if( ! Starter->createTempExecuteDir() ) { 
+	if( ! Starter->createTempExecuteDir() ) {
 		return false;
 	}
 
 		// If the user wants it, initialize our io proxy
-		// Must have user priv to drop the config info	
+		// Must have user priv to drop the config info
 		// into the execute dir.
         priv_state priv = set_user_priv();
 	initIOProxy();
@@ -229,24 +229,24 @@ JICShadow::init( void )
 
 
 void
-JICShadow::config( void ) 
-{ 
+JICShadow::config( void )
+{
 	if( uid_domain ) {
 		free( uid_domain );
 	}
-	uid_domain = param( "UID_DOMAIN" );  
+	uid_domain = param( "UID_DOMAIN" );
 
 	if( fs_domain ) {
 		free( fs_domain );
 	}
-	fs_domain = param( "FILESYSTEM_DOMAIN" );  
-	
+	fs_domain = param( "FILESYSTEM_DOMAIN" );
+
 	trust_uid_domain = false;
 	char* tmp = param( "TRUST_UID_DOMAIN" );
 	if( tmp ) {
-		if( tmp[0] == 't' || tmp[0] == 'T' ) { 
+		if( tmp[0] == 't' || tmp[0] == 'T' ) {
 			trust_uid_domain = true;
-		}			
+		}
 		free( tmp );
 	}
 }
@@ -254,7 +254,7 @@ JICShadow::config( void )
 
 void
 JICShadow::setupJobEnvironment( void )
-{ 
+{
 		// call our helper method to see if we want to do a file
 		// transfer at all, and if so, initiate it.
 	if( beginFileTransfer() ) {
@@ -262,7 +262,7 @@ JICShadow::setupJobEnvironment( void )
 			// DaemonCore asap and wait for the file transfer callback
 			// that was registered
 		return;
-	} 
+	}
 
 		// Otherwise, there were no files to transfer, so we can
 		// pretend the transfer just finished and try to spawn the job
@@ -299,7 +299,7 @@ JICShadow::bytesSent( void )
 {
 	if( filetrans ) {
 		return filetrans->TotalBytesSent();
-	} 
+	}
 	return 0.0;
 }
 
@@ -323,13 +323,13 @@ JICShadow::Suspend( void )
 	if( filetrans ) {
 		filetrans->Suspend();
 	}
-	
+
 		// Next, we need the update ad for our job.  We'll use this
 		// for the LocalUserLog (if it's doing anything), updating the
 		// shadow, etc, etc.
 	ClassAd update_ad;
 	publishUpdateAd( &update_ad );
-	
+
 		// See if the LocalUserLog wants it
 	u_log->logSuspend( &update_ad );
 
@@ -398,7 +398,7 @@ JICShadow::transferOutput( bool &transient_failure )
 		// transfer output files back if requested job really
 		// finished.  may as well do this in the foreground,
 		// since we do not want to be interrupted by anything
-		// short of a hardkill. 
+		// short of a hardkill.
 	if( filetrans && ((requested_exit == false) || transfer_at_vacate) ) {
 
 			// add any dynamically-added output files to the FT
@@ -420,9 +420,9 @@ JICShadow::transferOutput( bool &transient_failure )
 		// ft list
 		filetrans->addFileToExeptionList(JOB_AD_FILENAME);
 		filetrans->addFileToExeptionList(MACHINE_AD_FILENAME);
-	
+
 			// true if job exited on its own
-		bool final_transfer = (requested_exit == false);	
+		bool final_transfer = (requested_exit == false);
 
 			// The shadow may block on disk I/O for long periods of
 			// time, so set a big timeout on the starter's side of the
@@ -443,7 +443,7 @@ JICShadow::transferOutput( bool &transient_failure )
 		set_priv(saved_priv);
 
 		if( m_ft_rval ) {
-			job_ad->Assign(ATTR_SPOOLED_OUTPUT_FILES, 
+			job_ad->Assign(ATTR_SPOOLED_OUTPUT_FILES,
 							m_ft_info.spooled_files.Value());
 		} else {
 			dprintf( D_FULLDEBUG, "Sandbox transfer failed.\n");
@@ -513,7 +513,7 @@ JICShadow::transferOutputMopUp(void)
 		if(!m_ft_info.success && !m_ft_info.try_again) {
 			ASSERT(m_ft_info.hold_code != 0);
 			// The shadow will immediately cut the connection to the
-			// starter when this is called. 
+			// starter when this is called.
 			notifyStarterError(m_ft_info.error_desc.Value(), true,
 			                   m_ft_info.hold_code,m_ft_info.hold_subcode);
 			return false;
@@ -532,9 +532,9 @@ JICShadow::transferOutputMopUp(void)
 void
 JICShadow::gotShutdownFast( void )
 {
-		// Despite what the user wants, do not transfer back any files 
+		// Despite what the user wants, do not transfer back any files
 		// on a ShutdownFast.
-	transfer_at_vacate = false;   
+	transfer_at_vacate = false;
 
 		// let our parent class do the right thing, too.
 	JobInfoCommunicator::gotShutdownFast();
@@ -562,7 +562,7 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 		  management when you use strong authentication, so this
 		  socket would be authenticated with the shadow's system
 		  credentials, not the user.  So, *NONE* of this will work,
-		  anyway.  
+		  anyway.
 
 		  We could try to introduce some kind of real shared
 		  secret/capability to make this more secure, but that's going
@@ -570,7 +570,7 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 		*/
 #if 0
 	const char* new_owner = s->getOwner();
-	char* my_owner = NULL; 
+	char* my_owner = NULL;
 	if( ! job_ad->LookupString(ATTR_OWNER, &my_owner) ) {
 		EXCEPT( "impossible: ATTR_OWNER must be in job ad by now" );
 	}
@@ -579,9 +579,9 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 		MyString err_msg = "User '";
 		err_msg += new_owner;
 		err_msg += "' does not match the owner of this job";
-		sendErrorReply( s, getCommandString(CA_RECONNECT_JOB), 
-						CA_NOT_AUTHORIZED, err_msg.Value() ); 
-		dprintf( D_COMMAND, "Denied request for %s by invalid user '%s'\n", 
+		sendErrorReply( s, getCommandString(CA_RECONNECT_JOB),
+						CA_NOT_AUTHORIZED, err_msg.Value() );
+		dprintf( D_COMMAND, "Denied request for %s by invalid user '%s'\n",
 				 getCommandString(CA_RECONNECT_JOB), new_owner );
 		return FALSE;
 	}
@@ -609,7 +609,7 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 		// Destroy our old DCShadow object and make a new one with the
 		// current info.
 	dprintf( D_ALWAYS, "Accepted request to reconnect from <%s:%d>\n",
-			 syscall_sock->peer_ip_str(), 
+			 syscall_sock->peer_ip_str(),
 			 syscall_sock->peer_port() );
 	dprintf( D_ALWAYS, "Ignoring old shadow %s\n", shadow->addr() );
 	delete shadow;
@@ -634,18 +634,18 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 
 		// switch over to the new syscall_sock
 	dprintf( D_FULLDEBUG, "Closing old syscall sock <%s:%d>\n",
-			 syscall_sock->peer_ip_str(), 
+			 syscall_sock->peer_ip_str(),
 			 syscall_sock->peer_port() );
 	delete syscall_sock;
 	syscall_sock = s;
 	syscall_sock->timeout(param_integer( "STARTER_UPLOAD_TIMEOUT", 300));
 	dprintf( D_FULLDEBUG, "Using new syscall sock <%s:%d>\n",
-			 syscall_sock->peer_ip_str(), 
+			 syscall_sock->peer_ip_str(),
 			 syscall_sock->peer_port() );
 
 	initMatchSecuritySession();
 
-		// tell our FileTransfer object to point to the new 
+		// tell our FileTransfer object to point to the new
 		// shadow using the transsock and key in the ad from the
 		// reconnect request
 	if ( filetrans ) {
@@ -722,7 +722,7 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 		// LocalUserLog
 	publishUpdateAd( &ad );
 
-		// depending on the exit reason, we want a different event. 
+		// depending on the exit reason, we want a different event.
 		// however, don't write multiple events if we've already been
 		// here, which might happen if we were disconnected when we
 		// first tried and we're trying again...
@@ -735,7 +735,7 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 	updateStartd(&ad, true);
 
 	if( !had_hold ) {
-		if( REMOTE_CONDOR_job_exit(exit_status, reason, &ad) < 0 ) {    
+		if( REMOTE_CONDOR_job_exit(exit_status, reason, &ad) < 0 ) {
 			dprintf( D_ALWAYS, "Failed to send job exit status to shadow\n" );
 			job_cleanup_disconnected = true;
 			return false;
@@ -801,7 +801,7 @@ JICShadow::notifyStarterError( const char* err_msg, bool critical, int hold_reas
 	u_log->logStarterError( err_msg, critical );
 
 	if( REMOTE_CONDOR_ulog_error(hold_reason_code, hold_reason_subcode, err_msg) < 0 ) {
-		dprintf( D_ALWAYS, 
+		dprintf( D_ALWAYS,
 				 "Failed to send starter error string to Shadow.\n" );
 		return false;
 	}
@@ -850,14 +850,14 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 
 	size = strlen(fs_domain) + strlen(ATTR_FILE_SYSTEM_DOMAIN) + 5;
 	tmp = (char*) malloc( size * sizeof(char) );
-	sprintf( tmp, "%s=\"%s\"", ATTR_FILE_SYSTEM_DOMAIN, fs_domain ); 
+	sprintf( tmp, "%s=\"%s\"", ATTR_FILE_SYSTEM_DOMAIN, fs_domain );
 	ad->Insert( tmp );
 	free( tmp );
 
 	int slot = Starter->getMySlotNumber();
 	MyString line = ATTR_NAME;
 	line += "=\"";
-	if( slot ) { 
+	if( slot ) {
 		line += "slot";
 		line += slot;
 		line += '@';
@@ -886,9 +886,9 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 
 	tmp_val = param( "CKPT_SERVER_HOST" );
 	if( tmp_val ) {
-		size = strlen(tmp_val) + strlen(ATTR_CKPT_SERVER) + 5; 
+		size = strlen(tmp_val) + strlen(ATTR_CKPT_SERVER) + 5;
 		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_CKPT_SERVER, tmp_val ); 
+		sprintf( tmp, "%s=\"%s\"", ATTR_CKPT_SERVER, tmp_val );
 		ad->Insert( tmp );
 		free( tmp );
 		free( tmp_val );
@@ -955,7 +955,7 @@ JICShadow::uploadWorkingFiles(void)
 void
 JICShadow::updateCkptInfo(void)
 {
-	// We need the update ad for our job. 
+	// We need the update ad for our job.
 	ClassAd update_ad;
 	publishUpdateAd( &update_ad );
 
@@ -985,7 +985,7 @@ JICShadow::initUserPriv( void )
 
 		// Before we go through any trouble, see if we even need
 		// ATTR_OWNER to initialize user_priv.  If not, go ahead and
-		// initialize it as appropriate.  
+		// initialize it as appropriate.
 	if( initUserPrivNoOwner() ) {
 		return true;
 	}
@@ -995,7 +995,7 @@ JICShadow::initUserPriv( void )
 	MyString owner;
 	if( run_as_owner ) {
 		if( job_ad->LookupString( ATTR_OWNER, owner ) != 1 ) {
-			dprintf( D_ALWAYS, "ERROR: %s not found in JobAd.  Aborting.\n", 
+			dprintf( D_ALWAYS, "ERROR: %s not found in JobAd.  Aborting.\n",
 			         ATTR_OWNER );
 			return false;
 		}
@@ -1005,7 +1005,7 @@ JICShadow::initUserPriv( void )
 		// submitting machine.  If so, we'll try to initialize
 		// user_priv via ATTR_OWNER.  If there's no such user in the
 		// passwd file, SOFT_UID_DOMAIN is True, and we're talking to
-		// at least a 6.3.3 version of the shadow, we'll do a remote 
+		// at least a 6.3.3 version of the shadow, we'll do a remote
 		// system call to ask the shadow what uid and gid we should
 		// use.  If SOFT_UID_DOMAIN is False and there's no such user
 		// in the password file, but the UID_DOMAIN's match, it's a
@@ -1014,7 +1014,7 @@ JICShadow::initUserPriv( void )
 
 	if( run_as_owner && !sameUidDomain() ) {
 		run_as_owner = false;
-		dprintf( D_FULLDEBUG, "Submit host is in different UidDomain\n" ); 
+		dprintf( D_FULLDEBUG, "Submit host is in different UidDomain\n" );
 	}
 
 	MyString vm_univ_type;
@@ -1026,7 +1026,7 @@ JICShadow::initUserPriv( void )
 		bool use_vm_nobody_user = param_boolean("ALWAYS_VM_UNIV_USE_NOBODY", false);
 		if( use_vm_nobody_user ) {
 			run_as_owner = false;
-			dprintf( D_ALWAYS, "Using VM_UNIV_NOBODY_USER instead of %s\n", 
+			dprintf( D_ALWAYS, "Using VM_UNIV_NOBODY_USER instead of %s\n",
 					owner.Value());
 		}
 	}
@@ -1044,7 +1044,7 @@ JICShadow::initUserPriv( void )
 			if (privsep_helper != NULL) {
 				privsep_helper->initialize_user(owner.Value());
 			}
-			dprintf( D_FULLDEBUG, "Initialized user_priv as \"%s\"\n", 
+			dprintf( D_FULLDEBUG, "Initialized user_priv as \"%s\"\n",
 			         owner.Value() );
 			if( checkDedicatedExecuteAccounts( owner.Value() ) ) {
 				setExecuteAccountIsDedicated( owner.Value() );
@@ -1063,7 +1063,7 @@ JICShadow::initUserPriv( void )
 					// need to do the RSC, we can just fail.
 				dprintf( D_ALWAYS, "ERROR: Uid for \"%s\" not found in "
 						 "passwd file and SOFT_UID_DOMAIN is False\n",
-						 owner.Value() ); 
+						 owner.Value() );
 				return false;
             }
 
@@ -1071,7 +1071,7 @@ JICShadow::initUserPriv( void )
 				// isn't in the passwd file, and 2) SOFT_UID_DOMAIN is
 				// True. So, we'll do a CONDOR_REMOTE_get_user_info RSC
 				// to get the uid/gid pair we need
-				// and initialize user priv with that. 
+				// and initialize user priv with that.
 
 			ClassAd user_info;
 			if( REMOTE_CONDOR_get_user_info( &user_info ) < 0 ) {
@@ -1086,17 +1086,17 @@ JICShadow::initUserPriv( void )
 
 			int user_uid, user_gid;
 			if( user_info.LookupInteger( ATTR_UID, user_uid ) != 1 ) {
-				dprintf( D_ALWAYS, "user_info ClassAd does not contain %s!\n", 
+				dprintf( D_ALWAYS, "user_info ClassAd does not contain %s!\n",
 						 ATTR_UID );
 				return false;
 			}
 			if( user_info.LookupInteger( ATTR_GID, user_gid ) != 1 ) {
-				dprintf( D_ALWAYS, "user_info ClassAd does not contain %s!\n", 
+				dprintf( D_ALWAYS, "user_info ClassAd does not contain %s!\n",
 						 ATTR_GID );
 				return false;
 			}
 
-				// now, we should have the uid and gid of the user.	
+				// now, we should have the uid and gid of the user.
 			dprintf( D_FULLDEBUG, "Got UserInfo from the Shadow: "
 					 "uid: %d, gid: %d\n", user_uid, user_gid );
 			if( ! set_user_ids((uid_t)user_uid, (gid_t)user_gid) ) {
@@ -1113,7 +1113,7 @@ JICShadow::initUserPriv( void )
 				privsep_helper->initialize_user((uid_t)user_uid);
 			}
 		}
-	} 
+	}
 
 	if( !run_as_owner) {
 
@@ -1127,8 +1127,8 @@ JICShadow::initUserPriv( void )
 		}
 
 		if( job_universe == CONDOR_UNIVERSE_VM ) {
-			// If "VM_UNIV_NOBODY_USER" is defined in Condor configuration file, 
-			// we will use it. 
+			// If "VM_UNIV_NOBODY_USER" is defined in Condor configuration file,
+			// we will use it.
 			snprintf( nobody_param, 20, "VM_UNIV_NOBODY_USER" );
 			nobody_user = param(nobody_param);
 			if( nobody_user == NULL ) {
@@ -1173,7 +1173,7 @@ JICShadow::initUserPriv( void )
 
 			// passing NULL for the domain is ok here since this is
 			// UNIX code
-		if( ! init_user_ids(nobody_user, NULL) ) { 
+		if( ! init_user_ids(nobody_user, NULL) ) {
 			dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
 					 "as \"%s\"\n", nobody_user );
 			free( nobody_user );
@@ -1188,7 +1188,7 @@ JICShadow::initUserPriv( void )
 				setExecuteAccountIsDedicated( nobody_user );
 			}
 			free( nobody_user );
-		}			
+		}
 	}
 
 	user_priv_is_initialized = true;
@@ -1198,7 +1198,7 @@ JICShadow::initUserPriv( void )
 
 
 bool
-JICShadow::initJobInfo( void ) 
+JICShadow::initJobInfo( void )
 {
 		// Give our base class a chance.
 	if (!JobInfoCommunicator::initJobInfo()) return false;
@@ -1233,18 +1233,18 @@ JICShadow::initJobInfo( void )
 	}
 
 	if( ! job_ad->LookupInteger(ATTR_JOB_UNIVERSE, job_universe) ) {
-		dprintf( D_ALWAYS, 
-				 "Job doesn't specify universe, assuming VANILLA\n" ); 
+		dprintf( D_ALWAYS,
+				 "Job doesn't specify universe, assuming VANILLA\n" );
 		job_universe = CONDOR_UNIVERSE_VANILLA;
 	}
 
-	if( ! job_ad->LookupInteger(ATTR_CLUSTER_ID, job_cluster) ) { 
+	if( ! job_ad->LookupInteger(ATTR_CLUSTER_ID, job_cluster) ) {
 		dprintf( D_ALWAYS, "Error in JICShadow::initJobInfo(): "
 				 "Can't find %s in job ad\n", ATTR_CLUSTER_ID );
 		return false;
 	}
 
-	if( ! job_ad->LookupInteger(ATTR_PROC_ID, job_proc) ) { 
+	if( ! job_ad->LookupInteger(ATTR_PROC_ID, job_proc) ) {
 		dprintf( D_ALWAYS, "Error in JICShadow::initJobInfo(): "
 				 "Can't find %s in job ad\n", ATTR_PROC_ID );
 		return false;
@@ -1276,18 +1276,18 @@ JICShadow::initFileTransfer( void )
 		should_transfer = getShouldTransferFilesNum( should_transfer_str );
 		if( should_transfer < 0 ) {
 			dprintf( D_ALWAYS, "ERROR: Invalid %s (%s) in job ad, "
-					 "aborting\n", ATTR_SHOULD_TRANSFER_FILES, 
+					 "aborting\n", ATTR_SHOULD_TRANSFER_FILES,
 					 should_transfer_str );
 			free( should_transfer_str );
 			return false;
 		}
-	} else { 
+	} else {
 			// new attribute is not defined, use the old method.  we
 			// just want to call the initWithFileTransfer() method,
 			// since it will check the ATTR_TRANSFER_FILES if it can't
 			// find ATTR_WHEN_TO_TRANSFER_OUTPUT...
 		dprintf( D_FULLDEBUG, "No %s specified, looking for deprecated %s "
-				 "attribute\n", ATTR_SHOULD_TRANSFER_FILES, 
+				 "attribute\n", ATTR_SHOULD_TRANSFER_FILES,
 				 ATTR_TRANSFER_FILES );
 		return initWithFileTransfer();
 	}
@@ -1307,12 +1307,12 @@ JICShadow::initFileTransfer( void )
 		}
 		break;
 	case STF_YES:
-		dprintf( D_FULLDEBUG, "%s is \"%s\", transfering files\n", 
+		dprintf( D_FULLDEBUG, "%s is \"%s\", transfering files\n",
 				 ATTR_SHOULD_TRANSFER_FILES, should_transfer_str );
 		rval = initWithFileTransfer();
 		break;
 	case STF_NO:
-		dprintf( D_FULLDEBUG, "%s is \"%s\", NOT transfering files\n", 
+		dprintf( D_FULLDEBUG, "%s is \"%s\", NOT transfering files\n",
 				 ATTR_SHOULD_TRANSFER_FILES, should_transfer_str );
 		rval = initNoFileTransfer();
 		break;
@@ -1350,7 +1350,7 @@ bool
 JICShadow::initWithFileTransfer()
 {
 		// First, see if the new attribute to decide when to transfer
-		// the output back is defined, and if so, use it. 
+		// the output back is defined, and if so, use it.
 	char* when_str = NULL;
 	FileTransferOutput_t when;
 	job_ad->LookupString( ATTR_WHEN_TO_TRANSFER_OUTPUT, &when_str );
@@ -1366,7 +1366,7 @@ JICShadow::initWithFileTransfer()
 		if( when == FTO_ON_EXIT_OR_EVICT ) {
 			transfer_at_vacate = true;
 		}
-	} else { 
+	} else {
 			// no new attribute, try the old...
 		char* tmp = NULL;
 		job_ad->LookupString( ATTR_TRANSFER_FILES, &tmp );
@@ -1416,7 +1416,7 @@ bool
 JICShadow::initStdFiles( void )
 {
 		// now that we know about file transfer and the real iwd we'll
-		// be using, we can initialize the std files... 
+		// be using, we can initialize the std files...
 	if( ! job_input_name ) {
 		job_input_name = getJobStdFile( ATTR_JOB_INPUT, NULL );
 	}
@@ -1441,7 +1441,7 @@ JICShadow::initStdFiles( void )
 }
 
 
-char* 
+char*
 JICShadow::getJobStdFile( const char* attr_name, const char* alt_name )
 {
 	char* tmp = NULL;
@@ -1476,7 +1476,7 @@ JICShadow::getJobStdFile( const char* attr_name, const char* alt_name )
 		filename += base;
 	}
 	free( tmp );
-	if( filename[0] ) { 
+	if( filename[0] ) {
 		return strdup( filename.Value() );
 	}
 	return NULL;
@@ -1484,7 +1484,7 @@ JICShadow::getJobStdFile( const char* attr_name, const char* alt_name )
 
 
 bool
-JICShadow::sameUidDomain( void ) 
+JICShadow::sameUidDomain( void )
 {
 	char* job_uid_domain = NULL;
 	bool same_domain = false;
@@ -1545,14 +1545,14 @@ JICShadow::sameUidDomain( void )
 		// TODO: maybe we should be more harsh in this case than just
 		// running their job as nobody... perhaps we should EXCEPT()
 		// in this case and force the user/admins to get it right
-		// before we agree to run *any* jobs from a shadow like this? 
+		// before we agree to run *any* jobs from a shadow like this?
 
 	return false;
 }
 
 
 bool
-JICShadow::sameFSDomain( void ) 
+JICShadow::sameFSDomain( void )
 {
 	char* job_fs_domain = NULL;
 	bool same_domain = false;
@@ -1682,7 +1682,7 @@ updateX509Proxy(int cmd, ReliSock * rsock, const char * path)
 		else {
 				// transfer worked, now rename the file to
 				// final_proxy_path
-			if ( rotate_file(tmp_path.Value(), path) < 0 ) 
+			if ( rotate_file(tmp_path.Value(), path) < 0 )
 			{
 					// the rename failed!!?!?!
 				dprintf( D_ALWAYS,
@@ -1708,7 +1708,7 @@ updateX509Proxy(int cmd, ReliSock * rsock, const char * path)
 		dprintf(D_ALWAYS,
 		        "Attempt to refresh X509 proxy FAILED.\n");
 	}
-	
+
 	return reply;
 }
 
@@ -1746,7 +1746,7 @@ JICShadow::publishUpdateAd( ClassAd* ad )
 	if ( filetrans ) {
 		Directory starter_dir( Starter->GetWorkingDir(), PRIV_USER );
 		execsz = starter_dir.GetDirectorySize();
-		sprintf( buf, "%s=%lu", ATTR_DISK_USAGE, (long unsigned)((execsz+1023)/1024) ); 
+		sprintf( buf, "%s=%lu", ATTR_DISK_USAGE, (long unsigned)((execsz+1023)/1024) );
 		ad->InsertOrUpdate( buf );
 
 	}
@@ -1786,7 +1786,7 @@ JICShadow::publishJobExitAd( ClassAd* ad )
 	if ( filetrans ) {
 		Directory starter_dir( Starter->GetWorkingDir(), PRIV_USER );
 		execsz = starter_dir.GetDirectorySize();
-		sprintf( buf, "%s=%lu", ATTR_DISK_USAGE, (long unsigned)((execsz+1023)/1024) ); 
+		sprintf( buf, "%s=%lu", ATTR_DISK_USAGE, (long unsigned)((execsz+1023)/1024) );
 		ad->InsertOrUpdate( buf );
 
 	}
@@ -1837,7 +1837,7 @@ JICShadow::updateShadow( ClassAd* update_ad, bool insure_update )
 		ad = update_ad;
 	} else {
 		ad = &local_ad;
-		if( ! publishUpdateAd(ad) ) {  
+		if( ! publishUpdateAd(ad) ) {
 			dprintf( D_FULLDEBUG, "JICShadow::updateShadow(): "
 					 "Didn't find any info to update!\n" );
 			return false;
@@ -1883,7 +1883,7 @@ bool
 JICShadow::beginFileTransfer( void )
 {
 
-		// if requested in the jobad, transfer files over.  
+		// if requested in the jobad, transfer files over.
 	if( wants_file_transfer ) {
 		// Only rename the executable if it is transferred.
 		int xferExec = 1;
@@ -1984,7 +1984,7 @@ JICShadow::getJobAdFromShadow( void )
     job_ad = new ClassAd;
 
 	if( REMOTE_CONDOR_get_job_info(job_ad) < 0 ) {
-		dprintf( D_FAILURE|D_ALWAYS, 
+		dprintf( D_FAILURE|D_ALWAYS,
 				 "Failed to get job info from Shadow!\n" );
 		return false;
 	}
@@ -1996,8 +1996,8 @@ void
 JICShadow::initShadowInfo( ClassAd* ad )
 {
 	ASSERT( shadow );
-	if( ! shadow->initFromClassAd(ad) ) { 
-		dprintf( D_ALWAYS, 
+	if( ! shadow->initFromClassAd(ad) ) {
+		dprintf( D_ALWAYS,
 				 "Failed to initialize shadow info from ClassAd!\n" );
 		return;
 	}
@@ -2013,7 +2013,7 @@ JICShadow::initShadowInfo( ClassAd* ad )
 		dprintf( D_FULLDEBUG, "Shadow version: %s\n", tmp );
 		shadow_version = new CondorVersionInfo( tmp, "SHADOW" );
 	} else {
-		dprintf( D_FULLDEBUG, "Shadow version: unknown (pre v6.3.3)\n" ); 
+		dprintf( D_FULLDEBUG, "Shadow version: unknown (pre v6.3.3)\n" );
 	}
 }
 
@@ -2029,7 +2029,7 @@ JICShadow::initIOProxy( void )
 		// chirp is enabled
     bool enableIOProxy = true;
 	enableIOProxy = param_boolean("ENABLE_CHIRP", true);
-	
+
 	if (!enableIOProxy) {
 		dprintf(D_ALWAYS, "ENABLE_CHIRP is false in config file, not enabling chirp\n");
 		return false;
@@ -2048,7 +2048,7 @@ JICShadow::initIOProxy( void )
 		io_proxy_config_file.sprintf( "%s%cchirp.config",
 				 Starter->GetWorkingDir(), DIR_DELIM_CHAR );
 		if( !io_proxy.init(io_proxy_config_file.Value()) ) {
-			dprintf( D_FAILURE|D_ALWAYS, 
+			dprintf( D_FAILURE|D_ALWAYS,
 					 "Couldn't initialize IO Proxy.\n" );
 			return false;
 		}

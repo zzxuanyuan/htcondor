@@ -28,7 +28,6 @@
 #include "condor_string.h"
 #include "MyString.h"
 #include "condor_attributes.h"
-#include "condor_vm_universe_types.h"
 #include "vmgahp_common.h"
 #include "vmgahp.h"
 #include "vm_type.h"

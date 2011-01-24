@@ -22,7 +22,6 @@
 
 #include "vmgahp_common.h"
 #include "vmgahp_controller.h"
-#include "condor_vm_universe_types.h"
 
 #include <stdlib.h>
 #include <iostream>
@@ -128,7 +127,7 @@ void main_init(int argc, char *argv[])
                     break;
                 // start up a vm
                 case VMGAHP_STANDALONE_MODE:
-                    if ((iRet = _p_vmcontroller->start( getenv("VMGAHP_VMTYPE"), getenv("VMGAHP_WORKING_DIR") )))
+                    if ((iRet = _p_vmcontroller->open_gahp( getenv("VMGAHP_VMTYPE"), getenv("VMGAHP_WORKING_DIR") )))
                         vm_exit( "failed to start VM_GAHP", iRet );
                     break;
                 // kill the current running vm which matches
