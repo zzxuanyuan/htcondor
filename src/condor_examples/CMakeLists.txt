@@ -211,6 +211,66 @@ else()
 	
 
 	#Add variable overrides for windows here
+	
+	set ( EXE .exe )
+
+	set( CONDOR_HOST            central-manager-hostname.your.domain )
+	set( RELEASE_DIR            /usr/local/condor )
+	set( LOCAL_DIR              $(TILDE) )
+	set( LOCAL_CONFIG_FILE      $(LOCAL_DIR)/condor_config.local )
+	set( LOCAL_CONFIG_DIR       $(LOCAL_DIR)/config )
+
+	set( COLLECTOR_NAME         "My Pool" )
+
+	set( CONDOR_ADMIN           condor-admin@your.domain )
+	set( MAIL                   /usr/bin/mail )
+	set( UID_DOMAIN             your.domain )
+	set( FILESYSTEM_DOMAIN      your.domain )
+	set( ALLOW_READ             *  )
+	set( ALLOW_WRITE            YOU_MUST_CHANGE_THIS_INVALID_CONDOR_CONFIGURATION_VALUE )
+	set( ALLOW_ADMINISTRATOR    $(CONDOR_HOST) )
+
+	set( JAVA                   JAVA_SUB )
+
+	set( WANT_SUSPEND           $(UWCS_WANT_SUSPEND) )
+	set( WANT_VACATE            $(UWCS_WANT_VACATE) )
+	set( START                  $(UWCS_START) )
+	set( SUSPEND                $(UWCS_SUSPEND) )
+	set( CONTINUE               $(UWCS_CONTINUE) )
+	set( PREEMPT                $(UWCS_PREEMPT) )
+
+
+	set( LOCK                   $(LOG) )
+	set( LOG                    $(LOCAL_DIR)/log )
+	set( SPOOL                  $(LOCAL_DIR)/spool )
+	set( EXECUTE                $(LOCAL_DIR)/execute )
+	set( LIB                    $(BIN) )
+	set( INCLUDE                $(RELEASE_DIR)/include )
+	set( SBIN                   $(BIN) )
+	set( LIBEXEC                $(BIN) )
+
+	set( DAEMON_LIST            MASTER, STARTD, SCHEDD )
+
+	set( QUEUE_SUPER_USERS      root, condor )
+
+	set( JAVA_MAXHEAP_ARGUMENT       -Xmx )
+	set( JAVA_CLASSPATH_SEPARATOR    : )
+
+	set( C_GAHP_LOG                  /tmp/CGAHPLog.$(USERNAME) )
+	set( C_GAHP_LOCK                 /tmp/CGAHPLock.$(USERNAME) )
+	set( C_GAHP_WORKER_THREAD_LOG    /tmp/CGAHPWorkerLog.$(USERNAME) )
+	set( C_GAHP_WORKER_THREAD_LOCK   /tmp/CGAHPWorkerLock.$(USERNAME) )
+
+	set( VM_GAHP_LOG            $(LOG)/VMGahpLog )
+
+	set( PROCD_ADDRESS          $(LOCK)/procd_pipe )
+
+	set( HDFS_HOME              $(RELEASE_DIR)/hdfs )
+	set( HDFS_NODETYPE          HDFS_DATANODE )
+	set( HDFS_NAMENODE          hdfs://example.com:9000 )
+	set( HDFS_NAMENODE_WEB      example.com:8000 )
+	set( HDFS_NAMENODE_DIR      /tmp/hadoop_name )
+	set( HDFS_DATANODE_DIR      /scratch/tmp/hadoop_data )
    
 
 	configure_file(condor_config.generic.in condor_config.patched @ONLY)
