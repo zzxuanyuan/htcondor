@@ -89,6 +89,10 @@ CONDOR_ADMIN		= @CONDOR_ADMIN@
 ##  means you want to specify a subject:
 MAIL			= @MAIL@
 
+@SMTP_SERVER@
+
+@MAIL_FROM@
+
 ##--------------------------------------------------------------------
 ##  Network domain parameters:
 ##--------------------------------------------------------------------

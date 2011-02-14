@@ -215,22 +215,23 @@ else()
 	set ( EXE .exe )
 
 	set( CONDOR_HOST            central-manager-hostname.your.domain )
-	set( RELEASE_DIR            /usr/local/condor )
-	set( LOCAL_DIR              $(TILDE) )
+	set( RELEASE_DIR            #RELEASE_DIR# )
+	set( LOCAL_DIR              $(RELEASE_DIR) )
 	set( LOCAL_CONFIG_FILE      $(LOCAL_DIR)/condor_config.local )
 	set( LOCAL_CONFIG_DIR       $(LOCAL_DIR)/config )
 
-	set( COLLECTOR_NAME         "My Pool" )
+	set( COLLECTOR_NAME         #COLLECTOR_NAME# )
 
-	set( CONDOR_ADMIN           condor-admin@your.domain )
+	set( CONDOR_ADMIN           #CONDOR_ADMIN# )
 	set( MAIL                   /usr/bin/mail )
+	set( SMTP_SERVER            SMTP_SERVER=#SMTP_SERVER# )
+	set( MAIL_FROM              MAIL_FROM=#MAIL_FROM# )
 	set( UID_DOMAIN             your.domain )
-	set( FILESYSTEM_DOMAIN      your.domain )
 	set( ALLOW_READ             *  )
-	set( ALLOW_WRITE            YOU_MUST_CHANGE_THIS_INVALID_CONDOR_CONFIGURATION_VALUE )
-	set( ALLOW_ADMINISTRATOR    $(CONDOR_HOST) )
+	set( ALLOW_WRITE            #ALLOW_WRITE# )
+	set( ALLOW_ADMINISTRATOR    #ALLOW_ADMINISTRATOR# )
 
-	set( JAVA                   JAVA_SUB )
+	set( JAVA                   #JAVA# )
 
 	set( WANT_SUSPEND           $(UWCS_WANT_SUSPEND) )
 	set( WANT_VACATE            $(UWCS_WANT_VACATE) )
@@ -249,12 +250,12 @@ else()
 	set( SBIN                   $(BIN) )
 	set( LIBEXEC                $(BIN) )
 
-	set( DAEMON_LIST            MASTER, STARTD, SCHEDD )
+	set( DAEMON_LIST            #DAEMON_LIST# )
 
-	set( QUEUE_SUPER_USERS      root, condor )
+	set( QUEUE_SUPER_USERS      condor, SYSTEM )
 
 	set( JAVA_MAXHEAP_ARGUMENT       -Xmx )
-	set( JAVA_CLASSPATH_SEPARATOR    : )
+	set( JAVA_CLASSPATH_SEPARATOR    ; )
 
 	set( C_GAHP_LOG                  /tmp/CGAHPLog.$(USERNAME) )
 	set( C_GAHP_LOCK                 /tmp/CGAHPLock.$(USERNAME) )
