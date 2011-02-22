@@ -213,49 +213,27 @@ else()
 	#Add variable overrides for windows here
 	
 	set ( EXE .exe )
-
-	set( CONDOR_HOST            #CONDOR_HOST_VALUE# )
-	set( RELEASE_DIR            #RELEASE_DIR_VALUE# )
+	
+	set( CONDOR_HOST			$(IP_ADDRESS) )
+	set( RELEASE_DIR			c:\condor )
 	set( LOCAL_DIR              $(RELEASE_DIR) )
-	set( LOCAL_CONFIG_FILE      $(LOCAL_DIR)/condor_config.local )
-	set( LOCAL_CONFIG_DIR       $(LOCAL_DIR)/config )
-
-	set( COLLECTOR_NAME         #COLLECTOR_NAME_VALUE# )
-
-	set( CONDOR_ADMIN           #CONDOR_ADMIN_VALUE# )
+	
 	set( MAIL                   $(BIN)/condor_mail.exe )
-	set( SMTP_SERVER            SMTP_SERVER=#SMTP_SERVER_VALUE# )
 	set( MAIL_FROM              MAIL_FROM=#MAIL_FROM_VALUE# )
-	set( UID_DOMAIN             #UID_DOMAIN_VALUE# )
-	set( ALLOW_READ             #ALLOW_READ_VALUE#  )
-	set( ALLOW_WRITE            #ALLOW_WRITE_VALUE# )
-	set( ALLOW_ADMINISTRATOR    #ALLOW_ADMINISTRATOR_VALUE# )
-
+	set( SMTP_SERVER            SMTP_SERVER=#SMTP_SERVER_VALUE# )
+	set( UID_DOMAIN             $(IP_ADDRESS) )
+	
 	set( JAVA                   #JAVA_VALUE# )
-
-	set( WANT_SUSPEND           #WANT_SUSPEND_VALUE# )
-	set( WANT_VACATE            #WANT_VACATE_VALUE# )
-	set( START                  #START_VALUE# )
-	set( SUSPEND                #SUSPEND_VALUE# )
-	set( CONTINUE               #CONTINUE_VALUE# )
-	set( PREEMPT                #PREEMPT_VALUE# )
-
-
+	set( JAVA_MAXHEAP_ARGUMENT       -Xmx )
+	set( JAVA_CLASSPATH_SEPARATOR    ; )
+	
 	set( LOCK                   $(LOG) )
-	set( LOG                    $(LOCAL_DIR)/log )
-	set( SPOOL                  $(LOCAL_DIR)/spool )
-	set( EXECUTE                $(LOCAL_DIR)/execute )
 	set( LIB                    $(BIN) )
 	set( INCLUDE                $(RELEASE_DIR)/include )
 	set( SBIN                   $(BIN) )
 	set( LIBEXEC                $(BIN) )
-
-	set( DAEMON_LIST            #DAEMON_LIST# )
-
+	
 	set( QUEUE_SUPER_USERS      condor, SYSTEM )
-
-	set( JAVA_MAXHEAP_ARGUMENT       -Xmx )
-	set( JAVA_CLASSPATH_SEPARATOR    ; )
 
 	set( C_GAHP_LOG                  NUL )
 	set( C_GAHP_LOCK                 NUL )
@@ -265,22 +243,43 @@ else()
 	set( VM_GAHP_LOG            NUL )
 
 	set( PROCD_ADDRESS          \\.\pipe\condor_procd_pipe )
-
+	
 	set( HDFS_HOME              $(RELEASE_DIR)\hdfs )
+	set( HDFS_NAMENODE_DIR      $(HDFSHOME)\hadoop_name )
+	set( HDFS_DATANODE_DIR      $(HDFSHOME)\hadoop_data )
+	
+	configure_file(condor_config.generic.in condor_config.generic @ONLY)
+
+	set( CONDOR_HOST            #CONDOR_HOST_VALUE# )
+	set( RELEASE_DIR            #RELEASE_DIR_VALUE# )
+
+	set( COLLECTOR_NAME         #COLLECTOR_NAME_VALUE# )
+
+	set( CONDOR_ADMIN           #CONDOR_ADMIN_VALUE# )
+
+	
+	set( UID_DOMAIN             #UID_DOMAIN_VALUE# )
+	set( ALLOW_READ             #ALLOW_READ_VALUE#  )
+	set( ALLOW_WRITE            #ALLOW_WRITE_VALUE# )
+	set( ALLOW_ADMINISTRATOR    #ALLOW_ADMINISTRATOR_VALUE# )
+
+	set( WANT_SUSPEND           #WANT_SUSPEND_VALUE# )
+	set( WANT_VACATE            #WANT_VACATE_VALUE# )
+	set( START                  #START_VALUE# )
+	set( SUSPEND                #SUSPEND_VALUE# )
+	set( CONTINUE               #CONTINUE_VALUE# )
+	set( PREEMPT                #PREEMPT_VALUE# )
+
+	set( DAEMON_LIST            #DAEMON_LIST# )
+
 	set( HDFS_NODETYPE          #HDFS_NODETYPE# )
 	set( HDFS_NAMENODE          #HDFS_NAMENODE# )
 	set( HDFS_NAMENODE_WEB      #HDFS_NAMENODE_WEB# )
-	set( HDFS_NAMENODE_DIR      $(HDFSHOME)\hadoop_name )
-	set( HDFS_DATANODE_DIR      $(HDFSHOME)\hadoop_data )
-   
 
-	configure_file(condor_config.generic.in condor_config.patched @ONLY)
-
-	install(FILES	condor_config.patched
-					DESTINATION	"."
-					RENAME	condor_config)
+	configure_file(condor_config.generic.in condor_config.template @ONLY)
 			
 	install(FILES
+			condor_config.template
 	        condor_config.generic 
 	        condor_config.power
 	        condor_config.submit.generic
@@ -292,5 +291,3 @@ else()
 
 
 endif(NOT WINDOWS)
-
-

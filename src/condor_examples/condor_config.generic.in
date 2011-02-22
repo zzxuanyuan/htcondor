@@ -1735,7 +1735,7 @@ INVALID_LOG_FILES	= core
 ##  interested in Java, there is no harm in leaving this entry
 ##  empty or incorrect.
 
-JAVA = @JAVA@
+JAVA = @JAVA_VALUE@
 
 ##  Some JVMs need to be told the maximum amount of heap memory
 ##  to offer to the process.  If your JVM supports this, give
