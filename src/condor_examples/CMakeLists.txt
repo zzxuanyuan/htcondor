@@ -245,8 +245,8 @@ else()
 	set( PROCD_ADDRESS          "\\\\.\\pipe\\condor_procd_pipe" )
 	
 	set( HDFS_HOME              $(RELEASE_DIR)\\hdfs )
-	set( HDFS_NAMENODE_DIR      $(HDFSHOME)\\hadoop_name )
-	set( HDFS_DATANODE_DIR      $(HDFSHOME)\\hadoop_data )
+	set( HDFS_NAMENODE_DIR      $(HDFS_HOME)\\hadoop_name )
+	set( HDFS_DATANODE_DIR      $(HDFS_HOME)\\hadoop_data )
 	
 	configure_file(condor_config.generic.in condor_config.patched @ONLY)
 
@@ -269,11 +269,11 @@ else()
 	set( CONTINUE               "#CONTINUE_VALUE#" )
 	set( PREEMPT                "#PREEMPT_VALUE#" )
 
-	set( DAEMON_LIST            "#DAEMON_LIST#" )
+	set( DAEMON_LIST            "#DAEMON_LIST_VALUE#" )
 
-	set( HDFS_NODETYPE          "#HDFS_NODETYPE#" )
-	set( HDFS_NAMENODE          "#HDFS_NAMENODE#" )
-	set( HDFS_NAMENODE_WEB      "#HDFS_NAMENODE_WEB#" )
+	set( HDFS_NODETYPE          "#HDFS_NODETYPE_VALUE#" )
+	set( HDFS_NAMENODE          "#HDFS_NAMENODE_VALUE#" )
+	set( HDFS_NAMENODE_WEB      "#HDFS_NAMENODE_WEB_VALUE#" )
 
 	configure_file(condor_config.generic.in condor_config.template @ONLY)
 			
