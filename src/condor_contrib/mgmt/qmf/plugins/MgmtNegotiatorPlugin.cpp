@@ -140,4 +140,3 @@ struct MgmtNegotiatorPlugin : public Service, NegotiatorPlugin
 };
 
 static MgmtNegotiatorPlugin instance;
-

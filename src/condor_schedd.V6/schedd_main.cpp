@@ -40,7 +40,7 @@
 #include "condor_netdb.h"
 #include "subsystem_info.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "ScheddPlugin.h"
 #include "ClassAdLogPlugin.h"
 #endif
@@ -107,7 +107,7 @@ main_init(int argc, char* argv[])
 		// each creating their own
 	daemonCore->Proc_Family_Init();
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 		// Intialization of the plugin manager, i.e. loading all
 		// plugins, should be performed before the job queue log is
 		// read so plugins have a chance to learn about all jobs
@@ -180,7 +180,7 @@ main_init(int argc, char* argv[])
 		// Do a timeout now at startup to get the ball rolling...
 	scheduler.timeout();
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 		// Tell all ScheddPlugins to initialze themselves
 	ScheddPluginManager::Initialize();
 

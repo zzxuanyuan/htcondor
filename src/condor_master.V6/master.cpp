@@ -45,7 +45,7 @@
 #include "file_lock.h"
 #include "shared_port_server.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "MasterPlugin.h"
 #endif
 
@@ -175,7 +175,7 @@ master_exit(int retval)
 	}
 #endif
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	MasterPluginManager::Shutdown();
 #endif
 
@@ -291,7 +291,7 @@ main_init( int argc, char* argv[] )
 		// open up the windows firewall 
 	init_firewall_exceptions();
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	MasterPluginManager::Load();
 
 	MasterPluginManager::Initialize();

@@ -28,7 +28,7 @@
 #include "condor_holdcodes.h"
 #include "startd_bench_job.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "StartdPlugin.h"
 #endif
 
@@ -958,7 +958,7 @@ Resource::do_update( void )
         // Get the public and private ads
     publish_for_update( &public_ad, &private_ad );
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	StartdPluginManager::Update(&public_ad, &private_ad);
 #endif
 
@@ -1021,7 +1021,7 @@ Resource::final_update( void )
      invalidate_ad.Assign( ATTR_NAME, r_name );
      invalidate_ad.Assign( ATTR_MY_ADDRESS, daemonCore->publicNetworkIpAddr());
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	StartdPluginManager::Invalidate(&invalidate_ad);
 #endif
 

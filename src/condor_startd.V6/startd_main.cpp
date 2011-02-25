@@ -32,7 +32,7 @@
 #include "VMRegister.h"
 #include "classadHistory.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "StartdPlugin.h"
 #endif
 
@@ -396,7 +396,7 @@ main_init( int, char* argv[] )
 		// This is now called by a timer registered by start_update_timer()
 	//resmgr->update_all();
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
    StartdPluginManager::Load();
 
    StartdPluginManager::Initialize();
@@ -633,7 +633,7 @@ startd_exit()
 	systray_notifier.notifyCondorOff();
 #endif
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	StartdPluginManager::Shutdown();
 #endif
 

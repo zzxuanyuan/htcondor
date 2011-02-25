@@ -174,7 +174,3 @@ struct MgmtMasterPlugin : public Service, MasterPlugin
 };
 
 static MgmtMasterPlugin instance;
-
-int load_master_mgmt(void) {
-	return 0;
-}

@@ -44,7 +44,7 @@
 #include <string>
 #include <deque>
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "NegotiatorPlugin.h"
 #endif
 
@@ -311,7 +311,7 @@ initialize ()
 			"Update Collector", this );
 
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	NegotiatorPluginManager::Load();
 	NegotiatorPluginManager::Initialize();
 #endif
@@ -4524,7 +4524,7 @@ Matchmaker::updateCollector() {
 		// log classad into sql log so that it can be updated to DB
 		FILESQL::daemonAdInsert(publicAd, "NegotiatorAd", FILEObj, prevLHF);	
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 		NegotiatorPluginManager::Update(*publicAd);
 #endif
 		daemonCore->sendUpdates(UPDATE_NEGOTIATOR_AD, publicAd, NULL, true);

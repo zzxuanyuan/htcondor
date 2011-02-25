@@ -40,7 +40,7 @@
 #include "stat_info.h"
 #include "shared_port_endpoint.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "MasterPlugin.h"
 #endif
 
@@ -2492,7 +2492,7 @@ Daemons::UpdateCollector()
     daemonCore->monitor_data.ExportData(ad);
 	daemonCore->sendUpdates(UPDATE_MASTER_AD, ad, NULL, true);
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	MasterPluginManager::Update(ad);
 #endif
 

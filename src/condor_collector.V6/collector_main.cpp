@@ -22,7 +22,7 @@
 #include "view_server.h"
 #include "subsystem_info.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "CollectorPlugin.h"
 #endif
 
@@ -55,7 +55,7 @@ void main_init(int argc, char *argv[])
 	Daemon=new ViewServer();
 	Daemon->Init();
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	CollectorPluginManager::Load();
 
 	CollectorPluginManager::Initialize();
@@ -74,7 +74,7 @@ void main_config()
 void main_shutdown_fast()
 {
 	Daemon->Exit();
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	CollectorPluginManager::Shutdown();
 #endif
 	DC_Exit(0);
@@ -85,7 +85,7 @@ void main_shutdown_fast()
 void main_shutdown_graceful()
 {
 	Daemon->Shutdown();
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	CollectorPluginManager::Shutdown();
 #endif
 	DC_Exit(0);

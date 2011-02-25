@@ -184,9 +184,3 @@ struct MgmtStartdPlugin : public Service, StartdPlugin
 };
 
 static MgmtStartdPlugin instance;
-
-int load_startd_mgmt(void) {
-	return 0;
-}
-
-

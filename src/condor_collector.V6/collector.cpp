@@ -49,7 +49,7 @@
 
 #include "collector.h"
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 #include "CollectorPlugin.h"
 #endif
 
@@ -640,7 +640,7 @@ int CollectorDaemon::receive_invalidation(Service* /*s*/,
     offline_plugin_.invalidate ( command, cad );
 #endif
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	CollectorPluginManager::Invalidate(command, cad);
 #endif
 
@@ -707,7 +707,7 @@ int CollectorDaemon::receive_update(Service* /*s*/, int command, Stream* sock)
 	offline_plugin_.update ( command, *cad );
 #endif
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
 	CollectorPluginManager::Update(command, *cad);
 #endif
 
@@ -838,7 +838,7 @@ int CollectorDaemon::receive_update_expect_ack( Service* /*s*/,
     offline_plugin_.update ( command, *cad );
 #endif
 
-#if HAVE_DLOPEN
+#if defined(HAVE_DLOPEN) || defined(WIN32)
     CollectorPluginManager::Update ( command, *cad );
 #endif
 
