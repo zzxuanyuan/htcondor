@@ -931,6 +931,7 @@ TESTINGMODE_CLAIM_WORKLIFE = 1200
 ######################################################################
 
 ##  Pathnames
+@RUN@
 LOG		= @LOG@
 SPOOL		= @SPOOL@
 EXECUTE		= @EXECUTE@

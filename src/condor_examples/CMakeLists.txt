@@ -142,8 +142,9 @@ if (NOT WINDOWS)
 		set( ALLOW_WRITE            $(FULL_HOSTNAME) )
 
 		set( LOCK                   $(LOCAL_DIR)/lock/condor )
-
-		#set( RUN                    $(LOCAL_DIR)/run/condor )
+		
+		#Run is not standard Condor param, so its value also include param name
+		set( RUN                    "RUN		= $(LOCAL_DIR)/run/condor" )
 		set( LOG                    $(LOCAL_DIR)/log/condor )
 		set( SPOOL                  $(LOCAL_DIR)/lib/condor/spool )
 		set( EXECUTE                $(LOCAL_DIR)/lib/condor/execute )
@@ -152,7 +153,7 @@ if (NOT WINDOWS)
 		set( LIBEXEC                $(RELEASE_DIR)/libexec/condor )
 
 		set( JAVA_MAXHEAP_ARGUMENT  "" )
-		set( PROCD_ADDRESS          $(LOCAL_DIR)/run/condor/procd_pipe )
+		set( PROCD_ADDRESS          $(RUN)/procd_pipe )
 
 		if ( RPM_SYSTEM_NAME )
 		
