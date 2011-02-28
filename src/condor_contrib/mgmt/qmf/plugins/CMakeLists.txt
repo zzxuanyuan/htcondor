@@ -73,6 +73,7 @@ add_dependencies( qmf_gen_srcs qpid )
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 src_target_ref( broker_utils "^.*$" BROKER_REF )
+dprint("BROKER_REF=${BROKER_REF}")
 
 if (NOT WINDOWS)
 
