@@ -20,6 +20,7 @@
 # add the contrib subtree for build & test only
 
 if (WANT_CONTRIB)
-  condor_glob( Hdrs Srcs "" )
-  condor_static_lib(broker_utils "${Hdrs};${Srcs}")
+  condor_selective_glob( "broker_utils.h" BrokerHdrs )
+  condor_selective_glob( "broker_utils.cpp" BrokerSrcs )
+  condor_static_lib(broker_utils "${BrokerHdrs};${BrokerSrcs}")
 endif(WANT_CONTRIB)

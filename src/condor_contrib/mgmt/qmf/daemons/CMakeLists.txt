@@ -21,6 +21,7 @@ if (LINUX)
     include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
     file( GLOB RmvSrcs test* *_main* )
     condor_glob( Hdrs Srcs "${RmvSrcs}" )
+    src_target_ref( broker_utils "^.*$" BROKER_REF )
 
     set( QMF_GEN_SRCS Package.h;Package.cpp;ArgsJobServerGetJobAd.h;ArgsJobServerFetchJobData.h;ArgsSubmissionGetJobSummaries.h;ArgsGridMethodsEcho.h;Submission.h;Submission.cpp;JobServer.h;JobServer.cpp)
 
@@ -32,8 +33,8 @@ if (LINUX)
     add_custom_target (qmf_gen_jobserver_srcs ALL DEPENDS ${QMF_GEN_SRCS} )
     add_dependencies( qmf_gen_jobserver_srcs qpid )
 
-    condor_static_lib( jobserver "${Hdrs};${Srcs};${QMF_GEN_SRCS}" ) # just to build all srcs then let the linker sort it out.
-    condor_exe( condor_job_server "job_server_main.cpp" "${C_SBIN}" "jobserver;qmf_utils;${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${GLOBUS_FOUND};${GCB_FOUND};${QPID_FOUND}" OFF )
+    condor_static_lib( jobserver "${Hdrs};${Srcs};${QMF_GEN_SRCS};${BROKER_REF}" ) # just to build all srcs then let the linker sort it out.
+    condor_exe( condor_job_server "job_server_main.cpp" "${C_SBIN}" "jobserver;qmf_utils;${CONDOR_LIBS};${PCRE_FOUND};${OPENSSL_FOUND};${COREDUMPER_FOUND};${KRB5_FOUND};${GLOBUS_FOUND};${GCB_FOUND};${QPID_FOUND};broker_utils" OFF )
     condor_exe_test(test_history "test_history.cpp" "jobserver;qmf_utils;${CONDOR_TOOL_LIBS}")
 
 endif(LINUX)
