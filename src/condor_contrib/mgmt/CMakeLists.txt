@@ -23,7 +23,5 @@ if (WITH_MANAGEMENT AND HAVE_EXT_QPID)
  add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/qmf/plugins )
  add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/qmf/daemons )
  add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/qmf/etc )
- src_target_ref( broker_utils "^.*$" BROKER_REF )
- dprint("BROKER_REF=${BROKER_REF}")
 
 endif()
