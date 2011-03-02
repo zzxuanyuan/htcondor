@@ -18,9 +18,15 @@
 #include "condor_config.h"
 
 #include "TriggerConsole.h"
-#include "MgmtConversionMacros.h"
 
-using namespace com::redhat::grid;
+#include "qmf/Agent.h"
+#include "qmf/Data.h"
+#include "qmf/ConsoleEvent.h"
+#include "qpid/messaging/Duration.h"
+
+#include <iostream>
+
+using namespace qpid::console;
 
 
 TriggerConsole::TriggerConsole()
@@ -36,6 +42,9 @@ TriggerConsole::~TriggerConsole()
    {
       return;
    }
+
+   qmf2Session.close();
+   qpidConnection.close();
 
    if (NULL != broker)
    {
@@ -55,7 +64,7 @@ TriggerConsole::~TriggerConsole()
 
 
 void
-TriggerConsole::config(std::string host, int port, std::string user, std::string passwd, std::string methods)
+TriggerConsole::config(std::string host, int port, std::string user, std::string passwd, std::string mech)
 {
    qpid::client::ConnectionSettings settings;
    SessionManager::Settings sm_settings;
@@ -69,7 +78,7 @@ TriggerConsole::config(std::string host, int port, std::string user, std::string
    settings.port = port;
    settings.username = user;
    settings.password = passwd;
-   settings.mechanism = methods;
+   settings.mechanism = mech;
 
    if (NULL == sm)
    {
@@ -85,6 +94,23 @@ TriggerConsole::config(std::string host, int port, std::string user, std::string
       }
       broker = sm->addBroker(settings);
    }
+
+   // Set up a QMFv2 Session to query masters
+   std::stringstream url;
+   std::stringstream options;
+
+   url << host << ":" << port;
+   options << "{reconnect:True"; 
+   if (!user.empty())
+      options << ", username:'" << user << "', password:'" << passwd << "'";
+   options << "}";
+
+   qpidConnection = qpid::messaging::Connection(url.str(), options.str());
+   qpidConnection.open();
+
+   qmf2Session = qmf::ConsoleSession(qpidConnection);
+   qmf2Session.open();
+   qmf2Session.setAgentFilter("[and, [eq, _vendor, [quote, 'com.redhat.grid']], [eq, _product, [quote, 'master']]]");
 }
 
 
@@ -92,32 +118,45 @@ std::list<std::string>
 TriggerConsole::findAbsentNodes()
 {
    Object::Vector list;
-   std::map<std::string, bool> nodes_in_pool;
+   std::set<std::string> nodes_in_pool;
    std::list<std::string> missing_nodes;
+   uint64_t timeout(30);
+
+   // Drain the queue of pending console events.
+   qmf::ConsoleEvent event;
+   while (qmf2Session.nextEvent(event, qpid::messaging::Duration::IMMEDIATE));
+
+   // Traverse the list of master agents (already constrained by the agent
+   // filter set in 'config') to collect master objects.  Make asynchronous
+   // queries so we don't get hung up on one or more unresponsive agents.
+   // We can then have a single timeout interval for the entire set of queries.
+   uint32_t agentCount(qmf2Session.getAgentCount());
+   for (uint32_t idx = 0; idx < agentCount; idx++) {
+       qmf::Agent agent(qmf2Session.getAgent(idx));
+       agent.queryAsync("{class:master, package:'com.redhat.grid'}");
+   }
 
    // Get the list of Master objects, which represent each condor node
-   // crrently running
-   try
-   {
-      sm->getObjects(list, "master");
-   }
-   catch(...)
-   {
-      dprintf(D_ALWAYS, "Triggerd Error: Failed to contact AMQP broker.  Unable to find nodes in the pool\n");
-      dprintf(D_ALWAYS, "Triggerd: Check for absent nodes aborted\n");
-      return missing_nodes;
+   // currently running
+   uint32_t responsesCollected(0);
+   while (qmf2Session.nextEvent(event, qpid::messaging::Duration::SECOND * timeout)) {
+       if (event.getType() == qmf::CONSOLE_QUERY_RESPONSE) {
+           if (event.getDataCount() > 0) {
+               qmf::Data master(event.getData(0));
+               nodes_in_pool.insert(master.getProperty("Machine").asString());
+           }
+
+           if (++responsesCollected == agentCount)
+               break;
+       }
    }
 
-   for (Object::Vector::iterator obj = list.begin(); obj != list.end(); obj++)
-   {
-      nodes_in_pool.insert(std::pair<std::string, bool>(obj->attrString("Name"), false));
-   }
    dprintf(D_FULLDEBUG, "Triggerd: Found %d nodes in the pool\n", (int)nodes_in_pool.size());
 
-   // Get the list of nodes configured at the store
+   // Get the list of nodes configured in the store
    try
    {
-      sm->getObjects(list, "condorconfigstore");
+      sm->getObjects(list, "Node");
    }
    catch(...)
    {
@@ -128,31 +167,16 @@ TriggerConsole::findAbsentNodes()
 
    if (list.size() > 0)
    {
-      Object& store = *list.begin();
-      MethodResponse result;
-      Object::AttributeMap args;
       std::string name;
 
-      store.invokeMethod("GetNodeList", args, result);
-      if (result.code != 0)
+      dprintf(D_FULLDEBUG, "Triggerd: %d nodes expected to be in the pool\n", (int)list.size());
+      for (Object::Vector::iterator node = list.begin(); node != list.end(); node++)
       {
-         dprintf(D_ALWAYS, "Triggerd Error(%d, %s): Failed to retrieve list of expected nodes\n", result.code, result.text.c_str());
-         return missing_nodes;
-      }
-
-      dprintf(D_FULLDEBUG, "Triggerd: %d nodes expected to be in the pool\n", (int)result.arguments.size());
-      for (Object::AttributeMap::iterator node = result.arguments.begin();
-           node != result.arguments.end(); node++)
-      {
-         name = node->first;
+         name = node->attrString("name");
          if (nodes_in_pool.end() == nodes_in_pool.find(name))
          {
             // This is a missing node
             missing_nodes.push_front(name);
-         }
-         else
-         {
-            nodes_in_pool[name] = true;
          }
       }
    }
