@@ -32,8 +32,6 @@
 #include "ArgsCondorTriggerServiceSetEvalInterval.h"
 #include "ArgsCondorTriggerServiceGetEvalInterval.h"
 
-#include "MgmtConversionMacros.h"
-
 #include "condor_classad.h"
 
 #include <sstream>
@@ -992,19 +990,17 @@ Triggerd::RemoveWS(const char* text)
 
    if (NULL != text)
    {
-      result = strdup(text);
-
       // Remove preceeding whitespace first
-      while (isspace(result[pos]))
+      while (result[0] && isspace(result[0]))
       {
-         result = ++result;
+         ++result;
       }
 
       // Now remove trailing whitespace
       pos = strlen(result) - 1;
       while ((pos >= 0) && isspace(result[pos]))
       {
-         result[pos--] = NULL;
+         result[pos--] = '\0';
       }
    }
    return result;

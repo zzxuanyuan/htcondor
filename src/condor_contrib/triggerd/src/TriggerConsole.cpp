@@ -118,13 +118,15 @@ std::list<std::string>
 TriggerConsole::findAbsentNodes()
 {
    Object::Vector list;
+   Agent::Vector agents;
+   Agent* store = NULL;
    std::set<std::string> nodes_in_pool;
    std::list<std::string> missing_nodes;
    uint64_t timeout(30);
 
    // Drain the queue of pending console events.
-   qmf::ConsoleEvent event;
-   while (qmf2Session.nextEvent(event, qpid::messaging::Duration::IMMEDIATE));
+   qmf::ConsoleEvent evt;
+   while (qmf2Session.nextEvent(evt, qpid::messaging::Duration::IMMEDIATE));
 
    // Traverse the list of master agents (already constrained by the agent
    // filter set in 'config') to collect master objects.  Make asynchronous
@@ -139,10 +141,10 @@ TriggerConsole::findAbsentNodes()
    // Get the list of Master objects, which represent each condor node
    // currently running
    uint32_t responsesCollected(0);
-   while (qmf2Session.nextEvent(event, qpid::messaging::Duration::SECOND * timeout)) {
-       if (event.getType() == qmf::CONSOLE_QUERY_RESPONSE) {
-           if (event.getDataCount() > 0) {
-               qmf::Data master(event.getData(0));
+   while (qmf2Session.nextEvent(evt, qpid::messaging::Duration::SECOND * timeout)) {
+       if (evt.getType() == qmf::CONSOLE_QUERY_RESPONSE) {
+           if (evt.getDataCount() > 0) {
+               qmf::Data master(evt.getData(0));
                nodes_in_pool.insert(master.getProperty("Machine").asString());
            }
 
@@ -153,15 +155,40 @@ TriggerConsole::findAbsentNodes()
 
    dprintf(D_FULLDEBUG, "Triggerd: Found %d nodes in the pool\n", (int)nodes_in_pool.size());
 
-   // Get the list of nodes configured in the store
+   // Get the list of agents on this broker
    try
    {
-      sm->getObjects(list, "Node");
+      sm->getAgents(agents, broker);
    }
    catch(...)
    {
       dprintf(D_ALWAYS, "Triggerd Error: Failed to contact AMQP broker.  Unable to find nodes expected to be in the pool\n");
       dprintf(D_ALWAYS, "Triggerd: Check for absent nodes aborted\n");
+      return missing_nodes;
+   }
+
+   // Find the store agent from the list of agents
+   for (Agent::Vector::iterator it = agents.begin(); it != agents.end(); it++)
+   {
+      if (0 == strcasecmp((*it)->getLabel().c_str(), "com.redhat.grid.config:Store"))
+      {
+         store = *it;
+         break;
+      }
+   }
+   if (NULL == store)
+   {
+      dprintf(D_ALWAYS, "Triggerd Error: Failed to locate the store agent.  Unable to find nodes expected to be in the pool\n");
+      dprintf(D_ALWAYS, "Triggerd: Check for absent nodes aborted\n");
+      return missing_nodes;
+   }
+
+   try
+   {
+      sm->getObjects(list, "Node", broker, store);
+   }
+   catch(...)
+   {
       return missing_nodes;
    }
 
