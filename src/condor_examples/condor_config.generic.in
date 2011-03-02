@@ -2227,18 +2227,18 @@ MAX_VM_GAHP_LOG	= 1000000
 ## the VM universe?
 ## The two options are vmware and xen.  (Required)
 #VM_TYPE = vmware
-@VM_TYPE@
+VM_TYPE = @VM_TYPE@
 
 ## How much memory can be used for the VM universe? (Required)
 ## This value is the maximum amount of memory that can be used by the 
 ## virtual machine program.
 #VM_MEMORY = 128
-@VM_MEMORY@
+VM_MEMORY = @VM_MEMORY@
 
 ## Want to support networking for VM universe?
 ## Default value is FALSE
 #VM_NETWORKING = FALSE
-@VM_NETWORKING@
+VM_NETWORKING = @VM_NETWORKING@
 
 ## What kind of networking types are supported?
 ##
@@ -2253,7 +2253,7 @@ MAX_VM_GAHP_LOG	= 1000000
 ## VM_NETWORKING_DEFAULT_TYPE = nat
 #VM_NETWORKING_DEFAULT_TYPE = nat
 #VM_NETWORKING_TYPE = nat
-@VM_NETWORKING_TYPE@
+VM_NETWORKING_TYPE = @VM_NETWORKING_TYPE@
 
 ## In default, the number of possible virtual machines is same as
 ## NUM_CPUS.
@@ -2261,7 +2261,7 @@ MAX_VM_GAHP_LOG	= 1000000
 ## and lead to unexpected problems, limit the number of running 
 ## virtual machines on this machine with
 #VM_MAX_NUMBER = 2
-@VM_MAX_NUMBER@
+VM_MAX_NUMBER = @VM_MAX_NUMBER@
 
 ## When a VM universe job is started, a status command is sent
 ## to the VM-GAHP to see if the job is finished.

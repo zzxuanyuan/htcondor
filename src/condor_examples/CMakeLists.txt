@@ -242,6 +242,12 @@ else()
 	set( C_GAHP_WORKER_THREAD_LOCK   NUL )
 
 	set( VM_GAHP_LOG            NUL )
+	
+	set( VM_TYPE				"#VM_TYPE_VALUE#" )
+	set( VM_MEMORY				"#VM_MEMORY#" )
+	set( VM_NETWORKING			"#VM_NETWORKING#" )
+	set( VM_NETWORKING_TYPE		"#VM_NETWORKING_TYPE#" )
+	set( VM_MAX_NUMBER			"#VM_MAX_NUMBER#" )
 
 	set( PROCD_ADDRESS          "\\\\.\\pipe\\condor_procd_pipe" )
 	
