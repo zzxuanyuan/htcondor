@@ -32,6 +32,8 @@
 #include "condor_classad.h"
 #include "dc_transfer_queue.h"
 #include <list>
+#include <string>
+#include <set>
 
 class FileTransfer;	// forward declatation
 class FileTransferItem;
@@ -122,7 +124,9 @@ class FileTransfer {
 	int DownloadFiles(bool blocking=true);
 
 	/** @return 1 on success, 0 on failure */
-	int UploadFiles(bool blocking=true, bool final_transfer=true);
+	int UploadFiles(bool blocking=true, bool final_transfer=true,
+		bool dataflow_transfer=false, 
+		std::set<std::string> open_job_files = std::set<std::string>());
 
 		/** For non-blocking (i.e., multithreaded) transfers, the registered
 			handler function will be called on each transfer completion.  The
@@ -200,7 +204,10 @@ class FileTransfer {
 			@param filename Name of file to add to our list
 			@return always true
 			*/
-	bool addFileToExeptionList( const char* filename );
+	bool addFileToExceptionList( const char* filename );
+
+		/** Remove a given filename from the list of exceptions. */
+	bool removeFileFromExceptionList( const char* filename );
 
 		/** Allows the client side of the filetransfer object to 
 			point to a different server.
@@ -255,7 +262,8 @@ class FileTransfer {
 	int DoUpload( filesize_t *total_bytes, ReliSock *s);
 
 	void CommitFiles();
-	void ComputeFilesToSend();
+	void ComputeFilesToSend(bool dataflow_transfer=false,
+		std::set<std::string> open_job_files = std::set<std::string>());
 	float bytesSent, bytesRcvd;
 	StringList* InputFiles;
 
@@ -284,6 +292,7 @@ class FileTransfer {
 	StringList* DontEncryptInputFiles;
 	StringList* DontEncryptOutputFiles;
 	StringList* IntermediateFiles;
+	StringList* DataflowFiles;
 	StringList* FilesToSend;
 	StringList* EncryptFiles;
 	StringList* DontEncryptFiles;
@@ -330,11 +339,18 @@ class FileTransfer {
 	MyString m_jobid; // what job we are working on, for informational purposes
 	char *m_sec_session_id;
 
+
+	bool IsDataflowFile(const char *f);
+	bool IsDataflowFileOpen(const char *f, std::set<std::string> open_files);
+
 	// called to construct the catalog of files in a direcotry
 	bool BuildFileCatalog(time_t spool_time = 0, const char* iwd = NULL, FileCatalogHashTable **catalog = NULL);
 
 	// called to lookup the catalog entry of file
 	bool LookupInFileCatalog(const char *fname, time_t *mod_time, filesize_t *filesize);
+
+	// called to insert things into the file catalog.
+	void InsertIntoFileCatalog(const char *fn);
 
 	// Called internally by DoUpload() in order to handle common wrapup tasks.
 	int ExitDoUpload(filesize_t *total_bytes, ReliSock *s, priv_state saved_priv, bool socket_default_crypto, bool upload_success, bool do_upload_ack, bool do_download_ack, bool try_again, int hold_code, int hold_subcode, char const *upload_error_desc,int DoUpload_exit_line);

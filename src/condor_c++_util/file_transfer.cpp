@@ -43,7 +43,10 @@
 #include "subsystem_info.h"
 #include "condor_url.h"
 #include "my_popen.h"
+#include "Regex.h"
 #include <list>
+#include <string>
+#include <set>
 
 #define COMMIT_FILENAME ".ccommit.con"
 
@@ -133,6 +136,7 @@ FileTransfer::FileTransfer()
 	DontEncryptInputFiles = NULL;
 	DontEncryptOutputFiles = NULL;
 	IntermediateFiles = NULL;
+	DataflowFiles = NULL;
 	SpooledIntermediateFiles = NULL;
 	FilesToSend = NULL;
 	EncryptFiles = NULL;
@@ -196,6 +200,7 @@ FileTransfer::~FileTransfer()
 	if (DontEncryptInputFiles) delete DontEncryptInputFiles;
 	if (DontEncryptOutputFiles) delete DontEncryptOutputFiles;
 	if (IntermediateFiles) delete IntermediateFiles;
+	if (DataflowFiles) delete DataflowFiles;
 	if (SpooledIntermediateFiles) delete SpooledIntermediateFiles;
 	// Note: do _not_ delete FileToSend!  It points to OutputFile or Intermediate.
 	if (last_download_catalog) {
@@ -425,6 +430,23 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		if ( xferExec && !InputFiles->file_contains(ExecFile) ) {
 			InputFiles->append(ExecFile);	
 		}	
+	}
+
+	// if we have any dataflow files, set up our copy of them.
+	if (Ad->LookupString(ATTR_TRANSFER_DATAFLOW_OUTPUT_FILES, 
+							&dynamic_buf) == 1) {
+		DataflowFiles = new StringList(dynamic_buf,",");
+
+		/* print out what I have. */
+		dprintf(D_ALWAYS, "Initialized with dataflow regexes:\n");
+		char *junk = NULL;
+
+		DataflowFiles->rewind();
+		while((junk = DataflowFiles->next()) != NULL)
+		{
+			dprintf(D_ALWAYS, "\tStored dataflow regex: %s\n", junk);
+		}
+		DataflowFiles->rewind();
 	}
 
 	// Set OutputFiles to be ATTR_SPOOLED_OUTPUT_FILES if specified, otherwise
@@ -897,7 +919,8 @@ FileTransfer::DownloadFiles(bool blocking)
 
 
 void
-FileTransfer::ComputeFilesToSend()
+FileTransfer::ComputeFilesToSend(bool dataflow_transfer, 
+	std::set<std::string> open_job_files)
 {
 	StringList final_files_to_send(NULL,",");
 	if (IntermediateFiles) delete(IntermediateFiles);
@@ -942,6 +965,8 @@ FileTransfer::ComputeFilesToSend()
 				continue;
 			}
 
+
+
 			// for now, skip all subdirectory names until we add
 			// subdirectory support into FileTransfer.
 			if ( dir.IsDirectory() ) {
@@ -967,11 +992,26 @@ FileTransfer::ComputeFilesToSend()
 					"Skipping file in exception list: %s\n", 
 					f );
 				continue;
-			} else if ( !LookupInFileCatalog(f, &modification_time, &filesize) ) {
-				// file was not found.  send it.
+			} else if (!LookupInFileCatalog(f, &modification_time, &filesize)) {
+
+				// If we're doing a dataflow transfer, then A) we'll ONLY
+				// attempt to transfer dataflow files, and B) we'll only
+				// transfer the files known to be closed.
+				if (dataflow_transfer == true) {
+					if (!IsDataflowFile(f)) {
+						continue;
+					}
+
+					if (IsDataflowFileOpen(f, open_job_files)) {
+						continue;
+					}
+				}
+
+				// file was not found in catalog.  send it.
 				dprintf( D_FULLDEBUG, 
 						 "Sending new file %s, time==%ld, size==%ld\n",	
 						 f, dir.GetModifyTime(), (long) dir.GetFileSize() );
+				// otherwise, we just send it.
 				send_it = true;
 			}
 			else if (final_files_to_send.file_contains(f)) {
@@ -1045,9 +1085,81 @@ FileTransfer::ComputeFilesToSend()
 				if ( IntermediateFiles->file_contains(f) == FALSE ) {
 					IntermediateFiles->append(f);
 				}
+
+				// store the file transfer into the catalog so we don't send
+				// it more than once during our periodic checks for the
+				// movement of dataflow files.
+				if (dataflow_transfer == true) {
+					// if send_it was true, and dataflow_transfer is true,
+					// then this *must* be a known dataflow file.
+					InsertIntoFileCatalog(f);
+				}
 			}
 		}
 	}
+}
+
+// Check the internals of the job ad to see if the file matches any regex
+// in the transfer output files attribute.
+bool
+FileTransfer::IsDataflowFile(const char *f)
+{
+	Regex reg;
+	char *dfptr = NULL;
+	MyString file;
+	MyString pattern;
+	const char *errstr = NULL;
+	int erroff = 0;
+
+	// Try to match f against every Dataflow regex until one succeeds and
+	// f is a dataflow file, or none succeed and it isn't.
+
+	file = f;
+	DataflowFiles->rewind();
+
+	while((dfptr = DataflowFiles->next()) != NULL)
+	{
+		pattern = "^";
+		pattern += dfptr;
+		pattern += "$";
+
+		if (reg.compile(pattern, &errstr, &erroff) == false) {
+			dprintf(D_ALWAYS, "FileTransfer::IsDataflowFile(): Failed "
+				"to compile dataflow regex '%s' with error '%s' at offset "
+				"%d in the pattern\n",
+				pattern.Value(), errstr==NULL?"Reason Unknown":errstr,
+				erroff);
+			return false;
+		}
+
+		if (reg.match(file)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// simply check to see if the file is in the open files set.
+bool
+FileTransfer::IsDataflowFileOpen(const char *f, 
+	std::set<std::string> open_files)
+{
+	std::string str;
+	std::set<std::string>::iterator it;
+	// only one item in the StringList, hope it doesn't have a comma in it.
+
+	str += Iwd;
+	str += DIR_DELIM_CHAR;
+	str += f;
+
+	it = open_files.find(str);
+
+	if (it == open_files.end()) {
+		return false;
+	}
+	
+	return true;
 }
 
 void
@@ -1120,7 +1232,8 @@ FileTransfer::RemoveInputFiles(const char *sandbox_path)
 
 
 int
-FileTransfer::UploadFiles(bool blocking, bool final_transfer)
+FileTransfer::UploadFiles(bool blocking, bool final_transfer, 
+	bool dataflow_transfer, std::set<std::string> open_job_files)
 {
     ReliSock sock;
 	ReliSock *sock_to_use;
@@ -1150,7 +1263,7 @@ FileTransfer::UploadFiles(bool blocking, bool final_transfer)
 	m_final_transfer_flag = final_transfer ? 1 : 0;
 
 	// figure out what to send based upon modification date
-	ComputeFilesToSend();
+	ComputeFilesToSend(dataflow_transfer, open_job_files);
 
 	// if FilesToSend is still NULL, then the user did not
 	// want anything sent back via modification date.  so
@@ -3167,7 +3280,7 @@ FileTransfer::addOutputFile( const char* filename )
 }
 
 bool
-FileTransfer::addFileToExeptionList( const char* filename )
+FileTransfer::addFileToExceptionList( const char* filename )
 {
 	if ( !ExceptionFiles ) {
 		ExceptionFiles = new StringList;
@@ -3176,6 +3289,26 @@ FileTransfer::addFileToExeptionList( const char* filename )
 		return true;
 	}
 	ExceptionFiles->append ( filename );
+	return true;
+}
+
+bool
+FileTransfer::removeFileFromExceptionList( const char* filename )
+{
+	if ( !ExceptionFiles ) {
+		ExceptionFiles = new StringList;
+		ASSERT ( NULL != ExceptionFiles );
+	} 
+	
+	if ( ExceptionFiles->file_contains ( filename ) ) {
+// This is stupid. The whole way that file_contains gets defined in the
+// preprocessor to deal with windows and unix is insane.
+#ifdef WIN32
+		ExceptionFiles->remove_anycase(filename);
+#else
+		ExceptionFiles->remove(filename);
+#endif
+	}
 	return true;
 }
 
@@ -3378,6 +3511,36 @@ bool FileTransfer::BuildFileCatalog(time_t spool_time, const char* iwd, FileCata
 	return true;
 }
 
+// This assumes we're getting a non-fully qualified path.
+void FileTransfer::InsertIntoFileCatalog(const char *fn)
+{
+	CatalogEntry *entry = NULL;
+	MyString fstr;
+	StatInfo si(Iwd, fn);
+
+	if (LookupInFileCatalog(fn, NULL, NULL) == true) {
+		// If it is already there, we're done.
+		return; 
+	}
+
+	if (si.Error() != SIGood) {
+		dprintf(D_ALWAYS, 
+			"Error: Problem inserting this file into catalog: %s%c%s\n", 
+			Iwd, DIR_DELIM_CHAR, fn);
+		return;
+	}
+
+	entry = new CatalogEntry;
+	ASSERT(entry != NULL);
+
+	entry->modification_time = si.GetModifyTime();
+	entry->filesize = si.GetFileSize();
+
+	// insert the NON-qualified path into the file catalog
+	fstr = fn;
+	last_download_catalog->insert(fstr, entry);
+}
+
 void FileTransfer::setSecuritySession(char const *session_id) {
 	free(m_sec_session_id);
 	m_sec_session_id = NULL;
@@ -3389,7 +3552,7 @@ int FileTransfer::InvokeFileTransferPlugin(CondorError &e, const char* URL, cons
 
 	if (plugin_table == NULL) {
 		dprintf(D_FULLDEBUG, "FILETRANSFER: No plugin table defined! (request was %s)\n", URL);
-		e.pushf("FILETRANSFER", 1, "No plugin table defined", URL);
+		e.pushf("FILETRANSFER", 1, "No plugin table defined (%s)", URL);
 		return GET_FILE_PLUGIN_FAILED;
 	}
 

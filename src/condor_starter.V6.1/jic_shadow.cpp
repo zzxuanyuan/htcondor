@@ -416,13 +416,13 @@ JICShadow::transferOutput( void )
 			// the ft's list (i.e. a renamed Windows script)
 		m_removed_output_files.rewind();
 		while ((filename = m_removed_output_files.next()) != NULL) {
-			filetrans->addFileToExeptionList(filename);
+			filetrans->addFileToExceptionList(filename);
 		}
 
 		// remove the job and machine classad files from the
 		// ft list
-		filetrans->addFileToExeptionList(JOB_AD_FILENAME);
-		filetrans->addFileToExeptionList(MACHINE_AD_FILENAME);
+		filetrans->addFileToExceptionList(JOB_AD_FILENAME);
+		filetrans->addFileToExceptionList(MACHINE_AD_FILENAME);
 	
 			// true if job exited on its own
 		bool final_transfer = (requested_exit == false);	
@@ -2291,11 +2291,9 @@ JICShadow::transferDataflowFiles( void )
 	// Get the open files set for the job under the starter.
 	daemonCore->Get_Family_Usage(m_job_pid, usage);
 
-	for (it = usage.open_files.begin();
-		it != usage.open_files.end();
-		it++)
+	for (it = usage.open_files.begin(); it != usage.open_files.end(); it++)
 	{
-		dprintf(D_ALWAYS, "\tFound open file: %s\n", (*it).c_str());
+		dprintf(D_FULLDEBUG, "\tFound open file: %s\n", (*it).c_str());
 	}
 
 	////////////////////////////////////////////////////////////////////////
@@ -2312,14 +2310,8 @@ JICShadow::transferDataflowFiles( void )
 	// by the user, so set_user_priv here.
 	priv_state saved_priv = set_user_priv();
 
-	// TODO
-	// XXX Fix this to ONLY transfer the requested dataflow files, and only
-	// those which are not open, and not already transferred.
-
-	// XXX Maybe for each open file, I can add it to an exception list?
-	// XXX How do I remove it from the exception list? :)
-
-	bool rval = filetrans->UploadFiles( true, false ); // this will block
+	// this will block
+	bool rval = filetrans->UploadFiles( true, false, true, usage.open_files );
 
 	set_priv(saved_priv);
 
