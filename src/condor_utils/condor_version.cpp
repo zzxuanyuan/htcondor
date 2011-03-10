@@ -80,7 +80,6 @@
    You generally change this in the top level CMakeLists.txt, NOT HERE.
 */
 
-
 static const char* CondorVersionString =
 "$CondorVersion: " CONDOR_VERSION " " BUILD_DATE BUILDIDSTR  PRE_RELEASE_STR " $";
 

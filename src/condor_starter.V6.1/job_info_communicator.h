@@ -171,7 +171,7 @@ public:
 		   periodic job updates.  Subclasses might care about other
 		   things at this point, too.
 		 */
-	virtual void allJobsSpawned( void );
+	virtual void allJobsSpawned( pid_t job_pid );
 
 		/** The starter has been asked to suspend.  Take whatever
 			steps make sense for the JIC, and notify our job
@@ -499,6 +499,8 @@ protected:
 #endif /* HAVE_JOB_HOOKS */
 
 	bool m_enforce_limits;
+
+	pid_t m_job_pid;
 
 private:
 		/// Start a timer for the periodic job updates

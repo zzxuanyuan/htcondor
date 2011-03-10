@@ -135,11 +135,22 @@ public:
 		*/
 	bool transferOutputMopUp( void );
 
-		/** The last job this starter is controlling has been
-   			completely cleaned up.  We don't care, since we just wait
-			for the shadow to tell the startd to tell us to go away. 
+		/** Periodically, we're going to figure out if there are any
+			files suitable for dataflow transfer and then transfer them.
 		*/
-	void allJobsGone( void ) {};
+	void transferDataflowFiles( void );
+
+		/** The last job this starter is controlling has been
+   			completely cleaned up. So don't check to transfer any dataflow
+			files while everything is shut down.
+		*/
+	void allJobsGone( void ) { cancelDataflowTimer(); };
+
+		/** The shadow will determine if it needs to start a 
+			periodic timer for the dataflow movement of files back to the
+			submit side as the job is running. After we're done, we call
+			our parent's version. */
+	void allJobsSpawned( pid_t jobs_pid );
 
 		/** The starter has been asked to shutdown fast.  Disable file
 			transfer, since we don't want that on fast shutdowns.
@@ -223,6 +234,9 @@ public:
 		*/
 	void addToOutputFiles( const char* filename );
 
+		/** figure out the data files which need transfer send them back. */
+	int transferDataflowTimerHandler( void );
+
 		/** Make sure the given filename will be excluded from the
 			list of files that the job sends back to the submitter.
 			If the file has already been added to the output list,
@@ -245,6 +259,8 @@ private:
 		// // // // // // // // // // // //
 		// Private helper methods
 		// // // // // // // // // // // //
+	void startDataflowTimer( void );
+	void cancelDataflowTimer( void );
 
 		/** Publish information into the given classad for updates to
 			the shadow
@@ -441,6 +457,9 @@ private:
 
 	IOProxy io_proxy;
 
+		// The timer id for the dataflow timer handle
+	int m_dataflow_tid;
+
 	FileTransfer *filetrans;
 	bool m_ft_rval;
 	FileTransfer::FileTransferInfo m_ft_info;
@@ -480,6 +499,7 @@ private:
 			job submitter. (e.g. the job's executable itself)
 		*/
 	StringList m_removed_output_files;
+
 };
 
 

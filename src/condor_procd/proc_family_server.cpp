@@ -224,13 +224,41 @@ ProcFamilyServer::get_usage()
 {
 	pid_t pid;
 	read_from_client(&pid, sizeof(pid_t));
+	std::set<std::string>::iterator it;
+	int num_files, s_len;
+	const char *an_open_file = NULL;
 
 	ProcFamilyUsage usage;
 	proc_family_error_t err = m_monitor.get_family_usage(pid, &usage);
-	
+
 	write_to_client(&err, sizeof(proc_family_error_t));
 	if (err == PROC_FAMILY_ERROR_SUCCESS) {
-		write_to_client(&usage, sizeof(ProcFamilyUsage));
+	
+		// Write the usage struct as individual fields.
+		write_to_client(&usage.user_cpu_time, sizeof(long));
+		write_to_client(&usage.sys_cpu_time, sizeof(long));
+		write_to_client(&usage.percent_cpu, sizeof(double));
+		write_to_client(&usage.max_image_size, sizeof(unsigned long));
+		write_to_client(&usage.total_image_size, sizeof(unsigned long));
+		write_to_client(&usage.num_procs, sizeof(int));
+
+		// Now serialize the open_files set across it.
+		num_files = usage.open_files.size();
+		write_to_client(&num_files, sizeof(int));
+
+		// Do not include the NUL byte when sending a string.
+		for (it = usage.open_files.begin();
+			it != usage.open_files.end(); 
+			it++)
+		{
+			an_open_file = (*it).c_str();
+			s_len = strlen(an_open_file);
+
+			write_to_client(&s_len, sizeof(int));
+			// cast away const because the write_to_client function doesn't
+			// take a const but it also doesn't modify the argument.
+			write_to_client(const_cast<char*>(an_open_file), s_len);
+		}
 	}
 }
 

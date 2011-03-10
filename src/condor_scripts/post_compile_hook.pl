@@ -70,6 +70,9 @@ my @poisoned_syms = (
 			# This is a test program which presumably doesn't need the poison
 			# policy protection.
 			'condor_lease_manager/lease_manager_tester.o',
+
+			# A test program to test open file identification for a process
+			'condor_procapi/test_open_files.o',
 		],
 
 		# These are wholesale exempt since they represent code we know to be

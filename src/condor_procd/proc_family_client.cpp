@@ -426,6 +426,11 @@ bool
 ProcFamilyClient::get_usage(pid_t pid, ProcFamilyUsage& usage, bool& response)
 {
 	ASSERT(m_initialized);
+	int num_files;
+	char *s = NULL;
+	int s_len = 0;
+	std::string str;
+	int i;
 
 	dprintf(D_PROCFAMILY,
 	        "About to get usage data from ProcD for family with root %u\n",
@@ -458,11 +463,82 @@ ProcFamilyClient::get_usage(pid_t pid, ProcFamilyUsage& usage, bool& response)
 		        "ProcFamilyClient: failed to read response from ProcD\n");
 		return false;
 	}
+
 	if (err == PROC_FAMILY_ERROR_SUCCESS) {
-		if (!m_client->read_data(&usage, sizeof(ProcFamilyUsage))) {
+		usage.open_files.clear();
+
+		if (!m_client->read_data(&usage.user_cpu_time, sizeof(long))) {
 			dprintf(D_ALWAYS,
-		        	"ProcFamilyClient: error getting usage from ProcD\n");
+		        	"ProcFamilyClient: error getting usage [user_cpu_time] "
+					"from ProcD\n");
 			return false;
+		}
+
+		if (!m_client->read_data(&usage.sys_cpu_time, sizeof(long))) {
+			dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [sys_cpu_time] "
+					"from ProcD\n");
+			return false;
+		}
+
+		if (!m_client->read_data(&usage.percent_cpu, sizeof(double))) {
+			dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [percent_cpu] "
+					"from ProcD\n");
+			return false;
+		}
+
+		if (!m_client->read_data(&usage.max_image_size, sizeof(unsigned long)))
+		{
+			dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [max_image_size] "
+					"from ProcD\n");
+			return false;
+		}
+
+		if (!m_client->read_data(&usage.total_image_size, sizeof(unsigned long))) 
+		{
+			dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [total_image_size] "
+					"from ProcD\n");
+			return false;
+		}
+
+		if (!m_client->read_data(&usage.num_procs, sizeof(int))) {
+			dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [num_procs] "
+					"from ProcD\n");
+			return false;
+		}
+
+		// process the number STL set of strings
+		if (!m_client->read_data(&num_files, sizeof(int))) {
+			dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [num_files] "
+					"from ProcD\n");
+			return false;
+		}
+
+		// Each string is zero delimited and does not include the NUL byte
+		for (i = 0; i < num_files; i++)
+		{
+			if (!m_client->read_data(&s_len, sizeof(int))) {
+				dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [s_len] "
+					"from ProcD\n");
+				return false;
+			}
+			s = (char*)calloc(1, (s_len + 1)*sizeof(char)); // +1 for NUL byte.
+			if (!m_client->read_data(s, s_len)) {
+				dprintf(D_ALWAYS,
+		        	"ProcFamilyClient: error getting usage [an_open_file] "
+					"from ProcD\n");
+				free(s);
+				return false;
+			}
+			str = s;
+			usage.open_files.insert(str);
+			free(s);
 		}
 	}
 	m_client->end_connection();

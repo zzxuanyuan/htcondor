@@ -170,6 +170,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
      into page faults per second */
 	do_usage_sampling( pi, cpu_time, procRaw.majfault, procRaw.minfault );
 
+	pi->open_files = procRaw.open_files;
+
 		// success
 	return PROCAPI_SUCCESS;
 }
@@ -200,7 +202,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory of procRaw
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -305,6 +307,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	procRaw.user_time_2 = prusage.pr_utime.tv_nsec;
 	procRaw.sys_time_1 = prusage.pr_stime.tv_sec;
 	procRaw.sys_time_2 = prusage.pr_stime.tv_nsec;
+	procRaw.open_files = open_files_in_pid(pid);
 
 	return PROCAPI_SUCCESS;
 }
@@ -455,6 +458,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 		*/
 	fillProcInfoEnv(pi);
 
+	pi->open_files = procRaw.open_files;
+
 		// success
 	return PROCAPI_SUCCESS;
 }
@@ -493,7 +498,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory of procRaw
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -508,7 +513,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 
 		// in case I must restart, assume that everything is ok again...
 		status = PROCAPI_OK;
-		initProcInfoRaw(procRaw);
+		procRaw.Clear();
 
 		if( (fp = safe_fopen_wrapper(path, "r")) == NULL ) {
 			if( errno == ENOENT ) {
@@ -604,6 +609,8 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 		// only one value for times
 	procRaw.user_time_2 = 0;
 	procRaw.sys_time_2 = 0;
+
+	procRaw.open_files = open_files_in_pid(pid);
 	
 	return PROCAPI_SUCCESS;
 }
@@ -851,6 +858,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 
 	do_usage_sampling( pi, cpu_time, procRaw.majfault, procRaw.minfault );
 
+	pi->open_files = procRaw.open_files;
+
 		// success
 	return PROCAPI_SUCCESS;
 }
@@ -884,7 +893,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 	
 		// clear the memory for procRaw
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -925,6 +934,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	procRaw.pid		= buf.pst_pid;
 	procRaw.ppid	= buf.pst_ppid;
 	procRaw.owner  	= buf.pst_uid;
+	procRaw.open_files = open_files_in_pid(pid);
 
 		// success
 	return PROCAPI_SUCCESS;
@@ -999,6 +1009,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 		pi->rssize = 0;
 	}
 #endif
+
+	pi->open_files = procRaw.open_files;
 
 	return PROCAPI_SUCCESS;
 }
@@ -1076,7 +1088,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear memory for procRaw
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1218,6 +1230,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	// We don't know the page faults
 	procRaw.majfault = 0;
 	procRaw.minfault = 0;
+	procRaw.open_files = open_files_in_pid(pid);
 	
 	free(kp);
 
@@ -1286,6 +1299,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 
 	double ustime = pi->user_time + pi->sys_time;
 	do_usage_sampling( pi, ustime, procRaw.majfault, procRaw.minfault );
+
+	pi->open_files = procRaw.open_files;
 	
 	return PROCAPI_SUCCESS;
 }
@@ -1305,7 +1320,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 		//
 		// Clear memory for procRaw
 		//
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 		//
 		// Set the sample time
 		//
@@ -1420,6 +1435,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	procRaw.creation_time = kp->ki_start.tv_sec;
 	procRaw.pid = pid;
 #endif
+	procRaw.open_files = open_files_in_pid(pid);
 	free(kp);
 	return PROCAPI_SUCCESS;
 }
@@ -1474,6 +1490,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	do_usage_sampling ( pi, cpu_time, procRaw.majfault, procRaw.minfault, 
 						now_secs );
 
+	pi->open_files = procRaw.open_files;
+
     return PROCAPI_SUCCESS;
 }
 
@@ -1508,7 +1526,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
    status = PROCAPI_OK;
 
 	   // clear the memory for procRaw
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 
 	// So to first see if this pid is still alive
 	// on Win32, open a handle to the pid and call GetExitStatus
@@ -1620,6 +1638,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	// creation time ?!?!
 	procRaw.creation_time = elt.QuadPart;
 	procRaw.cpu_time	=  pt.QuadPart;
+	procRaw.open_files = open_files_in_pid(pid);
 
 		// success
     return PROCAPI_SUCCESS;
@@ -1655,7 +1674,7 @@ ProcAPI::buildProcInfoList()
     int instanceNum = 0;
     while( instanceNum < pThisObject->NumInstances ) {
 
-		procInfo* pi;
+		procInfo* pi = new procInfo;
 
         ctrblk = ((DWORD)pThisInstance) + pThisInstance->ByteLength;
 
@@ -1663,9 +1682,6 @@ ProcAPI::buildProcInfoList()
         LARGE_INTEGER pt = *(LARGE_INTEGER*)(ctrblk + offsets->pctcpu);
         LARGE_INTEGER ut = *(LARGE_INTEGER*)(ctrblk + offsets->utime);
         LARGE_INTEGER st = *(LARGE_INTEGER*)(ctrblk + offsets->stime);
-
-		pi = NULL;
-		initpi(pi);
 
         pi->pid = *(pid_t*)(ctrblk + offsets->procid);
 		pi->ppid = ntSysInfo.GetParentPID(pi->pid);
@@ -1779,6 +1795,8 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	pi->birthday = procRaw.creation_time;
 	pi->owner = procRaw.owner;
 
+	pi->open_files = procRaw.open_files;
+
 		// success
 	return PROCAPI_SUCCESS;
 	
@@ -1807,7 +1825,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory for procRaw
-	initProcInfoRaw(procRaw);
+	procRaw.Clear();
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1854,6 +1872,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status )
 			procRaw.owner = pent.pi_uid;
 
 			// All done
+			procRaw.open_files = open_files_in_pid(pid);
 			return PROCAPI_SUCCESS;
 		}
 	}
@@ -2085,27 +2104,7 @@ ProcAPI::initpi ( piPTR& pi ) {
 	if( pi == NULL ) {
 		pi = new procInfo;
 	}
-	pi->imgsize  = 0;
-	pi->rssize   = 0;
-	pi->minfault = 0;
-	pi->majfault = 0;
-	pi->user_time= 0;
-	pi->sys_time = 0;
-	pi->age      = 0;
-	pi->cpuusage = 0.0;
-	pi->pid      = -1;
-	pi->ppid     = -1;
-	pi->next     = NULL;
-#if !defined(WIN32)
-	pi->owner    = 0;
-#endif
-
-	pidenvid_init(&pi->penvid);
-}
-
-void
-ProcAPI::initProcInfoRaw(procInfoRaw& procRaw){
-	memset(&procRaw, 0, sizeof(procInfoRaw));
+	pi->Clear();
 }
 
 #ifndef WIN32
@@ -2425,10 +2424,6 @@ ProcAPI::buildProcInfoList() {
 		// Loop through & add them all
 		for( int i=0;  i<count;  i++ ) {
 			piPTR pi = new procInfo;
-
-			// This *could* allocate memory and make pi point to it if 
-			// pi == NULL. It is up to the caller to get rid of it.
-			initpi( pi );
 
 			pi->imgsize = pent[i].pi_size * getpagesize() / 1024;
 			pi->rssize = pent[i].pi_drss + pent[i].pi_trss; /* XXX not really right */

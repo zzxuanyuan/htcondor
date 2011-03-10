@@ -41,6 +41,7 @@
 #include "condor_vm_universe_types.h"
 #include "authentication.h"
 #include "condor_mkstemp.h"
+#include <set>
 
 extern CStarter *Starter;
 ReliSock *syscall_sock = NULL;
@@ -106,6 +107,10 @@ JICShadow::JICShadow( const char* shadow_name ) : JobInfoCommunicator()
 	syscall_sock->timeout(param_integer( "STARTER_UPLOAD_TIMEOUT", 300));
 
 	ASSERT( socks[0] == NULL );
+
+	m_dataflow_tid = -1;
+
+	m_job_pid = -1;
 }
 
 
@@ -415,13 +420,13 @@ JICShadow::transferOutput( bool &transient_failure )
 			// the ft's list (i.e. a renamed Windows script)
 		m_removed_output_files.rewind();
 		while ((filename = m_removed_output_files.next()) != NULL) {
-			filetrans->addFileToExeptionList(filename);
+			filetrans->addFileToExceptionList(filename);
 		}
 
 		// remove the job and machine classad files from the
 		// ft list
-		filetrans->addFileToExeptionList(JOB_AD_FILENAME);
-		filetrans->addFileToExeptionList(MACHINE_AD_FILENAME);
+		filetrans->addFileToExceptionList(JOB_AD_FILENAME);
+		filetrans->addFileToExceptionList(MACHINE_AD_FILENAME);
 	
 			// true if job exited on its own
 		bool final_transfer = (requested_exit == false);	
@@ -913,6 +918,7 @@ JICShadow::addToOutputFiles( const char* filename )
 		m_added_output_files.append(filename);
 	}
 }
+
 
 void
 JICShadow::removeFromOutputFiles( const char* filename )
@@ -2183,3 +2189,151 @@ JICShadow::receiveMachineAd( Stream *stream )
 
 	return ret_val;
 }
+
+void
+JICShadow::allJobsSpawned( pid_t job_pid )
+{
+	dprintf(D_ALWAYS, 
+		"JICShadow::allJobsSpawned(): registering dataflow timer\n");
+
+	// XXX This should only happen if the job ad dictates it.
+	startDataflowTimer();
+
+	dprintf(D_ALWAYS, 
+		"JICShadow::allJobsSpawned(): Calling parent's allJobsSpawned()\n");
+
+	JobInfoCommunicator::allJobsSpawned( job_pid );
+}
+
+void
+JICShadow::cancelDataflowTimer( void )
+{
+	if (m_dataflow_tid >= 0) {
+		daemonCore->Cancel_Timer(m_dataflow_tid);
+		m_dataflow_tid = -1;
+	}
+}
+
+void
+JICShadow::startDataflowTimer( void )
+{
+	int initial_interval = 20;
+	Timeslice interval;
+	if( m_dataflow_tid >= 0 ) {
+		// already registered the timer...
+		return;
+	}
+	int default_interval = 60;
+	MyString transfer_str;
+	MyString yes = getShouldTransferFilesString(STF_YES);
+
+	if (!usingFileTransfer()) {
+		dprintf(D_FULLDEBUG, "No file transfer attribute, so no dataflow!\n");
+		return;
+	}
+
+	// Now we see if the job itself wants to perform dataflow
+	// transfer. 
+	job_ad->LookupString("ShouldTransferDataflowFiles", transfer_str);
+	transfer_str.lower_case();
+	yes.lower_case();
+	if( transfer_str != "yes") {
+		// Job doesn't want dataflow transfer, so we don't register the timer.
+		dprintf(D_FULLDEBUG, "No dataflow requested by job.\n");
+		return;
+	}
+
+	job_ad->LookupInteger( "TransferDataflowOutputInterval", 
+							default_interval );
+
+	// Set up the interval object...
+	interval.setDefaultInterval( default_interval );
+	interval.setTimeslice( 0.1 );
+	interval.setInitialInterval( initial_interval );
+
+	if( interval.getDefaultInterval() < interval.getInitialInterval() ) {
+		interval.setInitialInterval( interval.getDefaultInterval() );
+	}
+
+	dprintf(D_FULLDEBUG, "Dataflow Timer: initial=%d, "
+			"default=%d.\n", initial_interval, default_interval);
+
+	m_dataflow_tid = 
+		daemonCore->Register_Timer(
+			interval,
+			(TimerHandlercpp)&JICShadow::transferDataflowTimerHandler,
+			"JICShadow::transferDataflowTimerHandler", 
+			this);
+
+	if( m_dataflow_tid < 0 ) {
+		EXCEPT( "Can't register JICShadow Dataflow Timer!" );
+	}
+}
+
+int
+JICShadow::transferDataflowTimerHandler( void )
+{
+	dprintf(D_FULLDEBUG, "Dataflow Timer fired!\n");
+
+	if (m_job_pid == -1) {
+		dprintf(D_FULLDEBUG,
+			"Job pid isn't set up yet. Aborting dataflow transfer!\n");
+		return 0;
+	}
+
+	transferDataflowFiles();
+
+	return 0;
+}
+
+/* determine if any of the dataflow files need to be transferred and do it. */
+void
+JICShadow::transferDataflowFiles( void )
+{
+	dprintf(D_ALWAYS, "ENTER JICShadow::transferDataflowFiles()\n");
+
+	if( ! filetrans ) {
+		dprintf(D_ALWAYS, "No file transfer possible, "
+			"leaving JICShadow::transferDataflowFiles()\n");
+		return;
+	}
+
+	ProcFamilyUsage usage;
+	std::set<std::string>::iterator it;
+
+	// Get the open files set for the job under the starter.
+	daemonCore->Get_Family_Usage(m_job_pid, usage);
+
+	for (it = usage.open_files.begin(); it != usage.open_files.end(); it++)
+	{
+		dprintf(D_FULLDEBUG, "\tFound open file: %s\n", (*it).c_str());
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	// 
+
+	// The shadow may block on disk I/O for long periods of
+	// time, so set a big timeout on the starter's side of the
+	// file transfer socket.
+
+	int timeout = param_integer( "STARTER_UPLOAD_TIMEOUT", 200 );
+	filetrans->setClientSocketTimeout(timeout);
+
+	// The user job may have created files only readable
+	// by the user, so set_user_priv here.
+	priv_state saved_priv = set_user_priv();
+
+	// this will block
+	bool rval = filetrans->UploadFiles( true, false, true, usage.open_files );
+
+	set_priv(saved_priv);
+
+	if( !rval ) {
+		// Failed to transfer.
+		dprintf(D_ALWAYS,"JICShadow::transferDataflowFiles() failed.\n");
+	}
+	dprintf(D_FULLDEBUG,"JICShadow::transferDataflowFiles() succeeds.\n");
+}
+
+
+
