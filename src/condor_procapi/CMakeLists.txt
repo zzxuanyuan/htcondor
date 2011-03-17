@@ -18,7 +18,8 @@
 
 
 
-condor_selective_glob( "procapi.h;procapi.cpp;processid.*;procapi_killfamily.cpp" ProcAPISrcs)
+condor_selective_glob(
+"procapi.h;procapi.cpp;processid.*;procapi_killfamily.cpp;open_files_in_pid.*" ProcAPISrcs)
 condor_static_lib ( procapi "${ProcAPISrcs}" )
 
 # there was a test target which was never used.
