@@ -44,6 +44,7 @@
 #include "setenv.h"
 #include "file_lock.h"
 #include "shared_port_server.h"
+#include "master_test.h"
 
 #if defined(WANT_CONTRIB) && defined(WITH_MANAGEMENT)
 #if defined(HAVE_DLOPEN) || defined(WIN32)
@@ -129,6 +130,7 @@ int		AllowAdminCommands = FALSE;
 int		StartDaemons = TRUE;
 int		GotDaemonsOff = FALSE;
 int		MasterShuttingDown = FALSE;
+TestMaster *tester = NULL;
 
 char	*default_daemon_list[] = {
 	"MASTER",
@@ -165,6 +167,9 @@ cleanup_memory( void )
 	if ( FS_Preen ) {
 		free( FS_Preen );
 		FS_Preen = NULL;
+	}
+	if ( tester ) {
+		delete tester;
 	}
 }
 
@@ -243,7 +248,7 @@ main_init( int argc, char* argv[] )
 	}
 #endif
 
-	if ( argc > 3 ) {
+	if ( argc > 5 ) {
 		usage( argv[0] );
 	}
 	
@@ -260,6 +265,15 @@ main_init( int argc, char* argv[] )
 			}
 			MasterName = build_valid_daemon_name( *ptr );
 			dprintf( D_ALWAYS, "Using name: %s\n", MasterName );
+			break;
+		case 'e':
+			ptr++;
+			if( !(ptr && *ptr) ) {
+				EXCEPT( "-e requires another argument" );
+			}
+			tester = new TestMaster(strtol(*ptr, (char**)NULL, 10));
+			dprintf(D_ALWAYS, "Running master daemon tests...\n");
+			tester->start_tests();
 			break;
 		default:
 			usage( argv[0] );
